@@ -198,3 +198,68 @@ fn init_order_corpus_matches_reference() {
     }
     std::fs::remove_dir_all(&d).ok();
 }
+
+/// [`init::exit_order`] over named units: `seq` in sequence order, `before` pairs by name, `inits`
+/// the initialisation order (the rank of a unit missing from it is 0).
+fn exit(seq: &[&'static str], before: &[(&str, &str)], inits: &[&str]) -> Vec<&'static str> {
+    let at = |s: &str| seq.iter().position(|&x| x == s).unwrap();
+    let mut succ: Vec<Vec<usize>> = vec![Vec::new(); seq.len()];
+    for &(a, b) in before {
+        succ[at(a)].push(at(b));
+    }
+    let rank: Vec<u32> = seq.iter().map(|s| inits.iter().position(|x| x == s).map_or(0, |p| p as u32 + 1)).collect();
+    let mut out = vec![0u16; seq.len()];
+    let len = init::exit_order(seq.len(), |v, e| succ[v].get(e).copied(), &rank, &mut out).unwrap();
+    out[..len].iter().map(|&v| seq[usize::from(v)]).collect()
+}
+
+/// s1_1_c_6, s27_1_c_1 (probe tools/probe/dl/exitorder E1-E30 and DL-0b's `== order` exit record;
+/// D-NEW of DL-EXIT-ORDER-PROBE): at exit the program, the start-time objects and the `dlopen`ed
+/// objects run as one sequence, the earliest loaded first, each object after every object that
+/// needs it; a cycle runs as one group, the last initialised first. `libc` stands for the C library
+/// every probe object needs.
+#[test]
+fn exit_order_load_order_dependents_first() {
+    let lc = |xs: &[&'static str]| xs.iter().map(|&x| (x, "libc")).collect::<Vec<_>>();
+    // `== order` exit: main needs A, D; A needs B, C; D needs C; E (opened) needs C, F.
+    let mut b = vec![("main", "A"), ("A", "D"), ("D", "B"), ("B", "C"), ("C", "libc"), ("E", "C"), ("E", "F")];
+    b.extend(lc(&["E", "F"]));
+    assert_eq!(exit(&["main", "A", "D", "B", "C", "libc", "E", "F"], &b, &[]), ["main", "A", "D", "B", "E", "C", "F", "libc"]);
+    // E1-E3, E8, E9: independent objects (kept open, NODELETE or both) run the earliest loaded first.
+    let mut b = vec![("main", "libc")];
+    b.extend(lc(&["A", "B", "C"]));
+    assert_eq!(exit(&["main", "libc", "A", "B", "C"], &b, &[]), ["main", "A", "B", "C", "libc"]);
+    // E14, E17: a dependency loaded first runs after the object that needs it.
+    let mut b = vec![("main", "libc"), ("D", "C")];
+    b.extend(lc(&["C", "D"]));
+    assert_eq!(exit(&["main", "libc", "C", "D"], &b, &[]), ["main", "D", "C", "libc"]);
+    let mut b = vec![("main", "libc"), ("D", "C")];
+    b.extend(lc(&["C", "A", "D"]));
+    assert_eq!(exit(&["main", "libc", "C", "A", "D"], &b, &[]), ["main", "A", "D", "C", "libc"]);
+    // E18: H2 needs D needs C, loaded D, C, H2.
+    let mut b = vec![("main", "libc"), ("D", "C"), ("H2", "D")];
+    b.extend(lc(&["D", "C", "H2"]));
+    assert_eq!(exit(&["main", "libc", "D", "C", "H2"], &b, &[]), ["main", "H2", "D", "C", "libc"]);
+    // E24, E25: L is a start-time object; M (opened) needs it, A and B do not.
+    let mut b = vec![("main", "L"), ("L", "libc"), ("M", "L")];
+    b.extend(lc(&["A", "M", "B"]));
+    assert_eq!(exit(&["main", "L", "libc", "A", "M", "B"], &b, &[]), ["main", "A", "M", "L", "B", "libc"]);
+    let mut b = vec![("main", "L"), ("L", "libc")];
+    b.extend(lc(&["A"]));
+    assert_eq!(exit(&["main", "L", "libc", "A"], &b, &[]), ["main", "L", "A", "libc"]);
+    // E20: the cycle H <-> I (initialised I, H) runs as one group between A and B, H first.
+    let mut b = vec![("main", "libc"), ("H", "I"), ("I", "H")];
+    b.extend(lc(&["A", "H", "I", "B"]));
+    assert_eq!(exit(&["main", "libc", "A", "H", "I", "B"], &b, &["A", "I", "H", "B"]), ["main", "A", "H", "I", "B", "libc"]);
+    // E29, E30: X -> Y -> Z -> X (initialised Z, Y, X) and K needing Y: K, then X, Y, Z.
+    let mut b = vec![("main", "libc"), ("X", "Y"), ("Y", "Z"), ("Z", "X"), ("K", "Y")];
+    b.extend(lc(&["X", "Y", "Z", "K"]));
+    let inits = ["Z", "Y", "X", "K"];
+    assert_eq!(exit(&["main", "libc", "X", "Y", "Z", "K"], &b, &inits), ["main", "K", "X", "Y", "Z", "libc"]);
+    assert_eq!(exit(&["main", "libc", "K", "Y", "Z", "X"], &b, &inits), ["main", "K", "X", "Y", "Z", "libc"]);
+    // A successor outside the units, or more units than the table.
+    let mut out = [0u16; 2];
+    assert_eq!(init::exit_order(2, |v, e| (v == 0 && e == 0).then_some(2), &[0, 0], &mut out), Err(OrderError::BadEdge));
+    let mut big = vec![0u16; init::EXIT_MAX + 1];
+    assert_eq!(init::exit_order(init::EXIT_MAX + 1, |_, _| None, &vec![0; init::EXIT_MAX + 1], &mut big), Err(OrderError::TooMany));
+}
