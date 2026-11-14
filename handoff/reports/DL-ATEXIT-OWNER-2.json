@@ -6,7 +6,7 @@
  "branch": "task/dl-atexit-owner-2",
  "head": "see hand-back",
  "gate": {
-  "affected": "not run (check2 runs clippy, static, so, the new tests, cargo xtask test, FULL_PROFILE hot_text_products; queued)",
+  "affected": "not run (check3 runs clippy, static, so, the new tests, cargo xtask test, FULL_PROFILE hot_text_products; queued)",
   "peak": null
  },
  "accepted_first_attempt": null,
@@ -45,7 +45,7 @@
   }
  ],
  "improvement": "xtask plants could accept a .S plant anchored at any global label of the file, not only liella_machine_*",
- "next_step": "read dl-atexit-owner-2-check2 and dl-atexit-owner-2-plants2 on shiki and fix what they find; then #4861 (opt-in archive note/warnings, ld.so stub report) and user docs (handoff/DL-ATEXIT-OWNER.md Open 3-6)",
+ "next_step": "read dl-atexit-owner-2-check3 and dl-atexit-owner-2-plants3 on shiki and fix what they find; then #4861 (opt-in archive note/warnings, ld.so stub report) and user docs (handoff/DL-ATEXIT-OWNER.md Open 3-6)",
  "jobs": [
   "shiki:dl-atexit-owner-2-check3",
   "shiki:dl-atexit-owner-2-plants3"
