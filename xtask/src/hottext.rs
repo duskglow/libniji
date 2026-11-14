@@ -655,7 +655,7 @@ fn block_align(index: usize, at_end: bool, bytes: u64, min: u64) -> u64 {
 /// there). The same upper-bound model as [`cluster_bytes`]: a link that pulls in fewer members only
 /// shrinks a cluster, and a cluster never straddles a window (its alignment is at least its size).
 fn block_windows(clusters: &[(u64, u64)]) -> Vec<u64> {
-    let mut off = 0;
+    let mut off = 0_u64;
     clusters
         .iter()
         .map(|&(bytes, align)| {
