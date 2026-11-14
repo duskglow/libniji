@@ -257,6 +257,14 @@ impl ClassTable {
         ClassTable::new(Mode::Walk)
     }
 
+    /// The resolution of a miss in `c`'s block that was due, run after another thread resolved
+    /// the block first: [`ClassTable::resolve`] on a block already resolved (tests; the race
+    /// between [`ClassTable::due`] and the resolution, made deterministic).
+    #[cfg(test)]
+    pub(crate) fn resolve_late_for_test(&self, c: u32, w: &Wide, share: bool) -> u16 {
+        self.resolve(c, w, share)
+    }
+
     /// Marks `block` resolved without a leaf, as a full pool leaves it (tests).
     #[cfg(test)]
     pub(crate) fn mark_walk_for_test(&self, block: usize) {

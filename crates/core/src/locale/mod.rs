@@ -1059,6 +1059,44 @@ mod tests {
         assert!(members > 500, "{what}: {members}");
     }
 
+    /// no spec clause (D-5.10: a block is resolved once; a thread whose miss was due and that
+    /// lost the race keeps the winner's result): the resolution of a block another thread
+    /// already resolved answers every character by the file walk, whether the winner found no
+    /// room for a leaf (a full pool: the block walks from then on) or published a leaf, and it
+    /// writes nothing; in `en_US.UTF-8` and the system `C.utf8` file, with shared and pool leaves.
+    #[test]
+    fn late_block_resolution_answers_by_the_winner() {
+        use classes::ClassTable;
+        for (l, what) in file_ctypes() {
+            let w = wide_of(&l);
+            let mut members = 0usize;
+            for share in [true, false] {
+                for block in [0u32, 3, 0x1f, 0x4e] {
+                    let first = block << 8;
+                    let want: Vec<u16> = (first..first + 256).map(|c| crate::ctype::w_classes_file(c, &w).0).collect();
+                    members += want.iter().filter(|&&v| v != 0).count();
+                    // The winner found the pool full.
+                    let walked = ClassTable::file_for_test(share);
+                    walked.mark_walk_for_test(block as usize);
+                    // The winner published a leaf (`after` 0: the first miss resolves).
+                    let leafed = ClassTable::file_for_test(share);
+                    assert_eq!(leafed.word(first, Some(&w)), want[0], "{what} share {share}: winner {first:#x}");
+                    let won = leafed.census();
+                    assert_eq!(won[0], classes_len() - 1, "{what} share {share}: the winner resolved the block");
+                    for (c, &v) in (first..).zip(&want) {
+                        assert_eq!(walked.resolve_late_for_test(c, &w, share), v, "{what} share {share}: late resolution of a walking block {c:#x}");
+                        assert_eq!(leafed.resolve_late_for_test(c, &w, share), v, "{what} share {share}: late resolution of a leaf block {c:#x}");
+                    }
+                    let [unresolved, builtin, pool, walk] = walked.census();
+                    assert_eq!((unresolved, builtin + pool, walk), (classes_len() - 1, 0, 1), "{what} share {share}: the walking block stays as the winner left it");
+                    assert_eq!(leafed.census(), won, "{what} share {share}: the leaf block stays as the winner left it");
+                }
+            }
+            // Not vacuous: the blocks hold characters with classes (a zero answer is wrong).
+            assert!(members > 1000, "{what}: {members}");
+        }
+    }
+
     /// no spec clause (D-5.10 as amended by WCTYPE-TRIE-FILE-8: a compiled locale's block is
     /// resolved at a set miss, the misses before walk): a block answers by the walk, as a whole
     /// word and per class, and stays unresolved for exactly `after` misses; the next miss
