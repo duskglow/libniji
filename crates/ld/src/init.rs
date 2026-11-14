@@ -207,13 +207,13 @@ pub fn exit_order(n: usize, succ: impl Fn(usize, usize) -> Option<usize>, rank: 
     // Groups: strongly connected components (Tarjan, iterative), `comp[v]`.
     let (mut index, mut low, mut comp) = ([NONE; EXIT_MAX], [0u16; EXIT_MAX], [NONE; EXIT_MAX]);
     let (mut stack, mut on) = ([0u16; EXIT_MAX], [false; EXIT_MAX]);
-    let (mut call, mut sp, mut cp, mut next, mut ncomp) = ([(0u16, 0u16); EXIT_MAX], 0usize, 0usize, 0u16, 0u16);
+    let (mut call, mut sp, mut next, mut ncomp) = ([(0u16, 0u16); EXIT_MAX], 0usize, 0u16, 0u16);
     for root in 0..n {
         if index[root] != NONE {
             continue;
         }
         call[0] = (unit(root), 0);
-        cp = 1;
+        let mut cp = 1usize;
         index[root] = next;
         low[root] = next;
         next += 1;
@@ -262,8 +262,8 @@ pub fn exit_order(n: usize, succ: impl Fn(usize, usize) -> Option<usize>, rank: 
     // Each group's earliest unit and the pairs from other groups it waits for.
     let nc = usize::from(ncomp);
     let (mut first, mut waits, mut done) = ([NONE; EXIT_MAX], [0u16; EXIT_MAX], [false; EXIT_MAX]);
-    for v in 0..n {
-        let c = usize::from(comp[v]);
+    for (v, &c) in comp.iter().enumerate().take(n) {
+        let c = usize::from(c);
         first[c] = first[c].min(unit(v));
     }
     for a in 0..n {
@@ -279,15 +279,15 @@ pub fn exit_order(n: usize, succ: impl Fn(usize, usize) -> Option<usize>, rank: 
         let Some(c) = (0..nc).filter(|&c| !done[c] && waits[c] == 0).min_by_key(|&c| first[c]) else { break };
         done[c] = true;
         let start = len;
-        for v in 0..n {
-            if usize::from(comp[v]) == c {
+        for (v, &cv) in comp.iter().enumerate().take(n) {
+            if usize::from(cv) == c {
                 out[len] = unit(v);
                 len += 1;
             }
         }
         out[start..len].sort_unstable_by_key(|&v| core::cmp::Reverse(rank[usize::from(v)]));
-        for v in start..len {
-            for w in (0..).map_while(|e| succ(usize::from(out[v]), e)) {
+        for &v in &out[start..len] {
+            for w in (0..).map_while(|e| succ(usize::from(v), e)) {
                 let cw = usize::from(comp[w]);
                 if cw != c {
                     waits[cw] -= 1;

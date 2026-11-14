@@ -207,7 +207,7 @@ fn exit(seq: &[&'static str], before: &[(&str, &str)], inits: &[&str]) -> Vec<&'
     for &(a, b) in before {
         succ[at(a)].push(at(b));
     }
-    let rank: Vec<u32> = seq.iter().map(|s| inits.iter().position(|x| x == s).map_or(0, |p| p as u32 + 1)).collect();
+    let rank: Vec<u32> = seq.iter().map(|s| inits.iter().position(|x| x == s).map_or(0, |p| u32::try_from(p + 1).unwrap())).collect();
     let mut out = vec![0u16; seq.len()];
     let len = init::exit_order(seq.len(), |v, e| succ[v].get(e).copied(), &rank, &mut out).unwrap();
     out[..len].iter().map(|&v| seq[usize::from(v)]).collect()
