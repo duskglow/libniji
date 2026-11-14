@@ -1,57 +1,43 @@
-# HEAP-RSEQ-NODE(-2): the heap's node read takes rseq `node_id` (D-3.21)
+# HEAP-RSEQ-NODE(-2, -3): the heap's node read takes rseq `node_id` (D-3.21)
 
-State: branch `task/heap-rseq-node-2` (stacked on the HEAP-FIRST-USE chain, tip 8b24b6f94) = HEAP-RSEQ-NODE's
-cf4dcc5ec (change, tests, D-3.21) + e4f0b9fa7 + 819105db2 (plants file, handoff) + 02751a80e + fd71dfaba (this
-run: start-up state declarations, plants file, count spec) + this note. Role mei:~/w/s4 (Skylake-SP, TWO NUMA
-nodes, Linux 6.8). Status: INCOMPLETE: blocked on HEAP-FIRST-USE-8's open ruling (first localtime_r faults),
-which this change now also triggers on two-node hosts. Do not land before that ruling and its fix.
+State: branch `task/heap-rseq-node-3` (stacked on the HEAP-FIRST-USE chain, tip 8b24b6f94) = HEAP-RSEQ-NODE's
+cf4dcc5ec (change, tests, D-3.21) + -2's start-up state declarations (02751a80e, fd71dfaba) + this run's
+789767ac8 (whole-process first-localtime_r bounds, pending record) + 6946d3dea (plants file) + daad1a7dc (clippy
+fix) + this note. Code head daad1a7dc. Role mei:~/w/s1 (Skylake-SP, two NUMA nodes).
 
 ## Decisions in force
-D-3.12, D-3.20, D-3.21 (reserved for HEAP-RSEQ-NODE; hand-written record, `cargo xtask static` green on mei
-on the inherited head, job heap-rseq-node-2-lint0). D-X.62 / D-X.64 (start-up data windows, the `.data1`
-cluster declared in crates/libc-so/startup-state.list).
+D-3.12, D-3.20, D-3.21; D-X.53 (start-up bounds), amended by `records/pending/HEAP-RSEQ-NODE-3-1.toml` (D-NEW,
+series D-X: CI assigns the id); D-X.62 / D-X.64 (`.data1` cluster, startup-state.list).
 
-## What this run found and did
-1. Inherited head: clippy + static green (`heap-rseq-node-2-lint0`).
-2. Why hrn-gate (shiki) failed: `cargo xtask so`'s STARTUP-DATA-WINDOWS contract: `heap::RSEQ_NODE` is an operand
-   of the heap's first-allocation path (a start-up function), so it counts as a written start-up object; it sat
-   alone on a page (fast: 8 pages > 7). The release build (first count run) also showed `thread::LOADER_RSEQ`
-   alone (9 > 8): cf4dcc5ec made `init_initial` read it at every start. Fix: both, and `LOADER_RSEQ_TP`
-   (written by a dynamic start), declared in startup-state.list (02751a80e, fd71dfaba). Release contract now
-   green (`heap-rseq-node-2-startup-rel`: products built, 24 of 26 hot_text_products pass).
-3. Two-node proof: plants run on mei (`heap-rseq-node-2-plants-3`): the unmutated `several_nodes_read_the_node_from_rseq`
-   passes on two nodes (not skipped); the plant that ignores the rseq answer (`rseq_node().filter(|_| false)`)
-   faults (SIGSEGV, vDSO unmapped): CAUGHT. A plant that drops the call entirely does not build: the archive
-   loses RSEQ_NODE and the declared-state check refuses it (plants-1 WARN-NO-MSG, superseded).
-   The two-node run itself (`heap-rseq-node-2-twonode`): `rseq node read: node 1, page on node 1`.
-   Direct gate (`heap-rseq-node-2-gate2`, fast, `cargo xtask so && cargo xtask affected --run --base origin/next`):
-   32 suites ok, 11800 passed, 0 failed; conformance 137/0; peak 15G.
-4. Counts (mei, two nodes, release, `heap-rseq-node-2-percall2`, spec validation/percall/thread_first_malloc.c,
-   base 8b24b6f94 = the tip before cf4dcc5ec): thread_first_malloc base 36402.1, new 36381.1 (-21 instr per
-   new thread's first allocation, sd 0); glibc 3410.0. One-node paths do not read the node (D-3.20), unchanged
-   by construction.
+## What -3 did (owner ruling #5735 (b), extended to every host class, #5769)
+The vDSO lookup stays lazy (no eager lookup, no `clock_gettime` in the trace probe). Instead the two first-localtime_r
+bounds count the whole process: `page_faults.c` modes `localtime` and `localtime_mktime` print getrusage minflt at
+the end of the call(s) (start-up included), not the delta. Bounds per product profile (read from the
+`.hot-lists` marker's `target/product/<profile>`), equal to origin/next's whole-process count measured the same way:
+next 5bbefc645 with only the probe change, mei, every run identical: fast 40 / 40, release 42 / 42
+(localtime / localtime_mktime); this branch reads the same (jobs heap-rseq-node-3-next-count, -head-count). A count
+more than 4 under its bound fails too (`WHOLE_COUNT_SLACK`): catches a probe that stops counting start-up (call-only
+reads about 20) and asks for a tighter bound after an improvement. Every other bound unchanged. HEAP-FIRST-USE-8 has
+not landed on next yet (no merge done).
 
-## RED: release first localtime_r 20 > 18 on two nodes (same cause class as HEAP-FIRST-USE-8's ruling)
-`heap-rseq-node-2-startup-rel` (release, mei): init_first_localtime_r_stays_within_its_page_fault_bound 20 > 18,
-init_first_localtime_r_and_mktime_stay_within_their_combined_page_fault_bound 20 > 18. On two nodes the first
-allocation at start-up used to call the vDSO getcpu, which looked the vDSO up; it now reads rseq, so the lookup
-moves into the first clock call, as HEAP-FIRST-USE-8 measured on one node (vDSO image page + vcall2 text window).
-Inferred from that run's fault map, not re-mapped here. Its options (a) p_true also calls clock_gettime so
-vcall2 joins the start-up head, (b) eager vDSO lookup at start-up vs. accepting the lazy page, apply to both host
-classes now. No bound changed.
+## Jobs (mei, code head daad1a7dc)
+heap-rseq-node-3-lint0 (inherited head fd71dfaba..62fb5aa40: clippy + static green), heap-rseq-node-3-lint2 (clippy,
+static, records check green), heap-rseq-node-3-gate (`cargo xtask so && cargo xtask affected --run --base
+origin/next`), heap-rseq-node-3-xtest (`cargo xtask test`), heap-rseq-node-3-startup-rel (release so +
+hot_text_products), heap-rseq-node-3-plants (handoff/HEAP-RSEQ-NODE-3-plants.txt). All rc 0: gate 32 suites ok,
+11800 passed, 0 failed, conformance 137/0, peak 16G; xtask test rc 0 (products step green); release
+hot_text_products 26 passed (whole process 42 / 42, bound 42); plants 2 CAUGHT with msg, 0 WARN. SUPERSEDED: heap-rseq-node-3-lint1 (clippy: unchecked addition, fixed in
+daad1a7dc); measurement jobs -next-count / -head-count are evidence (their tests fail by design on the old bounds).
 
-## Jobs (mei)
-Final (code head fd71dfaba): heap-rseq-node-2-lint0 (inherited head), -startup-rel (rc 101, the RED above),
--plants-3, -percall2, -gate2, -twonode. `cargo xtask test` not run: the head cannot land before the ruling.
-SUPERSEDED: shiki hrn-gate (layout red, fixed), heap-rseq-node-2-gate (stopped: head changed),
-heap-rseq-node-2-plants (two-node plant did not build, re-planted), heap-rseq-node-2-plants-2 (stopped: head
-changed), heap-rseq-node-2-percall (release layout red on 02751a80e, fixed).
+## Open
+- Counts measured on the Skylake-SP two-node class only; Zen 1, Haswell-EP, Broadwell-EP not measured (the floor's
+  slack of 4 covers a one-fault spread; an upper-bound red on another class would need next's count there).
+- -2's percall (thread_first_malloc -21 instr, heap-rseq-node-2-percall2) was on fd71dfaba; product code unchanged since.
 
 ## Next step
-After the HEAP-FIRST-USE-8 ruling and its fix (on the chain below this branch): bring that fix onto this branch
-(merge allowed only if the brief says so), then on mei: release so + hot_text_products, `cargo xtask so && cargo
-xtask affected --run --base origin/next`, `cargo xtask test`, plants (handoff/HEAP-RSEQ-NODE-2-plants.txt).
+If any job above is red: fix and rerun only that job. Otherwise land via CI (the record's id is assigned there).
 
 ## Not to redo
-The layout check of `Rseq` (offset 20), the ownership analysis, the three plants (all CAUGHT on mei), the count.
-crates/core is package `liella` (not liella-core). Plan rows: D-3.12, D-3.20, D-3.21, D-X.62, D-X.64, #4198.
+The layout check of `Rseq` (offset 20), the ownership analysis, -2's three rseq plants (CAUGHT on mei), the count,
+next's whole-process measurement (scripts mei ~/work/HEAP-RSEQ-NODE-3/measure_next.sh, measure_head.sh).
+crates/core is package `liella`. Plan rows: D-3.12, D-3.20, D-3.21, D-X.53, D-X.62, D-X.64, #4198.
