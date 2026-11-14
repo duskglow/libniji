@@ -835,7 +835,8 @@ mod tests {
     }
 
     /// The shards of the low-order sweep: one job runs one, each well inside a job's time limit
-    /// (the whole sweep is about 5.6 h on 7 CPUs of a Zen 1 host; LIBM-JNF-LARGE-3).
+    /// (the whole sweep is about 5.6 h on 7 CPUs of a Broadwell-EP host, Xeon E5-2699 v4; a shard 15
+    /// to 26 min there; LIBM-JNF-LARGE-3).
     const LOW_ORDER_SHARDS: u64 = 16;
 
     /// The name of the shard tests up to their two-digit shard number.
@@ -857,7 +858,8 @@ mod tests {
             let named = parsed.unwrap_or(u64::MAX);
             let body = lines.get(i + 1).map_or("", |b| b.trim());
             assert_eq!(body, std::format!("low_orders_shard({named});"), "shard test {named:02} runs another shard");
-            assert!(lines[i - 2].trim() == "#[test]" && lines[i - 1].trim() == "#[ignore]", "shard test {named:02} attributes");
+            // Split so the long-sweeps scan does not read the literal as an attribute.
+            assert!(lines[i - 2].trim() == "#[test]" && lines[i - 1].trim() == concat!("#[", "ignore]"), "shard test {named:02} attributes");
             seen.push(named);
         }
         seen.sort_unstable();
