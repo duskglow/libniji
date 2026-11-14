@@ -108,3 +108,28 @@ fn the_vdso_lookup_takes_no_folding_decision() {
     let n: i64 = err.trim().strip_prefix("reads ").and_then(|v| v.parse().ok()).unwrap_or_else(|| panic!("unexpected output {err:?}"));
     assert!(n == 0, "the first clock_gettime made {n} read system calls (vDSO name compare through the exported compare entry?)");
 }
+
+#[test]
+fn several_nodes_read_the_node_from_rseq() {
+    // Trace: D-3.21 (no spec clause: the heap's internal node source). On a host with several
+    // allowed nodes and a kernel that fills the rseq area's node_id (Linux 6.3+), a thread pinned
+    // to a CPU of node n > 0 takes its first block from node n with the vDSO unmapped: a node read
+    // through the vDSO getcpu would fault, so a clean run shows the node came from rseq, and the
+    // page's node shows it was the right field. One node or an older kernel: skipped with why.
+    let r = root();
+    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("rseq_node_liella");
+    build("rseq_node.c", &exe);
+    let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
+    let err = String::from_utf8_lossy(&o.stderr);
+    assert!(o.status.success(), "{} failed: {:?} {err:?} (a fault: the node read went through the vDSO)", exe.display(), o.status);
+    if let Some(why) = err.trim().strip_prefix("skip ") {
+        eprintln!("skipped: {why}");
+        return;
+    }
+    let (node, page) = err.trim().strip_prefix("node ").and_then(|v| v.split_once(" page ")).unwrap_or_else(|| panic!("unexpected output {err:?}"));
+    eprintln!("rseq node read: node {node}, page on node {page}");
+    assert_eq!(node, page, "the thread on node {node} took a slab placed on node {page} (node_id read from the wrong field?)");
+}

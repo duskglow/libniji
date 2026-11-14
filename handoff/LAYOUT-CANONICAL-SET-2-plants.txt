@@ -1,0 +1,6 @@
+# LAYOUT-CANONICAL-SET-2 plants (cargo xtask plants; docs/plants.md). Each command runs the plant copy's
+# tools/hottext/startup_data.sh against a saved copy of the role's fast trace products and their startup-text.keys
+# (~/work/LAYOUT-CANONICAL-SET-2/prod, lists, made by plantprep.sh from the build of this head); a rule clause dropped
+# must make the subset check red, naming the traced object the clause declares.
+abs-operands | tools/hottext/startup_data.py | lit:out.extend(int(t, 16) for t in ABSOLUTE.findall(parts[-1])) ==> pass | bash ~/work/LAYOUT-CANONICAL-SET-2/plantcmd.sh | msg:STARTUP-DATA-DECLARED.*environ
+probe-main | tools/hottext/startup_data.py | lit:fns.add(K.key(f[2])) ==> fns.add(K.key(f[2])) if f[2] != "main" else None | bash ~/work/LAYOUT-CANONICAL-SET-2/plantcmd.sh | msg:STARTUP-DATA-DECLARED.*stderr

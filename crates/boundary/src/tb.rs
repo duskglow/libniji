@@ -289,6 +289,18 @@ pub(crate) fn desc_at(addr: usize) -> &'static Thread {
     }
 }
 
+/// The rseq area at `addr`. Crate-private contract: `addr` is `tp + RSEQ_OFFSET` of the initial
+/// thread of a process whose loader mapped that area and registered it there (`ld::register_rseq`):
+/// the mapping lives as long as the process and every field is atomic.
+pub(crate) fn rseq_at(addr: usize) -> &'static liella_kernel::uapi::Rseq {
+    // UNSAFE(slice): the loader's registered rseq area becomes a reference (contract above).
+    #[allow(unsafe_code)]
+    // SAFETY: the caller's contract: a live, 32-byte aligned area for the process's lifetime.
+    unsafe {
+        &*core::ptr::with_exposed_provenance::<liella_kernel::uapi::Rseq>(addr)
+    }
+}
+
 /// The result slot at `addr` (`SLOT_SIZE` bytes inside a descriptor's slot area). Crate-private
 /// contract as [`desc_at`]: an address `result_slot` computed from a descriptor.
 // UNSAFE(slice): a thread's result slot becomes atomic bytes.

@@ -368,6 +368,8 @@ pub fn early_init(info: usize) {
     crate::posix::s27_dynlink::LOADER_ITERATE.store(info.dl_iterate, Release);
     crate::posix::s27_dynlink::LOADER_FIND.store(info.dl_find_object, Release);
     crate::posix::s27_dynlink::LOADER_FORK.store(info.dl_fork, Release);
+    // Its `dlclose` entry (DL-17).
+    crate::posix::s27_dynlink::LOADER_DLCLOSE.store(info.dlclose, Release);
     // Its `dladdr`/`dladdr1` and `dlinfo` entries (DL-18), likewise.
     crate::posix::s27_dynlink::LOADER_DLADDR.store(info.dladdr, Release);
     crate::posix::s27_dynlink::LOADER_DLINFO.store(info.dlinfo, Release);

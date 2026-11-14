@@ -1,0 +1,10 @@
+id = "D-10.123"
+section = "s10"
+spec = "§10.3"
+ann = "—"
+status = "active"
+story = "LIBM-JNF-LARGE"
+date = "2026-11-14"
+body = '''
+**`jnf` and `ynf` of orders 0 and ±1 are `j0f`, `j1f`, `y0f` and `y1f`** (LIBM-JNF-LARGE, LIBM-JNF-LARGE-2, #4994; extends D-10.109). The recurrence tier already answers orders 0 and ±1 with the order functions' own fast path (`fast32::eval`); only on its refusal do the `float` forms of `special::jn` and `special::yn` send \|n\| ≤ 1 to the out-of-line `jn_low` and `yn_low`, which call `j0`, `j1`, `y0` and `y1` themselves: J_{−1}(x) = J_1(−x) (a NaN operand stays on the accurate path, which keeps its sign) and Y_{−1}(x) = −Y_1(x), rounded in the mirrored mode, for finite x > 0 (the rest of order −1 stays on the accurate path). So these orders share the large band and its exception table (2^19 ≤ \|x\| no longer runs the multi-precision path for them) and agree with the order functions bit for bit and flag for flag (`jnf_ynf_low_orders_are_the_order_functions_exhaustively_00` to `_15`, every `float` in four modes in 16 shards of 2^28 encodings, one job each, `low_order_shards_cover_every_encoding_once` checking that they run each shard once; `jnf_ynf_low_orders_take_the_large_band` checks the band answers and matches the accurate path). The order test sits on the refusal only, so every call the tier answers runs the code it ran before; a test ahead of the tier (run 1) made `jnf(3)` and `ynf(1)` mid-range calls 2 to 4 instructions slower.
+'''

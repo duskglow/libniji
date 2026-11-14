@@ -164,6 +164,24 @@ pub const SWEEPS: &[Sweep] = &[
     lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::j1f_fast_path_agrees_exhaustively", Group::Exhaustive),
     lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::y0f_fast_path_agrees_exhaustively", Group::Exhaustive),
     lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::y1f_fast_path_agrees_exhaustively", Group::Exhaustive),
+    // jnf/ynf orders 0 and ±1 against j0f..y1f, every float in every mode (LIBM-JNF-LARGE), in 16 shards of 2^28
+    // encodings: the whole sweep is about 5.6 h on 7 CPUs, over one job's limit (LIBM-JNF-LARGE-3).
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_00", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_01", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_02", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_03", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_04", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_05", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_06", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_07", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_08", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_09", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_10", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_11", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_12", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_13", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_14", Group::Exhaustive),
+    lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::jnf_ynf_low_orders_are_the_order_functions_exhaustively_15", Group::Exhaustive),
     // Every float of 2^19..2^128 through the large-band core, once per function, but no oracle: about 40 s at
     // opt-level 2 on a Haswell-EP host (26 vCPU), so it runs with the long group (D-10.109).
     lib("crates/math/src/fast32/bessel.rs", "fast32::bessel::tests::bessel_large_table_is_the_refused_set", Group::Long),
@@ -216,6 +234,9 @@ pub const SWEEPS: &[Sweep] = &[
     it(S10, "s10_math_symbols", "math_atanf_onepass_sweep", Group::Exhaustive).env(STRIDE1).secs(1305),
     it(S10, "s10_math_symbols", "math_atan2f_onepass_pairs", Group::Exhaustive).env(&[("LIELLA_PAIRS", "250000000")]).secs(68),
     it(S10, "s10_math_symbols", "math_hypotf_fast_path_sweep", Group::Exhaustive).secs(864),
+    // powf's one-pass path (D-10.78): 10^9 random pairs in each of the four rounding directions plus the hard
+    // pairs in all 16 modes (LIBM-F32-POWF; its 4·10^9-call run took longer than one jobrun slot allows).
+    it(S10, "s10_math_symbols", "math_powf_onepass_random_pairs", Group::Exhaustive).env(&[("LIELLA_POWF_PAIRS", "1000000000")]),
     // liella-core
     lib("crates/core/src/num/glibc_diff.rs", "num::glibc_diff::differential_millions", Group::Exhaustive)
         .env(&[("LIELLA_GLIBC_DIFF_N", "2000000")])

@@ -1,0 +1,2 @@
+node-id-without-feature-size | crates/kernel/src/uapi.rs | perl:s/Some\(f\) => f >= RSEQ_NODE_ID_END && /Some(f) => f == f && / | cargo test -p liella-kernel --test kernel_types | msg:rseq_node_id_is_read_only_when_the_feature_size_covers_it.*FAILED|feature size 20 ends before node_id
+rseq-read-when-not-owned | crates/boundary/src/thread.rs | perl:s/& DESC_RSEQ != 0 \{/& DESC_RSEQ != 1 {/ | cargo test -p liella-boundary --test rseq_node | msg:a_registration_liella_does_not_own_is_never_read.*FAILED|reads as Liella's

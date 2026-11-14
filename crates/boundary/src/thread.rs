@@ -66,6 +66,9 @@ static FORBIDDEN: AtomicBool = AtomicBool::new(false);
 pub(crate) static RSEQ_OWNED: AtomicBool = AtomicBool::new(false);
 /// Set by [`set_loader_rseq`]: the loader registered the initial thread's rseq area.
 static LOADER_RSEQ: AtomicBool = AtomicBool::new(false);
+/// The thread pointer of the initial thread whose rseq area Liella's loader registered (0: none;
+/// D-3.21).
+static LOADER_RSEQ_TP: AtomicUsize = AtomicUsize::new(0);
 /// The executable's TLS segment: address, file size, memory size, alignment (all 0: none).
 static TLS_IMAGE: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
 /// Process-wide defaults (`pthread_setattr_default_np`): 0 means "not decided yet".
@@ -207,6 +210,10 @@ pub(crate) fn init_initial(static_program: bool) {
     } else {
         let Ok(d) = adopt() else { return };
         d.flags.fetch_and(!DESC_ADOPTED, AcqRel);
+        if LOADER_RSEQ.load(Acquire) {
+            // Liella's loader registered this thread's area at tp + RSEQ_OFFSET (D-3.21).
+            LOADER_RSEQ_TP.store(tb::tp(), Release);
+        }
         d
     };
     // Joinable like any other (§22.1); its mapping is not the runtime's (no base), and the TID
@@ -242,6 +249,21 @@ fn register_kernel_areas(d: &'static Thread, rseq: bool) {
 
 fn rseq_static(d: &'static Thread) -> &'static liella_kernel::uapi::Rseq {
     &d.rseq
+}
+
+/// The calling thread's rseq area when Liella registered it (D-3.21): a thread Liella created, or
+/// a static program's initial thread, whose descriptor's area registration succeeded
+/// (`DESC_RSEQ`); or a dynamic program's initial thread, whose area Liella's loader registered at
+/// tp + RSEQ_OFFSET. `None` for every other thread (another C library's registration is not
+/// Liella's to read).
+pub(crate) fn own_rseq() -> Option<&'static liella_kernel::uapi::Rseq> {
+    if let Some(d) = current() {
+        if d.flags.load(Acquire) & DESC_RSEQ != 0 {
+            return Some(&d.rseq);
+        }
+    }
+    let tp = tb::tp();
+    (tp != 0 && LOADER_RSEQ_TP.load(Acquire) == tp).then(|| tb::rseq_at(tp.wrapping_add(liella_rt::tls::RSEQ_OFFSET)))
 }
 
 fn addr_of<T>(r: &T) -> usize {
