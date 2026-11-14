@@ -57,8 +57,15 @@ resolved per 256-character block; `ThreadBlock::wclass` (0x180) stored with `vie
   times, not 8. Cause: `Mode::File { share, after }` made every `FILE_TABLES` slot non-zero, so the 16 slots (278 KiB)
   went to `.data` instead of `.bss` and the static binary gained a loadable segment (`readelf -l`). Fix (commit after
   463071ca0): `Mode` is a fieldless `repr(u32)` enum with `File = 0`; the slots' (share, after) = (true,
-  RESOLVE_AFTER) come from `ClassTable::file()`, tests set theirs in a `#[cfg(test)]` field. Expected: C row back to
-  ~2,152 (base + the 4 inherent). The counts job after the fix decides (see report json).
+  RESOLVE_AFTER) come from `ClassTable::file()`, tests set theirs in a `#[cfg(test)]` field. **Result
+  (`wctype-trie-file-9-fix-counts`): FILE_TABLES and POOL are now NOBITS (.lbss); .data 0x70a02-0x7000 -> 0x2597a
+  (base 0x18d6a: +52 KiB = C_TABLE + C_UTF8_TABLE, non-zero by design), but the binary still has 6 LOAD segments
+  (base 5) and startup_instr_c still reads 2,160 (+12).** The split now is .data1/.bss/.lbss in their own RW LOAD;
+  why the linker splits at this .data size and not at the base's is NOT found (budget).
+* **Next step (first):** find what makes the 6th LOAD (`readelf -lW` head vs base; the link script / layout tool that
+  places `.data1` at 0x4000 alignment; whether .data crossing 0x20000 triggers it). Options: keep C_TABLE/C_UTF8_TABLE's
+  stage 1 out of `.data` (they are never written: a `.rodata` stage 1 behind the same type), or fix the split. Then
+  re-measure startup_instr_c on base and head on one host. CI's EPYC limit (2,150) decides whether this lands red.
 * The EPYC instruction rows are checked on keke by CI; my role is kanon only, so the counter bench ran on kanon.
 
 ## Still open
