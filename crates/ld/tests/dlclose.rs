@@ -368,8 +368,9 @@ static void *pause_reader(void *arg) {
     return NULL;
 }
 
-static void concurrent(void) {
+static void walkers(void) {
     pthread_t th[4];
+    done = 0;
     for (int i = 0; i < 3; i++) CHECK(50, pthread_create(&th[i], NULL, reader, (void *)200000L) == 0, "pthread_create");
     CHECK(50, pthread_create(&th[3], NULL, addr_reader, (void *)20000000L) == 0, "pthread_create");
     for (int i = 0; i < 3000; i++) {
@@ -387,6 +388,9 @@ static void concurrent(void) {
     for (int i = 0; i < 4; i++) pthread_join(th[i], NULL);
     CHECK(53, !loaded("libP.so") && !loaded("libA.so"), "still loaded");
     CHECK(54, dl_wrong < 0, "dladdr missed open libA.so (generation %ld)", dl_wrong);
+}
+
+static void chain(void) {
     /* Objects leave the chain while dladdr stands on them: L0..L31 (copies of libR.so), then A
        after them. Each round, with A open, the reader is stopped (SIGUSR1) and all the Ls are
        closed; then it goes on. When it was stopped inside its counted walk, L0 is still mapped
@@ -433,6 +437,12 @@ static void concurrent(void) {
     pthread_join(t, NULL);
     CHECK(58, dl_wrong < 0, "dladdr stopped at an unlinked object before open libA.so in %ld calls (last generation %ld; %d of %lu rounds stopped it inside its walk)", wrong_calls, dl_wrong, inside, i);
     CHECK(59, inside >= 100, "a dladdr stopped inside its walk kept closed objects mapped in %d of %lu rounds", inside, i);
+}
+
+/* The stopped-reader chain phase first: its checks always run, whatever the racing walkers find. */
+static void concurrent(void) {
+    chain();
+    walkers();
 }
 
 /* Ruling #5651: past a retired threshold (a quarter of the 512-object table) dlopen and dlclose
@@ -706,7 +716,7 @@ fn s27_1_c_4_dlclose_unloads_finalises_and_reclaims() {
 /// visited object's headers), `dlsym` and `_dl_find_object` while the main thread opens and closes
 /// two objects 3000 times (iteration budgets): no reader faults and nothing stays loaded; a
 /// `dladdr` of the second object while the first is closed finds it (D-27.50 (3)), and a fourth
-/// thread calling only `dladdr` on it while it is closed never faults. Then, per round, a `dladdr`
+/// thread calling only `dladdr` on it while it is closed never faults. Before that, per round, a `dladdr`
 /// of an open object is stopped by a signal while 32 objects in front of it are closed: stopped
 /// inside its walk it keeps them mapped and, standing on one of them, walks on and finds the open
 /// object (rounds run until 100 stopped it inside, at most 3000).
