@@ -852,7 +852,9 @@ mod tests {
         let mut seen = std::vec::Vec::new();
         for (i, l) in lines.iter().enumerate() {
             let Some(rest) = l.trim_start().strip_prefix("fn ").and_then(|r| r.strip_prefix(LOW_ORDER_SHARD_TEST)) else { continue };
-            let named: u64 = rest.trim_end_matches("() {").parse().unwrap_or_else(|_| panic!("shard test name {l:?}"));
+            let parsed = rest.trim_end_matches("() {").parse::<u64>();
+            assert!(parsed.is_ok(), "shard test name {l:?}");
+            let named = parsed.unwrap_or(u64::MAX);
             let body = lines.get(i + 1).map_or("", |b| b.trim());
             assert_eq!(body, std::format!("low_orders_shard({named});"), "shard test {named:02} runs another shard");
             assert!(lines[i - 2].trim() == "#[test]" && lines[i - 1].trim() == "#[ignore]", "shard test {named:02} attributes");
