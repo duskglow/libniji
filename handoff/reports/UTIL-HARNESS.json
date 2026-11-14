@@ -12,4 +12,4 @@
  "improvement": "a gate tier for xtask-only command additions: a two-line main.rs dispatch escalates the direct gate to FULL; a main.rs dispatch-table exemption in affected would keep such stories on the direct tier",
  "next_step": "UTIL-3: replace xtask/src/transcript/stub.rs with the real ldconfig and add namespace: root and -r transcripts",
  "report_file": "handoff/UTIL-HARNESS.md",
- "jobs": ["util-harness-gate-2", "util-harness-plants-2"]}
+ "jobs": ["util-harness-gate-3", "util-harness-plants-3"]}
