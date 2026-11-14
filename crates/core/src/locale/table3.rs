@@ -61,6 +61,20 @@ impl Table3 {
         (w >> (wc & 31)) & 1 != 0
     }
 
+    /// A bit table's membership of the 32 characters from `wc & !31` on, bit `i` for character
+    /// `(wc & !31) + i`: [`Table3::bit`] of each. With both shifts at least 5 the 32 take the
+    /// same level-1, level-2 and level-3 slots, so this is one walk to their level-3 word
+    /// (WCTYPE-TRIE-FILE-8: a class-table block in 8 walks per class instead of 256); otherwise
+    /// it is 32 walks.
+    pub fn bits32(&self, wc: u32) -> u32 {
+        let first = wc & !31;
+        if self.shift1 < 5 || self.shift2 < 5 {
+            return (0..32u32).fold(0, |m, i| m | (u32::from(self.bit(first | i)) << i));
+        }
+        let Some(l3) = self.block(first) else { return 0 };
+        word(self.data, u64::from(l3 >> 2) + u64::from((first >> 5) & self.mask3)).unwrap_or(0)
+    }
+
     /// A value table's `i32` entry for `wc` (0 when absent).
     #[inline]
     pub fn value_i32(&self, wc: u32) -> i32 {
@@ -117,4 +131,32 @@ impl Table3 {
 #[inline(always)]
 fn word(b: &[u8], i: u64) -> Option<u32> {
     u32_at(b, usize::try_from(i.checked_mul(4)?).ok()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Table3;
+
+    /// no spec clause (App. D.1.2's table shape; WCTYPE-TRIE-FILE-8): `bits32` is `bit` of each of
+    /// its 32 characters for a table whose shifts are below 5, where two characters of one
+    /// 32-character run take different level-3 words: shift1 = shift2 = 4, mask2 = mask3 = 0,
+    /// so characters 0-15 read bits 0-15 of one word and 16-31 bits 16-31 of another, whose
+    /// other half is set to catch a read of the wrong word.
+    #[test]
+    fn bits32_is_bit_of_each_character_with_small_shifts() {
+        let words: [u32; 13] = [
+            4, 4, 4, 0, 0, // shift1, bound, shift2, mask2, mask3
+            36, 40, 44, 48, // level 1: the level-2 tables (byte offsets)
+            52, 56, 60, 64, // level 2: one level-3 block each
+        ];
+        let l3: [u32; 4] = [0x0000_a5a5, 0x5a5a_ffff, 0xffff_00f0, 0x8001_0000];
+        let bytes: Vec<u8> = words.iter().chain(&l3).flat_map(|w| w.to_le_bytes()).collect();
+        let t = Table3::parse(Vec::leak(bytes)).unwrap();
+        assert_eq!(t.bits32(0), 0x5a5a_a5a5);
+        assert_eq!(t.bits32(40), 0x8001_00f0);
+        for wc in 0..80u32 {
+            let each = (0..32u32).fold(0u32, |m, i| m | (u32::from(t.bit((wc & !31) | i)) << i));
+            assert_eq!(t.bits32(wc), each, "{wc}");
+        }
+    }
 }

@@ -600,7 +600,7 @@ impl LocaleView {
     /// `c` in the first argument register, so this order lets the tail jump keep it there.
     #[inline(never)]
     fn isw_wide(c: u32, mask: Class, v: &LocaleView) -> i32 {
-        i32::from(v.class_word(c) & mask.0 != 0)
+        v.classes.test_miss(c, mask, v.wide.as_ref().map(|(w, _)| w))
     }
 
     /// `towupper` (`upper`) or `towlower` of `c`: [`ctype::wtrans`]. Always inlined, as

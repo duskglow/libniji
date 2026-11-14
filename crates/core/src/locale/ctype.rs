@@ -339,6 +339,13 @@ impl Wide {
         self.class.get(usize::try_from(bit & 15).unwrap_or(0)).is_some_and(|t| t.bit(wc))
     }
 
+    /// [`Wide::in_class_bit`] of the 32 characters from `wc & !31` on, bit `i` for character
+    /// `(wc & !31) + i` ([`Table3::bits32`]).
+    #[inline]
+    pub fn class_bits32(&self, bit: u32, wc: u32) -> u32 {
+        self.class.get(usize::try_from(bit & 15).unwrap_or(0)).map_or(0, |t| t.bits32(wc))
+    }
+
     /// [`CtypeFile::map`] for map `m` (`Map::Upper` is map 0, `Map::Lower` map 1).
     #[inline]
     pub fn map(&self, m: Map, wc: u32) -> u32 {

@@ -1059,6 +1059,39 @@ mod tests {
         assert!(members > 500, "{what}: {members}");
     }
 
+    /// no spec clause (D-5.10 as amended by WCTYPE-TRIE-FILE-8: a compiled locale's block is
+    /// resolved at a set miss, the misses before walk): a block answers by the walk, as a whole
+    /// word and per class, and stays unresolved for exactly `after` misses; the next miss
+    /// resolves it, and from then on it is a hit. The slots' tables wait for more than the
+    /// handful of questions a short program asks.
+    #[test]
+    fn class_table_resolves_at_its_miss_threshold() {
+        use crate::ctype::{self as cls, Class};
+        use classes::ClassTable;
+        let (l, what) = file_ctypes().into_iter().next().unwrap();
+        let w = wide_of(&l);
+        let after = 3u32;
+        for (c, m) in [(0xe9u32, Class::ALPHA), (0x3a9, Class::UPPER), (0x4e00, Class::ALPHA)] {
+            let want = cls::w_classes_file(c, &w).0;
+            for word in [true, false] {
+                let t = ClassTable::file_after_for_test(after);
+                for k in 0..=after {
+                    assert_eq!(t.hit(c), None, "{what} {c:#x}: unresolved before miss {}", k + 1);
+                    if word {
+                        assert_eq!(t.word(c, Some(&w)), want, "{what} {c:#x}: word at miss {}", k + 1);
+                    } else {
+                        assert_eq!(t.test_miss(c, m, Some(&w)), i32::from(cls::is_w_file(c, m, &w)), "{what} {c:#x}: test at miss {}", k + 1);
+                    }
+                    let resolved = classes_len() - t.census()[0];
+                    assert_eq!(resolved, usize::from(k == after), "{what} {c:#x}: resolved blocks after miss {}", k + 1);
+                }
+                assert_eq!(t.hit(c), Some(want), "{what} {c:#x}: a hit once resolved");
+                assert_eq!(t.test(c, m.0), Some(i32::from(want & m.0 != 0)), "{what} {c:#x}: resolved test");
+            }
+        }
+        assert!(ClassTable::RESOLVE_AFTER_FOR_TEST >= 16, "a short program's few questions resolve no block");
+    }
+
     /// The number of stage-1 entries (blocks of 256 code points through U+10FFFF).
     fn classes_len() -> usize {
         0x11_0000 >> 8

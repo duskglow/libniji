@@ -428,9 +428,8 @@ fn store_words(b: &liella_rt::tls::ThreadBlock, v: &'static LocaleView) {
     b.ctype_b.store(class, Release);
     b.ctype_tolower.store(lower, Release);
     b.ctype_toupper.store(upper, Release);
-    if crate::thread::owned() {
-        store_view(b, v);
-    }
+    // `store_view` makes the ownership test (one test on this start-up path, not two).
+    store_view(b, v);
 }
 
 /// `b`'s `view` word and, with it, its `wclass` word (D-5.11: the class tests read the table
