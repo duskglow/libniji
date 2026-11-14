@@ -12,4 +12,5 @@
  "improvement": "the declared start-up state list should be checked by cargo xtask static (or a fast so-less test) when a new static is referenced from a start-up function: two gate cycles went to a layout contract only the product build reports",
  "next_step": "after HEAP-FIRST-USE-8's ruling and fix: bring it onto this branch, rerun release so + hot_text_products, the direct gate and cargo xtask test on mei",
  "report_file": "handoff/HEAP-RSEQ-NODE.md",
- "jobs": ["mei:heap-rseq-node-2-lint0", "mei:heap-rseq-node-2-startup-rel", "mei:heap-rseq-node-2-plants-3", "mei:heap-rseq-node-2-percall2", "mei:heap-rseq-node-2-gate2", "mei:heap-rseq-node-2-twonode"]}
+ "evidence": ["mei:heap-rseq-node-2-startup-rel (rc 101: release first localtime_r 20 > 18, the ruling item; not a proof job)"],
+ "jobs": ["mei:heap-rseq-node-2-lint0", "mei:heap-rseq-node-2-plants-3", "mei:heap-rseq-node-2-percall2", "mei:heap-rseq-node-2-gate2", "mei:heap-rseq-node-2-twonode"]}
