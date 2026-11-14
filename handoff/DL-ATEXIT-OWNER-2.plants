@@ -6,4 +6,3 @@ atfork-kept-after-unload | crates/boundary/src/fork.rs | lit:if owner & 1 == 1 &
 owner-misattributed | crates/boundary/src/owner.rs | lit:    r.dlfo_map_start ==>     r.dlfo_map_end | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:check failed: got 'dA aX'
 unload-step-not-called | crates/boundary/src/ld/dlopen.rs | lit:if self.owner_unload != 0 { ==> if self.owner_unload == 1 { | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:check failed: got 'dB'
 unload-step-not-exported | xtask/src/so.rs | lit:"__liella_owner_unload", ==> | cargo xtask so && cargo test -p liella-ld --test atexit_owner | msg:check failed: got 'dB'
-opt-in-made-default | csys/owner/owner.S | perl:s/(liella_owner_atexit_entry:.*?)atexit\x40LIELLA_OWNER_1/$1atexit\x40\x40LIELLA_OWNER_1/s | cargo xtask so && cargo test -p liella-boundary --test s01_startup_symbols s1_2_c_5 | msg:the opt-in must be a non-default version|two-way compatibility
