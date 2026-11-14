@@ -46,17 +46,20 @@ const POOL_LEAVES: usize = 256;
 /// How many compiled `LC_CTYPE` views get a table (later ones walk the file's tables).
 const FILE_SLOTS: usize = 16;
 
-/// What a missing block does.
+/// What a missing block does. `File` is 0 and the type has no fields, so a slot's table is all
+/// zero bytes and [`FILE_TABLES`] stays in `.bss`: a mode with fields (`share`, `after`) put all
+/// 16 slots, 278 KiB, in `.data`, which gave a static program one more loadable segment and its
+/// start-up one more program header to walk (WCTYPE-TRIE-FILE-9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
 enum Mode {
+    /// A compiled locale: a block is resolved at its miss number [`RESOLVE_AFTER`] + 1 (earlier
+    /// misses walk the file's tables), to an equal built-in leaf when there is one.
+    File = 0,
     /// A built-in locale: every block is resolved from the start.
-    Builtin,
-    /// A compiled locale: a block is resolved at its `after`th miss (earlier misses walk the
-    /// file's tables); `share` looks for an equal built-in leaf first (always, but for the tests
-    /// that exercise the pool).
-    File { share: bool, after: u32 },
+    Builtin = 1,
     /// A compiled locale left without a table: never written, every test walks.
-    Walk,
+    Walk = 2,
 }
 
 /// A two-stage class-word table (see the module documentation).
@@ -64,6 +67,10 @@ enum Mode {
 pub struct ClassTable {
     stage1: [AtomicU32; STAGE1_LEN],
     mode: Mode,
+    /// Tests: a compiled locale's (`share`, `after`) in place of the slots' (true,
+    /// [`RESOLVE_AFTER`]); `share` false sends every block to the pool.
+    #[cfg(test)]
+    file_with: Option<(bool, u32)>,
 }
 
 /// The leaves shared by every compiled locale's table: a leaf is a pure function of its 256
@@ -90,7 +97,7 @@ pub static C_UTF8_TABLE: ClassTable = ClassTable::builtin(&class_words::C_UTF8_S
 
 /// The tables of compiled `LC_CTYPE` views, one per view, taken when the view is built. In
 /// `.bss`: a page is touched only by a process that asks a wide class question there.
-static FILE_TABLES: [ClassTable; FILE_SLOTS] = [const { ClassTable::new(Mode::File { share: true, after: RESOLVE_AFTER }) }; FILE_SLOTS];
+static FILE_TABLES: [ClassTable; FILE_SLOTS] = [const { ClassTable::new(Mode::File) }; FILE_SLOTS];
 
 /// The next free slot of [`FILE_TABLES`].
 static FILE_NEXT: AtomicUsize = AtomicUsize::new(0);
@@ -100,7 +107,26 @@ static WALK_TABLE: ClassTable = ClassTable::new(Mode::Walk);
 
 impl ClassTable {
     const fn new(mode: Mode) -> ClassTable {
-        ClassTable { stage1: [const { AtomicU32::new(0) }; STAGE1_LEN], mode }
+        ClassTable {
+            stage1: [const { AtomicU32::new(0) }; STAGE1_LEN],
+            mode,
+            #[cfg(test)]
+            file_with: None,
+        }
+    }
+
+    /// A compiled locale's (`share`, `after`): the slots' (true, [`RESOLVE_AFTER`]), or a test's;
+    /// `None` for the other modes.
+    #[inline(always)]
+    fn file(&self) -> Option<(bool, u32)> {
+        if self.mode != Mode::File {
+            return None;
+        }
+        #[cfg(test)]
+        if let Some(p) = self.file_with {
+            return Some(p);
+        }
+        Some((true, RESOLVE_AFTER))
     }
 
     /// A built-in locale's table from its generated stage 1 (leaf `i` stored as `i + 1`).
@@ -126,14 +152,18 @@ impl ClassTable {
     /// (tests: `share` false sends every block to the pool).
     #[cfg(test)]
     pub(crate) fn file_for_test(share: bool) -> ClassTable {
-        ClassTable::new(Mode::File { share, after: 0 })
+        let mut t = ClassTable::new(Mode::File);
+        t.file_with = Some((share, 0));
+        t
     }
 
     /// A fresh compiled-locale table outside the slots that resolves a block at its miss
     /// number `after` + 1, as the slots' tables do at [`RESOLVE_AFTER`] (tests).
     #[cfg(test)]
     pub(crate) fn file_after_for_test(after: u32) -> ClassTable {
-        ClassTable::new(Mode::File { share: true, after })
+        let mut t = ClassTable::new(Mode::File);
+        t.file_with = Some((true, after));
+        t
     }
 
     /// The miss count after which the slots' tables resolve a block (tests).
@@ -184,8 +214,8 @@ impl ClassTable {
         if let Some(v) = self.hit(c) {
             return v;
         }
-        match (self.mode, w) {
-            (Mode::File { share, after }, Some(w)) if self.due(c, after) => self.resolve(c, w, share),
+        match (self.file(), w) {
+            (Some((share, after)), Some(w)) if self.due(c, after) => self.resolve(c, w, share),
             (_, Some(w)) => w_classes_file(c, w).0,
             // A built-in table misses only above U+10FFFF, where nothing has a class.
             (_, None) => 0,
@@ -197,8 +227,8 @@ impl ClassTable {
     /// table for each class asked (one for every `isw*`), as a locale without a table answers.
     #[inline(never)]
     pub fn test_miss(&self, c: u32, mask: Class, w: Option<&Wide>) -> i32 {
-        match (self.mode, w) {
-            (Mode::File { share, after }, Some(w)) if self.due(c, after) => i32::from(self.resolve(c, w, share) & mask.0 != 0),
+        match (self.file(), w) {
+            (Some((share, after)), Some(w)) if self.due(c, after) => i32::from(self.resolve(c, w, share) & mask.0 != 0),
             (_, Some(w)) => i32::from(is_w_file(c, mask, w)),
             (_, None) => 0,
         }
