@@ -7,3 +7,4 @@ source-trusted-yes | validation/smoke/smoke.sh | lit:deb-src [signed-by=%s] %s =
 same-output-not-compared | validation/smoke/smoke.sh | lit:elif [ -n "${6:-}" ] && ! cmp -s "$6" "$log"; then ==> elif false; then | sh validation/smoke/smoke.sh selftest | msg:smoke-selftest: FAIL kind same, output ne, exit 0
 same-exit-ignored | validation/smoke/smoke.sh | lit:if [ "$5" != 0 ]; then ==> if false; then | sh validation/smoke/smoke.sh selftest | msg:smoke-selftest: FAIL kind same, output eq, exit 1
 loader-soname-rejected | validation/smoke/check-elf.sh | lit:[ -n "$self" ] && [ "$n" = "$self" ] && continue ==> : | sh validation/smoke/smoke.sh selftest | msg:smoke-selftest: FAIL check-elf rejects liella-cc
+cc-env-file-ignored | validation/smoke/liella-cc | lit:. "${0%/*}/liella-cc.env" ==> : | sh validation/smoke/smoke.sh selftest | msg:smoke-selftest: FAIL liella-cc does not build with a cleared environment

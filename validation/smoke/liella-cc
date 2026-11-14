@@ -17,6 +17,11 @@
 # Environment: LIELLA_SMOKE_SYSROOT, LIELLA_SMOKE_LDSO (required); LIELLA_REAL_CC (default gcc),
 # LIELLA_REAL_CXX (default g++).
 set -eu
+# A test suite that runs the compiler with a cleared environment (make's) still gets this run's settings:
+# smoke.sh writes them to liella-cc.env beside the wrapper it installs.
+if [ -z "${LIELLA_SMOKE_SYSROOT:-}" ] && [ -f "${0%/*}/liella-cc.env" ]; then
+    . "${0%/*}/liella-cc.env"
+fi
 sys=${LIELLA_SMOKE_SYSROOT:?liella-cc: LIELLA_SMOKE_SYSROOT is not set (run through validation/smoke/smoke.sh)}
 ldso=${LIELLA_SMOKE_LDSO:?liella-cc: LIELLA_SMOKE_LDSO is not set}
 

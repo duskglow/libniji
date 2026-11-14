@@ -83,6 +83,7 @@ setup() {
     nonshared=$(gcc -print-file-name=libc_nonshared.a)
     case $nonshared in /*) ;; *) echo "smoke: the host has no libc_nonshared.a" >&2; return 1 ;; esac
     printf 'GROUP ( "%s" "%s" AS_NEEDED ( "%s" ) )\n' "$sys/libc-by-path.so" "$nonshared" "$ldso" > "$sys/libc.so"
+    printf 'LIELLA_SMOKE_SYSROOT=%s\nLIELLA_SMOKE_LDSO=%s\n' "$sys" "$ldso" > "$work/bin/liella-cc.env" &&
     cp "$here/liella-cc" "$work/bin/liella-cc" && chmod +x "$work/bin/liella-cc" &&
         ln -sf liella-cc "$work/bin/liella-c++" || return 1
     if [ -d "$root/.git" ] && rev=$(git -C "$root" rev-parse --short=12 HEAD 2>/dev/null); then :; else rev=unknown; fi
@@ -289,6 +290,9 @@ selftest() {
         gcc -O1 -static "$here/selftest/hello.c" -lm -o "$t/bad-static/hello" &&
         lcc -O1 -nostartfiles -Wl,--as-needed "$here/selftest/nolibc.c" -o "$t/bad-nolibc/nolibc"; } >> "$t/build.log" 2>&1 ||
         { echo "smoke-selftest: FAIL a negative control does not build (see $t/build.log)"; return 1; }
+    # A test suite that clears the environment (make's) still links against Liella (check-elf checks ok/).
+    env -i PATH="$PATH" "$work/bin/liella-cc" -O1 "$here/selftest/hello.c" -lm -o "$t/ok/hello-noenv" >> "$t/build.log" 2>&1 ||
+        { echo "smoke-selftest: FAIL liella-cc does not build with a cleared environment"; e=1; }
     "$here/check-elf.sh" "$ldso" "$sys" "$t/ok" > "$t/check-ok.log" 2>&1 || { echo "smoke-selftest: FAIL check-elf rejects liella-cc's build:"; cat "$t/check-ok.log"; e=1; }
     # The thread-local plug-in is the positive control for the loader's own soname: it must name it.
     self=$(readelf -Wd "$ldso" | sed -n 's/.*(SONAME) *Library soname: \[\(.*\)\]$/\1/p')
