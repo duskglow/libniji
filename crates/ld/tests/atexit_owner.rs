@@ -199,7 +199,7 @@ fn run(d: &Path, prog: &Path, mode: &str) -> String {
 /// quick-exit and atfork handlers are never called after the unload (a call would fault); an entry
 /// registered through the archive's stub is not run at its handler module's unload.
 #[test]
-fn s1_2_c_5_opted_handlers_run_before_unmap_on_dlclose() {
+fn s1_2_c_5_opted_handlers_run_before_unmap_during_dlclose() {
     let Some((d, prog)) = corpus("net") else { return };
     let out = run(&d, &prog, "net");
     assert_eq!(out, "dB bH dH dA mainH aX mainC ", "the events, in order");
