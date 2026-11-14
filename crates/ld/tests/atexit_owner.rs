@@ -199,7 +199,7 @@ fn run(d: &Path, prog: &Path, mode: &str) -> String {
 /// quick-exit and atfork handlers are never called after the unload (a call would fault); an entry
 /// registered through the archive's stub is not run at its handler module's unload.
 #[test]
-fn s1_2_c_5_opted_in_handlers_run_at_dlclose_never_after_unmap() {
+fn s1_2_c_5_opted_handlers_run_before_unmap_on_dlclose() {
     let Some((d, prog)) = corpus("net") else { return };
     let out = run(&d, &prog, "net");
     assert_eq!(out, "dB bH dH dA mainH aX mainC ", "the events, in order");
@@ -209,7 +209,7 @@ fn s1_2_c_5_opted_in_handlers_run_at_dlclose_never_after_unmap() {
 /// s1_2_c_5 (D-27.29): without `dlclose`, `exit` runs every opted-in exit handler once, most recent
 /// first, before the destructors of the loaded modules; the opted-in prepare handler runs at `fork`.
 #[test]
-fn s1_2_c_5_opted_in_handlers_run_once_at_exit() {
+fn s1_2_c_5_opted_handlers_run_once_during_exit() {
     let Some((d, prog)) = corpus("exit") else { return };
     let out = run(&d, &prog, "exit");
     let words: Vec<&str> = out.split_whitespace().collect();

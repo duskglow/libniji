@@ -9,6 +9,5 @@ decisions = ["D-27.29", "D-27.28"]
 story = "DL-ATEXIT-OWNER"
 date = "2026-11-14"
 body = '''
-Registered for the Liella extension of rulings #4860-#4862 (default glibc's, documented, opt-in). The option
-that restores the reference's behaviour is the default link itself, so no flag is built.
+Registered for the Liella extension of rulings #4860-#4862 (default glibc's, documented, opt-in). The option that restores the reference's behaviour is the default link itself, so no flag is built.
 '''
