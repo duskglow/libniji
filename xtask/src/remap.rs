@@ -10,7 +10,7 @@ use std::fs;
 use std::path::Path;
 
 /// The files of `target/liella` that go public (libraries, archives, the start object).
-pub(crate) const PRODUCTS: &[&str] = &["libc.so.6", "libm.so.6", "libc.a", "libm.a", "liella-crt1.o", "liella-gcrt1.o", "libresolv.a"];
+pub(crate) const PRODUCTS: &[&str] = &["libc.so.6", "libm.so.6", "libc.a", "libm.a", "liella-crt1.o", "liella-gcrt1.o", "liella-grcrt1.o", "liella-crti.o", "liella-crtn.o", "liella-Mcrt1.o", "libresolv.a"];
 
 /// The path strings that must not appear in a product: the workspace root (as given and
 /// canonical), `$CARGO_HOME` and `$HOME`'s `.cargo` and `.rustup`. Never shorter than 4 bytes

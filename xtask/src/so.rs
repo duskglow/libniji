@@ -16,6 +16,8 @@
 //! 4. The start object from `csys/src/machine/entry.S`: `target/liella/liella-crt1.o`, and from the
 //!    same file the static-PIE start object `target/liella/liella-rcrt1.o` (D-27.10); the profiling
 //!    start object for `-pg` programs from `csys/start/gcrt1.S`: `target/liella/liella-gcrt1.o`.
+//!    SL-CRT: `liella-grcrt1.o` (the same file over the static-PIE start, for `-pg -static-pie`),
+//!    and `liella-crti.o`, `liella-crtn.o`, `liella-Mcrt1.o` from `csys/start/<name>.S`.
 //!    Then the link-time archive `target/liella/libc_nonshared.a` from `csys/nonshared/` (each
 //!    member checked: it defines exactly its names, all hidden) and the installed `libc.so`
 //!    linker script naming it with libc.so.6 and the loader (D-27.28).
@@ -193,6 +195,10 @@ pub fn start_object_errors(readelf: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// SL-CRT: the start files with no `_start`, each `csys/start/<name>.S` assembled alone into
+/// `target/liella/liella-<name>.o` (installed as `<name>.o`).
+const START_FILES: [&str; 3] = ["crti", "crtn", "Mcrt1"];
 
 /// The relocating start that `liella-rcrt1.o`'s `_start` calls (D-27.10).
 const STATIC_PIE_START: &str = "liella_start_main_static_pie";
@@ -1269,6 +1275,18 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let gcrt1 = tmp_name(&release.join("liella-gcrt1.o"));
     run(Command::new(&cc).arg("-c").arg(root.join("csys/start/gcrt1.S")).arg("-o").arg(&gcrt1))?;
     publish(&gcrt1, &release.join("liella-gcrt1.o"))?;
+    // SL-CRT: the `-pg -static-pie` start object, the same file over the static-PIE `_start`
+    // (checked like `liella-rcrt1.o`), and the objects every driver link adds: crti.o and crtn.o
+    // (the `.init`/`.fini` prologue and epilogue) and Mcrt1.o (no content: no driver names it).
+    let grcrt1 = tmp_name(&release.join("liella-grcrt1.o"));
+    run(Command::new(&cc).arg("-c").arg("-DLIELLA_STATIC_PIE").args(&defines).arg(root.join("csys/start/gcrt1.S")).arg("-o").arg(&grcrt1))?;
+    start_object_pc_relative(&grcrt1)?;
+    publish(&grcrt1, &release.join("liella-grcrt1.o"))?;
+    for name in START_FILES {
+        let out = tmp_name(&release.join(format!("liella-{name}.o")));
+        run(Command::new(&cc).arg("-c").arg(root.join(format!("csys/start/{name}.S"))).arg("-o").arg(&out))?;
+        publish(&out, &release.join(format!("liella-{name}.o")))?;
+    }
     // The link-time archive and the installed `libc.so` script (D-27.28).
     build_nonshared(root, &cc, &release)?;
 
@@ -1290,7 +1308,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let kept: usize = copies.kept.values().sum();
     println!("so: internal copies (D-X.15): {} references to the internal entries (redirected now: {}; made relaxable: {}), {kept} other uses of memcpy/memmove/memset kept", copies.internal, redirected.join(", "), copies.relaxable_internal);
     println!("so: GOT calls, jumps and loads made relaxable (D-X.15, PJ-19): {}, {} other GOT uses left as they are", copies.relaxable, copies.unrecognised);
-    println!("so: target/liella/libc.a ({} functions overridable with internal calls bound to the library, {} names weak in place), libc.so.6 ({count} versioned symbols, {native} of them native), liella-crt1.o, liella-rcrt1.o, liella-gcrt1.o, libresolv placeholder", weak.0, weak.1);
+    println!("so: target/liella/libc.a ({} functions overridable with internal calls bound to the library, {} names weak in place), libc.so.6 ({count} versioned symbols, {native} of them native), liella-crt1.o, liella-rcrt1.o, liella-gcrt1.o, liella-grcrt1.o, liella-crti.o, liella-crtn.o, liella-Mcrt1.o, libresolv placeholder", weak.0, weak.1);
     run_libm(root, &cc, &ar, profile)?;
     run_ld(root, &cc, profile)?;
     check_placement(root, &release)?;

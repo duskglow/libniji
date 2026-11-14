@@ -10,7 +10,7 @@ Replacing `libc6` (Liella as the system's C library) is not supported yet.
 | Package | Like Debian's | Contents |
 |---|---|---|
 | `liella6` | `libc6` | the loader `ld-linux-x86-64.so.2` and the shared libraries (`libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2`, `librt.so.1`, `libutil.so.1`, `libanl.so.1`, `libnsl.so.1`, `libc_malloc_debug.so.0`) |
-| `liella6-dev` | `libc6-dev` | start files (`crt1.o`, `Scrt1.o`, `rcrt1.o`), the `libc.so` linker script, `libc_nonshared.a`, the static archives (`libc.a`, `libm.a`, and the empty `libpthread.a`, `libdl.a`, `librt.a`, `libutil.a`, `libanl.a`, `libresolv.a`), the `libm.so` link, and the `liella-gcc` / `liella-g++` compiler wrapper |
+| `liella6-dev` | `libc6-dev` | start files (`crt1.o`, `Scrt1.o`, `rcrt1.o`, `gcrt1.o`, `grcrt1.o`, `crti.o`, `crtn.o`, `Mcrt1.o`), the `libc.so` linker script, `libc_nonshared.a`, the static archives (`libc.a`, `libm.a`, and the empty `libpthread.a`, `libdl.a`, `librt.a`, `libutil.a`, `libanl.a`, `libresolv.a`), the `libm.so` link, and the `liella-gcc` / `liella-g++` compiler wrapper |
 
 Everything is inside the sysroot `/usr/lib/liella`, laid out as Debian lays out `/` (merged
 `/usr`, multiarch): the libraries in `/usr/lib/liella/usr/lib/x86_64-linux-gnu/`, the loader also

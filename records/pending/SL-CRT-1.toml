@@ -1,0 +1,17 @@
+id = "D-NEW"
+series = "D-27"
+section = "s26-29"
+spec = "§1.1, §28.1"
+ann = "ABI"
+status = "active"
+story = "SL-CRT"
+date = "2026-11-14"
+tests = "crates/core/tests/crt_products.rs"
+body = '''
+**The start files of a plain compiler-driver link** (SL-CRT, plan/system-libc.md §6 item 4): beside `crt1.o`/`Scrt1.o`/`rcrt1.o`, `cargo xtask so` builds `liella-crti.o`, `liella-crtn.o`, `liella-grcrt1.o` and `liella-Mcrt1.o` from `csys/start/`, and liella6-dev installs them (with `gcrt1.o`) under their usual names, so `gcc`, `g++` and `gcc -pg` link against Liella with no `-nostartfiles`. What each holds comes from the ELF gABI and x86-64 psABI (".init"/".fini" sections, stack alignment at a call) and GCC's startfile/endfile specs (`gcc -dumpspecs`: `crti.o` and `crtn.o` in every link, `-shared` included; `gcrt1.o` for `-pg`/`-p`/`-profile`; `grcrt1.o` for those with `-static-pie`; `Mcrt1.o` named by no spec).
+* `crti.o`: `_init` and `_fini`, each `endbr64; sub $8,%rsp` at the start of `.init`/`.fini` (PROGBITS, "ax", 16-byte aligned); hidden, so no object exports one and no DT_INIT binds elsewhere. No `__gmon_start__` call: the profiling start objects register their hook in `.preinit_array` themselves (GCRT1-START).
+* `crtn.o`: `add $8,%rsp; ret` in `.init`/`.fini`, alignment 1, so no fill lies between the last contribution and the epilogue.
+* `grcrt1.o`: `csys/start/gcrt1.S` assembled with `-DLIELLA_STATIC_PIE`: rcrt1's relocating `_start` plus the same hook, whose calls are PC-relative there; `cargo xtask so` checks it like `rcrt1.o` (no GOT relocation).
+* `Mcrt1.o`: no code, data or symbols; only `.note.GNU-stack` (an object without it would give a link an executable stack).
+Liella's runtime already calls the executable's `_init`/`_fini` (DT_INIT/DT_FINI through ld.so, the weak `_init`/`_fini` in a static link). The objects carry no `.note.gnu.property`, as `crt1.o` carries none; marking the start files for IBT/SHSTK is one later change to all of them together.
+'''
