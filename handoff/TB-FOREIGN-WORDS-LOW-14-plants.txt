@@ -1,0 +1,15 @@
+# TB-FOREIGN-WORDS-LOW-14 plants: the merge with HEAP-FIRST-USE-8 (lazy first-use heap, D-3.20) keeps the
+# foreign-block rule (D-X.60). A test process is started by another C library, so its blocks are foreign.
+# errno round-trips through the thread's registry word, never 0x80 of the other library's block.
+errno-foreign-block | csys/src/machine/tp.S | perl:s/(liella_machine_errno_location:.*?)je liella_errno_rest/$1nop/s | cargo test -p liella-boundary --test s02_diagnostics_symbols sym___errno_location | msg:sym___errno_location.*(panicked|FAILED)|assertion `left == right` failed
+# No read used as a decision and no write at 0x80-0x9b of a foreign block: the general paths' cache word.
+cache-word-gate-inverted | crates/boundary/src/thread.rs | lit:if owned() { tb::read::<tb::HeapCache>() } ==> if !owned() { tb::read::<tb::HeapCache>() } | cargo test -p liella-boundary --test tb_foreign_low_words foreign_block_low_words | msg:read the cache word at 0x90 of the other library's block|was written|SIGSEGV: invalid memory reference
+# The heap takes the slow path with no cache in a foreign block whose words are spare.
+owned-gate-inverted | crates/boundary/src/thread.rs | lit:if owned() { Some(&tb::current().heap_cache) } ==> if !owned() { Some(&tb::current().heap_cache) } | cargo test -p liella-boundary --test tb_foreign_low_words spare_words_hold_no_heap_cache | msg:spare words: 1 = a heap cache slot
+# Merge site 1: next's side of the KernelPages::cache_slot conflict (the block's 0x90 word, ungated).
+merge-slot-ungated | crates/boundary/src/heap.rs | lit:        crate::thread::heap_cache_slot() ==>         Some(&crate::tb::current().heap_cache) | cargo test -p liella-boundary --test tb_foreign_low_words | msg:no word at 0x80-0x9b of the other library's block was written|spare words: 1 = a heap cache slot|SIGSEGV: invalid memory reference
+# Merge site 2: first_cache takes its shard through shard_of (D-3.20), not by reading the node directly.
+merge-first-cache-shard | crates/rt/src/heap.rs | perl:s/(let slot = pages\.cache_slot\(\)\?;\n\s*)let shard = self\.shard_of\(pages\);/$1let shard = pages.shard() % SHARDS;/s | cargo test -p liella-rt --test heap_and_sync one_allowed_node_never_reads_the_node | msg:one node: the thread's node is never read
+# Merge site 3: OwnPages (the memalign family and malloc_compat paths) passes the node question on; a missing
+# forward no longer compiles (allowed_nodes is required), so it cannot fall back to one node silently.
+own-pages-no-allowed-nodes | crates/boundary/src/heap.rs | perl:s/    #\[inline\(always\)\]\n    fn allowed_nodes\(&self\) -> usize \{\n        KernelPages\.allowed_nodes\(\)\n    \}\n//s | cargo test -p liella-boundary --test tb_foreign_low_words | msg:E0046|not all trait items implemented
