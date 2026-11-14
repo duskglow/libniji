@@ -957,6 +957,9 @@ fn padded_start(dir: &Path, region: &str, pad: u64, start: &Path) -> PathBuf {
     let body = match region {
         "data" => format!(".section .data.liella_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
         "pre" => format!(".section .text.unlikely.liella_pad,\"ax\",@progbits\n.fill {pad},1,0xcc\n"),
+        // Inside the hot group after every list position (5 digits) and ahead of the clusters moved to its
+        // end (`h9<cluster><position>`): growth of the start-up tier, with the tier's own windows unmoved.
+        "tail" => format!(".section .text.sorted.h89999.liella_pad,\"ax\",@progbits\n.fill {pad},1,0xcc\n"),
         // Shifts every `.lbss` object by `pad` against the page grid, as another emission order would.
         "lbss" => format!(".section .lbss.liella_pad,\"aw\",@nobits\n.zero {pad}\n"),
         // A program's own relro inputs, which the linker takes ahead of the library's start-up relro cluster.
@@ -1004,6 +1007,47 @@ fn init_zero_fault_calls_hold_at_every_text_phase() {
     }
     let _ = std::fs::remove_dir_all(&base);
     assert!(bad.is_empty(), "text phase: {bad:#?}");
+}
+
+/// LAYOUT-CLUSTER-WINDOW-ALIGN (D-X pending record): CLUSTER-BLOCK-WINDOW. The cluster block (`@place end` in
+/// `crates/libc-so/hot-text.clusters`) starts on a 64 KiB boundary, so growth of the start-up tier moves it by
+/// whole windows: the probe linked with 0 to 60 KiB of text after the tier (`tail` pad) keeps every cluster's
+/// window relative to the block and reads the same count in every start-up mode. Before, the block started
+/// on 32 KiB, and a tier end crossing a 32 KiB multiple re-paired the clusters' windows (the coreutils-shaped
+/// probe went 50 -> 51). No spec clause (layout of the products).
+#[test]
+fn init_cluster_block_keeps_its_windows_at_every_tier_size() {
+    let base = std::env::temp_dir().join(format!("liella-cluster-block-{}", std::process::id()));
+    let mut bad = Vec::new();
+    let mut first: Option<(Vec<(String, u64)>, Vec<u64>)> = None;
+    for pad in [0_u64, 0x800, 0x2000, 0x5000, 0x8000, 0x8800, 0xC000, 0xF000] {
+        let dir = base.join(format!("tail-{pad:x}"));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let crt1 = padded_crt1(&dir, "tail", pad);
+        let map = link_map(&dir, &crt1);
+        let ranges = cluster_ranges(&map);
+        let start = ranges.iter().map(|r| r.1).min().expect("clusters");
+        if start % 0x10000 != 0 {
+            bad.push(format!("tail {pad:#x}: CLUSTER-BLOCK-WINDOW: the cluster block starts at {start:#x}, not on a 64 KiB window"));
+        }
+        let windows: Vec<(String, u64)> = ranges.iter().map(|(n, lo, _)| (n.clone(), (lo - (start & !0xffff)) >> 16)).collect();
+        let exe = dir.join("page_faults");
+        let counts: Vec<u64> = STARTUP_PROBE_MODES.iter().map(|m| faults(&exe, m)).collect();
+        eprintln!("tier tail {pad:#x}: block {start:#x}, windows {windows:?}, counts {:?}", STARTUP_PROBE_MODES.iter().zip(&counts).collect::<Vec<_>>());
+        match &first {
+            None => first = Some((windows, counts)),
+            Some((w0, c0)) => {
+                if *w0 != windows {
+                    bad.push(format!("tail {pad:#x}: cluster windows {windows:?}, at pad 0 {w0:?}"));
+                }
+                if *c0 != counts {
+                    bad.push(format!("tail {pad:#x}: counts {counts:?}, at pad 0 {c0:?} (modes {STARTUP_PROBE_MODES:?})"));
+                }
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&base);
+    assert!(bad.is_empty(), "cluster block: {bad:#?}");
 }
 
 /// LAYOUT-STARTUP-RODATA (D-X.62; no spec clause, layout of the products): the read-only data start-up
