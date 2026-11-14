@@ -157,11 +157,46 @@ fn map_aligned_exactly(len: usize, align: usize, node: Option<u32>) -> Option<us
     Some(addr)
 }
 
+/// Whether the kernel fills the rseq area's `node_id` (D-3.21): asked of the auxiliary vector
+/// once (0: not yet, 1: no, 2: yes).
+static RSEQ_NODE: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(0);
+
+/// The calling thread's node from the rseq area Liella registered for it (D-3.21), `None` when
+/// Liella does not own the thread's registration or the kernel does not fill `node_id` (its
+/// `AT_RSEQ_FEATURE_SIZE` is absent or too small for the field). A plain load, no system call.
+pub fn rseq_node() -> Option<usize> {
+    let area = crate::thread::own_rseq()?;
+    let filled = match RSEQ_NODE.load(Relaxed) {
+        0 => {
+            let yes = liella_kernel::uapi::Rseq::node_id_filled(
+                crate::process::auxval(liella_kernel::uapi::AT_RSEQ_FEATURE_SIZE),
+                liella_rt::thread::RSEQ_SIZE,
+            );
+            RSEQ_NODE.store(if yes { 2 } else { 1 }, Relaxed);
+            yes
+        }
+        v => v == 2,
+    };
+    filled.then(|| usize::try_from(area.node_id()).unwrap_or(0))
+}
+
+/// Whether Liella registered the calling thread's rseq area, so its `node_id` is Liella's to read
+/// (D-3.21). A thread another C library registered (or none did) answers false.
+pub fn rseq_owned() -> bool {
+    crate::thread::own_rseq().is_some()
+}
+
 /// The calling thread's NUMA node (D-3.12), asked only when the heap chooses a cache or a
-/// slab and only when more than one node is allowed (D-3.20): the vDSO `getcpu` (no system call), remembered in the thread block as node + 1 for
-/// the next slow path. A thread that migrates is noticed at its next slow path.
+/// slab and only when more than one node is allowed (D-3.20): the rseq area's `node_id` when
+/// Liella registered the thread's area and the kernel fills it (D-3.21), otherwise the vDSO
+/// `getcpu` (no system call), remembered in the thread block as node + 1 for the next slow
+/// path. A thread that migrates is noticed at its next slow path.
 fn node_hint() -> usize {
     let tb = crate::tb::current();
+    if let Some(n) = rseq_node() {
+        tb.node.store(u32::try_from(n).unwrap_or(0).saturating_add(1), Relaxed);
+        return n;
+    }
     match CSys.getcpu() {
         Ok((_, node)) => {
             tb.node.store(node.saturating_add(1), Relaxed);
