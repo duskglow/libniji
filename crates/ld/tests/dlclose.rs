@@ -345,8 +345,8 @@ static void *addr_reader(void *arg) {
 }
 /* The chain phase's reader: dladdr of A's latest a_fn, counting its calls. SIGUSR1 stops it where
    it stands, often inside dladdr's walk, until the main thread lets it go on (the handler touches
-   plain atomics only). */
-static int paused, go_on;
+   plain atomics only). While `hold` is set it waits between calls, outside any walk (`held`). */
+static int paused, go_on, hold = 1, held;
 static long calls, wrong_calls;
 static void pause_here(int s) {
     (void)s;
@@ -356,6 +356,12 @@ static void pause_here(int s) {
 static void *pause_reader(void *arg) {
     (void)arg;
     while (!done) {
+        if (__atomic_load_n(&hold, __ATOMIC_SEQ_CST)) {
+            __atomic_store_n(&held, 1, __ATOMIC_SEQ_CST);
+            while (__atomic_load_n(&hold, __ATOMIC_SEQ_CST) && !done) sched_yield();
+            __atomic_store_n(&held, 0, __ATOMIC_SEQ_CST);
+            continue;
+        }
         unsigned long g = __atomic_load_n(&a_gen, __ATOMIC_SEQ_CST);
         Dl_info di;
         int r = dladdr(__atomic_load_n(&a_text, __ATOMIC_SEQ_CST), &di);
@@ -396,7 +402,11 @@ static void chain(void) {
        closed; then it goes on. When it was stopped inside its counted walk, L0 is still mapped
        after its close (no reader may see it unmapped), and the reader, often standing on an L,
        must walk on to A (check 58). Rounds run until 100 of them stopped it inside (at most 3000):
-       the walk over the Ls is most of a dladdr of A, so a stop on an L is all but certain. */
+       the walk over the Ls is most of a dladdr of A, so a stop on an L is all but certain. The
+       reader runs only from after the opens until before A's close, held outside any walk
+       otherwise: each round's last close then unmaps everything, so the retired objects and the
+       table's top stay low and no close made while the reader is stopped has to wait for it
+       (ruling #5651's wait at entry would wait for ever for a reader that waits for this thread). */
     pthread_t t;
     done = 0;
     struct sigaction sa;
@@ -404,7 +414,7 @@ static void chain(void) {
     sa.sa_handler = pause_here;
     CHECK(55, sigaction(SIGUSR1, &sa, NULL) == 0 && pthread_create(&t, NULL, pause_reader, NULL) == 0, "pthread_create");
     /* Stopped in its loop only, never in its start-up (which may hold a lock dlclose takes). */
-    while (__atomic_load_n(&calls, __ATOMIC_SEQ_CST) < 1) sched_yield();
+    while (!__atomic_load_n(&held, __ATOMIC_SEQ_CST)) sched_yield();
     int inside = 0;
     unsigned long i = 0;
     for (; i < 3000 && inside < 100; i++) {
@@ -420,6 +430,9 @@ static void chain(void) {
         CHECK(56, a != NULL && l0 != NULL, "open libA.so: %s", err());
         __atomic_store_n(&a_text, dlsym(a, "a_fn"), __ATOMIC_SEQ_CST);
         __atomic_store_n(&a_gen, 100000 + 2 * i + 1, __ATOMIC_SEQ_CST);
+        long c0 = __atomic_load_n(&calls, __ATOMIC_SEQ_CST);
+        __atomic_store_n(&hold, 0, __ATOMIC_SEQ_CST);
+        while (__atomic_load_n(&calls, __ATOMIC_SEQ_CST) < c0 + 1) sched_yield();
         __atomic_store_n(&go_on, 0, __ATOMIC_SEQ_CST);
         __atomic_store_n(&paused, 0, __ATOMIC_SEQ_CST);
         CHECK(55, pthread_kill(t, SIGUSR1) == 0, "pthread_kill");
@@ -430,6 +443,8 @@ static void chain(void) {
         __atomic_store_n(&go_on, 1, __ATOMIC_SEQ_CST);
         /* The stopped call ends and one whole call more runs, both with A open. */
         while (__atomic_load_n(&calls, __ATOMIC_SEQ_CST) < c + 2) sched_yield();
+        __atomic_store_n(&hold, 1, __ATOMIC_SEQ_CST);
+        while (!__atomic_load_n(&held, __ATOMIC_SEQ_CST)) sched_yield();
         __atomic_store_n(&a_gen, 100000 + 2 * i + 2, __ATOMIC_SEQ_CST);
         CHECK(57, dlclose(a) == 0, "close libA.so: %s", err());
     }
