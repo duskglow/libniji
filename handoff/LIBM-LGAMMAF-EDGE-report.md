@@ -1,3 +1,40 @@
+# LIBM-LGAMMAF-EDGE-4 report
+
+Branch `task/libm-lgammaf-edge-4` (continues -3), role shiki:~/w/sh1 (Haswell), base af1c82203. Base's percall
+numbers on shiki equal keke's to the decimal, so the -3 rows below compare directly.
+
+## Step 0
+`libm-lgammaf-edge-4-lint0` (xtask clippy + static on the inherited head b36cb8e56): rc 0. The -3 run's named jobs
+were all rc 0 (its red was an incomplete hand-back), so nothing to fix first.
+
+## Profile: where lgammaf_zero's +4 went (wl_trace --list, call 11 of lgammaf, head b36cb8e56 vs base)
+Base 1046 traced instructions, head 1050; the difference is all in `special::lgamma<f32>`'s float body:
+x held in xmm9 and stored/reloaded around the cold `lgamma_edge` call (+2), the sret pointer kept in r15 and moved
+back to rdi (+1), the result slot addressed by lea (+1), the abs mask pinned in r14 by a movabs (+1, -2 later), one
+more alignment nop (+1), one jmp fewer (-1). Cause: two refusal call sites (`lgamma_wide` for gamma_core's refusals,
+`lgamma_edge` for |y| < 2^-8; base merged both into one `lgamma_edge` call) and x passed twice to
+`lgammaf_after_first`. Not the hypothesis of the -3 handoff: no operand of the row is refused (one refusal would add
+about 4700 per call).
+
+## Run 4 commits (percall vs base af1c82203; instructions:u per call)
+| head | change | pos | zero | neg | r_neg | big | tab | retry |
+|---|---|---|---|---|---|---|---|---|
+| base af1c82203 | - | 325.8 | 1056.0 | 372.6 | 379.6 | 302859.8 | 272874.3 | 484529.7 |
+| b36cb8e56 (-3 head) | - | 323.8 | 1060.0 | 371.6 | 378.6 | 343.0 | 631.4 | 1247.0 |
+| 53cfc498f | one lgamma_edge call site; x < -42 via lgamma_edge's !domain branch (cold lgamma_wide); after_first(x) | 323.8 | 1053.0 | 371.5 | 378.5 | 361.0 | 673.4 | 1245.0 |
+| e46a8a325 (trial) | lgamma_wide inline everywhere | 323.8 | 1056.0 | 371.6 | 378.6 | 354.0 | 640.4 | 1241.0 |
+| e91d39e2c (final) | cold wrapper for lgamma_edge, inline in lgamma_rest | 323.8 | 1053.0 | 371.5 | 378.5 | 361.0 | 647.4 | 1238.0 |
+
+The trial is a NEGATIVE result (zero +3 from lgamma_edge's prologue), kept out of the final code; recorded in the
+`lgamma_wide_cold` doc comment. The cold rows' +18 against the -3 head is lgamma_edge's domain test and one call;
+every layout that avoided it cost lgammaf_zero 3 to 4.
+
+## Jobs (shiki)
+Final head e91d39e2c: libm-lgammaf-edge-4-lint2 (workspace clippy --all-features -D warnings, xtask clippy, static:
+rc 0), libm-lgammaf-edge-4-percall3 (rows above), libm-lgammaf-edge-4-plants (11/11 CAUGHT), libm-lgammaf-edge-4-gate
+(direct tier, --base origin/next: 6 suites ok, 1643 passed, 0 failed, peak 3.0G). Superseded: lint0 (inherited head), lint1 and percall1 (53cfc498f), percall2
+(trial), trace1 (profile, b36cb8e56 and base).
+
 # LIBM-LGAMMAF-EDGE-3 report
 
 Branch `task/libm-lgammaf-edge-3` (continues -2), role keke:~/w/n2, base (merge base with origin/next) af1c82203.
