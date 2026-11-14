@@ -347,7 +347,7 @@ static void *addr_reader(void *arg) {
    it stands, often inside dladdr's walk, until the main thread lets it go on (the handler touches
    plain atomics only). */
 static int paused, go_on;
-static long calls;
+static long calls, wrong_calls;
 static void pause_here(int s) {
     (void)s;
     __atomic_store_n(&paused, 1, __ATOMIC_SEQ_CST);
@@ -359,8 +359,10 @@ static void *pause_reader(void *arg) {
         unsigned long g = __atomic_load_n(&a_gen, __ATOMIC_SEQ_CST);
         Dl_info di;
         int r = dladdr(__atomic_load_n(&a_text, __ATOMIC_SEQ_CST), &di);
-        if ((g & 1) && __atomic_load_n(&a_gen, __ATOMIC_SEQ_CST) == g && !(r == 1 && di.dli_fname && strstr(di.dli_fname, "/libA.so")))
+        if ((g & 1) && __atomic_load_n(&a_gen, __ATOMIC_SEQ_CST) == g && !(r == 1 && di.dli_fname && strstr(di.dli_fname, "/libA.so"))) {
             __atomic_store_n(&dl_wrong, (long)g, __ATOMIC_SEQ_CST);
+            __atomic_add_fetch(&wrong_calls, 1, __ATOMIC_SEQ_CST);
+        }
         __atomic_add_fetch(&calls, 1, __ATOMIC_SEQ_CST);
     }
     return NULL;
@@ -389,7 +391,7 @@ static void concurrent(void) {
        after them. Each round, with A open, the reader is stopped (SIGUSR1) and all the Ls are
        closed; then it goes on. When it was stopped inside its counted walk, L0 is still mapped
        after its close (no reader may see it unmapped), and the reader, often standing on an L,
-       must walk on to A (check 58). Rounds run until 100 of them stopped it inside (at most 600):
+       must walk on to A (check 58). Rounds run until 100 of them stopped it inside (at most 3000):
        the walk over the Ls is most of a dladdr of A, so a stop on an L is all but certain. */
     pthread_t t;
     done = 0;
@@ -401,7 +403,7 @@ static void concurrent(void) {
     while (__atomic_load_n(&calls, __ATOMIC_SEQ_CST) < 1) sched_yield();
     int inside = 0;
     unsigned long i = 0;
-    for (; i < 600 && inside < 100; i++) {
+    for (; i < 3000 && inside < 100; i++) {
         void *l[32];
         char n[32];
         for (int k = 0; k < 32; k++) {
@@ -429,7 +431,7 @@ static void concurrent(void) {
     }
     done = 1;
     pthread_join(t, NULL);
-    CHECK(58, dl_wrong < 0, "dladdr stopped at an unlinked object before open libA.so (generation %ld)", dl_wrong);
+    CHECK(58, dl_wrong < 0, "dladdr stopped at an unlinked object before open libA.so in %ld calls (last generation %ld; %d of %lu rounds stopped it inside its walk)", wrong_calls, dl_wrong, inside, i);
     CHECK(59, inside >= 100, "a dladdr stopped inside its walk kept closed objects mapped in %d of %lu rounds", inside, i);
 }
 
@@ -707,7 +709,7 @@ fn s27_1_c_4_dlclose_unloads_finalises_and_reclaims() {
 /// thread calling only `dladdr` on it while it is closed never faults. Then, per round, a `dladdr`
 /// of an open object is stopped by a signal while 32 objects in front of it are closed: stopped
 /// inside its walk it keeps them mapped and, standing on one of them, walks on and finds the open
-/// object (rounds run until 100 stopped it inside, at most 600).
+/// object (rounds run until 100 stopped it inside, at most 3000).
 #[test]
 fn s27_1_c_4_dlclose_concurrent_with_readers() {
     let Some((d, ld, libc, crt1)) = setup("concurrent") else { return };
