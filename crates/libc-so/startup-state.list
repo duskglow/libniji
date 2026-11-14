@@ -46,6 +46,7 @@ liella_boundary::heap::DEBUG
 liella_boundary::heap::RESERVE_TOP
 liella_boundary::heap::RESERVE_LIVE
 liella_boundary::heap::RESERVE_LOCK
+liella_boundary::heap::RSEQ_NODE  # the kernel-fills-node_id answer, written by the first multi-node allocation (D-3.21)
 # The initial thread, its TLS image and rseq registration.
 liella_boundary::thread::HEAD
 liella_boundary::thread::LIST
@@ -54,6 +55,8 @@ liella_boundary::thread::OWNED_HERE
 symbol liella_machine_owned  # its assembler twin (csys/src/machine/points.S, D-X.58)
 liella_boundary::thread::LOCK_ALONE
 liella_boundary::thread::RSEQ_OWNED
+liella_boundary::thread::LOADER_RSEQ  # read by every start (init_initial) to find the loader's registration (D-3.21)
+liella_boundary::thread::LOADER_RSEQ_TP  # written by a dynamic program's start when Liella's loader registered rseq (D-3.21)
 liella_boundary::thread::FORBIDDEN
 liella_boundary::thread::TLS_IMAGE
 symbol __rseq_offset

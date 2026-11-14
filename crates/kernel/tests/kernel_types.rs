@@ -208,3 +208,21 @@ fn vdso_parser_rejects_damage() {
     h[5] = 2;
     assert!(vdso::image_len(&h).is_none());
 }
+
+#[test]
+fn rseq_node_id_is_read_only_when_the_feature_size_covers_it() {
+    // Trace: D-3.21 (no spec clause: the kernel's rseq ABI, AT_RSEQ_FEATURE_SIZE). The field ends
+    // at byte 24 of the area: a kernel without the auxv entry (before Linux 6.3) or with a smaller
+    // feature size does not fill it, and neither does a registration shorter than the field.
+    use liella_kernel::uapi::{Rseq, RSEQ_NODE_ID_END};
+    assert_eq!(RSEQ_NODE_ID_END, 24);
+    assert!(!Rseq::node_id_filled(None, 32), "no AT_RSEQ_FEATURE_SIZE: node_id is not the kernel's");
+    assert!(!Rseq::node_id_filled(Some(0), 32));
+    assert!(!Rseq::node_id_filled(Some(20), 32), "feature size 20 ends before node_id");
+    assert!(!Rseq::node_id_filled(Some(23), 32));
+    assert!(Rseq::node_id_filled(Some(24), 32));
+    assert!(Rseq::node_id_filled(Some(28), 32), "Linux 6.3's feature size covers node_id");
+    assert!(!Rseq::node_id_filled(Some(28), 20), "a 20-byte registration does not reach node_id");
+    assert_eq!(Rseq::new().node_id(), 0);
+    assert_eq!(core::mem::size_of::<Rseq>(), 32);
+}

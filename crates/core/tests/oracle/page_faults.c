@@ -176,30 +176,32 @@ int main(int argc, char **argv, char **envp) {
     }
     if (argc > 1 && strcmp(argv[1], "localtime") == 0) {
         /* PERF-ZONE-LOAD-FAULTS: the first localtime_r, which reads and parses the zone file
-         * (cbench_opt's first_localtime_r row); prints only that call's faults. */
+         * (cbench_opt's first_localtime_r row). HEAP-RSEQ-NODE-3: prints the whole process's
+         * faults up to the end of that call (start-up plus the call), so one-time work that moves
+         * between start-up and the first call (the lazy vDSO lookup) counts once either way. */
         setenv("TZ", "America/New_York", 1);
         time_t when = 1759579200;
         struct tm r;
-        long f0 = minflt();
         long n = localtime_r(&when, &r) != NULL;
         long f1 = minflt();
-        fprintf(stderr, "minflt %ld\n", n == 1 && r.tm_isdst == 1 ? f1 - f0 : -1);
+        fprintf(stderr, "minflt %ld\n", n == 1 && r.tm_isdst == 1 ? f1 : -1);
         return 0;
     }
     if (argc > 1 && strcmp(argv[1], "localtime_mktime") == 0) {
         /* PERF-ZONE-LOAD-FAULTS-2: the first localtime_r (zone load included) and the first
          * mktime after it, counted together, so a fault that only moves from one call to the
-         * other shows as no change and one that is added shows in the sum. */
+         * other shows as no change and one that is added shows in the sum. HEAP-RSEQ-NODE-3: the
+         * whole process's faults up to the end of the first mktime (start-up included), as for
+         * "localtime". */
         setenv("TZ", "America/New_York", 1);
         time_t when = 1759579200;
         struct tm r, t;
-        long f0 = minflt();
         long n = localtime_r(&when, &r) != NULL;
         t = r;
         t.tm_isdst = -1;
         n += mktime(&t) == when;
         long f1 = minflt();
-        fprintf(stderr, "minflt %ld\n", n == 2 && r.tm_isdst == 1 ? f1 - f0 : -1);
+        fprintf(stderr, "minflt %ld\n", n == 2 && r.tm_isdst == 1 ? f1 : -1);
         return 0;
     }
     if (argc > 1 && strcmp(argv[1], "float") == 0) {
