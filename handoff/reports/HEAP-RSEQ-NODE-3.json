@@ -1,23 +1,81 @@
-{"task": "HEAP-RSEQ-NODE-3", "model": "opus", "tokens": null,
+{
+ "task": "HEAP-RSEQ-NODE-3",
+ "model": "opus",
+ "tokens": null,
  "result": "first-localtime_r bounds count the whole process (start-up + call), ratcheted at origin/next's whole-process count per profile (fast 40, release 42; branch equal); vDSO lookup stays lazy; pending D-NEW amends D-X.53; release start-up red of -2 gone",
- "branch": "task/heap-rseq-node-3", "head": "daad1a7dc",
- "gate": {"affected": "32 suites ok, 11800 passed / 0 failed, conformance 137/0; cargo xtask test rc 0; release hot_text_products 26 passed / 0 failed", "peak": "16G"},
+ "branch": "task/heap-rseq-node-3",
+ "head": "140bdb39a",
+ "gate": {
+  "affected": "32 suites ok, 11800 passed / 0 failed, conformance 137/0; cargo xtask test rc 0; release hot_text_products 26 passed / 0 failed",
+  "peak": "11G"
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   {"item": "Whole-process counts measured on the Skylake-SP two-node class only (next 5bbefc645 and the branch identical: fast 40/40, release 42/42); other host classes not measured", "recommendation": "if CI on another class reads above the bound, measure next there the same way (mei ~/work/HEAP-RSEQ-NODE-3/measure_next.sh)"},
-   {"item": "Both first-localtime_r bounds changed (localtime and localtime_mktime): both failed 20 > 18 for the same moved vDSO lookup", "recommendation": "none"},
-   {"item": "New floor: a whole-process count more than 4 under its bound fails (probe stopped counting start-up, or a stale bound after an improvement)", "recommendation": "none"}
+  {
+   "item": "Whole-process counts measured on the Skylake-SP two-node class only (next 5bbefc645 and the branch identical: fast 40/40, release 42/42); other host classes not measured",
+   "recommendation": "if CI on another class reads above the bound, measure next there the same way (mei ~/work/HEAP-RSEQ-NODE-3/measure_next.sh)"
+  },
+  {
+   "item": "Both first-localtime_r bounds changed (localtime and localtime_mktime): both failed 20 > 18 for the same moved vDSO lookup",
+   "recommendation": "none"
+  },
+  {
+   "item": "New floor: a whole-process count more than 4 under its bound fails (probe stopped counting start-up, or a stale bound after an improvement)",
+   "recommendation": "none"
+  }
  ],
  "refused": [],
  "impact": [
-   {"kind": "correctness", "what": "first localtime_r start-up bounds no longer red on two-node hosts for a moved (not added) vDSO lookup; release hot_text_products 24/26 -> 26/26", "before": 24, "after": 26, "unit": "tests passing", "measured": true},
-   {"kind": "faults", "what": "whole-process faults through the first localtime_r (and first mktime), Skylake-SP two nodes, fast / release: origin/next vs branch", "before": 42, "after": 42, "unit": "minor faults (release; fast 40 vs 40)", "measured": true},
-   {"kind": "perf", "what": "thread_first_malloc per new thread's first allocation (from HEAP-RSEQ-NODE-2, product code unchanged since)", "before": 36402.1, "after": 36381.1, "unit": "instr/call", "measured": false},
-   {"kind": "coverage", "what": "plants added (probe reverted to call-only counting, both modes)", "before": 0, "after": 2, "unit": "plants CAUGHT", "measured": true},
-   {"kind": "unblock", "what": "HEAP-RSEQ-NODE chain can land without the eager vDSO lookup; same bound change covers HEAP-FIRST-USE-8's one-node move", "before": null, "after": null, "unit": null, "measured": false}
+  {
+   "kind": "correctness",
+   "what": "first localtime_r start-up bounds no longer red on two-node hosts for a moved (not added) vDSO lookup; release hot_text_products 24/26 -> 26/26",
+   "before": 24,
+   "after": 26,
+   "unit": "tests passing",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "whole-process faults through the first localtime_r (and first mktime), Skylake-SP two nodes, fast / release: origin/next vs branch",
+   "before": 42,
+   "after": 42,
+   "unit": "minor faults (release; fast 40 vs 40)",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "thread_first_malloc per new thread's first allocation (from HEAP-RSEQ-NODE-2, product code unchanged since)",
+   "before": 36402.1,
+   "after": 36381.1,
+   "unit": "instr/call",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants added (probe reverted to call-only counting, both modes)",
+   "before": 0,
+   "after": 2,
+   "unit": "plants CAUGHT",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "HEAP-RSEQ-NODE chain can land without the eager vDSO lookup; same bound change covers HEAP-FIRST-USE-8's one-node move",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
  ],
- "improvement": "a job-chain script (gate -> xtask test -> release start-up) run detached kept one product build per role and cost 4 waits instead of 3 separate start/wait rounds; worth a standard tool",
+ "improvement": "the hand-back check's placeholder scan (D-NEW in a source comment) ran only after the jobs and cost a full rerun of every job; a cheap pre-job placeholder check in `cargo xtask static` would catch it before the gate",
  "next_step": "land via CI (assigns the D-NEW id); if another host class reads above the bound, measure next there the same way",
  "report_file": "handoff/HEAP-RSEQ-NODE.md",
- "jobs": ["heap-rseq-node-3-lint2", "heap-rseq-node-3-gate", "heap-rseq-node-3-xtest", "heap-rseq-node-3-startup-rel", "heap-rseq-node-3-plants"]}
+ "jobs": [
+  "heap-rseq-node-3-lint3",
+  "heap-rseq-node-3-gate2",
+  "heap-rseq-node-3-xtest2",
+  "heap-rseq-node-3-startup-rel2",
+  "heap-rseq-node-3-plants2"
+ ]
+}
