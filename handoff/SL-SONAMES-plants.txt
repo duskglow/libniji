@@ -1,0 +1,5 @@
+# SL-SONAMES plants (cargo xtask plants; docs/plants.md). Each rebuilds the products and runs the new tests.
+brokenlocale-utf8-cap | crates/libc-so/placeholders/libBrokenLocale.c | lit:n >= 6 ? 4 : ==> n >= 6 ? 6 : | cargo xtask so && cargo test -p liella --test sonames_products | msg:sonames_brokenlocale_mb_cur_max.*FAILED|panicked
+brokenlocale-halving | crates/libc-so/placeholders/libBrokenLocale.c | lit:(n + 1) / 2 ==> n | cargo xtask so && cargo test -p liella --test sonames_products | msg:sonames_brokenlocale_mb_cur_max.*FAILED|panicked
+resolv-dev-link-missing | xtask/src/placeholders.rs | lit:pub const DEV_LINKS: [&str; 2] = ["libresolv.so.2", "libBrokenLocale.so.1"]; ==> pub const DEV_LINKS: [&str; 1] = ["libBrokenLocale.so.1"]; | cargo xtask so && cargo test -p liella --test sonames_products | msg:sonames_resolv_dynamic_and_static.*FAILED|panicked
+empty-archive-missing | xtask/src/placeholders.rs | lit:"libresolv.a", "libg.a", ==> "libg.a", "libg.a", | cargo xtask so && cargo test -p liella --test sonames_products | msg:sonames_.*FAILED|panicked|error
