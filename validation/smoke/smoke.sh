@@ -179,7 +179,8 @@ count() {
             t=$(grep -c '\.\.\.\.\.\.' "$log")
             [ -n "$f" ] || f=1
             echo "$t $((t - f)) $f 0 0 0" > "$out"
-            grep -E '\.\.\.\.\.\. *(FAILED|Error)' "$log" | sort -u > "$out.failed" ;;
+            # The test's name only: an "Error running" line names the build directory, which differs by side.
+            grep -E '\.\.\.\.\.\. *(FAILED|Error)' "$log" | awk '{print $1}' | sort -u > "$out.failed" ;;
         bash)
             # A run-* test passes when its section of output is the reference build's; the reference build
             # itself counts its sections as passed (its own diffs are the suite's expected noise on this host).

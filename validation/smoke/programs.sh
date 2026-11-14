@@ -156,7 +156,8 @@ gawk_ext_build() {
     ./configure --disable-nls --without-readline --without-mpfr && make -j"$J" SUBDIRS="support ." &&
         make -j"$J" -C extension SUBDIRS=
 }
-gawk_ext_test() { make check SUBDIRS="support . extension test"; }
+# The extension tests run from test/ (AWKLIBPATH=../extension/.libs); extension/ is not named, as above.
+gawk_ext_test() { make check SUBDIRS="support . test"; }
 
 # python3.13 with shared extension modules (Debian's default; the first run built them in): every import of
 # an extension module is a dlopen and a dlsym of its PyInit_ function. The same test sample as python3.
