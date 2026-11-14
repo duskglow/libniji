@@ -4564,7 +4564,7 @@ fields are always 0 on Linux. ⚑ KERN.
 
 **Kernel.** `getrusage`.
 
-### 24.3 Priorities and scheduling: `nice`, `getpriority`, `setpriority`, `sched_setscheduler`, `sched_getscheduler`, `sched_setparam`, `sched_getparam`, `sched_get_priority_min`, `sched_get_priority_max`, `sched_rr_get_interval`, `sched_yield`, `sched_setaffinity`, `sched_getaffinity`, `sched_getcpu`, `getcpu`, `CPU_*` macros, `__sched_cpucount`, `__sched_cpualloc`, `__sched_cpufree`
+### 24.3 Priorities and scheduling: `nice`, `getpriority`, `setpriority`, `sched_setscheduler`, `sched_getscheduler`, `sched_setparam`, `sched_getparam`, `sched_get_priority_min`, `sched_get_priority_max`, `sched_rr_get_interval`, `sched_yield`, `sched_setaffinity`, `sched_getaffinity`, `sched_getcpu`, `getcpu`, `sched_setattr`, `sched_getattr`, `CPU_*` macros, `__sched_cpucount`, `__sched_cpualloc`, `__sched_cpufree`
 
 **Contract.**
 
@@ -4582,8 +4582,23 @@ fields are always 0 on Linux. ⚑ KERN.
   ⚑ COMPAT: `sched_setaffinity@GLIBC_2.3.3` versus the older form without a size argument.
 * **`sched_getcpu()`** returns the current CPU. **`getcpu(&cpu, &node)`** (2.29) also returns
   the NUMA node.
+* **`sched_setattr(pid, attr, flags)`** and **`sched_getattr(pid, attr, size, flags)`** (2.41,
+  taken early by owner ruling R3; declared in `<sched.h>`) set and read a thread's policy and
+  its parameters (nice value, priority, the `SCHED_DEADLINE` runtime, deadline and period) as
+  one `struct sched_attr` of the kernel UAPI (`<linux/sched/types.h>`). They are thin
+  wrappers: the structure and the arguments reach the kernel unchanged, and they return 0, or
+  -1 with `errno`. The kernel runs the size protocol. `sched_setattr` reads `attr->size` (0
+  means the first version, 48 bytes); a size below 48, or a larger structure whose bytes past
+  the kernel's are not all zero, fails with `E2BIG` and the kernel's size is written to
+  `attr->size`. `sched_getattr` fails with `EINVAL` for a `size` below 48 or above the page
+  size, fills at most `size` bytes and sets `attr->size` to the number it filled. Both fail
+  with `EINVAL` for a null `attr`, a negative `pid` or nonzero `flags`, with `ESRCH` for an
+  unknown thread and with `EFAULT` for an unreadable `attr`. `sched_setattr` fails with
+  `EINVAL` for an unknown policy and with `EPERM` when the caller lacks the privilege (a real-time
+  policy, or a nice value below the `RLIMIT_NICE` floor). ⚑ KERN: `pid` 0 is the calling
+  thread.
 
-**Kernel.** `getpriority`, `setpriority`, `sched_setscheduler`, `sched_getscheduler`,
+**Kernel.** `sched_setattr`, `sched_getattr`, `getpriority`, `setpriority`, `sched_setscheduler`, `sched_getscheduler`,
 `sched_setparam`, `sched_getparam`, `sched_get_priority_min`, `sched_get_priority_max`,
 `sched_rr_get_interval`, `sched_yield`, `sched_setaffinity`, `sched_getaffinity`, the rseq
 area or the vDSO `getcpu`, and `getcpu`.
@@ -5534,7 +5549,8 @@ to system integration:
 ## Appendix B. Exported symbol index
 
 Every name exported by the glibc 2.39 x86_64 libraries, grouped by the section of this
-document that specifies it. The data comes from `sysdeps/unix/sysv/linux/x86_64/64/*.abilist`,
+document that specifies it, plus the glibc 2.41 additions taken early by owner ruling R3
+(`sched_getattr` and `sched_setattr`, marked `@2.41`). The data comes from `sysdeps/unix/sysv/linux/x86_64/64/*.abilist`,
 and each name is mapped to the section of the installed header that declares it. The markers are:
 
 * `@2.xx` gives the symbol version in which the name first appeared. Names without a marker date
@@ -5645,7 +5661,7 @@ Total distinct exported names: **3943**.
 
 ### B.24 §24. Resources, scheduling, system information (80 names)
 
-`acct`, `bdflush`†, `capget`†, `capset`†, `confstr`, `__confstr_chk`@2.4, `create_module`†, `delete_module`†, `fpathconf`, `get_avphys_pages`, `get_kernel_syms`†, `get_nprocs`, `get_nprocs_conf`, `get_phys_pages`, `getcpu`@2.29, `getdomainname`, `__getdomainname_chk`@2.4, `getdtablesize`, `gethostid`, `gethostname`, `__gethostname_chk`@2.4, `getloadavg`, `getpagesize`, `getpriority`, `getrlimit`, `getrlimit64`, `getrusage`, `gnu_get_libc_release`, `gnu_get_libc_version`, `init_module`†, `ioperm`, `iopl`, `klogctl`, `modify_ldt`†, `nfsservctl`†, `nice`, `pathconf`, `prlimit64`@2.13, `prlimit`@2.13, `query_module`†, `quotactl`, `reboot`, `__sched_cpualloc`@2.7, `__sched_cpucount`@2.6, `__sched_cpufree`@2.7, `__sched_get_priority_max`, `sched_get_priority_max`, `__sched_get_priority_min`, `sched_get_priority_min`, `sched_getaffinity`@2.3.3, `sched_getcpu`@2.6, `__sched_getparam`, `sched_getparam`, `__sched_getscheduler`, `sched_getscheduler`, `sched_rr_get_interval`, `sched_setaffinity`@2.3.3, `sched_setparam`, `__sched_setscheduler`, `sched_setscheduler`, `setdomainname`, `sethostid`, `sethostname`, `setns`@2.14, `setpriority`, `setrlimit`, `setrlimit64`, `sstk`†, `syscall`, `sysconf`, `__sysctl`†, `sysctl`†, `sysinfo`, `ulimit`, `uname`, `unshare`@2.4, `uselib`†, `vhangup`, `vlimit`, `vtimes`†
+`acct`, `bdflush`†, `capget`†, `capset`†, `confstr`, `__confstr_chk`@2.4, `create_module`†, `delete_module`†, `fpathconf`, `get_avphys_pages`, `get_kernel_syms`†, `get_nprocs`, `get_nprocs_conf`, `get_phys_pages`, `getcpu`@2.29, `getdomainname`, `__getdomainname_chk`@2.4, `getdtablesize`, `gethostid`, `gethostname`, `__gethostname_chk`@2.4, `getloadavg`, `getpagesize`, `getpriority`, `getrlimit`, `getrlimit64`, `getrusage`, `gnu_get_libc_release`, `gnu_get_libc_version`, `init_module`†, `ioperm`, `iopl`, `klogctl`, `modify_ldt`†, `nfsservctl`†, `nice`, `pathconf`, `prlimit64`@2.13, `prlimit`@2.13, `query_module`†, `quotactl`, `reboot`, `__sched_cpualloc`@2.7, `__sched_cpucount`@2.6, `__sched_cpufree`@2.7, `__sched_get_priority_max`, `sched_get_priority_max`, `__sched_get_priority_min`, `sched_get_priority_min`, `sched_getaffinity`@2.3.3, `sched_getattr`@2.41, `sched_getcpu`@2.6, `__sched_getparam`, `sched_getparam`, `__sched_getscheduler`, `sched_getscheduler`, `sched_rr_get_interval`, `sched_setaffinity`@2.3.3, `sched_setattr`@2.41, `sched_setparam`, `__sched_setscheduler`, `sched_setscheduler`, `setdomainname`, `sethostid`, `sethostname`, `setns`@2.14, `setpriority`, `setrlimit`, `setrlimit64`, `sstk`†, `syscall`, `sysconf`, `__sysctl`†, `sysctl`†, `sysinfo`, `ulimit`, `uname`, `unshare`@2.4, `uselib`†, `vhangup`, `vlimit`, `vtimes`†
 
 ### B.25 §25. Inter-process communication (30 names)
 
@@ -5684,6 +5700,7 @@ compatibility needs and that the body of this spec does not record.*
 | Not used | glibc source code. No function bodies, code sizes or dispatch mechanisms are recorded: a function's size and whether it is an IFUNC are implementation details and are excluded. |
 | Excluded | `GLIBC_PRIVATE` symbols (311 names): private interfaces between glibc's own libraries, which a replacement that ships its own `ld.so` and `libc.so.6` does not need to reproduce. |
 | Reproduce | `python3 spec/tools/abi_extract.py && python3 spec/tools/appendix_c.py` on the reference system. |
+| Additions | Owner ruling R3: `sched_getattr` and `sched_setattr` at `GLIBC_2.41` (two rows in `versions.tsv` and in `versions-aarch64.tsv`, two in `prototypes.tsv`), added by hand; the node, binding and type are those of the x86_64 dynamic symbol table of Devuan excalibur's `libc6` 2.41-12+deb13u4. A rerun of the tools on the 2.39 reference system drops them. |
 
 ### C.1 Machine-readable tables (normative)
 
@@ -5691,17 +5708,17 @@ The TSV files are part of this appendix. The tables below reproduce the parts mo
 
 | File | Contents | Rows |
 |---|---|---|
-| `spec/abi/versions.tsv` | library, symbol, version node, binding (`default` = `@@`, `compat` = `@`), type, scope, size (data objects only) | 4600 |
+| `spec/abi/versions.tsv` | library, symbol, version node, binding (`default` = `@@`, `compat` = `@`), type, scope, size (data objects only) | 4602 (4600 + 2 R3 additions) |
 | `spec/abi/layouts.tsv` | per type: size and alignment, then each member's offset, type and bit-field position | 1372 (161 types) |
 | `spec/abi/initializers.tsv` | static initializer bit patterns | 10 |
-| `spec/abi/prototypes.tsv` | C declaration of every function the public headers declare, with its header | 3778 |
+| `spec/abi/prototypes.tsv` | C declaration of every function the public headers declare, with its header | 3780 (3778 + 2 R3 additions) |
 | `spec/abi/constants.tsv` | value of every integer-constant macro the public headers define (names not starting with `__`) | 6687 |
 
 ### C.2 Libraries and version nodes
 
 | Library (soname) | Public version nodes |
 |---|---|
-| `libc.so.6` | GLIBC_2.2.5, GLIBC_2.2.6, GLIBC_2.3, GLIBC_2.3.2, GLIBC_2.3.3, GLIBC_2.3.4, GLIBC_2.4, GLIBC_2.5, GLIBC_2.6, GLIBC_2.7, GLIBC_2.8, GLIBC_2.9, GLIBC_2.10, GLIBC_2.11, GLIBC_2.12, GLIBC_2.13, GLIBC_2.14, GLIBC_2.15, GLIBC_2.16, GLIBC_2.17, GLIBC_2.18, GLIBC_2.22, GLIBC_2.23, GLIBC_2.24, GLIBC_2.25, GLIBC_2.26, GLIBC_2.27, GLIBC_2.28, GLIBC_2.29, GLIBC_2.30, GLIBC_2.31, GLIBC_2.32, GLIBC_2.33, GLIBC_2.34, GLIBC_2.35, GLIBC_2.36, GLIBC_2.38, GLIBC_2.39 |
+| `libc.so.6` | GLIBC_2.2.5, GLIBC_2.2.6, GLIBC_2.3, GLIBC_2.3.2, GLIBC_2.3.3, GLIBC_2.3.4, GLIBC_2.4, GLIBC_2.5, GLIBC_2.6, GLIBC_2.7, GLIBC_2.8, GLIBC_2.9, GLIBC_2.10, GLIBC_2.11, GLIBC_2.12, GLIBC_2.13, GLIBC_2.14, GLIBC_2.15, GLIBC_2.16, GLIBC_2.17, GLIBC_2.18, GLIBC_2.22, GLIBC_2.23, GLIBC_2.24, GLIBC_2.25, GLIBC_2.26, GLIBC_2.27, GLIBC_2.28, GLIBC_2.29, GLIBC_2.30, GLIBC_2.31, GLIBC_2.32, GLIBC_2.33, GLIBC_2.34, GLIBC_2.35, GLIBC_2.36, GLIBC_2.38, GLIBC_2.39, GLIBC_2.41 (R3) |
 | `libm.so.6` | GLIBC_2.2.5, GLIBC_2.15, GLIBC_2.18, GLIBC_2.23, GLIBC_2.24, GLIBC_2.25, GLIBC_2.26, GLIBC_2.27, GLIBC_2.28, GLIBC_2.29, GLIBC_2.31, GLIBC_2.32, GLIBC_2.35, GLIBC_2.38, GLIBC_2.39 |
 | `libpthread.so.0` | GLIBC_2.2.5, GLIBC_2.2.6, GLIBC_2.3.2, GLIBC_2.3.3, GLIBC_2.3.4, GLIBC_2.4, GLIBC_2.11, GLIBC_2.12, GLIBC_2.18, GLIBC_2.28, GLIBC_2.30, GLIBC_2.31 |
 | `libdl.so.2` | GLIBC_2.2.5, GLIBC_2.3.3, GLIBC_2.3.4 |
@@ -5715,7 +5732,8 @@ The TSV files are part of this appendix. The tables below reproduce the parts mo
 | `libc_malloc_debug.so.0` | GLIBC_2.2.5, GLIBC_2.10, GLIBC_2.16, GLIBC_2.33 |
 | `ld-linux-x86-64.so.2` | GLIBC_2.2.5, GLIBC_2.3, GLIBC_2.34, GLIBC_2.35 |
 
-**Totals.** 3943 distinct public names (the same count as Appendix B). 262 names have more than
+**Totals.** 3945 distinct public names, 3943 from the reference plus the two R3 additions (the
+same count as Appendix B). 262 names have more than
 one version (C.3). 51 names are exported by more than one library (C.4).
 537 names are **compatibility-only**: exported with `@` bindings only, so
 old binaries can resolve them but new programs cannot link against them.
