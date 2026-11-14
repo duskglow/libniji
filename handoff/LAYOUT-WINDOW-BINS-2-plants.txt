@@ -16,4 +16,4 @@ keys-sig-alias | tools/hottext/keys.py | lit:for t in {k, alias.get(k, k)}: ==> 
 # A key no mode runs gets an empty field instead of `-`.
 keys-sig-none | tools/hottext/keys.py | lit:or '-'}") ==> or ''}") | cargo test -p xtask -- hottext::tests::signatures_name_the_modes_that_run_each_listed_key | msg:signatures_name_the_modes_that_run_each_listed_key.*(FAILED|panicked)|test result: FAILED
 # regen.sh records no page_faults mode: every signature is empty; `so` must refuse the plan.
-regen-no-modes | tools/hottext/regen.sh | lit:echo "true=$work/startup.names" >> "$work/modes" ==> : | cargo xtask so | msg:no grouped key the start-up mode
+regen-no-modes | tools/hottext/regen.sh | lit:echo "true=$work/startup.names" >> "$work/modes" ==> : | cargo xtask so | msg:no grouped key the start-up mode | layout:traced
