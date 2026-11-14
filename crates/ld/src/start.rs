@@ -131,6 +131,37 @@ pub struct LdEnv<'a> {
     pub trace: bool,
     /// `LD_ORIGIN_PATH` (ld.so(8)); the loader ignores it in secure mode (rule 2, DL-8).
     pub origin_path: Option<&'a [u8]>,
+    /// [`REPORT_NONSHARED_ENV`] set to a non-empty string: report each loaded object that carries
+    /// the libc_nonshared.a notice ([`uses_nonshared_stubs`]); the loader ignores it in secure mode.
+    pub report_nonshared: bool,
+}
+
+/// The Liella-only setting that asks the loader for the libc_nonshared.a report (D-27.29, owner
+/// ruling #4861): a distribution that built its archive with the notice lists the objects still
+/// registering exit or fork handlers through the archive's members.
+pub const REPORT_NONSHARED_ENV: &[u8] = b"LIELLA_LD_REPORT_NONSHARED";
+
+/// The owner name of the notice note an archive member built with `LIELLA_NONSHARED_NOTICE=1`
+/// carries (section `.note.liella.nonshared`, allocated, so in the linked object's `PT_NOTE`).
+pub const NONSHARED_NOTE_NAME: &[u8] = b"Liella";
+
+/// The notice note's `n_type` (Liella's own note namespace; the descriptor is empty).
+pub const NT_LIELLA_NONSHARED: u32 = 1;
+
+/// Whether the object `elf` carries the libc_nonshared.a notice: a [`NONSHARED_NOTE_NAME`] note of
+/// type [`NT_LIELLA_NONSHARED`] in any `PT_NOTE` segment. Notes the reader cannot read count as
+/// absent (the report is advice; it never refuses an object).
+#[must_use]
+pub fn uses_nonshared_stubs(elf: &crate::elf::Elf<'_>) -> bool {
+    elf.program_headers()
+        .filter(|ph| ph.p_type == crate::elf::pt::NOTE)
+        .any(|ph| elf.notes(&ph).is_ok_and(|ns| ns.map_while(Result::ok).any(|n| n.name == NONSHARED_NOTE_NAME && n.n_type == NT_LIELLA_NONSHARED)))
+}
+
+/// The report line for an object `name` that carries the notice (standard error, in order).
+#[must_use]
+pub fn nonshared_report(name: &[u8]) -> [&[u8]; 3] {
+    [b"ld.so: ", name, b": registers exit or fork handlers through libc_nonshared.a (link with the liella-owner directory to opt in to LIELLA_OWNER_1)\n"]
 }
 
 /// The value of `name` in the environment entry `entry` (`NAME=value`), if it is that name's entry.
@@ -143,6 +174,7 @@ pub fn value_of<'a>(entry: &'a [u8], name: &[u8]) -> Option<&'a [u8]> {
 pub fn ld_env<'a>(env: impl IntoIterator<Item = &'a [u8]>) -> LdEnv<'a> {
     let mut out = LdEnv::default();
     let mut bind_now = None;
+    let mut report = None;
     for e in env {
         let first = |slot: &mut Option<&'a [u8]>, name: &[u8]| {
             if slot.is_none() {
@@ -154,9 +186,11 @@ pub fn ld_env<'a>(env: impl IntoIterator<Item = &'a [u8]>) -> LdEnv<'a> {
         first(&mut out.tunables, b"GLIBC_TUNABLES");
         first(&mut bind_now, b"LD_BIND_NOW");
         first(&mut out.origin_path, b"LD_ORIGIN_PATH");
+        first(&mut report, REPORT_NONSHARED_ENV);
         out.trace |= value_of(e, b"LD_TRACE_LOADED_OBJECTS").is_some();
     }
     out.bind_now = bind_now.is_some_and(|v| !v.is_empty());
+    out.report_nonshared = report.is_some_and(|v| !v.is_empty());
     out
 }
 

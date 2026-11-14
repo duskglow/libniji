@@ -1615,6 +1615,27 @@ pub const NONSHARED_MEMBERS: &[(&str, &[&str])] = &[
 /// the library search path where the products are installed, never an absolute host path.
 pub const LIBC_SO_SCRIPT: &str = "/* GNU ld script: Liella's C library for the link editor. libc.so.6 is the\n   library; libc_nonshared.a holds the functions linked into the calling\n   module; the loader provides the symbols the ABI places in it. */\nOUTPUT_FORMAT(elf64-x86-64)\nGROUP ( libc.so.6 libc_nonshared.a AS_NEEDED ( ld-linux-x86-64.so.2 ) )\n";
 
+/// The build setting that adds the opt-in notice to the registration members (D-27.29, ruling
+/// #4861; csys/nonshared/notice.h): `1` turns it on; anything else, or unset, leaves it off.
+pub const NONSHARED_NOTICE_ENV: &str = "LIELLA_NONSHARED_NOTICE";
+
+/// The members that register exit or fork handlers: the ones the notice marks.
+pub const NONSHARED_NOTICE_MEMBERS: &[&str] = &["atexit", "at_quick_exit", "pthread_atfork"];
+
+/// Errors of one `libc_nonshared.a` member's notice sections, from its `readelf -SW` text: with
+/// `notice` on, a registration member carries `.note.liella.nonshared` and
+/// `.gnu.warning.<member>`; otherwise (and for every other member) neither section is there, so a
+/// default link prints no warning (ruling #4861).
+pub fn nonshared_notice_errors(readelf: &str, member: &str, notice: bool) -> Vec<String> {
+    let has = |name: &str| readelf.lines().any(|l| l.split_whitespace().any(|w| w == name));
+    let want = notice && NONSHARED_NOTICE_MEMBERS.contains(&member);
+    [".note.liella.nonshared".to_string(), format!(".gnu.warning.{member}")]
+        .into_iter()
+        .filter(|s| has(s) != want)
+        .map(|s| format!("section {s} {} (notice {})", if want { "is missing" } else { "is present" }, if notice { "on" } else { "off" }))
+        .collect()
+}
+
 /// Errors of one `libc_nonshared.a` member, from its `readelf -sW` text: it must define exactly
 /// `want` (global or weak), each with hidden visibility.
 pub fn nonshared_member_errors(readelf: &str, want: &[&str]) -> Vec<String> {
@@ -1646,6 +1667,8 @@ fn build_nonshared(root: &Path, cc: &str, release: &Path) -> Result<(), String> 
     let _ = fs::remove_dir_all(&work);
     fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     let work = work.canonicalize().map_err(|e| format!("{}: {e}", work.display()))?;
+    // The opt-in notice (D-27.29, ruling #4861): off unless the distribution asks for it.
+    let notice = std::env::var(NONSHARED_NOTICE_ENV).is_ok_and(|v| v == "1");
     let mut objects = Vec::new();
     for (member, names) in NONSHARED_MEMBERS {
         let obj = work.join(format!("{member}.o"));
@@ -1653,11 +1676,17 @@ fn build_nonshared(root: &Path, cc: &str, release: &Path) -> Result<(), String> 
         run(Command::new(cc)
             .current_dir(root.join("csys/nonshared"))
             .args(["-c", "-std=c17", "-O2", "-fPIC", "-fno-stack-protector", "-ffreestanding", "-Wall", "-Werror"])
+            .args(notice.then_some("-DLIELLA_NONSHARED_NOTICE"))
             .arg(format!("{member}.c"))
             .arg("-o")
             .arg(&obj))?;
         let out = Command::new("readelf").arg("-sW").arg(&obj).output().map_err(|e| format!("readelf: {e}"))?;
         let errors = nonshared_member_errors(&String::from_utf8_lossy(&out.stdout), names);
+        if !out.status.success() || !errors.is_empty() {
+            return Err(format!("libc_nonshared.a member {member}.o: {}", errors.join("; ")));
+        }
+        let out = Command::new("readelf").arg("-SW").arg(&obj).output().map_err(|e| format!("readelf: {e}"))?;
+        let errors = nonshared_notice_errors(&String::from_utf8_lossy(&out.stdout), member, notice);
         if !out.status.success() || !errors.is_empty() {
             return Err(format!("libc_nonshared.a member {member}.o: {}", errors.join("; ")));
         }
@@ -1673,7 +1702,7 @@ fn build_nonshared(root: &Path, cc: &str, release: &Path) -> Result<(), String> 
     let staged = tmp_name(&script);
     fs::write(&staged, LIBC_SO_SCRIPT).map_err(|e| format!("{}: {e}", staged.display()))?;
     publish(&staged, &script)?;
-    println!("so: target/liella/libc_nonshared.a ({} members, all hidden) and the libc.so script", objects.len());
+    println!("so: target/liella/libc_nonshared.a ({} members, all hidden; notice {}) and the libc.so script", objects.len(), if notice { "on" } else { "off" });
     build_owner_dir(root, cc, release, &work)
 }
 

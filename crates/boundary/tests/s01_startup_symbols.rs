@@ -531,6 +531,13 @@ fn s1_2_c_5_owner_optin_link_and_reference_refusal() {
 }
 
 #[test]
+fn s1_2_c_5_nonshared_notice_warning_and_loader_report() {
+    // s1_2_c_5 (D-27.29, ruling #4861): the archive's notice is off by default; built in, the
+    // link warns and the loader's report names each module still registering through the archive.
+    products::nonshared_notice();
+}
+
+#[test]
 fn sym___environ() {
     // A data object of the products' runtime: checked from C (conformance/c/s01_startup.c).
     conformance(&["s01_startup"]);

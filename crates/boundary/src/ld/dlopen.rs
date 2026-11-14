@@ -29,7 +29,7 @@
 //!
 //! Not here yet (plan §6): lazy binding (DL-20).
 
-use super::{array_words, c_string, dyn_string, env_entries, image_view, open_whole, own_object, read_auxv, ProcImage, SysMapper};
+use super::{array_words, c_string, dyn_string, env_entries, image_view, open_whole, own_object, read_auxv, report_nonshared, ProcImage, SysMapper};
 use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_OBJS, START_ARGS, START_PAGE};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
@@ -1383,6 +1383,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         return Some(Found::Full(b"out of room for object names"));
     };
     let o = Obj { elf, dynm, bias: loaded.bias, name: given, tls: None };
+    report_nonshared(&elf, shown);
     l.objs[k] = MaybeUninit::new(o);
     l.syms[k] = MaybeUninit::new(sym);
     let name = l.names.as_ptr().expose_provenance().wrapping_add(usize::try_from(span.0).unwrap_or(0));

@@ -473,6 +473,87 @@ pub(crate) fn owner_opt_in() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// D-27.29 (ruling #4861): the libc_nonshared.a notice, off by default. Liella's default archive
+/// carries neither notice section. Members built with `-DLIELLA_NONSHARED_NOTICE` (what
+/// `LIELLA_NONSHARED_NOTICE=1 cargo xtask so` passes) make the link editor warn about each
+/// registration taken from the archive, and Liella's `ld.so` with `LIELLA_LD_REPORT_NONSHARED=1`
+/// names each module carrying the note, at start and at `dlopen`, and no other module. Without
+/// the setting it prints nothing, and the program runs the same either way.
+pub(crate) fn nonshared_notice() {
+    require_products();
+    let nonshared = liella_nonshared();
+    let o = std::process::Command::new("readelf").arg("-SW").arg(&nonshared).output().expect("readelf");
+    let sections = String::from_utf8_lossy(&o.stdout).to_string();
+    assert!(o.status.success() && !sections.contains(".note.liella.nonshared") && !sections.contains(".gnu.warning."), "the default libc_nonshared.a carries a notice section");
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("notice-{}", std::process::id()));
+    let notice = dir.join("notice");
+    std::fs::create_dir_all(&notice).expect("scratch");
+    let src = root().join("csys/nonshared");
+    let mut members = Vec::new();
+    for m in ["atexit", "at_quick_exit", "pthread_atfork", "stack_chk_fail_local"] {
+        let obj = notice.join(format!("{m}.o"));
+        let cc = std::process::Command::new("cc")
+            .current_dir(&src)
+            .args(["-c", "-std=c17", "-O2", "-fPIC", "-fno-stack-protector", "-ffreestanding", "-Wall", "-Werror", "-DLIELLA_NONSHARED_NOTICE"])
+            .arg(format!("{m}.c"))
+            .arg("-o")
+            .arg(&obj)
+            .output()
+            .expect("cc");
+        assert!(cc.status.success(), "{m}.c with the notice: {}", String::from_utf8_lossy(&cc.stderr));
+        members.push(obj);
+    }
+    let archive = notice.join("libc_nonshared.a");
+    assert!(std::process::Command::new("ar").arg("rcsD").arg(&archive).args(&members).status().expect("ar").success(), "ar");
+    let (ld, default_script) = liella_link_script(&dir);
+    let script = notice.join("libc.so");
+    std::fs::write(&script, format!("GROUP ( {} {} AS_NEEDED ( {} ) )\n", libc_by_path(&dir).display(), archive.display(), ld.display())).expect("notice libc.so script");
+    for (file, text) in [("lib.c", NONSHARED_LIB), ("main.c", NONSHARED_MAIN), ("prog.c", NONSHARED_PROG)] {
+        std::fs::write(dir.join(file), text).expect("source");
+    }
+    let link = |extra: &[&str], libc: &std::path::Path, src: &str, out: &str| {
+        let o = std::process::Command::new("cc")
+            .args(["-std=c17", "-O1", "-nodefaultlibs"])
+            .args(extra)
+            .arg(format!("-Wl,--dynamic-linker={}", ld.display()))
+            .arg(dir.join(src))
+            .arg(libc)
+            .arg("-lgcc")
+            .arg("-o")
+            .arg(dir.join(out))
+            .output()
+            .expect("cc");
+        assert!(o.status.success(), "link {out}: {}", String::from_utf8_lossy(&o.stderr));
+        (dir.join(out), String::from_utf8_lossy(&o.stderr).to_string())
+    };
+    let (prog, warned) = link(&[], &script, "prog.c", "prog");
+    assert!(warned.contains("atexit is linked from libc_nonshared.a") && warned.contains("pthread_atfork is linked from libc_nonshared.a"), "the notice archive's link printed no warning: {warned:?}");
+    let (_, quiet) = link(&[], &default_script, "prog.c", "prog-default");
+    assert!(!quiet.contains("libc_nonshared.a"), "a link against the default archive warned: {quiet:?}");
+    let (lib, _) = link(&["-shared", "-fPIC"], &script, "lib.c", "libnotice.so");
+    let (main, _) = link(&[], &default_script, "main.c", "main");
+    let report = "registers exit or fork handlers through libc_nonshared.a";
+    let run = |exe: &std::path::Path, args: &[&std::path::Path], on: bool| {
+        let mut c = std::process::Command::new(exe);
+        c.args(args).env_remove("LIELLA_LD_REPORT_NONSHARED");
+        if on {
+            c.env("LIELLA_LD_REPORT_NONSHARED", "1");
+        }
+        let o = c.output().expect("run");
+        (o.status.code(), String::from_utf8_lossy(&o.stdout).to_string(), String::from_utf8_lossy(&o.stderr).to_string())
+    };
+    let (code, out, err) = run(&prog, &[], true);
+    assert_eq!((code, out.as_str()), (Some(0), "prepare ran: 1\nexit handler ran\n"), "the noticed program under Liella: {err:?}");
+    assert_eq!(err.matches(report).count(), 1, "start: the report must name the program once: {err:?}");
+    assert!(err.contains(&format!("prog: {report}")), "start: the report does not name the program: {err:?}");
+    let (code, _, err) = run(&prog, &[], false);
+    assert!(code == Some(0) && !err.contains(report), "the report printed without the setting: {err:?}");
+    let (_, out, err) = run(&main, &[lib.as_path()], true);
+    assert!(out.contains("after dlclose"), "main with the noticed library: {out:?} {err:?}");
+    assert!(err.contains(&format!("libnotice.so: {report}")) && err.matches(report).count() == 1, "dlopen: the report must name the noticed library, and only it: {err:?}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// Liella's `ld.so` and a `libc.so` linker script in `dir` for linking against Liella's
 /// `libc.so.6` by path, the way an installed `libc.so` script does: the C library, Liella's link-time
 /// archive (D-27.28), and the loader for the symbols the ABI places in it (`__libc_stack_end`,
