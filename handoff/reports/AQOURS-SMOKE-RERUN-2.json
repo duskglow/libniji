@@ -1,0 +1,19 @@
+{"task": "AQOURS-SMOKE-RERUN-2", "model": "opus", "tokens": null,
+ "result": "Second smoke run recorded on three hosts: the snapshot is blocked only by F13 (cxx_dlclose, DL-TLS-DTOR-PIN); everything else fixed, ruled, (b) with its story, or harness/host",
+ "branch": "task/aqours-smoke-rerun-2", "head": "cad4f8a80",
+ "gate": {"affected": "aqours-smoke-rerun-2-gate on mei (result in the hand-back)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "F13 (a): a plug-in closed with dlclose while its main-thread thread_local destructor is pending: SIGSEGV after main returns on Liella, the reference runs the destructor at exit (spec s1_2_c_6); blocked on DL-TLS-DTOR-PIN, then rerun cxx_dlclose on keke, mei and shiki",
+  "F3 is the recorded setlocale errno difference (ruling #5480): a repeated failing setlocale keeps errno on the reference, ENOENT on Liella; bash's warning shows it",
+  "Park is off (park_enabled=0): this run waited with jobwait instead"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "smoke harness: gawk_ext builds and checks (557/557 both builds); python module set no longer depends on host packages; make no longer loses liella-cc settings (136/1 both builds)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "smoke programs run on three hosts with the complete loader (18 programs, 4 new plug-in programs)", "before": 14, "after": 18, "unit": "programs", "measured": true},
+  {"kind": "unblock", "what": "snapshot release: verdict recorded; only DL-TLS-DTOR-PIN remains", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "the inherited harness failures (gawk SUBDIRS, host-dependent python modules) were both visible in the first full run's logs; a smoke rerun of a single program before the 45-minute full run would have caught them for a few minutes",
+ "next_step": "after DL-TLS-DTOR-PIN lands, rerun smoke.sh cxx_dlclose on keke, mei and shiki; output must equal the reference's; then the snapshot can proceed",
+ "report_file": "validation/smoke/RESULTS.md",
+ "jobs": ["mei:aqours-smoke-rerun-2-gate", "mei:aqours-smoke-rerun-2-plants1", "mei:aqours-smoke-rerun-2-lint1"]}
