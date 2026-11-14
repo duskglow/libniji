@@ -514,51 +514,42 @@ pub trait Sqrt: CVal {
 impl Sqrt for f64 {
     #[inline(always)]
     fn sqrt_c(self) -> f64 {
-        // The inline MXCSR read (D-X.44) and `sqrtsd` in a register, no call on the path (D-10.71).
-        let mx = fpregs::mxcsr();
-        if fpu::is_sqrt_in_place(mx) {
-            // The barrier keeps the root behind the mode test: a caller with an unmasked
-            // exception must never see the instruction run (D-X.44).
-            let x = self.pin();
-            // The root takes its own pinned copy of x, dead after it, so `sqrtsd` writes its
-            // operand's register: x stays live for the EDOM test, and a root into any other
-            // register merges that register's upper lane, waiting on its last writer (in a
-            // loop of calls, the previous root).
-            let r = crate::hot::sqrtsd(x.pin());
-            // EDOM exactly when a non-NaN operand gave NaN, that is for x < 0 as the caller's
-            // DAZ reads x (D-10.22: -0, a negative subnormal under DAZ and negative NaNs give none).
-            if r.is_nan() && !x.is_nan() {
-                sqrt_domain();
-            }
-            r
-        } else {
-            let x = if fpu::is_daz(mx) { self.daz() } else { self };
-            ret(liella_math::fused::sqrt::<f64, f64>(x, fpu::rounding_of(mx)))
+        // No MXCSR read (D-10.101): `sqrtsd` on the caller's own MXCSR is the operation in
+        // every environment the caller can set, by whatever means (fenv, a direct `ldmxcsr`, a
+        // thread's or signal handler's own word): correctly rounded in its direction, DAZ read
+        // by the hardware, FTZ never acting (a non-zero root is normal), its flags raised and an
+        // unmasked exception trapping at the instruction, before the EDOM store (probed).
+        let x = self;
+        // The root takes its own pinned copy of x, dead after it, so `sqrtsd` writes its
+        // operand's register: x stays live for the EDOM test, and a root into any other
+        // register merges that register's upper lane, waiting on its last writer (in a
+        // loop of calls, the previous root). The root is pinned too, so the EDOM test reads the
+        // instruction's own result: the compiler cannot derive it from x (x < 0) and store EDOM
+        // before an unmasked invalid exception traps in the instruction.
+        let r = crate::hot::sqrtsd(x.pin()).pin();
+        // EDOM exactly when a non-NaN operand gave NaN, that is for x < 0 as the caller's
+        // DAZ reads x (D-10.22: -0, a negative subnormal under DAZ and negative NaNs give none).
+        if r.is_nan() && !x.is_nan() {
+            sqrt_domain();
         }
+        r
     }
 }
 
 impl Sqrt for f32 {
     #[inline(always)]
     fn sqrt_c(self) -> f32 {
-        // The inline MXCSR read (D-X.44) and `sqrtss` in a register, no call on the path (D-10.71).
-        let mx = fpregs::mxcsr();
-        if fpu::is_sqrt_in_place(mx) {
-            // The barrier keeps the root behind the mode test: a caller with an unmasked
-            // exception must never see the instruction run (D-X.44).
-            let x = self.pin();
-            // Its own copy of x for the root, as in `sqrt` (no merge with another register).
-            let r = crate::hot::sqrtss(x.pin());
-            // EDOM exactly when a non-NaN operand gave NaN, that is for x < 0 as the caller's
-            // DAZ reads x (D-10.22: -0, a negative subnormal under DAZ and negative NaNs give none).
-            if r.is_nan() && !x.is_nan() {
-                sqrt_domain();
-            }
-            r
-        } else {
-            let x = if fpu::is_daz(mx) { self.daz() } else { self };
-            ret(liella_math::fused::sqrt::<f32, f32>(x, fpu::rounding_of(mx)))
+        // No MXCSR read (D-10.101), as in `sqrt`: `sqrtss` on the caller's own MXCSR.
+        let x = self;
+        // Its own copy of x for the root, as in `sqrt` (no merge with another register).
+        // The root pinned as in `sqrt`: EDOM is stored only after the instruction.
+        let r = crate::hot::sqrtss(x.pin()).pin();
+        // EDOM exactly when a non-NaN operand gave NaN, that is for x < 0 as the caller's
+        // DAZ reads x (D-10.22: -0, a negative subnormal under DAZ and negative NaNs give none).
+        if r.is_nan() && !x.is_nan() {
+            sqrt_domain();
         }
+        r
     }
 }
 
@@ -637,12 +628,16 @@ impl Hypot for f64 {
     /// entry [`elem_fast`] in the default MXCSR; a refusal, a directed mode, DAZ, FTZ or an
     /// unmasked trap take `pow::hypot` as before (the envelope honours the caller's DAZ/FTZ,
     /// D-10.22). A refused attempt's inexact is undone by the fallback's flag settlement.
+    /// `pow::hypot` runs its `double` kernel on the hardware root ([`crate::hot::Hw`], `sqrtsd`
+    /// in the default MXCSR that both fallbacks run in; LIBM-HYPOT-DIRECTED).
     #[inline]
     fn hypot_c(self, y: f64) -> f64 {
         elem_fast::<{ Status::HW_ANY.0 }, (f64, f64), f64>(
             (self, y),
             |(x, y)| crate::hot::hypot_nearest(x, y),
-            |(x, y), m| liella_math::pow::hypot(x, y, m),
+            // The kernel in its build chosen at startup (LIBM-HYPOT-DIRECTED-FAST); a NaN or an
+            // infinity (the kernel's `None`) takes the exact path, as in `pow::hypot_with`.
+            |(x, y), m| crate::hot::hypot_rounded(x, y, m).unwrap_or_else(|| liella_math::pow::hypot_exact(x, y, m)),
         )
     }
 }
@@ -952,6 +947,28 @@ pub fn elem32_onepass(
     }
 }
 
+/// [`elem32_onepass`] for a function of two `float`s (`atan2f`, LIBM-F32-REST, D-10.82): `fast`
+/// meets the same contract on both operands; every refusal (NaN included) takes the full envelope.
+#[inline(always)]
+pub fn elem32_onepass2(
+    x: f32,
+    y: f32,
+    fast: impl FnOnce(f32, f32) -> Option<f32>,
+    f: impl FnOnce((f32, f32), Rounding) -> (f32, Status),
+) -> f32 {
+    match fast(x, y) {
+        Some(v) => v,
+        None => elem32_onepass2_cold(x, y, f),
+    }
+}
+
+/// [`elem32_onepass2`]'s refusals, out of line and cold.
+#[cold]
+#[inline(never)]
+fn elem32_onepass2_cold(x: f32, y: f32, f: impl FnOnce((f32, f32), Rounding) -> (f32, Status)) -> f32 {
+    elem((x, y), Unit::Sse, f)
+}
+
 /// [`elem32_onepass`]'s refusals, out of line and cold: a NaN, or the full envelope.
 #[cold]
 #[inline(never)]
@@ -1016,6 +1033,51 @@ pub fn elem_fast<const HW: u8, A: Denorm + Pin, R: CVal<C = R> + Denorm>(
     elem_fast_cold::<HW, A, R>(x, saved, f)
 }
 
+/// [`elem_fast`] for a function whose quick phase is also proved in the directed rounding
+/// directions (D-10.94; `double` exp): under a caller's word that is the default one but for its
+/// rounding field, `dir` runs in place in the caller's direction, on the MXCSR value read once on
+/// entry, under the same contract as `fast` (it answers only where its arithmetic raises exactly
+/// inexact); a refusal, and every other word, takes the switched path as before.
+#[inline(always)]
+pub fn elem_fast_dir<const HW: u8, A: Denorm + Pin, R: CVal<C = R> + Denorm>(
+    x: A,
+    fast: impl FnOnce(A) -> Option<R>,
+    dir: impl FnOnce(A, Rounding) -> Option<R>,
+    f: impl FnOnce(A, Rounding) -> (R, Status),
+) -> R {
+    let (saved, in_place) = peek();
+    if !in_place {
+        return elem_directed(x, saved, dir, f);
+    }
+    // As in `elem_fast`: the barrier keeps the arithmetic behind the mode branch.
+    let x = x.pin();
+    if let Some(v) = fast(x) {
+        return v;
+    }
+    elem_fast_cold::<HW, A, R>(x, saved, f)
+}
+
+/// [`elem_fast_dir`] under a word that is not the default one: the directed quick phase in
+/// place when only the rounding field differs (out of line and cold, so the round-to-nearest
+/// entry keeps its size), else, and on a refusal, [`elem_switched`] on the same `saved`.
+#[cold]
+#[inline(never)]
+fn elem_directed<A: Denorm + Pin, R: CVal<C = R> + Denorm>(
+    x: A,
+    saved: u32,
+    dir: impl FnOnce(A, Rounding) -> Option<R>,
+    f: impl FnOnce(A, Rounding) -> (R, Status),
+) -> R {
+    if fpu::is_default_but_rounding(saved) {
+        // The barrier keeps the arithmetic behind the word test (traps may be unmasked otherwise).
+        let x = x.pin();
+        if let Some(v) = dir(x, fpu::rounding_of(saved)) {
+            return v;
+        }
+    }
+    elem_switched(x, saved, f)
+}
+
 /// [`elem_fast`]'s fallback in the default mode, out of line and cold (register 16.5 #4) so the
 /// fast path keeps nothing in callee-saved registers for it: the accurate path in place against
 /// the MXCSR value read on entry.
@@ -1044,12 +1106,38 @@ fn elem_switched<A: Denorm, R: CVal<C = R> + Denorm>(
     saved: u32,
     f: impl FnOnce(A, Rounding) -> (R, Status),
 ) -> R {
+    if fpu::is_default_but_rounding(saved) {
+        return elem_rounding_switched(x, saved, f);
+    }
     fpu::switch_default(&CSys);
     let e = Entry { saved, in_place: false };
     let x = core::hint::black_box(e.operand(x));
     let (v, mut st) = core::hint::black_box(f(x, fpu::rounding_of(saved)));
     let v = e.result(v, &mut st);
     exit(e, st);
+    v
+}
+
+/// [`elem_switched`] under a word that is the default one but for its rounding field (a directed
+/// mode with no DAZ, no FTZ and every trap masked; LIBM-HYPOT-DIRECTED-FAST): the
+/// computation runs in the default word, then MXCSR becomes `saved` with the reported flags set,
+/// in one write. That is what [`Entry`] and [`exit`] do for this word, without their tests: the
+/// operand and the result pass unchanged (no DAZ, no FTZ), every flag's trap is masked, so
+/// raising a flag is setting it, and the flags the arithmetic raised in hardware are dropped by
+/// the write. The values written are `MX_DEFAULT` and a word the hardware gave plus flag bits, so
+/// no reserved bit is set and the `MXCSR_MASK` filter of `CSys::set_mxcsr` is not needed.
+#[inline(always)]
+fn elem_rounding_switched<A: Denorm, R: CVal<C = R> + Denorm>(
+    x: A,
+    saved: u32,
+    f: impl FnOnce(A, Rounding) -> (R, Status),
+) -> R {
+    crate::ffi::liella_machine_mxcsr_set(fpu::MX_DEFAULT_WORD);
+    // As in `elem_switched`: the barriers keep the computation between the two writes.
+    let x = core::hint::black_box(x);
+    let (v, st) = core::hint::black_box(f(x, fpu::rounding_of(saved)));
+    crate::ffi::liella_machine_mxcsr_set(fpu::with_flags(saved, st.flags));
+    store_error(st.error);
     v
 }
 

@@ -102,6 +102,7 @@ pub(crate) fn erf_erfc_mp(a: f64) -> (Mp, Mp) {
 /// needed falls with `a` (the tail's influence decays like `e^(−2a√(2n))`).
 fn erfc_cf(x: Mp) -> Mp {
     let a = x.to_f64();
+    // RANGE: a >= 10 (the contract): the quotient is in [0, 600].
     let depth = 40 + (60_000.0 / (a * a)) as u64;
     let mut tail = x;
     for n in (1..=depth).rev() {
@@ -247,6 +248,7 @@ fn lgamma_pos(xm: Mp) -> Mp {
         return stirling(xm);
     }
     // Γ(x) = Γ(x + n) / (x (x+1) ··· (x+n−1)) with x + n >= 40.
+    // RANGE: 0 < x < STIRLING_MIN here: the difference is below STIRLING_MIN.
     let n = (STIRLING_MIN - x) as i64 + 1;
     let mut prod = xm;
     for k in 1..n {
@@ -288,9 +290,10 @@ fn lgamma_mp(x: Mp) -> (Mp, i32) {
 /// then [`lgamma_accurate`].
 pub fn lgamma<F: Float>(x: F, mode: Rounding) -> ((F, Status), i32) {
     if let (24, Ok(b)) = (F::PREC, u32::try_from(x.to_bits())) {
-        if let Some(((r, st), sign)) = crate::fast32::eval_lgamma(f32::from_bits(b), mode) {
+        if let Some(((r, st), sign)) = crate::fast32::lgamma_first(f32::from_bits(b), mode) {
             return ((F::from_bits(u128::from(r.to_bits())), st), sign);
         }
+        return lgammaf_after_first(x, mode);
     }
     if F::PREC == 53 {
         let xf = as_f64(x);
@@ -300,6 +303,27 @@ pub fn lgamma<F: Float>(x: F, mode: Rounding) -> ((F, Status), i32) {
             if let Some(((v, st), sign)) = r {
                 return ((F::from_bits(u128::from(v.to_bits())), st), sign);
             }
+        } else if let Some(((v, st), sign)) = (dd::abs(xf) < fast_gamma::TINY || xf >= fast_gamma::HI).then(|| fast_gamma::lgamma_band(xf, mode)).flatten() {
+            // |x| < 2^-60 and x >= 16 (D-10.105); NaN and x <= -16 skip the call.
+            return ((F::from_bits(u128::from(v.to_bits())), st), sign);
+        }
+    }
+    lgamma_accurate(x, mode)
+}
+
+/// `lgammaf` after the fast path's first try refused x ([`crate::fast32::lgamma_first`]): its
+/// second tries ([`crate::fast32::lgamma_rest`]), then [`lgamma_accurate`]. One cold call on the
+/// refusal path, as with the accurate path alone: a second call there made [`lgamma`]'s `float`
+/// body keep a constant in a saved register on every call (4 to 15 instructions on the typical
+/// percall rows, LIBM-LGAMMAF-EDGE-3). It takes x alone (its `float` bits again here): with a
+/// second argument [`lgamma`] kept x both in a `float` register, saved around its cold calls, and
+/// as bits (LIBM-LGAMMAF-EDGE-4).
+#[cold]
+#[inline(never)]
+fn lgammaf_after_first<F: Float>(x: F, mode: Rounding) -> ((F, Status), i32) {
+    if let Ok(b) = u32::try_from(x.to_bits()) {
+        if let Some(((r, st), sign)) = crate::fast32::lgamma_rest(f32::from_bits(b), mode) {
+            return ((F::from_bits(u128::from(r.to_bits())), st), sign);
         }
     }
     lgamma_accurate(x, mode)
@@ -341,6 +365,9 @@ pub fn tgamma<F: Float>(x: F, mode: Rounding) -> (F, Status) {
             if let Some(r) = from_fast("tgamma", fast_gamma::tgamma(xf, mode)) {
                 return r;
             }
+        } else if let Some((v, st)) = (dd::abs(xf) < fast_gamma::TINY).then(|| fast_gamma::tgamma_band(xf, mode)).flatten() {
+            // 0 < |x| < 2^-60 (D-10.105); NaN and |x| >= 16 skip the call.
+            return (F::from_bits(u128::from(v.to_bits())), st);
         }
     }
     tgamma_accurate(x, mode)
@@ -601,6 +628,7 @@ fn round_bessel<F: Float>(v: Bounded<Mp>, bounded: bool, neg: bool, mode: Roundi
 /// (`mp::reduce_wide`) above.
 fn reduce(a: &Arg) -> (i64, Mp) {
     if a.v.exp <= 29 {
+        // RANGE: |a| < 2^29 here: |k| < 2^29.
         let k = (a.f * core::f64::consts::FRAC_2_PI + 0.5) as i64;
         (k, a.v.sub(mp::pi().ldexp(-1).mul(Mp::from_i64(k))))
     } else {
@@ -744,6 +772,7 @@ fn forward(n: u64, a: &Arg, f0: Mp, f1: Mp, limit: i64, mp_max: u64) -> Mp {
 /// `J_n(x)` for `n >= x >= 100` by Miller's backward recurrence from far above `n`,
 /// normalised by `J_0(x)` or `J_1(x)`, whichever is larger.
 fn miller(n: u64, a: &Arg, j0: Mp, j1: Mp, mp_max: u64) -> Mp {
+    // RANGE: 100 <= x <= n, an int order: 8·∛x < 2^14.
     let top = n + 64 + (8.0 * cbrt_est(a.f)) as u64;
     let use_j0 = j0.cmp_abs(j1).is_ge();
     if top <= mp_max {
@@ -859,6 +888,7 @@ pub fn j0<F: Float>(x: F, mode: Rounding) -> (F, Status) {
         if let Some((r, s)) = crate::fast32::eval(crate::fast32::Fast::J0, f32::from_bits(x.to_bits() as u32), mode) {
             return (F::from_bits(u128::from(r.to_bits())), s);
         }
+        return bessel32_rest(0, "j0f", x, mode);
     }
     if F::PREC == 53 {
         let xf = as_f64(x);
@@ -869,6 +899,22 @@ pub fn j0<F: Float>(x: F, mode: Rounding) -> (F, Status) {
         }
     }
     j0_accurate(x, mode)
+}
+
+/// The `float` Bessel function n (0 j0f, 1 j1f, 2 y0f, 3 y1f) after its fast path refused x: the
+/// large band (D-10.109), else the accurate path. One out-of-line call, as the accurate path
+/// alone was, so the fast path pays nothing for the band (LIBM-F32-BESSEL-LARGE-3).
+#[inline(never)]
+pub(crate) fn bessel32_rest<F: Float>(n: usize, name: &'static str, x: F, mode: Rounding) -> (F, Status) {
+    if let Some((r, s)) = crate::fast32::bessel_large(n, f32::from_bits(x.to_bits() as u32), mode, name) {
+        return (F::from_bits(u128::from(r.to_bits())), s);
+    }
+    match n {
+        0 => j0_accurate(x, mode),
+        1 => j1_accurate(x, mode),
+        2 => y0_accurate(x, mode),
+        _ => y1_accurate(x, mode),
+    }
 }
 
 /// `j0(x)` by the 384-bit path alone (the fast paths' fallback and their tests' reference).
@@ -883,6 +929,7 @@ pub fn j1<F: Float>(x: F, mode: Rounding) -> (F, Status) {
         if let Some((r, s)) = crate::fast32::eval(crate::fast32::Fast::J1, f32::from_bits(x.to_bits() as u32), mode) {
             return (F::from_bits(u128::from(r.to_bits())), s);
         }
+        return bessel32_rest(1, "j1f", x, mode);
     }
     if F::PREC == 53 {
         let xf = as_f64(x);
@@ -907,6 +954,7 @@ pub fn y0<F: Float>(x: F, mode: Rounding) -> (F, Status) {
         if let Some((r, s)) = crate::fast32::eval(crate::fast32::Fast::Y0, f32::from_bits(x.to_bits() as u32), mode) {
             return (F::from_bits(u128::from(r.to_bits())), s);
         }
+        return bessel32_rest(2, "y0f", x, mode);
     }
     if F::PREC == 53 {
         let xf = as_f64(x);
@@ -931,6 +979,7 @@ pub fn y1<F: Float>(x: F, mode: Rounding) -> (F, Status) {
         if let Some((r, s)) = crate::fast32::eval(crate::fast32::Fast::Y1, f32::from_bits(x.to_bits() as u32), mode) {
             return (F::from_bits(u128::from(r.to_bits())), s);
         }
+        return bessel32_rest(3, "y1f", x, mode);
     }
     if F::PREC == 53 {
         let xf = as_f64(x);
