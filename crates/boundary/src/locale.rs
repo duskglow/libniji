@@ -740,6 +740,17 @@ pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
     r
 }
 
+/// Variable `k` (`gl::ENV_LC_ALL`'s numbering, which is [`ENV_KEYS`]' order) for
+/// [`setlocale_env`]: its value from `found` when `k < known`, else from `getenv`. Out of line
+/// (SETLOCALE-CTYPE-ENV-5): inlined at each of the selection's lookups it was four copies of the
+/// scanner call and the value's `strlen`, start-up text the coreutils-shaped program paid a
+/// fault-around window for.
+#[inline(never)]
+fn env_lookup(found: &[Option<usize>; ENV_KEYS.len()], known: usize, k: usize) -> Option<&'static [u8]> {
+    let at = if k < known { found.get(k).copied().flatten() } else { process::getenv(ENV_KEYS.get(k)?) };
+    at.map(strz::env_value)
+}
+
 /// `setlocale(cat, "")`: each category's name from the environment, read on every call.
 #[inline(never)]
 fn setlocale_env(cat: Option<Cat>) -> Option<&'static [u8]> {
@@ -755,21 +766,16 @@ fn setlocale_env(cat: Option<Cat>) -> Option<&'static [u8]> {
     let mut found: [Option<usize>; ENV_KEYS.len()] = [None; ENV_KEYS.len()];
     let mut known = 0;
     if cat.is_none() {
-        let all = process::getenv(crate::startup_names::LC_ALL);
+        if let Some(v) = found.first_mut() {
+            *v = process::getenv(crate::startup_names::LC_ALL);
+        }
         known = 1;
-        if all.map(strz::env_value).is_none_or(<[u8]>::is_empty) {
+        if env_lookup(&found, known, gl::ENV_LC_ALL).is_none_or(<[u8]>::is_empty) {
             process::getenv_many(ENV_KEYS.get(1..).unwrap_or_default(), found.get_mut(1..).unwrap_or_default());
             known = ENV_KEYS.len();
         }
-        if let Some(v) = found.first_mut() {
-            *v = all;
-        }
     }
-    // Variable `k` in `gl::ENV_LC_ALL`'s numbering, which is `ENV_KEYS`' order.
-    let getenv = |k: usize| -> Option<&'static [u8]> {
-        let at = if k < known { found.get(k).copied().flatten() } else { process::getenv(ENV_KEYS.get(k)?) };
-        at.map(strz::env_value)
-    };
+    let getenv = |k: usize| env_lookup(&found, known, k);
     let req = gl::Request::Environment(&getenv);
     let before = gl::global_handle();
     // Answered without the lock when every category keeps its name, else the locked path.
