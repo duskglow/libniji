@@ -1089,7 +1089,12 @@ mod tests {
                 assert_eq!(t.test(c, m.0), Some(i32::from(want & m.0 != 0)), "{what} {c:#x}: resolved test");
             }
         }
-        assert!(ClassTable::RESOLVE_AFTER_FOR_TEST >= 16, "a short program's few questions resolve no block");
+        // The slots' count: 16 questions in one block (a short program's handful) resolve nothing.
+        let t = ClassTable::file_after_for_test(ClassTable::RESOLVE_AFTER_FOR_TEST);
+        for _ in 0..16 {
+            assert_eq!(t.word(0xe9, Some(&w)), cls::w_classes_file(0xe9, &w).0, "{what}: slot count word");
+        }
+        assert_eq!(t.census()[0], classes_len(), "{what}: a short program's few questions resolve no block");
     }
 
     /// The number of stage-1 entries (blocks of 256 code points through U+10FFFF).

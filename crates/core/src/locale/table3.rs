@@ -143,6 +143,7 @@ mod tests {
     /// so characters 0-15 read bits 0-15 of one word and 16-31 bits 16-31 of another, whose
     /// other half is set to catch a read of the wrong word.
     #[test]
+    #[allow(clippy::unwrap_used)] // a test: a header that does not parse is the failure
     fn bits32_is_bit_of_each_character_with_small_shifts() {
         let words: [u32; 13] = [
             4, 4, 4, 0, 0, // shift1, bound, shift2, mask2, mask3
