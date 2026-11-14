@@ -1,7 +1,7 @@
-# WCTYPE-TRIE-FILE(-2..-8): lazily resolved class tables for compiled LC_CTYPE + the thread-block table word (D-5.10, D-5.11)
+# WCTYPE-TRIE-FILE(-2..-9): lazily resolved class tables for compiled LC_CTYPE + the thread-block table word (D-5.10, D-5.11)
 
-**State:** branch `task/wctype-trie-file-8` (continues `-7`..`-2`; origin/next merged in runs 3, 5 and 7). Code head of
-run 8: f8da29874 (handoff/report commits on top). Decisions in force: **D-5.10** as amended by the pending record
+**State:** branch `task/wctype-trie-file-9` (continues `-8`..`-2`; origin/next merged in runs 3, 5 and 7). Product code
+is run 8's (f8da29874); run 9 added only a test and a `#[cfg(test)]` hook (2e0c76915). Decisions in force: **D-5.10** as amended by the pending record
 `records/pending/WCTYPE-TRIE-FILE-8-1.toml` (D-NEW, series D-5, amends D-5.10), **D-5.11** (owned() gate, ruling
 #4281), D-5.9, D-5.5, D-7.13, D-X.58.
 
@@ -35,6 +35,23 @@ resolved per 256-character block; `ThreadBlock::wclass` (0x180) stored with `vie
   xtask test, full-profile so + hot_text_products), `wctype-trie-file-8-gate` (direct tier, after startup),
   `wctype-trie-file-8-plants`. Results: see the hand-back / report json.
 
+## Run 9 (kanon kn1, Broadwell-EP): the surviving walk-marker plant
+* Step 0 on the inherited head 7c5c0ff1d: clippy + static green (`wctype-trie-file-9-lint0`).
+* Why walk-marker survived: it mutates the early return of `ClassTable::resolve` for a block already resolved without a
+  leaf (WALK). `word()`/`test_miss()` never reach it: `due()` declines a resolved block, so only a thread that passes
+  `due()` and then loses the race to a full-pool resolution takes that branch. (The run-8 note calling it the "32
+  characters per walk" marker was a misreading: the block build is covered by `file_class_tables_equal_the_file_walk`,
+  every block of both locales.) Fix: `ClassTable::resolve_late_for_test` (cfg(test)) runs `resolve` on an already
+  resolved block, making that race deterministic; test `late_block_resolution_answers_by_the_winner`: blocks 0x00,
+  0x03, 0x1f, 0x4e of en_US.UTF-8 and the system C.utf8, shared and pool leaves, winner left WALK or published a leaf:
+  every character equals `w_classes_file`, and the late resolution writes nothing (census unchanged).
+* publish-order stays EQUIVALENT, now with evidence: libc.so.6 built with and without the mutation in a RAM copy
+  (`wctype-trie-file-9-ordercheck`, script ~/work/WCTYPE-TRIE-FILE-9/ordercheck.sh on kanon) has identical disassembly
+  apart from `.llvm.<hash>` suffixes of local names. Memory-model argument in the plants file.
+* Plants (handoff/wctype-trie-file-plants.txt, 14): 13 CAUGHT, 1 EQUIVALENT, 0 WARN. Jobs: see the hand-back / report json.
+* Not run: the EPYC instruction rows on keke (my role is kanon only); the counter bench ran on kanon. Product code is
+  unchanged since run 8, whose counts stand.
+
 ## Still open
 * The EPYC instruction limits are checked on keke by CI; this run measured on shiki (Haswell-EP) only. startup_instr_c's
   -6 is not measured per instruction here (no next build of cbench_startup on shiki): CI's keke row decides.
@@ -45,4 +62,5 @@ resolved per 256-character block; `ThreadBlock::wclass` (0x180) stored with `vie
 1. If CI's keke instruction rows are red: read the cbench_startup ctr lines of the CI log; startup_instr_c: disassemble
    `store_words`' caller in libc.so.6 on head vs next. 2. `_l` rows. 3. timing.
 Do not redo: the stage-1 encoding, the shared pool, `.bss` slots, the 32-bit cells, the Latin alignment experiment, the
-cold out-of-line resolve-only path, `cold_path`; the run-7 merge; the run-8 profile (numbers above).
+cold out-of-line resolve-only path, `cold_path`; the run-7 merge; the run-8 profile (numbers above); run 9's
+publish-order codegen check (identical code; re-run only if the publishing CAS or `pool_add` changes).
