@@ -1,10 +1,28 @@
 # TB-FOREIGN-WORDS-LOW: errno, TID, dtor, heap and node words (0x80-0x9b) in a block Liella did not make
 
-State: branch `task/tb-foreign-words-low-12`, code head a049c2f4f (-11's 63ce23318 plus the fix below); later
-commits touch handoff/ only. Decisions in force: D-X.58, D-X.60, D-X.62, rulings #4835, #4849, #4851, #4779 (<= +2
-per one-access call vs next, judged on Release #4889), #5325, #5378, #4347, #5697. The owner's safety requirement
-(words 0x80-0x9b) was finished in -1..-10. This run fixed the layout cost CI train 709 found. Older reports:
-handoff/TB-FOREIGN-WORDS-LOW-report.md (-1..-4), the git history of this file (-5..-11).
+State: branch `task/tb-foreign-words-low-13`, head: see the -13 report json (code head a049c2f4f, unchanged; -13
+changed only bench/instr_limits.tsv, records/decisions/D-X/D-X.60.toml and handoff/). Decisions in force: D-X.58,
+D-X.60, D-X.62, rulings #4835, #4849, #4851, #4779 (<= +2 per one-access call vs next, judged on Release #4889), #5325,
+#5378, #4347, #5697, and the owner ruling of 2026-11-14 (errno cost accepted for safety). The owner's safety requirement
+(words 0x80-0x9b) was finished in -1..-10, and -12 fixed the merged-build layout cost. Older reports:
+handoff/TB-FOREIGN-WORDS-LOW-report.md (-1..-4), and the git history of this file (-5..-12).
+
+## -13 (counts on keke, Zen 1, CI's instruction host; gates on mei)
+- CI's red for -12 was two instruction limits, not a defect. Owner ruling 2026-11-14 (option 1): accept the errno
+  check's cost. `cbench_hot/errno_location` goes 9 -> 11 (glibc 10), and its limit is now 12, with the ruling and the
+  requirement "It needs to be safe" in the row's note and in D-X.60's body.
+- Start-up: RAM copies on keke (`/dev/shm/claude/TB-FOREIGN-WORDS-LOW-13/{next,merged}`; merged = git archive of next
+  e47a71997 + `git apply` of the branch diff 630f3afb2..HEAD; `cargo xtask bench --only cbench_startup,cbench_hot
+  --counters-only`; jobs `tb-foreign-words-low-13-kekenext`, `-kekemerged`). startup_instr_c: next 2144, merged 2155
+  (CI's own count), so this branch costs +11. The limit is now 2150 + 11 = 2161, with both numbers in the note. next is
+  6 under the old limit (INFORMATIONAL); that drift is not absorbed. errno_location: next 9.0, merged 11.0.
+- Gates on the final code+limits head (mei s3): `-lint` (workspace clippy, xtask clippy, static, records check),
+  `-gate` (`cargo xtask affected --run`; it escalates to FULL because tp.S defines the exported `__errno_location`, so
+  it runs the workspace clippy and `cargo xtask test`, which is CI's first start-up check), then `-startup`
+  (LIELLA_FULL_PROFILE=1 so + hot_text_products, CI's second check). Results: lint rc 0 (records ok); gate rc 0,
+  11789 passed / 0 failed, conformance 135 / 0, test/products green, peak 16G; startup rc 0, hot_text_products
+  26 / 0. The gate ran 95 min on mei at load 30-57 (the FULL escalation, not the change, set the length).
+  No plants: -13 changed no code (the -12 plants still cover a049c2f4f).
 
 ## -12 (host mei, Skylake-SP, the CI host class; RAM copies, fast products)
 - Ruling #5697 asked whether the GLIBC_TUNABLES name table is a start-up key in next's mei build. **No.**
@@ -38,7 +56,7 @@ handoff/TB-FOREIGN-WORDS-LOW-report.md (-1..-4), the git history of this file (-
 ## Next step
 Land. Still open from -10, outside this story: the text before the 32 KiB-aligned string kernels is about
 9 KiB over the boundary next sits under (LAYOUT-RETHINK's question), and the remaining `OwnPages`
-monomorphisations (memalign family, `first_cache`).
+monomorphisations (memalign family, `first_cache`). next's startup_instr_c (2144 at e47a71997) is close to its limit.
 
 ## Not to redo
 -1's audit; the registry/FOREIGN/OwnPages/asm design; -7's SPARE split; -8's Haswell-EP comparison; -10's mei
