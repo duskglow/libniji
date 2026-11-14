@@ -116,7 +116,9 @@ else
 fi
 products=$(cd "$products" && pwd)
 export SOURCE_DATE_EPOCH="$epoch"
-commit=${commit:-}
+# --products: the commit the products were built from, when the caller names it (the system
+# packages' changelog names it, so a repack of the same products is byte-identical).
+[ -n "${commit:-}" ] || commit=$(printf '%.12s' "${LIELLA_DEB_COMMIT:-}")
 
 stage=$work/stage
 rm -rf "$stage"
