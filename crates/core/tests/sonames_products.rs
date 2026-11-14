@@ -3,6 +3,7 @@
 //! the archives `-l<x>` finds in a static link. Programs are built against `target/liella` with
 //! the system compiler and run directly (dynamic ones name Liella's loader and its directory).
 //! No spec clause names these files: spec Appendix C lists the libraries and their symbols.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
