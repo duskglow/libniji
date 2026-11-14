@@ -1071,8 +1071,11 @@ mod tests {
         let (l, what) = file_ctypes().into_iter().next().unwrap();
         let w = wide_of(&l);
         let after = 3u32;
-        for (c, m) in [(0xe9u32, Class::ALPHA), (0x3a9, Class::UPPER), (0x4e00, Class::ALPHA)] {
+        // A member and two characters with classes other than the one asked (the answer must be
+        // the asked class's, not any class's).
+        for (c, m) in [(0xe9u32, Class::UPPER), (0x3a9, Class::DIGIT), (0x4e00, Class::ALPHA)] {
             let want = cls::w_classes_file(c, &w).0;
+            assert_eq!(want & m.0 != 0, c == 0x4e00, "{what} {c:#x}: the case is not vacuous");
             for word in [true, false] {
                 let t = ClassTable::file_after_for_test(after);
                 for k in 0..=after {
