@@ -1,0 +1,21 @@
+id = "D-NEW"
+series = "D-31"
+section = "s31"
+spec = "31"
+ann = "The utilities' transcript harness is `cargo xtask transcript` (xtask/src/transcript/): line-based transcripts under validation/transcripts/, private roots, root-path-only normalisation"
+status = "active"
+story = "UTIL-HARNESS"
+date = "2026-11-14"
+body = '''
+UTIL-1 of plan/utilities.md. The harness lives in xtask, not as scripts under validation/: xtask is std-only with no
+third-party code, it already links liella-ld (whose cache writer makes the `cache:` items of a transcript and whose
+reader the `ldconfig -p` stub uses until UTIL-3), and the comparator is Rust with unit tests that plants check.
+Transcripts are data files (validation/transcripts/<utility>/*.transcript, format in docs/transcripts.md): argv,
+exact environment, stdin, the private root's items, optional user and mount namespace with binds, and the reference's
+outcome written by `record`. `check` compares Liella with the reference (and the reference with the record; a stale
+record fails). Status, stdout, stderr and every written path are compared separately, so text on the wrong stream is
+a mismatch. Normalisation is only the private root's path (`@ROOT@`) unless a transcript adds a `normalise:` literal.
+argv[0] is the bare command name on both sides. Namespaces are unprivileged (`unshare --user --map-root-user
+--mount`, then a nested user namespace mapping the caller's uid and gid back for `namespace: user`); a host without
+them prints SKIPPED with the reason.
+'''
