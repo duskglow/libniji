@@ -1679,11 +1679,13 @@ fn build_owner_dir(root: &Path, cc: &str, release: &Path, work: &Path) -> Result
     fs::write(&map, format!("{OWNER_NODE} {{\n  global:\n    {};\n  local:\n    *;\n}};\n", OWNER_EXPORTS.join(";\n    "))).map_err(|e| format!("{}: {e}", map.display()))?;
     let stub = dir.join("libc-owner.so");
     let staged = tmp_name(&stub);
+    let src = root.join(OWNER_STUB);
+    // Compiled from its own directory by relative name: no build path in the product.
     run(Command::new(cc)
-        .current_dir(root.join("csys/owner"))
+        .current_dir(src.parent().unwrap_or(root))
         .args(["-shared", "-nostdlib", "-Wl,-soname,libc.so.6", "-Wl,--hash-style=gnu"])
         .arg(format!("-Wl,--version-script={}", map.display()))
-        .arg("stub.S")
+        .arg(src.file_name().unwrap_or_default())
         .arg("-o")
         .arg(&staged))?;
     publish(&staged, &stub)?;
