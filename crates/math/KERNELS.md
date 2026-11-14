@@ -15,12 +15,12 @@ Each line: `file:line`, signature, the doc comment's tagged lines (`bound:`, `do
 - `fast32/bessel.rs:190` `pub(super) fn bessel_eval(f: usize, x: f32, mode: Rounding, name: &'static str) -> Option<(f32, Status)>` — bound: undocumented — doc: j0f, j1f, y0f, y1f: the tiny band 0 < |x| < 2^-20 (LIBM-RETHINK-BESSEL, D-10.106), else [`bessel_core`] and [`bessel_finish`].
 - `fast32/bessel.rs:264` `pub(super) fn bessel_finish(x: f32, (y, e): (f64, f64), mode: Rounding, name: &'static str) -> Option<(f32, Status)>` — bound: undocumented — doc: The rounding test for an absolute bound e: margin e/ulp(y) < e·2^53/|y| (ulp(y) > |y|·2^-53), refused at or beyond 2^26 (the test's mask is 2^28; y near a zero …
 - `fast32/bessel.rs:305` `const fn lg_taylor(odd: bool) -> [f64; 10]` — bound: undocumented — doc: Taylor coefficients of sin(πg/2)/g and cos(πg/2) in z = g² (k ≤ 8 and k ≤ 9: the first neglected terms at |g| = 1/2 are below 2^-62 of the value).
-- `fast32/bessel.rs:323` `include!("bessel_tab.rs");`
-- `fast32/bessel.rs:354` `fn lg_tab(f: usize) -> &'static [u64]` — bound: undocumented — doc: Function f's table (0 j0f, 1 j1f, 2 y0f, 3 y1f).
-- `fast32/bessel.rs:360` `fn large_core(f: usize, a: u32) -> (f64, f64)` — bound: undocumented — doc: y ≈ f(|x|) (J1 at |x|) and the bound in units of 2^-53 of |y|; `y` is never 0 on the band.
-- `fast32/bessel.rs:397` `fn horner_f10(c: &[f64; 10], t: f64) -> f64` — bound: undocumented
-- `fast32/bessel.rs:410` `fn large_delta(y: f64, b: f64) -> Option<u64>` — bound: undocumented — doc: The rounding test's margin in ulp(y) for a bound of b units of 2^-53 of |y| (ulp(y) = 2^-52 of y's binade: b·m/2, m ∈ [1, 2) y's significand), or `None` past 2^…
-- `fast32/bessel.rs:425` `pub(crate) fn bessel_large(f: usize, x: f32, mode: Rounding, name: &'static str) -> Option<(f32, Status)>` — bound: undocumented — doc: The large band for an operand [`bessel_eval`] refused (the core and the rounding test, else the table; J1 odd: the value at -x is the negated one), `None` off t…
+- `fast32/bessel.rs:324` `include!("bessel_tab.rs");`
+- `fast32/bessel.rs:355` `fn lg_tab(f: usize) -> &'static [u64]` — bound: undocumented — doc: Function f's table (0 j0f, 1 j1f, 2 y0f, 3 y1f).
+- `fast32/bessel.rs:361` `fn large_core(f: usize, a: u32) -> (f64, f64)` — bound: undocumented — doc: y ≈ f(|x|) (J1 at |x|) and the bound in units of 2^-53 of |y|; `y` is never 0 on the band.
+- `fast32/bessel.rs:398` `pub(super) fn horner_f10(c: &[f64; 10], t: f64) -> f64` — bound: undocumented
+- `fast32/bessel.rs:411` `fn large_delta(y: f64, b: f64) -> Option<u64>` — bound: undocumented — doc: The rounding test's margin in ulp(y) for a bound of b units of 2^-53 of |y| (ulp(y) = 2^-52 of y's binade: b·m/2, m ∈ [1, 2) y's significand), or `None` past 2^…
+- `fast32/bessel.rs:426` `pub(crate) fn bessel_large(f: usize, x: f32, mode: Rounding, name: &'static str) -> Option<(f32, Status)>` — bound: undocumented — doc: The large band for an operand [`bessel_eval`] refused (the core and the rounding test, else the table; J1 odd: the value at -x is the negated one), `None` off t…
 
 ## fast32/bessel_tab.rs (f32 bessel_tab)
 
@@ -83,13 +83,21 @@ Each line: `file:line`, signature, the doc comment's tagged lines (`bound:`, `do
 
 ## fast32/gamma.rs (f32 gamma)
 
-- `fast32/gamma.rs:33` `fn horner<const N: usize>(c: &[u64; N], s: f64) -> f64` — bound: undocumented — doc: c[0] + s·(c[1] + s·(...)) by Horner.
-- `fast32/gamma.rs:48` `pub(super) fn gamma_core(xd: f64) -> Option<f64>` — bound: undocumented — doc: Γ(x) as a `double` with relative error ≤ 55.1u (u = 2^-53), for 2^-20 ≤ |x|, -42 < x < 36, x not a negative integer (`None` outside).
-- `fast32/gamma.rs:79` `fn ln64(v: f64) -> f64` — bound: undocumented — doc: ln v for a positive normal `double` v in [2^-181, 2^181], absolute error ≤ (1.45 + 2|y|)u.
-- `fast32/gamma.rs:120` `fn lgamma_core_signed(x: f32) -> Option<(f64, u64, i32, bool)>` — bound: undocumented — doc: [`lgamma_core`] and the sign of Γ(x) (1 or -1).
-- `fast32/gamma.rs:178` `fn lgamma_edge(xd: f64) -> Option<(f64, u64, i32, bool)>` — bound: undocumented — doc: lnΓ(x) for the operands [`lgamma_core_signed`]'s `double` pieces refuse, as its (y, margin in ulp of y, sign of Γ(x)), or `None` (the poles, x ≤ -16 off the pol…
-- `fast32/gamma.rs:206` `pub fn eval_lgamma(x: f32, mode: Rounding) -> Option<((f32, Status), i32)>` — bound: undocumented — doc: `lgammaf` by the fast path with the sign of Γ(x) (`signgam`), or `None` (see [`eval`]): the value as `eval(Fast::Lgamma, ..)`, the sign from Γ(x) itself ([`lgam…
-- `fast32/gamma.rs:214` `pub fn eval_tgamma(x: f32, mode: Rounding) -> Option<(f32, Status)>` — bound: undocumented — doc: `tgammaf` by the fast path, or `None` (see [`eval`]).
+- `fast32/gamma.rs:38` `fn horner<const N: usize>(c: &[u64; N], s: f64) -> f64` — bound: undocumented — doc: c[0] + s·(c[1] + s·(...)) by Horner.
+- `fast32/gamma.rs:53` `pub(super) fn gamma_core(xd: f64) -> Option<f64>` — bound: undocumented — doc: Γ(x) as a `double` with relative error ≤ 55.1u (u = 2^-53), for 2^-20 ≤ |x|, -42 < x < 36, x not a negative integer (`None` outside).
+- `fast32/gamma.rs:84` `fn ln64(v: f64) -> f64` — bound: undocumented — doc: ln v for a positive normal `double` v in [2^-181, 2^181], absolute error ≤ (1.45 + 2|y|)u.
+- `fast32/gamma.rs:125` `fn lgamma_core_signed(x: f32) -> Option<(f64, u64, i32, bool)>` — bound: undocumented — doc: [`lgamma_core`] and the sign of Γ(x) (1 or -1).
+- `fast32/gamma.rs:135` `fn lgamma_core_pieces<const EDGE: bool>(x: f32) -> Option<(f64, u64, i32, bool)>` — bound: undocumented — doc: [`lgamma_core_signed`] (`EDGE`), or without [`lgamma_edge`]'s pieces (`!EDGE`: x < -42 still by [`lgamma_reflect`], the rest of [`lgamma_edge`]'s operands `None…
+- `fast32/gamma.rs:178` `fn lgamma_wide(xd: f64) -> Option<(f64, u64, i32, bool)>` — bound: undocumented — doc: lnΓ(x) for x < -42 by [`lgamma_reflect`] (its margin is not [`lgamma_edge`]'s: the fourth value is false), `None` for every other x (NaN included).
+- `fast32/gamma.rs:193` `fn lgamma_wide_cold(xd: f64) -> Option<(f64, u64, i32, bool)>` — bound: undocumented — doc: [`lgamma_wide`] as its own function, for [`lgamma_edge`].
+- `fast32/gamma.rs:222` `fn lgamma_edge(xd: f64) -> Option<(f64, u64, i32, bool)>` — bound: undocumented — doc: lnΓ(x) for the operands [`lgamma_core_signed`]'s `double` pieces refuse, as its (y, margin in ulp of y, sign of Γ(x)), or `None` (the poles, -42 ≤ x ≤ -16 off t…
+- `fast32/gamma.rs:277` `fn lgamma_reflect(xd: f64) -> Option<(f64, u64, i32, bool)>` — bound: undocumented — doc: lnΓ(x) for a `float` -2^23 < x < -42 off the poles, as (y, [`LGAMMA_REFLECT_DELTA`], sign of Γ(x), false); `None` for the poles, x ≤ -2^23 (every such `float` i…
+- `fast32/gamma.rs:307` `include!("lgamma_tab.rs");`
+- `fast32/gamma.rs:314` `fn lgamma_tabled(d: u64, edge: bool) -> bool` — bound: undocumented — doc: Whether [`lgamma_rest`] covers a refused answer of the piece with margin `d` (`edge`: from [`lgamma_edge`]'s kernels): the reflection and 2^-8 ≤ |y| < 1.
+- `fast32/gamma.rs:324` `pub fn eval_lgamma(x: f32, mode: Rounding) -> Option<((f32, Status), i32)>` — bound: undocumented — doc: `lgammaf` by the fast path with the sign of Γ(x) (`signgam`), or `None` (see [`eval`]): the value as `eval(Fast::Lgamma, ..)`, the sign from Γ(x) itself ([`lgam…
+- `fast32/gamma.rs:333` `pub fn lgamma_first(x: f32, mode: Rounding) -> Option<((f32, Status), i32)>` — bound: undocumented — doc: The first try: the pieces of [`lgamma_core_signed`] and one rounding test.
+- `fast32/gamma.rs:349` `pub fn lgamma_rest(x: f32, mode: Rounding) -> Option<((f32, Status), i32)>` — bound: undocumented — doc: The second tries after [`lgamma_first`] refused x: its pieces again (y with margin `d`, `edge` as [`lgamma_core_signed`]'s; `None` there, the poles and the othe…
+- `fast32/gamma.rs:374` `pub fn eval_tgamma(x: f32, mode: Rounding) -> Option<(f32, Status)>` — bound: undocumented — doc: `tgammaf` by the fast path, or `None` (see [`eval`]).
 
 ## fast32/hyperbolic.rs (f32 hyperbolic)
 
@@ -128,6 +136,10 @@ Each line: `file:line`, signature, the doc comment's tagged lines (`bound:`, `do
 - `fast32/inv_trig.rs:399` `pub fn atan_onepass_any(x: f32) -> Option<f32>` — bound: undocumented — doc: `atanf` as [`asin_onepass_any`], for 2^-26 ≤ |x| < ∞ (tested on the bits), one division: a = |x| ≤ 1 is [`atan_red_any`]'s s = a exact (15.2u).
 - `fast32/inv_trig.rs:410` `pub(super) fn atan_y(b: u32) -> f64` — bound: undocumented — doc: [`atan_onepass_any`]'s `double` result for the bits b of an operand in its range.
 - `fast32/inv_trig.rs:434` `pub fn atan2_onepass_any(y: f32, x: f32) -> Option<f32>` — bound: undocumented — doc: `atan2f` as [`asin_onepass_any`], for normal finite nonzero y and x (tested on the bits): s = min/max of |y| and |x| (2u; s ≥ 2^-254, normal), t = atan s (17.2u…
+
+## fast32/lgamma_tab.rs (f32 lgamma_tab)
+
+(no functions)
 
 ## fast32/trig.rs (f32 trig)
 
