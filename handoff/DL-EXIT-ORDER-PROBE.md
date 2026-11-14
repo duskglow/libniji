@@ -20,8 +20,8 @@ differs in every multi-object probe and in DL-0b's `== order` exit record (E bef
 **Done:** `liella_ld::init::exit_order(n, succ, rank, out)` (crates/ld/src/init.rs): Tarjan groups,
 then of the free groups the one with the earliest unit; inside a group (a cycle) the last initialised
 first. Tests: `exit_order_load_order_dependents_first` in crates/ld/tests/init_order.rs (the `== order`
-exit record, E1-E3/E8/E9, E14, E17, E18, E20, E24, E25, E29, E30, errors): passed on keke (unit1,
-before the clippy fixes; unit2 on the final head).
+exit record, E1-E3/E8/E9, E14, E17, E18, E20, E24, E25, E29, E30, errors): passed on keke (unit1;
+unit4 on the final head: tests, workspace clippy, static).
 
 **Exact next step (the wiring, est. 30-40 calls):**
 1. `ld.rs` `run_init`: store each `FINI_HOOKS` slot's start-time object index (new static `FINI_IDX`,
@@ -37,7 +37,7 @@ before the clippy fixes; unit2 on the final head).
 3. C test (new mode in crates/ld/tests/dlclose.rs or a new test file): the probe scenarios E1, E5, E14,
    E18, E21, E25 (needs a start-time lib) and the record's exit case, exact `dtor` sequences; cycles
    assert Liella's rule.
-4. Decision record `records new decision D-NEW --series D-27 --story DL-EXIT-ORDER-PROBE`; differences
+4. Decision record: a pending record in series D-27 (`cargo xtask records new decision`, pending id); differences
    row for the in-cycle order (RULING NEEDED below); plants on `exit_order` (group order, rank sort,
    free-group pick) and on the wiring (chain edge, binds edges); the start-up checks (exit path is
    loader code): `cargo xtask test` and the `LIELLA_FULL_PROFILE=1` hot_text_products pair.

@@ -214,7 +214,7 @@ fn exit(seq: &[&'static str], before: &[(&str, &str)], inits: &[&str]) -> Vec<&'
 }
 
 /// s1_1_c_6, s27_1_c_1 (probe tools/probe/dl/exitorder E1-E30 and DL-0b's `== order` exit record;
-/// D-NEW of DL-EXIT-ORDER-PROBE): at exit the program, the start-time objects and the `dlopen`ed
+/// story DL-EXIT-ORDER-PROBE): at exit the program, the start-time objects and the `dlopen`ed
 /// objects run as one sequence, the earliest loaded first, each object after every object that
 /// needs it; a cycle runs as one group, the last initialised first. `libc` stands for the C library
 /// every probe object needs.
