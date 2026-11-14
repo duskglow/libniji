@@ -286,17 +286,27 @@ fn exhaustive(fs: &'static [Fast]) -> u64 {
 
 /// [`exhaustive`] with the check `check` on each chunk's operands.
 pub(super) fn exhaustive_by(check: impl Fn(&[f32]) -> u64 + Sync) -> u64 {
+    exhaustive_range_by(0, 1 << 32, check)
+}
+
+/// The 2^16-encoding chunks of a sweep: a shard's bounds are multiples of it.
+pub(super) const SWEEP_CHUNK: u64 = 1 << 16;
+
+/// [`exhaustive_by`] on the encodings `start..end` only (both multiples of [`SWEEP_CHUNK`]): one shard of a
+/// sweep too long for one job, whose shards together cover `0..2^32`.
+pub(super) fn exhaustive_range_by(start: u64, end: u64, check: impl Fn(&[f32]) -> u64 + Sync) -> u64 {
     use std::sync::atomic::{AtomicU64, Ordering};
-    const CHUNK: u64 = 1 << 16;
+    const CHUNK: u64 = SWEEP_CHUNK;
+    assert!(start % CHUNK == 0 && end % CHUNK == 0 && start < end && end <= 1 << 32, "shard {start:#x}..{end:#x}");
     let n = std::thread::available_parallelism().map_or(8, |n| n.get());
     let stride = std::env::var("LIELLA_SWEEP_STRIDE").ok().and_then(|s| s.parse::<usize>().ok()).filter(|&k| k > 0).unwrap_or(1);
-    let next = AtomicU64::new(0);
+    let next = AtomicU64::new(start);
     let (taken, seen) = std::thread::scope(|sc| {
         let hs: std::vec::Vec<_> = (0..n).map(|_| sc.spawn(|| {
             let (mut taken, mut seen) = (0, 0);
             loop {
                 let lo = next.fetch_add(CHUNK, Ordering::Relaxed);
-                if lo >= 1 << 32 {
+                if lo >= end {
                     return (taken, seen);
                 }
                 let xs: std::vec::Vec<f32> = (lo..lo + CHUNK).step_by(stride).map(|b| f32::from_bits(b as u32)).collect();
@@ -307,7 +317,7 @@ pub(super) fn exhaustive_by(check: impl Fn(&[f32]) -> u64 + Sync) -> u64 {
         hs.into_iter().map(|h| h.join().unwrap_or_else(|e| std::panic::resume_unwind(e))).fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1))
     });
     // Every chunk exactly once: a lost or repeated chunk would pass unseen otherwise.
-    assert_eq!(seen, ((1u64 << 32) / CHUNK) * CHUNK.div_ceil(stride as u64), "sweep coverage (stride {stride})");
+    assert_eq!(seen, ((end - start) / CHUNK) * CHUNK.div_ceil(stride as u64), "sweep coverage (stride {stride})");
     taken
 }
 
