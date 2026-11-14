@@ -13,4 +13,4 @@
  "improvement": "a CI-class-only fault check missed a one-node-host regression for 7 runs: run hot_text_products on one host of each NUMA shape when a change touches start-up",
  "next_step": "after the ruling: p_true clock_gettime, bounds on both host classes, gate and both plants files",
  "report_file": "handoff/HEAP-FIRST-USE-8.md",
- "jobs": ["hfu8-gate", "heap-first-use-8-plants", "hfu8-bounds3", "mei:hfu8-mei-bounds2", "mei:hfu8-mei-layout", "mei:heap-first-use-8-plants-ci"]}
+ "jobs": ["hfu8-gate", "heap-first-use-8-plants","mei:hfu8-mei-bounds2", "mei:hfu8-mei-layout", "mei:heap-first-use-8-plants-ci"]}
