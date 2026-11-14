@@ -6,9 +6,7 @@ liella = "A cycle runs as one group at its place in the exit sequence, the membe
 restore = "A tunable read at startup selecting, inside a cycle, the order the reference's probes record, once that order is specified from further black-box probes"
 cost = "none expected: one branch in the in-group sort of `init::exit_order`, at exit only"
 status = "registered"
-decisions = ["D-NEW"]
 story = "DL-EXIT-ORDER-PROBE-2"
-date = "2026-11-14"
 body = '''
-Registered, not implemented (ruling #5790: every difference from the reference gets a compatibility option). Implementing it first needs a specification of the reference's in-cycle order from probes; the recorded cases (E19-E30) do not yet determine one.
+Registered, not implemented; it rests on the pending decision records/pending/DL-EXIT-ORDER-PROBE-2-1.toml (ruling #5790: every difference from the reference gets a compatibility option). Implementing it first needs a specification of the reference's in-cycle order from probes; the recorded cases (E19-E30) do not yet determine one.
 '''

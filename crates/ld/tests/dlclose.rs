@@ -119,6 +119,9 @@ DTOR("I") int i_fn(void) { return 10; }
 #ifdef KIND_S
 DTOR("S") int s_fn(void) { return 11; }
 #endif
+#ifdef KIND_V
+DTOR("V") int v_fn(void) { return 13; }
+#endif
 #ifdef KIND_M
 DTOR("M") int m_fn(void) { return 12; }
 #endif
@@ -828,9 +831,10 @@ fn s27_1_c_4_cxx_plugin_load_unload_loop() {
 /// `bind` (E21): U bound `g_val` in G (`RTLD_GLOBAL`, no `DT_NEEDED`): U before G. `cycle` (E20,
 /// Liella's rule, the decision record of DL-EXIT-ORDER-PROBE-2): the cycle H <-> I (initialised I,
 /// H) runs as one group between N and Y, the last initialised (H) first. `start` (E24, E25): M,
-/// opened between N and Y, needs the start-time object S: N, M, S, then Y.
+/// opened between N and Y, needs the start-time object S (which needs the start-time V): N, M, S,
+/// V, then Y.
 #[test]
-fn s27_1_c_1_exit_runs_loaded_objects_as_one_sequence() {
+fn exit_runs_loaded_objects_as_one_sequence() {
     let Some((d, ld, libc, crt1)) = setup("exit") else { return };
     let prog = corpus(&d, &ld, &libc, &crt1);
     let dir = d.to_str().unwrap();
@@ -845,7 +849,8 @@ fn s27_1_c_1_exit_runs_loaded_objects_as_one_sequence() {
     lib("libI.so", "-DKIND_I", &[]);
     lib("libH.so", "-DKIND_H", &["-l:libI.so"]);
     lib("libI.so", "-DKIND_I", &["-l:libH.so"]);
-    lib("libS.so", "-DKIND_S", &[]);
+    lib("libV.so", "-DKIND_V", &[]);
+    lib("libS.so", "-DKIND_S", &["-l:libV.so"]);
     lib("libM.so", "-DKIND_M", &["-l:libS.so"]);
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let with_s = build(&d, "prog_s", PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", &interp, crt1.to_str().unwrap(), "-Wl,--no-as-needed", &ldir, &rpath, "-l:libS.so", libc.to_str().unwrap(), ld.to_str().unwrap(), "-lgcc"]);
@@ -855,7 +860,7 @@ fn s27_1_c_1_exit_runs_loaded_objects_as_one_sequence() {
         (&prog, "dep", "dP dN fN dA fA dB fB "),
         (&prog, "bind", "dP dN fN dU fU dG fG "),
         (&prog, "cycle", "dP dN fN dH fH dI fI dY fY "),
-        (&with_s, "start", "dP dN fN dM fM dS fS dY fY "),
+        (&with_s, "start", "dP dN fN dM fM dS fS dV fV dY fY "),
     ] {
         for (how, mut cmd) in [("kernel-started", Command::new(p)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(p); c })] {
             let o = cmd.arg(&d).arg("exit").arg(scenario).output().unwrap();
