@@ -28,6 +28,10 @@ pub const ON_EXIT: u64 = 2;
 pub const CXA: u64 = 3;
 /// `at_quick_exit(fn)` / `__cxa_at_quick_exit(fn, dso)`: `fn()`.
 pub const QUICK: u64 = 4;
+/// `atexit(fn)` at `LIELLA_OWNER_1` (D-27.29): `fn()`; owner word as found at registration.
+pub const OPTED_EXIT: u64 = 5;
+/// `at_quick_exit(fn)` at `LIELLA_OWNER_1`: `fn()`.
+pub const OPTED_QUICK: u64 = 6;
 
 /// Entries held in the registry itself (the ISO C minimum).
 pub const FIXED: usize = 32;
@@ -183,6 +187,21 @@ pub fn finalize<S: Sys, P: Pages>(exit: &Registry, quick: &Registry, sys: &S, pa
     if dso != 0 {
         while quick.take(sys, pages, |e| e[3] == dso).is_some() {}
     }
+}
+
+/// A module mapped at `[lo, hi)` is being unloaded (D-27.29): run the opted-in exit entries
+/// ([`OPTED_EXIT`]) whose owner word or handler lies in it, most recent first, each once; and
+/// forget such opted-in quick-exit entries. Other kinds keep the owner-only rule of [`finalize`]
+/// (ruling #4862).
+#[allow(clippy::too_many_arguments)]
+pub fn finalize_range<S: Sys, P: Pages>(exit: &Registry, quick: &Registry, sys: &S, pages: &P, lo: usize, hi: usize, call: &mut impl CCall) {
+    let (lo, hi) = (w(lo), w(hi));
+    let inside = |v: u64| lo <= v && v < hi;
+    let mine = |e: &Entry| inside(e[3]) || inside(e[1]);
+    while let Some(e) = exit.take(sys, pages, |e| e[0] == OPTED_EXIT && mine(e)) {
+        invoke(&e, 0, call);
+    }
+    while quick.take(sys, pages, |e| e[0] == OPTED_QUICK && mine(e)).is_some() {}
 }
 
 /// `__cxa_thread_atexit_impl`: push `(f, obj, dso)` on the list headed at `head`, in the 4-word

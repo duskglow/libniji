@@ -330,7 +330,42 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
         count += 1;
     }
     script.push_str("};\n");
+    // The opt-in's node (D-27.29): only the `.symver` shims of OWNER_SHIMS name it, non-default.
+    script.push_str(&format!("{OWNER_NODE} {{\n}};\n"));
     Ok((script, count))
+}
+
+/// The Liella-only version node of the opted-in registrations (DL-ATEXIT-OWNER, D-27.29).
+pub const OWNER_NODE: &str = "LIELLA_OWNER_1";
+/// The names `libc.so.6` exports at [`OWNER_NODE`], each as a NON-default version only.
+pub const OWNER_EXPORTS: &[&str] = &["at_quick_exit", "atexit", "pthread_atfork"];
+/// The shims giving [`OWNER_EXPORTS`] their versions (linked into libc.so.6 only).
+pub const OWNER_SHIMS: &str = "csys/owner/owner.S";
+/// The link-time interface stub of the opt-in (built as `liella-owner/libc-owner.so`).
+pub const OWNER_STUB: &str = "csys/owner/stub.S";
+/// The opt-in's `libc.so` script (`liella-owner/libc.so`): the interface stub instead of
+/// libc_nonshared.a. Bare names, found on the library search path (`-L<dir>/liella-owner
+/// -L<dir>`).
+pub const OWNER_SO_SCRIPT: &str = "/* GNU ld script: Liella's C library, opted in to registrations without\n   libc_nonshared.a (D-27.29). libc-owner.so is a link-time interface stub:\n   the program then needs LIELLA_OWNER_1 of libc.so.6 and runs only on Liella. */\nOUTPUT_FORMAT(elf64-x86-64)\nGROUP ( libc-owner.so libc.so.6 AS_NEEDED ( ld-linux-x86-64.so.2 ) )\n";
+
+/// Take the [`OWNER_NODE`] versions out of `exported` (they have no versions.tsv rows) and check
+/// them: each of [`OWNER_EXPORTS`] exactly once, non-default, and no other name at the node.
+pub fn take_owner_node(exported: &mut BTreeMap<String, BTreeMap<String, bool>>) -> Vec<String> {
+    let mut errors = Vec::new();
+    for name in OWNER_EXPORTS {
+        match exported.get_mut(*name).and_then(|v| v.remove(OWNER_NODE)) {
+            Some(false) => {}
+            Some(true) => errors.push(format!("{name}@@{OWNER_NODE}: the opt-in must be a non-default version (a default link would bind it)")),
+            None => errors.push(format!("{name}@{OWNER_NODE} not exported")),
+        }
+    }
+    for (name, vers) in exported.iter() {
+        if vers.contains_key(OWNER_NODE) {
+            errors.push(format!("{name}: exported at {OWNER_NODE}, which holds only {OWNER_EXPORTS:?}"));
+        }
+    }
+    exported.retain(|_, v| !v.is_empty());
+    errors
 }
 
 /// `libc.so.6`'s exports at `LIELLA_PRIVATE` (design §14, D-27.22): what Liella's `ld.so` calls or reads.
@@ -593,7 +628,8 @@ fn check_version_sets(root: &Path, so: &Path, lib: &str, have: &BTreeSet<String>
     if !out.status.success() {
         return Err(format!("readelf {} failed", so.display()));
     }
-    let exported = exported_versions(&String::from_utf8_lossy(&out.stdout));
+    let mut exported = exported_versions(&String::from_utf8_lossy(&out.stdout));
+    let owner_errors = if lib == "libc.so.6" { take_owner_node(&mut exported) } else { Vec::new() };
     // The compat versions not built yet (the library's compat-missing list): a listed one that
     // is exported makes the list stale, an error too, so it stays exact.
     let mut known = BTreeSet::new();
@@ -608,6 +644,7 @@ fn check_version_sets(root: &Path, so: &Path, lib: &str, have: &BTreeSet<String>
     }
     let table = table_versions(root, lib)?;
     let (mut errors, checked) = version_set_errors(lib, &exported, &table, have, skip, &known);
+    errors.extend(owner_errors);
     if let Some(list) = list {
         errors.extend(stale_compat_missing(list, &exported, &table, &known));
     }
@@ -1213,6 +1250,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
         return Err(format!("libc.a does not define the target of {} compat versions: {}", missing.len(), missing.join(", ")));
     }
     have.extend(defined(&compat_obj)?);
+    // The opted-in registrations (D-27.29): `name@LIELLA_OWNER_1` shims, libc.so.6 only. Their
+    // targets are the library's own `liella_owner_*` entries (local).
+    let owner_obj = product.join("owner.o");
+    run(Command::new(&cc).arg("-c").arg(root.join(OWNER_SHIMS)).arg("-o").arg(&owner_obj))?;
 
     // 3. The version script.
     let (script, count) = version_script(root, &have)?;
@@ -1237,6 +1278,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
         .arg(&so_input)
         .arg("-Wl,--no-whole-archive")
         .arg(&compat_obj)
+        .arg(&owner_obj)
         .arg("-lgcc")
         .arg("-o")
         .arg(&so))?;
@@ -1624,6 +1666,32 @@ fn build_nonshared(root: &Path, cc: &str, release: &Path) -> Result<(), String> 
     fs::write(&staged, LIBC_SO_SCRIPT).map_err(|e| format!("{}: {e}", staged.display()))?;
     publish(&staged, &script)?;
     println!("so: target/liella/libc_nonshared.a ({} members, all hidden) and the libc.so script", objects.len());
+    build_owner_dir(root, cc, release, &work)
+}
+
+/// The opt-in's link-stub directory `release/liella-owner/` (D-27.29): the interface stub
+/// `libc-owner.so` (soname libc.so.6, [`OWNER_EXPORTS`] as `name@@LIELLA_OWNER_1`) and the
+/// `libc.so` script naming it and not libc_nonshared.a.
+fn build_owner_dir(root: &Path, cc: &str, release: &Path, work: &Path) -> Result<(), String> {
+    let dir = release.join("liella-owner");
+    fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let map = work.join("owner-stub.map");
+    fs::write(&map, format!("{OWNER_NODE} {{\n  global:\n    {};\n  local:\n    *;\n}};\n", OWNER_EXPORTS.join(";\n    "))).map_err(|e| format!("{}: {e}", map.display()))?;
+    let stub = dir.join("libc-owner.so");
+    let staged = tmp_name(&stub);
+    run(Command::new(cc)
+        .current_dir(root.join("csys/owner"))
+        .args(["-shared", "-nostdlib", "-Wl,-soname,libc.so.6", "-Wl,--hash-style=gnu"])
+        .arg(format!("-Wl,--version-script={}", map.display()))
+        .arg("stub.S")
+        .arg("-o")
+        .arg(&staged))?;
+    publish(&staged, &stub)?;
+    let script = dir.join("libc.so");
+    let staged = tmp_name(&script);
+    fs::write(&staged, OWNER_SO_SCRIPT).map_err(|e| format!("{}: {e}", staged.display()))?;
+    publish(&staged, &script)?;
+    println!("so: target/liella/liella-owner/ (libc-owner.so interface stub at {OWNER_NODE} and its libc.so script)");
     Ok(())
 }
 
