@@ -1019,7 +1019,9 @@ fn init_zero_fault_calls_hold_at_every_text_phase() {
 fn init_cluster_block_keeps_its_windows_at_every_tier_size() {
     let base = std::env::temp_dir().join(format!("liella-cluster-block-{}", std::process::id()));
     let mut bad = Vec::new();
-    let mut first: Option<(Vec<(String, u64)>, Vec<u64>)> = None;
+    // (cluster windows from the block's window, counts per mode) at pad 0.
+    type Shape = (Vec<(String, u64)>, Vec<u64>);
+    let mut first: Option<Shape> = None;
     for pad in [0_u64, 0x800, 0x2000, 0x5000, 0x8000, 0x8800, 0xC000, 0xF000] {
         let dir = base.join(format!("tail-{pad:x}"));
         std::fs::create_dir_all(&dir).expect("temp dir");
