@@ -162,6 +162,9 @@ python3_shared_test() { python3_test; }
 lua_reload_src=lua5.4
 lua_reload_kind=same
 lua_reload_build() {
+    # Debian's luaconf.h includes the multiarch header its build writes (debian/rules); the same content here.
+    printf '#ifndef _LUA_DEB_MULTIARCH_\n#define _LUA_DEB_MULTIARCH_\n#define DEB_HOST_MULTIARCH "%s"\n#endif\n' \
+        "$(gcc -dumpmachine)" > src/lua5.4-deb-multiarch.h || return 1
     (cd src && for f in *.c; do
         case $f in lua.c | luac.c) continue ;; esac
         $CC -O2 -DLUA_USE_LINUX -c "$f" || exit 1
@@ -181,8 +184,13 @@ lua_reload_test() {
 # reference build's.
 cxx_dlclose_src=local:dlclose
 cxx_dlclose_kind=same
+# The plug-ins must define no STB_GNU_UNIQUE symbol (such an object may stay loaded after dlclose, and only
+# the Liella build, which links libstdc++ statically, would have them): the build fails if one does.
 cxx_dlclose_build() {
     $CXX -O2 -fPIC -shared -o libplug.so plug.cc && $CXX -O2 -fPIC -shared -o libplug_tl.so plug_tl.cc &&
-        $CXX -O2 -pthread -o cxx_host cxx_host.cc -ldl
+        $CXX -O2 -pthread -o cxx_host cxx_host.cc -ldl || return 1
+    for f in libplug.so libplug_tl.so; do
+        if readelf -W --dyn-syms "$f" | grep -q ' UNIQUE '; then echo "cxx_dlclose: $f defines STB_GNU_UNIQUE symbols"; return 1; fi
+    done
 }
 cxx_dlclose_test() { ./cxx_host "$PWD"; }

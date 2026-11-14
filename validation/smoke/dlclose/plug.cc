@@ -1,22 +1,26 @@
 // validation/smoke/dlclose/plug.cc: the C++ plug-in cxx_host loads and unloads (smoke program cxx_dlclose).
 // Every event prints one line; cxx_host's output on Liella must equal its output on the reference build, so
 // the order of constructors, destructors, atexit handlers and function-local statics at dlclose is compared
-// line by line. A fresh load must start from fresh data (the counter) when the previous dlclose unloaded it.
+// line by line. A fresh load starts from fresh data (the counter) when the previous dlclose unloaded it.
+// No libstdc++ types: the Liella build links libstdc++ statically into each object, and its STB_GNU_UNIQUE
+// symbols would make this object differ from the reference build's (the recipe checks there are none).
 #include <cstdio>
 #include <cstdlib>
-#include <stdexcept>
-#include <string>
 
 namespace {
 struct Noisy {
-    std::string name;
-    explicit Noisy(const char *n) : name(n) { std::printf("plug: construct %s\n", name.c_str()); }
-    ~Noisy() { std::printf("plug: destroy %s\n", name.c_str()); }
+    const char *name;
+    explicit Noisy(const char *n) : name(n) { std::printf("plug: construct %s\n", name); }
+    ~Noisy() { std::printf("plug: destroy %s\n", name); }
 };
 Noisy first("global-1");
 Noisy second("global-2");
 int counter;
 int loads;
+
+struct PlugError {
+    int n;
+};
 
 void handler_a() { std::printf("plug: atexit handler a\n"); }
 void handler_b() { std::printf("plug: atexit handler b\n"); }
@@ -39,10 +43,10 @@ extern "C" void plug_register() {
 extern "C" int plug_throw(int n) {
     // An exception thrown and caught inside the plug-in: the unwinder finds this object's frames.
     try {
-        if (n > 0) throw std::runtime_error("plug error " + std::to_string(n));
+        if (n > 0) throw PlugError{n};
         return 0;
-    } catch (const std::runtime_error &e) {
-        std::printf("plug: caught \"%s\"\n", e.what());
-        return n;
+    } catch (const PlugError &e) {
+        std::printf("plug: caught plug error %d\n", e.n);
+        return e.n;
     }
 }

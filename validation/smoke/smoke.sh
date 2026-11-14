@@ -271,6 +271,8 @@ selftest() {
     e=0
     env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 -shared -fPIC \
         "$here/selftest/plugin.c" -o "$t/ok/libplugin.so" > "$t/build.log" 2>&1 &&
+    env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 -shared -fPIC \
+        "$here/selftest/tls_plugin.c" -o "$t/ok/libtls_plugin.so" >> "$t/build.log" 2>&1 &&
     env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 "$here/selftest/hello.c" \
         -lm -lpthread -o "$t/ok/hello" >> "$t/build.log" 2>&1 || { echo "smoke-selftest: FAIL liella-cc does not build (see $t/build.log)"; return 1; }
     # Negative controls, one per rule of check-elf.sh: each must be rejected on its own.
@@ -288,6 +290,10 @@ selftest() {
         lcc -O1 -nostartfiles -Wl,--as-needed "$here/selftest/nolibc.c" -o "$t/bad-nolibc/nolibc"; } >> "$t/build.log" 2>&1 ||
         { echo "smoke-selftest: FAIL a negative control does not build (see $t/build.log)"; return 1; }
     "$here/check-elf.sh" "$ldso" "$sys" "$t/ok" > "$t/check-ok.log" 2>&1 || { echo "smoke-selftest: FAIL check-elf rejects liella-cc's build:"; cat "$t/check-ok.log"; e=1; }
+    # The thread-local plug-in is the positive control for the loader's own soname: it must name it.
+    self=$(readelf -Wd "$ldso" | sed -n 's/.*(SONAME) *Library soname: \[\(.*\)\]$/\1/p')
+    readelf -Wd "$t/ok/libtls_plugin.so" | grep -qF "Shared library: [$self]" ||
+        { echo "smoke-selftest: FAIL the thread-local plug-in does not name the loader's soname ($self)"; e=1; }
     for k in system interp soname static nolibc; do
         if "$here/check-elf.sh" "$ldso" "$sys" "$t/bad-$k" > "$t/check-bad-$k.log" 2>&1; then
             echo "smoke-selftest: FAIL check-elf accepts the $k negative control (not linked against Liella)"; e=1
