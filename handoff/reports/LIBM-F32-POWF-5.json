@@ -1,0 +1,12 @@
+{"task": "LIBM-F32-POWF-5", "model": "opus", "tokens": null,
+ "result": "next merged (LAYOUT-TEXT-PIN-15 landed); powf's random-pairs sweep named in the new long-sweeps runner; direct-tier gate green, including the layout test that was red in POWF-4",
+ "branch": "task/libm-f32-powf-5", "head": "804afde06",
+ "gate": {"affected": "2685 passed / 0 failed", "peak": "4.1G"}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["the merge changed no powf code, so the POWF-4 plants (7/7) and counts (powf_typ 155.9) still hold and were not rerun", "math_powf_onepass_random_pairs has no measured time yet in its long-sweeps row (Secs::Unmeasured)"],
+ "refused": [],
+ "impact": [{"kind": "perf", "what": "powf_typ per call (wl_percall, POWF-4, unchanged code)", "before": 275.3, "after": 155.9, "unit": "instr/call", "measured": false},
+            {"kind": "coverage", "what": "long-sweeps runner rows added", "before": 0, "after": 1, "unit": "rows", "measured": true}],
+ "improvement": "the long-sweeps check landed on next while this branch was held; a held branch could run cargo xtask static on its merge with next when unheld, before the gate is queued (as done here)",
+ "next_step": "land; then a new story for powf time 1.83x -> 1.5x (handoff item 1: shorter log series, cheaper exact-case screening)",
+ "report_file": "handoff/libm-f32-powf.md",
+ "jobs": ["shiki:libm-f32-powf-5-lint2", "shiki:libm-f32-powf-5-gate"]}
