@@ -14,21 +14,24 @@
 # @place end (LAYOUT-TEXT-PIN-4): the clusters, in this file's order, follow the last list position, so no
 # alignment gap falls among the start-up and plain text (STARTUP-TEXT-WINDOWS) and the gaps sit side by
 # side. `@place	in-place` keeps them at their list positions.
-# Block on a window (LAYOUT-CLUSTER-WINDOW-ALIGN, D-X pending record): `so` starts the first cluster on a
-# 64 KiB boundary, so the start-up tier's size moves the block by whole windows only and the windows below
-# are this file's, not the tier's parity. With the clusters at most 32 KiB each (32 KiB aligned; float 16 KiB
-# in the fast profile) the order pairs them into three windows, chosen by which probe paths open which:
-#   [strings | rebind]: the coreutils-shaped path (mode tool: setlocale, bindtextdomain, textdomain, printf)
-#     opens both (__printf_chk, bindtextdomain), so they cost it one window, not two; mode strings opens
-#     strings and mode rebind opens rebind, each already its own window.
-#   [time | rebind-tail]: no short-program path opens either; mode mktime / localtime_mktime open time and
-#     mode rebind opens rebind-tail (catalog_of), each one window as before.
-#   [float]: last, so the program's own .text (main), which every mode opens, follows it in its window.
-# `so` prints the window of each cluster ("hot-text cluster block"). Keep the order when adding a cluster:
-# a new one goes where the paths that open it already open a window, or after float.
+# Windows (LAYOUT-CLUSTER-WINDOW-ALIGN, D-X pending record): under `@place end` the clusters are packed by
+# 64 KiB window. `@window` starts the next one. `so` puts the first cluster of each window on a 64 KiB
+# boundary, packs the rest after it at their members' own alignment, and refuses a window whose clusters
+# exceed 64 KiB. The start-up tier's size then moves the block by whole windows only, so which clusters
+# share a window is this file's, not the tier's parity (with each cluster on its own 32 KiB, a tier end
+# crossing a 32 KiB multiple re-paired them: mode tool 50 -> 51). The grouping follows which probe
+# paths open which cluster:
+#   window 0 [strings, rebind, time]: mode tool (setlocale, bindtextdomain, textdomain, printf: the
+#     coreutils shape) opens strings (__printf_chk) and rebind (bindtextdomain); localtime, mktime and
+#     localtime_mktime open time and strings; modes strings and rebind open theirs. One window for all of
+#     them (about 56 KiB in both profiles: so prints "hot-text cluster window").
+#   window 1 [rebind-tail, float]: mode rebind opens rebind-tail (catalog_of), mode float opens float, and
+#     the program's own .text (main), which every mode opens, follows float in this window.
+# A new cluster goes into the window whose paths already open it, or after float.
 @place	end
 strings	strlen	__printf_chk
 rebind	bindtextdomain	_RNCINvNtC13liella_legacy4intl9translateINtNtC15liella_boundary3sys8CSysImplKb0_ENtNtC15liella_boundary7catalog8CatalogsEs8_0C15liella_boundary
 time	_RNvNtC15liella_boundary4zone8local_in	_RNvNtNtC6liella4time5civil17days_from_civil64
+@window
 rebind-tail	_RINvNtC13liella_legacy4intl10catalog_ofINtNtC15liella_boundary3sys8CSysImplKb0_ENtNtC15liella_boundary7catalog8CatalogsEC15liella_boundary	_RNvMNtNtC6liella7catalog2moNtNtNtC6liella7catalog2mo2Mo4form
 float	_RINvNtC6liella6printf12simple_floatNtNtC15liella_boundary6printf8ToBufferEC15liella_boundary	_RINvNtNtC6liella3num6format14decimal_stylesKjb0_EC6liella

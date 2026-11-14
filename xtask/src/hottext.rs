@@ -599,7 +599,8 @@ fn clusters_at_end(text: &str) -> Result<bool, String> {
         end = match d.split('\t').collect::<Vec<_>>()[..] {
             ["place", "end"] => true,
             ["place", "in-place"] => false,
-            _ => return Err(format!("{CLUSTER_LIST}:{}: want @place TAB end|in-place", n + 1)),
+            ["window"] => continue,
+            _ => return Err(format!("{CLUSTER_LIST}:{}: want @place TAB end|in-place, or @window", n + 1)),
         };
     }
     Ok(end)
@@ -638,32 +639,36 @@ fn cluster_align(bytes: u64, min: u64) -> u64 {
     bytes.next_power_of_two().max(min).min(WINDOW)
 }
 
-/// LAYOUT-CLUSTER-WINDOW-ALIGN (D-X, pending record): the alignment of cluster `index` (file order)
-/// of `bytes` bytes and members aligned `min`. With `at_end` (`@place end`) the clusters form one block
-/// after the last list position, and its first cluster starts on a [`WINDOW`] boundary: growth of the
-/// text ahead of the block then moves it by whole windows only, so the block's pairing into windows
-/// ([`block_windows`]) is the file's, whatever the size of the start-up tier. Without it the block
-/// started on its first cluster's own alignment (32 KiB), and a tier end crossing a 32 KiB multiple
-/// flipped which clusters shared a window. Every other cluster keeps [`cluster_align`].
-fn block_align(index: usize, at_end: bool, bytes: u64, min: u64) -> u64 {
-    let a = cluster_align(bytes, min);
-    if at_end && index == 0 { a.max(WINDOW) } else { a }
+/// LAYOUT-CLUSTER-WINDOW-ALIGN (D-X, pending record): the window of each cluster of [`CLUSTER_LIST`], in
+/// file order: 0 for the clusters before the first `@window` line, then one more after each. Under
+/// `@place end` the clusters of one window are packed into one [`WINDOW`] ([`block_align`]).
+fn cluster_windows(text: &str) -> Vec<usize> {
+    let mut w = 0;
+    let mut out = Vec::new();
+    for l in text.lines().map(str::trim_end) {
+        if l == "@window" {
+            w += 1;
+        } else if !(l.is_empty() || l.starts_with('#') || l.starts_with('@')) {
+            out.push(w);
+        }
+    }
+    out
 }
 
-/// The [`WINDOW`] (counted from the block's start) each cluster of the block lands in, for clusters
-/// (bytes, alignment) laid out in order from a [`WINDOW`] boundary ([`block_align`] puts the block
-/// there). The same upper-bound model as [`cluster_bytes`]: a link that pulls in fewer members only
-/// shrinks a cluster, and a cluster never straddles a window (its alignment is at least its size).
-fn block_windows(clusters: &[(u64, u64)]) -> Vec<u64> {
-    let mut off = 0_u64;
-    clusters
-        .iter()
-        .map(|&(bytes, align)| {
-            let at = off.next_multiple_of(align.max(1));
-            off = at + bytes;
-            at / WINDOW
-        })
-        .collect()
+/// LAYOUT-CLUSTER-WINDOW-ALIGN (D-X, pending record): the alignment of a cluster of `bytes` bytes whose
+/// members ask for `min`. In place, [`cluster_align`]. With `at_end` (`@place end`) the clusters form a
+/// block after the last list position, packed by window ([`cluster_windows`]): the first cluster of each
+/// window starts on a [`WINDOW`] boundary and the others follow it at their members' own alignment
+/// (`so` refuses a window whose clusters exceed [`WINDOW`]). Growth of the text ahead of the block then
+/// moves it by whole windows only, so which clusters share a window is the file's, whatever the size of
+/// the start-up tier (with each cluster on its own 32 KiB, a tier end crossing a 32 KiB multiple
+/// re-paired them).
+fn block_align(starts_window: bool, at_end: bool, bytes: u64, min: u64) -> u64 {
+    match (at_end, starts_window) {
+        (false, _) => cluster_align(bytes, min),
+        (true, true) => min.max(WINDOW),
+        (true, false) => min,
+    }
 }
 
 /// The new alignment of each cluster head whose alignment differs, (member, name, alignment).
@@ -930,7 +935,8 @@ pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, 
     // on the final names; every other section keeps its own ([`head_alignments`]).
     let mut realign: BTreeMap<String, Vec<(String, u64)>> = BTreeMap::new();
     let mut heads = BTreeMap::new();
-    let mut block = Vec::new();
+    let windows = clusters_text.as_deref().map(cluster_windows).unwrap_or_default();
+    let mut block: BTreeMap<usize, Vec<(String, u64, u64)>> = BTreeMap::new();
     for (i, c) in clusters.iter().enumerate() {
         let mut secs: Vec<(String, u64, u64)> = grouped
             .iter()
@@ -942,17 +948,23 @@ pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, 
         let Some(head) = secs.iter().find(|s| s.1 > 0).map(|s| s.0.clone()) else {
             return Err(format!("{CLUSTER_LIST}: cluster {} (positions {}..={}) has no section in {}", c.name, c.first, c.last, archive.display()));
         };
-        let align = block_align(i, at_end, bytes, min);
+        let w = windows.get(i).copied().unwrap_or(0);
+        let starts = i == 0 || windows.get(i.wrapping_sub(1)).copied().unwrap_or(0) != w;
+        let align = block_align(starts, at_end, bytes, min);
         println!("so: hot-text cluster {}: positions {}..={}, {} sections, {bytes} bytes, aligned {align}", c.name, c.first, c.last, secs.len());
-        block.push((bytes, align));
+        block.entry(w).or_default().extend(secs.iter().map(|(n, s, a)| (n.clone(), *s, if *n == head { align } else { *a })));
         for (m, n, _, _) in grouped.iter().filter(|g| g.1 == head) {
             heads.insert((m.clone(), n.clone()), align);
         }
     }
-    if at_end && !clusters.is_empty() {
-        let w = block_windows(&block);
-        let names: Vec<String> = clusters.iter().zip(&w).map(|(c, w)| format!("{} {w}", c.name)).collect();
-        println!("so: hot-text cluster block: starts on a {WINDOW}-byte window; window of each cluster from the block's start: {}", names.join(", "));
+    // LAYOUT-CLUSTER-WINDOW-ALIGN: each window's clusters, laid out from its WINDOW-aligned head, fit in it.
+    for (w, secs) in block.iter_mut().filter(|_| at_end) {
+        let bytes = cluster_bytes(secs);
+        let names: Vec<&str> = clusters.iter().zip(&windows).filter(|(_, x)| *x == w).map(|(c, _)| c.name.as_str()).collect();
+        println!("so: hot-text cluster window {w}: {} ({bytes} of {WINDOW} bytes)", names.join(", "));
+        if bytes > WINDOW {
+            return Err(format!("{CLUSTER_LIST}: window {w} ({}) holds {bytes} bytes, more than one {WINDOW}-byte window: move a cluster after an @window line", names.join(", ")));
+        }
     }
     for (m, n, a) in head_alignments(&grouped, &heads) {
         realign.entry(m).or_default().push((n, a));
@@ -1006,7 +1018,7 @@ pub fn static_check(root: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ar_members, before_group, block_align, block_windows, check_renames, cluster_align, head_alignments, cluster_bytes, cluster_section, clusters_at_end, elf_sections, function_of, Shdr, parse_clusters, position_of, Cluster, WINDOW, is_startup_names, key, parse_list, positions, link_positions, parse_first_window, rename_for, retired_lists, section_for, RETIRED};
+    use super::{ar_members, before_group, block_align, cluster_windows, check_renames, cluster_align, head_alignments, cluster_bytes, cluster_section, clusters_at_end, elf_sections, function_of, Shdr, parse_clusters, position_of, Cluster, WINDOW, is_startup_names, key, parse_list, positions, link_positions, parse_first_window, rename_for, retired_lists, section_for, RETIRED};
     use std::collections::{BTreeMap, BTreeSet};
 
     #[test]
@@ -1159,23 +1171,21 @@ mod tests {
     #[test]
     fn cluster_block_starts_on_a_window_and_pairs_its_clusters() {
         // LAYOUT-CLUSTER-WINDOW-ALIGN (no spec clause: layout of the products, D-X pending record): at the
-        // end of the group the first cluster takes a whole window whatever its size; later clusters and
-        // in-place clusters keep their own alignment.
-        assert_eq!(block_align(0, true, 20634, 64), WINDOW);
-        assert_eq!(block_align(1, true, 19182, 64), 0x8000);
-        assert_eq!(block_align(0, false, 20634, 64), 0x8000);
-        assert_eq!(block_align(0, true, 0x18000, 64), WINDOW);
-        // The fast products' sizes (LAYOUT-TOOL-BOUND-SHARED, 2026-11-14) in the file's order strings,
-        // rebind, time, rebind-tail, float: three windows, paired [strings | rebind] [time | rebind-tail] [float].
-        let sizes = [20634_u64, 19182, 16810, 16588, 14410];
-        let block: Vec<(u64, u64)> = sizes.iter().enumerate().map(|(i, &b)| (b, block_align(i, true, b, 64))).collect();
-        assert_eq!(block_windows(&block), vec![0, 0, 1, 1, 2]);
-        // From any start the block's own windows are the same: the link puts its first cluster on a window.
+        // end of the group the first cluster of each window takes a whole window whatever its size, the
+        // others keep their members' alignment; in-place clusters keep the power of two of their size.
+        assert_eq!(block_align(true, true, 20634, 64), WINDOW);
+        assert_eq!(block_align(false, true, 19182, 64), 64);
+        assert_eq!(block_align(true, false, 20634, 64), 0x8000);
+        assert_eq!(block_align(false, false, 19182, 64), 0x8000);
+        let text = "@place\tend\na\tx\ty\nb\tx\ty\n@window\nc\tx\ty\n# @window in a comment\nd\tx\ty\n";
+        assert_eq!(cluster_windows(text), vec![0, 0, 1, 1]);
+        assert_eq!(cluster_windows("a\tx\ty\n"), vec![0]);
+        assert_eq!(clusters_at_end(text), Ok(true));
+        assert!(clusters_at_end("@windows\n").is_err());
+        // From any tier end the block's head lands on a window: the link aligns it to WINDOW.
         for start in [0x477a2a_u64, 0x4782aa, 0x470001, 0x47ffff] {
-            let s = start.next_multiple_of(block[0].1);
-            assert_eq!(s % WINDOW, 0, "{start:#x}");
+            assert_eq!(start.next_multiple_of(block_align(true, true, 20634, 64)) % WINDOW, 0, "{start:#x}");
         }
-        assert_eq!(block_windows(&[]), Vec::<u64>::new());
     }
 
     #[test]

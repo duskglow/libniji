@@ -1,0 +1,11 @@
+id = "D-NEW"
+series = "D-X"
+section = "x"
+status = "active"
+amends = ["D-X.63"]
+story = "LAYOUT-CLUSTER-WINDOW-ALIGN"
+date = "2026-11-14"
+tests = ["xtask/src/hottext.rs::cluster_block_starts_on_a_window_and_pairs_its_clusters", "crates/core/tests/hot_text_products.rs::init_cluster_block_keeps_its_windows_at_every_tier_size"]
+body = '''
+**The cluster block is packed by 64 KiB window, each window starting on a window boundary** (LAYOUT-CLUSTER-WINDOW-ALIGN, 2026-11-14; layout only, no symbol, ABI or behaviour change; coordinator ruling #5729, option A of `handoff/LAYOUT-TOOL-BOUND-SHARED.md`; amends D-X.63's per-cluster power-of-two alignment for clusters placed at the end). Under `@place end` in `crates/libc-so/hot-text.clusters`, `@window` lines split the clusters into windows; `cargo xtask so` (`xtask/src/hottext.rs` `block_align`, `cluster_windows`) aligns the first cluster of each window to 64 KiB, packs the others after it at their members' own alignment, and refuses a window whose clusters (laid out as in the archive, an upper bound for any link) exceed 64 KiB. Why: with each cluster on its own 32 KiB alignment the block started on a 32 KiB boundary, so a start-up tier end crossing a 32 KiB multiple moved the block by 32 KiB and re-paired which clusters shared a fault-around window; unrelated tier growth then changed start-up faults (coreutils-shaped probe 50 -> 51 for +2176 B of tier). Now tier growth moves the block by whole windows only. Grouping, by which probe paths open which cluster: window 0 [strings, rebind, time] (tool opens strings and rebind; localtime / mktime open time and strings), window 1 [rebind-tail, float] followed by the program's own text. Cost: up to 64 KiB of alignment fill ahead of the block and before window 1 (virtual in every link; file bytes in a static link). Measured (Skylake-SP host, fast and release products, all ten start-up modes, 0-60 KiB of text after the tier): see `handoff/LAYOUT-CLUSTER-WINDOW-ALIGN.md`. Test: CLUSTER-BLOCK-WINDOW (`init_cluster_block_keeps_its_windows_at_every_tier_size`).
+'''
