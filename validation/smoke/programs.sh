@@ -1,9 +1,11 @@
 # validation/smoke/programs.sh: the programs smoke.sh builds, sourced by it. For each program NAME:
-#   NAME_src       the Debian source package (fetched from the trixie suite on deb.debian.org)
+#   NAME_src       the Debian source package (fetched from the trixie suite of smoke.sh's mirror), or
+#                  local:DIR for a program whose sources are validation/smoke/DIR
 #   NAME_kind      how its test result is read: automake (test-suite.log files), rc (one suite, its status),
 #                  gawk ("N TESTS FAILED" / "ALL TESTS PASSED"), make ("N Tests in M Categories Failed"),
 #                  bash (run-* sections compared with the reference build's), perl (t/TEST summary),
-#                  python (regrtest summary)
+#                  python (regrtest summary), same (exit 0 and the whole output equal to the reference
+#                  build's)
 #   NAME_build     configure and build in the current directory (a fresh copy of the source); CC and CXX are set
 #   NAME_test      run the program's own test suite there
 #   NAME_skip      (optional) why its test suite does not run here
@@ -81,7 +83,8 @@ make_src=make-dfsg
 make_kind=make
 make_build() {
     [ -f doc/Makefile.in ] || { mkdir -p doc && printf 'all check install clean distclean:\n' > doc/Makefile.in; }
-    ./configure --disable-nls --without-guile && make -j"$J" make
+    # lib/ (gnulib's libgnu.a) first: the `make` target alone does not build it (first run, F11).
+    ./configure --disable-nls --without-guile && make -j"$J" -C lib && make -j"$J" make
 }
 # The regression suite alone (`check` also wants the manual page, which the dfsg source does not have).
 make_test() { make check-local; }
@@ -130,3 +133,56 @@ cppunit_build() {
     ./configure --disable-shared --disable-doxygen --disable-html-docs && make -j"$J" -C src/cppunit
 }
 cppunit_test() { make -k -j"$J" -C examples check; }
+
+# The programs below use the loader's dlsym and dlclose (DL-16, DL-17), which the first run (2026-11-13) did
+# not have. The recipes above stay as they were, so the two runs compare program by program.
+
+# gawk with its extensions (filefuncs, readdir, rwarray, ...: shared objects gawk loads with dlopen and binds
+# with dlsym); its test suite then runs the extension tests too. The extensions are built by the libtool the
+# source package ships.
+gawk_ext_src=gawk
+gawk_ext_kind=gawk
+gawk_ext_build() {
+    ./configure --disable-nls --without-readline --without-mpfr && make -j"$J" SUBDIRS="support . extension"
+}
+gawk_ext_test() { make check SUBDIRS="support . extension test"; }
+
+# python3.13 with shared extension modules (Debian's default; the first run built them in): every import of
+# an extension module is a dlopen and a dlsym of its PyInit_ function. The same test sample as python3.
+python3_shared_src=python3.13
+python3_shared_kind=python
+python3_shared_tests=$python3_tests
+python3_shared_build() { ./configure --without-ensurepip --disable-test-modules && make -j"$J"; }
+python3_shared_test() { python3_test; }
+
+# lua_reload: the Lua library from Debian's lua5.4 source (compiled directly: Debian's build wants libtool,
+# which the build hosts do not have) and the program dlclose/lua_reload.c, which loads the C module
+# dlclose/reloadmod.c in a fresh Lua state, calls it and closes the state (Lua unloads it with dlclose), 50
+# times. Lua's own interpreter is built too and runs one line. The output must be the reference build's.
+lua_reload_src=lua5.4
+lua_reload_kind=same
+lua_reload_build() {
+    (cd src && for f in *.c; do
+        case $f in lua.c | luac.c) continue ;; esac
+        $CC -O2 -DLUA_USE_LINUX -c "$f" || exit 1
+    done && ar rcs liblua.a ./*.o && $CC -O2 -DLUA_USE_LINUX -o lua lua.c liblua.a -Wl,-E -lm -ldl) &&
+        $CC -O2 -Isrc -o lua_reload "$SMOKE_HERE/dlclose/lua_reload.c" src/liblua.a -Wl,-E -lm -ldl &&
+        $CC -O2 -fPIC -shared -Isrc -o reloadmod.so "$SMOKE_HERE/dlclose/reloadmod.c"
+}
+lua_reload_test() {
+    src/lua -e 'print(string.format("%5.2f %s %s", math.pi, os.date("!%Y-%m-%d", 86400), ("x"):rep(3, ",")))' &&
+        ./lua_reload "$PWD"
+}
+
+# cxx_dlclose: the C++ program dlclose/cxx_host.cc and its plug-ins (this directory's sources; no Debian
+# package): load, call and dlclose a plug-in three times (destructors, function-local statics and atexit
+# handlers of the plug-in run at dlclose; exceptions inside the plug-in and in the program after the unload),
+# then a plug-in with a thread_local object closed while that object is alive. The output must be the
+# reference build's.
+cxx_dlclose_src=local:dlclose
+cxx_dlclose_kind=same
+cxx_dlclose_build() {
+    $CXX -O2 -fPIC -shared -o libplug.so plug.cc && $CXX -O2 -fPIC -shared -o libplug_tl.so plug_tl.cc &&
+        $CXX -O2 -pthread -o cxx_host cxx_host.cc -ldl
+}
+cxx_dlclose_test() { ./cxx_host "$PWD"; }
