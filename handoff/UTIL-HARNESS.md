@@ -1,8 +1,7 @@
 # UTIL-HARNESS (UTIL-1): the utilities' transcript harness
 
 **State.** Branch `task/util-harness` (from origin/next `2d5625a3e`). Code head `7c6b47e24`; this note and the report
-json are the commit after it. Role mei:~/w/s3. Stopped at the context checkpoint (~150k) with all work written; the gate
-and plants jobs were started on the code head (see Results).
+json are the commit after it. Role mei:~/w/s3. COMPLETE.
 
 ## What is on the branch
 
@@ -36,10 +35,12 @@ and plants jobs were started on the code head (see Results).
 
 * `util-harness-dev1`, `-dev2` (development, superseded by the gate): 11 unit + 2 integration tests passed, xtask
   clippy clean, records stub generated.
-* `util-harness-gate` (code head): workspace clippy all targets/features, `xtask clippy`, `xtask static`, `records
-  check`, `cargo test -p xtask`, `cargo xtask transcript check validation/transcripts`. See hand-back for rc.
-* `util-harness-plants`: 5 plants (stdout byte, exit status, merged streams, written file, changed file unseen by
-  the snapshot), each with msg:. See hand-back for rc.
+* Final tree `f5e2f5ac4` (code `7c6b47e24` + record and handoff fixes): `util-harness-gate-3` rc 0: workspace clippy
+  (all targets, all features), `xtask clippy`, `xtask static`, `records check`, `cargo test -p xtask` (405 unit, 3 + 2
+  integration, transcripts included), `cargo xtask transcript check validation/transcripts` 3 ok, 0 mismatched, 0 skipped;
+  peak 1.2G. `util-harness-plants-3` rc 0: 5 of 5 CAUGHT, 0 WARN.
+* SUPERSEDED: `util-harness-gate` and `-gate-2` (rc 1: static `records`, the pending record's body layout, fixed);
+  `util-harness-plants`, `-plants-2` (5 of 5 CAUGHT, older trees).
 
 ## Open
 
