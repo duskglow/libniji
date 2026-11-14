@@ -300,8 +300,8 @@ fn pool_word(v: u32, low: usize) -> Option<u16> {
 fn block_words(first: u32, w: &Wide) -> [u16; 256] {
     let mut words = [0u16; 256];
     for &m in &STANDARD_MASKS {
-        for (g, chunk) in words.chunks_exact_mut(32).enumerate() {
-            let mut bits = w.class_bits32(m.trailing_zeros(), first | u32::try_from(g * 32).unwrap_or(0));
+        for (g, chunk) in (0u32..).step_by(32).zip(words.chunks_exact_mut(32)) {
+            let mut bits = w.class_bits32(m.trailing_zeros(), first | g);
             while bits != 0 {
                 if let Some(x) = chunk.get_mut(usize::try_from(bits.trailing_zeros()).unwrap_or(32)) {
                     *x |= m;
