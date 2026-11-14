@@ -748,17 +748,17 @@ fn setlocale_env(cat: Option<Cat>) -> Option<&'static [u8]> {
     // instructions per entry (SETLOCALE-CTYPE-ENV: a walk for all fourteen names cost ~80 per entry,
     // since they all start with `L`). `LC_ALL`: `LC_ALL` first, and when it decides nothing the
     // other thirteen from one walk over `environ` (SETLOCALE-3: thirteen scans).
-    let mut found: [Option<&'static [u8]>; ENV_KEYS.len()] = [None; ENV_KEYS.len()];
+    // The values' addresses; a value is measured only when the selection asks for it
+    // (SETLOCALE-CTYPE-ENV-5: measuring all fourteen up front was unrolled into ten inlined
+    // `strlen` sequences, ~1 KiB of start-up text, and the coreutils-shaped program's hot text
+    // then crossed into one more 64 KiB fault-around window).
+    let mut found: [Option<usize>; ENV_KEYS.len()] = [None; ENV_KEYS.len()];
     let mut known = 0;
     if cat.is_none() {
-        let all = process::getenv(crate::startup_names::LC_ALL).map(strz::env_value);
+        let all = process::getenv(crate::startup_names::LC_ALL);
         known = 1;
-        if all.is_none_or(<[u8]>::is_empty) {
-            let mut at = [None; ENV_KEYS.len()];
-            process::getenv_many(ENV_KEYS.get(1..).unwrap_or_default(), at.get_mut(1..).unwrap_or_default());
-            for (v, a) in found.iter_mut().zip(at) {
-                *v = a.map(strz::env_value);
-            }
+        if all.map(strz::env_value).is_none_or(<[u8]>::is_empty) {
+            process::getenv_many(ENV_KEYS.get(1..).unwrap_or_default(), found.get_mut(1..).unwrap_or_default());
             known = ENV_KEYS.len();
         }
         if let Some(v) = found.first_mut() {
@@ -767,10 +767,8 @@ fn setlocale_env(cat: Option<Cat>) -> Option<&'static [u8]> {
     }
     // Variable `k` in `gl::ENV_LC_ALL`'s numbering, which is `ENV_KEYS`' order.
     let getenv = |k: usize| -> Option<&'static [u8]> {
-        if k < known {
-            return found.get(k).copied().flatten();
-        }
-        process::getenv(ENV_KEYS.get(k)?).map(strz::env_value)
+        let at = if k < known { found.get(k).copied().flatten() } else { process::getenv(ENV_KEYS.get(k)?) };
+        at.map(strz::env_value)
     };
     let req = gl::Request::Environment(&getenv);
     let before = gl::global_handle();
