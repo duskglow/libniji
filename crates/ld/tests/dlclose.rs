@@ -139,6 +139,7 @@ const PROG: &str = r#"#define _GNU_SOURCE
 #include <pthread.h>
 #include <sched.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -342,6 +343,28 @@ static void *addr_reader(void *arg) {
     }
     return NULL;
 }
+/* The chain phase's reader: dladdr of A's latest a_fn, counting its calls. SIGUSR1 stops it where
+   it stands, often inside dladdr's walk, until the main thread lets it go on (the handler touches
+   plain atomics only). */
+static int paused, go_on;
+static long calls;
+static void pause_here(int s) {
+    (void)s;
+    __atomic_store_n(&paused, 1, __ATOMIC_SEQ_CST);
+    while (!__atomic_load_n(&go_on, __ATOMIC_SEQ_CST)) __builtin_ia32_pause();
+}
+static void *pause_reader(void *arg) {
+    (void)arg;
+    while (!done) {
+        unsigned long g = __atomic_load_n(&a_gen, __ATOMIC_SEQ_CST);
+        Dl_info di;
+        int r = dladdr(__atomic_load_n(&a_text, __ATOMIC_SEQ_CST), &di);
+        if ((g & 1) && __atomic_load_n(&a_gen, __ATOMIC_SEQ_CST) == g && !(r == 1 && di.dli_fname && strstr(di.dli_fname, "/libA.so")))
+            __atomic_store_n(&dl_wrong, (long)g, __ATOMIC_SEQ_CST);
+        __atomic_add_fetch(&calls, 1, __ATOMIC_SEQ_CST);
+    }
+    return NULL;
+}
 
 static void concurrent(void) {
     pthread_t th[4];
@@ -362,13 +385,23 @@ static void concurrent(void) {
     for (int i = 0; i < 4; i++) pthread_join(th[i], NULL);
     CHECK(53, !loaded("libP.so") && !loaded("libA.so"), "still loaded");
     CHECK(54, dl_wrong < 0, "dladdr missed open libA.so (generation %ld)", dl_wrong);
-    /* Objects leave the chain while dladdr walks past them: L0..L31 (copies of libR.so), then A
-       after them; with A open, the Ls are closed one by one while a dladdr-only reader looks A up
-       (a walk over the Ls), so it often stands on an L as that L is unlinked: it must walk on. */
+    /* Objects leave the chain while dladdr stands on them: L0..L31 (copies of libR.so), then A
+       after them. Each round, with A open, the reader is stopped (SIGUSR1) and all the Ls are
+       closed; then it goes on. When it was stopped inside its counted walk, L0 is still mapped
+       after its close (no reader may see it unmapped), and the reader, often standing on an L,
+       must walk on to A (check 58). Rounds run until 100 of them stopped it inside (at most 600):
+       the walk over the Ls is most of a dladdr of A, so a stop on an L is all but certain. */
     pthread_t t;
     done = 0;
-    CHECK(55, pthread_create(&t, NULL, addr_reader, (void *)2000000000L) == 0, "pthread_create");
-    for (unsigned long i = 0; i < 100; i++) {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_handler = pause_here;
+    CHECK(55, sigaction(SIGUSR1, &sa, NULL) == 0 && pthread_create(&t, NULL, pause_reader, NULL) == 0, "pthread_create");
+    /* Stopped in its loop only, never in its start-up (which may hold a lock dlclose takes). */
+    while (__atomic_load_n(&calls, __ATOMIC_SEQ_CST) < 1) sched_yield();
+    int inside = 0;
+    unsigned long i = 0;
+    for (; i < 600 && inside < 100; i++) {
         void *l[32];
         char n[32];
         for (int k = 0; k < 32; k++) {
@@ -376,17 +409,28 @@ static void concurrent(void) {
             l[k] = dlopen(P(n), RTLD_NOW);
             CHECK(56, l[k] != NULL, "open %s: %s", n, err());
         }
+        void *l0 = dlsym(l[0], "r_fn");
         void *a = dlopen(P("libA.so"), RTLD_NOW);
-        CHECK(56, a != NULL, "open libA.so: %s", err());
+        CHECK(56, a != NULL && l0 != NULL, "open libA.so: %s", err());
         __atomic_store_n(&a_text, dlsym(a, "a_fn"), __ATOMIC_SEQ_CST);
         __atomic_store_n(&a_gen, 100000 + 2 * i + 1, __ATOMIC_SEQ_CST);
+        __atomic_store_n(&go_on, 0, __ATOMIC_SEQ_CST);
+        __atomic_store_n(&paused, 0, __ATOMIC_SEQ_CST);
+        CHECK(55, pthread_kill(t, SIGUSR1) == 0, "pthread_kill");
+        while (!__atomic_load_n(&paused, __ATOMIC_SEQ_CST)) sched_yield();
+        long c = __atomic_load_n(&calls, __ATOMIC_SEQ_CST);
         for (int k = 0; k < 32; k++) CHECK(57, dlclose(l[k]) == 0, "close L%d: %s", k, err());
+        inside += mapped(l0);
+        __atomic_store_n(&go_on, 1, __ATOMIC_SEQ_CST);
+        /* The stopped call ends and one whole call more runs, both with A open. */
+        while (__atomic_load_n(&calls, __ATOMIC_SEQ_CST) < c + 2) sched_yield();
         __atomic_store_n(&a_gen, 100000 + 2 * i + 2, __ATOMIC_SEQ_CST);
         CHECK(57, dlclose(a) == 0, "close libA.so: %s", err());
     }
     done = 1;
     pthread_join(t, NULL);
     CHECK(58, dl_wrong < 0, "dladdr stopped at an unlinked object before open libA.so (generation %ld)", dl_wrong);
+    CHECK(59, inside >= 100, "a dladdr stopped inside its walk kept closed objects mapped in %d of %lu rounds", inside, i);
 }
 
 /* Ruling #5651: past a retired threshold (a quarter of the 512-object table) dlopen and dlclose
@@ -660,8 +704,10 @@ fn s27_1_c_4_dlclose_unloads_finalises_and_reclaims() {
 /// visited object's headers), `dlsym` and `_dl_find_object` while the main thread opens and closes
 /// two objects 3000 times (iteration budgets): no reader faults and nothing stays loaded; a
 /// `dladdr` of the second object while the first is closed finds it (D-27.50 (3)), and a fourth
-/// thread calling only `dladdr` on it while it is closed never faults. Then 100 rounds close 32
-/// objects in front of an open one while a `dladdr` of it walks past them: it is always found.
+/// thread calling only `dladdr` on it while it is closed never faults. Then, per round, a `dladdr`
+/// of an open object is stopped by a signal while 32 objects in front of it are closed: stopped
+/// inside its walk it keeps them mapped and, standing on one of them, walks on and finds the open
+/// object (rounds run until 100 stopped it inside, at most 600).
 #[test]
 fn s27_1_c_4_dlclose_concurrent_with_readers() {
     let Some((d, ld, libc, crt1)) = setup("concurrent") else { return };
