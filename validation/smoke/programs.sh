@@ -106,8 +106,15 @@ perl_build() {
 perl_test() { make minitest-notty; }
 
 # python3.13: every extension module built in (MODULE_BUILDTYPE=static) and the dynamic loader disabled
-# (ac_cv_func_dlopen=no): the import of extension modules needs dlsym (DL-16b). Modules whose libraries the
-# host has no headers for (zlib, ssl, ctypes, ...) are not built on either side. The test run is a sample.
+# (ac_cv_func_dlopen=no): the import of extension modules needs dlsym (DL-16b). The modules that need a
+# library other than the C library are not built on either side, whatever the host has installed
+# (python3_nohostlibs): such a library is the host's shared object, built against the host's C library, and
+# a build host with libffi-dev made _ctypes the one link of the Liella build that pulled in the host's
+# libc.so.6 (2026-11-14). The test run is a sample.
+python3_nohostlibs="py_cv_module__bz2=n/a py_cv_module__ctypes=n/a py_cv_module__curses=n/a
+ py_cv_module__curses_panel=n/a py_cv_module__dbm=n/a py_cv_module__gdbm=n/a py_cv_module__hashlib=n/a
+ py_cv_module__lzma=n/a py_cv_module__sqlite3=n/a py_cv_module__ssl=n/a py_cv_module__tkinter=n/a
+ py_cv_module__uuid=n/a py_cv_module_readline=n/a py_cv_module_zlib=n/a"
 python3_src=python3.13
 python3_kind=python
 python3_tests="test_os test_posix test_re test_math test_float test_long test_struct test_string test_str
@@ -115,8 +122,9 @@ python3_tests="test_os test_posix test_re test_math test_float test_long test_st
  test_select test_fcntl test_socket test_tempfile test_shutil test_glob test_fnmatch test_pwd test_grp
  test_resource test_mmap test_errno test_sys test_unicodedata test_codecs test_format test_builtin test_dict"
 python3_build() {
-    MODULE_BUILDTYPE=static ac_cv_func_dlopen=no ac_cv_lib_dl_dlopen=no ./configure --without-ensurepip \
-        --disable-test-modules && make -j"$J"
+    # shellcheck disable=SC2086
+    env $python3_nohostlibs MODULE_BUILDTYPE=static ac_cv_func_dlopen=no ac_cv_lib_dl_dlopen=no ./configure \
+        --without-ensurepip --disable-test-modules && make -j"$J"
 }
 python3_test() {
     # shellcheck disable=SC2086
@@ -142,8 +150,11 @@ cppunit_test() { make -k -j"$J" -C examples check; }
 # source package ships.
 gawk_ext_src=gawk
 gawk_ext_kind=gawk
+# extension/ is made by its own make call: a SUBDIRS given on the command line reaches every sub-make, and
+# extension/'s Makefile would then look for support/ inside extension/. Its own SUBDIRS (po) is left out.
 gawk_ext_build() {
-    ./configure --disable-nls --without-readline --without-mpfr && make -j"$J" SUBDIRS="support . extension"
+    ./configure --disable-nls --without-readline --without-mpfr && make -j"$J" SUBDIRS="support ." &&
+        make -j"$J" -C extension SUBDIRS=
 }
 gawk_ext_test() { make check SUBDIRS="support . extension test"; }
 
@@ -152,7 +163,10 @@ gawk_ext_test() { make check SUBDIRS="support . extension test"; }
 python3_shared_src=python3.13
 python3_shared_kind=python
 python3_shared_tests=$python3_tests
-python3_shared_build() { ./configure --without-ensurepip --disable-test-modules && make -j"$J"; }
+python3_shared_build() {
+    # shellcheck disable=SC2086
+    env $python3_nohostlibs ./configure --without-ensurepip --disable-test-modules && make -j"$J"
+}
 python3_shared_test() { python3_test; }
 
 # lua_reload: the Lua library from Debian's lua5.4 source (compiled directly: Debian's build wants libtool,
