@@ -8,7 +8,9 @@
 //! the last iteration); `Exit` has two successors, taken when the iteration was empty or not,
 //! which implements the iteration rule of spec §14.9 (XBD 9.1, 9.3.6): an empty iteration is
 //! allowed, but no iteration follows an empty one beyond the minimum count. Bounded
-//! repetitions are expanded into copies; unbounded tails are loops.
+//! repetitions are expanded into copies; unbounded tails are loops. An optional iteration's
+//! `Enter` also has the edge that skips it, and a body that is a group is opened by `Enter` and
+//! closed by `Exit` ([`SCOPE_GROUP`]), so a nesting level costs two instructions, not five.
 //!
 //! The matcher's states are pairs (instruction, `j`), where `j` counts the innermost enclosing
 //! scopes whose current iteration began at the current position (so `Exit` knows whether its
@@ -16,7 +18,7 @@
 //! between these states form an acyclic graph: a loop can only be re-entered after a non-empty
 //! iteration, that is, after consuming. The topological order of that graph, computed here,
 //! is the order in which the matcher processes the states of a position.
-#![allow(clippy::arithmetic_side_effects)] // instruction counts are bounded by MAX_INSTS; group numbers by the pattern's length
+#![allow(clippy::arithmetic_side_effects)] // instruction and node counts are u32 (checked where they are made, NODES_REPRESENTABLE); group numbers by the pattern's length
 
 use crate::locale::Locale;
 use crate::mem::TryVec;
@@ -25,14 +27,12 @@ use super::parse::{Assert, Item, Node, Parsed, Stack};
 use super::text::{is_word, set_matches, CharSet, Mode, SetDef};
 use super::ReError;
 
-/// The largest automaton (instructions) a pattern may expand to; beyond it, `REG_ESPACE`.
-const MAX_INSTS: usize = 1 << 20;
 /// The most matcher states (nodes: an instruction counts once per enclosing scope, plus one) a
-/// pattern may expand to; beyond it, `REG_ESPACE`. Stacked repetitions of a nullable body
-/// (`b*++++`) double the copies at each level and deepen the scopes, so the states grow faster
-/// than the instructions; the matcher's tables are per state (about 200 bytes each), so this
-/// bounds a search's memory to a few hundred MiB, as `MAX_INSTS` did before scopes nested.
-const MAX_NODES: usize = 1 << 21;
+/// program can number: node ids are u32 below [`NONE`]. This is a representation guard, not a
+/// size policy: a pattern is never refused for its size alone, only when its memory cannot be
+/// had (every allocation is fallible: `REG_ESPACE`) or its states cannot be numbered. The
+/// bound on memory is the process's own limits (`RLIMIT_AS`, `RLIMIT_DATA`, cgroups).
+pub(crate) const NODES_REPRESENTABLE: usize = usize::MAX >> (usize::BITS - u32::BITS); // u32::MAX = NONE
 /// No instruction / no node.
 pub(crate) const NONE: u32 = u32::MAX;
 /// How many nested calls the compiler makes on the native stack ([`Builder::node`]) before it
@@ -62,25 +62,37 @@ pub(crate) const OP_ENTER: u32 = 9;
 pub(crate) const OP_EXIT: u32 = 10;
 pub(crate) const OP_MATCH: u32 = 11;
 
-/// `ENTER`'s `c` for a shared scope, and the bit of `EXIT`'s `a` for one (D-14.8 amendment
+/// The bit of `ENTER`'s and `EXIT`'s `a` that marks a shared scope (D-14.8 amendment
 /// FUZZ-REGEX-TIMEOUTS-2): a group-free `X*`/`X+` that is the whole body of another group-free
 /// scope (through `?` only) counts its empty iterations on the enclosing scope's level instead of
 /// a level of its own, so stacked repetitions keep one node per instruction per enclosing level
 /// and the program grows linearly, not quadratically, in the stack's height.
-pub(crate) const SHARED: u32 = 1;
-/// The bit of `EXIT`'s `a` that marks a shared scope (the scope number is below it).
-pub(crate) const SHARED_EXIT: u32 = 1 << 31;
+pub(crate) const SCOPE_SHARED: u32 = 1 << 31;
+/// The bit of `ENTER`'s and `EXIT`'s `a` that marks a scope whose body is a group (`(X)*`): the
+/// scope's first group ([`Built::scopes`]) is opened by its `ENTER` and closed by its `EXIT`,
+/// with no `OPEN`/`CLOSE` instruction of its own (REGCOMP-SCOPE-COST-2). An instruction inside k
+/// scopes costs k + 1 nodes, so the group's two instructions inside the scope were most of a
+/// nesting level's cost.
+pub(crate) const SCOPE_GROUP: u32 = 1 << 30;
+/// The scope number in `ENTER`'s and `EXIT`'s `a`, below the flags.
+pub(crate) const SCOPE_MASK: u32 = SCOPE_GROUP - 1;
+
+/// The scope of an `ENTER` or `EXIT`.
+#[inline]
+pub(crate) fn scope_of(i: Inst) -> u32 {
+    i.a & SCOPE_MASK
+}
 
 /// `j` after `ENTER` `i` at `j`: one level more, or (shared) at least one.
 #[inline]
 pub(crate) fn enter_j(i: Inst, j: u32) -> u32 {
-    if i.c == SHARED { j.max(1) } else { j + 1 }
+    if i.a & SCOPE_SHARED != 0 { j.max(1) } else { j + 1 }
 }
 
 /// `j` after an empty iteration of `EXIT` `i` at `j >= 1`: one level less, or (shared) the same.
 #[inline]
 pub(crate) fn exit_j(i: Inst, j: u32) -> u32 {
-    if i.a & SHARED_EXIT != 0 { j } else { j - 1 }
+    if i.a & SCOPE_SHARED != 0 { j } else { j - 1 }
 }
 
 /// One instruction: an operation and three operands (see the `OP_*` uses in `compile`).
@@ -271,8 +283,10 @@ struct Rep {
     grouped: bool,
     shared: bool,
     scope: u32,
-    exit_a: u32,
-    enter_c: u32,
+    /// `ENTER`'s and `EXIT`'s `a` (the scope and its flags), and the operand's part that each
+    /// scoped iteration compiles ([`head_group`]; the operand itself elsewhere).
+    sa: u32,
+    bx: u32,
     /// Copies made (bounded loops), copies left (`t`, the scoped mandatory ones).
     i: u32,
     t: u32,
@@ -281,6 +295,18 @@ struct Rep {
     cont: u32,
     opt: u32,
     entry: u32,
+}
+
+/// What a scope's iterations compile for operand `x`, and the [`SCOPE_GROUP`] flag of its
+/// `ENTER`/`EXIT`: when `x` is a plain group whose number is the first of the operand's groups
+/// (so the scope's range names it), the group's body, the group being opened and closed by the
+/// scope's own instructions; otherwise `x` itself and no flag.
+fn head_group(t: &Parsed, x: u32) -> (u32, u32) {
+    let it = t.item(x);
+    match it.node {
+        Node::Group(g, body) if it.wrap == 0 && g == it.groups.0 && g <= SCOPE_MASK => (body, SCOPE_GROUP),
+        _ => (x, 0),
+    }
 }
 
 /// Child `k` of the concatenation or alternation whose children start at `start`.
@@ -293,24 +319,25 @@ struct Builder {
     inst_chain: TryVec<u32>,
     chains: TryVec<Chain>,
     scopes: TryVec<(u32, u32)>,
-    /// The nodes of the instructions emitted so far (see [`MAX_NODES`]).
+    /// The nodes of the instructions emitted so far.
     nodes: usize,
+    /// The most nodes the program may have: [`NODES_REPRESENTABLE`], or a caller's lower limit
+    /// ([`super::compile_limited`]); beyond it, `REG_ESPACE` before anything more is built.
+    limit: usize,
     /// The entries of the alternations' compiled branches, the innermost on top.
     entries: Stack<u32, 16>,
 }
 
 impl Builder {
-    fn new() -> Builder {
-        Builder { insts: TryVec::new(), inst_chain: TryVec::new(), chains: TryVec::new(), scopes: TryVec::new(), nodes: 0, entries: Stack::new(0) }
+    fn new(limit: usize) -> Builder {
+        Builder { insts: TryVec::new(), inst_chain: TryVec::new(), chains: TryVec::new(), scopes: TryVec::new(), nodes: 0, limit: limit.min(NODES_REPRESENTABLE), entries: Stack::new(0) }
     }
 
     fn emit(&mut self, op: u32, a: u32, b: u32, c: u32, chain: u32) -> Result<u32, ReError> {
-        if self.insts.len() >= MAX_INSTS {
-            return Err(ReError::ESpace);
-        }
         let depth = if chain == NONE { 0 } else { self.chains.get(usize::try_from(chain).unwrap_or(usize::MAX)).map_or(0, |c| c.depth) };
+        // At most 2^32 per instruction and stopped once past `limit` (< 2^32): no overflow.
         self.nodes += usize::try_from(depth).map_err(|_| ReError::ESpace)? + 1;
-        if self.nodes > MAX_NODES {
+        if self.nodes > self.limit {
             return Err(ReError::ESpace);
         }
         let pc = u32::try_from(self.insts.len()).map_err(|_| ReError::ESpace)?;
@@ -461,34 +488,39 @@ impl Builder {
         }
         let scope = u32::try_from(self.scopes.len()).map_err(|_| ReError::ESpace)?;
         nomem(self.scopes.push(if grouped { groups } else { (1, 0) }))?;
-        // Shared, and the optional part before the mandatory copies: see [`Self::rep_init`].
+        // Shared, the fused group, and the optional part before the mandatory copies: see
+        // [`Self::rep_init`].
         let shared = !grouped && n.is_none() && share != NONE && share == chain;
-        let (exit_a, enter_c) = if shared { (scope | SHARED_EXIT, SHARED) } else { (scope, 0) };
+        let (bx, fused) = head_group(t, x);
+        let sa = scope | (if shared { SCOPE_SHARED } else { 0 }) | fused;
         let inner_share = |inner: u32| if grouped { NONE } else { inner };
         let mut last = m;
         let opt = match n {
+            None if m == 0 => {
+                let inner = if shared { self.chain_shared(chain, scope)? } else { self.chain(chain, scope)? };
+                let ex = self.emit(OP_EXIT, sa, next, NONE, inner)?;
+                let body = self.node(t, bx, ex, inner, inner_share(inner), d)?;
+                let en = self.emit(OP_ENTER, sa, body, next, chain)?;
+                self.patch(ex, Inst { op: OP_EXIT, a: sa, b: next, c: en });
+                en
+            }
             None => {
                 let l = self.emit(OP_SPLIT, NONE, next, 0, chain)?;
                 let inner = if shared { self.chain_shared(chain, scope)? } else { self.chain(chain, scope)? };
-                let ex = self.emit(OP_EXIT, exit_a, next, l, inner)?;
-                let body = self.node(t, x, ex, inner, inner_share(inner), d)?;
-                let en = self.emit(OP_ENTER, scope, body, enter_c, chain)?;
+                let ex = self.emit(OP_EXIT, sa, next, l, inner)?;
+                let body = self.node(t, bx, ex, inner, inner_share(inner), d)?;
+                let en = self.emit(OP_ENTER, sa, body, NONE, chain)?;
                 self.patch(l, Inst { op: OP_SPLIT, a: en, b: next, c: 0 });
-                if m >= 1 {
-                    last = m - 1;
-                    en
-                } else {
-                    l
-                }
+                last = m - 1;
+                en
             }
             Some(n) => {
                 let mut cont = next;
                 for _ in m..n {
                     let inner = self.chain(chain, scope)?;
-                    let ex = self.emit(OP_EXIT, scope, next, cont, inner)?;
-                    let body = self.node(t, x, ex, inner, inner_share(inner), d)?;
-                    let en = self.emit(OP_ENTER, scope, body, 0, chain)?;
-                    cont = self.emit(OP_SPLIT, en, next, 0, chain)?;
+                    let ex = self.emit(OP_EXIT, sa, next, cont, inner)?;
+                    let body = self.node(t, bx, ex, inner, inner_share(inner), d)?;
+                    cont = self.emit(OP_ENTER, sa, body, next, chain)?;
                 }
                 cont
             }
@@ -498,9 +530,9 @@ impl Builder {
         let mut entry = opt;
         for k in (1..=last).rev() {
             let inner = if shared { self.chain_shared(chain, scope)? } else { self.chain(chain, scope)? };
-            let ex = if k == m { self.emit(OP_EXIT, exit_a, next, opt, inner)? } else { self.emit(OP_EXIT, exit_a, entry, entry, inner)? };
-            let body = self.node(t, x, ex, inner, inner_share(inner), d)?;
-            entry = self.emit(OP_ENTER, scope, body, enter_c, chain)?;
+            let ex = if k == m { self.emit(OP_EXIT, sa, next, opt, inner)? } else { self.emit(OP_EXIT, sa, entry, entry, inner)? };
+            let body = self.node(t, bx, ex, inner, inner_share(inner), d)?;
+            entry = self.emit(OP_ENTER, sa, body, NONE, chain)?;
         }
         Ok(entry)
     }
@@ -593,8 +625,8 @@ impl Builder {
                     grouped: false,
                     shared: false,
                     scope: 0,
-                    exit_a: 0,
-                    enter_c: 0,
+                    sa: 0,
+                    bx: x,
                     i: 0,
                     t: 0,
                     last: 0,
@@ -685,6 +717,11 @@ impl Builder {
         Ok(RStep::Part(Call { id: r.x, next, chain, share, bare: false }))
     }
 
+    /// Compile one scoped iteration's operand ([`Rep::bx`]) followed by `next` in `chain`.
+    fn scoped_part(r: &Rep, next: u32, chain: u32, share: u32) -> Result<RStep, ReError> {
+        Ok(RStep::Part(Call { id: r.bx, next, chain, share, bare: false }))
+    }
+
     /// The share value for a copy of the operand in `inner`: the body of a group-free scope may
     /// share its level in turn.
     fn inner_share(r: &Rep, inner: u32) -> u32 {
@@ -729,26 +766,28 @@ impl Builder {
                 Self::plain_mand(r)
             }
             Phase::ScopedLoop => {
-                let en = self.emit(OP_ENTER, r.scope, ret, r.enter_c, chain)?;
-                self.patch(r.l, Inst { op: OP_SPLIT, a: en, b: next, c: 0 });
                 if m >= 1 {
+                    let en = self.emit(OP_ENTER, r.sa, ret, NONE, chain)?;
+                    self.patch(r.l, Inst { op: OP_SPLIT, a: en, b: next, c: 0 });
                     r.last = m - 1;
                     r.opt = en;
                 } else {
-                    r.opt = r.l;
+                    // `X*`: the `ENTER` takes the loop's split (`r.l` is the `EXIT`).
+                    let en = self.emit(OP_ENTER, r.sa, ret, next, chain)?;
+                    self.patch(r.l, Inst { op: OP_EXIT, a: r.sa, b: next, c: en });
+                    r.opt = en;
                 }
                 r.entry = r.opt;
                 r.t = r.last;
                 self.scoped_mand(r)
             }
             Phase::ScopedBounded => {
-                let en = self.emit(OP_ENTER, r.scope, ret, 0, chain)?;
-                r.cont = self.emit(OP_SPLIT, en, next, 0, chain)?;
+                r.cont = self.emit(OP_ENTER, r.sa, ret, next, chain)?;
                 r.i += 1;
                 self.scoped_bounded(r)
             }
             Phase::ScopedMand => {
-                r.entry = self.emit(OP_ENTER, r.scope, ret, r.enter_c, chain)?;
+                r.entry = self.emit(OP_ENTER, r.sa, ret, NONE, chain)?;
                 r.t -= 1;
                 self.scoped_mand(r)
             }
@@ -789,9 +828,9 @@ impl Builder {
     fn scoped_bounded(&mut self, r: &mut Rep) -> Result<RStep, ReError> {
         if r.i < r.n.unwrap_or(0) {
             let inner = self.chain(r.chain, r.scope)?;
-            let ex = self.emit(OP_EXIT, r.scope, r.next, r.cont, inner)?;
+            let ex = self.emit(OP_EXIT, r.sa, r.next, r.cont, inner)?;
             r.phase = Phase::ScopedBounded;
-            return Self::part(r,ex, inner, Self::inner_share(r, inner));
+            return Self::scoped_part(r, ex, inner, Self::inner_share(r, inner));
         }
         r.opt = r.cont;
         r.entry = r.opt;
@@ -807,9 +846,9 @@ impl Builder {
             return Ok(RStep::Done(r.entry));
         }
         let inner = if r.shared { self.chain_shared(r.chain, r.scope)? } else { self.chain(r.chain, r.scope)? };
-        let ex = if r.t == r.m { self.emit(OP_EXIT, r.exit_a, r.next, r.opt, inner)? } else { self.emit(OP_EXIT, r.exit_a, r.entry, r.entry, inner)? };
+        let ex = if r.t == r.m { self.emit(OP_EXIT, r.sa, r.next, r.opt, inner)? } else { self.emit(OP_EXIT, r.sa, r.entry, r.entry, inner)? };
         r.phase = Phase::ScopedMand;
-        Self::part(r,ex, inner, Self::inner_share(r, inner))
+        Self::scoped_part(r, ex, inner, Self::inner_share(r, inner))
     }
 
     fn rep_init(&mut self, t: &Parsed, r: &mut Rep) -> Result<RStep, ReError> {
@@ -857,7 +896,14 @@ impl Builder {
         // shared `ENTER` leaves `j >= 1`, so its `EXIT` loops only after a consuming instruction.
         r.scope = scope;
         r.shared = groups.0 == NONE && n.is_none() && share != NONE && share == chain;
-        (r.exit_a, r.enter_c) = if r.shared { (scope | SHARED_EXIT, SHARED) } else { (scope, 0) };
+        // Fused group (REGCOMP-SCOPE-COST-2): an operand `(Y)` is compiled as `Y` between an
+        // `ENTER` that opens the group and an `EXIT` that closes it ([`SCOPE_GROUP`]), and an
+        // optional iteration's split is its `ENTER`'s second successor (`c`), so a nesting level
+        // of `((...)*)*` costs one instruction in the enclosing scope and one in its own, not
+        // two and three: about 2k + 1 nodes at depth k instead of 5k + 3.
+        let fused;
+        (r.bx, fused) = head_group(t, x);
+        r.sa = scope | (if r.shared { SCOPE_SHARED } else { 0 }) | fused;
         // The optional part: after the mandatory copies, iterations that may stop.
         // `X{m,}` with `m >= 1`: the loop's iteration is also the last mandatory copy (D-14.8).
         // That copy would be `ENTER X EXIT(empty: next, consumed: loop)`, the very instructions of
@@ -866,11 +912,18 @@ impl Builder {
         r.last = m;
         match n {
             None => {
-                r.l = self.emit(OP_SPLIT, NONE, next, 0, chain)?;
+                // `X*`: no split; `r.l` holds the `EXIT`, whose loop edge is patched to the
+                // `ENTER` once that exists.
+                if m >= 1 {
+                    r.l = self.emit(OP_SPLIT, NONE, next, 0, chain)?;
+                }
                 let inner = if r.shared { self.chain_shared(chain, scope)? } else { self.chain(chain, scope)? };
-                let ex = self.emit(OP_EXIT, r.exit_a, next, r.l, inner)?;
+                let ex = self.emit(OP_EXIT, r.sa, next, if m >= 1 { r.l } else { NONE }, inner)?;
+                if m == 0 {
+                    r.l = ex;
+                }
                 r.phase = Phase::ScopedLoop;
-                Self::part(r,ex, inner, Self::inner_share(r, inner))
+                Self::scoped_part(r, ex, inner, Self::inner_share(r, inner))
             }
             Some(_) => {
                 r.cont = next;
@@ -896,8 +949,8 @@ pub(crate) fn assert_code(a: Assert) -> u32 {
 
 impl Built {
     /// Build the automaton of a parsed pattern.
-    fn build(parsed: Parsed, loc: &Locale, icase: bool) -> Result<Built, ReError> {
-        let mut b = Builder::new();
+    fn build(parsed: Parsed, loc: &Locale, icase: bool, limit: usize) -> Result<Built, ReError> {
+        let mut b = Builder::new(limit);
         let m = b.emit(OP_MATCH, 0, 0, 0, NONE)?;
         let start = b.node(&parsed, parsed.root, m, NONE, NONE, 0)?;
         let can_be_null = parsed.item(parsed.root).nullable;
@@ -1088,7 +1141,7 @@ impl Built {
             OP_SPLIT => [(i.a, j), (i.b, j)],
             OP_JMP => [(i.a, j), none],
             OP_OPEN | OP_CLOSE | OP_ASSERT | OP_BACKREF => [(i.b, j), none],
-            OP_ENTER => [(i.b, enter_j(i, j)), none],
+            OP_ENTER => [(i.b, enter_j(i, j)), if i.c == NONE { none } else { (i.c, j) }],
             OP_EXIT if j >= 1 => [(i.b, exit_j(i, j)), none],
             OP_EXIT => [(i.c, 0), none],
             _ => [none, none],
@@ -1104,10 +1157,8 @@ impl Built {
         for pc in 0..n {
             nomem(base.push(total))?;
             let d = self.depth(u32::try_from(pc).map_err(|_| ReError::ESpace)?);
-            total = total.checked_add(d + 1).ok_or(ReError::ESpace)?;
-        }
-        if usize::try_from(total).unwrap_or(usize::MAX) > MAX_NODES {
-            return Err(ReError::ESpace);
+            // Node ids stay below NONE: a total past u32 is REG_ESPACE, never a wrap.
+            total = total.checked_add(d).and_then(|t| t.checked_add(1)).ok_or(ReError::ESpace)?;
         }
         self.node_base = base;
         self.nodes = total;
@@ -1540,8 +1591,10 @@ pub struct Program {
 
 impl Program {
     /// Build the automaton of a parsed pattern, derive the matcher's tables and serialise.
-    pub(crate) fn build(parsed: Parsed, loc: &Locale, icase: bool) -> Result<Program, ReError> {
-        let bytes = Built::build(parsed, loc, icase)?.to_bytes()?;
+    /// `limit`: the most matcher states the program may have ([`NODES_REPRESENTABLE`] for none
+    /// below the representable; see [`super::compile_limited`]).
+    pub(crate) fn build(parsed: Parsed, loc: &Locale, icase: bool, limit: usize) -> Result<Program, ReError> {
+        let bytes = Built::build(parsed, loc, icase, limit)?.to_bytes()?;
         if ProgRef::from_bytes(&bytes).is_none() {
             return Err(ReError::ESpace);
         }
@@ -1757,7 +1810,8 @@ impl<'a> ProgRef<'a> {
         let c = |n: usize| h(n).and_then(|v| usize::try_from(v).ok());
         let (nreport, ninst, nchains, nscopes, nsets, ndata, nmasks) = (c(15)?, c(16)?, c(17)?, c(18)?, c(19)?, c(20)?, c(21)?);
         let nodes = h(6)?;
-        let n = usize::try_from(nodes).ok().filter(|&n| n <= MAX_NODES)?;
+        // Any u32 count: the section sizes below must fill `b` exactly, which bounds it.
+        let n = usize::try_from(nodes).ok()?;
         // Section sizes in words, in order.
         // The 12 counted sections, then the fixed byte-class section (D-14.12).
         let sizes = [nreport, ninst.checked_mul(5)?, nchains.checked_mul(3)?, nscopes.checked_mul(2)?, nsets.checked_mul(SET_WORDS)?, ndata, ninst, n.checked_mul(2)?, n, n, nchains.checked_mul(2)?, nmasks.checked_mul(2)?, CLASS_WORDS];
@@ -1836,6 +1890,15 @@ impl<'a> ProgRef<'a> {
     #[allow(dead_code)]
     pub(crate) fn leave_class(&self) -> Option<u32> {
         word(self.class_sec, 1).filter(|&l| l != NONE)
+    }
+
+    /// The group an `ENTER` opens or an `EXIT` closes ([`SCOPE_GROUP`]): its scope's first group.
+    #[inline]
+    pub(crate) fn head(&self, i: Inst) -> Option<u32> {
+        if i.a & SCOPE_GROUP == 0 {
+            return None;
+        }
+        self.scopes.get(usize::try_from(scope_of(i)).ok()?).map(|s| s.0)
     }
 
     /// Whether the program has its predecessor section (at most [`PRED_CAP`] nodes).
@@ -2142,7 +2205,7 @@ mod recursion_tests {
     #[allow(clippy::type_complexity)]
     fn program(pat: &[u8], flags: i32, explicit: bool) -> (Vec<Inst>, Vec<u32>, Vec<(u32, u32, u32)>, Vec<(u32, u32)>, u32) {
         let t = crate::pattern::regex::parse::parse(pat, super::super::regcomp_syntax(flags), &Locale::C).unwrap();
-        let mut b = Builder::new();
+        let mut b = Builder::new(NODES_REPRESENTABLE);
         let m = b.emit(OP_MATCH, 0, 0, 0, NONE).unwrap();
         let start = if explicit {
             b.compile(&t, Call { id: t.root, next: m, chain: NONE, share: NONE, bare: false })
