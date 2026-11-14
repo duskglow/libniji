@@ -43,7 +43,7 @@ AMD EPYC 7551 32-Core Processor	cbench_hot	strcpy_chk_16	38	Liella 36.0 vs glibc
 AMD EPYC 7551 32-Core Processor	cbench_hot	strcpy_chk_64	44	Liella 41.1 vs glibc 70.1; headroom 2%; LIMITS-TIGHTEN, was 97
 AMD EPYC 7551 32-Core Processor	cbench_hot	ctype_b_loc	16	Liella 14.0 vs glibc 10.0; headroom 2%
 AMD EPYC 7551 32-Core Processor	cbench_hot	ctype_get_mb_cur_max	12	Liella 10.0 vs glibc 11.0; headroom 2%
-AMD EPYC 7551 32-Core Processor	cbench_hot	errno_location	11	Liella 9.0 vs glibc 10.0; headroom 2%
+AMD EPYC 7551 32-Core Processor	cbench_hot	errno_location	12	Liella 11.0 vs glibc 10.0 (was 9.0); the +2 is the foreign-block check of D-X.60, which the owner's requirement 'It needs to be safe' asks for; owner ruling 2026-11-14 (TB-FOREIGN-WORDS-LOW-13) accepts the cost, safety being the reason: errno is read on calls that are failing anyway; headroom 1
 AMD EPYC 7551 32-Core Processor	cbench_hot	fwrite_unlocked_16	86	Liella 83.5 vs glibc 114.0; headroom 2%
 AMD EPYC 7551 32-Core Processor	cbench_hot	fwrite_unlocked_64	95	Liella 93.0 vs glibc 120.6; headroom 2%
 AMD EPYC 7551 32-Core Processor	cbench_hot	getc	54	Liella 51.4 vs glibc 27.3; headroom 2%
