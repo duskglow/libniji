@@ -10,4 +10,5 @@
  "improvement": "The start-path loader's missing soname search (DL-8) blocks every 'program runs dynamically' proof; briefs asking for one should name DL-8 as a dependency.",
  "next_step": "jobwait sl-sonames-gate sl-sonames-plants on mei, fix, run the direct tier, final non-WIP commit",
  "report_file": "handoff/SL-SONAMES.md",
- "jobs": ["sl-sonames-gate", "sl-sonames-plants"]}
+ "superseded": ["sl-sonames-gate (rc 1: clippy unwrap_used in the new test; tests themselves 4/4 + placeholders 7/7 passed; fixed in later commits)"],
+ "jobs": ["sl-sonames-plants"]}
