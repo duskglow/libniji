@@ -1,5 +1,17 @@
 # LIBM-F32-POWF: handoff (one-pass `powf`)
 
+**LIBM-F32-POWF-5 (11-14): unheld (LAYOUT-TEXT-PIN-15 landed); next merged; gate rerun.** Branch
+`task/libm-f32-powf-5`, role shiki:~/w/sh2, jobs `libm-f32-powf-5-*`.
+* Merged origin/next e47a71997 (d81f54a67), no conflict. The merge changes no powf code (exp_log.rs gains only
+  the expf-family tiny-operand path, D-10.108), so the POWF-4 plants (7/7) and counts (powf_typ 155.9) stand.
+* `-lint` on the merge: rc 1, the new `long-sweeps` static check: the `#[ignore]`d
+  `math_powf_onepass_random_pairs` was in no runner row. Fixed in 804afde06: an exhaustive-group row with
+  LIELLA_POWF_PAIRS=10^9 (its default, the full size), time unmeasured. `-lint2` (clippy + static) on 804afde06: rc 0.
+* `-gate` (direct tier, `cargo xtask affected --run --base origin/next`) on 804afde06: rc 0. 2685
+  passed, 0 failed, 569 ignored (9 suites; liella-rt selected nothing), conformance 19/19, static ok, peak 4.1G.
+  `test -p liella` (hot_text_products, incl. `init_data_clusters_hold_at_every_text_phase`, the POWF-4 red) ok in
+  both modes. Ready to land; the next step is item 1 below (a new story).
+
 **LIBM-F32-POWF-4 (11-11): next merged; STARTUP-DATA-WINDOWS holds (13 <= 20); one gate red, a cold-text page phase
 in locale code the story does not touch, held as LAYOUT-JITTER (section 0).** Branch `task/libm-f32-powf-4`, role shiki:~/w/sh2.
 
@@ -88,8 +100,7 @@ serial log/double-double/exp chain with partial-write merges. Cycles on the book
   answered by the one-pass path) + 62607 hard pairs x 16 modes: 0 mismatches. First run's gate2 (mei): 2408/0, rc 0.
 
 ## Open / next (in order)
-0. (POWF-4) Held for the `find_cached` hot-list fix (section 0). When it lands: merge next, rerun the gate (and
-   plants and counts only if the merge changes powf code). Plants and counts on 4b416fc54 are green and need no redo.
+0. Done in POWF-5 (top): next merged, gate green on 804afde06. Plants and counts on 4b416fc54 need no redo.
 1. Time is 1.82-1.83x glibc on both timing hosts (target 1.5x). The log is the long pole (128-entry LOG_INV/LOG_C,
    8-term series, needed for the 2^-50 relative bound at |t| up to 88). A log2-domain table (t = y·log2 x with e
    exact), or a 2^-46 bound with a wider margin, would shorten it; y = 3, 4 and 0.5 still go to the envelope (exact
