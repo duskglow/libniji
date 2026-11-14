@@ -110,6 +110,18 @@ long *t_addr(void) { return t_var; }
 __attribute__((tls_model("initial-exec"))) __thread long t_var[16] = {21};
 long *t_addr(void) { return t_var; }
 #endif
+#ifdef KIND_H
+DTOR("H") int h_fn(void) { return 9; }
+#endif
+#ifdef KIND_I
+DTOR("I") int i_fn(void) { return 10; }
+#endif
+#ifdef KIND_S
+DTOR("S") int s_fn(void) { return 11; }
+#endif
+#ifdef KIND_M
+DTOR("M") int m_fn(void) { return 12; }
+#endif
 #ifdef KIND_R
 int r_fn(void) { return 6; }
 #endif
@@ -150,7 +162,10 @@ const PROG: &str = r#"#define _GNU_SOURCE
 char dir[4096];
 int pctor, pdtor;
 static char evlog[4096];
-void ev(const char *s) { strcat(evlog, s); strcat(evlog, " "); }
+/* `exit` mode: each event is also written to standard output at once (the exit's sequence). */
+static int echo;
+void ev(const char *s) { strcat(evlog, s); strcat(evlog, " "); if (echo) { write(1, s, strlen(s)); write(1, " ", 1); } }
+__attribute__((destructor)) static void prog_dtor(void) { if (echo) ev("dP"); }
 #define CHECK(n, c, ...) do { if (!(c)) { fprintf(stderr, "check %d: ", n); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); exit(n); } } while (0)
 static char pbuf[4200];
 static const char *P(const char *n) { snprintf(pbuf, sizeof pbuf, "%s/%s", dir, n); return pbuf; }
@@ -605,6 +620,18 @@ static void room(void) {
     CHECK(72, cyc_waits > 0, "never waited for the ever-present reader");
 }
 
+/* `exit SCENARIO`: open objects and return from main; the destructors at exit write the order. */
+static void *open_kept(const char *n, int f) { void *h = dlopen(P(n), f); CHECK(80, h != NULL, "%s: %s", n, dlerror()); return h; }
+static void exit_order(const char *s) {
+    echo = 1;
+    if (!strcmp(s, "indep")) { open_kept("libN.so", RTLD_NOW); open_kept("libY.so", RTLD_NOW | RTLD_NODELETE); open_kept("libG.so", RTLD_NOW); }
+    else if (!strcmp(s, "dep")) { open_kept("libB.so", RTLD_NOW); open_kept("libN.so", RTLD_NOW); open_kept("libA.so", RTLD_NOW); }
+    else if (!strcmp(s, "bind")) { open_kept("libG.so", RTLD_NOW | RTLD_GLOBAL); open_kept("libN.so", RTLD_NOW); open_kept("libU.so", RTLD_NOW); }
+    else if (!strcmp(s, "cycle")) { open_kept("libN.so", RTLD_NOW); open_kept("libH.so", RTLD_NOW); open_kept("libY.so", RTLD_NOW); }
+    else if (!strcmp(s, "start")) { open_kept("libN.so", RTLD_NOW); open_kept("libM.so", RTLD_NOW); open_kept("libY.so", RTLD_NOW); }
+    else exit(2);
+}
+
 int main(int argc, char **argv) {
     if (argc < 3) return 2;
     alarm(300);
@@ -612,6 +639,7 @@ int main(int argc, char **argv) {
     if (!strcmp(argv[2], "basic")) basic();
     else if (!strcmp(argv[2], "concurrent")) concurrent();
     else if (!strcmp(argv[2], "room")) room();
+    else if (!strcmp(argv[2], "exit") && argc > 3) exit_order(argv[3]);
     else return 2;
     return 0;
 }
@@ -788,6 +816,53 @@ fn s27_1_c_4_cxx_plugin_load_unload_loop() {
     for (how, mut cmd) in [("kernel-started", Command::new(&prog)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&prog); c })] {
         let o = cmd.arg(&d).output().unwrap();
         assert_eq!((o.status.code(), o.status.signal()), (Some(0), None), "{how}: C++ plugin loop; stderr: {}", String::from_utf8_lossy(&o.stderr));
+    }
+    std::fs::remove_dir_all(&d).ok();
+}
+
+/// s1_1_c_6, s27_1_c_1 (probe `== exit-order` E1-E30, spec/behaviour/dynlink.md "Exit order of
+/// `dlopen`ed objects"; story DL-EXIT-ORDER-PROBE): at exit the program's destructor runs first,
+/// then the start-time and the `dlopen`ed objects still loaded as one sequence, the earliest loaded
+/// first, each object after every object that needs it. `indep` (E1-E9): N, Y (`RTLD_NODELETE`), G
+/// in load order. `dep` (E17): B opened before A, which needs it, runs after A; N keeps its place.
+/// `bind` (E21): U bound `g_val` in G (`RTLD_GLOBAL`, no `DT_NEEDED`): U before G. `cycle` (E20,
+/// Liella's rule, the decision record of DL-EXIT-ORDER-PROBE-2): the cycle H <-> I (initialised I,
+/// H) runs as one group between N and Y, the last initialised (H) first. `start` (E24, E25): M,
+/// opened between N and Y, needs the start-time object S: N, M, S, then Y.
+#[test]
+fn s27_1_c_1_exit_runs_loaded_objects_as_one_sequence() {
+    let Some((d, ld, libc, crt1)) = setup("exit") else { return };
+    let prog = corpus(&d, &ld, &libc, &crt1);
+    let dir = d.to_str().unwrap();
+    let (ldir, rpath) = (format!("-L{dir}"), format!("-Wl,-rpath,{dir}"));
+    let lib = |out: &str, kind: &str, extra: &[&str]| {
+        let soname = format!("-Wl,-soname,{out}");
+        let mut f = vec!["-nostdlib", "-fPIC", "-shared", "-Wl,-fini=fini_hook", kind, &soname, "-Wl,--no-as-needed", &ldir, &rpath];
+        f.extend_from_slice(extra);
+        build(&d, out, LIB, &f);
+    };
+    // The cycle: I first without its edge, then H needing I, then I again needing H.
+    lib("libI.so", "-DKIND_I", &[]);
+    lib("libH.so", "-DKIND_H", &["-l:libI.so"]);
+    lib("libI.so", "-DKIND_I", &["-l:libH.so"]);
+    lib("libS.so", "-DKIND_S", &[]);
+    lib("libM.so", "-DKIND_M", &["-l:libS.so"]);
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    let with_s = build(&d, "prog_s", PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", &interp, crt1.to_str().unwrap(), "-Wl,--no-as-needed", &ldir, &rpath, "-l:libS.so", libc.to_str().unwrap(), ld.to_str().unwrap(), "-lgcc"]);
+    use std::os::unix::process::ExitStatusExt;
+    for (p, scenario, want) in [
+        (&prog, "indep", "dP dN fN dY fY dG fG "),
+        (&prog, "dep", "dP dN fN dA fA dB fB "),
+        (&prog, "bind", "dP dN fN dU fU dG fG "),
+        (&prog, "cycle", "dP dN fN dH fH dI fI dY fY "),
+        (&with_s, "start", "dP dN fN dM fM dS fS dY fY "),
+    ] {
+        for (how, mut cmd) in [("kernel-started", Command::new(p)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(p); c })] {
+            let o = cmd.arg(&d).arg("exit").arg(scenario).output().unwrap();
+            let err = String::from_utf8_lossy(&o.stderr);
+            assert_eq!((o.status.code(), o.status.signal()), (Some(0), None), "{how}: exit {scenario}; stderr: {err}");
+            assert_eq!(String::from_utf8_lossy(&o.stdout), want, "{how}: exit order {scenario}");
+        }
     }
     std::fs::remove_dir_all(&d).ok();
 }

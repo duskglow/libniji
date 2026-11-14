@@ -1,0 +1,14 @@
+id = "COMPAT-NEW"
+series = "COMPAT"
+behaviour = "Exit order inside a dependency cycle of loaded objects (§27.1; ruling #5790)"
+glibc = "The members of a cycle run at exit in an order that depends on the other objects loaded (probe `== exit-order` E19, E20, E26-E30)"
+liella = "A cycle runs as one group at its place in the exit sequence, the member initialised last first, whatever else is loaded"
+restore = "A tunable read at startup selecting, inside a cycle, the order the reference's probes record, once that order is specified from further black-box probes"
+cost = "none expected: one branch in the in-group sort of `init::exit_order`, at exit only"
+status = "registered"
+decisions = ["D-NEW"]
+story = "DL-EXIT-ORDER-PROBE-2"
+date = "2026-11-14"
+body = '''
+Registered, not implemented (ruling #5790: every difference from the reference gets a compatibility option). Implementing it first needs a specification of the reference's in-cycle order from probes; the recorded cases (E19-E30) do not yet determine one.
+'''

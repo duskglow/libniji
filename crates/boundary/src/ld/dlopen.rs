@@ -778,24 +778,94 @@ impl Ctors {
     }
 }
 
-/// Run the destructors of the `dlopen`ed objects still loaded, the last initialised first (from
-/// `fini_all`). Each object is marked finalising first, so a `dlclose` that a destructor or a later
-/// exit step makes never runs them again.
-pub(super) fn fini_loaded() {
+/// Run the exit's finalisers once `dlopen` was used (from `fini_all`; false, nothing run, when it
+/// never was): the start-time objects (`start`: each one's node and finalisation words, in
+/// [`init::fini_order`], the program first) and the `dlopen`ed objects still loaded whose
+/// constructors ran, as one sequence (DL-EXIT-ORDER-PROBE, [`init::exit_order`]): the earliest
+/// loaded first, each object after every object that needs it (`DT_NEEDED`, or a binding its
+/// relocation made), a dependency cycle as one group, the last initialised first. Each `dlopen`ed
+/// object is marked finalising first, so a `dlclose` that a destructor or a later exit step makes
+/// never runs it again.
+pub(super) fn fini_exit(start: &[(usize, [u64; 3])]) -> bool {
     if LOADER.load(Acquire) == 0 {
-        return;
+        return false;
     }
     let mut f = Finis::NONE;
     STATE.lock();
-    if let Some(l) = loader() {
-        let n = l.n_log.load(Relaxed).min(CAP);
-        for k in (0..n).rev() {
-            let i = l.log.get(k).map_or(CAP, |&i| usize::from(i));
-            f.add(l, i);
-        }
-    }
+    let Some(l) = loader() else {
+        STATE.unlock();
+        return false;
+    };
+    exit_set(l, start, &mut f);
     STATE.unlock();
     f.run();
+    true
+}
+
+/// Fill `f` with the exit's sequence ([`fini_exit`]). Units: `0..m` the start-time objects in
+/// `start`'s order, chained (each before the next, so their own order holds); then the `dlopen`ed
+/// objects in the constructor log, not unloaded or finalising, by index (= load order: a slot is
+/// reused only from the top). A `dlopen`ed unit runs before each unit it needs or bound to.
+fn exit_set(l: &mut Loader, start: &[(usize, [u64; 3])], f: &mut Finis) {
+    const NONE: u16 = u16::MAX;
+    let as16 = |v: usize| u16::try_from(v).unwrap_or(NONE);
+    let as32 = |v: usize| u32::try_from(v).unwrap_or(u32::MAX);
+    let m = start.len().min(CAP);
+    // `pos[node]`: its unit; `unit[u]`: a dlopen unit's node; `rank[u]`: higher = initialised later.
+    let (mut pos, mut unit, mut rank, mut logged) = ([NONE; CAP], [NONE; CAP], [0u32; CAP], [NONE; CAP]);
+    for (u, &(i, _)) in start.iter().take(m).enumerate() {
+        if let (Some(p), Some(r)) = (pos.get_mut(i), rank.get_mut(u)) {
+            *p = as16(u);
+            *r = as32(m.saturating_sub(u));
+        }
+    }
+    let n_log = l.n_log.load(Relaxed).min(CAP);
+    for (k, &i) in l.log.iter().take(n_log).enumerate() {
+        if let Some(x) = logged.get_mut(usize::from(i)) {
+            *x = as16(k);
+        }
+    }
+    let mut n = m;
+    for i in l.n_start..l.n.min(CAP) {
+        let k = logged.get(i).copied().unwrap_or(NONE);
+        if k == NONE || l.nodes.get(i).is_none_or(|nd| nd.gone || nd.finalising) {
+            continue;
+        }
+        let (Some(p), Some(x), Some(r)) = (pos.get_mut(i), unit.get_mut(n), rank.get_mut(n)) else { break };
+        *p = as16(n);
+        *x = as16(i);
+        *r = as32(m.saturating_add(1).saturating_add(usize::from(k)));
+        n = n.saturating_add(1);
+    }
+    let lr: &Loader = l;
+    let succ = |v: usize, e: usize| -> Option<usize> {
+        if v < m {
+            let w = v.saturating_add(1);
+            return (e == 0 && w < m).then_some(w);
+        }
+        let i = usize::from(*unit.get(v)?);
+        let targets = lr.deps_of(i).iter().chain(lr.binds_of(i)).map(|&j| pos.get(usize::from(j)).copied().unwrap_or(NONE));
+        targets.filter(|&p| p != NONE && usize::from(p) != v).nth(e).map(usize::from)
+    };
+    let mut out = [0u16; CAP];
+    let len = init::exit_order(n, succ, rank.get(..n).unwrap_or(&[]), &mut out).unwrap_or(0);
+    let order = out.get(..len).unwrap_or(&[]);
+    if order.is_empty() && n > 0 {
+        // Not reached (n <= CAP = EXIT_MAX, every edge is a unit): the `dlopen`ed objects the last
+        // initialised first, then the start-time ones.
+        for k in (0..n_log).rev() {
+            f.add(l, l.log.get(k).map_or(CAP, |&i| usize::from(i)));
+        }
+        start.iter().take(m).for_each(|&(i, w)| f.push(i, w));
+        return;
+    }
+    for &u in order {
+        let u = usize::from(u);
+        match start.get(u) {
+            Some(&(i, w)) if u < m => f.push(i, w),
+            _ => f.add(l, unit.get(u).map_or(CAP, |&i| usize::from(i))),
+        }
+    }
 }
 
 /// The finalisers of the objects one `dlclose` (or the exit) unloads, in the order they run.
@@ -818,6 +888,14 @@ impl Finis {
         node.finalising = true;
         *c = node.fini;
         *x = u16::try_from(i).unwrap_or(0);
+        self.len = self.len.saturating_add(1);
+    }
+
+    /// Add a start-time object's finalisation words (`i`: its node; never unloaded).
+    fn push(&mut self, i: usize, words: [u64; 3]) {
+        let (Some(c), Some(x)) = (self.calls.get_mut(self.len), self.idx.get_mut(self.len)) else { return };
+        *c = words;
+        *x = u16::try_from(i).unwrap_or(u16::MAX);
         self.len = self.len.saturating_add(1);
     }
 
