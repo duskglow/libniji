@@ -49,5 +49,5 @@ The kept path is right for LC_ALL empty; #5188 is settled. The 51st fault is und
 ## Notes
 
 - Full report: handoff/reports/SETLOCALE-CTYPE-ENV-5.json; earlier runs: handoff/reports/SETLOCALE-CTYPE-ENV-*.json.
-- Superseded jobs: setlocale-ctype-env-5-fs-head, -fs-head2, -fs-next (diagnostics), setlocale-ctype-env-5-percall
-  and -lint0 (step 0, on the inherited head), setlocale-ctype-env-5-percall (stopped by me with kill-label: it was counting the intermediate commit and blocked the sync).
+- Superseded jobs: setlocale-ctype-env-5-fs-head, -fs-head2, -fs-next (diagnostics), -lint0 (step 0,
+  on the inherited head), setlocale-ctype-env-5-percall (stopped by me with kill-label: it was counting the intermediate commit and blocked the sync).
