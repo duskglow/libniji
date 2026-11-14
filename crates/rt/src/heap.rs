@@ -90,10 +90,11 @@ pub trait Pages {
     /// The [`Self::General`] source.
     fn general(&self) -> &Self::General;
     /// How many NUMA nodes the process may allocate on (`get_mempolicy(MPOL_F_MEMS_ALLOWED)`);
-    /// 1 when that cannot be asked. Asked once per heap, on its first slow path (D-3.20).
-    fn allowed_nodes(&self) -> usize {
-        1
-    }
+    /// 1 when that cannot be asked. Asked once per heap, on its first slow path (D-3.20), by
+    /// whichever source that path took: a source that wraps another (an `OwnPages`-style fast
+    /// source) must pass the question on, or that one answer would turn NUMA placement off for
+    /// the whole process. Required, so a wrapper cannot inherit a silent 1.
+    fn allowed_nodes(&self) -> usize;
     /// The calling thread's cache word (the address of its cache, 0 for none yet). Each
     /// thread has its own; the heap is the only writer. `None`: the thread has no word of its
     /// own (D-X.60: a thread another library made whose words could not be placed), so it runs
