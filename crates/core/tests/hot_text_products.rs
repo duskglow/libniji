@@ -389,7 +389,7 @@ fn check_whole_count(what: &str, s: u64, bounds: [u64; 2]) {
     eprintln!("{what} (whole process, {profile}): {s} page faults (bound {bound})");
     assert!(s <= bound, "{what} (whole process, {profile} products): {s} page faults > {bound} (zone-load or mktime text left the hot group, or start-up grew?)");
     assert!(
-        s + WHOLE_COUNT_SLACK >= bound,
+        s >= bound.saturating_sub(WHOLE_COUNT_SLACK),
         "{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"
     );
 }
