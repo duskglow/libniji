@@ -29,7 +29,15 @@ handoff/TB-FOREIGN-WORDS-LOW-report.md (-1..-4), and the git history of this fil
   on e3c932b74) rc 0; `-gate` (heap_and_sync, `cargo xtask affected --run --base origin/next`, which escalates to FULL
   as in -13 and runs `cargo xtask test`, then LIELLA_FULL_PROFILE=1 so + hot_text_products) rc 0: heap_and_sync
   27/0, `cargo xtask test` 32 suites, 11807 passed / 0 failed, conformance 137/0, hot_text_products 26/0, peak 16G
-  (80 min on mei at load 23-45, set by the FULL escalation).
+  (80 min on mei at load 23-45, set by the FULL escalation). Those jobs proved e3c932b74; then next moved.
+- Second merge 5981d0241 (next 2d5625a3e, HEAP-RSEQ-NODE-3, D-3.21): one conflict in `node_hint`. Kept next's rseq
+  `node_id` read (`own_rseq` answers only for an area Liella registered: descriptor flag or the loader's tp, no
+  0x80-0x9b word) and this branch's `thread::words()` for the remembered node word at 0x98.
+  On 5981d0241: `-lint3` rc 0 (records ok, 627 decisions); `-plants2` 6 of 6 CAUGHT, no WARN (same plants file);
+  keke `-kekenext2` / `-kekemerged2` rc 0: startup_instr_c next 2144, merged 2155 (+11, limit 2161 holds),
+  errno_location 9.0 / 11.0 (limit 12). `-gate2` (same chain as `-gate`) was started detached at 22:07 and was still
+  running at hand-back (about 80 min). SUPERSEDED by the second merge: `-lint2`, `-gate`, `-plants`, `-kekenext`,
+  `-kekemerged` (all rc 0 on e3c932b74).
   keke: `-kekenext`, `-kekemerged` rc 0. SUPERSEDED: `-lint` (stopped, rc 124: its tree predated 705c47fd2).
 
 ## Next step
