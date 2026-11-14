@@ -55,7 +55,7 @@ for deb in $debs; do
     case $pkg in
         libc6)
             expect libc6 Architecture amd64; expect libc6 Multi-Arch same; expect libc6 Priority required
-            expect libc6 Essential ""
+            expect libc6 Essential no
             ctrl_want="$ctrl_want ./conffiles ./triggers"
             conffiles="/etc/ld.so.conf.d/$ma.conf"
             triggers="activate-noawait ldconfig" ;;
@@ -111,6 +111,9 @@ done
 
 r=$tmp/root
 lib=$r/usr/lib/$ma
+# base-files' merged-/usr links (not in these packages): the libc.so script names /lib and /lib64.
+ln -s usr/lib "$r/lib"
+ln -s usr/lib64 "$r/lib64"
 link=$(readlink "$r/usr/lib64/ld-linux-x86-64.so.2" || true)
 [ "$link" = "../lib/$ma/ld-linux-x86-64.so.2" ] || fail "/usr/lib64/ld-linux-x86-64.so.2 -> '$link', not ../lib/$ma/ld-linux-x86-64.so.2"
 # 3. The loader's prefix is / : a sysroot build names /usr/lib/liella (its own libraries and cache).
