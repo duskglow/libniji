@@ -26,6 +26,6 @@ P3 at -O2 for every configuration in `callsites.tsv`, with every `*_chk` export 
 Standing rules of rules/thread_common.txt apply. Clean room: never read the reference's header text in
 any form. Probes read only diagnostics that name the probe's own identifiers, and the probe's own
 objects (plan/headers.md §2.2). ABI facts reach a header only through the `spec/abi` tables. No lab host
-names outside handoff/.
+names outside handoff/. Source compatibility is best effort (owner, 2026-11-14; plan/headers.md §0): the ABI of what is built is exact (P1, P3), but a package that fails to compile only because it relies on a glibc-internal name gets a small source change (an Aqours patch, listed in your results), not a new glibc-internal name. `__LIELLA__` is always defined.
 
 JOBS: gate, plants

@@ -1,5 +1,5 @@
 header	dir	versions	kind	section	prototypes	slice	note
-a.out.h	multiarch	both	public	27	0	16	legacy (R-H7)
+a.out.h	multiarch	both	public	27	0	16	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 aio.h	plain	both	public	11	17	14	
 aliases.h	plain	both	public	16	6	12	
 alloca.h	plain	both	public	3	1	5	
@@ -268,10 +268,10 @@ fpu_control.h	multiarch	both	public	10	0	11
 fstab.h	plain	both	public	13	5	15	
 fts.h	plain	both	public	13	10	10	
 ftw.h	plain	both	public	13	4	10	
-gconv.h	plain	both	public	6	0	10	legacy (R-H7)
+gconv.h	plain	both	public	6	0	10	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 getopt.h	plain	both	public	1	0	6	
 glob.h	plain	both	public	14	5	10	
-gnu-versions.h	plain	both	public	0	0	5	legacy (R-H7)
+gnu-versions.h	plain	both	public	0	0	5	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 gnu/lib-names-64.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
 gnu/lib-names.h	multiarch	both	internal	-	0	16	soname strings from versions.tsv
 gnu/libc-version.h	multiarch	both	public	24	2	15	
@@ -293,7 +293,7 @@ locale.h	plain	both	public	7	6	10
 malloc.h	plain	both	public	3	9	17	
 math.h	plain	both	public	10	0	11	
 mcheck.h	plain	both	public	3	6	17	
-memory.h	plain	both	public	4	0	6	legacy (R-H7)
+memory.h	plain	both	public	4	0	6	legacy (R-H7): ship, -dev include
 mntent.h	plain	both	public	13	6	15	
 monetary.h	plain	both	public	7	2	10	
 mqueue.h	plain	both	public	25	10	14	
@@ -307,11 +307,11 @@ net/if_slip.h	plain	both	public	15	0	13
 net/ppp-comp.h	plain	both	public	15	0	13	
 net/ppp_defs.h	plain	both	public	15	0	13	
 net/route.h	plain	both	public	15	0	13	
-netash/ash.h	plain	both	public	15	0	13	legacy (R-H7)
-netatalk/at.h	plain	both	public	15	0	13	legacy (R-H7)
-netax25/ax25.h	plain	both	public	15	0	13	legacy (R-H7)
+netash/ash.h	plain	both	public	15	0	13	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+netatalk/at.h	plain	both	public	15	0	13	legacy (R-H7): ship, -dev include
+netax25/ax25.h	plain	both	public	15	0	13	legacy (R-H7): ship, -dev include
 netdb.h	plain	both	public	16	60	12	
-neteconet/ec.h	plain	both	public	15	0	13	legacy (R-H7)
+neteconet/ec.h	plain	both	public	15	0	13	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 netinet/ether.h	plain	both	public	15	7	13	
 netinet/icmp6.h	plain	both	public	15	0	13	
 netinet/if_ether.h	plain	both	public	15	0	13	
@@ -325,19 +325,19 @@ netinet/ip6.h	plain	both	public	15	0	13
 netinet/ip_icmp.h	plain	both	public	15	0	13	
 netinet/tcp.h	plain	both	public	15	0	12	
 netinet/udp.h	plain	both	public	15	0	12	
-netipx/ipx.h	plain	both	public	15	0	13	legacy (R-H7)
-netiucv/iucv.h	plain	both	public	15	0	13	legacy (R-H7)
+netipx/ipx.h	plain	both	public	15	0	13	legacy (R-H7): ship, -dev include
+netiucv/iucv.h	plain	both	public	15	0	13	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 netpacket/packet.h	plain	both	public	15	0	13	
-netrom/netrom.h	plain	both	public	15	0	13	legacy (R-H7)
-netrose/rose.h	plain	both	public	15	0	13	legacy (R-H7)
-nfs/nfs.h	plain	both	public	13	0	15	legacy (R-H7)
+netrom/netrom.h	plain	both	public	15	0	13	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+netrose/rose.h	plain	both	public	15	0	13	legacy (R-H7): ship, -dev include
+nfs/nfs.h	plain	both	public	13	0	15	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 nl_types.h	plain	both	public	7	3	10	
 nss.h	plain	both	public	16	1	12	
 obstack.h	plain	both	public	3	5	17	
 paths.h	plain	both	public	13	0	7	
 poll.h	plain	both	public	11	0	7	
 printf.h	plain	both	public	12	7	17	
-proc_service.h	plain	both	public	22	0	16	legacy (R-H7)
+proc_service.h	plain	both	public	22	0	16	legacy (R-H7): ship, live purpose
 protocols/routed.h	plain	both	public	15	0	13	
 protocols/rwhod.h	plain	both	public	15	0	13	
 protocols/talkd.h	plain	both	public	15	0	13	
@@ -345,9 +345,9 @@ protocols/timed.h	plain	both	public	15	0	13
 pthread.h	plain	both	public	22	130	8	
 pty.h	plain	both	public	19	2	14	
 pwd.h	plain	both	public	17	12	14	
-re_comp.h	plain	both	public	14	0	10	legacy (R-H7)
+re_comp.h	plain	both	public	14	0	10	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 regex.h	plain	both	public	14	12	10	
-regexp.h	plain	both	public	14	0	10	legacy (R-H7)
+regexp.h	plain	both	public	14	0	10	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 resolv.h	plain	both	public	16	51	12	
 rpc/netdb.h	plain	both	public	16	8	12	
 sched.h	plain	both	public	24	10	8	
@@ -357,11 +357,11 @@ scsi/sg.h	plain	both	public	11	0	15
 search.h	plain	both	public	14	16	10	
 semaphore.h	plain	both	public	22	11	8	
 setjmp.h	plain	both	public	21	6	8	
-sgtty.h	plain	both	public	19	0	14	legacy (R-H7)
+sgtty.h	plain	both	public	19	0	14	legacy (R-H7): ship, -dev include
 shadow.h	plain	both	public	17	13	14	
 signal.h	plain	both	public	20	40	8	
 spawn.h	plain	both	public	18	25	7	
-stab.h	plain	both	public	27	0	16	legacy (R-H7)
+stab.h	plain	both	public	27	0	16	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 stdbit.h	plain	both	public	8	70	10	
 stdc-predef.h	plain	both	public	0	0	5	
 stdint.h	plain	both	public	8	0	5	
@@ -375,8 +375,8 @@ sys/auxv.h	multiarch	both	public	1	1	9
 sys/bitypes.h	multiarch	both	public	0	0	5	
 sys/cdefs.h	multiarch	both	public	0	0	5	
 sys/debugreg.h	multiarch	both	public	28	0	9	
-sys/dir.h	multiarch	both	public	13	0	7	legacy (R-H7)
-sys/elf.h	multiarch	both	public	27	0	16	legacy (R-H7)
+sys/dir.h	multiarch	both	public	13	0	7	legacy (R-H7): ship, -dev include
+sys/elf.h	multiarch	both	public	27	0	16	legacy (R-H7): ship, -dev include
 sys/epoll.h	multiarch	both	public	11	6	9	
 sys/errno.h	multiarch	both	public	2	0	5	
 sys/eventfd.h	multiarch	both	public	11	3	9	
@@ -410,7 +410,7 @@ sys/ptrace.h	multiarch	both	public	18	0	9
 sys/queue.h	multiarch	both	public	14	0	17	
 sys/quota.h	multiarch	both	public	24	1	15	
 sys/random.h	multiarch	both	public	9	1	9	
-sys/raw.h	multiarch	both	public	11	0	15	legacy (R-H7)
+sys/raw.h	multiarch	both	public	11	0	15	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 sys/reboot.h	multiarch	both	public	24	1	15	
 sys/reg.h	multiarch	both	public	28	0	9	
 sys/resource.h	multiarch	both	public	24	7	7	
@@ -435,7 +435,7 @@ sys/syslog.h	multiarch	both	public	26	5	14
 sys/sysmacros.h	multiarch	both	public	13	3	7	
 sys/termios.h	multiarch	both	public	19	0	14	
 sys/time.h	multiarch	both	public	23	9	7	
-sys/timeb.h	multiarch	both	public	23	1	15	legacy (R-H7)
+sys/timeb.h	multiarch	both	public	23	1	15	legacy (R-H7): ship, -dev include
 sys/timerfd.h	multiarch	both	public	23	3	9	
 sys/times.h	multiarch	both	public	23	1	7	
 sys/timex.h	multiarch	both	public	23	4	15	
@@ -449,8 +449,8 @@ sys/unistd.h	multiarch	both	public	13	0	6
 sys/user.h	multiarch	both	public	28	0	9	
 sys/utsname.h	multiarch	both	public	24	1	7	
 sys/vfs.h	multiarch	both	public	13	0	7	
-sys/vlimit.h	multiarch	both	public	24	1	15	legacy (R-H7)
-sys/vm86.h	multiarch	both	public	29	0	15	legacy (R-H7)
+sys/vlimit.h	multiarch	both	public	24	1	15	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+sys/vm86.h	multiarch	both	public	29	0	15	legacy (R-H7): undecided, SL-HEADERS-1 (b)
 sys/vt.h	multiarch	both	public	11	0	15	
 sys/wait.h	multiarch	both	public	18	5	7	
 sys/xattr.h	multiarch	both	public	13	12	7	
@@ -458,10 +458,10 @@ syscall.h	plain	both	public	A	0	9
 sysexits.h	plain	both	public	1	0	17	
 syslog.h	plain	both	public	26	0	14	
 tar.h	plain	both	public	13	0	17	
-termio.h	plain	both	public	19	0	14	legacy (R-H7)
+termio.h	plain	both	public	19	0	14	legacy (R-H7): ship, -dev include
 termios.h	plain	both	public	19	13	14	
 tgmath.h	plain	both	public	10	0	11	
-thread_db.h	plain	both	public	22	40	16	legacy (R-H7)
+thread_db.h	plain	both	public	22	40	16	legacy (R-H7): ship, live purpose
 threads.h	plain	both	public	22	25	8	
 time.h	plain	both	public	23	35	6	
 ttyent.h	plain	both	public	19	4	14	
@@ -472,7 +472,7 @@ unistd.h	plain	both	public	13	130	6
 utime.h	plain	both	public	13	0	7	
 utmp.h	plain	both	public	17	15	14	
 utmpx.h	plain	both	public	17	10	14	
-values.h	plain	both	public	10	0	11	legacy (R-H7)
+values.h	plain	both	public	10	0	11	legacy (R-H7): ship, -dev include
 wait.h	plain	both	public	18	0	7	
 wchar.h	plain	both	public	4	108	10	
 wctype.h	plain	both	public	5	20	10	

@@ -1,24 +1,38 @@
-# headers (SL-HEADERS-PLAN), handoff
+# headers (SL-HEADERS-PLAN, -2), handoff
 
-**State:** branch task/sl-headers-plan. This is a planning story: it changed no code and ran no jobs.
+**State:** branch task/sl-headers-plan-2 (stacked on task/sl-headers-plan), head: see the report json.
+Planning story: no code changed.
 
 **Deliverables**
-* `plan/headers.md`: inventory, generation, proof, slices and rulings.
-* `plan/headers-inventory.tsv`: 478 header names, each with its section and slice.
-* `handoff/SL-HEADERS-PLAN/SL-HEADERS-1..20.md`: the slice briefs.
-* `records/pending/SL-HEADERS-PLAN-1.toml`: the pending decision, series D-X.
+* `plan/headers.md`: §0 owner principle (2026-11-14), inventory, generation, proof, slices, §5 rulings
+  (all answered 2026-11-14), §5.1 the legacy headers under R-H7.
+* `plan/headers-inventory.tsv`: 478 header names with section and slice; the 27 legacy rows say
+  ship (-dev include), ship (live purpose) or undecided.
+* `handoff/SL-HEADERS-PLAN/SL-HEADERS-1..20.md`: the slice briefs, updated for the rulings.
+* `records/pending/SL-HEADERS-PLAN-1.toml`: the pending decision (D-NEW, series D-X), one paragraph.
 
-**Inventory**
-* Source: Devuan excalibur libc6-dev 2.41-12+deb13u4. The chain (gpgv `InRelease` → `Packages.xz` →
-  `.deb`) was verified with the pinned keyring on keke; its SHA-256 matches `~/state/mirrors/`.
-* Names only, from `dpkg-deb -c`. The reference (keke, 2.39) was listed with `dpkg -L`.
-* There are 243 public headers, the same set in 2.39 and 2.41.
-* No header name is in both libc6-dev and linux-libc-dev.
-* Only kernel UAPI text was read: `linux/libc-compat.h`.
+**Decisions in force:** owner rulings R4, R-H0..R-H7 and the owner principle (plan/headers.md §0, §5):
+the ABI of what is built is exact; source compatibility is best effort, a small source change
+(Aqours patch or upstream fix) beats imitating glibc further; `__LIELLA__` is always defined;
+`__GLIBC__` and friends are defined too; only the `__USE_*`/`sys/cdefs.h` names SL-HEADERS-1 finds.
 
-**Rulings open:** R-H0 to R-H7 (plan/headers.md §5). R-H0 blocks slices 2–4.
+**-2 run**
+* Fixed the red: the pending record's `body` had bullets (newlines in a table cell); now one paragraph.
+* R-H7 evidence: all 12,608 `-dev` packages of the excalibur mirror (chain verified on keke: gpgv
+  InRelease, SHA-256 of Packages.xz, Sources.xz and each .deb), libc `-dev` packages excluded, gnulib
+  members unextracted, names only. 11 legacy headers are included by some package (ship); with
+  `thread_db.h` and `proc_service.h` that is 13 shipped. 14 are undecided: SL-HEADERS-1 (b) scans the
+  whole source archive (37,587 packages, 98.1 GB) for them. Scripts were scratch (not committed);
+  slice 1 builds the tool in `validation/`.
+* Checks: keke jobs sl-headers-plan-2-static0 (inherited head, red as reported),
+  sl-headers-plan-2-size, sl-headers-plan-2-devscan, sl-headers-plan-2-refine, and the final static
+  and clippy jobs named in the report json.
 
-**Next step:** the owner rules on R-H0 to R-H3. Slice 1 can start now, and slice 2 after R-H0.
+**Not to redo:** the inventory (verified chain), the -dev scan (§5.1 table).
 
-**Not verified:** no probe was run. The `__isoc*` and `_chk` mappings are inferred from the exports.
-The reference compiler is GCC 13.3, while excalibur uses GCC 14.
+**Next step:** dispatch SL-HEADERS-1 (now M: corpus scan plus the R-H7 source scan) and SL-HEADERS-2
+(R-H0 granted, no longer blocked). Then 3, 4, 5 in order (plan/headers.md §4).
+
+**Not verified:** no reference-header probe was run; `__isoc*`/`_chk` mappings are inferred from the
+exports. The -dev hits include conditional and possibly non-Linux includes (counted, as the ruling's
+wording says "includes it").

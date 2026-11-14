@@ -4,10 +4,32 @@ Owner ruling R4 (#5538, 2026-11-14): "we do need headers, and using glibcs is ag
 project." Aqours cannot compile anything against Liella alone until Liella ships its own headers
 (`plan/system-libc.md` §2 and §6 item 7). This plan answers the four questions of the brief: the
 inventory (§1), how the headers are generated (§2), how they are proved (§3) and the slices
-SL-HEADERS-1..20 (§4). §5 lists the owner rulings. Companion files: `plan/headers-inventory.tsv` (one
-row per header name, with its spec section and slice), the slice briefs
-`handoff/SL-HEADERS-PLAN/SL-HEADERS-<n>.md`, and the pending decision
+SL-HEADERS-1..20 (§4). §5 records the owner's rulings (all answered on 2026-11-14). Companion files:
+`plan/headers-inventory.tsv` (one row per header name, with its spec section and slice), the slice
+briefs `handoff/SL-HEADERS-PLAN/SL-HEADERS-<n>.md`, and the pending decision
 `records/pending/SL-HEADERS-PLAN-1.toml` (series D-X).
+
+## 0. Principle (owner, 2026-11-14)
+
+> "We aim to make Liella ABI compatible with glibc for already built programs. For programs that
+> want to statically link or link with it at runtime, we have to accept that they may need to make
+> small changes for it to work. 100% compile-out-of-the-box compatibility is unrealistic. We should
+> not identify as glibc so deeply that source can't tell the difference."
+
+This governs the whole plan:
+
+* **The ABI of what is built is exact.** A program compiled against Liella's headers references the
+  same symbols, at the same versions, with the same layouts and constant values as one compiled
+  against the reference's (P1, P3). That keeps every binary interchangeable.
+* **Source compatibility is best effort.** The headers declare what the standards, the man pages and
+  the spec say, under the documented feature-test macros. When a package does not compile, the first
+  question is whether Liella's header is wrong (a standard or spec name missing or wrong): that is a
+  header fix. Otherwise the package gets a small source change (an Aqours patch, sent upstream where
+  it is a portability fix) in preference to imitating more of glibc's internals.
+* **Source can tell the difference.** `__LIELLA__` is always defined (in `features.h` and
+  `stdc-predef.h`). The glibc identity macros are also defined (R-H1), because configure checks and
+  the kernel's `libc-compat.h` key on them, but no further glibc-internal vocabulary is copied beyond
+  what R-H2 and R-H3 allow.
 
 ## 1. Inventory
 
@@ -94,7 +116,7 @@ multiarch directory. There are three exceptions:
 Several names are aliases of another header. POSIX and the man pages name both forms: `poll.h` and
 `sys/poll.h`, `wait.h` and `sys/wait.h`, `syslog.h` and `sys/syslog.h`, `sys/vfs.h` and
 `sys/statfs.h`, and the `sys/` forms of `errno.h`, `fcntl.h`, `signal.h`, `termios.h` and
-`unistd.h`. The legacy ones are R-H7.
+`unistd.h`. The legacy ones follow R-H7 (§5.1).
 
 ## 2. Generation
 
@@ -152,7 +174,8 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
   * `__LIELLA_GNU`, `__LIELLA_LFS64` (the `*64` names), `__LIELLA_DYNSTACK`
     (`_DYNAMIC_STACK_SIZE_SOURCE`, C.9), `__LIELLA_FORTIFY` (0..3).
 
-  glibc's `__USE_*` names appear only where R-H2 rules.
+  Of glibc's `__USE_*` names, only `__USE_MISC` and `__USE_GNU` are defined, with the same meaning,
+  plus any further one that SL-HEADERS-1 finds external headers testing (R-H2).
 * **Conditions.** Each declaration carries a condition over these levels. It comes from the standard
   that defines the name (C clause, or POSIX page and its XSI marking), the man page's "Feature Test
   Macro Requirements for glibc", and `visibility.tsv`. Where a man page and the probe disagree, the
@@ -214,11 +237,17 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
   * **Without `__GLIBC__`.** The kernel's other branch defaults every `__UAPI_DEF_*` to 1 unless the
     libc predefined it.
 
-  Liella's choice follows R-H1/R-H2.
+  Liella defines `__GLIBC__` (R-H1) and the three include guards and `__USE_MISC`/`__USE_GNU`
+  (R-H2), so the kernel takes its libc-first branch, and Liella's headers take the kernel-first
+  branch with `#if !__UAPI_DEF_*` wrappers. P8 checks both orders.
 
 ## 3. Proof
 
 Each slice proves its own headers with P1, P2, P3, P5, P6, P8 and P9; P4 and P7 grow per slice.
+Under the principle of §0, P1 and P3 (what a built program binds to) admit no difference. P2 and P7
+(what source compiles) admit a difference that has a differences row; for P7 a package that fails
+only because it relies on a glibc-internal name gets a small source change (an Aqours patch), listed
+in the slice's results, not a new glibc-internal name in Liella's headers.
 
 | | check | how |
 |---|---|---|
@@ -228,7 +257,7 @@ Each slice proves its own headers with P1, P2, P3, P5, P6, P8 and P9; P4 and P7 
 | P4 | C++ | `noexcept.tsv` and `typedefs.tsv` reproduced; `extern "C"` everywhere; the C++-standard overloads ([cstring.syn], [cwchar.syn]); every libstdc++ standard header compiles in every `-std` (SL-HEADERS-20) |
 | P5 | hygiene | each header compiles alone, compiles when included twice, compiles under `-std=c89 -pedantic-errors` where C89 has it, and compiles with `-Wall -Wextra -Wsystem-headers -Werror`; namespace check in strict modes |
 | P6 | conformance | `conformance/run.sh --liella-headers` (SL-HEADERS-5) builds every program whose `#include`s are already covered, against Liella's headers, with the same verdicts. 154 programs use 106 headers today (`string.h` 97, `stdlib.h` 83, `stdio.h` 82, `unistd.h` 80, `errno.h` 62, `pthread.h` 44, ...) |
-| P7 | package corpus | the smoke programs (`validation/smoke`: zlib, xz-utils, sqlite3, grep, sed, diffutils, findutils, coreutils, gawk, bash, miniperl, python3.13 sample, cppunit), built against Liella's headers, give the same test-suite results and the same `nm -D --undefined-only` set per binary as the reference-header build |
+| P7 | package corpus | the smoke programs (`validation/smoke`: zlib, xz-utils, sqlite3, grep, sed, diffutils, findutils, coreutils, gawk, bash, miniperl, python3.13 sample, cppunit), built against Liella's headers, give the same test-suite results and the same `nm -D --undefined-only` set per binary as the reference-header build; a source change a package needed is listed with its reason |
 | P8 | kernel UAPI | for each Liella header with a kernel counterpart (the `libc-compat.h` set, plus pairs the corpus uses): both include orders, with and without `_GNU_SOURCE` |
 | P9 | plants | `cargo xtask plants`: a table row, a template condition, a redirect and a C.9 macro each mutated; the checks above must catch every one |
 | P10 | C.9 macros | differential evaluation against programs built on the reference: ctype for all 384 inputs in C and C.UTF-8, `W*` status macros over all 16-bit values, `FD_*` over 0..1023 |
@@ -236,26 +265,27 @@ Each slice proves its own headers with P1, P2, P3, P5, P6, P8 and P9; P4 and P7 
 ## 4. Slices (SL-HEADERS-1..20, each S or M)
 
 Order: the tables first, then the generator, then a minimal C program, then groups by how much the
-conformance and smoke programs use them. Fortify comes before any Aqours rebuild (R-H6). Slices 7–17
+conformance and smoke programs use them. A legacy header (§5.1) is generated by its slice only when
+§5.1 lists it as shipped; until slice 1 (b) decides it, its slice leaves it out. Fortify comes before any Aqours rebuild (R-H6). Slices 7–17
 depend only on 6 and may run in parallel.
 
 | # | slice | size | needs | headers / content | proof |
 |---|---|---|---|---|---|
-| 1 | corpus scan | S | none | `#include` counts and use of reserved names (`__GLIBC__`, `__USE_*`, `sys/cdefs.h` macros, `__*_t`, FILE members, direct `bits/` includes) in the Essential, build-essential and smoke sources; program sources only, never `lib/`, `gnulib/` or `gnulib-tests/` | rerun identical; spot counts |
-| 2 | visibility tables | M | R-H0 | `ftm-configs.tsv`, `visibility.tsv`, C.12 text | every `prototypes.tsv` and `constants.tsv` name visible somewhere; rerun identical; plants on the checker |
+| 1 | corpus scan | M | none | (a) `#include` counts and use of reserved names (`__GLIBC__`, `__USE_*`, `sys/cdefs.h` macros, `__*_t`, FILE members, direct `bits/` includes) in the Essential, build-essential and smoke sources; program sources only, never `lib/`, `gnulib/` or `gnulib-tests/`. (b) the R-H7 scan (§5.1): which source packages of the whole mirror `#include` each undecided legacy header, streamed one package at a time in RAM, names only, with the same exclusions and no C library's source package | rerun identical; spot counts; (b) every package of `Sources` accounted for (scanned, or excluded with its reason) |
+| 2 | visibility tables | M | none (R-H0 granted) | `ftm-configs.tsv`, `visibility.tsv`, C.12 text | every `prototypes.tsv` and `constants.tsv` name visible somewhere; rerun identical; plants on the checker |
 | 3 | type and value tables | M | 2 | `typedefs.tsv`, `macros.tsv`, data-object types, new layout rows (§2.1) | cross-check with `layouts.tsv` and `versions.tsv` sizes; rerun identical |
 | 4 | call-site and noexcept tables | M | 2 | `callsites.tsv` (-O0, and -O2 fortify 1..3), `noexcept.tsv` | every `__isoc*` and `*_chk` export reached by some call; rerun identical |
-| 5 | generator and base layer | M | 2, 3, R-H1..3 | `headers-gen`, the `--check` in static, staging, `run.sh --liella-headers`; `features.h`, `features-time64.h`, `stdc-predef.h` (Liella's `__STDC_ISO_10646__` from its Unicode tables, `__STDC_IEC_559__`, ...), `sys/cdefs.h`, `sys/types.h`, `sys/bitypes.h`, `stdint.h`, `inttypes.h`, `limits.h`, `endian.h`, `byteswap.h`, `errno.h`, `sys/errno.h`, `alloca.h`, `gnu-versions.h`, `gnu/stubs.h` | P1, P2, P5, P9 |
+| 5 | generator and base layer | M | 1, 2, 3 | `headers-gen`, the `--check` in static, staging, `run.sh --liella-headers`; `features.h`, `features-time64.h`, `stdc-predef.h` (Liella's `__STDC_ISO_10646__` from its Unicode tables, `__STDC_IEC_559__`, ...), `sys/cdefs.h`, `sys/types.h`, `sys/bitypes.h`, `stdint.h`, `inttypes.h`, `limits.h`, `endian.h`, `byteswap.h`, `errno.h`, `sys/errno.h`, `alloca.h`, `gnu-versions.h`, `gnu/stubs.h` | P1, P2, P5, P9 |
 | 6 | minimal C program | M | 4, 5 | `stdio.h`, `stdlib.h`, `string.h`, `strings.h`, `memory.h`, `unistd.h`, `sys/unistd.h`, `assert.h`, `ctype.h`, `getopt.h`, `time.h` | P1–P3, P5, P6 (hello and the covered conformance programs), P10 (ctype, `assert`, `errno`) |
 | 7 | POSIX files and processes | M | 6 | 29 headers: `fcntl.h`, `sys/stat.h`, `dirent.h`, `sys/wait.h`, `sys/time.h`, `sys/select.h`, `poll.h`, `sys/mman.h`, `sys/ioctl.h`, `sys/xattr.h`, `spawn.h`, ... | P6; P7 for zlib, xz-utils and sqlite3; P8 for `sys/xattr.h`; P10 for `W*` and `FD_*` |
 | 8 | signals, threads, contexts | M | 6 | `signal.h`, `setjmp.h`, `ucontext.h`, `sys/ucontext.h`, `pthread.h` (C.9 cleanup in its C and C++ forms), `semaphore.h`, `threads.h`, `sched.h`, `sys/single_threaded.h`, `sys/rseq.h` | P6 (the pthread and signal programs); P3 for `setjmp` and `sigsetjmp` |
 | 9 | Linux process and event interfaces | M | 6 | `sys/epoll.h`, `sys/signalfd.h`, `sys/timerfd.h`, `sys/eventfd.h`, `sys/inotify.h`, `sys/fanotify.h`, `sys/prctl.h`, `sys/pidfd.h`, `sys/auxv.h`, `sys/random.h`, `sys/syscall.h`, `syscall.h`, `sys/ptrace.h`, `sys/user.h`, `sys/reg.h`, `sys/procfs.h`, `sys/debugreg.h`, `sys/personality.h` | P6; P8 (both include orders with `linux/*.h`) |
 | 10 | locale, text, matching | M | 6 | `locale.h`, `langinfo.h`, `nl_types.h`, `libintl.h`, `monetary.h`, `wchar.h`, `wctype.h`, `uchar.h`, `iconv.h`, `gconv.h`, `stdbit.h`, `regex.h`, `re_comp.h`, `regexp.h`, `fnmatch.h`, `glob.h`, `wordexp.h`, `search.h`, `fts.h`, `ftw.h` | P7 for grep, sed, diffutils, findutils and gawk |
-| 11 | math | M | 6, R-H5 | `math.h`, `complex.h`, `tgmath.h`, `fenv.h`, `fpu_control.h`, `ieee754.h`, `values.h`, Fortran `math-vector-fortran.h` | libm conformance programs; type-generic macros on every format; C++ `<cmath>` and `<complex>` |
+| 11 | math | M | 6 | `math.h`, `complex.h`, `tgmath.h`, `fenv.h`, `fpu_control.h`, `ieee754.h`, `values.h`, Fortran `math-vector-fortran.h` | libm conformance programs; type-generic macros on every format; C++ `<cmath>` and `<complex>` |
 | 12 | network core, name services | M | 6 | `sys/socket.h`, `sys/un.h`, `netinet/in.h`, `arpa/inet.h`, `netdb.h`, `net/if.h`, `ifaddrs.h`, `netinet/tcp.h`, `netinet/udp.h`, `resolv.h`, `arpa/nameser*.h`, `nss.h`, `aliases.h`, `rpc/netdb.h`, `sys/socketvar.h` | P8 (`libc-compat.h` in both orders); P10 for `CMSG_*` and `IN6_*` |
 | 13 | network protocols, families | M | 12 | 35 headers: `netinet/ip*.h`, `icmp6.h`, `net/ethernet.h`, `net/route.h`, `netpacket/packet.h`, the 8 legacy families, `arpa/ftp.h`, `arpa/telnet.h`, `arpa/tftp.h`, `protocols/*` | P1 on the new layout rows; P8 |
 | 14 | users, terminals, IPC, logging | M | 6 | `pwd.h`, `grp.h`, `shadow.h`, `gshadow.h`, `utmp.h`, `utmpx.h`, `lastlog.h`, `sys/fsuid.h`, `termios.h`, `termio.h`, `sgtty.h`, `pty.h`, `ttyent.h`, `sys/tty*.h`, `syslog.h`, `mqueue.h`, `sys/ipc.h`, `sys/msg.h`, `sys/sem.h`, `sys/shm.h`, `aio.h` | P6; P7 for coreutils and bash |
-| 15 | administration, devices, legacy | S | 6, R-H7 | `mntent.h`, `fstab.h`, `sys/mount.h`, `sys/swap.h`, `sys/reboot.h`, `sys/klog.h`, `sys/sysinfo.h`, `sys/quota.h`, `sys/acct.h`, `sys/io.h`, `sys/perm.h`, `sys/vlimit.h`, `ulimit.h`, `gnu/libc-version.h`, `sys/timeb.h`, `sys/timex.h`, device ioctl headers, `scsi/*`, `nfs/nfs.h`, `sys/vm86.h` | P1, P2, P5, P8 (`sys/mount.h` with `linux/mount.h`) |
+| 15 | administration, devices, legacy | S | 1, 6 | `mntent.h`, `fstab.h`, `sys/mount.h`, `sys/swap.h`, `sys/reboot.h`, `sys/klog.h`, `sys/sysinfo.h`, `sys/quota.h`, `sys/acct.h`, `sys/io.h`, `sys/perm.h`, `sys/vlimit.h`, `ulimit.h`, `gnu/libc-version.h`, `sys/timeb.h`, `sys/timex.h`, device ioctl headers, `scsi/*`, `nfs/nfs.h`, `sys/vm86.h`. Owns every R-H7 drop (§5.1), whichever slice the header was listed in: one differences row per dropped header and one registered compat record (restore: install the dropped headers; not implemented) naming the decision | P1, P2, P5, P8 (`sys/mount.h` with `linux/mount.h`); `headers-gen --check` fails if a dropped header is generated |
 | 16 | ELF, dynamic linking, debugging | M | 6 | `dlfcn.h`, `link.h`, `elf.h` (gABI/psABI types and `constants.tsv` values), `sys/elf.h`, `a.out.h`, `ar.h`, `stab.h`, `sys/platform/x86.h`, `thread_db.h`, `proc_service.h`, `sys/gmon*.h`, `sys/profil.h`, `gnu/lib-names.h` | P1 on the ELF rows; P6 (the dlfcn, link and elf programs) |
 | 17 | GNU and BSD extension APIs | M | 6 | `argp.h`, `argz.h`, `envz.h`, `obstack.h`, `printf.h`, `stdio_ext.h`, `malloc.h`, `mcheck.h`, `err.h`, `error.h`, `execinfo.h`, `fmtmsg.h`, `sysexits.h`, `sys/queue.h`, `tar.h`, `cpio.h` | P6; P10 for obstack and queue macros |
 | 18 | fortify | M | 4, 6, 7, 10, 12 | `_FORTIFY_SOURCE` 1..3 from GCC's object-size builtins and C.9's `_chk` shapes | P3 at -O2 with every `*_chk` export reached; deliberate overflows abort as the spec says; P7 with `dpkg-buildflags` |
@@ -265,18 +295,58 @@ depend only on 6 and may run in parallel.
 `plan/system-libc.md` §6 item 7 becomes these slices. Its item 11 (SL-BOOTSTRAP-ESSENTIAL) needs
 slice 20 and, under R-H6, slice 18.
 
-## 5. Rulings needed (owner)
+## 5. Rulings (owner, answered 2026-11-14)
 
-| id | question | recommendation |
+| id | question | ruling |
 |---|---|---|
-| R-H0 | Extend OD-1 (Appendix C) from ABI facts to the API facts of §2.2, read only through the compiler | yes. Slices 2–4 need it, and it keeps the reference's text out of every artifact |
-| R-H1 | Identity macros: `__GLIBC__`, `__GLIBC_MINOR__` (the ABI level, 39), `__GNU_LIBRARY__`, `__GLIBC_PREREQ` | yes (configure checks; `plan/system-libc.md` §3.2; the kernel's `libc-compat.h` keys on `__GLIBC__`). Also add Liella's own `__LIELLA__`, a new public interface |
-| R-H2 | glibc-internal names that other software tests | define exactly the names that external headers and programs test, with the same meaning: `__USE_MISC`, `__USE_GNU` and the include guards `_NET_IF_H`, `_NETINET_IN_H` and `_SYS_XATTR_H` (kernel UAPI), plus whatever SL-HEADERS-1 finds. Nothing else of the `__USE_*` family |
-| R-H3 | `sys/cdefs.h` vocabulary (`__BEGIN_DECLS`, `__THROW`, `__P`, ...) and reserved type names (`__pid_t`, `__off64_t`, ...) | ship the subset that SL-HEADERS-1 finds in use, with Liella-written definitions; add more only on a build failure |
-| R-H4 | FILE: complete, with the member names from `layouts.tsv`, or opaque | complete. The ABI already fixes the layout, and C.9 relies on `_flags`. An opaque FILE is cleaner but breaks programs that read members |
-| R-H5 | libmvec `simd` declarations | none until M-0/M-1 (`plan/system-libc.md` item 19). Rebuilt programs then call scalar libm in vectorised loops |
-| R-H6 | Fortify ordering | SL-BOOTSTRAP-ESSENTIAL waits for slice 18, so no Aqours package is built without `_FORTIFY_SOURCE` |
-| R-H7 | Legacy headers ("should Liella have it at all?"): `sgtty.h`, `termio.h`, `regexp.h`, `re_comp.h`, `sys/timeb.h`, `sys/vlimit.h`, `sys/dir.h`, `sys/vm86.h`, `sys/elf.h`, `memory.h`, `values.h`, `a.out.h`, `stab.h`, the 8 legacy socket families, `nfs/nfs.h`, `sys/raw.h`, `gconv.h`, `gnu-versions.h`, `thread_db.h`, `proc_service.h` | ship them all: they cost only header text, and `--check` keeps out every name that Liella does not export at a default version |
+| R-H0 | Extend OD-1 (Appendix C) from ABI facts to the API facts of §2.2, read only through the compiler | yes. Slices 2–4 proceed |
+| R-H1 | Identity macros: `__GLIBC__`, `__GLIBC_MINOR__` (the ABI level, 39), `__GNU_LIBRARY__`, `__GLIBC_PREREQ` | yes, together with Liella's own `__LIELLA__`, which is always defined (§0) |
+| R-H2 | glibc-internal names that other software tests | as recommended: exactly the names that external headers and programs test, with the same meaning: `__USE_MISC`, `__USE_GNU` and the include guards `_NET_IF_H`, `_NETINET_IN_H` and `_SYS_XATTR_H` (kernel UAPI), plus whatever SL-HEADERS-1 finds. Nothing else of the `__USE_*` family |
+| R-H3 | `sys/cdefs.h` vocabulary (`__BEGIN_DECLS`, `__THROW`, `__P`, ...) and reserved type names (`__pid_t`, `__off64_t`, ...) | as recommended: the subset that SL-HEADERS-1 finds in use, with Liella-written definitions. A later build failure is fixed by a source change first (§0); a name is added only when a change per package is not reasonable, with a decision row saying why |
+| R-H4 | FILE: complete, with the member names from `layouts.tsv`, or opaque | complete, as recommended |
+| R-H5 | libmvec `simd` declarations | none until M-0/M-1 (`plan/system-libc.md` item 19), as recommended |
+| R-H6 | Fortify ordering | as recommended: SL-BOOTSTRAP-ESSENTIAL waits for slice 18 |
+| R-H7 | Legacy headers ("should Liella have it at all?") | not "ship all". Ship a legacy header only if a package on the project mirror includes it, or it has a live purpose (`thread_db.h` and `proc_service.h`, for debuggers). Drop the rest, each with a differences row and its registered future compat flag. §5.1 applies it |
+
+### 5.1 Legacy headers (R-H7)
+
+**Evidence so far (SL-HEADERS-PLAN-2, 2026-11-14).** Every `-dev` binary package of the project's
+Devuan excalibur mirror, `main/binary-amd64` (index chain verified: `InRelease` with `gpgv` and the
+pinned keyring, then `Packages.xz` and each `.deb` against their SHA-256), less the C libraries' own
+`-dev` packages (excluded by name), 12,608 packages with no failed download: each package's
+`usr/include` was searched for an `#include` of the 27 legacy names, names only, with every
+`*/gnulib/*` member left unextracted. A hit counts only when the package does not ship its own file
+of that name (a quoted include of its own header is not a use of the libc header). One hit was
+discarded that way: `regexp.h` (a package's own header). A hit decides "ship"; no hit decides nothing,
+because programs, not only headers, include these, so SL-HEADERS-1 (b) scans the whole source archive
+(37,587 source packages, 98.1 GB) for the undecided ones.
+
+| header | slice | decision | evidence (packages whose public headers include it) |
+|---|---|---|---|
+| `memory.h` | 6 | ship | 58 `-dev` packages |
+| `sys/timeb.h` | 15 | ship | 23 |
+| `sys/dir.h` | 7 | ship | 12 |
+| `values.h` | 11 | ship | 7 |
+| `termio.h` | 14 | ship | 4 (`libncurses-dev`, `zsh-dev`, ...) |
+| `sgtty.h` | 14 | ship | 2 (`libncurses-dev`, `zsh-dev`) |
+| `netatalk/at.h` | 13 | ship | 2 (`libatalk-dev`, `libobjfw1-dev`) |
+| `netax25/ax25.h` | 13 | ship | `libax25-dev` |
+| `netrose/rose.h` | 13 | ship | `libax25-dev` |
+| `netipx/ipx.h` | 13 | ship | `libobjfw1-dev` |
+| `sys/elf.h` | 16 | ship | `android-libunwind-dev` |
+| `thread_db.h` | 16 | ship | live purpose: debuggers (owner) |
+| `proc_service.h` | 16 | ship | live purpose: debuggers (owner) |
+| `a.out.h`, `stab.h` | 16 | SL-HEADERS-1 (b) | no `-dev` hit |
+| `gconv.h`, `re_comp.h`, `regexp.h` | 10 | SL-HEADERS-1 (b) | no `-dev` hit |
+| `gnu-versions.h` | 5 | SL-HEADERS-1 (b) | no `-dev` hit |
+| `netash/ash.h`, `neteconet/ec.h`, `netiucv/iucv.h`, `netrom/netrom.h` | 13 | SL-HEADERS-1 (b) | no `-dev` hit |
+| `nfs/nfs.h`, `sys/raw.h`, `sys/vlimit.h`, `sys/vm86.h` | 15 | SL-HEADERS-1 (b) | no `-dev` hit |
+
+The hit counts include conditional includes (`#ifdef HAVE_SGTTY_H`), which the ruling's wording
+("includes it") covers. After SL-HEADERS-1 (b), each undecided header is either shipped or dropped;
+SL-HEADERS-15 lands every drop: a `docs/differences-from-glibc.md` row per header and one registered
+compat record (restore: install the dropped headers; status registered, not implemented) naming the
+header decision.
 
 ## 6. Not verified here
 
@@ -287,3 +357,5 @@ slice 20 and, under R-H6, slice 18.
   (`plan/system-libc.md` §4).
 * Debian's default `_FORTIFY_SOURCE` level from `dpkg-buildflags` is not checked here; slice 18
   reads it.
+* §5.1: the source-archive scan (SL-HEADERS-1 (b)) has not run, so 14 legacy headers are undecided.
+  The `-dev` scan does not tell an include under a non-Linux `#ifdef` from one Linux builds use.
