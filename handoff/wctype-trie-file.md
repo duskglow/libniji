@@ -49,8 +49,17 @@ resolved per 256-character block; `ThreadBlock::wclass` (0x180) stored with `vie
   (`wctype-trie-file-9-ordercheck`, script ~/work/WCTYPE-TRIE-FILE-9/ordercheck.sh on kanon) has identical disassembly
   apart from `.llvm.<hash>` suffixes of local names. Memory-model argument in the plants file.
 * Plants (handoff/wctype-trie-file-plants.txt, 14): 13 CAUGHT, 1 EQUIVALENT, 0 WARN. Jobs: see the hand-back / report json.
-* Not run: the EPYC instruction rows on keke (my role is kanon only); the counter bench ran on kanon. Product code is
-  unchanged since run 8, whose counts stand.
+* **startup_instr_c regression found and fixed.** cbench_startup counters on kanon (Broadwell-EP): merge base
+  f6cab48d7 `startup_instr_c` 2,148 / `startup_instr_wctype` 68,489; head 463071ca0 2,160 / 67,961 (jobs
+  `wctype-trie-file-9-nextcounts`, `-counts`). gdb single-step of `cbench_startup true`, per instruction, head vs base
+  (script ~/work/WCTYPE-TRIE-FILE-9/stepboth2.sh, stepcount.py on kanon): +4 in `locale::refresh_words` (the D-5.11
+  `wclass` store, inherent) and +8 in `runtime::start::<false>`, whose code is identical: its program-header loop ran 9
+  times, not 8. Cause: `Mode::File { share, after }` made every `FILE_TABLES` slot non-zero, so the 16 slots (278 KiB)
+  went to `.data` instead of `.bss` and the static binary gained a loadable segment (`readelf -l`). Fix (commit after
+  463071ca0): `Mode` is a fieldless `repr(u32)` enum with `File = 0`; the slots' (share, after) = (true,
+  RESOLVE_AFTER) come from `ClassTable::file()`, tests set theirs in a `#[cfg(test)]` field. Expected: C row back to
+  ~2,152 (base + the 4 inherent). The counts job after the fix decides (see report json).
+* The EPYC instruction rows are checked on keke by CI; my role is kanon only, so the counter bench ran on kanon.
 
 ## Still open
 * The EPYC instruction limits are checked on keke by CI; this run measured on shiki (Haswell-EP) only. startup_instr_c's
