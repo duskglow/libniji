@@ -111,7 +111,7 @@ fn sonames_resolv_forwards_through_private_aliases() {
 const MBMAX: &str = "#include <locale.h>\n#include <stdio.h>\n#include <stdlib.h>\n\
 int main(void) {\n  size_t c = MB_CUR_MAX;\n  if (!setlocale(LC_ALL, \"C.UTF-8\")) return 2;\n  printf(\"%zu %zu\\n\", c, (size_t) MB_CUR_MAX);\n  return 0;\n}\n";
 
-/// §5 `MB_CUR_MAX` (`__ctype_get_mb_cur_max`), D-27.9 as amended by SL-SONAMES (probe-settled):
+/// `MB_CUR_MAX` (`__ctype_get_mb_cur_max`; no spec clause: libBrokenLocale's values are probe-settled, SL-SONAMES record):
 /// linked with `-lBrokenLocale`, dynamically or statically, MB_CUR_MAX is 1 in "C" and 4 in
 /// "C.UTF-8"; without it, 1 and 6.
 #[test]
@@ -131,7 +131,7 @@ fn sonames_brokenlocale_mb_cur_max() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// No spec clause (plan/system-libc.md §2): the archives a static `-l<x>` needs exist, empty.
+/// The development archives (no spec clause; plan/system-libc.md §2): the archives a static `-l<x>` needs exist, empty.
 #[test]
 fn sonames_empty_archives() {
     let lib = products();
