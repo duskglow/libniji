@@ -185,19 +185,20 @@ pub fn finalize<S: Sys, P: Pages>(exit: &Registry, quick: &Registry, sys: &S, pa
     }
 }
 
-/// `__cxa_thread_atexit_impl`: push `(f, obj, dso)` on the list headed at `head`, in the 4-word
-/// node at `node` (fresh memory the caller allocated).
-pub fn thread_atexit<P: Pages>(head: &AtomicUsize, pages: &P, node: usize, f: usize, obj: usize, dso: usize) {
+/// `__cxa_thread_atexit_impl`: push `(f, obj, pin)` on the list headed at `head`, in the 4-word
+/// node at `node` (fresh memory the caller allocated); `pin` is the caller's word for the hold the
+/// registration took on the destructor's object (0: none), handed back after the call.
+pub fn thread_atexit<P: Pages>(head: &AtomicUsize, pages: &P, node: usize, f: usize, obj: usize, pin: usize) {
     let n = pages.words(node, 4);
-    for (slot, v) in n.iter().zip([w(f), w(obj), w(dso), w(head.load(Acquire))]) {
+    for (slot, v) in n.iter().zip([w(f), w(obj), w(pin), w(head.load(Acquire))]) {
         slot.store(v, Relaxed);
     }
     head.store(node, Release);
 }
 
 /// Run the destructors on the list headed at `head`, most recent first (including ones they
-/// register), handing each node back through `free`.
-pub fn run_thread_dtors<P: Pages>(head: &AtomicUsize, pages: &P, call: &mut impl CCall, mut free: impl FnMut(usize)) {
+/// register), handing each node and its pin back through `done` after its destructor returned.
+pub fn run_thread_dtors<P: Pages>(head: &AtomicUsize, pages: &P, call: &mut impl CCall, mut done: impl FnMut(usize, usize)) {
     loop {
         let node = head.load(Acquire);
         if node == 0 {
@@ -205,9 +206,9 @@ pub fn run_thread_dtors<P: Pages>(head: &AtomicUsize, pages: &P, call: &mut impl
         }
         let n = pages.words(node, 4);
         let word = |k: usize| n.get(k).map_or(0, |v| usize::try_from(v.load(Acquire)).unwrap_or(0));
-        let (f, obj, next) = (word(0), word(1), word(3));
+        let (f, obj, pin, next) = (word(0), word(1), word(2), word(3));
         head.store(next, Release);
         call.call3(f, obj, 0, 0);
-        free(node);
+        done(node, pin);
     }
 }

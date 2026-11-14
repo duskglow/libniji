@@ -375,6 +375,10 @@ pub mod private {
         /// The loader's `dlinfo` entry (DL-18): `(handle, request, arg)` to the request's result or
         /// -1 with the failure text set; 0: none.
         pub dlinfo: usize,
+        /// The loader's `thread_local` destructor pin (spec s1_2_c_6): `(0, dso)` when
+        /// `__cxa_thread_atexit_impl` registers, to a token that keeps the `dlopen`ed object holding
+        /// `dso` loaded (0: none needed); `(1, token)` once that destructor has run; 0: none.
+        pub dl_pin: usize,
     }
 
     #[cfg(test)]
