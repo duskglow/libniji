@@ -524,6 +524,13 @@ fn s1_2_c_5_nonshared_archive_two_way() {
 }
 
 #[test]
+fn s1_2_c_5_owner_opt_in_link_and_reference_refusal() {
+    // s1_2_c_5 (D-27.29): the opt-in that registers without the archive's stubs, and its refusal
+    // by a loader without `LIELLA_OWNER_1`.
+    products::owner_opt_in();
+}
+
+#[test]
 fn sym___environ() {
     // A data object of the products' runtime: checked from C (conformance/c/s01_startup.c).
     conformance(&["s01_startup"]);

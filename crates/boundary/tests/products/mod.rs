@@ -418,6 +418,61 @@ pub(crate) fn nonshared_two_way() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// The `DT_NEEDED` names of `obj` (`readelf -d`).
+fn needed_libs(obj: &std::path::Path) -> Vec<String> {
+    let o = std::process::Command::new("readelf").args(["-d", "-W"]).arg(obj).output().expect("readelf");
+    let text = String::from_utf8_lossy(&o.stdout).to_string();
+    text.lines().filter(|l| l.contains("(NEEDED)")).filter_map(|l| l.split_once('[')).filter_map(|(_, r)| r.split_once(']')).map(|(n, _)| n.to_string()).collect()
+}
+
+/// D-27.29 (ruling #4860): the opt-in's link-stub directory, `target/liella/liella-owner/`. A shared
+/// object and a program linked with `-L liella-owner -L target/liella -lc` bind `atexit`,
+/// `at_quick_exit` and `pthread_atfork` at `LIELLA_OWNER_1` (no `libc_nonshared.a` on the link line)
+/// and need `libc.so.6` once. On the reference, the program is refused at load with a message naming
+/// the node (probe P3, handoff/DL-NONSHARED-OPTOUT.md), never run with a handler unregistered.
+pub(crate) fn owner_opt_in() {
+    require_products();
+    let liella = liella_nonshared().parent().expect("product directory").to_path_buf();
+    let owner = liella.join("liella-owner");
+    let script = std::fs::read_to_string(owner.join("libc.so")).expect("target/liella/liella-owner/libc.so is missing: run `cargo xtask so`");
+    let group = script.lines().find(|l| l.starts_with("GROUP")).expect("the opt-in's libc.so script has a GROUP");
+    assert!(!group.contains('/') && !group.contains("nonshared"), "the opt-in's libc.so names a path or the archive: {group}");
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("owner-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("scratch");
+    for (file, text) in [("lib.c", NONSHARED_LIB), ("prog.c", NONSHARED_PROG)] {
+        std::fs::write(dir.join(file), text).expect("source");
+    }
+    let opted = |extra: &[&str], src: &str, out: &str| {
+        let map = dir.join(format!("{out}.map"));
+        let o = std::process::Command::new("cc")
+            .args(["-std=c17", "-O1", "-nodefaultlibs"])
+            .args(extra)
+            .arg(dir.join(src))
+            .arg(format!("-L{}", owner.display()))
+            .arg(format!("-L{}", liella.display()))
+            .args(["-lc", "-lgcc"])
+            .arg(format!("-Wl,-Map={}", map.display()))
+            .arg("-o")
+            .arg(dir.join(out))
+            .output()
+            .expect("cc");
+        assert!(o.status.success(), "the opted-in link failed ({out}): {}", String::from_utf8_lossy(&o.stderr));
+        let map = std::fs::read_to_string(&map).expect("link map");
+        let loads: Vec<&str> = map.lines().filter_map(|l| l.strip_prefix("LOAD ")).map(str::trim).collect();
+        assert!(!loads.iter().any(|p| p.ends_with("libc_nonshared.a")), "{out}: the opted-in link loads an archive of stubs: {loads:?}");
+        let obj = dir.join(out);
+        assert!(needed_versions(&obj).iter().any(|v| v == "LIELLA_OWNER_1"), "{out} does not need LIELLA_OWNER_1: {:?}", needed_versions(&obj));
+        assert_eq!(needed_libs(&obj).iter().filter(|n| n.as_str() == "libc.so.6").count(), 1, "{out} must need libc.so.6 once: {:?}", needed_libs(&obj));
+        obj
+    };
+    opted(&["-shared", "-fPIC"], "lib.c", "libowner.so");
+    let prog = opted(&[], "prog.c", "prog");
+    let o = std::process::Command::new(&prog).output().expect("run prog");
+    let err = String::from_utf8_lossy(&o.stderr).to_string();
+    assert!(!o.status.success() && o.stdout.is_empty() && err.contains("version `LIELLA_OWNER_1' not found"), "an opted-in program on the reference: {:?} {err:?}", o.status);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// Liella's `ld.so` and a `libc.so` linker script in `dir` for linking against Liella's
 /// `libc.so.6` by path, the way an installed `libc.so` script does: the C library, Liella's link-time
 /// archive (D-27.28), and the loader for the symbols the ABI places in it (`__libc_stack_end`,

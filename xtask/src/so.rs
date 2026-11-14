@@ -208,20 +208,22 @@ fn defined(path: &Path) -> Result<BTreeSet<String>, String> {
 
 /// Every generated compat version exported by `so` as `name@VERSION`, and no compat version that
 /// `spec/abi/versions.tsv` lacks for `lib` (LG-1; `libm.so.6`: LG-4). The number of compat versions.
+/// `libc.so.6`'s only other non-default exports are the opt-in's registered pairs
+/// ([`owner_registered`]); [`take_owner_node`] checks that each of them is exported, non-default.
 fn check_compat_exports(root: &Path, so: &Path, lib: &str, compat: &[crate::compat::Entry]) -> Result<usize, String> {
     let out = Command::new("readelf").args(["--dyn-syms", "-W"]).arg(so).output().map_err(|e| format!("readelf: {e}"))?;
     if !out.status.success() {
         return Err(format!("readelf {} failed", so.display()));
     }
     let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
-    let rows: Vec<(String, String)> = table
+    let mut rows: Vec<(String, String)> = if lib == "libc.so.6" { owner_registered() } else { Vec::new() };
+    rows.extend(table
         .lines()
         .skip(1)
         .filter_map(|l| match l.split('\t').collect::<Vec<_>>().as_slice() {
             [l, sym, ver, "compat", ..] if *l == lib => Some(((*sym).to_string(), (*ver).to_string())),
             _ => None,
-        })
-        .collect();
+        }));
     let problems = crate::compat::export_problems(lib, &String::from_utf8_lossy(&out.stdout), compat, &rows);
     if problems.is_empty() { Ok(compat.len()) } else { Err(format!("compat versions of {lib}:\n  {}", problems.join("\n  "))) }
 }
@@ -348,6 +350,12 @@ pub const OWNER_STUB: &str = "csys/owner/stub.S";
 /// -L<dir>`).
 pub const OWNER_SO_SCRIPT: &str = "/* GNU ld script: Liella's C library, opted in to registrations without\n   libc_nonshared.a (D-27.29). libc-owner.so is a link-time interface stub:\n   the program then needs LIELLA_OWNER_1 of libc.so.6 and runs only on Liella. */\nOUTPUT_FORMAT(elf64-x86-64)\nGROUP ( libc-owner.so libc.so.6 AS_NEEDED ( ld-linux-x86-64.so.2 ) )\n";
 
+/// The opt-in's registered non-default exports: each of [`OWNER_EXPORTS`] at [`OWNER_NODE`] and
+/// nothing else (an export at the node under any other name stays a compat-export problem).
+fn owner_registered() -> Vec<(String, String)> {
+    OWNER_EXPORTS.iter().map(|n| ((*n).to_string(), OWNER_NODE.to_string())).collect()
+}
+
 /// Take the [`OWNER_NODE`] versions out of `exported` (they have no versions.tsv rows) and check
 /// them: each of [`OWNER_EXPORTS`] exactly once, non-default, and no other name at the node.
 pub fn take_owner_node(exported: &mut BTreeMap<String, BTreeMap<String, bool>>) -> Vec<String> {
@@ -369,7 +377,7 @@ pub fn take_owner_node(exported: &mut BTreeMap<String, BTreeMap<String, bool>>) 
 }
 
 /// `libc.so.6`'s exports at `LIELLA_PRIVATE` (design §14, D-27.22): what Liella's `ld.so` calls or reads.
-const LIBC_PRIVATE: &[&str] = &["__liella_build_tag", "__liella_libc_early_init", "__liella_thread_walk"];
+const LIBC_PRIVATE: &[&str] = &["__liella_build_tag", "__liella_libc_early_init", "__liella_owner_unload", "__liella_thread_walk"];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `liella_ld::start::private::TAG`):
 /// FNV-1a 64 over the product sources (`crates/`, `csys/`, `include/`, `Cargo.lock`; paths sorted,
