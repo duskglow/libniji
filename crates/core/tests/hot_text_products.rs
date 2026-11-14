@@ -340,7 +340,7 @@ fn init_first_mktime_after_localtime_r_takes_no_fault() {
 /// strftime's functions: 19; the rule-years table four times longer: 21). LOCALTIME_BOUND 22 -> 20
 /// (18 plus 2).
 /// LAYOUT-TRACE-DEFAULT: 20 -> 18, the highest count of the four host classes and both profiles (see TRUE_BOUND).
-/// HEAP-RSEQ-NODE-3 (D-NEW in records/pending, amends D-X.53): the "localtime" mode now reports the whole
+/// HEAP-RSEQ-NODE-3 (records/pending/HEAP-RSEQ-NODE-3-1.toml, amends D-X.53): the "localtime" mode now reports the whole
 /// process's faults up to the end of the first `localtime_r` (start-up plus the call). The vDSO lookup
 /// stays lazy (owner ruling #5735 (b)): when the heap stopped calling the vDSO `getcpu` at start-up, the
 /// lookup moved into the first clock call, which the call-only count read as +2 (20 > 18 on two-node
