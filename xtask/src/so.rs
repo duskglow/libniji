@@ -1102,7 +1102,7 @@ fn finish_archive(root: &Path, archive: &Path, product: &Path, out: &Path, layou
         Layout::Traced => crate::hotlists::path("hot-text.list")?,
     };
     // The functions short programs run, grouped into `.text.hot.*` (PAGEFAULTS-2: fewer text faults).
-    let (hot, _) = crate::hottext::group(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), archive, &list, &root.join(crate::hotlists::TRACKED), &product.join("hot-work"), layout)?;
+    let (hot, _) = crate::hottext::group(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), archive, &list, &product.join("hot-work"), layout)?;
     println!("so: {hot} function sections grouped as hot text");
     // The read-only data start-up reads, after the grouping (it places STARTUP_NAMES), in one aligned section (D-X.62).
     let (ro, ro_bytes, relro, relro_bytes) = crate::startup_ro::place(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), archive, root, &product.join("startup-ro-work"))?;

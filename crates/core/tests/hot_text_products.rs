@@ -835,32 +835,73 @@ fn init_startup_group_ends_inside_the_first_fault_around_window() {
         .and_then(|w| u64::from_str_radix(w[2].trim_start_matches("0x"), 16).ok())
         .expect("no executable LOAD segment in the probe");
     let (start, end) = (seg & !0xfff, (seg & !0xfff) + FIRST_WINDOW);
-    // The list the products were grouped from (LAYOUT-TRACE-AT-BUILD: a trace-mode build's own list,
-    // whose start-up tier differs from the committed one); the first-window keys stay hand-kept.
-    let list = std::fs::read_to_string(generated_list("hot-text.list")).expect("hot-text.list");
-    let startup = list.lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()).take_while(|l| l.split('\t').nth(1) == Some("startup")).count();
-    let first = std::fs::read_to_string(r.join("crates/libc-so/hot-text.first-window")).expect("hot-text.first-window");
-    let group = startup + first.lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()).count();
-    // Link positions 0..group are the group (`.text.sorted.h<5 digits>.<f>`; a cluster moved to the
-    // end has 8 digits and sorts after it).
-    let position = |n: &str| n.strip_prefix(".text.sorted.h").and_then(|r| r.split_once('.')).filter(|(d, _)| d.len() == 5).and_then(|(d, _)| d.parse::<usize>().ok());
+    // LAYOUT-WINDOW-BINS slice 2 (D-X.103): the start-up group is the start file's `.text.startup*` and
+    // the head window bin (bin 0, members and fillers), which holds every section the `true` mode runs.
     let inputs = text_inputs(&map);
-    let group_end = inputs.iter().filter(|(n, _, s, _)| *s > 0 && (n.starts_with(".text.startup") || position(n).is_some_and(|p| p < group))).map(|(_, a, s, _)| a + s).max().expect("no start-up group in the link map");
-    let fstat = inputs.iter().find(|(n, _, s, _)| *s > 0 && n.starts_with(".text.sorted.h") && n.ends_with(".liella_sys_fstat")).map(|(_, a, s, _)| (*a, a + s));
+    let group_end = inputs.iter().filter(|(n, _, s, _)| *s > 0 && (n.starts_with(".text.startup") || bin_of(n) == Some(0))).map(|(_, a, s, _)| a + s).max().expect("no start-up group in the link map");
     // Bytes left in the window; negative when the group ends past it.
     let margin = i128::from(end) - i128::from(group_end);
-    eprintln!("first window {start:#x}..{end:#x}: start-up group ({group} list keys) ends {group_end:#x}, margin {margin} bytes; liella_sys_fstat {fstat:x?}");
-    const PROBES: &str = "the tool, locale, localtime and localtime_mktime probes each take one more text fault";
+    eprintln!("first window {start:#x}..{end:#x}: start-up group (head bin) ends {group_end:#x}, margin {margin} bytes");
+    assert!(
+        group_end <= end,
+        "FIRST-WINDOW margin: the head window bin ends {group_end:#x}, {} bytes past the first fault-around window {start:#x}..{end:#x}: every probe takes one more text fault; the head bin's room (xtask/src/bins.rs HEAD_ROOM) no longer covers what precedes the group, never raise this window",
+        -margin
+    );
+}
+
+/// The window bin of a grouped section name `.text.sorted.h9<bin, 2><0|1><place, 5>.<f>`
+/// (xtask/src/bins.rs `section`); `None` for any other name.
+fn bin_of(name: &str) -> Option<usize> {
+    let d = name.strip_prefix(".text.sorted.h9")?;
+    let digits = d.bytes().take_while(u8::is_ascii_digit).count();
+    if digits != 8 {
+        return None;
+    }
+    d[..2].parse().ok()
+}
+
+/// The bins of this build's plan (`layout-bins.tsv` next to its list) that some counted `page_faults`
+/// mode touches: every one of them after the head bin starts on a 64 KiB boundary.
+fn counted_bins() -> std::collections::BTreeSet<usize> {
+    let tsv = std::fs::read_to_string(generated_list("layout-bins.tsv")).expect("layout-bins.tsv (cargo xtask so writes it)");
+    tsv.lines()
+        .filter(|l| !l.starts_with('#'))
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split('\t').collect();
+            (f.len() == 4 && f[3] != "-" && f[3] != "cold").then(|| f[0].parse().expect("layout-bins.tsv: bin"))
+        })
+        .collect()
+}
+
+/// The address range of each counted window bin in a link map, members and fillers: (bin, lo, hi), hi
+/// exclusive.
+fn bin_ranges(map: &str) -> Vec<(usize, u64, u64)> {
+    let counted = counted_bins();
+    assert!(counted.len() >= 2, "layout-bins.tsv: {} counted bins, want the head bin and more", counted.len());
+    let mut out: std::collections::BTreeMap<usize, (u64, u64)> = std::collections::BTreeMap::new();
+    for (n, a, s, _) in text_inputs(map) {
+        if let Some(b) = bin_of(&n).filter(|b| s > 0 && counted.contains(b)) {
+            let e = out.entry(b).or_insert((u64::MAX, 0));
+            e.0 = e.0.min(a);
+            e.1 = e.1.max(a + s);
+        }
+    }
+    out.into_iter().map(|(b, (lo, hi))| (b, lo, hi)).collect()
+}
+
+/// The window-bin structure of a linked probe: every counted bin after the head one starts on a 64 KiB
+/// boundary, and every counted bin of at most 64 KiB lies inside one window.
+fn bin_window_errors(map: &str) -> Vec<String> {
     let mut bad = Vec::new();
-    if group_end > end {
-        bad.push(format!("FIRST-WINDOW margin: the start-up group ends {group_end:#x}, {} bytes past the first fault-around window {start:#x}..{end:#x}: {PROBES}; shrink the start-up text or move rarely-run functions out of the group, never raise this window", -margin));
+    for (b, lo, hi) in bin_ranges(map) {
+        if b > 0 && lo % 0x10000 != 0 {
+            bad.push(format!("BIN-WINDOW: bin {b} starts at {lo:#x}, not on a 64 KiB boundary (its first member's alignment missing?)"));
+        }
+        if hi - lo <= 0x10000 && lo >> 16 != (hi - 1) >> 16 && b > 0 {
+            bad.push(format!("BIN-WINDOW: bin {b} at {lo:#x}..{hi:#x} straddles a 64 KiB window"));
+        }
     }
-    match fstat {
-        None => bad.push("FIRST-WINDOW liella_sys_fstat: not in the hot group of the probe (key renamed? update crates/libc-so/hot-text.first-window)".to_string()),
-        Some((a, e)) if e > end => bad.push(format!("FIRST-WINDOW liella_sys_fstat: {a:#x}..{e:#x} ends past the first fault-around window {start:#x}..{end:#x}: {PROBES} (#5026); keep it in crates/libc-so/hot-text.first-window")),
-        Some(_) => {}
-    }
-    assert!(bad.is_empty(), "{bad:#?}");
+    bad
 }
 
 /// The input sections of the `.text` output section of a GNU ld map, in address order:
@@ -922,67 +963,25 @@ fn init_no_library_text_precedes_the_hot_group() {
     assert!(ahead.is_empty(), "TEXT-PREFIX: {} libc.a input sections lie ahead of the hot group (rename them in xtask/src/hottext.rs): {ahead:?}", ahead.len());
 }
 
-/// The 0-fault clusters of `crates/libc-so/hot-text.clusters`: (name, first, last list position).
-fn clusters() -> Vec<(String, usize, usize)> {
-    let dir = root().join("crates/libc-so");
-    let list = std::fs::read_to_string(generated_list("hot-text.list")).expect("hot-text.list");
-    let mut pos = std::collections::BTreeMap::new();
-    for (i, l) in list.lines().filter(|l| !l.trim().is_empty() && !l.starts_with('#')).enumerate() {
-        pos.entry(l.split('\t').next().unwrap_or("").trim().to_string()).or_insert(i);
-    }
-    let text = std::fs::read_to_string(dir.join("hot-text.clusters")).expect("hot-text.clusters");
-    let mut out = Vec::new();
-    for l in text.lines().filter(|l| !l.trim().is_empty() && !l.starts_with('#') && !l.starts_with('@')) {
-        let f: Vec<&str> = l.split('\t').collect();
-        let [name, a, b] = f[..] else { panic!("hot-text.clusters: bad line {l:?}") };
-        let p = |k: &str| *pos.get(k).unwrap_or_else(|| panic!("hot-text.clusters: {name}: key {k} not in hot-text.list"));
-        out.push((name.to_string(), p(a), p(b)));
-    }
-    assert!(out.len() >= 4, "hot-text.clusters: {} clusters, want time, strings, rebind, float", out.len());
-    out
-}
-
-/// The address range of each cluster in a link map: (name, lo, hi), hi exclusive.
-fn cluster_ranges(map: &str) -> Vec<(String, u64, u64)> {
-    let inputs = text_inputs(map);
-    clusters()
-        .into_iter()
-        .map(|(name, first, last)| {
-            let (mut lo, mut hi) = (u64::MAX, 0);
-            for (n, a, s, _) in &inputs {
-                // `h<position, 5 digits>.`, or `h9<cluster, 2><position, 5>.` for a cluster moved to the
-                // end of the group (`@place end`, xtask/src/hottext.rs cluster_section).
-                let d = n.strip_prefix(".text.sorted.h").map(|r| &r[..r.bytes().take_while(u8::is_ascii_digit).count()]);
-                let p = d.map(|d| if d.len() == 8 && d.starts_with('9') { &d[3..] } else { d }).and_then(|d| d.parse::<usize>().ok());
-                if *s > 0 && p.is_some_and(|p| (first..=last).contains(&p)) {
-                    lo = lo.min(*a);
-                    hi = hi.max(a.saturating_add(*s));
-                }
-            }
-            assert!(lo < hi, "cluster {name}: no section of positions {first}..={last} in the link");
-            (name, lo, hi)
-        })
-        .collect()
-}
-
-/// LAYOUT-TEXT-PIN (D-X.63): CLUSTER-WINDOW. Each 0-fault cluster (`crates/libc-so/hot-text.clusters`)
-/// lies inside one 64 KiB fault-around window of the linked probe. No spec clause (layout of the
-/// products).
+/// LAYOUT-WINDOW-BINS slice 2 (D-X.103; replaces LAYOUT-TEXT-PIN's CLUSTER-WINDOW): BIN-WINDOW. Every
+/// window bin a counted `page_faults` mode touches, after the head bin, starts on a 64 KiB boundary of
+/// the linked probe and lies inside one window, so a mode's text windows are those of its bins. Prints
+/// the padding ahead of each bin (the alignment's cost). No spec clause (layout of the products).
 #[test]
-fn init_zero_fault_clusters_sit_in_one_window() {
-    let dir = std::env::temp_dir().join(format!("liella-cluster-window-{}", std::process::id()));
+fn init_window_bins_start_on_window_boundaries() {
+    let dir = std::env::temp_dir().join(format!("liella-bin-window-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let map = link_map(&dir, &root().join("target/liella/liella-crt1.o"));
     let file = std::fs::metadata(dir.join("page_faults")).map(|m| m.len()).unwrap_or(0);
     let _ = std::fs::remove_dir_all(&dir);
-    // The cost of the alignment (ruling #4363): where .text starts, and the gap ahead of each head.
     let inputs = text_inputs(&map);
     eprintln!("PADDING: probe file {file} bytes; .text starts at {:#x}", inputs.first().map_or(0, |s| s.1));
-    for (name, lo, hi) in cluster_ranges(&map) {
+    for (b, lo, hi) in bin_ranges(&map) {
         let prev = inputs.iter().filter(|s| s.2 > 0 && s.1 < lo).map(|s| s.1 + s.2).max().unwrap_or(lo);
-        eprintln!("cluster {name}: {lo:#x}..{hi:#x} ({} bytes; {} bytes of padding ahead of it)", hi.saturating_sub(lo), lo.saturating_sub(prev));
-        assert_eq!(lo >> 16, hi.saturating_sub(1) >> 16, "CLUSTER-WINDOW: cluster {name} at {lo:#x}..{hi:#x} straddles a 64 KiB window (head alignment missing?)");
+        eprintln!("bin {b}: {lo:#x}..{hi:#x} ({} bytes; {} bytes of padding ahead of it)", hi - lo, lo.saturating_sub(prev));
     }
+    let bad = bin_window_errors(&map);
+    assert!(bad.is_empty(), "{bad:#?}");
 }
 
 /// `liella-crt1.o` merged (`ld -r`) with `pad` bytes in `.text.unlikely.*` (`pre`: ahead of the hot
@@ -1028,10 +1027,8 @@ fn init_zero_fault_calls_hold_at_every_text_phase() {
             std::fs::create_dir_all(&dir).expect("temp dir");
             let crt1 = padded_crt1(&dir, region, pad);
             let map = link_map(&dir, &crt1);
-            for (name, lo, hi) in cluster_ranges(&map) {
-                if lo >> 16 != hi.saturating_sub(1) >> 16 {
-                    bad.push(format!("{region} {pad:#x}: cluster {name} at {lo:#x}..{hi:#x} straddles a 64 KiB window"));
-                }
+            for e in bin_window_errors(&map) {
+                bad.push(format!("{region} {pad:#x}: {e}"));
             }
             let exe = dir.join("page_faults");
             for mode in ["mktime", "strings", "rebind"] {

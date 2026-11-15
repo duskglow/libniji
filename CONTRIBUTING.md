@@ -139,7 +139,7 @@ tests directly. The CI FULL gate stays the exhaustive run.
   `target/product/<profile>` (trace-at-build, D-X.88 / D-X.92; needs gdb with Python, or
   `LIELLA_LAYOUT_TRACE=ungrouped` for an ungrouped product), and `cargo xtask static` refuses one in the tree
   (LT-5, LAYOUT-DELETE-LISTS). Nothing needs regenerating on your branch. The hand-written inputs
-  (`hot-text.clusters`, `hot-text.first-window`, `startup-state.list` in `crates/libc-so/`) are still edited and
+  (`startup-state.list` in `crates/libc-so/`; the text layout comes from the window bins, D-X.103) are still edited and
   committed on your branch; the fault bounds and the layout contracts fail everywhere. A decision that replaces an earlier one is
   a new record with `supersedes = ["D-..."]`, a partial change uses `amends`; edit an existing
   record only to correct it or add a test reference. Find a decision with

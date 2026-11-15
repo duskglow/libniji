@@ -1,6 +1,6 @@
 //! LAYOUT-WINDOW-BINS (plan/layout-budget-rethink.md section 3, D-X.103): the window-bin plan of the hot
-//! text group. Slice 1 plans and reports; it does not change the layout (`cargo xtask so` writes the plan to
-//! `target/product/<profile>/layout-bins.tsv` and prints its summary).
+//! text group. `cargo xtask so` applies the plan (slice 2: section names and alignments, [`Plan::placements`]),
+//! writes it to `target/product/<profile>/layout-bins.tsv` and prints its summary.
 //!
 //! Every grouped section has a **signature**: the `page_faults.c` modes whose trace runs it
 //! (`hot-text.signatures`, written by `tools/hottext/regen.sh`). A **bin** holds at most [`BIN`] bytes and,
@@ -60,6 +60,8 @@ pub struct Bin {
     pub end: u64,
     pub modes: BTreeSet<String>,
     pub gap: bool,
+    /// Where the fillers must end: the next boundary (less [`HEAD_ROOM`] for the head bin); 0 without a gap.
+    pub limit: u64,
 }
 
 impl Bin {
@@ -68,9 +70,9 @@ impl Bin {
         self.used.div_ceil(BIN).max(1)
     }
 
-    /// The bytes from the members' end to the next boundary that no filler took (none without a gap).
+    /// The bytes from the end to [`Bin::limit`] that no filler took (none without a gap).
     pub fn residual(&self) -> u64 {
-        if self.gap { self.used.next_multiple_of(BIN) - self.end } else { 0 }
+        if self.gap { self.limit.saturating_sub(self.end) } else { 0 }
     }
 }
 
@@ -90,6 +92,49 @@ fn extent(items: &[Item], idx: &[usize]) -> u64 {
     let mut v = idx.to_vec();
     v.sort_by_key(|&i| (items[i].pos, i));
     v.iter().fold(0, |off, &i| place(off, items[i].bytes, items[i].align))
+}
+
+/// One section's place under an applied plan ([`Plan::placements`]).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Placement {
+    pub bin: usize,
+    pub filler: bool,
+    /// Index into the items (a member) or the cold pool (a filler).
+    pub index: usize,
+    /// The list position (a member) or the filler's order in its bin.
+    pub place: usize,
+    /// The alignment to give the section, 0 to keep its own.
+    pub align: u64,
+}
+
+/// Whether the head bin (the start-up bin, first in the group) starts on a [`BIN`] boundary too
+/// (variant i of plan/layout-budget-rethink.md section 3). No: a static program's first text fault maps
+/// the 64 KiB from the start of its executable segment, which the group follows by a few bytes (crt1,
+/// `.init`, the PLTs), so the head bin is in that first window as long as it fits; anchoring it at the
+/// next boundary would put it half in that window and half in the next.
+pub const HEAD_ANCHOR: bool = false;
+
+/// The bytes the head bin leaves free in its window when it is not anchored ([`HEAD_ANCHOR`]): room for
+/// what a program links ahead of the group (the static probe: 64 bytes), so the head bin and its fillers
+/// end inside the first window and the next bin's boundary is the one after it. A program with more
+/// ahead of the group (its own `.text.startup`) may see the head bin in two windows: a count fixed by
+/// that program and the start file, not by the bins' contents.
+pub const HEAD_ROOM: u64 = if HEAD_ANCHOR { 0 } else { 0x400 };
+
+/// The bytes bin `n` may hold: [`BIN`], less [`HEAD_ROOM`] for the head bin.
+fn capacity(n: usize) -> u64 {
+    if n == 0 { BIN - HEAD_ROOM } else { BIN }
+}
+
+/// The highest bin number a section name can carry ([`section`]: two digits).
+pub const MAX_BINS: usize = 100;
+
+/// The name of function `f`'s section placed in `bin` (member or filler) at `place`:
+/// `.text.sorted.h9<bin, 2 digits><0 member | 1 filler><place, 5 digits>.<f>`. GNU ld's
+/// `SORT(.text.sorted.*)` orders them by bin, members before fillers, then by place; the leading 9
+/// sorts every bin after a five-digit list position.
+pub fn section(bin: usize, filler: bool, place: usize, f: &str) -> String {
+    format!(".text.sorted.h9{bin:02}{}{place:05}.{f}", u8::from(filler))
 }
 
 /// The window-bin plan of `items` with fillers from `cold` (see the module comment).
@@ -112,7 +157,7 @@ pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
             let best = bins
                 .iter()
                 .enumerate()
-                .filter(|(_, b)| extent(items, &[b.members.as_slice(), rest.as_slice()].concat()) <= BIN)
+                .filter(|(i, b)| extent(items, &[b.members.as_slice(), rest.as_slice()].concat()) <= capacity(*i))
                 .min_by_key(|(i, b)| (sig.difference(&b.modes).count(), *i))
                 .map(|(i, _)| i);
             if let Some(i) = best {
@@ -124,9 +169,10 @@ pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
             // A fresh bin: the longest prefix (list order) that fits, at least one section.
             let mut off = 0;
             let mut take = 0;
+            let cap = capacity(bins.len());
             while take < rest.len() {
                 let next = place(off, items[rest[take]].bytes, items[rest[take]].align);
-                if next > BIN && take > 0 {
+                if next > cap && take > 0 {
                     break;
                 }
                 off = next;
@@ -145,9 +191,10 @@ pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
     pool.sort_by(|&a, &b| cold[b].bytes.cmp(&cold[a].bytes).then_with(|| cold[a].name.cmp(&cold[b].name)));
     let mut taken = vec![false; cold.len()];
     let last = bins.iter().rposition(|b| !b.modes.is_empty()).unwrap_or(0);
-    for b in bins.iter_mut().take(last) {
+    for (n, b) in bins.iter_mut().enumerate().take(last) {
         b.gap = true;
-        let limit = b.used.next_multiple_of(BIN);
+        let limit = b.used.max(1).next_multiple_of(BIN) - (BIN - capacity(n));
+        b.limit = limit;
         while let Some(&c) = pool.iter().find(|&&c| !taken[c] && place(b.end, cold[c].bytes, cold[c].align) <= limit) {
             taken[c] = true;
             b.end = place(b.end, cold[c].bytes, cold[c].align);
@@ -169,6 +216,28 @@ impl Plan {
         out
     }
 
+    /// Where the plan puts each section, in link order: (bin, member or filler, index into the items or
+    /// the cold pool, place in the bin, alignment to set or 0 to keep its own). The place is the list
+    /// position for a member and the filler's order for a filler, so [`section`] names sort into
+    /// exactly this order. The first member with bytes of every bin that follows a gap (and of the head
+    /// bin when `anchor`) is aligned to [`BIN`]: that bin then starts on a boundary wherever the
+    /// program puts the group, so no byte outside it moves its windows.
+    pub fn placements(&self, items: &[Item], anchor: bool) -> Vec<Placement> {
+        let mut out = Vec::new();
+        for (n, b) in self.bins.iter().enumerate() {
+            let aligned = if n == 0 { anchor } else { self.bins[n - 1].gap };
+            let head = if aligned { b.members.iter().copied().find(|&i| items[i].bytes > 0) } else { None };
+            for &i in &b.members {
+                let align = if Some(i) == head && items[i].align < BIN { BIN } else { 0 };
+                out.push(Placement { bin: n, filler: false, index: i, place: items[i].pos, align });
+            }
+            for (k, &c) in b.fillers.iter().enumerate() {
+                out.push(Placement { bin: n, filler: true, index: c, place: k, align: 0 });
+            }
+        }
+        out
+    }
+
     /// Mode -> a lower bound of its windows over the group: the bytes of its sections over [`BIN`],
     /// rounded up (alignment padding left out, so it never exceeds the optimum).
     pub fn bound(items: &[Item]) -> BTreeMap<String, u64> {
@@ -185,7 +254,7 @@ impl Plan {
     /// fillers per bin (signature `-` for a member no counted mode runs, `cold` for a filler).
     pub fn tsv(&self, items: &[Item], cold: &[Cold]) -> String {
         let mut out = String::from(
-            "# Written by cargo xtask so (LAYOUT-WINDOW-BINS, D-X.103): the window-bin plan of the hot group (planned, not applied).\n\
+            "# Written by cargo xtask so (LAYOUT-WINDOW-BINS, D-X.103): the window-bin plan of the hot group, as applied.\n\
              # <bin> TAB <section> TAB <bytes> TAB <signature: page_faults modes, comma-separated; - none; cold = a filler>\n",
         );
         for (n, b) in self.bins.iter().enumerate() {
@@ -222,7 +291,7 @@ impl Plan {
         let planned = self.windows();
         let text: Vec<String> = planned.iter().map(|(m, w)| format!("{m} {w}/{}", bound.get(m).copied().unwrap_or(0))).collect();
         out.push(format!(
-            "so: window bins (planned, not applied): {} bins, {} sections, fillers {fill} bytes, residual {residual} bytes; windows/bound per mode: {}",
+            "so: window bins (applied): {} bins, {} sections, fillers {fill} bytes, residual {residual} bytes; windows/bound per mode: {}",
             self.bins.len(),
             items.len(),
             text.join(" ")
@@ -255,7 +324,7 @@ pub fn parse_signatures(text: &str) -> Result<BTreeMap<String, BTreeSet<String>>
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_signatures, plan, Cold, Item, Plan, BIN};
+    use super::{parse_signatures, plan, Cold, Item, Plan, BIN, HEAD_ROOM, section, MAX_BINS};
     use std::collections::BTreeSet;
 
     fn item(name: &str, bytes: u64, align: u64, pos: usize, sig: &[&str]) -> Item {
@@ -326,12 +395,12 @@ mod tests {
         // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): the gap to the next boundary is
         // filled largest-first with cold sections that fit (alignment included); a cold section fills
         // one gap only, and the last bin takes no filler (nothing follows it).
-        let items = [item("x", 0xf000, 1, 0, &["a"]), item("y", 0xf800, 1, 1, &["b"]), item("z", 0x1100, 1, 2, &["c"])];
+        let items = [item("x", 0xe000, 1, 0, &["a"]), item("y", 0xf800, 1, 1, &["b"]), item("z", 0x1100, 1, 2, &["c"])];
         let pool = [cold("big", 0x2000, 1), cold("m", 0x800, 1), cold("s", 0x680, 1), cold("t", 0x100, 0x100), cold("u", 0x80, 1), cold("z0", 0, 1)];
         let p = plan(&items, &pool);
         assert_eq!(p.bins.len(), 3);
         assert_eq!(p.bins[0].fillers, [1, 2, 3]);
-        assert_eq!(p.bins[0].end, BIN, "t aligned to 0x100 after m and s");
+        assert_eq!(p.bins[0].end, BIN - HEAD_ROOM, "t aligned to 0x100 after m and s; the head bin leaves HEAD_ROOM");
         assert_eq!(p.bins[0].residual(), 0);
         assert_eq!(p.bins[1].fillers, [4], "m would fit bin 1 exactly but already fills bin 0");
         assert_eq!(p.bins[1].residual(), 0x800 - 0x80);
@@ -350,7 +419,7 @@ mod tests {
         let p = plan(&items, &pool);
         assert_eq!(names(&p, &items), [vec!["x"], vec!["u0"], vec!["u1"]]);
         assert!(p.bins.iter().all(|b| b.fillers.is_empty() && !b.gap && b.residual() == 0), "{:?}", p.bins);
-        let two = [item("x", 0xf000, 1, 0, &["a"]), item("y", 0x2000, 1, 1, &["b"]), item("u0", 0x9000, 1, 2, &[])];
+        let two = [item("x", 0xe000, 1, 0, &["a"]), item("y", 0x2000, 1, 1, &["b"]), item("u0", 0x9000, 1, 2, &[])];
         let p = plan(&two, &pool);
         assert_eq!((p.bins[0].gap, p.bins[0].fillers.as_slice(), p.bins[1].gap), (true, &[0][..], false));
     }
@@ -371,6 +440,47 @@ mod tests {
         let (a, b) = (plan(&items, &[]), plan(&rev, &[]));
         assert_eq!(names(&a, &items), names(&b, &rev));
         assert_eq!(names(&a, &items), [vec!["p0", "p2", "p4"], vec!["p1", "p3"]]);
+    }
+
+    #[test]
+    fn placements_name_sections_in_link_order_and_align_each_bin_after_a_gap() {
+        // LAYOUT-WINDOW-BINS slice 2 (no spec clause: build tooling, D-X.103): the names sort (as GNU ld's
+        // SORT(.text.sorted.*) does) into bin order, members by list position, then the bin's fillers; the
+        // first member with bytes of every bin after a gap asks for a 64 KiB start, the head bin's does not
+        // (HEAD_ANCHOR), and a bin no counted mode touches after the last counted bin gets none.
+        let items = [
+            item("h0", 0, 1, 0, &["a", "b", "true"]),
+            item("h1", 0x8000, 16, 1, &["a", "b", "true"]),
+            item("a0", 0, 1, 2, &["a"]),
+            item("a1", 0xa000, 64, 3, &["a"]),
+            item("b0", 0xb000, 1, 4, &["b"]),
+            item("u0", 0xf000, 1, 5, &[]),
+        ];
+        let pool = [cold("f0", 0x800, 1), cold("f1", 0x400, 1)];
+        let p = plan(&items, &pool);
+        assert_eq!(names(&p, &items), [vec!["h0", "h1"], vec!["a0", "a1"], vec!["b0"], vec!["u0"]]);
+        let pl = p.placements(&items, false);
+        let named: Vec<String> = pl.iter().map(|x| section(x.bin, x.filler, x.place, if x.filler { &pool[x.index].name } else { &items[x.index].name })).collect();
+        let mut sorted = named.clone();
+        sorted.sort();
+        assert_eq!(named, sorted, "the plan's order is the name order");
+        assert_eq!(named[0], ".text.sorted.h900000000.h0");
+        assert!(named.contains(&".text.sorted.h900100000.f0".to_string()) && named.contains(&".text.sorted.h900100001.f1".to_string()), "{named:?}");
+        let aligned: Vec<(&str, u64)> = pl.iter().filter(|x| x.align > 0).map(|x| (items[x.index].name.as_str(), x.align)).collect();
+        assert_eq!(aligned, [("a1", BIN), ("b0", BIN)], "a zero-byte member never carries the alignment");
+        assert!(p.placements(&items, true).iter().any(|x| x.index == 1 && !x.filler && x.align == BIN), "an anchored head bin");
+        assert!(p.bins.len() <= MAX_BINS);
+    }
+
+    #[test]
+    fn the_head_bin_leaves_room_for_what_precedes_the_group() {
+        // LAYOUT-WINDOW-BINS slice 2 (no spec clause: build tooling, D-X.103): an unanchored head bin
+        // holds at most BIN - HEAD_ROOM bytes, so it ends inside the first window of a program whose
+        // start file and PLTs precede the group; a group that fits a later bin still fills that one whole.
+        let items = [item("t0", BIN - HEAD_ROOM, 1, 0, &["true"]), item("t1", 0x10, 1, 1, &["true"]), item("x", BIN, 1, 2, &["a"])];
+        let p = plan(&items, &[]);
+        assert_eq!(names(&p, &items), [vec!["t0"], vec!["t1"], vec!["x"]]);
+        assert_eq!(p.bins[0].limit, BIN - HEAD_ROOM);
     }
 
     #[test]
