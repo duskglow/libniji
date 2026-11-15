@@ -11,7 +11,7 @@ gnulib-tests is never read: tar members under it are skipped (the archive stream
 decompressed past them, their content is dropped unread) and each skipped directory is logged.
 """
 import argparse, concurrent.futures as cf, hashlib, io, json, lzma, os, re, shutil, subprocess
-import sys, tarfile, time, urllib.request, zipfile
+import sys, tarfile, time, zlib, urllib.request, zipfile
 
 MIRROR = "http://miko.mgmt.internal/devuan/"
 SUITE = "excalibur"
@@ -274,6 +274,8 @@ def scan_tar_stream(fobj, acc, label):
                 acc.depth += 1
                 try:
                     scan_file(tmpf, label + ">" + comps[-1], acc)
+                except (tarfile.TarError, EOFError, OSError, lzma.LZMAError, zlib.error) as e:
+                    acc.skips.append("%s:%s (nested archive unreadable: %s)" % (label, path, str(e)[:60]))
                 finally:
                     acc.depth -= 1
                     os.unlink(tmpf)
