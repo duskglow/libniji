@@ -184,6 +184,10 @@ fn libraries(d: &Path) {
     std::fs::write(d.join("badx/libstep.so.1"), [b'x'; 200]).unwrap();
 }
 
+/// One case: what it shows, the program, LD_LIBRARY_PATH (or none), and the exit status or the text
+/// after `<prog>: error while loading shared libraries: ` (status 127).
+type Case<'a> = (&'a str, &'a Path, Option<&'a str>, Result<i32, String>);
+
 /// Each search step, the requester chain and the candidate rule, against the expected result and the
 /// reference loader run on the same program and environment: the exit status (which library variant
 /// ran), the error text and status 127 for a library not found or refused, and for a program that
@@ -210,7 +214,7 @@ fn ldso_search_steps_match_reference() {
     let chain_runpath = prog(&d, &ld, "p_chain_runpath", &with(mids(), &[format!("-Wl,--enable-new-dtags,-rpath,{}", p("c"))]));
     let missing = |name: &str| -> Result<i32, String> { Err(format!("{name}: cannot open shared object file: No such file or directory")) };
     let (llp, badm, badx) = (p("llp"), format!("{}:{}", p("badm"), p("llp")), format!("{}:{}", p("badx"), p("llp")));
-    let cases: [(&str, &Path, Option<&str>, Result<i32, String>); 11] = [
+    let cases: [Case<'_>; 11] = [
         ("DT_RPATH", &rpath, None, Ok(11)),
         ("DT_RPATH before LD_LIBRARY_PATH", &rpath, Some(llp.as_str()), Ok(11)),
         ("DT_RUNPATH", &runpath, None, Ok(13)),
