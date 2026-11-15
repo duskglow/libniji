@@ -1,0 +1,23 @@
+{"task": "SL-HEADERS-2-2", "model": "opus", "tokens": null,
+ "result": "visibility tables (40 configs, 69876 rows, two runs byte-identical), Appendix C.12, PROVENANCE, xtask visibility check fixed to the probe's exact configs spelling; keyword-pass bug fixed",
+ "branch": "task/sl-headers-2-2", "head": null,
+ "gate": {"affected": "32 suites ok: 11893 passed / 0 failed (1397 ignored); conformance 137 passed / 0 failed", "peak": "16G (page cache included), oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "visibility.tsv is 5.2 MB; 105 distinct config sets, a set-id table would cut it to about 1.8 MB",
+   "19 public headers have no row (no candidate name beyond the empty unit, e.g. sys/syscall.h whose SYS_ numbers are not candidates)",
+   "the probe's candidates include the spec's backticked identifiers, so spec edits can change the next probe run",
+   "one Bash heredoc (python3 - <<EOF) was used for a local edit early in the run, against the no-heredoc rule; content checked by clippy and tests"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "coverage", "what": "spec/abi visibility rows (header, name, kind, configs) for 224 public headers x 40 configurations", "before": 0, "after": 69876, "unit": "rows", "measured": true},
+   {"kind": "coverage", "what": "unit tests of the visibility check / plants on it", "before": 0, "after": 15, "unit": "plants (14 caught, 1 equivalent)", "measured": true},
+   {"kind": "correctness", "what": "probe keyword pass took stdc-predef.h macros (_STDC_PREDEF_H, __STDC_ISO_10646__) for keywords and never probed keywords as macros (true, false, thread_local)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "unblock", "what": "plan/headers.md slice 3 (headers generated from the tables)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "plants on an xtask-only file rebuild the libc products per plant (~1 min each, 18 min for 15 plants testing a pure-Rust check); the plants tool could skip the product build when cmd is a cargo test of a non-product package",
+ "next_step": "plan/headers.md slice 3: generate headers from spec/abi/visibility.tsv",
+ "report_file": "handoff/SL-HEADERS-2.md",
+ "jobs": ["sl-headers-2-2-gate", "sl-headers-2-2-plants2", "sl-headers-2-2-lint2", "sl-headers-2-2-probe1", "sl-headers-2-2-probe2"]}
