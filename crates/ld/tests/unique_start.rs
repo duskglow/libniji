@@ -4,7 +4,9 @@
 //! C++ runtime has about a hundred), and a third, opened with `dlopen` after start, defines them
 //! again. Every reference, from either start-time library, the program or the late library, and
 //! `dlsym` through the late library's handle, must reach the first library's objects with its
-//! values. The program checks this itself and exits with the number of the first check that failed.
+//! values. Two more libraries opened later define 1500 new unique names (more entries and name bytes
+//! than `dlopen`'s fixed table once held): the first binds its own, the second binds the first's.
+//! The program checks this itself and exits with the number of the first check that failed.
 //! Needs `cargo xtask so` and a C compiler (else SKIP).
 //!
 //! Trace: s27_1_g_0 (global scope order, `STB_GNU_UNIQUE`).
@@ -21,6 +23,9 @@ use liella_ld::elf::Elf;
 
 /// Unique names per library: past 64, the size of the start-up table this test replaced.
 const N: usize = 200;
+/// New unique names in each of two libraries opened after start: past the 1024 entries of the
+/// fixed table `dlopen` once kept.
+const M: usize = 1500;
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -111,15 +116,58 @@ int main(int argc, char **argv) {{
     for (int k = 0; k < {N}; k++)
         if (c[k] != a[k]) return fail(6, "a library opened after start binds the start's unique objects");
     if (dlsym(h, "u100") != a[100]) return fail(7, "dlsym through the late handle gives the start's unique object");
+    /* Through the handle first: no earlier lookup has named uw, so only the start's binding can answer. */
+    int *wh = (int *)dlsym(h, "uw");
+    if (!wh || *wh != 1000 + {N}) return fail(11, "dlsym through the late handle gives the start's unique object no relocation named");
     int *w = (int *)dlsym(RTLD_DEFAULT, "uw");
-    if (!w || *w != 1000 + {N}) return fail(10, "dlsym in the global scope gives the first library's unique object");
-    if (dlsym(h, "uw") != w) return fail(11, "dlsym through the late handle gives the start's unique object no relocation named");
+    if (w != wh) return fail(10, "dlsym in the global scope gives the first library's unique object");
     if (dlclose(h) != 0) return fail(8, dlerror());
     if (*a[{last}] != 1000 + {last}) return fail(9, "the start's unique objects keep their values");
+    snprintf(path, sizeof path, "%s/libud.so", argc > 1 ? argv[1] : ".");
+    void *hd = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!hd) return fail(12, dlerror());
+    int **(*ud_table)(void) = (int **(*)(void))dlsym(hd, "ud_table");
+    if (!ud_table) return fail(12, dlerror());
+    int **d = ud_table();
+    for (int k = 0; k < {M}; k++)
+        if (*d[k] != 5000 + k) return fail(13, "a late library's new unique objects bind its own definitions");
+    snprintf(path, sizeof path, "%s/libue.so", argc > 1 ? argv[1] : ".");
+    void *he = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!he) return fail(14, dlerror());
+    int **(*ue_table)(void) = (int **(*)(void))dlsym(he, "ue_table");
+    if (!ue_table) return fail(14, dlerror());
+    int **e = ue_table();
+    for (int k = 0; k < {M}; k++)
+        if (e[k] != d[k]) return fail(15, "a second late library binds the first one's unique objects, past any fixed table");
+    if (dlsym(he, "{late_last}") != d[{M} - 1]) return fail(16, "dlsym through the second late handle gives the first late definition");
     return 0;
 }}
-"#
+"#,
+        late_last = late_name(M - 1)
     )
+}
+
+/// The name of late unique object `k`: long, so the late names' bytes (about 100 KiB) pass the 64 KiB
+/// arena the dlopen table once had, as their count (`M`) passes its 1024 entries.
+fn late_name(k: usize) -> String {
+    format!("late_unique_object_with_a_name_long_enough_to_fill_a_table_arena_{k}")
+}
+
+/// A late library: unique objects `late_name(k)`, k < `M`, with values `base + k`, and
+/// `{tag}_table()`, the addresses its own references to them bind.
+fn late_src(tag: &str, base: usize) -> String {
+    let mut s = String::new();
+    for k in 0..M {
+        let n = late_name(k);
+        writeln!(s, "__asm__(\".section .data.{n},\\\"aw\\\"\\n.globl {n}\\n.type {n}, @gnu_unique_object\\n.size {n}, 4\\n.p2align 2\\n{n}: .long {}\\n.text\\n\");", base + k).unwrap();
+        writeln!(s, "extern int {n};").unwrap();
+    }
+    write!(s, "int *{tag}_tab[{M}] = {{").unwrap();
+    for k in 0..M {
+        write!(s, "&{},", late_name(k)).unwrap();
+    }
+    writeln!(s, "}};\nint **{tag}_table(void) {{ return {tag}_tab; }}").unwrap();
+    s
 }
 
 /// s27_1_g_0: one definition per unique name for the process, the first in the start's global scope,
@@ -132,6 +180,8 @@ fn s27_1_g_0_unique_definitions_shared_from_start_through_dlopen() {
     let ua = start_lib("libua.so", &lib_src("ua", 1000));
     let ub = start_lib("libub.so", &lib_src("ub", 2000));
     start_lib("libuc.so", &lib_src("uc", 3000));
+    start_lib("libud.so", &late_src("ud", 5000));
+    start_lib("libue.so", &late_src("ue", 9000));
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let p = cc(
         &d,

@@ -131,6 +131,7 @@ impl<'a> RelocError<'a> {
             RelocError::Outside(_) => b"relocation outside the object's writable segments\n",
             RelocError::Overflow(_) => b"relocated value does not fit its field\n",
             RelocError::Copy(_) => b"COPY relocation outside the program or without a provider\n",
+            RelocError::Lookup(LookupError::NoMemory) => crate::symbols::UNIQUE_NO_MEMORY,
             RelocError::Lookup(_) => b"malformed symbol tables\n",
             RelocError::Elf(_) => b"malformed relocation tables\n",
             RelocError::Protect => b"cannot change the protection of a text-relocated segment\n",
@@ -603,6 +604,108 @@ impl<const N: usize, const B: usize> UniqueRegistry for UniqueTable<N, B> {
         }
         self.n = self.n.wrapping_add(1);
         self.used = end;
+        Ok(())
+    }
+}
+
+/// An array a [`GrowTable`] keeps its entries or bytes in: it only grows at the end (and only
+/// fallibly) or is cut back. The loader backs it with its own mappings; tests with a `Vec`.
+pub trait Stack<T: Copy> {
+    /// The items pushed so far.
+    fn items(&self) -> &[T];
+    /// Appends `more`; `false` (and nothing appended) when there is no memory for them.
+    fn try_extend(&mut self, more: &[T]) -> bool;
+    /// Keeps the first `n` items.
+    fn truncate(&mut self, n: usize);
+}
+
+impl<T: Copy> Stack<T> for alloc::vec::Vec<T> {
+    fn items(&self) -> &[T] {
+        self
+    }
+    fn try_extend(&mut self, more: &[T]) -> bool {
+        crate::ldconfig::extend(self, more).is_ok()
+    }
+    fn truncate(&mut self, n: usize) {
+        alloc::vec::Vec::truncate(self, n);
+    }
+}
+
+/// One [`GrowTable`] entry: the key's place in the byte stack and the definition bound for it.
+#[derive(Clone, Copy, Debug)]
+pub struct UniqueEntry {
+    hash: u32,
+    at: usize,
+    name_len: usize,
+    version_len: usize,
+    found: Found,
+}
+
+/// A [`UniqueRegistry`] with no limit but memory: (name, version) keys in a byte stack `B`, entries in
+/// `E`. A key's bytes are pushed before its entry, so an entry always names bytes that exist; a
+/// stack that cannot grow answers [`LookupError::NoMemory`] and the table is left as it was.
+#[derive(Debug, Default)]
+pub struct GrowTable<E, B> {
+    entries: E,
+    bytes: B,
+}
+
+impl<E: Stack<UniqueEntry>, B: Stack<u8>> GrowTable<E, B> {
+    /// A table over empty stacks `entries` and `bytes`.
+    #[must_use]
+    pub const fn new(entries: E, bytes: B) -> Self {
+        GrowTable { entries, bytes }
+    }
+
+    /// Entries recorded so far: a mark that [`GrowTable::truncate`] rolls back to.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.entries.items().len()
+    }
+
+    /// Whether nothing is recorded.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.entries.items().is_empty()
+    }
+
+    /// Forget the entries recorded after mark `n` (a failed `dlopen` leaves no trace, plan §3).
+    pub fn truncate(&mut self, n: usize) {
+        if let Some(e) = self.entries.items().get(n) {
+            let at = e.at;
+            self.entries.truncate(n);
+            self.bytes.truncate(at);
+        }
+    }
+
+    /// The defining objects of the entries recorded after mark `from` (each is pinned: design §5).
+    pub fn owners(&self, from: usize) -> impl Iterator<Item = usize> + '_ {
+        self.entries.items().get(from..).unwrap_or(&[]).iter().map(|e| e.found.obj)
+    }
+}
+
+impl<E: Stack<UniqueEntry>, B: Stack<u8>> UniqueRegistry for GrowTable<E, B> {
+    fn find(&self, name: &[u8], version: &[u8]) -> Option<Found> {
+        let hash = symbols::gnu_hash(name);
+        let bytes = self.bytes.items();
+        let key = |e: &UniqueEntry| -> Option<(&[u8], &[u8])> {
+            let mid = e.at.checked_add(e.name_len)?;
+            Some((bytes.get(e.at..mid)?, bytes.get(mid..mid.checked_add(e.version_len)?)?))
+        };
+        self.entries.items().iter().find(|e| e.hash == hash && e.name_len == name.len() && key(e) == Some((name, version))).map(|e| e.found)
+    }
+
+    fn record(&mut self, name: &[u8], version: &[u8], found: Found) -> Result<(), LookupError> {
+        let at = self.bytes.items().len();
+        if !self.bytes.try_extend(name) || !self.bytes.try_extend(version) {
+            self.bytes.truncate(at);
+            return Err(LookupError::NoMemory);
+        }
+        let e = UniqueEntry { hash: symbols::gnu_hash(name), at, name_len: name.len(), version_len: version.len(), found };
+        if !self.entries.try_extend(&[e]) {
+            self.bytes.truncate(at);
+            return Err(LookupError::NoMemory);
+        }
         Ok(())
     }
 }

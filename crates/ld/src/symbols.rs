@@ -67,6 +67,10 @@ pub enum LookupError {
     NoMemory,
 }
 
+/// The diagnostic for [`LookupError::NoMemory`] (after `<object>: `): it names what ran out, since
+/// the tables themselves are sound.
+pub const UNIQUE_NO_MEMORY: &[u8] = b"cannot allocate memory for the unique symbol table\n";
+
 impl From<ElfError> for LookupError {
     fn from(e: ElfError) -> Self {
         LookupError::Elf(e)
