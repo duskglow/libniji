@@ -58,6 +58,16 @@ then the default directories); a library that cannot be found ends the start wit
 `<program>: error while loading shared libraries: <name>: cannot open shared object file: No such
 file or directory`, status 127.
 
+Preloading works as ld.so(8) describes: the objects named in `LD_PRELOAD` (separated by spaces or
+colons), then those in the preload file `<prefix>/etc/ld.so.preload` (`/usr/lib/liella/etc/ld.so.preload`
+for the coexisting packages, `/etc/ld.so.preload` for the system ones), load after the program and
+before its libraries, so their symbols interpose; `fakeroot` works this way. A name without a slash is
+searched like a `DT_NEEDED` name. An object that cannot be preloaded prints `ERROR: ld.so: object
+'<name>' from LD_PRELOAD cannot be preloaded (<reason>): ignored.` and the program runs. A set-user-ID
+or set-group-ID program takes an `LD_PRELOAD` name only without a slash, only from the trusted
+directories and only when the library is set-user-ID (spec/behaviour/dynlink-preload.md,
+spec/behaviour/dynlink-secure.md).
+
 ### Registering exit and fork handlers without libc_nonshared.a (opt-in)
 
 By default a module takes `atexit`, `at_quick_exit` and `pthread_atfork` from `libc_nonshared.a`,
@@ -121,7 +131,7 @@ tools/deb/root-system.sh target/deb-system    # dpkg --root into an empty root (
                                               # threads, except, iostream run inside
 tools/deb/swap-system.sh target/deb-system trixie  # libc6 + libc-bin swapped into a trixie root; the
                                               # distribution's ls, sort, grep, sed, awk, bash, perl, python3,
-                                              # find compared with a stock root (MIRROR, KEYRING)
+                                              # find, fakeroot compared with a stock root (MIRROR, KEYRING)
 tools/deb/lint.sh target/deb-system excalibur # lintian in an unprivileged chroot (MIRROR, KEYRING)
 ```
 
