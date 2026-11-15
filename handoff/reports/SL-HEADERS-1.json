@@ -1,0 +1,24 @@
+{"task": "SL-HEADERS-1", "model": "sonnet", "tokens": null,
+ "result": "Corpus scan tool and results: part (a) over 31 source packages (identical on two runs, three hand counts equal), part (b) over all 37,587 source packages of the mirror (37,579 scanned, 8 C library packages excluded, 0 failed): all 14 undecided legacy headers have a hit, so all ship and none is dropped",
+ "branch": "task/sl-headers-1", "head": "de1809508",
+ "gate": {"affected": "see jobs: sl-headers-1-gate", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "R-H2 candidates beyond __USE_MISC/__USE_GNU: __USE_LARGEFILE64, __USE_FILE_OFFSET64 (3 packages each), __USE_FORTIFY_LEVEL, __USE_EXTERN_INLINES (2 each); bits/wordsize.h and bits/long-double.h are the only glibc-internal header names included directly", "recommendation": "owner reviews handoff/headers-corpus.md; allow the two bits/ names and the four __USE_ names only if a real package needs them, since the counts are small"}
+ ],
+ "informational": [
+  "No plants: the change is a validation tool and results, no product code; proof is two identical runs and hand counts",
+  "Part (b) ran in two tool states (first reader, then a reader for multi-stream archives and one git bundle for the 17 packages that failed); no full rerun",
+  "One heredoc was used for python edits in this run (against the no-heredoc rule)",
+  "gawk and tar contain __glibc_* helper names outside the skipped directories; not investigated (would mean opening gnulib-derived files)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "SL-HEADERS-15 has no R-H7 drop to land; slices 5, 6, 7, 10, 13, 14, 15, 16 generate all 14 legacy headers", "before": 14, "after": 0, "unit": "undecided headers", "measured": true},
+  {"kind": "coverage", "what": "source packages accounted for in the R-H7 scan", "before": 0, "after": 37587, "unit": "packages", "measured": true},
+  {"kind": "none", "what": "no product behaviour changes", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "a scan over the whole source archive should reuse one verified index and a retry loop from the start; reading tar through the external decompressors avoids Python's single-stream readers",
+ "next_step": "owner reviews the R-H2/R-H3 candidate lists in handoff/headers-corpus.md; slice 2 onward",
+ "report_file": "handoff/headers-corpus.md",
+ "jobs": ["keke:sl-headers-1-gate"]}
