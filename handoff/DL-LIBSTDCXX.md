@@ -1,56 +1,42 @@
-# DL-LIBSTDCXX handoff (GitHub #4: ld.so refused Debian's libstdc++.so.6)
+# DL-LIBSTDCXX handoff (GitHub #4: ld.so refused Debian's libstdc++.so.6), after DL-LIBSTDCXX-2
 
-State: branch `task/dl-libstdcxx`, code head `04f0c87ee` (plus this note and the report json). Role mei:~/w/s1.
-Checkpoint hand-back at the context limit (~150k): the jobs below were started on the final code head and not yet read.
+State: branch `task/dl-libstdcxx-2`, code head `2e1854fe6` (plus this note and the report json). Role keke:~/w/n2.
+Report: handoff/reports/DL-LIBSTDCXX-2.json; plants handoff/DL-LIBSTDCXX-2-plants.txt (supersedes DL-LIBSTDCXX-plants.txt).
 
-## Cause (settled)
+## Cause (settled, DL-LIBSTDCXX)
 
-The start-time relocation pass recorded each `STB_GNU_UNIQUE` definition it bound in a fixed
-`reloc::UniqueTable::<64, 4096>` (crates/boundary/src/ld.rs). Debian's libstdc++.so.6 (14.2.0-19) binds 106 unique
-symbols, `record()` returned `LookupError::NoMemory`, and `RelocError::Lookup(_)` prints every lookup error as
-"malformed symbol tables". It was not the OS/ABI byte, GNU_HASH-only or the version counts: a scratch probe that parses
-the Debian file with `liella_ld::elf`/`symbols` (`Object::new`, `reference_want` and `lookup` for all 6278 symbols) gave
-no error.
+The start's fixed `UniqueTable::<64, 4096>` overflowed (libstdc++ binds 106 `STB_GNU_UNIQUE` names) and
+`LookupError::NoMemory` printed as "malformed symbol tables". Fixed there: the start binds by global scope order
+(`symbols::ScopeOrder`, no table).
 
-## Change
+## DL-LIBSTDCXX-2 (this run)
 
-- `symbols::ScopeOrder` (crates/ld/src/symbols.rs): a `UniqueRegistry` that records nothing. At start every relocation
-  looks in the one global scope (a COPY without the program), so the first object in that order that defines a unique
-  name already is the process's definition; dlopen's registry already reconstructs the start's bindings that way
-  (`Uniq::find` fallback). The start now uses it: no limit on unique names, and the ~9 KiB table is no longer
-  initialised at every dynamic start. dlopen.rs's private `NoUnique` is replaced by the same type.
-- dlopen keeps its own `UniqueTable<1024, 64 KiB>` (unchanged), and objects pinned by `pin_unique` (spec/behaviour/dynlink.md
-  C-6: a unique definer stays loaded after dlclose once looked up) are unchanged.
-- Test crates/ld/tests/unique_start.rs (s27_1_g_0): two start-time libraries with 200 unique objects each, the program's
-  own references (COPY), a library dlopened later, `dlsym` through its handle, and `uw` (unique, named by no relocation).
-- tools/deb/root-system.sh: iostream and throwmain (exception thrown in shared libthrowlib.so) linked against the build
-  system's shared libstdc++.so.6/libgcc_s.so.1, copied into the root for the run; new smoke/throwlib.cc, throwmain.cc.
-- tools/deb/swap-cmds.sh: `apt-get check`, `apt-cache policy`, `apt-cache policy bash` in the Debian trixie root.
+- Last run's reds: plant `dlopen-start-fallback-off` SURVIVED because check 10 (`dlsym(RTLD_DEFAULT, "uw")`) recorded the
+  start's definition before check 11 asked the late handle; the test now asks the handle first and checks the value.
+  `dl-libstdcxx-counts` (products path `base/src/target/liella`, not `base/target`) and `dl-libstdcxx-deb` (build.sh
+  outside a git tree needs LIELLA_DEB_COMMIT and SOURCE_DATE_EPOCH) were script faults; both are fixed in
+  ~/work/DL-LIBSTDCXX-2/{counts,deb}.sh on keke.
+- #5983: dlopen's table is `reloc::GrowTable` over two `Stack`s; the loader's `MapStack` is an anonymous mapping grown by
+  `mremap` (no cap but memory; all-zero = empty, so the zeroed `Loader` needs no set-up). A failed record and a rollback
+  hand back key bytes.
+- Error path: `RelocError::Lookup(NoMemory)` and dlsym's NoMemory print `symbols::UNIQUE_NO_MEMORY` ("cannot allocate
+  memory for the unique symbol table"); other lookup errors still say "malformed symbol tables".
+- Tests: crates/ld/tests/unique_table.rs (new: growth, rollback, out-of-memory, the text); unique_start.rs adds libud/libue
+  (1500 new unique names, ~100 KiB of keys, the second binds the first's: table contents survive `mremap` moves).
+- Decision: records/pending/DL-LIBSTDCXX-2-1.toml (D-NEW, series D-27); CI assigns the id.
 
-## Jobs on mei (started detached; `~/work/DL-LIBSTDCXX/chain.sh` runs the first four in order)
+## Jobs on keke (final head 2e1854fe6; ~/work/DL-LIBSTDCXX-2/chain.sh runs the first four in order)
 
-- `dl-libstdcxx-gate`: static, so, unique_start + dlsym tests, `cargo xtask affected --base origin/next --run`.
-- `dl-libstdcxx-startup`: `cargo xtask test`, FULL_PROFILE so + hot_text_products, then a plain `so` again.
-- `dl-libstdcxx-counts`: ~/work/DL-LIBSTDCXX/measure.sh, dynamic C hello, perf `instructions:u` and `page-faults`, 30
-  runs, after (role) and before (origin/next db204dc19 built in /mnt/zram/claude/DL-LIBSTDCXX/base by
-  `dl-libstdcxx-basebuild`).
-- `dl-libstdcxx-deb`: build.sh --flavour system, root-system.sh, swap-system.sh trixie with the LAN mirror; prints the
-  liella root's apt outputs.
-- `dl-libstdcxx-plants`: handoff/DL-LIBSTDCXX-plants.txt (4 plants), /mnt/zram/claude/DL-LIBSTDCXX/plants-1.
-- Superseded: `dl-libstdcxx-check1` (static failed: trace, the test name had the 2-letter word "at"; fixed in 04f0c87ee).
-  `dl-libstdcxx-probe1` was the diagnosis probe.
+`dl-libstdcxx-2-gate` (static, so, unique/dlsym tests, affected --base origin/next), `dl-libstdcxx-2-startup` (`cargo xtask
+test`, FULL_PROFILE so + hot_text_products, plain so), `dl-libstdcxx-2-counts` (base db204dc19 built in
+/dev/shm/claude/DL-LIBSTDCXX-2/base; dynamic C hello, perf instructions:u and page-faults, 30 runs, before/after),
+`dl-libstdcxx-2-deb` (build.sh system flavour, root-system.sh with the dynamic C++ programs, swap-system.sh trixie with
+apt-get check / apt-cache policy; prints both roots' apt outputs), `dl-libstdcxx-2-plants` (10 plants).
+Superseded: dl-libstdcxx-2-lint0 (inherited head, green), check1/check2 (clippy, trace), check3 (green dev check).
 
-## Open / next step
+## Next step
 
-1. Read the five jobs (`~/bin/jobwait dl-libstdcxx-gate dl-libstdcxx-startup dl-libstdcxx-counts dl-libstdcxx-deb
-   dl-libstdcxx-plants`). Expected risk: `apt-1` (`apt-get check`) may differ from the stock root because the swap uses
-   `--force-depends` (packages that need a newer libc6 level read as unmet); if so, compare only that apt ran
-   (exit 0 or 100 with apt's own text, never 127/loader text) instead of exact output, and say why in swap-cmds.sh.
-2. Record the counts (before/after) in the report json impact entries.
-3. Optional: a pending decision record (`records new decision D-NEW --series D-27 --story DL-LIBSTDCXX`) for "the start
-   binds unique names by global scope order (no table)".
-
-INFORMATIONAL: dlopen's unique table is still fixed (1024 names, 64 KiB); a process that dlopens many C++ libraries
-could exhaust it (dlopen then fails with a text). A growable (mmap-backed) table is a follow-up story.
-Process notes: I used a heredoc (`python3 - <<X`) once and `sed -i` once on tools/deb/swap-system.sh (a one-line comment)
-before noticing the rules; neither was refused.
+Read the jobs above (`~/bin/jobwait <label>` on keke). If `deb` shows apt-1 differing between stock and liella roots only
+because the swap uses `--force-depends` (unmet newer-libc6 dependencies), compare only that apt ran (rc 0 or 100 with
+apt's own text, never 127 or loader text) in tools/deb/swap-cmds.sh and say why there. Record the counts in the json.
+Not done: a test that drives dlsym's out-of-memory text end to end (needs a mapping failure on demand).
