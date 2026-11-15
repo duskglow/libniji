@@ -417,79 +417,6 @@ fn positions(entries: &[Entry]) -> BTreeMap<String, usize> {
     keys
 }
 
-/// LAYOUT-FIRST-WINDOW (D-X, pending record): hand-kept keys, next to the list, that the link places
-/// right after the start-up tier, in this file's order: `<key> TAB <reason>`, `#` comments. The
-/// kernel maps a file's text in 64 KiB fault-around windows; the first fault of a static program
-/// maps the 16 pages from the start of its text segment, and the start-up tier fills most of them.
-/// A function every short program with stdio or a zone load runs, but the `true` probe does not
-/// (so it is not start-up tier), sat behind keys no fault-bounded probe runs (`puts`), and a
-/// 0x240-byte start-up growth moved it one page past that window (one more fault in four release
-/// probes, #5026). Listed here, it follows the start-up tier whatever the generated order.
-pub const FIRST_WINDOW_LIST: &str = "hot-text.first-window";
-
-/// The keys of [`FIRST_WINDOW_LIST`] in file order. Every line needs a reason. Errors name the line.
-fn parse_first_window(text: &str) -> Result<Vec<String>, String> {
-    let mut out: Vec<String> = Vec::new();
-    for (n, l) in text.lines().enumerate() {
-        if l.trim().is_empty() || l.starts_with('#') {
-            continue;
-        }
-        let Some((k, _)) = l.split_once('\t').filter(|(k, r)| !k.is_empty() && !r.trim().is_empty()) else {
-            return Err(format!("{FIRST_WINDOW_LIST} line {}: {l:?}: want <key>\\t<reason>", n + 1));
-        };
-        if out.iter().any(|o| o == k) {
-            return Err(format!("{FIRST_WINDOW_LIST} line {}: {k} is listed twice", n + 1));
-        }
-        out.push(k.to_string());
-    }
-    Ok(out)
-}
-
-/// The link position of each key (as [`positions`]) with the keys `first` moved, in their order,
-/// right after the start-up tier (the list's leading `startup` entries). A key must be in the list,
-/// outside the start-up tier (a line that a regen made redundant is stale) and outside every
-/// cluster of `clusters` (list positions: a moved key would split its cluster's range).
-fn link_positions(entries: &[Entry], first: &[String], clusters: &[Cluster]) -> Result<BTreeMap<String, usize>, String> {
-    let list = positions(entries);
-    let head = entries.iter().take_while(|e| e.tier == "startup").count();
-    for k in first {
-        let Some(&p) = list.get(k) else {
-            return Err(format!("{FIRST_WINDOW_LIST}: {k} is not in hot-text.list (renamed or dropped by a regen? update the line)"));
-        };
-        if p < head {
-            return Err(format!("{FIRST_WINDOW_LIST}: {k} is in the start-up tier now (position {p}); remove its line"));
-        }
-        if let Some(c) = clusters.iter().find(|c| (c.first..=c.last).contains(&p)) {
-            return Err(format!("{FIRST_WINDOW_LIST}: {k} (position {p}) lies inside cluster {} ({}..={}); a cluster's keys stay together", c.name, c.first, c.last));
-        }
-    }
-    let moved: BTreeSet<&str> = first.iter().map(String::as_str).collect();
-    let order = entries[..head].iter().map(|e| e.key.as_str()).chain(first.iter().map(String::as_str)).chain(entries[head..].iter().map(|e| e.key.as_str()).filter(|k| !moved.contains(k)));
-    let mut keys = BTreeMap::new();
-    for (i, k) in order.enumerate() {
-        keys.entry(k.to_string()).or_insert(i);
-    }
-    Ok(keys)
-}
-
-/// [`link_positions`] for `entries`, with the hand-written [`FIRST_WINDOW_LIST`] in `inputs`
-/// (none: the list's own positions) and the clusters of `clusters_text` ([`CLUSTER_LIST`]).
-/// `inputs` is the hand-written input directory (hotlists' TRACKED), never the directory of a
-/// train-owned list copy.
-fn first_window_positions(inputs: &Path, entries: &[Entry], clusters_text: Option<&str>) -> Result<BTreeMap<String, usize>, String> {
-    let path = inputs.join(FIRST_WINDOW_LIST);
-    let first = match fs::read_to_string(&path) {
-        Ok(t) => parse_first_window(&t)?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-        Err(e) => return Err(format!("{}: {e}", path.display())),
-    };
-    let clusters = match clusters_text {
-        Some(t) => parse_clusters(t, &positions(entries))?,
-        None => Vec::new(),
-    };
-    link_positions(entries, &first, &clusters)
-}
-
 /// A function section's name without any hot prefix: `.text.sorted.h<n>.<f>`, the older
 /// `.text.hot.<f>`, rustc's `.text.unlikely.<f>` (a `#[cold]` function) and plain `.text.<f>` all
 /// give `<f>`. `None` for other sections.
@@ -552,102 +479,19 @@ fn rename_for(_name: &str, f: &str, keys: &BTreeMap<String, usize>) -> String {
     if before_group(&want) { format!(".text.{COLD_PREFIX}{f}{COLD_SUFFIX}") } else { want }
 }
 
-/// LAYOUT-TEXT-PIN (D-X.63): the 0-fault clusters of the hot group, next to the list:
-/// `<name> TAB <first key> TAB <last key>`, `#` comments. A cluster is every list position from
-/// its first key's to its last key's; the hand-kept file names keys, so a regen that moves them
-/// moves the cluster with them.
-pub const CLUSTER_LIST: &str = "hot-text.clusters";
-/// GNU ld 2.42 and the kernel's fault-around window on the reference hosts (64 KiB).
-const WINDOW: u64 = 0x10000;
-
-/// One cluster: name and the inclusive range of list positions.
-#[derive(Debug, PartialEq)]
-struct Cluster {
-    name: String,
-    first: usize,
-    last: usize,
-}
-
-/// Parses [`CLUSTER_LIST`] against the list's `keys` (key to position).
-fn parse_clusters(text: &str, keys: &BTreeMap<String, usize>) -> Result<Vec<Cluster>, String> {
-    let mut out = Vec::new();
-    for (n, l) in text.lines().enumerate() {
-        let l = l.trim_end();
-        if l.is_empty() || l.starts_with('#') || l.starts_with('@') {
-            continue;
-        }
-        let f: Vec<&str> = l.split('\t').collect();
-        let [name, a, b] = f[..] else { return Err(format!("{CLUSTER_LIST}:{}: want <name> TAB <first key> TAB <last key>", n + 1)) };
-        let pos = |k: &str| keys.get(k).copied().ok_or_else(|| format!("{CLUSTER_LIST}:{}: cluster {name}: key {k} is not in the hot-text list", n + 1));
-        let (first, last) = (pos(a)?, pos(b)?);
-        if first > last {
-            return Err(format!("{CLUSTER_LIST}:{}: cluster {name}: first key after last key ({first} > {last})", n + 1));
-        }
-        out.push(Cluster { name: name.to_string(), first, last });
-    }
-    Ok(out)
-}
-
-/// LAYOUT-TEXT-PIN-4 (D-X.63): `@place TAB end` in [`CLUSTER_LIST`] moves every cluster, in the
-/// file's order, after the last list position: the start-up and plain text before it then has no
-/// alignment gap inside it (STARTUP-TEXT-WINDOWS), and the clusters' gaps sit side by side.
-/// `@place TAB in-place` (or no line) keeps each cluster at its list positions.
-fn clusters_at_end(text: &str) -> Result<bool, String> {
-    let mut end = false;
-    for (n, l) in text.lines().enumerate() {
-        let Some(d) = l.trim_end().strip_prefix('@') else { continue };
-        end = match d.split('\t').collect::<Vec<_>>()[..] {
-            ["place", "end"] => true,
-            ["place", "in-place"] => false,
-            _ => return Err(format!("{CLUSTER_LIST}:{}: want @place TAB end|in-place", n + 1)),
-        };
-    }
-    Ok(end)
-}
-
-/// The name of grouped section `.text.sorted.h<position>.<f>` when it is moved to the end with
-/// cluster `index` (file order): `.text.sorted.h9<index, 2 digits><position, 5 digits>.<f>`. It
-/// sorts after every list position (5 digits, below 90000) and keeps the `h<digits>.` shape every
-/// reader of grouped names expects.
-fn cluster_section(index: usize, position: usize, f: &str) -> String {
-    format!(".text.sorted.h9{index:02}{position:05}.{f}")
-}
-
-/// The list position in a grouped section name (`.text.sorted.h<position>.<f>`, or the moved
-/// form of [`cluster_section`]).
+/// The list position in a grouped section name: `.text.sorted.h<position, 5 digits>.<f>`, or the
+/// window-bin form [`crate::bins::section`] of a member, `h9<bin, 2><0><position, 5>` (a filler's
+/// place is not a list position: `None`).
 fn position_of(section: &str) -> Option<usize> {
     let rest = section.strip_prefix(".text.sorted.h")?;
     let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
     let d = rest.get(..digits)?;
-    let d = if digits == 8 && d.starts_with('9') { &d[3..] } else { d };
+    let d = match digits {
+        9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[4..],
+        9 => return None,
+        _ => d,
+    };
     d.parse().ok()
-}
-
-/// The bytes the grouped sections `secs` (name, size, alignment) occupy when GNU ld lays them out
-/// in name order (`SORT(.text.sorted.*)`) from an address aligned to all of them. An upper bound
-/// for any one link: a link pulls in only some of the archive's members.
-fn cluster_bytes(secs: &mut [(String, u64, u64)]) -> u64 {
-    secs.sort_by(|a, b| a.0.cmp(&b.0));
-    secs.iter().fold(0, |off, (_, size, align)| off.next_multiple_of((*align).max(1)) + size)
-}
-
-/// The alignment a cluster of `bytes` gets: the smallest power of two not below it (so the
-/// cluster cannot straddle a [`WINDOW`] boundary wherever the link puts it), at least `min` (its
-/// members' own alignment), at most [`WINDOW`] (a larger cluster then costs ceil(bytes / WINDOW)).
-fn cluster_align(bytes: u64, min: u64) -> u64 {
-    bytes.next_power_of_two().max(min).min(WINDOW)
-}
-
-/// The new alignment of each cluster head whose alignment differs, (member, name, alignment).
-/// `grouped` is (member, name, size, alignment) as in the archive, which `so` copies fresh from
-/// cargo's build on every run: every alignment there is the one its object asked for, and every
-/// section that heads no cluster keeps it. Some ask for a page themselves: machine/fold.S's
-/// classed memset pages (the start-up swap moves one page over the other, D-4.53).
-fn head_alignments(grouped: &[(String, String, u64, u64)], heads: &BTreeMap<(String, String), u64>) -> Vec<(String, String, u64)> {
-    grouped
-        .iter()
-        .filter_map(|(m, n, _, a)| heads.get(&(m.clone(), n.clone())).filter(|h| *h != a).map(|h| (m.clone(), n.clone(), *h)))
-        .collect()
 }
 
 /// (name, size, alignment) of every section of the ELF64 little-endian object `obj`, read from
@@ -810,32 +654,18 @@ fn is_startup_names(section: &str) -> bool {
 /// `.text.sorted.h<position>.<f>`, in place, and any hot section whose key is not listed (or whose
 /// position changed) back to `.text.<f>` (or its new position): cargo may hand back an archive this
 /// already ran on, with another list. `work` is a scratch directory. Returns (hot sections in the
-/// result, keys in the list). `inputs`: the directory of the hand-written inputs ([`CLUSTER_LIST`],
-/// [`FIRST_WINDOW_LIST`]). `layout` (LAYOUT-TRACE-AT-BUILD, LT-5): [`Layout::Traced`]: `list` is a trace of
-/// this archive's own build (`target/product/<profile>/hot-text.list`; no list is committed), so every key
-/// is one this build ran, and a cluster or [`FIRST_WINDOW_LIST`] key the trace lacks (or places elsewhere)
-/// is named as such; [`Layout::Ungrouped`]: `list` is not read, nothing is grouped, no first-window key
-/// moved and no cluster aligned (the start-up names section is still placed).
-pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, layout: Layout) -> Result<(usize, usize), String> {
+/// result, keys in the list). `layout` (LAYOUT-TRACE-AT-BUILD, LT-5): [`Layout::Traced`]: `list` is a
+/// trace of this archive's own build (`target/product/<profile>/hot-text.list`; no list is committed), so
+/// every key is one this build ran, and the grouped sections are then placed in window bins
+/// (LAYOUT-WINDOW-BINS, D-X.103: [`plan_bins`]); [`Layout::Ungrouped`]: `list` is not read and nothing is
+/// grouped (the start-up names section is still placed).
+pub fn group(ar: &str, archive: &Path, list: &Path, work: &Path, layout: Layout) -> Result<(usize, usize), String> {
     let text = match layout {
         Layout::Ungrouped => String::new(),
         _ => fs::read_to_string(list).map_err(|e| format!("{}: {e}", list.display()))?,
     };
     let entries = parse_list(&text)?;
-    let clusters_path = inputs.join(CLUSTER_LIST);
-    let clusters_text = fs::read_to_string(&clusters_path).map_err(|e| format!("{}: {e}", clusters_path.display()));
-    // LT-1: the hand-kept inputs name functions of the committed list; under Traced they are checked
-    // against this build's own trace instead (LT-2 removes the class).
-    let traced = |e: String| match layout {
-        Layout::Traced => format!("trace-at-build: {e}: this build's trace does not reach that function (inlined, renamed or no longer run) or places it elsewhere; {CLUSTER_LIST} and {FIRST_WINDOW_LIST} name internal functions until LT-2 (clusters by probe phase)"),
-        _ => e,
-    };
-    // LAYOUT-FIRST-WINDOW: link positions, the first-window keys right after the start-up tier.
-    // Ungrouped: no list, so nothing is placed and no first-window key applies.
-    let keys = match layout {
-        Layout::Ungrouped => positions(&entries),
-        _ => first_window_positions(inputs, &entries, clusters_text.as_deref().ok()).map_err(traced)?,
-    };
+    let keys = positions(&entries);
     let _ = fs::remove_dir_all(work);
     fs::create_dir_all(work).map_err(|e| e.to_string())?;
     let archive = fs::canonicalize(archive).map_err(|e| e.to_string())?;
@@ -846,86 +676,58 @@ pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, 
     }
     crate::so::run(Command::new(ar).current_dir(work).arg("x").arg(&archive))?;
     let objcopy = std::env::var("OBJCOPY").unwrap_or_else(|_| "objcopy".into());
-    let clusters = match (layout, &clusters_text) {
-        (Layout::Ungrouped, _) => Ok((Vec::new(), false)),
-        (_, Ok(t)) => parse_clusters(t, &keys).and_then(|c| Ok((c, clusters_at_end(t)?))).map_err(traced),
-        (_, Err(e)) => Err(e.clone()),
-    };
-    let (clusters, at_end) = clusters?;
-    let mut hot = 0;
     let mut startup = 0;
-    let mut changed = Vec::new();
-    let mut renames: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
-    // Every grouped section: (member, name after renaming, size, alignment).
-    let mut grouped: Vec<(String, String, u64, u64)> = Vec::new();
-    // LAYOUT-WINDOW-BINS (D-X.103): every other function section, the window-bin plan's filler candidates.
-    let mut cold: Vec<(String, String, u64, u64)> = Vec::new();
+    // Every section to place, in archive order.
+    let mut secs: Vec<Sec> = Vec::new();
     for m in &members {
-        let obj = work.join(m);
-        let mut args = String::new();
-        for (name, size, align) in section_table(&obj)? {
-            let name = &name;
+        for (name, size, align) in section_table(&work.join(m))? {
             if name == STARTUP_SECTION {
                 startup += 1;
                 continue;
             }
-            if is_startup_names(name) {
+            if is_startup_names(&name) {
                 startup += 1;
-                args.push_str(&format!("--rename-section {name}={STARTUP_SECTION}\n"));
-                renames.entry(m.clone()).or_default().push((name.clone(), STARTUP_SECTION.to_string()));
+                secs.push(Sec { member: m.clone(), name, want: STARTUP_SECTION.to_string(), size, align, set_align: 0 });
                 continue;
             }
-            let Some(f) = function_of(name) else { continue };
-            let mut want = rename_for(name, f, &keys);
-            if at_end {
-                if let Some((i, p)) = position_of(&want).and_then(|p| clusters.iter().position(|c| (c.first..=c.last).contains(&p)).map(|i| (i, p))) {
-                    want = cluster_section(i, p, f);
-                }
-            }
-            if want.starts_with(".text.sorted.") {
-                hot += 1;
-                grouped.push((m.clone(), want.clone(), size, align));
-            } else if size > 0 {
-                cold.push((m.clone(), want.clone(), size, align));
-            }
-            if want != *name {
+            let Some(f) = function_of(&name) else { continue };
+            let want = rename_for(&name, f, &keys);
+            secs.push(Sec { member: m.clone(), name, want, size, align, set_align: 0 });
+        }
+    }
+    // LAYOUT-WINDOW-BINS slice 2 (D-X.103): the window-bin plan, applied. It replaces the 0-fault
+    // clusters' power-of-two heads (D-X.63) and the first-window keys: every bin after a gap starts on
+    // a 64 KiB boundary, so a mode's text windows are those of the bins it touches.
+    if layout == Layout::Traced {
+        for (i, name, align) in plan_bins(list, &secs)? {
+            secs[i].want = name;
+            secs[i].set_align = align;
+        }
+    }
+    let hot = secs.iter().filter(|s| s.want.starts_with(".text.sorted.")).count();
+    let mut changed = Vec::new();
+    let mut renames: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    let mut realign: BTreeMap<String, Vec<(String, u64)>> = BTreeMap::new();
+    for m in &members {
+        let mut args = String::new();
+        for s in secs.iter().filter(|s| s.member == *m) {
+            let (name, want) = (&s.name, &s.want);
+            if want != name {
                 args.push_str(&format!("--rename-section {name}={want}\n"));
                 renames.entry(m.clone()).or_default().push((name.clone(), want.clone()));
+            }
+            if s.set_align > 0 {
+                realign.entry(m.clone()).or_default().push((want.clone(), s.set_align));
             }
         }
         if !args.is_empty() {
             let rsp = work.join(format!("{m}.rsp"));
             fs::write(&rsp, args).map_err(|e| e.to_string())?;
-            crate::so::run(Command::new(&objcopy).arg(format!("@{}", rsp.display())).arg(&obj))?;
+            crate::so::run(Command::new(&objcopy).arg(format!("@{}", rsp.display())).arg(work.join(m)))?;
             changed.push(m.clone());
         }
     }
-    // LAYOUT-TEXT-PIN (D-X.63): the head of each 0-fault cluster gets the smallest power-of-two
-    // alignment not below the cluster's size, so the cluster sits inside one fault-around window
-    // wherever the rest of the program moves the group (CLUSTER-WINDOW). Done after the renames,
-    // on the final names; every other section keeps its own ([`head_alignments`]).
-    let mut realign: BTreeMap<String, Vec<(String, u64)>> = BTreeMap::new();
-    let mut heads = BTreeMap::new();
-    for c in &clusters {
-        let mut secs: Vec<(String, u64, u64)> = grouped
-            .iter()
-            .filter(|(_, n, _, _)| position_of(n).is_some_and(|p| (c.first..=c.last).contains(&p)))
-            .map(|(_, n, s, a)| (n.clone(), *s, *a))
-            .collect();
-        let min = secs.iter().map(|s| s.2).max().unwrap_or(1);
-        let bytes = cluster_bytes(&mut secs);
-        let Some(head) = secs.iter().find(|s| s.1 > 0).map(|s| s.0.clone()) else {
-            return Err(format!("{CLUSTER_LIST}: cluster {} (positions {}..={}) has no section in {}", c.name, c.first, c.last, archive.display()));
-        };
-        let align = cluster_align(bytes, min);
-        println!("so: hot-text cluster {}: positions {}..={}, {} sections, {bytes} bytes, aligned {align}", c.name, c.first, c.last, secs.len());
-        for (m, n, _, _) in grouped.iter().filter(|g| g.1 == head) {
-            heads.insert((m.clone(), n.clone()), align);
-        }
-    }
-    for (m, n, a) in head_alignments(&grouped, &heads) {
-        realign.entry(m).or_default().push((n, a));
-    }
+    // The bins' 64 KiB starts, on the final names (after the renames).
     for (m, list) in &realign {
         let mut cmd = Command::new(&objcopy);
         for (n, a) in list {
@@ -941,9 +743,6 @@ pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, 
     }
     let checked = check_renames(&archive_headers(&archive)?, &renames).map_err(|e| format!("{}: hot-text grouping: {e}", archive.display()))?;
     println!("so: hot-text grouping: {checked} section renames, all in effect");
-    if layout == Layout::Traced {
-        plan_bins(list, &grouped, &cold)?;
-    }
     let _ = fs::remove_dir_all(work);
     if startup != 1 {
         return Err(format!("{}: {startup} start-up names sections (STARTUP_NAMES), want 1", archive.display()));
@@ -951,26 +750,43 @@ pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, 
     Ok((hot, keys.len()))
 }
 
-/// LAYOUT-WINDOW-BINS slice 1 (D-X.103): the window-bin plan of the grouped sections `grouped` (member,
-/// name, size, alignment), from this build's signatures next to `list`, written to
-/// [`crate::bins::PLAN`] there, with its summary printed. Nothing is applied: the link order and
-/// alignments stay as [`group`] set them. The filler pool is `cold` (the other function sections) of
-/// the members every program links: those holding a section the start-up mode runs.
-fn plan_bins(list: &Path, grouped: &[(String, String, u64, u64)], cold: &[(String, String, u64, u64)]) -> Result<(), String> {
+/// One section [`group`] places: its member, its name in the archive, the name it gets, its size and
+/// alignment, and the alignment it gets (0: its own).
+struct Sec {
+    member: String,
+    name: String,
+    want: String,
+    size: u64,
+    align: u64,
+    set_align: u64,
+}
+
+/// LAYOUT-WINDOW-BINS (D-X.103): the window-bin plan of the grouped sections of `secs` (those whose
+/// wanted name is `.text.sorted.h<position>.<f>`), from this build's signatures next to `list`, written
+/// to [`crate::bins::PLAN`] there, with its summary printed. The filler pool is the other function
+/// sections of the members every program links: those holding a section the start-up mode runs.
+/// Slice 2: returns the plan's (index into `secs`, name, alignment or 0) of every member and filler
+/// ([`crate::bins::section`], [`crate::bins::Plan::placements`]).
+fn plan_bins(list: &Path, secs: &[Sec]) -> Result<Vec<(usize, String, u64)>, String> {
     use crate::bins::{Cold, Item};
     let path = list.with_file_name(crate::bins::SIGNATURES);
     let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     let sigs = crate::bins::parse_signatures(&text).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut items = Vec::new();
+    let mut item_of = Vec::new();
     let mut always = BTreeSet::new();
-    for (m, n, size, align) in grouped {
+    for (i, s) in secs.iter().enumerate().filter(|(_, s)| s.want.starts_with(".text.sorted.")) {
+        let n = &s.want;
         let k = key(function_of(n).unwrap_or(n));
         let sig = sigs.get(&k).ok_or_else(|| format!("{}: no signature for grouped key {k} (section {n}): the trace wrote the list and its signatures apart", path.display()))?;
         if sig.contains(crate::bins::STARTUP_MODE) {
-            always.insert(m.clone());
+            always.insert(s.member.clone());
         }
-        items.push(Item { name: n.clone(), bytes: *size, align: *align, pos: position_of(n).unwrap_or(usize::MAX), sig: sig.clone() });
+        let pos = position_of(n).filter(|p| *p < 100_000).ok_or_else(|| format!("{n}: no five-digit list position"))?;
+        items.push(Item { name: n.clone(), bytes: s.size, align: s.align, pos, sig: sig.clone() });
+        item_of.push(i);
     }
+    let cold: Vec<usize> = (0..secs.len()).filter(|&i| always.contains(&secs[i].member) && secs[i].size > 0 && secs[i].want.starts_with(".text.") && !secs[i].want.starts_with(".text.sorted.")).collect();
     if always.is_empty() && !items.is_empty() {
         return Err(format!(
             "{}: no grouped key the start-up mode ({}) runs: the trace recorded no page_faults modes (tools/hottext/regen.sh writes the signatures)",
@@ -978,15 +794,25 @@ fn plan_bins(list: &Path, grouped: &[(String, String, u64, u64)], cold: &[(Strin
             crate::bins::STARTUP_MODE
         ));
     }
-    let pool: Vec<Cold> = cold.iter().filter(|c| always.contains(&c.0)).map(|(_, n, s, a)| Cold { name: n.clone(), bytes: *s, align: *a }).collect();
+    let pool: Vec<Cold> = cold.iter().map(|&i| Cold { name: secs[i].want.clone(), bytes: secs[i].size, align: secs[i].align }).collect();
     let plan = crate::bins::plan(&items, &pool);
+    if plan.bins.len() > crate::bins::MAX_BINS {
+        return Err(format!("window bins: {} bins, more than a section name can number ({})", plan.bins.len(), crate::bins::MAX_BINS));
+    }
     let out = list.with_file_name(crate::bins::PLAN);
     fs::write(&out, plan.tsv(&items, &pool)).map_err(|e| format!("{}: {e}", out.display()))?;
     for l in plan.summary(&items, &pool) {
         println!("{l}");
     }
     println!("so: window bins: filler pool {} sections of {} always-linked members; plan in {}", pool.len(), always.len(), out.display());
-    Ok(())
+    let mut placed = Vec::new();
+    for p in plan.placements(&items, crate::bins::HEAD_ANCHOR) {
+        let i = if p.filler { cold[p.index] } else { item_of[p.index] };
+        let n = &secs[i].want;
+        let f = function_of(n).ok_or_else(|| format!("{n}: not a function section"))?;
+        placed.push((i, crate::bins::section(p.bin, p.filler, p.place, f), p.align));
+    }
+    Ok(placed)
 }
 
 /// LAYOUT-DELETE-LISTS (LT-5): the files no tree may track again. The four lists are written by every
@@ -1016,7 +842,7 @@ pub fn static_check(root: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ar_members, before_group, check_renames, cluster_align, head_alignments, cluster_bytes, cluster_section, clusters_at_end, elf_sections, function_of, Shdr, parse_clusters, position_of, Cluster, WINDOW, is_startup_names, key, parse_list, positions, link_positions, parse_first_window, rename_for, retired_lists, section_for, RETIRED};
+    use super::{ar_members, before_group, check_renames, elf_sections, function_of, Shdr, position_of, is_startup_names, key, parse_list, positions, rename_for, retired_lists, section_for, RETIRED};
     use std::collections::{BTreeMap, BTreeSet};
 
     #[test]
@@ -1129,55 +955,26 @@ mod tests {
     }
 
     #[test]
-    fn clusters_are_aligned_to_their_size() {
-        // LAYOUT-TEXT-PIN (no spec clause): CLUSTER-WINDOW. A cluster of S bytes aligned to the
-        // smallest power of two not below S cannot straddle a 64 KiB boundary.
-        let keys = positions(&parse_list("a\tstartup\tfast\nb\tstartup\tfast\nc\tstartup\tfast\n").unwrap());
-        let c = parse_clusters("# x\ntime\tb\tc\n", &keys).unwrap();
-        assert_eq!(c, vec![Cluster { name: "time".into(), first: 1, last: 2 }]);
-        assert!(parse_clusters("t\tc\tb\n", &keys).is_err());
-        assert!(parse_clusters("t\tb\tzz\n", &keys).unwrap_err().contains("zz"));
+    fn grouped_names_give_back_their_list_position_and_function() {
+        // LAYOUT-WINDOW-BINS slice 2 (no spec clause: build tooling, D-X.103): a list-position name and a
+        // window-bin member name give the list position and the function back, a filler's name gives the
+        // function but no position, and a bin name sorts after every list position below 90000.
         assert_eq!(position_of(".text.sorted.h00042.f"), Some(42));
-        // LAYOUT-TEXT-PIN-4: a cluster moved to the end keeps its position and sorts last.
-        assert_eq!(position_of(&cluster_section(3, 42, "f")), Some(42));
-        assert!(cluster_section(0, 1, "f").as_str() > ".text.sorted.h89999.f" && cluster_section(0, 1, "f") < cluster_section(1, 0, "f"));
-        assert_eq!(function_of(&cluster_section(3, 42, "f")), Some("f"));
-        assert_eq!(clusters_at_end("# x\n@place\tend\nt\tb\tc\n"), Ok(true));
-        assert_eq!(clusters_at_end("t\tb\tc\n"), Ok(false));
-        assert!(clusters_at_end("@place\tmiddle\n").is_err());
-        assert_eq!(parse_clusters("@place\tend\ntime\tb\tc\n", &keys).unwrap().len(), 1);
+        let (member, filler) = (crate::bins::section(3, false, 42, "f"), crate::bins::section(3, true, 7, "f"));
+        assert_eq!((member.as_str(), filler.as_str()), (".text.sorted.h903000042.f", ".text.sorted.h903100007.f"));
+        assert_eq!((position_of(&member), position_of(&filler)), (Some(42), None));
+        assert_eq!((function_of(&member), function_of(&filler)), (Some("f"), Some("f")));
+        // A place with no leading zero reads back whole: place 42 above would hide a cut digit, and a member
+        // read at the wrong position is placed at the wrong offset of its bin.
+        let wide = crate::bins::section(12, false, 12345, "g");
+        assert_eq!((wide.as_str(), position_of(&wide)), (".text.sorted.h912012345.g", Some(12345)));
+        assert!(crate::bins::section(0, false, 0, "f").as_str() > ".text.sorted.h89999.f");
         assert_eq!(position_of(".text.f"), None);
-        let mut secs = vec![(".text.sorted.h00002.y".into(), 3, 16), (".text.sorted.h00001.x".into(), 17, 16)];
-        assert_eq!(cluster_bytes(&mut secs), 35);
-        assert_eq!(secs[0].0, ".text.sorted.h00001.x");
-        assert_eq!(cluster_align(35, 16), 64);
-        assert_eq!(cluster_align(5, 16), 16);
-        assert_eq!(cluster_align(0x8001, 16), 0x10000);
-        assert_eq!(cluster_align(0x30000, 16), WINDOW);
         assert_eq!(elf_sections(b"not elf"), None);
         // The test binary itself: its section table reads back whole.
         let me = std::fs::read(std::env::current_exe().unwrap()).unwrap();
         let secs = elf_sections(&me).unwrap();
         assert!(secs.iter().any(|s| s.0 == ".text" && s.1 > 0), "{:?}", &secs[..secs.len().min(8)]);
-        for (start, size) in [(0x1234_u64, 0x7000_u64), (0x8000, 0x8000), (0xfff0, 0x10)] {
-            let a = cluster_align(size, 16);
-            let lo = start.next_multiple_of(a);
-            assert_eq!(lo / WINDOW, (lo + size - 1) / WINDOW);
-        }
-    }
-
-    #[test]
-    fn sections_keep_their_own_alignment_unless_they_head_a_cluster() {
-        // LAYOUT-TEXT-PIN-7 (no spec clause: layout of the products, D-X.63; the classed pages, D-4.53):
-        // a section that asks for a page itself (the classed memset pages) keeps it when it heads no
-        // cluster (it went to 64 bytes and the swap's mremap could not run); a head gets the
-        // cluster's alignment, and only a head whose alignment differs is changed.
-        let g = |n: &str, a: u64| ("a.o".to_string(), n.to_string(), 8192_u64, a);
-        let k = |n: &str| ("a.o".to_string(), n.to_string());
-        let grouped = vec![g(".text.sorted.h00115.classed", 4096), g(".text.sorted.h00002.head", 64), g(".text.sorted.h00003.big", 2048), g(".text.sorted.h00004.same", 16384)];
-        let heads = BTreeMap::from([(k(".text.sorted.h00002.head"), 32768), (k(".text.sorted.h00004.same"), 16384)]);
-        assert_eq!(head_alignments(&grouped, &heads), vec![("a.o".to_string(), ".text.sorted.h00002.head".to_string(), 32768)]);
-        assert!(head_alignments(&grouped, &BTreeMap::new()).is_empty(), "a section that heads no cluster keeps its own alignment");
     }
 
     #[test]
@@ -1420,7 +1217,7 @@ mod tests {
         assert!(retired_lists(&["x/hot-text.list.bak", "x/my-hot-text.list", "hot-text.first-window"]).is_empty());
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let tracked = crate::labnames::tracked_with(root, true).expect("git ls-files");
-        assert!(tracked.iter().any(|p| p.ends_with("hot-text.clusters")), "the tracked-file list misses known files");
+        assert!(tracked.iter().any(|p| p.ends_with("startup-state.list")), "the tracked-file list misses known files");
         assert_eq!(retired_lists(&tracked), Vec::<String>::new());
     }
 
@@ -1443,22 +1240,6 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         assert!(e.contains("crates/libc-so/hot-text.list: a committed start-up list"), "{e}");
     }
-    // LAYOUT-FIRST-WINDOW: first-window keys follow the start-up tier; a stale line fails. No spec clause.
-    #[test]
-    fn first_window_keys_follow_the_startup_tier() {
-        let e = parse_list("a\tstartup\tfast\nb\tstartup\tfast\nputs\tstdio\tfast\nfstat\tstdio\tfast\nc\textra\t-\n").unwrap();
-        let first = parse_first_window("# c\nfstat\tevery stdio program\n").unwrap();
-        let k = link_positions(&e, &first, &[]).unwrap();
-        assert_eq!([k["a"], k["b"], k["fstat"], k["puts"], k["c"]], [0, 1, 2, 3, 4]);
-        assert_eq!(link_positions(&e, &[], &[]).unwrap(), positions(&e));
-        assert!(link_positions(&e, &["b".into()], &[]).unwrap_err().contains("start-up tier"));
-        assert!(link_positions(&e, &["gone".into()], &[]).unwrap_err().contains("not in hot-text.list"));
-        let c = [Cluster { name: "s".into(), first: 2, last: 3 }];
-        assert!(link_positions(&e, &first, &c).unwrap_err().contains("inside cluster s"));
-        assert!(parse_first_window("fstat\n").is_err());
-        assert!(parse_first_window("f\tr\nf\tr\n").unwrap_err().contains("twice"));
-    }
-
     #[test]
     fn regen_runner_runs_traces_together_and_keeps_their_order() {
         // HOTLIST-REGEN-CHEAP (no spec clause: build tooling): tools/hottext/runner.sh, the trace

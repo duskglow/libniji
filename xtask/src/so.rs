@@ -1181,7 +1181,7 @@ fn finish_archive(root: &Path, archive: &Path, product: &Path, out: &Path, layou
         Layout::Traced => crate::hotlists::path("hot-text.list")?,
     };
     // The functions short programs run, grouped into `.text.hot.*` (PAGEFAULTS-2: fewer text faults).
-    let (hot, _) = crate::hottext::group(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), archive, &list, &root.join(crate::hotlists::TRACKED), &product.join("hot-work"), layout)?;
+    let (hot, _) = crate::hottext::group(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), archive, &list, &product.join("hot-work"), layout)?;
     println!("so: {hot} function sections grouped as hot text");
     // The read-only data start-up reads, after the grouping (it places STARTUP_NAMES), in one aligned section (D-X.62).
     let (ro, ro_bytes, relro, relro_bytes) = crate::startup_ro::place(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), archive, root, &product.join("startup-ro-work"))?;
@@ -1257,8 +1257,28 @@ fn build_crt1(root: &Path, cc: &str, dir: &Path) -> Result<Vec<String>, String> 
     let defines: Vec<String> = aligns.iter().map(|(d, a)| format!("-D{d}={a}")).collect();
     let crt1 = tmp_name(&dir.join("liella-crt1.o"));
     run(Command::new(cc).arg("-c").args(&defines).arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&crt1))?;
+    check_group_end(&crt1)?;
     publish(&crt1, &dir.join("liella-crt1.o"))?;
     Ok(defines)
+}
+
+/// LAYOUT-WINDOW-BINS-5: the start object ends the window bins with an empty section named
+/// [`crate::bins::GROUP_END`] aligned to [`crate::bins::BIN`] (`entry.S`), or the program's text after the
+/// group starts wherever the last bin ends.
+fn check_group_end(obj: &Path) -> Result<(), String> {
+    let out = Command::new("readelf").arg("-SW").arg(obj).output().map_err(|e| format!("readelf: {e}"))?;
+    group_end_align(&String::from_utf8_lossy(&out.stdout))
+        .filter(|&a| a == crate::bins::BIN)
+        .map(|_| ())
+        .ok_or_else(|| format!("{}: no {} section aligned to {:#x} (csys/src/machine/entry.S)", obj.display(), crate::bins::GROUP_END, crate::bins::BIN))
+}
+
+/// The alignment of the [`crate::bins::GROUP_END`] section in `readelf -SW` output (its last column).
+fn group_end_align(readelf: &str) -> Option<u64> {
+    readelf
+        .lines()
+        .find(|l| l.split_whitespace().any(|f| f == crate::bins::GROUP_END))
+        .and_then(|l| l.split_whitespace().last()?.parse().ok())
 }
 
 pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
@@ -2035,6 +2055,17 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_group_end_is_found_with_its_alignment() {
+        // LAYOUT-WINDOW-BINS-5 (no spec clause: build tooling): the start object's group-end section is
+        // read from readelf's last column; another section's alignment or a missing one is not taken.
+        let ok = "  [ 7] .data.rel.ro.local PROGBITS 0000000000000000 000040 000000 00  WA  0   0 65536\n  [ 8] .text.sorted.h9z.liella_group_end PROGBITS 0000000000000000 000040 000000 00  AX  0   0 65536\n";
+        assert_eq!(group_end_align(ok), Some(crate::bins::BIN));
+        let low = "  [ 8] .text.sorted.h9z.liella_group_end PROGBITS 0000000000000000 000040 000000 00  AX  0   0 1\n";
+        assert_eq!(group_end_align(low), Some(1));
+        assert_eq!(group_end_align("  [ 7] .data.rel.ro.local PROGBITS 0 40 0 00 WA 0 0 65536\n"), None);
+    }
 
     struct Dir(std::path::PathBuf);
     impl Drop for Dir {
