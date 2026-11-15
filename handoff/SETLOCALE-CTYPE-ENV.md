@@ -14,8 +14,8 @@ Ruling #5298 (coordinator): no EnvMemo for setlocale(cat, ""); the environment i
   `cargo xtask so && cargo test -p liella --test hot_text_products` and the same with `LIELLA_FULL_PROFILE=1`:
   26/26 passed in both profiles, including run 5's two reds (init_fork_child_stays_within_its_page_fault_bound,
   init_data_clusters_hold_at_every_text_phase). Nothing for this branch to remove; no bound moved.
-- Gate: `cargo xtask affected --run` (direct tier) job setlocale-ctype-env-6-gate; `cargo xtask test` job
-  setlocale-ctype-env-6-xtest (CI's products/layout-contract step). Results: see the report json.
+- Gate: `cargo xtask affected --run` (direct tier) job setlocale-ctype-env-6-gate rc 0; `cargo xtask test` job
+  setlocale-ctype-env-6-xtest rc 0 (6613 + 5230 passed; STARTUP-DATA-WINDOWS ok).
 - Plants (handoff/SETLOCALE-CTYPE-ENV-5-plants.txt re-run on the merged head, job setlocale-ctype-env-6-plants):
   2 CAUGHT (setlocale_env_is_read_on_every_call), 1 EQUIVALENT (formatter-inlined, layout only), no WARN.
 - Percall (job setlocale-ctype-env-6-percall, release, instr/call, base next 7288d847a -> head 010575ec4; glibc):
