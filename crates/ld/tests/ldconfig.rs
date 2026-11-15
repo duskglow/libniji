@@ -381,7 +381,7 @@ fn relative_include_under_a_root_is_refused() {
     assert!(m.get("/etc/ld.so.cache").is_none());
 }
 
-/// No spec clause (robustness, the brief's fuzz proof): 3000 seeded random configurations built from the syntax's
+/// no spec clause (robustness, the brief's fuzz proof): 3000 seeded random configurations built from the syntax's
 /// own pieces (includes of each other and of globs, comments, blanks, odd bytes) all end with status 0 or 1, never
 /// panic, and a second run on the result gives the same output. Seeded, so a failure reproduces exactly.
 #[test]
