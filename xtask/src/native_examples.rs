@@ -201,7 +201,7 @@ fn check_static(root: &Path, exe: &Path, dir: &Path) -> Result<(), String> {
 
 /// A copy of `libc_so` in `dir` whose `DT_SONAME` tag is retagged `DT_CHECKSUM`, so a program
 /// linked against it names it by path: Liella's `ld.so` has no library search yet (#4537).
-fn libc_by_path(libc_so: &Path, dir: &Path) -> Result<PathBuf, String> {
+pub(crate) fn libc_by_path(libc_so: &Path, dir: &Path) -> Result<PathBuf, String> {
     let mut so = fs::read(libc_so).map_err(|e| format!("{}: {e}", libc_so.display()))?;
     let word = |so: &[u8], at: usize, n: usize| so.get(at..at.saturating_add(n)).map_or(0, |b| b.iter().rev().fold(0usize, |v, &x| v.wrapping_shl(8) | usize::from(x)));
     let (phoff, phentsize, phnum) = (word(&so, 0x20, 8), word(&so, 0x36, 2), word(&so, 0x38, 2));

@@ -1532,9 +1532,10 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
 /// functions, linked dynamically against Liella's `libc.so.6`.
 /// * `target/liella/getent`: the shipped program (libc-bin's `/usr/bin/getent`), interpreter
 ///   `/lib64/ld-linux-x86-64.so.2`, no run path.
-/// * `target/liella-test/getent`: the same object linked with this tree's loader as interpreter and a run path to
-///   `target/liella`, so the transcripts (`cargo xtask transcript`) run it on Liella's library on a host whose
-///   system C library is another one. Kept out of `target/liella`: it names build paths.
+/// * `target/liella-test/getent`: the same object linked with this tree's loader as interpreter and against a
+///   by-path copy of `libc.so.6` (`native_examples::libc_by_path`, as D-27.24's dynamic example), so the
+///   transcripts (`cargo xtask transcript`) run it on Liella's library on a host whose system C library is
+///   another one. Kept out of `target/liella`: it names build paths.
 pub(crate) const GETENT_TEST: &str = "target/liella-test/getent";
 
 fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
@@ -1546,28 +1547,27 @@ fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
         .arg(root.join("csys/utils/getent.c"))
         .arg("-o")
         .arg(&obj))?;
-    let link = |out: &Path, interp: &Path, runpath: Option<&Path>| -> Result<(), String> {
+    let link = |out: &Path, interp: &Path, libc: &Path| -> Result<(), String> {
         let mut c = Command::new(cc);
         c.args(["-pie", "-nostdlib", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,--as-needed"])
             .arg(format!("-Wl,--dynamic-linker={}", interp.display()))
             .arg(release.join("liella-crt1.o"))
             .arg(release.join("liella-crti.o"))
             .arg(&obj)
-            .arg(release.join("libc.so.6"))
+            .arg(libc)
             .arg(release.join("libc_nonshared.a"))
             .arg("-lgcc")
             .arg(release.join("liella-crtn.o"));
-        if let Some(r) = runpath {
-            c.arg(format!("-Wl,-rpath,{}", r.display())).arg("-Wl,--enable-new-dtags");
-        }
         let staged = tmp_name(out);
         run(c.arg("-o").arg(&staged))?;
         publish(&staged, out)
     };
-    link(&release.join("getent"), Path::new("/lib64/ld-linux-x86-64.so.2"), None)?;
+    link(&release.join("getent"), Path::new("/lib64/ld-linux-x86-64.so.2"), &release.join("libc.so.6"))?;
     let test = root.join(GETENT_TEST);
-    fs::create_dir_all(test.parent().unwrap_or(root)).map_err(|e| format!("{}: {e}", test.display()))?;
-    link(&test, &release.join("ld-linux-x86-64.so.2"), Some(&release))?;
+    let dir = test.parent().unwrap_or(root);
+    fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let by_path = crate::native_examples::libc_by_path(&release.join("libc.so.6"), dir)?;
+    link(&test, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
     println!("so: target/liella/getent (dynamic, libc.so.6), {GETENT_TEST} (this tree's loader and library)");
     Ok(())
 }
