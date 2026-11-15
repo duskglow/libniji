@@ -1,9 +1,11 @@
 # validation/smoke/programs.sh: the programs smoke.sh builds, sourced by it. For each program NAME:
-#   NAME_src       the Debian source package (fetched from the trixie suite on deb.debian.org)
+#   NAME_src       the Debian source package (fetched from the trixie suite of smoke.sh's mirror), or
+#                  local:DIR for a program whose sources are validation/smoke/DIR
 #   NAME_kind      how its test result is read: automake (test-suite.log files), rc (one suite, its status),
 #                  gawk ("N TESTS FAILED" / "ALL TESTS PASSED"), make ("N Tests in M Categories Failed"),
 #                  bash (run-* sections compared with the reference build's), perl (t/TEST summary),
-#                  python (regrtest summary)
+#                  python (regrtest summary), same (exit 0 and the whole output equal to the reference
+#                  build's)
 #   NAME_build     configure and build in the current directory (a fresh copy of the source); CC and CXX are set
 #   NAME_test      run the program's own test suite there
 #   NAME_skip      (optional) why its test suite does not run here
@@ -81,7 +83,8 @@ make_src=make-dfsg
 make_kind=make
 make_build() {
     [ -f doc/Makefile.in ] || { mkdir -p doc && printf 'all check install clean distclean:\n' > doc/Makefile.in; }
-    ./configure --disable-nls --without-guile && make -j"$J" make
+    # lib/ (gnulib's libgnu.a) first: the `make` target alone does not build it (first run, F11).
+    ./configure --disable-nls --without-guile && make -j"$J" -C lib && make -j"$J" make
 }
 # The regression suite alone (`check` also wants the manual page, which the dfsg source does not have).
 make_test() { make check-local; }
@@ -103,8 +106,15 @@ perl_build() {
 perl_test() { make minitest-notty; }
 
 # python3.13: every extension module built in (MODULE_BUILDTYPE=static) and the dynamic loader disabled
-# (ac_cv_func_dlopen=no): the import of extension modules needs dlsym (DL-16b). Modules whose libraries the
-# host has no headers for (zlib, ssl, ctypes, ...) are not built on either side. The test run is a sample.
+# (ac_cv_func_dlopen=no): the import of extension modules needs dlsym (DL-16b). The modules that need a
+# library other than the C library are not built on either side, whatever the host has installed
+# (python3_nohostlibs): such a library is the host's shared object, built against the host's C library, and
+# a build host with libffi-dev made _ctypes the one link of the Liella build that pulled in the host's
+# libc.so.6 (2026-11-14). The test run is a sample.
+python3_nohostlibs="py_cv_module__bz2=n/a py_cv_module__ctypes=n/a py_cv_module__curses=n/a
+ py_cv_module__curses_panel=n/a py_cv_module__dbm=n/a py_cv_module__gdbm=n/a py_cv_module__hashlib=n/a
+ py_cv_module__lzma=n/a py_cv_module__sqlite3=n/a py_cv_module__ssl=n/a py_cv_module__tkinter=n/a
+ py_cv_module__uuid=n/a py_cv_module_readline=n/a py_cv_module_zlib=n/a"
 python3_src=python3.13
 python3_kind=python
 python3_tests="test_os test_posix test_re test_math test_float test_long test_struct test_string test_str
@@ -112,8 +122,9 @@ python3_tests="test_os test_posix test_re test_math test_float test_long test_st
  test_select test_fcntl test_socket test_tempfile test_shutil test_glob test_fnmatch test_pwd test_grp
  test_resource test_mmap test_errno test_sys test_unicodedata test_codecs test_format test_builtin test_dict"
 python3_build() {
-    MODULE_BUILDTYPE=static ac_cv_func_dlopen=no ac_cv_lib_dl_dlopen=no ./configure --without-ensurepip \
-        --disable-test-modules && make -j"$J"
+    # shellcheck disable=SC2086
+    env $python3_nohostlibs MODULE_BUILDTYPE=static ac_cv_func_dlopen=no ac_cv_lib_dl_dlopen=no ./configure \
+        --without-ensurepip --disable-test-modules && make -j"$J"
 }
 python3_test() {
     # shellcheck disable=SC2086
@@ -130,3 +141,71 @@ cppunit_build() {
     ./configure --disable-shared --disable-doxygen --disable-html-docs && make -j"$J" -C src/cppunit
 }
 cppunit_test() { make -k -j"$J" -C examples check; }
+
+# The programs below use the loader's dlsym and dlclose (DL-16, DL-17), which the first run (2026-11-13) did
+# not have. The recipes above stay as they were, so the two runs compare program by program.
+
+# gawk with its extensions (filefuncs, readdir, rwarray, ...: shared objects gawk loads with dlopen and binds
+# with dlsym); its test suite then runs the extension tests too. The extensions are built by the libtool the
+# source package ships.
+gawk_ext_src=gawk
+gawk_ext_kind=gawk
+# extension/ is made by its own make call: a SUBDIRS given on the command line reaches every sub-make, and
+# extension/'s Makefile would then look for support/ inside extension/. Its own SUBDIRS (po) is left out.
+gawk_ext_build() {
+    ./configure --disable-nls --without-readline --without-mpfr && make -j"$J" SUBDIRS="support ." &&
+        make -j"$J" -C extension SUBDIRS=
+}
+# The extension tests run from test/ (AWKLIBPATH=../extension/.libs); extension/ is not named, as above.
+gawk_ext_test() { make check SUBDIRS="support . test"; }
+
+# python3.13 with shared extension modules (Debian's default; the first run built them in): every import of
+# an extension module is a dlopen and a dlsym of its PyInit_ function. The same test sample as python3.
+python3_shared_src=python3.13
+python3_shared_kind=python
+python3_shared_tests=$python3_tests
+python3_shared_build() {
+    # shellcheck disable=SC2086
+    env $python3_nohostlibs ./configure --without-ensurepip --disable-test-modules && make -j"$J"
+}
+python3_shared_test() { python3_test; }
+
+# lua_reload: the Lua library from Debian's lua5.4 source (compiled directly: Debian's build wants libtool,
+# which the build hosts do not have) and the program dlclose/lua_reload.c, which loads the C module
+# dlclose/reloadmod.c in a fresh Lua state, calls it and closes the state (Lua unloads it with dlclose), 50
+# times. Lua's own interpreter is built too and runs one line. The output must be the reference build's.
+lua_reload_src=lua5.4
+lua_reload_kind=same
+lua_reload_build() {
+    # Debian's luaconf.h includes the multiarch header its build writes (debian/rules); the same content here.
+    printf '#ifndef _LUA_DEB_MULTIARCH_\n#define _LUA_DEB_MULTIARCH_\n#define DEB_HOST_MULTIARCH "%s"\n#endif\n' \
+        "$(gcc -dumpmachine)" > src/lua5.4-deb-multiarch.h || return 1
+    (cd src && for f in *.c; do
+        case $f in lua.c | luac.c) continue ;; esac
+        $CC -O2 -DLUA_USE_LINUX -c "$f" || exit 1
+    done && ar rcs liblua.a ./*.o && $CC -O2 -DLUA_USE_LINUX -o lua lua.c liblua.a -Wl,-E -lm -ldl) &&
+        $CC -O2 -Isrc -o lua_reload "$SMOKE_HERE/dlclose/lua_reload.c" src/liblua.a -Wl,-E -lm -ldl &&
+        $CC -O2 -fPIC -shared -Isrc -o reloadmod.so "$SMOKE_HERE/dlclose/reloadmod.c"
+}
+lua_reload_test() {
+    src/lua -e 'print(string.format("%5.2f %s %s", math.pi, os.date("!%Y-%m-%d", 86400), ("x"):rep(3, ",")))' &&
+        ./lua_reload "$PWD"
+}
+
+# cxx_dlclose: the C++ program dlclose/cxx_host.cc and its plug-ins (this directory's sources; no Debian
+# package): load, call and dlclose a plug-in three times (destructors, function-local statics and atexit
+# handlers of the plug-in run at dlclose; exceptions inside the plug-in and in the program after the unload),
+# then a plug-in with a thread_local object closed while that object is alive. The output must be the
+# reference build's.
+cxx_dlclose_src=local:dlclose
+cxx_dlclose_kind=same
+# The plug-ins must define no STB_GNU_UNIQUE symbol (such an object may stay loaded after dlclose, and only
+# the Liella build, which links libstdc++ statically, would have them): the build fails if one does.
+cxx_dlclose_build() {
+    $CXX -O2 -fPIC -shared -o libplug.so plug.cc && $CXX -O2 -fPIC -shared -o libplug_tl.so plug_tl.cc &&
+        $CXX -O2 -pthread -o cxx_host cxx_host.cc -ldl || return 1
+    for f in libplug.so libplug_tl.so; do
+        if readelf -W --dyn-syms "$f" | grep -q ' UNIQUE '; then echo "cxx_dlclose: $f defines STB_GNU_UNIQUE symbols"; return 1; fi
+    done
+}
+cxx_dlclose_test() { ./cxx_host "$PWD"; }
