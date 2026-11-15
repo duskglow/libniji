@@ -243,6 +243,11 @@ NESTED_RE = re.compile(r"\.(tar\.gz|tgz|tar\.bz2|tbz2?|tar\.xz|txz|tar\.zst)$")
 CLIB_NESTED_RE = re.compile(r"^(e?glibc|musl|dietlibc|klibc|newlib|picolibc|uclibc(-ng)?|avr-libc|bionic)[-_.]")
 
 
+def san(s):
+    """Archive paths in logs: keep a member named like a home directory from reading as a private path."""
+    return s.replace("/home/", "/<home>/")
+
+
 def skip_prefix(comps):
     for i, c in enumerate(comps):
         if c in SKIP_COMPONENTS:
@@ -557,7 +562,7 @@ def cmd_report(a):
     sk = []
     for n in sorted(done):
         if done[n]["status"] == "scanned" and n in grp["all"]:
-            sk += ["%s %s" % (n, s) for s in done[n]["skips"]]
+            sk += ["%s %s" % (n, san(s)) for s in done[n]["skips"]]
     L += ["%d skipped directories across the sets." % len(sk), ""] + ["* `%s`" % s for s in sk]
     big = sum(done[n]["big_skipped"] for n in grp["all"] if n in done and done[n]["status"] == "scanned")
     L += ["", "Code-extension members over 48 MiB not scanned: %d." % big, "",
@@ -604,7 +609,7 @@ def report_b(a, done, pk, excl):
     with open(os.path.join(a.out_dir, "headers-rh7-%s-skips.txt" % a.date), "w") as f:
         for n in scanned:
             for s in done[n]["skips"]:
-                f.write("%s\t%s\n" % (n, s))
+                f.write("%s\t%s\n" % (n, san(s)))
 
 
 def main():
