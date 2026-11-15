@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 /// The generator text Liella's caches carry (tag 0, spec Appendix D.3.1).
-pub(crate) const GENERATOR: &[u8] = b"ldconfig (Liella) 2.39";
+pub(crate) const GENERATOR: &[u8] = ldconfig::GENERATOR;
 
 /// Symlinks followed on one path before `ELOOP` (the kernel's limit).
 const LINKS_MAX: u32 = 40;

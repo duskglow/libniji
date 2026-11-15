@@ -32,6 +32,9 @@ portable-scan = []
 # The ld.so product (`crates/ld-so`, phase 14 DL-5): its start (`ld`), the self-relocator and the
 # loader's arch seam (`arch/`). Never with `runtime`/`export` in a product.
 ld = []
+# The ldconfig product (`crates/ldconfig-bin`, UTIL-3, D-31.2): a freestanding static program that
+# starts as ld.so does (`ld`'s self-relocator and memory symbols), with its own entry and arena.
+ldconfig = ["ld"]
 
 [dependencies]
 liella-kernel = { workspace = true }

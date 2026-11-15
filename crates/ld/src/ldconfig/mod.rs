@@ -32,6 +32,7 @@
 
 pub mod conf;
 pub mod scan;
+pub mod sysfs;
 
 use alloc::vec::Vec;
 
@@ -162,6 +163,8 @@ pub trait Fs {
 pub const CONF: &[u8] = b"/etc/ld.so.conf";
 /// The default cache.
 pub const CACHE: &[u8] = b"/etc/ld.so.cache";
+/// The generator text Liella's caches carry (tag 0, spec Appendix D.3.1; D-31.4).
+pub const GENERATOR: &[u8] = b"ldconfig (Liella) 2.39";
 
 /// What the command line asks for.
 #[derive(Debug, Default)]

@@ -99,6 +99,8 @@ mod bootstrap;
 mod arch;
 #[cfg(feature = "ld")]
 pub mod ld;
+#[cfg(feature = "ldconfig")]
+pub mod ldconfig;
 pub mod dlerr;
 pub mod export;
 pub mod data;

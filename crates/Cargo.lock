@@ -52,6 +52,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "liella-ldconfig-bin"
+version = "0.0.0"
+dependencies = [
+ "liella-boundary",
+]
+
+[[package]]
 name = "liella-legacy"
 version = "0.0.0"
 dependencies = [
