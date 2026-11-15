@@ -886,6 +886,8 @@ fn bin_ranges(map: &str) -> Vec<(usize, u64, u64)> {
             e.1 = e.1.max(a + s);
         }
     }
+    let missing: Vec<&usize> = counted.iter().filter(|b| !out.contains_key(b)).collect();
+    assert!(missing.is_empty(), "counted window bins {missing:?} of layout-bins.tsv have no section in the probe's link (the plan's names not applied?)");
     out.into_iter().map(|(b, (lo, hi))| (b, lo, hi)).collect()
 }
 
