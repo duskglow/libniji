@@ -21,9 +21,13 @@ Role mei:~/w/s2 (Skylake-SP). Decision pending: records/pending/SL-CRT-1.toml (D
   - Plants file handoff/SL-CRT-plants.txt: 6 plants (5 from SL-CRT + `gmon-pie-no-bias`).
 * crt_products (4 tests) and gmon_products pass; clippy and static clean (job sl-crt-2-t1).
 
-## Jobs on the final head (mei)
-sl-crt-2-gate (direct tier), sl-crt-2-xtest (`cargo xtask test`), sl-crt-2-hotprof (FULL_PROFILE so +
-hot_text_products), sl-crt-2-plants. Results: handoff/reports/SL-CRT-2.json.
+  - The first gate (sl-crt-2-gate, head 0702ed168) went red on `s28_1_c_1`: it asserted run-time pcs from its PIE
+    test program (the old gap). 5d13765a6: the child prints its load bias from /proc/self/maps, the parent subtracts it.
+
+## Jobs on the final head 5d13765a6 (mei)
+sl-crt-2-gate2 (direct tier: 32 suites, 11820 passed, 0 failed; conformance 137/137; peak 15G), sl-crt-2-plants2
+(6 CAUGHT), sl-crt-2-xtest2 (`cargo xtask test`), sl-crt-2-hotprof2 (FULL_PROFILE so + hot_text_products).
+Superseded: sl-crt-2-gate (red, see above), sl-crt-2-plants (older head), sl-crt-2-xtest (stopped, older head).
 
 ## Not done / for other stories
 * Dynamic runs in the test link libc/libm by path (SONAME tag renamed): Liella's loader does not search sonames at

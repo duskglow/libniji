@@ -1,0 +1,22 @@
+{"task": "SL-CRT-2", "model": "opus", "tokens": null,
+ "result": "SL-CRT finished: crti/crtn/grcrt1/Mcrt1 products checked; plain gcc -pg PIE (dynamic and static-pie) profiles correctly now that gmon.out holds link-time pcs",
+ "branch": "task/sl-crt-2", "head": "5d13765a6",
+ "gate": {"affected": "32 suites: 11820 passed / 0 failed (1397 ignored), conformance 137 passed / 0 failed", "peak": "15G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "The inherited head's `cargo xtask static` was red on records/pending/SL-CRT-1.toml (tests not a list, multi-line body); fixed.",
+   "gmon.out pcs for a PIE: probe of the reference (gmon_pg.c, -pg -fPIE, dynamic and -static-pie) shows histogram low pc 0 = __executable_start's link-time address; Liella now subtracts the executable's load bias (0 for non-PIE).",
+   "The first gate (sl-crt-2-gate) found s28_1_c_1 asserting run-time pcs (the old gap); the test now subtracts its own load bias read from /proc/self/maps.",
+   "Commit 0702ed168's message says 'Zen 1 build host'; the host is Skylake-SP (cannot amend a pushed commit)."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "gprof on a gcc -pg PIE program (dynamic gcrt1.o or -static-pie grcrt1.o) linked against Liella: gmon.out pcs were run-time addresses, gprof found no function; now link-time pcs as the reference writes", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "plants on the crt objects and the PIE gmon bias, all CAUGHT", "before": 0, "after": 6, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "plain gcc/g++/gcc -pg against a Liella sysroot (plan/system-libc.md section 6 item 4); SL-FLAVOUR can drop -nostartfiles from liella-gcc", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "A gate failure in a neighbouring suite (s28_1_c_1) cost a 27-minute gate cycle: `cargo xtask affected --list` before the first gate would have shown the profiling clause tests reached by s28_profiling.rs; run their suite in the first targeted job.",
+ "next_step": "none for SL-CRT; when DL-8 lands drop by_path from crt_products.rs; SL-FLAVOUR may switch liella-gcc to the plain driver",
+ "report_file": "handoff/SL-CRT.md",
+ "jobs": ["sl-crt-2-gate2", "sl-crt-2-plants2", "sl-crt-2-xtest2", "sl-crt-2-hotprof2"]}
