@@ -14,11 +14,12 @@ Liella is public as a work in progress. It is not an alpha or a release candidat
 here should be used in production. In particular:
 
 * **The dynamic loader is complete enough to run real programs, but not every program.** `ld-linux` loads shared
-  objects and provides `dlopen`, `dlsym` and `dlclose`; some features (`dlmopen`, lazy binding, `LD_PRELOAD`) are not
-  provided yet. Running unmodified glibc-linked binaries that need compatibility-only symbol versions (phase 15) is
+  objects, honours `LD_PRELOAD` and provides `dlopen`, `dlsym` and `dlclose`; some features (`dlmopen`, lazy
+  binding, `LD_AUDIT`) are not provided yet. Running unmodified glibc-linked binaries that need compatibility-only symbol versions (phase 15) is
   not supported yet and has not been demonstrated.
 * **Liella as the system C library is experimental.** The system packages (`libc6`, `libc-bin`, `libc6-dev` and
-  friends) replace glibc's, for building a system on Liella; it has no C headers of its own yet. The packages that
+  friends) replace glibc's, for building a system on Liella; it has no C headers of its own yet (they are being
+  built: [plan/headers.md](plan/headers.md)). The packages that
   sit beside glibc (`liella6`, `liella6-dev`) leave glibc untouched. See
   [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) and [docs/install-packages.md](docs/install-packages.md).
 * **It has not had a security audit.** That is planned after phase 15.
@@ -36,7 +37,7 @@ form `liella-historic:<path>` point into it.
 | Area | State | Where it is recorded |
 |---|---|---|
 | Phases 1 to 13 (kernel boundary through remaining services: strings, locale, math, stdio, file system, sockets, name services, processes, signals, threads, time, IPC, ...) | Implemented on `main` and covered by the test gate; see [docs/spec-symbol-gaps.md](docs/spec-symbol-gaps.md) (`cargo xtask symcov`) for every name not yet defined. Every change lands on `main` only after the full test gate (unit and integration tests, conformance programs, static checks and an instruction-count check) passes in CI. | [plan/06-phases](plan/06-phases/00-overview.md), [docs/spec-symbol-gaps.md](docs/spec-symbol-gaps.md) |
-| Phase 14, the dynamic loader (`ld-linux`, `dlopen`, TLS descriptors, IFUNC, ...) | **Complete enough to run real programs.** `ld-linux-x86-64.so.2` loads shared objects, finds them by name at start-up, starts `libc.so.6`, runs constructors and destructors, creates threads with thread-local storage, and provides `dlopen`, `dlsym`, `dlvsym`, `dlclose`, `dladdr`, `dladdr1` and `dlinfo`. Not provided yet: `dlmopen`, lazy binding, `LD_PRELOAD`, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process. | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md), [docs/toolchain.md section 8](docs/toolchain.md), [plan phase 14](plan/06-phases/17-phase-14-dynamic-linking.md) |
+| Phase 14, the dynamic loader (`ld-linux`, `dlopen`, TLS descriptors, IFUNC, ...) | **Complete enough to run real programs.** `ld-linux-x86-64.so.2` loads shared objects, finds them by name at start-up, starts `libc.so.6`, runs constructors and destructors, creates threads with thread-local storage, and provides `dlopen`, `dlsym`, `dlvsym`, `dlclose`, `dladdr`, `dladdr1` and `dlinfo`. `LD_PRELOAD` is honoured. Not provided yet: `dlmopen`, lazy binding, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process. | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md), [docs/toolchain.md section 8](docs/toolchain.md), [plan phase 14](plan/06-phases/17-phase-14-dynamic-linking.md) |
 | Phase 15, legacy tier and binary-compatibility acceptance | **Not done.** Running unmodified glibc-linked binaries is the project's aim and has not been demonstrated. | [plan phase 15](plan/06-phases/18-phase-15-legacy-tier-and.md) |
 | Security pass | Planned after phase 15. The library has not had a security audit. | [plan](plan/06-phases/19-security-pass-after-phase-15.md) |
 | Rust `std` programs | Not supported yet; Rust programs are `#![no_std]`. | [docs/toolchain.md section 8](docs/toolchain.md) |
@@ -63,6 +64,8 @@ implemented).
 * `crates/`: the Rust library. Every crate is `#![forbid(unsafe_code)]` except `liella-boundary`,
   which permits `unsafe` only in documented, audited categories (`cargo xtask unsafe-audit`).
 * `crates/boundary/src/posix`: the translation layer between C conventions and the Rust library.
+* `crates/ld`: the dynamic loader (`ld-linux-x86-64.so.2`) and the `ldconfig` engine; `csys/util/`
+  and `crates/ldconfig-bin`: the C library utilities shipped so far (`getconf`, `ldconfig`).
 * `implementation-plan.md` and `plan/`: architecture, phases and the decision register.
 
 ## Quick start
@@ -71,7 +74,7 @@ Linux x86-64 (or WSL), Rust stable, `cc` and `ar`. From the repository root:
 
 ```bash
 cargo xtask stubs             # regenerate the test stubs from the spec
-cargo xtask so                # build libc.a, libc.so.6 and liella-crt1.o into target/liella/
+cargo xtask so                # build libc.a, libc.so.6, ld.so, the start files and utilities into target/liella/
 cargo xtask test              # the full test gate (long; see docs/toolchain.md)
 cargo xtask affected --list   # the tests a change can reach (direct tier by default)
 cargo xtask affected --run    # run them (one of --list and --run is required)
