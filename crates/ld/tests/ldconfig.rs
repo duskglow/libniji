@@ -240,6 +240,34 @@ fn elf_image(soname: Option<&[u8]>) -> Vec<u8> {
     b
 }
 
+/// A minimal ELF-32 little-endian shared object of `machine` (3 = i386, 62 = x32): gABI ELF-32 layout (52-byte
+/// header, 32-byte program headers with `p_flags` after `p_memsz`, 8-byte dynamic entries).
+fn elf32_image(soname: &[u8], machine: u16) -> Vec<u8> {
+    let (dynoff, strtab) = (52 + 64, 52 + 64 + 4 * 8);
+    let mut strings = vec![0u8];
+    strings.extend_from_slice(soname);
+    strings.push(0);
+    let total = (strtab + strings.len()) as u32;
+    let mut b = b"\x7fELF\x01\x01\x01\0\0\0\0\0\0\0\0\0".to_vec();
+    for v in [3u16, machine] {
+        b.extend_from_slice(&v.to_le_bytes());
+    }
+    for v in [1u32, 0, 52, 0, 0] {
+        b.extend_from_slice(&v.to_le_bytes());
+    }
+    for v in [52u16, 32, 2, 40, 0, 0] {
+        b.extend_from_slice(&v.to_le_bytes());
+    }
+    for v in [1u32, 0, 0, 0, total, total, 4, 0x1000, 2, dynoff as u32, dynoff as u32, dynoff as u32, 32, 32, 6, 4] {
+        b.extend_from_slice(&v.to_le_bytes());
+    }
+    for v in [14u32, 1, 5, strtab as u32, 10, strings.len() as u32, 0, 0] {
+        b.extend_from_slice(&v.to_le_bytes());
+    }
+    b.extend_from_slice(&strings);
+    b
+}
+
 fn ldconfig(fs: &mut Mem, args: &[&str]) -> Outcome {
     let a: Vec<&[u8]> = args.iter().map(|s| s.as_bytes()).collect();
     run::<X86_64, _>(b"ldconfig", &a, fs, b"test")
@@ -370,6 +398,43 @@ fn listing_order_changes_nothing() {
     assert_eq!((text(&oa.out), text(&oa.err), oa.status), (text(&ob.out), text(&ob.err), ob.status));
     assert_eq!(a.get("/etc/ld.so.cache"), b.get("/etc/ld.so.cache"));
     assert!(a.get("/etc/ld.so.cache").is_some());
+}
+
+/// s31_2_c_1, s31_2_g_4 (probe: validation/transcripts/ldconfig/foreign-class.transcript): i386 and x32 objects are
+/// linked and recorded with their own type's flags. Same soname, different types in one directory (the reference's
+/// warning and flags there follow its directory order; pending record UTIL-LDCONFIG-5-1): the highest version wins
+/// the link and the entry carries the winner's type, and the other-type file is reported, in either listing order.
+#[test]
+fn foreign_class_objects_are_recorded_with_their_type() {
+    let mut a = base();
+    a.file("/etc/ld.so.conf", b"/opt/i\n/opt/x\n/opt/m\n/opt/k\n");
+    a.file("/opt/i/libi.so.2.0", &elf32_image(b"libi.so.2", 3)).file("/opt/x/libx.so.3.0", &elf32_image(b"libx.so.3", 62));
+    a.elf("/opt/m/libmix.so.1.0", Some("libmix.so.1")).file("/opt/m/libmix.so.1.5", &elf32_image(b"libmix.so.1", 3));
+    a.elf("/opt/k/libmox.so.1.5", Some("libmox.so.1")).file("/opt/k/libmox.so.1.0", &elf32_image(b"libmox.so.1", 3));
+    let mut b = a.clone();
+    b.reverse = true;
+    for m in [&mut a, &mut b] {
+        let o = ldconfig(m, &["-v"]);
+        assert_eq!(o.status, 0, "{}", text(&o.err));
+        assert_eq!(m.get("/opt/i/libi.so.2"), Some(&Node::Link(b"libi.so.2.0".to_vec())));
+        assert_eq!(m.get("/opt/x/libx.so.3"), Some(&Node::Link(b"libx.so.3.0".to_vec())));
+        assert_eq!(m.get("/opt/m/libmix.so.1"), Some(&Node::Link(b"libmix.so.1.5".to_vec())));
+        assert_eq!(m.get("/opt/k/libmox.so.1"), Some(&Node::Link(b"libmox.so.1.5".to_vec())));
+        assert_eq!(
+            text(&o.err),
+            "ldconfig: libraries libmix.so.1.0 and libmix.so.1.5 in directory /opt/m have same soname but different type.\n\
+             ldconfig: libraries libmox.so.1.0 and libmox.so.1.5 in directory /opt/k have same soname but different type.\n"
+        );
+        let p = text(&ldconfig(m, &["-p"]).out);
+        for line in [
+            "\tlibi.so.2 (libc6) => /opt/i/libi.so.2\n",
+            "\tlibx.so.3 (libc6,x32) => /opt/x/libx.so.3\n",
+            "\tlibmix.so.1 (libc6) => /opt/m/libmix.so.1\n",
+            "\tlibmox.so.1 (libc6,x86-64) => /opt/k/libmox.so.1\n",
+        ] {
+            assert!(p.contains(line), "{line:?} not in {p}");
+        }
+    }
 }
 
 /// s31_2_i_4: under `-r` a relative include is refused, exit 1, nothing written.

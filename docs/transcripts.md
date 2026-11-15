@@ -44,7 +44,7 @@ without a newline; no lines means empty.
 | `bind: <path in root> <absolute path>` | bind-mount a file or directory of the private root over a system path (needs a namespace) |
 | `dir: <path>`, `file: <path>` + block, `link: <path> -> <target>` | create an item in the private root before the run |
 | `cache: <path>`, `generator: <text>`, `entry: 0x<flags> <key> <path> [hwcaps=<name>]` | a loader cache written by Liella's writer (`liella_ld::cache::write`, D-27.43), entries in configuration order |
-| `elf: <path> [soname=<name>] [cut=<n>]` | a minimal x86-64 ELF64 shared object (`ET_DYN`, a `PT_DYNAMIC` with `DT_STRTAB`, `DT_STRSZ` and, with `soname=`, `DT_SONAME`) made by the harness, no compiler needed; `cut=<n>` keeps only its first `<n>` bytes (a truncated file) |
+| `elf: <path> [soname=<name>] [cut=<n>] [class=x86-64\|i386\|x32]` | a minimal shared object (`ET_DYN`, a `PT_DYNAMIC` with `DT_STRTAB`, `DT_STRSZ` and, with `soname=`, `DT_SONAME`) made by the harness, no compiler needed: x86-64 ELF64 by default, `class=i386` an ELF32 `EM_386` one and `class=x32` an ELF32 `EM_X86_64` one; `cut=<n>` keeps only its first `<n>` bytes (a truncated file) |
 | `as-cache: <path>` | a written file at `<path>` is compared as a loader cache's entry list (one `0x<flags> <key> <path> [hwcaps=<name>]` line per entry, in file order, read by Liella's reader), so the generator text and the byte layout are not compared |
 | `normalise: <literal> => <replacement>` | one more literal replacement in both outcomes (say why in a comment) |
 

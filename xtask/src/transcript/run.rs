@@ -12,7 +12,7 @@
 //! 4. Normalisation, the only one by default: the private root's path becomes `@ROOT@` in both streams, in written
 //!    files and in link targets. Each `normalise:` line of the transcript then replaces one more literal.
 
-use super::format::{Namespace, Outcome, ROOT_TOKEN, Setup, Status, Transcript, Written};
+use super::format::{ElfKind, Namespace, Outcome, ROOT_TOKEN, Setup, Status, Transcript, Written};
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
 use std::io::Write;
@@ -173,8 +173,12 @@ fn setup(t: &Transcript, root: &Path) -> Result<(), String> {
                 let path = at(p)?;
                 std::fs::write(&path, &buf).map_err(|e| format!("{}: {e}", path.display()))?;
             }
-            Setup::Elf(p, soname, cut) => {
-                let mut image = elf_image(soname.as_deref());
+            Setup::Elf(p, soname, cut, kind) => {
+                let mut image = match kind {
+                    ElfKind::X86_64 => elf_image(soname.as_deref()),
+                    ElfKind::I386 => elf32_image(soname.as_deref(), 3),
+                    ElfKind::X32 => elf32_image(soname.as_deref(), 62),
+                };
                 if let Some(n) = cut {
                     image.truncate(*n);
                 }
@@ -234,6 +238,53 @@ pub(crate) fn elf_image(soname: Option<&[u8]>) -> Vec<u8> {
     for (tag, val) in [(5u64, strtab as u64), (10, strings.len() as u64), (0, 0)] {
         h64(&mut b, tag);
         h64(&mut b, val);
+    }
+    b.extend_from_slice(&strings);
+    b
+}
+
+/// A minimal ELF32 little-endian shared object of machine `machine` (3 = EM_386 for i386, 62 = EM_X86_64 for x32):
+/// the ELF-32 header, PT_LOAD over the whole file and PT_DYNAMIC, a dynamic section with DT_STRTAB, DT_STRSZ and
+/// (with `soname`) DT_SONAME, then the string table (System V gABI, ELF-32 layout: a 52-byte header, 32-byte program
+/// headers with `p_flags` after `p_memsz`, 8-byte dynamic entries). Virtual addresses equal file offsets.
+pub(crate) fn elf32_image(soname: Option<&[u8]>, machine: u16) -> Vec<u8> {
+    const PH: usize = 52;
+    const DYN: usize = PH + 2 * 32;
+    let ndyn = if soname.is_some() { 4 } else { 3 };
+    let strtab = DYN + ndyn * 8;
+    let mut strings = vec![0u8];
+    if let Some(s) = soname {
+        strings.extend_from_slice(s);
+        strings.push(0);
+    }
+    let total = (strtab + strings.len()) as u32;
+    let mut b = Vec::with_capacity(total as usize);
+    b.extend_from_slice(b"\x7fELF\x01\x01\x01\x00");
+    b.resize(16, 0);
+    let h16 = |b: &mut Vec<u8>, v: u16| b.extend_from_slice(&v.to_le_bytes());
+    let h32 = |b: &mut Vec<u8>, v: u32| b.extend_from_slice(&v.to_le_bytes());
+    h16(&mut b, 3); // ET_DYN
+    h16(&mut b, machine);
+    h32(&mut b, 1);
+    h32(&mut b, 0); // e_entry
+    h32(&mut b, PH as u32);
+    h32(&mut b, 0); // e_shoff
+    h32(&mut b, 0);
+    for v in [52u16, 32, 2, 40, 0, 0] {
+        h16(&mut b, v);
+    }
+    for (ty, flags, off, size, align) in [(1u32, 4u32, 0u32, total, 0x1000u32), (2, 6, DYN as u32, (ndyn * 8) as u32, 4)] {
+        for v in [ty, off, off, off, size, size, flags, align] {
+            h32(&mut b, v);
+        }
+    }
+    if soname.is_some() {
+        h32(&mut b, 14); // DT_SONAME
+        h32(&mut b, 1);
+    }
+    for (tag, val) in [(5u32, strtab as u32), (10, strings.len() as u32), (0, 0)] {
+        h32(&mut b, tag);
+        h32(&mut b, val);
     }
     b.extend_from_slice(&strings);
     b

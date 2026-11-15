@@ -1,0 +1,9 @@
+# UTIL-LDCONFIG-5 plants: the foreign-class (i386, x32) support of ldconfig's engine and the transcript harness's
+# ELF32 item. Run with cargo xtask plants (docs/plants.md).
+types-i386-flags | crates/ld/src/arch.rs | lit:(ELFCLASS32, ELFDATA2LSB, 3, 0x0003) ==> (ELFCLASS32, ELFDATA2LSB, 3, 0x0303) | cargo test -p liella-ld --test ldconfig foreign_class | msg:foreign_class_objects_are_recorded_with_their_type.*FAILED|panicked
+elf32-phdr-offset | crates/ld/src/ldconfig/scan.rs | lit:word(p, 8, 4) ==> word(p, 8, 8) | cargo test -p liella-ld --test ldconfig foreign_class | msg:foreign_class_objects_are_recorded_with_their_type.*FAILED|panicked
+elf32-dyn-width | crates/ld/src/ldconfig/scan.rs | lit:(56usize, 16usize) } else { (32, 8) } ==> (56usize, 16usize) } else { (32, 16) } | cargo test -p liella-ld --test ldconfig foreign_class | msg:foreign_class_objects_are_recorded_with_their_type.*FAILED|panicked
+mixed-type-warning | crates/ld/src/ldconfig/scan.rs | lit:if f != flags { ==> if f == flags { | cargo test -p liella-ld --test ldconfig foreign_class | msg:foreign_class_objects_are_recorded_with_their_type.*FAILED|panicked
+winner-flags | crates/ld/src/ldconfig/scan.rs | lit:self.record(canon.as_deref(), soname, file, hwcaps, order, *flags)?; ==> self.record(canon.as_deref(), soname, file, hwcaps, order, A::CACHE_FLAGS)?; | cargo test -p liella-ld --test ldconfig foreign_class | msg:foreign_class_objects_are_recorded_with_their_type.*FAILED|panicked
+harness-x32-machine | xtask/src/transcript/run.rs | lit:ElfKind::X32 => elf32_image(soname.as_deref(), 62), ==> ElfKind::X32 => elf32_image(soname.as_deref(), 3), | cargo xtask transcript check validation/transcripts/ldconfig/foreign-class.transcript | msg:MISMATCH
+harness-elf32-phentsize | xtask/src/transcript/run.rs | lit:for v in [52u16, 32, 2, 40, 0, 0] { ==> for v in [52u16, 56, 2, 40, 0, 0] { | cargo xtask transcript check validation/transcripts/ldconfig/foreign-class.transcript | msg:MISMATCH

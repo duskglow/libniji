@@ -1,0 +1,11 @@
+id = "D-NEW"
+series = "D-31"
+section = "s31"
+spec = "§31.2"
+ann = "—"
+status = "active"
+story = "UTIL-LDCONFIG-5"
+date = "2026-11-15"
+body = '''
+**ldconfig links and records the i386 and x32 objects of a multilib x86-64 system with their own type's flags; when one directory holds files of one soname but different types, the highest version wins and its type is recorded, whatever order the directory lists them in (UTIL-3, ruling #5922).** `Arch::LDCONFIG_TYPES` names the ELF types the engine accepts with their cache flags: on x86-64, ELF64 `EM_X86_64` (`0x0303`), ELF32 `EM_386` (`0x0003`) and ELF32 `EM_X86_64` (x32, `0x0803`); any other class, byte order or machine is skipped silently, as before. Probe (`validation/transcripts/ldconfig/foreign-class.transcript`, against the reference): i386 and x32 objects get their soname links and `-v` lines like native ones, cache entries `0x3` and `0x803`, no message. Second probe (same soname, a native and an i386 file in one directory, each case with private roots on ext4 and on tmpfs and in both creation orders): the reference always links the highest version, but its cache flags and its message `libraries <a> and <b> in directory <dir> have same soname but different type.` change with the directory's listing order (an entry can carry the flags of the file the link does not name). That outcome depends on the file system, so it is not a committed transcript. Liella's rule follows §31.2's determinism rule: listings are sorted, the highest version under the D.3.3 comparison wins the link, the entry carries the winner's flags (the type of the file the loader opens through the link), and each other-type file of that soname is reported as `libraries <other> and <winner> in directory <dir> have same soname but different type.`. The link always matches the reference. The message text is the reference's, but the reference printed it only in the listing order where the winner came last, and then its entry carried the loser's flags; Liella prints the message in every order and records the winner's flags, a combination the reference did not show in either order. Test: `foreign_class_objects_are_recorded_with_their_type` (crates/ld/tests/ldconfig.rs, both listing orders).
+'''

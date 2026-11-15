@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 
 use super::conf::{Fatal, Reader};
 use super::{extend, push, Fs, Kind, Oom, Options, Outcome, Stage, Text, CACHE, CONF};
-use crate::arch::Arch;
+use crate::arch::{Arch, ELFCLASS64, ELFDATA2LSB};
 use crate::cache::{self, compare, Entry};
 
 /// The largest cache `-p` reads.
@@ -24,10 +24,10 @@ pub enum Info {
     NotElf,
     /// The ELF magic, but the file ends before the headers it names.
     Truncated,
-    /// An ELF file for another class, byte order or machine: skipped silently.
+    /// An ELF file of a class, byte order and machine not in `Arch::LDCONFIG_TYPES`: skipped silently.
     Foreign,
-    /// A shared object for this machine and its `DT_SONAME`, if any.
-    Lib(Option<Vec<u8>>),
+    /// A shared object of one of `Arch::LDCONFIG_TYPES`: its `DT_SONAME`, if any, and that type's cache flags.
+    Lib(Option<Vec<u8>>, u32),
 }
 
 fn le<const N: usize>(b: &[u8], off: usize) -> Option<[u8; N]> {
@@ -63,7 +63,9 @@ fn read_exact<F: Fs>(fs: &mut F, path: &[u8], off: u64, len: usize) -> Result<Op
 
 /// Reads what ldconfig needs from the ELF headers of `path`: positioned reads of the file
 /// header, the program headers, the dynamic segment and the soname string, each bounds-checked
-/// (never mapped). 64-bit little-endian objects of `A`'s machine only.
+/// (never mapped). Little-endian objects of the types in `A::LDCONFIG_TYPES` only, ELF-64 or ELF-32 layout
+/// by `EI_CLASS` (gABI: 64- and 52-byte file headers, 56- and 32-byte program headers, 16- and 8-byte
+/// dynamic entries).
 pub fn elf_info<A: Arch, F: Fs>(fs: &mut F, path: &[u8]) -> Result<Info, Oom> {
     let mut hdr = [0u8; 64];
     let n = match fs.read_at(path, 0, &mut hdr) {
@@ -83,22 +85,27 @@ pub fn elf_info<A: Arch, F: Fs>(fs: &mut F, path: &[u8]) -> Result<Info, Oom> {
         return Ok(Info::Truncated);
     }
     let machine = u16le(&hdr, 18).unwrap_or(0);
-    if class != 2 || class != A::EI_CLASS || data != A::EI_DATA || machine != A::E_MACHINE {
-        return Ok(Info::Foreign);
+    let Some(&(_, _, _, flags)) = A::LDCONFIG_TYPES.iter().find(|t| t.0 == class && t.1 == data && t.2 == machine) else { return Ok(Info::Foreign) };
+    if data != ELFDATA2LSB {
+        return Ok(Info::Foreign); // this reader decodes little-endian fields only
     }
     if u16le(&hdr, 16) != Some(3) {
         return Ok(Info::NotElf); // not ET_DYN
     }
-    let (Some(phoff), Some(phentsize), Some(phnum)) = (u64le(&hdr, 32), u16le(&hdr, 54), u16le(&hdr, 56)) else { return Ok(Info::NotElf) };
+    let wide = class == ELFCLASS64;
+    // A field of the class's natural width (ELF-64: 8 bytes; ELF-32: 4) at `off64` or `off32`.
+    let word = |b: &[u8], off64: usize, off32: usize| if wide { u64le(b, off64) } else { u32le(b, off32).map(u64::from) };
+    let (phent, dynent) = if wide { (56usize, 16usize) } else { (32, 8) };
+    let (Some(phoff), Some(phentsize), Some(phnum)) = (word(&hdr, 32, 28), u16le(&hdr, if wide { 54 } else { 42 }), u16le(&hdr, if wide { 56 } else { 44 })) else { return Ok(Info::NotElf) };
     let phnum = usize::from(phnum);
-    if phentsize != 56 || phnum > PHNUM_MAX {
+    if usize::from(phentsize) != phent || phnum > PHNUM_MAX {
         return Ok(Info::NotElf);
     }
-    let Some(ph) = read_exact(fs, path, phoff, phnum.saturating_mul(56))? else { return Ok(Info::Truncated) };
+    let Some(ph) = read_exact(fs, path, phoff, phnum.saturating_mul(phent))? else { return Ok(Info::Truncated) };
     let mut loads: Vec<(u64, u64, u64)> = Vec::new(); // (vaddr, offset, filesz)
     let mut dynamic = None;
-    for p in ph.chunks_exact(56) {
-        let (Some(ty), Some(off), Some(vaddr), Some(filesz)) = (u32le(p, 0), u64le(p, 8), u64le(p, 16), u64le(p, 32)) else { continue };
+    for p in ph.chunks_exact(phent) {
+        let (Some(ty), Some(off), Some(vaddr), Some(filesz)) = (u32le(p, 0), word(p, 8, 4), word(p, 16, 8), word(p, 32, 16)) else { continue };
         match ty {
             1 => push(&mut loads, (vaddr, off, filesz))?,
             2 => dynamic = Some((off, filesz)),
@@ -107,13 +114,14 @@ pub fn elf_info<A: Arch, F: Fs>(fs: &mut F, path: &[u8]) -> Result<Info, Oom> {
     }
     let Some((doff, dsize)) = dynamic else { return Ok(Info::NotElf) };
     let dsize = match usize::try_from(dsize) {
-        Ok(s) if s <= DYNAMIC_MAX => s.saturating_sub(s % 16),
+        Ok(s) if s <= DYNAMIC_MAX => s.saturating_sub(s.checked_rem(dynent).unwrap_or(0)),
         _ => return Ok(Info::NotElf),
     };
     let Some(dynbytes) = read_exact(fs, path, doff, dsize)? else { return Ok(Info::Truncated) };
     let (mut soname, mut strtab, mut strsz) = (None, None, None);
-    for d in dynbytes.chunks_exact(16) {
-        let (Some(tag), Some(val)) = (u64le(d, 0), u64le(d, 8)) else { break };
+    for d in dynbytes.chunks_exact(dynent) {
+        // ELF-32's `d_tag` is signed: a negative tag widens to no tag matched below.
+        let (Some(tag), Some(val)) = (word(d, 0, 0), word(d, 8, 4)) else { break };
         match tag {
             0 => break,
             14 => soname = Some(val),
@@ -122,7 +130,7 @@ pub fn elf_info<A: Arch, F: Fs>(fs: &mut F, path: &[u8]) -> Result<Info, Oom> {
             _ => {}
         }
     }
-    let Some(so) = soname else { return Ok(Info::Lib(None)) };
+    let Some(so) = soname else { return Ok(Info::Lib(None, flags)) };
     let (Some(strtab), Some(strsz)) = (strtab, strsz) else { return Ok(Info::NotElf) };
     if so >= strsz {
         return Ok(Info::NotElf);
@@ -144,7 +152,7 @@ pub fn elf_info<A: Arch, F: Fs>(fs: &mut F, path: &[u8]) -> Result<Info, Oom> {
     };
     let mut v = Vec::new();
     extend(&mut v, name.get(..nul).unwrap_or_default())?;
-    Ok(Info::Lib(Some(v)))
+    Ok(Info::Lib(Some(v), flags))
 }
 
 /// A name the cache accepts as a key or file name.
@@ -194,6 +202,8 @@ struct Rec {
     path: Vec<u8>,
     hwcaps: Option<Vec<u8>>,
     order: u32,
+    /// The cache flags of the file's ELF type (`Arch::LDCONFIG_TYPES`).
+    flags: u32,
 }
 
 struct Run<'r, A: Arch, F: Fs> {
@@ -223,7 +233,7 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
         names.dedup();
         let canon = canonical(dir)?;
         // (soname, file name) of each candidate; the soname links that already exist.
-        let mut cands: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
+        let mut cands: Vec<(Vec<u8>, Vec<u8>, u32)> = Vec::new();
         for name in names.iter().filter(|n| wanted(n) && name_ok(n)) {
             let path = join(dir, name)?;
             let is_link = match self.fs.lstat(&path) {
@@ -250,12 +260,12 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
                     }
                 }
             }
-            let soname = match elf_info::<A, F>(self.fs, &path)? {
-                Info::Lib(Some(s)) => s,
-                Info::Lib(None) => {
+            let (soname, flags) = match elf_info::<A, F>(self.fs, &path)? {
+                Info::Lib(Some(s), f) => (s, f),
+                Info::Lib(None, f) => {
                     let mut v = Vec::new();
                     extend(&mut v, name)?;
-                    v
+                    (v, f)
                 }
                 Info::Truncated => {
                     r.err.bytes(self.me).bytes(b": file ").bytes(&path).bytes(b" is truncated\n\n");
@@ -274,18 +284,27 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
             }
             if is_link && name.ends_with(b".so") && soname.starts_with(name) {
                 // A development link: its own entry, no link, no -v line (probe).
-                self.record(canon.as_deref(), name, name, hwcaps, order)?;
+                self.record(canon.as_deref(), name, name, hwcaps, order, flags)?;
                 continue;
             }
             let mut n = Vec::new();
             extend(&mut n, name)?;
-            push(&mut cands, (soname, n))?;
+            push(&mut cands, (soname, n, flags))?;
         }
         // Group by soname (bytes), highest file name first under the D.3.3 comparison, then bytes.
         cands.sort_unstable_by(|a, b| a.0.cmp(&b.0).then_with(|| compare(&b.1, &a.1)).then_with(|| b.1.cmp(&a.1)));
         let mut i = 0usize;
-        while let Some((soname, winner)) = cands.get(i) {
+        while let Some((soname, winner, flags)) = cands.get(i) {
             let next = cands.iter().skip(i).position(|c| c.0 != *soname).map_or(cands.len(), |k| i.saturating_add(k));
+            // Files of one soname but different ELF types (a native and a foreign-class object): the highest
+            // version still wins and the entry carries its type; each other-type file is reported, whatever order
+            // the directory lists them in (pending record UTIL-LDCONFIG-5-1).
+            for (_, other, f) in cands.get(i.saturating_add(1)..next).unwrap_or_default() {
+                if f != flags {
+                    r.err.bytes(self.me).bytes(b": libraries ").bytes(other).bytes(b" and ").bytes(winner);
+                    r.err.bytes(b" in directory ").bytes(dir).bytes(b" have same soname but different type.\n");
+                }
+            }
             let changed = if soname != winner && !self.o.no_links && hwcaps.is_none() { self.link(dir, soname, winner, r)? } else { false };
             if self.o.verbose {
                 r.out.bytes(b"\t").bytes(soname).bytes(b" -> ").bytes(winner);
@@ -296,7 +315,7 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
             }
             // A glibc-hwcaps subdirectory gets no links, so its entry names the file itself (probe).
             let file = if hwcaps.is_some() { winner } else { soname };
-            self.record(canon.as_deref(), soname, file, hwcaps, order)?;
+            self.record(canon.as_deref(), soname, file, hwcaps, order, *flags)?;
             i = next;
         }
         Ok(())
@@ -329,7 +348,7 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
     }
 
     /// A cache entry `key` => `<canon>/<file>` (`canon`: the scanned directory, a hwcaps one included).
-    fn record(&mut self, canon: Option<&[u8]>, key: &[u8], file: &[u8], hwcaps: Option<&[u8]>, order: u32) -> Result<(), Oom> {
+    fn record(&mut self, canon: Option<&[u8]>, key: &[u8], file: &[u8], hwcaps: Option<&[u8]>, order: u32, flags: u32) -> Result<(), Oom> {
         let (Some(dir), false) = (canon, self.o.no_cache) else { return Ok(()) };
         let mut path = Vec::new();
         extend(&mut path, dir)?;
@@ -347,7 +366,7 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
             }
             None => None,
         };
-        push(&mut self.recs, Rec { key: k, path, hwcaps: h, order })
+        push(&mut self.recs, Rec { key: k, path, hwcaps: h, order, flags })
     }
 }
 
@@ -443,7 +462,7 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
     // 4. The cache.
     let mut entries: Vec<Entry<'_>> = Vec::new();
     for rec in &run.recs {
-        push(&mut entries, Entry { flags: A::CACHE_FLAGS, key: &rec.key, path: &rec.path, hwcaps: rec.hwcaps.as_deref(), order: rec.order })?;
+        push(&mut entries, Entry { flags: rec.flags, key: &rec.key, path: &rec.path, hwcaps: rec.hwcaps.as_deref(), order: rec.order })?;
     }
     let bytes = match cache::encoded_len(&entries, generator).and_then(|len| {
         let mut out = Vec::new();
