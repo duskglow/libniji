@@ -156,6 +156,34 @@ pub fn forbid_threads() {
     crate::thread::forbid();
 }
 
+/// While `on`, the registry of the words of threads whose block another library made has no
+/// room (as when no memory can be mapped for it): a thread that needs an entry gets the shared
+/// spare words (D-X.60, #4837). Process-wide: call it only in a forked child ([`in_child`]).
+pub fn starve_registry(on: bool) {
+    crate::thread::starve_registry(on);
+}
+
+/// The calling thread's heap cache word as the heap sees it in a process the runtime did not
+/// start: whether it has one, and the value the fast paths read (0: none).
+pub fn heap_cache_word() -> (bool, usize) {
+    use liella_rt::heap::Pages;
+    // Through `KernelPages`, the heap's general paths' view (what a foreign process's calls take).
+    (crate::heap::KernelPages.cache_slot().is_some(), crate::heap::KernelPages.cache_word())
+}
+
+/// Whether the runtime started this process (D-X.58): true in a program linked against the
+/// products, false in a test process, whose start-up another C library ran.
+pub fn runtime_started() -> bool {
+    crate::thread::owned()
+}
+
+/// The calling thread's `errno` word in a process the runtime did not start (D-X.60): its
+/// registry word, which `__errno_location` gives there (0x80 of the block is the other
+/// library's).
+pub fn foreign_errno_word() -> *mut core::ffi::c_int {
+    crate::thread::foreign_errno()
+}
+
 /// Undo [`forbid_threads`]: thread creation works again. With it a test makes thread creation
 /// fail for a while (as a resource limit would) without any load.
 pub fn allow_threads() {

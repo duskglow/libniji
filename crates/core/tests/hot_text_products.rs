@@ -154,12 +154,13 @@ fn init_products_are_grouped_from_a_trace_of_their_own_build() {
         }
         assert_eq!(format!("{h:016x}"), want, "TRACE-AT-BUILD: {} changed after the build that grouped from it", dir.join(name).display());
         let keys = String::from_utf8_lossy(&bytes).lines().filter(|k| !k.trim().is_empty() && !k.starts_with('#')).count();
-        if name == "hot-text.list" || name == "startup-text.keys" {
+        if name == "hot-text.list" || name == "startup-text.keys" || name == "hot-text.signatures" {
             assert!(keys > 0, "TRACE-AT-BUILD: {} holds no key: an ungrouped product (LIELLA_LAYOUT_TRACE=ungrouped)", dir.join(name).display());
         }
         named += 1;
     }
-    assert_eq!(named, 4, "TRACE-AT-BUILD: the marker names {named} lists, want the 4 generated ones");
+    // LAYOUT-WINDOW-BINS (D-X.103): hot-text.signatures is the fifth.
+    assert_eq!(named, 5, "TRACE-AT-BUILD: the marker names {named} lists, want the 5 generated ones");
 }
 
 fn build(out: &Path) {

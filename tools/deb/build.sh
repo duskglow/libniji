@@ -9,6 +9,14 @@
 #       are written to OUT (default target/deb). Uncommitted changes are never packaged.
 #   tools/deb/build.sh --products DIR --version V [--out DIR] [--work DIR]
 #       Package an existing products directory (built with that layout) as version V; no build.
+#   --flavour system (with either form; default --flavour coexist)
+#       The system build (plan/system-libc.md section 3, records/pending/SL-FLAVOUR-1.toml): the
+#       same tree built with prefix / (LIELLA_PREFIX=/, LIELLA_LIBDIR=usr/lib/x86_64-linux-gnu),
+#       packaged as the system's C library under Debian's names (libc6, libc-bin, libc6-dev,
+#       libc-dev-bin, locales, libc-l10n; tools/deb/system.sh), into OUT (default
+#       target/deb-system; work directory target/deb-system-work). Version
+#       <abi>+liella<YYYYMMDD>.<n>-<rev> (owner ruling R2): <abi> 2.39, <n> LIELLA_DEB_SERIAL
+#       (default 1), <rev> LIELLA_DEB_REVISION (default 1). tools/deb/check-system.sh checks them.
 #
 # Packages: liella6 (run time: the loader and the shared libraries) and liella6-dev (link time:
 # start files, linker scripts, static archives, the liella-gcc/liella-g++ wrapper). Every file
@@ -32,18 +40,34 @@ out=$root/target/deb
 work=$root/target/deb-work
 products=""
 version=""
+flavour=coexist
+outset=""
+workset=""
 while [ $# -gt 0 ]; do
     case $1 in
-        --out) out=$2; shift 2 ;;
-        --work) work=$2; shift 2 ;;
+        --out) out=$2; outset=1; shift 2 ;;
+        --work) work=$2; workset=1; shift 2 ;;
+        --flavour) flavour=$2; shift 2 ;;
         --products) products=$2; shift 2 ;;
         --version) version=$2; shift 2 ;;
-        *) echo "usage: tools/deb/build.sh [--out DIR] [--work DIR] [--products DIR --version V]" >&2; exit 2 ;;
+        *) echo "usage: tools/deb/build.sh [--flavour coexist|system] [--out DIR] [--work DIR] [--products DIR --version V]" >&2; exit 2 ;;
     esac
 done
+case $flavour in
+    coexist) ;;
+    system)
+        [ -n "$outset" ] || out=$root/target/deb-system
+        [ -n "$workset" ] || work=$root/target/deb-system-work ;;
+    *) echo "build.sh: --flavour $flavour: coexist or system" >&2; exit 2 ;;
+esac
 
 sysroot=/usr/lib/liella
 ma=x86_64-linux-gnu
+# The loader's compile-time prefix (crates/ld/src/search.rs): the sysroot, or / for the system build.
+prefix=$sysroot
+[ "$flavour" = coexist ] || prefix=/
+# The ABI level the system packages' versions start with (R2; stays 2.39 until GLIBC_2.41 is complete, R3).
+abi=2.39
 # The project's packaging address (owner 2026-11-13); DEB_MAINTAINER overrides it for a rebuild.
 maint=${DEB_MAINTAINER:-Liella Maintainers <liella@koiren.ai>}
 
@@ -78,9 +102,13 @@ if [ -z "$products" ]; then
         tar -x -C "$work/src" -f "$work/src.tar"
         rm -f "$work/src.tar"
     fi
-    version=0.0~snapshot$(date -u -d "@$epoch" +%Y%m%d)+$commit
-    echo "build.sh: building the products of $commit (release profile) in $work/src"
-    (cd "$work/src" && LIELLA_PREFIX=$sysroot LIELLA_LIBDIR=usr/lib/$ma LIELLA_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
+    if [ "$flavour" = coexist ]; then
+        version=0.0~snapshot$(date -u -d "@$epoch" +%Y%m%d)+$commit
+    else
+        version=$abi+liella$(date -u -d "@$epoch" +%Y%m%d).${LIELLA_DEB_SERIAL:-1}-${LIELLA_DEB_REVISION:-1}
+    fi
+    echo "build.sh: building the products of $commit (release profile, prefix $prefix) in $work/src"
+    (cd "$work/src" && LIELLA_PREFIX=$prefix LIELLA_LIBDIR=usr/lib/$ma LIELLA_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
     products=$work/src/target/liella
 else
     [ -n "$version" ] || { echo "build.sh: --products needs --version" >&2; exit 2; }
@@ -88,6 +116,9 @@ else
 fi
 products=$(cd "$products" && pwd)
 export SOURCE_DATE_EPOCH="$epoch"
+# --products: the commit the products were built from, when the caller names it (the system
+# packages' changelog names it, so a repack of the same products is byte-identical).
+[ -n "${commit:-}" ] || commit=$(printf '%.12s' "${LIELLA_DEB_COMMIT:-}")
 
 stage=$work/stage
 rm -rf "$stage"
@@ -115,11 +146,22 @@ need() {
     [ -f "$products/$1" ] || { echo "build.sh: $products/$1 is missing (cargo xtask so)" >&2; exit 1; }
 }
 
+# installed_size DIR: Debian's Installed-Size (KiB): each file's size rounded up, 1 per other entry.
+installed_size() {
+    find "$1" -path "$1/DEBIAN" -prune -o -mindepth 1 -printf '%y %s\n' |
+        awk '$1 == "f" { t += int(($2 + 1023) / 1024); next } { t += 1 } END { print t + 0 }'
+}
+
+if [ "$flavour" = system ]; then
+    . "$here/system.sh"
+    exit 0
+fi
+
 # --- liella6: the run-time sysroot, laid out as Debian's libc6 lays out / (merged /usr). ---
 rlib=$rt$sysroot/usr/lib/$ma
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$rlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     need "$so"
     put 0644 "$products/$so" "$rlib/$so"
 done
@@ -136,7 +178,7 @@ need liella-rcrt1.o
 put 0644 "$products/liella-crt1.o" "$dlib/crt1.o"
 put 0644 "$products/liella-crt1.o" "$dlib/Scrt1.o"
 put 0644 "$products/liella-rcrt1.o" "$dlib/rcrt1.o"
-for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a; do
+for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
     put 0644 "$products/$a" "$dlib/$a"
 done
@@ -146,7 +188,10 @@ put_text 0644 "$dlib/libc.so" "/* GNU ld script: Liella's C library (liella6-dev
    /usr/lib/liella; link with --sysroot=/usr/lib/liella (liella-gcc does). */
 OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
+# libm.so stays a link: Liella has no libmvec, so no linker script is needed (SL-SONAMES).
 put_link libm.so.6 "$dlib/libm.so"
+put_link libresolv.so.2 "$dlib/libresolv.so"
+put_link libBrokenLocale.so.1 "$dlib/libBrokenLocale.so"
 put 0755 "$here/liella-gcc" "$dev/usr/bin/liella-gcc"
 put_link liella-gcc "$dev/usr/bin/liella-g++"
 mkdir -p "$dev/usr/share/man/man1"
@@ -167,11 +212,6 @@ done
 find "$rt$sysroot" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
 find "$dev$sysroot" -type f \( -name '*.a' -o -name '*.o' \) -exec strip --strip-debug --remove-section=.comment --enable-deterministic-archives {} +
 
-# installed_size DIR: Debian's Installed-Size (KiB): each file's size rounded up, 1 per other entry.
-installed_size() {
-    find "$1" -path "$1/DEBIAN" -prune -o -mindepth 1 -printf '%y %s\n' |
-        awk '$1 == "f" { t += int(($2 + 1023) / 1024); next } { t += 1 } END { print t + 0 }'
-}
 # control PKG SECTION DEPENDS DESCRIPTION...
 control() {
     p=$1; sec=$2; deps=$3; shift 3

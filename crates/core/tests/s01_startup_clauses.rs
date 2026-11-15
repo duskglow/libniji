@@ -404,6 +404,10 @@ impl CCall for Calls<'_> {
 struct NoPages;
 
 impl Pages for NoPages {
+    type General = Self;
+    fn general(&self) -> &Self {
+        self
+    }
     fn map(&self, _: usize, _: usize, _: Option<u32>) -> Option<usize> {
         None
     }
@@ -416,9 +420,12 @@ impl Pages for NoPages {
     fn words(&self, _: usize, _: usize) -> &[std::sync::atomic::AtomicU64] {
         &[]
     }
-    fn cache_slot(&self) -> &std::sync::atomic::AtomicUsize {
+    fn allowed_nodes(&self) -> usize {
+        1
+    }
+    fn cache_slot(&self) -> Option<&std::sync::atomic::AtomicUsize> {
         static SLOT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        &SLOT
+        Some(&SLOT)
     }
 }
 

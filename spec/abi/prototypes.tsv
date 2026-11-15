@@ -3072,6 +3072,8 @@ sched_rr_get_interval	sched.h	extern int sched_rr_get_interval (__pid_t, struct 
 sched_setaffinity	sched.h	extern int sched_setaffinity (__pid_t, size_t, const cpu_set_t *)
 sched_setparam	sched.h	extern int sched_setparam (__pid_t, const struct sched_param *)
 sched_setscheduler	sched.h	extern int sched_setscheduler (__pid_t, int, const struct sched_param *)
+sched_getattr	sched.h	extern int sched_getattr (__pid_t, struct sched_attr *, unsigned int, unsigned int)
+sched_setattr	sched.h	extern int sched_setattr (__pid_t, struct sched_attr *, unsigned int)
 sched_yield	sched.h	extern int sched_yield (void)
 secure_getenv	stdlib.h	extern char *secure_getenv (const char *)
 seed48	stdlib.h	extern short unsigned int *seed48 (short unsigned int *)

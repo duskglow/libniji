@@ -68,24 +68,24 @@ __argz_next	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:1008	ret::found
 __argz_stringify	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:966	ret::unit
 __asprintf		csys/src/adapter/variadic.c:165	liella_vasprintf4
 __asprintf_chk		csys/src/adapter/variadic.c:175	liella_vasprintf4
-__assert	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:40	process::assert_fail
-__assert_fail	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:28	process::assert_fail
-__assert_perror_fail	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:34	process::assert_perror_fail
+__assert	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:49	process::assert_fail
+__assert_fail	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:37	process::assert_fail
+__assert_perror_fail	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:43	process::assert_perror_fail
 __b64_ntop	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:905	resolv::b64_ntop
 __b64_pton	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:911	resolv::b64_pton
-__backtrace	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:159	bt::capture
-__backtrace_symbols	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:171	ret::null
-__backtrace_symbols_fd	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:183	ret::errno_only
+__backtrace	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:168	bt::capture
+__backtrace_symbols	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:180	ret::null
+__backtrace_symbols_fd	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:192	ret::errno_only
 __bsd_getpgrp	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:383	ret::int32
 __bzero	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:137	ret::unit
-__chk_fail	GLIBC_2.3.4	crates/boundary/src/posix/s02_diagnostics.rs:51	ret::chk_fail
+__chk_fail	GLIBC_2.3.4	crates/boundary/src/posix/s02_diagnostics.rs:60	ret::chk_fail
 __clog10	(math-gen)	crates/boundary/src/posix/s10_math.tsv:196	mret::cplx
 __clog10	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:19	mret::cplx
 __clog10f	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:24	mret::cplx
 __clone		csys/src/adapter/variadic.c:99	
 __close	GLIBC_2.2.5	csys/src/machine/points.S:196	liella_close_rest
 __cmsg_nxthdr	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:184	ret::ptr
-__confstr_chk	GLIBC_2.4	crates/boundary/src/posix/s24_system.rs:233	ret::size0
+__confstr_chk	GLIBC_2.4	crates/boundary/src/posix/s24_system.rs:248	ret::size0
 __connect	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:73	ret::zero
 __ctype_b_loc	GLIBC_2.3	crates/boundary/src/posix/s05_ctype.rs:556	ret::ptr
 __ctype_get_mb_cur_max	GLIBC_2.2.5	crates/boundary/src/posix/s06_multibyte.rs:187	locale::with_current
@@ -108,7 +108,7 @@ __dprintf_chk		csys/src/adapter/variadic.c:172	liella_vdprintf4
 __dup2	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:324	ret::fd
 __duplocale	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:39	ret::null
 __endmntent	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:1035	mntent::endmntent
-__errno_location	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:23	tb::errno_location
+__errno_location	GLIBC_2.2.5	csys/src/machine/tp.S:33	liella_errno_rest
 __explicit_bzero_chk	GLIBC_2.25	crates/boundary/src/posix/s04_strings.rs:149	ret::unit
 __fbufsize	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:114	ret::or_zero
 __fcntl		csys/src/adapter/variadic.c:36	
@@ -151,12 +151,12 @@ __fxstatat64	GLIBC_2.4	crates/boundary/src/posix/s13_filesystem.rs:306	ret::stor
 __getauxval	GLIBC_2.16	crates/boundary/src/posix/s01_startup.rs:178	ret::with_errno
 __getcwd_chk	GLIBC_2.4	crates/boundary/src/posix/s13_filesystem.rs:649	ret::null
 __getdelim	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:288	ret::record
-__getdomainname_chk	GLIBC_2.4	crates/boundary/src/posix/s24_system.rs:325	ret::zero
+__getdomainname_chk	GLIBC_2.4	crates/boundary/src/posix/s24_system.rs:340	ret::zero
 __getgroups_chk	GLIBC_2.4	crates/boundary/src/posix/s17_users.rs:61	ret::count
-__gethostname_chk	GLIBC_2.4	crates/boundary/src/posix/s24_system.rs:313	ret::zero
+__gethostname_chk	GLIBC_2.4	crates/boundary/src/posix/s24_system.rs:328	ret::zero
 __getlogin_r_chk	GLIBC_2.4	crates/boundary/src/posix/s17_users.rs:426	users::getlogin_r
 __getmntent_r	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:1018	ret::entry
-__getpagesize	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:244	ret::int
+__getpagesize	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:259	ret::int
 __getpgid	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:378	ret::int32
 __getpid	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:36	
 __gets_chk	GLIBC_2.3.4	crates/boundary/src/posix/s12_stdio.rs:298	ret::buf_or_null
@@ -400,15 +400,15 @@ __res_state	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:526	core::
 __rpc_thread_createerr	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_clnt.rs:205	ptr::with_exposed_provenance_mut
 __rpc_thread_svc_fdset	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:227	
 __sbrk	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:260	ret::addr_or_neg1
-__sched_cpualloc	GLIBC_2.7	crates/boundary/src/posix/s24_system.rs:196	s03_memory::malloc
-__sched_cpucount	GLIBC_2.6	crates/boundary/src/posix/s24_system.rs:190	ret::int
-__sched_cpufree	GLIBC_2.7	crates/boundary/src/posix/s24_system.rs:201	s03_memory::free
-__sched_get_priority_max	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:148	ret::int32
-__sched_get_priority_min	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:138	ret::int32
-__sched_getparam	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:128	ret::store
+__sched_cpualloc	GLIBC_2.7	crates/boundary/src/posix/s24_system.rs:211	s03_memory::malloc
+__sched_cpucount	GLIBC_2.6	crates/boundary/src/posix/s24_system.rs:205	ret::int
+__sched_cpufree	GLIBC_2.7	crates/boundary/src/posix/s24_system.rs:216	s03_memory::free
+__sched_get_priority_max	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:163	ret::int32
+__sched_get_priority_min	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:153	ret::int32
+__sched_getparam	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:143	ret::store
 __sched_getscheduler	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:113	ret::int
 __sched_setscheduler	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:103	ret::zero
-__sched_yield	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:163	ret::zero
+__sched_yield	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:178	ret::zero
 __secure_getenv	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:137	ret::ptr
 __secure_getenv	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:143	ret::ptr
 __select	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:350	ret::count
@@ -427,7 +427,7 @@ __sigsetjmp		csys/src/machine/setjmp.S:124	liella_machine_sigsetjmp
 __sigsuspend	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:245	cancel::point
 __snprintf_chk		csys/src/adapter/variadic.c:174	liella_vsnprintf6
 __sprintf_chk		csys/src/adapter/variadic.c:173	liella_vsnprintf6
-__stack_chk_fail	GLIBC_2.4	crates/boundary/src/posix/s02_diagnostics.rs:46	process::stack_chk_fail
+__stack_chk_fail	GLIBC_2.4	crates/boundary/src/posix/s02_diagnostics.rs:55	process::stack_chk_fail
 __statfs	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:439	ret::store
 __stpcpy	GLIBC_2.2.5	csys/src/machine/scan.S:711	liella_machine_stpcpy_chk
 __stpcpy_chk	GLIBC_2.3.4	csys/src/machine/scan.S:722	liella_hot_stpcpy_rest
@@ -443,7 +443,7 @@ __strcspn_c1	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:573	ret::must
 __strcspn_c2	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:579	ret::must
 __strcspn_c3	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:585	ret::must
 __strdup	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:832	ret::null
-__strerror_r	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:74	ret::ptr
+__strerror_r	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:83	ret::ptr
 __strfmon_l		csys/src/adapter/variadic.c:228	
 __strftime_l	GLIBC_2.3	crates/boundary/src/posix/s23_time.rs:331	ret::size0
 __strlcat_chk	GLIBC_2.38	crates/boundary/src/posix/s04_strings.rs:820	ret::must
@@ -481,7 +481,7 @@ __swprintf_chk		csys/src/adapter/variadic.c:179	liella_vswprintf6
 __sym_ntop	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:970	core::ptr::with_exposed_provenance
 __sym_ntos	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:965	core::ptr::with_exposed_provenance
 __sym_ston	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:959	resolv::sym_ston
-__sysconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:211	ret::sysconf
+__sysconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:226	ret::sysconf
 __sysctl	GLIBC_2.2.5	crates/boundary/src/posix/s29_legacy.rs:555	ret::zero
 __syslog_chk		csys/src/adapter/variadic.c:254	
 __sysv_signal	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:70	ret::handler
@@ -559,7 +559,7 @@ __xmknod	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:187	ret::zero
 __xmknodat	GLIBC_2.4	crates/boundary/src/posix/s13_filesystem.rs:193	ret::zero
 __xpg_basename	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:918	ret::path_part
 __xpg_sigpause	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:210	ret::zero
-__xpg_strerror_r	GLIBC_2.3.4	crates/boundary/src/posix/s02_diagnostics.rs:80	report::xpg_strerror_r
+__xpg_strerror_r	GLIBC_2.3.4	crates/boundary/src/posix/s02_diagnostics.rs:89	report::xpg_strerror_r
 __xstat	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:266	ret::store_into
 __xstat64	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:272	ret::store_into
 _authenticate	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:157	
@@ -606,7 +606,7 @@ abs	GLIBC_2.2.5	crates/boundary/src/posix/s08_numeric.rs:1033	num_compat::abs32
 accept	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:55	cancel::point
 accept4	GLIBC_2.10	crates/boundary/src/posix/s15_sockets.rs:61	cancel::point
 access	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:363	ret::zero
-acct	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:387	ret::zero
+acct	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:402	ret::zero
 acos	(math-gen)	crates/boundary/src/posix/s10_math.tsv:138	mret::elem32_onepass
 acos	(math-gen)	crates/boundary/src/posix/s10_math.tsv:139	mret::elem
 acos	(math-gen)	crates/boundary/src/posix/s10_math.tsv:140	mret::elem_fast
@@ -624,7 +624,7 @@ acoshf32	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:231	mret::elem32_f
 acoshf32x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:236	mret::elem_fast
 acoshf64	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:241	mret::elem_fast
 addmntent	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:1024	ret::zero_or_one
-addseverity	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:145	fmtmsg::addseverity
+addseverity	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:154	fmtmsg::addseverity
 adjtime	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:111	ret::store_if
 adjtimex	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:116	ret::int32
 advance	GLIBC_2.2.5	crates/boundary/src/posix/s14_search.rs:42	
@@ -739,9 +739,9 @@ authdes_pk_create	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:168	core
 authnone_create	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_clnt.rs:214	
 authunix_create	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:218	core::ptr::null_mut
 authunix_create_default	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:226	core::ptr::null_mut
-backtrace	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:153	bt::capture
-backtrace_symbols	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:165	ret::null
-backtrace_symbols_fd	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:177	ret::errno_only
+backtrace	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:162	bt::capture
+backtrace_symbols	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:174	ret::null
+backtrace_symbols_fd	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:186	ret::errno_only
 basename	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:912	ret::at
 bcmp	GLIBC_2.2.5	csys/src/machine/fold.S:1320	liella_hot_equal_rest
 bcopy	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:155	ret::unit
@@ -789,8 +789,8 @@ canonicalizef32x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:601	mret::
 canonicalizef64	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:606	mret::canonical
 canonicalizef64x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:611	mret::canonical
 canonicalizel	GLIBC_2.25	crates/boundary/src/posix/s10_math_gen.rs:616	mret::canonical
-capget	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:414	ret::zero
-capset	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:420	ret::zero
+capget	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:429	ret::zero
+capset	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:435	ret::zero
 carg	(math-gen)	crates/boundary/src/posix/s10_math.tsv:184	mret::cplx_real
 carg	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:621	mret::cplx_real
 cargf	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:626	mret::cplx_real
@@ -938,7 +938,7 @@ cnd_timedwait	GLIBC_2.28	crates/boundary/src/posix/s22_threads.rs:1305	sync::cnd
 cnd_timedwait	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:1305	sync::cnd_wait
 cnd_wait	GLIBC_2.28	crates/boundary/src/posix/s22_threads.rs:1299	sync::cnd_wait
 cnd_wait	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:1299	sync::cnd_wait
-confstr	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:227	ret::size0
+confstr	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:242	ret::size0
 conj	(math-gen)	crates/boundary/src/posix/s10_math.tsv:187	mret::cplx
 conj	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:1146	mret::cplx
 conjf	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:1151	mret::cplx
@@ -989,7 +989,7 @@ crealf32x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:1406	mret::cpart
 crealf64	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:1411	mret::cpart
 creat	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:42	cancel::point
 creat64	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:48	cancel::point
-create_module	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:442	ret::addr_or_neg1
+create_module	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:457	ret::addr_or_neg1
 csin	(math-gen)	crates/boundary/src/posix/s10_math.tsv:201	mret::cplx_fast
 csin	(math-gen)	crates/boundary/src/posix/s10_math.tsv:202	mret::cplx_fast
 csin	(math-gen)	crates/boundary/src/posix/s10_math.tsv:203	mret::cplx
@@ -1033,7 +1033,7 @@ cuserid	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:510	ret::null
 daemon	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:418	ret::zero
 dcgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:112	ret::ptr
 dcngettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:136	ret::ptr
-delete_module	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:430	ret::zero
+delete_module	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:445	ret::zero
 des_setparity	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:55	
 dgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:100	ret::ptr
 difftime	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:278	liella::time::difftime
@@ -1379,7 +1379,7 @@ fmodf	GLIBC_2.38	crates/boundary/src/posix/s10_math_gen.rs:3045	mret::Soft::ente
 fmodf32	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:3056	mret::Soft::enter
 fmodf32x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:3062	mret::Soft::enter
 fmodf64	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:3068	mret::Soft::enter
-fmtmsg	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:136	strz::strz_opt
+fmtmsg	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:145	strz::strz_opt
 fmul	GLIBC_2.28	crates/boundary/src/posix/s10_math_gen.rs:3084	mret::Soft::enter
 fnmatch	GLIBC_2.2.5	crates/boundary/src/posix/s14_search.rs:258	patterns::fnmatch
 fopen	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:22	ret::null
@@ -1388,7 +1388,7 @@ fopencookie	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:481	ret::null
 fork	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:55	ret::int32
 forkpty	GLIBC_2.2.5	crates/boundary/src/posix/s19_terminals.rs:174	cancel::point
 forkpty	GLIBC_2.34	crates/boundary/src/posix/s19_terminals.rs:174	cancel::point
-fpathconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:222	ret::sysconf
+fpathconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:237	ret::sysconf
 fprintf		csys/src/adapter/variadic.c:158	liella_vfprintf4
 fputc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:196	stdio::putc_c
 fputc_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:211	stdio::putc_c
@@ -1485,13 +1485,13 @@ gamma	(math-gen)	crates/boundary/src/posix/s10_math.tsv:173	mret::lgamma
 gamma	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:3255	mret::lgamma
 gammaf	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:3260	mret::lgamma
 gcvt	GLIBC_2.2.5	crates/boundary/src/posix/s08_numeric.rs:1021	ret::same
-get_avphys_pages	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:264	ret::sysconf
+get_avphys_pages	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:279	ret::sysconf
 get_current_dir_name	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:667	ret::null
-get_kernel_syms	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:448	ret::int
+get_kernel_syms	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:463	ret::int
 get_myaddress	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_clnt.rs:308	
-get_nprocs	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:249	ret::int
-get_nprocs_conf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:254	ret::int
-get_phys_pages	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:259	ret::sysconf
+get_nprocs	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:264	ret::int
+get_nprocs_conf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:269	ret::int
+get_phys_pages	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:274	ret::sysconf
 getaddrinfo	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:135	netdb::getaddrinfo
 getaddrinfo_a	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:496	gai_async::getaddrinfo_a
 getaddrinfo_a	GLIBC_2.34	crates/boundary/src/posix/s16_nameservices.rs:496	gai_async::getaddrinfo_a
@@ -1505,7 +1505,7 @@ getc_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:176	stdio::getc
 getchar	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:166	stdio::getc_c
 getchar_unlocked	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:181	stdio::getc_c
 getcontext		csys/src/machine/context.S:166	liella_machine_getcontext
-getcpu	GLIBC_2.29	crates/boundary/src/posix/s24_system.rs:180	ret::store_both
+getcpu	GLIBC_2.29	crates/boundary/src/posix/s24_system.rs:195	ret::store_both
 getcwd	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:643	ret::null
 getdate	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:367	ret::ptr
 getdate_r	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:373	timefmt::getdate_r
@@ -1513,8 +1513,8 @@ getdelim	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:283	ret::record
 getdents64	GLIBC_2.30	crates/boundary/src/posix/s13_filesystem.rs:747	ret::ssize
 getdirentries	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:753	ret::ssize
 getdirentries64	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:759	ret::ssize
-getdomainname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:319	ret::zero
-getdtablesize	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:269	ret::int
+getdomainname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:334	ret::zero
+getdtablesize	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:284	ret::int
 getegid	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:40	
 getentropy	GLIBC_2.25	crates/boundary/src/posix/s09_random.rs:28	ret::zero
 getenv	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:131	ret::ptr
@@ -1539,13 +1539,13 @@ gethostbyname2_r	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:190	n
 gethostbyname_r	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:184	netdb::gethostbyname2_r
 gethostent	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:212	ret::ptr
 gethostent_r	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:217	netdb::gethostent_r
-gethostid	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:279	crate::netaddr::gethostid
-gethostname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:307	ret::zero
+gethostid	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:294	crate::netaddr::gethostid
+gethostname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:322	ret::zero
 getifaddrs	GLIBC_2.3	crates/boundary/src/posix/s15_sockets.rs:315	ret::zero
 getipv4sourcefilter	GLIBC_2.3.4	crates/boundary/src/posix/s15_sockets.rs:441	ret::zero
 getitimer	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:190	ret::store
 getline	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:278	ret::record
-getloadavg	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:360	usize::try_from
+getloadavg	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:375	usize::try_from
 getlogin	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:415	ret::null
 getlogin_r	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:420	users::getlogin_r
 getmntent	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:1007	ret::entry
@@ -1564,7 +1564,7 @@ getnetname	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:197
 getopt	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:185	options::getopt
 getopt_long	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:197	options::getopt
 getopt_long_only	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:203	options::getopt
-getpagesize	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:239	ret::int
+getpagesize	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:254	ret::int
 getpass	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:442	ret::null
 getpayload	(math-gen)	crates/boundary/src/posix/s10_math.tsv:60	mret::pure
 getpayload	GLIBC_2.25	crates/boundary/src/posix/s10_math_gen.rs:3270	mret::pure
@@ -1665,8 +1665,8 @@ gmtime_r	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:238	ret::null
 gnu_dev_major	GLIBC_2.3.3	crates/boundary/src/posix/s13_filesystem.rs:199	fs::major
 gnu_dev_makedev	GLIBC_2.3.3	crates/boundary/src/posix/s13_filesystem.rs:209	fs::makedev
 gnu_dev_minor	GLIBC_2.3.3	crates/boundary/src/posix/s13_filesystem.rs:204	fs::minor
-gnu_get_libc_release	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:348	ret::ptr
-gnu_get_libc_version	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:343	ret::ptr
+gnu_get_libc_release	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:363	ret::ptr
+gnu_get_libc_version	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:358	ret::ptr
 grantpt	GLIBC_2.2.5	crates/boundary/src/posix/s19_terminals.rs:142	ret::zero
 group_member	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:67	ret::int
 gsignal	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:110	ret::zero
@@ -1738,7 +1738,7 @@ inet_nsap_ntoa	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:266	ret::nul
 inet_ntoa	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:222	ret::null
 inet_ntop	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:198	ret::null
 inet_pton	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:192	ret::int
-init_module	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:425	ret::zero
+init_module	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:440	ret::zero
 initgroups	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:407	ret::zero
 initstate	GLIBC_2.2.5	crates/boundary/src/posix/s09_random.rs:79	ret::null
 initstate_r	GLIBC_2.2.5	crates/boundary/src/posix/s09_random.rs:102	ret::zero
@@ -1749,8 +1749,8 @@ inotify_init1	GLIBC_2.9	crates/boundary/src/posix/s11_lowio.rs:674	ret::fd
 inotify_rm_watch	GLIBC_2.4	crates/boundary/src/posix/s11_lowio.rs:685	ret::zero
 insque	GLIBC_2.2.5	crates/boundary/src/posix/s14_search.rs:244	search_c::insque
 ioctl		csys/src/adapter/variadic.c:37	
-ioperm	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:399	ret::zero
-iopl	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:404	ret::zero
+ioperm	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:414	ret::zero
+iopl	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:419	ret::zero
 iruserok	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:571	
 iruserok_af	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:577	
 isalnum	GLIBC_2.2.5	crates/boundary/src/posix/s05_ctype.rs:20	ret::truth
@@ -1845,7 +1845,7 @@ key_setnet	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:139
 key_setsecret	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:83	
 kill	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:215	ret::zero
 killpg	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:220	ret::zero
-klogctl	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:381	ret::int
+klogctl	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:396	ret::int
 l64a	GLIBC_2.2.5	crates/boundary/src/posix/s08_numeric.rs:1093	ret::null
 labs	GLIBC_2.2.5	crates/boundary/src/posix/s08_numeric.rs:1038	num_compat::abs64
 lchmod	GLIBC_2.3.2	crates/boundary/src/posix/s13_filesystem.rs:329	ret::zero
@@ -2006,13 +2006,13 @@ liella_compat_clnttcp_create		crates/boundary/src/posix/s29_rpc_clnt.rs:238
 liella_compat_clntudp_bufcreate		crates/boundary/src/posix/s29_rpc_clnt.rs:226	
 liella_compat_clntudp_create		crates/boundary/src/posix/s29_rpc_clnt.rs:232	
 liella_compat_clntunix_create		crates/boundary/src/posix/s29_rpc_clnt.rs:244	
-liella_compat_create_module		crates/boundary/src/posix/s24_system.rs:442	ret::addr_or_neg1
+liella_compat_create_module		crates/boundary/src/posix/s24_system.rs:457	ret::addr_or_neg1
 liella_compat_des_setparity		crates/boundary/src/posix/s29_rpc_auth.rs:55	
 liella_compat_ecb_crypt		crates/boundary/src/posix/s29_rpc_auth.rs:39	
 liella_compat_fattach		crates/boundary/src/posix/s29_legacy.rs:501	ret::zero
 liella_compat_fdetach		crates/boundary/src/posix/s29_legacy.rs:507	ret::zero
 liella_compat_fmemopen		crates/boundary/src/posix/s12_stdio.rs:470	ret::null
-liella_compat_get_kernel_syms		crates/boundary/src/posix/s24_system.rs:448	ret::int
+liella_compat_get_kernel_syms		crates/boundary/src/posix/s24_system.rs:463	ret::int
 liella_compat_get_myaddress		crates/boundary/src/posix/s29_rpc_clnt.rs:308	
 liella_compat_getmsg		crates/boundary/src/posix/s29_legacy.rs:513	ret::zero
 liella_compat_getnetname		crates/boundary/src/posix/s29_rpc_auth.rs:197	
@@ -2036,7 +2036,7 @@ liella_compat_key_setsecret		crates/boundary/src/posix/s29_rpc_auth.rs:83
 liella_compat_memcpy		crates/boundary/src/posix/s04_strings.rs:58	hot::move_bytes
 liella_compat_netname2host		crates/boundary/src/posix/s29_rpc_auth.rs:211	
 liella_compat_netname2user		crates/boundary/src/posix/s29_rpc_auth.rs:204	
-liella_compat_nfsservctl		crates/boundary/src/posix/s24_system.rs:460	ret::off
+liella_compat_nfsservctl		crates/boundary/src/posix/s24_system.rs:475	ret::off
 liella_compat_passwd2des		crates/boundary/src/posix/s29_rpc_auth.rs:62	
 liella_compat_pmap_getmaps		crates/boundary/src/posix/s29_rpc_clnt.rs:302	
 liella_compat_pmap_getport		crates/boundary/src/posix/s29_rpc_clnt.rs:274	
@@ -2051,7 +2051,7 @@ liella_compat_pthread_cond_timedwait		crates/boundary/src/posix/s22_threads.rs:7
 liella_compat_pthread_cond_wait		crates/boundary/src/posix/s22_threads.rs:761	ret::errnum
 liella_compat_putmsg		crates/boundary/src/posix/s29_legacy.rs:519	ret::zero
 liella_compat_putpmsg		crates/boundary/src/posix/s29_legacy.rs:531	ret::zero
-liella_compat_query_module		crates/boundary/src/posix/s24_system.rs:454	ret::int
+liella_compat_query_module		crates/boundary/src/posix/s24_system.rs:469	ret::int
 liella_compat_realpath		crates/boundary/src/posix/s13_filesystem.rs:910	liella_legacy::versioned::realpath_2_2_5
 liella_compat_registerrpc		crates/boundary/src/posix/s29_rpc_svc.rs:150	
 liella_compat_res_gethostbyaddr		crates/boundary/src/posix/s16_nameservices.rs:126	u32::try_from
@@ -2080,7 +2080,7 @@ liella_compat_svcunix_create		crates/boundary/src/posix/s29_rpc_svc.rs:106
 liella_compat_svcunixfd_create		crates/boundary/src/posix/s29_rpc_svc.rs:112	
 liella_compat_sysctl		crates/boundary/src/posix/s29_legacy.rs:549	ret::zero
 liella_compat_tr_break		crates/boundary/src/posix/s03_memory.rs:240	malloc_compat::inert
-liella_compat_uselib		crates/boundary/src/posix/s24_system.rs:466	ret::zero
+liella_compat_uselib		crates/boundary/src/posix/s24_system.rs:481	ret::zero
 liella_compat_user2netname		crates/boundary/src/posix/s29_rpc_auth.rs:183	
 liella_compat_xdecrypt		crates/boundary/src/posix/s29_rpc_auth.rs:76	
 liella_compat_xdr_bytes		crates/boundary/src/posix/s29_legacy.rs:388	rules::len_ok
@@ -2422,7 +2422,7 @@ liella_remainderl_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:
 liella_remquof128_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:4487	mret::remquo
 liella_remquof64x_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:4510	mret::remquo
 liella_remquol_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:4515	mret::remquo
-liella_report7	LIELLA_PRIVATE	crates/boundary/src/posix/s02_diagnostics.rs:104	report::report
+liella_report7	LIELLA_PRIVATE	crates/boundary/src/posix/s02_diagnostics.rs:113	report::report
 liella_rintf128_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:4532	mret::ret
 liella_rintf64x_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:4555	mret::ret
 liella_rintl_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:4560	mret::ret
@@ -2467,7 +2467,7 @@ liella_strfroml_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s08_numeric.rs:965
 liella_strtof128_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s08_numeric.rs:917	F128Bits::from_bits
 liella_strtold_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s08_numeric.rs:911	LdBits::from_bits
 liella_strtold_internal_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s08_numeric.rs:895	LdBits::from_bits
-liella_syscall7	LIELLA_PRIVATE	crates/boundary/src/posix/s24_system.rs:274	ret::long
+liella_syscall7	LIELLA_PRIVATE	crates/boundary/src/posix/s24_system.rs:289	ret::long
 liella_tanf128_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:5029	mret::elem
 liella_tanf64x_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:5049	mret::elem
 liella_tanhf128_bits	LIELLA_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:5064	mret::elem
@@ -2692,7 +2692,7 @@ modff	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:4106	mret::Soft::ent
 modff32	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4117	mret::Soft::enter
 modff32x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4123	mret::Soft::enter
 modff64	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4129	mret::Soft::enter
-modify_ldt	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:471	ret::int
+modify_ldt	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:486	ret::int
 moncontrol	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:224	
 monstartup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:197	Text::new
 mount	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:554	ret::zero
@@ -2781,7 +2781,7 @@ nextupf	GLIBC_2.24	crates/boundary/src/posix/s10_math_gen.rs:4351	mret::Soft::en
 nextupf32	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4362	mret::Soft::enter
 nextupf32x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4368	mret::Soft::enter
 nextupf64	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4374	mret::Soft::enter
-nfsservctl	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:460	ret::off
+nfsservctl	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:475	ret::off
 nftw	GLIBC_2.3.3	crates/boundary/src/posix/s13_filesystem.rs:836	ret::signed
 nftw64	GLIBC_2.3.3	crates/boundary/src/posix/s13_filesystem.rs:842	ret::signed
 ngettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:124	ret::ptr
@@ -2852,10 +2852,10 @@ p##swscanf		csys/src/adapter/variadic.c:193	liella_vswscanf4
 p##wscanf		csys/src/adapter/variadic.c:191	liella_vfwscanf4
 parse_printf_format	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1284	ret::size0
 passwd2des	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:62	
-pathconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:216	ret::sysconf
+pathconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:231	ret::sysconf
 pause	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:235	cancel::point
 pclose	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:366	ret::int32
-perror	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:96	report::perror
+perror	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:105	report::perror
 personality	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:431	ret::signed
 pidfd_getfd	GLIBC_2.36	crates/boundary/src/posix/s18_processes.rs:295	ret::fd
 pidfd_getpid	GLIBC_2.39	crates/boundary/src/posix/s18_processes.rs:305	ret::int32
@@ -3169,7 +3169,7 @@ pthread_timedjoin_np	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:54	ret:
 pthread_tryjoin_np	GLIBC_2.3.3	crates/boundary/src/posix/s22_threads.rs:49	ret::errnum_if
 pthread_tryjoin_np	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:49	ret::errnum_if
 pthread_yield	GLIBC_2.2.5	crates/boundary/src/posix/s22_threads.rs:456	pthread::yield_now
-pthread_yield	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:158	ret::zero
+pthread_yield	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:173	ret::zero
 ptrace		csys/src/adapter/variadic.c:125	
 ptsname	GLIBC_2.2.5	crates/boundary/src/posix/s19_terminals.rs:152	ret::null
 ptsname_r	GLIBC_2.2.5	crates/boundary/src/posix/s19_terminals.rs:157	ret::errnum_errno
@@ -3201,9 +3201,9 @@ pwritev64	GLIBC_2.10	crates/boundary/src/posix/s11_lowio.rs:264	cancel::point
 pwritev64v2	GLIBC_2.26	crates/boundary/src/posix/s11_lowio.rs:288	cancel::point
 qsort	GLIBC_2.2.5	crates/boundary/src/posix/s14_search.rs:78	ret::unit
 qsort_r	GLIBC_2.8	crates/boundary/src/posix/s14_search.rs:84	ret::unit
-query_module	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:454	ret::int
+query_module	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:469	ret::int
 quick_exit	GLIBC_2.10	crates/boundary/src/posix/s01_startup.rs:84	process::quick_exit
-quotactl	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:393	ret::zero
+quotactl	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:408	ret::zero
 raise	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:115	ret::zero
 rand	GLIBC_2.2.5	crates/boundary/src/posix/s09_random.rs:50	prng_global::rand
 rand_r	GLIBC_2.2.5	crates/boundary/src/posix/s09_random.rs:62	ret::must
@@ -3235,7 +3235,7 @@ realloc	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:60	heap::c_realloc_f
 reallocarray	GLIBC_2.26	crates/boundary/src/posix/s03_memory.rs:91	ret::null
 realpath	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:910	liella_legacy::versioned::realpath_2_2_5
 realpath	GLIBC_2.3	crates/boundary/src/posix/s13_filesystem.rs:902	ret::null
-reboot	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:375	ret::zero
+reboot	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:390	ret::zero
 recv	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:130	cancel::point
 recvfrom	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:148	cancel::point
 recvmmsg	GLIBC_2.12	crates/boundary/src/posix/s15_sockets.rs:178	cancel::point
@@ -3322,17 +3322,19 @@ scandir	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:767	ret::int
 scandir64	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:773	ret::int
 scandirat	GLIBC_2.15	crates/boundary/src/posix/s13_filesystem.rs:779	ret::int
 scandirat64	GLIBC_2.15	crates/boundary/src/posix/s13_filesystem.rs:785	ret::int
-sched_get_priority_max	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:143	ret::int32
-sched_get_priority_min	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:133	ret::int32
-sched_getaffinity	GLIBC_2.3.4	crates/boundary/src/posix/s24_system.rs:174	ret::zero
-sched_getcpu	GLIBC_2.6	crates/boundary/src/posix/s24_system.rs:185	ret::int
-sched_getparam	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:123	ret::store
+sched_get_priority_max	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:158	ret::int32
+sched_get_priority_min	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:148	ret::int32
+sched_getaffinity	GLIBC_2.3.4	crates/boundary/src/posix/s24_system.rs:189	ret::zero
+sched_getattr	GLIBC_2.41	crates/boundary/src/posix/s24_system.rs:128	ret::zero
+sched_getcpu	GLIBC_2.6	crates/boundary/src/posix/s24_system.rs:200	ret::int
+sched_getparam	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:138	ret::store
 sched_getscheduler	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:108	ret::int
-sched_rr_get_interval	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:153	ret::store
-sched_setaffinity	GLIBC_2.3.4	crates/boundary/src/posix/s24_system.rs:168	ret::zero
-sched_setparam	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:118	ret::zero
+sched_rr_get_interval	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:168	ret::store
+sched_setaffinity	GLIBC_2.3.4	crates/boundary/src/posix/s24_system.rs:183	ret::zero
+sched_setattr	GLIBC_2.41	crates/boundary/src/posix/s24_system.rs:123	ret::zero
+sched_setparam	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:133	ret::zero
 sched_setscheduler	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:98	ret::zero
-sched_yield	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:158	ret::zero
+sched_yield	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:173	ret::zero
 secure_getenv	GLIBC_2.17	crates/boundary/src/posix/s01_startup.rs:137	ret::ptr
 seed48	GLIBC_2.2.5	crates/boundary/src/posix/s09_random.rs:149	ret::ptr
 seed48_r	GLIBC_2.2.5	crates/boundary/src/posix/s09_random.rs:194	ret::int
@@ -3374,7 +3376,7 @@ setaliasent	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:458	netdb:
 setbuf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:89	ret::unit
 setbuffer	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:94	ret::unit
 setcontext		csys/src/machine/context.S:173	liella_machine_setcontext
-setdomainname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:337	ret::zero
+setdomainname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:352	ret::zero
 setegid	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:90	ret::zero
 setenv	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:149	ret::zero
 seteuid	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:85	ret::zero
@@ -3385,8 +3387,8 @@ setgid	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:80	ret::zero
 setgrent	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:202	
 setgroups	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:125	ret::zero
 sethostent	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:202	netdb::sethostent
-sethostid	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:284	ret::zero
-sethostname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:331	ret::zero
+sethostid	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:299	ret::zero
+sethostname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:346	ret::zero
 setipv4sourcefilter	GLIBC_2.3.4	crates/boundary/src/posix/s15_sockets.rs:447	ret::zero
 setitimer	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:184	ret::store_if
 setjmp		csys/src/machine/setjmp.S:116	liella_machine_sigsetjmp
@@ -3628,11 +3630,11 @@ strcoll_l	GLIBC_2.3	crates/boundary/src/posix/s04_strings.rs:344	locale::of
 strcpy	GLIBC_2.2.5	csys/src/machine/scan.S:518	liella_hot_strcpy_rest
 strcspn	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:543	ret::must
 strdup	GLIBC_2.2.5	crates/boundary/src/posix/s04_strings.rs:826	ret::null
-strerror	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:58	ret::ptr
-strerror_l	GLIBC_2.6	crates/boundary/src/posix/s02_diagnostics.rs:63	ret::ptr
-strerror_r	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:68	ret::ptr
-strerrordesc_np	GLIBC_2.32	crates/boundary/src/posix/s02_diagnostics.rs:91	ret::ptr
-strerrorname_np	GLIBC_2.32	crates/boundary/src/posix/s02_diagnostics.rs:86	ret::ptr
+strerror	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:67	ret::ptr
+strerror_l	GLIBC_2.6	crates/boundary/src/posix/s02_diagnostics.rs:72	ret::ptr
+strerror_r	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:77	ret::ptr
+strerrordesc_np	GLIBC_2.32	crates/boundary/src/posix/s02_diagnostics.rs:100	ret::ptr
+strerrorname_np	GLIBC_2.32	crates/boundary/src/posix/s02_diagnostics.rs:95	ret::ptr
 strfmon		csys/src/adapter/variadic.c:226	
 strfmon_l		csys/src/adapter/variadic.c:227	
 strfromd	GLIBC_2.25	crates/boundary/src/posix/s08_numeric.rs:935	ret::int
@@ -3736,9 +3738,9 @@ sys_sigabbrev	GLIBC_2.3.3	csys/src/machine/compat_aliases.S:3732
 sys_siglist	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3652	
 sys_siglist	GLIBC_2.3.3	csys/src/machine/compat_aliases.S:3653	
 syscall		csys/src/adapter/variadic.c:50	
-sysconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:206	ret::sysconf
+sysconf	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:221	ret::sysconf
 sysctl	GLIBC_2.2.5	crates/boundary/src/posix/s29_legacy.rs:549	ret::zero
-sysinfo	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:355	ret::store
+sysinfo	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:370	ret::store
 syslog		csys/src/adapter/variadic.c:253	
 system	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:349	cancel::point
 sysv_signal	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:65	ret::handler
@@ -3887,7 +3889,7 @@ ulimit		csys/src/adapter/variadic.c:49
 umask	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:358	
 umount	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:560	ret::zero
 umount2	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:566	ret::zero
-uname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:302	ret::store
+uname	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:317	ret::store
 ungetc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:231	ret::byte_written
 ungetwc	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:592	ret::wint_written
 unlink	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:109	ret::zero
@@ -3897,7 +3899,7 @@ unsetenv	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:155	ret::zero
 unshare	GLIBC_2.4	crates/boundary/src/posix/s18_processes.rs:437	ret::zero
 updwtmp	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:505	ret::errno_only
 updwtmpx	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:547	ret::errno_only
-uselib	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:466	ret::zero
+uselib	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:481	ret::zero
 uselocale	GLIBC_2.3	crates/boundary/src/posix/s07_locale.rs:54	ret::ptr
 user2netname	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_auth.rs:183	
 usleep	GLIBC_2.2.5	crates/boundary/src/posix/s23_time.rs:151	cancel::point
@@ -3910,8 +3912,8 @@ utmpxname	GLIBC_2.2.5	crates/boundary/src/posix/s17_users.rs:541	ret::zero
 valloc	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:116	ret::null
 vasprintf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1201	ret::count
 vdprintf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1153	ret::count
-verr	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:122	report::report
-verrx	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:128	report::report
+verr	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:131	report::report
+verrx	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:137	report::report
 versionsort	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:805	ret::order
 versionsort64	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:811	ret::order
 vfork		csys/src/machine/vfork.S:21	liella_vfork_fail
@@ -3919,7 +3921,7 @@ vfprintf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1129	ret::count
 vfscanf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:954	ret::int_or_eof
 vfwprintf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1237	ret::count
 vfwscanf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:984	ret::int_or_eof
-vhangup	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:409	ret::zero
+vhangup	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:424	ret::zero
 vlimit	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:68	ret::zero
 vmsplice	GLIBC_2.5	crates/boundary/src/posix/s11_lowio.rs:518	ret::ssize
 vprintf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1123	ret::count
@@ -3931,8 +3933,8 @@ vswprintf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1249	ret::count
 vswscanf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:990	ret::int_or_eof
 vsyslog	GLIBC_2.2.5	crates/boundary/src/posix/s26_syslog.rs:38	syslog::vsyslog
 vtimes	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:78	ret::store_both
-vwarn	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:110	report::report
-vwarnx	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:116	report::report
+vwarn	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:119	report::report
+vwarnx	GLIBC_2.2.5	crates/boundary/src/posix/s02_diagnostics.rs:125	report::report
 vwprintf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1225	ret::count
 vwscanf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:978	ret::int_or_eof
 wait	GLIBC_2.2.5	crates/boundary/src/posix/s18_processes.rs:312	cancel::point
