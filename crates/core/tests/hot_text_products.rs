@@ -883,7 +883,7 @@ fn bin_ranges(map: &str) -> Vec<(usize, u64, u64)> {
         if let Some(b) = bin_of(&n).filter(|b| s > 0 && counted.contains(b)) {
             let e = out.entry(b).or_insert((u64::MAX, 0));
             e.0 = e.0.min(a);
-            e.1 = e.1.max(a + s);
+            e.1 = e.1.max(a.saturating_add(s));
         }
     }
     let missing: Vec<&usize> = counted.iter().filter(|b| !out.contains_key(b)).collect();
@@ -899,7 +899,7 @@ fn bin_window_errors(map: &str) -> Vec<String> {
         if b > 0 && lo % 0x10000 != 0 {
             bad.push(format!("BIN-WINDOW: bin {b} starts at {lo:#x}, not on a 64 KiB boundary (its first member's alignment missing?)"));
         }
-        if hi - lo <= 0x10000 && lo >> 16 != (hi - 1) >> 16 && b > 0 {
+        if hi.saturating_sub(lo) <= 0x10000 && lo >> 16 != hi.saturating_sub(1) >> 16 && b > 0 {
             bad.push(format!("BIN-WINDOW: bin {b} at {lo:#x}..{hi:#x} straddles a 64 KiB window"));
         }
     }
@@ -980,7 +980,7 @@ fn init_window_bins_start_on_window_boundaries() {
     eprintln!("PADDING: probe file {file} bytes; .text starts at {:#x}", inputs.first().map_or(0, |s| s.1));
     for (b, lo, hi) in bin_ranges(&map) {
         let prev = inputs.iter().filter(|s| s.2 > 0 && s.1 < lo).map(|s| s.1 + s.2).max().unwrap_or(lo);
-        eprintln!("bin {b}: {lo:#x}..{hi:#x} ({} bytes; {} bytes of padding ahead of it)", hi - lo, lo.saturating_sub(prev));
+        eprintln!("bin {b}: {lo:#x}..{hi:#x} ({} bytes; {} bytes of padding ahead of it)", hi.saturating_sub(lo), lo.saturating_sub(prev));
     }
     let bad = bin_window_errors(&map);
     assert!(bad.is_empty(), "{bad:#?}");
