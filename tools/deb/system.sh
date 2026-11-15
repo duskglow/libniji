@@ -86,6 +86,8 @@ for p in $pkgs; do
 done
 
 find "$s6" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
+# libc-bin's ldconfig (a static executable) is stripped the same way as the shared libraries.
+strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig"
 find "$sdev" -type f \( -name '*.a' -o -name '*.o' \) -exec strip --strip-debug --remove-section=.comment --enable-deterministic-archives {} +
 
 # --- Control members. ---

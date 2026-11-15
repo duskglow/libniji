@@ -11,7 +11,7 @@
 #    /lib64: base-files owns it); owners root:root; the control members, conffiles and triggers
 #    are exactly the ones named below.
 # 3. The products: the loader was built with prefix / (no sysroot path in it); each shared
-#    library's SONAME is its file name.
+#    library's SONAME is its file name; libc-bin's ldconfig is stripped (no .symtab, no .debug_*).
 # 4. Linking: plain gcc with the unpacked libc6-dev (its start files and libc.so script, --sysroot
 #    the unpacked tree) makes a dynamic hello whose program interpreter is
 #    /lib64/ld-linux-x86-64.so.2 (gcc's default) and which needs libc.so.6 alone with no
@@ -121,6 +121,13 @@ link=$(readlink "$r/usr/lib64/ld-linux-x86-64.so.2" || true)
 if [ -f "$lib/ld-linux-x86-64.so.2" ]; then
     ! grep -a -q '/usr/lib/liella' "$lib/ld-linux-x86-64.so.2" || fail "the loader was built with the sysroot prefix /usr/lib/liella, not /"
     grep -a -q "usr/lib/$ma" "$lib/ld-linux-x86-64.so.2" || fail "the loader does not name usr/lib/$ma"
+fi
+# libc-bin's ldconfig is stripped: no symbol table and no debug sections.
+if [ -f "$r/usr/sbin/ldconfig" ]; then
+    ! readelf -SW "$r/usr/sbin/ldconfig" | grep -q -E ' \.(symtab|debug_[a-z_]+) ' ||
+        fail "usr/sbin/ldconfig is not stripped (it has a symbol table or debug sections)"
+else
+    fail "libc-bin has no usr/sbin/ldconfig"
 fi
 for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
     sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
