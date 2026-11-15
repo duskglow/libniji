@@ -24,7 +24,7 @@ fn root() -> PathBuf {
 
 #[test]
 fn every_version_node_has_a_dependency_rule() {
-    // No spec clause (packaging; plan/system-libc.md section 3.2).
+    // no spec clause (packaging; plan/system-libc.md section 3.2, SL-SYMBOLS-NODES).
     if let Some(t) = ["sh", "python3", "readelf", "strip"].into_iter().find(|t| skip_note::missing(t)) {
         skip_note::skipped(&format!("skipped: no {t}"));
         return;
