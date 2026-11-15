@@ -1143,6 +1143,46 @@ mod tests {
         0x11_0000 >> 8
     }
 
+    /// no spec clause (D-5.10, WCTYPE-TRIE-FILE-10: a built-in table is all zero bytes, so it
+    /// stays in `.bss` and start-up never touches it): a built-in table starts with every block
+    /// unresolved and resolves a block at its first miss, through `word` and through
+    /// `test_miss` (the `isw*` path), to its generated leaf. Every character of the blocks
+    /// asked equals the generated word, the first one misses and the rest hit, and no other
+    /// block is written; above U+10FFFF nothing has a class and nothing is written.
+    #[test]
+    fn builtin_class_tables_resolve_a_block_at_its_first_miss() {
+        use crate::ctype::{Class, STANDARD_MASKS};
+        use crate::unicode::{self, class_words};
+        use classes::ClassTable;
+        for (utf8, s1, what) in [(false, &class_words::C_STAGE1, "C"), (true, &class_words::C_UTF8_STAGE1, "C.UTF-8")] {
+            let by_word = ClassTable::builtin_for_test(utf8);
+            let by_test = ClassTable::builtin_for_test(utf8);
+            assert_eq!(by_word.census(), [classes_len(), 0, 0, 0], "{what}: unresolved at first");
+            for (n, block) in [0u32, 0x03, 0x4e, 0x10ff].into_iter().enumerate() {
+                let first = block << 8;
+                assert_eq!(by_word.hit(first), None, "{what} {first:#x}: unresolved before its first miss");
+                assert_eq!(by_test.test(first, Class::ALPHA.0), None, "{what} {first:#x}: test misses first");
+                let mut members = 0usize;
+                for c in first..first + 256 {
+                    let want = unicode::class_word(s1, c);
+                    let m = STANDARD_MASKS.get(usize::try_from(c % 12).unwrap_or(0)).copied().unwrap_or(0);
+                    assert_eq!(by_word.word(c, None), want, "{what}: word {c:#x}");
+                    assert_eq!(by_word.hit(c), Some(want), "{what}: a hit once resolved {c:#x}");
+                    let got = by_test.test(c, m).unwrap_or_else(|| by_test.test_miss(c, Class(m), None));
+                    assert_eq!(got, i32::from(want & m != 0), "{what}: test {c:#x} mask {m:#x}");
+                    members += usize::from(want != 0);
+                }
+                // Not vacuous: ASCII has classes in both, U+0300 and U+4E00 blocks in C.UTF-8.
+                assert!(members > 0 || block == 0x10ff || (!utf8 && block != 0), "{what} block {block:#x}: not vacuous");
+                assert_eq!(by_word.census(), [classes_len() - n - 1, n + 1, 0, 0], "{what}: only the blocks asked");
+                assert_eq!(by_test.census(), [classes_len() - n - 1, n + 1, 0, 0], "{what}: only the blocks asked (test)");
+            }
+            assert_eq!(by_word.word(0x11_0000, None), 0, "{what}: above U+10FFFF");
+            assert_eq!(by_test.test_miss(0xffff_ffff, Class::ALPHA, None), 0, "{what}: above U+10FFFF (test)");
+            assert_eq!(by_word.census()[1], 4, "{what}: nothing written above U+10FFFF");
+        }
+    }
+
     /// no spec clause (D-5.10: a block is resolved once and published whole): many threads
     /// touching one unresolved block at once all get the file walk's words, and the block ends
     /// resolved; with a built-in leaf and with a pool leaf.
