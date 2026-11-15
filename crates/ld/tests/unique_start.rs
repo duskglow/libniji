@@ -125,7 +125,7 @@ int main(int argc, char **argv) {{
 /// s27_1_g_0: one definition per unique name for the process, the first in the start's global scope,
 /// with more unique names than any fixed table would hold, kept for an object opened later.
 #[test]
-fn s27_1_g_0_unique_definitions_at_start_and_after() {
+fn s27_1_g_0_unique_definitions_shared_from_start_through_dlopen() {
     let Some((d, ld, libc, crt1)) = setup() else { return };
     let dir = d.to_str().unwrap();
     let start_lib = |name: &str, src: &str| cc(&d, name, src, &["-nostdlib", "-fPIC", "-shared", "-Wl,--no-as-needed"]);
