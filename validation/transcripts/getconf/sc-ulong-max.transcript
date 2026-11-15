@@ -1,0 +1,10 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: ULONG_MAX prints the number, not undefined
+clause: s31_5_g_1
+command: getconf
+env: LC_ALL=C
+arg: ULONG_MAX
+status: exit 0
+stdout:
+| 18446744073709551615
+stderr:

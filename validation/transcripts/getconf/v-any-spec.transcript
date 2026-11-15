@@ -1,0 +1,12 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: -v accepts a specification it does not know
+clause: s31_5_g_3
+command: getconf
+env: LC_ALL=C
+arg: -v
+arg: BOGUS
+arg: LONG_BIT
+status: exit 0
+stdout:
+| 64
+stderr:

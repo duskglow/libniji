@@ -44,11 +44,13 @@ fn reference_default(command: &str) -> Option<PathBuf> {
     ["/usr/sbin", "/usr/bin"].iter().map(|d| Path::new(d).join(command)).find(|p| p.is_file())
 }
 
-/// Liella's program for a command: this binary for `ldconfig` (UTIL-3), the test link of getent (UTIL-6); none for
+/// Liella's program for a command: this binary for `ldconfig` (UTIL-3), `target/liella/getconf` (UTIL-5), the test
+/// link of getent (UTIL-6); none for
 /// the others yet.
 fn liella_default(root: &Path, command: &str) -> Option<PathBuf> {
     match command {
         "ldconfig" => std::env::current_exe().ok(),
+        "getconf" => Some(root.join("target/liella/getconf")),
         // UTIL-6: the test link of getent (`cargo xtask so`), which runs on this tree's loader and library.
         "getent" => Some(root.join(crate::so::GETENT_TEST)).filter(|p| p.is_file()),
         _ => None,
@@ -107,7 +109,17 @@ fn run_one(t: &Transcript, label: &str, program: PathBuf) -> Result<Outcome, Str
     let dir = scratch()?;
     let r = run::run_side(t, &Side { label, program }, &dir);
     let _ = std::fs::remove_dir_all(&dir);
-    r
+    r.map(|mut o| {
+        run::mask_lines(&mut o, &t.mask_values, b"@MASKED@");
+        o
+    })
+}
+
+/// `o` as the record holds it: each `host-value:` line's value is `@HOST@`.
+fn as_recorded(t: &Transcript, o: &Outcome) -> Outcome {
+    let mut o = o.clone();
+    run::mask_lines(&mut o, &t.host_values, b"@HOST@");
+    o
 }
 
 /// What one `check` of a transcript found.
@@ -130,7 +142,7 @@ fn check_one(t: &Transcript, reference: Option<PathBuf>, liella: PathBuf) -> Res
         Some(path) => {
             let theirs = run_one(t, "reference", path.clone())?;
             lines.extend(compare::compare("reference", &theirs, "liella", &ours).iter().map(ToString::to_string));
-            let stale = compare::compare("record", record, "reference", &theirs);
+            let stale = compare::compare("record", record, "reference", &as_recorded(t, &theirs));
             if !stale.is_empty() {
                 lines.push(format!("the record is stale: {} gives another outcome than the record (re-record it after checking why)", path.display()));
                 lines.extend(stale.iter().map(ToString::to_string));
@@ -138,7 +150,7 @@ fn check_one(t: &Transcript, reference: Option<PathBuf>, liella: PathBuf) -> Res
             format!("against {}", path.display())
         }
         None => {
-            lines.extend(compare::compare("record", record, "liella", &ours).iter().map(ToString::to_string));
+            lines.extend(compare::compare("record", record, "liella", &as_recorded(t, &ours)).iter().map(ToString::to_string));
             format!("against the record only: the reference `{}` is not installed here", t.command)
         }
     };
@@ -202,7 +214,7 @@ pub(crate) fn main(root: &Path, args: &[String]) -> ExitCode {
             };
             match run_one(&t, "reference", path) {
                 Ok(o) => {
-                    let text = format!("{}{}", t.head, format::render_outcome(&o));
+                    let text = format!("{}{}", t.head, format::render_outcome(&as_recorded(&t, &o)));
                     if let Err(e) = std::fs::write(f, text) {
                         println!("ERROR {shown}: {e}");
                         errors += 1;

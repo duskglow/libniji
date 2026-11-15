@@ -1,0 +1,10 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: PATH prints the default search path
+clause: s31_5_g_1
+command: getconf
+env: LC_ALL=C
+arg: PATH
+status: exit 0
+stdout:
+| /bin:/usr/bin
+stderr:
