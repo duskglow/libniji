@@ -337,6 +337,34 @@ def scan_file(path, label, acc):
         op = {"gz": gzip.open, "xz": lzma.open, "bz2": bz2.open}[n.rsplit(".", 1)[1]]
         with op(path, "rb") as f:
             acc.scan_text(f.read().decode("latin-1"))
+    elif n.endswith(".git"):
+        # a git bundle (one Devuan-native package): check out HEAD into the RAM directory and walk it
+        co = os.path.join(acc.tmp, "bundle-co")
+        r = subprocess.run(["git", "clone", "-q", "--no-hardlinks", path, co], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError("git bundle checkout failed: " + r.stderr[:100])
+        skipped = set()
+        for dp, dns, fns in os.walk(co):
+            rel = os.path.relpath(dp, co)
+            comps = [] if rel == "." else rel.split("/")
+            keep = []
+            for dn in sorted(dns):
+                if dn == ".git":
+                    continue
+                if dn in SKIP_COMPONENTS:
+                    skipped.add("/".join(comps + [dn]))
+                else:
+                    keep.append(dn)
+            dns[:] = keep
+            for fn in sorted(fns):
+                p = "/".join(comps + [fn])
+                if is_code(p) and os.path.getsize(os.path.join(dp, fn)) <= MAX_MEMBER:
+                    acc.feed(p, open(os.path.join(dp, fn), "rb").read())
+                else:
+                    acc.names.add(p)
+        shutil.rmtree(co, ignore_errors=True)
+        for sp in sorted(skipped):
+            acc.skips.append("%s:%s" % (label, sp))
     elif n.endswith(".dsc") or n.endswith(".asc"):
         pass
     else:
