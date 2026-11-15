@@ -559,7 +559,7 @@ The rows below shape the code most. Each links back to its full text in `plan/`.
 | Limitation | What it affects in practice |
 |---|---|
 | **Dynamic loader: not complete** (phase 14) | The loader loads shared objects and provides `dlopen`, `dlsym` and `dlclose`, and honours `LD_PRELOAD`. Not provided yet: `dlmopen`, lazy binding, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)). |
-| **Compatibility-only symbol versions** (phase 15) | `sym@OLD_VERSION` entries are not produced, so binaries linked against glibc versions older than a function's current version would not resolve them. Only relevant once the loader exists. |
+| **Compatibility-only symbol versions** (phase 15) | `sym@OLD_VERSION` entries are not produced, so binaries linked against glibc versions older than a function's current version would not resolve them. |
 | **x86-64 Linux only** | No other architecture or OS; the C layer's assembly and the Appendix C layouts are x86-64. Porting would mean a new `csys/src/machine/` and layout set. |
 | **One CPU level** | Products are built for baseline x86-64. The string scanners pick AVX2 or SSE2 at run time; other code does not. This affects speed on AVX2 hosts for some rows, not correctness. |
 | **Rust `std` programs** | Rust programs on Liella are `#![no_std]`: the C symbols `std` needs are defined now, but no `std` program has been linked yet ([docs/toolchain.md §8](toolchain.md)). C programs are unaffected. |
