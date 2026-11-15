@@ -644,6 +644,38 @@ fn s24_3_c_5() {
     assert!(c != u32::MAX && n != u32::MAX);
 }
 
+#[test]
+fn s24_3_c_6() {
+    // sched_setattr/sched_getattr: pid 0 is the calling thread, a thread ID names that thread.
+    // SCHED_IDLE set in one thread is read back there and through its ID from another thread,
+    // and the other thread keeps SCHED_OTHER. (The size protocol and the errors are
+    // sym_sched_setattr's and sym_sched_getattr's in crates/boundary.)
+    const SCHED_OTHER: u32 = 0;
+    const SCHED_IDLE: u32 = 5;
+    // struct sched_attr, version 1: size, policy, flags, nice, priority, three u64, two u32.
+    fn policy_of(pid: i32) -> u32 {
+        let mut a = [0u32; 14];
+        assert_eq!(x::sched_getattr(pid, a.as_mut_ptr().cast(), 56, 0), 0, "pid {pid}");
+        a[1]
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+    let t = std::thread::spawn(move || {
+        let mut a = [0u32; 14];
+        a[0] = 56;
+        a[1] = SCHED_IDLE;
+        let set = x::sched_setattr(0, a.as_mut_ptr().cast(), 0);
+        tx.send((set, liella_boundary::posix::s18_processes::gettid(), policy_of(0))).unwrap();
+        done_rx.recv().unwrap();
+    });
+    let (set, tid, own) = rx.recv().unwrap();
+    assert_eq!((set, own), (0, SCHED_IDLE), "the calling thread");
+    assert_eq!(policy_of(tid), SCHED_IDLE, "the thread named by its ID");
+    assert_eq!(policy_of(0), SCHED_OTHER, "not the other threads");
+    done_tx.send(()).unwrap();
+    t.join().unwrap();
+}
+
 /// §24.5 Contract: **`getdomainname`** returns the NIS domain name, not the DNS domain. In a
 /// private user and UTS namespace (`unshare -r -u`) the test sets the NIS domain `nis.example`
 /// and a host name whose DNS domain would be `dns.example`; `getdomainname` (the export and
