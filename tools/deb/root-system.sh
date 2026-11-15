@@ -14,12 +14,14 @@
 #   - the dynamic hello (program interpreter /lib64/ld-linux-x86-64.so.2) starts the packaged
 #     loader through the root's /lib64 link, and ld.so --list resolves libc.so.6 to
 #     /usr/lib/x86_64-linux-gnu/libc.so.6;
-#   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache the ldconfig trigger wrote;
-#   - the dynamic hello runs: PASS when it prints its line; WAIT while the loader's start-time
-#     soname search is not on the start path (story DL-8; the loader says so);
+#   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache libc-bin's postinst wrote
+#     (configure; the ldconfig trigger after later library installs);
+#   - the smoke programs hello, threads (C) and except, iostream (C++; libstdc++ linked statically)
+#     built dynamically with plain gcc/g++ run in the root and print their lines: the loader finds
+#     libc.so.6 and libm.so.6 by soname at start (DL-START-SEARCH);
 #   - purge (libc-bin is Essential: --force-remove-essential) leaves the skeleton, the database and
 #     /etc/nsswitch.conf (the administrator's file) and nothing else.
-# Prints "root: PASS|FAIL|WAIT|INFO ..." lines and "root: RESULT ..."; exit 1 when any is FAIL.
+# Prints "root: PASS|FAIL|INFO ..." lines and "root: RESULT ..."; exit 1 when any is FAIL.
 set -eu
 export LC_ALL=C
 [ $# -eq 1 ] || { echo "usage: tools/deb/root-system.sh DEBDIR" >&2; exit 2; }
@@ -29,10 +31,9 @@ ma=x86_64-linux-gnu
 tmp=$(mktemp -d)
 # The namespace's files are owned by the caller outside it; removal needs no privilege.
 trap 'chmod -R u+rwX "$tmp" 2>/dev/null; rm -rf "$tmp"' EXIT
-npass=0; nfail=0; nwait=0
+npass=0; nfail=0
 pass() { echo "root: PASS $*"; npass=$((npass + 1)); }
 fail() { echo "root: FAIL $*"; nfail=$((nfail + 1)); }
-wait_() { echo "root: WAIT $*"; nwait=$((nwait + 1)); }
 info() { echo "root: INFO $*"; }
 # ns CMD...: run CMD as root of a new user namespace (the caller's uid mapped to 0).
 ns() { unshare -r "$@"; }
@@ -76,6 +77,16 @@ cc=${CC:-gcc}
 b=$("$cc" -print-file-name=crtbeginS.o); e=$("$cc" -print-file-name=crtendS.o)
 "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/hello.c" -lc -lgcc "$e" -o "$r/tmp/hello" > "$tmp/cc.log" 2>&1 ||
     fail "dynamic hello does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+"$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/threads.c" -lc -lgcc "$e" -o "$r/tmp/threads" > "$tmp/cc.log" 2>&1 ||
+    fail "dynamic threads does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+# C++ as liella-g++ links it: libstdc++ and the unwinder static (the root has no libstdc++.so.6), the C
+# library and libm.so.6 the root's.
+cxx=${CXX:-g++}
+for p in except iostream; do
+    "$cxx" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/$p.cc" \
+        -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm -lc -lgcc -lgcc_eh "$e" -o "$r/tmp/$p" > "$tmp/cc.log" 2>&1 ||
+        fail "dynamic $p does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+done
 b=$("$cc" -print-file-name=crtbeginT.o); e=$("$cc" -print-file-name=crtend.o)
 "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$b" "$here/smoke/hello.c" -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$e" -o "$r/tmp/hello-static" > "$tmp/cc.log" 2>&1 ||
     fail "static hello does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
@@ -92,24 +103,28 @@ case $out in
 esac
 out=$(in_root /usr/sbin/ldconfig -p 2>&1) || true
 case $out in
-    *"libc.so.6 (libc6,x86-64) => "*"/lib/$ma/libc.so.6"*) pass "the ldconfig trigger wrote /etc/ld.so.cache: ldconfig -p in the root lists libc.so.6" ;;
+    *"libc.so.6 (libc6,x86-64) => "*"/lib/$ma/libc.so.6"*) pass "libc-bin's postinst wrote /etc/ld.so.cache: ldconfig -p in the root lists libc.so.6" ;;
     *) fail "ldconfig -p in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
 esac
-out=$(in_root /tmp/hello 2>&1) && rc=0 || rc=$?
-case $rc:$out in
-    0:*"hello from liella"*) pass "dynamic hello runs in the root: $out" ;;
-    *"library search is not available"*) wait_ "dynamic hello: the packaged loader starts through /lib64 (PT_INTERP) and stops at the start-time soname search (DL-8): $out" ;;
-    *) fail "dynamic hello in the root exits $rc: $out" ;;
-esac
+# The four dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds
+# libc.so.6 (and libm.so.6) by soname at start (DL-START-SEARCH), and prints its line.
+for pe in "hello:hello from liella" "threads:threads: total 40000" "except:except: caught" "iostream:iostream: 42"; do
+    p=${pe%%:*}; want=${pe#*:}
+    out=$(in_root "/tmp/$p" 2>&1) && rc=0 || rc=$?
+    case $rc:$out in
+        0:*"$want"*) pass "dynamic $p runs in the root: $(echo "$out" | head -1)" ;;
+        *) fail "dynamic $p in the root exits $rc: $(echo "$out" | head -3 | tr '\n' ' ')" ;;
+    esac
+done
 
 # Purge everything; only the skeleton, the database and the administrator's nsswitch.conf remain.
 if dpkg_r --force-remove-essential --force-depends -P libc6-dev libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
-    (cd "$r" && find . | sort) | grep -v -e '^\./var/lib/dpkg' -e '^\./tmp/hello' -e '^\./etc/nsswitch.conf$' > "$tmp/after"
+    (cd "$r" && find . | sort) | grep -v -e '^\./var/lib/dpkg' -e '^\./tmp/' -e '^\./etc/nsswitch.conf$' > "$tmp/after"
     left=$(comm -13 "$tmp/before" "$tmp/after" | tr '\n' ' ')
     [ -z "$left" ] && pass "purge leaves the empty root (and /etc/nsswitch.conf)" || fail "left after purge: $left"
 else
     fail "dpkg --root -P: $(tail -5 "$tmp/purge.log" | tr '\n' ' ')"
 fi
 
-echo "root: RESULT pass=$npass fail=$nfail wait=$nwait"
+echo "root: RESULT pass=$npass fail=$nfail"
 [ "$nfail" -eq 0 ]

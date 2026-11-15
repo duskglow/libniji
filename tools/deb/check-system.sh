@@ -63,7 +63,7 @@ for deb in $debs; do
         libc-bin)
             expect libc-bin Essential yes; expect libc-bin Priority required; expect libc-bin Multi-Arch foreign
             expect libc-bin Depends "libc6 (= $v)"
-            ctrl_want="$ctrl_want ./conffiles ./postinst ./triggers"
+            ctrl_want="$ctrl_want ./conffiles ./postinst ./postrm ./triggers"
             conffiles="/etc/gai.conf /etc/ld.so.conf /etc/ld.so.conf.d/libc.conf"
             triggers="interest-await ldconfig" ;;
         libc6-dev)

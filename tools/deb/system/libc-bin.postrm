@@ -1,0 +1,14 @@
+#!/bin/sh
+# libc-bin (Liella) postrm. DPKG_ROOT is honoured, as in the postinst (tools/deb/root-system.sh).
+set -e
+
+case "$1" in
+    purge)
+        # /etc/ld.so.cache is written by libc-bin's ldconfig (postinst configure and the ldconfig
+        # trigger) and belongs to no package's file list: purging libc-bin removes it. The
+        # administrator's /etc/nsswitch.conf stays (the postinst never replaces it either).
+        rm -f "$DPKG_ROOT/etc/ld.so.cache"
+        ;;
+esac
+
+exit 0

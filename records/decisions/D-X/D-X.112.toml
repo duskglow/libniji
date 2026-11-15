@@ -1,0 +1,9 @@
+id = "D-X.112"
+section = "x"
+status = "active"
+amends = ["D-X.106"]
+story = "RELEASE-SNAPSHOT-1115"
+date = "2026-11-15"
+body = '''
+**libc-bin's postinst runs ldconfig on configure as well as on the ldconfig trigger, and its postrm removes `/etc/ld.so.cache` on purge (RELEASE-SNAPSHOT-1115; amends D-X.106's trigger handling).** deb-triggers(5): an activation of a trigger whose interested package is not yet configured is not kept, since configuring that package is expected to do the work. libc6 is unpacked in the same dpkg run as libc-bin on a first install, an upgrade and the swap of plan/system-libc.md section 3.7, so a trigger-only handler left the root without `/etc/ld.so.cache` (measured: `tools/deb/root-system.sh`'s `ldconfig -p` check failed on the snapshot packages; `dpkg --root -i` printed no trigger processing). The cache is written by libc-bin's own program and is in no package's file list, so purging libc-bin removes it (`/etc/nsswitch.conf`, the administrator's file, stays). Checks: `tools/deb/check-system.sh` (libc-bin's control members include `postrm`), `tools/deb/root-system.sh` (`ldconfig -p` in the root lists libc.so.6; purge leaves only the skeleton and nsswitch.conf). Gain: a root that installs Liella's packages has a loader cache from the start, so libraries in `ld.so.conf` directories outside the default ones are found before the next library install.
+'''
