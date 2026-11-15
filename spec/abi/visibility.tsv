@@ -10,9 +10,12 @@ header	name	kind	configs
 -	_LARGEFILE64_SOURCE	macro	lfs64
 -	_LP64	macro	*
 -	_POSIX_C_SOURCE	macro	posix1,posix2,posix199309,posix199506,posix200112,posix200809
+-	_REENTRANT	macro	reentrant
+-	_STDC_PREDEF_H	macro	*
 -	_TIME_BITS	macro	time64,time64only
 -	_XOPEN_SOURCE	macro	xopen,xopen500,xopen600,xopen700,xopenext
 -	_XOPEN_SOURCE_EXTENDED	macro	xopenext
+-	__STDC_ISO_10646__	macro	*
 -	__cyg_profile_func_enter	function	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 -	__cyg_profile_func_exit	function	cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 -	linux	macro	gnu17,gnu2x,gnu,lfs64,fob64,time64,time64only,dynstack,reentrant,fortify1,fortify2,fortify3
@@ -42306,6 +42309,7 @@ stdbit.h	__uint32_t	typedef	!time64only
 stdbit.h	__uint64_t	typedef	!time64only
 stdbit.h	__uintmax_t	typedef	!time64only
 stdbit.h	__useconds_t	typedef	!time64only
+stdbit.h	false	macro	!c2x,gnu2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdbit.h	int32_t	typedef	!time64only
 stdbit.h	size_t	typedef	!time64only
 stdbit.h	stdc_bit_ceil_uc	macro	!time64only
@@ -42449,6 +42453,7 @@ stdbit.h	stdc_trailing_zeros_ull	macro	!time64only
 stdbit.h	stdc_trailing_zeros_ull	function	!time64only
 stdbit.h	stdc_trailing_zeros_us	macro	!time64only
 stdbit.h	stdc_trailing_zeros_us	function	!time64only
+stdbit.h	true	macro	!c2x,gnu2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 stdbit.h	uint16_t	typedef	!time64only
 stdbit.h	uint32_t	typedef	!time64only
 stdbit.h	uint64_t	typedef	!time64only
@@ -52528,6 +52533,8 @@ sys/platform/x86.h	_XOPEN_SOURCE_EXTENDED	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx2
 sys/platform/x86.h	__WORDSIZE_TIME64_COMPAT32	macro	!time64only
 sys/platform/x86.h	__x86_get_cpuid_feature_leaf	function	!time64only
 sys/platform/x86.h	cpuid_feature	struct	!time64only
+sys/platform/x86.h	false	macro	!c2x,gnu2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+sys/platform/x86.h	true	macro	!c2x,gnu2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 sys/poll.h	-	include-error	time64only
 sys/poll.h	POLLERR	macro	!time64only
 sys/poll.h	POLLHUP	macro	!time64only
@@ -66333,6 +66340,7 @@ threads.h	thrd_success	enumerator	!time64only
 threads.h	thrd_t	typedef	!time64only
 threads.h	thrd_timedout	enumerator	!time64only
 threads.h	thrd_yield	function	!time64only
+threads.h	thread_local	macro	!c2x,gnu2x,time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 threads.h	time	function	!time64only
 threads.h	time_t	typedef	!time64only
 threads.h	timegm	function	c2x,gnu17,gnu2x,isoc2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,fortify1,fortify2,fortify3,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23

@@ -19,9 +19,7 @@ const VIS_HEAD: &str = "header\tname\tkind\tconfigs";
 /// Kinds in the order the rows of one (header, name) are sorted.
 const KINDS: [&str; 9] = ["macro", "typedef", "function", "object", "enumerator", "struct", "union", "enum", "include-error"];
 /// Table names the probe cannot show, with the reason.
-const EXEMPT: [(&str, &str); 4] = [
-    ("true", "a keyword in C23 and C++: the probe tests no keyword"),
-    ("false", "a keyword in C23 and C++: the probe tests no keyword"),
+const EXEMPT: [(&str, &str); 2] = [
     ("sched_getattr", "owner ruling R3: a GLIBC_2.41 addition, absent from the 2.39 reference"),
     ("sched_setattr", "owner ruling R3: a GLIBC_2.41 addition, absent from the 2.39 reference"),
 ];
@@ -278,6 +276,6 @@ mod tests {
         fails(CFG, VIS, &["EOF", "fopen"], "`fopen` (constants.tsv) is visible in no");
         // An include error does not make a name visible; the empty unit and the exemptions do.
         fails(CFG, &VIS.replace("stdio.h\tFILE\ttypedef\t*\n", ""), &["FILE"], "`FILE`");
-        assert_eq!(errs(CFG, VIS, &["_GNU_SOURCE", "true", "sched_getattr"]), Vec::<String>::new());
+        assert_eq!(errs(CFG, VIS, &["_GNU_SOURCE", "sched_getattr"]), Vec::<String>::new());
     }
 }
