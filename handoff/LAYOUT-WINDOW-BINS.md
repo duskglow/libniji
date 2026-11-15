@@ -28,8 +28,13 @@ notes). Head: see `handoff/reports/LAYOUT-WINDOW-BINS-2.json`. Role keke:~/w/r5 
   rebind 4/3 strings 2/2 tool 3/2 true 1/1` (planned/bound; sum 26/19); release 10 bins, the same except rebind 4/4
   (sum 27/20). Residual fill: 60 bytes (fast) and 48 bytes (release) in total over all gaps: **the cold pool fills the
   gaps almost exactly** (6,719 / 3,627 candidates from 15 members).
-* Head fill (variant i) and the plan after the no-filler rule: see the report json `impact` / the startup job log
-  (`~/logs/layout-window-bins-2-startup.log` on keke, lines `head phase` and `so: window bins`).
+* Final head (no fillers for bins no mode touches; keke job layout-window-bins-2-startup4): fast 9 bins, fillers
+  4,714 bytes, **residual 42 bytes**; release 10 bins, fillers 15,578 bytes, **residual 10 bytes**; windows per mode
+  unchanged from above. Release bins 5-9 (about 295 KB) and fast bins 5-8 hold sections no counted mode runs.
+* **Head fill, variant (i)** (page_faults linked as hot_text_products links it; `headfill.sh` in
+  keke:~/work/LAYOUT-WINDOW-BINS-2): the group starts 64 bytes into `.text` at 0x408040 in both profiles, phase
+  32,832, so a 64 KiB anchor adds **32,704 bytes** of fill ahead of the head in this static program (file bytes, not
+  touched pages). Other programs differ by their own `.text` prefix; libc.so.6 would take (i) at no per-program cost.
 * Planner search (scratch prototype, not committed): a deepening search over the bins' mode sets with a constructive
   pack found **no plan at cost 19..25** for fast; four greedy variants (zero-cost section fill first, bytes-first order)
   were all worse (29-39). So the bound is loose (the all-modes group nearly fills the head bin, and fork/true live only
