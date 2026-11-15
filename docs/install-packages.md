@@ -104,8 +104,8 @@ it for a rebuild.
 `build.sh` builds the release profile with the packages' loader layout (`LIELLA_PREFIX=/usr/lib/liella`,
 `LIELLA_LIBDIR=usr/lib/x86_64-linux-gnu`); it needs `cargo`, `dpkg-deb` and `strip`. The build is
 reproducible: building the same commit twice gives byte-identical packages (times from
-`SOURCE_DATE_EPOCH`, root:root owners, fixed modes, sorted members). The design is the pending
-decision `records/pending/RELEASE-PACKAGING-DEB-1.toml`.
+`SOURCE_DATE_EPOCH`, root:root owners, fixed modes, sorted members). The design is decision
+D-X.94 (`records/decisions/D-X/D-X.94.toml`).
 
 ## The system flavour (Aqours)
 
@@ -116,7 +116,7 @@ Do not install them on a Debian or Devuan system that keeps glibc: they replace 
 | Package | Contents |
 |---|---|
 | `libc6` | the loader `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2` (`/usr/lib64/ld-linux-x86-64.so.2` links to it; the program interpreter is `/lib64/ld-linux-x86-64.so.2`, reached through base-files' `/lib64 -> usr/lib64`), the shared libraries as in `liella6`, the conffile `/etc/ld.so.conf.d/x86_64-linux-gnu.conf`; activates the `ldconfig` trigger |
-| `libc-bin` | `Essential: yes`. Conffiles `/etc/ld.so.conf`, `/etc/ld.so.conf.d/libc.conf`, `/etc/gai.conf`; the template `/usr/share/libc-bin/nsswitch.conf`, which its postinst copies to `/etc/nsswitch.conf` when there is none. Handles the `ldconfig` trigger: a no-op until Liella ships `ldconfig` (the loader searches the standard directories without a cache) |
+| `libc-bin` | `Essential: yes`. Conffiles `/etc/ld.so.conf`, `/etc/ld.so.conf.d/libc.conf`, `/etc/gai.conf`; the template `/usr/share/libc-bin/nsswitch.conf`, which its postinst copies to `/etc/nsswitch.conf` when there is none. `/usr/sbin/ldconfig` (static) and `/usr/bin/getconf` (static). Handles the `ldconfig` trigger by running `ldconfig`; purging removes `/etc/ld.so.cache` |
 | `libc6-dev` | `Provides: libc-dev`. Start files (as in `liella6-dev`, `crti.o` and `crtn.o` included), the `libc.so` script, `libc_nonshared.a`, the static archives, `libm.so`. No headers yet: plain `gcc` compiles with the system's glibc headers |
 | `libc-dev-bin`, `locales`, `libc-l10n` | placeholders (documentation only) until their programs and data exist |
 
@@ -137,4 +137,4 @@ tools/deb/lint.sh target/deb-system excalibur # lintian in an unprivileged chroo
 
 The products are built with `LIELLA_PREFIX=/` and `LIELLA_LIBDIR=usr/lib/x86_64-linux-gnu`: Liella's
 own sonames resolve to `/usr/lib/x86_64-linux-gnu`, the cache is `/etc/ld.so.cache`, and the default
-directories are the system ones. The design is the pending decision `records/pending/SL-FLAVOUR-1.toml`.
+directories are the system ones. The design is decision D-X.106 (`records/decisions/D-X/D-X.106.toml`).

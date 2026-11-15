@@ -66,8 +66,10 @@ parts of it. Hence the versioning of section 6.
 
 ## 3. The products: libc.a, libc.so.6, liella-crt1.o
 
-`cargo xtask so` builds the three products into `target/liella/` (never into
-`target/release`, which Cargo puts on `LD_LIBRARY_PATH`).
+`cargo xtask so` builds the three products below into `target/liella/` (never into
+`target/release`, which Cargo puts on `LD_LIBRARY_PATH`), and with them the dynamic loader
+`ld-linux-x86-64.so.2` (`crates/ld-so`), `libm.a` and `libm.so.6` (`crates/libm-so`) and the
+utilities `getconf` and `ldconfig`.
 
 ### 3.1 libc.a
 
@@ -178,7 +180,8 @@ cc -std=c17 -O1 -nostdlib -fno-builtin -I include \
 
 `readelf --dyn-syms -W program` then shows each native function the program calls at its
 node, for example `liella_process_id@LIELLA_NATIVE_1`; `readelf -d` shows
-`NEEDED libc.so.6`. Such a program cannot run yet (section 8).
+`NEEDED libc.so.6`. Linked this way its program interpreter is the host's, so it does not run
+on Liella (section 8).
 
 ## 5. Static Rust programs
 
@@ -530,11 +533,11 @@ in any way ships them as a new version, and the released file is never replaced.
 
 ## 8. What cannot work yet
 
-* **Running a dynamically linked program.** Every program linked against `libc.so.6` (the C
-  programs of section 4, the `dynamic` example, the dylib's programs) is linked and checked
-  but not run: that needs Liella's dynamic loader (phase 14). Their program interpreter is
-  the host's, which would load the host's `libc.so.6` and stop at the missing
-  `LIELLA_NATIVE_1` node; the host's loader must never load Liella's `libc.so.6`.
+* **Running the dylib's programs and section 4's dynamic C programs.** They are linked
+  against `libc.so.6` and checked but not run. Their program interpreter is the host's, which
+  would load the host's `libc.so.6` and stop at the missing `LIELLA_NATIVE_1` node; the host's
+  loader must never load Liella's `libc.so.6`. The `dynamic` example is also linked with
+  Liella's `ld-linux-x86-64.so.2` as its interpreter and run in `cargo xtask native` (D-27.24).
 * **Rust `std`.** Not tried yet (section 5: the C symbols it needs are defined now; a link
   has not been tested). Every Rust program is `#![no_std]` until then, and the
   dylib's `toolchain.std` is `false`; a version with `std` would be a new version.

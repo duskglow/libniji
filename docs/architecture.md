@@ -59,11 +59,11 @@ The goals, in priority order, are **safe** (no undefined behaviour reachable fro
 consistent errors), **fast** (no overhead the contract does not need), **scalable** (one design
 applied uniformly to every symbol) ([implementation-plan.md](../implementation-plan.md)).
 
-**Status.** Phases 0 to 13 are done; the project is in the validation and optimization stage
-that precedes phase 14 (dynamic linking) and phase 15 (legacy tier and binary compatibility)
+**Status.** Phases 0 to 13 are done; phase 14 (dynamic linking) is complete enough to run real
+programs, and phase 15 (legacy tier and binary compatibility) is open
 ([plan/06-phases/](../plan/06-phases/00-overview.md), `spec/schedule.tsv`). In practice that
-means: statically linked programs run on Liella today; dynamically linked ones are built and
-checked but cannot run until Liella's own `ld.so` exists (section 13).
+means: statically linked programs run on Liella, and dynamically linked ones run under Liella's
+own `ld.so`, with the limits in section 13.
 
 ## 2. The four artifacts
 
@@ -125,7 +125,7 @@ Adapted from [plan/03-architecture.md](../plan/03-architecture.md) §3.1.
 | `liella-math` | `crates/math` | `libm`: one generic implementation per operation over binary32, binary64, x87 extended and binary128 (D-10.1) | rt |
 | `liella-boundary` | `crates/boundary` | The C boundary: the POSIX exports, the native C ABI, the `CSys` implementation of `Sys`, the global allocator shim, exported data objects, the hot kernels | kernel, rt, abi, core, legacy, math |
 | `liella-native` | `crates/native` | A facade for Rust programs that want the clean API without POSIX conventions (D-X.10, [docs/interfaces.md](interfaces.md)) | core, math, optionally rt, kernel |
-| `liella-ld` | `crates/ld` | The dynamic linker (phase 14, not yet written) | kernel, rt |
+| `liella-ld` | `crates/ld` | The dynamic linker (phase 14): `ld-linux-x86-64.so.2`'s loader and the `dlopen` machinery, and the `ldconfig` engine | kernel, rt |
 | `liella-thread-db` | `crates/thread-db` | `libthread_db` for Liella's thread layout (phase 14) | kernel |
 | `liella-mathtools` | `crates/mathtools` | Test and tool code only: the arbitrary-precision oracle, the Remez fitter, the glibc comparison (D-10.12). No product depends on it. | none |
 | `spectest` | `crates/spectest` | Traceability macros: pending tests generated per clause and symbol | none |
@@ -558,11 +558,11 @@ The rows below shape the code most. Each links back to its full text in `plan/`.
 
 | Limitation | What it affects in practice |
 |---|---|
-| **Dynamic loader: not complete** (phase 14) | The loader loads shared objects and provides `dlopen`, `dlsym` and `dlclose`. Not provided yet: `dlmopen`, lazy binding, `LD_PRELOAD`, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)). |
-| **Compatibility-only symbol versions** (phase 15) | `sym@OLD_VERSION` entries are not produced, so binaries linked against glibc versions older than a function's current version would not resolve them. Only relevant once the loader exists. |
+| **Dynamic loader: not complete** (phase 14) | The loader loads shared objects and provides `dlopen`, `dlsym` and `dlclose`, and honours `LD_PRELOAD`. Not provided yet: `dlmopen`, lazy binding, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)). |
+| **Compatibility-only symbol versions** (phase 15) | `sym@OLD_VERSION` entries are not produced, so binaries linked against glibc versions older than a function's current version would not resolve them. |
 | **x86-64 Linux only** | No other architecture or OS; the C layer's assembly and the Appendix C layouts are x86-64. Porting would mean a new `csys/src/machine/` and layout set. |
 | **One CPU level** | Products are built for baseline x86-64. The string scanners pick AVX2 or SSE2 at run time; other code does not. This affects speed on AVX2 hosts for some rows, not correctness. |
-| **Rust `std` programs** | Rust programs on Liella must be `#![no_std]` until `getcwd`, `realpath`, `dl_iterate_phdr` and `_dl_find_object` exist ([docs/toolchain.md §8](toolchain.md)). C programs are unaffected. |
+| **Rust `std` programs** | Rust programs on Liella are `#![no_std]`: the C symbols `std` needs are defined now, but no `std` program has been linked yet ([docs/toolchain.md §8](toolchain.md)). C programs are unaffected. |
 | **Hot kernels** (section 8) | Listed for completeness: two files of SSE2 intrinsics and assembly over ranges Rust validates first, exhaustively tested. Unlikely to have practical impact. |
 
 ## 14. Where to start reading

@@ -125,8 +125,8 @@ List every WARN line in your hand-back. Exit codes: 0 all caught or equivalent; 
 
 ```
 # STDIO-SHORT-IO plants
-retry | crates/core/src/stdio/stream.rs | lit:while done < len { ==> if done < len { | cargo test -p liella --test stdio_short_io | msg:short_write.*(FAILED|panicked)
-memchr-tail | csys/src/machine/memchr.S | perl:s/(liella_machine_memchr:.*?)jb\s+\.Ltail/$1jmp .Ltail/s | cargo test -p liella-boundary --test small_copy | msg:memchr
+retry | crates/boundary/src/stdio.rs | lit:while done < len { ==> if done < len { | cargo test -p liella --test stdio_short_io | msg:short_write.*(FAILED|panicked)
+memchr-tail | csys/src/machine/scan.S | perl:s/(liella_machine_memchr:.*?)jb\s+\.Ltail/$1jmp .Ltail/s | cargo test -p liella-boundary --test small_copy | msg:memchr
 ```
 
 ```

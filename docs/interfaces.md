@@ -238,12 +238,12 @@ it, and all of them share the one C library's state.
 | Way | Build | Run |
 |---|---|---|
 | 1, static (`libc.a`) | Yes | Yes |
-| 1, dynamic (`libc.so.6`) | Yes | No: needs Liella's dynamic loader (phase 14) |
+| 1, dynamic (`libc.so.6`) | Yes | Yes, under Liella's `ld.so` (`crates/ld/tests`) |
 | 2, static | Yes | Yes (`conformance/c/native_v1.c`) |
-| 2, dynamic | Yes | No: phase 14 |
+| 2, dynamic | Yes | Not run in the gate yet |
 | 3, static (`examples/native_static.rs`) | Yes | Yes, in the gate (`cargo xtask native`) |
-| 3 with `dynamic` (`examples/native_dynamic.rs`) | Yes | No: phase 14 |
-| 4 (`examples/native_rust_dylib.rs`, lr1) | Yes, in the gate (`cargo xtask rust-dylib`) | No: phase 14 |
+| 3 with `dynamic` (`examples/native_dynamic.rs`) | Yes | Yes, under Liella's `ld.so`, in the gate (`cargo xtask native`) |
+| 4 (`examples/native_rust_dylib.rs`, lr1) | Yes, in the gate (`cargo xtask rust-dylib`) | Not run in the gate yet |
 
 Every Rust program is `#![no_std]` until the C library provides the symbols `std` needs
 (`getcwd`, `realpath`, `dl_iterate_phdr`, `_dl_find_object`); [toolchain.md,
@@ -289,7 +289,7 @@ The owner accepted this complexity (D-X.10); it is listed here so that it is nev
 7. **Build-time files.** A dylib program needs, at compile time, the dylib under the name
    rustc expects (`libliella_native.so`) and the rlibs of the same build; at run time only
    `libliella_rust.so.<abi>` and `libc.so.6`.
-8. **Current limitations.** Dynamically linked programs cannot run until phase 14; `std`
+8. **Current limitations.** The dylib's programs are linked but not run yet; `std`
    cannot be used yet; nothing unwinds (`panic = "abort"` everywhere); the dylib is built for
    the baseline CPU only; no second real toolchain has been exercised (the coexistence check
    uses a synthetic version built by the same compiler).
