@@ -63,7 +63,7 @@ pub enum WriteError {
     /// The key is empty, longer than [`NAME_MAX`], `.` or `..`, or holds `/` or NUL.
     Key(usize),
     /// The path is not absolute and canonical, is longer than [`PATH_MAX`], or does not end in
-    /// `/<key>` (`/glibc-hwcaps/<name>/<key>` for a hwcaps entry).
+    /// `/<key>` (`/glibc-hwcaps/<name>/<file>` for a hwcaps entry, `<file>` any valid name).
     Path(usize),
     /// The hwcaps name is not a valid subdirectory name (as for a key).
     Hwcaps(usize),
@@ -109,11 +109,18 @@ fn check(i: usize, e: &Entry<'_>) -> Result<(), WriteError> {
             return Err(WriteError::Hwcaps(i));
         }
     }
-    let dir = e.path.strip_suffix(e.key).and_then(|d| d.strip_suffix(b"/"));
-    let dir = match (dir, e.hwcaps) {
-        (Some(d), Some(h)) => d.strip_suffix(h).and_then(|d| d.strip_suffix(HWCAPS_DIR)),
-        (d, None) => d,
-        (None, Some(_)) => None,
+    let dir = match e.hwcaps {
+        None => e.path.strip_suffix(e.key).and_then(|d| d.strip_suffix(b"/")),
+        // ldconfig makes no soname links in a glibc-hwcaps subdirectory, so such an entry names the file itself
+        // (any valid name; UTIL-LDCONFIG probe): only the directory part is fixed.
+        Some(h) => e
+            .path
+            .iter()
+            .rposition(|&c| c == b'/')
+            .and_then(|k| Some((e.path.get(..k)?, e.path.get(k.checked_add(1)?..)?)))
+            .and_then(|(d, f)| if name_ok(f) { Some(d) } else { None })
+            .and_then(|d| d.strip_suffix(h))
+            .and_then(|d| d.strip_suffix(HWCAPS_DIR)),
     };
     if dir.is_none() || !path_ok(e.path) {
         return Err(WriteError::Path(i));

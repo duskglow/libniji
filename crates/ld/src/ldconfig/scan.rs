@@ -15,7 +15,6 @@ pub const PHNUM_MAX: usize = 4096;
 /// The largest dynamic segment read from one file.
 pub const DYNAMIC_MAX: usize = 1 << 20;
 
-const ENOTDIR: i32 = 20;
 
 /// What one file is to ldconfig.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -197,13 +196,6 @@ struct Rec {
     order: u32,
 }
 
-/// A directory to scan and where it came from.
-struct Src<'c> {
-    path: &'c [u8],
-    from: &'c [u8],
-    line: u32,
-}
-
 struct Run<'r, A: Arch, F: Fs> {
     fs: &'r mut F,
     me: &'r [u8],
@@ -244,8 +236,16 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
                     Ok(m) if m.kind == Kind::File => {}
                     Ok(_) => continue,
                     Err(e) => {
-                        r.err.bytes(self.me).bytes(b": Cannot stat ").bytes(&path);
-                        errno_line(self.fs, &mut r.err, e);
+                        // A link that cannot be followed (probe): reported with -v; unless links are left alone
+                        // (-X) or it is a development link (`.so` at the end), it is removed, as a stale soname
+                        // link; not in a glibc-hwcaps subdirectory, where ldconfig makes no links.
+                        if self.o.verbose {
+                            r.err.bytes(self.me).bytes(b": Cannot stat ").bytes(&path);
+                            errno_line(self.fs, &mut r.err, e);
+                        }
+                        if !self.o.no_links && hwcaps.is_none() && !name.ends_with(b".so") {
+                            let _ = self.fs.remove(&path);
+                        }
                         continue;
                     }
                 }
@@ -274,7 +274,7 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
             }
             if is_link && name.ends_with(b".so") && soname.starts_with(name) {
                 // A development link: its own entry, no link, no -v line (probe).
-                self.record(canon.as_deref(), name, hwcaps, order)?;
+                self.record(canon.as_deref(), name, name, hwcaps, order)?;
                 continue;
             }
             let mut n = Vec::new();
@@ -286,7 +286,7 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
         let mut i = 0usize;
         while let Some((soname, winner)) = cands.get(i) {
             let next = cands.iter().skip(i).position(|c| c.0 != *soname).map_or(cands.len(), |k| i.saturating_add(k));
-            let changed = if soname != winner && !self.o.no_links { self.link(dir, soname, winner, r)? } else { false };
+            let changed = if soname != winner && !self.o.no_links && hwcaps.is_none() { self.link(dir, soname, winner, r)? } else { false };
             if self.o.verbose {
                 r.out.bytes(b"\t").bytes(soname).bytes(b" -> ").bytes(winner);
                 if changed {
@@ -294,7 +294,9 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
                 }
                 r.out.bytes(b"\n");
             }
-            self.record(canon.as_deref(), soname, hwcaps, order)?;
+            // A glibc-hwcaps subdirectory gets no links, so its entry names the file itself (probe).
+            let file = if hwcaps.is_some() { winner } else { soname };
+            self.record(canon.as_deref(), soname, file, hwcaps, order)?;
             i = next;
         }
         Ok(())
@@ -326,18 +328,15 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
         }
     }
 
-    fn record(&mut self, canon: Option<&[u8]>, key: &[u8], hwcaps: Option<&[u8]>, order: u32) -> Result<(), Oom> {
+    /// A cache entry `key` => `<canon>/<file>` (`canon`: the scanned directory, a hwcaps one included).
+    fn record(&mut self, canon: Option<&[u8]>, key: &[u8], file: &[u8], hwcaps: Option<&[u8]>, order: u32) -> Result<(), Oom> {
         let (Some(dir), false) = (canon, self.o.no_cache) else { return Ok(()) };
         let mut path = Vec::new();
         extend(&mut path, dir)?;
-        if let Some(h) = hwcaps {
-            extend(&mut path, b"/glibc-hwcaps/")?;
-            extend(&mut path, h)?;
-        }
         if path.as_slice() != b"/" {
             push(&mut path, b'/')?;
         }
-        extend(&mut path, key)?;
+        extend(&mut path, file)?;
         let mut k = Vec::new();
         extend(&mut k, key)?;
         let h = match hwcaps {
@@ -386,17 +385,16 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
         }
         return Ok(0);
     }
-    // 1. The directories, in order: operands, configuration, trusted.
-    let mut dirs: Vec<conf::Dir> = Vec::new();
+    // 1. The directories, in order: operands, configuration, trusted; each checked as it is named.
+    let mut reader = Reader::new(fs, o.root.is_some());
     for &op in &o.operands {
         let mut d = conf::Dir { path: Vec::new(), from: Vec::new(), line: 0 };
         extend(&mut d.path, op)?;
         extend(&mut d.from, b"<cmdline>")?;
-        push(&mut dirs, d)?;
+        reader.add(d, me, &mut r.err)?;
     }
     if !o.only_operands {
         let conf_path = o.conf.unwrap_or(CONF);
-        let mut reader = Reader::new(fs, o.root.is_some());
         match reader.read(conf_path, conf_path, me, &mut r.err) {
             Ok(()) => {}
             Err(Fatal::Oom) => return Err(Oom),
@@ -405,47 +403,24 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
                 return Ok(1);
             }
         }
-        let found = core::mem::take(&mut reader.dirs);
-        for d in found {
-            push(&mut dirs, d)?;
-        }
         for &t in A::SYSTEM_DIRS {
             let mut d = conf::Dir { path: Vec::new(), from: Vec::new(), line: 0 };
             extend(&mut d.path, t.as_bytes())?;
             extend(&mut d.from, b"<builtin>")?;
-            push(&mut dirs, d)?;
+            reader.add(d, me, &mut r.err)?;
         }
     }
-    // 2. Each directory once, by identity.
-    let mut keep: Vec<(Src<'_>, (u64, u64))> = Vec::new();
-    for d in &dirs {
-        let m = match fs.stat(&d.path) {
-            Ok(m) if m.kind == Kind::Dir => m,
-            other => {
-                r.err.bytes(me).bytes(b": Can't stat ").bytes(&d.path);
-                errno_line(fs, &mut r.err, other.err().unwrap_or(ENOTDIR));
-                continue;
-            }
-        };
-        let id = (m.dev, m.ino);
-        if let Some((first, _)) = keep.iter().find(|k| k.1 == id) {
-            r.err.bytes(me).bytes(b": Path `").bytes(&d.path).bytes(b"' given more than once\n(from ").bytes(&d.from).bytes(b":").num(u64::from(d.line));
-            r.err.bytes(b" and ").bytes(first.from).bytes(b":").num(u64::from(first.line)).bytes(b")\n");
-            continue;
-        }
-        push(&mut keep, (Src { path: &d.path, from: &d.from, line: d.line }, id))?;
-    }
-    // 3. Scan.
+    let keep = core::mem::take(&mut reader.kept);
+    drop(reader);
+    // 2. Scan: each directory, then its glibc-hwcaps subdirectories (sorted) after it.
     let mut run = Run::<A, F> { fs, me, o, recs: Vec::new(), _arch: core::marker::PhantomData };
     for (idx, (s, _)) in keep.iter().enumerate() {
         if o.verbose {
-            r.out.bytes(s.path).bytes(b": (from ").bytes(s.from).bytes(b":").num(u64::from(s.line)).bytes(b")\n");
-        }
-        if o.no_cache && o.no_links {
-            continue;
+            r.out.bytes(&s.path).bytes(b": (from ").bytes(&s.from).bytes(b":").num(u64::from(s.line)).bytes(b")\n");
         }
         let order = u32::try_from(idx).unwrap_or(u32::MAX);
-        let hw = join(s.path, b"glibc-hwcaps")?;
+        run.dir(&s.path, None, order, r)?;
+        let hw = join(&s.path, b"glibc-hwcaps")?;
         if matches!(run.fs.stat(&hw), Ok(m) if m.kind == Kind::Dir) {
             let mut subs = Vec::new();
             if run.fs.list(&hw, &mut subs).is_ok() {
@@ -453,12 +428,14 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
                 for sub in subs.iter().filter(|n| name_ok(n) && n.first() != Some(&b'.')) {
                     let p = join(&hw, sub)?;
                     if matches!(run.fs.stat(&p), Ok(m) if m.kind == Kind::Dir) {
+                        if o.verbose {
+                            r.out.bytes(&p).bytes(b": (hwcap: \"").bytes(sub).bytes(b"\") (from ").bytes(&s.from).bytes(b":").num(u64::from(s.line)).bytes(b")\n");
+                        }
                         run.dir(&p, Some(sub), order, r)?;
                     }
                 }
             }
         }
-        run.dir(s.path, None, order, r)?;
     }
     if o.no_cache || o.only_operands {
         return Ok(0);

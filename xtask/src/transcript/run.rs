@@ -173,9 +173,93 @@ fn setup(t: &Transcript, root: &Path) -> Result<(), String> {
                 let path = at(p)?;
                 std::fs::write(&path, &buf).map_err(|e| format!("{}: {e}", path.display()))?;
             }
+            Setup::Elf(p, soname, cut) => {
+                let mut image = elf_image(soname.as_deref());
+                if let Some(n) = cut {
+                    image.truncate(*n);
+                }
+                let path = at(p)?;
+                std::fs::write(&path, &image).map_err(|e| format!("{}: {e}", path.display()))?;
+            }
         }
     }
     Ok(())
+}
+
+/// A minimal x86-64 shared object: the ELF header, PT_LOAD over the whole file and PT_DYNAMIC, a dynamic section
+/// with DT_STRTAB, DT_STRSZ and (with `soname`) DT_SONAME, then the string table (ELF-64 Object File Format,
+/// System V psABI x86-64). Virtual addresses equal file offsets.
+pub(crate) fn elf_image(soname: Option<&[u8]>) -> Vec<u8> {
+    const PH: usize = 64;
+    const DYN: usize = PH + 2 * 56;
+    let ndyn = if soname.is_some() { 4 } else { 3 };
+    let strtab = DYN + ndyn * 16;
+    let mut strings = vec![0u8];
+    if let Some(s) = soname {
+        strings.extend_from_slice(s);
+        strings.push(0);
+    }
+    let total = (strtab + strings.len()) as u64;
+    let mut b = Vec::with_capacity(total as usize);
+    b.extend_from_slice(b"\x7fELF\x02\x01\x01\x00");
+    b.resize(16, 0);
+    let h16 = |b: &mut Vec<u8>, v: u16| b.extend_from_slice(&v.to_le_bytes());
+    let h32 = |b: &mut Vec<u8>, v: u32| b.extend_from_slice(&v.to_le_bytes());
+    let h64 = |b: &mut Vec<u8>, v: u64| b.extend_from_slice(&v.to_le_bytes());
+    h16(&mut b, 3); // ET_DYN
+    h16(&mut b, 62); // EM_X86_64
+    h32(&mut b, 1);
+    h64(&mut b, 0); // e_entry
+    h64(&mut b, PH as u64);
+    h64(&mut b, 0); // e_shoff
+    h32(&mut b, 0);
+    for v in [64u16, 56, 2, 64, 0, 0] {
+        h16(&mut b, v);
+    }
+    // PT_LOAD, R, the whole file.
+    for (ty, flags, off, size, align) in [(1u32, 4u32, 0u64, total, 0x1000u64), (2, 6, DYN as u64, (ndyn * 16) as u64, 8)] {
+        h32(&mut b, ty);
+        h32(&mut b, flags);
+        h64(&mut b, off);
+        h64(&mut b, off);
+        h64(&mut b, off);
+        h64(&mut b, size);
+        h64(&mut b, size);
+        h64(&mut b, align);
+    }
+    if soname.is_some() {
+        h64(&mut b, 14); // DT_SONAME
+        h64(&mut b, 1);
+    }
+    for (tag, val) in [(5u64, strtab as u64), (10, strings.len() as u64), (0, 0)] {
+        h64(&mut b, tag);
+        h64(&mut b, val);
+    }
+    b.extend_from_slice(&strings);
+    b
+}
+
+/// A written loader cache as text: one `0x<flags> <key> <path>[ hwcaps=<name>]` line per entry, in cache order,
+/// without the generator text (an identity string, Q3 of plan/utilities.md) or anything else of the layout.
+pub(crate) fn cache_text(bytes: &[u8]) -> Vec<u8> {
+    let Some(c) = liella_ld::cache::Cache::parse(bytes) else { return format!("not a loader cache ({} bytes)\n", bytes.len()).into_bytes() };
+    let mut out = Vec::new();
+    for i in 0..c.len() {
+        let Some(e) = c.get(i) else {
+            out.extend_from_slice(format!("entry {i} unreadable\n").as_bytes());
+            continue;
+        };
+        out.extend_from_slice(format!("0x{:x} ", e.flags).as_bytes());
+        out.extend_from_slice(e.key);
+        out.push(b' ');
+        out.extend_from_slice(e.path);
+        if let Some(h) = e.hwcaps {
+            out.extend_from_slice(b" hwcaps=");
+            out.extend_from_slice(h);
+        }
+        out.push(b'\n');
+    }
+    out
 }
 
 /// The process's own uid and gid (the owner of `/proc/self`), for the nested namespace's map.
@@ -251,6 +335,11 @@ fn run_in(t: &Transcript, side: &Side<'_>, root: &Path) -> Result<Outcome, Strin
     }
     let after = snapshot(root)?;
     let mut o = Outcome { status, stdout: out.stdout, stderr: out.stderr, written: written(&before, &after) };
+    for (p, w) in &mut o.written {
+        if let (true, Written::File(b)) = (t.as_cache.contains(p), &*w) {
+            *w = Written::File(cache_text(b));
+        }
+    }
     normalise(&mut o, rootb, &t.normalise);
     Ok(o)
 }

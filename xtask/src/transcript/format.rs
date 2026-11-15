@@ -35,6 +35,9 @@ pub(crate) enum Setup {
     Link(Vec<u8>, Vec<u8>),
     /// A loader cache from Liella's writer: path, generator text, entries in configuration order.
     Cache(Vec<u8>, Vec<u8>, Vec<CacheEntry>),
+    /// A minimal x86-64 shared object (ELF64 ET_DYN, PT_LOAD + PT_DYNAMIC): path, its `DT_SONAME` if any, and the
+    /// number of bytes kept when the file is to be cut short.
+    Elf(Vec<u8>, Option<Vec<u8>>, Option<usize>),
 }
 
 /// How the command ended.
@@ -92,6 +95,8 @@ pub(crate) struct Transcript {
     pub setup: Vec<Setup>,
     /// Extra literal replacements applied after the private root's path (`normalise: <from> => <to>`).
     pub normalise: Vec<(Vec<u8>, Vec<u8>)>,
+    /// Written files compared as a loader cache's entry list (`as-cache: <path>`), not as bytes.
+    pub as_cache: Vec<Vec<u8>>,
     pub expected: Option<Outcome>,
     /// The text before the first outcome directive: kept as written when `record` replaces the outcome.
     pub head: String,
@@ -240,6 +245,7 @@ pub(crate) fn parse(text: &str, what: &str) -> Result<Transcript, String> {
         binds: Vec::new(),
         setup: Vec::new(),
         normalise: Vec::new(),
+        as_cache: Vec::new(),
         expected: None,
         head: String::new(),
     };
@@ -370,6 +376,22 @@ pub(crate) fn parse(text: &str, what: &str) -> Result<Transcript, String> {
                 };
                 entries.push(CacheEntry { flags, key: unescape(f[1]).map_err(err)?, path: unescape(f[2]).map_err(err)?, hwcaps });
             }
+            "elf" => {
+                let mut f = value.split(' ');
+                let p = rel_path(f.next().unwrap_or_default()).map_err(err)?;
+                let (mut soname, mut cut) = (None, None);
+                for o in f {
+                    if let Some(s) = o.strip_prefix("soname=") {
+                        soname = Some(unescape(s).map_err(err)?);
+                    } else if let Some(n) = o.strip_prefix("cut=").and_then(|n| n.parse().ok()) {
+                        cut = Some(n);
+                    } else {
+                        return Err(err("elf: <path> [soname=<name>] [cut=<bytes>]".into()));
+                    }
+                }
+                t.setup.push(Setup::Elf(p, soname, cut));
+            }
+            "as-cache" => t.as_cache.push(rel_path(value).map_err(err)?),
             "normalise" => {
                 let (from, to) = value.split_once(" => ").ok_or_else(|| err("normalise: <literal> => <replacement>".into()))?;
                 let from = unescape(from).map_err(err)?;

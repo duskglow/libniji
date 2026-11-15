@@ -18,6 +18,9 @@ use alloc::vec::Vec;
 
 use super::{push, Fs, Kind, Oom, Text};
 
+/// `ENOTDIR`: a configured path that is not a directory.
+const ENOTDIR: i32 = 20;
+
 /// The deepest include nesting read; one deeper is refused with a message.
 pub const DEPTH_MAX: usize = 32;
 /// The largest configuration file read; the rest of a longer file is ignored.
@@ -57,8 +60,8 @@ pub struct Reader<'f, F: Fs> {
     rooted: bool,
     /// File identities of the files being read (the include stack).
     stack: Vec<(u64, u64)>,
-    /// The directories found, in configuration order.
-    pub dirs: Vec<Dir>,
+    /// The directories kept, in order, with their file identity (device, inode).
+    pub kept: Vec<(Dir, (u64, u64))>,
 }
 
 /// `#` to the end of the line goes; then blanks at both ends.
@@ -80,7 +83,30 @@ fn word(s: &[u8]) -> (&[u8], &[u8]) {
 impl<'f, F: Fs> Reader<'f, F> {
     /// A reader; `rooted` = a `-r` root is in use.
     pub fn new(fs: &'f mut F, rooted: bool) -> Self {
-        Reader { fs, rooted, stack: Vec::new(), dirs: Vec::new() }
+        Reader { fs, rooted, stack: Vec::new(), kept: Vec::new() }
+    }
+
+    /// Takes `d` as the next directory to scan, checked at once (probe: the messages come in configuration order,
+    /// between the reader's own): one that cannot be stat'ed, or is not a directory, is reported and dropped
+    /// (`Can't stat <dir>: <error>`); one already kept under any name (same file identity) is reported with both
+    /// places and dropped, the first name staying.
+    pub fn add(&mut self, d: Dir, me: &[u8], err: &mut Text) -> Result<(), Oom> {
+        let m = match self.fs.stat(&d.path) {
+            Ok(m) if m.kind == Kind::Dir => m,
+            other => {
+                err.bytes(me).bytes(b": Can't stat ").bytes(&d.path).bytes(b": ");
+                self.fs.error_text(other.err().unwrap_or(ENOTDIR), err);
+                err.bytes(b"\n");
+                return Ok(());
+            }
+        };
+        let id = (m.dev, m.ino);
+        if let Some((first, _)) = self.kept.iter().find(|k| k.1 == id) {
+            err.bytes(me).bytes(b": Path `").bytes(&d.path).bytes(b"' given more than once\n(from ").bytes(&d.from).bytes(b":").num(u64::from(d.line));
+            err.bytes(b" and ").bytes(&first.from).bytes(b":").num(u64::from(first.line)).bytes(b")\n");
+            return Ok(());
+        }
+        push(&mut self.kept, (d, id))
     }
 
     /// Reads `path` (shown in messages as `shown`), nested includes included; diagnostics go to `err`.
@@ -119,13 +145,13 @@ impl<'f, F: Fs> Reader<'f, F> {
                 }
             } else if first == b"hwcap" && !rest.trim_ascii().is_empty() {
                 err.bytes(me).bytes(b": ").bytes(shown).bytes(b":").num(u64::from(line)).bytes(b": hwcap directive ignored\n");
-            } else if self.dirs.len() >= DIRS_MAX {
+            } else if self.kept.len() >= DIRS_MAX {
                 err.bytes(me).bytes(b": ").bytes(shown).bytes(b":").num(u64::from(line)).bytes(b": too many directories, ignored\n");
             } else {
                 let mut d = Dir { path: Vec::new(), from: Vec::new(), line };
                 super::extend(&mut d.path, s)?;
                 super::extend(&mut d.from, shown)?;
-                push(&mut self.dirs, d)?;
+                self.add(d, me, err)?;
             }
         }
         Ok(())

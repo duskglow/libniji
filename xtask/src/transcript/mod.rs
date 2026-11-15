@@ -13,8 +13,8 @@
 
 mod compare;
 mod format;
+mod ldconfig;
 mod run;
-mod stub;
 
 use format::{Namespace, Outcome, Transcript};
 use run::Side;
@@ -24,14 +24,14 @@ use std::process::ExitCode;
 
 const USAGE: &str = "usage: cargo xtask transcript (check | record) <file.transcript | dir>... [--reference <command>=<path>]... [--liella <command>=<path>]...";
 
-/// Dispatch that must happen before the tree root is looked up: the stub (argv[0] `ldconfig`) and the namespace
+/// Dispatch that must happen before the tree root is looked up: `ldconfig` (argv[0] `ldconfig`) and the namespace
 /// helper both run with the private root as their working directory.
 pub(crate) fn early() -> Option<ExitCode> {
     let mut args = std::env::args_os();
     let argv0 = args.next()?;
     let rest: Vec<OsString> = args.collect();
     if Path::new(&argv0).file_name().is_some_and(|n| n == "ldconfig") {
-        return Some(stub::ldconfig(&argv0, &rest));
+        return Some(ldconfig::ldconfig(&argv0, &rest));
     }
     if rest.first().is_some_and(|a| a == run::EXEC_HELPER) {
         return Some(run::exec_helper(&rest[1..]));
@@ -44,7 +44,7 @@ fn reference_default(command: &str) -> Option<PathBuf> {
     ["/usr/sbin", "/usr/bin"].iter().map(|d| Path::new(d).join(command)).find(|p| p.is_file())
 }
 
-/// Liella's program for a command: this binary as the stub for `ldconfig` (until UTIL-3); none for the others yet.
+/// Liella's program for a command: this binary for `ldconfig` (UTIL-3); none for the others yet.
 fn liella_default(command: &str) -> Option<PathBuf> {
     match command {
         "ldconfig" => std::env::current_exe().ok(),

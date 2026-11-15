@@ -1,0 +1,27 @@
+# -n DIR: only the operand, links made, no cache. Three files share one soname; the highest version wins (D.3.3).
+# A development link, a text file and a name ldconfig does not read are left alone.
+name: ldconfig -n -v DIR links the soname to the highest version and writes no cache
+clause: s31_2_g_4
+clause: s31_2_g_5
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -n
+arg: -v
+arg: @ROOT@/lib
+elf: lib/libfoo.so.1.2 soname=libfoo.so.1
+elf: lib/libfoo.so.1.9 soname=libfoo.so.1
+elf: lib/libfoo.so.1.10 soname=libfoo.so.1
+link: lib/libfoo.so -> libfoo.so.1
+file: lib/libtxt.so.3
+| not an ELF file
+elf: lib/foo.so.1 soname=foo.so.1
+status: exit 0
+stdout:
+| @ROOT@/lib: (from <cmdline>:0)
+| \tlibfoo.so.1 -> libfoo.so.1.10 (changed)
+stderr:
+| ldconfig: Cannot stat @ROOT@/lib/libfoo.so: No such file or directory
+written-link: lib/libfoo.so.1 -> libfoo.so.1.10

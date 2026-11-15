@@ -9,15 +9,19 @@
 //!   (`<cmdline>:0`), the configuration, the trusted directories (`<builtin>:0`);
 //! * a directory's files named `lib*.so*` or `ld-*.so*` are read; files that are not ELF are
 //!   skipped silently, a short one is reported as truncated; a symlink that cannot be followed is
-//!   reported (`Cannot stat <path>: <error>`);
+//!   reported with `-v` (`Cannot stat <path>: <error>`) and, unless `-X` or its name ends in `.so`,
+//!   removed;
 //! * each soname's link points to the candidate with the highest name under the D.3.3
 //!   comparison (regular files and symlinks alike, except the link itself); a file without
 //!   `DT_SONAME` is keyed by its own name; a symlink whose name ends in `.so` and is a prefix of
 //!   its target's soname (a development link) is recorded in the cache under its own name, gets no
 //!   link and no `-v` line;
 //! * `-v` prints `<dir>: (from <file>:<line>)` and `\t<soname> -> <file>`, plus ` (changed)` when
-//!   the link was created or replaced; `-X` makes no links, `-N` writes no cache, and with both a
-//!   directory is listed but not scanned; `-n` takes only the operands and writes no cache.
+//!   the link was created or replaced; `-X` makes no links, `-N` writes no cache (with both, the
+//!   directories are still scanned and shown); `-n` takes only the operands and writes no cache;
+//! * a directory's `glibc-hwcaps/<name>` subdirectories are scanned after it, each shown by `-v` as
+//!   `<dir>: (hwcap: "<name>") (from ...)`; no links are made there and the cache entry names the
+//!   file itself.
 //!
 //! Liella rules (the pending decision record of UTIL-LDCONFIG): directory listings and soname
 //! groups are sorted, so the same tree gives the same output and byte-identical caches on any
@@ -146,6 +150,8 @@ pub trait Fs {
     fn read_link(&mut self, path: &[u8], out: &mut Vec<u8>) -> Result<(), i32>;
     /// Makes `link` a symlink to `target`, replacing what is there atomically.
     fn replace_link(&mut self, target: &[u8], link: &[u8]) -> Result<(), i32>;
+    /// Removes the directory entry `path` (a symlink itself, never what it points to).
+    fn remove(&mut self, path: &[u8]) -> Result<(), i32>;
     /// Writes `data` to `<path>~`, syncs it and renames it over `path`.
     fn replace_file(&mut self, path: &[u8], data: &[u8]) -> Result<(), (Stage, i32)>;
     /// The text of an `errno` value (as strerror gives it).

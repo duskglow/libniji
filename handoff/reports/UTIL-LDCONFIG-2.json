@@ -1,0 +1,12 @@
+{"task": "UTIL-LDCONFIG-2", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (context checkpoint): ldconfig engine wired to a hosted front end, probe-corrected, 9 transcripts recorded (11/12 ok), unit tests written but not run",
+ "branch": "task/util-ldconfig-2", "head": null,
+ "gate": {"affected": "not run (WIP); transcript check 11 ok / 1 mismatched", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["A minimal ld-linux-x86-64.so.2 object draws no 'is the dynamic linker' message from the reference, the real ld.so does; rule not yet probed"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "ldconfig transcripts recorded against the reference", "before": 3, "after": 12, "unit": "transcripts", "measured": true},
+            {"kind": "unblock", "what": "UTIL-LDCONFIG-3 (writer hwcaps key, tests, packaging, plants)", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "transcript record mode doubles as a cheap black-box probe tool (scratch transcripts outside the tree); sync_role overwrites files recorded on the role, so fetch them back before the next sync",
+ "next_step": "fix the cache writer for hwcaps entries whose file differs from the key, then run the unit tests (handoff step 1-2)",
+ "report_file": "handoff/UTIL-LDCONFIG.md",
+ "jobs": ["util-ldconfig-2-rec3"]}
