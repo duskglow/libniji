@@ -2,10 +2,23 @@
 
 ## State
 
-Branch `task/dl-tls-dtor-pin-2` (continues `task/dl-tls-dtor-pin`, from origin/next 2d5625a3e), role keke:~/w/n2.
+Current: branch `task/dl-tls-dtor-pin-3`, merge head `1fc388112` (origin/next merged, see -3 below), role
+keke:~/w/r1; the record is D-27.53 (records/decisions/D-27/D-27.53.toml, amends D-27.50).
+Before: branch `task/dl-tls-dtor-pin-2` (continues `task/dl-tls-dtor-pin`, from origin/next 2d5625a3e), role keke:~/w/n2.
 Code commits: `fd1e4791c` (the pin, the test, the plants file, the pending record), `4c7534584` (`LOADER_PIN`
 declared in crates/libc-so/startup-state.list), `239ea5ccc` (DL-TLS-DTOR-PIN-2: the test's race fixed, below).
 This note, handoff/reports/DL-TLS-DTOR-PIN.json and handoff/reports/DL-TLS-DTOR-PIN-2.json follow.
+
+## DL-TLS-DTOR-PIN-3: the merge with next
+
+Branch `task/dl-tls-dtor-pin-3` (from `task/dl-tls-dtor-pin-2` 44d39d9f6), role keke:~/w/r1. CI could not merge
+origin/next: conflict in crates/boundary/src/process.rs. Next's side (TB-FOREIGN-WORDS-LOW, D-X.60) reads the
+calling thread's destructor list through `crate::thread::words()` instead of `tb::current()` (the word is never
+written in a thread block another library made); this branch's side takes the pin in `thread_atexit` and drops it
+in `run_thread_dtors`. Merge commit `1fc388112` keeps both: the pin token goes into the list reached through
+`thread::words()`, the callback still drops it after the destructor ran. No other file conflicted, and next changed
+none of this branch's other files (exit_handlers.rs, dlopen.rs, startup-state.list, dlclose.rs). No product code
+beyond the resolution changed in -3. Jobs: see "Jobs (-3)" below.
 
 ## DL-TLS-DTOR-PIN-2: why gate1 was red
 
@@ -51,7 +64,26 @@ the child until it exits (safe direction; its exit's `fini_loaded` finalises it)
 Not probed against the reference here (the brief and spec s1_2_c_6 state the behaviour; the reference order was
 observed by AQOURS-SMOKE-RERUN).
 
-## Jobs (keke role n2, all on code head 239ea5ccc, chain ~/work/DL-TLS-DTOR-PIN-2/chain.sh)
+## Jobs (-3) (keke role r1, all on merge head 1fc388112, chains ~/work/DL-TLS-DTOR-PIN-3/chain.sh, chain2.sh)
+
+* `dl-tls-dtor-pin-3-lint0`: rc 0 on the inherited head 44d39d9f6 (clippy --all-features -D warnings, static,
+  `records check`, 0 pending): nothing left red by -2.
+* `dl-tls-dtor-pin-3-lint1`: rc 0 (the same three on the merge head).
+* `dl-tls-dtor-pin-3-tests1`: rc 0 (`cargo xtask so`, then crates/ld/tests/dlclose.rs: 5 passed, s1_2_c_6 ok).
+* `dl-tls-dtor-pin-3-rep1`: rc 0, the built s1_2_c_6 test 60 times from a RAM copy, load ~22: 0 failures.
+* `dl-tls-dtor-pin-3-plants1`: rc 0, handoff/DL-TLS-DTOR-PIN-plants.txt: 5 CAUGHT, 0 SURVIVED, 0 WARN-RC-ONLY,
+  0 WARN-NO-MSG (one WARN-DEV-SHM note: the copy is under /dev/shm, no test here mounts its own /dev/shm).
+* `dl-tls-dtor-pin-3-gate1`: `affected --run --base origin/next`; it escalated itself to FULL (startup-state.list is
+  a product linker input), so it runs the workspace clippy and `cargo xtask test` (the start-up products check).
+  rc 0: 32 suites ok, 11877 passed / 0 failed (1397 ignored), conformance 137 / 0, products step ran,
+  peak 13G, oom_kill 0 (104 min).
+* `dl-tls-dtor-pin-3-release1` (`LIELLA_FULL_PROFILE=1` so + `hot_text_products`), run after gate1 by chain2.sh:
+  rc 0: 12 layout contracts hold, STARTUP-DATA-WINDOWS 8 of 8 written pages, hot_text_products 26 passed.
+* No separate `xtest1`: chain.sh queued one after gate1; its shell was stopped before it started because the
+  escalated gate1 already runs `cargo xtask test` (it never ran; no jobs.tsv row).
+* Builds on next now include trace-at-build: `cargo xtask so` took ~17 min on keke at load ~22.
+
+## Jobs (-2) (keke role n2, all on code head 239ea5ccc, chain ~/work/DL-TLS-DTOR-PIN-2/chain.sh)
 
 * `dl-tls-dtor-pin-2-lint0`: rc 0 on the inherited head 4c7534584 (clippy --all-features -D warnings, `cargo xtask
   static`, `records check`): nothing left red by the first run.
@@ -70,4 +102,5 @@ observed by AQOURS-SMOKE-RERUN).
 
 ## Next step
 
-Land. Possible follow-up: drop the pins of threads gone in a fork child (needs every thread's destructor list).
+Land (-3 head). DL-ATEXIT-OWNER-5 merges after this: the only shared lines are `thread_atexit` /
+`run_thread_dtors` in crates/boundary/src/process.rs (the pin token and the `|n, pin|` callback). Possible follow-up: drop the pins of threads gone in a fork child (needs every thread's destructor list).
