@@ -1,5 +1,5 @@
 //! The opted-in registrations (DL-ATEXIT-OWNER, D-27.29; owner rulings #4860-#4862) under Liella's
-//! `ld.so` and `libc.so.6`: modules linked against the link-time interface stub call
+//! `ld.so` and `libc.so.6`: a module linked against the link-time interface `libc-owner.so` calls
 //! `atexit`, `at_quick_exit` and `pthread_atfork` at `LIELLA_OWNER_1`. One C program checks every
 //! behaviour itself and exits with the number of the first check that failed (its text on standard
 //! error); `alarm` is only a hang guard (a registration that deadlocks under `dlopen`'s lock), never
@@ -132,10 +132,12 @@ int main(int argc, char **argv) {
 }
 "#;
 
-/// The scratch directory with the corpus built: `libc.so.6` without `DT_SONAME` (Liella's `ld.so`
-/// has no library search yet, #4537), the interface stub built from `csys/owner/stub.S` with that
-/// copy's path as its soname (so an opted-in module's version need names the C library the program
-/// loads), the helpers and the program. `None` with the reason printed when a tool is missing.
+/// The scratch directory with the corpus built: the program and S are linked against a copy of
+/// `libc.so.6` without `DT_SONAME`, so they name it by its path (the bare `libc.so.6` resolves to the
+/// installed prefix, R14-3 (a)); the copy is then replaced by the unmodified `libc.so.6`. A, the
+/// opted-in module, is linked against the product's link-time interface
+/// `liella-owner/libc-owner.so` as a user's link would be: its `libc.so.6` need and version need
+/// match the loaded library by its `DT_SONAME`. `None` with the reason printed when a tool is missing.
 fn corpus(name: &str) -> Option<(PathBuf, PathBuf)> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
@@ -143,14 +145,16 @@ fn corpus(name: &str) -> Option<(PathBuf, PathBuf)> {
     }
     let lib = target().join("liella");
     let ld = lib.join(Native::INTERP);
-    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("liella-crt1.o").exists() || !lib.join("libc_nonshared.a").exists() {
-        eprintln!("SKIP: ld.so, libc.so.6, libc_nonshared.a or liella-crt1.o not built (run cargo xtask so)");
+    let iface = lib.join("liella-owner/libc-owner.so");
+    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("liella-crt1.o").exists() || !lib.join("libc_nonshared.a").exists() || !iface.exists() {
+        eprintln!("SKIP: ld.so, libc.so.6, libc_nonshared.a, liella-owner/libc-owner.so or liella-crt1.o not built (run cargo xtask so)");
         return None;
     }
     let d = target().join(format!("ld-atexit-owner-{name}-{}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
     let d = std::fs::canonicalize(d).unwrap();
-    let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
+    let original = std::fs::read(lib.join("libc.so.6")).unwrap();
+    let mut so = original.clone();
     let elf = Elf::parse::<Native>(&so).unwrap();
     let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
     let (off, len) = (dynph.offset as usize, dynph.filesz as usize);
@@ -158,21 +162,8 @@ fn corpus(name: &str) -> Option<(PathBuf, PathBuf)> {
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
     let libc = d.join("libc-owner-dl.so");
     std::fs::write(&libc, &so).unwrap();
-    let map = d.join("owner.map");
-    std::fs::write(&map, "LIELLA_OWNER_1 {\n  global:\n    at_quick_exit;\n    atexit;\n    pthread_atfork;\n  local:\n    *;\n};\n").unwrap();
-    let stub = d.join("libc-owner-stub.so");
-    let r = Command::new("cc")
-        .args(["-shared", "-nostdlib"])
-        .arg(format!("-Wl,-soname,{}", libc.display()))
-        .arg(format!("-Wl,--version-script={}", map.display()))
-        .arg(root().join("csys/owner/stub.S"))
-        .arg("-o")
-        .arg(&stub)
-        .output()
-        .unwrap();
-    assert!(r.status.success(), "stub: {}", String::from_utf8_lossy(&r.stderr));
-    let (stub, libc_s) = (stub.to_str().unwrap().to_string(), libc.to_str().unwrap().to_string());
-    build(&d, "libA.so", LIB, &["-nostdlib", "-fPIC", "-shared", "-DKIND_A", &stub]);
+    let libc_s = libc.to_str().unwrap().to_string();
+    build(&d, "libA.so", LIB, &["-nostdlib", "-fPIC", "-shared", "-DKIND_A", iface.to_str().unwrap()]);
     build(&d, "libB.so", LIB, &["-nostdlib", "-fPIC", "-shared", "-DKIND_B"]);
     build(&d, "libH.so", LIB, &["-nostdlib", "-fPIC", "-shared", "-DKIND_H"]);
     let nonshared = lib.join("libc_nonshared.a");
@@ -180,6 +171,7 @@ fn corpus(name: &str) -> Option<(PathBuf, PathBuf)> {
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let crt1 = lib.join("liella-crt1.o");
     let prog = build(&d, "prog", PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", &interp, crt1.to_str().unwrap(), &libc_s, ld.to_str().unwrap(), "-lgcc"]);
+    std::fs::write(&libc, &original).unwrap();
     Some((d, prog))
 }
 
