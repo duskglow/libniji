@@ -343,12 +343,10 @@ pub const OWNER_NODE: &str = "LIELLA_OWNER_1";
 pub const OWNER_EXPORTS: &[&str] = &["at_quick_exit", "atexit", "pthread_atfork"];
 /// The shims giving [`OWNER_EXPORTS`] their versions (linked into libc.so.6 only).
 pub const OWNER_SHIMS: &str = "csys/owner/owner.S";
-/// The link-time interface stub of the opt-in (built as `liella-owner/libc-owner.so`).
-pub const OWNER_STUB: &str = "csys/owner/stub.S";
 /// The opt-in's `libc.so` script (`liella-owner/libc.so`): the interface stub instead of
 /// libc_nonshared.a. Bare names, found on the library search path (`-L<dir>/liella-owner
 /// -L<dir>`).
-pub const OWNER_SO_SCRIPT: &str = "/* GNU ld script: Liella's C library, opted in to registrations without\n   libc_nonshared.a (D-27.29). libc-owner.so is a link-time interface stub:\n   the program then needs LIELLA_OWNER_1 of libc.so.6 and runs only on Liella. */\nOUTPUT_FORMAT(elf64-x86-64)\nGROUP ( libc-owner.so libc.so.6 AS_NEEDED ( ld-linux-x86-64.so.2 ) )\n";
+pub const OWNER_SO_SCRIPT: &str = "/* GNU ld script: Liella's C library, opted in to registrations without\n   libc_nonshared.a (D-27.29). libc-owner.so is a link-time interface stub:\n   the program then needs LIELLA_OWNER_1 of libc.so.6 and runs only on Liella. */\nOUTPUT_FORMAT(elf64-x86-64)\nGROUP ( libc-owner.so AS_NEEDED ( ld-linux-x86-64.so.2 ) )\n";
 
 /// The opt-in's registered non-default exports: each of [`OWNER_EXPORTS`] at [`OWNER_NODE`] and
 /// nothing else (an export at the node under any other name stays a compat-export problem).
@@ -1278,18 +1276,22 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let scopes = libc_scopes(root)?;
     let so_input = product.join("libc-so-input.a");
     weaken_names_in_archive(&archive, &product.join("weaken-so"), &so_input, &weak_names(&scopes)?)?;
-    run(Command::new(&cc)
-        .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
-        .arg(format!("-Wl,--version-script={}", map.display()))
-        .arg("-Wl,-soname,libc.so.6")
-        .arg("-Wl,--whole-archive")
-        .arg(&so_input)
-        .arg("-Wl,--no-whole-archive")
-        .arg(&compat_obj)
-        .arg(&owner_obj)
-        .arg("-lgcc")
-        .arg("-o")
-        .arg(&so))?;
+    let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
+        run(Command::new(&cc)
+            .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            .args(extra)
+            .arg(format!("-Wl,--version-script={}", map.display()))
+            .arg("-Wl,-soname,libc.so.6")
+            .arg("-Wl,--whole-archive")
+            .arg(&so_input)
+            .arg("-Wl,--no-whole-archive")
+            .arg(&compat_obj)
+            .arg(owner)
+            .arg("-lgcc")
+            .arg("-o")
+            .arg(out))
+    };
+    link_libc(&owner_obj, &so, &[])?;
     check_no_link_edge(&so)?;
     let native = check_native_exports(root, &so)?;
     let compat_count = check_compat_exports(root, &so, "libc.so.6", &compat)?;
@@ -1306,6 +1308,19 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     println!("so: version set and default version of {versioned} libc.so.6 names checked against spec/abi/versions.tsv");
     // The 64-byte entry alignment (D-4.33) is contract FN-ALIGN-EXPORTS, checked with the others at the end.
     publish(&so, &so_final)?;
+    // The opt-in's link-time interface (D-27.29): the same link with the three entries at the
+    // DEFAULT version of LIELLA_OWNER_1, so a module linked against it binds them there, and
+    // every other name as libc.so.6 exports it (one soname: the link editor loads one object
+    // per soname, so a partial stub next to libc.so.6 would hide the library). Link time
+    // only: the module's DT_NEEDED libc.so.6 is the library above at run time.
+    let owner_link_obj = product.join("owner-link.o");
+    run(Command::new(&cc).arg("-c").arg("-DLIELLA_OWNER_LINK_STUB").arg(root.join(OWNER_SHIMS)).arg("-o").arg(&owner_link_obj))?;
+    let owner_dir = release.join("liella-owner");
+    fs::create_dir_all(&owner_dir).map_err(|e| format!("{}: {e}", owner_dir.display()))?;
+    let stub = owner_dir.join("libc-owner.so");
+    let staged = tmp_name(&stub);
+    link_libc(&owner_link_obj, &staged, &["-Wl,--strip-all"])?;
+    publish(&staged, &stub)?;
 
     // 4. The start object.
     let defines = build_crt1(root, &cc, &release)?;
@@ -1703,34 +1718,20 @@ fn build_nonshared(root: &Path, cc: &str, release: &Path) -> Result<(), String> 
     fs::write(&staged, LIBC_SO_SCRIPT).map_err(|e| format!("{}: {e}", staged.display()))?;
     publish(&staged, &script)?;
     println!("so: target/liella/libc_nonshared.a ({} members, all hidden; notice {}) and the libc.so script", objects.len(), if notice { "on" } else { "off" });
-    build_owner_dir(root, cc, release, &work)
+    build_owner_dir(release)
 }
 
-/// The opt-in's link-stub directory `release/liella-owner/` (D-27.29): the interface stub
-/// `libc-owner.so` (soname libc.so.6, [`OWNER_EXPORTS`] as `name@@LIELLA_OWNER_1`) and the
-/// `libc.so` script naming it and not libc_nonshared.a.
-fn build_owner_dir(root: &Path, cc: &str, release: &Path, work: &Path) -> Result<(), String> {
+/// The opt-in's link-stub directory `release/liella-owner/` (D-27.29): next to the interface
+/// `libc-owner.so` (linked with libc.so.6, [`OWNER_EXPORTS`] there as `name@@LIELLA_OWNER_1`),
+/// the `libc.so` script naming it and not libc_nonshared.a.
+fn build_owner_dir(release: &Path) -> Result<(), String> {
     let dir = release.join("liella-owner");
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let map = work.join("owner-stub.map");
-    fs::write(&map, format!("{OWNER_NODE} {{\n  global:\n    {};\n  local:\n    *;\n}};\n", OWNER_EXPORTS.join(";\n    "))).map_err(|e| format!("{}: {e}", map.display()))?;
-    let stub = dir.join("libc-owner.so");
-    let staged = tmp_name(&stub);
-    let src = root.join(OWNER_STUB);
-    // Compiled from its own directory by relative name: no build path in the product.
-    run(Command::new(cc)
-        .current_dir(src.parent().unwrap_or(root))
-        .args(["-shared", "-nostdlib", "-Wl,-soname,libc.so.6", "-Wl,--hash-style=gnu"])
-        .arg(format!("-Wl,--version-script={}", map.display()))
-        .arg(src.file_name().unwrap_or_default())
-        .arg("-o")
-        .arg(&staged))?;
-    publish(&staged, &stub)?;
     let script = dir.join("libc.so");
     let staged = tmp_name(&script);
     fs::write(&staged, OWNER_SO_SCRIPT).map_err(|e| format!("{}: {e}", staged.display()))?;
     publish(&staged, &script)?;
-    println!("so: target/liella/liella-owner/ (libc-owner.so interface stub at {OWNER_NODE} and its libc.so script)");
+    println!("so: target/liella/liella-owner/ (libc-owner.so, the link-time interface at {OWNER_NODE}, and its libc.so script)");
     Ok(())
 }
 

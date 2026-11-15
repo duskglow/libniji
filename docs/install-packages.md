@@ -56,6 +56,24 @@ start-up (it loads them only by path), so dynamically linked programs built with
 stop with "the library search is not available in this build". Static programs run. Dynamic
 programs run once the loader's start-time search lands; nothing in the packages changes then.
 
+### Registering exit and fork handlers without libc_nonshared.a (opt-in)
+
+By default a module takes `atexit`, `at_quick_exit` and `pthread_atfork` from `libc_nonshared.a`,
+as with glibc, and the result also runs on glibc. Nothing about that default is deprecated. A
+module may opt in to registering through `libc.so.6` itself: link it with the link-stub directory
+`liella-owner/` of the build products (`target/liella/liella-owner/`) ahead of the products
+directory, for example `-L target/liella/liella-owner -L target/liella -lc`. The module then needs
+the version `LIELLA_OWNER_1` and runs only on Liella; glibc's loader refuses it with
+"version `LIELLA_OWNER_1' not found". Liella attributes each such registration to the calling
+module, and runs or drops its handlers before the module is unmapped by `dlclose`
+(decision D-27.29).
+
+Migrating a distribution, step by step: build Liella with `LIELLA_NONSHARED_NOTICE=1 cargo xtask so`
+(the archive's registration members then make the link editor warn, and mark the linked module),
+run programs with `LIELLA_LD_REPORT_NONSHARED=1` to have Liella's loader name each loaded module
+that still registers through the archive, and relink those modules with `liella-owner/` once
+two-way compatibility with glibc is no longer needed for them. Both settings are off by default.
+
 ## Building the packages
 
 ```sh

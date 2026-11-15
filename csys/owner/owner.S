@@ -8,6 +8,15 @@
  * own section, like every exported entry (D-4.33, layout contract FN-ALIGN-EXPORTS). Linked
  * into libc.so.6 only, never into libc.a: a static program has one module and nothing to
  * attribute. */
+/* Built twice: into libc.so.6 with each entry at the NON-default version, and with
+ * -DLIELLA_OWNER_LINK_STUB into the link-time interface liella-owner/libc-owner.so (the same
+ * library otherwise) with each at the default version, so an opted-in link binds it. */
+#ifdef LIELLA_OWNER_LINK_STUB
+#define OWNER_VERSION(entry, name) .symver entry, name@@LIELLA_OWNER_1
+#else
+#define OWNER_VERSION(entry, name) .symver entry, name@LIELLA_OWNER_1
+#endif
+
 	.section .text.liella_owner_atexit_entry,"ax",@progbits
 	.globl liella_owner_atexit_entry
 	.type liella_owner_atexit_entry, @function
@@ -17,7 +26,7 @@ liella_owner_atexit_entry:
 	movq (%rsp), %rsi
 	jmp liella_owner_atexit@PLT
 	.size liella_owner_atexit_entry, .-liella_owner_atexit_entry
-	.symver liella_owner_atexit_entry, atexit@LIELLA_OWNER_1
+	OWNER_VERSION(liella_owner_atexit_entry, atexit)
 
 	.section .text.liella_owner_at_quick_exit_entry,"ax",@progbits
 	.globl liella_owner_at_quick_exit_entry
@@ -28,7 +37,7 @@ liella_owner_at_quick_exit_entry:
 	movq (%rsp), %rsi
 	jmp liella_owner_at_quick_exit@PLT
 	.size liella_owner_at_quick_exit_entry, .-liella_owner_at_quick_exit_entry
-	.symver liella_owner_at_quick_exit_entry, at_quick_exit@LIELLA_OWNER_1
+	OWNER_VERSION(liella_owner_at_quick_exit_entry, at_quick_exit)
 
 	.section .text.liella_owner_pthread_atfork_entry,"ax",@progbits
 	.globl liella_owner_pthread_atfork_entry
@@ -39,6 +48,6 @@ liella_owner_pthread_atfork_entry:
 	movq (%rsp), %rcx
 	jmp liella_owner_pthread_atfork@PLT
 	.size liella_owner_pthread_atfork_entry, .-liella_owner_pthread_atfork_entry
-	.symver liella_owner_pthread_atfork_entry, pthread_atfork@LIELLA_OWNER_1
+	OWNER_VERSION(liella_owner_pthread_atfork_entry, pthread_atfork)
 
 	.section .note.GNU-stack,"",@progbits
