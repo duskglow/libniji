@@ -58,6 +58,23 @@ pub fn forget_dso(dso: usize) {
     }
 }
 
+/// A module mapped at `[lo, hi)` is being unloaded (D-27.29): every opted-in registration
+/// (`pthread_atfork@LIELLA_OWNER_1`: owner word with bit 0 set) whose owner or any of whose three
+/// handlers lies in it is never called again. Other registrations are untouched (ruling #4862).
+pub fn forget_opted(lo: usize, hi: usize) {
+    let inside = |v: usize| lo <= v && v < hi;
+    let _g = ATFORK_LOCK.lock(&CSys);
+    let mut a = FIRST.load(Acquire);
+    while a != 0 {
+        let w = node(a);
+        let owner = w.get(4).map_or(0, |d| d.load(Relaxed));
+        if owner & 1 == 1 && (inside(owner & !1) || w.iter().take(3).any(|h| inside(h.load(Relaxed)))) {
+            w.iter().take(3).for_each(|h| h.store(0, Relaxed));
+        }
+        a = w.get(3).map_or(0, |x| x.load(Acquire));
+    }
+}
+
 fn register_with(prepare: usize, parent: usize, child: usize, dso: usize) -> KResult<()> {
     let n = liella_legacy::malloc_compat::malloc(&heap::CTX, 40).map_err(|_| Errno::ENOMEM)?;
     let w = node(n);

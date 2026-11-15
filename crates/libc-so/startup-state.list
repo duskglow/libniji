@@ -57,6 +57,7 @@ liella_boundary::thread::LOCK_ALONE
 liella_boundary::thread::RSEQ_OWNED
 liella_boundary::thread::LOADER_RSEQ  # read by every start (init_initial) to find the loader's registration (D-3.21)
 liella_boundary::thread::LOADER_RSEQ_TP  # written by a dynamic program's start when Liella's loader registered rseq (D-3.21)
+liella_boundary::process::LOADER_PIN  # written by a dynamic program's start: the loader's thread_local destructor pin (s1_2_c_6)
 liella_boundary::thread::FORBIDDEN
 liella_boundary::thread::TLS_IMAGE
 symbol __rseq_offset
@@ -163,6 +164,9 @@ symbol liella_machine_aio_used
 # left in `.bss`/`.data`, their page followed emission order, and setlocale + printf read 50 or 51 and tool 54 to
 # 56 by `.bss` pad. hot_text_products `init_startup_data_accesses_are_in_the_data1_cluster` traces every probe.
 liella::locale::collate::ASCII_KEYS
+# The class-table slot counter (D-5.10, WCTYPE-TRIE-FILE): the first setlocale that builds a compiled LC_CTYPE view
+# takes a slot of FILE_TABLES (the `locale`, `rebind` and `tool` probes); the tables themselves stay in `.bss`.
+liella::locale::classes::FILE_NEXT
 liella_legacy::intl::GENERATION
 liella_legacy::intl::SETTINGS
 symbol _IO_2_1_stdout_

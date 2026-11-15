@@ -1,0 +1,29 @@
+{
+  "task": "UTIL-LDCONFIG-3",
+  "model": "opus",
+  "tokens": null,
+  "result": "ldconfig engine green: the writer's hwcaps key fixed, 12/12 transcripts ok against the reference, ldconfig unit tests 8/8, 11/11 plants caught, pending D-31 record; shippable binary and packaging not done",
+  "branch": "task/util-ldconfig-3",
+  "head": "922f88f38",
+  "gate": {"affected": "util-ldconfig-3-gate1 (escalated to FULL by xtask/src/main.rs; pending at hand-back)", "peak": null},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "ldconfig enters only native-class ELF files in the cache; on a multilib system i386/x32 entries would be missing (not probed)", "recommendation": "probe a foreign-class library in a transcript (ELF32 elf: option) and, if the reference lists it, enter other classes with their own flags"},
+    {"item": "ldconfig -l is refused ('not supported yet')", "recommendation": "implement it in the binary story with probes of its messages, rather than a differences row"}
+  ],
+  "informational": [
+    "No shippable ldconfig binary exists yet (only the xtask front end), so the libc-bin postinst trigger cannot run it; packaging deferred to the binary story",
+    "Include-cycle message: the reference's behaviour on a self-include was not probed, so no differences row yet"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "correctness", "what": "cache writer: a glibc-hwcaps entry whose file is not its soname got the key 'bdd.so.4.0' for 'libdd.so.4'; now stored whole", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "coverage", "what": "plants added (conf cycle/glob order/relative base, scan version/dev link/dangling x2/hwcaps x2, writer x2), all caught", "before": 0, "after": 11, "unit": "plants", "measured": true},
+    {"kind": "coverage", "what": "ldconfig transcripts ok against the reference", "before": 11, "after": 12, "unit": "transcripts", "measured": true},
+    {"kind": "coverage", "what": "ldconfig engine unit tests passing (two test bugs fixed, one writer test added)", "before": 5, "after": 8, "unit": "tests", "measured": true}
+  ],
+  "improvement": "The direct-tier gate escalates to FULL for any xtask/src/main.rs change; a story that only adds an xtask subcommand pays a full gate. A narrower rule (main.rs dispatch lines only) would keep such gates direct.",
+  "next_step": "Freestanding static ldconfig binary over liella-boundary (openat2 RESOLVE_IN_ROOT), then libc-bin packaging and its postinst trigger",
+  "report_file": "handoff/UTIL-LDCONFIG.md",
+  "jobs": ["util-ldconfig-3-gate1", "util-ldconfig-3-plants1", "util-ldconfig-3-check1", "util-ldconfig-3-static1"]
+}

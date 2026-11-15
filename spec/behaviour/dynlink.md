@@ -246,6 +246,24 @@ All members reference `__dso_handle` (undefined, hidden: the compiler's start fi
 * **The installed `libc.so`** is `GROUP ( <libc.so.6> <libc_nonshared.a> AS_NEEDED ( <ld-linux-x86-64.so.2> ) )`.
   The reference names absolute paths. Liella's names bare files, which ld finds on the library search path.
 
+### Liella's opt-in to register without the archive (D-27.29, owner rulings #4860-#4862)
+
+Liella-only, never the default (docs/differences-from-glibc.md, dynamic loader block). A module linked with
+`-L <products>/liella-owner -L <products> -lc` binds `atexit`, `at_quick_exit` and `pthread_atfork` at the non-default
+version `LIELLA_OWNER_1` of `libc.so.6` instead of the archive's members; the registration is attributed to the module
+holding the caller's return address, and when that module is unloaded its handlers registered this way run (exit) or
+are dropped (quick-exit, atfork) before its pages are unmapped, as for the archive's tagged entries. The reference's
+loader refuses such a module (`version 'LIELLA_OWNER_1' not found`). Entries registered through the archive keep the
+behaviour above unchanged (#4862).
+
+**The notice (#4861), off by default.** `LIELLA_NONSHARED_NOTICE=1 cargo xtask so` builds the archive's three
+registration members with a `.gnu.warning.<name>` section (the link editor prints a warning for each module that takes
+the member) and an allocated `.note.liella.nonshared` note (owner `Liella`, type 1, empty descriptor) that ends up in
+the linked module's `PT_NOTE`. With `LIELLA_LD_REPORT_NONSHARED` set to a non-empty value (ignored in secure mode),
+Liella's `ld.so` writes one line `ld.so: <object>: registers exit or fork handlers through libc_nonshared.a ...` to
+standard error for each object carrying the note, at start and at `dlopen`. The default archive carries neither
+section: a default link prints no warning and nothing is deprecated.
+
 ## dladdr and dlinfo (DL-18 DL-DLADDR)
 
 **Probe:** `tools/probe/dl/dladdr/run.sh SCRATCH` builds `lib.c` (one assembler block of symbols in a known order:

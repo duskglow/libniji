@@ -1,0 +1,25 @@
+# UTIL-LDCONFIG-3 plants: the ldconfig engine (conf.rs, scan.rs) and the cache writer's separate hwcaps key.
+# cargo xtask plants handoff/UTIL-LDCONFIG-3-plants.txt --dir <new RAM dir> --timeout 600 (docs/plants.md)
+conf-cycle-check | crates/ld/src/ldconfig/conf.rs | lit:if self.stack.contains(&id) { ==> if false && self.stack.contains(&id) { | cargo test -p liella-ld --test ldconfig include_cycles_end_with_a_message | msg:include_cycles_end_with_a_message \.\.\. FAILED
+conf-glob-order | crates/ld/src/ldconfig/conf.rs | lit:found.sort_unstable(); ==> found.reverse(); | cargo test -p liella-ld --test ldconfig configuration_includes_are_read_in_sorted_order | msg:configuration_includes_are_read_in_sorted_order_relative_to_their_file \.\.\. FAILED
+conf-relative-base | crates/ld/src/ldconfig/conf.rs | lit:super::extend(&mut full, from.get(..=slash).unwrap_or_default())?; ==> let _ = slash; | cargo test -p liella-ld --test ldconfig configuration_includes_are_read_in_sorted_order | msg:configuration_includes_are_read_in_sorted_order_relative_to_their_file \.\.\. FAILED
+scan-version-direction | crates/ld/src/ldconfig/scan.rs | lit:then_with(|| compare(&b.1, &a.1)) ==> then_with(|| compare(&a.1, &b.1)) | cargo test -p liella-ld --test ldconfig soname_links_follow_the_highest_version | msg:soname_links_follow_the_highest_version \.\.\. FAILED
+scan-dev-link-rule | crates/ld/src/ldconfig/scan.rs | lit:if is_link && name.ends_with(b".so") && soname.starts_with(name) { ==> if false && is_link && name.ends_with(b".so") && soname.starts_with(name) { | cargo test -p liella-ld --test ldconfig soname_links_follow_the_highest_version | msg:soname_links_follow_the_highest_version \.\.\. FAILED
+scan-dangling-dev-kept | crates/ld/src/ldconfig/scan.rs | lit:if !self.o.no_links && hwcaps.is_none() && !name.ends_with(b".so") { ==> if !self.o.no_links && hwcaps.is_none() { | cargo test -p liella-ld --test ldconfig dangling_links_are_removed | msg:dangling_links_are_removed_unless_x_or_development_links \.\.\. FAILED
+scan-dangling-x-kept | crates/ld/src/ldconfig/scan.rs | lit:if !self.o.no_links && hwcaps.is_none() && !name.ends_with(b".so") { ==> if hwcaps.is_none() && !name.ends_with(b".so") { | cargo test -p liella-ld --test ldconfig dangling_links_are_removed | msg:dangling_links_are_removed_unless_x_or_development_links \.\.\. FAILED
+scan-hwcaps-no-link | crates/ld/src/ldconfig/scan.rs | lit:!self.o.no_links && hwcaps.is_none() { self.link(dir, soname, winner, r)? } ==> !self.o.no_links { self.link(dir, soname, winner, r)? } | cargo test -p liella-ld --test ldconfig hwcaps_subdirectories_get_no_links | msg:hwcaps_subdirectories_get_no_links_and_name_the_file \.\.\. FAILED
+scan-hwcaps-names-file | crates/ld/src/ldconfig/scan.rs | lit:let file = if hwcaps.is_some() { winner } else { soname }; ==> let file = soname; | cargo test -p liella-ld --test ldconfig hwcaps_subdirectories_get_no_links | msg:hwcaps_subdirectories_get_no_links_and_name_the_file \.\.\. FAILED
+writer-key-as-tail | crates/ld/src/cache/writer.rs | lit:e.path.strip_suffix(e.key).is_some_and(|d| d.ends_with(b"/")) ==> true | cargo test -p liella-ld --test cache_write write_hwcaps_key_other_than_the_file_name | msg:write_hwcaps_key_other_than_the_file_name \.\.\. FAILED
+writer-key-as-tail-transcript | crates/ld/src/cache/writer.rs | lit:e.path.strip_suffix(e.key).is_some_and(|d| d.ends_with(b"/")) ==> true | cargo xtask transcript check validation/transcripts/ldconfig | msg:MISMATCH validation/transcripts/ldconfig/r-conf-cache
+# cargo xtask plants results (11 plants: 11 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# conf-cycle-check: CAUGHT, caught by ldconfig include_cycles_end_with_a_message
+# conf-glob-order: CAUGHT, caught by ldconfig configuration_includes_are_read_in_sorted_order_relative_to_their_file
+# conf-relative-base: CAUGHT, caught by ldconfig configuration_includes_are_read_in_sorted_order_relative_to_their_file
+# scan-version-direction: CAUGHT, caught by ldconfig soname_links_follow_the_highest_version
+# scan-dev-link-rule: CAUGHT, caught by ldconfig soname_links_follow_the_highest_version
+# scan-dangling-dev-kept: CAUGHT, caught by ldconfig dangling_links_are_removed_unless_x_or_development_links
+# scan-dangling-x-kept: CAUGHT, caught by ldconfig dangling_links_are_removed_unless_x_or_development_links
+# scan-hwcaps-no-link: CAUGHT, caught by ldconfig hwcaps_subdirectories_get_no_links_and_name_the_file
+# scan-hwcaps-names-file: CAUGHT, caught by ldconfig hwcaps_subdirectories_get_no_links_and_name_the_file
+# writer-key-as-tail: CAUGHT, caught by cache_write write_hwcaps_key_other_than_the_file_name
+# writer-key-as-tail-transcript: CAUGHT, caught by no test the log names

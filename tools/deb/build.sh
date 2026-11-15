@@ -17,6 +17,10 @@
 #       target/deb-system; work directory target/deb-system-work). Version
 #       <abi>+liella<YYYYMMDD>.<n>-<rev> (owner ruling R2): <abi> 2.39, <n> LIELLA_DEB_SERIAL
 #       (default 1), <rev> LIELLA_DEB_REVISION (default 1). tools/deb/check-system.sh checks them.
+#   --symbols-only (with --flavour system --products)
+#       Stop after libc6's symbols, shlibs and control (WORK/stage/libc6/DEBIAN): no .deb is
+#       written. The gate's check that every version node the libraries define has a dependency
+#       rule (crates/core/tests/deb_symbols_products.rs), a few seconds instead of the packaging.
 #
 # Packages: liella6 (run time: the loader and the shared libraries) and liella6-dev (link time:
 # start files, linker scripts, static archives, the liella-gcc/liella-g++ wrapper). Every file
@@ -43,16 +47,22 @@ version=""
 flavour=coexist
 outset=""
 workset=""
+symbols_only=""
 while [ $# -gt 0 ]; do
     case $1 in
+        --symbols-only) symbols_only=1; shift ;;
         --out) out=$2; outset=1; shift 2 ;;
         --work) work=$2; workset=1; shift 2 ;;
         --flavour) flavour=$2; shift 2 ;;
         --products) products=$2; shift 2 ;;
         --version) version=$2; shift 2 ;;
-        *) echo "usage: tools/deb/build.sh [--flavour coexist|system] [--out DIR] [--work DIR] [--products DIR --version V]" >&2; exit 2 ;;
+        *) echo "usage: tools/deb/build.sh [--flavour coexist|system] [--out DIR] [--work DIR] [--products DIR --version V] [--symbols-only]" >&2; exit 2 ;;
     esac
 done
+if [ -n "$symbols_only" ] && { [ "$flavour" != system ] || [ -z "$products" ]; }; then
+    echo "build.sh: --symbols-only needs --flavour system and --products" >&2
+    exit 2
+fi
 case $flavour in
     coexist) ;;
     system)
@@ -110,9 +120,12 @@ if [ -z "$products" ]; then
     echo "build.sh: building the products of $commit (release profile, prefix $prefix) in $work/src"
     (cd "$work/src" && LIELLA_PREFIX=$prefix LIELLA_LIBDIR=usr/lib/$ma LIELLA_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
     products=$work/src/target/liella
+    # The specification tables of the tree the products were built from (system.sh's symbols file).
+    spec=$work/src/spec
 else
     [ -n "$version" ] || { echo "build.sh: --products needs --version" >&2; exit 2; }
     epoch=${SOURCE_DATE_EPOCH:-1}
+    spec=$root/spec
 fi
 products=$(cd "$products" && pwd)
 export SOURCE_DATE_EPOCH="$epoch"
@@ -161,7 +174,7 @@ fi
 rlib=$rt$sysroot/usr/lib/$ma
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$rlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     need "$so"
     put 0644 "$products/$so" "$rlib/$so"
 done
@@ -178,7 +191,13 @@ need liella-rcrt1.o
 put 0644 "$products/liella-crt1.o" "$dlib/crt1.o"
 put 0644 "$products/liella-crt1.o" "$dlib/Scrt1.o"
 put 0644 "$products/liella-rcrt1.o" "$dlib/rcrt1.o"
-for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a; do
+# SL-CRT: the rest of the start files a plain compiler-driver link names (crti.o and crtn.o in
+# every link, gcrt1.o for -pg, grcrt1.o for -pg -static-pie) and Mcrt1.o, which is empty.
+for o in gcrt1 grcrt1 crti crtn Mcrt1; do
+    need "liella-$o.o"
+    put 0644 "$products/liella-$o.o" "$dlib/$o.o"
+done
+for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
     put 0644 "$products/$a" "$dlib/$a"
 done
@@ -188,7 +207,10 @@ put_text 0644 "$dlib/libc.so" "/* GNU ld script: Liella's C library (liella6-dev
    /usr/lib/liella; link with --sysroot=/usr/lib/liella (liella-gcc does). */
 OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
+# libm.so stays a link: Liella has no libmvec, so no linker script is needed (SL-SONAMES).
 put_link libm.so.6 "$dlib/libm.so"
+put_link libresolv.so.2 "$dlib/libresolv.so"
+put_link libBrokenLocale.so.1 "$dlib/libBrokenLocale.so"
 put 0755 "$here/liella-gcc" "$dev/usr/bin/liella-gcc"
 put_link liella-gcc "$dev/usr/bin/liella-g++"
 mkdir -p "$dev/usr/share/man/man1"

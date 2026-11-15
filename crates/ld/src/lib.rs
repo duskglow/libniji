@@ -16,6 +16,7 @@ pub mod elf;
 pub mod map;
 pub mod search;
 pub mod cache;
+pub mod ldconfig;
 pub mod reloc;
 pub mod init;
 pub mod dlopen;

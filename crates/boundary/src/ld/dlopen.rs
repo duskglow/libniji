@@ -21,15 +21,16 @@
 //!   loader as it was, with one dlerror text set.
 //!
 //! * **Unloading** (DL-17, design in handoff/DL-DLCLOSE.md; probe `== close`). `dlclose` drops one
-//!   open; an object stays while it is initial, `nodelete`, open, or reachable from such an object
-//!   through its dependencies and its relocations' bindings ([`live_set`]). The others run their
+//!   open; an object stays while it is initial, `nodelete`, open, pinned by a pending C++
+//!   `thread_local` destructor ([`pin_entry`]), or reachable from such an object through its
+//!   dependencies and its relocations' bindings ([`live_set`]). The others run their
 //!   finalisers (the reverse of the constructor log; `DT_FINI_ARRAY` backwards, then `DT_FINI`)
 //!   holding `CALL` only, still published; then they are unpublished under `STATE` and unmapped once
 //!   every reader that may have seen them has left ([`reclaim`]); a slot is reused after that.
 //!
 //! Not here yet (plan §6): lazy binding (DL-20).
 
-use super::{array_words, c_string, dyn_string, env_entries, image_view, open_whole, own_object, read_auxv, ProcImage, SysMapper};
+use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
 use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_OBJS, START_ARGS, START_PAGE};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
@@ -176,7 +177,10 @@ struct Node {
     hi: usize,
     /// Direct `dlopen` calls holding it (saturating, DL-17 reads it).
     opens: u32,
-    /// Never unloaded (initial, `RTLD_NODELETE`, `DF_1_NODELETE`, or `opens` saturated).
+    /// Pending C++ `thread_local` destructors of any thread registered with an address in it
+    /// ([`pin_entry`], spec s1_2_c_6): it stays loaded while any is left.
+    pins: u32,
+    /// Never unloaded (initial, `RTLD_NODELETE`, `DF_1_NODELETE`, or `opens` or `pins` saturated).
     nodelete: bool,
     /// In the global scope.
     global: bool,
@@ -237,6 +241,8 @@ struct Loader {
     tls_mark: usize,
     /// `__liella_thread_walk`'s address once looked up (0: not yet).
     thread_walk: usize,
+    /// `__liella_owner_unload`'s address once looked up (0: not yet).
+    owner_unload: usize,
     /// The TLS module IDs of `dlopen`ed modules (DL-17: an unloaded module's ID is reused).
     ids: ltls::ModuleIds,
     /// Unloaded objects still mapped: (index, whether the reader parity flipped since it was
@@ -873,10 +879,15 @@ struct Finis {
     calls: [[u64; 3]; CAP],
     idx: [u16; CAP],
     len: usize,
+    /// Each object's mapped range [lo, hi), for the C library's `__liella_owner_unload`.
+    ranges: [(usize, usize); CAP],
+    /// `__liella_owner_unload`'s address when this is a `dlclose` or a last-pin unload (0: at exit, or
+    /// no C library has it).
+    owner_unload: usize,
 }
 
 impl Finis {
-    const NONE: Finis = Finis { calls: [[0; 3]; CAP], idx: [0; CAP], len: 0 };
+    const NONE: Finis = Finis { calls: [[0; 3]; CAP], idx: [0; CAP], len: 0, ranges: [(0, 0); CAP], owner_unload: 0 };
 
     /// Add object `i` (loaded, not finalising yet) and mark it finalising.
     fn add(&mut self, l: &mut Loader, i: usize) {
@@ -886,6 +897,9 @@ impl Finis {
         }
         let (Some(c), Some(x)) = (self.calls.get_mut(self.len), self.idx.get_mut(self.len)) else { return };
         node.finalising = true;
+        if let Some(r) = self.ranges.get_mut(self.len) {
+            *r = (node.lo, node.hi);
+        }
         *c = node.fini;
         *x = u16::try_from(i).unwrap_or(0);
         self.len = self.len.saturating_add(1);
@@ -903,11 +917,17 @@ impl Finis {
         self.idx.get(..self.len).unwrap_or(&[])
     }
 
-    /// Each object's `DT_FINI_ARRAY` in reverse, then its `DT_FINI` (probe `== order`).
+    /// Each object's `DT_FINI_ARRAY` in reverse, then its `DT_FINI` (probe `== order`); then, for a
+    /// `dlclose`, the C library's step for the opted-in registrations the object owns or whose
+    /// handlers it holds (D-27.29), while its code is still mapped.
     fn run(&self) {
-        for &[addr, len, fini] in self.calls.get(..self.len).unwrap_or(&[]) {
+        let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
+        for (&[addr, len, fini], &(lo, hi)) in self.calls.get(..self.len).unwrap_or(&[]).iter().zip(self.ranges.iter()) {
             for f in init::fini_calls(fini, array_words(init::Array { addr, len })) {
                 let _ = crate::ffi::liella_machine_call0(usize::try_from(f).unwrap_or(0));
+            }
+            if self.owner_unload != 0 {
+                let _ = crate::ffi::liella_machine_call3(self.owner_unload, w(lo), w(hi), 0);
             }
         }
     }
@@ -946,6 +966,71 @@ extern "C" fn close_entry(handle: usize) -> i64 {
     }
 }
 
+/// The address of [`pin_entry`], for `StartInfo::dl_pin`.
+pub(super) fn pin_address() -> usize {
+    #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+    (pin_entry as *const ()).expose_provenance()
+}
+
+/// A C++ `thread_local` destructor's hold on its object (spec s1_2_c_6: `__cxa_thread_atexit_impl`
+/// keeps `dso` loaded until the destructor has run; DL-TLS-DTOR-PIN). `(0, dso)`: the `dlopen`ed
+/// object holding the address `dso` gains a pin, and the result is its token (its index plus one);
+/// 0 when `dso` is in no such object (the program, an initial object, `ld.so` or no object need
+/// none). `(1, token)`: the destructor has run; drop that pin, and when it was the object's last and
+/// no open holds it, unload what is no longer live as `dlclose` does (its finalisers run now).
+/// A pinned object's slot is never reused, so a token names its object until it is dropped.
+extern "C" fn pin_entry(op: usize, arg: usize) -> usize {
+    if op == 0 {
+        return pin(arg);
+    }
+    unpin(arg);
+    0
+}
+
+fn pin(dso: usize) -> usize {
+    if dso == 0 || LOADER.load(Acquire) == 0 {
+        return 0;
+    }
+    STATE.lock();
+    let mut token = 0;
+    if let Some(l) = loader() {
+        let at = l.nodes.get(..l.n).and_then(|ns| ns.iter().position(|nd| !nd.gone && (nd.lo..nd.hi).contains(&dso)));
+        if let Some((i, nd)) = at.filter(|&i| i >= l.n_start).and_then(|i| Some((i, l.nodes.get_mut(i)?))) {
+            nd.pins = nd.pins.saturating_add(1);
+            // A saturated count can no longer be dropped exactly: the object stays for good.
+            nd.nodelete |= nd.pins == u32::MAX;
+            token = i.saturating_add(1);
+        }
+    }
+    STATE.unlock();
+    token
+}
+
+fn unpin(token: usize) {
+    let Some(i) = token.checked_sub(1) else { return };
+    room_wait();
+    CALL.lock();
+    STATE.lock();
+    let mut f = Finis::NONE;
+    if let Some(l) = loader() {
+        if let Some(nd) = l.nodes.get_mut(i).filter(|nd| !nd.gone && nd.pins > 0) {
+            nd.pins = nd.pins.saturating_sub(1);
+            if nd.pins == 0 && nd.opens == 0 && !nd.nodelete {
+                collect(l, &mut f);
+            }
+        }
+    }
+    STATE.unlock();
+    if f.len > 0 {
+        // As in `close_entry`: a destructor may call `dlopen` or `dlclose`.
+        f.run();
+        STATE.lock();
+        close_end(&f);
+        STATE.unlock();
+    }
+    CALL.unlock();
+}
+
 /// Drop one open of `handle`; fill `f` with what is to be unloaded (marked finalising).
 fn close_begin(handle: usize, f: &mut Finis) -> Result<(), Fail> {
     let invalid = || fail_parts(&[b"dlclose: invalid handle"]);
@@ -966,6 +1051,12 @@ fn close_begin(handle: usize, f: &mut Finis) -> Result<(), Fail> {
     if node.opens > 0 || node.nodelete {
         return Ok(());
     }
+    collect(l, f);
+    Ok(())
+}
+
+/// Fill `f` with every object no longer live, in finalisation order (marked finalising).
+fn collect(l: &mut Loader, f: &mut Finis) {
     let keep = live_set(l, &[false; CAP]);
     let n = l.n_log.load(Relaxed).min(CAP);
     for k in (0..n).rev() {
@@ -980,10 +1071,12 @@ fn close_begin(handle: usize, f: &mut Finis) -> Result<(), Fail> {
             f.add(l, j);
         }
     }
-    Ok(())
+    if f.len > 0 {
+        f.owner_unload = owner_unload(l);
+    }
 }
 
-/// Which objects stay (plan §1): every object that is initial, `nodelete`, open, or finalising in
+/// Which objects stay (plan §1): every object that is initial, `nodelete`, open, pinned, or finalising in
 /// an outer call (`set`'s own excepted), and every object reachable from one through its
 /// dependencies and its relocations' bindings.
 fn live_set(l: &Loader, set: &[bool; CAP]) -> [bool; CAP] {
@@ -1001,7 +1094,7 @@ fn live_set(l: &Loader, set: &[bool; CAP]) -> [bool; CAP] {
     };
     for (i, nd) in l.nodes.iter().enumerate().take(l.n) {
         let mine = set.get(i).copied().unwrap_or(false);
-        if !nd.gone && (i < l.n_start || nd.nodelete || nd.opens > 0 || (nd.finalising && !mine)) {
+        if !nd.gone && (i < l.n_start || nd.nodelete || nd.opens > 0 || nd.pins > 0 || (nd.finalising && !mine)) {
             push(&mut keep, &mut stack, &mut sp, i);
         }
     }
@@ -1120,6 +1213,7 @@ fn unload(l: &mut Loader, j: usize) -> Option<u64> {
         nd.gone = true;
         nd.global = false;
         nd.opens = 0;
+        nd.pins = 0;
         (nd.dev, nd.ino) = (u64::MAX, u64::MAX.wrapping_sub(1));
     }
     let p = tls?;
@@ -1299,18 +1393,7 @@ impl Env {
         let secure = start::secure(&aux);
         let ld = start::ld_env(env_entries(envp));
         let features = Native::features(&aux, &crate::sys::CSys);
-        let mut path = PathBuf::default();
-        let file = if with_cache && search::prefixed(b"etc/ld.so.cache", &mut path) { path.c_str().and_then(open_whole) } else { None };
-        let cache = file.and_then(|(f, fd)| {
-            let _ = crate::ffi_sys::liella_sys_close(fd);
-            match Cache::parse(f) {
-                Some(c) => Some((f, c)),
-                None => {
-                    let _ = raw::munmap(f.as_ptr().expose_provenance(), f.len());
-                    None
-                }
-            }
-        });
+        let cache = if with_cache { read_cache() } else { None };
         Env { secure, library_path: ld.library_path, origin_path: ld.origin_path, features, cache }
     }
 
@@ -1321,7 +1404,7 @@ impl Env {
             origin_path: if self.secure { None } else { self.origin_path },
             platform: Native::platform(&self.features),
             hwcaps: Native::hwcaps(&self.features),
-            cache: self.cache.as_ref().map(|(_, c)| c),
+            cache: self.cache.as_ref().map(|(_, c)| c).into(),
         }
     }
 }
@@ -1443,6 +1526,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         return Some(Found::Full(b"out of room for object names"));
     };
     let o = Obj { elf, dynm, bias: loaded.bias, name: given, tls: None };
+    report_nonshared(&elf, shown);
     l.objs[k] = MaybeUninit::new(o);
     l.syms[k] = MaybeUninit::new(sym);
     let name = l.names.as_ptr().expose_provenance().wrapping_add(usize::try_from(span.0).unwrap_or(0));
@@ -1451,6 +1535,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
     node.path = span;
     node.deps = (0, 0);
     node.opens = 0;
+    node.pins = 0;
     node.global = false;
     node.nodelete = dynm.get(dl::DT_FLAGS_1).is_some_and(|f| f & dl::DF_1_NODELETE != 0);
     node.fini = [0; 3];
@@ -1659,6 +1744,18 @@ fn thread_walk(l: &mut Loader) -> usize {
         l.thread_walk = found.and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
     }
     l.thread_walk
+}
+
+/// The C library's `__liella_owner_unload` (a start object's, at `LIELLA_PRIVATE`; D-27.29),
+/// looked up once by the first `dlclose` that unloads an object; 0 when no start object has it.
+fn owner_unload(l: &mut Loader) -> usize {
+    if l.owner_unload == 0 {
+        let req = Request::new(start::private::OWNER_UNLOAD, Want::Version(start::private::NODE));
+        let n = START_N.load(Acquire).min(l.n);
+        let found = l.objs_upto(n).iter().zip(syms_of(&l.syms, n)).find_map(|(o, s)| s.lookup(&req).ok().flatten().map(|d| o.bias.wrapping_add(d.st.value)));
+        l.owner_unload = found.and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
+    }
+    l.owner_unload
 }
 
 /// The text of a failed attempt that found `f` for `name`.

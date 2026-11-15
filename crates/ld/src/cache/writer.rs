@@ -15,8 +15,10 @@
 //!   and ELF headers: each is validated and bounded ([`NAME_MAX`], [`PATH_MAX`], [`HWCAPS_MAX`],
 //!   [`GENERATOR_MAX`], [`ENTRIES_MAX`], and every offset must fit the format's 32 bits) before
 //!   anything is written. A path is absolute, its components are non-empty and neither `.` nor
-//!   `..`, and it ends in `/<key>` (in `/glibc-hwcaps/<name>/<key>` for a hwcaps entry): the
-//!   value is the soname link in the scanned directory (Appendix D.3.1).
+//!   `..`, and it ends in `/<key>`: the value is the soname link in the scanned directory
+//!   (Appendix D.3.1). A hwcaps entry's path is `<dir>/glibc-hwcaps/<name>/<file>` with any valid
+//!   file name (no links are made there); when `<file>` is not the key, the key gets its own
+//!   string, otherwise a key is the tail of its path.
 //! * **No allocation.** The caller's entry slice is sorted in place and the file is written into
 //!   the caller's buffer ([`encoded_len`] gives its size), so the freestanding ldconfig (UTIL-3)
 //!   and the loader crate need no allocator for it. Nothing is mapped or executed.
@@ -63,7 +65,7 @@ pub enum WriteError {
     /// The key is empty, longer than [`NAME_MAX`], `.` or `..`, or holds `/` or NUL.
     Key(usize),
     /// The path is not absolute and canonical, is longer than [`PATH_MAX`], or does not end in
-    /// `/<key>` (`/glibc-hwcaps/<name>/<key>` for a hwcaps entry).
+    /// `/<key>` (`/glibc-hwcaps/<name>/<file>` for a hwcaps entry, `<file>` any valid name).
     Path(usize),
     /// The hwcaps name is not a valid subdirectory name (as for a key).
     Hwcaps(usize),
@@ -109,16 +111,29 @@ fn check(i: usize, e: &Entry<'_>) -> Result<(), WriteError> {
             return Err(WriteError::Hwcaps(i));
         }
     }
-    let dir = e.path.strip_suffix(e.key).and_then(|d| d.strip_suffix(b"/"));
-    let dir = match (dir, e.hwcaps) {
-        (Some(d), Some(h)) => d.strip_suffix(h).and_then(|d| d.strip_suffix(HWCAPS_DIR)),
-        (d, None) => d,
-        (None, Some(_)) => None,
+    let dir = match e.hwcaps {
+        None => e.path.strip_suffix(e.key).and_then(|d| d.strip_suffix(b"/")),
+        // ldconfig makes no soname links in a glibc-hwcaps subdirectory, so such an entry names the file itself
+        // (any valid name; UTIL-LDCONFIG probe): only the directory part is fixed.
+        Some(h) => e
+            .path
+            .iter()
+            .rposition(|&c| c == b'/')
+            .and_then(|k| Some((e.path.get(..k)?, e.path.get(k.checked_add(1)?..)?)))
+            .and_then(|(d, f)| if name_ok(f) { Some(d) } else { None })
+            .and_then(|d| d.strip_suffix(h))
+            .and_then(|d| d.strip_suffix(HWCAPS_DIR)),
     };
     if dir.is_none() || !path_ok(e.path) {
         return Err(WriteError::Path(i));
     }
     Ok(())
+}
+
+/// Whether the entry's key is the last component of its path (then the key shares the path's
+/// string); otherwise (a hwcaps entry naming a file other than the soname) it needs its own.
+fn key_is_tail(e: &Entry<'_>) -> bool {
+    e.path.strip_suffix(e.key).is_some_and(|d| d.ends_with(b"/"))
 }
 
 /// The distinct hwcaps names, sorted by bytes (deterministic indexes).
@@ -176,6 +191,9 @@ fn layout(entries: &[Entry<'_>], names: &Names<'_>, generator: &[u8]) -> Result<
     let mut len_strings = 0usize;
     for s in names.used().iter().copied().chain(entries.iter().map(|e| e.path)) {
         len_strings = add(len_strings, add(s.len(), 1)?)?;
+    }
+    for e in entries.iter().filter(|e| !key_is_tail(e)) {
+        len_strings = add(len_strings, add(e.key.len(), 1)?)?;
     }
     let strings_end = add(strings, len_strings)?;
     let records = usize::from(!generator.is_empty()).saturating_add(usize::from(names.len != 0));
@@ -254,7 +272,8 @@ pub fn write(entries: &mut [Entry<'_>], generator: &[u8], out: &mut [u8]) -> Res
     o.u32(24, l.len_strings)?;
     o.put(28, &[HEADER_FLAGS])?;
     o.u32(32, l.ext)?;
-    // The string table: the hwcaps names, then each entry's path; a key is the tail of its path.
+    // The string table: the hwcaps names, then each entry's path, followed by its key when the key
+    // is not the tail of the path.
     let mut at = l.strings;
     let mut name_at = [0usize; HWCAPS_MAX];
     for (slot, n) in name_at.iter_mut().zip(names.used()) {
@@ -264,7 +283,9 @@ pub fn write(entries: &mut [Entry<'_>], generator: &[u8], out: &mut [u8]) -> Res
     }
     for (i, e) in entries.iter().enumerate() {
         let rec = add(HEADER, mul(ENTRY, i)?)?;
-        let key_at = add(at, e.path.len().saturating_sub(e.key.len()))?;
+        let path_end = add(at, add(e.path.len(), 1)?)?;
+        let key_at =
+            if key_is_tail(e) { add(at, e.path.len().saturating_sub(e.key.len()))? } else { path_end };
         o.put(rec, &e.flags.to_le_bytes())?;
         o.u32(add(rec, 4)?, key_at)?;
         o.u32(add(rec, 8)?, at)?;
@@ -277,7 +298,11 @@ pub fn write(entries: &mut [Entry<'_>], generator: &[u8], out: &mut [u8]) -> Res
         };
         o.put(add(rec, 16)?, &hwcap.to_le_bytes())?;
         o.put(at, e.path)?;
-        at = add(at, add(e.path.len(), 1)?)?;
+        at = path_end;
+        if key_at == path_end {
+            o.put(at, e.key)?;
+            at = add(at, add(e.key.len(), 1)?)?;
+        }
     }
     if l.ext != 0 {
         let mut records = 0usize;

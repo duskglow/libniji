@@ -1,0 +1,19 @@
+# Under -r an include must name an absolute file.
+name: ldconfig -r ROOT refuses a relative include
+clause: s31_2_i_4
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -r
+arg: @ROOT@
+as-cache: etc/ld.so.cache
+file: etc/ld.so.conf
+| include other.conf
+file: etc/other.conf
+| /opt/a
+status: exit 1
+stdout:
+stderr:
+| ldconfig: need absolute file name for configuration file when using -r

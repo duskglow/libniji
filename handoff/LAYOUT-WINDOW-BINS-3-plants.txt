@@ -1,0 +1,17 @@
+# LAYOUT-WINDOW-BINS-3 plants (slice 2: the window-bin plan applied).
+# Placement and naming plants run the xtask unit tests of xtask/src/bins.rs and hottext.rs; the two product plants
+# build the products in the plant copy and run hot_text_products' BIN-WINDOW test on the linked probe.
+# Every bin after a gap keeps its own alignment (no 64 KiB start).
+bins-no-bin-align | xtask/src/bins.rs | lit:let align = if Some(i) == head && items[i].align < BIN { BIN } else { 0 }; ==> let align = 0; | cargo test -p xtask --bin xtask -- bins:: | msg:placements_name_sections_in_link_order.*(FAILED|panicked)|test result: FAILED
+# The bin after the last counted bin is aligned too (a 64 KiB gap no mode needs).
+bins-align-uncounted | xtask/src/bins.rs | lit:let aligned = if n == 0 { anchor } else { self.bins[n - 1].gap }; ==> let aligned = if n == 0 { anchor } else { true }; | cargo test -p xtask --bin xtask -- bins:: | msg:placements_name_sections_in_link_order.*(FAILED|panicked)|test result: FAILED
+# Members and fillers swap their sort digit (fillers ahead of the bin's members).
+bins-filler-digit | xtask/src/bins.rs | lit:u8::from(filler)) ==> u8::from(!filler)) | cargo test -p xtask --bin xtask -- bins:: hottext:: | msg:(placements_name_sections_in_link_order|grouped_names_give_back).*(FAILED|panicked)|test result: FAILED
+# The head bin fills the whole window (no room for the start file ahead of the group).
+bins-no-head-room | xtask/src/bins.rs | lit:if n == 0 { BIN - HEAD_ROOM } else { BIN } ==> if n == usize::MAX { BIN - HEAD_ROOM } else { BIN } | cargo test -p xtask --bin xtask -- bins:: | msg:(the_head_bin_leaves_room|fillers_take_the_gap).*(FAILED|panicked)|test result: FAILED
+# A bin member's list position is read from the wrong digits.
+hottext-bin-position | xtask/src/hottext.rs | lit:9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[4..], ==> 9 if d.starts_with('9') && d.as_bytes()[3] == b'0' => &d[3..], | cargo test -p xtask --bin xtask -- hottext:: | msg:grouped_names_give_back_their_list_position.*(FAILED|panicked)|test result: FAILED
+# so plans the bins but sets no alignment: bins start wherever the previous one ends.
+group-no-align | xtask/src/hottext.rs | lit:secs[i].set_align = align; ==> secs[i].set_align = 0; | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:BIN-WINDOW: bin \d+ starts at|test result: FAILED
+# so plans the bins but keeps the list-position names: nothing is placed.
+group-no-rename | xtask/src/hottext.rs | lit:secs[i].want = name; ==> let _ = name; | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:have no section in the probe's link|test result: FAILED

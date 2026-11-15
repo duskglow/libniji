@@ -1,0 +1,14 @@
+# An unknown option: argp's message and the Try line, exit 64.
+name: ldconfig with an unknown option fails with a usage message
+clause: s31_2_i_1
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -Q
+status: exit 64
+stdout:
+stderr:
+| ldconfig: invalid option -- 'Q'
+| Try `ldconfig --help' or `ldconfig --usage' for more information.

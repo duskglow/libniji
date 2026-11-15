@@ -6,6 +6,10 @@
  * with libc.so.6's `__register_atfork` (GLIBC_2.3.2) tagged with the caller module's
  * `__dso_handle`, so unloading the module can drop them. */
 
+#include "notice.h"
+
+LIELLA_NONSHARED_NOTICE_FOR(pthread_atfork)
+
 extern void *__dso_handle __attribute__((visibility("hidden")));
 extern int __register_atfork(void (*)(void), void (*)(void), void (*)(void), void *);
 

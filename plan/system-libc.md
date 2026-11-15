@@ -127,7 +127,10 @@ needed** (for Aqours).
     version that changed it;
   * `LIELLA_NATIVE_<n>` symbols get a second dependency template (`| liella-native-abi (>= <n>)`,
     a virtual package that only Liella provides), so a program that uses Liella-only interfaces
-    never installs against glibc;
+    never installs against glibc. The same rule covers every Liella-only node `LIELLA_<KIND>_<n>`
+    through a table of kinds in `tools/deb/symbols.py` (today NATIVE and OWNER: `LIELLA_OWNER_<n>`,
+    the opted-in registrations of D-27.29, give `| liella-owner-abi (>= <n>)`); libc6 Provides each
+    package at its newest level. Any other node stops the package build (SL-SYMBOLS-NODES);
   * there are no `GLIBC_PRIVATE` lines (R14-12).
 * **`shlibs`:** `libc 6 libc6 (>= <abi>)` per library, as a fallback for tools that do not read
   symbols files.

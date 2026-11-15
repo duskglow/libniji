@@ -1,0 +1,10 @@
+id = "D-31.12"
+section = "s31"
+spec = "§31.2"
+ann = "—"
+status = "active"
+story = "UTIL-LDCONFIG-4"
+date = "2026-11-15"
+body = '''
+**The shipped ldconfig is a static PIE with no interpreter, its own start, a bump arena and a system-call file system (UTIL-3, D-31.2, D-31.9).** `cargo xtask so` links `crates/ldconfig-bin` into `target/liella/ldconfig` and refuses it unless it has no `PT_INTERP` and passes the loader's link invariant (L14-1: nothing undefined, no `DT_NEEDED`, only RELATIVE/RELR relocations); it starts as ld.so does (`machine/entry.S` built with `-DLIELLA_LDCONFIG`, the loader's self-relocator), so dpkg can run it while libc6 is replaced and from outside a `--root`. Its allocator is a bump arena over anonymous mappings (the last block grows and shrinks in place; other freed blocks stay until exit): one short-lived, single-threaded process needs no general heap, and the product heap needs a thread block the program does not set up. Its file system (`liella_ld::ldconfig::sysfs`) goes through the kernel `Sys` trait: with `-r ROOT` every path is opened with `openat2(RESOLVE_IN_ROOT)` below a descriptor of ROOT and the last component is acted on through its parent's descriptor, so links, reads and the cache stay inside ROOT with no privilege; a ROOT that cannot be opened makes every operation fail with its error. libc-bin ships it as `/usr/sbin/ldconfig` and runs it on the dpkg `ldconfig` trigger (`-r "$DPKG_ROOT"` when set). Proof: the 12 committed transcripts pass through the binary against the reference (`the_shipped_ldconfig_passes_the_transcripts`); plants `handoff/UTIL-LDCONFIG-4-plants.txt`.
+'''

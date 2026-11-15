@@ -1,56 +1,53 @@
-# LAYOUT-WINDOW-BINS handoff (after run 2, LAYOUT-WINDOW-BINS-2: slice 1 done)
+# LAYOUT-WINDOW-BINS handoff (after run 6, LAYOUT-WINDOW-BINS-6: slice 2's last plant fixed, handed back for landing)
 
-**State:** branch `task/layout-window-bins-2` (from `task/layout-window-bins`, which is next f53c74611 plus run 1's
-notes). Head: see `handoff/reports/LAYOUT-WINDOW-BINS-2.json`. Role keke:~/w/r5 (Zen 1, 60 vCPU). Design:
-`plan/layout-budget-rethink.md` section 3, **D-X.103**; this slice's record: `records/pending/LAYOUT-WINDOW-BINS-2-1.toml`
-(D-NEW, series D-X; CI assigns the id). Coordinator ruling #5784: three slices, one per run.
+**State:** branch `task/layout-window-bins-6` (runs 3-5's branch continued; base origin/next 7288d847a), head and
+jobs: `handoff/reports/LAYOUT-WINDOW-BINS-6.json`. Role mei:~/w/s1 (run 5: keke:~/w/r5, Zen 1). Design: `plan/layout-budget-rethink.md`
+section 3, **D-X.103**; slice 1 **D-X.108**; slice 2's record is pending, `records/pending/LAYOUT-WINDOW-BINS-3-1.toml`
+(D-NEW, series D-X; its body now describes what is in force, with the numbers below). Ruling #5784: three slices.
 
-## Slice 1 (SIGNATURES, done; no layout change)
+## Slice 2 (runs 3-5): what is in force
 
-* `tools/hottext/regen.sh` records each counted `page_faults` mode's names file (`$work/modes`: the `./page_faults <m>`
-  traces, `true` = the start-up trace, probe_text.sh's `localtime`/`localtime_mktime`) and writes
-  `$L/hot-text.signatures` (`<key>\t<modes,sorted|->`, list order) via `keys.py --signatures <list> --alias <file>
-  <mode>=<names>...`. Added to `hotlists::GENERATED` (so `so` starts it empty and the products' marker hashes it).
-* `xtask/src/bins.rs`: the planner (pure; 7 unit tests) + `layout-bins.tsv` writer + summary. `hottext::group()` collects
-  the other function sections as filler candidates and, under `Layout::Traced`, calls `plan_bins` after the renames:
-  it writes `target/product/<profile>/layout-bins.tsv` and prints `so: window bin N: ...` lines and one
-  `so: window bins (planned, not applied): ... windows/bound per mode: ...` line. Refuses signatures in which the
-  start-up mode runs no grouped key.
-* Planner: signature groups widest first; whole group into the existing bin it adds the fewest modes to, else fresh
-  bins split only when full; bins no counted mode touches come last, no boundary, no fillers; gaps best-fit from cold
-  sections of members holding a start-up section ("always linked").
+* Run 3: bin names `.text.sorted.h9<bin><0|1><place>`, fillers, 64 KiB bin starts, `HEAD_ANCHOR = false`,
+  `HEAD_ROOM = 0x400`; clusters and first-window retired; BIN-WINDOW / FIRST-WINDOW product checks.
+* Run 4: phase modes' warm-up in the signatures (`regen.sh` writes `<mode>.pre`; `bins::counted`, start-up groups
+  first, a phase mode charged 0 in a bin its warm-up runs in).
+* Run 5: **group end.** counts3 (run 4's last job) read fast start-up 12 > 11 and the data-phase test red (cold pads
+  11/44, others 12/45). A perf page-fault map (`~/work/LAYOUT-WINDOW-BINS-5/diag.sh`, faultmap.py) showed the probe's
+  `main` (plain `.text`, right after the last bin) at 0x49feee..0x4a0c38, across a 64 KiB boundary: two faults.
+  Fix: every bin has a gap filled to its boundary (the last and the unmeasured bins too), and liella-crt1.o carries
+  an empty 64 KiB-aligned `.text.sorted.h9z.liella_group_end` (`bins::GROUP_END`, csys/src/machine/entry.S) that
+  sorts after every bin, so the program's text starts on a boundary. `so` refuses a crt1 without it
+  (`so.rs check_group_end`); BIN-WINDOW now also checks GROUP-END at every text phase.
+* Run 4's open item 1 (phase sections at the unanchored head bin's tail at `pre` pads) did not show: counts3 and
+  run 5's counts read 0 for strings/mktime/rebind at all 8 pads, both profiles. Not pursued further.
+* Bounds: release `LOCALTIME_BOUND` / `LOCALTIME_MKTIME_BOUND` 42 -> 40, only because `WHOLE_COUNT_SLACK` refuses
+  36 under 42 (coordinator: no tightening this run; this is the least that passes). Nothing else changed.
 
-## Measured (Zen 1 build host; numbers from the first build of this run, before the no-filler rule for uncounted bins)
+* Run 6: run 5's plants job was red on one survivor, hottext-bin-position (`position_of` reads a bin member's place
+  from `&d[3..]` instead of `&d[4..]`). That mutant is equivalent: the guard requires `d[3] == '0'` and a leading 0
+  parses the same. The unit test `grouped_names_give_back_their_list_position_and_function` only used place 42, whose
+  leading zeros would also hide a dropped digit (a member placed at the wrong offset of its bin); it now also reads
+  back place 12345 of bin 12. `handoff/LAYOUT-WINDOW-BINS-6-plants.txt` marks the old plant equivalent and adds
+  hottext-bin-digit (`&d[5..]`). No product code changed; the plants, gate and start-up checks reran on the final head.
+  Jobs (mei:~/w/s1, base 7288d847a): `layout-window-bins-6-lint1` (full clippy, static, hottext unit tests),
+  `-plants` (17: 15 caught, 2 equivalent, 0 survived, no WARN), `-gate` (escalated to FULL, so it ran `cargo xtask
+  test` with its products step: 32 suites, 11874 passed, 0 failed, conformance 137/137), `-relhot` (release-profile
+  so and hot_text_products, 26 passed). `-xtest` was not run: the escalated gate already runs `cargo xtask test`.
 
-* Signatures: fast 518 keys (234 `-`, 90 all-modes = 59,074 bytes), release 461 (201 `-`, 91 all-modes = 58,495).
-  Counted bytes fast 244,564 (3.7 windows), uncounted 280,759.
-* Plan: fast 9 bins, windows per mode `float 3/2 fork 2/1 locale 2/2 localtime 3/2 localtime_mktime 3/2 mktime 3/2
-  rebind 4/3 strings 2/2 tool 3/2 true 1/1` (planned/bound; sum 26/19); release 10 bins, the same except rebind 4/4
-  (sum 27/20). Residual fill: 60 bytes (fast) and 48 bytes (release) in total over all gaps: **the cold pool fills the
-  gaps almost exactly** (6,719 / 3,627 candidates from 15 members).
-* Final head (no fillers for bins no mode touches; keke job layout-window-bins-2-startup4): fast 9 bins, fillers
-  4,714 bytes, **residual 42 bytes**; release 10 bins, fillers 15,578 bytes, **residual 10 bytes**; windows per mode
-  unchanged from above. Release bins 5-9 (about 295 KB) and fast bins 5-8 hold sections no counted mode runs.
-* **Head fill, variant (i)** (page_faults linked as hot_text_products links it; `headfill.sh` in
-  keke:~/work/LAYOUT-WINDOW-BINS-2): the group starts 64 bytes into `.text` at 0x408040 in both profiles, phase
-  32,832, so a 64 KiB anchor adds **32,704 bytes** of fill ahead of the head in this static program (file bytes, not
-  touched pages). Other programs differ by their own `.text` prefix; libc.so.6 would take (i) at no per-program cost.
-* Planner search (scratch prototype, not committed): a deepening search over the bins' mode sets with a constructive
-  pack found **no plan at cost 19..25** for fast; four greedy variants (zero-cost section fill first, bytes-first order)
-  were all worse (29-39). So the bound is loose (the all-modes group nearly fills the head bin, and fork/true live only
-  there), and the greedy is the planner to apply.
+## Measured (keke, Zen 1, `layout-window-bins-5-counts1` on 3137aa64b, every run identical), fast / release
 
-## Next: slice 2 (APPLY), then slice 3 (PROOF), unchanged from run 1
+start-up 11 / 10, locale 43 / 43 (base 45 / 45), tool 44 / 44 (base 49 / 48), localtime and localtime + mktime
+36 / 36 (base 40 / 41), fork 5, float 3, strings/mktime/rebind 0 at every pad. Planned windows unchanged from run 4.
 
-2. **APPLY:** rename members to `.text.sorted.h9<bin 2d><0|1><pos 5d>.<f>` (0 member, 1 filler; extend `position_of`
-   for the 9-digit form), 65536 alignment on each gap-bearing bin's next bin's first section (`Bin::gap`), the head
-   bin anchored or not behind ONE constant (variant i/ii; libc.so.6 takes i), fillers renamed from the plan
-   (`layout-bins.tsv` signature `cold`); bins with no modes keep plain list order after the counted bins. Delete
-   `cluster_align`, `head_alignments`' cluster use, `hot-text.clusters` and `hot-text.first-window` once `static` and
-   `so` no longer need them. Then hot_text_products both profiles; tighten bounds that drop (ratchet), plants.
-   Open: whether the probe link in `crates/core/tests/hot_text_products.rs` uses `--gc-sections` (fillers dropped).
-3. **PROOF:** pad sweep (shiki `~/work/LAYOUT-BUDGET-RETHINK/sweep.{sh,py}`), file sizes, head variant numbers.
+## Next (slice 3, LAYOUT-WINDOW-BINS-7, PROOF; #5914)
 
-**Not to redo:** the greedy-vs-search comparison above; the trace already covers every page_faults mode
-(regen's --all-modes check). **Cost note:** one `so` per profile is ~15 min on keke; the planner can be iterated
-offline from `layout-bins.tsv` + `readelf -SW target/product/<p>/liella-processed.a` (that is how the search ran).
+1. Levels of every host class (Skylake-SP read one more than Zen 1 in the base), then tighten TRUE/LOCALE/TOOL and
+   both LOCALTIME bounds to them (ALWAYS FORWARD), with the levels CI records (bound tightening with every host
+   class's level, #5914).
+2. Pad sweep (shiki `~/work/LAYOUT-BUDGET-RETHINK/sweep.{sh,py}`), file sizes (libc.so.6 too; the group end adds
+   at most the last bin's residual), head variant numbers.
+3. Still open from run 4: a phase mode's names after f1 count as its phase (overcount; needs a tracer marker).
+
+**Not to redo:** base counts (origin/next 7288d847a: true 11/10, locale 45/45, tool 49/48, fork 5, localtime
+40/41, float 3, strings/mktime/rebind 0); the early-placement design (run 4 counts1); variant (i) of the head bin;
+run 4's simulated head-bin reorderings (not needed: the phases read 0 at every pad).

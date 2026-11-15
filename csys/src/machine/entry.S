@@ -73,6 +73,31 @@ liella_machine_ld_enter:
 	jmp *%rsi
 	.cfi_endproc
 	.size liella_machine_ld_enter, .-liella_machine_ld_enter
+
+#ifdef LIELLA_LDCONFIG
+/* Assembled with -DLIELLA_LD -DLIELLA_LDCONFIG it also holds liella_machine_ldconfig_entry, the ELF
+ * entry point of the freestanding static ldconfig (UTIL-3, D-31.2): the same convention as
+ * liella_machine_ld_entry (the initial stack pointer in %rdi, the image's own ELF header taken
+ * PC-relatively in %rsi, %rbp cleared, %rsp aligned to 16 bytes) calling liella_ldconfig_start,
+ * which relocates the static-PIE image first and never returns. */
+	.section .text.liella_machine_ldconfig_entry,"ax",@progbits
+	.globl liella_machine_ldconfig_entry
+	.hidden liella_machine_ldconfig_entry
+	.hidden liella_ldconfig_start
+	.type liella_machine_ldconfig_entry, @function
+	.p2align 4
+liella_machine_ldconfig_entry:
+	.cfi_startproc
+	.cfi_undefined %rip
+	xorl %ebp, %ebp
+	movq %rsp, %rdi
+	leaq __ehdr_start(%rip), %rsi
+	andq $-16, %rsp
+	call liella_ldconfig_start
+	hlt
+	.cfi_endproc
+	.size liella_machine_ldconfig_entry, .-liella_machine_ldconfig_entry
+#endif
 #else
 	/* The start-up data clusters (D-X.62, D-X.64, xtask/src/startup_ro.rs): this object comes first in
 	 * a link, so its empty section comes first in each output section and gives the cluster its start
@@ -116,6 +141,13 @@ liella_machine_ld_enter:
 	 * coreutils-shaped probe each took one more fault. */
 	.section .data.rel.ro.local,"aw",@progbits
 	.balign LIELLA_RELRO_ALIGN
+	/* LAYOUT-WINDOW-BINS-5: the end of the hot text group's window bins (xtask/src/bins.rs GROUP_END,
+	 * whose name this must match; `cargo xtask so` checks it). The name sorts after every bin in GNU
+	 * ld's SORT(.text.sorted.*), so the program's own `.text` after the group starts on a 64 KiB
+	 * boundary: the last bin is filled up to it, and the probe's `main` no longer spans two
+	 * fault-around windows depending on where the last bin ends. */
+	.section .text.sorted.h9z.liella_group_end,"ax",@progbits
+	.balign 65536
 	.section .eh_frame,"a",@unwind
 	.globl liella_eh_frame_start
 	.hidden liella_eh_frame_start

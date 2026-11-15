@@ -1,0 +1,23 @@
+# -l without -N, under -r: the operand is taken inside the root, no other directory is scanned (usr/lib's
+# library gets no link) and no cache is written.
+name: ldconfig -r ROOT -l links the operand and handles the cache
+clause: s31_2_i_1
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -r
+arg: @ROOT@
+arg: -l
+arg: -v
+arg: /lib/libfoo.so.1.2
+as-cache: etc/ld.so.cache
+elf: lib/libfoo.so.1.2 soname=libfoo.so.1
+elf: usr/lib/libq.so.7.0 soname=libq.so.7
+dir: etc
+status: exit 0
+stdout:
+| \tlibfoo.so.1 -> libfoo.so.1.2 (changed)
+stderr:
+written-link: lib/libfoo.so.1 -> libfoo.so.1.2

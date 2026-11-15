@@ -1,0 +1,23 @@
+{"task": "DL-START-SEARCH-2", "model": "opus", "tokens": null,
+ "result": "start-time DT_NEEDED soname search tested against the reference loader (11 cases, secure, cache-open count); 6/6 plants caught; direct gate green; start-up check and counts jobs still running",
+ "branch": "task/dl-start-search-2", "head": null,
+ "gate": {"affected": "131 passed / 0 failed (5 suites)", "peak": "2.0G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "the start-time cache step is tested on the host's cache: a /-prefix product's cache path is fixed at compile time; a writer-built cache needs a prefixed product build",
+   "SL-FLAVOUR's Debian trixie dynamic hello was not run; the counts job runs the host's dynamic /bin/echo under the head's ld.so as a smoke",
+   "dlopen's Refusal::skipped(searched=true) skips Data and OsAbi candidates; at program start the reference refuses them (unchanged here)",
+   "cargo xtask test (the brief's start-up check) is the full 6589-test suite: hours on a loaded Zen 1 host"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "programs whose DT_NEEDED names a soname (every distribution program) start under Liella's ld.so instead of being refused", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "ldso_search.rs: 3 tests (11 reference-compared cases), 6 plants caught", "before": 0, "after": 3, "unit": "tests", "measured": true},
+   {"kind": "perf", "what": "ld.so start-up of a -nostdlib program with a path-named DT_NEEDED, release profile (COUNT lines in mei:~/logs/dl-start-search-2-counts.log; not read before hand-back)", "before": null, "after": null, "unit": "instr/start", "measured": false},
+   {"kind": "unblock", "what": "SL-FLAVOUR (#5816) and RELEASE-PACKAGING-DEB-2 (#5516) dynamic hello", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "the brief's start-up check 'cargo xtask test' runs the whole 6589-test suite; a products-only layout-contract entry would give the same check in minutes",
+ "next_step": "dispatcher reads dl-start-search-2-startup and dl-start-search-2-counts; then SL-FLAVOUR runs the Debian trixie dynamic hello",
+ "report_file": "handoff/DL-START-SEARCH-2-report.md",
+ "jobs": ["mei:dl-start-search-2-gate-2", "mei:dl-start-search-2-plants-3", "mei:dl-start-search-2-startup", "mei:dl-start-search-2-counts"]}

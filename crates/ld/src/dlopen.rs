@@ -174,6 +174,25 @@ impl Refusal {
             _ => false,
         }
     }
+
+    /// Whether a candidate that a program-start search found for a `DT_NEEDED` name without `/`
+    /// (also `ld.so --list` and tracing) is passed over and the search goes on: another machine's
+    /// object or another ELF class only. Every other refusal ends the start, status 127
+    /// (DL-START-SEARCH probe: a non-object, a short file, another byte order or OS ABI, `ET_REL`,
+    /// a directory, an executable).
+    pub fn skipped_at_start(self) -> bool {
+        matches!(self, Refusal::Machine | Refusal::Class32 | Refusal::Class)
+    }
+
+    /// The text a program-start refusal prints after its subject, and whether the subject is the
+    /// path the candidate was found at (else the name it was needed as; DL-START-SEARCH probe).
+    pub fn at_start(self) -> (&'static [u8], bool) {
+        match self {
+            Refusal::Directory => (b"cannot read file data: Error 21", true),
+            Refusal::Executable | Refusal::PieExecutable => (self.text(), false),
+            _ => (self.text(), true),
+        }
+    }
 }
 
 /// The refusal for a header the reader rejected.

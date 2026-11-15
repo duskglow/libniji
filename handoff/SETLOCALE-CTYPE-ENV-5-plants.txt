@@ -1,0 +1,5 @@
+# SETLOCALE-CTYPE-ENV-5 plants: the on-demand environment lookup of setlocale(cat, "") and the out-of-line strftime formatter.
+# The count test builds its own static program against the products, so each plant rebuilds them first.
+lc-all-dropped | crates/boundary/src/locale.rs | lit:*v = process::getenv(crate::startup_names::LC_ALL); ==> *v = None; | cargo xtask so && cargo test -p liella-boundary --test setlocale_env_repeat | msg:setlocale_env_repeat: check [0-9]+ failed
+known-off-by-one | crates/boundary/src/locale.rs | lit:let at = if k < known { ==> let at = if k <= known { | cargo xtask so && cargo test -p liella-boundary --test setlocale_env_repeat | msg:setlocale_env_repeat: check [0-9]+ failed
+formatter-inlined | crates/core/src/time/format.rs | lit:#[inline(never)] ==> #[inline] | cargo test -p liella --lib time::format | equivalent:layout only: inlining the formatter changes where its code lies, not what it computes

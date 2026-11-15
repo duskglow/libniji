@@ -56,7 +56,8 @@ for deb in $debs; do
         libc6)
             expect libc6 Architecture amd64; expect libc6 Multi-Arch same; expect libc6 Priority required
             expect libc6 Essential no
-            ctrl_want="$ctrl_want ./conffiles ./triggers"
+            # The symbols and shlibs members' contents: tools/deb/check-symbols.sh.
+            ctrl_want="$ctrl_want ./conffiles ./shlibs ./symbols ./triggers"
             conffiles="/etc/ld.so.conf.d/$ma.conf"
             triggers="activate-noawait ldconfig" ;;
         libc-bin)
@@ -87,7 +88,7 @@ for deb in $debs; do
     [ ! -s "$tmp/owners" ] || fail "$pkg: entries not owned by root/root: $(head -1 "$tmp/owners")"
     awk '{ print substr($1, 1, 1), $6 }' "$tmp/list" | while read -r type path; do
         case $path in
-            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
+            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/sbin/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
                 [ "$type" = d ] || echo "check: FAIL $pkg: $path is not a directory"
                 continue ;;
             ./usr/share/doc/"$pkg"/ | ./usr/share/doc/"$pkg"/copyright | ./usr/share/doc/"$pkg"/changelog.Debian.gz) continue ;;
@@ -97,8 +98,8 @@ for deb in $debs; do
             libc6:./usr/lib/$ma/ld-linux-x86-64.so.2 | libc6:./usr/lib/$ma/lib*.so.[0-9] | libc6:./usr/lib/$ma/libc_malloc_debug.so.0) ok=yes ;;
             libc6:./usr/lib64/ld-linux-x86-64.so.2 | libc6:./etc/ld.so.conf.d/$ma.conf) ok=yes ;;
             libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
-            libc-bin:./usr/share/libc-bin/nsswitch.conf) ok=yes ;;
-            libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so) ok=yes ;;
+            libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig) ok=yes ;;
+            libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so) ok=yes ;;
         esac
         [ $ok = yes ] || echo "check: FAIL $pkg: path not in the system layout: $path"
     done > "$tmp/paths"
@@ -126,10 +127,11 @@ for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1
     [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
 done
 
-# 4. Linking with plain gcc and the unpacked libc6-dev (no crti.o/crtn.o yet: -nostartfiles).
+# 4. Linking with plain gcc and the unpacked libc6-dev: its start files in the driver's order
+#    (crt1, crti, crtbegin ... crtend, crtn), named by path so none comes from the host's libc6-dev.
 cc=${CC:-gcc}
 begin=$("$cc" -print-file-name=crtbeginS.o); end=$("$cc" -print-file-name=crtendS.o)
-if "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$begin" "$here/smoke/hello.c" -lc -lgcc "$end" -o "$tmp/hello" > "$tmp/log" 2>&1; then
+if "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$lib/crti.o" "$begin" "$here/smoke/hello.c" -lc -lgcc "$end" "$lib/crtn.o" -o "$tmp/hello" > "$tmp/log" 2>&1; then
     interp=$(readelf -lW "$tmp/hello" | sed -n 's/.*Requesting program interpreter: \(.*\)\]$/\1/p')
     [ "$interp" = /lib64/ld-linux-x86-64.so.2 ] || fail "hello: program interpreter is '${interp:-none}', not /lib64/ld-linux-x86-64.so.2"
     needed=$(readelf -dW "$tmp/hello" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')
@@ -139,7 +141,7 @@ else
     fail "dynamic hello does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
 fi
 begin=$("$cc" -print-file-name=crtbeginT.o); end=$("$cc" -print-file-name=crtend.o)
-if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$begin" "$here/smoke/hello.c" -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$end" -o "$tmp/hello-static" > "$tmp/log" 2>&1; then
+if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$lib/crti.o" "$begin" "$here/smoke/hello.c" -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$end" "$lib/crtn.o" -o "$tmp/hello-static" > "$tmp/log" 2>&1; then
     out=$(timeout 60 "$tmp/hello-static" 2>&1) || fail "static hello exits $?: $out"
     case $out in *"hello from liella"*) ;; *) fail "static hello printed '$out'" ;; esac
 else

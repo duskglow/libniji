@@ -696,6 +696,113 @@ int main(int argc, char **argv) {
 }
 "#;
 
+/// The `thread_local` destructor plugin (spec s1_2_c_6): what a C++ `thread_local` in a plugin
+/// does, written in C. `tl_reg` registers a destructor with `dso` inside this object; `tl_reg_close`
+/// registers one that re-opens this object (`RTLD_NOLOAD`), closes the handle it is given (the last
+/// open) and the re-opened one, and only then reports, still running in this object. Its static
+/// destructor reports `F`.
+const TL_LIB: &str = r#"#include <dlfcn.h>
+extern int __cxa_thread_atexit_impl(void (*)(void *), void *, void *);
+extern void tl_event(const char *);
+static int anchor;
+static const char *self_path;
+static void say(void *s) { tl_event((const char *)s); }
+static void close_self(void *h) {
+    void *again = dlopen(self_path, RTLD_NOW | RTLD_NOLOAD);
+    int r = dlclose(h);
+    if (again) r |= dlclose(again);
+    tl_event(again && r == 0 ? "x " : "x-failed ");
+}
+__attribute__((destructor)) static void fin(void) { tl_event("F "); }
+void tl_reg(const char *tag) { __cxa_thread_atexit_impl(say, (void *)tag, &anchor); }
+void tl_reg_close(void *h, const char *path) { self_path = path; __cxa_thread_atexit_impl(close_self, h, &anchor); }
+"#;
+
+/// The program: `prog_tl DIR MODE`; exit 0 or the failed check's number; every event is also
+/// written to standard output as it happens (the test compares the whole sequence). `exit`: the
+/// main thread registers a destructor, closes the plugin and returns from `main`. `threads`: one
+/// thread's destructor runs before the close; two threads with pending destructors outlive the
+/// close; a child forked meanwhile registers its own and exits; a destructor closes the last open.
+const TL_PROG: &str = r#"#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <errno.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+#include <unistd.h>
+static char dir[4096], evlog[4096], pbuf[4200];
+void tl_event(const char *s) { strcat(evlog, s); if (write(1, s, strlen(s)) < 0) _exit(99); }
+#define CHECK(n, c, ...) do { if (!(c)) { fprintf(stderr, "check %d: ", n); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); exit(n); } } while (0)
+static const char *P(const char *n) { snprintf(pbuf, sizeof pbuf, "%s/%s", dir, n); return pbuf; }
+static int loaded(void) { void *h = dlopen(P("libtl.so"), RTLD_NOW | RTLD_NOLOAD); if (h) dlclose(h); return h != NULL; }
+static int mapped(void *a) { long pg = sysconf(_SC_PAGESIZE); return msync((void *)((unsigned long)a & -(unsigned long)pg), pg, MS_ASYNC) == 0 || errno != ENOMEM; }
+static void (*reg)(const char *);
+static void (*reg_close)(void *, const char *);
+static sem_t registered;
+/* One release semaphore per held thread: a post wakes an unspecified waiter (POSIX sem_post),
+   so a shared one could release `c` where the program waits for `b`. */
+struct hold { const char *tag; sem_t go; };
+static struct hold hold_b = { "b " }, hold_c = { "c " };
+static void *one(void *tag) { reg(tag); return NULL; }
+static void *held(void *p) { struct hold *x = p; reg(x->tag); sem_post(&registered); sem_wait(&x->go); return NULL; }
+static void *closer(void *h) { reg_close(h, P("libtl.so")); return NULL; }
+static void *open_tl(void) {
+    void *h = dlopen(P("libtl.so"), RTLD_NOW);
+    CHECK(1, h, "dlopen: %s", dlerror());
+    reg = (void (*)(const char *))dlsym(h, "tl_reg");
+    reg_close = (void (*)(void *, const char *))dlsym(h, "tl_reg_close");
+    CHECK(2, reg && reg_close, "dlsym");
+    return h;
+}
+int main(int argc, char **argv) {
+    if (argc < 3) return 98;
+    alarm(120);
+    snprintf(dir, sizeof dir, "%s", argv[1]);
+    void *h = open_tl();
+    if (strcmp(argv[2], "exit") == 0) {
+        reg("m ");
+        CHECK(3, dlclose(h) == 0 && loaded() && evlog[0] == 0, "closed under a pending destructor: %s", evlog);
+        return 0;
+    }
+    pthread_t t1, t2, t3, t4;
+    sem_init(&registered, 0, 0);
+    sem_init(&hold_b.go, 0, 0);
+    sem_init(&hold_c.go, 0, 0);
+    pthread_create(&t1, NULL, one, "a ");
+    pthread_join(t1, NULL);
+    pthread_create(&t2, NULL, held, &hold_b);
+    pthread_create(&t3, NULL, held, &hold_c);
+    sem_wait(&registered);
+    sem_wait(&registered);
+    CHECK(4, strcmp(evlog, "a ") == 0, "a thread's destructor before the close: %s", evlog);
+    CHECK(5, dlclose(h) == 0 && loaded() && strcmp(evlog, "a ") == 0, "closed under two threads' destructors: %s", evlog);
+    sem_post(&hold_b.go);
+    pthread_join(t2, NULL);
+    CHECK(6, loaded() && strcmp(evlog, "a b ") == 0, "unloaded under the third thread's destructor: %s", evlog);
+    pid_t c = fork();
+    if (c == 0) {
+        CHECK(7, loaded(), "the fork child lost the pinned object");
+        reg("k ");
+        exit(0);
+    }
+    int st = 0;
+    CHECK(8, c > 0 && waitpid(c, &st, 0) == c && WIFEXITED(st) && WEXITSTATUS(st) == 0, "fork child: %d", st);
+    CHECK(9, loaded(), "the parent lost the object after the fork");
+    sem_post(&hold_c.go);
+    pthread_join(t3, NULL);
+    CHECK(10, !loaded() && !mapped((void *)reg) && strcmp(evlog, "a b c F ") == 0, "after the last destructor: loaded %d mapped %d %s", loaded(), mapped((void *)reg), evlog);
+    h = open_tl();
+    pthread_create(&t4, NULL, closer, h);
+    pthread_join(t4, NULL);
+    CHECK(11, !loaded() && !mapped((void *)reg) && strcmp(evlog, "a b c F x F ") == 0, "a destructor that closes its object: loaded %d %s", loaded(), evlog);
+    return 0;
+}
+"#;
+
 /// Build the C corpus in `d`: the helpers and the program.
 fn corpus(d: &Path, ld: &Path, libc: &Path, crt1: &Path) -> PathBuf {
     let dir = d.to_str().unwrap();
@@ -792,6 +899,33 @@ fn s27_1_c_4_dlopen_waits_for_readers_only_outside_them() {
     let Some((d, ld, libc, crt1)) = setup("room") else { return };
     let prog = corpus(&d, &ld, &libc, &crt1);
     run(&d, &ld, &prog, "room");
+    std::fs::remove_dir_all(&d).ok();
+}
+
+/// s1_2_c_6 (D-27 thread_local destructor pin record): a `thread_local` destructor registered with
+/// `dso` inside a `dlopen`ed object keeps that object loaded until it has run. `exit`: the main
+/// thread's destructor, pending when its object is closed, runs at `exit` and only then the
+/// object's static destructor (`m F`); the close left the object loaded and finalised nothing.
+/// `threads`: a destructor that ran before the close pins nothing (`a`); two threads' pending
+/// destructors keep the object through the close and the first thread's exit; a child forked
+/// meanwhile still has it and runs its own pending destructor and then the static destructor at its
+/// exit (`k F`); after the last destructor the object is finalised once and unmapped (no leak); a
+/// destructor that re-opens and closes its own object (its last open) finishes running in it,
+/// and the object is unloaded after it returned (`x F`).
+#[test]
+fn s1_2_c_6_thread_local_destructor_keeps_its_object_loaded() {
+    let Some((d, ld, libc, crt1)) = setup("tldtor") else { return };
+    build(&d, "libtl.so", TL_LIB, &["-nostdlib", "-fPIC", "-shared"]);
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
+    let prog = build(&d, "prog_tl", TL_PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", &interp, crt1.to_str().unwrap(), libc.to_str().unwrap(), ld.to_str().unwrap(), "-lgcc"]);
+    use std::os::unix::process::ExitStatusExt;
+    for (mode, want) in [("exit", "m F "), ("threads", "a b k F c F x F ")] {
+        for (how, mut cmd) in [("kernel-started", Command::new(&prog)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&prog); c })] {
+            let o = cmd.arg(&d).arg(mode).output().unwrap();
+            let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+            assert_eq!((o.status.code(), o.status.signal(), out.as_ref()), (Some(0), None, want), "{how}: thread_local pin {mode}: stderr: {err}");
+        }
+    }
     std::fs::remove_dir_all(&d).ok();
 }
 
