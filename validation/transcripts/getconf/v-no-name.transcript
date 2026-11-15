@@ -1,0 +1,11 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: -va is a specification with no name: the usage text
+clause: s31_5_i_1
+command: getconf
+env: LC_ALL=C
+arg: -va
+status: exit 2
+stdout:
+stderr:
+| Usage: getconf [-v specification] variable_name [pathname]
+| \x20      getconf -a [pathname]

@@ -15,7 +15,7 @@ use core::alloc::{GlobalAlloc, Layout};
 #[cfg(not(feature = "export"))]
 use core::ffi::c_int;
 use core::ffi::c_void;
-use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
+use core::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize};
 use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 
 use liella::config::Tunables;
@@ -301,6 +301,9 @@ pub extern "C" fn liella_ld_start(sp: usize, ehdr: usize) -> ! {
     // anything below reads an LD_* name (threat model rule 1). The vector then moves down to follow
     // the shorter environment, so the program finds it where the kernel's layout puts it.
     let secure = start::secure(&Auxv::from_words(copy.get(..words).unwrap_or(&[])));
+    // The one LD_* name a secure process still reads (threat model rule 1's exception): its
+    // LD_PRELOAD, taken before the clear and used only under `start::preload_rule`.
+    let secure_preload = if secure { env_entries(envp).find_map(|e| start::value_of(e, b"LD_PRELOAD")) } else { None };
     if secure {
         let kept = clear_unsecure(envp);
         auxv = envp.wrapping_add(kept.wrapping_add(1).wrapping_mul(8));
@@ -313,11 +316,6 @@ pub extern "C" fn liella_ld_start(sp: usize, ehdr: usize) -> ! {
     RSEQ_WANTED.store(tunables.is_none_or(|t| t.rseq != Some(false)), Relaxed);
     REPORT_NONSHARED.store(ld.report_nonshared && !secure, Relaxed);
     let features = Native::features(&Auxv::from_words(copy.get(..words).unwrap_or(&[])), &crate::sys::CSys);
-    for name in ld.preload.map(start::preload_names).into_iter().flatten() {
-        for part in start::preload_ignored(name) {
-            write_all(2, part);
-        }
-    }
     // 6. The program: the kernel's (started for its PT_INTERP) or, run as a program, the one named.
     #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
     let own_entry = (crate::arch::liella_machine_ld_entry as *const ()).expose_provenance();
@@ -326,7 +324,8 @@ pub extern "C" fn liella_ld_start(sp: usize, ehdr: usize) -> ! {
     let page = Native::page_size(&aux);
     // LD_TRACE_LOADED_OBJECTS lists the dependencies instead of running (ldd); never in secure mode
     // (threat model rule 11).
-    let list_env = List { ld: &ld, secure, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
+    let preload = if secure { secure_preload } else { ld.preload };
+    let list_env = List { ld: &ld, secure, preload, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
     if aux.get(AT_ENTRY).and_then(|e| usize::try_from(e).ok()) != Some(own_entry) {
         if ld.trace && !secure {
             let execfn = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
@@ -411,13 +410,21 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
         // SAFETY: `dynamic` is the run-time address (bias + `p_vaddr`) of `PT_DYNAMIC`'s `p_memsz` bytes
         // in the mapped program.
         let dyn_words = unsafe { conv::words_at(dynamic, usize::try_from(img.dynamic.1).unwrap_or(0) / 8) };
-        if start::needs_objects(dyn_words) {
+        // The preload file: one open per start when it is absent (the reference's one `access`).
+        let mut file_path = PathBuf::default();
+        let file = if search::prefixed(b"etc/ld.so.preload", &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
+        let file = file.map_or(&[][..], |(f, fd)| {
+            let _ = crate::ffi_sys::liella_sys_close(fd);
+            f
+        });
+        let preloads = Preloads { env: env.preload.unwrap_or(&[]), file, file_path: file_path.as_bytes() };
+        if start::needs_objects(dyn_words) || preloads.names().next().is_some() {
             // The program's name in messages: its path (`ld.so PROGRAM`), else argv[0].
             let at = if path != 0 { path } else { usize::try_from(stack_word(sp.wrapping_add(8))).unwrap_or(0) };
             // Its `$ORIGIN`: the path it was run by (`ld.so PROGRAM`), else `AT_EXECFN` (threat model
             // rule 2), looked up only when a search needs it.
             let origin = Origin { path, aux };
-            let fini = link(prog, bias, page, if at != 0 { c_string(at) } else { b"the program" }, sp, env, origin);
+            let fini = link(prog, bias, page, if at != 0 { c_string(at) } else { b"the program" }, sp, env, origin, &preloads);
             crate::arch::enter(sp, prog.entry, fini)
         }
         let ehdr = bias.wrapping_add(usize::try_from(img.header).unwrap_or(0));
@@ -881,6 +888,15 @@ fn fail_with(parts: &[&[u8]], status: i32) -> ! {
 /// hard link) is the same object (L14-4).
 type FileId = (u64, u64);
 
+/// The `st_mode` of the open descriptor `fd` (0 when `fstat` fails: no bit set, never admitted).
+fn file_mode(fd: i32) -> u32 {
+    let mut st = liella_kernel::uapi::Stat::default();
+    if crate::ffi_sys::liella_sys_fstat(i64::from(fd), core::ptr::from_mut(&mut st).cast::<c_void>()) != 0 {
+        return 0;
+    }
+    st.mode
+}
+
 /// Open and map read-only the file at the NUL-terminated path `path`: (descriptor, mapping, bytes,
 /// identity).
 fn open_file(path: usize) -> Option<(i32, usize, &'static [u8], FileId)> {
@@ -1086,7 +1102,7 @@ fn own_object(name: &'static [u8], maps: &mut [(usize, usize)]) -> liella_ld::re
 /// path for `ld.so PROGRAM`, else `argv[0]`).
 // Indices stay below `n`, which never passes OBJECTS_MAX (checked before each store).
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_arguments)]
-fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin<'_>) -> usize {
+fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin<'_>, preloads: &Preloads<'_>) -> usize {
     use liella_ld::reloc::{self, Obj, Objects};
     let prog_name = name;
     let mut origin_at: Option<usize> = None;
@@ -1125,23 +1141,36 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
         *slot = (a, b);
         ne += 1;
     };
+    // The preloads (DL-LD-PRELOAD) come first, as the program's (q == 0) names before its own
+    // DT_NEEDED: after the program and before its dependencies in the scope, linked by no edge.
+    let mut pending = preloads.names();
     while q < n {
         let needed = objs[q].dynm;
-        for name in needed.needed() {
-            let name = name.unwrap_or_else(|_| fail_with(&[objs[q].name, b": malformed DT_NEEDED\n"], program::FAILURE));
+        let pre_names = core::iter::from_fn(|| if q == 0 { pending.next() } else { None }).map(|(p, from_env)| Ok((p, Some(from_env))));
+        for name in pre_names.chain(needed.needed().map(|r| r.map(|p| (p, None)))) {
+            let (name, pre) = name.unwrap_or_else(|_| fail_with(&[objs[q].name, b": malformed DT_NEEDED\n"], program::FAILURE));
+            let rule = pre.map(|from_env| start::preload_rule(name, from_env, env.secure));
+            if rule == Some(start::PreloadRule::Skip) {
+                continue;
+            }
             let bare = !name.contains(&b'/');
             // A name already loaded; a bare name also matches a loaded object's DT_SONAME (as the
             // dependency list and `dlopen` match it).
             if let Some(j) = objs[..n].iter().position(|o| o.name == name || (bare && dyn_string(&o.dynm, elf::dt::SONAME) == Some(name))) {
-                edge(q, j, name);
+                if pre.is_none() {
+                    edge(q, j, name);
+                }
                 continue;
             }
             let mut is_interp = name == Native::INTERP.as_bytes();
+            if is_interp && pre.is_some() {
+                continue;
+            }
             if n == OBJECTS_MAX {
                 fail_with(&[name, b": too many objects\n"], program::FAILURE);
             }
             let mut found = None;
-            if bare && !is_interp {
+            if (bare || pre.is_some()) && !is_interp {
                 // The requester chain: this object, then each first requester up to the program.
                 let mut chain = [Scope::default(); OBJECTS_MAX];
                 let (mut depth, mut k) = (0usize, q);
@@ -1163,22 +1192,46 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                 let ctx = env.ctx(CacheRef::Lazy(&cache, read_cache));
                 let mut refused: Option<Refusal> = None;
                 let mut at_path = PathBuf::default();
-                search::search::<Native>(name, &chain[..depth], &ctx, &mut |p: &mut PathBuf| {
+                let set_uid_only = rule == Some(start::PreloadRule::TrustedSetUid);
+                let mut try_open = |p: &mut PathBuf| {
                     let Some(c) = p.c_str() else { return false };
                     match open_candidate(c, page) {
                         Err(Unusable::Skip) => return false,
                         Err(Unusable::Refused(r)) => refused = Some(r),
+                        Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
+                            let _ = crate::ffi_sys::liella_sys_close(i64::from(fd));
+                            let _ = raw::munmap(at, file.len());
+                            return false;
+                        }
                         Ok(hit) => found = Some(hit),
                     }
                     at_path.clear();
                     at_path.push(p.as_bytes());
                     true
-                });
+                };
+                if set_uid_only {
+                    // Secure mode, an LD_PRELOAD name: each trusted directory itself, nothing else.
+                    let mut cand = PathBuf::default();
+                    search::trusted_dirs::<Native>(&mut |dir| {
+                        cand.clear();
+                        cand.push(dir) && cand.push(b"/") && cand.push(name) && try_open(&mut cand)
+                    });
+                } else {
+                    search::search::<Native>(name, &chain[..depth], &ctx, &mut try_open);
+                }
                 if let Some(r) = refused {
+                    if let Some(from_env) = pre {
+                        preloads.ignored(name, from_env, r.at_preload());
+                        continue;
+                    }
                     let (text, by_path) = r.at_start();
                     fail_loading(prog_name, if by_path { at_path.as_bytes() } else { name }, text)
                 }
                 if found.is_none() {
+                    if let Some(from_env) = pre {
+                        preloads.ignored(name, from_env, start::PRELOAD_MISSING);
+                        continue;
+                    }
                     fail_loading(prog_name, name, liella_ld::dlopen::FILE_MISSING)
                 }
                 // Kept for its `$ORIGIN` (the store is address space for OBJECTS_MAX full paths).
@@ -1216,6 +1269,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                     let _ = raw::munmap(at, file.len());
                 }
             }
+            if pre.is_some() && (is_interp || again.is_some()) {
+                continue;
+            }
             if let Some(j) = again {
                 edge(q, j, name);
                 continue;
@@ -1230,7 +1286,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                 continue;
             }
             let Some((fd, at, file, id)) = found else { continue };
-            if !bare {
+            if !bare && pre.is_none() {
                 paths[n] = name;
             }
             let loaded = map::load::<Native, _>(&mut SysMapper { fd }, file, page);
@@ -1241,7 +1297,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             phdrs[n] = (usize::try_from(loaded.phdr).unwrap_or(0), usize::from(loaded.phnum));
             objs[n] = parse(file, name, loaded.bias);
             parent[n] = u8::try_from(q).unwrap_or(0);
-            edge(q, n, name);
+            if pre.is_none() {
+                edge(q, n, name);
+            }
             n += 1;
         }
         q += 1;
@@ -1322,7 +1380,8 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     let hooks: [init::Hooks; OBJECTS_MAX] = core::array::from_fn(|i| objs.get(i).filter(|_| Some(i) != interp).map_or_else(init::Hooks::default, |o| init::hooks(&o.dynm, o.bias, i == 0)));
     // The cache, when a search read it, and the path store: no longer needed.
     let cache_map = cache.get().and_then(Option::as_ref).map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
-    for &(at, len) in maps[1..n].iter().chain(&views).chain([&store_map, &cache_map]).filter(|m| m.1 != 0) {
+    let preload_map = (preloads.file.as_ptr().expose_provenance(), preloads.file.len());
+    for &(at, len) in maps[1..n].iter().chain(&views).chain([&store_map, &cache_map, &preload_map]).filter(|m| m.1 != 0) {
         let _ = raw::munmap(at, len);
     }
     for (k, (slot, o)) in START_OBJS.iter().zip(objs).enumerate() {
@@ -1377,6 +1436,9 @@ fn array_words(a: init::Array) -> &'static [u64] {
 /// DT_FINI]` per object, written once before the program is entered, read by [`fini_all`].
 static FINI_HOOKS: [[AtomicU64; 3]; OBJECTS_MAX] = [const { [const { AtomicU64::new(0) }; 3] }; OBJECTS_MAX];
 static FINI_LEN: AtomicUsize = AtomicUsize::new(0);
+/// Each [`FINI_HOOKS`] slot's start-time object (its index in [`START_OBJS`], the `dlopen` loader's
+/// node index), for the exit order with the `dlopen`ed objects (DL-EXIT-ORDER-PROBE).
+static FINI_IDX: [AtomicU8; OBJECTS_MAX] = [const { AtomicU8::new(0) }; OBJECTS_MAX];
 static FINI_DONE: AtomicBool = AtomicBool::new(false);
 
 /// Run the initialisation functions after relocation (design §9, D-27.19): the program's
@@ -1449,7 +1511,8 @@ fn run_init(hooks: &[init::Hooks], edges: &[(u8, u8)], sp: usize, early: Option<
         let Some(h) = hooks.get(usize::from(i)).filter(|_| i != 0) else { continue };
         init::init_calls(h.init, array_words(h.init_array)).for_each(call);
     }
-    for (slot, &i) in FINI_HOOKS.iter().zip(fini_order.get(..fini_len).unwrap_or(&[])) {
+    for ((slot, x), &i) in FINI_HOOKS.iter().zip(&FINI_IDX).zip(fini_order.get(..fini_len).unwrap_or(&[])) {
+        x.store(i, Relaxed);
         let h = hooks.get(usize::from(i)).copied().unwrap_or_default();
         for (w, v) in slot.iter().zip([h.fini_array.addr, h.fini_array.len, h.fini]) {
             w.store(v, Relaxed);
@@ -1461,15 +1524,23 @@ fn run_init(hooks: &[init::Hooks], edges: &[(u8, u8)], sp: usize, early: Option<
 }
 
 /// The termination function passed to the program (`rtld_fini`): each object's `DT_FINI_ARRAY` in
-/// reverse, then its `DT_FINI`, the objects in [`init::fini_order`], the program first. Runs once.
+/// reverse, then its `DT_FINI`. Without `dlopen`, the objects in [`init::fini_order`], the program
+/// first; with it, the start-time and `dlopen`ed objects as one sequence ([`dlopen::fini_exit`],
+/// DL-EXIT-ORDER-PROBE). Runs once.
 extern "C" fn fini_all() {
     if FINI_DONE.swap(true, AcqRel) {
         return;
     }
-    // The `dlopen`ed objects first, the last initialised first (DL-16a).
-    dlopen::fini_loaded();
-    for slot in FINI_HOOKS.iter().take(FINI_LEN.load(Acquire)) {
-        let [addr, len, fini] = [0, 1, 2].map(|k| slot.get(k).map_or(0, |w| w.load(Relaxed)));
+    let len = FINI_LEN.load(Acquire).min(OBJECTS_MAX);
+    let start: [(usize, [u64; 3]); OBJECTS_MAX] = core::array::from_fn(|k| {
+        let words = FINI_HOOKS.get(k).map_or([0; 3], |s| [0, 1, 2].map(|j| s.get(j).map_or(0, |w| w.load(Relaxed))));
+        (FINI_IDX.get(k).map_or(0, |x| usize::from(x.load(Relaxed))), words)
+    });
+    let start = start.get(..len).unwrap_or(&[]);
+    if dlopen::fini_exit(start) {
+        return;
+    }
+    for &(_, [addr, len, fini]) in start {
         for f in init::fini_calls(fini, array_words(init::Array { addr, len })) {
             let _ = crate::ffi::liella_machine_call0(usize::try_from(f).unwrap_or(0));
         }
@@ -1637,10 +1708,33 @@ impl Origin<'_> {
     }
 }
 
+/// The objects program start preloads (DL-LD-PRELOAD): the `LD_PRELOAD` names, then the preload
+/// file's (ld.so(8) order; probed), each with whether it came from `LD_PRELOAD`.
+struct Preloads<'a> {
+    env: &'static [u8],
+    file: &'static [u8],
+    file_path: &'a [u8],
+}
+
+impl Preloads<'_> {
+    fn names(&self) -> impl Iterator<Item = (&'static [u8], bool)> {
+        start::preload_names(self.env).map(|n| (n, true)).chain(start::preload_file_names(self.file).map(|n| (n, false)))
+    }
+
+    /// The "cannot be preloaded" diagnostic for `name` (from `LD_PRELOAD` when `from_env`).
+    fn ignored(&self, name: &[u8], from_env: bool, reason: &[u8]) {
+        for part in start::preload_ignored(name, if from_env { start::PRELOAD_ENV } else { self.file_path }, reason) {
+            write_all(2, part);
+        }
+    }
+}
+
 /// What the dependency list needs from the start (DL-8).
 struct List<'a> {
     ld: &'a start::LdEnv<'static>,
     secure: bool,
+    /// The `LD_PRELOAD` value program start uses (in secure mode the one read before the clear).
+    preload: Option<&'static [u8]>,
     features: &'a liella_rt::cpu::Features,
     page: u64,
     vdso: Option<u64>,

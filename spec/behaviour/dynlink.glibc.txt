@@ -988,3 +988,362 @@ dlinfo program SERINFO ret=0 size=182 cnt=6
   [4] [/lib] flags=0x0 offset=168
   [5] [/usr/lib] flags=0x0 offset=173
 dlinfo program SERINFO cnt-1 ret=0 dlerror=[NULL]
+
+== exit-order (DL-EXIT-ORDER-PROBE): sh tools/probe/dl/exitorder/run.sh SCRATCH, x86-64 build host, Ubuntu 24.04 glibc 2.39, 2026-11-14
+== E1-open3 (probe): A:k B:k C:k
+ctor A
+A:k loaded=1
+ctor B
+B:k loaded=1
+ctor C
+C:k loaded=1
+main returns
+dtor main
+dtor A
+dtor B
+dtor C
+rc=0
+== E2-nodelete3-closed (probe): A:n B:n C:n
+ctor A
+A:n loaded=1
+ctor B
+B:n loaded=1
+ctor C
+C:n loaded=1
+main returns
+dtor main
+dtor A
+dtor B
+dtor C
+rc=0
+== E3-nodelete3-open (probe): A:N B:N C:N
+ctor A
+A:N loaded=1
+ctor B
+B:N loaded=1
+ctor C
+C:N loaded=1
+main returns
+dtor main
+dtor A
+dtor B
+dtor C
+rc=0
+== E4-unique3 (probe): Q:u R:u S:u
+ctor Q
+Q:u loaded=1
+ctor R
+R:u loaded=1
+ctor S
+S:u loaded=1
+main returns
+dtor main
+dtor Q
+dtor R
+dtor S
+rc=0
+== E5-dlclose-c6-c7 (probe): P:x Q:x Q:u N:n
+ctor P
+dtor P
+P:x loaded=0
+ctor Q
+dtor Q
+Q:x loaded=0
+ctor Q
+Q:u loaded=1
+ctor N
+N:n loaded=1
+main returns
+dtor main
+dtor Q
+dtor N
+rc=0
+== E6-unique-then-nodelete (probe): Q:u A:n
+ctor Q
+Q:u loaded=1
+ctor A
+A:n loaded=1
+main returns
+dtor main
+dtor Q
+dtor A
+rc=0
+== E7-nodelete-then-unique (probe): A:n Q:u
+ctor A
+A:n loaded=1
+ctor Q
+Q:u loaded=1
+main returns
+dtor main
+dtor A
+dtor Q
+rc=0
+== E8-open-nodelete-open (probe): A:k B:n C:k
+ctor A
+A:k loaded=1
+ctor B
+B:n loaded=1
+ctor C
+C:k loaded=1
+main returns
+dtor main
+dtor A
+dtor B
+dtor C
+rc=0
+== E9-nodelete-open-nodelete (probe): A:n B:k C:n
+ctor A
+A:n loaded=1
+ctor B
+B:k loaded=1
+ctor C
+C:n loaded=1
+main returns
+dtor main
+dtor A
+dtor B
+dtor C
+rc=0
+== E10-unique-then-open (probe): Q:u A:k
+ctor Q
+Q:u loaded=1
+ctor A
+A:k loaded=1
+main returns
+dtor main
+dtor Q
+dtor A
+rc=0
+== E11-open-then-unique (probe): A:k Q:u
+ctor A
+A:k loaded=1
+ctor Q
+Q:u loaded=1
+main returns
+dtor main
+dtor A
+dtor Q
+rc=0
+== E12-unique-unbound-open (probe): Q:k R:k
+ctor Q
+Q:k loaded=1
+ctor R
+R:k loaded=1
+main returns
+dtor main
+dtor Q
+dtor R
+rc=0
+== E13-reopen-first (probe): A:k B:k A:k
+ctor A
+A:k loaded=1
+ctor B
+B:k loaded=1
+A:k loaded=1
+main returns
+dtor main
+dtor A
+dtor B
+rc=0
+== E14-dependency-loaded-first (probe): C:k D:k
+ctor C
+C:k loaded=1
+ctor D
+D:k loaded=1
+main returns
+dtor main
+dtor D
+dtor C
+rc=0
+== E15-plain-then-dependent (probe): A:k D:k
+ctor A
+A:k loaded=1
+ctor C
+ctor D
+D:k loaded=1
+main returns
+dtor main
+dtor A
+dtor D
+dtor C
+rc=0
+== E16-dependent-then-plain (probe): D:k A:k
+ctor C
+ctor D
+D:k loaded=1
+ctor A
+A:k loaded=1
+main returns
+dtor main
+dtor D
+dtor C
+dtor A
+rc=0
+== E17-dependency-plain-dependent (probe): C:k A:k D:k
+ctor C
+C:k loaded=1
+ctor A
+A:k loaded=1
+ctor D
+D:k loaded=1
+main returns
+dtor main
+dtor A
+dtor D
+dtor C
+rc=0
+== E18-chain-reorder (probe): D:k H2:k
+ctor C
+ctor D
+D:k loaded=1
+ctor H2
+H2:k loaded=1
+main returns
+dtor main
+dtor H2
+dtor D
+dtor C
+rc=0
+== E19-cycle (probe): H:k
+ctor I
+ctor H
+H:k loaded=1
+main returns
+dtor main
+dtor I
+dtor H
+rc=0
+== E20-cycle-between (probe): A:k H:k B:k
+ctor A
+A:k loaded=1
+ctor I
+ctor H
+H:k loaded=1
+ctor B
+B:k loaded=1
+main returns
+dtor main
+dtor A
+dtor I
+dtor H
+dtor B
+rc=0
+== E21-global-binding (probe): GD:g GU:k
+ctor GD
+GD:g loaded=1
+ctor GU
+GU:k loaded=1
+main returns
+dtor main
+dtor GU
+dtor GD
+rc=0
+== E22-nodelete-dependency (probe): C:n D:n
+ctor C
+C:n loaded=1
+ctor D
+D:n loaded=1
+main returns
+dtor main
+dtor D
+dtor C
+rc=0
+== E26-cycle3-from-X (probe): X:k
+ctor Z
+ctor Y
+ctor X
+X:k loaded=1
+main returns
+dtor main
+dtor Z
+dtor X
+dtor Y
+rc=0
+== E27-cycle3-from-Y (probe): Y:k
+ctor X
+ctor Z
+ctor Y
+Y:k loaded=1
+main returns
+dtor main
+dtor X
+dtor Y
+dtor Z
+rc=0
+== E28-cycle3-between (probe): A:k X:k B:k
+ctor A
+A:k loaded=1
+ctor Z
+ctor Y
+ctor X
+X:k loaded=1
+ctor B
+B:k loaded=1
+main returns
+dtor main
+dtor A
+dtor Z
+dtor X
+dtor Y
+dtor B
+rc=0
+== E29-cycle3-then-dependent (probe): X:k K:k
+ctor Z
+ctor Y
+ctor X
+X:k loaded=1
+ctor K
+K:k loaded=1
+main returns
+dtor main
+dtor K
+dtor X
+dtor Y
+dtor Z
+rc=0
+== E30-dependent-then-cycle3 (probe): K:k
+ctor Z
+ctor Y
+ctor X
+ctor K
+K:k loaded=1
+main returns
+dtor main
+dtor K
+dtor X
+dtor Y
+dtor Z
+rc=0
+== E23-needs-start-time-object (probeL): M:k
+ctor L
+ctor M
+M:k loaded=1
+main returns
+dtor main
+dtor M
+dtor L
+rc=0
+== E24-start-time-object-then-plain (probeL): A:k
+ctor L
+ctor A
+A:k loaded=1
+main returns
+dtor main
+dtor L
+dtor A
+rc=0
+== E25-start-time-mixed (probeL): A:k M:k B:k
+ctor L
+ctor A
+A:k loaded=1
+ctor M
+M:k loaded=1
+ctor B
+B:k loaded=1
+main returns
+dtor main
+dtor A
+dtor M
+dtor L
+dtor B
+rc=0

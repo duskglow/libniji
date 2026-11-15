@@ -4,8 +4,10 @@ Plan §6, "Validation and optimization (before phase 14)", TEST thread: mileston
 runs), milestone 3 (fixes, second runs, kernel 5.10) and milestone 4 (as-is runs on the
 overridable `libc.a`), and milestone 6 (grep, gawk, diffutils, tar, gzip, make). **This is a
 static validation**: the programs are linked statically against Liella's `libc.a`. Dynamic
-linking waits for phase 14 (D-22.10), so nothing here exercises `libc.so.6`, `ld.so`, `dlopen`
-or `LD_PRELOAD`.
+linking was out of its scope (D-22.10), so nothing here exercises `libc.so.6`, `ld.so`, `dlopen`
+or `LD_PRELOAD`. Phase 14's loader has landed since; the dynamic runs of these packages are in
+[docs/RELEASE-NOTES.md](../docs/RELEASE-NOTES.md), and the "phase 14" items below wait for a
+dynamic re-run here.
 
 
 ## Lab-only scripts and data

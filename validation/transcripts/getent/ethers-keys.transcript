@@ -1,0 +1,35 @@
+name: getent ethers by host name and by address (written without leading zeros); missing forms
+clause: s31_4_g_1
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+file: etc/ethers
+| 08:00:20:00:61:ca box
+arg: ethers
+arg: box
+arg: 08:00:20:00:61:ca
+arg: 8:0:20:0:61:ca
+arg: nope
+arg: 00:11:22:33:44:55
+status: exit 2
+stdout:
+| 8:0:20:0:61:ca box
+| 8:0:20:0:61:ca box
+| 8:0:20:0:61:ca box
+stderr:

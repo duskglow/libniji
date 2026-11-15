@@ -54,12 +54,13 @@ rm -rf "$res"
 mkdir -p "$res"
 
 # The programs of the comparison: the Essential set (bash, coreutils, findutils, grep, sed, perl-base,
-# dash) and mawk and python3-minimal. Same package set in both roots.
+# dash), mawk, python3-minimal and fakeroot (a preloaded library: LD_PRELOAD and RTLD_NEXT). Same
+# package set in both roots.
 mmroot() { # mmroot MODE HOOK...: build a root, run the hooks, copy /tmp/swap/out out to $res/MODE.
     mode=$1; shift
     mkdir -p "$res/$mode-tmp"
     "$mm" --mode=unshare --variant=apt --keyring="$stage/keyring.gpg" --components=main \
-        --include=mawk,python3-minimal \
+        --include=mawk,python3-minimal,fakeroot \
         --customize-hook="copy-in $stage/swap /tmp" \
         "$@" \
         --customize-hook="chroot \"\$1\" sh /tmp/swap/cmds.sh /tmp/swap/out" \
@@ -102,5 +103,8 @@ for f in "$s"/*.rc; do
     fi
 done
 [ "$nsame" -gt 0 ] || { echo "swap: FAIL no command ran"; bad=1; }
+for id in fakeroot-1 fakeroot-2; do
+    echo "swap: INFO $id in the Liella root: $(tr '\n' ' ' < "$l/$id.out" 2>/dev/null)"
+done
 echo "swap: RESULT same=$nsame differ=$ndiff"
 [ "$bad" -eq 0 ] && [ "$ndiff" -eq 0 ]

@@ -8,8 +8,10 @@ The principles behind these rules are in [docs/PRINCIPLES.md](docs/PRINCIPLES.md
 Liella is public as a work in progress, not an alpha or a release candidate (see the status
 table in [README.md](README.md)). The maintainer
 reviews pull requests and answers issues. Well-tested fixes, new probes and tests, parity
-improvements and documentation are the most likely to be merged. Phases 14 and 15 (the dynamic
-loader and binary-compatibility acceptance) are the largest open areas; talk to us in an issue
+improvements and documentation are the most likely to be merged. Phase 15 (binary-compatibility
+acceptance), the rest of phase 14 (the dynamic loader: `dlmopen`, lazy binding, `LD_AUDIT`,
+`libthread_db`), Liella's own C headers ([plan/headers.md](plan/headers.md)) and the remaining
+C library utilities are the largest open areas; talk to us in an issue
 before starting one, because the design is recorded in
 [plan/06-phases](plan/06-phases/00-overview.md) and in owner rulings.
 
@@ -68,7 +70,7 @@ every build command are in [docs/toolchain.md](docs/toolchain.md).
 
 ```bash
 cargo xtask stubs     # regenerate test stubs and spec/clauses.tsv from the spec
-cargo xtask so        # build libc.a, libc.so.6, liella-crt1.o into target/liella/
+cargo xtask so        # build libc.a, libc.so.6, ld.so, crt files, utilities into target/liella/
 cargo xtask test      # the full test gate (long); math sweep shards with unchanged inputs print
                       # `verdict cached` and skip (D-10.57); LIELLA_NO_VERDICT_CACHE=1 runs them all
 cargo xtask affected --list   # only the tests your change can reach (--tier direct, the default)
@@ -113,10 +115,11 @@ against `next`; the maintainers run the lab steps (counts, the merge queue) for 
 6. **Promotion.** The release manager promotes `next` to `main`; release candidates get one
    timing run of old versus new `main` per host.
 
-**Planned (owner ruling 2026-10-11, not implemented yet):** the direct tier will drop the
-serialized `*_products` tests and the interposed re-run, and will map exported assembly labels
-(and the hot-text grouping) to the tests that reach them, so a change to a `.S` kernel selects its
-tests directly. The CI FULL gate stays the exhaustive run.
+**Owner ruling 2026-10-11, partly implemented:** a change to a `.S` kernel selects the tests
+that reach its exported labels directly (rule 6 in `xtask/src/affected.rs`), and the interposed
+re-run runs only for a change in `mem`, `rt`, `kernel`, `abi` or `boundary` (`--with-exports`
+forces it). Still planned: the direct tier will drop the serialized `*_products` tests and map
+the hot-text grouping to the tests that reach it. The CI FULL gate stays the exhaustive run.
 
 ## Tests and how decisions are recorded
 
@@ -160,7 +163,7 @@ tests directly. The CI FULL gate stays the exhaustive run.
 * **Wall-clock bounds in tests scale with the machine load.** Never write `elapsed < N s` or
   `Duration::from_secs(N)` as a pass/fail limit: a gate that shares a loaded machine fails it
   (FL-13: a 120 s bound failed at load 20). Prefer an instruction or iteration budget. Where a clock
-  is unavoidable, include `tests/support/timeout.rs` and write the idle-machine value:
+  is unavoidable, include `crates/core/tests/support/timeout.rs` and write the idle-machine value:
   `timeout::assert_within("what", Duration::from_secs(N), t.elapsed())` after the work (the failure
   names the bound, the load scale and the measured time), `timeout::deadline(d)` / `timeout::limit(d)`
   for polling loops and `recv_timeout`. The scale is `clamp(1 + ceil(load / cpus), 2, 10)`;
@@ -181,9 +184,10 @@ library selects code for at start-up, so every level has a machine that runs it.
 | Intel Xeon E5 v4 (Broadwell-EP) | AVX2; used for timing and workload runs before 2026-10-20 |
 | Intel Xeon E3 v2 (Ivy Bridge) | AVX without AVX2 (the fallback kernels) |
 | Intel N100 (Alder Lake-N efficiency cores) | AVX2 without AVX-512 |
+| AMD Ryzen 5000 series (Zen 3) | AVX2 on a newer AMD core; used for timing sweeps |
 
-Instruction counters (`instr/call`) are measured on AMD Zen 1; timing comparisons run on the Ivy Bridge
-and N100 machines (and, in the early tables of [docs/benchmarks.md](docs/benchmarks.md), on Haswell-EP and
+Instruction counters (`instr/call`) are measured on AMD Zen 1; timing comparisons run on the Ivy Bridge,
+N100 and Zen 3 machines (and, in the early tables of [docs/benchmarks.md](docs/benchmarks.md), on Haswell-EP and
 Broadwell-EP). Figures from different processors are not comparable with each other: compare a figure only
 with the glibc figure measured beside it on the same processor.
 

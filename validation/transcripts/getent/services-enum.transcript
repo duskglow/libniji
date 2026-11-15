@@ -1,0 +1,36 @@
+name: getent services enumerated; names padded to 21 columns
+clause: s31_4_i_2
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+file: etc/services
+| ssh\t\t22/tcp
+| domain\t\t53/tcp
+| domain\t\t53/udp
+| http\t\t80/tcp\t\twww
+| verylongservicename 9999/tcp
+arg: services
+status: exit 0
+stdout:
+| ssh                   22/tcp
+| domain                53/tcp
+| domain                53/udp
+| http                  80/tcp www
+| verylongservicename   9999/tcp
+stderr:

@@ -184,6 +184,15 @@ impl Refusal {
         matches!(self, Refusal::Machine | Refusal::Class32 | Refusal::Class)
     }
 
+    /// The reason a preload the start refuses gives in its "cannot be preloaded" diagnostic (the
+    /// reference's texts, DL-LD-PRELOAD probe: a directory gives the bare "cannot read file data").
+    pub fn at_preload(self) -> &'static [u8] {
+        match self {
+            Refusal::Directory => b"cannot read file data",
+            _ => self.text(),
+        }
+    }
+
     /// The text a program-start refusal prints after its subject, and whether the subject is the
     /// path the candidate was found at (else the name it was needed as; DL-START-SEARCH probe).
     pub fn at_start(self) -> (&'static [u8], bool) {

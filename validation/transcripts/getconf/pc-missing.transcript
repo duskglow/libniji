@@ -1,0 +1,11 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: a path name on a missing path: the pathconf error, status 3
+clause: s31_5_f_2
+command: getconf
+env: LC_ALL=C
+arg: NAME_MAX
+arg: missing
+status: exit 3
+stdout:
+stderr:
+| getconf: pathconf: missing: No such file or directory
