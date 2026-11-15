@@ -4,6 +4,11 @@
 //! the system compiler and run directly (dynamic ones name Liella's loader and its directory).
 //! No spec clause names these files: spec Appendix C lists the libraries and their symbols.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
+#[path = "support/skip_note.rs"]
+mod skip_note;
+
+#[path = "support/oracle.rs"]
+mod oracle;
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -21,10 +26,10 @@ fn products() -> PathBuf {
 /// (DL-8, plan/system-libc.md §6 item 1).
 const NO_SEARCH: &str = "the library search is not available in this build";
 
-/// Build `src` with `libs` statically (`static_link`) or dynamically, run it, return its stdout;
-/// `None` (and the reason printed) for a dynamic program the loader cannot start for want of its
-/// soname search.
-fn build_run(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool) -> Option<String> {
+/// Build `src` with `libs` statically (`static_link`) or dynamically, run it with `args` (and
+/// `LOCPATH=locpath`), return its stdout; `None` (and the reason printed) for a dynamic program the
+/// loader cannot start for want of its soname search.
+fn build_run_with(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool, args: &[&str], locpath: Option<&Path>) -> Option<String> {
     let lib = products();
     let c = dir.join(format!("{name}.c"));
     std::fs::write(&c, src).unwrap();
@@ -42,13 +47,23 @@ fn build_run(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool
     }
     let o = Command::new("cc").args(&a).output().unwrap();
     assert!(o.status.success(), "cc {a:?}: {}", String::from_utf8_lossy(&o.stderr));
-    let o = Command::new(&exe).output().unwrap();
+    let mut run = Command::new(&exe);
+    run.args(args);
+    if let Some(l) = locpath {
+        run.env("LOCPATH", l);
+    }
+    let o = run.output().unwrap();
     if !static_link && String::from_utf8_lossy(&o.stderr).contains(NO_SEARCH) {
         eprintln!("{name}: dynamic run skipped: Liella's loader has no start-time soname search yet (DL-8); linked and inspected only");
         return None;
     }
     assert!(o.status.success(), "{name}: {o:?}");
     Some(String::from_utf8(o.stdout).unwrap())
+}
+
+/// [`build_run_with`] without arguments or `LOCPATH`.
+fn build_run(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool) -> Option<String> {
+    build_run_with(dir, name, src, libs, static_link, &[], None)
 }
 
 fn scratch(tag: &str) -> PathBuf {
@@ -109,16 +124,20 @@ fn sonames_resolv_forwards_through_private_aliases() {
 }
 
 const MBMAX: &str = "#include <locale.h>\n#include <stdio.h>\n#include <stdlib.h>\n\
-int main(void) {\n  size_t c = MB_CUR_MAX;\n  if (!setlocale(LC_ALL, \"C.UTF-8\")) return 2;\n  printf(\"%zu %zu\\n\", c, (size_t) MB_CUR_MAX);\n  return 0;\n}\n";
+int main(int argc, char **argv) {\n  printf(\"%zu\", (size_t) MB_CUR_MAX);\n\
+  for (int i = 1; i < argc; i++) {\n    if (!setlocale(LC_ALL, argv[i])) return 2;\n    printf(\" %zu\", (size_t) MB_CUR_MAX);\n  }\n\
+  printf(\"\\n\");\n  return 0;\n}\n";
 
 /// `MB_CUR_MAX` (`__ctype_get_mb_cur_max`; no spec clause: libBrokenLocale's values are probe-settled, SL-SONAMES record):
 /// linked with `-lBrokenLocale`, dynamically or statically, MB_CUR_MAX is 1 in "C" and 4 in
-/// "C.UTF-8"; without it, 1 and 6.
+/// "C.UTF-8"; without it, 1 and 6. Statically, code sets of width 2, 3 and 4 (EUC-KR, EUC-JP,
+/// GB18030, compiled by the host's `localedef`; without it the test says so) give 1, 2 and 2.
 #[test]
 fn sonames_brokenlocale_mb_cur_max() {
     let dir = scratch("broken");
+    let utf8 = ["C.UTF-8"];
     for (name, libs, want) in [("plain", &[][..], "1 6\n"), ("dyn", &["-lBrokenLocale"][..], "1 4\n")] {
-        if let Some(out) = build_run(&dir, name, MBMAX, libs, false) {
+        if let Some(out) = build_run_with(&dir, name, MBMAX, libs, false, &utf8, None) {
             assert_eq!(out, want, "{name}");
         }
     }
@@ -126,8 +145,20 @@ fn sonames_brokenlocale_mb_cur_max() {
     assert!(needed.contains("[libBrokenLocale.so.1]"), "-lBrokenLocale links libBrokenLocale.so.1:\n{needed}");
     let syms = readelf(&["--dyn-syms", "-W"], &products().join("libBrokenLocale.so.1"));
     assert!(syms.contains(" __ctype_get_mb_cur_max@@GLIBC_2.2.5"), "libBrokenLocale.so.1 defines it:\n{syms}");
-    assert_eq!(build_run(&dir, "stat", MBMAX, &[], true).as_deref(), Some("1 6\n"), "static without -lBrokenLocale");
-    assert_eq!(build_run(&dir, "stat_broken", MBMAX, &["-lBrokenLocale"], true).as_deref(), Some("1 4\n"), "static -lBrokenLocale");
+    assert_eq!(build_run_with(&dir, "stat", MBMAX, &[], true, &utf8, None).as_deref(), Some("1 6\n"), "static without -lBrokenLocale");
+    assert_eq!(build_run_with(&dir, "stat_broken", MBMAX, &["-lBrokenLocale"], true, &utf8, None).as_deref(), Some("1 4\n"), "static -lBrokenLocale");
+    // The widths between: the first program shows the code sets' own widths, the second the bound.
+    let locales = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/test-locales");
+    let wide = [("ko_KR", "EUC-KR"), ("ja_JP", "EUC-JP"), ("zh_CN", "GB18030")];
+    let names: Vec<String> = wide.iter().map(|(l, c)| format!("{l}.{c}")).collect();
+    if wide.iter().zip(&names).all(|((l, c), n)| oracle::locale(&locales.join(n), l, c, "LC_CTYPE")) {
+        let args: Vec<&str> = names.iter().map(String::as_str).collect();
+        for (name, libs, want) in [("stat_wide", &[][..], "1 2 3 4\n"), ("stat_broken_wide", &["-lBrokenLocale"][..], "1 1 2 2\n")] {
+            assert_eq!(build_run_with(&dir, name, MBMAX, libs, true, &args, Some(&locales)).as_deref(), Some(want), "{name} ({names:?})");
+        }
+    } else {
+        skip_note::skipped("sonames_brokenlocale_mb_cur_max: no localedef; the 2-, 3- and 4-byte code sets not checked");
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
 

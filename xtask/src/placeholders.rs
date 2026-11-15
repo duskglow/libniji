@@ -57,6 +57,44 @@ pub const FORWARDED: [&str; 1] = ["libresolv.so.2"];
 /// against them rather than the empty archive).
 pub const DEV_LINKS: [&str; 2] = ["libresolv.so.2", "libBrokenLocale.so.1"];
 
+/// The file in the products directory naming, one per line, every file [`build`] may have written
+/// there, so a product a table no longer names is removed by the next build rather than lingering
+/// from an earlier one (a `-l<x>` would still find it in a tree that was built before).
+pub const MANIFEST: &str = ".placeholders";
+
+/// Every file [`build`] writes into the products directory: the libraries, the archives (empty
+/// and [`OVERRIDES`]') and the [`DEV_LINKS`].
+pub fn product_names() -> BTreeSet<String> {
+    let stem = |soname: &str| soname.split(".so").next().unwrap_or(soname).to_string();
+    let mut names: BTreeSet<String> = LIBRARIES.iter().chain(ARCHIVES.iter()).map(|n| (*n).to_string()).collect();
+    names.extend(OVERRIDES.iter().map(|(l, _)| stem(l) + ".a"));
+    names.extend(DEV_LINKS.iter().map(|l| stem(l) + ".so"));
+    names
+}
+
+/// Removes from `dir` each file the [`MANIFEST`] of an earlier build names that `now` does not, then
+/// records `now` before anything is written (so a build that fails part-way still leaves every
+/// name it may have written listed). Returns the removed names. Only plain names are acted on.
+pub fn remove_stale(dir: &Path, now: &BTreeSet<String>) -> Result<Vec<String>, String> {
+    let manifest = dir.join(MANIFEST);
+    let before = fs::read_to_string(&manifest).unwrap_or_default();
+    let mut removed = Vec::new();
+    for name in before.lines().filter(|n| !n.is_empty() && !n.contains('/') && !n.starts_with('.')) {
+        if now.contains(name) {
+            continue;
+        }
+        let p = dir.join(name);
+        match fs::remove_file(&p) {
+            Ok(()) => removed.push(name.to_string()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("{}: {e}", p.display())),
+        }
+    }
+    let text: String = now.iter().map(|n| format!("{n}\n")).collect();
+    fs::write(&manifest, text).map_err(|e| format!("{}: {e}", manifest.display()))?;
+    Ok(removed)
+}
+
 /// The prefix of `libc.so.6`'s private alias of a forwarded name.
 pub const FORWARD_PREFIX: &str = "__liella_fwd_";
 
@@ -517,6 +555,7 @@ pub fn product_errors(table: &str, soname: &str, dynamic: &str, readelf_v: &str,
 pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Result<String, String> {
     let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
     fs::create_dir_all(work).map_err(|e| e.to_string())?;
+    let stale = remove_stale(release, &product_names())?;
     let mut summary = Vec::new();
     let libc_sizes = object_sizes(&release.join("libc.a"))?;
     for soname in LIBRARIES {
@@ -596,7 +635,8 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Re
         let _ = fs::remove_file(&link);
         std::os::unix::fs::symlink(soname, &link).map_err(|e| format!("{}: {e}", link.display()))?;
     }
-    Ok(format!("placeholders {}, each checked against spec/abi/versions.tsv; empty {}; {}; links {}", summary.join(", "), ARCHIVES.join(", "), built.join(", "), DEV_LINKS.join(", ")))
+    let stale = if stale.is_empty() { String::new() } else { format!("; removed stale {}", stale.join(", ")) };
+    Ok(format!("placeholders {}, each checked against spec/abi/versions.tsv; empty {}; {}; links {}{stale}", summary.join(", "), ARCHIVES.join(", "), built.join(", "), DEV_LINKS.join(", ")))
 }
 
 /// No shared product in `release` defines or exports a `GLIBC_PRIVATE` version (R14-12).
@@ -723,5 +763,29 @@ mod tests {
         assert!(product_errors(TABLE, "libfoo.so.1", no_needed, &v, &good().1).iter().any(|m| m.contains("no DT_NEEDED libc.so.6")));
         let missing_node = verdef(&["V_1.2"]);
         assert!(product_errors(TABLE, "libfoo.so.1", DYNAMIC, &missing_node, &good().1).iter().any(|m| m.contains("version V_1.10 of versions.tsv is not defined")));
+    }
+
+    /// A product an earlier build wrote and the tables no longer name is removed; files the
+    /// manifest never named (libc.so.6, a user's file) and current products stay.
+    #[test]
+    fn a_product_dropped_from_the_tables_is_removed() {
+        let dir = std::env::temp_dir().join(format!("xtask-placeholders-stale-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        for f in ["libc.so.6", "libold.a", "libkept.a", "libnew.so.1"] {
+            fs::write(dir.join(f), "x").unwrap();
+        }
+        std::os::unix::fs::symlink("libold.so.1", dir.join("libold.so")).unwrap();
+        fs::write(dir.join(MANIFEST), "libold.a\nlibold.so\nlibkept.a\nlibgone.a\n../libc.so.6\n").unwrap();
+        let now: BTreeSet<String> = ["libkept.a", "libnew.so.1"].iter().map(|s| (*s).to_string()).collect();
+        assert_eq!(remove_stale(&dir, &now).unwrap(), ["libold.a", "libold.so"]);
+        for (f, present) in [("libc.so.6", true), ("libkept.a", true), ("libnew.so.1", true), ("libold.a", false)] {
+            assert_eq!(dir.join(f).exists(), present, "{f}");
+        }
+        assert!(fs::symlink_metadata(dir.join("libold.so")).is_err(), "the dangling development link is removed");
+        assert_eq!(fs::read_to_string(dir.join(MANIFEST)).unwrap(), "libkept.a\nlibnew.so.1\n");
+        // The real tables' names are all recorded, the development links among them.
+        assert!(product_names().contains("libresolv.so") && product_names().contains("libBrokenLocale.a") && product_names().contains("libresolv.a"));
+        let _ = fs::remove_dir_all(&dir);
     }
 }
