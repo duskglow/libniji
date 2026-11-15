@@ -6,8 +6,10 @@ merged in), role keke `~/w/n1`. The first run's `util-getent-gate1` (67 transcri
 added getconf (UTIL-5) in the same three places, so libc-bin now ships both `/usr/bin/getconf` and
 `/usr/bin/getent` (both stripped), `cargo xtask so` builds getconf then getent, and the transcript harness maps both.
 getent.c moved to `csys/util/getent.c` beside getconf.c. Jobs on keke on the final code head: `util-getent-2-lint1`
-(clippy + static, rc 0), `util-getent-2-gate1` (direct tier), `util-getent-2-plants1`
-(`handoff/UTIL-GETENT-2-plants.txt`, the same 9 plants on the new path). Results: `handoff/reports/UTIL-GETENT-2.json`.
+(clippy + static, rc 0), `util-getent-2-gate1` (escalated to FULL: 11921 passed, 0 failed; peak 13G),
+`util-getent-2-plants1` (`handoff/UTIL-GETENT-2-plants.txt`, the same 9 plants on the new path: 9 CAUGHT),
+`util-getent-2-transcripts1` (the FULL step runs no transcripts: 92 ok, getconf 25 + getent 47 + ldconfig 20).
+Results: `handoff/reports/UTIL-GETENT-2.json`.
 
 ## On the branch
 
@@ -56,6 +58,5 @@ options, not offered), IDN names, `--no-idn=x`.
 
 ## Next step
 
-Nothing left for getent itself once `util-getent-2-gate1` and `util-getent-2-plants1` (keke) are green. Then a §16
-story for items 1-4 (recommend: probe each and decide per D-16 records). Read: this note,
+Nothing left for getent itself: land. Then a §16 story for items 1-4 (recommend: probe each and decide per D-16 records). Read: this note,
 plan/utilities.md §2.1/§4/§5, spec §31.4 clauses, D-31.4.
