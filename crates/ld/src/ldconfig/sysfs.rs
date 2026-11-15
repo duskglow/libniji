@@ -21,7 +21,7 @@ const ENOMEM: i32 = 12;
 const EINVAL: i32 = 22;
 
 /// Bytes of one `getdents64` call.
-const DIRENT_BUF: usize = 32 * 1024;
+const DIRENT_BUF: usize = 8 * 1024;
 /// Bytes of a symlink target read at once (the kernel's `PATH_MAX`).
 const LINK_MAX: usize = 4096;
 
@@ -74,7 +74,7 @@ fn meta(mode: u32, dev: u64, ino: u64) -> Meta {
 fn split(path: &[u8]) -> Option<(&[u8], &[u8])> {
     let (dir, name) = match path.iter().rposition(|&c| c == b'/') {
         Some(0) => (&b"/"[..], path.get(1..)?),
-        Some(i) => (path.get(..i)?, path.get(i + 1..)?),
+        Some(i) => (path.get(..i)?, path.get(i.wrapping_add(1)..)?),
         None => (&b"."[..], path),
     };
     (!matches!(name, b"" | b"." | b"..")).then_some((dir, name))
@@ -190,9 +190,7 @@ impl<S: Sys> Fs for SysFs<'_, S> {
 
     fn list(&mut self, dir: &[u8], out: &mut Vec<Vec<u8>>) -> Result<(), i32> {
         let d = self.open(dir, O_RDONLY | O_DIRECTORY)?;
-        let mut buf = Vec::new();
-        buf.try_reserve_exact(DIRENT_BUF).map_err(|_| ENOMEM)?;
-        buf.resize(DIRENT_BUF, 0u8);
+        let mut buf = [0u8; DIRENT_BUF];
         loop {
             let n = self.sys.getdents64(d.1, &mut buf).map_err(errno)?;
             if n == 0 {

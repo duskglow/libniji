@@ -42,7 +42,10 @@ pub extern "C" fn liella_ldconfig_start(sp: usize, ehdr: usize) -> ! {
     }
     for i in 0..argc {
         let p = stack_word(sp.wrapping_add(8).wrapping_add(i.wrapping_mul(8)));
-        args.push(c_string(usize::try_from(p).unwrap_or(0)));
+        if ldconfig::push(&mut args, c_string(usize::try_from(p).unwrap_or(0))).is_err() {
+            write_all(2, b"ldconfig: out of memory\n");
+            exit(1)
+        }
     }
     let argv0 = args.first().copied().unwrap_or(b"ldconfig");
     let rest = args.get(1..).unwrap_or_default();
@@ -103,10 +106,8 @@ fn arena_alloc(size: usize, align: usize) -> usize {
 }
 
 // UNSAFE(allocator): implementing `GlobalAlloc` is the allocator category itself.
-// SAFETY: every block lies inside a private anonymous mapping that is never unmapped; `NEXT` only
-// moves past a block once it is handed out, and moves back over the last block only when that
-// block is freed or resized by its owner, so live blocks never overlap; sizes and alignments are
-// honoured and exhaustion returns null. The program has one thread.
+// SAFETY: blocks lie in never-unmapped private mappings and never overlap (only the last block, once freed or
+// resized by its owner, is reused); sizes and alignments are honoured, exhaustion is null; one thread.
 #[allow(unsafe_code)]
 unsafe impl GlobalAlloc for Arena {
     // UNSAFE(allocator): the trait's required method.
