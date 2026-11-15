@@ -1,5 +1,11 @@
 # DL-START-SEARCH: find DT_NEEDED libraries by soname at program start
 
+**State (DL-START-SEARCH-5):** branch `task/dl-start-search-5` (on -4, origin/next merged), role keke:~/w/n1. Report:
+handoff/DL-START-SEARCH-5-report.md. The dlopen.rs merge conflict (a `use` list) is resolved keeping both sides.
+Ruling #5909 applied: D-27.16 stays; sonames_products runs its dynamic programs with LD_LIBRARY_PATH (no RUNPATH, no
+NO_SEARCH skip) and passes. Plants: handoff/DL-START-SEARCH-5-plants.txt. **Next step:** CI. If only
+localtime_r 41 > 40 is red, that is the systemic #1307 (LAYOUT-WINDOW-BINS-5); then the p_path surplus (-4 report).
+
 **State (DL-START-SEARCH-4):** branch `task/dl-start-search-4` (on -3), role keke:~/w/n3. Report:
 handoff/DL-START-SEARCH-4-report.md. Loader code = the -3 head's (a cold out-of-line move cut instructions but added
 one page fault per start: reverted). New: ldso_search case "$ORIGIN of a library named by path" + its plant.
