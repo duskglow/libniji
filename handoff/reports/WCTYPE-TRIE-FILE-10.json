@@ -1,0 +1,16 @@
+{"task": "WCTYPE-TRIE-FILE-10", "model": "opus", "tokens": null,
+ "result": "Every class table is all zero (mode from the address, built-in blocks filled at first miss): C/C.UTF-8/walk tables leave .data; STARTUP-DATA-WINDOWS 7/7 and startup_instr_c 2,148 on this head (Zen 1)",
+ "branch": "task/wctype-trie-file-10", "head": null,
+ "gate": {"affected": "pending: wctype-trie-file-10-final (direct tier, cargo xtask test, full-profile so + hot_text_products)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["CI's red was on a merge with next (255 commits past f6cab48d7); this head alone held STARTUP-DATA-WINDOWS at 7 before and after the fix, so the merged tree's start-up reference to C_TABLE was not reproduced. The fix takes the tables out of .data whatever references them; CI's merge decides."],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "startup_instr_c (cbench_startup counters, Zen 1 host), run 9 head on Broadwell-EP 2,160 -> this head", "before": 2160, "after": 2148, "unit": "instr/process", "measured": true},
+  {"kind": "size", "what": ".data of a static program: C, C.UTF-8 and walking class tables move to .bss/.lbss", "before": 53248, "after": 0, "unit": "bytes", "measured": false},
+  {"kind": "coverage", "what": "test builtin_class_tables_resolve_a_block_at_its_first_miss; plants 6 CAUGHT", "before": 0, "after": 6, "unit": "plants", "measured": true}],
+ "improvement": "CI layout reds on a merged tree cannot be reproduced by a no-merge continuation: let the brief allow a scratch merge with next (not pushed) for diagnosis, or have CI keep the failing products' disassembly of the named object's referrers.",
+ "next_step": "If CI is green, land; then the _l rows (ruling #4173) and timing from handoff/wctype-trie-file.md.",
+ "report_file": "handoff/wctype-trie-file.md",
+ "jobs": ["wctype-trie-file-10-final", "wctype-trie-file-10-plants", "wctype-trie-file-10-check2"]}
