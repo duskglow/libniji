@@ -33,7 +33,7 @@ INC_RE = re.compile(r"^[ \t]*#[ \t]*include(?:_next)?[ \t]*<([^>\s]+)>", re.M)
 IDENT_RE = re.compile(
     r"\b(__GLIBC__|__GLIBC_MINOR__|__GLIBC_PREREQ|__GNU_LIBRARY__|__GNU_LIBRARY_MINOR__|__USE_[A-Z0-9_]+"
     r"|__BEGIN_DECLS|__END_DECLS|__THROW|__THROWNL|__NTH|__NTHNL|__P|__PMT|__CONCAT|__STRING|__nonnull|__wur"
-    r"|__attribute_[a-z_0-9]+?__|__attribute_[a-z_0-9]+|__glibc_[a-z_]+|__REDIRECT[A-Z_]*|__ASMNAME[0-9]?"
+    r"|__attribute_(?!_\b)[a-z_0-9]+|__glibc_[a-z_]+|__REDIRECT[A-Z_]*|__ASMNAME[0-9]?"
     r"|__fortify_function|__extern_always_inline|__extern_inline|__LDBL_REDIR[A-Z0-9_]*|__bos0?|__bnd"
     r"|__[a-z][a-z0-9_]*_t)\b")
 FILE_ANCHOR_RE = re.compile(r"\b(FILE|_IO_FILE|stdin|stdout|stderr)\b")
