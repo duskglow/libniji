@@ -1,0 +1,41 @@
+id	language	flags	probes
+c89	c	-std=c89	ISO C90, __STRICT_ANSI__
+c99	c	-std=c99	ISO C99, __STRICT_ANSI__
+c11	c	-std=c11	ISO C11, __STRICT_ANSI__
+c17	c	-std=c17	ISO C17, __STRICT_ANSI__
+c2x	c	-std=c2x	ISO C2X, __STRICT_ANSI__
+gnu17	c	-std=gnu17	compiler default mode, no feature-test macro
+gnu2x	c	-std=gnu2x	GNU C2X mode, no feature-test macro
+posix1	c	-std=c17 -D_POSIX_C_SOURCE=1	POSIX.1-1990
+posix2	c	-std=c17 -D_POSIX_C_SOURCE=2	POSIX.2-1992
+posix199309	c	-std=c17 -D_POSIX_C_SOURCE=199309L	POSIX.1b
+posix199506	c	-std=c17 -D_POSIX_C_SOURCE=199506L	POSIX.1c
+posix200112	c	-std=c17 -D_POSIX_C_SOURCE=200112L	POSIX.1-2001
+posix200809	c	-std=c17 -D_POSIX_C_SOURCE=200809L	POSIX.1-2008
+xopen	c	-std=c17 -D_XOPEN_SOURCE	_XOPEN_SOURCE defined empty
+xopen500	c	-std=c17 -D_XOPEN_SOURCE=500	SUSv2
+xopen600	c	-std=c17 -D_XOPEN_SOURCE=600	SUSv3
+xopen700	c	-std=c17 -D_XOPEN_SOURCE=700	SUSv4
+xopenext	c	-std=c17 -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED	X/Open UNIX extended
+isoc99	c	-std=c89 -D_ISOC99_SOURCE	C99 names in C90 mode
+isoc11	c	-std=c99 -D_ISOC11_SOURCE	C11 names in C99 mode
+isoc2x	c	-std=c17 -D_ISOC2X_SOURCE	C2X names in C17 mode
+default	c	-std=c17 -D_DEFAULT_SOURCE	_DEFAULT_SOURCE under strict C17
+bsd	c	-std=c17 -D_BSD_SOURCE	_BSD_SOURCE under strict C17
+svid	c	-std=c17 -D_SVID_SOURCE	_SVID_SOURCE under strict C17
+gnu	c	-std=gnu17 -D_GNU_SOURCE	_GNU_SOURCE
+lfs64	c	-std=gnu17 -D_LARGEFILE64_SOURCE	the *64 names
+fob64	c	-std=gnu17 -D_FILE_OFFSET_BITS=64	64-bit file offsets
+time64	c	-std=gnu17 -D_FILE_OFFSET_BITS=64 -D_TIME_BITS=64	64-bit time
+time64only	c	-std=gnu17 -D_TIME_BITS=64	_TIME_BITS=64 without _FILE_OFFSET_BITS=64
+dynstack	c	-std=gnu17 -D_DYNAMIC_STACK_SIZE_SOURCE	run-time stack-size macros
+reentrant	c	-std=gnu17 -D_REENTRANT	_REENTRANT
+fortify1	c	-std=gnu17 -O2 -D_FORTIFY_SOURCE=1	fortify level 1 at -O2
+fortify2	c	-std=gnu17 -O2 -D_FORTIFY_SOURCE=2	fortify level 2 at -O2
+fortify3	c	-std=gnu17 -O2 -D_FORTIFY_SOURCE=3	fortify level 3 at -O2
+cxx98	c++	-std=c++98	C++98 (g++ predefines _GNU_SOURCE)
+cxx11	c++	-std=c++11	C++11
+cxx14	c++	-std=c++14	C++14
+cxx17	c++	-std=c++17	C++17
+cxx20	c++	-std=c++20	C++20
+cxx23	c++	-std=c++23	C++23

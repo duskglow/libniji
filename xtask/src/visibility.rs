@@ -4,10 +4,11 @@
 //! header, each visible name, its kind and the configurations it is visible in (`*` = all). Both are written by
 //! `spec/tools/header_probe.py` on the reference system. The check (part of `cargo xtask static`) fails when a
 //! table's shape is wrong (columns, ids, kinds, a header outside the public inventory, unsorted or duplicate rows,
-//! a configuration list that is not a sorted subset of the table) or when a `prototypes.tsv` or `constants.tsv`
+//! a configuration list that is not a sorted subset of the table or not in the probe's one spelling of its set)
+//! or when a `prototypes.tsv` or `constants.tsv`
 //! name is visible in no (header, configuration).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::path::Path;
 
 const CONFIGS: &str = "spec/abi/ftm-configs.tsv";
@@ -30,6 +31,21 @@ const EMPTY_UNIT: &str = "-";
 fn is_ident(s: &str) -> bool {
     let mut c = s.chars();
     matches!(c.next(), Some(f) if f == '_' || f.is_ascii_alphabetic()) && c.all(|x| x == '_' || x.is_ascii_alphanumeric())
+}
+
+/// The spelling of a configuration set (`visible_in[i]` for `ids[i]`): `*` for all of them, else the shorter of
+/// the ids it holds and `!` with the ids it lacks (the ids on a tie), both comma-joined in table order; `None` for
+/// the empty set. `spec/tools/header_probe.py` writes the same form.
+fn configs_form(ids: &[String], visible_in: &[bool]) -> Option<String> {
+    let pick = |want: bool| ids.iter().zip(visible_in).filter(|(_, v)| **v == want).map(|(i, _)| i.as_str()).collect::<Vec<_>>().join(",");
+    match visible_in.iter().filter(|v| **v).count() {
+        0 => None,
+        n if n == ids.len() => Some("*".to_string()),
+        _ => {
+            let (listed, rest) = (pick(true), format!("!{}", pick(false)));
+            Some(if rest.len() < listed.len() { rest } else { listed })
+        }
+    }
 }
 
 /// Configuration ids in table order, or the problems found.
@@ -76,7 +92,7 @@ fn check_tables(configs: &str, vis: &str, public: &BTreeSet<String>, required: &
         errors.push(format!("{VISIBILITY}: the first line must be `{}`", VIS_HEAD.replace('\t', "<TAB>")));
     }
     let mut prev: Option<(String, String, usize)> = None;
-    let mut visible: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+    let mut visible: BTreeSet<String> = BTreeSet::new();
     for (n, line) in lines.enumerate() {
         let at = format!("{VISIBILITY}:{}", n + 2);
         let f: Vec<&str> = line.split('\t').collect();
@@ -98,18 +114,32 @@ fn check_tables(configs: &str, vis: &str, public: &BTreeSet<String>, required: &
         if cfgs != "*" {
             let (negated, list) = cfgs.strip_prefix('!').map_or((false, cfgs), |l| (true, l));
             let mut last = None;
+            let mut picked = vec![false; ids.len()];
+            let mut ok = true;
             for c in list.split(',') {
                 match ids.iter().position(|i| i == c) {
-                    Some(p) if last.is_none_or(|l| p > l) => last = Some(p),
-                    Some(_) => errors.push(format!("{at}: configuration `{c}` out of table order or repeated")),
-                    None => errors.push(format!("{at}: unknown configuration `{c}`")),
+                    Some(p) if last.is_none_or(|l| p > l) => {
+                        last = Some(p);
+                        picked[p] = true;
+                    }
+                    Some(_) => {
+                        ok = false;
+                        errors.push(format!("{at}: configuration `{c}` out of table order or repeated"));
+                    }
+                    None => {
+                        ok = false;
+                        errors.push(format!("{at}: unknown configuration `{c}`"));
+                    }
                 }
             }
-            let n = list.split(',').count();
-            if last.is_some() && n == ids.len() {
-                errors.push(format!("{at}: every configuration {}; write `*`", if negated { "excluded" } else { "listed" }));
-            } else if !negated && 2 * n > ids.len() + 1 {
-                errors.push(format!("{at}: the `!` form (the configurations left out) is shorter"));
+            if ok {
+                // The configurations the row is visible in, then the one spelling the probe writes for them.
+                let visible_in: Vec<bool> = picked.iter().map(|&p| p != negated).collect();
+                match configs_form(&ids, &visible_in) {
+                    None => errors.push(format!("{at}: visible in no configuration; drop the row")),
+                    Some(form) if form != cfgs => errors.push(format!("{at}: configurations `{cfgs}` must be written `{form}`")),
+                    Some(_) => {}
+                }
             }
         }
         let key = (header.to_string(), name.to_string(), k);
@@ -120,11 +150,11 @@ fn check_tables(configs: &str, vis: &str, public: &BTreeSet<String>, required: &
         }
         prev = Some(key);
         if kind != "include-error" {
-            visible.entry(name.to_string()).or_default().insert(KINDS[k]);
+            visible.insert(name.to_string());
         }
     }
     for (name, table) in required {
-        if !visible.contains_key(name) && !EXEMPT.iter().any(|(n, _)| n == name) {
+        if !visible.contains(name) && !EXEMPT.iter().any(|(n, _)| n == name) {
             errors.push(format!("{VISIBILITY}: `{name}` ({table}) is visible in no (header, configuration)"));
         }
     }
@@ -170,7 +200,7 @@ mod tests {
     use super::*;
 
     const CFG: &str = "id\tlanguage\tflags\tprobes\nc89\tc\t-std=c89\tISO C90\ngnu\tc\t-std=gnu17 -D_GNU_SOURCE\tGNU\ncxx98\tc++\t-std=c++98\tC++98\n";
-    const VIS: &str = "header\tname\tkind\tconfigs\n-\t_GNU_SOURCE\tmacro\tgnu\nstdio.h\t-\tinclude-error\tcxx98\nstdio.h\tEOF\tmacro\t*\nstdio.h\tFILE\ttypedef\t*\nstdio.h\tstdin\tmacro\tc89,gnu\nstdio.h\tstdin\tobject\tc89,gnu\nstdio.h\ttm\tstruct\tgnu\n";
+    const VIS: &str = "header\tname\tkind\tconfigs\n-\t_GNU_SOURCE\tmacro\tgnu\nstdio.h\t-\tinclude-error\tcxx98\nstdio.h\tEOF\tmacro\t*\nstdio.h\tFILE\ttypedef\t*\nstdio.h\tstdin\tmacro\t!cxx98\nstdio.h\tstdin\tobject\t!cxx98\nstdio.h\ttm\tstruct\tgnu\n";
 
     fn public() -> BTreeSet<String> {
         ["stdio.h".to_string()].into_iter().collect()
@@ -214,17 +244,31 @@ mod tests {
         fails(CFG, &VIS.replace("-\tinclude-error", "x\tinclude-error"), &[], "does not fit kind");
         fails(CFG, &VIS.replace("\tEOF\tmacro", "\tEOF+\tmacro"), &[], "does not fit kind");
         fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\tc99"), &[], "unknown configuration");
-        fails(CFG, &VIS.replace("\tstdin\tmacro\tc89,gnu", "\tstdin\tmacro\tgnu,c89"), &[], "out of table order");
-        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\tc89,gnu,cxx98"), &[], "write `*`");
-        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!c89,gnu,cxx98"), &[], "write `*`");
-        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!c89,cxx98"), &[], "is shorter");
+        fails(CFG, &VIS.replace("\tstdin\tmacro\t!cxx98", "\tstdin\tmacro\tgnu,c89"), &[], "out of table order");
+        fails(CFG, &VIS.replace("\tstdin\tmacro\t!cxx98", "\tstdin\tmacro\tc89,c89"), &[], "out of table order");
+        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\tc89,gnu,cxx98"), &[], "must be written `*`");
+        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!c89,gnu,cxx98"), &[], "drop the row");
+        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!c89,cxx98"), &[], "must be written `gnu`");
+        // Two ids, `c89,gnu` (7 characters), against one, `!cxx98` (6): the shorter string wins, not fewer ids.
+        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\tc89,gnu"), &[], "must be written `!cxx98`");
         fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!gnu,c89"), &[], "out of table order");
         assert_eq!(errs(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!gnu"), &[]), Vec::<String>::new());
     }
 
     #[test]
+    fn configs_form_tie() {
+        let ids: Vec<String> = ["a", "bb", "c"].iter().map(|s| s.to_string()).collect();
+        // `a,c` and `!bb` are both 3 characters: the ids are written.
+        assert_eq!(configs_form(&ids, &[true, false, true]).as_deref(), Some("a,c"));
+        assert_eq!(configs_form(&ids, &[true, false, false]).as_deref(), Some("a"));
+        assert_eq!(configs_form(&ids, &[false, true, true]).as_deref(), Some("!a"));
+        assert_eq!(configs_form(&ids, &[true; 3]).as_deref(), Some("*"));
+        assert_eq!(configs_form(&ids, &[false; 3]), None);
+    }
+
+    #[test]
     fn row_order() {
-        fails(CFG, &VIS.replace("stdio.h\tstdin\tmacro\tc89,gnu\nstdio.h\tstdin\tobject", "stdio.h\tstdin\tobject\tc89,gnu\nstdio.h\tstdin\tmacro"), &[], "out of order");
+        fails(CFG, &VIS.replace("stdio.h\tstdin\tmacro\t!cxx98\nstdio.h\tstdin\tobject", "stdio.h\tstdin\tobject\t!cxx98\nstdio.h\tstdin\tmacro"), &[], "out of order");
         fails(CFG, &VIS.replace("stdio.h\ttm\tstruct\tgnu\n", "stdio.h\ttm\tstruct\tgnu\nstdio.h\ttm\tstruct\tgnu\n"), &[], "out of order");
         fails(CFG, &VIS.replace("-\t_GNU_SOURCE\tmacro\tgnu\n", "").replace("stdio.h\ttm\tstruct\tgnu\n", "stdio.h\ttm\tstruct\tgnu\n-\t_GNU_SOURCE\tmacro\tgnu\n"), &[], "out of order");
     }

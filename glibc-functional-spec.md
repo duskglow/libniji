@@ -5713,6 +5713,8 @@ The TSV files are part of this appendix. The tables below reproduce the parts mo
 | `spec/abi/initializers.tsv` | static initializer bit patterns | 10 |
 | `spec/abi/prototypes.tsv` | C declaration of every function the public headers declare, with its header | 3780 (3778 + 2 R3 additions) |
 | `spec/abi/constants.tsv` | value of every integer-constant macro the public headers define (names not starting with `__`) | 6687 |
+| `spec/abi/ftm-configs.tsv` | feature-test configurations probed: id, language, compiler flags, what it probes (C.12) | 40 |
+| `spec/abi/visibility.tsv` | per public header: each visible name, its kind and the configurations it is visible in (C.12) | 69868 |
 
 ### C.2 Libraries and version nodes
 
@@ -6764,6 +6766,34 @@ numbers, ioctl codes) come from the kernel UAPI; they appear here as the headers
 * **System file formats** named by this spec but not described (locale archive, iconv modules, nscd wire
   protocol, message catalogs, `ld.so.cache`): format inspection is approved (owner decision on formats) and is
   performed in the phase that needs each format. Findings are added to this spec as Appendix D.
+### C.12 Visibility per header and feature-test configuration
+
+Source: compile-only probes of the reference's public headers (ruling R-H0; plan/headers.md §2.2), run
+with `python3 spec/tools/header_probe.py` on the reference system (GCC and G++ 13.3). The probe compiles
+translation units of its own that include one header and test candidate names, each test alone on a line,
+and reads back only the exit status and the line numbers of errors in its own file: no diagnostic text,
+no `-E` or `-dM` output, no header text. Candidates are the names of `prototypes.tsv`, `constants.tsv`,
+the data objects of `versions.tsv`, the types and tags of `layouts.tsv` and the declarations, and the
+identifiers this specification writes in backticks; a name outside those sources is not probed.
+
+`ftm-configs.tsv` lists 40 configurations: the strict ISO modes, the GNU modes, each
+`_POSIX_C_SOURCE` and `_XOPEN_SOURCE` level, the ISO, `_DEFAULT_SOURCE`, BSD/SVID and `_GNU_SOURCE`
+macros, the offset, time, stack-size and `_REENTRANT` macros, fortify 1 to 3 at -O2, and C++98 to C++23.
+GCC 13.3 has no C++26 mode; it is probed when the reference compiler has one (plan/headers.md §6).
+
+`visibility.tsv` has 69868 rows over 224 headers; a public header with no row shows no
+candidate name beyond the empty translation unit in any configuration (for example `sys/syscall.h`, whose
+`SYS_` system-call numbers are not candidates). Kinds: macro 41551, typedef 8669, function 12956, object 214, enumerator 5162, struct 1062, union 11, enum 4, include-error 216.
+`macro` is a name `#ifdef` sees; after every candidate is `#undef`ed, `typedef`, `function`, `object`
+and `enumerator` classify the ordinary identifier, and `struct`, `union` and `enum` are complete tags
+(`sizeof` compiles). A name can have several kinds (`stdin` is a macro and an object; `stat` a function
+and a struct). In C++ a tag that is also a typedef name is recorded as the tag only, and an overload set
+is a `function`. `configs` is `*` (every configuration), the ids, or `!` and the ids it is not visible in,
+whichever string is shorter (the ids on a tie), ids in table order. Rows of header `-`
+are the empty translation unit (compiler predefines and `stdc-predef.h`); a header's rows leave out what
+that unit already shows. `include-error` (216 rows) marks configurations in which the bare
+`#include` fails: a fact about the reference, which Liella's header reproduces (plan/headers.md §2.3).
+
 <!-- appendix-c:end -->
 
 ## Appendix D. System data formats
