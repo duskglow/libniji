@@ -6,5 +6,5 @@ vis-name-kind | xtask/src/visibility.rs | lit:if (kind == "include-error") != (n
 vis-config-order | xtask/src/visibility.rs | lit:Some(p) if last.is_none_or(|l| p > l) => last = Some(p), ==> Some(p) => last = Some(p), | cargo test -p xtask visibility | msg:visibility::tests::visibility_shape.*FAILED|panicked
 vis-star | xtask/src/visibility.rs | lit:if last.is_some() && cfgs.split(',').count() == ids.len() { ==> if last.is_none() && cfgs.is_empty() { | cargo test -p xtask visibility | msg:visibility::tests::visibility_shape.*FAILED|panicked
 vis-duplicate | xtask/src/visibility.rs | lit:&& *p >= key ==> && *p > key | cargo test -p xtask visibility | msg:visibility::tests::row_order.*FAILED|panicked
-cover-empty-unit | xtask/src/visibility.rs | lit:if header != EMPTY_UNIT && kind != "include-error" { ==> if kind != "include-error" { | cargo test -p xtask visibility | msg:visibility::tests::coverage.*FAILED|panicked
-cover-missing | xtask/src/visibility.rs | lit:if !visible.contains_key(name) { ==> if visible.is_empty() { | cargo test -p xtask visibility | msg:visibility::tests::coverage.*FAILED|panicked
+cover-include-error | xtask/src/visibility.rs | lit:if kind != "include-error" { ==> if !kind.is_empty() { | cargo test -p xtask visibility | msg:visibility::tests::coverage.*FAILED|panicked
+cover-missing | xtask/src/visibility.rs | lit:if !visible.contains_key(name) && !EXEMPT ==> if visible.is_empty() && !EXEMPT | cargo test -p xtask visibility | msg:visibility::tests::coverage.*FAILED|panicked

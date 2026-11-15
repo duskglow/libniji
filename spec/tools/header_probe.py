@@ -32,7 +32,8 @@ writes in backticks. Per (header, configuration):
 * struct, union, enum  `sizeof(struct N)` (and `union`, `enum`) compiles: a complete tag.
 
 A header whose bare `#include` fails in a configuration gets one row of kind `include-error`.
-Rows of header `-` are what the empty translation unit already shows (compiler predefines and the
+`configs` is `*` (every configuration), the ids, or `!` and the ids it is NOT visible in, whichever is
+shorter. Rows of header `-` are what the empty translation unit already shows (compiler predefines and the
 implicitly included stdc-predef.h); header rows leave those (name, kind, configuration) out.
 """
 import argparse, csv, os, re, shutil, subprocess, sys, tempfile
@@ -292,7 +293,9 @@ def main():
         if h != "-":
             cs = cs - base.get((n, k), set())
         if cs:
-            rows.append((h, n, k, "*" if len(cs) == len(ids) else ",".join(i for i in ids if i in cs)))
+            listed = ",".join(i for i in ids if i in cs)
+            rest = "!" + ",".join(i for i in ids if i not in cs)
+            rows.append((h, n, k, "*" if len(cs) == len(ids) else min(listed, rest, key=len)))
     rows.sort(key=lambda r: (r[0] != "-", r[0], r[1], KINDS.index(r[2])))
     os.makedirs(args.out, exist_ok=True)
     with open(os.path.join(args.out, "ftm-configs.tsv"), "w", newline="\n") as f:

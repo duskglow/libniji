@@ -17,6 +17,13 @@ const CONFIG_HEAD: &str = "id\tlanguage\tflags\tprobes";
 const VIS_HEAD: &str = "header\tname\tkind\tconfigs";
 /// Kinds in the order the rows of one (header, name) are sorted.
 const KINDS: [&str; 9] = ["macro", "typedef", "function", "object", "enumerator", "struct", "union", "enum", "include-error"];
+/// Table names the probe cannot show, with the reason.
+const EXEMPT: [(&str, &str); 4] = [
+    ("true", "a keyword in C23 and C++: the probe tests no keyword"),
+    ("false", "a keyword in C23 and C++: the probe tests no keyword"),
+    ("sched_getattr", "owner ruling R3: a GLIBC_2.41 addition, absent from the 2.39 reference"),
+    ("sched_setattr", "owner ruling R3: a GLIBC_2.41 addition, absent from the 2.39 reference"),
+];
 /// The header of the rows for the empty translation unit (compiler predefines).
 const EMPTY_UNIT: &str = "-";
 
@@ -89,16 +96,20 @@ fn check_tables(configs: &str, vis: &str, public: &BTreeSet<String>, required: &
             errors.push(format!("{at}: name `{name}` does not fit kind `{kind}`"));
         }
         if cfgs != "*" {
+            let (negated, list) = cfgs.strip_prefix('!').map_or((false, cfgs), |l| (true, l));
             let mut last = None;
-            for c in cfgs.split(',') {
+            for c in list.split(',') {
                 match ids.iter().position(|i| i == c) {
                     Some(p) if last.is_none_or(|l| p > l) => last = Some(p),
                     Some(_) => errors.push(format!("{at}: configuration `{c}` out of table order or repeated")),
                     None => errors.push(format!("{at}: unknown configuration `{c}`")),
                 }
             }
-            if last.is_some() && cfgs.split(',').count() == ids.len() {
-                errors.push(format!("{at}: every configuration listed; write `*`"));
+            let n = list.split(',').count();
+            if last.is_some() && n == ids.len() {
+                errors.push(format!("{at}: every configuration {}; write `*`", if negated { "excluded" } else { "listed" }));
+            } else if !negated && 2 * n > ids.len() + 1 {
+                errors.push(format!("{at}: the `!` form (the configurations left out) is shorter"));
             }
         }
         let key = (header.to_string(), name.to_string(), k);
@@ -108,12 +119,12 @@ fn check_tables(configs: &str, vis: &str, public: &BTreeSet<String>, required: &
             errors.push(format!("{at}: row out of order or repeated (sorted by header, name, kind)"));
         }
         prev = Some(key);
-        if header != EMPTY_UNIT && kind != "include-error" {
+        if kind != "include-error" {
             visible.entry(name.to_string()).or_default().insert(KINDS[k]);
         }
     }
     for (name, table) in required {
-        if !visible.contains_key(name) {
+        if !visible.contains_key(name) && !EXEMPT.iter().any(|(n, _)| n == name) {
             errors.push(format!("{VISIBILITY}: `{name}` ({table}) is visible in no (header, configuration)"));
         }
     }
@@ -205,6 +216,10 @@ mod tests {
         fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\tc99"), &[], "unknown configuration");
         fails(CFG, &VIS.replace("\tstdin\tmacro\tc89,gnu", "\tstdin\tmacro\tgnu,c89"), &[], "out of table order");
         fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\tc89,gnu,cxx98"), &[], "write `*`");
+        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!c89,gnu,cxx98"), &[], "write `*`");
+        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!c89,cxx98"), &[], "is shorter");
+        fails(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!gnu,c89"), &[], "out of table order");
+        assert_eq!(errs(CFG, &VIS.replace("\tEOF\tmacro\t*", "\tEOF\tmacro\t!gnu"), &[]), Vec::<String>::new());
     }
 
     #[test]
@@ -217,7 +232,8 @@ mod tests {
     #[test]
     fn coverage() {
         fails(CFG, VIS, &["EOF", "fopen"], "`fopen` (constants.tsv) is visible in no");
-        // The empty unit and include errors do not make a name visible in a header.
-        fails(CFG, VIS, &["_GNU_SOURCE"], "`_GNU_SOURCE`");
+        // An include error does not make a name visible; the empty unit and the exemptions do.
+        fails(CFG, &VIS.replace("stdio.h\tFILE\ttypedef\t*\n", ""), &["FILE"], "`FILE`");
+        assert_eq!(errs(CFG, VIS, &["_GNU_SOURCE", "true", "sched_getattr"]), Vec::<String>::new());
     }
 }
