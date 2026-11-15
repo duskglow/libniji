@@ -1,12 +1,17 @@
 # UTIL-GETENT (UTIL-6): getent
 
-**State.** Branch `task/util-getent` (from origin/next `8f4198ca7`), role mei `~/w/s2`. Code head `c6f5204fa`; this
-note and `handoff/reports/UTIL-GETENT.json` are the commit after it. Stopped at the context checkpoint (~150k) with
-the gate and plants running detached (below): PENDING JOBS.
+**State (UTIL-GETENT-2).** Branch `task/util-getent-2` (UTIL-GETENT's head `763a8943d` plus origin/next `e84d36ae5`
+merged in), role keke `~/w/n1`. The first run's `util-getent-gate1` (67 transcripts ok) and `util-getent-plants1`
+(9 of 9 CAUGHT) on mei were green; CI then hit a merge conflict with next. This run merged origin/next: next had
+added getconf (UTIL-5) in the same three places, so libc-bin now ships both `/usr/bin/getconf` and
+`/usr/bin/getent` (both stripped), `cargo xtask so` builds getconf then getent, and the transcript harness maps both.
+getent.c moved to `csys/util/getent.c` beside getconf.c. Jobs on keke on the final code head: `util-getent-2-lint1`
+(clippy + static, rc 0), `util-getent-2-gate1` (direct tier), `util-getent-2-plants1`
+(`handoff/UTIL-GETENT-2-plants.txt`, the same 9 plants on the new path). Results: `handoff/reports/UTIL-GETENT-2.json`.
 
 ## On the branch
 
-* `csys/utils/getent.c`: getent as a thin C front end over the public NSS functions (getpw*/getgr*/getsp*/getsg*,
+* `csys/util/getent.c` (was csys/utils/): getent as a thin C front end over the public NSS functions (getpw*/getgr*/getsp*/getsg*,
   put*ent for the line forms, gethostbyname2/gethostbyaddr/gethostent, getaddrinfo with `AI_CANONNAME`,
   `AI_ADDRCONFIG` unless `-A`, `AI_IDN` unless `-i`, `AI_V4MAPPED` for ahostsv6, get{serv,proto,net,rpc}*,
   ether_aton/ntohost/hostton, getalias*, set/getnetgrent and innetgr, getgrouplist with base gid -1 left out,
@@ -51,6 +56,6 @@ options, not offered), IDN names, `--no-idn=x`.
 
 ## Next step
 
-Read `util-getent-gate1` and `util-getent-plants1` on mei (`~/bin/jobwait util-getent-gate1 util-getent-plants1`);
-fix any red; then a §16 story for items 1-4 (recommend: probe each and decide per D-16 records). Read: this note,
+Nothing left for getent itself once `util-getent-2-gate1` and `util-getent-2-plants1` (keke) are green. Then a §16
+story for items 1-4 (recommend: probe each and decide per D-16 records). Read: this note,
 plan/utilities.md §2.1/§4/§5, spec §31.4 clauses, D-31.4.
