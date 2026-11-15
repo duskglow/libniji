@@ -106,6 +106,8 @@ resolved per 256-character block; `ThreadBlock::wclass` (0x180) stored with `vie
 * warm_iswspace_mix stays +8.5/call over next while 28 blocks warm up (one-off per block; steady rows are at parity).
 
 ## Next step
+0. If `wctype-trie-file-11-gate` (mei) is red, read its log first (~/bin/test-summary). A final job never chains the gate
+   with a second `cargo xtask test`: a FULL gate already runs it; start the full-profile checks as their own job.
 1. If CI's keke instruction rows are red: read the cbench_startup ctr lines of the CI log; startup_instr_c: disassemble
    `store_words`' caller in libc.so.6 on head vs next. 2. `_l` rows. 3. timing.
 Do not redo: the stage-1 encoding, the shared pool, `.bss` slots, the 32-bit cells, the Latin alignment experiment, the
