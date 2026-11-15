@@ -155,8 +155,57 @@ fn view_of_special(loc: usize) -> &'static LocaleView {
     gl::view(&Glue, if loc == GLOBAL || loc == 0 { gl::global_handle() } else { 0 })
 }
 
-/// The calling thread's current locale view (D-7.13): its `view` word, one `%fs` load; a thread
-/// whose word is not stored (0) resolves its `uselocale` choice, else the global locale.
+/// Whether wide character `c` has a class of `mask` in the calling thread's current locale
+/// (`iswalpha`, ...), as the C `int`: the thread block's class-word table (D-5.11), one `%fs`
+/// load, then the table's resolved block (D-5.10). A word that reads 0 (not stored yet, or a
+/// process the runtime did not start) and a block not resolved yet take the view's path.
+#[inline(always)]
+pub fn isw(c: u32, mask: Class) -> i32 {
+    let w = class_word();
+    if w != 0
+        && let Some(r) = tb::class_table_at(w).test(c, mask.0)
+    {
+        return r;
+    }
+    isw_view(c, mask)
+}
+
+/// The calling thread's `wclass` word (0x180) in a process the runtime started; 0 in one it did
+/// not start, whatever another library keeps at that offset of its block (D-5.11, ruling #4281:
+/// the gate is the process's ownership word, as [`view_word`], never a flag in the block). The
+/// `and` with a memory operand takes the place of the zero check's `test`. [`store_view`] stores
+/// the word with `view`, so a non-zero word is the current view's class table.
+#[inline(always)]
+fn class_word() -> usize {
+    tb::read::<tb::WClass>() & crate::thread::owned_mask()
+}
+
+/// `iswctype(c, desc)` in the calling thread's current locale: a standard class's mask (or
+/// any value below 2^16) through [`isw`], a locale-defined class through the view.
+#[inline(always)]
+pub fn iswctype(c: u32, desc: u64) -> i32 {
+    match u16::try_from(desc) {
+        Ok(m) => isw(c, Class(m)),
+        Err(_) => iswctype_defined(c, desc),
+    }
+}
+
+/// [`iswctype`] for a descriptor of 2^16 or more (a locale-defined class, or no class).
+#[cold]
+#[inline(never)]
+fn iswctype_defined(c: u32, desc: u64) -> i32 {
+    ctype_tables::iswctype_view(c, desc, view())
+}
+
+/// [`isw`] through the current view (its class table resolves the block).
+#[inline(never)]
+fn isw_view(c: u32, mask: Class) -> i32 {
+    view().isw_int(c, mask)
+}
+
+/// The calling thread's current locale view (D-7.13): its `view` word, one `%fs` load
+/// ([`view_word`]: 0 in a process the runtime did not start, D-X.58); a word that reads 0 resolves
+/// the thread's `uselocale` choice, else the global locale, in one cold call.
 #[inline]
 pub fn view() -> &'static LocaleView {
     match view_word() {
@@ -379,9 +428,22 @@ fn store_words(b: &liella_rt::tls::ThreadBlock, v: &'static LocaleView) {
     b.ctype_b.store(class, Release);
     b.ctype_tolower.store(lower, Release);
     b.ctype_toupper.store(upper, Release);
-    if crate::thread::owned() {
-        b.view.store(core::ptr::from_ref(v).expose_provenance(), Release);
+    // `store_view` makes the ownership test (one test on this start-up path, not two).
+    store_view(b, v);
+}
+
+/// `b`'s `view` word and, with it, its `wclass` word (D-5.11: the class tests read the table
+/// without the view). Every writer of `view` stores both, `wclass` first; each word is replaced
+/// whole, so a reader takes the old or the new value of each, both valid tables or views (a
+/// word that still reads 0 sends the reader to the view path). In a process the runtime did not
+/// start ([`owned`](crate::thread::owned) false) nothing is written: those words are another
+/// library's (D-5.11, ruling #4281).
+fn store_view(b: &liella_rt::tls::ThreadBlock, v: &'static LocaleView) {
+    if !crate::thread::owned() {
+        return;
     }
+    b.wclass.store(core::ptr::from_ref(v.class_table()).expose_provenance(), Release);
+    b.view.store(core::ptr::from_ref(v).expose_provenance(), Release);
 }
 
 /// After `newlocale` changed the object `loc` in place: the `view` word of every thread that
@@ -393,7 +455,7 @@ fn refresh_views_of(loc: usize) {
     }
     crate::thread::each_block(|b| {
         if b.locale.load(Acquire) == loc {
-            b.view.store(core::ptr::from_ref(view_of(loc)).expose_provenance(), Release);
+            store_view(b, view_of(loc));
         }
     });
 }
@@ -1010,6 +1072,68 @@ pub fn rpmatch(response: usize) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// D-5.11 safety (no spec clause: a Liella design rule, records/decisions/D-5/D-5.11.toml):
+    /// in a process the runtime did not start (this test process, its threads made by the
+    /// system's `ld.so`; ruling #4281), the words at 0x138-0x187 (`view`, the cache
+    /// line, `wclass`) are never used as pointers or values and never written. The test fills
+    /// them with non-canonical addresses (a dereference faults), asks the class tests, the view
+    /// and the time zone period, stores a view the way every writer does, and checks the
+    /// answers and that the words still hold what the test put there; then restores them.
+    #[test]
+    #[allow(clippy::unwrap_used)] // a test: a panic in the thread is the failure
+    fn foreign_block_words_are_never_read_or_written() {
+        std::thread::spawn(|| {
+            let b = tb::current();
+            if crate::thread::owned() {
+                println!("skipped: the runtime started this process, so its blocks are not foreign");
+                return;
+            }
+            let words = || {
+                let mut w = [b.view.load(Relaxed), b.wclass.load(Relaxed), 0, 0, 0, 0, 0, 0, 0, 0];
+                for (d, s) in w.iter_mut().skip(2).zip(&b.cache) {
+                    *d = s.load(Relaxed);
+                }
+                w
+            };
+            let saved = words();
+            let flags = b.flags.load(Relaxed);
+            // Answers before the garbage (the view path: nothing stored for this thread).
+            let probe = [0x41u32, 0x7a, 0x30, 0xe9, 0x3b1, 0x4e00, 0x1_0400, 0x11_0000];
+            let classes = [Class::ALPHA, Class::DIGIT, Class::SPACE, Class::UPPER, Class::PRINT];
+            let want: Vec<i32> = probe.iter().flat_map(|&c| classes.iter().map(move |&m| view().isw_int(c, m))).collect();
+            let garbage = |k: usize| 0xdead_0000_0000_1000usize.wrapping_add(k.wrapping_mul(0x40));
+            b.view.store(garbage(0), Relaxed);
+            b.wclass.store(garbage(1), Relaxed);
+            for (k, w) in b.cache.iter().enumerate() {
+                w.store(garbage(k.wrapping_add(2)), Relaxed);
+            }
+            let planted = words();
+            let got: Vec<i32> = probe.iter().flat_map(|&c| classes.iter().map(move |&m| isw(c, m))).collect();
+            let defined = iswctype(0x41, u64::from(Class::ALPHA.0));
+            let v = core::ptr::from_ref(view()).expose_provenance();
+            let vw = with_view(|w| core::ptr::from_ref(w).expose_provenance());
+            store_view(b, view_of(GLOBAL));
+            let fresh = crate::zone::with_period(|p| {
+                let seen = *p == liella::time::Period::from_words(&[0; 3]);
+                *p = liella::time::Period::from_words(&[1, 2, 3]);
+                seen
+            });
+            let after = words();
+            for (d, s) in [&b.view, &b.wclass].into_iter().chain(&b.cache).zip(saved) {
+                d.store(s, Relaxed);
+            }
+            assert_eq!(got, want, "isw answers with garbage words");
+            assert_eq!(defined, 1, "iswctype('A', alpha)");
+            assert!(v != garbage(0), "view() used the garbage view word");
+            assert!(vw != garbage(0), "with_view() used the garbage view word");
+            assert!(fresh, "with_period read the garbage cache words");
+            assert_eq!(after, planted, "a word at 0x138-0x187 of a foreign block was written");
+            assert_eq!(b.flags.load(Relaxed), flags, "the flag word of a foreign block was written");
+        })
+        .join()
+        .unwrap();
+    }
 
     /// The item-table fast path of `nl_langinfo` answers what the per-call path answers (LV-4),
     /// for the built-in locales over every category number around the valid ones, item indexes
