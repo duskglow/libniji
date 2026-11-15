@@ -117,7 +117,11 @@ installed against them. `LIELLA_DEB_SERIAL` sets `<n>` and `LIELLA_DEB_REVISION`
 ```sh
 tools/deb/build.sh --flavour system          # prefix /, writes target/deb-system/*.deb
 tools/deb/check-system.sh target/deb-system   # names, fields, layout, conffiles, triggers, prefix, link
-tools/deb/root-system.sh target/deb-system    # dpkg --root into an empty root (unshare -r), hello inside
+tools/deb/root-system.sh target/deb-system    # dpkg --root into an empty root (unshare -r); dynamic hello,
+                                              # threads, except, iostream run inside
+tools/deb/swap-system.sh target/deb-system trixie  # libc6 + libc-bin swapped into a trixie root; the
+                                              # distribution's ls, sort, grep, sed, awk, bash, perl, python3,
+                                              # find compared with a stock root (MIRROR, KEYRING)
 tools/deb/lint.sh target/deb-system excalibur # lintian in an unprivileged chroot (MIRROR, KEYRING)
 ```
 
