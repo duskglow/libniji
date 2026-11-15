@@ -1,52 +1,41 @@
-# DL-EXIT-ORDER-PROBE: exit order of dlopen objects (handoff, run 1, context checkpoint)
+# DL-EXIT-ORDER-PROBE(-2): exit order of dlopen objects (handoff, run 2)
 
-**State:** branch `task/dl-exit-order-probe`, HEAD = the commit adding this note (report json beside it).
-Status INCOMPLETE: the probe, the reference record and the pure order function with its tests are done;
-the loader is not wired to the order yet, so Liella's behaviour is unchanged. Do not land as is
-(nothing wrong ships, but the story's change is missing).
+**State:** branch `task/dl-exit-order-probe-2` (stacks on `task/dl-exit-order-probe`), HEAD = the commit adding
+this note. The work is done; final jobs (gate, start-up checks, plants) run on this head on keke `~/w/n4`:
+`dl-exit-order-probe-2-gate`, `dl-exit-order-probe-2-startup`, `dl-exit-order-probe-2-plants`.
 
-**Probe-settled (record `== exit-order (DL-EXIT-ORDER-PROBE)` in spec/behaviour/dynlink.glibc.txt, text in
-spec/behaviour/dynlink.md):** the reference runs the program's destructor first, then start-time and
-`dlopen`ed objects as ONE sequence: earliest loaded first, each object after every object that needs
-it (`DT_NEEDED`, and also a global-scope binding: E21). NODELETE, unique pinning, handle open or not:
-no effect (E1-E12). So DL-DLCLOSE's C-6 before C-7 is plain load order, not a unique-pinning effect.
-Inside a dependency cycle the reference's order depends on the other loaded objects (E19-E30); no
-rule matches it.
+**Probe-settled (run 1; record `== exit-order (DL-EXIT-ORDER-PROBE)` in spec/behaviour/dynlink.glibc.txt, text in
+spec/behaviour/dynlink.md):** program first, then start-time and `dlopen`ed objects as ONE sequence, earliest
+loaded first, each object after every object that needs it (`DT_NEEDED` or a global-scope binding, E21);
+NODELETE / unique pinning / open handle: no effect. Inside a cycle the reference's order depends on the other
+objects (E19-E30).
 
-**Liella today** (`crates/boundary/src/ld.rs` `fini_all`, `dlopen::fini_loaded`): all `dlopen`ed objects
-first, last initialised first, then the start-time objects in `init::fini_order` (program first). It
-differs in every multi-object probe and in DL-0b's `== order` exit record (E before the program there).
+**Decisions in force:** pending decision `records/pending/DL-EXIT-ORDER-PROBE-2-1.toml` (D-NEW, series D-27):
+the order above; a cycle runs as one group, last initialised first (ruling #5790). Registered compat flag
+`records/pending/DL-EXIT-ORDER-PROBE-2-2.toml` (COMPAT-NEW, status registered, not implemented). Differences
+row "Exit order inside a dependency cycle of loaded objects" (docs/differences-from-glibc.md, after the
+`dlsym` foreign-handle row). Ids are assigned by CI.
 
-**Done:** `liella_ld::init::exit_order(n, succ, rank, out)` (crates/ld/src/init.rs): Tarjan groups,
-then of the free groups the one with the earliest unit; inside a group (a cycle) the last initialised
-first. Tests: `exit_order_load_order_dependents_first` in crates/ld/tests/init_order.rs (the `== order`
-exit record, E1-E3/E8/E9, E14, E17, E18, E20, E24, E25, E29, E30, errors): passed on keke (unit1;
-unit4 on the final head: tests, workspace clippy, static).
+**Code (run 2):**
+- `crates/boundary/src/ld.rs`: `FINI_IDX` records each `FINI_HOOKS` slot's start-time object (node index);
+  `fini_all` passes `(node, words)` per slot to `dlopen::fini_exit`; without `dlopen` (LOADER 0) the old loop.
+- `crates/boundary/src/ld/dlopen.rs`: `fini_exit` / `exit_set` replace `fini_loaded`. Units: start-time objects in
+  fini order, chained; then logged, live, not finalising `dlopen`ed nodes by index (= load order). Edges:
+  `deps_of` + `binds_of` mapped to units. Rank: start units below every `dlopen` unit, `dlopen` units by log
+  position. `init::exit_order` (run 1) gives the sequence; `Finis::push` adds start units, `Finis::add` marks
+  `dlopen` units finalising. Unreachable error path keeps the old order.
+- Test `exit_runs_loaded_objects_as_one_sequence` (crates/ld/tests/dlclose.rs, `prog DIR exit SCENARIO`, stdout
+  at exit): indep (E1-E9), dep (E17), bind (E21), cycle (E20, Liella's rule), start (E24/E25 with start-time S
+  needing V, M opened needing S). Passed on keke, both kernel-started and `ld.so PROGRAM`.
+- Plants: handoff/DL-EXIT-ORDER-PROBE-2-plants.txt (9: rank reversed in cycle, no bind edges, no dep edges, no
+  start chain, start units dropped, FINI_IDX zero, exit_order group sort / free pick / waits).
 
-**Exact next step (the wiring, est. 30-40 calls):**
-1. `ld.rs` `run_init`: store each `FINI_HOOKS` slot's start-time object index (new static `FINI_IDX`,
-   same index space as `START_OBJS` / loader nodes 0..n_start; check the interp slot).
-2. `fini_all`: when `LOADER != 0`, replace `fini_loaded()` + the hook loop by one call into `dlopen`
-   that, under `STATE`, builds the sequence (start-time objects in FINI order, then live `dlopen`ed
-   nodes `n_start..n`, not gone or finalising, in index order = load order: slots are reused from the
-   top only), `succ` = chain edge to the next start-time unit, plus for a dlopen unit its `deps_of` and
-   `binds_of` mapped to positions (skip gone ones); `rank` from the constructor log (`l.log`), start
-   units by reverse FINI position; marks dlopen units finalising (as `Finis::add`), collects all hooks
-   (a `Finis`-like array of CAP), unlocks, runs. `LOADER == 0` keeps today's loop (no cost for
-   programs that never dlopen).
-3. C test (new mode in crates/ld/tests/dlclose.rs or a new test file): the probe scenarios E1, E5, E14,
-   E18, E21, E25 (needs a start-time lib) and the record's exit case, exact `dtor` sequences; cycles
-   assert Liella's rule.
-4. Decision record: a pending record in series D-27 (`cargo xtask records new decision`, pending id); differences
-   row for the in-cycle order (RULING NEEDED below); plants on `exit_order` (group order, rank sort,
-   free-group pick) and on the wiring (chain edge, binds edges); the start-up checks (exit path is
-   loader code): `cargo xtask test` and the `LIELLA_FULL_PROFILE=1` hot_text_products pair.
+**Open / informational:** a pending compat record cannot name a pending decision (`records check` resolves
+`decisions` among assigned ids only, and `date` requires `decisions`, `story` requires `date`), so
+DL-EXIT-ORDER-PROBE-2-2.toml has no `story`/`date`/`decisions`; the link is in its body: when ids are
+assigned, add `decisions`, `story`, `date`. The start's search in this build resolves start-time
+`DT_NEEDED` by path only (the test links S, V by path).
 
-**RULING NEEDED:** order inside a dependency cycle at exit. Recommend Liella's rule (the last
-initialised first, the C++ construction/destruction principle; agrees with the reference in E29/E30,
-differs in E19/E20/E26-E28), a differences row, no compat option (the reference's in-cycle order
-depends on unrelated objects; matching it would mean replicating an emergent tie-break).
-
-**Do not redo:** the probe runs (ref1-ref3 on keke, record committed).
-**Process notes:** one empty heredoc and one stray `python3 -` (waited on stdin, killed by PID) slipped
-into local commands this run.
+**Not to redo:** probe runs (run 1), exit_order and its unit test, the wiring.
+**Next step:** none for the story once the three jobs are green; a later story may specify the reference's
+in-cycle order from more probes and implement the registered compat flag.
