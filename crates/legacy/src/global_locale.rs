@@ -497,12 +497,27 @@ pub fn env_name<'e>(cat: Cat, getenv: &dyn Fn(&[u8]) -> Option<&'e [u8]>) -> &'e
     nonempty(b"LC_ALL").or_else(|| nonempty(cat.name())).or_else(|| nonempty(b"LANG")).unwrap_or(b"C")
 }
 
+/// The variables `setlocale(cat, "")` reads, by number: [`ENV_LC_ALL`], [`env_key`] of a
+/// category, [`ENV_LANG`] (`LC_ALL`, the categories in [`Cat::ALL`] order, `LANG`). The caller's
+/// lookup is then an index, not a name compare: by name it cost ~150 instructions per variable,
+/// fourteen per `setlocale(LC_ALL, "")` (SETLOCALE-CTYPE-ENV-2).
+pub const ENV_LC_ALL: usize = 0;
+/// `LANG`'s number (see [`ENV_LC_ALL`]).
+pub const ENV_LANG: usize = 13;
+
+/// `LC_<cat>`'s number (see [`ENV_LC_ALL`]).
+#[inline]
+pub const fn env_key(c: Cat) -> usize {
+    c.index().saturating_add(1)
+}
+
 /// What `setlocale` is asked.
 pub enum Request<'a> {
     /// Query the current name.
     Query,
-    /// Take each category's name from the environment (values live while the call runs).
-    Environment(&'a dyn Fn(&[u8]) -> Option<&'static [u8]>),
+    /// Take each category's name from the environment (values live while the call runs): the
+    /// value of variable number `k` (see [`ENV_LC_ALL`]).
+    Environment(&'a dyn Fn(usize) -> Option<&'static [u8]>),
     /// Use this name: for `LC_ALL`, a single name or a composite name.
     Name(&'a [u8]),
 }
@@ -577,6 +592,50 @@ fn query_cached(objs: &impl Objects, cat: Option<Cat>) -> Option<&'static [u8]> 
         return None;
     }
     Some(objs.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot)))
+}
+
+/// [`query_cached`] for the global locale `handle` only: `None` once the global locale is another.
+fn query_cached_for(objs: &impl Objects, cat: Option<Cat>, handle: usize) -> Option<&'static [u8]> {
+    let seq = QUERY_SEQ.load(Acquire);
+    if seq & 1 != 0 || QUERY_HANDLE.load(Acquire) != handle {
+        return None;
+    }
+    let slot = load(&QUERY_SLOT, query_index(cat)).checked_sub(1)?;
+    fence(Acquire);
+    if QUERY_SEQ.load(Relaxed) != seq || handle != GLOBAL.load(Acquire) {
+        return None;
+    }
+    Some(objs.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot)))
+}
+
+/// `setlocale(cat, "")` when every category asked already has the name the environment selects
+/// for it (§7.2, s7_2_c_4: such a category keeps its data, nothing is looked up): the answer
+/// from the query cache, without the lock and without copying or comparing whole locales. The
+/// environment is read on every call (`getenv`; it may have changed since the last one); only
+/// the selection is skipped. `None`: a name differs, or the cache has no answer for this global
+/// locale; [`setlocale_locked`] then decides (SETLOCALE-CTYPE-ENV).
+pub fn setlocale_env_kept(objs: &impl Objects, cat: Option<Cat>, getenv: &dyn Fn(usize) -> Option<&'static [u8]>) -> Option<&'static [u8]> {
+    let handle = GLOBAL.load(Acquire);
+    // Interned locales never change, so their names may be read without the lock.
+    let current = get(objs, handle);
+    let one = [cat.unwrap_or(Cat::Ctype)];
+    let cats: &[Cat] = if cat.is_some() { &one } else { &Cat::ALL };
+    // The selection of `setlocale_locked`: `LC_ALL`, then `LC_<cat>`, then `LANG`, else "C".
+    let nonempty = |k: usize| getenv(k).filter(|v| !v.is_empty());
+    let all = nonempty(ENV_LC_ALL);
+    let mut lang: Option<&'static [u8]> = None;
+    for &c in cats {
+        let n = match all.or_else(|| nonempty(env_key(c))) {
+            Some(n) => n,
+            None => *lang.get_or_insert_with(|| nonempty(ENV_LANG).unwrap_or(b"C")),
+        };
+        let s = current.name(c);
+        // "POSIX" selects the built-in locale that reports itself as "C" (D-X.80).
+        if !(same_name(s, n) || same_name(s, locale::reported(n))) {
+            return None;
+        }
+    }
+    query_cached_for(objs, cat, handle)
 }
 
 /// Record `slot` (an interned name's) as the answer for `cat` in the global locale `handle`.
@@ -667,14 +726,14 @@ pub fn setlocale_locked<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req
         Request::Environment(getenv) => {
             // `env_name` for the categories asked, with `LC_ALL` and `LANG` each looked up once
             // (SETLOCALE-START: three environment scans per category before).
-            let nonempty = |k: &[u8]| getenv(k).filter(|v| !v.is_empty());
-            let all = nonempty(b"LC_ALL");
+            let nonempty = |k: usize| getenv(k).filter(|v| !v.is_empty());
+            let all = nonempty(ENV_LC_ALL);
             let mut lang: Option<Option<&'static [u8]>> = None;
             let mut names: [&[u8]; 12] = [b"C"; 12];
             for &c in cats {
-                let n = match all.or_else(|| nonempty(c.name())) {
+                let n = match all.or_else(|| nonempty(env_key(c))) {
                     Some(n) => n,
-                    None => lang.get_or_insert_with(|| nonempty(b"LANG")).unwrap_or(b"C"),
+                    None => lang.get_or_insert_with(|| nonempty(ENV_LANG)).unwrap_or(b"C"),
                 };
                 *names.get_mut(c.index())? = n;
             }
