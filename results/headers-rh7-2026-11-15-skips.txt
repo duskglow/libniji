@@ -295,11 +295,11 @@ barnowl	barnowl_1.10.orig.tar.gz:barnowl-1.10/perl/modules/Twitter/lib
 barnowl	barnowl_1.10.orig.tar.gz:barnowl-1.10/perl/modules/WordWrap/lib
 bart	bart_0.9.00.orig.tar.gz:bart-0.9.00/lib
 bash	bash_5.2.37.orig.tar.xz:bash-5.2.37/lib
-bash	bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/slackware/home/abc-4-i686-1.txz (nested archive unreadable: truncated header)
-bash	bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/slackware/home/tcl.d/tcl.tgz (nested archive unreadable: truncated header)
+bash	bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/slackware/<home>/abc-4-i686-1.txz (nested archive unreadable: truncated header)
+bash	bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/slackware/<home>/tcl.d/tcl.tgz (nested archive unreadable: truncated header)
 bash	bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/lib
-bash-completion	bash-completion_2.16.0.orig.tar.gz:bash-completion-2.16.0/test/fixtures/slackware/home/abc-4-i686-1.txz (nested archive unreadable: truncated header)
-bash-completion	bash-completion_2.16.0.orig.tar.gz:bash-completion-2.16.0/test/fixtures/slackware/home/tcl.d/tcl.tgz (nested archive unreadable: truncated header)
+bash-completion	bash-completion_2.16.0.orig.tar.gz:bash-completion-2.16.0/test/fixtures/slackware/<home>/abc-4-i686-1.txz (nested archive unreadable: truncated header)
+bash-completion	bash-completion_2.16.0.orig.tar.gz:bash-completion-2.16.0/test/fixtures/slackware/<home>/tcl.d/tcl.tgz (nested archive unreadable: truncated header)
 batalert	batalert_0.4.0.orig.tar.gz:batalert-0.4.0/lib
 batik	batik_1.18+dfsg.orig.tar.xz:batik-1.18/lib
 bats	bats_1.11.1.orig.tar.gz:bats-core-1.11.1/lib

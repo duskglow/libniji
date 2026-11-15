@@ -800,8 +800,8 @@ Scanned 116418 source files in 31 packages.
 184 skipped directories across the sets.
 
 * `bash bash_5.2.37.orig.tar.xz:bash-5.2.37/lib`
-* `bash bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/slackware/home/abc-4-i686-1.txz (nested archive unreadable: empty file)`
-* `bash bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/slackware/home/tcl.d/tcl.tgz (nested archive unreadable: empty file)`
+* `bash bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/slackware/<home>/abc-4-i686-1.txz (nested archive unreadable: empty file)`
+* `bash bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/slackware/<home>/tcl.d/tcl.tgz (nested archive unreadable: empty file)`
 * `bash bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/fixtures/tar/archive.tar.xz (nested archive unreadable: empty file)`
 * `bash bash_5.2.37.orig.tar.xz>bash-completion-2.5.tar.xz:bash-completion-2.5/test/lib`
 * `binutils binutils_2.44.orig.tar.xz:binutils-2.44/binutils/testsuite/lib`
