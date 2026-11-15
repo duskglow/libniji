@@ -1,0 +1,10 @@
+# SL-HEADERS-2 plants on the visibility table check (cargo xtask plants; format docs/plants.md).
+cfg-head | xtask/src/visibility.rs | lit:if lines.next() != Some(CONFIG_HEAD) { ==> if lines.next().is_none() { | cargo test -p xtask visibility | msg:visibility::tests::config_shape.*FAILED|panicked
+cfg-language | xtask/src/visibility.rs | lit:if f[1] != "c" && f[1] != "c++" { ==> if f[1] == "pascal" { | cargo test -p xtask visibility | msg:visibility::tests::config_shape.*FAILED|panicked
+vis-public | xtask/src/visibility.rs | lit:if header != EMPTY_UNIT && !public.contains(header) { ==> if header == "never" { | cargo test -p xtask visibility | msg:visibility::tests::visibility_shape.*FAILED|panicked
+vis-name-kind | xtask/src/visibility.rs | lit:if (kind == "include-error") != (name == "-") || (name != "-" && !is_ident(name)) { ==> if name != "-" && !is_ident(name) { | cargo test -p xtask visibility | msg:visibility::tests::visibility_shape.*FAILED|panicked
+vis-config-order | xtask/src/visibility.rs | lit:Some(p) if last.is_none_or(|l| p > l) => last = Some(p), ==> Some(p) => last = Some(p), | cargo test -p xtask visibility | msg:visibility::tests::visibility_shape.*FAILED|panicked
+vis-star | xtask/src/visibility.rs | lit:if last.is_some() && cfgs.split(',').count() == ids.len() { ==> if last.is_none() && cfgs.is_empty() { | cargo test -p xtask visibility | msg:visibility::tests::visibility_shape.*FAILED|panicked
+vis-duplicate | xtask/src/visibility.rs | lit:&& *p >= key ==> && *p > key | cargo test -p xtask visibility | msg:visibility::tests::row_order.*FAILED|panicked
+cover-empty-unit | xtask/src/visibility.rs | lit:if header != EMPTY_UNIT && kind != "include-error" { ==> if kind != "include-error" { | cargo test -p xtask visibility | msg:visibility::tests::coverage.*FAILED|panicked
+cover-missing | xtask/src/visibility.rs | lit:if !visible.contains_key(name) { ==> if visible.is_empty() { | cargo test -p xtask visibility | msg:visibility::tests::coverage.*FAILED|panicked
