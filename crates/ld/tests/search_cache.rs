@@ -60,7 +60,7 @@ fn cache_file(entries: &[(u32, &str, &str, Option<u32>)], names: &[&str]) -> Vec
 }
 
 fn ctx<'a>(secure: bool, library_path: Option<&'a [u8]>, cache: Option<&'a Cache<'a>>) -> Ctx<'a> {
-    Ctx { secure, library_path, origin_path: None, platform: "haswell", hwcaps: &[], cache }
+    Ctx { secure, library_path, origin_path: None, platform: "haswell", hwcaps: &[], cache: cache.into() }
 }
 
 /// Every candidate path the search tries for `name`, in order (nothing is found).

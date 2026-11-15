@@ -116,8 +116,56 @@ pub struct Ctx<'a> {
     pub platform: &'a str,
     /// The supported `glibc-hwcaps` subdirectories, highest first ([`Arch::hwcaps`]).
     pub hwcaps: &'a [&'a str],
-    /// The cache, when one was read and parsed.
-    pub cache: Option<&'a Cache<'a>>,
+    /// The cache: none, one already read, or one read when a search first reaches it.
+    pub cache: CacheRef<'a>,
+}
+
+/// The cache a search consults ([`Ctx::cache`]). [`CacheRef::Lazy`] lets a caller that may never
+/// need it (program start, where every `DT_NEEDED` entry can be a path) open it only when a search
+/// reaches the cache step; the caller's function reads it at most once and answers from then on.
+#[derive(Clone, Copy, Default)]
+pub enum CacheRef<'a> {
+    /// No cache (none read, or unreadable or inconsistent: "no cache", threat model rule 5).
+    #[default]
+    None,
+    /// A cache already read and parsed.
+    Read(&'a Cache<'a>),
+    /// A cache read on first use: the cell that keeps it and the function that reads it (the
+    /// file's bytes and their reader; `None` when there is none). A plain function and a cell, not
+    /// a closure object: a `dyn Fn` puts a vtable in the loader's relocated data, which every
+    /// program start pays for in self-relocation (DL-START-SEARCH-3).
+    Lazy(&'a LazyCache<'a>, fn() -> Option<(&'a [u8], Cache<'a>)>),
+}
+
+/// The cell behind [`CacheRef::Lazy`]: empty until a search first reaches the cache step, then the
+/// cache read (its bytes, kept so the caller can release them, and its reader) or `None`.
+pub type LazyCache<'a> = core::cell::OnceCell<Option<(&'a [u8], Cache<'a>)>>;
+
+impl<'a> CacheRef<'a> {
+    /// The cache, reading it now for [`CacheRef::Lazy`] (at most once per cell).
+    pub fn get(self) -> Option<&'a Cache<'a>> {
+        match self {
+            CacheRef::None => None,
+            CacheRef::Read(c) => Some(c),
+            CacheRef::Lazy(cell, read) => cell.get_or_init(read).as_ref().map(|(_, c)| c),
+        }
+    }
+}
+
+impl<'a> From<Option<&'a Cache<'a>>> for CacheRef<'a> {
+    fn from(c: Option<&'a Cache<'a>>) -> Self {
+        c.map_or(CacheRef::None, CacheRef::Read)
+    }
+}
+
+impl core::fmt::Debug for CacheRef<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            CacheRef::None => "None",
+            CacheRef::Read(_) => "Read",
+            CacheRef::Lazy(..) => "Lazy",
+        })
+    }
 }
 
 /// Whether `name` is one of Liella's pinned sonames.
@@ -298,7 +346,7 @@ pub fn search<A: Arch>(name: &[u8], chain: &[Scope<'_>], ctx: &Ctx<'_>, try_open
         return true;
     }
     let mut path = PathBuf::default();
-    if let Some(found) = ctx.cache.and_then(|c| c.lookup(name, A::CACHE_FLAGS, ctx.hwcaps)) {
+    if let Some(found) = ctx.cache.get().and_then(|c| c.lookup(name, A::CACHE_FLAGS, ctx.hwcaps)) {
         path.clear();
         if path.push(found) && try_open(&mut path) {
             return true;

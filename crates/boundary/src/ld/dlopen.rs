@@ -30,7 +30,7 @@
 //!
 //! Not here yet (plan §6): lazy binding (DL-20).
 
-use super::{array_words, c_string, dyn_string, env_entries, image_view, open_whole, own_object, read_auxv, report_nonshared, ProcImage, SysMapper};
+use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
 use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_OBJS, START_ARGS, START_PAGE};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
@@ -1315,18 +1315,7 @@ impl Env {
         let secure = start::secure(&aux);
         let ld = start::ld_env(env_entries(envp));
         let features = Native::features(&aux, &crate::sys::CSys);
-        let mut path = PathBuf::default();
-        let file = if with_cache && search::prefixed(b"etc/ld.so.cache", &mut path) { path.c_str().and_then(open_whole) } else { None };
-        let cache = file.and_then(|(f, fd)| {
-            let _ = crate::ffi_sys::liella_sys_close(fd);
-            match Cache::parse(f) {
-                Some(c) => Some((f, c)),
-                None => {
-                    let _ = raw::munmap(f.as_ptr().expose_provenance(), f.len());
-                    None
-                }
-            }
-        });
+        let cache = if with_cache { read_cache() } else { None };
         Env { secure, library_path: ld.library_path, origin_path: ld.origin_path, features, cache }
     }
 
@@ -1337,7 +1326,7 @@ impl Env {
             origin_path: if self.secure { None } else { self.origin_path },
             platform: Native::platform(&self.features),
             hwcaps: Native::hwcaps(&self.features),
-            cache: self.cache.as_ref().map(|(_, c)| c),
+            cache: self.cache.as_ref().map(|(_, c)| c).into(),
         }
     }
 }
