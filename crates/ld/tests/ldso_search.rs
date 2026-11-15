@@ -166,14 +166,17 @@ fn deps(out: &[u8]) -> Vec<String> {
 
 /// The libraries the search tests use, in `d`: `libstep.so.1` returning 11 (in `rp`), 12 (`llp`), 13
 /// (`rn`); a link-time copy (`link`, never searched); `a/libmid.so.1` (RUNPATH `$ORIGIN/inner`) needing
-/// `a/inner/libleaf.so.1` (21); `c/libmidc.so.1` (no search path) needing `c/libleafc.so.1` (22); `badm`
-/// holds another machine's `libstep.so.1`, `badx` a 200-byte non-object of that name.
+/// `a/inner/libleaf.so.1` (21); `b/libmidp.so` (no DT_SONAME, so a program names it by its path;
+/// RUNPATH `$ORIGIN/../a/inner`) needing the same leaf; `c/libmidc.so.1` (no search path) needing
+/// `c/libleafc.so.1` (22); `badm` holds another machine's `libstep.so.1`, `badx` a 200-byte
+/// non-object of that name.
 fn libraries(d: &Path) {
     for (v, at) in [(0, "link"), (11, "rp"), (12, "llp"), (13, "rn")] {
         lib(d, STEP, v, &format!("{at}/libstep.so.1"), "libstep.so.1", &[]);
     }
     lib(d, LEAF, 21, "a/inner/libleaf.so.1", "libleaf.so.1", &[]);
     lib(d, MID, 0, "a/libmid.so.1", "libmid.so.1", &[format!("-L{}", s(&d.join("a/inner"))), "-l:libleaf.so.1".into(), "-Wl,--enable-new-dtags,-rpath,$ORIGIN/inner".into()]);
+    lib(d, MID, 0, "b/libmidp.so", "", &[format!("-L{}", s(&d.join("a/inner"))), "-l:libleaf.so.1".into(), "-Wl,--enable-new-dtags,-rpath,$ORIGIN/../a/inner".into()]);
     lib(d, LEAF, 22, "c/libleafc.so.1", "libleafc.so.1", &[]);
     lib(d, MID, 0, "c/libmidc.so.1", "libmidc.so.1", &[format!("-L{}", s(&d.join("c"))), "-l:libleafc.so.1".into()]);
     let mut other = std::fs::read(d.join("llp/libstep.so.1")).unwrap();
@@ -209,12 +212,15 @@ fn ldso_search_steps_match_reference() {
     let runpath = prog(&d, &ld, "p_runpath", &with(step(), &[format!("-Wl,--enable-new-dtags,-rpath,{}", p("rn"))]));
     let plain = prog(&d, &ld, "p_plain", &step());
     let origin = prog(&d, &ld, "p_origin", &[format!("-L{}", p("a")), "-l:libmid.so.1".into(), format!("-Wl,-rpath-link,{}", p("a/inner")), "-Wl,--enable-new-dtags,-rpath,$ORIGIN/a".into()]);
+    // `b/libmidp.so` by its absolute path (it has no DT_SONAME): its leaf is found only through the
+    // `$ORIGIN` of an object opened by path.
+    let origin_path = prog(&d, &ld, "p_origin_path", &[p("b/libmidp.so"), format!("-Wl,-rpath-link,{}", p("a/inner"))]);
     let mids = || vec![format!("-L{}", p("c")), "-l:libmidc.so.1".to_owned(), format!("-Wl,-rpath-link,{}", p("c"))];
     let chain_rpath = prog(&d, &ld, "p_chain_rpath", &with(mids(), &[format!("-Wl,--disable-new-dtags,-rpath,{}", p("c"))]));
     let chain_runpath = prog(&d, &ld, "p_chain_runpath", &with(mids(), &[format!("-Wl,--enable-new-dtags,-rpath,{}", p("c"))]));
     let missing = |name: &str| -> Result<i32, String> { Err(format!("{name}: cannot open shared object file: No such file or directory")) };
     let (llp, badm, badx) = (p("llp"), format!("{}:{}", p("badm"), p("llp")), format!("{}:{}", p("badx"), p("llp")));
-    let cases: [Case<'_>; 11] = [
+    let cases: [Case<'_>; 12] = [
         ("DT_RPATH", &rpath, None, Ok(11)),
         ("DT_RPATH before LD_LIBRARY_PATH", &rpath, Some(llp.as_str()), Ok(11)),
         ("DT_RUNPATH", &runpath, None, Ok(13)),
@@ -222,6 +228,7 @@ fn ldso_search_steps_match_reference() {
         ("LD_LIBRARY_PATH", &plain, Some(llp.as_str()), Ok(12)),
         ("not found", &plain, None, missing("libstep.so.1")),
         ("$ORIGIN of the program and of a found library", &origin, None, Ok(121)),
+        ("$ORIGIN of a library named by path", &origin_path, None, Ok(121)),
         ("DT_RPATH of the requester's loader", &chain_rpath, None, Ok(122)),
         ("DT_RUNPATH of the requester only", &chain_runpath, None, missing("libleafc.so.1")),
         ("another machine's candidate passed over", &plain, Some(badm.as_str()), Ok(12)),
