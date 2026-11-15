@@ -1,0 +1,55 @@
+{
+ "task": "SL-CRT-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "Merged origin/next (tools/deb/build.sh conflict: both sides' files kept); the system libc6-dev that came with next now ships the SL-CRT start files and check-system.sh links with the packaged crti.o/crtn.o; both package flavours rebuilt and checked",
+ "branch": "task/sl-crt-3",
+ "head": "0c1dd855f",
+ "gate": {
+  "affected": "11856 passed / 0 failed (FULL by escalation: 6621 + 5235; conformance 137/137)",
+  "peak": "13G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The branch's change set includes xtask/src/so.rs, so `cargo xtask affected --run` escalates to FULL (it runs `cargo xtask test` as a step); a separate `cargo xtask test` job would repeat it and was not run",
+  "tools/deb/root-system.sh still links its hello with -nostartfiles and no crti/crtn; check.sh does not check that liella6-dev holds the start files (follow-ups, not needed here)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "SL-CRT can land: CI's merge conflict with next in tools/deb/build.sh resolved",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "system libc6-dev lacked crti.o/crtn.o/gcrt1.o/grcrt1.o/Mcrt1.o; now shipped and linked by check-system.sh",
+   "before": 3,
+   "after": 8,
+   "unit": "start files in libc6-dev",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the system libc6-dev start files (2 CAUGHT)",
+   "before": 0,
+   "after": 2,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A merge-conflict continuation should start by listing next's new files that mention the story (here system.sh said 'no crti.o yet (SL-CRT)'); a real interaction hid behind a one-hunk conflict",
+ "next_step": "None for SL-CRT once the jobs are green; optional: root-system.sh and check.sh start-file follow-ups",
+ "report_file": "handoff/SL-CRT.md",
+ "jobs": [
+  "keke:sl-crt-3-gate",
+  "keke:sl-crt-3-pkg",
+  "keke:sl-crt-3-plants",
+  "keke:sl-crt-3-hotprof",
+  "keke:sl-crt-3-lint"
+ ]
+}

@@ -181,6 +181,12 @@ need liella-rcrt1.o
 put 0644 "$products/liella-crt1.o" "$dlib/crt1.o"
 put 0644 "$products/liella-crt1.o" "$dlib/Scrt1.o"
 put 0644 "$products/liella-rcrt1.o" "$dlib/rcrt1.o"
+# SL-CRT: the rest of the start files a plain compiler-driver link names (crti.o and crtn.o in
+# every link, gcrt1.o for -pg, grcrt1.o for -pg -static-pie) and Mcrt1.o, which is empty.
+for o in gcrt1 grcrt1 crti crtn Mcrt1; do
+    need "liella-$o.o"
+    put 0644 "$products/liella-$o.o" "$dlib/$o.o"
+done
 for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
     put 0644 "$products/$a" "$dlib/$a"

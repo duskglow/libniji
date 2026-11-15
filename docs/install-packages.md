@@ -11,7 +11,7 @@ this page, for Aqours.
 | Package | Like Debian's | Contents |
 |---|---|---|
 | `liella6` | `libc6` | the loader `ld-linux-x86-64.so.2` and the shared libraries (`libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2`, `librt.so.1`, `libutil.so.1`, `libanl.so.1`, `libnsl.so.1`, `libc_malloc_debug.so.0`) |
-| `liella6-dev` | `libc6-dev` | start files (`crt1.o`, `Scrt1.o`, `rcrt1.o`), the `libc.so` linker script, `libc_nonshared.a`, the static archives (`libc.a`, `libm.a`, and the empty `libpthread.a`, `libdl.a`, `librt.a`, `libutil.a`, `libanl.a`, `libresolv.a`), the `libm.so` link, and the `liella-gcc` / `liella-g++` compiler wrapper |
+| `liella6-dev` | `libc6-dev` | start files (`crt1.o`, `Scrt1.o`, `rcrt1.o`, `gcrt1.o`, `grcrt1.o`, `crti.o`, `crtn.o`, `Mcrt1.o`), the `libc.so` linker script, `libc_nonshared.a`, the static archives (`libc.a`, `libm.a`, and the empty `libpthread.a`, `libdl.a`, `librt.a`, `libutil.a`, `libanl.a`, `libresolv.a`), the `libm.so` link, and the `liella-gcc` / `liella-g++` compiler wrapper |
 
 Everything is inside the sysroot `/usr/lib/liella`, laid out as Debian lays out `/` (merged
 `/usr`, multiarch): the libraries in `/usr/lib/liella/usr/lib/x86_64-linux-gnu/`, the loader also
@@ -106,7 +106,7 @@ Do not install them on a Debian or Devuan system that keeps glibc: they replace 
 |---|---|
 | `libc6` | the loader `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2` (`/usr/lib64/ld-linux-x86-64.so.2` links to it; the program interpreter is `/lib64/ld-linux-x86-64.so.2`, reached through base-files' `/lib64 -> usr/lib64`), the shared libraries as in `liella6`, the conffile `/etc/ld.so.conf.d/x86_64-linux-gnu.conf`; activates the `ldconfig` trigger |
 | `libc-bin` | `Essential: yes`. Conffiles `/etc/ld.so.conf`, `/etc/ld.so.conf.d/libc.conf`, `/etc/gai.conf`; the template `/usr/share/libc-bin/nsswitch.conf`, which its postinst copies to `/etc/nsswitch.conf` when there is none. Handles the `ldconfig` trigger: a no-op until Liella ships `ldconfig` (the loader searches the standard directories without a cache) |
-| `libc6-dev` | `Provides: libc-dev`. Start files, the `libc.so` script, `libc_nonshared.a`, the static archives, `libm.so`. No headers and no `crti.o`/`crtn.o` yet: plain `gcc` links only with `-nostartfiles` and the system's glibc headers |
+| `libc6-dev` | `Provides: libc-dev`. Start files (as in `liella6-dev`, `crti.o` and `crtn.o` included), the `libc.so` script, `libc_nonshared.a`, the static archives, `libm.so`. No headers yet: plain `gcc` compiles with the system's glibc headers |
 | `libc-dev-bin`, `locales`, `libc-l10n` | placeholders (documentation only) until their programs and data exist |
 
 Versions are `<abi>+liella<YYYYMMDD>.<n>-<rev>` (owner ruling R2), for example `2.39+liella20261114.1-1`:
