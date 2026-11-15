@@ -105,13 +105,14 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, legacy, libc-so, libm-so, 
 | `/usr/bin/ls` | crates/rt/src/start.rs:538 |
 | `/usr/bin/prog` | crates/legacy/src/argp.rs:72 |
 | `/usr/lib` | crates/ld/src/arch.rs:317 |
-| `/usr/lib/locale` | crates/core/src/locale/mod.rs:533 |
-| `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:535 |
+| `/usr/lib/locale` | crates/core/src/locale/mod.rs:534 |
+| `/usr/lib/locale/C.utf8/LC_CTYPE` | crates/core/src/locale/mod.rs:959 |
+| `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:536 |
 | `/usr/lib/x86_64-linux-gnu` | crates/ld/src/arch.rs:317 |
 | `/usr/share/i18n/charmaps/` | crates/legacy/src/global_locale.rs:101 |
 | `/usr/share/locale` | crates/legacy/src/intl.rs:62 |
 | `/usr/share/locale-langpack` | crates/legacy/src/intl.rs:66 |
-| `/usr/share/locale/locale.alias` | crates/core/src/locale/mod.rs:537 |
+| `/usr/share/locale/locale.alias` | crates/core/src/locale/mod.rs:538 |
 | `/usr/share/zoneinfo` | crates/core/src/time.rs:41 |
 | `/var/log/wtmp` | crates/legacy/src/accounting.rs:40 |
 | `/var/run/utmp` | crates/legacy/src/accounting.rs:38 |
