@@ -250,9 +250,9 @@ def skip_prefix(comps):
     return None
 
 
-def scan_tar_stream(fobj, acc, label):
+def scan_tar_stream(fobj, acc, label, mode="r|*"):
     skipped = set()
-    with tarfile.open(fileobj=fobj, mode="r|*") as tf:
+    with tarfile.open(fileobj=fobj, mode=mode) as tf:
         for m in tf:
             comps = [c for c in m.name.split("/") if c not in ("", ".")]
             sp = skip_prefix(comps)
@@ -294,15 +294,26 @@ def scan_tar_stream(fobj, acc, label):
 
 def scan_file(path, label, acc):
     n = os.path.basename(path)
-    if re.search(r"\.tar\.zst$", n):
-        p = subprocess.Popen(["zstd", "-dc", path], stdout=subprocess.PIPE)
-        scan_tar_stream(p.stdout, acc, label)
-        p.stdout.close()
-        if p.wait() != 0:
-            raise RuntimeError("zstd failed on " + n)
-    elif re.search(r"\.(tar|tar\.gz|tgz|tar\.bz2|tbz2?|tar\.xz|txz|tar\.lzma)$", n):
+    dec = None
+    for pat, cmd in ((r"\.(tar\.zst)$", "zstd"), (r"\.(tar\.gz|tgz)$", "gzip"), (r"\.(tar\.bz2|tbz2?)$", "bzip2"),
+                     (r"\.(tar\.xz|txz|tar\.lzma)$", "xz")):
+        if re.search(pat, n):
+            dec = cmd
+    if dec:
+        # external decompressors read concatenated (multi-stream) files; Python's tar stream reader does not
+        p = subprocess.Popen([dec, "-dc", path], stdout=subprocess.PIPE)
+        try:
+            scan_tar_stream(p.stdout, acc, label, "r|")
+            while p.stdout.read(1 << 20):
+                pass
+        finally:
+            p.stdout.close()
+            rc = p.wait()
+        if rc != 0:
+            raise RuntimeError("%s failed (rc %d) on %s" % (dec, rc, n))
+    elif n.endswith(".tar"):
         with open(path, "rb") as f:
-            scan_tar_stream(f, acc, label)
+            scan_tar_stream(f, acc, label, "r|")
     elif n.endswith(".zip"):
         skipped = set()
         with zipfile.ZipFile(path) as z:
