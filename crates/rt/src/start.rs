@@ -273,6 +273,11 @@ pub mod private {
     /// `dlopen` gives a new module's static TLS block to every thread). Looked up only by a
     /// `dlopen` that loads an object with `PT_TLS`.
     pub const THREAD_WALK: &[u8] = b"__liella_thread_walk";
+    /// `void __liella_owner_unload(size_t lo, size_t hi)`: `dlclose` is unloading the module
+    /// mapped at `[lo, hi)`, after its finalisers ran; the C library drops the opted-in
+    /// registrations (`LIELLA_OWNER_1`, D-27.29) it owns or whose handlers it holds. Looked up
+    /// by the first `dlclose` that unloads an object.
+    pub const OWNER_UNLOAD: &[u8] = b"__liella_owner_unload";
     /// `__liella_build_tag`: [`TAG_LEN`] bytes, [`TAG_PREFIX`] then the build's identity.
     pub const BUILD_TAG: &[u8] = b"__liella_build_tag";
     /// The tag's first bytes (a test finds the tag in a file by them).

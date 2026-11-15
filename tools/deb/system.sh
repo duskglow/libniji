@@ -6,18 +6,21 @@
 # merged-/usr link /lib64 -> usr/lib64, which these packages do not ship). Pending decision
 # records/pending/SL-FLAVOUR-1.toml; checks tools/deb/check-system.sh, proof tools/deb/root-system.sh.
 #
-# Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage) and
-# helpers (put, put_link, put_text, need, installed_size).
+# Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
+# spec) and helpers (put, put_link, put_text, need, installed_size).
 #
 #   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries; conffile
-#                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger.
+#                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
+#                 symbols and shlibs (tools/deb/symbols.py, plan section 3.2; checked by
+#                 tools/deb/check-symbols.sh); Provides liella-native-abi (= <newest
+#                 LIELLA_NATIVE node>), the virtual package the symbols file's native template names.
 #   libc-bin      Essential: the loader configuration (/etc/ld.so.conf, ld.so.conf.d/libc.conf),
 #                 /etc/gai.conf, the nsswitch.conf template its postinst installs when the root has
 #                 none; owns the ldconfig trigger. Its programs (ldconfig, getconf, getent, iconv,
 #                 locale, ...) come with SL-LDCONFIG and SL-BIN-CORE; until then the trigger is a
 #                 documented no-op (the loader searches the standard directories without a cache).
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so. No headers yet (SL-HEADERS, R4); no crti.o/crtn.o yet (SL-CRT).
+#                 libm.so. No headers yet (SL-HEADERS, R4).
 #   libc-dev-bin  placeholder (gencat, ldd: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
@@ -51,6 +54,12 @@ need liella-rcrt1.o
 put 0644 "$products/liella-crt1.o" "$sdev/$mlib/crt1.o"
 put 0644 "$products/liella-crt1.o" "$sdev/$mlib/Scrt1.o"
 put 0644 "$products/liella-rcrt1.o" "$sdev/$mlib/rcrt1.o"
+# SL-CRT: crti.o and crtn.o (every driver link), gcrt1.o (-pg), grcrt1.o (-pg -static-pie) and
+# the empty Mcrt1.o, as in the coexisting liella6-dev.
+for o in gcrt1 grcrt1 crti crtn Mcrt1; do
+    need "liella-$o.o"
+    put 0644 "$products/liella-$o.o" "$sdev/$mlib/$o.o"
+done
 for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a; do
     need "$a"
     put 0644 "$products/$a" "$sdev/$mlib/$a"
@@ -99,8 +108,14 @@ sys_control() {
     fi
 }
 abi_note=" Liella is an implementation of the GNU C Library's ABI (glibc $abi, x86-64)."
+# libc6's symbols and shlibs (plan section 3.2), from the specification and the stripped libraries.
+mkdir -p "$s6/DEBIAN"
+python3 "$here/symbols.py" files --versions "$spec/abi/versions.tsv" --native "$spec/abi/native.tsv" \
+    --gaps "$spec/../docs/spec-symbol-gaps.tsv" --abi "$abi" --version "$version" --libdir "$s6/$mlib" --symbols "$s6/DEBIAN/symbols" --shlibs "$s6/DEBIAN/shlibs"
+native_level=$(python3 "$here/symbols.py" native-level --native "$spec/abi/native.tsv")
 sys_control libc6 amd64 libs required \
     "Multi-Arch: same" \
+    "Provides: liella-native-abi (= $native_level)" \
     "Breaks: base-files (<< 13.3~)" \
     "Description: Liella C library: shared libraries" \
     "$abi_note" \
@@ -125,8 +140,8 @@ sys_control libc6-dev amd64 libdevel optional \
     "Description: Liella C library: development files" \
     "$abi_note" \
     " This package holds the start files, the libc.so linker script," \
-    " libc_nonshared.a and the static archives. Liella's C headers and the start" \
-    " files crti.o and crtn.o are not part of this build yet."
+    " libc_nonshared.a and the static archives. Liella's C headers are not part of" \
+    " this build yet."
 sys_control libc-dev-bin amd64 libdevel optional \
     "Multi-Arch: foreign" \
     "Depends: libc6 (= $version)" \

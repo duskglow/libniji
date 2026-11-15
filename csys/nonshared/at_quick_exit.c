@@ -5,6 +5,10 @@
  * so unloading the module forgets the handler. The callee is named by its symbol explicitly:
  * a program built against Liella must need only versions the reference exports. */
 
+#include "notice.h"
+
+LIELLA_NONSHARED_NOTICE_FOR(at_quick_exit)
+
 extern void *__dso_handle __attribute__((visibility("hidden")));
 extern int liella_nonshared_quick_target(void (*)(void), void *) __asm__("__cxa_at_quick_exit");
 
