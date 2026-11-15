@@ -1,5 +1,4 @@
-id = "D-NEW"
-series = "D-5"
+id = "D-5.12"
 section = "s05"
 spec = "§5.2, App. D.1.2"
 ann = "PERF"
