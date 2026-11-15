@@ -5,3 +5,10 @@ crti-init-no-align | csys/start/crti.S | perl:s/(liella_machine_crti_init:\n\ten
 crtn-fini-padded | csys/start/crtn.S | perl:s/(\.section \.fini,"ax",\x40progbits\n)(\.Lliella_machine_crtn_fini:)/$1\t.p2align 4\n$2/s | cargo test -p liella --test crt_products | msg:crtn.o .fini alignment
 grcrt1-not-static-pie | xtask/src/so.rs | lit:.arg("-DLIELLA_STATIC_PIE").args(&defines).arg(root.join("csys/start/gcrt1.S")) ==> .args(&defines).arg(root.join("csys/start/gcrt1.S")) | cargo test -p liella --test crt_products | msg:GOT|liella_start_main_static_pie
 gmon-pie-no-bias | crates/boundary/src/posix/s28_profiling.rs | lit:let bias = crate::process::executable_bias(); ==> let bias = 0usize; | cargo test -p liella --test crt_products | msg:gmon.out pcs are not link-time pcs
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# crtn-init-no-ret: CAUGHT, caught by crt_products start_files_follow_the_psabi
+# crti-init-writable: CAUGHT, caught by crt_products start_files_follow_the_psabi
+# crti-init-no-align: CAUGHT, caught by crt_products start_files_follow_the_psabi
+# crtn-fini-padded: CAUGHT, caught by crt_products start_files_follow_the_psabi
+# grcrt1-not-static-pie: CAUGHT, caught by no test the log names
+# gmon-pie-no-bias: CAUGHT, caught by crt_products plain_cc_pg_writes_gmon_out

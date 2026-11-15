@@ -1,34 +1,36 @@
 # SL-CRT: crti.o, crtn.o, grcrt1.o, Mcrt1.o (plan/system-libc.md §6 item 4)
 
-State: branch task/sl-crt, code commit 33bd94b39 (pushed). INCOMPLETE: the run reached its context checkpoint.
-Role keke:~/w/n2 (products built with the new objects).
+State: branch task/sl-crt-2 (continues task/sl-crt), code head 0702ed168. SL-CRT-2 finished the open steps.
+Role mei:~/w/s2 (Skylake-SP). Decision pending: records/pending/SL-CRT-1.toml (D-NEW, series D-27; CI assigns the id).
 
 ## Done
-* `csys/start/crti.S`, `crtn.S`, `Mcrt1.S`; `gcrt1.S` with `-DLIELLA_STATIC_PIE` = grcrt1.o (PC-relative hook).
-  `cargo xtask so` builds `liella-{grcrt1,crti,crtn,Mcrt1}.o` (grcrt1 checked like rcrt1); remap PRODUCTS and
-  contract PRODUCT-PATH-REMAP list them; tools/deb/build.sh installs gcrt1/grcrt1/crti/crtn/Mcrt1.o in liella6-dev;
-  docs/install-packages.md lists them. Decision pending: records/pending/SL-CRT-1.toml (D-NEW, series D-27).
+* SL-CRT (33bd94b39): `csys/start/crti.S`, `crtn.S`, `Mcrt1.S`; `gcrt1.S` with `-DLIELLA_STATIC_PIE` = grcrt1.o.
+  `cargo xtask so` builds `liella-{grcrt1,crti,crtn,Mcrt1}.o`; remap PRODUCTS and contract PRODUCT-PATH-REMAP list
+  them; tools/deb/build.sh installs gcrt1/grcrt1/crti/crtn/Mcrt1.o in liella6-dev; docs/install-packages.md lists them.
 * GCC 13 driver specs (`gcc -dumpspecs`): crti/crtn in every link incl. -shared; gcrt1 for -pg/-p/-profile;
-  grcrt1 for those + -static-pie; Mcrt1.o named nowhere (so it is empty but for .note.GNU-stack).
-* Test crates/core/tests/crt_products.rs (plain gcc/g++ with `-B<lib>/`, `-Wl,-t` trace proves every start file and
-  libc file is Liella's). Job sl-crt-t2: `plain_cc_links_and_runs_hello` (PIE, -no-pie, -static, -static-pie, a
-  shared object's own _init/_fini, each output equal to the reference's) and
-  `plain_cxx_runs_static_constructors_and_destructors` (dynamic and static) PASS.
+  grcrt1 for those + -static-pie; Mcrt1.o named nowhere (empty but for .note.GNU-stack).
+* SL-CRT-2 (0702ed168):
+  - The inherited `cargo xtask static` was red on the pending record (tests must be a list, body one line): fixed.
+  - `start_files_follow_the_psabi`: Mcrt1.o check is now "no allocated section of non-zero size" (gas adds empty
+    .text/.data/.bss).
+  - `-pg` PIE gap found and fixed: `_mcleanup` wrote run-time pcs, so gprof matched nothing in a PIE. Probe of the
+    reference (mei, gmon_pg.c, `-pg -fPIE`, dynamic and `-static-pie`): histogram low pc = 0 = `__executable_start`
+    (link-time pcs) for both. crates/boundary/src/posix/s28_profiling.rs now subtracts
+    `process::executable_bias()` (new helper beside `is_read_only`) in the hist and arc records; non-PIE bias is 0,
+    so gmon_products' static case is unchanged. The test checks low pc == `nm __executable_start` and gprof shows `main`.
+  - Plants file handoff/SL-CRT-plants.txt: 6 plants (5 from SL-CRT + `gmon-pie-no-bias`).
+* crt_products (4 tests) and gmon_products pass; clippy and static clean (job sl-crt-2-t1).
 
-## Open (exact next steps)
-1. `start_files_follow_the_psabi` fails on its own check: Mcrt1.o has the empty .text/.data/.bss gcc adds (size 0).
-   Change the check to "no allocated section of non-zero size" (`size` of the object, or the readelf size column).
-2. `plain_cc_pg_writes_gmon_out`: the dynamic `-pg` PIE program (gcrt1.o) writes gmon.out but `gprof -b -q` shows no
-   `main`; the reference's PIE -pg build of the same object does (probe 23:2x on keke, `grep -c main` = 2). Not yet
-   diagnosed: compare Liella's gmon.out header (lowpc/highpc of a PIE) with the reference's (hist_range in
-   gmon_products.rs shows how); the static-pie case (grcrt1.o) has not run yet (the loop stops at the first case).
-   This is profiling of PIE programs under Liella's libc.so (gcrt1.o is unchanged by this story), possibly a §28.1
-   gap outside the crt objects: if so, report it and keep the dynamic -pg case as a known gap rather than loosen it.
-3. Then clippy/static (sl-crt-t2 never reached them), plants `cargo xtask plants handoff/SL-CRT-plants.txt`
-   (5 plants), the direct-tier gate, and the start-up checks (brief: `cargo xtask test`, FULL_PROFILE hot_text_products).
-* Dynamic runs link libc/libm by path (SONAME tag renamed), as conformance/run.sh does: Liella's loader does not
-  search sonames at start yet (DL-8, plan item 1). When DL-8 lands, drop `by_path` from the test.
-* Not done (other stories' files): liella-gcc still refuses -pg/-static-pie and links -nostartfiles (SL-FLAVOUR may
-  switch it to the plain driver now); no .note.gnu.property on any start file (crt1.o has none either).
+## Jobs on the final head (mei)
+sl-crt-2-gate (direct tier), sl-crt-2-xtest (`cargo xtask test`), sl-crt-2-hotprof (FULL_PROFILE so +
+hot_text_products), sl-crt-2-plants. Results: handoff/reports/SL-CRT-2.json.
 
-Report: handoff/reports/SL-CRT.json.
+## Not done / for other stories
+* Dynamic runs in the test link libc/libm by path (SONAME tag renamed): Liella's loader does not search sonames at
+  start yet (DL-8, plan item 1). When DL-8 lands, drop `by_path` from crt_products.rs.
+* liella-gcc still refuses -pg/-static-pie and links -nostartfiles (SL-FLAVOUR may switch it to the plain driver).
+* No .note.gnu.property on any start file (crt1.o has none either): one later change for all of them.
+* No plant on Mcrt1.S: it has no function label for the `.S` plant rule; its content is unchanged since SL-CRT.
+
+## Next step
+None for this story once the jobs are green. Do not redo: the probe above (settled), the record format fix.
