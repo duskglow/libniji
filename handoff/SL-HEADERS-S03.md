@@ -4,7 +4,15 @@ Branch `task/sl-headers-s03` (from origin/next db204dc19). Role keke:~/w/n1 (kek
 GCC 13.3, the same toolchain as the reference). Brief: ~/state/briefs/SL-HEADERS-S03.md. Plan rows: plan/headers.md
 §2.1, §2.2, §4 slice 3; pending decision records/pending/SL-HEADERS-PLAN-1.toml.
 
-## State: done (slice 3)
+## State: INCOMPLETE (context checkpoint). Head does not compile: `sl-headers-s03-gate2` red
+`cargo xtask abi-gen` emits invalid Rust (`expected identifier, found <`, crates/abi/src/layout.rs:2441 and :2502) for
+the anonymous unions of anonymous structs in `struct tcphdr` and `struct udphdr`. EXACT NEXT STEP: either teach the
+abi-gen generator to handle nested anonymous struct-in-union members, or drop the two types from abi_extract.py's
+TYPES. Then rerun `abi_extract.py --layouts-only` (as ~/work/SL-HEADERS-S03/run.sh does), `cargo xtask abi-gen`,
+`cargo xtask stubs`, copy layouts.tsv, layout.rs and appendix_c_layouts.rs back, and run the gate and
+handoff/SL-HEADERS-S03/plants.txt (plants never completed: -plants and -plants2 were stopped).
+
+## Work done (slice 3)
 * `spec/tools/type_probe.py` (new; it reuses header_probe.py's Unit and error-line reader) writes
   * `spec/abi/typedefs.tsv` (3804 rows): kind, name, header, size, align, cxx. 233 typedefs, 132 structs, 1 union,
     4 enums, 37 data objects, 3397 functions. Size and alignment come from the probe's own C objects (`gnu`
