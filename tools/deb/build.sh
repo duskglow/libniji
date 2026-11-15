@@ -110,9 +110,12 @@ if [ -z "$products" ]; then
     echo "build.sh: building the products of $commit (release profile, prefix $prefix) in $work/src"
     (cd "$work/src" && LIELLA_PREFIX=$prefix LIELLA_LIBDIR=usr/lib/$ma LIELLA_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
     products=$work/src/target/liella
+    # The specification tables of the tree the products were built from (system.sh's symbols file).
+    spec=$work/src/spec
 else
     [ -n "$version" ] || { echo "build.sh: --products needs --version" >&2; exit 2; }
     epoch=${SOURCE_DATE_EPOCH:-1}
+    spec=$root/spec
 fi
 products=$(cd "$products" && pwd)
 export SOURCE_DATE_EPOCH="$epoch"

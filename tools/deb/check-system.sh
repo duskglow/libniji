@@ -56,7 +56,8 @@ for deb in $debs; do
         libc6)
             expect libc6 Architecture amd64; expect libc6 Multi-Arch same; expect libc6 Priority required
             expect libc6 Essential no
-            ctrl_want="$ctrl_want ./conffiles ./triggers"
+            # The symbols and shlibs members' contents: tools/deb/check-symbols.sh.
+            ctrl_want="$ctrl_want ./conffiles ./shlibs ./symbols ./triggers"
             conffiles="/etc/ld.so.conf.d/$ma.conf"
             triggers="activate-noawait ldconfig" ;;
         libc-bin)

@@ -6,11 +6,14 @@
 # merged-/usr link /lib64 -> usr/lib64, which these packages do not ship). Pending decision
 # records/pending/SL-FLAVOUR-1.toml; checks tools/deb/check-system.sh, proof tools/deb/root-system.sh.
 #
-# Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage) and
-# helpers (put, put_link, put_text, need, installed_size).
+# Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
+# spec) and helpers (put, put_link, put_text, need, installed_size).
 #
 #   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries; conffile
-#                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger.
+#                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
+#                 symbols and shlibs (tools/deb/symbols.py, plan section 3.2; checked by
+#                 tools/deb/check-symbols.sh); Provides liella-native-abi (= <newest
+#                 LIELLA_NATIVE node>), the virtual package the symbols file's native template names.
 #   libc-bin      Essential: the loader configuration (/etc/ld.so.conf, ld.so.conf.d/libc.conf),
 #                 /etc/gai.conf, the nsswitch.conf template its postinst installs when the root has
 #                 none; owns the ldconfig trigger. Its programs (ldconfig, getconf, getent, iconv,
@@ -99,8 +102,14 @@ sys_control() {
     fi
 }
 abi_note=" Liella is an implementation of the GNU C Library's ABI (glibc $abi, x86-64)."
+# libc6's symbols and shlibs (plan section 3.2), from the specification and the stripped libraries.
+mkdir -p "$s6/DEBIAN"
+python3 "$here/symbols.py" files --versions "$spec/abi/versions.tsv" --native "$spec/abi/native.tsv" \
+    --gaps "$spec/../docs/spec-symbol-gaps.tsv" --abi "$abi" --version "$version" --libdir "$s6/$mlib" --symbols "$s6/DEBIAN/symbols" --shlibs "$s6/DEBIAN/shlibs"
+native_level=$(python3 "$here/symbols.py" native-level --native "$spec/abi/native.tsv")
 sys_control libc6 amd64 libs required \
     "Multi-Arch: same" \
+    "Provides: liella-native-abi (= $native_level)" \
     "Breaks: base-files (<< 13.3~)" \
     "Description: Liella C library: shared libraries" \
     "$abi_note" \
