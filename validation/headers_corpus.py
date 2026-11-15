@@ -268,7 +268,7 @@ def scan_tar_stream(fobj, acc, label):
                     acc.skips.append("%s:%s (nested C library archive, not opened)" % (label, path))
                     continue
                 acc.nest += 1
-                tmpf = os.path.join(acc.tmp, "nested-%d" % acc.nest + os.path.splitext(comps[-1])[1])
+                tmpf = os.path.join(acc.tmp, "nested-%d" % acc.nest + NESTED_RE.search(path).group(0))
                 with open(tmpf, "wb") as o:
                     shutil.copyfileobj(tf.extractfile(m), o, 1 << 20)
                 acc.depth += 1
