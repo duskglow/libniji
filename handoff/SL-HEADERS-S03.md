@@ -1,9 +1,24 @@
 # SL-HEADERS-S03: type and value tables (plan/headers.md slice 3)
 
-Branch `task/sl-headers-s03-2` (continuation of `task/sl-headers-s03`, from origin/next db204dc19). Role keke:~/w/n4
+Branch `task/sl-headers-s03-3` (continuation of `task/sl-headers-s03-2`, itself of `task/sl-headers-s03`, from
+origin/next db204dc19; origin/next 921b3bc91 merged in by S03-3). Role mei:~/w/s2 (S03-3); S03-2 ran on keke:~/w/n4
 (keke: Ubuntu glibc 2.39-0ubuntu8.9, GCC 13.3, the reference toolchain). Briefs: ~/state/briefs/SL-HEADERS-S03.md (the
-spec, "## The change") and ~/state/briefs/SL-HEADERS-S03-2.md. Plan rows: plan/headers.md §2.1, §2.2, §4 slice 3;
-pending decision records/pending/SL-HEADERS-PLAN-1.toml. Report: handoff/reports/SL-HEADERS-S03-2.json.
+spec, "## The change"), ~/state/briefs/SL-HEADERS-S03-2.md, ~/state/briefs/SL-HEADERS-S03-3.md. Plan rows:
+plan/headers.md §2.1, §2.2, §4 slice 3; pending decision records/pending/SL-HEADERS-PLAN-1.toml. Reports:
+handoff/reports/SL-HEADERS-S03-3.json (this run), handoff/SL-HEADERS-S03/SL-HEADERS-S03-2.json.
+
+## State (S03-3): merged with next; ready to land
+CI could not merge S03-2 (conflicts in spec/abi/PROVENANCE and xtask/src/main.rs with slice 4's call-site/noexcept
+probe on next). S03-3 merged origin/next 921b3bc91 (merge commit 24bde702d) keeping both sides: both PROVENANCE notes
+(slice 3 tables; callsites.tsv/noexcept.tsv), both modules and subcommands (`abi-types`, `callsites`) and both static
+checks (array now 38). Next touched none of crates/abi, layouts.tsv or abi_extract.py, so nothing was regenerated
+(`abi-gen --check`: up to date). Proof on the merged head (mei): `sl-headers-s03-3-lint0` (inherited head: xtask
+clippy + static, rc 0); `sl-headers-s03-3-lint1` (workspace clippy -D warnings, xtask clippy, static, abi-gen --check,
+abi-types, callsites, visibility, xtask abi tests 11 and callsites tests 6: rc 0); `sl-headers-s03-3-plants` (the 24
+plants of handoff/SL-HEADERS-S03-2/plants.txt rerun); `sl-headers-s03-3-gate` (`affected --run --base origin/next`).
+Plants: 24 CAUGHT, 0 SURVIVED, no WARN lines (handoff/SL-HEADERS-S03-3-plants.txt). The gate escalated to FULL
+(crates/abi, xtask, spec/abi changed) and runs `cargo xtask test`; it was still running at hand-back (dispatcher reads
+it). Next step after landing: slice 4 of plan/headers.md, which starts from the call-site/noexcept tables now on next.
 
 ## State (S03-2): head compiles; slice 3 complete
 The first run stopped at a context checkpoint with a head that did not compile: `cargo xtask abi-gen` wrote `<anon>`
