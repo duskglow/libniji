@@ -103,16 +103,19 @@ if [ -f "$sxx" ] && [ -f "$sgcc" ]; then
 else
     fail "no shared libstdc++.so.6 ($sxx) or libgcc_s.so.1 ($sgcc) beside $cxx"
 fi
-# shared_cxx OUT SRC LINK...: a C++ object linked dynamically against the root's C library and the
-# copied libstdc++.so.6 and libgcc_s.so.1 (by soname, found at start in the root's library directory).
+# shared_cxx OUT SRC AFTER LINK...: a C++ object linked dynamically against the root's C library and
+# the copied libstdc++.so.6 and libgcc_s.so.1 (by soname, found at start in the root's library
+# directory). LINK... (start files, options) goes before SRC; AFTER (a shared library SRC uses, or
+# empty) goes after it: a linker that defaults to --as-needed (Ubuntu's) drops a shared library that
+# no object before it references, so a library named before the source is never recorded as needed.
 shared_cxx() {
-    o=$1; s=$2; shift 2
-    "$cxx" -O1 -nostdlib "-Wl,--sysroot=$r" -L"$lib" "$@" "$s" "$lib/libstdc++.so.6" -lm -lc "$lib/libgcc_s.so.1" -lgcc "$e" -o "$o" > "$tmp/cc.log" 2>&1 ||
+    o=$1; s=$2; a=$3; shift 3
+    "$cxx" -O1 -nostdlib "-Wl,--sysroot=$r" -L"$lib" "$@" "$s" ${a:+"$a"} "$lib/libstdc++.so.6" -lm -lc "$lib/libgcc_s.so.1" -lgcc "$e" -o "$o" > "$tmp/cc.log" 2>&1 ||
         fail "$(basename "$o") does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 }
-shared_cxx "$lib/libthrowlib.so" "$here/smoke/throwlib.cc" -fPIC -shared -Wl,-soname,libthrowlib.so "$b"
-shared_cxx "$r/tmp/iostream-so" "$here/smoke/iostream.cc" "$lib/Scrt1.o" "$b"
-shared_cxx "$r/tmp/throwmain" "$here/smoke/throwmain.cc" "$lib/Scrt1.o" "$b" "$lib/libthrowlib.so"
+shared_cxx "$lib/libthrowlib.so" "$here/smoke/throwlib.cc" "" -fPIC -shared -Wl,-soname,libthrowlib.so "$b"
+shared_cxx "$r/tmp/iostream-so" "$here/smoke/iostream.cc" "" "$lib/Scrt1.o" "$b"
+shared_cxx "$r/tmp/throwmain" "$here/smoke/throwmain.cc" "$lib/libthrowlib.so" "$lib/Scrt1.o" "$b"
 cxxlibs="$cxxlibs libthrowlib.so"
 b=$("$cc" -print-file-name=crtbeginT.o); e=$("$cc" -print-file-name=crtend.o)
 "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$b" "$here/smoke/hello.c" -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$e" -o "$r/tmp/hello-static" > "$tmp/cc.log" 2>&1 ||
