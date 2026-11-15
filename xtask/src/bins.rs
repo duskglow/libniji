@@ -17,6 +17,11 @@
 //! the residual fill. [`Plan::bound`] is a lower bound per mode (its bytes over [`BIN`], rounded up), so
 //! the plan's distance from optimal is printed, not assumed.
 //!
+//! LAYOUT-WINDOW-BINS-5: the last bin is filled to its boundary too, and the start file ends the group there
+//! ([`GROUP_END`]), so a program's own text after the group (the probe's `main`, compiled into `.text`)
+//! starts on a window boundary instead of wherever the last bin happens to end: a `main` across that
+//! boundary cost every mode a second fault for it (start-up 12 against 11, fast products).
+//!
 //! LAYOUT-WINDOW-BINS-4: a phase mode counts only the faults after its warm-up, so its signatures carry the
 //! warm-up as a mode of its own ([`WARM_UP`]); the planner groups by the modes that count a section
 //! ([`counted`]) and charges a phase mode nothing in a bin its warm-up runs in, so the measured phase's
@@ -56,8 +61,8 @@ pub struct Cold {
 
 /// One bin: its members (indices into the items, list order) and fillers (indices into the cold pool,
 /// in placement order), the members' extent, the end after the fillers, the modes that touch it, and
-/// whether the next bin starts on a boundary (a gap to fill; false for the last bin some mode touches
-/// and every bin after it, which no counted mode runs, so nothing after them needs a boundary).
+/// whether what follows it (the next bin, or after the last one the program's text, [`GROUP_END`]) starts
+/// on a boundary (a gap to fill; every bin of a plan has one since LAYOUT-WINDOW-BINS-5).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Bin {
     pub members: Vec<usize>,
@@ -142,6 +147,11 @@ pub const MAX_BINS: usize = 100;
 pub fn section(bin: usize, filler: bool, place: usize, f: &str) -> String {
     format!(".text.sorted.h9{bin:02}{}{place:05}.{f}", u8::from(filler))
 }
+
+/// The empty, [`BIN`]-aligned section the start file (`csys/src/machine/entry.S`) carries to end the
+/// group (LAYOUT-WINDOW-BINS-5): its name sorts after every [`section`] name (`z` after any digit), so GNU
+/// ld places it after the last bin and starts the program's own `.text` on the next window boundary.
+pub const GROUP_END: &str = ".text.sorted.h9z.liella_group_end";
 
 /// The suffix of a phase mode's warm-up mode in the signatures (LAYOUT-WINDOW-BINS-4). A **phase mode** of
 /// `page_faults.c` (one that prints `f1 - f0`) counts only the faults of its measured phase, after its
@@ -238,12 +248,12 @@ pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
         b.used = extent(items, &b.members);
         b.end = b.used;
     }
-    // Fillers: best fit, largest first, into every gap: up to the last bin some mode touches.
+    // Fillers: best fit, largest first, into every gap, the last bin's included: the start file aligns
+    // what follows the group to the next boundary ([`GROUP_END`]), so that gap is padding unless filled.
     let mut pool: Vec<usize> = (0..cold.len()).filter(|&c| cold[c].bytes > 0 && cold[c].align <= BIN).collect();
     pool.sort_by(|&a, &b| cold[b].bytes.cmp(&cold[a].bytes).then_with(|| cold[a].name.cmp(&cold[b].name)));
     let mut taken = vec![false; cold.len()];
-    let last = bins.iter().rposition(|b| !b.modes.is_empty()).unwrap_or(0);
-    for (n, b) in bins.iter_mut().enumerate().take(last) {
+    for (n, b) in bins.iter_mut().enumerate() {
         b.gap = true;
         let limit = b.used.max(1).next_multiple_of(BIN) - (BIN - capacity(n));
         b.limit = limit;
@@ -381,7 +391,7 @@ pub fn parse_signatures(text: &str) -> Result<BTreeMap<String, BTreeSet<String>>
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_signatures, plan, Cold, Item, Plan, BIN, HEAD_ROOM, section, MAX_BINS};
+    use super::{parse_signatures, plan, Cold, Item, Plan, BIN, GROUP_END, HEAD_ROOM, section, MAX_BINS};
     use std::collections::BTreeSet;
 
     fn item(name: &str, bytes: u64, align: u64, pos: usize, sig: &[&str]) -> Item {
@@ -451,7 +461,7 @@ mod tests {
     fn fillers_take_the_gap_best_fit_and_never_twice() {
         // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): the gap to the next boundary is
         // filled largest-first with cold sections that fit (alignment included); a cold section fills
-        // one gap only, and the last bin takes no filler (nothing follows it).
+        // one gap only. The last bin fills its gap too (LAYOUT-WINDOW-BINS-5: the group ends on a boundary).
         let items = [item("x", 0xec00, 1, 0, &["a"]), item("y", 0xf800, 1, 1, &["b"]), item("z", 0x1100, 1, 2, &["c"])];
         let pool = [cold("big", 0x2000, 1), cold("m", 0x800, 1), cold("s", 0x680, 1), cold("t", 0x100, 0x100), cold("u", 0x80, 1), cold("z0", 0, 1)];
         let p = plan(&items, &pool);
@@ -461,24 +471,30 @@ mod tests {
         assert_eq!(p.bins[0].residual(), 0);
         assert_eq!(p.bins[1].fillers, [4], "m would fit bin 1 exactly but already fills bin 0");
         assert_eq!(p.bins[1].residual(), 0x800 - 0x80);
-        assert!(p.bins[2].fillers.is_empty());
+        assert_eq!((p.bins[2].fillers.as_slice(), p.bins[2].limit), (&[0][..], BIN), "big did not fit bins 0 and 1");
         let tsv = p.tsv(&items, &pool);
         assert!(tsv.contains("0\tm\t2048\tcold\n") && tsv.contains("2\tz\t4352\tc\n"), "{tsv}");
     }
 
     #[test]
-    fn bins_no_mode_touches_need_no_boundary_and_take_no_filler() {
-        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): sections no counted mode runs
-        // come after the counted bins and need no 64 KiB start, so neither they nor the last counted
-        // bin before them take fillers or count residual fill.
+    fn every_bin_fills_to_its_boundary_and_the_group_end_sorts_last() {
+        // LAYOUT-WINDOW-BINS-5 (no spec clause: build tooling, D-X.103): sections no counted mode runs come
+        // after the counted bins; every bin, theirs and the last included, has a gap to its boundary that
+        // fillers take, because the start file's GROUP_END starts what follows the group on the next
+        // boundary (a probe `main` after an unfilled last bin spanned two windows). GROUP_END sorts after
+        // every bin section name, so GNU ld places it last.
         let items = [item("x", 0xf000, 1, 0, &["a"]), item("u0", 0x9000, 1, 1, &[]), item("u1", 0x9000, 1, 2, &[])];
-        let pool = [cold("c", 0x800, 1)];
+        let pool = [cold("c", 0x800, 1), cold("d", 0x6000, 1)];
         let p = plan(&items, &pool);
         assert_eq!(names(&p, &items), [vec!["x"], vec!["u0"], vec!["u1"]]);
-        assert!(p.bins.iter().all(|b| b.fillers.is_empty() && !b.gap && b.residual() == 0), "{:?}", p.bins);
-        let two = [item("x", 0xe000, 1, 0, &["a"]), item("y", 0x2000, 1, 1, &["b"]), item("u0", 0x9000, 1, 2, &[])];
-        let p = plan(&two, &pool);
-        assert_eq!((p.bins[0].gap, p.bins[0].fillers.as_slice(), p.bins[1].gap), (true, &[0][..], false));
+        assert!(p.bins.iter().enumerate().all(|(n, b)| b.gap && b.limit == if n == 0 { BIN - HEAD_ROOM } else { BIN }), "{:?}", p.bins);
+        let filled: Vec<&[usize]> = p.bins.iter().map(|b| b.fillers.as_slice()).collect();
+        assert_eq!(filled, [&[0][..], &[1][..], &[][..]], "the trailing bins take fillers too");
+        assert_eq!(p.bins[2].residual(), BIN - 0x9000);
+        for s in [section(0, false, 0, "a"), section(MAX_BINS - 1, true, 99_999, "zzz"), ".text.sorted.h99999.zzz".to_string()] {
+            assert!(GROUP_END > s.as_str(), "{GROUP_END} sorts before {s}");
+        }
+        assert!(GROUP_END.starts_with(".text.sorted."));
     }
 
     #[test]
@@ -504,7 +520,7 @@ mod tests {
         // LAYOUT-WINDOW-BINS slice 2 (no spec clause: build tooling, D-X.103): the names sort (as GNU ld's
         // SORT(.text.sorted.*) does) into bin order, members by list position, then the bin's fillers; the
         // first member with bytes of every bin after a gap asks for a 64 KiB start, the head bin's does not
-        // (HEAD_ANCHOR), and a bin no counted mode touches after the last counted bin gets none.
+        // (HEAD_ANCHOR); a bin no counted mode touches gets it too (LAYOUT-WINDOW-BINS-5: every bin has a gap).
         let items = [
             item("h0", 0, 1, 0, &["a", "b", "true"]),
             item("h1", 0x8000, 16, 1, &["a", "b", "true"]),
@@ -524,7 +540,7 @@ mod tests {
         assert_eq!(named[0], ".text.sorted.h900000000.h0");
         assert!(named.contains(&".text.sorted.h900100000.f0".to_string()) && named.contains(&".text.sorted.h900100001.f1".to_string()), "{named:?}");
         let aligned: Vec<(&str, u64)> = pl.iter().filter(|x| x.align > 0).map(|x| (items[x.index].name.as_str(), x.align)).collect();
-        assert_eq!(aligned, [("a1", BIN), ("b0", BIN)], "a zero-byte member never carries the alignment");
+        assert_eq!(aligned, [("a1", BIN), ("b0", BIN), ("u0", BIN)], "a zero-byte member never carries the alignment");
         assert!(p.placements(&items, true).iter().any(|x| x.index == 1 && !x.filler && x.align == BIN), "an anchored head bin");
         assert!(p.bins.len() <= MAX_BINS);
     }

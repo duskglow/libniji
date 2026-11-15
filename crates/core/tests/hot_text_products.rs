@@ -891,10 +891,29 @@ fn bin_ranges(map: &str) -> Vec<(usize, u64, u64)> {
     out.into_iter().map(|(b, (lo, hi))| (b, lo, hi)).collect()
 }
 
+/// The start file's empty section that ends the window bins (xtask/src/bins.rs `GROUP_END`).
+const GROUP_END: &str = ".text.sorted.h9z.liella_group_end";
+
 /// The window-bin structure of a linked probe: every counted bin after the head one starts on a 64 KiB
-/// boundary, and every counted bin of at most 64 KiB lies inside one window.
+/// boundary, and every counted bin of at most 64 KiB lies inside one window. GROUP-END
+/// (LAYOUT-WINDOW-BINS-5): the start file's [`GROUP_END`] follows every bin and sits on a 64 KiB boundary, so
+/// the program's own text after the group (the probe's `main`) starts there, not across the last bin's
+/// window (start-up read 12 against 11 when `main` spanned two windows).
 fn bin_window_errors(map: &str) -> Vec<String> {
     let mut bad = Vec::new();
+    let inputs = text_inputs(map);
+    match inputs.iter().position(|s| s.0 == GROUP_END) {
+        None => bad.push(format!("GROUP-END: no {GROUP_END} input in .text (liella-crt1.o built without it?)")),
+        Some(e) => {
+            if inputs[e].1 % 0x10000 != 0 {
+                bad.push(format!("GROUP-END: {GROUP_END} at {:#x}, not on a 64 KiB boundary", inputs[e].1));
+            }
+            let late: Vec<&str> = inputs[e..].iter().filter(|s| s.2 > 0 && bin_of(&s.0).is_some()).map(|s| s.0.as_str()).collect();
+            if !late.is_empty() {
+                bad.push(format!("GROUP-END: window-bin sections after {GROUP_END}: {late:?}"));
+            }
+        }
+    }
     for (b, lo, hi) in bin_ranges(map) {
         if b > 0 && lo % 0x10000 != 0 {
             bad.push(format!("BIN-WINDOW: bin {b} starts at {lo:#x}, not on a 64 KiB boundary (its first member's alignment missing?)"));

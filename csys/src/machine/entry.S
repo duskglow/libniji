@@ -116,6 +116,13 @@ liella_machine_ld_enter:
 	 * coreutils-shaped probe each took one more fault. */
 	.section .data.rel.ro.local,"aw",@progbits
 	.balign LIELLA_RELRO_ALIGN
+	/* LAYOUT-WINDOW-BINS-5: the end of the hot text group's window bins (xtask/src/bins.rs GROUP_END,
+	 * whose name this must match; `cargo xtask so` checks it). The name sorts after every bin in GNU
+	 * ld's SORT(.text.sorted.*), so the program's own `.text` after the group starts on a 64 KiB
+	 * boundary: the last bin is filled up to it, and the probe's `main` no longer spans two
+	 * fault-around windows depending on where the last bin ends. */
+	.section .text.sorted.h9z.liella_group_end,"ax",@progbits
+	.balign 65536
 	.section .eh_frame,"a",@unwind
 	.globl liella_eh_frame_start
 	.hidden liella_eh_frame_start
