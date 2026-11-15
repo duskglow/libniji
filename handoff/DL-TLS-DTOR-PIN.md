@@ -2,7 +2,7 @@
 
 ## State
 
-Current: branch `task/dl-tls-dtor-pin-3`, merge head `1fc388112` (origin/next merged, see -3 below), role
+Current: branch `task/dl-tls-dtor-pin-3`, code head `c5f978407` (origin/next merged twice, see -3 below), role
 keke:~/w/r1; the record is D-27.53 (records/decisions/D-27/D-27.53.toml, amends D-27.50).
 Before: branch `task/dl-tls-dtor-pin-2` (continues `task/dl-tls-dtor-pin`, from origin/next 2d5625a3e), role keke:~/w/n2.
 Code commits: `fd1e4791c` (the pin, the test, the plants file, the pending record), `4c7534584` (`LOADER_PIN`
@@ -19,6 +19,16 @@ in `run_thread_dtors`. Merge commit `1fc388112` keeps both: the pin token goes i
 `thread::words()`, the callback still drops it after the destructor ran. No other file conflicted, and next changed
 none of this branch's other files (exit_handlers.rs, dlopen.rs, startup-state.list, dlclose.rs). No product code
 beyond the resolution changed in -3. Jobs: see "Jobs (-3)" below.
+
+Second merge `c5f978407`: while the first merge's jobs ran, DL-ATEXIT-OWNER's opt-in registrations (D-27.29, ruling
+#4862) landed on next and conflicted in two files. crates/boundary/src/ld/dlopen.rs: next looks up the C library's
+`__liella_owner_unload` (`Finis::owner_unload`) when a `dlclose` unloads something; this branch had split that
+collection step into `collect`, shared by `dlclose` and the last-pin unload (`unpin`). The lookup now ends `collect`,
+so an object unloaded by its last thread_local pin also gets the opted-in unload step while its code is mapped
+(`unpin` runs `Finis::run` exactly as `close_entry` does). crates/legacy/src/exit_handlers.rs: next's
+`finalize_range` kept as is, then this branch's pin-carrying `thread_atexit`. process.rs merged cleanly.
+Not covered by a test of its own: an opted-in registration of an object unloaded by its last pin (the two
+features' tests each cover their own path; the shared `Finis::run` is the same code).
 
 ## DL-TLS-DTOR-PIN-2: why gate1 was red
 
@@ -64,7 +74,17 @@ the child until it exits (safe direction; its exit's `fini_loaded` finalises it)
 Not probed against the reference here (the brief and spec s1_2_c_6 state the behaviour; the reference order was
 observed by AQOURS-SMOKE-RERUN).
 
-## Jobs (-3) (keke role r1, all on merge head 1fc388112, chains ~/work/DL-TLS-DTOR-PIN-3/chain.sh, chain2.sh)
+## Jobs (-3) on the final code head c5f978407 (keke role r1, chain ~/work/DL-TLS-DTOR-PIN-3/chain3.sh)
+
+* `dl-tls-dtor-pin-3-lint2`: rc 0 (clippy --all-features -D warnings, `cargo xtask static`, `records check`).
+* `dl-tls-dtor-pin-3-tests2`: rc 0 (`cargo xtask so`, then crates/ld/tests/dlclose.rs: 5 passed, s1_2_c_6 ok).
+* `dl-tls-dtor-pin-3-rep2`: rc 0, the built s1_2_c_6 test 60 times from a RAM copy, load ~14: 0 failures.
+* `dl-tls-dtor-pin-3-plants2`: rc 0, 5 CAUGHT, 0 SURVIVED, 0 WARN-RC-ONLY, 0 WARN-NO-MSG.
+* `dl-tls-dtor-pin-3-gate2` (`affected --run --base origin/next`, escalates to FULL, so it runs `cargo xtask test`
+  with its products step) and then `dl-tls-dtor-pin-3-release2` (`LIELLA_FULL_PROFILE=1` so + `hot_text_products`):
+  RUNNING at hand-back (gate ~104 min on this host), left for the dispatcher.
+
+## Jobs (-3) on the first merge head 1fc388112 (superseded by the second merge; chains chain.sh, chain2.sh)
 
 * `dl-tls-dtor-pin-3-lint0`: rc 0 on the inherited head 44d39d9f6 (clippy --all-features -D warnings, static,
   `records check`, 0 pending): nothing left red by -2.
@@ -102,5 +122,5 @@ observed by AQOURS-SMOKE-RERUN).
 
 ## Next step
 
-Land (-3 head). DL-ATEXIT-OWNER-5 merges after this: the only shared lines are `thread_atexit` /
-`run_thread_dtors` in crates/boundary/src/process.rs (the pin token and the `|n, pin|` callback). Possible follow-up: drop the pins of threads gone in a fork child (needs every thread's destructor list).
+Land (-3 head c5f978407) once `dl-tls-dtor-pin-3-gate2` and `-release2` pass. DL-ATEXIT-OWNER's registrations
+landed on next before this branch and are merged in (second merge above). Possible follow-up: drop the pins of threads gone in a fork child (needs every thread's destructor list).

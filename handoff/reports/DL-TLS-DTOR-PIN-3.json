@@ -1,14 +1,56 @@
-{"task": "DL-TLS-DTOR-PIN-3", "model": "opus", "tokens": null,
- "result": "Merged origin/next into the thread_local pin branch: the process.rs conflict kept next's thread::words() destructor-list accessor (D-X.60) and this branch's pin take/drop; s1_2_c_6, plants and the escalated FULL gate green on the merge head",
- "branch": "task/dl-tls-dtor-pin-3", "head": "1fc388112",
- "gate": {"affected": "11877 passed / 0 failed (escalated to FULL: 32 suites, conformance 137 / 0)", "peak": "13G"}, "accepted_first_attempt": false,
+{
+ "task": "DL-TLS-DTOR-PIN-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "Merged origin/next twice into the thread_local pin branch: kept next thread::words() dtor-list accessor (D-X.60) and DL-ATEXIT-OWNER opted-in unload step (now also on the last-pin unload) with this branch pin take/drop; lint, s1_2_c_6 tests, 60 repeats and plants green on c5f978407; gate2 (FULL) and release2 running",
+ "branch": "task/dl-tls-dtor-pin-3",
+ "head": "c5f978407",
+ "gate": {
+  "affected": "pending: dl-tls-dtor-pin-3-gate2 running (first merge head 1fc388112: 11877 passed / 0 failed, FULL)",
+  "peak": null
+ },
+ "accepted_first_attempt": false,
  "rulings": [],
- "informational": ["the direct-tier gate escalates to FULL whenever crates/libc-so/startup-state.list changes (a product linker input), so it already runs `cargo xtask test`; a separate xtest job after it is redundant"],
+ "informational": [
+  "the direct-tier gate escalates to FULL whenever crates/libc-so/startup-state.list changes (a product linker input), so it already runs `cargo xtask test`; a separate xtest job after it is redundant",
+  "an object unloaded by its last thread_local pin now also gets the D-27.29 opted-in unload step (shared Finis::run); no test exercises that combination"
+ ],
  "refused": [],
- "impact": [{"kind": "unblock", "what": "CI merge conflict with origin/next resolved, so DL-TLS-DTOR-PIN (s1_2_c_6 thread_local pin, D-27.53) can land in the snapshot gate", "before": null, "after": null, "unit": null, "measured": true},
-            {"kind": "correctness", "what": "thread_local destructor of a dlclosed plugin no longer runs in unmapped memory at thread exit (DL-TLS-DTOR-PIN code, landing with this branch; s1_2_c_6 passes on the merge head, 60 repeats at load ~22: 0 failures)", "before": null, "after": null, "unit": null, "measured": true},
-            {"kind": "coverage", "what": "plants on the pin, all CAUGHT on the merge head", "before": 5, "after": 5, "unit": "plants", "measured": true}],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "CI merge conflict with origin/next resolved, so DL-TLS-DTOR-PIN (s1_2_c_6 thread_local pin, D-27.53) can land in the snapshot gate",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "thread_local destructor of a dlclosed plugin no longer runs in unmapped memory at thread exit (DL-TLS-DTOR-PIN code, landing with this branch; s1_2_c_6 passes on the merge head, 60 repeats at load ~22: 0 failures)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the pin, all CAUGHT on the final head",
+   "before": 5,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
  "improvement": "a gate that escalates itself to FULL could say so in its jobs.tsv kind, so a chain does not queue a second `cargo xtask test` after it (here stopped by hand; ~54 min saved on a host at load ~22)",
- "next_step": "land; DL-ATEXIT-OWNER-5 merges after it (shared lines: thread_atexit / run_thread_dtors in crates/boundary/src/process.rs)",
+ "next_step": "dispatcher reads gate2 and release2; then land. DL-ATEXIT-OWNER is already on next, so nothing else stacks on these lines",
  "report_file": "handoff/DL-TLS-DTOR-PIN.md",
- "jobs": ["dl-tls-dtor-pin-3-lint1", "dl-tls-dtor-pin-3-tests1", "dl-tls-dtor-pin-3-rep1", "dl-tls-dtor-pin-3-plants1", "dl-tls-dtor-pin-3-gate1", "dl-tls-dtor-pin-3-release1"]}
+ "jobs": [
+  "dl-tls-dtor-pin-3-lint2",
+  "dl-tls-dtor-pin-3-tests2",
+  "dl-tls-dtor-pin-3-rep2",
+  "dl-tls-dtor-pin-3-plants2",
+  "dl-tls-dtor-pin-3-gate2",
+  "dl-tls-dtor-pin-3-release2"
+ ]
+}
