@@ -1,5 +1,14 @@
 # DL-START-SEARCH: find DT_NEEDED libraries by soname at program start
 
+**State (DL-START-SEARCH-4):** branch `task/dl-start-search-4` (on -3), role keke:~/w/n3. Report:
+handoff/DL-START-SEARCH-4-report.md. Loader code = the -3 head's (a cold out-of-line move cut instructions but added
+one page fault per start: reverted). New: ldso_search case "$ORIGIN of a library named by path" + its plant.
+**Blocked on RULING:** the CI red in sonames_products comes from R14-3 (a)/D-27.16 (the pinned `libc.so.6` is never
+found through RUNPATH). Those tests used to skip on NO_SEARCH, so their dynamic runs never executed before; the
+recommended fix is for that test to set LD_LIBRARY_PATH (on next). localtime 41 > 40 is systemic (#1307,
+LAYOUT-WINDOW-BINS-4). **Next step:** after the ruling and LAYOUT-WINDOW-BINS-4, re-run CI; the p_path surplus
+(+540 instructions) needs a layout-aware design for ld.so text (report, "The cold move").
+
 **State (DL-START-SEARCH-3):** branch `task/dl-start-search-3` (on -2), head 71db28f7f, role keke:~/w/n3. Report:
 handoff/DL-START-SEARCH-3-report.md. The -2 red was the counts script (base cannot start p_soname); fixed. The counts
 then showed the -2 code above base for programs that need no search (p_none +304, p_path +830 instructions); this run
