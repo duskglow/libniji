@@ -1,0 +1,31 @@
+name: getent group by name and gid, one missing
+clause: s31_4_g_1
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+file: etc/group
+| root:x:0:
+| daemon:x:1:
+| sudo:x:27:alice
+| users:x:100:alice,bob
+| alice:x:1000:
+arg: group
+arg: users
+arg: 27
+arg: nope

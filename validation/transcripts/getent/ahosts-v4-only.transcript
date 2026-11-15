@@ -1,0 +1,30 @@
+name: getent ahosts of IPv4-only names and a numeric address
+clause: s31_4_g_2
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+file: etc/hosts
+| 127.0.0.1\tlocalhost
+| 127.0.1.1 box.example box
+| ::1 localhost ip6-localhost ip6-loopback
+| 192.0.2.5 www.example.org www
+| 2001:db8::1 v6host
+arg: ahosts
+arg: box
+arg: 192.0.2.5

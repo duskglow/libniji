@@ -1,0 +1,25 @@
+name: getent --help after a database; the bug-report lines are identity strings (D-31.4)
+clause: s31_1_c_2
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+# The reference's bug-report lines are an identity string (D-31.4): Liella prints none.
+normalise: shadow\n\nFor bug reporting instructions, please see:\n<https://bugs.launchpad.net/ubuntu/+source/glibc/+bugs>.\n => shadow\n
+arg: passwd
+arg: --help
