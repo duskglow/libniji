@@ -28,3 +28,7 @@ arg: -s
 arg: files:passwd
 arg: passwd
 arg: root
+status: exit 1
+stdout:
+stderr:
+| getent: Unknown database name

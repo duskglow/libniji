@@ -35,3 +35,10 @@ arg: alice
 arg: bob
 arg: root
 arg: nope
+status: exit 0
+stdout:
+| alice                 27 100
+| bob                   100
+| root                \x20
+| nope                \x20
+stderr:

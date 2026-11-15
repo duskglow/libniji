@@ -23,3 +23,7 @@ file: etc/netgroup
 | trusted (box,alice,example.org) (-,bob,)
 | all trusted (,carol,)
 arg: netgroup
+status: exit 3
+stdout:
+stderr:
+| Enumeration not supported on netgroup

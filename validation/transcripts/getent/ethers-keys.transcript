@@ -27,3 +27,9 @@ arg: 08:00:20:00:61:ca
 arg: 8:0:20:0:61:ca
 arg: nope
 arg: 00:11:22:33:44:55
+status: exit 2
+stdout:
+| 8:0:20:0:61:ca box
+| 8:0:20:0:61:ca box
+| 8:0:20:0:61:ca box
+stderr:

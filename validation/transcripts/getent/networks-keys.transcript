@@ -28,3 +28,9 @@ arg: loopback
 arg: 169.254.0.0
 arg: 127.0.0.0
 arg: nope
+status: exit 2
+stdout:
+| loopback              127.0.0.0
+| link-local            169.254.0.0
+| loopback              127.0.0.0
+stderr:

@@ -28,3 +28,6 @@ arg: -s
 arg: passwd:bogus
 arg: passwd
 arg: root
+status: exit 2
+stdout:
+stderr:

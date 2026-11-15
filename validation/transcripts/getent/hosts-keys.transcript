@@ -34,3 +34,12 @@ arg: 2001:db8:0::1
 arg: ::1
 arg: missing
 arg: 10.9.9.9
+status: exit 2
+stdout:
+| ::1             localhost ip6-localhost ip6-loopback
+| 127.0.1.1       box.example box
+| 2001:db8::1     v6host
+| 192.0.2.5       www.example.org www
+| 2001:db8::1     v6host
+| ::1             localhost ip6-localhost ip6-loopback
+stderr:

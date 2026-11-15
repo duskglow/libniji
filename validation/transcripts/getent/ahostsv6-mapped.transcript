@@ -28,3 +28,9 @@ file: etc/hosts
 arg: -A
 arg: ahostsv6
 arg: box
+status: exit 0
+stdout:
+| ::ffff:127.0.1.1 STREAM box.example
+| ::ffff:127.0.1.1 DGRAM \x20
+| ::ffff:127.0.1.1 RAW   \x20
+stderr:

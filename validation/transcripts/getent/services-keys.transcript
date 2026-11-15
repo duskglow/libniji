@@ -35,3 +35,11 @@ arg: ssh/udp
 arg: ssh/
 arg: /tcp
 arg: 99999
+status: exit 2
+stdout:
+| ssh                   22/tcp
+| http                  80/tcp www
+| domain                53/tcp
+| domain                53/udp
+| http                  80/tcp www
+stderr:

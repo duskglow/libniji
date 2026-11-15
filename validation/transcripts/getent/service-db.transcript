@@ -28,3 +28,7 @@ file: etc/group
 arg: group
 arg: --service=group:files
 arg: sudo
+status: exit 0
+stdout:
+| sudo:x:27:alice
+stderr:

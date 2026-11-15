@@ -24,3 +24,9 @@ file: etc/protocols
 | icmp\t1\tICMP
 | tcp\t6\tTCP
 arg: protocols
+status: exit 0
+stdout:
+| ip                    0 IP
+| icmp                  1 ICMP
+| tcp                   6 TCP
+stderr:

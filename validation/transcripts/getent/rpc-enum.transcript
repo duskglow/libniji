@@ -25,3 +25,10 @@ file: etc/rpc
 | mountd\t\t100005
 | verylongrpcname1234 100099 x
 arg: rpc
+status: exit 0
+stdout:
+| portmapper      100000  portmap sunrpc rpcbind
+| nfs             100003  nfsprog
+| mountd          100005
+| verylongrpcname1234 100099  x
+stderr:

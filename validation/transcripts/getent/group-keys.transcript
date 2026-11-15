@@ -29,3 +29,8 @@ arg: group
 arg: users
 arg: 27
 arg: nope
+status: exit 2
+stdout:
+| users:x:100:alice,bob
+| sudo:x:27:alice
+stderr:

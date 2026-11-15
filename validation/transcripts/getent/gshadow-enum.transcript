@@ -23,3 +23,8 @@ file: etc/gshadow
 | root:*::
 | sudo:!:alice:alice
 arg: gshadow
+status: exit 0
+stdout:
+| root:*::
+| sudo:!:alice:alice
+stderr:

@@ -27,3 +27,7 @@ arg: nope
 arg: a
 arg: b
 arg: c
+status: exit 0
+stdout:
+| nope                  (a,b,c) = 0
+stderr:

@@ -25,3 +25,7 @@ file: etc/shadow
 arg: shadow
 arg: alice
 arg: nope
+status: exit 2
+stdout:
+| alice:$6$salt$hash:19000:0:99999:7:::
+stderr:

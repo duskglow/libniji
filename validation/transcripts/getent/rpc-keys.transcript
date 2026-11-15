@@ -30,3 +30,10 @@ arg: 100000
 arg: sunrpc
 arg: mountd
 arg: 5
+status: exit 2
+stdout:
+| nfs             100003  nfsprog
+| portmapper      100000  portmap sunrpc rpcbind
+| portmapper      100000  portmap sunrpc rpcbind
+| mountd          100005
+stderr:

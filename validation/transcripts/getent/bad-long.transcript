@@ -20,3 +20,8 @@ file: etc/nsswitch.conf
 | netgroup: files
 | aliases: files
 arg: --bogus
+status: exit 64
+stdout:
+stderr:
+| getent: unrecognized option '--bogus'
+| Try `getent --help' or `getent --usage' for more information.

@@ -20,3 +20,9 @@ file: etc/nsswitch.conf
 | netgroup: files
 | aliases: files
 arg: --usage
+status: exit 0
+stdout:
+| Usage: getent [-Ai?V] [-s CONFIG] [--no-addrconfig] [--no-idn]
+| \x20           [--service=CONFIG] [--help] [--usage] [--version]
+| \x20           database [key ...]
+stderr:

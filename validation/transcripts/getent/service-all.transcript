@@ -28,3 +28,7 @@ arg: -s
 arg: files
 arg: passwd
 arg: root
+status: exit 0
+stdout:
+| root:x:0:0:root:/root:/bin/bash
+stderr:

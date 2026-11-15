@@ -26,3 +26,11 @@ file: etc/group
 | users:x:100:alice,bob
 | alice:x:1000:
 arg: group
+status: exit 0
+stdout:
+| root:x:0:
+| daemon:x:1:
+| sudo:x:27:alice
+| users:x:100:alice,bob
+| alice:x:1000:
+stderr:

@@ -24,3 +24,7 @@ file: etc/netgroup
 | all trusted (,carol,)
 arg: netgroup
 arg: all
+status: exit 0
+stdout:
+| all                   ( ,carol,) (box,alice,example.org) (-,bob,)
+stderr:

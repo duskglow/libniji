@@ -24,3 +24,9 @@ file: etc/networks
 | loopback\t127.0.0.0
 | link-local\t169.254.0.0
 arg: networks
+status: exit 0
+stdout:
+| default               0.0.0.0
+| loopback              127.0.0.0
+| link-local            169.254.0.0
+stderr:

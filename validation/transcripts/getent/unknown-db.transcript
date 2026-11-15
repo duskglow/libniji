@@ -21,3 +21,8 @@ file: etc/nsswitch.conf
 | aliases: files
 arg: foo
 arg: bar
+status: exit 1
+stdout:
+| Try `getent --help' or `getent --usage' for more information.
+stderr:
+| Unknown database: foo

@@ -21,3 +21,8 @@ file: etc/nsswitch.conf
 | aliases: files
 arg: -x
 arg: passwd
+status: exit 64
+stdout:
+stderr:
+| getent: invalid option -- 'x'
+| Try `getent --help' or `getent --usage' for more information.

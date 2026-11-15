@@ -25,3 +25,6 @@ file: etc/netgroup
 arg: netgroup
 arg: trusted
 arg: box
+status: exit 0
+stdout:
+stderr:

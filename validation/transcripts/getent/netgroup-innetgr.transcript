@@ -27,3 +27,7 @@ arg: trusted
 arg: box
 arg: alice
 arg: example.org
+status: exit 0
+stdout:
+| trusted               (box,alice,example.org) = 1
+stderr:

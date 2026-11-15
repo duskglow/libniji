@@ -23,3 +23,8 @@ file: etc/shadow
 | root:*:19000:0:99999:7:::
 | alice:$6$salt$hash:19000:0:99999:7:::
 arg: shadow
+status: exit 0
+stdout:
+| root:*:19000:0:99999:7:::
+| alice:$6$salt$hash:19000:0:99999:7:::
+stderr:

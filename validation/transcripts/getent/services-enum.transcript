@@ -26,3 +26,11 @@ file: etc/services
 | http\t\t80/tcp\t\twww
 | verylongservicename 9999/tcp
 arg: services
+status: exit 0
+stdout:
+| ssh                   22/tcp
+| domain                53/tcp
+| domain                53/udp
+| http                  80/tcp www
+| verylongservicename   9999/tcp
+stderr:

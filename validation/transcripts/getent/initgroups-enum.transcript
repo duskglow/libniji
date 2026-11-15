@@ -26,3 +26,7 @@ file: etc/group
 | users:x:100:alice,bob
 | alice:x:1000:
 arg: initgroups
+status: exit 3
+stdout:
+stderr:
+| Enumeration not supported on initgroups

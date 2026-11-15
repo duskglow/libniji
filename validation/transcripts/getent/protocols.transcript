@@ -28,3 +28,9 @@ arg: tcp
 arg: 1
 arg: ICMP
 arg: 99
+status: exit 2
+stdout:
+| tcp                   6 TCP
+| icmp                  1 ICMP
+| icmp                  1 ICMP
+stderr:

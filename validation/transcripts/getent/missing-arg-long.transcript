@@ -20,3 +20,8 @@ file: etc/nsswitch.conf
 | netgroup: files
 | aliases: files
 arg: --service
+status: exit 64
+stdout:
+stderr:
+| getent: option '--service' requires an argument
+| Try `getent --help' or `getent --usage' for more information.

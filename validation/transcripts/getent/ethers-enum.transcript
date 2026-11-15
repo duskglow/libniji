@@ -22,3 +22,7 @@ file: etc/nsswitch.conf
 file: etc/ethers
 | 08:00:20:00:61:ca box
 arg: ethers
+status: exit 3
+stdout:
+stderr:
+| Enumeration not supported on ethers

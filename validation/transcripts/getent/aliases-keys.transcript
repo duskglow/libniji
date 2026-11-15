@@ -27,3 +27,8 @@ arg: aliases
 arg: admins
 arg: averyveryverylongalias
 arg: nope
+status: exit 2
+stdout:
+| admins:         alice, bob
+| averyveryverylongalias: root
+stderr:

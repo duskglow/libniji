@@ -29,3 +29,12 @@ arg: ahostsv4
 arg: localhost
 arg: www
 arg: nope
+status: exit 2
+stdout:
+| 127.0.0.1       STREAM localhost
+| 127.0.0.1       DGRAM \x20
+| 127.0.0.1       RAW   \x20
+| 192.0.2.5       STREAM www.example.org
+| 192.0.2.5       DGRAM \x20
+| 192.0.2.5       RAW   \x20
+stderr:

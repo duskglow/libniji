@@ -25,3 +25,7 @@ file: etc/gshadow
 arg: gshadow
 arg: sudo
 arg: nope
+status: exit 2
+stdout:
+| sudo:!:alice:alice
+stderr:

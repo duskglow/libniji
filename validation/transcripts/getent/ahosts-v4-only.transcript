@@ -28,3 +28,12 @@ file: etc/hosts
 arg: ahosts
 arg: box
 arg: 192.0.2.5
+status: exit 0
+stdout:
+| 127.0.1.1       STREAM box.example
+| 127.0.1.1       DGRAM \x20
+| 127.0.1.1       RAW   \x20
+| 192.0.2.5       STREAM 192.0.2.5
+| 192.0.2.5       DGRAM \x20
+| 192.0.2.5       RAW   \x20
+stderr:

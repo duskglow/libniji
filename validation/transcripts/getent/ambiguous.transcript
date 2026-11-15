@@ -22,3 +22,8 @@ file: etc/nsswitch.conf
 arg: --no
 arg: hosts
 arg: box
+status: exit 64
+stdout:
+stderr:
+| getent: option '--no' is ambiguous; possibilities: '--no-idn' '--no-addrconfig'
+| Try `getent --help' or `getent --usage' for more information.

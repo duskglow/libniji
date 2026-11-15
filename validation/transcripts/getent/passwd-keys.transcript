@@ -32,3 +32,10 @@ arg: 0x3e8
 arg: 1000x
 arg: nobody
 arg: bob
+status: exit 2
+stdout:
+| root:x:0:0:root:/root:/bin/bash
+| alice:x:1000:1000:Alice,,,:/home/alice:/bin/sh
+| alice:x:1000:1000:Alice,,,:/home/alice:/bin/sh
+| bob:x:1001:100::/home/bob:
+stderr:

@@ -24,3 +24,9 @@ file: etc/aliases
 | admins: alice, bob
 | averyveryverylongalias: root
 arg: aliases
+status: exit 0
+stdout:
+| postmaster:     root
+| admins:         alice, bob
+| averyveryverylongalias: root
+stderr:
