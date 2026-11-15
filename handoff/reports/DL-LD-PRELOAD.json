@@ -1,0 +1,11 @@
+{"task": "DL-LD-PRELOAD", "model": "opus", "tokens": null,
+ "result": "CHECKPOINT (context ~150k): reference probed (preload order, texts, /etc/ld.so.preload syntax and cost); loader code written as WIP, not compiled or tested",
+ "branch": "task/dl-ld-preload", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["ld.so --list and LD_TRACE_LOADED_OBJECTS do not show preloads yet; the ld.so --preload option is not done", "the 'Not available yet' list is in liella-ops release notes (read-only for agents): drop LD_PRELOAD there when this lands"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "WIP only: preload loading code not yet compiled or verified", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "brief should flag that the release notes it names live in the read-only ops repo",
+ "next_step": "sync to keke:~/w/n3, make the WIP compile (clippy), update the two ldso_run tests, add tests/probe record/fakeroot swap cases, plants, gate (handoff/DL-LD-PRELOAD.md step list)",
+ "report_file": "handoff/DL-LD-PRELOAD.md",
+ "jobs": ["dl-ld-preload-probe1", "dl-ld-preload-probe2"]}

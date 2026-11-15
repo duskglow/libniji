@@ -11,6 +11,9 @@
 //! * [`rewrite`]: for `ld.so PROGRAM`, the auxiliary vector entries that describe the program the
 //!   loader mapped instead of the loader itself.
 //! * [`ld_env`], [`preload_names`]: the `LD_*` settings, read once.
+//! * [`preload_file_names`], [`preload_rule`], [`preload_mode_admits`], [`preload_ignored`]: the
+//!   preloaded objects (DL-LD-PRELOAD): the preload file's syntax, the secure-mode rule for each
+//!   name (threat model rule 1) and the "cannot be preloaded" diagnostic.
 //! * [`bias`]: the mapped program's load bias, from `PT_PHDR` or, without one, its ELF header.
 //! * [`needs_objects`]: whether a dynamic array names a `DT_NEEDED` object (loading dependencies
 //!   comes with DL-8; until then such a program is refused).
@@ -200,12 +203,55 @@ pub fn preload_names(value: &[u8]) -> impl Iterator<Item = &[u8]> {
     value.split(|&b| b == b' ' || b == b':').filter(|n| !n.is_empty())
 }
 
-/// The diagnostic for a preload object this loader does not load yet (standard error, in order):
-/// the line format of the reference's "cannot be preloaded ... ignored" diagnostic (probe: a
-/// nonexistent `LD_PRELOAD` object under the reference), with this loader's reason. The program
-/// still runs, as there.
-pub fn preload_ignored(name: &[u8]) -> [&[u8]; 3] {
-    [b"ERROR: ld.so: object '", name, b"' from LD_PRELOAD cannot be preloaded (loading objects is not available in this build): ignored.\n"]
+/// The object names in the preload file (`<prefix>/etc/ld.so.preload`): separated by spaces, tabs,
+/// newlines or colons; a `#` starts a comment that ends at the end of its line; empty names skipped
+/// (DL-LD-PRELOAD probe of the reference, spec/behaviour/dynlink-preload.md).
+pub fn preload_file_names(text: &[u8]) -> impl Iterator<Item = &[u8]> {
+    text.split(|&b| b == b'\n')
+        .flat_map(|line| line.split(|&b| b == b'#').next().unwrap_or(&[]).split(|&b| b == b' ' || b == b'\t' || b == b':'))
+        .filter(|n| !n.is_empty())
+}
+
+/// The text a preload's diagnostic names as its source: `LD_PRELOAD` (the file's path is the other).
+pub const PRELOAD_ENV: &[u8] = b"LD_PRELOAD";
+
+/// How a preload name is looked for (threat model rule 1, spec/behaviour/dynlink-secure.md).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PreloadRule {
+    /// As a `DT_NEEDED` name of the program: a name with `/` as given (after token expansion), else
+    /// the search (in secure mode the search's own rules apply).
+    Search,
+    /// Secure mode, an `LD_PRELOAD` name without `/`: only in a trusted directory, and only a file
+    /// with the set-user-ID bit ([`preload_mode_admits`]); otherwise not found.
+    TrustedSetUid,
+    /// Secure mode, an `LD_PRELOAD` name with `/`: skipped without a message.
+    Skip,
+}
+
+/// The rule for the preload `name`, from `LD_PRELOAD` (`from_env`) or from the preload file. The
+/// file is root-owned configuration: honoured as given in secure mode too (probe DL-0a).
+pub fn preload_rule(name: &[u8], from_env: bool, secure: bool) -> PreloadRule {
+    match (secure && from_env, name.contains(&b'/')) {
+        (false, _) => PreloadRule::Search,
+        (true, true) => PreloadRule::Skip,
+        (true, false) => PreloadRule::TrustedSetUid,
+    }
+}
+
+/// Whether a file of mode `mode` (`st_mode`) may be preloaded by a secure process: it has the
+/// set-user-ID bit (threat model rule 1; a set-group-ID bit alone does not admit it).
+pub fn preload_mode_admits(mode: u32) -> bool {
+    mode & 0o4000 != 0
+}
+
+/// The reason a preload that was not found gives (the reference's text, probed).
+pub const PRELOAD_MISSING: &[u8] = b"cannot open shared object file";
+
+/// The diagnostic for a preload that cannot be loaded (standard error, in order): the reference's
+/// line (probed), naming the object, its source ([`PRELOAD_ENV`] or the file's path) and the
+/// reason. The program still runs, as there.
+pub fn preload_ignored<'a>(name: &'a [u8], source: &'a [u8], reason: &'a [u8]) -> [&'a [u8]; 7] {
+    [b"ERROR: ld.so: object '", name, b"' from ", source, b" cannot be preloaded (", reason, b"): ignored.\n"]
 }
 
 /// Whether the dynamic array `words` (tag/value pairs, up to `DT_NULL`) names a `DT_NEEDED` object.
