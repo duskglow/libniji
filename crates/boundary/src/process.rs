@@ -517,22 +517,42 @@ pub fn entry(kind: u64, f: usize, arg: usize, dso: usize) -> Entry {
     [kind, w(f), w(arg), w(dso)]
 }
 
-/// `__cxa_thread_atexit_impl(f, obj, dso)` for the calling thread; `false` without memory.
+/// The loader's `thread_local` destructor pin (`StartInfo::dl_pin`, stored by
+/// `runtime::early_init`): 0 in a program `ld.so` did not start, which loads no object later.
+pub(crate) static LOADER_PIN: AtomicUsize = AtomicUsize::new(0);
+
+/// The loader's pin step `(op, arg)` ([`LOADER_PIN`]); 0 without a loader.
+fn loader_pin(op: usize, arg: usize) -> usize {
+    let f = LOADER_PIN.load(Acquire);
+    if f == 0 {
+        return 0;
+    }
+    let a = |v: usize| i64::from_ne_bytes(w(v).to_ne_bytes());
+    usize::try_from(ffi::liella_machine_call3(f, a(op), a(arg), 0)).unwrap_or(0)
+}
+
+/// `__cxa_thread_atexit_impl(f, obj, dso)` for the calling thread; `false` without memory. A
+/// `dso` inside a `dlopen`ed object pins that object until the destructor has run (spec s1_2_c_6:
+/// a `dlclose` meanwhile leaves it loaded, its finalisers not run yet).
 pub fn thread_atexit(f: usize, obj: usize, dso: usize) -> bool {
     match HEAP.alloc(&CSys, &KernelPages, 32, 16) {
         Some(b) => {
+            let pin = if dso == 0 { 0 } else { loader_pin(0, dso) };
             // D-X.60: the calling thread's words (0x88 is another library's in a block it made).
-            exit_handlers::thread_atexit(&crate::thread::words().tls_dtors, &KernelPages, b.addr, f, obj, dso);
+            exit_handlers::thread_atexit(&crate::thread::words().tls_dtors, &KernelPages, b.addr, f, obj, pin);
             true
         }
         None => false,
     }
 }
 
-/// Run the calling thread's C++ `thread_local` destructors.
+/// Run the calling thread's C++ `thread_local` destructors, dropping each one's pin after it ran.
 pub fn run_thread_dtors() {
-    exit_handlers::run_thread_dtors(&crate::thread::words().tls_dtors, &KernelPages, &mut conv::CCalls, |n| {
+    exit_handlers::run_thread_dtors(&crate::thread::words().tls_dtors, &KernelPages, &mut conv::CCalls, |n, pin| {
         let _ = HEAP.free(&CSys, &KernelPages, n);
+        if pin != 0 {
+            let _ = loader_pin(1, pin);
+        }
     });
 }
 

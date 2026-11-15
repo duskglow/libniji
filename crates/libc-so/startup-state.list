@@ -57,6 +57,7 @@ liella_boundary::thread::LOCK_ALONE
 liella_boundary::thread::RSEQ_OWNED
 liella_boundary::thread::LOADER_RSEQ  # read by every start (init_initial) to find the loader's registration (D-3.21)
 liella_boundary::thread::LOADER_RSEQ_TP  # written by a dynamic program's start when Liella's loader registered rseq (D-3.21)
+liella_boundary::process::LOADER_PIN  # written by a dynamic program's start: the loader's thread_local destructor pin (s1_2_c_6)
 liella_boundary::thread::FORBIDDEN
 liella_boundary::thread::TLS_IMAGE
 symbol __rseq_offset

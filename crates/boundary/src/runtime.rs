@@ -373,6 +373,8 @@ pub fn early_init(info: usize) {
     // Its `dladdr`/`dladdr1` and `dlinfo` entries (DL-18), likewise.
     crate::posix::s27_dynlink::LOADER_DLADDR.store(info.dladdr, Release);
     crate::posix::s27_dynlink::LOADER_DLINFO.store(info.dlinfo, Release);
+    // Its `thread_local` destructor pin (spec s1_2_c_6): `__cxa_thread_atexit_impl` takes one.
+    crate::process::LOADER_PIN.store(info.dl_pin, Release);
     // The tunables without diagnostics (`ld.so` read the string already).
     let secure = aux.get(AT_SECURE).is_some_and(|v| v != 0);
     // Secure mode's standard descriptors, before any constructor can open a file in their place

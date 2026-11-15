@@ -21,8 +21,9 @@
 //!   loader as it was, with one dlerror text set.
 //!
 //! * **Unloading** (DL-17, design in handoff/DL-DLCLOSE.md; probe `== close`). `dlclose` drops one
-//!   open; an object stays while it is initial, `nodelete`, open, or reachable from such an object
-//!   through its dependencies and its relocations' bindings ([`live_set`]). The others run their
+//!   open; an object stays while it is initial, `nodelete`, open, pinned by a pending C++
+//!   `thread_local` destructor ([`pin_entry`]), or reachable from such an object through its
+//!   dependencies and its relocations' bindings ([`live_set`]). The others run their
 //!   finalisers (the reverse of the constructor log; `DT_FINI_ARRAY` backwards, then `DT_FINI`)
 //!   holding `CALL` only, still published; then they are unpublished under `STATE` and unmapped once
 //!   every reader that may have seen them has left ([`reclaim`]); a slot is reused after that.
@@ -176,7 +177,10 @@ struct Node {
     hi: usize,
     /// Direct `dlopen` calls holding it (saturating, DL-17 reads it).
     opens: u32,
-    /// Never unloaded (initial, `RTLD_NODELETE`, `DF_1_NODELETE`, or `opens` saturated).
+    /// Pending C++ `thread_local` destructors of any thread registered with an address in it
+    /// ([`pin_entry`], spec s1_2_c_6): it stays loaded while any is left.
+    pins: u32,
+    /// Never unloaded (initial, `RTLD_NODELETE`, `DF_1_NODELETE`, or `opens` or `pins` saturated).
     nodelete: bool,
     /// In the global scope.
     global: bool,
@@ -807,7 +811,8 @@ struct Finis {
     len: usize,
     /// Each object's mapped range [lo, hi), for the C library's `__liella_owner_unload`.
     ranges: [(usize, usize); CAP],
-    /// `__liella_owner_unload`'s address when this is a `dlclose` (0: at exit, or no C library has it).
+    /// `__liella_owner_unload`'s address when this is a `dlclose` or a last-pin unload (0: at exit, or
+    /// no C library has it).
     owner_unload: usize,
 }
 
@@ -883,6 +888,71 @@ extern "C" fn close_entry(handle: usize) -> i64 {
     }
 }
 
+/// The address of [`pin_entry`], for `StartInfo::dl_pin`.
+pub(super) fn pin_address() -> usize {
+    #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+    (pin_entry as *const ()).expose_provenance()
+}
+
+/// A C++ `thread_local` destructor's hold on its object (spec s1_2_c_6: `__cxa_thread_atexit_impl`
+/// keeps `dso` loaded until the destructor has run; DL-TLS-DTOR-PIN). `(0, dso)`: the `dlopen`ed
+/// object holding the address `dso` gains a pin, and the result is its token (its index plus one);
+/// 0 when `dso` is in no such object (the program, an initial object, `ld.so` or no object need
+/// none). `(1, token)`: the destructor has run; drop that pin, and when it was the object's last and
+/// no open holds it, unload what is no longer live as `dlclose` does (its finalisers run now).
+/// A pinned object's slot is never reused, so a token names its object until it is dropped.
+extern "C" fn pin_entry(op: usize, arg: usize) -> usize {
+    if op == 0 {
+        return pin(arg);
+    }
+    unpin(arg);
+    0
+}
+
+fn pin(dso: usize) -> usize {
+    if dso == 0 || LOADER.load(Acquire) == 0 {
+        return 0;
+    }
+    STATE.lock();
+    let mut token = 0;
+    if let Some(l) = loader() {
+        let at = l.nodes.get(..l.n).and_then(|ns| ns.iter().position(|nd| !nd.gone && (nd.lo..nd.hi).contains(&dso)));
+        if let Some((i, nd)) = at.filter(|&i| i >= l.n_start).and_then(|i| Some((i, l.nodes.get_mut(i)?))) {
+            nd.pins = nd.pins.saturating_add(1);
+            // A saturated count can no longer be dropped exactly: the object stays for good.
+            nd.nodelete |= nd.pins == u32::MAX;
+            token = i.saturating_add(1);
+        }
+    }
+    STATE.unlock();
+    token
+}
+
+fn unpin(token: usize) {
+    let Some(i) = token.checked_sub(1) else { return };
+    room_wait();
+    CALL.lock();
+    STATE.lock();
+    let mut f = Finis::NONE;
+    if let Some(l) = loader() {
+        if let Some(nd) = l.nodes.get_mut(i).filter(|nd| !nd.gone && nd.pins > 0) {
+            nd.pins = nd.pins.saturating_sub(1);
+            if nd.pins == 0 && nd.opens == 0 && !nd.nodelete {
+                collect(l, &mut f);
+            }
+        }
+    }
+    STATE.unlock();
+    if f.len > 0 {
+        // As in `close_entry`: a destructor may call `dlopen` or `dlclose`.
+        f.run();
+        STATE.lock();
+        close_end(&f);
+        STATE.unlock();
+    }
+    CALL.unlock();
+}
+
 /// Drop one open of `handle`; fill `f` with what is to be unloaded (marked finalising).
 fn close_begin(handle: usize, f: &mut Finis) -> Result<(), Fail> {
     let invalid = || fail_parts(&[b"dlclose: invalid handle"]);
@@ -903,6 +973,12 @@ fn close_begin(handle: usize, f: &mut Finis) -> Result<(), Fail> {
     if node.opens > 0 || node.nodelete {
         return Ok(());
     }
+    collect(l, f);
+    Ok(())
+}
+
+/// Fill `f` with every object no longer live, in finalisation order (marked finalising).
+fn collect(l: &mut Loader, f: &mut Finis) {
     let keep = live_set(l, &[false; CAP]);
     let n = l.n_log.load(Relaxed).min(CAP);
     for k in (0..n).rev() {
@@ -920,10 +996,9 @@ fn close_begin(handle: usize, f: &mut Finis) -> Result<(), Fail> {
     if f.len > 0 {
         f.owner_unload = owner_unload(l);
     }
-    Ok(())
 }
 
-/// Which objects stay (plan §1): every object that is initial, `nodelete`, open, or finalising in
+/// Which objects stay (plan §1): every object that is initial, `nodelete`, open, pinned, or finalising in
 /// an outer call (`set`'s own excepted), and every object reachable from one through its
 /// dependencies and its relocations' bindings.
 fn live_set(l: &Loader, set: &[bool; CAP]) -> [bool; CAP] {
@@ -941,7 +1016,7 @@ fn live_set(l: &Loader, set: &[bool; CAP]) -> [bool; CAP] {
     };
     for (i, nd) in l.nodes.iter().enumerate().take(l.n) {
         let mine = set.get(i).copied().unwrap_or(false);
-        if !nd.gone && (i < l.n_start || nd.nodelete || nd.opens > 0 || (nd.finalising && !mine)) {
+        if !nd.gone && (i < l.n_start || nd.nodelete || nd.opens > 0 || nd.pins > 0 || (nd.finalising && !mine)) {
             push(&mut keep, &mut stack, &mut sp, i);
         }
     }
@@ -1060,6 +1135,7 @@ fn unload(l: &mut Loader, j: usize) -> Option<u64> {
         nd.gone = true;
         nd.global = false;
         nd.opens = 0;
+        nd.pins = 0;
         (nd.dev, nd.ino) = (u64::MAX, u64::MAX.wrapping_sub(1));
     }
     let p = tls?;
@@ -1392,6 +1468,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
     node.path = span;
     node.deps = (0, 0);
     node.opens = 0;
+    node.pins = 0;
     node.global = false;
     node.nodelete = dynm.get(dl::DT_FLAGS_1).is_some_and(|f| f & dl::DF_1_NODELETE != 0);
     node.fini = [0; 3];
