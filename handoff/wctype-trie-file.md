@@ -1,7 +1,7 @@
 # WCTYPE-TRIE-FILE(-2..-9): lazily resolved class tables for compiled LC_CTYPE + the thread-block table word (D-5.10, D-5.11)
 
-**State:** branch `task/wctype-trie-file-9` (continues `-8`..`-2`; origin/next merged in runs 3, 5 and 7). Product code
-is run 8's (f8da29874); run 9 added only a test and a `#[cfg(test)]` hook (2e0c76915). Decisions in force: **D-5.10** as amended by the pending record
+**State:** branch `task/wctype-trie-file-11` (continues `-10`..`-2`; origin/next merged in runs 3, 5 and 7). Product code
+is run 10's (eb46f66a4); run 11 changed no code (its red was the job's length, below). Decisions in force: **D-5.10** as amended by the pending record
 `records/pending/WCTYPE-TRIE-FILE-8-1.toml` (D-NEW, series D-5, amends D-5.10), **D-5.11** (owned() gate, ruling
 #4281), D-5.9, D-5.5, D-7.13, D-X.58.
 
@@ -83,6 +83,21 @@ resolved per 256-character block; `ThreadBlock::wclass` (0x180) stored with `vie
   a start-up reference to them can only be an address. Hit path unchanged.
 * Test `locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss`; plants
   handoff/wctype-trie-file-10-plants.txt (6). Results: hand-back / report json.
+
+## Run 11 (mei s3; branch `task/wctype-trie-file-11`): verify red, `wctype-trie-file-10-final` rc 124 on keke
+* **Not a hang: the job used up its 9,000 s cap.** Its script (keke ~/work/WCTYPE-TRIE-FILE-10/final.sh) chained
+  `affected --run` (escalated to FULL by `crates/libc-so/startup-state.list`, which runs `cargo xtask test` itself:
+  6,092 s, green), a second `cargo xtask test` (2,711 s, green), then `LIELLA_FULL_PROFILE=1 cargo xtask so`. The
+  release trace started 05:38:26 and the cap ended the job at 05:40:58, 152 s into it. The fast-profile trace of the
+  same job had finished (startup 103, hot 511, probe 154 keys).
+* Reproduced alone on this head (mei, load ~38, `wctype-trie-file-11-startup`): release `so` with its trace 6 min 18 s
+  (trace ~77 s: startup 104, hot 456, probe 156 keys, 80 start-up data objects), then `hot_text_products` 26 passed.
+* Code review of the miss path: `resolve_builtin` takes no lock, makes one Relaxed store and calls nothing that
+  classifies a character. The only loop is the publishing CAS in `resolve`, which ends once the block is published.
+  No fix and no hang test: there is no hang to guard.
+* Jobs on this head, each on its own so none can starve another of the cap: `wctype-trie-file-11-lint0` (clippy +
+  static), `-startup` (full-profile so + hot_text_products), `-plants` (run 10's 6 plants), `-gate` (the gate,
+  FULL by escalation, which includes `cargo xtask test`). Results: hand-back / report json.
 
 ## Still open
 * The EPYC instruction limits are checked on keke by CI; this run measured on shiki (Haswell-EP) only. startup_instr_c's
