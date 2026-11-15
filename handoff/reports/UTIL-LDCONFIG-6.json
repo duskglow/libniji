@@ -1,0 +1,18 @@
+{"task": "UTIL-LDCONFIG-6", "model": "opus", "tokens": null,
+ "result": "elf32-phdr-offset survivor fixed (test images now link at a non-zero base; 13/13 plants caught); ldconfig -l implemented and probed (6 transcripts); not-a-symbolic-link message matched the reference; package rebuild blocked by symbols.py lacking a LIELLA_OWNER_1 rule (outside this story)",
+ "branch": "task/util-ldconfig-6", "head": "3693c5a88",
+ "gate": {"affected": "util-ldconfig-6-gate2 (FULL by escalation) running at hand-back; util-ldconfig-6-check1: clippy, static, 9 passed / 0 failed, 20/20 transcripts ok", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "tools/deb/symbols.py has no dependency rule for version node LIELLA_OWNER_1 (from DL-NONSHARED-OPTOUT on next), so build.sh --flavour system fails", "recommendation": "a packaging story adds a rule; like LIELLA_NATIVE nodes, an alternative only Liella's libc6 satisfies"}],
+ "informational": ["util-ldconfig-6-pkg rc 1 (symbols.py, above): package checks and the new root-system.sh PASS line not verified", "possible: purge may leave /etc/ld.so.cache now that the trigger writes it (libc-bin postrm needed); unchecked until packages build", "superseded: util-ldconfig-6-gate (head 5aff0f1e3, stopped with kill-label after two later commits), util-ldconfig-6-plants (8/8 on 5aff0f1e3)"],
+ "refused": [],
+ "impact": [
+   {"kind": "coverage", "what": "plants on ldconfig ELF reading, -l and messages, all caught", "before": 6, "after": 13, "unit": "plants caught", "measured": true},
+   {"kind": "coverage", "what": "ldconfig transcripts recorded against the reference", "before": 13, "after": 20, "unit": "transcripts", "measured": true},
+   {"kind": "correctness", "what": "ldconfig -l was refused (exit 1); now links like the reference", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "regular file at a soname path: message now '<path> is not a symbolic link' + empty line, as the reference", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "A plant that survives because test fixtures are degenerate (vaddr == offset) is worth a fixture audit: identity-mapped ELF images hide every address/offset mix-up.",
+ "next_step": "read gate2; once symbols.py handles LIELLA_OWNER_1, run the package build and checks (pkg.sh) and settle the purge/ld.so.cache question",
+ "report_file": "handoff/UTIL-LDCONFIG.md",
+ "jobs": ["mei:util-ldconfig-6-gate2", "mei:util-ldconfig-6-plants2", "mei:util-ldconfig-6-check1"]}

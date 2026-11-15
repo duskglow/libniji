@@ -15,3 +15,17 @@ l-no-links | crates/ld/src/ldconfig/scan.rs | lit:soname.as_slice() != file && !
 l-truncated-message | crates/ld/src/ldconfig/scan.rs | lit:if found == Info::Truncated { ==> if found != Info::Truncated { | cargo xtask transcript check validation/transcripts/ldconfig/l-links.transcript validation/transcripts/ldconfig/l-bad.transcript validation/transcripts/ldconfig/l-same-soname.transcript validation/transcripts/ldconfig/l-root-cache.transcript validation/transcripts/ldconfig/l-edge.transcript validation/transcripts/ldconfig/l-x.transcript validation/transcripts/ldconfig/n-not-link.transcript | msg:MISMATCH
 l-link-target | crates/ld/src/ldconfig/scan.rs | lit:self.link_at(&path, file, r)? ==> self.link_at(&path, op, r)? | cargo xtask transcript check validation/transcripts/ldconfig/l-links.transcript validation/transcripts/ldconfig/l-bad.transcript validation/transcripts/ldconfig/l-same-soname.transcript validation/transcripts/ldconfig/l-root-cache.transcript validation/transcripts/ldconfig/l-edge.transcript validation/transcripts/ldconfig/l-x.transcript validation/transcripts/ldconfig/n-not-link.transcript | msg:MISMATCH
 not-a-link-message | crates/ld/src/ldconfig/scan.rs | lit:b" is not a symbolic link ==> b" is not a symlink | cargo xtask transcript check validation/transcripts/ldconfig/l-links.transcript validation/transcripts/ldconfig/l-bad.transcript validation/transcripts/ldconfig/l-same-soname.transcript validation/transcripts/ldconfig/l-root-cache.transcript validation/transcripts/ldconfig/l-edge.transcript validation/transcripts/ldconfig/l-x.transcript validation/transcripts/ldconfig/n-not-link.transcript | msg:MISMATCH
+# cargo xtask plants results (13 plants: 13 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# types-i386-flags: CAUGHT, caught by ldconfig foreign_class_objects_are_recorded_with_their_type
+# elf32-phdr-offset: CAUGHT, caught by ldconfig foreign_class_objects_are_recorded_with_their_type
+# elf32-dyn-width: CAUGHT, caught by ldconfig foreign_class_objects_are_recorded_with_their_type
+# mixed-type-warning: CAUGHT, caught by ldconfig foreign_class_objects_are_recorded_with_their_type
+# winner-flags: CAUGHT, caught by ldconfig foreign_class_objects_are_recorded_with_their_type
+# harness-x32-machine: CAUGHT, caught by no test the log names
+# harness-elf32-phentsize: CAUGHT, caught by no test the log names
+# elf64-phdr-offset: CAUGHT, caught by ldconfig foreign_class_objects_are_recorded_with_their_type
+# l-mode-dispatch: CAUGHT, caught by no test the log names
+# l-no-links: CAUGHT, caught by no test the log names
+# l-truncated-message: CAUGHT, caught by no test the log names
+# l-link-target: CAUGHT, caught by no test the log names
+# not-a-link-message: CAUGHT, caught by no test the log names
