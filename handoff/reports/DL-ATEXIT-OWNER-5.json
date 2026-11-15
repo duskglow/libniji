@@ -1,0 +1,46 @@
+{
+ "task": "DL-ATEXIT-OWNER-5",
+ "model": "opus",
+ "tokens": null,
+ "result": "CI conflict fixed: origin/next merged, xtask/src/so.rs resolved keeping both sides (link_libc passes next's forwarding --defsym options to both libc.so.6 and libc-owner.so); gate, start-up checks and plants green on the merged head",
+ "branch": "task/dl-atexit-owner-5",
+ "head": "e47d86d35 (merge; later commits change handoff/ only)",
+ "gate": {
+  "affected": "dl-atexit-owner-5-gate: escalated to FULL (csys/, xtask changed): clippy, cargo xtask test 32 suites ok, 11866 passed / 0 failed, conformance 137 passed / 0 failed; dl-atexit-owner-5-lint: clippy + static rc 0; dl-atexit-owner-5-startup: LIELLA_FULL_PROFILE so + hot_text_products",
+  "peak": "16G (gate, page cache included) oom_kill=0"
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "step 0 (clippy/static on the inherited head before changing) was run on the merged head instead: the merge was the only change and run 4's head had passed both",
+  "one python heredoc used to resolve the conflict markers in so.rs; later edits used Write/Edit"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "the branch merges with next again (CI conflict in xtask/src/so.rs removed), so DL-ATEXIT-OWNER can land",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "run 4's 12 plants rerun on the merged head: 12 CAUGHT",
+   "before": 12,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "CI's merge_next could try a both-sides union for hunks where one side only adds items and the other wraps a call in a closure; this whole run was a two-hunk mechanical merge plus a 65-minute full gate",
+ "next_step": "none in the story once the named jobs are green; follow-up: an end-to-end `-L liella-owner -lc` run under Liella's loader when it searches libc.so.6 beyond the pinned prefix",
+ "report_file": "handoff/DL-ATEXIT-OWNER.md",
+ "jobs": [
+  "mei:dl-atexit-owner-5-lint",
+  "mei:dl-atexit-owner-5-gate",
+  "mei:dl-atexit-owner-5-plants",
+  "mei:dl-atexit-owner-5-startup"
+ ]
+}

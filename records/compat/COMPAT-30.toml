@@ -1,0 +1,13 @@
+id = "COMPAT-30"
+behaviour = "`atexit`, `at_quick_exit` and `pthread_atfork` at `LIELLA_OWNER_1` from a module linked through the opt-in link-stub directory `liella-owner/` (§1.2, §27; rulings #4860-#4862)"
+glibc = "No such version node: the three are reached through the link-time archive's stubs, and a module's handlers go with its `__dso_handle` only"
+liella = "Opt-in only: the module's registrations are attributed to it at registration and run (exit) or are forgotten (quick exit, fork) when it, or the module holding the handler, is unloaded, while the code is still mapped"
+restore = "Link without `liella-owner/` (the default `libc.so` script): the archive's stubs and owner-only unload, as the reference; nothing to build"
+cost = "none for a default link (no opted-in entry exists, the unload step finds nothing); per opted-in registration one lock-free module lookup"
+status = "registered"
+decisions = ["D-27.29", "D-27.28"]
+story = "DL-ATEXIT-OWNER"
+date = "2026-11-14"
+body = '''
+Registered for the Liella extension of rulings #4860-#4862 (default glibc's, documented, opt-in). The option that restores the reference's behaviour is the default link itself, so no flag is built.
+'''

@@ -1,0 +1,61 @@
+{
+ "task": "DL-ATEXIT-OWNER-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: FN-ALIGN red fixed (verified); opted-in program link fixed (libc-owner.so is now a full link-time interface); #4861 notice and ld.so report built and tested; user docs written; final check and plants queued, unverified",
+ "branch": "task/dl-atexit-owner-3",
+ "head": "see hand-back",
+ "gate": {
+  "affected": "not run (dl-atexit-owner-3-check runs clippy, static, so, story tests, cargo xtask test, FULL_PROFILE hot_text_products; queued)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "the opted-in program link had never been verified: a three-symbol stub sharing soname libc.so.6 hides the real libc.so.6 from the link editor (one object per soname)",
+  "env-var names chosen (LIELLA_NONSHARED_NOTICE, LIELLA_LD_REPORT_NONSHARED) are recorded in D-27.29; the owner may rename them",
+  "one python heredoc used early in the run (owner.S edit); later edits used script files"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "libc.so.6 owner entries 64-byte aligned (FN-ALIGN-EXPORTS held: 2665 entries)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "opted-in program link through liella-owner/ (was: every libc name undefined)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added (nonshared notice + loader report)",
+   "before": 0,
+   "after": 1,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants written",
+   "before": 0,
+   "after": 5,
+   "unit": "plants",
+   "measured": false
+  }
+ ],
+ "improvement": "a product test that links a PROGRAM (not only a shared object) through a new link directory would have caught the soname shadowing two runs earlier",
+ "next_step": "read dl-atexit-owner-3-check and -plants on mei; fix reds; deadlock plant; drop owner_proto; direct-tier gate",
+ "report_file": "handoff/DL-ATEXIT-OWNER.md",
+ "jobs": [
+  "dl-atexit-owner-3-check",
+  "dl-atexit-owner-3-plants"
+ ]
+}
