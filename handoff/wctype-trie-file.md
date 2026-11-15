@@ -68,6 +68,22 @@ resolved per 256-character block; `ThreadBlock::wclass` (0x180) stored with `vie
   re-measure startup_instr_c on base and head on one host. CI's EPYC limit (2,150) decides whether this lands red.
 * The EPYC instruction rows are checked on keke by CI; my role is kanon only, so the counter bench ran on kanon.
 
+## Run 10 (keke n4, Zen 1; branch `task/wctype-trie-file-10`): CI red STARTUP-DATA-WINDOWS 9 > 7 (C_TABLE)
+* Step 0 on d98e7aac8: clippy + static green (`wctype-trie-file-10-lint0`). This head alone (fast products, keke,
+  `wctype-trie-file-10-so0`) holds STARTUP-DATA-WINDOWS at 7 pages: only `LocaleView::new` and the legacy C view
+  (`.data1`) reference `C_TABLE`. CI built a merge with next (255 commits ahead of the merge base f6cab48d7), where
+  something in start-up addressed `C_TABLE` (17 KiB in `.data`, head over pages 0x863000/0x864000). I could not
+  reproduce that tree (no merge allowed in this brief).
+* **Fix (eb46f66a4):** no table has a non-zero byte any more. `Mode` is not stored; `ClassTable::mode()` (miss path
+  only) works it out from the address: `C_TABLE`/`C_UTF8_TABLE` -> `Builtin(stage 1 bytes)`, `WALK_TABLE` -> `Walk`,
+  else a slot (`File { share: true, after: RESOLVE_AFTER }`); tests set `test_mode`. A built-in block resolves at its
+  first miss (`resolve_builtin`: one Relaxed store of `s1[block] + 1`; every thread stores the same value, leaves are
+  immutable statics). So C, C.UTF-8 and the walking table (52 KiB) leave `.data` for `.bss`/`.lbss`, which is
+  what kept the 6th LOAD segment (run 9's +8 on `startup_instr_c`); start-up neither reads nor writes them, and
+  a start-up reference to them can only be an address. Hit path unchanged.
+* Test `locale::tests::builtin_class_tables_resolve_a_block_at_its_first_miss`; plants
+  handoff/wctype-trie-file-10-plants.txt (6). Results: hand-back / report json.
+
 ## Still open
 * The EPYC instruction limits are checked on keke by CI; this run measured on shiki (Haswell-EP) only. startup_instr_c's
   -6 is not measured per instruction here (no next build of cbench_startup on shiki): CI's keke row decides.
