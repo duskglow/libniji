@@ -33,8 +33,10 @@ Fix (no special case for the two structs; the facts come from DWARF, not header 
 * `sl-headers-s03-2-lint1`: abi-gen --check, xtask abi/abi_types unit tests (11), abi-types, workspace clippy
   -D warnings, xtask clippy, static: rc 0.
 * `sl-headers-s03-2-plants`: handoff/SL-HEADERS-S03-2/plants.txt, 24 plants (17 checker plants from the first run,
-  never completed there; 7 on the grouping and the probe column).
-* `sl-headers-s03-2-gate`: direct tier, base origin/next.
+  never completed there; 7 on the grouping and the probe column): 24 CAUGHT, 0 SURVIVED, no WARN lines
+  (results: handoff/SL-HEADERS-S03-2-plants.txt).
+* `sl-headers-s03-2-gate`: `cargo xtask affected --run --base origin/next`; affected escalated it to FULL (crates/abi,
+  xtask and spec/abi changed), so it runs `cargo xtask test` (still running at hand-back; the dispatcher reads it).
 * Superseded: `sl-headers-s03-2-regen1` (first grouping design, unit tests red), `-regen2` (table and generated
   files; tooling, not a gate).
 
