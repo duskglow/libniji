@@ -39,9 +39,12 @@ noexcept.tsv (`name header cxx17 variadic cxx98`), one row per prototypes.tsv fu
         of `char lp_n_F[sizeof(lp_k(&F))]` gives `noexcept`/`none` and `yes`/`no`. `error` when `&F`
         does not resolve (a C++ overload set), `-` when F is no function in C++17.
 * cxx98  at -std=c++98 the type of `&F` is read back from the demangled name of
-        `void lp_t_F(__typeof__(&F))`; F is then redeclared `extern "C"` with that type, once plain and
-        once with `throw()`, each in its own unit compiled with the headers as ordinary (-I, not system)
-        include directories, where a different exception specifier is an error. `throw()` or `none` is
+        `void lp_t_F(__typeof__(&F))`; F is then redeclared `R (F)(A...)` with that type (no linkage
+        specification, so it keeps the header's; `(F)` so a function-like macro F does not expand), once
+        plain and once with `throw()`, each in its own unit compiled with the headers as ordinary (-I, not
+        system) include directories, where a different exception specifier is an error (a unit that fails
+        outside its own lines is split into one unit per name; a tag hidden by a same-named function,
+        demangled `stat*`, is written `struct stat*`). `throw()` or `none` is
         the one redeclaration that compiles; `unknown` when both do (the redeclaration
         check cannot tell), `error` when neither does or the type cannot be read back, `-` when F is no function in C++98.
 """
@@ -265,15 +268,20 @@ def probe_cxx17(header, names, flags_lang, work):
     return out
 
 
-def redeclaration(name, demangled):
-    """`extern "C"` redeclaration text of `name` from the demangled type of `&name`, or None."""
+def redeclaration(name, demangled, functions=frozenset()):
+    """Redeclaration text of `name` from the demangled type of `&name`, as (declarator, rest), or None. The name
+    is written `(name)` so that a function-like macro of the same name does not expand; no linkage
+    specification, so the redeclaration keeps whatever language linkage the header gave the name."""
     # A va_list parameter decays to `__va_list_tag*`, which is not a name in scope: write its own type.
     demangled = demangled.replace("__va_list_tag*", "__builtin_va_list")
+    # A tag that shares its name with a function of the header (`stat`, `statfs`) is hidden by that function:
+    # the demangled `stat*` must be written `struct stat*`.
+    demangled = re.sub(r"(?<![\w:])(\w+)(?=[\s*&,)]|$)", lambda m: "struct " + m.group(1) if m.group(1) in functions else m.group(1), demangled)
     i = demangled.find("(*)")
     if i < 0:
         return None
-    text = demangled[:i] + name + demangled[i + 3:]
-    j, depth = i + len(name), 0
+    text = demangled[:i] + "(" + name + ")" + demangled[i + 3:]
+    j, depth = i + len(name) + 2, 0
     if j >= len(text) or text[j] != "(":
         return None
     while True:
@@ -287,7 +295,7 @@ def redeclaration(name, demangled):
     return text[:j + 1], text[j + 1:]
 
 
-def probe_cxx98(header, names, flags_lang, plain_inc, work):
+def probe_cxx98(header, names, flags_lang, plain_inc, functions, work):
     lang, flags = flags_lang
     base = os.path.join(work, header.replace("/", "_") + ".nx98")
     lines = [("raw", f"#include <{header}>")]
@@ -303,20 +311,29 @@ def probe_cxx98(header, names, flags_lang, plain_inc, work):
                 types[m.group(1)] = m.group(2)
     decls = {}
     for n in kept:
-        d = redeclaration(n, types.get(n, ""))
+        d = redeclaration(n, types.get(n, ""), functions)
         if d is None:
             out[n] = "error"
         else:
             decls[n] = d
     verdict = {}
     for spec in ("", " throw()"):
+        unit = base + ("x" if spec else "p")
         lines = [("raw", f"#include <{header}>")]
         for n, (head, tail) in decls.items():
-            lines.append(("test", (n, f'extern "C" {head}{spec}{tail};')))
+            lines.append(("test", (n, f"{head}{spec}{tail};")))
         try:
-            ok, _ = compile_unit(lang, flags, base + ("x" if spec else "p") + ".cc", lines, None, plain_inc)
+            ok, _ = compile_unit(lang, flags, unit + ".cc", lines, None, plain_inc)
         except RuntimeError:
+            # A redeclaration can make the unit fail outside its own lines; then each name gets a unit of its
+            # own, and only a name whose own unit fails that way counts as not compiling.
             ok = []
+            for n, (head, tail) in decls.items():
+                try:
+                    one, _ = compile_unit(lang, flags, f"{unit}_{n}.cc", [lines[0], ("test", (n, f"{head}{spec}{tail};"))], None, plain_inc)
+                except RuntimeError:
+                    one = []
+                ok += one
         for n in ok:
             verdict.setdefault(n, []).append(spec.strip() or "none")
     for n in decls:
@@ -346,6 +363,8 @@ def main():
     gccinc = subprocess.run(["g++", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
     # -fno-builtin: GCC's own implicit declarations of library builtins (isalnum, abs) accept either specifier.
     plain_inc = ["-fno-builtin", "-nostdinc","-I" + gccinc, "-I/usr/include/x86_64-linux-gnu", "-I/usr/include"]
+    # Every prototypes.tsv function: a type token with one of these names is a tag the function hides.
+    all_functions = frozenset(r["name"] for r in tsv("prototypes.tsv"))
     jobs = []
     by_header = {}
     for n, (h, cs) in sorted(fns.items()):
@@ -381,7 +400,7 @@ def main():
             return probe_sites(h, c, "addr" if mode == "addr" else "call", fl, names, os.path.join(work, mode))
         if mode == "nx17":
             return probe_cxx17(h, names, fl, work)
-        return probe_cxx98(h, names, fl, plain_inc, work)
+        return probe_cxx98(h, names, fl, plain_inc, all_functions, work)
 
     for d in ("addr", "call", "macro"):
         os.makedirs(os.path.join(work, d))

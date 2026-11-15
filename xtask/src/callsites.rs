@@ -194,7 +194,7 @@ mod tests {
     //! no spec clause: Appendix C.13's table format (slice 4 of plan/headers.md); each test breaks one rule.
     use super::*;
 
-    const SITES: &str = "name\theader\tmode\tconfigs\tsymbol\nFD_SET\tsys/select.h\tmacro\t*\t__fdelt_chk\nscanf\tstdio.h\taddr\tc2x\t__isoc23_scanf\nscanf\tstdio.h\taddr\t!c2x\t__isoc99_scanf\nscanf\tstdio.h\tcall\t*\t__isoc99_scanf\nstrlen\tstring.h\taddr\tcxx98\t!error\nstrlen\tstring.h\taddr\tc89,c2x\tstrlen\nstrlen\tstring.h\tcall\tfortify1\t-\n";
+    const SITES: &str = "name\theader\tmode\tconfigs\tsymbol\nFD_SET\tsys/select.h\tmacro\t*\t__fdelt_chk\nscanf\tstdio.h\taddr\tc2x\t__isoc23_scanf\nscanf\tstdio.h\taddr\t!c2x\t__isoc99_scanf\nscanf\tstdio.h\tcall\t*\t__isoc99_scanf\nstrlen\tstring.h\taddr\tcxx98\t!error\nstrlen\tstring.h\taddr\t!cxx98\tstrlen\nstrlen\tstring.h\tcall\tfortify1\t-\n";
     const NX: &str = "name\theader\tcxx17\tvariadic\tcxx98\nscanf\tstdio.h\tnone\tyes\tnone\nstrlen\tstring.h\terror\t-\tthrow()\nzork\t-\t-\t-\t-\n";
 
     fn ids() -> Vec<String> {
@@ -241,12 +241,14 @@ mod tests {
     #[test]
     fn sites_configs() {
         fails(&SITES.replace("\tcall\t*", "\tcall\tc89"), NX, "unknown configuration `c89`");
-        fails(&SITES.replace("\taddr\tc89,c2x", "\taddr\tfortify1"), NX, "unknown configuration `fortify1`");
-        fails(&SITES.replace("\taddr\tc89,c2x", "\taddr\tc2x,c89"), NX, "out of order");
-        fails(&SITES.replace("\taddr\tc89,c2x", "\taddr\t!cxx98"), NX, "must be written `c89,c2x`");
+        fails(&SITES.replace("\taddr\t!cxx98", "\taddr\tfortify1"), NX, "unknown configuration `fortify1`");
+        fails(&SITES.replace("\taddr\t!cxx98", "\taddr\tc2x,c89"), NX, "out of order");
+        fails(&SITES.replace("\taddr\t!cxx98", "\taddr\tc89,c2x"), NX, "must be written `!cxx98`");
         fails(&SITES.replace("\tcall\tfortify1\t", "\tcall\tfortify1,fortify1+gnu,fortify1+gnu64\t"), NX, "must be written `*`");
-        fails(&SITES.replace("\taddr\tc89,c2x", "\taddr\t!c89,c2x,cxx98"), NX, "drop the row");
+        fails(&SITES.replace("\taddr\t!cxx98", "\taddr\t!c89,c2x,cxx98"), NX, "drop the row");
         fails(&SITES.replace("\taddr\tc2x\t", "\taddr\t!cxx98\t"), NX, "already has a symbol");
+        // `*` names every configuration of the mode, so a second row of the same mode overlaps it.
+        fails(&SITES.replace("\tcall\t*\t__isoc99_scanf\n", "\tcall\t*\t__isoc99_scanf\nscanf\tstdio.h\tcall\tfortify1\t__isoc99_scanfx\n"), NX, "already has a symbol");
     }
 
     #[test]
