@@ -349,7 +349,11 @@ fn init_first_mktime_after_localtime_r_takes_no_fault() {
 /// and the first call shows as no change. Bound = origin/next 5bbefc645's whole-process count measured
 /// the same way (this probe, this harness), per profile: Skylake-SP host (two NUMA nodes), every run
 /// identical, fast 40, release 42; this branch reads the same. Indexed by [`profile_index`].
-const LOCALTIME_BOUND: [u64; 2] = [40, 42];
+/// LAYOUT-WINDOW-BINS-5 (window bins, slice 2): Zen 1 host role, every run identical, fast 36, release 36
+/// (base 40 / 41). The release bound comes down to 40 only because [`WHOLE_COUNT_SLACK`] refuses 36 under
+/// 42; the levels of the other host classes are not measured yet (the base read one more on Skylake-SP), so
+/// the tightening to the new level is left to the slice that records them (LAYOUT-WINDOW-BINS-6).
+const LOCALTIME_BOUND: [u64; 2] = [40, 40];
 
 /// The first `localtime_r` (zone load included) and the first `mktime` after it, counted
 /// together (PERF-ZONE-LOAD-FAULTS-2): a fault that moves from one call to its neighbour (the
@@ -363,7 +367,8 @@ const LOCALTIME_BOUND: [u64; 2] = [40, 42];
 /// LAYOUT-TRACE-DEFAULT: 20 -> 18, the highest count of the four host classes and both profiles (see TRUE_BOUND).
 /// HEAP-RSEQ-NODE-3: whole process up to the end of the first mktime, as for [`LOCALTIME_BOUND`];
 /// origin/next 5bbefc645, same host and harness, every run identical: fast 40, release 42.
-const LOCALTIME_MKTIME_BOUND: [u64; 2] = [40, 42];
+/// LAYOUT-WINDOW-BINS-5: fast 36, release 36 (Zen 1 host role); release 42 -> 40, as [`LOCALTIME_BOUND`].
+const LOCALTIME_MKTIME_BOUND: [u64; 2] = [40, 40];
 
 /// A whole-process count this far under its bound fails too: either the probe no longer counts
 /// start-up (a call-only count reads about 20 under these bounds) or the level improved and the bound
