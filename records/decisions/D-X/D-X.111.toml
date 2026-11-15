@@ -1,5 +1,4 @@
-id = "D-NEW"
-series = "D-X"
+id = "D-X.111"
 section = "x"
 status = "active"
 supersedes = ["D-X.79"]
