@@ -44,10 +44,13 @@ fn reference_default(command: &str) -> Option<PathBuf> {
     ["/usr/sbin", "/usr/bin"].iter().map(|d| Path::new(d).join(command)).find(|p| p.is_file())
 }
 
-/// Liella's program for a command: this binary for `ldconfig` (UTIL-3); none for the others yet.
-fn liella_default(command: &str) -> Option<PathBuf> {
+/// Liella's program for a command: this binary for `ldconfig` (UTIL-3), the test link of getent (UTIL-6); none for
+/// the others yet.
+fn liella_default(root: &Path, command: &str) -> Option<PathBuf> {
     match command {
         "ldconfig" => std::env::current_exe().ok(),
+        // UTIL-6: the test link of getent (`cargo xtask so`), which runs on this tree's loader and library.
+        "getent" => Some(root.join(crate::so::GETENT_TEST)).filter(|p| p.is_file()),
         _ => None,
     }
 }
@@ -215,7 +218,7 @@ pub(crate) fn main(root: &Path, args: &[String]) -> ExitCode {
             }
             continue;
         }
-        let Some(liella) = pick(&ours, &t.command).or_else(|| liella_default(&t.command)) else {
+        let Some(liella) = pick(&ours, &t.command).or_else(|| liella_default(root, &t.command)) else {
             println!("ERROR {shown}: Liella has no `{}` yet (pass --liella {}=<path>)", t.command, t.command);
             errors += 1;
             continue;

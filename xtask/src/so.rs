@@ -1431,6 +1431,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     run_libm(root, &cc, &ar, profile)?;
     run_ld(root, &cc, profile)?;
     run_ldconfig(root, &cc, profile)?;
+    run_getent(root, &cc)?;
     check_placement(root, &release)?;
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
@@ -1524,6 +1525,50 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     check_no_interp(&staged)?;
     publish(&staged, &out)?;
     println!("so: target/liella/ldconfig (static PIE, no interpreter; L14-1 link check passed)");
+    Ok(())
+}
+
+/// getent (UTIL-6, plan/utilities.md §4): `csys/utils/getent.c`, a thin front end over the public name service
+/// functions, linked dynamically against Liella's `libc.so.6`.
+/// * `target/liella/getent`: the shipped program (libc-bin's `/usr/bin/getent`), interpreter
+///   `/lib64/ld-linux-x86-64.so.2`, no run path.
+/// * `target/liella-test/getent`: the same object linked with this tree's loader as interpreter and a run path to
+///   `target/liella`, so the transcripts (`cargo xtask transcript`) run it on Liella's library on a host whose
+///   system C library is another one. Kept out of `target/liella`: it names build paths.
+pub(crate) const GETENT_TEST: &str = "target/liella-test/getent";
+
+fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
+    let product = root.join("target/product");
+    let release = root.join("target/liella");
+    let obj = product.join("getent.o");
+    run(Command::new(cc)
+        .args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-asynchronous-unwind-tables", "-c"])
+        .arg(root.join("csys/utils/getent.c"))
+        .arg("-o")
+        .arg(&obj))?;
+    let link = |out: &Path, interp: &Path, runpath: Option<&Path>| -> Result<(), String> {
+        let mut c = Command::new(cc);
+        c.args(["-pie", "-nostdlib", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,--as-needed"])
+            .arg(format!("-Wl,--dynamic-linker={}", interp.display()))
+            .arg(release.join("liella-crt1.o"))
+            .arg(release.join("liella-crti.o"))
+            .arg(&obj)
+            .arg(release.join("libc.so.6"))
+            .arg(release.join("libc_nonshared.a"))
+            .arg("-lgcc")
+            .arg(release.join("liella-crtn.o"));
+        if let Some(r) = runpath {
+            c.arg(format!("-Wl,-rpath,{}", r.display())).arg("-Wl,--enable-new-dtags");
+        }
+        let staged = tmp_name(out);
+        run(c.arg("-o").arg(&staged))?;
+        publish(&staged, out)
+    };
+    link(&release.join("getent"), Path::new("/lib64/ld-linux-x86-64.so.2"), None)?;
+    let test = root.join(GETENT_TEST);
+    fs::create_dir_all(test.parent().unwrap_or(root)).map_err(|e| format!("{}: {e}", test.display()))?;
+    link(&test, &release.join("ld-linux-x86-64.so.2"), Some(&release))?;
+    println!("so: target/liella/getent (dynamic, libc.so.6), {GETENT_TEST} (this tree's loader and library)");
     Ok(())
 }
 
