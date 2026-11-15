@@ -11,3 +11,15 @@ scan-hwcaps-no-link | crates/ld/src/ldconfig/scan.rs | lit:!self.o.no_links && h
 scan-hwcaps-names-file | crates/ld/src/ldconfig/scan.rs | lit:let file = if hwcaps.is_some() { winner } else { soname }; ==> let file = soname; | cargo test -p liella-ld --test ldconfig hwcaps_subdirectories_get_no_links | msg:hwcaps_subdirectories_get_no_links_and_name_the_file \.\.\. FAILED
 writer-key-as-tail | crates/ld/src/cache/writer.rs | lit:e.path.strip_suffix(e.key).is_some_and(|d| d.ends_with(b"/")) ==> true | cargo test -p liella-ld --test cache_write write_hwcaps_key_other_than_the_file_name | msg:write_hwcaps_key_other_than_the_file_name \.\.\. FAILED
 writer-key-as-tail-transcript | crates/ld/src/cache/writer.rs | lit:e.path.strip_suffix(e.key).is_some_and(|d| d.ends_with(b"/")) ==> true | cargo xtask transcript check validation/transcripts/ldconfig | msg:MISMATCH validation/transcripts/ldconfig/r-conf-cache
+# cargo xtask plants results (11 plants: 11 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# conf-cycle-check: CAUGHT, caught by ldconfig include_cycles_end_with_a_message
+# conf-glob-order: CAUGHT, caught by ldconfig configuration_includes_are_read_in_sorted_order_relative_to_their_file
+# conf-relative-base: CAUGHT, caught by ldconfig configuration_includes_are_read_in_sorted_order_relative_to_their_file
+# scan-version-direction: CAUGHT, caught by ldconfig soname_links_follow_the_highest_version
+# scan-dev-link-rule: CAUGHT, caught by ldconfig soname_links_follow_the_highest_version
+# scan-dangling-dev-kept: CAUGHT, caught by ldconfig dangling_links_are_removed_unless_x_or_development_links
+# scan-dangling-x-kept: CAUGHT, caught by ldconfig dangling_links_are_removed_unless_x_or_development_links
+# scan-hwcaps-no-link: CAUGHT, caught by ldconfig hwcaps_subdirectories_get_no_links_and_name_the_file
+# scan-hwcaps-names-file: CAUGHT, caught by ldconfig hwcaps_subdirectories_get_no_links_and_name_the_file
+# writer-key-as-tail: CAUGHT, caught by cache_write write_hwcaps_key_other_than_the_file_name
+# writer-key-as-tail-transcript: CAUGHT, caught by no test the log names
