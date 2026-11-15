@@ -47,6 +47,8 @@ without a newline; no lines means empty.
 | `elf: <path> [soname=<name>] [cut=<n>] [class=x86-64\|i386\|x32]` | a minimal shared object (`ET_DYN`, a `PT_DYNAMIC` with `DT_STRTAB`, `DT_STRSZ` and, with `soname=`, `DT_SONAME`) made by the harness, no compiler needed: x86-64 ELF64 by default, `class=i386` an ELF32 `EM_386` one and `class=x32` an ELF32 `EM_X86_64` one; `cut=<n>` keeps only its first `<n>` bytes (a truncated file) |
 | `as-cache: <path>` | a written file at `<path>` is compared as a loader cache's entry list (one `0x<flags> <key> <path> [hwcaps=<name>]` line per entry, in file order, read by Liella's reader), so the generator text and the byte layout are not compared |
 | `normalise: <literal> => <replacement>` | one more literal replacement in both outcomes (say why in a comment) |
+| `host-value: <line prefix>` | a stdout or stderr line starting with the prefix has the rest replaced by `@HOST@` in the record and when either side is compared with the record; the reference and Liella, run side by side on one host, are compared in full (values that depend on the machine, its limits or a file system: getconf's `-a`) |
+| `mask-value: <line prefix>` | as `host-value:`, but `@MASKED@` on every side, also between the reference and Liella (a value that changes from run to run, such as free memory; say why in a comment) |
 
 The outcome comes last and is written by `record`: `status: exit <n>` or `status: signal <n>`, `stdout:` and
 `stderr:` with blocks, then one `written-*` line per path that was created, changed or removed, sorted by path:
@@ -58,7 +60,7 @@ The outcome comes last and is written by `record`: `status: exit <n>` or `status
 Only this, by default: the private root's path is replaced by `@ROOT@` in stdout, stderr, written files and link
 targets (each side has its own root). `@ROOT@` in arguments, environment values, stdin and `link:` targets stands for
 that path. Each `normalise:` line adds one literal replacement, applied to both sides after the root. Nothing else
-(no whitespace folding, no sorting of output, no masking of numbers).
+(no whitespace folding, no sorting of output, no masking of numbers beyond the `host-value:` and `mask-value:` lines a transcript lists).
 
 ## Not covered yet
 

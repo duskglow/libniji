@@ -1,0 +1,11 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: a path name without a path prints the usage text, status 2
+clause: s31_5_f_2
+command: getconf
+env: LC_ALL=C
+arg: SOCK_MAXBUF
+status: exit 2
+stdout:
+stderr:
+| Usage: getconf [-v specification] variable_name [pathname]
+| \x20      getconf -a [pathname]
