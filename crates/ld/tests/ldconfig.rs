@@ -312,12 +312,14 @@ fn soname_links_follow_the_highest_version() {
     assert!(text(&o.out).contains("\tlibfoo.so.1 -> libfoo.so.1.10 (changed)\n"));
     assert!(text(&o.out).contains("\tlibnos.so -> libnos.so\n"));
     assert_eq!(m.get("/opt/l/libfoo.so"), Some(&Node::Link(b"libfoo.so.1".to_vec())));
-    let o2 = ldconfig(&mut m, &["-v", "-p"]);
-    let p = text(&o2.out);
+    // The first run scanned before it made libfoo.so.1, so the development link dangled then (the reference
+    // reports it too) and only the second run's cache holds it.
+    let o2 = ldconfig(&mut m, &["-v"]);
+    assert!(text(&o2.out).contains("\tlibfoo.so.1 -> libfoo.so.1.10\n"), "{}", text(&o2.out));
+    assert_eq!(m.get("/opt/l/libfoo.so.1"), Some(&Node::Link(b"libfoo.so.1.10".to_vec())));
+    let p = text(&ldconfig(&mut m, &["-p"]).out);
     assert!(p.contains("\tlibfoo.so (libc6,x86-64) => /opt/l/libfoo.so\n"), "{p}");
     assert!(p.contains("\tlibfoo.so.1 (libc6,x86-64) => /opt/l/libfoo.so.1\n"), "{p}");
-    let o3 = ldconfig(&mut m, &["-v"]);
-    assert!(text(&o3.out).contains("\tlibfoo.so.1 -> libfoo.so.1.10\n"), "{}", text(&o3.out));
 }
 
 /// s31_2_g_4 (probe): a dangling `lib*.so*` link is removed unless `-X` or its name ends in `.so`.
@@ -383,7 +385,9 @@ fn relative_include_under_a_root_is_refused() {
 
 /// no spec clause (robustness, the brief's fuzz proof): 3000 seeded random configurations built from the syntax's
 /// own pieces (includes of each other and of globs, comments, blanks, odd bytes) all end with status 0 or 1, never
-/// panic, and a second run on the result gives the same output. Seeded, so a failure reproduces exactly.
+/// panic, and the same tree run twice gives the same output and the same files (a second run on the FIRST run's
+/// result may differ legitimately: a glob include can read the cache that run wrote). Seeded, so a failure
+/// reproduces exactly.
 #[test]
 fn random_configurations_end_cleanly() {
     const PIECES: [&[u8]; 16] = [
@@ -406,9 +410,12 @@ fn random_configurations_end_cleanly() {
             }
             m.file(f, &body);
         }
+        let mut twin = m.clone();
         let o = ldconfig(&mut m, &["-v"]);
         assert!(o.status <= 1, "status {}: {}", o.status, text(&o.err));
-        let again = ldconfig(&mut m.clone(), &["-v"]);
-        assert_eq!(text(&again.err), text(&o.err));
+        let again = ldconfig(&mut twin, &["-v"]);
+        assert_eq!((text(&again.out), text(&again.err), again.status), (text(&o.out), text(&o.err), o.status));
+        assert_eq!(twin.get("/etc/ld.so.cache"), m.get("/etc/ld.so.cache"));
+        assert_eq!(twin.get("/opt/l/libq.so.1"), m.get("/opt/l/libq.so.1"));
     }
 }
