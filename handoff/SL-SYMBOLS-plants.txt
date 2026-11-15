@@ -7,3 +7,9 @@ sym-minver-abi | tools/deb/symbols.py | lit:return level if version_key(level) <
 sym-minver-boundary | tools/deb/symbols.py | lit:return level if version_key(level) <= version_key(abi) else upstream ==> return level if version_key(level) < version_key(abi) else upstream | sh tools/deb/build.sh --flavour system --products ~/w/s4/target/deb-system-work/src/target/liella --version 2.39+liella20261115.1-1 --out target/dp --work target/dpw && sh tools/deb/check-symbols.sh target/dp | msg:minimum version 2\.39\+liella[0-9.]+, not 2\.39
 sym-glibc-private-line | tools/deb/symbols.py | lit:sym_out.append(f" (symver){LIELLA_PRIVATE} {upstream}") ==> sym_out.append(f" (symver){PRIVATE} {upstream}") | sh tools/deb/build.sh --flavour system --products ~/w/s4/target/deb-system-work/src/target/liella --version 2.39+liella20261115.1-1 --out target/dp --work target/dpw && sh tools/deb/check-symbols.sh target/dp | msg:GLIBC_PRIVATE in symbols
 sym-native-template | tools/deb/symbols.py | lit:line += f" {template[lvl]}" ==> line += "" | sh tools/deb/build.sh --flavour system --products ~/w/s4/target/deb-system-work/src/target/liella --version 2.39+liella20261115.1-1 --out target/dp --work target/dpw && sh tools/deb/check-symbols.sh target/dp | msg:not on the template liella-native-abi
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# sym-drop-one: CAUGHT, caught by no test the log names
+# sym-minver-abi: CAUGHT, caught by no test the log names
+# sym-minver-boundary: CAUGHT, caught by no test the log names
+# sym-glibc-private-line: CAUGHT, caught by no test the log names
+# sym-native-template: CAUGHT, caught by no test the log names
