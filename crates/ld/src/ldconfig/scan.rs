@@ -324,27 +324,96 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
     /// Points `<dir>/<soname>` at `winner` unless it already does; true when it changed.
     fn link(&mut self, dir: &[u8], soname: &[u8], winner: &[u8], r: &mut Outcome) -> Result<bool, Oom> {
         let path = join(dir, soname)?;
-        match self.fs.lstat(&path) {
+        self.link_at(&path, winner, r)
+    }
+
+    /// Points the link `path` at `target` unless it already does; true when it changed. Anything other than a
+    /// symbolic link at `path` is left alone and reported (probe: n-not-link.transcript, l-edge.transcript).
+    fn link_at(&mut self, path: &[u8], target: &[u8], r: &mut Outcome) -> Result<bool, Oom> {
+        match self.fs.lstat(path) {
             Ok(m) if m.kind == Kind::Link => {
                 let mut cur = Vec::new();
-                if self.fs.read_link(&path, &mut cur).is_ok() && cur == winner {
+                if self.fs.read_link(path, &mut cur).is_ok() && cur == target {
                     return Ok(false);
                 }
             }
             Ok(_) => {
-                r.err.bytes(self.me).bytes(b": ").bytes(&path).bytes(b" is not a symbolic link, not replaced\n");
+                r.err.bytes(self.me).bytes(b": ").bytes(path).bytes(b" is not a symbolic link\n\n");
                 return Ok(false);
             }
             Err(_) => {}
         }
-        match self.fs.replace_link(winner, &path) {
+        match self.fs.replace_link(target, path) {
             Ok(()) => Ok(true),
             Err(e) => {
-                r.err.bytes(self.me).bytes(b": Cannot link ").bytes(&path).bytes(b" to ").bytes(winner);
+                r.err.bytes(self.me).bytes(b": Cannot link ").bytes(path).bytes(b" to ").bytes(target);
                 errno_line(self.fs, &mut r.err, e);
                 Ok(false)
             }
         }
+    }
+
+    /// `-l`: each operand, in argument order, is one library; `<its directory>/<soname>` is pointed at its file
+    /// name. No directory is scanned and no cache is written, whatever `-N` says; a later operand of the same
+    /// soname wins (probes: validation/transcripts/ldconfig/l-*.transcript). Every operand is reported on its own
+    /// and the status stays 0.
+    fn libs(&mut self, r: &mut Outcome) -> Result<(), Oom> {
+        for &op in &self.o.operands {
+            match self.fs.lstat(op) {
+                Ok(m) if m.kind == Kind::File => {}
+                Ok(_) => {
+                    r.err.bytes(self.me).bytes(b": Ignored file ").bytes(op).bytes(b" since it is not a regular file.\n");
+                    continue;
+                }
+                Err(e) => {
+                    r.err.bytes(self.me).bytes(b": Cannot lstat ").bytes(op);
+                    errno_line(self.fs, &mut r.err, e);
+                    continue;
+                }
+            }
+            // The operand's directory (`/` for `/name`; none for a bare `name`, which stays relative) and file name.
+            let (dir, file) = match op.iter().rposition(|&c| c == b'/') {
+                Some(0) => (Some(&b"/"[..]), op.get(1..).unwrap_or_default()),
+                Some(k) => (op.get(..k), op.get(k.saturating_add(1)..).unwrap_or_default()),
+                None => (None, op),
+            };
+            let soname = match elf_info::<A, F>(self.fs, op)? {
+                Info::Lib(Some(s), _) => s,
+                Info::Lib(None, _) => {
+                    let mut v = Vec::new();
+                    extend(&mut v, file)?;
+                    v
+                }
+                found => {
+                    if found == Info::Truncated {
+                        r.err.bytes(self.me).bytes(b": file ").bytes(op).bytes(b" is truncated\n\n");
+                    }
+                    r.err.bytes(self.me).bytes(b": No link created since soname could not be found for ").bytes(op).bytes(b"\n");
+                    continue;
+                }
+            };
+            let changed = if soname.as_slice() != file && !self.o.no_links {
+                let path = match dir {
+                    Some(d) => join(d, &soname)?,
+                    None => {
+                        let mut p = Vec::new();
+                        extend(&mut p, &soname)?;
+                        p
+                    }
+                };
+                self.link_at(&path, file, r)?
+            } else {
+                false
+            };
+            if self.o.verbose {
+                r.out.bytes(b"\t").bytes(&soname).bytes(b" -> ").bytes(file);
+                if changed {
+                    r.out.bytes(b" (changed)");
+                }
+                r.out.bytes(b"\n");
+            }
+        }
+        Ok(())
     }
 
     /// A cache entry `key` => `<canon>/<file>` (`canon`: the scanned directory, a hwcaps one included).
@@ -382,10 +451,6 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
             return Ok(1);
         }
     }
-    if o.library_mode {
-        r.err.bytes(me).bytes(b": -l (linking individual libraries) is not supported yet\n");
-        return Ok(1);
-    }
     let cache_path = o.cache.unwrap_or(CACHE);
     let mut shown_cache = Vec::new();
     extend(&mut shown_cache, fs.root())?;
@@ -402,6 +467,11 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
             r.err.bytes(me).bytes(b": ").bytes(&shown_cache).bytes(b" is not a cache in the new format\n");
             return Ok(1);
         }
+        return Ok(0);
+    }
+    if o.library_mode {
+        let mut run = Run::<A, F> { fs, me, o, recs: Vec::new(), _arch: core::marker::PhantomData };
+        run.libs(r)?;
         return Ok(0);
     }
     // 1. The directories, in order: operands, configuration, trusted; each checked as it is named.
