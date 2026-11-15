@@ -47,9 +47,10 @@ FLOAT_TYPES = {"float": (4, 8, 23, False), "double": (8, 11, 52, False), "long d
 FLOAT_ORDER = list(FLOAT_TYPES)
 INT_SEL = ", ".join(f"{t}: {i + 1}" for i, t in enumerate(INT_TYPES))
 FLOAT_SEL = ", ".join(f"{t}: {i + 1}" for i, t in enumerate(FLOAT_ORDER))
-# Compiler macros whose value depends on the probe unit itself (its path, line, build time): not header facts.
+# Not header facts: compiler macros whose value depends on the probe unit itself (its path, line, build time),
+# the type keywords visibility.tsv's empty unit shows as typedefs (`long *p;` declares), and `main`.
 POSITIONAL = {"__FILE__", "__LINE__", "__DATE__", "__TIME__", "__TIMESTAMP__", "__COUNTER__", "__BASE_FILE__",
-              "__FILE_NAME__", "__INCLUDE_LEVEL__"}
+              "__FILE_NAME__", "__INCLUDE_LEVEL__", "long", "short", "signed", "unsigned", "main"}
 MISSING = object()
 
 
