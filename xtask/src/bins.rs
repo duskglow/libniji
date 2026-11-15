@@ -395,7 +395,7 @@ mod tests {
         // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): the gap to the next boundary is
         // filled largest-first with cold sections that fit (alignment included); a cold section fills
         // one gap only, and the last bin takes no filler (nothing follows it).
-        let items = [item("x", 0xe000, 1, 0, &["a"]), item("y", 0xf800, 1, 1, &["b"]), item("z", 0x1100, 1, 2, &["c"])];
+        let items = [item("x", 0xec00, 1, 0, &["a"]), item("y", 0xf800, 1, 1, &["b"]), item("z", 0x1100, 1, 2, &["c"])];
         let pool = [cold("big", 0x2000, 1), cold("m", 0x800, 1), cold("s", 0x680, 1), cold("t", 0x100, 0x100), cold("u", 0x80, 1), cold("z0", 0, 1)];
         let p = plan(&items, &pool);
         assert_eq!(p.bins.len(), 3);

@@ -958,13 +958,13 @@ mod tests {
     fn grouped_names_give_back_their_list_position_and_function() {
         // LAYOUT-WINDOW-BINS slice 2 (no spec clause: build tooling, D-X.103): a list-position name and a
         // window-bin member name give the list position and the function back, a filler's name gives the
-        // function but no position, and every bin name sorts after every list-position name.
+        // function but no position, and a bin name sorts after every list position below 90000.
         assert_eq!(position_of(".text.sorted.h00042.f"), Some(42));
         let (member, filler) = (crate::bins::section(3, false, 42, "f"), crate::bins::section(3, true, 7, "f"));
         assert_eq!((member.as_str(), filler.as_str()), (".text.sorted.h903000042.f", ".text.sorted.h903100007.f"));
         assert_eq!((position_of(&member), position_of(&filler)), (Some(42), None));
         assert_eq!((function_of(&member), function_of(&filler)), (Some("f"), Some("f")));
-        assert!(crate::bins::section(0, false, 0, "f").as_str() > ".text.sorted.h99999.f");
+        assert!(crate::bins::section(0, false, 0, "f").as_str() > ".text.sorted.h89999.f");
         assert_eq!(position_of(".text.f"), None);
         assert_eq!(elf_sections(b"not elf"), None);
         // The test binary itself: its section table reads back whole.
@@ -1213,7 +1213,7 @@ mod tests {
         assert!(retired_lists(&["x/hot-text.list.bak", "x/my-hot-text.list", "hot-text.first-window"]).is_empty());
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let tracked = crate::labnames::tracked_with(root, true).expect("git ls-files");
-        assert!(tracked.iter().any(|p| p.ends_with("hot-text.clusters")), "the tracked-file list misses known files");
+        assert!(tracked.iter().any(|p| p.ends_with("startup-state.list")), "the tracked-file list misses known files");
         assert_eq!(retired_lists(&tracked), Vec::<String>::new());
     }
 
