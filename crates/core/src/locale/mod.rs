@@ -7,6 +7,7 @@
 //! through a [`Source`], which the POSIX layer implements with read-only mappings.
 
 pub mod archive;
+pub mod classes;
 mod builtin_items;
 pub mod collate;
 pub mod ctype;
@@ -947,6 +948,276 @@ mod tests {
         }
         // Not vacuous: word and string items both occur in plenty.
         assert!(words > 100 && strings > 1000 && shared == 5 * 12, "{words} {strings} {shared}");
+    }
+
+    /// The compiled `LC_CTYPE`s the class-table tests read: `en_US.UTF-8` (compiled here) and the
+    /// system's `C.utf8` file when it is installed.
+    fn file_ctypes() -> Vec<(Locale, String)> {
+        let mut out = Vec::new();
+        let en = "en_US.UTF-8";
+        out.push((Locale::C.with(Cat::Ctype, en.as_bytes(), Data::File(category(en, "LC_CTYPE"))).unwrap(), en.to_string()));
+        match std::fs::read("/usr/lib/locale/C.utf8/LC_CTYPE") {
+            Ok(b) => {
+                let bytes: &'static [u8] = Box::leak(b.into_boxed_slice());
+                let cat = Category::parse(bytes).expect("the system C.utf8 LC_CTYPE parses");
+                out.push((Locale::C.with(Cat::Ctype, b"C.utf8", Data::File(cat)).unwrap(), "system C.utf8".to_string()));
+            }
+            Err(e) => println!("SKIPPED: the system C.utf8 locale: /usr/lib/locale/C.utf8/LC_CTYPE is not installed ({e})"),
+        }
+        out
+    }
+
+    /// The wide tables of a compiled `LC_CTYPE`.
+    fn wide_of(l: &Locale) -> ctype::Wide {
+        match l.ctype() {
+            Ctype::File(f) => f.wide(),
+            _ => panic!("a compiled LC_CTYPE"),
+        }
+    }
+
+    /// Spec §5.2 (s5_2_g_0: the classes follow the locale's definition; s5_2_c_0: `isw*` and
+    /// `iswctype` classify by them), D-5.10: a compiled `LC_CTYPE`'s lazily resolved class-word
+    /// table equals the walk of the file's class tables (`w_classes_file`; `is_w_file` per
+    /// class) for every code point through U+10FFFF, 0x110000 and the edge values, as a whole
+    /// word and for each of the 12 standard classes through the view, in `en_US.UTF-8` and the
+    /// system `C.utf8` file. Each table starts unresolved and ends with every block resolved,
+    /// once sharing the built-in leaves and once with every leaf in the pool (or walked when the
+    /// pool is full), so the three stage-1 kinds are all read.
+    #[test]
+    fn file_class_tables_equal_the_file_walk() {
+        use crate::ctype::{self as cls, Class, STANDARD_MASKS};
+        use classes::ClassTable;
+        let edges = [0x11_0000u32, 0x11_00ff, 0x7fff_ffff, 0xffff_fffe, 0xffff_ffff];
+        for (l, what) in file_ctypes() {
+            let w = wide_of(&l);
+            for share in [true, false] {
+                let t: &'static ClassTable = Box::leak(Box::new(ClassTable::file_for_test(share)));
+                assert_eq!(t.census(), [classes_len(), 0, 0, 0], "{what}: a new table is unresolved");
+                for c in (0..=0x10_ffffu32).chain(edges) {
+                    let want = cls::w_classes_file(c, &w).0;
+                    assert_eq!(t.word(c, Some(&w)), want, "{what} share {share}: word {c:#x}");
+                    if c <= 0x10_ffff && t.hit(c).is_some() {
+                        assert_eq!(t.hit(c), Some(want), "{what} share {share}: resolved word {c:#x}");
+                        // The mask test of each leaf kind (`isw*`'s inline path), one class per
+                        // code point in turn.
+                        let m = STANDARD_MASKS.get(usize::try_from(c).unwrap() % STANDARD_MASKS.len()).copied().unwrap();
+                        assert_eq!(t.test(c, m), Some(i32::from(want & m != 0)), "{what} share {share}: test {c:#x} mask {m:#x}");
+                    }
+                }
+                let [unresolved, builtin, pool, walk] = t.census();
+                println!("{what} share {share}: {builtin} built-in leaves, {pool} pool leaves, {walk} walked blocks");
+                assert_eq!(unresolved, 0, "{what} share {share}: every block resolved");
+                if share {
+                    assert!(builtin > 0, "{what}: built-in leaves are shared");
+                } else {
+                    assert!(builtin == 0 && pool > 0, "{what}: without sharing the pool holds the leaves ({pool}, {walk})");
+                }
+            }
+            let v = view::LocaleView::new(l, 9, &|_, _| None).unwrap();
+            let mut members = [0usize; 12];
+            for c in (0..=0x10_ffffu32).chain(edges) {
+                assert_eq!(v.class_word(c), cls::w_classes_file(c, &w).0, "{what}: view word {c:#x}");
+                for (k, &m) in STANDARD_MASKS.iter().enumerate() {
+                    let has = cls::is_w_file(c, Class(m), &w);
+                    assert_eq!(v.isw(c, Class(m)), has, "{what}: isw {c:#x} class {k}");
+                    if let Some(n) = members.get_mut(k) {
+                        *n += usize::from(has);
+                    }
+                }
+            }
+            // Not vacuous: every class has members, alphabetic ones far beyond ASCII.
+            assert!(members.iter().all(|&n| n > 0) && members.get(2).is_some_and(|&n| n > 10_000), "{what}: {members:?}");
+        }
+    }
+
+    /// no spec clause (D-5.10: the paths without a leaf): a block marked as having no leaf (a
+    /// full pool) and a compiled view's table without a slot answer by the file walk, and
+    /// neither is ever written.
+    #[test]
+    fn walking_class_tables_equal_the_file_walk() {
+        use classes::ClassTable;
+        let (l, what) = file_ctypes().into_iter().next().unwrap();
+        let w = wide_of(&l);
+        let marked = ClassTable::file_for_test(true);
+        for block in [0usize, 3, 0x4e] {
+            marked.mark_walk_for_test(block);
+        }
+        let none = ClassTable::walk_for_test();
+        let mut members = 0usize;
+        for c in (0..0x400u32).chain(0x4e00..0x4f00) {
+            let want = crate::ctype::w_classes_file(c, &w).0;
+            assert_eq!(marked.word(c, Some(&w)), want, "{what}: marked block {c:#x}");
+            if [0u32, 3, 0x4e].contains(&(c >> 8)) {
+                assert_eq!(marked.hit(c), None, "{what}: no leaf for {c:#x}");
+            }
+            assert_eq!(none.word(c, Some(&w)), want, "{what}: no slot {c:#x}");
+            members += usize::from(want != 0);
+        }
+        let [unresolved, builtin, pool, walk] = marked.census();
+        assert_eq!((unresolved, builtin + pool, walk), (classes_len() - 5, 2, 3), "{what}: the marked blocks stay marked");
+        assert_eq!(none.census(), [classes_len(), 0, 0, 0], "{what}: a table without a slot is never written");
+        assert!(members > 500, "{what}: {members}");
+    }
+
+    /// no spec clause (D-5.10: a block is resolved once; a thread whose miss was due and that
+    /// lost the race keeps the winner's result): the resolution of a block another thread
+    /// already resolved answers every character by the file walk, whether the winner found no
+    /// room for a leaf (a full pool: the block walks from then on) or published a leaf, and it
+    /// writes nothing; in `en_US.UTF-8` and the system `C.utf8` file, with shared and pool leaves.
+    #[test]
+    fn late_block_resolution_answers_by_the_winner() {
+        use classes::ClassTable;
+        for (l, what) in file_ctypes() {
+            let w = wide_of(&l);
+            let mut members = 0usize;
+            for share in [true, false] {
+                for block in [0u32, 3, 0x1f, 0x4e] {
+                    let first = block << 8;
+                    let want: Vec<u16> = (first..first + 256).map(|c| crate::ctype::w_classes_file(c, &w).0).collect();
+                    members += want.iter().filter(|&&v| v != 0).count();
+                    // The winner found the pool full.
+                    let walked = ClassTable::file_for_test(share);
+                    walked.mark_walk_for_test(block as usize);
+                    // The winner published a leaf (`after` 0: the first miss resolves).
+                    let leafed = ClassTable::file_for_test(share);
+                    assert_eq!(leafed.word(first, Some(&w)), want[0], "{what} share {share}: winner {first:#x}");
+                    let won = leafed.census();
+                    assert_eq!(won[0], classes_len() - 1, "{what} share {share}: the winner resolved the block");
+                    for (c, &v) in (first..).zip(&want) {
+                        assert_eq!(walked.resolve_late_for_test(c, &w, share), v, "{what} share {share}: late resolution of a walking block {c:#x}");
+                        assert_eq!(leafed.resolve_late_for_test(c, &w, share), v, "{what} share {share}: late resolution of a leaf block {c:#x}");
+                    }
+                    let [unresolved, builtin, pool, walk] = walked.census();
+                    assert_eq!((unresolved, builtin + pool, walk), (classes_len() - 1, 0, 1), "{what} share {share}: the walking block stays as the winner left it");
+                    assert_eq!(leafed.census(), won, "{what} share {share}: the leaf block stays as the winner left it");
+                }
+            }
+            // Not vacuous: the blocks hold characters with classes (a zero answer is wrong).
+            assert!(members > 1000, "{what}: {members}");
+        }
+    }
+
+    /// no spec clause (D-5.10 as amended by WCTYPE-TRIE-FILE-8: a compiled locale's block is
+    /// resolved at a set miss, the misses before walk): a block answers by the walk, as a whole
+    /// word and per class, and stays unresolved for exactly `after` misses; the next miss
+    /// resolves it, and from then on it is a hit. The slots' tables wait for more than the
+    /// handful of questions a short program asks.
+    #[test]
+    fn class_table_resolves_at_its_miss_threshold() {
+        use crate::ctype::{self as cls, Class};
+        use classes::ClassTable;
+        let (l, what) = file_ctypes().into_iter().next().unwrap();
+        let w = wide_of(&l);
+        let after = 3u32;
+        // A member and two characters with classes other than the one asked (the answer must be
+        // the asked class's, not any class's).
+        for (c, m) in [(0xe9u32, Class::UPPER), (0x3a9, Class::DIGIT), (0x4e00, Class::ALPHA)] {
+            let want = cls::w_classes_file(c, &w).0;
+            assert_eq!(want & m.0 != 0, c == 0x4e00, "{what} {c:#x}: the case is not vacuous");
+            for word in [true, false] {
+                let t = ClassTable::file_after_for_test(after);
+                for k in 0..=after {
+                    assert_eq!(t.hit(c), None, "{what} {c:#x}: unresolved before miss {}", k + 1);
+                    if word {
+                        assert_eq!(t.word(c, Some(&w)), want, "{what} {c:#x}: word at miss {}", k + 1);
+                    } else {
+                        assert_eq!(t.test_miss(c, m, Some(&w)), i32::from(cls::is_w_file(c, m, &w)), "{what} {c:#x}: test at miss {}", k + 1);
+                    }
+                    let resolved = classes_len() - t.census()[0];
+                    assert_eq!(resolved, usize::from(k == after), "{what} {c:#x}: resolved blocks after miss {}", k + 1);
+                }
+                assert_eq!(t.hit(c), Some(want), "{what} {c:#x}: a hit once resolved");
+                assert_eq!(t.test(c, m.0), Some(i32::from(want & m.0 != 0)), "{what} {c:#x}: resolved test");
+            }
+        }
+        // The slots' count: 16 questions in one block (a short program's handful) resolve nothing.
+        let t = ClassTable::file_after_for_test(ClassTable::RESOLVE_AFTER_FOR_TEST);
+        for _ in 0..16 {
+            assert_eq!(t.word(0xe9, Some(&w)), cls::w_classes_file(0xe9, &w).0, "{what}: slot count word");
+        }
+        assert_eq!(t.census()[0], classes_len(), "{what}: a short program's few questions resolve no block");
+    }
+
+    /// The number of stage-1 entries (blocks of 256 code points through U+10FFFF).
+    fn classes_len() -> usize {
+        0x11_0000 >> 8
+    }
+
+    /// no spec clause (D-5.10, WCTYPE-TRIE-FILE-10: a built-in table is all zero bytes, so it
+    /// stays in `.bss` and start-up never touches it): a built-in table starts with every block
+    /// unresolved and resolves a block at its first miss, through `word` and through
+    /// `test_miss` (the `isw*` path), to its generated leaf. Every character of the blocks
+    /// asked equals the generated word, the first one misses and the rest hit, and no other
+    /// block is written; above U+10FFFF nothing has a class and nothing is written.
+    #[test]
+    fn builtin_class_tables_resolve_a_block_at_its_first_miss() {
+        use crate::ctype::{Class, STANDARD_MASKS};
+        use crate::unicode::{self, class_words};
+        use classes::ClassTable;
+        for (utf8, s1, what) in [(false, &class_words::C_STAGE1, "C"), (true, &class_words::C_UTF8_STAGE1, "C.UTF-8")] {
+            let by_word = ClassTable::builtin_for_test(utf8);
+            let by_test = ClassTable::builtin_for_test(utf8);
+            assert_eq!(by_word.census(), [classes_len(), 0, 0, 0], "{what}: unresolved at first");
+            for (n, block) in [0u32, 0x03, 0x4e, 0x10ff].into_iter().enumerate() {
+                let first = block << 8;
+                assert_eq!(by_word.hit(first), None, "{what} {first:#x}: unresolved before its first miss");
+                assert_eq!(by_test.test(first, Class::ALPHA.0), None, "{what} {first:#x}: test misses first");
+                let mut members = 0usize;
+                for c in first..first + 256 {
+                    let want = unicode::class_word(s1, c);
+                    let m = STANDARD_MASKS.get(usize::try_from(c % 12).unwrap_or(0)).copied().unwrap_or(0);
+                    assert_eq!(by_word.word(c, None), want, "{what}: word {c:#x}");
+                    assert_eq!(by_word.hit(c), Some(want), "{what}: a hit once resolved {c:#x}");
+                    let got = by_test.test(c, m).unwrap_or_else(|| by_test.test_miss(c, Class(m), None));
+                    assert_eq!(got, i32::from(want & m != 0), "{what}: test {c:#x} mask {m:#x}");
+                    members += usize::from(want != 0);
+                }
+                // Not vacuous: ASCII has classes in both, U+0300 and U+4E00 blocks in C.UTF-8.
+                assert!(members > 0 || block == 0x10ff || (!utf8 && block != 0), "{what} block {block:#x}: not vacuous");
+                assert_eq!(by_word.census(), [classes_len() - n - 1, n + 1, 0, 0], "{what}: only the blocks asked");
+                assert_eq!(by_test.census(), [classes_len() - n - 1, n + 1, 0, 0], "{what}: only the blocks asked (test)");
+            }
+            assert_eq!(by_word.word(0x11_0000, None), 0, "{what}: above U+10FFFF");
+            assert_eq!(by_test.test_miss(0xffff_ffff, Class::ALPHA, None), 0, "{what}: above U+10FFFF (test)");
+            assert_eq!(by_word.census()[1], 4, "{what}: nothing written above U+10FFFF");
+        }
+    }
+
+    /// no spec clause (D-5.10: a block is resolved once and published whole): many threads
+    /// touching one unresolved block at once all get the file walk's words, and the block ends
+    /// resolved; with a built-in leaf and with a pool leaf.
+    #[test]
+    fn class_table_first_touch_race() {
+        use classes::ClassTable;
+        use std::sync::{Arc, Barrier};
+        let (l, what) = file_ctypes().into_iter().next().unwrap();
+        let w = wide_of(&l);
+        for (share, first) in [(true, 0x4e00u32), (false, 0x0300), (true, 0x0000), (false, 0x1f00)] {
+            let t: &'static ClassTable = Box::leak(Box::new(ClassTable::file_for_test(share)));
+            let want: Vec<u16> = (first..first + 256).map(|c| crate::ctype::w_classes_file(c, &w).0).collect();
+            let n = 16;
+            let bar = Arc::new(Barrier::new(n));
+            let threads: Vec<_> = (0..n)
+                .map(|k| {
+                    let bar = Arc::clone(&bar);
+                    std::thread::spawn(move || {
+                        bar.wait();
+                        // Each thread starts at a different character of the block.
+                        (0..256u32).map(|i| first + (i + 16 * k as u32) % 256).map(|c| (c, t.word(c, Some(&w)))).collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            for h in threads {
+                for (c, got) in h.join().unwrap() {
+                    assert_eq!(got, want[(c - first) as usize], "{what} share {share}: {c:#x}");
+                }
+            }
+            let [unresolved, builtin, pool, walk] = t.census();
+            assert_eq!((unresolved, builtin + pool + walk), (classes_len() - 1, 1), "{what} share {share}: one block resolved");
+            for c in first..first + 256 {
+                assert!(t.hit(c).is_none_or(|v| v == want[(c - first) as usize]), "{what} share {share}: hit {c:#x}");
+            }
+        }
     }
 
     /// D-7.13: a locale view's wide class tests, case maps and widths equal the per-call reads

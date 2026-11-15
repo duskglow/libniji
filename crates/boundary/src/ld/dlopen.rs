@@ -29,7 +29,7 @@
 //!
 //! Not here yet (plan §6): lazy binding (DL-20).
 
-use super::{array_words, c_string, dyn_string, env_entries, image_view, open_whole, own_object, read_auxv, ProcImage, SysMapper};
+use super::{array_words, c_string, dyn_string, env_entries, image_view, open_whole, own_object, read_auxv, report_nonshared, ProcImage, SysMapper};
 use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_OBJS, START_ARGS, START_PAGE};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
@@ -237,6 +237,8 @@ struct Loader {
     tls_mark: usize,
     /// `__liella_thread_walk`'s address once looked up (0: not yet).
     thread_walk: usize,
+    /// `__liella_owner_unload`'s address once looked up (0: not yet).
+    owner_unload: usize,
     /// The TLS module IDs of `dlopen`ed modules (DL-17: an unloaded module's ID is reused).
     ids: ltls::ModuleIds,
     /// Unloaded objects still mapped: (index, whether the reader parity flipped since it was
@@ -803,10 +805,14 @@ struct Finis {
     calls: [[u64; 3]; CAP],
     idx: [u16; CAP],
     len: usize,
+    /// Each object's mapped range [lo, hi), for the C library's `__liella_owner_unload`.
+    ranges: [(usize, usize); CAP],
+    /// `__liella_owner_unload`'s address when this is a `dlclose` (0: at exit, or no C library has it).
+    owner_unload: usize,
 }
 
 impl Finis {
-    const NONE: Finis = Finis { calls: [[0; 3]; CAP], idx: [0; CAP], len: 0 };
+    const NONE: Finis = Finis { calls: [[0; 3]; CAP], idx: [0; CAP], len: 0, ranges: [(0, 0); CAP], owner_unload: 0 };
 
     /// Add object `i` (loaded, not finalising yet) and mark it finalising.
     fn add(&mut self, l: &mut Loader, i: usize) {
@@ -816,6 +822,9 @@ impl Finis {
         }
         let (Some(c), Some(x)) = (self.calls.get_mut(self.len), self.idx.get_mut(self.len)) else { return };
         node.finalising = true;
+        if let Some(r) = self.ranges.get_mut(self.len) {
+            *r = (node.lo, node.hi);
+        }
         *c = node.fini;
         *x = u16::try_from(i).unwrap_or(0);
         self.len = self.len.saturating_add(1);
@@ -825,11 +834,17 @@ impl Finis {
         self.idx.get(..self.len).unwrap_or(&[])
     }
 
-    /// Each object's `DT_FINI_ARRAY` in reverse, then its `DT_FINI` (probe `== order`).
+    /// Each object's `DT_FINI_ARRAY` in reverse, then its `DT_FINI` (probe `== order`); then, for a
+    /// `dlclose`, the C library's step for the opted-in registrations the object owns or whose
+    /// handlers it holds (D-27.29), while its code is still mapped.
     fn run(&self) {
-        for &[addr, len, fini] in self.calls.get(..self.len).unwrap_or(&[]) {
+        let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
+        for (&[addr, len, fini], &(lo, hi)) in self.calls.get(..self.len).unwrap_or(&[]).iter().zip(self.ranges.iter()) {
             for f in init::fini_calls(fini, array_words(init::Array { addr, len })) {
                 let _ = crate::ffi::liella_machine_call0(usize::try_from(f).unwrap_or(0));
+            }
+            if self.owner_unload != 0 {
+                let _ = crate::ffi::liella_machine_call3(self.owner_unload, w(lo), w(hi), 0);
             }
         }
     }
@@ -901,6 +916,9 @@ fn close_begin(handle: usize, f: &mut Finis) -> Result<(), Fail> {
         if !keep.get(j).copied().unwrap_or(true) {
             f.add(l, j);
         }
+    }
+    if f.len > 0 {
+        f.owner_unload = owner_unload(l);
     }
     Ok(())
 }
@@ -1365,6 +1383,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         return Some(Found::Full(b"out of room for object names"));
     };
     let o = Obj { elf, dynm, bias: loaded.bias, name: given, tls: None };
+    report_nonshared(&elf, shown);
     l.objs[k] = MaybeUninit::new(o);
     l.syms[k] = MaybeUninit::new(sym);
     let name = l.names.as_ptr().expose_provenance().wrapping_add(usize::try_from(span.0).unwrap_or(0));
@@ -1581,6 +1600,18 @@ fn thread_walk(l: &mut Loader) -> usize {
         l.thread_walk = found.and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
     }
     l.thread_walk
+}
+
+/// The C library's `__liella_owner_unload` (a start object's, at `LIELLA_PRIVATE`; D-27.29),
+/// looked up once by the first `dlclose` that unloads an object; 0 when no start object has it.
+fn owner_unload(l: &mut Loader) -> usize {
+    if l.owner_unload == 0 {
+        let req = Request::new(start::private::OWNER_UNLOAD, Want::Version(start::private::NODE));
+        let n = START_N.load(Acquire).min(l.n);
+        let found = l.objs_upto(n).iter().zip(syms_of(&l.syms, n)).find_map(|(o, s)| s.lookup(&req).ok().flatten().map(|d| o.bias.wrapping_add(d.st.value)));
+        l.owner_unload = found.and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
+    }
+    l.owner_unload
 }
 
 /// The text of a failed attempt that found `f` for `name`.

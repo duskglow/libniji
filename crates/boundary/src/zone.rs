@@ -95,12 +95,16 @@ pub fn gmtime(t: i64) -> KResult<struct_tm> {
 
 /// Run `f` with the calling thread's [`time::Period`] (its cache words, TB-SLOTS: three
 /// `%fs`-relative loads, and stores only when `f` changed it).
-fn with_period<R>(f: impl FnOnce(&mut time::Period) -> R) -> R {
+/// The words are read and written only in a process the runtime started (D-5.11, ruling #4281:
+/// elsewhere they are another library's); there every call starts from no period.
+pub(crate) fn with_period<R>(f: impl FnOnce(&mut time::Period) -> R) -> R {
     let w = |v: usize| u64::try_from(v).unwrap_or(0);
-    let before = time::Period::from_words(&[w(tb::read::<tb::TzPeriod0>()), w(tb::read::<tb::TzPeriod1>()), w(tb::read::<tb::TzPeriod2>())]);
+    let own = crate::thread::owned();
+    let words = if own { [w(tb::read::<tb::TzPeriod0>()), w(tb::read::<tb::TzPeriod1>()), w(tb::read::<tb::TzPeriod2>())] } else { [0; 3] };
+    let before = time::Period::from_words(&words);
     let mut p = before;
     let r = f(&mut p);
-    if p != before {
+    if own && p != before {
         let [a, lo, hi] = p.to_words().map(|x| usize::try_from(x).unwrap_or(0));
         if let Some([c0, c1, c2]) = tb::current().cache.get(CACHE_TZ_PERIOD..).and_then(|c| c.first_chunk::<{ time::Period::WORDS }>()) {
             // The zone number last: a `localtime` in a signal handler that interrupts the

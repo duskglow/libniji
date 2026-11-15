@@ -17,7 +17,11 @@
  * __gmon_start__ runs its work once: an object that calls it again (a toolchain's crti.o
  * calls __gmon_start__ when defined) does not register _mcleanup twice. The calls go through
  * the GOT, as in entry.S, and the linker relaxes them in a static link. The reserved names
- * __monstartup and _etext keep a program's own monstartup or etext from being taken. */
+ * __monstartup and _etext keep a program's own monstartup or etext from being taken.
+ *
+ * Assembled with -DLIELLA_STATIC_PIE it is liella-grcrt1.o (installed as grcrt1.o; SL-CRT), the
+ * start object the compiler driver links for `-pg -static-pie`: rcrt1's relocating _start
+ * (entry.S) and the same hook, which runs from .preinit_array after the relocation. */
 /* Outside csys/src on purpose: crates/boundary/build.rs archives every source under csys/src,
  * and no archive may carry _start or this .preinit_array entry. */
 #include "../src/machine/entry.S"
@@ -36,9 +40,17 @@ __gmon_start__:
 	.cfi_adjust_cfa_offset 8
 	leaq __executable_start(%rip), %rdi
 	leaq _etext(%rip), %rsi
+#ifdef LIELLA_STATIC_PIE
+	/* grcrt1.o: everything is in the one executable, reached PC-relatively like the rest of
+	 * rcrt1's code (no GOT relocation in the object, which `cargo xtask so` checks). */
+	call __monstartup
+	leaq _mcleanup(%rip), %rdi
+	call atexit
+#else
 	call *__monstartup@GOTPCREL(%rip)
 	movq _mcleanup@GOTPCREL(%rip), %rdi
 	call *atexit@GOTPCREL(%rip)
+#endif
 	addq $8, %rsp
 	.cfi_adjust_cfa_offset -8
 1:	ret

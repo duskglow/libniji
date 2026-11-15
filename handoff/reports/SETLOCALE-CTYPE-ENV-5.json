@@ -1,0 +1,25 @@
+{"task": "SETLOCALE-CTYPE-ENV-5", "model": "opus", "tokens": null,
+ "result": "coreutils-shaped start-up fault removed: fast tool probe 51 -> 50 (next 50); traced hot group end back to next's address; lookup out of line, strftime formatter inline(never)",
+ "branch": "task/setlocale-ctype-env-5", "head": "002e4c24c",
+ "gate": {"affected": "setlocale-ctype-env-5-gate (CI ci_gate_cmd: static, affected --tier full, release hot_text_products) running at hand-back", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   {"item": "next itself has 421 bytes before the traced hot group's 32 KiB boundary (fast products, Zen 1 host); any traced growth of that size adds a 64 KiB fault-around window to the coreutils-shaped probe", "recommendation": "a layout story for headroom or a boundary-independent count"},
+   {"item": "plants WARN-DEV-SHM (plants dir under /dev/shm); no test of this file mounts /dev", "recommendation": "none"},
+   {"item": "branch not merged with next past 8f3e2993e (next f6cab48d7); the brief allowed no merge", "recommendation": "CI merges"}
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "faults", "what": "page_faults relay tool (coreutils-shaped), fast products, Zen 1", "before": 51, "after": 50, "unit": "minor faults", "measured": true},
+   {"kind": "perf", "what": "setlocale_all_empty_lang release per call (base 874d17d92)", "before": 4298, "after": 3824, "unit": "instr/call", "measured": true},
+   {"kind": "perf", "what": "setlocale_all_empty_lcall_empty release per call", "before": 4833, "after": 4386, "unit": "instr/call", "measured": true},
+   {"kind": "cost", "what": "setlocale_ctype_empty release per call (out-of-line lookup; next ~8257, glibc 2656)", "before": 517, "after": 568, "unit": "instr/call", "measured": true},
+   {"kind": "cost", "what": "setlocale_ctype_empty_lang release per call (glibc 6421)", "before": 839, "after": 880, "unit": "instr/call", "measured": true},
+   {"kind": "cost", "what": "setlocale_all_empty release per call (glibc 11865)", "before": 1047, "after": 1083, "unit": "instr/call", "measured": true},
+   {"kind": "coverage", "what": "plants added (2 caught, 1 equivalent)", "before": 0, "after": 3, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a fault-address diff tool (faultset.sh: perf page-fault addresses annotated by section and symbol, plus the hot-group end) found the cause in 3 jobs; it belongs in the repo's layout tooling",
+ "next_step": "if the gate is green the branch lands; else run only the failing test",
+ "report_file": "handoff/SETLOCALE-CTYPE-ENV.md",
+ "jobs": ["setlocale-ctype-env-5-gate", "setlocale-ctype-env-5-plants", "setlocale-ctype-env-5-percall2", "setlocale-ctype-env-5-fs-head3"]}
