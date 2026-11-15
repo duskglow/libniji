@@ -139,7 +139,7 @@ const _: () = {
 const ARG_MAX_READ: usize = 4096;
 
 /// Write all of `bytes` to `fd` (short writes continued; errors give up: there is nowhere to report them).
-fn write_all(fd: i64, mut bytes: &[u8]) {
+pub(crate) fn write_all(fd: i64, mut bytes: &[u8]) {
     while !bytes.is_empty() {
         let n = liella_sys_write(fd, bytes.as_ptr().cast::<c_void>(), i64::try_from(bytes.len()).unwrap_or(i64::MAX));
         match usize::try_from(n) {
@@ -150,14 +150,14 @@ fn write_all(fd: i64, mut bytes: &[u8]) {
 }
 
 /// End the process with `status`.
-fn exit(status: i32) -> ! {
+pub(crate) fn exit(status: i32) -> ! {
     loop {
         liella_sys_exit_group(i64::from(status));
     }
 }
 
 /// The word at `addr` on the initial stack.
-fn stack_word(addr: usize) -> u64 {
+pub(crate) fn stack_word(addr: usize) -> u64 {
     // UNSAFE(slice): one word of the initial stack (argc, argv[], envp[], auxv).
     #[allow(unsafe_code)]
     // SAFETY: the kernel laid out argc, argv[] and NULL, envp[] and NULL and the auxiliary vector
@@ -168,7 +168,7 @@ fn stack_word(addr: usize) -> u64 {
 }
 
 /// The NUL-terminated string at `addr` (an argv element), without its NUL, at most [`ARG_MAX_READ`] bytes.
-fn c_string(addr: usize) -> &'static [u8] {
+pub(crate) fn c_string(addr: usize) -> &'static [u8] {
     let mut len = 0usize;
     while len < ARG_MAX_READ {
         // UNSAFE(slice): one byte of an argument string.

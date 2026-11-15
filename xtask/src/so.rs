@@ -1410,6 +1410,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     println!("so: target/liella/libc.a ({} functions overridable with internal calls bound to the library, {} names weak in place), libc.so.6 ({count} versioned symbols, {native} of them native), liella-crt1.o, liella-rcrt1.o, liella-gcrt1.o, liella-grcrt1.o, liella-crti.o, liella-crtn.o, liella-Mcrt1.o, libresolv placeholder", weak.0, weak.1);
     run_libm(root, &cc, &ar, profile)?;
     run_ld(root, &cc, profile)?;
+    run_ldconfig(root, &cc, profile)?;
     check_placement(root, &release)?;
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
@@ -1473,6 +1474,51 @@ fn run_ld(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     check_interp_prerelocation(&staged)?;
     publish(&staged, &out)?;
     println!("so: target/liella/{name} (the interpreter; L14-1 link check and pre-relocation check passed)");
+    Ok(())
+}
+
+/// The shipped ldconfig (UTIL-3, D-31.2): `crates/ldconfig-bin` as a static archive, linked with the `ldconfig`
+/// variant of `machine/entry.S` into `target/liella/ldconfig`, a static PIE with no interpreter whose entry point is
+/// `liella_machine_ldconfig_entry`. It relocates itself as the interpreter does, so it is built with the
+/// interpreter's flags (and shares its target directory: one copy of the library crates) and must pass the same
+/// link invariant (L14-1: nothing undefined, no `DT_NEEDED`, only RELATIVE/RELR relocations).
+pub(crate) const LDCONFIG_BUILD: ProductBuild = ProductBuild { manifest: "crates/ldconfig-bin/Cargo.toml", archive: "libldconfig_bin.a", subdir: "ld-pie", extra: Some(LD_RUSTFLAGS) };
+
+fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
+    let product = root.join("target/product");
+    let release = root.join("target/liella");
+    run(&mut LDCONFIG_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    let archive = LDCONFIG_BUILD.raw_archive(&product, profile);
+    let entry = product.join("ldconfig-entry.o");
+    run(Command::new(cc).arg("-c").arg("-DLIELLA_LD").arg("-DLIELLA_LDCONFIG").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
+    let out = release.join("ldconfig");
+    let staged = tmp_name(&out);
+    run(Command::new(cc)
+        .args(["-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,liella_machine_ldconfig_entry"])
+        .arg(&entry)
+        .arg(&archive)
+        .arg("-lgcc")
+        .arg("-o")
+        .arg(&staged))?;
+    check_interp(&staged)?;
+    check_no_interp(&staged)?;
+    publish(&staged, &out)?;
+    println!("so: target/liella/ldconfig (static PIE, no interpreter; L14-1 link check passed)");
+    Ok(())
+}
+
+/// A program with no `PT_INTERP`: it runs with no loader and no C library on the system (D-31.2).
+fn check_no_interp(path: &Path) -> Result<(), String> {
+    const PT_INTERP: u32 = 3;
+    let b = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let word = |at: usize, n: usize| -> u64 { b.get(at..at + n).map_or(0, |s| s.iter().rev().fold(0u64, |a, &x| (a << 8) | u64::from(x))) };
+    let (phoff, phent, phnum) = (word(32, 8) as usize, word(54, 2) as usize, word(56, 2) as usize);
+    if phnum == 0 {
+        return Err(format!("{}: no program headers", path.display()));
+    }
+    if (0..phnum).any(|i| word(phoff + i * phent, 4) as u32 == PT_INTERP) {
+        return Err(format!("{}: has PT_INTERP: the static ldconfig must run with no loader (D-31.2)", path.display()));
+    }
     Ok(())
 }
 
@@ -2007,7 +2053,7 @@ mod tests {
         let product = root.join("target/product");
         let mut by_dir: BTreeMap<String, (&str, Vec<String>)> = BTreeMap::new();
         // Every product build `run_so_as` runs.
-        for b in [&LIBC_BUILD, &LIBM_BUILD, &LD_BUILD] {
+        for b in [&LIBC_BUILD, &LIBM_BUILD, &LD_BUILD, &LDCONFIG_BUILD] {
             for profile in [Profile::Fast, Profile::Release] {
                 let cmd = b.command(root, &product, profile, None, "src-0123456789abcdef");
                 let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().into_owned()).collect();

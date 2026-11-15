@@ -161,6 +161,7 @@ pub const SEEK_DATA: u32 = 3;
 pub const SEEK_HOLE: u32 = 4;
 pub const RESOLVE_NO_SYMLINKS: u64 = 0x04;
 pub const RESOLVE_BENEATH: u64 = 0x08;
+pub const RESOLVE_IN_ROOT: u64 = 0x10;
 pub const CLOSE_RANGE_CLOEXEC: u32 = 4;
 pub const FD_CLOEXEC: i64 = 1;
 pub const F_DUPFD: u32 = 0;

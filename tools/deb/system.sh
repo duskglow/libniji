@@ -16,9 +16,9 @@
 #                 LIELLA_NATIVE node>), the virtual package the symbols file's native template names.
 #   libc-bin      Essential: the loader configuration (/etc/ld.so.conf, ld.so.conf.d/libc.conf),
 #                 /etc/gai.conf, the nsswitch.conf template its postinst installs when the root has
-#                 none; owns the ldconfig trigger. Its programs (ldconfig, getconf, getent, iconv,
-#                 locale, ...) come with SL-LDCONFIG and SL-BIN-CORE; until then the trigger is a
-#                 documented no-op (the loader searches the standard directories without a cache).
+#                 none; owns the ldconfig trigger, which its postinst handles by running
+#                 /usr/sbin/ldconfig (static, no interpreter: D-31.2; -r "$DPKG_ROOT" when set). Its
+#                 other programs (getconf, getent, iconv, locale, ...) come with SL-BIN-CORE.
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
 #                 libm.so. No headers yet (SL-HEADERS, R4).
 #   libc-dev-bin  placeholder (gencat, ldd: SL-DEVTOOLS, SL-BIN-CORE).
@@ -47,6 +47,8 @@ put 0644 "$sys/ld.so.conf" "$bin/etc/ld.so.conf"
 put 0644 "$sys/libc.conf" "$bin/etc/ld.so.conf.d/libc.conf"
 put 0644 "$sys/gai.conf" "$bin/etc/gai.conf"
 put 0644 "$sys/nsswitch.conf" "$bin/usr/share/libc-bin/nsswitch.conf"
+need ldconfig
+put 0755 "$products/ldconfig" "$bin/usr/sbin/ldconfig"
 
 # --- libc6-dev ---
 need liella-crt1.o
@@ -129,9 +131,9 @@ sys_control libc-bin amd64 libs required \
     "Depends: libc6 (= $version)" \
     "Description: Liella C library: configuration and programs" \
     "$abi_note" \
-    " This package holds the loader configuration (/etc/ld.so.conf and" \
+    " This package holds ldconfig, the loader configuration (/etc/ld.so.conf and" \
     " /etc/ld.so.conf.d), /etc/gai.conf and the template of /etc/nsswitch.conf. The" \
-    " C library's programs (ldconfig, getconf, getent, iconv, locale) are not part" \
+    " C library's other programs (getconf, getent, iconv, locale) are not part" \
     " of this build yet."
 sys_control libc6-dev amd64 libdevel optional \
     "Multi-Arch: same" \

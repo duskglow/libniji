@@ -14,6 +14,7 @@
 #   - the dynamic hello (program interpreter /lib64/ld-linux-x86-64.so.2) starts the packaged
 #     loader through the root's /lib64 link, and ld.so --list resolves libc.so.6 to
 #     /usr/lib/x86_64-linux-gnu/libc.so.6;
+#   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache the ldconfig trigger wrote;
 #   - the dynamic hello runs: PASS when it prints its line; WAIT while the loader's start-time
 #     soname search is not on the start path (story DL-8; the loader says so);
 #   - purge (libc-bin is Essential: --force-remove-essential) leaves the skeleton, the database and
@@ -88,6 +89,11 @@ out=$(in_root /lib64/ld-linux-x86-64.so.2 --list /tmp/hello 2>&1) || true
 case $out in
     *"libc.so.6 => /usr/lib/$ma/libc.so.6 "*) pass "ld.so --list in the root resolves libc.so.6 to /usr/lib/$ma/libc.so.6" ;;
     *) fail "ld.so --list in the root: $(echo "$out" | tr '\n' ' ')" ;;
+esac
+out=$(in_root /usr/sbin/ldconfig -p 2>&1) || true
+case $out in
+    *"libc.so.6 (libc6,x86-64) => "*"/lib/$ma/libc.so.6"*) pass "the ldconfig trigger wrote /etc/ld.so.cache: ldconfig -p in the root lists libc.so.6" ;;
+    *) fail "ldconfig -p in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
 esac
 out=$(in_root /tmp/hello 2>&1) && rc=0 || rc=$?
 case $rc:$out in

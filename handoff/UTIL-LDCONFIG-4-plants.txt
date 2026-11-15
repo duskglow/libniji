@@ -1,0 +1,6 @@
+# UTIL-LDCONFIG-4 plants: the shipped ldconfig's system-call file system (crates/ld/src/ldconfig/sysfs.rs).
+# Each rebuilds the products (the static program is linked by `cargo xtask so`) and runs the transcripts through it.
+# cargo xtask plants handoff/UTIL-LDCONFIG-4-plants.txt --dir <new RAM dir> --timeout 1800 (docs/plants.md)
+sysfs-root-escape | crates/ld/src/ldconfig/sysfs.rs | lit:            fs.resolve = RESOLVE_IN_ROOT; ==>             fs.resolve = 0; | cargo xtask so && cargo test -p xtask --test transcripts the_shipped_ldconfig_passes_the_transcripts | msg:the_shipped_ldconfig_passes_the_transcripts.*FAILED|panicked
+sysfs-list-first-only | crates/ld/src/ldconfig/sysfs.rs | lit:at = at.saturating_add(len); ==> at = n; | cargo xtask so && cargo test -p xtask --test transcripts the_shipped_ldconfig_passes_the_transcripts | msg:the_shipped_ldconfig_passes_the_transcripts.*FAILED|panicked
+sysfs-link-target | crates/ld/src/ldconfig/sysfs.rs | lit:self.sys.symlinkat(kpath(target)?.as_kstr(), dir.1, tmp.as_kstr()) ==> self.sys.symlinkat(kpath(link)?.as_kstr(), dir.1, tmp.as_kstr()) | cargo xtask so && cargo test -p xtask --test transcripts the_shipped_ldconfig_passes_the_transcripts | msg:the_shipped_ldconfig_passes_the_transcripts.*FAILED|panicked

@@ -1,0 +1,29 @@
+# -l with operands that are not libraries (missing, not ELF, no soname, a directory, a relative name that does not
+# exist): each is reported or skipped on its own, the good operand after them is linked, and the status is 0.
+name: ldconfig -l -N reports operands that are not libraries
+clause: s31_2_i_1
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -l
+arg: -N
+arg: @ROOT@/lib/libnone.so.1
+arg: @ROOT@/lib/libtxt.so.3
+arg: @ROOT@/lib/libnos.so.4
+arg: @ROOT@/lib
+arg: librel.so.5
+arg: @ROOT@/lib/libok.so.6.0
+file: lib/libtxt.so.3
+| not an ELF file
+elf: lib/libnos.so.4
+elf: lib/libok.so.6.0 soname=libok.so.6
+status: exit 0
+stdout:
+stderr:
+| ldconfig: Cannot lstat @ROOT@/lib/libnone.so.1: No such file or directory
+| ldconfig: No link created since soname could not be found for @ROOT@/lib/libtxt.so.3
+| ldconfig: Ignored file @ROOT@/lib since it is not a regular file.
+| ldconfig: Cannot lstat librel.so.5: No such file or directory
+written-link: lib/libok.so.6 -> libok.so.6.0

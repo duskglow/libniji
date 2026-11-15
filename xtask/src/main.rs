@@ -128,7 +128,7 @@ fn root() -> Result<PathBuf, String> {
 }
 
 fn main() -> ExitCode {
-    // UTIL-HARNESS: the ldconfig transcript stub and the namespace helper run in a private root, outside any tree.
+    // UTIL-HARNESS, UTIL-3: ldconfig (argv[0] `ldconfig`) and the namespace helper run in a private root, outside any tree.
     if let Some(code) = transcript::early() {
         return code;
     }

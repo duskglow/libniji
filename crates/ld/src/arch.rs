@@ -72,6 +72,10 @@ pub trait Arch {
     /// The `flags` an `ld.so.cache` entry for this architecture carries (spec Appendix D.3.1); an entry
     /// with other flags is skipped.
     const CACHE_FLAGS: u32;
+    /// The ELF types `ldconfig` links and records on this architecture, `(EI_CLASS, EI_DATA, e_machine, cache
+    /// flags)`: the native one, and on a multilib architecture the foreign classes it holds too (spec §31.2, the
+    /// foreign-class transcripts). Others are skipped. Default: the native type only.
+    const LDCONFIG_TYPES: &'static [(u8, u8, u16, u32)] = &[(Self::EI_CLASS, Self::EI_DATA, Self::E_MACHINE, Self::CACHE_FLAGS)];
     /// The `glibc-hwcaps` subdirectories `f` supports, highest priority first (design §4, #940).
     fn hwcaps(f: &Features) -> &'static [&'static str];
     /// The value of the `$PLATFORM` dynamic string token for `f` (a fixed string per CPU class).
@@ -318,6 +322,9 @@ impl Arch for X86_64 {
     /// Type 3 (ELF libc6) with ABI byte 3 (x86-64): `0x0303` (Appendix D.3.1; `0x0003` and `0x0803`
     /// were observed skipped by the reference x86-64 loader).
     const CACHE_FLAGS: u32 = 0x0303;
+    /// x86-64, then the two ELF32 classes of a multilib x86-64 system: i386 (`EM_386`, flags `0x0003`) and x32
+    /// (`EM_X86_64`, flags `0x0803`); probed (validation/transcripts/ldconfig/foreign-class.transcript).
+    const LDCONFIG_TYPES: &'static [(u8, u8, u16, u32)] = &[(ELFCLASS64, ELFDATA2LSB, 62, 0x0303), (ELFCLASS32, ELFDATA2LSB, 3, 0x0003), (ELFCLASS32, ELFDATA2LSB, 62, 0x0803)];
 
     /// The x86-64 psABI micro-architecture levels (§3.1.1, "Micro-Architecture Levels"), each
     /// subdirectory only when its level and every level below it are supported.

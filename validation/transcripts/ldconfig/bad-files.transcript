@@ -1,0 +1,20 @@
+# Files ldconfig reports: an ELF file cut short, a dangling symlink (one per directory, so the
+# reference's directory order does not decide the order of the messages).
+name: ldconfig -n reports truncated files and dangling links
+clause: s31_2_g_4
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -n
+arg: @ROOT@/d1
+arg: @ROOT@/d3
+elf: d1/libcut.so.1 soname=libcut.so.1 cut=100
+link: d3/libdang.so.1 -> libnowhere.so.1
+status: exit 0
+stdout:
+stderr:
+| ldconfig: file @ROOT@/d1/libcut.so.1 is truncated
+|
+written-removed: d3/libdang.so.1

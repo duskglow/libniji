@@ -13,9 +13,15 @@ case "$1" in
         fi
         ;;
     triggered)
-        # The ldconfig trigger (libc6 and library packages activate it). This build ships no
-        # ldconfig yet (SL-LDCONFIG), so there is no cache to rebuild: a documented no-op. The
-        # loader searches the standard directories without a cache.
+        # The ldconfig trigger (libc6 and library packages activate it): rebuild the soname links
+        # and /etc/ld.so.cache. ldconfig is static with no interpreter (D-31.2), so the root's own
+        # copy runs from outside the root as well; -r keeps every path it reads or writes inside
+        # DPKG_ROOT (resolved with openat2 RESOLVE_IN_ROOT, D-31.9).
+        if [ -n "$DPKG_ROOT" ]; then
+            "$DPKG_ROOT/usr/sbin/ldconfig" -r "$DPKG_ROOT"
+        else
+            /usr/sbin/ldconfig
+        fi
         ;;
 esac
 

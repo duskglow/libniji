@@ -29,6 +29,24 @@ fn the_committed_ldconfig_transcripts_hold() {
 }
 
 #[test]
+fn the_shipped_ldconfig_passes_the_transcripts() {
+    // Trace: s31_2_g_6, s31_2_f_1. The freestanding program `cargo xtask so` links (D-31.2), run over the same
+    // transcripts as the engine's hosted front end: its system-call file system (`-r` through openat2) must agree.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root");
+    let target = std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), std::path::PathBuf::from);
+    let program = target.join("liella/ldconfig");
+    if !program.exists() {
+        eprintln!("SKIP: {} not built (run cargo xtask so)", program.display());
+        return;
+    }
+    let liella = format!("ldconfig={}", program.display());
+    let (code, text) = check(&["validation/transcripts/ldconfig", "--liella", &liella]);
+    println!("{text}");
+    assert_eq!(code, Some(0), "{text}");
+    assert!(text.contains(" 0 mismatched, ") && text.contains(" 0 errors "), "{text}");
+}
+
+#[test]
 fn a_record_changed_by_one_byte_is_a_mismatch() {
     // Trace: s31_2_g_6.
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root");

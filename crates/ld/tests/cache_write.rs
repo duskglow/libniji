@@ -250,6 +250,28 @@ fn write_layout_is_the_d31_new_format() {
     assert_eq!(Cache::parse(&empty).map(|c| c.len()), Some(0));
 }
 
+/// s27_1_c_1_1, Appendix D.3.1: a hwcaps entry names the real file (ldconfig makes no links in a
+/// glibc-hwcaps subdirectory), so its key is not its path's tail: the key gets its own string and
+/// reads back whole, and a lookup by the soname finds the file. Defect caught: storing the key as
+/// the tail of the path (key `bdd.so.4.0` for soname `libdd.so.4`).
+#[test]
+fn write_hwcaps_key_other_than_the_file_name() {
+    let row = |k: &str, p: &str, h: Option<&str>| (FLAGS, k.to_string(), p.to_string(), h.map(String::from), 0);
+    let rows = [row("libdd.so.4", "/l/glibc-hwcaps/x86-64-v3/libdd.so.4.0", Some("x86-64-v3")), row("libdd.so.4", "/l/libdd.so.4", None)];
+    let f = build(&rows, "");
+    let all = "x86-64-v3\0/l/glibc-hwcaps/x86-64-v3/libdd.so.4.0\0libdd.so.4\0/l/libdd.so.4\0";
+    assert_eq!(u32_at(&f, 24), all.len(), "write_hwcaps_key: the separate key is counted in the string table");
+    let c = Cache::parse(&f).expect("write_hwcaps_key: the reader refuses the cache");
+    let back: Vec<_> = (0..c.len()).map(|i| c.get(i).unwrap()).map(|s| (s.key.to_vec(), s.path.to_vec())).collect();
+    assert_eq!(
+        back,
+        [(b"libdd.so.4".to_vec(), b"/l/glibc-hwcaps/x86-64-v3/libdd.so.4.0".to_vec()), (b"libdd.so.4".to_vec(), b"/l/libdd.so.4".to_vec())],
+        "write_hwcaps_key: entries read back"
+    );
+    assert_eq!(c.lookup(b"libdd.so.4", FLAGS, &["x86-64-v3"]), Some(&b"/l/glibc-hwcaps/x86-64-v3/libdd.so.4.0"[..]), "write_hwcaps_key: lookup with the level");
+    assert_eq!(c.lookup(b"libdd.so.4", FLAGS, &[]), Some(&b"/l/libdd.so.4"[..]), "write_hwcaps_key: lookup without it");
+}
+
 /// s27_1_c_1_1, threat model rule 5 (the cache is untrusted input), UTIL-2: keys, paths, hwcaps
 /// names and the generator are validated and bounded before anything is written; a short buffer
 /// is refused with the size needed. Nothing is written on a refusal.
