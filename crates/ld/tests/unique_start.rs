@@ -77,6 +77,8 @@ fn lib_src(tag: &str, base: usize) -> String {
         write!(s, "&u{k},").unwrap();
     }
     writeln!(s, "}};\nint **{tag}_table(void) {{ return {tag}_tab; }}").unwrap();
+    // `uw`: unique too, but no relocation names it, so only a lookup can reach it.
+    writeln!(s, "__asm__(\".section .data.uw,\\\"aw\\\"\\n.globl uw\\n.type uw, @gnu_unique_object\\n.size uw, 4\\n.p2align 2\\nuw: .long {}\\n.text\\n\");", base + N).unwrap();
     s
 }
 
@@ -85,7 +87,8 @@ fn lib_src(tag: &str, base: usize) -> String {
 fn prog_src() -> String {
     let last = N - 1;
     format!(
-        r#"#include <dlfcn.h>
+        r#"#define _GNU_SOURCE
+#include <dlfcn.h>
 #include <stdio.h>
 extern int u7, u{last};
 int **ua_table(void);
@@ -108,6 +111,9 @@ int main(int argc, char **argv) {{
     for (int k = 0; k < {N}; k++)
         if (c[k] != a[k]) return fail(6, "a library opened after start binds the start's unique objects");
     if (dlsym(h, "u100") != a[100]) return fail(7, "dlsym through the late handle gives the start's unique object");
+    int *w = (int *)dlsym(RTLD_DEFAULT, "uw");
+    if (!w || *w != 1000 + {N}) return fail(10, "dlsym in the global scope gives the first library's unique object");
+    if (dlsym(h, "uw") != w) return fail(11, "dlsym through the late handle gives the start's unique object no relocation named");
     if (dlclose(h) != 0) return fail(8, dlerror());
     if (*a[{last}] != 1000 + {last}) return fail(9, "the start's unique objects keep their values");
     return 0;
