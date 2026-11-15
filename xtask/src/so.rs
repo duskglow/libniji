@@ -1597,7 +1597,7 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     Ok(())
 }
 
-/// getent (UTIL-6, plan/utilities.md §4): `csys/utils/getent.c`, a thin front end over the public name service
+/// getent (UTIL-6, plan/utilities.md §4): `csys/util/getent.c`, a thin front end over the public name service
 /// functions, linked dynamically against Liella's `libc.so.6`.
 /// * `target/liella/getent`: the shipped program (libc-bin's `/usr/bin/getent`), interpreter
 ///   `/lib64/ld-linux-x86-64.so.2`, no run path.
@@ -1613,7 +1613,7 @@ fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
     let obj = product.join("getent.o");
     run(Command::new(cc)
         .args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-asynchronous-unwind-tables", "-c"])
-        .arg(root.join("csys/utils/getent.c"))
+        .arg(root.join("csys/util/getent.c"))
         .arg("-o")
         .arg(&obj))?;
     let link = |out: &Path, interp: &Path, libc: &Path| -> Result<(), String> {
