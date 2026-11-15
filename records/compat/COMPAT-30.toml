@@ -1,4 +1,4 @@
-id = "COMPAT-NEW"
+id = "COMPAT-30"
 behaviour = "`atexit`, `at_quick_exit` and `pthread_atfork` at `LIELLA_OWNER_1` from a module linked through the opt-in link-stub directory `liella-owner/` (§1.2, §27; rulings #4860-#4862)"
 glibc = "No such version node: the three are reached through the link-time archive's stubs, and a module's handlers go with its `__dso_handle` only"
 liella = "Opt-in only: the module's registrations are attributed to it at registration and run (exit) or are forgotten (quick exit, fork) when it, or the module holding the handler, is unloaded, while the code is still mapped"
