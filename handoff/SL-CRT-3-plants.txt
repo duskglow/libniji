@@ -3,3 +3,6 @@
 # sl-crt-3-pkg (its RAM directory, named below; rerun that job first if the directory is gone).
 sys-dev-no-crti | tools/deb/system.sh | lit:for o in gcrt1 grcrt1 crti crtn Mcrt1; do ==> for o in gcrt1 grcrt1 crtn Mcrt1; do | rm -rf target/plant-deb && tools/deb/build.sh --flavour system --products /dev/shm/claude/SL-CRT-3/pkg-1/prod-system --version 2.39+liella20261115.1-1 --out target/plant-deb --work target/plant-work && tools/deb/check-system.sh target/plant-deb | msg:check: FAIL (dynamic|static) hello does not link
 sys-dev-outside-multiarch | tools/deb/system.sh | lit:put 0644 "$products/liella-$o.o" "$sdev/$mlib/$o.o" ==> put 0644 "$products/liella-$o.o" "$sdev/usr/lib/$o.o" | rm -rf target/plant-deb && tools/deb/build.sh --flavour system --products /dev/shm/claude/SL-CRT-3/pkg-1/prod-system --version 2.39+liella20261115.1-1 --out target/plant-deb --work target/plant-work && tools/deb/check-system.sh target/plant-deb | msg:check: FAIL libc6-dev: path not in the system layout: \./usr/lib/crt
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# sys-dev-no-crti: CAUGHT, caught by no test the log names
+# sys-dev-outside-multiarch: CAUGHT, caught by no test the log names
