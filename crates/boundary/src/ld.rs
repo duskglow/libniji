@@ -1064,131 +1064,6 @@ fn own_object(name: &'static [u8], maps: &mut [(usize, usize)]) -> liella_ld::re
     liella_ld::reloc::Obj { elf, dynm, bias: u64::try_from(base).unwrap_or(0), name, tls: None }
 }
 
-/// The start-time search state of [`link`] besides the cache (DL-START-SEARCH): touched only by
-/// [`find_needed`], for a `DT_NEEDED` name without `/`. Small and set up without a loop, so that a
-/// program whose names all have a `/` starts as before the search existed.
-struct Searched<'o> {
-    /// Where the program's `$ORIGIN` comes from, and its path once a search looked it up (0: unknown).
-    origin: Origin<'o>,
-    origin_at: Option<usize>,
-    /// The paths searched objects were opened by, one entry `index, path, NUL` each (address space
-    /// for OBJECTS_MAX full paths, mapped at the first hit, so it never runs out), `used` bytes of it
-    /// written, and its mapping (released at the end of `link`).
-    store: &'static mut [u8],
-    used: usize,
-    map: (usize, usize),
-}
-
-impl Searched<'_> {
-    /// The path object `k` of `objs` was opened by, empty when unknown: the program's (from its
-    /// origin), none for the interpreter, the name of one needed by a path with `/`, else the last
-    /// store entry for `k` (an earlier one may be a path found again, which made no object).
-    fn path_of<'s>(&'s self, k: usize, objs: &'s [liella_ld::reloc::Obj<'_>], interp: Option<usize>) -> &'s [u8] {
-        if k == 0 {
-            return match self.origin_at {
-                Some(0) | None => &[],
-                Some(o) => c_string(o),
-            };
-        }
-        let name = objs.get(k).map_or(&[][..], |o| o.name);
-        if interp == Some(k) {
-            return &[];
-        }
-        if name.contains(&b'/') {
-            return name;
-        }
-        let mut last: &'s [u8] = &[];
-        let mut rest = self.store.get(..self.used).unwrap_or(&[]);
-        while let Some((&at, tail)) = rest.split_first() {
-            let end = tail.iter().position(|&b| b == 0).unwrap_or(tail.len());
-            let (path, after) = tail.split_at(end);
-            if usize::from(at) == k {
-                last = path;
-            }
-            rest = after.get(1..).unwrap_or(&[]);
-        }
-        last
-    }
-}
-
-/// Find the object `name` (no `/`) that object `q` of `objs` needs, for the new object `n`
-/// (DL-START-SEARCH): the requester chain is `q`, then each first requester (`parent`) up to the
-/// program; the search is [`search::search`] over `env` and the cache `cache` (read when a search
-/// first reaches it). The path found is kept for the `$ORIGIN` of `n`. Not found, or a candidate
-/// refused: the start ends ([`fail_loading`]). Out of line and cold: a program whose dependencies
-/// are all named by path never runs it, and its text stays out of the start-up group.
-#[cold]
-#[inline(never)]
-// Indices stay below OBJECTS_MAX (`chain`) and within `objs` (`parent` holds earlier indices).
-#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_arguments)]
-fn find_needed<'c>(
-    name: &[u8],
-    q: usize,
-    n: usize,
-    objs: &[liella_ld::reloc::Obj<'static>],
-    parent: &[u8; OBJECTS_MAX],
-    interp: Option<usize>,
-    s: &mut Searched<'_>,
-    env: &'c List<'_>,
-    cache: &'c search::LazyCache<'c>,
-    page: u64,
-    prog_name: &'static [u8],
-) -> (i32, usize, &'static [u8], FileId) {
-    if s.origin_at.is_none() {
-        s.origin_at = Some(s.origin.at());
-    }
-    let mut found = None;
-    let mut at_path = PathBuf::default();
-    {
-        // The requester chain: this object, then each first requester up to the program.
-        let mut chain = [Scope::default(); OBJECTS_MAX];
-        let (mut depth, mut k) = (0usize, q);
-        loop {
-            let at = s.path_of(k, objs, interp);
-            let d = &objs[k].dynm;
-            chain[depth] = Scope { rpath: dyn_string(d, elf::dt::RPATH), runpath: dyn_string(d, elf::dt::RUNPATH), origin: (!at.is_empty()).then(|| dir_of(at)) };
-            depth += 1;
-            if k == 0 || depth == OBJECTS_MAX {
-                break;
-            }
-            k = usize::from(parent[k]);
-        }
-        let ctx = env.ctx(CacheRef::Lazy(cache, read_cache));
-        let mut refused: Option<Refusal> = None;
-        search::search::<Native>(name, &chain[..depth], &ctx, &mut |p: &mut PathBuf| {
-            let Some(c) = p.c_str() else { return false };
-            match open_candidate(c, page) {
-                Err(Unusable::Skip) => return false,
-                Err(Unusable::Refused(r)) => refused = Some(r),
-                Ok(hit) => found = Some(hit),
-            }
-            at_path.clear();
-            at_path.push(p.as_bytes());
-            true
-        });
-        if let Some(r) = refused {
-            let (text, by_path) = r.at_start();
-            fail_loading(prog_name, if by_path { at_path.as_bytes() } else { name }, text)
-        }
-    }
-    let Some(hit) = found else { fail_loading(prog_name, name, liella_ld::dlopen::FILE_MISSING) };
-    // Kept for its `$ORIGIN`: one entry `n, path, NUL`.
-    if s.map.0 == 0 {
-        let len = OBJECTS_MAX * (search::PATH_MAX + 2);
-        let (at, buf) = scratch(len, prog_name);
-        (s.map, s.store) = ((at, len), buf);
-    }
-    let p = at_path.as_bytes();
-    let (Ok(index), Some(slot)) = (u8::try_from(n), s.store.get_mut(s.used..s.used + p.len() + 2)) else {
-        fail_with(&[p, b": too many objects\n"], program::FAILURE)
-    };
-    slot[0] = index;
-    slot[1..=p.len()].copy_from_slice(p);
-    slot[p.len() + 1] = 0;
-    s.used += p.len() + 2;
-    hit
-}
-
 /// Load the program's dependencies, check their versions, relocate everything and protect the RELRO
 /// pages (DL-10, design §6, D-27.17). A `DT_NEEDED` name with `/` is opened as given; one without is
 /// found by [`search::search`], the search `--list` and `dlopen` use (DL-START-SEARCH): the requester
@@ -1202,10 +1077,14 @@ fn find_needed<'c>(
 fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin<'_>) -> usize {
     use liella_ld::reloc::{self, Obj, Objects};
     let prog_name = name;
-    // The search state, used only for a name without `/` ([`find_needed`]): each object's first
-    // requester, the paths found and the program's `$ORIGIN` ([`Searched`]), the cache.
+    let mut origin_at: Option<usize> = None;
+    // The search state, used only for a name without `/`: each object's first requester and the
+    // path it was opened by (empty: unknown, or the program's, from `origin`); the store for the
+    // paths found (address space mapped at the first search hit, so it never runs out); the cache.
     let mut parent = [0u8; OBJECTS_MAX];
-    let mut searched = Searched { origin, origin_at: None, store: &mut [], used: 0, map: (0, 0) };
+    let mut paths: [&'static [u8]; OBJECTS_MAX] = [&[]; OBJECTS_MAX];
+    let mut store: &'static mut [u8] = &mut [];
+    let mut store_map = (0usize, 0usize);
     let cache: search::LazyCache<'_> = core::cell::OnceCell::new();
     let mut maps = [(0usize, 0usize); OBJECTS_MAX];
     // The scratch mappings of the two image views: the program's, then the interpreter's own.
@@ -1251,7 +1130,59 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             }
             let mut found = None;
             if bare && !is_interp {
-                found = Some(find_needed(name, q, n, &objs[..n], &parent, interp, &mut searched, env, &cache, page, prog_name));
+                // The requester chain: this object, then each first requester up to the program.
+                let mut chain = [Scope::default(); OBJECTS_MAX];
+                let (mut depth, mut k) = (0usize, q);
+                loop {
+                    let at = if k == 0 {
+                        let o = *origin_at.get_or_insert_with(|| origin.at());
+                        if o == 0 { &[][..] } else { c_string(o) }
+                    } else {
+                        paths[k]
+                    };
+                    let d = &objs[k].dynm;
+                    chain[depth] = Scope { rpath: dyn_string(d, elf::dt::RPATH), runpath: dyn_string(d, elf::dt::RUNPATH), origin: (!at.is_empty()).then(|| dir_of(at)) };
+                    depth += 1;
+                    if k == 0 || depth == OBJECTS_MAX {
+                        break;
+                    }
+                    k = usize::from(parent[k]);
+                }
+                let ctx = env.ctx(CacheRef::Lazy(&cache, read_cache));
+                let mut refused: Option<Refusal> = None;
+                let mut at_path = PathBuf::default();
+                search::search::<Native>(name, &chain[..depth], &ctx, &mut |p: &mut PathBuf| {
+                    let Some(c) = p.c_str() else { return false };
+                    match open_candidate(c, page) {
+                        Err(Unusable::Skip) => return false,
+                        Err(Unusable::Refused(r)) => refused = Some(r),
+                        Ok(hit) => found = Some(hit),
+                    }
+                    at_path.clear();
+                    at_path.push(p.as_bytes());
+                    true
+                });
+                if let Some(r) = refused {
+                    let (text, by_path) = r.at_start();
+                    fail_loading(prog_name, if by_path { at_path.as_bytes() } else { name }, text)
+                }
+                if found.is_none() {
+                    fail_loading(prog_name, name, liella_ld::dlopen::FILE_MISSING)
+                }
+                // Kept for its `$ORIGIN` (the store is address space for OBJECTS_MAX full paths).
+                if store_map.0 == 0 {
+                    let len = OBJECTS_MAX * search::PATH_MAX;
+                    let (at, buf) = scratch(len, prog_name);
+                    (store_map, store) = ((at, len), buf);
+                }
+                let p = at_path.as_bytes();
+                if p.len() > store.len() {
+                    fail_with(&[p, b": too many objects\n"], program::FAILURE);
+                }
+                let (kept, rest) = core::mem::take(&mut store).split_at_mut(p.len());
+                kept.copy_from_slice(p);
+                store = rest;
+                paths[n] = kept;
             }
             let id = if is_interp {
                 (u64::MAX, u64::MAX)
@@ -1279,6 +1210,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             }
             if is_interp {
                 objs[n] = own_object(name, own_views);
+                paths[n] = &[];
                 parent[n] = u8::try_from(q).unwrap_or(0);
                 edge(q, n, name);
                 interp = Some(n);
@@ -1286,6 +1218,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                 continue;
             }
             let Some((fd, at, file, id)) = found else { continue };
+            if !bare {
+                paths[n] = name;
+            }
             let loaded = map::load::<Native, _>(&mut SysMapper { fd }, file, page);
             let _ = crate::ffi_sys::liella_sys_close(i64::from(fd));
             let loaded = loaded.unwrap_or_else(|e| fail_with(&[name, b": ", e.message()], program::FAILURE));
@@ -1370,7 +1305,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     let hooks: [init::Hooks; OBJECTS_MAX] = core::array::from_fn(|i| objs.get(i).filter(|_| Some(i) != interp).map_or_else(init::Hooks::default, |o| init::hooks(&o.dynm, o.bias, i == 0)));
     // The cache, when a search read it, and the path store: no longer needed.
     let cache_map = cache.get().and_then(Option::as_ref).map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
-    for &(at, len) in maps[1..n].iter().chain(&views).chain([&searched.map, &cache_map]).filter(|m| m.1 != 0) {
+    for &(at, len) in maps[1..n].iter().chain(&views).chain([&store_map, &cache_map]).filter(|m| m.1 != 0) {
         let _ = raw::munmap(at, len);
     }
     for (k, (slot, o)) in START_OBJS.iter().zip(objs).enumerate() {
