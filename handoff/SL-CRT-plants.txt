@@ -4,3 +4,4 @@ crti-init-writable | csys/start/crti.S | perl:s/"ax"(,\x40progbits\n\t\.p2align 
 crti-init-no-align | csys/start/crti.S | perl:s/(liella_machine_crti_init:\n\tendbr64\n)\tsubq \$8, %rsp\n/$1/s | cargo test -p liella --test crt_products | msg:crti.o .init: the prologue|sp%16=8
 crtn-fini-padded | csys/start/crtn.S | perl:s/(\.section \.fini,"ax",\x40progbits\n)(\.Lliella_machine_crtn_fini:)/$1\t.p2align 4\n$2/s | cargo test -p liella --test crt_products | msg:crtn.o .fini alignment
 grcrt1-not-static-pie | xtask/src/so.rs | lit:.arg("-DLIELLA_STATIC_PIE").args(&defines).arg(root.join("csys/start/gcrt1.S")) ==> .args(&defines).arg(root.join("csys/start/gcrt1.S")) | cargo test -p liella --test crt_products | msg:GOT|liella_start_main_static_pie
+gmon-pie-no-bias | crates/boundary/src/posix/s28_profiling.rs | lit:let bias = crate::process::executable_bias(); ==> let bias = 0usize; | cargo test -p liella --test crt_products | msg:gmon.out pcs are not link-time pcs

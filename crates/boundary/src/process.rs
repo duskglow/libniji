@@ -451,12 +451,23 @@ pub fn auxval(key: u64) -> Option<u64> {
     }
 }
 
-/// Whether `addr` lies in a read-only segment of the executable (D-12.4).
-pub fn is_read_only(addr: usize) -> bool {
+/// The executable's program headers (`AT_PHDR`, `AT_PHNUM`): (words, count, address).
+fn exe_headers() -> (&'static [u64], usize, usize) {
     let get = |k: u64| auxval(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
     let (phdr, phnum) = (get(liella_kernel::uapi::AT_PHDR), get(liella_kernel::uapi::AT_PHNUM));
-    let words = conv::program_headers(phdr, phnum.saturating_mul(liella_rt::start::PHDR_WORDS));
+    (conv::program_headers(phdr, phnum.saturating_mul(liella_rt::start::PHDR_WORDS)), phnum, phdr)
+}
+
+/// Whether `addr` lies in a read-only segment of the executable (D-12.4).
+pub fn is_read_only(addr: usize) -> bool {
+    let (words, phnum, phdr) = exe_headers();
     liella_rt::start::read_only(words, phnum, exe_bias(words, phnum, phdr), addr)
+}
+
+/// The executable's load bias: 0 for a position-dependent program, the load address of a PIE.
+pub(crate) fn executable_bias() -> usize {
+    let (words, phnum, phdr) = exe_headers();
+    exe_bias(words, phnum, phdr)
 }
 
 /// `getauxval(key)`: the value, or 0 with `ENOENT`.

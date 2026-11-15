@@ -5,7 +5,7 @@
 //! is traced (`-Wl,-t`): every start file and C library file it read must be Liella's, so a file
 //! missing from the products cannot pass by being taken from the host. The objects themselves are
 //! checked against the x86-64 psABI's `.init`/`.fini` layout. Needs the products
-//! (`cargo xtask so`), `cc`, `c++`, `gprof`, `readelf` and `objcopy`; without the tools the test
+//! (`cargo xtask so`), `cc`, `c++`, `gprof`, `readelf`, `objcopy` and `nm`; without the tools the test
 //! says so and passes.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
@@ -58,7 +58,7 @@ fn by_path(so: &Path, out: &Path) {
 }
 
 fn tools_missing() -> bool {
-    let missing = ["cc", "c++", "gprof", "readelf", "objcopy"].into_iter().find(|t| skip_note::missing(t));
+    let missing = ["cc", "c++", "gprof", "readelf", "objcopy", "nm"].into_iter().find(|t| skip_note::missing(t));
     if let Some(t) = missing {
         skip_note::skipped(&format!("skipped: no {t}"));
     }
@@ -142,8 +142,8 @@ fn s(p: &Path) -> String {
     p.display().to_string()
 }
 
-/// `readelf -SW` of `obj`: (name, type, flags, alignment) per section.
-fn sections(obj: &Path) -> Vec<(String, String, String, u64, String)> {
+/// `readelf -SW` of `obj`: (name, type, flags, alignment, index, size) per section.
+fn sections(obj: &Path) -> Vec<(String, String, String, u64, String, u64)> {
     let o = Command::new("readelf").arg("-SW").arg(obj).output().unwrap();
     assert!(o.status.success());
     let mut out = Vec::new();
@@ -156,7 +156,8 @@ fn sections(obj: &Path) -> Vec<(String, String, String, u64, String)> {
         }
         let flags = if f.len() >= 10 { f[6].to_string() } else { String::new() };
         let ndx = head.rsplit('[').next().unwrap_or("").trim().to_string();
-        out.push((f[0].to_string(), f[1].to_string(), flags, f[f.len() - 1].parse().unwrap(), ndx));
+        let size = u64::from_str_radix(f[4], 16).unwrap();
+        out.push((f[0].to_string(), f[1].to_string(), flags, f[f.len() - 1].parse().unwrap(), ndx, size));
     }
     out
 }
@@ -172,6 +173,14 @@ fn symbols(obj: &Path) -> Vec<[String; 5]> {
             (f.len() == 8 && f[0].ends_with(':') && f[0] != "Num:").then(|| [f[3], f[4], f[5], f[6], f[7]].map(String::from))
         })
         .collect()
+}
+
+/// The link-time address of symbol `name` in `exe` (`nm`).
+fn link_address(exe: &Path, name: &str) -> u64 {
+    let o = Command::new("nm").arg(exe).output().unwrap();
+    let text = String::from_utf8_lossy(&o.stdout);
+    let line = text.lines().find(|l| l.split_whitespace().nth(2) == Some(name)).unwrap_or_else(|| panic!("{} defines no {name}", exe.display()));
+    u64::from_str_radix(line.split_whitespace().next().unwrap(), 16).unwrap()
 }
 
 /// The bytes of section `name` of `obj`.
@@ -200,7 +209,7 @@ fn start_files_follow_the_psabi() {
         let obj = p.join(format!("liella-{name}.o"));
         let secs = sections(&obj);
         for sec in [".init", ".fini"] {
-            let (_, ty, flags, align, _) = secs.iter().find(|x| x.0 == sec).unwrap_or_else(|| panic!("{name}.o has no {sec}: {secs:?}"));
+            let (_, ty, flags, align, _, _) = secs.iter().find(|x| x.0 == sec).unwrap_or_else(|| panic!("{name}.o has no {sec}: {secs:?}"));
             assert_eq!((ty.as_str(), flags.as_str()), ("PROGBITS", "AX"), "{name}.o {sec}: code, allocated, never writable");
             let b = bytes(&obj, sec, &w);
             if name == "crti" {
@@ -230,9 +239,11 @@ fn start_files_follow_the_psabi() {
         assert!(secs.iter().any(|x| x.0 == ".note.GNU-stack" && !x.2.contains('X')), "{installed}: no .note.GNU-stack: {secs:?}");
         assert!(!secs.iter().any(|x| x.2.contains('W') && x.2.contains('X')), "{installed}: a writable code section: {secs:?}");
     }
-    // Mcrt1.o: no driver names it; nothing in it reaches a program.
+    // Mcrt1.o: no driver names it; nothing in it reaches a program (the assembler's empty
+    // .text/.data/.bss are allocated but hold no byte).
     let m = p.join("liella-Mcrt1.o");
-    assert!(!sections(&m).iter().any(|x| x.2.contains('A')), "Mcrt1.o has allocated content");
+    let msecs = sections(&m);
+    assert!(!msecs.iter().any(|x| x.2.contains('A') && x.5 != 0), "Mcrt1.o has allocated content: {msecs:?}");
     assert!(symbols(&m).iter().all(|x| x[1] == "LOCAL"), "Mcrt1.o defines a symbol");
     // grcrt1.o: the static-PIE start plus the profiling hook in .preinit_array.
     let g = p.join("liella-grcrt1.o");
@@ -351,7 +362,13 @@ fn plain_cc_pg_writes_gmon_out() {
         run(&exe, &dir);
         let gmon = dir.join("gmon.out");
         assert!(gmon.exists(), "cc -pg {tag}: no gmon.out");
-        let o = Command::new("gprof").args(["-b", "-q"]).arg(&exe).arg(&gmon).output().unwrap();
+        // gmon.out holds link-time pcs (the load bias subtracted, as the reference writes for
+        // both kinds of PIE): the histogram starts at __executable_start's link-time address.
+        let b = std::fs::read(&gmon).unwrap();
+        assert!(b.len() > 37 && &b[..5] == b"gmon\x01" && b[20] == 0, "cc -pg {tag}: not a gmon.out with a histogram first");
+        let lo = u64::from_le_bytes(b[21..29].try_into().unwrap());
+        assert_eq!(lo, link_address(&exe, "__executable_start"), "cc -pg {tag}: gmon.out pcs are not link-time pcs");
+        let o =Command::new("gprof").args(["-b", "-q"]).arg(&exe).arg(&gmon).output().unwrap();
         let text = String::from_utf8_lossy(&o.stdout);
         assert!(o.status.success() && text.contains("main"), "cc -pg {tag}: gprof cannot read gmon.out:\n{text}{}", String::from_utf8_lossy(&o.stderr));
     }

@@ -5,8 +5,9 @@
 //! `liella_mcount_record(frompc, selfpc)`. Sampling is `ITIMER_PROF` with a `SIGPROF` handler
 //! (SA_SIGINFO | SA_RESTART, every signal blocked, as glibc installs it) that reads the
 //! interrupted pc from the ucontext. `monstartup` maps the histogram and the arc table once and
-//! never unmaps them, so a late `mcount` never touches freed memory. Gap: pcs are written
-//! unrebased (right for static and non-PIE programs; a PIE's load bias is not yet subtracted).
+//! never unmaps them, so a late `mcount` never touches freed memory. gmon.out holds link-time
+//! pcs: the executable's load bias is subtracted from every pc written (0 for a non-PIE; a PIE's
+//! load address), so gprof matches them with the executable's symbols (probe-settled, SL-CRT-2).
 
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU16, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
@@ -308,14 +309,15 @@ fn write_out() -> KResult<()> {
     let fd = CSys.openat(Fd::CWD, KStr::from_nul_terminated(path.get(..n).unwrap_or(&[]))?, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0o666)?;
     let mut out = Out { fd, buf: [0; 4096], len: 0, err: None };
     let t = text();
+    let bias = crate::process::executable_bias();
     out.put(&prof::GMON_HEADER);
-    out.put(&prof::hist_record(&t, 0));
+    out.put(&prof::hist_record(&t, bias));
     // UNSAFE(slice) SAFETY: monstartup mapped t.bins 16-bit bins at HIST.
     let bins = unsafe { core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<AtomicU16>(HIST.load(Relaxed)), t.bins) };
     for b in bins {
         out.put(&b.load(Relaxed).to_le_bytes());
     }
-    arcs().each(&t, |from, to, count| out.put(&prof::arc_record(from, to, count, 0)));
+    arcs().each(&t, |from, to, count| out.put(&prof::arc_record(from, to, count, bias)));
     out.flush();
     let _ = CSys.close(fd);
     out.err.map_or(Ok(()), Err)
