@@ -199,7 +199,10 @@ impl Fs for Mem {
 }
 
 /// A minimal x86-64 shared object (ELF-64, psABI): header, PT_LOAD over the file, PT_DYNAMIC, string table.
+/// Segments are linked at `BIAS` (`p_vaddr` = `p_offset` + bias), so a reader that takes a virtual address for a
+/// file offset finds no dynamic segment or string table.
 fn elf_image(soname: Option<&[u8]>) -> Vec<u8> {
+    const BIAS: u64 = 0x20_0000;
     let ndyn: usize = if soname.is_some() { 4 } else { 3 };
     let (dynoff, strtab) = (64 + 112, 64 + 112 + ndyn * 16);
     let mut strings = vec![0u8];
@@ -223,7 +226,8 @@ fn elf_image(soname: Option<&[u8]>) -> Vec<u8> {
     for (ty, fl, off, size) in [(1u32, 4u32, 0u64, total), (2, 6, dynoff as u64, (ndyn * 16) as u64)] {
         b.extend_from_slice(&ty.to_le_bytes());
         b.extend_from_slice(&fl.to_le_bytes());
-        for v in [off, off, off, size, size, 8] {
+        // p_offset, p_vaddr, p_paddr, p_filesz, p_memsz, p_align
+        for v in [off, off + BIAS, off + BIAS, size, size, 8] {
             b.extend_from_slice(&v.to_le_bytes());
         }
     }
@@ -231,7 +235,7 @@ fn elf_image(soname: Option<&[u8]>) -> Vec<u8> {
     if soname.is_some() {
         dynamic.push((14u64, 1u64));
     }
-    dynamic.extend([(5, strtab as u64), (10, strings.len() as u64), (0, 0)]);
+    dynamic.extend([(5, strtab as u64 + BIAS), (10, strings.len() as u64), (0, 0)]);
     for (t, v) in dynamic {
         b.extend_from_slice(&t.to_le_bytes());
         b.extend_from_slice(&v.to_le_bytes());
@@ -241,13 +245,17 @@ fn elf_image(soname: Option<&[u8]>) -> Vec<u8> {
 }
 
 /// A minimal ELF-32 little-endian shared object of `machine` (3 = i386, 62 = x32): gABI ELF-32 layout (52-byte
-/// header, 32-byte program headers with `p_flags` after `p_memsz`, 8-byte dynamic entries).
+/// header, 32-byte program headers with `p_flags` after `p_memsz`, 8-byte dynamic entries). Segments are linked at
+/// `ELF32_BIAS` (`p_vaddr` = `p_offset` + bias, as a non-zero base address gives), so a reader that takes a
+/// virtual address for a file offset finds no dynamic segment or string table.
 fn elf32_image(soname: &[u8], machine: u16) -> Vec<u8> {
+    const ELF32_BIAS: u32 = 0x8000;
     let (dynoff, strtab) = (52 + 64, 52 + 64 + 4 * 8);
     let mut strings = vec![0u8];
     strings.extend_from_slice(soname);
     strings.push(0);
     let total = (strtab + strings.len()) as u32;
+    let (dynva, strva) = (dynoff as u32 + ELF32_BIAS, strtab as u32 + ELF32_BIAS);
     let mut b = b"\x7fELF\x01\x01\x01\0\0\0\0\0\0\0\0\0".to_vec();
     for v in [3u16, machine] {
         b.extend_from_slice(&v.to_le_bytes());
@@ -258,10 +266,11 @@ fn elf32_image(soname: &[u8], machine: u16) -> Vec<u8> {
     for v in [52u16, 32, 2, 40, 0, 0] {
         b.extend_from_slice(&v.to_le_bytes());
     }
-    for v in [1u32, 0, 0, 0, total, total, 4, 0x1000, 2, dynoff as u32, dynoff as u32, dynoff as u32, 32, 32, 6, 4] {
+    // p_type, p_offset, p_vaddr, p_paddr, p_filesz, p_memsz, p_flags, p_align: PT_LOAD, then PT_DYNAMIC.
+    for v in [1u32, 0, ELF32_BIAS, ELF32_BIAS, total, total, 4, 0x1000, 2, dynoff as u32, dynva, dynva, 32, 32, 6, 4] {
         b.extend_from_slice(&v.to_le_bytes());
     }
-    for v in [14u32, 1, 5, strtab as u32, 10, strings.len() as u32, 0, 0] {
+    for v in [14u32, 1, 5, strva, 10, strings.len() as u32, 0, 0] {
         b.extend_from_slice(&v.to_le_bytes());
     }
     b.extend_from_slice(&strings);
