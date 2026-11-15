@@ -964,6 +964,10 @@ mod tests {
         assert_eq!((member.as_str(), filler.as_str()), (".text.sorted.h903000042.f", ".text.sorted.h903100007.f"));
         assert_eq!((position_of(&member), position_of(&filler)), (Some(42), None));
         assert_eq!((function_of(&member), function_of(&filler)), (Some("f"), Some("f")));
+        // A place with no leading zero reads back whole: place 42 above would hide a cut digit, and a member
+        // read at the wrong position is placed at the wrong offset of its bin.
+        let wide = crate::bins::section(12, false, 12345, "g");
+        assert_eq!((wide.as_str(), position_of(&wide)), (".text.sorted.h912012345.g", Some(12345)));
         assert!(crate::bins::section(0, false, 0, "f").as_str() > ".text.sorted.h89999.f");
         assert_eq!(position_of(".text.f"), None);
         assert_eq!(elf_sections(b"not elf"), None);
