@@ -1,9 +1,16 @@
-# SL-HEADERS-2: visibility tables (handoff after SL-HEADERS-2-2)
+# SL-HEADERS-2: visibility tables (handoff after SL-HEADERS-2-3)
 
-Branch `task/sl-headers-2-2` (continues `task/sl-headers-2`). Code head 0e73336d4; the handoff/report commit sits on
-top of it. Role mei:~/w/s1. Story spec: ~/state/briefs/SL-HEADERS-2.md ("The change"); plan/headers.md slice 2.
+Branch `task/sl-headers-2-3` (continues `task/sl-headers-2-2`, `task/sl-headers-2`). Code head cf82f13b2 (unchanged
+since SL-HEADERS-2-2); only handoff/ commits sit on top of it. Role mei:~/w/s1. Story spec:
+~/state/briefs/SL-HEADERS-2.md ("The change"); plan/headers.md slice 2.
 
 ## State: done
+* SL-HEADERS-2-3 (rerun only, no code change): the -2-2 verify was red because `sl-headers-2-2-probe1` ran before the
+  last spec/abi and xtask commits. Every job was rerun on the synced final tree (mei:~/w/s1): `sl-headers-2-3-lint`
+  (xtask clippy + static, rc 0), `-probe1`/`-probe2` (each regenerates both tables into ~/work/SL-HEADERS-2-3/pN and
+  `cmp`s them against the committed spec/abi files in the same job: byte-identical, 69876 rows), `-plants` (15: 14
+  CAUGHT, 1 EQUIVALENT, 0 SURVIVED), `-gate` (direct tier, base origin/next). The probe jobs now check against the
+  committed files themselves, so a probe job cannot pass on stale content again.
 * `spec/tools/header_probe.py` writes `spec/abi/ftm-configs.tsv` (40 configurations) and `spec/abi/visibility.tsv`
   (69876 rows over 224 of the 243 public headers; 13242 candidate names + 146 tags). Two runs on the reference
   system (mei, `sl-headers-2-2-probe1`, `-probe2`, GCC 13.3) are byte-identical. Earlier keke runs full1/full2/full3
@@ -36,4 +43,4 @@ top of it. Role mei:~/w/s1. Story spec: ~/state/briefs/SL-HEADERS-2.md ("The cha
 
 ## Next step
 Slice 3 of plan/headers.md (headers generated from the tables). Plan rows: plan/headers.md §2.2-§2.3, §6.
-Full report: handoff/reports/SL-HEADERS-2-2.json.
+Full report: handoff/reports/SL-HEADERS-2-3.json (and -2-2.json).
