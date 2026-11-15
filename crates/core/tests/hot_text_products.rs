@@ -96,8 +96,18 @@ use liella_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 /// setlocale + printf 46 / 47, tool 50 / 49, fork child 5 / 5, localtime and localtime + mktime 17 / 18,
 /// float 3 / 3. TRUE_BOUND 17 -> 11, LOCALE_BOUND 51 -> 47, TOOL_BOUND 56 -> 50, FORK_BOUND 6 -> 5,
 /// LOCALTIME_BOUND and LOCALTIME_MKTIME_BOUND 20 -> 18, FLOAT_BOUND 5 -> 3.
-const TRUE_BOUND: u64 = 11;
-const LOCALE_BOUND: u64 = 47;
+/// LAYOUT-WINDOW-BINS-7 (window bins, slice 3: the bounds at the bins' level, D-X.103): one bound per product
+/// profile, indexed by [`profile_index`], each at its measured level with no margin, checked from both sides
+/// ([`check_whole_count`]). origin/next f494ad65d (slices 1 and 2 landed), every run identical (warm-up + 5,
+/// twice), fast / release: startup only 11 / 10, setlocale + printf 43 / 43, tool 44 / 45. The same probe
+/// binaries read the same counts on the Zen 1 and the Skylake-SP host (and the products do not depend on the
+/// build host, LAYOUT-TRACE-HOST-CANONICAL), so the host classes share one bound. A program-side pad of
+/// 0x800-0xF000 bytes of `.text` or `.data` in the start file moves none of them; one in `.text.unlikely`
+/// (`pre`, ahead of the head bin) reads one more in each mode from 0x4000 (fast: from 0x800, start-up only
+/// from 0x4000), the head bin's room for what precedes the group being 0x400. TRUE_BOUND 11 -> 11 / 10,
+/// LOCALE_BOUND 47 -> 43 / 43, TOOL_BOUND 50 -> 44 / 45.
+const TRUE_BOUND: [u64; 2] = [11, 10];
+const LOCALE_BOUND: [u64; 2] = [43, 43];
 /// "tool" mode: a coreutils-shaped program (setlocale, bindtextdomain, atexit, getenv, strtoimax,
 /// printf), see `init_coreutils_shaped_program_stays_within_its_page_fault_bound`.
 /// PERF-READDIR-ENTRY-4 (layout-only delta, owner rule): CI read tool 69 (bound 68) for the readdir
@@ -108,8 +118,8 @@ const LOCALE_BOUND: u64 = 47;
 /// list and adds no startup code; next already sits one under the bound, and the branch adds one fault in
 /// both bases. TOOL_BOUND 68 -> 71 (rule above: the highest count, 69, plus 2); LOCALE_BOUND stays 68
 /// (66 plus 2), TRUE_BOUND stays 23. STARTUP-FAULTS-RESTORE-5: 60 -> 58 (see TRUE_BOUND).
-/// LAYOUT-TRACE-DEFAULT: 56 -> 50 (see TRUE_BOUND).
-const TOOL_BOUND: u64 = 50;
+/// LAYOUT-TRACE-DEFAULT: 56 -> 50 (see TRUE_BOUND). LAYOUT-WINDOW-BINS-7: 50 -> 44 / 45 (see TRUE_BOUND).
+const TOOL_BOUND: [u64; 2] = [44, 45];
 const RUNS: usize = 5;
 /// Every mode of `page_faults.c` whose first-call state is start-up state (the bounds below count each).
 const STARTUP_PROBE_MODES: [&str; 10] = ["true", "locale", "tool", "fork", "mktime", "localtime", "localtime_mktime", "float", "strings", "rebind"];
@@ -271,9 +281,8 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
     let exe = dir.join("page_faults_liella");
     build(&exe);
     let (t, l) = (faults(&exe, "true"), faults(&exe, "locale"));
-    eprintln!("minor faults: startup only {t} (bound {TRUE_BOUND}), setlocale + printf {l} (bound {LOCALE_BOUND})");
-    assert!(t <= TRUE_BOUND, "startup-only program: {t} page faults > {TRUE_BOUND}");
-    assert!(l <= LOCALE_BOUND, "setlocale + printf program: {l} page faults > {LOCALE_BOUND} (hot-text grouping lost?)");
+    check_whole_count("startup-only program", t, TRUE_BOUND, "start-up grew or its text left the hot group?");
+    check_whole_count("setlocale + printf program", l, LOCALE_BOUND, "hot-text grouping lost?");
 }
 
 #[test]
@@ -353,7 +362,9 @@ fn init_first_mktime_after_localtime_r_takes_no_fault() {
 /// (base 40 / 41). The release bound comes down to 40 only because [`WHOLE_COUNT_SLACK`] refuses 36 under
 /// 42; the levels of the other host classes are not measured yet (the base read one more on Skylake-SP), so
 /// the tightening to the new level is left to the slice that records them (LAYOUT-WINDOW-BINS-6).
-const LOCALTIME_BOUND: [u64; 2] = [40, 40];
+/// LAYOUT-WINDOW-BINS-7 (slice 3): origin/next f494ad65d, fast 36, release 36 on the Zen 1 and the Skylake-SP
+/// host (the same probe binaries, every run identical; see TRUE_BOUND). 40 / 40 -> 36 / 36.
+const LOCALTIME_BOUND: [u64; 2] = [36, 36];
 
 /// The first `localtime_r` (zone load included) and the first `mktime` after it, counted
 /// together (PERF-ZONE-LOAD-FAULTS-2): a fault that moves from one call to its neighbour (the
@@ -368,12 +379,17 @@ const LOCALTIME_BOUND: [u64; 2] = [40, 40];
 /// HEAP-RSEQ-NODE-3: whole process up to the end of the first mktime, as for [`LOCALTIME_BOUND`];
 /// origin/next 5bbefc645, same host and harness, every run identical: fast 40, release 42.
 /// LAYOUT-WINDOW-BINS-5: fast 36, release 36 (Zen 1 host role); release 42 -> 40, as [`LOCALTIME_BOUND`].
-const LOCALTIME_MKTIME_BOUND: [u64; 2] = [40, 40];
+/// LAYOUT-WINDOW-BINS-7: fast 36, release 36 on the Zen 1 and the Skylake-SP host; 40 / 40 -> 36 / 36.
+const LOCALTIME_MKTIME_BOUND: [u64; 2] = [36, 36];
 
 /// A whole-process count this far under its bound fails too: either the probe no longer counts
 /// start-up (a call-only count reads about 20 under these bounds) or the level improved and the bound
-/// must come down to it (ALWAYS FORWARD). Room for the one-fault spread between host classes.
+/// must come down to it (ALWAYS FORWARD). Room for the one-fault spread once seen between host classes (none
+/// since the window bins, LAYOUT-WINDOW-BINS-7).
 const WHOLE_COUNT_SLACK: u64 = 4;
+
+/// [`check_whole_count`]'s hint for the two localtime modes.
+const LOCALTIME_HINT: &str = "zone-load or mktime text left the hot group, or start-up grew?";
 
 /// 0 for products of the `fast` profile, 1 for `release`: the directory the products' start-up lists
 /// marker names (`target/product/<profile>`, see [`generated_list`]).
@@ -387,13 +403,14 @@ fn profile_index() -> usize {
     }
 }
 
-/// [`faults`] of a whole-process mode, checked against its per-profile bound from both sides.
-fn check_whole_count(what: &str, s: u64, bounds: [u64; 2]) {
+/// [`faults`] of a whole-process mode, checked against its per-profile bound from both sides; `hint` names the
+/// likely cause of a count over the bound.
+fn check_whole_count(what: &str, s: u64, bounds: [u64; 2], hint: &str) {
     let p = profile_index();
     let bound = bounds[p];
     let profile = ["fast", "release"][p];
     eprintln!("{what} (whole process, {profile}): {s} page faults (bound {bound})");
-    assert!(s <= bound, "{what} (whole process, {profile} products): {s} page faults > {bound} (zone-load or mktime text left the hot group, or start-up grew?)");
+    assert!(s <= bound, "{what} (whole process, {profile} products): {s} page faults > {bound} ({hint})");
     assert!(
         s >= bound.saturating_sub(WHOLE_COUNT_SLACK),
         "{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"
@@ -414,7 +431,7 @@ fn init_first_localtime_r_and_mktime_stay_within_their_combined_page_fault_bound
     let exe = dir.join("page_faults_liella_localtime_mktime");
     build(&exe);
     let s = faults(&exe, "localtime_mktime");
-    check_whole_count("start-up + first localtime_r + first mktime", s, LOCALTIME_MKTIME_BOUND);
+    check_whole_count("start-up + first localtime_r + first mktime", s, LOCALTIME_MKTIME_BOUND, LOCALTIME_HINT);
 }
 
 #[test]
@@ -432,7 +449,7 @@ fn init_first_localtime_r_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_liella_localtime");
     build(&exe);
     let s = faults(&exe, "localtime");
-    check_whole_count("start-up + first localtime_r", s, LOCALTIME_BOUND);
+    check_whole_count("start-up + first localtime_r", s, LOCALTIME_BOUND, LOCALTIME_HINT);
 }
 
 /// The faults of a program's first `%.2f` (PERF-FIRSTCALL-MKTIME-SNPRINTF). `format_float` with the
@@ -471,8 +488,7 @@ fn init_coreutils_shaped_program_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_liella_tool");
     build(&exe);
     let t = faults(&exe, "tool");
-    eprintln!("minor faults: coreutils-shaped tool {t} (bound {TOOL_BOUND})");
-    assert!(t <= TOOL_BOUND, "coreutils-shaped program: {t} page faults > {TOOL_BOUND} (the coreutils-shaped mode left the traced hot group? see target/product/<profile>/trace.log)");
+    check_whole_count("coreutils-shaped program", t, TOOL_BOUND, "the coreutils-shaped mode left the traced hot group? see target/product/<profile>/trace.log");
 }
 
 /// "fork" mode: the minor faults of a `fork` child that calls `_exit(0)` (the second of two, from
