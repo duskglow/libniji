@@ -1,0 +1,155 @@
+#!/bin/sh
+# tools/deb/check-system.sh DIR: check the system packages in DIR (tools/deb/build.sh --flavour system)
+# without installing them. No spec clause: release packaging (plan/system-libc.md sections 3.1-3.3,
+# owner rulings R1 and R2; records/pending/SL-FLAVOUR-1.toml).
+#
+# 1. Identity (R1, R2): exactly libc6, libc-bin, libc6-dev, libc-dev-bin, locales, libc-l10n, each
+#    Source: liella, the project's Maintainer, one version <abi>+liella<YYYYMMDD>.<n>-<rev> (no
+#    epoch); libc-bin Essential: yes, Priority: required, Multi-Arch: foreign; libc6 and libc6-dev
+#    Multi-Arch: same; libc6-dev Provides: libc-dev; locales and libc-l10n Architecture: all.
+# 2. Layout (section 3.3): every path is in the package's list below (nothing in a sysroot, no
+#    /lib64: base-files owns it); owners root:root; the control members, conffiles and triggers
+#    are exactly the ones named below.
+# 3. The products: the loader was built with prefix / (no sysroot path in it); each shared
+#    library's SONAME is its file name.
+# 4. Linking: plain gcc with the unpacked libc6-dev (its start files and libc.so script, --sysroot
+#    the unpacked tree) makes a dynamic hello whose program interpreter is
+#    /lib64/ld-linux-x86-64.so.2 (gcc's default) and which needs libc.so.6 alone with no
+#    RPATH/RUNPATH; a static hello runs and prints its line.
+# Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
+set -eu
+export LC_ALL=C
+[ $# -eq 1 ] || { echo "usage: tools/deb/check-system.sh DIR" >&2; exit 2; }
+dir=$(cd "$1" && pwd)
+here=$(cd "$(dirname "$0")" && pwd)
+ma=x86_64-linux-gnu
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+fails=0
+fail() {
+    echo "check: FAIL $*"
+    fails=$((fails + 1))
+}
+
+# field DEB NAME: one control field.
+field() { dpkg-deb -f "$1" "$2"; }
+
+want="libc-bin libc-dev-bin libc-l10n libc6 libc6-dev locales"
+debs=$(find "$dir" -maxdepth 1 -name '*.deb' | sort)
+[ -n "$debs" ] || { echo "check: FAIL no .deb in $dir"; exit 1; }
+got=$(for d in $debs; do field "$d" Package; done | sort | tr '\n' ' ')
+[ "$got" = "$want " ] || fail "packages are '$got', not '$want'"
+version=""
+mkdir "$tmp/root"
+for deb in $debs; do
+    pkg=$(field "$deb" Package)
+    v=$(field "$deb" Version)
+    [ -n "$version" ] || version=$v
+    [ "$v" = "$version" ] || fail "$pkg: version $v, the others $version"
+    echo "$v" | grep -q -E '^2\.[0-9]+\+liella[0-9]{8}\.[0-9]+-[0-9]+$' || fail "$pkg: version $v is not <abi>+liella<YYYYMMDD>.<n>-<rev>"
+    [ "$(field "$deb" Source)" = liella ] || fail "$pkg: Source is '$(field "$deb" Source)', not liella"
+    [ "$(field "$deb" Maintainer)" = "${DEB_MAINTAINER:-Liella Maintainers <liella@koiren.ai>}" ] || fail "$pkg: Maintainer is '$(field "$deb" Maintainer)'"
+    # expect PKG FIELD VALUE
+    expect() { [ "$(field "$deb" "$2")" = "$3" ] || fail "$1: $2 is '$(field "$deb" "$2")', not '$3'"; }
+    ctrl_want="./ ./control ./md5sums"
+    case $pkg in
+        libc6)
+            expect libc6 Architecture amd64; expect libc6 Multi-Arch same; expect libc6 Priority required
+            expect libc6 Essential no
+            # The symbols and shlibs members' contents: tools/deb/check-symbols.sh.
+            ctrl_want="$ctrl_want ./conffiles ./shlibs ./symbols ./triggers"
+            conffiles="/etc/ld.so.conf.d/$ma.conf"
+            triggers="activate-noawait ldconfig" ;;
+        libc-bin)
+            expect libc-bin Essential yes; expect libc-bin Priority required; expect libc-bin Multi-Arch foreign
+            expect libc-bin Depends "libc6 (= $v)"
+            ctrl_want="$ctrl_want ./conffiles ./postinst ./triggers"
+            conffiles="/etc/gai.conf /etc/ld.so.conf /etc/ld.so.conf.d/libc.conf"
+            triggers="interest-await ldconfig" ;;
+        libc6-dev)
+            expect libc6-dev Multi-Arch same; expect libc6-dev Provides libc-dev
+            expect libc6-dev Depends "libc6 (= $v), libc-dev-bin (= $v)" ;;
+        libc-dev-bin) expect libc-dev-bin Multi-Arch foreign ;;
+        locales | libc-l10n) expect "$pkg" Architecture all ;;
+    esac
+    dpkg-deb --ctrl-tarfile "$deb" | tar -t | sort | tr '\n' ' ' > "$tmp/ctrl"
+    [ "$(cat "$tmp/ctrl")" = "$(echo "$ctrl_want" | tr ' ' '\n' | sort | tr '\n' ' ')" ] ||
+        fail "$pkg: control members '$(cat "$tmp/ctrl")', not '$ctrl_want'"
+    dpkg-deb -e "$deb" "$tmp/ctrl-$pkg"
+    case $pkg in
+        libc6 | libc-bin)
+            [ "$(sort "$tmp/ctrl-$pkg/conffiles" | tr '\n' ' ')" = "$conffiles " ] ||
+                fail "$pkg: conffiles '$(tr '\n' ' ' < "$tmp/ctrl-$pkg/conffiles")', not '$conffiles'"
+            [ "$(cat "$tmp/ctrl-$pkg/triggers")" = "$triggers" ] || fail "$pkg: triggers '$(cat "$tmp/ctrl-$pkg/triggers")', not '$triggers'" ;;
+    esac
+
+    dpkg-deb --fsys-tarfile "$deb" | tar -tv > "$tmp/list"
+    awk '$2 != "root/root" { print $0 }' "$tmp/list" > "$tmp/owners"
+    [ ! -s "$tmp/owners" ] || fail "$pkg: entries not owned by root/root: $(head -1 "$tmp/owners")"
+    awk '{ print substr($1, 1, 1), $6 }' "$tmp/list" | while read -r type path; do
+        case $path in
+            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
+                [ "$type" = d ] || echo "check: FAIL $pkg: $path is not a directory"
+                continue ;;
+            ./usr/share/doc/"$pkg"/ | ./usr/share/doc/"$pkg"/copyright | ./usr/share/doc/"$pkg"/changelog.Debian.gz) continue ;;
+        esac
+        ok=no
+        case $pkg:$path in
+            libc6:./usr/lib/$ma/ld-linux-x86-64.so.2 | libc6:./usr/lib/$ma/lib*.so.[0-9] | libc6:./usr/lib/$ma/libc_malloc_debug.so.0) ok=yes ;;
+            libc6:./usr/lib64/ld-linux-x86-64.so.2 | libc6:./etc/ld.so.conf.d/$ma.conf) ok=yes ;;
+            libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
+            libc-bin:./usr/share/libc-bin/nsswitch.conf) ok=yes ;;
+            libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so) ok=yes ;;
+        esac
+        [ $ok = yes ] || echo "check: FAIL $pkg: path not in the system layout: $path"
+    done > "$tmp/paths"
+    if [ -s "$tmp/paths" ]; then
+        cat "$tmp/paths"
+        fails=$((fails + $(wc -l < "$tmp/paths")))
+    fi
+    dpkg-deb -x "$deb" "$tmp/root"
+done
+
+r=$tmp/root
+lib=$r/usr/lib/$ma
+# base-files' merged-/usr links (not in these packages): the libc.so script names /lib and /lib64.
+ln -s usr/lib "$r/lib"
+ln -s usr/lib64 "$r/lib64"
+link=$(readlink "$r/usr/lib64/ld-linux-x86-64.so.2" || true)
+[ "$link" = "../lib/$ma/ld-linux-x86-64.so.2" ] || fail "/usr/lib64/ld-linux-x86-64.so.2 -> '$link', not ../lib/$ma/ld-linux-x86-64.so.2"
+# 3. The loader's prefix is / : a sysroot build names /usr/lib/liella (its own libraries and cache).
+if [ -f "$lib/ld-linux-x86-64.so.2" ]; then
+    ! grep -a -q '/usr/lib/liella' "$lib/ld-linux-x86-64.so.2" || fail "the loader was built with the sysroot prefix /usr/lib/liella, not /"
+    grep -a -q "usr/lib/$ma" "$lib/ld-linux-x86-64.so.2" || fail "the loader does not name usr/lib/$ma"
+fi
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+    sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
+    [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
+done
+
+# 4. Linking with plain gcc and the unpacked libc6-dev: its start files in the driver's order
+#    (crt1, crti, crtbegin ... crtend, crtn), named by path so none comes from the host's libc6-dev.
+cc=${CC:-gcc}
+begin=$("$cc" -print-file-name=crtbeginS.o); end=$("$cc" -print-file-name=crtendS.o)
+if "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$lib/crti.o" "$begin" "$here/smoke/hello.c" -lc -lgcc "$end" "$lib/crtn.o" -o "$tmp/hello" > "$tmp/log" 2>&1; then
+    interp=$(readelf -lW "$tmp/hello" | sed -n 's/.*Requesting program interpreter: \(.*\)\]$/\1/p')
+    [ "$interp" = /lib64/ld-linux-x86-64.so.2 ] || fail "hello: program interpreter is '${interp:-none}', not /lib64/ld-linux-x86-64.so.2"
+    needed=$(readelf -dW "$tmp/hello" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')
+    [ "$needed" = "libc.so.6 " ] || fail "hello: needs '$needed', not libc.so.6 alone"
+    ! readelf -dW "$tmp/hello" | grep -q -E '\((RPATH|RUNPATH)\)' || fail "hello has an RPATH or RUNPATH"
+else
+    fail "dynamic hello does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+begin=$("$cc" -print-file-name=crtbeginT.o); end=$("$cc" -print-file-name=crtend.o)
+if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$lib/crti.o" "$begin" "$here/smoke/hello.c" -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$end" "$lib/crtn.o" -o "$tmp/hello-static" > "$tmp/log" 2>&1; then
+    out=$(timeout 60 "$tmp/hello-static" 2>&1) || fail "static hello exits $?: $out"
+    case $out in *"hello from liella"*) ;; *) fail "static hello printed '$out'" ;; esac
+else
+    fail "static hello does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+
+if [ "$fails" -ne 0 ]; then
+    echo "check: $fails problem(s)"
+    exit 1
+fi
+echo "check: PASS (6 packages, version $version)"

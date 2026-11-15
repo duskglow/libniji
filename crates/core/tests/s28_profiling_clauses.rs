@@ -254,8 +254,27 @@ fn start_and_run(mcount: bool, n: u32) -> (usize, usize) {
     pr::probe_run(mcount, n);
     let site = if mcount { mc } else { fentry };
     // libtest has printed `test <name> ... ` without a newline: the line may follow it.
-    println!("S28 {low} {high} {site} {caller}");
+    println!("S28 {low} {high} {site} {caller} {}", exe_load_bias());
     (site, caller)
+}
+
+/// This executable's load bias, read from `/proc/self/maps` (independently of the code under
+/// test): the start of its mapping at file offset 0, which is where its first segment (virtual
+/// address 0 in a PIE) was loaded; 0 when the program is not a PIE.
+fn exe_load_bias() -> usize {
+    let exe = std::fs::read_link("/proc/self/exe").unwrap();
+    let maps = std::fs::read_to_string("/proc/self/maps").unwrap();
+    let line = maps
+        .lines()
+        .find(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            f.len() >= 6 && f[2] == "00000000" && std::path::Path::new(f[5]) == exe
+        })
+        .expect("the executable's first mapping");
+    let start = usize::from_str_radix(line.split('-').next().unwrap(), 16).unwrap();
+    let ehdr = std::fs::read(&exe).unwrap();
+    // e_type ET_DYN (3): a PIE, whose link-time addresses start at 0.
+    if u16::from_le_bytes([ehdr[16], ehdr[17]]) == 3 { start } else { 0 }
 }
 
 /// The arcs whose callee is within `site`'s first 16 bytes: `(from, to, count)`.
@@ -337,7 +356,10 @@ fn s28_1_c_1() {
     // Clause s28_1_c_1. Probe of glibc 2.39 (static -pg program, gcrt1, exit from main, fresh
     // directory): without GMON_OUT_PREFIX the only file written is `gmon.out`; with
     // GMON_OUT_PREFIX=p it is `p.<pid>` and no `gmon.out`. The start object registers
-    // `_mcleanup` for exit (gmon_products.rs); this child calls it as that exit would.
+    // `_mcleanup` for exit (gmon_products.rs); this child calls it as that exit would. The file
+    // holds link-time pcs: a probe of a dynamic and a static PIE -pg program (SL-CRT-2) showed the
+    // histogram's low pc at `__executable_start`'s link-time address 0, so every pc written is
+    // less the executable's load bias (this test program is a PIE).
     if in_child() {
         start_and_run(true, GMON_CALLS);
         pr::_mcleanup();
@@ -348,13 +370,14 @@ fn s28_1_c_1() {
         let (pid, out) = run_child("s28_1_c_1", &dir, prefix);
         let line = out.lines().find_map(|l| l.split_once("S28 ").map(|(_, r)| r)).expect("the child's range line");
         let v: Vec<usize> = line.split(' ').map(|w| w.parse().unwrap()).collect();
-        let (low, high, site, caller) = (v[0], v[1], v[2], v[3]);
+        let bias = v[4];
+        let (low, high, site, caller) = (v[0].wrapping_sub(bias), v[1].wrapping_sub(bias), v[2] - bias, v[3] - bias);
         let want = prefix.map_or_else(|| "gmon.out".to_string(), |p| format!("{p}.{pid}"));
         let mut names: Vec<String> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
         names.sort();
         assert_eq!(names, core::slice::from_ref(&want), "GMON_OUT_PREFIX={prefix:?}: the one file written");
         let (lo, hi, bins, arcs) = parse_gmon(&std::fs::read(dir.join(&want)).unwrap());
-        assert_eq!((lo, hi), ((low & !3) as u64, ((high + 3) & !3) as u64), "the histogram covers the range given to monstartup");
+        assert_eq!((lo, hi), ((low & !3) as u64, (high.wrapping_add(3) & !3) as u64), "the histogram covers the range given to monstartup, at link-time pcs");
         assert!(bins > 0, "monstartup allocated a histogram");
         assert_one_arc(&want, &arcs, site, caller, GMON_CALLS);
     }

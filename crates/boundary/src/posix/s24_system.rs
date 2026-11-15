@@ -114,6 +114,21 @@ pub extern "C" fn __sched_getscheduler(pid: c_int) -> c_int {
     ret::int(CSys.sched_getscheduler(pid).map(i64::from))
 }}
 
+// `sched_setattr` and `sched_getattr` (§24.3, glibc 2.41, owner ruling R3): thin wrappers. The
+// caller's `struct sched_attr` (kernel UAPI) goes to the kernel unchanged, whatever its size: the
+// kernel runs the size protocol (it reads `attr->size`, answers E2BIG and writes its own size
+// back), so a typed copy here would lose the write-back and refuse sizes the kernel accepts. A
+// null or bad pointer is the kernel's EINVAL or EFAULT; nothing here dereferences it.
+export! { "GLIBC_2.41";
+pub extern "C" fn sched_setattr(pid: c_int, attr: *mut c_void, flags: c_uint) -> c_int {
+    ret::zero(raw::syscall(nr::SCHED_SETATTR, [i64::from(pid), addr_word(attr.cast_const()), i64::from(flags), 0, 0, 0]).map(drop))
+}}
+
+export! { "GLIBC_2.41";
+pub extern "C" fn sched_getattr(pid: c_int, attr: *mut c_void, size: c_uint, flags: c_uint) -> c_int {
+    ret::zero(raw::syscall(nr::SCHED_GETATTR, [i64::from(pid), addr_word(attr.cast_const()), i64::from(size), i64::from(flags), 0, 0]).map(drop))
+}}
+
 export! { "GLIBC_2.2.5";
 pub extern "C" fn sched_setparam(pid: c_int, param: Option<&SchedParam>) -> c_int {
     ret::zero(conv::req(param).and_then(|p| CSys.sched_setparam(pid, p)))

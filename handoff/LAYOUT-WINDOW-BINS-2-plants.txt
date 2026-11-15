@@ -1,0 +1,19 @@
+# LAYOUT-WINDOW-BINS-2 plants (slice 1: signatures and the window-bin plan, not applied).
+# Planner plants run the xtask unit tests of xtask/src/bins.rs; keys.py plants the signatures test in hottext.rs;
+# the regen.sh plant builds the products (the plan's start-up guard must stop a trace that recorded no modes).
+# The planner takes the bin a group adds the MOST modes to.
+bins-max-cost | xtask/src/bins.rs | lit:.min_by_key(|(i, b)| (sig.difference(&b.modes).count(), *i)) ==> .max_by_key(|(i, b)| (sig.difference(&b.modes).count(), *i)) | cargo test -p xtask -- bins:: | msg:bins::tests::\w+.*(FAILED|panicked)|test result: FAILED
+# A bin's extent ignores its members' alignment.
+bins-no-align | xtask/src/bins.rs | lit:off.next_multiple_of(align.max(1)) + bytes ==> off + bytes | cargo test -p xtask -- bins:: | msg:alignment_counts_in_a_bin.*(FAILED|panicked)|test result: FAILED
+# A cold section may fill two gaps.
+bins-filler-twice | xtask/src/bins.rs | lit:taken[c] = true; ==> taken[c] = false; | cargo test -p xtask -- bins:: | msg:fillers_take_the_gap_best_fit_and_never_twice.*(FAILED|panicked)|test result: FAILED
+# Bins no counted mode touches still get a boundary and fillers.
+bins-gap-all | xtask/src/bins.rs | lit:let last = bins.iter().rposition(|b| !b.modes.is_empty()).unwrap_or(0); ==> let last = bins.len().saturating_sub(1); | cargo test -p xtask -- bins:: | msg:bins_no_mode_touches_need_no_boundary.*(FAILED|panicked)|test result: FAILED
+# A fresh bin takes up to two windows of a group.
+bins-split-late | xtask/src/bins.rs | lit:if next > BIN && take > 0 { ==> if next > BIN + BIN && take > 0 { | cargo test -p xtask -- bins:: | msg:a_group_splits_only_where_a_bin_is_full.*(FAILED|panicked)|test result: FAILED
+# A name traced at a label inside another key's section no longer counts for that section.
+keys-sig-alias | tools/hottext/keys.py | lit:for t in {k, alias.get(k, k)}: ==> for t in {k}: | cargo test -p xtask -- hottext::tests::signatures_name_the_modes_that_run_each_listed_key | msg:signatures_name_the_modes_that_run_each_listed_key.*(FAILED|panicked)|test result: FAILED
+# A key no mode runs gets an empty field instead of `-`.
+keys-sig-none | tools/hottext/keys.py | lit:or '-'}") ==> or ''}") | cargo test -p xtask -- hottext::tests::signatures_name_the_modes_that_run_each_listed_key | msg:signatures_name_the_modes_that_run_each_listed_key.*(FAILED|panicked)|test result: FAILED
+# regen.sh records no page_faults mode: every signature is empty; `so` must refuse the plan.
+regen-no-modes | tools/hottext/regen.sh | lit:echo "true=$work/startup.names" >> "$work/modes" ==> : | cargo xtask so | msg:no grouped key the start-up mode | layout:traced

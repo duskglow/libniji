@@ -1,0 +1,22 @@
+#!/bin/sh
+# libc-bin (Liella) postinst. DPKG_ROOT is honoured, so dpkg --root --force-script-chrootless can
+# configure an empty root that has no shell of its own (tools/deb/root-system.sh).
+set -e
+
+case "$1" in
+    configure)
+        # /etc/nsswitch.conf is the administrator's file, not a conffile: installed once from the
+        # template when the system has none, never replaced.
+        if [ ! -e "$DPKG_ROOT/etc/nsswitch.conf" ]; then
+            cp "$DPKG_ROOT/usr/share/libc-bin/nsswitch.conf" "$DPKG_ROOT/etc/nsswitch.conf"
+            chmod 0644 "$DPKG_ROOT/etc/nsswitch.conf"
+        fi
+        ;;
+    triggered)
+        # The ldconfig trigger (libc6 and library packages activate it). This build ships no
+        # ldconfig yet (SL-LDCONFIG), so there is no cache to rebuild: a documented no-op. The
+        # loader searches the standard directories without a cache.
+        ;;
+esac
+
+exit 0

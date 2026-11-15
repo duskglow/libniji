@@ -1,7 +1,8 @@
 //! The start-up lists of a product build (LAYOUT-TRACE-AT-BUILD, D-X.88; LAYOUT-TRACE-DEFAULT, D-X.92;
 //! LAYOUT-DELETE-LISTS, LT-5).
 //!
-//! [`GENERATED`] (`hot-text.list`, `startup-text.keys`, `probe-text.keys`, `startup-data.keys`) are written by
+//! [`GENERATED`] (`hot-text.list`, `startup-text.keys`, `probe-text.keys`, `startup-data.keys`,
+//! `hot-text.signatures`) are written by
 //! every product build from a trace of that build (`tools/hottext/regen.sh`, run by `cargo xtask so`) into
 //! `target/product/<profile>`; none is committed (`cargo xtask static` refuses one in the tree,
 //! `crate::hottext::static_check`). The hand-written inputs (`hot-text.clusters`, `hot-text.first-window`,
@@ -18,7 +19,7 @@ use std::sync::Mutex;
 /// The tracked directory of the hand-written layout inputs, relative to the workspace root.
 pub const TRACKED: &str = "crates/libc-so";
 /// The lists every product build writes from its own trace (never tracked).
-pub const GENERATED: [&str; 4] = ["hot-text.list", "startup-text.keys", "probe-text.keys", "startup-data.keys"];
+pub const GENERATED: [&str; 5] = ["hot-text.list", "startup-text.keys", "probe-text.keys", "startup-data.keys", "hot-text.signatures"];
 /// The directory `tools/hottext/regen.sh` (and `probe_text.sh`, `startup_data.sh`) writes the lists to; `so` sets
 /// it for the trace it runs.
 pub const ENV: &str = "LIELLA_HOT_LISTS";

@@ -1,0 +1,16 @@
+# `ldconfig -p -C` on a cache that does not exist. The reference's wrapper script starts the program as
+# `/sbin/ldconfig.real`, which is the name in its message; the spec writes `<program>` there (§31.2 Failure), so this
+# transcript maps that one name to `ldconfig`, the name Liella's side is started with.
+name: ldconfig -p on a missing cache prints the open failure and exits 1
+clause: s31_2_f_1
+command: ldconfig
+env: LC_ALL=C
+arg: -p
+arg: -C
+arg: @ROOT@/no-such-cache
+normalise: /sbin/ldconfig.real => ldconfig
+status: exit 1
+stdout:
+stderr:
+| ldconfig: Can't open cache file @ROOT@/no-such-cache
+| : No such file or directory

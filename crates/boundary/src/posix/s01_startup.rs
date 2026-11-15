@@ -42,6 +42,14 @@ pub extern "C" fn __liella_thread_walk(cb: usize, ctx: usize) -> usize {
     crate::thread::walk_threads(cb, ctx)
 }}
 
+export! { runtime "LIELLA_PRIVATE";
+#[cfg(feature = "runtime")]
+pub extern "C" fn __liella_owner_unload(lo: usize, hi: usize) {
+    // Liella's `ld.so` unloads the module mapped at [lo, hi): the opted-in registrations it owns
+    // or whose handlers it holds go (DL-ATEXIT-OWNER, D-27.29).
+    crate::owner::unload(lo, hi)
+}}
+
 export! { runtime "GLIBC_2.34";
 #[cfg(feature = "runtime")]
 pub extern "C" fn __libc_start_main(main: Option<Main>, argc: c_int, argv: *mut *mut c_char, init: Option<Fn0>, fini: Option<Fn0>, rtld_fini: Option<Fn0>, stack_end: *mut c_void) -> c_int {

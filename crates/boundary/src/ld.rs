@@ -85,6 +85,17 @@ pub static __rseq_flags: core::sync::atomic::AtomicU32 = core::sync::atomic::Ato
 /// Whether the tunables leave rseq registration on (`glibc.pthread.rseq`, D-22.7), read at start.
 static RSEQ_WANTED: AtomicBool = AtomicBool::new(true);
 
+/// `LIELLA_LD_REPORT_NONSHARED` was set outside secure mode (D-27.29, ruling #4861): each object
+/// loaded at start or by `dlopen` that carries the libc_nonshared.a notice is named on standard error.
+static REPORT_NONSHARED: AtomicBool = AtomicBool::new(false);
+
+/// Name `name` on standard error when the report is on and `elf` carries the libc_nonshared.a notice.
+fn report_nonshared(elf: &liella_ld::elf::Elf<'_>, name: &[u8]) {
+    if REPORT_NONSHARED.load(Relaxed) && start::uses_nonshared_stubs(elf) {
+        start::nonshared_report(name).iter().for_each(|p| write_all(2, p));
+    }
+}
+
 /// The bytes above the initial thread's pointer (D-27.26): the thread block, then room up to the
 /// end of the rseq area at `RSEQ_OFFSET`, where the C library's descriptor puts it in every other
 /// thread, so `__rseq_offset` is one value for all threads.
@@ -300,6 +311,7 @@ pub extern "C" fn liella_ld_start(sp: usize, ehdr: usize) -> ! {
     let ld = start::ld_env(env_entries(envp));
     let tunables = ld.tunables.map(|t| Tunables::parse(t, secure));
     RSEQ_WANTED.store(tunables.is_none_or(|t| t.rseq != Some(false)), Relaxed);
+    REPORT_NONSHARED.store(ld.report_nonshared && !secure, Relaxed);
     let features = Native::features(&Auxv::from_words(copy.get(..words).unwrap_or(&[])), &crate::sys::CSys);
     for name in ld.preload.map(start::preload_names).into_iter().flatten() {
         for part in start::preload_ignored(name) {
@@ -1233,6 +1245,11 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             n += 1;
         }
         q += 1;
+    }
+    for (k, o) in objs[..n].iter().enumerate() {
+        if Some(k) != interp {
+            report_nonshared(&o.elf, o.name);
+        }
     }
     // Static TLS of the initially loaded objects (design §7, R14-4, D-27.20).
     let mut mods: [Option<Module>; OBJECTS_MAX] = [None; OBJECTS_MAX];

@@ -708,7 +708,8 @@ pub fn uselocale(loc: usize) -> usize {
 }
 
 /// The variables `setlocale(cat, "")` reads (`global_locale::setlocale`: `LC_ALL`, the
-/// category's own, `LANG`), in [`crate::startup_names`] (STARTUP-READ-CONSTANTS).
+/// category's own, `LANG`), in [`crate::startup_names`] (STARTUP-READ-CONSTANTS). Their order is
+/// `gl::ENV_LC_ALL`'s numbering: `LC_ALL`, the categories in `Cat::ALL` order, `LANG`.
 const ENV_KEYS: [&[u8]; 14] = {
     use crate::startup_names as n;
     [
@@ -717,11 +718,6 @@ const ENV_KEYS: [&[u8]; 14] = {
     ]
 };
 
-/// The index of `k` in [`ENV_KEYS`].
-fn env_key(k: &[u8]) -> Option<usize> {
-    ENV_KEYS.iter().position(|&n| n == k)
-}
-
 /// `setlocale(category, name)`: the name (`'static`, NUL-terminated), or `None`.
 pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
     let cat = if category == 6 { None } else { Some(Cat::from_number(category)?) };
@@ -729,33 +725,63 @@ pub fn setlocale(category: i32, name: Option<&[u8]>) -> Option<&'static [u8]> {
     let Some(name) = name else {
         return gl::setlocale(&CSys, &Glue, cat, gl::Request::Query);
     };
-    let name = Some(name);
-    // `""`: every variable the selection may read, from one walk over `environ` (SETLOCALE-3:
-    // fourteen `getenv` scans before); a name it was not given to look up is looked up alone.
-    let mut found: [Option<&'static [u8]>; ENV_KEYS.len()] = [None; ENV_KEYS.len()];
-    if name == Some(b"") {
-        let mut at = [None; ENV_KEYS.len()];
-        process::getenv_many(&ENV_KEYS, &mut at);
-        for (v, a) in found.iter_mut().zip(at) {
-            *v = a.map(strz::env_value);
+    // `""` is out of line (SETLOCALE-CTYPE-ENV): its lookups would otherwise set up a frame and
+    // locals on every named call too (+7 per call on the "C" and "POSIX" rows when inline).
+    if name.is_empty() {
+        return setlocale_env(cat);
+    }
+    let before = gl::global_handle();
+    let r = gl::setlocale(&CSys, &Glue, cat, gl::Request::Name(name));
+    // A changed category may select other message catalogs (§7.7, `_nl_msg_cat_cntr`).
+    if gl::global_handle() != before {
+        publish_global();
+        crate::catalog::locale_changed();
+    }
+    r
+}
+
+/// Variable `k` (`gl::ENV_LC_ALL`'s numbering, which is [`ENV_KEYS`]' order) for
+/// [`setlocale_env`]: its value from `found` when `k < known`, else from `getenv`. Out of line
+/// (SETLOCALE-CTYPE-ENV-5): inlined at each of the selection's lookups it was four copies of the
+/// scanner call and the value's `strlen`, start-up text the coreutils-shaped program paid a
+/// fault-around window for.
+#[inline(never)]
+fn env_lookup(found: &[Option<usize>; ENV_KEYS.len()], known: usize, k: usize) -> Option<&'static [u8]> {
+    let at = if k < known { found.get(k).copied().flatten() } else { process::getenv(ENV_KEYS.get(k)?) };
+    at.map(strz::env_value)
+}
+
+/// `setlocale(cat, "")`: each category's name from the environment, read on every call.
+#[inline(never)]
+fn setlocale_env(cat: Option<Cat>) -> Option<&'static [u8]> {
+    // `""`, one category: each variable the selection reads (`LC_ALL`, `LC_<cat>`, `LANG`, in
+    // that order, only as far as the first non-empty one) through `getenv`'s scanner, a few
+    // instructions per entry (SETLOCALE-CTYPE-ENV: a walk for all fourteen names cost ~80 per entry,
+    // since they all start with `L`). `LC_ALL`: `LC_ALL` first, and when it decides nothing the
+    // other thirteen from one walk over `environ` (SETLOCALE-3: thirteen scans).
+    // The values' addresses; a value is measured only when the selection asks for it
+    // (SETLOCALE-CTYPE-ENV-5: measuring all fourteen up front was unrolled into ten inlined
+    // `strlen` sequences, ~1 KiB of start-up text, and the coreutils-shaped program's hot text
+    // then crossed into one more 64 KiB fault-around window).
+    let mut found: [Option<usize>; ENV_KEYS.len()] = [None; ENV_KEYS.len()];
+    let mut known = 0;
+    if cat.is_none() {
+        if let Some(v) = found.first_mut() {
+            *v = process::getenv(crate::startup_names::LC_ALL);
+        }
+        known = 1;
+        if env_lookup(&found, known, gl::ENV_LC_ALL).is_none_or(<[u8]>::is_empty) {
+            process::getenv_many(ENV_KEYS.get(1..).unwrap_or_default(), found.get_mut(1..).unwrap_or_default());
+            known = ENV_KEYS.len();
         }
     }
-    let getenv = |k: &[u8]| -> Option<&'static [u8]> {
-        match env_key(k) {
-            Some(i) => found.get(i).copied().flatten(),
-            None => process::getenv(k).map(strz::env_value),
-        }
-    };
-    let req = match name {
-        None => gl::Request::Query,
-        Some(b"") => gl::Request::Environment(&getenv),
-        Some(n) => gl::Request::Name(n),
-    };
+    let getenv = |k: usize| env_lookup(&found, known, k);
+    let req = gl::Request::Environment(&getenv);
     let before = gl::global_handle();
-    // `""` is never answered from the query cache: straight to the locked path.
-    let r = match req {
-        gl::Request::Environment(_) => gl::setlocale_locked(&CSys, &Glue, cat, &req),
-        _ => gl::setlocale(&CSys, &Glue, cat, req),
+    // Answered without the lock when every category keeps its name, else the locked path.
+    let r = match gl::setlocale_env_kept(&Glue, cat, &getenv) {
+        Some(s) => Some(s),
+        None => gl::setlocale_locked(&CSys, &Glue, cat, &req),
     };
     // A changed category may select other message catalogs (§7.7, `_nl_msg_cat_cntr`).
     if gl::global_handle() != before {
