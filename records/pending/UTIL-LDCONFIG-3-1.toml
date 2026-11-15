@@ -1,0 +1,11 @@
+id = "D-NEW"
+series = "D-31"
+section = "s31"
+spec = "§31.2"
+ann = "—"
+status = "active"
+story = "UTIL-LDCONFIG-3"
+date = "2026-11-15"
+body = '''
+**ldconfig's engine rules beyond D-31.9 (UTIL-3, `plan/utilities.md` §4; engine `crates/ld/src/ldconfig/`).** (1) A soname link is replaced atomically: a new link under a temporary name in the same directory, renamed over the old one, so a concurrent reader sees the old link or the new one, never none. (2) Directory listings, glob matches and soname groups are sorted before use, so the same tree gives the same messages, links and byte-identical cache on any file system (`listing_order_changes_nothing`, `random_configurations_end_cleanly`). (3) ELF headers are read with bounds-checked positioned reads of the needed bytes only; nothing is mapped. (4) Only ELF files of the native class, byte order and machine are entered in the cache; other ELF files are skipped silently (an open question for multilib systems, raised by UTIL-LDCONFIG-3). (5) An `include` that would re-enter a configuration file already being read (found by file identity), or nest deeper than the engine's depth limit, is refused with one message naming the file and line (`include of <file> would loop (include cycle), ignored`); the rest of the configuration is read as usual and the exit status does not change (`include_cycles_end_with_a_message`). (6) A glibc-hwcaps cache entry whose file name is not its soname stores the key as its own string (the cache writer, `write_hwcaps_key_other_than_the_file_name`). (7) `-l` (link individual libraries) is refused with a message and exit 1 until it is implemented; it is a gap, not a design choice.
+'''
