@@ -6774,7 +6774,9 @@ translation units of its own that include one header and test candidate names, e
 and reads back only the exit status and the line numbers of errors in its own file: no diagnostic text,
 no `-E` or `-dM` output, no header text. Candidates are the names of `prototypes.tsv`, `constants.tsv`,
 the data objects of `versions.tsv`, the types and tags of `layouts.tsv` and the declarations, and the
-identifiers this specification writes in backticks; a name outside those sources is not probed.
+identifiers this specification writes in backticks; a name outside those sources is not probed. A candidate
+that is a keyword of the language in its newest mode gets the macro test only (a header may define it as a
+macro in an older mode).
 
 `ftm-configs.tsv` lists 40 configurations: the strict ISO modes, the GNU modes, each
 `_POSIX_C_SOURCE` and `_XOPEN_SOURCE` level, the ISO, `_DEFAULT_SOURCE`, BSD/SVID and `_GNU_SOURCE`

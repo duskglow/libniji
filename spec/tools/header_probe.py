@@ -173,13 +173,18 @@ def keywords(lang, names, work):
     u = Unit(None)
     for n in names:
         u.test(n, f"struct vis_kw_{n} {{ int {n}; }};")
-    flags = "-std=gnu2x -undef" if lang == "c" else "-std=c++23 -undef"
+    # -undef drops the compiler's predefined macros and -nostdinc the implicitly included stdc-predef.h, whose
+    # macros (`_STDC_PREDEF_H`, `__STDC_ISO_10646__`) would otherwise fail this test and be taken for keywords.
+    flags = "-std=gnu2x -undef -nostdinc" if lang == "c" else "-std=c++23 -undef -nostdinc"
     _, failed = u.run(lang, flags, os.path.join(work, f"kw.{lang}"))
     return failed
 
 
-def probe(header, cfg, names, tags, work):
-    """{(name, kind)} visible after `#include <header>` (header None: the empty unit) in `cfg`."""
+def probe(header, cfg, names, tags, work, macro_only=()):
+    """{(name, kind)} visible after `#include <header>` (header None: the empty unit) in `cfg`.
+
+    `macro_only` (the keywords of the language) get the `#ifdef` test alone: `#ifdef` takes any identifier, and a
+    header can define one as a macro in an older mode (`true` and `false` from stdbool.h before C23)."""
     cid, lang, flags, _ = cfg
     tag = (header or "-").replace("/", "_")
     path = os.path.join(work, f"{tag}.{cid}.{'c' if lang == 'c' else 'cc'}")
@@ -192,7 +197,7 @@ def probe(header, cfg, names, tags, work):
     cxx = lang == "c++"
     # Pass A: macros, then declared ordinary names and complete tags.
     a = Unit(header)
-    for n in names:
+    for n in list(names) + list(macro_only):
         a.raw(f"#ifdef {n}")
         a.test(("macro", n), "#error vis")
         a.raw("#endif")
@@ -206,7 +211,7 @@ def probe(header, cfg, names, tags, work):
         for kw in ("struct", "union", "enum"):
             a.test((kw, n), f"void vis_{kw[0]}_{n}(void) {{ (void)sizeof({kw} {n}); }}")
     _, fa = a.run(lang, flags, path)
-    out = {(n, "macro") for n in names if ("macro", n) in fa}
+    out = {(n, "macro") for n in list(names) + list(macro_only) if ("macro", n) in fa}
     for n in tags:
         for kw in ("struct", "union", "enum"):
             if (kw, n) not in fa:
@@ -279,7 +284,7 @@ def main():
         per_lang = {lang: ([n for n in names if n not in kw[lang]], [t for t in tags if t not in kw[lang]]) for lang in langs}
         jobs = [(h, c) for h in [None] + headers for c in CONFIGS]
         with ThreadPoolExecutor(max_workers=args.jobs) as ex:
-            results = list(ex.map(lambda hc: probe(hc[0], hc[1], *per_lang[hc[1][1]], work), jobs))
+            results = list(ex.map(lambda hc: probe(hc[0], hc[1], *per_lang[hc[1][1]], work, sorted(kw[hc[1][1]])), jobs))
     finally:
         shutil.rmtree(work, ignore_errors=True)
     ids = [c[0] for c in CONFIGS]
