@@ -561,7 +561,8 @@ mod tests {
         assert_eq!(Plan::bound(&items)["s"], 0);
         let plain: Vec<Item> = items.iter().map(|it| Item { sig: it.sig.iter().filter(|m| *m != "s.pre").cloned().collect(), ..it.clone() }).collect();
         let q = plan(&plain, &[]);
-        assert_eq!((names(&q, &plain), q.windows()["s"]), (vec![vec!["t", "w"], vec!["r", "p"]], 2));
+        assert_eq!(names(&q, &plain), [vec!["t", "w"], vec!["r", "p"]]);
+        assert_eq!(q.windows()["s"], 2);
     }
 
     #[test]
