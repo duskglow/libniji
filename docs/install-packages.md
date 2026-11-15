@@ -51,10 +51,11 @@ that needs a system library (`-lz`, ...) names its directory, for example
 `-Wl,-rpath,/usr/lib/x86_64-linux-gnu`; Liella's own libraries still come from the sysroot.
 `-static-pie` and `-pg` are not supported by the wrapper. See `man liella-gcc`.
 
-**Today (2026-11-13):** the loader does not yet search for a program's `DT_NEEDED` libraries at
-start-up (it loads them only by path), so dynamically linked programs built with `liella-gcc`
-stop with "the library search is not available in this build". Static programs run. Dynamic
-programs run once the loader's start-time search lands; nothing in the packages changes then.
+The loader finds a program's `DT_NEEDED` libraries named by soname at start-up with the same
+search `ld.so --list` and `dlopen` use (`DT_RPATH`, `LD_LIBRARY_PATH`, `DT_RUNPATH`, the cache,
+then the default directories); a library that cannot be found ends the start with
+`<program>: error while loading shared libraries: <name>: cannot open shared object file: No such
+file or directory`, status 127.
 
 ## Building the packages
 

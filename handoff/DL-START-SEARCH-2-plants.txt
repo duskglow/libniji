@@ -1,0 +1,10 @@
+# DL-START-SEARCH-2 plants (start-time soname search, crates/ld/tests/ldso_search.rs); cargo xtask plants handoff/DL-START-SEARCH-2-plants.txt (docs/plants.md); run with --dir on a file system without nosuid (the set-group-ID test) where strace can trace (the cache tests)
+other-machine-candidate-fatal | crates/ld/src/dlopen.rs | lit:matches!(self, Refusal::Machine | Refusal::Class32 | Refusal::Class) ==> matches!(self, Refusal::Class32 | Refusal::Class) | cargo test -p liella-ld --test ldso_search | msg:another machine's candidate passed over
+cache-read-eagerly | crates/boundary/src/ld.rs | lit:let read = || -> Option<&Cache<'_>> { cache.get_or_init(read_cache).as_ref().map(|(_, c)| c) }; ==> let read = || -> Option<&Cache<'_>> { cache.get_or_init(read_cache).as_ref().map(|(_, c)| c) }; let _ = read(); | cargo test -p liella-ld --test ldso_search | msg:every DT_NEEDED is a path: no cache open
+cache-read-per-search | crates/boundary/src/ld.rs | lit:let ctx = env.ctx(CacheRef::Lazy(&read)); ==> let reread = || { let _ = read_cache(); read() }; let ctx = env.ctx(CacheRef::Lazy(&reread)); | cargo test -p liella-ld --test ldso_search | msg:two searches reached the cache: one open
+chain-requester-only | crates/boundary/src/ld.rs | lit:if k == 0 || depth == OBJECTS_MAX { ==> if true { | cargo test -p liella-ld --test ldso_search | msg:DT_RPATH of the requester's loader
+found-object-origin-lost | crates/boundary/src/ld.rs | lit:paths[n] = kept; ==> let _ = kept; | cargo test -p liella-ld --test ldso_search | msg:ORIGIN of the program and of a found library
+refusal-subject-swapped | crates/boundary/src/ld.rs | lit:if by_path { at_path.as_bytes() } else { name } ==> if by_path { name } else { at_path.as_bytes() } | cargo test -p liella-ld --test ldso_search | msg:a non-object candidate refused
+# No single-site plant for the secure test: LD_LIBRARY_PATH is removed from a secure process's environment before
+# the loader reads it (clear_unsecure), and List::ctx and search::search each drop it again in secure mode, so
+# every one-site mutant is equivalent; ldso_search_secure_ignores_library_path checks the whole path end to end.
