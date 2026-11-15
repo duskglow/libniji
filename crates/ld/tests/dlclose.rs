@@ -711,9 +711,13 @@ static int loaded(void) { void *h = dlopen(P("libtl.so"), RTLD_NOW | RTLD_NOLOAD
 static int mapped(void *a) { long pg = sysconf(_SC_PAGESIZE); return msync((void *)((unsigned long)a & -(unsigned long)pg), pg, MS_ASYNC) == 0 || errno != ENOMEM; }
 static void (*reg)(const char *);
 static void (*reg_close)(void *, const char *);
-static sem_t registered, go;
+static sem_t registered;
+/* One release semaphore per held thread: a post wakes an unspecified waiter (POSIX sem_post),
+   so a shared one could release `c` where the program waits for `b`. */
+struct hold { const char *tag; sem_t go; };
+static struct hold hold_b = { "b " }, hold_c = { "c " };
 static void *one(void *tag) { reg(tag); return NULL; }
-static void *held(void *tag) { reg(tag); sem_post(&registered); sem_wait(&go); return NULL; }
+static void *held(void *p) { struct hold *x = p; reg(x->tag); sem_post(&registered); sem_wait(&x->go); return NULL; }
 static void *closer(void *h) { reg_close(h, P("libtl.so")); return NULL; }
 static void *open_tl(void) {
     void *h = dlopen(P("libtl.so"), RTLD_NOW);
@@ -735,16 +739,17 @@ int main(int argc, char **argv) {
     }
     pthread_t t1, t2, t3, t4;
     sem_init(&registered, 0, 0);
-    sem_init(&go, 0, 0);
+    sem_init(&hold_b.go, 0, 0);
+    sem_init(&hold_c.go, 0, 0);
     pthread_create(&t1, NULL, one, "a ");
     pthread_join(t1, NULL);
-    pthread_create(&t2, NULL, held, "b ");
-    pthread_create(&t3, NULL, held, "c ");
+    pthread_create(&t2, NULL, held, &hold_b);
+    pthread_create(&t3, NULL, held, &hold_c);
     sem_wait(&registered);
     sem_wait(&registered);
     CHECK(4, strcmp(evlog, "a ") == 0, "a thread's destructor before the close: %s", evlog);
     CHECK(5, dlclose(h) == 0 && loaded() && strcmp(evlog, "a ") == 0, "closed under two threads' destructors: %s", evlog);
-    sem_post(&go);
+    sem_post(&hold_b.go);
     pthread_join(t2, NULL);
     CHECK(6, loaded() && strcmp(evlog, "a b ") == 0, "unloaded under the third thread's destructor: %s", evlog);
     pid_t c = fork();
@@ -756,7 +761,7 @@ int main(int argc, char **argv) {
     int st = 0;
     CHECK(8, c > 0 && waitpid(c, &st, 0) == c && WIFEXITED(st) && WEXITSTATUS(st) == 0, "fork child: %d", st);
     CHECK(9, loaded(), "the parent lost the object after the fork");
-    sem_post(&go);
+    sem_post(&hold_c.go);
     pthread_join(t3, NULL);
     CHECK(10, !loaded() && !mapped((void *)reg) && strcmp(evlog, "a b c F ") == 0, "after the last destructor: loaded %d mapped %d %s", loaded(), mapped((void *)reg), evlog);
     h = open_tl();
