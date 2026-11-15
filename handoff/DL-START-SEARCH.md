@@ -1,5 +1,13 @@
 # DL-START-SEARCH: find DT_NEEDED libraries by soname at program start
 
+**State (DL-START-SEARCH-3):** branch `task/dl-start-search-3` (on -2), head 71db28f7f, role keke:~/w/n3. Report:
+handoff/DL-START-SEARCH-3-report.md. The -2 red was the counts script (base cannot start p_soname); fixed. The counts
+then showed the -2 code above base for programs that need no search (p_none +304, p_path +830 instructions); this run
+removed the two costs every start paid (closure vtable relocations in ld.so, eager AT_EXECFN read). **Next step:**
+read dl-start-search-3-counts-3; if p_path is still above base, the rest is in `link` (a 512-byte array copy and the
+out-of-line `parse` of the loaded object, report "Where the -2 surplus went"): move the bare-name search state and
+its code out of `link` into a `#[inline(never)]` function so `link`'s frame and codegen for path names return to base.
+
 **State (DL-START-SEARCH-2):** branch `task/dl-start-search-2` (stacks on `task/dl-start-search`: code commit
 14fc68682, then tests c974c9443 and 6b653d0e9). Role mei:~/w/s1. Briefs: ~/state/briefs/DL-START-SEARCH.md ("The
 change"), ~/state/briefs/DL-START-SEARCH-2.md. Read first: handoff/DL-SEARCH-CACHE.md. Decisions in force: D-27.16,
