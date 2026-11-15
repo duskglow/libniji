@@ -15,7 +15,7 @@ use core::alloc::{GlobalAlloc, Layout};
 #[cfg(not(feature = "export"))]
 use core::ffi::c_int;
 use core::ffi::c_void;
-use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
+use core::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize};
 use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 
 use liella::config::Tunables;
@@ -1377,6 +1377,9 @@ fn array_words(a: init::Array) -> &'static [u64] {
 /// DT_FINI]` per object, written once before the program is entered, read by [`fini_all`].
 static FINI_HOOKS: [[AtomicU64; 3]; OBJECTS_MAX] = [const { [const { AtomicU64::new(0) }; 3] }; OBJECTS_MAX];
 static FINI_LEN: AtomicUsize = AtomicUsize::new(0);
+/// Each [`FINI_HOOKS`] slot's start-time object (its index in [`START_OBJS`], the `dlopen` loader's
+/// node index), for the exit order with the `dlopen`ed objects (DL-EXIT-ORDER-PROBE).
+static FINI_IDX: [AtomicU8; OBJECTS_MAX] = [const { AtomicU8::new(0) }; OBJECTS_MAX];
 static FINI_DONE: AtomicBool = AtomicBool::new(false);
 
 /// Run the initialisation functions after relocation (design §9, D-27.19): the program's
@@ -1449,7 +1452,8 @@ fn run_init(hooks: &[init::Hooks], edges: &[(u8, u8)], sp: usize, early: Option<
         let Some(h) = hooks.get(usize::from(i)).filter(|_| i != 0) else { continue };
         init::init_calls(h.init, array_words(h.init_array)).for_each(call);
     }
-    for (slot, &i) in FINI_HOOKS.iter().zip(fini_order.get(..fini_len).unwrap_or(&[])) {
+    for ((slot, x), &i) in FINI_HOOKS.iter().zip(&FINI_IDX).zip(fini_order.get(..fini_len).unwrap_or(&[])) {
+        x.store(i, Relaxed);
         let h = hooks.get(usize::from(i)).copied().unwrap_or_default();
         for (w, v) in slot.iter().zip([h.fini_array.addr, h.fini_array.len, h.fini]) {
             w.store(v, Relaxed);
@@ -1461,15 +1465,23 @@ fn run_init(hooks: &[init::Hooks], edges: &[(u8, u8)], sp: usize, early: Option<
 }
 
 /// The termination function passed to the program (`rtld_fini`): each object's `DT_FINI_ARRAY` in
-/// reverse, then its `DT_FINI`, the objects in [`init::fini_order`], the program first. Runs once.
+/// reverse, then its `DT_FINI`. Without `dlopen`, the objects in [`init::fini_order`], the program
+/// first; with it, the start-time and `dlopen`ed objects as one sequence ([`dlopen::fini_exit`],
+/// DL-EXIT-ORDER-PROBE). Runs once.
 extern "C" fn fini_all() {
     if FINI_DONE.swap(true, AcqRel) {
         return;
     }
-    // The `dlopen`ed objects first, the last initialised first (DL-16a).
-    dlopen::fini_loaded();
-    for slot in FINI_HOOKS.iter().take(FINI_LEN.load(Acquire)) {
-        let [addr, len, fini] = [0, 1, 2].map(|k| slot.get(k).map_or(0, |w| w.load(Relaxed)));
+    let len = FINI_LEN.load(Acquire).min(OBJECTS_MAX);
+    let start: [(usize, [u64; 3]); OBJECTS_MAX] = core::array::from_fn(|k| {
+        let words = FINI_HOOKS.get(k).map_or([0; 3], |s| [0, 1, 2].map(|j| s.get(j).map_or(0, |w| w.load(Relaxed))));
+        (FINI_IDX.get(k).map_or(0, |x| usize::from(x.load(Relaxed))), words)
+    });
+    let start = start.get(..len).unwrap_or(&[]);
+    if dlopen::fini_exit(start) {
+        return;
+    }
+    for &(_, [addr, len, fini]) in start {
         for f in init::fini_calls(fini, array_words(init::Array { addr, len })) {
             let _ = crate::ffi::liella_machine_call0(usize::try_from(f).unwrap_or(0));
         }

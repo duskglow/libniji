@@ -176,6 +176,128 @@ fn callable(f: u64) -> bool {
     f != 0 && f != u64::MAX
 }
 
+/// The most objects [`exit_order`] covers (the loader's object table).
+pub const EXIT_MAX: usize = 512;
+/// The exit-time finalisation order (story DL-EXIT-ORDER-PROBE, probe tools/probe/dl/exitorder):
+/// units `0..n` are given in sequence order (the start-time objects in [`fini_order`], then the
+/// `dlopen`ed objects in load order); `succ(v, e)` is the `e`-th unit that `v` runs before (an
+/// object before each object it needs; each start-time object before the next), `None` past the
+/// last. Each set of units that must run before one another in a cycle runs as one group, its
+/// members the last initialised first (`rank[i]`: higher = initialised later). Of the groups free
+/// to run (nothing pending must run before them), the one with the earliest unit runs next. Writes
+/// the units to `out` and returns `n`.
+///
+/// # Errors
+///
+/// [`OrderError::TooMany`] for more than [`EXIT_MAX`] units, or `out` or `rank` shorter than
+/// `n`; [`OrderError::BadEdge`] for a successor outside `0..n`.
+// Every index is below n <= EXIT_MAX (checked), counts stay below n or the number of successors.
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+pub fn exit_order(n: usize, succ: impl Fn(usize, usize) -> Option<usize>, rank: &[u32], out: &mut [u16]) -> Result<usize, OrderError> {
+    const NONE: u16 = u16::MAX;
+    if n > EXIT_MAX || out.len() < n || rank.len() < n {
+        return Err(OrderError::TooMany);
+    }
+    let unit = |v: usize| u16::try_from(v).unwrap_or(NONE);
+    for v in 0..n {
+        if (0..).map_while(|e| succ(v, e)).any(|w| w >= n) {
+            return Err(OrderError::BadEdge);
+        }
+    }
+    // Groups: strongly connected components (Tarjan, iterative), `comp[v]`.
+    let (mut index, mut low, mut comp) = ([NONE; EXIT_MAX], [0u16; EXIT_MAX], [NONE; EXIT_MAX]);
+    let (mut stack, mut on) = ([0u16; EXIT_MAX], [false; EXIT_MAX]);
+    let (mut call, mut sp, mut next, mut ncomp) = ([(0u16, 0u16); EXIT_MAX], 0usize, 0u16, 0u16);
+    for root in 0..n {
+        if index[root] != NONE {
+            continue;
+        }
+        call[0] = (unit(root), 0);
+        let mut cp = 1usize;
+        index[root] = next;
+        low[root] = next;
+        next += 1;
+        stack[sp] = unit(root);
+        sp += 1;
+        on[root] = true;
+        while cp > 0 {
+            let (v, e) = call[cp - 1];
+            let vu = usize::from(v);
+            if let Some(wu) = succ(vu, usize::from(e)) {
+                call[cp - 1].1 += 1;
+                let w = unit(wu);
+                if index[wu] == NONE {
+                    index[wu] = next;
+                    low[wu] = next;
+                    next += 1;
+                    stack[sp] = w;
+                    sp += 1;
+                    on[wu] = true;
+                    call[cp] = (w, 0);
+                    cp += 1;
+                } else if on[wu] {
+                    low[vu] = low[vu].min(index[wu]);
+                }
+                continue;
+            }
+            cp -= 1;
+            if cp > 0 {
+                let p = usize::from(call[cp - 1].0);
+                low[p] = low[p].min(low[vu]);
+            }
+            if low[vu] == index[vu] {
+                loop {
+                    sp -= 1;
+                    let w = usize::from(stack[sp]);
+                    on[w] = false;
+                    comp[w] = ncomp;
+                    if w == vu {
+                        break;
+                    }
+                }
+                ncomp += 1;
+            }
+        }
+    }
+    // Each group's earliest unit and the pairs from other groups it waits for.
+    let nc = usize::from(ncomp);
+    let (mut first, mut waits, mut done) = ([NONE; EXIT_MAX], [0u16; EXIT_MAX], [false; EXIT_MAX]);
+    for (v, &c) in comp.iter().enumerate().take(n) {
+        let c = usize::from(c);
+        first[c] = first[c].min(unit(v));
+    }
+    for a in 0..n {
+        for b in (0..).map_while(|e| succ(a, e)) {
+            if comp[a] != comp[b] {
+                waits[usize::from(comp[b])] += 1;
+            }
+        }
+    }
+    let mut len = 0usize;
+    for _ in 0..nc {
+        // The free group with the earliest unit (a cycle-free graph of groups always has one).
+        let Some(c) = (0..nc).filter(|&c| !done[c] && waits[c] == 0).min_by_key(|&c| first[c]) else { break };
+        done[c] = true;
+        let start = len;
+        for (v, &cv) in comp.iter().enumerate().take(n) {
+            if usize::from(cv) == c {
+                out[len] = unit(v);
+                len += 1;
+            }
+        }
+        out[start..len].sort_unstable_by_key(|&v| core::cmp::Reverse(rank[usize::from(v)]));
+        for &v in &out[start..len] {
+            for w in (0..).map_while(|e| succ(usize::from(v), e)) {
+                let cw = usize::from(comp[w]);
+                if cw != c {
+                    waits[cw] -= 1;
+                }
+            }
+        }
+    }
+    Ok(len)
+}
+
 /// The functions to call to initialise one object: `DT_INIT` (`init`, 0 = none), then the entries
 /// of its `DT_INIT_ARRAY` (`array`, already relocated) in order.
 pub fn init_calls(init: u64, array: &[u64]) -> impl Iterator<Item = u64> + '_ {
