@@ -487,7 +487,7 @@ mod tests {
         let pool = [cold("c", 0x800, 1), cold("d", 0x6000, 1)];
         let p = plan(&items, &pool);
         assert_eq!(names(&p, &items), [vec!["x"], vec!["u0"], vec!["u1"]]);
-        assert!(p.bins.iter().enumerate().all(|(n, b)| b.gap && b.limit == if n == 0 { BIN - HEAD_ROOM } else { BIN }), "{:?}", p.bins);
+        assert!(p.bins.iter().enumerate().all(|(n, b)| b.gap && b.limit == BIN - if n == 0 { HEAD_ROOM } else { 0 }), "{:?}", p.bins);
         let filled: Vec<&[usize]> = p.bins.iter().map(|b| b.fillers.as_slice()).collect();
         assert_eq!(filled, [&[0][..], &[1][..], &[][..]], "the trailing bins take fillers too");
         assert_eq!(p.bins[2].residual(), BIN - 0x9000);
