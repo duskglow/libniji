@@ -148,6 +148,18 @@ def sets_a(w, smoke_names):
         n = alt.split("|")[0].split("(")[0].strip()
         if n in src_of:
             be.add(src_of[n][0])
+    # gcc and g++ are stub packages of gcc-defaults: follow them (two levels) to the compiler and binutils sources
+    frontier = [n for n in be if n == "gcc-defaults"]
+    for _ in range(2):
+        nxt = []
+        for p, (s, d) in src_of.items():
+            if s in frontier or (p in ("gcc", "g++") and not frontier):
+                for alt in d.get("Depends", "").split(","):
+                    n = alt.split("|")[0].split("(")[0].strip()
+                    if n in src_of and re.match(r"^(gcc-\d+|binutils)$", src_of[n][0]):
+                        be.add(src_of[n][0])
+                        nxt.append(src_of[n][0])
+        frontier = nxt
     return {"essential": ess, "build-essential": sorted(be), "smoke": sorted(smoke_names)}
 
 
