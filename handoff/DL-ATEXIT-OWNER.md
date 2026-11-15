@@ -1,7 +1,7 @@
 # DL-ATEXIT-OWNER: registering exit/fork handlers without libc_nonshared.a (owner rulings #4860-#4862)
 
-**State (run 4, DL-ATEXIT-OWNER-4, 2026-11-15).** Branch `task/dl-atexit-owner-4` (continues `-3`, `-2` and `-1`),
-role mei:~/w/s4. Head and job verdicts: handoff/reports/DL-ATEXIT-OWNER-4.json. Read first: handoff/DL-NONSHARED-OPTOUT.md
+**State (run 5, DL-ATEXIT-OWNER-5, 2026-11-15).** Branch `task/dl-atexit-owner-5` (continues `-4`, `-3`, `-2` and
+`-1`), role mei:~/w/s3. Head and job verdicts: handoff/reports/DL-ATEXIT-OWNER-5.json. Read first: handoff/DL-NONSHARED-OPTOUT.md
 (design, probes P1-P3), this note, D-27.29 (records/decisions/D-27/D-27.29.toml: the whole design in force).
 
 ## Built (runs 1-4)
@@ -21,6 +21,11 @@ role mei:~/w/s4. Head and job verdicts: handoff/reports/DL-ATEXIT-OWNER-4.json. 
   libc.so.6 before the run, so A's `libc.so.6` need and its `LIELLA_OWNER_1` version need match it by `DT_SONAME`
   (the loader's `provider` matches soname or loaded-by name). (2) The prototype `liella_legacy::owner_proto` and its
   8 selftest tests (crates/core/tests/nonshared_optout_proto.rs) are dropped; the product tests replace them.
+* Run 5: CI could not merge next (conflict in xtask/src/so.rs with SL-SONAMES' forwarding aliases). Merged
+  origin/next (8261e29b2): both sides kept; `link_libc` passes next's `--defsym` options (`forward_defsyms`), so
+  libc-owner.so stays the same link as libc.so.6 apart from the owner object (the version script names the
+  forwarding aliases at LIELLA_PRIVATE in both links). Gate, start-up checks and the run 4 plants file rerun on the
+  merged head (labels in the report json).
 * Tests: `crates/ld/tests/atexit_owner.rs` (2), products `s1_2_c_5_owner_optin_link_and_reference_refusal`,
   `s1_2_c_5_nonshared_notice_warning_and_loader_report`.
 * Plants: handoff/DL-ATEXIT-OWNER-2.plants (7) and handoff/DL-ATEXIT-OWNER-3.plants (5), both in
@@ -33,7 +38,7 @@ role mei:~/w/s4. Head and job verdicts: handoff/reports/DL-ATEXIT-OWNER-4.json. 
 * Records: D-27.29, differences row, records/pending/DL-ATEXIT-OWNER-2-1.toml (COMPAT-NEW).
 
 ## Open (next run, in order)
-1. If any run-4 job is red, read its log on mei (`~/logs/<label>.log`) and fix it on the head.
+1. If any run-5 job is red, read its log on mei (`~/logs/<label>.log`) and fix it on the head.
 2. Nothing else is open in the story. Possible follow-up (not in this story): an end-to-end test with a
    `-L liella-owner -lc` link run under Liella's loader once it searches `libc.so.6` beyond the pinned prefix.
 
