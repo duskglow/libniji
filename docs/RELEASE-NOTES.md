@@ -1,5 +1,162 @@
 # Liella: release notes
 
+## Liella: third pre-release, 2026-11-15 (`snapshot-2026-11-15`)
+
+This is the third public pre-release: `main` promoted to commit `bade54e0`, tagged `snapshot-2026-11-15`. Like the
+earlier two, it is a snapshot of a work in progress, not an alpha or a release candidate, and it should not be used
+in production. These notes cover the changes since `snapshot-2026-11-07`.
+
+Ratios are Liella/glibc 2.39 on the same machine: below 1.00 means Liella takes less, above 1.00 more.
+
+### Summary
+
+- **The dynamic loader is complete enough to run real programs.** Liella's `ld.so` loads shared objects, finds them
+  by name at start-up, starts `libc.so.6`, runs constructors and destructors, creates threads with thread-local
+  storage, and provides `dlopen`, `dlsym`, `dlvsym`, `dlclose`, `dladdr`, `dladdr1` and `dlinfo`.
+- **Liella can be the system C library.** New experimental *system* packages (`libc6`, `libc-bin`, `libc6-dev` and
+  friends) replace glibc's. In a Debian 13 (trixie) root with Liella swapped in for glibc, 47 commands of the
+  distribution's own programs (`ls`, `sort`, `grep`, `sed`, `awk`, `bash`, `perl`, `python3`, `find`) produce the
+  same output and status as on stock glibc.
+- **`ldconfig`** is now part of Liella, along with its dpkg trigger.
+- **Start-up layout**: the build traces what it has just built, and start-up code is placed in fixed 64 KiB windows,
+  so unrelated changes no longer move start-up page-fault counts.
+- **`libm`**: on an AMD Zen 3 host the median time ratio of the `libm` rows fell from 6.19 to 1.98.
+- **`regcomp`** compiles patterns at any nesting depth and has no fixed size cap.
+- **Reference packages are attached to this release**, with `SHA256SUMS`.
+
+### Dynamic linking: what `ld.so` does now
+
+`cargo xtask so` builds `target/liella/ld-linux-x86-64.so.2`. Since the 11-07 snapshot it:
+
+- **maps every loadable object through one validated reservation** and accepts any number of writable `PT_LOAD`
+  segments, keeping the bounds, no-W+X, RELRO and secure-mode checks;
+- **finds `DT_NEEDED` libraries by name at program start** through the same search as `ld.so --list` and `dlopen`:
+  `DT_RPATH`, `LD_LIBRARY_PATH` (ignored in secure mode), `DT_RUNPATH`, the loader cache (`/etc/ld.so.cache`), then
+  the default directories. A program whose dependencies are all named by path does no extra work. Liella's own
+  libraries (`libc.so.6`, `libm.so.6`, ...) resolve only from Liella's library directory, or from `LD_LIBRARY_PATH`
+  for testing a build, never through `RPATH`/`RUNPATH` or the cache (a recorded difference);
+- **starts `libc.so.6`**: runs libc's early initialisation from `ld.so`, refuses a `libc.so.6` from a different build,
+  runs IFUNC resolvers once in a deferred pass, and runs constructors and destructors in the reference's order;
+- **creates threads with TLS** in dynamically linked programs;
+- **`dlopen`, `dlsym`, `dlvsym`**: the loader's readers are lock-free and safe against a concurrent `dlopen`;
+  `dl_iterate_phdr` callbacks run with no loader lock held; the TLS blocks of `dlopen`ed objects are placed at `dlopen`;
+- **`dlclose`** unloads objects. A C++ `thread_local` destructor that is still pending keeps its object loaded, and the
+  object unloads after that destructor runs;
+- **`dladdr`, `dladdr1` and `dlinfo`**.
+
+**Smoke test with real programs.** Debian trixie sources built against Liella with their own test suites (zlib,
+xz-utils, sqlite3, grep, sed, diffutils, findutils, coreutils, gawk, bash, perl, python3 and cppunit), plus programs that
+load and unload plug-ins repeatedly (Lua modules, a C++ library with `thread_local` state). The three behaviour
+findings of the first run (`readdir` on a removed directory, `regcomp` refusing deep nesting, `errno` after a failed
+`setlocale`) are fixed, and so is a crash the second run found in `dlclose` with a pending `thread_local` destructor.
+
+### Packages
+
+Both flavours are built by `tools/deb/build.sh` for Debian 13 (trixie) and Devuan 6 (excalibur), amd64, and are
+attached to this release with `SHA256SUMS`. Two builds of the same commit give byte-identical packages. See
+[`docs/install-packages.md`](install-packages.md).
+
+**Beside glibc (`liella6`, `liella6-dev`)**, version `0.0~snapshot20261115+bade54e077b7`: everything under
+`/usr/lib/liella`; glibc and every existing program are untouched, and purging the packages leaves the system as it
+was. A program selects Liella through its interpreter: `liella-gcc` / `liella-g++` link with
+`--dynamic-linker=/usr/lib/liella/lib64/ld-linux-x86-64.so.2`.
+
+**As the system C library (`libc6`, `libc-bin`, `libc6-dev`, `libc-dev-bin`, `locales`, `libc-l10n`)**, version
+`2.39+liella20261115.2-1`, **experimental**: these replace glibc's packages, for building a system on Liella (the
+Aqours project, below). They ship the loader at `/lib64/ld-linux-x86-64.so.2`, the multiarch library directory,
+`ldconfig` and its dpkg trigger, dpkg `symbols` and `shlibs` files so packages built against Liella get correct
+dependencies, and the start files, so plain `gcc` links against Liella. Validated on this commit in an empty root (C and
+C++ programs start through the system loader) and in a trixie root with Liella swapped in (the 47 commands above).
+- The version sorts above every `libc6 (>= 2.39)` dependency and below 2.40, so a package that needs a glibc 2.40 or
+  2.41 symbol honestly does not install. Swapping into a stock trixie root therefore needs `--force-depends`
+  (trixie's `util-linux` depends on `libc6 (>= 2.41)`).
+- A swap leaves glibc's `/var/cache/ldconfig` behind (not owned by Liella's `libc-bin`).
+- Liella has no C headers of its own yet: `libc6-dev` programs compile with the system's glibc headers.
+
+### Start-up layout
+
+The build traces the products it has just built (under `gdb`) and groups the code and data the trace touched; no
+function-name list is committed any more. Start-up text is placed in 64 KiB windows planned per program mode, each
+window ending on a window boundary, so a change outside a window cannot move that window's page faults. The start-up
+page-fault bounds only tighten (the release `localtime` bound went from 42 to 40 in this snapshot).
+- A product build needs a tracer; `LIELLA_LAYOUT_TRACE=ungrouped` builds an ungrouped product without one
+  ([`docs/plants.md`](plants.md)).
+- A per-change byte budget per window, replacing page-fault counts as the per-change check, is next.
+
+### `libm`
+
+Timing sweep of every `libm` row on AMD Zen 3 (Ryzen 5 5500 class), `next` at `bc146cce`, 2026-11-13, beside the
+11-07 sweep on the same host ([`results/timing-sweep-zen3-libm-1113-table.md`](../results/timing-sweep-zen3-libm-1113-table.md)):
+176 rows, 28 faster, 7 parity, 141 slower. The median time ratio fell from 6.19 to 1.98 and the geometric mean from
+9.76 to 3.25; 21 rows moved from slower to faster or parity. Complex, `long double` and the error and gamma families
+are still far slower than glibc.
+
+- **Quick first phases** for the `exp`, `log`, trigonometric, inverse trigonometric and hyperbolic families and `pow`,
+  and `float` functions computed in one pass in `double`.
+- **Slow tails removed**: `hypot` has one correctly rounded path for every finite input (with an FMA build), and
+  `lgamma`/`lgammaf` answer edge arguments without the slow path.
+- **Hardware square root through a safe interface**: the math kernels stay free of `unsafe` at no cost.
+- Correct rounding is kept; each family's accuracy contract is a recorded difference.
+
+### Regular expressions
+
+- **`regcomp` at any nesting depth**: the parse tree is an arena, the parser uses explicit stacks, and the compiler
+  recurses natively for 64 levels and continues deeper patterns with an explicit frame stack.
+- **No fixed size cap**: every compiler allocation is fallible and bounded by the process's own memory limits;
+  exhaustion is `REG_ESPACE`, never an abort.
+- **Cheaper repetition scopes**, and back-references at 22,913 instructions per call on the back-reference row
+  (glibc 21,970).
+
+### glibc 2.41 functions
+
+`sched_getattr` and `sched_setattr` (glibc 2.41) are implemented. Liella's ABI level stays glibc 2.39 until the
+2.40/2.41 additions are complete; in the dpkg `symbols` file these two depend on this Liella build or later.
+
+### Compatibility flags and differences
+
+- The decision, compatibility and saturation registers are one file per record under `records/`; the tables in `docs/`
+  are generated from them (`cargo xtask records-gen`).
+- **Compatibility flags**: 30 registered (COMPAT-1 to COMPAT-30). A row is a promise to design the flag, not an
+  implemented flag.
+- **Differences from glibc** ([`docs/differences-from-glibc.md`](differences-from-glibc.md)), new loader rows
+  among them: a failing `dlopen` runs no IFUNC resolver of the new set; malformed objects are refused before anything
+  is mapped; objects that ask for an executable stack are refused; `dlsym`, `dlvsym` and `dlclose` refuse a handle
+  `dlopen` did not return or one already closed; `dlopen` in a statically linked program fails cleanly; Liella's own
+  libraries resolve only from its own directory.
+
+### Changes users may notice
+
+- A failed `setlocale` sets `errno` (`ENOENT` for a name, `EINVAL` for an unknown category).
+- `dlopen` with any of the eight high mode bits `0x01000000`-`0x80000000` fails with `invalid mode parameter`: they
+  are reserved for Liella, and public loader features will come as functions, not through these bits.
+- An opt-in link interface registers exit and fork handlers without `libc_nonshared.a`
+  ([`docs/install-packages.md`](install-packages.md)); the default is unchanged.
+
+### Known limitations
+
+- **At most 512 loaded objects per process**, the start-time objects included; the `dlopen` that would load one more
+  returns `NULL`. glibc has no fixed limit; growing the table is planned.
+- **`dlmopen` and link-map namespaces are not provided yet.**
+- **No lazy binding**: symbols are bound at load time.
+- **Not available yet**: `LD_PRELOAD`, `LD_AUDIT`, `libthread_db` (debugger support), `libc_malloc_debug`; `dlopen`
+  in statically linked programs (fails cleanly).
+- **No C headers of Liella's own yet** (in progress, below).
+- **Running unmodified glibc-linked binaries** that need compatibility-only symbol versions is not supported yet.
+- **Rust `std` programs** are not supported yet.
+- **No security audit yet.**
+- **Platforms**: Linux x86-64 only.
+
+### What's next
+
+- **[Aqours](https://github.com/duskglow/aqours)**: a Linux distribution based on Devuan, built on Liella, under
+  active development. The loader and the system packages in this snapshot are what its first stage needed.
+- **Liella as the system C library**: Liella's own C headers (generated from its ABI tables and the standards; the
+  first slices have landed), the remaining C library utilities (`ldd`, `getent`, `getconf`, `iconv`, `locale`,
+  `localedef`) and the time-zone tools, and the glibc 2.40/2.41 additions programs need.
+- **Start-up layout**: the per-window byte budget as the per-change check.
+- **Loader**: growing the 512-object table, `dlopen` in static programs, lazy binding, `LD_PRELOAD`, `libthread_db`.
+- **`libm`**: the remaining slow families.
+
 ## Second pre-release, 2026-11-07
 
 This is the second public pre-release: the `next` branch promoted to `main` around 2026-11-07. Like

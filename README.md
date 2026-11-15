@@ -13,23 +13,22 @@ does the code look like when it is rewritten from documentation, with modern tec
 Liella is public as a work in progress. It is not an alpha or a release candidate, and nothing
 here should be used in production. In particular:
 
-* **It cannot run ordinary programs yet.** The dynamic loader (`ld-linux`, phase 14) is only
-  begun: it relocates itself and starts a program that needs no shared object, but it does not
-  load shared objects yet. So dynamically linked programs, which are almost every program on a
-  Linux system, do not run against Liella. Programs run only when they are linked statically
-  against Liella's `libc.a` (as fixed-address or position-independent executables).
-* **It cannot replace glibc on a system.** Running unmodified glibc-linked binaries is the
-  project's aim (phase 15) and has not been demonstrated. Do not install it as a system library.
+* **The dynamic loader is complete enough to run real programs, but not every program.** `ld-linux` loads shared
+  objects and provides `dlopen`, `dlsym` and `dlclose`; some features (`dlmopen`, lazy binding, `LD_PRELOAD`) are not
+  provided yet. Running unmodified glibc-linked binaries that need compatibility-only symbol versions (phase 15) is
+  not supported yet and has not been demonstrated.
+* **Liella as the system C library is experimental.** The system packages (`libc6`, `libc-bin`, `libc6-dev` and
+  friends) replace glibc's, for building a system on Liella; it has no C headers of its own yet. The packages that
+  sit beside glibc (`liella6`, `liella6-dev`) leave glibc untouched. See
+  [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) and [docs/install-packages.md](docs/install-packages.md).
 * **It has not had a security audit.** That is planned after phase 15.
 * **It is under active development.** Interfaces, behaviour, file layout and the build change
   without notice, and there are no release branches or compatibility promises between commits.
 
-What changed in this pre-release (2026-11-07), with every figure measured on the tree and its
-source named, is in [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md). In short: on `next` at
-`136b5246` (tagged `snapshot-2026-11-07`), 5,484 tests are specified and 577 of them are still pending, and 557 of the 4,305
-names of the glibc 2.39 ABI are not defined yet, 110 of them for phase 14 and 161 for phase 15
-(the rest are internal to glibc's own libraries). Static PIE programs are supported, and `libm`'s
-`exp`, `log` and x87 `sinl`/`cosl` got faster; most `libm` rows remain slower than glibc's.
+What changed in this pre-release (2026-11-15, tagged `snapshot-2026-11-15`, `main` at `bade54e0`) is in
+[docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md). In short: the dynamic loader loads shared objects and provides `dlopen`,
+`dlsym` and `dlclose`; experimental system packages (`libc6`, `libc-bin`, `libc6-dev` and friends) let Liella replace
+glibc as the system C library; and the median `libm` time ratio fell from 6.19 to 1.98 on a Zen 3 host.
 
 Its full development history is kept in a separate historical repository; references of the
 form `liella-historic:<path>` point into it.
@@ -37,7 +36,7 @@ form `liella-historic:<path>` point into it.
 | Area | State | Where it is recorded |
 |---|---|---|
 | Phases 1 to 13 (kernel boundary through remaining services: strings, locale, math, stdio, file system, sockets, name services, processes, signals, threads, time, IPC, ...) | Implemented on `main` and covered by the test gate; see [docs/spec-symbol-gaps.md](docs/spec-symbol-gaps.md) (`cargo xtask symcov`) for every name not yet defined. Every change lands on `main` only after the full test gate (unit and integration tests, conformance programs, static checks and an instruction-count check) passes in CI. | [plan/06-phases](plan/06-phases/00-overview.md), [docs/spec-symbol-gaps.md](docs/spec-symbol-gaps.md) |
-| Phase 14, the dynamic loader (`ld-linux`, `dlopen`, TLS descriptors, IFUNC, ...) | **In progress.** `ld-linux-x86-64.so.2` is built; it relocates itself and starts a program that needs no shared object, as its interpreter or as `ld.so PROGRAM`. It does not load shared objects yet, so no dynamically linked program runs against Liella's `libc.so.6`; such programs are linked and checked, not executed. | [docs/toolchain.md section 8](docs/toolchain.md), [plan phase 14](plan/06-phases/17-phase-14-dynamic-linking.md) |
+| Phase 14, the dynamic loader (`ld-linux`, `dlopen`, TLS descriptors, IFUNC, ...) | **Complete enough to run real programs.** `ld-linux-x86-64.so.2` loads shared objects, finds them by name at start-up, starts `libc.so.6`, runs constructors and destructors, creates threads with thread-local storage, and provides `dlopen`, `dlsym`, `dlvsym`, `dlclose`, `dladdr`, `dladdr1` and `dlinfo`. Not provided yet: `dlmopen`, lazy binding, `LD_PRELOAD`, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process. | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md), [docs/toolchain.md section 8](docs/toolchain.md), [plan phase 14](plan/06-phases/17-phase-14-dynamic-linking.md) |
 | Phase 15, legacy tier and binary-compatibility acceptance | **Not done.** Running unmodified glibc-linked binaries is the project's aim and has not been demonstrated. | [plan phase 15](plan/06-phases/18-phase-15-legacy-tier-and.md) |
 | Security pass | Planned after phase 15. The library has not had a security audit. | [plan](plan/06-phases/19-security-pass-after-phase-15.md) |
 | Rust `std` programs | Not supported yet; Rust programs are `#![no_std]`. | [docs/toolchain.md section 8](docs/toolchain.md) |

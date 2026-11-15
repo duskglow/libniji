@@ -558,7 +558,7 @@ The rows below shape the code most. Each links back to its full text in `plan/`.
 
 | Limitation | What it affects in practice |
 |---|---|
-| **No dynamic loader yet** (phase 14, `crates/ld` is a placeholder) | `libc.so.6` is built and its symbol table checked, but no dynamically linked program runs on Liella yet; only statically linked programs (`libc.a`) do. This is the largest gap today: most real-world binaries are dynamically linked ([docs/interfaces.md §6](interfaces.md), [docs/toolchain.md §8](toolchain.md)). |
+| **Dynamic loader: not complete** (phase 14) | The loader loads shared objects and provides `dlopen`, `dlsym` and `dlclose`. Not provided yet: `dlmopen`, lazy binding, `LD_PRELOAD`, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)). |
 | **Compatibility-only symbol versions** (phase 15) | `sym@OLD_VERSION` entries are not produced, so binaries linked against glibc versions older than a function's current version would not resolve them. Only relevant once the loader exists. |
 | **x86-64 Linux only** | No other architecture or OS; the C layer's assembly and the Appendix C layouts are x86-64. Porting would mean a new `csys/src/machine/` and layout set. |
 | **One CPU level** | Products are built for baseline x86-64. The string scanners pick AVX2 or SSE2 at run time; other code does not. This affects speed on AVX2 hosts for some rows, not correctness. |
