@@ -134,8 +134,8 @@ fn ignored(name: &str, from: &str, reason: &str) -> String {
     format!("ERROR: ld.so: object '{name}' from {from} cannot be preloaded ({reason}): ignored.\n")
 }
 
-/// (no spec clause: ld.so(8) LD_PRELOAD; DL-LD-PRELOAD probe of the reference, the order and scope
-/// facts of spec/behaviour/dynlink-preload.md.) A preload interposes on the program's dependency and
+/// s27_1_g_0, s27_1_c_3 (global scope order; RTLD_NEXT), ld.so(8) LD_PRELOAD; the DL-LD-PRELOAD probe's
+/// order and scope facts (spec/behaviour/dynlink-preload.md). A preload interposes on the program's dependency and
 /// on libc, its `dlsym(RTLD_NEXT, "strlen")` reaches libc's, constructors run dependencies first
 /// with later preloads after earlier ones' dependencies; names by path, bare (the program's search),
 /// with `$ORIGIN`, separated by colons and spaces, repeated, or naming a dependency: loaded once.
@@ -192,7 +192,7 @@ fn preload_failures_are_ignored_with_their_reason() {
 /// for a bare one only in the trusted directories (not the program's RPATH) and takes it only when
 /// set-user-ID: a trusted-directory library without the bit gets the "cannot open" line.
 #[test]
-fn s1_1_g_4_secure_preload_only_trusted_set_user_id() {
+fn secure_preload_only_trusted_set_user_id() {
     let Some((d, _, prog)) = corpus("secure") else { return };
     let id = |a: &str| String::from_utf8(Command::new("id").arg(a).output().unwrap().stdout).unwrap();
     let primary = id("-g").trim().to_owned();

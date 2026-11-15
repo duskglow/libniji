@@ -58,6 +58,13 @@ Every dynamically linked start checks for the preload file once (`access("/etc/l
 one system call, `ENOENT` when absent). Liella opens it instead (one `openat`, `ENOENT` when absent):
 the same count.
 
+## Clauses covered
+
+A fact record: it fixes no clause text. It bears on s27_1_g_0 (symbol resolution in global scope
+order: the preloads come before the program's dependencies), s27_1_c_3 (`RTLD_NEXT` from a preload)
+and s1_1_g_4 (secure mode: `LD_PRELOAD` is the one name read before the clear, under the threat
+model's rule 1).
+
 ## Liella
 
 `crates/ld/src/start.rs` (`preload_names`, `preload_file_names`, `preload_rule`, `preload_mode_admits`,
