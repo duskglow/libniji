@@ -1,0 +1,20 @@
+{"task": "UTIL-LDCONFIG-4", "model": "opus", "tokens": null,
+ "result": "ldconfig ships: freestanding static-PIE target/liella/ldconfig (syscall Fs, openat2 RESOLVE_IN_ROOT, bump arena), 12/12 transcripts ok through it against the reference; libc-bin ships /usr/sbin/ldconfig and runs it on the dpkg trigger; gate (escalated to FULL) and plants pending",
+ "branch": "task/util-ldconfig-4", "head": "see git: last commit on the branch (this report's commit)",
+ "gate": {"affected": "pending: util-ldconfig-4-gate (mei, escalated to FULL by the selection); lint util-ldconfig-4-lint4 rc 0; transcripts through the binary util-ldconfig-4-tr2 12 ok / 0 mismatched", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "Foreign-class (i386/x32) ELF files are skipped: native class only (#5915), not probed yet", "recommendation": "probe the reference with an ELF32 elf: item in run 5, then decide; keep native-only until then"},
+  {"item": "unsafe audit: crates/boundary/src/ldconfig.rs added to the files allowed the export, allocator and slice categories (xtask/src/policy.rs), as ld.rs", "recommendation": "accept: same start-up and allocator role as ld.rs"}
+ ],
+ "informational": ["ldconfig -l still refused (#5916)", "tools/deb/root-system.sh not re-run with the trigger now running ldconfig", "plants job util-ldconfig-4-plants (rc 3) refused its file: a '|' inside a lit: pattern split the fields; replaced by util-ldconfig-4-plants2"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "Liella's libc-bin now has an ldconfig: the dpkg ldconfig trigger rebuilds links and /etc/ld.so.cache instead of a no-op", "before": null, "after": null, "unit": null, "measured": false},
+  {"kind": "coverage", "what": "transcripts run through the shipped binary (new test) + 3 plants on sysfs.rs", "before": 0, "after": 4, "unit": "tests+plants", "measured": true},
+  {"kind": "unblock", "what": "Aqours stage 2 (a root with no glibc) gets ldconfig; UTIL-3 continuation (-l, foreign class, loader differential)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "the plants file format splits on '|' even inside lit: patterns; the tool could say which field broke (it said 'needs <old> ==> <new>'), and a product-level plant costs a full xtask so per plant: a --reuse-target option for the copy dir would cut that",
+ "next_step": "read util-ldconfig-4-gate and util-ldconfig-4-plants2, fix any red; then root-system.sh, -l, the foreign-class probe, the loader differential (handoff/UTIL-LDCONFIG.md)",
+ "report_file": "handoff/UTIL-LDCONFIG.md",
+ "jobs": ["util-ldconfig-4-gate", "util-ldconfig-4-plants2"]}
