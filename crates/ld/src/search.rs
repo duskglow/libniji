@@ -130,17 +130,24 @@ pub enum CacheRef<'a> {
     None,
     /// A cache already read and parsed.
     Read(&'a Cache<'a>),
-    /// A cache read on first use: `None` when there is none.
-    Lazy(&'a dyn Fn() -> Option<&'a Cache<'a>>),
+    /// A cache read on first use: the cell that keeps it and the function that reads it (the
+    /// file's bytes and their reader; `None` when there is none). A plain function and a cell, not
+    /// a closure object: a `dyn Fn` puts a vtable in the loader's relocated data, which every
+    /// program start pays for in self-relocation (DL-START-SEARCH-3).
+    Lazy(&'a LazyCache<'a>, fn() -> Option<(&'a [u8], Cache<'a>)>),
 }
 
+/// The cell behind [`CacheRef::Lazy`]: empty until a search first reaches the cache step, then the
+/// cache read (its bytes, kept so the caller can release them, and its reader) or `None`.
+pub type LazyCache<'a> = core::cell::OnceCell<Option<(&'a [u8], Cache<'a>)>>;
+
 impl<'a> CacheRef<'a> {
-    /// The cache, reading it now for [`CacheRef::Lazy`].
+    /// The cache, reading it now for [`CacheRef::Lazy`] (at most once per cell).
     pub fn get(self) -> Option<&'a Cache<'a>> {
         match self {
             CacheRef::None => None,
             CacheRef::Read(c) => Some(c),
-            CacheRef::Lazy(read) => read(),
+            CacheRef::Lazy(cell, read) => cell.get_or_init(read).as_ref().map(|(_, c)| c),
         }
     }
 }

@@ -314,10 +314,10 @@ pub extern "C" fn liella_ld_start(sp: usize, ehdr: usize) -> ! {
     let page = Native::page_size(&aux);
     // LD_TRACE_LOADED_OBJECTS lists the dependencies instead of running (ldd); never in secure mode
     // (threat model rule 11).
-    let execfn = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
-    let list_env = List { ld: &ld, secure, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr, execfn };
+    let list_env = List { ld: &ld, secure, features: &features, page, vdso: aux.get(AT_SYSINFO_EHDR), base: ehdr };
     if aux.get(AT_ENTRY).and_then(|e| usize::try_from(e).ok()) != Some(own_entry) {
         if ld.trace && !secure {
+            let execfn = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
             list(&list_env, if execfn == 0 { b"" } else { c_string(execfn) }, false)
         }
         let prog = start::program(&aux).unwrap_or_else(|e| refuse(e.message()));
@@ -331,7 +331,7 @@ pub extern "C" fn liella_ld_start(sp: usize, ehdr: usize) -> ! {
         };
         let bias = start::bias(program_headers(&prog), prog.phnum, prog.phdr, page_bytes, header)
             .unwrap_or_else(|| refuse(b"ld.so: cannot find the program's load bias (no PT_PHDR, and no ELF header before its program headers)\n"));
-        run(sp, &prog, bias, page, 0, &list_env)
+        run(sp, &prog, bias, page, 0, &list_env, aux)
     }
     let arg = |i: usize| usize::try_from(stack_word(argv.wrapping_add(i.wrapping_mul(8)))).unwrap_or(0);
     match program::action((1..argc).map(|i| c_string(arg(i)))) {
@@ -357,7 +357,7 @@ pub extern "C" fn liella_ld_start(sp: usize, ehdr: usize) -> ! {
             start::rewrite(copy.get_mut(..words).unwrap_or(&mut []), &prog, ehdr);
             store_words(auxv, copy.get(..words.wrapping_add(2)).unwrap_or(&[]));
             store_words(argv, &[u64::try_from(argc.wrapping_sub(1)).unwrap_or(0)]);
-            run(argv, &prog, bias, page, arg(1), &list_env)
+            run(argv, &prog, bias, page, arg(1), &list_env, Auxv::from_words(&[]))
         }
         Action::List(name) => list(&list_env, name, true),
         other => {
@@ -382,7 +382,7 @@ fn program_headers(prog: &start::Program) -> &'static [u64] {
 /// bytes) and enter it with the initial stack at `sp`. A program with dependencies or with
 /// relocations other than RELATIVE/RELR is refused (DL-8 and DL-10 add them); a program without a
 /// dynamic section has neither, so nothing is relocated.
-fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, env: &List<'_>) -> ! {
+fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, env: &List<'_>, aux: Auxv<'_>) -> ! {
     let headers = program_headers(prog);
     // R14-13: a program whose PT_GNU_STACK asks for an executable stack is refused (word 0 of a header
     // holds p_type in its low and p_flags in its high half).
@@ -402,8 +402,9 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
         if start::needs_objects(dyn_words) {
             // The program's name in messages: its path (`ld.so PROGRAM`), else argv[0].
             let at = if path != 0 { path } else { usize::try_from(stack_word(sp.wrapping_add(8))).unwrap_or(0) };
-            // Its `$ORIGIN`: the path it was run by (`ld.so PROGRAM`), else `AT_EXECFN` (threat model rule 2).
-            let origin = if path != 0 { path } else { env.execfn };
+            // Its `$ORIGIN`: the path it was run by (`ld.so PROGRAM`), else `AT_EXECFN` (threat model
+            // rule 2), looked up only when a search needs it.
+            let origin = Origin { path, aux };
             let fini = link(prog, bias, page, if at != 0 { c_string(at) } else { b"the program" }, sp, env, origin);
             crate::arch::enter(sp, prog.entry, fini)
         }
@@ -1067,15 +1068,16 @@ fn own_object(name: &'static [u8], maps: &mut [(usize, usize)]) -> liella_ld::re
 /// pages (DL-10, design §6, D-27.17). A `DT_NEEDED` name with `/` is opened as given; one without is
 /// found by [`search::search`], the search `--list` and `dlopen` use (DL-START-SEARCH): the requester
 /// chain is each object's first requester up to the program, `$ORIGIN` the directory of the path an
-/// object was opened by (the program's: `origin`, a NUL-terminated path, 0 when unknown), and the
+/// object was opened by (the program's: from `origin`, looked up at the first search), and the
 /// cache is read only when a search reaches it. The program is read from its memory image
 /// ([`image_view`], ruling #4229, D-27.18), never from its file; `name` names it in messages (its
 /// path for `ld.so PROGRAM`, else `argv[0]`).
 // Indices stay below `n`, which never passes OBJECTS_MAX (checked before each store).
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_arguments)]
-fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: usize) -> usize {
+fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin<'_>) -> usize {
     use liella_ld::reloc::{self, Obj, Objects};
     let prog_name = name;
+    let mut origin_at: Option<usize> = None;
     // The search state, used only for a name without `/`: each object's first requester and the
     // path it was opened by (empty: unknown, or the program's, from `origin`); the store for the
     // paths found (address space mapped at the first search hit, so it never runs out); the cache.
@@ -1083,8 +1085,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     let mut paths: [&'static [u8]; OBJECTS_MAX] = [&[]; OBJECTS_MAX];
     let mut store: &'static mut [u8] = &mut [];
     let mut store_map = (0usize, 0usize);
-    let cache: core::cell::OnceCell<Option<(&'static [u8], Cache<'static>)>> = core::cell::OnceCell::new();
-    let read = || -> Option<&Cache<'_>> { cache.get_or_init(read_cache).as_ref().map(|(_, c)| c) };
+    let cache: search::LazyCache<'_> = core::cell::OnceCell::new();
     let mut maps = [(0usize, 0usize); OBJECTS_MAX];
     // The scratch mappings of the two image views: the program's, then the interpreter's own.
     let mut views = [(0usize, 0usize); 6];
@@ -1133,7 +1134,12 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                 let mut chain = [Scope::default(); OBJECTS_MAX];
                 let (mut depth, mut k) = (0usize, q);
                 loop {
-                    let at = if k == 0 { if origin == 0 { &[][..] } else { c_string(origin) } } else { paths[k] };
+                    let at = if k == 0 {
+                        let o = *origin_at.get_or_insert_with(|| origin.at());
+                        if o == 0 { &[][..] } else { c_string(o) }
+                    } else {
+                        paths[k]
+                    };
                     let d = &objs[k].dynm;
                     chain[depth] = Scope { rpath: dyn_string(d, elf::dt::RPATH), runpath: dyn_string(d, elf::dt::RUNPATH), origin: (!at.is_empty()).then(|| dir_of(at)) };
                     depth += 1;
@@ -1142,7 +1148,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                     }
                     k = usize::from(parent[k]);
                 }
-                let ctx = env.ctx(CacheRef::Lazy(&read));
+                let ctx = env.ctx(CacheRef::Lazy(&cache, read_cache));
                 let mut refused: Option<Refusal> = None;
                 let mut at_path = PathBuf::default();
                 search::search::<Native>(name, &chain[..depth], &ctx, &mut |p: &mut PathBuf| {
@@ -1597,6 +1603,22 @@ const LIST_OBJECTS_MAX: usize = 256;
 /// Bytes of resolved paths a dependency list holds; more is refused (D-27.16).
 const PATHS_MAX: usize = 64 * 1024;
 
+/// Where a kernel-started program's `$ORIGIN` comes from: the path it was run by (`ld.so PROGRAM`,
+/// nonzero), else `AT_EXECFN` of `aux`, read only when a search needs it (a program whose
+/// dependencies are all named by path never looks it up).
+#[derive(Clone, Copy)]
+struct Origin<'a> {
+    path: usize,
+    aux: Auxv<'a>,
+}
+
+impl Origin<'_> {
+    /// The NUL-terminated path, or 0 when unknown.
+    fn at(self) -> usize {
+        if self.path != 0 { self.path } else { self.aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0) }
+    }
+}
+
 /// What the dependency list needs from the start (DL-8).
 struct List<'a> {
     ld: &'a start::LdEnv<'static>,
@@ -1605,8 +1627,6 @@ struct List<'a> {
     page: u64,
     vdso: Option<u64>,
     base: usize,
-    /// `AT_EXECFN` (0 when absent): the kernel-started program's `$ORIGIN` (threat model rule 2).
-    execfn: usize,
 }
 
 impl List<'_> {
