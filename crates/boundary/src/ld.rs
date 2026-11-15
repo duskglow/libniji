@@ -1198,7 +1198,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                     match open_candidate(c, page) {
                         Err(Unusable::Skip) => return false,
                         Err(Unusable::Refused(r)) => refused = Some(r),
-                        Ok((fd, at, file, id)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
+                        Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
                             let _ = crate::ffi_sys::liella_sys_close(i64::from(fd));
                             let _ = raw::munmap(at, file.len());
                             return false;
