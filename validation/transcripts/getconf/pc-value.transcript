@@ -1,0 +1,11 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: NAME_MAX with a path prints pathconf's value
+clause: s31_5_g_1
+command: getconf
+env: LC_ALL=C
+arg: NAME_MAX
+arg: .
+status: exit 0
+stdout:
+| 255
+stderr:

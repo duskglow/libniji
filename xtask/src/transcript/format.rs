@@ -106,6 +106,13 @@ pub(crate) struct Transcript {
     pub normalise: Vec<(Vec<u8>, Vec<u8>)>,
     /// Written files compared as a loader cache's entry list (`as-cache: <path>`), not as bytes.
     pub as_cache: Vec<Vec<u8>>,
+    /// Output lines whose value depends on the host (`host-value: <line prefix>`): the rest of such a line is
+    /// `@HOST@` in the record and in every comparison with it; the reference and Liella, run side by side on one
+    /// host, are compared in full.
+    pub host_values: Vec<Vec<u8>>,
+    /// Output lines whose value changes from run to run (`mask-value: <line prefix>`): the rest of such a line is
+    /// `@MASKED@` on every side.
+    pub mask_values: Vec<Vec<u8>>,
     pub expected: Option<Outcome>,
     /// The text before the first outcome directive: kept as written when `record` replaces the outcome.
     pub head: String,
@@ -255,6 +262,8 @@ pub(crate) fn parse(text: &str, what: &str) -> Result<Transcript, String> {
         setup: Vec::new(),
         normalise: Vec::new(),
         as_cache: Vec::new(),
+        host_values: Vec::new(),
+        mask_values: Vec::new(),
         expected: None,
         head: String::new(),
     };
@@ -408,6 +417,13 @@ pub(crate) fn parse(text: &str, what: &str) -> Result<Transcript, String> {
                 t.setup.push(Setup::Elf(p, soname, cut, kind));
             }
             "as-cache" => t.as_cache.push(rel_path(value).map_err(err)?),
+            "host-value" | "mask-value" => {
+                let prefix = unescape(value).map_err(err)?;
+                if prefix.is_empty() {
+                    return Err(err(format!("{key}: an empty line prefix")));
+                }
+                if key == "host-value" { t.host_values.push(prefix) } else { t.mask_values.push(prefix) }
+            }
             "normalise" => {
                 let (from, to) = value.split_once(" => ").ok_or_else(|| err("normalise: <literal> => <replacement>".into()))?;
                 let from = unescape(from).map_err(err)?;

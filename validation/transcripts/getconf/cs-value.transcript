@@ -1,0 +1,10 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: GNU_LIBC_VERSION is confstr's text
+clause: s31_5_g_1
+command: getconf
+env: LC_ALL=C
+arg: GNU_LIBC_VERSION
+status: exit 0
+stdout:
+| glibc 2.39
+stderr:
