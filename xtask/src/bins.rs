@@ -19,8 +19,9 @@
 //!
 //! LAYOUT-WINDOW-BINS-4: a phase mode counts only the faults after its warm-up, so its signatures carry the
 //! warm-up as a mode of its own ([`WARM_UP`]); the planner groups by the modes that count a section
-//! ([`counted`]), charges a phase mode nothing in a bin its warm-up runs in, and places the measured
-//! phase's sections into such a bin as soon as one has room.
+//! ([`counted`]) and charges a phase mode nothing in a bin its warm-up runs in, so the measured phase's
+//! sections join the bins the warm-up faulted when they have room. (Placing them there ahead of their
+//! turn was tried in LAYOUT-WINDOW-BINS-4: it pushed start-up and printf text out of the head bins.)
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
@@ -160,10 +161,11 @@ pub fn counted(sig: &BTreeSet<String>) -> BTreeSet<String> {
     sig.iter().filter(|m| !m.ends_with(WARM_UP) && !sig.contains(&warm_up(m))).cloned().collect()
 }
 
-/// The counted modes of `sig` that a bin whose sections run `modes` would newly charge: those that touch
-/// it nowhere yet, neither themselves nor through their warm-up.
+/// The counted modes of `sig` that a bin whose sections run `modes` would newly charge: those that run
+/// nothing there yet. A bin its warm-up runs in charges a phase mode nothing, and needs no test of its own
+/// here: the warm-up is a prefix of the mode's trace, so every signature holding `<m>.pre` holds `m`.
 fn added(sig: &BTreeSet<String>, modes: &BTreeSet<String>) -> usize {
-    sig.iter().filter(|m| !modes.contains(*m) && !modes.contains(&warm_up(m))).count()
+    sig.difference(modes).count()
 }
 
 /// Whether bin `n` can take the sections `rest` besides its members.
@@ -211,17 +213,14 @@ fn put(items: &[Item], bins: &mut Vec<Bin>, sig: &BTreeSet<String>, mut rest: Ve
 }
 
 /// The window-bin plan of `items` with fillers from `cold` (see the module comment). Groups are the
-/// sections of one counted signature ([`counted`]); the start-up groups go first (the head bin), then
-/// the widest. A group in a phase mode's measured phase is placed as soon as a bin that charges it
-/// nothing (its warm-up runs there) has room for it whole, ahead of its turn, so the phase's sections
-/// share the windows its warm-up faulted (LAYOUT-WINDOW-BINS-4); one that never finds such room is
-/// placed at its turn like any other.
+/// sections of one counted signature ([`counted`], LAYOUT-WINDOW-BINS-4): a warm-up section no counted
+/// mode measures waits with the unmeasured ones, and a measured phase's sections stay one group whatever
+/// other warm-ups run them. The start-up groups go first (the head bin), then the widest.
 pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
     let mut groups: BTreeMap<BTreeSet<String>, Vec<usize>> = BTreeMap::new();
     for (i, it) in items.iter().enumerate() {
         groups.entry(counted(&it.sig)).or_default().push(i);
     }
-    let phase: BTreeSet<&str> = items.iter().flat_map(|it| it.sig.iter()).filter_map(|m| m.strip_suffix(WARM_UP)).collect();
     let mut order: Vec<(BTreeSet<String>, Vec<usize>)> = groups
         .into_iter()
         .map(|(s, mut v)| {
@@ -230,22 +229,9 @@ pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
         })
         .collect();
     order.sort_by_key(|(s, v)| (!s.contains(STARTUP_MODE), Reverse(s.len()), items[v[0]].pos));
-    let early: Vec<bool> = order.iter().map(|(s, _)| s.iter().any(|m| phase.contains(m.as_str()))).collect();
-    let mut done = vec![false; order.len()];
     let mut bins: Vec<Bin> = Vec::new();
-    for g in 0..order.len() {
-        if done[g] {
-            continue;
-        }
-        done[g] = true;
-        put(items, &mut bins, &order[g].0, order[g].1.clone());
-        while let Some((j, n)) = (0..order.len()).filter(|&j| early[j] && !done[j]).find_map(|j| {
-            let (sig, rest) = &order[j];
-            bins.iter().enumerate().position(|(n, b)| added(sig, &b.modes) == 0 && fits(items, b, n, rest)).map(|n| (j, n))
-        }) {
-            done[j] = true;
-            join(items, &mut bins[n], &mut order[j].1.clone());
-        }
+    for (sig, rest) in order {
+        put(items, &mut bins, &sig, rest);
     }
     for b in &mut bins {
         b.members.sort_by_key(|&i| (items[i].pos, i));
@@ -557,24 +543,36 @@ mod tests {
     #[test]
     fn a_measured_phase_shares_its_warm_up_windows() {
         // LAYOUT-WINDOW-BINS-4 (no spec clause: build tooling, D-X.103): phase mode `s` counts only what
-        // runs after its warm-up (`s.pre`). Its phase's section `p` goes into the head bin, which the
-        // warm-up (start-up) runs in, ahead of the wider whole-process group `w` that would otherwise fill
-        // that room, so `s` is charged no window; `w` then takes a bin of its own.
+        // runs after its warm-up (`s.pre`). The warm-up's own section `r` is measured by no mode, so it
+        // waits; the phase's section `p` joins the head bin, which the warm-up (start-up) runs in, and
+        // `s` is charged no window. Read as whole-process traces (no `s.pre`), `r` and `p` are one group
+        // of `s` that no longer fits the head bin: two windows for `s`.
         let items = [
-            item("t", 0xc000, 1, 0, &["true", "a", "s", "s.pre"]),
-            item("w", 0x3000, 1, 1, &["a", "b"]),
-            item("p", 0x3000, 1, 2, &["s"]),
-            item("q", 0x2000, 1, 3, &["a", "s", "s.pre"]),
+            item("t", 0x8000, 1, 0, &["true", "a", "s", "s.pre"]),
+            item("r", 0x7000, 1, 1, &["s", "s.pre"]),
+            item("p", 0x2000, 1, 2, &["s"]),
+            item("w", 0x6000, 1, 3, &["a"]),
         ];
         let p = plan(&items, &[]);
-        assert_eq!(names(&p, &items), [vec!["t", "p"], vec!["w", "q"]]);
+        assert_eq!(names(&p, &items), [vec!["t", "p"], vec!["r", "w"]]);
         let w = p.windows();
-        assert_eq!((w["s"], w["a"], w["b"], w["true"]), (0, 2, 1, 1), "{w:?}");
+        assert_eq!((w["s"], w["a"], w["true"]), (0, 2, 1), "{w:?}");
         assert!(!w.contains_key("s.pre"), "a warm-up mode is not charged");
         assert_eq!(Plan::bound(&items)["s"], 0);
-        // Without the warm-up in its signatures, `s` pays for the window it shares with `t`.
         let plain: Vec<Item> = items.iter().map(|it| Item { sig: it.sig.iter().filter(|m| *m != "s.pre").cloned().collect(), ..it.clone() }).collect();
-        assert_eq!(plan(&plain, &[]).windows()["s"], 2);
+        let q = plan(&plain, &[]);
+        assert_eq!((names(&q, &plain), q.windows()["s"]), (vec![vec!["t", "w"], vec!["r", "p"]], 2));
+    }
+
+    #[test]
+    fn the_start_up_group_takes_the_head_bin_before_wider_groups() {
+        // LAYOUT-WINDOW-BINS-4 (no spec clause: build tooling, D-X.103): with phase modes left out of the
+        // start-up sections' counted modes, another group can be wider than start-up; start-up still
+        // takes the head bin, so `true` stays in one window.
+        let items = [item("w", 0x2000, 1, 0, &["a", "b"]), item("t", 0xf000, 1, 1, &["true"])];
+        let p = plan(&items, &[]);
+        assert_eq!(names(&p, &items), [vec!["t"], vec!["w"]]);
+        assert_eq!(p.windows()["true"], 1);
     }
 
     #[test]
