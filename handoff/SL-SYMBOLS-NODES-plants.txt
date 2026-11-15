@@ -4,3 +4,7 @@
 nodes-drop-owner-rule | tools/deb/symbols.py | lit:"OWNER": {"package": "liella-owner-abi", "spec": "nondefault-libc"}, ==> # OWNER dropped | cargo test -p liella --test deb_symbols_products | msg:version node LIELLA_OWNER_1 has no dependency rule
 nodes-owner-wrong-package | tools/deb/symbols.py | lit:"OWNER": {"package": "liella-owner-abi" ==> "OWNER": {"package": "liella-native-abi" | cargo test -p liella --test deb_symbols_products | msg:LIELLA_OWNER_1.*template
 nodes-provides-native-only | tools/deb/system.sh | lit:"Provides: $provides" ==> "Provides: liella-native-abi (= 1)" | cargo test -p liella --test deb_symbols_products | msg:no liella-owner-abi \(= 1 or newer\)
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# nodes-drop-owner-rule: CAUGHT, caught by deb_symbols_products every_version_node_has_a_dependency_rule
+# nodes-owner-wrong-package: CAUGHT, caught by deb_symbols_products every_version_node_has_a_dependency_rule
+# nodes-provides-native-only: CAUGHT, caught by deb_symbols_products every_version_node_has_a_dependency_rule
