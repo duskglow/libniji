@@ -336,14 +336,32 @@ because programs, not only headers, include these, so SL-HEADERS-1 (b) scans the
 | `sys/elf.h` | 16 | ship | `android-libunwind-dev` |
 | `thread_db.h` | 16 | ship | live purpose: debuggers (owner) |
 | `proc_service.h` | 16 | ship | live purpose: debuggers (owner) |
-| `a.out.h`, `stab.h` | 16 | SL-HEADERS-1 (b) | no `-dev` hit |
-| `gconv.h`, `re_comp.h`, `regexp.h` | 10 | SL-HEADERS-1 (b) | no `-dev` hit |
-| `gnu-versions.h` | 5 | SL-HEADERS-1 (b) | no `-dev` hit |
-| `netash/ash.h`, `neteconet/ec.h`, `netiucv/iucv.h`, `netrom/netrom.h` | 13 | SL-HEADERS-1 (b) | no `-dev` hit |
-| `nfs/nfs.h`, `sys/raw.h`, `sys/vlimit.h`, `sys/vm86.h` | 15 | SL-HEADERS-1 (b) | no `-dev` hit |
+| `a.out.h` | 16 | ship | scan (b): 42 source packages (`binutils`, `gdb`, `gcc-14`, `emacs`, `firefox-esr`, ...) |
+| `stab.h` | 16 | ship | scan (b): `cproto` |
+| `gconv.h` | 10 | ship | scan (b): `box64`, `v4l-utils` |
+| `re_comp.h` | 10 | ship | scan (b): `389-ds-base`, `gopher` |
+| `regexp.h` | 10 | ship | scan (b): 14 (`krb5`, `cmake`, `ncurses`, `zip`, ...); 4 own-file hits discarded |
+| `gnu-versions.h` | 5 | ship | scan (b): 174 source packages |
+| `netash/ash.h` | 13 | ship | scan (b): `netifaces` |
+| `neteconet/ec.h` | 13 | ship | scan (b): 4 (`lcdproc`, `libnet-interface-perl`, `netifaces`, `trinity`) |
+| `netiucv/iucv.h` | 13 | ship | scan (b): `fence-agents` |
+| `netrom/netrom.h` | 13 | ship | scan (b): 9 (`ax25-apps`, `ax25-tools`, `gcc-14`, `trinity`, ...) |
+| `nfs/nfs.h` | 15 | ship | scan (b): 6 (`collectd`, `pcp`, `valgrind`, ...) |
+| `sys/raw.h` | 15 | ship | scan (b): `ocfs2-tools` |
+| `sys/vlimit.h` | 15 | ship | scan (b): 6 (`emacs`, `ksh93u+m`, `gcl`, ...) |
+| `sys/vm86.h` | 15 | ship | scan (b): 6 (`linux`, `libx86`, `v86d`, ...) |
+
+**Result of SL-HEADERS-1 (b) (2026-11-15).** The whole `main/source/Sources.xz` of excalibur (37,587 source
+packages, 98.1 GB, chain verified, every file against its SHA-256): 37,579 scanned and 8 C library source
+packages excluded by name (avr-libc, dietlibc, glibc, klibc, musl, newlib, picolibc, uclibc); no package failed.
+Every `lib/`, `gnulib/` and `gnulib-tests/` directory was skipped unread. Each of the 14 undecided headers has a
+hit, so **none is dropped** and SL-HEADERS-15 has no R-H7 drop to land. A hit is an `#include <header>` in a code
+file, counted only when the package does not ship its own file of that name. Several hits are probably a package
+that probes or lists the name (for example `netifaces`, `trinity`); the ruling counts them as includes. Detail:
+`results/headers-rh7-2026-11-15.md` and `.tsv`.
 
 The hit counts include conditional includes (`#ifdef HAVE_SGTTY_H`), which the ruling's wording
-("includes it") covers. After SL-HEADERS-1 (b), each undecided header is either shipped or dropped;
+("includes it") covers. After SL-HEADERS-1 (b), each undecided header is either shipped or dropped (none was dropped);
 SL-HEADERS-15 lands every drop: a `docs/differences-from-glibc.md` row per header and one registered
 compat record (restore: install the dropped headers; status registered, not implemented) naming the
 header decision.
@@ -357,5 +375,6 @@ header decision.
   (`plan/system-libc.md` §4).
 * Debian's default `_FORTIFY_SOURCE` level from `dpkg-buildflags` is not checked here; slice 18
   reads it.
-* §5.1: the source-archive scan (SL-HEADERS-1 (b)) has not run, so 14 legacy headers are undecided.
+* §5.1: the source-archive scan (SL-HEADERS-1 (b)) ran on 2026-11-15 and decided all 14 (ship). A hit counts
+  an include, not a build that needs the header; the scan did not try to build any package.
   The `-dev` scan does not tell an include under a non-Linux `#ifdef` from one Linux builds use.
