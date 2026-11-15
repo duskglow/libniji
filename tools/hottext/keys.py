@@ -301,10 +301,50 @@ def aliases(path):
             print(f"{k}\t{next(iter(seen[k]))}")
 
 
+def signatures(args):
+    """--signatures <list> [--alias <file>] <mode>=<names file>...: `<key>\t<modes>` for every key of
+    <list> (hot-text.list), in its order: the comma-separated, sorted modes whose names file holds the
+    key (`-` for none). A traced name that is a label inside another key's section (`--alias`, keys.py
+    --aliases lines) counts for that section too. LAYOUT-WINDOW-BINS (D-X.103): the signature of a grouped
+    section is the set of counted probe modes that run it; the window-bin planner groups by it."""
+    alias = {}
+    if len(args) >= 2 and args[1] == "--alias":
+        with open(args[2]) as f:
+            for line in f:
+                parts = line.rstrip("\n").split("\t")
+                if len(parts) != 2:
+                    sys.exit(f"keys.py: {args[2]}: bad line {line!r} (want <symbol key>\\t<section key>)")
+                alias[parts[0]] = parts[1]
+        args = args[:1] + args[3:]
+    if len(args) < 2:
+        sys.exit("usage: keys.py --signatures <list> [--alias <file>] <mode>=<names file>...")
+    modes = {}
+    for spec in args[1:]:
+        mode, sep, path = spec.partition("=")
+        if not sep or not mode or "," in mode:
+            sys.exit(f"keys.py: --signatures: bad mode {spec!r} (want <mode>=<names file>, no comma in the mode)")
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line and line != "main":
+                    k = key(line)
+                    for t in {k, alias.get(k, k)}:
+                        modes.setdefault(t, set()).add(mode)
+    with open(args[0]) as f:
+        for line in f:
+            if not line.strip() or line.startswith("#"):
+                continue
+            k = line.rstrip("\n").split("\t", 1)[0]
+            print(f"{k}\t{','.join(sorted(modes.get(k, ()))) or '-'}")
+
+
 def main():
     args = sys.argv[1:]
     if args[:1] == ["--aliases"] and len(args) == 2:
         aliases(args[1])
+        return
+    if args[:1] == ["--signatures"]:
+        signatures(args[1:])
         return
     if args[:1] == ["--sections"] and len(args) == 2:
         sections(args[1])

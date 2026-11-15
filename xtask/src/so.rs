@@ -335,8 +335,38 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
         script.push_str(&format!("    {s};\n"));
         count += 1;
     }
+    // The aliases the forwarding libraries jump to (SL-SONAMES; `libresolv.so.2`): `--defsym`
+    // in the link ([`forward_defsyms`]) defines each over libc.a's own name.
+    for (alias, _) in forward_targets(root, have)? {
+        script.push_str(&format!("    {alias};\n"));
+        count += 1;
+    }
     script.push_str("};\n");
     Ok((script, count))
+}
+
+/// `libc.so.6`'s forwarding aliases (SL-SONAMES) and the `libc.a` definition each names: the
+/// name itself, or for a compat-only name its body `liella_compat_<name>` (LG-7, D-27.4).
+fn forward_targets(root: &Path, have: &BTreeSet<String>) -> Result<Vec<(String, String)>, String> {
+    let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
+    let mut out = Vec::new();
+    for (alias, name) in crate::placeholders::forwarded_names(&table)? {
+        let compat = format!("liella_compat_{name}");
+        let target = if have.contains(&name) {
+            name
+        } else if have.contains(&compat) {
+            compat
+        } else {
+            return Err(format!("libc.a defines neither {name} nor {compat}, which {alias} (LIELLA_PRIVATE) forwards to"));
+        };
+        out.push((alias, target));
+    }
+    Ok(out)
+}
+
+/// The `--defsym` link options that define `libc.so.6`'s forwarding aliases (SL-SONAMES).
+fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, String> {
+    Ok(forward_targets(root, have)?.into_iter().map(|(alias, target)| format!("-Wl,--defsym={alias}={target}")).collect())
 }
 
 /// `libc.so.6`'s exports at `LIELLA_PRIVATE` (design §14, D-27.22): what Liella's `ld.so` calls or reads.
@@ -996,7 +1026,7 @@ pub fn trace_lists_dir(product: &Path, profile: Profile) -> std::path::PathBuf {
 /// LAYOUT-TRACE-AT-BUILD (LT-1): the start-up lists of this build, from a trace of this build. A product finished
 /// ungrouped from [`crate::hottext::PRE_GROUP_ARCHIVE`] (`libc.a`, `liella-crt1.o`, `.profile` in
 /// `target/product/<profile>/trace`) is what the probes link against; `tools/hottext/regen.sh --products <dir>`
-/// traces them (every probe and `page_faults` mode the contracts measure) and writes the four generated lists into
+/// traces them (every probe and `page_faults` mode the contracts measure) and writes the generated lists into
 /// [`trace_lists_dir`], which this process then reads ([`crate::hotlists::force_dir`]). Nothing of an earlier build
 /// is read: the lists are written fresh, so no function name crosses a build. Not part of `LIELLA_BUILD_TAG` (that
 /// hashes `crates/`, `csys/` and `include/` only): the trace never causes a second compile.
@@ -1239,6 +1269,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
         .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
         .arg(format!("-Wl,--version-script={}", map.display()))
         .arg("-Wl,-soname,libc.so.6")
+        .args(forward_defsyms(root, &have)?)
         .arg("-Wl,--whole-archive")
         .arg(&so_input)
         .arg("-Wl,--no-whole-archive")
@@ -1257,7 +1288,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let native_names: BTreeSet<String> = crate::native::symbols(root)?.into_iter().map(|(s, _)| s).collect();
     // The native names and the private start interface (LIELLA_PRIVATE, D-27.22) are Liella's own
     // nodes: no versions.tsv rows.
-    let own_nodes: BTreeSet<String> = native_names.iter().cloned().chain(LIBC_PRIVATE.iter().map(|s| (*s).to_string())).collect();
+    let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
+    let forwards = crate::placeholders::forwarded_names(&table)?.into_iter().map(|(alias, _)| alias);
+    let own_nodes: BTreeSet<String> = native_names.iter().cloned().chain(LIBC_PRIVATE.iter().map(|s| (*s).to_string())).chain(forwards).collect();
     let versioned = check_version_sets(root, &so, "libc.so.6", &have, &own_nodes)?;
     println!("so: version set and default version of {versioned} libc.so.6 names checked against spec/abi/versions.tsv");
     // The 64-byte entry alignment (D-4.33) is contract FN-ALIGN-EXPORTS, checked with the others at the end.
@@ -1297,12 +1330,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
     println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar)?);
 
-    // 6. The static libresolv placeholder (D-16.6): the symbols spec Appendix C places in
-    //    `libresolv.so.2` (`inet_net_pton`, `res_*`, `ns_*`, ...) are in `libc.a` like every other
-    //    symbol, so `-lresolv` must only resolve. They are left out of `libc.so.6`'s version
-    //    script (their rows name `libresolv.so.2`); the shared `libresolv.so.2` comes with the
-    //    dynamic products of phase 14.
-    empty_archive(&ar, &release.join("libresolv.a"))?;
+    //    libresolv (D-16.6, SL-SONAMES): the symbols spec Appendix C places in `libresolv.so.2`
+    //    (`inet_net_pton`, `res_*`, `ns_*`, ...) are in `libc.a` like every other symbol, so the
+    //    empty `libresolv.a` lets `-lresolv` resolve statically. `libc.so.6` exports them only as
+    //    `LIELLA_PRIVATE` aliases, and `libresolv.so.2` (step 5) forwards its exports to those.
 
     let redirected: Vec<String> = copies.redirected.iter().map(|(n, c)| format!("{n} {c}")).collect();
     let kept: usize = copies.kept.values().sum();

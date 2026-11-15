@@ -43,7 +43,7 @@ AMD EPYC 7551 32-Core Processor	cbench_hot	strcpy_chk_16	38	Liella 36.0 vs glibc
 AMD EPYC 7551 32-Core Processor	cbench_hot	strcpy_chk_64	44	Liella 41.1 vs glibc 70.1; headroom 2%; LIMITS-TIGHTEN, was 97
 AMD EPYC 7551 32-Core Processor	cbench_hot	ctype_b_loc	16	Liella 14.0 vs glibc 10.0; headroom 2%
 AMD EPYC 7551 32-Core Processor	cbench_hot	ctype_get_mb_cur_max	12	Liella 10.0 vs glibc 11.0; headroom 2%
-AMD EPYC 7551 32-Core Processor	cbench_hot	errno_location	11	Liella 9.0 vs glibc 10.0; headroom 2%
+AMD EPYC 7551 32-Core Processor	cbench_hot	errno_location	12	Liella 11.0 vs glibc 10.0 (was 9.0); the +2 is the foreign-block check of D-X.60, which the owner's requirement 'It needs to be safe' asks for; owner ruling 2026-11-14 (TB-FOREIGN-WORDS-LOW-13) accepts the cost, safety being the reason: errno is read on calls that are failing anyway; headroom 1
 AMD EPYC 7551 32-Core Processor	cbench_hot	fwrite_unlocked_16	86	Liella 83.5 vs glibc 114.0; headroom 2%
 AMD EPYC 7551 32-Core Processor	cbench_hot	fwrite_unlocked_64	95	Liella 93.0 vs glibc 120.6; headroom 2%
 AMD EPYC 7551 32-Core Processor	cbench_hot	getc	54	Liella 51.4 vs glibc 27.3; headroom 2%
@@ -55,7 +55,7 @@ AMD EPYC 7551 32-Core Processor	cbench_hot	getline_80	214	Liella 208.9 vs glibc 
 AMD EPYC 7551 32-Core Processor	cbench_hot	mutex_lock_unlock_normal	66	Liella 64.0 vs glibc 72.0; headroom 2%
 AMD EPYC 7551 32-Core Processor	cbench_hot	mutex_lock_unlock_recursive	86	Liella 83.1 vs glibc 90.1; headroom 2%
 AMD EPYC 7551 32-Core Processor	cbench_hot	putc_unlocked	43	Liella 40.2 vs glibc 19.1; headroom 2%
-AMD EPYC 7551 32-Core Processor	cbench_startup	startup_instr_c	2150	CI-STARTUP: user-mode instructions per process, exec to exit; Liella 2075 vs glibc 115540 (dynamic, ld.so included); measured on fix/wl-latin-lazy 1d0bc6db, 2026-10-11, 0% spread
+AMD EPYC 7551 32-Core Processor	cbench_startup	startup_instr_c	2161	CI-STARTUP: user-mode instructions per process, exec to exit; Liella 2075 vs glibc 115540 (dynamic, ld.so included); measured on fix/wl-latin-lazy 1d0bc6db, 2026-10-11, 0% spread. TB-FOREIGN-WORDS-LOW-13 (2026-11-14): +11 for the foreign-block safety checks of D-X.58/D-X.60 (raised by the measured cost only, as the coordinator directed after the owner's 2026-11-14 safety ruling), measured on this CPU: next e47a71997 2144, the same tree plus the branch 2155 (glibc 117437), so 2150 + 11; drift on next itself not absorbed
 AMD EPYC 7551 32-Core Processor	cbench_startup	startup_instr_setloc	69800	CI-STARTUP: + setlocale(LC_ALL, "") under en_US.UTF-8; Liella 69516 vs glibc 140747; fix/wl-latin-lazy 1d0bc6db; an eager 256-entry wctype fill (~194k) is far over; BENCH-FIXED-ENV (owner #490): re-set once under the fixed bench environment, Liella 68356 on EPYC 7551 (was 71000)
 AMD EPYC 7551 32-Core Processor	cbench_startup	startup_instr_printf	73600	CI-STARTUP: + setlocale + one printf; Liella 73236 vs glibc 142522; fix/wl-latin-lazy 1d0bc6db; BENCH-FIXED-ENV (owner #490): re-set once under the fixed bench environment, Liella 72077 on EPYC 7551 (was 74700)
 AMD EPYC 7551 32-Core Processor	cbench_startup	startup_instr_wctype	70900	CI-STARTUP: + setlocale + iswalpha/towupper/wcwidth(U+00E9); Liella 70480 vs glibc 140959; fix/wl-latin-lazy 1d0bc6db; BENCH-FIXED-ENV (owner #490): re-set once under the fixed bench environment, Liella 69393 on EPYC 7551 (was 71900)
