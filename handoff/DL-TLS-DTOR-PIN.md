@@ -2,11 +2,20 @@
 
 ## State
 
-Branch `task/dl-tls-dtor-pin` (from origin/next 2d5625a3e), role keke:~/w/n1. Code commits: `fd1e4791c` (the pin,
-the test, the plants file, the pending record), `4c7534584` (`LOADER_PIN` declared in
-crates/libc-so/startup-state.list). This note and handoff/reports/DL-TLS-DTOR-PIN.json follow.
+Branch `task/dl-tls-dtor-pin-2` (continues `task/dl-tls-dtor-pin`, from origin/next 2d5625a3e), role keke:~/w/n2.
+Code commits: `fd1e4791c` (the pin, the test, the plants file, the pending record), `4c7534584` (`LOADER_PIN`
+declared in crates/libc-so/startup-state.list), `239ea5ccc` (DL-TLS-DTOR-PIN-2: the test's race fixed, below).
+This note, handoff/reports/DL-TLS-DTOR-PIN.json and handoff/reports/DL-TLS-DTOR-PIN-2.json follow.
 
-RESULTS: see "Jobs" below.
+## DL-TLS-DTOR-PIN-2: why gate1 was red
+
+`dl-tls-dtor-pin-gate1` failed the new test in `threads` mode, kernel-started: killed by SIGALRM (the program's
+`alarm(120)`) with output `a c `. The cause was the test program, not the pin: threads `b` and `c` both waited on
+one semaphore `go`; `main` posted it once and joined `b`. `sem_post` wakes an unspecified waiter (POSIX), so under
+the gate's load it woke `c` (its destructor ran, the object correctly stayed loaded under `b`'s pin), `b` stayed
+blocked and the join hung. Fix `239ea5ccc`: each held thread has its own release semaphore (`struct hold`), so the
+order `b` then `c` is fixed. No product code changed in -2. Repeat evidence: `dl-tls-dtor-pin-2-rep1`, the built
+test 60 times from a RAM copy at load ~20 on keke: 0 failures.
 
 ## What was done
 
@@ -42,24 +51,23 @@ the child until it exits (safe direction; its exit's `fini_loaded` finalises it)
 Not probed against the reference here (the brief and spec s1_2_c_6 state the behaviour; the reference order was
 observed by AQOURS-SMOKE-RERUN).
 
-## Jobs (keke, all on head 4c7534584, chain ~/work/DL-TLS-DTOR-PIN/chain.sh)
+## Jobs (keke role n2, all on code head 239ea5ccc, chain ~/work/DL-TLS-DTOR-PIN-2/chain.sh)
 
-* `dl-tls-dtor-pin-lint2`: rc 0 (clippy --all-features -D warnings, `cargo xtask static`, `records check`).
-* `dl-tls-dtor-pin-tests2`: rc 0 (`cargo xtask so` with every layout contract, then all 5 tests of
-  crates/ld/tests/dlclose.rs, the new one included). (`cargo test -p liella-legacy exit_handlers` matched no test:
-  the legacy crate has no unit test of the thread destructor loop; the C test covers it.)
-* `dl-tls-dtor-pin-plants1`: rc 0, 5 plants: 5 CAUGHT, 0 SURVIVED, 0 WARN (handoff/DL-TLS-DTOR-PIN-plants.txt).
-* `dl-tls-dtor-pin-gate1` (direct tier, `--base origin/next`), `dl-tls-dtor-pin-xtest1` (`cargo xtask test`),
-  `dl-tls-dtor-pin-release1` (`LIELLA_FULL_PROFILE=1` so + `hot_text_products`): see the hand-back for their state
-  (queued one after another; read `~/logs/jobs.tsv` on keke).
-* Superseded: `dl-tls-dtor-pin-lint1` (fd1e4791c: clippy clean, record skeleton), `dl-tls-dtor-pin-tests1`
-  (fd1e4791c: rc 1, STARTUP-DATA-WINDOWS broken by the unlisted `LOADER_PIN`; fixed in 4c7534584).
+* `dl-tls-dtor-pin-2-lint0`: rc 0 on the inherited head 4c7534584 (clippy --all-features -D warnings, `cargo xtask
+  static`, `records check`): nothing left red by the first run.
+* `dl-tls-dtor-pin-2-lint1`: rc 0 (the same three on 239ea5ccc).
+* `dl-tls-dtor-pin-2-tests1`: rc 0 (`cargo xtask so`, then crates/ld/tests/dlclose.rs: 5 passed).
+* `dl-tls-dtor-pin-2-rep1`: rc 0, the built s1_2_c_6 test 60 times from a RAM copy, load ~20: 0 failures.
+* `dl-tls-dtor-pin-2-plants1`: rc 0, handoff/DL-TLS-DTOR-PIN-plants.txt: 5 CAUGHT, 0 SURVIVED, 0 WARN.
+* `dl-tls-dtor-pin-2-gate1`: rc 0, direct tier `--base origin/next`: 6587 passed / 0 failed (interposed 5206 / 0),
+  peak 13G, oom_kill 0; the new test passed in it (0.48 s).
+* `dl-tls-dtor-pin-2-xtest1` (`cargo xtask test`), `dl-tls-dtor-pin-2-release1` (`LIELLA_FULL_PROFILE=1` so +
+  `hot_text_products`): both rc 0 (xtest 6587 / 0 failed, interposed 5206 / 0; release: 12 layout contracts ok,
+  STARTUP-DATA-WINDOWS 8 of 8 written pages, hot_text_products 26 passed).
+* Superseded (first run, head 4c7534584): `dl-tls-dtor-pin-gate1` rc 1 (the test race above);
+  `dl-tls-dtor-pin-lint2`, `-tests2`, `-plants1`, `-xtest1`, `-release1` (older head); `dl-tls-dtor-pin-lint1`,
+  `-tests1` (fd1e4791c).
 
 ## Next step
 
 Land. Possible follow-up: drop the pins of threads gone in a fork child (needs every thread's destructor list).
-
-## Process notes
-
-Two rule slips in this run, both on my own files: one heredoc (a local `python3 - <<EOF` edit of dlopen.rs) and one
-`sed -i` on the pending record. Neither touched a shared file or a host.
