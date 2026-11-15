@@ -22,6 +22,10 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+/// The files of the symbols step, named here as paths so that `cargo xtask affected` selects this
+/// test for a change to any of them (the driver, the system flavour, the generator).
+const STEP: [&str; 3] = ["tools/deb/build.sh", "tools/deb/system.sh", "tools/deb/symbols.py"];
+
 #[test]
 fn every_version_node_has_a_dependency_rule() {
     // no spec clause (packaging; plan/system-libc.md section 3.2, SL-SYMBOLS-NODES).
@@ -33,8 +37,11 @@ fn every_version_node_has_a_dependency_rule() {
     assert!(products.join("libc.so.6").exists(), "the products are missing: run `cargo xtask so`");
     let work = root().join("target/deb-symbols-products").join(std::process::id().to_string());
     let _ = std::fs::remove_dir_all(&work);
+    for f in STEP {
+        assert!(root().join(f).is_file(), "{f} is missing");
+    }
     let o = Command::new("sh")
-        .arg(root().join("tools/deb/build.sh"))
+        .arg(root().join(STEP[0]))
         .args(["--flavour", "system", "--symbols-only", "--version", "2.39+liella19700101.1-1"])
         .arg("--products")
         .arg(&products)
