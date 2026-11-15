@@ -96,6 +96,17 @@ run apt-1 sh -c "$apt_check" sh "$out/apt-1.raw"
 run apt-2 apt-cache policy
 run apt-3 apt-cache policy bash
 
+# fakeroot (DL-LD-PRELOAD): it preloads its library (LD_PRELOAD) into the programs it starts, and that
+# library reaches libc's functions with dlsym(RTLD_NEXT): the fake root shows only when both work. Run
+# as an unprivileged user (65534, perl drops root first): inside, id and a chowned file show 0;
+# outside, the user and the file stay 65534. A tar archive written under fakeroot holds 0/0, the
+# same tree archived outside 65534/65534 (--numeric-owner; name, owner and type columns only).
+mkdir -p /tmp/fr
+chmod 1777 /tmp/fr
+drop='$) = "65534 65534"; $( = 65534; $< = $> = 65534; exec @ARGV or die "exec: $!\n"'
+run fakeroot-1 perl -e "$drop" -- sh -c 'cd /tmp/fr && fakeroot sh -c "touch f && chown 0:0 f && echo inside \$(id -u) \$(id -g) \$(stat -c %u:%g f)" && echo outside $(id -u) $(id -g) $(stat -c %u:%g f)'
+run fakeroot-2 perl -e "$drop" -- sh -c 'cd /tmp/fr && mkdir d && echo x > d/a && fakeroot sh -c "chown -R 0:0 d && tar --numeric-owner -cf a.tar d" && tar --numeric-owner -tvf a.tar | awk "{print substr(\$1, 1, 1), \$2, \$6}" && tar --numeric-owner -cf b.tar d && tar --numeric-owner -tvf b.tar | awk "{print substr(\$1, 1, 1), \$2, \$6}"'
+
 {
     echo "libc6 $(dpkg-query -W -f '${Version}' libc6 2>&1)"
     echo "libc-bin $(dpkg-query -W -f '${Version}' libc-bin 2>&1)"

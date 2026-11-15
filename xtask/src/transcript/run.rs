@@ -413,7 +413,33 @@ pub(crate) fn normalise(o: &mut Outcome, root: &[u8], extra: &[(Vec<u8>, Vec<u8>
     }
 }
 
-/// `xtask transcript-exec [--bind SRC DST]... [--drop UID GID] -- PROGRAM ARGV0 ARGS...`, run by `unshare` inside the
+/// Replace the rest of every stdout and stderr line that starts with one of `prefixes` by `token`
+/// (`host-value:` and `mask-value:` lines of a transcript).
+pub(crate) fn mask_lines(o: &mut Outcome, prefixes: &[Vec<u8>], token: &[u8]) {
+    if prefixes.is_empty() {
+        return;
+    }
+    let apply = |b: &mut Vec<u8>| {
+        let mut out = Vec::with_capacity(b.len());
+        for line in b.split_inclusive(|&c| c == b'\n') {
+            match prefixes.iter().find(|p| line.starts_with(p)) {
+                Some(p) => {
+                    out.extend_from_slice(p);
+                    out.extend_from_slice(token);
+                    if line.ends_with(b"\n") {
+                        out.push(b'\n');
+                    }
+                }
+                None => out.extend_from_slice(line),
+            }
+        }
+        *b = out;
+    };
+    apply(&mut o.stdout);
+    apply(&mut o.stderr);
+}
+
+/// `xtask transcript-exec [--bind SRC DST]...[--drop UID GID] -- PROGRAM ARGV0 ARGS...`, run by `unshare` inside the
 /// new user and mount namespace: mount the binds, then run the command (through a nested user namespace mapping
 /// UID and GID back, with `--drop`). It replaces itself with the command, so the outcome is the command's own.
 pub(crate) fn exec_helper(args: &[OsString]) -> ExitCode {

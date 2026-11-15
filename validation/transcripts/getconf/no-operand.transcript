@@ -1,0 +1,10 @@
+# UTIL-5: probe-settled behaviour of getconf (the reference as a black box).
+name: no operand prints the usage text, status 2
+clause: s31_5_i_1
+command: getconf
+env: LC_ALL=C
+status: exit 2
+stdout:
+stderr:
+| Usage: getconf [-v specification] variable_name [pathname]
+| \x20      getconf -a [pathname]

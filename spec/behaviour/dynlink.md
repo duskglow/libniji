@@ -82,6 +82,22 @@ libc and `ld.so` by absolute path, a `dlopen`'d object by the name it was opened
 `dl_iterate_phdr` callback that calls `dlopen` of a new object returns, the running walk then visits that object
 (one more callback), and `dlpi_adds` grows by one within the walk.
 
+**Exit order of `dlopen`ed objects** (record `== exit-order (DL-EXIT-ORDER-PROBE)`, probe
+`tools/probe/dl/exitorder/run.sh SCRATCH`, each scenario its own process; destructors report with
+`write`). At exit the program's destructor runs first; then the start-time objects and the `dlopen`ed
+objects still loaded run as one sequence: the earliest loaded first, each object after every
+object that needs it (`DT_NEEDED`), whether it was opened before or after it. How an object stays
+loaded makes no difference: handle kept open, `RTLD_NODELETE` (closed or not), or pinned by a bound
+`STB_GNU_UNIQUE` definition (E1-E12; DL-17's C-6 object, loaded first, runs before C-7's for this
+reason, not because of the unique binding). A dependency opened before the object that needs it
+runs after it (E14, E17, E18); an object opened later that needs a start-time object runs before
+that object, other start-time objects keep their place ahead of later-opened independent objects
+(E23-E25); a binding through the global scope without `DT_NEEDED` orders like one: GU, which
+binds `g_val` in GD (opened `RTLD_GLOBAL` before it), runs first (E21).
+Cycles: H <-> I opened at H runs I, H (E19, E20, the cycle as a block between A and B); X -> Y -> Z
+-> X runs Z, X, Y opened at X (E26, E28), X, Y, Z opened at Y (E27) and K, X, Y, Z when K (needing Y)
+is loaded after or before the cycle (E29, E30): the order inside a cycle depends on the other objects.
+
 **dlclose** (record `== close (DL-17)`, probe `tools/probe/dl/close/run.sh SCRATCH`, same reference and conditions
 as the P-n probes). C-1: `dlclose` of the only open of an object returns 0, runs its destructor, unmaps it (`RTLD_NOLOAD`
 no longer finds it) and `dlpi_subs` is already +1 when it returns; no dlerror text. C-2: a successful `dlclose` clears

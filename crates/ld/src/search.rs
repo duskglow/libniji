@@ -185,6 +185,17 @@ pub fn trusted<A: Arch>(dir: &[u8]) -> bool {
     (own_lib(b"", &mut own) && own.as_bytes() == dir) || (PREFIX == "/" && A::SYSTEM_DIRS.iter().any(|t| t.as_bytes() == dir))
 }
 
+/// Each trusted directory (threat model rule 5, the same set as [`trusted`]), in the default
+/// search's order: the system's default directories when the prefix is `/`, else
+/// `<prefix>/<libdir>`. `each` returns true to stop; returns whether it did.
+pub fn trusted_dirs<A: Arch>(each: &mut dyn FnMut(&[u8]) -> bool) -> bool {
+    if PREFIX == "/" {
+        return A::SYSTEM_DIRS.iter().any(|d| each(d.as_bytes()));
+    }
+    let mut own = PathBuf::default();
+    own_lib(b"", &mut own) && each(own.as_bytes())
+}
+
 /// The tokens and the value each expands to, in the order they are matched.
 fn token(rest: &[u8]) -> Option<(&'static [u8], &[u8])> {
     for name in [&b"ORIGIN"[..], b"PLATFORM", b"LIB"] {

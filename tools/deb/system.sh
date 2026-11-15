@@ -20,8 +20,10 @@
 #                 none; owns the ldconfig trigger, which its postinst handles by running
 #                 /usr/sbin/ldconfig (static, no interpreter: D-31.2; -r "$DPKG_ROOT" when set),
 #                 as it does on configure (an activation while libc-bin is unconfigured is not
-#                 kept, deb-triggers(5)); its postrm removes /etc/ld.so.cache on purge. Its
-#                 other programs (getconf, getent, iconv, locale, ...) come with SL-BIN-CORE.
+#                 kept, deb-triggers(5)); its postrm removes /etc/ld.so.cache on purge.
+#                 /usr/bin/getconf (UTIL-5: static, over libc.a), /usr/bin/getent (dynamic, over
+#                 libc6's name services: UTIL-6). Its other programs (iconv, locale, ...) come
+#                 with SL-BIN-CORE.
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
 #                 libm.so. No headers yet (SL-HEADERS, R4).
 #   libc-dev-bin  placeholder (gencat, ldd: SL-DEVTOOLS, SL-BIN-CORE).
@@ -52,6 +54,10 @@ put 0644 "$sys/gai.conf" "$bin/etc/gai.conf"
 put 0644 "$sys/nsswitch.conf" "$bin/usr/share/libc-bin/nsswitch.conf"
 need ldconfig
 put 0755 "$products/ldconfig" "$bin/usr/sbin/ldconfig"
+need getconf
+put 0755 "$products/getconf" "$bin/usr/bin/getconf"
+need getent
+put 0755 "$products/getent" "$bin/usr/bin/getent"
 
 # --- libc6-dev ---
 need liella-crt1.o
@@ -86,8 +92,9 @@ for p in $pkgs; do
 done
 
 find "$s6" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
-# libc-bin's ldconfig (a static executable) is stripped the same way as the shared libraries.
-strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig"
+# libc-bin's ldconfig and getconf (static executables) and getent (dynamic) are stripped the same
+# way as the shared libraries.
+strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent"
 find "$sdev" -type f \( -name '*.a' -o -name '*.o' \) -exec strip --strip-debug --remove-section=.comment --enable-deterministic-archives {} +
 
 # --- Control members. ---
@@ -142,10 +149,10 @@ sys_control libc-bin amd64 libs required \
     "Depends: libc6 (= $version)" \
     "Description: Liella C library: configuration and programs" \
     "$abi_note" \
-    " This package holds ldconfig, the loader configuration (/etc/ld.so.conf and" \
-    " /etc/ld.so.conf.d), /etc/gai.conf and the template of /etc/nsswitch.conf. The" \
-    " C library's other programs (getconf, getent, iconv, locale) are not part" \
-    " of this build yet."
+    " This package holds ldconfig, getconf, getent, the loader configuration" \
+    " (/etc/ld.so.conf and /etc/ld.so.conf.d), /etc/gai.conf and the template of" \
+    " /etc/nsswitch.conf. The C library's other programs (iconv, locale) are not" \
+    " part of this build yet."
 sys_control libc6-dev amd64 libdevel optional \
     "Multi-Arch: same" \
     "Depends: libc6 (= $version), libc-dev-bin (= $version)" \

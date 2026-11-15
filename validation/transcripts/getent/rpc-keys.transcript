@@ -1,0 +1,39 @@
+name: getent rpc by name, number and alias; one missing
+clause: s31_4_g_1
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+file: etc/rpc
+| portmapper\t100000\tportmap sunrpc rpcbind
+| nfs\t\t100003\tnfsprog
+| mountd\t\t100005
+| verylongrpcname1234 100099 x
+arg: rpc
+arg: nfs
+arg: 100000
+arg: sunrpc
+arg: mountd
+arg: 5
+status: exit 2
+stdout:
+| nfs             100003  nfsprog
+| portmapper      100000  portmap sunrpc rpcbind
+| portmapper      100000  portmap sunrpc rpcbind
+| mountd          100005
+stderr:

@@ -1,0 +1,29 @@
+name: getent -V wins over a database; the banner is an identity string (D-31.4)
+clause: s31_1_c_2
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+# The version banner is an identity string (D-31.4).
+normalise: getent (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\nWritten by Thorsten Kukuk.\n => getent (Liella) 2.39\n
+arg: -V
+arg: passwd
+status: exit 0
+stdout:
+| getent (Liella) 2.39
+stderr:

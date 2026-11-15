@@ -50,7 +50,7 @@ Read these first; this file is the short version:
 
 ```bash
 cargo xtask stubs            # regenerate test stubs and spec/clauses.tsv from the spec
-cargo xtask so               # build libc.a, libc.so.6, liella-crt1.o into target/liella/
+cargo xtask so               # build libc.a, libc.so.6, ld.so, crt files, utilities into target/liella/
 cargo xtask affected --list  # tests your change can reach (direct tier); pass --base origin/next
 cargo xtask affected --run   # run them (no mode given: usage, exit 2)
 cargo xtask clippy           # workspace, all targets, -D warnings: must be clean

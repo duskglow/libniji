@@ -26,7 +26,7 @@ const EXEMPT: [(&str, &str); 2] = [
 /// The header of the rows for the empty translation unit (compiler predefines).
 const EMPTY_UNIT: &str = "-";
 
-fn is_ident(s: &str) -> bool {
+pub(crate) fn is_ident(s: &str) -> bool {
     let mut c = s.chars();
     matches!(c.next(), Some(f) if f == '_' || f.is_ascii_alphabetic()) && c.all(|x| x == '_' || x.is_ascii_alphanumeric())
 }
@@ -34,7 +34,7 @@ fn is_ident(s: &str) -> bool {
 /// The spelling of a configuration set (`visible_in[i]` for `ids[i]`): `*` for all of them, else the shorter of
 /// the ids it holds and `!` with the ids it lacks (the ids on a tie), both comma-joined in table order; `None` for
 /// the empty set. `spec/tools/header_probe.py` writes the same form.
-fn configs_form(ids: &[String], visible_in: &[bool]) -> Option<String> {
+pub(crate) fn configs_form(ids: &[String], visible_in: &[bool]) -> Option<String> {
     let pick = |want: bool| ids.iter().zip(visible_in).filter(|(_, v)| **v == want).map(|(i, _)| i.as_str()).collect::<Vec<_>>().join(",");
     match visible_in.iter().filter(|v| **v).count() {
         0 => None,
@@ -159,8 +159,21 @@ fn check_tables(configs: &str, vis: &str, public: &BTreeSet<String>, required: &
     errors
 }
 
-fn read(root: &Path, rel: &str) -> Result<String, String> {
+pub(crate) fn read(root: &Path, rel: &str) -> Result<String, String> {
     std::fs::read_to_string(root.join(rel)).map_err(|e| format!("{rel}: {e}"))
+}
+
+/// The inventory's public header set.
+pub(crate) fn public_headers(root: &Path) -> Result<BTreeSet<String>, String> {
+    let inventory = read(root, INVENTORY)?;
+    Ok(inventory
+        .lines()
+        .skip(1)
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split('\t').collect();
+            (f.len() > 3 && f[3] == "public").then(|| f[0].to_string())
+        })
+        .collect())
 }
 
 /// First column of each data row of a TSV with a header line.
@@ -170,15 +183,7 @@ fn first_column(text: &str) -> impl Iterator<Item = &str> {
 
 /// `cargo xtask static` entry: the tables' shape and the coverage of `prototypes.tsv` and `constants.tsv`.
 pub fn check(root: &Path) -> Result<(), String> {
-    let inventory = read(root, INVENTORY)?;
-    let public: BTreeSet<String> = inventory
-        .lines()
-        .skip(1)
-        .filter_map(|l| {
-            let f: Vec<&str> = l.split('\t').collect();
-            (f.len() > 3 && f[3] == "public").then(|| f[0].to_string())
-        })
-        .collect();
+    let public = public_headers(root)?;
     let mut required: Vec<(String, &str)> = Vec::new();
     for table in ["prototypes.tsv", "constants.tsv"] {
         let text = read(root, &format!("spec/abi/{table}"))?;

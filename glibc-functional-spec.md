@@ -5715,6 +5715,8 @@ The TSV files are part of this appendix. The tables below reproduce the parts mo
 | `spec/abi/constants.tsv` | value of every integer-constant macro the public headers define (names not starting with `__`) | 6687 |
 | `spec/abi/ftm-configs.tsv` | feature-test configurations probed: id, language, compiler flags, what it probes (C.12) | 40 |
 | `spec/abi/visibility.tsv` | per public header: each visible name, its kind and the configurations it is visible in (C.12) | 69876 |
+| `spec/abi/callsites.tsv` | per function (or C.9 macro) and mode: the symbol a compiled `&f` or fortified call references and the configurations it does so in (C.13) | 7889 |
+| `spec/abi/noexcept.tsv` | per `prototypes.tsv` function: C++17 exception specification and variadic form, C++98 `throw()` (C.13) | 3780 |
 
 ### C.2 Libraries and version nodes
 
@@ -6795,6 +6797,35 @@ whichever string is shorter (the ids on a tie), ids in table order. Rows of head
 are the empty translation unit (compiler predefines and `stdc-predef.h`); a header's rows leave out what
 that unit already shows. `include-error` (216 rows) marks configurations in which the bare
 `#include` fails: a fact about the reference, which Liella's header reproduces (plan/headers.md §2.3).
+
+### C.13 Call-site symbols and exception specifications
+
+Source: compile-only probes like C.12's, run with `python3 spec/tools/callsite_probe.py` on the reference
+system (GCC and G++ 13.3). The probe reads back only the line numbers of errors in its own files, the
+relocations of its own object's sections (`readelf -r`) and the sizes and demangled names of its own symbols
+(`nm`): no diagnostic text, no header text. Two runs are byte-identical.
+
+`callsites.tsv` (`name header mode configs symbol`, 7889 rows): mode `addr` (3996 rows) is the symbol that
+`&f` references at -O0 in each non-fortify configuration of `ftm-configs.tsv` where `f` is a function
+(`visibility.tsv`); mode `call` (3890 rows) is what a call with known-size buffers references at -O2 in
+each fortify configuration, alone and with `+gnu` (`_GNU_SOURCE`) and `+gnu64` (also
+`_FILE_OFFSET_BITS=64`); mode `macro` (3 rows) is the same for `FD_SET`, `FD_CLR` and `FD_ISSET`, which
+reach `__fdelt_chk`. `symbol` is the sorted, comma-joined undefined symbols the test references (a
+fortified `vprintf` references `__vfprintf_chk` and `stdout`), `-` when it references none (an inline
+expansion), `local` for a symbol the probe's own object defines, and `!error` (78 rows, all `addr` in C++
+configurations, where `&f` names an overload set such as `strchr` or `abs`) when the test does not compile.
+`configs` uses C.12's form over the mode's own configuration list. Every `__isoc*` export and every `*_chk`
+export at a default version is reached by some row, except `__gets_chk` (`gets` has no `prototypes.tsv` row)
+and `__vprintf_chk` (see above).
+
+`noexcept.tsv` (`name header cxx17 variadic cxx98`, one row per `prototypes.tsv` function): `cxx17` is
+`noexcept` or `none` from an overload probe on the type of `&f` at -std=c++17, `variadic` `yes`/`no` from
+the same probe, `error` when `&f` is an overload set, `-` when `f` is no function there; `cxx98` is
+`throw()` or `none`: the one redeclaration of `f`, with and without `throw()`, that compiles when the headers
+are ordinary (not system) include directories, where a different exception specifier is an error. `error`
+(45 rows: the 42 that are C++17 overload sets too, and `abs`, `modf` and `register_printf_type`) means neither the type nor a
+redeclaration could be read; `-` means `f` is no function at -std=c++98. Every row where both columns have a
+value agrees: `noexcept` with `throw()` (2826 rows) and `none` with `none` (500 rows).
 
 <!-- appendix-c:end -->
 

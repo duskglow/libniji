@@ -1,0 +1,45 @@
+name: getent --help after a database; the bug-report lines are identity strings (D-31.4)
+clause: s31_1_c_2
+command: getent
+namespace: user
+# A private /etc: nsswitch.conf names only the files service, so nothing depends on the host's
+# configuration, network or name servers.
+dir: etc
+bind: etc /etc
+file: etc/nsswitch.conf
+| passwd: files
+| group: files
+| shadow: files
+| gshadow: files
+| hosts: files
+| networks: files
+| protocols: files
+| services: files
+| ethers: files
+| rpc: files
+| netgroup: files
+| aliases: files
+# The reference's bug-report lines are an identity string (D-31.4): Liella prints none.
+normalise: shadow\n\nFor bug reporting instructions, please see:\n<https://bugs.launchpad.net/ubuntu/+source/glibc/+bugs>.\n => shadow\n
+arg: passwd
+arg: --help
+status: exit 0
+stdout:
+| Usage: getent [OPTION...] database [key ...]
+| Get entries from administrative database.
+|
+| \x20 -A, --no-addrconfig        do not filter out unsupported IPv4/IPv6 addresses
+| \x20                            (with ahosts*)
+| \x20 -i, --no-idn               disable IDN encoding
+| \x20 -s, --service=CONFIG       Service configuration to be used
+| \x20 -?, --help                 Give this help list
+| \x20     --usage                Give a short usage message
+| \x20 -V, --version              Print program version
+|
+| Mandatory or optional arguments to long options are also mandatory or optional
+| for any corresponding short options.
+|
+| Supported databases:
+| ahosts ahostsv4 ahostsv6 aliases ethers group gshadow hosts initgroups
+| netgroup networks passwd protocols rpc services shadow
+stderr:
