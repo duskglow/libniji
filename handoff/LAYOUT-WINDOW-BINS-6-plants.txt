@@ -41,3 +41,21 @@ bins-uncounted-no-gap | xtask/src/bins.rs | lit:b.gap = true; ==> b.gap = !b.mod
 group-end-name | xtask/src/bins.rs | lit:pub const GROUP_END: &str = ".text.sorted.h9z.liella_group_end"; ==> pub const GROUP_END: &str = ".text.sorted.h9z.liella_group_eNd"; | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:no \.text\.sorted\.h9z\.liella_group_eNd section aligned | layout:traced
 # The start file's group end loses its 64 KiB alignment: so must refuse it (the product check GROUP-END backs it).
 entry-group-end-unaligned | csys/src/machine/entry.S | perl:s/(liella_machine_ld_entry:.*?)\.balign 65536/$1.balign 1/s | cargo test -p liella --test hot_text_products -- init_window_bins_start_on_window_boundaries | msg:no \.text\.sorted\.h9z\.liella_group_end section aligned|GROUP-END: | layout:traced
+# cargo xtask plants results (17 plants: 15 CAUGHT, 0 SURVIVED, 2 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# bins-no-bin-align: CAUGHT, caught by xtask bins::tests::placements_name_sections_in_link_order_and_align_each_bin_after_a_gap
+# bins-filler-digit: CAUGHT, caught by xtask bins::tests::placements_name_sections_in_link_order_and_align_each_bin_after_a_gap
+# bins-no-head-room: CAUGHT, caught by xtask bins::tests::fillers_take_the_gap_best_fit_and_never_twice
+# hottext-bin-position: EQUIVALENT
+# hottext-bin-digit: CAUGHT, caught by xtask hottext::tests::grouped_names_give_back_their_list_position_and_function
+# group-no-align: CAUGHT, caught by hot_text_products init_window_bins_start_on_window_boundaries
+# group-no-rename: CAUGHT, caught by hot_text_products init_window_bins_start_on_window_boundaries
+# bins-counted-keeps-phase: CAUGHT, caught by xtask bins::tests::a_phase_split_by_its_warm_up_is_one_group
+# bins-windows-no-warm: CAUGHT, caught by xtask bins::tests::a_measured_phase_shares_its_warm_up_windows
+# bins-startup-not-first: CAUGHT, caught by xtask bins::tests::the_start_up_group_takes_the_head_bin_before_wider_groups
+# bins-join-drops-warm-up: CAUGHT, caught by xtask bins::tests::a_phase_split_by_its_warm_up_is_one_group
+# bins-bound-phase: CAUGHT, caught by xtask bins::tests::a_group_splits_only_where_a_bin_is_full
+# regen-no-warm-up: CAUGHT, caught by hot_text_products init_first_string_calls_after_printf_take_no_text_fault
+# bins-align-uncounted: EQUIVALENT
+# bins-uncounted-no-gap: CAUGHT, caught by xtask bins::tests::every_bin_fills_to_its_boundary_and_the_group_end_sorts_last
+# group-end-name: CAUGHT, caught by no test the log names
+# entry-group-end-unaligned: CAUGHT, caught by no test the log names

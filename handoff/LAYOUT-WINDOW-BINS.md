@@ -1,7 +1,7 @@
-# LAYOUT-WINDOW-BINS handoff (after run 5, LAYOUT-WINDOW-BINS-5: slice 2 finished, handed back for landing)
+# LAYOUT-WINDOW-BINS handoff (after run 6, LAYOUT-WINDOW-BINS-6: slice 2's last plant fixed, handed back for landing)
 
-**State:** branch `task/layout-window-bins-5` (runs 3 and 4's branch continued; base origin/next 7288d847a), head and
-jobs: `handoff/reports/LAYOUT-WINDOW-BINS-5.json`. Role keke:~/w/r5 (Zen 1). Design: `plan/layout-budget-rethink.md`
+**State:** branch `task/layout-window-bins-6` (runs 3-5's branch continued; base origin/next 7288d847a), head and
+jobs: `handoff/reports/LAYOUT-WINDOW-BINS-6.json`. Role mei:~/w/s1 (run 5: keke:~/w/r5, Zen 1). Design: `plan/layout-budget-rethink.md`
 section 3, **D-X.103**; slice 1 **D-X.108**; slice 2's record is pending, `records/pending/LAYOUT-WINDOW-BINS-3-1.toml`
 (D-NEW, series D-X; its body now describes what is in force, with the numbers below). Ruling #5784: three slices.
 
@@ -23,15 +23,27 @@ section 3, **D-X.103**; slice 1 **D-X.108**; slice 2's record is pending, `recor
 * Bounds: release `LOCALTIME_BOUND` / `LOCALTIME_MKTIME_BOUND` 42 -> 40, only because `WHOLE_COUNT_SLACK` refuses
   36 under 42 (coordinator: no tightening this run; this is the least that passes). Nothing else changed.
 
+* Run 6: run 5's plants job was red on one survivor, hottext-bin-position (`position_of` reads a bin member's place
+  from `&d[3..]` instead of `&d[4..]`). That mutant is equivalent: the guard requires `d[3] == '0'` and a leading 0
+  parses the same. The unit test `grouped_names_give_back_their_list_position_and_function` only used place 42, whose
+  leading zeros would also hide a dropped digit (a member placed at the wrong offset of its bin); it now also reads
+  back place 12345 of bin 12. `handoff/LAYOUT-WINDOW-BINS-6-plants.txt` marks the old plant equivalent and adds
+  hottext-bin-digit (`&d[5..]`). No product code changed; the plants, gate and start-up checks reran on the final head.
+  Jobs (mei:~/w/s1, base 7288d847a): `layout-window-bins-6-lint1` (full clippy, static, hottext unit tests),
+  `-plants` (17: 15 caught, 2 equivalent, 0 survived, no WARN), `-gate` (escalated to FULL, so it ran `cargo xtask
+  test` with its products step: 32 suites, 11874 passed, 0 failed, conformance 137/137), `-relhot` (release-profile
+  so and hot_text_products, 26 passed). `-xtest` was not run: the escalated gate already runs `cargo xtask test`.
+
 ## Measured (keke, Zen 1, `layout-window-bins-5-counts1` on 3137aa64b, every run identical), fast / release
 
 start-up 11 / 10, locale 43 / 43 (base 45 / 45), tool 44 / 44 (base 49 / 48), localtime and localtime + mktime
 36 / 36 (base 40 / 41), fork 5, float 3, strings/mktime/rebind 0 at every pad. Planned windows unchanged from run 4.
 
-## Next (slice 3, LAYOUT-WINDOW-BINS-6, PROOF)
+## Next (slice 3, LAYOUT-WINDOW-BINS-7, PROOF; #5914)
 
 1. Levels of every host class (Skylake-SP read one more than Zen 1 in the base), then tighten TRUE/LOCALE/TOOL and
-   both LOCALTIME bounds to them (ALWAYS FORWARD), with the levels CI records.
+   both LOCALTIME bounds to them (ALWAYS FORWARD), with the levels CI records (bound tightening with every host
+   class's level, #5914).
 2. Pad sweep (shiki `~/work/LAYOUT-BUDGET-RETHINK/sweep.{sh,py}`), file sizes (libc.so.6 too; the group end adds
    at most the last bin's residual), head variant numbers.
 3. Still open from run 4: a phase mode's names after f1 count as its phase (overcount; needs a tracer marker).
