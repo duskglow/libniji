@@ -44,12 +44,15 @@ fn reference_default(command: &str) -> Option<PathBuf> {
     ["/usr/sbin", "/usr/bin"].iter().map(|d| Path::new(d).join(command)).find(|p| p.is_file())
 }
 
-/// Liella's program for a command: this binary for `ldconfig` (UTIL-3), `target/liella/getconf` (UTIL-5); none for
+/// Liella's program for a command: this binary for `ldconfig` (UTIL-3), `target/liella/getconf` (UTIL-5), the test
+/// link of getent (UTIL-6); none for
 /// the others yet.
 fn liella_default(root: &Path, command: &str) -> Option<PathBuf> {
     match command {
         "ldconfig" => std::env::current_exe().ok(),
         "getconf" => Some(root.join("target/liella/getconf")),
+        // UTIL-6: the test link of getent (`cargo xtask so`), which runs on this tree's loader and library.
+        "getent" => Some(root.join(crate::so::GETENT_TEST)).filter(|p| p.is_file()),
         _ => None,
     }
 }

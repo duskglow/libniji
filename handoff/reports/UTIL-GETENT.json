@@ -1,0 +1,20 @@
+{"task": "UTIL-GETENT", "model": "opus", "tokens": null,
+ "result": "getent as a dynamic C front end over Liella's NSS, shipped in libc-bin; 47 reference transcripts pass; gate and plants pending",
+ "branch": "task/util-getent", "head": "c6f5204fa",
+ "gate": {"affected": "pending (util-getent-gate1)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "gethostent: reference maps ::1 lines to 127.0.0.1 and skips other IPv6 lines; Liella returns IPv6 entries",
+  "getaddrinfo AI_ADDRCONFIG: ahostsv6 localhost/::1 and ahosts v6host found by the reference on the build host, not by Liella",
+  "innetgr with a literal '-' host against (-,bob,): reference 1, Liella 0",
+  "getnetbyaddr(inet_network(\"127.0\")): reference finds 127.0.0.0, Liella does not",
+  "Liella's loader did not find libc.so.6 through an executable's DT_RUNPATH (test link uses a by-path libc instead)"],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "getent passwd/group for maintainer scripts in Aqours roots (libc-bin /usr/bin/getent)", "before": null, "after": null, "unit": null, "measured": false},
+  {"kind": "coverage", "what": "getent transcripts against the reference", "before": 0, "after": 47, "unit": "transcripts", "measured": true},
+  {"kind": "coverage", "what": "plants on getent.c", "before": 0, "after": 9, "unit": "plants", "measured": false}],
+ "improvement": "a transcript generator from one fixture /etc (per-case file lists) made 47 cases cheap; the harness could take a shared fixture directive instead of repeating file blocks",
+ "next_step": "read util-getent-gate1 and util-getent-plants1 on mei and fix any red; then a section 16 story for the four library differences",
+ "report_file": "handoff/UTIL-GETENT.md",
+ "jobs": ["util-getent-gate1", "util-getent-plants1"]}
