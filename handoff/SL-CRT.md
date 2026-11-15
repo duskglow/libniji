@@ -25,10 +25,18 @@ Role keke:~/w/n1 (Zen 1). Decision D-27.52 (records/decisions/D-27/D-27.52.toml)
     sl-crt-3-pkg, in /dev/shm/claude/SL-CRT-3/pkg-1 on keke).
 
 ## Jobs (keke) on the final head
-Results: handoff/reports/SL-CRT-3.json and the hand-back. sl-crt-3-lint (clippy, full clippy, static),
-sl-crt-3-pkg (both flavours rebuilt from a RAM copy, check.sh and check-system.sh, start-file listings),
-sl-crt-3-gate (direct tier), sl-crt-3-xtest (`cargo xtask test`), sl-crt-3-hotprof (FULL_PROFILE so +
-hot_text_products), sl-crt-3-plants. sl-crt-3-lint0 = step 0 on the inherited head (green).
+All rc 0, on the code of 0c1dd855f (later commits change handoff/ only):
+* sl-crt-3-lint: `cargo xtask clippy`, full `cargo clippy --workspace --all-targets --all-features -D warnings`, static.
+* sl-crt-3-pkg: both flavours rebuilt from a RAM copy (build.sh's own env), check.sh PASS (2 packages),
+  check-system.sh PASS (6 packages); liella6-dev and libc6-dev each list the 8 start files.
+* sl-crt-3-gate: `cargo xtask affected --run` (base origin/next from the sync). The change set includes
+  xtask/src/so.rs, so it escalates to FULL and runs `cargo xtask test` itself: 6621 + 5235 passed, 0 failed;
+  conformance 137/137; peak 13G. One SKIPPED line (LIELLA_REGEX_CORPUS unset; unrelated).
+* sl-crt-3-hotprof: `LIELLA_FULL_PROFILE=1 cargo xtask so` + hot_text_products (26 passed), in a RAM copy so it
+  did not build in the role while the gate did.
+* sl-crt-3-plants: 2 plants, 2 CAUGHT, no WARN lines.
+* sl-crt-3-lint0: step 0 on the inherited head 30f1c0bda (green).
+No separate `cargo xtask test` job: the gate ran it (a queued sl-crt-3-xtest was stopped before it started).
 
 ## Not done / for other stories
 * Dynamic runs in the test link libc/libm by path (SONAME tag renamed): Liella's loader does not search sonames at
