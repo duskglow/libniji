@@ -112,23 +112,11 @@ impl Binds {
     }
 }
 
-/// A registry that records nothing (the start's scope has no unique table of its own here).
-struct NoUnique;
-
-impl UniqueRegistry for NoUnique {
-    fn find(&self, _: &[u8], _: &[u8]) -> Option<SymFound> {
-        None
-    }
-    fn record(&mut self, _: &[u8], _: &[u8], _: SymFound) -> Result<(), LookupError> {
-        Ok(())
-    }
-}
-
 impl UniqueRegistry for Uniq<'_> {
     fn find(&self, name: &[u8], version: &[u8]) -> Option<SymFound> {
         self.table.find(name, version).or_else(|| {
             let want = if version.is_empty() { Want::Default } else { Want::Version(version) };
-            let f = symbols::lookup(self.syms, symbols::Scope::global(self.start), &Request::new(name, want), &mut NoUnique).ok()??;
+            let f = symbols::lookup(self.syms, symbols::Scope::global(self.start), &Request::new(name, want), &mut symbols::ScopeOrder).ok()??;
             (f.def.st.bind() == STB_GNU_UNIQUE).then_some(f)
         })
     }

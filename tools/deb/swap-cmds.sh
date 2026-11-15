@@ -2,7 +2,7 @@
 # tools/deb/swap-cmds.sh OUTDIR: the fixed command set tools/deb/swap-system.sh runs inside a Debian root,
 # once on the distribution's C library and once with Liella's system packages swapped in. No spec clause:
 # release validation (plan/system-libc.md section 3.7). Every command is one of the distribution's own
-# programs on a small fixed input; each writes OUTDIR/<id>.out (stdout and stderr) and OUTDIR/<id>.rc.
+# programs on a small fixed input (and apt, a C++ program, on the root's own package lists); each writes OUTDIR/<id>.out (stdout and stderr) and OUTDIR/<id>.rc.
 # OUTDIR/info.txt holds what is expected to differ between the roots (the C library's identity).
 # The input's times are fixed and listings are sorted (no dependence on directory order).
 set -u
@@ -77,6 +77,10 @@ sh_ find-2 "find $t -type f -name '*.txt' -size -2k -printf '%P %s %m %TY\n' | s
 sh_ find-3 "find $t -newer $t/in.txt | sort; find $t -empty | sort"
 sh_ find-4 "find $t -maxdepth 1 -type d -exec echo dir {} \\; | sort"
 run find-5 find /nonexistent
+# apt is C++: it starts with the distribution's shared libstdc++.so.6 (unique symbols, DL-LIBSTDCXX).
+run apt-1 apt-get check
+run apt-2 apt-cache policy
+run apt-3 apt-cache policy bash
 
 {
     echo "libc6 $(dpkg-query -W -f '${Version}' libc6 2>&1)"

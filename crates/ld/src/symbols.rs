@@ -448,6 +448,24 @@ pub trait UniqueRegistry {
     fn bound(&mut self, _by: usize, _found: &Found) {}
 }
 
+/// The registry of a load whose every lookup searches one scope in one order (the start: each
+/// relocation looks in the global scope, a `COPY` without the program). The first object in that
+/// order that defines a unique name is its definition for every reference, so the order itself is
+/// the table: nothing is recorded, and no count of unique names can exhaust it (an object with
+/// hundreds of unique definitions, as C++ libraries have, loads like any other). `dlopen` later
+/// finds the start's definition the same way, as the first in the start's global scope.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ScopeOrder;
+
+impl UniqueRegistry for ScopeOrder {
+    fn find(&self, _: &[u8], _: &[u8]) -> Option<Found> {
+        None
+    }
+    fn record(&mut self, _: &[u8], _: &[u8], _: Found) -> Result<(), LookupError> {
+        Ok(())
+    }
+}
+
 /// The first definition of `req` in `scope` (object indices into `objects`). The first object in scope
 /// order that defines the name wins, whether its definition is weak or strong. An `STB_GNU_UNIQUE`
 /// definition is replaced by the one `unique` holds for its name and version, or recorded there.

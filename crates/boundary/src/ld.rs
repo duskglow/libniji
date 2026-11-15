@@ -1302,7 +1302,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     });
     let global: [usize; OBJECTS_MAX] = core::array::from_fn(|i| i);
     let set = Objects { objs, syms: &syms[..n], global: &global[..n] };
-    let mut unique = reloc::UniqueTable::<64, 4096>::default();
+    // The start's lookups all search the global scope, whose order decides each unique name
+    // (`ScopeOrder`): no table to fill, so no count of unique names can make the start fail.
+    let mut unique = liella_ld::symbols::ScopeOrder;
     // Reverse load order (L14-8), the interpreter left out: it relocated itself at its start.
     let relocated = (0..n).rev().filter(|&k| Some(k) != interp).try_for_each(|k| reloc::relocate::<Native, _>(&set, k, &mut ProcImage, page, &mut unique).map_err(|error| reloc::Failure { obj: k, error }));
     if let Err(f) = relocated {

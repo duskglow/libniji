@@ -19,6 +19,9 @@
 #   - the smoke programs hello, threads (C) and except, iostream (C++; libstdc++ linked statically)
 #     built dynamically with plain gcc/g++ run in the root and print their lines: the loader finds
 #     libc.so.6 and libm.so.6 by soname at start (DL-START-SEARCH);
+#   - iostream and throwmain (an exception thrown in the shared libthrowlib.so, caught in the
+#     program) linked against the build system's shared libstdc++.so.6 and libgcc_s.so.1, copied
+#     into the root for the run, start and print their lines (DL-LIBSTDCXX);
 #   - purge (libc-bin is Essential: --force-remove-essential) leaves the skeleton, the database and
 #     /etc/nsswitch.conf (the administrator's file) and nothing else.
 # Prints "root: PASS|FAIL|INFO ..." lines and "root: RESULT ..."; exit 1 when any is FAIL.
@@ -87,6 +90,30 @@ for p in except iostream; do
         -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm -lc -lgcc -lgcc_eh "$e" -o "$r/tmp/$p" > "$tmp/cc.log" 2>&1 ||
         fail "dynamic $p does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 done
+# C++ against the system's shared libstdc++.so.6 and libgcc_s.so.1 (the build machine's, copied into
+# the root's library directory and removed before the purge): iostream again, and throwmain, which
+# catches an exception thrown in the shared libthrowlib.so. libstdc++.so.6 defines about a hundred
+# STB_GNU_UNIQUE objects, so this is the start-time loading of a shared C++ runtime.
+sxx=$(readlink -f "$("$cxx" -print-file-name=libstdc++.so.6)")
+sgcc=$(readlink -f "$("$cxx" -print-file-name=libgcc_s.so.1)")
+cxxlibs=
+if [ -f "$sxx" ] && [ -f "$sgcc" ]; then
+    cp "$sxx" "$lib/libstdc++.so.6" && cp "$sgcc" "$lib/libgcc_s.so.1" && cxxlibs="libstdc++.so.6 libgcc_s.so.1"
+    info "shared C++ runtime: $sxx $sgcc"
+else
+    fail "no shared libstdc++.so.6 ($sxx) or libgcc_s.so.1 ($sgcc) beside $cxx"
+fi
+# shared_cxx OUT SRC LINK...: a C++ object linked dynamically against the root's C library and the
+# copied libstdc++.so.6 and libgcc_s.so.1 (by soname, found at start in the root's library directory).
+shared_cxx() {
+    o=$1; s=$2; shift 2
+    "$cxx" -O1 -nostdlib "-Wl,--sysroot=$r" -L"$lib" "$@" "$s" "$lib/libstdc++.so.6" -lm -lc "$lib/libgcc_s.so.1" -lgcc "$e" -o "$o" > "$tmp/cc.log" 2>&1 ||
+        fail "$(basename "$o") does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+}
+shared_cxx "$lib/libthrowlib.so" "$here/smoke/throwlib.cc" -fPIC -shared -Wl,-soname,libthrowlib.so "$b"
+shared_cxx "$r/tmp/iostream-so" "$here/smoke/iostream.cc" "$lib/Scrt1.o" "$b"
+shared_cxx "$r/tmp/throwmain" "$here/smoke/throwmain.cc" "$lib/Scrt1.o" "$b" "$lib/libthrowlib.so"
+cxxlibs="$cxxlibs libthrowlib.so"
 b=$("$cc" -print-file-name=crtbeginT.o); e=$("$cc" -print-file-name=crtend.o)
 "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$b" "$here/smoke/hello.c" -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$e" -o "$r/tmp/hello-static" > "$tmp/cc.log" 2>&1 ||
     fail "static hello does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
@@ -106,9 +133,11 @@ case $out in
     *"libc.so.6 (libc6,x86-64) => "*"/lib/$ma/libc.so.6"*) pass "libc-bin's postinst wrote /etc/ld.so.cache: ldconfig -p in the root lists libc.so.6" ;;
     *) fail "ldconfig -p in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
 esac
-# The four dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds
-# libc.so.6 (and libm.so.6) by soname at start (DL-START-SEARCH), and prints its line.
-for pe in "hello:hello from liella" "threads:threads: total 40000" "except:except: caught" "iostream:iostream: 42"; do
+# The six dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds
+# libc.so.6 (and libm.so.6, libstdc++.so.6, libgcc_s.so.1, libthrowlib.so) by soname at start
+# (DL-START-SEARCH), and prints its line.
+for pe in "hello:hello from liella" "threads:threads: total 40000" "except:except: caught" "iostream:iostream: 42" \
+    "iostream-so:iostream: 42" "throwmain:throwmain: caught: throwlib: value 3 (throwlib)"; do
     p=${pe%%:*}; want=${pe#*:}
     out=$(in_root "/tmp/$p" 2>&1) && rc=0 || rc=$?
     case $rc:$out in
@@ -116,6 +145,7 @@ for pe in "hello:hello from liella" "threads:threads: total 40000" "except:excep
         *) fail "dynamic $p in the root exits $rc: $(echo "$out" | head -3 | tr '\n' ' ')" ;;
     esac
 done
+for f in $cxxlibs; do rm -f "$lib/$f"; done
 
 # Purge everything; only the skeleton, the database and the administrator's nsswitch.conf remain.
 if dpkg_r --force-remove-essential --force-depends -P libc6-dev libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
