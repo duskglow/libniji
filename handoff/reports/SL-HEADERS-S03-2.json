@@ -1,0 +1,22 @@
+{"task": "SL-HEADERS-S03-2", "model": "opus", "tokens": null,
+ "result": "abi-gen rebuilds C11 anonymous members from probe facts (size N rows M per anonymous row); tcphdr/udphdr generate, 221 Appendix C layout tests pass, head compiles",
+ "branch": "task/sl-headers-s03-2", "head": null,
+ "gate": {"affected": "pending: sl-headers-s03-2-gate (affected escalated to FULL: crates/abi and xtask changed)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "layouts-aarch64.tsv lacks the 50 slice 3 types and the size/rows column (needs the arm64 sysroot run); abi-gen keeps the old anonymous-union rule for it, aarch64 output byte-identical",
+   "tcp_seq members of struct tcphdr are opaque in the generated Rust (no typedef mapping)",
+   "plants rebuild the products per plant (~130 s each) even for xtask-only plants: 24 plants take about an hour"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "head compiles again: abi-gen no longer emits `<anon>` as a field name (struct tcphdr, struct udphdr)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "abi-gen unit tests for anonymous-member grouping", "before": 0, "after": 5, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "plants (17 slice 3 checker plants first run never completed, 7 new)", "before": 0, "after": 24, "unit": "plants", "measured": true},
+   {"kind": "unblock", "what": "SL-HEADERS slice 3 can land; slice 4 of plan/headers.md", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": ["sl-headers-s03-2-gate", "sl-headers-s03-2-plants", "sl-headers-s03-2-lint1"],
+ "improvement": "affected escalates any xtask/crates-abi change to FULL and plants rebuild products for xtask-only plants: a tooling-only story pays the full gate and an hour of plants; a per-plant 'needs products' hint would save most of it",
+ "next_step": "slice 4 of plan/headers.md; regenerate layouts-aarch64.tsv on the arm64 sysroot",
+ "report_file": "handoff/SL-HEADERS-S03.md"}

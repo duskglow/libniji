@@ -1,57 +1,48 @@
 # SL-HEADERS-S03: type and value tables (plan/headers.md slice 3)
 
-Branch `task/sl-headers-s03` (from origin/next db204dc19). Role keke:~/w/n1 (keke: Ubuntu glibc 2.39-0ubuntu8.9,
-GCC 13.3, the same toolchain as the reference). Brief: ~/state/briefs/SL-HEADERS-S03.md. Plan rows: plan/headers.md
-§2.1, §2.2, §4 slice 3; pending decision records/pending/SL-HEADERS-PLAN-1.toml.
+Branch `task/sl-headers-s03-2` (continuation of `task/sl-headers-s03`, from origin/next db204dc19). Role keke:~/w/n4
+(keke: Ubuntu glibc 2.39-0ubuntu8.9, GCC 13.3, the reference toolchain). Briefs: ~/state/briefs/SL-HEADERS-S03.md (the
+spec, "## The change") and ~/state/briefs/SL-HEADERS-S03-2.md. Plan rows: plan/headers.md §2.1, §2.2, §4 slice 3;
+pending decision records/pending/SL-HEADERS-PLAN-1.toml. Report: handoff/reports/SL-HEADERS-S03-2.json.
 
-## State: INCOMPLETE (context checkpoint). Head does not compile: `sl-headers-s03-gate2` red
-`cargo xtask abi-gen` emits invalid Rust (`expected identifier, found <`, crates/abi/src/layout.rs:2441 and :2502) for
-the anonymous unions of anonymous structs in `struct tcphdr` and `struct udphdr`. EXACT NEXT STEP: either teach the
-abi-gen generator to handle nested anonymous struct-in-union members, or drop the two types from abi_extract.py's
-TYPES. Then rerun `abi_extract.py --layouts-only` (as ~/work/SL-HEADERS-S03/run.sh does), `cargo xtask abi-gen`,
-`cargo xtask stubs`, copy layouts.tsv, layout.rs and appendix_c_layouts.rs back, and run the gate and
-handoff/SL-HEADERS-S03/plants.txt (plants never completed: -plants and -plants2 were stopped).
+## State (S03-2): head compiles; slice 3 complete
+The first run stopped at a context checkpoint with a head that did not compile: `cargo xtask abi-gen` wrote `<anon>`
+as a field name for the anonymous union of anonymous structs in `struct tcphdr` / `struct udphdr`
+(gate `sl-headers-s03-gate2` red). Cause: layouts.tsv lists anonymous members flattened (as C names them), so the
+table did not say where each anonymous struct ends; an extent alone is not enough (two sibling structs of a union
+both start at its offset; the unit test `anon_structs_in_anon_union_nest_by_extent` caught that first design).
+Fix (no special case for the two structs; the facts come from DWARF, not header text):
+* `spec/tools/abi_extract.py`: each anonymous member's row gets `size N rows M` in the last column (DW_AT_byte_size
+  of the member's type; M = rows that follow at its level and belong to it). 23 rows changed, no other row:
+  14 `struct rusage`, `Dl_serinfo`, 2 `struct user`, 3 each in tcphdr/udphdr.
+* `xtask/src/abi.rs`: `group()` takes exactly M rows under a synthesized field, recursively, and errors if one lies
+  outside the member (or if M runs past the table); repeats are `__anon_<offset>_<k>`. Without the column
+  (layouts-aarch64.tsv, not regenerated) the old rule for anonymous unions holds; an unsized anonymous struct is an
+  error. Checked all shapes: in both tables the only `<anon>` members are rusage, Dl_serinfo, struct user (unions of
+  scalars) and tcphdr/udphdr; named members of anonymous type are path-addressed and unaffected; no duplicate paths.
+* Generated: only tcphdr/udphdr changed in crates/abi/src/layout.rs (now a union of two structs; `th_seq`/`th_ack`
+  stay opaque `tcp_seq`); aarch64 output byte-identical. 221 Appendix C layout tests pass.
 
-## Work done (slice 3)
-* `spec/tools/type_probe.py` (new; it reuses header_probe.py's Unit and error-line reader) writes
-  * `spec/abi/typedefs.tsv` (3804 rows): kind, name, header, size, align, cxx. 233 typedefs, 132 structs, 1 union,
-    4 enums, 37 data objects, 3397 functions. Size and alignment come from the probe's own C objects (`gnu`
-    configuration); `cxx` is the demangled template argument of the probe's own C++ function
-    `tp_xx_N(tp_w<T>*)` (`cxx14`, so `noexcept` stays out of function types: slice 4's table holds it). Objects
-    give `decltype(O)`, functions `decltype(F)` with every typedef resolved (`signal` is
-    `void (*(int, void (*)(int)))(int)`, `FILE` is `_IO_FILE`).
-  * `spec/abi/macros.tsv` (7112 rows): name, header, type, value. 7104 integer constants (`_Generic` type and
-    value), 3 floating (`HUGE_VAL` double, `INFINITY`/`NAN` float; values as exact hex, inf, nan), 5 strings
-    (`PRId32`, `PRIu64`, `PRIxMAX`, `P_tmpdir`, `_PATH_MOUNTED`).
-  * The `header` column is the header the probe used: the empty unit when the compiler shows the name, else the
-    first header in sorted order that shows it in that configuration (so `FILE` reads `argp.h`). The generator
-    (slice 5) assigns a name's home header itself; this table only needs one header that shows it.
-* `spec/tools/abi_extract.py`: 50 types added to the DWARF path (large-file `struct stat64`, `flock`, `flock64`,
-  `statfs64`, `statvfs64`, `rlimit64`, `f_owner_ex`, `file_handle`; protocol `ip`, `iphdr`, `ip6_hdr`, `tcphdr`,
-  `tcp_info`, `udphdr`, `icmphdr`, `icmp`, `icmp6_hdr`, `ether_header`, `arphdr`, `sockaddr_ll`, `ip_mreqn`,
-  `ipv6_mreq`, `in_pktinfo`, `in6_pktinfo`; ELF `Elf32/64_{Ehdr,Phdr,Shdr,Sym,Dyn,Rel,Rela,Nhdr}`, `Elf64_Chdr`,
-  `Elf64_auxv_t`, `Elf64_Ver{def,daux,need,naux}`; debug `struct user`, `elf_prstatus`, `elf_prpsinfo`,
-  `elf_siginfo`), 10 headers added to its prelude, and `--layouts-only`. layouts.tsv: 211 types, 1908 rows;
-  the diff against the old file is 536 added lines, all rows of the new types, no existing row changed.
-* `xtask/src/abi_types.rs`: static check `abi-types` (also `cargo xtask abi-types`): shapes, order, every row's
-  (header, name, kind) shown by visibility.tsv, size/align vs layouts.tsv, object sizes vs versions.tsv, integer
-  values vs constants.tsv (mod 2^64), hex-float and string spellings. 6 unit tests; passes on the real tables.
+## Work done (slice 3, first run; do not redo)
+* `spec/tools/type_probe.py` -> `spec/abi/typedefs.tsv` (3804 rows) and `spec/abi/macros.tsv` (7112 rows); two runs
+  byte-identical (`sl-headers-s03-probe1`).
+* `spec/tools/abi_extract.py`: 50 protocol, ELF, debug and large-file types; layouts.tsv 211 types.
+* `xtask/src/abi_types.rs`: static check `abi-types` (6 unit tests).
 
-## Proof (jobs on keke)
-* `sl-headers-s03-probe1`: layouts rerun, then type_probe twice, `cmp` of both tables: byte-identical.
-* `sl-headers-s03-lint2`: abi_types tests, `cargo xtask abi-types` on the real tables, xtask clippy, static: rc 0.
-* `sl-headers-s03-plants`: 17 plants on the checker (handoff/SL-HEADERS-S03/plants.txt).
-* `sl-headers-s03-gate`: direct tier, base origin/next.
-* Superseded: `-trial1` (argument parse), `-trial2` (trial subset), `-lint1` (static-check array length).
+## Proof (keke, final head)
+* `sl-headers-s03-2-lint1`: abi-gen --check, xtask abi/abi_types unit tests (11), abi-types, workspace clippy
+  -D warnings, xtask clippy, static: rc 0.
+* `sl-headers-s03-2-plants`: handoff/SL-HEADERS-S03-2/plants.txt, 24 plants (17 checker plants from the first run,
+  never completed there; 7 on the grouping and the probe column).
+* `sl-headers-s03-2-gate`: direct tier, base origin/next.
+* Superseded: `sl-headers-s03-2-regen1` (first grouping design, unit tests red), `-regen2` (table and generated
+  files; tooling, not a gate).
 
 ## Open / next
-* INFORMATIONAL: macros.tsv's floating and string rows are few because the candidates are slice 2's
-  (constants.tsv, prototypes, versions, layouts and the spec's backticked names): `M_PI`, `_PATH_BSHELL`, `PRId64`,
-  `FLT_MAX` are not candidates. Next step: add the standards' and manuals' macro names (C 7.8 PRI/SCN set, POSIX
-  math.h `M_*`, paths.h names from the manual) to header_probe.py's candidates, rerun slice 2, then rerun
-  type_probe.py. Likewise prototypes.tsv has 3778 names against 3397 function rows; the gap includes C++ overload sets
-  such as `strchr` (`decltype` of an overload set fails) and names the C++ configuration does not show.
-* INFORMATIONAL: layouts-aarch64.tsv was not regenerated with the 50 new types (needs the aarch64 sysroot run,
-  `abi_extract.py --arch aarch64`).
-* A future full `abi_extract.py` run will add constants and prototypes from the 10 new prelude headers (elf.h
-  values for slice 16): expected, not a regression.
+* INFORMATIONAL: layouts-aarch64.tsv lacks the 50 new types and the `size N rows M` column (needs the arm64 sysroot run,
+  `abi_extract.py --arch aarch64`); abi-gen handles it as before.
+* INFORMATIONAL: macros.tsv's floating and string rows are few because the candidates are slice 2's; add the
+  standards' macro names (C 7.8 PRI/SCN, POSIX `M_*`, paths.h) to header_probe.py's candidates and rerun slices 2-3.
+  prototypes.tsv has 3778 names against 3397 function rows (C++ overload sets such as `strchr`).
+* `tcp_seq` members are opaque in the generated Rust (no typedef mapping; typedefs.tsv could supply one later).
+* Next step: slice 4 of plan/headers.md.
