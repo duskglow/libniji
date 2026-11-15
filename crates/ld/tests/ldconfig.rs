@@ -3,6 +3,8 @@
 //! (validation/transcripts/ldconfig/) compare the same engine with the reference; these tests reach what a
 //! transcript cannot: include cycles (a deliberate difference), listing order, and many random inputs.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
+
 use liella_ld::arch::X86_64;
 use liella_ld::ldconfig::{run, Fs, Kind, Meta, Outcome, Stage, Text};
 use std::collections::BTreeMap;
