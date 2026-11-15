@@ -7,15 +7,17 @@
 # 1. The rules, line by line: one `<soname> libc6 #MINVER#` block per shared library libc6 ships;
 #    no GLIBC_PRIVATE anywhere (R14-12); each name@GLIBC_x has the minimum version x when x is at or
 #    below the packages' ABI level (the version's part before "+liella"), else the build's upstream
-#    version; each name@LIELLA_NATIVE_<n> names the template `| liella-native-abi (>= <n>)`;
-#    LIELLA_PRIVATE only as the `(symver)` pattern; libc6 Provides liella-native-abi at the newest
-#    node the file names. shlibs: `<name> <n> libc6 (>= <abi>)` per library, nothing else.
+#    version; each name@LIELLA_<KIND>_<n> names the template `| liella-<kind>-abi (>= <n>)`;
+#    LIELLA_PRIVATE only as the `(symver)` pattern; libc6 Provides each such package at the newest
+#    level the file names (today liella-native-abi and liella-owner-abi); any other node fails.
+#    shlibs: `<name> <n> libc6 (>= <abi>)` per library, nothing else.
 # 2. dpkg-gensymbols -c4 against the packaged libraries: no symbol or library missing or extra.
-# 3. dpkg-shlibdeps on three sample programs linked with plain gcc against the unpacked libc6 and
-#    libc6-dev (smoke/sym-base.c, smoke/hello.c, smoke/sym-native.c) gives exactly:
+# 3. dpkg-shlibdeps on four sample programs linked with plain gcc against the unpacked libc6 and
+#    libc6-dev (smoke/sym-base.c, smoke/hello.c, smoke/sym-native.c, smoke/sym-owner.c) gives exactly:
 #      sym-base   libc6 (>= 2.2.5)                           (GLIBC_2.2.5 symbols only)
 #      hello      libc6 (>= 2.34)                            (the start files' __libc_start_main@GLIBC_2.34)
 #      sym-native libc6 (>= 2.34), liella-native-abi (>= 1)  (liella_heap_alloc@LIELLA_NATIVE_1)
+#      sym-owner  libc6 (>= 2.34), liella-owner-abi (>= 1)   (atexit@LIELLA_OWNER_1, D-27.29)
 # 4. Version ordering (dpkg --compare-versions): <abi> < the packages' version < the next ABI level.
 # Prints "check-symbols: PASS" or one "check-symbols: FAIL ..." line per problem (exit 1).
 set -eu
@@ -72,8 +74,8 @@ awk -v abi="$abi" -v up="$upstream" '
     }
     /^\| / {
         nt++
-        if (match($0, /^\| liella-native-abi \(>= [0-9]+\)$/)) { t = $0; gsub(/[^0-9]/, "", t); tmpl[nt] = t }
-        else bad("an alternative template other than liella-native-abi (>= <n>)")
+        if (match($0, /^\| liella-[a-z]+-abi \(>= [0-9]+\)$/)) tmpl[nt] = $2 " " substr($4, 1, length($4) - 1)
+        else bad("an alternative template other than liella-<kind>-abi (>= <n>)")
         next
     }
     /^\* / { next }
@@ -85,24 +87,31 @@ awk -v abi="$abi" -v up="$upstream" '
             lvl = substr(node, 7); want = le(lvl, abi) ? lvl : up
             if ($2 != want) bad("minimum version " $2 ", not " want)
             if (NF != 2) bad("a GLIBC node with a template")
-        } else if (node ~ /^LIELLA_NATIVE_[0-9]+$/) {
-            n = substr(node, 15)
-            if (NF != 3 || tmpl[$3] != n) bad("not on the template liella-native-abi (>= " n ")")
-            if (n > top) top = n
+        } else if (node ~ /^LIELLA_[A-Z]+_[0-9]+$/) {
+            kind = node; sub(/^LIELLA_/, "", kind); n = kind; sub(/_[0-9]+$/, "", kind); sub(/^[A-Z]+_/, "", n)
+            pkg = "liella-" tolower(kind) "-abi"
+            if (NF != 3 || tmpl[$3] != pkg " " n) bad("not on the template " pkg " (>= " n ")")
+            if (n + 0 > top[pkg] + 0) top[pkg] = n
         } else bad("node " node)
         nsym++
         next
     }
     { bad("not a deb-symbols(5) line") }
-    END { print "native " top + 0 > "/dev/stderr"; if (nsym < 1000) { print "check-symbols: FAIL only " nsym + 0 " symbol lines"; nbad++ } exit nbad > 0 }
-' "$sym" 2> "$tmp/native" > "$tmp/rules" || true
+    END {
+        for (p in top) print "provides " p " " top[p] > "/dev/stderr"
+        if (nsym < 1000) { print "check-symbols: FAIL only " nsym + 0 " symbol lines"; nbad++ }
+        exit nbad > 0
+    }
+' "$sym" 2> "$tmp/provides" > "$tmp/rules" || true
 if [ -s "$tmp/rules" ]; then
     head -20 "$tmp/rules"
     fails=$((fails + $(wc -l < "$tmp/rules")))
 fi
-top=$(sed -n 's/^native //p' "$tmp/native")
+# libc6 Provides each virtual package a template names, at the newest level the file names.
+want_prov=$(sed -n 's/^provides //p' "$tmp/provides" | sort | awk '{ printf "%s%s (= %s)", s, $1, $2; s = ", " }')
 provides=$(dpkg-deb -f "$deb6" Provides)
-[ "$provides" = "liella-native-abi (= $top)" ] || fail "libc6 Provides '$provides', not 'liella-native-abi (= $top)'"
+[ "$provides" = "$want_prov" ] || fail "libc6 Provides '$provides', not '$want_prov'"
+case $want_prov in *liella-native-abi*liella-owner-abi*) ;; *) fail "the templates name '$want_prov', not liella-native-abi and liella-owner-abi" ;; esac
 want_shl=$(for so in $libs; do echo "${so%.so.*} ${so##*.so.} libc6 (>= $abi)"; done)
 [ "$(cat "$shl" 2>/dev/null)" = "$want_shl" ] || fail "shlibs is '$(tr '\n' ';' < "$shl" 2>/dev/null)', not '$(echo "$want_shl" | tr '\n' ';')'"
 
@@ -139,6 +148,7 @@ sample() {
 sample sym-base "libc6 (>= 2.2.5)" -nostartfiles -nodefaultlibs "$here/smoke/sym-base.c" -lc
 sample hello "libc6 (>= 2.34)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/hello.c" -lc -lgcc "$end"
 sample sym-native "libc6 (>= 2.34), liella-native-abi (>= 1)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/sym-native.c" -lc -lgcc "$end"
+sample sym-owner "libc6 (>= 2.34), liella-owner-abi (>= 1)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/sym-owner.c" -lc -lgcc "$end"
 
 # 4. Version ordering (R2): the ABI level < this build < the next level.
 next=${abi%.*}.$((${abi##*.} + 1))

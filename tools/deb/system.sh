@@ -7,13 +7,14 @@
 # records/pending/SL-FLAVOUR-1.toml; checks tools/deb/check-system.sh, proof tools/deb/root-system.sh.
 #
 # Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
-# spec) and helpers (put, put_link, put_text, need, installed_size).
+# spec, symbols_only) and helpers (put, put_link, put_text, need, installed_size).
 #
 #   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries; conffile
 #                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
 #                 symbols and shlibs (tools/deb/symbols.py, plan section 3.2; checked by
-#                 tools/deb/check-symbols.sh); Provides liella-native-abi (= <newest
-#                 LIELLA_NATIVE node>), the virtual package the symbols file's native template names.
+#                 tools/deb/check-symbols.sh); Provides, per Liella-only node kind, the virtual
+#                 package its symbols' template names at the newest level (liella-native-abi
+#                 (= <n>), liella-owner-abi (= <n>); symbols.py --provides).
 #   libc-bin      Essential: the loader configuration (/etc/ld.so.conf, ld.so.conf.d/libc.conf),
 #                 /etc/gai.conf, the nsswitch.conf template its postinst installs when the root has
 #                 none; owns the ldconfig trigger. Its programs (ldconfig, getconf, getent, iconv,
@@ -111,11 +112,13 @@ abi_note=" Liella is an implementation of the GNU C Library's ABI (glibc $abi, x
 # libc6's symbols and shlibs (plan section 3.2), from the specification and the stripped libraries.
 mkdir -p "$s6/DEBIAN"
 python3 "$here/symbols.py" files --versions "$spec/abi/versions.tsv" --native "$spec/abi/native.tsv" \
-    --gaps "$spec/../docs/spec-symbol-gaps.tsv" --abi "$abi" --version "$version" --libdir "$s6/$mlib" --symbols "$s6/DEBIAN/symbols" --shlibs "$s6/DEBIAN/shlibs"
-native_level=$(python3 "$here/symbols.py" native-level --native "$spec/abi/native.tsv")
+    --gaps "$spec/../docs/spec-symbol-gaps.tsv" --abi "$abi" --version "$version" --libdir "$s6/$mlib" --symbols "$s6/DEBIAN/symbols" --shlibs "$s6/DEBIAN/shlibs" \
+    --provides "$stage/libc6.provides"
+provides=$(cat "$stage/libc6.provides")
+[ -n "$provides" ] || { echo "build.sh: symbols.py names no virtual package for libc6 to provide" >&2; exit 1; }
 sys_control libc6 amd64 libs required \
     "Multi-Arch: same" \
-    "Provides: liella-native-abi (= $native_level)" \
+    "Provides: $provides" \
     "Breaks: base-files (<< 13.3~)" \
     "Description: Liella C library: shared libraries" \
     "$abi_note" \
@@ -123,6 +126,10 @@ sys_control libc6 amd64 libs required \
     " /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (program interpreter" \
     " /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6 and the libraries whose" \
     " functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1, ...)."
+if [ -n "$symbols_only" ]; then
+    echo "build.sh: symbols step only: $s6/DEBIAN (symbols, shlibs, control; Provides: $provides); no packages written"
+    exit 0
+fi
 sys_control libc-bin amd64 libs required \
     "Essential: yes" \
     "Multi-Arch: foreign" \
