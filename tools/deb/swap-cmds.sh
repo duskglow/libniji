@@ -78,7 +78,21 @@ sh_ find-3 "find $t -newer $t/in.txt | sort; find $t -empty | sort"
 sh_ find-4 "find $t -maxdepth 1 -type d -exec echo dir {} \\; | sort"
 run find-5 find /nonexistent
 # apt is C++: it starts with the distribution's shared libstdc++.so.6 (unique symbols, DL-LIBSTDCXX).
-run apt-1 apt-get check
+# apt-get check (apt-1) reads the installed packages' dependencies. In the swapped root it reports the
+# ones Liella's libc6 cannot meet by version (2.39 against a newer suite's "libc6 (>= 2.41)"; the swap
+# installs it with --force-depends), with status 100. Those lines, and only those (the installed version
+# must be Liella's), are dropped in both roots, and status 100 counts as 0 when they were apt's only
+# complaint. Anything else apt reports (another unmet dependency, a loader error, a crash's status)
+# still differs from the stock root. The unfiltered output stays in OUTDIR/apt-1.raw.
+apt_check='apt-get check > "$1" 2>&1; rc=$?
+kept=$(grep -v -e "^You might want to run .apt --fix-broken install" -e "^The following packages have unmet dependencies:" \
+    -e "Depends: libc6 (>= [^)]*) but [^ ]*+liella[^ ]* is installed" -e "^E: Unmet dependencies\. " "$1")
+printf "%s\n" "$kept"
+if [ "$rc" -eq 100 ] && grep -q "+liella[^ ]* is installed" "$1" && ! printf "%s\n" "$kept" | grep -q -e "Depends:" -e "^[EW]: "; then
+    exit 0
+fi
+exit "$rc"'
+run apt-1 sh -c "$apt_check" sh "$out/apt-1.raw"
 run apt-2 apt-cache policy
 run apt-3 apt-cache policy bash
 
