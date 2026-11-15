@@ -41,7 +41,7 @@ exactly which tests a change reaches.
 
 Differential tests (`crates/*/tests/*_products.rs`): crates/boundary/tests/failinject_products.rs, crates/core/tests/admin_products.rs, crates/core/tests/aio_products.rs, crates/core/tests/argp_products.rs, crates/core/tests/backtrace_products.rs, crates/core/tests/catalogs_products.rs, crates/core/tests/cold_bss_products.rs, crates/core/tests/crt_products.rs, crates/core/tests/cxx_throw_products.rs, crates/core/tests/diag_products.rs, crates/core/tests/digits_dots_products.rs, crates/core/tests/dns_products.rs, crates/core/tests/env_contract_products.rs, crates/core/tests/fstree_products.rs, crates/core/tests/getopt_products.rs, crates/core/tests/gmon_products.rs, crates/core/tests/heap_meta_products.rs, crates/core/tests/hostconf_diag_products.rs, crates/core/tests/hostconf_env_products.rs, crates/core/tests/hot_text_products.rs, crates/core/tests/iconv_products.rs, crates/core/tests/langpack_products.rs, crates/core/tests/locale_products.rs, crates/core/tests/mallocdbg_products.rs, crates/core/tests/mntent_products.rs, crates/core/tests/monetary_products.rs, crates/core/tests/netaddr_products.rs, crates/core/tests/netdb_products.rs, crates/core/tests/noproc_products.rs, crates/core/tests/nscache_products.rs, crates/core/tests/patterns_products.rs, crates/core/tests/posixipc_products.rs, crates/core/tests/printf_corpus_products.rs, crates/core/tests/printf_products.rs, crates/core/tests/process_products.rs, crates/core/tests/regex_corpus_products.rs, crates/core/tests/registry_products.rs, crates/core/tests/scanf_products.rs, crates/core/tests/sonames_products.rs, crates/core/tests/stdio_products.rs, crates/core/tests/syslog_products.rs, crates/core/tests/terminals_products.rs, crates/core/tests/timefmt_products.rs, crates/core/tests/timers_products.rs, crates/core/tests/users_products.rs, crates/core/tests/versions_products.rs, crates/core/tests/wstream_products.rs, crates/core/tests/zones_products.rs, crates/math/tests/complex_f128_products.rs, crates/math/tests/complex_ld_cr_products.rs, crates/math/tests/complex_ld_products.rs, crates/math/tests/complex_products.rs, crates/math/tests/elem_f128_products.rs, crates/math/tests/elem_ld_products.rs, crates/math/tests/elem_products.rs, crates/math/tests/exact_products.rs, crates/math/tests/special_f128_products.rs, crates/math/tests/special_ld_products.rs, crates/math/tests/special_products.rs, crates/math/tests/x87_nan_products.rs
 
-Other crates: abi, boundary, core, kernel, ld, ld-so, legacy, libc-so, libm-so, math, mathtools, mem, native, rt, spectest, thread-db
+Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc-so, libm-so, math, mathtools, mem, native, rt, spectest, thread-db
 
 ## System files the library reads or writes
 
@@ -68,6 +68,8 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, legacy, libc-so, libm-so, 
 | `/etc/host.conf` | crates/legacy/src/nss.rs:84 |
 | `/etc/hostid` | crates/legacy/src/sys_compat.rs:282 |
 | `/etc/hosts` | crates/legacy/src/nss.rs:86 |
+| `/etc/ld.so.cache` | crates/ld/src/ldconfig/mod.rs:165 |
+| `/etc/ld.so.conf` | crates/ld/src/ldconfig/mod.rs:163 |
 | `/etc/localtime` | crates/core/src/time.rs:39 |
 | `/etc/netgroup` | crates/legacy/src/nss.rs:92 |
 | `/etc/networks` | crates/legacy/src/nss.rs:87 |
@@ -104,11 +106,11 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, legacy, libc-so, libm-so, 
 | `/usr/` | crates/core/src/catalog/xopen.rs:197 |
 | `/usr/bin/ls` | crates/rt/src/start.rs:542 |
 | `/usr/bin/prog` | crates/legacy/src/argp.rs:72 |
-| `/usr/lib` | crates/ld/src/arch.rs:317 |
+| `/usr/lib` | crates/ld/src/arch.rs:321 |
 | `/usr/lib/locale` | crates/core/src/locale/mod.rs:534 |
 | `/usr/lib/locale/C.utf8/LC_CTYPE` | crates/core/src/locale/mod.rs:959 |
 | `/usr/lib/locale/locale-archive` | crates/core/src/locale/mod.rs:536 |
-| `/usr/lib/x86_64-linux-gnu` | crates/ld/src/arch.rs:317 |
+| `/usr/lib/x86_64-linux-gnu` | crates/ld/src/arch.rs:321 |
 | `/usr/share/i18n/charmaps/` | crates/legacy/src/global_locale.rs:101 |
 | `/usr/share/locale` | crates/legacy/src/intl.rs:62 |
 | `/usr/share/locale-langpack` | crates/legacy/src/intl.rs:66 |
