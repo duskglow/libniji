@@ -1,0 +1,389 @@
+//! LAYOUT-WINDOW-BINS (plan/layout-budget-rethink.md section 3, D-X.103): the window-bin plan of the hot
+//! text group. Slice 1 plans and reports; it does not change the layout (`cargo xtask so` writes the plan to
+//! `target/product/<profile>/layout-bins.tsv` and prints its summary).
+//!
+//! Every grouped section has a **signature**: the `page_faults.c` modes whose trace runs it
+//! (`hot-text.signatures`, written by `tools/hottext/regen.sh`). A **bin** holds at most [`BIN`] bytes and,
+//! once the plan is applied, starts on a [`BIN`] boundary, so a mode's text count over the group is the
+//! number of windows of the bins it touches: a function of the plan alone, which growth inside a bin that
+//! still fits, or growth anywhere else, cannot move. The cost of a plan is the sum over modes of the windows
+//! each one touches, which is the sum over bins of (modes touching the bin x the bin's windows).
+//!
+//! The planner takes the signature groups from the widest signature down (first touch breaks ties), and puts
+//! each group whole into the existing bin it adds the fewest modes to (the first such bin), or else into
+//! fresh bins, split only where a bin is full. A group whose signature is inside a bin's modes costs
+//! nothing there, so nested signatures share bins. The gap between a bin's end and the next boundary is
+//! filled best-fit (largest first) from cold sections of the members every program links; what is left is
+//! the residual fill. [`Plan::bound`] is a lower bound per mode (its bytes over [`BIN`], rounded up), so
+//! the plan's distance from optimal is printed, not assumed.
+
+use std::cmp::Reverse;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
+
+/// The fault-around window of the reference hosts (64 KiB), the bin capacity and alignment.
+pub const BIN: u64 = 0x10000;
+/// The generated signatures list, next to `hot-text.list` (one of [`crate::hotlists::GENERATED`]).
+pub const SIGNATURES: &str = "hot-text.signatures";
+/// The plan `so` writes next to the lists (never committed).
+pub const PLAN: &str = "layout-bins.tsv";
+/// The mode every program runs (start-up): its sections' members are linked by every program.
+pub const STARTUP_MODE: &str = "true";
+
+/// One grouped section: its name in the archive, bytes, alignment, list position and signature.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Item {
+    pub name: String,
+    pub bytes: u64,
+    pub align: u64,
+    pub pos: usize,
+    pub sig: BTreeSet<String>,
+}
+
+/// One cold section a bin's gap may take: name, bytes, alignment.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Cold {
+    pub name: String,
+    pub bytes: u64,
+    pub align: u64,
+}
+
+/// One bin: its members (indices into the items, list order) and fillers (indices into the cold pool,
+/// in placement order), the members' extent, the end after the fillers, the modes that touch it, and
+/// whether the next bin starts on a boundary (a gap to fill; false for the last bin some mode touches
+/// and every bin after it, which no counted mode runs, so nothing after them needs a boundary).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Bin {
+    pub members: Vec<usize>,
+    pub fillers: Vec<usize>,
+    pub used: u64,
+    pub end: u64,
+    pub modes: BTreeSet<String>,
+    pub gap: bool,
+}
+
+impl Bin {
+    /// The windows the bin's members span from a [`BIN`] boundary (at least one).
+    pub fn windows(&self) -> u64 {
+        self.used.div_ceil(BIN).max(1)
+    }
+
+    /// The bytes from the members' end to the next boundary that no filler took (none without a gap).
+    pub fn residual(&self) -> u64 {
+        if self.gap { self.used.next_multiple_of(BIN) - self.end } else { 0 }
+    }
+}
+
+/// A plan: the bins in link order.
+#[derive(Debug, PartialEq)]
+pub struct Plan {
+    pub bins: Vec<Bin>,
+}
+
+/// Where a section of `bytes` and `align` ends when laid out from offset `off`.
+fn place(off: u64, bytes: u64, align: u64) -> u64 {
+    off.next_multiple_of(align.max(1)) + bytes
+}
+
+/// The extent of `idx` (indices into `items`) laid out in list order from a [`BIN`] boundary.
+fn extent(items: &[Item], idx: &[usize]) -> u64 {
+    let mut v = idx.to_vec();
+    v.sort_by_key(|&i| (items[i].pos, i));
+    v.iter().fold(0, |off, &i| place(off, items[i].bytes, items[i].align))
+}
+
+/// The window-bin plan of `items` with fillers from `cold` (see the module comment).
+pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
+    let mut groups: BTreeMap<&BTreeSet<String>, Vec<usize>> = BTreeMap::new();
+    for (i, it) in items.iter().enumerate() {
+        groups.entry(&it.sig).or_default().push(i);
+    }
+    let mut order: Vec<(&BTreeSet<String>, Vec<usize>)> = groups
+        .into_iter()
+        .map(|(s, mut v)| {
+            v.sort_by_key(|&i| (items[i].pos, i));
+            (s, v)
+        })
+        .collect();
+    order.sort_by_key(|(s, v)| (Reverse(s.len()), items[v[0]].pos));
+    let mut bins: Vec<Bin> = Vec::new();
+    for (sig, mut rest) in order {
+        while !rest.is_empty() {
+            let best = bins
+                .iter()
+                .enumerate()
+                .filter(|(_, b)| extent(items, &[b.members.as_slice(), rest.as_slice()].concat()) <= BIN)
+                .min_by_key(|(i, b)| (sig.difference(&b.modes).count(), *i))
+                .map(|(i, _)| i);
+            if let Some(i) = best {
+                let b = &mut bins[i];
+                b.members.append(&mut rest);
+                b.modes.extend(sig.iter().cloned());
+                break;
+            }
+            // A fresh bin: the longest prefix (list order) that fits, at least one section.
+            let mut off = 0;
+            let mut take = 0;
+            while take < rest.len() {
+                let next = place(off, items[rest[take]].bytes, items[rest[take]].align);
+                if next > BIN && take > 0 {
+                    break;
+                }
+                off = next;
+                take += 1;
+            }
+            bins.push(Bin { members: rest.drain(..take).collect(), modes: sig.clone(), ..Bin::default() });
+        }
+    }
+    for b in &mut bins {
+        b.members.sort_by_key(|&i| (items[i].pos, i));
+        b.used = extent(items, &b.members);
+        b.end = b.used;
+    }
+    // Fillers: best fit, largest first, into every gap: up to the last bin some mode touches.
+    let mut pool: Vec<usize> = (0..cold.len()).filter(|&c| cold[c].bytes > 0 && cold[c].align <= BIN).collect();
+    pool.sort_by(|&a, &b| cold[b].bytes.cmp(&cold[a].bytes).then_with(|| cold[a].name.cmp(&cold[b].name)));
+    let mut taken = vec![false; cold.len()];
+    let last = bins.iter().rposition(|b| !b.modes.is_empty()).unwrap_or(0);
+    for b in bins.iter_mut().take(last) {
+        b.gap = true;
+        let limit = b.used.next_multiple_of(BIN);
+        while let Some(&c) = pool.iter().find(|&&c| !taken[c] && place(b.end, cold[c].bytes, cold[c].align) <= limit) {
+            taken[c] = true;
+            b.end = place(b.end, cold[c].bytes, cold[c].align);
+            b.fillers.push(c);
+        }
+    }
+    Plan { bins }
+}
+
+impl Plan {
+    /// Mode -> the windows it touches under the plan (each bin it touches counts its windows).
+    pub fn windows(&self) -> BTreeMap<String, u64> {
+        let mut out = BTreeMap::new();
+        for b in &self.bins {
+            for m in &b.modes {
+                *out.entry(m.clone()).or_insert(0) += b.windows();
+            }
+        }
+        out
+    }
+
+    /// Mode -> a lower bound of its windows over the group: the bytes of its sections over [`BIN`],
+    /// rounded up (alignment padding left out, so it never exceeds the optimum).
+    pub fn bound(items: &[Item]) -> BTreeMap<String, u64> {
+        let mut bytes: BTreeMap<String, u64> = BTreeMap::new();
+        for it in items {
+            for m in &it.sig {
+                *bytes.entry(m.clone()).or_insert(0) += it.bytes;
+            }
+        }
+        bytes.into_iter().map(|(m, b)| (m, b.div_ceil(BIN))).collect()
+    }
+
+    /// The plan as `layout-bins.tsv`: `<bin> TAB <section> TAB <bytes> TAB <signature>`, members then
+    /// fillers per bin (signature `-` for a member no counted mode runs, `cold` for a filler).
+    pub fn tsv(&self, items: &[Item], cold: &[Cold]) -> String {
+        let mut out = String::from(
+            "# Written by cargo xtask so (LAYOUT-WINDOW-BINS, D-X.103): the window-bin plan of the hot group (planned, not applied).\n\
+             # <bin> TAB <section> TAB <bytes> TAB <signature: page_faults modes, comma-separated; - none; cold = a filler>\n",
+        );
+        for (n, b) in self.bins.iter().enumerate() {
+            for &i in &b.members {
+                let sig = if items[i].sig.is_empty() { "-".to_string() } else { items[i].sig.iter().cloned().collect::<Vec<_>>().join(",") };
+                let _ = writeln!(out, "{n}\t{}\t{}\t{sig}", items[i].name, items[i].bytes);
+            }
+            for &c in &b.fillers {
+                let _ = writeln!(out, "{n}\t{}\t{}\tcold", cold[c].name, cold[c].bytes);
+            }
+        }
+        out
+    }
+
+    /// The summary `so` prints: one line per bin, then one per mode (planned windows and the bound).
+    pub fn summary(&self, items: &[Item], cold: &[Cold]) -> Vec<String> {
+        let mut out = Vec::new();
+        let (mut fill, mut residual) = (0, 0);
+        for (n, b) in self.bins.iter().enumerate() {
+            let filled: u64 = b.fillers.iter().map(|&c| cold[c].bytes).sum();
+            fill += filled;
+            residual += b.residual();
+            out.push(format!(
+                "so: window bin {n}: {} sections, {} bytes ({} windows), {} fillers {filled} bytes, residual {} bytes, modes {}",
+                b.members.len(),
+                b.used,
+                b.windows(),
+                b.fillers.len(),
+                b.residual(),
+                b.modes.iter().cloned().collect::<Vec<_>>().join(",")
+            ));
+        }
+        let bound = Plan::bound(items);
+        let planned = self.windows();
+        let text: Vec<String> = planned.iter().map(|(m, w)| format!("{m} {w}/{}", bound.get(m).copied().unwrap_or(0))).collect();
+        out.push(format!(
+            "so: window bins (planned, not applied): {} bins, {} sections, fillers {fill} bytes, residual {residual} bytes; windows/bound per mode: {}",
+            self.bins.len(),
+            items.len(),
+            text.join(" ")
+        ));
+        out
+    }
+}
+
+/// The lines of [`SIGNATURES`]: `<key> TAB <modes>` (comma-separated, `-` for none); `#` comments and blank
+/// lines skipped. Errors name the line.
+pub fn parse_signatures(text: &str) -> Result<BTreeMap<String, BTreeSet<String>>, String> {
+    let mut out = BTreeMap::new();
+    for (n, l) in text.lines().enumerate() {
+        if l.trim().is_empty() || l.starts_with('#') {
+            continue;
+        }
+        let bad = || format!("{SIGNATURES} line {}: {l:?}: want <key>\\t<modes, comma-separated, or ->", n + 1);
+        let [k, m] = l.split('\t').collect::<Vec<_>>()[..] else { return Err(bad()) };
+        if k.is_empty() || m.is_empty() {
+            return Err(bad());
+        }
+        let modes: BTreeSet<String> = if m == "-" { BTreeSet::new() } else { m.split(',').map(str::to_string).collect() };
+        if modes.iter().any(|x| x.is_empty() || x == "-") {
+            return Err(bad());
+        }
+        out.insert(k.to_string(), modes);
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_signatures, plan, Cold, Item, Plan, BIN};
+    use std::collections::BTreeSet;
+
+    fn item(name: &str, bytes: u64, align: u64, pos: usize, sig: &[&str]) -> Item {
+        Item { name: name.into(), bytes, align, pos, sig: sig.iter().map(|s| s.to_string()).collect() }
+    }
+
+    fn cold(name: &str, bytes: u64, align: u64) -> Cold {
+        Cold { name: name.into(), bytes, align }
+    }
+
+    fn names(p: &Plan, items: &[Item]) -> Vec<Vec<String>> {
+        p.bins.iter().map(|b| b.members.iter().map(|&i| items[i].name.clone()).collect()).collect()
+    }
+
+    #[test]
+    fn nested_signatures_share_a_bin() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): a section whose modes are inside a
+        // bin's modes joins that bin (no mode touches another window), whatever the list order; a
+        // disjoint signature that no longer fits goes to its own bin.
+        let items = [
+            item("a_only", 0x1000, 1, 0, &["a"]),
+            item("all", 0x4000, 1, 1, &["a", "b", "true"]),
+            item("b_only", 0x1000, 1, 2, &["b"]),
+            item("c_big", 0xc000, 1, 3, &["c"]),
+            item("c_more", 0x2000, 1, 4, &["c"]),
+        ];
+        let p = plan(&items, &[]);
+        assert_eq!(names(&p, &items), [vec!["a_only", "all", "b_only"], vec!["c_big", "c_more"]]);
+        let w = p.windows();
+        assert_eq!((w["a"], w["b"], w["c"], w["true"]), (1, 1, 1, 1));
+        assert_eq!(Plan::bound(&items)["c"], 1);
+    }
+
+    #[test]
+    fn a_group_splits_only_where_a_bin_is_full() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): three 0x6000-byte sections of one
+        // signature take two bins (two, then one), not three; a later narrower group fills the second
+        // bin's room instead of opening a third. Every mode then meets its lower bound.
+        let items = [
+            item("s0", 0x6000, 1, 0, &["a", "b"]),
+            item("s1", 0x6000, 1, 1, &["a", "b"]),
+            item("s2", 0x6000, 1, 2, &["a", "b"]),
+            item("n0", 0x8000, 1, 3, &["a"]),
+        ];
+        let p = plan(&items, &[]);
+        assert_eq!(names(&p, &items), [vec!["s0", "s1"], vec!["s2", "n0"]]);
+        assert_eq!(p.windows(), Plan::bound(&items));
+        assert_eq!(p.bins.iter().map(|b| b.used).collect::<Vec<_>>(), [0xc000, 0xe000]);
+    }
+
+    #[test]
+    fn alignment_counts_in_a_bin() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): a bin's extent includes the
+        // padding its members' alignments ask for, so a pair whose bytes fit but whose aligned extent
+        // does not goes to two bins; the extent follows list order, not the order of the input.
+        let items = [item("b", 0x7fff, 0x1000, 1, &["a"]), item("a", 0x8001, 1, 0, &["a"])];
+        let p = plan(&items, &[]);
+        assert_eq!(p.bins.len(), 2, "{:?}", p.bins);
+        let fit = [item("b", 0x7fff, 0x1000, 1, &["a"]), item("a", 0x7000, 1, 0, &["a"])];
+        let p = plan(&fit, &[]);
+        assert_eq!(p.bins.len(), 1);
+        assert_eq!(p.bins[0].used, 0x7000 + 0x7fff);
+        assert_eq!(p.bins[0].members, [1, 0]);
+    }
+
+    #[test]
+    fn fillers_take_the_gap_best_fit_and_never_twice() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): the gap to the next boundary is
+        // filled largest-first with cold sections that fit (alignment included); a cold section fills
+        // one gap only, and the last bin takes no filler (nothing follows it).
+        let items = [item("x", 0xf000, 1, 0, &["a"]), item("y", 0xf800, 1, 1, &["b"]), item("z", 0x1100, 1, 2, &["c"])];
+        let pool = [cold("big", 0x2000, 1), cold("m", 0x800, 1), cold("s", 0x680, 1), cold("t", 0x100, 0x100), cold("u", 0x80, 1), cold("z0", 0, 1)];
+        let p = plan(&items, &pool);
+        assert_eq!(p.bins.len(), 3);
+        assert_eq!(p.bins[0].fillers, [1, 2, 3]);
+        assert_eq!(p.bins[0].end, BIN, "t aligned to 0x100 after m and s");
+        assert_eq!(p.bins[0].residual(), 0);
+        assert_eq!(p.bins[1].fillers, [4], "m would fit bin 1 exactly but already fills bin 0");
+        assert_eq!(p.bins[1].residual(), 0x800 - 0x80);
+        assert!(p.bins[2].fillers.is_empty());
+        let tsv = p.tsv(&items, &pool);
+        assert!(tsv.contains("0\tm\t2048\tcold\n") && tsv.contains("2\tz\t4352\tc\n"), "{tsv}");
+    }
+
+    #[test]
+    fn bins_no_mode_touches_need_no_boundary_and_take_no_filler() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): sections no counted mode runs
+        // come after the counted bins and need no 64 KiB start, so neither they nor the last counted
+        // bin before them take fillers or count residual fill.
+        let items = [item("x", 0xf000, 1, 0, &["a"]), item("u0", 0x9000, 1, 1, &[]), item("u1", 0x9000, 1, 2, &[])];
+        let pool = [cold("c", 0x800, 1)];
+        let p = plan(&items, &pool);
+        assert_eq!(names(&p, &items), [vec!["x"], vec!["u0"], vec!["u1"]]);
+        assert!(p.bins.iter().all(|b| b.fillers.is_empty() && !b.gap && b.residual() == 0), "{:?}", p.bins);
+        let two = [item("x", 0xf000, 1, 0, &["a"]), item("y", 0x2000, 1, 1, &["b"]), item("u0", 0x9000, 1, 2, &[])];
+        let p = plan(&two, &pool);
+        assert_eq!((p.bins[0].gap, p.bins[0].fillers.as_slice(), p.bins[1].gap), (true, &[0][..], false));
+    }
+
+    #[test]
+    fn the_plan_does_not_depend_on_input_order() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): the plan is a function of the
+        // sections (signature, list position, size), not of the order the archive lists them in.
+        let items = [
+            item("p0", 0x9000, 1, 0, &["a", "b", "true"]),
+            item("p1", 0x9000, 1, 1, &["a"]),
+            item("p2", 0x3000, 1, 2, &["b"]),
+            item("p3", 0x5000, 1, 3, &[]),
+            item("p4", 0x2000, 1, 4, &["a", "b", "true"]),
+        ];
+        let mut rev = items.to_vec();
+        rev.reverse();
+        let (a, b) = (plan(&items, &[]), plan(&rev, &[]));
+        assert_eq!(names(&a, &items), names(&b, &rev));
+        assert_eq!(names(&a, &items), [vec!["p0", "p2", "p4"], vec!["p1", "p3"]]);
+    }
+
+    #[test]
+    fn signatures_parse_and_refuse_bad_lines() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): `-` is the empty signature; a line
+        // without exactly two fields, an empty mode or `-` among modes is refused by line number.
+        let s = parse_signatures("# c\nk1\ttrue,locale\nk2\t-\n").unwrap();
+        assert_eq!(s["k1"], ["locale", "true"].iter().map(|x| x.to_string()).collect::<BTreeSet<_>>());
+        assert!(s["k2"].is_empty());
+        for bad in ["k1\n", "k1\ta\tb\n", "k1\ta,,b\n", "k1\ta,-\n", "\ta\n"] {
+            let e = parse_signatures(bad).unwrap_err();
+            assert!(e.contains("line 1"), "{bad:?}: {e}");
+        }
+        assert_eq!(BIN, 0x10000);
+    }
+}
