@@ -16,6 +16,11 @@
 //! filled best-fit (largest first) from cold sections of the members every program links; what is left is
 //! the residual fill. [`Plan::bound`] is a lower bound per mode (its bytes over [`BIN`], rounded up), so
 //! the plan's distance from optimal is printed, not assumed.
+//!
+//! LAYOUT-WINDOW-BINS-4: a phase mode counts only the faults after its warm-up, so its signatures carry the
+//! warm-up as a mode of its own ([`WARM_UP`]); the planner groups by the modes that count a section
+//! ([`counted`]), charges a phase mode nothing in a bin its warm-up runs in, and places the measured
+//! phase's sections into such a bin as soon as one has room.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
@@ -137,48 +142,109 @@ pub fn section(bin: usize, filler: bool, place: usize, f: &str) -> String {
     format!(".text.sorted.h9{bin:02}{}{place:05}.{f}", u8::from(filler))
 }
 
-/// The window-bin plan of `items` with fillers from `cold` (see the module comment).
-pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
-    let mut groups: BTreeMap<&BTreeSet<String>, Vec<usize>> = BTreeMap::new();
-    for (i, it) in items.iter().enumerate() {
-        groups.entry(&it.sig).or_default().push(i);
+/// The suffix of a phase mode's warm-up mode in the signatures (LAYOUT-WINDOW-BINS-4). A **phase mode** of
+/// `page_faults.c` (one that prints `f1 - f0`) counts only the faults of its measured phase, after its
+/// warm-up; `tools/hottext/regen.sh` writes the names the warm-up runs (up to the first `getrusage`, the
+/// `minflt()` at f0) as the mode `<mode>.pre`. Every window a warm-up section is in has faulted before the
+/// phase starts, so the phase's own sections cost nothing there.
+pub const WARM_UP: &str = ".pre";
+
+/// Mode `m`'s warm-up mode.
+fn warm_up(m: &str) -> String {
+    format!("{m}{WARM_UP}")
+}
+
+/// The counted modes of signature `sig`: the modes whose fault count a section of it is in. A warm-up mode
+/// counts nothing, and a phase mode whose warm-up runs the section too does not count it.
+pub fn counted(sig: &BTreeSet<String>) -> BTreeSet<String> {
+    sig.iter().filter(|m| !m.ends_with(WARM_UP) && !sig.contains(&warm_up(m))).cloned().collect()
+}
+
+/// The counted modes of `sig` that a bin whose sections run `modes` would newly charge: those that touch
+/// it nowhere yet, neither themselves nor through their warm-up.
+fn added(sig: &BTreeSet<String>, modes: &BTreeSet<String>) -> usize {
+    sig.iter().filter(|m| !modes.contains(*m) && !modes.contains(&warm_up(m))).count()
+}
+
+/// Whether bin `n` can take the sections `rest` besides its members.
+fn fits(items: &[Item], b: &Bin, n: usize, rest: &[usize]) -> bool {
+    extent(items, &[b.members.as_slice(), rest].concat()) <= capacity(n)
+}
+
+/// Moves `rest` into bin `b`, whose modes then include every mode of their signatures (warm-ups too).
+fn join(items: &[Item], b: &mut Bin, rest: &mut Vec<usize>) {
+    for &i in rest.iter() {
+        b.modes.extend(items[i].sig.iter().cloned());
     }
-    let mut order: Vec<(&BTreeSet<String>, Vec<usize>)> = groups
+    b.members.append(rest);
+}
+
+/// Places the group `rest` of counted signature `sig`: whole into the existing bin it charges the fewest
+/// modes (the first such), or else into fresh bins, the longest prefix (list order) that fits each.
+fn put(items: &[Item], bins: &mut Vec<Bin>, sig: &BTreeSet<String>, mut rest: Vec<usize>) {
+    while !rest.is_empty() {
+        let best = bins
+            .iter()
+            .enumerate()
+            .filter(|(n, b)| fits(items, b, *n, &rest))
+            .min_by_key(|(n, b)| (added(sig, &b.modes), *n))
+            .map(|(n, _)| n);
+        if let Some(n) = best {
+            join(items, &mut bins[n], &mut rest);
+            return;
+        }
+        let mut off = 0;
+        let mut take = 0;
+        let cap = capacity(bins.len());
+        while take < rest.len() {
+            let next = place(off, items[rest[take]].bytes, items[rest[take]].align);
+            if next > cap && take > 0 {
+                break;
+            }
+            off = next;
+            take += 1;
+        }
+        let mut b = Bin::default();
+        join(items, &mut b, &mut rest.drain(..take).collect());
+        bins.push(b);
+    }
+}
+
+/// The window-bin plan of `items` with fillers from `cold` (see the module comment). Groups are the
+/// sections of one counted signature ([`counted`]); the start-up groups go first (the head bin), then
+/// the widest. A group in a phase mode's measured phase is placed as soon as a bin that charges it
+/// nothing (its warm-up runs there) has room for it whole, ahead of its turn, so the phase's sections
+/// share the windows its warm-up faulted (LAYOUT-WINDOW-BINS-4); one that never finds such room is
+/// placed at its turn like any other.
+pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
+    let mut groups: BTreeMap<BTreeSet<String>, Vec<usize>> = BTreeMap::new();
+    for (i, it) in items.iter().enumerate() {
+        groups.entry(counted(&it.sig)).or_default().push(i);
+    }
+    let phase: BTreeSet<&str> = items.iter().flat_map(|it| it.sig.iter()).filter_map(|m| m.strip_suffix(WARM_UP)).collect();
+    let mut order: Vec<(BTreeSet<String>, Vec<usize>)> = groups
         .into_iter()
         .map(|(s, mut v)| {
             v.sort_by_key(|&i| (items[i].pos, i));
             (s, v)
         })
         .collect();
-    order.sort_by_key(|(s, v)| (Reverse(s.len()), items[v[0]].pos));
+    order.sort_by_key(|(s, v)| (!s.contains(STARTUP_MODE), Reverse(s.len()), items[v[0]].pos));
+    let early: Vec<bool> = order.iter().map(|(s, _)| s.iter().any(|m| phase.contains(m.as_str()))).collect();
+    let mut done = vec![false; order.len()];
     let mut bins: Vec<Bin> = Vec::new();
-    for (sig, mut rest) in order {
-        while !rest.is_empty() {
-            let best = bins
-                .iter()
-                .enumerate()
-                .filter(|(i, b)| extent(items, &[b.members.as_slice(), rest.as_slice()].concat()) <= capacity(*i))
-                .min_by_key(|(i, b)| (sig.difference(&b.modes).count(), *i))
-                .map(|(i, _)| i);
-            if let Some(i) = best {
-                let b = &mut bins[i];
-                b.members.append(&mut rest);
-                b.modes.extend(sig.iter().cloned());
-                break;
-            }
-            // A fresh bin: the longest prefix (list order) that fits, at least one section.
-            let mut off = 0;
-            let mut take = 0;
-            let cap = capacity(bins.len());
-            while take < rest.len() {
-                let next = place(off, items[rest[take]].bytes, items[rest[take]].align);
-                if next > cap && take > 0 {
-                    break;
-                }
-                off = next;
-                take += 1;
-            }
-            bins.push(Bin { members: rest.drain(..take).collect(), modes: sig.clone(), ..Bin::default() });
+    for g in 0..order.len() {
+        if done[g] {
+            continue;
+        }
+        done[g] = true;
+        put(items, &mut bins, &order[g].0, order[g].1.clone());
+        while let Some((j, n)) = (0..order.len()).filter(|&j| early[j] && !done[j]).find_map(|j| {
+            let (sig, rest) = &order[j];
+            bins.iter().enumerate().position(|(n, b)| added(sig, &b.modes) == 0 && fits(items, b, n, rest)).map(|n| (j, n))
+        }) {
+            done[j] = true;
+            join(items, &mut bins[n], &mut order[j].1.clone());
         }
     }
     for b in &mut bins {
@@ -205,12 +271,15 @@ pub fn plan(items: &[Item], cold: &[Cold]) -> Plan {
 }
 
 impl Plan {
-    /// Mode -> the windows it touches under the plan (each bin it touches counts its windows).
+    /// Mode -> the windows it is charged under the plan: each bin it touches counts its windows, except,
+    /// for a phase mode, a bin its warm-up touches too ([`WARM_UP`]: those faulted before the phase).
+    /// Warm-up modes are not listed.
     pub fn windows(&self) -> BTreeMap<String, u64> {
         let mut out = BTreeMap::new();
         for b in &self.bins {
-            for m in &b.modes {
-                *out.entry(m.clone()).or_insert(0) += b.windows();
+            for m in b.modes.iter().filter(|m| !m.ends_with(WARM_UP)) {
+                let w = if b.modes.contains(&warm_up(m)) { 0 } else { b.windows() };
+                *out.entry(m.clone()).or_insert(0) += w;
             }
         }
         out
@@ -239,15 +308,17 @@ impl Plan {
     }
 
     /// Mode -> a lower bound of its windows over the group: the bytes of its sections over [`BIN`],
-    /// rounded up (alignment padding left out, so it never exceeds the optimum).
+    /// rounded up (alignment padding left out, so it never exceeds the optimum). A phase mode's bound is
+    /// 0: its phase's sections may all share windows its warm-up faulted.
     pub fn bound(items: &[Item]) -> BTreeMap<String, u64> {
         let mut bytes: BTreeMap<String, u64> = BTreeMap::new();
         for it in items {
-            for m in &it.sig {
+            for m in it.sig.iter().filter(|m| !m.ends_with(WARM_UP)) {
                 *bytes.entry(m.clone()).or_insert(0) += it.bytes;
             }
         }
-        bytes.into_iter().map(|(m, b)| (m, b.div_ceil(BIN))).collect()
+        let phase: BTreeSet<&str> = items.iter().flat_map(|it| it.sig.iter()).filter_map(|m| m.strip_suffix(WARM_UP)).collect();
+        bytes.into_iter().map(|(m, b)| (m.clone(), if phase.contains(m.as_str()) { 0 } else { b.div_ceil(BIN) })).collect()
     }
 
     /// The plan as `layout-bins.tsv`: `<bin> TAB <section> TAB <bytes> TAB <signature>`, members then
@@ -481,6 +552,48 @@ mod tests {
         let p = plan(&items, &[]);
         assert_eq!(names(&p, &items), [vec!["t0"], vec!["t1"], vec!["x"]]);
         assert_eq!(p.bins[0].limit, BIN - HEAD_ROOM);
+    }
+
+    #[test]
+    fn a_measured_phase_shares_its_warm_up_windows() {
+        // LAYOUT-WINDOW-BINS-4 (no spec clause: build tooling, D-X.103): phase mode `s` counts only what
+        // runs after its warm-up (`s.pre`). Its phase's section `p` goes into the head bin, which the
+        // warm-up (start-up) runs in, ahead of the wider whole-process group `w` that would otherwise fill
+        // that room, so `s` is charged no window; `w` then takes a bin of its own.
+        let items = [
+            item("t", 0xc000, 1, 0, &["true", "a", "s", "s.pre"]),
+            item("w", 0x3000, 1, 1, &["a", "b"]),
+            item("p", 0x3000, 1, 2, &["s"]),
+            item("q", 0x2000, 1, 3, &["a", "s", "s.pre"]),
+        ];
+        let p = plan(&items, &[]);
+        assert_eq!(names(&p, &items), [vec!["t", "p"], vec!["w", "q"]]);
+        let w = p.windows();
+        assert_eq!((w["s"], w["a"], w["b"], w["true"]), (0, 2, 1, 1), "{w:?}");
+        assert!(!w.contains_key("s.pre"), "a warm-up mode is not charged");
+        assert_eq!(Plan::bound(&items)["s"], 0);
+        // Without the warm-up in its signatures, `s` pays for the window it shares with `t`.
+        let plain: Vec<Item> = items.iter().map(|it| Item { sig: it.sig.iter().filter(|m| *m != "s.pre").cloned().collect(), ..it.clone() }).collect();
+        assert_eq!(plan(&plain, &[]).windows()["s"], 2);
+    }
+
+    #[test]
+    fn a_phase_split_by_its_warm_up_is_one_group() {
+        // LAYOUT-WINDOW-BINS-4 (no spec clause: build tooling, D-X.103): sections the phase of `f` runs
+        // are one group whatever else runs them in a warm-up (`f2.pre`), so they share one fresh bin,
+        // and a section of the warm-up only is charged to no mode.
+        let items = [
+            item("t", 0xf000, 1, 0, &["true", "f2", "f2.pre", "f", "f.pre"]),
+            item("x", 0x6000, 1, 1, &["f", "f2", "f2.pre"]),
+            item("g", 0x9000, 1, 2, &["g"]),
+            item("y", 0x8000, 1, 3, &["f"]),
+            item("r", 0x800, 1, 4, &["f2", "f2.pre"]),
+        ];
+        let p = plan(&items, &[]);
+        assert_eq!(names(&p, &items), [vec!["t", "r"], vec!["x", "y"], vec!["g"]]);
+        let w = p.windows();
+        assert_eq!((w["f"], w["f2"], w["g"]), (1, 0, 1), "{w:?}");
+        assert_eq!(super::counted(&items[4].sig), BTreeSet::new());
     }
 
     #[test]

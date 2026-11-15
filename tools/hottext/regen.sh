@@ -203,6 +203,30 @@ echo "hot-text: $(wc -l < "$work/new.keys") keys traced ($profile), $(grep -vc '
 # into $L/hot-text.signatures; `cargo xtask so` plans the window bins from it (layout-bins.tsv).
 echo "true=$work/startup.names" >> "$work/modes"
 for f in "$work"/probe/names.*; do if [ -e "$f" ]; then echo "${f##*/names.}=$f" >> "$work/modes"; fi; done
+# LAYOUT-WINDOW-BINS-4: a phase mode of page_faults.c (its block prints `f1 - f0`) counts only the faults
+# after its warm-up, which ends at its first getrusage (minflt() at f0; nothing earlier in the process
+# calls it). The names its trace touched up to that call are the signature mode `<mode>.pre`, so the
+# planner (xtask/src/bins.rs, WARM_UP) puts the measured phase's sections into windows the warm-up faulted.
+phase=$(awk 'match($0, /strcmp\(argv\[1\], "[A-Za-z0-9_]+"\)/) { m = substr($0, RSTART + 17, RLENGTH - 19) } /f1 - f0/ { print m }' \
+        "$T/crates/core/tests/oracle/page_faults.c" | sort -u)
+if [ -z "$phase" ]; then
+    echo "regen: found no phase mode in page_faults.c (a mode whose block prints f1 - f0): the parse no longer matches the source" >&2
+    exit 1
+fi
+for m in $phase; do
+    f=$(sed -n "s/^$m=//p" "$work/modes")
+    if [ -z "$f" ] || [ "$(printf '%s\n' "$f" | wc -l)" -ne 1 ]; then
+        echo "regen: phase mode $m of page_faults.c: want one trace, got '$f'" >&2
+        exit 1
+    fi
+    if ! grep -qx getrusage "$f"; then
+        echo "regen: phase mode $m: its trace never ran getrusage (minflt() at f0 ends the warm-up)" >&2
+        exit 1
+    fi
+    sed '/^getrusage$/q' "$f" > "$f.pre"
+    echo "$m.pre=$f.pre" >> "$work/modes"
+done
+echo "hot-text.signatures: phase modes (warm-up traced as <mode>.pre): $(printf '%s\n' "$phase" | tr '\n' ' ')"
 {
     echo "# Written by tools/hottext/regen.sh during cargo xtask so (a trace of this build; never committed)."
     echo "# LAYOUT-WINDOW-BINS (D-X.103): <key> TAB <page_faults modes that run it, comma-separated; - none>, in hot-text.list order."
