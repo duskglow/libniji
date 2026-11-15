@@ -116,6 +116,10 @@ impl FakePages {
 }
 
 impl Pages for FakePages {
+    type General = Self;
+    fn general(&self) -> &Self {
+        self
+    }
     fn address_limit(&self) -> Option<usize> {
         self.limit.get()
     }
@@ -175,8 +179,8 @@ impl Pages for FakePages {
         self.node_asks.set(self.node_asks.get() + 1);
         self.nodes.get()
     }
-    fn cache_slot(&self) -> &AtomicUsize {
-        &self.slots[self.thread.get()]
+    fn cache_slot(&self) -> Option<&AtomicUsize> {
+        Some(&self.slots[self.thread.get()])
     }
     fn race_point(&self, at: RacePoint) {
         assert_eq!(at, RacePoint::RemotePinned);

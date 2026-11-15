@@ -154,12 +154,13 @@ fn init_products_are_grouped_from_a_trace_of_their_own_build() {
         }
         assert_eq!(format!("{h:016x}"), want, "TRACE-AT-BUILD: {} changed after the build that grouped from it", dir.join(name).display());
         let keys = String::from_utf8_lossy(&bytes).lines().filter(|k| !k.trim().is_empty() && !k.starts_with('#')).count();
-        if name == "hot-text.list" || name == "startup-text.keys" {
+        if name == "hot-text.list" || name == "startup-text.keys" || name == "hot-text.signatures" {
             assert!(keys > 0, "TRACE-AT-BUILD: {} holds no key: an ungrouped product (LIELLA_LAYOUT_TRACE=ungrouped)", dir.join(name).display());
         }
         named += 1;
     }
-    assert_eq!(named, 4, "TRACE-AT-BUILD: the marker names {named} lists, want the 4 generated ones");
+    // LAYOUT-WINDOW-BINS (D-X.103): hot-text.signatures is the fifth.
+    assert_eq!(named, 5, "TRACE-AT-BUILD: the marker names {named} lists, want the 5 generated ones");
 }
 
 fn build(out: &Path) {
@@ -340,7 +341,15 @@ fn init_first_mktime_after_localtime_r_takes_no_fault() {
 /// strftime's functions: 19; the rule-years table four times longer: 21). LOCALTIME_BOUND 22 -> 20
 /// (18 plus 2).
 /// LAYOUT-TRACE-DEFAULT: 20 -> 18, the highest count of the four host classes and both profiles (see TRUE_BOUND).
-const LOCALTIME_BOUND: u64 = 18;
+/// HEAP-RSEQ-NODE-3 (records/pending/HEAP-RSEQ-NODE-3-1.toml, amends D-X.53): the "localtime" mode now reports the whole
+/// process's faults up to the end of the first `localtime_r` (start-up plus the call). The vDSO lookup
+/// stays lazy (owner ruling #5735 (b)): when the heap stopped calling the vDSO `getcpu` at start-up, the
+/// lookup moved into the first clock call, which the call-only count read as +2 (20 > 18 on two-node
+/// hosts) although the process did no more work. Counted whole, a fault that moves between start-up
+/// and the first call shows as no change. Bound = origin/next 5bbefc645's whole-process count measured
+/// the same way (this probe, this harness), per profile: Skylake-SP host (two NUMA nodes), every run
+/// identical, fast 40, release 42; this branch reads the same. Indexed by [`profile_index`].
+const LOCALTIME_BOUND: [u64; 2] = [40, 42];
 
 /// The first `localtime_r` (zone load included) and the first `mktime` after it, counted
 /// together (PERF-ZONE-LOAD-FAULTS-2): a fault that moves from one call to its neighbour (the
@@ -352,7 +361,39 @@ const LOCALTIME_BOUND: u64 = 18;
 /// PERF-ZONE-LOAD-FAULTS-3 (merge of next, see LOCALTIME_BOUND): Zen 1 host role, every run
 /// identical, 18. Bound 22 -> 20 (18 plus 2).
 /// LAYOUT-TRACE-DEFAULT: 20 -> 18, the highest count of the four host classes and both profiles (see TRUE_BOUND).
-const LOCALTIME_MKTIME_BOUND: u64 = 18;
+/// HEAP-RSEQ-NODE-3: whole process up to the end of the first mktime, as for [`LOCALTIME_BOUND`];
+/// origin/next 5bbefc645, same host and harness, every run identical: fast 40, release 42.
+const LOCALTIME_MKTIME_BOUND: [u64; 2] = [40, 42];
+
+/// A whole-process count this far under its bound fails too: either the probe no longer counts
+/// start-up (a call-only count reads about 20 under these bounds) or the level improved and the bound
+/// must come down to it (ALWAYS FORWARD). Room for the one-fault spread between host classes.
+const WHOLE_COUNT_SLACK: u64 = 4;
+
+/// 0 for products of the `fast` profile, 1 for `release`: the directory the products' start-up lists
+/// marker names (`target/product/<profile>`, see [`generated_list`]).
+fn profile_index() -> usize {
+    let dir = generated_list("");
+    let name = dir.components().next_back().map(|c| c.as_os_str().to_string_lossy().into_owned()).unwrap_or_default();
+    match name.as_str() {
+        "fast" => 0,
+        "release" => 1,
+        other => panic!("target/liella/.hot-lists names products of profile {other:?}, want fast or release"),
+    }
+}
+
+/// [`faults`] of a whole-process mode, checked against its per-profile bound from both sides.
+fn check_whole_count(what: &str, s: u64, bounds: [u64; 2]) {
+    let p = profile_index();
+    let bound = bounds[p];
+    let profile = ["fast", "release"][p];
+    eprintln!("{what} (whole process, {profile}): {s} page faults (bound {bound})");
+    assert!(s <= bound, "{what} (whole process, {profile} products): {s} page faults > {bound} (zone-load or mktime text left the hot group, or start-up grew?)");
+    assert!(
+        s >= bound.saturating_sub(WHOLE_COUNT_SLACK),
+        "{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"
+    );
+}
 
 #[test]
 fn init_first_localtime_r_and_mktime_stay_within_their_combined_page_fault_bound() {
@@ -368,7 +409,7 @@ fn init_first_localtime_r_and_mktime_stay_within_their_combined_page_fault_bound
     let exe = dir.join("page_faults_liella_localtime_mktime");
     build(&exe);
     let s = faults(&exe, "localtime_mktime");
-    assert!(s <= LOCALTIME_MKTIME_BOUND, "first localtime_r + first mktime: {s} page faults > {LOCALTIME_MKTIME_BOUND} (zone-load or mktime text left the hot group?)");
+    check_whole_count("start-up + first localtime_r + first mktime", s, LOCALTIME_MKTIME_BOUND);
 }
 
 #[test]
@@ -386,7 +427,7 @@ fn init_first_localtime_r_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_liella_localtime");
     build(&exe);
     let s = faults(&exe, "localtime");
-    assert!(s <= LOCALTIME_BOUND, "first localtime_r: {s} page faults > {LOCALTIME_BOUND} (zone tables grown through several sizes again?)");
+    check_whole_count("start-up + first localtime_r", s, LOCALTIME_BOUND);
 }
 
 /// The faults of a program's first `%.2f` (PERF-FIRSTCALL-MKTIME-SNPRINTF). `format_float` with the

@@ -1,0 +1,479 @@
+header	dir	versions	kind	section	prototypes	slice	note
+a.out.h	multiarch	both	public	27	0	16	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+aio.h	plain	both	public	11	17	14	
+aliases.h	plain	both	public	16	6	12	
+alloca.h	plain	both	public	3	1	5	
+ar.h	plain	both	public	27	0	16	
+argp.h	plain	both	public	1	18	17	
+argz.h	plain	both	public	4	17	17	
+arpa/ftp.h	plain	both	public	15	0	13	
+arpa/inet.h	plain	both	public	15	14	12	
+arpa/nameser.h	plain	both	public	16	26	12	
+arpa/nameser_compat.h	plain	both	public	16	0	12	
+arpa/telnet.h	plain	both	public	15	0	13	
+arpa/tftp.h	plain	both	public	15	0	13	
+assert.h	plain	both	public	2	0	6	
+bits/a.out.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/argp-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/atomic_wide_counter.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/byteswap.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/cloexec.h	multiarch	2.41-only	internal	-	0	-	reference's internal split: not reproduced
+bits/cmathcalls.h	multiarch	both	internal	-	368	-	reference's internal split: not reproduced
+bits/confname.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/cpu-set.h	multiarch	both	internal	-	3	-	reference's internal split: not reproduced
+bits/dirent.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/dirent_ext.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/dl_find_object.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/dlfcn.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/elfclass.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/endian.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/endianness.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/environments.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/epoll.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/err-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/errno.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/error-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/error.h	multiarch	both	internal	-	4	-	reference's internal split: not reproduced
+bits/eventfd.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/fcntl-linux.h	multiarch	both	internal	-	9	-	reference's internal split: not reproduced
+bits/fcntl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/fcntl2.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/fenv.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/floatn-common.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/floatn.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/flt-eval-method.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/fp-fast.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/fp-logb.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/getopt_core.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/getopt_ext.h	multiarch	both	internal	-	2	-	reference's internal split: not reproduced
+bits/getopt_posix.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/hwcap.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/in.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/indirect-return.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/initspin.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/inotify.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/ioctl-types.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/ioctls.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/ipc-perm.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/ipc.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/ipctypes.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/iscanonical.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/libc-header-start.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/libm-simd-decl-stubs.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/link.h	multiarch	both	internal	-	4	-	reference's internal split: not reproduced
+bits/link_lavcurrent.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/local_lim.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/locale.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/long-double.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/math-vector.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/mathcalls-helper-functions.h	multiarch	both	internal	-	28	-	reference's internal split: not reproduced
+bits/mathcalls-macros.h	multiarch	2.41-only	internal	-	0	-	reference's internal split: not reproduced
+bits/mathcalls-narrow.h	multiarch	both	internal	-	78	-	reference's internal split: not reproduced
+bits/mathcalls.h	multiarch	both	internal	-	1423	-	reference's internal split: not reproduced
+bits/mathdef.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/mman-linux.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/mman-map-flags-generic.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/mman-shared.h	multiarch	both	internal	-	7	-	reference's internal split: not reproduced
+bits/mman.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/mman_ext.h	multiarch	both	internal	-	2	-	reference's internal split: not reproduced
+bits/monetary-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/mqueue.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/mqueue2.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/msq.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/netdb.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/param.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/platform/features.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/platform/x86.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/poll.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/poll2.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/posix1_lim.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/posix2_lim.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/posix_opt.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/printf-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/procfs-extra.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/procfs-id.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/procfs-prregset.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/procfs.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/pthread_stack_min-dynamic.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/pthread_stack_min.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/pthreadtypes-arch.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/pthreadtypes.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/ptrace-shared.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/resource.h	multiarch	both	internal	-	2	-	reference's internal split: not reproduced
+bits/rseq.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/sched.h	multiarch	both	internal	-	5	-	reference's internal split: not reproduced
+bits/select-decl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/select.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/select2.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/sem.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/semaphore.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/setjmp.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/setjmp2.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/shm.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/shmlba.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/sigaction.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/sigcontext.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/sigevent-consts.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/siginfo-arch.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/siginfo-consts-arch.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/siginfo-consts.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/signal_ext.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/signalfd.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/signum-arch.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/signum-generic.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/sigstack.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/sigstksz.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/sigthread.h	multiarch	both	internal	-	3	-	reference's internal split: not reproduced
+bits/sockaddr.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/socket-constants.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/socket.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/socket2.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/socket_type.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/spawn_ext.h	multiarch	both	internal	-	4	-	reference's internal split: not reproduced
+bits/ss_flags.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stat.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/statfs.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/statvfs.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/statx-generic.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/statx.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdint-intn.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdint-least.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdint-uintn.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdio-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdio.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdio2-decl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdio2.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdio_lim.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdlib-bsearch.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdlib-float.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdlib-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/stdlib.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/string_fortified.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/strings_fortified.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/struct_mutex.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/struct_rwlock.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/struct_stat.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/struct_stat_time64_helper.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/syscall.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/syslog-decl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/syslog-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/syslog-path.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/syslog.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/sysmacros.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-baud.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-c_cc.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-c_cflag.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-c_iflag.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-c_lflag.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-c_oflag.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-misc.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-struct.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios-tcflow.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/termios.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/thread-shared-types.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/time.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/time64.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/timerfd.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/timesize.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/timex.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/FILE.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/__FILE.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/__fpos64_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/__fpos_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/__locale_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/__mbstate_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/__sigset_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/__sigval_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/clock_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/clockid_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/cookie_io_functions_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/error_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/idtype_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/locale_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/mbstate_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/res_state.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/sig_atomic_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/sigevent_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/siginfo_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/sigset_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/sigval_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/stack_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_FILE.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct___jmp_buf_tag.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_iovec.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_itimerspec.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_msqid64_ds.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_msqid64_ds_helper.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_msqid_ds.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_osockaddr.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_rusage.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_sched_param.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_semid64_ds.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_semid64_ds_helper.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_semid_ds.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_shmid64_ds.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_shmid64_ds_helper.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_shmid_ds.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_sigstack.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_statx.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_statx_timestamp.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_timeb.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_timespec.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_timeval.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/struct_tm.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/time_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/timer_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/types/wint_t.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/typesizes.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/uintn-identity.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/uio-ext.h	multiarch	both	internal	-	2	-	reference's internal split: not reproduced
+bits/uio_lim.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/unistd-decl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/unistd.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/unistd_ext.h	multiarch	both	internal	-	1	-	reference's internal split: not reproduced
+bits/utmp.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/utmpx.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/utsname.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/waitflags.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/waitstatus.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/wchar-ldbl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/wchar.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/wchar2-decl.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/wchar2.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/wctype-wchar.h	multiarch	both	internal	-	16	-	reference's internal split: not reproduced
+bits/wordsize.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+bits/xopen_lim.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+byteswap.h	plain	both	public	8	0	5	
+complex.h	plain	both	public	10	0	11	
+cpio.h	plain	both	public	13	0	17	
+ctype.h	plain	both	public	5	38	6	
+dirent.h	plain	both	public	13	21	7	
+dlfcn.h	plain	both	public	27	10	16	
+elf.h	plain	both	public	27	0	16	
+endian.h	plain	both	public	8	0	5	
+envz.h	plain	both	public	4	6	17	
+err.h	plain	both	public	2	8	17	
+errno.h	plain	both	public	2	1	5	
+error.h	plain	both	public	2	2	17	
+execinfo.h	plain	both	public	2	3	17	
+fcntl.h	plain	both	public	11	12	7	
+features-time64.h	plain	both	public	0	0	5	
+features.h	plain	both	public	0	0	5	
+fenv.h	plain	both	public	10	18	11	
+finclude/x86_64-linux-gnu/math-vector-fortran.h	multiarch	both	public	10	0	11	
+fmtmsg.h	plain	both	public	2	2	17	
+fnmatch.h	plain	both	public	14	1	10	
+fpu_control.h	multiarch	both	public	10	0	11	
+fstab.h	plain	both	public	13	5	15	
+fts.h	plain	both	public	13	10	10	
+ftw.h	plain	both	public	13	4	10	
+gconv.h	plain	both	public	6	0	10	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+getopt.h	plain	both	public	1	0	6	
+glob.h	plain	both	public	14	5	10	
+gnu-versions.h	plain	both	public	0	0	5	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+gnu/lib-names-64.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+gnu/lib-names.h	multiarch	both	internal	-	0	16	soname strings from versions.tsv
+gnu/libc-version.h	multiarch	both	public	24	2	15	
+gnu/stubs-64.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
+gnu/stubs.h	multiarch	both	internal	-	0	5	Liella's own __stub_ list
+grp.h	plain	both	public	17	14	14	
+gshadow.h	plain	both	public	17	11	14	
+iconv.h	plain	both	public	6	3	10	
+ieee754.h	multiarch	both	public	10	0	11	
+ifaddrs.h	plain	both	public	15	2	12	
+inttypes.h	plain	both	public	8	6	5	
+langinfo.h	plain	both	public	7	2	10	
+lastlog.h	plain	both	public	17	0	14	
+libgen.h	plain	both	public	4	2	7	
+libintl.h	plain	both	public	7	11	10	
+limits.h	plain	both	public	8	0	5	
+link.h	plain	both	public	27	9	16	
+locale.h	plain	both	public	7	6	10	
+malloc.h	plain	both	public	3	9	17	
+math.h	plain	both	public	10	0	11	
+mcheck.h	plain	both	public	3	6	17	
+memory.h	plain	both	public	4	0	6	legacy (R-H7): ship, -dev include
+mntent.h	plain	both	public	13	6	15	
+monetary.h	plain	both	public	7	2	10	
+mqueue.h	plain	both	public	25	10	14	
+net/ethernet.h	plain	both	public	15	0	13	
+net/if.h	plain	both	public	15	4	12	
+net/if_arp.h	plain	both	public	15	0	13	
+net/if_packet.h	plain	both	public	15	0	13	
+net/if_ppp.h	plain	both	public	15	0	13	
+net/if_shaper.h	plain	both	public	15	0	13	
+net/if_slip.h	plain	both	public	15	0	13	
+net/ppp-comp.h	plain	both	public	15	0	13	
+net/ppp_defs.h	plain	both	public	15	0	13	
+net/route.h	plain	both	public	15	0	13	
+netash/ash.h	plain	both	public	15	0	13	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+netatalk/at.h	plain	both	public	15	0	13	legacy (R-H7): ship, -dev include
+netax25/ax25.h	plain	both	public	15	0	13	legacy (R-H7): ship, -dev include
+netdb.h	plain	both	public	16	60	12	
+neteconet/ec.h	plain	both	public	15	0	13	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+netinet/ether.h	plain	both	public	15	7	13	
+netinet/icmp6.h	plain	both	public	15	0	13	
+netinet/if_ether.h	plain	both	public	15	0	13	
+netinet/if_fddi.h	plain	both	public	15	0	13	
+netinet/if_tr.h	plain	both	public	15	0	13	
+netinet/igmp.h	plain	both	public	15	0	13	
+netinet/in.h	plain	both	public	15	29	12	
+netinet/in_systm.h	plain	both	public	15	0	13	
+netinet/ip.h	plain	both	public	15	0	13	
+netinet/ip6.h	plain	both	public	15	0	13	
+netinet/ip_icmp.h	plain	both	public	15	0	13	
+netinet/tcp.h	plain	both	public	15	0	12	
+netinet/udp.h	plain	both	public	15	0	12	
+netipx/ipx.h	plain	both	public	15	0	13	legacy (R-H7): ship, -dev include
+netiucv/iucv.h	plain	both	public	15	0	13	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+netpacket/packet.h	plain	both	public	15	0	13	
+netrom/netrom.h	plain	both	public	15	0	13	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+netrose/rose.h	plain	both	public	15	0	13	legacy (R-H7): ship, -dev include
+nfs/nfs.h	plain	both	public	13	0	15	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+nl_types.h	plain	both	public	7	3	10	
+nss.h	plain	both	public	16	1	12	
+obstack.h	plain	both	public	3	5	17	
+paths.h	plain	both	public	13	0	7	
+poll.h	plain	both	public	11	0	7	
+printf.h	plain	both	public	12	7	17	
+proc_service.h	plain	both	public	22	0	16	legacy (R-H7): ship, live purpose
+protocols/routed.h	plain	both	public	15	0	13	
+protocols/rwhod.h	plain	both	public	15	0	13	
+protocols/talkd.h	plain	both	public	15	0	13	
+protocols/timed.h	plain	both	public	15	0	13	
+pthread.h	plain	both	public	22	130	8	
+pty.h	plain	both	public	19	2	14	
+pwd.h	plain	both	public	17	12	14	
+re_comp.h	plain	both	public	14	0	10	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+regex.h	plain	both	public	14	12	10	
+regexp.h	plain	both	public	14	0	10	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+resolv.h	plain	both	public	16	51	12	
+rpc/netdb.h	plain	both	public	16	8	12	
+sched.h	plain	both	public	24	10	8	
+scsi/scsi.h	plain	both	public	11	0	15	
+scsi/scsi_ioctl.h	plain	both	public	11	0	15	
+scsi/sg.h	plain	both	public	11	0	15	
+search.h	plain	both	public	14	16	10	
+semaphore.h	plain	both	public	22	11	8	
+setjmp.h	plain	both	public	21	6	8	
+sgtty.h	plain	both	public	19	0	14	legacy (R-H7): ship, -dev include
+shadow.h	plain	both	public	17	13	14	
+signal.h	plain	both	public	20	40	8	
+spawn.h	plain	both	public	18	25	7	
+stab.h	plain	both	public	27	0	16	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+stdbit.h	plain	both	public	8	70	10	
+stdc-predef.h	plain	both	public	0	0	5	
+stdint.h	plain	both	public	8	0	5	
+stdio.h	plain	both	public	12	102	6	
+stdio_ext.h	plain	both	public	12	10	17	
+stdlib.h	plain	both	public	8	140	6	
+string.h	plain	both	public	4	57	6	
+strings.h	plain	both	public	4	12	6	
+sys/acct.h	multiarch	both	public	24	0	15	
+sys/auxv.h	multiarch	both	public	1	1	9	
+sys/bitypes.h	multiarch	both	public	0	0	5	
+sys/cdefs.h	multiarch	both	public	0	0	5	
+sys/debugreg.h	multiarch	both	public	28	0	9	
+sys/dir.h	multiarch	both	public	13	0	7	legacy (R-H7): ship, -dev include
+sys/elf.h	multiarch	both	public	27	0	16	legacy (R-H7): ship, -dev include
+sys/epoll.h	multiarch	both	public	11	6	9	
+sys/errno.h	multiarch	both	public	2	0	5	
+sys/eventfd.h	multiarch	both	public	11	3	9	
+sys/fanotify.h	multiarch	both	public	11	2	9	
+sys/fcntl.h	multiarch	both	public	11	0	7	
+sys/file.h	multiarch	both	public	11	1	7	
+sys/fsuid.h	multiarch	both	public	17	2	14	
+sys/gmon.h	multiarch	both	public	28	3	16	
+sys/gmon_out.h	multiarch	both	public	28	0	16	
+sys/inotify.h	multiarch	both	public	11	4	9	
+sys/io.h	multiarch	both	public	24	2	15	
+sys/ioctl.h	multiarch	both	public	11	1	7	
+sys/ipc.h	multiarch	both	public	25	1	14	
+sys/kd.h	multiarch	both	public	11	0	15	
+sys/klog.h	multiarch	both	public	24	1	15	
+sys/mman.h	multiarch	both	public	11	16	7	
+sys/mount.h	multiarch	both	public	13	10	15	
+sys/msg.h	multiarch	both	public	25	4	14	
+sys/mtio.h	multiarch	both	public	11	0	15	
+sys/param.h	multiarch	both	public	24	0	7	
+sys/pci.h	multiarch	both	public	11	0	15	
+sys/perm.h	multiarch	both	public	24	0	15	
+sys/personality.h	multiarch	both	public	18	1	9	
+sys/pidfd.h	multiarch	both	public	18	4	9	
+sys/platform/x86.h	multiarch	both	public	27	1	16	
+sys/poll.h	multiarch	both	public	11	2	7	
+sys/prctl.h	multiarch	both	public	18	1	9	
+sys/procfs.h	multiarch	both	public	28	0	9	
+sys/profil.h	multiarch	both	public	28	1	16	
+sys/ptrace.h	multiarch	both	public	18	0	9	
+sys/queue.h	multiarch	both	public	14	0	17	
+sys/quota.h	multiarch	both	public	24	1	15	
+sys/random.h	multiarch	both	public	9	1	9	
+sys/raw.h	multiarch	both	public	11	0	15	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+sys/reboot.h	multiarch	both	public	24	1	15	
+sys/reg.h	multiarch	both	public	28	0	9	
+sys/resource.h	multiarch	both	public	24	7	7	
+sys/rseq.h	multiarch	both	public	22	0	8	
+sys/select.h	multiarch	both	public	11	2	7	
+sys/sem.h	multiarch	both	public	25	4	14	
+sys/sendfile.h	multiarch	both	public	11	2	7	
+sys/shm.h	multiarch	both	public	25	4	14	
+sys/signal.h	multiarch	both	public	20	0	8	
+sys/signalfd.h	multiarch	both	public	20	1	9	
+sys/single_threaded.h	multiarch	both	public	22	0	8	
+sys/socket.h	multiarch	both	public	15	22	12	
+sys/socketvar.h	multiarch	both	public	15	0	12	
+sys/soundcard.h	multiarch	both	public	11	0	15	
+sys/stat.h	multiarch	both	public	13	22	7	
+sys/statfs.h	multiarch	both	public	13	4	7	
+sys/statvfs.h	multiarch	both	public	13	4	7	
+sys/swap.h	multiarch	both	public	13	2	15	
+sys/syscall.h	multiarch	both	public	A	0	9	
+sys/sysinfo.h	multiarch	both	public	24	5	15	
+sys/syslog.h	multiarch	both	public	26	5	14	
+sys/sysmacros.h	multiarch	both	public	13	3	7	
+sys/termios.h	multiarch	both	public	19	0	14	
+sys/time.h	multiarch	both	public	23	9	7	
+sys/timeb.h	multiarch	both	public	23	1	15	legacy (R-H7): ship, -dev include
+sys/timerfd.h	multiarch	both	public	23	3	9	
+sys/times.h	multiarch	both	public	23	1	7	
+sys/timex.h	multiarch	both	public	23	4	15	
+sys/ttychars.h	multiarch	both	public	19	0	14	
+sys/ttydefaults.h	multiarch	both	public	19	0	14	
+sys/types.h	multiarch	both	public	0	0	5	
+sys/ucontext.h	multiarch	both	public	21	0	8	
+sys/uio.h	multiarch	both	public	11	10	7	
+sys/un.h	multiarch	both	public	15	0	12	
+sys/unistd.h	multiarch	both	public	13	0	6	
+sys/user.h	multiarch	both	public	28	0	9	
+sys/utsname.h	multiarch	both	public	24	1	7	
+sys/vfs.h	multiarch	both	public	13	0	7	
+sys/vlimit.h	multiarch	both	public	24	1	15	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+sys/vm86.h	multiarch	both	public	29	0	15	legacy (R-H7): undecided, SL-HEADERS-1 (b)
+sys/vt.h	multiarch	both	public	11	0	15	
+sys/wait.h	multiarch	both	public	18	5	7	
+sys/xattr.h	multiarch	both	public	13	12	7	
+syscall.h	plain	both	public	A	0	9	
+sysexits.h	plain	both	public	1	0	17	
+syslog.h	plain	both	public	26	0	14	
+tar.h	plain	both	public	13	0	17	
+termio.h	plain	both	public	19	0	14	legacy (R-H7): ship, -dev include
+termios.h	plain	both	public	19	13	14	
+tgmath.h	plain	both	public	10	0	11	
+thread_db.h	plain	both	public	22	40	16	legacy (R-H7): ship, live purpose
+threads.h	plain	both	public	22	25	8	
+time.h	plain	both	public	23	35	6	
+ttyent.h	plain	both	public	19	4	14	
+uchar.h	plain	both	public	6	6	10	
+ucontext.h	plain	both	public	21	4	8	
+ulimit.h	plain	both	public	24	1	15	
+unistd.h	plain	both	public	13	130	6	
+utime.h	plain	both	public	13	0	7	
+utmp.h	plain	both	public	17	15	14	
+utmpx.h	plain	both	public	17	10	14	
+values.h	plain	both	public	10	0	11	legacy (R-H7): ship, -dev include
+wait.h	plain	both	public	18	0	7	
+wchar.h	plain	both	public	4	108	10	
+wctype.h	plain	both	public	5	20	10	
+wordexp.h	plain	both	public	14	2	10	

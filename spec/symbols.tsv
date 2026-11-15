@@ -2704,6 +2704,7 @@ sched_get_priority_max	24	2.2.5	yes
 __sched_get_priority_min	24	2.2.5	yes		
 sched_get_priority_min	24	2.2.5	yes		
 sched_getaffinity	24	2.3.3	yes		
+sched_getattr	24	2.41	yes		
 sched_getcpu	24	2.6	yes		
 __sched_getparam	24	2.2.5	yes		
 sched_getparam	24	2.2.5	yes		
@@ -2711,6 +2712,7 @@ __sched_getscheduler	24	2.2.5	yes
 sched_getscheduler	24	2.2.5	yes		
 sched_rr_get_interval	24	2.2.5	yes		
 sched_setaffinity	24	2.3.3	yes		
+sched_setattr	24	2.41	yes		
 sched_setparam	24	2.2.5	yes		
 __sched_setscheduler	24	2.2.5	yes		
 sched_setscheduler	24	2.2.5	yes		

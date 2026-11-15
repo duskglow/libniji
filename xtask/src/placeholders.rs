@@ -33,11 +33,145 @@ use std::process::Command;
 
 /// The placeholder libraries (design §16). Which libraries are placeholders is the design's
 /// choice; what each exports and which version nodes it has come from versions.tsv.
-pub const LIBRARIES: [&str; 7] = ["libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1", "libanl.so.1", "libc_malloc_debug.so.0", "libnsl.so.1"];
+pub const LIBRARIES: [&str; 9] = ["libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1", "libanl.so.1", "libc_malloc_debug.so.0", "libnsl.so.1", "libresolv.so.2", "libBrokenLocale.so.1"];
 
-/// The libraries whose empty static archive lets `-static -l<x>` resolve (their symbols are in
-/// `libc.a`); `libpthread.a` is one of them.
-pub const ARCHIVES: [&str; 5] = ["libpthread.a", "libdl.a", "librt.a", "libutil.a", "libanl.a"];
+/// The empty static archives the development package ships so `-l<x>` resolves in a static link
+/// (SL-SONAMES, plan/system-libc.md §2): the merged libraries' (their symbols are in `libc.a`;
+/// `libresolv.a`: D-16.6), and `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`, which add
+/// nothing a Liella program needs. `libBrokenLocale.a` is not empty ([`OVERRIDES`]).
+pub const ARCHIVES: [&str; 9] = ["libpthread.a", "libdl.a", "librt.a", "libutil.a", "libanl.a", "libresolv.a", "libg.a", "libmcheck.a", "libpthread_nonshared.a"];
+
+/// Names a library defines although `libc.so.6` has a row for them, because replacing libc's
+/// definition is the library's whole effect (SL-SONAMES): `libBrokenLocale.so.1`'s
+/// `__ctype_get_mb_cur_max` (probe-settled values in its body file). Each gets an export, a body
+/// from `crates/libc-so/placeholders/<lib>.c` and a static archive `lib<x>.a` built from it.
+pub const OVERRIDES: [(&str, &str); 1] = [("libBrokenLocale.so.1", "__ctype_get_mb_cur_max")];
+
+/// Libraries whose exports are `libc.so.6`'s own definitions (SL-SONAMES, D-16.6): `libc.a`
+/// defines them, `libc.so.6` exports each as [`FORWARD_PREFIX`]`<name>` at `LIELLA_PRIVATE`
+/// (an alias, so one copy of the code and of the resolver state), and the library's export is a
+/// tail jump to it. A data export is the library's own object, filled from `libc.so.6`'s at load.
+pub const FORWARDED: [&str; 1] = ["libresolv.so.2"];
+
+/// The libraries with a `lib<x>.so -> <soname>` development link (so `-l<x>` links dynamically
+/// against them rather than the empty archive).
+pub const DEV_LINKS: [&str; 2] = ["libresolv.so.2", "libBrokenLocale.so.1"];
+
+/// The file in the products directory naming, one per line, every file [`build`] may have written
+/// there, so a product a table no longer names is removed by the next build rather than lingering
+/// from an earlier one (a `-l<x>` would still find it in a tree that was built before).
+pub const MANIFEST: &str = ".placeholders";
+
+/// Every file [`build`] writes into the products directory: the libraries, the archives (empty
+/// and [`OVERRIDES`]') and the [`DEV_LINKS`].
+pub fn product_names() -> BTreeSet<String> {
+    let stem = |soname: &str| soname.split(".so").next().unwrap_or(soname).to_string();
+    let mut names: BTreeSet<String> = LIBRARIES.iter().chain(ARCHIVES.iter()).map(|n| (*n).to_string()).collect();
+    names.extend(OVERRIDES.iter().map(|(l, _)| stem(l) + ".a"));
+    names.extend(DEV_LINKS.iter().map(|l| stem(l) + ".so"));
+    names
+}
+
+/// Removes from `dir` each file the [`MANIFEST`] of an earlier build names that `now` does not, then
+/// records `now` before anything is written (so a build that fails part-way still leaves every
+/// name it may have written listed). Returns the removed names. Only plain names are acted on.
+pub fn remove_stale(dir: &Path, now: &BTreeSet<String>) -> Result<Vec<String>, String> {
+    let manifest = dir.join(MANIFEST);
+    let before = fs::read_to_string(&manifest).unwrap_or_default();
+    let mut removed = Vec::new();
+    for name in before.lines().filter(|n| !n.is_empty() && !n.contains('/') && !n.starts_with('.')) {
+        if now.contains(name) {
+            continue;
+        }
+        let p = dir.join(name);
+        match fs::remove_file(&p) {
+            Ok(()) => removed.push(name.to_string()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("{}: {e}", p.display())),
+        }
+    }
+    let text: String = now.iter().map(|n| format!("{n}\n")).collect();
+    fs::write(&manifest, text).map_err(|e| format!("{}: {e}", manifest.display()))?;
+    Ok(removed)
+}
+
+/// The prefix of `libc.so.6`'s private alias of a forwarded name.
+pub const FORWARD_PREFIX: &str = "__liella_fwd_";
+
+/// The names `libc.so.6` must export for the [`FORWARDED`] libraries (alias name, `libc.a` name).
+pub fn forwarded_names(table: &str) -> Result<Vec<(String, String)>, String> {
+    let mut out = Vec::new();
+    for soname in FORWARDED {
+        for e in plan(table, soname)?.exports {
+            out.push((format!("{FORWARD_PREFIX}{}", e.name), e.name));
+        }
+    }
+    out.sort();
+    out.dedup();
+    Ok(out)
+}
+
+/// The type and size versions.tsv gives `name` in `soname` (`(is_object, size)`).
+fn row_kind(table: &str, soname: &str, name: &str) -> Option<(bool, u64)> {
+    table.lines().skip(1).find_map(|line| match line.split('\t').collect::<Vec<_>>().as_slice() {
+        [lib, sym, _, _, ty, _, size, ..] if *lib == soname && *sym == name => Some((*ty == "OBJECT", size.parse().unwrap_or(0))),
+        _ => None,
+    })
+}
+
+/// The bodies of a [`FORWARDED`] library: a tail jump per function to its `libc.so.6` alias; per
+/// data object an object of versions.tsv's size, zero past the first `libc_sizes[name]` bytes,
+/// which a constructor copies from the alias. It writes through the exported name (`-fPIC`, so
+/// the GOT), so a program's copy-relocated object is the one filled. A `libc.so.6` object larger
+/// than the row's size is an error.
+pub fn forward_bodies(plan: &Plan, table: &str, libc_sizes: &BTreeMap<String, u64>) -> Result<String, String> {
+    let mut s = format!("/* @generated by `cargo xtask so`: {} forwards to libc.so.6 (SL-SONAMES). */\n", plan.soname);
+    let mut copies = String::new();
+    let names: BTreeSet<&str> = plan.exports.iter().map(|e| e.name.as_str()).collect();
+    for name in names {
+        let Some((object, size)) = row_kind(table, &plan.soname, name) else {
+            return Err(format!("{}: versions.tsv has no type for {name}", plan.soname));
+        };
+        if !object {
+            s.push_str(&format!("void liella_ph_{name}(void);\n__asm__(\".text\\n.globl liella_ph_{name}\\n.type liella_ph_{name},@function\\n.p2align 4\\nliella_ph_{name}:\\n\\tjmp {FORWARD_PREFIX}{name}@PLT\\n.size liella_ph_{name},.-liella_ph_{name}\\n\");\n"));
+            continue;
+        }
+        let have = *libc_sizes.get(name).ok_or_else(|| format!("{}: libc.a does not define the object {name}", plan.soname))?;
+        if have > size || size == 0 {
+            return Err(format!("{}: {name} is {have} bytes in libc.a, versions.tsv gives {size}", plan.soname));
+        }
+        s.push_str(&format!("unsigned char liella_ph_{name}[{size}] __attribute__((aligned(16)));\nextern unsigned char {name}[];\nextern const unsigned char {FORWARD_PREFIX}{name}[];\n"));
+        copies.push_str(&format!("    __builtin_memcpy({name}, {FORWARD_PREFIX}{name}, {have});\n"));
+    }
+    if !copies.is_empty() {
+        s.push_str(&format!("__attribute__((constructor)) static void liella_ph_fill(void)\n{{\n{copies}}}\n"));
+    }
+    Ok(s)
+}
+
+/// The sizes `nm -S` gives the defined objects of `archive` (`libc.a`).
+pub fn object_sizes(archive: &Path) -> Result<BTreeMap<String, u64>, String> {
+    let out = Command::new("nm").args(["-S", "-P", "--defined-only"]).arg(archive).output().map_err(|e| format!("nm: {e}"))?;
+    if !out.status.success() {
+        return Err(format!("nm -S {} failed", archive.display()));
+    }
+    let mut sizes = BTreeMap::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        // name type value size
+        if let [name, ty, _, size] = line.split_whitespace().collect::<Vec<_>>().as_slice() {
+            if matches!(*ty, "D" | "d" | "R" | "r" | "B" | "b" | "V") {
+                if let Ok(n) = u64::from_str_radix(size, 16) {
+                    sizes.entry((*name).to_string()).or_insert(n);
+                }
+            }
+        }
+    }
+    Ok(sizes)
+}
+
+fn is_override(soname: &str, name: &str) -> bool {
+    OVERRIDES.iter().any(|(l, n)| *l == soname && *n == name)
+}
 
 /// The library every placeholder forwards to.
 const LIBC: &str = "libc.so.6";
@@ -95,7 +229,7 @@ pub fn plan(table: &str, soname: &str) -> Result<Plan, String> {
             return Err(format!("versions.tsv: {soname} {sym}@{ver}: binding `{binding}` is neither default nor compat"));
         }
         placeholder_nodes.insert(ver.to_string());
-        if !libc_names.contains(sym) {
+        if !libc_names.contains(sym) || is_override(soname, sym) {
             exports.insert(Export { name: sym.to_string(), version: ver.to_string(), default: binding == "default" });
         }
     }
@@ -139,7 +273,7 @@ pub fn c_source(plan: &Plan, body_file: Option<(&Path, &str)>) -> Result<String,
         versions.entry(e.name.as_str()).or_default().push(e);
     }
     for (name, exports) in &versions {
-        let has_body = body_file.is_some_and(|(_, text)| text.contains(&format!("liella_ph_{name}(")));
+        let has_body = body_file.is_some_and(|(_, text)| text.contains(&format!("liella_ph_{name}(")) || text.contains(&format!("liella_ph_{name}[")));
         if !has_body {
             if !is_version_placeholder(name) {
                 let file = body_file.map_or_else(|| "no body file".to_string(), |(p, _)| p.display().to_string());
@@ -368,7 +502,7 @@ pub fn product_errors(table: &str, soname: &str, dynamic: &str, readelf_v: &str,
     for (lib, sym, ver, binding) in rows(table) {
         if lib == soname && ver != PRIVATE_NODE {
             want_nodes.insert(ver.to_string());
-            if !libc_names.contains(sym) {
+            if !libc_names.contains(sym) || is_override(soname, sym) {
                 want.insert(Export { name: sym.to_string(), version: ver.to_string(), default: binding == "default" });
             }
         }
@@ -403,7 +537,7 @@ pub fn product_errors(table: &str, soname: &str, dynamic: &str, readelf_v: &str,
             Some(libs) if !libs.iter().any(|(l, d)| *l == soname && *d == default) => {
                 errors.push(format!("{soname}: exports {name}{at}{version}, binding differs from versions.tsv"));
             }
-            Some(_) if libc_names.contains(name.as_str()) => {
+            Some(_) if libc_names.contains(name.as_str()) && !is_override(soname, &name) => {
                 errors.push(format!("{soname}: exports {name}{at}{version}, which {LIBC} provides (reached through DT_NEEDED, never defined twice)"));
             }
             Some(_) => {}
@@ -421,11 +555,20 @@ pub fn product_errors(table: &str, soname: &str, dynamic: &str, readelf_v: &str,
 pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Result<String, String> {
     let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
     fs::create_dir_all(work).map_err(|e| e.to_string())?;
+    let stale = remove_stale(release, &product_names())?;
     let mut summary = Vec::new();
+    let libc_sizes = object_sizes(&release.join("libc.a"))?;
     for soname in LIBRARIES {
         let plan = plan(&table, soname)?;
-        // A failure table (D-29.6) gives the bodies; otherwise the hand-written file, if any.
+        // A forwarded library's bodies are generated (SL-SONAMES); a failure table (D-29.6) gives
+        // them; otherwise the hand-written file, if any.
         let (bodies, body_text) = match fs::read_to_string(stub_table_path(root, soname)) {
+            _ if FORWARDED.contains(&soname) => {
+                let text = forward_bodies(&plan, &table, &libc_sizes)?;
+                let p = work.join(format!("{soname}.bodies.c"));
+                fs::write(&p, &text).map_err(|e| e.to_string())?;
+                (p, Some(text))
+            }
             Ok(table) => {
                 let text = stub_bodies(&plan, &table)?;
                 let p = work.join(format!("{soname}.bodies.c"));
@@ -465,7 +608,35 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Re
     for a in ARCHIVES {
         crate::so::empty_archive(ar, &release.join(a))?;
     }
-    Ok(format!("placeholders {}, each checked against spec/abi/versions.tsv; empty {}", summary.join(", "), ARCHIVES.join(", ")))
+    // The overriding libraries' static archives: one object of the same body, the name defined
+    // directly (libc.a's definition is overridable, D-X.14).
+    let mut built = Vec::new();
+    for soname in OVERRIDES.iter().map(|(l, _)| *l).collect::<BTreeSet<_>>() {
+        let stem = soname.split(".so").next().unwrap_or(soname);
+        let names: Vec<&str> = OVERRIDES.iter().filter(|(l, _)| *l == soname).map(|(_, n)| *n).collect();
+        let mut src = format!("/* @generated by `cargo xtask so`: {stem}.a (SL-SONAMES). */\n#include \"{}\"\n", body_path(root, soname).display());
+        for n in &names {
+            src.push_str(&format!("__asm__(\".globl {n}\\n.set {n}, liella_ph_{n}\");\n"));
+        }
+        let c = work.join(format!("{stem}.a.c"));
+        let o = work.join(format!("{stem}.o"));
+        fs::write(&c, src).map_err(|e| e.to_string())?;
+        crate::so::run(Command::new(cc).args(["-c", "-O2", "-fno-stack-protector"]).arg(&c).arg("-o").arg(&o))?;
+        let dst = release.join(format!("{stem}.a"));
+        let tmp = crate::so::tmp_name(&dst);
+        let _ = fs::remove_file(&tmp);
+        crate::so::run(Command::new(ar).arg("rcD").arg(&tmp).arg(&o))?;
+        crate::so::publish(&tmp, &dst)?;
+        built.push(format!("{stem}.a"));
+    }
+    // The development links `-l<x>` finds in a dynamic link, as the development package ships them.
+    for soname in DEV_LINKS {
+        let link = release.join(soname.split(".so").next().unwrap_or(soname).to_string() + ".so");
+        let _ = fs::remove_file(&link);
+        std::os::unix::fs::symlink(soname, &link).map_err(|e| format!("{}: {e}", link.display()))?;
+    }
+    let stale = if stale.is_empty() { String::new() } else { format!("; removed stale {}", stale.join(", ")) };
+    Ok(format!("placeholders {}, each checked against spec/abi/versions.tsv; empty {}; {}; links {}{stale}", summary.join(", "), ARCHIVES.join(", "), built.join(", "), DEV_LINKS.join(", ")))
 }
 
 /// No shared product in `release` defines or exports a `GLIBC_PRIVATE` version (R14-12).
@@ -592,5 +763,29 @@ mod tests {
         assert!(product_errors(TABLE, "libfoo.so.1", no_needed, &v, &good().1).iter().any(|m| m.contains("no DT_NEEDED libc.so.6")));
         let missing_node = verdef(&["V_1.2"]);
         assert!(product_errors(TABLE, "libfoo.so.1", DYNAMIC, &missing_node, &good().1).iter().any(|m| m.contains("version V_1.10 of versions.tsv is not defined")));
+    }
+
+    /// A product an earlier build wrote and the tables no longer name is removed; files the
+    /// manifest never named (libc.so.6, a user's file) and current products stay.
+    #[test]
+    fn a_product_dropped_from_the_tables_is_removed() {
+        let dir = std::env::temp_dir().join(format!("xtask-placeholders-stale-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        for f in ["libc.so.6", "libold.a", "libkept.a", "libnew.so.1"] {
+            fs::write(dir.join(f), "x").unwrap();
+        }
+        std::os::unix::fs::symlink("libold.so.1", dir.join("libold.so")).unwrap();
+        fs::write(dir.join(MANIFEST), "libold.a\nlibold.so\nlibkept.a\nlibgone.a\n../libc.so.6\n").unwrap();
+        let now: BTreeSet<String> = ["libkept.a", "libnew.so.1"].iter().map(|s| (*s).to_string()).collect();
+        assert_eq!(remove_stale(&dir, &now).unwrap(), ["libold.a", "libold.so"]);
+        for (f, present) in [("libc.so.6", true), ("libkept.a", true), ("libnew.so.1", true), ("libold.a", false)] {
+            assert_eq!(dir.join(f).exists(), present, "{f}");
+        }
+        assert!(fs::symlink_metadata(dir.join("libold.so")).is_err(), "the dangling development link is removed");
+        assert_eq!(fs::read_to_string(dir.join(MANIFEST)).unwrap(), "libkept.a\nlibnew.so.1\n");
+        // The real tables' names are all recorded, the development links among them.
+        assert!(product_names().contains("libresolv.so") && product_names().contains("libBrokenLocale.a") && product_names().contains("libresolv.a"));
+        let _ = fs::remove_dir_all(&dir);
     }
 }

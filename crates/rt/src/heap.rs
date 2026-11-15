@@ -83,19 +83,29 @@ pub trait Pages {
     fn shard(&self) -> usize {
         0
     }
+    /// The memory source the heap's slow paths take (`alloc_slow`, `free_slow`, `resize_slow`).
+    /// A source whose fast-path reads skip a test the general paths keep names the general source
+    /// here, so each slow path exists once in the products (D-X.60); otherwise `Self`.
+    type General: Pages;
+    /// The [`Self::General`] source.
+    fn general(&self) -> &Self::General;
     /// How many NUMA nodes the process may allocate on (`get_mempolicy(MPOL_F_MEMS_ALLOWED)`);
-    /// 1 when that cannot be asked. Asked once per heap, on its first slow path (D-3.20).
-    fn allowed_nodes(&self) -> usize {
-        1
-    }
+    /// 1 when that cannot be asked. Asked once per heap, on its first slow path (D-3.20), by
+    /// whichever source that path took: a source that wraps another (an `OwnPages`-style fast
+    /// source) must pass the question on, or that one answer would turn NUMA placement off for
+    /// the whole process. Required, so a wrapper cannot inherit a silent 1.
+    fn allowed_nodes(&self) -> usize;
     /// The calling thread's cache word (the address of its cache, 0 for none yet). Each
-    /// thread has its own; the heap is the only writer.
-    fn cache_slot(&self) -> &AtomicUsize;
-    /// `cache_slot().load(Relaxed)`: the fast paths' read of the cache word. An implementation
-    /// may read it more directly (the boundary: one thread-pointer-relative load, HEAP-CUTS2 C4).
+    /// thread has its own; the heap is the only writer. `None`: the thread has no word of its
+    /// own (D-X.60: a thread another library made whose words could not be placed), so it runs
+    /// with no cache: a cache is never shared by two threads.
+    fn cache_slot(&self) -> Option<&AtomicUsize>;
+    /// `cache_slot()`'s value, 0 for none: the fast paths' read of the cache word. An
+    /// implementation may read it more directly (the boundary: one thread-pointer-relative load,
+    /// HEAP-CUTS2 C4).
     #[inline(always)]
     fn cache_word(&self) -> usize {
-        self.cache_slot().load(Relaxed)
+        self.cache_slot().map_or(0, |s| s.load(Relaxed))
     }
     /// The process's address-space limit in bytes (`RLIMIT_AS`), `None` for none. Asked once,
     /// before the heap's first reservation: its registries are sized to fit (T14).
@@ -1090,7 +1100,7 @@ impl Heap {
     /// The calling thread's cache, taking a parked one or making one on first use.
     #[inline]
     fn cache<'p, S: Sys, P: Pages>(&self, sys: &S, pages: &'p P) -> Option<Cache<'p>> {
-        match pages.cache_slot().load(Relaxed) {
+        match pages.cache_slot()?.load(Relaxed) {
             0 => self.first_cache(sys, pages),
             addr => Self::cache_of(pages, addr),
         }
@@ -1123,13 +1133,14 @@ impl Heap {
 
     #[cold]
     fn first_cache<'p, S: Sys, P: Pages>(&self, sys: &S, pages: &'p P) -> Option<Cache<'p>> {
+        let slot = pages.cache_slot()?;
         let shard = self.shard_of(pages);
         let id = self
             .unpark(sys, pages, shard)
             .or_else(|| self.new_cache(sys, pages, shard))
             .or_else(|| self.unpark_elsewhere(sys, pages, shard))?;
         let k = self.cache_at(pages, id)?;
-        pages.cache_slot().store(self.cache_addr(pages, id), Relaxed);
+        slot.store(self.cache_addr(pages, id), Relaxed);
         Some(k)
     }
 
@@ -1191,8 +1202,8 @@ impl Heap {
     /// Park the calling thread's cache (its thread is exiting): its large blocks are unmapped,
     /// its slabs stay with it, and the next new thread on its shard takes it over (D-3.11).
     pub fn park<S: Sys, P: Pages>(&self, sys: &S, pages: &P) {
-        if let Some(c) = Self::own_cache(pages) {
-            pages.cache_slot().store(0, Relaxed);
+        if let (Some(c), Some(slot)) = (Self::own_cache(pages), pages.cache_slot()) {
+            slot.store(0, Relaxed);
             self.park_cache(sys, pages, &c);
         }
     }
@@ -1658,7 +1669,7 @@ impl Heap {
         if let Some(b) = Self::alloc_fast(pages, size, align) {
             return Some(b);
         }
-        self.alloc_slow(sys, pages, size, align)
+        self.alloc_slow(sys, pages.general(), size, align)
     }
 
     /// [`Heap::alloc`]'s fast path alone: a block from the current slab's hint word, or `None`
@@ -1833,7 +1844,7 @@ impl Heap {
         if Self::free_fast(pages, addr) {
             return Ok(());
         }
-        self.free_slow(sys, pages, addr)
+        self.free_slow(sys, pages.general(), addr)
     }
 
     /// [`Heap::free`]'s fast path alone: true if the block at `addr` was released (a live block
@@ -2025,7 +2036,7 @@ impl Heap {
         match Self::fit(pages, addr, size) {
             Fit::Same(usable) => Ok(Some(Block { addr, usable, zeroed: false })),
             Fit::Held(h) => self.resize_held(sys, pages, addr, size, h, copy),
-            Fit::Other => self.resize_slow(sys, pages, addr, size, copy),
+            Fit::Other => self.resize_slow(sys, pages.general(), addr, size, copy),
         }
     }
 
@@ -2100,7 +2111,7 @@ impl Heap {
                 }
             }
         }
-        self.resize_slow(sys, pages, addr, size, copy)
+        self.resize_slow(sys, pages.general(), addr, size, copy)
     }
 
     /// The size a small block of `usable` bytes resized to `size` moves into: the growth

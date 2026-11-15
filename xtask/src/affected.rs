@@ -1758,6 +1758,8 @@ const XTASK_TOOLS: &[(&str, &str)] = &[
     // package that builds it. The nightly run of the sweeps themselves is not a step of the ordinary gate.
     ("longsweeps", "the long sweep registration (static: long-sweeps); the sweeps run only in the nightly and release runs"),
     ("float_casts", "the float cast source check (static: float-casts)"),
+    // UTIL-HARNESS: the utilities' transcript harness; its own tests are the xtask unit tests and xtask/tests/transcripts.rs.
+    ("transcript", "`cargo xtask transcript`, the utilities' transcript harness, not a gate step"),
 ];
 
 /// XTASK-AFFECTED-XTASK: the uses of an [`XTASK_TOOLS`] module from a module that escalates to FULL, each a call that
