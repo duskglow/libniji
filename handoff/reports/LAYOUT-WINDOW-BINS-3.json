@@ -19,4 +19,5 @@
  "improvement": "slice 1's plan reported only whole-process windows; a plan check of the phase modes (measured phase bins within the warm-up's) would have shown the strings/float risk before a 30-minute product build",
  "next_step": "trace each phase mode's warm-up as its own signature mode and constrain the planner (handoff/LAYOUT-WINDOW-BINS.md, Open), then tighten bounds, plants, gate, start-up checks, D-NEW record",
  "report_file": "handoff/LAYOUT-WINDOW-BINS.md",
- "jobs": ["layout-window-bins-3-base-counts", "layout-window-bins-3-apply2"]}
+ "jobs": ["layout-window-bins-3-base-counts", "layout-window-bins-3-apply2", "layout-window-bins-3-lint3"],
+ "superseded": ["layout-window-bins-3-apply1 (xtask unit tests failed; fixed)", "layout-window-bins-3-lint (record key order)", "layout-window-bins-3-lint2 (clippy arithmetic in hot_text_products)"]}
