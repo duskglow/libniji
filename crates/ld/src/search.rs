@@ -163,7 +163,7 @@ impl core::fmt::Debug for CacheRef<'_> {
         f.write_str(match self {
             CacheRef::None => "None",
             CacheRef::Read(_) => "Read",
-            CacheRef::Lazy(_) => "Lazy",
+            CacheRef::Lazy(..) => "Lazy",
         })
     }
 }
