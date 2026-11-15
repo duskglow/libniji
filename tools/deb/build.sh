@@ -17,6 +17,10 @@
 #       target/deb-system; work directory target/deb-system-work). Version
 #       <abi>+liella<YYYYMMDD>.<n>-<rev> (owner ruling R2): <abi> 2.39, <n> LIELLA_DEB_SERIAL
 #       (default 1), <rev> LIELLA_DEB_REVISION (default 1). tools/deb/check-system.sh checks them.
+#   --symbols-only (with --flavour system --products)
+#       Stop after libc6's symbols, shlibs and control (WORK/stage/libc6/DEBIAN): no .deb is
+#       written. The gate's check that every version node the libraries define has a dependency
+#       rule (crates/core/tests/deb_symbols_products.rs), a few seconds instead of the packaging.
 #
 # Packages: liella6 (run time: the loader and the shared libraries) and liella6-dev (link time:
 # start files, linker scripts, static archives, the liella-gcc/liella-g++ wrapper). Every file
@@ -43,16 +47,22 @@ version=""
 flavour=coexist
 outset=""
 workset=""
+symbols_only=""
 while [ $# -gt 0 ]; do
     case $1 in
+        --symbols-only) symbols_only=1; shift ;;
         --out) out=$2; outset=1; shift 2 ;;
         --work) work=$2; workset=1; shift 2 ;;
         --flavour) flavour=$2; shift 2 ;;
         --products) products=$2; shift 2 ;;
         --version) version=$2; shift 2 ;;
-        *) echo "usage: tools/deb/build.sh [--flavour coexist|system] [--out DIR] [--work DIR] [--products DIR --version V]" >&2; exit 2 ;;
+        *) echo "usage: tools/deb/build.sh [--flavour coexist|system] [--out DIR] [--work DIR] [--products DIR --version V] [--symbols-only]" >&2; exit 2 ;;
     esac
 done
+if [ -n "$symbols_only" ] && { [ "$flavour" != system ] || [ -z "$products" ]; }; then
+    echo "build.sh: --symbols-only needs --flavour system and --products" >&2
+    exit 2
+fi
 case $flavour in
     coexist) ;;
     system)

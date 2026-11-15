@@ -4,8 +4,7 @@ section 3.2, owner ruling R2; tools/deb/system.sh runs it while it builds libc6)
 
     symbols.py files --versions spec/abi/versions.tsv --native spec/abi/native.tsv
                      --gaps docs/spec-symbol-gaps.tsv --abi 2.39
-                     --version <deb version> --libdir DIR --symbols OUT --shlibs OUT
-    symbols.py native-level --native spec/abi/native.tsv
+                     --version <deb version> --libdir DIR --symbols OUT --shlibs OUT --provides OUT
 
 `files` reads every shared library in DIR (the staged libc6's /usr/lib/x86_64-linux-gnu) and
 writes, from the specification and the built objects together:
@@ -15,23 +14,27 @@ writes, from the specification and the built objects together:
   package built against Liella depends on the newest node it uses, never on the build's own
   version. A node above the packages' ABI level (`--abi`; GLIBC_2.41 while the packages say 2.39,
   ruling R3) gets the build's upstream version instead: `libc6 (>= 2.41)` could not be met by
-  Liella's own packages, while every Liella build from this one on has the symbol. Each
-  `LIELLA_NATIVE_<n>` symbol uses the alternative template `| liella-native-abi (>= <n>)` (libc6
-  provides that virtual package, `native-level` below), so a program that uses Liella's own
-  interface never installs against another C library. The private node LIELLA_PRIVATE (the
-  libraries' interface to each other) is one `(symver)` pattern at the build's upstream version.
-  There are no GLIBC_PRIVATE lines (R14-12): a library that exports that node is an error.
+  Liella's own packages, while every Liella build from this one on has the symbol. Each symbol of
+  a Liella-only node `LIELLA_<KIND>_<n>` (the kinds in `KINDS`: LIELLA_NATIVE_<n>, Liella's own
+  interface; LIELLA_OWNER_<n>, the opted-in registrations of D-27.29) uses the alternative
+  template `| <package> (>= <n>)` on the kind's virtual package (liella-native-abi,
+  liella-owner-abi), which only Liella's libc6 provides, so a program that needs such a node
+  never installs against another C library. The private node LIELLA_PRIVATE (the libraries'
+  interface to each other) is one `(symver)` pattern at the build's upstream version. There are no
+  GLIBC_PRIVATE lines (R14-12): a library that exports that node is an error. Any other version
+  node stops the build with an error naming it: a node without a dependency rule must not ship.
 * shlibs (deb-shlibs(5)): `<name> <soversion> libc6 (>= <abi>)` per library, the fallback for
   tools that do not read symbols files.
+* provides (`--provides`): libc6's `Provides:` value, each kind's virtual package at the newest
+  level the libraries define (`liella-native-abi (= 1), liella-owner-abi (= 1)`).
 
 The library's exports must equal the specification's rows for it (versions.tsv without
 GLIBC_PRIVATE, plus native.tsv's functions for libc.so.6): any difference stops the build, so the
 file never describes symbols the library lacks or misses ones it has. The one exception is a
 default-binding row docs/spec-symbol-gaps.tsv lists as missing in the shared object (`--gaps`): the
-build does not have it yet, so the file leaves it out until it does.
-
-`native-level` prints the newest LIELLA_NATIVE node's number (libc6's `Provides:
-liella-native-abi (= <n>)`).
+build does not have it yet, so the file leaves it out until it does. A LIELLA_OWNER node has no
+table rows: the product build checks its exact names (`cargo xtask so`, D-27.29), and here each of
+its exports must be a non-default version in libc.so.6, so a default link never binds it.
 """
 import argparse
 import os
@@ -41,9 +44,18 @@ import sys
 
 PRIVATE = "GLIBC_PRIVATE"
 LIELLA_PRIVATE = "LIELLA_PRIVATE"
-NATIVE = "LIELLA_NATIVE_"
 PACKAGE = "libc6"
-NATIVE_PACKAGE = "liella-native-abi"
+# The Liella-only version nodes LIELLA_<KIND>_<n>, one rule for every kind (a program that uses
+# one runs only on Liella: its symbols name `| <package> (>= <n>)`, and libc6 Provides `<package>
+# (= <newest n>)`). Per kind: the virtual package, and where the node's exports are specified
+# ("native.tsv": exactly the functions of --native; "nondefault-libc": the product build checks
+# the names, here each must be a non-default version in libc.so.6). A new kind is one row here
+# (and its virtual package in plan/system-libc.md section 3.2).
+KINDS = {
+    "NATIVE": {"package": "liella-native-abi", "spec": "native.tsv"},
+    "OWNER": {"package": "liella-owner-abi", "spec": "nondefault-libc"},
+}
+LIELLA_NODE = re.compile(r"LIELLA_([A-Z]+)_([0-9]+)")
 
 
 def die(msg):
@@ -58,17 +70,23 @@ def read_tsv(path):
     return [dict(zip(head, line.split("\t"))) for line in lines[1:] if line]
 
 
-def native_node_number(node):
-    if not node.startswith(NATIVE) or not node[len(NATIVE):].isdigit():
+def liella_node(node):
+    """(kind, level) of a node LIELLA_<KIND>_<n> whose kind KINDS lists, else None."""
+    m = LIELLA_NODE.fullmatch(node)
+    if not m or m.group(1) not in KINDS:
         return None
-    return int(node[len(NATIVE):])
+    return m.group(1), int(m.group(2))
 
 
-def native_level(native_path):
-    levels = [native_node_number(r["node"]) for r in read_tsv(native_path)]
-    if not levels or None in levels:
-        die(f"{native_path}: every node must be {NATIVE}<n>")
-    return max(levels)
+def check_node(so, node):
+    """Stop on a version node no rule covers (what the file would say about it is unknown)."""
+    if node in (PRIVATE, LIELLA_PRIVATE) or liella_node(node) is not None:
+        return
+    if node.startswith("GLIBC_") and re.fullmatch(r"\d+(\.\d+)*", node[len("GLIBC_"):]):
+        return
+    die(f"{so}: version node {node} has no dependency rule: a Liella-only node LIELLA_<KIND>_<n> "
+        f"needs its kind in KINDS (tools/deb/symbols.py; plan/system-libc.md section 3.2), any other "
+        f"node a rule beside GLIBC_<x> and {LIELLA_PRIVATE} in min_version")
 
 
 def version_key(v):
@@ -91,8 +109,9 @@ def soname(path):
 
 
 def exports(path):
-    """{(name, node)} of the defined, visible, versioned symbols, and the version-node names."""
-    syms, nodes, unversioned = set(), set(), []
+    """{(name, node)} of the defined, visible, versioned symbols, the version-node names, and the
+    {(name, node)} that are the name's default version (`name@@node`)."""
+    syms, nodes, unversioned, defaults = set(), set(), [], set()
     # The version definitions (the BASE entry is the file's own name). readelf prints a node's own
     # ABS symbol without the @NODE suffix.
     defined = set()
@@ -118,11 +137,13 @@ def exports(path):
             nodes.add(node)
         else:
             syms.add((sym, node))
+            if "@@" in name:
+                defaults.add((sym, node))
     if nodes != defined:
         die(f"{path}: version nodes {sorted(defined)}, node symbols {sorted(nodes)}")
     if unversioned:
         die(f"{path}: unversioned exports: {' '.join(sorted(unversioned)[:5])}")
-    return syms, nodes
+    return syms, nodes, defaults
 
 
 def spec_exports(versions, natives, so):
@@ -135,11 +156,21 @@ def spec_exports(versions, natives, so):
     return want, want | {(r["symbol"], r["version"]) for r in rows}
 
 
+def nondefault_exports(so, got, defaults):
+    """(exports at the "nondefault-libc" kinds' nodes, problems): such a node's exports are the
+    product build's to name (D-27.29); each must be a non-default version, in libc.so.6 only."""
+    kinds = {k for k, v in KINDS.items() if v["spec"] == "nondefault-libc"}
+    mine = {(s, n) for s, n in got if (liella_node(n) or ("", 0))[0] in kinds}
+    problems = [f"{so}: exports {s}@{n}, a node only libc.so.6 may define" for s, n in sorted(mine) if so != "libc.so.6"]
+    problems += [f"{so}: exports {s}@@{n} as the default version (a default link would bind it)" for s, n in sorted(mine & defaults)]
+    return mine, problems
+
+
 def min_version(node, abi, upstream):
     if node.startswith("GLIBC_"):
         level = node[len("GLIBC_"):]
         return level if version_key(level) <= version_key(abi) else upstream
-    if native_node_number(node) is not None:
+    if liella_node(node) is not None:
         return abi
     die(f"no minimum version rule for node {node}")
     return None
@@ -167,24 +198,31 @@ def generate(args):
         libs[sn] = p
     if "libc.so.6" not in libs:
         die(f"{args.libdir}: no libc.so.6")
-    sym_out, shl_out, errors = [], [], []
+    sym_out, shl_out, errors, provides = [], [], [], {}
     for so in sorted(libs):
-        got, nodes = exports(libs[so])
+        got, nodes, defaults = exports(libs[so])
+        for n in sorted(nodes | {n for _, n in got}):
+            check_node(so, n)
         if PRIVATE in nodes or any(n == PRIVATE for _, n in got):
             errors.append(f"{so} exports the {PRIVATE} node (R14-12)")
         public = {(s, n) for s, n in got if n != LIELLA_PRIVATE}
+        build_named, problems = nondefault_exports(so, public, defaults)
+        errors += problems
         want, allowed = spec_exports(versions, natives, so)
         if not allowed:
             errors.append(f"{so}: no rows in {args.versions}")
-        for s, n in sorted(public - allowed)[:10]:
+        for s, n in sorted(public - allowed - build_named)[:10]:
             errors.append(f"{so}: exports {s}@{n}, which the specification does not list")
         for s, n in sorted(want - public - gaps.get(so, set()))[:10]:
             errors.append(f"{so}: does not export {s}@{n} (specification; not a gap in {args.gaps})")
-        native_nodes = sorted({native_node_number(n) for _, n in public if native_node_number(n) is not None})
-        template = {lvl: i + 1 for i, lvl in enumerate(native_nodes)}
+        # One alternative template per (virtual package, level) the library's symbols use.
+        kind_levels = {liella_node(n) for _, n in public} - {None}
+        levels = sorted({(KINDS[kind]["package"], lvl) for kind, lvl in kind_levels})
+        template = {pl: i + 1 for i, pl in enumerate(levels)}
         sym_out.append(f"{so} {PACKAGE} #MINVER#")
-        for lvl in native_nodes:
-            sym_out.append(f"| {NATIVE_PACKAGE} (>= {lvl})")
+        for pkg, lvl in levels:
+            sym_out.append(f"| {pkg} (>= {lvl})")
+            provides[pkg] = max(provides.get(pkg, 0), lvl)
         sym_out.append(f"* Build-Depends-Package: {PACKAGE}-dev")
         if LIELLA_PRIVATE in nodes:
             sym_out.append(f" (symver){LIELLA_PRIVATE} {upstream}")
@@ -193,9 +231,9 @@ def generate(args):
             if n == PRIVATE:
                 continue
             line = f" {s}@{n} {min_version(n, args.abi, upstream)}"
-            lvl = native_node_number(n)
-            if lvl is not None:
-                line += f" {template[lvl]}"
+            kl = liella_node(n)
+            if kl is not None:
+                line += f" {template[(KINDS[kl[0]]['package'], kl[1])]}"
             sym_out.append(line)
         m = re.fullmatch(r"(.+)\.so\.(\d+)", so)
         if not m:
@@ -208,22 +246,19 @@ def generate(args):
         f.write("\n".join(sym_out) + "\n")
     with open(args.shlibs, "w", encoding="utf-8") as f:
         f.write("\n".join(shl_out) + "\n")
+    with open(args.provides, "w", encoding="utf-8") as f:
+        f.write(", ".join(f"{pkg} (= {lvl})" for pkg, lvl in sorted(provides.items())) + "\n")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     g = sub.add_parser("files")
-    for opt in ("versions", "native", "gaps", "abi", "version", "libdir", "symbols", "shlibs"):
+    for opt in ("versions", "native", "gaps", "abi", "version", "libdir", "symbols", "shlibs", "provides"):
         g.add_argument(f"--{opt}", required=True)
-    n = sub.add_parser("native-level")
-    n.add_argument("--native", required=True)
     args = ap.parse_args()
-    if args.cmd == "native-level":
-        print(native_level(args.native))
-    else:
-        version_key(args.abi)
-        generate(args)
+    version_key(args.abi)
+    generate(args)
 
 
 if __name__ == "__main__":
