@@ -1,0 +1,25 @@
+{
+  "task": "SL-HEADERS-S03-3",
+  "model": "opus",
+  "tokens": null,
+  "result": "merged origin/next into the slice 3 branch keeping both sides (PROVENANCE notes; abi-types and callsites modules, subcommands and static checks); lint, abi-gen --check and 24 plants green on the merged head",
+  "branch": "task/sl-headers-s03-3",
+  "head": "24bde702d",
+  "gate": {"affected": "pending: sl-headers-s03-3-gate (affected escalated to FULL: crates/abi, xtask and spec/abi changed; runs cargo xtask test)", "peak": null},
+  "accepted_first_attempt": null,
+  "rulings": [],
+  "informational": [
+    "plants: ag-probe-rows is CAUGHT through its msg regex (the cmp of layouts.tsv), and the tool notes 'caught by no test the log names' because that plant's command is a probe rerun, not a test",
+    "layouts-aarch64.tsv still lacks the 50 slice 3 types and the size/rows column (carried over from S03-2)",
+    "plants rebuild the products per plant even for xtask-only plants: 24 plants took 31 min on mei"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "unblock", "what": "SL-HEADERS slice 3 (task/sl-headers-s03-2 work) can merge into next again: the CI conflict in spec/abi/PROVENANCE and xtask/src/main.rs is resolved", "before": null, "after": null, "unit": null, "measured": true},
+    {"kind": "coverage", "what": "plants rerun on the merged head, all CAUGHT (no new plants)", "before": 24, "after": 24, "unit": "plants", "measured": true}
+  ],
+  "jobs": ["sl-headers-s03-3-lint1", "sl-headers-s03-3-plants", "sl-headers-s03-3-gate"],
+  "improvement": "the CI merge conflict was two one-line registration lists (module list, static-check array with a hand-kept length); a registry the compiler derives (or one line per check) would let parallel header slices merge cleanly",
+  "next_step": "slice 4 of plan/headers.md (call-site/noexcept probe landed on next; continue from there)",
+  "report_file": "handoff/SL-HEADERS-S03.md"
+}

@@ -401,46 +401,46 @@ struct rusage	ru_utime.tv_usec	8		__suseconds_t
 struct rusage	ru_stime	16		struct timeval	
 struct rusage	ru_stime.tv_sec	16		__time_t	
 struct rusage	ru_stime.tv_usec	24		__suseconds_t	
-struct rusage	<anon>	32		union <anon>	
+struct rusage	<anon>	32		union <anon>	size 8 rows 2
 struct rusage	ru_maxrss	32		long int	
 struct rusage	__ru_maxrss_word	32		__syscall_slong_t	
-struct rusage	<anon>	40		union <anon>	
+struct rusage	<anon>	40		union <anon>	size 8 rows 2
 struct rusage	ru_ixrss	40		long int	
 struct rusage	__ru_ixrss_word	40		__syscall_slong_t	
-struct rusage	<anon>	48		union <anon>	
+struct rusage	<anon>	48		union <anon>	size 8 rows 2
 struct rusage	ru_idrss	48		long int	
 struct rusage	__ru_idrss_word	48		__syscall_slong_t	
-struct rusage	<anon>	56		union <anon>	
+struct rusage	<anon>	56		union <anon>	size 8 rows 2
 struct rusage	ru_isrss	56		long int	
 struct rusage	__ru_isrss_word	56		__syscall_slong_t	
-struct rusage	<anon>	64		union <anon>	
+struct rusage	<anon>	64		union <anon>	size 8 rows 2
 struct rusage	ru_minflt	64		long int	
 struct rusage	__ru_minflt_word	64		__syscall_slong_t	
-struct rusage	<anon>	72		union <anon>	
+struct rusage	<anon>	72		union <anon>	size 8 rows 2
 struct rusage	ru_majflt	72		long int	
 struct rusage	__ru_majflt_word	72		__syscall_slong_t	
-struct rusage	<anon>	80		union <anon>	
+struct rusage	<anon>	80		union <anon>	size 8 rows 2
 struct rusage	ru_nswap	80		long int	
 struct rusage	__ru_nswap_word	80		__syscall_slong_t	
-struct rusage	<anon>	88		union <anon>	
+struct rusage	<anon>	88		union <anon>	size 8 rows 2
 struct rusage	ru_inblock	88		long int	
 struct rusage	__ru_inblock_word	88		__syscall_slong_t	
-struct rusage	<anon>	96		union <anon>	
+struct rusage	<anon>	96		union <anon>	size 8 rows 2
 struct rusage	ru_oublock	96		long int	
 struct rusage	__ru_oublock_word	96		__syscall_slong_t	
-struct rusage	<anon>	104		union <anon>	
+struct rusage	<anon>	104		union <anon>	size 8 rows 2
 struct rusage	ru_msgsnd	104		long int	
 struct rusage	__ru_msgsnd_word	104		__syscall_slong_t	
-struct rusage	<anon>	112		union <anon>	
+struct rusage	<anon>	112		union <anon>	size 8 rows 2
 struct rusage	ru_msgrcv	112		long int	
 struct rusage	__ru_msgrcv_word	112		__syscall_slong_t	
-struct rusage	<anon>	120		union <anon>	
+struct rusage	<anon>	120		union <anon>	size 8 rows 2
 struct rusage	ru_nsignals	120		long int	
 struct rusage	__ru_nsignals_word	120		__syscall_slong_t	
-struct rusage	<anon>	128		union <anon>	
+struct rusage	<anon>	128		union <anon>	size 8 rows 2
 struct rusage	ru_nvcsw	128		long int	
 struct rusage	__ru_nvcsw_word	128		__syscall_slong_t	
-struct rusage	<anon>	136		union <anon>	
+struct rusage	<anon>	136		union <anon>	size 8 rows 2
 struct rusage	ru_nivcsw	136		long int	
 struct rusage	__ru_nivcsw_word	136		__syscall_slong_t	
 struct rlimit		16	8		
@@ -1141,7 +1141,7 @@ struct dl_find_object	__dflo_reserved	40		long long unsigned int[7]
 Dl_serinfo		32	8		
 Dl_serinfo	dls_size	0		size_t	
 Dl_serinfo	dls_cnt	8		unsigned int	
-Dl_serinfo	<anon>	16		union <anon>	
+Dl_serinfo	<anon>	16		union <anon>	size 16 rows 2
 Dl_serinfo	dls_serpath	16		Dl_serpath[0]	
 Dl_serinfo	__dls_serpath_pad	16		Dl_serpath[1]	
 struct mntent		40	8		
@@ -1371,3 +1371,539 @@ struct dqblk	dqb_curinodes	40		__uint64_t
 struct dqblk	dqb_btime	48		__uint64_t	
 struct dqblk	dqb_itime	56		__uint64_t	
 struct dqblk	dqb_valid	64		__uint32_t	
+struct flock		32	8		
+struct flock	l_type	0		short int	
+struct flock	l_whence	2		short int	
+struct flock	l_start	8		__off_t	
+struct flock	l_len	16		__off_t	
+struct flock	l_pid	24		__pid_t	
+struct flock64		32	8		
+struct flock64	l_type	0		short int	
+struct flock64	l_whence	2		short int	
+struct flock64	l_start	8		__off64_t	
+struct flock64	l_len	16		__off64_t	
+struct flock64	l_pid	24		__pid_t	
+struct stat64		144	8		
+struct stat64	st_dev	0		__dev_t	
+struct stat64	st_ino	8		__ino64_t	
+struct stat64	st_nlink	16		__nlink_t	
+struct stat64	st_mode	24		__mode_t	
+struct stat64	st_uid	28		__uid_t	
+struct stat64	st_gid	32		__gid_t	
+struct stat64	__pad0	36		int	
+struct stat64	st_rdev	40		__dev_t	
+struct stat64	st_size	48		__off_t	
+struct stat64	st_blksize	56		__blksize_t	
+struct stat64	st_blocks	64		__blkcnt64_t	
+struct stat64	st_atim	72		struct timespec	
+struct stat64	st_atim.tv_sec	72		__time_t	
+struct stat64	st_atim.tv_nsec	80		__syscall_slong_t	
+struct stat64	st_mtim	88		struct timespec	
+struct stat64	st_mtim.tv_sec	88		__time_t	
+struct stat64	st_mtim.tv_nsec	96		__syscall_slong_t	
+struct stat64	st_ctim	104		struct timespec	
+struct stat64	st_ctim.tv_sec	104		__time_t	
+struct stat64	st_ctim.tv_nsec	112		__syscall_slong_t	
+struct stat64	__glibc_reserved	120		__syscall_slong_t[3]	
+struct statfs64		120	8		
+struct statfs64	f_type	0		__fsword_t	
+struct statfs64	f_bsize	8		__fsword_t	
+struct statfs64	f_blocks	16		__fsblkcnt64_t	
+struct statfs64	f_bfree	24		__fsblkcnt64_t	
+struct statfs64	f_bavail	32		__fsblkcnt64_t	
+struct statfs64	f_files	40		__fsfilcnt64_t	
+struct statfs64	f_ffree	48		__fsfilcnt64_t	
+struct statfs64	f_fsid	56		__fsid_t	
+struct statfs64	f_fsid.__val	56		int[2]	
+struct statfs64	f_namelen	64		__fsword_t	
+struct statfs64	f_frsize	72		__fsword_t	
+struct statfs64	f_flags	80		__fsword_t	
+struct statfs64	f_spare	88		__fsword_t[4]	
+struct statvfs64		112	8		
+struct statvfs64	f_bsize	0		long unsigned int	
+struct statvfs64	f_frsize	8		long unsigned int	
+struct statvfs64	f_blocks	16		__fsblkcnt64_t	
+struct statvfs64	f_bfree	24		__fsblkcnt64_t	
+struct statvfs64	f_bavail	32		__fsblkcnt64_t	
+struct statvfs64	f_files	40		__fsfilcnt64_t	
+struct statvfs64	f_ffree	48		__fsfilcnt64_t	
+struct statvfs64	f_favail	56		__fsfilcnt64_t	
+struct statvfs64	f_fsid	64		long unsigned int	
+struct statvfs64	f_flag	72		long unsigned int	
+struct statvfs64	f_namemax	80		long unsigned int	
+struct statvfs64	f_type	88		unsigned int	
+struct statvfs64	__f_spare	92		int[5]	
+struct rlimit64		16	8		
+struct rlimit64	rlim_cur	0		rlim64_t	
+struct rlimit64	rlim_max	8		rlim64_t	
+struct f_owner_ex		8	4		
+struct f_owner_ex	type	0		enum __pid_type	
+struct f_owner_ex	pid	4		__pid_t	
+struct file_handle		8	4		
+struct file_handle	handle_bytes	0		unsigned int	
+struct file_handle	handle_type	4		int	
+struct file_handle	f_handle	8		unsigned char[0]	
+struct ip		20	4		
+struct ip	ip_hl	0		unsigned int	bits 4@0
+struct ip	ip_v	0		unsigned int	bits 4@0
+struct ip	ip_tos	1		uint8_t	
+struct ip	ip_len	2		short unsigned int	
+struct ip	ip_id	4		short unsigned int	
+struct ip	ip_off	6		short unsigned int	
+struct ip	ip_ttl	8		uint8_t	
+struct ip	ip_p	9		uint8_t	
+struct ip	ip_sum	10		short unsigned int	
+struct ip	ip_src	12		struct in_addr	
+struct ip	ip_src.s_addr	12		in_addr_t	
+struct ip	ip_dst	16		struct in_addr	
+struct ip	ip_dst.s_addr	16		in_addr_t	
+struct iphdr		20	4		
+struct iphdr	ihl	0		unsigned int	bits 4@0
+struct iphdr	version	0		unsigned int	bits 4@0
+struct iphdr	tos	1		uint8_t	
+struct iphdr	tot_len	2		uint16_t	
+struct iphdr	id	4		uint16_t	
+struct iphdr	frag_off	6		uint16_t	
+struct iphdr	ttl	8		uint8_t	
+struct iphdr	protocol	9		uint8_t	
+struct iphdr	check	10		uint16_t	
+struct iphdr	saddr	12		uint32_t	
+struct iphdr	daddr	16		uint32_t	
+struct ip6_hdr		40	4		
+struct ip6_hdr	ip6_ctlun	0		union <anon>	
+struct ip6_hdr	ip6_ctlun.ip6_un1	0		struct ip6_hdrctl	
+struct ip6_hdr	ip6_ctlun.ip6_un1.ip6_un1_flow	0		uint32_t	
+struct ip6_hdr	ip6_ctlun.ip6_un1.ip6_un1_plen	4		uint16_t	
+struct ip6_hdr	ip6_ctlun.ip6_un1.ip6_un1_nxt	6		uint8_t	
+struct ip6_hdr	ip6_ctlun.ip6_un1.ip6_un1_hlim	7		uint8_t	
+struct ip6_hdr	ip6_ctlun.ip6_un2_vfc	0		uint8_t	
+struct ip6_hdr	ip6_src	8		struct in6_addr	
+struct ip6_hdr	ip6_src.__in6_u	8		union <anon>	
+struct ip6_hdr	ip6_src.__in6_u.__u6_addr8	8		uint8_t[16]	
+struct ip6_hdr	ip6_src.__in6_u.__u6_addr16	8		uint16_t[8]	
+struct ip6_hdr	ip6_src.__in6_u.__u6_addr32	8		uint32_t[4]	
+struct ip6_hdr	ip6_dst	24		struct in6_addr	
+struct ip6_hdr	ip6_dst.__in6_u	24		union <anon>	
+struct ip6_hdr	ip6_dst.__in6_u.__u6_addr8	24		uint8_t[16]	
+struct ip6_hdr	ip6_dst.__in6_u.__u6_addr16	24		uint16_t[8]	
+struct ip6_hdr	ip6_dst.__in6_u.__u6_addr32	24		uint32_t[4]	
+struct tcphdr		20	4		
+struct tcphdr	<anon>	0		union <anon>	size 20 rows 28
+struct tcphdr	<anon>	0		struct <anon>	size 20 rows 10
+struct tcphdr	th_sport	0		uint16_t	
+struct tcphdr	th_dport	2		uint16_t	
+struct tcphdr	th_seq	4		tcp_seq	
+struct tcphdr	th_ack	8		tcp_seq	
+struct tcphdr	th_x2	12		uint8_t	bits 4@0
+struct tcphdr	th_off	12		uint8_t	bits 4@0
+struct tcphdr	th_flags	13		uint8_t	
+struct tcphdr	th_win	14		uint16_t	
+struct tcphdr	th_sum	16		uint16_t	
+struct tcphdr	th_urp	18		uint16_t	
+struct tcphdr	<anon>	0		struct <anon>	size 20 rows 16
+struct tcphdr	source	0		uint16_t	
+struct tcphdr	dest	2		uint16_t	
+struct tcphdr	seq	4		uint32_t	
+struct tcphdr	ack_seq	8		uint32_t	
+struct tcphdr	res1	12		uint16_t	bits 4@0
+struct tcphdr	doff	12		uint16_t	bits 4@0
+struct tcphdr	fin	12		uint16_t	bits 1@0
+struct tcphdr	syn	12		uint16_t	bits 1@0
+struct tcphdr	rst	12		uint16_t	bits 1@0
+struct tcphdr	psh	12		uint16_t	bits 1@0
+struct tcphdr	ack	12		uint16_t	bits 1@0
+struct tcphdr	urg	12		uint16_t	bits 1@0
+struct tcphdr	res2	12		uint16_t	bits 2@0
+struct tcphdr	window	14		uint16_t	
+struct tcphdr	check	16		uint16_t	
+struct tcphdr	urg_ptr	18		uint16_t	
+struct tcp_info		104	4		
+struct tcp_info	tcpi_state	0		uint8_t	
+struct tcp_info	tcpi_ca_state	1		uint8_t	
+struct tcp_info	tcpi_retransmits	2		uint8_t	
+struct tcp_info	tcpi_probes	3		uint8_t	
+struct tcp_info	tcpi_backoff	4		uint8_t	
+struct tcp_info	tcpi_options	5		uint8_t	
+struct tcp_info	tcpi_snd_wscale	6		uint8_t	bits 4@0
+struct tcp_info	tcpi_rcv_wscale	6		uint8_t	bits 4@0
+struct tcp_info	tcpi_rto	8		uint32_t	
+struct tcp_info	tcpi_ato	12		uint32_t	
+struct tcp_info	tcpi_snd_mss	16		uint32_t	
+struct tcp_info	tcpi_rcv_mss	20		uint32_t	
+struct tcp_info	tcpi_unacked	24		uint32_t	
+struct tcp_info	tcpi_sacked	28		uint32_t	
+struct tcp_info	tcpi_lost	32		uint32_t	
+struct tcp_info	tcpi_retrans	36		uint32_t	
+struct tcp_info	tcpi_fackets	40		uint32_t	
+struct tcp_info	tcpi_last_data_sent	44		uint32_t	
+struct tcp_info	tcpi_last_ack_sent	48		uint32_t	
+struct tcp_info	tcpi_last_data_recv	52		uint32_t	
+struct tcp_info	tcpi_last_ack_recv	56		uint32_t	
+struct tcp_info	tcpi_pmtu	60		uint32_t	
+struct tcp_info	tcpi_rcv_ssthresh	64		uint32_t	
+struct tcp_info	tcpi_rtt	68		uint32_t	
+struct tcp_info	tcpi_rttvar	72		uint32_t	
+struct tcp_info	tcpi_snd_ssthresh	76		uint32_t	
+struct tcp_info	tcpi_snd_cwnd	80		uint32_t	
+struct tcp_info	tcpi_advmss	84		uint32_t	
+struct tcp_info	tcpi_reordering	88		uint32_t	
+struct tcp_info	tcpi_rcv_rtt	92		uint32_t	
+struct tcp_info	tcpi_rcv_space	96		uint32_t	
+struct tcp_info	tcpi_total_retrans	100		uint32_t	
+struct udphdr		8	2		
+struct udphdr	<anon>	0		union <anon>	size 8 rows 10
+struct udphdr	<anon>	0		struct <anon>	size 8 rows 4
+struct udphdr	uh_sport	0		uint16_t	
+struct udphdr	uh_dport	2		uint16_t	
+struct udphdr	uh_ulen	4		uint16_t	
+struct udphdr	uh_sum	6		uint16_t	
+struct udphdr	<anon>	0		struct <anon>	size 8 rows 4
+struct udphdr	source	0		uint16_t	
+struct udphdr	dest	2		uint16_t	
+struct udphdr	len	4		uint16_t	
+struct udphdr	check	6		uint16_t	
+struct icmphdr		8	4		
+struct icmphdr	type	0		uint8_t	
+struct icmphdr	code	1		uint8_t	
+struct icmphdr	checksum	2		uint16_t	
+struct icmphdr	un	4		union <anon>	
+struct icmphdr	un.echo	4		struct <anon>	
+struct icmphdr	un.echo.id	4		uint16_t	
+struct icmphdr	un.echo.sequence	6		uint16_t	
+struct icmphdr	un.gateway	4		uint32_t	
+struct icmphdr	un.frag	4		struct <anon>	
+struct icmphdr	un.frag.__glibc_reserved	4		uint16_t	
+struct icmphdr	un.frag.mtu	6		uint16_t	
+struct icmp		28	4		
+struct icmp	icmp_type	0		uint8_t	
+struct icmp	icmp_code	1		uint8_t	
+struct icmp	icmp_cksum	2		uint16_t	
+struct icmp	icmp_hun	4		union <anon>	
+struct icmp	icmp_hun.ih_pptr	4		unsigned char	
+struct icmp	icmp_hun.ih_gwaddr	4		struct in_addr	
+struct icmp	icmp_hun.ih_gwaddr.s_addr	4		in_addr_t	
+struct icmp	icmp_hun.ih_idseq	4		struct ih_idseq	
+struct icmp	icmp_hun.ih_idseq.icd_id	4		uint16_t	
+struct icmp	icmp_hun.ih_idseq.icd_seq	6		uint16_t	
+struct icmp	icmp_hun.ih_void	4		uint32_t	
+struct icmp	icmp_hun.ih_pmtu	4		struct ih_pmtu	
+struct icmp	icmp_hun.ih_pmtu.ipm_void	4		uint16_t	
+struct icmp	icmp_hun.ih_pmtu.ipm_nextmtu	6		uint16_t	
+struct icmp	icmp_hun.ih_rtradv	4		struct ih_rtradv	
+struct icmp	icmp_hun.ih_rtradv.irt_num_addrs	4		uint8_t	
+struct icmp	icmp_hun.ih_rtradv.irt_wpa	5		uint8_t	
+struct icmp	icmp_hun.ih_rtradv.irt_lifetime	6		uint16_t	
+struct icmp	icmp_dun	8		union <anon>	
+struct icmp	icmp_dun.id_ts	8		struct <anon>	
+struct icmp	icmp_dun.id_ts.its_otime	8		uint32_t	
+struct icmp	icmp_dun.id_ts.its_rtime	12		uint32_t	
+struct icmp	icmp_dun.id_ts.its_ttime	16		uint32_t	
+struct icmp	icmp_dun.id_ip	8		struct <anon>	
+struct icmp	icmp_dun.id_ip.idi_ip	8		struct ip	
+struct icmp	icmp_dun.id_radv	8		struct icmp_ra_addr	
+struct icmp	icmp_dun.id_radv.ira_addr	8		uint32_t	
+struct icmp	icmp_dun.id_radv.ira_preference	12		uint32_t	
+struct icmp	icmp_dun.id_mask	8		uint32_t	
+struct icmp	icmp_dun.id_data	8		uint8_t[1]	
+struct icmp6_hdr		8	4		
+struct icmp6_hdr	icmp6_type	0		uint8_t	
+struct icmp6_hdr	icmp6_code	1		uint8_t	
+struct icmp6_hdr	icmp6_cksum	2		uint16_t	
+struct icmp6_hdr	icmp6_dataun	4		union <anon>	
+struct icmp6_hdr	icmp6_dataun.icmp6_un_data32	4		uint32_t[1]	
+struct icmp6_hdr	icmp6_dataun.icmp6_un_data16	4		uint16_t[2]	
+struct icmp6_hdr	icmp6_dataun.icmp6_un_data8	4		uint8_t[4]	
+struct ether_header		14	1		
+struct ether_header	ether_dhost	0		uint8_t[6]	
+struct ether_header	ether_shost	6		uint8_t[6]	
+struct ether_header	ether_type	12		uint16_t	
+struct arphdr		8	2		
+struct arphdr	ar_hrd	0		short unsigned int	
+struct arphdr	ar_pro	2		short unsigned int	
+struct arphdr	ar_hln	4		unsigned char	
+struct arphdr	ar_pln	5		unsigned char	
+struct arphdr	ar_op	6		short unsigned int	
+struct sockaddr_ll		20	4		
+struct sockaddr_ll	sll_family	0		short unsigned int	
+struct sockaddr_ll	sll_protocol	2		short unsigned int	
+struct sockaddr_ll	sll_ifindex	4		int	
+struct sockaddr_ll	sll_hatype	8		short unsigned int	
+struct sockaddr_ll	sll_pkttype	10		unsigned char	
+struct sockaddr_ll	sll_halen	11		unsigned char	
+struct sockaddr_ll	sll_addr	12		unsigned char[8]	
+struct ip_mreqn		12	4		
+struct ip_mreqn	imr_multiaddr	0		struct in_addr	
+struct ip_mreqn	imr_multiaddr.s_addr	0		in_addr_t	
+struct ip_mreqn	imr_address	4		struct in_addr	
+struct ip_mreqn	imr_address.s_addr	4		in_addr_t	
+struct ip_mreqn	imr_ifindex	8		int	
+struct ipv6_mreq		20	4		
+struct ipv6_mreq	ipv6mr_multiaddr	0		struct in6_addr	
+struct ipv6_mreq	ipv6mr_multiaddr.__in6_u	0		union <anon>	
+struct ipv6_mreq	ipv6mr_multiaddr.__in6_u.__u6_addr8	0		uint8_t[16]	
+struct ipv6_mreq	ipv6mr_multiaddr.__in6_u.__u6_addr16	0		uint16_t[8]	
+struct ipv6_mreq	ipv6mr_multiaddr.__in6_u.__u6_addr32	0		uint32_t[4]	
+struct ipv6_mreq	ipv6mr_interface	16		unsigned int	
+struct in_pktinfo		12	4		
+struct in_pktinfo	ipi_ifindex	0		int	
+struct in_pktinfo	ipi_spec_dst	4		struct in_addr	
+struct in_pktinfo	ipi_spec_dst.s_addr	4		in_addr_t	
+struct in_pktinfo	ipi_addr	8		struct in_addr	
+struct in_pktinfo	ipi_addr.s_addr	8		in_addr_t	
+struct in6_pktinfo		20	4		
+struct in6_pktinfo	ipi6_addr	0		struct in6_addr	
+struct in6_pktinfo	ipi6_addr.__in6_u	0		union <anon>	
+struct in6_pktinfo	ipi6_addr.__in6_u.__u6_addr8	0		uint8_t[16]	
+struct in6_pktinfo	ipi6_addr.__in6_u.__u6_addr16	0		uint16_t[8]	
+struct in6_pktinfo	ipi6_addr.__in6_u.__u6_addr32	0		uint32_t[4]	
+struct in6_pktinfo	ipi6_ifindex	16		unsigned int	
+Elf32_Ehdr		52	4		
+Elf32_Ehdr	e_ident	0		unsigned char[16]	
+Elf32_Ehdr	e_type	16		Elf32_Half	
+Elf32_Ehdr	e_machine	18		Elf32_Half	
+Elf32_Ehdr	e_version	20		Elf32_Word	
+Elf32_Ehdr	e_entry	24		Elf32_Addr	
+Elf32_Ehdr	e_phoff	28		Elf32_Off	
+Elf32_Ehdr	e_shoff	32		Elf32_Off	
+Elf32_Ehdr	e_flags	36		Elf32_Word	
+Elf32_Ehdr	e_ehsize	40		Elf32_Half	
+Elf32_Ehdr	e_phentsize	42		Elf32_Half	
+Elf32_Ehdr	e_phnum	44		Elf32_Half	
+Elf32_Ehdr	e_shentsize	46		Elf32_Half	
+Elf32_Ehdr	e_shnum	48		Elf32_Half	
+Elf32_Ehdr	e_shstrndx	50		Elf32_Half	
+Elf64_Ehdr		64	8		
+Elf64_Ehdr	e_ident	0		unsigned char[16]	
+Elf64_Ehdr	e_type	16		Elf64_Half	
+Elf64_Ehdr	e_machine	18		Elf64_Half	
+Elf64_Ehdr	e_version	20		Elf64_Word	
+Elf64_Ehdr	e_entry	24		Elf64_Addr	
+Elf64_Ehdr	e_phoff	32		Elf64_Off	
+Elf64_Ehdr	e_shoff	40		Elf64_Off	
+Elf64_Ehdr	e_flags	48		Elf64_Word	
+Elf64_Ehdr	e_ehsize	52		Elf64_Half	
+Elf64_Ehdr	e_phentsize	54		Elf64_Half	
+Elf64_Ehdr	e_phnum	56		Elf64_Half	
+Elf64_Ehdr	e_shentsize	58		Elf64_Half	
+Elf64_Ehdr	e_shnum	60		Elf64_Half	
+Elf64_Ehdr	e_shstrndx	62		Elf64_Half	
+Elf32_Phdr		32	4		
+Elf32_Phdr	__p_type	0		Elf32_Word	
+Elf32_Phdr	p_offset	4		Elf32_Off	
+Elf32_Phdr	p_vaddr	8		Elf32_Addr	
+Elf32_Phdr	p_paddr	12		Elf32_Addr	
+Elf32_Phdr	p_filesz	16		Elf32_Word	
+Elf32_Phdr	p_memsz	20		Elf32_Word	
+Elf32_Phdr	p_flags	24		Elf32_Word	
+Elf32_Phdr	p_align	28		Elf32_Word	
+Elf64_Phdr		56	8		
+Elf64_Phdr	__p_type	0		Elf64_Word	
+Elf64_Phdr	p_flags	4		Elf64_Word	
+Elf64_Phdr	p_offset	8		Elf64_Off	
+Elf64_Phdr	p_vaddr	16		Elf64_Addr	
+Elf64_Phdr	p_paddr	24		Elf64_Addr	
+Elf64_Phdr	p_filesz	32		Elf64_Xword	
+Elf64_Phdr	p_memsz	40		Elf64_Xword	
+Elf64_Phdr	p_align	48		Elf64_Xword	
+Elf32_Shdr		40	4		
+Elf32_Shdr	sh_name	0		Elf32_Word	
+Elf32_Shdr	sh_type	4		Elf32_Word	
+Elf32_Shdr	sh_flags	8		Elf32_Word	
+Elf32_Shdr	sh_addr	12		Elf32_Addr	
+Elf32_Shdr	sh_offset	16		Elf32_Off	
+Elf32_Shdr	sh_size	20		Elf32_Word	
+Elf32_Shdr	sh_link	24		Elf32_Word	
+Elf32_Shdr	sh_info	28		Elf32_Word	
+Elf32_Shdr	sh_addralign	32		Elf32_Word	
+Elf32_Shdr	sh_entsize	36		Elf32_Word	
+Elf64_Shdr		64	8		
+Elf64_Shdr	sh_name	0		Elf64_Word	
+Elf64_Shdr	sh_type	4		Elf64_Word	
+Elf64_Shdr	sh_flags	8		Elf64_Xword	
+Elf64_Shdr	sh_addr	16		Elf64_Addr	
+Elf64_Shdr	sh_offset	24		Elf64_Off	
+Elf64_Shdr	sh_size	32		Elf64_Xword	
+Elf64_Shdr	sh_link	40		Elf64_Word	
+Elf64_Shdr	sh_info	44		Elf64_Word	
+Elf64_Shdr	sh_addralign	48		Elf64_Xword	
+Elf64_Shdr	sh_entsize	56		Elf64_Xword	
+Elf32_Sym		16	4		
+Elf32_Sym	st_name	0		Elf32_Word	
+Elf32_Sym	st_value	4		Elf32_Addr	
+Elf32_Sym	st_size	8		Elf32_Word	
+Elf32_Sym	st_info	12		unsigned char	
+Elf32_Sym	st_other	13		unsigned char	
+Elf32_Sym	st_shndx	14		Elf32_Section	
+Elf64_Sym		24	8		
+Elf64_Sym	st_name	0		Elf64_Word	
+Elf64_Sym	st_info	4		unsigned char	
+Elf64_Sym	st_other	5		unsigned char	
+Elf64_Sym	st_shndx	6		Elf64_Section	
+Elf64_Sym	st_value	8		Elf64_Addr	
+Elf64_Sym	st_size	16		Elf64_Xword	
+Elf32_Dyn		8	4		
+Elf32_Dyn	d_tag	0		Elf32_Sword	
+Elf32_Dyn	d_un	4		union <anon>	
+Elf32_Dyn	d_un.d_val	4		Elf32_Word	
+Elf32_Dyn	d_un.d_ptr	4		Elf32_Addr	
+Elf64_Dyn		16	8		
+Elf64_Dyn	d_tag	0		Elf64_Sxword	
+Elf64_Dyn	d_un	8		union <anon>	
+Elf64_Dyn	d_un.d_val	8		Elf64_Xword	
+Elf64_Dyn	d_un.d_ptr	8		Elf64_Addr	
+Elf32_Rel		8	4		
+Elf32_Rel	r_offset	0		Elf32_Addr	
+Elf32_Rel	r_info	4		Elf32_Word	
+Elf64_Rel		16	8		
+Elf64_Rel	r_offset	0		Elf64_Addr	
+Elf64_Rel	r_info	8		Elf64_Xword	
+Elf32_Rela		12	4		
+Elf32_Rela	r_offset	0		Elf32_Addr	
+Elf32_Rela	r_info	4		Elf32_Word	
+Elf32_Rela	r_addend	8		Elf32_Sword	
+Elf64_Rela		24	8		
+Elf64_Rela	r_offset	0		Elf64_Addr	
+Elf64_Rela	r_info	8		Elf64_Xword	
+Elf64_Rela	r_addend	16		Elf64_Sxword	
+Elf32_Nhdr		12	4		
+Elf32_Nhdr	n_namesz	0		Elf32_Word	
+Elf32_Nhdr	n_descsz	4		Elf32_Word	
+Elf32_Nhdr	n_type	8		Elf32_Word	
+Elf64_Nhdr		12	4		
+Elf64_Nhdr	n_namesz	0		Elf64_Word	
+Elf64_Nhdr	n_descsz	4		Elf64_Word	
+Elf64_Nhdr	n_type	8		Elf64_Word	
+Elf64_Chdr		24	8		
+Elf64_Chdr	ch_type	0		Elf64_Word	
+Elf64_Chdr	ch_reserved	4		Elf64_Word	
+Elf64_Chdr	ch_size	8		Elf64_Xword	
+Elf64_Chdr	ch_addralign	16		Elf64_Xword	
+Elf64_auxv_t		16	8		
+Elf64_auxv_t	a_type	0		uint64_t	
+Elf64_auxv_t	a_un	8		union <anon>	
+Elf64_auxv_t	a_un.a_val	8		uint64_t	
+Elf64_Verdef		20	4		
+Elf64_Verdef	vd_version	0		Elf64_Half	
+Elf64_Verdef	vd_flags	2		Elf64_Half	
+Elf64_Verdef	vd_ndx	4		Elf64_Half	
+Elf64_Verdef	vd_cnt	6		Elf64_Half	
+Elf64_Verdef	vd_hash	8		Elf64_Word	
+Elf64_Verdef	vd_aux	12		Elf64_Word	
+Elf64_Verdef	vd_next	16		Elf64_Word	
+Elf64_Verdaux		8	4		
+Elf64_Verdaux	vda_name	0		Elf64_Word	
+Elf64_Verdaux	vda_next	4		Elf64_Word	
+Elf64_Verneed		16	4		
+Elf64_Verneed	vn_version	0		Elf64_Half	
+Elf64_Verneed	vn_cnt	2		Elf64_Half	
+Elf64_Verneed	vn_file	4		Elf64_Word	
+Elf64_Verneed	vn_aux	8		Elf64_Word	
+Elf64_Verneed	vn_next	12		Elf64_Word	
+Elf64_Vernaux		16	4		
+Elf64_Vernaux	vna_hash	0		Elf64_Word	
+Elf64_Vernaux	vna_flags	4		Elf64_Half	
+Elf64_Vernaux	vna_other	6		Elf64_Half	
+Elf64_Vernaux	vna_name	8		Elf64_Word	
+Elf64_Vernaux	vna_next	12		Elf64_Word	
+struct user		912	8		
+struct user	regs	0		struct user_regs_struct	
+struct user	regs.r15	0		long long unsigned int	
+struct user	regs.r14	8		long long unsigned int	
+struct user	regs.r13	16		long long unsigned int	
+struct user	regs.r12	24		long long unsigned int	
+struct user	regs.rbp	32		long long unsigned int	
+struct user	regs.rbx	40		long long unsigned int	
+struct user	regs.r11	48		long long unsigned int	
+struct user	regs.r10	56		long long unsigned int	
+struct user	regs.r9	64		long long unsigned int	
+struct user	regs.r8	72		long long unsigned int	
+struct user	regs.rax	80		long long unsigned int	
+struct user	regs.rcx	88		long long unsigned int	
+struct user	regs.rdx	96		long long unsigned int	
+struct user	regs.rsi	104		long long unsigned int	
+struct user	regs.rdi	112		long long unsigned int	
+struct user	regs.orig_rax	120		long long unsigned int	
+struct user	regs.rip	128		long long unsigned int	
+struct user	regs.cs	136		long long unsigned int	
+struct user	regs.eflags	144		long long unsigned int	
+struct user	regs.rsp	152		long long unsigned int	
+struct user	regs.ss	160		long long unsigned int	
+struct user	regs.fs_base	168		long long unsigned int	
+struct user	regs.gs_base	176		long long unsigned int	
+struct user	regs.ds	184		long long unsigned int	
+struct user	regs.es	192		long long unsigned int	
+struct user	regs.fs	200		long long unsigned int	
+struct user	regs.gs	208		long long unsigned int	
+struct user	u_fpvalid	216		int	
+struct user	i387	224		struct user_fpregs_struct	
+struct user	i387.cwd	224		short unsigned int	
+struct user	i387.swd	226		short unsigned int	
+struct user	i387.ftw	228		short unsigned int	
+struct user	i387.fop	230		short unsigned int	
+struct user	i387.rip	232		long long unsigned int	
+struct user	i387.rdp	240		long long unsigned int	
+struct user	i387.mxcsr	248		unsigned int	
+struct user	i387.mxcr_mask	252		unsigned int	
+struct user	i387.st_space	256		unsigned int[32]	
+struct user	i387.xmm_space	384		unsigned int[64]	
+struct user	i387.padding	640		unsigned int[24]	
+struct user	u_tsize	736		long long unsigned int	
+struct user	u_dsize	744		long long unsigned int	
+struct user	u_ssize	752		long long unsigned int	
+struct user	start_code	760		long long unsigned int	
+struct user	start_stack	768		long long unsigned int	
+struct user	signal	776		long long int	
+struct user	reserved	784		int	
+struct user	<anon>	792		union <anon>	size 8 rows 2
+struct user	u_ar0	792		struct user_regs_struct *	
+struct user	__u_ar0_word	792		long long unsigned int	
+struct user	<anon>	800		union <anon>	size 8 rows 2
+struct user	u_fpstate	800		struct user_fpregs_struct *	
+struct user	__u_fpstate_word	800		long long unsigned int	
+struct user	magic	808		long long unsigned int	
+struct user	u_comm	816		char[32]	
+struct user	u_debugreg	848		long long unsigned int[8]	
+struct elf_prstatus		336	8		
+struct elf_prstatus	pr_info	0		struct elf_siginfo	
+struct elf_prstatus	pr_info.si_signo	0		int	
+struct elf_prstatus	pr_info.si_code	4		int	
+struct elf_prstatus	pr_info.si_errno	8		int	
+struct elf_prstatus	pr_cursig	12		short int	
+struct elf_prstatus	pr_sigpend	16		long unsigned int	
+struct elf_prstatus	pr_sighold	24		long unsigned int	
+struct elf_prstatus	pr_pid	32		__pid_t	
+struct elf_prstatus	pr_ppid	36		__pid_t	
+struct elf_prstatus	pr_pgrp	40		__pid_t	
+struct elf_prstatus	pr_sid	44		__pid_t	
+struct elf_prstatus	pr_utime	48		struct timeval	
+struct elf_prstatus	pr_utime.tv_sec	48		__time_t	
+struct elf_prstatus	pr_utime.tv_usec	56		__suseconds_t	
+struct elf_prstatus	pr_stime	64		struct timeval	
+struct elf_prstatus	pr_stime.tv_sec	64		__time_t	
+struct elf_prstatus	pr_stime.tv_usec	72		__suseconds_t	
+struct elf_prstatus	pr_cutime	80		struct timeval	
+struct elf_prstatus	pr_cutime.tv_sec	80		__time_t	
+struct elf_prstatus	pr_cutime.tv_usec	88		__suseconds_t	
+struct elf_prstatus	pr_cstime	96		struct timeval	
+struct elf_prstatus	pr_cstime.tv_sec	96		__time_t	
+struct elf_prstatus	pr_cstime.tv_usec	104		__suseconds_t	
+struct elf_prstatus	pr_reg	112		elf_gregset_t	
+struct elf_prstatus	pr_fpvalid	328		int	
+struct elf_prpsinfo		136	8		
+struct elf_prpsinfo	pr_state	0		char	
+struct elf_prpsinfo	pr_sname	1		char	
+struct elf_prpsinfo	pr_zomb	2		char	
+struct elf_prpsinfo	pr_nice	3		char	
+struct elf_prpsinfo	pr_flag	8		long unsigned int	
+struct elf_prpsinfo	pr_uid	16		__pr_uid_t	
+struct elf_prpsinfo	pr_gid	20		__pr_gid_t	
+struct elf_prpsinfo	pr_pid	24		int	
+struct elf_prpsinfo	pr_ppid	28		int	
+struct elf_prpsinfo	pr_pgrp	32		int	
+struct elf_prpsinfo	pr_sid	36		int	
+struct elf_prpsinfo	pr_fname	40		char[16]	
+struct elf_prpsinfo	pr_psargs	56		char[80]	
+struct elf_siginfo		12	4		
+struct elf_siginfo	si_signo	0		int	
+struct elf_siginfo	si_code	4		int	
+struct elf_siginfo	si_errno	8		int	

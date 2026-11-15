@@ -21,6 +21,86 @@
 //! * `Dl_serinfo__anon_16.dls_serpath (Dl_serpath[0])`
 //! * `Dl_serinfo__anon_16.__dls_serpath_pad (Dl_serpath[1])`
 //! * `struct_argp.parser (argp_parser_t)`
+//! * `struct_rlimit64.rlim_cur (rlim64_t)`
+//! * `struct_rlimit64.rlim_max (rlim64_t)`
+//! * `struct_f_owner_ex.type (enum __pid_type)`
+//! * `struct_tcphdr__anon_0__anon_0.th_seq (tcp_seq)`
+//! * `struct_tcphdr__anon_0__anon_0.th_ack (tcp_seq)`
+//! * `Elf32_Ehdr.e_type (Elf32_Half)`
+//! * `Elf32_Ehdr.e_machine (Elf32_Half)`
+//! * `Elf32_Ehdr.e_version (Elf32_Word)`
+//! * `Elf32_Ehdr.e_entry (Elf32_Addr)`
+//! * `Elf32_Ehdr.e_phoff (Elf32_Off)`
+//! * `Elf32_Ehdr.e_shoff (Elf32_Off)`
+//! * `Elf32_Ehdr.e_flags (Elf32_Word)`
+//! * `Elf32_Ehdr.e_ehsize (Elf32_Half)`
+//! * `Elf32_Ehdr.e_phentsize (Elf32_Half)`
+//! * `Elf32_Ehdr.e_phnum (Elf32_Half)`
+//! * `Elf32_Ehdr.e_shentsize (Elf32_Half)`
+//! * `Elf32_Ehdr.e_shnum (Elf32_Half)`
+//! * `Elf32_Ehdr.e_shstrndx (Elf32_Half)`
+//! * `Elf64_Ehdr.e_version (Elf64_Word)`
+//! * `Elf64_Ehdr.e_flags (Elf64_Word)`
+//! * `Elf32_Phdr.__p_type (Elf32_Word)`
+//! * `Elf32_Phdr.p_offset (Elf32_Off)`
+//! * `Elf32_Phdr.p_vaddr (Elf32_Addr)`
+//! * `Elf32_Phdr.p_paddr (Elf32_Addr)`
+//! * `Elf32_Phdr.p_filesz (Elf32_Word)`
+//! * `Elf32_Phdr.p_memsz (Elf32_Word)`
+//! * `Elf32_Phdr.p_flags (Elf32_Word)`
+//! * `Elf32_Phdr.p_align (Elf32_Word)`
+//! * `Elf64_Phdr.__p_type (Elf64_Word)`
+//! * `Elf64_Phdr.p_flags (Elf64_Word)`
+//! * `Elf32_Shdr.sh_name (Elf32_Word)`
+//! * `Elf32_Shdr.sh_type (Elf32_Word)`
+//! * `Elf32_Shdr.sh_flags (Elf32_Word)`
+//! * `Elf32_Shdr.sh_addr (Elf32_Addr)`
+//! * `Elf32_Shdr.sh_offset (Elf32_Off)`
+//! * `Elf32_Shdr.sh_size (Elf32_Word)`
+//! * `Elf32_Shdr.sh_link (Elf32_Word)`
+//! * `Elf32_Shdr.sh_info (Elf32_Word)`
+//! * `Elf32_Shdr.sh_addralign (Elf32_Word)`
+//! * `Elf32_Shdr.sh_entsize (Elf32_Word)`
+//! * `Elf64_Shdr.sh_name (Elf64_Word)`
+//! * `Elf64_Shdr.sh_type (Elf64_Word)`
+//! * `Elf64_Shdr.sh_link (Elf64_Word)`
+//! * `Elf64_Shdr.sh_info (Elf64_Word)`
+//! * `Elf32_Sym.st_name (Elf32_Word)`
+//! * `Elf32_Sym.st_value (Elf32_Addr)`
+//! * `Elf32_Sym.st_size (Elf32_Word)`
+//! * `Elf32_Sym.st_shndx (Elf32_Section)`
+//! * `Elf64_Sym.st_name (Elf64_Word)`
+//! * `Elf64_Sym.st_shndx (Elf64_Section)`
+//! * `Elf32_Dyn.d_tag (Elf32_Sword)`
+//! * `Elf32_Dyn__d_un.d_val (Elf32_Word)`
+//! * `Elf32_Dyn__d_un.d_ptr (Elf32_Addr)`
+//! * `Elf32_Rel.r_offset (Elf32_Addr)`
+//! * `Elf32_Rel.r_info (Elf32_Word)`
+//! * `Elf32_Rela.r_offset (Elf32_Addr)`
+//! * `Elf32_Rela.r_info (Elf32_Word)`
+//! * `Elf32_Rela.r_addend (Elf32_Sword)`
+//! * `Elf32_Nhdr.n_namesz (Elf32_Word)`
+//! * `Elf32_Nhdr.n_descsz (Elf32_Word)`
+//! * `Elf32_Nhdr.n_type (Elf32_Word)`
+//! * `Elf64_Nhdr.n_namesz (Elf64_Word)`
+//! * `Elf64_Nhdr.n_descsz (Elf64_Word)`
+//! * `Elf64_Nhdr.n_type (Elf64_Word)`
+//! * `Elf64_Chdr.ch_type (Elf64_Word)`
+//! * `Elf64_Chdr.ch_reserved (Elf64_Word)`
+//! * `Elf64_Verdef.vd_hash (Elf64_Word)`
+//! * `Elf64_Verdef.vd_aux (Elf64_Word)`
+//! * `Elf64_Verdef.vd_next (Elf64_Word)`
+//! * `Elf64_Verdaux.vda_name (Elf64_Word)`
+//! * `Elf64_Verdaux.vda_next (Elf64_Word)`
+//! * `Elf64_Verneed.vn_file (Elf64_Word)`
+//! * `Elf64_Verneed.vn_aux (Elf64_Word)`
+//! * `Elf64_Verneed.vn_next (Elf64_Word)`
+//! * `Elf64_Vernaux.vna_hash (Elf64_Word)`
+//! * `Elf64_Vernaux.vna_name (Elf64_Word)`
+//! * `Elf64_Vernaux.vna_next (Elf64_Word)`
+//! * `struct_elf_prstatus.pr_reg (elf_gregset_t)`
+//! * `struct_elf_prpsinfo.pr_uid (__pr_uid_t)`
+//! * `struct_elf_prpsinfo.pr_gid (__pr_gid_t)`
 
 #![allow(non_camel_case_types, non_snake_case, missing_docs, clippy::all)]
 
@@ -2189,5 +2269,781 @@ pub struct struct_dqblk {
     pub dqb_btime: u64,
     pub dqb_itime: u64,
     pub dqb_valid: u32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_flock {
+    pub l_type: i16,
+    pub l_whence: i16,
+    pub l_start: i64,
+    pub l_len: i64,
+    pub l_pid: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_flock64 {
+    pub l_type: i16,
+    pub l_whence: i16,
+    pub l_start: i64,
+    pub l_len: i64,
+    pub l_pid: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_stat64 {
+    pub st_dev: u64,
+    pub st_ino: u64,
+    pub st_nlink: u64,
+    pub st_mode: u32,
+    pub st_uid: u32,
+    pub st_gid: u32,
+    pub __pad0: i32,
+    pub st_rdev: u64,
+    pub st_size: i64,
+    pub st_blksize: i64,
+    pub st_blocks: i64,
+    pub st_atim: struct_timespec,
+    pub st_mtim: struct_timespec,
+    pub st_ctim: struct_timespec,
+    pub __glibc_reserved: [i64; 3],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_statfs64__f_fsid {
+    pub __val: [i32; 2],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_statfs64 {
+    pub f_type: i64,
+    pub f_bsize: i64,
+    pub f_blocks: u64,
+    pub f_bfree: u64,
+    pub f_bavail: u64,
+    pub f_files: u64,
+    pub f_ffree: u64,
+    pub f_fsid: struct_statfs64__f_fsid,
+    pub f_namelen: i64,
+    pub f_frsize: i64,
+    pub f_flags: i64,
+    pub f_spare: [i64; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_statvfs64 {
+    pub f_bsize: u64,
+    pub f_frsize: u64,
+    pub f_blocks: u64,
+    pub f_bfree: u64,
+    pub f_bavail: u64,
+    pub f_files: u64,
+    pub f_ffree: u64,
+    pub f_favail: u64,
+    pub f_fsid: u64,
+    pub f_flag: u64,
+    pub f_namemax: u64,
+    pub f_type: u32,
+    pub __f_spare: [i32; 5],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_rlimit64 {
+    pub rlim_cur: [u64; 1],
+    pub rlim_max: [u64; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_f_owner_ex {
+    pub r#type: [u32; 1],
+    pub pid: i32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_file_handle {
+    pub handle_bytes: u32,
+    pub handle_type: i32,
+    pub f_handle: [u8; 0],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ip {
+    pub ip_hl: [u8; 1],
+    pub ip_tos: u8,
+    pub ip_len: u16,
+    pub ip_id: u16,
+    pub ip_off: u16,
+    pub ip_ttl: u8,
+    pub ip_p: u8,
+    pub ip_sum: u16,
+    pub ip_src: struct_in_addr,
+    pub ip_dst: struct_in_addr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_iphdr {
+    pub ihl: [u8; 1],
+    pub tos: u8,
+    pub tot_len: u16,
+    pub id: u16,
+    pub frag_off: u16,
+    pub ttl: u8,
+    pub protocol: u8,
+    pub check: u16,
+    pub saddr: u32,
+    pub daddr: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_ip6_hdr__ip6_ctlun__ip6_un1 {
+    pub ip6_un1_flow: u32,
+    pub ip6_un1_plen: u16,
+    pub ip6_un1_nxt: u8,
+    pub ip6_un1_hlim: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_ip6_hdr__ip6_ctlun {
+    pub ip6_un1: struct_ip6_hdr__ip6_ctlun__ip6_un1,
+    pub ip6_un2_vfc: u8,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ip6_hdr {
+    pub ip6_ctlun: struct_ip6_hdr__ip6_ctlun,
+    pub ip6_src: struct_in6_addr,
+    pub ip6_dst: struct_in6_addr,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_tcphdr__anon_0__anon_0 {
+    pub th_sport: u16,
+    pub th_dport: u16,
+    pub th_seq: [u32; 1],
+    pub th_ack: [u32; 1],
+    pub th_x2: [u8; 1],
+    pub th_flags: u8,
+    pub th_win: u16,
+    pub th_sum: u16,
+    pub th_urp: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_tcphdr__anon_0__anon_0_1 {
+    pub source: u16,
+    pub dest: u16,
+    pub seq: u32,
+    pub ack_seq: u32,
+    pub res1: [u8; 2],
+    pub window: u16,
+    pub check: u16,
+    pub urg_ptr: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_tcphdr__anon_0 {
+    pub __anon_0: struct_tcphdr__anon_0__anon_0,
+    pub __anon_0_1: struct_tcphdr__anon_0__anon_0_1,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_tcphdr {
+    pub __anon_0: struct_tcphdr__anon_0,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_tcp_info {
+    pub tcpi_state: u8,
+    pub tcpi_ca_state: u8,
+    pub tcpi_retransmits: u8,
+    pub tcpi_probes: u8,
+    pub tcpi_backoff: u8,
+    pub tcpi_options: u8,
+    pub tcpi_snd_wscale: [u8; 1],
+    pub tcpi_rto: u32,
+    pub tcpi_ato: u32,
+    pub tcpi_snd_mss: u32,
+    pub tcpi_rcv_mss: u32,
+    pub tcpi_unacked: u32,
+    pub tcpi_sacked: u32,
+    pub tcpi_lost: u32,
+    pub tcpi_retrans: u32,
+    pub tcpi_fackets: u32,
+    pub tcpi_last_data_sent: u32,
+    pub tcpi_last_ack_sent: u32,
+    pub tcpi_last_data_recv: u32,
+    pub tcpi_last_ack_recv: u32,
+    pub tcpi_pmtu: u32,
+    pub tcpi_rcv_ssthresh: u32,
+    pub tcpi_rtt: u32,
+    pub tcpi_rttvar: u32,
+    pub tcpi_snd_ssthresh: u32,
+    pub tcpi_snd_cwnd: u32,
+    pub tcpi_advmss: u32,
+    pub tcpi_reordering: u32,
+    pub tcpi_rcv_rtt: u32,
+    pub tcpi_rcv_space: u32,
+    pub tcpi_total_retrans: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_udphdr__anon_0__anon_0 {
+    pub uh_sport: u16,
+    pub uh_dport: u16,
+    pub uh_ulen: u16,
+    pub uh_sum: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_udphdr__anon_0__anon_0_1 {
+    pub source: u16,
+    pub dest: u16,
+    pub len: u16,
+    pub check: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_udphdr__anon_0 {
+    pub __anon_0: struct_udphdr__anon_0__anon_0,
+    pub __anon_0_1: struct_udphdr__anon_0__anon_0_1,
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct_udphdr {
+    pub __anon_0: struct_udphdr__anon_0,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_icmphdr__un__echo {
+    pub id: u16,
+    pub sequence: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_icmphdr__un__frag {
+    pub __glibc_reserved: u16,
+    pub mtu: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_icmphdr__un {
+    pub echo: struct_icmphdr__un__echo,
+    pub gateway: u32,
+    pub frag: struct_icmphdr__un__frag,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_icmphdr {
+    pub r#type: u8,
+    pub code: u8,
+    pub checksum: u16,
+    pub un: struct_icmphdr__un,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_icmp__icmp_hun__ih_idseq {
+    pub icd_id: u16,
+    pub icd_seq: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_icmp__icmp_hun__ih_pmtu {
+    pub ipm_void: u16,
+    pub ipm_nextmtu: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_icmp__icmp_hun__ih_rtradv {
+    pub irt_num_addrs: u8,
+    pub irt_wpa: u8,
+    pub irt_lifetime: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_icmp__icmp_hun {
+    pub ih_pptr: u8,
+    pub ih_gwaddr: struct_in_addr,
+    pub ih_idseq: struct_icmp__icmp_hun__ih_idseq,
+    pub ih_void: u32,
+    pub ih_pmtu: struct_icmp__icmp_hun__ih_pmtu,
+    pub ih_rtradv: struct_icmp__icmp_hun__ih_rtradv,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_icmp__icmp_dun__id_ts {
+    pub its_otime: u32,
+    pub its_rtime: u32,
+    pub its_ttime: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_icmp__icmp_dun__id_ip {
+    pub idi_ip: struct_ip,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_icmp__icmp_dun__id_radv {
+    pub ira_addr: u32,
+    pub ira_preference: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_icmp__icmp_dun {
+    pub id_ts: struct_icmp__icmp_dun__id_ts,
+    pub id_ip: struct_icmp__icmp_dun__id_ip,
+    pub id_radv: struct_icmp__icmp_dun__id_radv,
+    pub id_mask: u32,
+    pub id_data: [u8; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_icmp {
+    pub icmp_type: u8,
+    pub icmp_code: u8,
+    pub icmp_cksum: u16,
+    pub icmp_hun: struct_icmp__icmp_hun,
+    pub icmp_dun: struct_icmp__icmp_dun,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_icmp6_hdr__icmp6_dataun {
+    pub icmp6_un_data32: [u32; 1],
+    pub icmp6_un_data16: [u16; 2],
+    pub icmp6_un_data8: [u8; 4],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_icmp6_hdr {
+    pub icmp6_type: u8,
+    pub icmp6_code: u8,
+    pub icmp6_cksum: u16,
+    pub icmp6_dataun: struct_icmp6_hdr__icmp6_dataun,
+}
+
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub struct struct_ether_header {
+    pub ether_dhost: [u8; 6],
+    pub ether_shost: [u8; 6],
+    pub ether_type: u16,
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct_arphdr {
+    pub ar_hrd: u16,
+    pub ar_pro: u16,
+    pub ar_hln: u8,
+    pub ar_pln: u8,
+    pub ar_op: u16,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_sockaddr_ll {
+    pub sll_family: u16,
+    pub sll_protocol: u16,
+    pub sll_ifindex: i32,
+    pub sll_hatype: u16,
+    pub sll_pkttype: u8,
+    pub sll_halen: u8,
+    pub sll_addr: [u8; 8],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ip_mreqn {
+    pub imr_multiaddr: struct_in_addr,
+    pub imr_address: struct_in_addr,
+    pub imr_ifindex: i32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_ipv6_mreq {
+    pub ipv6mr_multiaddr: struct_in6_addr,
+    pub ipv6mr_interface: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_in_pktinfo {
+    pub ipi_ifindex: i32,
+    pub ipi_spec_dst: struct_in_addr,
+    pub ipi_addr: struct_in_addr,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_in6_pktinfo {
+    pub ipi6_addr: struct_in6_addr,
+    pub ipi6_ifindex: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Ehdr {
+    pub e_ident: [u8; 16],
+    pub e_type: [u16; 1],
+    pub e_machine: [u16; 1],
+    pub e_version: [u32; 1],
+    pub e_entry: [u32; 1],
+    pub e_phoff: [u32; 1],
+    pub e_shoff: [u32; 1],
+    pub e_flags: [u32; 1],
+    pub e_ehsize: [u16; 1],
+    pub e_phentsize: [u16; 1],
+    pub e_phnum: [u16; 1],
+    pub e_shentsize: [u16; 1],
+    pub e_shnum: [u16; 1],
+    pub e_shstrndx: [u16; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Ehdr {
+    pub e_ident: [u8; 16],
+    pub e_type: u16,
+    pub e_machine: u16,
+    pub e_version: [u32; 1],
+    pub e_entry: u64,
+    pub e_phoff: u64,
+    pub e_shoff: u64,
+    pub e_flags: [u32; 1],
+    pub e_ehsize: u16,
+    pub e_phentsize: u16,
+    pub e_phnum: u16,
+    pub e_shentsize: u16,
+    pub e_shnum: u16,
+    pub e_shstrndx: u16,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Phdr {
+    pub __p_type: [u32; 1],
+    pub p_offset: [u32; 1],
+    pub p_vaddr: [u32; 1],
+    pub p_paddr: [u32; 1],
+    pub p_filesz: [u32; 1],
+    pub p_memsz: [u32; 1],
+    pub p_flags: [u32; 1],
+    pub p_align: [u32; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Phdr {
+    pub __p_type: [u32; 1],
+    pub p_flags: [u32; 1],
+    pub p_offset: u64,
+    pub p_vaddr: u64,
+    pub p_paddr: u64,
+    pub p_filesz: u64,
+    pub p_memsz: u64,
+    pub p_align: u64,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Shdr {
+    pub sh_name: [u32; 1],
+    pub sh_type: [u32; 1],
+    pub sh_flags: [u32; 1],
+    pub sh_addr: [u32; 1],
+    pub sh_offset: [u32; 1],
+    pub sh_size: [u32; 1],
+    pub sh_link: [u32; 1],
+    pub sh_info: [u32; 1],
+    pub sh_addralign: [u32; 1],
+    pub sh_entsize: [u32; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Shdr {
+    pub sh_name: [u32; 1],
+    pub sh_type: [u32; 1],
+    pub sh_flags: u64,
+    pub sh_addr: u64,
+    pub sh_offset: u64,
+    pub sh_size: u64,
+    pub sh_link: [u32; 1],
+    pub sh_info: [u32; 1],
+    pub sh_addralign: u64,
+    pub sh_entsize: u64,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Sym {
+    pub st_name: [u32; 1],
+    pub st_value: [u32; 1],
+    pub st_size: [u32; 1],
+    pub st_info: u8,
+    pub st_other: u8,
+    pub st_shndx: [u16; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Sym {
+    pub st_name: [u32; 1],
+    pub st_info: u8,
+    pub st_other: u8,
+    pub st_shndx: [u16; 1],
+    pub st_value: u64,
+    pub st_size: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union Elf32_Dyn__d_un {
+    pub d_val: [u32; 1],
+    pub d_ptr: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Dyn {
+    pub d_tag: [u32; 1],
+    pub d_un: Elf32_Dyn__d_un,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union Elf64_Dyn__d_un {
+    pub d_val: u64,
+    pub d_ptr: u64,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Dyn {
+    pub d_tag: i64,
+    pub d_un: Elf64_Dyn__d_un,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Rel {
+    pub r_offset: [u32; 1],
+    pub r_info: [u32; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Rel {
+    pub r_offset: u64,
+    pub r_info: u64,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Rela {
+    pub r_offset: [u32; 1],
+    pub r_info: [u32; 1],
+    pub r_addend: [u32; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Rela {
+    pub r_offset: u64,
+    pub r_info: u64,
+    pub r_addend: i64,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf32_Nhdr {
+    pub n_namesz: [u32; 1],
+    pub n_descsz: [u32; 1],
+    pub n_type: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Nhdr {
+    pub n_namesz: [u32; 1],
+    pub n_descsz: [u32; 1],
+    pub n_type: [u32; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Chdr {
+    pub ch_type: [u32; 1],
+    pub ch_reserved: [u32; 1],
+    pub ch_size: u64,
+    pub ch_addralign: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union Elf64_auxv_t__a_un {
+    pub a_val: u64,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Elf64_auxv_t {
+    pub a_type: u64,
+    pub a_un: Elf64_auxv_t__a_un,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Verdef {
+    pub vd_version: u16,
+    pub vd_flags: u16,
+    pub vd_ndx: u16,
+    pub vd_cnt: u16,
+    pub vd_hash: [u32; 1],
+    pub vd_aux: [u32; 1],
+    pub vd_next: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Verdaux {
+    pub vda_name: [u32; 1],
+    pub vda_next: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Verneed {
+    pub vn_version: u16,
+    pub vn_cnt: u16,
+    pub vn_file: [u32; 1],
+    pub vn_aux: [u32; 1],
+    pub vn_next: [u32; 1],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct Elf64_Vernaux {
+    pub vna_hash: [u32; 1],
+    pub vna_flags: u16,
+    pub vna_other: u16,
+    pub vna_name: [u32; 1],
+    pub vna_next: [u32; 1],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_user__anon_792 {
+    pub u_ar0: usize,
+    pub __u_ar0_word: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_user__anon_800 {
+    pub u_fpstate: usize,
+    pub __u_fpstate_word: u64,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_user {
+    pub regs: struct_user_regs_struct,
+    pub u_fpvalid: i32,
+    pub i387: struct_user_fpregs_struct,
+    pub u_tsize: u64,
+    pub u_dsize: u64,
+    pub u_ssize: u64,
+    pub start_code: u64,
+    pub start_stack: u64,
+    pub signal: i64,
+    pub reserved: i32,
+    pub __anon_792: struct_user__anon_792,
+    pub __anon_800: struct_user__anon_800,
+    pub magic: u64,
+    pub u_comm: [i8; 32],
+    pub u_debugreg: [u64; 8],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_elf_prstatus {
+    pub pr_info: struct_elf_siginfo,
+    pub pr_cursig: i16,
+    pub pr_sigpend: u64,
+    pub pr_sighold: u64,
+    pub pr_pid: i32,
+    pub pr_ppid: i32,
+    pub pr_pgrp: i32,
+    pub pr_sid: i32,
+    pub pr_utime: struct_timeval,
+    pub pr_stime: struct_timeval,
+    pub pr_cutime: struct_timeval,
+    pub pr_cstime: struct_timeval,
+    pub pr_reg: [u64; 27],
+    pub pr_fpvalid: i32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_elf_prpsinfo {
+    pub pr_state: i8,
+    pub pr_sname: i8,
+    pub pr_zomb: i8,
+    pub pr_nice: i8,
+    pub pr_flag: u64,
+    pub pr_uid: [u32; 1],
+    pub pr_gid: [u32; 1],
+    pub pr_pid: i32,
+    pub pr_ppid: i32,
+    pub pr_pgrp: i32,
+    pub pr_sid: i32,
+    pub pr_fname: [i8; 16],
+    pub pr_psargs: [i8; 80],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_elf_siginfo {
+    pub si_signo: i32,
+    pub si_code: i32,
+    pub si_errno: i32,
 }
 

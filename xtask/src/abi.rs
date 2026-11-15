@@ -26,6 +26,9 @@ struct Row {
     ctype: String,
     bitfield: bool,
     bits: u64,
+    /// For an anonymous member (`<anon>`, `size N rows M` in the last column): its byte size and
+    /// how many of the rows that follow it at its level are its own (flattened) members.
+    anon: Option<(u64, usize)>,
 }
 
 #[derive(Debug)]
@@ -79,8 +82,15 @@ fn load(root: &Path, arch: Arch) -> Result<Vec<Ty>, String> {
                 path: f[1].split('.').map(str::to_string).collect(),
                 offset: num(f[2])?,
                 ctype: f[4].trim().to_string(),
-                bitfield: f.get(5).is_some_and(|b| !b.trim().is_empty()),
+                bitfield: f.get(5).is_some_and(|b| b.trim().starts_with("bits ")),
                 bits: f.get(5).and_then(|b| b.trim().strip_prefix("bits ")).and_then(|b| b.split('@').next()).and_then(|w| w.parse().ok()).unwrap_or(0),
+                anon: match f.get(5).and_then(|b| b.trim().strip_prefix("size ")) {
+                    Some(s) => {
+                        let (size, rows) = s.split_once(" rows ").ok_or(format!("layouts.tsv:{}: `size N rows M` expected", n + 1))?;
+                        Some((num(size)?, num(rows)? as usize))
+                    }
+                    None => None,
+                },
             });
         }
     }
@@ -218,9 +228,17 @@ struct Node {
     children: Vec<Node>,
 }
 
-fn build(rows: &[Row], depth: usize) -> Vec<Node> {
-    let mut out: Vec<Node> = Vec::new();
+fn build(rows: &[Row], depth: usize) -> Result<Vec<Node>, String> {
     let level: Vec<&Row> = rows.iter().filter(|r| r.path.len() == depth + 1).collect();
+    group(&level, rows, depth)
+}
+
+/// The nodes of `level` (rows of one path depth, in table order). C11 anonymous members are
+/// flattened in the table: an `<anon>` row is followed at the same level by its own members, which
+/// lie inside its extent; they are grouped under a synthesized field, recursively (a union of
+/// anonymous structs, as in `struct tcphdr`).
+fn group(level: &[&Row], rows: &[Row], depth: usize) -> Result<Vec<Node>, String> {
+    let mut out: Vec<Node> = Vec::new();
     let mut i = 0;
     while i < level.len() {
         let r = level[i];
@@ -233,23 +251,40 @@ fn build(rows: &[Row], depth: usize) -> Vec<Node> {
                 continue;
             }
         }
-        // A C11 anonymous union: the table lists `<anon>` and then its members at this level,
-        // all at the same offset. Group them under a synthesized field.
-        if r.path[depth] == "<anon>" && r.ctype.starts_with("union") {
-            let mut children = Vec::new();
-            while i < level.len() && level[i].offset == r.offset && level[i].path[depth] != "<anon>" {
-                let m = level[i];
-                children.push(Node { name: m.path[depth].clone(), c_name: Some(m.path[depth].clone()), offset: m.offset, ctype: m.ctype.clone(), bitfield: m.bitfield, bits: m.bits, children: Vec::new() });
-                i += 1;
+        if r.path[depth] == "<anon>" {
+            let start = i;
+            match r.anon {
+                // Its members are the next `rows` rows of this level, each starting inside it (a member
+                // starting at its end can only be a flexible array).
+                Some((size, rows)) => {
+                    i += rows;
+                    let mine = level.get(start..i).ok_or(format!("anonymous `{}` at offset {}: {rows} member rows, the table has {}", r.ctype, r.offset, level.len() - start))?;
+                    if let Some(m) = mine.iter().find(|m| m.offset < r.offset || m.offset > r.offset + size) {
+                        return Err(format!("anonymous `{}` at offset {} (size {size}): member `{}` at offset {} lies outside it", r.ctype, r.offset, m.path.join("."), m.offset));
+                    }
+                }
+                // A table without sizes (layouts-aarch64.tsv): an anonymous union's members are the
+                // named rows that follow it at its offset.
+                None if r.ctype.starts_with("union") => {
+                    while i < level.len() && level[i].offset == r.offset && level[i].path[depth] != "<anon>" {
+                        i += 1;
+                    }
+                }
+                None => return Err(format!("anonymous `{}` at offset {}: the table gives no `size N rows M`", r.ctype, r.offset)),
             }
-            out.push(Node { name: format!("__anon_{}", r.offset), c_name: None, offset: r.offset, ctype: r.ctype.clone(), bitfield: false, bits: 0, children });
+            let children = group(&level[start..i], rows, depth)?;
+            // Field names are unique within the parent: `__anon_<offset>`, then `_<k>` for the k-th repeat.
+            let base = format!("__anon_{}", r.offset);
+            let repeats = out.iter().filter(|n| n.c_name.is_none() && (n.name == base || n.name.starts_with(&format!("{base}_")))).count();
+            let name = if repeats == 0 { base } else { format!("{base}_{repeats}") };
+            out.push(Node { name, c_name: None, offset: r.offset, ctype: r.ctype.clone(), bitfield: false, bits: 0, children });
             continue;
         }
         let prefix = &r.path[..=depth];
         let sub: Vec<Row> = rows.iter().filter(|c| c.path.len() > depth + 1 && c.path[..=depth] == *prefix).cloned().collect();
-        out.push(Node { name: r.path[depth].clone(), c_name: Some(r.path[depth].clone()), offset: r.offset, ctype: r.ctype.clone(), bitfield: r.bitfield, bits: r.bits, children: build(&sub, depth + 1) });
+        out.push(Node { name: r.path[depth].clone(), c_name: Some(r.path[depth].clone()), offset: r.offset, ctype: r.ctype.clone(), bitfield: r.bitfield, bits: r.bits, children: build(&sub, depth + 1)? });
     }
-    out
+    Ok(out)
 }
 
 fn is_union(node_ctype: &str, children: &[Node]) -> bool {
@@ -367,7 +402,7 @@ fn render(root: &Path, arch: Arch) -> Result<(String, String), String> {
     let known: BTreeMap<String, ()> = types.iter().map(|t| (t.name.clone(), ())).collect();
     let mut g = Gen { arch, known: &known, out: String::new(), opaque: Vec::new(), tail: None, underaligned: Vec::new() };
     for t in &types {
-        let nodes = build(&t.rows, 0);
+        let nodes = build(&t.rows, 0).map_err(|e| format!("layouts{}.tsv: {}: {e}", arch.sfx, t.name))?;
         let name = rust_name(&t.name);
         if nodes.is_empty() {
             // Scalar or pointer typedef (pthread_t, pthread_key_t, ...): a transparent newtype.
@@ -451,7 +486,7 @@ use table::{expect_initializer, expect_member, expect_type};\n\n");
         }
         // Member offsets, following the generated structure (bitfield followers and members of
         // opaque or array-of-composite parents are not addressable).
-        let nodes = build(&t.rows, 0);
+        let nodes = build(&t.rows, 0)?;
         let mut paths = Vec::new();
         collect_paths(&nodes, &mut Vec::new(), &mut paths);
         for (dotted, rust_path) in paths {
@@ -514,4 +549,72 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
     }
     println!("abi-gen: {}", if check { "up to date" } else { "written" });
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    //! no spec clause: the flattened anonymous-member rows of spec/abi/layouts.tsv (Appendix C) and how
+    //! abi-gen groups them; each test is one shape the tables hold.
+    use super::*;
+
+    fn row(path: &str, offset: u64, ctype: &str, anon: Option<(u64, usize)>) -> Row {
+        Row { path: path.split('.').map(str::to_string).collect(), offset, ctype: ctype.to_string(), bitfield: false, bits: 0, anon }
+    }
+
+    /// (name, children) of a tree, for comparing shapes.
+    fn shape(nodes: &[Node]) -> Vec<(String, Vec<String>)> {
+        nodes.iter().map(|n| (n.name.clone(), n.children.iter().map(|c| c.name.clone()).collect())).collect()
+    }
+
+    /// `struct tcphdr` / `struct udphdr`: a union of two anonymous structs, then (here) a member after it.
+    fn union_of_structs() -> Vec<Row> {
+        vec![
+            row("<anon>", 0, "union <anon>", Some((4, 6))),
+            row("<anon>", 0, "struct <anon>", Some((4, 2))),
+            row("a", 0, "uint16_t", None),
+            row("b", 2, "uint16_t", None),
+            row("<anon>", 0, "struct <anon>", Some((4, 2))),
+            row("c", 0, "uint16_t", None),
+            row("d", 2, "uint16_t", None),
+            row("e", 4, "uint32_t", None),
+        ]
+    }
+
+    #[test]
+    fn anon_structs_in_anon_union_nest_by_extent() {
+        let nodes = build(&union_of_structs(), 0).unwrap();
+        assert_eq!(shape(&nodes), vec![("__anon_0".to_string(), vec!["__anon_0".to_string(), "__anon_0_1".to_string()]), ("e".to_string(), vec![])]);
+        assert_eq!(shape(&nodes[0].children), vec![("__anon_0".to_string(), vec!["a".to_string(), "b".to_string()]), ("__anon_0_1".to_string(), vec!["c".to_string(), "d".to_string()])]);
+    }
+
+    #[test]
+    fn anon_union_emitted_as_union_of_structs() {
+        let known = BTreeMap::new();
+        let mut g = Gen { arch: ARCHES[0], known: &known, out: String::new(), opaque: Vec::new(), tail: None, underaligned: Vec::new() };
+        let nodes = build(&union_of_structs(), 0).unwrap();
+        g.composite("T", false, &nodes, 8, Some(4), false);
+        for decl in ["pub union T__anon_0 {", "pub struct T__anon_0__anon_0 {", "pub struct T__anon_0__anon_0_1 {", "pub __anon_0_1: T__anon_0__anon_0_1,", "pub e: u32,"] {
+            assert!(g.out.contains(decl), "missing `{decl}` in:\n{}", g.out);
+        }
+    }
+
+    #[test]
+    fn unsized_anon_union_takes_members_at_its_offset() {
+        // struct rusage in a table without `size N` (layouts-aarch64.tsv).
+        let rows = vec![row("<anon>", 8, "union <anon>", None), row("x", 8, "long int", None), row("y", 8, "long int", None), row("z", 16, "long int", None)];
+        assert_eq!(shape(&build(&rows, 0).unwrap()), vec![("__anon_8".to_string(), vec!["x".to_string(), "y".to_string()]), ("z".to_string(), vec![])]);
+    }
+
+    #[test]
+    fn anon_member_rows_outside_its_extent_are_an_error() {
+        // A row count that reaches past the anonymous member: the table is inconsistent.
+        let rows = vec![row("<anon>", 0, "union <anon>", Some((4, 2))), row("a", 0, "int", None), row("e", 8, "int", None)];
+        assert!(build(&rows, 0).unwrap_err().contains("lies outside it"));
+    }
+
+    #[test]
+    fn unsized_anon_struct_is_an_error() {
+        let rows = vec![row("<anon>", 0, "struct <anon>", None), row("a", 0, "int", None)];
+        assert!(build(&rows, 0).unwrap_err().contains("no `size N rows M`"));
+    }
 }

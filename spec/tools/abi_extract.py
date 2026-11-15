@@ -33,7 +33,9 @@ thread_db.h sys/ptrace.h sys/prctl.h gnu/libc-version.h sys/single_threaded.h sy
 stdbit.h sys/pidfd.h sys/mount.h sys/fanotify.h sys/quota.h sys/swap.h sys/klog.h
 sys/reboot.h ttyent.h aliases.h rpc/netdb.h ulimit.h sys/profil.h sys/gmon.h mcheck.h nss.h
 sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfile.h
-sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h""".split()
+sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
+elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
+net/ethernet.h net/if_arp.h netpacket/packet.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -106,6 +108,26 @@ TYPES = [
  ("struct user_fpregs_struct", "struct user_fpregs_struct"), ("struct ustat", "struct ustat"),
  ("struct vtimes", "struct vtimes"), ("struct vlimit", "struct vlimit"), ("struct dqblk", "struct dqblk"),
  ("struct cpu_features", "struct cpu_features"),
+ # plan/headers.md section 2.1 (slice 3): large-file, protocol, ELF and debug types.
+ ("struct flock", "struct flock"), ("struct flock64", "struct flock64"), ("struct stat64", "struct stat64"),
+ ("struct statfs64", "struct statfs64"), ("struct statvfs64", "struct statvfs64"),
+ ("struct rlimit64", "struct rlimit64"), ("struct f_owner_ex", "struct f_owner_ex"),
+ ("struct file_handle", "struct file_handle"),
+ ("struct ip", "struct ip"), ("struct iphdr", "struct iphdr"), ("struct ip6_hdr", "struct ip6_hdr"),
+ ("struct tcphdr", "struct tcphdr"), ("struct tcp_info", "struct tcp_info"), ("struct udphdr", "struct udphdr"),
+ ("struct icmphdr", "struct icmphdr"), ("struct icmp", "struct icmp"), ("struct icmp6_hdr", "struct icmp6_hdr"),
+ ("struct ether_header", "struct ether_header"), ("struct arphdr", "struct arphdr"),
+ ("struct sockaddr_ll", "struct sockaddr_ll"), ("struct ip_mreqn", "struct ip_mreqn"),
+ ("struct ipv6_mreq", "struct ipv6_mreq"), ("struct in_pktinfo", "struct in_pktinfo"),
+ ("struct in6_pktinfo", "struct in6_pktinfo"),
+ ("Elf32_Ehdr", "Elf32_Ehdr"), ("Elf64_Ehdr", "Elf64_Ehdr"), ("Elf32_Phdr", "Elf32_Phdr"), ("Elf64_Phdr", "Elf64_Phdr"),
+ ("Elf32_Shdr", "Elf32_Shdr"), ("Elf64_Shdr", "Elf64_Shdr"), ("Elf32_Sym", "Elf32_Sym"), ("Elf64_Sym", "Elf64_Sym"),
+ ("Elf32_Dyn", "Elf32_Dyn"), ("Elf64_Dyn", "Elf64_Dyn"), ("Elf32_Rel", "Elf32_Rel"), ("Elf64_Rel", "Elf64_Rel"),
+ ("Elf32_Rela", "Elf32_Rela"), ("Elf64_Rela", "Elf64_Rela"), ("Elf32_Nhdr", "Elf32_Nhdr"), ("Elf64_Nhdr", "Elf64_Nhdr"),
+ ("Elf64_Chdr", "Elf64_Chdr"), ("Elf64_auxv_t", "Elf64_auxv_t"), ("Elf64_Verdef", "Elf64_Verdef"),
+ ("Elf64_Verdaux", "Elf64_Verdaux"), ("Elf64_Verneed", "Elf64_Verneed"), ("Elf64_Vernaux", "Elf64_Vernaux"),
+ ("struct user", "struct user"), ("struct elf_prstatus", "struct elf_prstatus"),
+ ("struct elf_prpsinfo", "struct elf_prpsinfo"), ("struct elf_siginfo", "struct elf_siginfo"),
 ]
 
 # Static initializers whose bit patterns are ABI (programs embed them).
@@ -326,12 +348,20 @@ def members(dies, off, prefix="", base=0, out=None, depth=0):
         bits = ""
         if "DW_AT_bit_size" in at:
             bits = f"bits {num(at['DW_AT_bit_size'])}@{num(at.get('DW_AT_data_bit_offset', '0'))}"
-        out.append((base + o, full, tname(dies, t), bits))
         inner = resolve(dies, t)
+        out.append((base + o, full, tname(dies, t), bits))
+        at_row = len(out) - 1
         tag = dies[t]["tag"] if t in dies else ""
         # Descend into anonymous members, and one level into named struct members.
         if inner is not None and depth < 2 and tag != "DW_TAG_pointer_type" and not tname(dies, t).endswith("]"):
             members(dies, inner, f"{full}." if name else prefix, base + o, out, depth + 1)
+        if not name and inner is not None:
+            # An anonymous member's own members follow it at this level (flattened, as C names them):
+            # the last column gives its byte size and how many of the following rows at this level are
+            # its members (`size N rows M`), so a reader can rebuild the nesting.
+            level = prefix.count(".") + 1
+            n = sum(1 for r in out[at_row + 1:] if r[1].count(".") + 1 == level)
+            out[at_row] = out[at_row][:3] + (f"size {num(dies[inner]['attrs'].get('DW_AT_byte_size'))} rows {n}",)
     return out
 
 def layouts(tmp, types, szmap):
@@ -537,6 +567,10 @@ def main():
         szmap = sizes(tmp, types)
         lay = layouts(tmp, types, szmap)
         write("layouts.tsv", ["type", "member", "offset_or_size", "align", "member_type", "bitfield"], lay)
+        if "--layouts-only" in sys.argv:
+            # Regenerate layouts.tsv alone (slice 3 added types; the other tables are unchanged by that).
+            print(f"{ver}\nTypes: {len(types)}  layout rows: {len(lay)}")
+            return
         ini = initializers(tmp)
         write("initializers.tsv", ["type", "initializer", "size", "zero", "bytes_hex"], ini)
         pro = prototypes(tmp)
