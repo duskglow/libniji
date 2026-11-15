@@ -3,7 +3,16 @@
 **State (2026-11-14):** branch `task/sched-attr` from origin/next 2d5625a3e; code, spec, tests, plants and the
 pending decision record are done. **Held by START-UP LAYOUT JITTER (#4347):** `cargo xtask so` breaks the
 STARTUP-DATA-WINDOWS contract by one page (numbers below). The change touches no start-up code, so the rule says
-do not chase it; the story waits for the layout fix (LAYOUT-RETHINK LT-1/LT-4).
+do not chase it; the story waits for the layout fix (LAYOUT-RETHINK LT-1/LT-4; tracked now as LAYOUT-WINDOW-BINS-2).
+
+**SCHED-ATTR-2 (2026-11-15, branch `task/sched-attr-2`, same content as `task/sched-attr` f393ee72a):** the
+SCHED-ATTR verify went red because `sched-attr-plants` started before commit 624218101 regenerated
+`spec/clauses.tsv` and `spec/symbols.tsv`, so it tested older content than the hand-back head. Cause: plants were
+started before the final regeneration commit. Fix: the plants were run again on the final content as
+`sched-attr-2-plants`, with clippy and static (`sched-attr-2-lint`) and the two direct test targets
+(`sched-attr-2-tests`: s24_system_symbols 77 passed / 9 ignored, s24_system_clauses 36 passed) on keke:~/w/n2.
+No code changed. LAYOUT-WINDOW-BINS-2 has not landed, so the layout hold below still stands; `cargo xtask so` was
+not run again (same content, same result).
 
 ## What was done
 
@@ -57,4 +66,6 @@ Read-only windows: 1 in both (budget 1).
 
 ## Next step
 
-When LAYOUT-RETHINK lands: sync, `cargo xtask so`, direct-tier gate, then the chrt check after SL-HEADERS.
+When the layout fix (LAYOUT-WINDOW-BINS-2) lands: merge origin/next (needs a brief that allows it), sync,
+`cargo xtask so`, direct-tier gate, the two start-up checks (`cargo xtask test`; `LIELLA_FULL_PROFILE=1` so plus
+`hot_text_products`), then the chrt check after SL-HEADERS. Do not rerun the plants unless the code or tests change.
