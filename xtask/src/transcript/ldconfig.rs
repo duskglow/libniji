@@ -155,7 +155,7 @@ impl Fs for HostFs {
 
     fn replace_link(&mut self, target: &[u8], link: &[u8]) -> Result<(), i32> {
         // A new link under a temporary name in the same directory, renamed over the old one: a reader sees the old
-        // link or the new one, never none (D-NEW of UTIL-LDCONFIG, atomic replacement).
+        // link or the new one, never none (the pending D-31 record of UTIL-LDCONFIG-3, rule 1).
         let dst = self.host(link, false)?;
         let name = dst.file_name().ok_or(EINVAL)?;
         let mut tmp_name = OsString::from(".");
