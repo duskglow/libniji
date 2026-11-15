@@ -53,18 +53,21 @@ cp "$here"/probes/*.c "$work"/
 echo x > "$work/in.txt"
 tier_of() { # <probe> -> its tier (HOTTEXT-STARTUP-COMPLETE)
     case $1 in
-        p_true) echo startup;; p_fork) echo fork;; p_puts|p_cat|p_fmt) echo stdio;; p_str) echo strings;;
+        p_true) echo startup;; p_fork) echo fork;; p_puts|p_cat|p_fmt) echo stdio;; p_str|p_strlazy) echo strings;;
         p_loc) echo locale;; p_locuse|p_nss) echo tool;; *) echo extra;;
     esac
 }
 : > "$work/tagged"
 : > "$work/traced"
+: > "$work/modes"
 trace() { # <tier> <LANG> <program> <args...>; tz=<zone> sets the program's TZ
     # LAYOUT-TRACE-HOST-CANONICAL: LANG (and TZ when given) is the program's whole environment (runner.sh).
     local tier=$1 lang=$2; shift 2
     printf '%s\n' "$*" >> "$work/traced"  # the trace set, for the --all-modes coverage check
     # shellcheck disable=SC2046
     trace_tagged "$tier" LANG="$lang" $([ -n "${tz:-}" ] && echo "TZ=$tz") HOT_TEXT_STDIN="${stdin:-$work/in.txt}" HOT_TEXT_FOLLOW_FORK="${follow:-}" -- "$@"
+    # LAYOUT-WINDOW-BINS (D-X.103): a counted page_faults mode's names file, for hot-text.signatures.
+    if [ "$1" = ./page_faults ]; then printf '%s=%s\n' "$2" "$work/names.$n" >> "$work/modes"; fi
 }
 checks=
 traces_done() { # wait for every trace, fail on the first that failed, then run the deferred call checks
@@ -73,9 +76,11 @@ traces_done() { # wait for every trace, fail on the first that failed, then run 
 }
 # Startup (p_true) first, then the probes from the most common calls to the rarer ones (printf before
 # setlocale: HOT-ORDER-2, a printf-first program spans fewer windows); any new
-# probe not named here goes last (alphabetically).
-probes=$(for p in p_true p_puts p_cat p_str p_fmt p_loc p_cold; do [ -f $p.c ] && echo $p; done
-         for c in *.c; do case " p_true p_puts p_cat p_str p_fmt p_loc p_cold " in *" ${c%.c} "*) ;; *) echo "${c%.c}";; esac; done)
+# probe not named here goes last (alphabetically). p_strlazy right after p_fmt: the checked string
+# entries a program runs before the lazy folding decision (HEAP-FIRST-USE-4) follow the stream printf
+# path its printf runs; ahead of p_fmt that path moved the snprintf group (HEAP-FIRST-USE-8: fast float 4 > 3).
+probes=$(for p in p_true p_puts p_cat p_str p_fmt p_strlazy p_loc p_cold; do [ -f $p.c ] && echo $p; done
+         for c in *.c; do case " p_true p_puts p_cat p_str p_fmt p_strlazy p_loc p_cold " in *" ${c%.c} "*) ;; *) echo "${c%.c}";; esac; done)
 # HOT-ORDER-3 guard: every library function a probe's source names must have run in its trace. gcc
 # folds or replaces libc calls with constant arguments (p_cold's strcoll at -O2), and the list then
 # silently misses the function; call it through a volatile pointer instead.
@@ -193,6 +198,19 @@ mv "$work/startup.ordered" "$skeys"
 echo "startup-text: $(wc -l < "$work/startup.keys") keys traced ($profile), $(grep -vc '^#' "$skeys") in $skeys"
 mv "$work/list.ordered" "$list"
 echo "hot-text: $(wc -l < "$work/new.keys") keys traced ($profile), $(grep -vc '^#' "$list") in $list"
+# LAYOUT-WINDOW-BINS (D-X.103): each listed key's signature, the page_faults modes (the ones
+# hot_text_products.rs counts: `true`, the modes traced above and probe_text.sh's) whose trace runs it,
+# into $L/hot-text.signatures; `cargo xtask so` plans the window bins from it (layout-bins.tsv).
+echo "true=$work/startup.names" >> "$work/modes"
+for f in "$work"/probe/names.*; do if [ -e "$f" ]; then echo "${f##*/names.}=$f" >> "$work/modes"; fi; done
+{
+    echo "# Written by tools/hottext/regen.sh during cargo xtask so (a trace of this build; never committed)."
+    echo "# LAYOUT-WINDOW-BINS (D-X.103): <key> TAB <page_faults modes that run it, comma-separated; - none>, in hot-text.list order."
+    # shellcheck disable=SC2046
+    python3 -B "$here/keys.py" --signatures "$list" --alias "$work/alias.keys" $(sort "$work/modes")
+} > "$work/signatures"
+mv "$work/signatures" "$L/hot-text.signatures"
+echo "hot-text.signatures: $(grep -vc '^#' "$L/hot-text.signatures") keys, modes: $(sed 's/=.*//' "$work/modes" | sort | tr '\n' ' ')"
 # D-X.62: the functions of the other fault-bounded probe modes that no hot-text tier covers, into
 # $L/probe-text.keys (the start-up read-only group takes their read-only data).
 bash "$here/probe_text.sh" "$T" --products "$P" --merge-only "$work/probe"

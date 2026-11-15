@@ -628,12 +628,16 @@ impl Hypot for f64 {
     /// entry [`elem_fast`] in the default MXCSR; a refusal, a directed mode, DAZ, FTZ or an
     /// unmasked trap take `pow::hypot` as before (the envelope honours the caller's DAZ/FTZ,
     /// D-10.22). A refused attempt's inexact is undone by the fallback's flag settlement.
+    /// `pow::hypot` runs its `double` kernel on the hardware root ([`crate::hot::Hw`], `sqrtsd`
+    /// in the default MXCSR that both fallbacks run in; LIBM-HYPOT-DIRECTED).
     #[inline]
     fn hypot_c(self, y: f64) -> f64 {
         elem_fast::<{ Status::HW_ANY.0 }, (f64, f64), f64>(
             (self, y),
             |(x, y)| crate::hot::hypot_nearest(x, y),
-            |(x, y), m| liella_math::pow::hypot(x, y, m),
+            // The kernel in its build chosen at startup (LIBM-HYPOT-DIRECTED-FAST); a NaN or an
+            // infinity (the kernel's `None`) takes the exact path, as in `pow::hypot_with`.
+            |(x, y), m| crate::hot::hypot_rounded(x, y, m).unwrap_or_else(|| liella_math::pow::hypot_exact(x, y, m)),
         )
     }
 }
@@ -975,6 +979,29 @@ fn elem32_onepass_cold(x: f32, f: impl FnOnce(f32, Rounding) -> (f32, Status)) -
     elem(x, Unit::Sse, f)
 }
 
+/// [`elem32_onepass`] for a two-argument `float` function (`powf`, LIBM-F32-POWF, D-10.78), under
+/// the same contract for `fast`. Every refusal (NaN operands included: pow's NaN cases are not
+/// all `x + y`) goes to the unchanged [`elem`] envelope, out of line and cold.
+#[inline(always)]
+pub fn elem2_32_onepass(
+    x: f32,
+    y: f32,
+    fast: impl FnOnce(f32, f32) -> Option<f32>,
+    f: impl FnOnce((f32, f32), Rounding) -> (f32, Status),
+) -> f32 {
+    match fast(x, y) {
+        Some(v) => v,
+        None => elem2_32_onepass_cold(x, y, f),
+    }
+}
+
+/// [`elem2_32_onepass`]'s refusals: the full envelope.
+#[cold]
+#[inline(never)]
+fn elem2_32_onepass_cold(x: f32, y: f32, f: impl FnOnce((f32, f32), Rounding) -> (f32, Status)) -> f32 {
+    elem((x, y), Unit::Sse, f)
+}
+
 /// [`fpu::peek`] with the inline MXCSR read ([`fpregs::mxcsr`], D-X.44): the fast entries'
 /// one read of the caller's word and whether it is the default control word.
 #[inline(always)]
@@ -1079,12 +1106,38 @@ fn elem_switched<A: Denorm, R: CVal<C = R> + Denorm>(
     saved: u32,
     f: impl FnOnce(A, Rounding) -> (R, Status),
 ) -> R {
+    if fpu::is_default_but_rounding(saved) {
+        return elem_rounding_switched(x, saved, f);
+    }
     fpu::switch_default(&CSys);
     let e = Entry { saved, in_place: false };
     let x = core::hint::black_box(e.operand(x));
     let (v, mut st) = core::hint::black_box(f(x, fpu::rounding_of(saved)));
     let v = e.result(v, &mut st);
     exit(e, st);
+    v
+}
+
+/// [`elem_switched`] under a word that is the default one but for its rounding field (a directed
+/// mode with no DAZ, no FTZ and every trap masked; LIBM-HYPOT-DIRECTED-FAST): the
+/// computation runs in the default word, then MXCSR becomes `saved` with the reported flags set,
+/// in one write. That is what [`Entry`] and [`exit`] do for this word, without their tests: the
+/// operand and the result pass unchanged (no DAZ, no FTZ), every flag's trap is masked, so
+/// raising a flag is setting it, and the flags the arithmetic raised in hardware are dropped by
+/// the write. The values written are `MX_DEFAULT` and a word the hardware gave plus flag bits, so
+/// no reserved bit is set and the `MXCSR_MASK` filter of `CSys::set_mxcsr` is not needed.
+#[inline(always)]
+fn elem_rounding_switched<A: Denorm, R: CVal<C = R> + Denorm>(
+    x: A,
+    saved: u32,
+    f: impl FnOnce(A, Rounding) -> (R, Status),
+) -> R {
+    crate::ffi::liella_machine_mxcsr_set(fpu::MX_DEFAULT_WORD);
+    // As in `elem_switched`: the barriers keep the computation between the two writes.
+    let x = core::hint::black_box(x);
+    let (v, st) = core::hint::black_box(f(x, fpu::rounding_of(saved)));
+    crate::ffi::liella_machine_mxcsr_set(fpu::with_flags(saved, st.flags));
+    store_error(st.error);
     v
 }
 

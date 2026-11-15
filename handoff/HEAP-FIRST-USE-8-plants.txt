@@ -1,0 +1,5 @@
+# HEAP-FIRST-USE-8 plants (cargo xtask plants; docs/plants.md), one-node build host (Haswell-EP role).
+# A product built on a one-node host traces no getcpu at start-up (D-3.20): only p_true's clock call keeps the vDSO
+# lookup and liella_machine_vcall3 in the hot group there. (On a two-node host start-up runs them anyway, so this
+# plant is run on the one-node host; the regen-order plant is in HEAP-FIRST-USE-8-plants-ci.txt.)
+p_true-no-clock | tools/hottext/probes/p_true.c | perl:s/return time_fn\(0\) > 0 \? 0 : 1;/return 0;/ | cargo test -p liella --test hot_text_products init_cold_startup_functions_are_grouped | msg:liella_machine_vcall3: not in the hot group

@@ -3,14 +3,17 @@
 # own test suites, and run the same suites on a build against the host's C library (the reference).
 # See validation/smoke/README.md. Results: <work>/results.tsv and <work>/results/<program>.<side>.*.
 #
-#   validation/smoke/smoke.sh [--work DIR] [--products DIR] [--jobs N] [--timeout SECS] [PROGRAM...]
+#   validation/smoke/smoke.sh [--work DIR] [--products DIR] [--jobs N] [--timeout SECS]
+#                             [--mirror URL --keyring FILE] [PROGRAM...]
 #   validation/smoke/smoke.sh --list
 #
 # Default PROGRAMs: all of programs.sh, in the order of SMOKE_PROGRAMS below. Liella's products are read from
 # --products (default target/liella; build them first with `LIELLA_FULL_PROFILE=1 cargo xtask so`). Sources
-# come from deb.debian.org only (suite trixie), through a private apt configuration in <work>/apt whose
-# trust anchor is the debian-archive-keyring package fetched over https from deb.debian.org; apt checks the
-# suite's signature and every file's hash. Nothing needs root, nothing is installed.
+# come from one Debian mirror (default https://deb.debian.org/debian, suite trixie), through a private apt
+# configuration in <work>/apt; apt checks the suite's signature and every file's hash. The trust anchor is
+# --keyring FILE (a pinned Debian archive keyring) or, without it, the debian-archive-keyring package
+# fetched over https from the mirror; a mirror that is not https needs --keyring (the transport is then
+# not trusted, only the signature). Nothing needs root, nothing is installed.
 #
 # Exit status: 0 when every requested program was processed (failures of a program's tests are results, not
 # errors), 1 when a Liella build produced an object that check-elf.sh rejects (a fallback to the system's C
@@ -24,7 +27,9 @@ J=$(nproc)
 limit=5400
 suite=trixie
 mirror=https://deb.debian.org/debian
-SMOKE_PROGRAMS="zlib xz_utils sqlite3 grep sed diffutils findutils coreutils gawk make bash perl python3 cppunit"
+keyring=""
+SMOKE_PROGRAMS="zlib xz_utils sqlite3 grep sed diffutils findutils coreutils gawk make bash perl python3 cppunit
+ gawk_ext python3_shared lua_reload cxx_dlclose"
 
 . "$here/programs.sh"
 
@@ -35,8 +40,10 @@ while [ $# -gt 0 ]; do
         --products) products=$2; shift 2 ;;
         --jobs) J=$2; shift 2 ;;
         --timeout) limit=$2; shift 2 ;;
+        --mirror) mirror=${2%/}; shift 2 ;;
+        --keyring) keyring=$(cd "$(dirname "$2")" 2>/dev/null && pwd)/${2##*/}; shift 2 ;;
         --list) echo "$SMOKE_PROGRAMS"; exit 0 ;;
-        -h | --help) sed -n '2,18p' "$0"; exit 0 ;;
+        -h | --help) sed -n '2,20p' "$0"; exit 0 ;;
         -*) echo "smoke: unknown option $1" >&2; exit 2 ;;
         *) progs="$progs $(printf '%s' "$1" | tr '-' '_')"; shift ;;
     esac
@@ -47,7 +54,8 @@ work=$(cd "$work" && pwd)
 products=$(cd "$products" 2>/dev/null && pwd) || { echo "smoke: no products directory" >&2; exit 2; }
 ldso=$products/ld-linux-x86-64.so.2
 sys=$work/sysroot
-export J
+SMOKE_HERE=$here
+export J SMOKE_HERE
 
 # bypath IN OUT: a copy of the shared object IN whose DT_SONAME entry is retagged DT_CHECKSUM (loaders ignore
 # it), so an object linked against OUT names it by OUT's path (the method of conformance/run.sh).
@@ -75,6 +83,7 @@ setup() {
     nonshared=$(gcc -print-file-name=libc_nonshared.a)
     case $nonshared in /*) ;; *) echo "smoke: the host has no libc_nonshared.a" >&2; return 1 ;; esac
     printf 'GROUP ( "%s" "%s" AS_NEEDED ( "%s" ) )\n' "$sys/libc-by-path.so" "$nonshared" "$ldso" > "$sys/libc.so"
+    printf 'LIELLA_SMOKE_SYSROOT=%s\nLIELLA_SMOKE_LDSO=%s\n' "$sys" "$ldso" > "$work/bin/liella-cc.env" &&
     cp "$here/liella-cc" "$work/bin/liella-cc" && chmod +x "$work/bin/liella-cc" &&
         ln -sf liella-cc "$work/bin/liella-c++" || return 1
     if [ -d "$root/.git" ] && rev=$(git -C "$root" rev-parse --short=12 HEAD 2>/dev/null); then :; else rev=unknown; fi
@@ -83,23 +92,45 @@ setup() {
         "$(ldd --version 2>&1 | sed -n 1p)" > "$work/results/run-info.txt"
 }
 
-# The private apt configuration: deb-src lines only, the Debian archive key as the only trust anchor.
+# apt_trust DIR: the trust anchor and the source list of the private apt configuration in DIR (deb-src lines
+# only, signed-by the one keyring, never trusted=yes). The keyring is --keyring, or the debian-archive-keyring
+# package fetched from the mirror, which is accepted only over https. Sets $anchor (what the keyring is).
+apt_trust() {
+    a=$1
+    if [ -n "$keyring" ]; then
+        [ -f "$keyring" ] || { echo "smoke: the keyring $keyring does not exist" >&2; return 1; }
+        cp "$keyring" "$a/debian-archive-keyring.gpg" || return 1
+        anchor="pinned keyring $(sha256sum < "$keyring" | cut -c1-16)"
+    else
+        case $mirror in
+            https://*) ;;
+            *) echo "smoke: the mirror $mirror is not https: give the pinned archive keyring with --keyring" >&2; return 1 ;;
+        esac
+        mkdir -p "$a/key" || return 1
+        deb=$(curl -fsSL "$mirror/pool/main/d/debian-archive-keyring/" | grep -o 'debian-archive-keyring_[^"<>]*_all\.deb' |
+            sort -u -V | tail -1)
+        [ -n "$deb" ] || { echo "smoke: cannot list debian-archive-keyring on $mirror" >&2; return 1; }
+        curl -fsSL -o "$a/key/$deb" "$mirror/pool/main/d/debian-archive-keyring/$deb" &&
+            dpkg-deb -x "$a/key/$deb" "$a/key/root" || return 1
+        k=$(find "$a/key/root" -name 'debian-archive-keyring.gpg' -o -name 'debian-archive-keyring.pgp' | sed -n 1p)
+        [ -n "$k" ] || { echo "smoke: no keyring in $deb" >&2; return 1; }
+        cp "$k" "$a/debian-archive-keyring.gpg" || return 1
+        anchor=$deb
+    fi
+    printf 'deb-src [signed-by=%s] %s %s main\n' "$a/debian-archive-keyring.gpg" "$mirror" "$suite" > "$a/sources.list"
+}
+
+# The private apt configuration, made once per work directory, mirror and trust anchor.
 apt_setup() {
     a=$work/apt
-    [ -f "$a/ready" ] && return 0
-    rm -rf "$a" && mkdir -p "$a/empty" "$a/state/lists/partial" "$a/cache/archives/partial" "$a/key" || return 1
-    deb=$(curl -fsSL "$mirror/pool/main/d/debian-archive-keyring/" | grep -o 'debian-archive-keyring_[^"<>]*_all\.deb' |
-        sort -u -V | tail -1)
-    [ -n "$deb" ] || { echo "smoke: cannot list debian-archive-keyring on $mirror" >&2; return 1; }
-    curl -fsSL -o "$a/key/$deb" "$mirror/pool/main/d/debian-archive-keyring/$deb" &&
-        dpkg-deb -x "$a/key/$deb" "$a/key/root" || return 1
-    k=$(find "$a/key/root" -name 'debian-archive-keyring.gpg' -o -name 'debian-archive-keyring.pgp' | sed -n 1p)
-    [ -n "$k" ] || { echo "smoke: no keyring in $deb" >&2; return 1; }
-    cp "$k" "$a/debian-archive-keyring.gpg" || return 1
-    printf 'deb-src [signed-by=%s] %s %s main\n' "$a/debian-archive-keyring.gpg" "$mirror" "$suite" > "$a/sources.list"
+    want="$mirror $suite ${keyring:-from-mirror}"
+    [ -f "$a/ready" ] && [ "$(sed -n 1p "$a/ready")" = "$want" ] && return 0
+    rm -rf "$a" && mkdir -p "$a/empty" "$a/state/lists/partial" "$a/cache/archives/partial" || return 1
+    apt_trust "$a" || return 1
     : > "$a/status"
     apt_get update || return 1
-    echo "$deb" > "$a/ready"
+    printf '%s\n%s\n' "$want" "$anchor" > "$a/ready"
+    echo "sources: $mirror $suite, trust anchor $anchor" >> "$work/results/run-info.txt"
 }
 apt_get() {
     a=$work/apt
@@ -148,7 +179,8 @@ count() {
             t=$(grep -c '\.\.\.\.\.\.' "$log")
             [ -n "$f" ] || f=1
             echo "$t $((t - f)) $f 0 0 0" > "$out"
-            grep -E '\.\.\.\.\.\. *(FAILED|Error)' "$log" | sort -u > "$out.failed" ;;
+            # The test's name only: an "Error running" line names the build directory, which differs by side.
+            grep -E '\.\.\.\.\.\. *(FAILED|Error)' "$log" | awk '{print $1}' | sort -u > "$out.failed" ;;
         bash)
             # A run-* test passes when its section of output is the reference build's; the reference build
             # itself counts its sections as passed (its own diffs are the suite's expected noise on this host).
@@ -176,6 +208,17 @@ count() {
             [ "$5" = 0 ] || [ "$f" -gt 0 ] || f=1
             echo "$t $((t - f - s)) $f $s 0 0" > "$out"
             sed -n 's/^f //p' "$out.names" | sort -u > "$out.failed" ;;
+        same)
+            # $5: the suite's exit status; $6: the reference build's test log (empty on the reference side).
+            # Passes when the suite exits 0 and its whole output is the reference build's.
+            if [ "$5" != 0 ]; then
+                echo "1 0 1 0 0 0" > "$out"; echo "suite (exit $5)" > "$out.failed"
+            elif [ -n "${6:-}" ] && ! cmp -s "$6" "$log"; then
+                echo "1 0 1 0 0 0" > "$out"; echo "output differs from the reference build's" > "$out.failed"
+                diff "$6" "$log" > "$out.diff"
+            else
+                echo "1 1 0 0 0 0" > "$out"
+            fi ;;
         rc)
             if [ "$5" = 0 ]; then echo "1 1 0 0 0 0" > "$out"; else echo "1 0 1 0 0 0" > "$out"; echo "suite (exit $5)" > "$out.failed"; fi ;;
     esac
@@ -210,7 +253,8 @@ run_one() {
                 > "$r.test.log" 2>&1
             trc=$?
             [ $trc -eq 124 ] && status="test suite hit the ${limit}s hang guard"
-            count "$kind" "$r.test.log" "$b" "$r.count" "$( [ "$kind" = bash ] && echo "$work/results/$name.glibc.count.sections" || echo $trc)"
+            ref=""; [ "$side" = liella ] && ref=$work/results/$name.glibc.test.log
+            count "$kind" "$r.test.log" "$b" "$r.count" "$( [ "$kind" = bash ] && echo "$work/results/$name.glibc.count.sections" || echo $trc)" "$ref"
             counts=$(cat "$r.count")
         fi
     fi
@@ -229,6 +273,8 @@ selftest() {
     e=0
     env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 -shared -fPIC \
         "$here/selftest/plugin.c" -o "$t/ok/libplugin.so" > "$t/build.log" 2>&1 &&
+    env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 -shared -fPIC \
+        "$here/selftest/tls_plugin.c" -o "$t/ok/libtls_plugin.so" >> "$t/build.log" 2>&1 &&
     env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 "$here/selftest/hello.c" \
         -lm -lpthread -o "$t/ok/hello" >> "$t/build.log" 2>&1 || { echo "smoke-selftest: FAIL liella-cc does not build (see $t/build.log)"; return 1; }
     # Negative controls, one per rule of check-elf.sh: each must be rejected on its own.
@@ -245,7 +291,14 @@ selftest() {
         gcc -O1 -static "$here/selftest/hello.c" -lm -o "$t/bad-static/hello" &&
         lcc -O1 -nostartfiles -Wl,--as-needed "$here/selftest/nolibc.c" -o "$t/bad-nolibc/nolibc"; } >> "$t/build.log" 2>&1 ||
         { echo "smoke-selftest: FAIL a negative control does not build (see $t/build.log)"; return 1; }
+    # A test suite that clears the environment (make's) still links against Liella (check-elf checks ok/).
+    env -i PATH="$PATH" "$work/bin/liella-cc" -O1 "$here/selftest/hello.c" -lm -o "$t/ok/hello-noenv" >> "$t/build.log" 2>&1 ||
+        { echo "smoke-selftest: FAIL liella-cc does not build with a cleared environment"; e=1; }
     "$here/check-elf.sh" "$ldso" "$sys" "$t/ok" > "$t/check-ok.log" 2>&1 || { echo "smoke-selftest: FAIL check-elf rejects liella-cc's build:"; cat "$t/check-ok.log"; e=1; }
+    # The thread-local plug-in is the positive control for the loader's own soname: it must name it.
+    self=$(readelf -Wd "$ldso" | sed -n 's/.*(SONAME) *Library soname: \[\(.*\)\]$/\1/p')
+    readelf -Wd "$t/ok/libtls_plugin.so" | grep -qF "Shared library: [$self]" ||
+        { echo "smoke-selftest: FAIL the thread-local plug-in does not name the loader's soname ($self)"; e=1; }
     for k in system interp soname static nolibc; do
         if "$here/check-elf.sh" "$ldso" "$sys" "$t/bad-$k" > "$t/check-bad-$k.log" 2>&1; then
             echo "smoke-selftest: FAIL check-elf accepts the $k negative control (not linked against Liella)"; e=1
@@ -255,6 +308,27 @@ selftest() {
     [ $rc -eq 0 ] && [ "$out" = "hello 1.414214" ] || { echo "smoke-selftest: FAIL hello on Liella: exit $rc, output: $out"; e=1; }
     "$ldso" --list "$t/ok/hello" > "$t/list.log" 2>&1
     grep -qF "$sys/libc-by-path.so" "$t/list.log" || { echo "smoke-selftest: FAIL Liella's loader does not list Liella's libc:"; cat "$t/list.log"; e=1; }
+    # The trust anchor (no network): a plain-http mirror without --keyring is refused before any download;
+    # with --keyring the source list is signed-by a copy of exactly that keyring and never trusted=yes.
+    mkdir -p "$t/apt-http" "$t/apt-pinned" && printf 'selftest keyring\n' > "$t/pinned.gpg"
+    if (mirror=http://smoke-selftest.invalid/debian; keyring=""; apt_trust "$t/apt-http") > "$t/apt-http.log" 2>&1 ||
+        ! grep -q 'is not https: give the pinned archive keyring' "$t/apt-http.log"; then
+        echo "smoke-selftest: FAIL a plain-http mirror without --keyring is not refused:"; cat "$t/apt-http.log"; e=1
+    fi
+    if ! (mirror=http://smoke-selftest.invalid/debian; keyring=$t/pinned.gpg; apt_trust "$t/apt-pinned") > "$t/apt-pinned.log" 2>&1 ||
+        ! cmp -s "$t/pinned.gpg" "$t/apt-pinned/debian-archive-keyring.gpg" ||
+        [ "$(cat "$t/apt-pinned/sources.list")" != "deb-src [signed-by=$t/apt-pinned/debian-archive-keyring.gpg] http://smoke-selftest.invalid/debian $suite main" ]; then
+        echo "smoke-selftest: FAIL --keyring does not make the pinned keyring the only trust anchor:"
+        cat "$t/apt-pinned.log" "$t/apt-pinned/sources.list" 2>&1; e=1
+    fi
+    # Kind `same`: a suite passes only with exit 0 and the reference build's output, byte for byte.
+    printf 'line 1\nline 2\n' > "$t/same.ref"; printf 'line 1\nline 2\n' > "$t/same.eq"; printf 'line 1\nline 3\n' > "$t/same.ne"
+    for c in "eq 0 1 1 0" "ne 0 1 0 1" "eq 1 1 0 1"; do
+        set -- $c
+        count same "$t/same.$1" "$t" "$t/same.count" "$2" "$t/same.ref"
+        [ "$(cat "$t/same.count")" = "$3 $4 $5 0 0 0" ] ||
+            { echo "smoke-selftest: FAIL kind same, output $1, exit $2: counts $(cat "$t/same.count"), want $3 $4 $5 0 0 0"; e=1; }
+    done
     [ $e -eq 0 ] && echo "smoke-selftest: PASS"
     return $e
 }
@@ -268,7 +342,10 @@ bad=0
 for p in $progs; do
     eval "srcpkg=\${${p}_src:-}"
     [ -n "$srcpkg" ] || { echo "smoke: unknown program $p (--list)" >&2; exit 2; }
-    src=$(fetch "$srcpkg") && [ -n "$src" ] || { echo "smoke: $p: no source" >&2; continue; }
+    case $srcpkg in
+        local:*) src=$here/${srcpkg#local:} ;;
+        *) src=$(fetch "$srcpkg") && [ -n "$src" ] || { echo "smoke: $p: no source" >&2; continue; } ;;
+    esac
     run_one "$p" glibc "$src"
     run_one "$p" liella "$src" || bad=1
     if [ -f "$work/results/$p.glibc.count.failed" ] && [ -f "$work/results/$p.liella.count.failed" ]; then

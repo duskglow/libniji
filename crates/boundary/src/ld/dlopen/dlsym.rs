@@ -74,16 +74,18 @@ extern "C" fn entry(handle: usize, name: usize, version: usize, caller: usize) -
 }
 
 /// The object record `handle` names, by one range test (D-27.32), or `None`.
-fn handle_index(l: &Loader, handle: usize) -> Option<usize> {
+pub(super) fn handle_index(l: &Loader, handle: usize) -> Option<usize> {
     let first = l.node_addr(0);
     let off = handle.checked_sub(first)?;
     let size = size_of::<Node>();
-    (off.checked_rem(size)? == 0).then_some(off.checked_div(size)?).filter(|&i| i < l.n)
+    (off.checked_rem(size)? == 0).then_some(off.checked_div(size)?).filter(|&i| i < l.n && !l.gone(i))
 }
 
-/// The object containing `caller` (the program when none does).
-fn caller_index(l: &Loader, caller: usize) -> usize {
-    l.nodes.get(..l.n).and_then(|ns| ns.iter().position(|nd| (nd.lo..nd.hi).contains(&caller))).unwrap_or(0)
+/// The loaded object containing `caller` (the program when none does), for `dlsym` and `dlopen`.
+/// An unloaded node keeps its range until its slot is reused (D-27.50 (3)) while a later object
+/// may be mapped over that range, so `gone` ones are skipped.
+pub(super) fn caller_index(l: &Loader, caller: usize) -> usize {
+    l.nodes.get(..l.n).and_then(|ns| ns.iter().position(|nd| !nd.gone && (nd.lo..nd.hi).contains(&caller))).unwrap_or(0)
 }
 
 /// One lookup under the lock (module documentation); `None` after setting the text.
@@ -158,7 +160,7 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
     let mark = l.unique.len();
     let syms = syms_of(&l.syms, l.n);
     let start = &l.global[..l.n_start_global];
-    let found = symbols::lookup(syms, Scope::global(&buf[..len]), &req, &mut Uniq { table: &mut l.unique, syms, start });
+    let found = symbols::lookup(syms, Scope::global(&buf[..len]), &req, &mut Uniq { table: &mut l.unique, syms, start, binds: None });
     let Ok(Some(f)) = found else {
         let mut path = PathBuf::default();
         let obj = object_name(l, named, &mut path);
@@ -220,7 +222,7 @@ fn object_name<'p>(l: &Loader, i: usize, out: &'p mut PathBuf) -> &'p [u8] {
 /// The path at which the start found start-time object `i`: the first `DT_NEEDED` entry of a
 /// start-time object that names it, as a path or searched again with that object as the requester,
 /// matched by (`st_dev`, `st_ino`). False when none matches.
-fn start_path(l: &Loader, i: usize, out: &mut PathBuf) -> bool {
+pub(super) fn start_path(l: &Loader, i: usize, out: &mut PathBuf) -> bool {
     let Some(node) = l.nodes.get(i) else { return false };
     let id = (node.dev, node.ino);
     let soname = l.objs_upto(l.n).get(i).and_then(super::soname);

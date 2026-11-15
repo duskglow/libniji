@@ -290,9 +290,10 @@ fn lgamma_mp(x: Mp) -> (Mp, i32) {
 /// then [`lgamma_accurate`].
 pub fn lgamma<F: Float>(x: F, mode: Rounding) -> ((F, Status), i32) {
     if let (24, Ok(b)) = (F::PREC, u32::try_from(x.to_bits())) {
-        if let Some(((r, st), sign)) = crate::fast32::eval_lgamma(f32::from_bits(b), mode) {
+        if let Some(((r, st), sign)) = crate::fast32::lgamma_first(f32::from_bits(b), mode) {
             return ((F::from_bits(u128::from(r.to_bits())), st), sign);
         }
+        return lgammaf_after_first(x, mode);
     }
     if F::PREC == 53 {
         let xf = as_f64(x);
@@ -305,6 +306,24 @@ pub fn lgamma<F: Float>(x: F, mode: Rounding) -> ((F, Status), i32) {
         } else if let Some(((v, st), sign)) = (dd::abs(xf) < fast_gamma::TINY || xf >= fast_gamma::HI).then(|| fast_gamma::lgamma_band(xf, mode)).flatten() {
             // |x| < 2^-60 and x >= 16 (D-10.105); NaN and x <= -16 skip the call.
             return ((F::from_bits(u128::from(v.to_bits())), st), sign);
+        }
+    }
+    lgamma_accurate(x, mode)
+}
+
+/// `lgammaf` after the fast path's first try refused x ([`crate::fast32::lgamma_first`]): its
+/// second tries ([`crate::fast32::lgamma_rest`]), then [`lgamma_accurate`]. One cold call on the
+/// refusal path, as with the accurate path alone: a second call there made [`lgamma`]'s `float`
+/// body keep a constant in a saved register on every call (4 to 15 instructions on the typical
+/// percall rows, LIBM-LGAMMAF-EDGE-3). It takes x alone (its `float` bits again here): with a
+/// second argument [`lgamma`] kept x both in a `float` register, saved around its cold calls, and
+/// as bits (LIBM-LGAMMAF-EDGE-4).
+#[cold]
+#[inline(never)]
+fn lgammaf_after_first<F: Float>(x: F, mode: Rounding) -> ((F, Status), i32) {
+    if let Ok(b) = u32::try_from(x.to_bits()) {
+        if let Some(((r, st), sign)) = crate::fast32::lgamma_rest(f32::from_bits(b), mode) {
+            return ((F::from_bits(u128::from(r.to_bits())), st), sign);
         }
     }
     lgamma_accurate(x, mode)
@@ -984,7 +1003,7 @@ fn limit<F: Float>() -> i64 {
 }
 
 /// `jn(n, x)`: `double` and `float` try the recurrence tier ([`crate::fast_bessel::n`]) first, then
-/// [`jn_accurate`].
+/// [`jn_accurate`]. `float` operands the recurrence tier refuses go to [`jn_low`].
 pub fn jn<F: Float>(n: i32, x: F, mode: Rounding) -> (F, Status) {
     if F::PREC == 53 {
         if let Some(r) = from_fast("jn", fast_bessel::n::jn(n, as_f64(x), mode)) {
@@ -996,8 +1015,40 @@ pub fn jn<F: Float>(n: i32, x: F, mode: Rounding) -> (F, Status) {
         if let Some((v, st)) = r {
             return (F::from_bits(u128::from(v.to_bits())), st);
         }
+        // One out-of-line call with the arguments the accurate path takes: the answered calls
+        // keep the frame they had (an order test here cost ynf 4 instructions a call).
+        return jn_low(n, x, mode);
     }
     jn_accurate(n, x, mode)
+}
+
+/// `float` `jn` after the recurrence tier refused `x`: orders past ±1 on the accurate path, 0
+/// and ±1 by [`j0`] and [`j1`] themselves (`J_{−1}(x) = J_1(−x)`; a NaN keeps its sign on the accurate path), so these
+/// orders share the large band (D-10.109) and agree with `j0f`/`j1f` bit for bit. The tier
+/// already answers every operand `j0f`/`j1f`'s fast path answers (the same `fast32::eval`), so
+/// the test sits on its refusal only and every answered call runs next's code unchanged; out of
+/// line, so [`jn`]'s frame does not grow for the inlined order functions (LIBM-JNF-LARGE-2). A
+/// normal `x` was refused by that very `eval`, so it goes straight on to what the order function
+/// does next, [`bessel32_rest`] (at `−x` for order −1); the tier tried no `eval` on the rest.
+#[cold]
+#[inline(never)]
+fn jn_low<F: Float>(n: i32, x: F, mode: Rounding) -> (F, Status) {
+    if n.unsigned_abs() > 1 {
+        return jn_accurate(n, x, mode);
+    }
+    if f32::from_bits(x.to_bits() as u32).is_normal() {
+        return match n {
+            0 => bessel32_rest(0, "j0f", x, mode),
+            1 => bessel32_rest(1, "j1f", x, mode),
+            _ => bessel32_rest(1, "j1f", F::from_bits(x.to_bits() ^ 0x8000_0000), mode),
+        };
+    }
+    match n {
+        0 => j0(x, mode),
+        1 => j1(x, mode),
+        _ if f32::from_bits(x.to_bits() as u32).is_nan() => jn_accurate(n, x, mode),
+        _ => j1(F::from_bits(x.to_bits() ^ 0x8000_0000), mode),
+    }
 }
 
 /// `yn(n, x)`: as [`jn`], then [`yn_accurate`].
@@ -1012,8 +1063,43 @@ pub fn yn<F: Float>(n: i32, x: F, mode: Rounding) -> (F, Status) {
         if let Some((v, st)) = r {
             return (F::from_bits(u128::from(v.to_bits())), st);
         }
+        // One out-of-line call with the arguments the accurate path takes: the answered calls
+        // keep the frame they had (an order test here cost ynf 4 instructions a call).
+        return yn_low(n, x, mode);
     }
     yn_accurate(n, x, mode)
+}
+
+/// `float` `yn` after the recurrence tier refused `x`, as [`jn_low`]: orders past ±1 on the
+/// accurate path, 0 and ±1 by [`y0`] and [`y1`] themselves; `Y_{−1} = −Y_1` (mirrored mode) for finite x > 0, the rest of order −1
+/// on the accurate path. The tier tried `fast32::eval` exactly on normal x > 0, so those go
+/// straight on to [`bessel32_rest`].
+#[cold]
+#[inline(never)]
+fn yn_low<F: Float>(n: i32, x: F, mode: Rounding) -> (F, Status) {
+    if n.unsigned_abs() > 1 {
+        return yn_accurate(n, x, mode);
+    }
+    let xf = f32::from_bits(x.to_bits() as u32);
+    if xf.is_normal() && xf > 0.0 {
+        return match n {
+            0 => bessel32_rest(2, "y0f", x, mode),
+            1 => bessel32_rest(3, "y1f", x, mode),
+            _ => {
+                let (v, st) = bessel32_rest(3, "y1f", x, fast_bessel::mirrored(mode));
+                (F::from_bits(v.to_bits() ^ 0x8000_0000), st)
+            }
+        };
+    }
+    match n {
+        0 => y0(x, mode),
+        1 => y1(x, mode),
+        _ if !(xf > 0.0 && xf < f32::INFINITY) => yn_accurate(n, x, mode),
+        _ => {
+            let (v, st) = y1(x, fast_bessel::mirrored(mode));
+            (F::from_bits(v.to_bits() ^ 0x8000_0000), st)
+        }
+    }
 }
 
 /// `jn(n, x)` by the 384-bit path alone: `J_{−n} = (−1)^n J_n` and `J_n(−x) = (−1)^n J_n(x)`.

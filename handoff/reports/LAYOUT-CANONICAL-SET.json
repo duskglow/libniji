@@ -1,0 +1,11 @@
+{"task": "LAYOUT-CANONICAL-SET", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (budget checkpoint): host dependence located in startup_data.py perf sources; data-closure rule measured on Haswell-EP (30 objects, 66,606 B incl. 64 KiB heap reserve; misses 2 pointer-reached objects); no code change",
+ "branch": "task/layout-canonical-set", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["text trace is already CPU-canonical (LT-4 virtual CPUs); startup-data perf sources run on the real CPU with the inherited environment", "one-level operand rule misses STARTUP_NAMES (512 B) and AUXV_WORDS (8 B), reached through pointers"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "measurement of the start-up data closure on one host class; no behaviour change", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "a budget of 50 calls / 90k context does not fit an M story with a three-host proof; reading LT-4's code to learn what is already canonical took most of it",
+ "next_step": "run measure job on Skylake-SP and Zen 1 to find the 1,640-byte object, then implement declared set + subset check in startup_data.py",
+ "report_file": "handoff/LAYOUT-CANONICAL-SET.md",
+ "jobs": ["layout-canonical-set-measure"]}

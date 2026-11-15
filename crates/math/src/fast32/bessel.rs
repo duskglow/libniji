@@ -22,7 +22,7 @@ const BES_MIN: f64 = 9.536_743_164_062_5e-7; // 2^-20
 const U53: f64 = 1.110_223_024_625_156_5e-16; // 2^-53
 const TWO53: f64 = 9_007_199_254_740_992.0;
 const TWO_OVER_PI: f64 = f64::from_bits(0x3fe4_5f30_6dc9_c883); // RN(2/π)
-const INV_PI_D: f64 = f64::from_bits(0x3fd4_5f30_6dc9_c883); // RN(1/π)
+pub(super) const INV_PI_D: f64 = f64::from_bits(0x3fd4_5f30_6dc9_c883); // RN(1/π)
 /// The bounds, in units of 2^-53 (absolute unless stated), each ≥ the bound proved in
 /// `bessel_bounds_hold` from the coefficients (Horner: γ_2n·Σ|a_i||t|^i plus the fit's error).
 const BES_SMALL_E: f64 = 64.0; // J0 on [0, 2) (|J0| ≤ 1), and J1/x·|x| scaled by |x|
@@ -314,8 +314,9 @@ const fn lg_taylor(odd: bool) -> [f64; 10] {
     }
     c
 }
-const LG_SIN: [f64; 10] = lg_taylor(true);
-const LG_COS: [f64; 10] = lg_taylor(false);
+/// Shared with lgammaf's reflection (`gamma::lgamma_reflect`, sin πt by an octant).
+pub(super) const LG_SIN: [f64; 10] = lg_taylor(true);
+pub(super) const LG_COS: [f64; 10] = lg_taylor(false);
 
 // The operands the rounding test refuses, per function, sorted: bits 32..63 |x|, 0..31 the
 // nearest `float` F of the value at |x|, bit 31 of the high word set when the value lies above F.
@@ -394,7 +395,7 @@ fn large_core(f: usize, a: u32) -> (f64, f64) {
 }
 
 #[inline(always)]
-fn horner_f10(c: &[f64; 10], t: f64) -> f64 {
+pub(super) fn horner_f10(c: &[f64; 10], t: f64) -> f64 {
     let mut y = c[9];
     let mut i = 9;
     while i > 0 {
@@ -795,6 +796,239 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// jnf and ynf of orders 0 and ±1 on the large band (D-10.109) and off it answer as the
+    /// accurate path for `J_n` and `Y_n` does, value and flags, in every mode (`J_{−1}(x) = −J_1(x)`,
+    /// `Y_{−1}(x) = −Y_1(x)`); on the band the order function's band answers them (its fast count
+    /// grows: a route to the accurate path gives the same values). (No spec clause:
+    /// LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    fn jnf_ynf_low_orders_take_the_large_band() {
+        use crate::special::{jn, jn_accurate, yn, yn_accurate};
+        // Other tests may count the same names at once: that can only raise a count, so the
+        // check never fails spuriously (and a plant runs this test alone).
+        let band = |name: &str, x: f32, call: &dyn Fn() -> (f32, Status)| {
+            let before = stats::counts(name).fast;
+            let r = call();
+            if x.abs() >= 524_288.0 && x.is_finite() {
+                assert!(stats::counts(name).fast > before, "{name} band not taken at {x:e}");
+            }
+            r
+        };
+        // Band and mid operands go on from the tier's refusal or answer; zeros, subnormals and
+        // infinities take the order functions' own entry.
+        let xs = [3.5f32, 524_288.0, 1e30, -524_288.0, -1e30, 0.0, -0.0, 1e-40, -1e-40, f32::INFINITY, f32::NEG_INFINITY];
+        for x in xs {
+            for n in [-1, 0, 1] {
+                for m in MODES {
+                    let jname = if n == 0 { "j0f" } else { "j1f" };
+                    let (got, want) = (band(jname, x, &|| jn(n, x, m)), jn_accurate(n, x, m));
+                    assert_eq!((got.0.to_bits(), got.1), (want.0.to_bits(), want.1), "jnf({n}, {x:e}) {m:?}");
+                    if x > 0.0 {
+                        let yname = if n == 0 { "y0f" } else { "y1f" };
+                        let (got, want) = (band(yname, x, &|| yn(n, x, m)), yn_accurate(n, x, m));
+                        assert_eq!((got.0.to_bits(), got.1), (want.0.to_bits(), want.1), "ynf({n}, {x:e}) {m:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// The shards of the low-order sweep: one job runs one, each well inside a job's time limit
+    /// (the whole sweep is about 5.6 h on 7 CPUs of a Broadwell-EP host, Xeon E5-2699 v4; a shard 15
+    /// to 26 min there; LIBM-JNF-LARGE-3).
+    const LOW_ORDER_SHARDS: u64 = 16;
+
+    /// The name of the shard tests up to their two-digit shard number.
+    const LOW_ORDER_SHARD_TEST: &str = "jnf_ynf_low_orders_are_the_order_functions_exhaustively_";
+
+    /// The shard tests together run every shard once: each `..._NN` test runs shard NN, and the
+    /// numbers are exactly 0..LOW_ORDER_SHARDS (a copied test left on its old number, or one shard
+    /// missing, would leave 1/16 of the encodings unchecked while every job passed). (No spec
+    /// clause: LIBM-JNF-LARGE-3.)
+    #[test]
+    fn low_order_shards_cover_every_encoding_once() {
+        let src = include_str!("bessel.rs");
+        let lines: std::vec::Vec<&str> = src.lines().collect();
+        let mut seen = std::vec::Vec::new();
+        for (i, l) in lines.iter().enumerate() {
+            let Some(rest) = l.trim_start().strip_prefix("fn ").and_then(|r| r.strip_prefix(LOW_ORDER_SHARD_TEST)) else { continue };
+            let parsed = rest.trim_end_matches("() {").parse::<u64>();
+            assert!(parsed.is_ok(), "shard test name {l:?}");
+            let named = parsed.unwrap_or(u64::MAX);
+            let body = lines.get(i + 1).map_or("", |b| b.trim());
+            assert_eq!(body, std::format!("low_orders_shard({named});"), "shard test {named:02} runs another shard");
+            // Split so the long-sweeps scan does not read the literal as an attribute.
+            assert!(lines[i - 2].trim() == "#[test]" && lines[i - 1].trim() == concat!("#[", "ignore]"), "shard test {named:02} attributes");
+            seen.push(named);
+        }
+        seen.sort_unstable();
+        assert_eq!(seen, (0..LOW_ORDER_SHARDS).collect::<std::vec::Vec<_>>(), "low-order sweep shards");
+        // The ranges tile 0..2^32 in whole chunks: no gap, no overlap.
+        let mut at = 0;
+        for k in 0..LOW_ORDER_SHARDS {
+            let (start, end) = low_order_shard_range(k);
+            assert!(start == at && end > start && end % super::super::tests::SWEEP_CHUNK == 0, "shard {k}: {start:#x}..{end:#x} does not follow {at:#x}");
+            at = end;
+        }
+        assert_eq!(at, 1 << 32, "the shards stop at {at:#x}");
+    }
+
+    /// The encodings `start..end` of shard `k` of the low-order sweep.
+    fn low_order_shard_range(k: u64) -> (u64, u64) {
+        let size = (1 << 32) / LOW_ORDER_SHARDS;
+        (k * size, (k + 1) * size)
+    }
+
+    /// jnf and ynf of orders 0 and 1 are j0f, j1f, y0f and y1f bit for bit (value and flags) on
+    /// every `float` operand of shard `k` (the encodings `k·2^32/16 .. (k+1)·2^32/16`) in every
+    /// mode; order −1 is `−J_1(x)` and, for finite x > 0, `−Y_1(x)`, each rounded in the mirrored
+    /// mode. The `..._NN` tests run the 16 shards, one long-sweeps row and one job each.
+    fn low_orders_shard(k: u64) {
+        use crate::special::{j0, j1, jn, y0, y1, yn};
+        assert!(k < LOW_ORDER_SHARDS, "shard {k}");
+        let (start, end) = low_order_shard_range(k);
+        let mir = crate::fast_bessel::mirrored;
+        let neg = |r: (f32, Status)| (r.0.to_bits() ^ 0x8000_0000, r.1);
+        let bits = |r: (f32, Status)| (r.0.to_bits(), r.1);
+        let t0 = std::time::Instant::now();
+        let checked = super::super::tests::exhaustive_range_by(start, end, |xs| {
+            let mut pairs = 0;
+            for &x in xs {
+                for m in MODES {
+                    assert_eq!(bits(jn(0, x, m)), bits(j0(x, m)), "jnf(0, {x:e}) {m:?}");
+                    assert_eq!(bits(jn(1, x, m)), bits(j1(x, m)), "jnf(1, {x:e}) {m:?}");
+                    assert_eq!(bits(yn(0, x, m)), bits(y0(x, m)), "ynf(0, {x:e}) {m:?}");
+                    assert_eq!(bits(yn(1, x, m)), bits(y1(x, m)), "ynf(1, {x:e}) {m:?}");
+                    if !x.is_nan() {
+                        assert_eq!(bits(jn(-1, x, m)), neg(j1(x, mir(m))), "jnf(-1, {x:e}) {m:?}");
+                    }
+                    if x > 0.0 && x < f32::INFINITY {
+                        assert_eq!(bits(yn(-1, x, m)), neg(y1(x, mir(m))), "ynf(-1, {x:e}) {m:?}");
+                    }
+                    pairs += 1;
+                }
+            }
+            pairs
+        });
+        // The time is a record for sizing the shards, never a pass condition.
+        std::println!(
+            "jnf/ynf orders 0, 1, -1, shard {k:02} ({start:#x}..{end:#x}): {checked} operand-mode pairs agree, {:.0} s",
+            t0.elapsed().as_secs_f64()
+        );
+    }
+
+    /// Shard 0 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_00() {
+        low_orders_shard(0);
+    }
+
+    /// Shard 1 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_01() {
+        low_orders_shard(1);
+    }
+
+    /// Shard 2 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_02() {
+        low_orders_shard(2);
+    }
+
+    /// Shard 3 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_03() {
+        low_orders_shard(3);
+    }
+
+    /// Shard 4 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_04() {
+        low_orders_shard(4);
+    }
+
+    /// Shard 5 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_05() {
+        low_orders_shard(5);
+    }
+
+    /// Shard 6 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_06() {
+        low_orders_shard(6);
+    }
+
+    /// Shard 7 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_07() {
+        low_orders_shard(7);
+    }
+
+    /// Shard 8 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_08() {
+        low_orders_shard(8);
+    }
+
+    /// Shard 9 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_09() {
+        low_orders_shard(9);
+    }
+
+    /// Shard 10 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_10() {
+        low_orders_shard(10);
+    }
+
+    /// Shard 11 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_11() {
+        low_orders_shard(11);
+    }
+
+    /// Shard 12 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_12() {
+        low_orders_shard(12);
+    }
+
+    /// Shard 13 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_13() {
+        low_orders_shard(13);
+    }
+
+    /// Shard 14 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_14() {
+        low_orders_shard(14);
+    }
+
+    /// Shard 15 of [`low_orders_shard`]. (No spec clause: LIBM-JNF-LARGE, D-10.109.)
+    #[test]
+    #[ignore]
+    fn jnf_ynf_low_orders_are_the_order_functions_exhaustively_15() {
+        low_orders_shard(15);
     }
 
     /// The table is exactly the set of band operands the core's rounding test refuses (an

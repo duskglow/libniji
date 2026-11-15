@@ -254,6 +254,8 @@ pub const MPOL_PREFERRED: u32 = 1;
 pub const MPOL_F_NODE: u32 = 1;
 /// `MPOL_F_ADDR` (`get_mempolicy`): the policy or node of an address.
 pub const MPOL_F_ADDR: u32 = 2;
+/// `MPOL_F_MEMS_ALLOWED` (`get_mempolicy`): return the nodes the process may allocate on.
+pub const MPOL_F_MEMS_ALLOWED: u32 = 4;
 pub const MADV_FREE: u32 = 8;
 pub const MADV_NOHUGEPAGE: u32 = 15;
 pub const MADV_DONTDUMP: u32 = 16;
@@ -553,26 +555,60 @@ pub const SIGEV_THREAD: i32 = 2;
 pub const SIGEV_THREAD_ID: i32 = 4;
 
 // ------------------------------------------------------------------------ threads
-/// The kernel's rseq area (32 bytes, 32-byte aligned; version-0 layout). The critical-section
-/// pointer `rseq_cs` is private and always 0: the kernel jumps to addresses it names, so safe
-/// code must not set it (D-X.9). Critical sections are the runtime's, through the boundary.
+/// The kernel's rseq area (32 bytes, 32-byte aligned; the original registration size). The
+/// critical-section pointer `rseq_cs` is private and always 0: the kernel jumps to addresses it
+/// names, so safe code must not set it (D-X.9). Critical sections are the runtime's, through the
+/// boundary. `node_id` (offset 20) and `mm_cid` (offset 24) are the extended fields of the kernel's
+/// rseq ABI: the kernel fills a field only when its feature size (`AT_RSEQ_FEATURE_SIZE`, Linux
+/// 6.3+) covers it, so [`Rseq::node_id_filled`] decides whether `node_id` may be read (D-3.21).
 #[derive(Debug)]
 #[repr(C, align(32))]
-#[allow(dead_code)] // rseq_cs, flags: kernel-owned fields, never read by Rust
-pub struct Rseq { cpu_id_start: AtomicU32, cpu_id: AtomicU32, rseq_cs: AtomicU64, flags: AtomicU32, _pad: [u32; 3] }
+#[allow(dead_code)] // rseq_cs, flags, mm_cid: kernel-owned fields, never read by Rust
+pub struct Rseq {
+    cpu_id_start: AtomicU32,
+    cpu_id: AtomicU32,
+    rseq_cs: AtomicU64,
+    flags: AtomicU32,
+    node_id: AtomicU32,
+    mm_cid: AtomicU32,
+    _pad: u32,
+}
 impl Default for Rseq {
     fn default() -> Self { Rseq::new() }
 }
 impl Rseq {
     /// A fresh, unregistered area (`cpu_id` reads as `RSEQ_CPU_ID_UNINITIALIZED`).
     pub const fn new() -> Rseq {
-        Rseq { cpu_id_start: AtomicU32::new(0), cpu_id: AtomicU32::new(u32::MAX), rseq_cs: AtomicU64::new(0), flags: AtomicU32::new(0), _pad: [0; 3] }
+        Rseq {
+            cpu_id_start: AtomicU32::new(0),
+            cpu_id: AtomicU32::new(u32::MAX),
+            rseq_cs: AtomicU64::new(0),
+            flags: AtomicU32::new(0),
+            node_id: AtomicU32::new(0),
+            mm_cid: AtomicU32::new(0),
+            _pad: 0,
+        }
     }
     /// The CPU the thread last ran on, as the kernel updates it; `u32::MAX` before registration.
     pub fn cpu_id(&self) -> u32 { self.cpu_id.load(core::sync::atomic::Ordering::Relaxed) }
     /// `cpu_id_start`.
     pub fn cpu_id_start(&self) -> u32 { self.cpu_id_start.load(core::sync::atomic::Ordering::Relaxed) }
+    /// `node_id`: the NUMA node of the CPU the thread last ran on, as the kernel updates it.
+    /// Meaningful only for an area registered with the kernel when [`Rseq::node_id_filled`] holds.
+    pub fn node_id(&self) -> u32 { self.node_id.load(core::sync::atomic::Ordering::Relaxed) }
+    /// Whether the kernel fills `node_id` in an area registered with `registered_len` bytes:
+    /// the kernel's feature size (`AT_RSEQ_FEATURE_SIZE`, absent before Linux 6.3) and the
+    /// registered length both reach the field's end (D-3.21).
+    pub fn node_id_filled(feature_size: Option<u64>, registered_len: u32) -> bool {
+        match feature_size {
+            Some(f) => f >= RSEQ_NODE_ID_END && u64::from(registered_len) >= RSEQ_NODE_ID_END,
+            None => false,
+        }
+    }
 }
+/// The end of `node_id` in the rseq area (offset 20, 4 bytes).
+pub const RSEQ_NODE_ID_END: u64 = 24;
+const _: () = assert!(core::mem::offset_of!(Rseq, node_id) == 20 && core::mem::size_of::<Rseq>() == 32);
 /// `struct robust_list_head`: addresses, maintained by the thread library.
 #[derive(Default, Debug)]
 #[repr(C)]
@@ -883,6 +919,8 @@ pub const AT_CLKTCK: u64 = 17;
 pub const AT_SECURE: u64 = 23;
 pub const AT_RANDOM: u64 = 25;
 pub const AT_HWCAP2: u64 = 26;
+/// `AT_RSEQ_FEATURE_SIZE`: the size of the rseq area's fields the kernel supports (Linux 6.3+).
+pub const AT_RSEQ_FEATURE_SIZE: u64 = 27;
 pub const AT_EXECFN: u64 = 31;
 pub const AT_SYSINFO_EHDR: u64 = 33;
 pub const AT_MINSIGSTKSZ: u64 = 51;

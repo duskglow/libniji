@@ -805,6 +805,122 @@ fn sym_sched_getaffinity() {
     assert!(fails(s::sched_getaffinity(0, 1, mask.as_mut_ptr().cast()) as isize, EINVAL) || ones <= 8, "too small for the kernel's mask");
 }
 
+/// `struct sched_attr` (kernel UAPI, version 1: 56 bytes) followed by room for a caller's larger
+/// structure, so the tests can pass sizes the kernel's structure does not have.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Attr {
+    size: u32,
+    policy: u32,
+    flags: u64,
+    nice: i32,
+    priority: u32,
+    deadline: [u64; 3],
+    util: [u32; 2],
+    tail: [u8; 64],
+}
+const SCHED_OTHER: u32 = 0;
+const SCHED_FIFO: u32 = 1;
+const SCHED_IDLE: u32 = 5;
+const E2BIG: i32 = 7;
+
+fn attr(size: u32, policy: u32, nice: i32) -> Attr {
+    Attr { size, policy, flags: 0, nice, priority: 0, deadline: [0; 3], util: [0; 2], tail: [0; 64] }
+}
+
+/// The calling thread's attributes through the export (`size` 56), with a filler the kernel
+/// must overwrite.
+fn read_attr() -> Attr {
+    let mut a = attr(0, 99, 99);
+    assert_eq!(s::sched_getattr(0, (&raw mut a).cast(), 56, 0), 0, "errno {}", errno::get());
+    a
+}
+
+#[test]
+fn sym_sched_getattr() {
+    // Thin wrapper (§24.3): the kernel fills at most `size` bytes and sets `attr->size` to the
+    // number filled; success leaves errno alone.
+    errno::set_raw(1234);
+    let a = read_attr();
+    assert_eq!(errno::get(), 1234, "success keeps errno");
+    assert_eq!((a.size, a.policy, a.nice), (56, SCHED_OTHER, 0), "a test thread runs SCHED_OTHER at nice 0");
+    let mut a = attr(0, 99, 99);
+    a.tail = [0xaa; 64];
+    assert_eq!(s::sched_getattr(0, (&raw mut a).cast(), size_of::<Attr>() as u32, 0), 0, "a larger buffer");
+    assert!(a.size >= 56 && a.size < size_of::<Attr>() as u32, "the kernel's own size: {}", a.size);
+    assert_eq!(a.tail[size_of::<Attr>() - 56 - 1], 0xaa, "nothing written past the kernel's structure");
+    let mut a = attr(0, 99, 99);
+    assert_eq!(s::sched_getattr(0, (&raw mut a).cast(), 48, 0), 0, "version 0");
+    assert_eq!((a.size, a.policy), (48, SCHED_OTHER));
+    // The arguments reach the kernel in their places: size, flags, pid and pointer each give
+    // their own error.
+    let mut a = attr(0, 99, 99);
+    assert!(fails(s::sched_getattr(0, (&raw mut a).cast(), 47, 0) as isize, EINVAL), "size below version 0");
+    assert!(fails(s::sched_getattr(0, (&raw mut a).cast(), 4097, 0) as isize, EINVAL), "size above a page");
+    assert!(fails(s::sched_getattr(0, (&raw mut a).cast(), 56, 1) as isize, EINVAL), "nonzero flags");
+    assert_eq!((a.size, a.policy), (0, 99), "untouched on failure");
+    assert!(fails(s::sched_getattr(0, null_mut(), 56, 0) as isize, EINVAL), "null attr");
+    assert!(fails(s::sched_getattr(-1, (&raw mut a).cast(), 56, 0) as isize, EINVAL), "negative pid");
+    assert!(fails(s::sched_getattr(0x3fff_fff0, (&raw mut a).cast(), 56, 0) as isize, ESRCH), "no such thread");
+    assert!(fails(s::sched_getattr(0, 8 as *mut _, 56, 0) as isize, EFAULT), "unwritable attr");
+}
+
+#[test]
+fn sym_sched_setattr() {
+    // Each change in its own thread: the attributes are per thread (pid 0), and an unprivileged
+    // thread cannot undo some of them.
+    std::thread::spawn(|| {
+        let mut a = attr(56, SCHED_OTHER, 5);
+        errno::set_raw(1234);
+        assert_eq!(s::sched_setattr(0, (&raw mut a).cast(), 0), 0, "nice 5: errno {}", errno::get());
+        assert_eq!(errno::get(), 1234, "success keeps errno");
+        let b = read_attr();
+        assert_eq!((b.policy, b.nice), (SCHED_OTHER, 5), "read back");
+        if !root() {
+            let mut a = attr(56, SCHED_OTHER, 0);
+            assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 0) as isize, EPERM), "nice below the RLIMIT_NICE floor (0 for an unprivileged test)");
+        }
+        let mut a = attr(56, SCHED_IDLE, 0);
+        assert_eq!(s::sched_setattr(0, (&raw mut a).cast(), 0), 0, "SCHED_IDLE: errno {}", errno::get());
+        assert_eq!(read_attr().policy, SCHED_IDLE, "read back");
+    })
+    .join()
+    .unwrap();
+    // The kernel's size protocol reaches the caller's structure: a larger structure with a
+    // nonzero byte past the kernel's is E2BIG with the kernel's size written back; size 0 is
+    // version 0.
+    std::thread::spawn(|| {
+        let mut a = attr(size_of::<Attr>() as u32, SCHED_OTHER, 0);
+        a.tail[0] = 1;
+        assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 0) as isize, E2BIG));
+        let mut k = attr(0, 99, 99);
+        assert_eq!(s::sched_getattr(0, (&raw mut k).cast(), size_of::<Attr>() as u32, 0), 0);
+        assert_eq!(a.size, k.size, "the kernel's size written back");
+        let mut a = attr(0, SCHED_OTHER, 1);
+        assert_eq!(s::sched_setattr(0, (&raw mut a).cast(), 0), 0, "size 0: errno {}", errno::get());
+        assert_eq!(read_attr().nice, 1);
+        let mut a = attr(56, 99, 0);
+        assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 0) as isize, EINVAL), "unknown policy");
+        let mut a = attr(56, SCHED_OTHER, 1);
+        assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 1) as isize, EINVAL), "nonzero flags");
+        assert!(fails(s::sched_setattr(0, null_mut(), 0) as isize, EINVAL), "null attr");
+        assert!(fails(s::sched_setattr(-1, (&raw mut a).cast(), 0) as isize, EINVAL), "negative pid");
+        assert!(fails(s::sched_setattr(0x3fff_fff0, (&raw mut a).cast(), 0) as isize, ESRCH), "no such thread");
+        assert!(fails(s::sched_setattr(0, 8 as *mut _, 0) as isize, EFAULT), "unreadable attr");
+        let mut rt = Rlimit::default();
+        assert_eq!(s::getrlimit(14, Some(&mut rt)), 0, "RLIMIT_RTPRIO");
+        if root() || rt.cur != 0 {
+            eprintln!("sym_sched_setattr: EPERM for SCHED_FIFO not checked (root or RLIMIT_RTPRIO {})", rt.cur);
+        } else {
+            let mut a = attr(56, SCHED_FIFO, 0);
+            a.priority = 1;
+            assert!(fails(s::sched_setattr(0, (&raw mut a).cast(), 0) as isize, EPERM), "SCHED_FIFO needs privilege");
+        }
+    })
+    .join()
+    .unwrap();
+}
+
 #[test]
 fn sym_sched_getcpu() {
     let c = s::sched_getcpu();

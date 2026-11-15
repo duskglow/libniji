@@ -66,6 +66,9 @@ static FORBIDDEN: AtomicBool = AtomicBool::new(false);
 pub(crate) static RSEQ_OWNED: AtomicBool = AtomicBool::new(false);
 /// Set by [`set_loader_rseq`]: the loader registered the initial thread's rseq area.
 static LOADER_RSEQ: AtomicBool = AtomicBool::new(false);
+/// The thread pointer of the initial thread whose rseq area Liella's loader registered (0: none;
+/// D-3.21).
+static LOADER_RSEQ_TP: AtomicUsize = AtomicUsize::new(0);
 /// The executable's TLS segment: address, file size, memory size, alignment (all 0: none).
 static TLS_IMAGE: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
 /// Process-wide defaults (`pthread_setattr_default_np`): 0 means "not decided yet".
@@ -207,6 +210,10 @@ pub(crate) fn init_initial(static_program: bool) {
     } else {
         let Ok(d) = adopt() else { return };
         d.flags.fetch_and(!DESC_ADOPTED, AcqRel);
+        if LOADER_RSEQ.load(Acquire) {
+            // Liella's loader registered this thread's area at tp + RSEQ_OFFSET (D-3.21).
+            LOADER_RSEQ_TP.store(tb::tp(), Release);
+        }
         d
     };
     // Joinable like any other (§22.1); its mapping is not the runtime's (no base), and the TID
@@ -215,6 +222,8 @@ pub(crate) fn init_initial(static_program: bool) {
     d.tp.store(tb::tp(), Relaxed);
     OWNED.store(true, Release);
     OWNED_HERE.store(usize::MAX, Release);
+    // D-X.60: the heap's C entries take their plain paths (no further test of whose block).
+    crate::heap::DEBUG.clear_foreign();
     LOCK_ALONE.store(SINGLE_THREADED.load(Acquire) != 0, Release);
     LIVE.store(1, Release);
     register_kernel_areas(d, RSEQ_OWNED.load(Acquire));
@@ -240,6 +249,21 @@ fn register_kernel_areas(d: &'static Thread, rseq: bool) {
 
 fn rseq_static(d: &'static Thread) -> &'static liella_kernel::uapi::Rseq {
     &d.rseq
+}
+
+/// The calling thread's rseq area when Liella registered it (D-3.21): a thread Liella created, or
+/// a static program's initial thread, whose descriptor's area registration succeeded
+/// (`DESC_RSEQ`); or a dynamic program's initial thread, whose area Liella's loader registered at
+/// tp + RSEQ_OFFSET. `None` for every other thread (another C library's registration is not
+/// Liella's to read).
+pub(crate) fn own_rseq() -> Option<&'static liella_kernel::uapi::Rseq> {
+    if let Some(d) = current() {
+        if d.flags.load(Acquire) & DESC_RSEQ != 0 {
+            return Some(&d.rseq);
+        }
+    }
+    let tp = tb::tp();
+    (tp != 0 && LOADER_RSEQ_TP.load(Acquire) == tp).then(|| tb::rseq_at(tp.wrapping_add(liella_rt::tls::RSEQ_OFFSET)))
 }
 
 fn addr_of<T>(r: &T) -> usize {
@@ -382,14 +406,80 @@ pub(crate) fn is_spare(b: &liella_rt::tls::ThreadBlock) -> bool {
     addr_of(b) == addr_of(&SPARE)
 }
 
-/// Empty words (a new thread's).
+/// D-X.60: `__errno_location` in a process the runtime did not start: the thread's registry
+/// word (0x80 of a block another library made is that library's). The address stays the
+/// thread's for its life, so every read and write through it agrees; with [`SPARE`] (no memory
+/// for the registry) the foreign threads share one word.
+#[cold]
+#[inline(never)]
+pub(crate) fn foreign_errno() -> *mut core::ffi::c_int {
+    foreign_words().errno.as_ptr()
+}
+
+/// D-X.60: the heap's cache word of the calling thread: the block's word in a process the
+/// runtime started, else the registry's; `None` with [`SPARE`] (a cache is never shared, so such
+/// a thread allocates with no cache).
+/// Out of line, like [`heap_cache_word`]: only the heap's general paths ([`crate::heap::KernelPages`],
+/// the slow and checked paths) ask, and a call there is smaller than the inlined test at each site
+/// (the start-up text group carries those paths: STARTUP-TEXT-WINDOWS).
+#[inline(never)]
+pub(crate) fn heap_cache_slot() -> Option<&'static AtomicUsize> {
+    if owned() { Some(&tb::current().heap_cache) } else { foreign_heap_cache_slot() }
+}
+
+/// D-X.60: [`heap_cache_slot`]'s value (0: none), the cache word as the heap's general paths read
+/// it ([`crate::heap::KernelPages`]): the block's word 0x90 (one `%fs`-relative load, HEAP-CUTS2 C4)
+/// in a process the runtime started, else the registry's. The fast paths read the block's word
+/// with no test ([`crate::heap::OwnPages`]). Out of line: the general paths read it at a dozen
+/// sites, several inlined into the start-up allocation (`Debug::alloc_checked`), and the inlined
+/// test with its cold call at each of them cost about 700 bytes of start-up text.
+#[inline(never)]
+pub(crate) fn heap_cache_word() -> usize {
+    if owned() { tb::read::<tb::HeapCache>() } else { foreign_heap_cache() }
+}
+
+/// [`heap_cache_slot`] in a process the runtime did not start. Out of line so that only this cold
+/// path addresses [`SPARE`]: inlined into the heap's start-up allocation, the test put SPARE's page
+/// among the written start-up pages (STARTUP-DATA-WINDOWS, D-X.62) although only a foreign thread
+/// can be given it.
+#[cold]
+#[inline(never)]
+fn foreign_heap_cache_slot() -> Option<&'static AtomicUsize> {
+    let w = foreign_words();
+    (!is_spare(w)).then_some(&w.heap_cache)
+}
+
+/// [`heap_cache_slot`]'s value (0: none) in a process the runtime did not start: the heap's
+/// fast paths read it here instead of the block's word 0x90.
+#[cold]
+#[inline(never)]
+pub(crate) fn foreign_heap_cache() -> usize {
+    foreign_heap_cache_slot().map_or(0, |s| s.load(Relaxed))
+}
+
+/// Empty words (a new thread's). The heap cache word is kept: the cache of the block's dead
+/// thread passes to the new one (it has one owner at a time, and is not lost); its `errno`,
+/// destructor list (never run on another thread) and node hint start empty.
 fn clear_words(b: &liella_rt::tls::ThreadBlock) {
-    let words = [&b.thread, &b.locale, &b.ctype_b, &b.ctype_toupper, &b.ctype_tolower, &b.res, &b.view];
+    let words = [&b.thread, &b.locale, &b.ctype_b, &b.ctype_toupper, &b.ctype_tolower, &b.res, &b.view, &b.tls_dtors];
     for w in words.into_iter().chain(&b.lconv).chain(&b.cache) {
         w.store(0, Relaxed);
     }
     b.flags.store(0, Relaxed);
     b.h_errno.store(0, Relaxed);
+    b.errno.store(0, Relaxed);
+    b.node.store(0, Relaxed);
+}
+
+/// `selftest` only (#4837): while set, [`shadow_entry`] answers as when no chunk can be mapped,
+/// so the calling thread gets [`SPARE`]; a test sets it in a forked child only.
+#[cfg(feature = "selftest")]
+static NO_ROOM: AtomicBool = AtomicBool::new(false);
+
+/// Set or clear [`NO_ROOM`] (`selftest` only).
+#[cfg(feature = "selftest")]
+pub(crate) fn starve_registry(on: bool) {
+    NO_ROOM.store(on, Release);
 }
 
 /// A hash of a thread pointer: a chunk index to start probing at.
@@ -400,6 +490,10 @@ fn shadow_hash(tp: usize) -> usize {
 /// The registry entry of the thread at `tp` (the caller's), claimed if it has none; `None` when
 /// no chunk can be mapped. Linear probing in each chunk, the next chunk only once one is full.
 fn shadow_entry(tp: usize) -> Option<&'static Shadow> {
+    #[cfg(feature = "selftest")]
+    if NO_ROOM.load(Acquire) {
+        return None;
+    }
     let start = shadow_hash(tp);
     let mut link = &SHADOW_HEAD;
     loop {
@@ -717,7 +811,10 @@ pub(crate) fn recycle_lock() -> &'static RawMutex {
     &RECYCLE
 }
 
-/// `fork`'s child: only the calling thread exists (D-18.6).
+/// `fork`'s child: only the calling thread exists (D-18.6). Never inlined: a fork-tier hot-text
+/// key (crates/libc-so/hot-text.list), so the child's path stays in the hot group whatever LLVM
+/// decides for `fork::child_reset`; one call per fork.
+#[inline(never)]
 pub(crate) fn after_fork_child() {
     // The lock was taken before the fork by the forking thread, which is this one.
     // Only the words that change are written (D-18.8).

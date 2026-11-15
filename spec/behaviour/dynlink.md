@@ -82,6 +82,20 @@ libc and `ld.so` by absolute path, a `dlopen`'d object by the name it was opened
 `dl_iterate_phdr` callback that calls `dlopen` of a new object returns, the running walk then visits that object
 (one more callback), and `dlpi_adds` grows by one within the walk.
 
+**dlclose** (record `== close (DL-17)`, probe `tools/probe/dl/close/run.sh SCRATCH`, same reference and conditions
+as the P-n probes). C-1: `dlclose` of the only open of an object returns 0, runs its destructor, unmaps it (`RTLD_NOLOAD`
+no longer finds it) and `dlpi_subs` is already +1 when it returns; no dlerror text. C-2: a successful `dlclose` clears
+a pending dlerror text. C-3: an `RTLD_GLOBAL` object G whose definition a later object U's relocation bound to (U has
+no `DT_NEEDED` on G) stays loaded and usable after `dlclose(G)`; `dlclose(U)` then runs U's destructor, then G's, and
+unmaps both. C-3b: an object opened `RTLD_LOCAL` and again (promoted) `RTLD_GLOBAL` needs two closes. C-4: an object
+with a general-dynamic TLS block, accessed or not, is unloaded; the next open gets the same module ID (2) and a fresh
+block (the initial value again). C-5: the same for an initial-exec TLS block (module ID 2 and value 9 again on
+re-open). C-6: an object defining an `STB_GNU_UNIQUE` symbol is unloaded when nothing looked the symbol up, and stays
+loaded after `dlclose` once `dlsym` looked it up. C-7: `RTLD_NODELETE` keeps the object loaded. C-8: a destructor that
+calls `dlclose` of another object succeeds (0); that object's destructor runs inside it and both are unmapped. C-9:
+`dlclose` of the program's handle (`dlopen(NULL)`) returns 0 with no text. At exit the objects still loaded (C-6's
+pinned one, C-7's) run their destructors: C-6's object (loaded first) before C-7's.
+
 **Static-TLS surplus** (record `== tls`): with default tunables, one `dlopen` of an object with an
 initial-exec TLS block of 1664 bytes succeeds and 1728 fails (64-byte steps); thirteen distinct
 128-byte blocks load one after another and the fourteenth fails. The text is
@@ -215,6 +229,34 @@ All members reference `__dso_handle` (undefined, hidden: the compiler's start fi
   `pthread_atfork` handlers are dropped, and a later `quick_exit` or `fork` calls neither.
 * **The installed `libc.so`** is `GROUP ( <libc.so.6> <libc_nonshared.a> AS_NEEDED ( <ld-linux-x86-64.so.2> ) )`.
   The reference names absolute paths. Liella's names bare files, which ld finds on the library search path.
+
+## dladdr and dlinfo (DL-18 DL-DLADDR)
+
+**Probe:** `tools/probe/dl/dladdr/run.sh SCRATCH` builds `lib.c` (one assembler block of symbols in a known order:
+gaps, a size-0 symbol, equal starts, a weak and a global at one address, an overlapping symbol, an IFUNC, data and a
+TLS symbol) as `libP.so`, as `sub/libQ.so` (no TLS, `DT_RUNPATH /r1:$ORIGIN/x:/r2`) and `sub/libR.so` (no TLS,
+`DT_RPATH /rp`), and `probe.c` with and without `-rdynamic`, runs it and prints the record. **Record:** the
+`== dladdr-dlinfo` section at the end of `dynlink.glibc.txt` (Skylake-SP build host, Ubuntu 24.04, glibc 2.39, gcc 13,
+`LC_ALL=C`, no `LD_*` but where the record says). Black box only: the reference loader is executed and the objects'
+files are read for their section headers and `.dynsym` order. Clauses `s27_1_c_6`, `s27_1_c_7`; conformance programs
+`s27_dladdr` and `s27_dlinfo` check these answers on the reference and on Liella.
+
+| Case | Observed in the reference |
+|---|---|
+| `dladdr` symbol | only a symbol that holds the address (`st_value <= a < st_value + st_size`; `a == st_value` for size 0); a gap (local code, past a size-0 symbol, past a data object) gives `dli_sname`/`dli_saddr` NULL with ret 1 |
+| overlap, ties | overlapping holders: the highest start wins; equal starts: the lowest `.dynsym` index (`s_b_alias` 12 over `s_b` 21 and weak `s_b_weak` 19; weak `s_w1` 10 over global `s_w2` 15); libc's `printf` is reported as `_IO_printf` |
+| IFUNC, TLS | an IFUNC is reported by its resolver's address under the IFUNC's name; `dlsym` of it gives the implementation; an `STT_TLS` symbol (value 0) never matches |
+| no symbol | the ELF header (base, base+1, base+64), `.plt`, `.plt.sec`, `.dynsym`, `.eh_frame`, `.bss`: the object, no symbol |
+| object | `dli_fname`: the path the object was opened by (a relative `./sub/libQ.so` gives the absolute path); the program: `argv[0]`; libc: its full path; `ld.so`: `/lib64/ld-linux-x86-64.so.2`; the vDSO: `linux-vdso.so.1`, with symbols; `dli_fbase` is the link map's `l_addr` for a shared object |
+| program symbols | without `-rdynamic` `main` has no symbol; with it `main` and other exported functions are found |
+| miss | NULL, 8, -1, the stack, the heap: ret 0, `*info` untouched, no dlerror text |
+| `dladdr1` | `RTLD_DL_SYMENT`: the `Elf64_Sym` (NULL with no holder); `RTLD_DL_LINKMAP`: the link map (the handle; `dlopen(NULL)` for the program); flags 0 and 3: `*extra` untouched; a miss: `*extra` untouched |
+| `dlinfo` requests | 1 (`LMID`) 0; 2 (`LINKMAP`) the handle; 6 (`ORIGIN`) the directory of the path (absolute); 9 (`TLS_MODID`) 2 for the first `dlopen`ed TLS module, 0 without TLS; 11 (`PHDR`) returns the header count, stores base+64; 0, 3, 7, 8, 12: -1 with `unsupported dlinfo request` and the argument untouched |
+| `RTLD_DI_TLS_DATA` | NULL until the calling thread used the block, then `&var` (main thread and a new thread); Liella gives the block whenever it exists (docs/differences-from-glibc.md, ruling #5521) |
+| `SERINFO` | `dls_size` = 16 + 16 per entry + each string and its NUL; flags 0; strings after the array; order: the object's `DT_RPATH` (no `DT_RUNPATH`), `LD_LIBRARY_PATH`, `DT_RUNPATH` with `$ORIGIN` expanded, then `/lib/x86_64-linux-gnu`, `/usr/lib/x86_64-linux-gnu`, `/lib`, `/usr/lib`; the program's `DT_RUNPATH` (`/prog/rp`) is in neither a `dlopen`ed object's list nor the program's own (Liella's answer for the program is not checked yet); a buffer one entry short: ret 0, no text |
+
+Liella gaps (not differences): the vDSO is not in Liella's object chain yet (P-12), so `dladdr` of a vDSO address
+returns 0; Liella's `dl_iterate_phdr` lists the program and the vDSO only until DL-16c walks the chain.
 
 ## Notes for the implementation stories
 

@@ -858,6 +858,8 @@ pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, 
     let mut renames: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     // Every grouped section: (member, name after renaming, size, alignment).
     let mut grouped: Vec<(String, String, u64, u64)> = Vec::new();
+    // LAYOUT-WINDOW-BINS (D-X.103): every other function section, the window-bin plan's filler candidates.
+    let mut cold: Vec<(String, String, u64, u64)> = Vec::new();
     for m in &members {
         let obj = work.join(m);
         let mut args = String::new();
@@ -883,6 +885,8 @@ pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, 
             if want.starts_with(".text.sorted.") {
                 hot += 1;
                 grouped.push((m.clone(), want.clone(), size, align));
+            } else if size > 0 {
+                cold.push((m.clone(), want.clone(), size, align));
             }
             if want != *name {
                 args.push_str(&format!("--rename-section {name}={want}\n"));
@@ -937,11 +941,52 @@ pub fn group(ar: &str, archive: &Path, list: &Path, inputs: &Path, work: &Path, 
     }
     let checked = check_renames(&archive_headers(&archive)?, &renames).map_err(|e| format!("{}: hot-text grouping: {e}", archive.display()))?;
     println!("so: hot-text grouping: {checked} section renames, all in effect");
+    if layout == Layout::Traced {
+        plan_bins(list, &grouped, &cold)?;
+    }
     let _ = fs::remove_dir_all(work);
     if startup != 1 {
         return Err(format!("{}: {startup} start-up names sections (STARTUP_NAMES), want 1", archive.display()));
     }
     Ok((hot, keys.len()))
+}
+
+/// LAYOUT-WINDOW-BINS slice 1 (D-X.103): the window-bin plan of the grouped sections `grouped` (member,
+/// name, size, alignment), from this build's signatures next to `list`, written to
+/// [`crate::bins::PLAN`] there, with its summary printed. Nothing is applied: the link order and
+/// alignments stay as [`group`] set them. The filler pool is `cold` (the other function sections) of
+/// the members every program links: those holding a section the start-up mode runs.
+fn plan_bins(list: &Path, grouped: &[(String, String, u64, u64)], cold: &[(String, String, u64, u64)]) -> Result<(), String> {
+    use crate::bins::{Cold, Item};
+    let path = list.with_file_name(crate::bins::SIGNATURES);
+    let text = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let sigs = crate::bins::parse_signatures(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut items = Vec::new();
+    let mut always = BTreeSet::new();
+    for (m, n, size, align) in grouped {
+        let k = key(function_of(n).unwrap_or(n));
+        let sig = sigs.get(&k).ok_or_else(|| format!("{}: no signature for grouped key {k} (section {n}): the trace wrote the list and its signatures apart", path.display()))?;
+        if sig.contains(crate::bins::STARTUP_MODE) {
+            always.insert(m.clone());
+        }
+        items.push(Item { name: n.clone(), bytes: *size, align: *align, pos: position_of(n).unwrap_or(usize::MAX), sig: sig.clone() });
+    }
+    if always.is_empty() && !items.is_empty() {
+        return Err(format!(
+            "{}: no grouped key the start-up mode ({}) runs: the trace recorded no page_faults modes (tools/hottext/regen.sh writes the signatures)",
+            path.display(),
+            crate::bins::STARTUP_MODE
+        ));
+    }
+    let pool: Vec<Cold> = cold.iter().filter(|c| always.contains(&c.0)).map(|(_, n, s, a)| Cold { name: n.clone(), bytes: *s, align: *a }).collect();
+    let plan = crate::bins::plan(&items, &pool);
+    let out = list.with_file_name(crate::bins::PLAN);
+    fs::write(&out, plan.tsv(&items, &pool)).map_err(|e| format!("{}: {e}", out.display()))?;
+    for l in plan.summary(&items, &pool) {
+        println!("{l}");
+    }
+    println!("so: window bins: filler pool {} sections of {} always-linked members; plan in {}", pool.len(), always.len(), out.display());
+    Ok(())
 }
 
 /// LAYOUT-DELETE-LISTS (LT-5): the files no tree may track again. The four lists are written by every
@@ -1216,6 +1261,38 @@ mod tests {
         let sorted = py.find("names = {a: sorted(ns) for a, ns in names.items()}").expect("trace_gdb.py does not sort the names at one address");
         let written = py.find("for n in names.get(addr, []):").expect("trace_gdb.py: no names output");
         assert!(nm < sorted && sorted < written, "trace_gdb.py sorts the names after it writes them");
+    }
+
+    #[test]
+    fn signatures_name_the_modes_that_run_each_listed_key() {
+        // LAYOUT-WINDOW-BINS (no spec clause: build tooling, D-X.103): keys.py --signatures gives every
+        // key of the list, in list order, the sorted modes whose names file holds it (`-` for none); a
+        // name traced at a label inside another key's section counts for that section too; a key
+        // only a mode outside the list ran is not added. The names are fictional (see the test below).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let tmp = root.join(format!("target/xtask-signatures-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("list"), "# c\nfixture_b\tstartup\tfast\nfixture_a\tstdio\tfast\nfixture_none\textra\tfast\n").unwrap();
+        std::fs::write(tmp.join("alias"), "fixture_a_entry\tfixture_a\n").unwrap();
+        std::fs::write(tmp.join("n.true"), "fixture_b\nmain\n").unwrap();
+        std::fs::write(tmp.join("n.locale"), "fixture_b\nfixture_a_entry\nfixture_other\n").unwrap();
+        std::fs::write(tmp.join("n.tool"), "fixture_a\nfixture_b\n").unwrap();
+        let o = std::process::Command::new("python3")
+            .arg("-I")
+            .arg(root.join("tools/hottext/keys.py"))
+            .arg("--signatures")
+            .arg(tmp.join("list"))
+            .arg("--alias")
+            .arg(tmp.join("alias"))
+            .args(["true", "locale", "tool"].map(|m| format!("{m}={}", tmp.join(format!("n.{m}")).display())))
+            .output()
+            .expect("python3 runs tools/hottext/keys.py");
+        assert!(o.status.success(), "keys.py: {}", String::from_utf8_lossy(&o.stderr));
+        let out = String::from_utf8(o.stdout).unwrap();
+        assert_eq!(out, "fixture_b\tlocale,tool,true\nfixture_a\tlocale,tool\nfixture_none\t-\n");
+        let sigs = crate::bins::parse_signatures(&out).unwrap();
+        assert_eq!(sigs.len(), 3);
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]
