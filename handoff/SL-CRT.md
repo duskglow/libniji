@@ -24,7 +24,10 @@ Role mei:~/w/s2 (Skylake-SP). Decision pending: records/pending/SL-CRT-1.toml (D
   - The first gate (sl-crt-2-gate, head 0702ed168) went red on `s28_1_c_1`: it asserted run-time pcs from its PIE
     test program (the old gap). 5d13765a6: the child prints its load bias from /proc/self/maps, the parent subtracts it.
 
-## Jobs on the final head 5d13765a6 (mei)
+## Jobs (mei)
+Green on 5d13765a6: sl-crt-2-gate2, -plants2, -xtest2, -hotprof2. e5301e046 only rewords three .S comments (no D-NEW
+outside records/); rerun on it: sl-crt-2-gate3, -plants3, -xtest3, -hotprof3 (PENDING at hand-back).
+Detail of the 5d13765a6 run:
 sl-crt-2-gate2 (direct tier: 32 suites, 11820 passed, 0 failed; conformance 137/137; peak 15G), sl-crt-2-plants2
 (6 CAUGHT), sl-crt-2-xtest2 (`cargo xtask test`), sl-crt-2-hotprof2 (FULL_PROFILE so + hot_text_products).
 Superseded: sl-crt-2-gate (red, see above), sl-crt-2-plants (older head), sl-crt-2-xtest (stopped, older head).
