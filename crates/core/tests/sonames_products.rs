@@ -1,7 +1,8 @@
 //! The sonames and development files a C library package ships (SL-SONAMES, plan/system-libc.md
 //! §6 item 5): `libresolv.so.2` forwarding to `libc.so.6` (D-16.6), `libBrokenLocale.so.1`, and
 //! the archives `-l<x>` finds in a static link. Programs are built against `target/liella` with
-//! the system compiler and run directly (dynamic ones name Liella's loader and its directory).
+//! the system compiler and run directly (dynamic ones name Liella's loader and run with
+//! `LD_LIBRARY_PATH` naming its directory).
 //! No spec clause names these files: spec Appendix C lists the libraries and their symbols.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
@@ -22,14 +23,12 @@ fn products() -> PathBuf {
     lib.canonicalize().unwrap()
 }
 
-/// The loader's refusal of a `DT_NEEDED` soname while its start-time library search is absent
-/// (DL-8, plan/system-libc.md §6 item 1).
-const NO_SEARCH: &str = "the library search is not available in this build";
-
 /// Build `src` with `libs` statically (`static_link`) or dynamically, run it with `args` (and
-/// `LOCPATH=locpath`), return its stdout; `None` (and the reason printed) for a dynamic program the
-/// loader cannot start for want of its soname search.
-fn build_run_with(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool, args: &[&str], locpath: Option<&Path>) -> Option<String> {
+/// `LOCPATH=locpath`), return its stdout. A dynamic program runs with `LD_LIBRARY_PATH` naming
+/// `target/liella`: `libc.so.6` is a pinned soname, found only in the build's own library
+/// directory or through `LD_LIBRARY_PATH`, never through RPATH/RUNPATH (D-27.16, R14-3 (a)), so
+/// `LD_LIBRARY_PATH` is the route for running programs against a development build (ruling #5909).
+fn build_run_with(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool, args: &[&str], locpath: Option<&Path>) -> String {
     let lib = products();
     let c = dir.join(format!("{name}.c"));
     std::fs::write(&c, src).unwrap();
@@ -41,7 +40,6 @@ fn build_run_with(dir: &Path, name: &str, src: &str, libs: &[&str], static_link:
         a.extend([lib.join("libc.a").into(), "-lgcc".into()]);
     } else {
         a.push(format!("-Wl,--dynamic-linker={}", lib.join("ld-linux-x86-64.so.2").display()).into());
-        a.push(format!("-Wl,-rpath,{}", lib.display()).into());
         a.extend(libs.iter().map(OsString::from));
         a.extend([lib.join("libc.so.6").into(), "-lgcc".into()]);
     }
@@ -52,17 +50,16 @@ fn build_run_with(dir: &Path, name: &str, src: &str, libs: &[&str], static_link:
     if let Some(l) = locpath {
         run.env("LOCPATH", l);
     }
-    let o = run.output().unwrap();
-    if !static_link && String::from_utf8_lossy(&o.stderr).contains(NO_SEARCH) {
-        eprintln!("{name}: dynamic run skipped: Liella's loader has no start-time soname search yet (DL-8); linked and inspected only");
-        return None;
+    if !static_link {
+        run.env("LD_LIBRARY_PATH", &lib);
     }
+    let o = run.output().unwrap();
     assert!(o.status.success(), "{name}: {o:?}");
-    Some(String::from_utf8(o.stdout).unwrap())
+    String::from_utf8(o.stdout).unwrap()
 }
 
 /// [`build_run_with`] without arguments or `LOCPATH`.
-fn build_run(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool) -> Option<String> {
+fn build_run(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool) -> String {
     build_run_with(dir, name, src, libs, static_link, &[], None)
 }
 
@@ -91,10 +88,7 @@ fn sonames_resolv_dynamic_and_static() {
     let dir = scratch("resolv");
     let libs = ["-lresolv", "-lpthread", "-ldl", "-lrt", "-lm"];
     let want = "16 10.1 1234 IN IN QUERY 4\n";
-    let d = build_run(&dir, "dyn", RESOLV, &libs, false);
-    if let Some(d) = d {
-        assert_eq!(d, want, "dynamic");
-    }
+    assert_eq!(build_run(&dir, "dyn", RESOLV, &libs, false), want, "dynamic");
     let needed = readelf(&["-d"], &dir.join("dyn"));
     assert!(needed.contains("[libresolv.so.2]") && needed.contains("[libc.so.6]"), "the dynamic program needs libresolv.so.2 and libc.so.6:\n{needed}");
     // Its references bind libresolv.so.2's versions (functions and data), none a private alias.
@@ -103,7 +97,7 @@ fn sonames_resolv_dynamic_and_static() {
         assert!(syms.contains(s), "the dynamic program binds {s}:\n{syms}");
     }
     assert!(!syms.contains("LIELLA_PRIVATE"), "no private name reaches the program:\n{syms}");
-    assert_eq!(build_run(&dir, "stat", RESOLV, &libs, true).as_deref(), Some(want), "static");
+    assert_eq!(build_run(&dir, "stat", RESOLV, &libs, true), want, "static");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -137,16 +131,14 @@ fn sonames_brokenlocale_mb_cur_max() {
     let dir = scratch("broken");
     let utf8 = ["C.UTF-8"];
     for (name, libs, want) in [("plain", &[][..], "1 6\n"), ("dyn", &["-lBrokenLocale"][..], "1 4\n")] {
-        if let Some(out) = build_run_with(&dir, name, MBMAX, libs, false, &utf8, None) {
-            assert_eq!(out, want, "{name}");
-        }
+        assert_eq!(build_run_with(&dir, name, MBMAX, libs, false, &utf8, None), want, "{name}");
     }
     let needed = readelf(&["-d"], &dir.join("dyn"));
     assert!(needed.contains("[libBrokenLocale.so.1]"), "-lBrokenLocale links libBrokenLocale.so.1:\n{needed}");
     let syms = readelf(&["--dyn-syms", "-W"], &products().join("libBrokenLocale.so.1"));
     assert!(syms.contains(" __ctype_get_mb_cur_max@@GLIBC_2.2.5"), "libBrokenLocale.so.1 defines it:\n{syms}");
-    assert_eq!(build_run_with(&dir, "stat", MBMAX, &[], true, &utf8, None).as_deref(), Some("1 6\n"), "static without -lBrokenLocale");
-    assert_eq!(build_run_with(&dir, "stat_broken", MBMAX, &["-lBrokenLocale"], true, &utf8, None).as_deref(), Some("1 4\n"), "static -lBrokenLocale");
+    assert_eq!(build_run_with(&dir, "stat", MBMAX, &[], true, &utf8, None), "1 6\n", "static without -lBrokenLocale");
+    assert_eq!(build_run_with(&dir, "stat_broken", MBMAX, &["-lBrokenLocale"], true, &utf8, None), "1 4\n", "static -lBrokenLocale");
     // The widths between: the first program shows the code sets' own widths, the second the bound.
     let locales = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/test-locales");
     let wide = [("ko_KR", "EUC-KR"), ("ja_JP", "EUC-JP"), ("zh_CN", "GB18030")];
@@ -154,7 +146,7 @@ fn sonames_brokenlocale_mb_cur_max() {
     if wide.iter().zip(&names).all(|((l, c), n)| oracle::locale(&locales.join(n), l, c, "LC_CTYPE")) {
         let args: Vec<&str> = names.iter().map(String::as_str).collect();
         for (name, libs, want) in [("stat_wide", &[][..], "1 2 3 4\n"), ("stat_broken_wide", &["-lBrokenLocale"][..], "1 1 2 2\n")] {
-            assert_eq!(build_run_with(&dir, name, MBMAX, libs, true, &args, Some(&locales)).as_deref(), Some(want), "{name} ({names:?})");
+            assert_eq!(build_run_with(&dir, name, MBMAX, libs, true, &args, Some(&locales)), want, "{name} ({names:?})");
         }
     } else {
         skip_note::skipped("sonames_brokenlocale_mb_cur_max: no localedef; the 2-, 3- and 4-byte code sets not checked");
