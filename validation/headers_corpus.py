@@ -188,6 +188,9 @@ class Acc:
         self.nfiles = 0
         self.nbig = 0
         self.nbytes = 0
+        self.depth = 0
+        self.nest = 0
+        self.tmp = None
 
     def add(self, d, k, n):
         e = d.setdefault(k, [0, 0])
@@ -236,6 +239,8 @@ class Acc:
 
 
 UNDECIDED_SET = set(UNDECIDED)
+NESTED_RE = re.compile(r"\.(tar\.gz|tgz|tar\.bz2|tbz2?|tar\.xz|txz|tar\.zst)$")
+CLIB_NESTED_RE = re.compile(r"^(e?glibc|musl|dietlibc|klibc|newlib|picolibc|uclibc(-ng)?|avr-libc|bionic)[-_.]")
 
 
 def skip_prefix(comps):
@@ -257,6 +262,22 @@ def scan_tar_stream(fobj, acc, label):
             if not m.isfile():
                 continue
             path = "/".join(comps)
+            if NESTED_RE.search(path) and m.size > 0 and acc.depth < 3:
+                acc.names.add(path)
+                if CLIB_NESTED_RE.match(comps[-1]):
+                    acc.skips.append("%s:%s (nested C library archive, not opened)" % (label, path))
+                    continue
+                acc.nest += 1
+                tmpf = os.path.join(acc.tmp, "nested-%d" % acc.nest + os.path.splitext(comps[-1])[1])
+                with open(tmpf, "wb") as o:
+                    shutil.copyfileobj(tf.extractfile(m), o, 1 << 20)
+                acc.depth += 1
+                try:
+                    scan_file(tmpf, label + ">" + comps[-1], acc)
+                finally:
+                    acc.depth -= 1
+                    os.unlink(tmpf)
+                continue
             if not is_code(path):
                 acc.names.add(path)
                 continue
@@ -314,6 +335,7 @@ def process(task):
     acc = Acc(mode)
     d = os.path.join(tmp, "%d-%s" % (os.getpid(), name))
     os.makedirs(d, exist_ok=True)
+    acc.tmp = d
     try:
         for fn, h, sz in info["files"]:
             dest = os.path.join(d, fn)
