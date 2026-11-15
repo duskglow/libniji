@@ -95,8 +95,8 @@ __cxa_at_quick_exit	GLIBC_2.10	crates/boundary/src/posix/s01_startup.rs:122	ret:
 __cxa_atexit	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:117	ret::registered
 __cxa_finalize	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:127	process::finalize
 __cxa_thread_atexit_impl	GLIBC_2.18	crates/boundary/src/posix/s01_startup.rs:132	ret::registered
-__cyg_profile_func_enter	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:370	
-__cyg_profile_func_exit	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:374	
+__cyg_profile_func_enter	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:372	
+__cyg_profile_func_exit	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:376	
 __dcgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:118	ret::ptr
 __default_morecore	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:208	ret::null
 __dgettext	GLIBC_2.2.5	crates/boundary/src/posix/s07_locale.rs:106	ret::ptr
@@ -279,7 +279,7 @@ __memmove_chk	GLIBC_2.3.4	crates/boundary/src/posix/s04_strings.rs:43	hot::move_
 __mempcpy	GLIBC_2.2.5	csys/src/machine/fold.S:262	liella_machine_memmove
 __mempcpy_chk	GLIBC_2.3.4	crates/boundary/src/posix/s04_strings.rs:76	conv::chk
 __memset_chk	GLIBC_2.3.4	crates/boundary/src/posix/s04_strings.rs:103	hot::set_bytes
-__monstartup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:219	
+__monstartup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:220	
 __morecore	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3897	
 __mq_open_2	GLIBC_2.34	crates/boundary/src/posix/s25_ipc.rs:134	ret::fd
 __mq_open_2	GLIBC_2.7	crates/boundary/src/posix/s25_ipc.rs:134	ret::fd
@@ -323,7 +323,7 @@ __pread64_chk	GLIBC_2.4	crates/boundary/src/posix/s11_lowio.rs:228	ret::raw_ssiz
 __pread_chk	GLIBC_2.4	crates/boundary/src/posix/s11_lowio.rs:222	ret::raw_ssize
 __printf_chk		csys/src/adapter/variadic.c:170	liella_vfprintf4
 __printf_fp	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:1300	ret::count
-__profile_frequency	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:365	
+__profile_frequency	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:367	
 __pthread_cleanup_routine	GLIBC_2.3.3	crates/boundary/src/posix/s22_threads.rs:351	cancel::cleanup_routine
 __pthread_cleanup_routine	GLIBC_2.34	crates/boundary/src/posix/s22_threads.rs:351	cancel::cleanup_routine
 __pthread_getspecific	GLIBC_2.2.5	crates/boundary/src/posix/s22_threads.rs:387	pthread::getspecific
@@ -570,7 +570,7 @@ _flushlbf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:109	stdio::flushlbf
 _getlong	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:865	resolv::get_be
 _getshort	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:870	resolv::get_be
 _longjmp		csys/src/machine/setjmp.S:145	liella_machine_longjmp_nomask
-_mcleanup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:356	
+_mcleanup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:358	
 _mcount		csys/src/machine/mcount.S:38	liella_mcount_save
 _null_auth	GLIBC_2.2.5	csys/src/machine/compat_aliases.S:3913	
 _obstack_allocated_p	GLIBC_2.2.5	crates/boundary/src/posix/s03_memory.rs:301	ret::must
@@ -2697,8 +2697,8 @@ modff32	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4117	mret::Soft::en
 modff32x	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4123	mret::Soft::enter
 modff64	GLIBC_2.27	crates/boundary/src/posix/s10_math_gen.rs:4129	mret::Soft::enter
 modify_ldt	GLIBC_2.2.5	crates/boundary/src/posix/s24_system.rs:486	ret::int
-moncontrol	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:224	
-monstartup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:197	Text::new
+moncontrol	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:225	
+monstartup	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:198	Text::new
 mount	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:554	ret::zero
 mount_setattr	GLIBC_2.36	crates/boundary/src/posix/s13_filesystem.rs:613	ret::zero
 move_mount	GLIBC_2.36	crates/boundary/src/posix/s13_filesystem.rs:607	ret::zero
@@ -2941,7 +2941,7 @@ process_madvise	GLIBC_2.36	crates/boundary/src/posix/s11_lowio.rs:579	ret::ssize
 process_mrelease	GLIBC_2.36	crates/boundary/src/posix/s11_lowio.rs:585	ret::zero
 process_vm_readv	GLIBC_2.15	crates/boundary/src/posix/s11_lowio.rs:642	ret::ssize
 process_vm_writev	GLIBC_2.15	crates/boundary/src/posix/s11_lowio.rs:648	ret::ssize
-profil	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:160	ret::int32
+profil	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:161	ret::int32
 pselect	GLIBC_2.2.5	crates/boundary/src/posix/s11_lowio.rs:355	cancel::point
 psiginfo	GLIBC_2.10	crates/boundary/src/posix/s20_signals.rs:331	strz::strz_opt
 psignal	GLIBC_2.2.5	crates/boundary/src/posix/s20_signals.rs:300	strz::strz_opt
@@ -3525,7 +3525,7 @@ socket	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:34	ret::fd
 socketpair	GLIBC_2.2.5	crates/boundary/src/posix/s15_sockets.rs:39	ret::pair
 splice	GLIBC_2.5	crates/boundary/src/posix/s11_lowio.rs:508	ret::ssize
 sprintf		csys/src/adapter/variadic.c:161	liella_vsnprintf6
-sprofil	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:165	usize::try_from
+sprofil	GLIBC_2.2.5	crates/boundary/src/posix/s28_profiling.rs:166	usize::try_from
 sqrt	(math-gen)	crates/boundary/src/posix/s10_math.tsv:83	mret::sqrt
 sqrt	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:4979	mret::sqrt
 sqrtf	GLIBC_2.2.5	crates/boundary/src/posix/s10_math_gen.rs:4984	mret::sqrt
