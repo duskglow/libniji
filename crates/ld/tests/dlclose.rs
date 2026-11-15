@@ -849,11 +849,18 @@ fn exit_runs_loaded_objects_as_one_sequence() {
     lib("libI.so", "-DKIND_I", &[]);
     lib("libH.so", "-DKIND_H", &["-l:libI.so"]);
     lib("libI.so", "-DKIND_I", &["-l:libH.so"]);
-    lib("libV.so", "-DKIND_V", &[]);
-    lib("libS.so", "-DKIND_S", &["-l:libV.so"]);
-    lib("libM.so", "-DKIND_M", &["-l:libS.so"]);
+    // The start-time S and V and M carry no DT_SONAME and are named by path (the start's search
+    // takes paths only in this build).
+    let plain = |out: &str, kind: &str, needs: &[&Path]| {
+        let mut f = vec!["-nostdlib", "-fPIC", "-shared", "-Wl,-fini=fini_hook", kind, "-Wl,--no-as-needed"];
+        f.extend(needs.iter().map(|p| p.to_str().unwrap()));
+        build(&d, out, LIB, &f)
+    };
+    let v = plain("libV.so", "-DKIND_V", &[]);
+    let s = plain("libS.so", "-DKIND_S", &[&v]);
+    plain("libM.so", "-DKIND_M", &[&s]);
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
-    let with_s = build(&d, "prog_s", PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", &interp, crt1.to_str().unwrap(), "-Wl,--no-as-needed", &ldir, &rpath, "-l:libS.so", libc.to_str().unwrap(), ld.to_str().unwrap(), "-lgcc"]);
+    let with_s = build(&d, "prog_s", PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", &interp, crt1.to_str().unwrap(), "-Wl,--no-as-needed", s.to_str().unwrap(), libc.to_str().unwrap(), ld.to_str().unwrap(), "-lgcc"]);
     use std::os::unix::process::ExitStatusExt;
     for (p, scenario, want) in [
         (&prog, "indep", "dP dN fN dY fY dG fG "),
