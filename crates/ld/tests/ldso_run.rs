@@ -182,6 +182,21 @@ fn ldso_run_aux_rewrite_and_env() {
     assert!(!ld.bind_now);
     assert!(start::ld_env([&b"LD_BIND_NOW=1"[..]]).bind_now);
     assert_eq!((ld.tunables, ld.library_path), (Some(&b"x=1"[..]), Some(&b"/l"[..])));
+    // The preload file (DL-LD-PRELOAD probe): space, tab, newline and colon separate; `#` comments
+    // to the end of its line, also glued to a name; comma and CR are part of a name.
+    let file = b"# a.so\nb.so\tc.so::d.so#e.so\n\n f,g.so\rh.so#\ni.so";
+    assert_eq!(start::preload_file_names(file).collect::<Vec<_>>(), [&b"b.so"[..], b"c.so", b"d.so", b"f,g.so\rh.so", b"i.so"]);
+    assert_eq!(start::preload_names(b"a\tb c\n").collect::<Vec<_>>(), [&b"a\tb"[..], b"c\n"]);
+    // Threat model rule 1: a secure process takes an LD_PRELOAD name only without `/`, only from a
+    // trusted directory and only set-user-ID; the preload file's names as given.
+    use start::PreloadRule::{Search, Skip, TrustedSetUid};
+    let rules = [(&b"a.so"[..], true, true, TrustedSetUid), (b"/l/a.so", true, true, Skip), (b"/l/a.so", false, true, Search), (b"a.so", false, true, Search), (b"/l/a.so", true, false, Search), (b"a.so", true, false, Search)];
+    for (name, env, secure, want) in rules {
+        assert_eq!(start::preload_rule(name, env, secure), want, "{}", String::from_utf8_lossy(name));
+    }
+    assert!(start::preload_mode_admits(0o104_755) && start::preload_mode_admits(0o4000));
+    assert!(!start::preload_mode_admits(0o102_755) && !start::preload_mode_admits(0o100_755) && !start::preload_mode_admits(0o1777));
+    assert_eq!(start::preload_ignored(b"n", b"/etc/ld.so.preload", b"r").concat(), b"ERROR: ld.so: object 'n' from /etc/ld.so.preload cannot be preloaded (r): ignored.\n");
     assert!(start::needs_objects(&[0x6ffffef5, 0, 1, 7, 0, 0]));
     assert!(!start::needs_objects(&[5, 0, 0, 0, 1, 7]));
 }
@@ -262,8 +277,8 @@ fn ldso_run_as_program_at_random_bases() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-/// A non-secure start reads `LD_PRELOAD` (the diagnostic for each name) and parses the tunables;
-/// the program still runs.
+/// A non-secure start reads `LD_PRELOAD` (each name it cannot load gets the reference's "cannot be
+/// preloaded" line, DL-LD-PRELOAD probe) and parses the tunables; the program still runs.
 /// (no spec clause: ld.so's start, plan/ph14/design.md §1 steps 3-5, D-27.14.)
 #[test]
 fn ldso_run_reads_ld_settings() {
@@ -274,14 +289,16 @@ fn ldso_run_reads_ld_settings() {
     assert_ran(&o, "settings");
     let err = String::from_utf8_lossy(&o.stderr);
     for n in ["liba.so", "libb.so"] {
-        assert!(err.contains(&format!("ERROR: ld.so: object '{n}' from LD_PRELOAD cannot be preloaded")), "{err}");
+        assert!(err.contains(&format!("ERROR: ld.so: object '{n}' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.\n")), "{err}");
     }
     let _ = std::fs::remove_dir_all(&d);
 }
 
 /// R14-18: a set-group-ID program (the kernel sets AT_SECURE; a supplementary group of the user, no
 /// root) started through `ld.so` sees none of the UNSECURE names, keeps everything else (near
-/// misses included), and the loader read no `LD_*` name before clearing (no LD_PRELOAD diagnostic).
+/// misses included), and the loader read no `LD_*` name before clearing other than `LD_PRELOAD`, the
+/// threat model's exception: its bare name `x` is looked for in the trusted directories only (the
+/// reference's one line for it, spec/behaviour/dynlink-secure.md).
 /// (no spec clause: ld.so's start, plan/ph14/design.md §1 steps 3-5, D-27.14.)
 #[test]
 fn ldso_run_secure_child_sees_unsecure_cleared() {
@@ -322,6 +339,10 @@ fn ldso_run_secure_child_sees_unsecure_cleared() {
     for n in keep {
         assert!(env.contains(&format!("{n}=kept").as_str()), "{n} was removed: {env:?}");
     }
-    assert!(o.stderr.is_empty(), "the loader read an LD_* name before clearing: {}", String::from_utf8_lossy(&o.stderr));
+    assert_eq!(
+        String::from_utf8_lossy(&o.stderr),
+        "ERROR: ld.so: object 'x' from LD_PRELOAD cannot be preloaded (cannot open shared object file): ignored.\n",
+        "the loader read an LD_* name other than LD_PRELOAD before clearing"
+    );
     let _ = std::fs::remove_dir_all(&d);
 }
