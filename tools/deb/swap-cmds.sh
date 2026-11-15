@@ -83,5 +83,6 @@ run find-5 find /nonexistent
     echo "libc-bin $(dpkg-query -W -f '${Version}' libc-bin 2>&1)"
     sha256sum /usr/lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 2>&1
     echo "lib64 loader -> $(readlink -f /lib64/ld-linux-x86-64.so.2)"
+    echo "ldconfig -p: $(ldconfig -p 2>&1 | grep -c 'libc\.so\.6') libc.so.6 entries, $(ldconfig -p 2>&1 | head -1)"
 } > "$out/info.txt"
 echo "swap-cmds: done $(ls "$out" | grep -c '\.rc$') commands"

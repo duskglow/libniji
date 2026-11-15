@@ -14,7 +14,8 @@
 #   - the dynamic hello (program interpreter /lib64/ld-linux-x86-64.so.2) starts the packaged
 #     loader through the root's /lib64 link, and ld.so --list resolves libc.so.6 to
 #     /usr/lib/x86_64-linux-gnu/libc.so.6;
-#   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache the ldconfig trigger wrote;
+#   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache libc-bin's postinst wrote
+#     (configure; the ldconfig trigger after later library installs);
 #   - the smoke programs hello, threads (C) and except, iostream (C++; libstdc++ linked statically)
 #     built dynamically with plain gcc/g++ run in the root and print their lines: the loader finds
 #     libc.so.6 and libm.so.6 by soname at start (DL-START-SEARCH);
@@ -102,7 +103,7 @@ case $out in
 esac
 out=$(in_root /usr/sbin/ldconfig -p 2>&1) || true
 case $out in
-    *"libc.so.6 (libc6,x86-64) => "*"/lib/$ma/libc.so.6"*) pass "the ldconfig trigger wrote /etc/ld.so.cache: ldconfig -p in the root lists libc.so.6" ;;
+    *"libc.so.6 (libc6,x86-64) => "*"/lib/$ma/libc.so.6"*) pass "libc-bin's postinst wrote /etc/ld.so.cache: ldconfig -p in the root lists libc.so.6" ;;
     *) fail "ldconfig -p in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
 esac
 # The four dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds

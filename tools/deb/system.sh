@@ -18,7 +18,9 @@
 #   libc-bin      Essential: the loader configuration (/etc/ld.so.conf, ld.so.conf.d/libc.conf),
 #                 /etc/gai.conf, the nsswitch.conf template its postinst installs when the root has
 #                 none; owns the ldconfig trigger, which its postinst handles by running
-#                 /usr/sbin/ldconfig (static, no interpreter: D-31.2; -r "$DPKG_ROOT" when set). Its
+#                 /usr/sbin/ldconfig (static, no interpreter: D-31.2; -r "$DPKG_ROOT" when set),
+#                 as it does on configure (an activation while libc-bin is unconfigured is not
+#                 kept, deb-triggers(5)); its postrm removes /etc/ld.so.cache on purge. Its
 #                 other programs (getconf, getent, iconv, locale, ...) come with SL-BIN-CORE.
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
 #                 libm.so. No headers yet (SL-HEADERS, R4).
@@ -173,10 +175,11 @@ sys_control libc-l10n all localization optional \
 printf 'activate-noawait ldconfig\n' > "$s6/DEBIAN/triggers"
 printf 'interest-await ldconfig\n' > "$bin/DEBIAN/triggers"
 put 0755 "$sys/libc-bin.postinst" "$bin/DEBIAN/postinst"
+put 0755 "$sys/libc-bin.postrm" "$bin/DEBIAN/postrm"
 
 # Fixed modes and times.
 find "$stage" -type d -exec chmod 0755 {} +
-find "$stage" -path '*/DEBIAN/*' -type f ! -name postinst -exec chmod 0644 {} +
+find "$stage" -path '*/DEBIAN/*' -type f ! -name postinst ! -name postrm -exec chmod 0644 {} +
 find "$stage" -exec touch -h -d "@$epoch" {} +
 
 mkdir -p "$out"
