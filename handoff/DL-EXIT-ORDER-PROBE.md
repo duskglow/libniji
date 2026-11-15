@@ -1,12 +1,17 @@
-# DL-EXIT-ORDER-PROBE(-2): exit order of dlopen objects (handoff, run 2)
+# DL-EXIT-ORDER-PROBE(-2,-3): exit order of dlopen objects (handoff, run 3)
 
-**State:** branch `task/dl-exit-order-probe-2`, run 2 stopped at the context checkpoint. Code, test, records and
-plants are done. Jobs on head 02951f4b4 (keke `~/w/n4`): `dl-exit-order-probe-2-plants` rc 0 (9/9 CAUGHT, no WARN);
-`dl-exit-order-probe-2-gate` rc 1: only `liella::hot_text_products
-init_coreutils_shaped_program_stays_within_its_page_fault_bound` (51 page faults > 50, both export modes), every
-other suite green (523 passed); `dl-exit-order-probe-2-startup` did not run (chained after the gate).
-The failing program is static (`libc.a`); the changed code is the dynamic loader's exit path, which it does not
-run, so this looks like START-UP LAYOUT JITTER (rule 11-10/11-13): NOT VERIFIED.
+**State (run 3):** branch `task/dl-exit-order-probe-3` = run 2's branch with origin/next (7288d847a, which has
+LAYOUT-WINDOW-BINS-2) merged in at 020113a50; no code change in run 3. Jobs on that tree (mei `~/w/s1`):
+`dl-exit-order-probe-3-lint` rc 0 (`cargo xtask clippy` + `cargo xtask static`); `dl-exit-order-probe-3-gate`
+rc 0 (direct tier, 8 suites, 548 passed / 0 failed, includes `liella::hot_text_products` and `liella-ld::dlclose`):
+run 2's only red, the coreutils-shaped start-up fault bound (51 > 50), no longer fails after the merge, so it was
+layout jitter that LAYOUT-WINDOW-BINS-2 removed; no bound was touched. `dl-exit-order-probe-3-plants` rc 0 (9/9
+CAUGHT, 0 WARN). `dl-exit-order-probe-3-startup` (`cargo xtask test`, then `LIELLA_FULL_PROFILE=1 cargo xtask so` and
+`hot_text_products`) was left running at hand-back (6614 tests; the dispatcher reads it).
+
+**Run 2 record:** gate on 02951f4b4 (keke) had failed only
+`init_coreutils_shaped_program_stays_within_its_page_fault_bound` (51 > 50, static program that does not run the
+changed loader exit path); plants 9/9 CAUGHT.
 
 **Probe-settled (run 1; record `== exit-order (DL-EXIT-ORDER-PROBE)` in spec/behaviour/dynlink.glibc.txt, text in
 spec/behaviour/dynlink.md):** program first, then start-time and `dlopen`ed objects as ONE sequence, earliest
@@ -41,8 +46,7 @@ assigned, add `decisions`, `story`, `date`. The start's search in this build res
 `DT_NEEDED` by path only (the test links S, V by path).
 
 **Not to redo:** probe runs (run 1), exit_order and its unit test, the wiring.
-**Next step:** measure the coreutils-shaped fault count on origin/next with the same products (handoff/
-layout-stability-rethink.md's measure tool) and on this head. Same 51 on next, or 50 on next with no
-loader code in the static link: hand back `INCOMPLETE: LAYOUT-JITTER` with the numbers (no bound change, no
-section moves). Otherwise find what moved into the program's path. Then rerun gate + start-up checks
-(~/work/DL-EXIT-ORDER-PROBE-2/gate.sh, startup.sh on keke).
+**Next step:** if `dl-exit-order-probe-3-startup` (mei) ends rc != 0, read `~/logs/dl-exit-order-probe-3-startup.log`
+and fix only failures this branch causes (scripts: mei `~/work/DL-EXIT-ORDER-PROBE-3/{gate,startup,lint}.sh`).
+After landing (when CI assigns ids): add `decisions`, `story`, `date` to the compat record. Later stories: specify
+the reference's in-cycle order and implement the registered compat flag.
