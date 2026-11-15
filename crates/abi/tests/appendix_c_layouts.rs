@@ -2147,23 +2147,21 @@ fn abi_struct_ip6_hdr() {
 #[test]
 fn abi_struct_tcphdr() {
     expect_type("struct tcphdr", size_of::<struct_tcphdr>(), align_of::<struct_tcphdr>());
-    expect_member("struct tcphdr", "<anon>", offset_of!(struct_tcphdr, <anon>));
-    expect_member("struct tcphdr", "th_sport", offset_of!(struct_tcphdr, th_sport));
-    expect_member("struct tcphdr", "th_dport", offset_of!(struct_tcphdr, th_dport));
-    expect_member("struct tcphdr", "th_seq", offset_of!(struct_tcphdr, th_seq));
-    expect_member("struct tcphdr", "th_ack", offset_of!(struct_tcphdr, th_ack));
-    expect_member("struct tcphdr", "th_flags", offset_of!(struct_tcphdr, th_flags));
-    expect_member("struct tcphdr", "th_win", offset_of!(struct_tcphdr, th_win));
-    expect_member("struct tcphdr", "th_sum", offset_of!(struct_tcphdr, th_sum));
-    expect_member("struct tcphdr", "th_urp", offset_of!(struct_tcphdr, th_urp));
-    expect_member("struct tcphdr", "<anon>", offset_of!(struct_tcphdr, <anon>));
-    expect_member("struct tcphdr", "source", offset_of!(struct_tcphdr, source));
-    expect_member("struct tcphdr", "dest", offset_of!(struct_tcphdr, dest));
-    expect_member("struct tcphdr", "seq", offset_of!(struct_tcphdr, seq));
-    expect_member("struct tcphdr", "ack_seq", offset_of!(struct_tcphdr, ack_seq));
-    expect_member("struct tcphdr", "window", offset_of!(struct_tcphdr, window));
-    expect_member("struct tcphdr", "check", offset_of!(struct_tcphdr, check));
-    expect_member("struct tcphdr", "urg_ptr", offset_of!(struct_tcphdr, urg_ptr));
+    expect_member("struct tcphdr", "th_sport", offset_of!(struct_tcphdr, __anon_0.__anon_0.th_sport));
+    expect_member("struct tcphdr", "th_dport", offset_of!(struct_tcphdr, __anon_0.__anon_0.th_dport));
+    expect_member("struct tcphdr", "th_seq", offset_of!(struct_tcphdr, __anon_0.__anon_0.th_seq));
+    expect_member("struct tcphdr", "th_ack", offset_of!(struct_tcphdr, __anon_0.__anon_0.th_ack));
+    expect_member("struct tcphdr", "th_flags", offset_of!(struct_tcphdr, __anon_0.__anon_0.th_flags));
+    expect_member("struct tcphdr", "th_win", offset_of!(struct_tcphdr, __anon_0.__anon_0.th_win));
+    expect_member("struct tcphdr", "th_sum", offset_of!(struct_tcphdr, __anon_0.__anon_0.th_sum));
+    expect_member("struct tcphdr", "th_urp", offset_of!(struct_tcphdr, __anon_0.__anon_0.th_urp));
+    expect_member("struct tcphdr", "source", offset_of!(struct_tcphdr, __anon_0.__anon_0_1.source));
+    expect_member("struct tcphdr", "dest", offset_of!(struct_tcphdr, __anon_0.__anon_0_1.dest));
+    expect_member("struct tcphdr", "seq", offset_of!(struct_tcphdr, __anon_0.__anon_0_1.seq));
+    expect_member("struct tcphdr", "ack_seq", offset_of!(struct_tcphdr, __anon_0.__anon_0_1.ack_seq));
+    expect_member("struct tcphdr", "window", offset_of!(struct_tcphdr, __anon_0.__anon_0_1.window));
+    expect_member("struct tcphdr", "check", offset_of!(struct_tcphdr, __anon_0.__anon_0_1.check));
+    expect_member("struct tcphdr", "urg_ptr", offset_of!(struct_tcphdr, __anon_0.__anon_0_1.urg_ptr));
 }
 
 #[test]
@@ -2204,16 +2202,14 @@ fn abi_struct_tcp_info() {
 #[test]
 fn abi_struct_udphdr() {
     expect_type("struct udphdr", size_of::<struct_udphdr>(), align_of::<struct_udphdr>());
-    expect_member("struct udphdr", "<anon>", offset_of!(struct_udphdr, <anon>));
-    expect_member("struct udphdr", "uh_sport", offset_of!(struct_udphdr, uh_sport));
-    expect_member("struct udphdr", "uh_dport", offset_of!(struct_udphdr, uh_dport));
-    expect_member("struct udphdr", "uh_ulen", offset_of!(struct_udphdr, uh_ulen));
-    expect_member("struct udphdr", "uh_sum", offset_of!(struct_udphdr, uh_sum));
-    expect_member("struct udphdr", "<anon>", offset_of!(struct_udphdr, <anon>));
-    expect_member("struct udphdr", "source", offset_of!(struct_udphdr, source));
-    expect_member("struct udphdr", "dest", offset_of!(struct_udphdr, dest));
-    expect_member("struct udphdr", "len", offset_of!(struct_udphdr, len));
-    expect_member("struct udphdr", "check", offset_of!(struct_udphdr, check));
+    expect_member("struct udphdr", "uh_sport", offset_of!(struct_udphdr, __anon_0.__anon_0.uh_sport));
+    expect_member("struct udphdr", "uh_dport", offset_of!(struct_udphdr, __anon_0.__anon_0.uh_dport));
+    expect_member("struct udphdr", "uh_ulen", offset_of!(struct_udphdr, __anon_0.__anon_0.uh_ulen));
+    expect_member("struct udphdr", "uh_sum", offset_of!(struct_udphdr, __anon_0.__anon_0.uh_sum));
+    expect_member("struct udphdr", "source", offset_of!(struct_udphdr, __anon_0.__anon_0_1.source));
+    expect_member("struct udphdr", "dest", offset_of!(struct_udphdr, __anon_0.__anon_0_1.dest));
+    expect_member("struct udphdr", "len", offset_of!(struct_udphdr, __anon_0.__anon_0_1.len));
+    expect_member("struct udphdr", "check", offset_of!(struct_udphdr, __anon_0.__anon_0_1.check));
 }
 
 #[test]

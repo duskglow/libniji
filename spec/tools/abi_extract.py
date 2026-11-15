@@ -348,12 +348,20 @@ def members(dies, off, prefix="", base=0, out=None, depth=0):
         bits = ""
         if "DW_AT_bit_size" in at:
             bits = f"bits {num(at['DW_AT_bit_size'])}@{num(at.get('DW_AT_data_bit_offset', '0'))}"
-        out.append((base + o, full, tname(dies, t), bits))
         inner = resolve(dies, t)
+        out.append((base + o, full, tname(dies, t), bits))
+        at_row = len(out) - 1
         tag = dies[t]["tag"] if t in dies else ""
         # Descend into anonymous members, and one level into named struct members.
         if inner is not None and depth < 2 and tag != "DW_TAG_pointer_type" and not tname(dies, t).endswith("]"):
             members(dies, inner, f"{full}." if name else prefix, base + o, out, depth + 1)
+        if not name and inner is not None:
+            # An anonymous member's own members follow it at this level (flattened, as C names them):
+            # the last column gives its byte size and how many of the following rows at this level are
+            # its members (`size N rows M`), so a reader can rebuild the nesting.
+            level = prefix.count(".") + 1
+            n = sum(1 for r in out[at_row + 1:] if r[1].count(".") + 1 == level)
+            out[at_row] = out[at_row][:3] + (f"size {num(dies[inner]['attrs'].get('DW_AT_byte_size'))} rows {n}",)
     return out
 
 def layouts(tmp, types, szmap):

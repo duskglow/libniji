@@ -401,46 +401,46 @@ struct rusage	ru_utime.tv_usec	8		__suseconds_t
 struct rusage	ru_stime	16		struct timeval	
 struct rusage	ru_stime.tv_sec	16		__time_t	
 struct rusage	ru_stime.tv_usec	24		__suseconds_t	
-struct rusage	<anon>	32		union <anon>	
+struct rusage	<anon>	32		union <anon>	size 8 rows 2
 struct rusage	ru_maxrss	32		long int	
 struct rusage	__ru_maxrss_word	32		__syscall_slong_t	
-struct rusage	<anon>	40		union <anon>	
+struct rusage	<anon>	40		union <anon>	size 8 rows 2
 struct rusage	ru_ixrss	40		long int	
 struct rusage	__ru_ixrss_word	40		__syscall_slong_t	
-struct rusage	<anon>	48		union <anon>	
+struct rusage	<anon>	48		union <anon>	size 8 rows 2
 struct rusage	ru_idrss	48		long int	
 struct rusage	__ru_idrss_word	48		__syscall_slong_t	
-struct rusage	<anon>	56		union <anon>	
+struct rusage	<anon>	56		union <anon>	size 8 rows 2
 struct rusage	ru_isrss	56		long int	
 struct rusage	__ru_isrss_word	56		__syscall_slong_t	
-struct rusage	<anon>	64		union <anon>	
+struct rusage	<anon>	64		union <anon>	size 8 rows 2
 struct rusage	ru_minflt	64		long int	
 struct rusage	__ru_minflt_word	64		__syscall_slong_t	
-struct rusage	<anon>	72		union <anon>	
+struct rusage	<anon>	72		union <anon>	size 8 rows 2
 struct rusage	ru_majflt	72		long int	
 struct rusage	__ru_majflt_word	72		__syscall_slong_t	
-struct rusage	<anon>	80		union <anon>	
+struct rusage	<anon>	80		union <anon>	size 8 rows 2
 struct rusage	ru_nswap	80		long int	
 struct rusage	__ru_nswap_word	80		__syscall_slong_t	
-struct rusage	<anon>	88		union <anon>	
+struct rusage	<anon>	88		union <anon>	size 8 rows 2
 struct rusage	ru_inblock	88		long int	
 struct rusage	__ru_inblock_word	88		__syscall_slong_t	
-struct rusage	<anon>	96		union <anon>	
+struct rusage	<anon>	96		union <anon>	size 8 rows 2
 struct rusage	ru_oublock	96		long int	
 struct rusage	__ru_oublock_word	96		__syscall_slong_t	
-struct rusage	<anon>	104		union <anon>	
+struct rusage	<anon>	104		union <anon>	size 8 rows 2
 struct rusage	ru_msgsnd	104		long int	
 struct rusage	__ru_msgsnd_word	104		__syscall_slong_t	
-struct rusage	<anon>	112		union <anon>	
+struct rusage	<anon>	112		union <anon>	size 8 rows 2
 struct rusage	ru_msgrcv	112		long int	
 struct rusage	__ru_msgrcv_word	112		__syscall_slong_t	
-struct rusage	<anon>	120		union <anon>	
+struct rusage	<anon>	120		union <anon>	size 8 rows 2
 struct rusage	ru_nsignals	120		long int	
 struct rusage	__ru_nsignals_word	120		__syscall_slong_t	
-struct rusage	<anon>	128		union <anon>	
+struct rusage	<anon>	128		union <anon>	size 8 rows 2
 struct rusage	ru_nvcsw	128		long int	
 struct rusage	__ru_nvcsw_word	128		__syscall_slong_t	
-struct rusage	<anon>	136		union <anon>	
+struct rusage	<anon>	136		union <anon>	size 8 rows 2
 struct rusage	ru_nivcsw	136		long int	
 struct rusage	__ru_nivcsw_word	136		__syscall_slong_t	
 struct rlimit		16	8		
@@ -1141,7 +1141,7 @@ struct dl_find_object	__dflo_reserved	40		long long unsigned int[7]
 Dl_serinfo		32	8		
 Dl_serinfo	dls_size	0		size_t	
 Dl_serinfo	dls_cnt	8		unsigned int	
-Dl_serinfo	<anon>	16		union <anon>	
+Dl_serinfo	<anon>	16		union <anon>	size 16 rows 2
 Dl_serinfo	dls_serpath	16		Dl_serpath[0]	
 Dl_serinfo	__dls_serpath_pad	16		Dl_serpath[1]	
 struct mntent		40	8		
@@ -1488,8 +1488,8 @@ struct ip6_hdr	ip6_dst.__in6_u.__u6_addr8	24		uint8_t[16]
 struct ip6_hdr	ip6_dst.__in6_u.__u6_addr16	24		uint16_t[8]	
 struct ip6_hdr	ip6_dst.__in6_u.__u6_addr32	24		uint32_t[4]	
 struct tcphdr		20	4		
-struct tcphdr	<anon>	0		union <anon>	
-struct tcphdr	<anon>	0		struct <anon>	
+struct tcphdr	<anon>	0		union <anon>	size 20 rows 28
+struct tcphdr	<anon>	0		struct <anon>	size 20 rows 10
 struct tcphdr	th_sport	0		uint16_t	
 struct tcphdr	th_dport	2		uint16_t	
 struct tcphdr	th_seq	4		tcp_seq	
@@ -1500,7 +1500,7 @@ struct tcphdr	th_flags	13		uint8_t
 struct tcphdr	th_win	14		uint16_t	
 struct tcphdr	th_sum	16		uint16_t	
 struct tcphdr	th_urp	18		uint16_t	
-struct tcphdr	<anon>	0		struct <anon>	
+struct tcphdr	<anon>	0		struct <anon>	size 20 rows 16
 struct tcphdr	source	0		uint16_t	
 struct tcphdr	dest	2		uint16_t	
 struct tcphdr	seq	4		uint32_t	
@@ -1551,13 +1551,13 @@ struct tcp_info	tcpi_rcv_rtt	92		uint32_t
 struct tcp_info	tcpi_rcv_space	96		uint32_t	
 struct tcp_info	tcpi_total_retrans	100		uint32_t	
 struct udphdr		8	2		
-struct udphdr	<anon>	0		union <anon>	
-struct udphdr	<anon>	0		struct <anon>	
+struct udphdr	<anon>	0		union <anon>	size 8 rows 10
+struct udphdr	<anon>	0		struct <anon>	size 8 rows 4
 struct udphdr	uh_sport	0		uint16_t	
 struct udphdr	uh_dport	2		uint16_t	
 struct udphdr	uh_ulen	4		uint16_t	
 struct udphdr	uh_sum	6		uint16_t	
-struct udphdr	<anon>	0		struct <anon>	
+struct udphdr	<anon>	0		struct <anon>	size 8 rows 4
 struct udphdr	source	0		uint16_t	
 struct udphdr	dest	2		uint16_t	
 struct udphdr	len	4		uint16_t	
@@ -1854,10 +1854,10 @@ struct user	start_code	760		long long unsigned int
 struct user	start_stack	768		long long unsigned int	
 struct user	signal	776		long long int	
 struct user	reserved	784		int	
-struct user	<anon>	792		union <anon>	
+struct user	<anon>	792		union <anon>	size 8 rows 2
 struct user	u_ar0	792		struct user_regs_struct *	
 struct user	__u_ar0_word	792		long long unsigned int	
-struct user	<anon>	800		union <anon>	
+struct user	<anon>	800		union <anon>	size 8 rows 2
 struct user	u_fpstate	800		struct user_fpregs_struct *	
 struct user	__u_fpstate_word	800		long long unsigned int	
 struct user	magic	808		long long unsigned int	

@@ -24,14 +24,8 @@
 //! * `struct_rlimit64.rlim_cur (rlim64_t)`
 //! * `struct_rlimit64.rlim_max (rlim64_t)`
 //! * `struct_f_owner_ex.type (enum __pid_type)`
-//! * `struct_tcphdr.__anon_0 (union <anon>)`
-//! * `struct_tcphdr.<anon> (struct <anon>)`
-//! * `struct_tcphdr.<anon> (struct <anon>)`
-//! * `struct_tcphdr.th_seq (tcp_seq)`
-//! * `struct_tcphdr.th_ack (tcp_seq)`
-//! * `struct_udphdr.__anon_0 (union <anon>)`
-//! * `struct_udphdr.<anon> (struct <anon>)`
-//! * `struct_udphdr.<anon> (struct <anon>)`
+//! * `struct_tcphdr__anon_0__anon_0.th_seq (tcp_seq)`
+//! * `struct_tcphdr__anon_0__anon_0.th_ack (tcp_seq)`
 //! * `Elf32_Ehdr.e_type (Elf32_Half)`
 //! * `Elf32_Ehdr.e_machine (Elf32_Half)`
 //! * `Elf32_Ehdr.e_version (Elf32_Word)`
@@ -2434,29 +2428,44 @@ pub struct struct_ip6_hdr {
     pub ip6_dst: struct_in6_addr,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_tcphdr__anon_0__anon_0 {
+    pub th_sport: u16,
+    pub th_dport: u16,
+    pub th_seq: [u32; 1],
+    pub th_ack: [u32; 1],
+    pub th_x2: [u8; 1],
+    pub th_flags: u8,
+    pub th_win: u16,
+    pub th_sum: u16,
+    pub th_urp: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_tcphdr__anon_0__anon_0_1 {
+    pub source: u16,
+    pub dest: u16,
+    pub seq: u32,
+    pub ack_seq: u32,
+    pub res1: [u8; 2],
+    pub window: u16,
+    pub check: u16,
+    pub urg_ptr: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_tcphdr__anon_0 {
+    pub __anon_0: struct_tcphdr__anon_0__anon_0,
+    pub __anon_0_1: struct_tcphdr__anon_0__anon_0_1,
+}
+
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct struct_tcphdr {
-    pub __anon_0: [u16; 1],
-    pub <anon>: [u16; 1],
-    pub th_sport: u16,
-    pub <anon>: [u16; 1],
-    pub source: u16,
-    pub th_dport: u16,
-    pub dest: u16,
-    pub th_seq: [u32; 1],
-    pub seq: u32,
-    pub th_ack: [u32; 1],
-    pub ack_seq: u32,
-    pub th_x2: [u8; 1],
-    pub res1: [u8; 2],
-    pub th_flags: u8,
-    pub th_win: u16,
-    pub window: u16,
-    pub th_sum: u16,
-    pub check: u16,
-    pub th_urp: u16,
-    pub urg_ptr: u16,
+    pub __anon_0: struct_tcphdr__anon_0,
 }
 
 #[repr(C, align(4))]
@@ -2495,20 +2504,35 @@ pub struct struct_tcp_info {
     pub tcpi_total_retrans: u32,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_udphdr__anon_0__anon_0 {
+    pub uh_sport: u16,
+    pub uh_dport: u16,
+    pub uh_ulen: u16,
+    pub uh_sum: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_udphdr__anon_0__anon_0_1 {
+    pub source: u16,
+    pub dest: u16,
+    pub len: u16,
+    pub check: u16,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_udphdr__anon_0 {
+    pub __anon_0: struct_udphdr__anon_0__anon_0,
+    pub __anon_0_1: struct_udphdr__anon_0__anon_0_1,
+}
+
 #[repr(C, align(2))]
 #[derive(Clone, Copy)]
 pub struct struct_udphdr {
-    pub __anon_0: [u16; 1],
-    pub <anon>: [u16; 1],
-    pub uh_sport: u16,
-    pub <anon>: [u16; 1],
-    pub source: u16,
-    pub uh_dport: u16,
-    pub dest: u16,
-    pub uh_ulen: u16,
-    pub len: u16,
-    pub uh_sum: u16,
-    pub check: u16,
+    pub __anon_0: struct_udphdr__anon_0,
 }
 
 #[repr(C)]
