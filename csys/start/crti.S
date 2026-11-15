@@ -1,5 +1,5 @@
 /* Class machine: the prologue of the `.init` and `.fini` functions, the content of liella-crti.o
- * (installed as crti.o; SL-CRT, D-NEW in records/pending/SL-CRT-1.toml).
+ * (installed as crti.o; SL-CRT, whose decision record states the start files' rules).
  *
  * ELF gABI "Initialization and Termination Functions" and the x86-64 psABI (".init"/".fini"
  * sections): the link editor concatenates every input's `.init` (and `.fini`) section into one

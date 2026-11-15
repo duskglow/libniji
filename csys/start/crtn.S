@@ -1,5 +1,5 @@
 /* Class machine: the epilogue of the `.init` and `.fini` functions, the content of liella-crtn.o
- * (installed as crtn.o; SL-CRT, D-NEW in records/pending/SL-CRT-1.toml). The compiler driver
+ * (installed as crtn.o; SL-CRT, whose decision record states the start files' rules). The compiler driver
  * links it last (GCC's endfile spec ends with `crtn.o%s`), so these halves close the functions
  * crti.S opens: give back the 8 bytes the prologue took and return.
  *
