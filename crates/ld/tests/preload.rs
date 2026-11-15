@@ -7,7 +7,8 @@
 //! `/etc` over the real one: no root, nothing on the host changes).
 //!
 //! Skips (with the reason) when `cc` is absent, the products are not built, the user has no
-//! supplementary group or the file system ignores the set-group-ID bit (secure test), or
+//! supplementary group or neither the corpus directory nor the temporary directory honours the
+//! set-group-ID bit (secure test: `nosuid`, no_new_privs), or
 //! unprivileged user namespaces are unavailable (file test).
 // ARCH(x86_64): the corpus is built with the host compiler for x86_64 and run under the x86_64 loader.
 #![cfg(target_arch = "x86_64")]
@@ -200,8 +201,32 @@ fn secure_preload_only_trusted_set_user_id() {
         let _ = std::fs::remove_dir_all(&d);
         return eprintln!("SKIP: the user has no supplementary group (a set-group-ID file needs one without root)");
     };
-    assert!(Command::new("chgrp").arg(&group).arg(&prog).status().unwrap().success());
-    assert!(Command::new("chmod").arg("g+s").arg(&prog).status().unwrap().success());
+    // The kernel ignores the bit on a `nosuid` file system (a tree copied under /dev/shm) and under
+    // no_new_privs. The program names its libraries and interpreter by absolute path, so a copy in
+    // another directory runs the same: try the corpus directory, then one under the temporary
+    // directory, and keep the first where a plain run reports AT_SECURE.
+    let tmp = std::env::temp_dir().join(format!("liella-ld-preload-secure-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    let mut secure_prog = None;
+    for dir in [d.clone(), tmp.clone()] {
+        if std::fs::create_dir_all(&dir).is_err() {
+            continue;
+        }
+        let p = dir.join("prog-sgid");
+        std::fs::copy(&prog, &p).unwrap();
+        assert!(Command::new("chgrp").arg(&group).arg(&p).status().unwrap().success());
+        assert!(Command::new("chmod").arg("g+s").arg(&p).status().unwrap().success());
+        let (out, err) = ran(&run(Command::new(&p), &[]), "secure, no preload");
+        if out.strip_suffix("secure\n").is_some() {
+            assert_eq!((out.as_str(), err.as_str()), (format!("{PLAIN}secure\n").as_str(), ""), "secure, no preload");
+            secure_prog = Some(p);
+            break;
+        }
+    }
+    let Some(prog) = secure_prog else {
+        let _ = (std::fs::remove_dir_all(&d), std::fs::remove_dir_all(&tmp));
+        return eprintln!("SKIP: the kernel did not set AT_SECURE for a set-group-ID program in {} or {} (nosuid file system or no_new_privs)", d.display(), tmp.display());
+    };
     // A library every trusted-directory system has, not set-user-ID: found there, refused for the bit.
     let system = ["libz.so.1", "liblzma.so.5", "libbz2.so.1.0"].into_iter().find(|n| Native::SYSTEM_DIRS.iter().any(|s| std::fs::metadata(Path::new(s).join(n)).is_ok_and(|m| m.is_file())));
     let ds = d.to_str().unwrap();
@@ -216,12 +241,8 @@ fn secure_preload_only_trusted_set_user_id() {
     }
     let o = run(Command::new(&prog), &[("LD_PRELOAD", &value)]);
     let (out, err) = ran(&o, "secure");
-    let Some(out) = out.strip_suffix("secure\n") else {
-        let _ = std::fs::remove_dir_all(&d);
-        return eprintln!("SKIP: the kernel did not set AT_SECURE (the file system ignores set-group-ID here)");
-    };
-    assert_eq!((out, err.as_str()), (PLAIN, want.as_str()), "secure, LD_PRELOAD={value}");
-    let _ = std::fs::remove_dir_all(&d);
+    assert_eq!((out, err), (format!("{PLAIN}secure\n"), want), "secure, LD_PRELOAD={value}");
+    let _ = (std::fs::remove_dir_all(&d), std::fs::remove_dir_all(&tmp));
 }
 
 /// (no spec clause: ld.so(8) "/etc/ld.so.preload"; DL-LD-PRELOAD probe of the file's syntax and
