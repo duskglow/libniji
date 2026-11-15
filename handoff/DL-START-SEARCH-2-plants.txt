@@ -8,3 +8,10 @@ refusal-subject-swapped | crates/boundary/src/ld.rs | lit:if by_path { at_path.a
 # No single-site plant for the secure test: LD_LIBRARY_PATH is removed from a secure process's environment before
 # the loader reads it (clear_unsecure), and List::ctx and search::search each drop it again in secure mode, so
 # every one-site mutant is equivalent; ldso_search_secure_ignores_library_path checks the whole path end to end.
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# other-machine-candidate-fatal: CAUGHT, caught by ldso_search ldso_search_steps_match_reference
+# cache-read-eagerly: CAUGHT, caught by ldso_search ldso_search_cache_opened_once_when_reached
+# cache-read-per-search: CAUGHT, caught by ldso_search ldso_search_cache_opened_once_when_reached
+# chain-requester-only: CAUGHT, caught by ldso_search ldso_search_steps_match_reference
+# found-object-origin-lost: CAUGHT, caught by ldso_search ldso_search_steps_match_reference
+# refusal-subject-swapped: CAUGHT, caught by ldso_search ldso_search_steps_match_reference
