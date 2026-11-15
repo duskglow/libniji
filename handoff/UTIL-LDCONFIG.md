@@ -2,7 +2,7 @@
 
 **State.** Branch `task/util-ldconfig-2` (run 2, stacked on run 1's `task/util-ldconfig`), role keke `~/w/n2`.
 Run 2 stopped at the context checkpoint (~155k): **WIP, INCOMPLETE, must not land as it stands** (one transcript
-mismatched; unit tests written but not yet run; no plants; packaging not done).
+mismatched; unit tests 5 of 8 pass (3 causes known, below); no plants; packaging not done).
 
 ## Done (runs 1 and 2)
 
@@ -18,7 +18,7 @@ mismatched; unit tests written but not yet run; no plants; packaging not done).
   `normalise:` lines for `/sbin/ldconfig.real` and `ldconfig.real` (the reference runs through Debian's wrapper).
   Check on keke (job util-ldconfig-2-rec3): **11 ok, 1 mismatched (r-conf-cache)**.
 * `crates/ld/tests/ldconfig.rs`: in-memory Fs; conf order/includes, cycles, link rule, dangling links, hwcaps,
-  determinism (reversed listing), relative include under -r, seeded 3000-case conf fuzz. **NOT RUN yet.**
+  determinism (reversed listing), relative include under -r, seeded 3000-case conf fuzz. 5 of 8 pass (step 2).
 * Cache writer (`crates/ld/src/cache/writer.rs`): a hwcaps entry's path may end in any valid file name.
 
 ## Probe-settled in run 2 (transcript record = black box; probe files keke `~/work/UTIL-LDCONFIG-2/probe/`)
@@ -38,15 +38,20 @@ mismatched; unit tests written but not yet run; no plants; packaging not done).
 1. **Fix the writer for hwcaps entries whose file differs from the key**: today it stores the key as the tail of
    the path string, giving key `bdd.so.4.0` (r-conf-cache's only mismatch). Store such a key on its own; add a
    cache_write.rs case (hwcaps entry, file != key, read back by the loader's reader).
-2. Run the check script (keke `~/work/UTIL-LDCONFIG-2/rec.sh`, operands = transcripts to re-record): transcript check, clippy, then
+2. Unit tests (job util-ldconfig-2-lint3, head b6d1f0912: clippy + static green, ldconfig.rs 5 of 8 pass):
+   `hwcaps_subdirectories_...` fails on the step-1 writer bug (key `bz.so.1.2`); `soname_links_follow_...` is a
+   TEST bug: on the first run the dev link `libfoo.so -> libfoo.so.1` dangles (the reference reports it too), so
+   run ldconfig twice before `-p`; `random_configurations_end_cleanly` is a TEST bug: the re-run sees the cache
+   the first run wrote (a glob include reads it), so clone the tree BEFORE the first run.
+3. Run the check script (keke `~/work/UTIL-LDCONFIG-2/rec.sh`, operands = transcripts to re-record): transcript check, clippy, then
    `cargo test -p liella-ld --test cache_write --test ldconfig`; fix what fails.
-3. docs/transcripts.md: document `elf:` and `as-cache:`; update the stub paragraph (line ~19).
-4. Records: `records/pending/UTIL-LDCONFIG-2-1.toml` (`D-NEW`, series D-31): deterministic order, atomic links,
+4. docs/transcripts.md: document `elf:` and `as-cache:`; update the stub paragraph (line ~19).
+5. Records: `records/pending/UTIL-LDCONFIG-2-1.toml` (`D-NEW`, series D-31): deterministic order, atomic links,
    positioned ELF reads, native class only, include-cycle message (differences row: stderr line only, no compat flag),
    `-l` refused. `-c old|compat` already has its row (UTIL-SPEC-6).
-5. Packaging: `tools/deb/system.sh` libc-bin postinst `triggered)` runs ldconfig; libc6 `activate-noawait ldconfig`,
+6. Packaging: `tools/deb/system.sh` libc-bin postinst `triggered)` runs ldconfig; libc6 `activate-noawait ldconfig`,
    libc-bin `interest-await ldconfig`.
-6. Differential: reference loader resolves through a Liella-ldconfig-written cache (reuse cache_write.rs's namespace
+7. Differential: reference loader resolves through a Liella-ldconfig-written cache (reuse cache_write.rs's namespace
    method). Plants (`cargo xtask plants`) on conf.rs (cycle check, sorted globs, relative base) and scan.rs (version
    compare direction, dev-link rule, dangling removal, hwcaps no-link); direct-tier gate.
 
