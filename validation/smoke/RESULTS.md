@@ -51,10 +51,56 @@ and run against both C libraries as each file's comment says.
 | F11 | (c) | make-dfsg | Debian removes `doc/` and regenerates the autotools files; without autotools the shipped files still want `doc/make.1`, and building the `make` target alone needs `lib/libgnu.a` first. Recipe to fix (build `lib/` first), then rerun. | - |
 | F12 | (c) | all | The build host has neither `mmdebstrap` nor `newuidmap` (`uidmap`), so no Debian chroot: the harness builds Debian's sources with the host toolchain and without Debian's build dependencies (no autotools, libtool, cmake, Tcl or zlib headers). | - |
 
+# Second run: the complete loader (AQOURS-SMOKE-RERUN, 2026-11-14)
+
+The same harness, extended (sources from a LAN mirror of Debian trixie with a pinned keyring, kind `same`,
+four new programs that load and unload plug-ins), on release-profile products of `next` at `f53c74611`
+(dlopen, dlsym, dladdr, dlinfo and dlclose; the first run's fixes from SMOKE-ERRNO-FIXES). Three build
+hosts, Ubuntu 24.04 with glibc 2.39 as the reference, ext4 work directories: a Zen 1 host, a Skylake-SP
+host and a Haswell-EP host. Every program ran on all three; make, gawk_ext, python3 and python3_shared ran
+again after the harness fixes below (F14 to F16), on the same products. Every Liella build passed
+`check-elf.sh`.
+
+| Program | Reference | Liella | Differs on Liella | Against the first run |
+|---|---|---|---|---|
+| zlib, xz-utils, sqlite3, sed, diffutils, findutils, gawk, perl, cppunit | as the first run | as the first run | none | the same |
+| grep | 282 / 0 / 69 / 2 xfail | 281 / 3 / 69 / 0 xfail | `stack-overflow` (F5), `glibc-infloop` and `triple-backref` XPASS (F6) | the same |
+| coreutils | 965 / 0 / 220 (Zen 1); 963 / 0 / 222 (the other two, F18) | 955 / 1 / 229; 953 / 1 / 231 | `misc/stdbuf` FAIL and 7 SKIP (F7), 2 SKIP (F8) | `ls/removed-directory` passes (F1 fixed) |
+| make (make-dfsg) | 136 / 1 | 136 / 1 | none (`features/long_command_line` fails on both) | builds now (F11 fixed) |
+| bash, 83 `run-*` sections | 83 | 81 same, 2 differ | `run-glob-test` (F3), `run-read` (F17) | `run-execscript` same now |
+| python3.13, modules built in | 34 OK, `test_posix` fails | the same | none | the same |
+| gawk with its extensions (dlopen, dlsym) | 557 / 0 | 557 / 0 | none | new |
+| python3.13 with shared extension modules (an import is a dlopen and a dlsym) | 34 OK, `test_posix` fails | the same | none | new |
+| lua_reload: a C module loaded, called, unloaded with dlclose and loaded again, 50 rounds | output | identical output | none | new |
+| cxx_dlclose: a C++ plug-in loaded, used and unloaded with dlclose three times (static destructors, function-local static, atexit handlers at dlclose, exceptions after the unload), then a plug-in with a `thread_local` object | output, exit 0 | identical up to `host: exit`, then SIGSEGV (exit 139) | F13 | new |
+
+The three hosts gave the same result for every program, apart from the two coreutils tests of F18 (the
+same on both builds) and python3 on the Zen 1 host before F14 was fixed.
+
+## Findings of the second run
+
+F1, F2 (rerun of `repro/regcomp_nesting.c`: depths 255 to 1000 compile and match on both), F4 and F11 are
+fixed; F10 is replaced by the `lua_reload` recipe (lua compiled directly); F9 is fixed for plug-ins (dlopen,
+dlsym and dlclose work in gawk_ext, python3_shared, lua_reload and cxx_dlclose), while libraries a program
+needs at start-up are still linked statically (the start-up search by soname, DL-8). F5, F6, F7 (DL-21),
+F8 (DL-23) and F12 are as before.
+
+| # | Class | Seen in | What | Reproducer / item |
+|---|---|---|---|---|
+| F3 | (a), ruled | bash `run-glob-test` | Classified again: bash prints `strerror(errno)` after a failed `setlocale` without clearing `errno`, and `tests/glob2.sub` asks for the same missing locale twice in one shell. The first failing call sets `ENOENT` on both C libraries; a second call with the same name leaves `errno` unchanged on the reference and sets `ENOENT` on Liella. That is the recorded difference "errno after setlocale returns NULL" (`docs/differences-from-glibc.md`, ruling #5480, no compatibility option), so bash's warning gains ": No such file or directory" on Liella. Not a defect. | `repro/setlocale_errno.c` (two calls) |
+| F13 | (a) | `cxx_dlclose` | A plug-in whose `thread_local` object has a destructor is closed with dlclose while the main thread's destructor is still pending. The reference runs that destructor after `main` returns ("plug_tl: destroy for main thread"), then the program's atexit handler; on Liella the process ends with SIGSEGV after `main` returns, on all three hosts. A pending `thread_local` destructor must keep its object loaded (spec `s1_2_c_6`). Blocks the snapshot until DL-TLS-DTOR-PIN lands; then rerun `cxx_dlclose` on all three hosts. | `dlclose/cxx_host.cc`, `dlclose/plug_tl.cc`; DL-TLS-DTOR-PIN |
+| F14 | (c), fixed | python3 on the Zen 1 host | That host has the development files of libffi and curses, the others have not, so configure built `_ctypes` and `_curses` there only, and the Liella link pulled in the host's `libffi.so` and through it the host's `libc.so.6` (link failed). Both Python recipes now mark every module that needs a library other than the C library as `n/a`. | `programs.sh` |
+| F15 | (c), fixed | gawk_ext | A `SUBDIRS` given on make's command line reaches every sub-make, so `extension/`'s make looked for `support/` inside itself (build and check failed on both sides). | `programs.sh` |
+| F16 | (c), fixed | make | 4 tests failed on Liella only because make's test driver clears the environment and `liella-cc` lost its settings (it now reads `liella-cc.env`); and a test failing on both builds was listed as Liella-only because its line names the build directory (now the test's name only). | `liella-cc`, `smoke.sh` |
+| F17 | (c) | bash `run-read` | Its output differs from run to run on both builds (5 runs, 5 outputs on each; it needs a terminal). Noise. | - |
+| F18 | host | coreutils `ls/slink-acl`, `mkdir/p-acl` | Skip on two hosts on both builds: "setfacl does not work on the current file system". | - |
+
 ## How to rerun
 
 ```sh
 LIELLA_FULL_PROFILE=1 cargo xtask so
 validation/smoke/smoke.sh --work /tmp/smoke --jobs 24          # every program, about 45 minutes
 validation/smoke/smoke.sh --work /tmp/smoke coreutils bash     # some
+# another mirror: plain http needs the pinned keyring
+validation/smoke/smoke.sh --work /tmp/smoke --mirror http://MIRROR/debian --keyring KEYRING.gpg
 ```

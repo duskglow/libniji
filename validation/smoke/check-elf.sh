@@ -7,7 +7,11 @@
 #   shared object (DYN, no PT_INTERP)      DT_NEEDED names no C library other than Liella's by-path copies
 #   static program (EXEC, no PT_INTERP)    rejected: it carries some other C library
 #   any object                             DT_NEEDED never names libc.so.6, libm.so.6, libpthread.so.0, ld-linux*
-#                                          by soname (the system's libraries would be the ones a search finds)
+#                                          by soname (the system's libraries would be the ones a search finds),
+#                                          except the soname LDSO itself carries: an object that uses a loader
+#                                          symbol (__tls_get_addr, _dl_find_object) names the loader that way,
+#                                          and that name is the program interpreter already running (PT_INTERP
+#                                          is checked to be LDSO), never a file a search finds
 # A DT_NEEDED soname of another library (libz.so.1, ...) is not a C-library fallback; it is listed as
 # "needs-search" (the loader's start-time library search, not available yet) and does not fail the check.
 #
@@ -17,6 +21,7 @@ set -u
 [ $# -ge 3 ] || { echo "usage: check-elf.sh LDSO SYSROOT PATH..." >&2; exit 2; }
 ldso=$1; sys=$2; shift 2
 libc="$sys/libc-by-path.so"
+self=$(readelf -Wd "$ldso" 2>/dev/null | sed -n 's/.*(SONAME) *Library soname: \[\(.*\)\]$/\1/p')
 fail=0; ok=0; search=0
 list=$(mktemp) || exit 2
 trap 'rm -f "$list"' EXIT
@@ -31,6 +36,7 @@ while IFS= read -r f; do
     needed=$(readelf -Wd "$f" 2>/dev/null | sed -n 's/.*(NEEDED) *Shared library: \[\(.*\)\]$/\1/p')
     why=""
     for n in $needed; do
+        [ -n "$self" ] && [ "$n" = "$self" ] && continue
         case $n in
             libc.so.6 | libm.so.6 | libpthread.so.0 | libdl.so.2 | librt.so.1 | ld-linux*) why="needs $n by soname (the system's library)" ;;
         esac
@@ -52,7 +58,7 @@ while IFS= read -r f; do
         continue
     fi
     ok=$((ok + 1))
-    other=$(printf '%s\n' "$needed" | grep -v '^/' | grep -v '^$' | tr '\n' ' ')
+    other=$(printf '%s\n' "$needed" | grep -v '^/' | grep -v '^$' | grep -vxF "${self:-/}" | tr '\n' ' ')
     if [ -n "$other" ]; then
         echo "smoke-check: needs-search $f: $other"
         search=$((search + 1))

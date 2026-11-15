@@ -24,7 +24,6 @@ use crate::conv;
 use crate::ffi;
 use crate::heap::{KernelPages, HEAP};
 use crate::sys::CSys;
-use crate::tb;
 
 /// `atexit`, `on_exit` and `__cxa_atexit` registrations.
 pub static EXIT_HANDLERS: Registry = Registry::new();
@@ -511,7 +510,8 @@ pub fn entry(kind: u64, f: usize, arg: usize, dso: usize) -> Entry {
 pub fn thread_atexit(f: usize, obj: usize, dso: usize) -> bool {
     match HEAP.alloc(&CSys, &KernelPages, 32, 16) {
         Some(b) => {
-            exit_handlers::thread_atexit(&tb::current().tls_dtors, &KernelPages, b.addr, f, obj, dso);
+            // D-X.60: the calling thread's words (0x88 is another library's in a block it made).
+            exit_handlers::thread_atexit(&crate::thread::words().tls_dtors, &KernelPages, b.addr, f, obj, dso);
             true
         }
         None => false,
@@ -520,7 +520,7 @@ pub fn thread_atexit(f: usize, obj: usize, dso: usize) -> bool {
 
 /// Run the calling thread's C++ `thread_local` destructors.
 pub fn run_thread_dtors() {
-    exit_handlers::run_thread_dtors(&tb::current().tls_dtors, &KernelPages, &mut conv::CCalls, |n| {
+    exit_handlers::run_thread_dtors(&crate::thread::words().tls_dtors, &KernelPages, &mut conv::CCalls, |n| {
         let _ = HEAP.free(&CSys, &KernelPages, n);
     });
 }

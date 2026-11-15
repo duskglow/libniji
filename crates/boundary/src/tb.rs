@@ -10,7 +10,9 @@ use core::ffi::c_int;
 use core::sync::atomic::{AtomicU32, AtomicU8, AtomicUsize};
 
 use liella_rt::thread::{Thread, KEYS, SLOT_SIZE};
-use liella_rt::tls::{ThreadBlock, ERRNO_OFFSET};
+#[cfg(feature = "runtime")]
+use liella_rt::tls::ERRNO_OFFSET;
+use liella_rt::tls::ThreadBlock;
 
 /// The thread pointer (`%fs:0`): the block's self word (`ThreadBlock::tcb`, which holds the
 /// thread pointer in every block, Liella's and glibc's), read with one `%fs`-relative load
@@ -235,8 +237,41 @@ pub fn current() -> &'static ThreadBlock {
 }
 
 /// `__errno_location()`: the address of this thread's `errno` (spec §2.1, D-2.1).
+/// D-X.60: the block's word only in a process the runtime started; elsewhere 0x80 is another
+/// library's word and the thread's `errno` is its registry word (stable for its life). The
+/// test is in assembly (machine/tp.S), which in the products is `__errno_location` itself.
+#[inline(always)]
 pub fn errno_location() -> *mut c_int {
-    core::ptr::with_exposed_provenance_mut(tp().wrapping_add(ERRNO_OFFSET))
+    crate::ffi::liella_machine_errno_location()
+}
+
+/// The library's own `errno` stores and loads in the products (`crate::errno`): the same test
+/// as machine/tp.S, in Rust (D-X.60). Used only inside `crate::errno`'s two out-of-line entries:
+/// inlined at the library's ~1200 `errno` sites, the test and its cold call cost about 23 bytes
+/// each and pushed the coreutils-shaped program's text into one more 64 KiB window (51 faults
+/// against 50 on the Skylake-SP host). The two read the same state: [`crate::thread::owned`]'s
+/// byte is stored with the one tp.S reads, in `init_initial`.
+#[cfg(feature = "runtime")]
+#[inline(always)]
+pub(crate) fn errno_inline() -> *mut c_int {
+    if crate::thread::owned() {
+        core::ptr::with_exposed_provenance_mut(tp().wrapping_add(ERRNO_OFFSET))
+    } else {
+        crate::thread::foreign_errno()
+    }
+}
+
+/// Store `v` in the `errno` cell [`errno_location`] names (D-X.60 tests: the cell Liella's
+/// own `__errno_location` gives, which a test process does not otherwise reach).
+pub fn set_own_errno(v: c_int) {
+    if let Some(c) = crate::conv::errno_cell(errno_location()) {
+        c.store(v, core::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// The value of the `errno` cell [`errno_location`] names (as [`set_own_errno`]).
+pub fn own_errno() -> c_int {
+    crate::conv::errno_cell(errno_location()).map_or(0, |c| c.load(core::sync::atomic::Ordering::Relaxed))
 }
 
 /// The descriptor at `addr` (D-22.9). Crate-private contract (as `crate::raw`): `addr` comes
@@ -251,6 +286,18 @@ pub(crate) fn desc_at(addr: usize) -> &'static Thread {
     // SAFETY: the caller's contract.
     unsafe {
         &*core::ptr::with_exposed_provenance::<Thread>(addr)
+    }
+}
+
+/// The rseq area at `addr`. Crate-private contract: `addr` is `tp + RSEQ_OFFSET` of the initial
+/// thread of a process whose loader mapped that area and registered it there (`ld::register_rseq`):
+/// the mapping lives as long as the process and every field is atomic.
+pub(crate) fn rseq_at(addr: usize) -> &'static liella_kernel::uapi::Rseq {
+    // UNSAFE(slice): the loader's registered rseq area becomes a reference (contract above).
+    #[allow(unsafe_code)]
+    // SAFETY: the caller's contract: a live, 32-byte aligned area for the process's lifetime.
+    unsafe {
+        &*core::ptr::with_exposed_provenance::<liella_kernel::uapi::Rseq>(addr)
     }
 }
 

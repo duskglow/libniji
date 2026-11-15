@@ -990,7 +990,7 @@ pub fn trace_lists_dir(product: &Path, profile: Profile) -> std::path::PathBuf {
 /// LAYOUT-TRACE-AT-BUILD (LT-1): the start-up lists of this build, from a trace of this build. A product finished
 /// ungrouped from [`crate::hottext::PRE_GROUP_ARCHIVE`] (`libc.a`, `liella-crt1.o`, `.profile` in
 /// `target/product/<profile>/trace`) is what the probes link against; `tools/hottext/regen.sh --products <dir>`
-/// traces them (every probe and `page_faults` mode the contracts measure) and writes the four generated lists into
+/// traces them (every probe and `page_faults` mode the contracts measure) and writes the generated lists into
 /// [`trace_lists_dir`], which this process then reads ([`crate::hotlists::force_dir`]). Nothing of an earlier build
 /// is read: the lists are written fresh, so no function name crosses a build. Not part of `LIELLA_BUILD_TAG` (that
 /// hashes `crates/`, `csys/` and `include/` only): the trace never causes a second compile.
