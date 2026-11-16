@@ -1,0 +1,10 @@
+{"task": "RELEASE-ASSET-NAMES", "model": "sonnet", "tokens": null,
+ "result": "tools/deb/stage-release.sh stages .debs under GitHub's published names (~ -> .) with SHA256SUMS over them; test, 3 plants, docs",
+ "branch": "task/release-asset-names", "head": "HEADSHA",
+ "gate": {"affected": "1 passed / 0 failed", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": [], "refused": [],
+ "impact": [{"kind": "correctness", "what": "staged SHA256SUMS now verifies on the published assets (issue #3)", "before": null, "after": null, "unit": "n/a", "measured": false},
+            {"kind": "coverage", "what": "test deb_stage_release plus plants", "before": 0, "after": 3, "unit": "plants", "measured": true}],
+ "improvement": "stage scripts that live only in a job dir get lost; keep them in tools/", "next_step": "land",
+ "jobs": ["mei:ran-gate", "mei:ran-plants", "mei:ran-clippy", "mei:ran-static"],
+ "report_file": "handoff/RELEASE-ASSET-NAMES.md"}
