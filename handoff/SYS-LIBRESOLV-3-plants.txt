@@ -1,0 +1,13 @@
+# SYS-LIBRESOLV-3 plants (replaces SYS-LIBRESOLV-2-plants.txt, whose two parserr sites the final
+# code no longer has): ns_parserr's rrnum -1 and section move, the name functions' EMSGSIZE and
+# ns_name_uncompress's root ".", the parsers' bounds checks under the differential probe
+# (tests/ns_parse_products.rs), and libc6 shipping libresolv.so.2 (tests/deb_symbols_products.rs).
+parserr-next-same | crates/boundary/src/resolv.rs | lit:let rrnum = if rrnum == -1 { h._rrnum } else { rrnum }; ==> let rrnum = if rrnum == -1 { 0 } else { rrnum }; | cargo test -p niji --test ns_parse_products | msg:ns_parse_diff \((Dynamic|Static)\) differs from the reference
+parserr-move-rrnum | crates/boundary/src/resolv.rs | lit:            h._rrnum = 0; ==>             h._rrnum = 1; | cargo test -p niji --test ns_parse_products | msg:ns_parse_diff \((Dynamic|Static)\) differs from the reference
+parserr-move-ptr | crates/boundary/src/resolv.rs | lit:h._msg_ptr = h._sections.get(s).copied().unwrap_or(0); ==> h._msg_ptr = h._msg_ptr; | cargo test -p niji --test ns_parse_products | msg:ns_parse_diff \((Dynamic|Static)\) differs from the reference
+names-no-emsgsize | crates/boundary/src/resolv.rs | lit:match r.and_then(|n| i32::try_from(n).ok()) { ==> match r.and_then(|n| i32::try_from(n).ok()).or(Some(-1)) { | cargo test -p niji --test ns_parse_products | msg:ns_parse_diff \((Dynamic|Static)\) differs from the reference
+uncompress-root-empty | crates/boundary/src/resolv.rs | lit:if root_dot && wire == [0] { ==> if root_dot && wire == [1] { | cargo test -p niji --test ns_parse_products | msg:ns_parse_diff \((Dynamic|Static)\) differs from the reference
+rr-rdlen-past-end | crates/core/src/names/dns/msg.rs | lit:if next > msg.len() { ==> if next > msg.len().saturating_add(1) { | cargo test -p niji --test ns_parse_products | msg:ns_parse_diff \((Dynamic|Static)\) differs from the reference
+skiprr-past-end | crates/core/src/names/dns/msg.rs | lit:        if p > msg.len() { ==>         if p > msg.len().saturating_add(1) { | cargo test -p niji --test ns_parse_products | msg:ns_parse_diff \((Dynamic|Static)\) differs from the reference
+unpack-loop-guard | crates/core/src/names/dns/name.rs | lit:if target >= msg.len() || seen >= msg.len() { ==> if target >= msg.len() { | cargo test -p niji --test ns_parse_products | msg:ns_parse_diff \((Dynamic|Static)\) (exits|differs)
+libc6-no-libresolv | tools/deb/system.sh | lit:libc_malloc_debug.so.0 libresolv.so.2; do ==> libc_malloc_debug.so.0; do | cargo test -p niji --test deb_symbols_products | msg:has no ns_initparse@GLIBC_2.9
