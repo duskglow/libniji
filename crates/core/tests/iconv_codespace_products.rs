@@ -18,6 +18,24 @@ use std::process::Command;
 /// The built-in multi-byte codecs (`crates/core/src/iconv/jis.rs`).
 const CHARSETS: [&str; 1] = ["EUC-JP"];
 
+/// Blocks of 256 code points whose `//TRANSLIT` hash (`BT`) differs by decision, per charset:
+/// the built-in `C` locale's transliteration is derived from the UCD, not the reference library's
+/// table (D-6.9; e.g. U+00AD, U+00B2, U+00B5, U+2014). A `BT` difference in any other block fails;
+/// a listed block that stops differing is only noted (the transliteration may improve).
+const TRANSLIT_BLOCKS: [(&str, &[u32]); 1] = [(
+    "EUC-JP",
+    &[
+        0x0, 0x2, 0x3, 0x4, 0x5, 0x1D, 0x20, 0x21, 0x22, 0x24, 0x25, 0x2A, 0x2C, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xA6, 0xA7, 0xFB, 0xFE, 0xFF,
+        0x107, 0x1D4, 0x1D6, 0x1D7, 0x1E0, 0x1F1, 0x1F2, 0x1FB,
+    ],
+)];
+
+/// Whether line `w` is a `//TRANSLIT` block hash of `cs` that may differ (D-6.9).
+fn recorded(cs: &str, w: &str) -> bool {
+    let Some(block) = w.strip_prefix("BT ").and_then(|r| r.split(' ').next()).and_then(|b| u32::from_str_radix(b, 16).ok()) else { return false };
+    TRANSLIT_BLOCKS.iter().any(|(c, blocks)| *c == cs && blocks.contains(&block))
+}
+
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -61,8 +79,12 @@ fn builtin_codecs_equal_the_reference_over_their_code_space() {
             continue;
         }
         let got = run(&ours);
-        let mut diffs = 0;
+        let (mut diffs, mut same) = (0, 0);
         for (k, (w, g)) in want.lines().zip(got.lines()).enumerate() {
+            if recorded(cs, w) {
+                same += usize::from(w == g);
+                continue;
+            }
             if w != g {
                 diffs += 1;
                 if diffs <= 40 {
@@ -72,6 +94,9 @@ fn builtin_codecs_equal_the_reference_over_their_code_space() {
         }
         assert_eq!(want.lines().count(), got.lines().count(), "{cs}: line counts differ");
         assert_eq!(diffs, 0, "{cs}: lines that differ from the reference");
+        if same > 0 {
+            eprintln!("{cs}: {same} recorded //TRANSLIT blocks no longer differ (D-6.9); the list can shrink");
+        }
         compared += 1;
     }
     eprintln!("{compared} of {} charsets compared over their whole code space", CHARSETS.len());

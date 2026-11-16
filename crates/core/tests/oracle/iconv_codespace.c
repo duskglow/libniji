@@ -6,8 +6,8 @@
  *   T/P <seq>         a sequence still incomplete at 4 bytes / any other outcome
  *   G <seq> <cp>... r=<ret> e=<errno> left=<n>   the same invalid sequence and "A" with //IGNORE
  *   E <cp> <seq>      the encoding of a code point (U+0000..U+10FFFF, no surrogates)
- *   B <block> <hash>  per 256 code points: a hash of each code point's encoding with //TRANSLIT
- *                     and with //IGNORE (output, return value, errno, input left)
+ *   BT/BI <block> <hash>  per 256 code points: a hash of each code point's encoding with
+ *                     //TRANSLIT (BT) and with //IGNORE (BI): output, return value, errno, input left
  * Sequences grow a byte at a time while iconv reports EINVAL, up to 4 bytes. */
 #include <errno.h>
 #include <iconv.h>
@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
         unsigned char seq[4];
         walk(seq, 1);
         for (unsigned int block = 0; block < 0x1100; block++) {
-            unsigned long long h = 14695981039346656037ULL;
+            unsigned long long h = 14695981039346656037ULL, hi = h;
             for (unsigned int c = block << 8; c < (block + 1) << 8; c++) {
                 if (c >= 0xD800 && c < 0xE000) continue;
                 unsigned char out[64];
@@ -118,9 +118,9 @@ int main(int argc, char **argv) {
                     printf("\n");
                 }
                 encode(enc_tr, c, out, &n, &h);
-                encode(enc_ign, c, out, &n, &h);
+                encode(enc_ign, c, out, &n, &hi);
             }
-            printf("B %X %016llX\n", block, h);
+            printf("BT %X %016llX\nBI %X %016llX\n", block, h, block, hi);
         }
         iconv_close(dec);
         iconv_close(dec_ign);
