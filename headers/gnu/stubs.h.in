@@ -1,0 +1,10 @@
+@@generated
+/* gnu/stubs.h: the functions Liella provides only as stubs that fail with ENOSYS. None are listed yet:
+   no table names them (handoff/SL-HEADERS-S05.md). */
+#ifndef __LIELLA_H_gnu_stubs_h
+#define __LIELLA_H_gnu_stubs_h 1
+
+#include <features.h>
+
+
+#endif

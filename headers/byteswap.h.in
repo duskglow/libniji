@@ -1,0 +1,18 @@
+@@generated
+/* byteswap.h: byte reversal (GNU), on the compiler's byte-swap built-ins. */
+#ifndef __LIELLA_H_byteswap_h
+#define __LIELLA_H_byteswap_h 1
+
+#include <features.h>
+
+__LIELLA_BEGIN_C
+
+@@emit
+
+#define bswap_16(x) __builtin_bswap16 (x)
+#define bswap_32(x) __builtin_bswap32 (x)
+#define bswap_64(x) __builtin_bswap64 (x)
+
+__LIELLA_END_C
+
+#endif

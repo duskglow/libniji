@@ -133,7 +133,8 @@ pub(crate) fn condition(lv: &Levels, target: u64, care: u64) -> Option<String> {
     let mut terms: Vec<(Vec<Lit>, u64)> = lits.iter().map(|l| (vec![*l], l.mask(lv))).collect();
     for (i, a) in lits.iter().enumerate() {
         for b in &lits[i + 1..] {
-            if a.col != b.col {
+            // Two columns, or a range of one column (`>= lo && < hi`, e.g. POSIX 1 up to 199506).
+            if a.col != b.col || (a.thr < b.thr && !a.neg && b.neg) {
                 terms.push((vec![*a, *b], a.mask(lv) & b.mask(lv)));
             }
         }
@@ -285,6 +286,8 @@ struct Gen<'a> {
     out: Vec<String>,
     errors: Vec<String>,
     emitted: BTreeSet<String>,
+    /// (name, kind) rows of the templates this one includes: those headers supply them.
+    covered: BTreeSet<(String, String)>,
 }
 
 impl Gen<'_> {
@@ -345,6 +348,11 @@ impl Gen<'_> {
 
     /// The C spelling of a typedef-resolvable type token; aggregates named for linkage keep their name.
     fn resolve(&self, ty: &str) -> String {
+        // C 7.8.2.3: wcstoimax takes wchar_t, which <inttypes.h> must not define in C: features.h's
+        // __LIELLA_WCHAR is the compiler's wchar_t type in C and wchar_t itself in C++.
+        if ty == "__gwchar_t" {
+            return "__LIELLA_WCHAR".into();
+        }
         match self.t.typedefs.get(&("typedef".to_string(), ty.to_string())) {
             Some(r) if scalar(&r["cxx"]) => r["cxx"].replace('*', " *"),
             _ => ty.to_string(),
@@ -390,7 +398,8 @@ impl Gen<'_> {
             return;
         };
         let cxx = r["cxx"].clone();
-        let body = if scalar(&cxx) {
+        // A qualified scalar (pthread_spinlock_t is `int volatile`) is still a scalar typedef.
+        let body = if scalar(&cxx) || scalar(cxx.replace("volatile", "").replace("const", "").trim()) {
             vec![format!("typedef {} {name};", cxx.replace('*', " *"))]
         } else if cxx == name {
             match self.members(name) {
@@ -502,14 +511,14 @@ impl Gen<'_> {
     }
 
     /// The C++ form of a `typedefs.tsv` typedef, or an error.
-    fn cxx(&mut self, name: &str) -> String {
-        match self.t.typedefs.get(&("typedef".to_string(), name.to_string())) {
-            Some(r) => r["cxx"].clone(),
-            None => {
-                self.errors.push(format!("{}: typedef {name} not in typedefs.tsv", self.header));
-                "int".into()
-            }
+    fn cxx(&self, name: &str) -> Option<String> {
+        if let Some(r) = self.t.typedefs.get(&("typedef".to_string(), name.to_string())) {
+            return Some(r["cxx"].clone());
         }
+        // A signed type without a row: the corresponding signed type of its unsigned row (C 6.2.5p6).
+        let u = self.t.typedefs.get(&("typedef".to_string(), format!("u{name}")))?;
+        let s = u["cxx"].strip_prefix("unsigned ")?;
+        Some(if s == "char" { "signed char".into() } else { s.to_string() })
     }
 
     /// C 7.20.4: `INTn_C(c)` has the promoted type of `int_leastn_t`.
@@ -522,7 +531,12 @@ impl Gen<'_> {
         v.push(("INTMAX_C".into(), "intmax_t".into()));
         v.push(("UINTMAX_C".into(), "uintmax_t".into()));
         for (m, ty) in v {
-            let suffix = match self.cxx(&ty).as_str() {
+            let Some(c) = self.cxx(&ty) else {
+                // No table row for the type: the compiler's documented helper for this macro.
+                self.out.extend([format!("# ifndef {m}"), format!("#  define {m}(c) __{m} (c)"), "# endif".into()]);
+                continue;
+            };
+            let suffix = match c.as_str() {
                 "long" => "L",
                 "unsigned long" => "UL",
                 "long long" => "LL",
@@ -539,15 +553,18 @@ impl Gen<'_> {
     fn formats(&mut self) {
         let mut types: Vec<(String, String)> = Vec::new();
         for n in ["8", "16", "32", "64"] {
-            for (k, p) in [("", ""), ("LEAST", "least"), ("FAST", "fast")] {
+            for (k, p) in [("", ""), ("LEAST", "_least"), ("FAST", "_fast")] {
                 types.push((format!("{k}{n}"), format!("int{p}{n}_t")));
             }
         }
         types.push(("MAX".into(), "intmax_t".into()));
         types.push(("PTR".into(), "intptr_t".into()));
+        let mut missing = Vec::new();
         for (suf, ty) in types {
-            let s = self.cxx(&ty);
-            let u = self.cxx(&format!("u{ty}"));
+            let (Some(s), Some(u)) = (self.cxx(&ty), self.cxx(&format!("u{ty}"))) else {
+                missing.push(ty);
+                continue;
+            };
             let pri = |c: &str| match c.trim_start_matches("unsigned ").trim_start_matches("signed ") {
                 "long" => "l",
                 "long long" => "ll",
@@ -568,13 +585,17 @@ impl Gen<'_> {
                 }
             }
         }
+        if !missing.is_empty() {
+            // Said in the output, not dropped silently: these wait for typedefs.tsv rows.
+            self.out.push(format!("/* No PRI or SCN macros yet for {}: typedefs.tsv has no row for them. */", missing.join(", ")));
+        }
     }
 
     fn emit(&mut self, owned: &BTreeSet<String>) {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
         let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
-            if kind == "include-error" || owned.contains(&name) || omitted(&self.t.reserved, &name) {
+            if kind == "include-error" || owned.contains(&name) || omitted(&self.t.reserved, &name) || self.covered.contains(&(name.clone(), kind.clone())) {
                 continue;
             }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
@@ -653,8 +674,28 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     let iso = iso10646(root)?;
     let mut out = Vec::new();
     let mut errors = Vec::new();
-    for h in templates(root)? {
-        let text = fs::read_to_string(root.join(TEMPLATES).join(format!("{h}.in"))).map_err(|e| e.to_string())?;
+    let names = templates(root)?;
+    let mut texts = BTreeMap::new();
+    for h in &names {
+        texts.insert(h.clone(), fs::read_to_string(root.join(TEMPLATES).join(format!("{h}.in"))).map_err(|e| e.to_string())?);
+    }
+    // `#include <x>` of another template, at any depth: x's names are not emitted again.
+    let includes = |text: &str| -> Vec<String> {
+        text.lines()
+            .filter_map(|l| l.trim_start().strip_prefix('#').map(str::trim_start)?.strip_prefix("include")?.trim().strip_prefix('<')?.strip_suffix('>').map(String::from))
+            .filter(|x| texts.contains_key(x))
+            .collect()
+    };
+    for h in names {
+        let text = texts[&h].clone();
+        let mut seen = BTreeSet::new();
+        let mut stack = includes(&text);
+        while let Some(x) = stack.pop() {
+            if x != h && seen.insert(x.clone()) {
+                stack.extend(includes(&texts[&x]));
+            }
+        }
+        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         let mut owned = BTreeSet::new();
         for l in text.lines() {
             if let Some(rest) = l.strip_prefix("@@if ").or_else(|| l.strip_prefix("@@owns ")) {
@@ -666,7 +707,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
             }
         }
-        let mut g = Gen { t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new() };
+        let mut g = Gen { t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered };
         for l in text.lines() {
             match l.split_whitespace().next() {
                 Some("@@generated") => g.out.push(BANNER.into()),

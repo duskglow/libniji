@@ -1,0 +1,50 @@
+@@generated
+/* endian.h: byte order (endian(3)). */
+#ifndef __LIELLA_H_endian_h
+#define __LIELLA_H_endian_h 1
+
+#include <features.h>
+
+__LIELLA_BEGIN_C
+
+@@owns be16toh le64toh
+@@emit
+
+/* endian(3): host to and from big- and little-endian order. */
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+# define htobe16(x) __builtin_bswap16 (x)
+# define htole16(x) ((__typeof__ (__builtin_bswap16 (x))) (x))
+# define be16toh(x) __builtin_bswap16 (x)
+# define le16toh(x) ((__typeof__ (__builtin_bswap16 (x))) (x))
+#else
+# define htobe16(x) ((__typeof__ (__builtin_bswap16 (x))) (x))
+# define htole16(x) __builtin_bswap16 (x)
+# define be16toh(x) ((__typeof__ (__builtin_bswap16 (x))) (x))
+# define le16toh(x) __builtin_bswap16 (x)
+#endif
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+# define htobe32(x) __builtin_bswap32 (x)
+# define htole32(x) ((__typeof__ (__builtin_bswap32 (x))) (x))
+# define be32toh(x) __builtin_bswap32 (x)
+# define le32toh(x) ((__typeof__ (__builtin_bswap32 (x))) (x))
+#else
+# define htobe32(x) ((__typeof__ (__builtin_bswap32 (x))) (x))
+# define htole32(x) __builtin_bswap32 (x)
+# define be32toh(x) ((__typeof__ (__builtin_bswap32 (x))) (x))
+# define le32toh(x) __builtin_bswap32 (x)
+#endif
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+# define htobe64(x) __builtin_bswap64 (x)
+# define htole64(x) ((__typeof__ (__builtin_bswap64 (x))) (x))
+# define be64toh(x) __builtin_bswap64 (x)
+# define le64toh(x) ((__typeof__ (__builtin_bswap64 (x))) (x))
+#else
+# define htobe64(x) ((__typeof__ (__builtin_bswap64 (x))) (x))
+# define htole64(x) __builtin_bswap64 (x)
+# define be64toh(x) ((__typeof__ (__builtin_bswap64 (x))) (x))
+# define le64toh(x) __builtin_bswap64 (x)
+#endif
+
+__LIELLA_END_C
+
+#endif

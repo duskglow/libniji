@@ -1,0 +1,18 @@
+@@generated
+/* errno.h: error numbers (C 7.5, XBD <errno.h>). */
+#ifndef __LIELLA_H_errno_h
+#define __LIELLA_H_errno_h 1
+
+#include <features.h>
+
+__LIELLA_BEGIN_C
+
+@@owns errno
+@@emit
+
+/* errno is the calling thread's own (Appendix C.9). */
+#define errno (*__errno_location ())
+
+__LIELLA_END_C
+
+#endif
