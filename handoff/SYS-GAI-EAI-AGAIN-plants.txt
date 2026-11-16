@@ -1,0 +1,9 @@
+# SYS-GAI-EAI-AGAIN plants: gai_down_products (and resolv_compat's host_miss_table) must catch each way the
+# no-server mapping or the cache rule can regress.
+# Run: cargo xtask plants handoff/SYS-GAI-EAI-AGAIN-plants.txt --dir <new RAM dir> --timeout 2400
+unreachable-as-unavailable | crates/legacy/src/resolv_compat.rs | perl:s/(Miss::TryAgain if net\.unreachable => )LookupError::Unreachable/$1LookupError::Unavailable/ | cargo test -p niji-legacy --lib resolv_compat | msg:host_miss_table.*(FAILED|panicked)
+cache-keeps-down-answers | crates/legacy/src/resolv_compat.rs | perl:s/(Err\(f\) => \{.*?)life\.dns\(None\);/$1/s | cargo xtask so && cargo test -p niji --test gai_down_products | msg:recover_unavail.*\n.*reference|lines differ|panicked
+addr-unavailable | crates/legacy/src/resolv_compat.rs | perl:s/(life\.dns\(None\);\s*return Err\()LookupError::TryAgain/$1LookupError::Unavailable/s | cargo xtask so && cargo test -p niji --test gai_down_products | msg:gethostbyaddr.*h_errno=2|lines differ|panicked
+nameinfo-numeric | crates/legacy/src/gai.rs | perl:s/(Err\(LookupError::TryAgain \| LookupError::Unreachable\)) =>/$1 if flags & NI_NAMEREQD != 0 =>/ | cargo xtask so && cargo test -p niji --test gai_down_products | msg:getnameinfo 192\.0\.2\.10 0|lines differ|panicked
+byname-no-eagain | crates/boundary/src/netdb.rs | perl:s/(if again \{\s*)errno::set\(Errno::EAGAIN\);/$1/s | cargo xtask so && cargo test -p niji --test gai_down_products | msg:errno=EAGAIN|lines differ|panicked
+unreachable-tryagain-status | crates/core/src/names/nss.rs | perl:s/LookupError::Unavailable \| LookupError::Unreachable \| LookupError::Os\(_\) => Status::Unavail,/LookupError::Unavailable => Status::Unavail, LookupError::Os(_) => Status::Unavail, LookupError::Unreachable => Status::TryAgain,/ | cargo xtask so && cargo test -p niji --test gai_down_products | msg:refused_unavail|lines differ|panicked

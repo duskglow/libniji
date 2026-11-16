@@ -1,0 +1,13 @@
+{"task": "SYS-GAI-EAI-AGAIN", "model": "opus", "tokens": null,
+ "result": "checkpoint: probe matrix recorded, fix and differential test committed; verify job running, gate and plants not run",
+ "branch": "task/sys-gai-eai-again", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": [{"item": "networks dns source keeps Unavailable when no server answers (not probed)", "recommendation": "probe getnetbyname offline in a follow-up"}],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "getaddrinfo/gethostbyname/gethostbyaddr/getnameinfo with no reachable DNS server: EAI_AGAIN / TRY_AGAIN as the reference (was EAI_FAIL or EAI_SYSTEM)", "before": 48, "after": null, "unit": "differing probe hunks", "measured": true},
+            {"kind": "correctness", "what": "name-service cache no longer serves answers found while DNS was down", "before": null, "after": null, "unit": null, "measured": false},
+            {"kind": "coverage", "what": "gai_down_products differential test, 17 scenarios; 6 plants written", "before": 0, "after": 1, "unit": "tests", "measured": false}],
+ "improvement": "unprivileged unshare -r lets namespace differential tests run without sudo; dns_products could move to it",
+ "next_step": "read sys-gai-eai-again-verify1, then direct gate and plants, then gnulib test-getaddrinfo offline",
+ "report_file": "handoff/SYS-GAI-EAI-AGAIN.md",
+ "jobs": ["sys-gai-eai-again-verify1"]}
