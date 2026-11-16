@@ -1,0 +1,363 @@
+glibc-doc	Architecture	all
+glibc-doc	Multi-Arch	foreign
+glibc-doc	Package	glibc-doc
+glibc-doc	Priority	optional
+glibc-doc	Section	doc
+glibc-doc	Source	glibc
+glibc-doc	Suggests	glibc-doc-reference
+glibc-doc	Version	2.41-12+deb13u4
+glibc-doc	member:control	488
+glibc-doc	member:md5sums	3908
+glibc-source	Architecture	all
+glibc-source	Multi-Arch	foreign
+glibc-source	Package	glibc-source
+glibc-source	Priority	optional
+glibc-source	Recommends	xz-utils
+glibc-source	Section	devel
+glibc-source	Source	glibc
+glibc-source	Version	2.41-12+deb13u4
+glibc-source	member:control	412
+glibc-source	member:md5sums	29748
+libc-bin	Architecture	amd64
+libc-bin	Breaks	dh-lua (<< 27+nmu1~)
+libc-bin	Depends	libc6 (>> 2.41), libc6 (<< 2.42)
+libc-bin	Essential	yes
+libc-bin	Multi-Arch	foreign
+libc-bin	Package	libc-bin
+libc-bin	Priority	required
+libc-bin	Recommends	manpages
+libc-bin	Section	libs
+libc-bin	Source	glibc
+libc-bin	Version	2.41-12+deb13u4
+libc-bin	conffiles	/etc/bindresvport.blacklist
+libc-bin	conffiles	/etc/default/nss
+libc-bin	conffiles	/etc/gai.conf
+libc-bin	conffiles	/etc/ld.so.conf
+libc-bin	conffiles	/etc/ld.so.conf.d/libc.conf
+libc-bin	member:conffiles	103
+libc-bin	member:control	827
+libc-bin	member:md5sums	1904
+libc-bin	member:postinst	847
+libc-bin	member:triggers	440
+libc-bin	triggers	interest-await ldconfig
+libc-dev-bin	Architecture	amd64
+libc-dev-bin	Depends	libc6 (>> 2.41), libc6 (<< 2.42)
+libc-dev-bin	Multi-Arch	foreign
+libc-dev-bin	Package	libc-dev-bin
+libc-dev-bin	Priority	optional
+libc-dev-bin	Recommends	manpages, manpages-dev
+libc-dev-bin	Section	libdevel
+libc-dev-bin	Source	glibc
+libc-dev-bin	Suggests	libc-devtools (>> 2.41)
+libc-dev-bin	Version	2.41-12+deb13u4
+libc-dev-bin	member:control	569
+libc-dev-bin	member:md5sums	340
+libc-devtools	Architecture	amd64
+libc-devtools	Breaks	libc-dev-bin (<< 2.31-8)
+libc-devtools	Depends	libc6 (>= 2.38), libgd3 (>= 2.1.0~alpha~)
+libc-devtools	Multi-Arch	foreign
+libc-devtools	Package	libc-devtools
+libc-devtools	Priority	optional
+libc-devtools	Recommends	libc-dev (= 2.41-12+deb13u4), manpages, manpages-dev
+libc-devtools	Replaces	libc-dev-bin (<< 2.31-8)
+libc-devtools	Section	devel
+libc-devtools	Source	glibc
+libc-devtools	Version	2.41-12+deb13u4
+libc-devtools	member:control	772
+libc-devtools	member:md5sums	624
+libc-l10n	Architecture	all
+libc-l10n	Multi-Arch	foreign
+libc-l10n	Package	libc-l10n
+libc-l10n	Priority	standard
+libc-l10n	Section	localization
+libc-l10n	Source	glibc
+libc-l10n	Version	2.41-12+deb13u4
+libc-l10n	member:control	414
+libc-l10n	member:md5sums	3115
+libc6	Architecture	amd64
+libc6	Breaks	base-files (<< 13.3~), chrony (<< 4.2-3~), dhcpcd (<< 1:10.1.0-7~), fakechroot (<< 2.19-3.5), firefox (<< 91~), firefox-esr (<< 91~), gnumach-image-1.8-486 (<< 2:1.8+git20210923~), gnumach-image-1.8-486-dbg (<< 2:1.8+git20210923~), gnumach-image-1.8-xen-486 (<< 2:1.8+git20210923~), gnumach-image-1.8-xen-486-dbg (<< 2:1.8+git20210923~), hurd (<< 1:0.9.git20220301-2), libamdhip64-5 (<< 5.7.1-5+b1), libhiprtc-builtins5 (<< 5.7.1-5+b1), librccl1 (<< 5.4.3-3+b1), libswupdate0.1 (<< 2024.12.1+dfsg-1+b3), locales (<< 2.41), locales-all (<< 2.41), lua-swupdate (<< 2024.12.1+dfsg-1+b3), nscd (<< 2.41), pd-scaf (<< 1:0.14.1+darcs20180201-6+b4), postgresql-15-pllua (<< 1:2.0.12-4), postgresql-17-pllua (<< 1:2.0.12-3+b2), python3-iptables (<< 1.0.0-2), python3-mrgingham (<< 1.25-1), python3-onnxruntime (<< 1.20.1+dfsg-2~), sysvinit (<< 3.09-2~), sysvinit-core (<< 3.09-2~), tinydns (<< 1:1.05-14), uwsgi-plugin-pypy3 (<< 0.0.2+b1), valgrind (<< 1:3.19.0-1~)
+libc6	Depends	libgcc-s1
+libc6	Multi-Arch	same
+libc6	Package	libc6
+libc6	Priority	optional
+libc6	Recommends	libidn2-0 (>= 2.0.5~)
+libc6	Replaces	libc6-amd64
+libc6	Section	libs
+libc6	Source	glibc
+libc6	Suggests	glibc-doc, debconf | debconf-2.0, libc-l10n, locales, libnss-nis, libnss-nisplus
+libc6	Version	2.41-12+deb13u4
+libc6	conffiles	/etc/ld.so.conf.d/x86_64-linux-gnu.conf
+libc6	member:conffiles	40
+libc6	member:control	1648
+libc6	member:md5sums	21673
+libc6	member:postinst	7887
+libc6	member:postrm	427
+libc6	member:preinst	15455
+libc6	member:shlibs	930
+libc6	member:symbols	158752
+libc6	member:templates	95435
+libc6	member:triggers	68
+libc6	shlibs	ld-linux-x86-64 2 libc6 (>= 2.41)
+libc6	shlibs	libBrokenLocale 1 libc6 (>= 2.41)
+libc6	shlibs	libanl 1 libc6 (>= 2.41)
+libc6	shlibs	libc 6 libc6 (>= 2.41)
+libc6	shlibs	libc_malloc_debug 0 libc6 (>= 2.41)
+libc6	shlibs	libdl 2 libc6 (>= 2.41)
+libc6	shlibs	libm 6 libc6 (>= 2.41)
+libc6	shlibs	libmvec 1 libc6 (>= 2.41)
+libc6	shlibs	libnsl 1 libc6 (>= 2.41)
+libc6	shlibs	libnss_compat 2 libc6 (>= 2.41)
+libc6	shlibs	libnss_dns 2 libc6 (>= 2.41)
+libc6	shlibs	libnss_files 2 libc6 (>= 2.41)
+libc6	shlibs	libnss_hesiod 2 libc6 (>= 2.41)
+libc6	shlibs	libpthread 0 libc6 (>= 2.41)
+libc6	shlibs	libresolv 2 libc6 (>= 2.41)
+libc6	shlibs	librt 1 libc6 (>= 2.41)
+libc6	shlibs	libthread_db 1 libc6 (>= 2.41)
+libc6	shlibs	libutil 1 libc6 (>= 2.41)
+libc6	shlibs	udeb: ld-linux-x86-64 2 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libc 6 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libdl 2 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libm 6 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libmvec 1 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libnss_dns 2 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libnss_files 2 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libpthread 0 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libresolv 2 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: librt 1 libc6-udeb (>= 2.41)
+libc6	shlibs	udeb: libutil 1 libc6-udeb (>= 2.41)
+libc6	symbols	(5064 symbol lines)
+libc6	symbols	ld-linux-x86-64.so.2 libc6 #MINVER#
+libc6	symbols	libBrokenLocale.so.1 libc6 #MINVER#
+libc6	symbols	libanl.so.1 libc6 #MINVER#
+libc6	symbols	libc.so.6 libc6 #MINVER#
+libc6	symbols	libc_malloc_debug.so.0 libc6 #MINVER#
+libc6	symbols	libdl.so.2 libc6 #MINVER#
+libc6	symbols	libm.so.6 libc6 #MINVER#
+libc6	symbols	libmemusage.so libc6 #MINVER#
+libc6	symbols	libmvec.so.1 libc6 #MINVER#
+libc6	symbols	libnsl.so.1 libc6 #MINVER#
+libc6	symbols	libnss_compat.so.2 libc6 #MINVER#
+libc6	symbols	libnss_dns.so.2 libc6 #MINVER#
+libc6	symbols	libnss_files.so.2 libc6 #MINVER#
+libc6	symbols	libnss_hesiod.so.2 libc6 #MINVER#
+libc6	symbols	libpcprofile.so libc6 #MINVER#
+libc6	symbols	libpthread.so.0 libc6 #MINVER#
+libc6	symbols	libresolv.so.2 libc6 #MINVER#
+libc6	symbols	librt.so.1 libc6 #MINVER#
+libc6	symbols	libthread_db.so.1 libc6 #MINVER#
+libc6	symbols	libutil.so.1 libc6 #MINVER#
+libc6	triggers	activate-noawait ldconfig
+libc6-dbg	Architecture	amd64
+libc6-dbg	Depends	libc6 (= 2.41-12+deb13u4)
+libc6-dbg	Multi-Arch	same
+libc6-dbg	Package	libc6-dbg
+libc6-dbg	Priority	optional
+libc6-dbg	Provides	libc-dbg, libc6-dbgsym
+libc6-dbg	Section	debug
+libc6-dbg	Source	glibc
+libc6-dbg	Version	2.41-12+deb13u4
+libc6-dbg	member:control	11675
+libc6-dbg	member:md5sums	29155
+libc6-dev	Architecture	amd64
+libc6-dev	Breaks	binutils (<< 2.38), catch (<< 1.12.2-0.1), heimdal-multidev (<= 7.7.0+dfsg-4), igblast (<= 1.19.0-1), libassimp-dev (<= 5.2.4~ds0-1), libasyncns-dev (<= 0.8-6+b2), libatm1-dev (<= 1:2.5.1-4), libaws20-dev (<= 20.2-2+b1), libboinc-app-dev (<= 7.20.2+dfsg-1), libbson-dev (<= 1.22.0-1), libc6-dev-amd64-cross (<< 2.41~), libcups2-dev (<= 2.4.2-1), libdeal.ii-dev (<= 9.4.0-1), libdkim-dev (<= 1:1.0.21-4+b2), libdolfin-dev-common (<= 2019.2.0~git20220407.d29e24d-5), libdpkg-perl (<< 1.22.22), libeckit-dev (<= 1.20.0-1), libfclib-dev (<= 3.1.0+dfsg-2), libfltk1.3-dev (<= 1.3.8-4+b1), libghc-resolv-dev (<= 0.1.2.0-3), libghc-resolv-prof (<= 0.1.2.0-3), libglib2.0-dev (<= 2.72.3-1), libgloox-dev (<= 1.0.24-2+b1), libhesiod-dev (<= 3.2.1-3.1+b1), libinfinity-0.7-dev (<= 0.7.2-1+b1), libinsighttoolkit4-dev (<= 4.13.3withdata-dfsg2-3+b1), libinsighttoolkit5-dev (<= 5.2.1-5+b1), libismrmrd-dev (<= 1.8.0-2), libldap-dev (<= 2.5.12+dfsg-2), liblog4cplus-dev (<= 2.0.7-1), libloudmouth1-dev (<= 1.5.4-1), libmgl-dev (<= 8.0.1-2), libmimalloc2.0 (<= 2.0.6+ds-1), libminc-dev (<= 2.4.03-5), libmongoc-dev (<= 1.22.1-1), libmrpt-ros1bridge-dev (<= 1:2.4.9+ds-4+b2), libmysqlclient-dev (<= 8.0.29-1), libnetcdf-dev (<= 1:4.9.0-3), libnetcdf-mpi-dev (<= 1:4.9.0-1), libnetcdf-pnetcdf-dev (<= 1:4.9.0-1), libnfsidmap-dev (<= 1:2.6.1-2), libns3-dev (<= 3.36.1+dfsg-4), libola-dev (<= 0.10.8.nojsmin-2), libopenafs-dev (<= 1.8.8.1-3), libopendkim-dev (<= 2.11.0~beta2-7), libopendmarc-dev (<= 1.4.2-1), libopenms-dev (<= 2.6.0+cleaned1-3+b1), libopenzwave1.6-dev (<= 1.6.1914+ds-1), libpg-query-dev (<= 13-2.1.2-2), librbl-dev (<= 2.11.0~beta2-7), libre-dev (<= 1.1.0-1+b1), libshishi-dev (<= 1.0.2-11), libslurm-dev (<= 21.08.8.2-1), libsocksd0-dev (<= 1.4.2+dfsg-7+b4), libspf2-dev (<= 1.2.10-7.1+b1), libstrophe-dev (<= 0.12.1-2), libtaningia-dev (<= 0.2.2-2+b1), libtrilinos-amesos-dev (<= 13.2.0-3), libtrilinos-amesos2-dev (<= 13.2.0-3), libtrilinos-anasazi-dev (<= 13.2.0-3), libtrilinos-aztecoo-dev (<= 13.2.0-3), libtrilinos-belos-dev (<= 13.2.0-3), libtrilinos-epetra-dev (<= 13.2.0-3), libtrilinos-epetraext-dev (<= 13.2.0-3), libtrilinos-galeri-dev (<= 13.2.0-3), libtrilinos-ifpack-dev (<= 13.2.0-3), libtrilinos-ifpack2-dev (<= 13.2.0-3), libtrilinos-intrepid-dev (<= 13.2.0-3), libtrilinos-intrepid2-dev (<= 13.2.0-3), libtrilinos-isorropia-dev (<= 13.2.0-3), libtrilinos-kokkos-dev (<= 13.2.0-3), libtrilinos-kokkos-kernels-dev (<= 13.2.0-3), libtrilinos-komplex-dev (<= 13.2.0-3), libtrilinos-ml-dev (<= 13.2.0-3), libtrilinos-moertel-dev (<= 13.2.0-3), libtrilinos-muelu-dev (<= 13.2.0-3), libtrilinos-nox-dev (<= 13.2.0-3), libtrilinos-phalanx-dev (<= 13.2.0-3), libtrilinos-pike-dev (<= 13.2.0-3), libtrilinos-piro-dev (<= 13.2.0-3), libtrilinos-pliris-dev (<= 13.2.0-3), libtrilinos-rol-dev (<= 13.2.0-3), libtrilinos-rtop-dev (<= 13.2.0-3), libtrilinos-rythmos-dev (<= 13.2.0-3), libtrilinos-sacado-dev (<= 13.2.0-3), libtrilinos-shylu-dev (<= 13.2.0-3), libtrilinos-stokhos-dev (<= 13.2.0-3), libtrilinos-stratimikos-dev (<= 13.2.0-3), libtrilinos-teko-dev (<= 13.2.0-3), libtrilinos-teuchos-dev (<= 13.2.0-3), libtrilinos-thyra-dev (<= 13.2.0-3), libtrilinos-tpetra-dev (<= 13.2.0-3), libtrilinos-trilinoscouplings-dev (<= 13.2.0-3), libtrilinos-triutils-dev (<= 13.2.0-3), libtrilinos-xpetra-dev (<= 13.2.0-3), libtrilinos-zoltan2-dev (<= 13.2.0-3), libvbr-dev (<= 2.11.0~beta2-7), libvisp-dev (<= 3.5.0-2+b1), libvotca-dev (<= 2022-3), libvtk6-dev (<= 6.3.0+dfsg2-8.1+b1), libvtk7-dev (<= 7.1.1+dfsg2-10.2), open-vm-tools-dev (<= 2:12.0.5-2), pidgin-librvp (<= 0.9.7cvs-3), proftpd-dev (<= 1.3.7d+dfsg-2), slurm-wlm-basic-plugins-dev (<= 21.08.8.2-1)
+libc6-dev	Conflicts	libc0.3-dev, libc6.1-dev
+libc6-dev	Depends	libc6 (= 2.41-12+deb13u4), libc-dev-bin (= 2.41-12+deb13u4), linux-libc-dev, libcrypt-dev, rpcsvc-proto
+libc6-dev	Multi-Arch	same
+libc6-dev	Package	libc6-dev
+libc6-dev	Priority	optional
+libc6-dev	Provides	libc-dev (= 2.41-12+deb13u4)
+libc6-dev	Replaces	libc6 (<= 2.32-1)
+libc6-dev	Section	libdevel
+libc6-dev	Source	glibc
+libc6-dev	Suggests	glibc-doc, manpages-dev
+libc6-dev	Version	2.41-12+deb13u4
+libc6-dev	member:control	4386
+libc6-dev	member:md5sums	37190
+libc6-dev-i386	Architecture	amd64
+libc6-dev-i386	Conflicts	libc6-dev-amd64, libc6-dev-i386:x32, libc6-dev-mips32, libc6-dev-mips64, libc6-dev-mipsn32, libc6-dev-powerpc, libc6-dev-ppc64, libc6-dev-s390, libc6-dev-sparc, libc6-dev-sparc64, libc6-dev-x32:i386
+libc6-dev-i386	Depends	libc6-i386 (= 2.41-12+deb13u4), libc6-dev (= 2.41-12+deb13u4)
+libc6-dev-i386	Package	libc6-dev-i386
+libc6-dev-i386	Priority	optional
+libc6-dev-i386	Provides	lib32c-dev
+libc6-dev-i386	Recommends	gcc-multilib
+libc6-dev-i386	Section	libdevel
+libc6-dev-i386	Source	glibc
+libc6-dev-i386	Version	2.41-12+deb13u4
+libc6-dev-i386	member:control	833
+libc6-dev-i386	member:md5sums	1739
+libc6-dev-x32	Architecture	amd64
+libc6-dev-x32	Conflicts	libc6-dev-amd64, libc6-dev-i386:x32, libc6-dev-mips32, libc6-dev-mips64, libc6-dev-mipsn32, libc6-dev-powerpc, libc6-dev-ppc64, libc6-dev-s390, libc6-dev-sparc, libc6-dev-sparc64, libc6-dev-x32:i386
+libc6-dev-x32	Depends	libc6-x32 (= 2.41-12+deb13u4), libc6-dev-i386 (= 2.41-12+deb13u4), libc6-dev (= 2.41-12+deb13u4)
+libc6-dev-x32	Package	libc6-dev-x32
+libc6-dev-x32	Priority	optional
+libc6-dev-x32	Recommends	gcc-multilib
+libc6-dev-x32	Section	libdevel
+libc6-dev-x32	Source	glibc
+libc6-dev-x32	Version	2.41-12+deb13u4
+libc6-dev-x32	member:control	849
+libc6-dev-x32	member:md5sums	1925
+libc6-i386	Architecture	amd64
+libc6-i386	Conflicts	libc6-amd64, libc6-i386:x32, libc6-mips32, libc6-mips64, libc6-mipsn32, libc6-powerpc, libc6-ppc64, libc6-s390, libc6-sparc, libc6-sparc64, libc6-x32:i386
+libc6-i386	Depends	libc6 (= 2.41-12+deb13u4)
+libc6-i386	Package	libc6-i386
+libc6-i386	Priority	optional
+libc6-i386	Replaces	libc6-dev-i386
+libc6-i386	Section	libs
+libc6-i386	Source	glibc
+libc6-i386	Version	2.41-12+deb13u4
+libc6-i386	conffiles	/etc/ld.so.conf.d/zz_i386-biarch-compat.conf
+libc6-i386	member:conffiles	45
+libc6-i386	member:control	730
+libc6-i386	member:md5sums	17216
+libc6-i386	member:postinst	1221
+libc6-i386	member:postrm	528
+libc6-i386	member:preinst	955
+libc6-i386	member:shlibs	564
+libc6-i386	member:symbols	151811
+libc6-i386	member:triggers	197
+libc6-i386	shlibs	ld-linux 2 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libBrokenLocale 1 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libanl 1 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libc 6 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libc_malloc_debug 0 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libdl 2 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libm 6 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libnsl 1 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libnss_compat 2 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libnss_dns 2 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libnss_files 2 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libnss_hesiod 2 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libpthread 0 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libresolv 2 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	librt 1 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libthread_db 1 libc6-i386 (>= 2.41)
+libc6-i386	shlibs	libutil 1 libc6-i386 (>= 2.41)
+libc6-i386	symbols	(5149 symbol lines)
+libc6-i386	symbols	ld-linux.so.2 libc6-i386 #MINVER#
+libc6-i386	symbols	libBrokenLocale.so.1 libc6-i386 #MINVER#
+libc6-i386	symbols	libanl.so.1 libc6-i386 #MINVER#
+libc6-i386	symbols	libc.so.6 libc6-i386 #MINVER#
+libc6-i386	symbols	libc_malloc_debug.so.0 libc6-i386 #MINVER#
+libc6-i386	symbols	libdl.so.2 libc6-i386 #MINVER#
+libc6-i386	symbols	libm.so.6 libc6-i386 #MINVER#
+libc6-i386	symbols	libmemusage.so libc6-i386 #MINVER#
+libc6-i386	symbols	libnsl.so.1 libc6-i386 #MINVER#
+libc6-i386	symbols	libnss_compat.so.2 libc6-i386 #MINVER#
+libc6-i386	symbols	libnss_dns.so.2 libc6-i386 #MINVER#
+libc6-i386	symbols	libnss_files.so.2 libc6-i386 #MINVER#
+libc6-i386	symbols	libnss_hesiod.so.2 libc6-i386 #MINVER#
+libc6-i386	symbols	libpcprofile.so libc6-i386 #MINVER#
+libc6-i386	symbols	libpthread.so.0 libc6-i386 #MINVER#
+libc6-i386	symbols	libresolv.so.2 libc6-i386 #MINVER#
+libc6-i386	symbols	librt.so.1 libc6-i386 #MINVER#
+libc6-i386	symbols	libthread_db.so.1 libc6-i386 #MINVER#
+libc6-i386	symbols	libutil.so.1 libc6-i386 #MINVER#
+libc6-i386	triggers	activate-noawait ldconfig
+libc6-i386	triggers	interest-noawait /usr/lib/ld-linux.so.2
+libc6-x32	Architecture	amd64
+libc6-x32	Conflicts	libc6-amd64, libc6-i386:x32, libc6-mips32, libc6-mips64, libc6-mipsn32, libc6-powerpc, libc6-ppc64, libc6-s390, libc6-sparc, libc6-sparc64, libc6-x32:i386
+libc6-x32	Depends	libc6 (= 2.41-12+deb13u4)
+libc6-x32	Package	libc6-x32
+libc6-x32	Priority	optional
+libc6-x32	Section	libs
+libc6-x32	Source	glibc
+libc6-x32	Version	2.41-12+deb13u4
+libc6-x32	conffiles	/etc/ld.so.conf.d/zz_x32-biarch-compat.conf
+libc6-x32	member:conffiles	44
+libc6-x32	member:control	707
+libc6-x32	member:md5sums	17537
+libc6-x32	member:postinst	1227
+libc6-x32	member:postrm	549
+libc6-x32	member:preinst	959
+libc6-x32	member:shlibs	581
+libc6-x32	member:symbols	150933
+libc6-x32	member:triggers	204
+libc6-x32	shlibs	ld-linux-x32 2 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libBrokenLocale 1 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libanl 1 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libc 6 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libc_malloc_debug 0 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libdl 2 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libm 6 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libmvec 1 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libnsl 1 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libnss_compat 2 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libnss_dns 2 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libnss_files 2 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libnss_hesiod 2 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libpthread 0 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libresolv 2 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	librt 1 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libthread_db 1 libc6-x32 (>= 2.41)
+libc6-x32	shlibs	libutil 1 libc6-x32 (>= 2.41)
+libc6-x32	symbols	(4957 symbol lines)
+libc6-x32	symbols	ld-linux-x32.so.2 libc6-x32 #MINVER#
+libc6-x32	symbols	libBrokenLocale.so.1 libc6-x32 #MINVER#
+libc6-x32	symbols	libanl.so.1 libc6-x32 #MINVER#
+libc6-x32	symbols	libc.so.6 libc6-x32 #MINVER#
+libc6-x32	symbols	libc_malloc_debug.so.0 libc6-x32 #MINVER#
+libc6-x32	symbols	libdl.so.2 libc6-x32 #MINVER#
+libc6-x32	symbols	libm.so.6 libc6-x32 #MINVER#
+libc6-x32	symbols	libmemusage.so libc6-x32 #MINVER#
+libc6-x32	symbols	libmvec.so.1 libc6-x32 #MINVER#
+libc6-x32	symbols	libnsl.so.1 libc6-x32 #MINVER#
+libc6-x32	symbols	libnss_compat.so.2 libc6-x32 #MINVER#
+libc6-x32	symbols	libnss_dns.so.2 libc6-x32 #MINVER#
+libc6-x32	symbols	libnss_files.so.2 libc6-x32 #MINVER#
+libc6-x32	symbols	libnss_hesiod.so.2 libc6-x32 #MINVER#
+libc6-x32	symbols	libpcprofile.so libc6-x32 #MINVER#
+libc6-x32	symbols	libpthread.so.0 libc6-x32 #MINVER#
+libc6-x32	symbols	libresolv.so.2 libc6-x32 #MINVER#
+libc6-x32	symbols	librt.so.1 libc6-x32 #MINVER#
+libc6-x32	symbols	libthread_db.so.1 libc6-x32 #MINVER#
+libc6-x32	symbols	libutil.so.1 libc6-x32 #MINVER#
+libc6-x32	triggers	activate-noawait ldconfig
+libc6-x32	triggers	interest-noawait /usr/libx32/ld-linux-x32.so.2
+locales	Architecture	all
+locales	Depends	libc-bin (>> 2.41), libc-l10n (>> 2.41), debconf (>= 0.5) | debconf-2.0
+locales	Package	locales
+locales	Priority	standard
+locales	Section	localization
+locales	Source	glibc
+locales	Version	2.41-12+deb13u4
+locales	conffiles	/etc/locale.alias
+locales	member:conffiles	18
+locales	member:config	7993
+locales	member:control	892
+locales	member:md5sums	41454
+locales	member:postinst	2768
+locales	member:postrm	347
+locales	member:prerm	370
+locales	member:templates	26561
+locales-all	Architecture	amd64
+locales-all	Depends	libc-l10n (>> 2.41)
+locales-all	Multi-Arch	foreign
+locales-all	Package	locales-all
+locales-all	Priority	optional
+locales-all	Section	localization
+locales-all	Source	glibc
+locales-all	Version	2.41-12+deb13u4
+locales-all	member:control	641
+locales-all	member:md5sums	199876
+locales-all	member:postinst	232
+locales-all	member:prerm	415
+nscd	Architecture	amd64
+nscd	Conflicts	unscd
+nscd	Depends	libaudit1 (>= 1:2.2.1), libc6 (>> 2.41), libc6 (<< 2.42), libcap2 (>= 1:2.10), libselinux1 (>= 3.1~)
+nscd	Multi-Arch	foreign
+nscd	Package	nscd
+nscd	Pre-Depends	init-system-helpers (>= 1.54~)
+nscd	Priority	optional
+nscd	Section	admin
+nscd	Source	glibc
+nscd	Version	2.41-12+deb13u4
+nscd	conffiles	/etc/init.d/nscd
+nscd	conffiles	/etc/nscd.conf
+nscd	member:conffiles	32
+nscd	member:control	699
+nscd	member:md5sums	514
+nscd	member:postinst	2114
+nscd	member:postrm	810
+nscd	member:preinst	225
+nscd	member:prerm	465
