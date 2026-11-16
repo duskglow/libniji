@@ -295,11 +295,15 @@ static int one(const char *file, int verbose) {
         static struct listed l[256];
         size_t nl = out ? parse_list(out, n, l, 256) : 0;
         /* The interpreter line (a path with no `=>`, last in the list) is printed only when the program or a
-           listed object names the interpreter in DT_NEEDED, as the reference lists it (transcripts). */
+           listed object names the interpreter in DT_NEEDED, as the reference lists it (transcripts), or the C
+           library is listed (records/pending/UTIL-LDD-2-1.toml; interim, ruling #6043). */
         const char *skip = NULL;
         if (nl > 0 && l[nl - 1].path +l[nl - 1].path_len - l[nl - 1].name_len == l[nl - 1].name) {
             int needed = has_needed(shown, l[nl - 1].name, l[nl - 1].name_len) || has_needed(shown, l[nl - 1].path, l[nl - 1].path_len);
             for (size_t j = 0; j + 1 < nl && !needed; j++) {
+                /* A listed C library: the reference's names the interpreter in DT_NEEDED, Liella's needs no
+                   loader, and consumers (initramfs-tools' copy_exec) take the loader from this line. */
+                if (l[j].name_len == 9 && memcmp(l[j].name, "libc.so.6", 9) == 0) { needed = 1; break; }
                 char p[4096];
                 if (l[j].path[0] != '/' || l[j].path_len >= sizeof p) continue;
                 memcpy(p, l[j].path, l[j].path_len);
