@@ -1,0 +1,6 @@
+# RENAME-NIJI-DOCS: the old-name static check (xtask/src/oldname.rs) and one planted use of the former name in README.md.
+oldname-scan-off | xtask/src/oldname.rs | lit:if history || !line.to_ascii_lowercase().contains(&name) { ==> if true { | cargo test -p xtask oldname | msg:planted_old_name_is_caught_in_any_case.*(FAILED|panicked)|test result: FAILED
+oldname-quote-wide | xtask/src/oldname.rs | lit:if lower.contains("ruling") || lower.contains("owner") { ==> if true { | cargo test -p xtask oldname | msg:allowance_is_narrow.*(FAILED|panicked)|test result: FAILED
+oldname-story-id-wide | xtask/src/oldname.rs | lit:if next.is_ascii_uppercase() || next.is_ascii_digit() { ==> if true { | cargo test -p xtask oldname | msg:allowance_is_narrow.*(FAILED|panicked)|test result: FAILED
+oldname-marker-anywhere | xtask/src/oldname.rs | lit:if path == NOTES && line.starts_with(NOTES_MARKER) { ==> if line.starts_with(NOTES_MARKER) { | cargo test -p xtask oldname | msg:release_notes_history_starts_at_the_marker.*(FAILED|panicked)|test result: FAILED
+oldname-readme | README.md | lit:libniji is a clean-room implementation of the GNU C library ==> Liella is a clean-room implementation of the GNU C library | cargo xtask old-name | msg:README\.md:[0-9]+: Liella is a clean-room
