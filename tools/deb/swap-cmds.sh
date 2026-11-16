@@ -2,7 +2,7 @@
 # tools/deb/swap-cmds.sh OUTDIR: the fixed command set tools/deb/swap-system.sh runs inside a Debian root,
 # once on the distribution's C library and once with Liella's system packages swapped in. No spec clause:
 # release validation (plan/system-libc.md section 3.7). Every command is one of the distribution's own
-# programs on a small fixed input; each writes OUTDIR/<id>.out (stdout and stderr) and OUTDIR/<id>.rc.
+# programs on a small fixed input (and apt, a C++ program, on the root's own package lists); each writes OUTDIR/<id>.out (stdout and stderr) and OUTDIR/<id>.rc.
 # OUTDIR/info.txt holds what is expected to differ between the roots (the C library's identity).
 # The input's times are fixed and listings are sorted (no dependence on directory order).
 set -u
@@ -77,6 +77,25 @@ sh_ find-2 "find $t -type f -name '*.txt' -size -2k -printf '%P %s %m %TY\n' | s
 sh_ find-3 "find $t -newer $t/in.txt | sort; find $t -empty | sort"
 sh_ find-4 "find $t -maxdepth 1 -type d -exec echo dir {} \\; | sort"
 run find-5 find /nonexistent
+# apt is C++: it starts with the distribution's shared libstdc++.so.6 (unique symbols, DL-LIBSTDCXX).
+# apt-get check (apt-1) reads the installed packages' dependencies. In the swapped root it reports the
+# ones Liella's libc6 cannot meet by version (2.39 against a newer suite's "libc6 (>= 2.41)"; the swap
+# installs it with --force-depends), with status 100. Those lines, and only those (the installed version
+# must be Liella's), are dropped in both roots, and status 100 counts as 0 when they were apt's only
+# complaint. Anything else apt reports (another unmet dependency, a loader error, a crash's status)
+# still differs from the stock root. The unfiltered output stays in OUTDIR/apt-1.raw.
+apt_check='apt-get check > "$1" 2>&1; rc=$?
+kept=$(grep -v -e "^You might want to run .apt --fix-broken install" -e "^The following packages have unmet dependencies:" \
+    -e "Depends: libc6 (>= [^)]*) but [^ ]*+liella[^ ]* is installed" -e "^E: Unmet dependencies\. " "$1")
+printf "%s\n" "$kept"
+if [ "$rc" -eq 100 ] && grep -q "+liella[^ ]* is installed" "$1" && ! printf "%s\n" "$kept" | grep -q -e "Depends:" -e "^[EW]: "; then
+    exit 0
+fi
+exit "$rc"'
+run apt-1 sh -c "$apt_check" sh "$out/apt-1.raw"
+run apt-2 apt-cache policy
+run apt-3 apt-cache policy bash
+
 # fakeroot (DL-LD-PRELOAD): it preloads its library (LD_PRELOAD) into the programs it starts, and that
 # library reaches libc's functions with dlsym(RTLD_NEXT): the fake root shows only when both work. Run
 # as an unprivileged user (65534, perl drops root first): inside, id and a chowned file show 0;
