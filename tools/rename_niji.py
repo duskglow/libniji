@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Rename the project from Liella to libniji (RENAME-NIJI-CODE, owner ruling 2026-11-16).
 
-    python3 tools/rename_niji.py [--check]
+    python3 tools/rename_niji.py [--check | --self-test]
 
 Run from the top of a git checkout. Renames the old name in the contents of every tracked file
 outside the exclusions below, and in tracked paths (with `git mv`). Deterministic and
 re-runnable: a second run changes nothing. `--check` changes nothing and exits 1 if a run would
-change something (prints the files). No spec clause: a project rename, no behaviour.
+change something (prints the files). `--self-test` checks the rules on fixed examples
+(EXAMPLES, PATHS) and touches no file. No spec clause: a project rename, no behaviour.
 
 Mapping, applied to each text in this order (the owner's table; identifier stem `niji`):
 
@@ -135,7 +136,51 @@ def tracked():
     return sorted(p for p in out.decode().split("\0") if p)
 
 
+# The rules on fixed examples (`--self-test`; no spec clause: a project rename): input, output.
+EXAMPLES = (
+    ("liella-boundary liella_kernel::fd crate liella", "niji-boundary niji_kernel::fd crate niji"),
+    ("LIELLA_NATIVE_1 LIELLA_COMPAT_LEGACY_DECLS __LIELLA__ -DLIELLA_PREFIX=/", "NIJI_NATIVE_1 NIJI_COMPAT_LEGACY_DECLS __NIJI__ -DNIJI_PREFIX=/"),
+    ("Liella's loader; LiellaTm; \"Liella\"", "libniji's loader; NijiTm; \"libniji\""),
+    ("_RNvNtCs1a_15liella_boundary3cpu4init 10liella_mem7copy_u8", "_RNvNtCs1a_13niji_boundary3cpu4init 8niji_mem7copy_u8"),
+    ("x86_64 2.39+liella20261116.1-1 liella6-dev /usr/lib/liella", "x86_64 2.39+niji20261116.1-1 niji6-dev /usr/lib/niji"),
+    ("-lliella_native libliella_native.so *b\"LIELLANC\"", "-lniji libniji.so *b\"NIJI_NSC\""),
+    ("Liella Maintainers <liella@koiren.ai> github.com/duskglow/liella ~/src/liella-ops", "Liella Maintainers <liella@koiren.ai> github.com/duskglow/liella ~/src/liella-ops"),
+    ("(liella-historic:handoff/x.md) handoff/LIELLA-UTILITIES-DESIGN.md", "(liella-historic:handoff/x.md) handoff/LIELLA-UTILITIES-DESIGN.md"),
+)
+PATHS = (
+    ("include/liella/native.h", "include/niji/native.h"),
+    ("tools/deb/liella-gcc.1", "tools/deb/niji-gcc.1"),
+    ("handoff/liella.md", None),
+    ("records/compat/COMPAT-1.toml", None),
+    ("docs/x.md", None),
+    ("results/x.md", None),
+    ("crates/core/src/lib.rs", "crates/core/src/lib.rs"),
+)
+
+
+def self_test():
+    bad = []
+    for old, new in EXAMPLES:
+        got = rename_text(old)
+        if got != new:
+            bad.append("rename_text(%r) = %r, want %r" % (old, got, new))
+        if rename_text(new) != new:
+            bad.append("rename_text is not idempotent on %r" % new)
+    if rename_bytes(b"\0LIELLANC\0liella") != b"\0NIJI_NSC\0liella":
+        bad.append("rename_bytes changes only equal-length explicit spellings")
+    for path, new in PATHS:
+        got = None if excluded(path) else rename_path(path)
+        if got != new:
+            bad.append("path %r -> %r, want %r" % (path, got, new))
+    for line in bad:
+        print("rename_niji: self-test FAIL " + line)
+    print("rename_niji: self-test %s (%d examples, %d paths)" % ("FAIL" if bad else "PASS", len(EXAMPLES), len(PATHS)))
+    return 1 if bad else 0
+
+
 def main():
+    if sys.argv[1:] == ["--self-test"]:
+        return self_test()
     check = sys.argv[1:] == ["--check"]
     if sys.argv[1:] not in ([], ["--check"]):
         print(__doc__.strip().splitlines()[2].strip(), file=sys.stderr)
