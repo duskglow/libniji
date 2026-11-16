@@ -1,59 +1,41 @@
-# SL-HEADERS-S05: generator and base layer (handoff after run 2, SL-HEADERS-S05-2: checkpoint)
+# SL-HEADERS-S05: generator and base layer (handoff after run 3, SL-HEADERS-S05-3)
 
-**State.** Branch `task/sl-headers-s05-2` (cut from origin/next 4a0a545ef; carries run 1's commits). Head: see
-`handoff/reports/SL-HEADERS-S05-2.json`. WIP, not for landing: stopped at the coordinator's clean boundary
-"generator + base templates" (~135k of 200k context, 72 of 110 calls). A continuation reads only this page,
-plan/headers.md §2.3, §2.4 and §3, and `xtask/src/headers.rs` by range (module doc first).
+**State.** Branch `task/sl-headers-s05-3` (stacked on `task/sl-headers-s05-2`, cut from origin/next 4a0a545ef). Head:
+see `handoff/reports/SL-HEADERS-S05-3.json`. Not for landing yet: P2, P3, staging and run.sh are still open (below).
+A continuation reads this page, plan/headers.md §2.3, §2.4 and §3, and `xtask/src/headers.rs` by range (module doc first).
+
+**Decisions in force.** Pending record `records/pending/SL-HEADERS-S05-3-1.toml` (D-NEW, series D-X): marker format,
+`__LIELLA_H_`/`__LIELLA_D_` guards, `__liella/` reserved, table-only integer types (#6047), PTHREAD_STACK_MIN,
+gnu/stubs.h source, `__STDC_ISO_10646__`. Differences row for `__STDC_ISO_10646__` (no compat option, reason in the row).
 
 **Done.**
-* Run 1: the generator core `xtask/src/headers.rs` (levels, exact condition search, emission per kind, reserved-name
-  policy, markers), `headers/levels.tsv`, `headers/reserved.tsv`, `headers/iso10646.tsv`.
-* Run 2:
-  * Templates `headers/*.h.in` for all 16 slice-5 headers; `include/` generated and committed.
-    * `features.h`: the level cascade, `__LIELLA__`, the R-H1 identity macros, `__USE_MISC`/`__USE_GNU`, `__LIELLA_BEGIN_C`/`END_C`,
-      `__LIELLA_NOTHROW`, `__LIELLA_WCHAR`, and the implied FTMs under `@@if` conditions.
-    * `sys/cdefs.h`: the R-H3 vocabulary.
-    * `stdc-predef.h`: `__STDC_IEC_559__`, `__STDC_IEC_559_COMPLEX__`, `__STDC_ISO_10646__` from the Unicode tables.
-    * Include guards are Liella's own (`__LIELLA_H_<path>`).
-  * The generator:
-    * a template's `#include <x>` of another template marks x's names as covered (not emitted again);
-    * same-column range terms are allowed (`__LIELLA_POSIX >= 1 && __LIELLA_POSIX < 200112`);
-    * `int volatile` typedefs stay scalar;
-    * `__gwchar_t` maps to `__LIELLA_WCHAR`;
-    * the PRI least/fast names are fixed;
-    * types without a row: the signed type is derived from its unsigned row (C 6.2.5p6), and
-      `@@intc`/`@@formats` fall back or say what is missing, in a comment in the output.
-  * `headers-gen --check` runs in `cargo xtask static` (main.rs).
-* Evidence (keke role n2; scratch script, not yet a repo test):
-  * job `sl-headers-s05-2-smoke2`: 664 compiles, 0 failed. Each header compiles on its own and when included
-    twice, in the 40 accepted configurations, C and C++, `-Wall -Wextra -Wsystem-headers -Werror`,
-    `-nostdinc -isystem include -isystem <gcc include>`.
-  * features.h's levels equal levels.tsv in all 41 configurations, and time64only is rejected.
-  * The script is `~/work/SL-HEADERS-S05-2/smoke.py` on keke. Its logic is the model for the repo test in next step 1.
+* Runs 1-2: generator core, levels/reserved/iso10646 tables, 16 templates, include/ committed, `headers-gen --check` in static.
+* Run 3:
+  * Ruling #6047: `header_probe.py` candidates now include C 7.20.1/7.20.4/7.8.1 names (`c_integer_names`). Reran
+    both probes on the reference system (mei job `sl-headers-s05-3-probe1`): ftm-configs identical, visibility +2197,
+    typedefs +84, macros +154 rows, 0 removed. stdint.h/inttypes.h now come only from rows: the compiler-macro
+    fallback, the signed-from-unsigned derivation and `@@formats` are gone (PRI/SCN are `macros.tsv` strings via `@@emit`).
+  * `type_probe.py` second pass under `default` for constants that are not constant under `gnu`: PTHREAD_STACK_MIN
+    16384, used by limits.h outside `__LIELLA_DYNSTACK`. Gap closed.
+  * gnu/stubs.h from `spec/abi/stubs.tsv` (Liella's own ENOSYS-only bodies; 7 default-linked get `__stub_`).
+    gnu-versions.h: plan §5.1 lists it as shipped, so it stays (guards only; no table names its contents yet).
+  * `spec/tools/header_check.py` (replaces the S05-2 scratch smoke): levels vs levels.tsv in all 40 configs, P5
+    alone/twice with -Werror, P1 C 7.20 type identity (C sizes/alignments, C++ `__is_same`): 700 units, 0 failed.
+  * Plants file `handoff/SL-HEADERS-S05/plants.txt` (6 plants: levels cell, typedef emission, stubs row, template
+    value, probe candidates, probe default pass).
+* The S05-2 verify red (smoke2 tested a different include/): cause was a scratch script run on a tree that was
+  regenerated afterwards; now the check is a repo tool and runs on the final head (`-check2`).
 
 **Next steps, in order.**
-1. Move the smoke check into a repo test: `xtask` test or `crates/.../tests`, `-nostdinc`. Add the generated P1 TUs:
-   sizes, offsets, values and `_Generic` types (C), and `decltype` prototype identity (C++). Add P5 `-std=c89 -pedantic-errors`
-   and the strict-mode namespace check.
-2. P2/P3: run `header_probe.py`/`callsite_probe.py` on `include/` with an extra-flags option, and compare with a Rust
-   comparator that applies `omitted()`.
-3. `so` staging (`target/liella/include` plus the UAPI copy); `conformance/run.sh --liella-headers`.
-4. Plants file (`cargo xtask plants`): a `levels.tsv` cell, a template condition (features.h cascade), a `macros.tsv`
-   value, a redirect. Then a pending decision record (`records new decision D-NEW --series D-X --story SL-HEADERS-S05`)
-   for the marker format, the `__LIELLA_D_<name>` once-guards, the `__LIELLA_H_<path>` include guards, `__liella/`
-   reserved for internal fragments, and the compiler-macro fallback below.
-5. Add a differences row for `__STDC_ISO_10646__` (Liella 202309L, from Unicode 15.1, against 201706L in `macros.tsv`).
-   Plan §0 and the brief ask for Liella's own value.
+1. P5 rest: `-std=c89 -pedantic-errors` units and the strict-mode namespace check in header_check.py.
+2. P1 rest: generated `_Static_assert` TUs for every macros.tsv value and typedefs.tsv size of the slice's headers.
+3. P2/P3: `header_probe.py`/`callsite_probe.py` on `include/` (an extra-flags option), compare with `omitted()` applied.
+4. `so` staging (`target/liella/include` plus the UAPI copy); `conformance/run.sh --liella-headers`.
+5. Make header_check a cargo test (xtask) so the direct tier selects it.
 
-**Gaps (the slice-2/3 tables; need a probe extension, not a template).**
-* `typedefs.tsv`/`visibility.tsv` have no rows for `int8_t`, `int16_t`, `int64_t` or any `int_leastN_t` or
-  `int_fastN_t`. `stdint.h` uses the compiler's predefined `__INTn_TYPE__`/`__INT_LEASTn_TYPE__`/`__INTn_MAX__` for
-  them. A table row wins when it exists, and `inttypes.h` prints which PRI/SCN sets are missing (least, fast).
-  Recommendation: add C 7.20's names to the SL-HEADERS-2/3 probe candidates.
-* `PTHREAD_STACK_MIN` outside `_DYNAMIC_STACK_SIZE_SOURCE`: no table value, so it is not defined there yet.
-* `gnu/stubs.h` (Liella's ENOSYS-only functions) and `gnu-versions.h` (the interface versions): no table, so the
-  headers ship with guards only. `gnu-versions.h` ships per §5.1.
-* `FD_SET` and friends under fortify: plain macros. P3 will show whether the `__fdelt_chk` call sites matter.
+**Open gaps.**
+* `PTHREAD_STACK_MIN` under `_DYNAMIC_STACK_SIZE_SOURCE` expands to `__sysconf (75)`, which no slice-5 header declares:
+  a program using it there needs `<unistd.h>` (slice 6) to declare `__sysconf` or a template change to `sysconf`.
+* `FD_SET` and friends under fortify: plain macros; P3 decides.
 
-**Do not redo.** The level table, the condition search, the templates' level cascade (verified against levels.tsv in
-all 41 configurations).
+**Do not redo.** Level table and cascade (verified in all 40 configurations), the probe rerun (tables committed).
