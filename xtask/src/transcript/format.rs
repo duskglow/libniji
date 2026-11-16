@@ -38,6 +38,9 @@ pub(crate) enum Setup {
     /// A minimal shared object (ET_DYN, PT_LOAD + PT_DYNAMIC): path, its `DT_SONAME` if any, the number of bytes
     /// kept when the file is to be cut short, and its ELF class and machine.
     Elf(Vec<u8>, Option<Vec<u8>>, Option<usize>, ElfKind),
+    /// A program or library built by the host C compiler (`cc: <path> [<flag>...]` + the C source as a block):
+    /// path, the compiler flags (`@ROOT@` stands for the private root), the source.
+    Cc(Vec<u8>, Vec<Vec<u8>>, Vec<u8>),
 }
 
 /// The class and machine of an `elf:` item (`class=`): the native x86-64 ELF64 (the default), or one of the two
@@ -113,6 +116,9 @@ pub(crate) struct Transcript {
     /// Output lines whose value changes from run to run (`mask-value: <line prefix>`): the rest of such a line is
     /// `@MASKED@` on every side.
     pub mask_values: Vec<Vec<u8>>,
+    /// `mask-addresses: yes`: in every stdout and stderr line that ends in ` (0x<hex digits>)`, the hex digits are
+    /// `@ADDR@` on every side (load addresses change from run to run); the rest of the line is compared.
+    pub mask_addresses: bool,
     pub expected: Option<Outcome>,
     /// The text before the first outcome directive: kept as written when `record` replaces the outcome.
     pub head: String,
@@ -264,6 +270,7 @@ pub(crate) fn parse(text: &str, what: &str) -> Result<Transcript, String> {
         as_cache: Vec::new(),
         host_values: Vec::new(),
         mask_values: Vec::new(),
+        mask_addresses: false,
         expected: None,
         head: String::new(),
     };
@@ -415,6 +422,20 @@ pub(crate) fn parse(text: &str, what: &str) -> Result<Transcript, String> {
                     }
                 }
                 t.setup.push(Setup::Elf(p, soname, cut, kind));
+            }
+            "cc" => {
+                let mut f = value.split(' ').filter(|w| !w.is_empty());
+                let p = rel_path(f.next().unwrap_or_default()).map_err(err)?;
+                let flags = f.map(|w| unescape(w).map_err(err)).collect::<Result<Vec<_>, _>>()?;
+                let source = block()?;
+                t.setup.push(Setup::Cc(p, flags, source));
+            }
+            "mask-addresses" => {
+                t.mask_addresses = match value {
+                    "yes" => true,
+                    "no" => false,
+                    _ => return Err(err(format!("mask-addresses {value:?}: yes or no"))),
+                }
             }
             "as-cache" => t.as_cache.push(rel_path(value).map_err(err)?),
             "host-value" | "mask-value" => {

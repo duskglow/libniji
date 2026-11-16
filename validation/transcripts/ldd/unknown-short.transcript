@@ -1,0 +1,6 @@
+name: ldd unknown-short: an unknown short option
+clause: s31_3_i_1
+command: ldd
+arg: -x
+arg: f
+mask-addresses: yes

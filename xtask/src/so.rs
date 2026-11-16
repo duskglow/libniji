@@ -1433,6 +1433,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
     run_getent(root, &cc)?;
+    run_ldd(root, &cc, &release)?;
     check_placement(root, &release)?;
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
@@ -1638,6 +1639,34 @@ fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
     let by_path = crate::native_examples::libc_by_path(&release.join("libc.so.6"), dir)?;
     link(&test, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
     println!("so: target/liella/getent (dynamic, libc.so.6), {GETENT_TEST} (this tree's loader and library)");
+    Ok(())
+}
+
+/// ldd (UTIL-4, spec §31.3, D-31.7): `csys/util/ldd.c`, a static PIE over `libc.a` like getconf.
+/// * `target/liella/ldd`: the shipped program (libc-bin's `/usr/bin/ldd`); it runs the loader at
+///   `/lib64/ld-linux-x86-64.so.2` in trace mode.
+/// * `target/liella-test/ldd`: the same source compiled to run this tree's loader (`LDD_RTLD`), for the
+///   transcripts on a host whose system loader is another one. Kept out of `target/liella`: it names a build path.
+pub(crate) const LDD_TEST: &str = "target/liella-test/ldd";
+
+fn run_ldd(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
+    let link = |out: &Path, rtld: Option<&Path>| -> Result<(), String> {
+        let mut c = Command::new(cc);
+        c.args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"]);
+        if let Some(r) = rtld {
+            c.arg(format!("-DLDD_RTLD=\"{}\"", r.display()));
+        }
+        let staged = tmp_name(out);
+        run(c.arg(release.join("liella-rcrt1.o")).arg(root.join("csys/util/ldd.c")).arg(release.join("libc.a")).arg("-lgcc").arg("-o").arg(&staged))?;
+        check_no_interp(&staged)?;
+        publish(&staged, out)
+    };
+    link(&release.join("ldd"), None)?;
+    let test = root.join(LDD_TEST);
+    let dir = test.parent().unwrap_or(root);
+    fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    link(&test, Some(&release.join("ld-linux-x86-64.so.2")))?;
+    println!("so: target/liella/ldd (static PIE over libc.a), {LDD_TEST} (runs this tree's loader)");
     Ok(())
 }
 

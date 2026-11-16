@@ -1,0 +1,24 @@
+name: ldd verbose-not-found: -v with a needed library not found
+clause: s31_3_g_3
+command: ldd
+arg: -v
+arg: bin/missing
+mask-addresses: yes
+env: LD_LIBRARY_PATH=@ROOT@/lib
+cc: lib/libfoo.so.1 -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -shared -fPIC -Wl,-soname,libfoo.so.1
+| int foo(void) { return 1; }
+file: lib/bar.map
+| BAR_1 { global: bar; local: *; };
+| BAR_2 { global: bar2; } BAR_1;
+cc: lib/libbar.so.2 -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -shared -fPIC -Wl,-soname,libbar.so.2 -Wl,--version-script=@ROOT@/lib/bar.map
+| int bar(void) { return 2; }
+| int bar2(void) { return 3; }
+cc: lib/libbaz.so.3 -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -shared -fPIC -Wl,-soname,libbaz.so.3 -L@ROOT@/lib -l:libfoo.so.1
+| int foo(void);
+| int baz(void) { return foo(); }
+cc: build/libgone.so.4 -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -shared -fPIC -Wl,-soname,libgone.so.4
+| int gone(void) { return 4; }
+cc: bin/missing -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -L@ROOT@/lib -L@ROOT@/build -l:libfoo.so.1 -l:libgone.so.4
+| int foo(void);
+| int gone(void);
+| void _start(void) { foo(); gone(); for (;;) {} }

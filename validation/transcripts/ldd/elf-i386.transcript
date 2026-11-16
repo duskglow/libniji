@@ -1,0 +1,6 @@
+name: ldd elf-i386: an i386 shared object
+clause: s31_3_f_1
+command: ldd
+arg: x86.so
+mask-addresses: yes
+elf: x86.so soname=x86.so class=i386

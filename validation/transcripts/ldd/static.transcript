@@ -1,0 +1,7 @@
+name: ldd static: a static program that is not position independent
+clause: s31_3_f_1
+command: ldd
+arg: bin/static
+mask-addresses: yes
+cc: bin/static -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -static -no-pie
+| void _start(void) { for (;;) {} }

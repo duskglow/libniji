@@ -1,0 +1,5 @@
+name: ldd missing-absolute: a missing operand with a slash is named as given
+clause: s31_3_f_2
+command: ldd
+arg: @ROOT@/nosuch
+mask-addresses: yes

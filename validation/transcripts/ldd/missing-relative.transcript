@@ -1,0 +1,5 @@
+name: ldd missing-relative: a missing operand without a slash is named ./FILE
+clause: s31_3_f_2
+command: ldd
+arg: nosuch
+mask-addresses: yes

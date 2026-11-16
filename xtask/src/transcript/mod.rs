@@ -53,6 +53,8 @@ fn liella_default(root: &Path, command: &str) -> Option<PathBuf> {
         "getconf" => Some(root.join("target/liella/getconf")),
         // UTIL-6: the test link of getent (`cargo xtask so`), which runs on this tree's loader and library.
         "getent" => Some(root.join(crate::so::GETENT_TEST)).filter(|p| p.is_file()),
+        // UTIL-4: ldd compiled to run this tree's loader in trace mode.
+        "ldd" => Some(root.join(crate::so::LDD_TEST)).filter(|p| p.is_file()),
         _ => None,
     }
 }
@@ -111,6 +113,9 @@ fn run_one(t: &Transcript, label: &str, program: PathBuf) -> Result<Outcome, Str
     let _ = std::fs::remove_dir_all(&dir);
     r.map(|mut o| {
         run::mask_lines(&mut o, &t.mask_values, b"@MASKED@");
+        if t.mask_addresses {
+            run::mask_addresses(&mut o);
+        }
         o
     })
 }
@@ -134,6 +139,9 @@ fn check_one(t: &Transcript, reference: Option<PathBuf>, liella: PathBuf) -> Res
         if let Err(why) = run::namespaces() {
             return Ok(Verdict::Skipped(format!("needs user and mount namespaces: {why}")));
         }
+    }
+    if t.setup.iter().any(|s| matches!(s, format::Setup::Cc(..))) && run::tool("cc").is_none() {
+        return Ok(Verdict::Skipped("builds its programs with a C compiler: no cc(1) in /usr/bin or /bin".into()));
     }
     let Some(record) = &t.expected else { return Err("no recorded outcome: run `cargo xtask transcript record` on it".into()) };
     let ours = run_one(t, "liella", liella)?;

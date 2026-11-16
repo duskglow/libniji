@@ -1,0 +1,5 @@
+name: ldd dash: a lone dash is an unrecognized option
+clause: s31_3_i_1
+command: ldd
+arg: -
+mask-addresses: yes

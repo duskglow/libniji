@@ -1,0 +1,6 @@
+name: ldd bundled: short options are not bundled
+clause: s31_3_i_1
+command: ldd
+arg: -vd
+arg: f
+mask-addresses: yes

@@ -1,0 +1,7 @@
+name: ldd static-pie: a static-pie program is statically linked (standard output, exit 0)
+clause: s31_3_g_4
+command: ldd
+arg: bin/static-pie
+mask-addresses: yes
+cc: bin/static-pie -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -static-pie -fPIE
+| void _start(void) { for (;;) {} }
