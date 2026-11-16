@@ -338,3 +338,96 @@ fn list_matches_reference() {
     assert!(got.stdout.is_empty() && want_list.stdout.is_empty(), "--list with a missing dependency prints no list");
     assert_eq!(err(&got), err(&want_list), "--list: the missing-dependency message differs from the reference");
 }
+
+/// The interpreter's line in a list (DL-TRACE-INTERP; spec/behaviour/dynlink.md "Trace lists"): listed only
+/// when an object names the interpreter in DT_NEEDED (by soname or path), at its breadth-first place, the
+/// vDSO's line after it when it comes first; libniji's libc and libm name it after their own needs, where
+/// the reference's do; no DT_NEEDED at all is `statically linked`, status 0. Every entry point (kernel
+/// start, `ld.so PROGRAM` and `--list`) against the reference loader, whole outputs compared with the
+/// addresses, the loaders' paths and the C library's directory masked. s27_1_c_1_1, s31_3_g_1.
+#[cfg(target_arch = "x86_64")] // ARCH(x86_64): runs the host's x86-64 reference loader on objects the host toolchain builds
+#[test]
+fn list_interpreter_line_matches_reference() {
+    let ld = std::fs::canonicalize(target().join("niji").join(Native::INTERP)).unwrap_or_default();
+    let reference = Path::new("/lib64").join(Native::INTERP);
+    if !ld.is_file() || !reference.exists() || !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
+        eprintln!("SKIP: needs cc, target/niji/{} (cargo xtask so) and {}", Native::INTERP, reference.display());
+        return;
+    }
+    let libs = std::fs::canonicalize(target().join("niji")).unwrap();
+    let d = std::fs::canonicalize(target()).unwrap().join(format!("dl-trace-interp-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    let src = [
+        ("foo.c", "int foo(void) { return 1; }\n"),
+        ("start.c", "void _start(void) { for (;;) {} }\n"),
+        ("startfoo.c", "int foo(void); void _start(void) { foo(); for (;;) {} }\n"),
+        ("hello.c", "#include <stdio.h>\nint main(void) { puts(\"hi\"); return 0; }\n"),
+        ("barc.c", "#include <stdio.h>\nint bar(void) { return puts(\"x\"); }\n"),
+    ];
+    for (f, s) in src {
+        std::fs::write(d.join(f), s).unwrap();
+    }
+    let cc = |args: &[&str]| assert!(Command::new("cc").current_dir(&d).args(args).status().unwrap().success(), "cc {args:?}");
+    let n = ["-nostdlib", "-fno-stack-protector", "-O1", "-Wl,--build-id=none"];
+    let so = |soname: &str, out: &str, rest: &[&str]| {
+        let sn = format!("-Wl,-soname,{soname}");
+        cc(&[&n[..], &["-shared", "-fPIC", sn.as_str(), "-o", out], rest].concat())
+    };
+    let rld = reference.to_str().unwrap();
+    so("libfoo.so.1", "libfoo.so.1", &["foo.c"]);
+    so("libbar.so.1", "libbar.so.1", &["foo.c"]);
+    so("libfoo2.so.1", "libfoo2.so.1", &["foo.c", "-L.", "-Wl,--no-as-needed", "-l:libbar.so.1"]);
+    so("libni.so.1", "libni.so.1", &["foo.c", "-Wl,--no-as-needed", rld]);
+    cc(&["-shared", "-fPIC", "-Wl,-soname,libcl.so.1", "-o", "libcl.so.1", "barc.c"]);
+    cc(&["-static-pie", "-o", "spie", "hello.c"]);
+    // Each program twice: its PT_INTERP (and a DT_NEEDED by path) naming the reference's loader, then libniji's.
+    let progs = ["foo", "interp", "interp_last", "ni", "full", "order", "m"];
+    for (side, interp) in [("ref", rld), ("niji", ld.to_str().unwrap())] {
+        so(interp, &format!("stub-{side}.so"), &["foo.c"]);
+        let dl = format!("-Wl,--dynamic-linker={interp}");
+        let p = |name: &str, args: &[&str]| {
+            let out = format!("{side}-{name}");
+            cc(&[&["-o", out.as_str(), dl.as_str(), "-L.", "-Wl,--no-as-needed"], args].concat())
+        };
+        let stub = format!("./stub-{side}.so");
+        p("foo", &[&n[..], &["startfoo.c", "-l:libfoo.so.1"]].concat());
+        p("interp", &[&n[..], &["start.c", rld, "-l:libfoo.so.1"]].concat());
+        p("interp_last", &[&n[..], &["startfoo.c", "-l:libfoo.so.1", rld]].concat());
+        p("ni", &[&n[..], &["startfoo.c", "-l:libni.so.1", "-l:libfoo.so.1"]].concat());
+        p("full", &[&n[..], &["start.c", stub.as_str()]].concat());
+        p("order", &["hello.c", "-l:libfoo2.so.1", "-lc", "-Wl,-rpath-link,."]);
+        p("m", &["hello.c", "-lm", "-l:libfoo2.so.1", "-Wl,-rpath-link,."]);
+    }
+    let dir = d.to_str().unwrap();
+    let norm = |o: &std::process::Output, lds: &[&str]| {
+        let mut s = String::from_utf8_lossy(&o.stdout).into_owned();
+        for l in lds {
+            s = s.replace(l, "@LD@");
+        }
+        s = s.replace("/lib/x86_64-linux-gnu/", "@LIB@/").replace(&format!("{}/", libs.display()), "@LIB@/").replace(dir, "D");
+        let s: Vec<String> = s.lines().map(|l| l.split(" (0x").next().unwrap_or(l).to_string()).collect();
+        format!("{s:?} status {:?}", o.status.code())
+    };
+    let ldp = ld.to_str().unwrap();
+    let run = |side: &str, loader: &Path, operand: &str| {
+        let (lp, lds) = if side == "ref" { (dir.to_string(), vec![rld]) } else { (format!("{dir}:{}", libs.display()), vec![ldp, rld]) };
+        let mut outs = Vec::new();
+        if !operand.ends_with(".so.1") && operand != "spie" {
+            outs.push(Command::new(d.join(format!("{side}-{operand}"))).env("LD_TRACE_LOADED_OBJECTS", "1").env("LD_LIBRARY_PATH", &lp).output().unwrap());
+        }
+        let file = if operand.ends_with(".so.1") || operand == "spie" { d.join(operand) } else { d.join(format!("{side}-{operand}")) };
+        outs.push(Command::new(loader).arg(&file).env("LD_TRACE_LOADED_OBJECTS", "1").env("LD_LIBRARY_PATH", &lp).output().unwrap());
+        outs.push(Command::new(loader).arg("--list").arg(&file).env("LD_LIBRARY_PATH", &lp).output().unwrap());
+        outs.iter().map(|o| norm(o, &lds)).collect::<Vec<_>>()
+    };
+    let mut bad = Vec::new();
+    for operand in progs.iter().copied().chain(["libfoo.so.1", "libni.so.1", "libcl.so.1", "spie"]) {
+        let (want, got) = (run("ref", &reference, operand), run("niji", &ld, operand));
+        if want != got {
+            bad.push(format!("{operand}:\n  reference {want:?}\n  niji      {got:?}"));
+        }
+    }
+    let _ = std::fs::remove_dir_all(&d);
+    assert!(bad.is_empty(), "list_interpreter_line_matches_reference: lists differ from the reference:\n{}", bad.join("\n"));
+}

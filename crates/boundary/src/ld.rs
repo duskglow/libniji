@@ -329,7 +329,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
     if aux.get(AT_ENTRY).and_then(|e| usize::try_from(e).ok()) != Some(own_entry) {
         if ld.trace && !secure {
             let execfn = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
-            list(&list_env, if execfn == 0 { b"" } else { c_string(execfn) }, false)
+            list(&list_env, if execfn == 0 { b"" } else { c_string(execfn) }, false, None)
         }
         let prog = start::program(&aux).unwrap_or_else(|e| refuse(e.message()));
         // The bias from PT_PHDR or, without one, the ELF header in the page holding the program
@@ -345,6 +345,8 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
         run(sp, &prog, bias, page, 0, &list_env, aux)
     }
     let arg = |i: usize| usize::try_from(stack_word(argv.wrapping_add(i.wrapping_mul(8)))).unwrap_or(0);
+    // Run as a program: the path it was run by names the interpreter in a list.
+    let invoked = aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).filter(|&a| a != 0).map(c_string);
     match program::action((1..argc).map(|i| c_string(arg(i)))) {
         Action::Version => {
             for part in program::version::<Native>(env!("CARGO_PKG_VERSION")) {
@@ -360,7 +362,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
         }
         Action::Program(name) => {
             if ld.trace && !secure {
-                list(&list_env, name, false)
+                list(&list_env, name, false, invoked)
             }
             // argv[1] names the program; it becomes argv[0] and the stack starts one word later.
             let (prog, bias) = load(arg(1), page);
@@ -370,7 +372,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
             store_words(argv, &[u64::try_from(argc.wrapping_sub(1)).unwrap_or(0)]);
             run(argv, &prog, bias, page, arg(1), &list_env, Auxv::from_words(&[]))
         }
-        Action::List(name) => list(&list_env, name, true),
+        Action::List(name) => list(&list_env, name, true, invoked),
         other => {
             for part in program::refusal(other) {
                 write_all(2, part);
@@ -1767,6 +1769,8 @@ struct Obj {
     path: (usize, usize),
     parent: usize,
     bias: u64,
+    /// The interpreter's place in a list (it is never mapped again).
+    interp: bool,
 }
 
 /// Open the NUL-terminated `path` and map the whole file read-only: the file and its descriptor
@@ -1894,8 +1898,12 @@ fn hex16(v: u64) -> [u8; 16] {
 /// once, and write one line per object as `ldd` shows them; nothing is relocated or run. The lines
 /// are written once the walk is complete. A dependency that is not found is a `NAME => not found`
 /// line (status 0) when tracing; with `strict` (`--list`) it is the loader's error on stderr, nothing
-/// on stdout, status 127, as the reference's `ld.so --list` does (DL-8 probe).
-fn list(env: &List<'_>, prog: &'static [u8], strict: bool) -> ! {
+/// on stdout, status 127, as the reference's `ld.so --list` does (DL-8 probe). The interpreter's
+/// line is listed only when an object names the interpreter in `DT_NEEDED` (libniji's own
+/// libraries name it last), at its breadth-first place; a program with no `DT_NEEDED` is
+/// `statically linked`, status 0 (DL-TRACE-INTERP probe, spec/behaviour/dynlink.md). `invoked` is
+/// the loader's own path when it was run as a program, `None` when the kernel started it.
+fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'static [u8]>) -> ! {
     let mut path = PathBuf::default();
     let fail = |what: &[u8], msg: &[u8]| -> ! {
         for part in [&b"ld.so: "[..], what, b": ", msg] {
@@ -1908,9 +1916,18 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool) -> ! {
     };
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let interp = elf::Elf::parse::<Native>(file).ok().and_then(|e| e.interp().ok().flatten());
-    if dynamic_of(file).is_none() {
+    // The interpreter's line: the program's PT_INTERP, else the path the loader was run by; the
+    // path is the loader as run (`NAME => PATH` when the two differ), as the reference prints it.
+    let interp_path = invoked.or(interp).unwrap_or(Native::INTERP.as_bytes());
+    let interp_name = interp.unwrap_or(interp_path);
+    let Some(top) = dynamic_of(file) else {
         write_all(1, b"\tnot a dynamic executable\n");
         exit(1)
+    };
+    if top.needed().flatten().next().is_none() {
+        // No DT_NEEDED (a static PIE, a library that needs nothing): as the reference, status 0.
+        write_all(1, b"\tstatically linked\n");
+        exit(0)
     }
     // The cache, once (R14-3 (a): `<prefix>/etc/ld.so.cache`); unreadable or inconsistent = none.
     let cache = read_cache();
@@ -1947,9 +1964,22 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool) -> ! {
             k = o.parent;
         }
         let chain = chain.get(..depth).unwrap_or(&[]);
-        for name in d.needed().flatten() {
+        // libniji's own libraries run only under this loader: each names it after its own
+        // DT_NEEDED entries, where the reference's libc and libm name theirs (DL-TRACE-INTERP probe).
+        let own = me != 0 && objs.get(me).is_some_and(|o| !o.file.is_empty() && niji_ld::search::pinned(o.name));
+        for name in d.needed().flatten().chain(core::iter::once(Native::INTERP.as_bytes()).filter(|_| own)) {
+            if name == Native::INTERP.as_bytes() || name == interp_name || name == interp_path {
+                // The interpreter: listed once, at its breadth-first place, only when an object needs it.
+                if !objs.get(..count).unwrap_or(&[]).iter().any(|o| o.interp) {
+                    if let Some(o) = objs.get_mut(count) {
+                        *o = Obj { name, interp: true, parent: me, ..Obj::default() };
+                    }
+                    count = count.wrapping_add(1);
+                }
+                continue;
+            }
             let known = objs.get(..count).unwrap_or(&[]).iter().any(|o| o.name == name || (!o.soname.is_empty() && o.soname == name));
-            if name == Native::INTERP.as_bytes() || known {
+            if known {
                 continue;
             }
             if count >= LIST_OBJECTS_MAX {
@@ -1999,19 +2029,39 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool) -> ! {
             wrote = wrote.saturating_add(found.len());
             let soname = dynamic_of(f).and_then(|x| dyn_string(&x, elf::dt::SONAME)).unwrap_or(b"");
             if let Some(o) = objs.get_mut(count) {
-                *o = Obj { name, soname, file: f, path: (used.saturating_add(at), found.len()), parent: me, bias: loaded.bias };
+                *o = Obj { name, soname, file: f, path: (used.saturating_add(at), found.len()), parent: me, bias: loaded.bias, interp: false };
             }
             count = count.wrapping_add(1);
         }
         used = used.saturating_add(wrote);
     }
-    if let Some(v) = env.vdso.filter(|&v| v != 0) {
-        for part in [&b"\tlinux-vdso.so.1 (0x"[..], &hex16(v), b")\n"] {
-            write_all(1, part);
+    let vdso = || {
+        if let Some(v) = env.vdso.filter(|&v| v != 0) {
+            for part in [&b"\tlinux-vdso.so.1 (0x"[..], &hex16(v), b")\n"] {
+                write_all(1, part);
+            }
         }
-    }
+    };
+    // The vDSO's line comes first, after the interpreter's only when the interpreter is the first
+    // object listed (the program's first need), as the reference orders them.
+    let mut vdso_done = false;
+    let base = u64::try_from(env.base).unwrap_or(0);
     for o in objs.get(1..count).unwrap_or(&[]) {
-        if o.file.is_empty() {
+        if !o.interp && !vdso_done {
+            vdso();
+            vdso_done = true;
+        }
+        if o.interp {
+            write_all(1, b"\t");
+            write_all(1, interp_name);
+            if interp_name != interp_path {
+                write_all(1, b" => ");
+                write_all(1, interp_path);
+            }
+            for part in [&b" (0x"[..], &hex16(base), b")\n"] {
+                write_all(1, part);
+            }
+        } else if o.file.is_empty() {
             for part in [&b"\t"[..], o.name, b" => not found\n"] {
                 write_all(1, part);
             }
@@ -2022,10 +2072,8 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool) -> ! {
             }
         }
     }
-    let interp = interp.unwrap_or(Native::INTERP.as_bytes());
-    let base = u64::try_from(env.base).unwrap_or(0);
-    for part in [&b"\t"[..], interp, b" (0x", &hex16(base), b")\n"] {
-        write_all(1, part);
+    if !vdso_done {
+        vdso();
     }
     exit(0)
 }

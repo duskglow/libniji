@@ -143,32 +143,6 @@ static size_t parse_list(char *out, size_t n, struct listed *l, size_t max) {
     return k;
 }
 
-/* Whether the object at `path` has a DT_NEEDED entry `name` (`len` bytes). */
-static int has_needed(const char *path, const char *name, size_t len) {
-    struct image im;
-    struct elfinfo e;
-    int found = 0;
-    if (map_file(path, &im) != 0) return 0;
-    if (inspect(&im, &e) == 0) {
-        uint64_t strtab = 0, strsz = 0;
-        for (uint64_t d = e.dyn_off; d + 16 <= e.dyn_off + e.dyn_size; d += 16) {
-            uint64_t tag = rd(&im, d, 8), val = rd(&im, d + 8, 8);
-            if (tag == 0) break;
-            if (tag == DT_STRTAB_) strtab = val;
-            if (tag == DT_STRSZ_) strsz = val;
-        }
-        uint64_t str = va_to_off(&im, strtab);
-        for (uint64_t d = e.dyn_off; str != UINT64_MAX && str <= im.n && strsz <= im.n - str && d + 16 <= e.dyn_off + e.dyn_size; d += 16) {
-            uint64_t tag = rd(&im, d, 8), val = rd(&im, d + 8, 8);
-            if (tag == 0) break;
-            if (tag == DT_NEEDED_ && val < strsz && strsz - val > len && memcmp(im.b + str + val, name, len) == 0 && im.b[str + val + len] == 0)
-                found = 1;
-        }
-    }
-    unmap_file(&im);
-    return found;
-}
-
 /* `-v`: one object's version needs, `\t<shown>:` then `\t\t<file> (<version>) => <path>` each. */
 static void print_needs(const char *path, const char *shown, const struct listed *l, size_t nl, int *header) {
     struct image im;
@@ -294,31 +268,9 @@ static int one(const char *file, int verbose) {
         rc = trace(shown, &out, &n) == 0 ? 0 : 1;
         static struct listed l[256];
         size_t nl = out ? parse_list(out, n, l, 256) : 0;
-        /* The interpreter line (a path with no `=>`, last in the list) is printed only when the program or a
-           listed object names the interpreter in DT_NEEDED, as the reference lists it (transcripts), or the C
-           library is listed (records/pending/UTIL-LDD-2-1.toml; interim, ruling #6043). */
-        const char *skip = NULL;
-        if (nl > 0 && l[nl - 1].path +l[nl - 1].path_len - l[nl - 1].name_len == l[nl - 1].name) {
-            int needed = has_needed(shown, l[nl - 1].name, l[nl - 1].name_len) || has_needed(shown, l[nl - 1].path, l[nl - 1].path_len);
-            for (size_t j = 0; j + 1 < nl && !needed; j++) {
-                /* A listed C library: the reference's names the interpreter in DT_NEEDED, libniji's needs no
-                   loader, and consumers (initramfs-tools' copy_exec) take the loader from this line. */
-                if (l[j].name_len == 9 && memcmp(l[j].name, "libc.so.6", 9) == 0) { needed = 1; break; }
-                char p[4096];
-                if (l[j].path[0] != '/' || l[j].path_len >= sizeof p) continue;
-                memcpy(p, l[j].path, l[j].path_len);
-                p[l[j].path_len] = 0;
-                needed = has_needed(p, l[nl - 1].name, l[nl - 1].name_len) || has_needed(p, l[nl - 1].path, l[nl - 1].path_len);
-            }
-            if (!needed) skip = l[nl - 1].path - 1;
-        }
-        for (char *line = out; out && line < out + n;) {
-            char *end = memchr(line, 0x0a, (size_t)(out + n - line));
-            end = end ? end + 1 : out + n;
-            if (line != skip) fwrite(line, 1, (size_t)(end - line), stdout);
-            line = end;
-        }
-        if (skip) nl--;
+        /* The loader's listing as it is: the loader prints the interpreter's line only when a listed object
+           needs the interpreter (D-27.16 as amended by DL-TRACE-INTERP). */
+        if (out) fwrite(out, 1, n, stdout);
         if (rc == 0 && verbose) {
             int header = 0;
             print_needs(shown, shown, l, nl, &header);
