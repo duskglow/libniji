@@ -289,6 +289,9 @@ int main(void)
         while (nd > 0)
             name[at++] = digits[--nd];
         name[at] = 0;
+        /* the PID really follows the prefix (a NUL left between them still names a semaphore) */
+        if (strlen(name) != (size_t)at)
+            return 34;
     }
     sem_t *a = sem_open(name, O_CREAT | O_EXCL, 0600, 2);
     if (a == SEM_FAILED)
