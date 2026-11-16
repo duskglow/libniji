@@ -1,0 +1,18 @@
+@@generated
+/* stdint.h: integer types (C 7.20). */
+#ifndef __LIELLA_H_stdint_h
+#define __LIELLA_H_stdint_h 1
+
+#include <features.h>
+
+__LIELLA_BEGIN_C
+
+@@owns INT8_C UINT8_C INT16_C UINT16_C INT32_C UINT32_C INT64_C UINT64_C INTMAX_C UINTMAX_C
+@@emit
+
+/* C 7.20.4: the integer-constant macros, from the typedefs.tsv rows of the least-width types. */
+@@intc
+
+__LIELLA_END_C
+
+#endif

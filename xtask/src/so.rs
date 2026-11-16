@@ -1293,6 +1293,8 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // LAYOUT-TRACE-DEFAULT: every product build traces its own layout unless the switch says otherwise.
     let layout = Layout::from_env()?;
     println!("so: profile {}", profile.name());
+    // The headers programs compile against (plan/headers.md 2.4, staging): no build input, so first.
+    crate::headers::stage(root, &release)?;
     if layout == Layout::Traced {
         println!("so: trace-at-build (the default; {}=ungrouped opts out): the start-up layout comes from a trace of this build", crate::hotlists::TRACE_ENV);
     }

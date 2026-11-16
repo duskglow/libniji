@@ -1,0 +1,15 @@
+@@generated
+/* inttypes.h: format conversion of integer types (C 7.8). */
+#ifndef __LIELLA_H_inttypes_h
+#define __LIELLA_H_inttypes_h 1
+
+#include <features.h>
+#include <stdint.h>
+
+__LIELLA_BEGIN_C
+
+@@emit
+
+__LIELLA_END_C
+
+#endif

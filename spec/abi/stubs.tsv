@@ -1,0 +1,22 @@
+# Liella's functions whose implementation only fails with ENOSYS (no system call, whatever the arguments).
+# Liella's own fact, not the reference's: derived from Liella's code (crates/legacy/src/stubs.rs and the bodies
+# named in `source`); `link` is how libc.so.6 exports it (default: linkable by a new program; compat: only an old
+# binary binds it). gnu/stubs.h defines __stub_<function> for every default row (SL-HEADERS-S05).
+function	link	source
+__sysctl	compat	crates/legacy/src/stubs.rs removed
+bdflush	compat	crates/legacy/src/stubs.rs removed
+chflags	default	crates/legacy/src/stubs.rs bsd_file_flags
+fattach	compat	crates/legacy/src/stubs.rs removed
+fchflags	default	crates/legacy/src/stubs.rs bsd_file_flags
+fdetach	compat	crates/legacy/src/stubs.rs removed
+getmsg	compat	crates/legacy/src/stubs.rs removed
+getpmsg	compat	crates/legacy/src/stubs.rs removed
+gtty	default	crates/legacy/src/stubs.rs bsd_terminal
+putmsg	compat	crates/legacy/src/stubs.rs removed
+putpmsg	compat	crates/legacy/src/stubs.rs removed
+revoke	default	crates/legacy/src/stubs.rs bsd_terminal
+setlogin	default	crates/boundary/src/users.rs setlogin
+sigreturn	default	crates/legacy/src/signal_compat.rs sigreturn
+sstk	compat	crates/legacy/src/stubs.rs removed
+stty	default	crates/legacy/src/stubs.rs bsd_terminal
+sysctl	compat	crates/legacy/src/stubs.rs removed

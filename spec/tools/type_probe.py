@@ -23,7 +23,9 @@ header text.
 Configurations: C uses `gnu` (`-std=gnu17 -D_GNU_SOURCE`), C++ uses `cxx14` (C++14: `noexcept` is not part
 of a function type there, so it stays out of `cxx`; slice 4's noexcept.tsv records it). A name is probed in
 the empty unit when the compiler alone shows it, else in the first header (in sorted order) that shows it
-in that configuration with that kind.
+in that configuration with that kind. A constant that is visible but not a constant in `gnu` (where
+`_GNU_SOURCE` turns `PTHREAD_STACK_MIN` into a run-time value) is probed again in `default`
+(`-std=c17 -D_DEFAULT_SOURCE`), and its row holds that value.
 """
 import argparse, csv, os, re, shutil, struct, subprocess, sys, tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -33,7 +35,7 @@ import header_probe as hp  # noqa: E402  (Unit, error_lines, CONFIGS, BASE)
 
 ABI = hp.ABI
 CFG = {c[0]: c for c in hp.CONFIGS}
-C_CFG, CXX_CFG = CFG["gnu"], CFG["cxx14"]
+C_CFG, CXX_CFG, DEF_CFG = CFG["gnu"], CFG["cxx14"], CFG["default"]
 # Errors inside a macro expansion are reported at the expansion point, that is on the probe's own line.
 EXTRA = ["-ftrack-macro-expansion=0", "-fno-common"]
 TYPE_KINDS = ("typedef", "struct", "union", "enum", "object", "function")
@@ -67,7 +69,8 @@ def assignments(ids):
     rows = hp.tsv("visibility.tsv")
     plan = {}
     for lang, cfg, kinds in (("c", C_CFG, ("typedef", "struct", "union", "enum", "object", "macro", "enumerator")),
-                             ("c++", CXX_CFG, ("typedef", "struct", "union", "enum", "object", "function"))):
+                             ("c++", CXX_CFG, ("typedef", "struct", "union", "enum", "object", "function")),
+                             ("c-default", DEF_CFG, ("macro", "enumerator"))):
         where = {}
         for r in rows:
             if r["kind"] not in kinds or not in_config(r["configs"], cfg[0], ids):
@@ -184,7 +187,7 @@ def c_string(data):
     return '"' + "".join(out) + '"'
 
 
-def probe_c(header, kinds, names_undef, work):
+def probe_c(header, kinds, names_undef, work, flags=C_CFG[2]):
     """C unit: sizes and alignments of types and objects, and the integer, floating and string constants."""
     tag = (header or "-").replace("/", "_")
     u = hp.Unit(header)
@@ -207,7 +210,7 @@ def probe_c(header, kinds, names_undef, work):
         u.test(("object", n), f"const unsigned long long tp_ob_{n}[2] = {{ sizeof({n}), __alignof__({n}) }};")
     path = os.path.join(work, f"{tag}.c")
     obj = path + ".o"
-    compile_clean(u, "c", C_CFG[2], path, obj)
+    compile_clean(u, "c", flags, path, obj)
     data = elf_objects(obj)
     sizes, macros = {}, {}
     for kind in ("typedef", "struct", "union", "enum", "object"):
@@ -292,6 +295,24 @@ def main():
             macros.update(res[1])
         else:
             spelled.update(res)
+    # Second C pass: the constants that have no value in `gnu`, in `default`.
+    redo = {}
+    for h, ks in plan["c-default"].items():
+        for n in ks.get("macro", []):
+            if n not in macros and (only is None or (h or "-") in only):
+                redo.setdefault(h, []).append(n)
+    work = tempfile.mkdtemp(prefix="type_probe.")
+    try:
+        os.makedirs(os.path.join(work, "c"))
+        with ThreadPoolExecutor(max_workers=args.jobs) as ex:
+            again = list(ex.map(lambda h: probe_c(h, {"macro": redo[h]}, set(), os.path.join(work, "c"), DEF_CFG[2]),
+                                sorted(redo, key=lambda x: x or "")))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    for h, (_, found) in zip(sorted(redo, key=lambda x: x or ""), again):
+        for n, tv in found.items():
+            macros[n] = tv
+            header_of.setdefault(("c", "macro", n), h or "-")
     trows = []
     for kind, n in sorted(set(sizes) | set(spelled), key=lambda k: (k[1], TYPE_KINDS.index(k[0]))):
         size, align = sizes.get((kind, n), ("", ""))

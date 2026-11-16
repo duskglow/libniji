@@ -211,8 +211,10 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
     POSIX/`cmsg(3)`, C.9's protocols).
   * **No ABI fact is typed into a template.** Values, layouts, prototypes and conditions enter only
     through generator markers.
-* **Output.** `include/`, generated and committed like `include/liella/native.h`, with an
-  `@generated` header line.
+* **Output.** `libc-include/`, generated and committed like `include/liella/native.h`, with an
+  `@generated` header line. A root of its own (SL-HEADERS-S05-4): tools and tests that build against
+  the build host's headers put `include/` on their path for `<liella/native.h>`, and Liella's libc
+  headers there shadowed the host's. Staging merges both roots.
   * Facts that depend on the architecture go to a multiarch subtree, so `Multi-Arch: same` packages
     stay byte-identical in `/usr/include`.
   * `layouts-aarch64.tsv` and `versions-aarch64.tsv` already exist, so a second architecture is a

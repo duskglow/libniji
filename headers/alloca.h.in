@@ -1,0 +1,17 @@
+@@generated
+/* alloca.h: stack allocation (alloca(3)). */
+#ifndef __LIELLA_H_alloca_h
+#define __LIELLA_H_alloca_h 1
+
+#include <features.h>
+
+__LIELLA_BEGIN_C
+
+@@owns alloca
+@@emit
+
+#define alloca(size) __builtin_alloca (size)
+
+__LIELLA_END_C
+
+#endif

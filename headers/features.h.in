@@ -1,0 +1,237 @@
+@@generated
+/* features.h: the feature levels of Liella's headers (plan/headers.md 2.3). Every header includes this
+   one first. The levels come from the feature-test macros of feature_test_macros(7), POSIX XSH 2.2.1 and
+   the C and C++ standard versions; headers/levels.tsv lists their values in each probed configuration
+   and the generated tests check this file against it. */
+#ifndef __LIELLA_H_features_h
+#define __LIELLA_H_features_h 1
+
+#include <stdc-predef.h>
+
+#ifndef __LIELLA__
+# define __LIELLA__ 1
+#endif
+
+/* Identity of the ABI Liella implements (owner ruling R-H1): configure checks test these. */
+#define __GNU_LIBRARY__ 6
+#define __GLIBC__ 2
+#define __GLIBC_MINOR__ 39
+#define __GLIBC_PREREQ(maj, min) ((__GLIBC__ << 16) + __GLIBC_MINOR__ >= ((maj) << 16) + (min))
+
+/* C++ or C. */
+#ifdef __cplusplus
+# define __LIELLA_CXX 1
+#else
+# define __LIELLA_CXX 0
+#endif
+
+/* GNU: everything (feature_test_macros(7), _GNU_SOURCE). g++ predefines _GNU_SOURCE. */
+#ifdef _GNU_SOURCE
+# define __LIELLA_GNU 1
+#else
+# define __LIELLA_GNU 0
+#endif
+
+/* ISO C: the year of the C standard whose names are visible. */
+#if __LIELLA_GNU || defined _ISOC2X_SOURCE || (defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L)
+# define __LIELLA_ISOC 2023
+#elif defined __STDC_VERSION__ && __STDC_VERSION__ >= 201710L
+# define __LIELLA_ISOC 2017
+#elif defined _ISOC11_SOURCE || (defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L)
+# define __LIELLA_ISOC 2011
+#elif defined _ISOC99_SOURCE || (defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L)
+# define __LIELLA_ISOC 1999
+#else
+# define __LIELLA_ISOC 1990
+#endif
+
+/* The BSD/SVID set: _DEFAULT_SOURCE and its old names, or no feature-test macro outside a strict mode. */
+#if __LIELLA_GNU || defined _DEFAULT_SOURCE || defined _BSD_SOURCE || defined _SVID_SOURCE
+# define __LIELLA_MISC 1
+#elif !defined __STRICT_ANSI__ && !defined _ISOC99_SOURCE && !defined _ISOC11_SOURCE && !defined _ISOC2X_SOURCE \
+  && !defined _POSIX_SOURCE && !defined _POSIX_C_SOURCE && !defined _XOPEN_SOURCE
+# define __LIELLA_MISC 1
+#else
+# define __LIELLA_MISC 0
+#endif
+
+/* POSIX (XSH 2.2.1): _POSIX_C_SOURCE, _XOPEN_SOURCE's POSIX level, _POSIX_SOURCE; MISC implies the latest. */
+#if __LIELLA_GNU || __LIELLA_MISC || (defined _XOPEN_SOURCE && _XOPEN_SOURCE - 0 >= 700) \
+  || (defined _POSIX_C_SOURCE && _POSIX_C_SOURCE - 0 >= 200809L)
+# define __LIELLA_POSIX 200809
+# define __LIELLA_POSIX_C 200809L
+#elif (defined _XOPEN_SOURCE && _XOPEN_SOURCE - 0 >= 600) || (defined _POSIX_C_SOURCE && _POSIX_C_SOURCE - 0 >= 200112L)
+# define __LIELLA_POSIX 200112
+# define __LIELLA_POSIX_C 200112L
+#elif (defined _XOPEN_SOURCE && _XOPEN_SOURCE - 0 >= 500) || (defined _POSIX_C_SOURCE && _POSIX_C_SOURCE - 0 >= 199506L)
+# define __LIELLA_POSIX 199506
+# define __LIELLA_POSIX_C 199506L
+#elif defined _POSIX_C_SOURCE && _POSIX_C_SOURCE - 0 >= 199309L
+# define __LIELLA_POSIX 199309
+# define __LIELLA_POSIX_C 199309L
+#elif defined _XOPEN_SOURCE || (defined _POSIX_C_SOURCE && _POSIX_C_SOURCE - 0 >= 2)
+# define __LIELLA_POSIX 2
+# define __LIELLA_POSIX_C 2
+#elif defined _POSIX_SOURCE || defined _POSIX_C_SOURCE
+# define __LIELLA_POSIX 1
+# define __LIELLA_POSIX_C 1
+#else
+# define __LIELLA_POSIX 0
+#endif
+
+/* X/Open (XSI): 400 XPG4, 450 with _XOPEN_SOURCE_EXTENDED, then SUSv2 to SUSv4 by _XOPEN_SOURCE's value. */
+#if __LIELLA_GNU || (defined _XOPEN_SOURCE && _XOPEN_SOURCE - 0 >= 700)
+# define __LIELLA_XSI 700
+#elif defined _XOPEN_SOURCE && _XOPEN_SOURCE - 0 >= 600
+# define __LIELLA_XSI 600
+#elif defined _XOPEN_SOURCE && _XOPEN_SOURCE - 0 >= 500
+# define __LIELLA_XSI 500
+#elif defined _XOPEN_SOURCE && defined _XOPEN_SOURCE_EXTENDED
+# define __LIELLA_XSI 450
+#elif defined _XOPEN_SOURCE
+# define __LIELLA_XSI 400
+#else
+# define __LIELLA_XSI 0
+#endif
+
+/* Large files: the *64 names, and _FILE_OFFSET_BITS=64 (on x86_64 the same types and exact aliases). */
+#if __LIELLA_GNU || defined _LARGEFILE64_SOURCE
+# define __LIELLA_LFS64 1
+#else
+# define __LIELLA_LFS64 0
+#endif
+#if defined _FILE_OFFSET_BITS && _FILE_OFFSET_BITS - 0 == 64
+# define __LIELLA_FOB64 1
+#else
+# define __LIELLA_FOB64 0
+#endif
+#if defined _TIME_BITS && _TIME_BITS - 0 == 64
+# define __LIELLA_TIME64 1
+# if !__LIELLA_FOB64
+#  error "_TIME_BITS=64 is allowed only with _FILE_OFFSET_BITS=64"
+# endif
+#else
+# define __LIELLA_TIME64 0
+#endif
+
+/* _DYNAMIC_STACK_SIZE_SOURCE (PTHREAD_STACK_MIN and friends are not constants). */
+#if __LIELLA_GNU || defined _DYNAMIC_STACK_SIZE_SOURCE
+# define __LIELLA_DYNSTACK 1
+#else
+# define __LIELLA_DYNSTACK 0
+#endif
+
+/* _FORTIFY_SOURCE: in effect only when optimizing. */
+#if defined _FORTIFY_SOURCE && defined __OPTIMIZE__ && __OPTIMIZE__ > 0 && _FORTIFY_SOURCE - 0 > 0
+# if _FORTIFY_SOURCE - 0 > 2
+#  define __LIELLA_FORTIFY 3
+# elif _FORTIFY_SOURCE - 0 > 1
+#  define __LIELLA_FORTIFY 2
+# else
+#  define __LIELLA_FORTIFY 1
+# endif
+#else
+# define __LIELLA_FORTIFY 0
+#endif
+
+/* The two glibc-internal level names other software tests (owner ruling R-H2), with the same meaning. */
+#if __LIELLA_MISC
+# define __USE_MISC 1
+#endif
+#if __LIELLA_GNU
+# define __USE_GNU 1
+#endif
+
+/* Declarations: C linkage in C++, and the exception specification of functions that never throw
+   (noexcept.tsv). In C it is empty, since an asm label must come before any attribute. */
+#ifdef __cplusplus
+# define __LIELLA_BEGIN_C extern "C" {
+# define __LIELLA_END_C }
+# if __cplusplus >= 201103L
+#  define __LIELLA_NOTHROW noexcept (true)
+# else
+#  define __LIELLA_NOTHROW throw ()
+# endif
+#else
+# define __LIELLA_BEGIN_C
+# define __LIELLA_END_C
+# define __LIELLA_NOTHROW
+#endif
+
+/* wchar_t in declarations of headers that must not define it (C 7.8.2.3): the compiler's type in C. */
+#ifdef __cplusplus
+# define __LIELLA_WCHAR wchar_t
+#else
+# define __LIELLA_WCHAR __WCHAR_TYPE__
+#endif
+
+/* The feature-test macros these levels imply (visibility.tsv). */
+@@if _DEFAULT_SOURCE
+# ifndef _DEFAULT_SOURCE
+#  define _DEFAULT_SOURCE @@value(_DEFAULT_SOURCE)
+# endif
+#endif
+@@if _ATFILE_SOURCE
+# ifndef _ATFILE_SOURCE
+#  define _ATFILE_SOURCE @@value(_ATFILE_SOURCE)
+# endif
+#endif
+@@if _ISOC95_SOURCE
+# ifndef _ISOC95_SOURCE
+#  define _ISOC95_SOURCE @@value(_ISOC95_SOURCE)
+# endif
+#endif
+@@if _ISOC99_SOURCE
+# ifndef _ISOC99_SOURCE
+#  define _ISOC99_SOURCE @@value(_ISOC99_SOURCE)
+# endif
+#endif
+@@if _ISOC11_SOURCE
+# ifndef _ISOC11_SOURCE
+#  define _ISOC11_SOURCE @@value(_ISOC11_SOURCE)
+# endif
+#endif
+@@if _ISOC2X_SOURCE
+# ifndef _ISOC2X_SOURCE
+#  define _ISOC2X_SOURCE @@value(_ISOC2X_SOURCE)
+# endif
+#endif
+@@if _POSIX_SOURCE
+# ifndef _POSIX_SOURCE
+#  define _POSIX_SOURCE @@value(_POSIX_SOURCE)
+# endif
+#endif
+@@if _POSIX_C_SOURCE
+# ifndef _POSIX_C_SOURCE
+#  define _POSIX_C_SOURCE __LIELLA_POSIX_C /* @@computed */
+# endif
+#endif
+@@if _XOPEN_SOURCE
+# ifndef _XOPEN_SOURCE
+#  define _XOPEN_SOURCE @@value(_XOPEN_SOURCE)
+# endif
+#endif
+@@if _XOPEN_SOURCE_EXTENDED
+# ifndef _XOPEN_SOURCE_EXTENDED
+#  define _XOPEN_SOURCE_EXTENDED @@value(_XOPEN_SOURCE_EXTENDED)
+# endif
+#endif
+@@if _LARGEFILE_SOURCE
+# ifndef _LARGEFILE_SOURCE
+#  define _LARGEFILE_SOURCE @@value(_LARGEFILE_SOURCE)
+# endif
+#endif
+@@if _LARGEFILE64_SOURCE
+# ifndef _LARGEFILE64_SOURCE
+#  define _LARGEFILE64_SOURCE @@value(_LARGEFILE64_SOURCE)
+# endif
+#endif
+@@if _DYNAMIC_STACK_SIZE_SOURCE
+# ifndef _DYNAMIC_STACK_SIZE_SOURCE
+#  define _DYNAMIC_STACK_SIZE_SOURCE @@value(_DYNAMIC_STACK_SIZE_SOURCE)
+# endif
+#endif
+
+#include <sys/cdefs.h>
+
+#endif

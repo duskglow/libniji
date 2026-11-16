@@ -98,6 +98,21 @@ def tsv(name):
         return list(csv.DictReader(f, delimiter="\t"))
 
 
+def c_integer_names():
+    """The names C 7.20 (<stdint.h>) and C 7.8.1 (<inttypes.h>) give the integer types of each width: the
+    exact-width, minimum-width and fastest types (7.20.1.1-3), the integer-constant macros (7.20.4) and the
+    format macros (7.8.1). No other table spells them all (ruling #6047)."""
+    out = ["INTMAX_C", "UINTMAX_C"]
+    kinds = ["", "LEAST", "FAST"]
+    for n in (8, 16, 32, 64):
+        out += [f"int{n}_t", f"uint{n}_t", f"int_least{n}_t", f"uint_least{n}_t", f"int_fast{n}_t", f"uint_fast{n}_t",
+                f"INT{n}_C", f"UINT{n}_C"]
+    sizes = [f"{k}{n}" for k in kinds for n in (8, 16, 32, 64)] + ["MAX", "PTR"]
+    out += [f"PRI{c}{s}" for c in "diouxX" for s in sizes]
+    out += [f"SCN{c}{s}" for c in "diouxX" if c != "X" for s in sizes]
+    return out
+
+
 def candidates():
     """(ordinary names, tag names) from the existing spec/abi tables."""
     names, tags = set(), set()
@@ -123,6 +138,7 @@ def candidates():
     # the integer and prototype tables cannot hold.
     with open(os.path.join(ROOT, "glibc-functional-spec.md"), encoding="utf-8") as f:
         names.update(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)(?:\(\))?`", f.read()))
+    names.update(c_integer_names())
     names = {n for n in names if IDENT.match(n) and not n.startswith("__builtin")}
     tags = {n for n in tags if IDENT.match(n)}
     return sorted(names), sorted(tags)
