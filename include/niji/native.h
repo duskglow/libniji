@@ -152,8 +152,8 @@ extern "C" {
 #define NIJI_NSCACHE_ALL UINT32_C(0xffffffff)
 /* niji_nscache_info.mode: the cache is disabled (nothing mapped, no stat, no table). */
 #define NIJI_NSCACHE_MODE_OFF UINT32_C(0)
-/* niji_nscache_info.mode: enabled, no table yet (no lookup since start, enable or a
- * credential change). */
+/* niji_nscache_info.mode: enabled, no table yet (no lookup since start, enable or a credential
+ * change). */
 #define NIJI_NSCACHE_MODE_IDLE UINT32_C(1)
 /* niji_nscache_info.mode: a table of this process only. */
 #define NIJI_NSCACHE_MODE_PRIVATE UINT32_C(2)
@@ -221,8 +221,8 @@ NIJI_STATIC_ASSERT(offsetof(struct niji_stat, uid) == 108, "struct niji_stat: of
 NIJI_STATIC_ASSERT(offsetof(struct niji_stat, gid) == 112, "struct niji_stat: offset of gid");
 NIJI_STATIC_ASSERT(offsetof(struct niji_stat, reserved) == 116, "struct niji_stat: offset of reserved");
 
-/* A local time in the current zone. As input (niji_tz_from_local) year to second and isdst
- * are read; out-of-range values carry. Size 64 bytes, alignment 8. */
+/* A local time in the current zone. As input (niji_tz_from_local) year to second and isdst are
+ * read; out-of-range values carry. Size 64 bytes, alignment 8. */
 struct niji_tm {
     int64_t year; /* The full year (2026 is 2026). */
     int32_t month; /* 1 to 12. */
@@ -252,8 +252,8 @@ NIJI_STATIC_ASSERT(offsetof(struct niji_tm, utc_offset) == 40, "struct niji_tm: 
 NIJI_STATIC_ASSERT(offsetof(struct niji_tm, abbr_len) == 44, "struct niji_tm: offset of abbr_len");
 NIJI_STATIC_ASSERT(offsetof(struct niji_tm, abbr) == 48, "struct niji_tm: offset of abbr");
 
-/* The state of the process's name-service cache (niji_nscache_status). Size 64 bytes,
- * alignment 8. */
+/* The state of the process's name-service cache (niji_nscache_status). Size 64 bytes, alignment
+ * 8. */
 struct niji_nscache_info {
     uint32_t enabled; /* 1 enabled, 0 disabled. */
     uint32_t categories; /* The enabled categories: bit 1 << NIJI_NSCACHE_<category>. */
@@ -288,9 +288,9 @@ void *niji_heap_alloc(size_t size, size_t align);
 /* As niji_heap_alloc, with the size bytes zeroed. */
 void *niji_heap_alloc_zeroed(size_t size, size_t align);
 
-/* A secure block: as niji_heap_alloc, reading as zero, in a mapping of its own kept out of
- * core dumps. Whatever releases it (niji_heap_free, free, or niji_heap_realloc and realloc
- * moving it) zeroes it before its memory can be reused; a reallocated block stays secure. */
+/* A secure block: as niji_heap_alloc, reading as zero, in a mapping of its own kept out of core
+ * dumps. Whatever releases it (niji_heap_free, free, or niji_heap_realloc and realloc moving
+ * it) zeroes it before its memory can be reused; a reallocated block stays secure. */
 void *niji_heap_alloc_secure(size_t size, size_t align);
 
 /* The block resized, contents kept up to the smaller size, or NULL (the block unchanged). NULL
@@ -438,14 +438,14 @@ int64_t niji_nscache_status(struct niji_nscache_info *out);
 /* Run this process's POSIX AIO requests on worker threads, never on io_uring: 0, or -EBUSY once
  * a request has started io_uring (call it before the first request). It holds for the life of
  * the process and in its fork children. The workers are also chosen without this call in
- * secure-execution mode, under a seccomp filter, or with NIJI_AIO_URING=0 in the environment
- * at the first request. */
+ * secure-execution mode, under a seccomp filter, or with NIJI_AIO_URING=0 in the environment at
+ * the first request. */
 int64_t niji_aio_use_threads(void);
 
-/* Set the process's bound on getpass's line to bytes (0: NIJI_GETPASS_DEFAULT_LIMIT again):
- * the bound that was in force, or -EINVAL above PTRDIFF_MAX. A longer line is read to its end
- * and discarded, every library buffer that held it zeroed, and getpass fails with EOVERFLOW
- * (never a truncated password). It holds for the life of the process and in its fork children. */
+/* Set the process's bound on getpass's line to bytes (0: NIJI_GETPASS_DEFAULT_LIMIT again): the
+ * bound that was in force, or -EINVAL above PTRDIFF_MAX. A longer line is read to its end and
+ * discarded, every library buffer that held it zeroed, and getpass fails with EOVERFLOW (never
+ * a truncated password). It holds for the life of the process and in its fork children. */
 int64_t niji_getpass_set_limit(size_t bytes);
 
 #ifdef __cplusplus
