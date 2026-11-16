@@ -1,0 +1,17 @@
+{"task": "SYS-LIBMVEC", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (context checkpoint): libmvec.so.1 (216 exports) and libmvec.a built from versions.tsv, every lane bit-identical to scalar libm (1512 lanes, 4 ISA classes); packaging, records, plants, gate not done",
+ "branch": "task/sys-libmvec", "head": "28a881e70",
+ "gate": {"affected": "not run (sys-libmvec-test3: libmvec_products 3 passed / 0 failed)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["spec/abi/versions.tsv carries two hand-added GLIBC_2.41 rows the extractor does not produce; a full abi_extract.py regeneration drops them"],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "libmvec.so.1 exports (versions.tsv rows) defined", "before": 0, "after": 216, "unit": "pairs", "measured": true},
+  {"kind": "coverage", "what": "libmvec_products tests (lanes checked bit-exact, AVX-512 host)", "before": 0, "after": 1512, "unit": "lanes", "measured": true},
+  {"kind": "unblock", "what": "Debian binaries with NEEDED libmvec.so.1 (sample 18 of 4000) once packaged", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "abi_extract.py should keep hand-added rows in a separate overlay file so --versions-only regenerations are byte-checkable",
+ "next_step": "package libmvec in build.sh/system.sh, decision record + differences row, plants, clippy/static, gate; see handoff/SYS-LIBMVEC.md Remaining",
+ "report_file": "handoff/SYS-LIBMVEC.md",
+ "jobs": ["mei:sys-libmvec-test3"]}
