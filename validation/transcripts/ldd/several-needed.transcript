@@ -21,3 +21,10 @@ cc: bin/several -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -
 | int bar2(void);
 | int baz(void);
 | void _start(void) { foo(); bar(); bar2(); baz(); for (;;) {} }
+status: exit 0
+stdout:
+| \tlinux-vdso.so.1 (0x@ADDR@)
+| \tlibbar.so.2 => @ROOT@/lib/libbar.so.2 (0x@ADDR@)
+| \tlibbaz.so.3 => @ROOT@/lib/libbaz.so.3 (0x@ADDR@)
+| \tlibfoo.so.1 => @ROOT@/lib/libfoo.so.1 (0x@ADDR@)
+stderr:

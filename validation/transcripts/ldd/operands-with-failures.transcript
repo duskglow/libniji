@@ -26,3 +26,18 @@ cc: bin/static -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O
 | void _start(void) { for (;;) {} }
 file: text
 | hello
+status: exit 1
+stdout:
+| bin/one:
+| \tlinux-vdso.so.1 (0x@ADDR@)
+| \tlibfoo.so.1 => @ROOT@/lib/libfoo.so.1 (0x@ADDR@)
+| nosuch:
+| bin/static:
+| text:
+| bin/one:
+| \tlinux-vdso.so.1 (0x@ADDR@)
+| \tlibfoo.so.1 => @ROOT@/lib/libfoo.so.1 (0x@ADDR@)
+stderr:
+| ldd: ./nosuch: No such file or directory
+| \tnot a dynamic executable
+| \tnot a dynamic executable

@@ -5,3 +5,7 @@ arg: text
 mask-addresses: yes
 file: text
 | hello
+status: exit 1
+stdout:
+stderr:
+| \tnot a dynamic executable

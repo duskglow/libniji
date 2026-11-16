@@ -5,3 +5,7 @@ arg: bin/zero
 mask-addresses: yes
 cc: bin/zero -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none 
 | void _start(void) { for (;;) {} }
+status: exit 0
+stdout:
+| \tstatically linked
+stderr:

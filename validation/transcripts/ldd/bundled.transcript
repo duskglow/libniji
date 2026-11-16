@@ -4,3 +4,8 @@ command: ldd
 arg: -vd
 arg: f
 mask-addresses: yes
+status: exit 1
+stdout:
+stderr:
+| ldd: unrecognized option `-vd'
+| Try `ldd --help' for more information.

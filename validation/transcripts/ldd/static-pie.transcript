@@ -5,3 +5,7 @@ arg: bin/static-pie
 mask-addresses: yes
 cc: bin/static-pie -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -static-pie -fPIE
 | void _start(void) { for (;;) {} }
+status: exit 0
+stdout:
+| \tstatically linked
+stderr:

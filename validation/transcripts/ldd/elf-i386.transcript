@@ -4,3 +4,7 @@ command: ldd
 arg: x86.so
 mask-addresses: yes
 elf: x86.so soname=x86.so class=i386
+status: exit 1
+stdout:
+stderr:
+| \tnot a dynamic executable

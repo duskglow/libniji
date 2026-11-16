@@ -15,3 +15,8 @@ cc: lib/libbar.so.2 -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tabl
 cc: lib/libbaz.so.3 -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -shared -fPIC -Wl,-soname,libbaz.so.3 -L@ROOT@/lib -l:libfoo.so.1
 | int foo(void);
 | int baz(void) { return foo(); }
+status: exit 0
+stdout:
+| \tlinux-vdso.so.1 (0x@ADDR@)
+| \tlibfoo.so.1 => @ROOT@/lib/libfoo.so.1 (0x@ADDR@)
+stderr:

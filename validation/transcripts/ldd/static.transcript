@@ -5,3 +5,7 @@ arg: bin/static
 mask-addresses: yes
 cc: bin/static -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -O1 -Wl,--build-id=none -static -no-pie
 | void _start(void) { for (;;) {} }
+status: exit 1
+stdout:
+stderr:
+| \tnot a dynamic executable

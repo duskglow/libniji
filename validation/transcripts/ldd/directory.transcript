@@ -4,3 +4,7 @@ command: ldd
 arg: d
 mask-addresses: yes
 dir: d
+status: exit 1
+stdout:
+stderr:
+| ldd: ./d: not regular file

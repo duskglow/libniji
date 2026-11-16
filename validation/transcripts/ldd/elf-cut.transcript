@@ -4,3 +4,7 @@ command: ldd
 arg: cut.so
 mask-addresses: yes
 elf: cut.so cut=40
+status: exit 1
+stdout:
+stderr:
+| \tnot a dynamic executable

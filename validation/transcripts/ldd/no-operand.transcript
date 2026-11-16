@@ -2,3 +2,8 @@ name: ldd no-operand: no operand: the message, the Try line, exit 1
 clause: s31_3_f_3
 command: ldd
 mask-addresses: yes
+status: exit 1
+stdout:
+stderr:
+| ldd: missing file arguments
+| Try `ldd --help' for more information.

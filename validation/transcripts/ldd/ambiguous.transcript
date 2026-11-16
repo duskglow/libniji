@@ -4,3 +4,7 @@ command: ldd
 arg: --ver
 arg: f
 mask-addresses: yes
+status: exit 1
+stdout:
+stderr:
+| ldd: option `--ver' is ambiguous

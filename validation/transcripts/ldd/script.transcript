@@ -6,3 +6,7 @@ mask-addresses: yes
 file: run.sh
 | #!/bin/sh
 | echo hi
+status: exit 1
+stdout:
+stderr:
+| \tnot a dynamic executable

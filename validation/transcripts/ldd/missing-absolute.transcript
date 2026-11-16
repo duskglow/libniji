@@ -3,3 +3,7 @@ clause: s31_3_f_2
 command: ldd
 arg: @ROOT@/nosuch
 mask-addresses: yes
+status: exit 1
+stdout:
+stderr:
+| ldd: @ROOT@/nosuch: No such file or directory

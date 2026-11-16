@@ -21,3 +21,9 @@ cc: bin/missing -nostdlib -fno-stack-protector -fno-asynchronous-unwind-tables -
 | int foo(void);
 | int gone(void);
 | void _start(void) { foo(); gone(); for (;;) {} }
+status: exit 0
+stdout:
+| \tlinux-vdso.so.1 (0x@ADDR@)
+| \tlibfoo.so.1 => @ROOT@/lib/libfoo.so.1 (0x@ADDR@)
+| \tlibgone.so.4 => not found
+stderr:
