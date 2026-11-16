@@ -1,0 +1,13 @@
+{"task": "DL-TRACE-INTERP", "model": "opus", "tokens": null,
+ "result": "Loader trace lists follow the probed reference rule for the interpreter line (all entry points); ldd's interim filter removed; system build pins libc/libm under /lib/x86_64-linux-gnu",
+ "branch": "task/dl-trace-interp", "head": "8152fa8df",
+ "gate": {"affected": "running (mei dl-trace-interp-gate-1)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["keke swap-root ldd-1..7 not rerun with a system build of this branch (expected to need no (a)-(c) normalisation)", "NAME => PATH interpreter spelling has no plant"],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "ld.so --list / LD_TRACE_LOADED_OBJECTS: interpreter line only when needed, at the reference's place and spelling; statically linked for no DT_NEEDED", "before": null, "after": null, "unit": null, "measured": true},
+            {"kind": "coverage", "what": "list_interpreter_line_matches_reference (11 operands vs the reference) and 6 plants", "before": 0, "after": 6, "unit": "plants", "measured": false}],
+ "improvement": "the swap-root check should run from the tree (validation script), not a scratch swap.sh on keke, so a loader story can rerun it",
+ "next_step": "collect gate-1 and plants-1; rerun the keke swap-root ldd-1..7 on a system build of this branch",
+ "report_file": "handoff/DL-TRACE-INTERP.md",
+ "jobs": ["dl-trace-interp-gate-1", "dl-trace-interp-plants-1"]}
