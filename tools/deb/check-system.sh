@@ -6,7 +6,11 @@
 # 1. Identity (R1, R2): exactly libc6, libc-bin, libc6-dev, libc-dev-bin, locales, libc-l10n, each
 #    Source: niji, the project's Maintainer, one version <abi>+niji<YYYYMMDD>.<n>-<rev> (no
 #    epoch); libc-bin Essential: yes, Priority: required, Multi-Arch: foreign; libc6 and libc6-dev
-#    Multi-Arch: same; libc6-dev Provides: libc-dev; locales and libc-l10n Architecture: all.
+#    Multi-Arch: same; locales and libc-l10n Architecture: all. Control fields as the
+#    distribution's packages of these names (SYS-CONTROL-PARITY, plan/package-parity-audit.md
+#    rows 7, 8, 25): libc6-dev Depends also on linux-libc-dev, libcrypt-dev, rpcsvc-proto and
+#    Provides: libc-dev (= <version>); libc-l10n Multi-Arch: foreign; Priority libc6, libc6-dev,
+#    libc-dev-bin optional, locales and libc-l10n standard.
 # 2. Layout (section 3.3): every path is in the package's list below (nothing in a sysroot, no
 #    /lib64: base-files owns it); owners root:root; the control members, conffiles and triggers
 #    are exactly the ones named below.
@@ -54,7 +58,7 @@ for deb in $debs; do
     ctrl_want="./ ./control ./md5sums"
     case $pkg in
         libc6)
-            expect libc6 Architecture amd64; expect libc6 Multi-Arch same; expect libc6 Priority required
+            expect libc6 Architecture amd64; expect libc6 Multi-Arch same; expect libc6 Priority optional
             expect libc6 Essential no
             # The symbols and shlibs members' contents: tools/deb/check-symbols.sh.
             ctrl_want="$ctrl_want ./conffiles ./shlibs ./symbols ./triggers"
@@ -67,10 +71,14 @@ for deb in $debs; do
             conffiles="/etc/gai.conf /etc/ld.so.conf /etc/ld.so.conf.d/libc.conf"
             triggers="interest-await ldconfig" ;;
         libc6-dev)
-            expect libc6-dev Multi-Arch same; expect libc6-dev Provides libc-dev
-            expect libc6-dev Depends "libc6 (= $v), libc-dev-bin (= $v)" ;;
-        libc-dev-bin) expect libc-dev-bin Multi-Arch foreign ;;
-        locales | libc-l10n) expect "$pkg" Architecture all ;;
+            expect libc6-dev Multi-Arch same; expect libc6-dev Provides "libc-dev (= $v)"
+            expect libc6-dev Priority optional
+            expect libc6-dev Depends "libc6 (= $v), libc-dev-bin (= $v), linux-libc-dev, libcrypt-dev, rpcsvc-proto" ;;
+        libc-dev-bin) expect libc-dev-bin Multi-Arch foreign; expect libc-dev-bin Priority optional ;;
+        locales) expect locales Architecture all; expect locales Priority standard ;;
+        libc-l10n)
+            expect libc-l10n Architecture all; expect libc-l10n Priority standard
+            expect libc-l10n Multi-Arch foreign ;;
     esac
     dpkg-deb --ctrl-tarfile "$deb" | tar -t | sort | tr '\n' ' ' > "$tmp/ctrl"
     [ "$(cat "$tmp/ctrl")" = "$(echo "$ctrl_want" | tr ' ' '\n' | sort | tr '\n' ' ')" ] ||

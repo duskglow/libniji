@@ -20,7 +20,9 @@ usage:
   parity.py inventory OUT-PREFIX DEB...
       Write OUT-PREFIX-{control,files,elf,dynsyms}.tsv (sorted, one line per fact).
   parity.py compare DIR
-      DIR/{ref,ours}-*.tsv -> DIR/gaps.tsv (class, package, item, source line, detail).
+      DIR/{ref,ours}-*.tsv -> DIR/gaps.tsv (class, package, item, source line, detail). In
+      relation fields each side's own Version reads as "<version>", so "libc6 (= <Version>)"
+      on both sides is no gap.
   parity.py rank WD DIR [--sample N] [--seed S] [--jobs J]
       Exact reverse-relation counts from WD's indices, and an ELF scan of N packages drawn at
       random (seed S) from the amd64 packages that depend on libc6: DIR/consumers-*.tsv and
@@ -368,8 +370,13 @@ def cmd_compare(a):
                                 "only in " + ("reference" if rv else "ours")))
                 continue
             if k in REL_FIELDS:
-                rs = {x.strip() for v in rv for x in v.split(",") if x.strip()}
-                os_ = {x.strip() for v in ov for x in v.split(",") if x.strip()}
+                # A relation on the package's own version ("libc6 (= <Version>)", "libc-dev (= <Version>)")
+                # differs only by the version string: each side's own Version reads as "<version>".
+                def rels(vals, m):
+                    own = (m[p].get("Version") or [("", 0)])[0][0]
+                    return {(x.strip().replace(own, "<version>") if own else x.strip())
+                            for v in vals for x in v.split(",") if x.strip()}
+                rs, os_ = rels(rv, rmap), rels(ov, omap)
                 for x in sorted(rs - os_):
                     out.append(("e", p, f"{k}: {x}", f"ref-control.tsv:{rmap[p][k][0][1]}", "reference only"))
                 for x in sorted(os_ - rs):
