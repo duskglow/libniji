@@ -1,4 +1,51 @@
-# RENAME-NIJI-CODE(-2) report: Liella -> libniji (code)
+# RENAME-NIJI-CODE(-2, -3) report: Liella -> libniji (code)
+
+## RENAME-NIJI-CODE-3 (branch `task/rename-niji-code-3`, role keke `~/w/r5`, scripts in keke `~/work/RENAME-NIJI-CODE-3/`)
+
+Inherited head 3abfa7769: clippy + static green (`rename-niji-code-3-lint0`).
+
+### CI's red and its cause
+Train 756, native_static: `FAIL file: pwrite was short`. The rename shortened `LIELLA`/`liella` to `NIJI`/`niji` (two
+bytes) and the numbers that were the old literals' lengths stayed: `pwrite(b"NIJI", 0)` checked against 6, `pread` of
+"native" at offset 7 (after "liella "; it would have failed next), and xtask's expected `ok file: 25 bytes written`
+(the data is 23 bytes). Fixed in 953c0081d: the example derives the lengths from its literals (`head.len()`, the
+offset after the first space, the read-back built from `data` and `head`); the expected line says 23 (it is exact
+stdout, so it stays a literal).
+
+### Length sweep (the same class elsewhere)
+Method: `git diff -U14 origin/next...HEAD` (the rename's own diff; every commit on the branch is this story's), outside
+handoff/, records/, docs/, plan/, spec/ and *.md. Scripts (scratch, not committed): `sweep.py` lists every removed line
+whose literal held the old name with an unchanged number within 14 lines (2042 rows); a row is STRONG when the number
+is the old literal's length, length + 1, or the offset just past the old name (181 STRONG rows, all read); `slices.py`
+lists unchanged lines within 14 lines that slice, index, offset, seek/pread/pwrite, size an array or emit
+`.ascii/.byte/.long/.p2align` (772 lines; the offset/slice subset and every line near a `Liella` literal read).
+Also checked: literals with `\0` (string tables, prctl/hostname/xattr buffers, note names), fixed arrays initialised
+from renamed strings (`Liella` -> `libniji` grows by one byte), byte counts quoted in expected outputs (native
+example, conformance, csys/util, tools/deb, validation/smoke), and the transcripts/corpus/fuzz seeds the rename touched.
+Found and fixed:
+- crates/native/examples/demo/mod.rs and xtask/src/native_examples.rs (above).
+- conformance/c/s22_sync.c: the semaphore name's PID was written at offset 13 (= len "/liella-conf-"); after the
+  rename that left a NUL inside the name and dropped the PID silently (the program still passed). The offset now
+  comes from the prefix (`SEM_PREFIX`, 953c0081d), and the program fails with status 34 when the name is not as long
+  as what it wrote (609ba6252).
+Checked and already right (earlier hand commits or self-deriving): appendix_a SECRET `[u8; 8]` `niji!!!!`, prctl name
+(16 bytes), s24 hostname/domain slices `[..10]`/`[..15]`, xattr list `user.niji\0`, scanner_races and s01 putenv fixtures,
+dylib/nonshared note owners and sizes, NSC magic (`NIJI_NSC`, 8 bytes), rt TAG_PREFIX (prefix-derived), sync.rs's
+`/dev/shm/sem.niji-` temp name (40-byte buffer), csys/util version strings (no widths), ldconfig transcripts (cache
+written at test time). Everything else in the lists was a coincidental number (errno values, buffer sizes far larger
+than the name, line counts).
+
+### Jobs (keke), final head 609ba6252 (+ handoff commits)
+- `rename-niji-code-3-lint1`: `cargo xtask clippy` + `cargo xtask static`, rc 0.
+- `rename-niji-code-3-plants2`: 5 plants (pwrite length, pread offset, read-back, expected count, s22 offset):
+  PLANTS2_RESULT.
+- `rename-niji-code-3-gate`: the train's generators (`records-gen`, `kernel-index`, `codemap`, all `--in-place`, in the
+  role only, ruling #6086), then `cargo xtask test` (all steps, what CI runs), then `NIJI_FULL_PROFILE=1 cargo xtask so`
+  and `NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`: GATE_RESULT.
+- Superseded: `lint0` (inherited head, green), `plants1` (stopped: two mutants used `+ 2`, which the example's clippy
+  step refuses before the program runs, WARN-NO-MSG; plants2 restates them as the old numbers `6`).
+
+## RENAME-NIJI-CODE-2
 
 Branch `task/rename-niji-code-2`, base `origin/next` e1afc4e47, code head 30766aacb (4d7b91d99 + report commits change only handoff/). Host: mei (role `~/w/s1`);
 all before/after records on mei, `~/work/RENAME-NIJI-CODE-2/{before,after}` (before = a RAM copy of the primed base
