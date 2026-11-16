@@ -9,6 +9,7 @@
  * A static PIE over libc.a like getconf (`cargo xtask so`, run_ldd), so it works whatever state the dynamic
  * libraries are in.
  */
+#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -265,7 +266,7 @@ static int one(const char *file, int verbose) {
         size_t n = 0;
         rc = trace(shown, &out, &n) == 0 ? 0 : 1;
         if (rc == 0 && verbose) {
-            struct listed l[256];
+            static struct listed l[256];
             size_t nl = parse_list(out, n, l, 256);
             fputs("\n\tVersion information:\n", stdout);
             print_needs(shown, shown, l, nl);
