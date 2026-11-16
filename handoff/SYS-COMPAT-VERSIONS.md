@@ -1,9 +1,24 @@
 # SYS-COMPAT-VERSIONS: libm's old versions (issue #7) and the multi-version audit
 
-**State:** branch `task/sys-compat-versions` from origin/next `28740dd5e`; code head `823ee2d7b`
-(report json names the final head). Role keke `~/w/n1`. Plants `handoff/SYS-COMPAT-VERSIONS-plants.txt`.
-Audit data `handoff/SYS-COMPAT-VERSIONS-audit.tsv`. No new decision row: the plan rows' own note
-("alias if LG-0b shows identical results", D-10.2) decided it; the probe is the evidence.
+**State:** continued by SYS-COMPAT-VERSIONS-2 on branch `task/sys-compat-versions-2` (stacked on
+`task/sys-compat-versions`, from origin/next `28740dd5e`); last code commit `da477a66d`
+(handoff/reports/SYS-COMPAT-VERSIONS-2.json names the final head). Role keke `~/w/n1`. Plants
+`handoff/SYS-COMPAT-VERSIONS-plants.txt` (4). Audit data `handoff/SYS-COMPAT-VERSIONS-audit.tsv`. No new
+decision row: the plan rows' own note ("alias if LG-0b shows identical results", D-10.2) decided it; the
+probe is the evidence.
+
+## SYS-COMPAT-VERSIONS-2 (fix of the red gate)
+
+* Cause of `sys-compat-versions-gate` rc 1: `xtask compat::tests::the_real_tables_give_the_libm_scope`
+  asserted 110 libm aliases and that no alias targets its own name; the 7 new aliases (each jumps to its
+  own default) broke both (the second assert was hidden behind the first). Fixed in `da477a66d`: the test
+  now lists every (name, version, target) outside `__*_finite` (pow10/pow10f/pow10l renamed to exp10*, and
+  exp, exp10, fmod, fmodf, hypot, hypotf, pow at GLIBC_2.2.5 to themselves), so a scope change names its
+  pairs; total 107 + 3 + 7 = 117. It also checks the rendered fmod stub and `.symver`.
+* New plant `hypotf-old-to-hypot-scope` (retargets hypotf's alias; the scope test must fail, no build).
+* `sys-compat-versions-2-lint` rc 0: `cargo xtask clippy`, `cargo xtask static`, the 11 compat tests.
+* Final head: full gate `sys-compat-versions-2-gate` (`cargo xtask test`) and plants
+  `sys-compat-versions-2-plants` (all 4) on keke; results in the hand-back and the report json.
 
 ## Done
 
@@ -74,6 +89,8 @@ or (b) is fixed, drop the entries from DEFAULT_POW.
 
 ## Next step
 
-Coordinator: cut stories for audit items 1-3, libmvec, `_r_debug`, and the pow defect; run the swap
+Coordinator: cut stories for audit items 1-3, libmvec and `_r_debug`. The pow defects (a) and (b) are
+ruled (#6108: sNaN -> qNaN + FE_INVALID; #6109) and go to MATH-POW-EDGES, which drops the fixed cases
+from DEFAULT_POW in crt_products.rs. Run the swap
 smoke with this branch at the next snapshot (expect 54/54). Rule slip: one Bash heredoc used to append
 the test (no backslashes in the content; the file is correct).
