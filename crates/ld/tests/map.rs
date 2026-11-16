@@ -4,7 +4,7 @@
 //! corpus and the unmapping on failure: no spec clause (spec/security/threat-model.md "The dynamic
 //! loader" rule 4, design §3 invariants).
 //!
-//! Three layers: (1) [`liella_ld::map::load`] against a model of an address space ([`Space`]) that
+//! Three layers: (1) [`niji_ld::map::load`] against a model of an address space ([`Space`]) that
 //! checks every call (inside the reservation, never writable and executable, stores only to
 //! writable pages), for objects the system linker built (PIE, shared object, fixed-address program,
 //! 2 MiB `p_align`, 16 KiB pages) and with each call failing in turn (nothing left mapped);
@@ -21,9 +21,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_kernel::auxv::Auxv;
-use liella_ld::arch::{Arch, Native, AT_PAGESZ};
-use liella_ld::map::{self, MapError, Mapper, PROT_EXEC, PROT_READ, PROT_WRITE};
+use niji_kernel::auxv::Auxv;
+use niji_ld::arch::{Arch, Native, AT_PAGESZ};
+use niji_ld::map::{self, MapError, Mapper, PROT_EXEC, PROT_READ, PROT_WRITE};
 
 /// The object every build uses: text, read-only data, initialised data and a `.bss` larger than a
 /// page, so each segment kind and the `.bss` tail exist.
@@ -72,7 +72,7 @@ fn target() -> PathBuf {
 }
 
 fn product() -> Option<PathBuf> {
-    let p = target().join("liella").join(Native::INTERP);
+    let p = target().join("niji").join(Native::INTERP);
     if p.exists() {
         return Some(p);
     }

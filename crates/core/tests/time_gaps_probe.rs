@@ -2,7 +2,7 @@
 //! `spec/behaviour/time-gaps.md`): `mktime` across skipped and repeated hours with `tm_isdst`
 //! -1/0/1, POSIX `TZ` rules before 1970, `getdate` with `%Z` and with partial times, a signed `%y`
 //! in `strptime`, and `TZ` unset with `/etc/localtime` unreadable. The probe [`PROBE`] is built
-//! against the host C library and statically against Liella's products; the outputs must agree
+//! against the host C library and statically against libniji's products; the outputs must agree
 //! line by line except the recorded differences in [`KNOWN`]. Every zone comes from a POSIX rule
 //! string (no zone files; `TZDIR` names an empty directory of the test's own), and the
 //! `/etc/localtime` cases run in a private user and mount namespace (`unshare -r -m`) over a tmpfs.
@@ -332,7 +332,7 @@ int main(int argc, char **argv) {
 }
 "##;
 
-/// Lines that differ by decision: (patterns of the reference line, patterns Liella's line must
+/// Lines that differ by decision: (patterns of the reference line, patterns libniji's line must
 /// match, whether a run must show the difference, why). `*` stands for any text. An entry marked
 /// `always` that no longer differs fails the test (the difference went away: update the record).
 const KNOWN: &[(&[&str], &[&str], bool, &str)] = &[
@@ -411,7 +411,7 @@ fn programs() -> Option<(PathBuf, PathBuf, PathBuf)> {
     static BUILD: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _one = BUILD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return None;
@@ -424,12 +424,12 @@ fn programs() -> Option<(PathBuf, PathBuf, PathBuf)> {
         std::fs::write(&tmp, PROBE).unwrap();
         std::fs::rename(&tmp, &src).unwrap();
     }
-    let (host, ours) = (dir.join("time_gaps_probe_host"), dir.join("time_gaps_probe_liella"));
+    let (host, ours) = (dir.join("time_gaps_probe_host"), dir.join("time_gaps_probe_niji"));
     let mut cmd = Command::new("cc");
     cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     assert!(oracle::build(cmd, &host), "time_gaps_probe.c does not build against the host C library");
     let mut cmd = Command::new("cc");
-    cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     assert!(oracle::build(cmd, &ours), "time_gaps_probe.c does not link against the products");
     Some((host, ours, dir))
 }
@@ -447,7 +447,7 @@ fn instant() -> i64 {
     i64::try_from(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()).unwrap()
 }
 
-/// Runs both programs with `arg` (`@<instant>` or `=<instant>`) and returns (reference, Liella) output.
+/// Runs both programs with `arg` (`@<instant>` or `=<instant>`) and returns (reference, libniji) output.
 fn run_both(host: &Path, ours: &Path, dir: &Path, arg: &str) -> (String, String) {
     let run = |exe: &Path| -> String {
         let s = scratch(dir, exe.file_name().unwrap().to_str().unwrap());
@@ -464,7 +464,7 @@ fn time_gaps_equal_the_reference() {
     // Clauses: s23_5_c_2, s23_6_c_1, s23_7_c_2, s23_7_c_3 (record spec/behaviour/time-gaps.md).
     // One instant, read once, gives both programs the same rule strings (#2012).
     let Some((host, ours, dir)) = programs() else { return };
-    // Not started near a minute's edge: at second 0 a field Liella sets to 0 prints as the current
+    // Not started near a minute's edge: at second 0 a field libniji sets to 0 prints as the current
     // one, and the recorded difference would not match (it failed once in 60 runs).
     while !(2..=50).contains(&(instant() % 60)) {
         std::thread::sleep(std::time::Duration::from_millis(500));
@@ -518,7 +518,7 @@ fn time_gaps_hold_across_forced_clock_edges() {
     // both calls on one side compare all four, a bracket spanning midnight on both sides included.
     let after = |e: usize| e != 2;
     for (a, b) in [(0, 1), (1, 0), (1, 1), (2, 2), (0, 2), (2, 0), (1, 2), (2, 1)] {
-        eprintln!("forced edges: reference edge {} against Liella edge {}", a + 1, b + 1);
+        eprintln!("forced edges: reference edge {} against libniji edge {}", a + 1, b + 1);
         let keep = |o: &str| if after(a) == after(b) { o.to_owned() } else { o.split("== edge midnight").next().unwrap().to_owned() };
         check(&keep(&want[a]), &keep(&got[b]), false);
     }
@@ -600,7 +600,7 @@ fn render(r: &Gd<'_>, now: &[Civil]) -> Vec<String> {
 fn settle(w: &str, g: &str) -> (String, String) {
     let (Some(rw), Some(rg)) = (gd(w), gd(g)) else { return (w.to_owned(), g.to_owned()) };
     let (aw, ag) = (render(&rw, &rw.now), render(&rg, &rg.now));
-    assert!(!aw.is_empty() && !ag.is_empty(), "a getdate call with an empty clock bracket:\n  glibc  {w}\n  liella {g}");
+    assert!(!aw.is_empty() && !ag.is_empty(), "a getdate call with an empty clock bracket:\n  glibc  {w}\n  niji {g}");
     match aw.iter().find(|a| ag.contains(a)) {
         Some(a) => (a.clone(), a.clone()),
         None => (aw[0].clone(), ag[0].clone()),
@@ -625,10 +625,10 @@ fn check(want: &str, got: &str, full: bool) {
                     seen[i] = true;
                 }
                 if !KNOWN[i].1.iter().any(|p| glob(p, g)) {
-                    bad.push(format!("recorded difference ({}) has the wrong Liella line:\n  glibc  {w}\n  liella {g}", KNOWN[i].3));
+                    bad.push(format!("recorded difference ({}) has the wrong libniji line:\n  glibc  {w}\n  niji {g}", KNOWN[i].3));
                 }
             }
-            None if w != g => bad.push(format!("unrecorded difference:\n  glibc  {w}\n  liella {g}")),
+            None if w != g => bad.push(format!("unrecorded difference:\n  glibc  {w}\n  niji {g}")),
             None => {}
         }
     }
@@ -686,5 +686,5 @@ fn tz_unset_with_localtime_unreadable_is_utc() {
     assert!(!want.contains("setup: readable") && want.contains("setup: unreadable"), "the EACCES case was not set up:\n{want}");
     assert_eq!(want.matches("rc=0").count(), 6, "a variant failed under the reference:\n{want}");
     assert_eq!(want.matches("tzname=[UTC,UTC] timezone=0 daylight=0").count(), 6, "the reference is not UTC in every variant:\n{want}");
-    assert_eq!(want, got, "unset: Liella differs from the reference");
+    assert_eq!(want, got, "unset: libniji differs from the reference");
 }

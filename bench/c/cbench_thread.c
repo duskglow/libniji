@@ -1,4 +1,4 @@
-/* Thread-block reads in a process Liella started (phase 6 budget: `gettid` is a load from the
+/* Thread-block reads in a process libniji started (phase 6 budget: `gettid` is a load from the
  * thread block, no system call). Prints `name<TAB>ns/op` lines for `cargo xtask bench`; the
  * best of several rounds. stdio arrives in phase 8, so the output is formatted by hand. */
 #define _GNU_SOURCE

@@ -163,10 +163,10 @@ def main():
     summ, bandrows, binrows, hotrows = [], [], [], []
     for tag in tags:
         func, mode, S = tag.split(".")
-        if not os.path.exists(os.path.join(outdir, tag + ".liella.done")):
+        if not os.path.exists(os.path.join(outdir, tag + ".niji.done")):
             continue
-        data = {lib: load(outdir, tag + "." + lib) for lib in ("glibc", "liella")}
-        for lib in ("glibc", "liella"):
+        data = {lib: load(outdir, tag + "." + lib) for lib in ("glibc", "niji")}
+        for lib in ("glibc", "niji"):
             blocks, hist, meta = data[lib]
             allc = collections.Counter()
             for b in hist.values():
@@ -178,14 +178,14 @@ def main():
             summ.append([func, mode, S, lib, total, "%.1f" % (ssum / total), pct(allc, total, 0.5), pct(allc, total, 0.99),
                          pct(allc, total, 0.9999), blocks[kmax][2], arg_text(mode, blocks[kmax][3]), "%.3g" % (over / total),
                          ",".join(sorted(set(meta.get("overhead", [])))), ",".join(sorted(set(meta.get("batch", ["1"]))))])
-        (gb, gh, _), (lb, lh, _) = data["glibc"], data["liella"]
+        (gb, gh, _), (lb, lh, _) = data["glibc"], data["niji"]
         total = sum(v[0] for v in lb.values())
-        for a_name, A, Bo in (("liella", lb, gb), ("glibc", gb, lb)):
+        for a_name, A, Bo in (("niji", lb, gb), ("glibc", gb, lb)):
             for r in bands(mode, A, Bo, total, a_name):
                 bandrows.append([func, mode, S] + [r[c] for c in ("slow", "range", "blocks", "n", "frac", "over_frac", "mean_slow",
                                                                   "mean_other", "max_slow", "argmax", "score")])
         if mode == "x32":
-            for lib in ("liella", "glibc"):
+            for lib in ("niji", "glibc"):
                 for lo, hi, n, s in hot_ranges(outdir, tag + "." + lib, mode):
                     hotrows.append([func, lib, "%.9g" % f32(lo), "%.9g" % f32(hi), "%08x" % lo, "%08x" % hi, n,
                                     "%.3g" % (n / total), "%.0f" % (s / n), "%.4g" % (s / total)])

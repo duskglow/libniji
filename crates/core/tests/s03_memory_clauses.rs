@@ -3,20 +3,20 @@
 
 //! Clause tests for spec §3 (46 clauses).
 //!
-//! The heap clauses run through the exports of `liella-boundary` (the heap is a C-interface
-//! service); the arena clauses run against `liella::mem::Arena` (D-3.6), with the C failure
+//! The heap clauses run through the exports of `niji-boundary` (the heap is a C-interface
+//! service); the arena clauses run against `niji::mem::Arena` (D-3.6), with the C failure
 //! protocol covered by the obstack symbol tests. Memory the library hands out is written and read
 //! through the exported `memset`/`memcpy`. Aborts, exits and resource limits run in a
-//! re-executed copy of this binary (`LIELLA_S3_PROBE`).
+//! re-executed copy of this binary (`NIJI_S3_PROBE`).
 //!
 //! The debugging semantics of §3.3 (`mcheck` before the first allocation, `mtrace`) and
-//! `M_PERTURB` from the environment need a process Liella's heap served from its start, so they
+//! `M_PERTURB` from the environment need a process libniji's heap served from its start, so they
 //! also run as C conformance programs against the products (`conformance/c/s03_*.c`, D-3.5 as
 //! decided in phase 13).
 //!
 //! Pending: `alloca` (§3.4: a compiler builtin, D-3.8, with no library behaviour to test).
 
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 #[path = "support/scratch.rs"]
@@ -27,24 +27,24 @@ use core::sync::atomic::Ordering::Relaxed;
 use std::os::unix::process::ExitStatusExt;
 use std::sync::{Mutex, MutexGuard};
 
-use liella::error::Errno;
-use liella::mem::{Arena, TryBox, TryVec};
-use liella_abi::ctypes::{c_int, c_void};
-use liella_boundary::data;
-use liella_boundary::errno;
-use liella_boundary::posix::s03_memory as m;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as x;
-use liella_boundary::selftest::{self, opaque, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
+use niji::error::Errno;
+use niji::mem::{Arena, TryBox, TryVec};
+use niji_abi::ctypes::{c_int, c_void};
+use niji_boundary::data;
+use niji_boundary::errno;
+use niji_boundary::posix::s03_memory as m;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as x;
+use niji_boundary::selftest::{self, opaque, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
 use spectest::clause;
 
 const ENOMEM: i32 = 12;
 const EINVAL: i32 = 22;
 const PAGE: usize = 4096;
-const PROBE: &str = "LIELLA_S3_PROBE";
+const PROBE: &str = "NIJI_S3_PROBE";
 
 static GLOBAL: Mutex<()> = Mutex::new(());
 
@@ -57,7 +57,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: Mutex<()> = Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -418,13 +418,13 @@ fn s3_1_f_3() {
         Some("double") => {
             let p = opaque::malloc(100);
             opaque::free(p);
-            liella_boundary::selftest::expect_crash();
+            niji_boundary::selftest::expect_crash();
             opaque::free(p);
             CSys.exit_group(0);
         }
         Some("foreign") => {
             let x = 5u64;
-            liella_boundary::selftest::expect_crash();
+            niji_boundary::selftest::expect_crash();
             opaque::free((&raw const x).cast_mut().cast());
             CSys.exit_group(0);
         }
@@ -502,7 +502,7 @@ fn s3_2_c_1() {
 fn s3_2_c_2() {
     isolated("s3_2_c_2", || {
         // The test harness's own threads may allocate or free between two readings (in the
-        // export pass the heap is Liella's), so the whole sequence is retried until one run sees
+        // export pass the heap is libniji's), so the whole sequence is retried until one run sees
         // no outside change: every relation must hold in the same run, and a heap that broke
         // one would break it in every run. Each run starts from a trimmed heap, so the 8 MiB
         // block of an earlier run is not kept for reuse (D-3.13).
@@ -540,9 +540,9 @@ fn s3_2_c_2() {
 fn s3_2_c_3() {
     isolated("s3_2_c_3", || {
         // The test harness's own threads may allocate between two calls (in the export pass the
-        // heap is Liella's), so compare only a `mallinfo` bracketed by two equal `mallinfo2`s.
+        // heap is libniji's), so compare only a `mallinfo` bracketed by two equal `mallinfo2`s.
         let sat = |v: u64| i32::try_from(v).unwrap_or(i32::MAX);
-        let key = |s: &liella_abi::layout::struct_mallinfo2| (s.uordblks, s.hblks, s.arena);
+        let key = |s: &niji_abi::layout::struct_mallinfo2| (s.uordblks, s.hblks, s.arena);
         let still = (0..1000).find_map(|_| {
             let before = m::mallinfo2();
             let i = m::mallinfo();
@@ -671,7 +671,7 @@ fn s3_3_c_2() {
     assert_eq!(m::mprobe(p), -1, "MCHECK_DISABLED");
     m::mcheck_check_all();
     opaque::free(p);
-    // Before it, in a program Liella started (D-3.5 as decided in phase 13): checking with
+    // Before it, in a program libniji started (D-3.5 as decided in phase 13): checking with
     // abortfn, the default handler's abort, and mcheck_pedantic.
     conformance(&["s03_mcheck", "s03_mcheck_default", "s03_mcheck_pedantic"]);
 }
@@ -693,7 +693,7 @@ fn s3_3_c_3() {
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert!(o.status.success());
-    // Liella's C library traces itself (D-3.5 as decided in phase 13; the reference needs
+    // libniji's C library traces itself (D-3.5 as decided in phase 13; the reference needs
     // libc_malloc_debug.so preloaded): the file holds the start, the 100-byte block's
     // allocation and release, and the end.
     let log = std::fs::read_to_string(&path).unwrap_or_default();
@@ -746,7 +746,7 @@ fn s3_5_c_0() {
 #[test]
 fn s3_5_i_0() {
     let a = Arena::new(0, 0).unwrap();
-    assert!(a.memory_used() >= liella::mem::ARENA_CHUNK, "0 selects the default chunk size");
+    assert!(a.memory_used() >= niji::mem::ARENA_CHUNK, "0 selects the default chunk size");
     assert_eq!(Arena::new(64, 24).unwrap_err(), Errno::EINVAL, "the alignment is a power of two");
     let b = Arena::new(10_000, 64).unwrap();
     assert!(b.memory_used() >= 10_000, "the chunk-size hint");

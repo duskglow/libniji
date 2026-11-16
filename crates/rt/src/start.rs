@@ -1,7 +1,7 @@
 //! Startup sequencing (IP-9; spec §1.1, §1.4; D-1.1): the decisions `__libc_start_main` makes,
 //! over the words the boundary read from the initial stack and the program headers.
 //!
-//! The order (carried out by `liella_boundary::runtime`):
+//! The order (carried out by `niji_boundary::runtime`):
 //! 1. the thread pointer and static TLS for the initial thread, then the canary and pointer
 //!    guard from `AT_RANDOM` (when the process has no thread pointer yet: a static program);
 //! 2. in secure mode (`AT_SECURE`), descriptors 0–2 and the environment are sanitised;
@@ -11,12 +11,12 @@
 //!    `_init`'s partner `_fini`), constructors run (`.preinit_array`, `_init`, `.init_array`);
 //! 6. `main(argc, argv, envp)`, then `exit` with its result.
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::O_RDWR;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::O_RDWR;
 
 use crate::tls::TlsImage;
 
@@ -107,7 +107,7 @@ pub fn relro_at(words: &[u64], phnum: usize, bias: usize, page: usize) -> Option
 /// are page-aligned, so a header whose table starts in its first page lies there). `header(at)` reads
 /// that header's first 64 bytes (it is called only without `PT_PHDR`); `None` when they are not the
 /// header of this table (magic, `e_phoff`, `e_phentsize`, `e_phnum`) or no `PT_LOAD` holds the table.
-/// The one implementation for `ld.so` (`liella_ld::start::bias`) and libc's own lookups of the
+/// The one implementation for `ld.so` (`niji_ld::start::bias`) and libc's own lookups of the
 /// executable (DL-LIBC-START-BIAS-3).
 pub fn bias(words: &[u64], phnum: usize, phdr: usize, page: usize, header: impl FnOnce(usize) -> [u8; 64]) -> Option<usize> {
     const PT_LOAD: u64 = 1;
@@ -163,7 +163,7 @@ pub fn relro_pieces<E>(words: &[u64], phnum: usize, bias: usize, page: usize, mu
 /// The part of the page range `[from, to)` inside the pages of a segment at `vaddr` with `memsz`
 /// bytes (`[page_down(vaddr), page_up(vaddr + memsz))`), as `(start, len)`; `None` when they do
 /// not meet or the segment's end overflows. The one intersection for [`relro_pieces`] and
-/// `ld.so`'s objects (`liella_ld::reloc::protect_relro`). `page` is a power of two.
+/// `ld.so`'s objects (`niji_ld::reloc::protect_relro`). `page` is a power of two.
 #[must_use]
 pub fn relro_piece(from: usize, to: usize, vaddr: usize, memsz: usize, page: usize) -> Option<(usize, usize)> {
     let mask = page.wrapping_sub(1);
@@ -202,7 +202,7 @@ pub fn read_only(words: &[u64], phnum: usize, bias: usize, addr: usize) -> bool 
 /// alike (`GLIBC_TUNABLES`, `LD_BIND_NOT`, `LD_BIND_NOW`, `LD_VERBOSE`, `LD_WARN`,
 /// `MALLOC_ARENA_MAX`, `MALLOC_ARENA_TEST`, `MALLOC_MMAP_MAX_`, `MALLOC_MMAP_THRESHOLD_`,
 /// `MALLOC_PERTURB_`, `MALLOC_TOP_PAD_`, `MALLOC_TRIM_THRESHOLD_`; the probe and its candidate
-/// list are in `spec/security/threat-model.md`). Liella's own security-sensitive variables
+/// list are in `spec/security/threat-model.md`). libniji's own security-sensitive variables
 /// (`HOSTALIASES`, `RES_OPTIONS`, `LOCALDOMAIN`, `TMPDIR`, `TZDIR`, `LOCPATH`, `GCONV_PATH`,
 /// `NLSPATH`) are all in that list already. `PWD` is not removed: it is ignored where it is read.
 /// An earlier version of this list cited a glibc source file and removed every `MALLOC_` name and
@@ -257,34 +257,34 @@ pub fn open_std_fds<S: Sys>(sys: &S) -> KResult<()> {
 }
 
 /// The data half of the private start interface between `ld.so` and `libc.so.6` (version node
-/// `LIELLA_PRIVATE`, plan/ph14/design.md §14, L14-10, R14-12, D-27.22): the names, the build tag
+/// `NIJI_PRIVATE`, plan/ph14/design.md §14, L14-10, R14-12, D-27.22): the names, the build tag
 /// both products carry and [`private::StartInfo`]. Never in a public header. It lives here, beside
 /// [`bias`], because both products use it: the C library defines the tag and reads `StartInfo`,
-/// the loader (`liella_ld::start::private`) checks the tag and builds `StartInfo`; keeping it out
+/// the loader (`niji_ld::start::private`) checks the tag and builds `StartInfo`; keeping it out
 /// of the loader crate keeps the C library's code independent of the loader's.
 pub mod private {
     /// The version node of the private interface.
-    pub const NODE: &[u8] = b"LIELLA_PRIVATE";
-    /// `__liella_libc_early_init(const StartInfo *)`: libc's start steps 3 and 4, called by `ld.so`
+    pub const NODE: &[u8] = b"NIJI_PRIVATE";
+    /// `__niji_libc_early_init(const StartInfo *)`: libc's start steps 3 and 4, called by `ld.so`
     /// after relocation and before any constructor (`.preinit_array` included).
-    pub const EARLY_INIT: &[u8] = b"__liella_libc_early_init";
-    /// `size_t __liella_thread_walk(size_t (*cb)(size_t ctx, size_t tp), size_t ctx)`: under the
+    pub const EARLY_INIT: &[u8] = b"__niji_libc_early_init";
+    /// `size_t __niji_thread_walk(size_t (*cb)(size_t ctx, size_t tp), size_t ctx)`: under the
     /// C library's thread-list lock, `cb(ctx, tp)` per live thread, then `cb(ctx, 0)` (DL-16d:
     /// `dlopen` gives a new module's static TLS block to every thread). Looked up only by a
     /// `dlopen` that loads an object with `PT_TLS`.
-    pub const THREAD_WALK: &[u8] = b"__liella_thread_walk";
-    /// `void __liella_owner_unload(size_t lo, size_t hi)`: `dlclose` is unloading the module
+    pub const THREAD_WALK: &[u8] = b"__niji_thread_walk";
+    /// `void __niji_owner_unload(size_t lo, size_t hi)`: `dlclose` is unloading the module
     /// mapped at `[lo, hi)`, after its finalisers ran; the C library drops the opted-in
-    /// registrations (`LIELLA_OWNER_1`, D-27.29) it owns or whose handlers it holds. Looked up
+    /// registrations (`NIJI_OWNER_1`, D-27.29) it owns or whose handlers it holds. Looked up
     /// by the first `dlclose` that unloads an object.
-    pub const OWNER_UNLOAD: &[u8] = b"__liella_owner_unload";
-    /// `__liella_build_tag`: [`TAG_LEN`] bytes, [`TAG_PREFIX`] then the build's identity.
-    pub const BUILD_TAG: &[u8] = b"__liella_build_tag";
+    pub const OWNER_UNLOAD: &[u8] = b"__niji_owner_unload";
+    /// `__niji_build_tag`: [`TAG_LEN`] bytes, [`TAG_PREFIX`] then the build's identity.
+    pub const BUILD_TAG: &[u8] = b"__niji_build_tag";
     /// The tag's first bytes (a test finds the tag in a file by them).
-    pub const TAG_PREFIX: &[u8] = b"LIELLA-BUILD-TAG:";
+    pub const TAG_PREFIX: &[u8] = b"NIJI-BUILD-TAG:";
     /// The tag's size in bytes.
     pub const TAG_LEN: usize = 64;
-    /// A build's tag from its identity: each product passes `option_env!("LIELLA_BUILD_TAG")` (a hash
+    /// A build's tag from its identity: each product passes `option_env!("NIJI_BUILD_TAG")` (a hash
     /// of the product sources `cargo xtask so` sets for both), so a loader and a C library from
     /// different builds carry different tags. The variable is read only by the two crates holding a
     /// tag (the loader and the boundary), never here: a crate reading it is rebuilt with all its
@@ -393,10 +393,10 @@ pub mod private {
         /// no spec clause (D-27.22): the tag is the prefix then the identity, zero-filled, cut at its size.
         #[test]
         fn private_tag_layout() {
-            assert!(tag(None).starts_with(b"LIELLA-BUILD-TAG:unversioned\0"));
+            assert!(tag(None).starts_with(b"NIJI-BUILD-TAG:unversioned\0"));
             let t = tag(Some("abc"));
             let (head, rest) = t.split_at(TAG_PREFIX.len() + 3);
-            assert_eq!(head, b"LIELLA-BUILD-TAG:abc");
+            assert_eq!(head, b"NIJI-BUILD-TAG:abc");
             assert!(rest.iter().all(|&b| b == 0));
             assert_eq!(tag_bytes(&[b'x'; 100]).last(), Some(&b'x'));
         }

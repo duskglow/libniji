@@ -1,5 +1,5 @@
 //! Category *allocator*: the process heap and `unsafe impl GlobalAlloc`, delegating every
-//! decision to the safe algorithm in `liella_rt::heap` (IP-7).
+//! decision to the safe algorithm in `niji_rt::heap` (IP-7).
 //!
 //! * [`HEAP`] is the one heap behind the exported `malloc` family and, in the products, Rust's
 //!   global allocator (both allocation domains of D-3.1 meet here unless a C program
@@ -15,13 +15,13 @@
 use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering::Relaxed};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
-use liella_legacy::malloc_compat::{self, Ctx};
-use liella_legacy::malloc_debug::{self, Call, Debug, Mem};
-use liella_rt::heap::{Fit, Heap, Held, Misuse, Pages, ALIGN, PAGE};
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+use niji_legacy::malloc_compat::{self, Ctx};
+use niji_legacy::malloc_debug::{self, Call, Debug, Mem};
+use niji_rt::heap::{Fit, Heap, Held, Misuse, Pages, ALIGN, PAGE};
 
 use crate::raw;
 use crate::sys::CSys;
@@ -137,7 +137,7 @@ impl Pages for KernelPages {
 /// D-X.60: [`KernelPages`] for the paths [`DEBUG`]'s word has already cleared: that word holds
 /// [`malloc_debug::FOREIGN`] until the runtime takes the process (`thread::init_initial`), so
 /// a path reached with the word clear runs in a process the runtime started, where 0x90 of the
-/// calling thread's block is Liella's, and the cache word is read with no further test (the
+/// calling thread's block is libniji's, and the cache word is read with no further test (the
 /// heap fast paths pay nothing for the foreign case). Everything else is [`KernelPages`]'s,
 /// including the heap's slow paths (`alloc_slow`, `free_slow`, `resize_held`) even with the word
 /// clear: one copy of each, the one start-up already runs ([`Pages::General`] is
@@ -151,7 +151,7 @@ pub struct OwnPages;
 /// picks where `len` bytes go; if that is not aligned, the aligned addresses just above and just
 /// below are tried with `MAP_FIXED_NOREPLACE` (never replacing a mapping).
 fn map_aligned_exactly(len: usize, align: usize, node: Option<u32>) -> Option<usize> {
-    use liella_kernel::uapi::MAP_FIXED_NOREPLACE;
+    use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
     let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
     let probe = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).ok()?.addr();
     let addr = if probe.checked_rem(align) == Some(0) {
@@ -180,16 +180,16 @@ fn map_aligned_exactly(len: usize, align: usize, node: Option<u32>) -> Option<us
 /// once (0: not yet, 1: no, 2: yes).
 static RSEQ_NODE: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(0);
 
-/// The calling thread's node from the rseq area Liella registered for it (D-3.21), `None` when
-/// Liella does not own the thread's registration or the kernel does not fill `node_id` (its
+/// The calling thread's node from the rseq area libniji registered for it (D-3.21), `None` when
+/// libniji does not own the thread's registration or the kernel does not fill `node_id` (its
 /// `AT_RSEQ_FEATURE_SIZE` is absent or too small for the field). A plain load, no system call.
 pub fn rseq_node() -> Option<usize> {
     let area = crate::thread::own_rseq()?;
     let filled = match RSEQ_NODE.load(Relaxed) {
         0 => {
-            let yes = liella_kernel::uapi::Rseq::node_id_filled(
-                crate::process::auxval(liella_kernel::uapi::AT_RSEQ_FEATURE_SIZE),
-                liella_rt::thread::RSEQ_SIZE,
+            let yes = niji_kernel::uapi::Rseq::node_id_filled(
+                crate::process::auxval(niji_kernel::uapi::AT_RSEQ_FEATURE_SIZE),
+                niji_rt::thread::RSEQ_SIZE,
             );
             RSEQ_NODE.store(if yes { 2 } else { 1 }, Relaxed);
             yes
@@ -199,7 +199,7 @@ pub fn rseq_node() -> Option<usize> {
     filled.then(|| usize::try_from(area.node_id()).unwrap_or(0))
 }
 
-/// Whether Liella registered the calling thread's rseq area, so its `node_id` is Liella's to read
+/// Whether libniji registered the calling thread's rseq area, so its `node_id` is libniji's to read
 /// (D-3.21). A thread another C library registered (or none did) answers false.
 pub fn rseq_owned() -> bool {
     crate::thread::own_rseq().is_some()
@@ -207,7 +207,7 @@ pub fn rseq_owned() -> bool {
 
 /// The calling thread's NUMA node (D-3.12), asked only when the heap chooses a cache or a
 /// slab and only when more than one node is allowed (D-3.20): the rseq area's `node_id` when
-/// Liella registered the thread's area and the kernel fills it (D-3.21), otherwise the vDSO
+/// libniji registered the thread's area and the kernel fills it (D-3.21), otherwise the vDSO
 /// `getcpu` (no system call), remembered in the thread block as node + 1 for the next slow
 /// path. A thread that migrates is noticed at its next slow path.
 fn node_hint() -> usize {
@@ -253,12 +253,12 @@ pub fn checked<T>(what: &str, r: Result<T, Misuse>) -> T {
 
 /// Make room for `len` more bytes in the obstack's current object (`_obstack_newchunk`'s
 /// growth: the object moves to a new chunk).
-pub(crate) fn obstack_grow_room(o: &mut liella_abi::layout::struct_obstack, len: usize) {
+pub(crate) fn obstack_grow_room(o: &mut niji_abi::layout::struct_obstack, len: usize) {
     // UNSAFE(slice): the obstack's chunks are memory its own functions handed to it.
     #[allow(unsafe_code)]
     // SAFETY: the obstack's chunk and object addresses are its own allocations (§3.4).
     let mem = unsafe { crate::conv::ctext() };
-    liella_legacy::obstack::obstack_newchunk(
+    niji_legacy::obstack::obstack_newchunk(
         o,
         len,
         mem,
@@ -283,19 +283,19 @@ pub fn obstack_handler() -> usize {
 /// The default `obstack_alloc_failed_handler`: report and exit with `obstack_exit_failure`.
 /// (`exit` runs no `atexit` handlers until phase 4.)
 pub extern "C" fn default_obstack_failure() {
-    let _ = CSys.write(Fd::STDERR, liella_legacy::obstack::EXHAUSTED);
+    let _ = CSys.write(Fd::STDERR, niji_legacy::obstack::EXHAUSTED);
     CSys.exit_group(crate::data::obstack_exit_failure.load(core::sync::atomic::Ordering::Relaxed))
 }
 
 /// Rust's global allocator in the products (`#[global_allocator]` is set by the product
 /// crate, phase 4): the same heap, with sizes and alignments from `Layout`.
-pub struct Liella;
+pub struct Niji;
 
 // UNSAFE(allocator): implementing `GlobalAlloc` is the allocator category itself.
 // SAFETY: blocks come from `HEAP`, which never hands out overlapping live blocks, honours the
 // layout's size and alignment, and returns null on exhaustion.
 #[allow(unsafe_code)]
-unsafe impl GlobalAlloc for Liella {
+unsafe impl GlobalAlloc for Niji {
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -321,13 +321,13 @@ unsafe impl GlobalAlloc for Liella {
     }
 }
 
-/// [`Liella`]'s `alloc`: `size` bytes at `align` (a power of two) from [`HEAP`], else from the
+/// [`libniji`]'s `alloc`: `size` bytes at `align` (a power of two) from [`HEAP`], else from the
 /// reserve; 0 without memory.
 pub fn rust_alloc(size: usize, align: usize) -> usize {
     HEAP.alloc(&CSys, &KernelPages, size, align).map_or_else(|| reserve_alloc(size, align), |b| b.addr)
 }
 
-/// [`Liella`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
+/// [`libniji`]'s `alloc_zeroed`: as [`rust_alloc`], zeroed; a block the heap reports as already
 /// zero (fresh pages) is not written again, as `calloc` does.
 pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
     match HEAP.alloc(&CSys, &KernelPages, size, align) {
@@ -347,14 +347,14 @@ pub fn rust_alloc_zeroed(size: usize, align: usize) -> usize {
     }
 }
 
-/// [`Liella`]'s `dealloc` of the block at `addr` that was allocated with `size` bytes.
+/// [`libniji`]'s `dealloc` of the block at `addr` that was allocated with `size` bytes.
 pub fn rust_dealloc(addr: usize, size: usize) {
     if !reserve_free(addr, size) {
         checked("free", HEAP.free(&CSys, &KernelPages, addr));
     }
 }
 
-/// [`Liella`]'s `realloc` (HEAP-CUTS C2): the live block at `addr`, allocated with `size` bytes
+/// [`libniji`]'s `realloc` (HEAP-CUTS C2): the live block at `addr`, allocated with `size` bytes
 /// at `align`, resized to `new_size` (> 0) bytes; its new address, or 0 without memory (the
 /// block is then unchanged). A heap block at the heap's own alignment goes through
 /// [`Heap::resize`], so a growth inside its size class stays in place and a large block moves by
@@ -394,7 +394,7 @@ const RESERVE: usize = 64 << 10;
 #[repr(C, align(4096))]
 struct Reserve([AtomicU64; RESERVE / 8]);
 static RESERVE_MEM: Reserve = Reserve([const { AtomicU64::new(0) }; RESERVE / 8]);
-static RESERVE_LOCK: liella_rt::sync::RawMutex = liella_rt::sync::RawMutex::new();
+static RESERVE_LOCK: niji_rt::sync::RawMutex = niji_rt::sync::RawMutex::new();
 /// The first free byte (an offset) and the number of live blocks.
 static RESERVE_TOP: AtomicUsize = AtomicUsize::new(0);
 static RESERVE_LIVE: AtomicUsize = AtomicUsize::new(0);
@@ -441,15 +441,15 @@ fn reserve_free(addr: usize, size: usize) -> bool {
 
 // ------------------------------------------------------------------------------ the C family
 
-/// The C `malloc` family's debugging state (`liella_legacy::malloc_debug`; D-3.5 as decided
-/// in phase 13): `M_PERTURB`, `mcheck`, `mtrace`. In the products (feature `export`) Liella's
+/// The C `malloc` family's debugging state (`niji_legacy::malloc_debug`; D-3.5 as decided
+/// in phase 13): `M_PERTURB`, `mcheck`, `mtrace`. In the products (feature `export`) libniji's
 /// heap serves the process from its start, so the state starts as `VIRGIN` and `mcheck` can
 /// succeed before the first allocation; in a test build the host's allocator served the
 /// process first, so it is always too late there. A test build (`selftest` without `runtime`:
 /// the host started the process, so [`perturb_from_start`] never ran) starts with `ENVIRON`
 /// as well: its first call through the C family reads [`TEST_PERTURB`] ([`begin`]).
 /// Every build starts with [`malloc_debug::FOREIGN`] (D-X.60): until the runtime takes the
-/// process, the heap words of the thread blocks are not known to be Liella's, so every C entry
+/// process, the heap words of the thread blocks are not known to be libniji's, so every C entry
 /// takes its general path, whose pages ([`KernelPages`]) ask whose block it is.
 pub(crate) static DEBUG: Debug = Debug::new(
     malloc_debug::FOREIGN
@@ -461,7 +461,7 @@ pub(crate) static DEBUG: Debug = Debug::new(
 /// The test runner sets it so that every test poisons the blocks it frees and a read after
 /// `free` sees the fill byte on every host, instead of whatever a reuse left there. Its own name,
 /// not `MALLOC_PERTURB_`, so that the host's allocator (cargo, rustc) does not perturb too.
-pub const TEST_PERTURB: &[u8] = b"LIELLA_TEST_MALLOC_PERTURB";
+pub const TEST_PERTURB: &[u8] = b"NIJI_TEST_MALLOC_PERTURB";
 
 /// [`Debug::begin`] for the debugging paths; in a test build the first one takes its settings
 /// from the environment ([`malloc_debug::ENVIRON`]).
@@ -509,7 +509,7 @@ impl Mem for BlockMem {
         // memory of that length.
         let b = unsafe { crate::conv::buf(core::ptr::with_exposed_provenance(addr), out.len()) };
         if let Ok(b) = b {
-            liella::bytes::copy(out, b);
+            niji::bytes::copy(out, b);
         }
     }
     fn write(&self, addr: usize, bytes: &[u8]) {
@@ -518,7 +518,7 @@ impl Mem for BlockMem {
         // SAFETY: as `read`: the guards of a block the calling operation just allocated.
         let b = unsafe { crate::conv::buf_mut(core::ptr::with_exposed_provenance_mut(addr), bytes.len()) };
         if let Ok(b) = b {
-            liella::bytes::copy(b, bytes);
+            niji::bytes::copy(b, bytes);
         }
     }
     fn fill(&self, addr: usize, len: usize, byte: u8) {
@@ -527,7 +527,7 @@ impl Mem for BlockMem {
         // SAFETY: as `write`: a block the calling operation allocated or is releasing.
         let b = unsafe { crate::conv::buf_mut(core::ptr::with_exposed_provenance_mut(addr), len) };
         if let Ok(b) = b {
-            liella::bytes::fill(b, byte);
+            niji::bytes::fill(b, byte);
         }
     }
     fn copy(&self, from: usize, to: usize, len: usize) {
@@ -734,7 +734,7 @@ pub(crate) fn c_memalign(align: usize, n: usize) -> KResult<usize> {
 
 /// `posix_memalign`.
 #[inline(always)]
-pub(crate) fn c_posix_memalign(mut out: impl liella_legacy::string_compat::Cursor, align: usize, n: usize) -> KResult<()> {
+pub(crate) fn c_posix_memalign(mut out: impl niji_legacy::string_compat::Cursor, align: usize, n: usize) -> KResult<()> {
     if DEBUG.active() {
         let p = malloc_compat::posix_memalign_request(align).and_then(|a| debug_alloc(n, a, false))?;
         out.set(p);
@@ -802,9 +802,9 @@ fn entry_points() -> [usize; 25] {
     type Free = extern "C" fn(*mut c_void);
     type Resize = extern "C" fn(*mut c_void, usize) -> *mut c_void;
     let size: [Size; 6] = [m::malloc, m::__libc_malloc, m::valloc, m::__libc_valloc, m::pvalloc, m::__libc_pvalloc];
-    let two: [Two; 7] = [m::calloc, m::__libc_calloc, m::aligned_alloc, m::memalign, m::__libc_memalign, n::liella_heap_alloc, n::liella_heap_alloc_zeroed];
-    let free: [Free; 4] = [m::free, m::__libc_free, m::cfree, n::liella_heap_free];
-    let resize: [Resize; 3] = [m::realloc, m::__libc_realloc, n::liella_heap_realloc];
+    let two: [Two; 7] = [m::calloc, m::__libc_calloc, m::aligned_alloc, m::memalign, m::__libc_memalign, n::niji_heap_alloc, n::niji_heap_alloc_zeroed];
+    let free: [Free; 4] = [m::free, m::__libc_free, m::cfree, n::niji_heap_free];
+    let resize: [Resize; 3] = [m::realloc, m::__libc_realloc, n::niji_heap_realloc];
     let array: extern "C" fn(*mut c_void, usize, usize) -> *mut c_void = m::reallocarray;
     let posix: extern "C" fn(Option<&mut *mut c_void>, usize, usize) -> c_int = m::posix_memalign;
     let alloc: fn(usize, usize, bool) -> KResult<usize> = debug_alloc;
@@ -832,7 +832,7 @@ fn report(status: i32) {
             crate::ret::abort()
         }
         f => {
-            let _ = crate::ffi::liella_machine_call3(f, i64::from(status), 0, 0);
+            let _ = crate::ffi::niji_machine_call3(f, i64::from(status), 0, 0);
         }
     }
 }
@@ -964,7 +964,7 @@ impl StreamLines {
     }
 }
 
-impl liella::num::format::Sink for StreamLines {
+impl niji::num::format::Sink for StreamLines {
     fn put(&mut self, mut bytes: &[u8]) {
         // A run at a time: up to the next newline (which ends the line) or the buffer's end.
         while !bytes.is_empty() {
@@ -1012,12 +1012,12 @@ pub fn malloc_info(options: core::ffi::c_int, fp: usize) -> KResult<()> {
 /// A heap block of `n` 8-byte words for an object the library hands to C (a `locale_t`):
 /// its address, or `None` when memory is exhausted.
 pub(crate) fn alloc_words(n: usize) -> Option<usize> {
-    liella_legacy::malloc_compat::malloc(&CTX, n.checked_mul(8)?).ok().filter(|a| *a != 0)
+    niji_legacy::malloc_compat::malloc(&CTX, n.checked_mul(8)?).ok().filter(|a| *a != 0)
 }
 
 /// Release a block [`alloc_words`] returned.
 pub(crate) fn free_words(addr: usize) {
-    checked("freelocale", liella_legacy::malloc_compat::free(&CTX, addr));
+    checked("freelocale", niji_legacy::malloc_compat::free(&CTX, addr));
 }
 
 // The last impl of the module on purpose: the mangled names of a module's impls number them in
@@ -1067,7 +1067,7 @@ impl Pages for OwnPages {
     #[inline(always)]
     fn cache_word(&self) -> usize {
         // HEAP-CUTS2 C4: one `%fs`-relative load (plan S2 category tb-field); the block is
-        // Liella's (see the type).
+        // libniji's (see the type).
         crate::tb::read::<crate::tb::HeapCache>()
     }
     #[inline(always)]

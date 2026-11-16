@@ -2,9 +2,9 @@
 # C conformance suite (implementation-plan.md §4.3).
 #
 # Each conformance/c/*.c file is a self-checking C program that includes only standard headers
-# (the installed glibc 2.39 headers: Liella is ABI-compatible with them) and Liella's own
-# `include/` (the native C ABI's `liella/native.h`, D-X.10), links statically
-# against Liella's libc.a with Liella's start object, and is started by Liella's own runtime.
+# (the installed glibc 2.39 headers: libniji is ABI-compatible with them) and libniji's own
+# `include/` (the native C ABI's `niji/native.h`, D-X.10), links statically
+# against libniji's libc.a with libniji's start object, and is started by libniji's own runtime.
 # These tests exercise the library exactly as compiled C code does: real headers, real calling
 # convention, real data-symbol access, real process start and exit.
 #
@@ -21,19 +21,19 @@
 #   /* RUN-WRAP: cmd args */       run under cmd (e.g. `unshare -U --map-auto --map-root-user`,
 #                                  a user namespace with several IDs); skipped (and reported)
 #                                  if `cmd args true` fails here
-#   /* LINK-LIBM: yes */           also link Liella's libm.a (before libc.a), for a program that
+#   /* LINK-LIBM: yes */           also link libniji's libm.a (before libc.a), for a program that
 #                                  calls a libm export (fesetround, ...); FAIL if it is missing
 #   /* LINK-UNWIND: yes */         also link the compiler's unwinder (libgcc_eh)
 #   /* LINK-CXX: yes */            the source is C++17 (compiled by $CXX, default c++) and links
-#                                  the compiler's static libstdc++ before Liella's libraries;
+#                                  the compiler's static libstdc++ before libniji's libraries;
 #                                  use with LINK-LIBM and LINK-UNWIND
 #   /* LINK-NOW: yes */            link with -z now -z relro (the GOT, .got.plt included, lies
 #                                  in PT_GNU_RELRO)
 #   /* LINK-STATIC-PIE: relr */    link a static PIE (-static-pie), relative relocations packed
 #                                  (relr) or as RELA entries (rela); it relocates itself
 #   /* LINK-HELPERS: a b */        dynamic-link mode: the program links dynamically and runs twice,
-#                                  on the reference C library and under Liella's ld.so with
-#                                  Liella's libc.so.6; both runs must meet the EXPECT-* directives.
+#                                  on the reference C library and under libniji's ld.so with
+#                                  libniji's libc.so.6; both runs must meet the EXPECT-* directives.
 #                                  Each name is a helper source conformance/c/helpers/<name>.c,
 #                                  built as a shared object and linked into the program by path
 #                                  (DT_NEEDED, in this order, even if unused by name).
@@ -43,9 +43,9 @@
 #                                  line per helper), given in conformance/c/helpers (relative
 #                                  files resolve there) with -L at the helper directory
 #   /* LINK-EXPORT-DYNAMIC: yes */ dynamic-link mode: the program exports its symbols (-rdynamic)
-#   /* PENDING-LIELLA: STORY */    dynamic-link mode: Liella's run is expected to fail until STORY
-#                                  lands. The reference must pass; Liella's run failing is reported
-#                                  PENDING and counted, and Liella's run passing is a FAIL (drop
+#   /* PENDING-NIJI: STORY */    dynamic-link mode: libniji's run is expected to fail until STORY
+#                                  lands. The reference must pass; libniji's run failing is reported
+#                                  PENDING and counted, and libniji's run passing is a FAIL (drop
 #                                  the directive). A build failure is a FAIL either way.
 #                                  The program finds its helpers in $CONF_HELPERS (also on
 #                                  LD_LIBRARY_PATH). See conformance/README.md.
@@ -53,10 +53,10 @@
 # `sh conformance/run.sh [name ...]` runs only the named tests. Until `cargo xtask so` has
 # produced libc.a and the start object, the suite reports SKIPPED and succeeds.
 #
-# `sh conformance/run.sh --liella-headers [name ...]` (plan/headers.md P6) builds the programs
-# against Liella's own headers instead of the build host's: `-nostdinc`, then the tree `cargo
-# xtask so` staged in target/liella/include, the compiler's own include directory and the staged
-# kernel UAPI headers (target/liella/uapi). Only the programs whose every `#include <...>` one of
+# `sh conformance/run.sh --niji-headers [name ...]` (plan/headers.md P6) builds the programs
+# against libniji's own headers instead of the build host's: `-nostdinc`, then the tree `cargo
+# xtask so` staged in target/niji/include, the compiler's own include directory and the staged
+# kernel UAPI headers (target/niji/uapi). Only the programs whose every `#include <...>` one of
 # those directories holds are built (C programs; C++ needs the C++ library's headers); the others
 # are listed NOT-COVERED and are not counted, unless named on the command line (then a FAIL).
 # Executables and logs carry `.lh` (conformance/build/<name>.lh.log), apart from the default mode's.
@@ -64,23 +64,23 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
 target=${CARGO_TARGET_DIR:-$root/target}
-libc="$target/liella/libc.a"
-crt="$target/liella/liella-crt1.o"
+libc="$target/niji/libc.a"
+crt="$target/niji/niji-crt1.o"
 # A static PIE's start object (D-27.10: its _start relocates the executable first).
-rcrt="$target/liella/liella-rcrt1.o"
+rcrt="$target/niji/niji-rcrt1.o"
 cc=${CC:-cc}
 lh=""
-if [ "${1:-}" = "--liella-headers" ]; then
+if [ "${1:-}" = "--niji-headers" ]; then
     lh=1; shift
 fi
 # The header search path, as up to four words (a path may hold blanks; the joined `-isystem<dir>`
-# keeps each one word): the build host's headers plus Liella's `include/` (liella/native.h), or
-# in --liella-headers mode Liella's staged headers alone.
+# keeps each one word): the build host's headers plus libniji's `include/` (niji/native.h), or
+# in --niji-headers mode libniji's staged headers alone.
 inc1="-I$root/include"; inc2=""; inc3=""; inc4=""
 if [ -n "$lh" ]; then
-    stage="$target/liella/include"; uapi="$target/liella/uapi"; gccinc=$("$cc" -print-file-name=include)
+    stage="$target/niji/include"; uapi="$target/niji/uapi"; gccinc=$("$cc" -print-file-name=include)
     if [ ! -f "$stage/features.h" ] || [ ! -d "$uapi" ]; then
-        echo "conformance: FAIL --liella-headers ($stage or $uapi is missing; run cargo xtask so)"
+        echo "conformance: FAIL --niji-headers ($stage or $uapi is missing; run cargo xtask so)"
         exit 1
     fi
     inc1="-nostdinc"; inc2="-isystem$stage"; inc3="-isystem$gccinc"; inc4="-isystem$uapi"
@@ -105,13 +105,13 @@ angle_includes() (
     done
 )
 
-# Dynamic-link mode, Liella's side. Liella's ld.so does not search for libraries yet, so every
-# object Liella's build of a program needs is named by path: the program and its helpers link
-# against a copy of Liella's libc.so.6 without DT_SONAME (through a libc.so script, as an
+# Dynamic-link mode, libniji's side. libniji's ld.so does not search for libraries yet, so every
+# object libniji's build of a program needs is named by path: the program and its helpers link
+# against a copy of libniji's libc.so.6 without DT_SONAME (through a libc.so script, as an
 # installed C library is linked: the library, the host's link-time archive libc_nonshared.a, and
 # the loader as needed), and the helpers by path. No other C library is named, so the one that
-# runs is Liella's.
-ldso="$target/liella/ld-linux-x86-64.so.2"
+# runs is libniji's.
+ldso="$target/niji/ld-linux-x86-64.so.2"
 dynlibc=""
 # bypath IN OUT: a copy of the shared object IN whose DT_SONAME entry is retagged DT_CHECKSUM
 # (0x6ffffdf8, which loaders ignore), so an object linked against OUT names it by OUT's path.
@@ -122,20 +122,20 @@ bypath() {
         printf '\370\375\377\157\000\000\000\000' | dd of="$2" bs=1 seek=$((off + 16 * idx)) conv=notrunc 2>/dev/null &&
         ! readelf -Wd "$2" | grep -qF '(SONAME)'
 }
-# The libc.so script of Liella's builds, made once per run of this script ("" when the products
+# The libc.so script of libniji's builds, made once per run of this script ("" when the products
 # or the host's libc_nonshared.a are missing).
 dyn_setup() {
     [ -z "$dynlibc" ] || return 0
-    [ -f "$target/liella/libc.so.6" ] && [ -f "$ldso" ] || return 1
+    [ -f "$target/niji/libc.so.6" ] && [ -f "$ldso" ] || return 1
     nonshared=$("$cc" -print-file-name=libc_nonshared.a)
     case $nonshared in /*) ;; *) return 1 ;; esac
     d="$here/build/dynlibc.$$"
-    mkdir -p "$d" && bypath "$target/liella/libc.so.6" "$d/libc-by-path.so" || return 1
+    mkdir -p "$d" && bypath "$target/niji/libc.so.6" "$d/libc-by-path.so" || return 1
     printf 'GROUP ( "%s" "%s" AS_NEEDED ( "%s" ) )\n' "$d/libc-by-path.so" "$nonshared" "$ldso" > "$d/libc.so"
     dynlibc="$d/libc.so"
 }
 # build_helper NAME DIR [ARGS...]: conformance/c/helpers/NAME.c as DIR/libNAME.so, with the
-# program's HELPER-FLAGS for NAME, then ARGS (the C library of Liella's builds).
+# program's HELPER-FLAGS for NAME, then ARGS (the C library of libniji's builds).
 build_helper() {
     bh=$1; bd=$2; shift 2
     bflags=$(sed -n "s|^/\* HELPER-FLAGS: $bh \(.*\) \*/\$|\1|p" "$src")
@@ -194,7 +194,7 @@ else
     printf '%s\n%s\n' "$pstat" "$phash" > "$pcache.$$" && mv -f "$pcache.$$" "$pcache"
 fi
 if [ -n "$lh" ]; then
-    ihash=lh-$(cd "$target/liella" && find include uapi -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
+    ihash=lh-$(cd "$target/niji" && find include uapi -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
 else
     ihash=$(cd "$root" && find include -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
 fi
@@ -211,7 +211,7 @@ for name in "$@"; do
     src="$here/c/$name.c"
     exe="$here/build/$name${lh:+.lh}"
     log="$here/build/$name.log"
-    # --liella-headers: its own log (the default line above is the format `cargo xtask affected` reads).
+    # --niji-headers: its own log (the default line above is the format `cargo xtask affected` reads).
     [ -z "$lh" ] || log="$here/build/$name.lh.log"
     if [ -n "$lh" ]; then
         miss=""
@@ -221,7 +221,7 @@ for name in "$@"; do
         [ -z "$(directive LINK-CXX "$src")" ] || miss="$miss (C++)"
         if [ -n "$miss" ]; then
             if [ "$named" -gt 0 ]; then
-                echo "conformance: FAIL $name (not covered by Liella's headers:$miss)"
+                echo "conformance: FAIL $name (not covered by libniji's headers:$miss)"
                 fail=$((fail + 1))
             else
                 echo "conformance: NOT-COVERED $name:$miss"
@@ -235,11 +235,11 @@ for name in "$@"; do
     # for the next name releases this one; the program itself does not inherit it.
     exec 9>"$exe.lock"
     if command -v flock >/dev/null 2>&1; then flock 9; fi
-    # LINK-LIBM: Liella's libm.a goes before libc.a (its undefined symbols resolve in libc.a);
+    # LINK-LIBM: libniji's libm.a goes before libc.a (its undefined symbols resolve in libc.a);
     # its hash joins the key, so a rebuilt libm.a relinks the program.
     libm=""; mhash=""
     if [ -n "$(directive LINK-LIBM "$src")" ]; then
-        libm="$target/liella/libm.a"
+        libm="$target/niji/libm.a"
         if [ ! -f "$libm" ]; then
             echo "conformance: FAIL $name (LINK-LIBM: $libm is missing; run cargo xtask so)"
             fail=$((fail + 1))
@@ -270,7 +270,7 @@ for name in "$@"; do
     fi
     # LINK-STATIC-PIE: a static PIE that relocates itself at start (D-27.10), its relative
     # relocations as RELA entries (rela) or packed (relr, -z pack-relative-relocs). It starts from
-    # liella-rcrt1.o, as a -static-pie link with the system's C library starts from its rcrt1.o.
+    # niji-rcrt1.o, as a -static-pie link with the system's C library starts from its rcrt1.o.
     start=$crt
     case "$(directive LINK-STATIC-PIE "$src")" in
         "") ;;
@@ -284,27 +284,27 @@ for name in "$@"; do
         cxxbegin=$("$comp" -print-file-name=crtbeginS.o); cxxend=$("$comp" -print-file-name=crtendS.o)
     fi
     # LINK-HELPERS / DLOPEN-HELPERS: dynamic-link mode. Two builds of the helpers and the program:
-    # the reference's (the host's C library and loader) and Liella's (Liella's libc.so.6 by path,
-    # Liella's ld.so as the program interpreter). Each helper is checked to exist after its build,
+    # the reference's (the host's C library and loader) and libniji's (libniji's libc.so.6 by path,
+    # libniji's ld.so as the program interpreter). Each helper is checked to exist after its build,
     # in both sets: a helper left unbuilt fails the test, whichever run would have noticed.
     dyn=""; linked=$(directive LINK-HELPERS "$src"); opened=$(directive DLOPEN-HELPERS "$src")
     helpers="$linked $opened"
     if [ -n "$linked" ] || [ -n "$opened" ]; then
         dyn=1; : > "$log"
-        hdir="$exe.helpers"; ldir="$exe.helpers-liella"; mkdir -p "$hdir" "$ldir"
+        hdir="$exe.helpers"; ldir="$exe.helpers-niji"; mkdir -p "$hdir" "$ldir"
         rm -f "$hdir"/*.so "$ldir"/*.so
         hbad=""
-        dyn_setup || hbad="no libc.so.6, ld.so or host libc_nonshared.a for Liella's build; run cargo xtask so"
+        dyn_setup || hbad="no libc.so.6, ld.so or host libc_nonshared.a for libniji's build; run cargo xtask so"
         for h in $helpers; do
             [ -z "$hbad" ] || break
             if [ ! -f "$here/c/helpers/$h.c" ]; then hbad="missing helper source conformance/c/helpers/$h.c"; break; fi
             build_helper "$h" "$hdir" || { hbad="helper $h does not build"; break; }
-            build_helper "$h" "$ldir" -nodefaultlibs "$dynlibc" -lgcc || { hbad="helper $h does not build against Liella"; break; }
+            build_helper "$h" "$ldir" -nodefaultlibs "$dynlibc" -lgcc || { hbad="helper $h does not build against libniji"; break; }
             [ -f "$hdir/lib$h.so" ] && [ -f "$ldir/lib$h.so" ] || { hbad="helper $h was not built"; break; }
         done
         rdyn=""; [ -z "$(directive LINK-EXPORT-DYNAMIC "$src")" ] || rdyn="-rdynamic"
-        pend=$(directive PENDING-LIELLA "$src")
-        # A pending program may call what Liella does not export yet: its run fails, not its link.
+        pend=$(directive PENDING-NIJI "$src")
+        # A pending program may call what libniji does not export yet: its run fails, not its link.
         unres=""; [ -z "$pend" ] || unres="-Wl,--unresolved-symbols=ignore-all"
         # The linked helpers by path, one per line (the repository path may hold blanks):
         # --no-as-needed keeps a helper the program reaches only through dlsym as DT_NEEDED.
@@ -323,9 +323,9 @@ $ldir/lib$h.so"
                 rm -f "$exe.$$"; hbad="does not build"
             # shellcheck disable=SC2086
             elif ! "$cc" -std=c17 -O1 $rdyn -nodefaultlibs "-Wl,--dynamic-linker=$ldso" $unres "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$src" \
-                  -Wl,--no-as-needed $llibs "$dynlibc" -lgcc -o "$exe-liella.$$" >>"$log" 2>&1 \
-                  || ! mv -f "$exe-liella.$$" "$exe-liella"; then
-                rm -f "$exe-liella.$$"; hbad="does not build against Liella"
+                  -Wl,--no-as-needed $llibs "$dynlibc" -lgcc -o "$exe-niji.$$" >>"$log" 2>&1 \
+                  || ! mv -f "$exe-niji.$$" "$exe-niji"; then
+                rm -f "$exe-niji.$$"; hbad="does not build against libniji"
             fi
             IFS=$oldifs
         fi
@@ -358,7 +358,7 @@ $ldir/lib$h.so"
     fi
     want_exit=$(directive EXPECT-EXIT "$src"); want_exit=${want_exit:-0}
     want_sig=$(directive EXPECT-SIGNAL "$src")
-    # Dynamic-link mode: the reference's run, then Liella's, each judged as a static program is.
+    # Dynamic-link mode: the reference's run, then libniji's, each judged as a static program is.
     if [ -n "$dyn" ]; then
         run_dyn "$exe" "$hdir" ref
         verdict "$name (reference)" "$log.ref.stderr"
@@ -367,18 +367,18 @@ $ldir/lib$h.so"
             fail=$((fail + 1))
             continue
         fi
-        run_dyn "$exe-liella" "$ldir" liella
-        verdict "$name (Liella)" "$log.liella.stderr"
+        run_dyn "$exe-niji" "$ldir" niji
+        verdict "$name (libniji)" "$log.niji.stderr"
         if [ -n "$pend" ] && [ "$ok" -eq 1 ]; then
-            echo "conformance: FAIL $name (PENDING-LIELLA: $pend, but Liella's run meets the expectations now: remove the directive and the pending mark of its clause test)"
+            echo "conformance: FAIL $name (PENDING-NIJI: $pend, but libniji's run meets the expectations now: remove the directive and the pending mark of its clause test)"
             fail=$((fail + 1))
         elif [ -n "$pend" ]; then
-            echo "conformance: PENDING $name on Liella until $pend (fails as expected; stderr: $(head -c 200 "$log.liella.stderr" | head -n 1))"
+            echo "conformance: PENDING $name on libniji until $pend (fails as expected; stderr: $(head -c 200 "$log.niji.stderr" | head -n 1))"
             pass=$((pass + 1)); pending=$((pending + 1))
         elif [ "$ok" -eq 1 ]; then
             pass=$((pass + 1))
         else
-            echo "conformance: FAIL $name on Liella (stderr: conformance/build/$name.log.liella.stderr)"
+            echo "conformance: FAIL $name on libniji (stderr: conformance/build/$name.log.niji.stderr)"
             fail=$((fail + 1))
         fi
         continue
@@ -389,7 +389,7 @@ $ldir/lib$h.so"
             echo "conformance: SKIP $name (secure mode needs a supplementary group)"
             continue
         fi
-        secure="${TMPDIR:-/tmp}/liella-conformance-$name-$$"   # per run: concurrent gates shared one path and removed each other's copy
+        secure="${TMPDIR:-/tmp}/niji-conformance-$name-$$"   # per run: concurrent gates shared one path and removed each other's copy
         cp "$exe" "$secure" && chgrp "$group" "$secure" && chmod g+s "$secure" && exe="$secure"
     fi
     set +e
@@ -414,12 +414,12 @@ $ldir/lib$h.so"
         fail=$((fail + 1))
     fi
 done
-# The pending count (PENDING-LIELLA programs, counted in passed) is reported apart.
+# The pending count (PENDING-NIJI programs, counted in passed) is reported apart.
 if [ -n "$lh" ]; then
-    echo "conformance: Liella's headers: $uncovered programs not covered (not counted)"
+    echo "conformance: libniji's headers: $uncovered programs not covered (not counted)"
 fi
 if [ "$pending" -gt 0 ]; then
-    echo "conformance: $pass passed, $fail failed ($pending of them pending on Liella)"
+    echo "conformance: $pass passed, $fail failed ($pending of them pending on libniji)"
 else
     echo "conformance: $pass passed, $fail failed"
 fi

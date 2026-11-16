@@ -9,12 +9,12 @@
  * after the swap, memset's page is a mapping of its own, one page long, whose file offset is one
  * page further on, and the page after it is a hole. Without the swap memset's page lies inside
  * the text mapping. Each start then sweeps memset against a byte loop. The swap is off by
- * default (ruling #3434); `liella.compat.no_classed_swap=0` (COMPAT-20) turns it on.
+ * default (ruling #3434); `niji.compat.no_classed_swap=0` (COMPAT-20) turns it on.
  *   default                                 the SSE2 page on every host
- *   GLIBC_TUNABLES=liella.compat.no_classed_swap=0   the AVX2 page on an AVX2 host (AVX2 and YMM
+ *   GLIBC_TUNABLES=niji.compat.no_classed_swap=0   the AVX2 page on an AVX2 host (AVX2 and YMM
  *                                           state saved, /proc/self/pagemap readable), else SSE2
  *   ...=0 with glibc.cpu.hwcaps=-AVX2       the SSE2 page (the test override, every host)
- *   GLIBC_TUNABLES=liella.compat.no_classed_swap=1   the SSE2 page
+ *   GLIBC_TUNABLES=niji.compat.no_classed_swap=1   the SSE2 page
  *   swap on, PTRACE_TRACEME, one unchanged word of memset's page written back at the exec stop
  *     (as a debugger's breakpoint makes the page anonymous): the SSE2 page (the pagemap guard)
  *   swap on, PR_SET_MDWE(PR_MDWE_REFUSE_EXEC_GAIN) set before execve: the AVX2 page on an AVX2
@@ -234,9 +234,9 @@ int main(int argc, char **argv) {
     if (strcmp(best, "sse2") == 0)
         printf("s04_classed_memset: no AVX2 class here (or no /proc/self/pagemap): every start keeps the SSE2 page\n");
     char *plain[] = {0};
-    char *swap_on[] = {"GLIBC_TUNABLES=liella.compat.no_classed_swap=0", 0};
-    char *no_avx2[] = {"GLIBC_TUNABLES=liella.compat.no_classed_swap=0:glibc.cpu.hwcaps=-AVX2", 0};
-    char *compat[] = {"GLIBC_TUNABLES=liella.compat.no_classed_swap=1", 0};
+    char *swap_on[] = {"GLIBC_TUNABLES=niji.compat.no_classed_swap=0", 0};
+    char *no_avx2[] = {"GLIBC_TUNABLES=niji.compat.no_classed_swap=0:glibc.cpu.hwcaps=-AVX2", 0};
+    char *compat[] = {"GLIBC_TUNABLES=niji.compat.no_classed_swap=1", 0};
     int bad = 0;
     bad |= start("default (swap off)", PLAIN, plain, "sse2") == 1;
     bad |= start("no_classed_swap=0", PLAIN, swap_on, best) == 1;

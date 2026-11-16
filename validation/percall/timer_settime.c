@@ -1,4 +1,4 @@
-/* timer_settime per-call counts (TIMER-SETTIME-WINDOW, #544): a SIGEV_THREAD timer (Liella's timerfd path, which counts
+/* timer_settime per-call counts (TIMER-SETTIME-WINDOW, #544): a SIGEV_THREAD timer (libniji's timerfd path, which counts
  * itself in and out of the helper's read window) and a SIGEV_NONE kernel timer (unchanged path, control). Each call
  * disarms an already disarmed timer, so nothing ever expires and no notification runs.
  * Run: validation/wl_percall.sh --spec validation/percall/timer_settime.c <wt> */

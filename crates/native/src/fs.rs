@@ -1,4 +1,4 @@
-//! The file system (`liella_fs_*`): open, status, directories, names. Paths are bytes, not
+//! The file system (`niji_fs_*`): open, status, directories, names. Paths are bytes, not
 //! NUL-terminated, without an interior NUL (`EINVAL`) and shorter than `PATH_MAX`
 //! (`ENAMETOOLONG`); a relative path is resolved against the current directory.
 
@@ -12,50 +12,50 @@ use crate::fd::Fd;
 use crate::ffi;
 use crate::Errno;
 
-/// Open for reading only (`LIELLA_O_RDONLY`).
+/// Open for reading only (`NIJI_O_RDONLY`).
 pub const O_RDONLY: u32 = 0x0;
-/// Open for writing only (`LIELLA_O_WRONLY`).
+/// Open for writing only (`NIJI_O_WRONLY`).
 pub const O_WRONLY: u32 = 0x1;
-/// Open for reading and writing (`LIELLA_O_RDWR`).
+/// Open for reading and writing (`NIJI_O_RDWR`).
 pub const O_RDWR: u32 = 0x2;
-/// Create the file if it does not exist, with the mode given (`LIELLA_O_CREAT`).
+/// Create the file if it does not exist, with the mode given (`NIJI_O_CREAT`).
 pub const O_CREAT: u32 = 0x40;
-/// With [`O_CREAT`]: fail with `EEXIST` if the file exists (`LIELLA_O_EXCL`).
+/// With [`O_CREAT`]: fail with `EEXIST` if the file exists (`NIJI_O_EXCL`).
 pub const O_EXCL: u32 = 0x80;
-/// Truncate a regular file opened for writing to length 0 (`LIELLA_O_TRUNC`).
+/// Truncate a regular file opened for writing to length 0 (`NIJI_O_TRUNC`).
 pub const O_TRUNC: u32 = 0x200;
-/// Every write appends at the end of the file (`LIELLA_O_APPEND`).
+/// Every write appends at the end of the file (`NIJI_O_APPEND`).
 pub const O_APPEND: u32 = 0x400;
-/// Non-blocking I/O (`LIELLA_O_NONBLOCK`).
+/// Non-blocking I/O (`NIJI_O_NONBLOCK`).
 pub const O_NONBLOCK: u32 = 0x800;
-/// Fail with `ENOTDIR` unless the path names a directory (`LIELLA_O_DIRECTORY`).
+/// Fail with `ENOTDIR` unless the path names a directory (`NIJI_O_DIRECTORY`).
 pub const O_DIRECTORY: u32 = 0x10000;
-/// Fail with `ELOOP` if the final component is a symbolic link (`LIELLA_O_NOFOLLOW`).
+/// Fail with `ELOOP` if the final component is a symbolic link (`NIJI_O_NOFOLLOW`).
 pub const O_NOFOLLOW: u32 = 0x20000;
-/// Close the descriptor on exec (`LIELLA_O_CLOEXEC`); [`open`] does not imply it.
+/// Close the descriptor on exec (`NIJI_O_CLOEXEC`); [`open`] does not imply it.
 pub const O_CLOEXEC: u32 = 0x80000;
 
-/// `liella_fs_stat`: describe a final symbolic link itself (`LIELLA_FS_NOFOLLOW`).
+/// `niji_fs_stat`: describe a final symbolic link itself (`NIJI_FS_NOFOLLOW`).
 const FS_NOFOLLOW: u32 = 0x100;
 
-/// The file-type bits of [`Stat::mode`] (`LIELLA_S_IFMT`).
+/// The file-type bits of [`Stat::mode`] (`NIJI_S_IFMT`).
 pub const S_IFMT: u32 = 0o170000;
-/// A socket (`LIELLA_S_IFSOCK`).
+/// A socket (`NIJI_S_IFSOCK`).
 pub const S_IFSOCK: u32 = 0o140000;
-/// A symbolic link (`LIELLA_S_IFLNK`).
+/// A symbolic link (`NIJI_S_IFLNK`).
 pub const S_IFLNK: u32 = 0o120000;
-/// A regular file (`LIELLA_S_IFREG`).
+/// A regular file (`NIJI_S_IFREG`).
 pub const S_IFREG: u32 = 0o100000;
-/// A block device (`LIELLA_S_IFBLK`).
+/// A block device (`NIJI_S_IFBLK`).
 pub const S_IFBLK: u32 = 0o060000;
-/// A directory (`LIELLA_S_IFDIR`).
+/// A directory (`NIJI_S_IFDIR`).
 pub const S_IFDIR: u32 = 0o040000;
-/// A character device (`LIELLA_S_IFCHR`).
+/// A character device (`NIJI_S_IFCHR`).
 pub const S_IFCHR: u32 = 0o020000;
-/// A FIFO (`LIELLA_S_IFIFO`).
+/// A FIFO (`NIJI_S_IFIFO`).
 pub const S_IFIFO: u32 = 0o010000;
 
-/// A file's status: `struct liella_stat` (120 bytes, alignment 8), field for field.
+/// A file's status: `struct niji_stat` (120 bytes, alignment 8), field for field.
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub struct Stat {
@@ -89,7 +89,7 @@ pub struct Stat {
     pub reserved: u32,
 }
 
-// The layout of `struct liella_stat` (include/liella/native.h asserts the same).
+// The layout of `struct niji_stat` (include/niji/native.h asserts the same).
 const _: () = assert!(size_of::<Stat>() == 120 && align_of::<Stat>() == 8);
 const _: () = assert!(offset_of!(Stat, dev) == 0 && offset_of!(Stat, ino) == 8 && offset_of!(Stat, nlink) == 16);
 const _: () = assert!(offset_of!(Stat, rdev) == 24 && offset_of!(Stat, size) == 32 && offset_of!(Stat, blksize) == 40);

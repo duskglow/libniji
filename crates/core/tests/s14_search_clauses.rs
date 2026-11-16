@@ -4,13 +4,13 @@
 
 //! Clause tests for spec §14 (56 clauses).
 //!
-//! §14.1–14.6 run against `liella::search` and `liella_legacy::search_c` over an in-memory
+//! §14.1–14.6 run against `niji::search` and `niji_legacy::search_c` over an in-memory
 //! arena with an allocation budget (for the out-of-memory clauses). §14.9 runs against
-//! `liella::pattern::regex` and the exports; §14.7, §14.8 and §14.10 against
-//! `liella::pattern::{fnmatch, glob, wordexp}` (with a virtual tree and a shell in the test) and
+//! `niji::pattern::regex` and the exports; §14.7, §14.8 and §14.10 against
+//! `niji::pattern::{fnmatch, glob, wordexp}` (with a virtual tree and a shell in the test) and
 //! the exports.
 
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::bool_assert_comparison, missing_docs)]
 
 
@@ -23,11 +23,11 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use liella::search::{self, sort_stable, sort_stable_in_place};
-use liella_abi::layout::{struct_hsearch_data, ENTRY};
-use liella_kernel::Errno;
-use liella_legacy::mb_compat::Local;
-use liella_legacy::search_c::{self, CWords, Table};
+use niji::search::{self, sort_stable, sort_stable_in_place};
+use niji_abi::layout::{struct_hsearch_data, ENTRY};
+use niji_kernel::Errno;
+use niji_legacy::mb_compat::Local;
+use niji_legacy::search_c::{self, CWords, Table};
 
 /// Caller memory as a map from addresses to words, with an allocation budget (for the
 /// out-of-memory clauses).
@@ -209,7 +209,7 @@ fn elements_in_place() {
 
 #[test]
 fn s14_1_g_2() {
-    // Stability is not promised; Liella sorts stably on both paths (D-14.1).
+    // Stability is not promised; libniji sorts stably on both paths (D-14.1).
     let mut v: Vec<u8> = (0u32..100).flat_map(|i| [(i % 3).to_le_bytes(), i.to_le_bytes()].concat()).collect();
     let mut w = v.clone();
     let mut by_key = |a: &[u8], b: &[u8]| cmp4(&a[..4], &b[..4]);
@@ -345,8 +345,8 @@ fn s14_2_c_0() {
 fn s14_3_c_0() {
     extern "C" fn eq(a: *const core::ffi::c_void, b: *const core::ffi::c_void) -> i32 {
         let (mut x, mut y) = (0u32, 0u32);
-        liella_boundary::posix::s04_strings::memcpy((&raw mut x).cast(), a, 4);
-        liella_boundary::posix::s04_strings::memcpy((&raw mut y).cast(), b, 4);
+        niji_boundary::posix::s04_strings::memcpy((&raw mut x).cast(), a, 4);
+        niji_boundary::posix::s04_strings::memcpy((&raw mut y).cast(), b, 4);
         x.cmp(&y) as i32
     }
     let mut v = ints(&[5, 6, 0]);
@@ -535,7 +535,7 @@ fn s14_5_f_1() {
 
 #[test]
 fn s14_5_f_2() {
-    // Liella grows the table instead of failing (D-14.3); entries never move.
+    // libniji grows the table instead of failing (D-14.3); entries never move.
     let names: Vec<String> = (0..50).map(|i| format!("n{i}")).collect();
     let refs: Vec<&str> = names.iter().map(String::as_str).collect();
     let a = arena_with_keys(100, &refs);
@@ -575,17 +575,17 @@ fn s14_6_c_0() {
 
 // ------------------------------------------------------------------------------ §14.9 (phase 12)
 //
-// The engine runs through `liella::pattern::regex`; the interface clauses through the exports
-// (`liella_boundary::posix::s14_search`). The whole behaviour record is compared by
+// The engine runs through `niji::pattern::regex`; the interface clauses through the exports
+// (`niji_boundary::posix::s14_search`). The whole behaviour record is compared by
 // `regex_record.rs` (library) and `patterns_products.rs` (the C interface against glibc).
 
 mod rx {
     use std::ffi::CString;
     use std::sync::Mutex;
 
-    pub(crate) use liella::pattern::regex::{self, cflags, Options, ReError, Window};
-    pub(crate) use liella_abi::layout::{regex_t, regmatch_t, struct_re_registers};
-    pub(crate) use liella_boundary::posix::s14_search as s;
+    pub(crate) use niji::pattern::regex::{self, cflags, Options, ReError, Window};
+    pub(crate) use niji_abi::layout::{regex_t, regmatch_t, struct_re_registers};
+    pub(crate) use niji_boundary::posix::s14_search as s;
 
     /// The GNU and BSD interfaces share process-wide state (`re_syntax_options`,
     /// `re_max_failures`, the `re_comp` pattern).
@@ -626,7 +626,7 @@ mod rx {
     pub(crate) type Hit = (usize, usize, Vec<(i64, i64)>);
 
     /// The library engine directly: a match of `pat` (syntax `syn`) on `subj` in locale `loc`.
-    pub(crate) fn lib(pat: &[u8], syn: u64, subj: &[u8], loc: &liella::locale::Locale) -> Option<Hit> {
+    pub(crate) fn lib(pat: &[u8], syn: u64, subj: &[u8], loc: &niji::locale::Locale) -> Option<Hit> {
         let p = regex::compile(pat, syn, loc).unwrap();
         let w = Window { first: 0, last: subj.len(), backward: false };
         let r = regex::exec(&p, loc, subj, w, &Options { budget: 1 << 26, ..Options::default() }, true).unwrap();
@@ -744,7 +744,7 @@ fn s14_9_c_1_3() {
 #[test]
 fn s14_9_c_2() {
     use rx::*;
-    use liella_boundary::data;
+    use niji_boundary::data;
     use std::sync::atomic::Ordering::Relaxed;
     let _g = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let old = s::re_set_syntax(regex::syntax::POSIX_EXTENDED);
@@ -797,7 +797,7 @@ fn reg_of(r: &rx::struct_re_registers, i: usize) -> (i32, i32) {
     assert!(i < n);
     let read = |addr: usize| {
         let mut v = 0i32;
-        liella_boundary::posix::s04_strings::memcpy((&raw mut v).cast(), core::ptr::with_exposed_provenance::<core::ffi::c_void>(addr + 4 * i), 4);
+        niji_boundary::posix::s04_strings::memcpy((&raw mut v).cast(), core::ptr::with_exposed_provenance::<core::ffi::c_void>(addr + 4 * i), 4);
         v
     };
     (read(r.start), read(r.end))
@@ -808,7 +808,7 @@ fn cstr_of(p: *const i8) -> String {
     let mut k = 0usize;
     loop {
         let mut c = 0u8;
-        liella_boundary::posix::s04_strings::memcpy((&raw mut c).cast(), p.wrapping_add(k).cast(), 1);
+        niji_boundary::posix::s04_strings::memcpy((&raw mut c).cast(), p.wrapping_add(k).cast(), 1);
         if c == 0 {
             return out;
         }
@@ -847,7 +847,7 @@ fn s14_9_c_3() {
 #[test]
 fn s14_9_g_0() {
     use rx::*;
-    use liella::locale::Locale;
+    use niji::locale::Locale;
     let ere = regex::syntax::POSIX_EXTENDED;
     let c = Locale::C;
     let g = |pat: &str, subj: &str| lib(pat.as_bytes(), ere, subj.as_bytes(), &c);
@@ -937,11 +937,11 @@ fn s14_9_f_0() {
     // Stacked minimums above 1 still need distinct copies per level (2^24 here), so a caller's
     // limit answers REG_ESPACE while the program is built.
     let stacked = "a".to_string() + &"{2,}".repeat(24);
-    let limited = regex::compile_limited(stacked.as_bytes(), regex::regcomp_syntax(E), &liella::locale::Locale::C, regex::HARNESS_MAX_NODES);
+    let limited = regex::compile_limited(stacked.as_bytes(), regex::regcomp_syntax(E), &niji::locale::Locale::C, regex::HARNESS_MAX_NODES);
     assert_eq!(limited.err(), Some(ReError::ESpace), "REG_ESPACE: 24 stacked {{2,}} levels under a caller's limit");
     // regexec: REG_NOMATCH, and REG_ESPACE when a search with back-references exceeds its budget.
     assert_eq!(m("abc", E, "xyz"), None);
-    let c = liella::locale::Locale::C;
+    let c = niji::locale::Locale::C;
     let p = regex::compile(b"(a*)*(b*)*\\1\\2c", regex::syntax::POSIX_EXTENDED, &c).unwrap();
     let subj = "ab".repeat(200);
     let w = Window { first: 0, last: subj.len(), backward: false };
@@ -950,10 +950,10 @@ fn s14_9_f_0() {
 
 // ------------------------------------------------------------------------------ §14.7, §14.8, §14.10 (phase 12)
 //
-// `fnmatch` runs through `liella::pattern::fnmatch` (C and C.UTF-8) and the export; `glob` through
-// `liella::pattern::glob` over a virtual tree (an `Access` in the test: no file system, any
+// `fnmatch` runs through `niji::pattern::fnmatch` (C and C.UTF-8) and the export; `glob` through
+// `niji::pattern::glob` over a virtual tree (an `Access` in the test: no file system, any
 // order) and through the exports on a scratch directory under `target/`; `wordexp` through
-// `liella::pattern::wordexp` with a `Shell` in the test (no process state is read or changed)
+// `niji::pattern::wordexp` with a `Shell` in the test (no process state is read or changed)
 // and through the exports for the C structure. The whole behaviour record is compared by
 // `patterns_products.rs`.
 
@@ -961,12 +961,12 @@ mod pat {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
-    pub(crate) use liella::error::Errno;
-    pub(crate) use liella::locale::Locale;
-    pub(crate) use liella::mem::TryVec;
-    pub(crate) use liella::pattern::fnmatch as fm;
-    pub(crate) use liella::pattern::glob as gb;
-    pub(crate) use liella::pattern::wordexp as we;
+    pub(crate) use niji::error::Errno;
+    pub(crate) use niji::locale::Locale;
+    pub(crate) use niji::mem::TryVec;
+    pub(crate) use niji::pattern::fnmatch as fm;
+    pub(crate) use niji::pattern::glob as gb;
+    pub(crate) use niji::pattern::wordexp as we;
 
     pub(crate) fn c() -> Locale {
         Locale::C
@@ -1042,7 +1042,7 @@ mod pat {
 
     impl gb::Access for Tree {
         type Dir = (String, usize);
-        fn open(&mut self, path: &[u8]) -> liella::error::Result<(String, usize)> {
+        fn open(&mut self, path: &[u8]) -> niji::error::Result<(String, usize)> {
             let k = Self::key(path);
             self.opened.borrow_mut().push(k.clone());
             if let Some(e) = self.fail_open.get(&k) {
@@ -1056,7 +1056,7 @@ mod pat {
                 None => Err(Errno::ENOENT),
             }
         }
-        fn read(&mut self, dir: &mut (String, usize), name: &mut TryVec<u8>) -> liella::error::Result<Option<u8>> {
+        fn read(&mut self, dir: &mut (String, usize), name: &mut TryVec<u8>) -> niji::error::Result<Option<u8>> {
             if self.fail_read {
                 return Err(Errno::ENOMEM);
             }
@@ -1071,7 +1071,7 @@ mod pat {
             Ok(None)
         }
         fn close(&mut self, _dir: (String, usize)) {}
-        fn lstat(&mut self, path: &[u8]) -> liella::error::Result<u32> {
+        fn lstat(&mut self, path: &[u8]) -> niji::error::Result<u32> {
             let k = self.parents(Self::key(path));
             self.lstat_calls.borrow_mut().push(k.clone());
             let m = *self.modes.get(&k).ok_or(Errno::ENOENT)?;
@@ -1080,7 +1080,7 @@ mod pat {
             }
             Ok(m)
         }
-        fn stat(&mut self, path: &[u8]) -> liella::error::Result<u32> {
+        fn stat(&mut self, path: &[u8]) -> niji::error::Result<u32> {
             let k = self.follow(Self::key(path));
             self.modes.get(&k).copied().ok_or(Errno::ENOENT)
         }
@@ -1088,7 +1088,7 @@ mod pat {
             self.reported.borrow_mut().push((Self::key(path), e));
             self.abort_on_error
         }
-        fn home(&mut self, user: Option<&[u8]>) -> liella::error::Result<Option<TryVec<u8>>> {
+        fn home(&mut self, user: Option<&[u8]>) -> niji::error::Result<Option<TryVec<u8>>> {
             match (user, self.home) {
                 (None, Some(h)) => Ok(Some(TryVec::from_slice(h.as_bytes())?)),
                 (Some(b"root"), _) => Ok(Some(TryVec::from_slice(b"/root")?)),
@@ -1131,7 +1131,7 @@ mod pat {
     }
 
     impl we::Shell for Sh {
-        fn var(&mut self, name: &[u8], out: &mut we::ValBuf) -> liella::error::Result<bool> {
+        fn var(&mut self, name: &[u8], out: &mut we::ValBuf) -> niji::error::Result<bool> {
             self.reads += 1;
             out.clear();
             match self.vars.get(std::str::from_utf8(name).unwrap()) {
@@ -1142,7 +1142,7 @@ mod pat {
                 None => Ok(false),
             }
         }
-        fn set_var(&mut self, name: &[u8], value: &[u8]) -> liella::error::Result<()> {
+        fn set_var(&mut self, name: &[u8], value: &[u8]) -> niji::error::Result<()> {
             let (n, v) = (String::from_utf8(name.to_vec()).unwrap(), String::from_utf8(value.to_vec()).unwrap());
             self.sets.push((n.clone(), v.clone()));
             self.vars.insert(n, v);
@@ -1151,7 +1151,7 @@ mod pat {
         fn arg_count(&mut self) -> usize {
             self.args.len().saturating_sub(1)
         }
-        fn arg(&mut self, i: usize, out: &mut we::ValBuf) -> liella::error::Result<bool> {
+        fn arg(&mut self, i: usize, out: &mut we::ValBuf) -> niji::error::Result<bool> {
             out.clear();
             match self.args.get(i) {
                 Some(a) => {
@@ -1164,7 +1164,7 @@ mod pat {
         fn pid(&mut self) -> i32 {
             4242
         }
-        fn home(&mut self, user: Option<&[u8]>, out: &mut we::ValBuf) -> liella::error::Result<bool> {
+        fn home(&mut self, user: Option<&[u8]>, out: &mut we::ValBuf) -> niji::error::Result<bool> {
             out.clear();
             let h = match user {
                 None => self.vars.get("HOME").cloned().or(self.home.map(str::to_string)),
@@ -1179,7 +1179,7 @@ mod pat {
                 None => Ok(false),
             }
         }
-        fn run(&mut self, command: &[u8], show_err: bool, out: &mut TryVec<u8>) -> liella::error::Result<()> {
+        fn run(&mut self, command: &[u8], show_err: bool, out: &mut TryVec<u8>) -> niji::error::Result<()> {
             let cmd = String::from_utf8(command.to_vec()).unwrap();
             self.ran.push((cmd.clone(), show_err));
             // `echo ARGS`, the only command the tests run.
@@ -1192,7 +1192,7 @@ mod pat {
         fn stderr(&mut self, text: &[u8]) {
             self.stderr.push_str(std::str::from_utf8(text).unwrap());
         }
-        fn glob(&mut self, pattern: &[u8], out: &mut TryVec<TryVec<u8>>) -> liella::error::Result<()> {
+        fn glob(&mut self, pattern: &[u8], out: &mut TryVec<TryVec<u8>>) -> niji::error::Result<()> {
             let mut m: Vec<&str> = self.files.iter().copied().filter(|f| fm::fnmatch(pattern, f.as_bytes(), fm::PERIOD, &Locale::C).unwrap()).collect();
             m.sort_unstable();
             for f in m {
@@ -1209,7 +1209,7 @@ mod pat {
     }
 
     impl we::Words for Out {
-        fn push(&mut self, word: &[u8]) -> liella::error::Result<()> {
+        fn push(&mut self, word: &[u8]) -> niji::error::Result<()> {
             if self.words.len() >= self.limit {
                 return Err(Errno::ENOMEM);
             }
@@ -1249,7 +1249,7 @@ mod pat {
 
     pub(crate) fn word(addr: usize, i: usize) -> usize {
         let mut v = 0usize;
-        liella_boundary::posix::s04_strings::memcpy((&raw mut v).cast(), core::ptr::with_exposed_provenance::<core::ffi::c_void>(addr + 8 * i), 8);
+        niji_boundary::posix::s04_strings::memcpy((&raw mut v).cast(), core::ptr::with_exposed_provenance::<core::ffi::c_void>(addr + 8 * i), 8);
         v
     }
 
@@ -1257,7 +1257,7 @@ mod pat {
         let mut out = Vec::new();
         loop {
             let mut ch = 0u8;
-            liella_boundary::posix::s04_strings::memcpy((&raw mut ch).cast(), core::ptr::with_exposed_provenance::<core::ffi::c_void>(p + out.len()), 1);
+            niji_boundary::posix::s04_strings::memcpy((&raw mut ch).cast(), core::ptr::with_exposed_provenance::<core::ffi::c_void>(p + out.len()), 1);
             if ch == 0 {
                 return String::from_utf8_lossy(&out).into_owned();
             }
@@ -1340,7 +1340,7 @@ fn s14_7_c_0() {
     assert_eq!(f("", "", 0, &cl), 0);
     assert_eq!(f("a", "", 0, &cl), fm::NOMATCH);
     // The C interface, in the calling thread's locale.
-    use liella_boundary::posix::s14_search as s;
+    use niji_boundary::posix::s14_search as s;
     assert_eq!(s::fnmatch(z("a*c").as_ptr(), z("abbc").as_ptr(), 0), 0);
     assert_eq!(s::fnmatch(z("a*c").as_ptr(), z("abbd").as_ptr(), 0), 1);
 }
@@ -1481,7 +1481,7 @@ fn s14_7_g_0() {
 /// text, or `ENOMEM`).
 #[test]
 fn s14_7_f_0() {
-    use liella_boundary::posix::s14_search as s;
+    use niji_boundary::posix::s14_search as s;
     use pat::*;
     // Extended groups nested deeper than the parser allows: an error, never a wrong answer.
     let deep = "@(".repeat(100) + "a" + &")".repeat(100);
@@ -1499,8 +1499,8 @@ fn s14_7_f_0() {
 /// `glob_t {gl_pathc, gl_pathv, gl_offs}`.
 #[test]
 fn s14_8_c_0() {
-    use liella_abi::callback::GlobT;
-    use liella_boundary::posix::s14_search as s;
+    use niji_abi::callback::GlobT;
+    use niji_boundary::posix::s14_search as s;
     use pat::*;
     let mut t = Tree::sample();
     assert_eq!(g(&mut t, "v/*", 0, &c()), Ok((v(&["v/a", "v/b", "v/d", "v/dang", "v/ld", "v/locked", "v/u"]), true)));
@@ -1526,8 +1526,8 @@ fn s14_8_c_0() {
 /// `GLOB_DOOFFS`, `GLOB_NOCHECK`, `GLOB_APPEND`, `GLOB_NOESCAPE`.
 #[test]
 fn s14_8_c_1() {
-    use liella_abi::callback::GlobT;
-    use liella_boundary::posix::s14_search as s;
+    use niji_abi::callback::GlobT;
+    use niji_boundary::posix::s14_search as s;
     use pat::*;
     // GLOB_ERR: a directory that cannot be opened is reported, and the walk goes on or stops.
     let mut t = Tree::sample();
@@ -1571,14 +1571,14 @@ fn s14_8_c_1() {
 /// Spec §14.8 (Contract): **GNU flags:**
 #[test]
 fn s14_8_c_2() {
-    use liella_abi::callback::GlobT;
-    use liella_boundary::posix::s14_search as s;
+    use niji_abi::callback::GlobT;
+    use niji_boundary::posix::s14_search as s;
     use pat::*;
     assert_eq!((gb::PERIOD, gb::MAGCHAR, gb::ALTDIRFUNC, gb::BRACE, gb::NOMAGIC, gb::TILDE, gb::ONLYDIR, gb::TILDE_CHECK), (128, 256, 512, 1024, 2048, 4096, 8192, 16384), "<glob.h>");
     // An unknown flag bit: -1 with EINVAL (an error, never a guess).
     let mut gl = GlobT { gl_pathc: 0, gl_pathv: 0, gl_offs: 0, gl_flags: 0, gl_closedir: None, gl_readdir: None, gl_opendir: None, gl_lstat: None, gl_stat: None };
     assert_eq!(s::glob(z("*").as_ptr(), 1 << 20, None, Some(&mut gl)), -1);
-    assert_eq!(liella_boundary::errno::get(), 22);
+    assert_eq!(niji_boundary::errno::get(), 22);
 }
 
 /// Spec §14.8 (Contract): `GLOB_PERIOD`, `GLOB_BRACE` (`{a,b}`), `GLOB_NOMAGIC`, `GLOB_TILDE`,
@@ -1706,8 +1706,8 @@ fn glob_sort_key_ties() {
 #[test]
 fn s14_8_c_2_3() {
     use alt::*;
-    use liella_abi::callback::GlobT;
-    use liella_boundary::posix::s14_search as s;
+    use niji_abi::callback::GlobT;
+    use niji_boundary::posix::s14_search as s;
     use pat::*;
     let run = |p: &str, flags: i32| -> (i32, Vec<String>) {
         let mut gl = GlobT { gl_pathc: 0, gl_pathv: 0, gl_offs: 0, gl_flags: 0, gl_closedir: Some(v_closedir), gl_readdir: Some(v_readdir), gl_opendir: Some(v_opendir), gl_lstat: Some(v_lstat), gl_stat: Some(v_stat) };
@@ -1757,7 +1757,7 @@ fn s14_8_c_3() {
 /// Spec §14.8 (Contract): **`glob_pattern_p`** reports whether a pattern contains wildcards.
 #[test]
 fn s14_8_c_4() {
-    use liella_boundary::posix::s14_search as s;
+    use niji_boundary::posix::s14_search as s;
     use pat::*;
     let p = |pat: &str, q: i32| s::glob_pattern_p(z(pat).as_ptr(), q);
     assert_eq!((p("abc", 0), p("a*", 1), p("a?", 1), p("a[b]", 1), p("a[", 1), p("a]", 1), p("{a,b}", 1), p("~", 1)), (0, 1, 1, 1, 0, 0, 0, 0));
@@ -1848,7 +1848,7 @@ mod alt {
         };
         let mut buf = [0u8; 144];
         buf[24..28].copy_from_slice(&mode.to_le_bytes());
-        liella_boundary::posix::s04_strings::memcpy(st, buf.as_ptr().cast(), 144);
+        niji_boundary::posix::s04_strings::memcpy(st, buf.as_ptr().cast(), 144);
         0
     }
 
@@ -1874,8 +1874,8 @@ fn s14_10_c_0() {
     assert_eq!(w("a\\\nb \"c\\\nd\""), Ok(v(&["ab", "cd"])), "backslash-newline is removed");
     assert_eq!(w("#a a#b $ a$"), Ok(v(&["#a", "a#b", "$", "a$"])), "`#` is not a comment; a lone `$` is literal");
     // The C interface: one call, the words in a vector the caller frees with wordfree.
-    use liella_abi::layout::wordexp_t;
-    use liella_boundary::posix::s14_search as s;
+    use niji_abi::layout::wordexp_t;
+    use niji_boundary::posix::s14_search as s;
     let mut we = wordexp_t { we_wordc: 0, we_wordv: 0, we_offs: 0 };
     assert_eq!(s::wordexp(z("one 'two three'").as_ptr(), Some(&mut we), 0), 0);
     assert_eq!((we.we_wordc, vector(we.we_wordv, 3)), (2, vec![Some("one".into()), Some("two three".into()), None]));
@@ -1973,8 +1973,8 @@ fn s14_10_c_3() {
 /// Other flags are `WRDE_DOOFFS`, `WRDE_APPEND`, `WRDE_REUSE`, `WRDE_SHOWERR` and `WRDE_UNDEF`.
 #[test]
 fn s14_10_c_4() {
-    use liella_abi::layout::wordexp_t;
-    use liella_boundary::posix::s14_search as s;
+    use niji_abi::layout::wordexp_t;
+    use niji_boundary::posix::s14_search as s;
     use pat::*;
     assert_eq!(w("w* .* w? x.[ch] nomatch* w\\* 'w*' \"w*\" [!w]*"), Ok(v(&["w1", "w2", ".w3", "w1", "w2", "x.c", "nomatch*", "w*", "w*", "w*", "x.c"])));
     assert_eq!(w("$G \"$G\" w*/"), Ok(v(&["w1", "w2", "w*", "w*/"])), "results of expansions are expanded; `w*/` names directories only");
@@ -2009,8 +2009,8 @@ fn s14_10_c_4() {
 /// `WRDE_NOCMD`), `WRDE_NOSPACE`, `WRDE_SYNTAX`.
 #[test]
 fn s14_10_f_0() {
-    use liella_abi::layout::wordexp_t;
-    use liella_boundary::posix::s14_search as s;
+    use niji_abi::layout::wordexp_t;
+    use niji_boundary::posix::s14_search as s;
     use pat::*;
     // WRDE_BADCHAR, unquoted only.
     for c in ["|", "&", ";", "<", ">", "(", ")", "{", "}", "\n"] {

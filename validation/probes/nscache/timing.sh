@@ -1,25 +1,25 @@
 #!/bin/sh
 # Interleaved timing of the name-service cache per lookup (no spec clause: measurement only, D-16.10).
 # usage: timing.sh <rounds> <user> <percall-A> <percall-B>
-# Each round runs A and B (order alternates by round), each once with LIELLA_NSCACHE=1 and once with
-# LIELLA_NSCACHE=0 (same environment size), 4 lookups per process. Prints the median ns per binary, mode and
+# Each round runs A and B (order alternates by round), each once with NIJI_NSCACHE=1 and once with
+# NIJI_NSCACHE=0 (same environment size), 4 lookups per process. Prints the median ns per binary, mode and
 # call, then the break-even lookup count: a process making n lookups gains from the cache when
 #   n > 2 + (c1 + c2 - u1 - u2) / (u - h)
 # with c1, c2 the cached 1st/2nd call, u1, u2 the uncached 1st/2nd, u the uncached later call (call 3-4) and
-# h the cached hit (call 3-4). Run percall-* once with LIELLA_NSCACHE=1 first so the region exists.
+# h the cached hit (call 3-4). Run percall-* once with NIJI_NSCACHE=1 first so the region exists.
 set -u
 R=${1:?rounds}; U=${2:?user}; A=${3:?binary A}; B=${4:?binary B}
 OUT=$(mktemp)
 trap 'rm -f "$OUT"' EXIT
-env LIELLA_NSCACHE=1 "$A" 4 "$U" >/dev/null
-env LIELLA_NSCACHE=1 "$B" 4 "$U" >/dev/null
+env NIJI_NSCACHE=1 "$A" 4 "$U" >/dev/null
+env NIJI_NSCACHE=1 "$B" 4 "$U" >/dev/null
 i=0
 while [ "$i" -lt "$R" ]; do
   if [ $((i % 2)) -eq 0 ]; then order="A B"; else order="B A"; fi
   for t in $order; do
     if [ "$t" = A ]; then bin=$A; else bin=$B; fi
     for m in 1 0; do
-      env LIELLA_NSCACHE=$m "$bin" 4 "$U" | awk -v t="$t" -v m="$m" '{ print t, m, $2, $NF }' >> "$OUT"
+      env NIJI_NSCACHE=$m "$bin" 4 "$U" | awk -v t="$t" -v m="$m" '{ print t, m, $2, $NF }' >> "$OUT"
     done
   done
   i=$((i + 1))

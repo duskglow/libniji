@@ -5,8 +5,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
-use liella_ld::arch::X86_64;
-use liella_ld::ldconfig::{run, Fs, Kind, Meta, Outcome, Stage, Text};
+use niji_ld::arch::X86_64;
+use niji_ld::ldconfig::{run, Fs, Kind, Meta, Outcome, Stage, Text};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -317,7 +317,7 @@ fn configuration_includes_are_read_in_sorted_order_relative_to_their_file() {
     assert_eq!(text(&o.err), "ldconfig: /etc/ld.so.conf:3: hwcap directive ignored\n");
 }
 
-/// s31_2_i_2, Liella rule (cycles refused with a message): a file that includes itself, and two that include each
+/// s31_2_i_2, libniji rule (cycles refused with a message): a file that includes itself, and two that include each
 /// other, end, each directory once, with a message naming the include, exit 0.
 #[test]
 fn include_cycles_end_with_a_message() {
@@ -391,7 +391,7 @@ fn hwcaps_subdirectories_get_no_links_and_name_the_file() {
     assert!(text(&o.out).contains("/opt/l/glibc-hwcaps/x86-64-v3: (hwcap: \"x86-64-v3\") (from /etc/ld.so.conf:1)\n\tlibz.so.1 -> libz.so.1.2\n"));
 }
 
-/// s31_2_g_3 (Liella rule): the same tree listed in the opposite order gives the same output and the same cache.
+/// s31_2_g_3 (libniji rule): the same tree listed in the opposite order gives the same output and the same cache.
 #[test]
 fn listing_order_changes_nothing() {
     let mut a = base();

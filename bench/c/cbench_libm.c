@@ -1,6 +1,6 @@
 /* libm speed (Track M milestone 6, story M6-0): ns per call of every libm family in every format, and
  * the envelope probes (the cost of an exceptional operand, of a directed rounding mode). The same file
- * builds against the products (`cargo xtask bench`, linked with Liella's libm.a) and against the host C
+ * builds against the products (`cargo xtask bench`, linked with libniji's libm.a) and against the host C
  * library (`cc -O2 -fno-builtin bench/c/cbench_libm.c -lm`; `cargo xtask bench --compare cbench_libm`
  * adds glibc static as the third column). Prints `name<TAB>ns/call` lines, the best of 7 rounds.
  *
@@ -15,8 +15,8 @@
  * The `_axis` rows put z on the real axis (y = +0 and -0 in turn), the `_near1` rows at | |z| - 1 | from
  * 2^-52 to 2^-1, log-uniform (where clog's real part cancels).
  * The rows `add_baseline`, `mxcsr_pair` and `mxcsr_wrapper_seq` call no libm function (a loop floor,
- * one MXCSR save/load, the MXCSR sequence of Liella's entry wrapper); they print for `--compare` and
- * have no budget row. The GLIBC_2.2.5 compat entries are not measured here: Liella does not export them. */
+ * one MXCSR save/load, the MXCSR sequence of libniji's entry wrapper); they print for `--compare` and
+ * have no budget row. The GLIBC_2.2.5 compat entries are not measured here: libniji does not export them. */
 #define _GNU_SOURCE
 #include <complex.h>
 #include <fenv.h>
@@ -223,7 +223,7 @@ static void fill_near1(void)
  * neither inline, fold nor split the call. Before a row is timed it is checked once on its own operands:
  * sincos must return exactly the bits of sin and cos of the same library (probed on glibc: no mismatch in
  * 300000 operands per format over [-10, 10], [1e6, 1e300] and [-1e-3, 1e-3]); a mismatch ends the program.
- * The row also prints an FNV-1a digest of its results on stderr, so the Liella and glibc builds' outputs on
+ * The row also prints an FNV-1a digest of its results on stderr, so the libniji and glibc builds' outputs on
  * the same operands can be compared line by line. Timed: the sum of both results. */
 static void (*volatile sincosf_fn)(float, float *, float *) = sincosf;
 static void (*volatile sincos_fn)(double, double *, double *) = sincos;
@@ -307,7 +307,7 @@ static void floors(void)
     }
     if (!cb_skip("mxcsr_pair"))
         TIMED("mxcsr_pair", { unsigned m_ = 0; for (long r_ = 0; r_ < reps; r_++) for (int i_ = 0; i_ < N; i_++) __asm__ volatile("stmxcsr %0\n\tldmxcsr %0" : "+m"(m_)::"memory"); si = m_; });
-    /* Liella's entry wrapper: read the mode; save and load the default; restore; raise inexact. */
+    /* libniji's entry wrapper: read the mode; save and load the default; restore; raise inexact. */
     if (!cb_skip("mxcsr_wrapper_seq"))
         TIMED("mxcsr_wrapper_seq", { unsigned m_ = 0; unsigned k_ = 0; for (long r_ = 0; r_ < reps; r_++) for (int i_ = 0; i_ < N; i_++) {
             __asm__ volatile("stmxcsr %0" : "=m"(m_)::"memory");

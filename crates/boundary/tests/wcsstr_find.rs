@@ -5,16 +5,16 @@
 //! search), and a copy of the needle after the haystack's terminator (a search that reads past
 //! it finds that copy). STRSTR-VEC: both scan levels, needle 0..=70 x haystack 0..=300 at every
 //! unit offset in a 32-byte block, units above U+FFFF and negative, page end and page crossing.
-#![no_builtins] // calls to libc names reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use std::sync::{Mutex, MutexGuard};
 
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
 
@@ -65,7 +65,7 @@ fn call_at(at: *mut i32, h: &[i32], nd: &[i32], bait: bool) -> Option<usize> {
         img.extend_from_slice(nd);
         img.push(0);
     }
-    s::memcpy(at.cast::<liella_abi::ctypes::c_void>(), img.as_ptr().cast::<liella_abi::ctypes::c_void>(), img.len() * 4);
+    s::memcpy(at.cast::<niji_abi::ctypes::c_void>(), img.as_ptr().cast::<niji_abi::ctypes::c_void>(), img.len() * 4);
     let mut nz = nd.to_vec();
     nz.push(0);
     nz.extend_from_slice(&[0x1F600; 4]);
@@ -174,7 +174,7 @@ fn wcsstr_on_both_scan_paths_at_every_unit_alignment_with_wide_units() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn wcsstr_never_reads_past_the_terminator_at_a_page_end_or_across_pages() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }

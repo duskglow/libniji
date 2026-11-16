@@ -22,14 +22,14 @@ pub const TRACKED: &str = "crates/libc-so";
 pub const GENERATED: [&str; 5] = ["hot-text.list", "startup-text.keys", "probe-text.keys", "startup-data.keys", "hot-text.signatures"];
 /// The directory `tools/hottext/regen.sh` (and `probe_text.sh`, `startup_data.sh`) writes the lists to; `so` sets
 /// it for the trace it runs.
-pub const ENV: &str = "LIELLA_HOT_LISTS";
+pub const ENV: &str = "NIJI_HOT_LISTS";
 
 /// LAYOUT-TRACE-AT-BUILD (LT-1, rulings #5190/#5191) and LAYOUT-TRACE-DEFAULT: the layout switch of `cargo xtask
 /// so`. Unset, empty or `1`: the build links the probes against the archive it built, traces them and groups from
 /// that trace ([`Layout::Traced`], the default of every product build); `ungrouped`: the explicit opt-out for a
 /// builder without a tracer, an ungrouped product ([`Layout::Ungrouped`]). `0` (the committed lists) was removed
 /// with them (LT-5) and is an error.
-pub const TRACE_ENV: &str = "LIELLA_LAYOUT_TRACE";
+pub const TRACE_ENV: &str = "NIJI_LAYOUT_TRACE";
 /// The marker `so` writes next to products it grouped from a trace of their own build (or left ungrouped): line 1
 /// the directory of the lists it used (`target/product/<profile>`), then `<list> <hash>` per list (so the layout
 /// verdict cache, which hashes the products directory, sees a list change). Every later reader of the lists
@@ -144,7 +144,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn tree(name: &str) -> PathBuf {
-        let root = std::env::temp_dir().join(format!("liella-hotlists-{name}-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("niji-hotlists-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         root
@@ -161,7 +161,7 @@ mod tests {
         assert_eq!(Layout::parse(Some("ungrouped")), Ok(Layout::Ungrouped));
         assert!(Layout::parse(Some("0")).unwrap_err().contains("committed lists were removed"));
         for bad in ["yes", "true", "2", "Ungrouped", " 1"] {
-            assert!(Layout::parse(Some(bad)).unwrap_err().contains("LIELLA_LAYOUT_TRACE"), "{bad}");
+            assert!(Layout::parse(Some(bad)).unwrap_err().contains("NIJI_LAYOUT_TRACE"), "{bad}");
         }
     }
 

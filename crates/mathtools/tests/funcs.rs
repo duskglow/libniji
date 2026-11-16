@@ -7,7 +7,7 @@
 mod common;
 
 use common::{abs_log2, f, rel_log2, v, Rng};
-use liella_mathtools::mp::*;
+use niji_mathtools::mp::*;
 use std::time::Instant;
 
 const P: u32 = 200;

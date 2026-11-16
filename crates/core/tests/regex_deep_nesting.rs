@@ -3,11 +3,11 @@
 //! memory (the process's limits; regcomp has no program-size cap of its own, D-14.8 as amended),
 //! never by the native stack. The expected results
 //! are glibc 2.39's, probed on the main thread (ERE, C locale) for depths 255 to 10,000; 100,000
-//! shows that memory is the only bound and is checked on Liella alone.
+//! shows that memory is the only bound and is checked on libniji alone.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::panic, missing_docs)]
 
-use liella::locale::Locale;
-use liella::pattern::regex::{self, cflags, Match, Options, Program, ReError, Window};
+use niji::locale::Locale;
+use niji::pattern::regex::{self, cflags, Match, Options, Program, ReError, Window};
 
 const DEPTHS: [usize; 5] = [255, 256, 1000, 10_000, 100_000];
 

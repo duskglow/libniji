@@ -44,15 +44,15 @@
 //!   `fts_level` (a `short`) can, is reported as `FTS_NS` with `ENAMETOOLONG` and not entered
 //!   (D-13.13: only what cannot be represented fails).
 
-use liella::error::{Errno, Result};
-use liella::fs::dir::{DirStream, DT_DIR, DT_UNKNOWN};
-use liella::fs::walk::Levels;
-use liella::mem::TryVec;
-use liella_abi::callback::SlotCompareFn;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Stat, AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_DIRECTORY, O_PATH, SEEK_SET, S_IFDIR, S_IFLNK, S_IFMT, S_IFREG};
+use niji::error::{Errno, Result};
+use niji::fs::dir::{DirStream, DT_DIR, DT_UNKNOWN};
+use niji::fs::walk::Levels;
+use niji::mem::TryVec;
+use niji_abi::callback::SlotCompareFn;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Stat, AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_DIRECTORY, O_PATH, SEEK_SET, S_IFDIR, S_IFLNK, S_IFMT, S_IFREG};
 
 use crate::fs_tree::sort_slots;
 

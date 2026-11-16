@@ -1,6 +1,6 @@
 /* Spec §22.4, §22.5, §22.7: the synchronisation objects from C, with glibc's headers and static
  * initialisers. A robust mutex whose owner thread exits reports EOWNERDEAD (the kernel walks
- * the robust list Liella registers per thread), then ENOTRECOVERABLE if not made consistent;
+ * the robust list libniji registers per thread), then ENOTRECOVERABLE if not made consistent;
  * priority-inheritance mutexes exclude; the _NP initialisers give their types; condition
  * variables, read-write locks, barriers, once, semaphores (unnamed and named), spin locks and
  * the C11 forms work across threads. */
@@ -277,17 +277,21 @@ int main(void)
         return 19;
 
     /* Named semaphore: same address twice, O_EXCL, unlink. */
-    char name[64] = "/liella-conf-";
+#define SEM_PREFIX "/niji-conf-"
+    char name[64] = SEM_PREFIX;
     {
         /* the PID in decimal (no stdio before phase 8) */
         char digits[16];
         int nd = 0;
         for (unsigned p = (unsigned)getpid(); p != 0 || nd == 0; p /= 10)
             digits[nd++] = (char)('0' + p % 10);
-        int at = 13;
+        int at = (int)sizeof SEM_PREFIX - 1; /* after the prefix, whatever its length */
         while (nd > 0)
             name[at++] = digits[--nd];
         name[at] = 0;
+        /* the PID really follows the prefix (a NUL left between them still names a semaphore) */
+        if (strlen(name) != (size_t)at)
+            return 34;
     }
     sem_t *a = sem_open(name, O_CREAT | O_EXCL, 0600, 2);
     if (a == SEM_FAILED)

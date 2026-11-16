@@ -7,7 +7,7 @@
 mod common;
 
 use common::{f, Rng};
-use liella_mathtools::mp::{correctly_rounded, ulp_error, Approx, Big, Fmt, Round, Rounded};
+use niji_mathtools::mp::{correctly_rounded, ulp_error, Approx, Big, Fmt, Round, Rounded};
 use std::cmp::Ordering;
 
 const MODES: [Round; 4] = [Round::Nearest, Round::Up, Round::Down, Round::Zero];

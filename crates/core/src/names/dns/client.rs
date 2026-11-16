@@ -22,9 +22,9 @@
 use crate::error::{Errno, Result};
 use crate::mem::TryVec;
 use crate::names::Ip;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{PollFd, Timespec, AF_INET, AF_INET6, CLOCK_MONOTONIC, MSG_NOSIGNAL, POLLIN, POLLOUT, SOCK_CLOEXEC, SOCK_DGRAM, SOCK_NONBLOCK, SOCK_STREAM, SOL_SOCKET, SO_ERROR};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{PollFd, Timespec, AF_INET, AF_INET6, CLOCK_MONOTONIC, MSG_NOSIGNAL, POLLIN, POLLOUT, SOCK_CLOEXEC, SOCK_DGRAM, SOCK_NONBLOCK, SOCK_STREAM, SOL_SOCKET, SO_ERROR};
 
 use super::conf::{Server, RES_IGNTC, RES_NOTLDQUERY, RES_SNGLKUP, RES_SNGLKUPREOP, RES_USEVC, RES_DEFNAMES, RES_DNSRCH};
 use super::msg::{self, flag, Header, HFIXEDSZ};

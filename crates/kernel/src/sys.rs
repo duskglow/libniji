@@ -4,11 +4,11 @@
 //!   [`crate::mem`]. Results are `KResult<T>`.
 //! * **Every method is sound for every argument safe Rust can build** (decision D-X.9). Calls
 //!   whose argument is an address the kernel will later write or jump to are not here; they
-//!   are in `liella_boundary::raw` for C callers: `brk`, `munmap`/`mprotect`/`mremap` of
+//!   are in `niji_boundary::raw` for C callers: `brk`, `munmap`/`mprotect`/`mremap` of
 //!   arbitrary ranges, `MAP_FIXED`, `clone`/`fork`, `exit` of one thread, handler
 //!   installation, `sigaltstack` set, `set_robust_list`, `arch_prctl(ARCH_SET_FS)`,
 //!   `process_vm_writev`, `modify_ldt` writes, generic `ioctl`/`prctl`/`fcntl`/`ptrace`.
-//! * Production implementation: `liella_boundary::sys::CSys`. Tests: [`crate::testing::Faulty`]
+//! * Production implementation: `niji_boundary::sys::CSys`. Tests: [`crate::testing::Faulty`]
 //!   wraps any `Sys` and injects errors.
 //!
 //! The method list is written once, in [`sys_api!`], which generates both the trait and the

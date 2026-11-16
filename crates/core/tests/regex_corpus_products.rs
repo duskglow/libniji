@@ -1,7 +1,7 @@
 //! The regex corpus (validation item C): every regcomp/regexec and re_compile_pattern/re_search/
 //! re_match call the coreutils, sed, bash and findutils test suites made against glibc,
 //! deduplicated (`validation/corpus/regex.corpus`, `validation/harvest/`), replayed against the
-//! host C library and against Liella's products (`tests/oracle/regex_corpus.c`). Disagreements
+//! host C library and against libniji's products (`tests/oracle/regex_corpus.c`). Disagreements
 //! the optimization thread has not fixed yet are recorded in `validation/corpus/regex.known`.
 #![allow(missing_docs)]
 

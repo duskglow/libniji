@@ -1,4 +1,4 @@
-/* Spec §22.6 Failure (s22_6_f_0): pthread_setspecific never fails with ENOMEM in Liella. With
+/* Spec §22.6 Failure (s22_6_f_0): pthread_setspecific never fails with ENOMEM in libniji. With
  * the address space exhausted (RLIMIT_AS at the process's size plus 64 KiB, then malloc and
  * mmap taken until they fail), a thread that has never stored a key value sets, and reads back,
  * the value of each key in the table: keys inside the reference library's in-thread range

@@ -14,7 +14,7 @@
 use core::mem::size_of;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use liella::bytes::Unit;
+use niji::bytes::Unit;
 
 /// The `strtok` and `wcstok`-without-pointer hidden cursor: the address where the next call
 /// continues (0 when exhausted or never set).

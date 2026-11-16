@@ -6,19 +6,19 @@
 //! haystack ending on the last byte of a page whose next page is unmapped; `strcasestr` with the
 //! case varied, with non-ASCII bytes (0x80..0xFF fold to nothing in the C and C.UTF-8 locales) in
 //! both strings. Both scan paths (SSE2, and AVX2 where the CPU has it).
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use std::sync::{Mutex, MutexGuard};
 
 use core::ffi::c_char;
-use liella_abi::ctypes::c_void;
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::posix::s07_locale as loc;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_abi::ctypes::c_void;
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::posix::s07_locale as loc;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
 const LC_CTYPE: i32 = 0;
@@ -153,7 +153,7 @@ fn sweep(ci: bool, high: bool, flip: bool, ms: core::ops::Range<usize>) {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 /// GATE-SPEED: each sweep test runs in needle-length ranges (one test each); `M_SHARDS` tiles
@@ -253,7 +253,7 @@ fn strstr_and_strcasestr_never_read_past_the_terminator() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -291,7 +291,7 @@ fn strstr_needle_ending_on_the_last_mapped_byte_is_measured_inside_its_page() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -323,7 +323,7 @@ fn strstr_and_strcasestr_with_many_failed_candidates_stay_correct() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn strstr_across_a_page_boundary_from_the_last_bytes_of_a_page() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -418,7 +418,7 @@ fn strstr_large_haystacks_find_every_position_in_the_wide_groups() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -429,7 +429,7 @@ fn strpair_names_the_first_candidate_or_the_terminator_exactly() {
     // position of the first 160 bytes from p, a lone c1 (no candidate) before it, 34 alignments,
     // four distances, both paths.
     let _g = level();
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     let (c0, c1) = (b'x', b'y');
     for avx2 in paths() {
         assert!(selftest::set_scan_avx2(avx2));
@@ -459,7 +459,7 @@ fn strpair_names_the_first_candidate_or_the_terminator_exactly() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -490,7 +490,7 @@ fn strstr_filter_switch_keeps_every_candidate() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -542,5 +542,5 @@ fn strstr_dense_last_byte_then_first_byte_stream_keeps_every_candidate() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # wl_percall.sh, keke side: instructions:u per call of probe cases for glibc / [BASE] / NEW.
 #
 #   wl_percall_run.sh SPEC_NAME CASES|all BASE_SHA|- NEW_SHA [TRACE]
@@ -8,8 +8,8 @@
 # wl_percall.sh). Per variant (glibc, a commit) and spec content hash: one binary. glibc is linked DYNAMICALLY
 # (gcc -O2 -Wl,-z,now: the system's libc.so.6, as every real program uses it; TOOLS-PERCALL 2026-10-10: static
 # glibc ignores the locale for collation, so its locale rows were not a reference). -z now binds every PLT slot at
-# startup, so the n = 0 run pays the whole ld.so cost and the per-call delta holds none of it. Liella: static,
-# scripts/liella-cc against ~/wl/products/$(wl_key <sha>) (<sha>-release). Per case: `perf stat -r 5` of n=0 (setup only) and n=N; per call =
+# startup, so the n = 0 run pays the whole ld.so cost and the per-call delta holds none of it. libniji: static,
+# scripts/niji-cc against ~/wl/products/$(wl_key <sha>) (<sha>-release). Per case: `perf stat -r 5` of n=0 (setup only) and n=N; per call =
 # (I(N) - I(0)) / (N * per). Rows cached in ~/wl/percall/<variant>/<hash>.<case>.tsv (glibc: variant glibc-dyn).
 # Row: per_call  sd_per_call  calls  per
 # EVENT: WL_EVENT (default instructions:u) is the counted perf event; rows of other events are cached as
@@ -21,7 +21,7 @@
 # each variant's `pc --locale` (setlocale result + nl_langinfo(CODESET)) must name the requested locale and its
 # codeset and agree across variants, else exit 5. Cached rows are keyed by spec hash, locale and case.
 # TRACE (wl_trace.sh): FUNC:SKIP:MAX - instead of the table, single-step the (SKIP+1)-th call of FUNC in NEW's
-# binary for the first case under gdb (wl_trace.py) and print the instructions per function. Liella only, never glibc.
+# binary for the first case under gdb (wl_trace.py) and print the instructions per function. libniji only, never glibc.
 set -u
 W=${WL:-$HOME/wl}
 . "$(dirname "$0")/wl_lock.sh"
@@ -32,11 +32,11 @@ evtag=; [ "$ev" = instructions:u ] || evtag=.$(printf %s "$ev" | tr -c 'A-Za-z0-
 -' _)
 # ENVIRONMENT KEY (TOOL-PERCALL-TUNABLES-KEY): every environment input that reaches the measured process and can change a
 # count is part of the row cache key: GLIBC_TUNABLES (dispatch level, malloc tunables), the loader/preload variables, the
-# legacy MALLOC_* variables, LANGUAGE/LANG/LC_* (LC_ALL is keyed separately by file name), and any LIELLA_* variable.
+# legacy MALLOC_* variables, LANGUAGE/LANG/LC_* (LC_ALL is keyed separately by file name), and any NIJI_* variable.
 # Unset and empty are the same; with none set the key is empty and the cache file names are unchanged.
 envkey=; envdesc=
 for n in GLIBC_TUNABLES LD_PRELOAD LD_LIBRARY_PATH LD_BIND_NOW LD_BIND_NOT LD_AUDIT LD_DEBUG LD_HWCAP_MASK LANGUAGE LANG \
-         $(compgen -e | grep -E '^(LC_[A-Z]+|MALLOC_[A-Z_0-9]*|LIELLA_[A-Z_0-9]*)$' | grep -vx LC_ALL | sort); do
+         $(compgen -e | grep -E '^(LC_[A-Z]+|MALLOC_[A-Z_0-9]*|NIJI_[A-Z_0-9]*)$' | grep -vx LC_ALL | sort); do
     [ -n "${!n:-}" ] && envdesc+="$n=${!n} "
 done
 [ -n "$envdesc" ] && envkey=.env$(printf %s "$envdesc" | md5sum | cut -c1-8)
@@ -69,12 +69,12 @@ build() { # variant -> binary path on stdout (built under a temporary name, then
             gcc -O2 -Wl,-z,now -I"$src" -o "$out/pc.$$" "$src"/harness.c "$src"/spec.c -lm || exit 1
         else
             wl_products_ok "$(pdir "$v")" || { echo "wl_percall: no $(wl_profile) products for $v in $(pdir "$v")" >&2; exit 1; }
-            # The cached tree's own wrapper matches the products being linked; ~/liella-test (an old copy on some
+            # The cached tree's own wrapper matches the products being linked; ~/niji-test (an old copy on some
             # hosts) predates -lm handling and leaves math specs with undefined references.
-            lcc=$W/src/$v/scripts/liella-cc
-            [ -x "$lcc" ] || lcc=$HOME/liella-test/scripts/liella-cc
-            # -lm as for glibc: liella-cc links Liella's libm.a (math specs) only when -lm is given.
-            LIELLA_PRODUCTS=$(pdir "$v") "$lcc" -O2 -I"$src" -o "$out/pc.$$" "$src"/harness.c "$src"/spec.c -lm || exit 1
+            lcc=$W/src/$v/scripts/niji-cc
+            [ -x "$lcc" ] || lcc=$HOME/niji-test/scripts/niji-cc
+            # -lm as for glibc: niji-cc links libniji's libm.a (math specs) only when -lm is given.
+            NIJI_PRODUCTS=$(pdir "$v") "$lcc" -O2 -I"$src" -o "$out/pc.$$" "$src"/harness.c "$src"/spec.c -lm || exit 1
         fi
         mv -f "$out/pc.$$" "$out/pc"
     fi
@@ -109,7 +109,7 @@ if [ -n "$trace" ]; then
     IFS=: read -r func skip max <<< "$trace"
     c=${cases[0]}
     echo "$list" | grep -q "^$c " || { echo "wl_trace: unknown case $c (known: $(echo "$list" | cut -d' ' -f1 | tr '\n' ' '))" >&2; exit 2; }
-    echo "wl_trace: case $c, call $((skip + 1)) of $func, Liella ${new:0:9} (${bin[$new]})"
+    echo "wl_trace: case $c, call $((skip + 1)) of $func, libniji ${new:0:9} (${bin[$new]})"
     WL_TRACE_FUNC=$func WL_TRACE_SKIP=$skip WL_TRACE_MAX=$max timeout 1800 \
         gdb -batch -nx -x "$(dirname "$0")/wl_trace.py" --args "${bin[$new]}" "$c" $((skip + 10)) "$dir" 2>&1 |
         grep -v -E '^0x[0-9a-f]+ in |^\[Inferior |^Breakpoint [0-9]+, '   # gdb's per-step "address in function ()" lines

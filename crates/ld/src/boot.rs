@@ -1,7 +1,7 @@
 //! The self-relocator's logic (phase 14 DL-4, design §1, ruling R14-1, D-27.10): what an image
 //! that relocates itself (a static PIE today, `ld.so` from DL-5) must do before any of its
 //! relocated data is used. The memory side (the slices over the image) is
-//! `liella_boundary::bootstrap`; everything here is pure and testable on the host.
+//! `niji_boundary::bootstrap`; everything here is pure and testable on the host.
 //!
 //! Rules (D-27.10):
 //! * Inputs are the image's program headers and its dynamic array, read in place: one `PT_DYNAMIC`

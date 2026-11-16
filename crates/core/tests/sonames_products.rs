@@ -1,7 +1,7 @@
 //! The sonames and development files a C library package ships (SL-SONAMES, plan/system-libc.md
 //! §6 item 5): `libresolv.so.2` forwarding to `libc.so.6` (D-16.6), `libBrokenLocale.so.1`, and
-//! the archives `-l<x>` finds in a static link. Programs are built against `target/liella` with
-//! the system compiler and run directly (dynamic ones name Liella's loader and run with
+//! the archives `-l<x>` finds in a static link. Programs are built against `target/niji` with
+//! the system compiler and run directly (dynamic ones name libniji's loader and run with
 //! `LD_LIBRARY_PATH` naming its directory).
 //! No spec clause names these files: spec Appendix C lists the libraries and their symbols.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn products() -> PathBuf {
-    let lib = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/liella");
-    for p in ["libc.a", "libc.so.6", "ld-linux-x86-64.so.2", "libresolv.so.2", "libBrokenLocale.so.1", "libBrokenLocale.a", "liella-crt1.o"] {
+    let lib = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/niji");
+    for p in ["libc.a", "libc.so.6", "ld-linux-x86-64.so.2", "libresolv.so.2", "libBrokenLocale.so.1", "libBrokenLocale.a", "niji-crt1.o"] {
         assert!(lib.join(p).exists(), "{p} is missing: run `cargo xtask so`");
     }
     lib.canonicalize().unwrap()
@@ -25,7 +25,7 @@ fn products() -> PathBuf {
 
 /// Build `src` with `libs` statically (`static_link`) or dynamically, run it with `args` (and
 /// `LOCPATH=locpath`), return its stdout. A dynamic program runs with `LD_LIBRARY_PATH` naming
-/// `target/liella`: `libc.so.6` is a pinned soname, found only in the build's own library
+/// `target/niji`: `libc.so.6` is a pinned soname, found only in the build's own library
 /// directory or through `LD_LIBRARY_PATH`, never through RPATH/RUNPATH (D-27.16, R14-3 (a)), so
 /// `LD_LIBRARY_PATH` is the route for running programs against a development build (ruling #5909).
 fn build_run_with(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool, args: &[&str], locpath: Option<&Path>) -> String {
@@ -33,7 +33,7 @@ fn build_run_with(dir: &Path, name: &str, src: &str, libs: &[&str], static_link:
     let c = dir.join(format!("{name}.c"));
     std::fs::write(&c, src).unwrap();
     let exe = dir.join(name);
-    let mut a: Vec<OsString> = vec!["-nostdlib".into(), "-fno-builtin".into(), "-O1".into(), "-o".into(), exe.clone().into(), lib.join("liella-crt1.o").into(), c.into(), format!("-L{}", lib.display()).into()];
+    let mut a: Vec<OsString> = vec!["-nostdlib".into(), "-fno-builtin".into(), "-O1".into(), "-o".into(), exe.clone().into(), lib.join("niji-crt1.o").into(), c.into(), format!("-L{}", lib.display()).into()];
     if static_link {
         a.insert(0, "-static".into());
         a.extend(libs.iter().map(OsString::from));
@@ -64,7 +64,7 @@ fn build_run(dir: &Path, name: &str, src: &str, libs: &[&str], static_link: bool
 }
 
 fn scratch(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("liella-sonames-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-sonames-{tag}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
@@ -96,13 +96,13 @@ fn sonames_resolv_dynamic_and_static() {
     for s in ["inet_net_pton@GLIBC_2.2.5", "ns_get16@GLIBC_2.9", "__p_class_syms@GLIBC_2.2.5", "_res_opcodes@GLIBC_2.2.5"] {
         assert!(syms.contains(s), "the dynamic program binds {s}:\n{syms}");
     }
-    assert!(!syms.contains("LIELLA_PRIVATE"), "no private name reaches the program:\n{syms}");
+    assert!(!syms.contains("NIJI_PRIVATE"), "no private name reaches the program:\n{syms}");
     assert_eq!(build_run(&dir, "stat", RESOLV, &libs, true), want, "static");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// D-16.6 (no spec clause): `libresolv.so.2` defines its versions.tsv exports and nothing of
-/// `libc.so.6`'s; each forwarded function is a jump through `libc.so.6`'s `LIELLA_PRIVATE` alias,
+/// `libc.so.6`'s; each forwarded function is a jump through `libc.so.6`'s `NIJI_PRIVATE` alias,
 /// which `libc.so.6` defines and nothing else names.
 #[test]
 fn sonames_resolv_forwards_through_private_aliases() {
@@ -110,10 +110,10 @@ fn sonames_resolv_forwards_through_private_aliases() {
     let r = readelf(&["--dyn-syms", "-W"], &lib.join("libresolv.so.2"));
     assert!(r.contains(" ns_get16@@GLIBC_2.9"), "ns_get16 export:\n{r}");
     assert!(r.contains(" res_gethostbyname@GLIBC_2.2.5"), "compat export (non-default):\n{r}");
-    assert!(r.contains("UND __liella_fwd_ns_get16@LIELLA_PRIVATE"), "forwarded through the alias:\n{r}");
+    assert!(r.contains("UND __niji_fwd_ns_get16@NIJI_PRIVATE"), "forwarded through the alias:\n{r}");
     assert!(!r.contains("GLIBC_PRIVATE"), "no GLIBC_PRIVATE:\n{r}");
     let c = readelf(&["--dyn-syms", "-W"], &lib.join("libc.so.6"));
-    assert!(c.contains(" __liella_fwd_ns_get16@@LIELLA_PRIVATE"), "libc.so.6 alias:\n");
+    assert!(c.contains(" __niji_fwd_ns_get16@@NIJI_PRIVATE"), "libc.so.6 alias:\n");
     assert!(!c.contains(" ns_get16@"), "libc.so.6 must not export ns_get16 under its own name");
 }
 

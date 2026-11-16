@@ -19,15 +19,15 @@
 use core::mem::{align_of, offset_of, size_of};
 use std::ffi::CString;
 
-use liella_abi::ctypes::c_char;
-use liella_abi::layout::sigset_t;
-use liella_boundary::errno;
-use liella_boundary::posix::s18_processes as s;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rusage, SchedParam, SigInfo};
-use liella_legacy::spawn_compat::{CFileActions, CSpawnAttr};
+use niji_abi::ctypes::c_char;
+use niji_abi::layout::sigset_t;
+use niji_boundary::errno;
+use niji_boundary::posix::s18_processes as s;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rusage, SchedParam, SigInfo};
+use niji_legacy::spawn_compat::{CFileActions, CSpawnAttr};
 
 mod products;
 use products::{conformance, exported};
@@ -75,7 +75,7 @@ impl Args {
 }
 
 fn environ() -> *const *mut c_char {
-    core::ptr::with_exposed_provenance(liella_boundary::spawn::environ())
+    core::ptr::with_exposed_provenance(niji_boundary::spawn::environ())
 }
 
 /// The result and errno of a call that should fail.
@@ -122,7 +122,7 @@ fn sym___arch_prctl() {
     let mut fs = 0u64;
     // ARCH(x86_64): arch_prctl is exported on x86_64 only (RL-8)
     assert_eq!(s::__arch_prctl(0x1003, core::ptr::from_mut(&mut fs) as u64), 0, "ARCH_GET_FS");
-    assert_eq!(fs as usize, liella_boundary::tb::tp());
+    assert_eq!(fs as usize, niji_boundary::tb::tp());
     errno::set_raw(0);
     // ARCH(x86_64): arch_prctl is exported on x86_64 only (RL-8)
     assert_eq!(fails(i64::from(s::__arch_prctl(0x7777, 0))), (-1, EINVAL));
@@ -135,7 +135,7 @@ fn sym_arch_prctl() {
     let mut fs = 0u64;
     // ARCH(x86_64): arch_prctl is exported on x86_64 only (RL-8)
     assert_eq!(s::arch_prctl(0x1003, core::ptr::from_mut(&mut fs) as u64), 0, "ARCH_GET_FS");
-    assert_eq!(fs as usize, liella_boundary::tb::tp());
+    assert_eq!(fs as usize, niji_boundary::tb::tp());
     errno::set_raw(0);
     // ARCH(x86_64): arch_prctl is exported on x86_64 only (RL-8)
     assert_eq!(fails(i64::from(s::arch_prctl(0x7777, 0))), (-1, EINVAL));
@@ -222,7 +222,7 @@ fn sym_execvp() {
     exported("execvp");
     errno::set_raw(0);
     let a = Args::new(&["x"]);
-    assert_eq!(fails(i64::from(s::execvp(cs("liella-no-such-program-xyz").as_ptr(), a.p()))), (-1, ENOENT), "not found along PATH");
+    assert_eq!(fails(i64::from(s::execvp(cs("niji-no-such-program-xyz").as_ptr(), a.p()))), (-1, ENOENT), "not found along PATH");
     assert_eq!(fails(i64::from(s::execvp(cs("").as_ptr(), a.p()))), (-1, ENOENT));
 }
 
@@ -231,7 +231,7 @@ fn sym_execvpe() {
     exported("execvpe");
     errno::set_raw(0);
     let a = Args::new(&["x"]);
-    assert_eq!(fails(i64::from(s::execvpe(cs("liella-no-such-program-xyz").as_ptr(), a.p(), environ()))), (-1, ENOENT));
+    assert_eq!(fails(i64::from(s::execvpe(cs("niji-no-such-program-xyz").as_ptr(), a.p(), environ()))), (-1, ENOENT));
 }
 
 #[test]
@@ -463,7 +463,7 @@ fn sym_posix_spawn_file_actions_addfchdir_np() {
     exported("posix_spawn_file_actions_addfchdir_np");
     let mut fa = new_actions();
     assert_eq!(s::posix_spawn_file_actions_addfchdir_np(Some(&mut fa), -1), EBADF, "checked when added, as every descriptor");
-    let root = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/\0").unwrap(), 0o2000000 | 0o200000, 0).unwrap();
+    let root = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/\0").unwrap(), 0o2000000 | 0o200000, 0).unwrap();
     assert_eq!(s::posix_spawn_file_actions_adddup2(Some(&mut fa), root.raw(), 9), 0);
     assert_eq!(s::posix_spawn_file_actions_addfchdir_np(Some(&mut fa), 9), 0);
     assert_eq!(spawn_status("[ \"$(pwd)\" = / ]", Some(&fa), None), (0, 0));
@@ -486,7 +486,7 @@ fn sym_posix_spawn_file_actions_addtcsetpgrp_np() {
     exported("posix_spawn_file_actions_addtcsetpgrp_np");
     let mut fa = new_actions();
     assert_eq!(s::posix_spawn_file_actions_addtcsetpgrp_np(Some(&mut fa), -1), EBADF);
-    let null = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), 0o2000000, 0).unwrap();
+    let null = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), 0o2000000, 0).unwrap();
     assert_eq!(s::posix_spawn_file_actions_addtcsetpgrp_np(Some(&mut fa), null.raw()), 0);
     assert_eq!(spawn_status("exit 0", Some(&fa), None).0, 25, "ENOTTY from the child, as the result");
     let _ = CSys.close(null);
@@ -699,15 +699,15 @@ fn sym_posix_spawnp() {
     let mut st = 0;
     assert_eq!(s::waitpid(pid, Some(&mut st), 0), pid);
     assert_eq!(st, 2 << 8);
-    assert_eq!(s::posix_spawnp(Some(&mut pid), cs("liella-no-such-program-xyz").as_ptr(), None, None, argv.p(), environ()), ENOENT);
+    assert_eq!(s::posix_spawnp(Some(&mut pid), cs("niji-no-such-program-xyz").as_ptr(), None, None, argv.p(), environ()), ENOENT);
 }
 
 #[test]
 fn sym_prctl() {
     exported("prctl");
-    assert_eq!(s::liella_prctl5(3, 0, 0, 0, 0), 1, "PR_GET_DUMPABLE: the value is the result");
+    assert_eq!(s::niji_prctl5(3, 0, 0, 0, 0), 1, "PR_GET_DUMPABLE: the value is the result");
     errno::set_raw(0);
-    assert_eq!(fails(i64::from(s::liella_prctl5(0x7fff_1234, 0, 0, 0, 0))), (-1, EINVAL));
+    assert_eq!(fails(i64::from(s::niji_prctl5(0x7fff_1234, 0, 0, 0, 0))), (-1, EINVAL));
     conformance(&["s18_exec"]);
 }
 
@@ -715,7 +715,7 @@ fn sym_prctl() {
 fn sym_ptrace() {
     exported("ptrace");
     errno::set_raw(0);
-    assert_eq!(fails(s::liella_ptrace4(2, 0x3fff_fff0, 0, 0)), (-1, ESRCH), "PEEKDATA of no process: -1 and errno");
+    assert_eq!(fails(s::niji_ptrace4(2, 0x3fff_fff0, 0, 0)), (-1, ESRCH), "PEEKDATA of no process: -1 and errno");
     conformance(&["s18_exec"]);
 }
 
@@ -736,7 +736,7 @@ fn sym___setpgid() {
 #[test]
 fn sym_setpgid() {
     exported("setpgid");
-    let c = liella_boundary::selftest::spawn_pausing().unwrap();
+    let c = niji_boundary::selftest::spawn_pausing().unwrap();
     assert_eq!(s::setpgid(c, 0), 0);
     assert_eq!(s::getpgid(c), c);
     errno::set_raw(0);
@@ -751,7 +751,7 @@ fn sym_setpgrp() {
     fn body(k: &CSys) -> i32 {
         i32::from(s::setpgrp() != 0 || s::getpgrp() != k.getpid())
     }
-    assert_eq!(liella_boundary::selftest::in_child(body).unwrap(), liella_boundary::selftest::ChildEnd::Exited(0));
+    assert_eq!(niji_boundary::selftest::in_child(body).unwrap(), niji_boundary::selftest::ChildEnd::Exited(0));
 }
 
 #[test]
@@ -764,7 +764,7 @@ fn sym_setsid() {
         errno::set_raw(0);
         i32::from(s::setsid() != -1 || errno::get() != EPERM)
     }
-    assert_eq!(liella_boundary::selftest::in_child(body).unwrap(), liella_boundary::selftest::ChildEnd::Exited(0));
+    assert_eq!(niji_boundary::selftest::in_child(body).unwrap(), niji_boundary::selftest::ChildEnd::Exited(0));
 }
 
 #[test]
@@ -792,11 +792,11 @@ fn sym___wait() {
     exported("__wait");
     // In a child: here `wait` could collect another test's child.
     fn body(_: &CSys) -> i32 {
-        let pid = liella_boundary::selftest::spawn_exiting(3).unwrap_or(-1);
+        let pid = niji_boundary::selftest::spawn_exiting(3).unwrap_or(-1);
         let mut st = 0;
         i32::from(s::__wait(Some(&mut st)) != pid || st != 3 << 8)
     }
-    assert_eq!(liella_boundary::selftest::in_child(body).unwrap(), liella_boundary::selftest::ChildEnd::Exited(0));
+    assert_eq!(niji_boundary::selftest::in_child(body).unwrap(), niji_boundary::selftest::ChildEnd::Exited(0));
 }
 
 #[test]
@@ -808,7 +808,7 @@ fn sym_wait() {
         errno::set_raw(0);
         i32::from(s::wait(None) != -1 || errno::get() != ECHILD)
     }
-    assert_eq!(liella_boundary::selftest::in_child(body).unwrap(), liella_boundary::selftest::ChildEnd::Exited(0));
+    assert_eq!(niji_boundary::selftest::in_child(body).unwrap(), niji_boundary::selftest::ChildEnd::Exited(0));
 }
 
 #[test]
@@ -819,13 +819,13 @@ fn sym_wait3() {
         errno::set_raw(0);
         i32::from(s::wait3(None, 0, Some(&mut ru)) != -1 || errno::get() != ECHILD)
     }
-    assert_eq!(liella_boundary::selftest::in_child(body).unwrap(), liella_boundary::selftest::ChildEnd::Exited(0));
+    assert_eq!(niji_boundary::selftest::in_child(body).unwrap(), niji_boundary::selftest::ChildEnd::Exited(0));
 }
 
 #[test]
 fn sym_wait4() {
     exported("wait4");
-    let pid = liella_boundary::selftest::spawn_exiting(4).unwrap();
+    let pid = niji_boundary::selftest::spawn_exiting(4).unwrap();
     let mut st = 0;
     let mut ru = Rusage::default();
     assert_eq!(s::wait4(pid, Some(&mut st), 0, Some(&mut ru)), pid);
@@ -837,7 +837,7 @@ fn sym_wait4() {
 #[test]
 fn sym_waitid() {
     exported("waitid");
-    let pid = liella_boundary::selftest::spawn_exiting(5).unwrap();
+    let pid = niji_boundary::selftest::spawn_exiting(5).unwrap();
     let mut si = SigInfo::default();
     assert_eq!(s::waitid(1, pid as u32, Some(&mut si), 4), 0, "P_PID, WEXITED");
     assert_eq!((si.code, si.status(), si.pid()), (1, 5, pid));
@@ -849,7 +849,7 @@ fn sym_waitid() {
 #[test]
 fn sym___waitpid() {
     exported("__waitpid");
-    let pid = liella_boundary::selftest::spawn_exiting(6).unwrap();
+    let pid = niji_boundary::selftest::spawn_exiting(6).unwrap();
     let mut st = 0;
     assert_eq!(s::__waitpid(pid, Some(&mut st), 0), pid);
     assert_eq!(st, 6 << 8);
@@ -858,7 +858,7 @@ fn sym___waitpid() {
 #[test]
 fn sym_waitpid() {
     exported("waitpid");
-    let pid = liella_boundary::selftest::spawn_pausing().unwrap();
+    let pid = niji_boundary::selftest::spawn_pausing().unwrap();
     let mut st = -9;
     assert_eq!(s::waitpid(pid, Some(&mut st), 1), 0, "WNOHANG: nothing yet");
     assert_eq!(st, -9, "status untouched when no child is reported");

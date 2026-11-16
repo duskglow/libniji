@@ -161,19 +161,19 @@ fn string_kernels_cost_about_the_same_at_every_operand_page_offset() {
         println!("SKIP: no AVX2: the bounds were measured for the AVX2 kernels");
         return;
     }
-    let products = std::env::var_os("LIELLA_PRODUCTS").map_or_else(|| root().join("target/liella"), PathBuf::from);
+    let products = std::env::var_os("NIJI_PRODUCTS").map_or_else(|| root().join("target/niji"), PathBuf::from);
     assert!(products.join("libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = root().join("target/test-scratch/placement_sweep").join(format!("{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("p.c"), PROGRAM).unwrap();
-    let out = Command::new(root().join("scripts/liella-cc"))
-        .env("LIELLA_PRODUCTS", &products)
-        .env_remove("LIELLA_CC_EXTRA")
+    let out = Command::new(root().join("scripts/niji-cc"))
+        .env("NIJI_PRODUCTS", &products)
+        .env_remove("NIJI_CC_EXTRA")
         .current_dir(&dir)
         .args(["-O1", "-fno-builtin", "-o", "p", "p.c"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "liella-cc failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success(), "niji-cc failed: {}", String::from_utf8_lossy(&out.stderr));
     let out = Command::new(dir.join("p")).output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let text = String::from_utf8_lossy(&out.stdout).to_string();

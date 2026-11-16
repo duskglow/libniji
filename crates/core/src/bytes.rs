@@ -15,15 +15,15 @@ pub trait Unit: Copy + Eq + Ord + 'static {
     fn as_byte(self) -> Option<u8>;
     /// A byte as a unit.
     fn from_byte(b: u8) -> Self;
-    /// Copy into the start of `dst` (`liella_mem`, D-4.11); the units copied.
+    /// Copy into the start of `dst` (`niji_mem`, D-4.11); the units copied.
     fn copy_units(dst: &mut [Self], src: &[Self]) -> usize;
     /// As `copy_units`, whole blocks in descending address order (D-4.14); the units copied.
     fn copy_units_back(dst: &mut [Self], src: &[Self]) -> usize;
-    /// Overlap-safe move within one buffer (`liella_mem`); `false` if out of range.
+    /// Overlap-safe move within one buffer (`niji_mem`); `false` if out of range.
     fn move_units(buf: &mut [Self], src: usize, dst: usize, len: usize) -> bool;
-    /// Fill (`liella_mem`).
+    /// Fill (`niji_mem`).
     fn fill_units(dst: &mut [Self], v: Self);
-    /// Lexicographic order (`liella_mem`).
+    /// Lexicographic order (`niji_mem`).
     fn compare_units(a: &[Self], b: &[Self]) -> Ordering;
     /// The first index of `x` (`memchr`, `wmemchr`).
     fn find_unit(s: &[Self], x: Self) -> Option<usize> {
@@ -40,22 +40,22 @@ impl Unit for u8 {
         b
     }
     fn copy_units(dst: &mut [u8], src: &[u8]) -> usize {
-        liella_mem::copy_u8(dst, src)
+        niji_mem::copy_u8(dst, src)
     }
     fn copy_units_back(dst: &mut [u8], src: &[u8]) -> usize {
-        liella_mem::copy_back_u8(dst, src)
+        niji_mem::copy_back_u8(dst, src)
     }
     fn move_units(buf: &mut [u8], src: usize, dst: usize, len: usize) -> bool {
-        liella_mem::move_u8(buf, src, dst, len)
+        niji_mem::move_u8(buf, src, dst, len)
     }
     fn fill_units(dst: &mut [u8], v: u8) {
-        liella_mem::fill_u8(dst, v);
+        niji_mem::fill_u8(dst, v);
     }
     fn compare_units(a: &[u8], b: &[u8]) -> Ordering {
-        liella_mem::compare_u8(a, b)
+        niji_mem::compare_u8(a, b)
     }
     fn find_unit(s: &[u8], x: u8) -> Option<usize> {
-        liella_mem::find_u8(s, x)
+        niji_mem::find_u8(s, x)
     }
 }
 
@@ -70,19 +70,19 @@ impl Unit for i32 {
         i32::from(b)
     }
     fn copy_units(dst: &mut [i32], src: &[i32]) -> usize {
-        liella_mem::copy_i32(dst, src)
+        niji_mem::copy_i32(dst, src)
     }
     fn copy_units_back(dst: &mut [i32], src: &[i32]) -> usize {
-        liella_mem::copy_back_i32(dst, src)
+        niji_mem::copy_back_i32(dst, src)
     }
     fn move_units(buf: &mut [i32], src: usize, dst: usize, len: usize) -> bool {
-        liella_mem::move_i32(buf, src, dst, len)
+        niji_mem::move_i32(buf, src, dst, len)
     }
     fn fill_units(dst: &mut [i32], v: i32) {
-        liella_mem::fill_i32(dst, v);
+        niji_mem::fill_i32(dst, v);
     }
     fn compare_units(a: &[i32], b: &[i32]) -> Ordering {
-        liella_mem::compare_i32(a, b)
+        niji_mem::compare_i32(a, b)
     }
 }
 

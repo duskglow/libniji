@@ -25,12 +25,12 @@
 
 use core::sync::atomic::{AtomicU32, AtomicU8, AtomicUsize, Ordering::Relaxed};
 
-use liella::diag;
-use liella::error::{Errno, KResult};
-use liella::mem::TryVec;
-use liella::text::Encoding;
-use liella_legacy::stdio_compat as sc;
-use liella_rt::sync::RawMutex;
+use niji::diag;
+use niji::error::{Errno, KResult};
+use niji::mem::TryVec;
+use niji::text::Encoding;
+use niji_legacy::stdio_compat as sc;
+use niji_rt::sync::RawMutex;
 
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;
@@ -82,7 +82,7 @@ pub fn strerror(e: i32) -> usize {
     }
     let mut b = [0u8; 32];
     let n = unknown(e, &mut b);
-    let Some(buf) = crate::thread::result_slot(liella_rt::thread::SLOT_STRERROR) else {
+    let Some(buf) = crate::thread::result_slot(niji_rt::thread::SLOT_STRERROR) else {
         errno::set(Errno::ENOMEM);
         return text_addr(Some(UNKNOWN_ERROR));
     };
@@ -292,7 +292,7 @@ pub fn report(kind: Kind, status: i32, errnum: i32, file: KResult<Option<&[u8]>>
                     [program_name(ffi::program_invocation_name.load(Relaxed)), if file.is_some() { b":" } else { b": " }]
                 } else {
                     // The program's own `void (*)(void)`, set for exactly this use (§2.3).
-                    let _ = ffi::liella_machine_call0(hook);
+                    let _ = ffi::niji_machine_call0(hook);
                     [&[], &[]]
                 };
                 let mut d = [0u8; 10];

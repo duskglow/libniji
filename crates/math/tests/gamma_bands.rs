@@ -1,4 +1,4 @@
-//! The `double` `lgamma`/`tgamma` band forms (`liella_math::fast_gamma::lgamma_band`,
+//! The `double` `lgamma`/`tgamma` band forms (`niji_math::fast_gamma::lgamma_band`,
 //! `tgamma_band`, D-10.105) against the 384-bit path, spec §10.3 and D-10.13 (correct rounding
 //! in every mode): identical result, status and sign on operands spread over each band
 //! (`|x| < 2^-60` with the subnormals, `x >= 16` up to the overflow) and at the band edges,
@@ -6,9 +6,9 @@
 //! subnormal `x` where `tgamma` reaches `2^1023` and overflows.
 #![allow(clippy::unwrap_used, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::arithmetic_side_effects)]
 
-use liella_math::fast_gamma;
-use liella_math::special;
-use liella_math::status::Rounding;
+use niji_math::fast_gamma;
+use niji_math::special;
+use niji_math::status::Rounding;
 
 const MODES: [Rounding; 4] = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero];
 

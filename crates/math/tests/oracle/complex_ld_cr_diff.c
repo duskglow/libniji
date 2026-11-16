@@ -7,7 +7,7 @@
  * direction; cpow on a smaller grid of bases and exponents; then a random sample of RN operands
  * per function in round-to-nearest (mode letter 'n'). Each line prints the operands' and the
  * results' bits (sign/exponent then significand, 20 hex digits), the raised flags and errno.
- * Built against the host C library and statically against Liella's products, the outputs must
+ * Built against the host C library and statically against libniji's products, the outputs must
  * agree (complex_ld_cr_products.rs) apart from recorded differences. */
 #define _GNU_SOURCE
 #include <complex.h>

@@ -21,7 +21,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use liella_ld::arch::{Arch, Native};
+use niji_ld::arch::{Arch, Native};
 
 /// The program: calls `x()` from its first dependency and exits with what it returns. No libc.
 const PROG: &str = r#"
@@ -68,7 +68,7 @@ fn target() -> PathBuf {
 
 /// The built interpreter, or `None` (with the reason) before `cargo xtask so`.
 fn product() -> Option<PathBuf> {
-    let p = target().join("liella").join(Native::INTERP);
+    let p = target().join("niji").join(Native::INTERP);
     if p.exists() {
         return Some(p);
     }
@@ -82,7 +82,7 @@ fn reference() -> Option<PathBuf> {
     if p.exists() {
         return Some(p);
     }
-    eprintln!("NOTE: no reference loader at {}: Liella's results are checked against the expected values only", p.display());
+    eprintln!("NOTE: no reference loader at {}: libniji's results are checked against the expected values only", p.display());
     None
 }
 
@@ -236,7 +236,7 @@ fn ldso_search_steps_match_reference() {
     ];
     for (what, prog, env, want) in cases {
         let got = output(with_llp(timed(prog), env));
-        let mut runs = vec![("liella", got)];
+        let mut runs = vec![("niji", got)];
         if let Some(r) = &refl {
             let mut c = Command::new("timeout");
             c.arg("60").arg(r).arg(prog);
@@ -252,7 +252,7 @@ fn ldso_search_steps_match_reference() {
                 }
             }
         }
-        // The `--list` line of an object needed by its path differs from the reference's (Liella:
+        // The `--list` line of an object needed by its path differs from the reference's (libniji:
         // `PATH => PATH`, reference: the path alone; the dependency list, not the start-time search):
         // that case compares the run only, until the list's line form is settled.
         if let (Ok(_), Some(r), false) = (&want, &refl, prog == origin_path.as_path()) {
@@ -305,7 +305,7 @@ fn ldso_search_secure_ignores_library_path() {
 #[test]
 fn ldso_search_cache_opened_once_when_reached() {
     let (Some(ld), true) = (product(), cc_ok()) else { return eprintln!("SKIP: no product or no cc") };
-    if option_env!("LIELLA_PREFIX").is_some() {
+    if option_env!("NIJI_PREFIX").is_some() {
         return eprintln!("SKIP: a prefixed build reads <prefix>/etc/ld.so.cache, not the host's cache");
     }
     if !Command::new("strace").args(["-o", "/dev/null", "true"]).status().is_ok_and(|s| s.success()) {

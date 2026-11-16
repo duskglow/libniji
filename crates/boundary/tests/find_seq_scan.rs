@@ -4,17 +4,17 @@
 //! decoys that match the first byte, the last byte, or both without the middle; and with the
 //! haystack ending on the last byte of a page whose next page is unmapped (a load across the page
 //! would fault). Both paths (SSE2, and AVX2 where the CPU has it).
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use std::sync::{Mutex, MutexGuard};
 
-use liella_abi::ctypes::c_void;
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_abi::ctypes::c_void;
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
 
@@ -110,7 +110,7 @@ fn memmem_matches_a_naive_search_at_every_length_position_and_alignment() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn memmem_never_reads_past_the_end_of_the_haystack() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -164,5 +164,5 @@ fn memmem_with_many_failed_candidates_stays_correct() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }

@@ -13,7 +13,7 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella::error::{Errno, Result};
+use niji::error::{Errno, Result};
 
 use crate::mb_compat::ReadAt;
 use crate::search_c::CWords;

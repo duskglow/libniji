@@ -7,17 +7,17 @@
 //!
 //! `sysconf`'s three meanings share one return channel (D-24.1): the value, -1 without `errno`
 //! for "no limit", -1 with `errno` for an unknown name. The fixed answers are the reference
-//! glibc's (`liella_legacy::sysconf_table`, generated from `spec/abi/sysconf.tsv`), the computed
-//! ones `liella::system`'s. `ulimit` and `syscall` are variadic: their C entry points are
-//! adapters (`csys/src/adapter/variadic.c`) forwarding to `liella_ulimit2` and
-//! `liella_syscall7` (OD-C1).
+//! glibc's (`niji_legacy::sysconf_table`, generated from `spec/abi/sysconf.tsv`), the computed
+//! ones `niji::system`'s. `ulimit` and `syscall` are variadic: their C entry points are
+//! adapters (`csys/src/adapter/variadic.c`) forwarding to `niji_ulimit2` and
+//! `niji_syscall7` (OD-C1).
 
-use liella::system;
-use liella_abi::ctypes::{c_char, c_int, c_long, c_uint, c_ulong, c_void, size_t};
-use liella_kernel::errno::Errno;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, Rusage, SchedParam, Sysinfo, Timespec, Utsname};
-use liella_legacy::sys_compat;
+use niji::system;
+use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, c_ulong, c_void, size_t};
+use niji_kernel::errno::Errno;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, Rusage, SchedParam, Sysinfo, Timespec, Utsname};
+use niji_legacy::sys_compat;
 
 use crate::conv;
 use crate::export;
@@ -59,8 +59,8 @@ pub extern "C" fn prlimit64(pid: c_int, resource: c_int, new: Option<&Rlimit>, o
     ret::store_if(old, CSys.prlimit(pid, conv::bits(resource), new))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_ulimit2(cmd: c_int, newlimit: c_long) -> c_long {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_ulimit2(cmd: c_int, newlimit: c_long) -> c_long {
     ret::long(sys_compat::ulimit(&CSys, &CSys, &process::ProcessAux, cmd, newlimit))
 }}
 
@@ -285,8 +285,8 @@ pub extern "C" fn getdtablesize() -> c_int {
     ret::int(sys_compat::sysconf(&CSys, &CSys, &process::ProcessAux, 4).map(|v| v.unwrap_or(2_147_483_647)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_syscall7(nr: c_long, a: c_long, b: c_long, c: c_long, d: c_long, e: c_long, f: c_long) -> c_long {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_syscall7(nr: c_long, a: c_long, b: c_long, c: c_long, d: c_long, e: c_long, f: c_long) -> c_long {
     ret::long(raw::syscall(nr, [a, b, c, d, e, f]))
 }}
 
@@ -447,38 +447,38 @@ pub extern "C" fn delete_module(name: *const c_char, flags: c_uint) -> c_int {
 }}
 
 // The removed module and NFS-server calls and `uselib` (§24.6): compat-only names
-// (`name@GLIBC_2.2.5`, exported as `liella_compat_<name>` behind the generated `.symver` stubs of
+// (`name@GLIBC_2.2.5`, exported as `niji_compat_<name>` behind the generated `.symver` stubs of
 // `csys/src/machine/compat_aliases.S`, R15-1/R15-2). Each still makes its system call, as the
 // reference's do (a probe that made those numbers fail with a marker errno saw the marker); a
 // current kernel answers `ENOSYS` (spec/behaviour/compat.md). `uselib` works where the kernel keeps
 // CONFIG_USELIB.
 crate::internal_entry! {
 /// `create_module@GLIBC_2.2.5`: the kernel's address, or `(caddr_t)-1` with `errno`.
-pub extern "C" fn liella_compat_create_module(name: *const c_char, size: size_t) -> *mut c_char {
+pub extern "C" fn niji_compat_create_module(name: *const c_char, size: size_t) -> *mut c_char {
     ret::addr_or_neg1(raw::syscall(nr::CREATE_MODULE, [addr_word(name), i64::from_ne_bytes(size.to_ne_bytes()), 0, 0, 0, 0]).map(|a| usize::from_ne_bytes(a.to_ne_bytes())))
 }}
 
 crate::internal_entry! {
 /// `get_kernel_syms@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_get_kernel_syms(table: *mut c_void) -> c_int {
+pub extern "C" fn niji_compat_get_kernel_syms(table: *mut c_void) -> c_int {
     ret::int(raw::syscall(nr::GET_KERNEL_SYMS, [addr_word(table.cast_const()), 0, 0, 0, 0, 0]))
 }}
 
 crate::internal_entry! {
 /// `query_module@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_query_module(name: *const c_char, which: c_int, buf: *mut c_void, bufsize: size_t, out: *mut size_t) -> c_int {
+pub extern "C" fn niji_compat_query_module(name: *const c_char, which: c_int, buf: *mut c_void, bufsize: size_t, out: *mut size_t) -> c_int {
     ret::int(raw::syscall(nr::QUERY_MODULE, [addr_word(name), i64::from(which), addr_word(buf.cast_const()), i64::from_ne_bytes(bufsize.to_ne_bytes()), addr_word(out.cast_const()), 0]))
 }}
 
 crate::internal_entry! {
 /// `nfsservctl@GLIBC_2.2.5` (a `long` result: the reference returns all 64 bits of -1).
-pub extern "C" fn liella_compat_nfsservctl(cmd: c_int, arg: *mut c_void, res: *mut c_void) -> c_long {
+pub extern "C" fn niji_compat_nfsservctl(cmd: c_int, arg: *mut c_void, res: *mut c_void) -> c_long {
     ret::off(raw::syscall(nr::NFSSERVCTL, [i64::from(cmd), addr_word(arg.cast_const()), addr_word(res.cast_const()), 0, 0, 0]).map(|v| u64::from_ne_bytes(v.to_ne_bytes())))
 }}
 
 crate::internal_entry! {
 /// `uselib@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_uselib(library: *const c_char) -> c_int {
+pub extern "C" fn niji_compat_uselib(library: *const c_char) -> c_int {
     ret::zero(raw::syscall(nr::USELIB, [addr_word(library), 0, 0, 0, 0, 0]).map(drop))
 }}
 

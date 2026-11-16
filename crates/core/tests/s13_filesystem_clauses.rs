@@ -6,9 +6,9 @@
 //! Clause tests for spec §13 (71 clauses).
 //!
 //! The calls are tested through the exports (the C caller's contract) and, where glibc adds
-//! something to the kernel call, through `liella_legacy::fs_compat` with the kernel's answers
+//! something to the kernel call, through `niji_legacy::fs_compat` with the kernel's answers
 //! injected by `Faulty` (a missing `fchmodat2` or `faccessat2`).
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 #[path = "support/kernel.rs"]
@@ -18,18 +18,18 @@ use core::ptr::null_mut;
 use std::ffi::CString;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use liella::error::Errno;
-use liella_abi::ctypes::c_int;
-use liella_boundary::errno;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s13_filesystem as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::testing::Faulty;
-use liella_kernel::uapi::{Stat, Statfs, Timespec, Timeval};
-use liella_legacy::fs_compat;
+use niji::error::Errno;
+use niji_abi::ctypes::c_int;
+use niji_boundary::errno;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s13_filesystem as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::testing::Faulty;
+use niji_kernel::uapi::{Stat, Statfs, Timespec, Timeval};
+use niji_legacy::fs_compat;
 
 const O_RDONLY: c_int = 0;
 const O_RDWR: c_int = 2;
@@ -61,7 +61,7 @@ impl Dir {
     }
     fn open(&self) -> c_int {
         let c = CString::new(self.0.clone().into_os_string().into_encoded_bytes()).unwrap();
-        io::liella_open3(c.as_ptr(), O_RDONLY | O_DIRECTORY, 0)
+        io::niji_open3(c.as_ptr(), O_RDONLY | O_DIRECTORY, 0)
     }
 }
 impl Drop for Dir {
@@ -91,12 +91,12 @@ fn root() -> bool {
 
 /// Runs `body` in a child (this test re-executed alone): process-wide state (the umask, IDs).
 fn alone(name: &str, body: impl FnOnce() -> bool) {
-    if std::env::var("LIELLA_C13_ALONE").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_C13_ALONE").is_ok_and(|v| v == name) {
         CSys.exit_group(if body() { 0 } else { 1 });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_C13_ALONE", name)
+        .env("NIJI_C13_ALONE", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -148,7 +148,7 @@ fn s13_n_3() {
     let d = Dir::new("n3");
     std::fs::create_dir(d.0.join("a")).unwrap();
     std::fs::write(d.0.join("a/f"), b"x").unwrap();
-    let dir = io::liella_open3(d.at("a").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let dir = io::niji_open3(d.at("a").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     std::fs::rename(d.0.join("a"), d.0.join("b")).unwrap();
     let mut st = Stat::default();
     assert_eq!(x::fstatat(dir, c"f".as_ptr(), Some(&mut st), 0), 0, "still found through the descriptor");
@@ -175,19 +175,19 @@ mod p12 {
     use std::path::{Path, PathBuf};
     use std::sync::atomic::Ordering;
 
-    use liella_abi::ctypes::{c_char, c_int};
-    use liella_abi::layout::struct_FTW;
-    use liella_boundary::posix::s04_strings as st;
-    use liella_boundary::sys::CSys;
-    use liella_kernel::fd::Fd;
-    use liella_kernel::path::KStr;
-    use liella_kernel::sys::Sys;
-    use liella_kernel::uapi::{Stat, AT_REMOVEDIR, O_CLOEXEC, O_CREAT, O_DIRECTORY, O_RDONLY, O_WRONLY, S_IFMT};
+    use niji_abi::ctypes::{c_char, c_int};
+    use niji_abi::layout::struct_FTW;
+    use niji_boundary::posix::s04_strings as st;
+    use niji_boundary::sys::CSys;
+    use niji_kernel::fd::Fd;
+    use niji_kernel::path::KStr;
+    use niji_kernel::sys::Sys;
+    use niji_kernel::uapi::{Stat, AT_REMOVEDIR, O_CLOEXEC, O_CREAT, O_DIRECTORY, O_RDONLY, O_WRONLY, S_IFMT};
 
     use super::SEQ;
 
-    pub(crate) const CHILD: &str = "LIELLA_C13_CHILD";
-    const CHILD_DIR: &str = "LIELLA_C13_DIR";
+    pub(crate) const CHILD: &str = "NIJI_C13_CHILD";
+    const CHILD_DIR: &str = "NIJI_C13_DIR";
     /// Components of the deep tree.
     pub(crate) const DEPTH: usize = 25;
 
@@ -354,7 +354,7 @@ mod p12 {
         run_child(name, d, true, body);
     }
 
-    const NS: &str = "LIELLA_C13_NS";
+    const NS: &str = "NIJI_C13_NS";
 
     fn run_child(name: &str, d: &Scratch, ns: bool, body: impl FnOnce(&Path)) {
         if std::env::var(CHILD).is_ok_and(|v| v == name) {
@@ -697,8 +697,8 @@ fn s13_1_c_2() {
         assert_eq!(x::chdir(cpath(&dir.join("c/sub")).as_ptr()), 0);
         let phys = dir.join("c/sub").as_os_str().as_encoded_bytes().to_vec();
         let pwd = |v: Option<&std::path::Path>| match v {
-            Some(p) => assert_eq!(liella_boundary::posix::s01_startup::setenv(c"PWD".as_ptr(), cpath(p).as_ptr(), 1), 0),
-            None => assert_eq!(liella_boundary::posix::s01_startup::unsetenv(c"PWD".as_ptr()), 0),
+            Some(p) => assert_eq!(niji_boundary::posix::s01_startup::setenv(c"PWD".as_ptr(), cpath(p).as_ptr(), 1), 0),
+            None => assert_eq!(niji_boundary::posix::s01_startup::unsetenv(c"PWD".as_ptr()), 0),
         };
         pwd(None);
         assert_eq!(ctext(x::get_current_dir_name()), phys, "PWD unset");
@@ -757,12 +757,12 @@ fn s13_1_c_4() {
         assert_eq!(kernel_cwd(), dir.as_os_str().as_encoded_bytes());
         let seen = std::thread::spawn(kernel_cwd).join().unwrap();
         assert_eq!(seen, dir.as_os_str().as_encoded_bytes(), "process-wide");
-        let fd = io::liella_open3(cpath(&dir.join("sub")).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+        let fd = io::niji_open3(cpath(&dir.join("sub")).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
         assert_eq!(x::fchdir(fd), 0);
         assert_eq!(kernel_cwd(), dir.join("sub").as_os_str().as_encoded_bytes());
         assert_eq!(std::thread::spawn(kernel_cwd).join().unwrap(), dir.join("sub").as_os_str().as_encoded_bytes());
         io::close(fd);
-        let f = io::liella_open3(cpath(&dir.join("f")).as_ptr(), O_RDONLY, 0);
+        let f = io::niji_open3(cpath(&dir.join("f")).as_ptr(), O_RDONLY, 0);
         errno::set_raw(0);
         assert!(err(x::fchdir(f), Errno::ENOTDIR), "a file");
         io::close(f);
@@ -849,7 +849,7 @@ fn s13_2_c_1() {
     // opendir and fdopendir open streams; fdopendir takes the descriptor (closedir closes it),
     // sets close-on-exec, keeps its position, and refuses what is not a readable directory
     // without taking it.
-    use liella_kernel::ops::FcntlInt;
+    use niji_kernel::ops::FcntlInt;
     let d = Scratch::new("c21");
     d.dir("r/d");
     d.file("r/f");
@@ -859,7 +859,7 @@ fn s13_2_c_1() {
     assert!(fd >= 0);
     assert_eq!(CSys.fcntl_int(Fd::new(fd), FcntlInt::GetFd, 0), Ok(1), "close-on-exec");
     assert_eq!(x::closedir(dp), 0);
-    let fd = io::liella_open3(d.c("r").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(d.c("r").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let dp = x::fdopendir(fd);
     assert!(!dp.is_null());
     assert_eq!(x::dirfd(dp), fd, "the same descriptor");
@@ -873,12 +873,12 @@ fn s13_2_c_1() {
     // Descriptor numbers are process-wide: a closed one is checked alone, in a child, so that
     // no concurrently running test reuses the number meanwhile.
     in_child("s13_2_c_1", &d, |dir| {
-        let fd = io::liella_open3(cpath(&dir.join("r")).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+        let fd = io::niji_open3(cpath(&dir.join("r")).as_ptr(), O_RDONLY | O_DIRECTORY, 0);
         assert_eq!(x::closedir(x::fdopendir(fd)), 0);
         assert_eq!(CSys.fcntl_int(Fd::new(fd), FcntlInt::GetFd, 0), Err(Errno::EBADF), "closedir closed the descriptor it was given");
     });
     // At the end already: no implicit rewind.
-    let fd = io::liella_open3(d.c("r").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(d.c("r").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut buf = vec![0u8; 4096];
     while CSys.getdents64(Fd::new(fd), &mut buf).unwrap() > 0 {}
     let dp = x::fdopendir(fd);
@@ -886,12 +886,12 @@ fn s13_2_c_1() {
     x::rewinddir(dp);
     assert!(!x::readdir(dp).is_null());
     x::closedir(dp);
-    let f = io::liella_open3(d.c("r/f").as_ptr(), O_RDONLY, 0);
+    let f = io::niji_open3(d.c("r/f").as_ptr(), O_RDONLY, 0);
     errno::set_raw(0);
     assert!(x::fdopendir(f).is_null() && errno::get() == Errno::ENOTDIR.get());
     assert!(CSys.fcntl_int(Fd::new(f), FcntlInt::GetFd, 0).is_ok(), "not taken on failure");
     io::close(f);
-    let p = io::liella_open3(d.c("r").as_ptr(), 0o10000000 | O_DIRECTORY, 0);
+    let p = io::niji_open3(d.c("r").as_ptr(), 0o10000000 | O_DIRECTORY, 0);
     errno::set_raw(0);
     assert!(x::fdopendir(p).is_null() && errno::get() == Errno::EBADF.get(), "an O_PATH descriptor cannot be read");
     io::close(p);
@@ -904,7 +904,7 @@ fn s13_2_c_1() {
 }
 
 /// The fields of the `struct dirent` at `p`: ino, off, reclen, type, name.
-fn dirent_at(p: *mut liella_abi::layout::struct_dirent) -> (u64, i64, u16, u8, Vec<u8>) {
+fn dirent_at(p: *mut niji_abi::layout::struct_dirent) -> (u64, i64, u16, u8, Vec<u8>) {
     let h = cbytes(p.cast_const().cast(), 19);
     let name = ctext(p.cast::<u8>().wrapping_add(19).cast());
     (word(&h, 0), word(&h, 8) as i64, u16::from_ne_bytes(h[16..18].try_into().unwrap()), h[18], name)
@@ -1021,7 +1021,7 @@ fn s13_2_c_2_2() {
 fn s13_2_c_3() {
     // readdir_r copies the entry into the caller's buffer and points *result at it; at the end
     // it returns 0 with *result NULL; errors are returned (errno is not the channel).
-    use liella_abi::layout::{struct_dirent, struct_dirent64};
+    use niji_abi::layout::{struct_dirent, struct_dirent64};
     let d = Scratch::new("c23");
     d.file("f");
     let dp = x::opendir(d.c("").as_ptr());
@@ -1122,7 +1122,7 @@ fn s13_2_c_4_across_buffer_growth() {
     want.sort();
     for from_fd in [false, true] {
         let dp = if from_fd {
-            x::fdopendir(io::liella_open3(d.c("").as_ptr(), O_RDONLY | O_DIRECTORY, 0))
+            x::fdopendir(io::niji_open3(d.c("").as_ptr(), O_RDONLY | O_DIRECTORY, 0))
         } else {
             x::opendir(d.c("").as_ptr())
         };
@@ -1151,7 +1151,7 @@ fn s13_2_c_4_across_buffer_growth() {
 fn s13_2_c_5() {
     // rewinddir restarts the stream and sees the directory as it is now; closedir closes the
     // stream and its descriptor; dirfd is the descriptor.
-    use liella_kernel::ops::FcntlInt;
+    use niji_kernel::ops::FcntlInt;
     let d = Scratch::new("c25");
     d.file("a");
     d.file("b");
@@ -1189,7 +1189,7 @@ fn s13_2_c_6() {
     let d = Scratch::new("c26");
     d.file("f");
     d.dir("g");
-    let fd = io::liella_open3(d.c("").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(d.c("").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut buf = vec![0u8; 4096];
     errno::set_raw(0);
     assert_eq!(x::getdents64(fd, buf.as_mut_ptr().cast(), 1), -1);
@@ -1207,7 +1207,7 @@ fn s13_2_c_6() {
     assert_eq!(names, vec![b".".to_vec(), b"..".to_vec(), b"f".to_vec(), b"g".to_vec()]);
     assert_eq!(x::getdents64(fd, buf.as_mut_ptr().cast(), buf.len()), 0, "the end");
     io::close(fd);
-    let fd = io::liella_open3(d.c("").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let fd = io::niji_open3(d.c("").as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut base = 12345i64;
     assert!(x::getdirentries(fd, buf.as_mut_ptr().cast(), buf.len(), Some(&mut base)) > 0);
     assert_eq!(base, 0, "the position before the first read");
@@ -1299,7 +1299,7 @@ fn s13_2_f_0() {
     x::rewinddir(dp);
     errno::set_raw(0);
     assert!(x::readdir(dp).is_null() && errno::get() == 0, "after rewinddir too");
-    let mut e = liella_abi::layout::struct_dirent { d_ino: 0, d_off: 0, d_reclen: 0, d_type: 0, d_name: [0; 256] };
+    let mut e = niji_abi::layout::struct_dirent { d_ino: 0, d_off: 0, d_reclen: 0, d_type: 0, d_name: [0; 256] };
     let mut res = null_mut();
     assert_eq!(x::readdir_r(dp, Some(&mut e), Some(&mut res)), 0, "readdir_r: the end");
     assert!(res.is_null());
@@ -1337,7 +1337,7 @@ fn s13_2_f_0() {
     }
     assert!(more > 0 && more < 1952, "some buffered entries ({more}), not the rest");
     assert_eq!(errno::get(), 0, "the end of a removed directory, not ENOENT");
-    let mut e = liella_abi::layout::struct_dirent { d_ino: 0, d_off: 0, d_reclen: 0, d_type: 0, d_name: [0; 256] };
+    let mut e = niji_abi::layout::struct_dirent { d_ino: 0, d_off: 0, d_reclen: 0, d_type: 0, d_name: [0; 256] };
     let mut res = null_mut();
     assert_eq!(x::readdir_r(dp, Some(&mut e), Some(&mut res)), 0, "readdir_r: the end");
     assert!(res.is_null());
@@ -1362,7 +1362,7 @@ extern "C" fn remove_dir_filter(_e: *const core::ffi::c_void) -> c_int {
 }
 
 /// The names `scandir` listed (the array read through the library's own memcpy).
-fn listed(list: *mut *mut liella_abi::layout::struct_dirent, n: c_int) -> Vec<String> {
+fn listed(list: *mut *mut niji_abi::layout::struct_dirent, n: c_int) -> Vec<String> {
     let words = cbytes(list.cast_const().cast(), usize::try_from(n).unwrap() * 8);
     (0..usize::try_from(n).unwrap()).map(|i| String::from_utf8_lossy(&dirent_at(core::ptr::with_exposed_provenance_mut(word(&words, i * 8) as usize)).4).into_owned()).collect()
 }
@@ -1626,7 +1626,7 @@ fn s13_3_c_4() {
             root = Some(e.addr);
             // The caller's field: the library never writes it after creating the entry.
             let mut seven = 7i64.to_ne_bytes();
-            liella_boundary::posix::s04_strings::memcpy(core::ptr::with_exposed_provenance_mut::<u8>(e.addr + 24).cast(), seven.as_mut_ptr().cast_const().cast(), 8);
+            niji_boundary::posix::s04_strings::memcpy(core::ptr::with_exposed_provenance_mut::<u8>(e.addr + 24).cast(), seven.as_mut_ptr().cast_const().cast(), 8);
         } else if e.level == 0 {
             assert_eq!((e.addr, e.number), (root.unwrap(), 7), "the post-order entry is the pre-order one, fts_number kept");
         } else if e.level == 1 {
@@ -1704,7 +1704,7 @@ fn s13_3_c_4() {
     // FTS-INSTR-DIRECT), on listed entries and on the entry fts_read returned.
     let put_instr = |addr: usize, v: u16| {
         let mut b = v.to_ne_bytes();
-        liella_boundary::posix::s04_strings::memcpy(core::ptr::with_exposed_provenance_mut::<u8>(addr + 102).cast(), b.as_mut_ptr().cast_const().cast(), 2);
+        niji_boundary::posix::s04_strings::memcpy(core::ptr::with_exposed_provenance_mut::<u8>(addr + 102).cast(), b.as_mut_ptr().cast_const().cast(), 2);
     };
     let f = x::fts_open(av.as_ptr(), 16 | 4, Some(by_name));
     assert!(ent(x::fts_read(f)).is_some());
@@ -2003,7 +2003,7 @@ fn s13_3_i_0() {
     // shallowest levels' descriptors, reopens them component by component when it climbs back,
     // and still reports every entry.
     {
-        use liella::fs::walk::{self, Action, Event, Options};
+        use niji::fs::walk::{self, Action, Event, Options};
         let k = Faulty::new(CSys);
         assert!(k.fail("openat", Errno::EMFILE, 8, 3));
         let (mut n, mut longest) = (0usize, 0usize);
@@ -2023,7 +2023,7 @@ fn s13_3_i_0() {
     // walked (whichever the file system lists first): the directory's own descriptor was closed
     // meanwhile, and its next entry is still examined through a reopened one.
     {
-        use liella::fs::walk::{self, Action, Event, Options};
+        use niji::fs::walk::{self, Action, Event, Options};
         let chain: String = "n/".repeat(12);
         for c in ["c1", "c2"] {
             std::fs::create_dir_all(d.at(&format!("two/x/{c}/{chain}"))).unwrap();
@@ -2207,7 +2207,7 @@ fn s13_5_c_0() {
 fn s13_6_c_0() {
     let d = Dir::new("c60");
     let f = d.file("f", &[7u8; 5000]);
-    let fd = io::liella_open3(f.as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDONLY, 0);
     let (mut a, mut b) = (Stat::default(), Stat::default());
     assert_eq!(x::stat(f.as_ptr(), Some(&mut a)), 0);
     assert_eq!(x::fstat(fd, Some(&mut b)), 0);
@@ -2262,7 +2262,7 @@ fn s13_6_f_0() {
     assert!(err(x::stat(d.at("loop").as_ptr(), Some(&mut st)), Errno::ELOOP));
     // EOVERFLOW concerns 32-bit structures; x86-64's are 64-bit throughout, so a large size
     // is reported, not refused.
-    let fd = io::liella_open3(f.as_ptr(), O_RDWR, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDWR, 0);
     assert_eq!(x::ftruncate(fd, 1 << 40), 0);
     assert_eq!(x::fstat(fd, Some(&mut st)), 0);
     assert_eq!(st.size, 1 << 40);
@@ -2417,7 +2417,7 @@ fn s13_8_c_0() {
     }
     // The Rust entry checks the path for a NUL once (the C forms cannot pass one): EINVAL, no prefix.
     for bad in [&b"/\0tmp"[..], b"/tmp/\0", b"rp\0/a"] {
-        assert!(matches!(liella::fs::canon::canonicalize(&CSys, bad), Err(e) if e.errno == Errno::EINVAL && e.prefix.is_none()), "{bad:?}");
+        assert!(matches!(niji::fs::canon::canonicalize(&CSys, bad), Err(e) if e.errno == Errno::EINVAL && e.prefix.is_none()), "{bad:?}");
     }
 }
 
@@ -2527,7 +2527,7 @@ fn s13_9_c_1() {
     // mkstemp replaces the trailing XXXXXX with letters and digits, creates the file
     // exclusively with mode 0600 (masked by the umask), open for reading and writing, and
     // returns its descriptor; repeated calls give distinct files.
-    use liella_kernel::ops::FcntlInt;
+    use niji_kernel::ops::FcntlInt;
     let d = Scratch::new("c91");
     let t = d.at("aXXXXXX").as_os_str().as_encoded_bytes().to_vec();
     let (fd, _, after) = tmpl(&t, |p| x::mkstemp(p));
@@ -2548,7 +2548,7 @@ fn s13_9_c_1() {
     // O_EXCL: a name the kernel reports as existing (EEXIST, which only an exclusive create
     // gives) is never opened; another name is tried, and only the last one is created.
     {
-        use liella::fs::temp::{self, Create, Made};
+        use niji::fs::temp::{self, Create, Made};
         let k = Faulty::new(CSys);
         assert!(k.fail("openat", Errno::EEXIST, 0, 3));
         let before = std::fs::read_dir(&d.path).unwrap().count();
@@ -2576,7 +2576,7 @@ fn s13_9_c_1() {
 fn s13_9_c_2() {
     // The o forms add open flags (O_CLOEXEC, O_APPEND, O_SYNC); the file is read-write whatever
     // access mode is passed.
-    use liella_kernel::ops::FcntlInt;
+    use niji_kernel::ops::FcntlInt;
     let d = Scratch::new("c92");
     let t = d.at("oXXXXXX").as_os_str().as_encoded_bytes().to_vec();
     let (fd, _, _) = tmpl(&t, |p| x::mkostemp(p, 0o2000000 | 0o2000 | 0o4010000));
@@ -2712,7 +2712,7 @@ fn s13_9_f_0() {
     // EINVAL for a bad template; the open (mkdir) errors, the template then holding the name
     // tried; EEXIST once every attempt found its name taken: ATTEMPTS (62^3 = 238,328) attempts,
     // provoked with a kernel that says EEXIST (Faulty), after which nothing was created.
-    use liella::fs::temp::{self, Create, Made};
+    use niji::fs::temp::{self, Create, Made};
     let d = Scratch::new("c9f0");
     d.file("file");
     for (p, e) in [("missing/aXXXXXX", Errno::ENOENT), ("file/aXXXXXX", Errno::ENOTDIR)] {
@@ -2884,7 +2884,7 @@ fn s13_12_c_3() {
     let d = Dir::new("c123");
     let t = x::open_tree(AT_FDCWD, d.at("").as_ptr(), 0x80000);
     assert!(t >= 0, "OPEN_TREE_CLOEXEC");
-    assert_eq!(io::liella_fcntl3(t, 1, 0), 1);
+    assert_eq!(io::niji_fcntl3(t, 1, 0), 1);
     io::close(t);
     errno::set_raw(0);
     let r = x::fsopen(c"tmpfs".as_ptr(), 1);
@@ -2907,11 +2907,11 @@ use p13::*;
 mod p13 {
     use std::ffi::CString;
 
-    pub(crate) use liella_abi::ctypes::c_char;
-    pub(crate) use liella_abi::layout::struct_mntent;
-    use liella_abi::layout::{struct_fstab, FILE};
-    use liella_boundary::posix::s12_stdio as io12;
-    use liella_boundary::posix::s13_filesystem as x;
+    pub(crate) use niji_abi::ctypes::c_char;
+    pub(crate) use niji_abi::layout::struct_mntent;
+    use niji_abi::layout::{struct_fstab, FILE};
+    use niji_boundary::posix::s12_stdio as io12;
+    use niji_boundary::posix::s13_filesystem as x;
 
     use super::p12::{cbytes, ctext, word};
 
@@ -2982,13 +2982,13 @@ mod p13 {
 fn s13_13_c_1() {
     // setmntent opens a table as fopen does with the same mode, adding close-on-exec; the
     // kernel's table (/proc/self/mounts) reads as one with a "/" entry; errors are the open's.
-    use liella_kernel::ops::FcntlInt;
+    use niji_kernel::ops::FcntlInt;
     let d = Scratch::new("c1331");
     let t = d.c("t");
     for mode in ["r", "r+", "w", "w+", "a", "a+", "re", "rb"] {
         std::fs::write(d.at("t"), b"a /a t o 0 0\n").unwrap();
         let f = open(&t, mode);
-        let fd = liella_boundary::posix::s12_stdio::fileno(f);
+        let fd = niji_boundary::posix::s12_stdio::fileno(f);
         assert_eq!(CSys.fcntl_int(Fd::new(fd), FcntlInt::GetFd, 0), Ok(1), "close-on-exec ({mode})");
         let acc = CSys.fcntl_int(Fd::new(fd), FcntlInt::GetFl, 0).unwrap() & 3;
         assert_eq!(acc, if mode.contains('+') { 2 } else if mode.starts_with('r') { 0 } else { 1 }, "access mode ({mode})");
@@ -3280,7 +3280,7 @@ fn s13_7_c_5() {
     assert_eq!(x::utimensat(AT_FDCWD, f.as_ptr(), Some(&t), 0), 0);
     let st = stat(&f);
     assert_eq!((st.atime.sec, st.atime.nsec, st.mtime.sec, st.mtime.nsec), (1_000_000_000, 123_456_789, 1_500_000_000, 987_654_321));
-    let fd = io::liella_open3(f.as_ptr(), O_RDWR, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDWR, 0);
     let keep = [Timespec { sec: 0, nsec: UTIME_OMIT }, Timespec { sec: 0, nsec: UTIME_NOW }];
     assert_eq!(x::futimens(fd, Some(&keep)), 0);
     io::close(fd);
@@ -3301,7 +3301,7 @@ fn s13_7_c_6() {
     assert_eq!(x::utimes(f.as_ptr(), Some(&tv)), 0);
     let st = stat(&f);
     assert_eq!((st.atime.nsec, st.mtime.sec, st.mtime.nsec), (5_000, 1_300_000_000, 7_000), "microseconds");
-    let fd = io::liella_open3(f.as_ptr(), O_RDWR, 0);
+    let fd = io::niji_open3(f.as_ptr(), O_RDWR, 0);
     assert_eq!(x::futimes(fd, Some(&[Timeval { sec: 1_400_000_000, usec: 1 }, Timeval { sec: 1_400_000_001, usec: 2 }])), 0);
     io::close(fd);
     assert_eq!(stat(&f).mtime.sec, 1_400_000_001);

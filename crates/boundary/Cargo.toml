@@ -1,5 +1,5 @@
 [package]
-name = "liella-boundary"
+name = "niji-boundary"
 description = "The only crate allowed unsafe: C interop in both directions (C syscall layer below, C callers above)"
 version.workspace = true
 edition.workspace = true
@@ -7,16 +7,16 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 build = "build.rs"
-links = "liella_csys"
+links = "niji_csys"
 
 [lib]
-name = "liella_boundary"
+name = "niji_boundary"
 
 [features]
 # Emit #[unsafe(no_mangle)] C symbols. Enabled only by the shipped products (crates/libc-so).
 export = []
 # The process runtime's exports and data objects (`__libc_start_main`, `exit`, `__errno_location`,
-# `environ`, ...): only a process Liella started can use them, so only the products enable this.
+# `environ`, ...): only a process libniji started can use them, so only the products enable this.
 # Test builds with `export` keep the host C library's runtime (D-4.13).
 runtime = ["export"]
 # The libm product (`crates/libm-so`): emit the math symbols `libm.so.6` and `libm.a` own (spec §10).
@@ -25,7 +25,7 @@ runtime = ["export"]
 libm = []
 # Test-only helpers (`selftest`): forked children, a signal round trip. Enabled for this
 # crate's own tests through the self dev-dependency below; never by a product.
-selftest = ["liella/selftest", "liella-legacy/selftest"]
+selftest = ["niji/selftest", "niji-legacy/selftest"]
 # Test-only (A-8): run the portable Rust scanners (`strz::portable`) in place of machine/scan.S's
 # on x86_64, so the kernel suites test both paths. Never enabled by a product.
 portable-scan = []
@@ -37,17 +37,17 @@ ld = []
 ldconfig = ["ld"]
 
 [dependencies]
-liella-kernel = { workspace = true }
-liella-rt = { workspace = true }
-liella-ld = { workspace = true }
-liella-abi = { workspace = true }
-liella = { workspace = true }
-liella-legacy = { workspace = true }
-liella-math = { workspace = true }
+niji-kernel = { workspace = true }
+niji-rt = { workspace = true }
+niji-ld = { workspace = true }
+niji-abi = { workspace = true }
+niji = { workspace = true }
+niji-legacy = { workspace = true }
+niji-math = { workspace = true }
 
 [dev-dependencies]
 spectest = { workspace = true }
-liella-boundary = { path = ".", features = ["selftest"] }
+niji-boundary = { path = ".", features = ["selftest"] }
 
 # Not `workspace = true`: this crate must lower `unsafe_code` from forbid to deny so that the
 # four permitted categories can be allowed item by item (implementation-plan.md §2.1).

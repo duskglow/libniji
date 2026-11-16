@@ -1,7 +1,7 @@
 //! The opt-in diagnostic channel from a real process start (D-2.9, owner ruling #422):
 //! `tests/oracle/diag_timers.c`, linked statically against the products, makes a `SIGEV_THREAD`
 //! timer's notification thread fail for a while (`RLIMIT_NPROC` lowered to 0) and then start.
-//! `LIELLA_DIAG` is read lazily, at the first failure (not at startup): set in the environment
+//! `NIJI_DIAG` is read lazily, at the first failure (not at startup): set in the environment
 //! the program starts with, or by the program itself with `setenv` before the failure, with
 //! `timers` (or `all`) named, standard error has one line at the episode's start and one at its
 //! recovery; unset or naming no known topic, nothing. The program exits 77 when the lowered
@@ -19,9 +19,9 @@ fn build(out: &Path) {
     let r = root();
     let st = Command::new("cc")
         .args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-        .arg(r.join("target/liella/liella-crt1.o"))
+        .arg(r.join("target/niji/niji-crt1.o"))
         .arg(r.join("crates/core/tests/oracle/diag_timers.c"))
-        .arg(r.join("target/liella/libc.a"))
+        .arg(r.join("target/niji/libc.a"))
         .arg("-lgcc")
         .arg("-o")
         .arg(out)
@@ -30,7 +30,7 @@ fn build(out: &Path) {
     assert!(st.success(), "diag_timers.c does not link against the products");
 }
 
-/// Run the program with `LIELLA_DIAG` set to `value` (unset for `None`), in the starting
+/// Run the program with `NIJI_DIAG` set to `value` (unset for `None`), in the starting
 /// environment or (`by_setenv`) by the program after start: its exit code and the `timers`
 /// lines of its standard error.
 fn run(exe: &Path, value: Option<&str>, by_setenv: bool) -> (i32, Vec<String>) {
@@ -41,20 +41,20 @@ fn run(exe: &Path, value: Option<&str>, by_setenv: bool) -> (i32, Vec<String>) {
             c.arg(v);
         }
         (Some(v), false) => {
-            c.env("LIELLA_DIAG", v);
+            c.env("NIJI_DIAG", v);
         }
         (None, _) => {}
     }
     let o = c.output().unwrap();
     let err = String::from_utf8_lossy(&o.stderr);
-    let lines = err.lines().filter(|l| l.contains("liella: timers: ")).map(str::to_owned).collect();
+    let lines = err.lines().filter(|l| l.contains("niji: timers: ")).map(str::to_owned).collect();
     (o.status.code().unwrap_or(-1), lines)
 }
 
 #[test]
-fn timer_episode_lines_follow_liella_diag_read_at_first_failure() {
+fn timer_episode_lines_follow_niji_diag_read_at_first_failure() {
     // Clauses: s23_4_c_3_3 (D-2.9, D-23.3).
-    let dir = PathBuf::from(format!("/tmp/liella-diag-channel-{}", std::process::id()));
+    let dir = PathBuf::from(format!("/tmp/niji-diag-channel-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("diag_timers");
@@ -74,17 +74,17 @@ fn timer_episode_lines_follow_liella_diag_read_at_first_failure() {
         let (rc, lines) = run(&exe, value, by_setenv);
         let value = (value, if by_setenv { "by setenv" } else { "at start" });
         if rc == 77 {
-            eprintln!("LIELLA_DIAG={value:?}: the lowered RLIMIT_NPROC refused no thread (privileged user?): not tested");
+            eprintln!("NIJI_DIAG={value:?}: the lowered RLIMIT_NPROC refused no thread (privileged user?): not tested");
             continue;
         }
-        assert_eq!(rc, 0, "diag_timers with LIELLA_DIAG={value:?} failed; stderr lines {lines:?}");
+        assert_eq!(rc, 0, "diag_timers with NIJI_DIAG={value:?} failed; stderr lines {lines:?}");
         tested += 1;
         if on {
-            assert_eq!(lines.len(), 2, "LIELLA_DIAG={value:?}: one line at the episode's start, one at its recovery: {lines:?}");
-            assert!(lines[0].starts_with("diag_timers: liella: timers: ") && lines[0].contains("cannot be created"), "{lines:?}");
-            assert!(lines[1].starts_with("diag_timers: liella: timers: ") && lines[1].contains("started again"), "{lines:?}");
+            assert_eq!(lines.len(), 2, "NIJI_DIAG={value:?}: one line at the episode's start, one at its recovery: {lines:?}");
+            assert!(lines[0].starts_with("diag_timers: niji: timers: ") && lines[0].contains("cannot be created"), "{lines:?}");
+            assert!(lines[1].starts_with("diag_timers: niji: timers: ") && lines[1].contains("started again"), "{lines:?}");
         } else {
-            assert_eq!(lines, Vec::<String>::new(), "LIELLA_DIAG={value:?}: the channel is silent");
+            assert_eq!(lines, Vec::<String>::new(), "NIJI_DIAG={value:?}: the channel is silent");
         }
     }
     let _ = std::fs::remove_dir_all(&dir);

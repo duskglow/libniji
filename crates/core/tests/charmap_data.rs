@@ -11,7 +11,7 @@ mod oracle;
 
 use std::path::Path;
 
-use liella::charmap::{inflate, Charmap};
+use niji::charmap::{inflate, Charmap};
 
 const DIR: &str = "/usr/share/i18n/charmaps";
 
@@ -140,13 +140,13 @@ fn codecs_agree_with_the_reference_iconv() {
         for ((cp, b, n), want) in sample.iter().zip(dec) {
             checked += 1;
             let got = match cm.decode(&b[..*n]) {
-                liella::charmap::Step::Char(c, used) if used == *n => format!("{c:x}"),
+                niji::charmap::Step::Char(c, used) if used == *n => format!("{c:x}"),
                 _ => "ERR".into(),
             };
             if got != *want {
                 bad += 1;
                 if bad <= 3 {
-                    differences.push(format!("{stem} decode {:02x?} (charmap {cp:x}): liella {got} glibc {want}", &b[..*n]));
+                    differences.push(format!("{stem} decode {:02x?} (charmap {cp:x}): niji {got} glibc {want}", &b[..*n]));
                 }
             }
         }
@@ -157,7 +157,7 @@ fn codecs_agree_with_the_reference_iconv() {
             if got != *want {
                 bad += 1;
                 if bad <= 3 {
-                    differences.push(format!("{stem} encode {cp:x}: liella {got} glibc {want}"));
+                    differences.push(format!("{stem} encode {cp:x}: niji {got} glibc {want}"));
                 }
             }
         }
@@ -184,7 +184,7 @@ fn header_names_from_a_prefix_match_the_full_parse() {
         let prefix: Vec<u8> = if f.extension().is_some_and(|e| e == "gz") { inflate::gunzip_prefix(head, 8192).unwrap().into() } else { head.to_vec() };
         let Ok(cm) = Charmap::parse(&text(f)) else { continue };
         let mut seen: Vec<Vec<u8>> = Vec::new();
-        liella::charmap::header_names(&prefix, &mut |n| seen.push(n.to_vec()));
+        niji::charmap::header_names(&prefix, &mut |n| seen.push(n.to_vec()));
         for n in std::iter::once(cm.name()).chain(cm.aliases()).filter(|n| !n.is_empty()) {
             assert!(seen.iter().any(|s| s == n), "{}: {:?} not in the header prefix ({} bytes inflated)", f.display(), String::from_utf8_lossy(n), prefix.len());
         }

@@ -4,7 +4,7 @@
 //! The non-`at` forms pass `AT_FDCWD`. Thin wrappers are the typed `Sys` methods; what
 //! glibc's contract adds (`remove`, `mkfifo`, `mknod`'s device check, the no-follow `chmod`,
 //! `faccessat`'s flags, the µs and second timestamp forms, `statvfs`, the `__xstat` versions)
-//! is in `liella_legacy::fs_compat`. Structures are typed parameters (D-X.8): `struct stat` is
+//! is in `niji_legacy::fs_compat`. Structures are typed parameters (D-X.8): `struct stat` is
 //! the kernel's on x86-64.
 //!
 //! Phase 12 adds the working directory, directory streams, `scandir`, the walks, `realpath`
@@ -13,18 +13,18 @@
 //! translations (D-C0.4). The mount-table streams and the `fsent` functions (§13.13, D-13.15)
 //! are `crate::mntent`; the `__` names are second exports of the same translations.
 
-use liella::bytes;
-use liella::fs;
-use liella_abi::callback::{DirFilterFn, FtwFn, NftwFn, SlotCompareFn};
-use liella_abi::ctypes::{c_char, c_int, c_long, c_uint, c_ulong, c_void, size_t, ssize_t};
-use liella_abi::layout::{struct_dirent, struct_dirent64, struct_fstab, struct_mntent, struct_statvfs, FILE};
-use liella_kernel::path::PATH_MAX;
-use liella_legacy::fs_tree;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Stat, Statfs, Statx, Timespec, Timeval, AT_EACCESS, AT_REMOVEDIR, AT_SYMLINK_NOFOLLOW};
-use liella_legacy::fs_compat;
-use liella_legacy::stubs;
+use niji::bytes;
+use niji::fs;
+use niji_abi::callback::{DirFilterFn, FtwFn, NftwFn, SlotCompareFn};
+use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, c_ulong, c_void, size_t, ssize_t};
+use niji_abi::layout::{struct_dirent, struct_dirent64, struct_fstab, struct_mntent, struct_statvfs, FILE};
+use niji_kernel::path::PATH_MAX;
+use niji_legacy::fs_tree;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Stat, Statfs, Statx, Timespec, Timeval, AT_EACCESS, AT_REMOVEDIR, AT_SYMLINK_NOFOLLOW};
+use niji_legacy::fs_compat;
+use niji_legacy::stubs;
 
 use crate::conv;
 use crate::dirtree;
@@ -815,9 +815,9 @@ pub extern "C" fn versionsort64(a: *const *const c_void, b: *const *const c_void
 
 /// A walk in a guard frame (OD-6 revised): if a callback throws, the walk's directories are
 /// closed and the caller's working directory restored on the way to the caller's handler.
-fn walk_guarded(walk: impl FnOnce(&mut fs_tree::WalkState) -> liella_kernel::errno::KResult<i32>) -> liella_kernel::errno::KResult<i32> {
+fn walk_guarded(walk: impl FnOnce(&mut fs_tree::WalkState) -> niji_kernel::errno::KResult<i32>) -> niji_kernel::errno::KResult<i32> {
     let mut st = fs_tree::WalkState::default();
-    crate::posix::s22_threads::guarded(&mut st, walk, |st| fs_tree::unwound(&CSys, st)).unwrap_or(Err(liella_kernel::errno::Errno::EFAULT))
+    crate::posix::s22_threads::guarded(&mut st, walk, |st| fs_tree::unwound(&CSys, st)).unwrap_or(Err(niji_kernel::errno::Errno::EFAULT))
 }
 
 export! { "GLIBC_2.2.5";
@@ -907,8 +907,8 @@ pub extern "C" fn realpath(path: *const c_char, resolved: *mut c_char) -> *mut c
 crate::internal_entry! {
 /// `realpath@GLIBC_2.2.5`: a NULL `resolved` fails with `EINVAL` (no allocation); with a
 /// buffer it is `realpath` (probe-settled, LG-2). Exported only under that compat version.
-pub extern "C" fn liella_compat_realpath(path: *const c_char, resolved: *mut c_char) -> *mut c_char {
-    if let Err(e) = liella_legacy::versioned::realpath_2_2_5(!resolved.is_null()) {
+pub extern "C" fn niji_compat_realpath(path: *const c_char, resolved: *mut c_char) -> *mut c_char {
+    if let Err(e) = niji_legacy::versioned::realpath_2_2_5(!resolved.is_null()) {
         crate::errno::set(e);
         return core::ptr::null_mut();
     }

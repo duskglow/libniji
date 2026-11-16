@@ -14,9 +14,9 @@
 
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::sys::Sys;
-use liella_rt::heap::{Pages, PAGE};
-use liella_rt::sync::RawMutex;
+use niji_kernel::sys::Sys;
+use niji_rt::heap::{Pages, PAGE};
+use niji_rt::sync::RawMutex;
 
 use crate::obstack::CCall;
 
@@ -28,9 +28,9 @@ pub const ON_EXIT: u64 = 2;
 pub const CXA: u64 = 3;
 /// `at_quick_exit(fn)` / `__cxa_at_quick_exit(fn, dso)`: `fn()`.
 pub const QUICK: u64 = 4;
-/// `atexit(fn)` at `LIELLA_OWNER_1` (D-27.29): `fn()`; owner word as found at registration.
+/// `atexit(fn)` at `NIJI_OWNER_1` (D-27.29): `fn()`; owner word as found at registration.
 pub const OPTED_EXIT: u64 = 5;
-/// `at_quick_exit(fn)` at `LIELLA_OWNER_1`: `fn()`.
+/// `at_quick_exit(fn)` at `NIJI_OWNER_1`: `fn()`.
 pub const OPTED_QUICK: u64 = 6;
 
 /// Entries held in the registry itself (the ISO C minimum).
@@ -62,12 +62,12 @@ fn w(x: usize) -> u64 {
 impl Registry {
     /// Hold the registry's lock until [`Registry::release`] (`fork`, the AS-safety harness).
     pub fn hold<S: Sys>(&self, sys: &S) {
-        self.lock.lock_raw(sys, liella_rt::futex::Scope::Private);
+        self.lock.lock_raw(sys, niji_rt::futex::Scope::Private);
     }
 
     /// Release what [`Registry::hold`] took.
     pub fn release<S: Sys>(&self, sys: &S) {
-        self.lock.unlock(sys, liella_rt::futex::Scope::Private);
+        self.lock.unlock(sys, niji_rt::futex::Scope::Private);
     }
 
     /// An empty registry.

@@ -73,20 +73,20 @@ fn libm_product_selects_the_fma_builds() {
         println!("SKIP: this CPU has no FMA (or the OS does not save the AVX state): one build only");
         return;
     }
-    let products = std::env::var_os("LIELLA_PRODUCTS").map_or_else(|| root().join("target/liella"), PathBuf::from);
+    let products = std::env::var_os("NIJI_PRODUCTS").map_or_else(|| root().join("target/niji"), PathBuf::from);
     assert!(products.join("libc.a").exists() && products.join("libm.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = root().join("target/test-scratch/libm_fma_select").join(format!("{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("m.c"), PROGRAM).unwrap();
-    let out = Command::new(root().join("scripts/liella-cc"))
-        .env("LIELLA_PRODUCTS", &products)
-        .env_remove("LIELLA_CC_NO_LIBM")
-        .env_remove("LIELLA_CC_EXTRA")
+    let out = Command::new(root().join("scripts/niji-cc"))
+        .env("NIJI_PRODUCTS", &products)
+        .env_remove("NIJI_CC_NO_LIBM")
+        .env_remove("NIJI_CC_EXTRA")
         .current_dir(&dir)
         .args(["-O1", "-o", "m", "m.c", "-lm"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "liella-cc failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success(), "niji-cc failed: {}", String::from_utf8_lossy(&out.stderr));
     let exe = dir.join("m");
     let Some(fused) = count(&exe, None) else { return };
     let Some(plain) = count(&exe, Some("glibc.cpu.hwcaps=-FMA")) else { return };
@@ -141,20 +141,20 @@ fn libm_product_selects_the_fma_hypot_kernel_in_a_directed_mode() {
         println!("SKIP: this CPU has no FMA (or the OS does not save the AVX state): one build only");
         return;
     }
-    let products = std::env::var_os("LIELLA_PRODUCTS").map_or_else(|| root().join("target/liella"), PathBuf::from);
+    let products = std::env::var_os("NIJI_PRODUCTS").map_or_else(|| root().join("target/niji"), PathBuf::from);
     assert!(products.join("libc.a").exists() && products.join("libm.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = root().join("target/test-scratch/libm_fma_select_hypot").join(format!("{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("h.c"), HYPOT_PROGRAM).unwrap();
-    let out = Command::new(root().join("scripts/liella-cc"))
-        .env("LIELLA_PRODUCTS", &products)
-        .env_remove("LIELLA_CC_NO_LIBM")
-        .env_remove("LIELLA_CC_EXTRA")
+    let out = Command::new(root().join("scripts/niji-cc"))
+        .env("NIJI_PRODUCTS", &products)
+        .env_remove("NIJI_CC_NO_LIBM")
+        .env_remove("NIJI_CC_EXTRA")
         .current_dir(&dir)
         .args(["-O1", "-o", "h", "h.c", "-lm"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "liella-cc failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success(), "niji-cc failed: {}", String::from_utf8_lossy(&out.stderr));
     let run = |t: Option<&str>| -> Option<(u64, String)> {
         let mut cmd = Command::new(dir.join("h"));
         cmd.env_remove("GLIBC_TUNABLES");
@@ -206,20 +206,20 @@ fn libm_product_trig_fma_builds_return_the_baseline_bits() {
         println!("SKIP: this CPU has no FMA (or the OS does not save the AVX state): one build only");
         return;
     }
-    let products = std::env::var_os("LIELLA_PRODUCTS").map_or_else(|| root().join("target/liella"), PathBuf::from);
+    let products = std::env::var_os("NIJI_PRODUCTS").map_or_else(|| root().join("target/niji"), PathBuf::from);
     assert!(products.join("libc.a").exists() && products.join("libm.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = root().join("target/test-scratch/libm_fma_select_trig").join(format!("{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("t.c"), TRIG_PROGRAM).unwrap();
-    let out = Command::new(root().join("scripts/liella-cc"))
-        .env("LIELLA_PRODUCTS", &products)
-        .env_remove("LIELLA_CC_NO_LIBM")
-        .env_remove("LIELLA_CC_EXTRA")
+    let out = Command::new(root().join("scripts/niji-cc"))
+        .env("NIJI_PRODUCTS", &products)
+        .env_remove("NIJI_CC_NO_LIBM")
+        .env_remove("NIJI_CC_EXTRA")
         .current_dir(&dir)
         .args(["-O1", "-o", "t", "t.c", "-lm"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "liella-cc failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success(), "niji-cc failed: {}", String::from_utf8_lossy(&out.stderr));
     let run = |tunables: Option<&str>| {
         let mut cmd = Command::new(dir.join("t"));
         cmd.env_remove("GLIBC_TUNABLES");
@@ -296,7 +296,7 @@ const TIER2_MARGIN: u64 = 400;
 fn libm_product_exp_quick_misses_take_tier_two() {
     // Trace: s10_0_f_0 (§10.2 exp correctly rounded, D-10.3); D-10.51 (the two-phase exp: a quick
     // phase miss goes to tier 2, whose answer is the correctly rounded e^x).
-    let products = std::env::var_os("LIELLA_PRODUCTS").map_or_else(|| root().join("target/liella"), PathBuf::from);
+    let products = std::env::var_os("NIJI_PRODUCTS").map_or_else(|| root().join("target/niji"), PathBuf::from);
     assert!(products.join("libc.a").exists() && products.join("libm.a").exists(), "the products are missing: run `cargo xtask so`");
     // Operands from a fixed xorshift sample over [-10, 10] (the bench's range), SSE2 builds.
     let (mut miss, mut hit) = (Vec::new(), Vec::new());
@@ -306,7 +306,7 @@ fn libm_product_exp_quick_misses_take_tier_two() {
         st ^= st >> 7;
         st ^= st << 17;
         let x = -10.0 + 20.0 * (f64::from_bits(0x3ff0_0000_0000_0000 | (st >> 12)) - 1.0);
-        match (liella_math::fast64::quick::exp_quick(x), liella_math::fast64::exp_nearest(x)) {
+        match (niji_math::fast64::quick::exp_quick(x), niji_math::fast64::exp_nearest(x)) {
             (None, Some(v)) if miss.len() < 64 => miss.push((x, v)),
             (Some(_), _) if hit.len() < 64 => hit.push(x),
             _ => {}
@@ -319,15 +319,15 @@ fn libm_product_exp_quick_misses_take_tier_two() {
     let dir = root().join("target/test-scratch/libm_fma_select").join(format!("tier-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("t.c"), src).unwrap();
-    let out = Command::new(root().join("scripts/liella-cc"))
-        .env("LIELLA_PRODUCTS", &products)
-        .env_remove("LIELLA_CC_NO_LIBM")
-        .env_remove("LIELLA_CC_EXTRA")
+    let out = Command::new(root().join("scripts/niji-cc"))
+        .env("NIJI_PRODUCTS", &products)
+        .env_remove("NIJI_CC_NO_LIBM")
+        .env_remove("NIJI_CC_EXTRA")
         .current_dir(&dir)
         .args(["-O1", "-fno-builtin", "-o", "t", "t.c", "-lm"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "liella-cc failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success(), "niji-cc failed: {}", String::from_utf8_lossy(&out.stderr));
     let out = Command::new(dir.join("t")).env("GLIBC_TUNABLES", "glibc.cpu.hwcaps=-FMA").output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let text = String::from_utf8_lossy(&out.stdout).to_string();

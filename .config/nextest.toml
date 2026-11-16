@@ -1,5 +1,5 @@
 # cargo-nextest configuration: the runner of `cargo xtask test` and `cargo xtask affected --run`
-# when nextest is installed (xtask/src/nextest.rs; LIELLA_NO_NEXTEST=1 runs `cargo test` instead).
+# when nextest is installed (xtask/src/nextest.rs; NIJI_NO_NEXTEST=1 runs `cargo test` instead).
 # nextest runs every test as a process of its own, across binaries, so an in-process lock in a
 # test file (a `static Mutex`) no longer orders tests against each other: what must not overlap
 # across processes is ordered here (test groups) or by a file lock (conformance/run.sh, per

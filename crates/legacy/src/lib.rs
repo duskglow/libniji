@@ -3,8 +3,8 @@
 //! versioned contracts, and compatibility-only subsystems (spec H3, H4, H7, H8, §29).
 //!
 //! Why a separate crate: the POSIX translation layer must contain no logic
-//! (implementation-plan.md §8), and `liella` (core) must carry no historical artefacts. This crate
-//! is where such logic is allowed to live, visibly quarantined. `liella` never depends on it.
+//! (implementation-plan.md §8), and `niji` (core) must carry no historical artefacts. This crate
+//! is where such logic is allowed to live, visibly quarantined. `niji` never depends on it.
 //!
 //! `#![forbid(unsafe_code)]`.
 

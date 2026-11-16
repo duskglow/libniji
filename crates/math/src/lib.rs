@@ -6,9 +6,9 @@
 //! Every function takes its operands in a format `F: Float` (binary32, binary64, x87 extended,
 //! binary128), the rounding direction where the result depends on it (an explicit argument,
 //! rule C2), and returns `(value, Status)`. The library never reads or writes the floating-point
-//! environment itself; `fenv` (over `liella-rt::fpu`) is for its callers.
+//! environment itself; `fenv` (over `niji-rt::fpu`) is for its callers.
 //!
-//! `#![forbid(unsafe_code)]`. The FPU control registers are reached through `liella-rt::fpu`.
+//! `#![forbid(unsafe_code)]`. The FPU control registers are reached through `niji-rt::fpu`.
 //! Nothing here allocates: the `libm` product is linked without a heap of its own (D-10.7).
 
 #![cfg_attr(not(test), no_std)]

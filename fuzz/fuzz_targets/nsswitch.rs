@@ -5,8 +5,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::names::nss::{self, Config, Database, LookupError, Spec};
-use liella_fuzz::Input;
+use niji::names::nss::{self, Config, Database, LookupError, Spec};
+use niji_fuzz::Input;
 
 fuzz_target!(|data: &[u8]| {
     let mut input = Input::new(data);
@@ -35,7 +35,7 @@ fuzz_target!(|data: &[u8]| {
                 2 => Err(LookupError::NoData),
                 3 => Err(LookupError::TryAgain),
                 4 => Err(LookupError::Unavailable),
-                _ => Err(LookupError::Os(liella::error::Errno::ENOENT)),
+                _ => Err(LookupError::Os(niji::error::Errno::ENOENT)),
             },
             |a: &mut u32, b: u32| {
                 *a = a.wrapping_add(b);
@@ -51,5 +51,5 @@ fuzz_target!(|data: &[u8]| {
             assert_eq!(Spec::decode(&spec.encode()), Some(spec));
         }
     }
-    let _ = liella_legacy::nss::multi_of(host_conf);
+    let _ = niji_legacy::nss::multi_of(host_conf);
 });

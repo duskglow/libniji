@@ -46,7 +46,7 @@
 //!
 //! Readers: `nm -D --defined-only` (the exports) and `objdump -d -w --no-show-raw-insn` (the code). `cargo xtask so`
 //! runs the check on the `libm.so.6` it builds (a finding fails the build) and records the digest of the sources beside
-//! it; `cargo xtask static` runs it on `target/liella/libm.so.6` when that digest matches the current tree and prints
+//! it; `cargo xtask static` runs it on `target/niji/libm.so.6` when that digest matches the current tree and prints
 //! why it skipped otherwise (a product left by another tree is not this tree's); `cargo xtask partial-write
 //! [<libm.so.6>...]` checks the files named and prints every finding as `function+offset: instruction (why) [entry]`.
 //! [`ALLOW`] lists accepted findings, each with its reason.
@@ -440,11 +440,11 @@ pub(crate) fn check_built(root: &Path, so: &Path) -> Result<(), String> {
     std::fs::write(&stamp, source_digest(root)).map_err(|e| format!("{}: {e}", stamp.display()))
 }
 
-/// `cargo xtask static`: check `target/liella/libm.so.6` when it was built from this tree (its digest, written by
+/// `cargo xtask static`: check `target/niji/libm.so.6` when it was built from this tree (its digest, written by
 /// `cargo xtask so`, matches). A product left by an earlier tree (a role or CI directory reused across branches) says
 /// nothing about this one's [`ALLOW`] list: it is skipped, and `cargo xtask so` builds and checks the current one.
 pub fn static_check(root: &Path) -> Result<(), String> {
-    let so = root.join("target/liella/libm.so.6");
+    let so = root.join("target/niji/libm.so.6");
     if !so.exists() {
         println!("partial-write: skipped: {} not built (`cargo xtask so` builds and checks it)", so.display());
         return Ok(());
@@ -462,7 +462,7 @@ pub fn static_check(root: &Path) -> Result<(), String> {
 /// `cargo xtask partial-write [<libm.so.6>...]`.
 pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     if args.is_empty() {
-        return check_file(root, &root.join("target/liella/libm.so.6"));
+        return check_file(root, &root.join("target/niji/libm.so.6"));
     }
     let errs: Vec<String> = args.iter().filter_map(|a| check_file(root, Path::new(a)).err()).collect();
     if errs.is_empty() { Ok(()) } else { Err(errs.join("\n")) }
@@ -485,10 +485,10 @@ mod tests {
         let root = std::env::temp_dir().join(format!("xtask-partial-write-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("crates/math/src")).unwrap();
-        std::fs::create_dir_all(root.join("target/liella")).unwrap();
+        std::fs::create_dir_all(root.join("target/niji")).unwrap();
         let src = root.join("crates/math/src/lib.rs");
         std::fs::write(&src, "a").unwrap();
-        let so = root.join("target/liella/libm.so.6");
+        let so = root.join("target/niji/libm.so.6");
         std::fs::write(&so, "not an ELF").unwrap();
         assert!(static_check(&root).is_ok(), "no digest: skipped");
         std::fs::write(stamp_path(&so), source_digest(&root)).unwrap();

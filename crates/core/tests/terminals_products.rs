@@ -1,10 +1,10 @@
 //! Terminals, job control and pseudo-terminals end to end (spec §19; D-19.1 to D-19.3):
 //! `tests/oracle/terminals_diff.c` built against the host C library and statically against
-//! Liella's products, each run by `tests/oracle/terminals_run.sh` (the unprivileged cases on ptys
+//! libniji's products, each run by `tests/oracle/terminals_run.sh` (the unprivileged cases on ptys
 //! the program creates, then the `/etc/ttys` and `ttyname` cases as root in a private mount
 //! namespace with its own `/etc`, devpts instance and `/proc`, through `sudo -n`); the outputs
 //! must be identical line by line, except the recorded differences: [`KNOWN`] (a line that
-//! differs), [`ADDED`] (a line only Liella prints) and [`DROPPED`] (a line only the reference
+//! differs), [`ADDED`] (a line only libniji prints) and [`DROPPED`] (a line only the reference
 //! prints). An ADDED or DROPPED entry names the line that follows it too.
 //!
 //! Needs the products (`cargo xtask so`), a C compiler and passwordless `sudo`; without the
@@ -24,12 +24,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let oracle = r.join("crates/core/tests/oracle");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(oracle.join("terminals_diff.c")).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(oracle.join("terminals_diff.c")).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(oracle.join("terminals_diff.c"));
     }
@@ -72,7 +72,7 @@ const KNOWN: [(&str, &str); 19] = [
     ("no /proc, old instance: ttyname NULL errno=ENOTTY", "D-19.3, D-X.12: without /proc the name the device number gives is accepted only when it is the same terminal, so a pty of another devpts instance is ENODEV; the reference's /dev scan reports ENOTTY there"),
 ];
 
-/// Lines only Liella prints: the text the line starts with, the text the next line starts with,
+/// Lines only libniji prints: the text the line starts with, the text the next line starts with,
 /// and why.
 const ADDED: [(&str, &str, &str); 4] = [
     ("getttyent 19: name=[nonl]", "getttyent end", "/etc/ttys: a last line without a newline is an entry; the reference ignores it"),
@@ -116,7 +116,7 @@ fn terminals_equal_the_reference() {
     // s19_4_c_2, s19_4_c_3, s19_4_c_4, s19_4_c_5, s19_4_c_6, s19_4_c_7, s19_4_f_0, s19_5_c_0
     // (D-19.1 to D-19.4).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -127,7 +127,7 @@ fn terminals_equal_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("terminals_diff_host"), dir.join("terminals_diff_liella"));
+    let (host, ours) = (dir.join("terminals_diff_host"), dir.join("terminals_diff_niji"));
     assert!(build(&host, false), "terminals_diff.c does not build against the host C library");
     assert!(build(&ours, true), "terminals_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/terminals_run.sh");
@@ -143,30 +143,30 @@ fn terminals_equal_the_reference() {
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
     let reference = run(&host, "terminals-host", None);
-    // Liella with the name-service cache on and off (D-16.10), each in a private /dev/shm (`nscache_mode.sh`).
+    // libniji with the name-service cache on and off (D-16.10), each in a private /dev/shm (`nscache_mode.sh`).
     for mode in ["on", "off"] {
         eprintln!("name-service cache {mode}");
-        let (want, got) = (reference.clone(), run(&ours, &format!("terminals-liella-{mode}"), Some(mode)));
+        let (want, got) = (reference.clone(), run(&ours, &format!("terminals-niji-{mode}"), Some(mode)));
         let want = without(&want, &DROPPED, "the reference");
-        let got = without(&got, &ADDED, "Liella");
+        let got = without(&got, &ADDED, "libniji");
         let mut diffs = 0;
         let mut seen = [false; KNOWN.len()];
         for (k, (w, g)) in want.iter().zip(got.iter()).enumerate() {
             if let Some(i) = KNOWN.iter().position(|(needle, _)| w.starts_with(needle)) {
                 if w != g {
                     seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", KNOWN[i].1);
+                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].1);
                 }
                 continue;
             }
             if w != g {
                 diffs += 1;
                 if diffs <= 60 {
-                    eprintln!("line {}:\n  glibc  {w}\n  liella {g}", k + 1);
+                    eprintln!("line {}:\n  glibc  {w}\n  niji {g}", k + 1);
                 }
             }
         }
-        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- liella\n{}", want.join("\n"), got.join("\n"));
+        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", want.join("\n"), got.join("\n"));
         assert_eq!(diffs, 0, "lines that differ from the reference");
         for (i, s) in seen.iter().enumerate() {
             assert!(s, "recorded difference no longer seen: {:?}", KNOWN[i]);

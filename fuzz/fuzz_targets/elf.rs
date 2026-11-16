@@ -1,4 +1,4 @@
-//! The dynamic loader's ELF reader (`liella_ld::elf`, IP-24, decisions D-27.7 and D-27.8): the
+//! The dynamic loader's ELF reader (`niji_ld::elf`, IP-24, decisions D-27.7 and D-27.8): the
 //! header and program headers, `PT_INTERP`, the notes and their properties, the dynamic section,
 //! `DT_NEEDED`, both hash tables and their chains, the symbol version tables and the RELA/RELR
 //! iterators. Input: the bytes of one ELF file. Every error is a value; a panic, an out-of-range
@@ -7,8 +7,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use liella_ld::arch::X86_64;
-use liella_ld::elf::{pt, Dynamic, Elf};
+use niji_ld::arch::X86_64;
+use niji_ld::elf::{pt, Dynamic, Elf};
 
 /// The most items one walk takes.
 const STEPS: usize = 4096;

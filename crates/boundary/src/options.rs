@@ -1,7 +1,7 @@
 //! Command-line parsing glue (spec §1.6, §1.6a; D-1.6, D-1.6a): the process-wide parser state
 //! of the C functions, the caller's argument vector and option table, the exported `optind`,
 //! `optarg`, `opterr` and `optopt`, and the diagnostics. The parsing itself is
-//! `liella::getopt`, over a caller-owned state.
+//! `niji::getopt`, over a caller-owned state.
 //!
 //! Rewritten under the clean-room rules (implementation plan §1.4, item 2) from the spec and
 //! `spec/behaviour/getopt.md`, with the open points settled by black-box probes.
@@ -34,15 +34,15 @@
 
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering::Relaxed};
 
-use liella::getopt::{self, Args, Event, HasArg, LongOpt, Longs, Span, Spec, State};
-use liella::mem::TryVec;
-use liella_legacy::lock::SpinLock;
+use niji::getopt::{self, Args, Event, HasArg, LongOpt, Longs, Span, Spec, State};
+use niji::mem::TryVec;
+use niji_legacy::lock::SpinLock;
 
 use crate::{conv, data, errno, process, report, tb};
 
 /// Serializes the C functions' use of the state below.
 static LOCK: SpinLock = SpinLock::new();
-/// The process-wide parser state (`liella::getopt::State`), under [`LOCK`].
+/// The process-wide parser state (`niji::getopt::State`), under [`LOCK`].
 static NEXT: AtomicUsize = AtomicUsize::new(1);
 static CURSOR: AtomicUsize = AtomicUsize::new(0);
 static FIRST: AtomicUsize = AtomicUsize::new(1);

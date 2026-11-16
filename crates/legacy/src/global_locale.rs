@@ -23,16 +23,16 @@
 
 use core::sync::atomic::{fence, AtomicU64, AtomicUsize, Ordering::AcqRel, Ordering::Acquire, Ordering::Relaxed, Ordering::Release};
 
-use liella::charmap::{self, inflate, Charmap};
-use liella::iconv::{self, Codec};
-use liella::text::CharmapRef;
-use liella::error::{Errno, KResult};
-use liella::locale::file::Cat;
-use liella::locale::view::LocaleView;
-use liella::locale::{self, name, Data, Locale, Source};
-use liella::mem::{TryBox, TryVec};
-use liella_kernel::sys::Sys;
-use liella_rt::sync::RawMutex;
+use niji::charmap::{self, inflate, Charmap};
+use niji::iconv::{self, Codec};
+use niji::text::CharmapRef;
+use niji::error::{Errno, KResult};
+use niji::locale::file::Cat;
+use niji::locale::view::LocaleView;
+use niji::locale::{self, name, Data, Locale, Source};
+use niji::mem::{TryBox, TryVec};
+use niji_kernel::sys::Sys;
+use niji_rt::sync::RawMutex;
 
 /// The most distinct locales, and separately names, a process can intern.
 pub const CAPACITY: usize = 1024;
@@ -267,7 +267,7 @@ fn file_id(i: usize) -> Identity {
     id
 }
 
-/// `liella_locale_invalidate`'s first half (D-X.13): every mapped file and parsed charmap is
+/// `niji_locale_invalidate`'s first half (D-X.13): every mapped file and parsed charmap is
 /// checked against its file before its next use. The new generation.
 pub fn invalidate() -> usize {
     GENERATION.fetch_add(1, Release).wrapping_add(1)
@@ -758,7 +758,7 @@ pub fn setlocale_locked<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req
     Some(s)
 }
 
-/// `liella_locale_invalidate` (D-X.13): advance the generation, then load the global locale
+/// `niji_locale_invalidate` (D-X.13): advance the generation, then load the global locale
 /// again by its names (the files are checked, and read again where they changed). `ENOENT` when
 /// a name no longer resolves; the global locale is then unchanged.
 pub fn invalidate_and_reload<S: Sys, M: Mapper>(sys: &S, m: &M) -> KResult<()> {

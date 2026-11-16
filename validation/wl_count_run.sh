@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # wl_count.sh, Zen 1 host side: deterministic counters of named workloads for glibc / BASE / NEW, one table each.
 #
 #   wl_count_run.sh WORKLOAD,WORKLOAD,... BASE_SHA NEW_SHA

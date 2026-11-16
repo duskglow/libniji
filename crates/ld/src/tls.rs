@@ -7,7 +7,7 @@
 //! Drepper, "ELF Handling For Thread-Local Storage" (§3.4.1 variant I, §3.4.2 variant II), extended so
 //! that a block whose `p_vaddr` is not a multiple of its alignment keeps that remainder at run time.
 //!
-//! **The dtv** (Liella's own layout, read only by Liella's `ld.so`): word 0 the generation the vector
+//! **The dtv** (libniji's own layout, read only by libniji's `ld.so`): word 0 the generation the vector
 //! was built for, word 1 the number of module slots, word `1 + m` the address of module `m`'s block
 //! (0: not allocated in this thread). Module IDs start at 1, in load order over the objects that have
 //! a `PT_TLS` segment.

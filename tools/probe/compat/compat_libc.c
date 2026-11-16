@@ -169,7 +169,7 @@ static void probe_realpath(void) {
         rp_case("\"/\"", "/", w);
         rp_case("\".\"", ".", w);
         rp_case("\"\"", "", w);
-        rp_case("\"/nonexistent-liella/x\"", "/nonexistent-liella/x", w);
+        rp_case("\"/nonexistent-niji/x\"", "/nonexistent-niji/x", w);
         rp_case("\"rp/loop\"", "rp/loop", w);
         rp_case("\"rp/file/\"", "rp/file/", w);
         rp_case("\"rp/dangling\"", "rp/dangling", w);
@@ -257,7 +257,7 @@ static void probe_nftw(void) {
     nftw_case("callback ret77 no ACTIONRETVAL", "t", 8, FTW_PHYS, 4);
     nftw_case("nopenfd=0", "t", 0, FTW_PHYS, 0);
     nftw_case("nopenfd=-1", "t", -1, FTW_PHYS, 0);
-    nftw_case("missing root", "nonexistent-liella", 8, FTW_PHYS, 0);
+    nftw_case("missing root", "nonexistent-niji", 8, FTW_PHYS, 0);
     nftw_case("empty root", "", 8, FTW_PHYS, 0);
 }
 
@@ -293,13 +293,13 @@ typedef int (*spawn_t)(pid_t *, const char *, const posix_spawn_file_actions_t *
 static void sp_case(const char *what, int p, const char *file, int badopen) {
     spawn_t fns[2] = {p ? posix_spawnp_225 : posix_spawn_225, p ? posix_spawnp : posix_spawn};
     char *argv[] = {(char *)file, (char *)"-c", (char *)"exit 7", NULL};
-    char *envp[] = {(char *)"PATH=/nonexistent-liella:spawn:/bin:/usr/bin", NULL};
+    char *envp[] = {(char *)"PATH=/nonexistent-niji:spawn:/bin:/usr/bin", NULL};
     printf("%s %s:", p ? "posix_spawnp@GLIBC_2.2.5" : "posix_spawn@GLIBC_2.2.5", what);
     for (int k = 0; k < 2; k++) {
         posix_spawn_file_actions_t fa; posix_spawn_file_actions_init(&fa);
-        if (badopen) posix_spawn_file_actions_addopen(&fa, 5, "/nonexistent-liella/x", O_RDONLY, 0);
+        if (badopen) posix_spawn_file_actions_addopen(&fa, 5, "/nonexistent-niji/x", O_RDONLY, 0);
         char *oldpath = getenv("PATH") ? strdup(getenv("PATH")) : NULL;
-        setenv("PATH", "/nonexistent-liella:spawn:/bin:/usr/bin", 1);
+        setenv("PATH", "/nonexistent-niji:spawn:/bin:/usr/bin", 1);
         pid_t pid = -1;
         int r = fns[k](&pid, file, &fa, NULL, argv, envp);
         if (oldpath) { setenv("PATH", oldpath, 1); free(oldpath); }
@@ -314,12 +314,12 @@ static void sp_case(const char *what, int p, const char *file, int badopen) {
 }
 static void probe_spawn(void) {
     sp_case("\"/bin/sh -c 'exit 7'\"", 0, "/bin/sh", 0);
-    sp_case("missing file", 0, "/nonexistent-liella/prog", 0);
+    sp_case("missing file", 0, "/nonexistent-niji/prog", 0);
     sp_case("not executable", 0, "spawn/noexec", 0);
     sp_case("no #! script", 0, "spawn/script", 0);
     sp_case("bad addopen", 0, "/bin/sh", 1);
     sp_case("\"sh\" on PATH", 1, "sh", 0);
-    sp_case("missing on PATH", 1, "nonexistent-liella-cmd", 0);
+    sp_case("missing on PATH", 1, "nonexistent-niji-cmd", 0);
     sp_case("not executable on PATH", 1, "noexec", 0);
     sp_case("no #! script on PATH", 1, "script", 0);
     sp_case("bad addopen", 1, "sh", 1);

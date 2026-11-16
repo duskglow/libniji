@@ -5,20 +5,20 @@
 //! Test names keep the exported C name verbatim (`sym_<name>`) for traceability.
 //!
 //! The `long double` and `_Float128` exports are single-statement C forwarders (OD-C4) around
-//! the `liella_*_bits` functions; their tests exercise those functions with the values as bit
+//! the `niji_*_bits` functions; their tests exercise those functions with the values as bit
 //! structs. The forwarders' own calling-convention half is covered by the phase-4 conformance
 //! suite, which calls them from C.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::approx_constant, non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::float_cmp, clippy::bool_assert_comparison, missing_docs)]
 
 use core::ptr::null_mut;
 
-use liella_abi::ctypes::{c_char, c_int, wchar_t, F128Bits, LdBits};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as mem;
-use liella_boundary::posix::s08_numeric as s;
-use liella_boundary::selftest::{self, ChildEnd};
+use niji_abi::ctypes::{c_char, c_int, wchar_t, F128Bits, LdBits};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as mem;
+use niji_boundary::posix::s08_numeric as s;
+use niji_boundary::selftest::{self, ChildEnd};
 
 const EINVAL: i32 = 22;
 const ERANGE: i32 = 34;
@@ -786,9 +786,9 @@ fn sym_lldiv() {
 fn sym_qecvt() {
     // The C forwarder passes the long double as these bits.
     let (mut d, mut g) = (0, 0);
-    let p = s::liella_qecvt_bits(ld(-3.14159), 3, Some(&mut d), Some(&mut g));
+    let p = s::niji_qecvt_bits(ld(-3.14159), 3, Some(&mut d), Some(&mut g));
     assert_eq!((read(p), d, g), ("314".into(), 1, 1));
-    let p = s::liella_qecvt_bits(ld_max(), 4, Some(&mut d), Some(&mut g));
+    let p = s::niji_qecvt_bits(ld_max(), 4, Some(&mut d), Some(&mut g));
     assert_eq!((read(p), d), ("1190".into(), 4933), "LDBL_MAX");
 }
 
@@ -796,14 +796,14 @@ fn sym_qecvt() {
 fn sym_qecvt_r() {
     let (mut d, mut g) = (0, 0);
     let mut b = [0 as c_char; 8];
-    assert_eq!(s::liella_qecvt_r_bits(ld(2.5), 4, Some(&mut d), Some(&mut g), b.as_mut_ptr(), 8), 0);
+    assert_eq!(s::niji_qecvt_r_bits(ld(2.5), 4, Some(&mut d), Some(&mut g), b.as_mut_ptr(), 8), 0);
     assert_eq!((txt(&b), d), ("2500".into(), 1));
 }
 
 #[test]
 fn sym_qfcvt() {
     let (mut d, mut g) = (0, 0);
-    let p = s::liella_qfcvt_bits(ld(3.14159), 2, Some(&mut d), Some(&mut g));
+    let p = s::niji_qfcvt_bits(ld(3.14159), 2, Some(&mut d), Some(&mut g));
     assert_eq!((read(p), d, g), ("314".into(), 1, 0));
 }
 
@@ -811,14 +811,14 @@ fn sym_qfcvt() {
 fn sym_qfcvt_r() {
     let (mut d, mut g) = (0, 0);
     let mut b = [0 as c_char; 8];
-    assert_eq!(s::liella_qfcvt_r_bits(ld(0.25), 2, Some(&mut d), Some(&mut g), b.as_mut_ptr(), 8), 0);
+    assert_eq!(s::niji_qfcvt_r_bits(ld(0.25), 2, Some(&mut d), Some(&mut g), b.as_mut_ptr(), 8), 0);
     assert_eq!((txt(&b), d), ("25".into(), 0));
 }
 
 #[test]
 fn sym_qgcvt() {
     let mut b = [0 as c_char; 32];
-    s::liella_qgcvt_bits(ld(1.0 / 3.0), 4, b.as_mut_ptr());
+    s::niji_qgcvt_bits(ld(1.0 / 3.0), 4, b.as_mut_ptr());
     assert_eq!(txt(&b), "0.3333");
 }
 
@@ -1400,15 +1400,15 @@ fn sym_strfromd() {
 #[test]
 fn sym_strfromf128() {
     let mut b = [9 as c_char; 16];
-    assert_eq!(s::liella_strfromf128_bits(b.as_mut_ptr(), 16, c("%.3f").as_ptr(), q(3.14159)), 5);
+    assert_eq!(s::niji_strfromf128_bits(b.as_mut_ptr(), 16, c("%.3f").as_ptr(), q(3.14159)), 5);
     assert_eq!(txt(&b), "3.142");
-    assert_eq!(s::liella_strfromf128_bits(b.as_mut_ptr(), 3, c("%e").as_ptr(), q(3.14159)), 12, "the full length is returned");
+    assert_eq!(s::niji_strfromf128_bits(b.as_mut_ptr(), 3, c("%e").as_ptr(), q(3.14159)), 12, "the full length is returned");
     assert_eq!(txt(&b), "3.", "truncated and terminated within n");
-    assert_eq!(s::liella_strfromf128_bits(null_mut(), 0, c("%g").as_ptr(), q(3.14159)), 7);
-    assert_eq!(s::liella_strfromf128_bits(b.as_mut_ptr(), 16, c("%A").as_ptr(), q(1.0)), 6);
+    assert_eq!(s::niji_strfromf128_bits(null_mut(), 0, c("%g").as_ptr(), q(3.14159)), 7);
+    assert_eq!(s::niji_strfromf128_bits(b.as_mut_ptr(), 16, c("%A").as_ptr(), q(1.0)), 6);
     assert_eq!(txt(&b), "0X1P+0");
     errno::set_raw(0);
-    assert_eq!(s::liella_strfromf128_bits(b.as_mut_ptr(), 16, c("%5.1f").as_ptr(), q(3.14159)), -1, "no width or flags");
+    assert_eq!(s::niji_strfromf128_bits(b.as_mut_ptr(), 16, c("%5.1f").as_ptr(), q(3.14159)), -1, "no width or flags");
     assert_eq!(errno::get(), EINVAL);
 }
 
@@ -1460,15 +1460,15 @@ fn sym_strfromf64() {
 #[test]
 fn sym_strfromf64x() {
     let mut b = [9 as c_char; 16];
-    assert_eq!(s::liella_strfroml_bits(b.as_mut_ptr(), 16, c("%.3f").as_ptr(), ld(3.14159)), 5);
+    assert_eq!(s::niji_strfroml_bits(b.as_mut_ptr(), 16, c("%.3f").as_ptr(), ld(3.14159)), 5);
     assert_eq!(txt(&b), "3.142");
-    assert_eq!(s::liella_strfroml_bits(b.as_mut_ptr(), 3, c("%e").as_ptr(), ld(3.14159)), 12, "the full length is returned");
+    assert_eq!(s::niji_strfroml_bits(b.as_mut_ptr(), 3, c("%e").as_ptr(), ld(3.14159)), 12, "the full length is returned");
     assert_eq!(txt(&b), "3.", "truncated and terminated within n");
-    assert_eq!(s::liella_strfroml_bits(null_mut(), 0, c("%g").as_ptr(), ld(3.14159)), 7);
-    assert_eq!(s::liella_strfroml_bits(b.as_mut_ptr(), 16, c("%A").as_ptr(), ld(1.0)), 6);
+    assert_eq!(s::niji_strfroml_bits(null_mut(), 0, c("%g").as_ptr(), ld(3.14159)), 7);
+    assert_eq!(s::niji_strfroml_bits(b.as_mut_ptr(), 16, c("%A").as_ptr(), ld(1.0)), 6);
     assert_eq!(txt(&b), "0X8P-3", "the x87 significand's top nibble leads, as the reference library prints (D-8.9)");
     errno::set_raw(0);
-    assert_eq!(s::liella_strfroml_bits(b.as_mut_ptr(), 16, c("%5.1f").as_ptr(), ld(3.14159)), -1, "no width or flags");
+    assert_eq!(s::niji_strfroml_bits(b.as_mut_ptr(), 16, c("%5.1f").as_ptr(), ld(3.14159)), -1, "no width or flags");
     assert_eq!(errno::get(), EINVAL);
 }
 
@@ -1490,15 +1490,15 @@ fn sym_strfromf() {
 #[test]
 fn sym_strfroml() {
     let mut b = [9 as c_char; 16];
-    assert_eq!(s::liella_strfroml_bits(b.as_mut_ptr(), 16, c("%.3f").as_ptr(), ld(3.14159)), 5);
+    assert_eq!(s::niji_strfroml_bits(b.as_mut_ptr(), 16, c("%.3f").as_ptr(), ld(3.14159)), 5);
     assert_eq!(txt(&b), "3.142");
-    assert_eq!(s::liella_strfroml_bits(b.as_mut_ptr(), 3, c("%e").as_ptr(), ld(3.14159)), 12, "the full length is returned");
+    assert_eq!(s::niji_strfroml_bits(b.as_mut_ptr(), 3, c("%e").as_ptr(), ld(3.14159)), 12, "the full length is returned");
     assert_eq!(txt(&b), "3.", "truncated and terminated within n");
-    assert_eq!(s::liella_strfroml_bits(null_mut(), 0, c("%g").as_ptr(), ld(3.14159)), 7);
-    assert_eq!(s::liella_strfroml_bits(b.as_mut_ptr(), 16, c("%A").as_ptr(), ld(1.0)), 6);
+    assert_eq!(s::niji_strfroml_bits(null_mut(), 0, c("%g").as_ptr(), ld(3.14159)), 7);
+    assert_eq!(s::niji_strfroml_bits(b.as_mut_ptr(), 16, c("%A").as_ptr(), ld(1.0)), 6);
     assert_eq!(txt(&b), "0X8P-3", "the x87 significand's top nibble leads, as the reference library prints (D-8.9)");
     errno::set_raw(0);
-    assert_eq!(s::liella_strfroml_bits(b.as_mut_ptr(), 16, c("%5.1f").as_ptr(), ld(3.14159)), -1, "no width or flags");
+    assert_eq!(s::niji_strfroml_bits(b.as_mut_ptr(), 16, c("%5.1f").as_ptr(), ld(3.14159)), -1, "no width or flags");
     assert_eq!(errno::get(), EINVAL);
 }
 
@@ -1602,10 +1602,10 @@ fn sym___strtof128_internal() {
     // The C forwarder converts these bits to _Float128.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtof128_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtof128_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.hi, r.lo), (0x3FFF_8000_0000_0000, 0));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let third = s::liella_strtof128_bits(c("0.1").as_ptr(), None);
+    let third = s::niji_strtof128_bits(c("0.1").as_ptr(), None);
     assert_eq!((third.hi, third.lo), (0x3FFB_9999_9999_9999, 0x9999_9999_9999_999A), "correctly rounded in 113 bits");
 }
 
@@ -1614,10 +1614,10 @@ fn sym_strtof128_l() {
     // The C forwarder converts these bits to _Float128.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtof128_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtof128_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.hi, r.lo), (0x3FFF_8000_0000_0000, 0));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let third = s::liella_strtof128_bits(c("0.1").as_ptr(), None);
+    let third = s::niji_strtof128_bits(c("0.1").as_ptr(), None);
     assert_eq!((third.hi, third.lo), (0x3FFB_9999_9999_9999, 0x9999_9999_9999_999A), "correctly rounded in 113 bits");
 }
 
@@ -1626,10 +1626,10 @@ fn sym_strtof128() {
     // The C forwarder converts these bits to _Float128.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtof128_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtof128_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.hi, r.lo), (0x3FFF_8000_0000_0000, 0));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let third = s::liella_strtof128_bits(c("0.1").as_ptr(), None);
+    let third = s::niji_strtof128_bits(c("0.1").as_ptr(), None);
     assert_eq!((third.hi, third.lo), (0x3FFB_9999_9999_9999, 0x9999_9999_9999_999A), "correctly rounded in 113 bits");
 }
 
@@ -1752,12 +1752,12 @@ fn sym_strtof64x_l() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_strtold_bits(c("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_strtold_bits(c("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -1765,12 +1765,12 @@ fn sym_strtof64x() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_strtold_bits(c("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_strtold_bits(c("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -1980,12 +1980,12 @@ fn sym_strtold() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_strtold_bits(c("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_strtold_bits(c("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -1993,12 +1993,12 @@ fn sym___strtold_internal() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_strtold_bits(c("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_strtold_bits(c("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -2006,12 +2006,12 @@ fn sym___strtold_l() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_strtold_bits(c("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_strtold_bits(c("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -2019,12 +2019,12 @@ fn sym_strtold_l() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = c("1.5x");
     let mut e = null_mut();
-    let r = s::liella_strtold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_strtold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_strtold_bits(c("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_strtold_bits(c("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_strtold_bits(c("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -2542,10 +2542,10 @@ fn sym___wcstof128_internal() {
     // The C forwarder converts these bits to _Float128.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstof128_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstof128_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.hi, r.lo), (0x3FFF_8000_0000_0000, 0));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let third = s::liella_wcstof128_bits(w("0.1").as_ptr(), None);
+    let third = s::niji_wcstof128_bits(w("0.1").as_ptr(), None);
     assert_eq!((third.hi, third.lo), (0x3FFB_9999_9999_9999, 0x9999_9999_9999_999A), "correctly rounded in 113 bits");
 }
 
@@ -2554,10 +2554,10 @@ fn sym_wcstof128_l() {
     // The C forwarder converts these bits to _Float128.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstof128_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstof128_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.hi, r.lo), (0x3FFF_8000_0000_0000, 0));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let third = s::liella_wcstof128_bits(w("0.1").as_ptr(), None);
+    let third = s::niji_wcstof128_bits(w("0.1").as_ptr(), None);
     assert_eq!((third.hi, third.lo), (0x3FFB_9999_9999_9999, 0x9999_9999_9999_999A), "correctly rounded in 113 bits");
 }
 
@@ -2566,10 +2566,10 @@ fn sym_wcstof128() {
     // The C forwarder converts these bits to _Float128.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstof128_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstof128_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.hi, r.lo), (0x3FFF_8000_0000_0000, 0));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let third = s::liella_wcstof128_bits(w("0.1").as_ptr(), None);
+    let third = s::niji_wcstof128_bits(w("0.1").as_ptr(), None);
     assert_eq!((third.hi, third.lo), (0x3FFB_9999_9999_9999, 0x9999_9999_9999_999A), "correctly rounded in 113 bits");
 }
 
@@ -2692,12 +2692,12 @@ fn sym_wcstof64x_l() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -2705,12 +2705,12 @@ fn sym_wcstof64x() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -2920,12 +2920,12 @@ fn sym_wcstold() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -2933,12 +2933,12 @@ fn sym___wcstold_internal() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -2946,12 +2946,12 @@ fn sym___wcstold_l() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]
@@ -2959,12 +2959,12 @@ fn sym_wcstold_l() {
     // The C forwarder (csys/src/adapter/float.c) converts these bits to long double.
     let t = w("1.5x");
     let mut e = null_mut();
-    let r = s::liella_wcstold_bits(t.as_ptr(), Some(&mut e));
+    let r = s::niji_wcstold_bits(t.as_ptr(), Some(&mut e));
     assert_eq!((r.mant, r.se), (0xC000_0000_0000_0000, 0x3FFF));
     assert_eq!(e.cast_const(), t.as_ptr().wrapping_add(3));
-    let m = s::liella_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
+    let m = s::niji_wcstold_bits(w("-0x1p-16445").as_ptr(), None);
     assert_eq!((m.mant, m.se), (1, 0x8000), "the smallest subnormal");
-    erange(|| s::liella_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
+    erange(|| s::niji_wcstold_bits(w("1e5000").as_ptr(), None).se, 0x7FFF);
 }
 
 #[test]

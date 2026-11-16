@@ -3,12 +3,12 @@
 //! (`selftest::in_child`, one thread), which performs the start-up's page swap on itself and
 //! then sweeps `memset` (the first classed slot) against a byte loop; the parent process never
 //! swaps. The live page is read back from the code (`classed_id` slot), not from a flag.
-#![no_builtins] // calls to libc names reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella_boundary::classed::{self, Outcome};
-use liella_boundary::selftest::{self, opaque, ChildEnd};
-use liella_boundary::sys::CSys;
+use niji_boundary::classed::{self, Outcome};
+use niji_boundary::selftest::{self, opaque, ChildEnd};
+use niji_boundary::sys::CSys;
 
 /// A child's "the capability is absent" exit status (the parent prints why and passes).
 const SKIP: i32 = 77;
@@ -49,8 +49,8 @@ fn file_backed(addr: usize) -> Option<bool> {
 
 /// A line on stderr from a forked child, by one `write` (no allocation, no output capture).
 fn say(msg: &[u8]) {
-    use liella_kernel::sys::Sys;
-    let _ = CSys.write(liella_kernel::fd::Fd::STDERR, msg);
+    use niji_kernel::sys::Sys;
+    let _ = CSys.write(niji_kernel::fd::Fd::STDERR, msg);
 }
 
 fn run(name: &str, body: fn(&CSys) -> i32) {
@@ -66,7 +66,7 @@ fn the_avx2_page_after_the_swap_fills_like_a_byte_loop() {
     // Clauses: s4_1_c_1 (memset) on the AVX2 page; D-4.53 start-up swap (no spec clause).
     run("avx2 page", |_| {
         let o = selftest::classed_install(true, false);
-        if liella_boundary::cpu::avx2() {
+        if niji_boundary::cpu::avx2() {
             assert_eq!(o, Outcome::Installed, "an AVX2 CPU with an unmodified section swaps");
             assert_eq!(classed::live_page(), 1, "the AVX2 page is live after the swap");
             assert_eq!(file_backed(classed::page0_addr()), Some(true), "the live slot page was written: it is no longer the file's page");
@@ -95,10 +95,10 @@ fn the_sse2_page_forced_on_any_host_fills_like_a_byte_loop() {
 
 #[test]
 fn the_compat_flag_keeps_the_sse2_page() {
-    // Clauses: no spec clause (COMPAT-20, `liella.compat.no_classed_swap=1`).
+    // Clauses: no spec clause (COMPAT-20, `niji.compat.no_classed_swap=1`).
     run("compat flag", |_| {
         let o = selftest::classed_install(true, true);
-        assert_eq!(o, if liella_boundary::cpu::avx2() { Outcome::Disabled } else { Outcome::Sse2Class });
+        assert_eq!(o, if niji_boundary::cpu::avx2() { Outcome::Disabled } else { Outcome::Sse2Class });
         assert_eq!(classed::live_page(), 0);
         0
     });
@@ -110,7 +110,7 @@ fn a_page_written_before_the_swap_keeps_the_sse2_page() {
     // one byte of page 0 written back unchanged through /proc/self/mem, which makes the page a
     // private anonymous copy with the same content.
     run("guard", |_| {
-        if !liella_boundary::cpu::avx2() {
+        if !niji_boundary::cpu::avx2() {
             say(b"classed_slots: no AVX2 on this CPU: no swap to guard\n");
             return SKIP;
         }
@@ -137,7 +137,7 @@ fn the_swap_passes_under_mdwe() {
     // Clauses: no spec clause (D-4.53, design 5.2: PR_SET_MDWE refuses an exec gain; the swap
     // gains none). The policy is set in the child before the swap, as a parent would before execve.
     run("mdwe", |_| {
-        if !liella_boundary::cpu::avx2() {
+        if !niji_boundary::cpu::avx2() {
             say(b"classed_slots: no AVX2 on this CPU: no swap under MDWE to test\n");
             return SKIP;
         }
@@ -162,12 +162,12 @@ static FILL_N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::
 static FILL_CHK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 fn fill_call(k: &CSys) -> i32 {
-    use liella_kernel::sys::Sys;
+    use niji_kernel::sys::Sys;
     use std::sync::atomic::Ordering::SeqCst;
-    if k.prctl_int(liella_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
+    if k.prctl_int(niji_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
         return 4;
     }
-    let (d, n) = (FILL_D.load(SeqCst) as *mut liella_abi::ctypes::c_void, FILL_N.load(SeqCst));
+    let (d, n) = (FILL_D.load(SeqCst) as *mut niji_abi::ctypes::c_void, FILL_N.load(SeqCst));
     if FILL_CHK.load(SeqCst) {
         opaque::__memset_chk(d, 0x3C, n, usize::MAX);
     } else {
@@ -193,9 +193,9 @@ fn the_avx2_page_folds_null_up_to_64_and_stores_head_first() {
     // below a writable shared page over a PROT_NONE page, the head store faults and the writable
     // page stays untouched for every size of the 32-byte-block 129-256 class and the 65-128 class.
     run("avx2 page NULL", |k| {
-        use liella_kernel::sys::Sys;
-        use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_SHARED, PROT_NONE, PROT_READ, PROT_WRITE};
-        if !liella_boundary::cpu::avx2() {
+        use niji_kernel::sys::Sys;
+        use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_SHARED, PROT_NONE, PROT_READ, PROT_WRITE};
+        if !niji_boundary::cpu::avx2() {
             say(b"classed_slots: no AVX2 on this CPU: no AVX2 page to check\n");
             return SKIP;
         }
@@ -215,9 +215,9 @@ fn the_avx2_page_folds_null_up_to_64_and_stores_head_first() {
         k.mprotect(&mut lo, PROT_NONE).unwrap();
         let (edge, clean) = (hi.addr(), [0xA5u8; classed::PAGE]);
         for n in 65..=256 {
-            opaque::memset(edge as *mut liella_abi::ctypes::c_void, 0xA5, classed::PAGE);
+            opaque::memset(edge as *mut niji_abi::ctypes::c_void, 0xA5, classed::PAGE);
             assert!(fill_ends_by(edge - 16, n, false, SIGSEGV), "n {n}: the head store must fault");
-            let same = liella_boundary::posix::s04_strings::memcmp(edge as *const liella_abi::ctypes::c_void, clean.as_ptr().cast(), classed::PAGE) == 0;
+            let same = niji_boundary::posix::s04_strings::memcmp(edge as *const niji_abi::ctypes::c_void, clean.as_ptr().cast(), classed::PAGE) == 0;
             assert!(same, "n {n}: a store past the head block came before it (head-first)");
         }
         0

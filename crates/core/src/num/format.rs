@@ -1364,14 +1364,14 @@ mod tests {
         assert!(hits * 3 > runs, "scaled %g took {hits} of {runs}");
     }
 
-    /// The PRINTF-FLOAT differential run: millions of values (LIELLA_PF_DIFF_N, default 4M,
+    /// The PRINTF-FLOAT differential run: millions of values (NIJI_PF_DIFF_N, default 4M,
     /// two formats each). Ignored in the suite (minutes unoptimised); run with --release
     /// --ignored --nocapture.
     #[test]
     #[ignore]
     fn scaled_general_matches_the_general_path_on_millions() {
-        let n = std::env::var("LIELLA_PF_DIFF_N").ok().and_then(|v| v.parse().ok()).unwrap_or(4_000_000u64);
-        let seed = std::env::var("LIELLA_PF_DIFF_SEED").ok().and_then(|v| v.parse().ok()).unwrap_or(0x9E37_79B9_7F4A_7C15u64);
+        let n = std::env::var("NIJI_PF_DIFF_N").ok().and_then(|v| v.parse().ok()).unwrap_or(4_000_000u64);
+        let seed = std::env::var("NIJI_PF_DIFF_SEED").ok().and_then(|v| v.parse().ok()).unwrap_or(0x9E37_79B9_7F4A_7C15u64);
         let (runs, hits) = general_differential(n, seed | 1);
         std::eprintln!("PF-DIFF: {n} values, {runs} formats, {hits} by the scaled path, all identical to the general path");
         assert!(hits * 3 > runs, "scaled %g took {hits} of {runs}");

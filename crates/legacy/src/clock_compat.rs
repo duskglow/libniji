@@ -5,10 +5,10 @@
 //! sleeps (`sleep`'s remainder, `usleep`, the CPU clocks of `clock_nanosleep`), and `ualarm`
 //! (§23.4) as a translation of `ITIMER_REAL`.
 
-use liella::error::{Errno, Result};
-use liella_abi::layout::{struct_ntptimeval, struct_timeb, struct_timeval};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Itimerval, Timespec, Timeval, Timex, Timezone, Tms, CLOCK_MONOTONIC, CLOCK_PROCESS_CPUTIME_ID, CLOCK_REALTIME, CLOCK_THREAD_CPUTIME_ID, ITIMER_REAL};
+use niji::error::{Errno, Result};
+use niji_abi::layout::{struct_ntptimeval, struct_timeb, struct_timeval};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Itimerval, Timespec, Timeval, Timex, Timezone, Tms, CLOCK_MONOTONIC, CLOCK_PROCESS_CPUTIME_ID, CLOCK_REALTIME, CLOCK_THREAD_CPUTIME_ID, ITIMER_REAL};
 
 /// `CLOCKS_PER_SEC` (XSI fixes it at one million).
 pub const CLOCKS_PER_SEC: i64 = 1_000_000;

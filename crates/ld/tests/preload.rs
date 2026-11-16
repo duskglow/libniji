@@ -1,4 +1,4 @@
-//! Preloaded objects under Liella's `ld.so` (DL-LD-PRELOAD; ld.so(8) "LD_PRELOAD" and
+//! Preloaded objects under libniji's `ld.so` (DL-LD-PRELOAD; ld.so(8) "LD_PRELOAD" and
 //! "/etc/ld.so.preload"; plan/ph14/threat-model-draft.md rule 1; spec/behaviour/dynlink-preload.md,
 //! the reference probe): `LD_PRELOAD` objects interpose on the program's dependencies and on libc,
 //! `dlsym(RTLD_NEXT, ...)` from a preload reaches libc's definition, the constructor order, an object
@@ -17,8 +17,8 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::elf::Elf;
+use niji_ld::arch::{Arch, Native};
+use niji_ld::elf::Elf;
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -72,10 +72,10 @@ fn corpus(name: &str) -> Option<(PathBuf, PathBuf, PathBuf)> {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
     }
-    let lib = target().join("liella");
+    let lib = target().join("niji");
     let ld = lib.join(Native::INTERP);
-    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("liella-crt1.o").exists() {
-        eprintln!("SKIP: ld.so, libc.so.6 or liella-crt1.o not built (run cargo xtask so)");
+    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("niji-crt1.o").exists() {
+        eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
     let d = target().join(format!("ld-preload-{name}-{}", std::process::id()));
@@ -85,7 +85,7 @@ fn corpus(name: &str) -> Option<(PathBuf, PathBuf, PathBuf)> {
     // libc named by path (its DT_SONAME tag made inert), as the other loader corpora name it.
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
-    let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
+    let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
     let (off, len) = (dynph.offset as usize, dynph.filesz as usize);
     let at = (off..off + len).step_by(16).find(|&o| so[o..o + 8] == 14u64.to_le_bytes()).expect("libc.so.6 has a DT_SONAME");
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
@@ -98,7 +98,7 @@ fn corpus(name: &str) -> Option<(PathBuf, PathBuf, PathBuf)> {
     }
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let (ldir, rpath) = (format!("-L{}", d.display()), format!("-Wl,-rpath,{}", d.display()));
-    let crt1 = lib.join("liella-crt1.o");
+    let crt1 = lib.join("niji-crt1.o");
     let flags = ["-nostdlib", "-fPIE", "-pie", "-Wl,--no-as-needed", &interp, crt1.to_str().unwrap(), &ldir, &rpath, "-l:libdep.so", libc_s, ld.to_str().unwrap(), "-lgcc"];
     let prog = cc(&d, "prog", PROG, &flags);
     Some((d, ld, prog))
@@ -205,7 +205,7 @@ fn secure_preload_only_trusted_set_user_id() {
     // no_new_privs. The program names its libraries and interpreter by absolute path, so a copy in
     // another directory runs the same: try the corpus directory, then one under the temporary
     // directory, and keep the first where a plain run reports AT_SECURE.
-    let tmp = std::env::temp_dir().join(format!("liella-ld-preload-secure-{}", std::process::id()));
+    let tmp = std::env::temp_dir().join(format!("niji-ld-preload-secure-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
     let mut secure_prog = None;
     for dir in [d.clone(), tmp.clone()] {
@@ -263,7 +263,7 @@ fn preload_file_after_environment_names() {
     std::fs::write(etc.join("ld.so.preload"), text).unwrap();
     // `exec` is the shell's own: no program of the host system starts under the private /etc. Only
     // the program gets LD_PRELOAD: `unshare`, `sh` and `mount` are the host's programs, and the
-    // corpus libraries need Liella's libc.
+    // corpus libraries need libniji's libc.
     let pre2 = format!("{ds}/libpre2.so");
     let mut c = Command::new("unshare");
     let script = "mount --bind \"$0\" /etc && LD_PRELOAD=\"$2\" && export LD_PRELOAD && exec \"$1\"";

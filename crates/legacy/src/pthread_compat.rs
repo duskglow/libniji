@@ -1,6 +1,6 @@
 //! The C shapes of the thread interfaces (spec §22.1–§22.3, §22.6, §22.8): the attribute object,
 //! C11 result codes, and the argument checks the contracts specify. The thread runtime itself is
-//! `liella_rt::thread` and `liella_boundary::thread`.
+//! `niji_rt::thread` and `niji_boundary::thread`.
 //!
 //! **`pthread_attr_t`** (56 bytes, ⚑ ARB: its contents are not ABI, only its size; programs
 //! initialise it with `pthread_attr_init`) is viewed as seven words:
@@ -10,9 +10,9 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-use liella::error::{Errno, Result};
-use liella_kernel::uapi::{SCHED_FIFO, SCHED_OTHER, SCHED_RR};
-use liella_rt::thread::{Attr, STACK_MIN};
+use niji::error::{Errno, Result};
+use niji_kernel::uapi::{SCHED_FIFO, SCHED_OTHER, SCHED_RR};
+use niji_rt::thread::{Attr, STACK_MIN};
 
 /// Words of a `pthread_attr_t`.
 pub const ATTR_WORDS: usize = 7;

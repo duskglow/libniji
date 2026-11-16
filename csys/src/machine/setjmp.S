@@ -4,20 +4,20 @@
  * jmp_buf (spec/abi/layouts.tsv): rbx, rbp, r12, r13, r14, r15, rsp, pc at 0..56, the
  * stack pointer, frame pointer and program counter mangled with the thread's pointer guard
  * (%fs:0x30: xor, then rotate left 17, as glibc does); __mask_was_saved (int) at 64;
- * __saved_mask at 72 (the kernel's 8 bytes). No shadow stack exists in a Liella process
+ * __saved_mask at 72 (the kernel's 8 bytes). No shadow stack exists in a libniji process
  * (D-21.3), so none is recorded or unwound.
  *
- * The glibc names exist only in the products (LIELLA_EXPORT), so that tests never interpose
- * on the host C library; the liella_machine_ forms are always present. */
+ * The glibc names exist only in the products (NIJI_EXPORT), so that tests never interpose
+ * on the host C library; the niji_machine_ forms are always present. */
 	.text
 
-/* int liella_machine_sigsetjmp(jmp_buf env, int savemask): save the caller's registers; with
+/* int niji_machine_sigsetjmp(jmp_buf env, int savemask): save the caller's registers; with
  * savemask, the signal mask too. Returns 0 (and the value passed to longjmp, later). */
-	.globl liella_machine_sigsetjmp
-	.hidden liella_machine_sigsetjmp
-	.type liella_machine_sigsetjmp, @function
+	.globl niji_machine_sigsetjmp
+	.hidden niji_machine_sigsetjmp
+	.type niji_machine_sigsetjmp, @function
 	.p2align 6
-liella_machine_sigsetjmp:
+niji_machine_sigsetjmp:
 	movq %rbx, 0(%rdi)
 	movq %rbp, %rax
 	xorq %fs:0x30, %rax
@@ -48,22 +48,22 @@ liella_machine_sigsetjmp:
 	syscall
 1:	xorl %eax, %eax
 	ret
-	.size liella_machine_sigsetjmp, .-liella_machine_sigsetjmp
+	.size niji_machine_sigsetjmp, .-niji_machine_sigsetjmp
 
-/* void liella_machine_siglongjmp(jmp_buf env, int val): restore the signal mask if the buffer
+/* void niji_machine_siglongjmp(jmp_buf env, int val): restore the signal mask if the buffer
  * saved one, then the registers; setjmp returns val (1 if val is 0). Does not return. */
-	.globl liella_machine_siglongjmp
-	.hidden liella_machine_siglongjmp
-	.type liella_machine_siglongjmp, @function
-/* void liella_machine_longjmp_nomask(jmp_buf env, int val): the same without the mask
+	.globl niji_machine_siglongjmp
+	.hidden niji_machine_siglongjmp
+	.type niji_machine_siglongjmp, @function
+/* void niji_machine_longjmp_nomask(jmp_buf env, int val): the same without the mask
  * (_longjmp). */
-	.globl liella_machine_longjmp_nomask
-	.hidden liella_machine_longjmp_nomask
-	.type liella_machine_longjmp_nomask, @function
+	.globl niji_machine_longjmp_nomask
+	.hidden niji_machine_longjmp_nomask
+	.type niji_machine_longjmp_nomask, @function
 	.p2align 6
-liella_machine_siglongjmp:
+niji_machine_siglongjmp:
 	cmpl $0, 64(%rdi)
-	je liella_machine_longjmp_nomask
+	je niji_machine_longjmp_nomask
 	pushq %rdi
 	pushq %rsi
 	leaq 72(%rdi), %rsi		/* rt_sigprocmask(SIG_SETMASK, &env->__saved_mask, NULL, 8) */
@@ -74,7 +74,7 @@ liella_machine_siglongjmp:
 	syscall
 	popq %rsi
 	popq %rdi
-liella_machine_longjmp_nomask:
+niji_machine_longjmp_nomask:
 	movq 48(%rdi), %r8
 	movq 8(%rdi), %r9
 	movq 56(%rdi), %rdx
@@ -96,10 +96,10 @@ liella_machine_longjmp_nomask:
 2:	movq %r8, %rsp
 	movq %r9, %rbp
 	jmpq *%rdx
-	.size liella_machine_siglongjmp, .-liella_machine_siglongjmp
-	.size liella_machine_longjmp_nomask, .-liella_machine_longjmp_nomask
+	.size niji_machine_siglongjmp, .-niji_machine_siglongjmp
+	.size niji_machine_longjmp_nomask, .-niji_machine_longjmp_nomask
 
-#ifdef LIELLA_EXPORT
+#ifdef NIJI_EXPORT
 /* The exported entry points (versions from spec/abi/versions.tsv). `setjmp` does not save the
  * mask (spec §21.1; D-21.4); `_longjmp` never restores one. */
 	.globl _setjmp
@@ -107,7 +107,7 @@ liella_machine_longjmp_nomask:
 	.p2align 6
 _setjmp:
 	xorl %esi, %esi
-	jmp liella_machine_sigsetjmp
+	jmp niji_machine_sigsetjmp
 	.size _setjmp, .-_setjmp
 
 	.globl setjmp
@@ -115,35 +115,35 @@ _setjmp:
 	.p2align 6
 setjmp:
 	xorl %esi, %esi
-	jmp liella_machine_sigsetjmp
+	jmp niji_machine_sigsetjmp
 	.size setjmp, .-setjmp
 
 	.globl __sigsetjmp
 	.type __sigsetjmp, @function
 	.p2align 6
 __sigsetjmp:
-	jmp liella_machine_sigsetjmp
+	jmp niji_machine_sigsetjmp
 	.size __sigsetjmp, .-__sigsetjmp
 
 	.globl longjmp
 	.type longjmp, @function
 	.p2align 6
 longjmp:
-	jmp liella_machine_siglongjmp
+	jmp niji_machine_siglongjmp
 	.size longjmp, .-longjmp
 
 	.globl siglongjmp
 	.type siglongjmp, @function
 	.p2align 6
 siglongjmp:
-	jmp liella_machine_siglongjmp
+	jmp niji_machine_siglongjmp
 	.size siglongjmp, .-siglongjmp
 
 	.globl _longjmp
 	.type _longjmp, @function
 	.p2align 6
 _longjmp:
-	jmp liella_machine_longjmp_nomask
+	jmp niji_machine_longjmp_nomask
 	.size _longjmp, .-_longjmp
 #endif
 	.section .note.GNU-stack,"",@progbits

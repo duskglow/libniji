@@ -3,7 +3,7 @@
 //! A [`Locale`] is twelve categories, each the built-in `"C"`, the built-in `"C.UTF-8"`, or a
 //! compiled category file (D-7.2, Appendix D.1), with its name. Locale data is never unmapped
 //! (D-7.7), so a `Locale` is a small `Copy` value over `'static` data; the process-wide and
-//! per-thread selections live in `liella-legacy` (D-7.8). Loading reaches the file system only
+//! per-thread selections live in `niji-legacy` (D-7.8). Loading reaches the file system only
 //! through a [`Source`], which the POSIX layer implements with read-only mappings.
 
 pub mod archive;

@@ -30,9 +30,9 @@ fn build(src: &str, out: &Path) {
     let r = root();
     let st = Command::new("cc")
         .args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-        .arg(r.join("target/liella/liella-crt1.o"))
+        .arg(r.join("target/niji/niji-crt1.o"))
         .arg(r.join("crates/core/tests/oracle").join(src))
-        .arg(r.join("target/liella/libc.a"))
+        .arg(r.join("target/niji/libc.a"))
         .arg("-lgcc")
         .arg("-o")
         .arg(out)
@@ -45,10 +45,10 @@ fn build(src: &str, out: &Path) {
 fn init_heap_metadata_of_new_size_classes_stays_dense() {
     // Trace: D-3.15
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("heap_meta_faults_liella");
+    let exe = dir.join("heap_meta_faults_niji");
     build("heap_meta_faults.c", &exe);
     let mut best = u64::MAX;
     for _ in 0..RUNS {
@@ -66,10 +66,10 @@ fn init_heap_metadata_of_new_size_classes_stays_dense() {
 fn the_first_allocation_touches_few_pages() {
     // Trace: D-3.19 (no spec clause: the heap's first reservation is internal).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("heap_first_faults_liella");
+    let exe = dir.join("heap_first_faults_niji");
     build("heap_first_faults.c", &exe);
     let mut best = u64::MAX;
     for _ in 0..RUNS {
@@ -93,10 +93,10 @@ fn the_vdso_lookup_takes_no_folding_decision() {
     // read system call. The guard itself is untouched; the program's own first copy, fill or
     // compare takes the decision.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("vdso_lookup_reads_liella");
+    let exe = dir.join("vdso_lookup_reads_niji");
     build("vdso_lookup_reads.c", &exe);
     let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
     assert!(o.status.success(), "{} failed: {:?}", exe.display(), o.status);
@@ -117,10 +117,10 @@ fn several_nodes_read_the_node_from_rseq() {
     // through the vDSO getcpu would fault, so a clean run shows the node came from rseq, and the
     // page's node shows it was the right field. One node or an older kernel: skipped with why.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("rseq_node_liella");
+    let exe = dir.join("rseq_node_niji");
     build("rseq_node.c", &exe);
     let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
     let err = String::from_utf8_lossy(&o.stderr);

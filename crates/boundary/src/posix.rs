@@ -1,8 +1,8 @@
 //! The POSIX translation layer (implementation-plan.md §8).
 //!
 //! Each exported symbol is one expression: convert the inputs (`crate::conv`, `crate::strz`,
-//! `liella_abi`), call one function of `liella`, `liella-legacy` or `liella-math` with `CSys`,
-//! convert the result (`liella_abi::ret`, `liella_abi::pack`). Branches, loops, arithmetic,
+//! `niji_abi`), call one function of `niji`, `niji-legacy` or `niji-math` with `CSys`,
+//! convert the result (`niji_abi::ret`, `niji_abi::pack`). Branches, loops, arithmetic,
 //! local state or error decisions here are design errors; `cargo xtask purity` rejects them.
 //!
 //! `unsafe` appears here only as the single `unsafe { conv::... }` or `unsafe { strz::... }`

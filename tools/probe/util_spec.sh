@@ -180,6 +180,6 @@ run pldd-nopid 'pldd'
 run pldd-nosuchpid 'pldd 2147483646'
 run pldd-self 'sleep 20 & p=$!; pldd $p | sed "s/^$p:/<pid>:/"; r=$?; kill $p; exit $r'
 
-# --- not shipped by Liella (31.14)
+# --- not shipped by libniji (31.14)
 run iconvconfig-help 'iconvconfig --help'
 run devtools 'for c in sprof sotruss mtrace; do printf "%s " $c; command -v $c || echo missing; done; ls /etc/bindresvport.blacklist'

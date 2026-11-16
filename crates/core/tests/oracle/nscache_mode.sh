@@ -1,8 +1,8 @@
 #!/bin/sh
-# Run a differential test's run script with Liella's name-service cache on or off (D-16.10), as
+# Run a differential test's run script with libniji's name-service cache on or off (D-16.10), as
 # the calling user, in a private mount namespace whose /dev/shm is a fresh tmpfs: the products put
 # the user's shared region there, so a test never uses or leaves a region in the system's
-# /dev/shm. `off` sets LIELLA_NSCACHE=0, which the run scripts pass on to their root phases; `on`
+# /dev/shm. `off` sets NIJI_NSCACHE=0, which the run scripts pass on to their root phases; `on`
 # leaves the environment as it was. Needs `sudo -n` (the namespace) and `setpriv`.
 #
 # A tree that itself lives under /dev/shm (a `cargo xtask plants` copy in RAM) would vanish under
@@ -10,7 +10,7 @@
 # top-level directory of /dev/shm holding the working directory or a path argument (`/dev/shm/x/..`
 # or `NAME=/dev/shm/x/..`) is bound back into the new /dev/shm, from a descriptor opened on the old
 # one before the mount. Only a directory that already exists there is bound back: a path the
-# command is to create (aio_products' scratch, /dev/shm/liella-aio-...) belongs to the private
+# command is to create (aio_products' scratch, /dev/shm/niji-aio-...) belongs to the private
 # /dev/shm and goes with it. The shared region is a top-level file: it still starts fresh.
 #
 # Usage: nscache_mode.sh on|off COMMAND ARGS...
@@ -18,8 +18,8 @@ set -eu
 mode=$1
 shift
 case $mode in
-on) set -- env -u LIELLA_NSCACHE "$@" ;;
-off) set -- env LIELLA_NSCACHE=0 "$@" ;;
+on) set -- env -u NIJI_NSCACHE "$@" ;;
+off) set -- env NIJI_NSCACHE=0 "$@" ;;
 *) echo "nscache_mode.sh: on or off, not $mode" >&2; exit 2 ;;
 esac
 keep=

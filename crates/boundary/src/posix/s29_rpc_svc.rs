@@ -1,6 +1,6 @@
 //! §29.1 ONC RPC server side as failing stubs (D-29.5, owner rulings R13 and 2026-10-27).
 //!
-//! Liella does not implement the ONC RPC server. Every name stays exported at its compat
+//! libniji does not implement the ONC RPC server. Every name stays exported at its compat
 //! version so an old program still loads; a call fails at once with the failure value below,
 //! sets `errno` to `EOPNOTSUPP`, and opens, reads, writes or closes no descriptor (a caller's
 //! socket included), registers nothing with the port mapper and keeps no memory:
@@ -16,11 +16,11 @@
 //! * `__rpc_thread_svc_fdset` still returns the process's `svc_fdset`, which no stub reads.
 //!
 //! Every entry is an `internal_entry!`: `cargo xtask so` binds each compat version to the
-//! `liella_compat_<name>` symbol.
+//! `niji_compat_<name>` symbol.
 
 use core::sync::atomic::AtomicU64;
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_void};
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_void};
 
 use super::s29_legacy::XdrProc;
 use super::s29_rpc_auth::EOPNOTSUPP;
@@ -73,95 +73,95 @@ fn no_xprt() -> *mut SvcXprt {
 
 crate::internal_entry! {
 /// `svcudp_bufcreate`: `NULL` (stub).
-pub extern "C" fn liella_compat_svcudp_bufcreate(_sock: c_int, _sendsz: c_uint, _recvsz: c_uint) -> *mut SvcXprt {
+pub extern "C" fn niji_compat_svcudp_bufcreate(_sock: c_int, _sendsz: c_uint, _recvsz: c_uint) -> *mut SvcXprt {
     no_xprt()
 }}
 
 crate::internal_entry! {
 /// `svcudp_create`: `NULL` (stub).
-pub extern "C" fn liella_compat_svcudp_create(_sock: c_int) -> *mut SvcXprt {
+pub extern "C" fn niji_compat_svcudp_create(_sock: c_int) -> *mut SvcXprt {
     no_xprt()
 }}
 
 crate::internal_entry! {
 /// `svctcp_create`: `NULL` (stub).
-pub extern "C" fn liella_compat_svctcp_create(_sock: c_int, _sendsize: c_uint, _recvsize: c_uint) -> *mut SvcXprt {
+pub extern "C" fn niji_compat_svctcp_create(_sock: c_int, _sendsize: c_uint, _recvsize: c_uint) -> *mut SvcXprt {
     no_xprt()
 }}
 
 crate::internal_entry! {
 /// `svcfd_create`: `NULL` (stub); the descriptor is left open.
-pub extern "C" fn liella_compat_svcfd_create(_fd: c_int, _sendsize: c_uint, _recvsize: c_uint) -> *mut SvcXprt {
+pub extern "C" fn niji_compat_svcfd_create(_fd: c_int, _sendsize: c_uint, _recvsize: c_uint) -> *mut SvcXprt {
     no_xprt()
 }}
 
 crate::internal_entry! {
 /// `svcraw_create`: `NULL` (stub).
-pub extern "C" fn liella_compat_svcraw_create() -> *mut SvcXprt {
+pub extern "C" fn niji_compat_svcraw_create() -> *mut SvcXprt {
     no_xprt()
 }}
 
 crate::internal_entry! {
 /// `svcunix_create`: `NULL` (stub); no socket and no file at `path`.
-pub extern "C" fn liella_compat_svcunix_create(_sock: c_int, _sendsize: c_uint, _recvsize: c_uint, _path: *mut c_char) -> *mut SvcXprt {
+pub extern "C" fn niji_compat_svcunix_create(_sock: c_int, _sendsize: c_uint, _recvsize: c_uint, _path: *mut c_char) -> *mut SvcXprt {
     no_xprt()
 }}
 
 crate::internal_entry! {
 /// `svcunixfd_create`: `NULL` (stub); the descriptor is left open.
-pub extern "C" fn liella_compat_svcunixfd_create(_fd: c_int, _sendsize: c_uint, _recvsize: c_uint) -> *mut SvcXprt {
+pub extern "C" fn niji_compat_svcunixfd_create(_fd: c_int, _sendsize: c_uint, _recvsize: c_uint) -> *mut SvcXprt {
     no_xprt()
 }}
 
 crate::internal_entry! {
 /// `svcudp_enablecache`: `0` (failure; stub).
-pub extern "C" fn liella_compat_svcudp_enablecache(_x: *mut SvcXprt, _size: c_ulong) -> c_int {
+pub extern "C" fn niji_compat_svcudp_enablecache(_x: *mut SvcXprt, _size: c_ulong) -> c_int {
     unsupported();
     0
 }}
 
 crate::internal_entry! {
 /// `xprt_register`: no effect (stub).
-pub extern "C" fn liella_compat_xprt_register(_x: *mut SvcXprt) {
+pub extern "C" fn niji_compat_xprt_register(_x: *mut SvcXprt) {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `xprt_unregister`: no effect (stub).
-pub extern "C" fn liella_compat_xprt_unregister(_x: *mut SvcXprt) {
+pub extern "C" fn niji_compat_xprt_unregister(_x: *mut SvcXprt) {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `svc_register`: `0` (`FALSE`; stub); nothing registered, no port mapper contacted.
-pub extern "C" fn liella_compat_svc_register(_x: *mut SvcXprt, _prog: c_ulong, _vers: c_ulong, _dispatch: Dispatch, _protocol: c_int) -> c_int {
+pub extern "C" fn niji_compat_svc_register(_x: *mut SvcXprt, _prog: c_ulong, _vers: c_ulong, _dispatch: Dispatch, _protocol: c_int) -> c_int {
     unsupported();
     0
 }}
 
 crate::internal_entry! {
 /// `svc_unregister`: no effect (stub); no port mapper contacted.
-pub extern "C" fn liella_compat_svc_unregister(_prog: c_ulong, _vers: c_ulong) {
+pub extern "C" fn niji_compat_svc_unregister(_prog: c_ulong, _vers: c_ulong) {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `registerrpc`: `-1` (stub); no transport made, nothing registered.
-pub extern "C" fn liella_compat_registerrpc(_prog: c_ulong, _vers: c_ulong, _proc: c_ulong, _routine: Option<extern "C" fn(*mut c_char) -> *mut c_char>, _inproc: XdrProc, _outproc: XdrProc) -> c_int {
+pub extern "C" fn niji_compat_registerrpc(_prog: c_ulong, _vers: c_ulong, _proc: c_ulong, _routine: Option<extern "C" fn(*mut c_char) -> *mut c_char>, _inproc: XdrProc, _outproc: XdrProc) -> c_int {
     unsupported();
     -1
 }}
 
 crate::internal_entry! {
 /// `_authenticate`: `AUTH_FAILED` (stub); the request is not read.
-pub extern "C" fn liella_compat__authenticate(_req: *mut c_void, _msg: *const c_void) -> c_int {
+pub extern "C" fn niji_compat__authenticate(_req: *mut c_void, _msg: *const c_void) -> c_int {
     unsupported();
     AUTH_FAILED
 }}
 
 crate::internal_entry! {
 /// `svc_sendreply`: `0` (`FALSE`; stub); nothing sent.
-pub extern "C" fn liella_compat_svc_sendreply(_x: *mut SvcXprt, _proc: XdrProc, _objp: *mut c_char) -> c_int {
+pub extern "C" fn niji_compat_svc_sendreply(_x: *mut SvcXprt, _proc: XdrProc, _objp: *mut c_char) -> c_int {
     unsupported();
     0
 }}
@@ -177,61 +177,61 @@ macro_rules! svcerr {
 }
 
 svcerr! {
-    "`svcerr_noproc`: no effect (stub)." liella_compat_svcerr_noproc();
-    "`svcerr_decode`: no effect (stub)." liella_compat_svcerr_decode();
-    "`svcerr_systemerr`: no effect (stub)." liella_compat_svcerr_systemerr();
-    "`svcerr_noprog`: no effect (stub)." liella_compat_svcerr_noprog();
-    "`svcerr_progvers`: no effect (stub)." liella_compat_svcerr_progvers(_low: c_ulong, _high: c_ulong);
-    "`svcerr_auth`: no effect (stub)." liella_compat_svcerr_auth(_why: c_int);
-    "`svcerr_weakauth`: no effect (stub)." liella_compat_svcerr_weakauth();
+    "`svcerr_noproc`: no effect (stub)." niji_compat_svcerr_noproc();
+    "`svcerr_decode`: no effect (stub)." niji_compat_svcerr_decode();
+    "`svcerr_systemerr`: no effect (stub)." niji_compat_svcerr_systemerr();
+    "`svcerr_noprog`: no effect (stub)." niji_compat_svcerr_noprog();
+    "`svcerr_progvers`: no effect (stub)." niji_compat_svcerr_progvers(_low: c_ulong, _high: c_ulong);
+    "`svcerr_auth`: no effect (stub)." niji_compat_svcerr_auth(_why: c_int);
+    "`svcerr_weakauth`: no effect (stub)." niji_compat_svcerr_weakauth();
 }
 
 crate::internal_entry! {
 /// `svc_getreq_common`: no effect (stub); the descriptor is not read.
-pub extern "C" fn liella_compat_svc_getreq_common(_fd: c_int) {
+pub extern "C" fn niji_compat_svc_getreq_common(_fd: c_int) {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `svc_getreqset`: no effect (stub); the set is not read.
-pub extern "C" fn liella_compat_svc_getreqset(_readfds: *const u64) {
+pub extern "C" fn niji_compat_svc_getreqset(_readfds: *const u64) {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `svc_getreq`: no effect (stub).
-pub extern "C" fn liella_compat_svc_getreq(_rdfds: c_int) {
+pub extern "C" fn niji_compat_svc_getreq(_rdfds: c_int) {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `svc_getreq_poll`: no effect (stub); the array is not read.
-pub extern "C" fn liella_compat_svc_getreq_poll(_pfd: *mut c_void, _nready: c_int) {
+pub extern "C" fn niji_compat_svc_getreq_poll(_pfd: *mut c_void, _nready: c_int) {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `svc_run`: returns at once (stub); a program's "svc_run returned" path runs.
-pub extern "C" fn liella_compat_svc_run() {
+pub extern "C" fn niji_compat_svc_run() {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `svc_exit`: no effect (stub).
-pub extern "C" fn liella_compat_svc_exit() {
+pub extern "C" fn niji_compat_svc_exit() {
     unsupported();
 }}
 
 crate::internal_entry! {
 /// `__rpc_thread_svc_fdset`: `svc_fdset`, an `fd_set` no stub reads.
-pub extern "C" fn liella_compat___rpc_thread_svc_fdset() -> *mut u64 {
+pub extern "C" fn niji_compat___rpc_thread_svc_fdset() -> *mut u64 {
     // The words are atomics, so a caller's FD_SET through this pointer is a plain store.
     SVC_FDSET.as_ptr().cast::<u64>().cast_mut()
 }}
 
 crate::internal_entry! {
 /// `_seterr_reply`: stores `RPC_SYSTEMERROR` / `EOPNOTSUPP` in `err` (stub); `msg` is not read.
-pub extern "C" fn liella_compat__seterr_reply(_msg: *const c_void, err: *mut RpcErrC) {
+pub extern "C" fn niji_compat__seterr_reply(_msg: *const c_void, err: *mut RpcErrC) {
     // UNSAFE(slice) SAFETY: err is NULL or the caller's struct rpc_err (the _seterr_reply contract).
     if let Some(e) = unsafe { err.as_mut() } {
         *e = RpcErrC { re_status: RPC_SYSTEMERROR, a: u64::from(EOPNOTSUPP.unsigned_abs()), b: 0 };

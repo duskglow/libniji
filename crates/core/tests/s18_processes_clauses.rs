@@ -6,28 +6,28 @@
 //! directory, waiting for any child) is changed only in a re-executed child (`alone`); the
 //! spawned programs are the host's `/bin/sh` scripts, which report what they see on a pipe.
 //! The C-only forms (the variadic `l` forms, `daemon` and cancellation, which need a process
-//! Liella started) run in the conformance program `s18_exec`. The whole surface is also
+//! libniji started) run in the conformance program `s18_exec`. The whole surface is also
 //! compared with the reference by `process_products.rs`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::panic, clippy::as_conversions, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
 use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
-use liella::process::ChildStatus;
-use liella_abi::ctypes::c_char;
-use liella_abi::layout::sigset_t;
-use liella_boundary::errno;
-use liella_boundary::posix::s12_stdio as io;
-use liella_boundary::posix::s18_processes as x;
-use liella_boundary::posix::s20_signals as sg;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rusage, SchedParam, SigInfo};
-use liella_legacy::spawn_compat::{CFileActions, CSpawnAttr};
+use niji::process::ChildStatus;
+use niji_abi::ctypes::c_char;
+use niji_abi::layout::sigset_t;
+use niji_boundary::errno;
+use niji_boundary::posix::s12_stdio as io;
+use niji_boundary::posix::s18_processes as x;
+use niji_boundary::posix::s20_signals as sg;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rusage, SchedParam, SigInfo};
+use niji_legacy::spawn_compat::{CFileActions, CSpawnAttr};
 
 #[path = "support/single_thread.rs"]
 mod single_thread;
@@ -38,7 +38,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -125,9 +125,9 @@ impl Args {
     }
 }
 
-/// The process's `environ` (the host's, or Liella's in the export pass).
+/// The process's `environ` (the host's, or libniji's in the export pass).
 fn environ() -> *const *mut c_char {
-    core::ptr::with_exposed_provenance(liella_boundary::spawn::environ())
+    core::ptr::with_exposed_provenance(niji_boundary::spawn::environ())
 }
 
 /// The test process's ID (the parent's, in a re-executed copy): scratch names are the same in
@@ -135,9 +135,9 @@ fn environ() -> *const *mut c_char {
 fn base() -> String {
     std::env::var(BASE).unwrap_or_else(|_| std::process::id().to_string())
 }
-const BASE: &str = "LIELLA_C18_BASE";
+const BASE: &str = "NIJI_C18_BASE";
 /// Set in a re-executed copy: the case it runs.
-const ALONE: &str = "LIELLA_C18_ALONE";
+const ALONE: &str = "NIJI_C18_ALONE";
 
 /// A fresh scratch directory; `tag` is unique per call site. The test process removes it when
 /// the guard goes (a re-executed copy leaves it to the test process).
@@ -188,20 +188,20 @@ fn write_file(path: &std::path::Path, text: &str, mode: u32) {
 
 /// `setenv(name, value, 1)` through the library (the spawns read the same `environ`).
 fn set_env(name: &str, value: &str) {
-    assert_eq!(liella_boundary::posix::s01_startup::setenv(cs(name).as_ptr(), cs(value).as_ptr(), 1), 0);
+    assert_eq!(niji_boundary::posix::s01_startup::setenv(cs(name).as_ptr(), cs(value).as_ptr(), 1), 0);
 }
 
 /// `unsetenv(name)` through the library.
 fn unset_env(name: &str) {
-    assert_eq!(liella_boundary::posix::s01_startup::unsetenv(cs(name).as_ptr()), 0);
+    assert_eq!(niji_boundary::posix::s01_startup::unsetenv(cs(name).as_ptr()), 0);
 }
 
 fn path_c(p: &std::path::Path) -> CString {
     cs(p.to_str().unwrap())
 }
 
-fn kpath(c: &CString) -> liella_kernel::KStr<'_> {
-    liella_kernel::KStr::from_nul_terminated(c.as_bytes_with_nul()).unwrap()
+fn kpath(c: &CString) -> niji_kernel::KStr<'_> {
+    niji_kernel::KStr::from_nul_terminated(c.as_bytes_with_nul()).unwrap()
 }
 
 /// Run `body` alone in a re-executed copy of this test binary (test `test`, case `case`); the
@@ -287,7 +287,7 @@ fn read_bytes(fd: Fd) -> Vec<u8> {
         match CSys.read(fd, &mut buf) {
             Ok(0) => break,
             Ok(n) => out.extend_from_slice(&buf[..n]),
-            Err(liella::error::Errno::EINTR) => {}
+            Err(niji::error::Errno::EINTR) => {}
             Err(_) => break,
         }
     }
@@ -358,20 +358,20 @@ fn handler(f: extern "C" fn(i32)) -> usize {
 
 /// The lowest descriptor not open.
 fn lowest_free() -> i32 {
-    let fd = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), O_CLOEXEC, 0).unwrap();
+    let fd = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), O_CLOEXEC, 0).unwrap();
     let _ = CSys.close(fd);
     fd.raw()
 }
 
 fn fd_flags(fd: i32) -> i64 {
-    CSys.fcntl_int(Fd::new(fd), liella_kernel::ops::FcntlInt::GetFd, 0).unwrap()
+    CSys.fcntl_int(Fd::new(fd), niji_kernel::ops::FcntlInt::GetFd, 0).unwrap()
 }
 
 /// Set close-on-exec on each of `fds` this process holds open without it, so a spawned child
 /// holds only what its file actions give it. A test runner may hand descriptors down (a job
 /// wrapper keeping a lock open on 8, for one); they stay open here.
 fn keep_from_children(fds: &[i32]) {
-    use liella_kernel::ops::FcntlInt::{GetFd, SetFd};
+    use niji_kernel::ops::FcntlInt::{GetFd, SetFd};
     for &fd in fds {
         if let Ok(fl) = CSys.fcntl_int(Fd::new(fd), GetFd, 0)
             && fl & 1 == 0
@@ -493,7 +493,7 @@ fn s18_3_c_0() {
         sg::sigaddset(Some(&mut set), SIGTERM);
         sg::sigprocmask(0, Some(&set), None);
         sg::raise(SIGTERM);
-        let f = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), 0, 0).unwrap();
+        let f = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), 0, 0).unwrap();
         CSys.dup2(f, Fd::new(7)).unwrap();
         CSys.dup3(f, Fd::new(8), O_CLOEXEC).unwrap();
         std::env::set_current_dir(&dc).unwrap();
@@ -623,7 +623,7 @@ fn s18_3_c_4() {
     assert_eq!((x::fexecve(fd.raw(), argv.p(), environ()), errno::get()), (-1, ENOEXEC), "no shell fallback");
     let _ = CSys.close(fd);
     let out = alone_ok("s18_3_c_4", "run", || {
-        let fd = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/bin/sh\0").unwrap(), 0, 0).unwrap();
+        let fd = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/bin/sh\0").unwrap(), 0, 0).unwrap();
         let env = Args::new(&["X=fx"]);
         let argv = Args::new(&["sh", "-c", "echo R:fexecve $X"]);
         x::fexecve(fd.raw(), argv.p(), env.p());
@@ -644,7 +644,7 @@ fn s18_3_c_5() {
     assert_eq!((x::execveat(-100, cs("").as_ptr(), argv.p(), environ(), 0), errno::get()), (-1, ENOENT), "an empty path without AT_EMPTY_PATH");
     assert_eq!((x::execveat(-5, cs("sh").as_ptr(), argv.p(), environ(), 0), errno::get()), (-1, EBADF), "a bad directory with a relative path");
     let out = alone_ok("s18_3_c_5", "dirfd", || {
-        let dir = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/bin\0").unwrap(), O_DIRECTORY as u32, 0).unwrap();
+        let dir = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/bin\0").unwrap(), O_DIRECTORY as u32, 0).unwrap();
         let argv = Args::new(&["sh", "-c", "echo R:at"]);
         x::execveat(dir.raw(), cs("sh").as_ptr(), argv.p(), environ(), 0);
         false
@@ -653,7 +653,7 @@ fn s18_3_c_5() {
         assert_eq!(tagged(&out, "R:"), vec!["at"]);
     }
     let out = alone_ok("s18_3_c_5", "empty", || {
-        let sh = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/bin/sh\0").unwrap(), 0, 0).unwrap();
+        let sh = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/bin/sh\0").unwrap(), 0, 0).unwrap();
         let argv = Args::new(&["sh", "-c", "echo R:empty"]);
         x::execveat(sh.raw(), cs("").as_ptr(), argv.p(), environ(), AT_EMPTY_PATH);
         false
@@ -1112,7 +1112,7 @@ fn s18_4_g_3() {
                 }
             };
             // FL-3/FL-4: the kernel refuses clone3 transiently with EAGAIN in this busy process
-            // (also without Liella; it clears in 4-23 ms). The clause tests posix_spawn, not thread
+            // (also without libniji; it clears in 4-23 ms). The clause tests posix_spawn, not thread
             // creation, so retry EAGAIN only, for at most ~1 s; any other error fails at once.
             let started = std::time::Instant::now();
             let mut retries = 0;
@@ -1199,7 +1199,7 @@ fn s18_4_f_0() {
     }
     if CSys.geteuid() != 0 {
         if let Some((out, _)) = alone("s18_4_f_0", "nproc", || {
-            CSys.prlimit(0, 6, Some(&liella_kernel::uapi::Rlimit { cur: 0, max: 0 })).unwrap();
+            CSys.prlimit(0, 6, Some(&niji_kernel::uapi::Rlimit { cur: 0, max: 0 })).unwrap();
             say(&format!("R:{}\n", spawn_sh("exit 0", None, None).0));
             true
         }) {
@@ -1216,7 +1216,7 @@ fn held_child() -> (i32, Fd) {
     let [rd, wr] = CSys.pipe2(O_CLOEXEC).unwrap();
     let mut fa = actions();
     x::posix_spawn_file_actions_adddup2(Some(&mut fa), rd.raw(), 0);
-    let file = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), O_CLOEXEC, 0).unwrap();
+    let file = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), O_CLOEXEC, 0).unwrap();
     x::posix_spawn_file_actions_adddup2(Some(&mut fa), file.raw(), 9);
     let (r, pid) = spawn_sh("read x; exit 0", Some(&fa), None);
     assert_eq!(r, 0);
@@ -1227,8 +1227,8 @@ fn held_child() -> (i32, Fd) {
 }
 
 fn poll_in(fd: i32, ms: i64) -> usize {
-    let mut p = [liella_kernel::uapi::PollFd { fd, events: 1, revents: 0 }];
-    let mut t = liella_kernel::uapi::Timespec { sec: ms / 1000, nsec: (ms % 1000) * 1_000_000 };
+    let mut p = [niji_kernel::uapi::PollFd { fd, events: 1, revents: 0 }];
+    let mut t = niji_kernel::uapi::Timespec { sec: ms / 1000, nsec: (ms % 1000) * 1_000_000 };
     CSys.ppoll(&mut p, Some(&mut t), None).unwrap()
 }
 
@@ -1242,7 +1242,7 @@ fn s18_5_c_1() {
     assert_eq!(fd_flags(pfd), 1, "close-on-exec");
     assert_eq!(poll_in(pfd, 0), 0, "running");
     let nb = x::pidfd_open(pid, O_NONBLOCK as u32);
-    assert_ne!(CSys.fcntl_int(Fd::new(nb), liella_kernel::ops::FcntlInt::GetFl, 0).unwrap() & i64::from(O_NONBLOCK), 0);
+    assert_ne!(CSys.fcntl_int(Fd::new(nb), niji_kernel::ops::FcntlInt::GetFl, 0).unwrap() & i64::from(O_NONBLOCK), 0);
     let mut si = SigInfo::default();
     errno::set_raw(0);
     assert_eq!((x::waitid(P_PIDFD, nb as u32, Some(&mut si), WEXITED), errno::get()), (-1, EAGAIN), "non-blocking wait on a running child");
@@ -1262,7 +1262,7 @@ fn s18_5_c_2() {
     let pfd = x::pidfd_open(pid, 0);
     let got = x::pidfd_getfd(pfd, 9, 0);
     assert!(got >= 0, "errno {}", errno::get());
-    let null = CSys.fstatat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), 0).unwrap();
+    let null = CSys.fstatat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), 0).unwrap();
     assert_eq!(CSys.fstat(Fd::new(got)).unwrap().rdev, null.rdev, "the child's /dev/null");
     assert_eq!(fd_flags(got), 1, "close-on-exec");
     errno::set_raw(0);
@@ -1493,7 +1493,7 @@ fn s18_6_f_0() {
         let r = x::waitpid(pid, None, 0);
         say(&format!("R:ignored {r} {}\n", errno::get()));
         sg::signal(SIGCHLD, 0);
-        let sa = liella_legacy::signal_compat::CSigaction::new(handler(on_alarm), liella_kernel::uapi::SigSet::empty(), 0);
+        let sa = niji_legacy::signal_compat::CSigaction::new(handler(on_alarm), niji_kernel::uapi::SigSet::empty(), 0);
         sg::sigaction(SIGALRM, Some(&sa), None);
         let (_, pid) = spawn_sh("sleep 1", None, None);
         // The signal goes to this thread (the harness has others).
@@ -1514,7 +1514,7 @@ fn s18_6_f_0() {
     }
 }
 
-/// §18.6 Cancellation: the waits are cancellation points; in a thread Liella runs (`s18_exec`).
+/// §18.6 Cancellation: the waits are cancellation points; in a thread libniji runs (`s18_exec`).
 #[test]
 fn s18_6_x_0() {
     conformance(&["s18_exec"]);
@@ -1537,7 +1537,7 @@ fn s18_7_c_1() {
         // The calling thread's mask (system blocks SIGCHLD in it alone) and the shell's state.
         let script = format!("grep -E '^Sig(Blk|Ign):' /proc/{}/task/{}/status | sed 's/^/R:caller /'; {REPORT_SIGNALS} | sed 's/^/R:shell /'", x::getpid(), x::gettid());
         say(&format!("R:status {}\n", c(&script)));
-        let mut sa = liella_legacy::signal_compat::CSigaction::new(0, liella_kernel::uapi::SigSet::empty(), 0);
+        let mut sa = niji_legacy::signal_compat::CSigaction::new(0, niji_kernel::uapi::SigSet::empty(), 0);
         sg::sigaction(SIGINT, None, Some(&mut sa));
         say(&format!("R:restored {}\n", sa.handler == handler(count_signal)));
         true
@@ -1558,7 +1558,7 @@ fn s18_7_c_1() {
     assert!(r.contains(&"restored true".to_string()));
 }
 
-fn line_of(fp: *mut liella_abi::layout::FILE) -> Vec<u8> {
+fn line_of(fp: *mut niji_abi::layout::FILE) -> Vec<u8> {
     let mut line = [0 as c_char; 128];
     if io::fgets(line.as_mut_ptr(), 128, fp).is_null() {
         return Vec::new();
@@ -1617,7 +1617,7 @@ fn s18_7_t_0() {
         sg::signal(SIGINT, handler(count_signal));
         sg::signal(SIGQUIT, handler(count_signal));
         let disp = |sig: i32| {
-            let mut sa = liella_legacy::signal_compat::CSigaction::new(0, liella_kernel::uapi::SigSet::empty(), 0);
+            let mut sa = niji_legacy::signal_compat::CSigaction::new(0, niji_kernel::uapi::SigSet::empty(), 0);
             sg::sigaction(sig, None, Some(&mut sa));
             match sa.handler {
                 0 => "default",
@@ -1732,7 +1732,7 @@ fn s18_8_c_4() {
     assert_eq!(x::__bsd_getpgrp(x::getpid()), x::getpgrp());
 }
 
-/// §18.8 Contract: `daemon` (a process Liella started: `s18_exec`).
+/// §18.8 Contract: `daemon` (a process libniji started: `s18_exec`).
 #[test]
 fn s18_8_c_5() {
     conformance(&["s18_exec"]);
@@ -1751,24 +1751,24 @@ fn s18_9_c_1() {
     const PR_GET_NAME: i32 = 16;
     std::thread::spawn(|| {
         let name = cs("abcdefghijklmnopqrstuvwxyz");
-        assert_eq!(x::liella_prctl5(PR_SET_NAME, name.as_ptr() as u64, 0, 0, 0), 0);
+        assert_eq!(x::niji_prctl5(PR_SET_NAME, name.as_ptr() as u64, 0, 0, 0), 0);
         let mut got = [0u8; 16];
-        assert_eq!(x::liella_prctl5(PR_GET_NAME, got.as_mut_ptr() as u64, 0, 0, 0), 0);
+        assert_eq!(x::niji_prctl5(PR_GET_NAME, got.as_mut_ptr() as u64, 0, 0, 0), 0);
         assert_eq!(&got, b"abcdefghijklmno\0", "15 bytes and a NUL");
     })
     .join()
     .unwrap();
     fn pdeath(_: &CSys) -> i32 {
         let mut v = -1i32;
-        if x::liella_prctl5(PR_SET_PDEATHSIG, 10, 0, 0, 0) != 0 || x::liella_prctl5(PR_GET_PDEATHSIG, core::ptr::from_mut(&mut v) as u64, 0, 0, 0) != 0 {
+        if x::niji_prctl5(PR_SET_PDEATHSIG, 10, 0, 0, 0) != 0 || x::niji_prctl5(PR_GET_PDEATHSIG, core::ptr::from_mut(&mut v) as u64, 0, 0, 0) != 0 {
             return 1;
         }
         i32::from(v != 10)
     }
     assert_eq!(selftest::in_child(pdeath).unwrap(), selftest::ChildEnd::Exited(0));
-    assert_eq!(x::liella_prctl5(PR_GET_DUMPABLE, 0, 0, 0, 0), 1, "the value is the result");
+    assert_eq!(x::niji_prctl5(PR_GET_DUMPABLE, 0, 0, 0, 0), 1, "the value is the result");
     errno::set_raw(0);
-    assert_eq!((x::liella_prctl5(0x7fff_1234, 0, 0, 0, 0), errno::get()), (-1, EINVAL), "an unknown option");
+    assert_eq!((x::niji_prctl5(0x7fff_1234, 0, 0, 0, 0), errno::get()), (-1, EINVAL), "an unknown option");
     conformance(&["s18_exec"]);
 }
 
@@ -1799,7 +1799,7 @@ fn s18_9_c_3() {
     assert_eq!(selftest::in_child(body).unwrap(), selftest::ChildEnd::Exited(0));
     errno::set_raw(0);
     assert_eq!((x::setns(-1, 0), errno::get()), (-1, EBADF));
-    let null = CSys.openat(Fd::CWD, liella_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), O_CLOEXEC, 0).unwrap();
+    let null = CSys.openat(Fd::CWD, niji_kernel::KStr::from_nul_terminated(b"/dev/null\0").unwrap(), O_CLOEXEC, 0).unwrap();
     assert_eq!((x::setns(null.raw(), 0), errno::get()), (-1, EINVAL), "not a namespace");
     let _ = CSys.close(null);
 }
@@ -1813,7 +1813,7 @@ fn s18_9_c_4() {
     let mut fs = 0u64;
     // ARCH(x86_64): arch_prctl is exported on x86_64 only (RL-8)
     assert_eq!(x::arch_prctl(ARCH_GET_FS, core::ptr::from_mut(&mut fs) as u64), 0);
-    assert_eq!(fs as usize, liella_boundary::tb::tp(), "the FS base is the thread pointer");
+    assert_eq!(fs as usize, niji_boundary::tb::tp(), "the FS base is the thread pointer");
     let mut again = 0u64;
     // ARCH(x86_64): arch_prctl is exported on x86_64 only (RL-8)
     assert_eq!(x::__arch_prctl(ARCH_GET_FS, core::ptr::from_mut(&mut again) as u64), 0);
@@ -1836,17 +1836,17 @@ fn s18_9_c_5() {
     const PTRACE_SEIZE: i32 = 0x4206;
     const PTRACE_INTERRUPT: i32 = 0x4207;
     let c = selftest::spawn_pausing().unwrap();
-    assert_eq!(x::liella_ptrace4(PTRACE_SEIZE, c, 0, 0), 0, "errno {}", errno::get());
-    assert_eq!(x::liella_ptrace4(PTRACE_INTERRUPT, c, 0, 0), 0);
+    assert_eq!(x::niji_ptrace4(PTRACE_SEIZE, c, 0, 0), 0, "errno {}", errno::get());
+    assert_eq!(x::niji_ptrace4(PTRACE_INTERRUPT, c, 0, 0), 0);
     let mut st = 0;
     assert_eq!(x::waitpid(c, Some(&mut st), 0), c);
     errno::set_raw(0);
-    let w = x::liella_ptrace4(PTRACE_PEEKDATA, c, core::ptr::from_ref(&PEEK_WORD) as u64, 0);
+    let w = x::niji_ptrace4(PTRACE_PEEKDATA, c, core::ptr::from_ref(&PEEK_WORD) as u64, 0);
     assert_eq!((w, errno::get()), (-1, 0), "the word is -1, errno untouched");
-    let w = x::liella_ptrace4(PTRACE_PEEKDATA, c, 8, 0);
+    let w = x::niji_ptrace4(PTRACE_PEEKDATA, c, 8, 0);
     assert_eq!((w, errno::get()), (-1, EIO), "an unmapped address");
     errno::set_raw(0);
-    assert_eq!((x::liella_ptrace4(PTRACE_PEEKUSER, c, 1, 0), errno::get()), (-1, EIO), "misaligned");
-    assert_eq!(x::liella_ptrace4(PTRACE_DETACH, c, 0, 0), 0);
+    assert_eq!((x::niji_ptrace4(PTRACE_PEEKUSER, c, 1, 0), errno::get()), (-1, EIO), "misaligned");
+    assert_eq!(x::niji_ptrace4(PTRACE_DETACH, c, 0, 0), 0);
     kill_and_wait(c);
 }

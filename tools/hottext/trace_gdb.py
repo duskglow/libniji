@@ -2,11 +2,11 @@
 # Puts a one-shot breakpoint on every function of OUR static binary, runs it, and writes the names of
 # the functions that executed (every name at each hit address) to $HOT_TEXT_OUT, one per line, in
 # first-touch order (HOT-ORDER: the list keeps that order and the link lays the group out by it).
-# Liella products only (the binary is linked against libc.a); never point it at glibc.
+# libniji products only (the binary is linked against libc.a); never point it at glibc.
 #
 # LAYOUT-TRACE-HOST-CANONICAL (LT-4): the trace is a function of the program, not of the host.
-#  * CPU: the program never sees the host's CPU. Its two CPU entries (`liella_machine_cpuid`,
-#    `liella_machine_xgetbv0`; every CPUID / XCR0 read of the library goes through them) are answered
+#  * CPU: the program never sees the host's CPU. Its two CPU entries (`niji_machine_cpuid`,
+#    `niji_machine_xgetbv0`; every CPUID / XCR0 read of the library goes through them) are answered
 #    by the tracer from a fixed virtual CPU, and the program runs once per CPU class (CLASSES below:
 #    every combination of the two decisions that choose code, AVX2 and ERMS). The runs are merged into
 #    one first-touch order (merge()): the first class's order, then every function only another class
@@ -86,7 +86,7 @@ if virtual:
         if missing:
             fail("class %s runs code this host cannot execute (missing %s): trace on an x86-64-v3 host" % (c, " ".join(missing)))
 
-# The names at one address (aliases: `bcmp`, `__memcmpeq`, `liella_machine_equal`) are written in
+# The names at one address (aliases: `bcmp`, `__memcmpeq`, `niji_machine_equal`) are written in
 # byte order (LAYOUT-TRACE-HOST-CANONICAL-3): nm sorts by the caller's locale (en_US ignores the
 # underscores, C does not), so its order was a host input; nm runs in the C locale and the names are
 # sorted here as well.
@@ -101,13 +101,13 @@ names = {a: sorted(ns) for a, ns in names.items()}
 by_name = {n: a for a, ns in names.items() for n in ns}
 emul = {}
 if virtual:
-    for n, kind in (("liella_machine_cpuid", "cpuid"), ("liella_machine_xgetbv0", "xgetbv")):
+    for n, kind in (("niji_machine_cpuid", "cpuid"), ("niji_machine_xgetbv0", "xgetbv")):
         if n not in by_name:
             fail("%s: no %s: the virtual CPU cannot answer for it" % (binp, n))
         emul[by_name[n]] = kind
 
 # The program's copy at a fixed-length path (argv[0] is the path gdb runs).
-stage = tempfile.mkdtemp(prefix="liella-trace.", dir="/tmp")
+stage = tempfile.mkdtemp(prefix="niji-trace.", dir="/tmp")
 prog = os.path.join(stage, "p")
 shutil.copy(binp, prog)
 env = sorted((k[len("HOT_TEXT_ENV_"):], v) for k, v in os.environ.items() if k.startswith("HOT_TEXT_ENV_"))
@@ -231,7 +231,7 @@ def run_one(cls):
             break
         # A system call stop (the catchpoint) is told from a breakpoint by %orig_rax (the call's number
         # at a system call stop, -1 at a breakpoint's trap), never by the pc: the instruction after a
-        # `syscall` can be a function's address (a label such as liella_machine_cancel_window_end)
+        # `syscall` can be a function's address (a label such as niji_machine_cancel_window_end)
         # whose one-shot breakpoint has not run yet. Entry and return stops alternate per thread.
         tid = gdb.selected_thread().ptid
         if redirect and reg("orig_rax") != NOT_SYSCALL and tid not in in_call:

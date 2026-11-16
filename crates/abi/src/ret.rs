@@ -11,7 +11,7 @@
 //! Conventions that return the error number instead of setting `errno` (pthreads, `posix_*`)
 //! use [`errnum`], which never stores anything.
 
-use liella_kernel::errno::{Errno, KResult};
+use niji_kernel::errno::{Errno, KResult};
 
 use crate::ctypes::{c_int, ssize_t};
 

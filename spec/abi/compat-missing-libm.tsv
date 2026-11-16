@@ -1,4 +1,4 @@
-# libm.so.6 compat (non-default) versions versions.tsv lists that Liella does not export yet (binary-compatibility phase 15).
+# libm.so.6 compat (non-default) versions versions.tsv lists that libniji does not export yet (binary-compatibility phase 15).
 # RATCHET (rulings #1176, #1187): this list may only shrink. `cargo xtask so` fails (naming the symbol) on
 #   - a compat version versions.tsv lists that libm.so.6 does not export and that is NOT listed here;
 #   - a listed entry that libm.so.6 now exports ("remove it from compat-missing-libm.tsv"): delete the row in the same commit;

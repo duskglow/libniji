@@ -1,6 +1,6 @@
 //! The diagnostics for a bad `host.conf` line or `RESOLV_*` value (D-16.13), end to end in the
 //! products against the reference. No spec clause: §16 is silent on them. `tests/oracle/hostconf_diag.c`
-//! is built against the host C library and statically against Liella's products and run with
+//! is built against the host C library and statically against libniji's products and run with
 //! `RESOLV_HOST_CONF` naming a scratch file (the system's `hosts` and `nsswitch.conf` answer
 //! `localhost`; the diagnostics do not depend on the answer). Both libraries must print the same
 //! standard output and standard error: the text, once per process, at the first host-name lookup
@@ -24,12 +24,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/hostconf_diag.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -56,14 +56,14 @@ fn run(exe: &Path, mode: &str, conf: &Path, env: &[(&str, &str)]) -> (String, St
 #[test]
 fn diagnostics_match_the_reference() {
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
     }
     let out = r.join("target/test-oracles");
     std::fs::create_dir_all(&out).unwrap();
-    let (host, ours) = (out.join("hostconf_diag_host"), out.join("hostconf_diag_liella"));
+    let (host, ours) = (out.join("hostconf_diag_host"), out.join("hostconf_diag_niji"));
     assert!(build(&host, false), "hostconf_diag.c does not build against the host C library");
     assert!(build(&ours, true), "hostconf_diag.c does not link against the products");
     let dir = std::env::temp_dir().join(format!("hostconf-diag-{}", std::process::id()));
@@ -105,7 +105,7 @@ fn diagnostics_match_the_reference() {
         std::fs::write(&conf, text).unwrap();
         let reference = run(&host, mode, &conf, env);
         assert_eq!(!reference.1.is_empty(), *prints, "case {i} {text:?} {env:?}: the reference's standard error: {:?}", reference.1);
-        assert_eq!(run(&ours, mode, &conf, env), reference, "case {i} {text:?} {env:?} {mode}: Liella differs from the reference");
+        assert_eq!(run(&ours, mode, &conf, env), reference, "case {i} {text:?} {env:?} {mode}: libniji differs from the reference");
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -113,10 +113,10 @@ fn diagnostics_match_the_reference() {
 /// Trace: no spec clause (D-16.13). Record: the problems found in a text, with their line numbers.
 #[test]
 fn problems_found_in_a_text() {
-    use liella::names::hostconf::{problems, Problem};
+    use niji::names::hostconf::{problems, Problem};
     let mut got = Vec::new();
     problems(b"multi on\n  foo bar \n# c\nmulti x y\nreorder off z\ntrim q\norder r", |n, p| got.push((n, p)));
     assert_eq!(got, [(2, Problem::BadCommand(b"foo bar ")), (4, Problem::Expected(b"x y")), (5, Problem::Garbage(b"z"))]);
-    assert_eq!(liella::names::hostconf::on_off(b"OFFx"), Some(false));
-    assert_eq!(liella::names::hostconf::on_off(b"o"), None);
+    assert_eq!(niji::names::hostconf::on_off(b"OFFx"), Some(false));
+    assert_eq!(niji::names::hostconf::on_off(b"o"), None);
 }

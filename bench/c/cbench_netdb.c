@@ -286,7 +286,7 @@ int main(void)
 
     /* No IDNA row: without DNS the only way to reach the conversion is a non-ASCII name with
      * AI_IDN | AI_NUMERICHOST, and the two libraries do different work there (the reference
-     * converts the name first, about 5.7 us; Liella reads it as a numeric address first and
+     * converts the name first, about 5.7 us; libniji reads it as a numeric address first and
      * fails before converting), so the row would not compare the same thing. A name in
      * /etc/hosts would, but the benchmark does not change the system's files. */
     return 0;

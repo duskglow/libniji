@@ -457,7 +457,7 @@ pub fn linear_find(base: &[u8], size: usize, eq: &mut dyn FnMut(&[u8]) -> bool) 
 
 /// Node storage of a binary search tree whose nodes live in caller-visible memory. Nodes are
 /// nonzero addresses; 0 is "none". Each node holds a key (a caller pointer), two links and a
-/// height (Liella's node layout `{key, left, right, height}`; only the leading key member is
+/// height (libniji's node layout `{key, left, right, height}`; only the leading key member is
 /// ABI, D-14.2).
 pub trait TreeNodes {
     /// The root (0 when empty).

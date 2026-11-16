@@ -1,10 +1,10 @@
-//! The fixed-precision kernels of the special functions (`liella_math::mp`) against the test
-//! oracle (`liella-mathtools::mp`): every operation and transcendental kernel within the
+//! The fixed-precision kernels of the special functions (`niji_math::mp`) against the test
+//! oracle (`niji-mathtools::mp`): every operation and transcendental kernel within the
 //! relative error its documentation states, on a deterministic sample of operands.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_possible_wrap, clippy::float_cmp, missing_docs)]
 
-use liella_math::mp::{self, Mp, LIMBS};
-use liella_mathtools::mp::{self as o, Big};
+use niji_math::mp::{self, Mp, LIMBS};
+use niji_mathtools::mp::{self as o, Big};
 
 fn big(x: Mp) -> Big {
     let mut v = Big::zero(false);

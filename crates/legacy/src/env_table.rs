@@ -1,5 +1,5 @@
 //! The environment contract table (ENVIRON-TABLE-CONTRACT, D-1.12; docs/interfaces.md, "The
-//! environment contract"): an opt-in Liella extension in which a hashed index of the
+//! environment contract"): an opt-in libniji extension in which a hashed index of the
 //! environment's names, not a scan of `environ`, answers `getenv`, misses included.
 //!
 //! The index maps a name's hash to the position of its first entry in the array. Slots are one

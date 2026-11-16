@@ -7,7 +7,7 @@
 #[test]
 fn abi_libc_a_cold_bss_tables_are_lbss() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let archive = root.join("target/liella/libc.a");
+    let archive = root.join("target/niji/libc.a");
     assert!(archive.exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("readelf").arg("-SW").arg(&archive).output().unwrap();
     assert!(o.status.success(), "readelf -SW libc.a: {}", String::from_utf8_lossy(&o.stderr));

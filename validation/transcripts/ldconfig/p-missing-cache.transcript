@@ -1,6 +1,6 @@
 # `ldconfig -p -C` on a cache that does not exist. The reference's wrapper script starts the program as
 # `/sbin/ldconfig.real`, which is the name in its message; the spec writes `<program>` there (§31.2 Failure), so this
-# transcript maps that one name to `ldconfig`, the name Liella's side is started with.
+# transcript maps that one name to `ldconfig`, the name libniji's side is started with.
 name: ldconfig -p on a missing cache prints the open failure and exits 1
 clause: s31_2_f_1
 command: ldconfig

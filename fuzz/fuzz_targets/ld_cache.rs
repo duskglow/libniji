@@ -1,12 +1,12 @@
-//! The loader cache reader (`liella_ld::cache`, phase 14 DL-8, D-27.16): any file as an
+//! The loader cache reader (`niji_ld::cache`, phase 14 DL-8, D-27.16): any file as an
 //! `ld.so.cache`, then lookups of names taken from the input and fixed ones, with no, some and all
 //! hwcaps subdirectories supported. Every inconsistency must be "no cache" or "not found"; a panic,
 //! an overflow or a read outside the file is a finding.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use liella_ld::arch::{Arch, X86_64};
-use liella_ld::cache::Cache;
+use niji_ld::arch::{Arch, X86_64};
+use niji_ld::cache::Cache;
 
 fuzz_target!(|data: &[u8]| {
     let Some(cache) = Cache::parse(data) else { return };

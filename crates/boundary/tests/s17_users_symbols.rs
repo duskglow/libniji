@@ -13,7 +13,7 @@
 //! enumeration cursors, the `utmp` file name, the shell list, the password lock) is used only in
 //! re-executed children. The system's `utmp`, `wtmp` and lock file are never written: the calls
 //! that would write them run only unprivileged, where they are refused.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "../../core/tests/support/skip_note.rs"]
@@ -23,20 +23,20 @@ use core::ffi::CStr;
 use core::ptr::null_mut;
 use std::ffi::CString;
 
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_abi::layout::{struct_exit_status, struct_group, struct_passwd, struct_sgrp, struct_spwd, struct_utmp, struct_utmp__ut_tv};
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as sio;
-use liella_boundary::sys::CSys;
-use liella_kernel::ops::{IoctlIntArg, IoctlIntIn, IoctlIntOut};
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_RDWR};
-use liella_kernel::Fd;
-use liella_legacy::accounting as acct;
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_abi::layout::{struct_exit_status, struct_group, struct_passwd, struct_sgrp, struct_spwd, struct_utmp, struct_utmp__ut_tv};
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as sio;
+use niji_boundary::sys::CSys;
+use niji_kernel::ops::{IoctlIntArg, IoctlIntIn, IoctlIntOut};
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_RDWR};
+use niji_kernel::Fd;
+use niji_legacy::accounting as acct;
 
-use liella_boundary::errno;
-use liella_boundary::posix::s17_users as s;
+use niji_boundary::errno;
+use niji_boundary::posix::s17_users as s;
 
 mod products;
 #[path = "../../core/tests/support/scratch.rs"]
@@ -55,7 +55,7 @@ fn status(key: &str) -> Vec<u32> {
 
 // ------------------------------------------------------------------------------ §17.3–17.6 helpers
 
-const PROBE: &str = "LIELLA_S17_PROBE";
+const PROBE: &str = "NIJI_S17_PROBE";
 const ENOENT: i32 = 2;
 const ENXIO: i32 = 6;
 const EACCES: i32 = 13;
@@ -234,8 +234,8 @@ fn drain(fd: Fd, ms: u64) -> Vec<u8> {
     let mut out = Vec::new();
     let end = std::time::Instant::now() + std::time::Duration::from_millis(ms);
     while std::time::Instant::now() < end {
-        let mut p = [liella_kernel::uapi::PollFd { fd: fd.raw(), events: 1, revents: 0 }];
-        let mut t = liella_kernel::uapi::Timespec { sec: 0, nsec: 20_000_000 };
+        let mut p = [niji_kernel::uapi::PollFd { fd: fd.raw(), events: 1, revents: 0 }];
+        let mut t = niji_kernel::uapi::Timespec { sec: 0, nsec: 20_000_000 };
         if CSys.ppoll(&mut p, Some(&mut t), None).unwrap_or(0) > 0 {
             let mut b = [0u8; 256];
             match CSys.read(fd, &mut b) {
@@ -643,7 +643,7 @@ fn sym_getgroups() {
 
 #[test]
 fn sym___getgroups_chk() {
-    if std::env::var("LIELLA_S17_CHK").is_ok() {
+    if std::env::var("NIJI_S17_CHK").is_ok() {
         let mut list = [0u32; 1];
         s::__getgroups_chk(2, list.as_mut_ptr(), 4);
         return;
@@ -656,7 +656,7 @@ fn sym___getgroups_chk() {
     assert_eq!((s::__getgroups_chk(-1, list.as_mut_ptr(), list.len() * 4), errno::get()), (-1, 22));
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym___getgroups_chk", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S17_CHK", "1")
+        .env("NIJI_S17_CHK", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -792,9 +792,9 @@ fn sym_getpass() {
 /// `NULL errno=<e>`, then what it zeroed (`wipes=<count>/<bytes>/<dirty before>/<dirty after>`).
 fn pass_line(prompt: &CStr) -> String {
     errno::set_raw(0);
-    let _ = liella_boundary::selftest::pass_wipes();
+    let _ = niji_boundary::selftest::pass_wipes();
     let p = s::getpass(prompt.as_ptr()) as usize;
-    let w = liella_boundary::selftest::pass_wipes();
+    let w = niji_boundary::selftest::pass_wipes();
     let what = if p == 0 {
         format!("NULL errno={}", errno::get())
     } else {
@@ -819,7 +819,7 @@ fn wiped(line: &str) -> (usize, usize) {
 #[test]
 fn sym_getpass_bound() {
     // D-17.8 (§17.5, getpass; the spec's HIST note corrected: glibc has no bound, getpass(3)):
-    // at most 1 MiB before the newline unless liella_getpass_set_limit changes it; a longer line
+    // at most 1 MiB before the newline unless niji_getpass_set_limit changes it; a longer line
     // is read to its end, discarded and zeroed, and the call fails with EOVERFLOW, never
     // returning a truncated password; the next line is read normally.
     const MIB: usize = 1 << 20;
@@ -831,7 +831,7 @@ fn sym_getpass_bound() {
             return;
         }
         Some("bound-set") => {
-            assert_eq!(liella_boundary::native::getpass::liella_getpass_set_limit(8), MIB as i64);
+            assert_eq!(niji_boundary::native::getpass::niji_getpass_set_limit(8), MIB as i64);
             for prompt in [c"at: ", c"over: ", c"after: "] {
                 println!("{}", pass_line(prompt));
             }
@@ -842,7 +842,7 @@ fn sym_getpass_bound() {
             let path = CString::new(&tty["bound-tty:".len()..]).unwrap();
             let fd = CSys.openat(Fd::CWD, KStr::from_nul_terminated(path.as_bytes_with_nul()).unwrap(), O_RDWR, 0).unwrap();
             CSys.ioctl_int(fd, IoctlIntArg::Tiocsctty, 0).unwrap();
-            assert_eq!(liella_boundary::native::getpass::liella_getpass_set_limit(8), MIB as i64);
+            assert_eq!(niji_boundary::native::getpass::niji_getpass_set_limit(8), MIB as i64);
             for prompt in [c"P1: ", c"P2: "] {
                 println!("{}", pass_line(prompt));
             }
@@ -1429,7 +1429,7 @@ fn sym_lckpwdf() {
     let other = k.openat(Fd::CWD, KStr::from_nul_terminated(path.as_bytes_with_nul()).unwrap(), O_RDWR | O_CLOEXEC, 0).unwrap();
     acct::lock_file(k, other, 1, 0).unwrap();
     let t = std::time::Instant::now();
-    assert_eq!(acct::lock_passwd(k, path.as_bytes_with_nul(), 300), Err(liella_kernel::errno::Errno::EAGAIN));
+    assert_eq!(acct::lock_passwd(k, path.as_bytes_with_nul(), 300), Err(niji_kernel::errno::Errno::EAGAIN));
     assert!(t.elapsed() >= std::time::Duration::from_millis(300), "it waited");
     acct::unlock_file(k, other);
     assert_eq!(acct::lock_passwd(k, path.as_bytes_with_nul(), 300), Ok(true), "free: taken");

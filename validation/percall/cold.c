@@ -7,7 +7,7 @@
  * Every case fixes its own locale with CASE_LOCALE, so --locale only selects LC_ALL for cold_setlocale_env
  * (setlocale(LC_ALL, "") after the harness has set "C": the C -> C repeat when --locale C).
  * Time zone: TZ is not set by the harness; the zone is the host's /etc/localtime (Zen 1 host: Etc/UTC), the
- * same file for glibc and Liella, like the workloads. */
+ * same file for glibc and libniji, like the workloads. */
 #include "percall.h"
 #include <libintl.h>
 #include <time.h>

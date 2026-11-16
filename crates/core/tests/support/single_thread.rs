@@ -16,8 +16,8 @@
 
 #![allow(dead_code)]
 
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
 
 /// The number of threads of this process (entries of `/proc/self/task`; 0 if unreadable).
 pub(crate) fn threads() -> usize {
@@ -36,7 +36,7 @@ pub(crate) fn sole_thread() -> bool {
 /// Run `body` in a child made by the library's `fork` (only the calling thread is copied) and
 /// wait for it: true when `body` returned true (false when it returned false or panicked).
 pub(crate) fn single_threaded(body: impl FnOnce() -> bool) -> bool {
-    let pid = liella_boundary::fork::fork().unwrap();
+    let pid = niji_boundary::fork::fork().unwrap();
     if pid == 0 {
         let ok = std::panic::catch_unwind(std::panic::AssertUnwindSafe(body)).unwrap_or(false);
         CSys.exit_group(if ok { 0 } else { 1 });

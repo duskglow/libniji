@@ -20,25 +20,25 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_abi::ctypes::c_char;
-use liella_boundary::errno;
-use liella_boundary::posix::s09_random as rnd;
-use liella_boundary::posix::s11_lowio as lowio;
-use liella_boundary::posix::s13_filesystem as fs;
-use liella_boundary::posix::s18_processes as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_legacy::spawn_compat::CFileActions;
+use niji_abi::ctypes::c_char;
+use niji_boundary::errno;
+use niji_boundary::posix::s09_random as rnd;
+use niji_boundary::posix::s11_lowio as lowio;
+use niji_boundary::posix::s13_filesystem as fs;
+use niji_boundary::posix::s18_processes as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_legacy::spawn_compat::CFileActions;
 
 use scratch::Scratch;
 
 /// The calls the child runs under (set only in the child) and its scratch directory.
-const CASE: &str = "LIELLA_TEST_ENOSYS_CASE";
-const DIR: &str = "LIELLA_TEST_ENOSYS_DIR";
+const CASE: &str = "NIJI_TEST_ENOSYS_CASE";
+const DIR: &str = "NIJI_TEST_ENOSYS_DIR";
 const AT_FDCWD: i32 = -100;
 const AT_SYMLINK_NOFOLLOW: i32 = 0x100;
 const AT_EACCESS: i32 = 0x200;
@@ -217,7 +217,7 @@ fn statx_enosys_emulated_from_fstatat() {
     // Trace: s13_6_c_0 (statx fills the inode's metadata when statx is ENOSYS: emulated with fstatat, mask 0x7ff, other fields zero; flags fstatat cannot honour are EINVAL).
     let calls = "statx";
     if let Some(dir) = child(calls) {
-        use liella_kernel::uapi::Statx;
+        use niji_kernel::uapi::Statx;
         let (f, l) = file_and_link(&dir);
         let (f, l) = (cpath(&f), cpath(&l));
         let mut raw = Statx::default();

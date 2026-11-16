@@ -9,7 +9,7 @@
 // line: the exception that arrived (its code and text), how many destructors ran between the
 // throw and the catch (the callback's guard and the caller's guard: 2), and what the case
 // observes after the catch. The output names no path, address, descriptor or PID, so the
-// host's C library and Liella print the same text.
+// host's C library and libniji print the same text.
 //
 // Library calls go through a function pointer of a type without `noexcept` (the headers mark
 // many functions `noexcept`, and a call to one is not covered by the caller's handler).

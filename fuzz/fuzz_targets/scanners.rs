@@ -14,9 +14,9 @@ use core::sync::atomic::Ordering::{Acquire, Release};
 use std::sync::OnceLock;
 
 use libfuzzer_sys::fuzz_target;
-use liella_abi::ctypes::{c_char, c_void};
-use liella_boundary::posix::{s01_startup as env, s04_strings as s, s11_lowio as lowio};
-use liella_fuzz::Input;
+use niji_abi::ctypes::{c_char, c_void};
+use niji_boundary::posix::{s01_startup as env, s04_strings as s, s11_lowio as lowio};
+use niji_fuzz::Input;
 
 const PAGE: usize = 4096;
 
@@ -89,8 +89,8 @@ fuzz_target!(|data: &[u8]| {
         let e = &e[..e.len() - 1];
         e.strip_prefix(name).and_then(|r| r.strip_prefix(b"=")).map(|v| v.to_vec())
     });
-    let saved = liella_boundary::ffi::environ.load(Acquire);
-    liella_boundary::ffi::environ.store(arr.as_ptr().expose_provenance(), Release);
+    let saved = niji_boundary::ffi::environ.load(Acquire);
+    niji_boundary::ffi::environ.store(arr.as_ptr().expose_provenance(), Release);
     let got = env::getenv(qb);
     let got = (!got.is_null()).then(|| {
         let n = s::strlen(got);
@@ -98,6 +98,6 @@ fuzz_target!(|data: &[u8]| {
         s::memcpy(v.as_mut_ptr().cast(), got.cast(), n);
         v
     });
-    liella_boundary::ffi::environ.store(saved, Release);
+    niji_boundary::ffi::environ.store(saved, Release);
     assert_eq!(got, want, "getenv");
 });

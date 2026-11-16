@@ -3,52 +3,52 @@
  * Class adapter, floating ABI (OD-C4): the math exports of both libc.so.6 and libm.so.6 (feature `export` or `libm`) whose values are
  * `long double` or `_Float128`, real or complex, which Rust cannot name. Each converts between
  * the C type and a bit struct (a pair of them for a complex value, passed and returned in
- * memory, D-10.21) and calls the Rust function (`liella_<name>_bits`, crates/boundary/src/posix/
+ * memory, D-10.21) and calls the Rust function (`niji_<name>_bits`, crates/boundary/src/posix/
  * s10_math_gen.rs), which does all the work. Without the product's feature the forwarders
- * carry `liella_fwd_` names and are only compiled for checking (build.rs). */
+ * carry `niji_fwd_` names and are only compiled for checking (build.rs). */
 #include <stddef.h>
 #include <stdint.h>
-#include "liella_csys.h"
+#include "niji_csys.h"
 
-#if defined(LIELLA_EXPORT) || defined(LIELLA_LIBM)
+#if defined(NIJI_EXPORT) || defined(NIJI_LIBM)
 #define MATH_FWD(name) name
-#define MATH_SLOW(name) liella_slow_##name
+#define MATH_SLOW(name) niji_slow_##name
 #else
-#define MATH_FWD(name) liella_fwd_##name
-#define MATH_SLOW(name) liella_fwd_slow_##name
+#define MATH_FWD(name) niji_fwd_##name
+#define MATH_SLOW(name) niji_fwd_slow_##name
 #endif
 #define MATH_SLOW_ATTR __attribute__((visibility("hidden")))
-struct liella_ld_bits { uint64_t mant; uint16_t se; uint16_t pad[3]; };
-struct liella_f128_bits { uint64_t lo; uint64_t hi; };
-union liella_ld { long double value; struct liella_ld_bits bits; };
-union liella_f128 { __float128 value; struct liella_f128_bits bits; };
-#define LD(expr) (((union liella_ld){ .bits = (expr) }).value)
-#define LD_BITS(x) (((union liella_ld){ .value = (x) }).bits)
-#define F128(expr) (((union liella_f128){ .bits = (expr) }).value)
-#define F128_BITS(x) (((union liella_f128){ .value = (x) }).bits)
-struct liella_ldc_bits { struct liella_ld_bits re; struct liella_ld_bits im; };
-struct liella_f128c_bits { struct liella_f128_bits re; struct liella_f128_bits im; };
-union liella_ldc { long double _Complex value; struct liella_ldc_bits bits; };
-union liella_f128c { _Float128 _Complex value; struct liella_f128c_bits bits; };
-_Static_assert(sizeof(union liella_ldc) == 32 && sizeof(union liella_f128c) == 32, "complex bit pairs");
-#define LDC(expr) (((union liella_ldc){ .bits = (expr) }).value)
-#define LDC_BITS(x) (((union liella_ldc){ .value = (x) }).bits)
-#define F128C(expr) (((union liella_f128c){ .bits = (expr) }).value)
-#define F128C_BITS(x) (((union liella_f128c){ .value = (x) }).bits)
+struct niji_ld_bits { uint64_t mant; uint16_t se; uint16_t pad[3]; };
+struct niji_f128_bits { uint64_t lo; uint64_t hi; };
+union niji_ld { long double value; struct niji_ld_bits bits; };
+union niji_f128 { __float128 value; struct niji_f128_bits bits; };
+#define LD(expr) (((union niji_ld){ .bits = (expr) }).value)
+#define LD_BITS(x) (((union niji_ld){ .value = (x) }).bits)
+#define F128(expr) (((union niji_f128){ .bits = (expr) }).value)
+#define F128_BITS(x) (((union niji_f128){ .value = (x) }).bits)
+struct niji_ldc_bits { struct niji_ld_bits re; struct niji_ld_bits im; };
+struct niji_f128c_bits { struct niji_f128_bits re; struct niji_f128_bits im; };
+union niji_ldc { long double _Complex value; struct niji_ldc_bits bits; };
+union niji_f128c { _Float128 _Complex value; struct niji_f128c_bits bits; };
+_Static_assert(sizeof(union niji_ldc) == 32 && sizeof(union niji_f128c) == 32, "complex bit pairs");
+#define LDC(expr) (((union niji_ldc){ .bits = (expr) }).value)
+#define LDC_BITS(x) (((union niji_ldc){ .value = (x) }).bits)
+#define F128C(expr) (((union niji_f128c){ .bits = (expr) }).value)
+#define F128C_BITS(x) (((union niji_f128c){ .value = (x) }).bits)
 
-int liella___finitel_bits(struct liella_ld_bits);
-int MATH_FWD(__finitel)(long double a0) { return liella___finitel_bits(LD_BITS(a0)); }
-int liella___signbitl_bits(struct liella_ld_bits);
-int MATH_FWD(__signbitl)(long double a0) { return liella___signbitl_bits(LD_BITS(a0)); }
-struct liella_ld_bits liella_copysignl_bits(struct liella_ld_bits, struct liella_ld_bits);
-long double MATH_FWD(copysignl)(long double a0, long double a1) { return LD(liella_copysignl_bits(LD_BITS(a0), LD_BITS(a1))); }
-int liella_finitel_bits(struct liella_ld_bits);
-int MATH_FWD(finitel)(long double a0) { return liella_finitel_bits(LD_BITS(a0)); }
-struct liella_ld_bits liella_frexpl_bits(struct liella_ld_bits, int *);
-long double MATH_FWD(frexpl)(long double a0, int * a1) { return LD(liella_frexpl_bits(LD_BITS(a0), a1)); }
-struct liella_ld_bits liella_ldexpl_bits(struct liella_ld_bits, int);
-long double MATH_FWD(ldexpl)(long double a0, int a1) { return LD(liella_ldexpl_bits(LD_BITS(a0), a1)); }
-struct liella_ld_bits liella_modfl_bits(struct liella_ld_bits, struct liella_ld_bits *);
-long double MATH_FWD(modfl)(long double a0, long double * a1) { return LD(liella_modfl_bits(LD_BITS(a0), (struct liella_ld_bits *)a1)); }
-struct liella_ld_bits liella_scalbnl_bits(struct liella_ld_bits, int);
-long double MATH_FWD(scalbnl)(long double a0, int a1) { return LD(liella_scalbnl_bits(LD_BITS(a0), a1)); }
+int niji___finitel_bits(struct niji_ld_bits);
+int MATH_FWD(__finitel)(long double a0) { return niji___finitel_bits(LD_BITS(a0)); }
+int niji___signbitl_bits(struct niji_ld_bits);
+int MATH_FWD(__signbitl)(long double a0) { return niji___signbitl_bits(LD_BITS(a0)); }
+struct niji_ld_bits niji_copysignl_bits(struct niji_ld_bits, struct niji_ld_bits);
+long double MATH_FWD(copysignl)(long double a0, long double a1) { return LD(niji_copysignl_bits(LD_BITS(a0), LD_BITS(a1))); }
+int niji_finitel_bits(struct niji_ld_bits);
+int MATH_FWD(finitel)(long double a0) { return niji_finitel_bits(LD_BITS(a0)); }
+struct niji_ld_bits niji_frexpl_bits(struct niji_ld_bits, int *);
+long double MATH_FWD(frexpl)(long double a0, int * a1) { return LD(niji_frexpl_bits(LD_BITS(a0), a1)); }
+struct niji_ld_bits niji_ldexpl_bits(struct niji_ld_bits, int);
+long double MATH_FWD(ldexpl)(long double a0, int a1) { return LD(niji_ldexpl_bits(LD_BITS(a0), a1)); }
+struct niji_ld_bits niji_modfl_bits(struct niji_ld_bits, struct niji_ld_bits *);
+long double MATH_FWD(modfl)(long double a0, long double * a1) { return LD(niji_modfl_bits(LD_BITS(a0), (struct niji_ld_bits *)a1)); }
+struct niji_ld_bits niji_scalbnl_bits(struct niji_ld_bits, int);
+long double MATH_FWD(scalbnl)(long double a0, int a1) { return LD(niji_scalbnl_bits(LD_BITS(a0), a1)); }

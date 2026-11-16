@@ -1,8 +1,8 @@
 @@generated
-/* gnu/stubs.h: the functions a program can link that Liella provides only as stubs failing with ENOSYS,
-   from spec/abi/stubs.tsv (Liella's own list, derived from its code). */
-#ifndef __LIELLA_H_gnu_stubs_h
-#define __LIELLA_H_gnu_stubs_h 1
+/* gnu/stubs.h: the functions a program can link that libniji provides only as stubs failing with ENOSYS,
+   from spec/abi/stubs.tsv (libniji's own list, derived from its code). */
+#ifndef __NIJI_H_gnu_stubs_h
+#define __NIJI_H_gnu_stubs_h 1
 
 #include <features.h>
 

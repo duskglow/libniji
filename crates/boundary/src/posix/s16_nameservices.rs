@@ -6,10 +6,10 @@
 //! `__nss_database_lookup`, the `_gethtby*` family, `res_gethostby*`) wait for phase 15's
 //! compat versions.
 
-use liella::names::dns::name::Check;
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_void, size_t};
-use liella_abi::layout::{ns_msg, ns_rr, struct___res_state, struct_addrinfo, struct_aliasent, struct_hostent, struct_netent, struct_protoent, struct_rpcent, struct_servent, struct_sockaddr_in};
-use liella_kernel::uapi::{SigEvent, Timespec};
+use niji::names::dns::name::Check;
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_void, size_t};
+use niji_abi::layout::{ns_msg, ns_rr, struct___res_state, struct_addrinfo, struct_aliasent, struct_hostent, struct_netent, struct_protoent, struct_rpcent, struct_servent, struct_sockaddr_in};
+use niji_kernel::uapi::{SigEvent, Timespec};
 
 use crate::conv;
 use crate::export;
@@ -37,8 +37,8 @@ pub extern "C" fn __nss_configure_lookup(db: *const c_char, spec: *const c_char)
 // spec/abi/compat-plan.tsv), never into `libc.a` (R15-2); tests call these Rust functions.
 crate::internal_entry! {
 /// `__nss_database_lookup@GLIBC_2.2.5`: -1; the fourth argument (the result slot) is cleared when
-/// not NULL (the reference dereferences it unconditionally; Liella does not fault on NULL).
-pub extern "C" fn liella_compat___nss_database_lookup(_db: *const c_char, _alt: *const c_char, _defconfig: *const c_char, ni: Option<&mut usize>) -> c_int {
+/// not NULL (the reference dereferences it unconditionally; libniji does not fault on NULL).
+pub extern "C" fn niji_compat___nss_database_lookup(_db: *const c_char, _alt: *const c_char, _defconfig: *const c_char, ni: Option<&mut usize>) -> c_int {
     if let Some(ni) = ni {
         *ni = 0;
     }
@@ -47,27 +47,27 @@ pub extern "C" fn liella_compat___nss_database_lookup(_db: *const c_char, _alt: 
 
 crate::internal_entry! {
 /// `__nss_next@GLIBC_2.2.5`: -1, writes nothing, `errno` unchanged.
-pub extern "C" fn liella_compat___nss_next() -> c_int {
+pub extern "C" fn niji_compat___nss_next() -> c_int {
     -1
 }}
 
 crate::internal_entry! {
 /// `__nss_group_lookup@GLIBC_2.2.5`: -1 with `errno` `ENOSYS`, writes nothing (one entry per plan behaviour
-/// row, so compat-gen finds `liella_compat___nss_group_lookup`).
-pub extern "C" fn liella_compat___nss_group_lookup() -> c_int {
-    ret::zero(Err(liella_kernel::errno::Errno::ENOSYS))
+/// row, so compat-gen finds `niji_compat___nss_group_lookup`).
+pub extern "C" fn niji_compat___nss_group_lookup() -> c_int {
+    ret::zero(Err(niji_kernel::errno::Errno::ENOSYS))
 }}
 crate::internal_entry! {
 /// `__nss_hosts_lookup@GLIBC_2.2.5`: -1 with `errno` `ENOSYS`, writes nothing (one entry per plan behaviour
-/// row, so compat-gen finds `liella_compat___nss_hosts_lookup`).
-pub extern "C" fn liella_compat___nss_hosts_lookup() -> c_int {
-    ret::zero(Err(liella_kernel::errno::Errno::ENOSYS))
+/// row, so compat-gen finds `niji_compat___nss_hosts_lookup`).
+pub extern "C" fn niji_compat___nss_hosts_lookup() -> c_int {
+    ret::zero(Err(niji_kernel::errno::Errno::ENOSYS))
 }}
 crate::internal_entry! {
 /// `__nss_passwd_lookup@GLIBC_2.2.5`: -1 with `errno` `ENOSYS`, writes nothing (one entry per plan behaviour
-/// row, so compat-gen finds `liella_compat___nss_passwd_lookup`).
-pub extern "C" fn liella_compat___nss_passwd_lookup() -> c_int {
-    ret::zero(Err(liella_kernel::errno::Errno::ENOSYS))
+/// row, so compat-gen finds `niji_compat___nss_passwd_lookup`).
+pub extern "C" fn niji_compat___nss_passwd_lookup() -> c_int {
+    ret::zero(Err(niji_kernel::errno::Errno::ENOSYS))
 }}
 
 // The libresolv.so.2 compat-only hosts-file walkers (LG-7 part 2, spec/behaviour/nss-resolv-compat.md):
@@ -75,58 +75,58 @@ pub extern "C" fn liella_compat___nss_passwd_lookup() -> c_int {
 // builds that object, until then tests call these Rust functions.
 crate::internal_entry! {
 /// `_gethtbyname@GLIBC_2.2.5`: `_gethtbyname2(name, AF_INET)`.
-pub extern "C" fn liella_compat__gethtbyname(name: *const c_char) -> *mut struct_hostent {
+pub extern "C" fn niji_compat__gethtbyname(name: *const c_char) -> *mut struct_hostent {
     // UNSAFE(slice) SAFETY: name is a string (as gethostbyname, §16.3).
     ret::ptr(netdb::compat_gethtbyname2(unsafe { strz::strz(name) }, AF_INET))
 }}
 
 crate::internal_entry! {
 /// `_gethtbyname2@GLIBC_2.2.5`: the hosts file's first entry of family `af` naming `name`.
-pub extern "C" fn liella_compat__gethtbyname2(name: *const c_char, af: c_int) -> *mut struct_hostent {
+pub extern "C" fn niji_compat__gethtbyname2(name: *const c_char, af: c_int) -> *mut struct_hostent {
     // UNSAFE(slice) SAFETY: name is a string (as gethostbyname2, §16.3).
     ret::ptr(netdb::compat_gethtbyname2(unsafe { strz::strz(name) }, af))
 }}
 
 crate::internal_entry! {
 /// `_gethtbyaddr@GLIBC_2.2.5`: the hosts file's first entry of family `af` whose address begins with `addr`'s `len` bytes.
-pub extern "C" fn liella_compat__gethtbyaddr(addr: *const c_void, len: c_int, af: c_int) -> *mut struct_hostent {
+pub extern "C" fn niji_compat__gethtbyaddr(addr: *const c_void, len: c_int, af: c_int) -> *mut struct_hostent {
     let len = u32::try_from(len).unwrap_or(u32::MAX);
     // UNSAFE(slice) SAFETY: addr holds len bytes (as gethostbyaddr, §16.3); a length over 16 is never read.
-    ret::ptr(netdb::compat_gethtbyaddr(if len > 16 { Err(liella_kernel::errno::Errno::EINVAL) } else { unsafe { conv::sockaddr(addr, len) } }, af))
+    ret::ptr(netdb::compat_gethtbyaddr(if len > 16 { Err(niji_kernel::errno::Errno::EINVAL) } else { unsafe { conv::sockaddr(addr, len) } }, af))
 }}
 
 crate::internal_entry! {
 /// `_sethtent@GLIBC_2.2.5`: rewinds `_gethtent`'s own cursor.
-pub extern "C" fn liella_compat__sethtent(_stayopen: c_int) {
+pub extern "C" fn niji_compat__sethtent(_stayopen: c_int) {
     netdb::compat_sethtent()
 }}
 
 crate::internal_entry! {
 /// `_gethtent@GLIBC_2.2.5`: the hosts file's next entry, either family; NULL at the end.
-pub extern "C" fn liella_compat__gethtent() -> *mut struct_hostent {
+pub extern "C" fn niji_compat__gethtent() -> *mut struct_hostent {
     ret::ptr(netdb::compat_gethtent())
 }}
 
 crate::internal_entry! {
 /// `res_gethostbyname@GLIBC_2.2.5`: the `dns` source alone, `AF_INET` (numeric dotted quads read).
-pub extern "C" fn liella_compat_res_gethostbyname(name: *const c_char) -> *mut struct_hostent {
+pub extern "C" fn niji_compat_res_gethostbyname(name: *const c_char) -> *mut struct_hostent {
     // UNSAFE(slice) SAFETY: name is a string (as gethostbyname, §16.3).
     ret::ptr(netdb::compat_res_gethostbyname(unsafe { strz::strz(name) }))
 }}
 
 crate::internal_entry! {
 /// `res_gethostbyname2@GLIBC_2.2.5`: `res_gethostbyname(name)`; `af` is ignored (observed).
-pub extern "C" fn liella_compat_res_gethostbyname2(name: *const c_char, _af: c_int) -> *mut struct_hostent {
+pub extern "C" fn niji_compat_res_gethostbyname2(name: *const c_char, _af: c_int) -> *mut struct_hostent {
     // UNSAFE(slice) SAFETY: name is a string (as gethostbyname2, §16.3).
     ret::ptr(netdb::compat_res_gethostbyname(unsafe { strz::strz(name) }))
 }}
 
 crate::internal_entry! {
 /// `res_gethostbyaddr@GLIBC_2.2.5`: the `dns` source alone for `addr`'s `len` bytes of family `af`.
-pub extern "C" fn liella_compat_res_gethostbyaddr(addr: *const c_void, len: c_int, af: c_int) -> *mut struct_hostent {
+pub extern "C" fn niji_compat_res_gethostbyaddr(addr: *const c_void, len: c_int, af: c_int) -> *mut struct_hostent {
     let len = u32::try_from(len).unwrap_or(u32::MAX);
     // UNSAFE(slice) SAFETY: addr holds len bytes (as gethostbyaddr, §16.3); a length over 16 is never read.
-    ret::ptr(netdb::compat_res_gethostbyaddr(if len > 16 { Err(liella_kernel::errno::Errno::EINVAL) } else { unsafe { conv::sockaddr(addr, len) } }, af))
+    ret::ptr(netdb::compat_res_gethostbyaddr(if len > 16 { Err(niji_kernel::errno::Errno::EINVAL) } else { unsafe { conv::sockaddr(addr, len) } }, af))
 }}
 
 // ------------------------------------------------------------------------------ §16.2

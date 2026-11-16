@@ -15,14 +15,14 @@
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::sync::OnceLock;
 
-use liella_abi::layout::{regex_t, regmatch_t, sigset_t};
-use liella_boundary::posix::s14_search as rx;
-use liella_boundary::posix::s20_signals as sig;
-use liella_boundary::posix::s23_time as tm;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Itimerval, SigSet, Timeval};
-use liella_legacy::signal_compat::CSigaction;
+use niji_abi::layout::{regex_t, regmatch_t, sigset_t};
+use niji_boundary::posix::s14_search as rx;
+use niji_boundary::posix::s20_signals as sig;
+use niji_boundary::posix::s23_time as tm;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Itimerval, SigSet, Timeval};
+use niji_legacy::signal_compat::CSigaction;
 
 #[path = "../../core/tests/support/single_thread.rs"]
 mod single_thread;
@@ -187,7 +187,7 @@ fn fork_body() -> bool {
         eprintln!("the subjects do not exercise both answers");
         return false;
     }
-    let pid = liella_boundary::fork::fork().unwrap();
+    let pid = niji_boundary::fork::fork().unwrap();
     if pid == 0 {
         // The child: cached states for `p`, then patterns compiled after the fork.
         let again: Vec<i32> = subs.iter().map(|s| exists(&nosub_p, s)).collect();
@@ -201,12 +201,12 @@ fn fork_body() -> bool {
 }
 
 fn in_child(name: &str, body: fn() -> bool) {
-    if std::env::var("LIELLA_REGEX_DFA_CHILD").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_REGEX_DFA_CHILD").is_ok_and(|v| v == name) {
         CSys.exit_group(if body() { 0 } else { 1 });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_REGEX_DFA_CHILD", name)
+        .env("NIJI_REGEX_DFA_CHILD", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

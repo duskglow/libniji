@@ -7,20 +7,20 @@
  * the operand as a positive normal: `fsqrt` is then correctly rounded in the caller's direction
  * and raises only inexact, and no `errno` applies. Every other case (another control word,
  * zeros, subnormals and pseudo-denormals, infinities, NaNs, negative operands, the encodings
- * `fxam` reports unsupported) tail-calls the generated forwarder `liella_slow_sqrtl`
+ * `fxam` reports unsupported) tail-calls the generated forwarder `niji_slow_sqrtl`
  * (csys/src/adapter/math_libm.c), which keeps the rules of D-10.20 and D-10.22. `fldt` of an
  * 80-bit operand and `fxam` raise nothing (Intel SDM, FLD and FXAM), so the forwarder sees the
  * caller's flags unchanged. */
-#if defined(LIELLA_LIBM)
+#if defined(NIJI_LIBM)
 #define SQRTL sqrtl
 #define SQRTF64X sqrtf64x
-#define SLOW liella_slow_sqrtl
+#define SLOW niji_slow_sqrtl
 #else
-#define SQRTL liella_fwd_sqrtl
-#define SQRTF64X liella_fwd_sqrtf64x
-#define SLOW liella_fwd_slow_sqrtl
+#define SQRTL niji_fwd_sqrtl
+#define SQRTF64X niji_fwd_sqrtf64x
+#define SLOW niji_fwd_slow_sqrtl
 #endif
-	.section .text.liella_sqrtl,"ax",@progbits
+	.section .text.niji_sqrtl,"ax",@progbits
 	.globl SQRTL
 	.type SQRTL, @function
 	.globl SQRTF64X
@@ -28,7 +28,7 @@
 	.p2align 4
 SQRTL:
 SQRTF64X:
-liella_machine_sqrtl:	/* local: the anchor plants and audits name (docs/plants.md) */
+niji_machine_sqrtl:	/* local: the anchor plants and audits name (docs/plants.md) */
 	fnstcw -2(%rsp)
 	movzwl -2(%rsp), %eax
 	andl $0xf3ff, %eax

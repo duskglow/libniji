@@ -10,7 +10,7 @@ use core::hint::spin_loop;
 use core::sync::atomic::AtomicU32;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 
-use liella_kernel::sys::Sys;
+use niji_kernel::sys::Sys;
 
 use crate::futex::{self, Scope};
 

@@ -1,6 +1,6 @@
 //! The process-wide time zone of `tzset` and the `tzname`/`timezone`/`daylight` globals, and
 //! `asctime`'s fixed text (spec §23.5–23.6; D-23.5, D-23.6). The zone engine itself is
-//! `liella::time` (IP-23); this module keeps which zone is the process's and publishes it.
+//! `niji::time` (IP-23); this module keeps which zone is the process's and publishes it.
 //!
 //! **Zones are kept.** Every zone the process selects is kept, with the `TZ` and `TZDIR` values
 //! it was selected under (and, for a file, the file's identity), for the rest of the process:
@@ -14,7 +14,7 @@
 //! (device, inode, size, modification and change times, by `stat`) at most once per second
 //! (`crate::recheck`, owner ruling 2026-10-05); any difference selects again. A changed `TZ` or
 //! `TZDIR` (compared, never stat'ed) and the explicit `tzset` check at once. glibc checks the file
-//! only for `/etc/localtime`; Liella checks every zone file the same way. The common case, an
+//! only for `/etc/localtime`; libniji checks every zone file the same way. The common case, an
 //! unchanged environment and no check due, takes no lock.
 //! The `_r` forms use the current zone without checking (as glibc), selecting one only when
 //! none has been.
@@ -25,16 +25,16 @@
 //! `tm_zone` and `tzname` pointers stay valid.
 //!
 //! **The globals** are written when the selected zone changes, and by every explicit `tzset`.
-//! They describe the zone (`liella::time::Globals`), never the period of the last conversion:
+//! They describe the zone (`niji::time::Globals`), never the period of the last conversion:
 //! glibc's `localtime` and `mktime` also rewrite them from the period they convert in.
 
 use core::sync::atomic::{AtomicI32, AtomicI64, AtomicUsize, Ordering::Acquire, Ordering::Release};
 
-use liella::error::{Errno, KResult};
-use liella::mem::{TryBox, TryVec};
-use liella::time::{self, FileId, Zone};
-use liella_kernel::sys::Sys;
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, KResult};
+use niji::mem::{TryBox, TryVec};
+use niji::time::{self, FileId, Zone};
+use niji_kernel::sys::Sys;
+use niji_rt::sync::RawMutex;
 
 use crate::recheck::{self, LastCheck, TscGate};
 
@@ -88,7 +88,7 @@ pub struct Env<'a> {
     /// `TZDIR` (`None`: unset or ignored), read only on a change of `TZ` and by the explicit
     /// `tzset` (TZ-FRESH: as glibc, a change of `TZDIR` alone is not seen by an implicit one).
     pub tzdir: &'a dyn Fn() -> Option<&'a [u8]>,
-    /// The file for an unset `TZ` (NUL-terminated): `liella::time::LOCALTIME`.
+    /// The file for an unset `TZ` (NUL-terminated): `niji::time::LOCALTIME`.
     pub default: &'a [u8],
 }
 
@@ -98,7 +98,7 @@ static CURRENT: AtomicUsize = AtomicUsize::new(0);
 /// The invalidation generation (D-X.13).
 static GENERATION: AtomicUsize = AtomicUsize::new(0);
 
-/// `liella_tz_invalidate` (D-X.13): every kept zone read from a file is checked against its file
+/// `niji_tz_invalidate` (D-X.13): every kept zone read from a file is checked against its file
 /// again before its next use, and read again if the file changed. The new generation.
 pub fn invalidate() -> usize {
     GENERATION.fetch_add(1, Release).wrapping_add(1)

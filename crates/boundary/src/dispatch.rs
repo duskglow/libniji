@@ -11,18 +11,18 @@
 //!
 //! Proof obligation (every `UNSAFE(hot-kernel)` call to an AVX2 build relies on it): the flag is
 //! `true` only while the CPU has AVX2 and the OS saves the YMM state, which [`select`]'s callers
-//! establish (`cpu::init_with` from `liella_rt::cpu::Features`; `selftest` refuses otherwise).
+//! establish (`cpu::init_with` from `niji_rt::cpu::Features`; `selftest` refuses otherwise).
 
 use core::sync::atomic::{AtomicBool, AtomicU8, Ordering::{Relaxed, Release}};
 
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_RDONLY};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY};
 
-// The flag itself lives in machine/fold.S (`liella_machine_avx2`, the fold word's line), where the
+// The flag itself lives in machine/fold.S (`niji_machine_avx2`, the fold word's line), where the
 // direct copy entry's 65-128 class reads it (COPY-128).
-use crate::ffi::liella_machine_avx2 as AVX2;
+use crate::ffi::niji_machine_avx2 as AVX2;
 
 /// Whether the kernels run their AVX2 builds.
 #[inline(always)]
@@ -35,7 +35,7 @@ pub(crate) fn avx2() -> bool {
 /// `hot::log_nearest`, so it lives here rather than in fold.S). [`FMA_OFF`] (the baseline) or
 /// [`FMA_ON`]. In the C library the startup writes it (`cpu::init_with`); `libm.a` and
 /// `libm.so.6` link their own copy of this crate, whose byte that startup never sees, so the
-/// libm product's load-time constructor writes its copy (`liella_libm_start`, D-10.50, #2920).
+/// libm product's load-time constructor writes its copy (`niji_libm_start`, D-10.50, #2920).
 /// A math call never asks whether the byte is decided: before the constructor (a static
 /// program's own constructors linked ahead of libm's) it runs the baseline, which returns the
 /// same bits (D-10.25).
@@ -49,7 +49,7 @@ pub(crate) fn fma() -> bool {
     FMA.load(Relaxed) != FMA_OFF
 }
 
-crate::export! { libm "LIELLA_PRIVATE";
+crate::export! { libm "NIJI_PRIVATE";
 /// The libm product's load-time decision (D-10.50), called once from its `.init_array` entry
 /// (`csys/src/adapter/libm_init.c`) with the loader's `(argc, argv, envp)`: the C library's
 /// startup rule ([`fma_wanted`]) on the CPU's features and the `GLIBC_TUNABLES` entry of `envp`.
@@ -60,23 +60,23 @@ crate::export! { libm "LIELLA_PRIVATE";
 #[cfg(feature = "libm")]
 // A C entry, reached by its symbol from libm_init.c rather than by a Rust path.
 #[allow(unreachable_pub)]
-pub extern "C" fn liella_libm_start(argc: liella_abi::ctypes::c_int, argv: usize, envp: usize) {
+pub extern "C" fn niji_libm_start(argc: niji_abi::ctypes::c_int, argv: usize, envp: usize) {
     let _ = (argc, argv);
-    let tunables = crate::conv::env_find_from(envp, 0, b"GLIBC_TUNABLES").map_or_else(liella::config::Tunables::default, |entry| {
+    let tunables = crate::conv::env_find_from(envp, 0, b"GLIBC_TUNABLES").map_or_else(niji::config::Tunables::default, |entry| {
         let text = crate::conv::env_value_text(entry.saturating_add(b"GLIBC_TUNABLES=".len()));
-        liella::config::Tunables::parse(text, crate::process::secure())
+        niji::config::Tunables::parse(text, crate::process::secure())
     });
     select_fma(fma_wanted(&crate::cpu::features_cached(), &tunables));
 }}
 
 /// The FMA builds' rule (D-10.25): the CPU has FMA with the AVX state the OS saves
-/// (`liella_rt::cpu::Features::fma`), and `glibc.cpu.hwcaps=-FMA` does not keep the baseline.
-pub(crate) fn fma_wanted(f: &liella_rt::cpu::Features, t: &liella::config::Tunables) -> bool {
+/// (`niji_rt::cpu::Features::fma`), and `glibc.cpu.hwcaps=-FMA` does not keep the baseline.
+pub(crate) fn fma_wanted(f: &niji_rt::cpu::Features, t: &niji::config::Tunables) -> bool {
     f.fma() && t.fma.unwrap_or(true)
 }
 
 /// Select the math kernels' builds. `true` only when the CPU has FMA and the OS saves the AVX
-/// state (`liella_rt::cpu::Features::fma`); both builds return the same results.
+/// state (`niji_rt::cpu::Features::fma`); both builds return the same results.
 pub(crate) fn select_fma(fma: bool) {
     FMA.store(if fma { FMA_ON } else { FMA_OFF }, Relaxed);
 }
@@ -102,25 +102,25 @@ pub(crate) fn select(avx2: bool) {
 // The AVX2 flag word of the ordered compare's SSE2 long class (machine/fold.S, MEMCMP-MID-3): 128
 // with the AVX2 builds, else 0; `.Lcmp_sse_long` and `.Leq_huge` send an AVX2 build, after the
 // explicit NULL tests, to the assembly AVX2 long class (PARITY-MEMCMP-AVX2).
-use crate::ffi::liella_machine_cmp_mid as CMP_MID;
+use crate::ffi::niji_machine_cmp_mid as CMP_MID;
 // The compare entries' 65-2048 class word (machine/fold.S, MEMCMP-MID-4, PERF-MEMCMP-TAILS): one
 // `cmp`/`ja` against it sends larger sizes to the checked or SSE2 classes. Nonzero only with both
 // folding and AVX2 on, because those classes fold the NULL test into their first 32-byte load
 // (ruling #2517 (coordinator, 2026-11-04): NULL folding to 2048 bytes). Stored by [`store_cmp_gates`].
-use crate::ffi::liella_machine_cmp_long as CMP_LONG_WORD;
+use crate::ffi::niji_machine_cmp_long as CMP_LONG_WORD;
 // The SSE2 65-2048 fold words (machine/fold.S, TIMING-COV-MEMCMP-NONAVX2-2, D-4.62, ruling #3592):
 // `CMP_SSE` is 2048 while folding is on without AVX2 (those sizes skip the NULL tests: the first
 // access is offset 0 of each region, page zero for a NULL), else 0; `CMP_SSE_NULL` is 0 exactly
 // then, else `usize::MAX` (above the size word, an `a` at or below it takes the checked entry, so
 // with folding off every size above 64 does). Stored by [`store_cmp_gates`].
-use crate::ffi::liella_machine_cmp_sse as CMP_SSE;
-use crate::ffi::liella_machine_cmp_sse_null as CMP_SSE_NULL;
+use crate::ffi::niji_machine_cmp_sse as CMP_SSE;
+use crate::ffi::niji_machine_cmp_sse_null as CMP_SSE_NULL;
 
 // The compare entries' class words (machine/fold.S, MEMCMP-EQ64 + SEQ-REGRESS): the entries add
 // them in turn to `n - 65`; a carry from WIDE sends 33-64 to the folded AVX2 blocks, a carry from
 // LOW the other folded sizes to the head probe.
-use crate::ffi::liella_machine_cmp_low as CMP_LOW;
-use crate::ffi::liella_machine_cmp_wide as CMP_WIDE;
+use crate::ffi::niji_machine_cmp_low as CMP_LOW;
+use crate::ffi::niji_machine_cmp_wide as CMP_WIDE;
 
 /// Recompute the compare entries' class words from the fold limit and the AVX2 flag. Called after
 /// every write of either; before either is switched off, [`store_cmp_gates`] first stores the words
@@ -186,18 +186,18 @@ fn store_cmp_gates(fold: bool, avx2: bool) {
 /// (`runtime`; `selftest` forces it in tests). A folded kernel touches at most
 /// `[d, d + FOLD_MAX)` with `FOLD_MAX` = 64 <= 64 KiB, so a NULL `d` or `s` faults; the 65-2048
 /// compare classes first touch `[a, a + 32)` and `[b, b + 32)` (their head block).
-// The word itself lives in machine/fold.S (`liella_machine_fold_limit`), which reads it on every
+// The word itself lives in machine/fold.S (`niji_machine_fold_limit`), which reads it on every
 // call (D-4.22 COPY-FILL).
-use crate::ffi::liella_machine_fold_limit as FOLD;
+use crate::ffi::niji_machine_fold_limit as FOLD;
 // The memchr entry's gate (machine/fold.S, MEMCHR-FOLD): `isize::MAX` with folding on, else 0. Its
 // folded calls touch `[s & -64, s + 64)` first, page zero for a NULL `s`, so the same guard covers
 // them for every `n` (the module proof obligation).
-use crate::ffi::liella_machine_chr_limit as FOLD_CHR;
+use crate::ffi::niji_machine_chr_limit as FOLD_CHR;
 // The memset entry's 65-128 class word (machine/fold.S, PARITY-MEMSET-SMALL-AVX2): `SET_MID_ON`
 // with folding on, else 0. The entry tests it only for sizes above the fold limit, so it must be
 // 0 whenever the fold limit is 0 (else 1-64 would take the 65-128 class): stored 0 before the
 // fold limit drops, `SET_MID_ON` after it rises.
-use crate::ffi::liella_machine_set_mid as SET_MID;
+use crate::ffi::niji_machine_set_mid as SET_MID;
 /// The word's value with folding on: the upper bound of the entry's 65-128 class (four 16-byte
 /// blocks from each end), fixed by the assembly, not a tunable.
 const SET_MID_ON: usize = 128;
@@ -211,7 +211,7 @@ pub(crate) const FOLD_MAX: usize = 64;
 // `d + 0`, and touch at most `[x, x + MOVE_FOLD_MAX)` of either region, page zero for a NULL, so
 // the module proof obligation covers them. The sign bit picks the body, so the entry reads one
 // word (NULLFOLD-COPY-MID-3): the word is positive and nonzero only while the AVX2 flag is set.
-use crate::ffi::liella_machine_move_long as FOLD_MOVE;
+use crate::ffi::niji_machine_move_long as FOLD_MOVE;
 
 /// The largest folded copy size: the copy entry's 129-256 class has no NULL test with folding on.
 pub(crate) const MOVE_FOLD_MAX: usize = 256;
@@ -259,10 +259,10 @@ pub(crate) fn select_null_fold(fold: bool) {
     if fold {
         SET_MID.store(SET_MID_ON, Relaxed);
     }
-    // The portable scanners (cfg liella_portable_scan, A-8) never fold a NULL: a NULL read is UB in
+    // The portable scanners (cfg niji_portable_scan, A-8) never fold a NULL: a NULL read is UB in
     // Rust, so their memchr takes the S6 abort for NULL with n > 0 (coordinator ruling 2026-11-04,
     // D-4.22 PORTABLE-SCAN). The gate stays 0 there, whatever the copy and fill entries do.
-    let chr = fold && !cfg!(liella_portable_scan);
+    let chr = fold && !cfg!(niji_portable_scan);
     FOLD_CHR.store(if chr { isize::MAX.unsigned_abs() } else { 0 }, Relaxed);
     update_cmp_gates();
     FOLD_RESOLVED.store(true, Relaxed);

@@ -6,12 +6,12 @@
  * stack, so this entry keeps nothing there across the syscall: the return address is popped
  * into a register (the child's return, and whatever it calls next, overwrite that slot) and
  * pushed back by each of the two returns. No signal is blocked (glibc blocks none). An error
- * (-4095..-1) goes to liella_vfork_fail (Rust, local), which sets errno and returns -1.
+ * (-4095..-1) goes to niji_vfork_fail (Rust, local), which sets errno and returns -1.
  *
- * The glibc names exist only in the products (LIELLA_EXPORT), so that tests never interpose
+ * The glibc names exist only in the products (NIJI_EXPORT), so that tests never interpose
  * on the host C library. */
 	.text
-#ifdef LIELLA_EXPORT
+#ifdef NIJI_EXPORT
 	.globl __vfork
 	.type __vfork, @function
 	.globl vfork
@@ -27,7 +27,7 @@ vfork:
 	jae 1f
 	ret
 1:	movq %rax, %rdi			/* the parent, no child: errno from the raw result */
-	jmp liella_vfork_fail
+	jmp niji_vfork_fail
 	.size vfork, .-vfork
 	.size __vfork, .-__vfork
 #endif

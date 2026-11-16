@@ -1,4 +1,4 @@
-//! `liella::pattern::fnmatch` against the reference's `fnmatch`, in process (MUTATION-CAMPAIGN-1B):
+//! `niji::pattern::fnmatch` against the reference's `fnmatch`, in process (MUTATION-CAMPAIGN-1B):
 //! every pattern of a corpus against every string, under all 64 flag combinations, in the C and
 //! C.UTF-8 locales. The corpus aims at what the in-process clause tests left open (cargo-mutants
 //! survivors): FNM_PERIOD after a slash, FNM_PATHNAME in wildcards and brackets, bracket
@@ -17,8 +17,8 @@ use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-use liella::locale::Locale;
-use liella::pattern::fnmatch as fm;
+use niji::locale::Locale;
+use niji::pattern::fnmatch as fm;
 
 const PATTERNS: &[&[u8]] = &[
     b"", b"*", b"?", b"a", b"a*", b"*a", b"a?c", b"*.c", b".*", b"?a", b"[.]a", b"*/*", b"a/*", b"a/?b", b"a/[.]b", b"a/.*",
@@ -43,12 +43,12 @@ const STRINGS: &[&[u8]] = &[
     b"\xc3\xa0\xc3\xa0", b".x", b"%", b"/x", b"b/c", b"|",
 ];
 
-/// Patterns of the corpus where Liella keeps a documented difference (see the loop below).
+/// Patterns of the corpus where libniji keeps a documented difference (see the loop below).
 const KEPT_DIFFERENCE: &[&[u8]] = &[b"[[:]", b"[[=a]"];
 
-/// The (pattern, string) pairs where Liella's FNM_EXTMATCH|FNM_LEADING_DIR answer is a kept
+/// The (pattern, string) pairs where libniji's FNM_EXTMATCH|FNM_LEADING_DIR answer is a kept
 /// difference: the 16 KNOWN rows of patterns_products.rs (const EXTMATCH_LEADING_DIR) and two more
-/// of the same kind, with Liella's fnmatch return ("0" = match). Every pattern and string here is
+/// of the same kind, with libniji's fnmatch return ("0" = match). Every pattern and string here is
 /// in the corpus.
 const EXTMATCH_LEADING_DIR: &[(&[u8], &[u8], &str)] = &[
     (b"!(a)", b"a/b", "0"),
@@ -119,8 +119,8 @@ fn fnmatch_agrees_with_the_reference_on_the_corpus() {
     let mut bad = Vec::new();
     for ((l, flags, p, s), w) in cases.iter().zip(want) {
         // A kept difference (docs/differences-from-glibc.md, the `fnmatch` row for a `[` that does
-        // not begin a valid bracket expression; s14_7_c_1): Liella reads these as a literal `[`,
-        // the reference as a set. Its own clause test covers Liella's side.
+        // not begin a valid bracket expression; s14_7_c_1): libniji reads these as a literal `[`,
+        // the reference as a set. Its own clause test covers libniji's side.
         if KEPT_DIFFERENCE.contains(p) {
             continue;
         }
@@ -131,19 +131,19 @@ fn fnmatch_agrees_with_the_reference_on_the_corpus() {
         };
         // A kept difference (docs/differences-from-glibc.md, the FNM_EXTMATCH with FNM_LEADING_DIR
         // row; compat flag COMPAT-18; patterns_products.rs pins the same 16 pairs as KNOWN): with
-        // both flags, Liella answers these pairs by the documented definition. Liella's answer is
+        // both flags, libniji answers these pairs by the documented definition. libniji's answer is
         // still checked here; only the reference's differing answer is accepted.
         let both = flags & (fm::EXTMATCH | fm::LEADING_DIR) == fm::EXTMATCH | fm::LEADING_DIR;
         if both {
-            if let Some((_, _, liella)) = EXTMATCH_LEADING_DIR.iter().find(|(kp, ks, _)| kp == p && ks == s) {
-                if got != *liella {
-                    bad.push(format!("loc {l} flags {flags:#04x} pattern {:?} string {:?}: liella {got}, documented {liella} (EXTMATCH|LEADING_DIR)", String::from_utf8_lossy(p), String::from_utf8_lossy(s)));
+            if let Some((_, _, niji)) = EXTMATCH_LEADING_DIR.iter().find(|(kp, ks, _)| kp == p && ks == s) {
+                if got != *niji {
+                    bad.push(format!("loc {l} flags {flags:#04x} pattern {:?} string {:?}: niji {got}, documented {niji} (EXTMATCH|LEADING_DIR)", String::from_utf8_lossy(p), String::from_utf8_lossy(s)));
                 }
                 continue;
             }
         }
         if got != w {
-            bad.push(format!("loc {l} flags {flags:#04x} pattern {:?} string {:?}: liella {got}, reference {w}", String::from_utf8_lossy(p), String::from_utf8_lossy(s)));
+            bad.push(format!("loc {l} flags {flags:#04x} pattern {:?} string {:?}: niji {got}, reference {w}", String::from_utf8_lossy(p), String::from_utf8_lossy(s)));
         }
     }
     assert!(bad.is_empty(), "{} of {} cases differ; first:\n{}", bad.len(), cases.len(), bad.iter().take(40).cloned().collect::<Vec<_>>().join("\n"));

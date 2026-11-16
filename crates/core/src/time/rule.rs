@@ -8,7 +8,7 @@
 //! standard one. Dates are `Jn` (1–365, February 29 never counted), `n` (0–365) or `Mm.w.d`
 //! (month 1–12, week 1–5 where 5 is the last, weekday 0–6); times default to 02:00.
 //!
-//! Validity (Liella's choice where the grammar leaves the outcome open): the standard name and
+//! Validity (libniji's choice where the grammar leaves the outcome open): the standard name and
 //! offset are required, and a TZ value without them is not a rule ([`Parsed::Invalid`]). The
 //! DST part is optional, and so is each piece of it: a DST name that is not a name makes the
 //! zone standard time only; a DST offset out of range is the default one; a start or end date

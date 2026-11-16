@@ -1,4 +1,4 @@
-//! The C synchronisation objects (`liella_rt::pthread_sync`) under real threads: mutual
+//! The C synchronisation objects (`niji_rt::pthread_sync`) under real threads: mutual
 //! exclusion for every type, the error-checking and recursive contracts, timeouts on both
 //! clocks, the condition variable's ordering guarantee (§22.5), read-write lock preferences,
 //! barriers over many rounds, once objects, and semaphores.
@@ -8,12 +8,12 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use liella_boundary::sys::CSys;
-use liella_kernel::errno::Errno;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::Timespec;
-use liella_rt::futex::Clock;
-use liella_rt::pthread_sync::{self as ps, Barrier, Cond, Ctx, LockWait, Mutex, RwLock, Sem};
+use niji_boundary::sys::CSys;
+use niji_kernel::errno::Errno;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::Timespec;
+use niji_rt::futex::Clock;
+use niji_rt::pthread_sync::{self as ps, Barrier, Cond, Ctx, LockWait, Mutex, RwLock, Sem};
 
 struct T;
 

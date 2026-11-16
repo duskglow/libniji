@@ -1,7 +1,7 @@
 //! The process-wide logger's glue (spec §26.1; D-26.1): the identifier read through its
 //! pointer, the program name, the local time (the zone last selected, as `localtime_r`: a
 //! change of `TZ` takes effect with `tzset`), the channels, and `syslog`'s formatting. The
-//! logger itself is `liella_legacy::log_compat` over `liella::log`.
+//! logger itself is `niji_legacy::log_compat` over `niji::log`.
 //!
 //! **Formatting.** A message the mask discards is not formatted at all (§26.1). The text is the
 //! `printf` expansion (`%m` included, from `errno` at entry), with the fortified forms' `%n`
@@ -11,11 +11,11 @@
 
 use core::sync::atomic::Ordering::Acquire;
 
-use liella::error::KResult;
-use liella::log::{Channels, Stamp};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::CLOCK_REALTIME;
-use liella_legacy::log_compat::{Host, GLOBAL};
+use niji::error::KResult;
+use niji::log::{Channels, Stamp};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::CLOCK_REALTIME;
+use niji_legacy::log_compat::{Host, GLOBAL};
 
 use crate::sys::CSys;
 use crate::{conv, ffi, printf, zone};
@@ -42,9 +42,9 @@ impl Host for Process {
         #[cfg(feature = "selftest")]
         if let Some((socket, console, wait_ns)) = crate::selftest::syslog_override() {
             return Ok(Channels {
-                socket: liella_kernel::path::KStr::from_nul_terminated(socket)?,
-                console: liella_kernel::path::KStr::from_nul_terminated(console)?,
-                stderr: liella_kernel::fd::Fd::new(2),
+                socket: niji_kernel::path::KStr::from_nul_terminated(socket)?,
+                console: niji_kernel::path::KStr::from_nul_terminated(console)?,
+                stderr: niji_kernel::fd::Fd::new(2),
                 wait_ns,
             });
         }

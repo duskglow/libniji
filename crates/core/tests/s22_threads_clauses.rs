@@ -14,7 +14,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -26,10 +26,10 @@ fn s22_n_1() {
     // The products ship libpthread placeholders: -lpthread and DT_NEEDED libpthread.so.0 resolve.
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     conformance(&["s22_lifecycle"]);
-    for p in ["target/liella/libpthread.so.0", "target/liella/libpthread.a"] {
+    for p in ["target/niji/libpthread.so.0", "target/niji/libpthread.a"] {
         assert!(root.join(p).exists(), "{p} is built by `cargo xtask so`");
     }
-    let o = std::process::Command::new("readelf").arg("-d").arg(root.join("target/liella/libpthread.so.0")).output().unwrap();
+    let o = std::process::Command::new("readelf").arg("-d").arg(root.join("target/niji/libpthread.so.0")).output().unwrap();
     let text = String::from_utf8_lossy(&o.stdout);
     assert!(text.contains("[libpthread.so.0]"), "its soname");
     // D-27.9: it forwards to libc.so.6; its exports and version nodes are checked against
@@ -40,13 +40,13 @@ fn s22_n_1() {
 /// §22 Notes (s22_n_1) and the other placeholders (D-27.9, design §16; no spec clause names
 /// libdl/librt/libutil/libanl): a program linked with `-lpthread -ldl -lrt -lutil -lanl` links and
 /// runs statically; linked dynamically against `libc.so.6` it links and needs each placeholder
-/// (it cannot run before Liella's loader, DL-14).
+/// (it cannot run before libniji's loader, DL-14).
 #[test]
 fn s22_n_1_placeholders_link() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lib = root.join("target/liella");
+    let lib = root.join("target/niji");
     assert!(lib.join("libc.a").exists() && lib.join("libc.so.6").exists(), "the products are missing: run `cargo xtask so`");
-    let dir = std::env::temp_dir().join(format!("liella-s22-n-1-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-s22-n-1-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let src = dir.join("p.c");
     std::fs::write(&src, "#include <pthread.h>\n#include <stdio.h>\n#include <time.h>\nint main(void) {\n  struct timespec t;\n  if (pthread_self() == 0 || clock_gettime(CLOCK_MONOTONIC, &t) != 0) return 1;\n  puts(\"placeholders ok\");\n  return 0;\n}\n").unwrap();
@@ -56,7 +56,7 @@ fn s22_n_1_placeholders_link() {
         assert!(o.status.success(), "cc {args:?}: {}", String::from_utf8_lossy(&o.stderr));
     };
     let stat = dir.join("static");
-    let crt1 = lib.join("liella-crt1.o");
+    let crt1 = lib.join("niji-crt1.o");
     let libc_a = lib.join("libc.a");
     let lflag = format!("-L{}", lib.display());
     let mut a: Vec<&std::ffi::OsStr> = vec!["-static".as_ref(), "-nostdlib".as_ref(), "-fno-builtin".as_ref(), "-o".as_ref(), stat.as_os_str(), crt1.as_os_str(), src.as_os_str(), lflag.as_ref()];
@@ -196,7 +196,7 @@ fn s22_3_c_1() {
 /// §22.3 Contract: In the **asynchronous** mode, the target acts at any instruction. Only async-cancel-safe code may run with this enabled.
 #[test]
 fn s22_3_c_2() {
-    // Asynchronous requests act at the next safe point outside Liella code (owner ruling, D-22.11).
+    // Asynchronous requests act at the next safe point outside libniji code (owner ruling, D-22.11).
     conformance(&["s22_cancel"]);
 }
 /// §22.3 Contract: **Cancellation state** may be disabled, in which case requests stay pending.
@@ -274,7 +274,7 @@ fn s22_5_c_1_1() {
 }
 /// §22.5 Contract: ⚑ COMPAT: `pthread_cond_*@GLIBC_2.2.5` implement the pre-2.3.2 condvar ABI for
 /// old binaries. `conformance/c/s22_compat_condvar.c` drives the translations behind those versions
-/// (`liella_compat_pthread_cond_*`, on the old one-word object) across Liella's threads: signal
+/// (`niji_compat_pthread_cond_*`, on the old one-word object) across libniji's threads: signal
 /// hands each item to one consumer, broadcast releases every waiter, timedwait meets its deadline,
 /// destroy zeroes the word; a lost wakeup hangs the program until its alarm fails it (LG-3, D-22.13).
 #[test]
@@ -328,7 +328,7 @@ fn s22_6_c_4() {
 fn s22_6_g_0() {
     conformance(&["s22_more"]);
 }
-/// §22.6 Failure: `pthread_setspecific` (and `tss_set`) never fails with `ENOMEM` in Liella.
+/// §22.6 Failure: `pthread_setspecific` (and `tss_set`) never fails with `ENOMEM` in libniji.
 #[test]
 fn s22_6_f_0() {
     // Under an exhausted address space, keys inside and outside the reference's in-thread range,
@@ -383,7 +383,7 @@ fn s22_8_c_2() {
 /// §22.8 Contract: **`pthread_yield`** is `sched_yield`. ⚑ HIST: it is deprecated.
 #[test]
 fn s22_8_c_3() {
-    assert_eq!(liella_boundary::posix::s22_threads::pthread_yield(), 0, "sched_yield");
+    assert_eq!(niji_boundary::posix::s22_threads::pthread_yield(), 0, "sched_yield");
 }
 /// §22.8 Contract: **Affinity.** A per-thread CPU mask.
 #[test]

@@ -1,5 +1,5 @@
 #!/bin/sh
-# libc-bin (Liella) postinst. DPKG_ROOT is honoured, so dpkg --root --force-script-chrootless can
+# libc-bin (libniji) postinst. DPKG_ROOT is honoured, so dpkg --root --force-script-chrootless can
 # configure an empty root that has no shell of its own (tools/deb/root-system.sh).
 set -e
 

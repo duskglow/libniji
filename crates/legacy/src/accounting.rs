@@ -20,15 +20,15 @@
 
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicUsize, Ordering::Relaxed};
 
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella::users::{self, Utmp, UTMP_SIZE};
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlLock;
-use liella_kernel::path::{KPathBuf, KStr, PATH_MAX};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Flock, Timespec, CLOCK_MONOTONIC, CLOCK_REALTIME, F_RDLCK, F_UNLCK, F_WRLCK, O_CLOEXEC, O_CREAT, O_RDONLY, O_RDWR, O_WRONLY, SEEK_SET};
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji::users::{self, Utmp, UTMP_SIZE};
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlLock;
+use niji_kernel::path::{KPathBuf, KStr, PATH_MAX};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Flock, Timespec, CLOCK_MONOTONIC, CLOCK_REALTIME, F_RDLCK, F_UNLCK, F_WRLCK, O_CLOEXEC, O_CREAT, O_RDONLY, O_RDWR, O_WRONLY, SEEK_SET};
+use niji_rt::sync::RawMutex;
 
 use crate::nss::{self, Ctx, Paths};
 use crate::nss_files::{self, Key};
@@ -245,7 +245,7 @@ impl UtmpDb {
             Err(e) => return Err(e),
         };
         // Kept across calls: never a standard descriptor (validation T12).
-        let fd = liella::io::above_standard(sys, fd)?;
+        let fd = niji::io::above_standard(sys, fd)?;
         self.fd.store(fd.raw(), Relaxed);
         self.offset.store(0, Relaxed);
         Ok(fd)
@@ -389,7 +389,7 @@ pub fn lock_passwd<S: Sys>(sys: &S, file: &[u8], timeout_ms: u64) -> Result<bool
     }
     let fd = sys.openat(Fd::CWD, KStr::from_nul_terminated(file)?, O_WRONLY | O_CREAT | O_CLOEXEC, 0o600)?;
     // Kept until `ulckpwdf`: never a standard descriptor (validation T12).
-    let fd = liella::io::above_standard(sys, fd)?;
+    let fd = niji::io::above_standard(sys, fd)?;
     if let Err(e) = lock_file(sys, fd, F_WRLCK, timeout_ms) {
         let _ = sys.close(fd);
         return Err(e);
@@ -422,7 +422,7 @@ static SHELL_LOCK: RawMutex = RawMutex::new();
 pub fn next_shell<S: Sys, T>(sys: &S, file: &[u8], f: impl FnOnce(&[u8]) -> T) -> Option<T> {
     let _g = SHELL_LOCK.lock(sys);
     let i = SHELL_NEXT.load(Relaxed);
-    let text = liella::system::read_file(sys, file);
+    let text = niji::system::read_file(sys, file);
     let shell = match &text {
         Ok(t) => users::shells(t).nth(i),
         Err(_) => users::DEFAULT_SHELLS.get(i).copied(),
@@ -464,7 +464,7 @@ pub fn tty_line<S: Sys>(sys: &S, fd: Fd, out: &mut [u8; 256]) -> Option<usize> {
     let len = match sys.readlinkat(Fd::CWD, path.as_kstr(), &mut link) {
         Ok(len) => len,
         // No `/proc` (OD-5): the name the device number gives, if it is this terminal.
-        Err(_) => liella::term::name_by_device(sys, &sys.fstat(fd).ok()?, &mut link).ok()?,
+        Err(_) => niji::term::name_by_device(sys, &sys.fstat(fd).ok()?, &mut link).ok()?,
     };
     let target = link.get(..len)?;
     let name = target.strip_prefix(b"/dev/").unwrap_or(target);
@@ -481,7 +481,7 @@ pub fn session_tty<S: Sys>(sys: &S, out: &mut [u8; 256]) -> Option<usize> {
 /// `ttyslot()` over the terminal table `file`: the 1-based index of the entry for `line`, 0 when
 /// there is none (or no table).
 pub fn tty_slot<S: Sys>(sys: &S, file: &[u8], line: &[u8]) -> usize {
-    liella::system::read_file(sys, file).ok().and_then(|t| users::tty_slot(&t, line)).unwrap_or(0)
+    niji::system::read_file(sys, file).ok().and_then(|t| users::tty_slot(&t, line)).unwrap_or(0)
 }
 
 /// The files `getlogin` reads.
@@ -503,7 +503,7 @@ pub const SYSTEM_LOGIN: LoginFiles<'static> = LoginFiles { loginuid: LOGINUID, p
 /// the session's terminal `tty` (below `/dev`). `ENXIO` without a terminal, `ENOENT` when no
 /// record names a user for it.
 pub fn login_name<S: Sys, T>(sys: &S, files: LoginFiles<'_>, tty: Option<&[u8]>, f: impl FnOnce(&[u8]) -> T) -> Result<T> {
-    let uid = liella::system::read_file(sys, files.loginuid).ok().and_then(|t| core::str::from_utf8(t.trim_ascii()).ok()?.parse::<u32>().ok());
+    let uid = niji::system::read_file(sys, files.loginuid).ok().and_then(|t| core::str::from_utf8(t.trim_ascii()).ok()?.parse::<u32>().ok());
     let mut name: TryVec<u8> = TryVec::new();
     if let Some(uid) = uid.filter(|&u| u != u32::MAX) {
         let paths = Paths { passwd: files.passwd, ..nss::SYSTEM };
@@ -513,7 +513,7 @@ pub fn login_name<S: Sys, T>(sys: &S, files: LoginFiles<'_>, tty: Option<&[u8]>,
     }
     if name.is_empty() {
         let tty = tty.ok_or(Errno::ENXIO)?;
-        let text = liella::system::read_file(sys, files.utmp).map_err(|_| Errno::ENOENT)?;
+        let text = niji::system::read_file(sys, files.utmp).map_err(|_| Errno::ENOENT)?;
         let mut key = Utmp::default();
         users::set_field(&mut key.line, tty);
         let found = text.chunks_exact(UTMP_SIZE).filter_map(|c| c.try_into().ok()).map(Utmp::from_bytes).find(|u| u.matches_line(&key)).ok_or(Errno::ENOENT)?;

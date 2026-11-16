@@ -1,16 +1,16 @@
 //! The file-system walkers run out of memory (ENOMEM-FS-WALK-2, on the ALLOC-FAIL-INJECT hook).
 //!
 //! For each walker the test fails the 1st, 2nd, 3rd ... allocation the call makes (the hook,
-//! `liella_boundary::selftest::failinject`, fails one chosen allocation of the calling thread's
+//! `niji_boundary::selftest::failinject`, fails one chosen allocation of the calling thread's
 //! global-allocator traffic, once), until a call finishes without reaching the planned failure.
 //! At every injected failure the call must report its documented failure (`-1`/`NULL` with
 //! `ENOMEM`; `glob`: `GLOB_NOSPACE` with the structure empty; `fts_read` ends the walk with
 //! `ENOMEM`), never a truncated success, and the C heap's in-use bytes (`mallinfo2().uordblks`)
-//! must be what they were before the call (no partial result stays allocated on the Liella heap), as must, after a reported failure, the hook's live-byte
+//! must be what they were before the call (no partial result stays allocated on the libniji heap), as must, after a reported failure, the hook's live-byte
 //! count of the global allocator (`failinject::live_bytes`) and the caller-owned block count (`selftest::caller_blocks`). The call without
 //! any injection must succeed with the COMPLETE result.
 //!
-//! The hook reaches only global-allocator allocations (`liella::mem` collections,
+//! The hook reaches only global-allocator allocations (`niji::mem` collections,
 //! `try_reserve`), not the caller-owned `malloc` family, the C heap, `KernelPages` or `OLD_HEAP`
 //! (coordinator #2101/#2102). A walker none of whose allocations is reachable has nothing to
 //! inject: the test then prints "NOT TESTABLE YET: <walker>" and passes (an ENOMEM path on the C
@@ -21,21 +21,21 @@
 //!
 //! Clauses: s13_3_f_0 (walks fail with -1 and `errno`), s14_8_f_0 (`GLOB_NOSPACE`), s13_1_f_0
 //! (`getcwd`), s0_6_c0_1_1 (a failing function returns its sentinel and sets `errno`).
-#![no_builtins] // memcpy/strlen reach Liella's exports, which read the C memory (no `unsafe` in tests)
+#![no_builtins] // memcpy/strlen reach libniji's exports, which read the C memory (no `unsafe` in tests)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_possible_wrap, missing_docs)]
 
 use core::ptr::null_mut;
 use std::ffi::{c_void, CString};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use liella_abi::callback::GlobT;
-use liella_abi::ctypes::{c_char, c_int};
-use liella_abi::layout::{struct_dirent, FTSENT};
-use liella_boundary::errno;
-use liella_boundary::posix::{s03_memory, s04_strings as st, s13_filesystem as x, s14_search as g};
-use liella_boundary::selftest::failinject::{self, FailAlloc};
-use liella_boundary::selftest;
-use liella_kernel::Errno;
+use niji_abi::callback::GlobT;
+use niji_abi::ctypes::{c_char, c_int};
+use niji_abi::layout::{struct_dirent, FTSENT};
+use niji_boundary::errno;
+use niji_boundary::posix::{s03_memory, s04_strings as st, s13_filesystem as x, s14_search as g};
+use niji_boundary::selftest::failinject::{self, FailAlloc};
+use niji_boundary::selftest;
+use niji_kernel::Errno;
 
 const FILES: usize = 300;
 
@@ -55,7 +55,7 @@ fn name(i: usize) -> String {
 
 /// The scratch tree: `FILES` files `f000..`, and two others the filter drops.
 fn build_tree(tag: &str) -> std::path::PathBuf {
-    let d = std::env::temp_dir().join(format!("liella-enomem-fs-{tag}-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("niji-enomem-fs-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     for i in 0..FILES {
@@ -87,7 +87,7 @@ fn sweep(walker: &str, mut attempt: impl FnMut() -> Verdict) -> String {
     // here, so the leak checks below see only what a failed call leaves behind.
     let _ = attempt();
     // `uordblks` is process-wide. With the exports interposed (the suite's second pass) every
-    // thread's Rust allocations are Liella heap blocks, so an allocation by libtest's main thread
+    // thread's Rust allocations are libniji heap blocks, so an allocation by libtest's main thread
     // (its bookkeeping right after it starts this test's thread) can land between `before` and
     // `after` and look like a leak of the call (ENOMEM-REALPATH-INTERMITTENT: +32 and +1024 bytes
     // at allocation 1 on a loaded 2-node host). A window that another thread's allocator call
@@ -128,7 +128,7 @@ fn sweep(walker: &str, mut attempt: impl FnMut() -> Verdict) -> String {
             return format!("{walker}: allocation {n}: a caller-owned block stays allocated ({caller_before} -> {})", selftest::caller_blocks());
         }
         // Only after a reported failure: a success hands the caller its result block, which with
-        // the exports interposed is a block of the Liella heap that the caller owns.
+        // the exports interposed is a block of the libniji heap that the caller owns.
         if failed && after != before {
             return format!("{walker}: allocation {n}: a partial result stays allocated ({before} -> {after})");
         }
@@ -222,7 +222,7 @@ extern "C" fn by_name(a: *const *const c_void, b: *const *const c_void) -> c_int
 fn case_scandir(dir: &std::path::Path) -> String {
     let d = cstr(dir);
     let want: Vec<CString> = (0..FILES).map(|i| CString::new(name(i)).unwrap()).collect();
-    let cmp: liella_abi::callback::SlotCompareFn = by_name;
+    let cmp: niji_abi::callback::SlotCompareFn = by_name;
     sweep("scandir", || {
         let mut list: *mut *mut struct_dirent = null_mut();
         errno::set_raw(0);
@@ -287,7 +287,7 @@ fn case_fts(dir: &std::path::Path) -> String {
     for n in ["g1", "g2"] {
         want.push(CString::new(format!("{}/{n}", dir.display())).unwrap());
     }
-    let cmp: liella_abi::callback::SlotCompareFn = by_path;
+    let cmp: niji_abi::callback::SlotCompareFn = by_path;
     let mut present = vec![false; want.len()];
     sweep("fts", || {
         errno::set_raw(0);

@@ -6,7 +6,7 @@ usage: keys.py <names file>... > keys              sorted
        keys.py --aliases <objdump -t output>       `<symbol key>\t<section key>` (see aliases())
        keys.py --sections <readelf -SW output>     function names of the function sections (see sections())
 The same normalisation is in xtask/src/hottext.rs (`key`); keep the two in step:
-  1. drop the library's own prefix `__liella_libc_` (D-X.14 renames; the section keeps the C name);
+  1. drop the library's own prefix `__niji_libc_` (D-X.14 renames; the section keeps the C name);
   2. drop ThinLTO promotion suffixes `.llvm.<digits>`;
   3. v0 mangling: drop crate disambiguators (`Cs<base62>_` -> `C`), which change with every build
      and with the checkout's path, and expand every back-reference (`B<base62>_`, a byte offset
@@ -18,7 +18,7 @@ The same normalisation is in xtask/src/hottext.rs (`key`); keep the two in step:
 import re
 import sys
 
-OWN = "__liella_libc_"
+OWN = "__niji_libc_"
 
 
 class _Bad(Exception):
@@ -236,14 +236,14 @@ def key(name):
 
 
 SORTED = re.compile(r"^sorted\.h[0-9]+\.(.+)$")
-COLD_PREFIX, COLD_SUFFIX = "liella_cold.", ".liella_cold"
+COLD_PREFIX, COLD_SUFFIX = "niji_cold.", ".niji_cold"
 
 
 def function_of(section):
     """A function section's function name, or None for another section: xtask/src/hottext.rs
     `function_of`; keep the two in step. `.text.sorted.h<n>.<f>`, `.text.hot.<f>`,
     `.text.unlikely.<f>` (a #[cold] function), `.text.startup.<f>` / `.text.exit.<f>` and the
-    build's own cold rename `.text.liella_cold.<f>.liella_cold` (D-X.63) all give <f>.
+    build's own cold rename `.text.niji_cold.<f>.niji_cold` (D-X.63) all give <f>.
     LAYOUT-TEXT-PIN-9 (#4541): the cold rename is stripped too, or a function the build renamed
     cold could never re-enter the list by trace."""
     if not section.startswith(".text."):

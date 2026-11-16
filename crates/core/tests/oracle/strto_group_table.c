@@ -4,7 +4,7 @@
  * (crates/boundary/tests/strto_internal_group.rs writes their sources and compiles them with
  * `localedef -c`): grp3 (`,` `.` 3;3), grp32 (3;2), grpstop (3;CHAR_MAX), grpde (`.` `,` 3;3),
  * grpsame (thousands_sep == decimal_point == `.`). One line per locale, flag and input, in the
- * exact form the test prints for Liella; the record is in that test's RECORD. */
+ * exact form the test prints for libniji; the record is in that test's RECORD. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <locale.h>

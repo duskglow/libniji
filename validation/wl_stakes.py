@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""WL-STAKES: real-shape stakes of the mem*, str* and malloc family, Liella vs glibc.
+"""WL-STAKES: real-shape stakes of the mem*, str* and malloc family, libniji vs glibc.
 
   wl_stakes.py spec   <shapes.tsv> <out.c> [--top K] [--cover F]
   wl_stakes.py report <out.c> <percall.log> <stakes.md> [--title T]
@@ -8,7 +8,7 @@ spec: aggregates validation/wl_shapes.sh's shapes.tsv over all workloads, keeps 
 (until --cover of the symbol's calls, default 0.9, at most --top, default 6) and writes a wl_percall spec (one CASE
 per shape, calls = observed calls, size/aux = the bucket's mean) plus <out.c>.json describing the cases.
 Run it with: export S=...; WLP_TAIL=0 bash validation/wl_percall.sh --spec <out.c> <worktree|rev> > percall.log
-report: joins the percall table with the json: per symbol, sum over its shapes of calls x (Liella - glibc)
+report: joins the percall table with the json: per symbol, sum over its shapes of calls x (libniji - glibc)
 instructions:u per call (= the stake at the REAL shapes), covered fraction, and the same scaled to all its calls.
 Pair cases: malloc/calloc/strdup cases include the free of the result, realloc the malloc of the old block and the
 free (labelled in the table); free itself has no case of its own (its cost is inside those pairs).
@@ -149,10 +149,10 @@ def report(args):
         rows.append((scaled, sym, s))
     rows.sort(key=lambda r: -r[0])
     o = ['# WL-STAKES: real-shape stakes per symbol (30 wl_count workloads, glibc kit)', '',
-         'stake = sum over the symbol\'s top shapes of calls x (Liella - glibc) instructions:u per call (wl_percall, '
-         'deterministic); "scaled" extrapolates to all calls of the symbol by the covered fraction. Negative = Liella '
+         'stake = sum over the symbol\'s top shapes of calls x (libniji - glibc) instructions:u per call (wl_percall, '
+         'deterministic); "scaled" extrapolates to all calls of the symbol by the covered fraction. Negative = libniji '
          'already below glibc. Pair cases: ' + ', '.join('%s %s' % kv for kv in PAIR.items()) + '.', '',
-         '| # | symbol | calls | covered | stake (M instr) | scaled (M) | Liella/glibc | shapes (case n= a= : liella/glibc per call) |',
+         '| # | symbol | calls | covered | stake (M instr) | scaled (M) | libniji/glibc | shapes (case n= a= : niji/glibc per call) |',
          '|---|---|---|---|---|---|---|---|']
     for i, (scaled, sym, s) in enumerate(rows, 1):
         ratio = (s['g'] + s['gap']) / s['g'] if s['g'] else 0

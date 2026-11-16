@@ -1,11 +1,11 @@
 @@generated
 /* endian.h: byte order (endian(3)). */
-#ifndef __LIELLA_H_endian_h
-#define __LIELLA_H_endian_h 1
+#ifndef __NIJI_H_endian_h
+#define __NIJI_H_endian_h 1
 
 #include <features.h>
 
-__LIELLA_BEGIN_C
+__NIJI_BEGIN_C
 
 @@owns be16toh le64toh
 @@emit
@@ -45,6 +45,6 @@ __LIELLA_BEGIN_C
 # define le64toh(x) __builtin_bswap64 (x)
 #endif
 
-__LIELLA_END_C
+__NIJI_END_C
 
 #endif

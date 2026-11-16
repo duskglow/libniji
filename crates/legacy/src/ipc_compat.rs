@@ -8,12 +8,12 @@
 //! answers "what does the argument look like" and "is the command known", and the `*ctl`
 //! functions then route by shape, so a command added to the kernel layer needs one table row.
 
-use liella::error::{Errno, Result};
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::{MsgCtl, SemCtlDs, SemCtlInt, ShmCtl};
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MsqidDs, SemidDs, ShmidDs};
+use niji::error::{Errno, Result};
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::{MsgCtl, SemCtlDs, SemCtlInt, ShmCtl};
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MsqidDs, SemidDs, ShmidDs};
 
 /// `IPC_64`: the "new layout" bit the C library adds to every `*ctl` command; one the caller
 /// passes is ignored (the kernel structures are always the 64-bit ones on x86-64).

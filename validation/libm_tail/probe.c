@@ -3,8 +3,8 @@
  * Cost = user-mode retired instructions (perf_event_open; read through the perf userpage: offset + rdpmc under its
  * seqlock, so a context switch between two readings is accounted for), minus the same reading around an identity
  * function with the same signature through the same code (calibrated at start, minimum of many readings). Built
- * twice from this one file: against the installed glibc (gcc -lm, dynamic, -z now) and against Liella
- * (scripts/liella-cc -lm, static), so both libraries see the same harness and inputs. glibc is only a black box.
+ * twice from this one file: against the installed glibc (gcc -lm, dynamic, -z now) and against libniji
+ * (scripts/niji-cc -lm, static), so both libraries see the same harness and inputs. glibc is only a black box.
  *
  * A counter reading costs ~35 us on the build VMs (rdpmc traps to the hypervisor), so exhaustive f32 runs measure
  * BATCHES of consecutive inputs (exact sums, so per-band costs are exact at batch resolution) and percentiles come

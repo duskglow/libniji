@@ -5,25 +5,25 @@
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
 //! Clause tests for spec §16 (38 clauses). The switch, the `files` source and the lookups run
-//! through `liella::names` and `liella_legacy::{nss, nss_files, netdb_compat, gai}` on fixture
+//! through `niji::names` and `niji_legacy::{nss, nss_files, netdb_compat, gai}` on fixture
 //! files with configurations built from text (a `Ctx` of the test's own); the process-wide
 //! state (the switch's overrides, the enumeration cursors) only in re-executed children. The
 //! system's files are only read; nothing leaves the machine (numeric and loopback addresses).
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::error::Errno;
-use liella::names::nss::{self, Config, Database, LookupError, Service, Spec};
-use liella::names::sort::{self, Candidate, Policy};
-use liella::names::{msg, Family, Ip};
-use liella_boundary::sys::CSys;
-use liella_legacy::gai::{self, GaiError, Hints};
-use liella_legacy::netdb_compat as netdb;
-use liella_legacy::nss::{Ctx, Paths, Switch};
-use liella_legacy::nss_files::Key;
-use liella_legacy::resolv_compat::{self as resolv, Resolver, State, STATE_SIZE};
-use liella::names::dns::conf::{self, Config as RConf, Server as RServer};
-use liella::names::dns::{client, msg as dmsg, name, text};
+use niji::error::Errno;
+use niji::names::nss::{self, Config, Database, LookupError, Service, Spec};
+use niji::names::sort::{self, Candidate, Policy};
+use niji::names::{msg, Family, Ip};
+use niji_boundary::sys::CSys;
+use niji_legacy::gai::{self, GaiError, Hints};
+use niji_legacy::netdb_compat as netdb;
+use niji_legacy::nss::{Ctx, Paths, Switch};
+use niji_legacy::nss_files::Key;
+use niji_legacy::resolv_compat::{self as resolv, Resolver, State, STATE_SIZE};
+use niji::names::dns::conf::{self, Config as RConf, Server as RServer};
+use niji::names::dns::{client, msg as dmsg, name, text};
 use spectest::clause;
 
 #[path = "support/dns_server.rs"]
@@ -109,7 +109,7 @@ impl Drop for Fx {
 const FILES: &str = "hosts: files\nnetworks: files\nservices: files\nprotocols: files\nrpc: files\nethers: files\nnetgroup: files\naliases: files\n";
 
 /// The host's name, aliases and addresses (as text).
-fn host(r: Result<liella_legacy::nss_files::Host, LookupError>) -> Result<String, LookupError> {
+fn host(r: Result<niji_legacy::nss_files::Host, LookupError>) -> Result<String, LookupError> {
     r.map(|h| {
         let t = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
         let addrs: Vec<String> = h
@@ -126,12 +126,12 @@ fn host(r: Result<liella_legacy::nss_files::Host, LookupError>) -> Result<String
 
 /// Run the test `name` again, alone, in a child (process-wide state): true in the child.
 fn in_child(name: &str) -> bool {
-    if std::env::var("LIELLA_C16_CHILD").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_C16_CHILD").is_ok_and(|v| v == name) {
         // This process runs this one test alone: `forbid_threads` may be called in it.
-        liella_boundary::selftest::mark_own_process();
+        niji_boundary::selftest::mark_own_process();
         return true;
     }
-    let o = std::process::Command::new(std::env::current_exe().unwrap()).args([name, "--exact", "--include-ignored", "--test-threads=1"]).env("LIELLA_C16_CHILD", name).output().unwrap();
+    let o = std::process::Command::new(std::env::current_exe().unwrap()).args([name, "--exact", "--include-ignored", "--test-threads=1"]).env("NIJI_C16_CHILD", name).output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert!(o.status.success(), "{name} in a child:\n{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     false
@@ -186,14 +186,14 @@ fn s16_1_c_0() {
         assert_eq!(netdb::serv_by_name(c, b"ssh", None, |s| s.port).is_ok(), ok, "services");
         assert_eq!(netdb::proto_by_number(c, 6, |p| p.number).is_ok(), ok, "protocols");
         assert_eq!(netdb::rpc_by_number(c, 100003, |p| p.number).is_ok(), ok, "rpc");
-        assert_eq!(liella_legacy::nss::ether_by_name(c, b"alpha").is_ok(), ok, "ethers");
-        assert_eq!(liella_legacy::nss::netgroup(c, b"trusted").is_ok(), ok, "netgroup");
-        assert_eq!(liella_legacy::nss::alias(c, b"root", |_| ()).is_ok(), ok, "aliases");
-        assert_eq!(liella_legacy::nss::passwd(c, Key::Name(b"alice"), |p| p.uid).is_ok(), ok, "passwd");
-        assert_eq!(liella_legacy::nss::group(c, Key::Id(10), |g| g.gid).is_ok(), ok, "group");
-        assert_eq!(liella_legacy::nss::shadow(c, b"alice", |_| ()).is_ok(), ok, "shadow");
-        assert_eq!(liella_legacy::nss::gshadow(c, b"g", |_| ()).is_ok(), ok, "gshadow");
-        assert_eq!(liella_legacy::nss::group_list(c, b"alice", 1000).unwrap().len(), if ok { 2 } else { 1 }, "initgroups (group's sources)");
+        assert_eq!(niji_legacy::nss::ether_by_name(c, b"alpha").is_ok(), ok, "ethers");
+        assert_eq!(niji_legacy::nss::netgroup(c, b"trusted").is_ok(), ok, "netgroup");
+        assert_eq!(niji_legacy::nss::alias(c, b"root", |_| ()).is_ok(), ok, "aliases");
+        assert_eq!(niji_legacy::nss::passwd(c, Key::Name(b"alice"), |p| p.uid).is_ok(), ok, "passwd");
+        assert_eq!(niji_legacy::nss::group(c, Key::Id(10), |g| g.gid).is_ok(), ok, "group");
+        assert_eq!(niji_legacy::nss::shadow(c, b"alice", |_| ()).is_ok(), ok, "shadow");
+        assert_eq!(niji_legacy::nss::gshadow(c, b"g", |_| ()).is_ok(), ok, "gshadow");
+        assert_eq!(niji_legacy::nss::group_list(c, b"alice", 1000).unwrap().len(), if ok { 2 } else { 1 }, "initgroups (group's sources)");
     }
 }
 
@@ -205,15 +205,15 @@ fn s16_1_c_1() {
     let fx = Fx::new("sources");
     // A module (until the NSS module ABI of phase 14) is unavailable: the lookup goes on.
     let c = fx.ctx("passwd: sss files\nhosts: systemd files\n");
-    assert_eq!(liella_legacy::nss::passwd(&c, Key::Name(b"alice"), |p| p.uid), Ok(1000));
+    assert_eq!(niji_legacy::nss::passwd(&c, Key::Name(b"alice"), |p| p.uid), Ok(1000));
     assert!(netdb::host_by_name(&c, b"alpha", Family::V4).is_ok());
     let c = fx.ctx("passwd: sss [UNAVAIL=return] files\n");
-    assert_eq!(liella_legacy::nss::passwd(&c, Key::Name(b"alice"), |p| p.uid), Err(LookupError::Unavailable));
+    assert_eq!(niji_legacy::nss::passwd(&c, Key::Name(b"alice"), |p| p.uid), Err(LookupError::Unavailable));
     // `compat` reads the files for passwd, group and shadow, and is a module elsewhere.
     let c = fx.ctx("passwd: compat\ngroup: compat\nshadow: compat\nhosts: compat\n");
-    assert_eq!(liella_legacy::nss::passwd(&c, Key::Id(1000), |p| p.uid), Ok(1000));
-    assert_eq!(liella_legacy::nss::group(&c, Key::Name(b"g"), |g| g.gid), Ok(10));
-    assert!(liella_legacy::nss::shadow(&c, b"alice", |_| ()).is_ok());
+    assert_eq!(niji_legacy::nss::passwd(&c, Key::Id(1000), |p| p.uid), Ok(1000));
+    assert_eq!(niji_legacy::nss::group(&c, Key::Name(b"g"), |g| g.gid), Ok(10));
+    assert!(niji_legacy::nss::shadow(&c, b"alice", |_| ()).is_ok());
     assert_eq!(netdb::host_by_name(&c, b"alpha", Family::V4).map(|_| ()), Err(LookupError::Unavailable));
     // Names are case-sensitive (they name modules).
     assert_eq!(Service::from_name(b"Files"), Service::Module);
@@ -257,13 +257,13 @@ fn s16_1_c_2() {
     c = sw.config(&CSys, fx.paths.nsswitch);
     assert_eq!(c.spec(Database::Hosts).steps().len(), 2, "a refused override changes nothing");
     // Through the export: the process's switch.
-    use liella_boundary::posix::s16_nameservices as x;
+    use niji_boundary::posix::s16_nameservices as x;
     assert_eq!(x::__nss_configure_lookup(c"hosts".as_ptr(), c"nosuch".as_ptr()), 0);
     assert!(x::gethostbyname(c"alpha.invalid".as_ptr()).is_null());
-    assert_eq!(liella_boundary::netdb::h_errno(), netdb::NO_RECOVERY, "no source is available");
-    liella_boundary::errno::set_raw(0);
+    assert_eq!(niji_boundary::netdb::h_errno(), netdb::NO_RECOVERY, "no source is available");
+    niji_boundary::errno::set_raw(0);
     assert_eq!(x::__nss_configure_lookup(c"nosuchdb".as_ptr(), c"files".as_ptr()), -1);
-    assert_eq!(liella_boundary::errno::get(), Errno::EINVAL.get());
+    assert_eq!(niji_boundary::errno::get(), Errno::EINVAL.get());
 }
 
 #[test]
@@ -271,10 +271,10 @@ fn s16_1_g_1() {
     let fx = Fx::new("merge");
     // The first source that succeeds answers.
     let c = fx.ctx("passwd: x files files\n");
-    assert_eq!(liella_legacy::nss::passwd(&c, Key::Name(b"alice"), |p| p.dir.to_vec()), Ok(b"/home/alice".to_vec()));
+    assert_eq!(niji_legacy::nss::passwd(&c, Key::Name(b"alice"), |p| p.dir.to_vec()), Ok(b"/home/alice".to_vec()));
     // `merge` concatenates group members across sources (repeats kept, nsswitch.conf(5)).
     let c = fx.ctx("group: files [SUCCESS=merge] files\n");
-    let members = |c: &Ctx<'_, CSys>| liella_legacy::nss::group(c, Key::Name(b"g"), |g| g.members.iter().map(<[u8]>::to_vec).collect::<Vec<_>>());
+    let members = |c: &Ctx<'_, CSys>| niji_legacy::nss::group(c, Key::Name(b"g"), |g| g.members.iter().map(<[u8]>::to_vec).collect::<Vec<_>>());
     assert_eq!(members(&c), Ok(vec![b"a".to_vec(), b"b".to_vec(), b"a".to_vec(), b"b".to_vec()]));
     assert_eq!(members(&fx.ctx("group: files\n")), Ok(vec![b"a".to_vec(), b"b".to_vec()]));
     // After a merge, a later failure is ignored and the kept result returned.
@@ -301,9 +301,9 @@ fn s16_1_g_2() {
 /// h_errno, result written, errno). `alloc`: the allocating form, else a caller buffer of
 /// `buflen` bytes.
 fn digits_dots(name: &str, af: i32, alloc: bool, buflen: usize) -> (i32, String, i32, Vec<u8>, i32, i32, bool, i32) {
-    use liella_abi::layout::struct_hostent;
-    use liella_boundary::posix::s04_strings as st;
-    use liella_boundary::posix::s16_nameservices as ns;
+    use niji_abi::layout::struct_hostent;
+    use niji_boundary::posix::s04_strings as st;
+    use niji_boundary::posix::s16_nameservices as ns;
     let c = std::ffi::CString::new(name).unwrap();
     let mut h = struct_hostent { h_name: 0, h_aliases: 0, h_addrtype: -7, h_length: -7, h_addr_list: 0 };
     let mut store = vec![0u64; 64];
@@ -311,9 +311,9 @@ fn digits_dots(name: &str, af: i32, alloc: bool, buflen: usize) -> (i32, String,
     let mut size = 0usize;
     let mut result = 1usize;
     let (mut status, mut herr) = (12345, 777);
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     let r = ns::__nss_hostname_digits_dots(c.as_ptr(), Some(&mut h), Some(&mut buffer), if alloc { Some(&mut size) } else { None }, buflen, Some(&mut result), Some(&mut status), af, Some(&mut herr));
-    let e = liella_boundary::errno::get();
+    let e = niji_boundary::errno::get();
     let text = |a: usize| {
         let p = a as *const core::ffi::c_char;
         let mut v = vec![0u8; st::strlen(p)];
@@ -398,12 +398,12 @@ fn s16_1_c_6() {
     }
     assert_eq!(digits_dots("10.20.30.40", AF_INET, false, 56).4, 1);
     assert_eq!(digits_dots("10.20.30.40", AF_INET, false, 56).7, 0, "errno untouched");
-    use liella_abi::layout::struct_hostent;
+    use niji_abi::layout::struct_hostent;
     let mut h = struct_hostent { h_name: 0, h_aliases: 0, h_addrtype: 0, h_length: 0, h_addr_list: 0 };
     let mut store = [0u64; 64];
     let mut buffer = store.as_mut_ptr() as usize;
     let c = std::ffi::CString::new("1.2.3.4").unwrap();
-    let r = liella_boundary::posix::s16_nameservices::__nss_hostname_digits_dots(c.as_ptr(), Some(&mut h), Some(&mut buffer), None, 512, None, None, AF_INET, None);
+    let r = niji_boundary::posix::s16_nameservices::__nss_hostname_digits_dots(c.as_ptr(), Some(&mut h), Some(&mut buffer), None, 512, None, None, AF_INET, None);
     assert_eq!((r, h.h_addrtype), (1, AF_INET), "NULL result, status and h_errnop");
     // Compared with the reference line by line: digits_dots_products.rs.
 }
@@ -496,7 +496,7 @@ fn s16_2_c_2_5() {
         let a = l.split_whitespace().next().unwrap_or("");
         a != "00000000000000000000000000000001" && !["fe8", "fe9", "fea", "feb"].iter().any(|p| a.starts_with(p))
     });
-    let addrs = liella::net::iface::addrs(&CSys).unwrap();
+    let addrs = niji::net::iface::addrs(&CSys).unwrap();
     let v4 = addrs.iter().any(|a| a.family == 2 && a.own().is_some_and(|x| x[0] != 127));
     let (keep4, keep6) = (v4 || !v6, v6 || !v4);
     let n = |node: &str| gai(&fx, Some(node), Some("80"), hints(gai::AI_ADDRCONFIG, 0, 1, 0)).map(|v| v.len());
@@ -508,10 +508,10 @@ fn s16_2_c_2_5() {
 fn s16_2_c_2_6() {
     // AI_IDN: the node, in the locale's character set, through UTS #46 ToASCII (built in,
     // D-16.4); AI_CANONIDN: the canonical name back in Unicode; NI_IDN likewise.
-    use liella::names::dns::idna;
+    use niji::names::dns::idna;
     let ascii = |s: &str| {
         let cps: Vec<u32> = s.chars().map(u32::from).collect();
-        let mut out = liella::mem::TryVec::new();
+        let mut out = niji::mem::TryVec::new();
         idna::to_ascii(&cps, &mut out).map(|()| String::from_utf8(out.to_vec()).unwrap())
     };
     assert_eq!(ascii("Bücher.test").as_deref(), Ok("xn--bcher-kva.test"), "mapped, then Punycode");
@@ -524,7 +524,7 @@ fn s16_2_c_2_6() {
     let srv = dns_server::start(zone());
     let fx = Fx::new("idn");
     let r = Resolver { conf: rconf(srv.port), aliases: None };
-    let utf8 = liella::locale::Locale::c_utf8(b"C.UTF-8");
+    let utf8 = niji::locale::Locale::c_utf8(b"C.UTF-8");
     let ctx = Ctx { dns: Some(&r), locale: Some(&utf8), ..fx.ctx("hosts: dns\nservices: files\n") };
     let h = hints(gai::AI_IDN | gai::AI_CANONNAME | gai::AI_CANONIDN, 2, 1, 0);
     let f = gai::getaddrinfo(&ctx, Some("bücher.test".as_bytes()), None, Some(h)).unwrap();
@@ -549,7 +549,7 @@ fn s16_2_c_3() {
     // RFC 6724 with the default policy: usable destinations first, then precedence (::1 50,
     // IPv4 35, others 40), stable otherwise.
     let pol = Policy::DEFAULT;
-    let a = |t: &str| liella::net::addr::parse_v6(t.as_bytes()).unwrap();
+    let a = |t: &str| niji::net::addr::parse_v6(t.as_bytes()).unwrap();
     let c = |d: &str, s: Option<&str>| Candidate { dest: a(d), source: s.map(|s| (a(s), 64)) };
     let mut v = [c("::ffff:127.0.0.1", Some("::ffff:127.0.0.1")), c("::1", Some("::1"))];
     sort::sort(&pol, &mut v, |x| *x);
@@ -570,7 +570,7 @@ fn s16_2_c_3() {
     let fx = Fx::new("sort");
     let r = gai(&fx, None, Some("80"), hints(0, 0, 1, 0)).unwrap();
     assert_eq!(r.len(), 2);
-    let routed = |d: &[u8]| liella::net::iface::route(&CSys, d).ok().flatten().is_some();
+    let routed = |d: &[u8]| niji::net::iface::route(&CSys, d).ok().flatten().is_some();
     if routed(&a("::1")) && routed(&[127, 0, 0, 1]) {
         assert_eq!(r[0], "10/1/6 ::1 80");
     }
@@ -629,15 +629,15 @@ fn s16_2_c_5() {
     if !in_child("s16_2_c_5") {
         return;
     }
-    liella_boundary::selftest::forbid_threads();
+    niji_boundary::selftest::forbid_threads();
     // getaddrinfo_a: each request is getaddrinfo's; GAI_WAIT returns when all are done; the
     // status is `__return` (gai_error). The asynchronous paths (workers, notification, waits that
-    // time out, cancelling a queued request) need a process Liella started: dns_products,
+    // time out, cancelling a queued request) need a process libniji started: dns_products,
     // scenario gaia. In this test process no thread can be made (D-22.10): GAI_WAIT then runs
     // the requests in the caller, GAI_NOWAIT is EAI_AGAIN.
     use core::ffi::c_void;
-    use liella_abi::layout::{struct_addrinfo, struct_gaicb};
-    use liella_boundary::posix::s16_nameservices as x;
+    use niji_abi::layout::{struct_addrinfo, struct_gaicb};
+    use niji_boundary::posix::s16_nameservices as x;
     const EAI_ALLDONE: i32 = -103;
     let h = struct_addrinfo { ai_flags: gai::AI_NUMERICSERV, ai_family: 2, ai_socktype: 1, ai_protocol: 0, ai_addrlen: 0, ai_addr: 0, ai_canonname: 0, ai_next: 0 };
     let cb = |name: &'static core::ffi::CStr| struct_gaicb { ar_name: name.as_ptr() as usize, ar_service: c"80".as_ptr() as usize, ar_request: core::ptr::from_ref(&h) as usize, ar_result: 0, __return: 7, __glibc_reserved: [0; 5] };
@@ -660,9 +660,9 @@ fn s16_2_c_5() {
     assert_eq!(x::gai_cancel(p1), EAI_ALLDONE);
     assert_eq!(x::gai_cancel(core::ptr::null_mut()), EAI_ALLDONE);
     assert_eq!(x::getaddrinfo_a(0, list.as_ptr(), 0, None), 0, "no entries");
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     assert_eq!(x::getaddrinfo_a(7, list.as_ptr(), 3, None), gai::EAI_SYSTEM);
-    assert_eq!(liella_boundary::errno::get(), Errno::EINVAL.get());
+    assert_eq!(niji_boundary::errno::get(), Errno::EINVAL.get());
     // GAI_NOWAIT: asynchronous where threads can be made, else EAI_AGAIN for the list.
     let mut g3 = cb(c"127.0.0.2");
     let p3: *mut c_void = core::ptr::from_mut(&mut g3).cast();
@@ -671,7 +671,7 @@ fn s16_2_c_5() {
         0 => {
             let w = [p3.cast_const()];
             while x::gai_error(p3) == -100 {
-                let t = liella_kernel::uapi::Timespec { sec: 1, nsec: 0 };
+                let t = niji_kernel::uapi::Timespec { sec: 1, nsec: 0 };
                 x::gai_suspend(w.as_ptr(), 1, Some(&t));
             }
             assert_eq!(x::gai_error(p3), 0);
@@ -685,9 +685,9 @@ fn s16_2_c_5() {
 }
 
 /// A copy of the `struct addrinfo` at `addr` (a block getaddrinfo made).
-fn unsafe_free_copy(addr: usize) -> liella_abi::layout::struct_addrinfo {
-    let mut v = liella_abi::layout::struct_addrinfo { ai_flags: 0, ai_family: 0, ai_socktype: 0, ai_protocol: 0, ai_addrlen: 0, ai_addr: 0, ai_canonname: 0, ai_next: 0 };
-    liella_boundary::posix::s04_strings::memcpy(core::ptr::from_mut(&mut v).cast(), addr as *const core::ffi::c_void, size_of::<liella_abi::layout::struct_addrinfo>());
+fn unsafe_free_copy(addr: usize) -> niji_abi::layout::struct_addrinfo {
+    let mut v = niji_abi::layout::struct_addrinfo { ai_flags: 0, ai_family: 0, ai_socktype: 0, ai_protocol: 0, ai_addrlen: 0, ai_addr: 0, ai_canonname: 0, ai_next: 0 };
+    niji_boundary::posix::s04_strings::memcpy(core::ptr::from_mut(&mut v).cast(), addr as *const core::ffi::c_void, size_of::<niji_abi::layout::struct_addrinfo>());
     v
 }
 
@@ -696,9 +696,9 @@ fn s16_2_f_0() {
     let fx = Fx::new("errors");
     let c = fx.ctx(FILES);
     // The codes are returned, not stored in errno.
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     assert_eq!(gai(&fx, Some("nonesuch"), Some("80"), hints(0, 0, 1, 0)), Err(gai::EAI_NONAME));
-    assert_eq!(liella_boundary::errno::get(), 0);
+    assert_eq!(niji_boundary::errno::get(), 0);
     let unavailable = Ctx { config: Config::parse(b"hosts: x\n"), ..c };
     assert_eq!(gai::getaddrinfo(&unavailable, Some(b"alpha"), None, None).err(), Some(GaiError::Code(gai::EAI_FAIL)), "no source available");
     let missing = Paths { hosts: b"/nonexistent/hosts\0", ..fx.paths };
@@ -736,16 +736,16 @@ fn s16_2_f_0() {
 }
 
 /// The `struct addrinfo` at `a` (a copy, through the exported `memcpy`).
-fn addrinfo_at(a: usize) -> liella_abi::layout::struct_addrinfo {
-    let mut v = liella_abi::layout::struct_addrinfo { ai_flags: 0, ai_family: 0, ai_socktype: 0, ai_protocol: 0, ai_addrlen: 0, ai_addr: 0, ai_canonname: 0, ai_next: 0 };
-    liella_boundary::posix::s04_strings::memcpy(core::ptr::from_mut(&mut v).cast(), core::ptr::with_exposed_provenance(a), size_of::<liella_abi::layout::struct_addrinfo>());
+fn addrinfo_at(a: usize) -> niji_abi::layout::struct_addrinfo {
+    let mut v = niji_abi::layout::struct_addrinfo { ai_flags: 0, ai_family: 0, ai_socktype: 0, ai_protocol: 0, ai_addrlen: 0, ai_addr: 0, ai_canonname: 0, ai_next: 0 };
+    niji_boundary::posix::s04_strings::memcpy(core::ptr::from_mut(&mut v).cast(), core::ptr::with_exposed_provenance(a), size_of::<niji_abi::layout::struct_addrinfo>());
     v
 }
 
 #[test]
 fn s16_2_g_0() {
-    use liella_boundary::posix::s15_sockets as s;
-    use liella_boundary::posix::s16_nameservices as x;
+    use niji_boundary::posix::s15_sockets as s;
+    use niji_boundary::posix::s16_nameservices as x;
     // A loopback TCP listener the entries connect to.
     let l = s::socket(2, 1, 0);
     let mut sa = [0u8; 16];
@@ -756,7 +756,7 @@ fn s16_2_g_0() {
     let mut len = 16u32;
     assert_eq!(s::getsockname(l, sa.as_mut_ptr().cast(), Some(&mut len)), 0);
     let port = std::ffi::CString::new(u16::from_be_bytes([sa[2], sa[3]]).to_string()).unwrap();
-    let mut h = liella_abi::layout::struct_addrinfo { ai_flags: gai::AI_NUMERICHOST | gai::AI_NUMERICSERV, ai_family: 2, ai_socktype: 0, ai_protocol: 0, ai_addrlen: 0, ai_addr: 0, ai_canonname: 0, ai_next: 0 };
+    let mut h = niji_abi::layout::struct_addrinfo { ai_flags: gai::AI_NUMERICHOST | gai::AI_NUMERICSERV, ai_family: 2, ai_socktype: 0, ai_protocol: 0, ai_addrlen: 0, ai_addr: 0, ai_canonname: 0, ai_next: 0 };
     let mut res = 0usize;
     assert_eq!(x::getaddrinfo(c"127.0.0.1".as_ptr(), port.as_ptr(), Some(&h), Some(&mut res)), 0);
     // One list: stream, datagram and raw entries, linked; each ready for socket and connect.
@@ -769,7 +769,7 @@ fn s16_2_g_0() {
             let fd = s::socket(e.ai_family, e.ai_socktype, e.ai_protocol);
             assert!(fd >= 0);
             assert_eq!(s::connect(fd, core::ptr::with_exposed_provenance(e.ai_addr), e.ai_addrlen), 0, "the entry's address connects");
-            liella_boundary::posix::s11_lowio::close(fd);
+            niji_boundary::posix::s11_lowio::close(fd);
         }
         at = e.ai_next;
     }
@@ -778,7 +778,7 @@ fn s16_2_g_0() {
     x::freeaddrinfo(core::ptr::null_mut());
     h.ai_flags = 0x800;
     assert_eq!(x::getaddrinfo(c"127.0.0.1".as_ptr(), port.as_ptr(), Some(&h), Some(&mut res)), gai::EAI_BADFLAGS);
-    liella_boundary::posix::s11_lowio::close(l);
+    niji_boundary::posix::s11_lowio::close(l);
 }
 
 // ------------------------------------------------------------------------------ §16.3
@@ -799,7 +799,7 @@ fn s16_3_c_0() {
     let multi = Ctx { multi: true, ..c };
     assert_eq!(host(netdb::host_by_name(&multi, b"beta", Family::V4)), ok("beta [b3] 192.0.2.2,192.0.2.3"), "multi on: every line");
     assert_eq!(host(netdb::host_by_name(&multi, b"gamma", Family::Any)), ok("gamma [gamma6] 2001:db8::10,192.0.2.4"));
-    assert!(liella_legacy::nss::multi_of(b"order hosts,bind\nmulti on\n") && !liella_legacy::nss::multi_of(b"multi off\n"));
+    assert!(niji_legacy::nss::multi_of(b"order hosts,bind\nmulti on\n") && !niji_legacy::nss::multi_of(b"multi off\n"));
     assert_eq!(host(netdb::host_by_addr(&c, Ip::V4([192, 0, 2, 3]))), ok("beta [b3] 192.0.2.3"));
     assert_eq!(host(netdb::host_by_addr(&c, Ip::V6(Ip::V4([192, 0, 2, 1]).to_v6()))), ok("alpha [alpha.example.org,a1] ::ffff:192.0.2.1"), "a mapped address");
     // Networks: right-aligned numbers, found both ways.
@@ -812,12 +812,12 @@ fn s16_3_c_0() {
         return;
     }
     let mut seen = Vec::new();
-    while let Some(l) = netdb::next_host(&c, |l| liella_legacy::cursors::Step::Take(format!("{} {:?}", String::from_utf8_lossy(l.name), l.addr.family()))).unwrap() {
+    while let Some(l) = netdb::next_host(&c, |l| niji_legacy::cursors::Step::Take(format!("{} {:?}", String::from_utf8_lossy(l.name), l.addr.family()))).unwrap() {
         seen.push(l);
     }
     assert_eq!(seen, ["localhost V4", "localhost V6", "alpha V4", "beta V4", "beta V4", "gamma V6", "gamma V4", " V4", "host.example.org V4"], "every line in its family");
     let mut nets = Vec::new();
-    while let Some(n) = netdb::next_net(&c, |n| liella_legacy::cursors::Step::Take(n.number)).unwrap() {
+    while let Some(n) = netdb::next_net(&c, |n| niji_legacy::cursors::Step::Take(n.number)).unwrap() {
         nets.push(n);
     }
     assert_eq!(nets, [0x7f, 0xc00002]);
@@ -825,8 +825,8 @@ fn s16_3_c_0() {
 
 #[test]
 fn s16_3_f_0() {
-    use liella_boundary::netdb as b;
-    use liella_boundary::posix::s16_nameservices as x;
+    use niji_boundary::netdb as b;
+    use niji_boundary::posix::s16_nameservices as x;
     assert_eq!(netdb::h_errno_of(LookupError::NotFound), (netdb::HOST_NOT_FOUND, None));
     assert_eq!(netdb::h_errno_of(LookupError::TryAgain), (netdb::TRY_AGAIN, None));
     assert_eq!(netdb::h_errno_of(LookupError::Unavailable), (netdb::NO_RECOVERY, None));
@@ -845,7 +845,7 @@ fn s16_3_f_0() {
     assert_eq!((there.1, b::h_errno()), (netdb::NO_DATA, netdb::TRY_AGAIN));
     // An argument the call cannot take: NETDB_INTERNAL with errno.
     assert!(x::gethostbyname2(c"localhost".as_ptr(), 99).is_null());
-    assert_eq!((b::h_errno(), liella_boundary::errno::get()), (netdb::NETDB_INTERNAL, Errno::EAFNOSUPPORT.get()));
+    assert_eq!((b::h_errno(), niji_boundary::errno::get()), (netdb::NETDB_INTERNAL, Errno::EAFNOSUPPORT.get()));
     // The messages.
     let text = |c: i32| String::from_utf8(msg::h_error(c).strip_suffix(b"\0").unwrap().to_vec()).unwrap();
     assert_eq!([1, 2, 3, 4].map(text), ["Unknown host", "Host name lookup failure", "Unknown server error", "No address associated with name"]);
@@ -1032,7 +1032,7 @@ fn s16_4_c_2() {
     let mut c = rconf(srv.port);
     // res_nsearch: names with fewer than ndots dots go through the search list first.
     for d in ["s1.test", "s2.test"] {
-        c.search.push(liella::mem::TryVec::from_slice(d.as_bytes()).unwrap()).unwrap();
+        c.search.push(niji::mem::TryVec::from_slice(d.as_bytes()).unwrap()).unwrap();
     }
     let mut ans = [0u8; 512];
     let n = resolv::nsearch(&CSys, &c, b"x", 1, 1, &mut ans, None).unwrap();
@@ -1091,7 +1091,7 @@ fn s16_4_c_3() {
     let mut owner = [0u8; 1025];
     let k = name::expand_text(r.owner(), &mut owner).unwrap();
     let rec = text::Record { owner: &owner[..k - 1], class: r.class, rtype: r.rtype, ttl: u64::from(r.ttl), rdata: r.data(&resp), rdata_at: r.rdata };
-    let mut out = liella::mem::TryVec::new();
+    let mut out = niji::mem::TryVec::new();
     text::sprintrr(&resp, &rec, None, None, &mut out).unwrap();
     assert_eq!(out.as_slice(), b"cname.test.\t\t5M IN CNAME\ta.test.");
     assert_eq!(dmsg::rr(&resp, &p, 1, 9).err(), Some(Errno::ENODEV), "an index out of range");
@@ -1206,7 +1206,7 @@ fn s16_4_g_4() {
     std::fs::remove_file(&path).unwrap();
     assert_ne!(f.generation(&CSys, p), g2, "a removed file");
     // A state records its generation; `no-reload` is an option it carries (the thread's `_res`
-    // is read again when its generation is old, unless it has the option: liella_boundary::resolv;
+    // is read again when its generation is old, unless it has the option: niji_boundary::resolv;
     // end to end in dns_products, scenarios reload and noreload).
     let c = RConf::parse(Some(b"options no-reload\n"), None, None, b"h", |_| None).unwrap();
     let mut b = [0u8; STATE_SIZE];
@@ -1244,14 +1244,14 @@ fn s16_5_c_0() {
     assert_eq!(netdb::serv_by_name(&c, b"ECHO", Some(b"tcp"), |_| ()), Err(LookupError::NotFound), "service names are case-sensitive");
     assert_eq!(netdb::serv_by_name(&c, b"badport", None, |_| ()), Err(LookupError::NotFound), "a port beyond 65535 is no entry");
     assert_eq!(netdb::serv_by_port(&c, 5000, None, |s| s.proto.to_vec()), Ok(b"udp".to_vec()));
-    assert_eq!(liella_boundary::netdb::port_of(i32::from(80u16.to_be())), 80, "getservbyport's network-order port");
+    assert_eq!(niji_boundary::netdb::port_of(i32::from(80u16.to_be())), 80, "getservbyport's network-order port");
     assert_eq!(netdb::proto_by_name(&c, b"Udp", |p| p.number), Ok(17), "protocol names ignore case");
     assert_eq!(netdb::proto_by_number(&c, 132, |p| p.name.to_vec()), Ok(b"sctp".to_vec()));
     assert_eq!(netdb::rpc_by_name(&c, b"sunrpc", |p| p.number), Ok(100000));
     assert_eq!(netdb::rpc_by_name(&c, b"PORTMAP", |p| p.number), Err(LookupError::NotFound));
     assert_eq!(netdb::rpc_by_number(&c, 100003, |p| p.name.to_vec()), Ok(b"nfs".to_vec()));
     // Netgroups: triples, nested groups, loops.
-    use liella_legacy::nss::{in_netgroup as inn, netgroup};
+    use niji_legacy::nss::{in_netgroup as inn, netgroup};
     assert!(inn(&c, b"trusted", Some(b"alpha"), Some(b"alice"), Some(b"EXAMPLE.org")));
     assert!(inn(&c, b"trusted", Some(b"BETA"), None, None), "hosts ignore case");
     assert!(!inn(&c, b"trusted", Some(b"beta"), Some(b"x"), None), "`-` matches no value");
@@ -1264,7 +1264,7 @@ fn s16_5_c_0() {
     assert_eq!(t.get(1).unwrap(), [Some(&b"beta"[..]), Some(&b"-"[..]), None]);
     assert_eq!(netgroup(&c, b"nonesuch").err(), Some(LookupError::NotFound));
     // The enumeration (a cursor of its own).
-    let cur = liella_legacy::nss::NetgroupCursor::new();
+    let cur = niji_legacy::nss::NetgroupCursor::new();
     assert!(cur.set(&c, b"trusted") && !cur.set(&c, b"nonesuch") && cur.set(&c, b"trusted"));
     let mut seen = Vec::new();
     while let Some(Some(h)) = cur.next(&c, |t| Some(t[0].map(<[u8]>::to_vec))).unwrap() {
@@ -1306,13 +1306,13 @@ fn rpc_corpus() -> String {
 #[test]
 fn rpc_malformed_line_corpus() {
     // Trace: no spec clause (the /etc/rpc line grammar is probe-settled; lookups are s16_5_c_0); LG-16.
-    use liella_legacy::cursors::{Step, RPC_CURSOR};
+    use niji_legacy::cursors::{Step, RPC_CURSOR};
     let fx = Fx::new("rpc");
     std::fs::write(fx.dir.join("rpc"), rpc_corpus()).unwrap();
     let c = fx.ctx(FILES);
     type Ent = (String, i32, Vec<String>);
     let s = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
-    let ent = |p: &liella::names::db::Numbered<'_, i32>| -> Ent { (s(p.name), p.number, p.aliases.clone().map(s).collect()) };
+    let ent = |p: &niji::names::db::Numbered<'_, i32>| -> Ent { (s(p.name), p.number, p.aliases.clone().map(s).collect()) };
     RPC_CURSOR.restart(&CSys, fx.paths.rpc).unwrap();
     let mut all: Vec<Ent> = Vec::new();
     while let Some(e) = netdb::next_rpc(&c, |p| Step::Take(ent(p))).unwrap() {
@@ -1367,7 +1367,7 @@ fn rpc_malformed_line_corpus() {
 /// names/numbers that must find nothing.
 fn rpc_last_line_without_newline() {
     // Trace: no spec clause (the /etc/rpc line grammar is probe-settled; lookups are s16_5_c_0); LG-16.
-    use liella_legacy::cursors::{Step, RPC_CURSOR};
+    use niji_legacy::cursors::{Step, RPC_CURSOR};
     type Case<'a> = (&'a str, &'a [(&'a str, i32, &'a [&'a str])], &'a [&'a str], &'a [i32]);
     let cases: [Case<'_>; 8] = [
         ("first 100100 f1\nlast 100101 l1 l2", &[("first", 100100, &["f1"]), ("last", 100101, &["l1", "l2"])], &[], &[]),
@@ -1412,17 +1412,17 @@ fn rpc_last_line_without_newline() {
 
 #[test]
 fn s16_5_f_0() {
-    use liella_boundary::posix::s16_nameservices as x;
+    use niji_boundary::posix::s16_nameservices as x;
     // Not found: NULL (errno unchanged), `_r`: 0 with a NULL result.
-    liella_boundary::errno::set_raw(0);
-    assert!(x::getservbyname(c"liella-no-such-service".as_ptr(), c"tcp".as_ptr()).is_null());
-    assert!(x::getprotobyname(c"liella-no-such-protocol".as_ptr()).is_null());
-    assert!(x::getrpcbyname(c"liella-no-such-program".as_ptr()).is_null());
-    assert_eq!(liella_boundary::errno::get(), 0);
+    niji_boundary::errno::set_raw(0);
+    assert!(x::getservbyname(c"niji-no-such-service".as_ptr(), c"tcp".as_ptr()).is_null());
+    assert!(x::getprotobyname(c"niji-no-such-protocol".as_ptr()).is_null());
+    assert!(x::getrpcbyname(c"niji-no-such-program".as_ptr()).is_null());
+    assert_eq!(niji_boundary::errno::get(), 0);
     let mut buf = [0u8; 256];
-    let mut out = liella_abi::layout::struct_protoent { p_name: 0, p_aliases: 0, p_proto: 0 };
+    let mut out = niji_abi::layout::struct_protoent { p_name: 0, p_aliases: 0, p_proto: 0 };
     let mut res = 1usize;
-    assert_eq!(x::getprotobyname_r(c"liella-no-such-protocol".as_ptr(), Some(&mut out), buf.as_mut_ptr().cast(), buf.len(), Some(&mut res)), 0);
+    assert_eq!(x::getprotobyname_r(c"niji-no-such-protocol".as_ptr(), Some(&mut out), buf.as_mut_ptr().cast(), buf.len(), Some(&mut res)), 0);
     assert_eq!(res, 0);
     // ERANGE while the buffer is too small, for an entry of the system's protocols file (read
     // by the test itself; nothing to check without one, or when the switch does not read it).
@@ -1451,7 +1451,7 @@ fn s16_5_f_0() {
 fn s16_6_c_0() {
     let fx = Fx::new("aliases");
     let c = fx.ctx(FILES);
-    let members = |n: &[u8]| liella_legacy::nss::alias(&c, n, |a| (a.name.to_vec(), a.members.iter().map(<[u8]>::to_vec).collect::<Vec<_>>()));
+    let members = |n: &[u8]| niji_legacy::nss::alias(&c, n, |a| (a.name.to_vec(), a.members.iter().map(<[u8]>::to_vec).collect::<Vec<_>>()));
     assert_eq!(members(b"ROOT"), Ok((b"root".to_vec(), vec![b"alice".to_vec(), b"bob".to_vec()])), "names ignore case; members trimmed");
     assert_eq!(members(b"multi"), Ok((b"multi".to_vec(), vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec()])), "continuation lines");
     assert_eq!(members(b"list"), Err(LookupError::NotFound), ":include: members are skipped; an entry without members is none");
@@ -1460,7 +1460,7 @@ fn s16_6_c_0() {
         return;
     }
     let mut seen = Vec::new();
-    while let Some(n) = netdb::next_alias(&c, |a| liella_legacy::cursors::Step::Take(a.name.to_vec())).unwrap() {
+    while let Some(n) = netdb::next_alias(&c, |a| niji_legacy::cursors::Step::Take(a.name.to_vec())).unwrap() {
         seen.push(n);
     }
     assert_eq!(seen, [b"postmaster".to_vec(), b"root".to_vec(), b"multi".to_vec()]);

@@ -18,8 +18,8 @@
 use core::ffi::{c_char, c_int, c_long, c_uint};
 use core::ptr;
 use libfuzzer_sys::fuzz_target;
-use liella_boundary::posix::s29_legacy as x;
-use liella_fuzz::Input;
+use niji_boundary::posix::s29_legacy as x;
+use niji_fuzz::Input;
 
 const ENCODE: c_int = 0;
 const DECODE: c_int = 1;
@@ -46,7 +46,7 @@ enum Val {
 
 fn stream(buf: &mut [u8], op: c_int) -> x::Xdr {
     let mut s = x::Xdr { x_op: 0, x_ops: ptr::null(), x_public: ptr::null_mut(), x_private: ptr::null_mut(), x_base: ptr::null_mut(), x_handy: 0 };
-    x::liella_compat_xdrmem_create(&mut s, buf.as_mut_ptr().cast(), c_uint::try_from(buf.len()).unwrap_or(0), op);
+    x::niji_compat_xdrmem_create(&mut s, buf.as_mut_ptr().cast(), c_uint::try_from(buf.len()).unwrap_or(0), op);
     s
 }
 
@@ -66,28 +66,28 @@ fn filter(s: &mut x::Xdr, code: u8, arg: u8, v: Option<&Val>) -> Option<Val> {
     }
     let max = c_uint::from(arg) * 7;
     match code % 15 {
-        0 => word!(x::liella_compat_xdr_int, Int, c_int),
-        1 => word!(x::liella_compat_xdr_u_int, UInt, c_uint),
-        2 => word!(x::liella_compat_xdr_long, Long, c_long),
-        3 => word!(x::liella_compat_xdr_u_long, ULong, u64),
-        4 => word!(x::liella_compat_xdr_short, Short, i16),
-        5 => word!(x::liella_compat_xdr_u_short, UShort, u16),
-        6 => word!(x::liella_compat_xdr_char, Char, c_char),
-        7 => word!(x::liella_compat_xdr_bool, Bool, c_int),
-        8 => word!(x::liella_compat_xdr_enum, Enum, c_int),
-        9 => word!(x::liella_compat_xdr_hyper, Hyper, i64),
+        0 => word!(x::niji_compat_xdr_int, Int, c_int),
+        1 => word!(x::niji_compat_xdr_u_int, UInt, c_uint),
+        2 => word!(x::niji_compat_xdr_long, Long, c_long),
+        3 => word!(x::niji_compat_xdr_u_long, ULong, u64),
+        4 => word!(x::niji_compat_xdr_short, Short, i16),
+        5 => word!(x::niji_compat_xdr_u_short, UShort, u16),
+        6 => word!(x::niji_compat_xdr_char, Char, c_char),
+        7 => word!(x::niji_compat_xdr_bool, Bool, c_int),
+        8 => word!(x::niji_compat_xdr_enum, Enum, c_int),
+        9 => word!(x::niji_compat_xdr_hyper, Hyper, i64),
         10 => {
             let mut f = match v { Some(Val::Float(b)) => f32::from_bits(*b), _ => 0.0 };
-            (x::liella_compat_xdr_float(s, &mut f) != 0).then(|| Val::Float(f.to_bits()))
+            (x::niji_compat_xdr_float(s, &mut f) != 0).then(|| Val::Float(f.to_bits()))
         }
         11 => {
             let mut d = match v { Some(Val::Double(b)) => f64::from_bits(*b), _ => 0.0 };
-            (x::liella_compat_xdr_double(s, &mut d) != 0).then(|| Val::Double(d.to_bits()))
+            (x::niji_compat_xdr_double(s, &mut d) != 0).then(|| Val::Double(d.to_bits()))
         }
         12 => {
             let n = usize::from(arg);
             let mut b = match v { Some(Val::Opaque(b)) => b.clone(), _ => vec![0; n] };
-            (x::liella_compat_xdr_opaque(s, b.as_mut_ptr().cast(), c_uint::from(arg)) != 0).then(|| Val::Opaque(b))
+            (x::niji_compat_xdr_opaque(s, b.as_mut_ptr().cast(), c_uint::from(arg)) != 0).then(|| Val::Opaque(b))
         }
         13 => {
             let (mut p, mut n, mut keep) = match v {
@@ -100,7 +100,7 @@ fn filter(s: &mut x::Xdr, code: u8, arg: u8, v: Option<&Val>) -> Option<Val> {
             if let Some(k) = keep.as_mut() {
                 p = k.as_mut_ptr().cast();
             }
-            let ok = x::liella_compat_xdr_bytes(s, &mut p, &mut n, max) != 0;
+            let ok = x::niji_compat_xdr_bytes(s, &mut p, &mut n, max) != 0;
             if !ok || keep.is_some() {
                 return ok.then(|| Val::Bytes(keep.unwrap_or_default()));
             }
@@ -110,7 +110,7 @@ fn filter(s: &mut x::Xdr, code: u8, arg: u8, v: Option<&Val>) -> Option<Val> {
                 unsafe { core::slice::from_raw_parts(p.cast::<u8>(), n as usize) }.to_vec()
             };
             let mut fs = x::Xdr { x_op: FREE, ..*s };
-            x::liella_compat_xdr_bytes(&mut fs, &mut p, &mut n, max);
+            x::niji_compat_xdr_bytes(&mut fs, &mut p, &mut n, max);
             Some(Val::Bytes(out))
         }
         _ => {
@@ -119,7 +119,7 @@ fn filter(s: &mut x::Xdr, code: u8, arg: u8, v: Option<&Val>) -> Option<Val> {
                 _ => None,
             };
             let mut p: *mut c_char = held.as_mut().map_or(ptr::null_mut(), |h| h.as_mut_ptr().cast());
-            let ok = x::liella_compat_xdr_string(s, &mut p, max) != 0;
+            let ok = x::niji_compat_xdr_string(s, &mut p, max) != 0;
             if !ok || held.is_some() {
                 return ok.then(|| Val::Str(v.map(|v| if let Val::Str(b) = v { b.clone() } else { Vec::new() }).unwrap_or_default()));
             }
@@ -128,7 +128,7 @@ fn filter(s: &mut x::Xdr, code: u8, arg: u8, v: Option<&Val>) -> Option<Val> {
             let out = unsafe { core::ffi::CStr::from_ptr(p) }.to_bytes().to_vec();
             assert!(out.len() as u64 <= u64::from(max), "xdr_string accepted {} bytes over maxsize {max}", out.len());
             let mut fs = x::Xdr { x_op: FREE, ..*s };
-            x::liella_compat_xdr_string(&mut fs, &mut p, max);
+            x::niji_compat_xdr_string(&mut fs, &mut p, max);
             Some(Val::Str(out))
         }
     }

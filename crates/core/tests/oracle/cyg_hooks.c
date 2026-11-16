@@ -1,5 +1,5 @@
 /* A -finstrument-functions program for tests/s28_profiling_clauses.rs (s28_1_c_4), built
- * statically against the host C library and against Liella's liella-crt1.o + libc.a. With
+ * statically against the host C library and against libniji's niji-crt1.o + libc.a. With
  * -DOWN_HOOKS it defines its own __cyg_profile_func_enter/_exit, which must link without a
  * duplicate definition and be the ones the instrumented code calls; without it the library's
  * hooks are called and must have no observable effect (errno kept, nothing printed). */

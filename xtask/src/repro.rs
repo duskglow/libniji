@@ -4,7 +4,7 @@
 //! The current tree's sources (everything but `target/`, `.git/` and `fuzz/target/`) are copied
 //! into two directories of different names and depths under `<base>` (default
 //! `<root>/target/repro`, on the role's own disk), the products are built in each with the `fast`
-//! profile (`--release`: the shipped `release` profile), and every file of `target/liella` is
+//! profile (`--release`: the shipped `release` profile), and every file of `target/niji` is
 //! compared:
 //! - byte-identical files are `SAME`;
 //! - ELF files (and the ELF members of `ar` archives) that differ only in `.symtab`/`.strtab`
@@ -24,7 +24,7 @@ use std::path::{Path, PathBuf};
 use crate::so::Profile;
 
 /// The file written into each copy; only a directory holding it is ever removed by this tool.
-const MARKER: &str = ".liella-repro-copy";
+const MARKER: &str = ".niji-repro-copy";
 
 /// Two copy names of different lengths and depths, so length- and depth-dependent output shows too.
 const COPIES: [&str; 2] = ["a", "second/tree-b"];
@@ -61,7 +61,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         fresh_copy(root, &copy)?;
         println!("repro: building the {} products in {}", profile.name(), copy.display());
         crate::so::run_so_as(&copy, profile).map_err(|e| format!("product build in {} failed: {e}", copy.display()))?;
-        built.push(copy.join("target/liella"));
+        built.push(copy.join("target/niji"));
     }
     let (lines, first) = compare_dirs(&built[0], &built[1])?;
     for l in &lines {
@@ -440,7 +440,7 @@ mod tests {
 
     #[test]
     fn archive_members_are_compared_by_section() {
-        let long = "liella_core-0123456789abcdef.liella_core.1-cgu.0.rcgu.o";
+        let long = "niji_core-0123456789abcdef.niji_core.1-cgu.0.rcgu.o";
         let same = obj(b"\x90", b"r", b"\0x\0");
         let a = ar(&[("one.o", &same), (long, &obj(b"\xc3", b"k", b"\0s.1\0"))]);
         assert_eq!(compare(&a, &a.clone()), Outcome::Same);
@@ -448,7 +448,7 @@ mod tests {
         assert_eq!(compare(&a, &b), Outcome::SameLoaded(vec![format!("{long}:.strtab")]));
         let c = ar(&[("one.o", &same), (long, &obj(b"\xc3", b"q", b"\0s.1\0"))]);
         assert_eq!(compare(&a, &c), Outcome::Differs(format!("member {long} section .rodata (contents)")));
-        let renamed = ar(&[("one.o", &same), ("liella_core-fedcba9876543210.liella_core.1-cgu.0.rcgu.o", &obj(b"\xc3", b"k", b"\0s.1\0"))]);
+        let renamed = ar(&[("one.o", &same), ("niji_core-fedcba9876543210.niji_core.1-cgu.0.rcgu.o", &obj(b"\xc3", b"k", b"\0s.1\0"))]);
         assert!(matches!(compare(&a, &renamed), Outcome::Differs(d) if d.contains("name")), "a renamed member (path-dependent hash) is caught");
         let fewer = ar(&[("one.o", &same)]);
         assert!(matches!(compare(&a, &fewer), Outcome::Differs(d) if d.contains("count")));
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn product_dirs_name_the_first_differing_file() {
-        let base = std::env::temp_dir().join(format!("liella-repro-test-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("niji-repro-test-{}", std::process::id()));
         let (a, b) = (base.join("a"), base.join("b"));
         let _ = fs::remove_dir_all(&base);
         fs::create_dir_all(&a).unwrap();
@@ -471,18 +471,18 @@ mod tests {
         assert_eq!(first.as_deref(), Some("libc.so.6: section .rodata (contents)"));
         assert!(lines.iter().any(|l| l == "libc.a SAME"), "{lines:?}");
         fs::write(b.join("libc.so.6"), obj(b"\x90", b"/w/a", b"\0x\0")).unwrap();
-        fs::write(b.join("liella-crt1.o"), b"x").unwrap();
+        fs::write(b.join("niji-crt1.o"), b"x").unwrap();
         let (_, first) = compare_dirs(&a, &b).unwrap();
-        assert_eq!(first.as_deref(), Some("liella-crt1.o: built in one directory only"));
+        assert_eq!(first.as_deref(), Some("niji-crt1.o: built in one directory only"));
         fs::remove_dir_all(&base).unwrap();
     }
 
     #[test]
     fn copies_skip_build_output_and_keep_foreign_directories() {
-        let base = std::env::temp_dir().join(format!("liella-repro-copy-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("niji-repro-copy-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         let root = base.join("tree");
-        for d in ["crates/core/src", "target/liella", ".git", "fuzz/target", "fuzz/src"] {
+        for d in ["crates/core/src", "target/niji", ".git", "fuzz/target", "fuzz/src"] {
             fs::create_dir_all(root.join(d)).unwrap();
         }
         fs::write(root.join("Cargo.toml"), "x").unwrap();

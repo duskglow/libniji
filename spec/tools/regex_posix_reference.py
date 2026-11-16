@@ -4,9 +4,9 @@ regex line of the patterns record where it differs from glibc.
 
 Owner ruling of 2026-10-03 (D-14.4, spec §14.9): submatch selection follows POSIX XBD 9.1 in every
 case, including the categories I1-I4 and E2 of spec/behaviour/regex-submatch-analysis.md where
-glibc differs, and Liella finds the matches glibc misses (O1). The products test
-(crates/core/tests/patterns_products.rs) and the clause tests compare Liella with glibc line by
-line; a regex line may differ only where this file gives the POSIX line, and then Liella must print
+glibc differs, and libniji finds the matches glibc misses (O1). The products test
+(crates/core/tests/patterns_products.rs) and the clause tests compare libniji with glibc line by
+line; a regex line may differ only where this file gives the POSIX line, and then libniji must print
 exactly that line.
 
 The reference is the "POSIX subpattern reading" of spec/tools/regex_submatch_hypothesis.py

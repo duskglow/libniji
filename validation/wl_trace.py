@@ -1,4 +1,4 @@
-# wl_trace.py: exact instruction split of ONE call of a function in a Liella-linked binary (gdb single-step).
+# wl_trace.py: exact instruction split of ONE call of a function in a libniji-linked binary (gdb single-step).
 # Run by wl_percall_run.sh (via wl_trace.sh): gdb -batch -nx -x wl_trace.py --args <pc> <case> <n> <dir>
 # Env: WL_TRACE_FUNC (symbol to break on), WL_TRACE_SKIP (hits to let pass first: warm caches, lazy init),
 # WL_TRACE_MAX (step limit). Steps from the function's entry until it returns (stack pointer above the entry

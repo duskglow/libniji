@@ -1,4 +1,4 @@
-//! The tables of the `double` Bessel fast tier (`liella_math::fast_bessel`: `j0`, `j1`, `y0`,
+//! The tables of the `double` Bessel fast tier (`niji_math::fast_bessel`: `j0`, `j1`, `y0`,
 //! `y1`), appended to `crates/math/src/coeffs/tables.rs` by `cargo xtask tables`.
 //!
 //! **Taylor tables** (`BESSEL_T`, `x` in `[2^-5, 32)`, 16 slots a binade, the slot geometry of

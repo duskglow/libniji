@@ -927,7 +927,7 @@ mod tests {
 
     /// The brief's sweep: 10^7 seeded operands over the four bands in the four modes, and the near
     /// multiples of π/2 at every exponent.
-    /// `cargo test --release -p liella-math --lib wide_int::quad -- --ignored`.
+    /// `cargo test --release -p niji-math --lib wide_int::quad -- --ignored`.
     #[test]
     #[ignore = "10^7 operands against the 384-bit route: cargo xtask long-sweeps runs it in release (nightly and release runs)"]
     fn tier_agrees_with_the_wide_route_long() {

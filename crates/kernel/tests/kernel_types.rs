@@ -4,16 +4,16 @@
 
 #![allow(clippy::arithmetic_side_effects, clippy::identity_op, clippy::drop_non_drop, clippy::bool_assert_comparison, clippy::erasing_op, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::panic, missing_docs)]
 
-use liella_kernel::errno::{Errno, MAX_ERRNO};
-use liella_kernel::mem::{KPtrArray, Region, RegionKind};
-use liella_kernel::path::{KPathBuf, KStr, KStrBuf, PATH_MAX};
-use liella_kernel::testing::Faulty;
-use liella_kernel::uapi::{PROT_READ, PROT_WRITE};
-use liella_kernel::{auxv, vdso};
+use niji_kernel::errno::{Errno, MAX_ERRNO};
+use niji_kernel::mem::{KPtrArray, Region, RegionKind};
+use niji_kernel::path::{KPathBuf, KStr, KStrBuf, PATH_MAX};
+use niji_kernel::testing::Faulty;
+use niji_kernel::uapi::{PROT_READ, PROT_WRITE};
+use niji_kernel::{auxv, vdso};
 
 #[test]
 fn errno_decode_boundaries() {
-    // Trace: no spec clause (decoding raw kernel results in liella_kernel::errno); X1, X3.
+    // Trace: no spec clause (decoding raw kernel results in niji_kernel::errno); X1, X3.
     assert_eq!(Errno::decode(-1), Err(Errno::EPERM));
     assert_eq!(Errno::decode(-(i64::from(MAX_ERRNO))).map_err(|e| e.get()), Err(i32::from(MAX_ERRNO)));
     // Numbers above the known table but inside the error range are still errors (EINVAL).
@@ -105,7 +105,7 @@ fn kpath_limits() {
 
 #[test]
 fn region_split_and_join() {
-    // Trace: no spec clause (Region ownership bookkeeping in liella-kernel); D-X.9.
+    // Trace: no spec clause (Region ownership bookkeeping in niji-kernel); D-X.9.
     let r = Region::__from_kernel(0x10000, 3 * 4096, PROT_READ | PROT_WRITE, RegionKind::AnonPrivate);
     assert!(r.is_plain_memory() && r.is_shared_words());
     let r = r.split_at(100).unwrap_err();
@@ -174,7 +174,7 @@ fn faulty_plans() {
 #[test]
 fn auxv_parsing() {
     // Clauses: s0_6_c0_8_2, s1_5_g_0 (D-X.3).
-    use liella_kernel::uapi::{AT_NULL, AT_PAGESZ, AT_UID};
+    use niji_kernel::uapi::{AT_NULL, AT_PAGESZ, AT_UID};
     let v = [AT_UID, 5, AT_PAGESZ, 4096, AT_NULL, 0, AT_UID, 9];
     let a = auxv::Auxv::from_words(&v);
     assert_eq!((a.len(), a.get(AT_UID), a.get(AT_PAGESZ), a.get(77)), (2, Some(5), Some(4096), None));
@@ -214,7 +214,7 @@ fn rseq_node_id_is_read_only_when_the_feature_size_covers_it() {
     // Trace: D-3.21 (no spec clause: the kernel's rseq ABI, AT_RSEQ_FEATURE_SIZE). The field ends
     // at byte 24 of the area: a kernel without the auxv entry (before Linux 6.3) or with a smaller
     // feature size does not fill it, and neither does a registration shorter than the field.
-    use liella_kernel::uapi::{Rseq, RSEQ_NODE_ID_END};
+    use niji_kernel::uapi::{Rseq, RSEQ_NODE_ID_END};
     assert_eq!(RSEQ_NODE_ID_END, 24);
     assert!(!Rseq::node_id_filled(None, 32), "no AT_RSEQ_FEATURE_SIZE: node_id is not the kernel's");
     assert!(!Rseq::node_id_filled(Some(0), 32));

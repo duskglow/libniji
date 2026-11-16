@@ -5,10 +5,10 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::mem::TryVec;
-use liella::users;
-use liella_fuzz::Input;
-use liella_legacy::nss_files::{self, Key};
+use niji::mem::TryVec;
+use niji::users;
+use niji_fuzz::Input;
+use niji_legacy::nss_files::{self, Key};
 
 fuzz_target!(|data: &[u8]| {
     let mut input = Input::new(data);

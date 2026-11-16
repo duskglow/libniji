@@ -1,5 +1,5 @@
 /* scanf end to end (spec §12.7; D-12.6, D-12.13): built against the host C library and against
- * Liella's products, the outputs must match line for line (scanf_products.rs). Each line is one
+ * libniji's products, the outputs must match line for line (scanf_products.rs). Each line is one
  * scan: the symbol set, the input, the format, the result, the bytes stored in each argument,
  * and for streams the position afterwards and the next character (what the scan left unread). */
 #define _GNU_SOURCE

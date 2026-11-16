@@ -17,10 +17,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::process::Command;
 
-use liella::locale::collate::{self, Collate, Collation};
-use liella::locale::ctype::{CtypeFile, Map};
-use liella::locale::file::Category;
-use liella::unicode;
+use niji::locale::collate::{self, Collate, Collation};
+use niji::locale::ctype::{CtypeFile, Map};
+use niji::locale::file::Category;
+use niji::unicode;
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -73,7 +73,7 @@ fn skip(why: &str) {
 
 /// The class names in the order of `<ctype.h>` bits (spec Appendix C.9), with their masks.
 fn standard_classes() -> [(&'static [u8], u16); 12] {
-    use liella::ctype::Class;
+    use niji::ctype::Class;
     [
         (b"upper", Class::UPPER.0), (b"lower", Class::LOWER.0), (b"alpha", Class::ALPHA.0), (b"digit", Class::DIGIT.0),
         (b"xdigit", Class::XDIGIT.0), (b"space", Class::SPACE.0), (b"print", Class::PRINT.0), (b"graph", Class::GRAPH.0),
@@ -561,9 +561,9 @@ fn fold_inputs() -> Vec<Vec<u8>> {
 fn ascii_case_flag_and_fast_folding_match_the_tables() {
     // Clauses: s5_3_c_0, s4_3_c_1 (PJ-23): the flag holds exactly when the byte and wide maps of
     // 0..127 are ASCII's, and the fast paths it enables give the table answers.
-    use liella::ctype::{self, Trans};
-    use liella::locale::file::Cat;
-    use liella::locale::{Data, Locale};
+    use niji::ctype::{self, Trans};
+    use niji::locale::file::Cat;
+    use niji::locale::{Data, Locale};
     let cases = [("en_US.UTF-8", true), ("de_DE.ISO-8859-1", true), ("tr_TR.UTF-8", false), ("tr_TR.ISO-8859-9", false)];
     let inputs = fold_inputs();
     for (name, expect) in cases {
@@ -595,7 +595,7 @@ fn ascii_case_flag_and_fast_folding_match_the_tables() {
         let table = |c: u8| u8::try_from(f.byte_map(i32::from(c), Map::Lower)).unwrap_or(c);
         for a in &inputs {
             for b in &inputs {
-                assert_eq!(ctype::compare_folded(a, b, loc), liella::bytes::compare_text_by(a, b, table), "{name}: {a:x?} vs {b:x?}");
+                assert_eq!(ctype::compare_folded(a, b, loc), niji::bytes::compare_text_by(a, b, table), "{name}: {a:x?} vs {b:x?}");
             }
         }
     }
@@ -604,14 +604,14 @@ fn ascii_case_flag_and_fast_folding_match_the_tables() {
 /// The system's locale files, read once and leaked (no `LOCPATH`).
 struct SystemFiles;
 
-impl liella::locale::Source for SystemFiles {
+impl niji::locale::Source for SystemFiles {
     fn file(&self, path: &[u8]) -> Option<&'static [u8]> {
         leak(Path::new(std::str::from_utf8(path).ok()?))
     }
     fn locpath(&self) -> Option<&[u8]> {
         None
     }
-    fn charmap(&self, _: &[u8]) -> Option<&'static liella::charmap::Charmap> {
+    fn charmap(&self, _: &[u8]) -> Option<&'static niji::charmap::Charmap> {
         None
     }
 }
@@ -621,8 +621,8 @@ fn find_cached_answers_every_category_as_find() {
     // Clauses: s7_1_c_0 (SETLOCALE-START): one cache shared by the twelve categories of a name, in
     // either order, gives `find`'s answer for each, and settles on the archive's record for a name
     // the archive holds (the later categories skip the name walk).
-    use liella::locale::file::Cat;
-    use liella::locale::{find, find_cached, Data, FindCache};
+    use niji::locale::file::Cat;
+    use niji::locale::{find, find_cached, Data, FindCache};
     assert!(Path::new("/usr/lib/locale/locale-archive").exists(), "the gate machines have a locale archive");
     let same = |a: &Option<Data>, b: &Option<Data>| match (a, b) {
         (Some(Data::File(x)), Some(Data::File(y))) => x.bytes().as_ptr() == y.bytes().as_ptr(),
@@ -651,9 +651,9 @@ struct AliasFiles {
     locpath: Option<&'static [u8]>,
 }
 
-impl liella::locale::Source for AliasFiles {
+impl niji::locale::Source for AliasFiles {
     fn file(&self, path: &[u8]) -> Option<&'static [u8]> {
-        if path == liella::locale::ALIAS_FILE {
+        if path == niji::locale::ALIAS_FILE {
             return Some(self.alias);
         }
         SystemFiles.file(path)
@@ -661,7 +661,7 @@ impl liella::locale::Source for AliasFiles {
     fn locpath(&self) -> Option<&[u8]> {
         self.locpath
     }
-    fn charmap(&self, _: &[u8]) -> Option<&'static liella::charmap::Charmap> {
+    fn charmap(&self, _: &[u8]) -> Option<&'static niji::charmap::Charmap> {
         None
     }
 }
@@ -673,8 +673,8 @@ fn locale_name_found_before_its_alias() {
     // name the archive (or a LOCPATH directory) holds is used as it is even when the alias file maps
     // it elsewhere, and the alias file is not consulted; a name found nowhere resolves through its
     // alias, in every category, with or without a shared cache.
-    use liella::locale::file::Cat;
-    use liella::locale::{find, find_cached, Data, FindCache};
+    use niji::locale::file::Cat;
+    use niji::locale::{find, find_cached, Data, FindCache};
     assert!(Path::new("/usr/lib/locale/locale-archive").exists(), "the gate machines have a locale archive");
     let ptr = |d: Option<Data>| match d {
         Some(Data::File(f)) => Some(f.bytes().as_ptr()),
@@ -712,7 +712,7 @@ fn ascii_case_run_compare_sees_every_entry() {
     // Clauses: s5_3_c_0, s4_3_c_1 (SETLOCALE-START): the run compare behind the ASCII case flag
     // proves en_US's wide maps ASCII's, refuses tr_TR's, and an expected value changed at any one
     // of the 128 characters is not proven (every entry is compared).
-    use liella::locale::table3::Table3;
+    use niji::locale::table3::Table3;
     let words = |upper: bool| -> Vec<u8> {
         (0..128u8)
             .flat_map(|b| {

@@ -1,4 +1,4 @@
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Sourced by wl_percall.sh and wl_count.sh (VALIDATION-JOBRUN, 2026-10-20): the tool runs ON the host where it is started
 # (a role directory ~/w/<role> under `~/bin/jobrun <label> count -- sh -c 'cd ~/w/<role> && validation/wl_percall.sh ...'`);
 # there is no ssh/scp/vm_run any more, remote dispatch is the caller's job. Needs: $here (the validation dir).

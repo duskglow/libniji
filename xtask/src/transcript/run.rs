@@ -1,4 +1,4 @@
-//! The runner: one side (reference or Liella) of one transcript in a private root of its own.
+//! The runner: one side (reference or libniji) of one transcript in a private root of its own.
 //!
 //! 1. The private root is a new directory under `$TMPDIR`; the `dir:`, `file:`, `link:` and `cache:` items are
 //!    created in it, and the tree is read (sorted, so no file system's directory order matters).
@@ -159,7 +159,7 @@ fn setup(t: &Transcript, root: &Path) -> Result<(), String> {
                 std::os::unix::fs::symlink(OsStr::from_bytes(&replace(target, ROOT_TOKEN, rootb)), &path).map_err(|e| format!("{}: {e}", path.display()))?;
             }
             Setup::Cache(p, generator, entries) => {
-                use liella_ld::cache;
+                use niji_ld::cache;
                 let mut rows: Vec<cache::Entry<'_>> = entries
                     .iter()
                     .enumerate()
@@ -309,7 +309,7 @@ pub(crate) fn elf32_image(soname: Option<&[u8]>, machine: u16) -> Vec<u8> {
 /// A written loader cache as text: one `0x<flags> <key> <path>[ hwcaps=<name>]` line per entry, in cache order,
 /// without the generator text (an identity string, Q3 of plan/utilities.md) or anything else of the layout.
 pub(crate) fn cache_text(bytes: &[u8]) -> Vec<u8> {
-    let Some(c) = liella_ld::cache::Cache::parse(bytes) else { return format!("not a loader cache ({} bytes)\n", bytes.len()).into_bytes() };
+    let Some(c) = niji_ld::cache::Cache::parse(bytes) else { return format!("not a loader cache ({} bytes)\n", bytes.len()).into_bytes() };
     let mut out = Vec::new();
     for i in 0..c.len() {
         let Some(e) = c.get(i) else {

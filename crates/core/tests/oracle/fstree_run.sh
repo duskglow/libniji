@@ -11,7 +11,7 @@
 # order, which several lines record, depends on it.
 #
 # Usage: fstree_run.sh PROGRAM SCRATCH
-# LIELLA_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phase too
+# NIJI_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phase too
 # (`nscache_mode.sh` runs the scripts with the cache on and off).
 set -eu
 prog=$1
@@ -23,4 +23,4 @@ trap 'chmod -R u+rwx "$dir" 2>/dev/null; rm -rf "$dir"' EXIT
 echo "stat -f -c %T: $(stat -f -c %T "$dir")"
 . "$(dirname "$0")/tscale.sh"
 timeout $((600 * TSCALE)) "$prog" "$dir"
-sudo -n env ${LIELLA_NSCACHE+"LIELLA_NSCACHE=$LIELLA_NSCACHE"} timeout $((300 * TSCALE)) unshare -m --propagation private sh -c 'mount -t tmpfs -o size=16m tmpfs "$1" && exec "$2" "$1" root' sh "$dir" "$prog"
+sudo -n env ${NIJI_NSCACHE+"NIJI_NSCACHE=$NIJI_NSCACHE"} timeout $((300 * TSCALE)) unshare -m --propagation private sh -c 'mount -t tmpfs -o size=16m tmpfs "$1" && exec "$2" "$1" root' sh "$dir" "$prog"

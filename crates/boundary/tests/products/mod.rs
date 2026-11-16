@@ -11,7 +11,7 @@ fn root() -> PathBuf {
 }
 
 fn require_products() {
-    let products = ["target/liella/libc.a", "target/liella/libc.so.6", "target/liella/liella-crt1.o", "target/liella/libm.a", "target/liella/libm.so.6"];
+    let products = ["target/niji/libc.a", "target/niji/libc.so.6", "target/niji/niji-crt1.o", "target/niji/libm.a", "target/niji/libm.so.6"];
     assert!(products.iter().all(|p| root().join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
 }
 
@@ -38,7 +38,7 @@ fn dynsym() -> &'static BTreeMap<String, BTreeSet<String>> {
     static TABLE: OnceLock<BTreeMap<String, BTreeSet<String>>> = OnceLock::new();
     TABLE.get_or_init(|| {
         require_products();
-        let o = std::process::Command::new("readelf").args(["--dyn-syms", "-W"]).arg(root().join("target/liella/libc.so.6")).output().expect("readelf");
+        let o = std::process::Command::new("readelf").args(["--dyn-syms", "-W"]).arg(root().join("target/niji/libc.so.6")).output().expect("readelf");
         let mut t: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         for line in String::from_utf8_lossy(&o.stdout).lines() {
             let f: Vec<&str> = line.split_whitespace().collect();
@@ -95,7 +95,7 @@ pub(crate) fn archived(name: &str) {
     static DEFINED: OnceLock<BTreeSet<String>> = OnceLock::new();
     let defined = DEFINED.get_or_init(|| {
         require_products();
-        let o = std::process::Command::new("nm").args(["-g", "--defined-only", "-P"]).arg(root().join("target/liella/libc.a")).output().expect("nm");
+        let o = std::process::Command::new("nm").args(["-g", "--defined-only", "-P"]).arg(root().join("target/niji/libc.a")).output().expect("nm");
         String::from_utf8_lossy(&o.stdout).lines().filter_map(|l| l.split_whitespace().next()).map(str::to_string).collect()
     });
     assert!(defined.contains(name), "{name} not defined in libc.a");
@@ -112,7 +112,7 @@ pub(crate) fn compat_only(name: &str) {
 /// non-default `VER` only; `libc.a` defines neither `sym` nor the alias `sym@VER` (R15-2, LG-1:
 /// the `.symver` stubs go into libc.so.6 alone, as glibc's archive has no compat versions); and
 /// a program that names `sym` cannot be linked statically. The logic behind it is tested
-/// in-process (`liella_compat_<sym>`).
+/// in-process (`niji_compat_<sym>`).
 pub(crate) fn compat_versioned(name: &str, ver: &str) {
     assert!(default_version(name).is_none(), "{name} has a default version: use exported()");
     let vers = dynsym().get(name).unwrap_or_else(|| panic!("{name} is not exported by libc.so.6"));
@@ -128,9 +128,9 @@ int main(void) {{ const long *volatile p = 0; return {name}(p); }}
 ")).expect("source");
     let out = std::process::Command::new("cc")
         .args(["-std=c17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-        .arg(root().join("target/liella/liella-crt1.o"))
+        .arg(root().join("target/niji/niji-crt1.o"))
         .arg(&src)
-        .arg(root().join("target/liella/libc.a"))
+        .arg(root().join("target/niji/libc.a"))
         .args(["-lgcc", "-o"])
         .arg(dir.join("t"))
         .output()
@@ -146,11 +146,11 @@ int main(void) {{ const long *volatile p = 0; return {name}(p); }}
 pub(crate) fn resolv_only(name: &str) {
     archived(name);
     assert!(!dynsym().contains_key(name), "{name} is libresolv's: not exported by libc.so.6");
-    assert!(root().join("target/liella/libresolv.a").exists(), "the libresolv.a placeholder is missing");
+    assert!(root().join("target/niji/libresolv.a").exists(), "the libresolv.a placeholder is missing");
 }
 
-/// A symbol `ld.so` owns (versions.tsv, R14-12, D-27.26): in `libc.a` for the programs Liella
-/// starts statically, local in `libc.so.6`, and exported by Liella's `ld.so` as its default
+/// A symbol `ld.so` owns (versions.tsv, R14-12, D-27.26): in `libc.a` for the programs libniji
+/// starts statically, local in `libc.so.6`, and exported by libniji's `ld.so` as its default
 /// version of the versions.tsv row.
 pub(crate) fn loader_owned(name: &str) {
     archived(name);
@@ -165,7 +165,7 @@ pub(crate) fn loader_owned(name: &str) {
 /// `name@VERSION` pairs of a product shared object's dynamic symbol table.
 fn dynsym_of(lib: &str) -> BTreeMap<String, BTreeSet<String>> {
     require_products();
-    let o = std::process::Command::new("readelf").args(["--dyn-syms", "-W"]).arg(root().join("target/liella").join(lib)).output().expect("readelf");
+    let o = std::process::Command::new("readelf").args(["--dyn-syms", "-W"]).arg(root().join("target/niji").join(lib)).output().expect("readelf");
     let mut t: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for line in String::from_utf8_lossy(&o.stdout).lines() {
         let f: Vec<&str> = line.split_whitespace().collect();
@@ -183,7 +183,7 @@ fn dynsym_of(lib: &str) -> BTreeMap<String, BTreeSet<String>> {
 /// The symbols an archive defines (strong or weak).
 fn defined_in(archive: &str) -> BTreeSet<String> {
     require_products();
-    let o = std::process::Command::new("nm").args(["-g", "--defined-only", "-P"]).arg(root().join("target/liella").join(archive)).output().expect("nm");
+    let o = std::process::Command::new("nm").args(["-g", "--defined-only", "-P"]).arg(root().join("target/niji").join(archive)).output().expect("nm");
     String::from_utf8_lossy(&o.stdout).lines().filter_map(|l| l.split_whitespace().next()).map(str::to_string).collect()
 }
 
@@ -260,14 +260,14 @@ pub(crate) fn math_family(base: &str) -> usize {
 /// The `readelf --dyn-syms` line of `name` in `libc.so.6` ("" when it is absent).
 pub(crate) fn dynsym_line(name: &str) -> String {
     require_products();
-    let o = std::process::Command::new("readelf").args(["--dyn-syms", "-W"]).arg(root().join("target/liella/libc.so.6")).output().expect("readelf");
+    let o = std::process::Command::new("readelf").args(["--dyn-syms", "-W"]).arg(root().join("target/niji/libc.so.6")).output().expect("readelf");
     String::from_utf8_lossy(&o.stdout).lines().find(|l| l.contains(&format!(" {name}@"))).map(str::to_string).unwrap_or_default()
 }
 
 /// A copy of `libc.so.6` in `dir` whose `DT_SONAME` tag is retagged `DT_CHECKSUM`, so a program
-/// linked against it names it by path: Liella's `ld.so` has no library search yet (#4537).
+/// linked against it names it by path: libniji's `ld.so` has no library search yet (#4537).
 fn libc_by_path(dir: &std::path::Path) -> PathBuf {
-    let mut so = std::fs::read(root().join("target/liella/libc.so.6")).expect("libc.so.6");
+    let mut so = std::fs::read(root().join("target/niji/libc.so.6")).expect("libc.so.6");
     let word = |so: &[u8], at: usize, n: usize| so.get(at..at.saturating_add(n)).map_or(0, |b| b.iter().rev().fold(0usize, |v, &x| v.wrapping_shl(8) | usize::from(x)));
     let (phoff, phentsize, phnum) = (word(&so, 0x20, 8), word(&so, 0x36, 2), word(&so, 0x38, 2));
     // PT_DYNAMIC (2): its file offset and size.
@@ -281,18 +281,18 @@ fn libc_by_path(dir: &std::path::Path) -> PathBuf {
     out
 }
 
-/// Liella's link-time archive, `target/liella/libc_nonshared.a` (D-27.28), by its canonical path.
-fn liella_nonshared() -> PathBuf {
-    root().join("target/liella/libc_nonshared.a").canonicalize().expect("target/liella/libc_nonshared.a is missing: run `cargo xtask so`")
+/// libniji's link-time archive, `target/niji/libc_nonshared.a` (D-27.28), by its canonical path.
+fn niji_nonshared() -> PathBuf {
+    root().join("target/niji/libc_nonshared.a").canonicalize().expect("target/niji/libc_nonshared.a is missing: run `cargo xtask so`")
 }
 
-/// The link map `map` (ld's `-Map`) loads Liella's `nonshared` archive and no host C library file
-/// (`libc.so.6`, `libc.so`, `libc_nonshared.a`, `libc.a` outside Liella's product directory and
+/// The link map `map` (ld's `-Map`) loads libniji's `nonshared` archive and no host C library file
+/// (`libc.so.6`, `libc.so`, `libc_nonshared.a`, `libc.a` outside libniji's product directory and
 /// the test's own `scratch` directory, which holds its `libc.so` script).
-fn assert_liella_libc_only(map: &str, nonshared: &std::path::Path, scratch: &std::path::Path, what: &str) {
+fn assert_niji_libc_only(map: &str, nonshared: &std::path::Path, scratch: &std::path::Path, what: &str) {
     let ours = nonshared.parent().expect("product directory");
     let loads: Vec<&str> = map.lines().filter_map(|l| l.strip_prefix("LOAD ")).map(str::trim).collect();
-    assert!(loads.iter().any(|p| std::path::Path::new(p) == nonshared), "{what}: Liella's {} is not on the link line: {loads:?}", nonshared.display());
+    assert!(loads.iter().any(|p| std::path::Path::new(p) == nonshared), "{what}: libniji's {} is not on the link line: {loads:?}", nonshared.display());
     let host: Vec<&&str> = loads
         .iter()
         .filter(|p| matches!(p.rsplit('/').next(), Some("libc.so.6" | "libc.so" | "libc_nonshared.a" | "libc.a")) && !std::path::Path::new(p).starts_with(ours) && !std::path::Path::new(p).starts_with(scratch))
@@ -308,7 +308,7 @@ fn needed_versions(obj: &std::path::Path) -> Vec<String> {
     needs.lines().filter_map(|l| l.split_once("Name: ")).filter_map(|(_, r)| r.split_whitespace().next()).map(str::to_string).collect()
 }
 
-/// A shared object built against Liella's `libc.so`: it registers handlers through the archive.
+/// A shared object built against libniji's `libc.so`: it registers handlers through the archive.
 const NONSHARED_LIB: &str = r#"#include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
 }
 "#;
 
-/// A program built against Liella's `libc.so`, run on the reference's C library.
+/// A program built against libniji's `libc.so`, run on the reference's C library.
 const NONSHARED_PROG: &str = r#"#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -367,17 +367,17 @@ int main(void) {
 }
 "#;
 
-/// D-27.28: Liella's `libc_nonshared.a` and installed `libc.so`, both ways. The script names bare
-/// files (no host path). A shared object and a program are linked with `-L target/liella -lc` only
-/// (the link maps show Liella's archive and no host C library file); they need only `GLIBC_*`
+/// D-27.28: libniji's `libc_nonshared.a` and installed `libc.so`, both ways. The script names bare
+/// files (no host path). A shared object and a program are linked with `-L target/niji -lc` only
+/// (the link maps show libniji's archive and no host C library file); they need only `GLIBC_*`
 /// versions, so they run on the reference: the program's handlers run, and the reference's
 /// `dlclose` of the shared object runs its `atexit` handler and drops its `at_quick_exit` and
 /// `pthread_atfork` handlers, as with the reference's own archive (spec/behaviour/dynlink.md).
 pub(crate) fn nonshared_two_way() {
     require_products();
-    let nonshared = liella_nonshared();
-    let liella = nonshared.parent().expect("product directory").to_path_buf();
-    let script = std::fs::read_to_string(liella.join("libc.so")).expect("target/liella/libc.so is missing: run `cargo xtask so`");
+    let nonshared = niji_nonshared();
+    let niji = nonshared.parent().expect("product directory").to_path_buf();
+    let script = std::fs::read_to_string(niji.join("libc.so")).expect("target/niji/libc.so is missing: run `cargo xtask so`");
     let group = script.lines().find(|l| l.starts_with("GROUP")).expect("the libc.so script has a GROUP");
     assert!(!group.contains('/'), "the installed libc.so names a path: {group}");
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("nonshared-{}", std::process::id()));
@@ -385,29 +385,29 @@ pub(crate) fn nonshared_two_way() {
     for (file, text) in [("lib.c", NONSHARED_LIB), ("main.c", NONSHARED_MAIN), ("prog.c", NONSHARED_PROG)] {
         std::fs::write(dir.join(file), text).expect("source");
     }
-    let against_liella = |extra: &[&str], src: &str, out: &str| {
+    let against_niji = |extra: &[&str], src: &str, out: &str| {
         let map = dir.join(format!("{out}.map"));
         let o = std::process::Command::new("cc")
             .args(["-std=c17", "-O1", "-nodefaultlibs"])
             .args(extra)
             .arg(dir.join(src))
-            .arg(format!("-L{}", liella.display()))
+            .arg(format!("-L{}", niji.display()))
             .args(["-lc", "-lgcc"])
             .arg(format!("-Wl,-Map={}", map.display()))
             .arg("-o")
             .arg(dir.join(out))
             .output()
             .expect("cc");
-        assert!(o.status.success(), "the link against Liella's libc.so failed ({out}): {}", String::from_utf8_lossy(&o.stderr));
-        assert_liella_libc_only(&std::fs::read_to_string(&map).expect("link map"), &nonshared, &dir, out);
+        assert!(o.status.success(), "the link against libniji's libc.so failed ({out}): {}", String::from_utf8_lossy(&o.stderr));
+        assert_niji_libc_only(&std::fs::read_to_string(&map).expect("link map"), &nonshared, &dir, out);
         let needs = needed_versions(&dir.join(out));
         assert!(!needs.is_empty() && needs.iter().all(|v| v.starts_with("GLIBC_")), "{out} references a version the reference does not export (two-way compatibility): {needs:?}");
         dir.join(out)
     };
-    let lib = against_liella(&["-shared", "-fPIC"], "lib.c", "libns.so");
-    let prog = against_liella(&[], "prog.c", "prog");
+    let lib = against_niji(&["-shared", "-fPIC"], "lib.c", "libns.so");
+    let prog = against_niji(&[], "prog.c", "prog");
     let o = std::process::Command::new(&prog).output().expect("run prog");
-    assert_eq!((o.status.code(), String::from_utf8_lossy(&o.stdout).to_string()), (Some(0), "prepare ran: 1\nexit handler ran\n".to_string()), "a program built against Liella, on the reference");
+    assert_eq!((o.status.code(), String::from_utf8_lossy(&o.stdout).to_string()), (Some(0), "prepare ran: 1\nexit handler ran\n".to_string()), "a program built against libniji, on the reference");
     let main = dir.join("main");
     let cc = std::process::Command::new("cc").args(["-std=c17", "-O1"]).arg(dir.join("main.c")).arg("-o").arg(&main).output().expect("cc");
     assert!(cc.status.success(), "main.c: {}", String::from_utf8_lossy(&cc.stderr));
@@ -425,16 +425,16 @@ fn needed_libs(obj: &std::path::Path) -> Vec<String> {
     text.lines().filter(|l| l.contains("(NEEDED)")).filter_map(|l| l.split_once('[')).filter_map(|(_, r)| r.split_once(']')).map(|(n, _)| n.to_string()).collect()
 }
 
-/// D-27.29 (ruling #4860): the opt-in's link-stub directory, `target/liella/liella-owner/`. A shared
-/// object and a program linked with `-L liella-owner -L target/liella -lc` bind `atexit`,
-/// `at_quick_exit` and `pthread_atfork` at `LIELLA_OWNER_1` (no `libc_nonshared.a` on the link line)
+/// D-27.29 (ruling #4860): the opt-in's link-stub directory, `target/niji/niji-owner/`. A shared
+/// object and a program linked with `-L niji-owner -L target/niji -lc` bind `atexit`,
+/// `at_quick_exit` and `pthread_atfork` at `NIJI_OWNER_1` (no `libc_nonshared.a` on the link line)
 /// and need `libc.so.6` once. On the reference, the program is refused at load with a message naming
 /// the node (probe P3, handoff/DL-NONSHARED-OPTOUT.md), never run with a handler unregistered.
 pub(crate) fn owner_opt_in() {
     require_products();
-    let liella = liella_nonshared().parent().expect("product directory").to_path_buf();
-    let owner = liella.join("liella-owner");
-    let script = std::fs::read_to_string(owner.join("libc.so")).expect("target/liella/liella-owner/libc.so is missing: run `cargo xtask so`");
+    let niji = niji_nonshared().parent().expect("product directory").to_path_buf();
+    let owner = niji.join("niji-owner");
+    let script = std::fs::read_to_string(owner.join("libc.so")).expect("target/niji/niji-owner/libc.so is missing: run `cargo xtask so`");
     let group = script.lines().find(|l| l.starts_with("GROUP")).expect("the opt-in's libc.so script has a GROUP");
     assert!(!group.contains('/') && !group.contains("nonshared"), "the opt-in's libc.so names a path or the archive: {group}");
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("owner-{}", std::process::id()));
@@ -449,7 +449,7 @@ pub(crate) fn owner_opt_in() {
             .args(extra)
             .arg(dir.join(src))
             .arg(format!("-L{}", owner.display()))
-            .arg(format!("-L{}", liella.display()))
+            .arg(format!("-L{}", niji.display()))
             .args(["-lc", "-lgcc"])
             .arg(format!("-Wl,-Map={}", map.display()))
             .arg("-o")
@@ -461,7 +461,7 @@ pub(crate) fn owner_opt_in() {
         let loads: Vec<&str> = map.lines().filter_map(|l| l.strip_prefix("LOAD ")).map(str::trim).collect();
         assert!(!loads.iter().any(|p| p.ends_with("libc_nonshared.a")), "{out}: the opted-in link loads an archive of stubs: {loads:?}");
         let obj = dir.join(out);
-        assert!(needed_versions(&obj).iter().any(|v| v == "LIELLA_OWNER_1"), "{out} does not need LIELLA_OWNER_1: {:?}", needed_versions(&obj));
+        assert!(needed_versions(&obj).iter().any(|v| v == "NIJI_OWNER_1"), "{out} does not need NIJI_OWNER_1: {:?}", needed_versions(&obj));
         assert_eq!(needed_libs(&obj).iter().filter(|n| n.as_str() == "libc.so.6").count(), 1, "{out} must need libc.so.6 once: {:?}", needed_libs(&obj));
         obj
     };
@@ -469,22 +469,22 @@ pub(crate) fn owner_opt_in() {
     let prog = opted(&[], "prog.c", "prog");
     let o = std::process::Command::new(&prog).output().expect("run prog");
     let err = String::from_utf8_lossy(&o.stderr).to_string();
-    assert!(!o.status.success() && o.stdout.is_empty() && err.contains("version `LIELLA_OWNER_1' not found"), "an opted-in program on the reference: {:?} {err:?}", o.status);
+    assert!(!o.status.success() && o.stdout.is_empty() && err.contains("version `NIJI_OWNER_1' not found"), "an opted-in program on the reference: {:?} {err:?}", o.status);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// D-27.29 (ruling #4861): the libc_nonshared.a notice, off by default. Liella's default archive
-/// carries neither notice section. Members built with `-DLIELLA_NONSHARED_NOTICE` (what
-/// `LIELLA_NONSHARED_NOTICE=1 cargo xtask so` passes) make the link editor warn about each
-/// registration taken from the archive, and Liella's `ld.so` with `LIELLA_LD_REPORT_NONSHARED=1`
+/// D-27.29 (ruling #4861): the libc_nonshared.a notice, off by default. libniji's default archive
+/// carries neither notice section. Members built with `-DNIJI_NONSHARED_NOTICE` (what
+/// `NIJI_NONSHARED_NOTICE=1 cargo xtask so` passes) make the link editor warn about each
+/// registration taken from the archive, and libniji's `ld.so` with `NIJI_LD_REPORT_NONSHARED=1`
 /// names each module carrying the note, at start and at `dlopen`, and no other module. Without
 /// the setting it prints nothing, and the program runs the same either way.
 pub(crate) fn nonshared_notice() {
     require_products();
-    let nonshared = liella_nonshared();
+    let nonshared = niji_nonshared();
     let o = std::process::Command::new("readelf").arg("-SW").arg(&nonshared).output().expect("readelf");
     let sections = String::from_utf8_lossy(&o.stdout).to_string();
-    assert!(o.status.success() && !sections.contains(".note.liella.nonshared") && !sections.contains(".gnu.warning."), "the default libc_nonshared.a carries a notice section");
+    assert!(o.status.success() && !sections.contains(".note.niji.nonshared") && !sections.contains(".gnu.warning."), "the default libc_nonshared.a carries a notice section");
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("notice-{}", std::process::id()));
     let notice = dir.join("notice");
     std::fs::create_dir_all(&notice).expect("scratch");
@@ -494,7 +494,7 @@ pub(crate) fn nonshared_notice() {
         let obj = notice.join(format!("{m}.o"));
         let cc = std::process::Command::new("cc")
             .current_dir(&src)
-            .args(["-c", "-std=c17", "-O2", "-fPIC", "-fno-stack-protector", "-ffreestanding", "-Wall", "-Werror", "-DLIELLA_NONSHARED_NOTICE"])
+            .args(["-c", "-std=c17", "-O2", "-fPIC", "-fno-stack-protector", "-ffreestanding", "-Wall", "-Werror", "-DNIJI_NONSHARED_NOTICE"])
             .arg(format!("{m}.c"))
             .arg("-o")
             .arg(&obj)
@@ -505,7 +505,7 @@ pub(crate) fn nonshared_notice() {
     }
     let archive = notice.join("libc_nonshared.a");
     assert!(std::process::Command::new("ar").arg("rcsD").arg(&archive).args(&members).status().expect("ar").success(), "ar");
-    let (ld, default_script) = liella_link_script(&dir);
+    let (ld, default_script) = niji_link_script(&dir);
     let script = notice.join("libc.so");
     std::fs::write(&script, format!("GROUP ( {} {} AS_NEEDED ( {} ) )\n", libc_by_path(&dir).display(), archive.display(), ld.display())).expect("notice libc.so script");
     for (file, text) in [("lib.c", NONSHARED_LIB), ("main.c", NONSHARED_MAIN), ("prog.c", NONSHARED_PROG)] {
@@ -535,15 +535,15 @@ pub(crate) fn nonshared_notice() {
     let report = "registers exit or fork handlers through libc_nonshared.a";
     let run = |exe: &std::path::Path, args: &[&std::path::Path], on: bool| {
         let mut c = std::process::Command::new(exe);
-        c.args(args).env_remove("LIELLA_LD_REPORT_NONSHARED");
+        c.args(args).env_remove("NIJI_LD_REPORT_NONSHARED");
         if on {
-            c.env("LIELLA_LD_REPORT_NONSHARED", "1");
+            c.env("NIJI_LD_REPORT_NONSHARED", "1");
         }
         let o = c.output().expect("run");
         (o.status.code(), String::from_utf8_lossy(&o.stdout).to_string(), String::from_utf8_lossy(&o.stderr).to_string())
     };
     let (code, out, err) = run(&prog, &[], true);
-    assert_eq!((code, out.as_str()), (Some(0), "prepare ran: 1\nexit handler ran\n"), "the noticed program under Liella: {err:?}");
+    assert_eq!((code, out.as_str()), (Some(0), "prepare ran: 1\nexit handler ran\n"), "the noticed program under libniji: {err:?}");
     assert_eq!(err.matches(report).count(), 1, "start: the report must name the program once: {err:?}");
     assert!(err.contains(&format!("prog: {report}")), "start: the report does not name the program: {err:?}");
     let (code, _, err) = run(&prog, &[], false);
@@ -554,35 +554,35 @@ pub(crate) fn nonshared_notice() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Liella's `ld.so` and a `libc.so` linker script in `dir` for linking against Liella's
-/// `libc.so.6` by path, the way an installed `libc.so` script does: the C library, Liella's link-time
+/// libniji's `ld.so` and a `libc.so` linker script in `dir` for linking against libniji's
+/// `libc.so.6` by path, the way an installed `libc.so` script does: the C library, libniji's link-time
 /// archive (D-27.28), and the loader for the symbols the ABI places in it (`__libc_stack_end`,
 /// `__tls_get_addr`; R14-12), as needed. Link with `-nodefaultlibs`, the script and `-lgcc`.
-pub(crate) fn liella_link_script(dir: &std::path::Path) -> (PathBuf, PathBuf) {
+pub(crate) fn niji_link_script(dir: &std::path::Path) -> (PathBuf, PathBuf) {
     require_products();
-    let ld = root().join("target/liella/ld-linux-x86-64.so.2");
+    let ld = root().join("target/niji/ld-linux-x86-64.so.2");
     assert!(ld.exists(), "{} is missing: run `cargo xtask so`", ld.display());
     let libc = dir.join("libc.so");
-    std::fs::write(&libc, format!("GROUP ( {} {} AS_NEEDED ( {} ) )\n", libc_by_path(dir).display(), liella_nonshared().display(), ld.display())).expect("libc.so script");
+    std::fs::write(&libc, format!("GROUP ( {} {} AS_NEEDED ( {} ) )\n", libc_by_path(dir).display(), niji_nonshared().display(), ld.display())).expect("libc.so script");
     (ld, libc)
 }
 
 /// Self-checking conformance programs linked dynamically by the host's compiler: run on the
 /// host's glibc (the oracle), then the same source linked with the host's start files against
-/// Liella's `libc.so.6` (by path, through a `libc.so` script) with Liella's `ld.so` as its
+/// libniji's `libc.so.6` (by path, through a `libc.so` script) with libniji's `ld.so` as its
 /// interpreter (design §14, D-27.24; #814): each must exit 0 both ways. The link-time archive
 /// `libc_nonshared.a` (`atexit`, `at_quick_exit`, `pthread_atfork`: not in `libc.so.6`'s ABI) is
-/// Liella's (D-27.28), and the link map shows no host C library file on the link line (the start
+/// libniji's (D-27.28), and the link map shows no host C library file on the link line (the start
 /// files `crt1.o`, `crti.o`, `crtn.o` and the compiler's are still the host's). No other shared C library
-/// is named and the loader has no search, so the library that runs is Liella's. A program's `RUN-ARGS`, `RUN-ENV` (distinct
+/// is named and the loader has no search, so the library that runs is libniji's. A program's `RUN-ARGS`, `RUN-ENV` (distinct
 /// names) and `EXPECT-EXIT` directives apply as in `conformance/run.sh`; any other directive is
 /// refused, so a program that needs one is never run here without it.
 pub(crate) fn conformance_dynamic(names: &[&str]) {
     require_products();
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("dynamic-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("scratch");
-    let (ld, libc) = liella_link_script(&dir);
-    let nonshared = liella_nonshared();
+    let (ld, libc) = niji_link_script(&dir);
+    let nonshared = niji_nonshared();
     for name in names {
         let src = root().join(format!("conformance/c/{name}.c"));
         let text = std::fs::read_to_string(&src).expect("conformance source");
@@ -602,13 +602,13 @@ pub(crate) fn conformance_dynamic(names: &[&str]) {
         assert!(cc.status.success(), "{name}: {}", String::from_utf8_lossy(&cc.stderr));
         let o = run(&exe);
         assert_eq!(o.status.code(), Some(want), "{name} dynamic on glibc: {:?} {}", o.status, String::from_utf8_lossy(&o.stderr));
-        let exe = dir.join(format!("{name}-liella"));
+        let exe = dir.join(format!("{name}-niji"));
         let map = dir.join(format!("{name}.map"));
         let cc = std::process::Command::new("cc").args(["-std=c17", "-O1", "-nodefaultlibs"]).arg(format!("-Wl,--dynamic-linker={}", ld.display())).arg(format!("-Wl,-Map={}", map.display())).arg(&src).arg(&libc).arg("-lgcc").arg("-o").arg(&exe).output().expect("cc");
-        assert!(cc.status.success(), "{name} against Liella's libc.so.6: {}", String::from_utf8_lossy(&cc.stderr));
-        assert_liella_libc_only(&std::fs::read_to_string(&map).expect("link map"), &nonshared, &dir, name);
+        assert!(cc.status.success(), "{name} against libniji's libc.so.6: {}", String::from_utf8_lossy(&cc.stderr));
+        assert_niji_libc_only(&std::fs::read_to_string(&map).expect("link map"), &nonshared, &dir, name);
         let o = run(&exe);
-        assert_eq!(o.status.code(), Some(want), "{name} dynamic on Liella: {:?} {}", o.status, String::from_utf8_lossy(&o.stderr));
+        assert_eq!(o.status.code(), Some(want), "{name} dynamic on libniji: {:?} {}", o.status, String::from_utf8_lossy(&o.stderr));
     }
     let _ = std::fs::remove_dir_all(&dir);
 }

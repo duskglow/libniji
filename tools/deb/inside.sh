@@ -2,10 +2,10 @@
 # tools/deb/inside.sh SUITE: the part of tools/deb/proof.sh that runs inside the chroot, as root
 # there (an unprivileged user namespace outside). Prints "proof: PASS|FAIL|WAIT|INFO <what>" lines
 # and "proof: RESULT ..."; always exits 0 (proof.sh judges the lines).
-# WAIT: a step that needs loader work still landing: a dynamic program stops in Liella's loader
+# WAIT: a step that needs loader work still landing: a dynamic program stops in libniji's loader
 # with "the library search is not available in this build" (the start-time search for DT_NEEDED
 # names), or a program cannot link because libc.so.6 does not export dlsym/dlclose yet (DL-16b,
-# DL-17). KNOWN: a labelled Liella defect with its own story (the C++ runtime's "C" locale:
+# DL-17). KNOWN: a labelled libniji defect with its own story (the C++ runtime's "C" locale:
 # newlocale refuses the mask 1<<LC_ALL). Both turn into PASS by themselves once fixed; neither
 # counts as FAIL.
 set -u
@@ -20,7 +20,7 @@ wait_() { echo "proof: WAIT $*"; nwait=$((nwait + 1)); }
 known() { echo "proof: KNOWN $*"; nknown=$((nknown + 1)); }
 knownmsg='_S_create_c_locale name not valid'
 info() { echo "proof: INFO $*"; }
-sysroot=/usr/lib/liella
+sysroot=/usr/lib/niji
 interp=$sysroot/lib64/ld-linux-x86-64.so.2
 lib=$sysroot/usr/lib/x86_64-linux-gnu
 waitmsg='the library search is not available in this build'
@@ -34,7 +34,7 @@ snapshot() {
 host_programs() {
     if ls / > /dev/null && dpkg --version > /dev/null && gcc -O1 smoke/hello.c -o "hello-glibc-$1" &&
         [ "$(readelf -lW "hello-glibc-$1" | sed -n 's/.*interpreter: \(.*\)\]$/\1/p')" = /lib64/ld-linux-x86-64.so.2 ] &&
-        [ "$("./hello-glibc-$1")" = "hello from liella" ] && perl -e 'exit 0'; then
+        [ "$("./hello-glibc-$1")" = "hello from niji" ] && perl -e 'exit 0'; then
         pass "system programs run ($1): ls, dpkg, perl, a gcc-built program on /lib64/ld-linux-x86-64.so.2"
     else
         fail "system programs ($1)"
@@ -56,7 +56,7 @@ run() {
     elif grep -q -F "$waitmsg" "$name.err"; then
         wait_ "$name (rc $rc; loader: $(head -1 "$name.err"))"
     elif grep -q -F "$knownmsg" "$name.err"; then
-        known "$name (rc $rc: $(grep -F "$knownmsg" "$name.err" | head -1); newlocale(1<<LC_ALL, \"C\", 0) fails on Liella)"
+        known "$name (rc $rc: $(grep -F "$knownmsg" "$name.err" | head -1); newlocale(1<<LC_ALL, \"C\", 0) fails on libniji)"
     else
         fail "$name rc $rc: $(head -c 300 "$name.out" "$name.err" | tr '\n' ' ')"
     fi
@@ -71,15 +71,15 @@ host_programs before
 verify_libc before
 
 # Install.
-if dpkg -i debs/liella6_*.deb debs/liella6-dev_*.deb > install.log 2>&1; then
+if dpkg -i debs/niji6_*.deb debs/niji6-dev_*.deb > install.log 2>&1; then
     pass "install: $(ls debs | tr '\n' ' ')"
 else
     fail "install: $(tail -5 install.log | tr '\n' ' ')"
 fi
-info "installed files: $(dpkg -L liella6 liella6-dev | wc -l)"
+info "installed files: $(dpkg -L niji6 niji6-dev | wc -l)"
 
-# The loader's layout: Liella's sonames resolve inside the sysroot (ld.so --list).
-liella-gcc -O1 smoke/hello.c -o hello > build.log 2>&1 || fail "build hello: $(tail -3 build.log | tr '\n' ' ')"
+# The loader's layout: libniji's sonames resolve inside the sysroot (ld.so --list).
+niji-gcc -O1 smoke/hello.c -o hello > build.log 2>&1 || fail "build hello: $(tail -3 build.log | tr '\n' ' ')"
 got=$(readelf -lW hello | sed -n 's/.*interpreter: \(.*\)\]$/\1/p')
 [ "$got" = "$interp" ] && pass "hello's interpreter is $interp" || fail "hello's interpreter is '$got'"
 list=$("$interp" --list ./hello 2>&1)
@@ -90,24 +90,24 @@ else
 fi
 
 # Dynamic smoke programs.
-run hello "hello from liella" ./hello
-liella-gcc -O1 smoke/threads.c -o threads >> build.log 2>&1 && run threads "threads: total 40000" ./threads || fail "build threads"
-if ! liella-gcc -O1 -shared -fPIC smoke/plugin.c -o libplugin.so > plugin.log 2>&1; then
+run hello "hello from niji" ./hello
+niji-gcc -O1 smoke/threads.c -o threads >> build.log 2>&1 && run threads "threads: total 40000" ./threads || fail "build threads"
+if ! niji-gcc -O1 -shared -fPIC smoke/plugin.c -o libplugin.so > plugin.log 2>&1; then
     fail "build plugin: $(tail -3 plugin.log | tr '\n' ' ')"
-elif liella-gcc -O1 smoke/dlopen.c -o dlopen > dlopen.log 2>&1; then
+elif niji-gcc -O1 smoke/dlopen.c -o dlopen > dlopen.log 2>&1; then
     run dlopen "plugin_answer(20) = 41" ./dlopen ./libplugin.so
 elif grep -q -E "undefined reference to .(dlsym|dlclose)'" dlopen.log; then
     wait_ "dlopen (does not link: $(grep -o -E "undefined reference to .(dlsym|dlclose)'" dlopen.log | sort -u | tr '\n' ' ')- libc.so.6 does not export them yet)"
 else
     fail "build dlopen: $(tail -3 dlopen.log | tr '\n' ' ')"
 fi
-liella-g++ -O1 smoke/except.cc -o except >> build.log 2>&1 && run except "except: caught" ./except || fail "build except"
-liella-g++ -O1 smoke/iostream.cc -o iostream >> build.log 2>&1 && run iostream "iostream: 42" ./iostream || fail "build iostream"
+niji-g++ -O1 smoke/except.cc -o except >> build.log 2>&1 && run except "except: caught" ./except || fail "build except"
+niji-g++ -O1 smoke/iostream.cc -o iostream >> build.log 2>&1 && run iostream "iostream: 42" ./iostream || fail "build iostream"
 # Static smoke programs (libc.a; no interpreter).
-liella-gcc -O1 -static smoke/hello.c -o hello-static >> build.log 2>&1 && run hello-static "hello from liella" ./hello-static || fail "build hello-static"
-liella-gcc -O1 -static smoke/threads.c -o threads-static >> build.log 2>&1 && run threads-static "threads: total 40000" ./threads-static || fail "build threads-static"
-liella-g++ -O1 -static smoke/except.cc -o except-static >> build.log 2>&1 && run except-static "except: caught" ./except-static || fail "build except-static"
-liella-g++ -O1 -static smoke/iostream.cc -o iostream-static >> build.log 2>&1 && run iostream-static "iostream: 42" ./iostream-static || fail "build iostream-static"
+niji-gcc -O1 -static smoke/hello.c -o hello-static >> build.log 2>&1 && run hello-static "hello from niji" ./hello-static || fail "build hello-static"
+niji-gcc -O1 -static smoke/threads.c -o threads-static >> build.log 2>&1 && run threads-static "threads: total 40000" ./threads-static || fail "build threads-static"
+niji-g++ -O1 -static smoke/except.cc -o except-static >> build.log 2>&1 && run except-static "except: caught" ./except-static || fail "build except-static"
+niji-g++ -O1 -static smoke/iostream.cc -o iostream-static >> build.log 2>&1 && run iostream-static "iostream: 42" ./iostream-static || fail "build iostream-static"
 
 host_programs installed
 verify_libc installed
@@ -120,7 +120,7 @@ if command -v lintian > /dev/null; then
 fi
 
 # Purge: nothing left.
-if dpkg --purge liella6-dev liella6 > purge.log 2>&1; then pass "purge"; else fail "purge: $(tail -3 purge.log | tr '\n' ' ')"; fi
+if dpkg --purge niji6-dev niji6 > purge.log 2>&1; then pass "purge"; else fail "purge: $(tail -3 purge.log | tr '\n' ' ')"; fi
 snapshot after
 if diff before after > leftover.diff; then
     pass "after purge the file list equals the one before install"

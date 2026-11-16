@@ -1,12 +1,12 @@
 //! POSIX asynchronous I/O end to end (spec §11.11; D-11.8): `tests/oracle/aio_diff.c` built
-//! against the host C library and statically against Liella's products, each run by
-//! `tests/oracle/aio_run.sh` in a scratch directory under `target/`. Liella runs on its io_uring
+//! against the host C library and statically against libniji's products, each run by
+//! `tests/oracle/aio_run.sh` in a scratch directory under `target/`. libniji runs on its io_uring
 //! engine and on its worker engine (the run started under `tests/oracle/aio_noring.c`: a seccomp
 //! filter refusing `io_uring_setup` with `EPERM` or `ENOSYS`, as restricted systems refuse it, or
-//! one allowing everything; under any filter Liella takes the workers without trying io_uring,
+//! one allowing everything; under any filter libniji takes the workers without trying io_uring,
 //! D-11.11), with the name-service cache on and off (`nscache_mode.sh`, D-16.10). The
 //! outputs must be identical line by line, except the recorded differences: [`KNOWN`] (a line
-//! that differs), [`ADDED`] (a line only Liella prints) and [`DROPPED`] (a line only the reference
+//! that differs), [`ADDED`] (a line only libniji prints) and [`DROPPED`] (a line only the reference
 //! prints). Every entry names the case it belongs to: the text of the last `== ` or `-- ` header
 //! line before it starts with the entry's first string, so a line repeated in many cases is
 //! recorded only where it differs.
@@ -33,12 +33,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/aio_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -74,7 +74,7 @@ const KNOWN: [(&str, &str, &str); 11] = [
     ("== close with requests pending", "  B: submit=0 error=EBADF", CLOSE),
 ];
 
-/// Lines only Liella prints: the case, the text the line starts with, and why (the first such
+/// Lines only libniji prints: the case, the text the line starts with, and why (the first such
 /// line of the case is taken; a repeated entry takes the next one).
 const ADDED: [(&str, &str, &str); 8] = [
     ("== lio_listio long list", "lio_listio(LIO_WAIT, 1048576 NULL entries): 0 errno=-", LONG),
@@ -165,7 +165,7 @@ fn aio_equals_the_reference_allow_off() {
 fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
     // Clauses: s11_11_c_0, s11_11_g_0, s11_11_f_0 (D-11.8, D-11.11, D-16.10).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -176,7 +176,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours, noring) = (dir.join(format!("aio_diff_host_{tag}")), dir.join(format!("aio_diff_liella_{tag}")), dir.join(format!("aio_noring_{tag}")));
+    let (host, ours, noring) = (dir.join(format!("aio_diff_host_{tag}")), dir.join(format!("aio_diff_niji_{tag}")), dir.join(format!("aio_noring_{tag}")));
     assert!(build(&host, false), "aio_diff.c does not build against the host C library");
     assert!(build(&ours, true), "aio_diff.c does not link against the products");
     let mut cc = Command::new("cc");
@@ -187,7 +187,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
     // The probe's scratch files on tmpfs (GATE-FSYNC-2): its aio_fsync calls on a file under
     // target/ waited for the journal and a parallel build's dirty pages (these tests took up to
     // 258 s under gate load). The output names no path (`<dir>` only) and no file-system
-    // property, and the reference runs on the same file system as Liella. The Liella runs start
+    // property, and the reference runs on the same file system as libniji. The libniji runs start
     // in a mount namespace with a private /dev/shm (nscache_mode.sh), so their directory is
     // created there and goes with it; the reference's is removed with the guard.
     let shm = Path::new("/dev/shm");
@@ -215,7 +215,7 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
     }
     let want = without(with_headers(&reference), &DROPPED, "the reference");
     eprintln!("engine: {engine}; name-service cache {mode}");
-    let got = run(&ours, &format!("aio-liella-{tag}-{mode}"), Some(mode), refuse);
+    let got = run(&ours, &format!("aio-niji-{tag}-{mode}"), Some(mode), refuse);
     // A section killed by its own alarm on one side only is load, not a difference: say so before the line counts.
     let alarmed = |v: &[(String, String)]| -> Vec<String> {
         let mut a: Vec<String> = v.iter().filter(|(_, l)| l.starts_with("-- end ") && l.ends_with(": killed by SIGALRM")).map(|(_, l)| l.clone()).collect();
@@ -226,30 +226,30 @@ fn check(tag: &str, engine: &str, refuse: Option<&str>, mode: &str) {
     if aw != ag {
         let (side, line) = match aw.iter().find(|l| !ag.contains(l)) {
             Some(l) => ("the glibc reference", l),
-            None => ("Liella", ag.iter().find(|l| !aw.contains(l)).or(aw.first()).or(ag.first()).expect("the lists differ, so one is not empty")),
+            None => ("libniji", ag.iter().find(|l| !aw.contains(l)).or(aw.first()).or(ag.first()).expect("the lists differ, so one is not empty")),
         };
         panic!("section alarm: {side} ({engine}) has {line:?}: killed by its section alarm (load?) - rerun");
     }
-    let got = without(with_headers(&got), &ADDED, "Liella");
+    let got = without(with_headers(&got), &ADDED, "libniji");
     let mut diffs = 0;
     let mut seen = vec![false; KNOWN.len()];
     for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
         if let Some(i) = KNOWN.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
             }
             continue;
         }
         if w != g {
             diffs += 1;
             if diffs <= 40 {
-                eprintln!("line {} ({}):\n  glibc  {w}\n  liella {g}", k + 1, h.trim_end());
+                eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
             }
         }
     }
     let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-    assert_eq!(want.len(), got.len(), "line counts differ ({engine}):\n--- glibc\n{}\n--- liella\n{}", text(&want), text(&got));
+    assert_eq!(want.len(), got.len(), "line counts differ ({engine}):\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
     assert_eq!(diffs, 0, "lines that differ from the reference ({engine})");
     for (i, s) in seen.iter().enumerate() {
         assert!(s, "recorded difference no longer seen ({engine}): {:?}", KNOWN[i]);

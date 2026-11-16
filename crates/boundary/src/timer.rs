@@ -95,17 +95,17 @@ use core::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering::{Acquire,
 #[cfg(feature = "selftest")]
 use core::sync::atomic::Ordering::AcqRel;
 
-use liella_abi::layout::pthread_attr_t;
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{
+use niji_abi::layout::pthread_attr_t;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{
     EpollEvent, Itimerspec, SigEvent, Timespec, CLOCK_MONOTONIC, EFD_CLOEXEC, EFD_NONBLOCK, EPOLLIN, EPOLLONESHOT, EPOLL_CLOEXEC, EPOLL_CTL_ADD, EPOLL_CTL_DEL, EPOLL_CTL_MOD,
     SIGEV_NONE, SIGEV_THREAD, TFD_CLOEXEC, TFD_NONBLOCK, TIMER_ABSTIME,
 };
-use liella_legacy::pthread_compat::ATTR_WORDS;
-use liella_rt::sync::RawMutex;
-use liella_rt::thread::Attr;
+use niji_legacy::pthread_compat::ATTR_WORDS;
+use niji_rt::sync::RawMutex;
+use niji_rt::thread::Attr;
 
 use crate::diag::{self, Topic};
 use crate::sys::CSys;
@@ -447,7 +447,7 @@ fn create_thread(clock: i32, e: &SigEvent, attr: Option<&[AtomicUsize]>) -> KRes
         e => resource(e),
     })?;
     // Kept until `timer_delete`: never a standard descriptor (validation T12).
-    let fd = liella::io::above_standard(&CSys, fd).map_err(resource)?;
+    let fd = niji::io::above_standard(&CSys, fd).map_err(resource)?;
     let made = {
         let _g = LOCK.lock(&CSys);
         publish(fd, function, usize::try_from(e.value).unwrap_or(0), attr)
@@ -511,7 +511,7 @@ fn free_record() -> KResult<usize> {
         }
         a = next_of(r);
     }
-    let a = liella_legacy::malloc_compat::malloc(&heap::CTX, WORDS.saturating_mul(8)).map_err(|_| Errno::ENOMEM)?;
+    let a = niji_legacy::malloc_compat::malloc(&heap::CTX, WORDS.saturating_mul(8)).map_err(|_| Errno::ENOMEM)?;
     let r = record(a);
     for w in r {
         w.store(0, Relaxed);
@@ -532,7 +532,7 @@ fn helper() -> KResult<Fd> {
         return Ok(ep);
     }
     // Kept for the life of the process: never a standard descriptor (validation T12).
-    let ep = CSys.epoll_create1(EPOLL_CLOEXEC).and_then(|ep| liella::io::above_standard(&CSys, ep)).map_err(resource)?;
+    let ep = CSys.epoll_create1(EPOLL_CLOEXEC).and_then(|ep| niji::io::above_standard(&CSys, ep)).map_err(resource)?;
     let a = Attr { detached: true, stack_size: HELPER_STACK, sigmask: Some(APP_SIGNALS), ..Attr::default() };
     if let Err(e) = thread::create_service(&a, helper_addr(), usize::try_from(ep.raw()).unwrap_or(0)) {
         let _ = CSys.close(ep);
@@ -550,7 +550,7 @@ fn waker(ep: Fd) -> KResult<Fd> {
         return Ok(Fd::new(fd));
     }
     // Kept for the life of the process: never a standard descriptor (validation T12).
-    let fd = CSys.eventfd2(0, EFD_CLOEXEC | EFD_NONBLOCK).and_then(|fd| liella::io::above_standard(&CSys, fd))?;
+    let fd = CSys.eventfd2(0, EFD_CLOEXEC | EFD_NONBLOCK).and_then(|fd| niji::io::above_standard(&CSys, fd))?;
     let ev = EpollEvent { events: EPOLLIN, data: WAKE_TOKEN };
     if let Err(e) = CSys.epoll_ctl(ep, EPOLL_CTL_ADD, fd, Some(&ev)) {
         let _ = CSys.close(fd);
@@ -1060,7 +1060,7 @@ static EPISODES: [[AtomicUsize; 2]; 3] = [const { [AtomicUsize::new(0), AtomicUs
 
 /// Note an episode's start or end (called on the failure path and on the first start after it
 /// only): counted in `selftest` builds, and for a timer reported on the diagnostic channel's
-/// `timers` topic (`LIELLA_DIAG=timers`, D-2.9, owner ruling #422) when it is on.
+/// `timers` topic (`NIJI_DIAG=timers`, D-2.9, owner ruling #422) when it is on.
 fn note_episode(who: Notifier, e: Episode) {
     #[cfg(feature = "selftest")]
     if let Some(c) = EPISODES.get(who.index()).and_then(|k| {
@@ -1099,7 +1099,7 @@ extern "C" fn notify(serial: usize) -> usize {
     trace(30, usize::from(call.is_some()));
     if let Some((f, v)) = call {
         // `void f(union sigval)`: the 8-byte union is passed as an integer (psABI).
-        let _ = ffi::liella_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
+        let _ = ffi::niji_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
     }
     0
 }

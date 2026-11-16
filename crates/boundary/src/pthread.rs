@@ -1,20 +1,20 @@
 //! The §22 exports' calls (spec §22.1–§22.3, §22.6, §22.8): each export converts its C
 //! arguments and makes one call here. This module joins the attribute object
-//! (`liella_legacy::pthread_compat`), the thread runtime (`crate::thread`), the heap (affinity
+//! (`niji_legacy::pthread_compat`), the thread runtime (`crate::thread`), the heap (affinity
 //! copies) and the kernel.
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella_abi::ctypes::c_int;
-use liella_abi::layout::{pthread_t, struct_sched_param};
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SchedParam, SigSet, Timespec, O_CLOEXEC, O_RDONLY, O_WRONLY};
-use liella_legacy::pthread_compat::{self as pc, AttrWords, ATTR_WORDS};
-use liella_rt::futex::Clock;
-use liella_rt::thread::{Attr, PAGE};
+use niji_abi::ctypes::c_int;
+use niji_abi::layout::{pthread_t, struct_sched_param};
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SchedParam, SigSet, Timespec, O_CLOEXEC, O_RDONLY, O_WRONLY};
+use niji_legacy::pthread_compat::{self as pc, AttrWords, ATTR_WORDS};
+use niji_rt::futex::Clock;
+use niji_rt::thread::{Attr, PAGE};
 
 use crate::heap;
 use crate::sys::CSys;
@@ -44,13 +44,13 @@ fn affinity_of(a: &AttrWords<'_>) -> Option<(usize, usize)> {
 
 fn free_block(block: usize) {
     if block != 0 {
-        heap::checked("free", liella_legacy::malloc_compat::free(&heap::CTX, block));
+        heap::checked("free", niji_legacy::malloc_compat::free(&heap::CTX, block));
     }
 }
 
 /// A heap copy of `mask`: its length, then the bytes.
 fn copy_mask(mask: &[u8]) -> KResult<usize> {
-    let block = liella_legacy::malloc_compat::malloc(&heap::CTX, mask.len().saturating_add(8)).map_err(|_| Errno::ENOMEM)?;
+    let block = niji_legacy::malloc_compat::malloc(&heap::CTX, mask.len().saturating_add(8)).map_err(|_| Errno::ENOMEM)?;
     if let Some(w) = tb::words64(block, 1).first() {
         w.store(mask.len(), Relaxed);
     }
@@ -214,18 +214,18 @@ pub fn attr_getaffinity(w: KResult<&[AtomicUsize]>, out: KResult<&mut [u8]>) -> 
 }
 
 /// `pthread_attr_setsigmask_np`: NULL removes the mask.
-pub fn attr_setsigmask(w: KResult<&[AtomicUsize]>, set: Option<&liella_abi::layout::sigset_t>) -> KResult<()> {
+pub fn attr_setsigmask(w: KResult<&[AtomicUsize]>, set: Option<&niji_abi::layout::sigset_t>) -> KResult<()> {
     words(w)?.set_sigmask(conv::sigmask(set).map(|s| s.0));
     Ok(())
 }
 
 /// `pthread_attr_getsigmask_np`: 0 with the mask, `PTHREAD_ATTR_NO_SIGMASK_NP` with an empty
 /// set when none was set, or an error number.
-pub fn attr_getsigmask(w: KResult<&[AtomicUsize]>, out: Option<&mut liella_abi::layout::sigset_t>) -> c_int {
+pub fn attr_getsigmask(w: KResult<&[AtomicUsize]>, out: Option<&mut niji_abi::layout::sigset_t>) -> c_int {
     let Ok(a) = words(w) else { return Errno::EINVAL.get() };
     let Some(out) = out else { return Errno::EINVAL.get() };
     let mask = a.sigmask();
-    *out = liella_legacy::signal_compat::c_set(SigSet(mask.unwrap_or(0)));
+    *out = niji_legacy::signal_compat::c_set(SigSet(mask.unwrap_or(0)));
     if mask.is_some() { 0 } else { pc::NO_SIGMASK_NP }
 }
 
@@ -288,7 +288,7 @@ pub fn getattr_np(t: pthread_t, w: KResult<&[AtomicUsize]>) -> KResult<()> {
     let tid = thread::tid_of(tp)?;
     let a = words(w)?;
     a.init();
-    if d.join.load(Acquire) == liella_rt::thread::DETACHED {
+    if d.join.load(Acquire) == niji_rt::thread::DETACHED {
         a.set_detachstate(pc::CREATE_DETACHED)?;
     }
     let (lo, size, guard) = match d.stack_size.load(Acquire) {
@@ -296,14 +296,14 @@ pub fn getattr_np(t: pthread_t, w: KResult<&[AtomicUsize]>) -> KResult<()> {
             // The initial thread (or one the host C library made): from the maps (§22.2).
             let here = core::ptr::from_ref(&tid).expose_provenance();
             // Without `/proc` (OD-5) the stack cannot be found: the read's error (ENOENT).
-            let maps = liella::system::read_file(&CSys, b"/proc/self/maps\0")?;
-            let cur = CSys.prlimit(0, liella_kernel::uapi::RLIMIT_STACK, None).map_or(u64::MAX, |r| r.cur);
+            let maps = niji::system::read_file(&CSys, b"/proc/self/maps\0")?;
+            let cur = CSys.prlimit(0, niji_kernel::uapi::RLIMIT_STACK, None).map_or(u64::MAX, |r| r.cur);
             let (top, size) = pc::main_stack(&maps, here, cur).ok_or(Errno::ENOENT)?;
             (top.saturating_sub(size), size, 0)
         }
         size => (d.stack_lo.load(Acquire), size, d.guard.load(Acquire)),
     };
-    a.set_stack(lo, size.max(liella_rt::thread::STACK_MIN))?;
+    a.set_stack(lo, size.max(niji_rt::thread::STACK_MIN))?;
     a.set_guardsize(guard);
     let policy = CSys.sched_getscheduler(tid)?;
     let param = CSys.sched_getparam(tid)?;
@@ -431,21 +431,21 @@ pub fn exit(v: usize) -> ! {
 // ------------------------------------------------------------------------------ C11 threads
 
 /// `thrd_create`.
-pub fn thrd_create(out: Option<&mut liella_abi::layout::thrd_t>, start: usize, arg: usize) -> c_int {
+pub fn thrd_create(out: Option<&mut niji_abi::layout::thrd_t>, start: usize, arg: usize) -> c_int {
     let r = (|| {
         let out = out.ok_or(Errno::EINVAL)?;
         if start == 0 {
             return Err(Errno::EINVAL);
         }
         let tp = thread::create(&attr_for(Ok(None))?, start, arg, true)?;
-        *out = liella_abi::layout::thrd_t(u64::try_from(tp).unwrap_or(0));
+        *out = niji_abi::layout::thrd_t(u64::try_from(tp).unwrap_or(0));
         Ok(())
     })();
     pc::c11_create_code(r)
 }
 
 /// `thrd_join`: the `int` result.
-pub fn thrd_join(t: liella_abi::layout::thrd_t, res: Option<&mut c_int>) -> c_int {
+pub fn thrd_join(t: niji_abi::layout::thrd_t, res: Option<&mut c_int>) -> c_int {
     let r = thread::join(usize::try_from(t.0).unwrap_or(0), JoinWait::Block).map(|v| {
         if let Some(res) = res {
             // A C11 start routine returns `int`: the low 32 bits.
@@ -456,7 +456,7 @@ pub fn thrd_join(t: liella_abi::layout::thrd_t, res: Option<&mut c_int>) -> c_in
 }
 
 /// `thrd_detach`.
-pub fn thrd_detach(t: liella_abi::layout::thrd_t) -> c_int {
+pub fn thrd_detach(t: niji_abi::layout::thrd_t) -> c_int {
     pc::c11_code(thread::detach(usize::try_from(t.0).unwrap_or(0)))
 }
 
@@ -466,12 +466,12 @@ pub fn thrd_exit(res: c_int) -> ! {
 }
 
 /// `thrd_current`.
-pub fn thrd_current() -> liella_abi::layout::thrd_t {
-    liella_abi::layout::thrd_t(self_id().0)
+pub fn thrd_current() -> niji_abi::layout::thrd_t {
+    niji_abi::layout::thrd_t(self_id().0)
 }
 
 /// `thrd_equal`.
-pub fn thrd_equal(a: liella_abi::layout::thrd_t, b: liella_abi::layout::thrd_t) -> c_int {
+pub fn thrd_equal(a: niji_abi::layout::thrd_t, b: niji_abi::layout::thrd_t) -> c_int {
     c_int::from(a.0 == b.0)
 }
 
@@ -502,47 +502,47 @@ pub fn no_op() {}
 // ------------------------------------------------------------------------------ keys
 
 /// `pthread_key_create`.
-pub fn key_create(dtor: usize) -> KResult<liella_abi::layout::pthread_key_t> {
+pub fn key_create(dtor: usize) -> KResult<niji_abi::layout::pthread_key_t> {
     let k = thread::KEYS.create(dtor).ok_or(Errno::EAGAIN)?;
-    Ok(liella_abi::layout::pthread_key_t(u32::try_from(k).map_err(|_| Errno::EAGAIN)?))
+    Ok(niji_abi::layout::pthread_key_t(u32::try_from(k).map_err(|_| Errno::EAGAIN)?))
 }
 
 /// `pthread_key_delete`.
-pub fn key_delete(k: liella_abi::layout::pthread_key_t) -> KResult<()> {
+pub fn key_delete(k: niji_abi::layout::pthread_key_t) -> KResult<()> {
     if thread::KEYS.delete(usize::try_from(k.0).unwrap_or(usize::MAX)) { Ok(()) } else { Err(Errno::EINVAL) }
 }
 
 /// `pthread_getspecific`: NULL for no value (or no memory for the thread's area).
-pub fn getspecific(k: liella_abi::layout::pthread_key_t) -> *mut core::ffi::c_void {
+pub fn getspecific(k: niji_abi::layout::pthread_key_t) -> *mut core::ffi::c_void {
     let v = thread::specific().map_or(0, |s| s.get(&thread::KEYS, usize::try_from(k.0).unwrap_or(usize::MAX)));
     core::ptr::with_exposed_provenance_mut(v)
 }
 
 /// `pthread_setspecific`.
-pub fn setspecific(k: liella_abi::layout::pthread_key_t, v: usize) -> KResult<()> {
+pub fn setspecific(k: niji_abi::layout::pthread_key_t, v: usize) -> KResult<()> {
     let s = thread::specific()?;
     if s.set(&thread::KEYS, usize::try_from(k.0).unwrap_or(usize::MAX), v) { Ok(()) } else { Err(Errno::EINVAL) }
 }
 
 /// `tss_create`.
-pub fn tss_create(out: Option<&mut liella_abi::layout::tss_t>, dtor: usize) -> c_int {
-    let r = out.ok_or(Errno::EINVAL).and_then(|o| key_create(dtor).map(|k| *o = liella_abi::layout::tss_t(k.0)));
+pub fn tss_create(out: Option<&mut niji_abi::layout::tss_t>, dtor: usize) -> c_int {
+    let r = out.ok_or(Errno::EINVAL).and_then(|o| key_create(dtor).map(|k| *o = niji_abi::layout::tss_t(k.0)));
     pc::c11_code(r)
 }
 
 /// `tss_set`.
-pub fn tss_set(k: liella_abi::layout::tss_t, v: usize) -> c_int {
-    pc::c11_code(setspecific(liella_abi::layout::pthread_key_t(k.0), v))
+pub fn tss_set(k: niji_abi::layout::tss_t, v: usize) -> c_int {
+    pc::c11_code(setspecific(niji_abi::layout::pthread_key_t(k.0), v))
 }
 
 /// `tss_get`.
-pub fn tss_get(k: liella_abi::layout::tss_t) -> *mut core::ffi::c_void {
-    getspecific(liella_abi::layout::pthread_key_t(k.0))
+pub fn tss_get(k: niji_abi::layout::tss_t) -> *mut core::ffi::c_void {
+    getspecific(niji_abi::layout::pthread_key_t(k.0))
 }
 
 /// `tss_delete`.
-pub fn tss_delete(k: liella_abi::layout::tss_t) {
-    let _ = key_delete(liella_abi::layout::pthread_key_t(k.0));
+pub fn tss_delete(k: niji_abi::layout::tss_t) {
+    let _ = key_delete(niji_abi::layout::pthread_key_t(k.0));
 }
 
 // ------------------------------------------------------------------------------ naming, scheduling
@@ -648,7 +648,7 @@ pub fn getcpuclockid(t: pthread_t) -> KResult<c_int> {
     Ok(pc::thread_cpuclock(thread::tid_of(tp_of(t)?)?))
 }
 
-/// `gettid`: the thread block's word in a thread Liella runs (D-22.9).
+/// `gettid`: the thread block's word in a thread libniji runs (D-22.9).
 pub fn gettid() -> c_int {
     thread::own_tid()
 }

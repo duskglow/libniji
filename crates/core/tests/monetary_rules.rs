@@ -1,12 +1,12 @@
-//! `strfmon`'s rules (§7.5; D-7.11) through `liella::monetary` with conventions built here, so
+//! `strfmon`'s rules (§7.5; D-7.11) through `niji::monetary` with conventions built here, so
 //! that each placement, grouping and error rule is checked on its own (the named locales are
 //! compared with glibc in `monetary_products.rs`). Written before the COLD-REWRITE2-cold-02
 //! rewrite and passing on the old code: they pin the behaviour the rewrite keeps.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::error::Errno;
-use liella::monetary::{self, Amounts, Conventions, Placement};
-use liella::num::float::{Float, Format, Rounding};
+use niji::error::Errno;
+use niji::monetary::{self, Amounts, Conventions, Placement};
+use niji::num::float::{Float, Format, Rounding};
 
 /// Amounts as `f64` values; records which conversions asked for a `long double`.
 struct Doubles {

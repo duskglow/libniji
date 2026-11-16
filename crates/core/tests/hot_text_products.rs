@@ -13,9 +13,9 @@ use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 
 /// Upper bounds on the lowest of [`RUNS`] counts. Calibrated (HOTTEXT-FAULT-TEST-4, Zen 1 host, release
 /// list, 20 groups of 5 runs from a posix_spawn launcher; bash fork loops add ~120 COW faults and
@@ -44,7 +44,7 @@ use liella_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 /// read 21. Both trees built in Skylake-SP host role s4: 18 / 62 / 64 (next), 20 / 62 / 64 (change).
 /// The change adds no writable data reached from startup (one AtomicBool in .bss, +8 bytes; the
 /// RW segment is 928 bytes SMALLER) and no startup code. It perturbs code generation: timer
-/// helper_main +3 KiB, and about 16 KiB of inlining churn elsewhere in liella_boundary (glob,
+/// helper_main +3 KiB, and about 16 KiB of inlining churn elsewhere in niji_boundary (glob,
 /// netdb pack_*, hsearch, time::load). That moves .rodata 16 KiB higher. perf page-fault
 /// addresses after exec, same run conditions as `faults`: 31 (next) vs 32 (change). Text and RW
 /// windows are the same count. In .rodata, the two environment-name constants that `env_find`
@@ -61,8 +61,8 @@ use liella_kernel::uapi::{ADDR_NO_RANDOMIZE, PERSONALITY_QUERY};
 /// 21. origin/next 635bb7aa vs the change, both built on Zen 1 host from the same tree, perf page-fault
 /// addresses after exec without randomisation: 61 vs 62, one more in .data, every other section
 /// the same. The changed code adds anonymous constants, .data grows 16 bytes (0x83b1 -> 0x83c1)
-/// and its objects are reordered: `liella_legacy::nscache::NSCACHE`, which
-/// `liella_boundary::nscache::start` touches at startup, moves from 0x80c138 (the page shared
+/// and its objects are reordered: `niji_legacy::nscache::NSCACHE`, which
+/// `niji_boundary::nscache::start` touches at startup, moves from 0x80c138 (the page shared
 /// with the .data end and .bss start, which execve already dirties when it zero-fills the bss
 /// tail) to 0x80a8e0, a page of its own: its first access (NSCACHE+0x25a) is the extra fault. No
 /// utmp code runs: gdb breakpoints on all 246 utmp/users/accounting/wtmp/lastlog functions in the
@@ -132,25 +132,25 @@ fn root() -> PathBuf {
 }
 
 /// A generated start-up list (`hot-text.list`, `startup-data.keys`, ...) as the products were grouped from it: the
-/// directory the products' `target/liella/.hot-lists` marker names (`target/product/<profile>`, written by the
+/// directory the products' `target/niji/.hot-lists` marker names (`target/product/<profile>`, written by the
 /// build's own trace). No list is committed (LT-5, LAYOUT-DELETE-LISTS): products without the marker have none.
 /// The hand-written inputs (`hot-text.clusters`, `startup-state.list`) are always the committed ones.
 fn generated_list(name: &str) -> PathBuf {
-    let m = std::fs::read_to_string(root().join("target/liella/.hot-lists"))
-        .unwrap_or_else(|e| panic!("target/liella/.hot-lists: {e}: no start-up lists (every product build writes them from a trace of itself: run `cargo xtask so`)"));
-    PathBuf::from(m.lines().next().expect("target/liella/.hot-lists: empty marker")).join(name)
+    let m = std::fs::read_to_string(root().join("target/niji/.hot-lists"))
+        .unwrap_or_else(|e| panic!("target/niji/.hot-lists: {e}: no start-up lists (every product build writes them from a trace of itself: run `cargo xtask so`)"));
+    PathBuf::from(m.lines().next().expect("target/niji/.hot-lists: empty marker")).join(name)
 }
 
 /// LAYOUT-TRACE-DEFAULT (rulings #5190-#5194): a product build traces its own start-up layout by default, so the
-/// products under test carry the `target/liella/.hot-lists` marker, and every generated list it names is the one
+/// products under test carry the `target/niji/.hot-lists` marker, and every generated list it names is the one
 /// the build grouped from (its FNV-1a hash as the marker records it) and holds keys (an ungrouped product's lists
 /// are empty). Products of the ungrouped opt-out are not what ships. No spec clause (layout of the products).
 #[test]
 fn init_products_are_grouped_from_a_trace_of_their_own_build() {
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
-    let marker = std::fs::read_to_string(r.join("target/liella/.hot-lists")).unwrap_or_else(|e| {
-        panic!("TRACE-AT-BUILD: target/liella/.hot-lists: {e}: the products carry no lists of their own trace; a product build traces its own layout (run `cargo xtask so`)")
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let marker = std::fs::read_to_string(r.join("target/niji/.hot-lists")).unwrap_or_else(|e| {
+        panic!("TRACE-AT-BUILD: target/niji/.hot-lists: {e}: the products carry no lists of their own trace; a product build traces its own layout (run `cargo xtask so`)")
     });
     let mut lines = marker.lines();
     let dir = PathBuf::from(lines.next().expect("TRACE-AT-BUILD: empty marker"));
@@ -165,7 +165,7 @@ fn init_products_are_grouped_from_a_trace_of_their_own_build() {
         assert_eq!(format!("{h:016x}"), want, "TRACE-AT-BUILD: {} changed after the build that grouped from it", dir.join(name).display());
         let keys = String::from_utf8_lossy(&bytes).lines().filter(|k| !k.trim().is_empty() && !k.starts_with('#')).count();
         if name == "hot-text.list" || name == "startup-text.keys" || name == "hot-text.signatures" {
-            assert!(keys > 0, "TRACE-AT-BUILD: {} holds no key: an ungrouped product (LIELLA_LAYOUT_TRACE=ungrouped)", dir.join(name).display());
+            assert!(keys > 0, "TRACE-AT-BUILD: {} holds no key: an ungrouped product (NIJI_LAYOUT_TRACE=ungrouped)", dir.join(name).display());
         }
         named += 1;
     }
@@ -179,10 +179,10 @@ fn build(out: &Path) {
 
 /// [`build`] with extra compiler driver arguments (e.g. `-Wl,-Map=<file>`).
 fn build_with(out: &Path, extra: &[&str]) {
-    build_crt1(out, extra, &root().join("target/liella/liella-crt1.o"));
+    build_crt1(out, extra, &root().join("target/niji/niji-crt1.o"));
 }
 
-/// [`build_with`] with another start file in place of `liella-crt1.o` (the pad links below).
+/// [`build_with`] with another start file in place of `niji-crt1.o` (the pad links below).
 fn build_crt1(out: &Path, extra: &[&str], crt1: &Path) {
     let r = root();
     let st = Command::new("cc")
@@ -190,7 +190,7 @@ fn build_crt1(out: &Path, extra: &[&str], crt1: &Path) {
         .args(extra)
         .arg(crt1)
         .arg(r.join("crates/core/tests/oracle/page_faults.c"))
-        .arg(r.join("target/liella/libc.a"))
+        .arg(r.join("target/niji/libc.a"))
         .arg("-lgcc")
         .arg("-o")
         .arg(out)
@@ -232,7 +232,7 @@ fn stage(exe: &Path, run: &Path) {
 /// environment, so the count does not depend on where the tree is checked out.
 /// STARTUP-FAULTS-RESTORE-4: the program runs each mode as `relay <mode>`, in a vfork child of its
 /// own (`page_faults.c`), so the counted process is spawned by the products' vfork + execve, not by
-/// this test process. The gate runs this test twice, the second time with Liella's exports
+/// this test process. The gate runs this test twice, the second time with libniji's exports
 /// interposed on the test process; spawned by the test, the counted process ran the test
 /// process's spawn code before exec, and the whole-process modes (startup, setlocale + printf,
 /// tool) read one more fault in that pass (CI, Skylake-SP host: 58 / 61 against bounds 57 / 60).
@@ -240,7 +240,7 @@ fn faults(exe: &Path, mode: &str) -> u64 {
     // One directory per call (the tests run in parallel); the name always has the same length.
     static CALL: AtomicUsize = AtomicUsize::new(0);
     let n = CALL.fetch_add(1, Ordering::Relaxed) % 10;
-    let dir = PathBuf::from(format!("/tmp/liella-hot-text-{:010}-{n}", std::process::id()));
+    let dir = PathBuf::from(format!("/tmp/niji-hot-text-{:010}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let run = dir.join("p");
@@ -272,13 +272,13 @@ fn faults(exe: &Path, mode: &str) -> u64 {
 fn init_short_programs_stay_within_their_page_fault_bounds() {
     // PAGEFAULTS-2: hot-text grouping of the startup, setlocale and printf paths.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     // The locale comes from the system archive, like the workloads the WL gate counts.
     let all = Command::new("locale").arg("-a").output().expect("locale -a");
     assert!(String::from_utf8_lossy(&all.stdout).lines().any(|l| l == "en_US.utf8"), "en_US.UTF-8 is not installed (locale-gen en_US.UTF-8)");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella");
+    let exe = dir.join("page_faults_niji");
     build(&exe);
     let (t, l) = (faults(&exe, "true"), faults(&exe, "locale"));
     check_whole_count("startup-only program", t, TRUE_BOUND, "start-up grew or its text left the hot group?");
@@ -290,10 +290,10 @@ fn init_first_string_calls_after_printf_take_no_text_fault() {
     // RC1-FIRST: strlen, strncmp, memchr, memcmp and strcpy are in the hot group, so their first
     // calls after printf find their text mapped (main before the change: 2 faults on Zen 1 host).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_strings");
+    let exe = dir.join("page_faults_niji_strings");
     build(&exe);
     let s = faults(&exe, "strings");
     assert!(s == 0, "first string calls after printf: {s} page faults (string entry points left the hot group?)");
@@ -306,10 +306,10 @@ fn init_second_bindtextdomain_gettext_takes_no_text_fault() {
     // the hot group, so a same-directory rebind + dgettext after a first lookup finds its text
     // mapped (next before the change: 2 file-backed text faults on a Zen 1 host).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_rebind");
+    let exe = dir.join("page_faults_niji_rebind");
     build(&exe);
     let s = faults(&exe, "rebind");
     assert!(s == 0, "second bindtextdomain + dgettext: {s} page faults (repeat-lookup functions left the hot group?)");
@@ -325,10 +325,10 @@ fn init_first_mktime_after_localtime_r_takes_no_fault() {
         return;
     }
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_mktime");
+    let exe = dir.join("page_faults_niji_mktime");
     build(&exe);
     let s = faults(&exe, "mktime");
     assert!(s == 0, "first mktime after localtime_r: {s} page faults (counter query back on the first implicit tzset?)");
@@ -343,8 +343,8 @@ fn init_first_mktime_after_localtime_r_takes_no_fault() {
 /// table's `TryVec::resize`, `rule::when_of`, `Zone::kind_period`) and the first-mktime path now
 /// sit in the localtime block of `hot-text.list`: Skylake-SP host role, every run identical,
 /// 22 -> 20 (and the first mktime 1 -> 0). LOCALTIME_BOUND 24 -> 22 (20 plus 2).
-/// PERF-ZONE-LOAD-FAULTS-3: after the merge of next, whose list added `tsc_probe`, `liella_sys_prctl`,
-/// `liella_machine_rdtsc`, `Resolution::matches` and `TscGate::fresh` to the mktime block, that block
+/// PERF-ZONE-LOAD-FAULTS-3: after the merge of next, whose list added `tsc_probe`, `niji_sys_prctl`,
+/// `niji_machine_rdtsc`, `Resolution::matches` and `TscGate::fresh` to the mktime block, that block
 /// sits behind the localtime block with them and the first `localtime_r` finds its `tsc_probe` call in
 /// the same 64 KiB window: Zen 1 host role, every run identical, 18 (the mktime block back behind
 /// strftime's functions: 19; the rule-years table four times longer: 21). LOCALTIME_BOUND 22 -> 20
@@ -399,7 +399,7 @@ fn profile_index() -> usize {
     match name.as_str() {
         "fast" => 0,
         "release" => 1,
-        other => panic!("target/liella/.hot-lists names products of profile {other:?}, want fast or release"),
+        other => panic!("target/niji/.hot-lists names products of profile {other:?}, want fast or release"),
     }
 }
 
@@ -425,10 +425,10 @@ fn init_first_localtime_r_and_mktime_stay_within_their_combined_page_fault_bound
         return;
     }
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_localtime_mktime");
+    let exe = dir.join("page_faults_niji_localtime_mktime");
     build(&exe);
     let s = faults(&exe, "localtime_mktime");
     check_whole_count("start-up + first localtime_r + first mktime", s, LOCALTIME_MKTIME_BOUND, LOCALTIME_HINT);
@@ -443,10 +443,10 @@ fn init_first_localtime_r_stays_within_its_page_fault_bound() {
         return;
     }
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_localtime");
+    let exe = dir.join("page_faults_niji_localtime");
     build(&exe);
     let s = faults(&exe, "localtime");
     check_whole_count("start-up + first localtime_r", s, LOCALTIME_BOUND, LOCALTIME_HINT);
@@ -464,10 +464,10 @@ const FLOAT_BOUND: u64 = 3;
 fn init_first_float_conversion_stays_within_its_page_fault_bound() {
     // No spec clause (cost of the products): the common float conversion keeps a small frame.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_float");
+    let exe = dir.join("page_faults_niji_float");
     build(&exe);
     let s = faults(&exe, "float");
     assert!(s <= FLOAT_BOUND, "first %.2f: {s} page faults > {FLOAT_BOUND} (a large stack frame back on the float path?)");
@@ -480,12 +480,12 @@ fn init_coreutils_shaped_program_stays_within_its_page_fault_bound() {
     // workload) and only wl_count saw it. This program runs the functions such a tool runs, so a
     // list that no longer covers them fails here, in the direct tier.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let all = Command::new("locale").arg("-a").output().expect("locale -a");
     assert!(String::from_utf8_lossy(&all.stdout).lines().any(|l| l == "en_US.utf8"), "en_US.UTF-8 is not installed (locale-gen en_US.UTF-8)");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_tool");
+    let exe = dir.join("page_faults_niji_tool");
     build(&exe);
     let t = faults(&exe, "tool");
     check_whole_count("coreutils-shaped program", t, TOOL_BOUND, "the coreutils-shaped mode left the traced hot group? see target/product/<profile>/trace.log");
@@ -515,10 +515,10 @@ fn init_fork_child_stays_within_its_page_fault_bound() {
     // No spec clause (layout of the products): the fork child's text path is grouped in the hot
     // text, so a child that only exits faults on few text windows.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let exe = dir.join("page_faults_liella_fork");
+    let exe = dir.join("page_faults_niji_fork");
     build(&exe);
     let f = faults(&exe, "fork");
     eprintln!("minor faults: fork child {f} (bound {FORK_BOUND})");
@@ -535,7 +535,7 @@ fn init_fork_child_stays_within_its_page_fault_bound() {
 /// No spec clause (layout of the products).
 #[test]
 fn init_cold_startup_functions_are_grouped() {
-    let out = Command::new("readelf").arg("-SW").arg(root().join("target/liella/libc.a")).output().expect("readelf");
+    let out = Command::new("readelf").arg("-SW").arg(root().join("target/niji/libc.a")).output().expect("readelf");
     let sections = String::from_utf8_lossy(&out.stdout).into_owned();
     let grouped: Vec<&str> = sections
         .lines()
@@ -544,17 +544,17 @@ fn init_cold_startup_functions_are_grouped() {
         .filter_map(|a| a.split_whitespace().next())
         .collect();
     for f in [
-        "liella_machine_set_scan_level",
-        "liella_machine_env_find",
-        "liella_machine_strlen",
-        "liella_machine_vcall3",
-        "15liella_boundary3cpu4init",
-        "liella_machine_strncmp",
-        "liella_machine_memchr_entry",
-        "liella_machine_strcpy",
-        "liella_machine_compare",
-        "liella_machine_memmove",
-        "liella_machine_memset",
+        "niji_machine_set_scan_level",
+        "niji_machine_env_find",
+        "niji_machine_strlen",
+        "niji_machine_vcall3",
+        "13niji_boundary3cpu4init",
+        "niji_machine_strncmp",
+        "niji_machine_memchr_entry",
+        "niji_machine_strcpy",
+        "niji_machine_compare",
+        "niji_machine_memmove",
+        "niji_machine_memset",
     ] {
         assert!(
             grouped.iter().any(|s| s.split_once('.').is_some_and(|(_, name)| name == f || name.ends_with(f))),
@@ -568,7 +568,7 @@ fn init_cold_startup_functions_are_grouped() {
     // that carry `start::<false>` as a type argument, grouped or not, name other functions; plant
     // start-key-removed). The release profile inlines `apply_irelative` into `start`: every section
     // of it present must be grouped (the name's end: its closures are other functions).
-    let f = "15liella_boundary7runtime5startKb0_E";
+    let f = "13niji_boundary7runtime5startKb0_E";
     assert!(
         grouped.iter().any(|s| {
             s.split_once('.').and_then(|(_, name)| name.strip_prefix("_RINvNtCs")).and_then(|r| r.split_once('_')).is_some_and(|(_, r)| r.starts_with(f))
@@ -577,7 +577,7 @@ fn init_cold_startup_functions_are_grouped() {
     );
     for l in sections.lines().filter_map(|l| l.split_once("] ").map(|(_, a)| a)) {
         let s = l.split_whitespace().next().unwrap_or("");
-        if s.starts_with(".text.") && s.ends_with("15liella_boundary7runtime15apply_irelative") {
+        if s.starts_with(".text.") && s.ends_with("13niji_boundary7runtime15apply_irelative") {
             assert!(s.starts_with(".text.sorted.h"), "{s}: apply_irelative is not in the hot group of libc.a (not reached by this build's trace?)");
         }
     }
@@ -633,12 +633,12 @@ fn hot_text_range(map: &str) -> (u64, u64) {
 /// DL-BOOT-RELOC-7 made `runtime::start` generic, its list key went dead and `start::<false>`
 /// and `apply_irelative` ran from two 64 KiB windows of cold `.text` (two more faults), which
 /// fitted inside the count bounds' slack. Required: `_start`, `__libc_start_main` and
-/// `start::<false>`; `apply_irelative` and `liella_rt::start::program` when the program references
+/// `start::<false>`; `apply_irelative` and `niji_rt::start::program` when the program references
 /// their out-of-line copy (release inlines both; fast inlines `program` at its start-up call but
 /// keeps an unreferenced copy, whose list key regen drops). No spec clause (layout of the products).
 #[test]
 fn init_startup_path_lies_in_the_hot_text_range() {
-    let dir = std::env::temp_dir().join(format!("liella-hot-range-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-hot-range-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let (exe, map) = (dir.join("page_faults"), dir.join("page_faults.map"));
     build_with(&exe, &[&format!("-Wl,-Map={}", map.display())]);
@@ -659,9 +659,9 @@ fn init_startup_path_lies_in_the_hot_text_range() {
         let which = match name {
             "_start" => "_start",
             "__libc_start_main" => "__libc_start_main",
-            _ if path(name, "_RINvNtCs").is_some_and(|r| r.starts_with("15liella_boundary7runtime5startKb0_E")) => "runtime::start::<false>",
-            _ if path(name, "_RNvNtCs").is_some_and(|r| r == "15liella_boundary7runtime15apply_irelative") => "runtime::apply_irelative",
-            _ if path(name, "_RNvNtCs").is_some_and(|r| r == "9liella_rt5start7program") => "liella_rt::start::program",
+            _ if path(name, "_RINvNtCs").is_some_and(|r| r.starts_with("13niji_boundary7runtime5startKb0_E")) => "runtime::start::<false>",
+            _ if path(name, "_RNvNtCs").is_some_and(|r| r == "13niji_boundary7runtime15apply_irelative") => "runtime::apply_irelative",
+            _ if path(name, "_RNvNtCs").is_some_and(|r| r == "7niji_rt5start7program") => "niji_rt::start::program",
             _ => continue,
         };
         found.insert(which, u64::from_str_radix(addr, 16).expect("nm address"));
@@ -707,7 +707,7 @@ fn harness_staged_copy_execs_while_other_threads_spawn() {
     // (ETXTBSY: a spawned child still held the copy's write fd) fails the test.
     use std::sync::atomic::AtomicBool;
     let src = ["/usr/bin/true", "/bin/true"].iter().map(Path::new).find(|p| p.exists()).expect("no true program");
-    let dir = PathBuf::from(format!("/tmp/liella-hot-text-etxtbsy-{}", std::process::id()));
+    let dir = PathBuf::from(format!("/tmp/niji-hot-text-etxtbsy-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let stop = AtomicBool::new(false);
@@ -736,22 +736,22 @@ fn harness_staged_copy_execs_while_other_threads_spawn() {
     assert!(failures.is_empty(), "staged copies failed to exec while other threads spawned ({} of 500): {:?}", failures.len(), &failures[..failures.len().min(3)]);
 }
 
-/// STARTUP-READ-CONSTANTS: the names start-up reads (`liella_boundary::startup_names`) sit in
+/// STARTUP-READ-CONSTANTS: the names start-up reads (`niji_boundary::startup_names`) sit in
 /// one `.rodata1` section of a static program, inside one 64 KiB fault-around window, so
 /// unrelated code growth cannot split them over two windows; and `Vdso::parse` has no jump
 /// table (its `.rodata.<f>` was the other start-up read that moved with the code).
 #[test]
 fn init_startup_names_sit_in_one_window() {
-    let dir = PathBuf::from(format!("/tmp/liella-startup-names-{:010}", std::process::id()));
+    let dir = PathBuf::from(format!("/tmp/niji-startup-names-{:010}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let (exe, map) = (dir.join("p"), dir.join("p.map"));
     let r = root();
     let st = Command::new("cc")
         .args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-        .arg(r.join("target/liella/liella-crt1.o"))
+        .arg(r.join("target/niji/niji-crt1.o"))
         .arg(r.join("crates/core/tests/oracle/page_faults.c"))
-        .arg(r.join("target/liella/libc.a"))
+        .arg(r.join("target/niji/libc.a"))
         .arg("-lgcc")
         .arg(format!("-Wl,-Map,{}", map.display()))
         .arg("-o")
@@ -803,17 +803,17 @@ fn symbol_stem(name: &str) -> &str {
 /// through, so this checks the placement itself. No spec clause (layout of the products).
 #[test]
 fn init_startup_state_statics_are_in_data1() {
-    let out = Command::new("objdump").arg("-t").arg(root().join("target/liella/libc.a")).output().expect("objdump");
+    let out = Command::new("objdump").arg("-t").arg(root().join("target/niji/libc.a")).output().expect("objdump");
     let table = String::from_utf8_lossy(&out.stdout).into_owned();
     for suffix in [
-        "15liella_boundary7process10AUXV_WORDS",
-        "15liella_boundary3sys12SYSINFO_EHDR",
-        "15liella_boundary3cpu14AVX2_ERMS_FROM",
-        "15liella_boundary3cpu12AVX2_ERMS_TO",
-        "13liella_legacy13global_locale6GLOBAL",
-        "13liella_legacy13global_locale4LOCK",
-        "13liella_legacy7nscache7NSCACHE",
-        "15liella_boundary5timer5EPOLL",
+        "13niji_boundary7process10AUXV_WORDS",
+        "13niji_boundary3sys12SYSINFO_EHDR",
+        "13niji_boundary3cpu14AVX2_ERMS_FROM",
+        "13niji_boundary3cpu12AVX2_ERMS_TO",
+        "11niji_legacy13global_locale6GLOBAL",
+        "11niji_legacy13global_locale4LOCK",
+        "11niji_legacy7nscache7NSCACHE",
+        "13niji_boundary5timer5EPOLL",
     ] {
         let sections: Vec<&str> = table
             .lines()
@@ -834,17 +834,17 @@ const FIRST_WINDOW: u64 = 0x10000;
 /// LAYOUT-FIRST-WINDOW (D-X pending record; #5026, #5096): the start-up group (the start file's
 /// `.text.startup*`, the start-up tier of `hot-text.list` and the keys of `hot-text.first-window`,
 /// which `cargo xtask so` links right after that tier) ends inside the first fault-around window of
-/// the probe, and `liella_sys_fstat` with it. When a 0x240-byte start-up growth moved fstat to
+/// the probe, and `niji_sys_fstat` with it. When a 0x240-byte start-up growth moved fstat to
 /// 0x418040, one page past the window 0x408000..0x417fff, the release tool, locale, localtime and
 /// localtime_mktime probes each took one more text fault, inside their bounds' slack. Prints the
 /// margin. No spec clause (layout of the products).
 #[test]
 fn init_startup_group_ends_inside_the_first_fault_around_window() {
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
-    let dir = std::env::temp_dir().join(format!("liella-first-window-{}", std::process::id()));
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = std::env::temp_dir().join(format!("niji-first-window-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
-    let map = link_map(&dir, &r.join("target/liella/liella-crt1.o"));
+    let map = link_map(&dir, &r.join("target/niji/niji-crt1.o"));
     let ph = Command::new("readelf").arg("-lW").arg(dir.join("page_faults")).output().expect("readelf -lW");
     let _ = std::fs::remove_dir_all(&dir);
     // `LOAD off vaddr paddr filesz memsz flags align`, flags as separate words (`R E`); the
@@ -913,7 +913,7 @@ fn bin_ranges(map: &str) -> Vec<(usize, u64, u64)> {
 }
 
 /// The start file's empty section that ends the window bins (xtask/src/bins.rs `GROUP_END`).
-const GROUP_END: &str = ".text.sorted.h9z.liella_group_end";
+const GROUP_END: &str = ".text.sorted.h9z.niji_group_end";
 
 /// The window-bin structure of a linked probe: every counted bin after the head one starts on a 64 KiB
 /// boundary, and every counted bin of at most 64 KiB lies inside one window. GROUP-END
@@ -924,7 +924,7 @@ fn bin_window_errors(map: &str) -> Vec<String> {
     let mut bad = Vec::new();
     let inputs = text_inputs(map);
     match inputs.iter().position(|s| s.0 == GROUP_END) {
-        None => bad.push(format!("GROUP-END: no {GROUP_END} input in .text (liella-crt1.o built without it?)")),
+        None => bad.push(format!("GROUP-END: no {GROUP_END} input in .text (niji-crt1.o built without it?)")),
         Some(e) => {
             if inputs[e].1 % 0x10000 != 0 {
                 bad.push(format!("GROUP-END: {GROUP_END} at {:#x}, not on a 64 KiB boundary", inputs[e].1));
@@ -994,9 +994,9 @@ fn link_map(dir: &Path, crt1: &Path) -> String {
 /// No spec clause (layout of the products).
 #[test]
 fn init_no_library_text_precedes_the_hot_group() {
-    let dir = std::env::temp_dir().join(format!("liella-text-prefix-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-text-prefix-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
-    let map = link_map(&dir, &root().join("target/liella/liella-crt1.o"));
+    let map = link_map(&dir, &root().join("target/niji/niji-crt1.o"));
     let _ = std::fs::remove_dir_all(&dir);
     let inputs = text_inputs(&map);
     let group = inputs.iter().position(|s| s.0.starts_with(".text.sorted.h")).expect("no .text.sorted.h* input section: hot group missing");
@@ -1011,9 +1011,9 @@ fn init_no_library_text_precedes_the_hot_group() {
 /// the padding ahead of each bin (the alignment's cost). No spec clause (layout of the products).
 #[test]
 fn init_window_bins_start_on_window_boundaries() {
-    let dir = std::env::temp_dir().join(format!("liella-bin-window-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-bin-window-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
-    let map = link_map(&dir, &root().join("target/liella/liella-crt1.o"));
+    let map = link_map(&dir, &root().join("target/niji/niji-crt1.o"));
     let file = std::fs::metadata(dir.join("page_faults")).map(|m| m.len()).unwrap_or(0);
     let _ = std::fs::remove_dir_all(&dir);
     let inputs = text_inputs(&map);
@@ -1026,23 +1026,23 @@ fn init_window_bins_start_on_window_boundaries() {
     assert!(bad.is_empty(), "{bad:#?}");
 }
 
-/// `liella-crt1.o` merged (`ld -r`) with `pad` bytes in `.text.unlikely.*` (`pre`: ahead of the hot
+/// `niji-crt1.o` merged (`ld -r`) with `pad` bytes in `.text.unlikely.*` (`pre`: ahead of the hot
 /// group) or in `.text` (`cold`: after it). The start file is the first object of the link, so the
 /// pad shifts everything after it, as unrelated code of a program or the library would.
 fn padded_crt1(dir: &Path, region: &str, pad: u64) -> PathBuf {
-    padded_start(dir, region, pad, &root().join("target/liella/liella-crt1.o"))
+    padded_start(dir, region, pad, &root().join("target/niji/niji-crt1.o"))
 }
 
 /// [`padded_crt1`] for the start file `start`; region `data` puts the pad in `.data` (it moves the
 /// end of `.data` against the start alignment of `.data1`).
 fn padded_start(dir: &Path, region: &str, pad: u64, start: &Path) -> PathBuf {
     let body = match region {
-        "data" => format!(".section .data.liella_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
-        "pre" => format!(".section .text.unlikely.liella_pad,\"ax\",@progbits\n.fill {pad},1,0xcc\n"),
+        "data" => format!(".section .data.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
+        "pre" => format!(".section .text.unlikely.niji_pad,\"ax\",@progbits\n.fill {pad},1,0xcc\n"),
         // Shifts every `.lbss` object by `pad` against the page grid, as another emission order would.
-        "lbss" => format!(".section .lbss.liella_pad,\"aw\",@nobits\n.zero {pad}\n"),
+        "lbss" => format!(".section .lbss.niji_pad,\"aw\",@nobits\n.zero {pad}\n"),
         // A program's own relro inputs, which the linker takes ahead of the library's start-up relro cluster.
-        "relro" => format!(".section .data.rel.ro.local.liella_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
+        "relro" => format!(".section .data.rel.ro.local.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
         _ => format!(".text\n.fill {pad},1,0xcc\n"),
     };
     let (s, o, crt1) = (dir.join("pad.s"), dir.join("pad.o"), dir.join("crt1pad.o"));
@@ -1061,7 +1061,7 @@ fn padded_start(dir: &Path, region: &str, pad: u64, start: &Path) -> PathBuf {
 /// (LAYOUT-STABILITY-RETHINK). No spec clause (layout of the products).
 #[test]
 fn init_zero_fault_calls_hold_at_every_text_phase() {
-    let base = std::env::temp_dir().join(format!("liella-text-phase-{}", std::process::id()));
+    let base = std::env::temp_dir().join(format!("niji-text-phase-{}", std::process::id()));
     let mut bad = Vec::new();
     for region in ["pre", "cold"] {
         for pad in [0x800_u64, 0x2000, 0x8000, 0xF000] {
@@ -1094,13 +1094,13 @@ fn init_zero_fault_calls_hold_at_every_text_phase() {
 /// of text, covering every 4 KiB position of `.rodata` in a window.
 #[test]
 fn init_startup_rodata_stays_in_one_window_for_any_text_size() {
-    let dir = std::env::temp_dir().join(format!("liella-startup-ro-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-startup-ro-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let mut spans = Vec::new();
     for k in 0..16u64 {
         let pad = 0x30 + k * 4096;
         let (src, obj, exe) = (dir.join(format!("pad{k}.s")), dir.join(format!("pad{k}.o")), dir.join(format!("pf{k}")));
-        std::fs::write(&src, format!("\t.text\n\t.globl liella_test_pad{k}\nliella_test_pad{k}:\n\t.skip {pad}, 0x90\n\t.section .note.GNU-stack,\"\",@progbits\n")).expect("pad source");
+        std::fs::write(&src, format!("\t.text\n\t.globl niji_test_pad{k}\nniji_test_pad{k}:\n\t.skip {pad}, 0x90\n\t.section .note.GNU-stack,\"\",@progbits\n")).expect("pad source");
         assert!(Command::new("cc").arg("-c").arg(&src).arg("-o").arg(&obj).status().expect("cc").success(), "pad object");
         build_with(&exe, &[obj.to_str().expect("utf-8 path")]);
         let out = Command::new("readelf").arg("-SW").arg(&exe).output().expect("readelf");
@@ -1163,7 +1163,7 @@ fn init_written_startup_objects_are_in_the_data1_cluster() {
             (f.len() == 3 && f[1] == "rw").then(|| symbol_stem(f[0]).to_string())
         })
         .collect();
-    let out = Command::new("objdump").arg("-t").arg(root().join("target/liella/libc.a")).output().expect("objdump");
+    let out = Command::new("objdump").arg("-t").arg(root().join("target/niji/libc.a")).output().expect("objdump");
     let table = String::from_utf8_lossy(&out.stdout).into_owned();
     let (mut moved, mut named, mut bad) = (0, 0, Vec::new());
     for l in table.lines() {
@@ -1172,7 +1172,7 @@ fn init_written_startup_objects_are_in_the_data1_cluster() {
         let (Some(section), Some(size), Some(name)) = (a.split_whitespace().last(), b.split_whitespace().next().and_then(|z| u64::from_str_radix(z, 16).ok()), b.split_whitespace().last()) else { continue };
         // Only a static in a section of its own (`.data.<symbol>`) can be moved by name; a C object in a
         // section named otherwise (`__environ` in `.bss.environ`) is out of scope (D-X.64, open).
-        if section == ".data1" && (name.ends_with("4heap4HEAP") || ["environ", "liella_machine_fold_limit", "liella_machine_cmp_sse_null", "liella_machine_set_mid"].contains(&name)) {
+        if section == ".data1" && (name.ends_with("4heap4HEAP") || ["environ", "niji_machine_fold_limit", "niji_machine_cmp_sse_null", "niji_machine_set_mid"].contains(&name)) {
             named += 1;
         }
         if !keys.contains(&unhashed_key(name)) || (section != ".data1" && !section.contains(name)) {
@@ -1210,12 +1210,12 @@ fn section_span(exe: &Path, name: &str) -> Option<(u64, u64)> {
 /// `cold`, `lbss` and `data` pad, the fork child within [`FORK_BOUND`]. Before the clusters, the `cold` pads moved the
 /// read-only data window by one (LAYOUT-STABILITY-RETHINK). LAYOUT-DATA-CLUSTERS-5 (#4602): `data` pads
 /// `.data` by 0x800, 0x1000, 0x2000 and 0x3000 bytes ahead of every library object, as another order of
-/// `.data` would (a libm change re-partitioned liella_boundary's codegen units and moved
+/// `.data` would (a libm change re-partitioned niji_boundary's codegen units and moved
 /// `__libc_single_threaded` and `_IO_2_1_stdout_` to a page of their own): start-up writes nothing in
 /// `.data` outside the cluster, so the counts stay. No spec clause (layout of the products).
 #[test]
 fn init_data_clusters_hold_at_every_text_phase() {
-    let base = std::env::temp_dir().join(format!("liella-data-phase-{}", std::process::id()));
+    let base = std::env::temp_dir().join(format!("niji-data-phase-{}", std::process::id()));
     let (mut bad, mut counts) = (Vec::new(), std::collections::BTreeMap::new());
     for region in ["pre", "cold", "lbss", "data"] {
         let pads: &[u64] = match region {
@@ -1303,20 +1303,20 @@ fn output_fill(map: &str, name: &str) -> u64 {
 /// the same pages whatever lies ahead of it. The probe linked with a start file padded by 0x4d0, 0x800, 0xc18 and
 /// 0x14d0 bytes of `.data.rel.ro.local` (`relro`: a program's own relro inputs, which the linker takes first, as an
 /// unrelated change ahead of the cluster would; LIBM-F32-BESSEL-LARGE-6 moved the start-up relro objects by 0x4d0
-/// bytes and two pages) and of `.lbss` (`lbss`): the start-up relro cluster (`.data.rel.ro.local.liella_startup*`,
+/// bytes and two pages) and of `.lbss` (`lbss`): the start-up relro cluster (`.data.rel.ro.local.niji_startup*`,
 /// xtask/src/startup_ro.rs) starts on a page boundary and spans the same number of pages at every pad and unpadded,
 /// and `heap::RESERVE_MEM` and `global_locale::SLOTS` start on a page boundary (their heads are the start-up part).
 /// No spec clause (layout of the products).
 #[test]
 fn init_startup_data_pages_hold_at_every_data_phase() {
-    let base = std::env::temp_dir().join(format!("liella-startup-pages-{}", std::process::id()));
+    let base = std::env::temp_dir().join(format!("niji-startup-pages-{}", std::process::id()));
     let (mut bad, mut spans) = (Vec::new(), Vec::new());
     for (region, pad) in [("none", 0_u64), ("relro", 0x4d0), ("relro", 0x800), ("relro", 0xc18), ("relro", 0x14d0), ("lbss", 0x4d0), ("lbss", 0xc18)] {
         let dir = base.join(format!("{region}-{pad:x}"));
         std::fs::create_dir_all(&dir).expect("temp dir");
-        let crt1 = if pad == 0 { root().join("target/liella/liella-crt1.o") } else { padded_crt1(&dir, region, pad) };
+        let crt1 = if pad == 0 { root().join("target/niji/niji-crt1.o") } else { padded_crt1(&dir, region, pad) };
         let map = link_map(&dir, &crt1);
-        let cluster = map_inputs(&map, ".data.rel.ro.local.liella_startup");
+        let cluster = map_inputs(&map, ".data.rel.ro.local.niji_startup");
         let (lo, hi) = cluster.iter().filter(|c| c.2 > 0).fold((u64::MAX, 0), |(lo, hi), c| (lo.min(c.1), hi.max(c.1.saturating_add(c.2))));
         if lo >= hi {
             bad.push(format!("{region} {pad:#x}: no start-up relro cluster in the link"));
@@ -1415,12 +1415,12 @@ fn init_startup_data_accesses_are_in_the_data1_cluster() {
     let modes: std::collections::BTreeSet<&str> = source.split("strcmp(argv[1], \"").skip(1).filter_map(|s| s.split_once('"').map(|(m, _)| m)).filter(|m| *m != "relay").collect();
     let untraced: Vec<&&str> = modes.iter().filter(|m| !STARTUP_PROBE_MODES.contains(m)).collect();
     assert!(modes.len() >= 3 && untraced.is_empty(), "STARTUP-DATA-KEYS: page_faults.c modes {untraced:?} are not in STARTUP_PROBE_MODES (found {modes:?})");
-    let dir = std::env::temp_dir().join(format!("liella-startup-access-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-startup-access-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let script = isolated_data_script(&dir);
     let (exe, map, data) = (dir.join("page_faults"), dir.join("page_faults.map"), dir.join("perf.data"));
     let (t, m) = (format!("-Wl,-T,{}", script.display()), format!("-Wl,-Map={}", map.display()));
-    build_crt1(&exe, &[&t, &m], &root().join("target/liella/liella-crt1.o"));
+    build_crt1(&exe, &[&t, &m], &root().join("target/niji/niji-crt1.o"));
     let map = std::fs::read_to_string(&map).expect("link map");
     let inputs: Vec<(String, u64, u64, String)> = [".data", ".bss", ".lbss"]
         .into_iter()
@@ -1478,7 +1478,7 @@ fn init_startup_data_accesses_are_in_the_data1_cluster() {
             let Some((name, start, size, file)) = inputs.iter().find(|s| s.1 <= a && a < s.1 + s.2) else { continue };
             touched.insert(format!("{mode}: {name} ({size} bytes, {file})"));
             // The probe's own objects (`strings` writes its `.data.rel`) are not the library's to declare.
-            if !(file.contains("libc.a(") || file.ends_with("liella-crt1.o")) {
+            if !(file.contains("libc.a(") || file.ends_with("niji-crt1.o")) {
                 continue;
             }
             // A static in a section of its own is declared by name (D-X.64), up to the list's size limit.
@@ -1521,9 +1521,9 @@ fn init_startup_data_accesses_are_in_the_data1_cluster() {
 /// object. No spec clause (layout of the products).
 #[test]
 fn init_startup_state_follows_the_declared_order() {
-    let dir = std::env::temp_dir().join(format!("liella-state-order-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-state-order-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temp dir");
-    let map = link_map(&dir, &root().join("target/liella/liella-crt1.o"));
+    let map = link_map(&dir, &root().join("target/niji/niji-crt1.o"));
     let nm = Command::new("nm").args(["-n", "--defined-only"]).arg(dir.join("page_faults")).output().expect("nm");
     let _ = std::fs::remove_dir_all(&dir);
     // LAYOUT-STARTUP-STATE-LOCALE-3 (ruling #4942): and the first-call cluster (`.lbss` inputs named `.lbss`
@@ -1572,12 +1572,12 @@ fn init_startup_state_follows_the_declared_order() {
 /// starts a new segment where the gap before a writable section reaches a page; a 16 KiB `.data1`
 /// start left a 3-page gap after `.data`, and the start refused the program (exit 127). A program
 /// with initialised TLS, a constructor and relro pointers (`.tdata` and `.init_array` ahead of
-/// `.data.rel.ro`), linked through `liella-rcrt1.o` with `.data` padded to each 4 KiB phase of a
+/// `.data.rel.ro`), linked through `niji-rcrt1.o` with `.data` padded to each 4 KiB phase of a
 /// 16 KiB boundary, must have one writable `PT_LOAD` and run to exit 0. No spec clause (layout of
 /// the start object).
 #[test]
 fn init_static_pie_keeps_one_writable_segment_at_every_data_phase() {
-    let base = std::env::temp_dir().join(format!("liella-spie-phase-{}", std::process::id()));
+    let base = std::env::temp_dir().join(format!("niji-spie-phase-{}", std::process::id()));
     std::fs::create_dir_all(&base).expect("temp dir");
     let src = base.join("spie.c");
     let prog = "static int ctor_ran;\n__attribute__((constructor)) static void mark(void) { ctor_ran = 1; }\n\
@@ -1585,7 +1585,7 @@ fn init_static_pie_keeps_one_writable_segment_at_every_data_phase() {
                 const char *const *volatile names_ref = names;\n\
                 int main(void) { return ctor_ran == 1 && tls_seed == 7 && names_ref[1][1] == 'n' ? 0 : 3; }\n";
     std::fs::write(&src, prog).expect("spie.c");
-    let rcrt1 = root().join("target/liella/liella-rcrt1.o");
+    let rcrt1 = root().join("target/niji/niji-rcrt1.o");
     let mut bad = Vec::new();
     for pad in [0_u64, 0x800, 0x1000, 0x2000, 0x3000] {
         let dir = base.join(format!("data-{pad:x}"));
@@ -1596,7 +1596,7 @@ fn init_static_pie_keeps_one_writable_segment_at_every_data_phase() {
             .args(["-std=gnu17", "-O1", "-nostdlib", "-fno-builtin", "-static-pie", "-fPIE", "-Wl,-z,pack-relative-relocs"])
             .arg(&start)
             .arg(&src)
-            .arg(root().join("target/liella/libc.a"))
+            .arg(root().join("target/niji/libc.a"))
             .args(["-lgcc", "-o"])
             .arg(&exe)
             .status()

@@ -1,4 +1,4 @@
-//! The ELF reader (`liella_ld::elf`, IP-24 part 1) over a synthetic image and its malformed variants:
+//! The ELF reader (`niji_ld::elf`, IP-24 part 1) over a synthetic image and its malformed variants:
 //! every check of decision D-27.7 returns its typed error, never a panic or an out-of-range read.
 //! The image is built here byte by byte, so these tests are pure logic and run on any host.
 //!
@@ -6,8 +6,8 @@
 //! rule 4 ("parsing never trusts lengths, offsets or counts"), which has no clause ID.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
-use liella_ld::arch::{Arch, RelocKind, X86_64, ELFDATA2MSB};
-use liella_ld::elf::{dt, pt, DynEntry, Elf, ElfError, Part};
+use niji_ld::arch::{Arch, RelocKind, X86_64, ELFDATA2MSB};
+use niji_ld::elf::{dt, pt, DynEntry, Elf, ElfError, Part};
 
 // Layout of the valid image (offsets in the file; the one PT_LOAD maps file offset == vaddr).
 const PHNUM: usize = 5;
@@ -42,7 +42,7 @@ const P_ALIGN: usize = 48;
 struct BigOther;
 impl Arch for BigOther {
     const NAME: &'static str = "test-big-endian";
-    const TLS_VARIANT: liella_ld::arch::TlsVariant = liella_ld::arch::TlsVariant::I;
+    const TLS_VARIANT: niji_ld::arch::TlsVariant = niji_ld::arch::TlsVariant::I;
     const TCB_SIZE: u64 = 16;
     const TCB_ALIGN: u64 = 16;
     const SELF_SLOT: Option<u64> = None;
@@ -60,14 +60,14 @@ impl Arch for BigOther {
     const LIB: &'static str = "lib";
     const SYSTEM_DIRS: &'static [&'static str] = &[];
     const CACHE_FLAGS: u32 = 0;
-    fn hwcaps(_: &liella_rt::cpu::Features) -> &'static [&'static str] {
+    fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static str] {
         &[]
     }
-    fn platform(_: &liella_rt::cpu::Features) -> &'static str {
+    fn platform(_: &niji_rt::cpu::Features) -> &'static str {
         "other"
     }
-    fn features(_: &liella_kernel::auxv::Auxv<'_>, _: &impl liella_kernel::machine::Machine) -> liella_rt::cpu::Features {
-        liella_rt::cpu::Features::default()
+    fn features(_: &niji_kernel::auxv::Auxv<'_>, _: &impl niji_kernel::machine::Machine) -> niji_rt::cpu::Features {
+        niji_rt::cpu::Features::default()
     }
     fn classify(r_type: u32) -> RelocKind {
         RelocKind::Unsupported(r_type)
@@ -289,7 +289,7 @@ fn s27_1_f_0_wrong_class() {
     struct Class32;
     impl Arch for Class32 {
         const NAME: &'static str = "test-class32";
-        const TLS_VARIANT: liella_ld::arch::TlsVariant = liella_ld::arch::TlsVariant::I;
+        const TLS_VARIANT: niji_ld::arch::TlsVariant = niji_ld::arch::TlsVariant::I;
         const TCB_SIZE: u64 = 16;
         const TCB_ALIGN: u64 = 16;
         const SELF_SLOT: Option<u64> = None;
@@ -307,14 +307,14 @@ fn s27_1_f_0_wrong_class() {
         const LIB: &'static str = "lib";
         const SYSTEM_DIRS: &'static [&'static str] = &[];
             const CACHE_FLAGS: u32 = 0;
-        fn hwcaps(_: &liella_rt::cpu::Features) -> &'static [&'static str] {
+        fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static str] {
             &[]
         }
-        fn platform(_: &liella_rt::cpu::Features) -> &'static str {
+        fn platform(_: &niji_rt::cpu::Features) -> &'static str {
             "other"
         }
-        fn features(_: &liella_kernel::auxv::Auxv<'_>, _: &impl liella_kernel::machine::Machine) -> liella_rt::cpu::Features {
-            liella_rt::cpu::Features::default()
+        fn features(_: &niji_kernel::auxv::Auxv<'_>, _: &impl niji_kernel::machine::Machine) -> niji_rt::cpu::Features {
+            niji_rt::cpu::Features::default()
         }
         fn classify(r_type: u32) -> RelocKind {
             RelocKind::Unsupported(r_type)

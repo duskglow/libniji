@@ -10,15 +10,15 @@
 #include <errno.h>
 #include <stddef.h>
 
-void *liella_ph_malloc_get_state(void);
-int liella_ph_malloc_set_state(void *state);
+void *niji_ph_malloc_get_state(void);
+int niji_ph_malloc_set_state(void *state);
 
-void *liella_ph_malloc_get_state(void) {
+void *niji_ph_malloc_get_state(void) {
     errno = ENOSYS;
     return NULL;
 }
 
-int liella_ph_malloc_set_state(void *state) {
+int niji_ph_malloc_set_state(void *state) {
     (void)state;
     errno = ENOSYS;
     return -1;

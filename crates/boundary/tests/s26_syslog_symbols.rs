@@ -8,7 +8,7 @@
 //! The process-wide logger sends to a receiving socket and a console file in a scratch
 //! directory under `/tmp` (`selftest::syslog_paths`, accepted only in tests): no test writes
 //! to the system log. The tests share the logger, so each takes [`LOCK`]. `syslog` and
-//! `__syslog_chk` are variadic: their fixed-arity target `liella_vsyslog4` is tested here (with
+//! `__syslog_chk` are variadic: their fixed-arity target `niji_vsyslog4` is tested here (with
 //! formats that take no argument) and the C entry points through real varargs in
 //! `crates/core/tests/syslog_products.rs` (a private `/dev`).
 #![allow(non_snake_case)]
@@ -23,8 +23,8 @@ use std::os::unix::net::UnixDatagram;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use liella_boundary::errno;
-use liella_boundary::posix::s26_syslog as s;
+use niji_boundary::errno;
+use niji_boundary::posix::s26_syslog as s;
 
 const LOG_PID: i32 = 1;
 const LOG_CONS: i32 = 2;
@@ -58,7 +58,7 @@ impl Fixture {
         s::openlog(null(), 0, LOG_USER);
         s::setlogmask(0xff);
         let (l, c) = (dir.join("log"), dir.join("console"));
-        liella_boundary::selftest::syslog_paths(Some((l.as_os_str().as_encoded_bytes(), c.as_os_str().as_encoded_bytes(), 50_000_000)));
+        niji_boundary::selftest::syslog_paths(Some((l.as_os_str().as_encoded_bytes(), c.as_os_str().as_encoded_bytes(), 50_000_000)));
         Fixture { dir, rx, _g: g }
     }
 
@@ -83,7 +83,7 @@ impl Drop for Fixture {
         s::closelog();
         s::openlog(null(), 0, LOG_USER);
         s::setlogmask(0xff);
-        liella_boundary::selftest::syslog_paths(None);
+        niji_boundary::selftest::syslog_paths(None);
     }
 }
 
@@ -141,24 +141,24 @@ fn sym_setlogmask() {
 
 #[test]
 fn sym_syslog() {
-    // The variadic entry point's target: `liella_vsyslog4(pri, 0, fmt, ap)`.
+    // The variadic entry point's target: `niji_vsyslog4(pri, 0, fmt, ap)`.
     let f = Fixture::new("syslog");
     errno::set_raw(ENOENT);
-    s::liella_vsyslog4(LOG_INFO, 0, c"%m".as_ptr(), null_mut());
+    s::niji_vsyslog4(LOG_INFO, 0, c"%m".as_ptr(), null_mut());
     assert_eq!(f.record(), (LOG_USER | LOG_INFO, format!("{}: No such file or directory", prog())));
     assert_eq!(errno::get(), ENOENT, "errno is left alone");
-    s::liella_vsyslog4(LOG_INFO, 0, null(), null_mut());
+    s::niji_vsyslog4(LOG_INFO, 0, null(), null_mut());
     assert!(f.next().is_none(), "a NULL format logs nothing");
 }
 
 #[test]
 fn sym___syslog_chk() {
     let f = Fixture::new("syslog_chk");
-    s::liella_vsyslog4(LOG_ERR, 1, c"checked %%".as_ptr(), null_mut());
+    s::niji_vsyslog4(LOG_ERR, 1, c"checked %%".as_ptr(), null_mut());
     assert_eq!(f.record(), (LOG_USER | LOG_ERR, format!("{}: checked %", prog())));
     s::setlogmask(1 << LOG_ERR);
     let writable = CString::new("%n").unwrap().into_bytes_with_nul();
-    s::liella_vsyslog4(LOG_INFO, 1, writable.as_ptr().cast(), null_mut());
+    s::niji_vsyslog4(LOG_INFO, 1, writable.as_ptr().cast(), null_mut());
     assert!(f.next().is_none(), "masked: not formatted, so no %n check");
 }
 

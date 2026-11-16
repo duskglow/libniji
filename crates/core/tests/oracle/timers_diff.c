@@ -1,5 +1,5 @@
 /* Timers end to end (spec §23.4; D-23.2, D-23.3): built against the host C library and against
- * Liella's products, the outputs must match line for line (timers_products.rs). Black-box: each
+ * libniji's products, the outputs must match line for line (timers_products.rs). Black-box: each
  * line is a result, an errno, or a fact about a delivery, with times shown only against coarse
  * thresholds so that both builds print the same on a loaded machine. */
 #define _GNU_SOURCE

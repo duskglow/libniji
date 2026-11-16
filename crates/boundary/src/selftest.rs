@@ -15,9 +15,9 @@ extern crate std;
 
 use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SigSet, SIGKILL, SIGSTOP};
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SigSet, SIGKILL, SIGSTOP};
 
 use crate::raw;
 use crate::sys::CSys;
@@ -67,7 +67,7 @@ pub const PANICKED: i32 = 101;
 /// thread ended before the signal was set (the child then belongs to another thread, or to
 /// another process), the child exits at once.
 fn orphan_guard(parent: (i32, i32)) {
-    use liella_kernel::ops::PrctlInt;
+    use niji_kernel::ops::PrctlInt;
     let _ = CSys.prctl_int(PrctlInt::SetPdeathsig, u64::from(SIGKILL.unsigned_abs()), 0);
     if CSys.getppid() != parent.0 || CSys.tgkill(parent.0, parent.1, 0).is_err() {
         CSys.exit_group(PANICKED);
@@ -84,13 +84,13 @@ fn orphan_guard(parent: (i32, i32)) {
 /// own `/proc/self/uid_map` or `setgroups`. `cargo xtask crash-audit` checks every expected-crash
 /// test reaches it. The C programs use `conformance/c/expect_crash.h`.
 pub fn expect_crash() {
-    use liella_kernel::ops::PrctlInt;
+    use niji_kernel::ops::PrctlInt;
     let _ = CSys.prctl_int(PrctlInt::SetDumpable, 0, 0);
 }
 
 /// This process's dumpable flag (`PR_GET_DUMPABLE`): 0 after [`expect_crash`], 1 normally.
 pub fn dumpable() -> KResult<i64> {
-    use liella_kernel::ops::PrctlInt;
+    use niji_kernel::ops::PrctlInt;
     CSys.prctl_int(PrctlInt::GetDumpable, 0, 0)
 }
 
@@ -139,7 +139,7 @@ pub fn spawn_child(body: fn(&CSys) -> i32) -> KResult<i32> {
     Ok(pid)
 }
 
-/// Test processes run under the host libc, where a thread made by Liella's `pthread_create`
+/// Test processes run under the host libc, where a thread made by libniji's `pthread_create`
 /// cannot run its start routine and a wait for it never ends. This makes thread creation fail
 /// with `EAGAIN` (D-22.10, as in a program under another `ld.so`), so the test sees the
 /// expected error and does not hang. Behind the `selftest` feature, which no product enables.
@@ -166,7 +166,7 @@ pub fn starve_registry(on: bool) {
 /// The calling thread's heap cache word as the heap sees it in a process the runtime did not
 /// start: whether it has one, and the value the fast paths read (0: none).
 pub fn heap_cache_word() -> (bool, usize) {
-    use liella_rt::heap::Pages;
+    use niji_rt::heap::Pages;
     // Through `KernelPages`, the heap's general paths' view (what a foreign process's calls take).
     (crate::heap::KernelPages.cache_slot().is_some(), crate::heap::KernelPages.cache_word())
 }
@@ -327,13 +327,13 @@ pub fn notifications_queued_for_stacks() -> usize {
     crate::stacks::queued()
 }
 
-/// Turn on exactly the diagnostic topics a `LIELLA_DIAG` value names (D-2.9), as the lazy read
+/// Turn on exactly the diagnostic topics a `NIJI_DIAG` value names (D-2.9), as the lazy read
 /// of the variable does at the first diagnostic (the test sets the answer instead).
 pub fn diag_set(value: &[u8]) {
     crate::diag::set(value);
 }
 
-/// The topic bits a `LIELLA_DIAG` value names (D-2.9): `timers` is 1.
+/// The topic bits a `NIJI_DIAG` value names (D-2.9): `timers` is 1.
 pub fn diag_topics(value: &[u8]) -> u32 {
     crate::diag::topics(value)
 }
@@ -396,7 +396,7 @@ pub fn spawn_pausing() -> KResult<i32> {
     // the process before the signal is set while the ending thread is still visible to the
     // guard's tgkill, and the child pauses until the 600 s alarm (the likely cause of the one
     // 600 s hang of selftest_children_end_with_their_thread in a gate; FLAKES-6, by analysis).
-    let [armed_r, armed_w] = CSys.pipe2(liella_kernel::uapi::O_CLOEXEC)?;
+    let [armed_r, armed_w] = CSys.pipe2(niji_kernel::uapi::O_CLOEXEC)?;
     let pid = match child_fork() {
         Ok(pid) => pid,
         Err(e) => {
@@ -464,12 +464,12 @@ pub fn signal_roundtrip(sig: i32) -> KResult<(u32, i32)> {
 
 /// Fork; the child redirects its standard output to `/dev/null` and `execve`s `path`; the
 /// parent waits. A failed `execve` ends the child with 127.
-pub fn exec_child(path: liella_kernel::KStr<'_>, argv: &liella_kernel::mem::KPtrArray<'_>, envp: &liella_kernel::mem::KPtrArray<'_>) -> KResult<ChildEnd> {
+pub fn exec_child(path: niji_kernel::KStr<'_>, argv: &niji_kernel::mem::KPtrArray<'_>, envp: &niji_kernel::mem::KPtrArray<'_>) -> KResult<ChildEnd> {
     let pid = child_fork()?;
     if pid == 0 {
-        if let Ok(null) = liella_kernel::KStr::from_nul_terminated(b"/dev/null\0") {
-            if let Ok(fd) = CSys.openat(liella_kernel::Fd::CWD, null, liella_kernel::uapi::O_WRONLY, 0) {
-                let _ = CSys.dup2(fd, liella_kernel::Fd::STDOUT);
+        if let Ok(null) = niji_kernel::KStr::from_nul_terminated(b"/dev/null\0") {
+            if let Ok(fd) = CSys.openat(niji_kernel::Fd::CWD, null, niji_kernel::uapi::O_WRONLY, 0) {
+                let _ = CSys.dup2(fd, niji_kernel::Fd::STDOUT);
             }
         }
         let _ = CSys.execve(path, argv, envp);
@@ -492,10 +492,10 @@ pub fn exec_child(path: liella_kernel::KStr<'_>, argv: &liella_kernel::mem::KPtr
 /// [`SYNCED_GO_TIMEOUT_MS`] for the go-ahead. A panic in `between` closes the go-ahead pipe,
 /// reaps the child (status 125) and then resumes.
 pub fn in_child_synced(pre: fn(&CSys) -> i32, post: fn(&CSys) -> i32, between: impl FnOnce(i32)) -> KResult<ChildEnd> {
-    use liella_kernel::uapi::O_CLOEXEC;
+    use niji_kernel::uapi::O_CLOEXEC;
     let parent = (CSys.getpid(), CSys.gettid());
     let [to_parent_r, to_parent_w] = CSys.pipe2(O_CLOEXEC)?;
-    let close_all = |fds: &[liella_kernel::Fd]| fds.iter().for_each(|&fd| {
+    let close_all = |fds: &[niji_kernel::Fd]| fds.iter().for_each(|&fd| {
         let _ = CSys.close(fd);
     });
     let [to_child_r, to_child_w] = CSys.pipe2(O_CLOEXEC).inspect_err(|_| close_all(&[to_parent_r, to_parent_w]))?;
@@ -543,8 +543,8 @@ pub const SYNCED_GO_TIMEOUT_MS: i64 = 120_000;
 
 /// In the child of [`in_child_synced`]: 0 once the go-ahead byte arrived, 125 at end of file
 /// or an error, 124 after [`SYNCED_GO_TIMEOUT_MS`].
-fn wait_go_ahead(fd: liella_kernel::Fd) -> i32 {
-    use liella_kernel::uapi::{PollFd, Timespec, POLLIN};
+fn wait_go_ahead(fd: niji_kernel::Fd) -> i32 {
+    use niji_kernel::uapi::{PollFd, Timespec, POLLIN};
     let mut fds = [PollFd { fd: fd.raw(), events: POLLIN, revents: 0 }];
     let mut left = Timespec { sec: SYNCED_GO_TIMEOUT_MS / 1000, nsec: (SYNCED_GO_TIMEOUT_MS % 1000) * 1_000_000 };
     loop {
@@ -593,7 +593,7 @@ extern "C" fn note_stack(_sig: i32) {
 /// `SA_ONSTACK`, and report whether the handler ran on that stack. The stack is disabled and
 /// unmapped afterwards.
 pub fn altstack_roundtrip(sig: i32) -> KResult<bool> {
-    use liella_kernel::uapi::{MAP_PRIVATE, PROT_READ, PROT_WRITE, SA_ONSTACK};
+    use niji_kernel::uapi::{MAP_PRIVATE, PROT_READ, PROT_WRITE, SA_ONSTACK};
     const SIZE: usize = 64 * 1024;
     let region = CSys.mmap(0, SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, None, 0)?;
     ALT_LO.store(region.addr(), Ordering::SeqCst);
@@ -614,7 +614,7 @@ pub fn altstack_roundtrip(sig: i32) -> KResult<bool> {
 /// while holding it. Returns the word as the kernel left it: `FUTEX_OWNER_DIED` set, the TID
 /// cleared.
 pub fn robust_list_owner_died() -> KResult<u32> {
-    use liella_kernel::uapi::{MAP_SHARED, PROT_READ, PROT_WRITE, RobustListHead};
+    use niji_kernel::uapi::{MAP_SHARED, PROT_READ, PROT_WRITE, RobustListHead};
     let region = CSys.mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, None, 0)?;
     let words = CSys.region_words(&region).ok_or(Errno::EINVAL)?;
     let pid = child_fork()?;
@@ -650,7 +650,7 @@ pub fn robust_list_owner_died() -> KResult<u32> {
 pub fn dirty_upper_probe() -> u64 {
     let mut r = -1;
     let n = core::ptr::null();
-    crate::ffi::liella_machine_clean_upper_call(crate::ffi::liella_machine_ymm15_dirty_cmp, n, n, &mut r)
+    crate::ffi::niji_machine_clean_upper_call(crate::ffi::niji_machine_ymm15_dirty_cmp, n, n, &mut r)
 }
 
 /// `strcmp` of the NUL-terminated byte strings `a` and `b`, entered with clean upper halves
@@ -660,22 +660,22 @@ pub fn dirty_upper_probe() -> u64 {
 pub fn strcmp_clean_upper(a: &[u8], b: &[u8]) -> (i32, u64) {
     assert!(a.contains(&0) && b.contains(&0), "both strings need a terminator");
     let mut r = 0;
-    let f = crate::ffi::liella_machine_strcmp;
-    let upper = crate::ffi::liella_machine_clean_upper_call(f, a.as_ptr(), b.as_ptr(), &mut r);
+    let f = crate::ffi::niji_machine_strcmp;
+    let upper = crate::ffi::niji_machine_clean_upper_call(f, a.as_ptr(), b.as_ptr(), &mut r);
     (r, upper)
 }
 
-/// `liella_machine_strdiff` (D-4.37) on the strings at `a` and `b`: the first index at which
+/// `niji_machine_strdiff` (D-4.37) on the strings at `a` and `b`: the first index at which
 /// they differ or `a`'s byte is the terminator. Test-only contract: both are readable
 /// NUL-terminated strings (the guard-page tests place them before an unmapped page).
 pub fn strdiff(a: *const u8, b: *const u8) -> usize {
-    crate::ffi::liella_machine_strdiff(a, b).index
+    crate::ffi::niji_machine_strdiff(a, b).index
 }
 
-/// `liella_machine_strdiff`'s second word (STRCOLL-4, D-4.37) as a flag: whether a byte of the
+/// `niji_machine_strdiff`'s second word (STRCOLL-4, D-4.37) as a flag: whether a byte of the
 /// string at `a` up to the index [`strdiff`] returns has bit 7 set. Same contract as [`strdiff`].
 pub fn strdiff_high(a: *const u8, b: *const u8) -> bool {
-    crate::ffi::liella_machine_strdiff(a, b).high != 0
+    crate::ffi::niji_machine_strdiff(a, b).high != 0
 }
 
 /// Force the scanners' path (D-4.14): `true` for AVX2, `false` for SSE2. Returns `false`
@@ -684,12 +684,12 @@ pub fn set_scan_avx2(avx2: bool) -> bool {
     if avx2 && !crate::cpu::avx2() {
         return false;
     }
-    crate::ffi::liella_machine_set_scan_level(u32::from(avx2));
+    crate::ffi::niji_machine_set_scan_level(u32::from(avx2));
     crate::cpu::force_casecmp_kernel(Some(if avx2 { crate::cpu::CASECMP_AVX2 } else { crate::cpu::CASECMP_SSE2 }));
     true
 }
 
-/// `liella_machine_strpair`'s answer from `s[off..]` for c0 at q - off and c1 at q
+/// `niji_machine_strpair`'s answer from `s[off..]` for c0 at q - off and c1 at q
 /// (TIMING-N100-STRSTR-64), so a test checks the scanner's exact contract (the first candidate or
 /// the terminator, not merely a unit that `strstr`'s compare rejects). `None`, without a call,
 /// when `s` breaks the scanner's proof obligation: no 0 byte in `s`, or one before `off`.
@@ -698,7 +698,7 @@ pub fn strpair(s: &[u8], off: usize, c0: u8, c1: u8) -> Option<usize> {
     if end < off {
         return None;
     }
-    Some(crate::ffi::liella_machine_strpair(s.as_ptr().wrapping_add(off), off, i32::from(c0), i32::from(c1)))
+    Some(crate::ffi::niji_machine_strpair(s.as_ptr().wrapping_add(off), off, i32::from(c0), i32::from(c1)))
 }
 
 /// Force the `strcasecmp`/`strncasecmp` kernel (CASECMP): 0 = none (the measured path), 1 = SSE2,
@@ -755,7 +755,7 @@ pub fn exp_quick(x: f64) -> Option<f64> {
 /// caller sets MXCSR's rounding field to `mode` around the call (the arithmetic runs in it); out
 /// of line so that no operation moves across the caller's MXCSR writes.
 #[inline(never)]
-pub fn exp_directed(x: f64, mode: liella_math::Rounding) -> Option<f64> {
+pub fn exp_directed(x: f64, mode: niji_math::Rounding) -> Option<f64> {
     crate::hot::exp_directed(core::hint::black_box(x), mode)
 }
 
@@ -768,7 +768,7 @@ pub fn exp_tiered(x: f64) -> Option<f64> {
 }
 
 /// The quick phase's unrounded `(zh, zl, scale)` in the chosen build: `e^x = (zh + zl)·scale`
-/// within the build's bound (`RHO_FMA` or `RHO_SSE2` in `liella_math::fast64::quick`).
+/// within the build's bound (`RHO_FMA` or `RHO_SSE2` in `niji_math::fast64::quick`).
 pub fn exp_quick_parts(x: f64) -> Option<(f64, f64, f64)> {
     crate::hot::exp_quick_parts(x)
 }
@@ -780,7 +780,7 @@ pub fn exp2_quick(x: f64) -> Option<f64> {
 }
 
 /// [`exp2_quick`]'s unrounded `(zh, zl, scale)` in the chosen build: `2^x = (zh + zl)·scale` within
-/// `RHO_FAM_FMA` or `RHO_FAM_SSE2` (`liella_math::fast64::quick`).
+/// `RHO_FAM_FMA` or `RHO_FAM_SSE2` (`niji_math::fast64::quick`).
 pub fn exp2_quick_parts(x: f64) -> Option<(f64, f64, f64)> {
     crate::hot::exp2_quick_parts(x)
 }
@@ -792,7 +792,7 @@ pub fn exp10_quick(x: f64) -> Option<f64> {
 }
 
 /// [`exp10_quick`]'s unrounded `(zh, zl, scale)` in the chosen build: `10^x = (zh + zl)·scale` within
-/// `RHO_FAM_FMA` or `RHO_FAM_SSE2` (`liella_math::fast64::quick`).
+/// `RHO_FAM_FMA` or `RHO_FAM_SSE2` (`niji_math::fast64::quick`).
 pub fn exp10_quick_parts(x: f64) -> Option<(f64, f64, f64)> {
     crate::hot::exp10_quick_parts(x)
 }
@@ -804,7 +804,7 @@ pub fn expm1_quick(x: f64) -> Option<f64> {
 }
 
 /// [`expm1_quick`]'s unrounded `(zh, zl)` in the chosen build: `e^x − 1 = zh + zl` within
-/// `RHO_M1·|zh|` (`liella_math::fast64::quick`).
+/// `RHO_M1·|zh|` (`niji_math::fast64::quick`).
 pub fn expm1_quick_parts(x: f64) -> Option<(f64, f64)> {
     crate::hot::expm1_quick_parts(x)
 }
@@ -841,7 +841,7 @@ pub fn pow_quick(x: f64, y: f64) -> Option<f64> {
 }
 
 /// The `log` quick phase's unrounded `(zh, zl)` in the chosen build: `ln x = zh + zl` within
-/// `liella_math::fast64::quick_log::RHO·|zh|`.
+/// `niji_math::fast64::quick_log::RHO·|zh|`.
 pub fn log_quick_parts(x: f64) -> Option<(f64, f64)> {
     crate::hot::log_quick_parts(x)
 }
@@ -870,7 +870,7 @@ pub fn atanh_quick(x: f64) -> Option<f64> {
 }
 
 /// The quick phase of `log2`, `log10` or `log1p` (`f` names it; D-10.66) in the build
-/// [`set_math_fma`] chose: its unrounded `(zh, zl)` (within `liella_math::fast64::quick_log::RHO·|zh|`)
+/// [`set_math_fma`] chose: its unrounded `(zh, zl)` (within `niji_math::fast64::quick_log::RHO·|zh|`)
 /// and its rounded answer (`None` when the rounding test does not decide).
 pub fn log_family_quick(f: &str, x: f64) -> (Option<(f64, f64)>, Option<f64>) {
     crate::hot::log_family_quick(f, x)
@@ -904,10 +904,10 @@ pub fn unresolve_null_fold() {
     crate::dispatch::unresolve_null_fold();
 }
 
-/// Whether the portable scanners (`crate::strz::portable`, cfg `liella_portable_scan`, A-8) stand
+/// Whether the portable scanners (`crate::strz::portable`, cfg `niji_portable_scan`, A-8) stand
 /// in for the scan.S kernels in this build: never NULL-folded (D-4.22 PORTABLE-SCAN).
 pub fn portable_scan() -> bool {
-    cfg!(liella_portable_scan)
+    cfg!(niji_portable_scan)
 }
 
 /// Whether the NULL-folding decision (the `vm.mmap_min_addr` read) has been taken.
@@ -937,7 +937,7 @@ pub fn classed_install(want: bool, disabled: bool) -> crate::classed::Outcome {
 /// before): no mapping may gain exec permission afterwards, and none may be writable and
 /// executable.
 pub fn set_mdwe_refuse_exec_gain() -> KResult<i64> {
-    use liella_kernel::ops::PrctlInt;
+    use niji_kernel::ops::PrctlInt;
     CSys.prctl_int(PrctlInt::SetMdwe, 1, 0)
 }
 
@@ -951,7 +951,7 @@ pub fn kernel_avx2() -> bool {
 /// sign bit sends the class to the SSE2 body. Lets a test confirm the word follows the folding
 /// and build settings, since both bodies copy the same bytes.
 pub fn copy_class_word() -> (usize, bool) {
-    let w = crate::ffi::liella_machine_move_long.load(core::sync::atomic::Ordering::Relaxed);
+    let w = crate::ffi::niji_machine_move_long.load(core::sync::atomic::Ordering::Relaxed);
     (w & !crate::dispatch::MOVE_SSE2, w & crate::dispatch::MOVE_SSE2 != 0)
 }
 
@@ -962,7 +962,7 @@ pub fn copy_avx2(dst: &mut [u8], src: &[u8]) -> Option<usize> {
     if n < 128 || !crate::cpu::avx2() {
         return None;
     }
-    crate::ffi::liella_machine_copy_avx2(dst.as_mut_ptr(), src.as_ptr(), n);
+    crate::ffi::niji_machine_copy_avx2(dst.as_mut_ptr(), src.as_ptr(), n);
     Some(n)
 }
 
@@ -975,7 +975,7 @@ pub fn move_avx2(buf: &mut [u8], src: usize, dst: usize, n: usize) -> Option<usi
         return None;
     }
     let p = buf.as_mut_ptr();
-    let _ = crate::ffi::liella_machine_move_avx2(p.wrapping_add(dst), p.wrapping_add(src).cast_const(), n);
+    let _ = crate::ffi::niji_machine_move_avx2(p.wrapping_add(dst), p.wrapping_add(src).cast_const(), n);
     Some(n)
 }
 
@@ -988,7 +988,7 @@ pub fn move_sse2(buf: &mut [u8], src: usize, dst: usize, n: usize) -> Option<usi
         return None;
     }
     let p = buf.as_mut_ptr();
-    let _ = crate::ffi::liella_machine_move_sse2(p.wrapping_add(dst), p.wrapping_add(src).cast_const(), n);
+    let _ = crate::ffi::niji_machine_move_sse2(p.wrapping_add(dst), p.wrapping_add(src).cast_const(), n);
     Some(n)
 }
 
@@ -998,7 +998,7 @@ pub fn fill_avx2(buf: &mut [u8], c: u8) -> Option<usize> {
     if buf.len() < 128 || !crate::cpu::avx2() {
         return None;
     }
-    let _ = crate::ffi::liella_machine_fill_avx2(buf.as_mut_ptr(), i32::from(c), buf.len());
+    let _ = crate::ffi::niji_machine_fill_avx2(buf.as_mut_ptr(), i32::from(c), buf.len());
     Some(buf.len())
 }
 
@@ -1031,13 +1031,13 @@ pub fn bulk_fill_kernel(n: usize) -> &'static str {
     bulk_name(crate::hot::bulk_fill(n, crate::dispatch::avx2(), crate::cpu::erms(), crate::cpu::fill_erms_min()))
 }
 
-/// The library's internal copy (`liella_internal_memcpy`/`_memmove`, D-X.15) through an opaque
+/// The library's internal copy (`niji_internal_memcpy`/`_memmove`, D-X.15) through an opaque
 /// pointer: what the products' own `memcpy`/`memmove` calls reach (COPY-INTERNAL).
 pub fn internal_memmove(d: *mut V, s: *const V, n: usize) -> *mut V {
-    core::hint::black_box(crate::conv::liella_internal_memmove as extern "C" fn(*mut V, *const V, usize) -> *mut V)(d, s, n)
+    core::hint::black_box(crate::conv::niji_internal_memmove as extern "C" fn(*mut V, *const V, usize) -> *mut V)(d, s, n)
 }
 
-type V = liella_abi::ctypes::c_void;
+type V = niji_abi::ctypes::c_void;
 
 /// Force the ERMS flag (`rep movsb`/`rep stosb` paths) on or off whatever the CPU reports; they
 /// are correct everywhere, ERMS only makes them fast. `crate::cpu::init` restores the decision.
@@ -1048,20 +1048,20 @@ pub fn set_erms(on: bool) {
 /// The block loops in ascending (`back == false`) or descending address order: the bytes
 /// copied.
 pub fn copy_loops(dst: &mut [u8], src: &[u8], back: bool) -> usize {
-    if back { liella::bytes::copy_back(dst, src) } else { liella::bytes::copy(dst, src) }
+    if back { niji::bytes::copy_back(dst, src) } else { niji::bytes::copy(dst, src) }
 }
 
 /// `rep movsb` into `dst` from `src`, whatever the size (the threshold and the CPU check are
 /// bypassed; ERMS only affects speed). Returns the bytes copied.
 pub fn copy_erms(dst: &mut [u8], src: &[u8]) -> usize {
     let n = dst.len().min(src.len());
-    crate::ffi::liella_machine_copy_erms(dst.as_mut_ptr(), src.as_ptr(), n);
+    crate::ffi::niji_machine_copy_erms(dst.as_mut_ptr(), src.as_ptr(), n);
     n
 }
 
 /// `rep stosb` over `dst`, whatever the size.
 pub fn fill_erms(dst: &mut [u8], v: u8) {
-    crate::ffi::liella_machine_fill_erms(dst.as_mut_ptr(), i32::from(v), dst.len());
+    crate::ffi::niji_machine_fill_erms(dst.as_mut_ptr(), i32::from(v), dst.len());
 }
 
 /// The NUMA node holding the page at `addr` (`get_mempolicy`), through `raw`; `ENOSYS`
@@ -1093,7 +1093,7 @@ pub fn brk_try(addr: usize) -> usize {
 
 /// `set_robust_list` with a wrong structure length: the kernel refuses it (`EINVAL`).
 pub fn set_robust_list_bad_len() -> KResult<()> {
-    static HEAD: liella_kernel::uapi::RobustListHead = liella_kernel::uapi::RobustListHead {
+    static HEAD: niji_kernel::uapi::RobustListHead = niji_kernel::uapi::RobustListHead {
         list: core::sync::atomic::AtomicUsize::new(0),
         futex_offset: 0,
         list_op_pending: core::sync::atomic::AtomicUsize::new(0),
@@ -1104,9 +1104,9 @@ pub fn set_robust_list_bad_len() -> KResult<()> {
 /// `process_vm_writev` into a forked child's copy of a static word; the child reports through
 /// its exit status whether it saw the new value. Returns that verdict.
 pub fn vm_writev_roundtrip() -> KResult<bool> {
-    use liella_kernel::mem::{IoVec, RemoteIoVec};
+    use niji_kernel::mem::{IoVec, RemoteIoVec};
     static WORD: AtomicU32 = AtomicU32::new(0);
-    let [r, w] = CSys.pipe2(liella_kernel::uapi::O_CLOEXEC)?;
+    let [r, w] = CSys.pipe2(niji_kernel::uapi::O_CLOEXEC)?;
     let pid = child_fork()?;
     if pid == 0 {
         let mut go = [0u8; 1];
@@ -1126,8 +1126,8 @@ pub fn vm_writev_roundtrip() -> KResult<bool> {
 /// Fork a child that waits (non-private futex, so across processes) on `word` while it is 0,
 /// up to five seconds, and exits 0 if it then sees 1. The caller stores 1, wakes it, and reaps.
 pub fn spawn_waiter_on_shared_word(word: &AtomicU32) -> KResult<i32> {
-    use liella_kernel::sys::FutexArg;
-    use liella_kernel::uapi::{Timespec, FUTEX_WAIT};
+    use niji_kernel::sys::FutexArg;
+    use niji_kernel::uapi::{Timespec, FUTEX_WAIT};
     let pid = child_fork()?;
     if pid == 0 {
         let timeout = Timespec { sec: 5, nsec: 0 };
@@ -1144,7 +1144,7 @@ pub fn spawn_waiter_on_shared_word(word: &AtomicU32) -> KResult<i32> {
 /// Fork a child that sleeps `ms` milliseconds and then exits with `code`, without waiting for
 /// it. The caller must reap it.
 pub fn spawn_exiting_after(ms: i64, code: i32) -> KResult<i32> {
-    use liella_kernel::uapi::{Timespec, CLOCK_MONOTONIC};
+    use niji_kernel::uapi::{Timespec, CLOCK_MONOTONIC};
     let pid = child_fork()?;
     if pid == 0 {
         let t = Timespec { sec: ms / 1000, nsec: (ms % 1000).saturating_mul(1_000_000) };
@@ -1163,7 +1163,7 @@ pub fn with_all_locks<R>(body: impl FnOnce() -> R) -> R {
     crate::process::hold_env_lock(true);
     crate::process::EXIT_HANDLERS.hold(&CSys);
     crate::process::QUICK_HANDLERS.hold(&CSys);
-    let prng = liella_legacy::prng_global::hold();
+    let prng = niji_legacy::prng_global::hold();
     let r = crate::timer::with_lock(body);
     drop(prng);
     crate::process::QUICK_HANDLERS.release(&CSys);
@@ -1173,8 +1173,8 @@ pub fn with_all_locks<R>(body: impl FnOnce() -> R) -> R {
     r
 }
 
-/// Park the calling thread's heap cache, as a Liella thread's exit does (D-3.11): for test
-/// threads the host C library created, which Liella never sees exit (D-22.10).
+/// Park the calling thread's heap cache, as a libniji thread's exit does (D-3.11): for test
+/// threads the host C library created, which libniji never sees exit (D-22.10).
 pub fn park_heap_cache() {
     crate::heap::HEAP.park(&CSys, &crate::heap::KernelPages);
 }
@@ -1336,13 +1336,13 @@ pub(crate) fn pass_wipe_after(dirty_before: usize, buf: &[u8]) {
 /// only, the default of a process the library did not start). Tests only (D-16.10): the code
 /// accepts a region location other than the products' `/dev/shm/` only here.
 pub fn nscache_region_dir(dir: Option<&[u8]>) {
-    liella_legacy::nscache::NSCACHE.set_region_dir(dir);
+    niji_legacy::nscache::NSCACHE.set_region_dir(dir);
 }
 
 /// Make the name-service cache attach anew before its next lookup, as a `fork` child does
 /// (the caller has no other thread doing lookups).
 pub fn nscache_reattach() {
-    liella_legacy::nscache::NSCACHE.after_fork_child();
+    niji_legacy::nscache::NSCACHE.after_fork_child();
 }
 
 // ------------------------------------------------------------------------------ test-only locations
@@ -1398,11 +1398,11 @@ pub fn aio_force_workers(on: bool) {
 
 /// Choose this process's POSIX AIO engine now, as its first request would, with `k` as the
 /// kernel (D-11.11): a plan in `k` refuses `io_uring_setup` or `io_uring_register` (named in
-/// `liella_kernel::testing::RAW_FALLIBLE`) or any `Sys` call the choice makes (reading
+/// `niji_kernel::testing::RAW_FALLIBLE`) or any `Sys` call the choice makes (reading
 /// `/proc/thread-self/status`, `prctl`, the eventfd), as a kernel or a seccomp filter would.
 /// Tests only: call it before the process's first request (a re-executed test binary); the
 /// requests that follow run on the engine chosen ([`aio_engine`]).
-pub fn aio_choose_engine(k: &liella_kernel::testing::Faulty<CSys>) -> KResult<()> {
+pub fn aio_choose_engine(k: &niji_kernel::testing::Faulty<CSys>) -> KResult<()> {
     crate::aio::choose_engine(k)
 }
 
@@ -1519,7 +1519,7 @@ pub fn settle_getenv(name: &[u8], entry: &[u8]) -> Option<usize> {
 pub mod opaque {
     use core::hint::black_box;
 
-    use liella_abi::ctypes::{c_char, c_int, c_void, size_t};
+    use niji_abi::ctypes::{c_char, c_int, c_void, size_t};
 
     use crate::posix::{s03_memory as m, s04_strings as st};
 

@@ -1,5 +1,5 @@
 //! The run: directories collected and scanned, soname links, the cache (module documentation of
-//! [`super`] lists the probe-settled behaviour and the Liella rules).
+//! [`super`] lists the probe-settled behaviour and the libniji rules).
 
 use alloc::vec::Vec;
 
@@ -447,7 +447,7 @@ pub(super) fn main<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, gener
 fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], r: &mut Outcome) -> Result<u8, Oom> {
     if let Some(f) = o.format {
         if f == b"old" || f == b"compat" {
-            r.err.bytes(me).bytes(b": cache format `").bytes(f).bytes(b"' is not supported: Liella writes only the new format (-c new)\n");
+            r.err.bytes(me).bytes(b": cache format `").bytes(f).bytes(b"' is not supported: libniji writes only the new format (-c new)\n");
             return Ok(1);
         }
     }

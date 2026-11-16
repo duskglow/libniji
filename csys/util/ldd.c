@@ -1,8 +1,8 @@
 /*
  * ldd (UTIL-4, spec §31.3, plan/utilities.md §4, D-31.7): lists the shared objects each operand needs through
- * Liella's loader in trace mode (LD_TRACE_LOADED_OBJECTS, D-27.16), so ldd and the loader cannot disagree. ldd
+ * libniji's loader in trace mode (LD_TRACE_LOADED_OBJECTS, D-27.16), so ldd and the loader cannot disagree. ldd
  * never runs the operand's code or another interpreter: it reads the ELF headers itself, answers static programs
- * and objects with no DT_NEEDED alone, and starts only Liella's loader (LDD_RTLD) on the rest. `-v` reads each
+ * and objects with no DT_NEEDED alone, and starts only libniji's loader (LDD_RTLD) on the rest. `-v` reads each
  * listed object's version needs (DT_VERNEED, ELF gABI "Symbol Versioning") itself. `-d`, `-r` and `-u` are
  * refused until the loader reports relocations in trace mode (D-31.7).
  *
@@ -24,7 +24,7 @@
 #ifndef LDD_RTLD
 #define LDD_RTLD "/lib64/ld-linux-x86-64.so.2"
 #endif
-/* The x86-64 psABI program interpreter: on a Liella system, Liella's loader. */
+/* The x86-64 psABI program interpreter: on a libniji system, libniji's loader. */
 #define PSABI_INTERP "/lib64/ld-linux-x86-64.so.2"
 
 enum { PT_DYNAMIC_ = 2, PT_INTERP_ = 3, PT_LOAD_ = 1, DT_NEEDED_ = 1, DT_STRTAB_ = 5, DT_STRSZ_ = 10,
@@ -219,7 +219,7 @@ static void print_needs(const char *path, const char *shown, const struct listed
     unmap_file(&im);
 }
 
-/* Run Liella's loader in trace mode on `shown`; its listing goes to stdout (and is returned for `-v`). */
+/* Run libniji's loader in trace mode on `shown`; its listing goes to stdout (and is returned for `-v`). */
 static int trace(const char *shown, char **out, size_t *n) {
     int fd[2];
     if (pipe2(fd, O_CLOEXEC) != 0) return -1;
@@ -286,7 +286,7 @@ static int one(const char *file, int verbose) {
     } else {
         if (e.interp && (e.interp_len != strlen(PSABI_INTERP) || memcmp(e.interp, PSABI_INTERP, e.interp_len) != 0)) {
             fflush(stdout);
-            fprintf(stderr, "ldd: %s: program interpreter %.*s is not Liella's loader: listed by Liella's loader's rules\n",
+            fprintf(stderr, "ldd: %s: program interpreter %.*s is not libniji's loader: listed by libniji's loader's rules\n",
                     shown, (int)e.interp_len, e.interp);
         }
         char *out = NULL;
@@ -301,7 +301,7 @@ static int one(const char *file, int verbose) {
         if (nl > 0 && l[nl - 1].path +l[nl - 1].path_len - l[nl - 1].name_len == l[nl - 1].name) {
             int needed = has_needed(shown, l[nl - 1].name, l[nl - 1].name_len) || has_needed(shown, l[nl - 1].path, l[nl - 1].path_len);
             for (size_t j = 0; j + 1 < nl && !needed; j++) {
-                /* A listed C library: the reference's names the interpreter in DT_NEEDED, Liella's needs no
+                /* A listed C library: the reference's names the interpreter in DT_NEEDED, libniji's needs no
                    loader, and consumers (initramfs-tools' copy_exec) take the loader from this line. */
                 if (l[j].name_len == 9 && memcmp(l[j].name, "libc.so.6", 9) == 0) { needed = 1; break; }
                 char p[4096];
@@ -369,7 +369,7 @@ int main(int argc, char **argv) {
         if (opt < 0) return usage_error("ldd: unrecognized option `%s'\n", a, 1);
         if (opt == 0) { fputs(USAGE, stdout); return 0; }
         if (opt == 1) {
-            puts("ldd (Liella) 2.39");
+            puts("ldd (libniji) 2.39");
             return 0;
         }
         if (opt == 5) { verbose = 1; continue; }

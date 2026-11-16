@@ -2,7 +2,7 @@
 
 use core::sync::atomic::Ordering;
 
-use liella_kernel::errno::Errno;
+use niji_kernel::errno::Errno;
 
 // Products with the runtime: the inline twin of their own `__errno_location` (D-X.60). Other
 // builds (the test processes): the host C library's, which owns `errno` there.

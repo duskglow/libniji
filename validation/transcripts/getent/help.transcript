@@ -19,7 +19,7 @@ file: etc/nsswitch.conf
 | rpc: files
 | netgroup: files
 | aliases: files
-# The reference's bug-report lines are an identity string (D-31.4): Liella prints none.
+# The reference's bug-report lines are an identity string (D-31.4): libniji prints none.
 normalise: shadow\n\nFor bug reporting instructions, please see:\n<https://bugs.launchpad.net/ubuntu/+source/glibc/+bugs>.\n => shadow\n
 arg: passwd
 arg: --help

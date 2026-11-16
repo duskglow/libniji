@@ -1,4 +1,4 @@
-/* wl_percall wordexp set (WORDEXP-PROFILE, plan X-5): instructions per wordexp()+wordfree() call, Liella vs glibc.
+/* wl_percall wordexp set (WORDEXP-PROFILE, plan X-5): instructions per wordexp()+wordfree() call, libniji vs glibc.
  * Run: validation/wl_percall.sh --spec validation/percall/wordexp.c .
  * Every case uses WRDE_NOCMD (no shell runs). The cases are the six rows of bench/c/cbench_opt.c plus probes that
  * separate where the cost goes: a one-word call (the fixed cost of a call), a larger word count (cost per word), one

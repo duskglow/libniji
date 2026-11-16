@@ -7,7 +7,7 @@
 # program still starts.
 #
 # Usage: dns_run.sh PROGRAM SCRATCH
-# LIELLA_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phases too
+# NIJI_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phases too
 # (`nscache_mode.sh` runs the scripts with the cache on and off).
 set -eu
 prog=$1
@@ -19,5 +19,5 @@ for s in basic search trustad noaaaa usevc notfound_return notfound_continue una
     if [ -f /etc/ld.so.cache ]; then
         cp /etc/ld.so.cache "$dir/$s/etc/ld.so.cache"
     fi
-    sudo -n env ${LIELLA_NSCACHE+"LIELLA_NSCACHE=$LIELLA_NSCACHE"} unshare -m -n sh -c 'ip link set lo up && mount --bind "$1/$3/etc" /etc && exec "$2" "$1" "$3"' sh "$dir" "$prog" "$s"
+    sudo -n env ${NIJI_NSCACHE+"NIJI_NSCACHE=$NIJI_NSCACHE"} unshare -m -n sh -c 'ip link set lo up && mount --bind "$1/$3/etc" /etc && exec "$2" "$1" "$3"' sh "$dir" "$prog" "$s"
 done

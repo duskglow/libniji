@@ -14,11 +14,11 @@
 //! * Privileged success paths run as root of a fresh user namespace in such a child. A host that
 //!   denies unprivileged user namespaces (Ubuntu 24.04 and later: `kernel.apparmor_restrict_unprivileged_userns=1`,
 //!   or `user.max_user_namespaces=0`) makes those tests print one `skipped:` line naming the cause and
-//!   pass without running (`skip_without_userns`); `LIELLA_FORCE_NO_USERNS=1` forces that path.
+//!   pass without running (`skip_without_userns`); `NIJI_FORCE_NO_USERNS=1` forces that path.
 //! * The parts that need a full subordinate ID mapping (`k_setuid`, `k_setgroups`) also need the setuid
 //!   helpers `newuidmap`/`newgidmap` (package `uidmap`) on `PATH`. Without them that part prints one
 //!   `skipped:` line naming the package and the test passes after its other parts (`skip_without_uidmap`);
-//!   `LIELLA_FORCE_NO_UIDMAP=1` forces that path. With the helpers present nothing is skipped.
+//!   `NIJI_FORCE_NO_UIDMAP=1` forces that path. With the helpers present nothing is skipped.
 //! * Destructive primitives (`reboot`, module loading, `swapon`, `acct`, `iopl`, ...) are tested
 //!   only on their error paths, with arguments chosen to fail before any effect.
 //! * Where the running kernel predates a call (`fchmodat2`: 6.6, `map_shadow_stack`: 6.6), the
@@ -37,17 +37,17 @@ use std::os::unix::fs::DirBuilderExt;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::time::Duration;
 
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::machine::Machine;
-use liella_kernel::mem::{IoVec, IoVecMut, KPtrArray, MMsgHdr, MMsgHdrMut, MsgHdr, MsgHdrMut, RegionKind, RemoteIoVec};
-use liella_kernel::ops::*;
-use liella_kernel::path::{KPathBuf, KStr};
-use liella_kernel::sys::{Disposition, FsValue, FutexArg, Sys};
-use liella_kernel::uapi::*;
-use liella_kernel::{auxv, vdso};
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::machine::Machine;
+use niji_kernel::mem::{IoVec, IoVecMut, KPtrArray, MMsgHdr, MMsgHdrMut, MsgHdr, MsgHdrMut, RegionKind, RemoteIoVec};
+use niji_kernel::ops::*;
+use niji_kernel::path::{KPathBuf, KStr};
+use niji_kernel::sys::{Disposition, FsValue, FutexArg, Sys};
+use niji_kernel::uapi::*;
+use niji_kernel::{auxv, vdso};
 
 const K: CSys = CSys;
 
@@ -74,8 +74,8 @@ impl Tmp {
         // Under CARGO_TARGET_TMPDIR (the project's rule for test scratch), not /tmp: the
         // isolated gate gives /tmp its own tmpfs. Any file system works (k_preadv2 names the one
         // capability that differs, docs/testing-filesystems.md).
-        let base = std::env::var("LIELLA_TEST_TMP").unwrap_or_else(|_| env!("CARGO_TARGET_TMPDIR").into());
-        let dir = format!("{base}/liella-{}-{tag}-{n}", std::process::id());
+        let base = std::env::var("NIJI_TEST_TMP").unwrap_or_else(|_| env!("CARGO_TARGET_TMPDIR").into());
+        let dir = format!("{base}/niji-{}-{tag}-{n}", std::process::id());
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Tmp(dir)
@@ -85,7 +85,7 @@ impl Tmp {
     fn sock(tag: &str) -> Tmp {
         static N: AtomicUsize = AtomicUsize::new(0);
         let n = N.fetch_add(1, Ordering::Relaxed);
-        let dir = format!("/tmp/liella-{}-{tag}-{n}", std::process::id());
+        let dir = format!("/tmp/niji-{}-{tag}-{n}", std::process::id());
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::DirBuilder::new().mode(0o700).create(&dir).unwrap();
         assert!(dir.len() < 80, "socket directory {dir} leaves too little of sun_path");
@@ -217,12 +217,12 @@ fn become_ns_root(sys: &CSys, flags: u64) -> Result<(), Errno> {
 /// maps (the privileged success paths of these tests run as root of such a namespace). Probed
 /// once, in a forked child. Hosts that restrict it (Ubuntu 24.04 and later:
 /// `sysctl kernel.apparmor_restrict_unprivileged_userns=1`, or `user.max_user_namespaces=0`) deny the
-/// `unshare`. `LIELLA_FORCE_NO_USERNS=1` makes the probe report "denied" (to exercise the skip path
+/// `unshare`. `NIJI_FORCE_NO_USERNS=1` makes the probe report "denied" (to exercise the skip path
 /// on a host where namespaces work).
 fn userns_usable() -> bool {
     static USABLE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *USABLE.get_or_init(|| {
-        if std::env::var_os("LIELLA_FORCE_NO_USERNS").is_some_and(|v| v == "1") {
+        if std::env::var_os("NIJI_FORCE_NO_USERNS").is_some_and(|v| v == "1") {
             return false;
         }
         matches!(selftest::in_child(|k| i32::from(become_ns_root(k, 0).is_err())), Ok(ChildEnd::Exited(0)))
@@ -254,10 +254,10 @@ fn on_path(name: &str) -> bool {
 
 /// True (after one line naming the package) when the setuid helpers `in_mapped_userns` needs are
 /// missing from this host; the caller then returns without running the mapped part. Helpers that
-/// exist never skip, and a failure while they run still fails the test. `LIELLA_FORCE_NO_UIDMAP=1`
+/// exist never skip, and a failure while they run still fails the test. `NIJI_FORCE_NO_UIDMAP=1`
 /// reports them missing (to exercise the skip path on a host that has them).
 fn skip_without_uidmap(test: &str) -> bool {
-    let forced = std::env::var_os("LIELLA_FORCE_NO_UIDMAP").is_some_and(|v| v == "1");
+    let forced = std::env::var_os("NIJI_FORCE_NO_UIDMAP").is_some_and(|v| v == "1");
     if !forced && on_path("newuidmap") && on_path("newgidmap") {
         return false;
     }
@@ -267,18 +267,18 @@ fn skip_without_uidmap(test: &str) -> bool {
     true
 }
 
-/// The probe a re-executed test binary was started for (`LIELLA_PROBE`), if any.
+/// The probe a re-executed test binary was started for (`NIJI_PROBE`), if any.
 fn probe() -> Option<String> {
-    std::env::var("LIELLA_PROBE").ok()
+    std::env::var("NIJI_PROBE").ok()
 }
 
-/// Re-execute this test binary to run only `test`, with `LIELLA_PROBE=probe` and extra
+/// Re-execute this test binary to run only `test`, with `NIJI_PROBE=probe` and extra
 /// environment, and return how it ended. The probe side ends with `exit_group`.
 fn run_probe(test: &str, probe: &str, extra_env: &[&str], argv0: &str) -> ChildEnd {
     let exe = std::fs::read_link("/proc/self/exe").unwrap();
     let exe = kp(exe.to_str().unwrap());
     let args: Vec<KPathBuf> = [argv0, test, "--exact", "--test-threads=1", "-q"].iter().map(|s| kp(s)).collect();
-    let mut env: Vec<KPathBuf> = vec![kp(&format!("LIELLA_PROBE={probe}"))];
+    let mut env: Vec<KPathBuf> = vec![kp(&format!("NIJI_PROBE={probe}"))];
     env.extend(extra_env.iter().map(|s| kp(s)));
     if let Ok(path) = std::env::var("PATH") {
         env.push(kp(&format!("PATH={path}")));
@@ -360,17 +360,17 @@ fn in_mapped_userns(post: fn(&CSys) -> i32) -> ChildEnd {
 fn k_execve() {
     if probe().as_deref() == Some("execve") {
         // Probe side: argv[0] and the environment arrived exactly as passed.
-        let ok = std::env::args().next().as_deref() == Some("liella-argv0")
-            && std::env::var("LIELLA_EXTRA").as_deref() == Ok("x=y z");
+        let ok = std::env::args().next().as_deref() == Some("niji-argv0")
+            && std::env::var("NIJI_EXTRA").as_deref() == Ok("x=y z");
         K.exit_group(if ok { 42 } else { 1 });
     }
-    assert_eq!(run_probe("k_execve", "execve", &["LIELLA_EXTRA=x=y z"], "liella-argv0"), ChildEnd::Exited(42));
+    assert_eq!(run_probe("k_execve", "execve", &["NIJI_EXTRA=x=y z"], "niji-argv0"), ChildEnd::Exited(42));
     // Errors: a missing file, and a directory (not executable).
     let (mut sa, mut se) = ([0usize; 2], [0usize; 1]);
     let a0 = kp("x");
     let argv = KPtrArray::build(&[a0.as_kstr()], &mut sa).unwrap();
     let envp = KPtrArray::build(&[], &mut se).unwrap();
-    assert_eq!(err(K.execve(kp("/nonexistent/liella").as_kstr(), &argv, &envp)), Errno::ENOENT);
+    assert_eq!(err(K.execve(kp("/nonexistent/niji").as_kstr(), &argv, &envp)), Errno::ENOENT);
     assert_eq!(err(K.execve(kp("/").as_kstr(), &argv, &envp)), Errno::EACCES);
     // KPtrArray needs room for the terminator.
     let mut tiny = [0usize; 1];
@@ -390,7 +390,7 @@ fn k_execveat() {
     EXE_FD.store(fd.raw() as u32, Ordering::SeqCst);
     assert_eq!(selftest::in_child(|k| {
         let args = [kp("via-execveat"), kp("k_execveat"), kp("--exact"), kp("--test-threads=1"), kp("-q")];
-        let env = [kp("LIELLA_PROBE=execveat")];
+        let env = [kp("NIJI_PROBE=execveat")];
         let a = [args[0].as_kstr(), args[1].as_kstr(), args[2].as_kstr(), args[3].as_kstr(), args[4].as_kstr()];
         let e = [env[0].as_kstr()];
         let (mut sa, mut se) = ([0usize; 8], [0usize; 4]);
@@ -1367,7 +1367,7 @@ fn k_remap_file_pages() {
 
 #[test]
 fn k_memfd_create() {
-    let fd = K.memfd_create(kp("liella-test").as_kstr(), MFD_CLOEXEC | MFD_ALLOW_SEALING).unwrap();
+    let fd = K.memfd_create(kp("niji-test").as_kstr(), MFD_CLOEXEC | MFD_ALLOW_SEALING).unwrap();
     assert_eq!(K.write(fd, b"hello").unwrap(), 5);
     K.fcntl_int(fd, FcntlInt::AddSeals, F_SEAL_WRITE).unwrap();
     assert_eq!(err(K.write(fd, b"x")), Errno::EPERM);
@@ -1533,8 +1533,8 @@ fn selftest_synced_child_dies_with_its_parent() {
     // and it must end within seconds (without it, after SYNCED_GO_TIMEOUT_MS). The incident
     // (k_setgroups/k_setuid orphans, 2026-10-22) had the same shape once the test process died.
     if probe().as_deref() == Some("synced-parent-dies") {
-        use liella_kernel::ops::PrctlInt;
-        use liella_kernel::uapi::WNOHANG;
+        use niji_kernel::ops::PrctlInt;
+        use niji_kernel::uapi::WNOHANG;
         selftest::mark_own_process();
         K.prctl_int(PrctlInt::SetChildSubreaper, 1, 0).unwrap();
         let [r, w] = K.pipe2(O_CLOEXEC).unwrap();
@@ -1594,7 +1594,7 @@ fn selftest_synced_child_dies_with_its_parent() {
 #[test]
 fn k_process_vm_readv() {
     // Read from a child's copy of our memory: a forked child sees the same addresses.
-    static SECRET: [u8; 8] = *b"liella!!";
+    static SECRET: [u8; 8] = *b"niji!!!!";
     let pid = selftest::spawn_pausing().unwrap();
     let mut buf = [0u8; 8];
     let remote = [RemoteIoVec { base: SECRET.as_ptr().addr(), len: 8 }];
@@ -1605,7 +1605,7 @@ fn k_process_vm_readv() {
     K.kill(pid, SIGKILL).unwrap();
     K.wait4(pid, 0, None).unwrap();
     assert_eq!(n.unwrap(), 8);
-    assert_eq!(&buf, b"liella!!");
+    assert_eq!(&buf, b"niji!!!!");
     // An unmapped remote address: EFAULT. Flags must be 0.
     let mut local = [IoVecMut::new(&mut buf)];
     assert_eq!(err(K.process_vm_readv(K.getpid(), &mut local, &[RemoteIoVec { base: 8, len: 8 }], 0)), Errno::EFAULT);
@@ -3157,7 +3157,7 @@ fn k_mkdirat() {
     assert_eq!(K.fstatat(Fd::CWD, t.path("d").as_kstr(), 0).unwrap().mode & S_IFMT, S_IFDIR);
     assert_eq!(err(K.mkdirat(Fd::CWD, t.path("d").as_kstr(), 0o755)), Errno::EEXIST);
     assert_eq!(err(K.mkdirat(Fd::CWD, t.path("x/y").as_kstr(), 0o755)), Errno::ENOENT);
-    assert_eq!(err(K.mkdirat(Fd::CWD, kp("/proc/liella").as_kstr(), 0o755)), Errno::ENOENT);
+    assert_eq!(err(K.mkdirat(Fd::CWD, kp("/proc/niji").as_kstr(), 0o755)), Errno::ENOENT);
 }
 
 #[test]
@@ -3193,7 +3193,7 @@ fn k_linkat() {
         if !std::fs::metadata(other).is_ok_and(|m| m.dev() != here && m.is_dir()) {
             continue;
         }
-        let name = kp(&format!("{other}/liella-linkat-{}", std::process::id()));
+        let name = kp(&format!("{other}/niji-linkat-{}", std::process::id()));
         match K.linkat(Fd::CWD, t.path("f").as_kstr(), Fd::CWD, name.as_kstr(), 0) {
             Err(Errno::EXDEV) => tried = true,
             Err(Errno::EROFS) => continue,
@@ -3389,7 +3389,7 @@ fn k_xattr() {
     let t = Tmp::new("xattr");
     let f = t.file("f", b"");
     let path = t.path("f");
-    let name = kp("user.liella");
+    let name = kp("user.niji");
     match K.setxattr(path.as_kstr(), false, name.as_kstr(), b"v1", XATTR_CREATE) {
         Ok(()) => {
             let mut buf = [0u8; 16];
@@ -3401,7 +3401,7 @@ fn k_xattr() {
             assert_eq!(K.fgetxattr(f, name.as_kstr(), &mut buf).unwrap(), 3);
             assert_eq!(err(K.fgetxattr(f, name.as_kstr(), &mut buf[..1])), Errno::ERANGE);
             let n = K.listxattr(path.as_kstr(), false, &mut buf).unwrap();
-            assert_eq!(&buf[..n], b"user.liella\0");
+            assert_eq!(&buf[..n], b"user.niji\0");
             assert_eq!(K.flistxattr(f, &mut buf).unwrap(), n);
             assert_eq!(K.listxattr(path.as_kstr(), true, &mut buf).unwrap(), n);
             K.removexattr(path.as_kstr(), true, name.as_kstr()).unwrap();
@@ -3432,7 +3432,7 @@ struct ChildPath(String);
 
 impl ChildPath {
     fn new(tag: &str) -> ChildPath {
-        let p = format!("{}/liella-child-{}-{tag}", env!("CARGO_TARGET_TMPDIR"), std::process::id());
+        let p = format!("{}/niji-child-{}-{tag}", env!("CARGO_TARGET_TMPDIR"), std::process::id());
         let _ = std::fs::remove_dir_all(&p);
         ChildPath(p)
     }
@@ -3450,7 +3450,7 @@ impl Drop for ChildPath {
 fn child_path(k: &CSys, tag: &str) -> KPathBuf {
     let mut d = [0u8; 16];
     let digits = dec(k.getppid() as u32, &mut d);
-    let parts: [&[u8]; 5] = [env!("CARGO_TARGET_TMPDIR").as_bytes(), b"/liella-child-", digits, b"-", tag.as_bytes()];
+    let parts: [&[u8]; 5] = [env!("CARGO_TARGET_TMPDIR").as_bytes(), b"/niji-child-", digits, b"-", tag.as_bytes()];
     let mut name = [0u8; 512];
     let mut n = 0;
     for part in parts {
@@ -3502,7 +3502,7 @@ fn k_mount() {
             return 2;
         }
         // An unknown filesystem type: ENODEV.
-        i32::from(k.mount(Some(kp("none").as_kstr()), m.as_kstr(), Some(kp("liellafs").as_kstr()), 0, None) != Err(Errno::ENODEV)) * 3
+        i32::from(k.mount(Some(kp("none").as_kstr()), m.as_kstr(), Some(kp("nijifs").as_kstr()), 0, None) != Err(Errno::ENODEV)) * 3
     });
 }
 
@@ -3558,7 +3558,7 @@ fn k_fsopen() {
         become_ns_root(k, CLONE_NEWNS).or_exit();
         let fs = k.fsopen(kp("tmpfs").as_kstr(), FSOPEN_CLOEXEC).or_exit();
         let _ = k.close(fs);
-        if k.fsopen(kp("liellafs").as_kstr(), 0) != Err(Errno::ENODEV) {
+        if k.fsopen(kp("nijifs").as_kstr(), 0) != Err(Errno::ENODEV) {
             return 1;
         }
         i32::from(k.fsopen(kp("tmpfs").as_kstr(), 0x2) != Err(Errno::EINVAL)) * 2
@@ -3718,7 +3718,7 @@ fn k_quotactl() {
     // A missing block device: ENOENT. The boundary refuses a buffer shorter than the command
     // needs.
     let mut dq = [0u8; 72];
-    assert_eq!(err(K.quotactl(QuotaCmd::GetQuota, USRQUOTA, Some(kp("/dev/liella-none").as_kstr()), 0, &mut dq)), Errno::ENOENT);
+    assert_eq!(err(K.quotactl(QuotaCmd::GetQuota, USRQUOTA, Some(kp("/dev/niji-none").as_kstr()), 0, &mut dq)), Errno::ENOENT);
     assert_eq!(err(K.quotactl(QuotaCmd::GetQuota, USRQUOTA, Some(kp("/dev/null").as_kstr()), 0, &mut dq[..10])), Errno::EINVAL);
     // Q_QUOTAON: the device is resolved first, so a character device is ENOTBLK.
     assert_eq!(err(K.quotactl_on(USRQUOTA, kp("/dev/null").as_kstr(), 2, kp("/aquota.user").as_kstr())), Errno::ENOTBLK);
@@ -4693,7 +4693,7 @@ fn k_shmctl() {
 }
 
 fn mq_name(tag: &str) -> KPathBuf {
-    kp(&format!("liella-{}-{tag}", K.getpid()))
+    kp(&format!("niji-{}-{tag}", K.getpid()))
 }
 
 #[test]
@@ -4755,7 +4755,7 @@ fn k_mq_timedreceive() {
 fn k_mq_notify() {
     in_child(|k| {
         block(k, &[SIGUSR1]);
-        let name = kp("liella-notify");
+        let name = kp("niji-notify");
         let _ = k.mq_unlink(name.as_kstr());
         let q = k.mq_open(name.as_kstr(), O_RDWR | O_CREAT | O_CLOEXEC, 0o600, None).or_exit();
         k.mq_unlink(name.as_kstr()).or_exit();
@@ -4826,8 +4826,8 @@ fn k_sethostname() {
     assert_eq!(err(K.sethostname(b"x")), Errno::EPERM);
     in_child(|k| {
         become_ns_root(k, CLONE_NEWUTS).or_exit();
-        k.sethostname(b"liella-host").or_exit();
-        if cstr(&k.uname().or_exit().nodename) != b"liella-host" {
+        k.sethostname(b"niji-host").or_exit();
+        if cstr(&k.uname().or_exit().nodename) != b"niji-host" {
             return 1;
         }
         i32::from(k.sethostname(&[b'h'; 65]) != Err(Errno::EINVAL)) * 2
@@ -4842,8 +4842,8 @@ fn k_setdomainname() {
     assert_eq!(err(K.setdomainname(b"x")), Errno::EPERM);
     in_child(|k| {
         become_ns_root(k, CLONE_NEWUTS).or_exit();
-        k.setdomainname(b"liella.test").or_exit();
-        if cstr(&k.uname().or_exit().domainname) != b"liella.test" {
+        k.setdomainname(b"niji.test").or_exit();
+        if cstr(&k.uname().or_exit().domainname) != b"niji.test" {
             return 1;
         }
         i32::from(k.setdomainname(&[b'd'; 65]) != Err(Errno::EINVAL)) * 2
@@ -4884,7 +4884,7 @@ fn k_klogctl() {
 #[test]
 fn k_acct() {
     // Destructive: unprivileged EPERM only.
-    assert_eq!(err(K.acct(Some(kp("/tmp/liella-acct").as_kstr()))), Errno::EPERM);
+    assert_eq!(err(K.acct(Some(kp("/tmp/niji-acct").as_kstr()))), Errno::EPERM);
     assert_eq!(err(K.acct(None)), Errno::EPERM);
 }
 
@@ -4937,7 +4937,7 @@ fn k_finit_module() {
 
 #[test]
 fn k_delete_module() {
-    assert_eq!(err(K.delete_module(kp("liella_no_such_module").as_kstr(), 0)), Errno::EPERM);
+    assert_eq!(err(K.delete_module(kp("niji_no_such_module").as_kstr(), 0)), Errno::EPERM);
 }
 
 #[test]
@@ -4957,8 +4957,8 @@ fn k_personality() {
 #[test]
 fn k_prctl() {
     in_child(|k| {
-        k.prctl_set_name(b"liella-prctl\0\0\0\0").or_exit();
-        if &k.prctl_get_name().or_exit()[..13] != b"liella-prctl\0" {
+        k.prctl_set_name(b"niji-prctl\0\0\0\0\0\0").or_exit();
+        if &k.prctl_get_name().or_exit()[..11] != b"niji-prctl\0" {
             return 1;
         }
         k.prctl_int(PrctlInt::SetPdeathsig, SIGUSR1 as u64, 0).or_exit();
@@ -5388,7 +5388,7 @@ fn k_kernel_error_numbers() {
     assert_eq!((Errno::EPERM.get(), Errno::ENOENT.get(), Errno::EAGAIN.get(), Errno::EWOULDBLOCK.get()), (1, 2, 11, 11));
     assert_eq!(Errno::ENOENT.name(), Some("ENOENT"));
     assert_eq!(Errno::new(0), None);
-    assert_eq!(Errno::new(i32::from(liella_kernel::errno::MAX_ERRNO) + 1), None);
+    assert_eq!(Errno::new(i32::from(niji_kernel::errno::MAX_ERRNO) + 1), None);
     // And from the real kernel, through the C layer.
     assert_eq!(err(K.close(Fd::new(-1))), Errno::EBADF);
     assert_eq!(err(K.openat(Fd::CWD, kp("/nonexistent").as_kstr(), O_RDONLY, 0)), Errno::ENOENT);

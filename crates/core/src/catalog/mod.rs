@@ -1,6 +1,6 @@
 //! Message catalogs (spec §7.7, §7.8; Appendix D.2; D-7.5, D-7.6): the file formats and the
 //! pure parts of the lookups. The process-wide settings (the default domain, the bindings, the
-//! loaded catalogs) are `liella_legacy::intl`; this module only reads bytes.
+//! loaded catalogs) are `niji_legacy::intl`; this module only reads bytes.
 //!
 //! * [`mo`]: GNU message objects (`.mo`), validated whole, searched by binary search.
 //! * [`plural`]: `Plural-Forms` rules, compiled to a program that never traps.

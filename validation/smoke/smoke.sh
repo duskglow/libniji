@@ -1,5 +1,5 @@
 #!/bin/sh
-# validation/smoke/smoke.sh: build real programs from their Debian source packages against Liella, run their
+# validation/smoke/smoke.sh: build real programs from their Debian source packages against libniji, run their
 # own test suites, and run the same suites on a build against the host's C library (the reference).
 # See validation/smoke/README.md. Results: <work>/results.tsv and <work>/results/<program>.<side>.*.
 #
@@ -7,8 +7,8 @@
 #                             [--mirror URL --keyring FILE] [PROGRAM...]
 #   validation/smoke/smoke.sh --list
 #
-# Default PROGRAMs: all of programs.sh, in the order of SMOKE_PROGRAMS below. Liella's products are read from
-# --products (default target/liella; build them first with `LIELLA_FULL_PROFILE=1 cargo xtask so`). Sources
+# Default PROGRAMs: all of programs.sh, in the order of SMOKE_PROGRAMS below. libniji's products are read from
+# --products (default target/niji; build them first with `NIJI_FULL_PROFILE=1 cargo xtask so`). Sources
 # come from one Debian mirror (default https://deb.debian.org/debian, suite trixie), through a private apt
 # configuration in <work>/apt; apt checks the suite's signature and every file's hash. The trust anchor is
 # --keyring FILE (a pinned Debian archive keyring) or, without it, the debian-archive-keyring package
@@ -16,13 +16,13 @@
 # not trusted, only the signature). Nothing needs root, nothing is installed.
 #
 # Exit status: 0 when every requested program was processed (failures of a program's tests are results, not
-# errors), 1 when a Liella build produced an object that check-elf.sh rejects (a fallback to the system's C
+# errors), 1 when a libniji build produced an object that check-elf.sh rejects (a fallback to the system's C
 # library: the run cannot be trusted), 2 on a usage or setup error.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
 work=$root/target/smoke
-products=$root/target/liella
+products=$root/target/niji
 J=$(nproc)
 limit=5400
 suite=trixie
@@ -67,14 +67,14 @@ bypath() {
         ! readelf -Wd "$2" | grep -qF '(SONAME)'
 }
 
-# setup: the link-time directory liella-cc reads (fresh each run, so it always matches the products).
+# setup: the link-time directory niji-cc reads (fresh each run, so it always matches the products).
 setup() {
     for f in libc.so.6 libm.a ld-linux-x86-64.so.2; do
         [ -f "$products/$f" ] || { echo "smoke: $products/$f is missing (cargo xtask so)" >&2; return 1; }
     done
     rm -rf "$sys" && mkdir -p "$sys" "$work/bin" "$work/results" || return 1
     bypath "$products/libc.so.6" "$sys/libc-by-path.so" || { echo "smoke: cannot make the by-path libc" >&2; return 1; }
-    # libm: the archive. Liella's libm.so.6 names libc.so.6 by soname, which only a library search resolves
+    # libm: the archive. libniji's libm.so.6 names libc.so.6 by soname, which only a library search resolves
     # (at link time the system's libc.so.6 would be found; at run time the loader cannot search yet).
     cp "$products/libm.a" "$sys/libm.a" || return 1
     for a in libpthread libdl librt libutil libanl libresolv; do
@@ -83,9 +83,9 @@ setup() {
     nonshared=$(gcc -print-file-name=libc_nonshared.a)
     case $nonshared in /*) ;; *) echo "smoke: the host has no libc_nonshared.a" >&2; return 1 ;; esac
     printf 'GROUP ( "%s" "%s" AS_NEEDED ( "%s" ) )\n' "$sys/libc-by-path.so" "$nonshared" "$ldso" > "$sys/libc.so"
-    printf 'LIELLA_SMOKE_SYSROOT=%s\nLIELLA_SMOKE_LDSO=%s\n' "$sys" "$ldso" > "$work/bin/liella-cc.env" &&
-    cp "$here/liella-cc" "$work/bin/liella-cc" && chmod +x "$work/bin/liella-cc" &&
-        ln -sf liella-cc "$work/bin/liella-c++" || return 1
+    printf 'NIJI_SMOKE_SYSROOT=%s\nNIJI_SMOKE_LDSO=%s\n' "$sys" "$ldso" > "$work/bin/niji-cc.env" &&
+    cp "$here/niji-cc" "$work/bin/niji-cc" && chmod +x "$work/bin/niji-cc" &&
+        ln -sf niji-cc "$work/bin/niji-c++" || return 1
     if [ -d "$root/.git" ] && rev=$(git -C "$root" rev-parse --short=12 HEAD 2>/dev/null); then :; else rev=unknown; fi
     profile=$(cat "$products/.profile" 2>/dev/null || echo unknown)
     printf 'tree %s, products %s (profile %s), host C library %s\n' "$rev" "$products" "$profile" \
@@ -186,7 +186,7 @@ count() {
             # itself counts its sections as passed (its own diffs are the suite's expected noise on this host).
             # Process ids and the build directory differ between any two runs; they are not compared.
             awk '/^run-/ { name = $1; next } name != "" { print name "\t" $0 }' "$log" |
-                sed -e 's#/build/[^/]*/\(glibc\|liella\)/#/build/P/S/#g' -e 's/([0-9][0-9]*)/(N)/g' | sort > "$out.sections"
+                sed -e 's#/build/[^/]*/\(glibc\|niji\)/#/build/P/S/#g' -e 's/([0-9][0-9]*)/(N)/g' | sort > "$out.sections"
             t=$(grep -c '^run-' "$log")
             if [ -f "$5" ]; then
                 diff "$5" "$out.sections" | sed -n 's/^[<>] \([^\t]*\)\t.*/\1/p' | sort -u > "$out.failed"
@@ -224,23 +224,23 @@ count() {
     esac
 }
 
-# run_one NAME SIDE SRC: build NAME on SIDE (glibc | liella) and run its tests; appends to results.tsv.
+# run_one NAME SIDE SRC: build NAME on SIDE (glibc | niji) and run its tests; appends to results.tsv.
 run_one() {
     name=$1; side=$2; src=$3
     b=$work/build/$name/$side
     r=$work/results/$name.$side
     rm -rf "$b" && mkdir -p "$work/build/$name" && cp -a "$src" "$b" || return 1
-    if [ "$side" = liella ]; then cc_=$work/bin/liella-cc; cxx_=$work/bin/liella-c++; else cc_=gcc; cxx_=g++; fi
+    if [ "$side" = niji ]; then cc_=$work/bin/niji-cc; cxx_=$work/bin/niji-c++; else cc_=gcc; cxx_=g++; fi
     eval "kind=\${${name}_kind}"
     noregen="ACLOCAL=true AUTOCONF=true AUTOMAKE=true AUTOHEADER=true MAKEINFO=true"
     status=ok; check=-
-    if (cd "$b" && CC=$cc_ CXX=$cxx_ MAKEFLAGS=$noregen LIELLA_SMOKE_SYSROOT=$sys LIELLA_SMOKE_LDSO=$ldso \
+    if (cd "$b" && CC=$cc_ CXX=$cxx_ MAKEFLAGS=$noregen NIJI_SMOKE_SYSROOT=$sys NIJI_SMOKE_LDSO=$ldso \
             timeout "$limit" sh -c '. "$1"; "$2"' sh "$here/programs.sh" "${name}_build") > "$r.build.log" 2>&1; then
         built=yes
     else
         brc=$?; built=no; status="build failed (exit $brc)"
     fi
-    if [ "$side" = liella ]; then
+    if [ "$side" = niji ]; then
         if "$here/check-elf.sh" "$ldso" "$sys" "$b" > "$r.check.log" 2>&1; then check=ok; else check=FAIL; fi
     fi
     counts="- - - - - -"
@@ -249,11 +249,11 @@ run_one() {
         if [ -n "$skip" ]; then
             status="tests skipped: $skip"
         else
-            (cd "$b" && MAKEFLAGS=$noregen LIELLA_SMOKE_SYSROOT=$sys LIELLA_SMOKE_LDSO=$ldso timeout "$limit" sh -c '. "$1"; "$2"' sh "$here/programs.sh" "${name}_test") \
+            (cd "$b" && MAKEFLAGS=$noregen NIJI_SMOKE_SYSROOT=$sys NIJI_SMOKE_LDSO=$ldso timeout "$limit" sh -c '. "$1"; "$2"' sh "$here/programs.sh" "${name}_test") \
                 > "$r.test.log" 2>&1
             trc=$?
             [ $trc -eq 124 ] && status="test suite hit the ${limit}s hang guard"
-            ref=""; [ "$side" = liella ] && ref=$work/results/$name.glibc.test.log
+            ref=""; [ "$side" = niji ] && ref=$work/results/$name.glibc.test.log
             count "$kind" "$r.test.log" "$b" "$r.count" "$( [ "$kind" = bash ] && echo "$work/results/$name.glibc.count.sections" || echo $trc)" "$ref"
             counts=$(cat "$r.count")
         fi
@@ -264,50 +264,50 @@ run_one() {
     [ "$check" != FAIL ]
 }
 
-# selftest: the harness's own check (no download). A program and a shared object built by liella-cc must pass
-# check-elf.sh, run on Liella's loader and list Liella's libc; the same program built by the system compiler
+# selftest: the harness's own check (no download). A program and a shared object built by niji-cc must pass
+# check-elf.sh, run on libniji's loader and list libniji's libc; the same program built by the system compiler
 # must be rejected. A wrapper or check that lets a build fall back to the system's C library fails here.
 selftest() {
     t=$work/selftest
     rm -rf "$t" && mkdir -p "$t/ok" || return 1
     e=0
-    env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 -shared -fPIC \
+    env NIJI_SMOKE_SYSROOT="$sys" NIJI_SMOKE_LDSO="$ldso" "$work/bin/niji-cc" -O1 -shared -fPIC \
         "$here/selftest/plugin.c" -o "$t/ok/libplugin.so" > "$t/build.log" 2>&1 &&
-    env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 -shared -fPIC \
+    env NIJI_SMOKE_SYSROOT="$sys" NIJI_SMOKE_LDSO="$ldso" "$work/bin/niji-cc" -O1 -shared -fPIC \
         "$here/selftest/tls_plugin.c" -o "$t/ok/libtls_plugin.so" >> "$t/build.log" 2>&1 &&
-    env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" -O1 "$here/selftest/hello.c" \
-        -lm -lpthread -o "$t/ok/hello" >> "$t/build.log" 2>&1 || { echo "smoke-selftest: FAIL liella-cc does not build (see $t/build.log)"; return 1; }
+    env NIJI_SMOKE_SYSROOT="$sys" NIJI_SMOKE_LDSO="$ldso" "$work/bin/niji-cc" -O1 "$here/selftest/hello.c" \
+        -lm -lpthread -o "$t/ok/hello" >> "$t/build.log" 2>&1 || { echo "smoke-selftest: FAIL niji-cc does not build (see $t/build.log)"; return 1; }
     # Negative controls, one per rule of check-elf.sh: each must be rejected on its own.
     #   system: the system compiler's build (system loader, libc.so.6 by soname)
-    #   interp: Liella's libc by path, the system's loader as PT_INTERP
-    #   soname: Liella's loader and libc, the system's libc.so.6 named as well (--no-as-needed keeps both)
+    #   interp: libniji's libc by path, the system's loader as PT_INTERP
+    #   soname: libniji's loader and libc, the system's libc.so.6 named as well (--no-as-needed keeps both)
     #   static: a static program (no PT_INTERP)
-    #   nolibc: Liella's loader, no C library named at all
+    #   nolibc: libniji's loader, no C library named at all
     for k in system interp soname static nolibc; do mkdir -p "$t/bad-$k"; done
-    lcc() { env LIELLA_SMOKE_SYSROOT="$sys" LIELLA_SMOKE_LDSO="$ldso" "$work/bin/liella-cc" "$@"; }
+    lcc() { env NIJI_SMOKE_SYSROOT="$sys" NIJI_SMOKE_LDSO="$ldso" "$work/bin/niji-cc" "$@"; }
     { gcc -O1 "$here/selftest/hello.c" -lm -o "$t/bad-system/hello" &&
         lcc -O1 "$here/selftest/hello.c" -lm -Wl,--dynamic-linker=/lib64/ld-linux-x86-64.so.2 -o "$t/bad-interp/hello" &&
         lcc -O1 "$here/selftest/hello.c" -lm -Wl,--no-as-needed /lib/x86_64-linux-gnu/libc.so.6 -Wl,--allow-shlib-undefined -o "$t/bad-soname/hello" &&
         gcc -O1 -static "$here/selftest/hello.c" -lm -o "$t/bad-static/hello" &&
         lcc -O1 -nostartfiles -Wl,--as-needed "$here/selftest/nolibc.c" -o "$t/bad-nolibc/nolibc"; } >> "$t/build.log" 2>&1 ||
         { echo "smoke-selftest: FAIL a negative control does not build (see $t/build.log)"; return 1; }
-    # A test suite that clears the environment (make's) still links against Liella (check-elf checks ok/).
-    env -i PATH="$PATH" "$work/bin/liella-cc" -O1 "$here/selftest/hello.c" -lm -o "$t/ok/hello-noenv" >> "$t/build.log" 2>&1 ||
-        { echo "smoke-selftest: FAIL liella-cc does not build with a cleared environment"; e=1; }
-    "$here/check-elf.sh" "$ldso" "$sys" "$t/ok" > "$t/check-ok.log" 2>&1 || { echo "smoke-selftest: FAIL check-elf rejects liella-cc's build:"; cat "$t/check-ok.log"; e=1; }
+    # A test suite that clears the environment (make's) still links against libniji (check-elf checks ok/).
+    env -i PATH="$PATH" "$work/bin/niji-cc" -O1 "$here/selftest/hello.c" -lm -o "$t/ok/hello-noenv" >> "$t/build.log" 2>&1 ||
+        { echo "smoke-selftest: FAIL niji-cc does not build with a cleared environment"; e=1; }
+    "$here/check-elf.sh" "$ldso" "$sys" "$t/ok" > "$t/check-ok.log" 2>&1 || { echo "smoke-selftest: FAIL check-elf rejects niji-cc's build:"; cat "$t/check-ok.log"; e=1; }
     # The thread-local plug-in is the positive control for the loader's own soname: it must name it.
     self=$(readelf -Wd "$ldso" | sed -n 's/.*(SONAME) *Library soname: \[\(.*\)\]$/\1/p')
     readelf -Wd "$t/ok/libtls_plugin.so" | grep -qF "Shared library: [$self]" ||
         { echo "smoke-selftest: FAIL the thread-local plug-in does not name the loader's soname ($self)"; e=1; }
     for k in system interp soname static nolibc; do
         if "$here/check-elf.sh" "$ldso" "$sys" "$t/bad-$k" > "$t/check-bad-$k.log" 2>&1; then
-            echo "smoke-selftest: FAIL check-elf accepts the $k negative control (not linked against Liella)"; e=1
+            echo "smoke-selftest: FAIL check-elf accepts the $k negative control (not linked against libniji)"; e=1
         fi
     done
     out=$("$t/ok/hello" 2 2>&1); rc=$?
-    [ $rc -eq 0 ] && [ "$out" = "hello 1.414214" ] || { echo "smoke-selftest: FAIL hello on Liella: exit $rc, output: $out"; e=1; }
+    [ $rc -eq 0 ] && [ "$out" = "hello 1.414214" ] || { echo "smoke-selftest: FAIL hello on libniji: exit $rc, output: $out"; e=1; }
     "$ldso" --list "$t/ok/hello" > "$t/list.log" 2>&1
-    grep -qF "$sys/libc-by-path.so" "$t/list.log" || { echo "smoke-selftest: FAIL Liella's loader does not list Liella's libc:"; cat "$t/list.log"; e=1; }
+    grep -qF "$sys/libc-by-path.so" "$t/list.log" || { echo "smoke-selftest: FAIL libniji's loader does not list libniji's libc:"; cat "$t/list.log"; e=1; }
     # The trust anchor (no network): a plain-http mirror without --keyring is refused before any download;
     # with --keyring the source list is signed-by a copy of exactly that keyring and never trusted=yes.
     mkdir -p "$t/apt-http" "$t/apt-pinned" && printf 'selftest keyring\n' > "$t/pinned.gpg"
@@ -347,18 +347,18 @@ for p in $progs; do
         *) src=$(fetch "$srcpkg") && [ -n "$src" ] || { echo "smoke: $p: no source" >&2; continue; } ;;
     esac
     run_one "$p" glibc "$src"
-    run_one "$p" liella "$src" || bad=1
-    if [ -f "$work/results/$p.glibc.count.failed" ] && [ -f "$work/results/$p.liella.count.failed" ]; then
+    run_one "$p" niji "$src" || bad=1
+    if [ -f "$work/results/$p.glibc.count.failed" ] && [ -f "$work/results/$p.niji.count.failed" ]; then
         sort -u "$work/results/$p.glibc.count.failed" > "$work/results/$p.g.tmp"
-        sort -u "$work/results/$p.liella.count.failed" | comm -13 "$work/results/$p.g.tmp" - > "$work/results/$p.liella-only.failed"
+        sort -u "$work/results/$p.niji.count.failed" | comm -13 "$work/results/$p.g.tmp" - > "$work/results/$p.niji-only.failed"
         rm -f "$work/results/$p.g.tmp"
-        echo "smoke: $p: $(wc -l < "$work/results/$p.liella-only.failed") failure(s) on Liella only ($work/results/$p.liella-only.failed)"
+        echo "smoke: $p: $(wc -l < "$work/results/$p.niji-only.failed") failure(s) on libniji only ($work/results/$p.niji-only.failed)"
     fi
-    if [ -f "$work/results/$p.glibc.count.results" ] && [ -f "$work/results/$p.liella.count.results" ]; then
-        join "$work/results/$p.glibc.count.results" "$work/results/$p.liella.count.results" | awk '$2 != $3' \
+    if [ -f "$work/results/$p.glibc.count.results" ] && [ -f "$work/results/$p.niji.count.results" ]; then
+        join "$work/results/$p.glibc.count.results" "$work/results/$p.niji.count.results" | awk '$2 != $3' \
             > "$work/results/$p.differ"
-        echo "smoke: $p: $(wc -l < "$work/results/$p.differ") test(s) with another result on Liella (test, reference, Liella: $work/results/$p.differ)"
+        echo "smoke: $p: $(wc -l < "$work/results/$p.differ") test(s) with another result on libniji (test, reference, libniji: $work/results/$p.differ)"
     fi
 done
-[ $bad -eq 0 ] || echo "smoke: FAIL: a Liella build produced an object not linked against Liella (see results/*.check.log)"
+[ $bad -eq 0 ] || echo "smoke: FAIL: a libniji build produced an object not linked against libniji (see results/*.check.log)"
 exit $bad

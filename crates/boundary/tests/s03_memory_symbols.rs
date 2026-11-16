@@ -6,9 +6,9 @@
 //!
 //! Memory the library hands out is written and read through the exported `memset`/`memcpy`,
 //! never with `unsafe` here. The heap is process-wide, so tests that compare its statistics hold
-//! [`GLOBAL`]. Aborts and exits run in a re-executed copy of this binary (`LIELLA_S03_PROBE`):
+//! [`GLOBAL`]. Aborts and exits run in a re-executed copy of this binary (`NIJI_S03_PROBE`):
 //! forking a multi-threaded test process and then allocating could deadlock.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -17,22 +17,22 @@ use core::sync::atomic::Ordering::Relaxed;
 use std::os::unix::process::ExitStatusExt;
 use std::sync::{Mutex, MutexGuard};
 
-use liella_abi::ctypes::{c_int, c_void};
-use liella_abi::layout::{struct_obstack, struct_obstack__temp};
-use liella_boundary::data;
-use liella_boundary::errno;
-use liella_boundary::posix::s03_memory as s;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as x;
-use liella_boundary::selftest::{self, opaque, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
+use niji_abi::ctypes::{c_int, c_void};
+use niji_abi::layout::{struct_obstack, struct_obstack__temp};
+use niji_boundary::data;
+use niji_boundary::errno;
+use niji_boundary::posix::s03_memory as s;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as x;
+use niji_boundary::selftest::{self, opaque, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
 
 const ENOMEM: i32 = 12;
 const EINVAL: i32 = 22;
 const ENOSYS: i32 = 38;
 const PAGE: usize = 4096;
-const PROBE: &str = "LIELLA_S03_PROBE";
+const PROBE: &str = "NIJI_S03_PROBE";
 
 static GLOBAL: Mutex<()> = Mutex::new(());
 
@@ -122,13 +122,13 @@ fn sym_free() {
         Some("double") => {
             let q = opaque::malloc(40);
             opaque::free(q);
-            liella_boundary::selftest::expect_crash();
+            niji_boundary::selftest::expect_crash();
             opaque::free(q);
             return;
         }
         Some("invalid") => {
             let q = opaque::malloc(40);
-            liella_boundary::selftest::expect_crash();
+            niji_boundary::selftest::expect_crash();
             opaque::free(q.cast::<u8>().wrapping_add(8).cast());
             return;
         }
@@ -189,7 +189,7 @@ fn sym_realloc() {
     if probe().as_deref() == Some("stale") {
         let x = opaque::malloc(8);
         opaque::free(x);
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         opaque::realloc(x, 16);
         return;
     }
@@ -463,8 +463,8 @@ fn sym_malloc_set_state() {
 #[test]
 fn sym___default_morecore() {
     // Compat-only (`__default_morecore@GLIBC_2.2.5`, LG-11): the translation under its internal name.
-    assert!(s::liella_compat___default_morecore(4096).is_null(), "the heap never uses the break (D-3.7)");
-    assert!(s::liella_compat___default_morecore(0).is_null());
+    assert!(s::niji_compat___default_morecore(4096).is_null(), "the heap never uses the break (D-3.7)");
+    assert!(s::niji_compat___default_morecore(0).is_null());
 }
 
 // ------------------------------------------------------------------------------ debugging
@@ -510,7 +510,7 @@ fn sym_muntrace() {
 fn sym_tr_break() {
     // Compat-only (`tr_break@GLIBC_2.2.5`, LG-11): a no-op mtrace breakpoint.
     errno::set_raw(12345);
-    s::liella_compat_tr_break();
+    s::niji_compat_tr_break();
     assert_eq!(errno::get(), 12345, "tr_break does nothing, errno included");
 }
 
@@ -757,7 +757,7 @@ fn sym_obstack_free() {
     if probe().as_deref() == Some("foreign") {
         let mut h = obstack();
         begin(&mut h, 64);
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::obstack_free(Some(&mut h), 0x10 as *mut c_void);
         return;
     }
@@ -851,20 +851,20 @@ fn node_free_bytes(n: u32) -> Option<usize> {
 #[test]
 fn kernel_pages_align_and_prefer_a_node() {
     // Trace: no spec clause (the heap's kernel page source); D-3.10, M3.
-    use liella_boundary::heap::KernelPages;
-    use liella_rt::heap::{Pages, SEG};
+    use niji_boundary::heap::KernelPages;
+    use niji_rt::heap::{Pages, SEG};
     let pages = KernelPages;
     let a = pages.map(SEG, SEG, Some(0)).unwrap();
     assert_eq!(a % SEG, 0, "aligned as asked (segments are found by address, D-3.10)");
     fill(a as *mut c_void, 7, SEG);
-    // Liella controls the policy, not the placement. Kernel doc (admin-guide/mm/numa_memory_policy):
+    // libniji controls the policy, not the placement. Kernel doc (admin-guide/mm/numa_memory_policy):
     // MPOL_PREFERRED "attempts to allocate pages from the preferred node, but will fall back to
     // other nodes" - the kernel also weighs zone watermarks, reclaim and page-cache state, so a page
     // can land elsewhere with free memory on node 0 (FLAKE-NUMA-NODE, seen twice). Asserted: the mode
     // and mask via get_mempolicy. The placement is only printed as a diagnostic.
     match selftest::policy_of(a) {
         Ok((mode, mask)) => {
-            assert_eq!(mode, liella_kernel::uapi::MPOL_PREFERRED as i32, "the preferred-node policy was applied");
+            assert_eq!(mode, niji_kernel::uapi::MPOL_PREFERRED as i32, "the preferred-node policy was applied");
             assert_eq!(mask & 1, 1, "and it names node 0");
             eprintln!(
                 "diagnostic: page on node {:?}, node 0 MemFree {:?}",
@@ -872,7 +872,7 @@ fn kernel_pages_align_and_prefer_a_node() {
                 node_free_bytes(0)
             );
         }
-        Err(e) => assert_eq!(e, liella_kernel::Errno::ENOSYS, "only a kernel without CONFIG_NUMA may refuse"),
+        Err(e) => assert_eq!(e, niji_kernel::Errno::ENOSYS, "only a kernel without CONFIG_NUMA may refuse"),
     }
     let b = pages.map(3 * PAGE, PAGE, None).unwrap();
     assert_eq!(bytes(b as *const c_void, 3 * PAGE), vec![0; 3 * PAGE], "fresh mappings read as zero");
@@ -880,7 +880,7 @@ fn kernel_pages_align_and_prefer_a_node() {
     pages.unmap(b, 3 * PAGE);
 }
 
-/// no spec clause (Liella's in-place rule, REALLOC-FUSE): `realloc` returns the same pointer
+/// no spec clause (libniji's in-place rule, REALLOC-FUSE): `realloc` returns the same pointer
 /// while the request fits the block's class and is more than half the class below it, and moves
 /// the block otherwise. The export tests this before its general path (PERF-REALLOC-USABLE-2).
 #[test]

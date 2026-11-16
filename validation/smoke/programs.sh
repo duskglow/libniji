@@ -9,7 +9,7 @@
 #   NAME_build     configure and build in the current directory (a fresh copy of the source); CC and CXX are set
 #   NAME_test      run the program's own test suite there
 #   NAME_skip      (optional) why its test suite does not run here
-# Every build runs twice: CC=gcc (the reference: the host's C library) and CC=liella-cc (Liella). The
+# Every build runs twice: CC=gcc (the reference: the host's C library) and CC=niji-cc (libniji). The
 # configure options turn off optional libraries the host has no headers for, and NLS (gettext catalogues
 # are not under test). Autotools files are never regenerated (smoke.sh puts AUTOCONF=true and the like in
 # MAKEFLAGS): the host has no autotools; Debian's patches to configure.ac or Makefile.am are not applied by
@@ -28,7 +28,7 @@ xz_utils_test() { make -k -j"$J" check; }
 
 # sqlite3: the Tcl test suite needs the Tcl development files (not on the host); the suite that runs without
 # them is fuzzcheck over the fuzz databases in test/ (`make fuzztest` also builds sessionfuzz, which needs
-# zlib.h, also not on the host). --disable-load-extension: Liella's libc.so.6 does not export dlsym and
+# zlib.h, also not on the host). --disable-load-extension: libniji's libc.so.6 does not export dlsym and
 # dlclose yet (DL-16b, DL-17), so the extension loader does not link; Debian builds it enabled.
 sqlite3_src=sqlite3
 sqlite3_kind=rc
@@ -95,7 +95,7 @@ bash_build() { ./configure --without-bash-malloc --disable-nls --without-curses 
 bash_test() { make tests; }
 
 # perl: miniperl and `make minitest` (the core tests that run without extensions: DynaLoader needs dlsym,
-# which Liella's libc.so.6 does not export yet, DL-16b). libswanted keeps the link to libm and the thread
+# which libniji's libc.so.6 does not export yet, DL-16b). libswanted keeps the link to libm and the thread
 # library (libcrypt, libgdbm and the like would be system libraries found only by a library search).
 perl_src=perl
 perl_kind=perl
@@ -109,7 +109,7 @@ perl_test() { make minitest-notty; }
 # (ac_cv_func_dlopen=no): the import of extension modules needs dlsym (DL-16b). The modules that need a
 # library other than the C library are not built on either side, whatever the host has installed
 # (python3_nohostlibs): such a library is the host's shared object, built against the host's C library, and
-# a build host with libffi-dev made _ctypes the one link of the Liella build that pulled in the host's
+# a build host with libffi-dev made _ctypes the one link of the libniji build that pulled in the host's
 # libc.so.6 (2026-11-14). The test run is a sample.
 python3_nohostlibs="py_cv_module__bz2=n/a py_cv_module__ctypes=n/a py_cv_module__curses=n/a
  py_cv_module__curses_panel=n/a py_cv_module__dbm=n/a py_cv_module__gdbm=n/a py_cv_module__hashlib=n/a
@@ -132,11 +132,11 @@ python3_test() {
 }
 
 # cppunit: a C++ library and its own test program (iostream, exceptions, the C++ runtime) built with
-# liella-c++; libstdc++ is linked statically (no libstdc++.so.6 to search for).
+# niji-c++; libstdc++ is linked statically (no libstdc++.so.6 to search for).
 cppunit_src=cppunit
 cppunit_kind=automake
 # Only the library and its test program (examples/): the plug-in tester DllPlugInTester links dlsym and
-# dlclose, which Liella's libc.so.6 does not export yet (DL-16b, DL-17).
+# dlclose, which libniji's libc.so.6 does not export yet (DL-16b, DL-17).
 cppunit_build() {
     ./configure --disable-shared --disable-doxygen --disable-html-docs && make -j"$J" -C src/cppunit
 }
@@ -200,7 +200,7 @@ lua_reload_test() {
 cxx_dlclose_src=local:dlclose
 cxx_dlclose_kind=same
 # The plug-ins must define no STB_GNU_UNIQUE symbol (such an object may stay loaded after dlclose, and only
-# the Liella build, which links libstdc++ statically, would have them): the build fails if one does.
+# the libniji build, which links libstdc++ statically, would have them): the build fails if one does.
 cxx_dlclose_build() {
     $CXX -O2 -fPIC -shared -o libplug.so plug.cc && $CXX -O2 -fPIC -shared -o libplug_tl.so plug_tl.cc &&
         $CXX -O2 -pthread -o cxx_host cxx_host.cc -ldl || return 1

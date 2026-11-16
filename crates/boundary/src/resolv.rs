@@ -1,8 +1,8 @@
 //! The C conventions of the DNS stub resolver (spec §16.4; D-16.3, D-16.6): the calling thread's
 //! `_res`, the `res_*` and `__res_*` entries, the message, name and text functions (`dn_*`,
 //! `ns_*`, `__p_*`, `__fp_*`, `__sym_*`, `__b64_*`, `__loc_*`, the old accessors), and the
-//! resolver behind the `dns` source of host lookups. The logic is `liella::names::dns` and
-//! `liella_legacy::resolv_compat`; the exports are `posix::s16_nameservices`.
+//! resolver behind the `dns` source of host lookups. The logic is `niji::names::dns` and
+//! `niji_legacy::resolv_compat`; the exports are `posix::s16_nameservices`.
 //!
 //! **`_res`** (D-16.3): per thread (`__res_state()`): the process's `_res` object for the
 //! initial thread, a block allocated on first use for any other (freed when the thread exits).
@@ -20,15 +20,15 @@
 
 use core::sync::atomic::Ordering::Relaxed;
 
-use liella::error::Errno;
-use liella::mem::TryVec;
-use liella::names::dns::conf::{Config, RES_INIT, RES_NORELOAD};
-use liella::names::dns::name::{self, Check, Compress, MAXCDNAME, MAXDNAME};
-use liella::names::dns::{msg, text};
-use liella_abi::layout::{ns_msg, ns_rr};
-use liella_kernel::errno::KResult;
-use liella_kernel::sys::Sys;
-use liella_legacy::resolv_compat::{self as resolv, Env, Fail, Resolver, State, PATH_RESCONF, RESOLV_CONF, STATE_SIZE};
+use niji::error::Errno;
+use niji::mem::TryVec;
+use niji::names::dns::conf::{Config, RES_INIT, RES_NORELOAD};
+use niji::names::dns::name::{self, Check, Compress, MAXCDNAME, MAXDNAME};
+use niji::names::dns::{msg, text};
+use niji_abi::layout::{ns_msg, ns_rr};
+use niji_kernel::errno::KResult;
+use niji_kernel::sys::Sys;
+use niji_legacy::resolv_compat::{self as resolv, Env, Fail, Resolver, State, PATH_RESCONF, RESOLV_CONF, STATE_SIZE};
 
 use crate::caller_alloc;
 use crate::conv;
@@ -95,7 +95,7 @@ fn env() -> Env<'static> {
     Env { localdomain: env_value(b"LOCALDOMAIN"), res_options: env_value(b"RES_OPTIONS") }
 }
 
-/// Free the IPv6 server addresses a state Liella initialized holds.
+/// Free the IPv6 server addresses a state libniji initialized holds.
 fn free_ext(st: &mut State<'_>) {
     if st.generation().is_none() {
         return;
@@ -128,7 +128,7 @@ fn init_state(bytes: &mut [u8; STATE_SIZE], addr: usize) -> KResult<()> {
 
 // ------------------------------------------------------------------------------ the cache's view
 
-/// The configuration fingerprint of the initial thread's `_res` when Liella last read it.
+/// The configuration fingerprint of the initial thread's `_res` when libniji last read it.
 static MAIN_PRINT: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
 
 /// Where the fingerprint of the calling thread's state at `addr` is kept: `Ok` for `_res`
@@ -144,19 +144,19 @@ fn print_slot(addr: usize) -> Option<core::result::Result<(), &'static mut [u8]>
     None
 }
 
-/// After Liella filled the state at `addr` from the file and the environment: remember what it
+/// After libniji filled the state at `addr` from the file and the environment: remember what it
 /// showed, so that a later change by the program is seen (D-16.10: such a thread's host lookups
 /// bypass the name-service cache).
 fn record_pristine(bytes: &mut [u8; STATE_SIZE], addr: usize) {
     let Some(slot) = print_slot(addr) else { return };
-    let print = config_of(bytes, addr).map_or(0, |c| liella_legacy::nscache::config_fingerprint(&c)) | 1;
+    let print = config_of(bytes, addr).map_or(0, |c| niji_legacy::nscache::config_fingerprint(&c)) | 1;
     match slot {
         Ok(()) => MAIN_PRINT.store(print, Relaxed),
         Err(b) => b.copy_from_slice(&print.to_ne_bytes()),
     }
 }
 
-/// Whether the configuration `c` the thread's state at `addr` shows is the one Liella read (the
+/// Whether the configuration `c` the thread's state at `addr` shows is the one libniji read (the
 /// program did not change `_res` since).
 fn pristine(c: &Config, addr: usize) -> bool {
     let recorded = match print_slot(addr) {
@@ -164,7 +164,7 @@ fn pristine(c: &Config, addr: usize) -> bool {
         Some(Err(b)) => <[u8; 8]>::try_from(&*b).map_or(0, u64::from_ne_bytes),
         None => 0,
     };
-    recorded != 0 && recorded == liella_legacy::nscache::config_fingerprint(c) | 1
+    recorded != 0 && recorded == niji_legacy::nscache::config_fingerprint(c) | 1
 }
 
 /// The configuration a state shows (see `resolv_compat`), extended from the file.
@@ -237,7 +237,7 @@ fn ready(bytes: &mut [u8; STATE_SIZE], addr: usize) -> KResult<Config> {
 }
 
 /// The resolver of the `dns` source for the calling thread (`None`: it cannot be set up), and
-/// whether the thread's `_res` is as Liella read it (the name-service cache serves only such a
+/// whether the thread's `_res` is as libniji read it (the name-service cache serves only such a
 /// thread, D-16.10).
 pub(crate) fn host_resolver_pristine() -> Option<(Resolver, bool)> {
     let (bytes, addr) = thread_state().ok()?;
@@ -246,7 +246,7 @@ pub(crate) fn host_resolver_pristine() -> Option<(Resolver, bool)> {
     let aliases = env_value(b"HOSTALIASES").and_then(|p| {
         let mut z: TryVec<u8> = TryVec::from_slice(p).ok()?;
         z.push(0).ok()?;
-        liella::system::read_file(&CSys, &z).ok()
+        niji::system::read_file(&CSys, &z).ok()
     });
     Some((Resolver { conf, aliases }, clean))
 }
@@ -340,7 +340,7 @@ fn with_state(w: Which<'_>, f: impl FnOnce(&Config) -> core::result::Result<usiz
 }
 
 mod resolv_h {
-    pub(super) use liella_legacy::netdb_compat::NETDB_INTERNAL;
+    pub(super) use niji_legacy::netdb_compat::NETDB_INTERNAL;
 }
 
 fn bad_arg(e: Errno) -> Fail {
@@ -357,7 +357,7 @@ pub fn search(w: Which<'_>, name: KResult<&[u8]>, class: i32, rtype: i32, answer
     let aliases = env_value(b"HOSTALIASES").and_then(|p| {
         let mut z: TryVec<u8> = TryVec::from_slice(p).ok()?;
         z.push(0).ok()?;
-        liella::system::read_file(&CSys, &z).ok()
+        niji::system::read_file(&CSys, &z).ok()
     });
     with_state(w, |c| resolv::nsearch(&CSys, c, name.map_err(bad_arg)?, class, rtype, answer.map_err(bad_arg)?, aliases.as_deref()))
 }
@@ -398,10 +398,10 @@ pub fn randomid() -> u32 {
 }
 
 /// `res_isourserver(sin)`: 1 when the IPv4 address and port are a server of `_res`.
-pub fn is_our_server(sa: Option<&liella_abi::layout::struct_sockaddr_in>) -> i32 {
+pub fn is_our_server(sa: Option<&niji_abi::layout::struct_sockaddr_in>) -> i32 {
     let (Some(sa), Ok((bytes, addr))) = (sa, thread_state()) else { return 0 };
     let Ok(c) = config_of(bytes, addr) else { return 0 };
-    let ip = liella::names::Ip::V4(sa.sin_addr.s_addr.to_ne_bytes());
+    let ip = niji::names::Ip::V4(sa.sin_addr.s_addr.to_ne_bytes());
     let port = u16::from_be(sa.sin_port);
     i32::from(c.servers.iter().any(|s| s.ip == ip && s.port == port))
 }
@@ -743,7 +743,7 @@ pub fn msg_getflag(h: ns_msg, which: i32) -> i32 {
 }
 
 fn finish_text(t: &[u8], out: KResult<&mut [u8]>) -> i32 {
-    match out.ok().and_then(|o| liella::net::copy_z(t, o)) {
+    match out.ok().and_then(|o| niji::net::copy_z(t, o)) {
         Some(_) => i32::try_from(t.len()).unwrap_or(-1),
         None => {
             errno::set(Errno::ENOSPC);
@@ -911,7 +911,7 @@ pub fn format_ttl(v: u64, out: KResult<&mut [u8]>) -> i32 {
     if text::format_ttl(v, &mut t).is_err() {
         return -1;
     }
-    match out.ok().and_then(|o| liella::net::copy_z(&t, o)) {
+    match out.ok().and_then(|o| niji::net::copy_z(&t, o)) {
         Some(_) => i32::try_from(t.len()).unwrap_or(-1),
         None => {
             errno::set(Errno::EMSGSIZE);
@@ -981,7 +981,7 @@ pub fn loc_ntoa(binary: KResult<&[u8]>, ascii: usize) -> usize {
     if ascii == 0 {
         return static_text::<128>(crate::users::LOC_NTOA, &t);
     }
-    match conv::named_bytes_mut(ascii, t.len().saturating_add(1)).and_then(|o| liella::net::copy_z(&t, o)) {
+    match conv::named_bytes_mut(ascii, t.len().saturating_add(1)).and_then(|o| niji::net::copy_z(&t, o)) {
         Some(_) => ascii,
         None => 0,
     }
@@ -1093,7 +1093,7 @@ pub fn p_fqnname(cp: usize, m: usize, len: i32, out: KResult<&mut [u8]>) -> usiz
     if t.last() != Some(&b'.') && t.push(b'.').is_err() {
         return 0;
     }
-    match out.ok().and_then(|o| liella::net::copy_z(&t, o)) {
+    match out.ok().and_then(|o| niji::net::copy_z(&t, o)) {
         Some(_) => cp.saturating_add(used),
         None => 0,
     }
@@ -1102,7 +1102,7 @@ pub fn p_fqnname(cp: usize, m: usize, len: i32, out: KResult<&mut [u8]>) -> usiz
 /// `hostalias(name)` (`res_hostalias` with `buf`): the name `HOSTALIASES` gives, or NULL.
 pub fn hostalias(st_options: Option<u64>, name: KResult<&[u8]>, buf: Option<&mut [u8]>) -> usize {
     let options = st_options.unwrap_or_else(|| thread_state().map_or(0, |(b, _)| State(b).options()));
-    if options & liella::names::dns::conf::RES_NOALIASES != 0 {
+    if options & niji::names::dns::conf::RES_NOALIASES != 0 {
         return 0;
     }
     let Ok(name) = name else { return 0 };
@@ -1111,10 +1111,10 @@ pub fn hostalias(st_options: Option<u64>, name: KResult<&[u8]>, buf: Option<&mut
     if z.push(0).is_err() {
         return 0;
     }
-    let Ok(text) = liella::system::read_file(&CSys, &z) else { return 0 };
+    let Ok(text) = niji::system::read_file(&CSys, &z) else { return 0 };
     let Some(real) = resolv::hostalias(name, &text) else { return 0 };
     match buf {
-        Some(b) => match liella::net::copy_z(real, b) {
+        Some(b) => match niji::net::copy_z(real, b) {
             Some(_) => b.as_ptr().expose_provenance(),
             None => 0,
         },

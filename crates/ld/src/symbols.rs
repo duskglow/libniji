@@ -8,7 +8,7 @@
 //! object goes through the reader's checked accessors, so a malformed table gives a [`LookupError`],
 //! never a panic or a read outside the object. Nothing here is architecture-specific (design §0a).
 //!
-//! Version names are compared as bytes; no version node is special (`LIELLA_PRIVATE` and any
+//! Version names are compared as bytes; no version node is special (`NIJI_PRIVATE` and any
 //! other name are ordinary nodes, ruling R14-12).
 
 use core::cell::OnceCell;

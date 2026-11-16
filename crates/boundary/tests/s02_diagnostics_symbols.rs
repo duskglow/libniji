@@ -9,14 +9,14 @@
 //! The fatal paths run in re-executed copies of this binary; their C forms run as conformance
 //! programs (`conformance/c/s02_*.c`).
 //!
-//! The `err`/`warn`/`error` families are variadic C adapters over `liella_report7`, and their
+//! The `err`/`warn`/`error` families are variadic C adapters over `niji_report7`, and their
 //! `v` forms take a `va_list`: nothing that reads a `va_list` can be called from this binary in
 //! the plain pass (it would link the C variadic adapters, whose targets only the products
 //! export), so the thirteen symbols of §2.3 are checked through real C varargs by
 //! `conformance/c/s02_report.c`; the data objects' initial values are checked here, in children
-//! (they are Liella's own objects in a test process too). `fmtmsg` and `addseverity` change and
+//! (they are libniji's own objects in a test process too). `fmtmsg` and `addseverity` change and
 //! read process-wide state (the severity table, the environment), so they run in children.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -24,16 +24,16 @@ use std::os::unix::process::ExitStatusExt;
 
 use core::ptr::{null, null_mut};
 
-use liella_abi::ctypes::c_char;
-use liella_boundary::data;
-use liella_boundary::errno;
-use liella_boundary::posix::s02_diagnostics as s;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s07_locale as loc;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
+use niji_abi::ctypes::c_char;
+use niji_boundary::data;
+use niji_boundary::errno;
+use niji_boundary::posix::s02_diagnostics as s;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s07_locale as loc;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
 
-const PROBE: &str = "LIELLA_S02_PROBE";
+const PROBE: &str = "NIJI_S02_PROBE";
 const ENOENT: i32 = 2;
 const EINVAL: i32 = 22;
 const ERANGE: i32 = 34;
@@ -57,7 +57,7 @@ fn in_child(test: &str, name: &str, body: impl FnOnce()) -> Option<(Option<i32>,
     match probe() {
         Some(p) if p == name => {
             body();
-            liella_boundary::posix::s12_stdio::fflush(null_mut());
+            niji_boundary::posix::s12_stdio::fflush(null_mut());
             CSys.exit_group(0)
         }
         Some(_) => None,
@@ -110,13 +110,13 @@ fn stderr_of(o: &std::process::Output) -> String {
 }
 
 /// Run C conformance programs (conformance/c/<name>.c) against the products: they test what
-/// only a process Liella started can show. `cargo xtask test` builds the products first.
+/// only a process libniji started can show. `cargo xtask test` builds the products first.
 fn conformance(names: &[&str]) {
     // The runner rebuilds its programs in one directory: one run at a time.
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -139,7 +139,7 @@ fn sym_addseverity() {
 #[test]
 fn sym___assert() {
     if probe().as_deref() == Some("bsd") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__assert(c"y".as_ptr(), c"h.c".as_ptr(), 3);
     }
     let o = run_probe("sym___assert", "bsd");
@@ -150,7 +150,7 @@ fn sym___assert() {
 #[test]
 fn sym___assert_fail() {
     if probe().as_deref() == Some("assert") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__assert_fail(c"x == 1".as_ptr(), c"f.c".as_ptr(), 7, c"fn".as_ptr());
     }
     let o = run_probe("sym___assert_fail", "assert");
@@ -163,7 +163,7 @@ fn sym___assert_fail() {
 #[test]
 fn sym___assert_perror_fail() {
     if probe().as_deref() == Some("perror") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__assert_perror_fail(2, c"g.c".as_ptr(), 9, core::ptr::null());
     }
     let o = run_probe("sym___assert_perror_fail", "perror");
@@ -175,7 +175,7 @@ fn sym___assert_perror_fail() {
 #[test]
 fn sym___chk_fail() {
     if probe().as_deref() == Some("chk") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__chk_fail();
     }
     let o = run_probe("sym___chk_fail", "chk");
@@ -186,7 +186,7 @@ fn sym___chk_fail() {
 
 #[test]
 fn sym_err() {
-    // Variadic, over liella_report7 (a va_list form): real C varargs (see the file header).
+    // Variadic, over niji_report7 (a va_list form): real C varargs (see the file header).
     conformance(&["s02_report"]);
 }
 #[test]
@@ -195,25 +195,25 @@ fn sym___errno_location() {
     // 0x80 (rt::tls), which a C program checks (`&errno == __errno_location()`, conformance
     // s01_startup). This test process was started by another C library, whose block owns 0x80:
     // the location is the thread's registry word, outside the block, the same on every call.
-    assert_eq!(liella_rt::tls::ERRNO_OFFSET, 0x80);
-    assert!(!liella_boundary::selftest::runtime_started(), "a test process is not started by the runtime");
+    assert_eq!(niji_rt::tls::ERRNO_OFFSET, 0x80);
+    assert!(!niji_boundary::selftest::runtime_started(), "a test process is not started by the runtime");
     let e = s::__errno_location() as usize;
-    assert_eq!(e, liella_boundary::selftest::foreign_errno_word() as usize);
-    let tp = liella_boundary::tb::tp();
-    assert!(!(tp..tp + liella_rt::tls::BLOCK_SIZE).contains(&e), "errno inside another library's block");
+    assert_eq!(e, niji_boundary::selftest::foreign_errno_word() as usize);
+    let tp = niji_boundary::tb::tp();
+    assert!(!(tp..tp + niji_rt::tls::BLOCK_SIZE).contains(&e), "errno inside another library's block");
     assert_eq!(s::__errno_location() as usize, e);
     conformance(&["s01_startup"]);
 }
 
 #[test]
 fn sym_error() {
-    // Variadic, over liella_report7: real C varargs (see the file header).
+    // Variadic, over niji_report7: real C varargs (see the file header).
     conformance(&["s02_report"]);
 }
 
 #[test]
 fn sym_error_at_line() {
-    // Variadic, over liella_report7: real C varargs (see the file header).
+    // Variadic, over niji_report7: real C varargs (see the file header).
     conformance(&["s02_report"]);
 }
 
@@ -247,7 +247,7 @@ fn sym_error_print_progname() {
 
 #[test]
 fn sym_errx() {
-    // Variadic, over liella_report7: real C varargs (see the file header).
+    // Variadic, over niji_report7: real C varargs (see the file header).
     conformance(&["s02_report"]);
 }
 
@@ -267,7 +267,7 @@ fn sym_fmtmsg() {
 #[test]
 fn sym___stack_chk_fail() {
     if probe().as_deref() == Some("smash") {
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::__stack_chk_fail();
     }
     let o = run_probe("sym___stack_chk_fail", "smash");
@@ -362,13 +362,13 @@ fn sym_vwarnx() {
 
 #[test]
 fn sym_warn() {
-    // Variadic, over liella_report7: real C varargs (see the file header).
+    // Variadic, over niji_report7: real C varargs (see the file header).
     conformance(&["s02_report"]);
 }
 
 #[test]
 fn sym_warnx() {
-    // Variadic, over liella_report7: real C varargs (see the file header).
+    // Variadic, over niji_report7: real C varargs (see the file header).
     conformance(&["s02_report"]);
 }
 
@@ -430,13 +430,13 @@ extern "C" fn record_trace(_sig: i32) {
 
 #[inline(never)]
 fn raise_here() {
-    assert_eq!(liella_boundary::posix::s20_signals::raise(liella_kernel::uapi::SIGUSR2), 0);
+    assert_eq!(niji_boundary::posix::s20_signals::raise(niji_kernel::uapi::SIGUSR2), 0);
 }
 
 #[test]
 fn sym___backtrace() {
     // From a signal handler, through the library's signal trampoline, to the raising function.
-    liella_boundary::posix::s20_signals::signal(liella_kernel::uapi::SIGUSR2, record_trace as *const () as usize);
+    niji_boundary::posix::s20_signals::signal(niji_kernel::uapi::SIGUSR2, record_trace as *const () as usize);
     raise_here();
     let got: Vec<usize> = IN_HANDLER.iter().map(|a| a.load(std::sync::atomic::Ordering::Relaxed)).take_while(|&a| a != 0).collect();
     assert!(!got.is_empty() && inside(got[0], record_trace as *const () as usize), "{got:x?}");
@@ -449,17 +449,17 @@ fn symbols(addrs: &[usize], f: impl Fn(Addrs, i32) -> *mut *mut core::ffi::c_cha
     let block = f(addrs.as_ptr().cast(), addrs.len() as i32);
     assert!(!block.is_null());
     let mut ptrs = vec![0usize; addrs.len()];
-    liella_boundary::posix::s04_strings::memcpy(ptrs.as_mut_ptr().cast(), block.cast(), ptrs.len() * 8);
+    niji_boundary::posix::s04_strings::memcpy(ptrs.as_mut_ptr().cast(), block.cast(), ptrs.len() * 8);
     let mut at = block as usize + addrs.len() * 8;
     let mut contiguous = true;
     let texts = ptrs
         .iter()
         .map(|&p| {
             contiguous &= p == at;
-            let n = liella_boundary::posix::s04_strings::strlen(p as *const core::ffi::c_char);
+            let n = niji_boundary::posix::s04_strings::strlen(p as *const core::ffi::c_char);
             at = p + n + 1;
             let mut b = vec![0u8; n];
-            liella_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p as *const core::ffi::c_void, n);
+            niji_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p as *const core::ffi::c_void, n);
             String::from_utf8(b).unwrap()
         })
         .collect();
@@ -500,12 +500,12 @@ fn sym___backtrace_symbols() {
 /// What `backtrace_symbols_fd` (`f`) writes for `addrs`.
 fn symbols_fd(addrs: &[usize], f: impl Fn(Addrs, i32, i32)) -> String {
     let mut p = [0i32; 2];
-    assert_eq!(liella_boundary::posix::s25_ipc::pipe(Some(&mut p)), 0);
+    assert_eq!(niji_boundary::posix::s25_ipc::pipe(Some(&mut p)), 0);
     f(addrs.as_ptr().cast(), addrs.len() as i32, p[1]);
-    liella_boundary::posix::s11_lowio::close(p[1]);
+    niji_boundary::posix::s11_lowio::close(p[1]);
     let mut b = vec![0u8; 4096];
-    let n = liella_boundary::posix::s11_lowio::read(p[0], b.as_mut_ptr().cast(), b.len());
-    liella_boundary::posix::s11_lowio::close(p[0]);
+    let n = niji_boundary::posix::s11_lowio::read(p[0], b.as_mut_ptr().cast(), b.len());
+    niji_boundary::posix::s11_lowio::close(p[0]);
     b.truncate(usize::try_from(n).unwrap());
     String::from_utf8(b).unwrap()
 }
@@ -516,9 +516,9 @@ fn sym_backtrace_symbols_fd() {
     let want = format!("{}\n[0x10]\n", exe_text(all[0]).replace(") [", ")["));
     assert_eq!(symbols_fd(&[all[0], 0x10], |a, n, fd| s::backtrace_symbols_fd(a, n, fd)), want);
     assert_eq!(symbols_fd(&[0x10], |a, _, fd| s::backtrace_symbols_fd(a, -1, fd)), "");
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     s::backtrace_symbols_fd([0usize].as_ptr().cast(), 1, -1);
-    assert_eq!(liella_boundary::errno::get(), 9, "a failed write sets errno (EBADF)");
+    assert_eq!(niji_boundary::errno::get(), 9, "a failed write sets errno (EBADF)");
 }
 
 #[test]

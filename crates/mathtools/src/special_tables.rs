@@ -1,4 +1,4 @@
-//! The Taylor tables of the `double` `erf`/`erfc` fast tier (`liella_math::fast_special`),
+//! The Taylor tables of the `double` `erf`/`erfc` fast tier (`niji_math::fast_special`),
 //! written to `crates/math/src/coeffs/erf.rs` by `cargo xtask tables`.
 //!
 //! **Slots.** An operand `x` in a table's range falls in the slot of its exponent and its four
@@ -168,7 +168,7 @@ fn chain(s: &Slot, lo: usize, hi: usize) -> (f64, f64) {
 }
 
 /// The relative bound of the quick phase's evaluation of an `ERF_T` row (degree 12;
-/// `liella_math::fast_special`, "Quick phase"), every operation counted as a rounding (the SSE2
+/// `niji_math::fast_special`, "Quick phase"), every operation counted as a rounding (the SSE2
 /// build; the FMA build rounds the same operations, its only difference is the exact product):
 /// `t² = RN(t·t)`, `t⁴ = RN(t²·t²)` (`t⁴` within `3u` relative); `a = p3 + p4·t + p5·t²`,
 /// `b1 = p6 + … + p9·t³`, `b2 = p10 + p11·t + p12·t²` by `f64` Horner (`P3` by its high part);
@@ -306,7 +306,7 @@ pub fn emit(src: &mut String) {
 mod quick_tests {
     use super::*;
 
-    /// The quick phase's stated bounds (`liella_math::fast_special`, "Quick phase", the same
+    /// The quick phase's stated bounds (`niji_math::fast_special`, "Quick phase", the same
     /// values): every `ERF_T` slot within `RHO_ERF_Q` = 2^-62 relative to `erf`, and on the slots
     /// below 1 the absolute bound over `erfc`'s least value (`1 − erf x`) within `RHO_ERFC_Q_LOW`
     /// = 2^-61. no spec clause (the bound behind spec §10.3's correct rounding in the quick phase).

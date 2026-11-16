@@ -8,14 +8,14 @@
 
 #![allow(clippy::as_conversions)] // int truncation is the contract of atoi
 
-use liella::bytes::Unit;
-use liella::error::{Errno, Result};
-use liella::num::first_trailing_one;
-use liella::num::format::{exact, format_float, round_digits, Bounded, Case, Decimal, Sink, Spec, Style};
-use liella::num::parse::{parse_f64_short,parse_float, parse_i64, parse_i64_short, parse_u64, Dialect, FloatRange, ParsedUnsigned, Signals, Status};
-use liella_kernel::machine::Machine;
-use liella_rt::fpu::{self, Flags};
-use liella::num::{Float, Format, Rounding, Value};
+use niji::bytes::Unit;
+use niji::error::{Errno, Result};
+use niji::num::first_trailing_one;
+use niji::num::format::{exact, format_float, round_digits, Bounded, Case, Decimal, Sink, Spec, Style};
+use niji::num::parse::{parse_f64_short,parse_float, parse_i64, parse_i64_short, parse_u64, Dialect, FloatRange, ParsedUnsigned, Signals, Status};
+use niji_kernel::machine::Machine;
+use niji_rt::fpu::{self, Flags};
+use niji::num::{Float, Format, Rounding, Value};
 
 use crate::cstring::Dest;
 use crate::result_slots::Buf;
@@ -395,7 +395,7 @@ pub fn div32(n: i32, d: i32) -> Result<(i32, i32)> {
 
 /// `ldiv`/`lldiv`/`imaxdiv`, as [`div32`].
 pub fn div64(n: i64, d: i64) -> Result<(i64, i64)> {
-    liella::num::div_rem(n, d).ok_or(Errno::EDOM)
+    niji::num::div_rem(n, d).ok_or(Errno::EDOM)
 }
 
 /// `ffs`: 1-based index of the least significant set bit of the two's-complement value.
@@ -411,7 +411,7 @@ pub fn ffs64(n: i64) -> i32 {
 /// `l64a` into `slot` (the calling thread's buffer, D-8.8); returns its address.
 pub fn l64a_into(slot: &Buf<7>, n: i64) -> usize {
     let mut digits = [0u8; 6];
-    let len = liella::num::l64a(n, &mut digits);
+    let len = niji::num::l64a(n, &mut digits);
     let mut out = [0u8; 7];
     if let (Some(d), Some(s)) = (out.get_mut(..len), digits.get(..len)) {
         d.copy_from_slice(s);

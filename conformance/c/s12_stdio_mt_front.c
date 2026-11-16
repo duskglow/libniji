@@ -1,5 +1,5 @@
 /* Spec §12, D-12.19, STDIO-MT-FPUTS: fputs and fwrite on a fully buffered stream while a second
- * thread is alive, called from a thread Liella set up itself (the process's main thread), where
+ * thread is alive, called from a thread libniji set up itself (the process's main thread), where
  * the locked front path runs (the cargo test threads are not such threads and never reach it).
  * Short texts (the fputs leaf), long texts (fputs past its leaf) and fwrite. Checked: every byte
  * and the order of the bytes; the stream lock free to another thread after a call; a call nested

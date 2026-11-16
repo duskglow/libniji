@@ -1,13 +1,13 @@
 //! `cargo xtask transcript`: the utilities' transcript harness (plan/utilities.md UTIL-1, docs/transcripts.md).
 //!
 //! A transcript (`validation/transcripts/<utility>/*.transcript`) gives one case of a utility: argv, environment,
-//! stdin, the private root's files, and the outcome the reference gave when it was recorded. `check` runs Liella's
+//! stdin, the private root's files, and the outcome the reference gave when it was recorded. `check` runs libniji's
 //! command and the reference (when it is installed) in private roots of their own and compares stdout, stderr, exit
-//! status and the files written: Liella against the reference, and the reference against the record (a stale record
-//! is a failure too). Without the reference, Liella is compared against the record and the run says so. `record`
+//! status and the files written: libniji against the reference, and the reference against the record (a stale record
+//! is a failure too). Without the reference, libniji is compared against the record and the run says so. `record`
 //! runs the reference and writes its outcome into the transcript.
 //!
-//! It lives in xtask (std only, no third-party code, already linked with `liella-ld` for the cache writer and reader)
+//! It lives in xtask (std only, no third-party code, already linked with `niji-ld` for the cache writer and reader)
 //! rather than as scripts under `validation/`: the comparator is Rust with unit tests, which the plants check, and
 //! every utility story runs it the same way.
 
@@ -22,7 +22,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: cargo xtask transcript (check | record) <file.transcript | dir>... [--reference <command>=<path>]... [--liella <command>=<path>]...";
+const USAGE: &str = "usage: cargo xtask transcript (check | record) <file.transcript | dir>... [--reference <command>=<path>]... [--niji <command>=<path>]...";
 
 /// Dispatch that must happen before the tree root is looked up: `ldconfig` (argv[0] `ldconfig`) and the namespace
 /// helper both run with the private root as their working directory.
@@ -44,13 +44,13 @@ fn reference_default(command: &str) -> Option<PathBuf> {
     ["/usr/sbin", "/usr/bin"].iter().map(|d| Path::new(d).join(command)).find(|p| p.is_file())
 }
 
-/// Liella's program for a command: this binary for `ldconfig` (UTIL-3), `target/liella/getconf` (UTIL-5), the test
+/// libniji's program for a command: this binary for `ldconfig` (UTIL-3), `target/niji/getconf` (UTIL-5), the test
 /// link of getent (UTIL-6); none for
 /// the others yet.
-fn liella_default(root: &Path, command: &str) -> Option<PathBuf> {
+fn niji_default(root: &Path, command: &str) -> Option<PathBuf> {
     match command {
         "ldconfig" => std::env::current_exe().ok(),
-        "getconf" => Some(root.join("target/liella/getconf")),
+        "getconf" => Some(root.join("target/niji/getconf")),
         // UTIL-6: the test link of getent (`cargo xtask so`), which runs on this tree's loader and library.
         "getent" => Some(root.join(crate::so::GETENT_TEST)).filter(|p| p.is_file()),
         // UTIL-4: ldd compiled to run this tree's loader in trace mode.
@@ -97,7 +97,7 @@ fn scratch() -> Result<PathBuf, String> {
     static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     loop {
         let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let d = std::env::temp_dir().join(format!("liella-transcript-{}-{n}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("niji-transcript-{}-{n}", std::process::id()));
         match std::fs::create_dir(&d) {
             Ok(()) => return Ok(d),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
@@ -134,7 +134,7 @@ enum Verdict {
     Skipped(String),
 }
 
-fn check_one(t: &Transcript, reference: Option<PathBuf>, liella: PathBuf) -> Result<Verdict, String> {
+fn check_one(t: &Transcript, reference: Option<PathBuf>, niji: PathBuf) -> Result<Verdict, String> {
     if t.namespace != Namespace::None {
         if let Err(why) = run::namespaces() {
             return Ok(Verdict::Skipped(format!("needs user and mount namespaces: {why}")));
@@ -144,12 +144,12 @@ fn check_one(t: &Transcript, reference: Option<PathBuf>, liella: PathBuf) -> Res
         return Ok(Verdict::Skipped("builds its programs with a C compiler: no cc(1) in /usr/bin or /bin".into()));
     }
     let Some(record) = &t.expected else { return Err("no recorded outcome: run `cargo xtask transcript record` on it".into()) };
-    let ours = run_one(t, "liella", liella)?;
+    let ours = run_one(t, "niji", niji)?;
     let mut lines = Vec::new();
     let note = match reference {
         Some(path) => {
             let theirs = run_one(t, "reference", path.clone())?;
-            lines.extend(compare::compare("reference", &theirs, "liella", &ours).iter().map(ToString::to_string));
+            lines.extend(compare::compare("reference", &theirs, "niji", &ours).iter().map(ToString::to_string));
             let stale = compare::compare("record", record, "reference", &as_recorded(t, &theirs));
             if !stale.is_empty() {
                 lines.push(format!("the record is stale: {} gives another outcome than the record (re-record it after checking why)", path.display()));
@@ -158,7 +158,7 @@ fn check_one(t: &Transcript, reference: Option<PathBuf>, liella: PathBuf) -> Res
             format!("against {}", path.display())
         }
         None => {
-            lines.extend(compare::compare("record", record, "liella", &as_recorded(t, &ours)).iter().map(ToString::to_string));
+            lines.extend(compare::compare("record", record, "niji", &as_recorded(t, &ours)).iter().map(ToString::to_string));
             format!("against the record only: the reference `{}` is not installed here", t.command)
         }
     };
@@ -181,7 +181,7 @@ pub(crate) fn main(root: &Path, args: &[String]) -> ExitCode {
     let mut i = 1;
     while i < args.len() {
         let a = &args[i];
-        if a == "--reference" || a == "--liella" {
+        if a == "--reference" || a == "--niji" {
             let Some((c, p)) = args.get(i + 1).and_then(|v| v.split_once('=')) else { return usage(&format!("{a} <command>=<path>")) };
             let list = if a == "--reference" { &mut refs } else { &mut ours };
             list.push((c.to_string(), PathBuf::from(p)));
@@ -238,12 +238,12 @@ pub(crate) fn main(root: &Path, args: &[String]) -> ExitCode {
             }
             continue;
         }
-        let Some(liella) = pick(&ours, &t.command).or_else(|| liella_default(root, &t.command)) else {
-            println!("ERROR {shown}: Liella has no `{}` yet (pass --liella {}=<path>)", t.command, t.command);
+        let Some(niji) = pick(&ours, &t.command).or_else(|| niji_default(root, &t.command)) else {
+            println!("ERROR {shown}: libniji has no `{}` yet (pass --niji {}=<path>)", t.command, t.command);
             errors += 1;
             continue;
         };
-        match check_one(&t, reference, liella) {
+        match check_one(&t, reference, niji) {
             Ok(Verdict::Ok(note)) => {
                 println!("ok {shown} ({note})");
                 ok += 1;

@@ -1,5 +1,5 @@
-# Liella's functions whose implementation only fails with ENOSYS (no system call, whatever the arguments).
-# Liella's own fact, not the reference's: derived from Liella's code (crates/legacy/src/stubs.rs and the bodies
+# libniji's functions whose implementation only fails with ENOSYS (no system call, whatever the arguments).
+# libniji's own fact, not the reference's: derived from libniji's code (crates/legacy/src/stubs.rs and the bodies
 # named in `source`); `link` is how libc.so.6 exports it (default: linkable by a new program; compat: only an old
 # binary binds it). gnu/stubs.h defines __stub_<function> for every default row (SL-HEADERS-S05).
 function	link	source

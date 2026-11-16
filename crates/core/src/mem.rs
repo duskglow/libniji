@@ -6,7 +6,7 @@
 //! (`disallowed-methods`), denied in each library crate root.
 //!
 //! This is the *internal* allocation domain (D-3.1): in the products the global allocator is
-//! Liella's own heap. Memory handed to C callers comes from the exported `malloc` instead
+//! libniji's own heap. Memory handed to C callers comes from the exported `malloc` instead
 //! (`boundary::caller_alloc`).
 
 use alloc::vec::Vec;
@@ -312,7 +312,7 @@ macro_rules! small_pieces {
 /// [`SMALL`] bytes: two fixed-size pieces, constant-size copies an optimised build makes inline.
 /// The units copied, or `None` (nothing copied) when the region is longer. Not for the paths the
 /// `mem*` exports reach: an unoptimised build may lower the pieces to `memcpy`/`memset` calls,
-/// which there would recurse (D-4.11); those use `liella-mem`, built without builtins.
+/// which there would recurse (D-4.11); those use `niji-mem`, built without builtins.
 #[inline(always)]
 pub fn copy_small<T: Copy>(dst: &mut [T], src: &[T]) -> Option<usize> {
     /// `K` units at `at`.
@@ -443,7 +443,7 @@ impl<T: Copy + Default, const N: usize> DerefMut for InlineVec<T, N> {
 fn invariant() -> ! {
     #[allow(clippy::panic)]
     {
-        panic!("liella::mem invariant broken")
+        panic!("niji::mem invariant broken")
     }
 }
 

@@ -1,13 +1,13 @@
-//! Formatted input glue (spec §12.7; D-12.6, D-12.13): the scan engine (`liella::scanf`) over a
+//! Formatted input glue (spec §12.7; D-12.6, D-12.13): the scan engine (`niji::scanf`) over a
 //! C string, a wide string or a stream, its pointer arguments read from the C `va_list`
-//! (`liella_legacy::scanf_va`), the calling thread's locale and rounding mode.
+//! (`niji_legacy::scanf_va`), the calling thread's locale and rounding mode.
 
-use liella::error::{Errno, KResult};
-use liella::scanf::{self as engine, Ctx, FmtUnit, Input, Outcome, Set, Sink};
-use liella::text::Encoding;
-use liella_kernel::machine::Machine;
-use liella_legacy::scanf_va::Pointers;
-use liella_legacy::stdio_compat as sc;
+use niji::error::{Errno, KResult};
+use niji::scanf::{self as engine, Ctx, FmtUnit, Input, Outcome, Set, Sink};
+use niji::text::Encoding;
+use niji_kernel::machine::Machine;
+use niji_legacy::scanf_va::Pointers;
+use niji_legacy::stdio_compat as sc;
 
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;
@@ -58,7 +58,7 @@ impl Sink for Args<'_> {
     }
 
     fn alloc_wide(&mut self, addr: usize, data: &[u32]) -> KResult<()> {
-        let mut bytes = liella::mem::TryVec::with_capacity(data.len().saturating_mul(4))?;
+        let mut bytes = niji::mem::TryVec::with_capacity(data.len().saturating_mul(4))?;
         for w in data {
             bytes.extend_from_slice(&w.to_ne_bytes())?;
         }
@@ -77,11 +77,11 @@ impl Sink for Args<'_> {
 fn run<F: FmtUnit>(fmt: &[F], set: Set, ap: usize, input: &mut dyn Input) -> KResult<Option<i32>> {
     let loc = locale::current();
     // ARCH(x86_64): rounding mode read from MXCSR; FPCR on aarch64 (A-9)
-    let ctx = Ctx { loc, enc: Encoding::of(loc), rounding: liella_legacy::num_compat::rounding(CSys.mxcsr()), set };
+    let ctx = Ctx { loc, enc: Encoding::of(loc), rounding: niji_legacy::num_compat::rounding(CSys.mxcsr()), set };
     let mut va = CVa(ap);
     let mut args = Args(Pointers::new(&mut va));
     let r = engine::scan(fmt, input, &mut args, ctx)?;
-    liella_legacy::num_compat::raise_signals(&CSys, r.signals);
+    niji_legacy::num_compat::raise_signals(&CSys, r.signals);
     if r.range {
         errno::set(Errno::ERANGE);
     }

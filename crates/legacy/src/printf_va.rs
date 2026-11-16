@@ -2,10 +2,10 @@
 //! read in order of their indices, each by its class, so that positional and sequential
 //! formats read the same way.
 
-use liella::error::KResult;
-use liella::mem::InlineVec;
-use liella::printf::{Arg, Class};
-use liella_abi::va::VaSource;
+use niji::error::KResult;
+use niji::mem::InlineVec;
+use niji::printf::{Arg, Class};
+use niji_abi::va::VaSource;
 
 /// The arguments `classes` describe, read from `src` in order. A registered type
 /// (`register_printf_type`, D-12.8) is read by `user` (its number and object size), which runs

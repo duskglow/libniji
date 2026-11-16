@@ -1,4 +1,4 @@
-/* Class machine: process entry (_start), the content of liella-crt1.o (spec §1.1, IP-9).
+/* Class machine: process entry (_start), the content of niji-crt1.o (spec §1.1, IP-9).
  *
  * The kernel enters with %rsp at argc, followed by argv[], NULL, envp[], NULL and the auxiliary
  * vector (⚑ KERN); %rdx holds the dynamic linker's termination function (0 for a static
@@ -10,7 +10,7 @@
  *
  * The start of the executable's .eh_frame (D-2.7). A static link has no .eh_frame_hdr (the
  * compiler driver asks the linker for one only in dynamic links), so `backtrace` finds a static
- * executable's call-frame information between two link-time labels: liella_eh_frame_start,
+ * executable's call-frame information between two link-time labels: niji_eh_frame_start,
  * at the start of this object's .eh_frame, which the linker places first because the start
  * object comes first in a link, and the end label in adapter/runtime.c. _start's own row marks
  * it as the outermost frame (its return-address column is undefined).
@@ -19,84 +19,84 @@
  * -O2 main, right before the hot text group, so every program's entry shares the 64 KiB
  * fault-around window of the startup functions instead of costing a page fault of its own.
  *
- * Assembled with -DLIELLA_STATIC_PIE it is liella-rcrt1.o, the start object of a static PIE
- * (D-27.10): the same _start, calling liella_start_main_static_pie (same arguments), which
+ * Assembled with -DNIJI_STATIC_PIE it is niji-rcrt1.o, the start object of a static PIE
+ * (D-27.10): the same _start, calling niji_start_main_static_pie (same arguments), which
  * relocates the executable before anything reads an address from its data. The choice is made
  * at link time, so the start of every other program tests nothing. A static PIE runs this code
  * before its relocation: every reference here is PC-relative (no GOT slot, which would still
  * hold a link-time address); `cargo xtask so` refuses a GOT-typed relocation in the object. */
-#ifdef LIELLA_LD
-/* Assembled with -DLIELLA_LD it is the entry of ld.so (phase 14 DL-5, R14-8 "program entry", D-27.13),
- * liella_machine_ld_entry, the product's ELF entry point. Register convention: the kernel enters
+#ifdef NIJI_LD
+/* Assembled with -DNIJI_LD it is the entry of ld.so (phase 14 DL-5, R14-8 "program entry", D-27.13),
+ * niji_machine_ld_entry, the product's ELF entry point. Register convention: the kernel enters
  * with %rsp at argc (the initial stack as above); this clears %rbp (outermost frame), passes that
  * stack pointer in %rdi and the run-time address of ld.so's own ELF header (__ehdr_start, taken
- * PC-relatively) in %rsi, aligns %rsp to 16 bytes and calls liella_ld_start, which never returns.
+ * PC-relatively) in %rsi, aligns %rsp to 16 bytes and calls niji_ld_start, which never returns.
  * It runs before ld.so is relocated: both references are PC-relative to hidden symbols (no GOT, no
  * PLT), so nothing reads a stored address before the relocation loop; `cargo xtask so` refuses an
  * ld.so whose code reads its GOT at all (L14-1). Declared once in boundary/src/arch/. */
-	.section .text.liella_machine_ld_entry,"ax",@progbits
-	.globl liella_machine_ld_entry
-	.hidden liella_machine_ld_entry
-	.hidden liella_ld_start
+	.section .text.niji_machine_ld_entry,"ax",@progbits
+	.globl niji_machine_ld_entry
+	.hidden niji_machine_ld_entry
+	.hidden niji_ld_start
 	.hidden __ehdr_start
-	.type liella_machine_ld_entry, @function
+	.type niji_machine_ld_entry, @function
 	.p2align 4
-liella_machine_ld_entry:
+niji_machine_ld_entry:
 	.cfi_startproc
 	.cfi_undefined %rip
 	xorl %ebp, %ebp
 	movq %rsp, %rdi
 	leaq __ehdr_start(%rip), %rsi
 	andq $-16, %rsp
-	call liella_ld_start
+	call niji_ld_start
 	hlt
 	.cfi_endproc
-	.size liella_machine_ld_entry, .-liella_machine_ld_entry
+	.size niji_machine_ld_entry, .-niji_machine_ld_entry
 
-/* liella_machine_ld_enter(sp, entry, fini) (phase 14 DL-6, R14-8 "program entry transfer", D-27.14,
+/* niji_machine_ld_enter(sp, entry, fini) (phase 14 DL-6, R14-8 "program entry transfer", D-27.14,
  * DL-11 D-27.19): hand the process to a program's entry point. Register convention: %rdi = the stack
  * pointer the program gets (argc at it, then argv, envp and the auxiliary vector, laid out as the
  * kernel's initial stack), %rsi = the entry address, %rdx = the termination function the program
  * registers with atexit (0 = none), left in %rdx as x86-64 psABI §3.4.1 "Process Initialization"
  * places it. %rsp = %rdi, %rbp = 0 (outermost frame). Never returns; no logic (K2). Declared once in
  * boundary/src/arch/. */
-	.section .text.liella_machine_ld_enter,"ax",@progbits
-	.globl liella_machine_ld_enter
-	.hidden liella_machine_ld_enter
-	.type liella_machine_ld_enter, @function
+	.section .text.niji_machine_ld_enter,"ax",@progbits
+	.globl niji_machine_ld_enter
+	.hidden niji_machine_ld_enter
+	.type niji_machine_ld_enter, @function
 	.p2align 4
-liella_machine_ld_enter:
+niji_machine_ld_enter:
 	.cfi_startproc
 	.cfi_undefined %rip
 	movq %rdi, %rsp
 	xorl %ebp, %ebp
 	jmp *%rsi
 	.cfi_endproc
-	.size liella_machine_ld_enter, .-liella_machine_ld_enter
+	.size niji_machine_ld_enter, .-niji_machine_ld_enter
 
-#ifdef LIELLA_LDCONFIG
-/* Assembled with -DLIELLA_LD -DLIELLA_LDCONFIG it also holds liella_machine_ldconfig_entry, the ELF
+#ifdef NIJI_LDCONFIG
+/* Assembled with -DNIJI_LD -DNIJI_LDCONFIG it also holds niji_machine_ldconfig_entry, the ELF
  * entry point of the freestanding static ldconfig (UTIL-3, D-31.2): the same convention as
- * liella_machine_ld_entry (the initial stack pointer in %rdi, the image's own ELF header taken
- * PC-relatively in %rsi, %rbp cleared, %rsp aligned to 16 bytes) calling liella_ldconfig_start,
+ * niji_machine_ld_entry (the initial stack pointer in %rdi, the image's own ELF header taken
+ * PC-relatively in %rsi, %rbp cleared, %rsp aligned to 16 bytes) calling niji_ldconfig_start,
  * which relocates the static-PIE image first and never returns. */
-	.section .text.liella_machine_ldconfig_entry,"ax",@progbits
-	.globl liella_machine_ldconfig_entry
-	.hidden liella_machine_ldconfig_entry
-	.hidden liella_ldconfig_start
-	.type liella_machine_ldconfig_entry, @function
+	.section .text.niji_machine_ldconfig_entry,"ax",@progbits
+	.globl niji_machine_ldconfig_entry
+	.hidden niji_machine_ldconfig_entry
+	.hidden niji_ldconfig_start
+	.type niji_machine_ldconfig_entry, @function
 	.p2align 4
-liella_machine_ldconfig_entry:
+niji_machine_ldconfig_entry:
 	.cfi_startproc
 	.cfi_undefined %rip
 	xorl %ebp, %ebp
 	movq %rsp, %rdi
 	leaq __ehdr_start(%rip), %rsi
 	andq $-16, %rsp
-	call liella_ldconfig_start
+	call niji_ldconfig_start
 	hlt
 	.cfi_endproc
-	.size liella_machine_ldconfig_entry, .-liella_machine_ldconfig_entry
+	.size niji_machine_ldconfig_entry, .-niji_machine_ldconfig_entry
 #endif
 #else
 	/* The start-up data clusters (D-X.62, D-X.64, xtask/src/startup_ro.rs): this object comes first in
@@ -106,52 +106,52 @@ liella_machine_ldconfig_entry:
 	 * 64 KiB) not below the cluster's size over the whole archive, so a cluster of at most 64 KiB
 	 * never straddles a 64 KiB fault-around window, and the written cluster takes the fewest pages.
 	 * The defaults are the largest values (a build that does not pass them). */
-#ifndef LIELLA_RODATA1_ALIGN
-#define LIELLA_RODATA1_ALIGN 65536
+#ifndef NIJI_RODATA1_ALIGN
+#define NIJI_RODATA1_ALIGN 65536
 #endif
-#ifndef LIELLA_DATA1_ALIGN
-#define LIELLA_DATA1_ALIGN 65536
+#ifndef NIJI_DATA1_ALIGN
+#define NIJI_DATA1_ALIGN 65536
 #endif
-#ifndef LIELLA_RELRO_ALIGN
-#define LIELLA_RELRO_ALIGN 65536
+#ifndef NIJI_RELRO_ALIGN
+#define NIJI_RELRO_ALIGN 65536
 #endif
-#ifdef LIELLA_STATIC_PIE
+#ifdef NIJI_STATIC_PIE
 	/* LAYOUT-DATA-CLUSTERS-4 (D-X.68): a static PIE relocates itself with exactly one writable
 	 * PT_LOAD (crates/ld/src/boot.rs `image`). The linker starts a new segment where the gap before
 	 * a section reaches a whole page: a 16 KiB `.data1` after `.data` left a 3-page gap and a
 	 * second writable segment, and the start refused the executable (exit 127). At 4 KiB the gap
 	 * stays under a page, and the written cluster still takes ceil(size / 4 KiB) pages. (The relro
 	 * alignment kept one segment in the same test, `.tdata` and `.init_array` ahead of it.) */
-#undef LIELLA_DATA1_ALIGN
-#define LIELLA_DATA1_ALIGN 4096
+#undef NIJI_DATA1_ALIGN
+#define NIJI_DATA1_ALIGN 4096
 #endif
 	.section .rodata1,"a",@progbits
-	.balign LIELLA_RODATA1_ALIGN
+	.balign NIJI_RODATA1_ALIGN
 	.section .data1,"aw",@progbits
-	.balign LIELLA_DATA1_ALIGN
+	.balign NIJI_DATA1_ALIGN
 	/* LAYOUT-DATA-CLUSTERS-3 (D-X.67): the relro output section starts on the same kind of boundary
 	 * (its size over the archive), so the relro objects start-up reads share one fault-around window
 	 * wherever text and read-only data end (a 28 KiB relro across a 64 KiB boundary cost tool and
 	 * setlocale a second window, release profile).
 	 * STARTUP-DATA-PAGE-ALIGN: named `.data.rel.ro.local`, so that it is the first input of the
 	 * linker's `*(.data.rel.ro.local* ...)` pattern (this start file comes first in the link), ahead
-	 * of the library's start-up relro cluster (`.data.rel.ro.local.liella_startup*`). In
+	 * of the library's start-up relro cluster (`.data.rel.ro.local.niji_startup*`). In
 	 * `*(.data.rel.ro ...)`, behind the cluster, it padded the rest of relro to the next 64 KiB
 	 * boundary (56 KiB of fill): relro spanned two windows and the first `%.2f` and the
 	 * coreutils-shaped probe each took one more fault. */
 	.section .data.rel.ro.local,"aw",@progbits
-	.balign LIELLA_RELRO_ALIGN
+	.balign NIJI_RELRO_ALIGN
 	/* LAYOUT-WINDOW-BINS-5: the end of the hot text group's window bins (xtask/src/bins.rs GROUP_END,
 	 * whose name this must match; `cargo xtask so` checks it). The name sorts after every bin in GNU
 	 * ld's SORT(.text.sorted.*), so the program's own `.text` after the group starts on a 64 KiB
 	 * boundary: the last bin is filled up to it, and the probe's `main` no longer spans two
 	 * fault-around windows depending on where the last bin ends. */
-	.section .text.sorted.h9z.liella_group_end,"ax",@progbits
+	.section .text.sorted.h9z.niji_group_end,"ax",@progbits
 	.balign 65536
 	.section .eh_frame,"a",@unwind
-	.globl liella_eh_frame_start
-	.hidden liella_eh_frame_start
-liella_eh_frame_start:
+	.globl niji_eh_frame_start
+	.hidden niji_eh_frame_start
+niji_eh_frame_start:
 	.section .text.startup._start,"ax",@progbits
 	.globl _start
 	.type _start, @function
@@ -168,9 +168,9 @@ _start:
 	pushq %rsp
 	xorl %r8d, %r8d
 	xorl %ecx, %ecx
-#ifdef LIELLA_STATIC_PIE
+#ifdef NIJI_STATIC_PIE
 	leaq main(%rip), %rdi
-	call liella_start_main_static_pie
+	call niji_start_main_static_pie
 #else
 	movq main@GOTPCREL(%rip), %rdi
 	call *__libc_start_main@GOTPCREL(%rip)

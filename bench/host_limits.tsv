@@ -3,7 +3,7 @@
 # Columns: cpu, benchmark, row, limit, status, rationale.
 #   cpu        the `model name` string of /proc/cpuinfo, exactly (not the host name). A CPU with no
 #              entry for a row is measured and reported but not gated (`cargo xtask bench` says so).
-#   limit      the most the same-run MEDIAN Liella/glibc ratio over the rounds may be (the number
+#   limit      the most the same-run MEDIAN libniji/glibc ratio over the rounds may be (the number
 #              `cargo xtask bench --compare` prints as the ratio; not the worst round).
 #   status     `gate`: an ordinary regression limit. `known_regression`: a confirmed slowdown kept at
 #              its earlier bound; the run FAILS on it, labelled "known regression, PERF-REGRESS", until

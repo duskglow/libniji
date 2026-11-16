@@ -4,7 +4,7 @@ clause: s31_5_g_2
 command: getconf
 env: LC_ALL=C
 # Values that depend on the host (limits, processors, memory, caches, the file system of the path):
-# the record holds @HOST@; the reference and Liella run side by side are compared in full.
+# the record holds @HOST@; the reference and libniji run side by side are compared in full.
 host-value: LINK_MAX                           
 host-value: _POSIX_LINK_MAX                    
 host-value: MAX_CANON                          

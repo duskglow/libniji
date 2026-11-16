@@ -1,6 +1,6 @@
 # S8: allocation is fallible. The infallible `alloc` methods abort on exhaustion, so the library
 # crates deny them (`#![deny(clippy::disallowed_methods)]` in each crate root) and use
-# `liella::mem::{TryVec, TryBox}` or `try_reserve` instead. Tests may use them.
+# `niji::mem::{TryVec, TryBox}` or `try_reserve` instead. Tests may use them.
 disallowed-methods = [
     { path = "alloc::vec::Vec::push", reason = "S8: use TryVec::push" },
     { path = "alloc::vec::Vec::with_capacity", reason = "S8: use TryVec::with_capacity" },

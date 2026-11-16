@@ -15,12 +15,12 @@
 //! * **Child status** (D-18.4): [`ChildStatus`] and the wait-status word.
 //! * **Shell interfaces** (D-18.5): `popen`'s mode ([`popen_mode`]).
 
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::{FcntlInt, IoctlIntIn};
-use liella_kernel::path::{KStr, PATH_MAX};
-use liella_kernel::sys::{Disposition, Sys};
-use liella_kernel::uapi::SigSet;
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::{FcntlInt, IoctlIntIn};
+use niji_kernel::path::{KStr, PATH_MAX};
+use niji_kernel::sys::{Disposition, Sys};
+use niji_kernel::uapi::SigSet;
 
 use crate::error::Result;
 use crate::mem::TryVec;
@@ -386,7 +386,7 @@ fn prepare<S: Sys>(sys: &S, child: &Child<'_>) -> Result<()> {
     if a.flags & SPAWN_SETPGROUP != 0 {
         sys.setpgid(0, a.pgroup)?;
     }
-    let param = liella_kernel::uapi::SchedParam { priority: a.priority };
+    let param = niji_kernel::uapi::SchedParam { priority: a.priority };
     if a.flags & SPAWN_SETSCHEDULER != 0 {
         sys.sched_setscheduler(0, a.policy, &param)?;
     } else if a.flags & SPAWN_SETSCHEDPARAM != 0 {
@@ -489,7 +489,7 @@ fn closefrom_child<S: Sys>(sys: &S, lo: u32) -> Result<()> {
     if walked.is_ok() {
         return Ok(());
     }
-    let limit = sys.prlimit(0, liella_kernel::uapi::RLIMIT_NOFILE, None)?.cur;
+    let limit = sys.prlimit(0, niji_kernel::uapi::RLIMIT_NOFILE, None)?.cur;
     let top = u32::try_from(limit).unwrap_or(u32::MAX);
     for fd in lo..top {
         let Ok(raw) = i32::try_from(fd) else { break };

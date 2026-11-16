@@ -1,6 +1,6 @@
 //! Thread bookkeeping (spec §22.1–§22.3, §22.6; D-22.1–D-22.11): the per-thread *descriptor*,
 //! the layout of a thread's mapping, the join and cancellation state machines, and the
-//! process-wide key table. The boundary creates threads (`liella_boundary::thread`); every
+//! process-wide key table. The boundary creates threads (`niji_boundary::thread`); every
 //! decision is here.
 //!
 //! **A thread's mapping** (D-22.9), from low to high addresses: the guard (no access), the
@@ -17,7 +17,7 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::uapi::Rseq;
+use niji_kernel::uapi::Rseq;
 
 use crate::tls::{TlsImage, BLOCK_SIZE};
 

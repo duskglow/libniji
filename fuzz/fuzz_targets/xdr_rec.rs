@@ -1,5 +1,5 @@
 //! XDR record marking (`xdrrec_*`, spec §29.1, RFC 5531 §11) through the safe stream state
-//! `liella_legacy::sunrpc_rec::RecStream`, with the `readit`/`writeit` callbacks as closures over
+//! `niji_legacy::sunrpc_rec::RecStream`, with the `readit`/`writeit` callbacks as closures over
 //! memory that hand over data in chunks of a fuzzed size.
 //!
 //! Invariants, not only "no crash":
@@ -17,8 +17,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella_fuzz::Input;
-use liella_legacy::sunrpc_rec::RecStream;
+use niji_fuzz::Input;
+use niji_legacy::sunrpc_rec::RecStream;
 
 /// The records of `wire` as the reference model reads them: each the payload of its fragments
 /// up to one with the last bit set (a final unfinished record is kept as far as it goes).

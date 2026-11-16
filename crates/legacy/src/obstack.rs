@@ -9,7 +9,7 @@
 //! cannot be allocated the failure handler runs; it must not return (if it does, the process
 //! aborts).
 
-use liella_abi::layout::struct_obstack;
+use niji_abi::layout::struct_obstack;
 
 use crate::search_c::CWords;
 

@@ -1,16 +1,16 @@
-//! The recurrence tier for `jn`, `yn`, `jnf`, `ynf` (`liella_math::fast_bessel::n`, D-10.76)
-//! against the 384-bit path it falls back to and the test oracle (`liella-mathtools::mp`), spec
+//! The recurrence tier for `jn`, `yn`, `jnf`, `ynf` (`niji_math::fast_bessel::n`, D-10.76)
+//! against the 384-bit path it falls back to and the test oracle (`niji-mathtools::mp`), spec
 //! §10.3 and D-10.13 (every result correctly rounded in the caller's rounding direction). The
 //! operands cover each regime of the tier (series, forward, Miller's backward recurrence for `jn`;
 //! the forward recurrence for `yn` below and above the turning point `x = n`), orders up to 300
 //! with both signs, negative `x` for `jn`, and the doubles next to zeros of `J_n` and `Y_n`.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_wrap, clippy::arithmetic_side_effects, clippy::float_cmp, missing_docs)]
 
-use liella_math::dd::Dd;
-use liella_math::fast_bessel::n as fbn;
-use liella_math::special;
-use liella_math::status::{Rounding, Status};
-use liella_mathtools::mp::{self, Big};
+use niji_math::dd::Dd;
+use niji_math::fast_bessel::n as fbn;
+use niji_math::special;
+use niji_math::status::{Rounding, Status};
+use niji_mathtools::mp::{self, Big};
 
 const MODES: [Rounding; 4] = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero];
 
@@ -272,13 +272,13 @@ fn bessel_n_rounding_tests_decline_straddles() {
 }
 
 #[test]
-#[ignore = "10^7 operands per function (LIELLA_BESSEL_N_SWEEP): cargo xtask long-sweeps runs it in release (nightly and release runs)"]
+#[ignore = "10^7 operands per function (NIJI_BESSEL_N_SWEEP): cargo xtask long-sweeps runs it in release (nightly and release runs)"]
 fn bessel_n_tier_sweep() {
     // Clauses: s10_3_c_0 (D-10.13, D-10.76).
-    // `LIELLA_BESSEL_N_SWEEP` operands (default 10^7) per function over the regimes, every mode,
-    // the tier against the 384-bit path, on every core; `LIELLA_BESSEL_N_FUNCS` picks functions.
-    let total: u64 = std::env::var("LIELLA_BESSEL_N_SWEEP").ok().and_then(|s| s.parse().ok()).unwrap_or(10_000_000);
-    let pick = std::env::var("LIELLA_BESSEL_N_FUNCS").unwrap_or_default();
+    // `NIJI_BESSEL_N_SWEEP` operands (default 10^7) per function over the regimes, every mode,
+    // the tier against the 384-bit path, on every core; `NIJI_BESSEL_N_FUNCS` picks functions.
+    let total: u64 = std::env::var("NIJI_BESSEL_N_SWEEP").ok().and_then(|s| s.parse().ok()).unwrap_or(10_000_000);
+    let pick = std::env::var("NIJI_BESSEL_N_FUNCS").unwrap_or_default();
     let threads = std::thread::available_parallelism().map_or(4, |n| n.get() as u64);
     for (f, (name, float, fast, acc)) in FUNCS.into_iter().enumerate() {
         if !pick.is_empty() && !pick.split(',').any(|p| p == name) {

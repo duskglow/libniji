@@ -10,7 +10,7 @@
 pub(crate) fn delim_copy(s: &[u8], d: &mut [u8], c: u8) -> Option<usize> {
     let lim = d.len().checked_sub(1)?.min(s.len());
     if lim < 32 || !crate::dispatch::avx2() {
-        return liella_legacy::stdio_compat::find_copy(&crate::stdio::Glue, s, d, c);
+        return niji_legacy::stdio_compat::find_copy(&crate::stdio::Glue, s, d, c);
     }
     // UNSAFE(hot-kernel): the fused scan and copy (KERNEL CONTRACT of `fuse::delim_copy`).
     #[allow(unsafe_code)]
@@ -28,7 +28,7 @@ pub(crate) fn delim_copy(s: &[u8], d: &mut [u8], c: u8) -> Option<usize> {
 pub(crate) fn delim_copy_sse2(s: &[u8], d: &mut [u8], c: u8) -> Option<usize> {
     let lim = d.len().checked_sub(1)?.min(s.len());
     if lim < 16 {
-        return liella_legacy::stdio_compat::find_copy(&crate::stdio::Glue, s, d, c);
+        return niji_legacy::stdio_compat::find_copy(&crate::stdio::Glue, s, d, c);
     }
     let head = lim.min(fuse::SSE2_HEAD);
     // UNSAFE(hot-kernel): the fused scan and copy (KERNEL CONTRACT of `fuse::delim_copy_sse2`).
@@ -44,7 +44,7 @@ pub(crate) fn delim_copy_sse2(s: &[u8], d: &mut [u8], c: u8) -> Option<usize> {
     }
     // head == SSE2_HEAD, a multiple of 32: all of s[..head] is in d[..head].
     let n = crate::strz::find_in(s.get(head..lim)?, c)?.checked_add(head)?.checked_add(1)?;
-    liella::mem::copy(d.get_mut(head..n)?, s.get(head..n)?);
+    niji::mem::copy(d.get_mut(head..n)?, s.get(head..n)?);
     *d.get_mut(n)? = 0;
     Some(n)
 }

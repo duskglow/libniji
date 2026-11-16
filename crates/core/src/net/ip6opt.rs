@@ -12,7 +12,7 @@
 //! option's alignment must not exceed its length (so a length of 0 is refused);
 //! `inet6_opt_next` and `inet6_opt_find` start after the 2-byte header when given offset 0, and
 //! reject offset 1; `inet6_rth_add` beyond the declared segments fails; `inet6_rth_reverse`
-//! and `inet6_rth_getaddr` go by the declared segments, however many were added. Liella also
+//! and `inet6_rth_getaddr` go by the declared segments, however many were added. libniji also
 //! refuses a "segments left" at or beyond the declared count, so the header is never written
 //! past its length.
 

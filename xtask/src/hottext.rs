@@ -29,7 +29,7 @@ use crate::so::OWN_PREFIX;
 pub const PRE_GROUP_ARCHIVE: &str = "hot-text.pre-group.a";
 
 /// A function or section name -> its build-stable key (keep in step with tools/hottext/keys.py):
-/// no `__liella_libc_` prefix, no ThinLTO `.llvm.<n>` suffix, no v0 crate disambiguators
+/// no `__niji_libc_` prefix, no ThinLTO `.llvm.<n>` suffix, no v0 crate disambiguators
 /// (`Cs<base62>_` -> `C`), no legacy hash (`17h<16 hex>E` -> `E`).
 /// HOTTEXT-FAULT-ENV: v0 back-references (`B<base62>_`) are byte offsets into the mangled name,
 /// so they move when a crate disambiguator changes length (the disambiguators of the workspace
@@ -455,8 +455,8 @@ fn section_for(f: &str, keys: &BTreeMap<String, usize>) -> String {
 /// plain `.text.<f>` would itself match one of GNU ld's pre-group patterns (a function named `exit`
 /// gets `.text.exit`; the suffix breaks `.text.*_unlikely`). [`function_of`] strips both, so a
 /// later listing still finds the key.
-const COLD_PREFIX: &str = "liella_cold.";
-const COLD_SUFFIX: &str = ".liella_cold";
+const COLD_PREFIX: &str = "niji_cold.";
+const COLD_SUFFIX: &str = ".niji_cold";
 
 /// Whether GNU ld's default script (2.42) places input section `name` ahead of the hot group:
 /// `*(.text.unlikely .text.*_unlikely .text.unlikely.*)`, `*(.text.exit .text.exit.*)`,
@@ -637,7 +637,7 @@ pub(crate) fn check_renames(members: &[(String, Vec<Shdr>)], renames: &BTreeMap<
     }
 }
 
-/// STARTUP-READ-CONSTANTS: the key suffix of `liella_boundary::startup_names::STARTUP_NAMES`, the
+/// STARTUP-READ-CONSTANTS: the key suffix of `niji_boundary::startup_names::STARTUP_NAMES`, the
 /// one static that holds the names start-up reads. Its section (`.rodata.<symbol>`) is renamed
 /// [`STARTUP_SECTION`]: GNU ld's default script places `*(.rodata1)` right after `.rodata`, so
 /// the static no longer sits between constants that move with unrelated code. The static's
@@ -847,8 +847,8 @@ mod tests {
 
     #[test]
     fn keys_drop_build_hashes() {
-        assert_eq!(key("__liella_libc_setlocale"), "setlocale");
-        assert_eq!(key("_RNvNtCsaKmPixRNJHt_15liella_boundary7runtime5start"), "_RNvNtC15liella_boundary7runtime5start");
+        assert_eq!(key("__niji_libc_setlocale"), "setlocale");
+        assert_eq!(key("_RNvNtCsaKmPixRNJHt_13niji_boundary7runtime5start"), "_RNvNtC13niji_boundary7runtime5start");
         assert_eq!(key("_RNvNtNtCsevLNFiNqfJP_4core5slice6memchr14memchr_aligned.llvm.1234567"), "_RNvNtNtC4core5slice6memchr14memchr_aligned");
         assert_eq!(key("_ZN4core3fmt5write17h0123456789abcdefE"), "_ZN4core3fmt5writeE");
         assert_eq!(key("_RNvC5plain3fun"), "_RNvC5plain3fun");
@@ -857,20 +857,20 @@ mod tests {
     #[test]
     fn v0_keys_do_not_depend_on_disambiguator_lengths() {
         // HOTTEXT-FAULT-ENV: the same function from two checkouts (Skylake-SP host diag-/d2-cold-table-idna):
-        // liella_legacy's disambiguator is one character shorter in the second, so its trailing
+        // niji_legacy's disambiguator is one character shorter in the second, so its trailing
         // back-reference reads BU_ instead of BV_. Both expand to the same key.
-        let a = "_RINvNtCs1k36ruIItxX_13liella_legacy12stdio_compat5flushNtNtCse0ehmhVAZlt_15liella_boundary5stdio4GlueEBV_";
-        let b = "_RINvNtCsm9oUc6GLXl_13liella_legacy12stdio_compat5flushNtNtCshvRPlliEZFm_15liella_boundary5stdio4GlueEBU_";
-        let k = "_RINvNtC13liella_legacy12stdio_compat5flushNtNtC15liella_boundary5stdio4GlueEC15liella_boundary";
+        let a = "_RINvNtCs1k36ruIItxX_11niji_legacy12stdio_compat5flushNtNtCse0ehmhVAZlt_13niji_boundary5stdio4GlueEBT_";
+        let b = "_RINvNtCsm9oUc6GLXl_11niji_legacy12stdio_compat5flushNtNtCshvRPlliEZFm_13niji_boundary5stdio4GlueEBS_";
+        let k = "_RINvNtC11niji_legacy12stdio_compat5flushNtNtC13niji_boundary5stdio4GlueEC13niji_boundary";
         assert_eq!(key(a), k);
         assert_eq!(key(b), k);
         // Nested back-references (path and type), an impl disambiguator, a const and a ThinLTO suffix.
-        let c = "_RINvNtCse0ehmhVAZlt_15liella_boundary5stdio4withINtNtCskADBYZwJmSU_4core6result6ResultuNtNtCsluNtJMkxk5h_13liella_kernel5errno5ErrnoEINvNtCs1k36ruIItxX_13liella_legacy12stdio_compat5flushNtB2_4GlueEEB4_.llvm.1699245945913024000";
+        let c = "_RINvNtCse0ehmhVAZlt_13niji_boundary5stdio4withINtNtCskADBYZwJmSU_4core6result6ResultuNtNtCsluNtJMkxk5h_11niji_kernel5errno5ErrnoEINvNtCs1k36ruIItxX_11niji_legacy12stdio_compat5flushNtB2_4GlueEEB4_.llvm.1699245945913024000";
         assert_eq!(
             key(c),
-            "_RINvNtC15liella_boundary5stdio4withINtNtC4core6result6ResultuNtNtC13liella_kernel5errno5ErrnoEINvNtC13liella_legacy12stdio_compat5flushNtNtC15liella_boundary5stdio4GlueEEC15liella_boundary"
+            "_RINvNtC13niji_boundary5stdio4withINtNtC4core6result6ResultuNtNtC11niji_kernel5errno5ErrnoEINvNtC11niji_legacy12stdio_compat5flushNtNtC13niji_boundary5stdio4GlueEEC13niji_boundary"
         );
-        assert_eq!(key("_RINvMs1_NtCsx_9liella_rt4heapNtB6_4Heap10alloc_slowKb1_EB8_"), "_RINvMs1_NtC9liella_rt4heapNtNtC9liella_rt4heap4Heap10alloc_slowKb1_EC9liella_rt");
+        assert_eq!(key("_RINvMs1_NtCsx_7niji_rt4heapNtB6_4Heap10alloc_slowKb1_EB8_"), "_RINvMs1_NtC7niji_rt4heapNtNtC7niji_rt4heap4Heap10alloc_slowKb1_EC7niji_rt");
         // A name the walker cannot parse keeps the plain strip.
         assert_eq!(key("_RNvCsabc_3foo3barZZ"), "_RNvC3foo3barZZ");
     }
@@ -898,24 +898,24 @@ mod tests {
     fn sections_are_numbered_by_list_position() {
         // HOT-ORDER: the name carries the list position, so ld's SORT(.text.sorted.*) keeps the order.
         let keys: BTreeMap<String, usize> = [("setlocale".to_string(), 7), ("_start_c".to_string(), 0)].into();
-        assert_eq!(section_for("__liella_libc_setlocale", &keys), ".text.sorted.h00007.__liella_libc_setlocale");
+        assert_eq!(section_for("__niji_libc_setlocale", &keys), ".text.sorted.h00007.__niji_libc_setlocale");
         assert_eq!(section_for("_start_c", &keys), ".text.sorted.h00000._start_c");
         assert_eq!(section_for("cold", &keys), ".text.cold");
-        assert!(section_for("_start_c", &keys) < section_for("__liella_libc_setlocale", &keys));
+        assert!(section_for("_start_c", &keys) < section_for("__niji_libc_setlocale", &keys));
         // Stale names from earlier runs (another position, the older `.text.hot.`) map back to the function.
         assert_eq!(function_of(".text.sorted.h00012.memchr"), Some("memchr"));
         assert_eq!(function_of(".text.hot.memchr"), Some("memchr"));
         // STARTUP-READ-CONSTANTS: found whatever the crate disambiguator and ThinLTO suffix.
-        assert!(is_startup_names(".rodata._RNvNtCs7oKE6280DeX_15liella_boundary13startup_names13STARTUP_NAMES"));
-        assert!(is_startup_names(".rodata._RNvNtCsabc_15liella_boundary13startup_names13STARTUP_NAMES.llvm.123"));
-        assert!(!is_startup_names(".rodata._RNvNtCsabc_15liella_boundary13startup_names3LEN"));
-        assert!(!is_startup_names(".text._RNvNtCsabc_15liella_boundary13startup_names13STARTUP_NAMES"));
+        assert!(is_startup_names(".rodata._RNvNtCs7oKE6280DeX_13niji_boundary13startup_names13STARTUP_NAMES"));
+        assert!(is_startup_names(".rodata._RNvNtCsabc_13niji_boundary13startup_names13STARTUP_NAMES.llvm.123"));
+        assert!(!is_startup_names(".rodata._RNvNtCsabc_13niji_boundary13startup_names3LEN"));
+        assert!(!is_startup_names(".text._RNvNtCsabc_13niji_boundary13startup_names13STARTUP_NAMES"));
         assert_eq!(function_of(".text.memchr"), Some("memchr"));
         assert_eq!(function_of(".text.sorted_vec"), Some("sorted_vec"));
         // HOTTEXT-COLD-STARTUP: a listed #[cold] function joins the group; unlisted ones keep their section.
-        assert_eq!(function_of(".text.unlikely._RNvNtCsabc_15liella_boundary3cpu4init"), Some("_RNvNtCsabc_15liella_boundary3cpu4init"));
-        let cold: BTreeMap<String, usize> = [("_RNvNtC15liella_boundary3cpu4init".to_string(), 3)].into_iter().collect();
-        let init = "_RNvNtCsabc_15liella_boundary3cpu4init";
+        assert_eq!(function_of(".text.unlikely._RNvNtCsabc_13niji_boundary3cpu4init"), Some("_RNvNtCsabc_13niji_boundary3cpu4init"));
+        let cold: BTreeMap<String, usize> = [("_RNvNtC13niji_boundary3cpu4init".to_string(), 3)].into_iter().collect();
+        let init = "_RNvNtCsabc_13niji_boundary3cpu4init";
         assert_eq!(rename_for(&format!(".text.unlikely.{init}"), init, &cold), format!(".text.sorted.h00003.{init}"));
         assert_eq!(rename_for(".text.unlikely.other", "other", &cold), ".text.other");
         assert_eq!(rename_for(".text.other", "other", &cold), ".text.other");
@@ -934,11 +934,11 @@ mod tests {
             (".text.hot.f", ".text.f"),
             (".text.startup.main", ".text.main"),
             (".text.exit.g", ".text.g"),
-            (".text.unlikely", ".text.liella_cold.unlikely.liella_cold"),
-            (".text.startup", ".text.liella_cold.startup.liella_cold"),
-            (".text.hot", ".text.liella_cold.hot.liella_cold"),
-            (".text.read_unlikely", ".text.liella_cold.read_unlikely.liella_cold"),
-            (".text.liella_cold.hot.liella_cold", ".text.liella_cold.hot.liella_cold"),
+            (".text.unlikely", ".text.niji_cold.unlikely.niji_cold"),
+            (".text.startup", ".text.niji_cold.startup.niji_cold"),
+            (".text.hot", ".text.niji_cold.hot.niji_cold"),
+            (".text.read_unlikely", ".text.niji_cold.read_unlikely.niji_cold"),
+            (".text.niji_cold.hot.niji_cold", ".text.niji_cold.hot.niji_cold"),
             (".text.f", ".text.f"),
         ] {
             let f = function_of(from).unwrap();
@@ -949,7 +949,7 @@ mod tests {
         }
         // `exit` (a Rust function named exit gets `.text.exit`) is listed here: it joins the group.
         assert_eq!(rename_for(".text.exit", "exit", &cold), ".text.sorted.h00000.exit");
-        assert_eq!(rename_for(".text.liella_cold.exit.liella_cold", function_of(".text.liella_cold.exit.liella_cold").unwrap(), &cold), ".text.sorted.h00000.exit");
+        assert_eq!(rename_for(".text.niji_cold.exit.niji_cold", function_of(".text.niji_cold.exit.niji_cold").unwrap(), &cold), ".text.sorted.h00000.exit");
         assert!(before_group(".text.exit") && before_group(".text.unlikely.x") && before_group(".text.hot.x") && before_group(".text.a_unlikely"));
         assert!(!before_group(".text.exitx") && !before_group(".text.sorted.h00001.x") && !before_group(".text"));
     }
@@ -1046,7 +1046,7 @@ mod tests {
     #[test]
     fn trace_writes_the_names_at_one_address_in_byte_order() {
         // LAYOUT-TRACE-HOST-CANONICAL-3 (no spec clause: build tooling): trace_gdb.py writes every
-        // name at a hit address (aliases such as bcmp / __memcmpeq / liella_machine_equal), and the
+        // name at a hit address (aliases such as bcmp / __memcmpeq / niji_machine_equal), and the
         // list keeps that order. nm sorts by the caller's locale (en_US ignores underscores), so a
         // Zen 1 host's job under en_US.UTF-8 and a gated job in C gave the same keys in two orders.
         // The tracer must run nm in the C locale and sort each address's names itself.
@@ -1146,14 +1146,14 @@ mod tests {
     fn a_cold_renamed_function_reenters_the_list_by_trace() {
         // LAYOUT-TEXT-PIN-9, #4541 (no spec clause: build tooling, D-X.63): regen.sh lists the names
         // of libc.a's function sections with keys.py --sections, which must strip every prefix this
-        // module gives a section (function_of), the cold rename `.text.liella_cold.<f>.liella_cold`
+        // module gives a section (function_of), the cold rename `.text.niji_cold.<f>.niji_cold`
         // included: a name left with the rename never matches a traced key, so a function the
         // build once renamed cold could not re-enter the list. Fictional names (see above).
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let tmp = root.join(format!("target/xtask-sections-test-{}", std::process::id()));
         std::fs::create_dir_all(&tmp).unwrap();
         let names = [
-            ".text.liella_cold.fixture_exit.liella_cold",
+            ".text.niji_cold.fixture_exit.niji_cold",
             ".text.sorted.h00012.fixture_len",
             ".text.unlikely.fixture_cold",
             ".text.hot.fixture_old",

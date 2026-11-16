@@ -6,11 +6,11 @@
 
 use alloc::vec::Vec;
 
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KPathBuf;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KPathBuf;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{
     OpenHow, AT_EMPTY_PATH, AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_CREAT, O_DIRECTORY, O_NOFOLLOW, O_PATH, O_RDONLY,
     O_TRUNC, O_WRONLY, RESOLVE_IN_ROOT, S_IFDIR, S_IFLNK, S_IFMT, S_IFREG,
 };

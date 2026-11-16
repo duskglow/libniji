@@ -1,7 +1,7 @@
 //! `backtrace`, `backtrace_symbols` and `backtrace_symbols_fd` (spec §2.7; D-2.7, IP-27),
 //! written from the spec and `spec/behaviour/backtrace.md`.
 //!
-//! A trace is unwound by `liella_rt::unwind` from the registers `getcontext`'s primitive
+//! A trace is unwound by `niji_rt::unwind` from the registers `getcontext`'s primitive
 //! captures. The objects it can unwind through are found without the dynamic linker: the
 //! executable (its program headers from `AT_PHDR`) and the image this library is linked into
 //! (`__ehdr_start`), the same object in a static program. Their call-frame information is
@@ -17,14 +17,14 @@
 use core::ffi::c_int;
 use core::sync::atomic::Ordering::Acquire;
 
-use liella::diag::FrameText;
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::mem::IoVec;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{AT_PHDR, AT_PHNUM};
-use liella_rt::start::PHDR_WORDS;
-use liella_rt::unwind::{self, Object, OwnMemory, Regs};
+use niji::diag::FrameText;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::mem::IoVec;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{AT_PHDR, AT_PHNUM};
+use niji_rt::start::PHDR_WORDS;
+use niji_rt::unwind::{self, Object, OwnMemory, Regs};
 
 use crate::sys::CSys;
 use crate::{caller_alloc, conv, ffi, process};
@@ -68,7 +68,7 @@ impl Executable {
     /// The executable as an object to unwind through.
     fn object(&self) -> Object<'static> {
         let mut o = unwind::object(self.words, self.phnum, self.bias, conv::loaded);
-        let (start, end) = (ffi::liella_link_eh_frame_start(), ffi::liella_link_eh_frame_end());
+        let (start, end) = (ffi::niji_link_eh_frame_start(), ffi::niji_link_eh_frame_end());
         if !o.has_cfi() && start != 0 && start < end && o.contains(start) {
             o.set_frames(start, end);
         }
@@ -83,7 +83,7 @@ impl Executable {
 
 /// The image this library is linked into, when it is not the executable (the shared product).
 fn library(exe: &Executable) -> Option<Object<'static>> {
-    let ehdr = ffi::liella_link_ehdr();
+    let ehdr = ffi::niji_link_ehdr();
     let (phoff, phnum) = unwind::program_headers(conv::loaded(ehdr, EHDR_LEN))?;
     let phdr = ehdr.checked_add(phoff)?;
     if exe.phdr == phdr {
@@ -125,7 +125,7 @@ pub fn capture(out: &mut [u8], entry: usize) -> c_int {
         return 0;
     }
     let mut uc = [0u64; UCONTEXT_WORDS];
-    let _ = ffi::liella_machine_getcontext(&mut uc);
+    let _ = ffi::niji_machine_getcontext(&mut uc);
     let exe = Executable::find();
     let objects = [exe.object(), library(&exe).unwrap_or_default()];
     let mut slots = out.chunks_exact_mut(WORD);
@@ -145,11 +145,11 @@ pub fn capture(out: &mut [u8], entry: usize) -> c_int {
 #[inline(never)]
 pub(crate) fn caller_text(inside: &[usize], out: &mut [u8]) -> usize {
     let mut uc = [0u64; UCONTEXT_WORDS];
-    let _ = ffi::liella_machine_getcontext(&mut uc);
+    let _ = ffi::niji_machine_getcontext(&mut uc);
     let exe = Executable::find();
     let objects = [exe.object(), library(&exe).unwrap_or_default()];
     let pc = unwind::caller(&objects, &OwnMemory::new(&CSys), registers(&uc), inside, 32);
-    let mut b = liella::num::format::Bounded::new(out);
+    let mut b = niji::num::format::Bounded::new(out);
     match pc {
         Some(pc) => {
             let (name, value): (&[u8], usize) = match exe.offset(pc) {
@@ -157,14 +157,14 @@ pub(crate) fn caller_text(inside: &[usize], out: &mut [u8]) -> usize {
                 None => (b"", pc),
             };
             if !name.is_empty() {
-                liella::num::format::Sink::put(&mut b, name);
-                liella::num::format::Sink::put(&mut b, b":");
+                niji::num::format::Sink::put(&mut b, name);
+                niji::num::format::Sink::put(&mut b, b":");
             }
-            liella::num::format::Sink::put(&mut b, b"[0x");
-            liella::num::format::format_u64(&mut b, u64::try_from(value).unwrap_or(0), 16, liella::num::format::Case::Lower);
-            liella::num::format::Sink::put(&mut b, b"]");
+            niji::num::format::Sink::put(&mut b, b"[0x");
+            niji::num::format::format_u64(&mut b, u64::try_from(value).unwrap_or(0), 16, niji::num::format::Case::Lower);
+            niji::num::format::Sink::put(&mut b, b"]");
         }
-        None => liella::num::format::Sink::put(&mut b, b"??"),
+        None => niji::num::format::Sink::put(&mut b, b"??"),
     }
     b.stored()
 }

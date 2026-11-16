@@ -1,8 +1,8 @@
 //! `remez`: fits minimax polynomials described by fit files and writes the generated Rust
-//! coefficient files (D-10.3). See `liella_mathtools::remez` for the algorithm and the fit file
+//! coefficient files (D-10.3). See `niji_mathtools::remez` for the algorithm and the fit file
 //! format.
 //!
-//! Usage: `cargo run --release -p liella-mathtools --bin remez -- [--check] <fit files...>`.
+//! Usage: `cargo run --release -p niji-mathtools --bin remez -- [--check] <fit files...>`.
 //! With `--check`, nothing is written: each output is regenerated in memory and compared with
 //! the file on disk, and the exit status is 1 if any differs.
 //!
@@ -10,7 +10,7 @@
 //! affinity mask), each fit's output buffered and printed in command-line order; the exit status
 //! is the failure of any fit (D-10.58). With `--check`, a verdict whose inputs are unchanged since
 //! it last checked up to date is replayed from the verdict cache
-//! (`liella_mathtools::check_cache`) without fitting; `LIELLA_REMEZ_NO_CACHE=1` turns that off.
+//! (`niji_mathtools::check_cache`) without fitting; `NIJI_REMEZ_NO_CACHE=1` turns that off.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -19,8 +19,8 @@ use std::process::ExitCode;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 
-use liella_mathtools::check_cache::{self, Cache, KeyInputs};
-use liella_mathtools::remez::{generate, parse_fit};
+use niji_mathtools::check_cache::{self, Cache, KeyInputs};
+use niji_mathtools::remez::{generate, parse_fit};
 
 /// The workspace root (this crate lives in `crates/mathtools`).
 fn workspace_root() -> PathBuf {
@@ -98,7 +98,7 @@ fn run(path: &str, check: bool, root: &Path, cache: Option<&Cache>, o: &mut Outc
     o.out.push_str(&g.report);
     let on_disk = on_disk.and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
     if g.output != spec.output || on_disk != g.source {
-        let _ = writeln!(o.err, "{}: out of date (regenerate with `cargo run --release -p liella-mathtools --bin remez -- {path}`)", g.output);
+        let _ = writeln!(o.err, "{}: out of date (regenerate with `cargo run --release -p niji-mathtools --bin remez -- {path}`)", g.output);
         return Ok(false);
     }
     let _ = writeln!(o.out, "  {}: up to date", g.output);

@@ -1,6 +1,6 @@
 //! `getaddrinfo` and `getnameinfo` over the switch (spec §16.2; D-16.2), with RFC 6724
 //! destination address selection. The C structures are built by the boundary
-//! (`liella_boundary::netdb`).
+//! (`niji_boundary::netdb`).
 //!
 //! Written under the clean-room rules from the spec, RFC 3493, RFC 6724, the `getaddrinfo(3)`,
 //! `getnameinfo(3)` and `gai.conf(5)` man pages, `spec/behaviour/netdb.md` and black-box probes
@@ -43,13 +43,13 @@
 //! still resolves its loopback names; the reference does the same for `AF_UNSPEC` but drops
 //! everything for `AF_INET6`). Nothing left is `EAI_NONAME`.
 //!
-//! **Order.** The addresses are sorted by RFC 6724 (`liella::names::sort`) with the policy of
+//! **Order.** The addresses are sorted by RFC 6724 (`niji::names::sort`) with the policy of
 //! `gai.conf`; the source of each destination is the kernel's route to it (a netlink route
-//! query, `liella::net::iface::route`, in place of the spec's `connect` and `getsockname`),
+//! query, `niji::net::iface::route`, in place of the spec's `connect` and `getsockname`),
 //! its prefix length from the interface addresses. Each address gives one entry per socket
 //! type, in the order above.
 //!
-//! **IDNA** (D-16.4, `liella::names::dns::idna`): with `AI_IDN` a node that is not ASCII is read
+//! **IDNA** (D-16.4, `niji::names::dns::idna`): with `AI_IDN` a node that is not ASCII is read
 //! in the character set of the context's locale and converted by UTS #46 ToASCII (a node that
 //! cannot be read or converted is `EAI_IDN_ENCODE`; an ASCII node is used as it is, observed);
 //! `AI_CANONIDN` gives the canonical name in Unicode, and `NI_IDN` the host name, converted back
@@ -60,15 +60,15 @@
 //! `errno` `EBUSY`, an artifact), `EAI_MEMORY`, `EAI_SYSTEM` with the error of a database file
 //! that cannot be read.
 
-use liella::error::Errno;
-use liella::mem::TryVec;
-use liella::names::nss::LookupError;
-use liella::names::sort::{self, Candidate, Policy, POLICY_BYTES};
-use liella::names::dns::idna;
-use liella::names::{db, Family, Ip};
-use liella::net::{addr, iface, Text};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{AF_INET, AF_INET6};
+use niji::error::Errno;
+use niji::mem::TryVec;
+use niji::names::nss::LookupError;
+use niji::names::sort::{self, Candidate, Policy, POLICY_BYTES};
+use niji::names::dns::idna;
+use niji::names::{db, Family, Ip};
+use niji::net::{addr, iface, Text};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{AF_INET, AF_INET6};
 
 use crate::netdb_compat as netdb;
 use crate::nss::{Ctx, Watched};
@@ -595,15 +595,15 @@ pub fn getaddrinfo<S: Sys>(ctx: &Ctx<'_, S>, node: Option<&[u8]>, service: Optio
 // ------------------------------------------------------------------------------ IDNA
 
 /// UTS #46 ToASCII of a node in the locale's character set.
-fn idn_to_ascii(node: &[u8], loc: Option<&liella::locale::Locale>) -> R<TryVec<u8>> {
+fn idn_to_ascii(node: &[u8], loc: Option<&niji::locale::Locale>) -> R<TryVec<u8>> {
     let bad = GaiError::Code(EAI_IDN_ENCODE);
-    let enc = loc.map_or(liella::text::Encoding::Ascii, liella::text::Encoding::of);
+    let enc = loc.map_or(niji::text::Encoding::Ascii, niji::text::Encoding::of);
     let mut cps: TryVec<u32> = TryVec::new();
-    let mut st = liella::text::MbState::INITIAL;
+    let mut st = niji::text::MbState::INITIAL;
     let mut at = 0usize;
     while at < node.len() {
-        match liella::text::decode(&mut st, node.get(at..).unwrap_or(&[]), enc) {
-            liella::text::Decoded::Char(c, used) if used > 0 => {
+        match niji::text::decode(&mut st, node.get(at..).unwrap_or(&[]), enc) {
+            niji::text::Decoded::Char(c, used) if used > 0 => {
                 cps.push(c)?;
                 at = at.saturating_add(used);
             }
@@ -620,14 +620,14 @@ fn idn_to_ascii(node: &[u8], loc: Option<&liella::locale::Locale>) -> R<TryVec<u
 
 /// UTS #46 ToUnicode of a name, in the locale's character set; the name itself when it cannot
 /// be written in that character set.
-pub fn idn_to_unicode(name: &[u8], loc: Option<&liella::locale::Locale>) -> R<TryVec<u8>> {
-    let enc = loc.map_or(liella::text::Encoding::Ascii, liella::text::Encoding::of);
+pub fn idn_to_unicode(name: &[u8], loc: Option<&niji::locale::Locale>) -> R<TryVec<u8>> {
+    let enc = loc.map_or(niji::text::Encoding::Ascii, niji::text::Encoding::of);
     let mut cps: TryVec<u32> = TryVec::new();
     idna::to_unicode(name, &mut cps)?;
     let mut out = TryVec::new();
     for &c in cps.iter() {
-        let mut b = [0u8; liella::text::MAX_ENCODED];
-        match liella::text::encode(c, enc, &mut b) {
+        let mut b = [0u8; niji::text::MAX_ENCODED];
+        match niji::text::encode(c, enc, &mut b) {
             Some(n) => out.extend_from_slice(b.get(..n).unwrap_or(&[]))?,
             None => return Ok(TryVec::from_slice(name)?),
         }

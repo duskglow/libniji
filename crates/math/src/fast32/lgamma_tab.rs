@@ -1,5 +1,5 @@
 // lgammaf's exception table (LIBM-LGAMMAF-EDGE-2), as written by `lgammaf_table_is_the_refused_set`
-// (the exhaustive enumeration of every `float`; LIELLA_LGAMMAF_TABLE_OUT=<this file>): bits 32..63 x,
+// (the exhaustive enumeration of every `float`; NIJI_LGAMMAF_TABLE_OUT=<this file>): bits 32..63 x,
 // 0..30 |F| for F the `float` nearest lnΓ(x), bit 31 set when |lnΓ(x)| lies above |F|; sorted by
 // the bits of x.
 

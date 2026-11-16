@@ -84,12 +84,12 @@ fs_tree.rs::(cluster: 0 small fns; + items 3 lines)	crates/legacy/src/fs_tree.rs
 fts.rs::(cluster: 0 small fns; + items 3 lines)	crates/legacy/src/fts.rs	W-near	COLD-REWRITE-W-near-25			0	0		
 sync.rs::(cluster: 91 small fns; protect_raise, once, mutex_lock, sem_close; + items 24 lines)	crates/boundary/src/sync.rs	W-near	COLD-REWRITE-W-near-07	gethostname,pthread_cond_signal,pthread_mutex_unlock,pthread_mutex_lock	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
 strz.rs::(cluster: 16 small fns; scan, text, strz_mut, wcsz_mut; + items 30 lines)	crates/boundary/src/strz.rs	W-near	COLD-REWRITE-W-near-07	strlen,strtod,strdup,fwrite_unlocked	export+file	21	7	PJ-8;STR-K2;SHORT-1;SHORT-3;MEMCHR-2;SMALL-STR;SMALL-STR-2;AUD-FIX;STRCOLL-2;STRCOLL-CTEXT;STRCOLL-3;STRCOLL-4;+9 more	hot-path,no-change,rewrite,tuning
-sem_open [692-721]	crates/boundary/src/sync.rs	T	COLD-REWRITE-W-near-07	liella_sem_open4	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
+sem_open [692-721]	crates/boundary/src/sync.rs	T	COLD-REWRITE-W-near-07	niji_sem_open4	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
 wait [52-90]	crates/boundary/src/sync.rs	W-near	COLD-REWRITE-W-near-07	__libc_start_main,pthread_cond_wait,pthread_create	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
-sem_create [725-748]	crates/boundary/src/sync.rs	T	COLD-REWRITE-W-near-07	liella_sem_open4	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
-sem_map [750-766]	crates/boundary/src/sync.rs	T	COLD-REWRITE-W-near-07	liella_sem_open4	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
+sem_create [725-748]	crates/boundary/src/sync.rs	T	COLD-REWRITE-W-near-07	niji_sem_open4	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
+sem_map [750-766]	crates/boundary/src/sync.rs	T	COLD-REWRITE-W-near-07	niji_sem_open4	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
 cond_wait [399-413]	crates/boundary/src/sync.rs	W-near	COLD-REWRITE-W-near-07	pthread_cond_wait	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
-sem_path [670-684]	crates/boundary/src/sync.rs	T	COLD-REWRITE-W-near-07	liella_sem_open4	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
+sem_path [670-684]	crates/boundary/src/sync.rs	T	COLD-REWRITE-W-near-07	niji_sem_open4	file	5	0	TINY-HOT;MUTEX-2;MUTEX-3;MUTEX-4;MUTEX-5	hot-path,tuning
 pthread.rs::(cluster: 74 small fns; setname, join_clock, thrd_create, attr_getstack_out; + items 16 lines)	crates/boundary/src/pthread.rs	W-near	COLD-REWRITE-W-near-05	pthread_create,dup2,towupper,pthread_join		0	0		
 raw.rs::(cluster: 39 small fns; fork_pidfd, mbind_preferred, sigaltstack_set, mincore; + items 8 lines)	crates/boundary/src/raw.rs	W-near	COLD-REWRITE-W-near-05	__libc_start_main,open,__freading,strpbrk		0	0		
 getattr_np [285-316]	crates/boundary/src/pthread.rs	C	COLD-REWRITE-W-near-05	pthread_getattr_np		0	0		
@@ -169,19 +169,19 @@ pointer [633-650]	crates/legacy/src/signal_compat.rs	T	COLD-REWRITE-W-near-27			
 psignal [600-616]	crates/legacy/src/signal_compat.rs	T	COLD-REWRITE-W-near-27			0	0		
 search_c.rs::(cluster: 48 small fns; hdestroy, set_used, lsearch, add_size; + items 41 lines)	crates/legacy/src/search_c.rs	W-near	COLD-REWRITE-W-near-26	getgrgid,getpwuid,open,__ctype_b_loc		0	0		
 num_compat.rs::(cluster: 27 small fns; ecvt, put, strfrom, write_text; + items 21 lines)	crates/legacy/src/num_compat.rs	W-near	COLD-REWRITE-W-near-26	pipe,strtod,__isoc23_strtoimax,imaxdiv	export+file	1	1	WL-HOT-SEQ	hot-path
-strfrom_spec [308-332]	crates/legacy/src/num_compat.rs	T	COLD-REWRITE-W-near-26	liella_strfromf128_bits,liella_strfroml_bits,strfromd	file	1	0	WL-HOT-SEQ	hot-path
+strfrom_spec [308-332]	crates/legacy/src/num_compat.rs	T	COLD-REWRITE-W-near-26	niji_strfromf128_bits,niji_strfroml_bits,strfromd	file	1	0	WL-HOT-SEQ	hot-path
 strtol [150-168]	crates/legacy/src/num_compat.rs	T	COLD-REWRITE-W-near-26		file	1	0	WL-HOT-SEQ	hot-path
 strtoul [180-198]	crates/legacy/src/num_compat.rs	T	COLD-REWRITE-W-near-26		file	1	0	WL-HOT-SEQ	hot-path
 fcvt [105-119]	crates/legacy/src/num_compat.rs	C	COLD-REWRITE-W-near-26	ecvt,ecvt_r,fcvt	file	1	0	WL-HOT-SEQ	hot-path
-fs.c::(cluster: 39 small fns; liella_sys_newfstatat, liella_sys_fstat, liella_sys_statx, liella_sys_statfs; + items 3 lines)	csys/src/sys/fs.c	W-near	COLD-REWRITE-W-near-22	open,getgrgid,getpwuid,posix_spawn		0	0		
-fpu.S::(cluster: 9 small fns; liella_machine_mxcsr_mask, liella_machine_mxcsr_get, liella_machine_mxcsr_set, liella_machine_x87_cw_get; + items 3 lines)	csys/src/machine/fpu.S	W-near	COLD-REWRITE-W-near-22	strtod,pipe,realloc,towupper	file	1	0	FN-ALIGN	tuning
-fd.c::(cluster: 12 small fns; liella_sys_openat, liella_sys_openat2, liella_sys_open_by_handle_at, liella_sys_name_to_handle_at; + items 3 lines)	csys/src/sys/fd.c	W-near	COLD-REWRITE-W-near-22	open,posix_spawn,getdelim,__libc_start_main		0	0		
-setjmp.S::(cluster: 7 small fns; liella_machine_siglongjmp, _setjmp, setjmp, __sigsetjmp; + items 4 lines)	csys/src/machine/setjmp.S	W-near	COLD-REWRITE-W-near-22	__sigsetjmp,_setjmp,__openat_2	file	1	0	FN-ALIGN	tuning
-durability.c::(cluster: 9 small fns; liella_sys_fsync, liella_sys_fdatasync, liella_sys_sync, liella_sys_syncfs; + items 3 lines)	csys/src/sys/durability.c	W-near	COLD-REWRITE-W-near-22	getgrgid,getpwuid,getgrnam,posix_fadvise		0	0		
-liella_machine_sigsetjmp [20-63]	csys/src/machine/setjmp.S	W-near	COLD-REWRITE-W-near-22	__sigsetjmp,_setjmp,__openat_2	file	1	0	FN-ALIGN	tuning
-liella_machine_longjmp_nomask [77-107]	csys/src/machine/setjmp.S	W-near	COLD-REWRITE-W-near-22	__sigsetjmp,_setjmp,__openat_2	file	1	0	FN-ALIGN	tuning
-call.S::(cluster: 3 small fns; liella_machine_call3, liella_machine_call0, liella_machine_call4; + items 3 lines)	csys/src/machine/call.S	W-near	COLD-REWRITE-W-near-22	__libc_start_main,open,posix_spawnattr_setflags,realloc	file	1	0	FN-ALIGN	tuning
-s11_lowio.rs::(cluster: 113 small fns; liella_open3, liella_openat4, creat, creat64; + items 121 lines)	crates/boundary/src/posix/s11_lowio.rs	W-near	COLD-REWRITE-W-near-14	open,__libc_start_main,pthread_create,dup2	file	2	0	CANCEL-FAST;CANCEL-FAST-2	hot-path
+fs.c::(cluster: 39 small fns; niji_sys_newfstatat, niji_sys_fstat, niji_sys_statx, niji_sys_statfs; + items 3 lines)	csys/src/sys/fs.c	W-near	COLD-REWRITE-W-near-22	open,getgrgid,getpwuid,posix_spawn		0	0		
+fpu.S::(cluster: 9 small fns; niji_machine_mxcsr_mask, niji_machine_mxcsr_get, niji_machine_mxcsr_set, niji_machine_x87_cw_get; + items 3 lines)	csys/src/machine/fpu.S	W-near	COLD-REWRITE-W-near-22	strtod,pipe,realloc,towupper	file	1	0	FN-ALIGN	tuning
+fd.c::(cluster: 12 small fns; niji_sys_openat, niji_sys_openat2, niji_sys_open_by_handle_at, niji_sys_name_to_handle_at; + items 3 lines)	csys/src/sys/fd.c	W-near	COLD-REWRITE-W-near-22	open,posix_spawn,getdelim,__libc_start_main		0	0		
+setjmp.S::(cluster: 7 small fns; niji_machine_siglongjmp, _setjmp, setjmp, __sigsetjmp; + items 4 lines)	csys/src/machine/setjmp.S	W-near	COLD-REWRITE-W-near-22	__sigsetjmp,_setjmp,__openat_2	file	1	0	FN-ALIGN	tuning
+durability.c::(cluster: 9 small fns; niji_sys_fsync, niji_sys_fdatasync, niji_sys_sync, niji_sys_syncfs; + items 3 lines)	csys/src/sys/durability.c	W-near	COLD-REWRITE-W-near-22	getgrgid,getpwuid,getgrnam,posix_fadvise		0	0		
+niji_machine_sigsetjmp [20-63]	csys/src/machine/setjmp.S	W-near	COLD-REWRITE-W-near-22	__sigsetjmp,_setjmp,__openat_2	file	1	0	FN-ALIGN	tuning
+niji_machine_longjmp_nomask [77-107]	csys/src/machine/setjmp.S	W-near	COLD-REWRITE-W-near-22	__sigsetjmp,_setjmp,__openat_2	file	1	0	FN-ALIGN	tuning
+call.S::(cluster: 3 small fns; niji_machine_call3, niji_machine_call0, niji_machine_call4; + items 3 lines)	csys/src/machine/call.S	W-near	COLD-REWRITE-W-near-22	__libc_start_main,open,posix_spawnattr_setflags,realloc	file	1	0	FN-ALIGN	tuning
+s11_lowio.rs::(cluster: 113 small fns; niji_open3, niji_openat4, creat, creat64; + items 121 lines)	crates/boundary/src/posix/s11_lowio.rs	W-near	COLD-REWRITE-W-near-14	open,__libc_start_main,pthread_create,dup2	file	2	0	CANCEL-FAST;CANCEL-FAST-2	hot-path
 mem.rs::(cluster: 33 small fns; build, split_at, join, __kernel_update; + items 106 lines)	crates/kernel/src/mem.rs	W-near	COLD-REWRITE-W-near-23	__freading,strpbrk,fileno,__libc_start_main		0	0		
 errno.rs::(cluster: 7 small fns; new, decode, lit, fmt; + items 14 lines)	crates/kernel/src/errno.rs	W-near	COLD-REWRITE-W-near-23	re_search,strstr,open		0	0		
 path.rs::(cluster: 7 small fns; new, from_nul_terminated, bytes, len; + items 15 lines)	crates/kernel/src/path.rs	W-near	COLD-REWRITE-W-near-23	open,__freading,strpbrk,re_search		0	0		
@@ -209,8 +209,8 @@ aio.rs::(cluster: 0 small fns; + items 4 lines)	crates/boundary/src/aio.rs	W-nea
 catalog.rs::(cluster: 0 small fns; + items 4 lines)	crates/boundary/src/catalog.rs	W-near	COLD-REWRITE-W-near-02		file	1	0	PJ-9	hot-path
 sys_compat.rs::(cluster: 15 small fns; vtimes_of, sysconf, confstr, vlimit; + items 32 lines)	crates/legacy/src/sys_compat.rs	W-near	COLD-REWRITE-W-near-28	getgrgid,getpwuid,pthread_create,sched_getaffinity		0	0		
 pathconf [107-142]	crates/legacy/src/sys_compat.rs	T	COLD-REWRITE-W-near-28			0	0		
-computed [22-47]	crates/legacy/src/sys_compat.rs	T	COLD-REWRITE-W-near-28	liella_ulimit2		0	0		
-ulimit [151-167]	crates/legacy/src/sys_compat.rs	T	COLD-REWRITE-W-near-28	liella_ulimit2		0	0		
+computed [22-47]	crates/legacy/src/sys_compat.rs	T	COLD-REWRITE-W-near-28	niji_ulimit2		0	0		
+ulimit [151-167]	crates/legacy/src/sys_compat.rs	T	COLD-REWRITE-W-near-28	niji_ulimit2		0	0		
 ret.rs::(cluster: 10 small fns; size_or_neg1, eof, zero, int; + items 7 lines)	crates/abi/src/ret.rs	W-near	COLD-REWRITE-W-near-01	realloc,calloc,strdup,strchr		0	0		
 system.rs::(cluster: 12 small fns; min_sigstksz, mount_type_is, filesize_bits, proc_stat_cpus; + items 75 lines)	crates/core/src/system.rs	T	COLD-REWRITE-W-far-03	get_nprocs,get_nprocs_conf		0	0		
 parse [232-425]	crates/core/src/charmap/mod.rs	N	COLD-REWRITE-W-far-03		file	3	0	OPT-STAGE1/449f663;ICONV-3;AUD-FIX	hot-path
@@ -233,38 +233,38 @@ decode [75-90]	crates/core/src/charmap/inflate.rs	W-far	COLD-REWRITE-W-far-03	re
 read_file [99-114]	crates/core/src/system.rs	W-far	COLD-REWRITE-W-far-03	strncmp,pthread_mutex_init,pthread_cond_init		0	0		
 nprocs [330-345]	crates/core/src/system.rs	T	COLD-REWRITE-W-far-03	get_nprocs,get_nprocs_conf		0	0		
 temp.rs::(cluster: 0 small fns; + items 3 lines)	crates/core/src/fs/temp.rs	W-far	COLD-REWRITE-W-far-03			0	0		
-liella_machine_memcmp [2627-2852]	csys/src/machine/scan.S	W-far	COLD-REWRITE-W-far-07	strcoll,strncmp,re_search	export+file	43	16	STRCOLL-2;STRCOLL-4;WL-HOT-GREP;PJ-8;CASECMP-K1;STRCMP-2;STRCMP-3;STRCMP-FIXED;CASECMP-2;STRCMP-HEAD;STRCMP-ENTRY;STRCMP-HEADNULL;+31 more	hot-path,no-change,rewrite,tuning
-memory.c::(cluster: 25 small fns; liella_sys_brk, liella_sys_mmap, liella_sys_munmap, liella_sys_mprotect; + items 3 lines)	csys/src/sys/memory.c	W-far	COLD-REWRITE-W-far-07	__freading,strpbrk,fileno,__libc_start_main		0	0		
-creds.c::(cluster: 18 small fns; liella_sys_getuid, liella_sys_geteuid, liella_sys_getgid, liella_sys_getegid; + items 3 lines)	csys/src/sys/creds.c	W-far	COLD-REWRITE-W-far-07	getdelim,__libc_start_main,__getdelim,open		0	0		
-io.c::(cluster: 17 small fns; liella_sys_read, liella_sys_write, liella_sys_pread64, liella_sys_pwrite64; + items 3 lines)	csys/src/sys/io.c	W-far	COLD-REWRITE-W-far-07	open,dup2,posix_spawn,getgrgid		0	0		
-poll.c::(cluster: 12 small fns; liella_sys_pselect6, liella_sys_ppoll, liella_sys_epoll_create1, liella_sys_epoll_ctl; + items 3 lines)	csys/src/sys/poll.c	W-far	COLD-REWRITE-W-far-07	dup2,towupper,pthread_create,open		0	0		
-thread_start.S::(cluster: 7 small fns; liella_machine_cancel_bounds, liella_machine_syscall_cancel, liella_machine_cancel_exit, liella_machine_syscall_cancel4; + items 1 lines)	csys/src/machine/thread_start.S	W-far	COLD-REWRITE-W-far-07	pthread_create,__libc_start_main,pthread_cond_wait,__read_chk	file	3	0	FN-ALIGN;CANCEL-FAST;CANCEL-FAST-2	hot-path,tuning
-liella_machine_swapcontext [105-149]	csys/src/machine/context.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,open,posix_spawnattr_setflags	file	1	0	FN-ALIGN	tuning
-liella_machine_getcontext [23-60]	csys/src/machine/context.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,open,posix_spawnattr_setflags	file	1	0	FN-ALIGN	tuning
-liella_machine_setcontext [61-104]	csys/src/machine/context.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,open,posix_spawnattr_setflags	file	1	0	FN-ALIGN	tuning
-context.S::(cluster: 4 small fns; liella_machine_start_context, getcontext, setcontext, swapcontext; + items 4 lines)	csys/src/machine/context.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,open,posix_spawnattr_setflags	file	1	0	FN-ALIGN	tuning
-scan.S::(cluster: 3 small fns; liella_machine_copy_erms, liella_machine_fill_erms, liella_machine_rshort_mask; + items 6 lines)	csys/src/machine/scan.S	W-far	COLD-REWRITE-W-far-07	strlen,strcoll,strchr,getdelim	export+file	43	28	STRCOLL-2;STRCOLL-4;PJ-8;CASECMP-K1;STRCMP-2;STRCMP-3;STRCMP-FIXED;CASECMP-2;STRCMP-HEAD;STRCMP-ENTRY;STRCMP-HEADNULL;STRCMP-MIX;+31 more	hot-path,no-change,rewrite,tuning
-liella_machine_clone_thread [48-98]	csys/src/machine/thread_start.S	W-far	COLD-REWRITE-W-far-07	pthread_create,open,posix_spawn	file	3	0	FN-ALIGN;CANCEL-FAST;CANCEL-FAST-2	hot-path,tuning
-vdso.S::(cluster: 2 small fns; liella_machine_vcall2, liella_machine_vcall3; + items 3 lines)	csys/src/machine/vdso.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,pthread_cond_wait,pthread_mutex_init	file	1	0	FN-ALIGN	tuning
-liella_machine_cpuid [10-26]	csys/src/machine/cpuid.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,pthread_mutex_init,pthread_cond_init	file	5	0	FN-ALIGN;HOT-ORDER;HOT-ORDER-2;HOT-ORDER-3;RC2-FAULT	rewrite,tuning
-cpuid.S::(cluster: 1 small fns; liella_machine_xgetbv0; + items 2 lines)	csys/src/machine/cpuid.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,pthread_mutex_init,pthread_cond_init	file	5	0	FN-ALIGN;HOT-ORDER;HOT-ORDER-2;HOT-ORDER-3;RC2-FAULT	rewrite,tuning
-trap.S::(cluster: 1 small fns; liella_machine_trap; + items 3 lines)	csys/src/machine/trap.S	W-far	COLD-REWRITE-W-far-07	realloc,strtod,__memcpy_chk	file	1	0	FN-ALIGN	tuning
-barrier.S::(cluster: 1 small fns; liella_machine_barrier; + items 3 lines)	csys/src/machine/barrier.S	W-far	COLD-REWRITE-W-far-07	free,getdelim,__getdelim	file	1	0	FN-ALIGN	tuning
+niji_machine_memcmp [2627-2852]	csys/src/machine/scan.S	W-far	COLD-REWRITE-W-far-07	strcoll,strncmp,re_search	export+file	43	16	STRCOLL-2;STRCOLL-4;WL-HOT-GREP;PJ-8;CASECMP-K1;STRCMP-2;STRCMP-3;STRCMP-FIXED;CASECMP-2;STRCMP-HEAD;STRCMP-ENTRY;STRCMP-HEADNULL;+31 more	hot-path,no-change,rewrite,tuning
+memory.c::(cluster: 25 small fns; niji_sys_brk, niji_sys_mmap, niji_sys_munmap, niji_sys_mprotect; + items 3 lines)	csys/src/sys/memory.c	W-far	COLD-REWRITE-W-far-07	__freading,strpbrk,fileno,__libc_start_main		0	0		
+creds.c::(cluster: 18 small fns; niji_sys_getuid, niji_sys_geteuid, niji_sys_getgid, niji_sys_getegid; + items 3 lines)	csys/src/sys/creds.c	W-far	COLD-REWRITE-W-far-07	getdelim,__libc_start_main,__getdelim,open		0	0		
+io.c::(cluster: 17 small fns; niji_sys_read, niji_sys_write, niji_sys_pread64, niji_sys_pwrite64; + items 3 lines)	csys/src/sys/io.c	W-far	COLD-REWRITE-W-far-07	open,dup2,posix_spawn,getgrgid		0	0		
+poll.c::(cluster: 12 small fns; niji_sys_pselect6, niji_sys_ppoll, niji_sys_epoll_create1, niji_sys_epoll_ctl; + items 3 lines)	csys/src/sys/poll.c	W-far	COLD-REWRITE-W-far-07	dup2,towupper,pthread_create,open		0	0		
+thread_start.S::(cluster: 7 small fns; niji_machine_cancel_bounds, niji_machine_syscall_cancel, niji_machine_cancel_exit, niji_machine_syscall_cancel4; + items 1 lines)	csys/src/machine/thread_start.S	W-far	COLD-REWRITE-W-far-07	pthread_create,__libc_start_main,pthread_cond_wait,__read_chk	file	3	0	FN-ALIGN;CANCEL-FAST;CANCEL-FAST-2	hot-path,tuning
+niji_machine_swapcontext [105-149]	csys/src/machine/context.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,open,posix_spawnattr_setflags	file	1	0	FN-ALIGN	tuning
+niji_machine_getcontext [23-60]	csys/src/machine/context.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,open,posix_spawnattr_setflags	file	1	0	FN-ALIGN	tuning
+niji_machine_setcontext [61-104]	csys/src/machine/context.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,open,posix_spawnattr_setflags	file	1	0	FN-ALIGN	tuning
+context.S::(cluster: 4 small fns; niji_machine_start_context, getcontext, setcontext, swapcontext; + items 4 lines)	csys/src/machine/context.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,open,posix_spawnattr_setflags	file	1	0	FN-ALIGN	tuning
+scan.S::(cluster: 3 small fns; niji_machine_copy_erms, niji_machine_fill_erms, niji_machine_rshort_mask; + items 6 lines)	csys/src/machine/scan.S	W-far	COLD-REWRITE-W-far-07	strlen,strcoll,strchr,getdelim	export+file	43	28	STRCOLL-2;STRCOLL-4;PJ-8;CASECMP-K1;STRCMP-2;STRCMP-3;STRCMP-FIXED;CASECMP-2;STRCMP-HEAD;STRCMP-ENTRY;STRCMP-HEADNULL;STRCMP-MIX;+31 more	hot-path,no-change,rewrite,tuning
+niji_machine_clone_thread [48-98]	csys/src/machine/thread_start.S	W-far	COLD-REWRITE-W-far-07	pthread_create,open,posix_spawn	file	3	0	FN-ALIGN;CANCEL-FAST;CANCEL-FAST-2	hot-path,tuning
+vdso.S::(cluster: 2 small fns; niji_machine_vcall2, niji_machine_vcall3; + items 3 lines)	csys/src/machine/vdso.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,pthread_cond_wait,pthread_mutex_init	file	1	0	FN-ALIGN	tuning
+niji_machine_cpuid [10-26]	csys/src/machine/cpuid.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,pthread_mutex_init,pthread_cond_init	file	5	0	FN-ALIGN;HOT-ORDER;HOT-ORDER-2;HOT-ORDER-3;RC2-FAULT	rewrite,tuning
+cpuid.S::(cluster: 1 small fns; niji_machine_xgetbv0; + items 2 lines)	csys/src/machine/cpuid.S	W-far	COLD-REWRITE-W-far-07	__libc_start_main,pthread_mutex_init,pthread_cond_init	file	5	0	FN-ALIGN;HOT-ORDER;HOT-ORDER-2;HOT-ORDER-3;RC2-FAULT	rewrite,tuning
+trap.S::(cluster: 1 small fns; niji_machine_trap; + items 3 lines)	csys/src/machine/trap.S	W-far	COLD-REWRITE-W-far-07	realloc,strtod,__memcpy_chk	file	1	0	FN-ALIGN	tuning
+barrier.S::(cluster: 1 small fns; niji_machine_barrier; + items 3 lines)	csys/src/machine/barrier.S	W-far	COLD-REWRITE-W-far-07	free,getdelim,__getdelim	file	1	0	FN-ALIGN	tuning
 bigint.rs::(cluster: 15 small fns; cmp_big, sub, divrem_small, shr1; + items 13 lines)	crates/core/src/num/bigint.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower		0	0		
 format.rs::(cluster: 10 small fns; format_float, decimal_styles, put, repeat; + items 43 lines)	crates/core/src/num/format.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower,__libc_start_main	file	6	0	PJ-20;P9;SNPRINTF-E;PRINTF-FLOAT;PRINTF-G;OPT-STAGE1/ed4ecf6	hot-path,no-change,tuning
 exact [96-186]	crates/core/src/num/format.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower	file	6	0	PJ-20;P9;SNPRINTF-E;PRINTF-FLOAT;PRINTF-G;OPT-STAGE1/ed4ecf6	hot-path,no-change,tuning
 float.rs::(cluster: 5 small fns; rounds_up, emin, frac_bits, bias; + items 51 lines)	crates/core/src/num/float.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,pipe,strchr		0	0		
 format_hex [839-921]	crates/core/src/num/format.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower	file	6	0	PJ-20;P9;SNPRINTF-E;PRINTF-FLOAT;PRINTF-G;OPT-STAGE1/ed4ecf6	hot-path,no-change,tuning
 round_digits_into [313-375]	crates/core/src/num/format.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower	file	6	0	PJ-20;P9;SNPRINTF-E;PRINTF-FLOAT;PRINTF-G;OPT-STAGE1/ed4ecf6	hot-path,no-change,tuning
-round [203-257]	crates/core/src/num/float.rs	T	COLD-REWRITE-W-far-05	liella_strtof128_bits,liella_strtold_bits,liella_wcstof128_bits		0	0		
+round [203-257]	crates/core/src/num/float.rs	T	COLD-REWRITE-W-far-05	niji_strtof128_bits,niji_strtold_bits,niji_wcstof128_bits		0	0		
 format_hex_x87 [928-989]	crates/core/src/num/format.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower	file	6	0	PJ-20;P9;SNPRINTF-E;PRINTF-FLOAT;PRINTF-G;OPT-STAGE1/ed4ecf6	hot-path,no-change,tuning
 pack [121-156]	crates/core/src/num/float.rs	N	COLD-REWRITE-W-far-05			0	0		
 unpack [87-117]	crates/core/src/num/float.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,pipe		0	0		
 fixed [736-764]	crates/core/src/num/format.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower	file	6	0	PJ-20;P9;SNPRINTF-E;PRINTF-FLOAT;PRINTF-G;OPT-STAGE1/ed4ecf6	hot-path,no-change,tuning
 shl [112-133]	crates/core/src/num/bigint.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower		0	0		
 mul_add_small [73-93]	crates/core/src/num/bigint.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower		0	0		
-top128 [173-192]	crates/core/src/num/bigint.rs	T	COLD-REWRITE-W-far-05	liella_strtof128_bits,liella_strtold_bits,liella_wcstof128_bits		0	0		
-div_small_quotient [205-222]	crates/core/src/num/bigint.rs	T	COLD-REWRITE-W-far-05	liella_strtof128_bits,liella_strtold_bits,liella_wcstof128_bits		0	0		
+top128 [173-192]	crates/core/src/num/bigint.rs	T	COLD-REWRITE-W-far-05	niji_strtof128_bits,niji_strtold_bits,niji_wcstof128_bits		0	0		
+div_small_quotient [205-222]	crates/core/src/num/bigint.rs	T	COLD-REWRITE-W-far-05	niji_strtof128_bits,niji_strtold_bits,niji_wcstof128_bits		0	0		
 sci_by_pieces [817-837]	crates/core/src/num/format.rs	W-far	COLD-REWRITE-W-far-05	towupper,strstr,towlower	file	6	0	PJ-20;P9;SNPRINTF-E;PRINTF-FLOAT;PRINTF-G;OPT-STAGE1/ed4ecf6	hot-path,no-change,tuning
 collate.rs::(cluster: 15 small fns; range_offset, weights, weights, get; + items 85 lines)	crates/core/src/locale/collate.rs	W-far	COLD-REWRITE-W-far-04	strcoll,towupper,strstr,iswprint	export+file	9	8	OPT-STAGE1/d498548;STRCOLL-2;STRCOLL-CTEXT;STRCOLL-4;STRXFRM-2;STRXFRM-3;STRXFRM-EN;STRCMP-FIXED;STRCOLL-START	hot-path,tuning
 file.rs::(cluster: 11 small fns; item, index, file_name, string; + items 30 lines)	crates/core/src/locale/file.rs	W-far	COLD-REWRITE-W-far-04	towupper,towlower,isatty,re_search	file	1	0	LV-3	hot-path
@@ -322,23 +322,23 @@ fatal.rs::(cluster: 5 small fns; message, abort, assert_message, assert_perror_m
 futex.rs::(cluster: 5 small fns; wait_until, op, wake, wait; + items 15 lines)	crates/rt/src/futex.rs	W-far	COLD-REWRITE-W-far-13	pthread_cond_signal,pthread_cond_wait,pthread_mutex_unlock,pthread_create		0	0		
 call_once [142-166]	crates/rt/src/sync.rs	N	COLD-REWRITE-W-far-13			0	0		
 decimal [25-39]	crates/rt/src/fatal.rs	T	COLD-REWRITE-W-far-13	__assert,__assert_fail,__assert_perror_fail		0	0		
-time.c::(cluster: 20 small fns; liella_sys_clock_gettime, liella_sys_clock_getres, liella_sys_clock_settime, liella_sys_clock_adjtime; + items 3 lines)	csys/src/sys/time.c	W-far	COLD-REWRITE-W-far-08	pthread_create,dup2,posix_spawn,__libc_start_main		0	0		
-system.c::(cluster: 18 small fns; liella_sys_uname, liella_sys_sethostname, liella_sys_setdomainname, liella_sys_reboot; + items 3 lines)	csys/src/sys/system.c	W-far	COLD-REWRITE-W-far-08	__libc_start_main,pthread_create,open,gethostname		0	0		
-sched.c::(cluster: 17 small fns; liella_sys_sched_setscheduler, liella_sys_sched_getscheduler, liella_sys_sched_setparam, liella_sys_sched_getparam; + items 3 lines)	csys/src/sys/sched.c	W-far	COLD-REWRITE-W-far-08	pthread_mutex_lock,posix_spawn,pthread_mutex_unlock,pthread_create		0	0		
-socket.c::(cluster: 17 small fns; liella_sys_socket, liella_sys_socketpair, liella_sys_bind, liella_sys_listen; + items 3 lines)	csys/src/sys/socket.c	W-far	COLD-REWRITE-W-far-08	pthread_cond_signal,pthread_mutex_init,open		0	0		
-process.c::(cluster: 16 small fns; liella_sys_execve, liella_sys_execveat, liella_sys_exit, liella_sys_exit_group; + items 3 lines)	csys/src/sys/process.c	W-far	COLD-REWRITE-W-far-08	__libc_start_main,posix_spawn,realloc,strncmp		0	0		
-signal.c::(cluster: 12 small fns; liella_sys_rt_sigaction, liella_sys_rt_sigprocmask, liella_sys_rt_sigsuspend, liella_sys_rt_sigpending; + items 3 lines)	csys/src/sys/signal.c	W-far	COLD-REWRITE-W-far-08	realloc,strncmp,posix_spawn,strlen		0	0		
-sessions.c::(cluster: 5 small fns; liella_sys_setsid, liella_sys_getsid, liella_sys_setpgid, liella_sys_getpgid; + items 3 lines)	csys/src/sys/sessions.c	W-far	COLD-REWRITE-W-far-08	open,posix_spawn		0	0		
-thread.c::(cluster: 5 small fns; liella_sys_futex, liella_sys_set_robust_list, liella_sys_rseq, liella_sys_arch_prctl; + items 3 lines)	csys/src/sys/thread.c	W-far	COLD-REWRITE-W-far-08	__libc_start_main,pthread_mutex_unlock,pthread_cond_signal,pthread_cond_wait		0	0		
+time.c::(cluster: 20 small fns; niji_sys_clock_gettime, niji_sys_clock_getres, niji_sys_clock_settime, niji_sys_clock_adjtime; + items 3 lines)	csys/src/sys/time.c	W-far	COLD-REWRITE-W-far-08	pthread_create,dup2,posix_spawn,__libc_start_main		0	0		
+system.c::(cluster: 18 small fns; niji_sys_uname, niji_sys_sethostname, niji_sys_setdomainname, niji_sys_reboot; + items 3 lines)	csys/src/sys/system.c	W-far	COLD-REWRITE-W-far-08	__libc_start_main,pthread_create,open,gethostname		0	0		
+sched.c::(cluster: 17 small fns; niji_sys_sched_setscheduler, niji_sys_sched_getscheduler, niji_sys_sched_setparam, niji_sys_sched_getparam; + items 3 lines)	csys/src/sys/sched.c	W-far	COLD-REWRITE-W-far-08	pthread_mutex_lock,posix_spawn,pthread_mutex_unlock,pthread_create		0	0		
+socket.c::(cluster: 17 small fns; niji_sys_socket, niji_sys_socketpair, niji_sys_bind, niji_sys_listen; + items 3 lines)	csys/src/sys/socket.c	W-far	COLD-REWRITE-W-far-08	pthread_cond_signal,pthread_mutex_init,open		0	0		
+process.c::(cluster: 16 small fns; niji_sys_execve, niji_sys_execveat, niji_sys_exit, niji_sys_exit_group; + items 3 lines)	csys/src/sys/process.c	W-far	COLD-REWRITE-W-far-08	__libc_start_main,posix_spawn,realloc,strncmp		0	0		
+signal.c::(cluster: 12 small fns; niji_sys_rt_sigaction, niji_sys_rt_sigprocmask, niji_sys_rt_sigsuspend, niji_sys_rt_sigpending; + items 3 lines)	csys/src/sys/signal.c	W-far	COLD-REWRITE-W-far-08	realloc,strncmp,posix_spawn,strlen		0	0		
+sessions.c::(cluster: 5 small fns; niji_sys_setsid, niji_sys_getsid, niji_sys_setpgid, niji_sys_getpgid; + items 3 lines)	csys/src/sys/sessions.c	W-far	COLD-REWRITE-W-far-08	open,posix_spawn		0	0		
+thread.c::(cluster: 5 small fns; niji_sys_futex, niji_sys_set_robust_list, niji_sys_rseq, niji_sys_arch_prctl; + items 3 lines)	csys/src/sys/thread.c	W-far	COLD-REWRITE-W-far-08	__libc_start_main,pthread_mutex_unlock,pthread_cond_signal,pthread_cond_wait		0	0		
 parse.rs::(cluster: 6 small fns; result, digit_value, kept_digits, is_space; + items 41 lines)	crates/core/src/num/parse.rs	W-far	COLD-REWRITE-W-far-06	strchr,realloc,re_search,__isoc23_strtoimax	file	1	0	WL-HOT-SEQ	hot-path
-parse_float [267-320]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	liella_strtof128_bits,liella_strtold_bits,liella_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
-parse_hex [410-450]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	liella_strtof128_bits,liella_strtold_bits,liella_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
-finish [596-633]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	liella_strtof128_bits,liella_strtold_bits,liella_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
+parse_float [267-320]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	niji_strtof128_bits,niji_strtold_bits,niji_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
+parse_hex [410-450]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	niji_strtof128_bits,niji_strtold_bits,niji_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
+finish [596-633]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	niji_strtof128_bits,niji_strtold_bits,niji_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
 prefix [76-105]	crates/core/src/num/parse.rs	W-far	COLD-REWRITE-W-far-06	strchr,realloc,re_search	file	1	0	WL-HOT-SEQ	hot-path
-exponent [453-470]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	liella_strtof128_bits,liella_strtold_bits,liella_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
+exponent [453-470]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	niji_strtof128_bits,niji_strtold_bits,niji_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
 digits [108-123]	crates/core/src/num/parse.rs	W-far	COLD-REWRITE-W-far-06	strchr,realloc,re_search	file	1	0	WL-HOT-SEQ	hot-path
 parse_i64 [126-141]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06		file	1	0	WL-HOT-SEQ	hot-path
-scan_mantissa [482-513]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	liella_strtof128_bits,liella_strtold_bits,liella_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
+scan_mantissa [482-513]	crates/core/src/num/parse.rs	T	COLD-REWRITE-W-far-06	niji_strtof128_bits,niji_strtold_bits,niji_wcstof128_bits	file	1	0	WL-HOT-SEQ	hot-path
 parse_u64 [192-206]	crates/core/src/num/parse.rs	W-far	COLD-REWRITE-W-far-06	strchr,realloc,re_search	file	1	0	WL-HOT-SEQ	hot-path
 pthread_compat.rs::(cluster: 32 small fns; hex, set_stack, comm, set_detachstate; + items 30 lines)	crates/legacy/src/pthread_compat.rs	W-far	COLD-REWRITE-W-far-11	getgrgid,getpwuid,getgrnam,pthread_create		0	0		
 comm_path [343-379]	crates/legacy/src/pthread_compat.rs	C	COLD-REWRITE-W-far-11	pthread_getname_np,pthread_setname_np		0	0		
@@ -363,26 +363,26 @@ fchmodat [83-107]	crates/legacy/src/fs_compat.rs	N	COLD-REWRITE-C-03			0	0
 access_from_stat [135-156]	crates/legacy/src/fs_compat.rs	N	COLD-REWRITE-C-03			0	0		
 faccessat [114-132]	crates/legacy/src/fs_compat.rs	N	COLD-REWRITE-C-03			0	0		
 statvfs [185-204]	crates/legacy/src/fs_compat.rs	T	COLD-REWRITE-C-03			0	0		
-ipc.c::(cluster: 17 small fns; liella_sys_msgget, liella_sys_msgsnd, liella_sys_msgrcv, liella_sys_msgctl; + items 3 lines)	csys/src/sys/ipc.c	C	COLD-REWRITE-C-02	liella_semctl4,liella_mq_open4,__mq_open_2,mq_notify		0	0		
-s21_contexts.rs::(cluster: 2 small fns; liella_makecontext4, __longjmp_chk; + items 7 lines)	crates/boundary/src/posix/s21_contexts.rs	C	COLD-REWRITE-C-01	liella_makecontext4,__longjmp_chk		0	0		
+ipc.c::(cluster: 17 small fns; niji_sys_msgget, niji_sys_msgsnd, niji_sys_msgrcv, niji_sys_msgctl; + items 3 lines)	csys/src/sys/ipc.c	C	COLD-REWRITE-C-02	niji_semctl4,niji_mq_open4,__mq_open_2,mq_notify		0	0		
+s21_contexts.rs::(cluster: 2 small fns; niji_makecontext4, __longjmp_chk; + items 7 lines)	crates/boundary/src/posix/s21_contexts.rs	C	COLD-REWRITE-C-01	niji_makecontext4,__longjmp_chk		0	0		
 prng_global.rs::(cluster: 26 small fns; seed48, initstate, srandom, next48; + items 19 lines)	crates/legacy/src/prng_global.rs	T	COLD-REWRITE-T-06	lcong48,seed48,feholdexcept,inet_net_pton		0	0		
 prng_r.rs::(cluster: 18 small fns; describe, rng, initstate_r, state_type; + items 4 lines)	crates/legacy/src/prng_r.rs	T	COLD-REWRITE-T-06			0	0		
-ipc_compat.rs::(cluster: 7 small fns; sem_shape, shm_shape, msg_shape, copy_words; + items 27 lines)	crates/legacy/src/ipc_compat.rs	T	COLD-REWRITE-T-06	liella_semctl4,msgrcv,msgsnd,msgctl		0	0		
+ipc_compat.rs::(cluster: 7 small fns; sem_shape, shm_shape, msg_shape, copy_words; + items 27 lines)	crates/legacy/src/ipc_compat.rs	T	COLD-REWRITE-T-06	niji_semctl4,msgrcv,msgsnd,msgctl		0	0		
 string_compat.rs::(cluster: 7 small fns; strtok, strsep, strsep_step, get; + items 15 lines)	crates/legacy/src/string_compat.rs	T	COLD-REWRITE-T-06			0	0		
 status_has_group [40-76]	crates/legacy/src/cred_compat.rs	T	COLD-REWRITE-T-06			0	0		
 cred_compat.rs::(cluster: 3 small fns; in_group, getgroups, group_member; + items 6 lines)	crates/legacy/src/cred_compat.rs	T	COLD-REWRITE-T-06			0	0		
-semctl [122-145]	crates/legacy/src/ipc_compat.rs	T	COLD-REWRITE-T-06	liella_semctl4		0	0		
+semctl [122-145]	crates/legacy/src/ipc_compat.rs	T	COLD-REWRITE-T-06	niji_semctl4		0	0		
 with_current [62-78]	crates/legacy/src/prng_global.rs	T	COLD-REWRITE-T-06			0	0		
 msgctl [148-162]	crates/legacy/src/ipc_compat.rs	N	COLD-REWRITE-T-06			0	0		
 shmctl [165-179]	crates/legacy/src/ipc_compat.rs	N	COLD-REWRITE-T-06			0	0		
 strtok_step [21-35]	crates/legacy/src/string_compat.rs	T	COLD-REWRITE-T-06			0	0		
 stubs.rs::(cluster: 2 small fns; bsd_file_flags, nothing; + items 1 lines)	crates/legacy/src/stubs.rs	T	COLD-REWRITE-T-06	__libc_init_first,chflags,fchflags		0	0		
-ops.rs::(cluster: 3 small fns; buffer_len, code, from_code; + items 116 lines)	crates/kernel/src/ops.rs	T	COLD-REWRITE-T-05	fsconfig,liella_semctl4,process_madvise	file	1	0	GETTEXT-6	hot-path
-mount.c::(cluster: 15 small fns; liella_sys_mount, liella_sys_umount2, liella_sys_pivot_root, liella_sys_fsopen; + items 3 lines)	csys/src/sys/mount.c	T	COLD-REWRITE-T-04			0	0		
-pkru.S::(cluster: 2 small fns; liella_machine_rdpkru, liella_machine_wrpkru; + items 3 lines)	csys/src/machine/pkru.S	T	COLD-REWRITE-T-04		file	1	0	FN-ALIGN	tuning
+ops.rs::(cluster: 3 small fns; buffer_len, code, from_code; + items 116 lines)	crates/kernel/src/ops.rs	T	COLD-REWRITE-T-05	fsconfig,niji_semctl4,process_madvise	file	1	0	GETTEXT-6	hot-path
+mount.c::(cluster: 15 small fns; niji_sys_mount, niji_sys_umount2, niji_sys_pivot_root, niji_sys_fsopen; + items 3 lines)	csys/src/sys/mount.c	T	COLD-REWRITE-T-04			0	0		
+pkru.S::(cluster: 2 small fns; niji_machine_rdpkru, niji_machine_wrpkru; + items 3 lines)	csys/src/machine/pkru.S	T	COLD-REWRITE-T-04		file	1	0	FN-ALIGN	tuning
 _start [29-47]	csys/src/machine/entry.S	T	COLD-REWRITE-T-04		file	5	0	FN-ALIGN;HOT-ORDER;HOT-ORDER-2;HOT-ORDER-3;RC2-FAULT	rewrite,tuning
-lock.c::(cluster: 1 small fns; liella_sys_flock; + items 3 lines)	csys/src/sys/lock.c	T	COLD-REWRITE-T-04			0	0		
-version.c::(cluster: 1 small fns; liella_csys_abi_version; + items 1 lines)	csys/src/version.c	T	COLD-REWRITE-T-04			0	0		
+lock.c::(cluster: 1 small fns; niji_sys_flock; + items 3 lines)	csys/src/sys/lock.c	T	COLD-REWRITE-T-04			0	0		
+version.c::(cluster: 1 small fns; niji_csys_abi_version; + items 1 lines)	csys/src/version.c	T	COLD-REWRITE-T-04			0	0		
 ffi.rs::(cluster: 1 small fns; csys_abi_version; + items 73 lines)	crates/boundary/src/ffi.rs	T	COLD-REWRITE-T-02		file	29	0	GETTEXT-6;STRCOLL-2;STRCOLL-4;MEMCMP-MID-2;MEMCMP-MID-3;OPT-STAGE1/5edc6f5;PJ-7;MEM-FALLBACK;COPY-128;COPY-256;COPY-FILL-3;SEQ-REGRESS;+17 more	hot-path,rewrite,tuning
 pack.rs::(cluster: 4 small fns; div, ldiv, lldiv, imaxdiv; + items 1 lines)	crates/abi/src/pack.rs	T	COLD-REWRITE-T-01			0	0		
 chk.rs::(cluster: 2 small fns; fits, capacity)	crates/abi/src/chk.rs	T	COLD-REWRITE-T-01			0	0		
@@ -393,14 +393,14 @@ lib.rs::(cluster: 0 small fns; + items 45 lines)	crates/legacy/src/lib.rs	N	COLD
 lock.rs::(cluster: 4 small fns; lock, new, default, drop; + items 11 lines)	crates/legacy/src/lock.rs	N	COLD-REWRITE-N-06			0	0		
 sysconf_table.rs::(cluster: 0 small fns; + items 5 lines)	crates/legacy/src/sysconf_table.rs	N	COLD-REWRITE-N-06			0	0		
 search_global.rs::(cluster: 0 small fns; + items 4 lines)	crates/legacy/src/search_global.rs	N	COLD-REWRITE-N-06			0	0		
-variadic.c::(cluster: 5 small fns; LIELLA_VFWD, OPEN3, name, LIELLA_VFWD; + items 28 lines)	csys/src/adapter/variadic.c	N	COLD-REWRITE-N-04			0	0		
+variadic.c::(cluster: 5 small fns; NIJI_VFWD, OPEN3, name, NIJI_VFWD; + items 28 lines)	csys/src/adapter/variadic.c	N	COLD-REWRITE-N-04			0	0		
 float.c::(cluster: 0 small fns; + items 56 lines)	csys/src/adapter/float.c	N	COLD-REWRITE-N-04			0	0		
-liella_csys.h::(cluster: 0 small fns; + items 55 lines)	csys/include/liella_csys.h	N	COLD-REWRITE-N-04		file	25	0	GETTEXT-6;STRCOLL-2;STRCOLL-4;OPT-STAGE1/5edc6f5;PJ-7;MEM-K4;MEM-K4b;COPY-128;COPY-256;COPY-FILL-3;PJ-8;CASECMP-K1;+13 more	hot-path,tuning
-liella_raw.h::(cluster: 0 small fns; + items 34 lines)	csys/include/liella_raw.h	N	COLD-REWRITE-N-04			0	0		
+niji_csys.h::(cluster: 0 small fns; + items 55 lines)	csys/include/niji_csys.h	N	COLD-REWRITE-N-04		file	25	0	GETTEXT-6;STRCOLL-2;STRCOLL-4;OPT-STAGE1/5edc6f5;PJ-7;MEM-K4;MEM-K4b;COPY-128;COPY-256;COPY-FILL-3;PJ-8;CASECMP-K1;+13 more	hot-path,tuning
+niji_raw.h::(cluster: 0 small fns; + items 34 lines)	csys/include/niji_raw.h	N	COLD-REWRITE-N-04			0	0		
 runtime.c::(cluster: 0 small fns; + items 29 lines)	csys/src/adapter/runtime.c	N	COLD-REWRITE-N-04			0	0		
-restorer.S::(cluster: 1 small fns; liella_machine_restorer; + items 4 lines)	csys/src/machine/restorer.S	N	COLD-REWRITE-N-04		file	1	0	FN-ALIGN	tuning
-tp.S::(cluster: 1 small fns; liella_machine_tp; + items 4 lines)	csys/src/machine/tp.S	N	COLD-REWRITE-N-04		file	1	0	FN-ALIGN	tuning
-random.c::(cluster: 1 small fns; liella_sys_getrandom; + items 3 lines)	csys/src/sys/random.c	N	COLD-REWRITE-N-04			0	0		
+restorer.S::(cluster: 1 small fns; niji_machine_restorer; + items 4 lines)	csys/src/machine/restorer.S	N	COLD-REWRITE-N-04		file	1	0	FN-ALIGN	tuning
+tp.S::(cluster: 1 small fns; niji_machine_tp; + items 4 lines)	csys/src/machine/tp.S	N	COLD-REWRITE-N-04		file	1	0	FN-ALIGN	tuning
+random.c::(cluster: 1 small fns; niji_sys_getrandom; + items 3 lines)	csys/src/sys/random.c	N	COLD-REWRITE-N-04			0	0		
 data.rs::(cluster: 1 small fns; sig_table; + items 117 lines)	crates/boundary/src/data.rs	N	COLD-REWRITE-N-02			0	0		
 export.rs::(cluster: 0 small fns; + items 42 lines)	crates/boundary/src/export.rs	N	COLD-REWRITE-N-02		file	3	0	COPY-128;COPY-256;COPY-FILL-3	hot-path
 lib.rs::(cluster: 0 small fns; + items 35 lines)	crates/boundary/src/lib.rs	N	COLD-REWRITE-N-02		file	1	0	MEM-K1	hot-path
@@ -425,8 +425,8 @@ sys.rs::(cluster: 3 small fns; exit_group, region_bytes, region_words; + items 3
 errno_list.rs::(cluster: 0 small fns; + items 270 lines)	crates/kernel/src/errno_list.rs	D	COLD-DATA-REVIEW-05			0	0		
 ffi_sys.rs::(cluster: 0 small fns; + items 281 lines)	crates/boundary/src/ffi_sys.rs	D	COLD-DATA-REVIEW-02			0	0		
 nr.rs::(cluster: 0 small fns; + items 276 lines)	crates/boundary/src/nr.rs	D	COLD-DATA-REVIEW-02			0	0		
-liella_sys.h::(cluster: 0 small fns; + items 279 lines)	csys/include/liella_sys.h	D	COLD-DATA-REVIEW-04			0	0		
-liella_sysnr.h::(cluster: 0 small fns; + items 278 lines)	csys/include/liella_sysnr.h	D	COLD-DATA-REVIEW-04			0	0		
+niji_sys.h::(cluster: 0 small fns; + items 279 lines)	csys/include/niji_sys.h	D	COLD-DATA-REVIEW-04			0	0		
+niji_sysnr.h::(cluster: 0 small fns; + items 278 lines)	csys/include/niji_sysnr.h	D	COLD-DATA-REVIEW-04			0	0		
 (residual: 3 file clusters under 3 pre-10-02 lines each)	-	-	none (below threshold)			0	0		
 (residual: 5 file clusters under 3 pre-10-02 lines each)	-	-	none (below threshold)			0	0		
 (residual: 1 file clusters under 3 pre-10-02 lines each)	-	-	none (below threshold)			0	0		

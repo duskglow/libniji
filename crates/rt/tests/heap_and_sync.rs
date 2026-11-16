@@ -11,10 +11,10 @@ use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
 
-use liella_boundary::sys::CSys;
-use liella_rt::futex::Scope;
-use liella_rt::heap::{class_for, Heap, Misuse, Pages, RacePoint, ALIGN, CLASSES, MAX_SMALL, MID_GROWTH, PAGE, SEG};
-use liella_rt::sync::{RawCondvar, RawMutex, RawOnce, RawRwLock};
+use niji_boundary::sys::CSys;
+use niji_rt::futex::Scope;
+use niji_rt::heap::{class_for, Heap, Misuse, Pages, RacePoint, ALIGN, CLASSES, MAX_SMALL, MID_GROWTH, PAGE, SEG};
+use niji_rt::sync::{RawCondvar, RawMutex, RawOnce, RawRwLock};
 
 /// A mapping of the fake address space.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

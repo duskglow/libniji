@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Workload gate, step 2 (runs on a timing host, or Zen 1 host): measure every workload for each variant.
 #
 #   wl_run.sh OUT.tsv VARIANT...        (variants: glibc, <sha>, ...; kits in $WL/kit/VARIANT/bin)
@@ -25,7 +25,7 @@
 # munmap/mremap/brk/mprotect/madvise; proc = clone/fork/vfork/execve/wait/exit/kill/signals;
 # other = the rest. SCHEDULING-DEPENDENT CALLS (WLRUN-FUTEX, 2026-10-21; owner rule: WL gates fail only on deterministic
 # counters) are reported apart and are NOT in sys_total / sys_mem / sys_other:
-#   sys_futex = all futex calls (how often a thread had to wait depends on timing; glibc and Liella both vary ~15% run to run);
+#   sys_futex = all futex calls (how often a thread had to wait depends on timing; glibc and libniji both vary ~15% run to run);
 #   sys_mtmem = when the run created a thread (a clone/clone3 with CLONE_THREAD, found by a second, tiny strace run), ALL its
 #       mmap/munmap/mremap/brk/mprotect/madvise calls. Measured on a 4-thread sort: mmap 22..23 and munmap 3..6 between
 #       identical runs, because a worker thread sometimes gets its own allocator arena (one more 32 MiB mmap + two trims) and

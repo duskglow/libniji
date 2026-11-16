@@ -1,5 +1,5 @@
 /* strfmon end to end (spec §7.5; D-7.11): built against the host C library and against
- * Liella's products, run with the same LOCPATH; the outputs must match line for line
+ * libniji's products, run with the same LOCPATH; the outputs must match line for line
  * (monetary_products.rs). Each line is one formatting: the format, the amount, the result,
  * errno on failure, and the text. */
 #define _GNU_SOURCE

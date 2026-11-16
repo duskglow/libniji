@@ -2,7 +2,7 @@
 //! order: D.3.3).
 //!
 //! The writer produces exactly the new format (`glibc-ld.so.cache1.1`) with the tag 0 (generator
-//! text) and tag 1 (glibc-hwcaps names) extensions: what Liella's reader ([`super::Cache`]) reads
+//! text) and tag 1 (glibc-hwcaps names) extensions: what libniji's reader ([`super::Cache`]) reads
 //! and what other direct readers of the file expect.
 //!
 //! * **Order.** Entries are sorted by [`order`]: descending by key under [`super::compare`] (the

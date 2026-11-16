@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Statistics helpers for wl_count_run.sh (WL-FAULTS-STAT). Source this file.
 #
 # Page faults are not exact: on a NUMA host with numa_balancing one outlier run can double them, and the

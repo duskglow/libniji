@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Set in the child: the test then only calls `sync()` and prints [`RETURNED`].
-const CHILD: &str = "LIELLA_SYNC_TRAP_CHILD";
+const CHILD: &str = "NIJI_SYNC_TRAP_CHILD";
 
 /// What the child prints after its `sync()` returned.
 pub(crate) const RETURNED: &str = "sync returned to its caller";
@@ -42,7 +42,7 @@ impl Drop for Wrapper {
 pub(crate) fn check(test: &str) {
     // From crates/boundary or crates/core alike.
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("../core/tests/oracle/sync_trap.c");
-    let bin = Wrapper(PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("liella-sync-trap-{test}-{}", std::process::id())));
+    let bin = Wrapper(PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("niji-sync-trap-{test}-{}", std::process::id())));
     match Command::new("cc").args(["-O1", "-o"]).arg(&bin.0).arg(&src).output() {
         Ok(o) => assert!(o.status.success(), "sync_trap.c does not build: {}", String::from_utf8_lossy(&o.stderr)),
         Err(e) => {

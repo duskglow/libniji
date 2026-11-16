@@ -11,7 +11,7 @@
 //! reference system's), through a C program compiled against it. `ulimit` and `syscall` are
 //! variadic: their fixed-arity targets are tested here and the C entry points in
 //! `conformance/c/s24_variadic.c`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -22,10 +22,10 @@ use core::ptr::null_mut;
 use std::collections::BTreeMap;
 use std::ffi::CString;
 
-use liella_boundary::errno;
-use liella_boundary::posix::s24_system as s;
-use liella_kernel::uapi::{Rlimit, Rusage, SchedParam, Sysinfo, Timespec, Utsname};
-use liella_legacy::sys_compat::{self, Vtimes};
+use niji_boundary::errno;
+use niji_boundary::posix::s24_system as s;
+use niji_kernel::uapi::{Rlimit, Rusage, SchedParam, Sysinfo, Timespec, Utsname};
+use niji_legacy::sys_compat::{self, Vtimes};
 use spectest::symbol;
 
 const EPERM: i32 = 1;
@@ -43,7 +43,7 @@ fn conformance_dies(name: &str) -> bool {
 /// root there (`unshare`); without `unshare` the test says so and passes.
 /// Whether this is the re-executed child (then `body` has run there).
 fn in_uts_namespace(test: &str, body: impl FnOnce()) -> bool {
-    const VAR: &str = "LIELLA_S24_UTSNS";
+    const VAR: &str = "NIJI_S24_UTSNS";
     if std::env::var(VAR).as_deref() == Ok(test) {
         body();
         return true;
@@ -74,7 +74,7 @@ fn fails(r: isize, e: i32) -> bool {
 }
 
 fn root() -> bool {
-    liella_kernel::sys::Sys::geteuid(&liella_boundary::sys::CSys) == 0
+    niji_kernel::sys::Sys::geteuid(&niji_boundary::sys::CSys) == 0
 }
 
 /// The reference table's names of one kind (`sc`, `cs`, `pc`): name -> number.
@@ -110,7 +110,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    assert!(root.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
+    assert!(root.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
 }
@@ -144,7 +144,7 @@ fn sym___sysconf() {
             continue;
         }
         if (got, got_err) != (want, want_err) {
-            diffs.push(format!("{name}: liella {got}/{got_err}, glibc {want}/{want_err}"));
+            diffs.push(format!("{name}: niji {got}/{got_err}, glibc {want}/{want_err}"));
         }
     }
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
@@ -268,21 +268,21 @@ fn sym_delete_module() {
     if root() {
         return;
     }
-    let want = host("delete_module", "#include <sys/syscall.h>\nerrno = 0; int r = (int)syscall(SYS_delete_module, \"liella_no_such_module\", 0); printf(\"%d %d\\n\", r, r < 0 ? errno : 0);");
+    let want = host("delete_module", "#include <sys/syscall.h>\nerrno = 0; int r = (int)syscall(SYS_delete_module, \"niji_no_such_module\", 0); printf(\"%d %d\\n\", r, r < 0 ? errno : 0);");
     errno::set_raw(0);
-    let r = s::delete_module(c"liella_no_such_module".as_ptr(), 0);
+    let r = s::delete_module(c"niji_no_such_module".as_ptr(), 0);
     assert_eq!(vec![format!("{r} {}", if r < 0 { errno::get() } else { 0 })], want);
     errno::set_raw(0);
-    assert!(fails(s::delete_module(c"liella_nonesuch".as_ptr(), 0) as isize, EPERM));
+    assert!(fails(s::delete_module(c"niji_nonesuch".as_ptr(), 0) as isize, EPERM));
 }
 #[test]
 fn sym_fpathconf() {
     let pc = names("pc");
     let mut diffs = Vec::new();
     let mut p = [-1; 2];
-    liella_boundary::posix::s25_ipc::pipe(Some(&mut p));
+    niji_boundary::posix::s25_ipc::pipe(Some(&mut p));
     for (label, target) in [("/", 0), ("pipe", 1)] {
-        let fd = if target == 0 { liella_boundary::posix::s11_lowio::liella_open3(c"/".as_ptr(), 0o200000, 0) } else { p[0] };
+        let fd = if target == 0 { niji_boundary::posix::s11_lowio::niji_open3(c"/".as_ptr(), 0o200000, 0) } else { p[0] };
         let open = if target == 0 { "int fd = open(\"/\", 0200000);".to_string() } else { "int fd[2]; pipe(fd);".to_string() };
         let use_ = if target == 0 { "fd" } else { "fd[0]" };
         let body: String = open + &pc.iter().map(|(k, v)| format!("errno = 0; v = fpathconf({use_}, {v}); printf(\"{k} %ld %d\\n\", v, errno);")).collect::<String>();
@@ -292,12 +292,12 @@ fn sym_fpathconf() {
             errno::set_raw(0);
             let got = s::fpathconf(fd, pc[name]);
             if (got, errno::get()) != (want, want_err) {
-                diffs.push(format!("{label} {name}: liella {got}/{}, glibc {want}/{want_err}", errno::get()));
+                diffs.push(format!("{label} {name}: niji {got}/{}, glibc {want}/{want_err}", errno::get()));
             }
         }
-        liella_boundary::posix::s11_lowio::close(fd);
+        niji_boundary::posix::s11_lowio::close(fd);
     }
-    liella_boundary::posix::s11_lowio::close(p[1]);
+    niji_boundary::posix::s11_lowio::close(p[1]);
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
     errno::set_raw(0);
     assert!(fails(s::fpathconf(999, 0) as isize, 9));
@@ -373,7 +373,7 @@ fn expected_hostid() -> i32 {
 fn sym_gethostid() {
     assert_eq!(s::gethostid(), i64::from(expected_hostid()), "sign-extended to long");
     // The file's forms, through the same function with a fixture file.
-    let k = &liella_boundary::sys::CSys;
+    let k = &niji_boundary::sys::CSys;
     let dir = scratch::Scratch::dir("s24-hostid");
     let file = dir.join("hostid");
     let path = [file.to_str().unwrap().as_bytes(), b"\0"].concat();
@@ -420,9 +420,9 @@ fn name_sizes(tag: &str, cfun: &str, len: usize, f: impl Fn(&mut [u8]) -> i32) {
 /// The C text at `p`, through the exported strlen/memcpy (no unsafe in tests).
 fn text(p: *const core::ffi::c_char) -> String {
     assert!(!p.is_null());
-    let n = liella_boundary::posix::s04_strings::strlen(p);
+    let n = niji_boundary::posix::s04_strings::strlen(p);
     let mut v = vec![0u8; n];
-    liella_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
+    niji_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
     String::from_utf8(v).unwrap()
 }
 
@@ -626,7 +626,7 @@ fn sym_modify_ldt() {
     // (`syscall` sees 4294967258); the wrapper reports -1 with `errno` (modify_ldt(2)), where
     // the reference returns -38 and leaves `errno` alone (docs/differences-from-glibc.md).
     errno::set_raw(0);
-    let raw = s::liella_syscall7(154, 99, b.as_mut_ptr() as i64, 16, 0, 0, 0);
+    let raw = s::niji_syscall7(154, 99, b.as_mut_ptr() as i64, 16, 0, 0, 0);
     assert_eq!(raw, 0xffff_ffda, "the kernel's zero-extended -ENOSYS");
     errno::set_raw(0);
     assert!(fails(s::modify_ldt(99, b.as_mut_ptr().cast(), 16) as isize, 38), "ENOSYS");
@@ -644,7 +644,7 @@ fn sym_modify_ldt() {
 symbol!(sym_nfsservctl, "nfsservctl", "24", "2.2.5", r##"(no installed header declares it)"##);
 #[test]
 fn sym_nice() {
-    if std::env::var("LIELLA_S24_NICE").is_ok() {
+    if std::env::var("NIJI_S24_NICE").is_ok() {
         let a = s::nice(0);
         let b = s::nice(3);
         errno::set_raw(0);
@@ -654,7 +654,7 @@ fn sym_nice() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_nice", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S24_NICE", "1")
+        .env("NIJI_S24_NICE", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -674,7 +674,7 @@ fn sym_pathconf() {
             errno::set_raw(0);
             let got = s::pathconf(cpath.as_ptr(), pc[name]);
             if (got, errno::get()) != (want, want_err) {
-                diffs.push(format!("{path} {name}: liella {got}/{}, glibc {want}/{want_err}", errno::get()));
+                diffs.push(format!("{path} {name}: niji {got}/{}, glibc {want}/{want_err}", errno::get()));
             }
         }
     }
@@ -743,7 +743,7 @@ fn sym_reboot() {
 fn sym___sched_cpualloc() {
     let p = s::__sched_cpualloc(1025);
     assert!(!p.is_null());
-    assert!(liella_boundary::posix::s03_memory::malloc_usable_size(p) >= 136, "CPU_ALLOC_SIZE(1025) = 17 words");
+    assert!(niji_boundary::posix::s03_memory::malloc_usable_size(p) >= 136, "CPU_ALLOC_SIZE(1025) = 17 words");
     s::__sched_cpufree(p);
 }
 
@@ -1016,10 +1016,10 @@ fn sym_sched_setscheduler() {
 #[test]
 fn sym_setdomainname() {
     let child = in_uts_namespace("sym_setdomainname", || {
-        assert_eq!(s::setdomainname(c"liella.test".as_ptr(), 11), 0);
+        assert_eq!(s::setdomainname(c"niji.test".as_ptr(), 9), 0);
         let mut b = [0u8; 80];
         assert_eq!(s::getdomainname(b.as_mut_ptr().cast(), b.len()), 0);
-        assert_eq!(&b[..12], b"liella.test\0");
+        assert_eq!(&b[..10], b"niji.test\0");
     });
     if child || root() {
         return;
@@ -1040,7 +1040,7 @@ fn sym_sethostid() {
         assert!(fails(s::sethostid(5) as isize, EACCES), "a user may not write /etc/hostid");
     }
     // The file's form, on a fixture file.
-    let k = &liella_boundary::sys::CSys;
+    let k = &niji_boundary::sys::CSys;
     let dir = scratch::Scratch::dir("s24-sethostid");
     let file = dir.join("hostid");
     let path = [file.to_str().unwrap().as_bytes(), b"\0"].concat();
@@ -1054,10 +1054,10 @@ fn sym_sethostid() {
 #[test]
 fn sym_sethostname() {
     let child = in_uts_namespace("sym_sethostname", || {
-        assert_eq!(s::sethostname(c"liella-test-host".as_ptr(), 16), 0);
+        assert_eq!(s::sethostname(c"niji-test-host".as_ptr(), 14), 0);
         let mut b = [0u8; 80];
         assert_eq!(s::gethostname(b.as_mut_ptr().cast(), b.len()), 0);
-        assert_eq!(&b[..17], b"liella-test-host\0");
+        assert_eq!(&b[..15], b"niji-test-host\0");
         errno::set_raw(0);
         let long = [b'x'; 65];
         assert!(fails(s::sethostname(long.as_ptr().cast(), 65) as isize, EINVAL), "longer than the kernel's 64");
@@ -1073,14 +1073,14 @@ fn sym_sethostname() {
 #[test]
 fn sym_setns() {
     // The export is in posix::s18_processes (its contract is §18.9): thin, -1 and errno.
-    use liella_boundary::posix::s18_processes as p;
+    use niji_boundary::posix::s18_processes as p;
     errno::set_raw(0);
     assert_eq!((p::setns(-1, 0), errno::get()), (-1, 9), "EBADF");
     let f = CString::new("/proc/self/ns/uts").unwrap();
-    let fd = liella_boundary::posix::s11_lowio::liella_open3(f.as_ptr(), 0o2000000, 0);
+    let fd = niji_boundary::posix::s11_lowio::niji_open3(f.as_ptr(), 0o2000000, 0);
     assert!(fd >= 0);
     assert_eq!((p::setns(fd, 0x0400_0000), errno::get()), (-1, EPERM), "joining a UTS namespace needs CAP_SYS_ADMIN");
-    liella_boundary::posix::s11_lowio::close(fd);
+    niji_boundary::posix::s11_lowio::close(fd);
 }
 #[test]
 fn sym_setpriority() {
@@ -1095,7 +1095,7 @@ fn sym_setpriority() {
 
 #[test]
 fn sym_setrlimit() {
-    if std::env::var("LIELLA_S24_RL").is_ok() {
+    if std::env::var("NIJI_S24_RL").is_ok() {
         let mut l = Rlimit { cur: 0, max: 0 };
         s::getrlimit(RLIMIT_CORE, Some(&mut l));
         let ok = s::setrlimit(RLIMIT_CORE, Some(&Rlimit { cur: 0, max: l.max })) == 0;
@@ -1107,7 +1107,7 @@ fn sym_setrlimit() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_setrlimit", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S24_RL", "1")
+        .env("NIJI_S24_RL", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -1116,7 +1116,7 @@ fn sym_setrlimit() {
 
 #[test]
 fn sym_setrlimit64() {
-    if std::env::var("LIELLA_S24_RL").is_ok() {
+    if std::env::var("NIJI_S24_RL").is_ok() {
         let mut l = Rlimit { cur: 0, max: 0 };
         s::getrlimit(RLIMIT_CORE, Some(&mut l));
         let ok = s::setrlimit64(RLIMIT_CORE, Some(&Rlimit { cur: 0, max: l.max })) == 0;
@@ -1128,7 +1128,7 @@ fn sym_setrlimit64() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_setrlimit64", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S24_RL", "1")
+        .env("NIJI_S24_RL", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -1138,14 +1138,14 @@ fn sym_setrlimit64() {
 symbol!(sym_sstk, "sstk", "24", "2.2.5", r##"(no installed header declares it)"##);
 #[test]
 fn sym_syscall() {
-    assert_eq!(s::liella_syscall7(39, 0, 0, 0, 0, 0, 0), std::process::id() as i64, "SYS_getpid");
+    assert_eq!(s::niji_syscall7(39, 0, 0, 0, 0, 0, 0), std::process::id() as i64, "SYS_getpid");
     let mut p = [0i32; 2];
-    assert_eq!(s::liella_syscall7(293, p.as_mut_ptr() as i64, 0, 0, 0, 0, 0), 0, "SYS_pipe2 with an address");
+    assert_eq!(s::niji_syscall7(293, p.as_mut_ptr() as i64, 0, 0, 0, 0, 0), 0, "SYS_pipe2 with an address");
     errno::set_raw(0);
-    assert_eq!((s::liella_syscall7(3, -1, 0, 0, 0, 0, 0), errno::get()), (-1, 9), "SYS_close(-1): EBADF");
-    assert_eq!((s::liella_syscall7(100_000, 0, 0, 0, 0, 0, 0), errno::get()), (-1, 38), "ENOSYS");
-    liella_boundary::posix::s11_lowio::close(p[0]);
-    liella_boundary::posix::s11_lowio::close(p[1]);
+    assert_eq!((s::niji_syscall7(3, -1, 0, 0, 0, 0, 0), errno::get()), (-1, 9), "SYS_close(-1): EBADF");
+    assert_eq!((s::niji_syscall7(100_000, 0, 0, 0, 0, 0, 0), errno::get()), (-1, 38), "ENOSYS");
+    niji_boundary::posix::s11_lowio::close(p[0]);
+    niji_boundary::posix::s11_lowio::close(p[1]);
 }
 
 #[test]
@@ -1164,7 +1164,7 @@ fn sym_sysconf() {
             continue;
         }
         if (got, got_err) != (want, want_err) {
-            diffs.push(format!("{name}: liella {got}/{got_err}, glibc {want}/{want_err}"));
+            diffs.push(format!("{name}: niji {got}/{got_err}, glibc {want}/{want_err}"));
         }
     }
     assert!(diffs.is_empty(), "{}", diffs.join("\n"));
@@ -1186,12 +1186,12 @@ fn sym_sysinfo() {
 }
 #[test]
 fn sym_ulimit() {
-    let b = s::liella_ulimit2(1, 0);
+    let b = s::niji_ulimit2(1, 0);
     let mut l = Rlimit { cur: 0, max: 0 };
     s::getrlimit(1, Some(&mut l));
     assert_eq!(b, if l.cur == u64::MAX { i64::MAX } else { (l.cur / 512) as i64 }, "UL_GETFSIZE: 512-byte blocks");
     errno::set_raw(0);
-    assert!(fails(s::liella_ulimit2(42, 0) as isize, EINVAL));
+    assert!(fails(s::niji_ulimit2(42, 0) as isize, EINVAL));
     conformance(&["s24_variadic"]);
 }
 
@@ -1210,7 +1210,7 @@ fn sym_uname() {
 #[test]
 fn sym_unshare() {
     // The export is in posix::s18_processes (its contract is §18.9): thin, -1 and errno.
-    use liella_boundary::posix::s18_processes as p;
+    use niji_boundary::posix::s18_processes as p;
     errno::set_raw(0);
     assert_eq!((p::unshare(1), errno::get()), (-1, EINVAL), "an unknown flag");
     assert_eq!(p::unshare(0), 0, "nothing to detach");
@@ -1235,7 +1235,7 @@ fn sym_vlimit() {
     errno::set_raw(0);
     assert!(fails(s::vlimit(0, 1) as isize, EINVAL), "LIM_NORAISE is not settable");
     assert!(fails(s::vlimit(7, 1) as isize, EINVAL));
-    if std::env::var("LIELLA_S24_VL").is_ok() {
+    if std::env::var("NIJI_S24_VL").is_ok() {
         let ok = s::vlimit(5, 0) == 0; // LIM_CORE: RLIMIT_CORE's soft limit
         let mut l = Rlimit { cur: 9, max: 9 };
         s::getrlimit(RLIMIT_CORE, Some(&mut l));
@@ -1243,7 +1243,7 @@ fn sym_vlimit() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_vlimit", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S24_VL", "1")
+        .env("NIJI_S24_VL", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

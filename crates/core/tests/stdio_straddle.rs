@@ -10,11 +10,11 @@ use core::ptr::without_provenance_mut;
 use std::ffi::CString;
 use std::sync::Mutex;
 
-use liella_abi::ctypes::{c_char, c_int};
-use liella_abi::layout::{cookie_io_functions_t, FILE};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as x;
+use niji_abi::ctypes::{c_char, c_int};
+use niji_abi::layout::{cookie_io_functions_t, FILE};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as x;
 
 const IOFBF: c_int = 0;
 const EIO: i32 = 5;
@@ -64,7 +64,7 @@ fn full(fp: *mut FILE) {
 }
 
 fn file(tag: &str) -> (std::path::PathBuf, *mut FILE) {
-    let path = std::env::temp_dir().join(format!("liella-straddle-{}-{tag}", std::process::id()));
+    let path = std::env::temp_dir().join(format!("niji-straddle-{}-{tag}", std::process::id()));
     let c = CString::new(path.to_str().unwrap()).unwrap();
     let fp = x::fopen(c.as_ptr(), c"w".as_ptr());
     assert!(!fp.is_null());
@@ -159,7 +159,7 @@ fn straddle_write_error_counts_the_head_and_sets_the_indicator() {
 fn block_that_fits_a_large_buffer_lands_after_the_bytes_before_it() {
     // s12_5a_c_2 (fwrite counts), s12_4_c_1 (full buffering with setvbuf): blocks of 65 bytes or more that
     // fit the room left are copied in by the operation itself, not the header's fast path.
-    let path = std::env::temp_dir().join(format!("liella-straddle-{}-window", std::process::id()));
+    let path = std::env::temp_dir().join(format!("niji-straddle-{}-window", std::process::id()));
     let c = CString::new(path.to_str().unwrap()).unwrap();
     let fp = x::fopen(c.as_ptr(), c"w".as_ptr());
     assert!(!fp.is_null());

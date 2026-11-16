@@ -6,17 +6,17 @@
 //! (§22 notes).
 //!
 //! **Products only (`export! { runtime ... }`):** creating, joining, detaching and ending
-//! threads, and the attribute object they take, are meaningful only in a process Liella
+//! threads, and the attribute object they take, are meaningful only in a process libniji
 //! started (D-22.10). A test process the host C library started keeps the host's, so that the
-//! host's own threads (the test harness's) are never handed Liella's.
+//! host's own threads (the test harness's) are never handed libniji's.
 
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_abi::layout::{
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_abi::layout::{
     __pthread_unwind_buf_t, cnd_t, cpu_set_t, mtx_t, once_flag, pthread_attr_t, pthread_barrier_t, pthread_barrierattr_t, pthread_cond_t, pthread_condattr_t,
     pthread_key_t, pthread_mutex_t, pthread_mutexattr_t, pthread_once_t, pthread_rwlock_t, pthread_rwlockattr_t, pthread_spinlock_t, pthread_t, sem_t,
     sigset_t, struct__pthread_cleanup_buffer, struct_sched_param, thrd_t, tss_t,
 };
-use liella_kernel::uapi::Timespec;
+use niji_kernel::uapi::Timespec;
 
 use crate::cancel;
 use crate::conv;
@@ -358,15 +358,15 @@ pub extern "C" fn __pthread_cleanup_routine(frame: *mut [usize; 3]) {
 /// STATIC-CXX-THROW-PTHREAD-ONCE: a static link that takes this object (and with it
 /// `__pthread_key_create`, `pthread_getspecific`, `pthread_mutex_lock`, ...) also takes
 /// `pthread_once`, which lives in the C layer's member (machine/once.S, with
-/// `liella_machine_once`). A program's weak references to these names (a compiler runtime's
+/// `niji_machine_once`). A program's weak references to these names (a compiler runtime's
 /// "are threads in use" test is one) then find all of them, never `__pthread_key_create`
-/// without `pthread_once`. The kept address makes `liella_machine_once` an undefined symbol of
+/// without `pthread_once`. The kept address makes `niji_machine_once` an undefined symbol of
 /// this object, so `libc.a`'s member that defines it is pulled; nothing reads it. A static named
-/// `LIELLA_LINK_EDGE_*` is a link edge only (D-22.16): `cargo xtask so` marks its section
+/// `NIJI_LINK_EDGE_*` is a link edge only (D-22.16): `cargo xtask so` marks its section
 /// `SHF_EXCLUDE` in the archive, so the linker puts the word (and its relocation) in no program
 /// and not in `libc.so.6`, while the undefined symbol still pulls the member.
 #[used]
-static LIELLA_LINK_EDGE_PTHREAD_ONCE: extern "C" fn(usize, usize) -> i32 = crate::ffi::liella_machine_once;
+static NIJI_LINK_EDGE_PTHREAD_ONCE: extern "C" fn(usize, usize) -> i32 = crate::ffi::niji_machine_once;
 
 export! { "GLIBC_2.34";
 pub extern "C" fn pthread_key_create(key: Option<&mut pthread_key_t>, destructor: usize) -> c_int {
@@ -744,42 +744,42 @@ pub extern "C" fn pthread_cond_broadcast(c: *mut pthread_cond_t) -> c_int {
 // R15-2); a program linked anew binds the 2.3.2 entries above.
 crate::internal_entry! {
 /// `pthread_cond_init@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_pthread_cond_init(c: *mut u64, attr: *const pthread_condattr_t) -> c_int {
+pub extern "C" fn niji_compat_pthread_cond_init(c: *mut u64, attr: *const pthread_condattr_t) -> c_int {
     // UNSAFE(slice) SAFETY: c points to an old pthread_cond_t (one word). attr is NULL or initialised.
     ret::errnum(sync::old_cond_init(unsafe { conv::obj64(c) }, unsafe { conv::opt_obj32(attr) }))
 }}
 
 crate::internal_entry! {
 /// `pthread_cond_destroy@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_pthread_cond_destroy(c: *mut u64) -> c_int {
+pub extern "C" fn niji_compat_pthread_cond_destroy(c: *mut u64) -> c_int {
     // UNSAFE(slice) SAFETY: c points to an old pthread_cond_t (one word).
     ret::errnum(sync::old_cond_destroy(unsafe { conv::obj64(c) }))
 }}
 
 crate::internal_entry! {
 /// `pthread_cond_wait@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_pthread_cond_wait(c: *mut u64, m: *mut pthread_mutex_t) -> c_int {
+pub extern "C" fn niji_compat_pthread_cond_wait(c: *mut u64, m: *mut pthread_mutex_t) -> c_int {
     // UNSAFE(slice) SAFETY: c points to an old pthread_cond_t. m points to a pthread_mutex_t the caller holds.
     ret::errnum(sync::old_cond_wait(unsafe { conv::obj64(c) }, unsafe { conv::mutex(m) }, None, false))
 }}
 
 crate::internal_entry! {
 /// `pthread_cond_timedwait@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_pthread_cond_timedwait(c: *mut u64, m: *mut pthread_mutex_t, abstime: Option<&Timespec>) -> c_int {
+pub extern "C" fn niji_compat_pthread_cond_timedwait(c: *mut u64, m: *mut pthread_mutex_t, abstime: Option<&Timespec>) -> c_int {
     // UNSAFE(slice) SAFETY: c points to an old pthread_cond_t. m points to a pthread_mutex_t the caller holds.
     ret::errnum(sync::old_cond_wait(unsafe { conv::obj64(c) }, unsafe { conv::mutex(m) }, abstime, true))
 }}
 
 crate::internal_entry! {
 /// `pthread_cond_signal@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_pthread_cond_signal(c: *mut u64) -> c_int {
+pub extern "C" fn niji_compat_pthread_cond_signal(c: *mut u64) -> c_int {
     // UNSAFE(slice) SAFETY: c points to an old pthread_cond_t (one word).
     ret::errnum(sync::old_cond_signal(unsafe { conv::obj64(c) }, false))
 }}
 
 crate::internal_entry! {
 /// `pthread_cond_broadcast@GLIBC_2.2.5`.
-pub extern "C" fn liella_compat_pthread_cond_broadcast(c: *mut u64) -> c_int {
+pub extern "C" fn niji_compat_pthread_cond_broadcast(c: *mut u64) -> c_int {
     // UNSAFE(slice) SAFETY: c points to an old pthread_cond_t (one word).
     ret::errnum(sync::old_cond_signal(unsafe { conv::obj64(c) }, true))
 }}
@@ -1063,40 +1063,40 @@ pub extern "C" fn call_once(flag: *mut once_flag, func: usize) {
     sync::call_once(unsafe { conv::obj32(flag) }, func)
 }}
 
-// The functions machine/once.S calls (hidden there; unmangled `liella_` names, never exported).
+// The functions machine/once.S calls (hidden there; unmangled `niji_` names, never exported).
 
-// UNSAFE(export): called by liella_machine_once (csys/src/machine/once.S) before the routine;
+// UNSAFE(export): called by niji_machine_once (csys/src/machine/once.S) before the routine;
 // permitted here by ruling #406 (xtask policy ONCE_HELPERS).
 #[unsafe(no_mangle)]
 #[allow(unsafe_code)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 /// Before the routine (`sync::once_begin`).
-pub extern "C" fn liella_once_begin(once: *mut pthread_once_t, init: usize, record: *mut [usize; 4]) -> c_int {
+pub extern "C" fn niji_once_begin(once: *mut pthread_once_t, init: usize, record: *mut [usize; 4]) -> c_int {
     // UNSAFE(slice) SAFETY: once is the C caller's pthread_once_t (§22.5).
     let w = unsafe { conv::obj32(once) };
-    // UNSAFE(slice) SAFETY: record is the 4-word buffer in liella_machine_once's live frame.
+    // UNSAFE(slice) SAFETY: record is the 4-word buffer in niji_machine_once's live frame.
     sync::once_begin(w, init, unsafe { conv::obj64(record) })
 }
 
-// UNSAFE(export): called by liella_machine_once (csys/src/machine/once.S) after the routine
+// UNSAFE(export): called by niji_machine_once (csys/src/machine/once.S) after the routine
 // returned; permitted here by ruling #406 (xtask policy ONCE_HELPERS).
 #[unsafe(no_mangle)]
 #[allow(unsafe_code)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 /// After the routine returned (`sync::once_end`).
-pub extern "C" fn liella_once_end(once: *mut pthread_once_t, record: *mut [usize; 4]) {
-    // UNSAFE(slice) SAFETY: once is the object liella_once_begin made running.
+pub extern "C" fn niji_once_end(once: *mut pthread_once_t, record: *mut [usize; 4]) {
+    // UNSAFE(slice) SAFETY: once is the object niji_once_begin made running.
     let w = unsafe { conv::obj32(once) };
-    // UNSAFE(slice) SAFETY: record is the buffer liella_once_begin registered in this frame.
+    // UNSAFE(slice) SAFETY: record is the buffer niji_once_begin registered in this frame.
     sync::once_end(w, unsafe { conv::obj64(record) })
 }
 
-// UNSAFE(export): the personality the unwinder calls for liella_machine_once's frame (named by
+// UNSAFE(export): the personality the unwinder calls for niji_machine_once's frame (named by
 // csys/src/machine/once.S's call-frame information); permitted here by ruling #406.
 #[unsafe(no_mangle)]
 #[allow(unsafe_code)]
-/// The personality routine of liella_machine_once's frame (`sync::once_personality`).
-pub extern "C" fn liella_once_personality(version: c_int, actions: c_int, _class: u64, _exception: usize, _context: usize) -> c_int {
+/// The personality routine of niji_machine_once's frame (`sync::once_personality`).
+pub extern "C" fn niji_once_personality(version: c_int, actions: c_int, _class: u64, _exception: usize, _context: usize) -> c_int {
     sync::once_personality(version, actions)
 }
 
@@ -1115,7 +1115,7 @@ struct GuardFrame<'a, S, B, R> {
 #[allow(unsafe_code)]
 extern "C" fn guard_run<S, B: FnOnce(&mut S) -> R, R>(f: usize) -> i64 {
     // UNSAFE(slice) SAFETY: `f` is the address of the live `GuardFrame` that `guarded` passed to
-    // liella_machine_guard, which calls this once while `guarded` waits for it.
+    // niji_machine_guard, which calls this once while `guarded` waits for it.
     let f = unsafe { &mut *core::ptr::with_exposed_provenance_mut::<GuardFrame<'_, S, B, R>>(f) };
     if let Some(b) = f.body.take() {
         f.out = Some(b(&mut *f.state));
@@ -1145,30 +1145,30 @@ pub(crate) fn guarded<S, R>(state: &mut S, body: impl FnOnce(&mut S) -> R, undo:
         let mut fr = GuardFrame { state, body: Some(body), undo, out: None };
         let run = guard_run::<S, B, R> as extern "C" fn(usize) -> i64 as usize;
         let und = guard_undo::<S, B, R> as extern "C" fn(usize) as usize;
-        let _ = crate::ffi::liella_machine_guard(run, core::ptr::from_mut(&mut fr).expose_provenance(), und);
+        let _ = crate::ffi::niji_machine_guard(run, core::ptr::from_mut(&mut fr).expose_provenance(), und);
         fr.out
     }
     go(state, body, undo)
 }
 
 
-export! { local "liella_guard_begin";
+export! { local "niji_guard_begin";
 /// Before the body (`cancel::guard_begin`).
-pub extern "C" fn liella_guard_begin(record: *mut [usize; 4], undo: usize, ctx: usize) {
-    // UNSAFE(slice) SAFETY: record is the 4-word buffer in liella_machine_guard's live frame.
+pub extern "C" fn niji_guard_begin(record: *mut [usize; 4], undo: usize, ctx: usize) {
+    // UNSAFE(slice) SAFETY: record is the 4-word buffer in niji_machine_guard's live frame.
     cancel::guard_begin(unsafe { conv::obj64(record) }, undo, ctx)
 }}
 
-export! { local "liella_guard_end";
+export! { local "niji_guard_end";
 /// After the body returned (`cancel::guard_end`).
-pub extern "C" fn liella_guard_end(record: *mut [usize; 4]) {
-    // UNSAFE(slice) SAFETY: record is the buffer liella_guard_begin registered in this frame.
+pub extern "C" fn niji_guard_end(record: *mut [usize; 4]) {
+    // UNSAFE(slice) SAFETY: record is the buffer niji_guard_begin registered in this frame.
     cancel::guard_end(unsafe { conv::obj64(record) })
 }}
 
-export! { local "liella_guard_personality";
-/// The personality routine of liella_machine_guard's frame (`cancel::guard_personality`).
-pub extern "C" fn liella_guard_personality(version: c_int, actions: c_int, _class: u64, _exception: usize, _context: usize) -> c_int {
+export! { local "niji_guard_personality";
+/// The personality routine of niji_machine_guard's frame (`cancel::guard_personality`).
+pub extern "C" fn niji_guard_personality(version: c_int, actions: c_int, _class: u64, _exception: usize, _context: usize) -> c_int {
     cancel::guard_personality(version, actions)
 }}
 
@@ -1222,8 +1222,8 @@ pub extern "C" fn sem_getvalue(s: *mut sem_t, value: Option<&mut c_int>) -> c_in
     ret::store(value, sync::sem_getvalue(unsafe { conv::obj32(s) }))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_sem_open4(name: *const c_char, oflag: c_int, mode: u32, value: u32) -> *mut sem_t {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_sem_open4(name: *const c_char, oflag: c_int, mode: u32, value: u32) -> *mut sem_t {
     // UNSAFE(slice) SAFETY: name is a NUL-terminated string (§22.7).
     ret::null(sync::sem_open(unsafe { strz::strz(name) }, oflag, mode, value))
 }}

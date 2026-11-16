@@ -1,8 +1,8 @@
-/* Validation stand-in (validation/README.md, "Workarounds"): NOT part of Liella.
+/* Validation stand-in (validation/README.md, "Workarounds"): NOT part of libniji.
  *
  * Track M's libm is not a product yet (T3), and findutils' find needs modf. This thin stand-in,
  * written from C17 7.12.6.12, is linked into the validation builds that use workarounds. The
- * first runs' stand-ins for the system-identity calls of spec §24.5–24.6 (T2) are gone: Liella
+ * first runs' stand-ins for the system-identity calls of spec §24.5–24.6 (T2) are gone: libniji
  * implements them since milestone 3.
  */
 

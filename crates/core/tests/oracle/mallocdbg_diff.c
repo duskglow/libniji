@@ -366,7 +366,7 @@ static void *thread_alloc_many(void *arg) {
 static void mallinfo_thread(void) {
     /* the thread's own allocations (200 KB) dwarf what pthread_create allocates in the caller */
     static void *slots[200];
-    /* Both threads on the caller's CPU: a heap with a part per NUMA node (Liella's, D-3.12) maps
+    /* Both threads on the caller's CPU: a heap with a part per NUMA node (libniji's, D-3.12) maps
      * new memory for a thread that runs on another node, which under load made the arena line
      * depend on where the scheduler put the thread (milestone 6). */
     cpu_set_t was, here;

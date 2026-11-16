@@ -6,7 +6,7 @@ on time too, if we see a consistent drag, it needs to be investigated"). It FLAG
     timing_history.py summary HISTORY.tsv [--last 5] [--thr 1.05] [--min 3] [--ghz 0.05]
     timing_history.py selftest
 
-DECISION.tsv = target/liella/bench/decision.tsv of one `cargo xtask bench` run on a cycles CPU (columns bench row
+DECISION.tsv = target/niji/bench/decision.tsv of one `cargo xtask bench` run on a cycles CPU (columns bench row
 metric ns_ratio cycles_ratio ghz_l ghz_g limit verdict). `append` adds its rows to HISTORY.tsv (created with a header).
 `summary` looks at each row's LAST N runs across all hosts in the history (both fallback hosts) and lists:
   DRAG  rows whose ns (time) ratio exceeded THR in >= MIN of those runs while the row passed on cycles;
@@ -64,7 +64,7 @@ def summary(hist, last=5, thr=1.05, mn=3, ghz=0.05):
         q = [num(r["ghz_l"]) / num(r["ghz_g"]) for r in runs if num(r["ghz_l"]) and num(r["ghz_g"])]
         lo, hi = sum(x < 1 - ghz for x in q), sum(x > 1 + ghz for x in q)
         if max(lo, hi) >= mn and min(lo, hi) == 0:
-            side = "Liella slower clock" if lo else "Liella faster clock"
+            side = "libniji slower clock" if lo else "libniji faster clock"
             skew.append(f"GHZ {key[0]}/{key[1]}: {side} in {max(lo, hi)} of the last {len(q)} runs (L/G {', '.join(f'{x:.2f}' for x in q)}; hosts {' '.join(hosts)})")
     out = [f"timing history: {len(rows)} entries, {len(per)} rows; consistent drag = time ratio > {thr} in >= {mn} of a row's last {last} runs (both fallback hosts) while cycles passed (flag only, never a gate)"]
     out += drag + skew
@@ -77,7 +77,7 @@ def selftest():
     with tempfile.TemporaryDirectory() as d:
         hist = os.path.join(d, "h.tsv")
         # Run 1-4 on two hosts: `drag` passes cycles with time > 1.05 three times; `fine` never drags; `clock` keeps
-        # Liella at a lower GHz every time; `failed` has slow time but FAILED on cycles (a gate failure, not a drag).
+        # libniji at a lower GHz every time; `failed` has slow time but FAILED on cycles (a gate failure, not a drag).
         canned = [
             ("Ivy Bridge host A", "drag\tcycles\t1.30\t1.01\t1.6\t2.4\t1.2\tok", "clock\tcycles\t1.00\t1.00\t1.80\t2.10\t1.2\tok"),
             ("Ivy Bridge host B", "drag\tcycles\t1.10\t1.00\t2.0\t2.0\t1.2\tok", "clock\tcycles\t1.00\t1.00\t1.70\t2.00\t1.2\tok"),
@@ -103,7 +103,7 @@ def selftest():
         out = summary(hist)
         text = "\n".join(out)
         assert any(x.startswith("DRAG cbench_x/drag: time ratio > 1.05 in 3 of the last 4 runs") for x in out), text
-        assert any(x.startswith("GHZ cbench_x/clock: Liella slower clock in 3 of the last 3 runs") for x in out), text
+        assert any(x.startswith("GHZ cbench_x/clock: libniji slower clock in 3 of the last 3 runs") for x in out), text
         assert not any("/fine" in x or "/failed" in x or "/nocyc" in x for x in out), text
         assert out[-1] == "timing history: 1 DRAG, 1 GHZ finding(s)", text
         assert summary(hist, mn=5)[-1].endswith(" - none"), text

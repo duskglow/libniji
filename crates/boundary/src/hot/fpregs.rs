@@ -3,7 +3,7 @@
 //!
 //! * [`mxcsr`]: one `stmxcsr` into a stack local, the MXCSR read of the fast entries
 //!   (`mathret::elem_fast`, `mathret::sincos_fast`) in place of a call to the out-of-line
-//!   `liella_machine_mxcsr_get`, so the entry keeps its operand in its register (a call clobbers
+//!   `niji_machine_mxcsr_get`, so the entry keeps its operand in its register (a call clobbers
 //!   every `xmm` register) and pays no call and return.
 //! * [`Pin::pin`]: an empty (comment-only), register-only barrier on a floating-point value, in place of
 //!   `core::hint::black_box` on the fast path: the arithmetic on the value cannot start before the

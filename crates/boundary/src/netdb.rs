@@ -1,7 +1,7 @@
 //! The C conventions of spec §16.1–16.3, §16.5 and §16.6 (phase 10, part 3; D-16.1, D-16.2):
 //! `h_errno`, the `struct hostent`/`netent`/`servent`/`protoent`/`rpcent`/`aliasent` results,
 //! the netgroup enumeration, `getaddrinfo`'s list and `getnameinfo`'s texts. The lookups are
-//! `liella_legacy::{nss, netdb_compat, gai}` through the process's switch; the exports in
+//! `niji_legacy::{nss, netdb_compat, gai}` through the process's switch; the exports in
 //! `posix::s16_nameservices` convert the C arguments.
 //!
 //! **Results.** As for the user databases (D-17.3): the non-`_r` forms return a record in a
@@ -21,22 +21,22 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-use liella::error::Errno;
-use liella::names::db::{self, HostLine, Numbered, ServLine};
-use liella::names::nss::{Answer, LookupError};
-use liella::names::{msg, Family, Ip};
-use liella_abi::ctypes::c_int;
-use liella_abi::layout::{struct_addrinfo, struct_aliasent, struct_hostent, struct_netent, struct_protoent, struct_rpcent, struct_servent};
-use liella_abi::pack::Packer;
-use liella_kernel::errno::KResult;
-use liella_kernel::sys::Sys;
-use liella_legacy::cursors::{self, Step};
-use liella_legacy::gai::{self, GaiError, Hints};
-use liella_legacy::netdb_compat::{self as netdb, HOST_NOT_FOUND, NETDB_INTERNAL};
-use liella_legacy::nss::{self, Ctx, NETGROUP_CURSOR};
-use liella_legacy::nss_files::Host;
-use liella_rt::sync::RawMutex;
-use liella_rt::tls::H_ERRNO_OFFSET;
+use niji::error::Errno;
+use niji::names::db::{self, HostLine, Numbered, ServLine};
+use niji::names::nss::{Answer, LookupError};
+use niji::names::{msg, Family, Ip};
+use niji_abi::ctypes::c_int;
+use niji_abi::layout::{struct_addrinfo, struct_aliasent, struct_hostent, struct_netent, struct_protoent, struct_rpcent, struct_servent};
+use niji_abi::pack::Packer;
+use niji_kernel::errno::KResult;
+use niji_kernel::sys::Sys;
+use niji_legacy::cursors::{self, Step};
+use niji_legacy::gai::{self, GaiError, Hints};
+use niji_legacy::netdb_compat::{self as netdb, HOST_NOT_FOUND, NETDB_INTERNAL};
+use niji_legacy::nss::{self, Ctx, NETGROUP_CURSOR};
+use niji_legacy::nss_files::Host;
+use niji_rt::sync::RawMutex;
+use niji_rt::tls::H_ERRNO_OFFSET;
 
 use crate::caller_alloc;
 use crate::conv;
@@ -58,7 +58,7 @@ fn with_hosts<R>(f: impl FnOnce(&Ctx<'_, CSys>) -> R) -> R {
     hconf_env();
     let mut c = ctx().with_multi();
     nss::HOST_CONF.diagnose(&CSys, c.paths.host_conf, |n| crate::process::secure_getenv(n).map(crate::strz::env_value));
-    let resolver = if c.spec(liella::names::nss::Database::Hosts).has(liella::names::nss::Service::Dns) { crate::resolv::host_resolver_pristine() } else { None };
+    let resolver = if c.spec(niji::names::nss::Database::Hosts).has(niji::names::nss::Service::Dns) { crate::resolv::host_resolver_pristine() } else { None };
     // A thread whose program changed `_res` bypasses the name-service cache (D-16.10).
     if resolver.as_ref().is_some_and(|(_, clean)| !clean) {
         c.cache = None;
@@ -75,7 +75,7 @@ fn with_hosts<R>(f: impl FnOnce(&Ctx<'_, CSys>) -> R) -> R {
 fn hconf_env() {
     nss::HOST_CONF.env_once(&CSys, || {
         let get = |n: &[u8]| crate::process::secure_getenv(n).map(crate::strz::env_value);
-        (liella::names::hostconf::Env::read(get), get(b"RESOLV_HOST_CONF"))
+        (niji::names::hostconf::Env::read(get), get(b"RESOLV_HOST_CONF"))
     });
 }
 
@@ -148,12 +148,12 @@ pub fn herror(s: KResult<Option<&[u8]>>) {
         Some(s) => [s, b": ", text, b"\n"],
         None => [b"", b"", text, b"\n"],
     };
-    let mut whole = liella::mem::TryVec::new();
+    let mut whole = niji::mem::TryVec::new();
     if parts.iter().try_for_each(|p| whole.extend_from_slice(p)).is_ok() {
-        let _ = Sys::write(&CSys, liella_kernel::Fd::new(2), whole.as_slice());
+        let _ = Sys::write(&CSys, niji_kernel::Fd::new(2), whole.as_slice());
     } else {
         for p in parts {
-            let _ = Sys::write(&CSys, liella_kernel::Fd::new(2), p);
+            let _ = Sys::write(&CSys, niji_kernel::Fd::new(2), p);
         }
     }
     errno::set_raw(saved);
@@ -401,7 +401,7 @@ fn own_ht(found: Option<KResult<usize>>) -> usize {
 pub fn compat_gethtbyname2(name: KResult<&[u8]>, af: i32) -> usize {
     let found = (|| {
         let fam = family(af).ok()?;
-        let h = liella_legacy::nss_files::host_by_name(&CSys, nss::SYSTEM.hosts, name.ok()?, fam, false).ok()?;
+        let h = niji_legacy::nss_files::host_by_name(&CSys, nss::SYSTEM.hosts, name.ok()?, fam, false).ok()?;
         Some(users::own(users::HT_HOST, |k| pack_host(&h, k)))
     })();
     own_ht(found)
@@ -414,7 +414,7 @@ pub fn compat_gethtbyaddr(addr: KResult<&[u8]>, af: i32) -> usize {
     let found = (|| {
         let fam = family(af).ok()?;
         let a = addr.ok()?;
-        let text = liella_legacy::nss_files::read(&CSys, nss::SYSTEM.hosts).ok()?;
+        let text = niji_legacy::nss_files::read(&CSys, nss::SYSTEM.hosts).ok()?;
         let l = db::lines(&text).filter_map(db::host_line).find(|l| fam.admits(&l.addr) && l.addr.bytes().starts_with(a))?;
         Some(users::own(users::HT_HOST, |k| pack_host_line(&l, k)))
     })();
@@ -477,7 +477,7 @@ fn dotted_quad(t: &[u8]) -> Option<[u8; 4]> {
 
 /// The `dns` source alone for the `res_gethostby*` names (the hosts file and the switch are not
 /// read, observed), with the calling thread's resolver.
-fn dns_only(f: impl FnOnce(&liella_legacy::resolv_compat::Resolver) -> Answer<Host>) -> Answer<Host> {
+fn dns_only(f: impl FnOnce(&niji_legacy::resolv_compat::Resolver) -> Answer<Host>) -> Answer<Host> {
     match crate::resolv::host_resolver_pristine() {
         Some((r, _)) => f(&r),
         None => Err(LookupError::Unavailable),
@@ -495,8 +495,8 @@ pub fn res_name(n: &[u8], searching: bool) -> Answer<Option<[u8; 4]>> {
     if n.is_empty() && !searching {
         return Err(LookupError::Unavailable);
     }
-    let mut wire = [0u8; liella::names::dns::name::MAXCDNAME];
-    if n.is_empty() || liella::names::dns::name::pton(n, &mut wire).is_err() {
+    let mut wire = [0u8; niji::names::dns::name::MAXCDNAME];
+    if n.is_empty() || niji::names::dns::name::pton(n, &mut wire).is_err() {
         return Err(LookupError::Os(Errno::EMSGSIZE));
     }
     if n.contains(&b':') {
@@ -521,7 +521,7 @@ pub fn compat_res_gethostbyname(name: KResult<&[u8]>) -> usize {
                 h.add_addr(Ip::V4(q))?;
                 Ok(h)
             }
-            None => dns_only(|r| liella_legacy::resolv_compat::host_by_name_any(&CSys, r, n, Family::V4, &mut liella_legacy::nscache::Life::Files, true)),
+            None => dns_only(|r| niji_legacy::resolv_compat::host_by_name_any(&CSys, r, n, Family::V4, &mut niji_legacy::nscache::Life::Files, true)),
         }
     }))
 }
@@ -535,7 +535,7 @@ pub fn compat_res_gethostbyaddr(addr: KResult<&[u8]>, af: i32) -> usize {
             Ip::V6([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, x, y, a, b, c, d]) if x == y && (x == 0 || x == 0xff) => Ip::V4([a, b, c, d]),
             ip => ip,
         };
-        dns_only(|r| liella_legacy::resolv_compat::host_by_addr(&CSys, r, ip))
+        dns_only(|r| niji_legacy::resolv_compat::host_by_addr(&CSys, r, ip))
     }))
 }
 
@@ -554,7 +554,7 @@ pub fn compat_gethtent() -> usize {
 /// `dns` (its answers bypass the name-service cache).
 fn with_networks<R>(f: impl FnOnce(&Ctx<'_, CSys>) -> R) -> R {
     let mut c = ctx();
-    let resolver = if c.spec(liella::names::nss::Database::Networks).has(liella::names::nss::Service::Dns) { crate::resolv::host_resolver_pristine() } else { None };
+    let resolver = if c.spec(niji::names::nss::Database::Networks).has(niji::names::nss::Service::Dns) { crate::resolv::host_resolver_pristine() } else { None };
     c.dns = resolver.as_ref().map(|(r, _)| r);
     f(&c)
 }
@@ -972,7 +972,7 @@ fn build(found: &gai::Found) -> Option<usize> {
     let canon_at = base.checked_add(n.checked_mul(ENTRY)?)?;
     let built = (|| {
         if let Some(c) = &found.canon {
-            liella::net::copy_z(c, conv::own_bytes(canon_at, canon_len)?)?;
+            niji::net::copy_z(c, conv::own_bytes(canon_at, canon_len)?)?;
         }
         for (i, e) in found.entries.iter().enumerate() {
             let at = base.checked_add(i.checked_mul(ENTRY)?)?;
@@ -1027,7 +1027,7 @@ pub fn getnameinfo(sa: KResult<&[u8]>, host: Option<&mut [u8]>, serv: Option<&mu
     };
     for (text, buf) in [(names.host, host), (names.serv, serv)] {
         if let (Some(t), Some(b)) = (text, buf) {
-            if liella::net::copy_z(&t, b).is_none() {
+            if niji::net::copy_z(&t, b).is_none() {
                 return gai::EAI_OVERFLOW;
             }
         }

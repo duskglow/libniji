@@ -8,18 +8,18 @@
 //! 48-bit family is checked against the recurrence of §9.4 computed here; `rand`/`random`
 //! sequences are unspecified (OD-13), so their tests check range, determinism and the state
 //! protocol.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::float_cmp, missing_docs)]
 
 use core::ptr::null_mut;
 use std::sync::{Mutex, MutexGuard};
 
-use liella_abi::ctypes::c_char;
-use liella_abi::layout::{struct_drand48_data, struct_random_data};
-use liella_boundary::errno;
-use liella_boundary::posix::s09_random as s;
-use liella_boundary::selftest::{self, ChildEnd};
+use niji_abi::ctypes::c_char;
+use niji_abi::layout::{struct_drand48_data, struct_random_data};
+use niji_boundary::errno;
+use niji_boundary::posix::s09_random as s;
+use niji_boundary::selftest::{self, ChildEnd};
 
 const EINVAL: i32 = 22;
 const EIO: i32 = 5;
@@ -77,7 +77,7 @@ fn sym_arc4random() {
     let v: Vec<u32> = (0..8).map(|_| s::arc4random()).collect();
     assert!(v.windows(2).any(|w| w[0] != w[1]), "not constant");
     assert_eq!(selftest::in_child_quiet(|_| {
-        liella_boundary::ret::arc4::<u32>(None);
+        niji_boundary::ret::arc4::<u32>(None);
         0
     }).unwrap(), ChildEnd::Signaled(SIGABRT), "no entropy: the process terminates");
 }
@@ -367,7 +367,7 @@ fn sym_seed48() {
     let b = [4u16, 5, 6];
     let old = s::seed48(Some(&b));
     let mut copy = [0u16; 3];
-    liella_boundary::posix::s04_strings::memcpy(copy.as_mut_ptr().cast(), old.cast_const().cast(), 6);
+    niji_boundary::posix::s04_strings::memcpy(copy.as_mut_ptr().cast(), old.cast_const().cast(), 6);
     assert_eq!(copy, [1, 2, 3], "a static copy of the previous state");
     assert_eq!(s::lrand48(), (step(x48([4, 5, 6])) >> 17) as i64);
 }

@@ -9,7 +9,7 @@
 //!   buffer and the same leading bytes into a short one, and reports the key's length.
 //!
 //! `en_US.UTF-8` is compiled locale data, so it comes from outside the harness: the directory
-//! named by `LIELLA_FUZZ_LOCPATH` (for example made with `localedef -i en_US -f UTF-8
+//! named by `NIJI_FUZZ_LOCPATH` (for example made with `localedef -i en_US -f UTF-8
 //! <dir>/en_US.UTF-8`), read once. Without it the selector falls back to `C.UTF-8`; the
 //! campaign script sets it and the run log says which locales were used. Nothing else is read.
 //!
@@ -21,9 +21,9 @@
 
 use core::cmp::Ordering;
 use libfuzzer_sys::fuzz_target;
-use liella::locale::file::Cat;
-use liella::locale::{self, Locale, Source};
-use liella_fuzz::Input;
+use niji::locale::file::Cat;
+use niji::locale::{self, Locale, Source};
+use niji_fuzz::Input;
 
 const KEY_CAP: usize = 1 << 16;
 
@@ -40,18 +40,18 @@ impl Source for Dir {
         // Setup-time data, constant across runs: kept reachable through the harness's leak
         // budget as the locale and charmap harnesses do, so the leak checker reports only
         // real per-run leaks (coordinator ruling #1792).
-        liella_fuzz::leak(&bytes)
+        niji_fuzz::leak(&bytes)
     }
     fn locpath(&self) -> Option<&[u8]> {
         Some(&self.0)
     }
-    fn charmap(&self, _name: &[u8]) -> Option<&'static liella::charmap::Charmap> {
+    fn charmap(&self, _name: &[u8]) -> Option<&'static niji::charmap::Charmap> {
         None
     }
 }
 
 fn en_us() -> Option<Locale> {
-    let dir = std::env::var_os("LIELLA_FUZZ_LOCPATH")?;
+    let dir = std::env::var_os("NIJI_FUZZ_LOCPATH")?;
     let src = Dir(dir.into_encoded_bytes());
     let name: &'static [u8] = b"en_US.UTF-8";
     let mut loc = Locale::C;
@@ -61,14 +61,14 @@ fn en_us() -> Option<Locale> {
     }
     let l = locale::attach_charmap(&src, loc)?;
     // A locale without collation rules would make the en_US runs a second C.UTF-8 run.
-    assert!(!l.code_point_order(), "LIELLA_FUZZ_LOCPATH: en_US.UTF-8 has no collation rules");
+    assert!(!l.code_point_order(), "NIJI_FUZZ_LOCPATH: en_US.UTF-8 has no collation rules");
     Some(l)
 }
 
 thread_local! {
     static EN_US: Option<Locale> = {
         let l = en_us();
-        eprintln!("collate: en_US.UTF-8 {}", if l.is_some() { "loaded" } else { "not available (LIELLA_FUZZ_LOCPATH unset or unreadable)" });
+        eprintln!("collate: en_US.UTF-8 {}", if l.is_some() { "loaded" } else { "not available (NIJI_FUZZ_LOCPATH unset or unreadable)" });
         l
     };
 }
@@ -178,10 +178,10 @@ fuzz_target!(init: {
     let x = [a, b, c];
     match sel & 3 {
         2 => run(&Locale::C, sel, short, x),
-        0 => run(&liella_fuzz::locale(true), sel, short, x),
+        0 => run(&niji_fuzz::locale(true), sel, short, x),
         _ => EN_US.with(|l| match l {
             Some(l) => run(l, sel, short, x),
-            None => run(&liella_fuzz::locale(true), sel, short, x),
+            None => run(&niji_fuzz::locale(true), sel, short, x),
         }),
     }
 });

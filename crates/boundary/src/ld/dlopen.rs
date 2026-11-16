@@ -13,7 +13,7 @@
 //!   state, which `fork` waits for (DL-16c). The `&mut Loader` borrow ends before any constructor
 //!   runs. Readers take neither (`super::readers`); the lock order is written at [`CALL`].
 //! * **A new set.** The name is found (the caller's object as requester), every object of the set
-//!   is opened, checked ([`liella_ld::dlopen::check`]), identified by (`st_dev`, `st_ino`) and
+//!   is opened, checked ([`niji_ld::dlopen::check`]), identified by (`st_dev`, `st_ino`) and
 //!   mapped; versions are checked; pass 1 of the relocation resolves every reference of the whole
 //!   set without running foreign code; only then pass 2 runs the IFUNC resolvers (ruling #5125), the
 //!   RELRO pages are protected, the set is published, and the constructors run in
@@ -37,17 +37,17 @@ use core::ffi::c_void;
 use core::mem::MaybeUninit;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use core::sync::atomic::{AtomicU32, AtomicUsize};
-use liella_kernel::auxv::Auxv;
-use liella_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
-use liella_ld::arch::{Arch, Native};
-use liella_ld::cache::Cache;
-use liella_ld::dlopen::{self as dl, Mode, Refusal};
-use liella_ld::elf::{pt, Elf, STB_GNU_UNIQUE};
-use liella_ld::reloc::{self, Obj, Objects, RelocError, VersionError};
-use liella_ld::search::{self, Ctx, PathBuf, Scope};
-use liella_ld::symbols::{self, Found as SymFound, LookupError, Object, Request, UniqueRegistry, Want};
-use liella_ld::tls::{self as ltls, Module, Placed};
-use liella_ld::{init, map, start};
+use niji_kernel::auxv::Auxv;
+use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
+use niji_ld::arch::{Arch, Native};
+use niji_ld::cache::Cache;
+use niji_ld::dlopen::{self as dl, Mode, Refusal};
+use niji_ld::elf::{pt, Elf, STB_GNU_UNIQUE};
+use niji_ld::reloc::{self, Obj, Objects, RelocError, VersionError};
+use niji_ld::search::{self, Ctx, PathBuf, Scope};
+use niji_ld::symbols::{self, Found as SymFound, LookupError, Object, Request, UniqueRegistry, Want};
+use niji_ld::tls::{self as ltls, Module, Placed};
+use niji_ld::{init, map, start};
 
 /// Objects the process can hold, the start-time ones included; one more is refused with a text.
 pub(super) const CAP: usize = 512;
@@ -223,7 +223,7 @@ const MAP_NORESERVE_I32: i32 = 0x4000;
 const FUTEX_WAIT_PRIVATE: i64 = 128;
 const FUTEX_WAKE_PRIVATE: i64 = 129;
 
-/// One object's link map: `<link.h>`'s public `struct link_map` prefix, then Liella's own fields.
+/// One object's link map: `<link.h>`'s public `struct link_map` prefix, then libniji's own fields.
 /// All-zero is a valid value (the loader's mapping starts zeroed).
 #[repr(C)]
 struct Node {
@@ -307,9 +307,9 @@ struct Loader {
     /// current `load_set` began ([`unwind`] takes back the later ones).
     surplus: ltls::Surplus<{ ltls::MODULES_MAX }>,
     tls_mark: usize,
-    /// `__liella_thread_walk`'s address once looked up (0: not yet).
+    /// `__niji_thread_walk`'s address once looked up (0: not yet).
     thread_walk: usize,
-    /// `__liella_owner_unload`'s address once looked up (0: not yet).
+    /// `__niji_owner_unload`'s address once looked up (0: not yet).
     owner_unload: usize,
     /// The TLS module IDs of `dlopen`ed modules (DL-17: an unloaded module's ID is reused).
     ids: ltls::ModuleIds,
@@ -337,7 +337,7 @@ impl Reentrant {
 
     fn futex(&self, op: i64, val: u32) {
         let addr = self.word.as_ptr().cast::<c_void>();
-        let _ = crate::ffi_sys::liella_sys_futex(addr, op, i64::from(val), core::ptr::null(), core::ptr::null_mut(), 0);
+        let _ = crate::ffi_sys::niji_sys_futex(addr, op, i64::from(val), core::ptr::null(), core::ptr::null_mut(), 0);
     }
 
     fn lock(&self) {
@@ -819,11 +819,11 @@ fn file_id(path: &[u8]) -> Option<(u64, u64)> {
         return None;
     }
     let c = buf.c_str()?;
-    let fd = crate::ffi_sys::liella_sys_openat(AT_FDCWD, core::ptr::with_exposed_provenance(c.as_ptr().expose_provenance()), i64::from(O_RDONLY | O_CLOEXEC), 0);
+    let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, core::ptr::with_exposed_provenance(c.as_ptr().expose_provenance()), i64::from(O_RDONLY | O_CLOEXEC), 0);
     let _ = i32::try_from(fd).ok().filter(|&f| f >= 0)?;
-    let mut st = liella_kernel::uapi::Stat::default();
-    let ok = crate::ffi_sys::liella_sys_fstat(fd, core::ptr::from_mut(&mut st).cast::<c_void>()) == 0;
-    let _ = crate::ffi_sys::liella_sys_close(fd);
+    let mut st = niji_kernel::uapi::Stat::default();
+    let ok = crate::ffi_sys::niji_sys_fstat(fd, core::ptr::from_mut(&mut st).cast::<c_void>()) == 0;
+    let _ = crate::ffi_sys::niji_sys_close(fd);
     ok.then_some((st.dev, st.ino))
 }
 
@@ -846,7 +846,7 @@ impl Ctors {
         let [a, b, c] = [0, 1, 2].map(|i| i64::from_ne_bytes(u64::try_from(start_arg(i)).unwrap_or(0).to_ne_bytes()));
         for &(f, addr, len) in self.calls.get(..self.len).unwrap_or(&[]) {
             for f in init::init_calls(f, array_words(init::Array { addr, len })) {
-                let _ = crate::ffi::liella_machine_call3(usize::try_from(f).unwrap_or(0), a, b, c);
+                let _ = crate::ffi::niji_machine_call3(usize::try_from(f).unwrap_or(0), a, b, c);
             }
         }
     }
@@ -947,9 +947,9 @@ struct Finis {
     calls: [[u64; 3]; CAP],
     idx: [u16; CAP],
     len: usize,
-    /// Each object's mapped range [lo, hi), for the C library's `__liella_owner_unload`.
+    /// Each object's mapped range [lo, hi), for the C library's `__niji_owner_unload`.
     ranges: [(usize, usize); CAP],
-    /// `__liella_owner_unload`'s address when this is a `dlclose` or a last-pin unload (0: at exit, or
+    /// `__niji_owner_unload`'s address when this is a `dlclose` or a last-pin unload (0: at exit, or
     /// no C library has it).
     owner_unload: usize,
 }
@@ -992,10 +992,10 @@ impl Finis {
         let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
         for (&[addr, len, fini], &(lo, hi)) in self.calls.get(..self.len).unwrap_or(&[]).iter().zip(self.ranges.iter()) {
             for f in init::fini_calls(fini, array_words(init::Array { addr, len })) {
-                let _ = crate::ffi::liella_machine_call0(usize::try_from(f).unwrap_or(0));
+                let _ = crate::ffi::niji_machine_call0(usize::try_from(f).unwrap_or(0));
             }
             if self.owner_unload != 0 {
-                let _ = crate::ffi::liella_machine_call3(self.owner_unload, w(lo), w(hi), 0);
+                let _ = crate::ffi::niji_machine_call3(self.owner_unload, w(lo), w(hi), 0);
             }
         }
     }
@@ -1382,7 +1382,7 @@ fn room_wait() {
         }
         while !super::readers::drained() {
             let ts = [0i64, ROOM_POLL_NS];
-            let _ = crate::ffi_sys::liella_sys_clock_nanosleep(CLOCK_MONOTONIC, 0, ts.as_ptr().cast::<c_void>(), core::ptr::null_mut());
+            let _ = crate::ffi_sys::niji_sys_clock_nanosleep(CLOCK_MONOTONIC, 0, ts.as_ptr().cast::<c_void>(), core::ptr::null_mut());
         }
     }
 }
@@ -1430,7 +1430,7 @@ enum Found {
     New(usize),
     /// A candidate refused: the reason and the path it was found at (a span of the path arena).
     Refused(Refusal, (u32, u32)),
-    /// Out of room (objects, paths or dependency entries) or a mapping failure: Liella's own text.
+    /// Out of room (objects, paths or dependency entries) or a mapping failure: libniji's own text.
     Full(&'static [u8]),
 }
 
@@ -1439,7 +1439,7 @@ struct Env {
     secure: bool,
     library_path: Option<&'static [u8]>,
     origin_path: Option<&'static [u8]>,
-    features: liella_rt::cpu::Features,
+    features: niji_rt::cpu::Features,
     cache: Option<(&'static [u8], Cache<'static>)>,
 }
 
@@ -1505,14 +1505,14 @@ fn scope_of(l: &Loader, i: usize) -> Scope<'static> {
 #[allow(clippy::indexing_slicing)]
 fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, searched: bool, noload: bool, page: u64) -> Option<Found> {
     let cpath = path.as_ptr().expose_provenance();
-    let fd = crate::ffi_sys::liella_sys_openat(AT_FDCWD, core::ptr::with_exposed_provenance(cpath), i64::from(O_RDONLY | O_CLOEXEC), 0);
+    let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, core::ptr::with_exposed_provenance(cpath), i64::from(O_RDONLY | O_CLOEXEC), 0);
     let fd32 = i32::try_from(fd).ok().filter(|&f| f >= 0)?;
     let close = || {
-        let _ = crate::ffi_sys::liella_sys_close(fd);
+        let _ = crate::ffi_sys::niji_sys_close(fd);
     };
     let shown = path.strip_suffix(b"\0").unwrap_or(path);
-    let mut st = liella_kernel::uapi::Stat::default();
-    if crate::ffi_sys::liella_sys_fstat(fd, core::ptr::from_mut(&mut st).cast::<c_void>()) != 0 {
+    let mut st = niji_kernel::uapi::Stat::default();
+    if crate::ffi_sys::niji_sys_fstat(fd, core::ptr::from_mut(&mut st).cast::<c_void>()) != 0 {
         close();
         return None;
     }
@@ -1529,8 +1529,8 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         close();
         return refused(l, Refusal::Directory);
     }
-    let size = crate::ffi_sys::liella_sys_lseek(fd, 0, i64::from(SEEK_END));
-    let Some(len) = usize::try_from(size).ok().filter(|&s| s >= liella_ld::elf::EHDR_SIZE) else {
+    let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
+    let Some(len) = usize::try_from(size).ok().filter(|&s| s >= niji_ld::elf::EHDR_SIZE) else {
         close();
         return refused(l, Refusal::TooShort);
     };
@@ -1802,7 +1802,7 @@ fn place_tls(l: &mut Loader, base: usize, k: usize, new: &mut super::NewTls) -> 
     Ok(())
 }
 
-/// The C library's `__liella_thread_walk` (a start object's, at `LIELLA_PRIVATE`), looked up once
+/// The C library's `__niji_thread_walk` (a start object's, at `NIJI_PRIVATE`), looked up once
 /// by the first `dlopen` that loads TLS; 0 when no start object has it.
 fn thread_walk(l: &mut Loader) -> usize {
     if l.thread_walk == 0 {
@@ -1814,7 +1814,7 @@ fn thread_walk(l: &mut Loader) -> usize {
     l.thread_walk
 }
 
-/// The C library's `__liella_owner_unload` (a start object's, at `LIELLA_PRIVATE`; D-27.29),
+/// The C library's `__niji_owner_unload` (a start object's, at `NIJI_PRIVATE`; D-27.29),
 /// looked up once by the first `dlclose` that unloads an object; 0 when no start object has it.
 fn owner_unload(l: &mut Loader) -> usize {
     if l.owner_unload == 0 {

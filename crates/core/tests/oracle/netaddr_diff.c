@@ -1,5 +1,5 @@
 /* Address conversion, interfaces, IPv6 option helpers and Ethernet addresses end to end (spec
- * §15.3-15.8; phase 10): built against the host C library and against Liella's products, the
+ * §15.3-15.8; phase 10): built against the host C library and against libniji's products, the
  * outputs must match line for line (netaddr_products.rs). Black-box: every line is a result of a
  * public function; interface output is limited to the loopback interface so that it does not
  * depend on the machine. */

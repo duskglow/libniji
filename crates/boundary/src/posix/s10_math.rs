@@ -1,14 +1,14 @@
 //! Translation for spec §10: the floating-point environment (§10.6, D-10.5). The math functions
 //! themselves are generated (`s10_math_gen.rs`, `cargo xtask math-gen`).
 //!
-//! The logic is `liella_rt::fpu`, which keeps the SSE and x87 units in step; these exports only
+//! The logic is `niji_rt::fpu`, which keeps the SSE and x87 units in step; these exports only
 //! convert. `FE_DFL_ENV`, `FE_NOMASK_ENV` and `FE_DFL_MODE` arrive as the addresses −1 and −2
 //! (`conv::fe_arg`). The trap functions return the previously enabled set, as glibc documents
 //! (`fenv(3)`), not a status.
 
-use liella_abi::ctypes::c_int;
-use liella_abi::layout::{femode_t, fenv_t, fexcept_t};
-use liella_rt::fpu::{self, Flags, Rounding};
+use niji_abi::ctypes::c_int;
+use niji_abi::layout::{femode_t, fenv_t, fexcept_t};
+use niji_rt::fpu::{self, Flags, Rounding};
 
 use crate::conv;
 use crate::export;

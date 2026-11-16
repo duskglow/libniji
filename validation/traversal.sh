@@ -1,9 +1,9 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # A directory removed during a traversal (D-13.13; spec §13.2, readdir on a removed directory):
-# how ls -R, find, du and rm -r behave, built against glibc and against Liella.
+# how ls -R, find, du and rm -r behave, built against glibc and against libniji.
 #
-#   validation/traversal.sh GLIBC_BIN_DIR LIELLA_BIN_DIR OUT_DIR
+#   validation/traversal.sh GLIBC_BIN_DIR NIJI_BIN_DIR OUT_DIR
 #
 # Each BIN_DIR holds ls, du, rm and find from the validation builds. The tree is
 # top/{a,b,c}, with b holding three files and a subdirectory. The moment is made exact with
@@ -58,7 +58,7 @@ run_case() { # libc bindir tool moment
     for tool in ls find du rm; do
         for moment in 1 2; do
             run_case glibc "$G" $tool $moment
-            run_case liella "$L" $tool $moment
+            run_case niji "$L" $tool $moment
         done
     done
 } | tee "$out/traversal.tsv"

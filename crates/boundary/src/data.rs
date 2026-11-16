@@ -18,7 +18,7 @@ pub static DOT: [u8; 2] = *b".\0";
 
 use core::sync::atomic::AtomicPtr;
 
-use liella_legacy::ctype_tables::{C_CLASS, C_CLASS32, C_TOLOWER, C_TOUPPER, ZERO};
+use niji_legacy::ctype_tables::{C_CLASS, C_CLASS32, C_TOLOWER, C_TOUPPER, ZERO};
 
 macro_rules! table_ptr {
     ($(#[$m:meta])* $name:ident: $t:ty = $table:ident) => {
@@ -159,7 +159,7 @@ data_word!(
 // ------------------------------------------------------------------------------ §20.8 objects
 //
 // `sys_siglist`, `_sys_siglist` and `sys_sigabbrev` (compat since 2.32): 65 pointers to the
-// signal descriptions and abbreviations (`liella_legacy::signal_compat`), NULL for 0 and for
+// signal descriptions and abbreviations (`niji_legacy::signal_compat`), NULL for 0 and for
 // the numbers without one, as glibc's `GLIBC_2.3.3` objects.
 
 // A `const fn` loop over fixed sizes: `i` stays below 32 and both arrays are larger.
@@ -177,15 +177,15 @@ const fn sig_table(t: &'static [&'static [u8]; 32]) -> [AtomicPtr<u8>; 65] {
 // Not exported from here, as the malloc hooks above (LG-6: `compat_aliases.S`).
 compat_word!(
     /// `sys_siglist` (compat).
-    sys_siglist: [AtomicPtr<u8>; 65] = sig_table(&liella_legacy::signal_compat::DESCRIPTIONS)
+    sys_siglist: [AtomicPtr<u8>; 65] = sig_table(&niji_legacy::signal_compat::DESCRIPTIONS)
 );
 compat_word!(
     /// `_sys_siglist` (compat).
-    _sys_siglist: [AtomicPtr<u8>; 65] = sig_table(&liella_legacy::signal_compat::DESCRIPTIONS)
+    _sys_siglist: [AtomicPtr<u8>; 65] = sig_table(&niji_legacy::signal_compat::DESCRIPTIONS)
 );
 compat_word!(
     /// `sys_sigabbrev` (compat).
-    sys_sigabbrev: [AtomicPtr<u8>; 65] = sig_table(&liella_legacy::signal_compat::ABBREVIATIONS)
+    sys_sigabbrev: [AtomicPtr<u8>; 65] = sig_table(&niji_legacy::signal_compat::ABBREVIATIONS)
 );
 
 // ------------------------------------------------------------------------------ threads (§22)
@@ -198,7 +198,7 @@ compat_word!(
 pub static __libc_single_threaded: core::sync::atomic::AtomicU8 = core::sync::atomic::AtomicU8::new(1);
 
 /// `__rseq_offset` (§22.9): the rseq area's offset from the thread pointer, in a process
-/// Liella started (glibc's `ld.so` defines its own; `libc.so.6` keeps this one local).
+/// libniji started (glibc's `ld.so` defines its own; `libc.so.6` keeps this one local).
 // UNSAFE(export): as above.
 #[cfg_attr(feature = "runtime", unsafe(no_mangle))]
 #[allow(unsafe_code)]
@@ -219,13 +219,13 @@ pub static __rseq_size: core::sync::atomic::AtomicU32 = core::sync::atomic::Atom
 #[allow(non_upper_case_globals)]
 pub static __rseq_flags: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
-/// `__liella_build_tag@LIELLA_PRIVATE` (L14-10, D-27.22): Liella's `ld.so` refuses a `libc.so.6`
+/// `__niji_build_tag@NIJI_PRIVATE` (L14-10, D-27.22): libniji's `ld.so` refuses a `libc.so.6`
 /// whose tag differs from its own.
 // UNSAFE(export): as above; read only by `ld.so`.
 #[cfg_attr(feature = "runtime", unsafe(no_mangle))]
 #[allow(unsafe_code)]
 #[allow(non_upper_case_globals)]
-pub static __liella_build_tag: [u8; liella_rt::start::private::TAG_LEN] = liella_rt::start::private::tag(option_env!("LIELLA_BUILD_TAG"));
+pub static __niji_build_tag: [u8; niji_rt::start::private::TAG_LEN] = niji_rt::start::private::tag(option_env!("NIJI_BUILD_TAG"));
 
 // ------------------------------------------------------------------------------ §12 objects
 //
@@ -234,7 +234,7 @@ pub static __liella_build_tag: [u8; liella_rt::start::private::TAG_LEN] = liella
 // `crate::stdio`; only `_fileno` is preset. `stdin`, `stdout` and `stderr` are assignable
 // pointers to them, read on every implicit use. `_IO_list_all` heads the open-streams list.
 
-use liella_legacy::stdio_compat::{word, FILE_WORDS};
+use niji_legacy::stdio_compat::{word, FILE_WORDS};
 
 // These objects are exported only by the products (feature `runtime`), not in the test pass
 // with exports: the host C library's own code reads the objects of these names (its exit-time
@@ -295,7 +295,7 @@ product_data!(
 );
 
 // The libio jump tables (§12.13, F32, R15-3, IO-VTABLES): read-only objects of the manifest's
-// size (`spec/abi/versions.tsv`, 168 bytes), all zero. Liella's stdio never dispatches through
+// size (`spec/abi/versions.tsv`, 168 bytes), all zero. libniji's stdio never dispatches through
 // them and its `FILE` holds no pointer to them, so overwriting a stream's words redirects no
 // call (differences row "libio jump tables"). Like the reference's, they lie in read-only
 // memory (probe: spec/behaviour/compat-libio.md).
@@ -367,14 +367,14 @@ mod tz_objects {
 
 /// The time-zone globals `tzset` writes (spec §23.6).
 #[cfg(not(feature = "runtime"))]
-pub fn tz_globals() -> liella_legacy::time_compat::Globals<'static> {
-    liella_legacy::time_compat::Globals { tzname: &tz_objects::TZNAME, timezone: &tz_objects::TIMEZONE, daylight: &tz_objects::DAYLIGHT }
+pub fn tz_globals() -> niji_legacy::time_compat::Globals<'static> {
+    niji_legacy::time_compat::Globals { tzname: &tz_objects::TZNAME, timezone: &tz_objects::TIMEZONE, daylight: &tz_objects::DAYLIGHT }
 }
 
 /// The time-zone globals `tzset` writes (spec §23.6).
 #[cfg(feature = "runtime")]
-pub fn tz_globals() -> liella_legacy::time_compat::Globals<'static> {
-    liella_legacy::time_compat::Globals { tzname: &crate::ffi::__tzname, timezone: &crate::ffi::__timezone, daylight: &crate::ffi::__daylight }
+pub fn tz_globals() -> niji_legacy::time_compat::Globals<'static> {
+    niji_legacy::time_compat::Globals { tzname: &crate::ffi::__tzname, timezone: &crate::ffi::__timezone, daylight: &crate::ffi::__daylight }
 }
 
 // ------------------------------------------------------------------------------ §15.3 objects
@@ -420,7 +420,7 @@ const fn h_table() -> [AtomicPtr<u8>; 5] {
     let mut out = [const { AtomicPtr::new(core::ptr::null_mut()) }; 5];
     let mut i = 0;
     while i < 5 {
-        out[i] = AtomicPtr::new(liella::names::msg::H_ERRLIST[i].as_ptr().cast_mut());
+        out[i] = AtomicPtr::new(niji::names::msg::H_ERRLIST[i].as_ptr().cast_mut());
         i += 1;
     }
     out
@@ -447,7 +447,7 @@ product_data!(
 
 use core::sync::atomic::AtomicU64;
 
-use liella::names::dns::text::{Sym, CLASS_SYMS, OPCODES, TYPE_SYMS};
+use niji::names::dns::text::{Sym, CLASS_SYMS, OPCODES, TYPE_SYMS};
 
 /// A `struct __res_state` as atomic words.
 #[repr(C, align(8))]
@@ -547,11 +547,11 @@ product_data!(
 );
 product_data!(
     /// `_nl_default_dirname` (§7.7): the directory of unbound domains.
-    _nl_default_dirname: [u8; 18] = liella_legacy::intl::DEFAULT_DIR_TEXT
+    _nl_default_dirname: [u8; 18] = niji_legacy::intl::DEFAULT_DIR_TEXT
 );
 product_data!(
     /// `_libc_intl_domainname` (§7.7): the C library's own domain.
-    _libc_intl_domainname: [u8; 5] = liella_legacy::intl::LIBC_DOMAIN_TEXT
+    _libc_intl_domainname: [u8; 5] = niji_legacy::intl::LIBC_DOMAIN_TEXT
 );
 
 /// The address of the table `__p_type_syms` (`true`) or `__p_class_syms`.

@@ -18,7 +18,7 @@ pub(crate) enum Namespace {
     Root,
 }
 
-/// One library of a `cache:` directive, written with `liella_ld::cache::write`.
+/// One library of a `cache:` directive, written with `niji_ld::cache::write`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CacheEntry {
     pub flags: u32,
@@ -33,7 +33,7 @@ pub(crate) enum Setup {
     Dir(Vec<u8>),
     File(Vec<u8>, Vec<u8>),
     Link(Vec<u8>, Vec<u8>),
-    /// A loader cache from Liella's writer: path, generator text, entries in configuration order.
+    /// A loader cache from libniji's writer: path, generator text, entries in configuration order.
     Cache(Vec<u8>, Vec<u8>, Vec<CacheEntry>),
     /// A minimal shared object (ET_DYN, PT_LOAD + PT_DYNAMIC): path, its `DT_SONAME` if any, the number of bytes
     /// kept when the file is to be cut short, and its ELF class and machine.
@@ -110,7 +110,7 @@ pub(crate) struct Transcript {
     /// Written files compared as a loader cache's entry list (`as-cache: <path>`), not as bytes.
     pub as_cache: Vec<Vec<u8>>,
     /// Output lines whose value depends on the host (`host-value: <line prefix>`): the rest of such a line is
-    /// `@HOST@` in the record and in every comparison with it; the reference and Liella, run side by side on one
+    /// `@HOST@` in the record and in every comparison with it; the reference and libniji, run side by side on one
     /// host, are compared in full.
     pub host_values: Vec<Vec<u8>>,
     /// Output lines whose value changes from run to run (`mask-value: <line prefix>`): the rest of such a line is

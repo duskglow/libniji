@@ -588,13 +588,13 @@ fn corpus_unesc(s: &str) -> Vec<u8> {
 }
 
 /// The TEST thread's harvested corpus (`validation/corpus/regex.corpus`: the regex calls the
-/// validation packages' test suites made through glibc), when `LIELLA_REGEX_CORPUS` names it:
+/// validation packages' test suites made through glibc), when `NIJI_REGEX_CORPUS` names it:
 /// every call through both engines (`regcomp`, `regexec` with its flags and window, and the GNU
 /// searches without a translate table), which must agree.
 #[test]
 fn the_optimized_engine_agrees_with_the_oracle_on_the_harvested_corpus() {
-    let Ok(path) = std::env::var("LIELLA_REGEX_CORPUS") else {
-        return skip_note::skipped("skipped: LIELLA_REGEX_CORPUS is not set; the harvested corpus not compared");
+    let Ok(path) = std::env::var("NIJI_REGEX_CORPUS") else {
+        return skip_note::skipped("skipped: NIJI_REGEX_CORPUS is not set; the harvested corpus not compared");
     };
     let text = std::fs::read(path).unwrap();
     let text: String = text.iter().map(|&b| char::from(b)).collect();

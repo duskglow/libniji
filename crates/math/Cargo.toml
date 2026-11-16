@@ -1,5 +1,5 @@
 [package]
-name = "liella-math"
+name = "niji-math"
 description = "libm contracts: one generic implementation per operation across all floating formats"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 publish.workspace = true
 
 [lib]
-name = "liella_math"
+name = "niji_math"
 
 [features]
 # Test only (M6-0): count fast-path and fallback calls per function (`stats`). Off in the products,
@@ -16,18 +16,18 @@ name = "liella_math"
 fastpath-stats = []
 
 [dependencies]
-liella-rt = { workspace = true }
+niji-rt = { workspace = true }
 
 [dev-dependencies]
 spectest = { workspace = true }
 # The environment tests run against the real machine (CSys), traps in forked children.
-liella-boundary = { workspace = true, features = ["selftest"] }
-# The shared oracle builder (tests/support/oracle.rs in liella-core) locks with flock.
-liella-kernel = { workspace = true }
+niji-boundary = { workspace = true, features = ["selftest"] }
+# The shared oracle builder (tests/support/oracle.rs in niji-core) locks with flock.
+niji-kernel = { workspace = true }
 # The test oracle (D-10.3).
-liella-mathtools = { workspace = true }
+niji-mathtools = { workspace = true }
 # The accuracy tests read the fast-path counts (M6-0).
-liella-math = { path = ".", features = ["fastpath-stats"] }
+niji-math = { path = ".", features = ["fastpath-stats"] }
 
 [lints]
 workspace = true

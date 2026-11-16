@@ -10,10 +10,10 @@
 use crate::error::{Errno, Result};
 use crate::fs::dir::DirStream;
 use crate::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::{KStr, PATH_MAX};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Stat, AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_DIRECTORY, O_PATH, O_RDONLY, SEEK_SET};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::{KStr, PATH_MAX};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Stat, AT_SYMLINK_NOFOLLOW, O_CLOEXEC, O_DIRECTORY, O_PATH, O_RDONLY, SEEK_SET};
 
 fn kstr(z: &[u8]) -> Result<KStr<'_>> {
     KStr::from_nul_terminated(z)

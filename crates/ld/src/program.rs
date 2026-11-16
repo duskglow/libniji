@@ -41,10 +41,10 @@ pub fn action<'a>(args: impl IntoIterator<Item = &'a [u8]>) -> Action<'a> {
     }
 }
 
-/// The `--version` text, in the order it is written: Liella's name and version, the ABI it
+/// The `--version` text, in the order it is written: libniji's name and version, the ABI it
 /// implements and the interpreter's own name ([`Arch::INTERP`]).
-pub fn version<A: Arch>(liella_version: &'static str) -> [&'static str; 5] {
-    ["ld.so (Liella) ", liella_version, "\nImplements the GNU C Library 2.39 ABI.\nProgram interpreter: ", A::INTERP, "\n"]
+pub fn version<A: Arch>(niji_version: &'static str) -> [&'static str; 5] {
+    ["ld.so (libniji) ", niji_version, "\nImplements the GNU C Library 2.39 ABI.\nProgram interpreter: ", A::INTERP, "\n"]
 }
 
 /// The `--help` text, in the order it is written.
@@ -53,7 +53,7 @@ pub fn help<A: Arch>() -> [&'static str; 3] {
         "Usage: ",
         A::INTERP,
         " [OPTION]... EXECUTABLE-FILE [ARGS-FOR-PROGRAM...]\n\
-         Liella's program interpreter. Run as a program, it loads and runs EXECUTABLE-FILE.\n\
+         libniji's program interpreter. Run as a program, it loads and runs EXECUTABLE-FILE.\n\
          \n\
          \x20 --help     print this help and exit\n\
          \x20 --version  print version information and exit\n\

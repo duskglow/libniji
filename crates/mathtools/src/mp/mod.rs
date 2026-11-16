@@ -1,4 +1,4 @@
-//! Arbitrary-precision binary floating point: the reference that `liella-math` is measured
+//! Arbitrary-precision binary floating point: the reference that `niji-math` is measured
 //! against.
 //!
 //! A [`Big`] is NaN, ±inf, ±0 or `±m * 2^e` with `m` an odd big integer, so every value has one

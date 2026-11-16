@@ -4,7 +4,7 @@
 //! time; this pins that neither changes an answer.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::locale::name::lookup_alias;
+use niji::locale::name::lookup_alias;
 
 /// The definition: split into lines, cut at `#`, the first two blank-separated fields are the
 /// key and the value, the key is matched without regard to case.

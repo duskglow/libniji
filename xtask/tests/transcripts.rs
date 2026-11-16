@@ -1,5 +1,5 @@
 //! UTIL-HARNESS: `cargo xtask transcript check` over the committed transcripts (validation/transcripts/), run as a
-//! gate runs it: Liella's side (the `ldconfig -p` stub until UTIL-3) against the reference where it is installed and
+//! gate runs it: libniji's side (the `ldconfig -p` stub until UTIL-3) against the reference where it is installed and
 //! against the record, and a transcript whose record was changed by one byte must fail with a MISMATCH.
 //!
 //! Trace: s31_2_g_6 (`ldconfig -p` listing), s31_2_f_1 (a cache that cannot be opened); the harness itself has no
@@ -34,13 +34,13 @@ fn the_shipped_ldconfig_passes_the_transcripts() {
     // transcripts as the engine's hosted front end: its system-call file system (`-r` through openat2) must agree.
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root");
     let target = std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), std::path::PathBuf::from);
-    let program = target.join("liella/ldconfig");
+    let program = target.join("niji/ldconfig");
     if !program.exists() {
         eprintln!("SKIP: {} not built (run cargo xtask so)", program.display());
         return;
     }
-    let liella = format!("ldconfig={}", program.display());
-    let (code, text) = check(&["validation/transcripts/ldconfig", "--liella", &liella]);
+    let niji = format!("ldconfig={}", program.display());
+    let (code, text) = check(&["validation/transcripts/ldconfig", "--niji", &niji]);
     println!("{text}");
     assert_eq!(code, Some(0), "{text}");
     assert!(text.contains(" 0 mismatched, ") && text.contains(" 0 errors "), "{text}");

@@ -6,15 +6,15 @@ use super::sqrtsd;
 /// their build chosen at startup (as [`exp_nearest`](super::exp_nearest); the two builds agree bit for bit).
 macro_rules! invtrig_nearest {
     ($($name:ident($($a:ident),+) [$($s:expr)?];)+) => {$(
-        #[doc = concat!("`liella_math::invtrig::", stringify!($name), "` in the build chosen at startup.")]
+        #[doc = concat!("`niji_math::invtrig::", stringify!($name), "` in the build chosen at startup.")]
         #[inline(always)]
         pub(crate) fn $name($($a: f64),+) -> Option<f64> {
             if crate::dispatch::fma() {
                 // UNSAFE(hot-kernel) SAFETY: as in `exp_nearest`.
                 #[allow(unsafe_code)]
-                return unsafe { liella_math::invtrig::fused::$name($($a),+ $(, $s)?) };
+                return unsafe { niji_math::invtrig::fused::$name($($a),+ $(, $s)?) };
             }
-            liella_math::invtrig::$name($($a),+ $(, $s)?)
+            niji_math::invtrig::$name($($a),+ $(, $s)?)
         }
     )+};
 }
@@ -27,28 +27,28 @@ invtrig_nearest! {
     hypot_nearest(x, y) [sqrtsd];
 }
 
-/// `liella_math::invtrig::hypot_rounded` (the `double` `hypot` kernel in every direction, D-10.104)
+/// `niji_math::invtrig::hypot_rounded` (the `double` `hypot` kernel in every direction, D-10.104)
 /// on the hardware root ([`super::Hw`]), in the build chosen at startup (LIBM-HYPOT-DIRECTED-FAST;
 /// the two builds agree bit for bit). Runs in the default MXCSR, as the kernel requires.
 #[inline(always)]
-pub(crate) fn hypot_rounded(x: f64, y: f64, mode: liella_math::status::Rounding) -> Option<(f64, liella_math::status::Status)> {
+pub(crate) fn hypot_rounded(x: f64, y: f64, mode: niji_math::status::Rounding) -> Option<(f64, niji_math::status::Status)> {
     if crate::dispatch::fma() {
         // UNSAFE(hot-kernel) SAFETY: as in `exp_nearest`.
         #[allow(unsafe_code)]
-        return unsafe { liella_math::invtrig::fused::hypot_rounded::<super::Hw>(x, y, mode) };
+        return unsafe { niji_math::invtrig::fused::hypot_rounded::<super::Hw>(x, y, mode) };
     }
-    liella_math::invtrig::hypot_rounded::<super::Hw>(x, y, mode)
+    niji_math::invtrig::hypot_rounded::<super::Hw>(x, y, mode)
 }
 
 /// The `double` `csqrt` quick tier (LIBM-CPLX-LOG-SQRT, D-10.74) with the hardware root: both
 /// parts or `None`.
 #[inline(always)]
 pub(crate) fn csqrt_nearest(x: f64, y: f64) -> Option<(f64, f64)> {
-    liella_math::complex_fast::csqrt_nearest(x, y, sqrtsd)
+    niji_math::complex_fast::csqrt_nearest(x, y, sqrtsd)
 }
 
 /// The `float` `csqrtf` quick tier (LIBM-CPLX-LOG-SQRT, D-10.74) with the hardware root.
 #[inline(always)]
 pub(crate) fn csqrtf_nearest(x: f32, y: f32) -> Option<(f32, f32)> {
-    liella_math::fast32::csqrtf_nearest(x, y, sqrtsd)
+    niji_math::fast32::csqrtf_nearest(x, y, sqrtsd)
 }

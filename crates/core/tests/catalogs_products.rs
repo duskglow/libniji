@@ -1,10 +1,10 @@
 //! Message catalogs end to end (spec §7.7, §7.8; D-7.5, D-7.6; Appendix D.2):
 //! `tests/oracle/catalogs_diff.c` built against the host C library and statically against
-//! Liella's products, each run by `tests/oracle/catalogs_run.sh` (fixture catalogs built with
+//! libniji's products, each run by `tests/oracle/catalogs_run.sh` (fixture catalogs built with
 //! `msgfmt` and `gencat`, every other catalog written by the probe below a scratch directory under
-//! `target/`), with `LOCPATH` naming the test locales; Liella with the name-service cache on and
+//! `target/`), with `LOCPATH` naming the test locales; libniji with the name-service cache on and
 //! off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line, except the
-//! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only Liella prints) and
+//! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints) and
 //! [`DROPPED`] (a line only the reference prints). Every entry names the case it belongs to: the
 //! text of the last `== ` or `-- ` header line before it starts with the entry's first string, so a
 //! line repeated in many cases is recorded only where it differs.
@@ -38,12 +38,12 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/catalogs_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -109,7 +109,7 @@ const KNOWN: [(&str, &str, &str); 36] = [
     ("-- a FIFO (3 s limit)", "  child killed by signal SIGALRM", FIFO),
 ];
 
-/// Lines only Liella prints: the case, the text the line starts with, and why (the first such
+/// Lines only libniji prints: the case, the text the line starts with, and why (the first such
 /// line of the case is taken; a repeated entry takes the next one).
 const ADDED: [(&str, &str, &str); 6] = [
     ("-- division by zero", "  22:[f1]", NO_TRAP),
@@ -156,8 +156,8 @@ fn without(lines: Vec<(String, String)>, list: &[(&str, &str, &str)], who: &str)
     out
 }
 
-/// A line diff of `want` (glibc) and `got` (Liella) by longest common subsequence: each run of
-/// differing lines under the header of its case, `-` for glibc and `+` for Liella, at most 200 lines.
+/// A line diff of `want` (glibc) and `got` (libniji) by longest common subsequence: each run of
+/// differing lines under the header of its case, `-` for glibc and `+` for libniji, at most 200 lines.
 fn line_diff(want: &[(String, String)], got: &[(String, String)]) -> String {
     let (n, m) = (want.len(), got.len());
     // lcs[i][j]: the common subsequence length of want[i..] and got[j..].
@@ -196,14 +196,14 @@ fn line_diff(want: &[(String, String)], got: &[(String, String)]) -> String {
 }
 
 /// The damaged catalogs the record leaves out (offsets and sizes outside the file, where the
-/// reference crashes or reads foreign memory; catalogs.md, "Unstable cases") are safe in Liella
+/// reference crashes or reads foreign memory; catalogs.md, "Unstable cases") are safe in libniji
 /// (D-7.5, D-7.6: a damaged catalog is absent): every case ends normally, a `.mo` translates
 /// nothing it cannot read, and `catopen` fails with `EINVAL`.
 #[test]
 fn damaged_catalogs_outside_the_record_are_safe() {
     // Clauses: s7_7_g_0, s7_7_c_1, s7_7_c_2, s7_8_f_0 (D-7.5, D-7.6).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let absent: Vec<&str> = ["cc", "msgfmt", "gencat"].into_iter().filter(|t| skip_note::missing(t)).collect();
     if !absent.is_empty() {
         skip_note::skipped(&format!("no {} (the fixture catalogs and the probe need them)", absent.join(", ")));
@@ -217,7 +217,7 @@ fn damaged_catalogs_outside_the_record_are_safe() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let ours = dir.join("catalogs_unstable_liella");
+    let ours = dir.join("catalogs_unstable_niji");
     assert!(build(&ours, true), "catalogs_diff.c does not link against the products");
     let o = Command::new("timeout")
         .arg(timeout::secs(600))
@@ -260,7 +260,7 @@ fn catalogs_equal_the_reference() {
     // Clauses: s7_7_c_0, s7_7_c_1, s7_7_c_2, s7_7_c_3, s7_7_c_4, s7_7_c_5, s7_7_g_0, s7_8_c_0, s7_8_c_p1,
     // s7_8_f_0 (D-7.5, D-7.6, D-7.12).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -284,7 +284,7 @@ fn catalogs_equal_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("catalogs_diff_host"), dir.join("catalogs_diff_liella"));
+    let (host, ours) = (dir.join("catalogs_diff_host"), dir.join("catalogs_diff_niji"));
     assert!(build(&host, false), "catalogs_diff.c does not build against the host C library");
     assert!(build(&ours, true), "catalogs_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/catalogs_run.sh");
@@ -325,34 +325,34 @@ fn catalogs_equal_the_reference() {
     }
     for mode in ["on", "off"] {
         eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("catalogs-liella-{mode}"), Some(mode));
+        let got = run(&ours, &format!("catalogs-niji-{mode}"), Some(mode));
         let want = without(with_headers(&reference), &DROPPED, "the reference");
-        let got = without(with_headers(&got), &ADDED, "Liella");
+        let got = without(with_headers(&got), &ADDED, "libniji");
         let mut diffs = 0;
         let mut seen = [false; KNOWN.len()];
         for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
             if let Some(i) = KNOWN.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
                 if w != g {
                     seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
                 }
                 continue;
             }
             if w != g {
                 diffs += 1;
                 if diffs <= 400 {
-                    eprintln!("line {} ({}):\n  glibc  {w}\n  liella {g}", k + 1, h.trim_end());
+                    eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
                 }
             }
         }
         let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
         if want.len() != got.len() {
             // The diff comes first: a log that keeps only the start of a long message still shows it.
-            let (wf, gf) = (dir.join("catalogs-failed-glibc.txt"), dir.join(format!("catalogs-failed-liella-{mode}.txt")));
+            let (wf, gf) = (dir.join("catalogs-failed-glibc.txt"), dir.join(format!("catalogs-failed-niji-{mode}.txt")));
             let _ = std::fs::write(&wf, text(&want));
             let _ = std::fs::write(&gf, text(&got));
             panic!(
-                "line counts differ (glibc {}, liella {}; name-service cache {mode}); line diff (- glibc, + liella):\n{}\nfull outputs (recorded lines removed): {} and {}\n--- glibc\n{}\n--- liella\n{}",
+                "line counts differ (glibc {}, niji {}; name-service cache {mode}); line diff (- glibc, + niji):\n{}\nfull outputs (recorded lines removed): {} and {}\n--- glibc\n{}\n--- niji\n{}",
                 want.len(),
                 got.len(),
                 line_diff(&want, &got),

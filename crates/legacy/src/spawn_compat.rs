@@ -4,11 +4,11 @@
 //! The attributes object is plain data: its documented members hold the values, with the
 //! 1024-bit `sigset_t`s of §20.3 (only the first 64 signals mean anything, D-20.3; the
 //! library's internal signal is never stored, D-20.7). The file-actions object holds the address
-//! and length of a caller-heap block with the actions in `liella::process`'s encoding
+//! and length of a caller-heap block with the actions in `niji::process`'s encoding
 //! (`__actions`, `__used`; `__allocated` is the block's size).
 
-use liella::process::SpawnAttr;
-use liella_abi::layout::sigset_t;
+use niji::process::SpawnAttr;
+use niji_abi::layout::sigset_t;
 
 use crate::signal_compat::{c_set, kernel_set};
 
@@ -54,7 +54,7 @@ impl CSpawnAttr {
         }
     }
 
-    /// Store the flags (checked by `liella::process::spawn_flags`, so they fit in `short`).
+    /// Store the flags (checked by `niji::process::spawn_flags`, so they fit in `short`).
     pub fn set_flags(&mut self, flags: u32) {
         self.flags = i16::from_ne_bytes(u16::try_from(flags & 0xffff).unwrap_or(0).to_ne_bytes());
     }

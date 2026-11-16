@@ -20,11 +20,11 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{ApplyError, Arch, Field, Native, Operands, RelocKind};
-use liella_ld::elf::{Elf, Span, SpanKind};
-use liella_ld::map::{PROT_EXEC, PROT_WRITE};
-use liella_ld::reloc::{self, Image, Obj, Objects, RelocError, UniqueTable};
-use liella_ld::symbols::{Object, Request, Want};
+use niji_ld::arch::{ApplyError, Arch, Field, Native, Operands, RelocKind};
+use niji_ld::elf::{Elf, Span, SpanKind};
+use niji_ld::map::{PROT_EXEC, PROT_WRITE};
+use niji_ld::reloc::{self, Image, Obj, Objects, RelocError, UniqueTable};
+use niji_ld::symbols::{Object, Request, Want};
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -40,7 +40,7 @@ fn cc_ok() -> bool {
 }
 
 fn product() -> Option<PathBuf> {
-    let p = target().join("liella").join(Native::INTERP);
+    let p = target().join("niji").join(Native::INTERP);
     if p.exists() {
         return Some(p);
     }
@@ -641,7 +641,7 @@ fn reloc_image_reader_slices_only_unchanging_segments() {
     for (prog, textrel) in [(p, false), (t, true)] {
         let file = std::fs::read(&prog).unwrap();
         let elf = Elf::parse::<Native>(&file).unwrap();
-        let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
+        let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
         let dynamic = elf.segment_bytes(&dynph).unwrap().to_vec();
         let mem = memory_of(&file, &elf);
         let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1 && p.filesz != 0).collect();
@@ -655,7 +655,7 @@ fn reloc_image_reader_slices_only_unchanging_segments() {
             );
         }
         assert_eq!(kinds.contains(&SpanKind::Copy), textrel, "{}: only the text-relocated program needs whole-segment copies: {kinds:?}", prog.display());
-        let range = |p: &liella_ld::elf::ProgramHeader| p.vaddr as usize..(p.vaddr + p.filesz) as usize;
+        let range = |p: &niji_ld::elf::ProgramHeader| p.vaddr as usize..(p.vaddr + p.filesz) as usize;
         let copies: Vec<(u64, Vec<u8>)> = loads.iter().zip(&kinds).filter(|(_, k)| **k == SpanKind::Copy).map(|(p, _)| (p.vaddr, mem[range(p)].to_vec())).collect();
         let mut spans: Vec<Span<'_>> = copies.iter().map(|(v, b)| Span { vaddr: *v, bytes: b }).collect();
         spans.push(Span { vaddr: dynph.vaddr, bytes: &dynamic });
@@ -731,7 +731,7 @@ fn without_pt_phdr(ld: &Path, d: &Path, p: &Path, name: &str) {
     std::fs::write(&tmp, &file).unwrap();
     std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
     assert!(Command::new("cp").arg(&tmp).arg(&q).status().unwrap().success());
-    assert!(Elf::parse::<Native>(&file).unwrap().find(liella_ld::elf::pt::PHDR).is_none());
+    assert!(Elf::parse::<Native>(&file).unwrap().find(niji_ld::elf::pt::PHDR).is_none());
     let (code, sig, err) = run(&mut Command::new(&q));
     assert_eq!((code, sig), (Some(0), None), "{name}: kernel-started program without PT_PHDR: check number {code:?} failed; stderr: {err}");
     let (code, sig, err) = run(Command::new(ld).arg(&q));
@@ -743,7 +743,7 @@ fn without_pt_phdr(ld: &Path, d: &Path, p: &Path, name: &str) {
 fn libc_by_path(lib: &Path, d: &Path, name: &str, edit: impl FnOnce(&mut Vec<u8>)) -> std::path::PathBuf {
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
-    let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
+    let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
     let (off, len) = (dynph.offset as usize, dynph.filesz as usize);
     let at = (off..off + len).step_by(16).find(|&o| so[o..o + 8] == 14u64.to_le_bytes()).expect("libc.so.6 has a DT_SONAME");
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
@@ -762,7 +762,7 @@ const EARLY_PROG: &str = "#include <stdlib.h>
 static int seen = 3;
 static void pre(int argc, char **argv, char **envp) {
   (void)argc; (void)argv; (void)envp;
-  if (getenv(\"LIELLA_EARLY_PROBE\") == 0) { seen = 1; return; }
+  if (getenv(\"NIJI_EARLY_PROBE\") == 0) { seen = 1; return; }
   seen = 2;
   memcpy(0, 0, 0);
   memset(0, 0, 0);
@@ -774,7 +774,7 @@ int main(void) { return seen; }
 
 /// Link [`EARLY_PROG`] as a PIE against `libc` (by path) with `ld` as its interpreter.
 fn early_prog(ld: &Path, d: &Path, libc: &Path, out: &str) -> std::path::PathBuf {
-    let crt1 = target().join("liella").join("liella-crt1.o");
+    let crt1 = target().join("niji").join("niji-crt1.o");
     let c = d.join("early.c");
     std::fs::write(&c, EARLY_PROG).unwrap();
     let o = d.join(out);
@@ -783,22 +783,22 @@ fn early_prog(ld: &Path, d: &Path, libc: &Path, out: &str) -> std::path::PathBuf
     o
 }
 
-/// s27_1_c_8, D-27.22 (design §14): `ld.so` calls libc's `__liella_libc_early_init` before any
+/// s27_1_c_8, D-27.22 (design §14): `ld.so` calls libc's `__niji_libc_early_init` before any
 /// constructor, so the program's `.preinit_array` function finds the environment published and
 /// `memcpy(NULL, NULL, 0)`/`memset(NULL, 0, 0)` return; kernel-started and as `ld.so PROGRAM`.
 #[test]
 fn reloc_libc_early_init_before_preinit() {
     let (true, Some(ld)) = (cc_ok(), product()) else { return };
-    let lib = target().join("liella");
-    if !lib.join("liella-crt1.o").exists() || !lib.join("libc.so.6").exists() {
-        eprintln!("SKIP: liella-crt1.o or libc.so.6 not built (run cargo xtask so)");
+    let lib = target().join("niji");
+    if !lib.join("niji-crt1.o").exists() || !lib.join("libc.so.6").exists() {
+        eprintln!("SKIP: niji-crt1.o or libc.so.6 not built (run cargo xtask so)");
         return;
     }
     let d = std::fs::canonicalize(dir("libcearly")).unwrap();
     let libc = libc_by_path(&lib, &d, "libc-early.so", |_| {});
     let p = early_prog(&ld, &d, &libc, "early");
     for (how, mut cmd) in [("kernel-started", Command::new(&p)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&p); c })] {
-        let (code, sig, err) = run(cmd.env("LIELLA_EARLY_PROBE", "1"));
+        let (code, sig, err) = run(cmd.env("NIJI_EARLY_PROBE", "1"));
         assert_eq!((code, sig), (Some(0), None), "{how}: early init before .preinit_array: check number {code:?} failed; stderr: {err}");
     }
     std::fs::remove_dir_all(&d).ok();
@@ -839,9 +839,9 @@ int main(int argc, char **argv) {
 #[test]
 fn reloc_loader_objects_published() {
     let (true, Some(ld)) = (cc_ok(), product()) else { return };
-    let lib = target().join("liella");
-    if !lib.join("liella-crt1.o").exists() || !lib.join("libc.so.6").exists() {
-        eprintln!("SKIP: liella-crt1.o or libc.so.6 not built (run cargo xtask so)");
+    let lib = target().join("niji");
+    if !lib.join("niji-crt1.o").exists() || !lib.join("libc.so.6").exists() {
+        eprintln!("SKIP: niji-crt1.o or libc.so.6 not built (run cargo xtask so)");
         return;
     }
     let d = std::fs::canonicalize(dir("ldobjects")).unwrap();
@@ -849,7 +849,7 @@ fn reloc_loader_objects_published() {
     let c = d.join("objects.c");
     std::fs::write(&c, LOADER_OBJECTS_PROG).unwrap();
     let p = d.join("objects");
-    let crt1 = lib.join("liella-crt1.o");
+    let crt1 = lib.join("niji-crt1.o");
     let r = Command::new("cc").args(["-O1", "-fno-builtin", "-nostdlib", "-fPIE", "-pie"]).arg(format!("-Wl,--dynamic-linker={}", ld.display())).arg("-o").arg(&p).arg(&crt1).arg(&c).arg(&libc).arg(&ld).arg("-lgcc").output().unwrap();
     assert!(r.status.success(), "objects: {}", String::from_utf8_lossy(&r.stderr));
     for off in [false, true] {
@@ -864,27 +864,27 @@ fn reloc_loader_objects_published() {
     std::fs::remove_dir_all(&d).ok();
 }
 
-/// s27_1_c_8, L14-10, D-27.22: a `libc.so.6` whose `LIELLA_PRIVATE` build tag differs from the
+/// s27_1_c_8, L14-10, D-27.22: a `libc.so.6` whose `NIJI_PRIVATE` build tag differs from the
 /// loader's (another build) is refused at load with the diagnostic, before any of its code runs.
 #[test]
 fn reloc_libc_build_tag_mismatch_refused() {
     let (true, Some(ld)) = (cc_ok(), product()) else { return };
-    let lib = target().join("liella");
-    if !lib.join("liella-crt1.o").exists() || !lib.join("libc.so.6").exists() {
-        eprintln!("SKIP: liella-crt1.o or libc.so.6 not built (run cargo xtask so)");
+    let lib = target().join("niji");
+    if !lib.join("niji-crt1.o").exists() || !lib.join("libc.so.6").exists() {
+        eprintln!("SKIP: niji-crt1.o or libc.so.6 not built (run cargo xtask so)");
         return;
     }
     let d = std::fs::canonicalize(dir("libctag")).unwrap();
-    let prefix = liella_ld::start::private::TAG_PREFIX;
+    let prefix = niji_ld::start::private::TAG_PREFIX;
     let libc = libc_by_path(&lib, &d, "libc-other.so", |so| {
         let at = so.windows(prefix.len()).position(|w| w == prefix).expect("libc.so.6 carries a build tag") + prefix.len();
         so[at] ^= 0x20;
     });
     let p = early_prog(&ld, &d, &libc, "other");
     for (how, mut cmd) in [("kernel-started", Command::new(&p)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(&p); c })] {
-        let (code, sig, err) = run(cmd.env("LIELLA_EARLY_PROBE", "1"));
+        let (code, sig, err) = run(cmd.env("NIJI_EARLY_PROBE", "1"));
         assert_eq!((code, sig), (Some(127), None), "{how}: a libc from another build ran; stderr: {err}");
-        assert!(err.contains("libc-other.so: LIELLA_PRIVATE build tag differs"), "{how}: the build-tag diagnostic is missing: {err}");
+        assert!(err.contains("libc-other.so: NIJI_PRIVATE build tag differs"), "{how}: the build-tag diagnostic is missing: {err}");
     }
     std::fs::remove_dir_all(&d).ok();
 }
@@ -922,8 +922,8 @@ int main(void) {
 #[test]
 fn reloc_libc_bias_without_pt_phdr() {
     let (true, Some(ld)) = (cc_ok(), product()) else { return };
-    let lib = target().join("liella");
-    let (crt1, libc_a) = (lib.join("liella-crt1.o"), lib.join("libc.a"));
+    let lib = target().join("niji");
+    let (crt1, libc_a) = (lib.join("niji-crt1.o"), lib.join("libc.a"));
     if !crt1.exists() || !libc_a.exists() {
         eprintln!("SKIP: {} or libc.a not built (run cargo xtask so)", crt1.display());
         return;
@@ -946,14 +946,14 @@ fn reloc_libc_bias_without_pt_phdr() {
     }
     let stat = link("static", &["-static", "-fno-pie", "-no-pie"], &libc_a);
     let file = std::fs::read(&stat).unwrap();
-    assert!(Elf::parse::<Native>(&file).unwrap().find(liella_ld::elf::pt::PHDR).is_none(), "the static ET_EXEC has no PT_PHDR");
+    assert!(Elf::parse::<Native>(&file).unwrap().find(niji_ld::elf::pt::PHDR).is_none(), "the static ET_EXEC has no PT_PHDR");
     let (code, sig, err) = run(&mut Command::new(&stat));
     assert_eq!((code, sig), (Some(0), None), "static ET_EXEC without PT_PHDR: check number {code:?} failed; stderr: {err}");
     std::fs::remove_dir_all(&d).ok();
 }
 
 /// The C hello world of [`reloc_libc_start_hello_world`]. Its `.preinit_array` function (run by
-/// `ld.so`, after libc's early init) records `p`, sets a variable, unsets `LIELLA_START_GONE` (set
+/// `ld.so`, after libc's early init) records `p`, sets a variable, unsets `NIJI_START_GONE` (set
 /// by the test) and renames the program; its constructor records `c` and sets another variable;
 /// with `OLD_CRT1` its own `_start` passes `old_init` (records `i`, then runs the constructors, as
 /// the pre-2.34 `__libc_csu_init` did) and `old_fini`. `main` prints through stdio (flushed at
@@ -972,10 +972,10 @@ static void check(int argc, char **argv, char **envp) {
 }
 static void pre(int argc, char **argv, char **envp) {
   check(argc, argv, envp); add('p');
-  setenv(\"LIELLA_START_PRE\", \"kept\", 1); unsetenv(\"LIELLA_START_GONE\"); program_invocation_name = \"renamed\";
+  setenv(\"NIJI_START_PRE\", \"kept\", 1); unsetenv(\"NIJI_START_GONE\"); program_invocation_name = \"renamed\";
 }
 __attribute__((section(\".preinit_array\"), used)) static void (*pre_entry)(int, char **, char **) = pre;
-static void ctor(int argc, char **argv, char **envp) { check(argc, argv, envp); add('c'); setenv(\"LIELLA_START_CTOR\", \"kept\", 1); }
+static void ctor(int argc, char **argv, char **envp) { check(argc, argv, envp); add('c'); setenv(\"NIJI_START_CTOR\", \"kept\", 1); }
 __attribute__((section(\".init_array\"), used)) static void (*ctor_entry)(int, char **, char **) = ctor;
 __attribute__((destructor)) static void dtor(void) { static const char m[] = \"destructor\\n\"; write(1, m, sizeof m - 1); }
 #ifdef OLD_CRT1
@@ -992,7 +992,7 @@ __asm__(\".globl _start\\n_start:\\n xor %ebp, %ebp\\n mov %rdx, %r9\\n pop %rsi
         \" lea old_init(%rip), %rcx\\n lea old_fini(%rip), %r8\\n lea main(%rip), %rdi\\n call *__libc_start_main@GOTPCREL(%rip)\\n hlt\\n\");
 #endif
 int main(int argc, char **argv) {
-  const char *e = getenv(\"LIELLA_START_PRE\"), *g = getenv(\"LIELLA_START_GONE\"), *c = getenv(\"LIELLA_START_CTOR\");
+  const char *e = getenv(\"NIJI_START_PRE\"), *g = getenv(\"NIJI_START_GONE\"), *c = getenv(\"NIJI_START_CTOR\");
   printf(\"hello, world: order %s, args %s, preinit setenv %s, preinit unsetenv %s, preinit name %s, ctor setenv %s, argc %d\\n\",
          order, args_ok ? \"ok\" : \"wrong\", e ? e : \"lost\", g ? \"undone\" : \"held\",
          program_invocation_name == argv[0] ? \"reset\" : \"kept\", c ? c : \"lost\", argc);
@@ -1013,8 +1013,8 @@ const HELLO_OUT: &str = "destructor\nhello, world: order pc, args ok, preinit se
 const HELLO_OLD_OUT: &str = "destructor\nhello, world: order pic, args ok, preinit setenv lost, preinit unsetenv undone, preinit name reset, ctor setenv kept, argc 2\n";
 
 /// s1_1_c_1, s1_1_c_2, s1_1_c_4, s1_1_c_5, s1_1_c_6, design §14, D-27.24: a C hello world linked
-/// against `libc.so.6` (by path) runs under Liella's `ld.so`, started by the kernel and as
-/// `ld.so PROGRAM`, with each start object: `liella-crt1.o` and the host's 2.34+ start files (`init`
+/// against `libc.so.6` (by path) runs under libniji's `ld.so`, started by the kernel and as
+/// `ld.so PROGRAM`, with each start object: `niji-crt1.o` and the host's 2.34+ start files (`init`
 /// and `fini` NULL: libc runs the program's `DT_INIT`/`DT_INIT_ARRAY` after `ld.so` ran the
 /// `.preinit_array`, and `rtld_fini` runs the destructor at exit), and an old-style `_start`
 /// passing `init`/`fini` (libc calls `init(argc, argv, envp)`; `fini` is not called). Start steps
@@ -1027,10 +1027,10 @@ const HELLO_OLD_OUT: &str = "destructor\nhello, world: order pic, args ok, prein
 #[test]
 fn reloc_libc_start_hello_world() {
     let (true, Some(ld)) = (cc_ok(), product()) else { return };
-    let lib = target().join("liella");
-    let crt1 = lib.join("liella-crt1.o");
+    let lib = target().join("niji");
+    let crt1 = lib.join("niji-crt1.o");
     if !crt1.exists() || !lib.join("libc.so.6").exists() {
-        eprintln!("SKIP: liella-crt1.o or libc.so.6 not built (run cargo xtask so)");
+        eprintln!("SKIP: niji-crt1.o or libc.so.6 not built (run cargo xtask so)");
         return;
     }
     let d = std::fs::canonicalize(dir("libcstart")).unwrap();
@@ -1046,18 +1046,18 @@ fn reloc_libc_start_hello_world() {
     };
     // The host's C library, linked the usual way: a note only (the expected text is stated above,
     // so the test does not depend on the host's library).
-    let host = Command::new(cc("oracle", &[], &[])).arg("arg").env("LIELLA_START_GONE", "1").env_remove("LIELLA_START_PRE").env_remove("LIELLA_START_CTOR").output().unwrap();
+    let host = Command::new(cc("oracle", &[], &[])).arg("arg").env("NIJI_START_GONE", "1").env_remove("NIJI_START_PRE").env_remove("NIJI_START_CTOR").output().unwrap();
     if String::from_utf8_lossy(&host.stdout) != HELLO_OUT {
         eprintln!("NOTE: the host's C library prints {:?}, not the stated reference output", String::from_utf8_lossy(&host.stdout));
     }
     let variants = [
-        ("liella-crt1.o", cc("new", &["-nostdlib", &interp], &[&crt1, &libc, Path::new("-lgcc")]), HELLO_OUT),
+        ("niji-crt1.o", cc("new", &["-nostdlib", &interp], &[&crt1, &libc, Path::new("-lgcc")]), HELLO_OUT),
         ("host start files", cc("host", &["-nodefaultlibs", &interp], &[&libc, Path::new("-lgcc")]), HELLO_OUT),
         ("old-style _start", cc("old", &["-nostdlib", "-DOLD_CRT1", &interp], &[&libc, Path::new("-lgcc")]), HELLO_OLD_OUT),
     ];
     for (start, p, want) in &variants {
         for (how, mut cmd) in [("kernel-started", Command::new(p)), ("ld.so PROGRAM", { let mut c = Command::new(&ld); c.arg(p); c })] {
-            let o = cmd.arg("arg").env("LIELLA_START_GONE", "1").env_remove("LIELLA_START_PRE").env_remove("LIELLA_START_CTOR").output().unwrap();
+            let o = cmd.arg("arg").env("NIJI_START_GONE", "1").env_remove("NIJI_START_PRE").env_remove("NIJI_START_CTOR").output().unwrap();
             let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
             assert!(o.status.success() && err.is_empty(), "hello world, {start}, {how}: {:?}; stderr: {err}", o.status);
             assert_eq!(out, *want, "hello world, {start}, {how}: wrong output (start steps, constructors or destructors)");
@@ -1134,14 +1134,14 @@ fn with_loads(f: &[u8], total: usize) -> Vec<u8> {
 /// beginning about 16 KiB past the one before, so GNU ld starts a new writable segment for at least
 /// two of them. `{decl}` declares what `{init}` (each section's three pointers) and `{check}` (the
 /// test of one section `s`, true when right) use. Exits 0 when every section is right, else the
-/// section's number (1 `.liella_seg2`, 2 `.data1`, 3 `.liella_seg3`).
+/// section's number (1 `.niji_seg2`, 2 `.data1`, 3 `.niji_seg3`).
 fn multi_writable_src(decl: &str, init: &str, check: &str) -> String {
     format!(
         "{decl}
 static int m_a = 1, m_b = 2;
-void *m_seg2[] __attribute__((section(\".liella_seg2\"), aligned(16384))) = {{ {init} }};
+void *m_seg2[] __attribute__((section(\".niji_seg2\"), aligned(16384))) = {{ {init} }};
 void *m_data1[] __attribute__((section(\".data1\"), aligned(16384))) = {{ {init} }};
-void *m_seg3[] __attribute__((section(\".liella_seg3\"), aligned(16384))) = {{ {init} }};
+void *m_seg3[] __attribute__((section(\".niji_seg3\"), aligned(16384))) = {{ {init} }};
 static int ok(void **s) {{ return *(int *)s[0] == 1 && *(int *)s[1] == 2 && ({check}); }}
 void _start(void) {{
   int c = !ok(m_seg2) ? 1 : !ok(m_data1) ? 2 : !ok(m_seg3) ? 3 : 0;
@@ -1246,7 +1246,7 @@ fn reloc_ldso_textrel_program_text_rx_before_it_runs() {
     let t = build(&d, "ptext", TEXT_PROG, &["-fPIE", "-pie", "-Wl,-z,notext", &interp, b.to_str().unwrap()]);
     let elf_bytes = std::fs::read(&t).unwrap();
     let elf = Elf::parse::<Native>(&elf_bytes).unwrap();
-    assert!(elf.dynamic().unwrap().unwrap().get(liella_ld::elf::dt::TEXTREL).is_some() || elf.dynamic().unwrap().unwrap().get(liella_ld::elf::dt::FLAGS).is_some_and(|f| f & 4 != 0), "the program is text-relocated");
+    assert!(elf.dynamic().unwrap().unwrap().get(niji_ld::elf::dt::TEXTREL).is_some() || elf.dynamic().unwrap().unwrap().get(niji_ld::elf::dt::FLAGS).is_some_and(|f| f & 4 != 0), "the program is text-relocated");
     for (how, mut cmd) in [("kernel-started", Command::new(&t)), ("ld.so PROGRAM", Command::new(&ld))] {
         if how != "kernel-started" {
             cmd.arg(&t);

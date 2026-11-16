@@ -1,7 +1,7 @@
 # Conformance suite
 
 `sh conformance/run.sh [name ...]` builds and runs each `conformance/c/<name>.c`: a self-checking C
-program, linked statically against Liella's `libc.a` and started by Liella's runtime. The directives
+program, linked statically against libniji's `libc.a` and started by libniji's runtime. The directives
 (one `/* NAME: value */` comment line each) are documented at the top of `run.sh`.
 
 ## Dynamic-link mode: `LINK-HELPERS`, `DLOPEN-HELPERS`
@@ -23,20 +23,20 @@ A test that needs shared objects (the §27 dlfcn tests) declares them:
 * The program is built and run twice, and both runs must meet `EXPECT-EXIT`/`EXPECT-SIGNAL`/
   `EXPECT-STDERR`:
   * the reference: helpers and program built by the host compiler against the host C library;
-  * Liella: the same sources against Liella's `libc.so.6` with Liella's `ld.so`
-    (`target/liella/ld-linux-x86-64.so.2`) as the program interpreter. Liella's loader does not
+  * libniji: the same sources against libniji's `libc.so.6` with libniji's `ld.so`
+    (`target/niji/ld-linux-x86-64.so.2`) as the program interpreter. libniji's loader does not
     search for libraries yet, so the C library is named by path (a copy without `DT_SONAME`,
     through a `libc.so` script with the host's `libc_nonshared.a`, as the start files are the
     host's).
 * Each run has `CONF_HELPERS` (and `LD_LIBRARY_PATH`) set to its own helper directory: a program
   opens helpers as `$CONF_HELPERS/lib<name>.so` and builds the expected texts from that path.
 * `LINK-EXPORT-DYNAMIC: yes` links the program with `-rdynamic`.
-* `PENDING-LIELLA: <story>`: Liella's run is expected to fail until that story lands (the dlfcn
-  exports of phase 14). The reference run must pass; Liella's failing run prints
-  `conformance: PENDING <test> on Liella until <story> ...` and counts (passed, and in the
-  summary's pending count); Liella's run passing is a FAIL, so the directive and the clause test's
+* `PENDING-NIJI: <story>`: libniji's run is expected to fail until that story lands (the dlfcn
+  exports of phase 14). The reference run must pass; libniji's failing run prints
+  `conformance: PENDING <test> on libniji until <story> ...` and counts (passed, and in the
+  summary's pending count); libniji's run passing is a FAIL, so the directive and the clause test's
   pending mark are dropped the day the story lands. A pending program links with unresolved
-  symbols allowed (what Liella does not export yet fails the run, not the link); a build failure
+  symbols allowed (what libniji does not export yet fails the run, not the link); a build failure
   is still a FAIL.
 * Other link directives (`LINK-LIBM`, `LINK-UNWIND`, `LINK-CXX`, `LINK-NOW`, `LINK-STATIC-PIE`) and
   `RUN-SECURE`/`RUN-WRAP` do not apply in this mode.

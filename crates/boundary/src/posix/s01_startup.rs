@@ -1,18 +1,18 @@
 //! Translation for spec §1.1–§1.5: program startup, termination, environment, auxiliary vector.
 //!
 //! The process-lifecycle symbols (`__libc_start_main`, `exit`, the handler registrations) are
-//! `runtime` exports: only the products define them, because only a process Liella started has
-//! Liella's runtime (D-4.13). `atexit` and `at_quick_exit` belong to the static library only, as
+//! `runtime` exports: only the products define them, because only a process libniji started has
+//! libniji's runtime (D-4.13). `atexit` and `at_quick_exit` belong to the static library only, as
 //! glibc's `libc_nonshared.a` provides them (`nonshared`: not in the shared object's version
 //! script). The data objects `environ`, `__environ`, `_environ`, `program_invocation_name`,
 //! `__progname_full`, `program_invocation_short_name`, `__progname` and `__libc_stack_end` are
 //! defined in `csys/src/adapter/runtime.c`, as are argp's program-wide variables (weakly, so
 //! that a program's own definitions replace them; §1.7). `getopt`/`argp` (§1.6–1.7) arrived with
 //! stdio (phase 8); the variadic `argp_error` and `argp_failure` are C adapters forwarding to
-//! `liella_argp_error3` and `liella_argp_failure5`.
+//! `niji_argp_error3` and `niji_argp_failure5`.
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_void};
-use liella_legacy::exit_handlers::{ATEXIT, CXA, ON_EXIT, QUICK};
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_void};
+use niji_legacy::exit_handlers::{ATEXIT, CXA, ON_EXIT, QUICK};
 
 use crate::argp;
 use crate::conv;
@@ -27,25 +27,25 @@ use crate::runtime::{Fn0, Main};
 
 // ------------------------------------------------------------------------------ §1.1 startup
 
-export! { runtime "LIELLA_PRIVATE";
+export! { runtime "NIJI_PRIVATE";
 #[cfg(feature = "runtime")]
-pub extern "C" fn __liella_libc_early_init(info: *const c_void) {
-    // `__liella_libc_early_init(const StartInfo *)`: Liella's `ld.so` calls it before any
+pub extern "C" fn __niji_libc_early_init(info: *const c_void) {
+    // `__niji_libc_early_init(const StartInfo *)`: libniji's `ld.so` calls it before any
     // constructor (design §14, D-27.22).
     crate::runtime::early_init(info.expose_provenance())
 }}
 
-export! { runtime "LIELLA_PRIVATE";
+export! { runtime "NIJI_PRIVATE";
 #[cfg(feature = "runtime")]
-pub extern "C" fn __liella_thread_walk(cb: usize, ctx: usize) -> usize {
-    // Liella's `ld.so` gives a `dlopen`ed module's static TLS block to every thread (DL-16d).
+pub extern "C" fn __niji_thread_walk(cb: usize, ctx: usize) -> usize {
+    // libniji's `ld.so` gives a `dlopen`ed module's static TLS block to every thread (DL-16d).
     crate::thread::walk_threads(cb, ctx)
 }}
 
-export! { runtime "LIELLA_PRIVATE";
+export! { runtime "NIJI_PRIVATE";
 #[cfg(feature = "runtime")]
-pub extern "C" fn __liella_owner_unload(lo: usize, hi: usize) {
-    // Liella's `ld.so` unloads the module mapped at [lo, hi): the opted-in registrations it owns
+pub extern "C" fn __niji_owner_unload(lo: usize, hi: usize) {
+    // libniji's `ld.so` unloads the module mapped at [lo, hi): the opted-in registrations it owns
     // or whose handlers it holds go (DL-ATEXIT-OWNER, D-27.29).
     crate::owner::unload(lo, hi)
 }}
@@ -57,17 +57,17 @@ pub extern "C" fn __libc_start_main(main: Option<Main>, argc: c_int, argv: *mut 
 }}
 
 crate::internal_entry! {
-/// The static-PIE start (D-27.10), called by `liella-rcrt1.o`'s `_start` with
+/// The static-PIE start (D-27.10), called by `niji-rcrt1.o`'s `_start` with
 /// `__libc_start_main`'s arguments: the same start, which first relocates the executable. A
-/// `liella_` name, local in `libc.so.6`; only `libc.a` links it.
+/// `niji_` name, local in `libc.so.6`; only `libc.a` links it.
 #[cfg(feature = "runtime")]
-pub extern "C" fn liella_start_main_static_pie(main: Option<Main>, argc: c_int, argv: *mut *mut c_char, init: Option<Fn0>, fini: Option<Fn0>, rtld_fini: Option<Fn0>, stack_end: *mut c_void) -> c_int {
+pub extern "C" fn niji_start_main_static_pie(main: Option<Main>, argc: c_int, argv: *mut *mut c_char, init: Option<Fn0>, fini: Option<Fn0>, rtld_fini: Option<Fn0>, stack_end: *mut c_void) -> c_int {
     crate::runtime::start::<true>(main, argc, argv, init, fini, rtld_fini, stack_end)
 }}
 
 export! { runtime "GLIBC_2.2.5";
 pub extern "C" fn __libc_init_first(_argc: c_int, _argv: *mut *mut c_char, _envp: *mut *mut c_char) {
-    liella_legacy::stubs::nothing()
+    niji_legacy::stubs::nothing()
 }}
 
 // ------------------------------------------------------------------------------ §1.2 termination
@@ -240,14 +240,14 @@ pub extern "C" fn argp_usage(state: *const c_void) {
     argp::usage(conv::addr(state))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_argp_error3(state: *const c_void, fmt: *const c_char, ap: *mut c_void) {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_argp_error3(state: *const c_void, fmt: *const c_char, ap: *mut c_void) {
     // UNSAFE(slice) SAFETY: fmt is NULL or a string; ap is the va_list of the arguments it names (§1.7).
     argp::error(conv::addr(state), unsafe { strz::strz_opt(fmt) }, conv::addr(ap))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_argp_failure5(state: *const c_void, status: c_int, errnum: c_int, fmt: *const c_char, ap: *mut c_void) {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_argp_failure5(state: *const c_void, status: c_int, errnum: c_int, fmt: *const c_char, ap: *mut c_void) {
     // UNSAFE(slice) SAFETY: fmt is NULL or a string; ap is the va_list of the arguments it names (§1.7).
     argp::failure(conv::addr(state), status, errnum, unsafe { strz::strz_opt(fmt) }, conv::addr(ap))
 }}

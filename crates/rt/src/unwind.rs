@@ -30,8 +30,8 @@
 
 use core::cell::Cell;
 
-use liella_kernel::mem::{IoVecMut, RemoteIoVec};
-use liella_kernel::sys::Sys;
+use niji_kernel::mem::{IoVecMut, RemoteIoVec};
+use niji_kernel::sys::Sys;
 
 /// The DWARF registers the unwinder tracks: the sixteen general registers (0 to 15) and the
 /// return-address column (16), psABI figure 3.36.

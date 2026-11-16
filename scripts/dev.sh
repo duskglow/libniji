@@ -4,9 +4,9 @@
 #   scripts/dev.sh xtask test        # policy checks + all suites
 #   scripts/dev.sh xtask stubs       # regenerate pending stubs from the spec
 #   scripts/dev.sh xtask status      # pending vs specified tests per section
-#   scripts/dev.sh test -p liella     # any cargo command
+#   scripts/dev.sh test -p niji     # any cargo command
 set -eu
 cd "$(dirname "$0")/.."
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/liella-target}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/niji-target}"
 exec cargo "$@"

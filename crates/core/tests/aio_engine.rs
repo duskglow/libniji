@@ -1,8 +1,8 @@
 //! Which engine POSIX AIO uses (§11.11; D-11.11, owner ruling 2026-10-04): io_uring by default,
 //! the worker threads without trying io_uring in secure-execution mode, under a seccomp filter
 //! (any filter: also one that allows everything and never mentions io_uring, and one under which
-//! `prctl(PR_GET_SECCOMP)` itself fails), after `liella_aio_use_threads`, or with
-//! `LIELLA_AIO_URING=0` in the environment.
+//! `prctl(PR_GET_SECCOMP)` itself fails), after `niji_aio_use_threads`, or with
+//! `NIJI_AIO_URING=0` in the environment.
 //!
 //! A filter is seen first in procfs (`Seccomp:` in `/proc/thread-self/status`), without a
 //! `prctl`, so a filter that kills on `prctl(PR_GET_SECCOMP)` or answers it 0 is covered; an
@@ -30,24 +30,24 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
 
-use liella_abi::ctypes::c_int;
-use liella_boundary::native::aio::liella_aio_use_threads;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella::system::{self, StatusField};
-use liella_kernel::errno::Errno;
-use liella_kernel::ops::PrctlInt;
-use liella_kernel::sys::Sys;
-use liella_kernel::testing::Faulty;
+use niji_abi::ctypes::c_int;
+use niji_boundary::native::aio::niji_aio_use_threads;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji::system::{self, StatusField};
+use niji_kernel::errno::Errno;
+use niji_kernel::ops::PrctlInt;
+use niji_kernel::sys::Sys;
+use niji_kernel::testing::Faulty;
 
 use scratch::Scratch;
 
 /// The child's mode (`plain`, `native`, `native-late`, `noprctl`: no `PR_GET_SECCOMP` in the
 /// report, `fault:NAME=ERRNO*COUNT,...`: the engine chosen through a `Faulty` with that plan)
 /// and the file it reads.
-const PROBE: &str = "LIELLA_TEST_AIO_ENGINE";
-const FILE: &str = "LIELLA_TEST_AIO_ENGINE_FILE";
+const PROBE: &str = "NIJI_TEST_AIO_ENGINE";
+const FILE: &str = "NIJI_TEST_AIO_ENGINE_FILE";
 const EBUSY: i64 = 16;
 
 /// A `struct aiocb` (168 bytes, Appendix C) with the fields the test sets.
@@ -85,7 +85,7 @@ static PATH: std::sync::OnceLock<std::ffi::CString> = std::sync::OnceLock::new()
 /// One read of [`PATH`] through `aio_read`, waited for: whether it read the 4 bytes.
 fn one_request() -> bool {
     let Some(c) = PATH.get() else { return false };
-    let fd = io::liella_open3(c.as_ptr(), 0, 0);
+    let fd = io::niji_open3(c.as_ptr(), 0, 0);
     let mut buf = [0u8; 4];
     let mut cb = Cb { fildes: fd, buf: buf.as_mut_ptr().addr(), nbytes: 4, notify: SIGEV_NONE, ..Cb::default() };
     let p = &raw mut cb;
@@ -105,7 +105,7 @@ fn one_request() -> bool {
 fn report_if_child() -> bool {
     let Ok(mode) = std::env::var(PROBE) else { return false };
     let _ = PATH.set(std::ffi::CString::new(std::env::var(FILE).unwrap()).unwrap());
-    let early = if mode == "native" { liella_aio_use_threads() } else { 0 };
+    let early = if mode == "native" { niji_aio_use_threads() } else { 0 };
     // A plan: the engine is chosen now, through the injected-failure kernel.
     let (mut injected, mut fds) = (0, 0);
     if let Some(plan) = mode.strip_prefix("fault:") {
@@ -122,7 +122,7 @@ fn report_if_child() -> bool {
         fds = open_fds() as i64 - before as i64;
     }
     let ok = one_request();
-    let late = if mode == "native-late" { liella_aio_use_threads() } else { 0 };
+    let late = if mode == "native-late" { niji_aio_use_threads() } else { 0 };
     // Under a filter that kills on it, `PR_GET_SECCOMP` is not asked here either.
     let seccomp = if mode == "noprctl" {
         "skipped".to_owned()
@@ -133,7 +133,7 @@ fn report_if_child() -> bool {
         }
     };
     let status = system::seccomp_mode(&CSys).map_or("none".to_owned(), |m| m.to_string());
-    let secure = liella_boundary::process::secure();
+    let secure = niji_boundary::process::secure();
     println!(
         "REPORT ok={ok} engine={} secure={} seccomp={seccomp} status={status} early={early} late={late} injected={injected} fds={fds}",
         selftest::aio_engine(),
@@ -190,13 +190,13 @@ fn ring_here(test: &str, file: &Path) -> bool {
 
 #[test]
 fn native_switch_selects_threads() {
-    // Trace: no spec clause (AIO engine choice through the native liella_aio_use_threads); D-11.11, D-X.10.
+    // Trace: no spec clause (AIO engine choice through the native niji_aio_use_threads); D-11.11, D-X.10.
     if report_if_child() {
         return;
     }
     let file = data();
     let r = run(&me(), None, "native_switch_selects_threads", "native", &file, &[]);
-    assert_eq!((field(&r, "early"), field(&r, "engine")), ("0", "workers"), "liella_aio_use_threads before the first request: {r}");
+    assert_eq!((field(&r, "early"), field(&r, "engine")), ("0", "workers"), "niji_aio_use_threads before the first request: {r}");
     let r = run(&me(), None, "native_switch_selects_threads", "native-late", &file, &[]);
     if field(&r, "engine") == "ring" {
         assert_eq!(field(&r, "late"), (-EBUSY).to_string(), "after the ring has started: {r}");
@@ -208,18 +208,18 @@ fn native_switch_selects_threads() {
 
 #[test]
 fn environment_selects_threads() {
-    // Trace: no spec clause (which engine runs AIO is internal; LIELLA_AIO_URING); D-11.11.
+    // Trace: no spec clause (which engine runs AIO is internal; NIJI_AIO_URING); D-11.11.
     if report_if_child() {
         return;
     }
     let file = data();
     let test = "environment_selects_threads";
-    let r = run(&me(), None, test, "plain", &file, &[("LIELLA_AIO_URING", "0")]);
-    assert_eq!(field(&r, "engine"), "workers", "LIELLA_AIO_URING=0: {r}");
+    let r = run(&me(), None, test, "plain", &file, &[("NIJI_AIO_URING", "0")]);
+    assert_eq!(field(&r, "engine"), "workers", "NIJI_AIO_URING=0: {r}");
     let ring = ring_here(test, &file);
     for other in ["1", "", "no"] {
-        let r = run(&me(), None, test, "plain", &file, &[("LIELLA_AIO_URING", other)]);
-        assert_eq!(field(&r, "engine") == "ring", ring, "LIELLA_AIO_URING={other:?} changes nothing: {r}");
+        let r = run(&me(), None, test, "plain", &file, &[("NIJI_AIO_URING", other)]);
+        assert_eq!(field(&r, "engine") == "ring", ring, "NIJI_AIO_URING={other:?} changes nothing: {r}");
     }
 }
 
@@ -361,6 +361,6 @@ fn secure_mode_selects_threads() {
     assert_eq!((field(&r, "secure"), field(&r, "seccomp"), field(&r, "engine")), ("1", "0", "workers"), "AT_SECURE: {r}");
     // The environment switch is not read there (secure_getenv), and asking for the ring is not
     // possible: the workers either way.
-    let r = run(&copy, None, test, "plain", &file, &[("LIELLA_AIO_URING", "1")]);
-    assert_eq!(field(&r, "engine"), "workers", "AT_SECURE with LIELLA_AIO_URING=1: {r}");
+    let r = run(&copy, None, test, "plain", &file, &[("NIJI_AIO_URING", "1")]);
+    assert_eq!(field(&r, "engine"), "workers", "AT_SECURE with NIJI_AIO_URING=1: {r}");
 }

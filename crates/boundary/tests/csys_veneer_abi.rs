@@ -5,7 +5,7 @@
 //! Nothing is executed for real (`exit`, `reboot`, `kill`, module loading are all safe).
 //!
 //! The expected rows come from `csys/syscalls.tsv`, the numbers from the host's kernel UAPI
-//! header (`asm/unistd.h`), not from the project's own `liella_sysnr.h`.
+//! header (`asm/unistd.h`), not from the project's own `niji_sysnr.h`.
 //!
 //! Where the filter cannot be installed (kernel without seccomp, a container refusing it) or
 //! there is no C compiler, the test says why on stderr and passes without the check.
@@ -46,8 +46,8 @@ fn rows_header(tsv: &str) -> (String, usize) {
         let (name, sys, args) = (f[0], f[1], f[3]);
         let nargs = if args == "-" { 0 } else { args.len() };
         let nr = if sys == "*" { "-1".to_string() } else { format!("__NR_{sys}") };
-        decls.push_str(&format!("extern long liella_sys_{name}();\n"));
-        table.push_str(&format!("\t{{\"{name}\", liella_sys_{name}, {nr}, {nargs}}},\n"));
+        decls.push_str(&format!("extern long niji_sys_{name}();\n"));
+        table.push_str(&format!("\t{{\"{name}\", niji_sys_{name}, {nr}, {nargs}}},\n"));
         n += 1;
     }
     (format!("{decls}static const struct row rows[] = {{\n{table}}};\n"), n)
@@ -61,7 +61,7 @@ fn rows_ignore_the_aarch64_column() {
     let five = "# c\npause\tpause\tsignal\t-\tnone:ppoll\nkill\tkill\tsignal\tii\t=\nclone\tclone\tprocess\tiippi\t=backwards\ndup2\tdup2\tfd\tii\tnone:-\n";
     let (h4, n4) = rows_header(four);
     assert_eq!((rows_header(five), n4), ((h4.clone(), 3), 3));
-    assert!(h4.contains("{\"pause\", liella_sys_pause, __NR_pause, 0}") && h4.contains("__NR_clone, 5}"), "{h4}");
+    assert!(h4.contains("{\"pause\", niji_sys_pause, __NR_pause, 0}") && h4.contains("__NR_clone, 5}"), "{h4}");
     for bad in ["kill\tkill\tsignal\tii\tnone:", "kill\tkill\tsignal\tii\tx", "kill\tkill\tsignal\tii\t=\textra", "kill\tkill\tsignal"] {
         assert!(std::panic::catch_unwind(|| rows_header(bad)).is_err(), "accepted: {bad}");
     }
@@ -75,7 +75,7 @@ fn veneer_wrappers_issue_the_kernels_call_and_return_its_result() {
     let (header, rows) = rows_header(&tsv);
     assert!(rows >= 90, "the six areas lost wrappers: {rows}");
 
-    let dir = Scratch(PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("liella-veneer-abi-{}", std::process::id())));
+    let dir = Scratch(PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("niji-veneer-abi-{}", std::process::id())));
     std::fs::create_dir_all(&dir.0).unwrap();
     std::fs::write(dir.0.join("rows.h"), header).unwrap();
     let cc = std::env::var("CC").unwrap_or_else(|_| "cc".to_string());

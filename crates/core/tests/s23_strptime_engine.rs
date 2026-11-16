@@ -1,14 +1,14 @@
-//! The `strptime` engine (`liella::time::parse`) and the `LC_TIME` reader (`liella::time::lctime`)
+//! The `strptime` engine (`niji::time::parse`) and the `LC_TIME` reader (`niji::time::lctime`)
 //! on their own (spec §23.7; D-23.7): every C-locale case of `tests/oracle/timefmt_diff.c`, which
 //! `timefmt_products.rs` checks against the reference, plus era entries and the C locale's items.
 //! Written before COLD-REWRITE2-cold-01 replaced both modules, to show the rewrite is equivalent.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
 
-use liella::error::{Errno, Result};
-use liella::locale::Locale;
-use liella::time::civil;
-use liella::time::lctime::{self, parse_era, Bound, Time};
-use liella::time::parse::{strptime, Env, Local, Options, Parsed};
+use niji::error::{Errno, Result};
+use niji::locale::Locale;
+use niji::time::civil;
+use niji::time::lctime::{self, parse_era, Bound, Time};
+use niji::time::parse::{strptime, Env, Local, Options, Parsed};
 
 struct Utc;
 
@@ -174,7 +174,7 @@ fn s23_7_c_2_neighbouring_year() {
     // more early: "%Y %W %w" "2024 00 0" -> mday=-365 mon=-1 wday=0 yday=-1, timegm 2022-11-30;
     // "%Y %U %w" "2023 00 0" -> -6/-1/-7, 2022-11-24; "%Y %U %w" "2016 00 0" -> -369/-1/-5,
     // 2014-11-26; "%Y %W %w" "2022 00 5" -> 0/-1/-1, 2021-11-30.
-    // Liella also computes an ISO week date (glibc 2.39 sets nothing from %G/%V; differences row
+    // libniji also computes an ISO week date (glibc 2.39 sets nothing from %G/%V; differences row
     // "strptime %G/%V"); with %Y it follows the same rule: ISO week 1 of 2020 begins on 2019-12-30.
     let cases: [Case; 11] = [
         ("%Y %G %V %u", "2020 2020 1 1", "+13 mday=-366 mon=-1 year=120 wday=1 yday=-2", (2018, 11, 29), false),
@@ -309,5 +309,5 @@ fn s23_7_c_1_locale_items() {
     assert_eq!((t.eras().count(), t.era_of((2024, 1, 1)), t.alt_digit(5), t.alt_digit(100)), (0, None, None, None));
     let cu = Locale::c_utf8(b"C.UTF-8");
     let u = Time::of(&cu);
-    assert_eq!((u.encoding(), u.day(3)), (Some(liella::text::Encoding::Utf8), Some(&b"Wednesday"[..])));
+    assert_eq!((u.encoding(), u.day(3)), (Some(niji::text::Encoding::Utf8), Some(&b"Wednesday"[..])));
 }

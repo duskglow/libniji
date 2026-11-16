@@ -2,7 +2,7 @@
 #include <string.h>
 /* HEAP-FIRST-USE-4: the first string calls of a program that has not taken the lazy NULL-folding
    decision yet (dispatch::resolve_fold: printf and the first malloc take none). They run the checked
-   entries (memchr's liella_hot_memchr_rest takes the decision here), which p_str misses: there a
+   entries (memchr's niji_hot_memchr_rest takes the decision here), which p_str misses: there a
    40-byte memcpy takes the decision first and every later call runs folded. Through volatile
    pointers, as in p_str. The order is the strings oracle's (crates/core/tests/oracle/page_faults.c):
    its printf puts those entries right after the stream printf path that oracle runs first.

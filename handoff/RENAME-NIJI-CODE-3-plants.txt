@@ -1,0 +1,14 @@
+# RENAME-NIJI-CODE-3 (mutants restore the old literal-length numbers; arithmetic mutants are refused by the example's clippy step): the lengths the rename left behind (native example, its expected output, s22_sync's PID offset).
+native-pwrite-len | crates/native/examples/demo/mod.rs | lit:check(n == head.len(), "pwrite was short")?; ==> check(n == 6, "pwrite was short")?; | cargo xtask native | msg:FAIL file: pwrite was short
+native-pread-offset | crates/native/examples/demo/mod.rs | lit:.and_then(|p| p.checked_add(1)) ==> .and_then(|p| p.checked_add(3)) | cargo xtask native | msg:FAIL file: pread gave other bytes
+native-readback | crates/native/examples/demo/mod.rs | lit:data.iter().skip(head.len()) ==> data.iter().skip(6) | cargo xtask native | msg:FAIL file: read gave other bytes
+native-expected-count | xtask/src/native_examples.rs | lit:ok file: 23 bytes written ==> ok file: 25 bytes written | cargo xtask native | msg:native_static: unexpected output
+s22-sem-offset | conformance/c/s22_sync.c | lit:int at = (int)sizeof SEM_PREFIX - 1; ==> int at = (int)sizeof SEM_PREFIX + 1; | cargo xtask affected --only conformance:s22_sync --with-exports --run | msg:s22_sync.*(FAIL|34)|FAIL.*s22_sync
+codemap-stem-skip | xtask/src/codemap.rs | lit:let rest = &text[k + STEM.len()..]; ==> let rest = &text[k + 7..]; | cargo test -p xtask --bin xtask codemap::tests::boundary_sources_name_their_modules_by_crate | msg:boundary_sources_name_their_modules_by_crate.*(FAILED|panicked)|panicked.*codemap
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# native-pwrite-len: CAUGHT, caught by no test the log names
+# native-pread-offset: CAUGHT, caught by no test the log names
+# native-readback: CAUGHT, caught by no test the log names
+# native-expected-count: CAUGHT, caught by no test the log names
+# s22-sem-offset: CAUGHT, caught by no test the log names
+# codemap-stem-skip: CAUGHT, caught by xtask codemap::tests::boundary_sources_name_their_modules_by_crate

@@ -10,8 +10,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::pattern::regex::{self, Options, ProgRef, Window};
-use liella_fuzz::Input;
+use niji::pattern::regex::{self, Options, ProgRef, Window};
+use niji_fuzz::Input;
 
 /// The back-reference work budget: 16 units of `re_max_failures` (the library's default is
 /// larger; this keeps one input well under the time-out).
@@ -32,7 +32,7 @@ fuzz_target!(|data: &[u8]| {
     let pattern = input.part();
     let subject = input.rest();
 
-    let loc = liella_fuzz::locale(cflags & 0x10 != 0);
+    let loc = niji_fuzz::locale(cflags & 0x10 != 0);
     let syntax = regex::regcomp_syntax(i32::from(cflags & 0x0f)) ^ xor;
     // The harness bounds its own work: regcomp has no size limit (the process's limits are the
     // bound), and libFuzzer reports one huge allocation as a failure.
@@ -80,7 +80,7 @@ fuzz_target!(|data: &[u8]| {
         let w = Window { first, last: n, backward: false };
         let engine = || regex::exec(&prog, &loc, subject, w, &off, false).map(|m| m.map(|m| (m.start, m.end)));
         let leading = req.as_ref().is_some_and(|(b, _)| regex::leads_every_match(&prog, &loc, b));
-        match regex::prefilter(req.as_ref().map(|(b, whole)| (b.as_slice(), *whole)), leading, subject, first, &opts, |w, b| liella::bytes::find_seq(w, b, core::convert::identity)) {
+        match regex::prefilter(req.as_ref().map(|(b, whole)| (b.as_slice(), *whole)), leading, subject, first, &opts, |w, b| niji::bytes::find_seq(w, b, core::convert::identity)) {
             regex::Prefilter::NoMatch => assert!(!matches!(engine(), Ok(Some(_))), "prefilter rejected a subject the engine matches"),
             regex::Prefilter::Match(s, e) => assert_eq!(engine(), Ok(Some((s, e))), "plain string match differs from the engine"),
             regex::Prefilter::From(k) => {

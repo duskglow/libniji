@@ -3,7 +3,7 @@
 //!
 //! Rust lowers `copy_from_slice`, `fill`, `copy_within` and slice comparison to calls to the C
 //! runtime symbols `memcpy`, `memset`, `memmove`, `memcmp` and `bcmp`. In the shipped library
-//! those symbols are Liella's own exports, so the code *implementing* them must not lower to
+//! those symbols are libniji's own exports, so the code *implementing* them must not lower to
 //! them, or `memcpy` would call itself. `#![no_builtins]` stops LLVM from recognising these
 //! loops as the C idioms; the functions are not generic, so they are compiled here, under that
 //! attribute, and never instantiated in another crate. Everything else in the library may use

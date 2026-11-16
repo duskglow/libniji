@@ -1,5 +1,5 @@
 #!/bin/sh
-# tools/deb/swap-system.sh DEBDIR [SUITE] [LOGDIR]: swap Liella's system packages (tools/deb/build.sh
+# tools/deb/swap-system.sh DEBDIR [SUITE] [LOGDIR]: swap libniji's system packages (tools/deb/build.sh
 # --flavour system) into a Debian root in place of the distribution's C library, run the distribution's
 # own programs there (tools/deb/swap-cmds.sh: ls, sort, grep, sed, awk, bash, perl, python3, find, apt on a
 # fixed input; ldd and initramfs-tools' copy_exec on the root's own programs) and compare each one's
@@ -10,8 +10,8 @@
 # SUITE: trixie (default) or excalibur. MIRROR and KEYRING as in tools/deb/proof.sh (the index must be
 # signed by a key in KEYRING; never trusted=yes).
 #
-# The swap: Liella's libc6 and libc-bin replace the distribution's with `dpkg -i --force-downgrade
-# --force-depends`. Liella's version (2.39+liella...) sorts below the suite's libc6, so this is the
+# The swap: libniji's libc6 and libc-bin replace the distribution's with `dpkg -i --force-downgrade
+# --force-depends`. libniji's version (2.39+niji...) sorts below the suite's libc6, so this is the
 # pinned downgrade of plan section 3.7; --force-depends because packages the base set holds (util-linux)
 # depend on a newer libc6 level than 2.39 (plan section 4). The swap is proved by the root's libc.so.6
 # and loader being byte-identical to the ones in DEBDIR's libc6.
@@ -73,12 +73,12 @@ mmroot() { # mmroot MODE HOOK...: build a root, run the hooks, copy /tmp/swap/ou
 }
 mmroot stock || exit 1
 # The swap's own output stays in the root's /tmp/swap/out (dpkg.log, dpkg.rc) and is checked below.
-mmroot liella \
+mmroot niji \
     --customize-hook="chroot \"\$1\" sh -c 'mkdir -p /tmp/swap/out; dpkg -i --force-downgrade --force-depends /tmp/swap/debs/*.deb > /tmp/swap/out/dpkg.log 2>&1; echo \$? > /tmp/swap/out/dpkg.rc; dpkg --audit >> /tmp/swap/out/dpkg.log 2>&1; true'" ||
     exit 1
 
 nsame=0; ndiff=0; bad=0
-s=$res/stock; l=$res/liella
+s=$res/stock; l=$res/niji
 if [ "$(cat "$l/dpkg.rc" 2>/dev/null)" = 0 ]; then
     echo "swap: PASS dpkg -i --force-downgrade --force-depends swaps libc6 and libc-bin in (rc 0)"
 else
@@ -105,7 +105,7 @@ for f in "$s"/*.rc; do
 done
 [ "$nsame" -gt 0 ] || { echo "swap: FAIL no command ran"; bad=1; }
 for id in fakeroot-1 fakeroot-2; do
-    echo "swap: INFO $id in the Liella root: $(tr '\n' ' ' < "$l/$id.out" 2>/dev/null)"
+    echo "swap: INFO $id in the libniji root: $(tr '\n' ' ' < "$l/$id.out" 2>/dev/null)"
 done
 echo "swap: RESULT same=$nsame differ=$ndiff"
 [ "$bad" -eq 0 ] && [ "$ndiff" -eq 0 ]

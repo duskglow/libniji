@@ -1,7 +1,7 @@
 @@generated
 /* sys/errno.h: the old name of <errno.h>. */
-#ifndef __LIELLA_H_sys_errno_h
-#define __LIELLA_H_sys_errno_h 1
+#ifndef __NIJI_H_sys_errno_h
+#define __NIJI_H_sys_errno_h 1
 
 #include <errno.h>
 

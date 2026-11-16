@@ -1,4 +1,4 @@
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Workload definitions of the workload gate (validation/wl_gate.sh), sourced by wl_run.sh.
 # WL_DEFS lines: name|command. In a command, @ is the kit's bin directory; the command runs
 # from the work directory ($WL/work) and writes its result to standard output (the runner

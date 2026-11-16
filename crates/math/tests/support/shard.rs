@@ -140,15 +140,15 @@ pub(crate)struct Tally {
     pub(crate)lines: usize,
     pub(crate)identical: usize,
     pub(crate)identical_other_flags: usize,
-    pub(crate)liella_cr: usize,
+    pub(crate)niji_cr: usize,
     pub(crate)glibc_cr: usize,
     pub(crate)glibc_only_wrong: usize,
-    pub(crate)liella_only_wrong: usize,
+    pub(crate)niji_only_wrong: usize,
     pub(crate)neither: usize,
     pub(crate)undecided: usize,
     pub(crate)glibc_max_ulp: f64,
     pub(crate)glibc_infinite: usize,
-    pub(crate)liella_max_ulp: f64,
+    pub(crate)niji_max_ulp: f64,
 }
 
 impl Tally {
@@ -156,15 +156,15 @@ impl Tally {
         self.lines += o.lines;
         self.identical += o.identical;
         self.identical_other_flags += o.identical_other_flags;
-        self.liella_cr += o.liella_cr;
+        self.niji_cr += o.niji_cr;
         self.glibc_cr += o.glibc_cr;
         self.glibc_only_wrong += o.glibc_only_wrong;
-        self.liella_only_wrong += o.liella_only_wrong;
+        self.niji_only_wrong += o.niji_only_wrong;
         self.neither += o.neither;
         self.undecided += o.undecided;
         self.glibc_max_ulp = self.glibc_max_ulp.max(o.glibc_max_ulp);
         self.glibc_infinite += o.glibc_infinite;
-        self.liella_max_ulp = self.liella_max_ulp.max(o.liella_max_ulp);
+        self.niji_max_ulp = self.niji_max_ulp.max(o.niji_max_ulp);
     }
 
     fn line_of(&self, func: &str) -> String {
@@ -174,15 +174,15 @@ impl Tally {
             t.lines,
             t.identical,
             t.identical_other_flags,
-            t.liella_cr,
+            t.niji_cr,
             t.glibc_cr,
             t.glibc_only_wrong,
-            t.liella_only_wrong,
+            t.niji_only_wrong,
             t.neither,
             t.undecided,
             t.glibc_infinite,
             t.glibc_max_ulp.to_bits(),
-            t.liella_max_ulp.to_bits()
+            t.niji_max_ulp.to_bits()
         )
     }
 
@@ -197,15 +197,15 @@ impl Tally {
             lines: n(1)?,
             identical: n(2)?,
             identical_other_flags: n(3)?,
-            liella_cr: n(4)?,
+            niji_cr: n(4)?,
             glibc_cr: n(5)?,
             glibc_only_wrong: n(6)?,
-            liella_only_wrong: n(7)?,
+            niji_only_wrong: n(7)?,
             neither: n(8)?,
             undecided: n(9)?,
             glibc_infinite: n(10)?,
             glibc_max_ulp: x(11)?,
-            liella_max_ulp: x(12)?,
+            niji_max_ulp: x(12)?,
         };
         Some((f[0].to_string(), t))
     }

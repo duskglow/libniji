@@ -1,4 +1,4 @@
-//! `cargo xtask symgap`: the names glibc's static archive defines that Liella's `libc.a` does
+//! `cargo xtask symgap`: the names glibc's static archive defines that libniji's `libc.a` does
 //! not (owner suggestion 2026-10-05, D-X.14). The reference is the symbol table of the installed
 //! `/usr/lib/x86_64-linux-gnu/libc.a` (interface data, OD-1), restricted to the exported ABI
 //! (`spec/symbols.tsv`); nothing else of it is read. A missing name is reported as a gap, or as
@@ -41,9 +41,9 @@ pub fn run(root: &Path) -> Result<(), String> {
         println!("symgap: skipped ({REFERENCE} is not installed)");
         return Ok(());
     }
-    let ours = root.join("target/liella/libc.a");
+    let ours = root.join("target/niji/libc.a");
     if !ours.exists() {
-        return Err("target/liella/libc.a is missing: run `cargo xtask so`".into());
+        return Err("target/niji/libc.a is missing: run `cargo xtask so`".into());
     }
     let table = fs::read_to_string(root.join("spec/symbols.tsv")).map_err(|e| format!("symbols.tsv: {e}"))?;
     let sections: BTreeMap<String, u32> = table.lines().skip(1).filter_map(|l| {
@@ -79,7 +79,7 @@ pub fn run(root: &Path) -> Result<(), String> {
     let total: usize = gaps.values().map(Vec::len).sum();
     let later_total: usize = later.values().sum();
     let parts: Vec<String> = later.iter().map(|(o, n)| format!("{o} {n}")).collect();
-    println!("symgap: {total} names glibc's libc.a defines and Liella's does not (in the ABI, owned by phases up to 13); {later_total} more owned by phases 14 and 15 ({})", parts.join(", "));
+    println!("symgap: {total} names glibc's libc.a defines and libniji's does not (in the ABI, owned by phases up to 13); {later_total} more owned by phases 14 and 15 ({})", parts.join(", "));
     for (sec, names) in &gaps {
         let shown: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
         println!("  §{sec:<2} {:>4}: {}", names.len(), shown.join(" "));

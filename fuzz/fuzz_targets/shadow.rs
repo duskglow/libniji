@@ -5,8 +5,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::mem::TryVec;
-use liella::users;
+use niji::mem::TryVec;
+use niji::users;
 
 fuzz_target!(|text: &[u8]| {
     for line in users::lines(text) {

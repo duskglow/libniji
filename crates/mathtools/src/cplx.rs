@@ -3,7 +3,7 @@
 //! proven relative error bound per part.
 //!
 //! The formulas are chosen so that nothing cancels, and they differ where they can from the
-//! library's (`liella-math`'s `complex`): `csqrt` from `hypot`; the inverse functions from
+//! library's (`niji-math`'s `complex`): `csqrt` from `hypot`; the inverse functions from
 //! `hypot` of the exact `x ± 1`; `ctanh`'s real part directly as `sinh x cosh x / D` at a
 //! precision that resolves its distance from ±1 for `|x| < 20`, and beyond as `±(1 − δ)` with the
 //! deviation `δ` from an exact identity (`tanh_far`), at no extra precision (`|x|` above 400, 6000

@@ -4,7 +4,7 @@
 # owner rulings R1 and R2; records/pending/SL-FLAVOUR-1.toml).
 #
 # 1. Identity (R1, R2): exactly libc6, libc-bin, libc6-dev, libc-dev-bin, locales, libc-l10n, each
-#    Source: liella, the project's Maintainer, one version <abi>+liella<YYYYMMDD>.<n>-<rev> (no
+#    Source: niji, the project's Maintainer, one version <abi>+niji<YYYYMMDD>.<n>-<rev> (no
 #    epoch); libc-bin Essential: yes, Priority: required, Multi-Arch: foreign; libc6 and libc6-dev
 #    Multi-Arch: same; libc6-dev Provides: libc-dev; locales and libc-l10n Architecture: all.
 # 2. Layout (section 3.3): every path is in the package's list below (nothing in a sysroot, no
@@ -46,8 +46,8 @@ for deb in $debs; do
     v=$(field "$deb" Version)
     [ -n "$version" ] || version=$v
     [ "$v" = "$version" ] || fail "$pkg: version $v, the others $version"
-    echo "$v" | grep -q -E '^2\.[0-9]+\+liella[0-9]{8}\.[0-9]+-[0-9]+$' || fail "$pkg: version $v is not <abi>+liella<YYYYMMDD>.<n>-<rev>"
-    [ "$(field "$deb" Source)" = liella ] || fail "$pkg: Source is '$(field "$deb" Source)', not liella"
+    echo "$v" | grep -q -E '^2\.[0-9]+\+niji[0-9]{8}\.[0-9]+-[0-9]+$' || fail "$pkg: version $v is not <abi>+niji<YYYYMMDD>.<n>-<rev>"
+    [ "$(field "$deb" Source)" = niji ] || fail "$pkg: Source is '$(field "$deb" Source)', not niji"
     [ "$(field "$deb" Maintainer)" = "${DEB_MAINTAINER:-Liella Maintainers <liella@koiren.ai>}" ] || fail "$pkg: Maintainer is '$(field "$deb" Maintainer)'"
     # expect PKG FIELD VALUE
     expect() { [ "$(field "$deb" "$2")" = "$3" ] || fail "$1: $2 is '$(field "$deb" "$2")', not '$3'"; }
@@ -117,9 +117,9 @@ ln -s usr/lib "$r/lib"
 ln -s usr/lib64 "$r/lib64"
 link=$(readlink "$r/usr/lib64/ld-linux-x86-64.so.2" || true)
 [ "$link" = "../lib/$ma/ld-linux-x86-64.so.2" ] || fail "/usr/lib64/ld-linux-x86-64.so.2 -> '$link', not ../lib/$ma/ld-linux-x86-64.so.2"
-# 3. The loader's prefix is / : a sysroot build names /usr/lib/liella (its own libraries and cache).
+# 3. The loader's prefix is / : a sysroot build names /usr/lib/niji (its own libraries and cache).
 if [ -f "$lib/ld-linux-x86-64.so.2" ]; then
-    ! grep -a -q '/usr/lib/liella' "$lib/ld-linux-x86-64.so.2" || fail "the loader was built with the sysroot prefix /usr/lib/liella, not /"
+    ! grep -a -q '/usr/lib/niji' "$lib/ld-linux-x86-64.so.2" || fail "the loader was built with the sysroot prefix /usr/lib/niji, not /"
     grep -a -q "usr/lib/$ma" "$lib/ld-linux-x86-64.so.2" || fail "the loader does not name usr/lib/$ma"
 fi
 # libc-bin's ldconfig is stripped: no symbol table and no debug sections.
@@ -150,7 +150,7 @@ fi
 begin=$("$cc" -print-file-name=crtbeginT.o); end=$("$cc" -print-file-name=crtend.o)
 if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$lib/crti.o" "$begin" "$here/smoke/hello.c" -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$end" "$lib/crtn.o" -o "$tmp/hello-static" > "$tmp/log" 2>&1; then
     out=$(timeout 60 "$tmp/hello-static" 2>&1) || fail "static hello exits $?: $out"
-    case $out in *"hello from liella"*) ;; *) fail "static hello printed '$out'" ;; esac
+    case $out in *"hello from niji"*) ;; *) fail "static hello printed '$out'" ;; esac
 else
     fail "static hello does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
 fi

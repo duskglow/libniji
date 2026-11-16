@@ -4,5 +4,5 @@
 #[test]
 fn csys_layer_links_and_reports_its_abi_version() {
     // Trace: no spec clause (C syscall layer build and link plumbing); K1, K5, S3.
-    assert_eq!(liella_boundary::ffi::csys_abi_version(), 1);
+    assert_eq!(niji_boundary::ffi::csys_abi_version(), 1);
 }

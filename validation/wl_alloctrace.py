@@ -1,5 +1,5 @@
 # gdb python script of validation/wl_alloctrace.sh (runs on Zen 1 host, inside `gdb -batch -x`): traces the allocator entry
-# points of ONE Liella program run and writes a summary to $TROUT. Liella binaries only (never glibc).
+# points of ONE libniji program run and writes a summary to $TROUT. libniji binaries only (never glibc).
 #   env: TROUT summary file; TRTOP rows per table (default 10); TRMIN smallest block whose realloc chain is followed
 #   (default 256 bytes; chains starting from a smaller malloc are seen only from their first realloc on).
 # Entry points are breakpoints on the exact entry address (*malloc), so the word at (rsp) is the return address.

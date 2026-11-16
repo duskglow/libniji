@@ -5,9 +5,9 @@
 
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella_abi::ctypes::c_void;
-use liella_boundary::posix::s14_search as sx;
-use liella_boundary::selftest::failinject::{self, FailAlloc};
+use niji_abi::ctypes::c_void;
+use niji_boundary::posix::s14_search as sx;
+use niji_boundary::selftest::failinject::{self, FailAlloc};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[global_allocator]

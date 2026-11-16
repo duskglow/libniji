@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Build one GNU package against one C library and run its test suite (validation/README.md).
 #
 #   validation/suite.sh PACKAGE LIBC [JOBS]
@@ -8,20 +8,20 @@
 # make (the verified tarballs in $VALIDATION, default ~/validation).
 # LIBC:
 #   glibc     the host's, dynamically linked, as the distribution builds;
-#   liella    static, through scripts/liella-cc, as is;
-#   liella-w  liella with the first runs' labelled workarounds (validation/README.md,
+#   niji    static, through scripts/niji-cc, as is;
+#   niji-w  niji with the first runs' labelled workarounds (validation/README.md,
 #             "Workarounds"): --allow-multiple-definition, validation/shim/missing.c, and
-#             gnulib's regex instead of Liella's for coreutils and findutils
-#             (--with-included-regex; sed keeps Liella's);
-#   liella-t1 the second runs (milestone 3): only --allow-multiple-definition (T1, until libc.a
+#             gnulib's regex instead of libniji's for coreutils and findutils
+#             (--with-included-regex; sed keeps libniji's);
+#   niji-t1 the second runs (milestone 3): only --allow-multiple-definition (T1, until libc.a
 #             has weak definitions) and the libm stand-in of validation/shim/missing.c (T3);
-#   liella-t1r liella-t1 with gnulib's regex for coreutils and findutils (to see past T5, the
+#   niji-t1r niji-t1 with gnulib's regex for coreutils and findutils (to see past T5, the
 #             regex fix of the optimization thread).
-#   liella-m  the fourth runs (milestone 4, libc.a overridable since D-X.14): as is, except the
+#   niji-m  the fourth runs (milestone 4, libc.a overridable since D-X.14): as is, except the
 #             modf stand-in of validation/shim/missing.c for findutils (T3; results provisional);
-#   liella-mr liella-m with gnulib's regex for coreutils and findutils (diagnosis of T5/T6 only);
+#   niji-mr niji-m with gnulib's regex for coreutils and findutils (diagnosis of T5/T6 only);
 #             since milestone 6 also for grep, diffutils and tar;
-#   glibc-noload, liella-noload  make only: --disable-load under both libraries (T4, T27);
+#   glibc-noload, niji-noload  make only: --disable-load under both libraries (T4, T27);
 #   glibc-sysregex  glibc with --without-included-regex for coreutils, sed and findutils: their
 #             configure rejects glibc's re_compile_pattern and links gnulib's regex, which the
 #             corpus harvest cannot see (validation item C); the stock glibc build stays the
@@ -65,33 +65,33 @@ case $libc in
     # program has no dlopen (T4, phase 14): the -noload pair builds make with --disable-load
     # under both libraries, labelled, so its suite runs at all.
     glibc-noload) cc=gcc; opts="$opts --disable-load" ;;
-    liella-noload) cc=$repo/scripts/liella-cc; opts="$opts --disable-load" ;;
+    niji-noload) cc=$repo/scripts/niji-cc; opts="$opts --disable-load" ;;
     glibc-sysregex)
         cc=gcc
         case $pkg in coreutils | sed | findutils | grep | diffutils | tar) opts="$opts --without-included-regex" ;; esac ;;
-    # As is: no workaround, no stand-in; since V-5 (PRE14-VALIDATION-RERUN) -lm links Liella's
-    # libm.a (scripts/liella-cc), so gawk and find need no shim.
-    liella) cc=$repo/scripts/liella-cc ;;
-    liella-w)
-        cc=$repo/scripts/liella-cc
+    # As is: no workaround, no stand-in; since V-5 (PRE14-VALIDATION-RERUN) -lm links libniji's
+    # libm.a (scripts/niji-cc), so gawk and find need no shim.
+    niji) cc=$repo/scripts/niji-cc ;;
+    niji-w)
+        cc=$repo/scripts/niji-cc
         mkdir -p "$V/shim"
         gcc -O1 -c -o "$V/shim/missing.o" "$repo/validation/shim/missing.c" || exit 1
-        export LIELLA_CC_EXTRA="-Wl,--allow-multiple-definition $V/shim/missing.o"
+        export NIJI_CC_EXTRA="-Wl,--allow-multiple-definition $V/shim/missing.o"
         case $pkg in coreutils | findutils) opts="$opts --with-included-regex" ;; esac ;;
-    liella-t1 | liella-t1r)
-        cc=$repo/scripts/liella-cc
+    niji-t1 | niji-t1r)
+        cc=$repo/scripts/niji-cc
         mkdir -p "$V/shim"
         gcc -O1 -c -o "$V/shim/missing.o" "$repo/validation/shim/missing.c" || exit 1
-        export LIELLA_CC_EXTRA="-Wl,--allow-multiple-definition $V/shim/missing.o"
-        if [ "$libc" = liella-t1r ]; then
+        export NIJI_CC_EXTRA="-Wl,--allow-multiple-definition $V/shim/missing.o"
+        if [ "$libc" = niji-t1r ]; then
             case $pkg in coreutils | findutils) opts="$opts --with-included-regex" ;; esac
         fi ;;
-    liella-m | liella-mr)
-        cc=$repo/scripts/liella-cc
+    niji-m | niji-mr)
+        cc=$repo/scripts/niji-cc
         # The milestone-4..6 builds used maths stand-ins (findutils: modf of shim/missing.c;
-        # gawk: shim/libm.c). Since GAWK-LM-CHECK-2 -lm links Liella's libm.a and modf is in
+        # gawk: shim/libm.c). Since GAWK-LM-CHECK-2 -lm links libniji's libm.a and modf is in
         # libc.a (T23), so no stand-in is linked any more.
-        if [ "$libc" = liella-mr ]; then
+        if [ "$libc" = niji-mr ]; then
             case $pkg in coreutils | findutils | grep | diffutils | tar) opts="$opts --with-included-regex" ;; esac
         fi ;;
     *) echo "unknown C library $libc" >&2; exit 2 ;;

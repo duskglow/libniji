@@ -97,7 +97,7 @@ int main(void)
 
     begin("s12_7_f_0");
     {
-        /* Liella stores the clamped value without an error (D-12.6). */
+        /* libniji stores the clamped value without an error (D-12.6). */
         int n = 0;
         signed char c = 0;
         CHECK(sscanf("99999999999", "%d", &n) == 1 && n == INT_MAX);

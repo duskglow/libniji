@@ -1,6 +1,6 @@
-/* The heap's node read on several NUMA nodes (D-3.21): a thread Liella created, pinned to a CPU of a
+/* The heap's node read on several NUMA nodes (D-3.21): a thread libniji created, pinned to a CPU of a
  * node other than node 0, takes its first slab from that node, reading the node from the rseq
- * area Liella registered for it. The vDSO is unmapped before the thread starts, so a node read
+ * area libniji registered for it. The vDSO is unmapped before the thread starts, so a node read
  * through the vDSO getcpu would fault: a clean run shows the node came from rseq. Prints
  * "node <n> page <p>" (n: the CPU's node from the getcpu system call; p: the node the block's
  * page sits on) on stderr, or "skip <why>". Only system calls and the library's own malloc,

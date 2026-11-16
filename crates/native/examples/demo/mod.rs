@@ -2,7 +2,7 @@
 //! <what it did>` or `FAIL <step>: <why>`. `cargo xtask native` runs the static example as
 //!
 //! ```text
-//! env -i LIELLA_NATIVE_GREETING=hello TZ=CET-1CEST,M3.5.0,M10.5.0/3 native_static <dir> alpha beta
+//! env -i NIJI_NATIVE_GREETING=hello TZ=CET-1CEST,M3.5.0,M10.5.0/3 native_static <dir> alpha beta
 //! ```
 //!
 //! and compares its output with the lines it expects (xtask/src/native_examples.rs). `<dir>` is an
@@ -15,9 +15,9 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Write;
 
-use liella_native::fd::{Stdio, Whence};
-use liella_native::secure::{secure_zero, SecureVec};
-use liella_native::{aio, clock, env, fs, getpass, locale, nscache, process, tz, Errno};
+use niji_native::fd::{Stdio, Whence};
+use niji_native::secure::{secure_zero, SecureVec};
+use niji_native::{aio, clock, env, fs, getpass, locale, nscache, process, tz, Errno};
 
 /// A step: what it did, or why it failed.
 pub(crate) type Step = fn() -> Result<String, String>;
@@ -96,32 +96,32 @@ fn args() -> Result<String, String> {
 
 /// The environment: read, set (with and without overwrite), unset, count, iterate.
 fn environment() -> Result<String, String> {
-    let greeting = env::get(b"LIELLA_NATIVE_GREETING").map_err(at("get"))?.ok_or("LIELLA_NATIVE_GREETING is not set")?;
+    let greeting = env::get(b"NIJI_NATIVE_GREETING").map_err(at("get"))?.ok_or("NIJI_NATIVE_GREETING is not set")?;
     let mut small = [0u8; 2];
-    let fit = env::get_into(b"LIELLA_NATIVE_GREETING", &mut small).map_err(at("get_into"))?;
-    check(fit == Some(liella_native::Fit::Needed(greeting.len())), "get_into did not report the length needed")?;
+    let fit = env::get_into(b"NIJI_NATIVE_GREETING", &mut small).map_err(at("get_into"))?;
+    check(fit == Some(niji_native::Fit::Needed(greeting.len())), "get_into did not report the length needed")?;
 
-    env::set(b"LIELLA_NATIVE_SET", b"first", true).map_err(at("set"))?;
-    env::set(b"LIELLA_NATIVE_SET", b"second", false).map_err(at("set"))?;
-    check(env::get(b"LIELLA_NATIVE_SET").map_err(at("get"))?.as_deref() == Some(b"first"), "set without overwrite replaced the value")?;
+    env::set(b"NIJI_NATIVE_SET", b"first", true).map_err(at("set"))?;
+    env::set(b"NIJI_NATIVE_SET", b"second", false).map_err(at("set"))?;
+    check(env::get(b"NIJI_NATIVE_SET").map_err(at("get"))?.as_deref() == Some(b"first"), "set without overwrite replaced the value")?;
     let long = [b'v'; 1000];
-    env::set(b"LIELLA_NATIVE_SET", &long, true).map_err(at("set"))?;
-    check(env::get(b"LIELLA_NATIVE_SET").map_err(at("get"))?.as_deref() == Some(&long[..]), "a 1000-byte value did not come back")?;
+    env::set(b"NIJI_NATIVE_SET", &long, true).map_err(at("set"))?;
+    check(env::get(b"NIJI_NATIVE_SET").map_err(at("get"))?.as_deref() == Some(&long[..]), "a 1000-byte value did not come back")?;
     // The environment contract (D-1.12): off by default; while on, writers keep the table current.
     check(!env::contract(true), "the environment contract was on before the program turned it on")?;
-    env::set(b"LIELLA_NATIVE_SET", b"contract", true).map_err(at("set"))?;
+    env::set(b"NIJI_NATIVE_SET", b"contract", true).map_err(at("set"))?;
     env::reload();
-    check(env::get(b"LIELLA_NATIVE_SET").map_err(at("get"))?.as_deref() == Some(b"contract"), "a setenv under the contract was not seen")?;
+    check(env::get(b"NIJI_NATIVE_SET").map_err(at("get"))?.as_deref() == Some(b"contract"), "a setenv under the contract was not seen")?;
     check(env::contract(false), "turning the contract off did not report it on")?;
     check(env::set(b"A=B", b"x", true) == Err(Errno::EINVAL), "a name with '=' was accepted")?;
-    env::unset(b"LIELLA_NATIVE_SET").map_err(at("unset"))?;
-    check(env::get(b"LIELLA_NATIVE_SET").map_err(at("get"))?.is_none(), "unset left the variable")?;
+    env::unset(b"NIJI_NATIVE_SET").map_err(at("unset"))?;
+    check(env::get(b"NIJI_NATIVE_SET").map_err(at("get"))?.is_none(), "unset left the variable")?;
 
     let count = env::count().map_err(at("count"))?;
     let entries: Vec<Vec<u8>> = env::vars().collect::<Result<_, _>>().map_err(at("vars"))?;
     check(entries.len() == count, "vars() and count() disagree")?;
-    check(entries.iter().any(|e| e.as_slice() == b"LIELLA_NATIVE_GREETING=hello"), "the greeting is not among the entries")?;
-    Ok(format!("LIELLA_NATIVE_GREETING={}; set, overwrite, unset; {count} entries", text(&greeting)))
+    check(entries.iter().any(|e| e.as_slice() == b"NIJI_NATIVE_GREETING=hello"), "the greeting is not among the entries")?;
+    Ok(format!("NIJI_NATIVE_GREETING={}; set, overwrite, unset; {count} entries", text(&greeting)))
 }
 
 /// A file round trip in the directory given as the first argument.
@@ -131,22 +131,27 @@ fn file() -> Result<String, String> {
     let sub = path(b"sub");
     let first = path(b"sub/first");
     let second = path(b"sub/second");
-    let data = b"liella native round trip\n";
+    let data = b"niji native round trip\n";
+    // `pwrite` puts `head` over the first word; `pread` reads the second word, after the first space.
+    let head = b"NIJI";
+    let word_at = data.iter().position(|&b| b == b' ').and_then(|p| p.checked_add(1)).ok_or("the data has no second word")?;
+    let word_at = i64::try_from(word_at).map_err(|_| "the second word's offset does not fit")?;
 
     fs::mkdir(&sub, 0o755).map_err(at("mkdir"))?;
     check(fs::stat(&sub).map_err(at("stat"))?.is_dir(), "the directory is not one")?;
     let f = fs::open(&first, fs::O_RDWR | fs::O_CREAT | fs::O_EXCL | fs::O_CLOEXEC, 0o644).map_err(at("open"))?;
     f.write_all(data).map_err(at("write_all"))?;
-    let n = f.pwrite(b"LIELLA", 0).map_err(at("pwrite"))?;
-    check(n == 6, "pwrite was short")?;
+    let n = f.pwrite(head, 0).map_err(at("pwrite"))?;
+    check(n == head.len(), "pwrite was short")?;
     let end = f.seek(0, Whence::Current).map_err(at("seek"))?;
     check(usize::try_from(end).ok() == Some(data.len()), "pwrite moved the offset")?;
     f.seek(0, Whence::Set).map_err(at("seek"))?;
     let mut back = [0u8; 64];
     let n = f.read(&mut back).map_err(at("read"))?;
-    check(back.get(..n) == Some(&b"LIELLA native round trip\n"[..]), "read gave other bytes")?;
+    let want: Vec<u8> = head.iter().chain(data.iter().skip(head.len())).copied().collect();
+    check(back.get(..n) == Some(want.as_slice()), "read gave other bytes")?;
     let mut word = [0u8; 6];
-    f.pread(&mut word, 7).map_err(at("pread"))?;
+    f.pread(&mut word, word_at).map_err(at("pread"))?;
     check(&word == b"native", "pread gave other bytes")?;
     let st = f.stat().map_err(at("fstat"))?;
     check(st.is_file() && usize::try_from(st.size).ok() == Some(data.len()) && st.permissions() & 0o600 == 0o600, "fstat disagrees")?;
@@ -207,7 +212,7 @@ fn zone() -> Result<String, String> {
 
 /// The stateless clean API, compiled into the program.
 fn clean() -> Result<String, String> {
-    let c = liella_native::liella::time::utc(1_782_907_200).map_err(at("utc"))?;
+    let c = niji_native::niji::time::utc(1_782_907_200).map_err(at("utc"))?;
     Ok(format!("1782907200 is {:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC", c.year, c.month, c.day, c.hour, c.minute, c.second))
 }
 
@@ -218,7 +223,7 @@ fn current_locale() -> Result<String, String> {
     let point = locale::decimal_point().map_err(at("decimal_point"))?;
     let mut tiny = [0u8; 0];
     let fit = locale::decimal_point_into(&mut tiny).map_err(at("decimal_point_into"))?;
-    check(fit == liella_native::Fit::Needed(point.len()), "decimal_point_into did not report the length needed")?;
+    check(fit == niji_native::Fit::Needed(point.len()), "decimal_point_into did not report the length needed")?;
     // Reloading the locale data (D-X.13) keeps the global locale.
     locale::invalidate().map_err(at("invalidate"))?;
     check(locale::name(locale::Category::All).map_err(at("name"))? == name, "the locale changed after invalidate")?;
@@ -247,7 +252,7 @@ fn names_cache() -> Result<String, String> {
     Ok(format!("enabled and idle, {} categories; switched off and on, invalidated", s.categories.count_ones()))
 }
 
-/// POSIX AIO's engine: the worker threads, chosen before any request (`liella_aio_use_threads`;
+/// POSIX AIO's engine: the worker threads, chosen before any request (`niji_aio_use_threads`;
 /// asking again is no error).
 fn aio_engine() -> Result<String, String> {
     aio::use_threads().map_err(at("use_threads"))?;
@@ -255,7 +260,7 @@ fn aio_engine() -> Result<String, String> {
     Ok(String::from("worker threads chosen before the first request"))
 }
 
-/// `getpass`'s bound (`liella_getpass_set_limit`): the default, a new bound, the default again.
+/// `getpass`'s bound (`niji_getpass_set_limit`): the default, a new bound, the default again.
 fn pass_bound() -> Result<String, String> {
     check(getpass::set_limit(4096) == Ok(getpass::DEFAULT_LIMIT), "the default bound was not in force")?;
     check(getpass::set_limit(0) == Ok(4096), "the new bound was not in force")?;
@@ -282,10 +287,10 @@ pub(crate) const STEPS: [(&str, Step); 13] = [
 ];
 
 /// Run `steps`, print a line for each and a summary, and exit through
-/// `liella_native::process::exit`: status 0 if every step passed, else 1.
+/// `niji_native::process::exit`: status 0 if every step passed, else 1.
 pub(crate) fn run(steps: &[(&str, Step)]) -> ! {
     let mut out = Stdio::OUT;
-    let _ = writeln!(out, "native example: linkage {}", liella_native::LINKAGE.name());
+    let _ = writeln!(out, "native example: linkage {}", niji_native::LINKAGE.name());
     let mut failed = 0usize;
     for (name, step) in steps {
         match step() {

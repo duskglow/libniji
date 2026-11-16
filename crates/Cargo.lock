@@ -3,99 +3,99 @@
 version = 4
 
 [[package]]
-name = "liella"
+name = "niji"
 version = "0.0.0"
 dependencies = [
- "liella-kernel",
- "liella-mem",
- "liella-rt",
+ "niji-kernel",
+ "niji-mem",
+ "niji-rt",
 ]
 
 [[package]]
-name = "liella-abi"
+name = "niji-abi"
 version = "0.0.0"
 dependencies = [
- "liella",
- "liella-kernel",
+ "niji",
+ "niji-kernel",
 ]
 
 [[package]]
-name = "liella-boundary"
+name = "niji-boundary"
 version = "0.0.0"
 dependencies = [
- "liella",
- "liella-abi",
- "liella-kernel",
- "liella-ld",
- "liella-legacy",
- "liella-math",
- "liella-rt",
+ "niji",
+ "niji-abi",
+ "niji-kernel",
+ "niji-ld",
+ "niji-legacy",
+ "niji-math",
+ "niji-rt",
 ]
 
 [[package]]
-name = "liella-kernel"
+name = "niji-kernel"
 version = "0.0.0"
 
 [[package]]
-name = "liella-ld"
+name = "niji-ld"
 version = "0.0.0"
 dependencies = [
- "liella-kernel",
- "liella-rt",
+ "niji-kernel",
+ "niji-rt",
 ]
 
 [[package]]
-name = "liella-ld-so"
+name = "niji-ld-so"
 version = "0.0.0"
 dependencies = [
- "liella-boundary",
+ "niji-boundary",
 ]
 
 [[package]]
-name = "liella-ldconfig-bin"
+name = "niji-ldconfig-bin"
 version = "0.0.0"
 dependencies = [
- "liella-boundary",
+ "niji-boundary",
 ]
 
 [[package]]
-name = "liella-legacy"
+name = "niji-legacy"
 version = "0.0.0"
 dependencies = [
- "liella",
- "liella-abi",
- "liella-kernel",
- "liella-rt",
+ "niji",
+ "niji-abi",
+ "niji-kernel",
+ "niji-rt",
 ]
 
 [[package]]
-name = "liella-libc-so"
+name = "niji-libc-so"
 version = "0.0.0"
 dependencies = [
- "liella-boundary",
+ "niji-boundary",
 ]
 
 [[package]]
-name = "liella-libm-so"
+name = "niji-libm-so"
 version = "0.0.0"
 dependencies = [
- "liella-boundary",
+ "niji-boundary",
 ]
 
 [[package]]
-name = "liella-math"
+name = "niji-math"
 version = "0.0.0"
 dependencies = [
- "liella-rt",
+ "niji-rt",
 ]
 
 [[package]]
-name = "liella-mem"
+name = "niji-mem"
 version = "0.0.0"
 
 [[package]]
-name = "liella-rt"
+name = "niji-rt"
 version = "0.0.0"
 dependencies = [
- "liella-kernel",
+ "niji-kernel",
 ]

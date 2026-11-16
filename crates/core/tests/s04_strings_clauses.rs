@@ -3,31 +3,31 @@
 
 //! Clause tests for spec §4 (66 clauses).
 //!
-//! The clauses are tested on the functions that implement them: `liella::bytes` (the
-//! length-delimited needs), `liella_legacy::cstring` and `string_compat` (the C-shaped
+//! The clauses are tested on the functions that implement them: `niji::bytes` (the
+//! length-delimited needs), `niji_legacy::cstring` and `string_compat` (the C-shaped
 //! compositions). Clauses about the C interface itself (fortify aborts, `strdup`'s `ENOMEM`,
-//! the tolerant `memcpy`) run through the exports of `liella-boundary`.
+//! the tolerant `memcpy`) run through the exports of `niji-boundary`.
 //!
 //! Two clauses stay pending: §4 Notes 5 and 6 are design commentary with no observable
 //! behaviour.
 
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use core::cmp::Ordering;
 use core::ptr::null_mut;
 
-use liella::bytes::{self, ByteSet, Move, Tokens};
-use liella::ctype;
-use liella_abi::ctypes::c_char;
-use liella_boundary::posix::s04_strings as x;
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
-use liella_kernel::Errno;
-use liella_legacy::cstring;
-use liella_legacy::string_compat::{self, Cursor, TextAt};
+use niji::bytes::{self, ByteSet, Move, Tokens};
+use niji::ctype;
+use niji_abi::ctypes::c_char;
+use niji_boundary::posix::s04_strings as x;
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
+use niji_kernel::Errno;
+use niji_legacy::cstring;
+use niji_legacy::string_compat::{self, Cursor, TextAt};
 use spectest::commentary;
 
 const SIGABRT: i32 = 6;
@@ -326,10 +326,10 @@ fn s4_3_g_0() {
 #[test]
 fn s4_3_f_0() {
     // In the C locale every byte string is valid, so strcoll sets no errno.
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     let r = x::strcoll(z("\u{ff}").as_ptr().cast(), z("a").as_ptr().cast());
     assert!(r > 0);
-    assert_eq!(liella_boundary::errno::get(), 0);
+    assert_eq!(niji_boundary::errno::get(), 0);
 }
 
 // ------------------------------------------------------------------------------ 4.4 strxfrm
@@ -524,21 +524,21 @@ fn s4_10_f_0() {
     // The address-space cap needs a process of its own, and the allocation must not run in a
     // forked copy of the multi-threaded harness (another thread may hold the allocator's lock
     // at the fork). So the test re-runs itself, alone, in a fresh process.
-    if std::env::var_os("LIELLA_S4_10_F_0").is_some() {
+    if std::env::var_os("NIJI_S4_10_F_0").is_some() {
         let mut big = vec![b'a'; 64 << 20];
         big.push(0);
         let statm = std::fs::read_to_string("/proc/self/statm").unwrap();
         let pages: u64 = statm.split_whitespace().next().unwrap().parse().unwrap();
         CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: pages * 4096 + (16 << 20), max: RLIM_INFINITY })).unwrap();
-        liella_boundary::errno::set_raw(0);
-        let p = liella_boundary::selftest::opaque::strdup(big.as_ptr().cast());
+        niji_boundary::errno::set_raw(0);
+        let p = niji_boundary::selftest::opaque::strdup(big.as_ptr().cast());
         assert!(p.is_null(), "NULL");
-        assert_eq!(liella_boundary::errno::get(), Errno::ENOMEM.get(), "ENOMEM");
+        assert_eq!(niji_boundary::errno::get(), Errno::ENOMEM.get(), "ENOMEM");
         return;
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["s4_10_f_0", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S4_10_F_0", "1")
+        .env("NIJI_S4_10_F_0", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -768,7 +768,7 @@ fn s4_3_c_6() {
 fn s4_3_c_7() {
     // The _l variants take an explicit locale: strcoll_l with the C locale is strcmp's order
     // whatever the thread's locale.
-    use liella_boundary::posix::s07_locale as lx;
+    use niji_boundary::posix::s07_locale as lx;
     let c = lx::newlocale(0x1fbf, cz("C").as_ptr(), core::ptr::null_mut());
     assert!(!c.is_null());
     assert!(x::strcoll_l(cz("B").as_ptr(), cz("a").as_ptr(), c) < 0);

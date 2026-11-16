@@ -1,5 +1,5 @@
 /* getopt end to end (spec §1.6, §1.6a; D-1.6): built against the host C library and against
- * Liella's products, the outputs must match line for line (getopt_products.rs). Each case
+ * libniji's products, the outputs must match line for line (getopt_products.rs). Each case
  * parses a fresh copy of an argument vector to the end: every code with optarg, optind, optopt
  * and the long index, then the vector as permuted and the diagnostics written. */
 #define _GNU_SOURCE

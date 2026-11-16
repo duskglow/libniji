@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn walk_skips_build_output() {
-        let root = std::env::temp_dir().join(format!("liella-walk-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("niji-walk-{}", std::process::id()));
         for d in ["conformance/build", "target", "src", "tools/hottext/__pycache__"] {
             std::fs::create_dir_all(root.join(d)).unwrap();
         }

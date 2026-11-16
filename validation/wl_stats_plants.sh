@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Plants for the futex / threaded-memory split of wl_count and wl_run (WLCOUNT-FUTEX, WLCOUNT-MTMEM-2). Every plant must make
 # a test fail; prints CAUGHT / SURVIVED per plant and exits 1 when one survives. No file in the tree is mutated:
 #  - function plants (WL_STATS_PLANT=<name>) are overrides inside wl_stats_test.sh;

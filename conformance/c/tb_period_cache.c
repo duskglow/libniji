@@ -1,5 +1,5 @@
 /* No spec clause (an internal per-thread cache; the answers are localtime_r's); TB-SLOTS,
- * D-X.58: in a process Liella's runtime started, the thread's time-zone period lives in its own
+ * D-X.58: in a process libniji's runtime started, the thread's time-zone period lives in its own
  * block's cache words (%fs:0x140-0x157). The %fs-relative loads read what the block holds, each
  * thread keeps its own period, a cache hit stores nothing, and a forked child starts with its
  * parent's words (zone numbers are never reused) and changes only its own. */

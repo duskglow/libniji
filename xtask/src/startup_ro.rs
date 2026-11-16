@@ -43,18 +43,18 @@ const HOT_TIERS: [&str; 5] = ["startup", "stdio", "strings", "locale", "tool"];
 const PROBE_KEYS: &str = "probe-text.keys";
 /// The prefix the weakening pass gives a library name (`weaken_archive`); start-up keys name the
 /// final archive's symbols, this pass runs before it.
-const LIB_PREFIX: &str = "__liella_libc_";
+const LIB_PREFIX: &str = "__niji_libc_";
 /// STARTUP-DATA-PAGE-ALIGN: the start-up relro cluster. The `.data.rel.ro*` sections the start-up functions'
 /// relocations reach ([`reached`]: tables of `&str`s and slices, vtables, switch tables) are renamed to this
 /// name. GNU ld's default script takes `*(.data.rel.ro.local* ...)` before `*(.data.rel.ro .data.rel.ro.* ...)`,
 /// so they leave the compiler's emission order (where an unrelated change ahead of them, such as a libm
 /// change that re-partitions code generation, moved them by 0x4d0 bytes and two pages) and sit together at
 /// the head of the relro output section, after only the program's own `.data.rel.ro.local*` inputs.
-pub const RELRO_SECTION: &str = ".data.rel.ro.local.liella_startup";
+pub const RELRO_SECTION: &str = ".data.rel.ro.local.niji_startup";
 /// The first section of the cluster (lowest section index in its member, so the linker takes it first),
 /// aligned to [`PAGE`]: the cluster starts on a page boundary whatever relro input precedes it, and takes
 /// the same pages in every link.
-pub const RELRO_HEAD: &str = ".data.rel.ro.local.liella_startup_head";
+pub const RELRO_HEAD: &str = ".data.rel.ro.local.niji_startup_head";
 /// The page size the start-up relro cluster aligns to.
 pub const PAGE: u64 = 4096;
 
@@ -348,7 +348,7 @@ fn cluster_aligns_of(listing: &str) -> Vec<(&'static str, u64)> {
         bytes[k] += size + align.max(1) - 1;
     }
     let pow2 = |b: u64| b.max(4096).next_power_of_two().min(65536);
-    vec![("LIELLA_RODATA1_ALIGN", pow2(bytes[0])), ("LIELLA_DATA1_ALIGN", pow2(bytes[1])), ("LIELLA_RELRO_ALIGN", pow2(bytes[2]))]
+    vec![("NIJI_RODATA1_ALIGN", pow2(bytes[0])), ("NIJI_DATA1_ALIGN", pow2(bytes[1])), ("NIJI_RELRO_ALIGN", pow2(bytes[2]))]
 }
 
 /// The text keys, read-only keys and parsed members of `archive` (`root`: the tree with the key files).
@@ -539,9 +539,9 @@ mod tests {
         // 64 KiB; `.data1` counts only itself; the relro section counts every `.data.rel.ro*` input
         // (LAYOUT-DATA-CLUSTERS-3, D-X.67): 0x10 + 7 and 0x90000 + 7 bytes, capped at one window.
         let l = "  [ 3] .rodata1 PROGBITS 0000000000000000 000040 004e20 00 A 0 0 32\n  [ 4] .rodata1 PROGBITS 0000000000000000 000040 000100 00 A 0 0 1\n  [ 5] .data.rel.ro.local._RNvX PROGBITS 0000000000000000 000040 000010 00 WA 0 0 8\n  [ 6] .data.rel.ro.x PROGBITS 0000000000000000 000040 090000 00 WA 0 0 8\n  [ 7] .data1 PROGBITS 0000000000000000 000040 001001 00 WA 0 0 1\n  [ 8] .data1x PROGBITS 0000000000000000 000040 040000 00 WA 0 0 1\n";
-        assert_eq!(cluster_aligns_of(l), vec![("LIELLA_RODATA1_ALIGN", 32768), ("LIELLA_DATA1_ALIGN", 8192), ("LIELLA_RELRO_ALIGN", 65536)]);
-        assert_eq!(cluster_aligns_of("  [ 1] .data.rel.ro.local.a PROGBITS 0 0 4e20 00 WA 0 0 8\n")[2], ("LIELLA_RELRO_ALIGN", 32768));
-        assert_eq!(cluster_aligns_of("  [ 1] .data1 NOBITS 0 0 90000 00 WA 0 0 8\n")[1], ("LIELLA_DATA1_ALIGN", 65536));
+        assert_eq!(cluster_aligns_of(l), vec![("NIJI_RODATA1_ALIGN", 32768), ("NIJI_DATA1_ALIGN", 8192), ("NIJI_RELRO_ALIGN", 65536)]);
+        assert_eq!(cluster_aligns_of("  [ 1] .data.rel.ro.local.a PROGBITS 0 0 4e20 00 WA 0 0 8\n")[2], ("NIJI_RELRO_ALIGN", 32768));
+        assert_eq!(cluster_aligns_of("  [ 1] .data1 NOBITS 0 0 90000 00 WA 0 0 8\n")[1], ("NIJI_DATA1_ALIGN", 65536));
     }
 
     const LISTING: &str = "
@@ -754,7 +754,7 @@ Symbol table '.symtab' contains 4 entries:
     #[test]
     fn a_library_name_matches_its_weakened_key() {
         // LAYOUT-STARTUP-RODATA (no spec clause): start-up keys name the final archive's symbols
-        // (`__liella_libc_<name>`); this pass runs before the weakening, on `<name>`.
+        // (`__niji_libc_<name>`); this pass runs before the weakening, on `<name>`.
         let text: BTreeSet<String> = [crate::hottext::key(&format!("{LIB_PREFIX}start_fn"))].into();
         let (rename, ..) = plan(&parse(LISTING), &text, &BTreeSet::new());
         assert!(rename["a.o"].contains(".rodata.cst16"));

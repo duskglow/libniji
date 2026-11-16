@@ -1,5 +1,5 @@
 //! The integrated name-service cache of the process (D-16.10; it replaces nscd, D-16.5): speed
-//! only, never opacity. The table's format is `liella::names::cache`; this module decides when
+//! only, never opacity. The table's format is `niji::names::cache`; this module decides when
 //! to use which table, what to watch, and who may write.
 //!
 //! **What is cached.** The answers of the built-in sources (`files`, `dns`) for hosts, passwd,
@@ -36,7 +36,7 @@
 //! while a change was not yet seen is stored under the generations read before the sources
 //! were asked, so it dies with them.
 //!
-//! **Tables.** The shared region of the effective user, `<dir>/liella-nscache-<euid>`
+//! **Tables.** The shared region of the effective user, `<dir>/niji-nscache-<euid>`
 //! (`/dev/shm/` in the products), when it can be trusted; otherwise a private table in
 //! anonymous memory. The region is created `O_RDWR|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC`, mode
 //! 0600 (then `fchmod` 0600, against a umask, and sized to [`cache::CAP_BYTES`]), or opened
@@ -52,7 +52,7 @@
 //! user namespace (`/proc/self/ns/user`): there its IDs are the namespace's while `/dev/shm` is
 //! shared by every namespace, so a region named for its "UID 0" would carry another account's
 //! name (validation T13). The region's descriptor is kept above the standard descriptors
-//! (`liella::io::above_standard`), so a program that closed its output never writes into the
+//! (`niji::io::above_standard`), so a program that closed its output never writes into the
 //! region (validation T12). The region's size cannot be sealed (a file in
 //! `/dev/shm` carries `F_SEAL_SEAL`; `F_ADD_SEALS` fails with `EPERM`, kernel 6.8), so a same-user
 //! process that truncates it makes the processes that map it fault (`SIGBUS`). Readers keep a count while
@@ -62,7 +62,7 @@
 //! does not write. A region whose header is not this account's (layout, size, owner, boot ID,
 //! account stamp) or that a writer left half-changed is reinitialised under that lock.
 //!
-//! **Switches.** [`NsCache::enable`] (the native `liella_nscache_enable`; `LIELLA_NSCACHE=0`
+//! **Switches.** [`NsCache::enable`] (the native `niji_nscache_enable`; `NIJI_NSCACHE=0`
 //! at start, ignored under `AT_SECURE`): disabled, a lookup costs one relaxed atomic load and
 //! nothing is mapped, `stat`ed or kept. [`NsCache::set_category`], [`NsCache::invalidate`]
 //! (which also moves the region's generations and makes the next lookup validate at once) and
@@ -70,17 +70,17 @@
 
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella::names::cache::{self, Category, File, FileId, Found, Stamp, Stored, Table, CATEGORIES};
-use liella::names::nss::{Answer, LookupError};
-use liella::names::Ip;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlLock;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Flock, Timespec, CLOCK_MONOTONIC, CLOCK_REALTIME, F_UNLCK, F_WRLCK, O_CLOEXEC, O_CREAT, O_EXCL, O_NOCTTY, O_NOFOLLOW, O_NONBLOCK, O_RDWR, SEEK_SET, S_IFMT, S_IFREG};
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji::names::cache::{self, Category, File, FileId, Found, Stamp, Stored, Table, CATEGORIES};
+use niji::names::nss::{Answer, LookupError};
+use niji::names::Ip;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlLock;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Flock, Timespec, CLOCK_MONOTONIC, CLOCK_REALTIME, F_UNLCK, F_WRLCK, O_CLOEXEC, O_CREAT, O_EXCL, O_NOCTTY, O_NOFOLLOW, O_NONBLOCK, O_RDWR, SEEK_SET, S_IFMT, S_IFREG};
+use niji_rt::sync::RawMutex;
 
 use crate::nss::{Ctx, SYSTEM};
 use crate::nss_files::{Host, Key};
@@ -111,7 +111,7 @@ pub const NEGATIVE_CAP: u64 = 300;
 /// The validation window (nanoseconds).
 pub const WINDOW_NS: u64 = 1_000_000_000;
 
-/// Status modes (`liella_nscache_status`): disabled.
+/// Status modes (`niji_nscache_status`): disabled.
 pub const MODE_OFF: u32 = 0;
 /// Enabled; nothing mapped yet (no lookup since the start, a re-key or `enable`).
 pub const MODE_IDLE: u32 = 1;
@@ -157,7 +157,7 @@ pub enum Life {
 }
 
 impl Life {
-    /// A DNS response's TTL (`liella::names::dns::host::ttl`) joins the answer.
+    /// A DNS response's TTL (`niji::names::dns::host::ttl`) joins the answer.
     pub fn dns(&mut self, ttl: Option<u32>) {
         *self = match (*self, ttl) {
             (Life::Unknown, _) | (_, None) => Life::Unknown,
@@ -178,7 +178,7 @@ impl Life {
 
 // ------------------------------------------------------------------------------ the process's cache
 
-/// What `liella_nscache_status` reports.
+/// What `niji_nscache_status` reports.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Status {
     /// Enabled.
@@ -344,7 +344,7 @@ fn unlock_region<S: Sys>(sys: &S, fd: Fd) {
 fn boot_id<S: Sys>(sys: &S) -> [u64; 2] {
     // One `read` (the file is 37 bytes).
     let mut text = [0u8; 64];
-    let Ok(fd) = KStr::from_nul_terminated(b"/proc/sys/kernel/random/boot_id\0").and_then(|p| sys.openat(Fd::CWD, p, liella_kernel::uapi::O_RDONLY | O_CLOEXEC, 0)) else { return [0, 0] };
+    let Ok(fd) = KStr::from_nul_terminated(b"/proc/sys/kernel/random/boot_id\0").and_then(|p| sys.openat(Fd::CWD, p, niji_kernel::uapi::O_RDONLY | O_CLOEXEC, 0)) else { return [0, 0] };
     let n = sys.read(fd, &mut text).unwrap_or(0);
     let _ = sys.close(fd);
     let text = text.get(..n).unwrap_or(&[]);
@@ -394,7 +394,7 @@ impl NsCache {
 
     // -------------------------------------------------------------- configuration
 
-    /// At process start: disabled by the environment (`LIELLA_NSCACHE=0`, already ignored by
+    /// At process start: disabled by the environment (`NIJI_NSCACHE=0`, already ignored by
     /// the caller under `AT_SECURE`), secure-execution mode, and the shared regions' directory
     /// (with its final `/`; `None`: private tables only).
     pub fn start(&self, disabled: bool, secure: bool, dir: Option<&[u8]>) {
@@ -423,8 +423,8 @@ impl NsCache {
             return None;
         }
         self.dir.load(buf.get_mut(..n)?);
-        let mut t = liella::net::Text::<48>::new();
-        t.push_all(b"liella-nscache-");
+        let mut t = niji::net::Text::<48>::new();
+        t.push_all(b"niji-nscache-");
         t.push_dec(u64::from(euid));
         let end = n.checked_add(t.as_bytes().len())?;
         buf.get_mut(n..end)?.copy_from_slice(t.as_bytes());
@@ -683,7 +683,7 @@ impl NsCache {
         };
         // Kept across calls: never one of the standard descriptors, or a program that closed its
         // output would write into the region (validation T12).
-        let fd = match liella::io::above_standard(sys, fd) {
+        let fd = match niji::io::above_standard(sys, fd) {
             Ok(fd) => fd,
             Err(_) => {
                 if created {
@@ -969,10 +969,10 @@ fn account<S: Sys>(sys: &S, euid: u32) -> u64 {
 fn passwd_from_files<S: Sys>(sys: &S) -> bool {
     // As read: when `nsswitch.conf` changed since the stamp was verified, its recorded identity
     // differs anyway and the account is looked up.
-    let spec = crate::nss::SWITCH.config_as_read(sys, SYSTEM.nsswitch).spec(liella::names::nss::Database::Passwd);
+    let spec = crate::nss::SWITCH.config_as_read(sys, SYSTEM.nsswitch).spec(niji::names::nss::Database::Passwd);
     // Other modules (`systemd`, `sss`, ...) cannot answer before the NSS module ABI (F27, phase 14):
     // when they can, a line naming one must make this false.
-    spec.steps().iter().all(|s| matches!(s.service, liella::names::nss::Service::Files | liella::names::nss::Service::Compat | liella::names::nss::Service::Module))
+    spec.steps().iter().all(|s| matches!(s.service, niji::names::nss::Service::Files | niji::names::nss::Service::Compat | niji::names::nss::Service::Module))
 }
 
 /// Whether `path` is one of the switch's configuration files whose checks the cache's window
@@ -1124,7 +1124,7 @@ pub fn fingerprint(r: &Resolver) -> u64 {
 
 /// A fingerprint of a resolver configuration (also how the boundary sees that a program changed
 /// `_res`).
-pub fn config_fingerprint(c: &liella::names::dns::conf::Config) -> u64 {
+pub fn config_fingerprint(c: &niji::names::dns::conf::Config) -> u64 {
     let mut h = cache::hash(1, &[]);
     for s in c.servers.iter() {
         h = cache::mix(h, cache::hash(u64::from(s.port) << 32 | u64::from(s.scope), s.ip.bytes()));

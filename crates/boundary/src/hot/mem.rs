@@ -35,8 +35,8 @@ use core::arch::x86_64::{
     __m128i, _mm_and_si128, _mm_cmpeq_epi8, _mm_cvtsi32_si128, _mm_movemask_epi8, _mm_shuffle_epi32, _mm_storeu_si128,
 };
 
-use liella_abi::ctypes::{c_int, c_void};
-use liella_kernel::errno::Errno;
+use niji_abi::ctypes::{c_int, c_void};
+use niji_kernel::errno::Errno;
 
 use crate::conv;
 use crate::ret;
@@ -392,9 +392,9 @@ unsafe fn move_large(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_void 
             // caller's contract; disjoint regions for `rep movsb` (`avx2_erms`); AVX2 with the YMM
             // state saved (the kernel flag, `dispatch`) and 128 <= 129 <= n for the AVX2 move.
             if avx2_erms(d.addr(), s.addr(), n) {
-                return crate::ffi::liella_machine_copy_erms_a64(d.cast(), s.cast(), n).cast();
+                return crate::ffi::niji_machine_copy_erms_a64(d.cast(), s.cast(), n).cast();
             }
-            crate::ffi::liella_machine_move_avx2(d.cast(), s.cast(), n).cast()
+            crate::ffi::niji_machine_move_avx2(d.cast(), s.cast(), n).cast()
         }
         // UNSAFE(hot-kernel) SAFETY: the function's contract, 129 <= n <= 64 KiB (`bulk_move`).
         #[allow(unsafe_code)]
@@ -420,11 +420,11 @@ unsafe fn move_fallback(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_vo
     // above), the caller's contract; disjoint regions for `rep movsb` (`fallback_move`).
     match fallback_move(d.addr(), s.addr(), n) {
         Bulk::Erms => {
-            crate::ffi::liella_machine_copy_erms(d.cast(), s.cast(), n);
+            crate::ffi::niji_machine_copy_erms(d.cast(), s.cast(), n);
             d
         }
-        Bulk::ErmsA64 => crate::ffi::liella_machine_copy_erms_a64(d.cast(), s.cast(), n).cast(),
-        _ => crate::ffi::liella_machine_move_sse2(d.cast(), s.cast(), n).cast(),
+        Bulk::ErmsA64 => crate::ffi::niji_machine_copy_erms_a64(d.cast(), s.cast(), n).cast(),
+        _ => crate::ffi::niji_machine_move_sse2(d.cast(), s.cast(), n).cast(),
     }
 }
 
@@ -467,7 +467,7 @@ unsafe fn fill_large(d: *mut c_void, c: u8, n: usize) -> *mut c_void {
             }
             // Proof obligation of the declaration (`ffi`): AVX2 with the YMM state saved (the
             // kernel flag, `dispatch`), 128 < n, `d` non-NULL (tested above), the caller's contract.
-            crate::ffi::liella_machine_fill_avx2(d.cast(), i32::from(c), n).cast()
+            crate::ffi::niji_machine_fill_avx2(d.cast(), i32::from(c), n).cast()
         }
         Bulk::Sse2 => {
             if d.is_null() {
@@ -475,7 +475,7 @@ unsafe fn fill_large(d: *mut c_void, c: u8, n: usize) -> *mut c_void {
             }
             // Proof obligation of the declaration (`ffi`): SMALL_MAX (128) < n, `d` non-NULL
             // (tested above), the caller's contract.
-            crate::ffi::liella_machine_fill_sse2(d.cast(), i32::from(c), n).cast()
+            crate::ffi::niji_machine_fill_sse2(d.cast(), i32::from(c), n).cast()
         }
         // UNSAFE(hot-kernel) SAFETY: the function's contract, unchanged.
         #[allow(unsafe_code)]
@@ -503,7 +503,7 @@ unsafe fn fill_rep(d: *mut c_void, c: u8, n: usize) -> *mut c_void {
     unsafe { fill_upto64(d.cast(), c, 64) };
     // Proof obligation of the declaration (`ffi`): `[d + head, d + n)` lies inside the caller's
     // region (head <= 63 < n).
-    crate::ffi::liella_machine_fill_erms(d.cast::<u8>().wrapping_add(head), i32::from(c), n.wrapping_sub(head));
+    crate::ffi::niji_machine_fill_erms(d.cast::<u8>().wrapping_add(head), i32::from(c), n.wrapping_sub(head));
     d
 }
 
@@ -573,7 +573,7 @@ pub(crate) enum Bulk {
     /// `rep movsb` / `rep stosb` (ERMS CPUs, from their thresholds).
     Erms,
     /// One 64-byte head store, then `rep movsb` from the aligned destination
-    /// (`liella_machine_copy_erms_a64`; copies without the AVX2 copy, [`erms_kernel`]).
+    /// (`niji_machine_copy_erms_a64`; copies without the AVX2 copy, [`erms_kernel`]).
     ErmsA64,
     /// The checked path.
     Checked,
@@ -630,7 +630,7 @@ pub(crate) fn erms_kernel(d: usize, s: usize, n: usize) -> Bulk {
 }
 
 /// Whether a copy the AVX2 move would take ([`Bulk::Avx2`]) takes `rep movsb`
-/// (`liella_machine_copy_erms_a64`) instead: disjoint regions whose addresses agree modulo 64,
+/// (`niji_machine_copy_erms_a64`) instead: disjoint regions whose addresses agree modulo 64,
 /// in the CPU class's window `cpu::avx2_erms_from()..cpu::avx2_erms_to()` (empty without one
 /// and before the startup decision; MEMCPY-POLICY-2, D-4.14). Overlapping moves never: `rep
 /// movsb` runs forward only.
@@ -670,10 +670,10 @@ pub unsafe fn move_bytes(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_v
     // `memmove` themselves; the folded classes run there (a NULL `d` or `s` must reach the load or
     // store that faults on page zero, UB in Rust) and every other size comes back to
     // [`move_rest`]. Proof obligation of the declaration (`ffi`): the caller's contract.
-    crate::ffi::liella_machine_memmove(d.cast(), s.cast(), n).cast()
+    crate::ffi::niji_machine_memmove(d.cast(), s.cast(), n).cast()
 }
 
-/// [`move_bytes`] returning `d + n` (`mempcpy`): the direct entry `liella_machine_mempcpy`
+/// [`move_bytes`] returning `d + n` (`mempcpy`): the direct entry `niji_machine_mempcpy`
 /// (machine/fold.S, WL-HOT-SEQ2), which runs the same folded classes and calls the copy entry for
 /// every other size.
 ///
@@ -684,7 +684,7 @@ pub unsafe fn move_bytes(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_v
 #[inline(always)]
 pub unsafe fn move_bytes_past(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_void {
     // Proof obligation of the declaration (`ffi`): the caller's contract.
-    crate::ffi::liella_machine_mempcpy(d.cast(), s.cast(), n).cast()
+    crate::ffi::niji_machine_mempcpy(d.cast(), s.cast(), n).cast()
 }
 
 /// The fill entry's other sizes, as [`move_rest`].
@@ -739,7 +739,7 @@ pub(crate) unsafe fn fill_big(d: *mut c_void, c: c_int, n: usize) -> *mut c_void
 pub unsafe fn set_bytes(d: *mut c_void, c: c_int, n: usize) -> *mut c_void {
     // The direct entry, as in `move_bytes` (`memset` itself in the products); it takes `c` as C's
     // `int` and uses its low byte (`(unsigned char)c`). Other sizes come back to [`fill_rest`].
-    crate::ffi::liella_machine_memset(d.cast(), c, n).cast()
+    crate::ffi::niji_machine_memset(d.cast(), c, n).cast()
 }
 
 /// The library's internal copy (D-X.15): as [`move_bytes`] without the C-contract checks.
@@ -761,7 +761,7 @@ pub(crate) unsafe fn internal_move(d: *mut c_void, s: *const c_void, n: usize) -
         // the fstatat struct, took 85 instructions through `internal_large`). Proof obligation
         // of the declaration (`ffi`): 65 <= n <= 256 (tested here), both regions valid and
         // non-NULL (the function's contract with n > 0).
-        crate::ffi::liella_machine_move_mid(d.cast(), s.cast(), n);
+        crate::ffi::niji_machine_move_mid(d.cast(), s.cast(), n);
         return true;
     }
     // 257 bytes to 64 KiB: the export's kernels (COPY-INTERNAL; the slice path cost 45
@@ -790,19 +790,19 @@ unsafe fn internal_large(d: *mut c_void, s: *const c_void, n: usize) {
     // flag, `dispatch`) for the AVX2 move; 128 <= 257 <= n, both non-NULL and valid (the function's
     // contract); disjoint regions for `rep movsb` (`fallback_move`).
     if crate::dispatch::avx2() && avx2_erms(d.addr(), s.addr(), n) {
-        let _ = crate::ffi::liella_machine_copy_erms_a64(d.cast(), s.cast(), n);
+        let _ = crate::ffi::niji_machine_copy_erms_a64(d.cast(), s.cast(), n);
     } else if crate::dispatch::avx2() {
-        let _ = crate::ffi::liella_machine_move_avx2(d.cast(), s.cast(), n);
+        let _ = crate::ffi::niji_machine_move_avx2(d.cast(), s.cast(), n);
     } else {
         match fallback_move(d.addr(), s.addr(), n) {
             Bulk::Erms => {
-                crate::ffi::liella_machine_copy_erms(d.cast(), s.cast(), n);
+                crate::ffi::niji_machine_copy_erms(d.cast(), s.cast(), n);
             }
             Bulk::ErmsA64 => {
-                let _ = crate::ffi::liella_machine_copy_erms_a64(d.cast(), s.cast(), n);
+                let _ = crate::ffi::niji_machine_copy_erms_a64(d.cast(), s.cast(), n);
             }
             _ => {
-                let _ = crate::ffi::liella_machine_move_sse2(d.cast(), s.cast(), n);
+                let _ = crate::ffi::niji_machine_move_sse2(d.cast(), s.cast(), n);
             }
         }
     }
@@ -1739,7 +1739,7 @@ pub unsafe fn equal_bytes(a: *const c_void, b: *const c_void, n: usize) -> c_int
 #[inline(always)]
 pub unsafe fn compare_direct(a: *const c_void, b: *const c_void, n: usize) -> c_int {
     // Proof obligation of the declaration (`ffi`): the caller's contract.
-    crate::ffi::liella_machine_compare(a.cast(), b.cast(), n)
+    crate::ffi::niji_machine_compare(a.cast(), b.cast(), n)
 }
 
 /// `bcmp`/`__memcmpeq` through their direct entry, as [`compare_direct`].
@@ -1751,7 +1751,7 @@ pub unsafe fn compare_direct(a: *const c_void, b: *const c_void, n: usize) -> c_
 #[inline(always)]
 pub unsafe fn equal_direct(a: *const c_void, b: *const c_void, n: usize) -> c_int {
     // Proof obligation of the declaration (`ffi`): the caller's contract.
-    crate::ffi::liella_machine_equal(a.cast(), b.cast(), n)
+    crate::ffi::niji_machine_equal(a.cast(), b.cast(), n)
 }
 
 /// The compare entry's other cases (0-7 bytes, above 64, folding off): the checked entry with the
@@ -1907,7 +1907,7 @@ pub(crate) mod avx2 {
     // ARCH(x86_64): AVX2 intrinsics (hot-kernel); aarch64 needs a NEON or portable path (A-8)
     use core::arch::x86_64::{__m256i, _mm256_and_si256, _mm256_cmpeq_epi8, _mm256_loadu_si256, _mm256_movemask_epi8, _mm256_storeu_si256};
 
-    use liella_abi::ctypes::c_int;
+    use niji_abi::ctypes::c_int;
 
     /// The copy kernel's AVX2 block class: `n` bytes from `s` to `d`, `64 < n <= 128`; returns `d`.
     ///

@@ -1,20 +1,20 @@
 //! The `double` `log` quick phase (LIBM-F64-LOG-QUICK, D-10.51, D-10.60; `log`'s tier 1) in its
 //! FMA build through the boundary (the FMA build needs the startup dispatch, so its tests live
-//! here; the SSE2 build's own tests are in `liella-math`'s `fast64/quick_log/tests.rs`), and the
+//! here; the SSE2 build's own tests are in `niji-math`'s `fast64/quick_log/tests.rs`), and the
 //! `log` entry over the tiers. Clause: s10_0_f_0 (§10.2 log, D-10.3): every value the quick phase
 //! returns is the correctly rounded `ln x`, so its two builds are bit-identical wherever both answer.
 
 // Sample generation is bit-level arithmetic on bounded values.
 #![allow(clippy::arithmetic_side_effects, clippy::indexing_slicing, clippy::as_conversions)]
-// log is Liella's own C entry (m::log): keep LLVM from treating it as a builtin.
+// log is libniji's own C entry (m::log): keep LLVM from treating it as a builtin.
 #![no_builtins]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_math::fast64::quick_log::RHO;
-use liella_math::mp::{self, Mp};
-use liella_math::real::Real;
-use liella_math::status::Rounding;
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_math::fast64::quick_log::RHO;
+use niji_math::mp::{self, Mp};
+use niji_math::real::Real;
+use niji_math::status::Rounding;
 
 /// Serialises the tests that switch the process-wide build.
 static BUILD: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -136,9 +136,9 @@ fn members() -> [Member; 3] {
 }
 
 /// The member's operands: `log`'s for log2/log10; for log1p both sides of `2^-8`, `(−1, 1)` and
-/// `[1e-3, 1e3)`. `LIELLA_QUICK_LOG_N` (the 10^7 accuracy run) sets the count, else `scale`.
+/// `[1e-3, 1e3)`. `NIJI_QUICK_LOG_N` (the 10^7 accuracy run) sets the count, else `scale`.
 fn member_operands(lnb: f64, scale: usize) -> Vec<f64> {
-    let n = std::env::var("LIELLA_QUICK_LOG_N").ok().and_then(|s| s.parse::<usize>().ok()).map_or(scale, |k| k / 5);
+    let n = std::env::var("NIJI_QUICK_LOG_N").ok().and_then(|s| s.parse::<usize>().ok()).map_or(scale, |k| k / 5);
     if lnb != 0.0 {
         return operands(n).collect();
     }

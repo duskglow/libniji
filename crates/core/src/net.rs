@@ -5,7 +5,7 @@
 //!
 //! * [`addr`]: the strict text forms of IPv4 and IPv6 addresses (`inet_pton`, `inet_ntop`).
 //!   The historical lenient forms (`inet_aton`, the classful helpers, CIDR and NSAP texts) are
-//!   C contracts and live in `liella_legacy::inet_compat` (D-15.2).
+//!   C contracts and live in `niji_legacy::inet_compat` (D-15.2).
 //! * [`ether`]: 48-bit Ethernet addresses and the lines of the `ethers` file.
 //! * [`ip6opt`]: IPv6 hop-by-hop and destination options and type-0 routing headers in caller
 //!   buffers (RFC 3542).

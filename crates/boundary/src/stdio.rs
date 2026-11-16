@@ -1,5 +1,5 @@
 //! Stdio glue (spec §12; D-12.11): `FILE` objects, the standard streams, and the library
-//! services `liella_legacy::stdio_compat` runs on.
+//! services `niji_legacy::stdio_compat` runs on.
 //!
 //! A stream the library opens lives in a [`Slot`]: its `FILE` words (so the `FILE *` is the
 //! slot's address), its lock and its record. Slots are leaked, never freed: a closed stream's
@@ -9,15 +9,15 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::error::{Errno, KResult};
-use liella::mem::{TryBox, TryVec};
-use liella::text::Encoding;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_legacy::stdio_compat::{self as sc, word, Env, Ext, Kind, StreamLock, FILE_WORDS};
-use liella_rt::futex::Scope;
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, KResult};
+use niji::mem::{TryBox, TryVec};
+use niji::text::Encoding;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_legacy::stdio_compat::{self as sc, word, Env, Ext, Kind, StreamLock, FILE_WORDS};
+use niji_rt::futex::Scope;
+use niji_rt::sync::RawMutex;
 
 use crate::sys::CSys;
 use crate::{caller_alloc, conv, data, ffi, locale, tb, thread};
@@ -138,7 +138,7 @@ impl Env for Glue {
 
     fn call3(&self, f: usize, a: usize, b: usize, c: usize) -> isize {
         let w = |v: usize| i64::from_ne_bytes(v.to_ne_bytes());
-        isize::try_from(ffi::liella_machine_call3(f, w(a), w(b), w(c))).unwrap_or(-1)
+        isize::try_from(ffi::niji_machine_call3(f, w(a), w(b), w(c))).unwrap_or(-1)
     }
 
     fn errno(&self) -> i32 {
@@ -533,7 +533,7 @@ fn open_stream(kind: Kind, mode: &sc::Mode, fd: i32) -> KResult<usize> {
 /// cannot seek keeps its position.
 fn start_at_end(fd: Fd, m: &sc::Mode) {
     if m.append && !m.read {
-        let _ = CSys.lseek(fd, 0, liella_kernel::uapi::SEEK_END);
+        let _ = CSys.lseek(fd, 0, niji_kernel::uapi::SEEK_END);
     }
 }
 
@@ -562,8 +562,8 @@ pub fn fopen(path: KResult<KStr<'_>>, mode: KResult<&[u8]>) -> KResult<usize> {
 /// stream or any descriptor sharing the open file description) and keep its offset, which
 /// becomes the stream's position (POSIX fdopen; D-12.16, owner ruling 2026-10-04).
 pub fn fdopen(fd: i32, mode: KResult<&[u8]>) -> KResult<usize> {
-    use liella_kernel::ops::FcntlInt;
-    use liella_kernel::uapi::{O_APPEND, O_RDONLY, O_RDWR, O_WRONLY};
+    use niji_kernel::ops::FcntlInt;
+    use niji_kernel::uapi::{O_APPEND, O_RDONLY, O_RDWR, O_WRONLY};
     let m = sc::parse_mode(mode?)?;
     let flags = CSys.fcntl_int(Fd::new(fd), FcntlInt::GetFl, 0)?;
     let acc = u32::try_from(flags).map_err(|_| Errno::EBADF)? & (O_RDONLY | O_WRONLY | O_RDWR);
@@ -623,7 +623,7 @@ pub fn freopen(path: KResult<Option<KStr<'_>>>, mode: KResult<&[u8]>, fp: usize)
                 let new = CSys.openat(Fd::CWD, p, sc::open_flags(&m), 0o666)?;
                 let fd = match old_fd {
                     Some(o) if o != new.raw() => {
-                        let cloexec = if m.cloexec { liella_kernel::uapi::O_CLOEXEC } else { 0 };
+                        let cloexec = if m.cloexec { niji_kernel::uapi::O_CLOEXEC } else { 0 };
                         let r = CSys.dup3(new, Fd::new(o), cloexec);
                         let _ = CSys.close(new);
                         r?.raw()
@@ -640,8 +640,8 @@ pub fn freopen(path: KResult<Option<KStr<'_>>>, mode: KResult<&[u8]>, fp: usize)
                 // §12.2: a NULL path changes only what `fcntl` can: the access mode must fit
                 // the descriptor's (`EBADF`, as POSIX names it), `O_APPEND` and close-on-exec
                 // follow the mode, and nothing is reopened or truncated.
-                use liella_kernel::ops::FcntlInt;
-                use liella_kernel::uapi::{O_APPEND, O_RDONLY, O_RDWR, O_WRONLY};
+                use niji_kernel::ops::FcntlInt;
+                use niji_kernel::uapi::{O_APPEND, O_RDONLY, O_RDWR, O_WRONLY};
                 let o = old_fd.ok_or(Errno::EBADF)?;
                 let flags = CSys.fcntl_int(Fd::new(o), FcntlInt::GetFl, 0)?;
                 let f = u32::try_from(flags).map_err(|_| Errno::EBADF)?;
@@ -1343,10 +1343,10 @@ pub fn gets(buf: usize, size: Option<usize>) -> KResult<Option<usize>> {
 /// empty-window entry, which hands the stream straight to the engine's [`sc::read`] (the call
 /// [`with`] would make, without its second `parts` and closure; for a request at least the
 /// buffer's size that is [`sc::read`]'s direct path, the caller's buffer filled by the backing).
-pub fn fread(out: KResult<&mut [u8]>, fp: usize, how: Locking) -> liella::stream::Transfer {
+pub fn fread(out: KResult<&mut [u8]>, fp: usize, how: Locking) -> niji::stream::Transfer {
     let out = match out {
         Ok(out) => out,
-        Err(e) => return liella::stream::Transfer { done: 0, error: Some(e) },
+        Err(e) => return niji::stream::Transfer { done: 0, error: Some(e) },
     };
     let Some(file) = tb::file_words(fp) else { return fread_slow(out, fp, how, Front::General) };
     let room = sc::read_room(file);
@@ -1360,7 +1360,7 @@ pub fn fread(out: KResult<&mut [u8]>, fp: usize, how: Locking) -> liella::stream
     }
     match room {
         Some(p) => match sc::read_front(&Glue, file, tb::stream_ext_at(ext), p, out) {
-            Some(n) => liella::stream::Transfer { done: n, error: None },
+            Some(n) => niji::stream::Transfer { done: n, error: None },
             None => fread_engine(out, file, ext),
         },
         None => fread_engine(out, file, ext),
@@ -1370,28 +1370,28 @@ pub fn fread(out: KResult<&mut [u8]>, fp: usize, how: Locking) -> liella::stream
 /// [`fread`]'s engine call for a sealed record `ext` of `file` whose lock is held or needed by
 /// none: exactly what [`with`] runs then.
 #[inline(never)]
-fn fread_engine(out: &mut [u8], file: &'static [AtomicUsize], ext: usize) -> liella::stream::Transfer {
+fn fread_engine(out: &mut [u8], file: &'static [AtomicUsize], ext: usize) -> niji::stream::Transfer {
     sc::read(&Glue, file, tb::stream_ext_at(ext), out)
 }
 
 /// [`fread`] past its front path: as [`fgets_slow`].
 #[inline(never)]
-fn fread_slow(out: &mut [u8], fp: usize, how: Locking, f: Front) -> liella::stream::Transfer {
+fn fread_slow(out: &mut [u8], fp: usize, how: Locking, f: Front) -> niji::stream::Transfer {
     if f == Front::Locked {
         if let Some(n) = window_locked(fp, |file, ext, p| sc::read_front(&Glue, file, ext, p, out)) {
-            return liella::stream::Transfer { done: n, error: None };
+            return niji::stream::Transfer { done: n, error: None };
         }
     }
-    with(fp, how, |g, file, ext| sc::read(g, file, ext, out)).unwrap_or_else(|e| liella::stream::Transfer { done: 0, error: Some(e) })
+    with(fp, how, |g, file, ext| sc::read(g, file, ext, out)).unwrap_or_else(|e| niji::stream::Transfer { done: 0, error: Some(e) })
 }
 
 /// `fwrite`: the bytes moved, and the error that stopped it. Always inlined: with the front
 /// path's inline small copy a plain `#[inline]` stayed out of line (a call and a `Transfer`
 /// through memory per small write, measured +2% instructions on uniq; WL-HOT-CUT).
 #[inline(always)]
-pub fn fwrite(data: KResult<&[u8]>, fp: usize, how: Locking) -> liella::stream::Transfer {
+pub fn fwrite(data: KResult<&[u8]>, fp: usize, how: Locking) -> niji::stream::Transfer {
     match data {
-        Ok(d) if front_done(fp, how, d) => liella::stream::Transfer { done: d.len(), error: None },
+        Ok(d) if front_done(fp, how, d) => niji::stream::Transfer { done: d.len(), error: None },
         _ => fwrite_general(data, fp, how),
     }
 }
@@ -1483,8 +1483,8 @@ fn fwrite_slow(d: &[u8], size: usize, n: usize, fp: usize, from: WriteFrom) -> u
 
 /// [`fwrite`] past its front path.
 #[inline(never)]
-fn fwrite_general(data: KResult<&[u8]>, fp: usize, how: Locking) -> liella::stream::Transfer {
-    let fail = |e| liella::stream::Transfer { done: 0, error: Some(e) };
+fn fwrite_general(data: KResult<&[u8]>, fp: usize, how: Locking) -> niji::stream::Transfer {
+    let fail = |e| niji::stream::Transfer { done: 0, error: Some(e) };
     match data {
         Ok(data) => with(fp, how, |g, file, ext| sc::write(g, file, ext, data)).unwrap_or_else(fail),
         Err(e) => fail(e),
@@ -1508,11 +1508,11 @@ pub fn putw(w: i32, fp: usize) -> KResult<()> {
     t.error.map_or(Ok(()), Err)
 }
 
-fn whence(w: i32) -> KResult<liella::stream::Whence> {
+fn whence(w: i32) -> KResult<niji::stream::Whence> {
     match w {
-        0 => Ok(liella::stream::Whence::Set),
-        1 => Ok(liella::stream::Whence::Cur),
-        2 => Ok(liella::stream::Whence::End),
+        0 => Ok(niji::stream::Whence::Set),
+        1 => Ok(niji::stream::Whence::Cur),
+        2 => Ok(niji::stream::Whence::End),
         _ => Err(Errno::EINVAL),
     }
 }
@@ -1578,7 +1578,7 @@ pub fn rewind(fp: usize) {
 /// `fgetpos`: the position and the conversion state (FTELL-BOUNDARY: as [`ftell`], the window's
 /// answer inline when it needs no lock and no call).
 #[inline(always)]
-pub fn fgetpos(fp: usize) -> KResult<liella_abi::layout::fpos_t> {
+pub fn fgetpos(fp: usize) -> KResult<niji_abi::layout::fpos_t> {
     if let Some((p, mb)) = front_parts(fp).and_then(|(file, ext)| sc::getpos_front(file, ext)) {
         if let Ok(pos) = i64::try_from(p) {
             return Ok(fpos(pos, mb));
@@ -1588,23 +1588,23 @@ pub fn fgetpos(fp: usize) -> KResult<liella_abi::layout::fpos_t> {
 }
 
 #[inline(never)]
-fn fgetpos_general(fp: usize) -> KResult<liella_abi::layout::fpos_t> {
+fn fgetpos_general(fp: usize) -> KResult<niji_abi::layout::fpos_t> {
     let (p, mb) = with_locked(fp, |g, file, ext| sc::tell(g, file, ext).map(|p| (p, ext.wide.decode.to_bytes())))??;
     Ok(fpos(signed_offset(p)?, mb))
 }
 
 /// An `fpos_t` of a position and a conversion state.
 #[inline(always)]
-fn fpos(pos: i64, mb: [u8; 8]) -> liella_abi::layout::fpos_t {
+fn fpos(pos: i64, mb: [u8; 8]) -> niji_abi::layout::fpos_t {
     let [c0, c1, c2, c3, v0, v1, v2, v3] = mb;
-    liella_abi::layout::fpos_t {
+    niji_abi::layout::fpos_t {
         __pos: pos,
-        __state: liella_abi::layout::fpos_t__state { __count: i32::from_ne_bytes([c0, c1, c2, c3]), __value: liella_abi::layout::fpos_t__state__value { __wch: u32::from_ne_bytes([v0, v1, v2, v3]) } },
+        __state: niji_abi::layout::fpos_t__state { __count: i32::from_ne_bytes([c0, c1, c2, c3]), __value: niji_abi::layout::fpos_t__state__value { __wch: u32::from_ne_bytes([v0, v1, v2, v3]) } },
     }
 }
 
 /// `fsetpos`: back to a position `fgetpos` gave.
-pub fn fsetpos(fp: usize, pos: Option<&liella_abi::layout::fpos_t>) -> KResult<()> {
+pub fn fsetpos(fp: usize, pos: Option<&niji_abi::layout::fpos_t>) -> KResult<()> {
     let pos = pos.ok_or(Errno::EINVAL)?.__pos;
     fseek(fp, pos, 0)
 }
@@ -1974,7 +1974,7 @@ pub fn fputws(s: KResult<&[i32]>, fp: usize, how: Locking) -> KResult<usize> {
 }
 
 /// `fopencookie(cookie, mode, functions)`.
-pub fn fopencookie(cookie: usize, mode: KResult<&[u8]>, f: liella_abi::layout::cookie_io_functions_t) -> KResult<usize> {
+pub fn fopencookie(cookie: usize, mode: KResult<&[u8]>, f: niji_abi::layout::cookie_io_functions_t) -> KResult<usize> {
     let m = sc::parse_mode(mode?)?;
     let c = sc::CookieStream { cookie, read: f.read, write: f.write, seek: f.seek, close: f.close };
     open_stream(Kind::Cookie(c), &m, -1)
@@ -1987,7 +1987,7 @@ pub fn fopencookie(cookie: usize, mode: KResult<&[u8]>, f: liella_abi::layout::c
 /// `O_TMPFILE` file, or (where the file system lacks it) a file created exclusively under a
 /// random name and unlinked at once.
 pub fn tmpfile() -> KResult<usize> {
-    use liella_kernel::uapi::{O_CLOEXEC, O_CREAT, O_EXCL, O_RDWR, O_TMPFILE};
+    use niji_kernel::uapi::{O_CLOEXEC, O_CREAT, O_EXCL, O_RDWR, O_TMPFILE};
     let dir = KStr::from_nul_terminated(b"/tmp\0")?;
     let fd = match CSys.openat(Fd::CWD, dir, O_TMPFILE | O_RDWR | O_EXCL, 0o600) {
         Ok(fd) => fd,
@@ -1996,7 +1996,7 @@ pub fn tmpfile() -> KResult<usize> {
             let mut made = Err(Errno::EEXIST);
             for _ in 0..100 {
                 let mut r = [0u8; 12];
-                let _ = CSys.getrandom(&mut r, liella_kernel::uapi::GRND_NONBLOCK);
+                let _ = CSys.getrandom(&mut r, niji_kernel::uapi::GRND_NONBLOCK);
                 const ALPHABET: &[u8; 62] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
                 for (slot, b) in name.iter_mut().skip(9).zip(r) {
                     *slot = ALPHABET.get(usize::from(b).checked_rem(ALPHABET.len()).unwrap_or(0)).copied().unwrap_or(b'x');
@@ -2044,7 +2044,7 @@ fn terminated(text: &[u8]) -> KResult<TryVec<u8>> {
 
 /// Whether `path` names a directory (following symbolic links). Any failure is "no".
 fn is_dir(path: &[u8]) -> bool {
-    use liella_kernel::uapi::{S_IFDIR, S_IFMT};
+    use niji_kernel::uapi::{S_IFDIR, S_IFMT};
     !path.is_empty()
         && terminated(path).is_ok_and(|p| {
             KStr::from_nul_terminated(p.as_slice()).and_then(|k| CSys.fstatat(Fd::CWD, k, 0)).is_ok_and(|st| st.mode & S_IFMT == S_IFDIR)
@@ -2054,7 +2054,7 @@ fn is_dir(path: &[u8]) -> bool {
 /// 64 unpredictable bits: from `getrandom`, or (where it gives nothing at once) the clocks
 /// mixed with `salt`.
 fn random_bits(salt: u64) -> u64 {
-    use liella_kernel::uapi::{CLOCK_MONOTONIC, CLOCK_REALTIME, GRND_NONBLOCK};
+    use niji_kernel::uapi::{CLOCK_MONOTONIC, CLOCK_REALTIME, GRND_NONBLOCK};
     let mut r = [0u8; 8];
     if CSys.getrandom(&mut r, GRND_NONBLOCK) == Ok(r.len()) {
         return u64::from_ne_bytes(r);
@@ -2072,7 +2072,7 @@ fn random_bits(salt: u64) -> u64 {
 /// that exists (as anything, a dangling symbolic link included) is replaced by another, up to
 /// `TMP_MAX` tries (then `EEXIST`); any other failure to look a name up is the error.
 fn fresh_name(dir: &[u8], prefix: &[u8]) -> KResult<TryVec<u8>> {
-    use liella_kernel::uapi::AT_SYMLINK_NOFOLLOW;
+    use niji_kernel::uapi::AT_SYMLINK_NOFOLLOW;
     let keep = dir.iter().rposition(|&b| b != b'/').map_or(1, |i| i.saturating_add(1)).min(dir.len());
     let mut name = TryVec::new();
     name.extend_from_slice(dir.get(..keep).unwrap_or(dir))?;

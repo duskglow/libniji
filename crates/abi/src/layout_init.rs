@@ -1,4 +1,4 @@
-//! Static initializers of spec Appendix C (`PTHREAD_MUTEX_INITIALIZER`, ...) as Liella defines
+//! Static initializers of spec Appendix C (`PTHREAD_MUTEX_INITIALIZER`, ...) as libniji defines
 //! them: the bytes a C program's static initializer stores, which the runtime must accept as a
 //! valid object of the type (spec §22: statically initialised objects need no init call).
 //!

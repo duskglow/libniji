@@ -4,7 +4,7 @@
 The table holds the answers the reference glibc gives from its headers: every sysconf name
 whose value does not depend on the machine, and every confstr string. The names computed when
 asked (limits, processors, memory, caches, signal stacks) are excluded here and answered by
-liella::system (D-24.1); the list below names them.
+niji::system (D-24.1); the list below names them.
 """
 import os
 

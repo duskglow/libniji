@@ -624,7 +624,7 @@ mod tests {
     }
 
     /// The brief's sweep: 10^7 seeded operands per function over its four bands, in the four
-    /// modes, and the hard operands. `cargo test --release -p liella-math --lib wide_int_el --
+    /// modes, and the hard operands. `cargo test --release -p niji-math --lib wide_int_el --
     /// --ignored`.
     #[test]
     #[ignore = "8 x 10^7 operands against the 384-bit route: cargo xtask long-sweeps runs it in release (nightly and release runs)"]

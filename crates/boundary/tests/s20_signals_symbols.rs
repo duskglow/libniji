@@ -9,20 +9,20 @@
 //! Dispositions and masks are process- or thread-wide, so every test that installs a handler,
 //! blocks a signal or sends one runs in a re-executed child of this binary (`alone`).
 //! `psignal`/`psiginfo` output is compared with the host glibc's, byte for byte.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use core::ptr::{null, null_mut};
 use core::sync::atomic::{AtomicI32, AtomicU32, Ordering};
 
-use liella_abi::layout::sigset_t;
-use liella_boundary::errno;
-use liella_boundary::posix::s20_signals as s;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SigInfo, StackT, Timespec};
-use liella_legacy::signal_compat::{CSigaction, CSigstack, CSigvec};
+use niji_abi::layout::sigset_t;
+use niji_boundary::errno;
+use niji_boundary::posix::s20_signals as s;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SigInfo, StackT, Timespec};
+use niji_legacy::signal_compat::{CSigaction, CSigstack, CSigvec};
 
 mod products;
 #[path = "../../core/tests/support/scratch.rs"]
@@ -95,7 +95,7 @@ fn set_of(sigs: &[i32]) -> sigset_t {
 }
 
 fn action(h: usize, flags: i32) -> CSigaction {
-    let mut a = CSigaction::new(h, liella_kernel::uapi::SigSet::empty(), 0);
+    let mut a = CSigaction::new(h, niji_kernel::uapi::SigSet::empty(), 0);
     a.flags = flags;
     a
 }
@@ -107,12 +107,12 @@ fn fails(r: isize, e: i32) -> bool {
 /// Runs `body` in a child (this test re-executed alone): dispositions, masks and signals are
 /// process- or thread-wide.
 fn alone(name: &str, body: impl FnOnce() -> bool) {
-    if std::env::var("LIELLA_S20_ALONE").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_S20_ALONE").is_ok_and(|v| v == name) {
         CSys.exit_group(if body() { 0 } else { 1 });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S20_ALONE", name)
+        .env("NIJI_S20_ALONE", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -132,26 +132,26 @@ fn host_stderr(tag: &str, body: &str) -> String {
 
 /// This binary's own standard error for `body`, run in a child.
 fn own_stderr(name: &str, body: impl FnOnce()) -> String {
-    if std::env::var("LIELLA_S20_ERR").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_S20_ERR").is_ok_and(|v| v == name) {
         body();
         CSys.exit_group(0);
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_S20_ERR", name)
+        .env("NIJI_S20_ERR", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     let all = String::from_utf8(o.stderr).unwrap();
-    all.lines().filter(|l| l.contains("LIELLA")).map(|l| format!("{l}\n")).collect()
+    all.lines().filter(|l| l.contains("NIJI")).map(|l| format!("{l}\n")).collect()
 }
 
 /// The C string at `p`, read through the library's own `strlen` and `memcpy`.
 fn unsafe_cstr(p: *mut core::ffi::c_char) -> String {
     assert!(!p.is_null());
-    let n = liella_boundary::posix::s04_strings::strlen(p);
+    let n = niji_boundary::posix::s04_strings::strlen(p);
     let mut v = vec![0u8; n];
-    liella_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
+    niji_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
     String::from_utf8(v).unwrap()
 }
 
@@ -250,18 +250,18 @@ fn sym_psiginfo() {
     let cases = [(11, 1, 0x1000u64, 0u64), (4, 2, 0, 0), (8, 6, 0x10, 0), (10, 0, (1234u64) | (1000u64 << 32), 0), (34, -1, 99 | (5u64 << 32), 0), (60, -6, 1 | (2u64 << 32), 0), (17, 1, 4321 | (1000u64 << 32), 7), (29, 1, 3, 0), (10, 77, 0, 0), (2, -60, 0, 0)];
     let mut calls = String::new();
     for (sig, code, w0, w1) in cases {
-        calls += &format!("memset(&i, 0, sizeof i); i.si_signo = {sig}; i.si_code = {code}; ((unsigned long *)&i)[2] = {w0}UL; ((unsigned long *)&i)[3] = {w1}UL; psiginfo(&i, \"LIELLA\");\n");
+        calls += &format!("memset(&i, 0, sizeof i); i.si_signo = {sig}; i.si_code = {code}; ((unsigned long *)&i)[2] = {w0}UL; ((unsigned long *)&i)[3] = {w1}UL; psiginfo(&i, \"NIJI\");\n");
     }
-    let want: String = host_stderr("psiginfo", &calls).lines().filter(|l| l.contains("LIELLA")).map(|l| format!("{l}\n")).collect();
+    let want: String = host_stderr("psiginfo", &calls).lines().filter(|l| l.contains("NIJI")).map(|l| format!("{l}\n")).collect();
     let got = own_stderr("sym_psiginfo", || {
         for (sig, code, w0, w1) in cases {
             let mut i = SigInfo::default();
-            // glibc's SIGRTMIN is 34, Liella's 33 (D-20.1): the same name, one number lower.
+            // glibc's SIGRTMIN is 34, libniji's 33 (D-20.1): the same name, one number lower.
             i.signo = if (34..60).contains(&sig) { sig - 1 } else { sig };
             i.code = code;
             i.fields[0] = w0;
             i.fields[1] = w1;
-            s::psiginfo(Some(&i), c"LIELLA".as_ptr());
+            s::psiginfo(Some(&i), c"NIJI".as_ptr());
         }
     });
     assert_eq!(got, want);
@@ -269,14 +269,14 @@ fn sym_psiginfo() {
 
 #[test]
 fn sym_psignal() {
-    let calls = "psignal(SIGINT, \"LIELLA\"); psignal(SIGSEGV, \"LIELLA a\"); psignal(40, \"LIELLA b\"); psignal(SIGTERM, \"\"); fputs(\"LIELLA end\\n\", stderr);";
-    let want: String = host_stderr("psignal", calls).lines().filter(|l| l.contains("LIELLA")).map(|l| format!("{l}\n")).collect();
+    let calls = "psignal(SIGINT, \"NIJI\"); psignal(SIGSEGV, \"NIJI a\"); psignal(40, \"NIJI b\"); psignal(SIGTERM, \"\"); fputs(\"NIJI end\\n\", stderr);";
+    let want: String = host_stderr("psignal", calls).lines().filter(|l| l.contains("NIJI")).map(|l| format!("{l}\n")).collect();
     let got = own_stderr("sym_psignal", || {
-        s::psignal(SIGINT, c"LIELLA".as_ptr());
-        s::psignal(11, c"LIELLA a".as_ptr());
-        s::psignal(40, c"LIELLA b".as_ptr());
+        s::psignal(SIGINT, c"NIJI".as_ptr());
+        s::psignal(11, c"NIJI a".as_ptr());
+        s::psignal(40, c"NIJI b".as_ptr());
         s::psignal(SIGTERM, c"".as_ptr());
-        liella_boundary::process::stderr(b"LIELLA end\n");
+        niji_boundary::process::stderr(b"NIJI end\n");
     });
     assert_eq!(got, want);
 }
@@ -544,7 +544,7 @@ fn sym_signalfd() {
         let fd = s::signalfd(-1, Some(&set), 0o2000000);
         s::raise(SIGUSR1);
         let mut rec = [0u32; 32];
-        let n = liella_boundary::posix::s11_lowio::read(fd, rec.as_mut_ptr().cast(), 128);
+        let n = niji_boundary::posix::s11_lowio::read(fd, rec.as_mut_ptr().cast(), 128);
         errno::set_raw(0);
         fd >= 0 && n == 128 && rec[0] == SIGUSR1 as u32 && fails(s::signalfd(-1, None, 0) as isize, EFAULT)
     });
@@ -793,7 +793,7 @@ fn sym_strsignal() {
 
 #[test]
 fn sym_sys_sigabbrev() {
-    let table = &liella_boundary::data::sys_sigabbrev;
+    let table = &niji_boundary::data::sys_sigabbrev;
     assert_eq!(table.len(), 65, "the 2.3.3 objects: 65 entries");
     assert_eq!(unsafe_cstr(table[9].load(Ordering::Relaxed).cast()), "KILL");
     assert!(table[0].load(Ordering::Relaxed).is_null() && table[40].load(Ordering::Relaxed).is_null(), "NULL where there is no text");
@@ -801,7 +801,7 @@ fn sym_sys_sigabbrev() {
 
 #[test]
 fn sym__sys_siglist() {
-    let table = &liella_boundary::data::_sys_siglist;
+    let table = &niji_boundary::data::_sys_siglist;
     assert_eq!(table.len(), 65, "the 2.3.3 objects: 65 entries");
     assert_eq!(unsafe_cstr(table[15].load(Ordering::Relaxed).cast()), "Terminated");
     assert!(table[0].load(Ordering::Relaxed).is_null() && table[40].load(Ordering::Relaxed).is_null(), "NULL where there is no text");
@@ -809,7 +809,7 @@ fn sym__sys_siglist() {
 
 #[test]
 fn sym_sys_siglist() {
-    let table = &liella_boundary::data::sys_siglist;
+    let table = &niji_boundary::data::sys_siglist;
     assert_eq!(table.len(), 65, "the 2.3.3 objects: 65 entries");
     assert_eq!(unsafe_cstr(table[2].load(Ordering::Relaxed).cast()), "Interrupt");
     assert!(table[0].load(Ordering::Relaxed).is_null() && table[40].load(Ordering::Relaxed).is_null(), "NULL where there is no text");

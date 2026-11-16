@@ -7,8 +7,8 @@
  * Annex F tables of pow and atan2, the multiples of π and huge arguments that need the exact
  * argument reduction, the saturation of tanh) and on random operands, in every rounding direction. Each line prints
  * the operands' and results' 128-bit encodings (32 hex digits), the raised flags and errno.
- * Built against the host C library and statically against Liella's products, the outputs must
- * agree (elem_f128_products.rs) except where Liella is correctly rounded and the host is not. */
+ * Built against the host C library and statically against libniji's products, the outputs must
+ * agree (elem_f128_products.rs) except where libniji is correctly rounded and the host is not. */
 #define _GNU_SOURCE
 #define __STDC_WANT_IEC_60559_TYPES_EXT__ 1
 #include <errno.h>

@@ -1,4 +1,4 @@
-/* Class machine: the TLS descriptor functions of Liella's ld.so (phase 14 DL-15 `DL-TLS-THREADS`,
+/* Class machine: the TLS descriptor functions of libniji's ld.so (phase 14 DL-15 `DL-TLS-THREADS`,
  * R14-8 "TLSDESC return and fallback", plan/ph14/design.md section 7). Declared once in
  * boundary/src/arch/.
  *
@@ -13,11 +13,11 @@
  * pointer at entry may have any alignment: the call site may be anywhere in a function. Nothing
  * is written below the stack pointer of the caller other than this function's own frame.
  *
- * liella_machine_ld_tlsdesc_static: the argument word is the offset itself (the module's block
+ * niji_machine_ld_tlsdesc_static: the argument word is the offset itself (the module's block
  * lies in the static area at a fixed offset from every thread's TP; the TPOFF arithmetic). One
  * load, no frame.
  *
- * liella_machine_ld_tlsdesc_dynamic: the fallback for a block that is not static. The argument
+ * niji_machine_ld_tlsdesc_dynamic: the fallback for a block that is not static. The argument
  * word points at a record whose first word is the resolver, an `extern "C" fn(record) -> address`
  * that returns the variable's absolute address in the calling thread; what follows its first word
  * is the resolver's own. The trampoline saves the caller-saved general registers (rcx, rdx, rsi,
@@ -27,27 +27,27 @@
  * registers, zmm16-31 and the mask registers pass through it unchanged; FXSAVE covers everything
  * such code can change. */
 
-	.section .text.liella_machine_ld_tlsdesc_static,"ax",@progbits
-	.globl liella_machine_ld_tlsdesc_static
-	.hidden liella_machine_ld_tlsdesc_static
-	.type liella_machine_ld_tlsdesc_static, @function
+	.section .text.niji_machine_ld_tlsdesc_static,"ax",@progbits
+	.globl niji_machine_ld_tlsdesc_static
+	.hidden niji_machine_ld_tlsdesc_static
+	.type niji_machine_ld_tlsdesc_static, @function
 	.p2align 4
-liella_machine_ld_tlsdesc_static:
+niji_machine_ld_tlsdesc_static:
 	.cfi_startproc
 	movq 8(%rax), %rax
 	ret
 	.cfi_endproc
-	.size liella_machine_ld_tlsdesc_static, .-liella_machine_ld_tlsdesc_static
+	.size niji_machine_ld_tlsdesc_static, .-niji_machine_ld_tlsdesc_static
 
 /* The frame: 8 saved general registers (64 bytes), then the 512-byte FXSAVE area (16-aligned). */
 #define TLSDESC_FRAME (64 + 512)
 
-	.section .text.liella_machine_ld_tlsdesc_dynamic,"ax",@progbits
-	.globl liella_machine_ld_tlsdesc_dynamic
-	.hidden liella_machine_ld_tlsdesc_dynamic
-	.type liella_machine_ld_tlsdesc_dynamic, @function
+	.section .text.niji_machine_ld_tlsdesc_dynamic,"ax",@progbits
+	.globl niji_machine_ld_tlsdesc_dynamic
+	.hidden niji_machine_ld_tlsdesc_dynamic
+	.type niji_machine_ld_tlsdesc_dynamic, @function
 	.p2align 4
-liella_machine_ld_tlsdesc_dynamic:
+niji_machine_ld_tlsdesc_dynamic:
 	.cfi_startproc
 	pushq %rbp
 	.cfi_def_cfa_offset 16
@@ -83,5 +83,5 @@ liella_machine_ld_tlsdesc_dynamic:
 	.cfi_def_cfa_offset 8
 	ret
 	.cfi_endproc
-	.size liella_machine_ld_tlsdesc_dynamic, .-liella_machine_ld_tlsdesc_dynamic
+	.size niji_machine_ld_tlsdesc_dynamic, .-niji_machine_ld_tlsdesc_dynamic
 	.section .note.GNU-stack,"",@progbits

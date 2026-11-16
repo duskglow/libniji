@@ -1,4 +1,4 @@
-# The product workspace (BUILD-PATH-HASH): `liella-libc-so` and `liella-libm-so` only, outside the main
+# The product workspace (BUILD-PATH-HASH): `niji-libc-so` and `niji-libm-so` only, outside the main
 # workspace (see crates/libc-so/Cargo.toml for why). Its root is `crates/` so that every path package the
 # products use (`../boundary`, `../core`, ...) lies inside it: cargo then hashes their paths relative to this
 # root into `-C metadata`. With the root at `crates/libc-so` they lay outside it, cargo hashed their absolute
@@ -21,7 +21,7 @@ codegen-units = 1
 
 # TOOL-PROFILE: what `cargo xtask so`, `test` and `affected` build (thin LTO, 16 codegen units: a
 # one-line change relinks in a fraction of the time). Never benchmarked or shipped: `cargo xtask
-# bench` builds `release` and refuses products of this profile; LIELLA_FULL_PROFILE=1 selects `release`.
+# bench` builds `release` and refuses products of this profile; NIJI_FULL_PROFILE=1 selects `release`.
 [profile.fast]
 inherits = "release"
 lto = "thin"

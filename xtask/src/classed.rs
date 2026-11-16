@@ -8,7 +8,7 @@
 //! the same order) and requires the same instruction and symbol and page 1's target = page 0's + 4096. A reference
 //! without a partner is an error, never a skip, and so is a section with no reference to check.
 //!
-//! Two readers: an object or archive (`readelf`: relocations of the section defining `liella_classed_page0`, same
+//! Two readers: an object or archive (`readelf`: relocations of the section defining `niji_classed_page0`, same
 //! type and symbol, page 1's addend = page 0's + 4096) and a linked object (`objdump -d` of the two pages: same
 //! mnemonic, page 1's target address = page 0's + 4096). `cargo xtask static` assembles `fold.S` (no product
 //! needed); `cargo xtask so` checks the built `libc.a` and `libc.so.6`; `cargo xtask classed-xref <file>...` checks
@@ -19,7 +19,7 @@ use std::process::Command;
 
 pub(crate) const PAGE: i64 = 4096;
 /// The symbol at the start of page 0 (`csys/src/machine/fold.S`).
-const PAGE0: &str = "liella_classed_page0";
+const PAGE0: &str = "niji_classed_page0";
 
 /// One out-of-page reference of a page.
 #[derive(Debug, Clone)]
@@ -106,7 +106,7 @@ fn hex(s: &str) -> Option<i64> {
     i64::from_str_radix(s.trim_start_matches("0x"), 16).ok()
 }
 
-/// `readelf -sW`: the defined `liella_classed_page0` of a member, as (section index, value).
+/// `readelf -sW`: the defined `niji_classed_page0` of a member, as (section index, value).
 fn page0_symbol(syms: &str) -> Option<(usize, i64)> {
     syms.lines().find_map(|l| {
         let t: Vec<&str> = l.split_whitespace().collect();
@@ -154,7 +154,7 @@ fn relocations(relocs: &str, section: &str) -> Result<Vec<(i64, String, String, 
     Ok(out)
 }
 
-/// An object or archive: the pairs of the one member defining `liella_classed_page0`.
+/// An object or archive: the pairs of the one member defining `niji_classed_page0`.
 fn check_relocatable(path: &Path) -> Result<usize, String> {
     let syms = tool(Command::new("readelf").arg("-sW").arg(path), "readelf -sW")?;
     let sections = tool(Command::new("readelf").arg("-SW").arg(path), "readelf -SW")?;
@@ -198,7 +198,7 @@ fn instruction(line: &str) -> Option<Insn> {
     Some((addr, mnem, target))
 }
 
-/// A linked object: the pairs of the two pages at `liella_classed_page0` (its symbol table must have it).
+/// A linked object: the pairs of the two pages at `niji_classed_page0` (its symbol table must have it).
 fn check_linked(path: &Path) -> Result<usize, String> {
     let syms = tool(Command::new("readelf").arg("-sW").arg(path), "readelf -sW")?;
     let base = members(&syms).iter().find_map(|(_, t)| page0_symbol(t)).map(|(_, v)| v).ok_or_else(|| format!("{}: no {PAGE0} in its symbol table", path.display()))?;
@@ -233,10 +233,10 @@ pub fn check_file(path: &Path) -> Result<usize, String> {
 /// `cargo xtask static`: assemble `csys/src/machine/fold.S` as the products do and check the object.
 pub fn static_check(root: &Path) -> Result<(), String> {
     let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
-    let dir = std::env::temp_dir().join(format!("liella-classed-xref-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-classed-xref-{}", std::process::id()));
     std::fs::create_dir_all(&dir).map_err(|e| format!("classed-xref: {}: {e}", dir.display()))?;
     let obj = dir.join("fold.o");
-    let built = tool(Command::new(&cc).args(["-c", "-fPIC", "-DLIELLA_EXPORT", "-DLIELLA_RUNTIME"]).args(crate::jcc::JCC_PAD_FLAGS).arg("-I").arg(root.join("csys/include")).arg(root.join("csys/src/machine/fold.S")).arg("-o").arg(&obj), "assembling csys/src/machine/fold.S");
+    let built = tool(Command::new(&cc).args(["-c", "-fPIC", "-DNIJI_EXPORT", "-DNIJI_RUNTIME"]).args(crate::jcc::JCC_PAD_FLAGS).arg("-I").arg(root.join("csys/include")).arg(root.join("csys/src/machine/fold.S")).arg("-o").arg(&obj), "assembling csys/src/machine/fold.S");
     let res = built.and_then(|_| check_file(&obj));
     let _ = std::fs::remove_dir_all(&dir);
     res.map(|_| ())
@@ -281,7 +281,7 @@ mod tests {
     // a page 1 reference with no page 0 partner fails.
     #[test]
     fn the_xref_rule_on_a_synthetic_two_page_object() {
-        let dir = std::env::temp_dir().join(format!("liella-classed-xref-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("niji-classed-xref-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let ok = both(&dir, "ok", &synthetic(4096, 4096, ""));
         let load = both(&dir, "load", &synthetic(0, 4096, ""));
@@ -317,10 +317,10 @@ mod tests {
         assert_eq!(r, vec![(6, "R_X86_64_PC32".into(), "w".into(), -4), (0x1006, "R_X86_64_PC32".into(), "w".into(), 0xffc)]);
         let i = instruction("   4a003:\tcmp    0x3ba876(%rip),%rdx        # 404880 <x+0xb8>").unwrap();
         assert_eq!((i.0, i.1.as_str(), i.2), (0x4a003, "cmp", Some((0x404880, "x+0xb8".to_string()))));
-        let j = instruction("   490a7:\tje     91c80 <liella_hot_fill_rest>").unwrap();
-        assert_eq!(j.2, Some((0x91c80, "liella_hot_fill_rest".to_string())));
+        let j = instruction("   490a7:\tje     91c80 <niji_hot_fill_rest>").unwrap();
+        assert_eq!(j.2, Some((0x91c80, "niji_hot_fill_rest".to_string())));
         assert_eq!(instruction("   490b0:\tmovups %xmm0,(%rdi)").unwrap().2, None);
         assert_eq!(page0_symbol(&format!("    18: 0000000000000000     0 NOTYPE  WEAK   HIDDEN     8 {PAGE0}\n 17541: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND {PAGE0}\n")), Some((8, 0)));
-        assert_eq!(section_name("  [ 8] .text.sorted.h00108.liella_machine_memset PROGBITS 0 340 21f 00 AX 0 0 64\n", 8).as_deref(), Some(".text.sorted.h00108.liella_machine_memset"));
+        assert_eq!(section_name("  [ 8] .text.sorted.h00108.niji_machine_memset PROGBITS 0 340 21f 00 AX 0 0 64\n", 8).as_deref(), Some(".text.sorted.h00108.niji_machine_memset"));
     }
 }

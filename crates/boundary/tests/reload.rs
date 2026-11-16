@@ -1,11 +1,11 @@
-//! Reloading time-zone and locale data on request (D-X.13): `liella_tz_invalidate` and
-//! `liella_locale_invalidate`. Zones and locale files stay pinned until then; after an
+//! Reloading time-zone and locale data on request (D-X.13): `niji_tz_invalidate` and
+//! `niji_locale_invalidate`. Zones and locale files stay pinned until then; after an
 //! invalidation the next use compares each file with what was read, reuses what did not change
 //! (no growth, the same pointers) and reads again what did. Each scenario changes process-wide
 //! state (`TZ`, `LOCPATH`, the global locale), so it runs in a re-executed child of this test
 //! binary; the fixtures (copies of installed zone files, locales compiled with `localedef`) are
 //! in a scratch directory under `CARGO_TARGET_TMPDIR`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 #[path = "../../core/tests/support/skip_note.rs"]
 mod skip_note;
@@ -14,18 +14,18 @@ use std::ffi::CString;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use liella_abi::layout::struct_tm;
-use liella_boundary::native::locale::liella_locale_invalidate;
-use liella_boundary::native::tz::liella_tz_invalidate;
-use liella_boundary::posix::s01_startup as env;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s07_locale as loc;
-use liella_boundary::posix::s23_time as tm;
+use niji_abi::layout::struct_tm;
+use niji_boundary::native::locale::niji_locale_invalidate;
+use niji_boundary::native::tz::niji_tz_invalidate;
+use niji_boundary::posix::s01_startup as env;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s07_locale as loc;
+use niji_boundary::posix::s23_time as tm;
 
 #[path = "../../core/tests/support/scratch.rs"]
 mod scratch;
 
-const PROBE: &str = "LIELLA_RELOAD_PROBE";
+const PROBE: &str = "NIJI_RELOAD_PROBE";
 const LC_ALL: i32 = 6;
 const DAY_1: i32 = 0x20007;
 /// 2026-07-01 12:00:00 UTC: summer in Berlin (+2 h), Tokyo +9 h all year.
@@ -112,7 +112,7 @@ fn tz_invalidate_reloads_a_changed_zone_file() {
         assert_eq!(berlin, 7200);
         // Nothing changed: the same zone, the same abbreviation pointer (no new copy).
         let checked = std::time::Instant::now();
-        assert_eq!(liella_tz_invalidate(), 0);
+        assert_eq!(niji_tz_invalidate(), 0);
         assert_eq!(local(), (7200, abbr), "an unchanged file is reused");
         // Replaced: an implicit selection re-checks the file of the current zone at most once a second (D-23.6), so it
         // is pinned until an invalidation only while less than that has passed since the last check. How long the
@@ -126,14 +126,14 @@ fn tz_invalidate_reloads_a_changed_zone_file() {
         } else {
             assert!(seen == 7200 || seen == 32400, "the pinned or the replaced zone, not a third: {seen}");
         }
-        assert_eq!(liella_tz_invalidate(), 0);
+        assert_eq!(niji_tz_invalidate(), 0);
         assert_eq!(local().0, 32400, "read again after the invalidation");
         assert_eq!(implicit(), 32400);
         // The old abbreviation is still readable (never freed).
         assert_eq!(text(abbr), b"CEST");
         // A removed file: the zone is read again from the rule fallback (UTC named by the value).
         std::fs::remove_file(&zone).unwrap();
-        assert_eq!(liella_tz_invalidate(), 0);
+        assert_eq!(niji_tz_invalidate(), 0);
         assert_eq!(local().0, 0, "a missing file is missing");
         println!("child: ok");
         return;
@@ -162,18 +162,18 @@ fn locale_invalidate_reloads_a_changed_locale_file() {
         assert!(!loc::setlocale(LC_ALL, c("xx_XX.UTF-8").as_ptr()).is_null(), "the fixture locale loads");
         assert_eq!(day1(), b"Sunday");
         let before = loc::nl_langinfo(DAY_1).expose_provenance();
-        assert_eq!(liella_locale_invalidate(), 0);
+        assert_eq!(niji_locale_invalidate(), 0);
         assert_eq!((day1(), loc::nl_langinfo(DAY_1).expose_provenance()), (b"Sunday".to_vec(), before), "unchanged files are reused");
         // A replaced category file: pinned until an invalidation.
         replace(&d.join("locales/de_DE.UTF-8/LC_TIME"), &xx.join("LC_TIME"));
         assert!(!loc::setlocale(LC_ALL, c("xx_XX.UTF-8").as_ptr()).is_null());
         assert_eq!(day1(), b"Sunday", "still the pinned file");
-        assert_eq!(liella_locale_invalidate(), 0);
+        assert_eq!(niji_locale_invalidate(), 0);
         assert_eq!(day1(), b"Sonntag", "the global locale is loaded again");
         assert_eq!(text(before), b"Sunday", "the old item stays mapped");
         // A locale that disappeared: ENOENT, the global locale unchanged.
         std::fs::remove_dir_all(&xx).unwrap();
-        assert_eq!(liella_locale_invalidate(), -2);
+        assert_eq!(niji_locale_invalidate(), -2);
         assert_eq!(day1(), b"Sonntag");
         println!("child: ok");
         return;
@@ -221,8 +221,8 @@ fn reloads_race_with_readers() {
                 let (z, l) = swaps[k % 2];
                 replace(Path::new(z), &zone);
                 replace(&d.join("locales").join(l).join("LC_TIME"), &d.join("locales/xx_XX.UTF-8/LC_TIME"));
-                assert_eq!(liella_tz_invalidate(), 0);
-                assert_eq!(liella_locale_invalidate(), 0);
+                assert_eq!(niji_tz_invalidate(), 0);
+                assert_eq!(niji_locale_invalidate(), 0);
                 std::thread::sleep(std::time::Duration::from_millis(2));
             }
             stop.store(true, Ordering::Relaxed);
@@ -254,14 +254,14 @@ fn a_fork_child_reloads_on_its_own() {
         tm::tzset();
         assert_eq!(local().0, 7200);
         replace(Path::new("/usr/share/zoneinfo/Asia/Tokyo"), &zone);
-        let child = |_: &liella_boundary::sys::CSys| -> i32 {
+        let child = |_: &niji_boundary::sys::CSys| -> i32 {
             let pinned = local().0 == 7200;
-            let reloaded = liella_tz_invalidate() == 0 && local().0 == 32400;
+            let reloaded = niji_tz_invalidate() == 0 && local().0 == 32400;
             i32::from(!(pinned && reloaded))
         };
-        assert_eq!(liella_boundary::selftest::in_child(child).unwrap(), liella_boundary::selftest::ChildEnd::Exited(0));
+        assert_eq!(niji_boundary::selftest::in_child(child).unwrap(), niji_boundary::selftest::ChildEnd::Exited(0));
         assert_eq!(local().0, 7200, "the parent keeps its zone");
-        assert_eq!(liella_tz_invalidate(), 0);
+        assert_eq!(niji_tz_invalidate(), 0);
         assert_eq!(local().0, 32400);
         println!("child: ok");
         return;
@@ -338,7 +338,7 @@ fn the_locale_file_table_is_bounded() {
             }
         }
         let after_first = maps();
-        assert!(after_first <= liella_legacy::global_locale::FILES, "{after_first} mappings");
+        assert!(after_first <= niji_legacy::global_locale::FILES, "{after_first} mappings");
         assert!(after_first <= loaded, "every mapping belongs to a loaded locale ({after_first} for {loaded})");
         for _ in 0..20 {
             for &k in failed.iter().take(50) {

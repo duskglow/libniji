@@ -1,13 +1,13 @@
 //! The self-relocator's memory side (phase 14 DL-4, design §1, ruling R14-1, D-27.10): the
 //! program headers, dynamic array, relocation tables and writable segments of the running image
-//! become slices (category *slice*), and `liella_ld::boot` decides everything. First user: the
+//! become slices (category *slice*), and `niji_ld::boot` decides everything. First user: the
 //! static-PIE start of `libc.a` (`runtime::start`); `ld.so` reuses it from DL-5.
 //!
 //! Runs before the image is relocated: nothing here may read a pointer stored in the image's data
 //! (no `&'static` with addresses, no trait objects, no panics), and every call is a direct one.
 
-use liella_ld::arch::Native;
-use liella_ld::boot::{self, BootError, Memory, Writer};
+use niji_ld::arch::Native;
+use niji_ld::boot::{self, BootError, Memory, Writer};
 
 use crate::conv;
 use crate::ffi;
@@ -62,12 +62,12 @@ impl Memory for Mapped {
 /// the image is relocated.
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 pub(crate) fn static_pie_header() -> Option<usize> {
-    let ehdr = ffi::liella_link_image_header();
+    let ehdr = ffi::niji_link_image_header();
     // UNSAFE(slice): the executable's ELF header, mapped with its first segment.
     #[allow(unsafe_code)]
     // SAFETY: the linker defines `__ehdr_start` only where the ELF header lies in a loaded
     // segment, so `EHDR_SIZE` bytes from it are mapped readable for the process's lifetime.
-    let bytes = unsafe { conv::bytes_at(ehdr, liella_ld::elf::EHDR_SIZE) };
+    let bytes = unsafe { conv::bytes_at(ehdr, niji_ld::elf::EHDR_SIZE) };
     boot::position_independent(bytes).then_some(ehdr)
 }
 
@@ -95,7 +95,7 @@ pub(crate) fn relocate_self(phdr: usize, phnum: usize, ehdr: usize) -> Result<Re
 }
 
 /// `ld.so`'s pass 1 (DL-5): its own ELF header (run-time address `ehdr` of `__ehdr_start`, taken
-/// PC-relatively by `liella_machine_ld_entry`) names its program headers. Its link check (L14-1) leaves it no
+/// PC-relatively by `niji_machine_ld_entry`) names its program headers. Its link check (L14-1) leaves it no
 /// IRELATIVE entry, so there is no pass 2.
 #[cfg(feature = "ld")]
 #[inline(never)] // `cargo xtask so` finds the end of the unrelocated code at its call (D-27.13).
@@ -104,7 +104,7 @@ pub(crate) fn relocate_image(ehdr: usize) -> Result<Relocated, BootError> {
     #[allow(unsafe_code)]
     // SAFETY: as in `static_pie_header`: the linker defines `__ehdr_start` only where the ELF
     // header lies in a loaded segment, mapped readable for the process's lifetime.
-    let bytes = unsafe { conv::bytes_at(ehdr, liella_ld::elf::EHDR_SIZE) };
+    let bytes = unsafe { conv::bytes_at(ehdr, niji_ld::elf::EHDR_SIZE) };
     let (phoff, phnum) = boot::own_headers(bytes).ok_or(BootError::Segments)?;
     // The headers lie in the first loaded segment, which maps file offset 0 (the shared-object
     // layout of GNU ld and lld), so `ehdr + e_phoff` is their run-time address.
@@ -124,7 +124,7 @@ pub(crate) fn irelative(r: &Relocated) -> Result<(), BootError> {
         let table = unsafe { conv::bytes_at(addr, len) };
         for (offset, addend) in boot::irelative::<Native>(table) {
             let resolver = usize::try_from(addend).unwrap_or(0).wrapping_add(r.bias);
-            let value = ffi::liella_machine_call0(resolver);
+            let value = ffi::niji_machine_call0(resolver);
             // The view is made after the resolver returns: the resolver may use the segment.
             writer.store(offset, u64::from_ne_bytes(value.to_ne_bytes()))?;
         }

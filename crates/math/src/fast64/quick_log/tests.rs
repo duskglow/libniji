@@ -225,10 +225,10 @@ fn log_family_quick_error_within_bound() {
     }
 }
 
-/// Operands per member of the rounding test: `LIELLA_QUICK_LOG_N` (the 10^7 accuracy run), else
+/// Operands per member of the rounding test: `NIJI_QUICK_LOG_N` (the 10^7 accuracy run), else
 /// 10^6.
 fn fam_count() -> usize {
-    std::env::var("LIELLA_QUICK_LOG_N").ok().and_then(|s| s.parse::<usize>().ok()).filter(|&k| k >= 10).unwrap_or(1_000_000)
+    std::env::var("NIJI_QUICK_LOG_N").ok().and_then(|s| s.parse::<usize>().ok()).filter(|&k| k >= 10).unwrap_or(1_000_000)
 }
 
 /// Every answer of each member's quick phase and tiers against the correctly rounded result, bit

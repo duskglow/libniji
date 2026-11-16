@@ -1,14 +1,14 @@
 #!/bin/bash
 # The trace of a trace-at-build `cargo xtask so` (LAYOUT-TRACE-AT-BUILD, D-X.88 / D-X.92; LAYOUT-DELETE-LISTS, LT-5):
-# usage: LIELLA_HOT_LISTS=<lists dir> tools/hottext/regen.sh <tree> --products <dir>
-#   `cargo xtask so` runs it on a product finished ungrouped from its own archive (<dir>: libc.a, liella-crt1.o and
+# usage: NIJI_HOT_LISTS=<lists dir> tools/hottext/regen.sh <tree> --products <dir>
+#   `cargo xtask so` runs it on a product finished ungrouped from its own archive (<dir>: libc.a, niji-crt1.o and
 #   .profile) and groups the real product from what it writes into <lists dir> (target/product/<profile>):
 #   hot-text.list, startup-text.keys, probe-text.keys and startup-data.keys, each written fresh from this
 #   build's trace. Nothing of an earlier build is read or merged, and no list is committed (LT-5 deleted them):
 #   no function name crosses a build. Run it only through `cargo xtask so`.
 #   Traces the startup / stdio / setlocale+printf probes (tools/hottext/probes) and every mode of
 #   crates/core/tests/oracle/page_faults.c that crates/core/tests/hot_text_products.rs bounds, with
-#   trace_gdb.py, and keeps the names that are function sections of libc.a. Liella binaries only; never trace a
+#   trace_gdb.py, and keeps the names that are function sections of libc.a. libniji binaries only; never trace a
 #   glibc-linked program.
 #   HOTTEXT-STARTUP-COMPLETE: each line is `<key>\t<tier>\t<profile>`: the tier of the first probe that touched
 #   it (startup p_true, fork p_fork, stdio p_puts/p_cat/p_fmt, strings p_str, locale p_loc, tool p_locuse/p_nss,
@@ -25,15 +25,15 @@ set -eu
 export PYTHONDONTWRITEBYTECODE=1
 here=$(cd "$(dirname "$0")" && pwd)
 T=$(cd "$1" && pwd); shift
-L=${LIELLA_HOT_LISTS:-}
+L=${NIJI_HOT_LISTS:-}
 if [ -z "$L" ] || [ ! -d "$L" ]; then
-    echo "regen: LIELLA_HOT_LISTS must name the lists directory of this build (cargo xtask so sets it; no list is committed, LT-5)" >&2
+    echo "regen: NIJI_HOT_LISTS must name the lists directory of this build (cargo xtask so sets it; no list is committed, LT-5)" >&2
     exit 1
 fi
 P=
 while [ $# -gt 0 ]; do
     case $1 in --products) P=$(cd "$2" && pwd); shift 2;;
-        *) echo "regen: unknown argument $1 (usage: LIELLA_HOT_LISTS=<dir> regen.sh <tree> --products <dir>; run through cargo xtask so)" >&2; exit 1;; esac
+        *) echo "regen: unknown argument $1 (usage: NIJI_HOT_LISTS=<dir> regen.sh <tree> --products <dir>; run through cargo xtask so)" >&2; exit 1;; esac
 done
 [ -n "$P" ] || { echo "regen: --products <dir> is required" >&2; exit 1; }
 list=$L/hot-text.list
@@ -99,10 +99,10 @@ check_calls() { # <probe> <n>: after its trace (names.<n>)
 # crates/core/tests/hot_text_products.rs links it; its `true` mode gives the start-up keys below, and
 # its `locale` and `tool` modes (the setlocale + printf and coreutils-shaped programs whose faults
 # that test bounds) are always traced, so a regen without extra programs keeps their keys.
-cc -std=gnu17 -O1 -static -nostdlib -fno-builtin "$P/liella-crt1.o" "$T/crates/core/tests/oracle/page_faults.c" \
+cc -std=gnu17 -O1 -static -nostdlib -fno-builtin "$P/niji-crt1.o" "$T/crates/core/tests/oracle/page_faults.c" \
     "$P/libc.a" -lgcc -o page_faults
 for p in $probes; do
-    LIELLA_PRODUCTS=$P "$T/scripts/liella-cc" -O2 -o "$p" "$p.c"
+    NIJI_PRODUCTS=$P "$T/scripts/niji-cc" -O2 -o "$p" "$p.c"
     if [ "$p" = p_cat ]; then
         # HOT-ORDER-3: p_cat's read path here (empty stdin), its write path (fwrite) at the end of the
         # group below: fwrite ahead of the printf group cost the first snprintf one fault (Ivy Bridge host B:
@@ -177,7 +177,7 @@ skeys=$L/startup-text.keys
 python3 -B "$here/keys.py" --tagged $(cat "$work/tagged") > "$work/hit.keys"
 # Only names that are function sections of libc.a (drops the programs' own functions).
 # (The traced archive is ungrouped, but its sections may still carry a hot or cold prefix: `.text.sorted.h<n>.`,
-# `.text.hot.`, `.text.unlikely.<f>` of a #[cold] function, `.text.liella_cold.<f>.liella_cold` (D-X.63);
+# `.text.hot.`, `.text.unlikely.<f>` of a #[cold] function, `.text.niji_cold.<f>.niji_cold` (D-X.63);
 # keys.py --sections strips every one of them, LAYOUT-TEXT-PIN-9 #4541.)
 readelf -SW "$P/libc.a" > "$work/readelf"
 python3 -B "$here/keys.py" --sections "$work/readelf" > "$work/sections"

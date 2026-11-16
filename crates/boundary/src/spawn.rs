@@ -1,6 +1,6 @@
 //! Program execution and process creation for C callers (spec §18.3–§18.8; D-18.1 to D-18.5):
 //! the exec forms, spawning, the shell interfaces (`system`, `popen`), `daemon`, the waits and
-//! `pidfd_getpid`. The decisions are `liella::process`'s; this module supplies the C caller's
+//! `pidfd_getpid`. The decisions are `niji::process`'s; this module supplies the C caller's
 //! arrays, the process-wide state and the system calls on addresses (`crate::raw`).
 //!
 //! **Spawning** (D-18.3). Spawn is the library's one way to start a program (D-18.1): the
@@ -9,7 +9,7 @@
 //! caller's memory, so the kernel copies no page tables (the cost of `fork`, which grows with the
 //! caller), runs on a private stack (128 KiB mapped for the call), and the caller is suspended
 //! until the child executes its program or exits. The child must not touch what the caller
-//! relies on, and does not: `child_main` runs `liella::process::run_child` over the plain
+//! relies on, and does not: `child_main` runs `niji::process::run_child` over the plain
 //! system calls (no allocation, no lock, no stdio, no thread-local write, no signal handler:
 //! handlers are cleared at creation and everything is blocked), only reads the context on the
 //! caller's stack, and on a failure stores the error in a word of that context and exits with
@@ -35,18 +35,18 @@
 
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering::{Acquire, Relaxed, Release, SeqCst}};
 
-use liella::mem::TryVec;
-use liella::process::{self as lp, Child, FileAction, Program, SpawnAttr};
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::mem::PAGE_SIZE;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::{Disposition, Sys};
-use liella_kernel::uapi::{KSigAction, SigSet, MAP_ANONYMOUS, MAP_PRIVATE, MAP_SHARED, MAP_STACK, O_CLOEXEC, O_RDONLY, O_RDWR, PROT_READ, PROT_WRITE, RLIMIT_NOFILE, SIGCHLD, SIGINT, SIGKILL, SIGQUIT};
-use liella_legacy::spawn_compat::CFileActions;
-use liella_rt::futex::Scope;
-use liella_rt::sync::RawMutex;
+use niji::mem::TryVec;
+use niji::process::{self as lp, Child, FileAction, Program, SpawnAttr};
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::mem::PAGE_SIZE;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::{Disposition, Sys};
+use niji_kernel::uapi::{KSigAction, SigSet, MAP_ANONYMOUS, MAP_PRIVATE, MAP_SHARED, MAP_STACK, O_CLOEXEC, O_RDONLY, O_RDWR, PROT_READ, PROT_WRITE, RLIMIT_NOFILE, SIGCHLD, SIGINT, SIGKILL, SIGQUIT};
+use niji_legacy::spawn_compat::CFileActions;
+use niji_rt::futex::Scope;
+use niji_rt::sync::RawMutex;
 
 use crate::raw::{self, Spawned};
 use crate::sys::{CSys, CP};
@@ -177,12 +177,12 @@ pub fn execl(form: ListForm, path: KResult<KStr<'_>>, arg0: usize, ap: usize) ->
         if a == 0 {
             break;
         }
-        // One argument per call, up to the list's NULL (the obligation of `liella_va_long`).
-        a = usize::from_ne_bytes(ffi::liella_va_long(ap).to_ne_bytes());
+        // One argument per call, up to the list's NULL (the obligation of `niji_va_long`).
+        a = usize::from_ne_bytes(ffi::niji_va_long(ap).to_ne_bytes());
     }
     match form {
         ListForm::Plain => execve(path, words.addr(), environ()),
-        ListForm::Env => execve(path, words.addr(), usize::from_ne_bytes(ffi::liella_va_long(ap).to_ne_bytes())),
+        ListForm::Env => execve(path, words.addr(), usize::from_ne_bytes(ffi::niji_va_long(ap).to_ne_bytes())),
         ListForm::Search => execvpe(path, words.addr(), environ()),
     }
 }
@@ -193,7 +193,7 @@ pub fn fexecve(fd: i32, argv: usize, envp: usize) -> Errno {
     if fd < 0 || argv == 0 || envp == 0 {
         return Errno::EINVAL;
     }
-    let flags = i32::try_from(liella_kernel::uapi::AT_EMPTY_PATH).unwrap_or(0);
+    let flags = i32::try_from(niji_kernel::uapi::AT_EMPTY_PATH).unwrap_or(0);
     raw::execveat(fd, kstr(b"\0"), argv, envp, flags)
 }
 
@@ -245,7 +245,7 @@ pub(crate) struct ChildCtx<'a> {
 
 /// What the spawn child does (the attributes, the file actions, the mask, the exec); it ends the
 /// child either way. Nothing here allocates, locks, writes thread-local state or touches stdio:
-/// it runs `liella::process::run_child` over the plain system calls (`CSys`) and the context.
+/// it runs `niji::process::run_child` over the plain system calls (`CSys`) and the context.
 pub(crate) fn child_main(ctx: &ChildCtx<'_>) -> ! {
     let (argv, envp) = (ctx.argv, ctx.envp);
     let e = lp::run_child(&CSys, &ctx.child, &mut |p: KStr<'_>| raw::execve(p, argv, envp));
@@ -411,7 +411,7 @@ pub fn add_action(fa: Option<&mut CFileActions>, action: FileAction<'_>) -> KRes
 /// `wait4(pid, status, options, usage)` (and `wait`, `waitpid`, `wait3`): a cancellation point.
 /// `*status` is written only when a child is reported (`WNOHANG` with none leaves it).
 #[inline(never)]
-pub fn wait4(pid: i32, status: Option<&mut i32>, options: i32, usage: Option<&mut liella_kernel::uapi::Rusage>) -> KResult<i32> {
+pub fn wait4(pid: i32, status: Option<&mut i32>, options: i32, usage: Option<&mut niji_kernel::uapi::Rusage>) -> KResult<i32> {
     let (p, st) = CP.wait4(pid, conv::bits(options), usage)?;
     if p > 0 {
         if let Some(s) = status {
@@ -422,8 +422,8 @@ pub fn wait4(pid: i32, status: Option<&mut i32>, options: i32, usage: Option<&mu
 }
 
 /// `waitid(idtype, id, info, options)`: a cancellation point.
-pub fn waitid(idtype: i32, id: u32, info: Option<&mut liella_kernel::uapi::SigInfo>, options: i32) -> KResult<()> {
-    let mut local = liella_kernel::uapi::SigInfo::default();
+pub fn waitid(idtype: i32, id: u32, info: Option<&mut niji_kernel::uapi::SigInfo>, options: i32) -> KResult<()> {
+    let mut local = niji_kernel::uapi::SigInfo::default();
     CP.waitid(conv::bits(idtype), i32::from_ne_bytes(id.to_ne_bytes()), info.unwrap_or(&mut local), conv::bits(options), None)
 }
 
@@ -775,7 +775,7 @@ fn capture_spawn(command: &[u8], show_err: bool, wr: Fd) -> KResult<i32> {
     }
     lp::encode(&FileAction::Dup2(wr.raw(), 1), &mut actions)?;
     if !show_err {
-        lp::encode(&FileAction::Open { fd: 2, path: kstr(b"/dev/null\0"), flags: liella_kernel::uapi::O_WRONLY, mode: 0 }, &mut actions)?;
+        lp::encode(&FileAction::Open { fd: 2, path: kstr(b"/dev/null\0"), flags: niji_kernel::uapi::O_WRONLY, mode: 0 }, &mut actions)?;
     }
     // `argv[0]` is the shell's path, which its messages then name.
     let argv = [addr_of(SH), addr_of(b"-c\0"), addr_of(command), 0];
@@ -827,7 +827,7 @@ pub(crate) fn hold_locks_until_contended(held: &core::sync::atomic::AtomicBool, 
             seen = true;
             break;
         }
-        let _ = CSys.clock_nanosleep(1, 0, &liella_kernel::uapi::Timespec { sec: 0, nsec: 1_000_000 }, None);
+        let _ = CSys.clock_nanosleep(1, 0, &niji_kernel::uapi::Timespec { sec: 0, nsec: 1_000_000 }, None);
     }
     fork_locks(false);
     seen

@@ -120,7 +120,7 @@ static void p1(void)
     static const unsigned known = RTLD_LAZY | RTLD_NOW | RTLD_NOLOAD | RTLD_DEEPBIND | RTLD_GLOBAL | RTLD_NODELETE;
     /* The eight high bits 0x01000000..0x80000000 are outside this sweep: they are internal,
      * undocumented flags of the reference (confirmed by its maintainers, 2026-11-13; some are used
-     * for its profiling), unsupported in Liella and excluded from the comparison. Liella refuses
+     * for its profiling), unsupported in libniji and excluded from the comparison. libniji refuses
      * them like every other unknown bit (plan/ph14/dl-16-dlopen.md, Modes), and DL-16a's test
      * sweeps every undefined bit, these included. */
     static const unsigned unswept = 0xff000000u;

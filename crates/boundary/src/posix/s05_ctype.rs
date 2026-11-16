@@ -6,9 +6,9 @@
 //! locale-defined class's number; `wctrans_t` is the address of the mapping's table, as in
 //! glibc.
 
-use liella::ctype::Class;
-use liella_abi::ctypes::{c_char, c_int, c_ushort, locale_t, wctrans_t, wctype_t, wint_t};
-use liella_legacy::ctype_tables;
+use niji::ctype::Class;
+use niji_abi::ctypes::{c_char, c_int, c_ushort, locale_t, wctrans_t, wctype_t, wint_t};
+use niji_legacy::ctype_tables;
 
 use crate::conv;
 use crate::locale;

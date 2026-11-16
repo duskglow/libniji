@@ -7,10 +7,10 @@
  * one, and the start-up hook (`runtime.rs`, `start()`) applies it; a static program's is ignored,
  * as glibc ignores it (probe-settled, #812).
  *
- * Defined only in the shipped products (LIELLA_RUNTIME): in test builds the host C library owns
+ * Defined only in the shipped products (NIJI_RUNTIME): in test builds the host C library owns
  * the name. */
-#include "liella_csys.h"
+#include "niji_csys.h"
 
-#ifdef LIELLA_RUNTIME
+#ifdef NIJI_RUNTIME
 unsigned short __fpu_control = 0x037f;
 #endif

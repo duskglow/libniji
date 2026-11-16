@@ -5,7 +5,7 @@
  * With PRCTL_EINVAL, `prctl(PR_GET_SECCOMP)` fails with EINVAL, with PRCTL_ZERO it returns 0
  * (`SECCOMP_RET_ERRNO` with no error: the call claims there is no filter), and with PRCTL_KILL
  * it kills the process; everything else is allowed.
- * The filter is inherited by every child and survives exec. Liella takes its worker path under
+ * The filter is inherited by every child and survives exec. libniji takes its worker path under
  * any filter (D-11.11). Needs no privilege (`PR_SET_NO_NEW_PRIVS`).
  *
  * Usage: aio_noring EPERM|ENOSYS|EACCES|ALLOW|PRCTL_EINVAL|PRCTL_ZERO|PRCTL_KILL COMMAND ARGS... */

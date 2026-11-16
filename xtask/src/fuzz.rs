@@ -11,8 +11,8 @@
 //! cargo xtask fuzz <target>|--all --time <m> --summary <file>   also write the per-target rows as TSV
 //! ```
 //!
-//! The corpus lives outside the repository, in `$LIELLA_FUZZ_CORPUS/<target>/corpus` (default
-//! `~/liella-fuzz-corpus`), with crash artifacts beside it in `artifacts/`; the repository's
+//! The corpus lives outside the repository, in `$NIJI_FUZZ_CORPUS/<target>/corpus` (default
+//! `~/niji-fuzz-corpus`), with crash artifacts beside it in `artifacts/`; the repository's
 //! seeds (`fuzz/seeds/<target>`) are read as a second corpus and never written. A run is a
 //! series of chunks, each a fresh libFuzzer process resuming from the corpus; the first crash,
 //! time-out or memory-limit report ends the run. On the shared machines the whole command runs
@@ -112,7 +112,7 @@ const MAX_MINUTES: u64 = 140;
 
 /// Per-target libFuzzer settings: the largest input, the time-out per input (seconds), the
 /// memory limit (MiB), and the longest chunk (minutes; short for the targets that leak their
-/// `'static` input, `liella_fuzz::LEAK_BUDGET`).
+/// `'static` input, `niji_fuzz::LEAK_BUDGET`).
 struct Settings {
     max_len: usize,
     timeout: u32,
@@ -162,11 +162,11 @@ pub(crate) fn toolchain(root: &Path) -> Result<String, String> {
 }
 
 fn corpus_root() -> PathBuf {
-    if let Some(d) = std::env::var_os("LIELLA_FUZZ_CORPUS") {
+    if let Some(d) = std::env::var_os("NIJI_FUZZ_CORPUS") {
         return PathBuf::from(d);
     }
     let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-    home.join("liella-fuzz-corpus")
+    home.join("niji-fuzz-corpus")
 }
 
 /// `rustup run <nightly> cargo fuzz <args>` in `fuzz/`, with the environment of this `cargo`

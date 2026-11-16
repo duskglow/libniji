@@ -1,4 +1,4 @@
-//! Parity of the ELF reader (`liella_ld::elf`, IP-24 part 1) with `readelf -h`, `-l`, `-d` and `-n` over a
+//! Parity of the ELF reader (`niji_ld::elf`, IP-24 part 1) with `readelf -h`, `-l`, `-d` and `-n` over a
 //! corpus this test builds with the system compiler and linker: a static program, a PIE (RELR, both hash
 //! styles), a non-PIE with `DT_RPATH`, a shared object with soname and `DT_RUNPATH`, and a shared object
 //! without notes. `readelf -n` reads a copy without section headers (`objcopy --strip-section-headers`),
@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
 
-use liella_ld::arch::{RelocKind, X86_64};
-use liella_ld::elf::{dt, pt, Elf};
+use niji_ld::arch::{RelocKind, X86_64};
+use niji_ld::elf::{dt, pt, Elf};
 
 struct Member {
     name: &'static str,

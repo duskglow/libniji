@@ -1,8 +1,8 @@
 /* Class machine: the direct cancellation-point entries (CANCEL-FAST-2, D-22.11 "Direct points";
  * plan S2 hot-kernel). In the products these ARE `read`, `write`, `pread`/`pread64`,
- * `pwrite`/`pwrite64` and `close`/`__close` (second labels under LIELLA_EXPORT, versions from the
+ * `pwrite`/`pwrite64` and `close`/`__close` (second labels under NIJI_EXPORT, versions from the
  * Rust twins' `export! { asm ... }`): a call reaches the system call with no Rust hop. Test builds
- * define only the liella_machine_* names; the Rust twins (crates/boundary/src/posix/s11_lowio.rs)
+ * define only the niji_machine_* names; the Rust twins (crates/boundary/src/posix/s11_lowio.rs)
  * call them, so the tests run this code.
  *
  * Why assembly: the Rust export spent ~40 instructions per call around the system call (the
@@ -10,12 +10,12 @@
  * window, the result conversion); glibc's wrapper is ~21. Here the common case is the descriptor
  * load, three tests, the shared window (machine/thread_start.S) and one result test.
  *
- * Every entry takes the Rust path (`liella_*_rest`: the full former export, unchanged) for
- * whatever is not the common case: a process the runtime did not start (`liella_machine_owned`
- * clear, D-X.58: its thread blocks are not Liella's, so `%fs:0xa0` is never read there), no
+ * Every entry takes the Rust path (`niji_*_rest`: the full former export, unchanged) for
+ * whatever is not the common case: a process the runtime did not start (`niji_machine_owned`
+ * clear, D-X.58: its thread blocks are not libniji's, so `%fs:0xa0` is never read there), no
  * descriptor yet (`%fs:0xa0` is 0: a thread the runtime did not create and has not adopted), a count of 0 or above isize::MAX, a NULL buffer (the export's
  * slice rules, EFAULT without a system call). A kernel error result (-4095..-1, which includes the
- * window's -ECANCELED) tail-jumps to `liella_cancel_point_fail` with the raw result: it acts on a
+ * window's -ECANCELED) tail-jumps to `niji_cancel_point_fail` with the raw result: it acts on a
  * due request (the cancellation word, checked there) and otherwise sets errno and returns -1.
  *
  * CONTRACT: the C contracts of the exports; nothing is dereferenced here except the thread block
@@ -25,91 +25,91 @@
  * every instruction, so `backtrace` from a signal handler in the window unwinds through here.
  * No .macro (the affected map reads this file for the symbols it defines and uses). */
 
-	.section .text.liella_machine_read,"ax",@progbits
-	.hidden liella_machine_cancel_window	/* machine/thread_start.S */
-	.hidden liella_cancel_point_fail	/* crates/boundary/src/posix/s11_lowio.rs */
-	.hidden liella_close_point_fail
-	.hidden liella_read_rest
-	.hidden liella_write_rest
-	.hidden liella_pread_rest
-	.hidden liella_pwrite_rest
-	.hidden liella_close_rest
-	.hidden liella_machine_aio_used
+	.section .text.niji_machine_read,"ax",@progbits
+	.hidden niji_machine_cancel_window	/* machine/thread_start.S */
+	.hidden niji_cancel_point_fail	/* crates/boundary/src/posix/s11_lowio.rs */
+	.hidden niji_close_point_fail
+	.hidden niji_read_rest
+	.hidden niji_write_rest
+	.hidden niji_pread_rest
+	.hidden niji_pwrite_rest
+	.hidden niji_close_rest
+	.hidden niji_machine_aio_used
 
-/* ssize_t liella_machine_read(int fd, void *buf, size_t n) */
-	.globl liella_machine_read
-	.hidden liella_machine_read
-	.type liella_machine_read, @function
+/* ssize_t niji_machine_read(int fd, void *buf, size_t n) */
+	.globl niji_machine_read
+	.hidden niji_machine_read
+	.type niji_machine_read, @function
 	.p2align 6
 	.cfi_startproc
-liella_machine_read:
-#ifdef LIELLA_EXPORT
+niji_machine_read:
+#ifdef NIJI_EXPORT
 	.globl read
 	.type read, @function
 read:
 #endif
-	cmpb $0, liella_machine_owned(%rip)
-	je liella_read_rest
+	cmpb $0, niji_machine_owned(%rip)
+	je niji_read_rest
 	movq %fs:0xa0, %r11
 	testq %r11, %r11
-	jz liella_read_rest
+	jz niji_read_rest
 	testq %rdx, %rdx
-	jle liella_read_rest
+	jle niji_read_rest
 	testq %rsi, %rsi
-	jz liella_read_rest
+	jz niji_read_rest
 	addq $32, %r11
 	xorl %eax, %eax			/* SYS_read */
-	call liella_machine_cancel_window
+	call niji_machine_cancel_window
 	cmpq $-4095, %rax
 	jae 1f
 	ret
 1:	movq %rax, %rdi
-	jmp liella_cancel_point_fail
+	jmp niji_cancel_point_fail
 	.cfi_endproc
-	.size liella_machine_read, .-liella_machine_read
-	.section .text.liella_machine_write,"ax",@progbits
+	.size niji_machine_read, .-niji_machine_read
+	.section .text.niji_machine_write,"ax",@progbits
 
-/* ssize_t liella_machine_write(int fd, const void *buf, size_t n) */
-	.globl liella_machine_write
-	.hidden liella_machine_write
-	.type liella_machine_write, @function
+/* ssize_t niji_machine_write(int fd, const void *buf, size_t n) */
+	.globl niji_machine_write
+	.hidden niji_machine_write
+	.type niji_machine_write, @function
 	.p2align 6
 	.cfi_startproc
-liella_machine_write:
-#ifdef LIELLA_EXPORT
+niji_machine_write:
+#ifdef NIJI_EXPORT
 	.globl write
 	.type write, @function
 write:
 #endif
-	cmpb $0, liella_machine_owned(%rip)
-	je liella_write_rest
+	cmpb $0, niji_machine_owned(%rip)
+	je niji_write_rest
 	movq %fs:0xa0, %r11
 	testq %r11, %r11
-	jz liella_write_rest
+	jz niji_write_rest
 	testq %rdx, %rdx
-	jle liella_write_rest
+	jle niji_write_rest
 	testq %rsi, %rsi
-	jz liella_write_rest
+	jz niji_write_rest
 	addq $32, %r11
 	movl $1, %eax			/* SYS_write */
-	call liella_machine_cancel_window
+	call niji_machine_cancel_window
 	cmpq $-4095, %rax
 	jae 1f
 	ret
 1:	movq %rax, %rdi
-	jmp liella_cancel_point_fail
+	jmp niji_cancel_point_fail
 	.cfi_endproc
-	.size liella_machine_write, .-liella_machine_write
-	.section .text.liella_machine_pread,"ax",@progbits
+	.size niji_machine_write, .-niji_machine_write
+	.section .text.niji_machine_pread,"ax",@progbits
 
-/* ssize_t liella_machine_pread(int fd, void *buf, size_t n, off_t off) */
-	.globl liella_machine_pread
-	.hidden liella_machine_pread
-	.type liella_machine_pread, @function
+/* ssize_t niji_machine_pread(int fd, void *buf, size_t n, off_t off) */
+	.globl niji_machine_pread
+	.hidden niji_machine_pread
+	.type niji_machine_pread, @function
 	.p2align 6
 	.cfi_startproc
-liella_machine_pread:
-#ifdef LIELLA_EXPORT
+niji_machine_pread:
+#ifdef NIJI_EXPORT
 	.globl pread
 	.type pread, @function
 pread:
@@ -117,36 +117,36 @@ pread:
 	.type pread64, @function
 pread64:
 #endif
-	cmpb $0, liella_machine_owned(%rip)
-	je liella_pread_rest
+	cmpb $0, niji_machine_owned(%rip)
+	je niji_pread_rest
 	movq %fs:0xa0, %r11
 	testq %r11, %r11
-	jz liella_pread_rest
+	jz niji_pread_rest
 	testq %rdx, %rdx
-	jle liella_pread_rest
+	jle niji_pread_rest
 	testq %rsi, %rsi
-	jz liella_pread_rest
+	jz niji_pread_rest
 	addq $32, %r11
 	movq %rcx, %r10
 	movl $17, %eax			/* SYS_pread64 */
-	call liella_machine_cancel_window
+	call niji_machine_cancel_window
 	cmpq $-4095, %rax
 	jae 1f
 	ret
 1:	movq %rax, %rdi
-	jmp liella_cancel_point_fail
+	jmp niji_cancel_point_fail
 	.cfi_endproc
-	.size liella_machine_pread, .-liella_machine_pread
-	.section .text.liella_machine_pwrite,"ax",@progbits
+	.size niji_machine_pread, .-niji_machine_pread
+	.section .text.niji_machine_pwrite,"ax",@progbits
 
-/* ssize_t liella_machine_pwrite(int fd, const void *buf, size_t n, off_t off) */
-	.globl liella_machine_pwrite
-	.hidden liella_machine_pwrite
-	.type liella_machine_pwrite, @function
+/* ssize_t niji_machine_pwrite(int fd, const void *buf, size_t n, off_t off) */
+	.globl niji_machine_pwrite
+	.hidden niji_machine_pwrite
+	.type niji_machine_pwrite, @function
 	.p2align 6
 	.cfi_startproc
-liella_machine_pwrite:
-#ifdef LIELLA_EXPORT
+niji_machine_pwrite:
+#ifdef NIJI_EXPORT
 	.globl pwrite
 	.type pwrite, @function
 pwrite:
@@ -154,40 +154,40 @@ pwrite:
 	.type pwrite64, @function
 pwrite64:
 #endif
-	cmpb $0, liella_machine_owned(%rip)
-	je liella_pwrite_rest
+	cmpb $0, niji_machine_owned(%rip)
+	je niji_pwrite_rest
 	movq %fs:0xa0, %r11
 	testq %r11, %r11
-	jz liella_pwrite_rest
+	jz niji_pwrite_rest
 	testq %rdx, %rdx
-	jle liella_pwrite_rest
+	jle niji_pwrite_rest
 	testq %rsi, %rsi
-	jz liella_pwrite_rest
+	jz niji_pwrite_rest
 	addq $32, %r11
 	movq %rcx, %r10
 	movl $18, %eax			/* SYS_pwrite64 */
-	call liella_machine_cancel_window
+	call niji_machine_cancel_window
 	cmpq $-4095, %rax
 	jae 1f
 	ret
 1:	movq %rax, %rdi
-	jmp liella_cancel_point_fail
+	jmp niji_cancel_point_fail
 	.cfi_endproc
-	.size liella_machine_pwrite, .-liella_machine_pwrite
+	.size niji_machine_pwrite, .-niji_machine_pwrite
 
-/* int liella_machine_close(int fd): the descriptor is closed regardless, outside the window
- * (§22.3), then a due request is acted on (in liella_close_point_fail, which also sets errno).
- * Any asynchronous I/O ever started (liella_machine_aio_used, set by crates/boundary/src/aio.rs
+/* int niji_machine_close(int fd): the descriptor is closed regardless, outside the window
+ * (§22.3), then a due request is acted on (in niji_close_point_fail, which also sets errno).
+ * Any asynchronous I/O ever started (niji_machine_aio_used, set by crates/boundary/src/aio.rs
  * before its first request or internal descriptor) sends every close to the Rust path, which
  * cancels the descriptor's requests first. */
-	.section .text.liella_machine_close,"ax",@progbits
-	.globl liella_machine_close
-	.hidden liella_machine_close
-	.type liella_machine_close, @function
+	.section .text.niji_machine_close,"ax",@progbits
+	.globl niji_machine_close
+	.hidden niji_machine_close
+	.type niji_machine_close, @function
 	.p2align 6
 	.cfi_startproc
-liella_machine_close:
-#ifdef LIELLA_EXPORT
+niji_machine_close:
+#ifdef NIJI_EXPORT
 	.globl close
 	.type close, @function
 close:
@@ -195,11 +195,11 @@ close:
 	.type __close, @function
 __close:
 #endif
-	cmpb $0, liella_machine_aio_used(%rip)
-	jne liella_close_rest
+	cmpb $0, niji_machine_aio_used(%rip)
+	jne niji_close_rest
 	movl $3, %eax			/* SYS_close */
 	syscall
-	cmpb $0, liella_machine_owned(%rip)
+	cmpb $0, niji_machine_owned(%rip)
 	je 1f
 	movq %fs:0xa0, %r11
 	testq %r11, %r11
@@ -212,28 +212,28 @@ __close:
 	jae 2f
 	ret
 2:	movq %rax, %rdi
-	jmp liella_close_point_fail
+	jmp niji_close_point_fail
 	.cfi_endproc
-	.size liella_machine_close, .-liella_machine_close
+	.size niji_machine_close, .-niji_machine_close
 
 /* The asynchronous-I/O flag (read above; written only by crates/boundary/src/aio.rs). In a section of
  * its own so that crates/libc-so/startup-state.list can declare it: the first close reads it. */
-	.section .data.liella_machine_aio_used,"aw",@progbits
-	.globl liella_machine_aio_used
-	.type liella_machine_aio_used, @object
-liella_machine_aio_used:
+	.section .data.niji_machine_aio_used,"aw",@progbits
+	.globl niji_machine_aio_used
+	.type niji_machine_aio_used, @object
+niji_machine_aio_used:
 	.byte 0
-	.size liella_machine_aio_used, 1
+	.size niji_machine_aio_used, 1
 /* D-X.58: set (by crates/boundary/src/thread.rs, `init_initial`) when the runtime started the
  * process, so every thread block that runs library code is one it made; clear in a process another
- * C library or loader started, whose blocks' words at 0x9c-0x187 are not Liella's: the entries
+ * C library or loader started, whose blocks' words at 0x9c-0x187 are not libniji's: the entries
  * above then never read %fs:0xa0 and take the Rust path. Written at start-up, so in a section of its
  * own that `cargo xtask so` moves into the start-up state cluster (crates/libc-so/startup-state.list). */
-	.section .data.liella_machine_owned,"aw",@progbits
-	.globl liella_machine_owned
-	.hidden liella_machine_owned
-	.type liella_machine_owned, @object
-liella_machine_owned:
+	.section .data.niji_machine_owned,"aw",@progbits
+	.globl niji_machine_owned
+	.hidden niji_machine_owned
+	.type niji_machine_owned, @object
+niji_machine_owned:
 	.byte 0
-	.size liella_machine_owned, 1
+	.size niji_machine_owned, 1
 	.section .note.GNU-stack,"",@progbits

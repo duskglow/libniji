@@ -1,5 +1,5 @@
 //! ONC RPC and XDR (spec §29.1): the rules of the XDR primitives (RFC 4506) and of the memory
-//! stream, as plain arithmetic the C layer (`liella_boundary::posix::s29_legacy`) applies to the
+//! stream, as plain arithmetic the C layer (`niji_boundary::posix::s29_legacy`) applies to the
 //! caller's `XDR`. Every rule here was settled black-box against the reference library
 //! (`spec/behaviour/xdr.md`, `xdr.glibc.txt`); none depends on pointers, so all of it is tested
 //! in-process (R15-2).

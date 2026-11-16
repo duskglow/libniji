@@ -13,10 +13,10 @@
 
 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::uapi::{CLONE_CHILD_CLEARTID, CLONE_CHILD_SETTID, CLONE_VFORK, CLONE_VM, SIGCHLD};
-use liella_rt::futex::Scope;
-use liella_rt::sync::RawMutex;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::uapi::{CLONE_CHILD_CLEARTID, CLONE_CHILD_SETTID, CLONE_VFORK, CLONE_VM, SIGCHLD};
+use niji_rt::futex::Scope;
+use niji_rt::sync::RawMutex;
 
 use crate::sys::CSys;
 use crate::{ffi, heap, raw, tb, thread};
@@ -59,7 +59,7 @@ pub fn forget_dso(dso: usize) {
 }
 
 /// A module mapped at `[lo, hi)` is being unloaded (D-27.29): every opted-in registration
-/// (`pthread_atfork@LIELLA_OWNER_1`: owner word with bit 0 set) whose owner or any of whose three
+/// (`pthread_atfork@NIJI_OWNER_1`: owner word with bit 0 set) whose owner or any of whose three
 /// handlers lies in it is never called again. Other registrations are untouched (ruling #4862).
 pub fn forget_opted(lo: usize, hi: usize) {
     let inside = |v: usize| lo <= v && v < hi;
@@ -76,7 +76,7 @@ pub fn forget_opted(lo: usize, hi: usize) {
 }
 
 fn register_with(prepare: usize, parent: usize, child: usize, dso: usize) -> KResult<()> {
-    let n = liella_legacy::malloc_compat::malloc(&heap::CTX, 40).map_err(|_| Errno::ENOMEM)?;
+    let n = niji_legacy::malloc_compat::malloc(&heap::CTX, 40).map_err(|_| Errno::ENOMEM)?;
     let w = node(n);
     for (slot, v) in w.iter().zip([prepare, parent, child, 0, dso]) {
         slot.store(v, Relaxed);
@@ -96,7 +96,7 @@ fn register_with(prepare: usize, parent: usize, child: usize, dso: usize) -> KRe
 
 fn call(f: usize) {
     if f != 0 {
-        let _ = ffi::liella_machine_call0(f);
+        let _ = ffi::niji_machine_call0(f);
     }
 }
 
@@ -134,11 +134,11 @@ fn lock_all() {
     crate::posix::s27_dynlink::loader_fork(0);
     ATFORK_LOCK.lock_raw(&CSys, Scope::Private);
     crate::spawn::fork_locks(true);
-    liella_legacy::stdio_compat::hold_list(&CSys, true);
+    niji_legacy::stdio_compat::hold_list(&CSys, true);
     thread::list_lock().lock_raw(&CSys, Scope::Private);
     thread::recycle_lock().lock_raw(&CSys, Scope::Private);
     crate::setxid::lock().lock_raw(&CSys, Scope::Private);
-    liella_legacy::time_compat::lock().lock_raw(&CSys, Scope::Private);
+    niji_legacy::time_compat::lock().lock_raw(&CSys, Scope::Private);
     heap::DEBUG.lock().lock_raw(&CSys, Scope::Private);
     heap::HEAP.lock_all(&CSys);
     crate::process::hold_env_lock(true);
@@ -150,11 +150,11 @@ fn unlock_all(child: bool) {
     crate::process::hold_env_lock(false);
     heap::HEAP.unlock_all(&CSys);
     heap::DEBUG.lock().unlock(&CSys, Scope::Private);
-    liella_legacy::time_compat::lock().unlock(&CSys, Scope::Private);
+    niji_legacy::time_compat::lock().unlock(&CSys, Scope::Private);
     crate::setxid::lock().unlock(&CSys, Scope::Private);
     thread::recycle_lock().unlock(&CSys, Scope::Private);
     thread::list_lock().unlock(&CSys, Scope::Private);
-    liella_legacy::stdio_compat::hold_list(&CSys, false);
+    niji_legacy::stdio_compat::hold_list(&CSys, false);
     crate::spawn::fork_locks(false);
     ATFORK_LOCK.unlock(&CSys, Scope::Private);
     crate::posix::s27_dynlink::loader_fork(if child { 2 } else { 1 });
@@ -219,7 +219,7 @@ fn child_reset() {
     crate::aio::after_fork_child(used & USED_AIO != 0);
     crate::stdio::after_fork_in_child();
     crate::spawn::after_fork_child();
-    liella_legacy::nscache::NSCACHE.after_fork_child();
+    niji_legacy::nscache::NSCACHE.after_fork_child();
     set_if_differs!(crate::data::__libc_single_threaded, 1);
 }
 
@@ -277,7 +277,7 @@ pub fn clone(f: usize, stack: usize, flags: i32, arg: usize, ptid: usize, tls: u
     if flags & CLONE_VM != 0 && flags & CLONE_VFORK == 0 {
         thread::leave_lock_alone();
     }
-    let r = ffi::liella_machine_clone_raw(flags, sp, ptid, ctid, tls);
+    let r = ffi::niji_machine_clone_raw(flags, sp, ptid, ctid, tls);
     Errno::decode(r).map(|v| i32::try_from(v).unwrap_or(0))
 }
 

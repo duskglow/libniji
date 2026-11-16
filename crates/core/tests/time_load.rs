@@ -1,10 +1,10 @@
-//! Which zone a `TZ` value selects (§23.6) through `liella::time::load`, on a scratch zone
+//! Which zone a `TZ` value selects (§23.6) through `niji::time::load`, on a scratch zone
 //! directory this test builds (no dependence on the host's zone files). Written before the
 //! COLD-REWRITE2-cold-02 rewrite and passing on the old code.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
-use liella::time::{self, Loaded, Zone};
-use liella_boundary::sys::CSys;
+use niji::time::{self, Loaded, Zone};
+use niji_boundary::sys::CSys;
 use std::path::PathBuf;
 
 /// A TZif version 1 file with no transitions and one type: `offset`, abbreviation `abbr`.
@@ -23,7 +23,7 @@ fn tzif(offset: i32, abbr: &[u8]) -> Vec<u8> {
 }
 
 fn scratch() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("liella-time-load-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("niji-time-load-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(d.join("Area")).unwrap();
     std::fs::write(d.join("Area/Nine"), tzif(32_400, b"NST")).unwrap();
@@ -93,12 +93,12 @@ fn s23_6_c_0() {
         assert!(l.file.is_none(), "{tz:?}: not watched");
     }
     // TZDIR unset: the system directory (a name that cannot be there).
-    let l = time::load(&CSys, Some(b"Liella/No/Such/Zone"), None, &missing).unwrap();
-    assert_eq!((offset(&l), abbr(&l)), (0, b"Liella".to_vec()));
+    let l = time::load(&CSys, Some(b"libniji/No/Such/Zone"), None, &missing).unwrap();
+    assert_eq!((offset(&l), abbr(&l)), (0, b"libniji".to_vec()));
     assert_eq!(time::ZONEINFO, b"/usr/share/zoneinfo");
     assert_eq!(time::LOCALTIME, b"/etc/localtime\0");
     assert_eq!(time::file_id(&CSys, &missing), None);
-    // The size limit (4 MiB, a Liella choice): a zone file padded to the limit is read; one byte
+    // The size limit (4 MiB, a libniji choice): a zone file padded to the limit is read; one byte
     // more and it is not a zone (the value is then a rule: UTC named by its leading name).
     let mut big = tzif(32_400, b"NST");
     big.resize(4 << 20, 0);

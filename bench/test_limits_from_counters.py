@@ -30,7 +30,7 @@ class T(unittest.TestCase):
         self.assertEqual(len(L.select(rows, ["cb/c_16"])), 1)
         self.assertEqual(len(L.select(rows, ["a_16"])), 1)
         p = L.propose(rows, "CPU", "2%")
-        self.assertEqual(p[0], ("CPU", "cb", "a_16", 23, "Liella 20.4 vs glibc 19.4; headroom 2%"))
+        self.assertEqual(p[0], ("CPU", "cb", "a_16", 23, "libniji 20.4 vs glibc 19.4; headroom 2%"))
 
     def test_check(self):
         rows = [("cb", "a", 20.0, 19.0), ("cb", "b", 100.0, None), ("cb", "n", 5.0, None)]  # proposals 22 102 7

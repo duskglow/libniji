@@ -24,11 +24,11 @@
 use super::dlsym::start_path;
 use super::{dlerr, dyn_string, read_section, start_arg, tb, Env, Loader, View, CAP, DT_RPATH, DT_RUNPATH, SHN_ABS, START_PAGE};
 use core::sync::atomic::Ordering::Relaxed;
-use liella_ld::arch::Native;
-use liella_ld::elf::{dt, pt, Sym, SHN_UNDEF, STT_TLS};
-use liella_ld::search::{self, PathBuf, Scope};
-use liella_ld::symbols::Object;
-use liella_ld::tls::Placed;
+use niji_ld::arch::Native;
+use niji_ld::elf::{dt, pt, Sym, SHN_UNDEF, STT_TLS};
+use niji_ld::search::{self, PathBuf, Scope};
+use niji_ld::symbols::Object;
+use niji_ld::tls::Placed;
 
 /// `dladdr1` flags (`<dlfcn.h>`).
 const RTLD_DL_SYMENT: i32 = 1;

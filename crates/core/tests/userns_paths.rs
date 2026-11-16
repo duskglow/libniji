@@ -5,12 +5,12 @@
 //! and `wtmp`, and `sethostid`'s success inside and `EPERM`/`EACCES` outside a namespace.
 //!
 //! One C program (embedded below) is built against the host C library and statically against
-//! Liella's products. It runs as the unprivileged test user (`plain`) and as the root of a private
+//! libniji's products. It runs as the unprivileged test user (`plain`) and as the root of a private
 //! user, mount and network namespace (`unshare -r -m -n`, `ns`), where it mounts private tmpfs
 //! instances over `/var/log`, `/var/run` and `/etc`, so the login records and the host id go to
 //! scratch files and the host's own `utmp`, `wtmp` and `hostid` are never opened for writing
 //! (the program stops before any write when a mount fails). The two builds must print the same
-//! lines, and the Liella lines must show the expected results (so two equally broken runs
+//! lines, and the libniji lines must show the expected results (so two equally broken runs
 //! do not pass). Needs the products (`cargo xtask so`), a C compiler, and unprivileged user
 //! namespaces (`unshare -r -m -n`); without them the test says what it did not run and passes.
 //! Never runs as root. No file-system dependence: only private tmpfs files are read back.
@@ -170,12 +170,12 @@ int main(int argc, char **argv) {
 "#;
 
 /// `bindresvport` is a compat-versioned symbol (only in the shared library under that name); the
-/// static build calls its `liella_compat_` definition.
-fn build(src: &Path, out: &Path, liella: bool) -> bool {
+/// static build calls its `niji_compat_` definition.
+fn build(src: &Path, out: &Path, niji: bool) -> bool {
     let r = root();
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin", "-Dbindresvport=liella_compat_bindresvport"]).arg(r.join("target/liella/liella-crt1.o")).arg(src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin", "-Dbindresvport=niji_compat_bindresvport"]).arg(r.join("target/niji/niji-crt1.o")).arg(src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(src);
     }
@@ -191,11 +191,11 @@ fn run(exe: &Path, mode: &str, wrap: &[&str]) -> String {
 }
 
 fn same(what: &str, want: &str, got: &str) {
-    let diffs: Vec<String> = want.lines().zip(got.lines()).filter(|(w, g)| w != g).map(|(w, g)| format!("  glibc  {w}\n  liella {g}")).collect();
-    assert!(diffs.is_empty() && want.lines().count() == got.lines().count(), "{what}: differs from the reference:\n{}\n--- reference\n{want}--- liella\n{got}", diffs.join("\n"));
+    let diffs: Vec<String> = want.lines().zip(got.lines()).filter(|(w, g)| w != g).map(|(w, g)| format!("  glibc  {w}\n  niji {g}")).collect();
+    assert!(diffs.is_empty() && want.lines().count() == got.lines().count(), "{what}: differs from the reference:\n{}\n--- reference\n{want}--- niji\n{got}", diffs.join("\n"));
 }
 
-/// Lines the Liella run must contain (the reference has them too, by `same`).
+/// Lines the libniji run must contain (the reference has them too, by `same`).
 const EXPECT: &[&str] = &[
     "scratch mounts: ok",
     "bindresvport(NULL): rc=0",
@@ -226,7 +226,7 @@ const EXPECT: &[&str] = &[
 fn privileged_paths_in_user_namespaces() {
     // Clauses: s15_8_c_2, s17_6_c_5, s18_9_c_3, s24_5_c_4.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -241,7 +241,7 @@ fn privileged_paths_in_user_namespaces() {
     let tmp = dir.join(format!("userns_paths.c.{}", std::process::id()));
     std::fs::write(&tmp, PROGRAM).unwrap();
     std::fs::rename(&tmp, &src).unwrap();
-    let (host, ours) = (dir.join("userns_paths_host"), dir.join("userns_paths_liella"));
+    let (host, ours) = (dir.join("userns_paths_host"), dir.join("userns_paths_niji"));
     assert!(build(&src, &host, false), "userns_paths.c does not build against the host C library");
     assert!(build(&src, &ours, true), "userns_paths.c does not link against the products");
 
@@ -265,5 +265,5 @@ fn privileged_paths_in_user_namespaces() {
     let got = run(&ours, "ns", &wrap);
     same("in the namespace", &want, &got);
     let missing: Vec<&&str> = EXPECT.iter().filter(|l| !got.lines().any(|g| g == **l)).collect();
-    assert!(missing.is_empty(), "Liella's run lacks {missing:?}:\n{got}");
+    assert!(missing.is_empty(), "libniji's run lacks {missing:?}:\n{got}");
 }

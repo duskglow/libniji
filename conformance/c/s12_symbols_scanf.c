@@ -232,7 +232,7 @@ static void wstandard(const char *symbol, wscan_t f, int set)
 
 int main(void)
 {
-    snprintf(path, sizeof path, "/tmp/liella-s12-symbols-scanf-%d", (int)getpid());
+    snprintf(path, sizeof path, "/tmp/niji-s12-symbols-scanf-%d", (int)getpid());
 
     strings("sscanf", plain_sscanf_, PLAIN);
     strings("vsscanf", plain_w_vsscanf, PLAIN);

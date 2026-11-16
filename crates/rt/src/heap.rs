@@ -47,7 +47,7 @@
 
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::sys::Sys;
+use niji_kernel::sys::Sys;
 
 use crate::sync::RawMutex;
 

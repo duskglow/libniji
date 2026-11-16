@@ -1,6 +1,6 @@
 //! The functions that read `/proc` or `/sys`, with and without them (OD-5; the plan's table
 //! "Without /proc"): `tests/oracle/noproc_diff.c` built against the host C library and
-//! statically against Liella's products, each run twice: as is, and in a private user and mount
+//! statically against libniji's products, each run twice: as is, and in a private user and mount
 //! namespace with an empty tmpfs over `/proc` and `/sys` (`unshare -r -m`). The outputs must be
 //! identical line by line, except the recorded differences in [`KNOWN`]. Without `/proc` no
 //! function may crash or give a wrong answer: each line is a value, an error, or a documented
@@ -20,12 +20,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/noproc_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -76,7 +76,7 @@ fn split_errno(line: &str) -> (String, &str) {
 }
 
 /// Lines that differ from the reference by decision: the run (`with`, `without`), the text the
-/// reference's line starts with, why, where it applies, and the errno Liella's line must show.
+/// reference's line starts with, why, where it applies, and the errno libniji's line must show.
 /// Only the `errno=` field may differ: the rest of the line (the value) is compared with the
 /// reference, so a wrong value is still an unrecorded difference. A recorded line that no
 /// longer differs (where it applies) fails the test.
@@ -93,7 +93,7 @@ fn noproc_equals_the_reference() {
     // s18_5_c_4, s19_3_c_0, s19_3_f_1, s19_3_f_2, s22_2_c_4, s24_4_c_1_2, s24_4_c_1_3, s24_4_c_2,
     // s24_4_c_4, s13_7_c_1 (OD-5; pthread_setname_np/getname_np: no clause ID, §22 thread names).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -105,7 +105,7 @@ fn noproc_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("noproc_diff_host"), dir.join("noproc_diff_liella"));
+    let (host, ours) = (dir.join("noproc_diff_host"), dir.join("noproc_diff_niji"));
     assert!(build(&host, false), "noproc_diff.c does not build against the host C library");
     assert!(build(&ours, true), "noproc_diff.c does not link against the products");
     // The working directory is the scratch directory (pathconf asks about it; mkstemp makes a
@@ -142,17 +142,17 @@ fn noproc_equals_the_reference() {
                 if wv == gv && ge == KNOWN[i].4 {
                     if we != ge {
                         seen[i] = true;
-                        eprintln!("recorded difference ({}), {label} /proc:\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                        eprintln!("recorded difference ({}), {label} /proc:\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
                     }
                 } else {
                     diffs += 1;
-                    eprintln!("{label} /proc: only errno may differ here (liella errno {}):\n  glibc  {w}\n  liella {g}", KNOWN[i].4);
+                    eprintln!("{label} /proc: only errno may differ here (niji errno {}):\n  glibc  {w}\n  niji {g}", KNOWN[i].4);
                 }
                 continue;
             }
             if w != g {
                 diffs += 1;
-                eprintln!("{label} /proc:\n  glibc  {w}\n  liella {g}");
+                eprintln!("{label} /proc:\n  glibc  {w}\n  niji {g}");
             }
         }
     }

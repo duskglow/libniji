@@ -9,7 +9,7 @@
  * (capped). Many checks start fresh processes (this program again, from /mnt): `sub ACTION ARG`
  * prints one line "ANSWER | mode reason owner hits misses stats generation".
  *
- * Build: cc -static -nostdlib liella-crt1.o -I include nscache_check.c libc.a -lgcc */
+ * Build: cc -static -nostdlib niji-crt1.o -I include nscache_check.c libc.a -lgcc */
 #define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
@@ -38,9 +38,9 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <liella/native.h>
+#include <niji/native.h>
 
-#define REGION0 "/dev/shm/liella-nscache-0"
+#define REGION0 "/dev/shm/niji-nscache-0"
 #define PROG "/mnt/nscache_prog"
 #define SUID "/mnt/nscache_suid"
 
@@ -63,11 +63,11 @@ static void check(const char *name, int ok, const char *fmt, ...)
     fflush(stdout);
 }
 
-static struct liella_nscache_info st(void)
+static struct niji_nscache_info st(void)
 {
-    struct liella_nscache_info s;
+    struct niji_nscache_info s;
     memset(&s, 0, sizeof s);
-    liella_nscache_status(&s);
+    niji_nscache_status(&s);
     return s;
 }
 
@@ -214,7 +214,7 @@ static void look(const char *what, const char *arg, char *out, size_t cap)
 
 static void print_status(const char *answer)
 {
-    struct liella_nscache_info s = st();
+    struct niji_nscache_info s = st();
     printf("%s | %u %u %llu %llu %llu %llu %llu\n", answer, s.mode, s.reason, (unsigned long long)s.owner, (unsigned long long)s.hits,
            (unsigned long long)s.misses, (unsigned long long)s.stats, (unsigned long long)s.generation);
 }
@@ -289,7 +289,7 @@ static struct sub run(const char *const env[], const char *what, const char *arg
 }
 
 static const char *const NOENV[] = {NULL};
-static const char *const OFF[] = {"LIELLA_NSCACHE=0", NULL};
+static const char *const OFF[] = {"NIJI_NSCACHE=0", NULL};
 
 /* ------------------------------------------------------------------ the DNS server */
 
@@ -503,8 +503,8 @@ static void basics(void)
 {
     char a[512];
     look("pw", "alice", a, sizeof a);
-    struct liella_nscache_info s = st();
-    check("shared-region", s.mode == LIELLA_NSCACHE_MODE_SHARED && s.owner == 0 && s.reason == 0 && s.misses == 1, "mode %u reason %u owner %llu misses %llu", s.mode, s.reason,
+    struct niji_nscache_info s = st();
+    check("shared-region", s.mode == NIJI_NSCACHE_MODE_SHARED && s.owner == 0 && s.reason == 0 && s.misses == 1, "mode %u reason %u owner %llu misses %llu", s.mode, s.reason,
           (unsigned long long)s.owner, (unsigned long long)s.misses);
     struct stat r;
     check("region-file", stat(REGION0, &r) == 0 && S_ISREG(r.st_mode) && (r.st_mode & 07777) == 0600 && r.st_uid == 0 && r.st_size == 8 << 20, "mode %o size %lld",
@@ -523,7 +523,7 @@ static void basics(void)
         struct sub off = run(OFF, q[i][0], q[i][1]);
         char name[64];
         snprintf(name, sizeof name, "cached-equals-uncached %s %s", q[i][0], q[i][1]);
-        check(name, !strcmp(c1, c2) && !strcmp(c2, off.answer) && st().hits == h0 + 1 && off.mode == LIELLA_NSCACHE_MODE_OFF, "miss [%s] hit [%s] off [%s] mode %u", c1, c2,
+        check(name, !strcmp(c1, c2) && !strcmp(c2, off.answer) && st().hits == h0 + 1 && off.mode == NIJI_NSCACHE_MODE_OFF, "miss [%s] hit [%s] off [%s] mode %u", c1, c2,
               off.answer, off.mode);
     }
 }
@@ -537,7 +537,7 @@ static void new_process_sees_edit(void)
     memcpy(sh + strlen("/home/alice:"), "/bin/zz", 7);
     put("/etc/passwd", text);
     struct sub b = run(NOENV, "pw", "alice");
-    check("new-process-sees-edit", !strcmp(a.answer, "/bin/sh") && !strcmp(b.answer, "/bin/zz") && b.mode == LIELLA_NSCACHE_MODE_SHARED, "before [%s] after [%s] mode %u", a.answer,
+    check("new-process-sees-edit", !strcmp(a.answer, "/bin/sh") && !strcmp(b.answer, "/bin/zz") && b.mode == NIJI_NSCACHE_MODE_SHARED, "before [%s] after [%s] mode %u", a.answer,
           b.answer, b.mode);
     put("/etc/passwd", PASSWD);
 }
@@ -611,7 +611,7 @@ static void rate_limit(void)
 {
     char a[512];
     warm();
-    struct liella_nscache_info s0, s1, s2;
+    struct niji_nscache_info s0, s1, s2;
     struct sub other;
     long long took = 0;
     int tries = 0;
@@ -649,7 +649,7 @@ static void rate_limit(void)
     check("shared-generation-seen-without-stat", !strcmp(other.answer, "/bin/yy") && !strcmp(a, "/bin/yy") && (inside && (s2.stats == s1.stats && s2.hits == s1.hits + 1)),
           "other [%s] here [%s] stats %llu -> %llu (try %d, %lld ms%s)", other.answer, a, (unsigned long long)s1.stats, (unsigned long long)s2.stats, tries, took, inside ? "" : ", every try overran the 1 s window");
     /* An edit nobody validated yet: within the window the old answer stays (the documented
-     * lag); liella_nscache_invalidate bypasses the rate limit. */
+     * lag); niji_nscache_invalidate bypasses the rate limit. */
     int lag = 0;
     /* The lag exists only while the window that the last validating look() started is open. On a loaded
      * machine it may have closed by now (the look then validates and sees the edit), which says nothing
@@ -666,10 +666,10 @@ static void rate_limit(void)
         look("pw", "alice", a, sizeof a);
         lag = !strcmp(a, "/bin/yy");
     }
-    struct liella_nscache_info s3 = st();
-    check("invalidate-api", liella_nscache_invalidate(LIELLA_NSCACHE_PASSWD) == 0 && liella_nscache_invalidate(77) == -EINVAL, "-");
+    struct niji_nscache_info s3 = st();
+    check("invalidate-api", niji_nscache_invalidate(NIJI_NSCACHE_PASSWD) == 0 && niji_nscache_invalidate(77) == -EINVAL, "-");
     look("pw", "alice", a, sizeof a);
-    struct liella_nscache_info s4 = st();
+    struct niji_nscache_info s4 = st();
     check("invalidate-bypasses-the-rate-limit", lag && !strcmp(a, "/bin/sh") && s4.stats > s3.stats && s4.generation != s3.generation, "lag %d now [%s] stats %llu -> %llu",
           lag, a, (unsigned long long)s3.stats, (unsigned long long)s4.stats);
 }
@@ -723,9 +723,9 @@ static void keys_do_not_leak(void)
         char t[512];
         look("host", "alpha", t, sizeof t);
         __nss_configure_lookup("hosts", "dns");
-        struct liella_nscache_info s0 = st();
+        struct niji_nscache_info s0 = st();
         look("host", "alpha", t, sizeof t);
-        struct liella_nscache_info s1 = st();
+        struct niji_nscache_info s1 = st();
         _exit(!strcmp(t, "herr=1") && s1.hits == s0.hits && s1.misses == s0.misses ? 0 : 1);
     }
     int ws;
@@ -739,9 +739,9 @@ static void keys_do_not_leak(void)
         char t[512];
         res_init();
         _res.nsaddr_list[0].sin_addr.s_addr = htonl(0x7f000009); /* nobody there */
-        struct liella_nscache_info s0 = st();
+        struct niji_nscache_info s0 = st();
         look("host", "real.test", t, sizeof t);
-        struct liella_nscache_info s1 = st();
+        struct niji_nscache_info s1 = st();
         _exit(strncmp(t, "herr=", 5) == 0 && s1.hits == s0.hits && s1.misses == s0.misses ? 0 : 1);
     }
     waitpid(p, &ws, 0);
@@ -787,7 +787,7 @@ static void ttls(void)
 /* The region file's state and what a fresh process does with it. */
 static void squat(const char *name, void (*make)(void), unsigned want_reason)
 {
-    liella_nscache_enable(0);
+    niji_nscache_enable(0);
     unlink(REGION0);
     rmdir(REGION0);
     make();
@@ -797,11 +797,11 @@ static void squat(const char *name, void (*make)(void), unsigned want_reason)
     struct fstate after = fstate(REGION0);
     char n[96];
     snprintf(n, sizeof n, "squat-%s", name);
-    check(n, s.mode == LIELLA_NSCACHE_MODE_PRIVATE && s.reason == want_reason && !strcmp(s.answer, "/bin/sh") && !strcmp(t.answer, "192.0.2.1") && same_file(before, after),
+    check(n, s.mode == NIJI_NSCACHE_MODE_PRIVATE && s.reason == want_reason && !strcmp(s.answer, "/bin/sh") && !strcmp(t.answer, "192.0.2.1") && same_file(before, after),
           "mode %u reason %u [%s] [%s] unchanged %d", s.mode, s.reason, s.answer, t.answer, same_file(before, after));
     unlink(REGION0);
     rmdir(REGION0);
-    liella_nscache_enable(1);
+    niji_nscache_enable(1);
 }
 
 static void mk_other_owner(void)
@@ -840,12 +840,12 @@ static void mk_dir(void)
 
 static void squatting(void)
 {
-    squat("other-owner", mk_other_owner, LIELLA_NSCACHE_REASON_REFUSED);
-    squat("wrong-mode", mk_wrong_mode, LIELLA_NSCACHE_REASON_REFUSED);
-    squat("symlink", mk_symlink, LIELLA_NSCACHE_REASON_REFUSED);
-    squat("fifo", mk_fifo, LIELLA_NSCACHE_REASON_REFUSED);
-    squat("oversize", mk_oversize, LIELLA_NSCACHE_REASON_REFUSED);
-    squat("directory", mk_dir, LIELLA_NSCACHE_REASON_REFUSED);
+    squat("other-owner", mk_other_owner, NIJI_NSCACHE_REASON_REFUSED);
+    squat("wrong-mode", mk_wrong_mode, NIJI_NSCACHE_REASON_REFUSED);
+    squat("symlink", mk_symlink, NIJI_NSCACHE_REASON_REFUSED);
+    squat("fifo", mk_fifo, NIJI_NSCACHE_REASON_REFUSED);
+    squat("oversize", mk_oversize, NIJI_NSCACHE_REASON_REFUSED);
+    squat("directory", mk_dir, NIJI_NSCACHE_REASON_REFUSED);
     struct fstate t = fstate("/mnt/target");
     check("squat-symlink-target-untouched", t.exists && t.s.st_size == 2, "size %lld", (long long)t.s.st_size);
 }
@@ -853,7 +853,7 @@ static void squatting(void)
 /* Damage a populated region, then check fresh processes answer right and the region recovers. */
 static void damaged(const char *name, void (*damage)(void))
 {
-    liella_nscache_enable(0); /* this process must not have it mapped while it is truncated */
+    niji_nscache_enable(0); /* this process must not have it mapped while it is truncated */
     unlink(REGION0);
     run(NOENV, "pw", "alice");
     run(NOENV, "host", "alpha");
@@ -868,7 +868,7 @@ static void damaged(const char *name, void (*damage)(void))
     int right = !strcmp(a.answer, "/bin/sh") && !strcmp(b.answer, "192.0.2.1") && !strcmp(c.answer, "80") && !strcmp(d.answer, "/bin/sh");
     int alive = WIFEXITED(a.status) && WIFEXITED(b.status) && WIFEXITED(c.status) && WIFEXITED(d.status);
     check(n, right && alive && a.hits == 0, "[%s] [%s] [%s] [%s] hits %llu mode %u reason %u", a.answer, b.answer, c.answer, d.answer, a.hits, a.mode, a.reason);
-    liella_nscache_enable(1);
+    niji_nscache_enable(1);
 }
 
 static void dmg_random(void)
@@ -933,12 +933,12 @@ static void corruption(void)
     damaged("writer-killed-mid-write", dmg_writer_killed);
     damaged("bad-header", dmg_header);
     /* A real writer killed while it holds the lock: SIGKILL in a loop of stores. */
-    liella_nscache_enable(0);
+    niji_nscache_enable(0);
     unlink(REGION0);
     for (int round = 0; round < 20; round++) {
         pid_t p = fork();
         if (p == 0) {
-            liella_nscache_enable(1);
+            niji_nscache_enable(1);
             char t[64], a[512];
             for (int i = 0;; i++) {
                 snprintf(t, sizeof t, "missing%d", i);
@@ -951,20 +951,20 @@ static void corruption(void)
         struct sub a = run(NOENV, "pw", "alice");
         if (strcmp(a.answer, "/bin/sh") || !WIFEXITED(a.status)) {
             check("corrupt-writer-sigkilled", 0, "round %d [%s]", round, a.answer);
-            liella_nscache_enable(1);
+            niji_nscache_enable(1);
             return;
         }
     }
     check("corrupt-writer-sigkilled", 1, "-");
-    liella_nscache_enable(1);
+    niji_nscache_enable(1);
 }
 
 static void credentials(void)
 {
-    /* AT_SECURE: the setuid copy run by uid 2000 (euid 0): private, LIELLA_NSCACHE=0 ignored. */
+    /* AT_SECURE: the setuid copy run by uid 2000 (euid 0): private, NIJI_NSCACHE=0 ignored. */
     const char *args[] = {"pw", "alice", NULL};
     struct sub s = run_as(2000, SUID, OFF, args);
-    check("at-secure-private", s.mode == LIELLA_NSCACHE_MODE_PRIVATE && s.reason == LIELLA_NSCACHE_REASON_SECURE && !strcmp(s.answer, "/bin/sh"), "mode %u reason %u [%s]", s.mode,
+    check("at-secure-private", s.mode == NIJI_NSCACHE_MODE_PRIVATE && s.reason == NIJI_NSCACHE_REASON_SECURE && !strcmp(s.answer, "/bin/sh"), "mode %u reason %u [%s]", s.mode,
           s.reason, s.answer);
     /* ruid != euid. */
     pid_t p = fork();
@@ -973,8 +973,8 @@ static void credentials(void)
         if (setresuid(2000, 0, 0) != 0)
             _exit(3);
         look("pw", "alice", a, sizeof a);
-        struct liella_nscache_info i = st();
-        _exit(i.mode == LIELLA_NSCACHE_MODE_PRIVATE && i.reason == LIELLA_NSCACHE_REASON_SECURE && !strcmp(a, "/bin/sh") ? 0 : 1);
+        struct niji_nscache_info i = st();
+        _exit(i.mode == NIJI_NSCACHE_MODE_PRIVATE && i.reason == NIJI_NSCACHE_REASON_SECURE && !strcmp(a, "/bin/sh") ? 0 : 1);
     }
     int ws;
     waitpid(p, &ws, 0);
@@ -985,14 +985,14 @@ static void credentials(void)
         char a[512];
         look("pw", "alice", a, sizeof a);
         look("pw", "alice", a, sizeof a);
-        int had = mapped("liella-nscache-0") && st().owner == 0 && st().hits >= 1;
+        int had = mapped("niji-nscache-0") && st().owner == 0 && st().hits >= 1;
         if (setgroups(0, NULL) != 0 || setresgid(2000, 2000, 2000) != 0 || setresuid(2000, 2000, 2000) != 0)
             _exit(3);
         prctl(PR_SET_DUMPABLE, 1); /* so that it may read its own /proc/self/maps */
         unsigned long long m = st().misses;
         look("pw", "alice", a, sizeof a);
-        struct liella_nscache_info i = st();
-        int ok = had && i.owner == 2000 && i.mode == LIELLA_NSCACHE_MODE_SHARED && i.misses == m + 1 && !mapped("liella-nscache-0") && mapped("liella-nscache-2000");
+        struct niji_nscache_info i = st();
+        int ok = had && i.owner == 2000 && i.mode == NIJI_NSCACHE_MODE_SHARED && i.misses == m + 1 && !mapped("niji-nscache-0") && mapped("niji-nscache-2000");
         _exit(ok ? 0 : 1);
     }
     waitpid(p, &ws, 0);
@@ -1006,7 +1006,7 @@ static void credentials(void)
     memcpy(strstr(text, "alice:x:2000"), "carol", 5);
     put("/etc/passwd", text);
     struct sub c1 = run_as(2000, PROG, NOENV, (const char *const[]){"host", "alpha", NULL});
-    check("uid-reuse-validity-stamp", a2.hits == 1 && c1.hits == 0 && c1.misses == 1 && c1.mode == LIELLA_NSCACHE_MODE_SHARED && c1.owner == 2000 && c1.gen != a2.gen,
+    check("uid-reuse-validity-stamp", a2.hits == 1 && c1.hits == 0 && c1.misses == 1 && c1.mode == NIJI_NSCACHE_MODE_SHARED && c1.owner == 2000 && c1.gen != a2.gen,
           "alice hits %llu carol hits %llu misses %llu gen %llu -> %llu", a2.hits, c1.hits, c1.misses, a2.gen, c1.gen);
     (void)a1;
     put("/etc/passwd", PASSWD);
@@ -1014,11 +1014,11 @@ static void credentials(void)
 
 static void size_cap(void)
 {
-    liella_nscache_enable(0);
+    niji_nscache_enable(0);
     unlink(REGION0);
     pid_t p = fork();
     if (p == 0) {
-        liella_nscache_enable(1);
+        niji_nscache_enable(1);
         char t[64], a[512];
         for (int i = 0; i < 120000; i++) {
             snprintf(t, sizeof t, "nouser%06d", i);
@@ -1039,48 +1039,48 @@ static void size_cap(void)
     int ws;
     waitpid(p, &ws, 0);
     check("size-cap-and-eviction", WIFEXITED(ws) && WEXITSTATUS(ws) == 0, "status %d (exit bits: 1 evicted, 2 kept, 4 size, 8 stores)", ws);
-    liella_nscache_enable(1);
+    niji_nscache_enable(1);
 }
 
 static void disabled(void)
 {
-    liella_nscache_enable(0);
+    niji_nscache_enable(0);
     unlink(REGION0);
     struct sub s = run(OFF, "pw", "alice");
     struct stat r;
-    check("disabled-no-file", s.mode == LIELLA_NSCACHE_MODE_OFF && s.stats == 0 && s.hits == 0 && s.misses == 0 && !strcmp(s.answer, "/bin/sh") && stat(REGION0, &r) != 0,
+    check("disabled-no-file", s.mode == NIJI_NSCACHE_MODE_OFF && s.stats == 0 && s.hits == 0 && s.misses == 0 && !strcmp(s.answer, "/bin/sh") && stat(REGION0, &r) != 0,
           "mode %u stats %llu hits %llu misses %llu answer [%s] region %s", s.mode, s.stats, s.hits, s.misses, s.answer,
           stat(REGION0, &r) == 0 ? "exists" : "absent");
     {
         pid_t p = fork();
         if (p == 0) {
             char a[512];
-            liella_nscache_enable(1);
+            niji_nscache_enable(1);
             look("pw", "alice", a, sizeof a);
-            int on = mapped("liella-nscache") && st().mode == LIELLA_NSCACHE_MODE_SHARED;
-            int was = (int)liella_nscache_enable(0);
-            struct liella_nscache_info i = st();
+            int on = mapped("niji-nscache") && st().mode == NIJI_NSCACHE_MODE_SHARED;
+            int was = (int)niji_nscache_enable(0);
+            struct niji_nscache_info i = st();
             look("pw", "alice", a, sizeof a);
-            struct liella_nscache_info j = st();
-            int off = !mapped("liella-nscache") && i.mode == LIELLA_NSCACHE_MODE_OFF && j.stats == i.stats && j.hits == i.hits && j.misses == i.misses;
-            int again = liella_nscache_enable(1) == 0;
+            struct niji_nscache_info j = st();
+            int off = !mapped("niji-nscache") && i.mode == NIJI_NSCACHE_MODE_OFF && j.stats == i.stats && j.hits == i.hits && j.misses == i.misses;
+            int again = niji_nscache_enable(1) == 0;
             look("pw", "alice", a, sizeof a);
-            int back = mapped("liella-nscache") && st().mode == LIELLA_NSCACHE_MODE_SHARED;
+            int back = mapped("niji-nscache") && st().mode == NIJI_NSCACHE_MODE_SHARED;
             /* One category off: its lookups are not counted, the others are. */
-            int prev = (int)liella_nscache_category(LIELLA_NSCACHE_PASSWD, 0);
+            int prev = (int)niji_nscache_category(NIJI_NSCACHE_PASSWD, 0);
             unsigned long long h = st().hits, m = st().misses;
             look("pw", "alice", a, sizeof a);
             int cat_off = st().hits == h && st().misses == m && !(st().categories & 2);
             look("serv", "http", a, sizeof a);
             int other_on = st().hits + st().misses > h + m;
-            int bad = liella_nscache_category(9, 1) == -EINVAL;
+            int bad = niji_nscache_category(9, 1) == -EINVAL;
             _exit(on && was == 1 && off && again && back && prev == 1 && cat_off && other_on && bad ? 0 : 1);
         }
         int ws;
         waitpid(p, &ws, 0);
         check("native-enable-and-categories", WIFEXITED(ws) && WEXITSTATUS(ws) == 0, "status %d", ws);
     }
-    liella_nscache_enable(1);
+    niji_nscache_enable(1);
 }
 
 /* The region file as bytes contains `needle`. */
@@ -1104,7 +1104,7 @@ static void shadow_never_cached(void)
 {
     char a[512];
     look("pw", "alice", a, sizeof a); /* the table is in use */
-    struct liella_nscache_info s0 = st();
+    struct niji_nscache_info s0 = st();
     char buf[4096];
     struct spwd sp, *spr = NULL;
     struct sgrp sg, *sgr = NULL;
@@ -1123,7 +1123,7 @@ static void shadow_never_cached(void)
             found++;
         endsgent();
     }
-    struct liella_nscache_info s1 = st();
+    struct niji_nscache_info s1 = st();
     int leaked = region_has("NSCSECRET");
     check("shadow-never-cached", found == 16 && s1.hits == s0.hits && s1.misses == s0.misses && s1.stores == s0.stores && s1.stats == s0.stats && !leaked,
           "found %d hits %llu->%llu misses %llu->%llu stores %llu->%llu leaked %d", found, (unsigned long long)s0.hits, (unsigned long long)s1.hits,
@@ -1181,7 +1181,7 @@ static void closed_standard(void)
         char a[512];
         look("pw", "alice", a, sizeof a);
         look("pw", "alice", a, sizeof a);
-        struct liella_nscache_info s = st();
+        struct niji_nscache_info s = st();
         int bad = 0;
         for (int fd = 0; fd < 3; fd++) {
             errno = 0;
@@ -1190,7 +1190,7 @@ static void closed_standard(void)
             if (fcntl(fd, F_GETFD) != -1)
                 bad |= 8 << fd;
         }
-        _exit(bad == 0 && s.mode == LIELLA_NSCACHE_MODE_SHARED && mapped("liella-nscache-0") && !strcmp(a, "/bin/sh") ? 0 : 10 + bad);
+        _exit(bad == 0 && s.mode == NIJI_NSCACHE_MODE_SHARED && mapped("niji-nscache-0") && !strcmp(a, "/bin/sh") ? 0 : 10 + bad);
     }
     int ws;
     waitpid(p, &ws, 0);
@@ -1216,13 +1216,13 @@ static void namespaces(void)
         char a[512];
         look("pw", "alice", a, sizeof a);
         look("pw", "alice", a, sizeof a);
-        int had = mapped("liella-nscache-0") && st().mode == LIELLA_NSCACHE_MODE_SHARED;
+        int had = mapped("niji-nscache-0") && st().mode == NIJI_NSCACHE_MODE_SHARED;
         if (unshare(CLONE_NEWUSER) != 0)
             _exit(3);
         look("pw", "alice", a, sizeof a);
-        struct liella_nscache_info i = st();
+        struct niji_nscache_info i = st();
         /* Unmapped in the new namespace: the overflow UID, a private table. */
-        _exit(had && geteuid() == 65534 && i.mode == LIELLA_NSCACHE_MODE_PRIVATE && i.reason == LIELLA_NSCACHE_REASON_SECURE && !mapped("liella-nscache-0") && !strcmp(a, "/bin/sh") ? 0 : 1);
+        _exit(had && geteuid() == 65534 && i.mode == NIJI_NSCACHE_MODE_PRIVATE && i.reason == NIJI_NSCACHE_REASON_SECURE && !mapped("niji-nscache-0") && !strcmp(a, "/bin/sh") ? 0 : 1);
     }
     int ws;
     waitpid(p, &ws, 0);
@@ -1259,16 +1259,16 @@ static void namespaces(void)
         int fd = open(path, O_RDONLY);
         look("pw", "alice", a, sizeof a);
         look("pw", "alice", a, sizeof a);
-        struct liella_nscache_info s0 = st();
+        struct niji_nscache_info s0 = st();
         if (fd < 0 || setns(fd, CLONE_NEWUSER) != 0)
             _exit(3);
         /* Within the validation window: only a re-key validates (stats) again. In a user
          * namespace, even one mapping 0 to 0, the IDs are that namespace's while /dev/shm is
          * everyone's: a private table (validation T13). */
         look("pw", "alice", a, sizeof a);
-        struct liella_nscache_info s1 = st();
-        _exit(s0.mode == LIELLA_NSCACHE_MODE_SHARED && s1.stats > s0.stats && s1.mode == LIELLA_NSCACHE_MODE_PRIVATE && s1.reason == LIELLA_NSCACHE_REASON_SECURE &&
-                      !mapped("liella-nscache-0") && !strcmp(a, "/bin/sh")
+        struct niji_nscache_info s1 = st();
+        _exit(s0.mode == NIJI_NSCACHE_MODE_SHARED && s1.stats > s0.stats && s1.mode == NIJI_NSCACHE_MODE_PRIVATE && s1.reason == NIJI_NSCACHE_REASON_SECURE &&
+                      !mapped("niji-nscache-0") && !strcmp(a, "/bin/sh")
                   ? 0
                   : 1);
     }
@@ -1326,11 +1326,11 @@ int main(int argc, char **argv)
     }
     {
         /* The first lookup of a process goes to the sources and leaves the table alone. */
-        struct liella_nscache_info s0 = st();
+        struct niji_nscache_info s0 = st();
         (void)getprotobynumber(6);
-        struct liella_nscache_info s1 = st();
+        struct niji_nscache_info s1 = st();
         struct stat r;
-        check("first-lookup-uses-the-sources", s0.mode == LIELLA_NSCACHE_MODE_IDLE && s1.mode == LIELLA_NSCACHE_MODE_IDLE && s1.hits + s1.misses + s1.stats == 0 && stat(REGION0, &r) != 0,
+        check("first-lookup-uses-the-sources", s0.mode == NIJI_NSCACHE_MODE_IDLE && s1.mode == NIJI_NSCACHE_MODE_IDLE && s1.hits + s1.misses + s1.stats == 0 && stat(REGION0, &r) != 0,
               "mode %u %u counters %llu", s0.mode, s1.mode, (unsigned long long)(s1.hits + s1.misses + s1.stats));
     }
     basics();

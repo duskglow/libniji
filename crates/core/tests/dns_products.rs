@@ -1,6 +1,6 @@
 //! The DNS stub resolver, the `dns` source of the hosts database, IDNA and `getaddrinfo_a` end to
 //! end (spec §16.1–16.4; D-16.3, D-16.4, D-16.8): two probes, each built against the host C
-//! library and statically against Liella's products, and run by its script in private mount and
+//! library and statically against libniji's products, and run by its script in private mount and
 //! network namespaces where only `lo` is up (as root through `sudo -n`; each probe starts its own
 //! DNS servers on loopback addresses there, so nothing reaches a network):
 //!
@@ -11,7 +11,7 @@
 //!
 //! The outputs must be identical line by line, except the recorded differences, each keyed by
 //! its section (the text after `== `), the reference's exact line and its occurrence in the
-//! section: [`KNOWN`] (a line that differs), [`ADDED`] (a line only Liella prints) and
+//! section: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints) and
 //! [`DROPPED`] (a line only the reference prints). A recorded difference that no longer shows
 //! fails the test. A disagreement is checked by running both probes again (up to [`ATTEMPTS`]
 //! runs): the outputs include server logs and timed waits that a loaded machine can stretch, so
@@ -33,12 +33,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(probe: &str, out: &Path, liella: bool) -> bool {
+fn build(probe: &str, out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle").join(probe);
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-w", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-w", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1", "-w"]).arg(&src).args(["-lresolv", "-lpthread"]);
     }
@@ -79,7 +79,7 @@ const RESOLV_KNOWN: [Entry; 6] = [
     ("scenario gaia", "in progress: 0 suspend=-11 gai_error=-100", 0, "gai_suspend's timeout is EAI_AGAIN (getaddrinfo_a(3)); the reference reports EAI_SYSTEM"),
 ];
 
-/// Lines only Liella prints.
+/// Lines only libniji prints.
 const RESOLV_ADDED: [Entry; 0] = [];
 
 /// Lines only the reference prints.
@@ -124,31 +124,31 @@ fn without(text: &str, list: &[Entry], who: &str) -> Result<Vec<(String, String,
     }
 }
 
-/// Whether Liella's output `got` equals the reference's `want`, but for the recorded
+/// Whether libniji's output `got` equals the reference's `want`, but for the recorded
 /// differences; the first discrepancy otherwise.
 fn check(want: &str, got: &str, known: &[Entry], added: &[Entry], dropped: &[Entry]) -> Result<(), String> {
     let want = without(want, dropped, "the reference")?;
-    let got = without(got, added, "Liella")?;
+    let got = without(got, added, "libniji")?;
     let mut diffs = 0;
     let mut seen = vec![false; known.len()];
     for ((ws, w, wn), (_, g, _)) in want.iter().zip(got.iter()) {
         if let Some(i) = find(known, ws, w, *wn) {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", known[i].3);
+                eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", known[i].3);
             }
             continue;
         }
         if w != g {
             diffs += 1;
             if diffs <= 40 {
-                eprintln!("[{ws}]\n  glibc  {w}\n  liella {g}");
+                eprintln!("[{ws}]\n  glibc  {w}\n  niji {g}");
             }
         }
     }
     let lines = |v: &[(String, String, usize)]| v.iter().map(|x| x.1.as_str()).collect::<Vec<_>>().join("\n");
     if want.len() != got.len() {
-        return Err(format!("line counts differ ({} and {}):\n--- glibc\n{}\n--- liella\n{}", want.len(), got.len(), lines(&want), lines(&got)));
+        return Err(format!("line counts differ ({} and {}):\n--- glibc\n{}\n--- niji\n{}", want.len(), got.len(), lines(&want), lines(&got)));
     }
     if diffs != 0 {
         return Err(format!("{diffs} lines differ from the reference"));
@@ -167,7 +167,7 @@ const ATTEMPTS: usize = 3;
 
 fn compare(probe: &str, script: &str, known: &[Entry], added: &[Entry], dropped: &[Entry]) {
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -179,7 +179,7 @@ fn compare(probe: &str, script: &str, known: &[Entry], added: &[Entry], dropped:
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
     let stem = probe.trim_end_matches(".c");
-    let (host, ours) = (dir.join(format!("{stem}_host")), dir.join(format!("{stem}_liella")));
+    let (host, ours) = (dir.join(format!("{stem}_host")), dir.join(format!("{stem}_niji")));
     assert!(build(probe, &host, false), "{probe} does not build against the host C library");
     assert!(build(probe, &ours, true), "{probe} does not link against the products");
     let script = r.join("crates/core/tests/oracle").join(script);
@@ -195,11 +195,11 @@ fn compare(probe: &str, script: &str, known: &[Entry], added: &[Entry], dropped:
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
     let mut reference = run(&host, &format!("{stem}-host"), None);
-    // Liella with the name-service cache on and off (D-16.10), each in a private /dev/shm (`nscache_mode.sh`).
+    // libniji with the name-service cache on and off (D-16.10), each in a private /dev/shm (`nscache_mode.sh`).
     for mode in ["on", "off"] {
         for attempt in 1..=ATTEMPTS {
             eprintln!("name-service cache {mode}, run {attempt}");
-            let got = run(&ours, &format!("{stem}-liella-{mode}"), Some(mode));
+            let got = run(&ours, &format!("{stem}-niji-{mode}"), Some(mode));
             match check(&reference, &got, known, added, dropped) {
                 Ok(()) => break,
                 Err(e) if attempt < ATTEMPTS => {

@@ -1,6 +1,6 @@
 //! Product crate for `libm.a` and `libm.so.6` (spec §10, D-10.7).
 //!
-//! It links `liella-boundary` with feature `libm` only, so the math translation functions are
+//! It links `niji-boundary` with feature `libm` only, so the math translation functions are
 //! emitted under their C names and nothing of libc is: `errno` and the memory primitives are
 //! reached through the C library the program links (`__errno_location`, `memcpy`). The math
 //! code never allocates, and the panic handler aborts with a diagnostic as libc's does.
@@ -13,12 +13,12 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
-pub use liella_boundary as _boundary;
+pub use niji_boundary as _boundary;
 
 #[global_allocator]
-static ALLOCATOR: liella_boundary::heap::Liella = liella_boundary::heap::Liella;
+static ALLOCATOR: niji_boundary::heap::Niji = niji_boundary::heap::Niji;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    liella_boundary::process::libm_panicked()
+    niji_boundary::process::libm_panicked()
 }

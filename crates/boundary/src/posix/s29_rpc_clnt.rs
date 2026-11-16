@@ -1,6 +1,6 @@
 //! §29.1 ONC RPC client side as failing stubs (D-29.5, owner rulings R13 and 2026-10-27).
 //!
-//! Liella does not implement the ONC RPC client or the port mapper calls. Every name stays
+//! libniji does not implement the ONC RPC client or the port mapper calls. Every name stays
 //! exported at its compat version so an old program still loads; a call fails at once, opens no
 //! socket or file, leaves a caller's socket (`*sockp`) and buffers as they were, keeps no memory,
 //! sets `errno` to `EOPNOTSUPP` and sets `rpc_createerr` to `RPC_SYSTEMERROR` with `re_errno`
@@ -14,14 +14,14 @@
 //! What stays: the `rpc_createerr` record (`__rpc_thread_createerr`, one per thread) and the
 //! `clnt_*err` printers, so a program can still print why its call failed; `bindresvport`
 //! (D-15.7: unchanged) and `_rpc_dtablesize`. Every entry is an `internal_entry!`:
-//! `cargo xtask so` binds each compat version to the `liella_compat_<name>` symbol.
+//! `cargo xtask so` binds each compat version to the `niji_compat_<name>` symbol.
 
 use core::ptr;
 use core::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_ushort, c_void};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{GRND_NONBLOCK, Timespec};
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_ulong, c_ushort, c_void};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{GRND_NONBLOCK, Timespec};
 use crate::rpc_text::{self as rules, Text};
 
 use super::s11_lowio::write;
@@ -114,7 +114,7 @@ pub struct CreateErrC {
 
 /// `rpc_createerr` as four words: cf_stat, re_status, the union's two words (read by C callers
 /// through `__rpc_thread_createerr` as a `struct rpc_createerr`). Probed: the host glibc keeps
-/// one record per thread, and so does Liella (a block in the thread's result table, freed at
+/// one record per thread, and so does libniji (a block in the thread's result table, freed at
 /// thread exit); this process-wide record is used only by a thread whose block cannot be had.
 static CREATEERR: [AtomicU64; 4] = [const { AtomicU64::new(0) }; 4];
 
@@ -166,7 +166,7 @@ pub fn clear_create_error() {
 /// The text `clnt_spcreateerror(prefix)` returns, copied (at most 128 bytes) with its length.
 #[must_use]
 pub fn create_error_text(prefix: &core::ffi::CStr) -> ([u8; 128], usize) {
-    let s = cstr(liella_compat_clnt_spcreateerror(prefix.as_ptr()));
+    let s = cstr(niji_compat_clnt_spcreateerror(prefix.as_ptr()));
     let mut out = [0u8; 128];
     let n = s.len().min(out.len());
     if let (Some(d), Some(src)) = (out.get_mut(..n), s.get(..n)) {
@@ -202,7 +202,7 @@ fn call_failed() -> c_int {
 
 crate::internal_entry! {
 /// `__rpc_thread_createerr`: the calling thread's `rpc_createerr` record.
-pub extern "C" fn liella_compat___rpc_thread_createerr() -> *mut CreateErrC {
+pub extern "C" fn niji_compat___rpc_thread_createerr() -> *mut CreateErrC {
     match createerr_block() {
         Some((addr, _)) => ptr::with_exposed_provenance_mut(addr),
         None => CREATEERR.as_ptr().cast::<CreateErrC>().cast_mut(),
@@ -211,107 +211,107 @@ pub extern "C" fn liella_compat___rpc_thread_createerr() -> *mut CreateErrC {
 
 crate::internal_entry! {
 /// `authnone_create`: `NULL` (stub).
-pub extern "C" fn liella_compat_authnone_create() -> *mut AuthC {
+pub extern "C" fn niji_compat_authnone_create() -> *mut AuthC {
     no_client()
 }}
 
 crate::internal_entry! {
 /// `clnt_create`: `NULL` (stub); no host lookup.
-pub extern "C" fn liella_compat_clnt_create(_host: *const c_char, _prog: c_ulong, _vers: c_ulong, _proto: *const c_char) -> *mut Client {
+pub extern "C" fn niji_compat_clnt_create(_host: *const c_char, _prog: c_ulong, _vers: c_ulong, _proto: *const c_char) -> *mut Client {
     no_client()
 }}
 
 crate::internal_entry! {
 /// `clntudp_bufcreate`: `NULL` (stub); `*sockp` untouched.
-pub extern "C" fn liella_compat_clntudp_bufcreate(_raddr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _wait: Timeval, _sockp: *mut c_int, _sendsz: c_uint, _recvsz: c_uint) -> *mut Client {
+pub extern "C" fn niji_compat_clntudp_bufcreate(_raddr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _wait: Timeval, _sockp: *mut c_int, _sendsz: c_uint, _recvsz: c_uint) -> *mut Client {
     no_client()
 }}
 
 crate::internal_entry! {
 /// `clntudp_create`: `NULL` (stub); `*sockp` untouched.
-pub extern "C" fn liella_compat_clntudp_create(_raddr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _wait: Timeval, _sockp: *mut c_int) -> *mut Client {
+pub extern "C" fn niji_compat_clntudp_create(_raddr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _wait: Timeval, _sockp: *mut c_int) -> *mut Client {
     no_client()
 }}
 
 crate::internal_entry! {
 /// `clnttcp_create`: `NULL` (stub); `*sockp` untouched.
-pub extern "C" fn liella_compat_clnttcp_create(_raddr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _sockp: *mut c_int, _sendsz: c_uint, _recvsz: c_uint) -> *mut Client {
+pub extern "C" fn niji_compat_clnttcp_create(_raddr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _sockp: *mut c_int, _sendsz: c_uint, _recvsz: c_uint) -> *mut Client {
     no_client()
 }}
 
 crate::internal_entry! {
 /// `clntunix_create`: `NULL` (stub); `*sockp` untouched.
-pub extern "C" fn liella_compat_clntunix_create(_raddr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _sockp: *mut c_int, _sendsz: c_uint, _recvsz: c_uint) -> *mut Client {
+pub extern "C" fn niji_compat_clntunix_create(_raddr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _sockp: *mut c_int, _sendsz: c_uint, _recvsz: c_uint) -> *mut Client {
     no_client()
 }}
 
 crate::internal_entry! {
 /// `clntraw_create`: `NULL` (stub).
-pub extern "C" fn liella_compat_clntraw_create(_prog: c_ulong, _vers: c_ulong) -> *mut Client {
+pub extern "C" fn niji_compat_clntraw_create(_prog: c_ulong, _vers: c_ulong) -> *mut Client {
     no_client()
 }}
 
 crate::internal_entry! {
 /// `callrpc`: `RPC_SYSTEMERROR` (stub); `out` untouched.
-pub extern "C" fn liella_compat_callrpc(_host: *const c_char, _prog: c_ulong, _vers: c_ulong, _proc: c_ulong, _inproc: XdrProc, _in: *const c_char, _outproc: XdrProc, _out: *mut c_char) -> c_int {
+pub extern "C" fn niji_compat_callrpc(_host: *const c_char, _prog: c_ulong, _vers: c_ulong, _proc: c_ulong, _inproc: XdrProc, _in: *const c_char, _outproc: XdrProc, _out: *mut c_char) -> c_int {
     call_failed()
 }}
 
 crate::internal_entry! {
 /// `clnt_broadcast`: `RPC_SYSTEMERROR` (stub); nothing sent, `eachresult` never called.
-pub extern "C" fn liella_compat_clnt_broadcast(_prog: c_ulong, _vers: c_ulong, _proc: c_ulong, _xargs: XdrProc, _argsp: *mut c_char, _xresults: XdrProc, _resultsp: *mut c_char, _eachresult: Option<extern "C" fn(*mut c_char, *mut c_void) -> c_int>) -> c_int {
+pub extern "C" fn niji_compat_clnt_broadcast(_prog: c_ulong, _vers: c_ulong, _proc: c_ulong, _xargs: XdrProc, _argsp: *mut c_char, _xresults: XdrProc, _resultsp: *mut c_char, _eachresult: Option<extern "C" fn(*mut c_char, *mut c_void) -> c_int>) -> c_int {
     call_failed()
 }}
 
 crate::internal_entry! {
 /// `pmap_rmtcall`: `RPC_SYSTEMERROR` (stub); `out` and `*portp` untouched.
-pub extern "C" fn liella_compat_pmap_rmtcall(_addr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _proc: c_ulong, _xargs: XdrProc, _argsp: *mut c_char, _xres: XdrProc, _resp: *mut c_char, _tout: Timeval, _portp: *mut c_ulong) -> c_int {
+pub extern "C" fn niji_compat_pmap_rmtcall(_addr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _proc: c_ulong, _xargs: XdrProc, _argsp: *mut c_char, _xres: XdrProc, _resp: *mut c_char, _tout: Timeval, _portp: *mut c_ulong) -> c_int {
     call_failed()
 }}
 
 crate::internal_entry! {
 /// `pmap_getport`: `0` (stub); the address is not read.
-pub extern "C" fn liella_compat_pmap_getport(_addr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _prot: c_uint) -> c_ushort {
+pub extern "C" fn niji_compat_pmap_getport(_addr: *mut c_void, _prog: c_ulong, _vers: c_ulong, _prot: c_uint) -> c_ushort {
     create_failed();
     0
 }}
 
 crate::internal_entry! {
 /// `getrpcport`: `0` (stub); no host lookup.
-pub extern "C" fn liella_compat_getrpcport(_host: *const c_char, _prog: c_ulong, _vers: c_ulong, _proto: c_uint) -> c_int {
+pub extern "C" fn niji_compat_getrpcport(_host: *const c_char, _prog: c_ulong, _vers: c_ulong, _proto: c_uint) -> c_int {
     create_failed();
     0
 }}
 
 crate::internal_entry! {
 /// `pmap_set`: `0` (`FALSE`; stub).
-pub extern "C" fn liella_compat_pmap_set(_prog: c_ulong, _vers: c_ulong, _protocol: c_int, _port: c_ushort) -> c_int {
+pub extern "C" fn niji_compat_pmap_set(_prog: c_ulong, _vers: c_ulong, _protocol: c_int, _port: c_ushort) -> c_int {
     create_failed();
     0
 }}
 
 crate::internal_entry! {
 /// `pmap_unset`: `0` (`FALSE`; stub).
-pub extern "C" fn liella_compat_pmap_unset(_prog: c_ulong, _vers: c_ulong) -> c_int {
+pub extern "C" fn niji_compat_pmap_unset(_prog: c_ulong, _vers: c_ulong) -> c_int {
     create_failed();
     0
 }}
 
 crate::internal_entry! {
 /// `pmap_getmaps`: `NULL` (stub).
-pub extern "C" fn liella_compat_pmap_getmaps(_addr: *mut c_void) -> *mut c_void {
+pub extern "C" fn niji_compat_pmap_getmaps(_addr: *mut c_void) -> *mut c_void {
     no_client()
 }}
 
 crate::internal_entry! {
 /// `get_myaddress`: no effect (stub); `addr` untouched.
-pub extern "C" fn liella_compat_get_myaddress(_addr: *mut c_void) {
+pub extern "C" fn niji_compat_get_myaddress(_addr: *mut c_void) {
     create_failed();
 }}
 
 crate::internal_entry! {
 /// `rtime`: `-1` (stub); `timep` untouched.
-pub extern "C" fn liella_compat_rtime(_addrp: *mut c_void, _timep: *mut c_void, _timeout: *mut c_void) -> c_int {
+pub extern "C" fn niji_compat_rtime(_addrp: *mut c_void, _timep: *mut c_void, _timeout: *mut c_void) -> c_int {
     create_failed();
     -1
 }}
@@ -358,7 +358,7 @@ crate::internal_entry! {
 /// `bindresvport`: binds `sd` to a free reserved port (512..1023, each once). `sin` NULL means
 /// INADDR_ANY; a family other than `AF_INET` is `EAFNOSUPPORT`. Stops at the first error other
 /// than `EADDRINUSE` (unprivileged: `EACCES`, as probed).
-pub extern "C" fn liella_compat_bindresvport(sd: c_int, sin: *mut c_void) -> c_int {
+pub extern "C" fn niji_compat_bindresvport(sd: c_int, sin: *mut c_void) -> c_int {
     let mut a = sin_of(sin).unwrap_or([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     if a.get(..2) != Some(&2u16.to_ne_bytes()) {
         crate::errno::set_raw(EAFNOSUPPORT);
@@ -379,7 +379,7 @@ pub extern "C" fn liella_compat_bindresvport(sd: c_int, sin: *mut c_void) -> c_i
 
 crate::internal_entry! {
 /// `_rpc_dtablesize`: the soft descriptor limit (`getdtablesize`; as probed, no 1024 cap).
-pub extern "C" fn liella_compat__rpc_dtablesize() -> c_int {
+pub extern "C" fn niji_compat__rpc_dtablesize() -> c_int {
     getdtablesize()
 }}
 
@@ -419,19 +419,19 @@ fn emit(p: *const c_char) {
 
 crate::internal_entry! {
 /// `clnt_sperrno`: the static text of a `clnt_stat`.
-pub extern "C" fn liella_compat_clnt_sperrno(stat: c_int) -> *const c_char {
+pub extern "C" fn niji_compat_clnt_sperrno(stat: c_int) -> *const c_char {
     render(|t| t.put(rules::sperrno(stat).as_bytes())).cast_const()
 }}
 
 crate::internal_entry! {
 /// `clnt_perrno`: the text to standard error, without a newline (as probed).
-pub extern "C" fn liella_compat_clnt_perrno(stat: c_int) {
-    emit(liella_compat_clnt_sperrno(stat));
+pub extern "C" fn niji_compat_clnt_perrno(stat: c_int) {
+    emit(niji_compat_clnt_sperrno(stat));
 }}
 
 crate::internal_entry! {
-/// `clnt_sperror`: the client's last error after `s` (a caller's own `CLIENT`: Liella makes none).
-pub extern "C" fn liella_compat_clnt_sperror(c: *mut Client, s: *const c_char) -> *mut c_char {
+/// `clnt_sperror`: the client's last error after `s` (a caller's own `CLIENT`: libniji makes none).
+pub extern "C" fn niji_compat_clnt_sperror(c: *mut Client, s: *const c_char) -> *mut c_char {
     let mut e = RpcErrC::default();
     clnt_geterr(c, &mut e);
     let pre = cstr(s);
@@ -440,13 +440,13 @@ pub extern "C" fn liella_compat_clnt_sperror(c: *mut Client, s: *const c_char) -
 
 crate::internal_entry! {
 /// `clnt_perror`: `clnt_sperror` to standard error.
-pub extern "C" fn liella_compat_clnt_perror(c: *mut Client, s: *const c_char) {
-    emit(liella_compat_clnt_sperror(c, s));
+pub extern "C" fn niji_compat_clnt_perror(c: *mut Client, s: *const c_char) {
+    emit(niji_compat_clnt_sperror(c, s));
 }}
 
 crate::internal_entry! {
 /// `clnt_spcreateerror`: the last create error (`rpc_createerr`) after `s`.
-pub extern "C" fn liella_compat_clnt_spcreateerror(s: *const c_char) -> *mut c_char {
+pub extern "C" fn niji_compat_clnt_spcreateerror(s: *const c_char) -> *mut c_char {
     let (cf, re, a) = createerr();
     let pre = cstr(s);
     render(|t| rules::spcreateerror(t, pre, cf, re, errtext(a)))
@@ -454,8 +454,8 @@ pub extern "C" fn liella_compat_clnt_spcreateerror(s: *const c_char) -> *mut c_c
 
 crate::internal_entry! {
 /// `clnt_pcreateerror`: `clnt_spcreateerror` to standard error.
-pub extern "C" fn liella_compat_clnt_pcreateerror(s: *const c_char) {
-    emit(liella_compat_clnt_spcreateerror(s));
+pub extern "C" fn niji_compat_clnt_pcreateerror(s: *const c_char) {
+    emit(niji_compat_clnt_spcreateerror(s));
 }}
 
 // UNSAFE(slice): the client's ops table (a CLIENT the caller made).

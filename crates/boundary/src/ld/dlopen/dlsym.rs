@@ -25,10 +25,10 @@
 //!   DL-16c's (plan §4, `read_section`).
 
 use super::{c_string, dlerr, file_id, loader, objs_of, scope_of, start_arg, syms_of, tb, Env, Loader, Node, Uniq, CALL, CAP, SHN_ABS, STATE};
-use liella_ld::arch::Native;
-use liella_ld::elf::{STB_GNU_UNIQUE, STT_GNU_IFUNC, STT_TLS};
-use liella_ld::search::{self, PathBuf};
-use liella_ld::symbols::{self, LookupError, Request, Scope, Want};
+use niji_ld::arch::Native;
+use niji_ld::elf::{STB_GNU_UNIQUE, STT_GNU_IFUNC, STT_TLS};
+use niji_ld::search::{self, PathBuf};
+use niji_ld::symbols::{self, LookupError, Request, Scope, Want};
 
 /// `RTLD_DEFAULT` (`<dlfcn.h>`): the NULL handle.
 const RTLD_DEFAULT: usize = 0;
@@ -65,7 +65,7 @@ extern "C" fn entry(handle: usize, name: usize, version: usize, caller: usize) -
         }
         Some(Answer::Resolve(r)) => {
             dlerr::clear();
-            usize::from_ne_bytes(crate::ffi::liella_machine_call0(r).to_ne_bytes())
+            usize::from_ne_bytes(crate::ffi::niji_machine_call0(r).to_ne_bytes())
         }
         None => 0,
     };

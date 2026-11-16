@@ -1,6 +1,6 @@
-//! C++ exceptions thrown through Liella's frames (spec §27.1 `_dl_find_object`, for unwinders;
+//! C++ exceptions thrown through libniji's frames (spec §27.1 `_dl_find_object`, for unwinders;
 //! CXX-THROW-THROUGH-LIBC): `tests/oracle/cxx_throw_diff.cc` built with the system `g++`
-//! statically against Liella's products (with libsupc++ and libgcc's unwinder, libgcc_eh) throws
+//! statically against libniji's products (with libsupc++ and libgcc's unwinder, libgcc_eh) throws
 //! from every kind of callback the library calls (comparators, tree actions, `pthread_once`'s
 //! init routine, `dl_iterate_phdr`'s callback, `ftw`/`nftw`/`scandir` callbacks, signal
 //! handlers, `fopencookie` functions, an `atexit` handler during `exit`, a comparator on a second
@@ -14,12 +14,12 @@
 //!
 //! The expected text was checked against the host C library (glibc 2.39) by a probe of the same
 //! program on the test machine (CXX-THROW-THROUGH-LIBC, CALLBACK-UNWIND reports). It differs from
-//! glibc's on purpose in five `after` lines, where Liella gives back what glibc keeps (D-14.6):
+//! glibc's on purpose in five `after` lines, where libniji gives back what glibc keeps (D-14.6):
 //! glibc 2.39 leaves `qsort`'s heap buffer and `scandir`'s entries allocated, the walk's
 //! directories open and `nftw`'s working directory changed (`heap back=0`, `fds back=0`,
 //! `cwd back=0`); and its child for `scandir compar` prints no line (not investigated), so
 //! that case's `after` line (a throw from the sort, which frees the sort's copy of the list)
-//! is checked against Liella only, as are the two sweeps (`qsort sweep`, `scandir sweep`: a
+//! is checked against libniji only, as are the two sweeps (`qsort sweep`, `scandir sweep`: a
 //! throw at every comparison in turn, so each undo path runs at every point of the sort).
 //!
 //! Needs the products (`cargo xtask so`) and `g++`; without `g++` the test says so and passes.
@@ -99,7 +99,7 @@ fn cxx_exceptions_cross_the_library() {
     // s27_1_c_9: `_dl_find_object` gives libgcc's unwinder the call-frame information of every
     // frame between the throw and the catch, the library's included.
     let r = root();
-    let lib = r.join("target/liella");
+    let lib = r.join("target/niji");
     assert!(lib.join("libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if Command::new("g++").arg("--version").output().is_err() {
         eprintln!("SKIPPED: no g++ on this machine (C++ exceptions through the library are not tested)");
@@ -111,7 +111,7 @@ fn cxx_exceptions_cross_the_library() {
     let built = Command::new("g++")
         .args(["-std=c++17", "-O1", "-static", "-nostdlib", "-fno-builtin", "-o"])
         .arg(&exe)
-        .arg(lib.join("liella-crt1.o"))
+        .arg(lib.join("niji-crt1.o"))
         .arg(r.join("crates/core/tests/oracle/cxx_throw_diff.cc"))
         // D-27.5: a static main program's `dlfo_eh_frame` is its PT_GNU_EH_FRAME, which GNU ld
         // writes for a static link only when asked.
@@ -129,13 +129,13 @@ fn cxx_exceptions_cross_the_library() {
     assert!(out.status.success(), "status {:?}", out.status);
 }
 
-/// Links `src` (C++ with `g++`, else C with `cc` and Liella's headers) statically against the
+/// Links `src` (C++ with `g++`, else C with `cc` and libniji's headers) statically against the
 /// products, with `extra` flags; runs it and returns its standard output, after checking that
 /// it exited 0 (STATIC-CXX-THROW-PTHREAD-ONCE: a link that took `__pthread_key_create` without
 /// `pthread_once` made libgcc's unwinder call address 0, signal 11).
 fn link_and_run(src: &str, compiler: &str, extra: &[&str]) -> String {
     let r = root();
-    let lib = r.join("target/liella");
+    let lib = r.join("target/niji");
     assert!(lib.join("libc.a").exists(), "the products are missing: run `cargo xtask so`");
     // One directory per program: the tests run in parallel and each removes its own.
     let tag = format!("{src}{}", extra.join("")).replace(['-', ',', '=', '.'], "");
@@ -143,7 +143,7 @@ fn link_and_run(src: &str, compiler: &str, extra: &[&str]) -> String {
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("prog");
     let mut c = Command::new(compiler);
-    c.args(["-O1", "-static", "-nostdlib", "-fno-builtin"]).args(extra).arg("-o").arg(&exe).arg(lib.join("liella-crt1.o"));
+    c.args(["-O1", "-static", "-nostdlib", "-fno-builtin"]).args(extra).arg("-o").arg(&exe).arg(lib.join("niji-crt1.o"));
     if compiler == "g++" {
         c.args(["-std=c++17"]).arg(r.join("crates/core/tests/oracle").join(src)).arg("-Wl,--eh-frame-hdr").args(["-lsupc++", "-lgcc_eh"]);
     } else {
@@ -159,12 +159,12 @@ fn link_and_run(src: &str, compiler: &str, extra: &[&str]) -> String {
     String::from_utf8_lossy(&out.stdout).into_owned()
 }
 
-/// The symbols of `file` named `LIELLA_LINK_EDGE_*` (D-22.16: link-edge statics, kept out of
+/// The symbols of `file` named `NIJI_LINK_EDGE_*` (D-22.16: link-edge statics, kept out of
 /// every link output by `cargo xtask so`).
 fn link_edge_symbols(file: &std::path::Path) -> Vec<String> {
     let out = Command::new("nm").arg(file).output().unwrap();
     assert!(out.status.success(), "nm {}: {}", file.display(), String::from_utf8_lossy(&out.stderr));
-    String::from_utf8_lossy(&out.stdout).lines().filter(|l| l.contains("LIELLA_LINK_EDGE_")).map(str::to_string).collect()
+    String::from_utf8_lossy(&out.stdout).lines().filter(|l| l.contains("NIJI_LINK_EDGE_")).map(str::to_string).collect()
 }
 
 /// no spec clause (D-22.16): `libc.so.6` carries no link-edge word, so no relocation of one is
@@ -172,7 +172,7 @@ fn link_edge_symbols(file: &std::path::Path) -> Vec<String> {
 /// static tests below rely on.
 #[test]
 fn shared_library_carries_no_link_edge_word() {
-    let lib = root().join("target/liella");
+    let lib = root().join("target/niji");
     assert!(lib.join("libc.so.6").exists(), "the products are missing: run `cargo xtask so`");
     assert_eq!(link_edge_symbols(&lib.join("libc.so.6")), Vec::<String>::new());
     assert!(!link_edge_symbols(&lib.join("libc.a")).is_empty(), "libc.a lost its link-edge static (renamed?)");

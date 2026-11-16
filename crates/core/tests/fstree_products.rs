@@ -1,10 +1,10 @@
 //! The file-system tree end to end (spec §13.1–13.3, §13.8–13.9; D-13.1 to D-13.6, D-13.13):
 //! `tests/oracle/fstree_diff.c` built against the host C library and statically against
-//! Liella's products, each run by `tests/oracle/fstree_run.sh` (the unprivileged cases with
+//! libniji's products, each run by `tests/oracle/fstree_run.sh` (the unprivileged cases with
 //! their fixture in a scratch directory under `target/`, then the `root` cases on a tmpfs in a
-//! private mount namespace, as root through `sudo -n`), Liella with the name-service cache on
+//! private mount namespace, as root through `sudo -n`), libniji with the name-service cache on
 //! and off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line, except the
-//! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only Liella prints)
+//! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints)
 //! and [`DROPPED`] (a line only the reference prints). An ADDED or DROPPED entry names the line
 //! that follows it too.
 //!
@@ -42,12 +42,12 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/fstree_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -96,7 +96,7 @@ const KNOWN_FTS_DEEP: [(&str, &str); 4] = [
     ("  FTS_LOGICAL|FTS_NOCHDIR: entries=43", D13_4_FTS),
 ];
 
-/// Lines only Liella prints: the text the line starts with, the text the next line starts with,
+/// Lines only libniji prints: the text the line starts with, the text the next line starts with,
 /// and why.
 const ADDED: [(&str, &str, &str); 0] = [];
 
@@ -186,7 +186,7 @@ fn fstree_equals_the_reference() {
     // s13_3_i_0, s13_3_f_0, s13_8_c_0, s13_8_c_1, s13_8_c_2, s13_8_f_0, s13_9_c_1, s13_9_c_2, s13_9_c_3,
     // s13_9_c_4, s13_9_c_5, s13_9_i_0, s13_9_f_0 (D-13.1 to D-13.6, D-13.13, D-13.14).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -203,7 +203,7 @@ fn fstree_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("fstree_diff_host"), dir.join("fstree_diff_liella"));
+    let (host, ours) = (dir.join("fstree_diff_host"), dir.join("fstree_diff_niji"));
     assert!(build(&host, false), "fstree_diff.c does not build against the host C library");
     assert!(build(&ours, true), "fstree_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/fstree_run.sh");
@@ -235,30 +235,30 @@ fn fstree_equals_the_reference() {
     let known: Vec<(&str, &str)> = KNOWN.iter().chain(KNOWN_FTS_DEEP.iter()).copied().collect();
     for mode in ["on", "off"] {
         eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("fstree-liella-{mode}"), Some(mode));
-        if let Some(f) = stat_chain_fault("Liella", &got) {
+        let got = run(&ours, &format!("fstree-niji-{mode}"), Some(mode));
+        if let Some(f) = stat_chain_fault("libniji", &got) {
             panic!("{f}");
         }
         let want = without(&neutral(&reference), &DROPPED, "the reference");
-        let got = without(&neutral(&got), &ADDED, "Liella");
+        let got = without(&neutral(&got), &ADDED, "libniji");
         let mut diffs = 0;
         let mut seen = vec![false; known.len()];
         for (k, (w, g)) in want.iter().zip(got.iter()).enumerate() {
             if let Some(i) = known.iter().position(|(needle, _)| w.starts_with(needle)) {
                 if w != g {
                     seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", known[i].1);
+                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", known[i].1);
                 }
                 continue;
             }
             if w != g {
                 diffs += 1;
                 if diffs <= 40 {
-                    eprintln!("line {}:\n  glibc  {w}\n  liella {g}", k + 1);
+                    eprintln!("line {}:\n  glibc  {w}\n  niji {g}", k + 1);
                 }
             }
         }
-        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- liella\n{}", want.join("\n"), got.join("\n"));
+        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", want.join("\n"), got.join("\n"));
         assert_eq!(diffs, 0, "lines that differ from the reference");
         for (i, s) in seen.iter().enumerate() {
             assert!(s, "recorded difference no longer seen: {:?}", known[i]);

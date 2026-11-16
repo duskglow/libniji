@@ -26,8 +26,8 @@ _Static_assert(offsetof(struct state, xmm) == 112, "harness layout");
 _Static_assert(offsetof(struct state, mxcsr) == 368, "harness layout");
 _Static_assert(offsetof(struct state, fcw) == 372, "harness layout");
 
-extern void liella_machine_ld_tlsdesc_static(void);
-extern void liella_machine_ld_tlsdesc_dynamic(void);
+extern void niji_machine_ld_tlsdesc_static(void);
+extern void niji_machine_ld_tlsdesc_dynamic(void);
 extern void tlsdesc_call(const uintptr_t *desc, const struct state *in, struct state *out, long misalign);
 extern uintptr_t clobber_resolver(const uintptr_t *rec);
 
@@ -92,20 +92,20 @@ int main(void) {
     for (long mis = 0; mis <= 8; mis += 8) {
         struct state out;
         uintptr_t off = (uintptr_t)-0x1238;
-        const uintptr_t sdesc[2] = {(uintptr_t)liella_machine_ld_tlsdesc_static, off};
+        const uintptr_t sdesc[2] = {(uintptr_t)niji_machine_ld_tlsdesc_static, off};
         memset(&out, 0, sizeof out);
         tlsdesc_call(sdesc, &in, &out, mis);
         bad |= compare("static", mis, &in, &out, off);
 
         uintptr_t tp = thread_pointer();
         const uintptr_t rec1[2] = {(uintptr_t)clobber_resolver, tp - 0x40};
-        const uintptr_t ddesc1[2] = {(uintptr_t)liella_machine_ld_tlsdesc_dynamic, (uintptr_t)rec1};
+        const uintptr_t ddesc1[2] = {(uintptr_t)niji_machine_ld_tlsdesc_dynamic, (uintptr_t)rec1};
         memset(&out, 0, sizeof out);
         tlsdesc_call(ddesc1, &in, &out, mis);
         bad |= compare("dynamic, clobbering resolver", mis, &in, &out, (uintptr_t)-0x40);
 
         const uintptr_t rec2[2] = {(uintptr_t)c_resolver, tp + 0x88};
-        const uintptr_t ddesc2[2] = {(uintptr_t)liella_machine_ld_tlsdesc_dynamic, (uintptr_t)rec2};
+        const uintptr_t ddesc2[2] = {(uintptr_t)niji_machine_ld_tlsdesc_dynamic, (uintptr_t)rec2};
         memset(&out, 0, sizeof out);
         tlsdesc_call(ddesc2, &in, &out, mis);
         bad |= compare("dynamic, C resolver", mis, &in, &out, 0x88);

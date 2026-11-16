@@ -51,18 +51,18 @@
 //!    * "Depends" (both bullets, every tier; XTASK-AFFECTED-LOADER): a crate's own dependencies always count; a
 //!      dependency's onward edge counts only when that crate's test build compiles a module naming the next crate
 //!      (`build_closures`: the features each crate gets in that build, `#[cfg(feature)]`/`any(feature)` module
-//!      gates). liella-math takes boundary with `selftest`, and boundary uses liella-ld only in the product-only
-//!      `bootstrap`, `ld` and `arch`: a loader change no longer selects liella-math's suites.
+//!      gates). niji-math takes boundary with `selftest`, and boundary uses niji-ld only in the product-only
+//!      `bootstrap`, `ld` and `arch`: a loader change no longer selects niji-math's suites.
 //! 5. A test file: that target, and the targets of the crate that name the file (`#[path]`,
 //!    `include!`); a file in a support directory of `tests/`: every target that names the
 //!    directory. Examples, benches and other crate files: clippy only.
 //! 6. An assembly source of csys (`csys/src/**/*.S`): its symbols (`.globl`/`.weak` names and
-//!    `liella_` labels) are followed to the Rust files and conformance programs that use them
+//!    `niji_` labels) are followed to the Rust files and conformance programs that use them
 //!    (declarations in `extern` blocks and C prototypes do not count), and each user is selected
 //!    as if it had changed (rules 3 to 5), plus the tests that name the file and clippy of the
 //!    crate whose build script compiles csys. Computed on every run from the tree, so it cannot
 //!    go stale. FULL when unsure: a new, deleted or generated file, a C source, a macro,
-//!    `#include` or `.set` (which can define symbols unseen), a symbol not prefixed `liella_`
+//!    `#include` or `.set` (which can define symbols unseen), a symbol not prefixed `niji_`
 //!    (may be exported C ABI), a symbol named by another csys source, a link list, a script or
 //!    xtask, or no user at all.
 //! 7. An xtask audit/report module (`XTASK_AUDITS`: policy, symgap, status, schedule, plants): the
@@ -73,13 +73,13 @@
 //!    FULL (a `hottext.rs` change also selects the start-up layout tests).
 //! 8. XTASK-AFFECTED-MATH (ruling #3188): the math export wiring (`crates/boundary/src/posix/s10_math.tsv`,
 //!    `s10_math_gen.rs`, `csys/src/adapter/math_*.c`) selects the math export tests (`Selection::math_exports`: the
-//!    `s10_math_gen` module as if changed, every `liella-math` target, every target whose own source names `s10_math`
+//!    `s10_math_gen` module as if changed, every `niji-math` target, every target whose own source names `s10_math`
 //!    or `libm` or carries section 10, the conformance programs of section 10 or calling a math export) plus `cargo
 //!    xtask math-gen --check`; a coefficient file `crates/math/src/coeffs/<family>.rs` selects the `coeffs` module as if
 //!    changed, the same math export tests and `cargo xtask tables --check`. XTASK-AFFECTED-MATH-2 (ruling #3204): a
 //!    fit file `crates/math/fits/<name>.fit` selects what a coefficient file selects plus `cargo xtask remez --check
 //!    <fit>` (a removed fit: FULL); the tables generator `crates/mathtools/src/tables.rs` selects its own mapping as a
-//!    `liella-mathtools` source, what a coefficient file selects, and `cargo xtask tables --check` / `kernel-index
+//!    `niji-mathtools` source, what a coefficient file selects, and `cargo xtask tables --check` / `kernel-index
 //!    --check`. In every tier but `--tier full`; the other files under `fits/` (the `.py` table scripts, subdirectories),
 //!    other generated files and anything else of rule 1 still escalate.
 //! 9. XTASK-AFFECTED-LAYOUT, in addition to every rule above and in every tier: a change that can reach `libc.a`
@@ -122,7 +122,7 @@ use std::process::{Command, ExitCode, Stdio};
 use std::time::{Duration, Instant};
 
 /// Crates whose changes are narrowed through the module graph.
-const NARROW: &[&str] = &["liella", "liella-boundary", "liella-legacy", "liella-math"];
+const NARROW: &[&str] = &["niji", "niji-boundary", "niji-legacy", "niji-math"];
 /// xtask sources that name csys symbols only to check the csys source or products, from `cargo xtask static` and
 /// `cargo xtask so` (D-X.34): a reference from one of them is no user of the symbol.
 const STATIC_CHECKERS: &[&str] = &["xtask/src/classed.rs", "xtask/src/jcc.rs"];
@@ -133,7 +133,7 @@ const LAYOUT_CONSUMERS: &[&str] = &["layout/contracts.tsv", "xtask/src/layout.rs
 const LAYOUT_CHECK: &str = "layout-check";
 
 /// XTASK-AFFECTED-LAYOUT: the libc product. The programs of [`LAYOUT_TESTS`] link `-static -nostdlib` against
-/// `liella-crt1.o` and `libc.a` only (never `ld.so` or `libm.a`), so what this manifest links is what they measure.
+/// `niji-crt1.o` and `libc.a` only (never `ld.so` or `libm.a`), so what this manifest links is what they measure.
 const IMAGE_MANIFEST: &str = "crates/libc-so/Cargo.toml";
 
 /// XTASK-AFFECTED-LAYOUT: the test targets that measure the linked image of a static program rather than one
@@ -144,7 +144,7 @@ const IMAGE_MANIFEST: &str = "crates/libc-so/Cargo.toml";
 /// that reaches the image selects them. They need the products, so `cargo xtask so` runs first, and its end runs
 /// every layout contract (`layout::check_products`, D-X.48/D-X.49) as well.
 /// `cargo xtask plants` builds a plant whose command names one of them traced (PLANTS-UNGROUPED-MUTANTS).
-pub(crate) const LAYOUT_TESTS: &[(&str, &str)] = &[("liella", "hot_text_products"), ("liella", "heap_meta_products"), ("liella", "cold_bss_products")];
+pub(crate) const LAYOUT_TESTS: &[(&str, &str)] = &[("niji", "hot_text_products"), ("niji", "heap_meta_products"), ("niji", "cold_bss_products")];
 
 /// XTASK-AFFECTED-LAYOUT: xtask sources that shape the image itself (the hot-text grouping, the start-up state
 /// move, the archive build). They escalate to FULL anyway; named so the rule says what it covers.
@@ -241,7 +241,7 @@ pub struct Repo {
     /// `csys/src/...` path -> its symbols.
     csys: BTreeMap<String, CsysFile>,
     /// GATE-TIER-2: C symbol -> its Rust definitions (`entries_of`), plus the csys-defined symbols that
-    /// `docs/codemap/symbols.tsv` maps to a Rust entry (`printf` -> `liella_vfprintf4`).
+    /// `docs/codemap/symbols.tsv` maps to a Rust entry (`printf` -> `niji_vfprintf4`).
     entries: BTreeMap<String, Vec<Entry>>,
     /// GATE-TIER-2: modules named by the bodies of at least a sixth of all entries (`stdio`, `conv`, `ret`, ...): like
     /// `hubs`, an entry reaches a change through them only when they changed themselves.
@@ -266,7 +266,7 @@ pub struct Repo {
 }
 
 /// The symbols an assembly source of csys defines: the `.globl`/`.global`/`.weak` names and every
-/// label at column 0 that starts with `liella_`. `None` when the file can define symbols this
+/// label at column 0 that starts with `niji_`. `None` when the file can define symbols this
 /// reading does not see (a macro, `#define`, `#include`, `.set`/`.equ`): unmappable. A one-line `.symver a, name@VER` alias is mapped (it defines `a` and `name`).
 /// C sources are not read (definitions behind macros and multi-line declarators need the
 /// compiler to be sure): `None`.
@@ -323,7 +323,7 @@ fn csys_symbols(path: &str, text: &str) -> Option<Vec<String>> {
         }
         if let Some(rest) = t.strip_prefix(".globl").or_else(|| t.strip_prefix(".global")).or_else(|| t.strip_prefix(".weak")) {
             out.extend(rest.split([' ', '\t', ',']).filter(|w| !w.is_empty()).map(String::from));
-        } else if l.starts_with("liella_") {
+        } else if l.starts_with("niji_") {
             if let Some((label, _)) = l.split_once(':') {
                 out.push(label.trim().to_string());
             }
@@ -543,7 +543,7 @@ fn tokens(text: &str) -> Vec<Tok> {
 /// Module references of a Rust text. A path rooted at a crate's library name names that crate's
 /// module (its second segment); `crate`, `self`, `super` and a bare root name a module of the
 /// crate the text is in; paths into `std`, `core` and `alloc` are not ours. In a `use` tree every
-/// path is resolved the same way (`use liella::{printf, fs::dir}` names `printf` and `fs`). A
+/// path is resolved the same way (`use niji::{printf, fs::dir}` names `printf` and `fs`). A
 /// `mod` declaration is not a reference. `aliases` maps library names to package names.
 fn refs_of(text: &str, aliases: &BTreeMap<String, String>) -> BTreeSet<Ref> {
     let toks = tokens(text);
@@ -857,7 +857,7 @@ fn image_of(root: &Path, crates: &[Crate], nodes: &[Node]) -> Image {
 }
 
 /// XTASK-AFFECTED-LOADER: the features `affected --run` adds to every crate's test build (its second pass).
-const RUN_FEATURES: &[(&str, &[&str])] = &[("liella-boundary", &["export", "selftest"])];
+const RUN_FEATURES: &[(&str, &[&str])] = &[("niji-boundary", &["export", "selftest"])];
 
 /// XTASK-AFFECTED-LOADER: the modules a crate root declares under `#[cfg(feature = "X")]` or
 /// `#[cfg(any(feature = "X", feature = "Y", ...))]`, with the features any of which compiles them in. Any other cfg
@@ -895,9 +895,9 @@ fn module_gates(root_text: &str) -> Vec<(BTreeSet<String>, String)> {
 /// XTASK-AFFECTED-LOADER: per crate, the workspace crates its test build compiles code of (dev-dependencies
 /// included), transitively. The crate's own edges always count. A dependency's edge onward (`B` -> `C`) counts
 /// only when a module of `B` that names `C` is compiled in with the features `B` gets in that build (the union of
-/// every edge into `B` there, plus [`RUN_FEATURES`]): liella-math's tests take boundary with `selftest`, and the
-/// boundary modules that use liella-ld (`bootstrap`, `ld`, `arch`) are built only for the libc and ld.so
-/// products, so a loader change does not reach liella-math's suites (DL-INIT-ORDER-2 ran them for 2203 s). Kept
+/// every edge into `B` there, plus [`RUN_FEATURES`]): niji-math's tests take boundary with `selftest`, and the
+/// boundary modules that use niji-ld (`bootstrap`, `ld`, `arch`) are built only for the libc and ld.so
+/// products, so a loader change does not reach niji-math's suites (DL-INIT-ORDER-2 ran them for 2203 s). Kept
 /// whenever this cannot tell: features unknown (a `workspace = true` entry with its own features, a crate whose
 /// features another crate's feature table sets), no module of `B` names `C` (a use this reading does not see).
 fn build_closures(root: &Path, crates: &[Crate], nodes: &[Node]) -> BTreeMap<String, BTreeSet<String>> {
@@ -909,7 +909,7 @@ fn build_closures(root: &Path, crates: &[Crate], nodes: &[Node]) -> BTreeMap<Str
     let edges = |c: &str, kind: &str| -> Edges { dep_edges(&manifest[c], kind, Some(&ws)).into_iter().filter(|(d, _)| d != c && names.contains(d.as_str())).collect() };
     let normal: BTreeMap<&str, Edges> = names.iter().map(|&c| (c, edges(c, "dependencies"))).collect();
     let dev: BTreeMap<&str, Edges> = names.iter().map(|&c| (c, edges(c, "dependencies").into_iter().chain(edges(c, "dev-dependencies")).collect())).collect();
-    // `liella/selftest` in boundary's feature table: liella's features are set from outside, not followed.
+    // `niji/selftest` in boundary's feature table: niji's features are set from outside, not followed.
     let mut cross: BTreeSet<String> = BTreeSet::new();
     for m in manifest.values() {
         let mut in_features = false;
@@ -1041,7 +1041,7 @@ impl Repo {
                 } else {
                     continue;
                 }
-                if p.is_dir() && stem == "posix" && c.name == "liella-boundary" {
+                if p.is_dir() && stem == "posix" && c.name == "niji-boundary" {
                     for f in files {
                         let n = f.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
                         let text = read(&f);
@@ -1089,12 +1089,12 @@ impl Repo {
                         }
                     }
                 }
-                // `join("liella")`: the products directory under the target dir, as the ld tests that
-                // run the built `ld.so` name it (`target().join("liella").join(Native::INTERP)`).
-                let products = text.contains("target/liella")
-                    || text.contains("join(\"liella\")")
+                // `join("niji")`: the products directory under the target dir, as the ld tests that
+                // run the built `ld.so` name it (`target().join("niji").join(Native::INTERP)`).
+                let products = text.contains("target/niji")
+                    || text.contains("join(\"niji\")")
                     || text.contains("libc.a")
-                    || text.contains("liella-crt1")
+                    || text.contains("niji-crt1")
                     || text.contains("conformance");
                 targets.push(Target { krate: c.name.clone(), sections: sections_of(&name, &text), refs: refs_of(&text, &aliases), name, support, products, text, own });
             }
@@ -1106,7 +1106,7 @@ impl Repo {
                 entries.entry(name).or_default().push(Entry { node: x, refs });
             }
         }
-        // A symbol csys defines and hands to a Rust entry (`printf` -> `liella_vfprintf4`): the codemap's
+        // A symbol csys defines and hands to a Rust entry (`printf` -> `niji_vfprintf4`): the codemap's
         // "first implementation call" column. A stale codemap only loses these extra names.
         for l in read(&root.join("docs/codemap/symbols.tsv")).lines().skip(1) {
             let f: Vec<&str> = l.split('\t').collect();
@@ -1190,7 +1190,7 @@ impl Repo {
         let inner = path[c.dir.len() + 1..].strip_prefix("src/")?;
         let parts: Vec<&str> = inner.split('/').collect();
         let stem = |s: &str| s.split('.').next().unwrap_or(s).to_string();
-        let name = if c.name == "liella-boundary" && parts.len() >= 2 && parts[0] == "posix" { stem(parts[1]) } else { stem(parts[0]) };
+        let name = if c.name == "niji-boundary" && parts.len() >= 2 && parts[0] == "posix" { stem(parts[1]) } else { stem(parts[0]) };
         Some((c.name.clone(), name))
     }
 
@@ -1224,7 +1224,7 @@ pub struct Selection {
     pub xtask_cmds: BTreeSet<String>,
     /// `--only`: the named binaries and nothing else (no checks, no clippy): NOT a gate.
     pub only: bool,
-    /// TOOLS-7 (3b): the ffi.rs <-> liella_csys.h agreement check (K5) runs: ffi.rs, `csys/include/` or
+    /// TOOLS-7 (3b): the ffi.rs <-> niji_csys.h agreement check (K5) runs: ffi.rs, `csys/include/` or
     /// `csys/src/machine/` changed. Cheap, and the check is otherwise part of the FULL `xtask test` only.
     pub k5: bool,
     pub notes: Vec<String>,
@@ -1314,15 +1314,15 @@ impl Selection {
     /// XTASK-AFFECTED-MATH (ruling #3188): the tests that can observe the math exports, for a change of their wiring
     /// (`s10_math.tsv`, `s10_math_gen.rs`, the `math_*.c` forwarders) or of a generated coefficient file. The export
     /// module itself as if it had changed (rule 4 of the tier: its users, the targets naming it, the conformance
-    /// programs calling its entries), every test target of `liella-math` (the libm product, clause and kernel suites),
+    /// programs calling its entries), every test target of `niji-math` (the libm product, clause and kernel suites),
     /// every target of any crate whose own source names `s10_math` or `libm` or carries section 10, the unit tests of
     /// both crates, and every conformance program that carries section 10 or calls an entry of the export modules.
     fn math_exports(&mut self, repo: &Repo, why: &str) {
         let via = |what: &str| format!("{why}: {what}");
         if self.direct {
-            self.narrow_direct(repo, "liella-boundary", "s10_math_gen", MATH_GEN);
+            self.narrow_direct(repo, "niji-boundary", "s10_math_gen", MATH_GEN);
         } else {
-            self.narrow(repo, "liella-boundary", "s10_math_gen", MATH_GEN);
+            self.narrow(repo, "niji-boundary", "s10_math_gen", MATH_GEN);
         }
         for c in [MATH_EXPORTS_CRATE, MATH_CRATE] {
             add(&mut self.libs, c.to_string(), &via("the unit tests of the export and kernel crates"));
@@ -1331,7 +1331,7 @@ impl Selection {
         for t in &repo.targets {
             let own = &t.text[..t.own.min(t.text.len())];
             if t.krate == MATH_CRATE {
-                add(&mut self.tests, (t.krate.clone(), t.name.clone()), &via("a liella-math suite (they call the math exports)"));
+                add(&mut self.tests, (t.krate.clone(), t.name.clone()), &via("a niji-math suite (they call the math exports)"));
             } else if own.contains("s10_math") || own.contains("libm") || t.sections.contains(&10) {
                 add(&mut self.tests, (t.krate.clone(), t.name.clone()), &via("the test names s10_math or libm, or carries section 10"));
             }
@@ -1395,7 +1395,7 @@ impl Selection {
                 }
                 if !affected.contains(&x) && names_it && repo.may_use(&nx.krate, &ny.krate) {
                     affected.insert(x);
-                    if nx.krate == "liella-boundary" && nx.section.is_none() {
+                    if nx.krate == "niji-boundary" && nx.section.is_none() {
                         // Depth in helper modules since the entry from another crate.
                         let d = if ny.krate != nx.krate { 1 } else { depth.get(&y).copied().unwrap_or(0) + 1 };
                         depth.insert(x, d);
@@ -1481,7 +1481,7 @@ impl Selection {
         };
         let ns = &repo.nodes[start];
         // GATE-TIER-2: a module re-exported at its crate root (`pub use errno::{Errno, KResult};`) is used through the
-        // re-exported names too: a module naming `liella_kernel::Errno` (or `crate::Errno` inside the crate) is a user.
+        // re-exported names too: a module naming `niji_kernel::Errno` (or `crate::Errno` inside the crate) is a user.
         // Only a glob re-export (`pub use m::*;`) cannot be followed by name: wide, as before.
         let mut items: BTreeSet<String> = BTreeSet::new();
         if !ns.root {
@@ -1646,7 +1646,7 @@ enum Class {
     LayoutManifest,
 }
 
-/// D-X.39: which generated sets a liella-mathtools source feeds. `remez`: the fitted coefficient files
+/// D-X.39: which generated sets a niji-mathtools source feeds. `remez`: the fitted coefficient files
 /// (`cargo xtask remez --check <every fit>`); `tables`: the constant tables and `crates/math/KERNELS.md`
 /// (`cargo xtask tables --check`, `kernel-index --check`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1671,8 +1671,8 @@ fn mathtools_feeds(path: &str) -> Option<Feeds> {
     Some(Feeds { remez, tables })
 }
 
-const MATH_EXPORTS_CRATE: &str = "liella-boundary";
-const MATH_CRATE: &str = "liella-math";
+const MATH_EXPORTS_CRATE: &str = "niji-boundary";
+const MATH_CRATE: &str = "niji-math";
 const MATH_TSV: &str = "crates/boundary/src/posix/s10_math.tsv";
 const MATH_GEN: &str = "crates/boundary/src/posix/s10_math_gen.rs";
 const MATH_FITS: &str = "crates/math/fits/";
@@ -2101,7 +2101,7 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
             }
             Some(Class::MathCoeffs) => {
                 sel.math_coeffs(repo, f);
-                sel.notes.push(format!("{f}: generated coefficients (liella-math's suites, the math export suites and `cargo xtask tables --check`, not FULL)"));
+                sel.notes.push(format!("{f}: generated coefficients (niji-math's suites, the math export suites and `cargo xtask tables --check`, not FULL)"));
             }
             Some(Class::MathFit) if !repo.fits.contains(f) => sel.full.push(format!("{f}: a removed fit file (`cargo xtask remez --check` cannot check it)")),
             Some(Class::MathFit) => {
@@ -2111,7 +2111,7 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
                 sel.notes.push(format!("{f}: a fit file (the family's math suites, `cargo xtask remez --check {f}` and `cargo xtask tables --check`, not FULL)"));
             }
             Some(Class::MathTables) => {
-                // The generator is a liella-mathtools source like any other (its own mapping), and it writes every
+                // The generator is a niji-mathtools source like any other (its own mapping), and it writes every
                 // coefficient family: the whole math set and both checks.
                 ordinary_mapping(repo, f, &mut sel);
                 sel.math_coeffs(repo, f);
@@ -2119,7 +2119,7 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
                 sel.notes.push(format!("{f}: the tables generator (its own mapping, every math suite, `cargo xtask tables --check` and `kernel-index --check`, not FULL)"));
             }
             Some(Class::MathToolFeed(feeds)) => {
-                // A generator input: its own mapping (liella-mathtools' unit tests) and the checks that prove the
+                // A generator input: its own mapping (niji-mathtools' unit tests) and the checks that prove the
                 // generated files still follow from it. The checks pass only when the output is unchanged, so the
                 // math suites are not selected here (a changed output is a changed coefficient file, its own row).
                 ordinary_mapping(repo, f, &mut sel);
@@ -2148,7 +2148,7 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
 
 /// The mapping of a source file that no rule above claims: its path class and the unit tests of the crate that owns
 /// it (AFF-OWNER). One helper for the unclaimed files and the tables generator (XTASK-AFFECTED-MATH-3), so the
-/// generator's selection cannot drift from what any other liella-mathtools source selects.
+/// generator's selection cannot drift from what any other niji-mathtools source selects.
 fn ordinary_mapping(repo: &Repo, f: &str, sel: &mut Selection) {
     classify_path(repo, f, sel);
     sel.own_suite(repo, f);
@@ -2275,7 +2275,7 @@ fn classify_path(repo: &Repo, f: &str, sel: &mut Selection) {
             return;
         }
         let parts: Vec<&str> = inner.split('/').collect();
-        let name = if cname == "liella-boundary" && parts.len() >= 2 && parts[0] == "posix" {
+        let name = if cname == "niji-boundary" && parts.len() >= 2 && parts[0] == "posix" {
             parts[1].trim_end_matches(".rs").to_string()
         } else {
             parts[0].trim_end_matches(".rs").to_string()
@@ -2383,14 +2383,14 @@ fn support_c_call<'a>(repo: &'a Repo, t: &Target, syms: &BTreeSet<&'a str>) -> O
 }
 
 /// The crate whose build script compiles `csys/` and links it (checked by a unit test).
-const CSYS_CRATE: &str = "liella-boundary";
+const CSYS_CRATE: &str = "niji-boundary";
 
 /// An assembly source of csys: its symbols are followed to the Rust files (and conformance
 /// programs) that use them, and each user is selected as if it had changed. FULL whenever the
 /// file cannot be mapped: new or deleted, generated, a macro or include that can define symbols,
-/// a symbol that may be part of the exported C ABI (not `liella_`), a symbol used by another
+/// a symbol that may be part of the exported C ABI (not `niji_`), a symbol used by another
 /// csys source, a link list, xtask, or a C header other than as a prototype, or no user at all.
-/// The `liella_*` function names whose one-line declarations are all that the diff changes in `file`. `None` when
+/// The `niji_*` function names whose one-line declarations are all that the diff changes in `file`. `None` when
 /// any changed line is something else (a struct, a macro, a multi-line declaration, a type) or nothing is found:
 /// a structural header change cannot be mapped to symbols.
 fn header_symbols(diff: &str, file: &str) -> Option<Vec<String>> {
@@ -2406,7 +2406,7 @@ fn header_symbols(diff: &str, file: &str) -> Option<Vec<String>> {
             }
             let (head, _) = t.split_once('(')?;
             let name = head.trim_end().rsplit(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).next()?;
-            if !t.ends_with(';') || !name.starts_with("liella_") || t.contains('{') || head.starts_with('#') {
+            if !t.ends_with(';') || !name.starts_with("niji_") || t.contains('{') || head.starts_with('#') {
                 return None;
             }
             out.insert(name.to_string());
@@ -2453,9 +2453,9 @@ fn header_map(repo: &Repo, f: &str, sel: &mut Selection) -> bool {
 }
 
 /// TOOLS-21 (coordinator decision, DIRECT tier only): the exported C-ABI symbols defined in `csys/src/machine/` whose
-/// behaviour the machine tests pin, each with the test targets (crate `liella-boundary`) that call it. In the direct
+/// behaviour the machine tests pin, each with the test targets (crate `niji-boundary`) that call it. In the direct
 /// tier a listed symbol selects these targets plus the conformance programs that name it instead of escalating to FULL
-/// (rule 6); any other non-`liella_` symbol stays FULL, and `--tier full` / the wide tier are unchanged.
+/// (rule 6); any other non-`niji_` symbol stays FULL, and `--tier full` / the wide tier are unchanged.
 const MACHINE_EXPORTS: &[(&str, &str, &[&str])] = &[
     ("once.S", "pthread_once", &["s22_threads_symbols"]),
     ("once.S", "__pthread_once", &["s22_threads_symbols"]),
@@ -2492,8 +2492,8 @@ const MACHINE_EXPORTS: &[(&str, &str, &[&str])] = &[
     ("scan.S", "__stpncpy_chk", &["s04_strings_symbols"]),
 ];
 
-/// CSYS-MAP-2 (`cargo xtask static`, check `machine-exports`): every exported (non-`liella_`) symbol that a file named in
-/// `MACHINE_EXPORTS` defines must be listed there, mapped to existing `liella-boundary` targets that name it. One-sided on
+/// CSYS-MAP-2 (`cargo xtask static`, check `machine-exports`): every exported (non-`niji_`) symbol that a file named in
+/// `MACHINE_EXPORTS` defines must be listed there, mapped to existing `niji-boundary` targets that name it. One-sided on
 /// purpose: an entry whose symbol the file does not define (yet) is allowed, so the map can land before or after the
 /// branch that adds the export; the developer adding an export to a listed file gets this message in the same commit.
 /// Files not in the list (setjmp.S, context.S, entry.S, ...) are not checked: their exports stay FULL by design.
@@ -2511,9 +2511,9 @@ fn machine_exports_problems(repo: &Repo) -> Option<Vec<String>> {
             out.push(format!("{path}: its symbols cannot be read (see csys_symbols); MACHINE_EXPORTS cannot map it"));
             continue;
         };
-        for s in symbols.iter().filter(|s| !s.starts_with("liella_")) {
+        for s in symbols.iter().filter(|s| !s.starts_with("niji_")) {
             match MACHINE_EXPORTS.iter().find(|(f, x, _)| *f == file && x == s) {
-                None => out.push(format!("{path} defines exported `{s}`, which MACHINE_EXPORTS (xtask/src/affected.rs) lacks: add (\"{file}\", \"{s}\", &[<liella-boundary test targets that call it>]) in the same commit")),
+                None => out.push(format!("{path} defines exported `{s}`, which MACHINE_EXPORTS (xtask/src/affected.rs) lacks: add (\"{file}\", \"{s}\", &[<niji-boundary test targets that call it>]) in the same commit")),
                 Some((_, _, [])) => out.push(format!("{path}: MACHINE_EXPORTS maps `{s}` to no test target")),
                 Some((_, _, targets)) => {
                     for t in targets.iter() {
@@ -2529,7 +2529,7 @@ fn machine_exports_problems(repo: &Repo) -> Option<Vec<String>> {
     if out.is_empty() { None } else { Some(out) }
 }
 
-/// CSYS-MAP-4 (`cargo xtask machine-exports --list [<tree>]`): every exported (non-`liella_`) symbol any `csys/src/machine/*.S`
+/// CSYS-MAP-4 (`cargo xtask machine-exports --list [<tree>]`): every exported (non-`niji_`) symbol any `csys/src/machine/*.S`
 /// of the tree defines that `MACHINE_EXPORTS` does not map, one line each, `file symbol (listed file|unlisted file: FULL by design)`.
 /// Same symbol reading and same map lookup as the `machine-exports` static check; informational (exit 0), runnable on any tree.
 pub fn machine_exports_list(root: &Path) -> Result<(), String> {
@@ -2542,7 +2542,7 @@ pub fn machine_exports_list(root: &Path) -> Result<(), String> {
             continue;
         };
         let listed = MACHINE_EXPORTS.iter().any(|(f, _, _)| *f == file);
-        for s in symbols.iter().filter(|s| !s.starts_with("liella_") && !MACHINE_EXPORTS.iter().any(|(f, x, _)| *f == file && x == s)) {
+        for s in symbols.iter().filter(|s| !s.starts_with("niji_") && !MACHINE_EXPORTS.iter().any(|(f, x, _)| *f == file && x == s)) {
             n += 1;
             println!("{file} {s} ({} file)", if listed { "listed" } else { "unlisted" });
         }
@@ -2581,7 +2581,7 @@ fn csys_map_in(repo: &Repo, f: &str, sel: &mut Selection, seen: &mut BTreeSet<St
     let mut exported: Vec<(&str, &[&str])> = Vec::new();
     let mut layout: BTreeSet<&str> = BTreeSet::new();
     for s in symbols {
-        if !s.starts_with("liella_") {
+        if !s.starts_with("niji_") {
             match machine_export(f, s).filter(|_| sel.direct) {
                 Some(t) => {
                     exported.push((s, t));
@@ -2767,7 +2767,7 @@ fn csys_user(repo: &Repo, f: &str, u: &str, symbols: &[String], sel: &mut Select
     let Some(c) = repo.crate_of(u) else { return fallback(sel, "not in a crate") };
     let Some(inner) = u[c.dir.len() + 1..].strip_prefix("src/") else { return fallback(sel, "not under src") };
     let name = inner.split('/').next().unwrap_or(inner).trim_end_matches(".rs");
-    if !NARROW.contains(&c.name.as_str()) || (c.name == "liella-boundary" && name == "posix") {
+    if !NARROW.contains(&c.name.as_str()) || (c.name == "niji-boundary" && name == "posix") {
         return fallback(sel, "not a helper module of a narrowed crate");
     }
     let Some(node) = repo.nodes.iter().find(|n| n.krate == c.name && n.name == name && !n.root && n.section.is_none()) else {
@@ -3039,7 +3039,7 @@ fn failed_tests(own: &str, krate: &str) -> Vec<(String, Vec<String>)> {
     for l in &lines {
         let t = l.trim();
         if let Some(r) = t.strip_prefix("Running ") {
-            // "Running unittests src/lib.rs (target/debug/deps/liella_mem-0123)", "Running tests/x.rs (.../x-0123)"
+            // "Running unittests src/lib.rs (target/debug/deps/niji_mem-0123)", "Running tests/x.rs (.../x-0123)"
             let deps = r.rsplit_once('(').map_or("", |(_, p)| p.trim_end_matches(')'));
             let stem = deps.rsplit('/').next().unwrap_or("");
             let stem = stem.rsplit_once('-').map_or(stem, |(s, _)| s);
@@ -3238,7 +3238,7 @@ fn conf_tail(what: &str, path: &Path) -> String {
 /// whose helper did not) shows its build log instead: its stdout and stderr files there are an earlier run's. Programs
 /// that passed print nothing; a failed step that names no program shows the end of its own output.
 /// A dynamic-link program (CONF-DYN-HELPERS) runs twice: its lines name the run, `<name> (reference): ...` or
-/// `<name> (Liella): ...`, and its FAIL line `FAIL <name> on Liella (stderr: conformance/build/<file>)` names the
+/// `<name> (libniji): ...`, and its FAIL line `FAIL <name> on libniji (stderr: conformance/build/<file>)` names the
 /// run's own stderr file; the report prefixes each end with its run and tails that run's files.
 fn conformance_failures(build: &Path, own: &str) -> String {
     let mut failed: Vec<(&str, &str)> = Vec::new();
@@ -3252,7 +3252,7 @@ fn conformance_failures(build: &Path, own: &str) -> String {
             failed.push((name, why));
         } else if let Some((name, d)) = r.split_once(": ") {
             let (name, d) = match name.split_once(" (").and_then(|(n, run)| Some((n, run.strip_suffix(')')?))) {
-                Some((n, run @ ("reference" | "Liella"))) => (n, format!("{run}: {}", describe_status(d))),
+                Some((n, run @ ("reference" | "libniji"))) => (n, format!("{run}: {}", describe_status(d))),
                 _ => (name, describe_status(d)),
             };
             if !name.is_empty() && !name.contains(' ') {
@@ -3395,7 +3395,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             ok &= check_logged(&log, "unsafe-audit", crate::policy::unsafe_audit(root)).is_ok();
             ok &= check_logged(&log, "csys-audit", crate::policy::csys_audit(root)).is_ok();
             if sel.k5 {
-                ok &= check_logged(&log, "K5 (ffi.rs and liella_csys.h agree)", crate::csys::machine_decls_match(root)).is_ok();
+                ok &= check_logged(&log, "K5 (ffi.rs and niji_csys.h agree)", crate::csys::machine_decls_match(root)).is_ok();
             }
         }
         if !sel.clippy.is_empty() {
@@ -3422,19 +3422,19 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         for c in sel.libs.keys() {
             per.entry(c).or_default();
         }
-        let selftest = ["liella", "liella-boundary", "liella-rt", "liella-math"];
-        let interpose = with_exports || (!sel.only && sel.clippy.keys().any(|c| matches!(c.as_str(), "liella-mem" | "liella-rt" | "liella-kernel" | "liella-abi" | "liella-boundary")));
+        let selftest = ["niji", "niji-boundary", "niji-rt", "niji-math"];
+        let interpose = with_exports || (!sel.only && sel.clippy.keys().any(|c| matches!(c.as_str(), "niji-mem" | "niji-rt" | "niji-kernel" | "niji-abi" | "niji-boundary")));
         if !interpose {
             println!("note: the exports-interposed pass is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
         }
         let nextest = crate::nextest::available(&cargo);
         for (c, ts) in &per {
             for pass in 0..2 {
-                // `liella`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...)
-                // from the C family, which is Liella's heap only with the exports interposed: there
+                // `niji`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...)
+                // from the C family, which is libniji's heap only with the exports interposed: there
                 // its poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always
                 // get the second pass.
-                let c_family = *c == "liella" && ts.iter().any(|t| t.ends_with("_clauses"));
+                let c_family = *c == "niji" && ts.iter().any(|t| t.ends_with("_clauses"));
                 if pass == 1 && !((interpose || c_family) && selftest.contains(c)) {
                     continue;
                 }
@@ -3811,7 +3811,7 @@ escalates to FULL, as forward `--files` does.
 stdout: one JSON object, stable shape (version 1):
   {\"version\":1,\"tier\":\"direct\",
    \"branches\":[{\"name\":\"b\",\"files\":3,\"full\":false}],
-   \"failed\":[{\"test\":\"liella::x y\",\"kind\":\"target|lib|xtask|conformance\",
+   \"failed\":[{\"test\":\"niji::x y\",\"kind\":\"target|lib|xtask|conformance\",
                \"branches\":[{\"branch\":\"b\",\"confidence\":\"high|low\",\"full\":false,
                              \"reasons\":[{\"file\":\"crates/core/src/x.rs\",\"rule\":\"<why>\",\"full\":false}]}]}],
    \"unattributed\":[\"<test ids no branch selects>\"]}
@@ -4067,19 +4067,19 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// XTASK-AFFECTED-FAIL-EARLY: an env-gated fixture. It passes unless `LIELLA_AFFECTED_FAIL_FIXTURE` is set; with it
-    /// set, `LIELLA_AFFECTED_FAIL_FIXTURE=1 cargo xtask affected --only xtask --run` shows a real failed test step's
+    /// XTASK-AFFECTED-FAIL-EARLY: an env-gated fixture. It passes unless `NIJI_AFFECTED_FAIL_FIXTURE` is set; with it
+    /// set, `NIJI_AFFECTED_FAIL_FIXTURE=1 cargo xtask affected --only xtask --run` shows a real failed test step's
     /// report (the end-to-end plant in handoff/XTASK-AFFECTED-FAIL-EARLY-plants.txt).
     #[test]
     fn affected_fail_early_fixture() {
         // Trace: no spec clause (test-harness reporting fixture; XTASK-AFFECTED-FAIL-EARLY).
-        if std::env::var_os("LIELLA_AFFECTED_FAIL_FIXTURE").is_some() {
-            panic!("FIXTURE-PANIC-MARKER: this test fails on purpose because LIELLA_AFFECTED_FAIL_FIXTURE is set");
+        if std::env::var_os("NIJI_AFFECTED_FAIL_FIXTURE").is_some() {
+            panic!("FIXTURE-PANIC-MARKER: this test fails on purpose because NIJI_AFFECTED_FAIL_FIXTURE is set");
         }
     }
 
-    /// The output of `cargo test -p liella-x` with one failure in the unit tests and one in `tests/sweep.rs`.
-    const CARGO_TEST_FAILS: &str = "   Compiling liella-x v0.1.0\n    Finished `test` profile [unoptimized] target(s) in 1.00s\n     Running unittests src/lib.rs (target/debug/deps/liella_x-0123abcd)\n\nrunning 2 tests\ntest a::passes ... ok\ntest a::breaks ... FAILED\n\nfailures:\n\n---- a::breaks stdout ----\n\nthread 'a::breaks' panicked at src/a.rs:9:5:\nassertion `left == right` failed\n  left: 1\n right: 2\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    a::breaks\n\ntest result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n     Running tests/sweep.rs (target/debug/deps/sweep-89abcdef)\n\nrunning 1 test\ntest edge ... FAILED\n\nfailures:\n\n---- edge stdout ----\nthread 'edge' panicked at tests/sweep.rs:3:5:\nL1\nL2\nL3\nL4\nL5\n\nfailures:\n    edge\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n";
+    /// The output of `cargo test -p niji-x` with one failure in the unit tests and one in `tests/sweep.rs`.
+    const CARGO_TEST_FAILS: &str = "   Compiling niji-x v0.1.0\n    Finished `test` profile [unoptimized] target(s) in 1.00s\n     Running unittests src/lib.rs (target/debug/deps/niji_x-0123abcd)\n\nrunning 2 tests\ntest a::passes ... ok\ntest a::breaks ... FAILED\n\nfailures:\n\n---- a::breaks stdout ----\n\nthread 'a::breaks' panicked at src/a.rs:9:5:\nassertion `left == right` failed\n  left: 1\n right: 2\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    a::breaks\n\ntest result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n     Running tests/sweep.rs (target/debug/deps/sweep-89abcdef)\n\nrunning 1 test\ntest edge ... FAILED\n\nfailures:\n\n---- edge stdout ----\nthread 'edge' panicked at tests/sweep.rs:3:5:\nL1\nL2\nL3\nL4\nL5\n\nfailures:\n    edge\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n";
 
     // A failed test step names its failing tests and their panics right under its FAIL line, before the next step's
     // line; a passing test step prints its line only; an earlier step's output is not read.
@@ -4097,30 +4097,30 @@ mod tests {
             c.args(["-c", script]);
             c
         };
-        assert_eq!(step_out(&root, &log, "test -p liella-w", &mut sh("echo '---- old stdout ----'; echo \"thread 'old' panicked at x\"; exit 0"), Some("liella-w"), &mut out), Outcome::Ok);
+        assert_eq!(step_out(&root, &log, "test -p niji-w", &mut sh("echo '---- old stdout ----'; echo \"thread 'old' panicked at x\"; exit 0"), Some("niji-w"), &mut out), Outcome::Ok);
         let passing = String::from_utf8(out.clone()).unwrap();
         assert_eq!(passing.lines().count(), 1, "a passing step printed more than its line: {passing:?}");
-        assert_eq!(step_out(&root, &log, "test -p liella-x", &mut sh("cat fails.txt; exit 101"), Some("liella-x"), &mut out), Outcome::Failed);
-        assert_eq!(step_out(&root, &log, "test -p liella-z", &mut sh("exit 0"), Some("liella-z"), &mut out), Outcome::Ok);
+        assert_eq!(step_out(&root, &log, "test -p niji-x", &mut sh("cat fails.txt; exit 101"), Some("niji-x"), &mut out), Outcome::Failed);
+        assert_eq!(step_out(&root, &log, "test -p niji-z", &mut sh("exit 0"), Some("niji-z"), &mut out), Outcome::Ok);
         let got = String::from_utf8(out).unwrap();
         let lines: Vec<&str> = got.lines().map(|l| l.split_once("s  ").map_or(l, |(_, r)| r)).collect();
         let want = [
-            "ok    test -p liella-w".to_string(),
-            "FAIL  test -p liella-x".to_string(),
+            "ok    test -p niji-w".to_string(),
+            "FAIL  test -p niji-x".to_string(),
             "        failing tests (2):".to_string(),
-            "          liella-x a::breaks".to_string(),
+            "          niji-x a::breaks".to_string(),
             "            | thread 'a::breaks' panicked at src/a.rs:9:5:".to_string(),
             "            | assertion `left == right` failed".to_string(),
             "            |   left: 1".to_string(),
             "            |  right: 2".to_string(),
-            "          liella-x::sweep edge".to_string(),
+            "          niji-x::sweep edge".to_string(),
             "            | thread 'edge' panicked at tests/sweep.rs:3:5:".to_string(),
             "            | L1".to_string(),
             "            | L2".to_string(),
             "            | L3".to_string(),
             "            | L4".to_string(),
             format!("        full output: {} (this step from line 4)", log.display()),
-            "ok    test -p liella-z".to_string(),
+            "ok    test -p niji-z".to_string(),
         ];
         assert_eq!(lines, want, "the console was {got:?}");
         let _ = fs::remove_dir_all(&root);
@@ -4133,31 +4133,31 @@ mod tests {
     #[test]
     fn the_failed_test_report_reads_nextest_output_and_stays_bounded() {
         // Trace: no spec clause (test-harness reporting; XTASK-AFFECTED-FAIL-EARLY).
-        let mut own = String::from("== test -p liella-y\n    Starting 14 tests across 1 binary\n        SIGSEGV [   0.010s] (  1/14) liella-y::t crash\n");
-        own.push_str("        PASS [   0.001s] (  2/14) liella-y::t fine\nthread 'fine' panicked at tests/t.rs:1:1:\nnot this one\n");
+        let mut own = String::from("== test -p niji-y\n    Starting 14 tests across 1 binary\n        SIGSEGV [   0.010s] (  1/14) niji-y::t crash\n");
+        own.push_str("        PASS [   0.001s] (  2/14) niji-y::t fine\nthread 'fine' panicked at tests/t.rs:1:1:\nnot this one\n");
         // nextest 0.9.1xx (as on the build hosts, 11-06): indented output under `stdout ───` / `stderr ───`; case_1
         // has the older `──── STDERR: <binary id> <test>` header, which names the test.
         for i in 0..12 {
-            let (out_h, err_h, ind) = if i == 1 { (format!("──── STDOUT:             liella-y::t case_{i}"), format!("──── STDERR:             liella-y::t case_{i}"), "") } else { ("  stdout ───".to_string(), "  stderr ───".to_string(), "    ") };
-            own.push_str(&format!("        FAIL [   0.010s] ({:>3}/14) liella-y::t case_{i}\n{out_h}\n\n{ind}running 1 test\n{ind}test case_{i} ... FAILED\n\n{ind}failures:\n\n{ind}failures:\n{ind}    case_{i}\n\n{ind}test result: FAILED. 0 passed; 1 failed\n\n", i + 3));
+            let (out_h, err_h, ind) = if i == 1 { (format!("──── STDOUT:             niji-y::t case_{i}"), format!("──── STDERR:             niji-y::t case_{i}"), "") } else { ("  stdout ───".to_string(), "  stderr ───".to_string(), "    ") };
+            own.push_str(&format!("        FAIL [   0.010s] ({:>3}/14) niji-y::t case_{i}\n{out_h}\n\n{ind}running 1 test\n{ind}test case_{i} ... FAILED\n\n{ind}failures:\n\n{ind}failures:\n{ind}    case_{i}\n\n{ind}test result: FAILED. 0 passed; 1 failed\n\n", i + 3));
             own.push_str(&format!("{err_h}\n\n{ind}thread 'case_{i}' (12{i}) panicked at tests/t.rs:{i}:1:\n{ind}boom {i}{}\n{ind}note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n", if i == 0 { "x".repeat(400) } else { String::new() }));
         }
-        own.push_str("     Summary [   0.200s] 14 tests run: 1 passed, 13 failed\n---- liella-y::t crash stdout ----\n");
+        own.push_str("     Summary [   0.200s] 14 tests run: 1 passed, 13 failed\n---- niji-y::t crash stdout ----\n");
         for i in 0..12 {
-            own.push_str(&format!("---- liella-y::t case_{i} stdout ----\n"));
+            own.push_str(&format!("---- niji-y::t case_{i} stdout ----\n"));
         }
-        let r = failed_tests_report(&own, "liella-y", Path::new("/x/affected.log"), 7);
+        let r = failed_tests_report(&own, "niji-y", Path::new("/x/affected.log"), 7);
         for want in [
-            "        failing tests (13):\n          liella-y::t crash\n            (no panic message in the output; see the log)\n          liella-y::t case_0\n            | thread 'case_0' (120) panicked at tests/t.rs:0:1:\n            | boom 0xxx",
-            "xxx [line cut]\n          liella-y::t case_1\n            | thread 'case_1' (121) panicked at tests/t.rs:1:1:\n            | boom 1\n          liella-y::t case_2\n",
-            "          liella-y::t case_8\n            | thread 'case_8' (128) panicked at tests/t.rs:8:1:\n            | boom 8\n          ... and 3 more failing tests",
+            "        failing tests (13):\n          niji-y::t crash\n            (no panic message in the output; see the log)\n          niji-y::t case_0\n            | thread 'case_0' (120) panicked at tests/t.rs:0:1:\n            | boom 0xxx",
+            "xxx [line cut]\n          niji-y::t case_1\n            | thread 'case_1' (121) panicked at tests/t.rs:1:1:\n            | boom 1\n          niji-y::t case_2\n",
+            "          niji-y::t case_8\n            | thread 'case_8' (128) panicked at tests/t.rs:8:1:\n            | boom 8\n          ... and 3 more failing tests",
             "        full output: /x/affected.log (this step from line 7)\n",
         ] {
             assert!(r.contains(want), "missing {want:?} in {r}");
         }
         assert!(!r.contains("case_9\n") && !r.contains("'fine'") && !r.contains("not this one"), "{r}");
         assert!(r.lines().all(|l| l.chars().count() <= EARLY_WIDTH + 30), "a line was not cut: {r}");
-        let build = failed_tests_report("== test -p liella-y\nerror[E0425]: cannot find value `x` in this scope\n  --> tests/t.rs:1:1\n", "liella-y", Path::new("/x/affected.log"), 1);
+        let build = failed_tests_report("== test -p niji-y\nerror[E0425]: cannot find value `x` in this scope\n  --> tests/t.rs:1:1\n", "niji-y", Path::new("/x/affected.log"), 1);
         assert_eq!(build, "        no failing test named in the step's output (a build error, or a runner that did not finish)\n          error[E0425]: cannot find value `x` in this scope\n        full output: /x/affected.log (this step from line 1)\n");
     }
 
@@ -4182,10 +4182,10 @@ for n in "$@"; do
        echo "x.c:1: error: boom" > $b/nobuild.log
        echo "conformance: FAIL nobuild (does not build; see conformance/build/nobuild.log)"; fail=$((fail + 1)) ;;
   dyn) echo STALE-DYN-OUT > $b/dyn.log.stdout; echo STALE-DYN-ERR > $b/dyn.log.stderr
-       echo "dyn-ref-out" > $b/dyn.log.ref.stdout; echo "dyn-liella-out" > $b/dyn.log.liella.stdout
-       echo "dyn-liella-err" > $b/dyn.log.liella.stderr
-       echo "conformance: dyn (Liella): status 139, expected 0"; echo "conformance: dyn (Liella): stderr lacks: dyn text"
-       echo "conformance: FAIL dyn on Liella (stderr: conformance/build/dyn.log.liella.stderr)"; fail=$((fail + 1)) ;;
+       echo "dyn-ref-out" > $b/dyn.log.ref.stdout; echo "dyn-niji-out" > $b/dyn.log.niji.stdout
+       echo "dyn-niji-err" > $b/dyn.log.niji.stderr
+       echo "conformance: dyn (libniji): status 139, expected 0"; echo "conformance: dyn (libniji): stderr lacks: dyn text"
+       echo "conformance: FAIL dyn on libniji (stderr: conformance/build/dyn.log.niji.stderr)"; fail=$((fail + 1)) ;;
   esac
 done
 echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
@@ -4224,8 +4224,8 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         let _ = fs::remove_dir_all(&root);
     }
 
-    // Trace: no spec clause (test-harness reporting, D-X.27, CONF-DYN-HELPERS): a dynamic-link program failing on Liella
-    // reports Liella's end with the run named and the tails of Liella's own stdout and stderr, not the reference's run
+    // Trace: no spec clause (test-harness reporting, D-X.27, CONF-DYN-HELPERS): a dynamic-link program failing on libniji
+    // reports libniji's end with the run named and the tails of libniji's own stdout and stderr, not the reference's run
     // or the static-mode files of an earlier build.
     #[test]
     fn a_failed_dynamic_link_conformance_program_reports_the_failing_run() {
@@ -4233,7 +4233,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         let log = root.join("target").join("affected.log");
         let (ok, report) = run_conformance(&root, &log, &["good", "dyn"]);
         assert!(!ok, "{report}");
-        let want = "conformance FAILED: dyn: Liella: killed by signal 11 SIGSEGV (status 139), expected 0; Liella: stderr lacks: dyn text\n  stdout (1 lines):\n    | dyn-liella-out\n  stderr (1 lines):\n    | dyn-liella-err\n";
+        let want = "conformance FAILED: dyn: libniji: killed by signal 11 SIGSEGV (status 139), expected 0; libniji: stderr lacks: dyn text\n  stdout (1 lines):\n    | dyn-niji-out\n  stderr (1 lines):\n    | dyn-niji-err\n";
         assert!(report.contains(want), "missing {want:?} in:\n{report}");
         for not in ["STALE-", "dyn-ref-out", "good"] {
             assert!(!report.contains(not), "unexpected {not:?} in:\n{report}");
@@ -4266,9 +4266,9 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             r#"run_dyn "$exe" "$hdir" ref"#,
             r#"verdict "$name (reference)" "$log.ref.stderr""#,
             r#"echo "conformance: FAIL $name on the reference (stderr: conformance/build/$name.log.ref.stderr)""#,
-            r#"run_dyn "$exe-liella" "$ldir" liella"#,
-            r#"verdict "$name (Liella)" "$log.liella.stderr""#,
-            r#"echo "conformance: FAIL $name on Liella (stderr: conformance/build/$name.log.liella.stderr)""#,
+            r#"run_dyn "$exe-niji" "$ldir" niji"#,
+            r#"verdict "$name (libniji)" "$log.niji.stderr""#,
+            r#"echo "conformance: FAIL $name on libniji (stderr: conformance/build/$name.log.niji.stderr)""#,
             r#"2>"$log.$3.stderr" >"$log.$3.stdout""#,
         ] {
             assert!(run.contains(want), "conformance/run.sh no longer has {want:?}: update conformance_failures");
@@ -4285,21 +4285,21 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         REPO.get_or_init(|| Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) })
     }
 
-    // TOOLS-7 (3): only one-line `liella_*` declarations are mappable; anything structural is not.
+    // TOOLS-7 (3): only one-line `niji_*` declarations are mappable; anything structural is not.
     #[test]
     fn header_symbols_reads_one_line_declarations_only() {
         let head = "diff --git a/csys/include/h.h b/csys/include/h.h\n--- a/csys/include/h.h\n+++ b/csys/include/h.h\n@@ -1,0 +2,3 @@\n";
         let d = |body: &str| format!("diff --git a/other.h b/other.h\n+struct s {{\n{head}{body}");
-        assert_eq!(header_symbols(&d("+/* c */\n+void *liella_a(void *d, const void *s, unsigned long n);\n-int liella_b(void);\n"), "csys/include/h.h"), Some(vec!["liella_a".to_string(), "liella_b".to_string()]));
-        for bad in ["+struct liella_s {\n", "+#define LIELLA_X(a) (a)\n", "+int liella_a(int a,\n", "+typedef int liella_t;\n", "+int not_ours(void);\n", "+static inline int liella_i(void) { return 0; }\n", "+/* only a comment */\n"] {
+        assert_eq!(header_symbols(&d("+/* c */\n+void *niji_a(void *d, const void *s, unsigned long n);\n-int niji_b(void);\n"), "csys/include/h.h"), Some(vec!["niji_a".to_string(), "niji_b".to_string()]));
+        for bad in ["+struct niji_s {\n", "+#define NIJI_X(a) (a)\n", "+int niji_a(int a,\n", "+typedef int niji_t;\n", "+int not_ours(void);\n", "+static inline int niji_i(void) { return 0; }\n", "+/* only a comment */\n"] {
             assert_eq!(header_symbols(&d(bad), "csys/include/h.h"), None, "{bad:?}");
         }
-        assert_eq!(header_symbols(&d("+int liella_a(void);\n"), "csys/include/zzz.h"), None, "other file's lines are not this file's");
+        assert_eq!(header_symbols(&d("+int niji_a(void);\n"), "csys/include/zzz.h"), None, "other file's lines are not this file's");
     }
 
     #[test]
     fn header_change_maps_to_users_or_escalates_and_k5_always_runs() {
-        let (_, s) = sel(&["csys/include/liella_csys.h"]);
+        let (_, s) = sel(&["csys/include/niji_csys.h"]);
         assert!(!s.full.is_empty() && s.k5, "no diff available: FULL, K5 flagged");
         let (_, s) = sel(&["crates/boundary/src/ffi.rs"]);
         assert!(s.k5, "ffi.rs changed: K5");
@@ -4309,12 +4309,12 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert!(!s.k5, "unrelated change: no K5");
         // With a diff: some symbol defined by an assembly source and used by Rust maps; a struct line does not.
         let mut probe = Repo::load(&root());
-        let syms: Vec<String> = probe.csys_refs.keys().filter(|k| k.starts_with("liella_")).cloned().collect();
+        let syms: Vec<String> = probe.csys_refs.keys().filter(|k| k.starts_with("niji_")).cloned().collect();
         let mut mapped = false;
         for sym in &syms {
-            probe.hdr_diff = Some(format!("diff --git a/csys/include/liella_csys.h b/csys/include/liella_csys.h\n+void {sym}(void);\n"));
+            probe.hdr_diff = Some(format!("diff --git a/csys/include/niji_csys.h b/csys/include/niji_csys.h\n+void {sym}(void);\n"));
             let mut sel = Selection::default();
-            if header_map(&probe, "csys/include/liella_csys.h", &mut sel) {
+            if header_map(&probe, "csys/include/niji_csys.h", &mut sel) {
                 // A user of the symbol may itself escalate (csys_user follows it as a changed file): try the next one.
                 if sel.full.is_empty() && !sel.clippy.is_empty() {
                     mapped = true;
@@ -4323,8 +4323,8 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             }
         }
         assert!(mapped, "no csys symbol maps (the rule never fires)");
-        probe.hdr_diff = Some("diff --git a/csys/include/liella_csys.h b/csys/include/liella_csys.h\n+struct liella_s {\n".into());
-        assert!(!header_map(&probe, "csys/include/liella_csys.h", &mut Selection::default()));
+        probe.hdr_diff = Some("diff --git a/csys/include/niji_csys.h b/csys/include/niji_csys.h\n+struct niji_s {\n".into());
+        assert!(!header_map(&probe, "csys/include/niji_csys.h", &mut Selection::default()));
     }
 
     fn sel(files: &[&str]) -> (&'static Repo, Selection) {
@@ -4372,14 +4372,14 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         for d in ["crates/native", "crates/thread-db", "crates/mathtools", "crates/spectest", "xtask"] {
             assert!(!r.image.dirs.contains(d), "{d} is not linked into libc.a");
         }
-        assert!(r.image.off.contains(&("liella-boundary".into(), "ld".into())) && !r.image.off.contains(&("liella-boundary".into(), "runtime".into())), "{:?}", r.image.off);
+        assert!(r.image.off.contains(&("niji-boundary".into(), "ld".into())) && !r.image.off.contains(&("niji-boundary".into(), "runtime".into())), "{:?}", r.image.off);
         for (k, t) in LAYOUT_TESTS {
             assert!(r.targets.iter().any(|x| x.krate == *k && x.name == *t && x.products), "{k}::{t} is no products test target");
         }
         // The ld tests that run the built `ld.so` from the products directory use the products
         // (TB-FOREIGN-SAFETY-6: a plant in ld.rs was tested against an unmutated `ld.so`).
         for t in ["tls", "ldso_run", "ldso_link", "init_order", "map", "search_cache"] {
-            assert_eq!(r.test_uses_products(Some("liella-ld"), t), Some(true), "liella-ld::{t} runs the built ld.so");
+            assert_eq!(r.test_uses_products(Some("niji-ld"), t), Some(true), "niji-ld::{t} runs the built ld.so");
         }
         for t in r.targets.iter().filter(|t| t.products && t.text[..t.own].contains("minflt") && t.text[..t.own].contains("-static")) {
             assert!(LAYOUT_TESTS.contains(&(t.krate.as_str(), t.name.as_str())), "{}::{} counts a static program's faults: add it to LAYOUT_TESTS", t.krate, t.name);
@@ -4387,34 +4387,34 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         let deps = link_deps("[dependencies]\na = { path = \"../a\", default-features = false, features = [\"x\", \"y\"] }\nb = { workspace = true }\n[dev-dependencies]\nc = \"1\"\n[target.'cfg(unix)'.dependencies]\nd = \"1\"\n");
         assert_eq!(deps.get("a"), Some(&Some(["x".to_string(), "y".to_string()].into())));
         assert_eq!((deps.get("b"), deps.contains_key("c"), deps.contains_key("d")), (Some(&None), false, true));
-        assert_eq!(features_on("[features]\nruntime = [\"export\"]\nselftest = [\"liella/selftest\"]\n", &["runtime".to_string()].into()), ["default", "export", "runtime"].iter().map(|s| s.to_string()).collect());
+        assert_eq!(features_on("[features]\nruntime = [\"export\"]\nselftest = [\"niji/selftest\"]\n", &["runtime".to_string()].into()), ["default", "export", "runtime"].iter().map(|s| s.to_string()).collect());
         assert_eq!(feature_gated_modules("#[cfg(feature = \"ld\")]\npub mod ld;\n#[cfg(any(feature = \"ld\"))]\nmod a;\nmod b;\n"), vec![("ld".to_string(), "ld".to_string())]);
     }
 
-    // XTASK-AFFECTED-LOADER, no spec clause: liella-math's tests take boundary with `selftest` only, and boundary uses
-    // liella-ld only in modules the libc and ld.so products build (`bootstrap`, `ld`, `arch`), so a loader change does
-    // not select liella-math's suites (DL-INIT-ORDER-2's gate ran them for 2203 s); the loader's own tests, boundary's,
-    // the conformance programs and the start-up layout tests still run. A math change, and a change to liella-rt
-    // (which both the loader and liella-math link), still select liella-math.
+    // XTASK-AFFECTED-LOADER, no spec clause: niji-math's tests take boundary with `selftest` only, and boundary uses
+    // niji-ld only in modules the libc and ld.so products build (`bootstrap`, `ld`, `arch`), so a loader change does
+    // not select niji-math's suites (DL-INIT-ORDER-2's gate ran them for 2203 s); the loader's own tests, boundary's,
+    // the conformance programs and the start-up layout tests still run. A math change, and a change to niji-rt
+    // (which both the loader and niji-math link), still select niji-math.
     #[test]
     fn a_loader_change_does_not_select_the_math_suites() {
-        let math = |s: &Selection| s.tests.keys().any(|(k, _)| k == "liella-math") || s.libs.contains_key("liella-math");
+        let math = |s: &Selection| s.tests.keys().any(|(k, _)| k == "niji-math") || s.libs.contains_key("niji-math");
         for tier in [Tier::Direct, Tier::Wide] {
             for f in ["crates/ld/src/lib.rs", "crates/ld/src/init.rs", "crates/ld/src/boot.rs"] {
                 let s = select_tier(repo(), &[f.to_string()], tier);
-                assert!(s.full.is_empty() && !math(&s), "{f} ({tier:?}) is loader code: no liella-math suite: {:?} {:?}", s.libs.keys().collect::<Vec<_>>(), s.tests.keys().filter(|(k, _)| k == "liella-math").collect::<Vec<_>>());
+                assert!(s.full.is_empty() && !math(&s), "{f} ({tier:?}) is loader code: no niji-math suite: {:?} {:?}", s.libs.keys().collect::<Vec<_>>(), s.tests.keys().filter(|(k, _)| k == "niji-math").collect::<Vec<_>>());
             }
             let s = select_tier(repo(), &["crates/ld/src/lib.rs".to_string()], tier);
-            assert!(s.tests.keys().any(|(k, _)| k == "liella-ld") && s.libs.contains_key("liella-boundary") && s.conf.len() == repo().conf.len() && has_test(&s, LAYOUT_TESTS[0].1), "{tier:?}: the loader's own tests, boundary's, every conformance program and the layout tests: {:?}", s.tests.keys().collect::<Vec<_>>());
+            assert!(s.tests.keys().any(|(k, _)| k == "niji-ld") && s.libs.contains_key("niji-boundary") && s.conf.len() == repo().conf.len() && has_test(&s, LAYOUT_TESTS[0].1), "{tier:?}: the loader's own tests, boundary's, every conformance program and the layout tests: {:?}", s.tests.keys().collect::<Vec<_>>());
             for f in ["crates/math/src/lib.rs", "crates/rt/src/lib.rs"] {
                 let s = select_tier(repo(), &[f.to_string()], tier);
-                assert!(math(&s) && s.tests.keys().any(|(k, t)| k == "liella-math" && t == "elem_products"), "{f} ({tier:?}): liella-math's suites run");
+                assert!(math(&s) && s.tests.keys().any(|(k, t)| k == "niji-math" && t == "elem_products"), "{f} ({tier:?}): niji-math's suites run");
             }
             let s = select_tier(repo(), &["crates/rt/src/lib.rs".to_string()], tier);
-            assert!(s.tests.keys().any(|(k, _)| k == "liella-ld"), "liella-rt ({tier:?}): the loader's suites run too");
+            assert!(s.tests.keys().any(|(k, _)| k == "niji-ld"), "niji-rt ({tier:?}): the loader's suites run too");
         }
         let r = repo();
-        assert!(r.dependents("liella-ld").contains("liella-boundary") && !r.dependents("liella-ld").contains("liella-math"), "{:?}", r.dependents("liella-ld"));
+        assert!(r.dependents("niji-ld").contains("niji-boundary") && !r.dependents("niji-ld").contains("niji-math"), "{:?}", r.dependents("niji-ld"));
         let gates = module_gates("#[cfg(any(feature = \"runtime\", feature = \"ld\"))]\nmod bootstrap;\n#[cfg(feature = \"ld\")]\npub mod ld;\n#[cfg(not(feature = \"x\"))]\nmod a;\n#[cfg(test)]\nmod b;\nmod c;\n");
         assert_eq!(gates, vec![(["ld".to_string(), "runtime".to_string()].into(), "bootstrap".to_string()), (["ld".to_string()].into(), "ld".to_string())]);
         let ws = dep_edges("[workspace.dependencies]\nb = { path = \"b\" }\n", "workspace.dependencies", None);
@@ -4425,10 +4425,10 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     #[test]
     fn model_has_the_workspace() {
         let repo = repo();
-        assert!(repo.crates.iter().any(|c| c.name == "liella-boundary"));
-        assert!(repo.dependents("liella").contains("liella-boundary"), "boundary depends on core");
-        assert!(repo.dependents("liella").contains("liella"), "a crate depends on itself here");
-        assert!(repo.dependents("liella-kernel").contains("liella-math") || repo.dependents("liella-kernel").contains("liella-boundary"));
+        assert!(repo.crates.iter().any(|c| c.name == "niji-boundary"));
+        assert!(repo.dependents("niji").contains("niji-boundary"), "boundary depends on core");
+        assert!(repo.dependents("niji").contains("niji"), "a crate depends on itself here");
+        assert!(repo.dependents("niji-kernel").contains("niji-math") || repo.dependents("niji-kernel").contains("niji-boundary"));
         assert!(repo.targets.len() > 100 && repo.conf.len() > 50, "{} targets, {} conformance", repo.targets.len(), repo.conf.len());
     }
 
@@ -4446,7 +4446,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             "xtask/src/trace.rs",
             "spec/clauses.tsv",
             "spec/abi/layouts.tsv",
-            "include/liella/native.h",
+            "include/niji/native.h",
             "crates/core/src/unicode/tables.rs",
             // XTASK-AFFECTED-MATH(-2): the math generated files outside the mapped set still escalate.
             "crates/math/fits/fast32_tables_gen.py",
@@ -4471,13 +4471,13 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     #[test]
     fn math_wiring_and_coefficients_select_the_math_suites_not_full() {
         let math_set: &[(&str, &str)] = &[
-            ("liella-boundary", "s10_math_symbols"),
-            ("liella-boundary", "math_fma_paths"),
-            ("liella-boundary", "libm_fma_select"),
-            ("liella-math", "s10_math_clauses"),
-            ("liella-math", "special_products"),
-            ("liella-math", "elem_products"),
-            ("liella-math", "fast64"),
+            ("niji-boundary", "s10_math_symbols"),
+            ("niji-boundary", "math_fma_paths"),
+            ("niji-boundary", "libm_fma_select"),
+            ("niji-math", "s10_math_clauses"),
+            ("niji-math", "special_products"),
+            ("niji-math", "elem_products"),
+            ("niji-math", "fast64"),
         ];
         for (f, cmd) in [
             (MATH_TSV, "math-gen --check"),
@@ -4493,16 +4493,16 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
                 for (c, t) in math_set {
                     assert!(s.tests.contains_key(&(c.to_string(), t.to_string())), "{f} ({tier:?}): {c}::{t} not selected");
                 }
-                // Every liella-math suite, and every target whose own source names the math exports or libm.
+                // Every niji-math suite, and every target whose own source names the math exports or libm.
                 for t in repo().targets.iter().filter(|t| {
                     let own = &t.text[..t.own.min(t.text.len())];
                     t.krate == MATH_CRATE || own.contains("s10_math") || own.contains("libm")
                 }) {
                     assert!(s.tests.contains_key(&(t.krate.clone(), t.name.clone())), "{f} ({tier:?}): {}::{} not selected", t.krate, t.name);
                 }
-                assert!(s.libs.contains_key("liella-boundary") && s.libs.contains_key("liella-math"), "{f} ({tier:?}): unit tests {:?}", s.libs.keys());
+                assert!(s.libs.contains_key("niji-boundary") && s.libs.contains_key("niji-math"), "{f} ({tier:?}): unit tests {:?}", s.libs.keys());
                 // Targeted, not everything: a test of another section stays out.
-                assert!(!s.tests.contains_key(&("liella-core".to_string(), "s04_strings_clauses".to_string())), "{f} ({tier:?}) selected a string test");
+                assert!(!s.tests.contains_key(&("niji-core".to_string(), "s04_strings_clauses".to_string())), "{f} ({tier:?}) selected a string test");
             }
         }
         // The coefficient family's users come from the `coeffs` module: its one-hop users' targets are a subset.
@@ -4542,7 +4542,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
                 assert!(root().join(f).is_file(), "{f} is not in the tree");
                 let s = select_tier(repo(), &[f.to_string()], tier);
                 assert!(s.full.is_empty(), "{f} ({tier:?}) must not escalate: {:?}", s.full);
-                assert!(s.libs.contains_key("liella-mathtools"), "{f} ({tier:?}): its own unit tests {:?}", s.libs.keys());
+                assert!(s.libs.contains_key("niji-mathtools"), "{f} ({tier:?}): its own unit tests {:?}", s.libs.keys());
                 let checks: BTreeSet<&str> = s.xtask_cmds.iter().map(String::as_str).filter(|c| c.starts_with("remez") || c.starts_with("tables") || c.starts_with("kernel-index")).collect();
                 assert_eq!(checks, want.iter().copied().collect::<BTreeSet<_>>(), "{f} ({tier:?})");
             }
@@ -4551,7 +4551,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
 
     // XTASK-AFFECTED-MATH-2 (ruling #3204), no spec clause: a fit file selects its family's math set (everything its
     // generated coefficient file selects) plus `remez --check <fit>`; the tables generator selects its own mapping as a
-    // liella-mathtools source, the whole math set, `tables --check` and `kernel-index --check`. Not FULL, in the direct
+    // niji-mathtools source, the whole math set, `tables --check` and `kernel-index --check`. Not FULL, in the direct
     // and wide tiers.
     #[test]
     fn math_fits_and_tables_generator_select_the_math_set_not_full() {
@@ -4568,21 +4568,21 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
                 for cmd in cmds {
                     assert!(s.xtask_cmds.contains(*cmd), "{f} ({tier:?}): `cargo xtask {cmd}` not selected: {:?}", s.xtask_cmds);
                 }
-                // Everything the family's coefficient file selects (the math export suites, every liella-math suite).
+                // Everything the family's coefficient file selects (the math export suites, every niji-math suite).
                 for k in coeffs.tests.keys() {
                     assert!(s.tests.contains_key(k), "{f} ({tier:?}) misses {k:?}, which coeffs/fast32_sin.rs selects");
                 }
                 for k in coeffs.libs.keys().chain(coeffs.clippy.keys()) {
                     assert!(s.libs.contains_key(k) || s.clippy.contains_key(k), "{f} ({tier:?}) misses the crate {k}");
                 }
-                assert!(!s.tests.contains_key(&("liella-core".to_string(), "s04_strings_clauses".to_string())), "{f} ({tier:?}) selected a string test");
+                assert!(!s.tests.contains_key(&("niji-core".to_string(), "s04_strings_clauses".to_string())), "{f} ({tier:?}) selected a string test");
             }
-            // The generator is also a liella-mathtools source: its own crate's unit tests and its ordinary mapping.
+            // The generator is also a niji-mathtools source: its own crate's unit tests and its ordinary mapping.
             let s = select_tier(repo(), &[MATH_TABLES_GEN.to_string()], tier);
-            assert!(s.libs.contains_key("liella-mathtools"), "{MATH_TABLES_GEN} ({tier:?}): unit tests {:?}", s.libs.keys());
+            assert!(s.libs.contains_key("niji-mathtools"), "{MATH_TABLES_GEN} ({tier:?}): unit tests {:?}", s.libs.keys());
             let mut own = Selection { direct: tier == Tier::Direct, ..Selection::default() };
             ordinary_mapping(repo(), MATH_TABLES_GEN, &mut own);
-            assert!(own.libs.contains_key("liella-mathtools"), "the ordinary mapping of {MATH_TABLES_GEN} ({tier:?}): {:?}", own.libs.keys());
+            assert!(own.libs.contains_key("niji-mathtools"), "the ordinary mapping of {MATH_TABLES_GEN} ({tier:?}): {:?}", own.libs.keys());
             for k in own.libs.keys() {
                 assert!(s.libs.contains_key(k), "{MATH_TABLES_GEN} ({tier:?}) misses the unit tests of {k} of its own mapping");
             }
@@ -4595,8 +4595,8 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         }
     }
 
-    // TS-2b: the exact output of an empty nextest run, as `cargo xtask nextest -p liella-ld` prints it.
-    const NO_TESTS: &str = "== test -p liella-ld\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s\n────────────\n Nextest run ID fcec0948 with nextest profile: default\n    Starting 0 tests across 1 binary\n────────────\n     Summary [   0.000s] 0 tests run: 0 passed, 0 skipped\nerror: no tests to run\n(hint: use `--no-tests` to customize)\ntest result: FAILED. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.000s (nextest)\nxtask nextest: cd \"/h/w/b\" && \"cargo\" \"nextest\" \"run\" \"-p\" \"liella-ld\" failed: exit status: 4\n";
+    // TS-2b: the exact output of an empty nextest run, as `cargo xtask nextest -p niji-ld` prints it.
+    const NO_TESTS: &str = "== test -p niji-ld\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s\n────────────\n Nextest run ID fcec0948 with nextest profile: default\n    Starting 0 tests across 1 binary\n────────────\n     Summary [   0.000s] 0 tests run: 0 passed, 0 skipped\nerror: no tests to run\n(hint: use `--no-tests` to customize)\ntest result: FAILED. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.000s (nextest)\nxtask nextest: cd \"/h/w/b\" && \"cargo\" \"nextest\" \"run\" \"-p\" \"niji-ld\" failed: exit status: 4\n";
 
     #[test]
     fn an_empty_selection_is_a_skip_and_a_real_failure_is_not() {
@@ -4607,7 +4607,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         // A failed test, a build error, another exit status, and a bare empty-summary line are all FAILED.
         let failed_test = "     Summary [1s] 3 tests run: 2 passed, 1 failed, 0 skipped\n---- x::y stdout ----\ntest result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\nxtask nextest: cmd failed: exit status: 100\n";
         assert_eq!(classify_step(false, failed_test, true), Outcome::Failed);
-        let build = "error[E0425]: cannot find value `x`\nerror: could not compile `liella-ld`\nxtask nextest: cmd failed: exit status: 101\n";
+        let build = "error[E0425]: cannot find value `x`\nerror: could not compile `niji-ld`\nxtask nextest: cmd failed: exit status: 101\n";
         assert_eq!(classify_step(false, build, true), Outcome::Failed);
         let zero_only = "test result: FAILED. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in ?s (nextest: no summary line - the run did not finish)\nxtask nextest: cmd failed: exit status: 101\n";
         assert_eq!(classify_step(false, zero_only, true), Outcome::Failed, "0 passed / 0 failed is not the message");
@@ -4678,11 +4678,11 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         let has = |s: &Selection, k: &str, n: &str| s.tests.contains_key(&(k.to_string(), n.to_string()));
         for t in [Tier::Direct, Tier::Wide] {
             let s = tier(&["spec/behaviour/aio.glibc.txt"], t);
-            assert!(s.full.is_empty() && has(&s, "liella", "aio_products") && s.xtask_cmds.contains("static"), "{t:?}: {s:?}");
-            assert!(!has(&s, "liella", "syslog_products"), "only the readers: {s:?}");
+            assert!(s.full.is_empty() && has(&s, "niji", "aio_products") && s.xtask_cmds.contains("static"), "{t:?}: {s:?}");
+            assert!(!has(&s, "niji", "syslog_products"), "only the readers: {s:?}");
             // Read by a test target and by a crate's unit-test module (`pattern::regex_oracle_diff`).
             let s = tier(&["spec/behaviour/patterns.glibc.txt.gz"], t);
-            assert!(has(&s, "liella", "regex_record") && has(&s, "liella", "patterns_products") && s.libs.contains_key("liella"), "{t:?}: {s:?}");
+            assert!(has(&s, "niji", "regex_record") && has(&s, "niji", "patterns_products") && s.libs.contains_key("niji"), "{t:?}: {s:?}");
             // Read by this command (`Repo::load`), so by the xtask unit tests.
             let s = tier(&["docs/codemap/symbols.tsv"], t);
             assert!(s.full.is_empty() && s.xtask_tests, "{t:?}: {s:?}");
@@ -4775,7 +4775,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     fn a_test_file_selects_its_target() {
         let (_, s) = sel(&["crates/core/tests/printf_products.rs"]);
         assert!(s.full.is_empty() && s.tests.len() == 1 && has_test(&s, "printf_products"), "{s:?}");
-        assert!(s.conf.is_empty() && s.clippy.contains_key("liella"));
+        assert!(s.conf.is_empty() && s.clippy.contains_key("niji"));
     }
 
     #[test]
@@ -4851,7 +4851,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
 
     #[test]
     fn csys_assembly_selects_the_users_of_its_symbols() {
-        // restorer.S defines only `liella_` symbols, used by a plain function of sys.rs. (scan.S,
+        // restorer.S defines only `niji_` symbols, used by a plain function of sys.rs. (scan.S,
         // the earlier example, defines the C symbol `memchr` since MEMCHR-2: it escalates.)
         let (repo, s) = sel(&["csys/src/machine/restorer.S"]);
         assert!(s.full.is_empty(), "{:?}", s.full);
@@ -4859,7 +4859,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert!(s.notes.iter().any(|n| n.contains("crates/boundary/src/sys.rs")), "{:?}", s.notes);
         // Independent check: every test that names one of its symbols is selected.
         let syms = repo.csys["csys/src/machine/restorer.S"].symbols.clone().unwrap_or_default();
-        assert!(syms.iter().any(|x| x == "liella_machine_restorer"), "{syms:?}");
+        assert!(syms.iter().any(|x| x == "niji_machine_restorer"), "{syms:?}");
         for t in repo.targets.iter().filter(|t| syms.iter().any(|x| t.text.contains(x.as_str()))) {
             assert!(s.tests.contains_key(&(t.krate.clone(), t.name.clone())), "{}::{} names a restorer.S symbol", t.krate, t.name);
         }
@@ -4870,14 +4870,14 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
 
     #[test]
     fn function_spans_and_traits() {
-        let src = "pub fn a() {\n    ffi::liella_x();\n}\n\nfn b(\n    v: u8,\n) -> u8 {\n    a();\n    v\n}\n\nfn c() {}\n\nimpl Machine for Sys {\n    fn m(&self) {\n        b(1);\n    }\n}\n";
-        let w = ["liella_x".to_string()];
+        let src = "pub fn a() {\n    ffi::niji_x();\n}\n\nfn b(\n    v: u8,\n) -> u8 {\n    a();\n    v\n}\n\nfn c() {}\n\nimpl Machine for Sys {\n    fn m(&self) {\n        b(1);\n    }\n}\n";
+        let w = ["niji_x".to_string()];
         assert_eq!(affected_fns(src, &w), Some(BTreeSet::from(["a".to_string(), "b".to_string(), "m".to_string()])));
         assert!(in_trait(src, "m") && !in_trait(src, "a") && !in_trait(src, "b"));
         // Outside every function, or a C entry point: unsure.
-        assert_eq!(affected_fns("static P: fn() = liella_x;\n", &w), None);
-        assert_eq!(affected_fns("#[unsafe(no_mangle)]\npub extern \"C\" fn e() {\n    liella_x();\n}\n", &w), None);
-        assert_eq!(affected_fns("fn e() {\n    liella_x();\n}\nexport!(e);\n", &w), None);
+        assert_eq!(affected_fns("static P: fn() = niji_x;\n", &w), None);
+        assert_eq!(affected_fns("#[unsafe(no_mangle)]\npub extern \"C\" fn e() {\n    niji_x();\n}\n", &w), None);
+        assert_eq!(affected_fns("fn e() {\n    niji_x();\n}\nexport!(e);\n", &w), None);
     }
 
     #[test]
@@ -4889,7 +4889,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             "csys/src/machine/new_file.S", // not in the tree
             "csys/src/sys/lock.c",         // generated
             "csys/src/adapter/va.c",       // C: not read statically
-            "csys/include/liella_csys.h",  // a header (no .changed.hdr diff in the unit tests' repo: not mappable)
+            "csys/include/niji_csys.h",  // a header (no .changed.hdr diff in the unit tests' repo: not mappable)
             "csys/syscalls.tsv",           // a generator input
         ] {
             let (_, s) = sel(&[f]);
@@ -4922,7 +4922,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         for f in ["csys/src/machine/scan.S", "csys/src/machine/fold.S"] {
             assert!(has_test(direct(f), "scanner_races"), "{f}: scanner_races must be selected in the direct tier");
         }
-        // fold.S defines `liella_machine_chr_limit`, read by scan.S: the sibling is mapped as if it changed (direct tier).
+        // fold.S defines `niji_machine_chr_limit`, read by scan.S: the sibling is mapped as if it changed (direct tier).
         let d = &fold;
         assert!(d.notes.iter().any(|n| n.contains("mapped as if it changed") && n.contains("scan.S")), "{:?}", d.notes);
         for f in ["csys/src/machine/setjmp.S", "csys/src/machine/context.S", "csys/src/machine/entry.S"] {
@@ -4940,7 +4940,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     #[test]
     fn layout_manifest_names_select_the_layout_check() {
         // Trace: no spec clause (test-harness tooling; LAYOUT-MANIFEST-2, D-X.48).
-        // The layout manifest and its checker name scan.S symbols (`libc.a:liella_machine_rawmemchr_entry`): in the
+        // The layout manifest and its checker name scan.S symbols (`libc.a:niji_machine_rawmemchr_entry`): in the
         // direct tier that selects `cargo xtask layout-check` on fresh products, not FULL. Read against the CSYS-MAP-2
         // fixture with one reference from each consumer added, so a manifest edit cannot break this test.
         // The live manifest is scanned: each csys symbol it names has a reference from it.
@@ -4953,7 +4953,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             assert!(live.csys_refs.get(*w).is_some_and(|v| v.iter().any(|r| r.file == LAYOUT_CONSUMERS[0])), "`{w}`: no reference from {}", LAYOUT_CONSUMERS[0]);
         }
         let mut fx = machine_fixture(&[]);
-        let s = fx.csys["csys/src/machine/scan.S"].symbols.as_ref().and_then(|v| v.iter().find(|s| s.starts_with("liella_")).cloned()).expect("a liella_ symbol of scan.S");
+        let s = fx.csys["csys/src/machine/scan.S"].symbols.as_ref().and_then(|v| v.iter().find(|s| s.starts_with("niji_")).cloned()).expect("a niji_ symbol of scan.S");
         for c in LAYOUT_CONSUMERS {
             fx.csys_refs.entry(s.clone()).or_default().push(SymRef { file: c.to_string(), decl: false });
         }
@@ -4971,19 +4971,19 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert!(u.full.iter().any(|w| w.contains("tools/unknown.txt")), "{:?}", u.full);
     }
 
-    /// CSYS-MAP-2 fixture: the exported (non-`liella_`) symbols of the listed machine files, fixed; scan.S gets `extra` too.
+    /// CSYS-MAP-2 fixture: the exported (non-`niji_`) symbols of the listed machine files, fixed; scan.S gets `extra` too.
     const FIXTURE_EXPORTS: &[(&str, &[&str])] = &[
         ("fold.S", &["memmove", "memcpy", "mempcpy", "__mempcpy", "memset", "memcmp", "bcmp", "__memcmpeq"]),
         ("scan.S", &["memchr"]),
     ];
 
-    /// The live repository with the listed machine files' exports replaced by `FIXTURE_EXPORTS` (their `liella_`
+    /// The live repository with the listed machine files' exports replaced by `FIXTURE_EXPORTS` (their `niji_`
     /// symbols, which tie the files to their Rust users and to each other, stay live).
     fn machine_fixture(extra: &[&str]) -> Repo {
         let mut r = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) };
         for (file, exports) in FIXTURE_EXPORTS {
             let c = r.csys.get_mut(&format!("csys/src/machine/{file}")).expect("listed machine file");
-            let mut syms: Vec<String> = c.symbols.take().expect("readable").into_iter().filter(|s| s.starts_with("liella_")).collect();
+            let mut syms: Vec<String> = c.symbols.take().expect("readable").into_iter().filter(|s| s.starts_with("niji_")).collect();
             syms.extend(exports.iter().map(|s| s.to_string()));
             if *file == "scan.S" {
                 syms.extend(extra.iter().map(|s| s.to_string()));
@@ -4995,27 +4995,27 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
 
     #[test]
     fn csys_symbol_reading() {
-        assert_eq!(csys_symbols("a.S", "\t.globl liella_a, liella_b\n\t.weak w\nliella_c:\n.Llocal:\n\tret\n"), Some(vec!["liella_a".into(), "liella_b".into(), "liella_c".into(), "w".into()]));
-        assert_eq!(csys_symbols("a.S", "#include \"x.h\"\n\t.globl liella_a\n"), None);
+        assert_eq!(csys_symbols("a.S", "\t.globl niji_a, niji_b\n\t.weak w\nniji_c:\n.Llocal:\n\tret\n"), Some(vec!["niji_a".into(), "niji_b".into(), "niji_c".into(), "w".into()]));
+        assert_eq!(csys_symbols("a.S", "#include \"x.h\"\n\t.globl niji_a\n"), None);
         assert_eq!(csys_symbols("a.S", ".macro M\n.endm\n"), Some(vec![]));
-        assert_eq!(csys_symbols("a.S", ".macro M b\n.Lx\\@:\n\tjmp liella_y+\\b\n.endm\n#define SLOT 4032\nliella_z:\n"), Some(vec!["liella_z".into()]));
-        assert_eq!(csys_symbols("a.S", ".macro M\n\t.globl liella_a\n.endm\n"), None);
-        assert_eq!(csys_symbols("a.S", ".macro M\nliella_a:\n.endm\n"), None);
-        assert_eq!(csys_symbols("a.S", "#define memset liella_a\n"), None);
+        assert_eq!(csys_symbols("a.S", ".macro M b\n.Lx\\@:\n\tjmp niji_y+\\b\n.endm\n#define SLOT 4032\nniji_z:\n"), Some(vec!["niji_z".into()]));
+        assert_eq!(csys_symbols("a.S", ".macro M\n\t.globl niji_a\n.endm\n"), None);
+        assert_eq!(csys_symbols("a.S", ".macro M\nniji_a:\n.endm\n"), None);
+        assert_eq!(csys_symbols("a.S", "#define memset niji_a\n"), None);
         assert_eq!(csys_symbols("a.S", "#define SLOT(x) x\n"), None);
         // TOOLS-9: a one-line .symver alias maps to the alias and the exported name; a malformed one stays unmappable.
         assert_eq!(
-            csys_symbols("a.S", "\t.globl liella_x_alias\nliella_x_alias:\n\tjmp liella_x@PLT\n\t.symver liella_x_alias, stime@GLIBC_2.2.5\n"),
-            Some(vec!["liella_x_alias".into(), "stime".into()])
+            csys_symbols("a.S", "\t.globl niji_x_alias\nniji_x_alias:\n\tjmp niji_x@PLT\n\t.symver niji_x_alias, stime@GLIBC_2.2.5\n"),
+            Some(vec!["niji_x_alias".into(), "stime".into()])
         );
         assert_eq!(csys_symbols("a.S", "\t.symver a, b@@V\n"), Some(vec!["a".into(), "b".into()]));
         assert_eq!(csys_symbols("a.S", "\t.symver a\n"), None);
         assert_eq!(csys_symbols("a.S", "\t.symver a, b\n"), None);
-        assert_eq!(csys_symbols("a.c", "long liella_a(void) { return 0; }\n"), None);
-        let syms = BTreeSet::from(["liella_a".to_string()]);
+        assert_eq!(csys_symbols("a.c", "long niji_a(void) { return 0; }\n"), None);
+        let syms = BTreeSet::from(["niji_a".to_string()]);
         let mut out = BTreeMap::new();
-        sym_refs("x.rs", "    pub(crate) safe fn liella_a(s: *const u8) -> usize;\n    /// As `liella_a`\n    let n = ffi::liella_a(p);\n", &syms, &mut out);
-        let r = &out["liella_a"];
+        sym_refs("x.rs", "    pub(crate) safe fn niji_a(s: *const u8) -> usize;\n    /// As `niji_a`\n    let n = ffi::niji_a(p);\n", &syms, &mut out);
+        let r = &out["niji_a"];
         assert_eq!(r.iter().map(|r| r.decl).collect::<Vec<_>>(), [true, false], "a declaration, a comment (skipped), a use");
     }
 
@@ -5039,14 +5039,14 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     #[test]
     fn a_bin_only_package_runs_its_unit_tests_through_its_bins() {
         // no spec clause: XTASK-AFFECTED-XTASK-TESTS (D-X.41). xtask has no library target, so `--lib` fails the build;
-        // a library crate keeps `--lib`. xtask is reached through `wide` of a crate it depends on (liella-ld).
+        // a library crate keeps `--lib`. xtask is reached through `wide` of a crate it depends on (niji-ld).
         let r = repo();
         assert_eq!(unit_tests_flag(r, "xtask"), "--bins");
-        assert_eq!(unit_tests_flag(r, "liella"), "--lib");
-        assert_eq!(unit_tests_flag(r, "liella-ld"), "--lib");
+        assert_eq!(unit_tests_flag(r, "niji"), "--lib");
+        assert_eq!(unit_tests_flag(r, "niji-ld"), "--lib");
         let mut s = Selection::default();
-        s.wide(r, "liella-ld", "probe");
-        assert!(s.libs.contains_key("xtask"), "xtask depends on liella-ld: {:?}", s.libs.keys());
+        s.wide(r, "niji-ld", "probe");
+        assert!(s.libs.contains_key("xtask"), "xtask depends on niji-ld: {:?}", s.libs.keys());
     }
 
     const MODULE: &str = "fn run() {\n    work();\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn t() {\n        run();\n    }\n}\n";
@@ -5184,7 +5184,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     }
 
     /// Does xtask source `text` name module `m` (`m::` after `crate::`, `super::` or a non-path character, or `m`
-    /// inside a `crate::{...}` import)? `liella_ld::arch::` is another crate's module, not xtask's `arch`.
+    /// inside a `crate::{...}` import)? `niji_ld::arch::` is another crate's module, not xtask's `arch`.
     fn names_xtask_module(text: &str, m: &str) -> bool {
         let pat = format!("{m}::");
         let path_use = text.match_indices(&pat).any(|(i, _)| {
@@ -5238,12 +5238,12 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     #[test]
     fn only_mode_selects_exactly_the_named_binaries() {
         let repo = repo();
-        let s = select_only(repo, "s12_stdio_clauses,conformance:s12_printf,lib:liella-math").unwrap_or_else(|e| panic!("{e}"));
+        let s = select_only(repo, "s12_stdio_clauses,conformance:s12_printf,lib:niji-math").unwrap_or_else(|e| panic!("{e}"));
         assert!(s.only && s.full.is_empty() && s.tests.len() == 1 && has_test(&s, "s12_stdio_clauses"));
         assert!(s.conf.len() == 1 && s.conf.contains_key("s12_printf") && s.libs.len() == 1 && s.clippy.is_empty());
         let krate = &s.tests.keys().next().map(|(c, _)| c.clone()).unwrap_or_default();
         assert!(select_only(repo, &format!("{krate}::s12_stdio_clauses")).is_ok());
-        for bad in ["no_such_target", "conformance:no_such", "lib:no-such", "", "liella-thread-db::s12_stdio_clauses"] {
+        for bad in ["no_such_target", "conformance:no_such", "lib:no-such", "", "niji-thread-db::s12_stdio_clauses"] {
             assert!(select_only(repo, bad).is_err(), "{bad}");
         }
     }
@@ -5270,7 +5270,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     }
 
     // GATE-TIER-2 red-before-green: a conformance program is C, so no module name reaches it; it is reached through the
-    // entry points it calls. s12_printf calls `printf`/`snprintf` (csys -> `liella_vfprintf4` etc., whose bodies name
+    // entry points it calls. s12_printf calls `printf`/`snprintf` (csys -> `niji_vfprintf4` etc., whose bodies name
     // boundary::printf, a one-hop user of core::printf). Before: 0 conformance programs for a core printf change.
     #[test]
     fn direct_tier_reaches_conformance_programs_through_their_entry_points() {
@@ -5292,7 +5292,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     }
 
     // GATE-TIER-2 red-before-green: a module re-exported at its crate root resolves to the modules naming the
-    // re-exported items (`liella_kernel::Errno`), so it stays direct. Before: wide (every dependent crate).
+    // re-exported items (`niji_kernel::Errno`), so it stays direct. Before: wide (every dependent crate).
     #[test]
     fn direct_tier_resolves_re_exports_to_their_users() {
         let repo = repo();
@@ -5301,7 +5301,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert!(root.reexports.iter().any(|st| st.contains("errno") && st.contains("Errno") && !st.contains("*")), "kernel re-exports errno::Errno");
         let d = tier(&["crates/kernel/src/errno.rs"], Tier::Direct);
         assert!(d.full.is_empty() && d.wide_crates.is_empty(), "stays direct: wide {:?}", d.wide_crates);
-        // Library modules import `liella_kernel::errno::Errno`; test targets name the re-export (`liella_kernel::Errno`).
+        // Library modules import `niji_kernel::errno::Errno`; test targets name the re-export (`niji_kernel::Errno`).
         let via_item: Vec<&Target> = repo.targets.iter().filter(|t| t.krate != kernel && t.refs.contains(&(Some(kernel.clone()), "Errno".to_string()))).collect();
         assert!(!via_item.is_empty(), "some test target names the re-exported `Errno`");
         for t in via_item {
@@ -5322,7 +5322,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             }
             assert!(d.tests.keys().all(|k| w.tests.contains_key(k)), "{f}: direct must be inside wide");
             assert!(d.tests.len() < w.tests.len(), "{f}: direct {} vs wide {} targets", d.tests.len(), w.tests.len());
-            assert!(d.libs.contains_key("liella"), "{f}: the owning crate's unit tests");
+            assert!(d.libs.contains_key("niji"), "{f}: the owning crate's unit tests");
         }
         let d = tier(&["crates/core/src/printf.rs"], Tier::Direct);
         assert!(has_test(&d, "printf_products") && !has_test(&d, "s18_processes_clauses"), "{:?}", d.tests.keys());
@@ -5334,11 +5334,11 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     fn direct_tier_follows_one_hop_users() {
         let repo = repo();
         let d = tier(&["crates/core/src/printf.rs"], Tier::Direct);
-        let users: Vec<&Node> = repo.nodes.iter().filter(|n| d.modules.contains(&(n.krate.clone(), n.name.clone())) && !(n.krate == "liella" && n.name == "printf")).collect();
+        let users: Vec<&Node> = repo.nodes.iter().filter(|n| d.modules.contains(&(n.krate.clone(), n.name.clone())) && !(n.krate == "niji" && n.name == "printf")).collect();
         assert!(!users.is_empty(), "core::printf has one-hop users");
         // Some change in core selects a target through the name of a one-hop user (not the changed module).
         let mut via_user = Vec::new();
-        for n in repo.nodes.iter().filter(|n| n.krate == "liella" && !n.root) {
+        for n in repo.nodes.iter().filter(|n| n.krate == "niji" && !n.root) {
             let f = format!("crates/core/src/{}.rs", n.name);
             let s = tier(&[f.as_str()], Tier::Direct);
             via_user.extend(s.tests.iter().filter(|(_, why)| why.contains("names `") && !why.contains(&format!("names `{}`", n.name))).map(|(k, _)| (n.name.clone(), k.clone())));
@@ -5352,7 +5352,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     // GATE-TIER: the tier does not touch the escalations, and `full` is everything.
     #[test]
     fn direct_tier_keeps_the_full_escalations_and_root_files_stay_wide() {
-        for f in ["csys/src/x.c", "crates/abi/src/lib.rs", "Cargo.toml", "crates/boundary/build.rs", "xtask/src/main.rs", "spec/clauses.tsv", "include/liella/native.h", "crates/libc-so/src/lib.rs"] {
+        for f in ["csys/src/x.c", "crates/abi/src/lib.rs", "Cargo.toml", "crates/boundary/build.rs", "xtask/src/main.rs", "spec/clauses.tsv", "include/niji/native.h", "crates/libc-so/src/lib.rs"] {
             assert!(!tier(&[f], Tier::Direct).full.is_empty(), "{f} must stay FULL in the direct tier");
         }
         assert!(!tier(&["docs/x.md"], Tier::Full).full.is_empty(), "--tier full escalates");
@@ -5363,16 +5363,16 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     }
 
     // GATE-TIER-3: an rt-internal module reaches its own crate's test targets (REALLOC-GROW-2: a heap.rs plant must run
-    // liella-rt::heap_and_sync). Every liella-rt target naming an rt module is selected for a change to it.
+    // niji-rt::heap_and_sync). Every niji-rt target naming an rt module is selected for a change to it.
     #[test]
     fn direct_tier_selects_the_own_crate_targets_of_an_internal_module() {
         let repo = repo();
         let d = tier(&["crates/rt/src/heap.rs"], Tier::Direct);
-        assert!(d.tests.contains_key(&("liella-rt".to_string(), "heap_and_sync".to_string())), "{:?}", d.tests.keys().collect::<Vec<_>>());
-        assert!(d.libs.contains_key("liella-rt"));
-        for n in repo.nodes.iter().filter(|n| n.krate == "liella-rt" && !n.root) {
+        assert!(d.tests.contains_key(&("niji-rt".to_string(), "heap_and_sync".to_string())), "{:?}", d.tests.keys().collect::<Vec<_>>());
+        assert!(d.libs.contains_key("niji-rt"));
+        for n in repo.nodes.iter().filter(|n| n.krate == "niji-rt" && !n.root) {
             let s = tier(&[format!("crates/rt/src/{}.rs", n.name).as_str()], Tier::Direct);
-            for t in repo.targets.iter().filter(|t| t.krate == "liella-rt" && t.refs.contains(&(Some("liella-rt".to_string()), n.name.clone()))) {
+            for t in repo.targets.iter().filter(|t| t.krate == "niji-rt" && t.refs.contains(&(Some("niji-rt".to_string()), n.name.clone()))) {
                 assert!(s.tests.contains_key(&(t.krate.clone(), t.name.clone())), "{} not selected for rt::{}", t.name, n.name);
             }
         }
@@ -5383,16 +5383,16 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     #[test]
     fn direct_tier_maps_a_support_file_to_the_targets_naming_it() {
         let repo = repo();
-        let all = repo.targets.iter().filter(|t| t.krate == "liella" && t.support.contains("oracle")).count();
+        let all = repo.targets.iter().filter(|t| t.krate == "niji" && t.support.contains("oracle")).count();
         let d = tier(&["crates/core/tests/oracle/aio_diff.c"], Tier::Direct);
-        assert!(d.tests.contains_key(&("liella".to_string(), "aio_products".to_string())), "{:?}", d.tests.keys().collect::<Vec<_>>());
+        assert!(d.tests.contains_key(&("niji".to_string(), "aio_products".to_string())), "{:?}", d.tests.keys().collect::<Vec<_>>());
         assert!(d.tests.len() < all, "{} of {all} oracle targets", d.tests.len());
         for (t, why) in &d.tests {
             let tt = repo.targets.iter().find(|x| x.krate == t.0 && x.name == t.1).unwrap_or_else(|| panic!("{t:?}"));
             assert!(tt.text[..tt.own].contains("aio_"), "{t:?} selected without naming the file: {why}");
         }
         // A Rust file of a support directory keeps the directory rule (it is reached through `mod`).
-        let names = |f: &str| support_namers(repo, "crates/core", "liella", &f.split('/').skip(3).collect::<Vec<_>>(), f);
+        let names = |f: &str| support_namers(repo, "crates/core", "niji", &f.split('/').skip(3).collect::<Vec<_>>(), f);
         assert!(names("crates/core/tests/oracle/x.rs").is_none());
         assert!(names("crates/core/tests/oracle/no_such_file_named.c").is_none(), "an unnamed file keeps the directory rule");
     }
@@ -5415,7 +5415,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     fn direct_tier_reaches_tests_whose_c_support_files_call_the_entry() {
         for f in ["crates/boundary/src/printf.rs", "crates/boundary/src/posix/s12_stdio.rs"] {
             let d = tier(&[f], Tier::Direct);
-            assert!(d.tests.contains_key(&("liella".to_string(), "aio_products".to_string())), "{f}: {:?}", d.tests.keys().collect::<Vec<_>>());
+            assert!(d.tests.contains_key(&("niji".to_string(), "aio_products".to_string())), "{f}: {:?}", d.tests.keys().collect::<Vec<_>>());
         }
     }
 
@@ -5423,16 +5423,16 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     #[test]
     fn replay_reports_failures_outside_the_tier() {
         let repo = repo();
-        let inside = "LOG a\nFILES crates/core/src/printf.rs\nFAILS FAILED: liella::printf_products x|STEP FAILED: test -p liella|\n";
+        let inside = "LOG a\nFILES crates/core/src/printf.rs\nFAILS FAILED: niji::printf_products x|STEP FAILED: test -p niji|\n";
         let (out, misses) = replay(repo, inside, Tier::Direct);
         assert_eq!(misses, 0, "{out}");
-        let outside = "LOG b\nFILES crates/core/src/printf.rs\nFAILS FAILED: liella-boundary::s18_processes_symbols x|\nLOG c\nFILES \nFAILS FAILED: liella::y z|\n";
+        let outside = "LOG b\nFILES crates/core/src/printf.rs\nFAILS FAILED: niji-boundary::s18_processes_symbols x|\nLOG c\nFILES \nFAILS FAILED: niji::y z|\n";
         let (out, misses) = replay(repo, outside, Tier::Direct);
         assert_eq!(misses, 1, "{out}");
-        assert!(out.contains("MISS liella-boundary::s18_processes_symbols") && out.contains("c: no changed files"), "{out}");
+        assert!(out.contains("MISS niji-boundary::s18_processes_symbols") && out.contains("c: no changed files"), "{out}");
         let (out, misses) = replay(repo, &format!("FLAKE s18_processes_symbols x\n{outside}"), Tier::Direct);
         assert!(misses == 0 && out.contains("1 outside but known flakes"), "{out}");
-        let (_, misses) = replay(repo, "LOG d\nFILES Cargo.toml\nFAILS FAILED: liella::anything x|\n", Tier::Direct);
+        let (_, misses) = replay(repo, "LOG d\nFILES Cargo.toml\nFAILS FAILED: niji::anything x|\n", Tier::Direct);
         assert_eq!(misses, 0, "a FULL selection covers everything");
     }
 
@@ -5443,7 +5443,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             let sec = n.section.unwrap_or(0);
             let file = format!("crates/boundary/src/posix/{}.rs", n.name);
             let s = select(repo, std::slice::from_ref(&file));
-            let eligible = repo.dependents("liella-boundary");
+            let eligible = repo.dependents("niji-boundary");
             assert!(s.full.is_empty(), "{file}");
             for c in repo.conf.iter().filter(|c| c.sections.contains(&sec)) {
                 assert!(s.conf.contains_key(&c.name), "{file}: {} (section {sec}) not selected", c.name);
@@ -5459,18 +5459,18 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert_eq!(sections_of("s12_stdio_clauses", ""), BTreeSet::from([12]));
         assert_eq!(sections_of("printf_products", "//! spec §12.6; D-7.10; s3_2_c_1_x; bars3_2
 fn f() {} // §9"), BTreeSet::from([3, 7, 12]));
-        let aliases = BTreeMap::from([("liella".to_string(), "liella".to_string()), ("liella_kernel".to_string(), "liella-kernel".to_string())]);
+        let aliases = BTreeMap::from([("niji".to_string(), "niji".to_string()), ("niji_kernel".to_string(), "niji-kernel".to_string())]);
         let r = refs_of("use crate::{printf, fs::{dir}, stream as s};
-use liella::{ctype, text::x};
+use niji::{ctype, text::x};
 use std::{fmt, mem};
 mod hidden;
-use liella_kernel::errno::Errno;
-fn f() { let x = locale::get(); std::mem::swap(a, b); liella::time::now(); }
+use niji_kernel::errno::Errno;
+fn f() { let x = locale::get(); std::mem::swap(a, b); niji::time::now(); }
 // whole::line
 fn plain() {}", &aliases);
         let own = |m: &str| (None, m.to_string());
         let of = |c: &str, m: &str| (Some(c.to_string()), m.to_string());
-        for want in [own("printf"), own("fs"), own("locale"), of("liella", "ctype"), of("liella", "text"), of("liella", "time"), of("liella-kernel", "errno")] {
+        for want in [own("printf"), own("fs"), own("locale"), of("niji", "ctype"), of("niji", "text"), of("niji", "time"), of("niji-kernel", "errno")] {
             assert!(r.contains(&want), "{want:?} in {r:?}");
         }
         for not in ["hidden", "whole", "plain", "fmt", "mem", "s", "std", "x"] {
@@ -5488,11 +5488,11 @@ fn plain() {}", &aliases);
 
     #[test]
     fn summary_keeps_each_errors_location() {
-        let log = "error: unused variable: `x`\n  --> crates/core/src/a.rs:3:9\n   |\nerror[E0308]: mismatched types\n   --> crates/core/src/b.rs:7:1\n  --> crates/core/src/c.rs:1:1\nerror: unused variable: `x`\n  --> crates/core/src/d.rs:5:5\nerror: could not compile `liella`\n";
+        let log = "error: unused variable: `x`\n  --> crates/core/src/a.rs:3:9\n   |\nerror[E0308]: mismatched types\n   --> crates/core/src/b.rs:7:1\n  --> crates/core/src/c.rs:1:1\nerror: unused variable: `x`\n  --> crates/core/src/d.rs:5:5\nerror: could not compile `niji`\n";
         let s = summary(log);
         assert!(s.contains("error: unused variable: `x` [crates/core/src/a.rs:3:9]\n"), "{s}");
         assert!(s.contains("error[E0308]: mismatched types [crates/core/src/b.rs:7:1]\n"), "{s}");
-        assert!(s.contains("error: could not compile `liella`\n") && !s.contains("c.rs") && !s.contains("d.rs"), "{s}");
+        assert!(s.contains("error: could not compile `niji`\n") && !s.contains("c.rs") && !s.contains("d.rs"), "{s}");
     }
 
     // GATE-VALIDATION-SH-TESTS (no spec clause: gate tooling): every `validation/wl_*.sh` script is either covered by a
@@ -5567,7 +5567,7 @@ fn plain() {}", &aliases);
     fn reverse_attributes_a_test_to_the_one_branch_that_selects_it() {
         // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
         let bs = branches(&[("docs", &["docs/x.md"]), ("printf", &["docs/y.md", "crates/core/src/printf.rs"])]);
-        let (atts, full) = reverse(repo(), &ids(&["liella::printf_products x"]), &bs, Tier::Direct);
+        let (atts, full) = reverse(repo(), &ids(&["niji::printf_products x"]), &bs, Tier::Direct);
         assert_eq!(full, [false, false]);
         assert_eq!(hit_names(&atts[0]), ["printf"]);
         assert_eq!(atts[0].kind, "target");
@@ -5575,14 +5575,14 @@ fn plain() {}", &aliases);
         assert!(!h.full && h.reasons.len() == 1, "{h:?}");
         assert!(h.reasons[0].0 == "crates/core/src/printf.rs" && !h.reasons[0].1.is_empty() && !h.reasons[0].2, "{h:?}");
         let s = reverse_summary(Tier::Direct, &bs, &full, &atts);
-        assert!(s.contains("liella::printf_products x: printf (high: crates/core/src/printf.rs)"), "{s}");
+        assert!(s.contains("niji::printf_products x: printf (high: crates/core/src/printf.rs)"), "{s}");
     }
 
     #[test]
     fn reverse_reports_every_branch_that_selects_the_test() {
         // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
         let bs = branches(&[("a", &["crates/boundary/src/printf.rs"]), ("b", &["crates/boundary/src/posix/s12_stdio.rs"])]);
-        let (atts, _) = reverse(repo(), &ids(&["FAILED: liella::aio_products t"]), &bs, Tier::Direct);
+        let (atts, _) = reverse(repo(), &ids(&["FAILED: niji::aio_products t"]), &bs, Tier::Direct);
         assert_eq!(hit_names(&atts[0]), ["a", "b"], "{atts:?}");
         assert!(atts[0].hits.iter().all(|h| !h.full && h.reasons.len() == 1), "{atts:?}");
     }
@@ -5591,10 +5591,10 @@ fn plain() {}", &aliases);
     fn reverse_reports_a_test_no_branch_selects() {
         // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
         let bs = branches(&[("a", &["crates/core/src/printf.rs"]), ("d", &["docs/x.md"])]);
-        let (atts, full) = reverse(repo(), &ids(&["liella-boundary::s18_processes_symbols x"]), &bs, Tier::Direct);
+        let (atts, full) = reverse(repo(), &ids(&["niji-boundary::s18_processes_symbols x"]), &bs, Tier::Direct);
         assert!(atts[0].hits.is_empty(), "{atts:?}");
         let j = reverse_json(Tier::Direct, &bs, &full, &atts);
-        assert!(j.contains("\"branches\":[]") && j.contains("\"unattributed\":[\"liella-boundary::s18_processes_symbols x\"]"), "{j}");
+        assert!(j.contains("\"branches\":[]") && j.contains("\"unattributed\":[\"niji-boundary::s18_processes_symbols x\"]"), "{j}");
         assert!(reverse_summary(Tier::Direct, &bs, &full, &atts).contains("s18_processes_symbols x: no branch selects it"));
     }
 
@@ -5602,7 +5602,7 @@ fn plain() {}", &aliases);
     fn reverse_flags_full_escalation_as_low_confidence() {
         // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
         let bs = branches(&[("cargo", &["Cargo.toml"]), ("printf", &["crates/core/src/printf.rs"]), ("mixed", &["Cargo.toml", "crates/core/src/printf.rs"])]);
-        let (atts, full) = reverse(repo(), &ids(&["liella::printf_products x", "liella-boundary::s18_processes_symbols x"]), &bs, Tier::Direct);
+        let (atts, full) = reverse(repo(), &ids(&["niji::printf_products x", "niji-boundary::s18_processes_symbols x"]), &bs, Tier::Direct);
         assert_eq!(full, [true, false, true]);
         assert_eq!(hit_names(&atts[0]), ["cargo", "printf", "mixed"]);
         let [cargo, printf, mixed] = &atts[0].hits[..] else { panic!("{atts:?}") };
@@ -5656,7 +5656,7 @@ fn plain() {}", &aliases);
             vec!["Cargo.toml"],
         ];
         let forward: Vec<Selection> = sets.iter().map(|s| tier(s, Tier::Direct)).collect();
-        let mut cands: BTreeSet<String> = BTreeSet::from(["xtask::bin/xtask t".to_string(), "liella-boundary::s18_processes_symbols x".to_string()]);
+        let mut cands: BTreeSet<String> = BTreeSet::from(["xtask::bin/xtask t".to_string(), "niji-boundary::s18_processes_symbols x".to_string()]);
         for sel in &forward {
             cands.extend(sel.tests.keys().map(|(c, t)| format!("{c}::{t} x")));
             cands.extend(sel.libs.keys().map(|c| format!("{c} x")));
@@ -5683,9 +5683,9 @@ fn plain() {}", &aliases);
     #[test]
     fn reverse_arguments_and_failed_ids() {
         // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-REVERSE).
-        let o = opts(&["--reverse", "--failed", "liella::a x", "liella b", "--branch", "one=l1", "--failed", "xtask::bin/xtask y", "--tier", "wide"]).unwrap();
+        let o = opts(&["--reverse", "--failed", "niji::a x", "niji b", "--branch", "one=l1", "--failed", "xtask::bin/xtask y", "--tier", "wide"]).unwrap();
         assert_eq!(o.mode(), Some(Mode::List));
-        assert_eq!(o.failed, ["liella::a x", "liella b", "xtask::bin/xtask y"]);
+        assert_eq!(o.failed, ["niji::a x", "niji b", "xtask::bin/xtask y"]);
         assert_eq!(o.branches, [("one".to_string(), "l1".to_string())]);
         assert_eq!(o.tier, Tier::Wide);
         assert!(opts(&["--reverse", "--run"]).is_err());
@@ -5694,10 +5694,10 @@ fn plain() {}", &aliases);
         assert!(opts(&["--reverse", "--branch", "noeq"]).is_err());
         assert!(opts(&["--reverse", "--branch", "a=x", "--branch", "a=y"]).is_err());
         assert!(opts(&["--help"]).unwrap().help);
-        let log = "suites: 3 (2 ok, 1 failed)\nFAILED: liella::a x\nSTEP FAILED: test -p liella\nconformance FAILED: prog: killed by signal 6\nFAILED: liella::a x\n";
-        assert_eq!(failed_ids_of(log), ["liella::a x", "conformance:prog"]);
-        assert_eq!(FailedId::parse("FAILED: liella::a x"), FailedId::Target("liella".into(), "a".into()));
-        assert_eq!(FailedId::parse("liella-mem x"), FailedId::Lib("liella-mem".into()));
+        let log = "suites: 3 (2 ok, 1 failed)\nFAILED: niji::a x\nSTEP FAILED: test -p niji\nconformance FAILED: prog: killed by signal 6\nFAILED: niji::a x\n";
+        assert_eq!(failed_ids_of(log), ["niji::a x", "conformance:prog"]);
+        assert_eq!(FailedId::parse("FAILED: niji::a x"), FailedId::Target("niji".into(), "a".into()));
+        assert_eq!(FailedId::parse("niji-mem x"), FailedId::Lib("niji-mem".into()));
         assert_eq!(FailedId::parse("xtask::bin/xtask t"), FailedId::Xtask);
         assert_eq!(FailedId::parse("conformance FAILED: prog: why"), FailedId::Conf("prog".into()));
         assert_eq!(branch_files("# c\n\na/b.rs\n  c.rs \n"), ["a/b.rs", "c.rs"]);

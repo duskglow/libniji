@@ -2,7 +2,7 @@
 
 #![allow(dead_code, unreachable_pub)]
 
-use liella_mathtools::mp::{Approx, Big};
+use niji_mathtools::mp::{Approx, Big};
 
 /// splitmix64.
 pub struct Rng(pub u64);

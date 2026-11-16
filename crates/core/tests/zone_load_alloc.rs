@@ -5,10 +5,10 @@
 //! hook counts the failure) instead of `EINVAL`.
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, missing_docs)]
 
-use liella::error::Errno;
-use liella::time::{self, Zone};
-use liella_boundary::selftest::failinject::{self, FailAlloc};
-use liella_boundary::sys::CSys;
+use niji::error::Errno;
+use niji::time::{self, Zone};
+use niji_boundary::selftest::failinject::{self, FailAlloc};
+use niji_boundary::sys::CSys;
 
 #[global_allocator]
 static ALLOC: FailAlloc = FailAlloc;
@@ -48,7 +48,7 @@ fn a_zone_load_makes_one_allocation_per_table() {
     ];
     let f = file([0, 0, 0, 2, 3, 12], body);
     assert!(at_most(3, || Zone::from_tzif(&f)), "the zone's tables took more than one allocation each");
-    let dir = std::env::temp_dir().join(format!("liella-zone-load-alloc-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-zone-load-alloc-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("Zone"), &f).unwrap();
     let d = dir.as_os_str().as_encoded_bytes();

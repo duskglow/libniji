@@ -1,5 +1,5 @@
 //! The loader's lock-free readers and `dlopen` from many threads, constructors and `fork` under
-//! Liella's `ld.so` and `libc.so.6` (phase 14 DL-16c `DL-DLOPEN-CONCURRENT`, plan/ph14/dl-16-dlopen.md
+//! libniji's `ld.so` and `libc.so.6` (phase 14 DL-16c `DL-DLOPEN-CONCURRENT`, plan/ph14/dl-16-dlopen.md
 //! §3, §4; spec/behaviour/dynlink.md `== phdr`, P-7, P-8, P-9; probe tools/probe/dl/readers). One C
 //! program built against the products checks every behaviour itself and exits with the number of
 //! the first check that failed (its text on standard error); `alarm` is only a hang guard (a
@@ -11,8 +11,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::elf::Elf;
+use niji_ld::arch::{Arch, Native};
+use niji_ld::elf::Elf;
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -26,10 +26,10 @@ fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
     }
-    let lib = target().join("liella");
+    let lib = target().join("niji");
     let ld = lib.join(Native::INTERP);
-    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("liella-crt1.o").exists() {
-        eprintln!("SKIP: ld.so, libc.so.6 or liella-crt1.o not built (run cargo xtask so)");
+    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("niji-crt1.o").exists() {
+        eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
     let d = target().join(format!("ld-dlconc-{name}-{}", std::process::id()));
@@ -37,13 +37,13 @@ fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
     let d = std::fs::canonicalize(d).unwrap();
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
-    let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
+    let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
     let (off, len) = (dynph.offset as usize, dynph.filesz as usize);
     let at = (off..off + len).step_by(16).find(|&o| so[o..o + 8] == 14u64.to_le_bytes()).expect("libc.so.6 has a DT_SONAME");
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
     let libc = d.join("libc-dl.so");
     std::fs::write(&libc, &so).unwrap();
-    Some((d, ld, libc, lib.join("liella-crt1.o")))
+    Some((d, ld, libc, lib.join("niji-crt1.o")))
 }
 
 /// Build `out` from `src` (C, or C++ when `out` ends in `cxx`) with `flags` in `d`.

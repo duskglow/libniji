@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Check Liella's generated headers (plan/headers.md section 3; SL-HEADERS-S05): P5 hygiene, the level model,
+"""Check libniji's generated headers (plan/headers.md section 3; SL-HEADERS-S05): P5 hygiene, the level model,
 and P1 identity of the C 7.20 integer types.
 
     python3 spec/tools/header_check.py [--work DIR] [--include DIR]
 
 Needs gcc and g++ only (any host; no reference headers are read: every unit is compiled with `-nostdinc
 -isystem <DIR> -isystem <the compiler's own include>`, DIR = libc-include/ by default, or the tree `cargo xtask
-so` staged, target/liella/include). For each configuration of spec/abi/ftm-configs.tsv:
+so` staged, target/niji/include). For each configuration of spec/abi/ftm-configs.tsv:
 
-* levels  a unit that includes features.h and `#error`s unless each `__LIELLA_<level>` equals its
+* levels  a unit that includes features.h and `#error`s unless each `__NIJI_<level>` equals its
           headers/levels.tsv cell; it must compile, or fail for a configuration levels.tsv rejects;
 * P5      each header of HEADERS compiles alone and included twice, `-Wall -Wextra -Wsystem-headers -Werror`;
 * P1      (ruling #6047) every C 7.20.1 type spelled by header_probe.c_integer_names(): C asserts its size and
@@ -87,9 +87,9 @@ def main():
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
         units = [("levels", "#include <features.h>\n" + "".join(
-            f"#if __LIELLA_{mac} != {lv[col]}\n#error \"__LIELLA_{mac} is not {lv[col]}\"\n#endif\n" for col, mac in COLS))]
+            f"#if __NIJI_{mac} != {lv[col]}\n#error \"__NIJI_{mac} is not {lv[col]}\"\n#endif\n" for col, mac in COLS))]
         if not rejected:
-            units += [(f"P5 {h}", f"#include <{h}>\n#include <{h}>\nint liella_check_tu;\n") for h in HEADERS]
+            units += [(f"P5 {h}", f"#include <{h}>\n#include <{h}>\nint niji_check_tu;\n") for h in HEADERS]
             # static_assert is C++11 and _Static_assert C11 (C89 mode has neither as a keyword).
             if c["id"] not in ("cxx98", "c89", "isoc99"):
                 units.append(("P1 stdint", identity_unit(cxx, types)))

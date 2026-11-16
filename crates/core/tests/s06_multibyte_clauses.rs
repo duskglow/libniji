@@ -4,21 +4,21 @@
 //! Clause tests for spec §6 (37 clauses).
 //!
 //! The conversions are tested in the built-in encodings: ASCII (the C locale, D-6.7) and UTF-8
-//! (`C.UTF-8`). `iconv` (§6.4) is tested here through `liella::iconv` with the built-in codecs;
+//! (`C.UTF-8`). `iconv` (§6.4) is tested here through `niji::iconv` with the built-in codecs;
 //! the charmap codecs and the exports are compared with the reference library by
 //! `iconv_products.rs` and `charmap_data.rs`.
 
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella::charmap::Charmap;
-use liella::error::Errno;
-use liella::iconv::{self, Conv, Outcome, State as IconvState};
-use liella::locale::Locale;
-use liella::text::{self, Decoded, Encoding, Fed, MbState};
-use liella_abi::ctypes::{c_char, mbstate_t};
-use liella_boundary::posix::s06_multibyte as x;
-use liella_legacy::mb_compat::{self, State, INCOMPLETE};
-use liella_legacy::mb_state::{self, Slot};
+use niji::charmap::Charmap;
+use niji::error::Errno;
+use niji::iconv::{self, Conv, Outcome, State as IconvState};
+use niji::locale::Locale;
+use niji::text::{self, Decoded, Encoding, Fed, MbState};
+use niji_abi::ctypes::{c_char, mbstate_t};
+use niji_boundary::posix::s06_multibyte as x;
+use niji_legacy::mb_compat::{self, State, INCOMPLETE};
+use niji_legacy::mb_state::{self, Slot};
 
 const U: Encoding = Encoding::Utf8;
 const A: Encoding = Encoding::Ascii;
@@ -93,7 +93,7 @@ fn s6_2_c_1_3() {
 fn s6_2_c_1_4() {
     let bad = [i8::from_le_bytes([0x80]), 0 as c_char];
     let r = x::mbrtowc(None, bad.as_ptr(), 1, None);
-    assert_eq!((r, liella_boundary::errno::get()), (usize::MAX, 84));
+    assert_eq!((r, niji_boundary::errno::get()), (usize::MAX, 84));
     assert_eq!(dec(&mut init(), &[0xC3, 0x28], U), Decoded::Invalid);
 }
 
@@ -458,7 +458,7 @@ fn s6_2_c_6() {
 
 /// In a child with the C.UTF-8 locale: the result of `f`.
 fn utf8<T: std::fmt::Debug + PartialEq>(f: impl FnOnce() -> T, want: T) {
-    use liella_boundary::posix::s07_locale as lx;
+    use niji_boundary::posix::s07_locale as lx;
     let c = std::ffi::CString::new("C.UTF-8").unwrap();
     let loc = lx::newlocale(0x1fbf, c.as_ptr(), core::ptr::null_mut());
     assert!(!loc.is_null());

@@ -1,9 +1,9 @@
-//! The buffering engine (`liella::stream`, D-12.1) over an in-memory backing that records every
+//! The buffering engine (`niji::stream`, D-12.1) over an in-memory backing that records every
 //! call, so that the policy (when bytes reach the backing) is checked exactly.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
-use liella::error::Errno;
-use liella::stream::{Backing, Policy, Role, State, Whence, RESERVE};
+use niji::error::Errno;
+use niji::stream::{Backing, Policy, Role, State, Whence, RESERVE};
 
 /// A file in memory; records the size of every write and read, and can fail on demand.
 #[derive(Default)]

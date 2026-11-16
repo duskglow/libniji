@@ -1,14 +1,14 @@
-//! The scanf engine (`liella::scanf::scan`) driven directly, without C varargs (spec §12.7;
+//! The scanf engine (`niji::scanf::scan`) driven directly, without C varargs (spec §12.7;
 //! D-12.6, D-12.13): the format grammar, scansets, widths, assignment suppression, `%n`, `%%`,
 //! positional arguments, `%m`, the wide and narrow text conversions, encoding and read errors,
 //! and the floating conversions' formats and rounding. `scanf_products.rs` compares the whole
 //! engine with the reference library; these cases pin the engine's own contract in seconds.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, clippy::panic)]
 
-use liella::error::{Errno, Result};
-use liella::locale::Locale;
-use liella::num::float::Rounding;
-use liella::scanf::{scan, Ctx, FmtUnit, Input, Outcome, Scanned, Set, Sink};
+use niji::error::{Errno, Result};
+use niji::locale::Locale;
+use niji::num::float::Rounding;
+use niji::scanf::{scan, Ctx, FmtUnit, Input, Outcome, Scanned, Set, Sink};
 
 /// Input units, with an optional read error at a position.
 struct Units {

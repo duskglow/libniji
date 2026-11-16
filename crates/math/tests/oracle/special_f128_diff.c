@@ -7,8 +7,8 @@
  * operands, in every rounding direction. Each line prints the operands' and results' 128-bit
  * encodings (32 hex digits; for lgammaf128 and lgammaf128_r also the sign of Γ(x) stored:
  * signgam, or the int lgammaf128_r writes), the raised flags and errno. Built against the host C
- * library and statically against Liella's products, the outputs must agree
- * (special_f128_products.rs) except where Liella is correctly rounded and the host is not. */
+ * library and statically against libniji's products, the outputs must agree
+ * (special_f128_products.rs) except where libniji is correctly rounded and the host is not. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fenv.h>

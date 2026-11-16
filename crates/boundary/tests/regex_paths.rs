@@ -1,13 +1,13 @@
 //! Which execution path a regex search takes (RE-SEARCH-3). The paths are counted under the
-//! `selftest` feature (`liella::pattern::regex::paths`); this test pins the path for the
+//! `selftest` feature (`niji::pattern::regex::paths`); this test pins the path for the
 //! patterns that matter (both sed patterns, a back-reference, a translate table, a backward
 //! range), so that a later merge cannot silently drop a fast path. One test function: the
 //! counters are global.
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella::pattern::regex::paths::{count, Path};
-use liella_abi::layout::{regex_t, struct_re_registers};
-use liella_boundary::posix::s14_search as s;
+use niji::pattern::regex::paths::{count, Path};
+use niji_abi::layout::{regex_t, struct_re_registers};
+use niji_boundary::posix::s14_search as s;
 
 const POSIX_EXTENDED: u64 = 0x3b2fc;
 const POSIX_BASIC: u64 = 0x10102c6;

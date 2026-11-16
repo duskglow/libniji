@@ -17,20 +17,20 @@
 //! process ends with a message instead of faulting at its next `memset`.
 //!
 //! The swap is off by default (ruling #3434, [`SWAP_BY_DEFAULT`]): every class runs page 0
-//! unless `liella.compat.no_classed_swap=0` (COMPAT-20) turns it on. `=1`, or no setting, keeps
+//! unless `niji.compat.no_classed_swap=0` (COMPAT-20) turns it on. `=1`, or no setting, keeps
 //! the file's page 0, so debuggers, profilers and core files see the code that runs.
 use core::sync::atomic::{AtomicU8, Ordering::Relaxed};
 
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MREMAP_FIXED, MREMAP_MAYMOVE, O_CLOEXEC, O_RDONLY};
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MREMAP_FIXED, MREMAP_MAYMOVE, O_CLOEXEC, O_RDONLY};
 
 use crate::ffi;
 use crate::sys::CSys;
 
-/// The size of each page of the classed section (machine/fold.S `LIELLA_CLASSED_PAGE`).
+/// The size of each page of the classed section (machine/fold.S `NIJI_CLASSED_PAGE`).
 pub const PAGE: usize = 4096;
 /// `/proc/<pid>/pagemap` (kernel `admin-guide/mm/pagemap.rst`): bit 63, the page is present.
 const PM_PRESENT: u64 = 1 << 63;
@@ -45,7 +45,7 @@ pub enum Outcome {
     NotRun = 0,
     /// The CPU class is SSE2 (no AVX2, no saved YMM state, or `glibc.cpu.hwcaps=-AVX2`): no system call.
     Sse2Class = 1,
-    /// The swap is off: the default, or `liella.compat.no_classed_swap=1` (COMPAT-20); page 0 kept.
+    /// The swap is off: the default, or `niji.compat.no_classed_swap=1` (COMPAT-20); page 0 kept.
     Disabled = 2,
     /// `/proc/self/pagemap` could not be opened or read: page 0 kept.
     NoPagemap = 3,
@@ -94,7 +94,7 @@ pub fn outcome() -> Outcome {
 /// Which page is live at page 0's address, read from the code itself (the `classed_id` slot):
 /// 0 the SSE2 page, 1 the AVX2 page.
 pub fn live_page() -> u32 {
-    ffi::liella_classed_id()
+    ffi::niji_classed_id()
 }
 
 /// Page 0's address (page 1 is at `+ PAGE`). Not named `page0`: the functions below take a
@@ -102,7 +102,7 @@ pub fn live_page() -> u32 {
 /// function of that name made every one of them (the `SwapOps` trait methods too) a user of
 /// fold.S and escalated a change to fold.S or scan.S to FULL.
 pub fn page0_addr() -> usize {
-    core::ptr::from_ref(&ffi::liella_classed_page0).addr()
+    core::ptr::from_ref(&ffi::niji_classed_page0).addr()
 }
 
 /// The pagemap guard: `true` when neither entry shows a present page that is no longer a file
@@ -195,7 +195,7 @@ fn decide(ops: &impl SwapOps, page0: usize, want: bool, disabled: bool) -> Outco
     if ops.move_page(page1, page0).is_ok() {
         return Outcome::InstalledOnRetry;
     }
-    ops.fatal(b"liella: start-up: the classed entry page is unmapped after a failed mremap\n")
+    ops.fatal(b"niji: start-up: the classed entry page is unmapped after a failed mremap\n")
 }
 
 /// The start-up step (static step 4, right after `cpu::init_with`): `avx2` is the class that
@@ -204,17 +204,17 @@ fn decide(ops: &impl SwapOps, page0: usize, want: bool, disabled: bool) -> Outco
 /// did before the static-PIE one).
 #[inline(always)]
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
-pub(crate) fn start(avx2: bool, t: &liella::config::Tunables) {
+pub(crate) fn start(avx2: bool, t: &niji::config::Tunables) {
     let _ = install_with(&Kernel, page0_addr(), avx2, swap_disabled(t.no_classed_swap));
 }
 
-/// Whether the AVX2-class swap runs when `liella.compat.no_classed_swap` is not set. Off
+/// Whether the AVX2-class swap runs when `niji.compat.no_classed_swap` is not set. Off
 /// (ruling #3434, D-4.53): on an Alder Lake-N class CPU the swap cost 22-26 us per process start
 /// with no measured `memset` gain. CLASSED-SLOT-SWAP-COST split it per call: the `mremap` alone
 /// costs 30k+ kernel instructions on kernel 6.8, so no page swap is free there (D-4.53).
 pub const SWAP_BY_DEFAULT: bool = false;
 
-/// COMPAT-20's value (`liella.compat.no_classed_swap`, `None` when not set) to the `disabled`
+/// COMPAT-20's value (`niji.compat.no_classed_swap`, `None` when not set) to the `disabled`
 /// argument of [`install_with`]: `=0` turns the swap on, `=1` keeps it off, unset is the default.
 pub fn swap_disabled(no_classed_swap: Option<bool>) -> bool {
     no_classed_swap.unwrap_or(!SWAP_BY_DEFAULT)
@@ -311,13 +311,13 @@ mod tests {
     fn the_class_needs_avx2_with_the_ymm_state_saved_and_no_tunable() {
         let avx2_bit = 1 << 5;
         let osxsave_avx = (1 << 27) | (1 << 28);
-        let mut f = liella_rt::cpu::Features { leaf1_ecx: osxsave_avx, leaf7_ebx: avx2_bit, xcr0: 0x7, ..Default::default() };
-        let t = liella::config::Tunables::default();
+        let mut f = niji_rt::cpu::Features { leaf1_ecx: osxsave_avx, leaf7_ebx: avx2_bit, xcr0: 0x7, ..Default::default() };
+        let t = niji::config::Tunables::default();
         assert!(crate::cpu::avx2_wanted(&f, &t));
         f.xcr0 = 0x3; // the OS does not save the YMM state
         assert!(!crate::cpu::avx2_wanted(&f, &t));
         f.xcr0 = 0x7;
-        assert!(!crate::cpu::avx2_wanted(&f, &liella::config::Tunables::parse(b"glibc.cpu.hwcaps=-AVX2", false)));
+        assert!(!crate::cpu::avx2_wanted(&f, &niji::config::Tunables::parse(b"glibc.cpu.hwcaps=-AVX2", false)));
         f.leaf7_ebx = 0;
         assert!(!crate::cpu::avx2_wanted(&f, &t));
         // The start-up reads the class from `init_with`'s state: the same decision as the kernels'.

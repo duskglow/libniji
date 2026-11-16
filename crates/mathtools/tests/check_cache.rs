@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use liella_mathtools::check_cache::{CACHE_DIR_ENV, KeyInputs, NO_CACHE_ENV, Sha256, check_key, hex, sha256};
+use niji_mathtools::check_cache::{CACHE_DIR_ENV, KeyInputs, NO_CACHE_ENV, Sha256, check_key, hex, sha256};
 
 #[test]
 fn sha256_fips_vectors() {
@@ -73,7 +73,7 @@ fn key_changes_with_every_input() {
 
 /// A scratch directory for one test, removed first so every run starts cold.
 fn scratch(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("liella-remez-cache-{name}-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("niji-remez-cache-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     d

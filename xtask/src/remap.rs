@@ -1,7 +1,7 @@
 //! No build path in the products (PRODUCT-PATH-REMAP).
 //!
 //! The product crates are built with `--remap-path-prefix` for the workspace root and
-//! `$CARGO_HOME` (`align::remap_flags`), so panic-location strings read `/liella/crates/...` on
+//! `$CARGO_HOME` (`align::remap_flags`), so panic-location strings read `/niji/crates/...` on
 //! every role and host, and the products' bytes do not depend on where they were built.
 //! `check` scans the built products for the build's own paths and fails when one is left (run at
 //! the end of `cargo xtask so`). `static_check` needs no product: it checks the build configuration.
@@ -9,8 +9,8 @@
 use std::fs;
 use std::path::Path;
 
-/// The files of `target/liella` that go public (libraries, archives, the start object).
-pub(crate) const PRODUCTS: &[&str] = &["libc.so.6", "libm.so.6", "libc.a", "libm.a", "liella-crt1.o", "liella-gcrt1.o", "liella-grcrt1.o", "liella-crti.o", "liella-crtn.o", "liella-Mcrt1.o", "libresolv.a"];
+/// The files of `target/niji` that go public (libraries, archives, the start object).
+pub(crate) const PRODUCTS: &[&str] = &["libc.so.6", "libm.so.6", "libc.a", "libm.a", "niji-crt1.o", "niji-gcrt1.o", "niji-grcrt1.o", "niji-crti.o", "niji-crtn.o", "niji-Mcrt1.o", "libresolv.a"];
 
 /// The path strings that must not appear in a product: the workspace root (as given and
 /// canonical), `$CARGO_HOME` and `$HOME`'s `.cargo` and `.rustup`. Never shorter than 4 bytes
@@ -66,7 +66,7 @@ pub fn check_dir(dir: &Path, needles: &[String]) -> Result<usize, String> {
 
 /// What the product build configuration carries, judged from `flags` (the encoded rustflags of a
 /// product build for `root`) and `so_src` (the source of `xtask/src/so.rs`): the root is
-/// remapped to `/liella`, and every place `so.rs` sets `CARGO_ENCODED_RUSTFLAGS` gets its value
+/// remapped to `/niji`, and every place `so.rs` sets `CARGO_ENCODED_RUSTFLAGS` gets its value
 /// from `align::encoded_rustflags` (so no product build can bypass the remap).
 pub fn config_problems(root: &Path, flags: &str, so_src: &str) -> Vec<String> {
     let mut bad = Vec::new();
@@ -108,16 +108,16 @@ mod tests {
     fn finds_a_build_path_and_passes_a_remapped_one() {
         let n = vec!["/mnt/nvme/claude/w/n4".to_string()];
         let planted = b"\0panic at /mnt/nvme/claude/w/n4/crates/rt/src/heap.rs:10\0";
-        let remapped = b"\0panic at /liella/crates/rt/src/heap.rs:10\0";
+        let remapped = b"\0panic at /niji/crates/rt/src/heap.rs:10\0";
         assert_eq!(find_paths(planted, &n), vec![("/mnt/nvme/claude/w/n4".to_string(), 10)]);
         assert!(find_paths(remapped, &n).is_empty());
     }
 
     #[test]
     fn check_dir_names_the_product_that_carries_a_path() {
-        let dir = std::env::temp_dir().join(format!("liella-remap-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("niji-remap-test-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("libc.so.6"), b"clean /liella/x.rs").unwrap();
+        fs::write(dir.join("libc.so.6"), b"clean /niji/x.rs").unwrap();
         fs::write(dir.join("libm.so.6"), b"dirty /srv/build/w/r3/crates/x.rs").unwrap();
         let n = vec!["/srv/build/w/r3".to_string()];
         let err = check_dir(&dir, &n).unwrap_err();

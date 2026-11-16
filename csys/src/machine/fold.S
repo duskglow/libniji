@@ -2,46 +2,46 @@
  * rulings 2026-10-08 "NULL FOLDING" and "ASSEMBLY WHERE RUST CANNOT EXPRESS IT"; plan S2 hot-kernel,
  * P7).
  *
- * In the products these ARE `memset`, `memcpy` and `memmove` (second labels under LIELLA_EXPORT,
+ * In the products these ARE `memset`, `memcpy` and `memmove` (second labels under NIJI_EXPORT,
  * versions from spec/abi/versions.tsv): a call reaches the kernel with no Rust hop in between
  * (COPY-FILL: the Rust entry's load, two compares and tail jump were 7 of memset(16)'s 17
- * instructions). Test builds define only the liella_machine_* names; the Rust twins
+ * instructions). Test builds define only the niji_machine_* names; the Rust twins
  * (crates/boundary/src/hot/mem.rs `move_bytes`, `set_bytes`) call them, so the tests run this code.
  *
  * Why assembly: with NULL folding on, the 1-64 byte classes let a NULL pointer fault on page zero
  * instead of testing it. In Rust a NULL access is undefined behaviour; here it is an ordinary
- * load or store that faults. `liella_machine_fold_limit` (defined below; written by crates/boundary/src/dispatch.rs) is
+ * load or store that faults. `niji_machine_fold_limit` (defined below; written by crates/boundary/src/dispatch.rs) is
  * 64 while folding is on and 0 otherwise, so `n <= limit` is the folded classes' one gate (n == 0
  * always passes it: the classes return at once for 0 without touching memory). Every other size
- * tail-jumps to Rust: `liella_hot_move_rest` / `liella_hot_fill_rest` (the folding decision, the
+ * tail-jumps to Rust: `niji_hot_move_rest` / `niji_hot_fill_rest` (the folding decision, the
  * explicit S6 NULL checks, the large sizes). The 65-256 copy and fill classes are here, after an explicit NULL test (owner ruling 2026-10-08, option B: 65 and up keeps
  * the explicit checks); a NULL goes to Rust, which aborts with EFAULT (S6). Exception: the 129-256
- * copy class is folded while `liella_machine_move_long` is 256 (owner ruling #3304, D-4.55).
+ * copy class is folded while `niji_machine_move_long` is 256 (owner ruling #3304, D-4.55).
  *
  * HOT-KERNEL CONTRACT (what the callers rely on): the C contract only - d valid for writing n
  * bytes and s valid for reading n bytes (or NULL, handled as above). Each class reads only
  * [s, s + n), writes only [d, d + n), and loads every source byte into registers before its first
  * store, so overlapping regions move correctly (memcpy is memmove, D-4.2). Returns d. SSE2 (the
- * x86-64 baseline), except the 65-256 copy's and the 129-256 fill's AVX2 builds behind `liella_machine_avx2` (D-4.25). Every entry is .p2align 6 (MEM-K5b: a fixed line start keeps the short
+ * x86-64 baseline), except the 65-256 copy's and the 129-256 fill's AVX2 builds behind `niji_machine_avx2` (D-4.25). Every entry is .p2align 6 (MEM-K5b: a fixed line start keeps the short
  * paths in one line whatever code is added elsewhere). No .macro (the affected map reads this file
  * for the symbols it defines and uses). */
 
-	.section .text.liella_machine_memmove,"ax",@progbits
-	.hidden liella_hot_move_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.hidden liella_hot_fill_rest
-	.hidden liella_hot_fill_large
+	.section .text.niji_machine_memmove,"ax",@progbits
+	.hidden niji_hot_move_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.hidden niji_hot_fill_rest
+	.hidden niji_hot_fill_large
 
-/* void *liella_machine_memmove(void *d, const void *s, size_t n): 129-256 (folded with NULL folding
+/* void *niji_machine_memmove(void *d, const void *s, size_t n): 129-256 (folded with NULL folding
  * on, see .Lmove_129) four 32-byte blocks from each end (AVX2) or eight 16-byte ones (SSE2), 65-128 two
  * 32-byte blocks from each end (AVX2) or four 16-byte ones (SSE2), 33-64 two
  * 16-byte blocks from each end, 16-32 one from each end, 8-15 two 8-byte words, 4-7 two 4-byte words, 2-3 two 2-byte
  * words, 1 one byte, 0 nothing; other sizes in Rust. */
-	.globl liella_machine_memmove
-	.hidden liella_machine_memmove
-	.type liella_machine_memmove, @function
+	.globl niji_machine_memmove
+	.hidden niji_machine_memmove
+	.type niji_machine_memmove, @function
 	.p2align 6
-liella_machine_memmove:
-#ifdef LIELLA_EXPORT
+niji_machine_memmove:
+#ifdef NIJI_EXPORT
 	.globl memmove
 	.type memmove, @function
 memmove:
@@ -50,9 +50,9 @@ memmove:
 memcpy:
 #endif
 	movq %rdi, %rax
-	cmpq liella_machine_fold_limit(%rip), %rdx
+	cmpq niji_machine_fold_limit(%rip), %rdx
 	ja .Lmove_big
-/* The folded classes: they never write %rax, so liella_machine_mempcpy enters here with d + n. */
+/* The folded classes: they never write %rax, so niji_machine_mempcpy enters here with d + n. */
 .Lmove_small:
 	cmpq $32, %rdx
 	ja .Lmove_33
@@ -105,7 +105,7 @@ memcpy:
 .Lmove_none:
 	ret
 /* 65-128 here after the explicit NULL tests of d and s (option B; one unsigned compare: n - 65 <= 63),
- * 129-256 folded (below: no NULL test while `liella_machine_move_long` is nonzero), with AVX2 (the flag byte below,
+ * 129-256 folded (below: no NULL test while `niji_machine_move_long` is nonzero), with AVX2 (the flag byte below,
  * or for 129-256 the class word's clear sign bit, set by crates/boundary/src/dispatch.rs only when the CPU has AVX2
  * and the OS saves the YMM state) two
  * (65-128) or four (129-256) 32-byte blocks from each end, without it four or eight 16-byte ones;
@@ -116,11 +116,11 @@ memcpy:
 	cmpq $63, %rcx
 	ja .Lmove_129
 	testq %rdi, %rdi
-	jz liella_hot_move_rest
+	jz niji_hot_move_rest
 	testq %rsi, %rsi
-	jz liella_hot_move_rest
+	jz niji_hot_move_rest
 .Lmove_65:
-	cmpb $0, liella_machine_avx2(%rip)
+	cmpb $0, niji_machine_avx2(%rip)
 	je .Lmove_65_sse2
 	vmovdqu (%rsi), %ymm0
 	vmovdqu 32(%rsi), %ymm1
@@ -150,21 +150,21 @@ memcpy:
 	movups %xmm6, -32(%rdi,%rdx)
 	movups %xmm7, -16(%rdi,%rdx)
 	ret
-/* 129-256 (NULLFOLD-COPY-MID, D-4.55, owner ruling #3304): no NULL test. `liella_machine_move_long`
+/* 129-256 (NULLFOLD-COPY-MID, D-4.55, owner ruling #3304): no NULL test. `niji_machine_move_long`
  * is 256 while NULL folding is on with the AVX2 build, 2^63 | 256 with folding on and the SSE2 build,
  * else 0, so its one load is the class's range test, its folding gate and its build choice (the
  * SSE2 path reads one word, as the checked path did before folding: NULLFOLD-COPY-MID-3; the AVX2
  * flag byte is not read here): sizes above 256, and every size above 128 with folding off or
- * undecided, take `liella_hot_move_rest` (the explicit S6 NULL checks, then the Rust large path).
+ * undecided, take `niji_hot_move_rest` (the explicit S6 NULL checks, then the Rust large path).
  * ORDER: the first access is the load of s's head block at offset 0 and every load comes before
  * the first store, so a NULL s faults on page zero before anything is written to d; a NULL d faults
  * on its first store, at d + 0. Both touch [0, 256), inside the [0, 64 KiB) guard (dispatch). */
 .Lmove_129:
-	movq liella_machine_move_long(%rip), %rcx
+	movq niji_machine_move_long(%rip), %rcx
 	testq %rcx, %rcx
 	js .Lmove_129_sse2_gate
 	cmpq %rcx, %rdx
-	ja liella_hot_move_rest
+	ja niji_hot_move_rest
 .Lmove_129_avx2:
 	vmovdqu (%rsi), %ymm0
 	vmovdqu 32(%rsi), %ymm1
@@ -187,7 +187,7 @@ memcpy:
 .Lmove_129_sse2_gate:
 	btrq $63, %rcx			/* the SSE2 mark off: 256 */
 	cmpq %rcx, %rdx
-	ja liella_hot_move_rest
+	ja niji_hot_move_rest
 .Lmove_129_sse2:
 	movups (%rsi), %xmm0
 	movups 16(%rsi), %xmm1
@@ -222,38 +222,38 @@ memcpy:
 	movups %xmm14, -32(%rdi,%rdx)
 	movups %xmm15, -16(%rdi,%rdx)
 	ret
-/* void liella_machine_move_mid(void *d, const void *s, size_t n): the library's internal copy
+/* void niji_machine_move_mid(void *d, const void *s, size_t n): the library's internal copy
  * (crates/boundary/src/hot/mem.rs `internal_move`, D-X.15) for 65 <= n <= 256 with d and s non-NULL
  * (its contract; no NULL tests, no range test beyond the class split): the classes above. Returns
  * nothing (rax is not set). */
-	.globl liella_machine_move_mid
-	.hidden liella_machine_move_mid
-	.type liella_machine_move_mid, @function
-liella_machine_move_mid:
+	.globl niji_machine_move_mid
+	.hidden niji_machine_move_mid
+	.type niji_machine_move_mid, @function
+niji_machine_move_mid:
 	cmpq $128, %rdx
 	jbe .Lmove_65
-	cmpb $0, liella_machine_avx2(%rip)
+	cmpb $0, niji_machine_avx2(%rip)
 	je .Lmove_129_sse2
 	jmp .Lmove_129_avx2
-	.size liella_machine_move_mid, .-liella_machine_move_mid
-#ifdef LIELLA_EXPORT
+	.size niji_machine_move_mid, .-niji_machine_move_mid
+#ifdef NIJI_EXPORT
 	.size memcpy, .-memcpy
 	.size memmove, .-memmove
 #endif
-	.size liella_machine_memmove, .-liella_machine_memmove
+	.size niji_machine_memmove, .-niji_machine_memmove
 
-/* void *liella_machine_mempcpy(void *d, const void *s, size_t n): memmove's copy, returning d + n
+/* void *niji_machine_mempcpy(void *d, const void *s, size_t n): memmove's copy, returning d + n
  * (WL-HOT-SEQ2: `mempcpy` and `__mempcpy` in the products; the Rust entry's frame, call and add were
  * 6 of mempcpy(8)'s 20 instructions, seq calls it once per line). The folded classes are entered
  * directly with %rax = d + n (they never write %rax); every other size calls the copy entry, which
  * returns d, and adds n (saved on the stack across the call; the push also aligns the stack). */
-	.section .text.liella_machine_mempcpy,"ax",@progbits
-	.globl liella_machine_mempcpy
-	.hidden liella_machine_mempcpy
-	.type liella_machine_mempcpy, @function
+	.section .text.niji_machine_mempcpy,"ax",@progbits
+	.globl niji_machine_mempcpy
+	.hidden niji_machine_mempcpy
+	.type niji_machine_mempcpy, @function
 	.p2align 6			/* exported entries are 64-byte aligned (D-4.33); own section since HOTTEXT-ASM-ORDER */
-liella_machine_mempcpy:
-#ifdef LIELLA_EXPORT
+niji_machine_mempcpy:
+#ifdef NIJI_EXPORT
 	.globl mempcpy
 	.type mempcpy, @function
 mempcpy:
@@ -262,18 +262,18 @@ mempcpy:
 __mempcpy:
 #endif
 	leaq (%rdi,%rdx), %rax
-	cmpq liella_machine_fold_limit(%rip), %rdx
+	cmpq niji_machine_fold_limit(%rip), %rdx
 	jbe .Lmove_small
 	pushq %rdx
-	call liella_machine_memmove
+	call niji_machine_memmove
 	popq %rdx
 	addq %rdx, %rax
 	ret
-#ifdef LIELLA_EXPORT
+#ifdef NIJI_EXPORT
 	.size mempcpy, .-mempcpy
 	.size __mempcpy, .-__mempcpy
 #endif
-	.size liella_machine_mempcpy, .-liella_machine_mempcpy
+	.size niji_machine_mempcpy, .-niji_machine_mempcpy
 
 /* The classed entries (D-4.53, CLASSED-SLOT-INFRA; design docs/design/loadtime-entry.md sections 4-5):
  * one page-aligned input section of two 4096-byte pages with the same slot layout. Page 0 holds the
@@ -284,22 +284,22 @@ __mempcpy:
  * page 0; nothing is ever written. Neither page refers to page 0 or page 1 through XREF; jumps
  * within a page need nothing. Both bodies are leaf code with no stack adjustment.
  * The section keeps the name of its first slot's function section, so the hot-text grouping
- * (the build's traced hot-text.list, `liella_machine_memset`) still places it with the start-up code.
+ * (the build's traced hot-text.list, `niji_machine_memset`) still places it with the start-up code.
  * Slot offsets (one set for both pages; `.org` fails the build when a body outgrows its slot): */
-#define LIELLA_SLOT_MEMSET 0
-#define LIELLA_SLOT_CLASSED_ID 4032
-#define LIELLA_CLASSED_PAGE 4096
+#define NIJI_SLOT_MEMSET 0
+#define NIJI_SLOT_CLASSED_ID 4032
+#define NIJI_CLASSED_PAGE 4096
 
-/* void *liella_machine_memset(void *d, int c, size_t n), (unsigned char)c: 16 and more bytes take
+/* void *niji_machine_memset(void *d, int c, size_t n), (unsigned char)c: 16 and more bytes take
  * (unsigned char)c in all 16 bytes of xmm0 (movd, punpcklbw, pshuflw, punpcklqdq: the low byte
  * only, whatever the int's other bytes) and store 16-byte blocks from each end (1, 2, 4 or 8 per end
  * for 16-32, 33-64, 65-128, 129-256; on the AVX2 page 129-256 four 32-byte blocks per end instead,
  * with no flag test on either page); 8-15 two 4-byte words from each end, 4-7 one 4-byte word from each
  * end, 2-3 one 2-byte word from each end, 1 one byte, 0 nothing; other sizes in Rust.
  * `bias` is XREF: 0 on page 0, 4096 on page 1. `avx2` selects the 129-256 class. */
-	.macro LIELLA_MEMSET_BODY bias, avx2
+	.macro NIJI_MEMSET_BODY bias, avx2
 	movq %rdi, %rax
-	cmpq liella_machine_fold_limit+\bias(%rip), %rdx
+	cmpq niji_machine_fold_limit+\bias(%rip), %rdx
 	ja .Lset_big\@
 	cmpq $32, %rdx
 	ja .Lset_33\@
@@ -352,14 +352,14 @@ __mempcpy:
 	ret
 /* Not folded: 65-256 here after the explicit NULL test (MEMSET-MID: 129-256 straight-line, no
  * loop, as the copy's class); a NULL d, 1-128 without folding and every other size in Rust. The
- * 65-128 class is `n <= liella_machine_set_mid` (128 with folding on, so n > 64 here; 0 with
+ * 65-128 class is `n <= niji_machine_set_mid` (128 with folding on, so n > 64 here; 0 with
  * folding off, so every n goes on: one compare against memory, no subtraction), then one unsigned
  * compare n - 129 <= 127 for 129-256. */
 .Lset_big\@:
-	cmpq liella_machine_set_mid+\bias(%rip), %rdx
+	cmpq niji_machine_set_mid+\bias(%rip), %rdx
 	ja .Lset_129\@
 	testq %rdi, %rdi
-	jz liella_hot_fill_rest+\bias
+	jz niji_hot_fill_rest+\bias
 	movd %esi, %xmm0
 	punpcklbw %xmm0, %xmm0
 	pshuflw $0, %xmm0, %xmm0
@@ -378,7 +378,7 @@ __mempcpy:
 	cmpq $127, %rcx
 	ja .Lset_out\@				/* n < 129 (the wrapped compare) with folding off, or n > 256 */
 	testq %rdi, %rdi
-	jz liella_hot_fill_rest+\bias
+	jz niji_hot_fill_rest+\bias
 	.if \avx2
 	vmovd %esi, %xmm0
 	vpbroadcastb %xmm0, %ymm0
@@ -416,20 +416,20 @@ __mempcpy:
 	ret
 	.endif
 /* MEMSET-4K-3: above 256 the kernel choice here, as `hot::bulk_fill` makes it: from the `rep stosb`
- * word (`liella_machine_fill_erms_from`, at least 257; usize::MAX without ERMS or before the
+ * word (`niji_machine_fill_erms_from`, at least 257; usize::MAX without ERMS or before the
  * startup decision) `rep stosb` from d when d is 64-byte aligned, else the first 64 bytes
  * unaligned and `rep stosb` from the first 64-byte boundary above d; else with the AVX2 flag the AVX2 fill; a NULL d and every
  * other case `hot::fill_large`. Sizes below 129 (folding off) fail both size tests. */
 .Lset_out\@:
-	cmpq liella_machine_fill_erms_from+\bias(%rip), %rdx
+	cmpq niji_machine_fill_erms_from+\bias(%rip), %rdx
 	jae .Lset_erms\@
 	cmpq $256, %rdx
 	jbe .Lset_rest\@
 	testq %rdi, %rdi
-	jz liella_hot_fill_large+\bias
-	cmpb $0, liella_machine_avx2+\bias(%rip)
-	je liella_hot_fill_large+\bias
-	jmp liella_machine_fill_avx2_entry+\bias
+	jz niji_hot_fill_large+\bias
+	cmpb $0, niji_machine_avx2+\bias(%rip)
+	je niji_hot_fill_large+\bias
+	jmp niji_machine_fill_avx2_entry+\bias
 /* MEMSET-4K-4: a 64-byte-aligned d (NULL included) takes `rep stosb` over all n from d: the head
  * stores and the alignment below would only end at the boundary `rep stosb` starts from anyway.
  * An unaligned d is not NULL, so the alignment test stands in for the NULL test on that path. */
@@ -437,7 +437,7 @@ __mempcpy:
 	testb $63, %dil
 	jnz .Lset_erms_head\@
 	testq %rdi, %rdi
-	jz liella_hot_fill_large+\bias
+	jz niji_hot_fill_large+\bias
 	movq %rdx, %rcx
 	movl %esi, %eax				/* al = (unsigned char)c */
 	rep stosb
@@ -462,57 +462,57 @@ __mempcpy:
 	movq %rdx, %rax
 	ret
 .Lset_rest\@:
-	jmp liella_hot_fill_rest+\bias
+	jmp niji_hot_fill_rest+\bias
 	.endm
 
-	.section .text.liella_machine_memset,"ax",@progbits
-	.balign LIELLA_CLASSED_PAGE
-	.globl liella_classed_page0
-	.hidden liella_classed_page0
-liella_classed_page0:
+	.section .text.niji_machine_memset,"ax",@progbits
+	.balign NIJI_CLASSED_PAGE
+	.globl niji_classed_page0
+	.hidden niji_classed_page0
+niji_classed_page0:
 /* Page 0, the SSE2 page. LAYOUT(CLASSED-XREF): both pages hold the same slots at the same offsets. */
-	.org liella_classed_page0 + LIELLA_SLOT_MEMSET
-	.globl liella_machine_memset
-	.hidden liella_machine_memset
-	.type liella_machine_memset, @function
-liella_machine_memset:
-#ifdef LIELLA_EXPORT
+	.org niji_classed_page0 + NIJI_SLOT_MEMSET
+	.globl niji_machine_memset
+	.hidden niji_machine_memset
+	.type niji_machine_memset, @function
+niji_machine_memset:
+#ifdef NIJI_EXPORT
 	.globl memset
 	.type memset, @function
 memset:
 #endif
-	LIELLA_MEMSET_BODY 0, 0
-#ifdef LIELLA_EXPORT
+	NIJI_MEMSET_BODY 0, 0
+#ifdef NIJI_EXPORT
 	.size memset, .-memset
 #endif
-	.size liella_machine_memset, .-liella_machine_memset
-/* unsigned liella_classed_id(void): which page is live at page 0's address (0 SSE2, 1 AVX2), for
+	.size niji_machine_memset, .-niji_machine_memset
+/* unsigned niji_classed_id(void): which page is live at page 0's address (0 SSE2, 1 AVX2), for
  * the start-up's record and the tests (`classed::live_page`). */
-	.org liella_classed_page0 + LIELLA_SLOT_CLASSED_ID
-	.globl liella_classed_id
-	.hidden liella_classed_id
-	.type liella_classed_id, @function
-liella_classed_id:
+	.org niji_classed_page0 + NIJI_SLOT_CLASSED_ID
+	.globl niji_classed_id
+	.hidden niji_classed_id
+	.type niji_classed_id, @function
+niji_classed_id:
 	movl $0, %eax
 	ret
-	.size liella_classed_id, .-liella_classed_id
-	.org liella_classed_page0 + LIELLA_CLASSED_PAGE
+	.size niji_classed_id, .-niji_classed_id
+	.org niji_classed_page0 + NIJI_CLASSED_PAGE
 /* Page 1, the AVX2 page: the same slots, XREF = +4096, local names at the same offsets. */
-liella_classed_page1:
-	.org liella_classed_page1 + LIELLA_SLOT_MEMSET
-	.type liella_machine_memset_avx2, @function
-liella_machine_memset_avx2:
-	LIELLA_MEMSET_BODY LIELLA_CLASSED_PAGE, 1
-	.size liella_machine_memset_avx2, .-liella_machine_memset_avx2
-	.org liella_classed_page1 + LIELLA_SLOT_CLASSED_ID
-	.type liella_classed_id_avx2, @function
-liella_classed_id_avx2:
+niji_classed_page1:
+	.org niji_classed_page1 + NIJI_SLOT_MEMSET
+	.type niji_machine_memset_avx2, @function
+niji_machine_memset_avx2:
+	NIJI_MEMSET_BODY NIJI_CLASSED_PAGE, 1
+	.size niji_machine_memset_avx2, .-niji_machine_memset_avx2
+	.org niji_classed_page1 + NIJI_SLOT_CLASSED_ID
+	.type niji_classed_id_avx2, @function
+niji_classed_id_avx2:
 	movl $1, %eax
 	ret
-	.size liella_classed_id_avx2, .-liella_classed_id_avx2
-	.org liella_classed_page1 + LIELLA_CLASSED_PAGE
+	.size niji_classed_id_avx2, .-niji_classed_id_avx2
+	.org niji_classed_page1 + NIJI_CLASSED_PAGE
 
-/* int liella_machine_compare(const void *a, const void *b, size_t n): the direct compare entry
+/* int niji_machine_compare(const void *a, const void *b, size_t n): the direct compare entry
  * (MEMCMP-FOLD, D-4.23 amendment; owner ruling 2026-10-10 extending the S6 NULL-folding exception to
  * the compares for 8 <= n <= 64; `memcmp` in the products). With folding on (limit 64), 8 to 64
  * bytes take the head probe here: the first 8 bytes of each region in one load each, so a NULL a or
@@ -524,9 +524,9 @@ liella_classed_id_avx2:
  * 0 when equal, else a negative whose lowest set bit is the last block's first difference:
  * MEMCMP-EQ-24-32), 33-64 one 32-byte block from each end (AVX2; 32 stays on the SSE2
  * blocks: on the AVX2 blocks it took 5 more cycles, MEMCMP-MID-4). Two carry tests on
- * `n - 65` pick the class (SEQ-REGRESS): adding `liella_machine_cmp_wide` (32 only with folding and
+ * `n - 65` pick the class (SEQ-REGRESS): adding `niji_machine_cmp_wide` (32 only with folding and
  * AVX2 on, else 0) carries for 33-64, which go to the AVX2 blocks with one test (diff's equal lines);
- * adding `liella_machine_cmp_low` next (25 with AVX2, 57 without, 0 with folding off) carries for the
+ * adding `niji_machine_cmp_low` next (25 with AVX2, 57 without, 0 with folding off) carries for the
  * other folded sizes (8-32, or 8-64 without AVX2), so the 8-byte class pays two tests, not four. The
  * head probe byte-swaps both words before its compare, so an unequal head orders from its flags.
  * The equality vectors are ANDed and tested once, and an unequal result
@@ -534,20 +534,20 @@ liella_classed_id_avx2:
  * and orders it (-1 or 1): a's byte loaded, b's compared from memory; the last block's position comes
  * from the ANDed mask itself, the blocks before it being equal (MEMCMP-HEAD-2, every class with blocks
  * here, 17-128). Should the re-read pair be equal (a concurrent writer, D-4.21), the call
- * tail-jumps to `liella_hot_compare_rescan` with the index in rcx (the counted rescan from the next
+ * tail-jumps to `niji_hot_compare_rescan` with the index in rcx (the counted rescan from the next
  * byte, as for 65-2048 below; MEMCMP-HEAD-2), and 33-64 without AVX2 take the SSE2 class here
- * (PERF-MEMCMP-NONAVX2; it was a tail-jump to the Rust `liella_hot_compare_tail`): the word at 8
+ * (PERF-MEMCMP-NONAVX2; it was a tail-jump to the Rust `niji_hot_compare_tail`): the word at 8
  * (a difference there orders from the two words), then the blocks at 16, n - 32 and n - 16 ANDed into
  * one test, the first differing byte re-read as below. No carry from either add leaves the other sizes: the sign of the
  * sum (`n - 8` with folding on, `n - 65` with it off) is clear only for more than 64 bytes, which
- * reach the 65-2048 AVX2 classes here when `n <= liella_machine_cmp_long` (2048 with folding and
+ * reach the 65-2048 AVX2 classes here when `n <= niji_machine_cmp_long` (2048 with folding and
  * AVX2 on, else 0: one compare, PERF-MEMCMP-TAILS; above it the SSE2 classes or the checked
  * entries). No NULL test: the first 32 bytes of each region are the first load, so a NULL faults
  * on page zero (ruling #2517 (coordinator, 2026-11-04): NULL folding to 2048). Those 32 bytes are the early probe,
  * then `n > 128` goes to the long class; 65-128 (MEMCMP-MID) take (sort -C differs within bytes 8-31), then the blocks at 32, n - 64 and n - 32
  * ANDed into one test; the first differing byte (first block first) is re-read and ordered as below
- * (re-read equal, D-4.21 -> `liella_hot_compare_rescan` with the index in rcx: the counted rescan
- * from the next byte, so a reported index that is too low shows in the self-tests; MEMCMP-MID-2). 129 to `liella_machine_cmp_long` (2048 with
+ * (re-read equal, D-4.21 -> `niji_hot_compare_rescan` with the index in rcx: the counted rescan
+ * from the next byte, so a reported index that is too low shows in the self-tests; MEMCMP-MID-2). 129 to `niji_machine_cmp_long` (2048 with
  * folding and AVX2, else 0; MEMCMP-MID-4) take the long AVX2 class here: the same 32-byte head
  * block, then (289 to 8 KiB; above that the 128-byte step of two branches at .Lcmp_huge) 256-byte steps from byte 32 (eight blocks ANDed, one test; a negative
  * index counting up to 0 from the bases a + n - 256 and b + n - 256, and ONE branch per step: the
@@ -561,33 +561,33 @@ liella_classed_id_avx2:
  * .Lcmp_sse_mid and .Lcmp_sse_long (PERF-MEMCMP-NONAVX2, PERF-MEMCMP-LONG-NONAVX2). Above that word
  * with AVX2 (and above 128 with folding off) .Lcmp_avx_long tests a and b for NULL and takes the
  * same AVX2 head block and long class (PARITY-MEMCMP-AVX2); a NULL a or b tail-jumps to
- * `liella_hot_compare_big` (the checked classes above 64, the S6 abort). The long class's chunk
+ * `niji_hot_compare_big` (the checked classes above 64, the S6 abort). The long class's chunk
  * test is one `vptest` of the ANDed chunk against the head block's all-ones vector (ymm0).
  * A set sign means n <= 64: the 0-7 byte classes (MEMCMP-SHORT; no fold: explicit NULL tests first, a
  * NULL a or b tail-jumps to the checked entry for the S6 abort): 4-7 one 4-byte word from each end
  * (after an `n < 8` test, since with folding off 8-64 arrive here too and go to
- * `liella_hot_compare_rest`, the checked entry with the explicit S6 NULL tests), 2-3 one 2-byte word
+ * `niji_hot_compare_rest`, the checked entry with the explicit S6 NULL tests), 2-3 one 2-byte word
  * from each end (compared from memory; an unequal word is re-read from b and ordered by bswap; re-read
  * equal (D-4.21) -> the checked entry), 1 the byte, 0 returns 0. Reads only [a, a + n) and [b, b + n). */
-	.section .text.liella_machine_compare,"ax",@progbits
-	.hidden liella_hot_compare_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.hidden liella_hot_compare_tail
-	.hidden liella_hot_compare_big
-	.hidden liella_hot_compare_rescan
-	.globl liella_machine_compare
-	.hidden liella_machine_compare
-	.type liella_machine_compare, @function
+	.section .text.niji_machine_compare,"ax",@progbits
+	.hidden niji_hot_compare_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.hidden niji_hot_compare_tail
+	.hidden niji_hot_compare_big
+	.hidden niji_hot_compare_rescan
+	.globl niji_machine_compare
+	.hidden niji_machine_compare
+	.type niji_machine_compare, @function
 	.p2align 6
-liella_machine_compare:
-#ifdef LIELLA_EXPORT
+niji_machine_compare:
+#ifdef NIJI_EXPORT
 	.globl memcmp
 	.type memcmp, @function
 memcmp:
 #endif
 	leaq -65(%rdx), %rax
-	addq liella_machine_cmp_wide(%rip), %rax
+	addq niji_machine_cmp_wide(%rip), %rax
 	jc .Lcmp_wide
-	addq liella_machine_cmp_low(%rip), %rax
+	addq niji_machine_cmp_low(%rip), %rax
 	jnc .Lcmp_other
 	movq (%rdi), %rax
 	movq (%rsi), %rcx
@@ -687,7 +687,7 @@ memcmp:
 .Lcmp_byte:
 	movzbl (%rdi,%rcx), %eax
 	cmpb (%rsi,%rcx), %al
-	je liella_hot_compare_rescan
+	je niji_hot_compare_rescan
 	sbbl %eax, %eax
 	orl $1, %eax
 	ret
@@ -701,9 +701,9 @@ memcmp:
 .Lcmp_other:
 	jns .Lcmp_big
 	testq %rdi, %rdi
-	je liella_hot_compare_rest
+	je niji_hot_compare_rest
 	testq %rsi, %rsi
-	je liella_hot_compare_rest
+	je niji_hot_compare_rest
 	cmpq $4, %rdx
 	jae .Lcmp_4
 	cmpl $2, %edx
@@ -718,7 +718,7 @@ memcmp:
 	ret
 .Lcmp_4:
 	cmpq $8, %rdx
-	jae liella_hot_compare_rest
+	jae niji_hot_compare_rest
 	movl (%rdi), %eax
 	cmpl (%rsi), %eax
 	jne .Lcmp_h4
@@ -741,7 +741,7 @@ memcmp:
 	bswapl %eax
 	bswapl %ecx
 	cmpl %ecx, %eax
-	je liella_hot_compare_rest
+	je niji_hot_compare_rest
 	sbbl %eax, %eax
 	orl $1, %eax
 	ret
@@ -750,7 +750,7 @@ memcmp:
 	bswapl %eax
 	bswapl %ecx
 	cmpl %ecx, %eax
-	je liella_hot_compare_rest
+	je niji_hot_compare_rest
 	sbbl %eax, %eax
 	orl $1, %eax
 	ret
@@ -759,7 +759,7 @@ memcmp:
 	bswapl %eax
 	bswapl %ecx
 	cmpl %ecx, %eax
-	je liella_hot_compare_rest
+	je niji_hot_compare_rest
 	sbbl %eax, %eax
 	orl $1, %eax
 	ret
@@ -768,13 +768,13 @@ memcmp:
 	bswapl %eax
 	bswapl %ecx
 	cmpl %ecx, %eax
-	je liella_hot_compare_rest
+	je niji_hot_compare_rest
 .Lcmp_sign:
 	sbbl %eax, %eax
 	orl $1, %eax
 	ret
 .Lcmp_big:
-	cmpq liella_machine_cmp_long(%rip), %rdx
+	cmpq niji_machine_cmp_long(%rip), %rdx
 	ja .Lcmp_sse_mid
 .Lcmp_big_load:
 	vmovdqu (%rdi), %ymm0
@@ -823,7 +823,7 @@ memcmp:
 .Lcmp_big_byte:
 	movzbl (%rdi,%rcx), %eax
 	cmpb (%rsi,%rcx), %al
-	je liella_hot_compare_rescan
+	je niji_hot_compare_rescan
 	sbbl %eax, %eax
 	orl $1, %eax
 	ret
@@ -966,15 +966,15 @@ memcmp:
 	bsfq %rax, %rcx
 	addq %r9, %rcx
 	jmp .Lcmp_big_byte
-/* From .Lcmp_sse_long with AVX2 on (`liella_machine_cmp_mid` set): above `liella_machine_cmp_long`
+/* From .Lcmp_sse_long with AVX2 on (`niji_machine_cmp_mid` set): above `niji_machine_cmp_long`
  * (above 128 with folding off). The explicit NULL tests (a NULL a or b -> the checked entry's S6
  * abort; no folding above 2048), then the AVX2 head block and long class as for 129-2048
  * (PARITY-MEMCMP-AVX2: the 16-instruction 128-byte step instead of the Rust loop). */
 .Lcmp_avx_long:
 	testq %rdi, %rdi
-	je liella_hot_compare_big
+	je niji_hot_compare_big
 	testq %rsi, %rsi
-	je liella_hot_compare_big
+	je niji_hot_compare_big
 	jmp .Lcmp_big_load
 /* 129-256 (PERF-MEMCMP-256-AVX2; the 32-byte head is equal): the blocks at 32, 64 and 96 and the
  * last four (n - 128 .. n - 32) cover [32, n) with no loop, ANDed into one test. A difference: the
@@ -1105,7 +1105,7 @@ memcmp:
  * start 20 bytes into a 64-byte line (int3 padding after the jmp above, never run), the phase they
  * were timed at, whatever size the AVX2 code above has: a 257-byte shift cost memcmp_4k 2.3% on an
  * Ivy Bridge-class core with no SSE2 instruction changed. */
-/* TIMING-COV-MEMCMP-NONAVX2-2 (D-4.62, ruling #3592): 65 to `liella_machine_cmp_sse` (2048 while
+/* TIMING-COV-MEMCMP-NONAVX2-2 (D-4.62, ruling #3592): 65 to `niji_machine_cmp_sse` (2048 while
  * NULL folding is on without AVX2, else 0) have no NULL test: the first access is the block at
  * offset 0 of a, then of b, so a NULL faults on page zero (read-only, inside the [0, 64 KiB) proof
  * obligation of `dispatch`). The word's compare replaces the 65-128 split, which comes after the
@@ -1113,7 +1113,7 @@ memcmp:
 	.p2align 6, 0xcc
 	.fill 20, 1, 0xcc
 .Lcmp_sse_mid:
-	cmpq liella_machine_cmp_sse(%rip), %rdx
+	cmpq niji_machine_cmp_sse(%rip), %rdx
 	ja .Lcmp_sse_over
 	movdqu (%rdi), %xmm0
 	movdqu (%rsi), %xmm1
@@ -1190,7 +1190,7 @@ memcmp:
 	xorl $0xffff, %ecx
 	jmp .Lcmp_at
 /* Above 128 bytes without AVX2 (PERF-MEMCMP-LONG-NONAVX2; it was a tail-jump to the Rust
- * `liella_hot_compare_big`): an AVX2 build reaches here only above cmp_long (its cmp_mid is not 0)
+ * `niji_hot_compare_big`): an AVX2 build reaches here only above cmp_long (its cmp_mid is not 0)
  * and keeps the Rust large class. Otherwise the explicit NULL tests, the block at 0 as the early
  * probe (as the 65-128 class; TIMING-COV-MEMCMP-NONAVX2), then 64-byte chunks of four 16-byte blocks
  * ANDed into one test: from a + 16 rounded down to 16 (in [a + 1, a + 16], so nothing below a) (a aligned, so a's side is compared from memory; the first
@@ -1198,21 +1198,21 @@ memcmp:
  * a + n - 64, then a last chunk at n - 64 that may overlap the one before (unaligned, both sides
  * loaded). A differing chunk's four masks (the fourth from the AND: it decides only when the three
  * before it are equal) give the first differing byte (rcx), re-read and ordered
- * at .Lcmp_big_byte (re-read equal, D-4.21 -> `liella_hot_compare_rescan`). n is read from rdx
+ * at .Lcmp_big_byte (re-read equal, D-4.21 -> `niji_hot_compare_rescan`). n is read from rdx
  * only (MEMCMP-MID-4's torn-read bound). */
-/* .Lcmp_sse_over (above `liella_machine_cmp_sse`): the AVX2 build (every size above 64 with folding
- * off, above 2048 with it on; `liella_machine_cmp_mid` set) -> .Lcmp_avx_long. Without AVX2 the
- * explicit NULL tests, the a test against `liella_machine_cmp_sse_null` (0 while the fold word is
+/* .Lcmp_sse_over (above `niji_machine_cmp_sse`): the AVX2 build (every size above 64 with folding
+ * off, above 2048 with it on; `niji_machine_cmp_mid` set) -> .Lcmp_avx_long. Without AVX2 the
+ * explicit NULL tests, the a test against `niji_machine_cmp_sse_null` (0 while the fold word is
  * 2048, so only a NULL a takes the checked entry; else SIZE_MAX, so with folding off every size
- * takes `liella_hot_compare_big`: here n is then above 2048 > 128 whenever the long class runs),
+ * takes `niji_hot_compare_big`: here n is then above 2048 > 128 whenever the long class runs),
  * then the probe and the long class (.Lcmp_sse_long, entered after the probe). */
 .Lcmp_sse_over:
-	cmpq $0, liella_machine_cmp_mid(%rip)
+	cmpq $0, niji_machine_cmp_mid(%rip)
 	jne .Lcmp_avx_long
-	cmpq liella_machine_cmp_sse_null(%rip), %rdi
-	jbe liella_hot_compare_big
+	cmpq niji_machine_cmp_sse_null(%rip), %rdi
+	jbe niji_hot_compare_big
 	testq %rsi, %rsi
-	je liella_hot_compare_big
+	je niji_hot_compare_big
 	movdqu (%rdi), %xmm0
 	movdqu (%rsi), %xmm1
 	pcmpeqb %xmm1, %xmm0
@@ -1280,12 +1280,12 @@ memcmp:
 	subq %rdi, %r9
 	addq %r9, %rcx
 	jmp .Lcmp_big_byte
-#ifdef LIELLA_EXPORT
+#ifdef NIJI_EXPORT
 	.size memcmp, .-memcmp
 #endif
-	.size liella_machine_compare, .-liella_machine_compare
+	.size niji_machine_compare, .-niji_machine_compare
 
-/* int liella_machine_equal(const void *a, const void *b, size_t n): the direct equality entry
+/* int niji_machine_equal(const void *a, const void *b, size_t n): the direct equality entry
  * (MEMCMP-FOLD, D-4.41 amendment; `bcmp` and `__memcmpeq` in the products): 0 when equal, else 1.
  * The same gates and head probe as the compare entry: different heads return 1 here, equal heads
  * take the same classes as the compare entry (last word, two 16-byte or two 32-byte blocks; 0 or 1
@@ -1294,27 +1294,27 @@ memcmp:
  * for every n in 17-32 (one instruction fewer than a second 16-byte block and the AND;
  * PARITY-MEMCMP-SMALL-EQ); 33-64 without AVX2 the word at 8 (unequal: 1) and the blocks at 16, n - 32
  * and n - 16 ANDed into one test (TIMING-COV-MEMCMP-NONAVX2; it was a tail-jump to the Rust
- * `liella_hot_equal_tail`), more than 64 bytes (sign clear) up to `liella_machine_cmp_long` take the compare entry's 65-128 AVX2
+ * `niji_hot_equal_tail`), more than 64 bytes (sign clear) up to `niji_machine_cmp_long` take the compare entry's 65-128 AVX2
  * class (MEMCMP-MID; no NULL test, the head load faults on page zero, PERF-MEMCMP-TAILS: the
  * 32-byte head block first, then three blocks in one test; 0 or 1) and its 129-2048 class with the
  * last chunk first (an early reject where only the tail differs; MEMCMP-MID-4), then the chunks from
  * byte 32 (0 or 1, nothing located), else .Leq_sse: (no AVX2) the SSE2 classes or (AVX2 above
  * 2048, via .Leq_sse_over's flag test) .Leq_huge's NULL tests and the AVX2 classes;
- * 8-64 with folding off to `liella_hot_equal_rest`
+ * 8-64 with folding off to `niji_hot_equal_rest`
  * (the checked entry, after the 4-7 class's `n < 8` test); 0 to 7 bytes (MEMCMP-SHORT): explicit NULL
  * tests (NULL -> the checked entry), then both end words XORed and ORed into one test (4-7: 4-byte
  * words, 2-3: 2-byte words; 1 the byte). The head probe is the early reject
  * (most unequal pairs differ in their first 8 bytes); proving equality reads every byte once.
  * Reads only [a, a + n) and [b, b + n). */
-	.hidden liella_hot_equal_rest
-	.hidden liella_hot_equal_big
-	.section .text.liella_machine_equal,"ax",@progbits
-	.globl liella_machine_equal
-	.hidden liella_machine_equal
-	.type liella_machine_equal, @function
+	.hidden niji_hot_equal_rest
+	.hidden niji_hot_equal_big
+	.section .text.niji_machine_equal,"ax",@progbits
+	.globl niji_machine_equal
+	.hidden niji_machine_equal
+	.type niji_machine_equal, @function
 	.p2align 6
-liella_machine_equal:
-#ifdef LIELLA_EXPORT
+niji_machine_equal:
+#ifdef NIJI_EXPORT
 	.globl bcmp
 	.type bcmp, @function
 bcmp:
@@ -1323,9 +1323,9 @@ bcmp:
 __memcmpeq:
 #endif
 	leaq -65(%rdx), %rax
-	addq liella_machine_cmp_wide(%rip), %rax
+	addq niji_machine_cmp_wide(%rip), %rax
 	jc .Leq_wide
-	addq liella_machine_cmp_low(%rip), %rax
+	addq niji_machine_cmp_low(%rip), %rax
 	jnc .Leq_other
 	movq (%rdi), %rax
 	cmpq (%rsi), %rax
@@ -1390,9 +1390,9 @@ __memcmpeq:
 .Leq_other:
 	jns .Leq_big
 	testq %rdi, %rdi
-	je liella_hot_equal_rest
+	je niji_hot_equal_rest
 	testq %rsi, %rsi
-	je liella_hot_equal_rest
+	je niji_hot_equal_rest
 	cmpq $4, %rdx
 	jae .Leq_4
 	cmpl $2, %edx
@@ -1407,7 +1407,7 @@ __memcmpeq:
 	ret
 .Leq_4:
 	cmpq $8, %rdx
-	jae liella_hot_equal_rest
+	jae niji_hot_equal_rest
 	movl (%rdi), %ecx
 	movl -4(%rdi,%rdx), %r8d
 	xorl (%rsi), %ecx
@@ -1426,7 +1426,7 @@ __memcmpeq:
 .Leq_none:
 	ret
 .Leq_big:
-	cmpq liella_machine_cmp_long(%rip), %rdx
+	cmpq niji_machine_cmp_long(%rip), %rdx
 	ja .Leq_sse
 .Leq_big_load:
 	vmovdqu (%rdi), %ymm0
@@ -1496,31 +1496,31 @@ __memcmpeq:
 	vzeroupper
 	xorl %eax, %eax
 	ret
-/* Above `liella_machine_cmp_long` (every size above 64 with folding off) and AVX2 on (the
- * `liella_machine_cmp_mid` flag word, nonzero only then): the explicit NULL tests (a NULL a or b ->
+/* Above `niji_machine_cmp_long` (every size above 64 with folding off) and AVX2 on (the
+ * `niji_machine_cmp_mid` flag word, nonzero only then): the explicit NULL tests (a NULL a or b ->
  * the checked entry's S6 abort; no folding above 2048), then the AVX2 classes above (PARITY-MEMCMP-AVX2:
  * the long class's 16-instruction 128-byte step instead of the Rust loop). Without AVX2 the SSE2
  * classes below. Reached from .Leq_sse_over, which tests the flag word (TIMING-COV-COMPARE-HEAD-SSE2:
  * the SSE2 65-2048 classes come first, as in the compare entry, so they skip the flag test). */
 .Leq_huge:
 	testq %rdi, %rdi
-	je liella_hot_equal_big
+	je niji_hot_equal_big
 	testq %rsi, %rsi
-	je liella_hot_equal_big
+	je niji_hot_equal_big
 	jmp .Leq_big_load
 /* Above 64 bytes without AVX2 (TIMING-COV-MEMCMP-NONAVX2; it was a tail-jump to the Rust
- * `liella_hot_equal_big`): the explicit NULL tests (a NULL a or b -> the checked entry's S6 abort),
+ * `niji_hot_equal_big`): the explicit NULL tests (a NULL a or b -> the checked entry's S6 abort),
  * the words at 0 and 8 as the early reject (an unequal word returns 1), then 65-128 the blocks at 16,
  * 32, 48, n - 64, n - 48, n - 32 and n - 16 ANDed into one test (they cover [16, n) for every n up
  * to 128); above 128 64-byte chunks of four 16-byte blocks ANDed into one test, from a + 16 rounded
  * down to 16 (in [a + 1, a + 16], so nothing below a; a's side aligned, compared from memory), a
  * cursor in a and the distance b - a, while the cursor is below a + n - 64, then a last chunk at
  * n - 64 that may overlap the one before (both sides loaded). 0 or 1, nothing located. */
-/* TIMING-COV-MEMCMP-NONAVX2-2 (D-4.62, ruling #3592): up to `liella_machine_cmp_sse` (2048 while
+/* TIMING-COV-MEMCMP-NONAVX2-2 (D-4.62, ruling #3592): up to `niji_machine_cmp_sse` (2048 while
  * NULL folding is on, else 0) no NULL test: the word at offset 0 of a, then of b, is the first
  * access, so a NULL faults on page zero. Above it .Leq_sse_over. */
 .Leq_sse:
-	cmpq liella_machine_cmp_sse(%rip), %rdx
+	cmpq niji_machine_cmp_sse(%rip), %rdx
 	ja .Leq_sse_over
 	movq (%rdi), %rax
 	cmpq (%rsi), %rax
@@ -1561,18 +1561,18 @@ __memcmpeq:
 	subl $0xffff, %eax
 	shrl $31, %eax
 	ret
-/* Above `liella_machine_cmp_sse`: the a test against `liella_machine_cmp_sse_null` (0 while folding
+/* Above `niji_machine_cmp_sse`: the a test against `niji_machine_cmp_sse_null` (0 while folding
  * is on, so only a NULL a takes the checked entry; else SIZE_MAX: with folding off every size above
- * 64 takes `liella_hot_equal_big`, so the long class below runs only above 2048 > 128), the b NULL
+ * 64 takes `niji_hot_equal_big`, so the long class below runs only above 2048 > 128), the b NULL
  * test, the words at 0 and 8, then the long class. First the AVX2 flag word (nonzero only with
- * AVX2, where `liella_machine_cmp_sse` is 0): AVX2 above `liella_machine_cmp_long` -> .Leq_huge. */
+ * AVX2, where `niji_machine_cmp_sse` is 0): AVX2 above `niji_machine_cmp_long` -> .Leq_huge. */
 .Leq_sse_over:
-	cmpq $0, liella_machine_cmp_mid(%rip)
+	cmpq $0, niji_machine_cmp_mid(%rip)
 	jne .Leq_huge
-	cmpq liella_machine_cmp_sse_null(%rip), %rdi
-	jbe liella_hot_equal_big
+	cmpq niji_machine_cmp_sse_null(%rip), %rdi
+	jbe niji_hot_equal_big
 	testq %rsi, %rsi
-	je liella_hot_equal_big
+	je niji_hot_equal_big
 	movq (%rdi), %rax
 	cmpq (%rsi), %rax
 	jne .Leq_one
@@ -1622,82 +1622,82 @@ __memcmpeq:
 	subl $0xffff, %eax
 	shrl $31, %eax
 	ret
-#ifdef LIELLA_EXPORT
+#ifdef NIJI_EXPORT
 	.size __memcmpeq, .-__memcmpeq
 	.size bcmp, .-bcmp
 #endif
-	.size liella_machine_equal, .-liella_machine_equal
-	.section .text.liella_machine_compare,"ax",@progbits
+	.size niji_machine_equal, .-niji_machine_equal
+	.section .text.niji_machine_compare,"ax",@progbits
 
 /* The fold limit: 64 while NULL folding is on, 0 otherwise (crates/boundary/src/dispatch.rs,
- * through `ffi::liella_machine_fold_limit`), and the AVX2 flag byte of the kernels (D-4.25: 1 only
- * when the CPU has AVX2 and the OS saves the YMM state; `ffi::liella_machine_avx2`), and the
- * compare entries' class words (SEQ-REGRESS; `ffi::liella_machine_cmp_wide`/`cmp_low`: wide 32 only
+ * through `ffi::niji_machine_fold_limit`), and the AVX2 flag byte of the kernels (D-4.25: 1 only
+ * when the CPU has AVX2 and the OS saves the YMM state; `ffi::niji_machine_avx2`), and the
+ * compare entries' class words (SEQ-REGRESS; `ffi::niji_machine_cmp_wide`/`cmp_low`: wide 32 only
  * while both are on, low 25 with both, 57 with folding alone, 0 with folding off; their sum never
  * exceeds 57, so `n - 65` plus both carries only for 8-64). They share one 64-byte line
  * with nothing else: all are read by the calls and written only by the startup decisions, so no
  * often-written neighbour may share it (64 bytes per process). Every start writes them, so they sit in
  * the written start-up cluster (.data1, D-X.64) as 64 zero file bytes, in a line of their own. */
 	.section .data1,"aw",@progbits
-	.globl liella_machine_fold_limit
-	.hidden liella_machine_fold_limit
-	.type liella_machine_fold_limit, @object
+	.globl niji_machine_fold_limit
+	.hidden niji_machine_fold_limit
+	.type niji_machine_fold_limit, @object
 	.p2align 6
-liella_machine_fold_limit:
+niji_machine_fold_limit:
 	.zero 8
-	.size liella_machine_fold_limit, 8
-	.globl liella_machine_avx2
-	.hidden liella_machine_avx2
-	.type liella_machine_avx2, @object
-liella_machine_avx2:
+	.size niji_machine_fold_limit, 8
+	.globl niji_machine_avx2
+	.hidden niji_machine_avx2
+	.type niji_machine_avx2, @object
+niji_machine_avx2:
 	.zero 8
-	.size liella_machine_avx2, 1
-	.globl liella_machine_cmp_wide
-	.hidden liella_machine_cmp_wide
-	.type liella_machine_cmp_wide, @object
-liella_machine_cmp_wide:
+	.size niji_machine_avx2, 1
+	.globl niji_machine_cmp_wide
+	.hidden niji_machine_cmp_wide
+	.type niji_machine_cmp_wide, @object
+niji_machine_cmp_wide:
 	.zero 8
-	.size liella_machine_cmp_wide, 8
-	.globl liella_machine_cmp_low
-	.hidden liella_machine_cmp_low
-	.type liella_machine_cmp_low, @object
-liella_machine_cmp_low:
+	.size niji_machine_cmp_wide, 8
+	.globl niji_machine_cmp_low
+	.hidden niji_machine_cmp_low
+	.type niji_machine_cmp_low, @object
+niji_machine_cmp_low:
 	.zero 8
-	.size liella_machine_cmp_low, 8
+	.size niji_machine_cmp_low, 8
 /* The memchr entry's gate (MEMCHR-FOLD, D-4.48 amendment; machine/scan.S): isize::MAX while NULL
  * folding is on, 0 otherwise; written with the fold limit by the same startup decision. The eight
  * words (fold limit, avx2, cmp wide, cmp low, chr limit, cmp mid, cmp long, move long) share one
  * 64-byte line. */
-	.globl liella_machine_chr_limit
-	.hidden liella_machine_chr_limit
-	.type liella_machine_chr_limit, @object
-liella_machine_chr_limit:
+	.globl niji_machine_chr_limit
+	.hidden niji_machine_chr_limit
+	.type niji_machine_chr_limit, @object
+niji_machine_chr_limit:
 	.zero 8
-	.size liella_machine_chr_limit, 8
-/* The compare entries' 65-128 class word (MEMCMP-MID-3; `ffi::liella_machine_cmp_mid`): 128 while
+	.size niji_machine_chr_limit, 8
+/* The compare entries' 65-128 class word (MEMCMP-MID-3; `ffi::niji_machine_cmp_mid`): 128 while
  * the AVX2 builds run, else 0 (written by `crate::dispatch::select`, never above 64 while the AVX2
  * flag is false). Sizes above 64 with `n > word` tail-jump to the checked entries, so one compare
  * replaces the range test and the flag test. */
-	.globl liella_machine_cmp_mid
-	.hidden liella_machine_cmp_mid
-	.type liella_machine_cmp_mid, @object
-liella_machine_cmp_mid:
+	.globl niji_machine_cmp_mid
+	.hidden niji_machine_cmp_mid
+	.type niji_machine_cmp_mid, @object
+niji_machine_cmp_mid:
 	.zero 8
-	.size liella_machine_cmp_mid, 8
+	.size niji_machine_cmp_mid, 8
 /* The compare entries' 65-2048 class word (MEMCMP-MID-4, PERF-MEMCMP-TAILS;
- * `ffi::liella_machine_cmp_long`): 2048 (`hot::CMP_LONG`) while NULL folding and the AVX2 builds
+ * `ffi::niji_machine_cmp_long`): 2048 (`hot::CMP_LONG`) while NULL folding and the AVX2 builds
  * are both on, else 0 (written by `crate::dispatch::store_cmp_gates`: dropped before folding or the
  * AVX2 flag goes off, raised after both are on). The AVX2 65-2048 classes have no NULL test (their
  * first load faults on page zero, ruling #2517 (coordinator, 2026-11-04)), so the word is their only gate: sizes above
  * 64 with `n > word` go to the SSE2 classes (compare) or the checked entry (equality). */
-	.globl liella_machine_cmp_long
-	.hidden liella_machine_cmp_long
-	.type liella_machine_cmp_long, @object
-liella_machine_cmp_long:
+	.globl niji_machine_cmp_long
+	.hidden niji_machine_cmp_long
+	.type niji_machine_cmp_long, @object
+niji_machine_cmp_long:
 	.zero 8
-	.size liella_machine_cmp_long, 8
+	.size niji_machine_cmp_long, 8
 /* The SSE2 65-2048 fold words (TIMING-COV-MEMCMP-NONAVX2-2, D-4.62, ruling #3592;
- * `ffi::liella_machine_cmp_sse`, `ffi::liella_machine_cmp_sse_null`): `cmp_sse` is 2048 while NULL
+ * `ffi::niji_machine_cmp_sse`, `ffi::niji_machine_cmp_sse_null`): `cmp_sse` is 2048 while NULL
  * folding is on without AVX2, else 0 (sizes 65 to it take the SSE2 classes with no NULL test);
  * `cmp_sse_null` is 0 exactly while `cmp_sse` is 2048, else SIZE_MAX (above `cmp_sse` an a at or
  * below it takes the checked entry). Written only by `crate::dispatch::store_cmp_gates`: on the
@@ -1705,55 +1705,55 @@ liella_machine_cmp_long:
  * `cmp_sse` is 0 (else folding off would send 65-128 to the long class). */
 	.pushsection .data1,"aw",@progbits
 	.p2align 3
-	.globl liella_machine_cmp_sse
-	.hidden liella_machine_cmp_sse
-	.type liella_machine_cmp_sse, @object
-liella_machine_cmp_sse:
+	.globl niji_machine_cmp_sse
+	.hidden niji_machine_cmp_sse
+	.type niji_machine_cmp_sse, @object
+niji_machine_cmp_sse:
 	.zero 8
-	.size liella_machine_cmp_sse, 8
-	.globl liella_machine_cmp_sse_null
-	.hidden liella_machine_cmp_sse_null
-	.type liella_machine_cmp_sse_null, @object
-liella_machine_cmp_sse_null:
+	.size niji_machine_cmp_sse, 8
+	.globl niji_machine_cmp_sse_null
+	.hidden niji_machine_cmp_sse_null
+	.type niji_machine_cmp_sse_null, @object
+niji_machine_cmp_sse_null:
 	.quad -1
-	.size liella_machine_cmp_sse_null, 8
+	.size niji_machine_cmp_sse_null, 8
 	.popsection
-/* The copy entry's 129-256 class word (NULLFOLD-COPY-MID, D-4.55; `ffi::liella_machine_move_long`):
+/* The copy entry's 129-256 class word (NULLFOLD-COPY-MID, D-4.55; `ffi::niji_machine_move_long`):
  * 256 while NULL folding is on with the AVX2 build, 2^63 | 256 (sign bit: the SSE2 body) while
  * folding is on with the SSE2 build, else 0 (written by `crate::dispatch::store_cmp_gates` and `drop_move_word`: dropped
  * before folding or the AVX2 flag goes off, raised after both are set). The 129-256 copy classes
  * have no NULL test (their first load, s at offset 0, faults on page zero before any store), so the
  * word is their only gate: sizes above 128 with `n > word` (sign bit cleared) tail-jump to the
  * checked entry. It completes the line. */
-	.globl liella_machine_move_long
-	.hidden liella_machine_move_long
-	.type liella_machine_move_long, @object
-liella_machine_move_long:
+	.globl niji_machine_move_long
+	.hidden niji_machine_move_long
+	.type niji_machine_move_long, @object
+niji_machine_move_long:
 	.zero 8
-	.size liella_machine_move_long, 8
+	.size niji_machine_move_long, 8
 
-/* The `memset` entry's `rep stosb` word (MEMSET-4K-3; `ffi::liella_machine_fill_erms_from`):
+/* The `memset` entry's `rep stosb` word (MEMSET-4K-3; `ffi::niji_machine_fill_erms_from`):
  * sizes above 256 with `n >= word` take the entry's `rep stosb`. usize::MAX (no size) until the
  * startup decision writes the threshold (at least 257) on ERMS CPUs (`crate::cpu`). Its own
  * 64-byte line: it needs a nonzero initial value, so it cannot share the line above. In the written start-up cluster (.data1, D-X.64) with them. */
 	.section .data1,"aw",@progbits
-	.globl liella_machine_fill_erms_from
-	.hidden liella_machine_fill_erms_from
-	.type liella_machine_fill_erms_from, @object
+	.globl niji_machine_fill_erms_from
+	.hidden niji_machine_fill_erms_from
+	.type niji_machine_fill_erms_from, @object
 	.p2align 6
-liella_machine_fill_erms_from:
+niji_machine_fill_erms_from:
 	.quad -1
-	.size liella_machine_fill_erms_from, 8
-/* The `memset` entry's 65-128 class word (PARITY-MEMSET-SMALL-AVX2; `ffi::liella_machine_set_mid`):
+	.size niji_machine_fill_erms_from, 8
+/* The `memset` entry's 65-128 class word (PARITY-MEMSET-SMALL-AVX2; `ffi::niji_machine_set_mid`):
  * 128 while NULL folding is on, else 0 (written by `crate::dispatch::select_null_fold`: dropped
  * before the fold limit, raised after it). Sizes above the fold limit with `n <= word` take the
  * 65-128 class. Read only by `memset` and written only by the startup decision, as the word above,
  * so it shares that word's line; the padding completes it. */
-	.globl liella_machine_set_mid
-	.hidden liella_machine_set_mid
-	.type liella_machine_set_mid, @object
-liella_machine_set_mid:
+	.globl niji_machine_set_mid
+	.hidden niji_machine_set_mid
+	.type niji_machine_set_mid, @object
+niji_machine_set_mid:
 	.zero 56
-	.size liella_machine_set_mid, 8
+	.size niji_machine_set_mid, 8
 
 	.section .note.GNU-stack,"",@progbits

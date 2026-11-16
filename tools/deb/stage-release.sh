@@ -4,7 +4,7 @@
 # usage: stage-release.sh --out DIR [--head SHA] [--note TEXT] FILE.deb...
 #
 # GitHub does not allow `~` in a release asset name and publishes it with `.` in its place (issue #3:
-# `liella6_0.0~snapshot...deb` became `liella6_0.0.snapshot...deb`, so a SHA256SUMS naming the `~` file
+# `niji6_0.0~snapshot...deb` became `niji6_0.0.snapshot...deb`, so a SHA256SUMS naming the `~` file
 # failed `sha256sum -c` on the downloads). So each file is staged under its published name, and SHA256SUMS
 # is computed over the staged names: `sha256sum -c SHA256SUMS` passes on exactly what is uploaded. The
 # package versions inside the .debs are not touched. A name with a character outside A-Z a-z 0-9 . _ + -
@@ -54,7 +54,7 @@ cd "$out"
 sha256sum -- *.deb > SHA256SUMS
 sha256sum -c SHA256SUMS >/dev/null
 {
-    echo "Liella release assets (staged, not published)"
+    echo "libniji release assets (staged, not published)"
     [ -z "$head" ] || echo "head: $head"
     [ -z "$note" ] || echo "$note"
     echo "built: $(hostname -s), $(date -u +%Y-%m-%dT%H:%M:%SZ)"

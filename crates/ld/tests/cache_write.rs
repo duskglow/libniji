@@ -1,9 +1,9 @@
-//! The loader cache writer (`liella_ld::cache::write`, UTIL-2, plan/utilities.md §4 and §5): the
-//! round trip writer -> Liella's reader (every entry found, in the D.3.3 comparison's order, the
+//! The loader cache writer (`niji_ld::cache::write`, UTIL-2, plan/utilities.md §4 and §5): the
+//! round trip writer -> libniji's reader (every entry found, in the D.3.3 comparison's order, the
 //! output independent of input order), the D.3.1 layout with the D.3.2 extensions, refusal of
 //! invalid input, and two black-box checks against the reference: its `ldconfig -p` lists a
-//! Liella-written cache exactly as it lists its own for the same libraries, and its loader resolves
-//! through a Liella-written cache as through its own (Appendix D.3 method: the cache bind-mounted
+//! libniji-written cache exactly as it lists its own for the same libraries, and its loader resolves
+//! through a libniji-written cache as through its own (Appendix D.3 method: the cache bind-mounted
 //! over `/etc/ld.so.cache` in an unprivileged user and mount namespace).
 //!
 //! Clause: s27_1_c_1_1 (the cache step of path search; the format is spec Appendix D.3). Pure
@@ -16,8 +16,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::cache::{self, compare, encoded_len, Cache, Entry, WriteError};
+use niji_ld::arch::{Arch, Native};
+use niji_ld::cache::{self, compare, encoded_len, Cache, Entry, WriteError};
 
 const FLAGS: u32 = <Native as Arch>::CACHE_FLAGS;
 const HW_SETS: [&[&str]; 4] = [&[], &["x86-64-v2"], &["x86-64-v3", "x86-64-v2"], &["x86-64-v4", "x86-64-v3", "x86-64-v2"]];
@@ -121,7 +121,7 @@ fn expected<'a>(rows: &'a [Row], name: &str, hw: &[&str]) -> Option<&'a str> {
 }
 
 /// s27_1_c_1_1 (the cache step), Appendix D.3.1 and D.3.3, UTIL-2: for generated input sets
-/// (empty, small, a 3000-entry one), Liella's reader reads back exactly the entries given, in the
+/// (empty, small, a 3000-entry one), libniji's reader reads back exactly the entries given, in the
 /// comparison's descending order with ties by configuration order, hwcaps before plain, then
 /// path; every key's lookup gives what the order rule predicts for each supported hwcaps set; and
 /// the same set in another order gives the same bytes.
@@ -131,11 +131,11 @@ fn write_round_trip_in_comparison_order() {
     let sizes: Vec<usize> = [0, 1, 2, 3, 3000].into_iter().chain((0..120).map(|i| 4 + i % 60)).collect();
     for n in sizes {
         let rows = input(&mut rng, n);
-        let file = build(&rows, "liella test");
+        let file = build(&rows, "niji test");
         let c = Cache::parse(&file).unwrap_or_else(|| panic!("write_round_trip: the reader refuses a written cache of {n} entries"));
         assert_eq!(c.len(), n);
         assert!(c.get(n).is_none(), "write_round_trip: no entry past the count");
-        assert_eq!(c.generator(), Some(&b"liella test"[..]));
+        assert_eq!(c.generator(), Some(&b"niji test"[..]));
         let order: BTreeMap<&str, u32> = rows.iter().map(|r| (r.2.as_str(), r.4)).collect();
         let back: Vec<_> = (0..n).map(|i| c.get(i).unwrap_or_else(|| panic!("write_round_trip: entry {i} unreadable"))).collect();
         for w in back.windows(2) {
@@ -164,13 +164,13 @@ fn write_round_trip_in_comparison_order() {
         reversed.reverse();
         let mut rotated = rows.clone();
         rotated.rotate_left(n / 3);
-        assert!(build(&reversed, "liella test") == file && build(&rotated, "liella test") == file, "write_round_trip: input order changed the bytes");
+        assert!(build(&reversed, "niji test") == file && build(&rotated, "niji test") == file, "write_round_trip: input order changed the bytes");
     }
 }
 
 /// no spec clause: not a check; writes the seeds of the reader's fuzz target (`fuzz/seeds/ld_cache`, mutated
 /// writer output, plan/utilities.md §5) from the writer, so they stay in the format the writer
-/// makes. Run with `cargo test -p liella-ld --test cache_write -- --ignored write_reader_fuzz_seeds`.
+/// makes. Run with `cargo test -p niji-ld --test cache_write -- --ignored write_reader_fuzz_seeds`.
 #[test]
 #[ignore = "regenerates fuzz/seeds/ld_cache"]
 fn write_reader_fuzz_seeds() {
@@ -187,10 +187,10 @@ fn write_reader_fuzz_seeds() {
     let mut rng = Rng(0x5eed_cafe_f00d_1234);
     let sets: [(Vec<Row>, &str); 5] = [
         (Vec::new(), ""),
-        (Vec::new(), "liella"),
-        (fixture.clone(), "liella ldconfig"),
+        (Vec::new(), "niji"),
+        (fixture.clone(), "niji ldconfig"),
         (fixture.into_iter().filter(|r| r.3.is_none()).collect(), ""),
-        (input(&mut rng, 40), "liella"),
+        (input(&mut rng, 40), "niji"),
     ];
     for (i, (rows, generator)) in sets.iter().enumerate() {
         std::fs::write(dir.join(format!("writer-{i}")), build(rows, generator)).unwrap();
@@ -419,8 +419,8 @@ fn scratch(name: &str) -> PathBuf {
 /// s27_1_c_1_1, Appendix D.3, UTIL-2 (black box): the reference `ldconfig -r ROOT` writes a cache
 /// for a private root of tiny libraries (digit-run, case and punctuation sonames, `1.09` beside
 /// `1.9`, a library without a soname, one soname in three directories, hwcaps subdirectories);
-/// Liella writes one from the same library set (with the reference cache's generator text, read
-/// back by Liella's reader); the reference `ldconfig -p` prints both identically, entry order
+/// libniji writes one from the same library set (with the reference cache's generator text, read
+/// back by libniji's reader); the reference `ldconfig -p` prints both identically, entry order
 /// included.
 #[test]
 fn reference_ldconfig_lists_liella_cache_alike() {
@@ -445,12 +445,12 @@ fn reference_ldconfig_lists_liella_cache_alike() {
         String::from_utf8(o.stdout).unwrap()
     };
     let (want, got) = (print(&reference), print(&mine));
-    eprintln!("reference:\n{want}\nliella:\n{got}");
+    eprintln!("reference:\n{want}\nniji:\n{got}");
     assert!(want.contains("23 libs found"), "the reference cached every fixture library");
     // The one order the reference does not fix: plain entries of one directory whose keys are
     // equal under the comparison (`libv.so.1.9`, `libv.so.1.09`) follow its directory listing
     // (opposite orders on two file systems; Appendix D.3.3 "not settled"). Such a group compares
-    // as a set; Liella's own order there is path bytes (checked here and by the round trip).
+    // as a set; libniji's own order there is path bytes (checked here and by the round trip).
     assert_eq!(tie_groups(&got), tie_groups(&want), "reference_ldconfig_lists_liella_cache_alike: ldconfig -p differs");
     let v = |s: &str| got.find(s).unwrap();
     assert!(v("/opt/sort/libv.so.1.09\n") < v("/opt/sort/libv.so.1.9\n"), "reference_ldconfig_lists_liella_cache_alike: equal keys of one directory by path bytes");
@@ -508,7 +508,7 @@ fn resolved(ldso: &Path, cache: &Path, main: &Path, root: &str) -> Vec<String> {
 
 /// s27_1_c_1_1, Appendix D.3 method, UTIL-2 (black box): a program needing four fixture libraries
 /// (one in hwcaps subdirectories, one soname in two configured directories, one in the trusted
-/// one too, `libv.so.1.9` beside `libv.so.1.09`) resolves through a Liella-written cache exactly as
+/// one too, `libv.so.1.9` beside `libv.so.1.09`) resolves through a libniji-written cache exactly as
 /// through the reference ldconfig's cache for the same directories, every one of them found in
 /// the fixture tree. The cache is bind-mounted over `/etc/ld.so.cache` in an unprivileged user and
 /// mount namespace; the host's `/etc` is never changed.
@@ -540,14 +540,14 @@ fn reference_loader_resolves_through_liella_cache() {
     std::fs::write(d.join("abs.conf"), conf).unwrap();
     let st = Command::new(&ldconfig).args(["-X", "-i", "-f"]).arg(d.join("abs.conf")).arg("-C").arg(d.join("ref.cache")).output().unwrap();
     assert!(st.status.success(), "reference ldconfig: {}", String::from_utf8_lossy(&st.stderr));
-    std::fs::write(d.join("liella.cache"), build(&rows, "liella")).unwrap();
+    std::fs::write(d.join("niji.cache"), build(&rows, "niji")).unwrap();
     let want = resolved(&ldso, &d.join("ref.cache"), &d.join("main"), &r);
-    let got = resolved(&ldso, &d.join("liella.cache"), &d.join("main"), &r);
-    eprintln!("reference cache: {want:?}\nliella cache: {got:?}");
+    let got = resolved(&ldso, &d.join("niji.cache"), &d.join("main"), &r);
+    eprintln!("reference cache: {want:?}\nniji cache: {got:?}");
     assert_eq!(got.len(), 4, "reference_loader: every fixture library listed: {got:?}");
     assert!(got.iter().all(|l| l.contains(" => /") && !l.contains("not found")), "reference_loader: every fixture library found in the tree: {got:?}");
     // `libv.so.1.9` matches the `libv.so.1.09` entry too (Appendix D.3.3); which of the two comes
-    // first in the reference's cache follows its directory listing, in Liella's by path bytes.
+    // first in the reference's cache follows its directory listing, in libniji's by path bytes.
     let tie = |v: &[String]| v.iter().map(|l| if l.starts_with("libv.so.1.9 => /opt/sort/libv.so.1.") { "libv.so.1.9 => tie".to_string() } else { l.clone() }).collect::<Vec<_>>();
     assert!(want.iter().any(|l| l == "libv.so.1.9 => /opt/sort/libv.so.1.9" || l == "libv.so.1.9 => /opt/sort/libv.so.1.09"));
     assert!(got.iter().any(|l| l == "libv.so.1.9 => /opt/sort/libv.so.1.09"), "reference_loader: equal keys of one directory by path bytes");

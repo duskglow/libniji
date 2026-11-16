@@ -37,13 +37,13 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_abi::layout::struct_addrinfo;
-use liella_kernel::errno::Errno;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SigEvent, SigInfo, Timespec, CLOCK_MONOTONIC, SIGEV_SIGNAL, SIGEV_THREAD};
-use liella_rt::futex::{self, Clock, Scope};
-use liella_rt::sync::{RawCondvar, RawMutex};
-use liella_rt::thread::Attr;
+use niji_abi::layout::struct_addrinfo;
+use niji_kernel::errno::Errno;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SigEvent, SigInfo, Timespec, CLOCK_MONOTONIC, SIGEV_SIGNAL, SIGEV_THREAD};
+use niji_rt::futex::{self, Clock, Scope};
+use niji_rt::sync::{RawCondvar, RawMutex};
+use niji_rt::thread::Attr;
 
 use crate::conv;
 use crate::errno;
@@ -287,7 +287,7 @@ extern "C" fn notifier(g: usize) -> usize {
     let (f, v) = (grp.function.load(Relaxed), grp.value.load(Relaxed));
     grp.used.store(0, Release);
     // `void f(union sigval)`: the 8-byte union is passed as an integer (psABI).
-    let _ = ffi::liella_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
+    let _ = ffi::niji_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
     0
 }
 
@@ -386,7 +386,7 @@ pub fn getaddrinfo_a(mode: i32, list: KList<'_>, sig: Option<&SigEvent>) -> i32 
 }
 
 /// A request list: the bytes of its entries (8 each).
-pub type KList<'a> = liella_kernel::errno::KResult<&'a [u8]>;
+pub type KList<'a> = niji_kernel::errno::KResult<&'a [u8]>;
 
 /// The entries of a list, as addresses (0 for NULL).
 fn entries(list: &[u8]) -> impl Iterator<Item = usize> + Clone + '_ {

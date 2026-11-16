@@ -1,7 +1,7 @@
 //! Allocator debugging for the C `malloc` family (spec §3.2 `M_PERTURB`, §3.3 `mcheck`,
 //! `mcheck_pedantic`, `mcheck_check_all`, `mprobe`, `mtrace`, `muntrace`; D-3.5 as decided in
 //! phase 13): the semantics glibc provides with `libc_malloc_debug.so` preloaded, provided by
-//! Liella's own C library when the program asks for them, since its heap can do it without a
+//! libniji's own C library when the program asks for them, since its heap can do it without a
 //! second library. Written from the spec, mcheck(3), mtrace(3), mallopt(3), the glibc manual's
 //! "Heap Consistency Checking" and "Allocation Debugging", and `spec/behaviour/mallocdbg.md`.
 //!
@@ -51,14 +51,14 @@ use core::sync::atomic::AtomicU32;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
 
-use liella::error::{Errno, Result};
-use liella::num::format::{format_u64, Bounded, Case, Sink};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_CREAT, O_TRUNC, O_WRONLY, PROT_READ, PROT_WRITE};
-use liella_kernel::KStr;
-use liella_rt::heap::{Misuse, Pages, ALIGN};
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, Result};
+use niji::num::format::{format_u64, Bounded, Case, Sink};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_CREAT, O_TRUNC, O_WRONLY, PROT_READ, PROT_WRITE};
+use niji_kernel::KStr;
+use niji_rt::heap::{Misuse, Pages, ALIGN};
+use niji_rt::sync::RawMutex;
 
 use crate::malloc_compat::Ctx;
 
@@ -828,7 +828,7 @@ impl Debug {
         let Ok(k) = KStr::from_nul_terminated(z) else { return };
         let Ok(fd) = sys.openat(Fd::CWD, k, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0o666) else { return };
         // Kept until `muntrace`: never a standard descriptor (validation T12).
-        let Ok(fd) = liella::io::above_standard(sys, fd) else { return };
+        let Ok(fd) = niji::io::above_standard(sys, fd) else { return };
         let _ = sys.write(fd, b"= Start\n");
         self.trace.store(fd.raw(), Release);
         self.flags.fetch_or(TRACE, AcqRel);

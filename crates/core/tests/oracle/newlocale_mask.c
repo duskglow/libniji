@@ -1,6 +1,6 @@
 /* newlocale category-mask bits: which masks are accepted, and what the result holds
  * (NEWLOCALE-LC-ALL-BIT; spec/behaviour/newlocale-mask.md). Built against the host C library
- * and statically against Liella's products; locale_products.rs compares the outputs line by
+ * and statically against libniji's products; locale_products.rs compares the outputs line by
  * line. Without arguments: every single bit 0..13, LC_ALL_MASK, bit 6 with other bits, with
  * "C", "POSIX", "", "C.UTF-8", "en_US.UTF-8", an unknown and a composite name, base NULL or an
  * en_US.UTF-8 object, and a NULL name. With an argument: only the "" rows (the caller sets the

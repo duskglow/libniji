@@ -1,34 +1,34 @@
 //! The structures of the native C ABI (D-X.10), each `#[repr(C)]` with its fields in an order
-//! that needs no padding, so that the C declaration in `include/liella/native.h` (generated
+//! that needs no padding, so that the C declaration in `include/niji/native.h` (generated
 //! from `spec/abi/native.tsv`) is the same object. Sizes, alignments and offsets are asserted
 //! in the header and in `crates/boundary/tests/native_v1.rs`. Fields are never reordered,
 //! retyped or removed: a later node that needs more defines a new structure.
 
-use liella::error::{Errno, KResult};
-use liella::time::{CivilTime, Fields, Local};
-use liella_kernel::uapi;
+use niji::error::{Errno, KResult};
+use niji::time::{CivilTime, Fields, Local};
+use niji_kernel::uapi;
 
-/// `struct liella_timespec` (16 bytes, alignment 8): an instant as seconds since the epoch
+/// `struct niji_timespec` (16 bytes, alignment 8): an instant as seconds since the epoch
 /// and nanoseconds, or a reading of a clock.
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
-pub struct LiellaTimespec {
+pub struct NijiTimespec {
     /// Seconds.
     pub sec: i64,
     /// Nanoseconds, 0 to 999,999,999.
     pub nsec: i64,
 }
 
-impl From<uapi::Timespec> for LiellaTimespec {
+impl From<uapi::Timespec> for NijiTimespec {
     fn from(t: uapi::Timespec) -> Self {
-        LiellaTimespec { sec: t.sec, nsec: t.nsec }
+        NijiTimespec { sec: t.sec, nsec: t.nsec }
     }
 }
 
-/// `struct liella_stat` (120 bytes, alignment 8): a file's status.
+/// `struct niji_stat` (120 bytes, alignment 8): a file's status.
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
-pub struct LiellaStat {
+pub struct NijiStat {
     /// The device holding the file.
     pub dev: u64,
     /// The inode number.
@@ -44,12 +44,12 @@ pub struct LiellaStat {
     /// The 512-byte blocks allocated.
     pub blocks: i64,
     /// The last access.
-    pub atime: LiellaTimespec,
+    pub atime: NijiTimespec,
     /// The last modification of the contents.
-    pub mtime: LiellaTimespec,
+    pub mtime: NijiTimespec,
     /// The last change of the status.
-    pub ctime: LiellaTimespec,
-    /// The type and permission bits (`LIELLA_S_IF*`, the kernel's values).
+    pub ctime: NijiTimespec,
+    /// The type and permission bits (`NIJI_S_IF*`, the kernel's values).
     pub mode: u32,
     /// The owner.
     pub uid: u32,
@@ -59,9 +59,9 @@ pub struct LiellaStat {
     pub reserved: u32,
 }
 
-impl From<uapi::Stat> for LiellaStat {
+impl From<uapi::Stat> for NijiStat {
     fn from(s: uapi::Stat) -> Self {
-        LiellaStat {
+        NijiStat {
             dev: s.dev,
             ino: s.ino,
             nlink: s.nlink,
@@ -80,17 +80,17 @@ impl From<uapi::Stat> for LiellaStat {
     }
 }
 
-/// The capacity of [`LiellaTm::abbr`].
+/// The capacity of [`NijiTm::abbr`].
 pub const ABBR_CAP: usize = 16;
 
-/// `struct liella_tm` (64 bytes, alignment 8): a local time in the current zone.
+/// `struct niji_tm` (64 bytes, alignment 8): a local time in the current zone.
 ///
-/// As a result every field is set. As the input of `liella_tz_from_local`, `year` to
+/// As a result every field is set. As the input of `niji_tz_from_local`, `year` to
 /// `second` and `isdst` are read (values outside their ranges carry, as `mktime`'s do) and the
 /// rest is ignored.
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
-pub struct LiellaTm {
+pub struct NijiTm {
     /// The full year (2026 is 2026; may be zero or negative).
     pub year: i64,
     /// 1 to 12.
@@ -117,12 +117,12 @@ pub struct LiellaTm {
     pub abbr: [u8; ABBR_CAP],
 }
 
-impl LiellaTm {
+impl NijiTm {
     /// A local time and its abbreviation as the structure. An offset beyond `i32` (no zone has
     /// one: offsets are below a day) is `EOVERFLOW`.
-    pub fn from_local(l: &Local, abbr: &[u8]) -> KResult<LiellaTm> {
+    pub fn from_local(l: &Local, abbr: &[u8]) -> KResult<NijiTm> {
         let c: &CivilTime = &l.civil;
-        let mut tm = LiellaTm {
+        let mut tm = NijiTm {
             year: c.year,
             month: i32::from(c.month),
             day: i32::from(c.day),
@@ -140,7 +140,7 @@ impl LiellaTm {
         Ok(tm)
     }
 
-    /// The fields `liella_tz_from_local` reads.
+    /// The fields `niji_tz_from_local` reads.
     pub fn fields(&self) -> Fields {
         Fields {
             year: self.year,
@@ -153,18 +153,18 @@ impl LiellaTm {
     }
 }
 
-/// `struct liella_nscache_info` (64 bytes, alignment 8): the state of the process's
+/// `struct niji_nscache_info` (64 bytes, alignment 8): the state of the process's
 /// name-service cache (D-16.10).
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
-pub struct LiellaNscacheInfo {
+pub struct NijiNscacheInfo {
     /// 1 enabled, 0 disabled.
     pub enabled: u32,
-    /// The enabled categories (bit `1 << LIELLA_NSCACHE_<category>`).
+    /// The enabled categories (bit `1 << NIJI_NSCACHE_<category>`).
     pub categories: u32,
-    /// `LIELLA_NSCACHE_MODE_*`.
+    /// `NIJI_NSCACHE_MODE_*`.
     pub mode: u32,
-    /// `LIELLA_NSCACHE_REASON_*`.
+    /// `NIJI_NSCACHE_REASON_*`.
     pub reason: u32,
     /// The shared region's user ID (`u64::MAX`: none).
     pub owner: u64,
@@ -180,9 +180,9 @@ pub struct LiellaNscacheInfo {
     pub stores: u64,
 }
 
-impl From<liella_legacy::nscache::Status> for LiellaNscacheInfo {
-    fn from(s: liella_legacy::nscache::Status) -> Self {
-        LiellaNscacheInfo {
+impl From<niji_legacy::nscache::Status> for NijiNscacheInfo {
+    fn from(s: niji_legacy::nscache::Status) -> Self {
+        NijiNscacheInfo {
             enabled: u32::from(s.enabled),
             categories: s.categories,
             mode: s.mode,

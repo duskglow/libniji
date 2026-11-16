@@ -2,7 +2,7 @@
 //! D-27.16): the search order with recorded candidate paths, the secure-mode rules of
 //! spec/security/threat-model.md "The dynamic loader" that concern search (rules 1, 2, 3, 5, 9 and
 //! 11; R14-15), the cache reader over hand-built files (Appendix D.3) and a corrupt-cache corpus, and
-//! the built `ld.so --list` against the reference loader's for objects that are not Liella's.
+//! the built `ld.so --list` against the reference loader's for objects that are not libniji's.
 //!
 //! Clause: s27_1_c_1_1 (path search order). Pure tests take `Native` as an x86_64 table and say so;
 //! the product tests skip (with the reason) when `cc`, the product or the reference loader is absent.
@@ -11,9 +11,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::cache::{compare, Cache};
-use liella_ld::search::{self, Ctx, Scope, PREFIX};
+use niji_ld::arch::{Arch, Native};
+use niji_ld::cache::{compare, Cache};
+use niji_ld::search::{self, Ctx, Scope, PREFIX};
 
 const V3: &[&str] = &["x86-64-v3", "x86-64-v2"];
 
@@ -253,7 +253,7 @@ fn search_secure_rules() {
     assert!(open.iter().any(|p| p.starts_with("/tmp/evil/sub/")) && open.iter().any(|p| p.starts_with("/env1/")));
 }
 
-/// s27_1_c_1_1, R14-3 (a), threat model rule 9: Liella's sonames resolve to `<prefix>/<libdir>` only (never
+/// s27_1_c_1_1, R14-3 (a), threat model rule 9: libniji's sonames resolve to `<prefix>/<libdir>` only (never
 /// RPATH, RUNPATH or the cache); LD_LIBRARY_PATH may override outside secure mode only.
 #[test]
 fn search_pinned_sonames() {
@@ -263,11 +263,11 @@ fn search_pinned_sonames() {
     let mut own = search::PathBuf::default();
     assert!(search::own_lib(b"libc.so.6", &mut own));
     let own = String::from_utf8(own.as_bytes().to_vec()).unwrap();
-    // The build-time layout (RELEASE-PACKAGING-DEB): `<LIELLA_PREFIX>/<LIELLA_LIBDIR>/NAME`, one `/`
+    // The build-time layout (RELEASE-PACKAGING-DEB): `<NIJI_PREFIX>/<NIJI_LIBDIR>/NAME`, one `/`
     // between the parts; the default build (`/`, `lib`) keeps `/lib/libc.so.6`.
     let want = format!("{}/{}/libc.so.6", PREFIX.trim_end_matches('/'), search::LIBDIR.trim_matches('/'));
     assert_eq!(own, want, "pinned path is <prefix>/<libdir>/name");
-    if option_env!("LIELLA_PREFIX").is_none() && option_env!("LIELLA_LIBDIR").is_none() {
+    if option_env!("NIJI_PREFIX").is_none() && option_env!("NIJI_LIBDIR").is_none() {
         assert_eq!(own, "/lib/libc.so.6", "the default build's pinned directory is /lib");
     }
     let mut dir = search::PathBuf::default();
@@ -287,7 +287,7 @@ fn target() -> PathBuf {
     std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from)
 }
 
-/// The `name => path` lines of a `--list` output, without addresses and without Liella's own
+/// The `name => path` lines of a `--list` output, without addresses and without libniji's own
 /// libraries (pinned sonames) or the loader.
 fn deps(out: &[u8]) -> Vec<String> {
     String::from_utf8_lossy(out)
@@ -304,7 +304,7 @@ fn deps(out: &[u8]) -> Vec<String> {
 #[cfg(target_arch = "x86_64")] // ARCH(x86_64): runs the host's x86-64 reference loader on objects the host toolchain builds
 #[test]
 fn list_matches_reference() {
-    let ld = target().join("liella").join(Native::INTERP);
+    let ld = target().join("niji").join(Native::INTERP);
     let reference = Path::new("/lib64").join(Native::INTERP);
     if !ld.exists() || !reference.exists() || !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: needs cc, {} (cargo xtask so) and {}", ld.display(), reference.display());
@@ -322,12 +322,12 @@ fn list_matches_reference() {
     cc(&["-o", "prog", "main.c", "-L", ".", "-l:liba.so.1", "-Wl,--enable-new-dtags,-rpath,$ORIGIN"]);
     std::fs::remove_file(d.join("libgone.so.1")).unwrap();
     let prog = d.join("prog");
-    let liella_libs = target().join("liella");
+    let niji_libs = target().join("niji");
     let want = Command::new(&prog).env("LD_TRACE_LOADED_OBJECTS", "1").output().unwrap();
     let want_list = Command::new(&reference).arg("--list").arg(&prog).output().unwrap();
-    let got = Command::new(&ld).arg("--list").arg(&prog).env("LD_LIBRARY_PATH", &liella_libs).output().unwrap();
-    let traced = Command::new(&ld).arg(&prog).env("LD_TRACE_LOADED_OBJECTS", "1").env("LD_LIBRARY_PATH", &liella_libs).output().unwrap();
-    eprintln!("reference:\n{}\nliella:\n{}{}", String::from_utf8_lossy(&want.stdout), String::from_utf8_lossy(&got.stdout), String::from_utf8_lossy(&got.stderr));
+    let got = Command::new(&ld).arg("--list").arg(&prog).env("LD_LIBRARY_PATH", &niji_libs).output().unwrap();
+    let traced = Command::new(&ld).arg(&prog).env("LD_TRACE_LOADED_OBJECTS", "1").env("LD_LIBRARY_PATH", &niji_libs).output().unwrap();
+    eprintln!("reference:\n{}\nniji:\n{}{}", String::from_utf8_lossy(&want.stdout), String::from_utf8_lossy(&got.stdout), String::from_utf8_lossy(&got.stderr));
     assert!(deps(&want.stdout).iter().any(|l| l.starts_with("libgcc_s.so.1 => /")), "the reference found the system library");
     assert!(deps(&want.stdout).iter().any(|l| l == "libgone.so.1 => not found"), "the reference traced the missing library");
     assert_eq!(deps(&traced.stdout), deps(&want.stdout), "list_matches_reference: LD_TRACE_LOADED_OBJECTS differs from the reference");

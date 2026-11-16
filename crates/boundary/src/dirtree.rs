@@ -1,6 +1,6 @@
 //! Directory-tree glue (spec §13.1–13.3, §13.8–13.9; D-13.1 to D-13.6, D-13.13): the C
 //! objects of the working-directory, directory-stream, walk, canonicalization and
-//! temporary-name functions, over `liella::fs` and `liella_legacy::{fs_tree, fts}`.
+//! temporary-name functions, over `niji::fs` and `niji_legacy::{fs_tree, fts}`.
 //!
 //! * `DIR` and `FTS` objects are slots this module leaks and recycles, never frees (as the
 //!   stdio streams are): the handle is the slot's address, so a handle used after `closedir` or
@@ -15,19 +15,19 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::error::{Errno, KResult};
-use liella::fs::canon;
-use liella::fs::cwd;
-use liella::fs::dir::{self, DirStream};
-use liella::fs::temp::{self, Create, Made};
-use liella::mem::{TryBox, TryVec};
-use liella_abi::callback::{DirFilterFn, SlotCompareFn};
-use liella_abi::layout::{struct_dirent, struct_dirent64};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::{KStr, PATH_MAX};
-use liella_legacy::fs_tree;
-use liella_legacy::fts::{Fts, FtsMem};
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, KResult};
+use niji::fs::canon;
+use niji::fs::cwd;
+use niji::fs::dir::{self, DirStream};
+use niji::fs::temp::{self, Create, Made};
+use niji::mem::{TryBox, TryVec};
+use niji_abi::callback::{DirFilterFn, SlotCompareFn};
+use niji_abi::layout::{struct_dirent, struct_dirent64};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::{KStr, PATH_MAX};
+use niji_legacy::fs_tree;
+use niji_legacy::fts::{Fts, FtsMem};
+use niji_rt::sync::RawMutex;
 
 use crate::sys::CSys;
 use crate::{caller_alloc, conv, process, ret, strz, tb};
@@ -171,7 +171,7 @@ fn recycle_fts(a: usize) {
 /// `thread::alone`; as the stdio stream locks): nobody else can then hold or wait for it, and the
 /// two atomic read-modify-writes are most of a buffered `readdir` (DU-3).
 #[inline]
-fn lock_unless_alone(m: &RawMutex) -> Option<liella_rt::sync::MutexGuard<'_, CSys>> {
+fn lock_unless_alone(m: &RawMutex) -> Option<niji_rt::sync::MutexGuard<'_, CSys>> {
     if crate::thread::alone() { None } else { Some(m.lock(&CSys)) }
 }
 
@@ -247,7 +247,7 @@ pub fn closedir(d: usize) -> KResult<()> {
 #[inline(always)]
 pub fn readdir_addr(d: usize) -> usize {
     // `lock_alone` (one relaxed load of a private byte, as the mutex fast paths ask it) implies
-    // `alone`: it is set from `__libc_single_threaded` only once Liella owns the process and is
+    // `alone`: it is set from `__libc_single_threaded` only once libniji owns the process and is
     // cleared for good by the first thread or shared task. When it is false the slow path asks
     // `alone` itself, so no case takes a lock it did not take before (PERF-READDIR-ENTRY).
     if let Ok(slot) = dir_slot(d) {
@@ -349,9 +349,9 @@ pub fn dirfd(d: usize) -> KResult<i64> {
 
 /// `getdirentries(fd, buf, n, basep)`: `*basep` is the position before the read.
 pub fn getdirentries(fd: i32, buf: KResult<&mut [u8]>, basep: Option<&mut i64>) -> KResult<usize> {
-    use liella_kernel::sys::Sys;
+    use niji_kernel::sys::Sys;
     let (buf, basep) = (buf?, basep.ok_or(Errno::EFAULT)?);
-    let base = CSys.lseek(Fd::new(fd), 0, liella_kernel::uapi::SEEK_CUR)?;
+    let base = CSys.lseek(Fd::new(fd), 0, niji_kernel::uapi::SEEK_CUR)?;
     let n = CSys.getdents64(Fd::new(fd), buf)?;
     *basep = i64::try_from(base).unwrap_or(i64::MAX);
     Ok(n)
@@ -490,7 +490,7 @@ pub fn get_current_dir_name() -> KResult<usize> {
 /// `realpath(path, resolved)` with `resolved` the caller's object (`PATH_MAX` bytes, or
 /// `resolvedlen` for `__realpath_chk`) or NULL (a new block). With an object, a result longer
 /// than `PATH_MAX` is `ENAMETOOLONG`, and a failure leaves there the prefix
-/// `liella::fs::canon` reports (when it fits `PATH_MAX`); otherwise the object is untouched.
+/// `niji::fs::canon` reports (when it fits `PATH_MAX`); otherwise the object is untouched.
 pub fn realpath(path: KResult<Option<&[u8]>>, resolved: KResult<Option<&mut [u8]>>) -> KResult<usize> {
     let path = path?.ok_or(Errno::EINVAL)?;
     let out = resolved?;

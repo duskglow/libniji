@@ -1,13 +1,13 @@
 //! Descriptor I/O, polling, durability, memory mapping, event descriptors, locks, async I/O (spec
 //! §11).
 //!
-//! Most of §11 lives in `liella-boundary` and `liella-legacy`; this module holds the rule the
+//! Most of §11 lives in `niji-boundary` and `niji-legacy`; this module holds the rule the
 //! library's own descriptors follow.
 
 use crate::error::{Errno, Result};
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::sys::Sys;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::sys::Sys;
 
 /// The lowest number a descriptor the library keeps across calls may have.
 pub const FIRST_PRIVATE_FD: i64 = 3;

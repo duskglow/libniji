@@ -1,5 +1,5 @@
 /* The mount-table and fstab functions end to end (spec §13.13; D-13.8, D-13.10; phase 12): built
- * against the host C library and against Liella's products, the outputs must match line for line.
+ * against the host C library and against libniji's products, the outputs must match line for line.
  * Black-box: every line is a result, an errno, or a fact read back through a public function.
  *
  * Output conventions: strings are printed in brackets with every byte outside printable ASCII as
@@ -837,7 +837,7 @@ static void make_fixture(void)
     mkdir(path("etc"), 0755);
     write_file("etc/fstab", FX_FSTAB);
     write_file("etc/mtab", FX_MTAB);
-    write_file("etc/liella-mntent-fixture", "marker\n");
+    write_file("etc/niji-mntent-fixture", "marker\n");
     mkdir(path("m"), 0755);
     const char *names[] = {"m/plain", "m/sp ace", "m/ta\tb", "m/nl\nc", "m/back\\sl", "m/ro", "m/bs", "m/hash#x", "m/opts"};
     for (size_t i = 0; i < sizeof names / sizeof names[0]; i++)
@@ -979,7 +979,7 @@ static void own_mounts(const char *file)
 static void root_phase(void)
 {
     struct stat st;
-    if (stat("/etc/liella-mntent-fixture", &st) != 0) {
+    if (stat("/etc/niji-mntent-fixture", &st) != 0) {
         printf("root phase: /etc is not the fixture; refusing to run\n");
         exit(1);
     }

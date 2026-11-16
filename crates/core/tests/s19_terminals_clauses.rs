@@ -7,12 +7,12 @@
 //! re-executed copy of this test binary (`alone`), whose own children (background jobs, an
 //! orphaned group) are forked with `selftest::spawn_child`, each with an alarm, and reaped (the
 //! orphan by whoever adopts it, as orphans are). `forkpty` and the cancellation points need a
-//! process Liella started: they run in the conformance program `s19_terminals`. The cases that
+//! process libniji started: they run in the conformance program `s19_terminals`. The cases that
 //! need a private devpts instance, `/proc` hidden or a fixture `/etc/ttys` run in the
 //! differential test's mount namespace (`terminals_products.rs`); here `ENODEV` is reached
 //! through a kernel with injected faults. The whole surface is also compared with the
 //! reference by `terminals_products.rs`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::panic, clippy::as_conversions, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
 #[path = "support/scratch.rs"]
@@ -22,30 +22,30 @@ use core::ptr::null_mut;
 use std::ffi::CString;
 use std::sync::atomic::{AtomicI32, Ordering};
 
-use liella::error::Errno;
-use liella::term::{self, TtyLine, When};
-use liella_abi::ctypes::c_char;
-use liella_abi::layout::{struct_termios, struct_winsize};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s17_users as us;
-use liella_boundary::posix::s19_terminals as x;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_kernel::ops::{FcntlInt, IoctlIntOut};
-use liella_kernel::path::KStr;
-use liella_kernel::sys::{Disposition, Sys};
-use liella_kernel::testing::Faulty;
-use liella_kernel::uapi::{PollFd, SigSet, Timespec, O_CLOEXEC, O_NOCTTY, O_NONBLOCK, O_RDWR, WUNTRACED};
-use liella_kernel::Fd;
-use liella_legacy::cursors::{Cursor, Step};
+use niji::error::Errno;
+use niji::term::{self, TtyLine, When};
+use niji_abi::ctypes::c_char;
+use niji_abi::layout::{struct_termios, struct_winsize};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s17_users as us;
+use niji_boundary::posix::s19_terminals as x;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_kernel::ops::{FcntlInt, IoctlIntOut};
+use niji_kernel::path::KStr;
+use niji_kernel::sys::{Disposition, Sys};
+use niji_kernel::testing::Faulty;
+use niji_kernel::uapi::{PollFd, SigSet, Timespec, O_CLOEXEC, O_NOCTTY, O_NONBLOCK, O_RDWR, WUNTRACED};
+use niji_kernel::Fd;
+use niji_legacy::cursors::{Cursor, Step};
 
 /// Build and run C conformance programs against the products (`conformance/run.sh`).
 fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -258,7 +258,7 @@ fn open(path: &str, flags: u32) -> Result<i32, Errno> {
 }
 
 /// Set in a re-executed copy: the case it runs.
-const ALONE: &str = "LIELLA_C19_ALONE";
+const ALONE: &str = "NIJI_C19_ALONE";
 
 /// Run `body` alone in a re-executed copy of this test binary (test `test`, case `case`); the
 /// copy exits 0 when `body` returns true, and the parent asserts that it did. In a copy made for
@@ -991,7 +991,7 @@ fn s19_4_c_5() {
 
 #[test]
 fn s19_4_c_6() {
-    // forkpty: openpty, fork, login_tty in the child. Liella's fork needs a process Liella
+    // forkpty: openpty, fork, login_tty in the child. libniji's fork needs a process libniji
     // started: the conformance program checks the child's session, terminal, settings, window
     // size and descriptors, the parent's master and name, and the bytes and status the child
     // sends back.

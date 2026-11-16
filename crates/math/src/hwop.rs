@@ -4,7 +4,7 @@
 //! This crate has no `unsafe` (S1), so it cannot issue an instruction that `core` reaches only
 //! through `core::arch` (for example `sqrtsd`). A kernel that needs such an operation is generic
 //! over [`HwOps`]; the crate's own callers and tests use the safe software default [`SoftOps`],
-//! and `liella_boundary` supplies an implementation that issues the instruction through its
+//! and `niji_boundary` supplies an implementation that issues the instruction through its
 //! `hot-kernel` category (S2). The methods are associated functions on a zero-sized type, so after
 //! monomorphisation and inlining a call is the instruction itself: no function pointer, no call.
 //!

@@ -244,7 +244,7 @@ fn bench_rows_reach_the_route_only_where_measured() {
     }
 }
 
-/// The 10^7-operand sweep per function (`cargo test --release -p liella-math --lib -- --ignored
+/// The 10^7-operand sweep per function (`cargo test --release -p niji-math --lib -- --ignored
 /// clog_csqrt_quick_tier_sweep`): the comparison above on 8 threads, four modes.
 #[test]
 #[ignore = "long sweep: cargo xtask long-sweeps runs it in release (nightly and release runs)"]
