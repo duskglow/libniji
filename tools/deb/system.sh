@@ -102,7 +102,7 @@ done
 
 # --- libc6-dbg: split the debugging information off before the strip below. ---
 # build_id FILE: the hex digits of FILE's GNU build-id note (empty when it has none).
-build_id() { readelf -nW "$1" | sed -n 's/^ *Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
+build_id() { readelf -nW "$1" | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
 if [ -z "$symbols_only" ]; then
     for f in $(find "$s6/$mlib" -type f -name '*.so*' | sort) "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent" "$bin/usr/bin/ldd"; do
         id=$(build_id "$f")
