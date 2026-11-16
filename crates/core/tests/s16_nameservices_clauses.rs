@@ -922,7 +922,11 @@ fn s16_4_c_0() {
     assert_eq!(host(netdb::host_lookup_addr(&ctx, Ip::V4([192, 0, 2, 10]))), Ok("a.test [] 192.0.2.10".into()));
     let unreachable = Resolver { conf: rconf(dns_server::closed_port()), aliases: None };
     let ctx = Ctx { dns: Some(&unreachable), ..fx.ctx("hosts: dns\n") };
-    assert_eq!(host(netdb::host_lookup(&ctx, b"a.test", Family::V4)), Err(LookupError::Unavailable), "no server reachable: UNAVAIL");
+    // No server reachable: `unavail` for the rules, TRY_AGAIN / EAI_AGAIN for the caller
+    // (observed, spec/behaviour/gai-down.md).
+    let e = host(netdb::host_lookup(&ctx, b"a.test", Family::V4));
+    assert_eq!(e, Err(LookupError::Unreachable), "no server reachable");
+    assert_eq!(LookupError::Unreachable.status(), nss::Status::Unavail, "unavail for the rules");
 }
 
 #[test]
