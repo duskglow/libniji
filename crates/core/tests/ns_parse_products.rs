@@ -10,7 +10,7 @@
 //! through `libresolv.so.2`, as in a Debian program that needs it) and statically against
 //! `libc.a`; all three must print the same text. Needs the products (`cargo xtask so`) and a C
 //! compiler; without the compiler the test says so and passes.
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
 
