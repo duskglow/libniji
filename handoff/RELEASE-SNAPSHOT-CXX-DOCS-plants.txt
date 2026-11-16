@@ -6,3 +6,6 @@
 # passes.
 rscd-ldconfig-unstripped | tools/deb/system.sh | lit:strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" ==> true | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-CXX-DOCS/sysprod/liella --version 2.39+liella20261116.1-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL usr/sbin/ldconfig is not stripped
 rscd-postrm-not-packaged | tools/deb/system.sh | lit:put 0755 "$sys/libc-bin.postrm" "$bin/DEBIAN/postrm" ==> | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-CXX-DOCS/sysprod/liella --version 2.39+liella20261116.1-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL libc-bin: control members
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# rscd-ldconfig-unstripped: CAUGHT, caught by no test the log names
+# rscd-postrm-not-packaged: CAUGHT, caught by no test the log names
