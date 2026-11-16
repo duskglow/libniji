@@ -15,10 +15,13 @@ stdout, so it stays a literal).
 ### Length sweep (the same class elsewhere)
 Method: `git diff -U14 origin/next...HEAD` (the rename's own diff; every commit on the branch is this story's), outside
 handoff/, records/, docs/, plan/, spec/ and *.md. Scripts (scratch, not committed): `sweep.py` lists every removed line
-whose literal held the old name with an unchanged number within 14 lines (2042 rows); a row is STRONG when the number
-is the old literal's length, length + 1, or the offset just past the old name (181 STRONG rows, all read); `slices.py`
-lists unchanged lines within 14 lines that slice, index, offset, seek/pread/pwrite, size an array or emit
-`.ascii/.byte/.long/.p2align` (772 lines; the offset/slice subset and every line near a `Liella` literal read).
+whose literal held the old name with an unchanged number within 14 lines (3104 rows); a row is STRONG when the number
+is the old literal's length, length + 1, or the offset just past the old name (279 STRONG rows, all read, including
+the 105 that match only 6 or 7, the lengths of `liella`/`liella_`: that is where CI's bug and the codemap one were);
+`slices.py` lists unchanged lines within 14 lines that slice, index, offset, seek/pread/pwrite, size an array or emit
+`.ascii/.byte/.long/.p2align` (772 lines; the offset/slice subset and every line near a `Liella` literal read);
+`offsets.py` lists, in all 1174 touched files, slices/substr/cut/`${x:N}`/`k + N` within 3 lines of the new name
+(66 lines, all read; this catches unquoted stems such as shell/awk regexes and `match_indices` arguments).
 Also checked: literals with `\0` (string tables, prctl/hostname/xattr buffers, note names), fixed arrays initialised
 from renamed strings (`Liella` -> `libniji` grows by one byte), byte counts quoted in expected outputs (native
 example, conformance, csys/util, tools/deb, validation/smoke), and the transcripts/corpus/fuzz seeds the rename touched.
@@ -28,6 +31,10 @@ Found and fixed:
   rename that left a NUL inside the name and dropped the PID silently (the program still passed). The offset now
   comes from the prefix (`SEM_PREFIX`, 953c0081d), and the program fails with status 34 when the name is not as long
   as what it wrote (609ba6252).
+- xtask/src/codemap.rs `modules()`: matched `niji_` but skipped 7 bytes (`liella_`), so `niji_core::names` became
+  `re::names` in the generated README's per-section module lists. The skip now comes from the stem; new unit test
+  `boundary_sources_name_their_modules_by_crate` (5c6e47be0). The train's `codemap --in-place` uses this parser, so
+  its README output changes with the fix (the train regenerates it; the branch does not carry it).
 Checked and already right (earlier hand commits or self-deriving): appendix_a SECRET `[u8; 8]` `niji!!!!`, prctl name
 (16 bytes), s24 hostname/domain slices `[..10]`/`[..15]`, xattr list `user.niji\0`, scanner_races and s01 putenv fixtures,
 dylib/nonshared note owners and sizes, NSC magic (`NIJI_NSC`, 8 bytes), rt TAG_PREFIX (prefix-derived), sync.rs's
@@ -35,15 +42,27 @@ dylib/nonshared note owners and sizes, NSC magic (`NIJI_NSC`, 8 bytes), rt TAG_P
 written at test time). Everything else in the lists was a coincidental number (errno values, buffer sizes far larger
 than the name, line counts).
 
-### Jobs (keke), final head 609ba6252 (+ handoff commits)
-- `rename-niji-code-3-lint1`: `cargo xtask clippy` + `cargo xtask static`, rc 0.
-- `rename-niji-code-3-plants2`: 5 plants (pwrite length, pread offset, read-back, expected count, s22 offset):
-  PLANTS2_RESULT.
-- `rename-niji-code-3-gate`: the train's generators (`records-gen`, `kernel-index`, `codemap`, all `--in-place`, in the
+### Jobs (keke), final code head 5c6e47be0 (synced head 170f53589; later commits change only handoff/)
+- `rename-niji-code-3-lint2`: `cargo xtask clippy` + `cargo xtask static`, rc 0.
+- `rename-niji-code-3-plants3`: 6 plants (pwrite length, pread offset, read-back, expected count, s22 offset, codemap
+  stem skip): 6 CAUGHT, 0 SURVIVED, 0 WARN (rc 0); the file with its results is handoff/RENAME-NIJI-CODE-3-plants.txt.
+  The three baselines (native example, conformance s22_sync, the new codemap unit test) passed on the fixed code.
+- `rename-niji-code-3-gate2`: the train's generators (`records-gen`, `kernel-index`, `codemap`, all `--in-place`, in the
   role only, ruling #6086), then `cargo xtask test` (all steps, what CI runs), then `NIJI_FULL_PROFILE=1 cargo xtask so`
-  and `NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`: GATE_RESULT.
-- Superseded: `lint0` (inherited head, green), `plants1` (stopped: two mutants used `+ 2`, which the example's clippy
-  step refuses before the program runs, WARN-NO-MSG; plants2 restates them as the old numbers `6`).
+  and `NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`: rc 0 in 110 min (13.2 GB written). Every
+  `cargo xtask test` step green: products, tests-nextest 6738 run / 6738 passed (786 skipped), including the 10
+  affected::direct_tier_ tests that -2's gate failed on the stale view (20 PASS lines: plain and interposed), the
+  interposed run, conformance 137 passed /
+  0 failed, native-examples, rust-dylib, symgap; hot_text_products 26 passed. The role tree keeps the regenerated
+  views until its next sync (never committed).
+- Superseded: `lint0` (inherited head, green), `lint1` (609ba6252, green), `plants1` (stopped: two mutants used
+  `+ 2`, which the example's clippy step refuses before the program runs, WARN-NO-MSG; restated as the old number `6`),
+  `plants2` (stopped for the codemap fix; no verdict yet), `gate` (stopped for the codemap fix, which its
+  `codemap --in-place` step uses).
+
+### Refusals and process notes
+No refusals. One slip: an empty heredoc (`python3 - <<'X'` with no body, a no-op) was run once while editing the
+plants file in scratch, against the no-heredocs rule; the edit itself was done with a `python3 -c` one-liner.
 
 ## RENAME-NIJI-CODE-2
 

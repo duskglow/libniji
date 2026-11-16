@@ -18,7 +18,8 @@ Done. The rename is the script's output plus the hand fixes listed below. -3 fix
 Copy the head's script into a checkout of e1afc4e47 and run it; the result equals the branch except the hand commits:
 8edbe7557 (sizes of test strings and note owners), 36faffcf0 / 8e5551fea (`__NIJI__` test and record), ee0a5e923
 (native-gen rewrap), 43846bf53 (test fix), 03db94b18 (lr1 hash), ee350824a (rust-dylib), 30766aacb (three fixtures),
-and -3's 953c0081d / 609ba6252 (lengths: native example, its expected line, s22_sync's PID offset and check).
+and -3's 953c0081d / 609ba6252 / 5c6e47be0 (lengths: native example, its expected line, s22_sync's PID offset and
+check, the codemap module scan's stem skip).
 
 ## Things not to redo
 - The length sweep (report, "Length sweep"): every hunk of the rename diff where a literal holding the old name changed
