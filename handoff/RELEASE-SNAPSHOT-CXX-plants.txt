@@ -12,3 +12,12 @@ rsc-postrm-purge-cache | tools/deb/system/libc-bin.postrm | lit:rm -f "$DPKG_ROO
 # rsc-postrm-not-packaged | tools/deb/system.sh | lit:put 0755 "$sys/libc-bin.postrm" "$bin/DEBIAN/postrm" ==> | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-CXX/debs/system-work/src/target/liella --version 2.39+liella20261116.1-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL libc-bin: control members
 rsc-cxx-needs-libstdcxx | tools/deb/root-system.sh | lit:-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm ==> -lstdc++ -lm | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-CXX/debs/system-work/src/target/liella --version 2.39+liella20261116.1-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | equivalent:since DL-LIBSTDCXX-3 root-system.sh copies the shared libstdc++.so.6 and libgcc_s.so.1 into the root before the programs run, so except linked against the shared libstdc++ runs there too (FINAL caught it only because the root then had no libstdc++.so.6)
 rsc-swap-not-done | tools/deb/swap-system.sh | lit:dpkg -i --force-downgrade --force-depends /tmp/swap/debs/*.deb ==> dpkg --version | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-CXX/debs/system-work/src/target/liella --version 2.39+liella20261116.1-1 --out target/rp --work target/rpw && MIRROR=http://miko.mgmt.internal/debian KEYRING=~/keyrings/debian-archive-keyring.gpg sh tools/deb/swap-system.sh target/rp trixie target/rpl | msg:swap: FAIL the swapped root does not run the package's libc\.so\.6
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# rsc-postinst-configure-ldconfig: CAUGHT, caught by no test the log names
+# rsc-postrm-purge-cache: CAUGHT, caught by no test the log names
+# rsc-cxx-needs-libstdcxx: CAUGHT, caught by no test the log names
+# rsc-swap-not-done: CAUGHT, caught by no test the log names
+# Correction (after the run): the `equivalent:` reason on rsc-cxx-needs-libstdcxx is wrong. The mutant does not run:
+# it does not link (`root: FAIL dynamic except does not link: ... libstdc++.so: undefined reference to
+# _Unwind_GetTextRelBase@GCC_3.0`; the static recipe links no libgcc_s), then `dynamic except in the root exits 127`.
+# It is a real catch; a rerun should give it `msg:root: FAIL dynamic except` as FINAL had.
