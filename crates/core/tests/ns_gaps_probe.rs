@@ -8,12 +8,12 @@
 //! fixture is the in-process server on a loopback port; nothing leaves the machine.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella::names::dns::text;
-use liella::names::nss::Config;
-use liella_boundary::sys::CSys;
-use liella_legacy::netdb_compat as netdb;
-use liella_legacy::nss::{Ctx, Paths};
-use liella_legacy::resolv_compat::Resolver;
+use niji::names::dns::text;
+use niji::names::nss::Config;
+use niji_boundary::sys::CSys;
+use niji_legacy::netdb_compat as netdb;
+use niji_legacy::nss::{Ctx, Paths};
+use niji_legacy::resolv_compat::Resolver;
 
 #[path = "support/dns_server.rs"]
 mod dns_server;
@@ -61,7 +61,7 @@ fn message() -> Vec<u8> {
 }
 
 fn dump(pfcode: u64) -> String {
-    let mut out = liella::mem::TryVec::new();
+    let mut out = niji::mem::TryVec::new();
     text::nquery(&message(), pfcode, &mut out).unwrap();
     String::from_utf8(out.as_slice().to_vec()).unwrap()
 }
@@ -150,16 +150,16 @@ impl Drop for Fx {
 }
 
 fn net_resolver(port: u16) -> Resolver {
-    let mut conf = liella::names::dns::conf::Config::defaults();
-    conf.servers.push(liella::names::dns::conf::Server { ip: liella::names::Ip::V4([127, 0, 0, 1]), port, scope: 0 }).unwrap();
+    let mut conf = niji::names::dns::conf::Config::defaults();
+    conf.servers.push(niji::names::dns::conf::Server { ip: niji::names::Ip::V4([127, 0, 0, 1]), port, scope: 0 }).unwrap();
     conf.timeout = 1;
     conf.attempts = 1;
     Resolver { conf, aliases: None }
 }
 
-type Net = Result<(String, u32, String), liella::names::nss::LookupError>;
+type Net = Result<(String, u32, String), niji::names::nss::LookupError>;
 
-fn net_show(n: &liella::names::db::Numbered<'_, u32>) -> (String, u32, String) {
+fn net_show(n: &niji::names::db::Numbered<'_, u32>) -> (String, u32, String) {
     let al: Vec<String> = n.aliases.clone().map(|a| String::from_utf8_lossy(a).into_owned()).collect();
     (String::from_utf8_lossy(n.name).into_owned(), n.number, al.join(" "))
 }
@@ -176,7 +176,7 @@ fn ok(name: &str, number: u32, aliases: &str) -> Net {
 /// records: NO_DATA; SERVFAIL, REFUSED, or an answer without a usable PTR: TRY_AGAIN.
 #[test]
 fn ns_networks_dns_case_table() {
-    use liella::names::nss::LookupError::{NoData, NotFound, TryAgain};
+    use niji::names::nss::LookupError::{NoData, NotFound, TryAgain};
     let srv = dns_server::start(vec![
         dns_server::ptr("0.2.0.192.in-addr.arpa", "netx.test"),
         dns_server::ptr("0.0.0.10.in-addr.arpa", "ten.test"),
@@ -243,14 +243,14 @@ fn ns_networks_dns_damaged_answers() {
     let r = net_resolver(port);
     let ctx = Ctx { dns: Some(&r), ..fx.ctx("networks: dns\n") };
     assert_eq!(netdb::net_by_addr(&ctx, 0xc0_0002, 2, net_show), ok("short.test", 0xc0_0002, ""));
-    assert_eq!(netdb::net_by_addr(&ctx, 0x0100_0001, 2, net_show), Err(liella::names::nss::LookupError::NotFound));
+    assert_eq!(netdb::net_by_addr(&ctx, 0x0100_0001, 2, net_show), Err(niji::names::nss::LookupError::NotFound));
 }
 
 const GROUPS: &str = "a:x:50:u\nb:x:50:u\nc:x:60:u\nc:x:61:u\nd:x:60:v\ne:x:70:u,u\nf:x:99:u\n";
 
 fn list(fx: &Fx, user: &str, base: u32) -> Vec<u32> {
     let ctx = fx.ctx("group: files\ninitgroups: files\n");
-    liella_legacy::nss::group_list(&ctx, user.as_bytes(), base).unwrap().as_slice().to_vec()
+    niji_legacy::nss::group_list(&ctx, user.as_bytes(), base).unwrap().as_slice().to_vec()
 }
 
 /// Spec: s16_3_c_0. The group-list merge (the probe's `getgrouplist` on a group file with two

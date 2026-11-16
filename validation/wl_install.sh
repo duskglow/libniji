@@ -1,4 +1,4 @@
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Sourced by wl_count.sh and wl_gate.sh: install the wl_* scripts on keke into a directory named by their content hash
 # (TOOLS-SYNC 2, 2026-10-10). Every checkout used to overwrite ~/wl/bin; a run from a tree without the build lock replaced
 # the locked wl_prep.sh and two builders of one sha ran at once. Now each content has its own dir, so nothing is replaced

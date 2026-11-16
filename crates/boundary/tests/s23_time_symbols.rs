@@ -12,7 +12,7 @@
 //! of a process forked from a re-executed copy of the test; the POSIX timers and `timerfd`s
 //! are private to the test that makes them. Descriptors that must be seen closed are private
 //! numbers (931, 932).
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::as_conversions, clippy::indexing_slicing, missing_docs)]
 #[path = "../../core/tests/support/skip_note.rs"]
@@ -24,16 +24,16 @@ mod scratch;
 use core::ffi::c_void;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use liella_abi::layout::{struct_ntptimeval, struct_timeb, struct_timeval};
-use liella_boundary::errno;
-use liella_boundary::posix::s23_time as s;
-use liella_boundary::selftest::ChildEnd;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Itimerspec, Itimerval, SigEvent, Timespec, Timeval, Timex, Timezone, Tms};
-use liella_legacy::clock_compat::NtpTimevalOld;
+use niji_abi::layout::{struct_ntptimeval, struct_timeb, struct_timeval};
+use niji_boundary::errno;
+use niji_boundary::posix::s23_time as s;
+use niji_boundary::selftest::ChildEnd;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Itimerspec, Itimerval, SigEvent, Timespec, Timeval, Timex, Timezone, Tms};
+use niji_legacy::clock_compat::NtpTimevalOld;
 
 const EPERM: i32 = 1;
 const EFAULT: i32 = 14;
@@ -49,7 +49,7 @@ fn fails(r: isize, e: i32) -> bool {
 }
 
 fn root() -> bool {
-    liella_kernel::sys::Sys::geteuid(&liella_boundary::sys::CSys) == 0
+    niji_kernel::sys::Sys::geteuid(&niji_boundary::sys::CSys) == 0
 }
 
 fn ntv() -> struct_ntptimeval {
@@ -129,9 +129,9 @@ fn thread_event(attr: usize) -> SigEvent {
 /// `alarm` and the itimers are process-wide. `body` returns 0, or the number of the first
 /// check that failed.
 fn single(test: &str, body: fn(&CSys) -> i32) {
-    const PROBE: &str = "LIELLA_S23_PROBE";
+    const PROBE: &str = "NIJI_S23_PROBE";
     if std::env::var(PROBE).is_ok_and(|v| v == test) {
-        let end = liella_boundary::selftest::in_child(body);
+        let end = niji_boundary::selftest::in_child(body);
         eprintln!("{test}: {end:?}");
         CSys.exit_group(if end == Ok(ChildEnd::Exited(0)) { 0 } else { 1 });
     }
@@ -539,8 +539,8 @@ fn localtime_r_follows_tz_changes() {
 fn tz_period_words_per_thread_and_fork() {
     // Trace: no spec clause (an internal per-thread cache; the answers are localtime_r's); TB-SLOTS.
     zoned("tz_period_words_per_thread_and_fork", || {
-        use liella_boundary::tb;
-        use liella_rt::tls::CACHE_TZ_PERIOD;
+        use niji_boundary::tb;
+        use niji_rt::tls::CACHE_TZ_PERIOD;
         use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
         const SUMMER: i64 = 1_720_000_000; // 05:46 EDT
         const WINTER: i64 = 1_700_000_000; // 17:13 EST
@@ -558,7 +558,7 @@ fn tz_period_words_per_thread_and_fork() {
             (o.tm_hour, o.tm_isdst)
         }
         set_tz("EST5EDT,M3.2.0,M11.1.0");
-        if tb::current().flags.load(Relaxed) & liella_rt::tls::FLAG_OWN == 0 {
+        if tb::current().flags.load(Relaxed) & niji_rt::tls::FLAG_OWN == 0 {
             // D-5.11: a process the runtime did not start (this test process, its blocks made
             // by the system's `ld.so`) keeps its cache words untouched; the answers stay right.
             let before = words();
@@ -587,7 +587,7 @@ fn tz_period_words_per_thread_and_fork() {
         for (p, w) in PARENT.iter().zip(mine) {
             p.store(w, Relaxed);
         }
-        let end = liella_boundary::selftest::in_child(|_| {
+        let end = niji_boundary::selftest::in_child(|_| {
             if words() != PARENT.each_ref().map(|p| p.load(Relaxed)) {
                 return 1;
             }
@@ -736,9 +736,9 @@ fn sym_sleep() {
 fn sym_stime() {
     errno::set_raw(0);
     if !root() {
-        assert!(fails(s::liella_compat_stime(Some(&1)) as isize, EPERM));
+        assert!(fails(s::niji_compat_stime(Some(&1)) as isize, EPERM));
     }
-    assert!(fails(s::liella_compat_stime(None) as isize, EFAULT));
+    assert!(fails(s::niji_compat_stime(None) as isize, EFAULT));
 }
 
 #[test]
@@ -1028,7 +1028,7 @@ fn sym_tzset() {
         set_tz("JST-9");
         assert_eq!(tz_globals().0, "JST");
         // An explicit tzset writes the globals again even when the zone is unchanged.
-        let g = liella_boundary::data::tz_globals();
+        let g = niji_boundary::data::tz_globals();
         g.timezone.store(1, std::sync::atomic::Ordering::SeqCst);
         s::tzset();
         assert_eq!(tz_globals().2, -32_400);
@@ -1096,9 +1096,9 @@ fn sym_usleep() {
 // results are read through the exported `strlen`/`memcpy` (no unsafe in tests). The data
 // objects are also checked from C, against the products (`conformance/c/s23_zones.c`).
 
-use liella_abi::layout::struct_tm;
-use liella_boundary::posix::s01_startup as envx;
-use liella_boundary::posix::s04_strings as strs;
+use niji_abi::layout::struct_tm;
+use niji_boundary::posix::s01_startup as envx;
+use niji_boundary::posix::s04_strings as strs;
 
 const EOVERFLOW: i32 = 75;
 
@@ -1133,14 +1133,14 @@ fn set_tz(tz: &str) {
 
 /// tzname[0], tzname[1], timezone, daylight.
 fn tz_globals() -> (String, String, i64, i32) {
-    let g = liella_boundary::data::tz_globals();
+    let g = niji_boundary::data::tz_globals();
     let name = |i: usize| text_at(g.tzname.get(i).unwrap().load(std::sync::atomic::Ordering::SeqCst));
     (name(0), name(1), g.timezone.load(std::sync::atomic::Ordering::SeqCst), g.daylight.load(std::sync::atomic::Ordering::SeqCst))
 }
 
 /// Runs `body` in a re-executed copy of this test, alone (the zone is process-wide).
 fn zoned(test: &str, body: impl FnOnce()) {
-    const PROBE: &str = "LIELLA_S23_ZONE";
+    const PROBE: &str = "NIJI_S23_ZONE";
     if std::env::var(PROBE).is_ok_and(|v| v == test) {
         body();
         CSys.exit_group(0);
@@ -1159,7 +1159,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -1215,8 +1215,8 @@ fn check_globals() {
 // also checked from C, against the products (`conformance/c/s23_timefmt.c`).
 
 use core::ffi::c_char;
-use liella_abi::ctypes::locale_t;
-use liella_boundary::posix::s07_locale as lx;
+use niji_abi::ctypes::locale_t;
+use niji_boundary::posix::s07_locale as lx;
 
 const LC_ALL_MASK: i32 = 0x1FBF;
 
@@ -1546,7 +1546,7 @@ fn set_datemsk(v: Option<&std::path::Path>) {
 }
 
 fn getdate_err() -> i32 {
-    liella_boundary::data::getdate_err.load(std::sync::atomic::Ordering::SeqCst)
+    niji_boundary::data::getdate_err.load(std::sync::atomic::Ordering::SeqCst)
 }
 
 #[test]
@@ -1599,7 +1599,7 @@ fn sym_getdate_r() {
         assert_eq!(s::getdate_r(c"2024-02-29 13:05".as_ptr(), Some(&mut r)), 0);
         assert_eq!((r.tm_year, r.tm_mday, r.tm_hour, r.tm_min, r.tm_sec, r.tm_wday), (124, 29, 13, 5, 0, 4));
         // Errors are returned; getdate_err and the result are left alone.
-        liella_boundary::data::getdate_err.store(0, std::sync::atomic::Ordering::SeqCst);
+        niji_boundary::data::getdate_err.store(0, std::sync::atomic::Ordering::SeqCst);
         let mut keep = tm_zero();
         assert_eq!(s::getdate_r(c"2024-02-30 00:00".as_ptr(), Some(&mut keep)), 8);
         assert_eq!(s::getdate_r(c"later".as_ptr(), Some(&mut keep)), 7);
@@ -1615,7 +1615,7 @@ fn sym_getdate_err() {
     zoned("sym_getdate_err", || {
         set_tz("UTC0");
         set_datemsk(None);
-        liella_boundary::data::getdate_err.store(0, std::sync::atomic::Ordering::SeqCst);
+        niji_boundary::data::getdate_err.store(0, std::sync::atomic::Ordering::SeqCst);
         assert!(s::getdate(c"2024".as_ptr()).is_null());
         assert_eq!(getdate_err(), 1, "written by a failing getdate");
         let dir = datemsk_dir("getdate_err");

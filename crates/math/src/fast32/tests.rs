@@ -279,7 +279,7 @@ fn trig_core_is_within_its_bound() {
 /// `fs` on every `float` operand in every mode; the number taken. The threads take 2^16-operand
 /// chunks from one counter, so one that meets a cheap range (NaN, a refused domain) takes more
 /// chunks instead of idling while another finishes a fixed slice of expensive operands.
-/// `LIELLA_SWEEP_STRIDE=k` checks every k-th encoding only (sizing a sweep before its job).
+/// `NIJI_SWEEP_STRIDE=k` checks every k-th encoding only (sizing a sweep before its job).
 fn exhaustive(fs: &'static [Fast]) -> u64 {
     exhaustive_by(|xs| agree_in(fs, xs.iter().copied()))
 }
@@ -299,7 +299,7 @@ pub(super) fn exhaustive_range_by(start: u64, end: u64, check: impl Fn(&[f32]) -
     const CHUNK: u64 = SWEEP_CHUNK;
     assert!(start % CHUNK == 0 && end % CHUNK == 0 && start < end && end <= 1 << 32, "shard {start:#x}..{end:#x}");
     let n = std::thread::available_parallelism().map_or(8, |n| n.get());
-    let stride = std::env::var("LIELLA_SWEEP_STRIDE").ok().and_then(|s| s.parse::<usize>().ok()).filter(|&k| k > 0).unwrap_or(1);
+    let stride = std::env::var("NIJI_SWEEP_STRIDE").ok().and_then(|s| s.parse::<usize>().ok()).filter(|&k| k > 0).unwrap_or(1);
     let next = AtomicU64::new(start);
     let (taken, seen) = std::thread::scope(|sc| {
         let hs: std::vec::Vec<_> = (0..n).map(|_| sc.spawn(|| {
@@ -1056,7 +1056,7 @@ pub(super) fn agree_oracle(f: Fast, get: impl Fn(f32, Rounding) -> Option<(f32, 
 }
 
 /// `f` on every `float` operand in every mode against the tiered oracle (`est` its family's
-/// estimator; `LIELLA_SWEEP_STRIDE` thins the sweep) through [`fast`] (for the Bessel functions
+/// estimator; `NIJI_SWEEP_STRIDE` thins the sweep) through [`fast`] (for the Bessel functions
 /// the large band after the fast path, D-10.109); prints the calls taken and how often the
 /// oracle needed the mp path.
 pub(super) fn exhaustive_oracle(f: Fast, name: &str, est: impl Fn(f32) -> crate::oracle32::Est + Sync) {

@@ -5,10 +5,10 @@
 //! operand; `atan2(y, x)` next to `y/x` with `|x|` far above `|y|`), so a directed mode rounds it
 //! to the neighbour on the correction's side, which only a precision beyond the correction
 //! decides. Every part is compared with the correctly rounded value of the test oracle
-//! (`liella_mathtools::cplx`, Ziv's loop up to 2^14 bits), on a grid of part exponents over each
+//! (`niji_mathtools::cplx`, Ziv's loop up to 2^14 bits), on a grid of part exponents over each
 //! format's range (smallest subnormal, smallest normal, wide and narrow tiny and huge, 0) with
 //! two significands and both signs of the real part, for `float`, `double`, x87 `long double`
-//! and `_Float128`, in all four modes. Liella calls the library core (`liella_math::complex`)
+//! and `_Float128`, in all four modes. libniji calls the library core (`niji_math::complex`)
 //! directly, so no C compiler or product build is needed. An operand the oracle cannot decide
 //! within 2^14 bits is listed and counted, never passed silently; the test fails on any part
 //! that differs or on any such operand (none is expected on this grid).
@@ -26,11 +26,11 @@
 //! (run with `--test-threads=1` for exact per-test counts).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella_math::complex::{self, Res};
-use liella_math::real::Real;
-use liella_math::{Rounding, F128, F80};
-use liella_mathtools::cplx;
-use liella_mathtools::mp::{self, Big, Fmt, Round};
+use niji_math::complex::{self, Res};
+use niji_math::real::Real;
+use niji_math::{Rounding, F128, F80};
+use niji_mathtools::cplx;
+use niji_mathtools::mp::{self, Big, Fmt, Round};
 
 const MODES: [(Rounding, Round); 4] =
     [(Rounding::Nearest, Round::Nearest), (Rounding::Up, Round::Up), (Rounding::Down, Round::Down), (Rounding::Zero, Round::Zero)];

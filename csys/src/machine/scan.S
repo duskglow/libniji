@@ -7,8 +7,8 @@
  * 64-byte (SSE2) boundary, so one group of loads never spans two pages either. Bytes before
  * the start are masked off; bytes after the terminator are read and ignored.
  *
- * Path selection: liella_machine_scan_level (0 = SSE2, the x86-64 baseline; 1 = AVX2), set
- * once by the runtime through liella_machine_set_scan_level after it has checked CPUID and
+ * Path selection: niji_machine_scan_level (0 = SSE2, the x86-64 baseline; 1 = AVX2), set
+ * once by the runtime through niji_machine_set_scan_level after it has checked CPUID and
  * XCR0 (rt::cpu). The default, SSE2, is valid on every x86-64 CPU.
  *
  * Rust owns the contract: it passes only non-NULL pointers, and checks each result's
@@ -19,11 +19,11 @@
 	 * STATE_KEY_SUFFIXES): set_scan_level writes it before main. */
 	.section .data1,"aw",@progbits
 	.p2align 2
-	.globl liella_machine_scan_level
-	.hidden liella_machine_scan_level
-	.type liella_machine_scan_level, @object
-	.size liella_machine_scan_level, 4
-liella_machine_scan_level:
+	.globl niji_machine_scan_level
+	.hidden niji_machine_scan_level
+	.type niji_machine_scan_level, @object
+	.size niji_machine_scan_level, 4
+niji_machine_scan_level:
 	.long 0
 
 /* SMALL-STR (D-4.45): the short-head page limit. The AVX2 heads of strlen, strnlen, rawmemchr,
@@ -31,11 +31,11 @@ liella_machine_scan_level:
  * [s, s + 64) lies in s's page), 0 on the SSE2 level (no offset is below 0: the head never runs).
  * One compare against it is both the page test and the level test. Set with the level. */
 	.p2align 2
-	.globl liella_machine_short_lim
-	.hidden liella_machine_short_lim
-	.type liella_machine_short_lim, @object
-	.size liella_machine_short_lim, 4
-liella_machine_short_lim:
+	.globl niji_machine_short_lim
+	.hidden niji_machine_short_lim
+	.type niji_machine_short_lim, @object
+	.size niji_machine_short_lim, 4
+niji_machine_short_lim:
 	.long 0
 
 /* REGEX-WL (D-4.45 as amended): memrchr's end-page mask. 0xfc0 on the AVX2 level, 0 on SSE2.
@@ -47,11 +47,11 @@ liella_machine_short_lim:
  * level; a NULL s (offset 4095 after the - 1) and every SSE2 call take the slow path, which holds
  * the S6 NULL test. Set with the level. */
 	.p2align 2
-	.globl liella_machine_rshort_mask
-	.hidden liella_machine_rshort_mask
-	.type liella_machine_rshort_mask, @object
-	.size liella_machine_rshort_mask, 4
-liella_machine_rshort_mask:
+	.globl niji_machine_rshort_mask
+	.hidden niji_machine_rshort_mask
+	.type niji_machine_rshort_mask, @object
+	.size niji_machine_rshort_mask, 4
+niji_machine_rshort_mask:
 	.long 0
 
 /* TIMING-COV-STRCMP-SHORT-AVX2: strcmp's entry limit for (a - 1) & 4095, set with the level:
@@ -59,43 +59,43 @@ liella_machine_rshort_mask:
  * page test of a), 0 on SSE2 (no offset is below 0). One compare at the entry is the level test
  * and a's page test of the AVX2 head; every other call takes the SSE2 head. */
 	.p2align 2
-liella_machine_strcmp_vlim:
+niji_machine_strcmp_vlim:
 	.long 0
 
 	.text
 
-/* void liella_machine_set_scan_level(uint32_t level) */
-	.section .text.liella_machine_set_scan_level,"ax",@progbits
-	.globl liella_machine_set_scan_level
-	.type liella_machine_set_scan_level, @function
+/* void niji_machine_set_scan_level(uint32_t level) */
+	.section .text.niji_machine_set_scan_level,"ax",@progbits
+	.globl niji_machine_set_scan_level
+	.type niji_machine_set_scan_level, @function
 	.p2align 6
-liella_machine_set_scan_level:
-	movl %edi, liella_machine_scan_level(%rip)
+niji_machine_set_scan_level:
+	movl %edi, niji_machine_scan_level(%rip)
 	/* level 1 (AVX2) -> 4033, level 0 -> 0 (D-4.45). */
 	xorl %eax, %eax
 	testl %edi, %edi
 	movl $4033, %edx
 	cmovnzl %edx, %eax
-	movl %eax, liella_machine_short_lim(%rip)
+	movl %eax, niji_machine_short_lim(%rip)
 	/* strcmp's vlim: level 1 -> 3968 (4033 & 0xf80), level 0 -> 0. */
 	movl %eax, %ecx
 	andl $0xf80, %ecx
-	movl %ecx, liella_machine_strcmp_vlim(%rip)
+	movl %ecx, niji_machine_strcmp_vlim(%rip)
 	/* level 1 -> 0xfc0, level 0 -> 0 (REGEX-WL, memrchr's end-page mask). */
 	andl $0xfc0, %eax
-	movl %eax, liella_machine_rshort_mask(%rip)
+	movl %eax, niji_machine_rshort_mask(%rip)
 	ret
-	.size liella_machine_set_scan_level, .-liella_machine_set_scan_level
-	.section .text.liella_machine_scan_level_get,"ax",@progbits
+	.size niji_machine_set_scan_level, .-niji_machine_set_scan_level
+	.section .text.niji_machine_scan_level_get,"ax",@progbits
 
-/* uint32_t liella_machine_scan_level_get(void): the current path, for the self-tests (SHORT-3). */
-	.globl liella_machine_scan_level_get
-	.type liella_machine_scan_level_get, @function
+/* uint32_t niji_machine_scan_level_get(void): the current path, for the self-tests (SHORT-3). */
+	.globl niji_machine_scan_level_get
+	.type niji_machine_scan_level_get, @function
 	.p2align 4
-liella_machine_scan_level_get:
-	movl liella_machine_scan_level(%rip), %eax
+niji_machine_scan_level_get:
+	movl niji_machine_scan_level(%rip), %eax
 	ret
-	.size liella_machine_scan_level_get, .-liella_machine_scan_level_get
+	.size niji_machine_scan_level_get, .-niji_machine_scan_level_get
 
 /* SSE2 pattern "mask64 at base" (inlined): rdx = the 64-bit match mask of the aligned 64-byte group at base (bit i
  * set iff byte base + i equals the byte xmm0 holds in every lane). Clobbers xmm1-xmm4, r8-r10.
@@ -114,19 +114,19 @@ liella_machine_scan_level_get:
  * branch-free 64-bit mask, whose pmovmskb-shift-or chain sits on the critical path.
  * Clobbers xmm1. */
 
-/* size_t liella_machine_strlen(const char *s): bytes before the first NUL. */
-	.section .text.liella_machine_strlen,"ax",@progbits
-	.globl liella_machine_strlen
-	.type liella_machine_strlen, @function
+/* size_t niji_machine_strlen(const char *s): bytes before the first NUL. */
+	.section .text.niji_machine_strlen,"ax",@progbits
+	.globl niji_machine_strlen
+	.type niji_machine_strlen, @function
 	.p2align 6
-liella_machine_strlen:
+niji_machine_strlen:
 	/* SMALL-STR head (D-4.45): on the AVX2 level with [s, s + 64) inside s's page, two unaligned
 	 * 32-byte blocks [s, s + 32) and [s + 32, s + 64), one branch each, before any other setup
 	 * (SAFETY: both loads lie in s's page, which holds s's first byte). A miss in both continues
 	 * with the aligned block holding s + 64 (.Lstrlen_h64, STR-SCAN-SHORT), then the aligned body. */
 	movl %edi, %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_short_lim(%rip), %ecx
+	cmpl niji_machine_short_lim(%rip), %ecx
 	jae .Lstrlen_pre
 	vpxor %xmm0, %xmm0, %xmm0
 	vpcmpeqb (%rdi), %ymm0, %ymm1
@@ -243,7 +243,7 @@ liella_machine_strlen:
 	addl $48, %eax
 	ret
 .Lstrlen_main:
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lstrlen_sse2
 	/* AVX2 (STR-K2), the SSE2 path's shape with 32-byte blocks. Head: [s + 16, s + 80) as two
 	 * unaligned blocks when [s, s + 80) lies in s's page (page offset <= 4016; SHORT-2), else the
@@ -489,41 +489,41 @@ liella_machine_strlen:
 .Lstrlen_sse_head:
 	bsfq %rdx, %rax
 	ret
-	.size liella_machine_strlen, .-liella_machine_strlen
-	.section .text.liella_machine_strcpy,"ax",@progbits
+	.size niji_machine_strlen, .-niji_machine_strlen
+	.section .text.niji_machine_strcpy,"ax",@progbits
 
 /* The direct strcpy entry (STRCPY-SHORT-2, D-4.22): in the products this IS `strcpy` (second
- * label under LIELLA_EXPORT); the Rust export is its twin and calls it (ffi). One pass for a
+ * label under NIJI_EXPORT); the Rust export is its twin and calls it (ffi). One pass for a
  * string whose terminator lies in [s, s + 64) inside s's page: its len + 1 bytes go to d, then
  * the terminator is stored on its own, so d ends in NUL at the returned length even if a writer
  * changes s during the call (D-4.21). No NUL in those 64 bytes: the scan goes on in aligned
- * 16-byte blocks and len + 1 bytes go through liella_machine_memmove, then the terminator.
+ * 16-byte blocks and len + 1 bytes go through niji_machine_memmove, then the terminator.
  * NULL d or s, or [s, s + 64) leaving s's page, tail-jump to the Rust rest entry with nothing
  * written: %rdi, %rsi unchanged, %rcx = 0 (leading bytes known to hold no NUL). NULL goes
  * there before any access (explicit S6 checks there; no folding). AVX2 level: STRCPY-AVX2 head.
  * SAFETY: the head loads lie in [s, s + 64), inside s's page; each later aligned block holds
  * a string byte not past the NUL, so it lies in a page the string occupies; every store lies
  * in [d, d + len + 1). Returns d. */
-	.hidden liella_hot_strcpy_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.hidden liella_machine_memmove  /* fold.S */
+	.hidden niji_hot_strcpy_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.hidden niji_machine_memmove  /* fold.S */
 
-	.globl liella_machine_strcpy
-	.hidden liella_machine_strcpy
-	.type liella_machine_strcpy, @function
+	.globl niji_machine_strcpy
+	.hidden niji_machine_strcpy
+	.type niji_machine_strcpy, @function
 	.p2align 6
-liella_machine_strcpy:
-#ifdef LIELLA_EXPORT
+niji_machine_strcpy:
+#ifdef NIJI_EXPORT
 	.globl strcpy
 	.type strcpy, @function
 strcpy:
 #endif
 	testq %rdi, %rdi
-	jz liella_hot_strcpy_rest
+	jz niji_hot_strcpy_rest
 	testq %rsi, %rsi
-	jz liella_hot_strcpy_rest
+	jz niji_hot_strcpy_rest
 	movl %esi, %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_short_lim(%rip), %ecx
+	cmpl niji_machine_short_lim(%rip), %ecx
 	jae .Lsc_sse
 	/* AVX2 level (STRCPY-AVX2, D-4.22), [s, s + 64) inside s's page: the 16-byte head in
 	 * VEX-128 (memory operand, no upper state: 0-15 B need no vzeroupper), a 16-byte test for
@@ -637,7 +637,7 @@ strcpy:
 	ret
 .Lsc_page:
 	xorl %ecx, %ecx
-	jmp liella_hot_strcpy_rest
+	jmp niji_hot_strcpy_rest
 .Lsc_full:
 	/* No NUL in [s, s + 64): aligned 16-byte blocks from the one holding s + 64 (each holds a
 	 * byte of the string not past its NUL, so it lies in a page the string occupies); bytes
@@ -672,14 +672,14 @@ strcpy:
 	pushq %r10
 	subq $8, %rsp
 	leaq 1(%r10), %rdx
-	call liella_machine_memmove
+	call niji_machine_memmove
 	addq $8, %rsp
 	popq %rcx
 	popq %rax
 	movb $0, (%rax,%rcx)
 	ret
-	.size liella_machine_strcpy, .-liella_machine_strcpy
-#ifdef LIELLA_EXPORT
+	.size niji_machine_strcpy, .-niji_machine_strcpy
+#ifdef NIJI_EXPORT
 	.size strcpy, .-strcpy
 #endif
 
@@ -689,20 +689,20 @@ strcpy:
  * (len < room) BEFORE any store (fortify): a string that does not fit, a NULL d or s, or
  * [s, s + 64) leaving s's page tail-jump to the Rust rest entry with nothing written and %rdi,
  * %rsi, %rdx unchanged (it reports NULLs (S6) and a failed check).
- * SAFETY: as liella_machine_strcpy; every store lies in [d, d + len + 1) with len < room. */
-	.section .text.liella_machine_stpcpy,"ax",@progbits
-	.hidden liella_hot_stpcpy_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.hidden liella_hot_strcpy_chk_rest  /* crates/boundary/src/posix/s04_strings.rs */
+ * SAFETY: as niji_machine_strcpy; every store lies in [d, d + len + 1) with len < room. */
+	.section .text.niji_machine_stpcpy,"ax",@progbits
+	.hidden niji_hot_stpcpy_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.hidden niji_hot_strcpy_chk_rest  /* crates/boundary/src/posix/s04_strings.rs */
 
-	.globl liella_machine_stpcpy
-	.hidden liella_machine_stpcpy
-	.type liella_machine_stpcpy, @function
-	.globl liella_machine_stpcpy_chk
-	.hidden liella_machine_stpcpy_chk
-	.type liella_machine_stpcpy_chk, @function
+	.globl niji_machine_stpcpy
+	.hidden niji_machine_stpcpy
+	.type niji_machine_stpcpy, @function
+	.globl niji_machine_stpcpy_chk
+	.hidden niji_machine_stpcpy_chk
+	.type niji_machine_stpcpy_chk, @function
 	.p2align 6
-liella_machine_stpcpy:
-#ifdef LIELLA_EXPORT
+niji_machine_stpcpy:
+#ifdef NIJI_EXPORT
 	.globl stpcpy
 	.type stpcpy, @function
 	.globl __stpcpy
@@ -713,21 +713,21 @@ __stpcpy:
 	movq $-1, %rdx
 	/* Every exported entry is 64-byte aligned (xtask so), so stpcpy jumps to the
 	 * aligned __stpcpy_chk entry instead of falling through. */
-	jmp liella_machine_stpcpy_chk
+	jmp niji_machine_stpcpy_chk
 	.p2align 6
-liella_machine_stpcpy_chk:
-#ifdef LIELLA_EXPORT
+niji_machine_stpcpy_chk:
+#ifdef NIJI_EXPORT
 	.globl __stpcpy_chk
 	.type __stpcpy_chk, @function
 __stpcpy_chk:
 #endif
 	testq %rdi, %rdi
-	jz liella_hot_stpcpy_rest
+	jz niji_hot_stpcpy_rest
 	testq %rsi, %rsi
-	jz liella_hot_stpcpy_rest
+	jz niji_hot_stpcpy_rest
 	movl %esi, %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_short_lim(%rip), %ecx
+	cmpl niji_machine_short_lim(%rip), %ecx
 	jae .Lsp_sse
 	/* AVX2 level (STRCPY-AVX2, D-4.22), [s, s + 64) inside s's page: the 16-byte head in
 	 * VEX-128 (memory operand, no upper state: 0-15 B need no vzeroupper), a 16-byte test for
@@ -743,7 +743,7 @@ __stpcpy_chk:
 	jz .Lsp_a32
 	addl $16, %ecx
 	cmpq %rcx, %rdx
-	jbe liella_hot_stpcpy_rest
+	jbe niji_hot_stpcpy_rest
 	leaq (%rdi,%rcx), %rax
 	vmovdqu (%rsi), %xmm0
 	vmovdqu -15(%rsi,%rcx), %xmm1
@@ -769,13 +769,13 @@ __stpcpy_chk:
 	ret
 .Lsp_arest:
 	vzeroupper
-	jmp liella_hot_stpcpy_rest
+	jmp niji_hot_stpcpy_rest
 .Lsp_afull:
 	vzeroupper
 	jmp .Lsp_full
 .Lsp_sse:
 	cmpl $4032, %ecx
-	ja liella_hot_stpcpy_rest
+	ja niji_hot_stpcpy_rest
 	pxor %xmm2, %xmm2
 	movdqu (%rsi), %xmm0
 	pcmpeqb %xmm2, %xmm0
@@ -784,7 +784,7 @@ __stpcpy_chk:
 	jz .Lsp_h16
 .Lsp_cls:
 	cmpq %rcx, %rdx
-	jbe liella_hot_stpcpy_rest
+	jbe niji_hot_stpcpy_rest
 	leaq (%rdi,%rcx), %rax
 	cmpl $8, %ecx
 	jae .Lsp_8
@@ -822,7 +822,7 @@ __stpcpy_chk:
 	jz .Lsp_h32
 	addl $16, %ecx
 	cmpq %rcx, %rdx
-	jbe liella_hot_stpcpy_rest
+	jbe niji_hot_stpcpy_rest
 	leaq (%rdi,%rcx), %rax
 	movdqu (%rsi), %xmm0
 	movdqu -15(%rsi,%rcx), %xmm1
@@ -844,7 +844,7 @@ __stpcpy_chk:
 	bsfl %ecx, %ecx
 	addl $32, %ecx
 	cmpq %rcx, %rdx
-	jbe liella_hot_stpcpy_rest
+	jbe niji_hot_stpcpy_rest
 	leaq (%rdi,%rcx), %rax
 	movdqu (%rsi), %xmm0
 	movdqu 16(%rsi), %xmm1
@@ -883,21 +883,21 @@ __stpcpy_chk:
 	subq %rsi, %r10
 .Lsp_copy:
 	cmpq %r10, %rdx
-	jbe liella_hot_stpcpy_rest
+	jbe niji_hot_stpcpy_rest
 	pushq %rdi
 	pushq %r10
 	subq $8, %rsp
 	leaq 1(%r10), %rdx
-	call liella_machine_memmove
+	call niji_machine_memmove
 	addq $8, %rsp
 	popq %rcx
 	popq %rax
 	addq %rcx, %rax
 	movb $0, (%rax)
 	ret
-	.size liella_machine_stpcpy_chk, .-liella_machine_stpcpy_chk
-	.size liella_machine_stpcpy, .-liella_machine_stpcpy
-#ifdef LIELLA_EXPORT
+	.size niji_machine_stpcpy_chk, .-niji_machine_stpcpy_chk
+	.size niji_machine_stpcpy, .-niji_machine_stpcpy
+#ifdef NIJI_EXPORT
 	.size __stpcpy_chk, .-__stpcpy_chk
 	.size stpcpy, .-stpcpy
 	.size __stpcpy, .-__stpcpy
@@ -906,25 +906,25 @@ __stpcpy_chk:
 /* The direct __strcpy_chk entry (STRCPY-FAMILY, D-4.22): the stpcpy_chk shape returning d;
  * len < destlen (%rdx) is checked BEFORE any store; else, for a NULL, or for [s, s + 64)
  * leaving s's page, a tail jump to the Rust rest with nothing written and %rdi, %rsi, %rdx
- * unchanged. SAFETY: as liella_machine_stpcpy_chk. */
-	.section .text.liella_machine_strcpy_chk,"ax",@progbits
-	.globl liella_machine_strcpy_chk
-	.hidden liella_machine_strcpy_chk
-	.type liella_machine_strcpy_chk, @function
+ * unchanged. SAFETY: as niji_machine_stpcpy_chk. */
+	.section .text.niji_machine_strcpy_chk,"ax",@progbits
+	.globl niji_machine_strcpy_chk
+	.hidden niji_machine_strcpy_chk
+	.type niji_machine_strcpy_chk, @function
 	.p2align 6
-liella_machine_strcpy_chk:
-#ifdef LIELLA_EXPORT
+niji_machine_strcpy_chk:
+#ifdef NIJI_EXPORT
 	.globl __strcpy_chk
 	.type __strcpy_chk, @function
 __strcpy_chk:
 #endif
 	testq %rdi, %rdi
-	jz liella_hot_strcpy_chk_rest
+	jz niji_hot_strcpy_chk_rest
 	testq %rsi, %rsi
-	jz liella_hot_strcpy_chk_rest
+	jz niji_hot_strcpy_chk_rest
 	movl %esi, %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_short_lim(%rip), %ecx
+	cmpl niji_machine_short_lim(%rip), %ecx
 	jae .Lsk_sse
 	/* AVX2 level (STRCPY-AVX2, D-4.22), [s, s + 64) inside s's page: the 16-byte head in
 	 * VEX-128 (memory operand, no upper state: 0-15 B need no vzeroupper), a 16-byte test for
@@ -941,7 +941,7 @@ __strcpy_chk:
 	jz .Lsk_a32
 	addl $16, %ecx
 	cmpq %rcx, %rdx
-	jbe liella_hot_strcpy_chk_rest
+	jbe niji_hot_strcpy_chk_rest
 	vmovdqu (%rsi), %xmm0
 	vmovdqu -15(%rsi,%rcx), %xmm1
 	vmovdqu %xmm0, (%rdi)
@@ -965,13 +965,13 @@ __strcpy_chk:
 	ret
 .Lsk_arest:
 	vzeroupper
-	jmp liella_hot_strcpy_chk_rest
+	jmp niji_hot_strcpy_chk_rest
 .Lsk_afull:
 	vzeroupper
 	jmp .Lsk_full
 .Lsk_sse:
 	cmpl $4032, %ecx
-	ja liella_hot_strcpy_chk_rest
+	ja niji_hot_strcpy_chk_rest
 	movq %rdi, %rax
 	pxor %xmm2, %xmm2
 	movdqu (%rsi), %xmm0
@@ -981,7 +981,7 @@ __strcpy_chk:
 	jz .Lsk_h16
 .Lsk_cls:
 	cmpq %rcx, %rdx
-	jbe liella_hot_strcpy_chk_rest
+	jbe niji_hot_strcpy_chk_rest
 	cmpl $8, %ecx
 	jae .Lsk_8
 	cmpl $3, %ecx
@@ -1018,7 +1018,7 @@ __strcpy_chk:
 	jz .Lsk_h32
 	addl $16, %ecx
 	cmpq %rcx, %rdx
-	jbe liella_hot_strcpy_chk_rest
+	jbe niji_hot_strcpy_chk_rest
 	movdqu (%rsi), %xmm0
 	movdqu -15(%rsi,%rcx), %xmm1
 	movdqu %xmm0, (%rdi)
@@ -1039,7 +1039,7 @@ __strcpy_chk:
 	bsfl %ecx, %ecx
 	addl $32, %ecx
 	cmpq %rcx, %rdx
-	jbe liella_hot_strcpy_chk_rest
+	jbe niji_hot_strcpy_chk_rest
 	movdqu (%rsi), %xmm0
 	movdqu 16(%rsi), %xmm1
 	movdqu -31(%rsi,%rcx), %xmm2
@@ -1077,24 +1077,24 @@ __strcpy_chk:
 	subq %rsi, %r10
 .Lsk_copy:
 	cmpq %r10, %rdx
-	jbe liella_hot_strcpy_chk_rest
+	jbe niji_hot_strcpy_chk_rest
 	pushq %rdi
 	pushq %r10
 	subq $8, %rsp
 	leaq 1(%r10), %rdx
-	call liella_machine_memmove
+	call niji_machine_memmove
 	addq $8, %rsp
 	popq %rcx
 	popq %rax
 	movb $0, (%rax,%rcx)
 	ret
-	.size liella_machine_strcpy_chk, .-liella_machine_strcpy_chk
-#ifdef LIELLA_EXPORT
+	.size niji_machine_strcpy_chk, .-niji_machine_strcpy_chk
+#ifdef NIJI_EXPORT
 	.size __strcpy_chk, .-__strcpy_chk
 #endif
 
 /* The direct strncpy entry (STRNCPY-SHORT, D-4.22): in the products this IS `strncpy` (second
- * label under LIELLA_EXPORT); the Rust export is its twin and calls it (ffi). One pass for
+ * label under NIJI_EXPORT); the Rust export is its twin and calls it (ffi). One pass for
  * 1 <= n <= 64 when [s, s + 64) lies in s's page: the blocks of s that can hold the first NUL
  * before n are scanned, len = min(first NUL, n), and every store of the n-byte copy classes takes
  * the source bytes at its offset AND-ed with the keep mask at .Lsn_keep + 64 - len + offset
@@ -1103,30 +1103,30 @@ __strcpy_chk:
  * with the arguments unchanged and nothing written (S6 checks there). SSE2 only.
  * SAFETY: every load of s lies in [s, s + 64), inside s's page; every keep-mask load lies in
  * [.Lsn_keep, .Lsn_keep + 128); every store lies in [d, d + n). Returns d. */
-	.hidden liella_hot_strncpy_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.hidden niji_hot_strncpy_rest  /* crates/boundary/src/posix/s04_strings.rs */
 	.section .rodata
 	.p2align 6
 .Lsn_keep:
 	.fill 64, 1, 0xff
 	.fill 64, 1, 0
-	.section .text.liella_machine_strncpy,"ax",@progbits
+	.section .text.niji_machine_strncpy,"ax",@progbits
 
 /* The one-pass body (.Lsn_*) is written out here and again, returning d + min(first NUL, n),
  * in stpncpy (.Lspn_*): no .macro in .S files (the affected map scans them for symbols). */
-	.globl liella_machine_strncpy
-	.hidden liella_machine_strncpy
-	.type liella_machine_strncpy, @function
+	.globl niji_machine_strncpy
+	.hidden niji_machine_strncpy
+	.type niji_machine_strncpy, @function
 	.p2align 6
-liella_machine_strncpy:
-#ifdef LIELLA_EXPORT
+niji_machine_strncpy:
+#ifdef NIJI_EXPORT
 	.globl strncpy
 	.type strncpy, @function
 strncpy:
 #endif
 	testq %rdi, %rdi
-	jz liella_hot_strncpy_rest
+	jz niji_hot_strncpy_rest
 	testq %rsi, %rsi
-	jz liella_hot_strncpy_rest
+	jz niji_hot_strncpy_rest
 .Lsn_body:
 	leaq -1(%rdx), %rax
 	cmpq $63, %rax
@@ -1134,7 +1134,7 @@ strncpy:
 	movl %esi, %ecx
 	andl $4095, %ecx
 	cmpl $4032, %ecx
-	ja liella_hot_strncpy_rest
+	ja niji_hot_strncpy_rest
 	pxor %xmm2, %xmm2
 	movdqu (%rsi), %xmm0
 	pcmpeqb %xmm2, %xmm0
@@ -1238,11 +1238,11 @@ strncpy:
 .Lsn_out:
 	/* n == 0 (d, s non-NULL): nothing to read or write. n > 64: the general path. */
 	testq %rdx, %rdx
-	jnz liella_hot_strncpy_rest
+	jnz niji_hot_strncpy_rest
 	movq %rdi, %rax
 	ret
-	.size liella_machine_strncpy, .-liella_machine_strncpy
-#ifdef LIELLA_EXPORT
+	.size niji_machine_strncpy, .-niji_machine_strncpy
+#ifdef NIJI_EXPORT
 	.size strncpy, .-strncpy
 #endif
 
@@ -1250,41 +1250,41 @@ strncpy:
  * check n <= destlen comes before any load or store; n > destlen or a NULL d or s: tail jump to
  * the Rust rest entry with the arguments unchanged (it fails the check / reports S6). Else the
  * strncpy body, whose own general path (n > 64, page edge) then sees n <= destlen. */
-	.section .text.liella_machine_strncpy_chk,"ax",@progbits
-	.hidden liella_hot_strncpy_chk_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_strncpy_chk
-	.hidden liella_machine_strncpy_chk
-	.type liella_machine_strncpy_chk, @function
+	.section .text.niji_machine_strncpy_chk,"ax",@progbits
+	.hidden niji_hot_strncpy_chk_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_strncpy_chk
+	.hidden niji_machine_strncpy_chk
+	.type niji_machine_strncpy_chk, @function
 	.p2align 6
-liella_machine_strncpy_chk:
-#ifdef LIELLA_EXPORT
+niji_machine_strncpy_chk:
+#ifdef NIJI_EXPORT
 	.globl __strncpy_chk
 	.type __strncpy_chk, @function
 __strncpy_chk:
 #endif
 	cmpq %rcx, %rdx
-	ja liella_hot_strncpy_chk_rest
+	ja niji_hot_strncpy_chk_rest
 	testq %rdi, %rdi
-	jz liella_hot_strncpy_chk_rest
+	jz niji_hot_strncpy_chk_rest
 	testq %rsi, %rsi
-	jz liella_hot_strncpy_chk_rest
+	jz niji_hot_strncpy_chk_rest
 	jmp .Lsn_body
-	.size liella_machine_strncpy_chk, .-liella_machine_strncpy_chk
-#ifdef LIELLA_EXPORT
+	.size niji_machine_strncpy_chk, .-niji_machine_strncpy_chk
+#ifdef NIJI_EXPORT
 	.size __strncpy_chk, .-__strncpy_chk
 #endif
 
 /* The direct stpncpy entry (STRNCPY-FAMILY; `stpncpy` and, STPNCPY-ALIAS, `__stpncpy` in the
  * products): the strncpy body returning d + min(strlen(s), n); NULLs and the general path:
- * liella_hot_stpncpy_rest. */
-	.section .text.liella_machine_stpncpy,"ax",@progbits
-	.hidden liella_hot_stpncpy_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_stpncpy
-	.hidden liella_machine_stpncpy
-	.type liella_machine_stpncpy, @function
+ * niji_hot_stpncpy_rest. */
+	.section .text.niji_machine_stpncpy,"ax",@progbits
+	.hidden niji_hot_stpncpy_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_stpncpy
+	.hidden niji_machine_stpncpy
+	.type niji_machine_stpncpy, @function
 	.p2align 6
-liella_machine_stpncpy:
-#ifdef LIELLA_EXPORT
+niji_machine_stpncpy:
+#ifdef NIJI_EXPORT
 	.globl stpncpy
 	.type stpncpy, @function
 stpncpy:
@@ -1293,9 +1293,9 @@ stpncpy:
 __stpncpy:
 #endif
 	testq %rdi, %rdi
-	jz liella_hot_stpncpy_rest
+	jz niji_hot_stpncpy_rest
 	testq %rsi, %rsi
-	jz liella_hot_stpncpy_rest
+	jz niji_hot_stpncpy_rest
 .Lspn_body:
 	/* The strncpy body above (.Lsn_*) with .Lspn_* labels; only the return value differs. */
 	leaq -1(%rdx), %rax
@@ -1304,7 +1304,7 @@ __stpncpy:
 	movl %esi, %ecx
 	andl $4095, %ecx
 	cmpl $4032, %ecx
-	ja liella_hot_stpncpy_rest
+	ja niji_hot_stpncpy_rest
 	pxor %xmm2, %xmm2
 	movdqu (%rsi), %xmm0
 	pcmpeqb %xmm2, %xmm0
@@ -1412,11 +1412,11 @@ __stpncpy:
 .Lspn_out:
 	/* n == 0 (d, s non-NULL): nothing to read or write. n > 64: the general path. */
 	testq %rdx, %rdx
-	jnz liella_hot_stpncpy_rest
+	jnz niji_hot_stpncpy_rest
 	movq %rdi, %rax
 	ret
-	.size liella_machine_stpncpy, .-liella_machine_stpncpy
-#ifdef LIELLA_EXPORT
+	.size niji_machine_stpncpy, .-niji_machine_stpncpy
+#ifdef NIJI_EXPORT
 	.size stpncpy, .-stpncpy
 	.size __stpncpy, .-__stpncpy
 #endif
@@ -1425,45 +1425,45 @@ __stpncpy:
  * check n <= destlen comes before any load or store; n > destlen or a NULL d or s: tail jump to
  * the Rust rest entry with the arguments unchanged (it fails the check / reports S6). Else the
  * stpncpy body, whose own general path (n > 64, page edge) then sees n <= destlen. */
-	.section .text.liella_machine_stpncpy_chk,"ax",@progbits
-	.hidden liella_hot_stpncpy_chk_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_stpncpy_chk
-	.hidden liella_machine_stpncpy_chk
-	.type liella_machine_stpncpy_chk, @function
+	.section .text.niji_machine_stpncpy_chk,"ax",@progbits
+	.hidden niji_hot_stpncpy_chk_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_stpncpy_chk
+	.hidden niji_machine_stpncpy_chk
+	.type niji_machine_stpncpy_chk, @function
 	.p2align 6
-liella_machine_stpncpy_chk:
-#ifdef LIELLA_EXPORT
+niji_machine_stpncpy_chk:
+#ifdef NIJI_EXPORT
 	.globl __stpncpy_chk
 	.type __stpncpy_chk, @function
 __stpncpy_chk:
 #endif
 	cmpq %rcx, %rdx
-	ja liella_hot_stpncpy_chk_rest
+	ja niji_hot_stpncpy_chk_rest
 	testq %rdi, %rdi
-	jz liella_hot_stpncpy_chk_rest
+	jz niji_hot_stpncpy_chk_rest
 	testq %rsi, %rsi
-	jz liella_hot_stpncpy_chk_rest
+	jz niji_hot_stpncpy_chk_rest
 	jmp .Lspn_body
-	.size liella_machine_stpncpy_chk, .-liella_machine_stpncpy_chk
-#ifdef LIELLA_EXPORT
+	.size niji_machine_stpncpy_chk, .-niji_machine_stpncpy_chk
+#ifdef NIJI_EXPORT
 	.size __stpncpy_chk, .-__stpncpy_chk
 #endif
 
-/* size_t liella_machine_strnlen(const char *s, size_t max): bytes before the first NUL, at
+/* size_t niji_machine_strnlen(const char *s, size_t max): bytes before the first NUL, at
  * most max. A block or group is loaded only if it starts before s + max: its page then holds a
  * byte the caller guarantees, and an aligned group never leaves that page. */
-	.section .text.liella_machine_strnlen,"ax",@progbits
-	.globl liella_machine_strnlen
-	.type liella_machine_strnlen, @function
+	.section .text.niji_machine_strnlen,"ax",@progbits
+	.globl niji_machine_strnlen
+	.type niji_machine_strnlen, @function
 	.p2align 6
-liella_machine_strnlen:
+niji_machine_strnlen:
 	/* PERF-STRNLEN-MID-2: max <= 64 (max = 0 included) takes .Lstrnlen_small, so the fast path
 	 * below knows max > 64 without a further test. ecx = s's page offset on every path. */
 	movl %edi, %ecx
 	andl $4095, %ecx
 	cmpq $64, %rsi
 	jbe .Lstrnlen_small
-	cmpl liella_machine_short_lim(%rip), %ecx
+	cmpl niji_machine_short_lim(%rip), %ecx
 	jae .Lstrnlen_pre
 	/* SMALL-STR head (D-4.45), max > 64: on the AVX2 level with [s, s + 64) inside s's page,
 	 * two unaligned 32-byte blocks [s, s + 32) and [s + 32, s + 64), one branch each (SAFETY:
@@ -1575,7 +1575,7 @@ liella_machine_strnlen:
 	 * saturated, is the body's bound. */
 	testq %rsi, %rsi
 	jz .Lstrnlen_zero
-	cmpl liella_machine_short_lim(%rip), %ecx
+	cmpl niji_machine_short_lim(%rip), %ecx
 	jae .Lstrnlen_pre
 	vpxor %xmm0, %xmm0, %xmm0
 	vpcmpeqb (%rdi), %ymm0, %ymm1
@@ -1808,7 +1808,7 @@ liella_machine_strnlen:
 .Lstrnlen_main:
 	movq %rdi, %rax
 	movl %edi, %ecx
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lstrnlen_sse2
 	/* AVX2 (STR-K2): strlen's AVX2 shape, bounded as the SSE2 path: r11 = s + max, saturated;
 	 * g1 and each 128-byte group are loaded only if they start below r11, so their first byte
@@ -2023,24 +2023,24 @@ liella_machine_strnlen:
 .Lstrnlen_zero:
 	xorl %eax, %eax
 	ret
-	.size liella_machine_strnlen, .-liella_machine_strnlen
-	.section .text.liella_machine_rawmemchr_entry,"ax",@progbits
+	.size niji_machine_strnlen, .-niji_machine_strnlen
+	.section .text.niji_machine_rawmemchr_entry,"ax",@progbits
 
-/* const void *liella_machine_rawmemchr(const void *s, int c): a POINTER to the first byte equal
+/* const void *niji_machine_rawmemchr(const void *s, int c): a POINTER to the first byte equal
  * to (unsigned char)c, which the caller asserts exists (STR-K2: a pointer, so the rawmemchr
  * export tail-calls it). Groups as in strlen, combined with OR. */
-/* const void *liella_machine_rawmemchr_entry(const void *s, int c): the direct rawmemchr entry
+/* const void *niji_machine_rawmemchr_entry(const void *s, int c): the direct rawmemchr entry
  * (SCAN-TAIL; `rawmemchr` and `__rawmemchr` in the products). The S6 NULL test stays (rawmemchr
- * is not folded, D-4.48): a NULL s tail-jumps to `liella_hot_rawmemchr_rest` (strz::find: the
+ * is not folded, D-4.48): a NULL s tail-jumps to `niji_hot_rawmemchr_rest` (strz::find: the
  * explicit abort); any other s falls through into the kernel below, saving the Rust entry's
  * byte conversion and jump. The kernel reads only c's low byte. Reads nothing itself. */
-	.hidden liella_hot_rawmemchr_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_rawmemchr_entry
-	.hidden liella_machine_rawmemchr_entry
-	.type liella_machine_rawmemchr_entry, @function
+	.hidden niji_hot_rawmemchr_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_rawmemchr_entry
+	.hidden niji_machine_rawmemchr_entry
+	.type niji_machine_rawmemchr_entry, @function
 	.p2align 6
-liella_machine_rawmemchr_entry:
-#ifdef LIELLA_EXPORT
+niji_machine_rawmemchr_entry:
+#ifdef NIJI_EXPORT
 	.globl rawmemchr
 	.type rawmemchr, @function
 rawmemchr:
@@ -2049,18 +2049,18 @@ rawmemchr:
 __rawmemchr:
 #endif
 	testq %rdi, %rdi
-	jz liella_hot_rawmemchr_rest
+	jz niji_hot_rawmemchr_rest
 	/* Falls through: no alignment between the test and the kernel. */
-	.globl liella_machine_rawmemchr
-	.type liella_machine_rawmemchr, @function
-liella_machine_rawmemchr:
+	.globl niji_machine_rawmemchr
+	.type niji_machine_rawmemchr, @function
+niji_machine_rawmemchr:
 	/* SMALL-STR head (D-4.45): on the AVX2 level with [s, s + 64) inside s's page, two unaligned
 	 * 32-byte blocks [s, s + 32) and [s + 32, s + 64), one branch each, before any other setup
 	 * (SAFETY: both loads lie in s's page, which holds s's first byte). A miss in both continues
 	 * in the aligned AVX2 body with rax = s & -64: [s, rax + 64) is inside [s, s + 64), checked. */
 	movl %edi, %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_short_lim(%rip), %ecx
+	cmpl niji_machine_short_lim(%rip), %ecx
 	jae .Lraw_sse_fast
 	vmovd %esi, %xmm0
 	vpbroadcastb %xmm0, %ymm0
@@ -2132,7 +2132,7 @@ liella_machine_rawmemchr:
 	 * .Lraw_sse_fast, TIMING-IVB-MEMREF-ENTRY): the AVX2 level, or the SSE2 level near a page end. */
 	movq %rdi, %rax
 	movd %esi, %xmm0
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lraw_sse2
 	/* AVX2 (STR-K2): strlen's AVX2 shape with compares against the broadcast byte (vpor fold).
 	 * SAFETY: as strlen's, with "no earlier byte matched" in place of "no earlier NUL": a loaded
@@ -2266,7 +2266,7 @@ liella_machine_rawmemchr:
 
 	.subsection 0
 	/* LAYOUT(RAWMEMCHR-SSE2-PIN): int3 fill, never reached (after a ret): the SSE2 path starts at offset 0x1ed, as before. */
-	.org liella_machine_rawmemchr_entry + 0x1ed, 0xcc
+	.org niji_machine_rawmemchr_entry + 0x1ed, 0xcc
 .Lraw_sse2:
 	punpcklbw %xmm0, %xmm0
 	punpcklwd %xmm0, %xmm0
@@ -2386,7 +2386,7 @@ liella_machine_rawmemchr:
 	 * rawmemchr_4k timed slower on Ivy Bridge). The fill keeps the function's end before the
 	 * next section's 64-byte boundary: nothing after it moves. Assembly fails here if the code
 	 * above grows past this offset; re-check the loop's address after any edit in between. */
-	.org liella_machine_rawmemchr_entry + 0x338, 0xcc
+	.org niji_machine_rawmemchr_entry + 0x338, 0xcc
 .Lraw_sse_masked:
 	andl $63, %ecx
 	/* mask64 %rax */
@@ -2523,9 +2523,9 @@ liella_machine_rawmemchr:
 	ret
 	/* The sizes run to the end of subsection 1, the section's end. */
 	.subsection 1
-	.size liella_machine_rawmemchr, .-liella_machine_rawmemchr
-	.size liella_machine_rawmemchr_entry, .-liella_machine_rawmemchr_entry
-#ifdef LIELLA_EXPORT
+	.size niji_machine_rawmemchr, .-niji_machine_rawmemchr
+	.size niji_machine_rawmemchr_entry, .-niji_machine_rawmemchr_entry
+#ifdef NIJI_EXPORT
 	.size rawmemchr, .-rawmemchr
 	.size __rawmemchr, .-__rawmemchr
 #endif
@@ -2538,7 +2538,7 @@ liella_machine_rawmemchr:
  * most n; the bytes there differ) and derives the sign itself. memchr returns a pointer or NULL
  * (STR-K3), checked in the selftest build. */
 
-/* const void *liella_machine_memchr(const void *s, int c, size_t n): a POINTER to the first byte
+/* const void *niji_machine_memchr(const void *s, int c, size_t n): a POINTER to the first byte
  * of [s, s + n) equal to (unsigned char)c, or NULL (STR-K3: the export tail-calls it, as
  * rawmemchr; Rust checks the answer in the selftest build only, RESULT CHECKS ruling). ISO C
  * (C17 7.24.5.1p2) has memchr behave as if it read the bytes in order and stopped at the first
@@ -2557,34 +2557,34 @@ liella_machine_rawmemchr:
  * byte lies in [s, s + n) after bytes that did not match, so the caller guarantees it. A match
  * found at or beyond s + n gives NULL. */
 
-/* const void *liella_machine_memchr_entry(const void *s, int c, size_t n): the direct memchr entry
+/* const void *niji_machine_memchr_entry(const void *s, int c, size_t n): the direct memchr entry
  * (MEMCHR-FOLD, D-4.48 amendment; owner ruling 2026-10-11 extending the S6 NULL-folding exception
  * to memchr under the same startup guard; `memchr` in the products). One gate: n - 1 below
- * `liella_machine_chr_limit` (machine/fold.S: isize::MAX while NULL folding is on, 0 otherwise)
+ * `niji_machine_chr_limit` (machine/fold.S: isize::MAX while NULL folding is on, 0 otherwise)
  * falls through into the kernel below with no NULL test. A NULL s then faults on page zero: every
  * path's first load lies in [s & -64, s + 64), which for s = NULL is [0, 64), below the guard's
  * 64 KiB, whatever n is (no later load is reached). n == 0 (wraps to the maximum), n > isize::MAX
- * and folding off (limit 0: every n fails the gate) tail-jump to `liella_hot_memchr_rest`, the
+ * and folding off (limit 0: every n fails the gate) tail-jump to `niji_hot_memchr_rest`, the
  * checked entry (explicit S6 abort, the lazy folding decision). Reads nothing itself. */
-	.section .text.liella_machine_memchr_entry,"ax",@progbits
-	.hidden liella_hot_memchr_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_memchr_entry
-	.hidden liella_machine_memchr_entry
-	.type liella_machine_memchr_entry, @function
+	.section .text.niji_machine_memchr_entry,"ax",@progbits
+	.hidden niji_hot_memchr_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_memchr_entry
+	.hidden niji_machine_memchr_entry
+	.type niji_machine_memchr_entry, @function
 	.p2align 6
-liella_machine_memchr_entry:
-#ifdef LIELLA_EXPORT
+niji_machine_memchr_entry:
+#ifdef NIJI_EXPORT
 	.globl memchr
 	.type memchr, @function
 memchr:
 #endif
 	leaq -1(%rdx), %r9
-	cmpq liella_machine_chr_limit(%rip), %r9
-	jae liella_hot_memchr_rest
+	cmpq niji_machine_chr_limit(%rip), %r9
+	jae niji_hot_memchr_rest
 	/* Falls through: no alignment between the gate and the kernel. */
-	.globl liella_machine_memchr
-	.type liella_machine_memchr, @function
-liella_machine_memchr:
+	.globl niji_machine_memchr
+	.type niji_machine_memchr, @function
+niji_machine_memchr:
 	/* SMALL-STR-2 (D-4.45): the short limit is the level test and the page test ([s, s + 64)
 	 * inside s's page) in one compare; then, for every n, the 64-byte head (WL-GREP, D-4.48;
 	 * MEMCHR-2 splits it in two 32-byte halves): [s, s + 64) unaligned, whose first match is
@@ -2593,7 +2593,7 @@ liella_machine_memchr:
 	 * their first 64 bytes). */
 	movl %edi, %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_short_lim(%rip), %ecx
+	cmpl niji_machine_short_lim(%rip), %ecx
 	jae .Lmemchr_sse_pre
 	vmovd %esi, %xmm0
 	vpbroadcastb %xmm0, %ymm0
@@ -2671,7 +2671,7 @@ liella_machine_memchr:
 	ret
 .Lmemchr_entry:
 	movd %esi, %xmm0
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lmemchr_sse2
 	vpbroadcastb %xmm0, %ymm0
 	cmpq $32, %rdx
@@ -2820,7 +2820,7 @@ liella_machine_memchr:
 	.subsection 0
 	/* LAYOUT(MEMCHR-SSE2-PIN): int3 fill, never reached (it follows the jmp above): the SSE2 path starts at offset 0x231
 	 * of the section, as before (the assembler refuses if the code above grows past it). */
-	.org liella_machine_memchr_entry + 0x231, 0xcc
+	.org niji_machine_memchr_entry + 0x231, 0xcc
 	/* SSE2: the same with 16-byte blocks; the head and the groups fold with por, and a hit is
 	 * located per 16-byte block with a branch each (STR-K1's measurement).
 	 * .Lmemchr_sse2 is reached from .Lmemchr_entry only, so with ecx > 4032: the page-end form. */
@@ -3106,22 +3106,22 @@ liella_machine_memchr:
 	ret
 	/* The sizes run to the end of subsection 1, the section's end. */
 	.subsection 1
-	.size liella_machine_memchr, .-liella_machine_memchr
-#ifdef LIELLA_EXPORT
+	.size niji_machine_memchr, .-niji_machine_memchr
+#ifdef NIJI_EXPORT
 	.size memchr, .-memchr
 #endif
-	.size liella_machine_memchr_entry, .-liella_machine_memchr_entry
+	.size niji_machine_memchr_entry, .-niji_machine_memchr_entry
 
-/* size_t liella_machine_memcmp(const void *a, const void *b, size_t n): the index of the first
+/* size_t niji_machine_memcmp(const void *a, const void *b, size_t n): the index of the first
  * byte where [a, a + n) and [b, b + n) differ, or n. */
-	.section .text.liella_machine_memcmp,"ax",@progbits
-	.globl liella_machine_memcmp
-	.type liella_machine_memcmp, @function
+	.section .text.niji_machine_memcmp,"ax",@progbits
+	.globl niji_machine_memcmp
+	.type niji_machine_memcmp, @function
 	.p2align 6
-liella_machine_memcmp:
+niji_machine_memcmp:
 	cmpq $16, %rdx
 	jb .Lmemcmp_small
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lmemcmp_sse2
 	cmpq $32, %rdx
 	jb .Lmemcmp_sse2
@@ -3310,9 +3310,9 @@ liella_machine_memcmp:
 	jmp .Lmemcmp_byte_loop
 .Lmemcmp_byte_done:
 	ret
-	.size liella_machine_memcmp, .-liella_machine_memcmp
+	.size niji_machine_memcmp, .-niji_machine_memcmp
 
-/* int liella_machine_strcmp(const char *a, const char *b) (PJ-8; STRCOLL-1, D-4.29): the order
+/* int niji_machine_strcmp(const char *a, const char *b) (PJ-8; STRCOLL-1, D-4.29): the order
  * of the strings as strcmp defines it (unsigned bytes): -1, 0 or 1. One pass over both strings
  * (no separate measuring). SSE2 at scan level 0; at level 1 the same steps with 32-byte AVX2
  * blocks (two per 64-byte step), VEX-encoded, vzeroupper before returning from them.
@@ -3330,31 +3330,31 @@ liella_machine_memcmp:
  *
  * Settling: the order comes from the two bytes at the first such index, read once more. If a
  * writer made them equal and not NUL since the vector read, the scan goes on after them
- * (D-4.21's rescan, here in the kernel; counted in liella_machine_strcmp_rescans for the
+ * (D-4.21's rescan, here in the kernel; counted in niji_machine_strcmp_rescans for the
  * selftest), so the answer always comes from bytes this call read. */
-/* int liella_machine_strcmp_entry(const char *a, const char *b): the direct strcmp entry
+/* int niji_machine_strcmp_entry(const char *a, const char *b): the direct strcmp entry
  * (STRCMP-ENTRY; `strcmp` in the products): the kernel below itself, with no wrapper, call or
  * jump. The S6 NULL tests (§4.3: NULL aborts) live in the kernel's slow path (STRCMP-HEADNULL):
  * the head's page test takes its window from one byte before each string, so a NULL argument
  * (window 0xFFFFFFFF..63, or ..127 in the AVX2 head) always fails it and reaches them before any read; they jump to
- * `liella_hot_strcmp_null`, the checked entry, which aborts. Page-aligned starts take the slow
+ * `niji_hot_strcmp_null`, the checked entry, which aborts. Page-aligned starts take the slow
  * path too (one start in 4096). */
-	.hidden liella_hot_strcmp_null  /* crates/boundary/src/posix/s04_strings.rs */
-	.section .text.liella_machine_strcmp,"ax",@progbits
-	.globl liella_machine_strcmp_entry
-	.hidden liella_machine_strcmp_entry
-	.type liella_machine_strcmp_entry, @function
+	.hidden niji_hot_strcmp_null  /* crates/boundary/src/posix/s04_strings.rs */
+	.section .text.niji_machine_strcmp,"ax",@progbits
+	.globl niji_machine_strcmp_entry
+	.hidden niji_machine_strcmp_entry
+	.type niji_machine_strcmp_entry, @function
 	.p2align 6
-liella_machine_strcmp_entry:
-#ifdef LIELLA_EXPORT
+niji_machine_strcmp_entry:
+#ifdef NIJI_EXPORT
 	.globl strcmp
 	.type strcmp, @function
 strcmp:
 #endif
 	/* Falls through: the NULL tests are in the kernel's slow path (STRCMP-HEADNULL). */
-	.globl liella_machine_strcmp
-	.type liella_machine_strcmp, @function
-liella_machine_strcmp:
+	.globl niji_machine_strcmp
+	.type niji_machine_strcmp, @function
+niji_machine_strcmp:
 	/* Entry (TIMING-COV-STRCMP-SHORT-AVX2): one compare of (a - 1) & 4095 with strcmp_vlim is the
 	 * level test and the AVX2 head's page test of a (was: a load-compare of the level and a taken
 	 * branch to the AVX2 head before its own test of a, 2 instructions more per AVX2 call). The
@@ -3369,7 +3369,7 @@ liella_machine_strcmp:
 	 * instructions. */
 	leal -1(%rdi), %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_strcmp_vlim(%rip), %ecx
+	cmpl niji_machine_strcmp_vlim(%rip), %ecx
 	jb .Lstrcmp_v_first
 .Lstrcmp_s_head:
 	/* Head (STRCMP-3, STRCMP-HEAD, D-4.38): the AVX2 head below in SSE2, as four 16-byte blocks
@@ -3486,9 +3486,9 @@ liella_machine_strcmp:
 	/* S6 NULL tests (STRCMP-HEADNULL): the head's page window starts one byte before each
 	 * string, so NULL and page-aligned starts always come here first. */
 	testq %rdi, %rdi
-	je liella_hot_strcmp_null
+	je niji_hot_strcmp_null
 	testq %rsi, %rsi
-	je liella_hot_strcmp_null
+	je niji_hot_strcmp_null
 	xorl %eax, %eax
 	pxor %xmm0, %xmm0
 	/* First pass: one test for both pages. The OR of the two offsets is at least the larger one,
@@ -3677,11 +3677,11 @@ liella_machine_strcmp:
 	orl $1, %eax
 	ret
 .Lstrcmp_rescan:
-	lock incq liella_machine_strcmp_rescans(%rip)
+	lock incq niji_machine_strcmp_rescans(%rip)
 	incq %rax
 	jmp .Lstrcmp_top
 	/* strcmp's AVX2 first block (TIMING-COV-STRCMP-SHORT-AVX2): the entry's branch target, see
-	 * liella_machine_strcmp. */
+	 * niji_machine_strcmp. */
 	.p2align 4
 .Lstrcmp_v_first:
 	leal -1(%rsi), %edx
@@ -3814,9 +3814,9 @@ liella_machine_strcmp:
 	/* S6 NULL tests (STRCMP-HEADNULL): the head's page window starts one byte before each
 	 * string, so NULL and page-aligned starts always come here first. */
 	testq %rdi, %rdi
-	je liella_hot_strcmp_null
+	je niji_hot_strcmp_null
 	testq %rsi, %rsi
-	je liella_hot_strcmp_null
+	je niji_hot_strcmp_null
 	xorl %eax, %eax
 	vpxor %xmm0, %xmm0, %xmm0
 	movl %edi, %ecx
@@ -4030,23 +4030,23 @@ liella_machine_strcmp:
 	orl $1, %eax
 	ret
 .Lstrcmp_v_rescan:
-	lock incq liella_machine_strcmp_rescans(%rip)
+	lock incq niji_machine_strcmp_rescans(%rip)
 	incq %rax
 	jmp .Lstrcmp_v_top
-	.size liella_machine_strcmp, .-liella_machine_strcmp
-	.section .text.liella_machine_strcmp_rescan_count,"ax",@progbits
+	.size niji_machine_strcmp, .-niji_machine_strcmp
+	.section .text.niji_machine_strcmp_rescan_count,"ax",@progbits
 
-/* uint64_t liella_machine_strcmp_rescan_count(void): how often liella_machine_strcmp found the
+/* uint64_t niji_machine_strcmp_rescan_count(void): how often niji_machine_strcmp found the
  * bytes at its index changed by a writer and scanned on (the selftest reads it). */
-	.globl liella_machine_strcmp_rescan_count
-	.type liella_machine_strcmp_rescan_count, @function
+	.globl niji_machine_strcmp_rescan_count
+	.type niji_machine_strcmp_rescan_count, @function
 	.p2align 4
-liella_machine_strcmp_rescan_count:
-	movq liella_machine_strcmp_rescans(%rip), %rax
+niji_machine_strcmp_rescan_count:
+	movq niji_machine_strcmp_rescans(%rip), %rax
 	ret
-	.size liella_machine_strcmp_rescan_count, .-liella_machine_strcmp_rescan_count
+	.size niji_machine_strcmp_rescan_count, .-niji_machine_strcmp_rescan_count
 
-/* struct liella_strdiff liella_machine_strdiff(const char *a, const char *b) (STRCOLL-2,
+/* struct niji_strdiff niji_machine_strdiff(const char *a, const char *b) (STRCOLL-2,
  * STRCOLL-4; D-4.37): in rax the first index i at which a[i] != b[i] or a[i] is the terminator
  * (so the strings share the i bytes before it, none of them a terminator); in rdx a value that
  * is nonzero iff one of a[0..=i] has bit 7 set (strcoll's "prefix is ASCII" test, from the
@@ -4056,7 +4056,7 @@ liella_machine_strcmp_rescan_count:
  * compared one at a time; in the block holding i, the lanes 0..=k (k = i's lane) are
  * c ^ (c - 1) of the nonzero lane mask c.
  *
- * Page rule (D-4.14, as liella_machine_strcmp): a 16-byte block at index i is loaded from a + i
+ * Page rule (D-4.14, as niji_machine_strcmp): a 16-byte block at index i is loaded from a + i
  * and b + i only while the larger page offset of the two is at most 4080, so both loads stay in
  * the pages holding a[i] and b[i], which are readable (every byte before i is shared and not a
  * terminator). Above 4080 one byte is compared, then the offsets are taken again. At
@@ -4066,11 +4066,11 @@ liella_machine_strcmp_rescan_count:
  * is zero in min(a, a == b ? 0xFF : 0) iff the bytes differ or a's byte is the terminator.
  *
  * The caller reads the bytes at the index itself (the answer is never taken from this scan). */
-	.section .text.liella_machine_strdiff,"ax",@progbits
-	.globl liella_machine_strdiff
-	.type liella_machine_strdiff, @function
+	.section .text.niji_machine_strdiff,"ax",@progbits
+	.globl niji_machine_strdiff
+	.type niji_machine_strdiff, @function
 	.p2align 5
-liella_machine_strdiff:
+niji_machine_strdiff:
 	xorl %eax, %eax
 	xorl %r8d, %r8d
 	pxor %xmm0, %xmm0
@@ -4129,18 +4129,18 @@ liella_machine_strdiff:
 .Lstrdiff_done:
 	movl %r8d, %edx
 	ret
-	.size liella_machine_strdiff, .-liella_machine_strdiff
+	.size niji_machine_strdiff, .-niji_machine_strdiff
 
-/* uint64_t liella_machine_clean_upper_call(int (*f)(const char *, const char *), const char *a,
+/* uint64_t niji_machine_clean_upper_call(int (*f)(const char *, const char *), const char *a,
  * const char *b, int *result) (STRCMP-3 selftest, D-4.38): vzeroupper, f(a, b) with no other code
  * in between, its result stored at *result, and the OR of the upper halves of ymm0..ymm15 returned:
  * 0 = f left no upper state behind (a caller that came in clean leaves clean). AVX2 only.
- * liella_machine_ymm15_dirty_cmp is its positive control: it sets ymm15 to all ones, returns 0. */
-	.section .text.liella_machine_clean_upper_call,"ax",@progbits
-	.globl liella_machine_clean_upper_call
-	.type liella_machine_clean_upper_call, @function
+ * niji_machine_ymm15_dirty_cmp is its positive control: it sets ymm15 to all ones, returns 0. */
+	.section .text.niji_machine_clean_upper_call,"ax",@progbits
+	.globl niji_machine_clean_upper_call
+	.type niji_machine_clean_upper_call, @function
 	.p2align 4
-liella_machine_clean_upper_call:
+niji_machine_clean_upper_call:
 	pushq %rcx
 	movq %rdi, %r11
 	movq %rsi, %rdi
@@ -4199,29 +4199,29 @@ liella_machine_clean_upper_call:
 	orq -16(%rsp), %rax
 	orq -8(%rsp), %rax
 	ret
-	.size liella_machine_clean_upper_call, .-liella_machine_clean_upper_call
-	.section .text.liella_machine_ymm15_dirty_cmp,"ax",@progbits
+	.size niji_machine_clean_upper_call, .-niji_machine_clean_upper_call
+	.section .text.niji_machine_ymm15_dirty_cmp,"ax",@progbits
 
-	.globl liella_machine_ymm15_dirty_cmp
-	.type liella_machine_ymm15_dirty_cmp, @function
+	.globl niji_machine_ymm15_dirty_cmp
+	.type niji_machine_ymm15_dirty_cmp, @function
 	.p2align 4
-liella_machine_ymm15_dirty_cmp:
+niji_machine_ymm15_dirty_cmp:
 	vpcmpeqd %ymm15, %ymm15, %ymm15
 	xorl %eax, %eax
 	ret
-	.size liella_machine_ymm15_dirty_cmp, .-liella_machine_ymm15_dirty_cmp
+	.size niji_machine_ymm15_dirty_cmp, .-niji_machine_ymm15_dirty_cmp
 
 	.bss
 	.p2align 3
-	.globl liella_machine_strcmp_rescans
-	.hidden liella_machine_strcmp_rescans
-	.type liella_machine_strcmp_rescans, @object
-	.size liella_machine_strcmp_rescans, 8
-liella_machine_strcmp_rescans:
+	.globl niji_machine_strcmp_rescans
+	.hidden niji_machine_strcmp_rescans
+	.type niji_machine_strcmp_rescans, @object
+	.size niji_machine_strcmp_rescans, 8
+niji_machine_strcmp_rescans:
 	.zero 8
-	.section .text.liella_machine_ymm15_dirty_cmp,"ax",@progbits
+	.section .text.niji_machine_ymm15_dirty_cmp,"ax",@progbits
 
-/* size_t liella_machine_env_find(const char *const *env, const char *name, size_t len)
+/* size_t niji_machine_env_find(const char *const *env, const char *name, size_t len)
  * (PJ-8): the address of the first entry of the NULL-terminated array env (0 = no array)
  * that is name's len bytes followed by '=', or 0. One pass over the array: an entry whose
  * first byte differs from name's (from '=' when len is 0) is passed over after that byte.
@@ -4238,11 +4238,11 @@ liella_machine_strcmp_rescans:
  * bytes and ends in '='). Entries that share a prefix with the name (BENCHVARxx vs BENCHNOPE)
  * now cost one load instead of a byte loop. A page-crossing entry takes the byte loop. The
  * name's word is loaded the same way, or built byte by byte when it would cross its page. */
-	.section .text.liella_machine_env_find,"ax",@progbits
-	.globl liella_machine_env_find
-	.type liella_machine_env_find, @function
+	.section .text.niji_machine_env_find,"ax",@progbits
+	.globl niji_machine_env_find
+	.type niji_machine_env_find, @function
 	.p2align 6
-liella_machine_env_find:
+niji_machine_env_find:
 	testq %rdi, %rdi
 	jz .Lenv_none
 	movl $0x3d, %r8d
@@ -4359,11 +4359,11 @@ liella_machine_env_find:
 	decq %r9
 	jnz .Lenv_name_loop
 	jmp .Lenv_name_word
-	.size liella_machine_env_find, .-liella_machine_env_find
-	.section .text.liella_machine_env_slot,"ax",@progbits
+	.size niji_machine_env_find, .-niji_machine_env_find
+	.section .text.niji_machine_env_slot,"ax",@progbits
 
-/* struct liella_env_slot liella_machine_env_slot(const char *const *env, const char *name, size_t len)
- * (ENVIRON-SMALL-CYCLE): liella_machine_env_find's scan, answering also where it stopped.
+/* struct niji_env_slot niji_machine_env_slot(const char *const *env, const char *name, size_t len)
+ * (ENVIRON-SMALL-CYCLE): niji_machine_env_find's scan, answering also where it stopped.
  * rax = the entry found (0: none, as env_find); rdx = the address of its slot, or on a miss
  * the address of the array's NULL slot (0 when env is 0). setenv/putenv/unsetenv need the
  * slot index (to store into it) and, on a miss, the entry count (to append): both used to cost
@@ -4371,10 +4371,10 @@ liella_machine_env_find:
  * keeps its exact instructions; the loop, the word compare and the byte loop are the same,
  * with the same contract (name's len bytes hold no NUL). The miss exits note which of the four
  * slots of the pass held the NULL. */
-	.globl liella_machine_env_slot
-	.type liella_machine_env_slot, @function
+	.globl niji_machine_env_slot
+	.type niji_machine_env_slot, @function
 	.p2align 6
-liella_machine_env_slot:
+niji_machine_env_slot:
 	testq %rdi, %rdi
 	jz .Lens_n0
 	movl $0x3d, %r8d
@@ -4501,33 +4501,33 @@ liella_machine_env_slot:
 	decq %r9
 	jnz .Lens_name_loop
 	jmp .Lens_name_word
-	.size liella_machine_env_slot, .-liella_machine_env_slot
+	.size niji_machine_env_slot, .-niji_machine_env_slot
 
 /* ERMS copy and fill (OD-C2 b): `rep movsb` / `rep stosb`. Rust calls them only for disjoint,
  * validated regions above the measured threshold, and only when CPUID reports ERMS. */
-	.section .text.liella_machine_copy_erms,"ax",@progbits
+	.section .text.niji_machine_copy_erms,"ax",@progbits
 
-/* void *liella_machine_copy_erms(void *dst, const void *src, size_t n): returns dst */
-	.globl liella_machine_copy_erms
-	.type liella_machine_copy_erms, @function
+/* void *niji_machine_copy_erms(void *dst, const void *src, size_t n): returns dst */
+	.globl niji_machine_copy_erms
+	.type niji_machine_copy_erms, @function
 	.p2align 6
-liella_machine_copy_erms:
+niji_machine_copy_erms:
 	movq %rdi, %rax
 	movq %rdx, %rcx
 	rep movsb
 	ret
-	.size liella_machine_copy_erms, .-liella_machine_copy_erms
+	.size niji_machine_copy_erms, .-niji_machine_copy_erms
 
-/* void *liella_machine_copy_erms_a64(void *dst, const void *src, size_t n): n >= 64, disjoint;
+/* void *niji_machine_copy_erms_a64(void *dst, const void *src, size_t n): n >= 64, disjoint;
  * returns dst. The first 64 bytes go with four unaligned SSE2 moves, then `rep movsb` copies the
  * rest from the next 64-byte-aligned destination (h = -dst & 63 bytes in; h = 0 when aligned,
  * the head store is then rewritten). MEMCPY-POLICY-2: rep movsb from a misaligned destination
  * lost 1.8x on Broadwell, aligned it won (D-4.14). */
-	.section .text.liella_machine_copy_erms_a64,"ax",@progbits
-	.globl liella_machine_copy_erms_a64
-	.type liella_machine_copy_erms_a64, @function
+	.section .text.niji_machine_copy_erms_a64,"ax",@progbits
+	.globl niji_machine_copy_erms_a64
+	.type niji_machine_copy_erms_a64, @function
 	.p2align 6
-liella_machine_copy_erms_a64:
+niji_machine_copy_erms_a64:
 	movq %rdi, %rax
 	movdqu (%rsi), %xmm0
 	movdqu 16(%rsi), %xmm1
@@ -4546,19 +4546,19 @@ liella_machine_copy_erms_a64:
 	movq %rdx, %rcx
 	rep movsb
 	ret
-	.size liella_machine_copy_erms_a64, .-liella_machine_copy_erms_a64
-	.section .text.liella_machine_fill_erms,"ax",@progbits
+	.size niji_machine_copy_erms_a64, .-niji_machine_copy_erms_a64
+	.section .text.niji_machine_fill_erms,"ax",@progbits
 
-/* void liella_machine_fill_erms(void *dst, int c, size_t n) */
-	.globl liella_machine_fill_erms
-	.type liella_machine_fill_erms, @function
+/* void niji_machine_fill_erms(void *dst, int c, size_t n) */
+	.globl niji_machine_fill_erms
+	.type niji_machine_fill_erms, @function
 	.p2align 6
-liella_machine_fill_erms:
+niji_machine_fill_erms:
 	movl %esi, %eax
 	movq %rdx, %rcx
 	rep stosb
 	ret
-	.size liella_machine_fill_erms, .-liella_machine_fill_erms
+	.size niji_machine_fill_erms, .-niji_machine_fill_erms
 
 /* AVX2 copy and move (owner ruling 2026-10-05, D-4.14, PJ-7; overlap MEM-BULK). Rust calls it only
  * when the CPU has AVX2 and the OS saves the YMM state (`boundary::cpu`), for validated regions of
@@ -4581,16 +4581,16 @@ liella_machine_fill_erms:
  * least 2 KiB keeps each such load further back than the store buffer reaches. No non-temporal
  * stores; `vzeroupper` before returning.
  *
- * void liella_machine_copy_avx2(void *dst, const void *src, size_t n), n >= 128; the same code as
- * void *liella_machine_move_avx2(void *dst, const void *src, size_t n), which returns dst */
-	.section .text.liella_machine_copy_avx2,"ax",@progbits
-	.globl liella_machine_copy_avx2
-	.type liella_machine_copy_avx2, @function
-	.globl liella_machine_move_avx2
-	.type liella_machine_move_avx2, @function
+ * void niji_machine_copy_avx2(void *dst, const void *src, size_t n), n >= 128; the same code as
+ * void *niji_machine_move_avx2(void *dst, const void *src, size_t n), which returns dst */
+	.section .text.niji_machine_copy_avx2,"ax",@progbits
+	.globl niji_machine_copy_avx2
+	.type niji_machine_copy_avx2, @function
+	.globl niji_machine_move_avx2
+	.type niji_machine_move_avx2, @function
 	.p2align 6
-liella_machine_copy_avx2:
-liella_machine_move_avx2:
+niji_machine_copy_avx2:
+niji_machine_move_avx2:
 	vmovdqu (%rsi), %ymm4			/* the first 32 bytes */
 	vmovdqu -32(%rsi,%rdx), %ymm5		/* the last 32 bytes */
 	movq %rdi, %r11				/* where the first 32 bytes go */
@@ -4693,9 +4693,9 @@ liella_machine_move_avx2:
 	movq %r11, %rax				/* dst */
 	vzeroupper
 	ret
-	.size liella_machine_copy_avx2, .-liella_machine_copy_avx2
-	.size liella_machine_move_avx2, .-liella_machine_move_avx2
-	.section .text.liella_machine_move_sse2,"ax",@progbits
+	.size niji_machine_copy_avx2, .-niji_machine_copy_avx2
+	.size niji_machine_move_avx2, .-niji_machine_move_avx2
+	.section .text.niji_machine_move_sse2,"ax",@progbits
 
 /* SSE2 move (MEM-FALLBACK, D-4.14 Amendment MEM-FALLBACK): the AVX2 copy above in 16-byte vectors,
  * for CPUs without AVX2 (SSE2 is the x86-64 baseline). The same rules: the first and last 16
@@ -4705,11 +4705,11 @@ liella_machine_move_avx2:
  * from the end; src - dst < n: from the start); disjoint regions take it from d = (dst - src) mod
  * 4 KiB as above. Rust calls it for validated regions of at least 64 bytes, which may overlap.
  *
- * void *liella_machine_move_sse2(void *dst, const void *src, size_t n), n >= 64; returns dst */
-	.globl liella_machine_move_sse2
-	.type liella_machine_move_sse2, @function
+ * void *niji_machine_move_sse2(void *dst, const void *src, size_t n), n >= 64; returns dst */
+	.globl niji_machine_move_sse2
+	.type niji_machine_move_sse2, @function
 	.p2align 6
-liella_machine_move_sse2:
+niji_machine_move_sse2:
 	movdqu (%rsi), %xmm8			/* the first 16 bytes */
 	movdqu -16(%rsi,%rdx), %xmm9		/* the last 16 bytes */
 	movq %rdi, %r11				/* where the first 16 bytes go */
@@ -4820,7 +4820,7 @@ liella_machine_move_sse2:
 	movdqu %xmm8, (%r11)
 	movq %r11, %rax				/* dst */
 	ret
-	.size liella_machine_move_sse2, .-liella_machine_move_sse2
+	.size niji_machine_move_sse2, .-niji_machine_move_sse2
 
 /* AVX2 fill (MEM-FALLBACK): for AVX2 CPUs where `rep stosb` is not chosen (no ERMS, e.g. Zen 1, or
  * below the threshold). The first 32 bytes as one unaligned vector, then four 32-byte-aligned
@@ -4830,18 +4830,18 @@ liella_machine_move_sse2:
  * CPU has AVX2 and the OS saves the YMM state, for a validated region of at least 128 bytes.
  * `vzeroupper` before returning.
  *
- * void *liella_machine_fill_avx2(void *dst, int c, size_t n), n >= 128; returns dst */
-	.section .text.liella_machine_fill_avx2,"ax",@progbits
-	.globl liella_machine_fill_avx2
-	.type liella_machine_fill_avx2, @function
+ * void *niji_machine_fill_avx2(void *dst, int c, size_t n), n >= 128; returns dst */
+	.section .text.niji_machine_fill_avx2,"ax",@progbits
+	.globl niji_machine_fill_avx2
+	.type niji_machine_fill_avx2, @function
 	/* The hidden second label: the `memset` entry (machine/fold.S, MEMSET-4K-3) tail-jumps here
 	 * directly (no PLT hop through the exported name), after its NULL test and AVX2 flag test. */
-	.globl liella_machine_fill_avx2_entry
-	.hidden liella_machine_fill_avx2_entry
-	.type liella_machine_fill_avx2_entry, @function
+	.globl niji_machine_fill_avx2_entry
+	.hidden niji_machine_fill_avx2_entry
+	.type niji_machine_fill_avx2_entry, @function
 	.p2align 6
-liella_machine_fill_avx2_entry:
-liella_machine_fill_avx2:
+niji_machine_fill_avx2_entry:
+niji_machine_fill_avx2:
 	vmovd %esi, %xmm0
 	vpbroadcastb %xmm0, %ymm0
 	movq %rdi, %rax				/* dst */
@@ -4874,7 +4874,7 @@ liella_machine_fill_avx2:
 	vmovdqu %ymm0, 96(%r10)
 	vzeroupper
 	ret
-	.size liella_machine_fill_avx2, .-liella_machine_fill_avx2
+	.size niji_machine_fill_avx2, .-niji_machine_fill_avx2
 
 /* SSE2 fill (MEMSET-4K-SSE2): the AVX2 fill's shape with 16-byte vectors, for CPUs (or the
  * hwcaps=-AVX2 level) without the AVX2 kernel: the first 16 bytes as one unaligned vector, then
@@ -4882,12 +4882,12 @@ liella_machine_fill_avx2:
  * step fits, then the last 128 bytes as eight unaligned vectors ending at the end (overlap is
  * harmless: every store writes the same value). SSE2 is the x86-64 baseline; no state to clean.
  *
- * void *liella_machine_fill_sse2(void *dst, int c, size_t n), n >= 128; returns dst */
-	.section .text.liella_machine_fill_sse2,"ax",@progbits
-	.globl liella_machine_fill_sse2
-	.type liella_machine_fill_sse2, @function
+ * void *niji_machine_fill_sse2(void *dst, int c, size_t n), n >= 128; returns dst */
+	.section .text.niji_machine_fill_sse2,"ax",@progbits
+	.globl niji_machine_fill_sse2
+	.type niji_machine_fill_sse2, @function
 	.p2align 6
-liella_machine_fill_sse2:
+niji_machine_fill_sse2:
 	movd %esi, %xmm0
 	punpcklbw %xmm0, %xmm0
 	pshuflw $0, %xmm0, %xmm0
@@ -4923,16 +4923,16 @@ liella_machine_fill_sse2:
 	movups %xmm0, 96(%r10)
 	movups %xmm0, 112(%r10)
 	ret
-	.size liella_machine_fill_sse2, .-liella_machine_fill_sse2
-	.section .text.liella_machine_move_sse2,"ax",@progbits
+	.size niji_machine_fill_sse2, .-niji_machine_fill_sse2
+	.section .text.niji_machine_move_sse2,"ax",@progbits
 
-/* size_t liella_machine_casecmp_avx2(const char *a, const char *b, size_t n) (CASECMP-K1): the
+/* size_t niji_machine_casecmp_avx2(const char *a, const char *b, size_t n) (CASECMP-K1): the
  * first index i < n where a[i] and b[i] differ after folding the ASCII letters A-Z to a-z, or
  * where a[i] is NUL; n if there is none. AVX2 only (the caller runs it when the CPU and OS have
  * AVX2); 32 bytes of each string for the first step (short strings), then 64 per step. Bytes of 0x80 and above are not folded, so two such
  * bytes pass only when equal and the caller decides every other case (locale-dependent fold).
  *
- * Page rule (as liella_machine_strcmp): the strings have unrelated alignments, so the loads are
+ * Page rule (as niji_machine_strcmp): the strings have unrelated alignments, so the loads are
  * unaligned, and a 32-byte load is taken only when it stays inside the page holding its first
  * byte, which belongs to a string not yet ended and is below n (no terminator before it, no
  * bound reached). Each step checks the larger page offset of a + i and b + i: <= 4032 reads 64
@@ -4955,11 +4955,11 @@ liella_machine_fill_sse2:
 	.fill 32, 1, 0x20
 .Lcasecmp_km103:
 	.fill 32, 1, 0x99
-	.section .text.liella_machine_casecmp_avx2,"ax",@progbits
-	.globl liella_machine_casecmp_avx2
-	.type liella_machine_casecmp_avx2, @function
+	.section .text.niji_machine_casecmp_avx2,"ax",@progbits
+	.globl niji_machine_casecmp_avx2
+	.type niji_machine_casecmp_avx2, @function
 	.p2align 6
-liella_machine_casecmp_avx2:
+niji_machine_casecmp_avx2:
 	xorl %eax, %eax
 	vmovdqa .Lcasecmp_k3f(%rip), %ymm5
 	vmovdqa .Lcasecmp_km102(%rip), %ymm6
@@ -5075,10 +5075,10 @@ liella_machine_casecmp_avx2:
 	movq %rdx, %rax
 	vzeroupper
 	ret
-	.size liella_machine_casecmp_avx2, .-liella_machine_casecmp_avx2
+	.size niji_machine_casecmp_avx2, .-niji_machine_casecmp_avx2
 
-/* size_t liella_machine_casecmp_sse2(const char *a, const char *b, size_t n) (CASECMP): the result
- * of liella_machine_casecmp_avx2 with SSE2 only (every x86-64 CPU; the caller runs it where AVX2 is
+/* size_t niji_machine_casecmp_sse2(const char *a, const char *b, size_t n) (CASECMP): the result
+ * of niji_machine_casecmp_avx2 with SSE2 only (every x86-64 CPU; the caller runs it where AVX2 is
  * absent): 16 bytes of each string for the first step (short strings), then 64 (four 16-byte blocks)
  * per step. Page rule as there, with these load sizes: the larger page offset of a + i and b + i
  * <= 4032 reads 64 bytes, <= 4080 reads 16, otherwise one byte. A load may run past n inside that
@@ -5094,11 +5094,11 @@ liella_machine_casecmp_avx2:
 	.fill 16, 1, 0x25
 .Lcasecmp_k65:
 	.fill 16, 1, 0x65
-	.section .text.liella_machine_casecmp_sse2,"ax",@progbits
-	.globl liella_machine_casecmp_sse2
-	.type liella_machine_casecmp_sse2, @function
+	.section .text.niji_machine_casecmp_sse2,"ax",@progbits
+	.globl niji_machine_casecmp_sse2
+	.type niji_machine_casecmp_sse2, @function
 	.p2align 6
-liella_machine_casecmp_sse2:
+niji_machine_casecmp_sse2:
 	xorl %eax, %eax
 	movdqa .Lcasecmp_k25(%rip), %xmm12
 	movdqa .Lcasecmp_k65(%rip), %xmm13
@@ -5260,30 +5260,30 @@ liella_machine_casecmp_sse2:
 .Lcasecmp2_limit:
 	movq %rdx, %rax
 	ret
-	.size liella_machine_casecmp_sse2, .-liella_machine_casecmp_sse2
+	.size niji_machine_casecmp_sse2, .-niji_machine_casecmp_sse2
 
-/* int liella_machine_casecmp_ord_avx2(const char *a, const char *b, size_t n, const void *loc) and
- * int liella_machine_casecmp_ord_sse2(const char *a, const char *b, size_t n, const void *loc)
+/* int niji_machine_casecmp_ord_avx2(const char *a, const char *b, size_t n, const void *loc) and
+ * int niji_machine_casecmp_ord_sse2(const char *a, const char *b, size_t n, const void *loc)
  * (STRCASECMP-SHORT, STRCASECMP-SHORT-2): the answer of strcasecmp/strncasecmp (-1, 0 or 1) for
  * a locale loc whose case map is A-Z -> a-z below 0x80. Same proof obligation as the index
  * kernels (non-NULL, readable up to a NUL or n bytes, n != 0); loc is the caller's &Locale,
  * passed through untouched. The order is the order of the first n bytes after folding A-Z.
  * When the bytes that decide hold a byte of 0x80 or more (the locale decides its fold), or the
  * re-read at the stop finds two equal non-NUL bytes (a writer changed the text), the call
- * tail-jumps to liella_hot_casecmp_rest(a, b, n, loc, code) with rdi, rsi, rdx, rcx unchanged
+ * tail-jumps to niji_hot_casecmp_rest(a, b, n, loc, code) with rdi, rsi, rdx, rcx unchanged
  * and r8 = 2; r8 = 3 there is an index above n (never happens; the rest aborts).
  *
- * The AVX2 entry is one kernel (STRCASECMP-SHORT-2): the loop of liella_machine_casecmp_avx2
+ * The AVX2 entry is one kernel (STRCASECMP-SHORT-2): the loop of niji_machine_casecmp_avx2
  * (same steps, same page rule, same fold; after a 32-byte step, a bound at most 32 bytes on
  * takes another 32-byte step, not a 64-byte one); at the stop the two deciding bytes are read again with scalar loads and ordered in the same
  * call (no second call level); equal non-NUL bytes there mean a writer changed the text (open).
  * Scratch: rax, r8-r11, ymm0-ymm11. */
-	.hidden liella_hot_casecmp_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.section .text.liella_machine_casecmp_ord_avx2,"ax",@progbits
-	.globl liella_machine_casecmp_ord_avx2
-	.type liella_machine_casecmp_ord_avx2, @function
+	.hidden niji_hot_casecmp_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.section .text.niji_machine_casecmp_ord_avx2,"ax",@progbits
+	.globl niji_machine_casecmp_ord_avx2
+	.type niji_machine_casecmp_ord_avx2, @function
 	.p2align 6
-liella_machine_casecmp_ord_avx2:
+niji_machine_casecmp_ord_avx2:
 	/* Head (PERF-STRCASECMP-AVX2): the first 32 bytes, with the fold's constants as memory
 	 * operands (no register set-up) and no bound test before a stop. The fold is the loop's:
 	 * t = x + 0x3f is A-Z iff not (t > -103).
@@ -5610,22 +5610,22 @@ liella_machine_casecmp_ord_avx2:
 	ret
 .Lcord_open:
 	movl $2, %r8d
-	jmp liella_hot_casecmp_rest
-	.size liella_machine_casecmp_ord_avx2, .-liella_machine_casecmp_ord_avx2
+	jmp niji_hot_casecmp_rest
+	.size niji_machine_casecmp_ord_avx2, .-niji_machine_casecmp_ord_avx2
 
 /* The SSE2 entry is one kernel too (PERF-STRCASECMP-SSE2; it was a wrapper calling
- * liella_machine_casecmp_sse2, then re-reading): the steps of the AVX2 entry with each 32 bytes
- * as two 16-byte blocks (the fold of liella_machine_casecmp_sse2: xmm12 = 0x25, xmm13 = 0x65,
+ * niji_machine_casecmp_sse2, then re-reading): the steps of the AVX2 entry with each 32 bytes
+ * as two 16-byte blocks (the fold of niji_machine_casecmp_sse2: xmm12 = 0x25, xmm13 = 0x65,
  * xmm14 = 0x20, xmm15 = 0); the first step is 32 bytes, not 16 then 64, so a string under 32
  * bytes takes two blocks. Same page rule (the larger page offset <= 4064 reads 32 bytes, <= 4032
  * reads 64, otherwise a 32-byte block backed up to end at the page end, see .Lcord2_back), same
  * stop: the two deciding bytes read again and ordered here.
  * Scratch: rax, r8-r10, xmm1-xmm15; rcx (loc) is kept for the rest entry. */
-	.section .text.liella_machine_casecmp_ord_sse2,"ax",@progbits
-	.globl liella_machine_casecmp_ord_sse2
-	.type liella_machine_casecmp_ord_sse2, @function
+	.section .text.niji_machine_casecmp_ord_sse2,"ax",@progbits
+	.globl niji_machine_casecmp_ord_sse2
+	.type niji_machine_casecmp_ord_sse2, @function
 	.p2align 6
-liella_machine_casecmp_ord_sse2:
+niji_machine_casecmp_ord_sse2:
 	xorl %eax, %eax
 	movdqa .Lcasecmp_k25(%rip), %xmm12
 	movdqa .Lcasecmp_k65(%rip), %xmm13
@@ -5865,10 +5865,10 @@ liella_machine_casecmp_ord_sse2:
 	ret
 .Lcord2_open:
 	movl $2, %r8d
-	jmp liella_hot_casecmp_rest
-	.size liella_machine_casecmp_ord_sse2, .-liella_machine_casecmp_ord_sse2
+	jmp niji_hot_casecmp_rest
+	.size niji_machine_casecmp_ord_sse2, .-niji_machine_casecmp_ord_sse2
 
-/* size_t liella_machine_pairscan(const void *h, size_t count, size_t off, int b0, int b1): the
+/* size_t niji_machine_pairscan(const void *h, size_t count, size_t off, int b0, int b1): the
  * first index i < count with h[i] == (unsigned char)b0 and h[i + off] == (unsigned char)b1, or
  * count (FIND-SEQ-AVX2: the candidate scan of a substring search, first and last byte of the
  * needle, off = needle length - 1). Contract (the Rust caller `conv::find_slice` enforces it):
@@ -5878,16 +5878,16 @@ liella_machine_casecmp_ord_sse2:
  * the previous blocks cleared have no candidate, so the overlap cannot change the first hit).
  * Rust verifies the whole needle at the answer, so a too-small answer is harmless and a
  * too-large one is caught by the tests. */
-	.section .text.liella_machine_pairscan,"ax",@progbits
-	.globl liella_machine_pairscan
-	.type liella_machine_pairscan, @function
+	.section .text.niji_machine_pairscan,"ax",@progbits
+	.globl niji_machine_pairscan
+	.type niji_machine_pairscan, @function
 	.p2align 4
-liella_machine_pairscan:
+niji_machine_pairscan:
 	leaq (%rdi,%rdx), %r10
 	xorl %eax, %eax
 	cmpq $32, %rsi
 	jb .Lpair_sse2
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lpair_sse2
 	vmovd %ecx, %xmm0
 	vmovd %r8d, %xmm1
@@ -5952,21 +5952,21 @@ liella_machine_pairscan:
 .Lpair_sse_none:
 	movq %rsi, %rax
 	ret
-	.size liella_machine_pairscan, .-liella_machine_pairscan
+	.size niji_machine_pairscan, .-niji_machine_pairscan
 
-/* size_t liella_machine_pairscan_ci(const void *h, size_t count, size_t off, int b0, int b1,
- * unsigned fl): `liella_machine_pairscan` with an ASCII case fold (STRSTR-FIND: the candidate
+/* size_t niji_machine_pairscan_ci(const void *h, size_t count, size_t off, int b0, int b1,
+ * unsigned fl): `niji_machine_pairscan` with an ASCII case fold (STRSTR-FIND: the candidate
  * scan of strcasestr). Bit 0 of fl set: the haystack byte at i is OR-ed with 0x20 before the
  * compare with b0; bit 1: the same for the byte at i + off and b1. The caller passes b0/b1
  * already lowered and sets the bit only for an ASCII letter (so the OR-ed byte equals b exactly
  * for the upper and lower case of that letter) and only when the locale's byte fold is plain
- * ASCII. Contract and load pattern are those of `liella_machine_pairscan` (count >= 16,
+ * ASCII. Contract and load pattern are those of `niji_machine_pairscan` (count >= 16,
  * [h, h + count + off) readable); Rust verifies the whole needle at the answer. */
-	.section .text.liella_machine_pairscan_ci,"ax",@progbits
-	.globl liella_machine_pairscan_ci
-	.type liella_machine_pairscan_ci, @function
+	.section .text.niji_machine_pairscan_ci,"ax",@progbits
+	.globl niji_machine_pairscan_ci
+	.type niji_machine_pairscan_ci, @function
 	.p2align 4
-liella_machine_pairscan_ci:
+niji_machine_pairscan_ci:
 	leaq (%rdi,%rdx), %r10
 	xorl %eax, %eax
 	movl %r9d, %edx
@@ -5977,7 +5977,7 @@ liella_machine_pairscan_ci:
 	shll $5, %r9d
 	cmpq $32, %rsi
 	jb .Lpairci_sse2
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lpairci_sse2
 	vmovd %ecx, %xmm0
 	vmovd %r8d, %xmm1
@@ -6058,10 +6058,10 @@ liella_machine_pairscan_ci:
 .Lpairci_sse_none:
 	movq %rsi, %rax
 	ret
-	.size liella_machine_pairscan_ci, .-liella_machine_pairscan_ci
+	.size niji_machine_pairscan_ci, .-niji_machine_pairscan_ci
 
-/* const char *liella_machine_strchr(const char *s, int c) and
- * const char *liella_machine_strchrnul(const char *s, int c) (SHORT-1, D-4.35): one pass for the
+/* const char *niji_machine_strchr(const char *s, int c) and
+ * const char *niji_machine_strchrnul(const char *s, int c) (SHORT-1, D-4.35): one pass for the
  * first byte equal to (unsigned char)c or NUL (before SHORT-1 the exports measured the string,
  * then searched it: two passes). strchrnul returns that byte's address; strchr returns it if the
  * byte is c and NULL if it is the terminator (c == 0 finds the terminator). The caller (Rust,
@@ -6078,15 +6078,15 @@ liella_machine_pairscan_ci:
  * after it (so every answer comes from bytes the call read, D-4.21).
  * DIRECT ENTRIES (STR-CHR-CMP-SHORT): `strchrnul`, `strchr` and `index` in the products are these
  * kernels, with no Rust wrapper. The head's page test takes (s - 1) & 4095 below
- * liella_machine_rshort_mask, which a NULL s never passes; the slow path tests s for NULL and
- * tail-jumps to `liella_hot_strchr_null` (the S6 abort) before any read. */
-	.section .text.liella_machine_strchrnul,"ax",@progbits
-	.hidden liella_hot_strchr_null  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_strchrnul
-	.type liella_machine_strchrnul, @function
+ * niji_machine_rshort_mask, which a NULL s never passes; the slow path tests s for NULL and
+ * tail-jumps to `niji_hot_strchr_null` (the S6 abort) before any read. */
+	.section .text.niji_machine_strchrnul,"ax",@progbits
+	.hidden niji_hot_strchr_null  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_strchrnul
+	.type niji_machine_strchrnul, @function
 	.p2align 6
-liella_machine_strchrnul:
-#ifdef LIELLA_EXPORT
+niji_machine_strchrnul:
+#ifdef NIJI_EXPORT
 	.globl strchrnul
 	.type strchrnul, @function
 strchrnul:
@@ -6098,7 +6098,7 @@ strchrnul:
 	 * NUL). */
 	leal -1(%rdi), %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_rshort_mask(%rip), %ecx
+	cmpl niji_machine_rshort_mask(%rip), %ecx
 	jae .Lschrnul_pre
 	vmovd %esi, %xmm0
 	vpbroadcastb %xmm0, %ymm0
@@ -6134,7 +6134,7 @@ strchrnul:
 	 * before): the head's first 32-byte window then holds its first load too. */
 .Lschrnul_snull:
 	testq %rdi, %rdi
-	jz liella_hot_strchr_null
+	jz niji_hot_strchr_null
 	xorl %r11d, %r11d
 	jmp .Lschr_body
 	/* TIMING-IVB-STRSCAN-DISPATCH: the entry's one taken branch lands here, on a 32-byte boundary
@@ -6209,14 +6209,14 @@ strchrnul:
 .Lschrnul_t32:
 	leaq 32(%rdi,%rdx), %rax
 	ret
-	.size liella_machine_strchrnul, .-liella_machine_strchrnul
-	.section .text.liella_machine_strchr,"ax",@progbits
+	.size niji_machine_strchrnul, .-niji_machine_strchrnul
+	.section .text.niji_machine_strchr,"ax",@progbits
 
-	.globl liella_machine_strchr
-	.type liella_machine_strchr, @function
+	.globl niji_machine_strchr
+	.type niji_machine_strchr, @function
 	.p2align 6
-liella_machine_strchr:
-#ifdef LIELLA_EXPORT
+niji_machine_strchr:
+#ifdef NIJI_EXPORT
 	.globl strchr
 	.type strchr, @function
 strchr:
@@ -6234,7 +6234,7 @@ index:
 	 * terminator) or the NUL (NULL). A miss costs what a hit costs. */
 	leal -1(%rdi), %ecx
 	andl $4095, %ecx
-	cmpl liella_machine_rshort_mask(%rip), %ecx
+	cmpl niji_machine_rshort_mask(%rip), %ecx
 	jae .Lschr_pre
 	vmovd %esi, %xmm0
 	vpbroadcastb %xmm0, %ymm0
@@ -6278,7 +6278,7 @@ index:
 	 * .Lschrnul_snull, D-4.59). */
 .Lschr_snullchk:
 	testq %rdi, %rdi
-	jz liella_hot_strchr_null
+	jz niji_hot_strchr_null
 	jmp .Lschr_pre1
 	/* TIMING-IVB-STRSCAN-DISPATCH: the entry's one taken branch lands here, 32-byte aligned (as
 	 * strchrnul's .Lschrnul_pre); the AVX2 level's page-end and NULL calls leave at the compare
@@ -6486,9 +6486,9 @@ index:
 	xorl %eax, %eax
 .Lschr_ret:
 	ret
-	.size liella_machine_strchr, .-liella_machine_strchr
+	.size niji_machine_strchr, .-niji_machine_strchr
 
-/* const void *liella_machine_memrchr(const void *s, int c, size_t n) (SHORT-1, D-4.35): the
+/* const void *niji_machine_memrchr(const void *s, int c, size_t n) (SHORT-1, D-4.35): the
  * address of the last byte of [s, s + n) equal to (unsigned char)c, or NULL. The caller (Rust,
  * strz::rfind_n) answers n == 0 and rejects NULL and n > isize::MAX: here s != NULL and
  * 1 <= n. Scans from the end (most hits lie within 64 bytes of it): the aligned 64-byte group
@@ -6499,32 +6499,32 @@ index:
  * below s gives NULL. SAFETY: memrchr's contract makes all of [s, s + n) readable; every load
  * is an aligned 16/32-byte vector of an aligned 64-byte group that holds a byte of [s, s + n),
  * and an aligned group never spans two pages. */
-/* const void *liella_machine_memrchr_entry(const void *s, int c, size_t n): the direct memrchr
+/* const void *niji_machine_memrchr_entry(const void *s, int c, size_t n): the direct memrchr
  * entry (SCAN-RAW; `memrchr` in the products). n == 0, n > isize::MAX (one signed test) and a
  * NULL s (memrchr is not folded, D-4.48: the S6 abort stays) tail-jump to
- * `liella_hot_memrchr_rest` (strz::rfind_n: NULL for n == 0, else the explicit abort); any other
+ * `niji_hot_memrchr_rest` (strz::rfind_n: NULL for n == 0, else the explicit abort); any other
  * call falls through into the kernel below, saving the Rust entry's tests and jump. Reads
  * nothing itself. */
-	.section .text.liella_machine_memrchr_entry,"ax",@progbits
-	.hidden liella_hot_memrchr_rest  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_memrchr_entry
-	.hidden liella_machine_memrchr_entry
-	.type liella_machine_memrchr_entry, @function
+	.section .text.niji_machine_memrchr_entry,"ax",@progbits
+	.hidden niji_hot_memrchr_rest  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_memrchr_entry
+	.hidden niji_machine_memrchr_entry
+	.type niji_machine_memrchr_entry, @function
 	.p2align 6
-liella_machine_memrchr_entry:
-#ifdef LIELLA_EXPORT
+niji_machine_memrchr_entry:
+#ifdef NIJI_EXPORT
 	.globl memrchr
 	.type memrchr, @function
 memrchr:
 #endif
 	testq %rdx, %rdx
-	jle liella_hot_memrchr_rest
+	jle niji_hot_memrchr_rest
 	testq %rdi, %rdi
-	jz liella_hot_memrchr_rest
+	jz niji_hot_memrchr_rest
 	/* Falls through: no alignment between the tests and the kernel. */
-	.globl liella_machine_memrchr
-	.type liella_machine_memrchr, @function
-liella_machine_memrchr:
+	.globl niji_machine_memrchr
+	.type niji_machine_memrchr, @function
+niji_machine_memrchr:
 	/* SMALL-STR-2 head (D-4.45; REGEX-WL end-page mask): the head runs on the AVX2 level when
 	 * [s + n - 64, s + n) lies in the page of s + n - 1 and that byte is not among the page's
 	 * first 64 (SAFETY: that page holds a byte of [s, s + n); bytes below s are read but never
@@ -6534,7 +6534,7 @@ liella_machine_memrchr:
 	/* REGEX-WL: r8 = s + n - 1 here; the end-page mask (0 on SSE2) passes exactly when
 	 * (s + n - 1) & 4095 >= 64, so [s + n - 64, s + n) = [r8 - 63, r8] lies in r8's page. */
 	leaq -1(%rdi,%rdx), %r8
-	testl liella_machine_rshort_mask(%rip), %r8d
+	testl niji_machine_rshort_mask(%rip), %r8d
 	jz .Lmrc_entry
 	vmovd %esi, %xmm0
 	vpbroadcastb %xmm0, %ymm0
@@ -6658,7 +6658,7 @@ liella_machine_memrchr:
 	ret
 .Lmrc_more:
 	/* rax = (s + n - 1) & -64: [max(s, rax), s + n) holds no c. */
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lmrc_sse_go
 	vpbroadcastb %xmm0, %ymm0
 .Lmrc_avx_go:
@@ -6826,13 +6826,13 @@ liella_machine_memrchr:
 .Lmrc_null:
 	xorl %eax, %eax
 	ret
-	.size liella_machine_memrchr, .-liella_machine_memrchr
-	.size liella_machine_memrchr_entry, .-liella_machine_memrchr_entry
-#ifdef LIELLA_EXPORT
+	.size niji_machine_memrchr, .-niji_machine_memrchr
+	.size niji_machine_memrchr_entry, .-niji_machine_memrchr_entry
+#ifdef NIJI_EXPORT
 	.size memrchr, .-memrchr
 #endif
 
-/* int liella_machine_strncmp(const char *a, const char *b, size_t n) (SHORT-1, D-4.35): the
+/* int niji_machine_strncmp(const char *a, const char *b, size_t n) (SHORT-1, D-4.35): the
  * order of the first n bytes of a and b as strncmp defines it (unsigned bytes, stopping at a
  * NUL), -1, 0 or 1, in one pass (before SHORT-1 the export measured both texts, then compared
  * them: three passes). The caller (Rust, strz::order_n) answers n == 0 and rejects NULL: here
@@ -6846,18 +6846,18 @@ liella_machine_memrchr:
  * NUL, so the caller's contract makes them readable; a vector never leaves their page.
  * DIRECT ENTRY (STR-CHR-CMP-SHORT): `strncmp` in the products is this kernel, with no Rust
  * wrapper: n == 0 returns 0 before any read; the head's page test takes (a - 1) | (b - 1) & 4095
- * below liella_machine_rshort_mask, which a NULL a or b never passes; the SSE2 head's test below
- * 4032 does not pass either, and .Lsnc_slow tests both for NULL and tail-jumps to `liella_hot_strncmp_null` (the S6 abort) before any read. */
-	.section .text.liella_machine_strncmp,"ax",@progbits
-	.hidden liella_hot_strncmp_null  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_strncmp
-	.type liella_machine_strncmp, @function
+ * below niji_machine_rshort_mask, which a NULL a or b never passes; the SSE2 head's test below
+ * 4032 does not pass either, and .Lsnc_slow tests both for NULL and tail-jumps to `niji_hot_strncmp_null` (the S6 abort) before any read. */
+	.section .text.niji_machine_strncmp,"ax",@progbits
+	.hidden niji_hot_strncmp_null  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_strncmp
+	.type niji_machine_strncmp, @function
 	/* Its own section, named by the hot-text key `strncmp`: the first call after printf lands in the
 	 * hot group whatever the size of the code linked before this object's shared text. */
 	.section .text.strncmp,"ax",@progbits
 	.p2align 6
-liella_machine_strncmp:
-#ifdef LIELLA_EXPORT
+niji_machine_strncmp:
+#ifdef NIJI_EXPORT
 	.globl strncmp
 	.type strncmp, @function
 strncmp:
@@ -6876,7 +6876,7 @@ strncmp:
 	leal -1(%rsi), %ecx
 	orl %ecx, %eax
 	andl $4095, %eax
-	cmpl liella_machine_rshort_mask(%rip), %eax
+	cmpl niji_machine_rshort_mask(%rip), %eax
 	jae .Lsnc_pt
 .Lsnc_head:
 	vmovdqu (%rdi), %ymm1
@@ -7022,14 +7022,14 @@ strncmp:
 .Lsnc_slow:
 	/* The S6 NULL tests, then the exact page test for a pair the OR test rejected. */
 	testq %rdi, %rdi
-	jz liella_hot_strncmp_null
+	jz niji_hot_strncmp_null
 	testq %rsi, %rsi
-	jz liella_hot_strncmp_null
+	jz niji_hot_strncmp_null
 	/* TIMING-IVB-STRSCAN-DISPATCH: the SSE2 level (limit 0) falls through to the SSE2 steps with
 	 * no taken branch after the entry's; an AVX2-level a inside its page tests b out of line. */
 	movl %edi, %eax
 	andl $4095, %eax
-	cmpl liella_machine_short_lim(%rip), %eax
+	cmpl niji_machine_short_lim(%rip), %eax
 	jb .Lsnc_ptb
 .Lsnc_old:
 	pxor %xmm3, %xmm3
@@ -7153,15 +7153,15 @@ strncmp:
 	/* AVX2 level, a's page offset below the limit: the head when b's is too, else the steps. */
 	movl %esi, %eax
 	andl $4095, %eax
-	cmpl liella_machine_short_lim(%rip), %eax
+	cmpl niji_machine_short_lim(%rip), %eax
 	jb .Lsnc_head
 	jmp .Lsnc_old
-	.size liella_machine_strncmp, .-liella_machine_strncmp
+	.size niji_machine_strncmp, .-niji_machine_strncmp
 	.text
 
 
-/* size_t liella_machine_strpair(const char *p, size_t off, int c0, int c1) and
- * size_t liella_machine_wcspair(const int *p, size_t off, int c0, int c1) (STRSTR-VEC): the fused
+/* size_t niji_machine_strpair(const char *p, size_t off, int c0, int c1) and
+ * size_t niji_machine_wcspair(const int *p, size_t off, int c0, int c1) (STRSTR-VEC): the fused
  * candidate and terminator scan of strstr / wcsstr. A position q >= p (in units: bytes for
  * strpair, 4-byte units for wcspair) is a CANDIDATE when unit q is c1 and unit q - off is c0.
  * Returns 2*k when q = p + k is the first candidate and no unit in [p, q] is 0; returns 2*k + 1
@@ -7187,19 +7187,19 @@ strncmp:
  * Units past the terminator are read only inside the terminator's page and are masked off
  * (the bits from the first 0 unit on). Rust verifies the needle at every candidate.
  * Registers (TIMING-COV-STRSTR-PAIR): strpair uses no stack and writes no rdi, rsi or rcx and no
- * xmm13-xmm15; liella_machine_strstr keeps its values there across the call. */
-	.section .text.liella_machine_strpair,"ax",@progbits
-	.globl liella_machine_strpair
-	.type liella_machine_strpair, @function
+ * xmm13-xmm15; niji_machine_strstr keeps its values there across the call. */
+	.section .text.niji_machine_strpair,"ax",@progbits
+	.globl niji_machine_strpair
+	.type niji_machine_strpair, @function
 	.p2align 4
-liella_machine_strpair:
+niji_machine_strpair:
 	movq %rdi, %rax
 	movl %edi, %r9d
 	andl $4095, %r9d
 	cmpl $4064, %r9d
-	ja .Lliella_machine_strpair_units
-	cmpl $0, liella_machine_scan_level(%rip)
-	je .Lliella_machine_strpair_sse2
+	ja .Lniji_machine_strpair_units
+	cmpl $0, niji_machine_scan_level(%rip)
+	je .Lniji_machine_strpair_sse2
 	vmovd %edx, %xmm0
 	vmovd %ecx, %xmm1
 	vpbroadcastb %xmm0, %ymm0
@@ -7219,12 +7219,12 @@ liella_machine_strpair:
 	vpcmpeqb %ymm2, %ymm5, %ymm5
 	vpmovmskb %ymm5, %r11d
 	testl %r11d, %r11d
-	jnz .Lliella_machine_strpair_avx_stop
+	jnz .Lniji_machine_strpair_avx_stop
 	/* Second head block (STRSTR-SHORT-DENSE-PARITY-3): when p's page has 64 bytes from p on (page
 	 * offset <= 4032), the unaligned block at p + 32 (and at p + 32 - off), so a string of up to 64
 	 * bytes from p is settled without the walk to a 64-byte boundary, whatever p's alignment. */
 	cmpl $4032, %r9d
-	ja .Lliella_machine_strpair_avx_head1
+	ja .Lniji_machine_strpair_avx_head1
 	vmovdqu 32(%rax), %ymm6
 	vpxor 32(%r10), %ymm0, %ymm4
 	vpxor %ymm6, %ymm1, %ymm5
@@ -7233,7 +7233,7 @@ liella_machine_strpair:
 	vpcmpeqb %ymm2, %ymm5, %ymm5
 	vpmovmskb %ymm5, %r11d
 	testl %r11d, %r11d
-	jnz .Lliella_machine_strpair_avx_stop32
+	jnz .Lniji_machine_strpair_avx_stop32
 	/* Filter mode as below, over both head blocks; the aligned run resumes at the 64-byte
 	 * boundary in (p, p + 64]: the units it sees again were seen here to be neither 0 nor a
 	 * candidate, and its blocks at A - off start at or after p - off. */
@@ -7244,45 +7244,45 @@ liella_machine_strpair:
 	movq %rax, %rdx
 	addq $64, %rax
 	andq $-64, %rax
-	jmp .Lliella_machine_strpair_avx_al64
-.Lliella_machine_strpair_avx_stop32:
+	jmp .Lniji_machine_strpair_avx_al64
+.Lniji_machine_strpair_avx_stop32:
 	addq $32, %rax
-.Lliella_machine_strpair_avx_stop:
+.Lniji_machine_strpair_avx_stop:
 	vzeroupper
 	bsfl %r11d, %r11d
 	addq %r11, %rax
 	cmpb $0, (%rax)
-	je .Lliella_machine_strpair_unit_nul
+	je .Lniji_machine_strpair_unit_nul
 	subq %rdi, %rax
 	addq %rax, %rax
 	ret
 	/* p in the last 32 bytes of its page: unit by unit to the 32-byte boundary, then the
 	 * aligned run in pair mode (r8 = 1). */
-.Lliella_machine_strpair_units:
+.Lniji_machine_strpair_units:
 	movzbl (%rax), %r10d
 	testl %r10d, %r10d
-	jz .Lliella_machine_strpair_unit_nul
+	jz .Lniji_machine_strpair_unit_nul
 	cmpl %ecx, %r10d
 	jne 1f
 	movq %rax, %r9
 	subq %rsi, %r9
 	movzbl (%r9), %r10d
 	cmpl %edx, %r10d
-	je .Lliella_machine_strpair_unit_cand
+	je .Lniji_machine_strpair_unit_cand
 1:
 	addq $1, %rax
 	testl $31, %eax
-	jnz .Lliella_machine_strpair_units
+	jnz .Lniji_machine_strpair_units
 	movl $1, %r8d
-	cmpl $0, liella_machine_scan_level(%rip)
-	je .Lliella_machine_strpair_sse2_units
+	cmpl $0, niji_machine_scan_level(%rip)
+	je .Lniji_machine_strpair_sse2_units
 	vmovd %edx, %xmm0
 	vmovd %ecx, %xmm1
 	vpbroadcastb %xmm0, %ymm0
 	vpbroadcastb %xmm1, %ymm1
 	vpxor %xmm2, %xmm2, %xmm2
-	jmp .Lliella_machine_strpair_avx_loop
-.Lliella_machine_strpair_avx_head1:
+	jmp .Lniji_machine_strpair_avx_loop
+.Lniji_machine_strpair_avx_head1:
 	/* Filter mode (STRSTR-ADAPTIVE-FILTER-EXP): r8 = 0 (one stream, c1 or 0 only) when the head
 	 * block holds no c1, else nonzero (pair). rdx = where the last one-stream stop was (p). */
 	vpcmpeqb %ymm3, %ymm1, %ymm6
@@ -7291,7 +7291,7 @@ liella_machine_strpair:
 	andq $-32, %rax
 	addq $32, %rax
 	.p2align 4
-.Lliella_machine_strpair_avx_loop:
+.Lniji_machine_strpair_avx_loop:
 	vmovdqa (%rax), %ymm3
 	movq %rax, %r9
 	subq %rsi, %r9
@@ -7304,32 +7304,32 @@ liella_machine_strpair:
 	leal -1(%r11), %r9d
 	xorl %r11d, %r9d
 	andl %r9d, %r10d
-	jnz .Lliella_machine_strpair_avx_cand
+	jnz .Lniji_machine_strpair_avx_cand
 	testl %r11d, %r11d
-	jnz .Lliella_machine_strpair_avx_nul
+	jnz .Lniji_machine_strpair_avx_nul
 	addq $32, %rax
 	testl $63, %eax
-	jnz .Lliella_machine_strpair_avx_loop
+	jnz .Lniji_machine_strpair_avx_loop
 	/* rax is 64-aligned. One 64-byte group first when it is not 128-aligned (PERF-STRSTR-LONG). */
-.Lliella_machine_strpair_avx_al64:
-	/* liella_machine_strpair_avx_run (STRSTR-HIT-64): liella_machine_strstr enters here after its
+.Lniji_machine_strpair_avx_al64:
+	/* niji_machine_strpair_avx_run (STRSTR-HIT-64): niji_machine_strstr enters here after its
 	 * own head, with rax 64-aligned, rdi = p, rsi = off, rdx = p, r8 the mode, ymm0-2 as here. */
-	.globl liella_machine_strpair_avx_run
-	.hidden liella_machine_strpair_avx_run
-liella_machine_strpair_avx_run:
+	.globl niji_machine_strpair_avx_run
+	.hidden niji_machine_strpair_avx_run
+niji_machine_strpair_avx_run:
 	movq %rsi, %r9
 	negq %r9
 	testl $64, %eax
-	jnz .Lliella_machine_strpair_avx_loop64
-.Lliella_machine_strpair_avx_mode:
+	jnz .Lniji_machine_strpair_avx_loop64
+.Lniji_machine_strpair_avx_mode:
 	testl %r8d, %r8d
-	jz .Lliella_machine_strpair_avx_loop128s
+	jz .Lniji_machine_strpair_avx_loop128s
 	/* 128-byte aligned: the same test over a group of four blocks (all in one page), memory operands
 	 * so a block costs four instructions, the step before one vptest per 128 bytes (STRSTR-HIT-4K).
 	 * A hit sends the run back to the block loop from the group's start, which resolves it. From a
 	 * 64-byte boundary that is not a 128-byte one, one pair (loop64) first reaches the next. */
 	.p2align 4
-.Lliella_machine_strpair_avx_loop128:
+.Lniji_machine_strpair_avx_loop128:
 	vpxor (%rax), %ymm1, %ymm5
 	vpxor 32(%rax), %ymm1, %ymm8
 	vpxor 64(%rax), %ymm1, %ymm9
@@ -7352,11 +7352,11 @@ liella_machine_strpair_avx_run:
 	vpcmpeqb %ymm4, %ymm2, %ymm4
 	subq $-128, %rax
 	vptest %ymm4, %ymm4
-	jz .Lliella_machine_strpair_avx_loop128
+	jz .Lniji_machine_strpair_avx_loop128
 	addq $-128, %rax
-	jmp .Lliella_machine_strpair_avx_loop
+	jmp .Lniji_machine_strpair_avx_loop
 	.p2align 4
-.Lliella_machine_strpair_avx_loop64:
+.Lniji_machine_strpair_avx_loop64:
 	/* Unit q is a candidate or 0 exactly when min((Y ^ c1) | (L ^ c0), Y) is 0. */
 	vpxor (%rax), %ymm1, %ymm5
 	vpxor 32(%rax), %ymm1, %ymm8
@@ -7370,11 +7370,11 @@ liella_machine_strpair_avx_run:
 	vpcmpeqb %ymm4, %ymm2, %ymm4
 	vpmovmskb %ymm4, %r10d
 	testl %r10d, %r10d
-	jnz .Lliella_machine_strpair_avx_loop
+	jnz .Lniji_machine_strpair_avx_loop
 	addq $64, %rax
-	jmp .Lliella_machine_strpair_avx_mode
+	jmp .Lniji_machine_strpair_avx_mode
 	.p2align 4
-.Lliella_machine_strpair_avx_loop128s:
+.Lniji_machine_strpair_avx_loop128s:
 	/* One stream (STRSTR-ADAPTIVE-FILTER-EXP): unit q is c1 or 0 exactly when min(Y ^ c1, Y) is 0;
 	 * 16 instructions per 128 bytes and no load at q - off. */
 	vpxor (%rax), %ymm1, %ymm5
@@ -7391,7 +7391,7 @@ liella_machine_strpair_avx_run:
 	vpcmpeqb %ymm5, %ymm2, %ymm5
 	subq $-128, %rax
 	vptest %ymm5, %ymm5
-	jz .Lliella_machine_strpair_avx_loop128s
+	jz .Lniji_machine_strpair_avx_loop128s
 	addq $-128, %rax
 	/* A stop: c1 or 0 in this group. Sparse (1024 bytes or more after the last stop): the block
 	 * loop resolves the group and the run comes back through avx_mode. Dense: this group gets the
@@ -7402,7 +7402,7 @@ liella_machine_strpair_avx_run:
 	subq %rdx, %r10
 	movq %rax, %rdx
 	cmpq $1024, %r10
-	jae .Lliella_machine_strpair_avx_loop
+	jae .Lniji_machine_strpair_avx_loop
 	vpxor (%rax), %ymm1, %ymm5
 	vpxor 32(%rax), %ymm1, %ymm8
 	vpxor 64(%rax), %ymm1, %ymm9
@@ -7424,7 +7424,7 @@ liella_machine_strpair_avx_run:
 	vpminub %ymm5, %ymm9, %ymm5
 	vpcmpeqb %ymm5, %ymm2, %ymm5
 	vptest %ymm5, %ymm5
-	jnz .Lliella_machine_strpair_avx_loop
+	jnz .Lniji_machine_strpair_avx_loop
 	/* No candidate and no 0 in the group: c0 at q - off anywhere in it (min of the L ^ c0 blocks)? */
 	vpminub %ymm4, %ymm7, %ymm4
 	vpminub %ymm11, %ymm12, %ymm11
@@ -7432,11 +7432,11 @@ liella_machine_strpair_avx_run:
 	vpcmpeqb %ymm4, %ymm2, %ymm4
 	subq $-128, %rax
 	vptest %ymm4, %ymm4
-	jnz .Lliella_machine_strpair_avx_loop128
+	jnz .Lniji_machine_strpair_avx_loop128
 	/* r8 = pair mode for any return through avx_mode after a c0 stop (a c0 that is no candidate). */
 	movl $1, %r8d
 	.p2align 4
-.Lliella_machine_strpair_avx_loop128c:
+.Lniji_machine_strpair_avx_loop128c:
 	/* One stream on c0 (STRSTR-SHORT-DENSE-PARITY-4): unit q is a candidate only when unit q - off
 	 * is c0, so q is c0 at q - off or 0 exactly when min(L ^ c0, Y) is 0; 16 instructions per 128
 	 * bytes. A stop: the block loop resolves the group (exact pair and 0 test per block); a c0 that
@@ -7455,28 +7455,28 @@ liella_machine_strpair_avx_run:
 	vpcmpeqb %ymm5, %ymm2, %ymm5
 	subq $-128, %rax
 	vptest %ymm5, %ymm5
-	jz .Lliella_machine_strpair_avx_loop128c
+	jz .Lniji_machine_strpair_avx_loop128c
 	addq $-128, %rax
-	jmp .Lliella_machine_strpair_avx_loop
-.Lliella_machine_strpair_avx_cand:
+	jmp .Lniji_machine_strpair_avx_loop
+.Lniji_machine_strpair_avx_cand:
 	vzeroupper
-.Lliella_machine_strpair_sse_cand:
+.Lniji_machine_strpair_sse_cand:
 	bsfl %r10d, %r10d
 	addq %r10, %rax
-.Lliella_machine_strpair_unit_cand:
+.Lniji_machine_strpair_unit_cand:
 	subq %rdi, %rax
 	addq %rax, %rax
 	ret
-.Lliella_machine_strpair_avx_nul:
+.Lniji_machine_strpair_avx_nul:
 	vzeroupper
-.Lliella_machine_strpair_sse_nul:
+.Lniji_machine_strpair_sse_nul:
 	bsfl %r11d, %r11d
 	addq %r11, %rax
-.Lliella_machine_strpair_unit_nul:
+.Lniji_machine_strpair_unit_nul:
 	subq %rdi, %rax
 	leaq 1(%rax,%rax), %rax
 	ret
-.Lliella_machine_strpair_sse2_units:
+.Lniji_machine_strpair_sse2_units:
 	movd %edx, %xmm0
 	movd %ecx, %xmm1
 	punpcklbw %xmm0, %xmm0
@@ -7488,7 +7488,7 @@ liella_machine_strpair_avx_run:
 	pxor %xmm2, %xmm2
 	movq %rsi, %r9
 	negq %r9
-	jmp .Lliella_machine_strpair_sse_loop
+	jmp .Lniji_machine_strpair_sse_loop
 	/* TIMING-COV-STRSTR-NONAVX2: every SSE2 block uses the group loop's test: unit q is a
 	 * candidate or 0 exactly when min((Y ^ c1) | (L ^ c0), Y) is 0, one mask and one branch per
 	 * block; the first stop unit itself says which (0: the terminator). r9 = -off throughout.
@@ -7496,7 +7496,7 @@ liella_machine_strpair_avx_run:
 	 * p, p + 16, p + 32, p + 48 with their blocks at -off, inside [p - off, p + 64), then the
 	 * aligned groups from the 64-byte boundary in (p, p + 64]. Otherwise one head block, then
 	 * aligned blocks up to the 64-byte boundary. */
-.Lliella_machine_strpair_sse2:
+.Lniji_machine_strpair_sse2:
 	movd %edx, %xmm0
 	movd %ecx, %xmm1
 	punpcklbw %xmm0, %xmm0
@@ -7507,7 +7507,7 @@ liella_machine_strpair_avx_run:
 	pshufd $0, %xmm1, %xmm1
 	pxor %xmm2, %xmm2
 	cmpl $4032, %r9d
-	ja .Lliella_machine_strpair_sse_head1
+	ja .Lniji_machine_strpair_sse_head1
 	movq %rsi, %r9
 	negq %r9
 	movdqu (%rax), %xmm5
@@ -7520,7 +7520,7 @@ liella_machine_strpair_avx_run:
 	pcmpeqb %xmm2, %xmm3
 	pmovmskb %xmm3, %r10d
 	testl %r10d, %r10d
-	jnz .Lliella_machine_strpair_sse_stop
+	jnz .Lniji_machine_strpair_sse_stop
 	movdqu 16(%rax), %xmm5
 	movdqu 16(%rax,%r9), %xmm4
 	movdqa %xmm5, %xmm3
@@ -7531,7 +7531,7 @@ liella_machine_strpair_avx_run:
 	pcmpeqb %xmm2, %xmm3
 	pmovmskb %xmm3, %r10d
 	testl %r10d, %r10d
-	jnz .Lliella_machine_strpair_sse_stop16
+	jnz .Lniji_machine_strpair_sse_stop16
 	movdqu 32(%rax), %xmm5
 	movdqu 32(%rax,%r9), %xmm4
 	movdqa %xmm5, %xmm3
@@ -7542,7 +7542,7 @@ liella_machine_strpair_avx_run:
 	pcmpeqb %xmm2, %xmm3
 	pmovmskb %xmm3, %r10d
 	testl %r10d, %r10d
-	jnz .Lliella_machine_strpair_sse_stop32
+	jnz .Lniji_machine_strpair_sse_stop32
 	movdqu 48(%rax), %xmm5
 	movdqu 48(%rax,%r9), %xmm4
 	movdqa %xmm5, %xmm3
@@ -7553,27 +7553,27 @@ liella_machine_strpair_avx_run:
 	pcmpeqb %xmm2, %xmm3
 	pmovmskb %xmm3, %r10d
 	testl %r10d, %r10d
-	jnz .Lliella_machine_strpair_sse_stop48
+	jnz .Lniji_machine_strpair_sse_stop48
 	andq $-64, %rax
 	addq $64, %rax
-	jmp .Lliella_machine_strpair_sse_loop64
-.Lliella_machine_strpair_sse_stop16:
+	jmp .Lniji_machine_strpair_sse_loop64
+.Lniji_machine_strpair_sse_stop16:
 	addq $16, %rax
-	jmp .Lliella_machine_strpair_sse_stop
-.Lliella_machine_strpair_sse_stop32:
+	jmp .Lniji_machine_strpair_sse_stop
+.Lniji_machine_strpair_sse_stop32:
 	addq $32, %rax
-	jmp .Lliella_machine_strpair_sse_stop
-.Lliella_machine_strpair_sse_stop48:
+	jmp .Lniji_machine_strpair_sse_stop
+.Lniji_machine_strpair_sse_stop48:
 	addq $48, %rax
-.Lliella_machine_strpair_sse_stop:
+.Lniji_machine_strpair_sse_stop:
 	bsfl %r10d, %r10d
 	addq %r10, %rax
 	cmpb $0, (%rax)
-	je .Lliella_machine_strpair_unit_nul
+	je .Lniji_machine_strpair_unit_nul
 	subq %rdi, %rax
 	addq %rax, %rax
 	ret
-.Lliella_machine_strpair_sse_head1:
+.Lniji_machine_strpair_sse_head1:
 	movq %rsi, %r9
 	negq %r9
 	movdqu (%rax), %xmm5
@@ -7586,11 +7586,11 @@ liella_machine_strpair_avx_run:
 	pcmpeqb %xmm2, %xmm3
 	pmovmskb %xmm3, %r10d
 	testl %r10d, %r10d
-	jnz .Lliella_machine_strpair_sse_stop
+	jnz .Lniji_machine_strpair_sse_stop
 	andq $-16, %rax
 	addq $16, %rax
 	.p2align 4
-.Lliella_machine_strpair_sse_loop:
+.Lniji_machine_strpair_sse_loop:
 	movdqa (%rax), %xmm3
 	movdqu (%rax,%r9), %xmm4
 	pxor %xmm1, %xmm3
@@ -7600,17 +7600,17 @@ liella_machine_strpair_avx_run:
 	pcmpeqb %xmm2, %xmm3
 	pmovmskb %xmm3, %r10d
 	testl %r10d, %r10d
-	jnz .Lliella_machine_strpair_sse_stop
+	jnz .Lniji_machine_strpair_sse_stop
 	addq $16, %rax
 	testl $63, %eax
-	jnz .Lliella_machine_strpair_sse_loop
+	jnz .Lniji_machine_strpair_sse_loop
 	.p2align 4
-	/* liella_machine_strpair_sse_run (STRSTR-HIT-64): liella_machine_strstr enters here after its
+	/* niji_machine_strpair_sse_run (STRSTR-HIT-64): niji_machine_strstr enters here after its
 	 * own head, with rax 64-aligned, rdi = p, r9 = -off, xmm0-2 as here. */
-	.globl liella_machine_strpair_sse_run
-	.hidden liella_machine_strpair_sse_run
-liella_machine_strpair_sse_run:
-.Lliella_machine_strpair_sse_loop64:
+	.globl niji_machine_strpair_sse_run
+	.hidden niji_machine_strpair_sse_run
+niji_machine_strpair_sse_run:
+.Lniji_machine_strpair_sse_loop64:
 	/* PERF-STRSTR-LONG: a 64-aligned group of four blocks (one page) tested at once: unit q is a
 	 * candidate or 0 exactly when min((Y ^ c1) | (L ^ c0), Y) is 0, as on AVX2. */
 	movdqa (%rax), %xmm3
@@ -7644,31 +7644,31 @@ liella_machine_strpair_sse_run:
 	pmovmskb %xmm3, %r10d
 	addq $64, %rax
 	testl %r10d, %r10d
-	jz .Lliella_machine_strpair_sse_loop64
+	jz .Lniji_machine_strpair_sse_loop64
 	/* The group has a stop: its blocks one by one (the first stop is in it). */
 	subq $64, %rax
-	jmp .Lliella_machine_strpair_sse_loop
-	.size liella_machine_strpair, .-liella_machine_strpair
+	jmp .Lniji_machine_strpair_sse_loop
+	.size niji_machine_strpair, .-niji_machine_strpair
 
-/* char *liella_machine_strstr(const char *h, const char *n) (TIMING-COV-STRSTR-PAIR): strstr's
+/* char *niji_machine_strstr(const char *h, const char *n) (TIMING-COV-STRSTR-PAIR): strstr's
  * direct entry. In the products `strstr` is this code, with no Rust frame before the scan; the
  * Rust twin (posix::strstr) calls it too, so the strstr tests run it. It settles a needle of at
  * most 15 bytes whose first candidate decides the call, and hands every other call to Rust:
  *   - when h - 1 and n - 1 each have a page offset below 4080 (h and n have offsets 1..4080, so
  *     16 bytes from each lie in its page; a NULL, offset 4095 after the - 1, never passes),
  *     one 16-byte load of n gives its length m when a NUL is among them (m <= 15); m == 0
- *     returns h. Else `liella_hot_strstr_slow(h, n)`, the measuring path (strz::find_str_n).
+ *     returns h. Else `niji_hot_strstr_slow(h, n)`, the measuring path (strz::find_str_n).
  *   - one 16-byte load of h: a NUL at an index below last = m - 1 means the haystack is shorter
  *     than the needle's first m - 1 bytes: NULL. Else bytes [0, last) of h are text, the
- *     contract of liella_machine_strpair(h + last, last, n[0], n[last]).
+ *     contract of niji_machine_strpair(h + last, last, n[0], n[last]).
  *   - STRSTR-HIT-64: when h's page offset is 1..4016, strpair's head test runs here on
  *     [p, p + 64), p = h + last (no call); a stop is compared in place (below), and with no stop
- *     the call enters strpair's aligned run (liella_machine_strpair_avx_run / _sse_run).
+ *     the call enters strpair's aligned run (niji_machine_strpair_avx_run / _sse_run).
  *   - its answer 2k (candidate at h + k): when h + k has a page offset <= 4080, one 16-byte load
  *     there is compared with the needle (kept in xmm15) over bits [0, m); equal returns h + k.
  *     Answer 2k + 1 (a NUL at h + last + k): that byte read again is 0: NULL.
  *     Anything else (a failed candidate, a candidate at a page end, a NUL that a writer
- *     changed) goes to `liella_hot_strstr_next(h, n, m, r)` with the answer r, which continues
+ *     changed) goes to `niji_hot_strstr_next(h, n, m, r)` with the answer r, which continues
  *     as strz::find_known does after its first scan (strz::find_str_after).
  * Registers: strpair writes no rdi, rsi or rcx and no xmm13-xmm15 (its header): rdi = h + last
  * and rsi = last survive the call, the needle's 16 bytes stay in xmm15; n is pushed (one push
@@ -7676,15 +7676,15 @@ liella_machine_strpair_sse_run:
  * SAFETY: every load lies in the page of a byte the contract makes readable (h[0], n[0], the
  * candidate's first byte, which the scan saw as text) or is strpair's own; bytes loaded past a
  * NUL are masked off (the length) or ignored (bits from m on). */
-	.section .text.liella_machine_strstr,"ax",@progbits
-	.hidden liella_hot_strstr_slow  /* crates/boundary/src/posix/s04_strings.rs */
-	.hidden liella_hot_strstr_next  /* crates/boundary/src/posix/s04_strings.rs */
-	.globl liella_machine_strstr
-	.type liella_machine_strstr, @function
+	.section .text.niji_machine_strstr,"ax",@progbits
+	.hidden niji_hot_strstr_slow  /* crates/boundary/src/posix/s04_strings.rs */
+	.hidden niji_hot_strstr_next  /* crates/boundary/src/posix/s04_strings.rs */
+	.globl niji_machine_strstr
+	.type niji_machine_strstr, @function
 	/* 64-byte aligned like every exported entry (D-4.33). */
 	.p2align 6
-liella_machine_strstr:
-#ifdef LIELLA_EXPORT
+niji_machine_strstr:
+#ifdef NIJI_EXPORT
 	.globl strstr
 	.type strstr, @function
 strstr:
@@ -7724,7 +7724,7 @@ strstr:
 	movl $-2, %r11d
 	shll %cl, %r11d
 	leaq (%rdi,%rax), %rdx
-	cmpl $0, liella_machine_scan_level(%rip)
+	cmpl $0, niji_machine_scan_level(%rip)
 	je .Lsstr_sse2
 	/* AVX2: the strpair head test (min((Y ^ c1) | (L ^ c0), Y) == 0 at a candidate or the
 	 * terminator) on the blocks at p + j (j = 0, 32), each with its L block at h + j. */
@@ -7760,7 +7760,7 @@ strstr:
 	movq %rdx, %rdi
 	leaq 64(%rdx), %rax
 	andq $-64, %rax
-	call liella_machine_strpair_avx_run
+	call niji_machine_strpair_avx_run
 	jmp .Lsstr_back
 .Lsstr_avx_stop0:
 	vzeroupper
@@ -7846,7 +7846,7 @@ strstr:
 	subq %rdi, %rcx
 	addq %rcx, %rcx
 	leaq 1(%rax), %rdx
-	jmp liella_hot_strstr_next
+	jmp niji_hot_strstr_next
 .Lsstr_sse_stop0:
 	bsfl %r10d, %r10d
 	leaq (%rdi,%r10), %rcx
@@ -7868,7 +7868,7 @@ strstr:
 	negq %r9
 	leaq 64(%rdx), %rax
 	andq $-64, %rax
-	call liella_machine_strpair_sse_run
+	call niji_machine_strpair_sse_run
 	jmp .Lsstr_back
 	/* h's page offset is above 4016: the strpair call from p = h + last. */
 .Lsstr_call:
@@ -7877,7 +7877,7 @@ strstr:
 	movzbl (%rsi,%rax), %ecx
 	addq %rax, %rdi
 	movq %rax, %rsi
-	call liella_machine_strpair
+	call niji_machine_strpair
 .Lsstr_back:
 	popq %r8
 	testb $1, %al
@@ -7922,56 +7922,56 @@ strstr:
 	leaq 1(%rsi), %rdx
 	subq %rsi, %rdi
 	movq %r8, %rsi
-	jmp liella_hot_strstr_next
+	jmp niji_hot_strstr_next
 .Lsstr_empty:
 	movq %rdi, %rax
 	ret
 .Lsstr_slow:
-	jmp liella_hot_strstr_slow
-	.size liella_machine_strstr, .-liella_machine_strstr
-#ifdef LIELLA_EXPORT
+	jmp niji_hot_strstr_slow
+	.size niji_machine_strstr, .-niji_machine_strstr
+#ifdef NIJI_EXPORT
 	.size strstr, .-strstr
 #endif
-	.section .text.liella_machine_wcspair,"ax",@progbits
+	.section .text.niji_machine_wcspair,"ax",@progbits
 
-	.globl liella_machine_wcspair
-	.type liella_machine_wcspair, @function
+	.globl niji_machine_wcspair
+	.type niji_machine_wcspair, @function
 	.p2align 4
-liella_machine_wcspair:
+niji_machine_wcspair:
 	shlq $2, %rsi
 	movq %rdi, %rax
 	xorl %r8d, %r8d
 	movl %edi, %r9d
 	andl $4095, %r9d
 	cmpl $4064, %r9d
-	jbe .Lliella_machine_wcspair_vec
+	jbe .Lniji_machine_wcspair_vec
 	/* p in the last 32 bytes of its page: unit by unit to the 32-byte boundary. */
-.Lliella_machine_wcspair_units:
+.Lniji_machine_wcspair_units:
 	movl (%rax), %r10d
 	testl %r10d, %r10d
-	jz .Lliella_machine_wcspair_unit_nul
+	jz .Lniji_machine_wcspair_unit_nul
 	cmpl %ecx, %r10d
 	jne 1f
 	movq %rax, %r9
 	subq %rsi, %r9
 	movl (%r9), %r10d
 	cmpl %edx, %r10d
-	je .Lliella_machine_wcspair_unit_cand
+	je .Lniji_machine_wcspair_unit_cand
 1:
 	addq $4, %rax
 	testl $31, %eax
-	jnz .Lliella_machine_wcspair_units
+	jnz .Lniji_machine_wcspair_units
 	movl $1, %r8d
-.Lliella_machine_wcspair_vec:
-	cmpl $0, liella_machine_scan_level(%rip)
-	je .Lliella_machine_wcspair_sse2
+.Lniji_machine_wcspair_vec:
+	cmpl $0, niji_machine_scan_level(%rip)
+	je .Lniji_machine_wcspair_sse2
 	vmovd %edx, %xmm0
 	vmovd %ecx, %xmm1
 	vpbroadcastd %xmm0, %ymm0
 	vpbroadcastd %xmm1, %ymm1
 	vpxor %xmm2, %xmm2, %xmm2
 	testl %r8d, %r8d
-	jnz .Lliella_machine_wcspair_avx_loop
+	jnz .Lniji_machine_wcspair_avx_loop
 	vmovdqu (%rax), %ymm3
 	movq %rax, %r9
 	subq %rsi, %r9
@@ -7984,13 +7984,13 @@ liella_machine_wcspair:
 	leal -1(%r11), %r9d
 	xorl %r11d, %r9d
 	andl %r9d, %r10d
-	jnz .Lliella_machine_wcspair_avx_cand
+	jnz .Lniji_machine_wcspair_avx_cand
 	testl %r11d, %r11d
-	jnz .Lliella_machine_wcspair_avx_nul
+	jnz .Lniji_machine_wcspair_avx_nul
 	andq $-32, %rax
 	addq $32, %rax
 	.p2align 4
-.Lliella_machine_wcspair_avx_loop:
+.Lniji_machine_wcspair_avx_loop:
 	vmovdqa (%rax), %ymm3
 	movq %rax, %r9
 	subq %rsi, %r9
@@ -8003,16 +8003,16 @@ liella_machine_wcspair:
 	leal -1(%r11), %r9d
 	xorl %r11d, %r9d
 	andl %r9d, %r10d
-	jnz .Lliella_machine_wcspair_avx_cand
+	jnz .Lniji_machine_wcspair_avx_cand
 	testl %r11d, %r11d
-	jnz .Lliella_machine_wcspair_avx_nul
+	jnz .Lniji_machine_wcspair_avx_nul
 	addq $32, %rax
 	testl $63, %eax
-	jnz .Lliella_machine_wcspair_avx_loop
+	jnz .Lniji_machine_wcspair_avx_loop
 	movq %rsi, %r9
 	negq %r9
 	.p2align 4
-.Lliella_machine_wcspair_avx_loop64:
+.Lniji_machine_wcspair_avx_loop64:
 	/* Unit q is a candidate or 0 exactly when min((Y ^ c1) | (L ^ c0), Y) is 0. */
 	vmovdqa (%rax), %ymm3
 	vmovdqa 32(%rax), %ymm6
@@ -8028,37 +8028,37 @@ liella_machine_wcspair:
 	vpcmpeqd %ymm4, %ymm2, %ymm4
 	vpmovmskb %ymm4, %r10d
 	testl %r10d, %r10d
-	jnz .Lliella_machine_wcspair_avx_loop
+	jnz .Lniji_machine_wcspair_avx_loop
 	addq $64, %rax
-	jmp .Lliella_machine_wcspair_avx_loop64
-.Lliella_machine_wcspair_avx_cand:
+	jmp .Lniji_machine_wcspair_avx_loop64
+.Lniji_machine_wcspair_avx_cand:
 	vzeroupper
-.Lliella_machine_wcspair_sse_cand:
+.Lniji_machine_wcspair_sse_cand:
 	bsfl %r10d, %r10d
 	addq %r10, %rax
-.Lliella_machine_wcspair_unit_cand:
+.Lniji_machine_wcspair_unit_cand:
 	subq %rdi, %rax
 	shrq $2, %rax
 	addq %rax, %rax
 	ret
-.Lliella_machine_wcspair_avx_nul:
+.Lniji_machine_wcspair_avx_nul:
 	vzeroupper
-.Lliella_machine_wcspair_sse_nul:
+.Lniji_machine_wcspair_sse_nul:
 	bsfl %r11d, %r11d
 	addq %r11, %rax
-.Lliella_machine_wcspair_unit_nul:
+.Lniji_machine_wcspair_unit_nul:
 	subq %rdi, %rax
 	shrq $2, %rax
 	leaq 1(%rax,%rax), %rax
 	ret
-.Lliella_machine_wcspair_sse2:
+.Lniji_machine_wcspair_sse2:
 	movd %edx, %xmm0
 	movd %ecx, %xmm1
 	pshufd $0, %xmm0, %xmm0
 	pshufd $0, %xmm1, %xmm1
 	pxor %xmm2, %xmm2
 	testl %r8d, %r8d
-	jnz .Lliella_machine_wcspair_sse_loop
+	jnz .Lniji_machine_wcspair_sse_loop
 	movdqu (%rax), %xmm3
 	movq %rax, %r9
 	subq %rsi, %r9
@@ -8073,13 +8073,13 @@ liella_machine_wcspair:
 	leal -1(%r11), %r9d
 	xorl %r11d, %r9d
 	andl %r9d, %r10d
-	jnz .Lliella_machine_wcspair_sse_cand
+	jnz .Lniji_machine_wcspair_sse_cand
 	testl %r11d, %r11d
-	jnz .Lliella_machine_wcspair_sse_nul
+	jnz .Lniji_machine_wcspair_sse_nul
 	andq $-16, %rax
 	addq $16, %rax
 	.p2align 4
-.Lliella_machine_wcspair_sse_loop:
+.Lniji_machine_wcspair_sse_loop:
 	movdqa (%rax), %xmm3
 	movq %rax, %r9
 	subq %rsi, %r9
@@ -8094,11 +8094,11 @@ liella_machine_wcspair:
 	leal -1(%r11), %r9d
 	xorl %r11d, %r9d
 	andl %r9d, %r10d
-	jnz .Lliella_machine_wcspair_sse_cand
+	jnz .Lniji_machine_wcspair_sse_cand
 	testl %r11d, %r11d
-	jnz .Lliella_machine_wcspair_sse_nul
+	jnz .Lniji_machine_wcspair_sse_nul
 	addq $16, %rax
-	jmp .Lliella_machine_wcspair_sse_loop
-	.size liella_machine_wcspair, .-liella_machine_wcspair
+	jmp .Lniji_machine_wcspair_sse_loop
+	.size niji_machine_wcspair, .-niji_machine_wcspair
 
 	.section .note.GNU-stack,"",@progbits

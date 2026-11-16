@@ -14,12 +14,12 @@
 //!   `libgcc.a`, the shared libraries `ldd` names for each, and each tool's `--version`;
 //! * the environment the checks or the tools read: the workspace and products paths (the build-path needles of
 //!   PRODUCT-PATH-REMAP), `PATH`, `CC`, `HOME`, `CARGO_HOME`, the loader and compiler search variables, and every
-//!   `LIELLA_*` variable.
+//!   `NIJI_*` variable.
 //!
 //! Only a pass is stored (`target/layout-verdicts/<key>`, with a sha256 of its own text); a failure is checked in
 //! full every time. An entry that does not read back exactly (another key, a changed line, a missing or wrong sum) is
-//! a miss, never a pass. Any error while computing the key is a full check. Under the CI train (`LIELLA_TRAIN` set,
-//! not `0`) and with `LIELLA_LAYOUT_CACHE=0` the cache is neither read nor written.
+//! a miss, never a pass. Any error while computing the key is a full check. Under the CI train (`NIJI_TRAIN` set,
+//! not `0`) and with `NIJI_LAYOUT_CACHE=0` the cache is neither read nor written.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -28,10 +28,10 @@ use crate::sha256::{sha256_files, sha256_text};
 
 /// Where the verdicts live, relative to the workspace root.
 pub const DIR: &str = "target/layout-verdicts";
-const MAGIC: &str = "liella layout verdict 1";
+const MAGIC: &str = "niji layout verdict 1";
 /// The probe the start-up kinds link (`layout::link_startup_probe`).
 const PROBE: &str = "crates/core/tests/oracle/page_faults.c";
-/// Environment variables the checks or their tools read (the `LIELLA_*` ones are added by prefix).
+/// Environment variables the checks or their tools read (the `NIJI_*` ones are added by prefix).
 const ENV: &[&str] = &["PATH", "CC", "HOME", "CARGO_HOME", "LD_LIBRARY_PATH", "LD_PRELOAD", "GCC_EXEC_PREFIX", "COMPILER_PATH", "LIBRARY_PATH", "CPATH", "C_INCLUDE_PATH", "TMPDIR"];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -40,15 +40,15 @@ pub(crate) enum Mode {
     Use,
     /// The CI train: always the full check.
     Train,
-    /// `LIELLA_LAYOUT_CACHE=0`: always the full check.
+    /// `NIJI_LAYOUT_CACHE=0`: always the full check.
     Off,
 }
 
 pub(crate) fn mode(env: &dyn Fn(&str) -> Option<String>) -> Mode {
     let set = |k: &str| env(k).is_some_and(|v| !v.is_empty() && v != "0");
-    if set("LIELLA_TRAIN") {
+    if set("NIJI_TRAIN") {
         Mode::Train
-    } else if env("LIELLA_LAYOUT_CACHE").is_some_and(|v| v == "0") {
+    } else if env("NIJI_LAYOUT_CACHE").is_some_and(|v| v == "0") {
         Mode::Off
     } else {
         Mode::Use
@@ -68,11 +68,11 @@ pub(crate) enum Outcome {
 pub(crate) fn verdict(mode: Mode, entry: impl FnOnce() -> Result<(PathBuf, String), String>, full: impl FnOnce() -> Result<Vec<String>, String>) -> Result<Outcome, String> {
     let at = match mode {
         Mode::Train => {
-            println!("layout: LIELLA_TRAIN is set: every contract checked in full (the verdict cache serves local builds only)");
+            println!("layout: NIJI_TRAIN is set: every contract checked in full (the verdict cache serves local builds only)");
             None
         }
         Mode::Off => {
-            println!("layout: LIELLA_LAYOUT_CACHE=0: every contract checked in full");
+            println!("layout: NIJI_LAYOUT_CACHE=0: every contract checked in full");
             None
         }
         Mode::Use => match entry() {
@@ -82,7 +82,7 @@ pub(crate) fn verdict(mode: Mode, entry: impl FnOnce() -> Result<(PathBuf, Strin
             }
             Ok((path, key)) => match read_entry(&path, &key) {
                 Ok(Some(lines)) => {
-                    println!("layout: verdict cache hit {key} ({}): the products, contract inputs, tools and checker are those of a full check that passed; check skipped (LIELLA_LAYOUT_CACHE=0 runs it)", path.display());
+                    println!("layout: verdict cache hit {key} ({}): the products, contract inputs, tools and checker are those of a full check that passed; check skipped (NIJI_LAYOUT_CACHE=0 runs it)", path.display());
                     for l in &lines {
                         println!("{l}");
                     }
@@ -202,7 +202,7 @@ pub(crate) fn host_inputs(env: &dyn Fn(&str) -> Option<String>, env_names: &[Str
     let mut out = Vec::new();
     let exe = std::env::current_exe().map_err(|e| format!("the checker's path: {e}"))?;
     let path = env("PATH").unwrap_or_default();
-    let mut names: Vec<String> = ENV.iter().map(|s| s.to_string()).chain(env_names.iter().filter(|k| k.starts_with("LIELLA_")).cloned()).collect();
+    let mut names: Vec<String> = ENV.iter().map(|s| s.to_string()).chain(env_names.iter().filter(|k| k.starts_with("NIJI_")).cloned()).collect();
     names.sort();
     names.dedup();
     for k in &names {
@@ -313,14 +313,14 @@ mod tests {
 
     #[test]
     fn the_train_and_the_opt_out_never_use_the_cache() {
-        // no spec clause: tooling (LAYOUT-CHECK-VERDICT-CACHE): LIELLA_TRAIN set (not 0) is the train, which always
-        // checks in full, even with a valid entry for the key; LIELLA_LAYOUT_CACHE=0 does too.
+        // no spec clause: tooling (LAYOUT-CHECK-VERDICT-CACHE): NIJI_TRAIN set (not 0) is the train, which always
+        // checks in full, even with a valid entry for the key; NIJI_LAYOUT_CACHE=0 does too.
         let env = |pairs: &'static [(&'static str, &'static str)]| move |k: &str| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| v.to_string());
-        assert_eq!(mode(&env(&[("LIELLA_TRAIN", "1")])), Mode::Train);
-        assert_eq!(mode(&env(&[("LIELLA_TRAIN", "yes"), ("LIELLA_LAYOUT_CACHE", "1")])), Mode::Train);
-        assert_eq!(mode(&env(&[("LIELLA_TRAIN", "0")])), Mode::Use);
+        assert_eq!(mode(&env(&[("NIJI_TRAIN", "1")])), Mode::Train);
+        assert_eq!(mode(&env(&[("NIJI_TRAIN", "yes"), ("NIJI_LAYOUT_CACHE", "1")])), Mode::Train);
+        assert_eq!(mode(&env(&[("NIJI_TRAIN", "0")])), Mode::Use);
         assert_eq!(mode(&env(&[])), Mode::Use);
-        assert_eq!(mode(&env(&[("LIELLA_LAYOUT_CACHE", "0")])), Mode::Off);
+        assert_eq!(mode(&env(&[("NIJI_LAYOUT_CACHE", "0")])), Mode::Off);
         let d = scratch("train");
         let at = || Ok((d.join("k1"), "k1".to_string()));
         assert_eq!(verdict(Mode::Use, at, pass).unwrap(), Outcome::Checked, "first run: a miss");
@@ -388,8 +388,8 @@ mod tests {
         for f in crate::jcc::JCC_PAD_FILES {
             write(&format!("csys/src/machine/{f}"), "ret\n");
         }
-        write("target/liella/libc.a", "archive");
-        let dir = root.join("target/liella");
+        write("target/niji/libc.a", "archive");
+        let dir = root.join("target/niji");
         let path = std::env::var("PATH").unwrap();
         let env_with = |cc: &'static str, extra: Option<(&'static str, &'static str)>| {
             let path = path.clone();
@@ -413,14 +413,14 @@ mod tests {
         }
         assert!(host.iter().any(|l| l.starts_with("tool lib ")), "the tools' shared libraries: {host:?}");
         assert_ne!(host_inputs(&env_with("gcc-other", None), &[]).unwrap(), host, "CC");
-        assert_ne!(host_inputs(&env_with("cc", Some(("LIELLA_X", "1"))), &["LIELLA_X".to_string()]).unwrap(), host, "a LIELLA_ variable");
+        assert_ne!(host_inputs(&env_with("cc", Some(("NIJI_X", "1"))), &["NIJI_X".to_string()]).unwrap(), host, "a NIJI_ variable");
         let changes: [(&str, &str, &str); 6] = [
             ("the manifest", crate::layout::MANIFEST, "id\tkind\tsubjects\trule\treason\tdecision\nA\tstartup-text-windows\tlibc.a\tkeys=k/s.keys; window=4096\tr\tD-X.49\n"),
             ("a file a rule names", "k/s.keys", "fast f2\n"),
             ("the probe", PROBE, "int main(void) { return 1; }\n"),
             ("a padded assembly file", &format!("csys/src/machine/{}", crate::jcc::JCC_PAD_FILES[0]), "nop\n"),
-            ("a product", "target/liella/libc.a", "archivf"),
-            ("a new product", "target/liella/libm.a", "m"),
+            ("a product", "target/niji/libc.a", "archivf"),
+            ("a new product", "target/niji/libm.a", "m"),
         ];
         let mut seen = vec![k0];
         for (what, rel, text) in changes {

@@ -12,19 +12,19 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU64, AtomicUsize, Ordering::Relaxed};
 
-use liella::error::{Errno, KResult};
-use liella::locale::file::Cat;
-use liella::mem::TryVec;
-use liella::num::float::{Float, Format, Rounding};
-use liella::printf::{self as pf, Arg, Class, Conv, Len, Out, Parsed, Registered, Unit};
-use liella::text::{self, Decoded, Encoding, MbState};
-use liella_abi::layout::struct_printf_info;
-use liella_kernel::fd::Fd;
-use liella_kernel::machine::Machine;
-use liella_kernel::sys::Sys;
-use liella_legacy::printf_registry::{self as reg, Info};
-use liella_legacy::stdio_compat::PlanSlot;
-use liella_legacy::stdio_compat::{self as sc, Env as _};
+use niji::error::{Errno, KResult};
+use niji::locale::file::Cat;
+use niji::mem::TryVec;
+use niji::num::float::{Float, Format, Rounding};
+use niji::printf::{self as pf, Arg, Class, Conv, Len, Out, Parsed, Registered, Unit};
+use niji::text::{self, Decoded, Encoding, MbState};
+use niji_abi::layout::struct_printf_info;
+use niji_kernel::fd::Fd;
+use niji_kernel::machine::Machine;
+use niji_kernel::sys::Sys;
+use niji_legacy::printf_registry::{self as reg, Info};
+use niji_legacy::stdio_compat::PlanSlot;
+use niji_legacy::stdio_compat::{self as sc, Env as _};
 
 use crate::stdio::{self, Locking};
 use crate::sys::CSys;
@@ -33,7 +33,7 @@ use crate::{caller_alloc, conv, errno, ffi, locale, tb};
 
 /// The library's side of rendering: argument memory, the locale, `errno` at entry.
 struct Env {
-    loc: &'static liella::locale::Locale,
+    loc: &'static niji::locale::Locale,
     enc: Encoding,
     errno_at_entry: i32,
     rounding: Rounding,
@@ -43,13 +43,13 @@ impl Env {
     fn new() -> Env {
         let loc = locale::current();
         // ARCH(x86_64): rounding mode read from MXCSR; FPCR on aarch64 (A-9)
-        Env { loc, enc: Encoding::of(loc), errno_at_entry: errno::get(), rounding: liella_legacy::num_compat::rounding(CSys.mxcsr()) }
+        Env { loc, enc: Encoding::of(loc), errno_at_entry: errno::get(), rounding: niji_legacy::num_compat::rounding(CSys.mxcsr()) }
     }
 
     /// For `pf::render_simple`, which asks only `text`: the thread's locale, `errno` and the
     /// rounding mode are not read (about 7% of a short `snprintf`, measured).
     fn text_only() -> Env {
-        static C: liella::locale::Locale = liella::locale::Locale::C;
+        static C: niji::locale::Locale = niji::locale::Locale::C;
         Env { loc: &C, enc: Encoding::of(&C), errno_at_entry: 0, rounding: Rounding::Nearest }
     }
 }
@@ -79,11 +79,11 @@ impl pf::Env for Env {
     }
 
     fn error_text(&mut self, out: &mut TryVec<u8>) -> KResult<()> {
-        match liella::diag::description(self.errno_at_entry) {
+        match niji::diag::description(self.errno_at_entry) {
             Some(d) => out.extend_from_slice(d.as_bytes()),
             None => {
                 let mut b = [0u8; 32];
-                let n = liella::diag::unknown(self.errno_at_entry, &mut b);
+                let n = niji::diag::unknown(self.errno_at_entry, &mut b);
                 out.extend_from_slice(b.get(..n).unwrap_or(&[]))
             }
         }
@@ -146,7 +146,7 @@ impl pf::Env for Env {
             // Byte-oriented from the start, as the destination is: wide output to it fails.
             let _ = stdio::fwide(fp, -1);
         }
-        let r = c_int(ffi::liella_machine_call3(handler, word(fp), word(addr_of(&info)), word(ptrs.as_slice().as_ptr().expose_provenance())));
+        let r = c_int(ffi::niji_machine_call3(handler, word(fp), word(addr_of(&info)), word(ptrs.as_slice().as_ptr().expose_provenance())));
         let failure = Errno::new(errno::get()).unwrap_or(Errno::EINVAL);
         let closed = stdio::fclose(fp);
         let (buf, len) = (vars[0].load(Relaxed), vars[1].load(Relaxed));
@@ -218,7 +218,7 @@ fn arginfo(f: usize, info: &Info, n: usize) -> KResult<(i32, TryVec<i32>, TryVec
         sizes.push(AtomicI32::new(0))?;
     }
     let c = info.to_c();
-    let r = c_int(ffi::liella_machine_call4(f, word(addr_of(&c)), word(n), word(types.as_slice().as_ptr().expose_provenance()), word(sizes.as_slice().as_ptr().expose_provenance())));
+    let r = c_int(ffi::niji_machine_call4(f, word(addr_of(&c)), word(n), word(types.as_slice().as_ptr().expose_provenance()), word(sizes.as_slice().as_ptr().expose_provenance())));
     let mut t: TryVec<i32> = TryVec::with_capacity(n)?;
     let mut s: TryVec<i32> = TryVec::with_capacity(n)?;
     for (a, b) in types.iter().zip(sizes.iter()).take(n) {
@@ -289,7 +289,7 @@ fn format_routed<O: Out<u8>>(fmt: &[u8], flag: i32, ap: usize, route: pf::Planne
             // A format that is exactly `%s` (the commonest one for a string copy) has nothing to parse or
             // pad: one argument, `(null)` for a null pointer, written as is. Same bytes as the general path.
             if fmt == b"%s" && !reg::active() {
-                let addr = usize::try_from(liella_abi::va::VaSource::int(&mut CVa(ap))).unwrap_or(0);
+                let addr = usize::try_from(niji_abi::va::VaSource::int(&mut CVa(ap))).unwrap_or(0);
                 let body: &[u8] = if addr == 0 { b"(null)" } else { conv::printf_text(addr, None) };
                 out.put(body);
                 if body.len() > usize::try_from(i32::MAX).unwrap_or(usize::MAX) {
@@ -326,7 +326,7 @@ fn render_lone<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: 
     // Text around one plain `%s` (tar -tv's `" %s"`): the three pieces render_simple would
     // write, without its conversion loop.
     if let Some((at, after)) = plan.lone_s() {
-        let addr = usize::try_from(liella_abi::va::VaSource::int(&mut CVa(ap))).unwrap_or(0);
+        let addr = usize::try_from(niji_abi::va::VaSource::int(&mut CVa(ap))).unwrap_or(0);
         let body: &[u8] = if addr == 0 { b"(null)" } else { conv::printf_text(addr, None) };
         let (head, tail) = (fmt.get(..at).unwrap_or(&[]), fmt.get(after..).unwrap_or(&[]));
         for piece in [head, body, tail] {
@@ -345,7 +345,7 @@ fn render_lone<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: 
     // built whole, the three pieces written, without render_simple's loop (PRINTF-LAYERS).
     if let Some(li) = plan.lone_int() {
         let mut buf = [0u8; pf::INT_FIELD];
-        let field = li.field(liella_abi::va::VaSource::int(&mut CVa(ap)), &mut buf);
+        let field = li.field(niji_abi::va::VaSource::int(&mut CVa(ap)), &mut buf);
         let (head, tail) = (fmt.get(..li.at).unwrap_or(&[]), fmt.get(li.after..).unwrap_or(&[]));
         for piece in [head, field, tail] {
             if !piece.is_empty() {
@@ -362,7 +362,7 @@ fn render_lone<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: 
     // Text around one plain `%c`: its argument's low byte (gawk builds each float format with
     // `"*.*%c"`).
     if let Some((at, after)) = plan.lone_c() {
-        let one = [u8::try_from(liella_abi::va::VaSource::int(&mut CVa(ap)) & 0xFF).unwrap_or(0)];
+        let one = [u8::try_from(niji_abi::va::VaSource::int(&mut CVa(ap)) & 0xFF).unwrap_or(0)];
         let (head, tail) = (fmt.get(..at).unwrap_or(&[]), fmt.get(after..).unwrap_or(&[]));
         for piece in [head, &one[..], tail] {
             if !piece.is_empty() {
@@ -390,9 +390,9 @@ fn render_pair_s<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out
         let addr = usize::try_from(raw).unwrap_or(0);
         if addr == 0 { b"(null)" } else { conv::printf_text(addr, None) }
     };
-    let s0 = text(liella_abi::va::VaSource::int(&mut CVa(ap)));
-    let star_arg = if p.star { liella_abi::va::VaSource::int(&mut CVa(ap)) } else { 0 };
-    let s1 = text(liella_abi::va::VaSource::int(&mut CVa(ap)));
+    let s0 = text(niji_abi::va::VaSource::int(&mut CVa(ap)));
+    let star_arg = if p.star { niji_abi::va::VaSource::int(&mut CVa(ap)) } else { 0 };
+    let s1 = text(niji_abi::va::VaSource::int(&mut CVa(ap)));
     let (width, left) = p.field(star_arg);
     let fill = width.saturating_sub(s1.len());
     let (head, mid, tail) = (fmt.get(..p.at0)?, fmt.get(p.after0..p.at1)?, fmt.get(p.after1..)?);
@@ -456,7 +456,7 @@ fn place(rest: &mut &mut [u8], piece: &[u8]) {
         ([], []) => {}
         ([d0], [s0]) => *d0 = *s0,
         ([d0, d1], [s0, s1]) => (*d0, *d1) = (*s0, *s1),
-        (d, piece) => liella::mem::copy(d, piece),
+        (d, piece) => niji::mem::copy(d, piece),
     }
     *rest = after;
 }
@@ -469,7 +469,7 @@ fn pad(rest: &mut &mut [u8], k: usize) {
     match d {
         [] => {}
         [d0] => *d0 = b' ',
-        d => liella::mem::fill(d, b' '),
+        d => niji::mem::fill(d, b' '),
     }
     *rest = after;
 }
@@ -481,8 +481,8 @@ fn render_plan<O: Out<u8>>(fmt: &[u8], plan: &pf::SimpleFormat, ap: usize, out: 
     // `CVa` is only the address of the caller's `va_list`, which holds the position: one
     // handle per kind of argument.
     let (mut ints, mut doubles) = (CVa(ap), CVa(ap));
-    let mut int_arg = || liella_abi::va::VaSource::int(&mut ints);
-    let mut double_arg = || liella_abi::va::VaSource::double(&mut doubles);
+    let mut int_arg = || niji_abi::va::VaSource::int(&mut ints);
+    let mut double_arg = || niji_abi::va::VaSource::double(&mut doubles);
     // Floating conversions need the locale's radix and the rounding mode; a format without
     // one is rendered by the instance with no floating code.
     // A format without a `*` width runs the instance with no width-argument code.
@@ -518,7 +518,7 @@ fn format_at<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize,
     let mut user = |ty: u32, size: usize| -> KResult<Arg> {
         let f = reg::type_function(ty);
         if f == 0 {
-            return Ok(Arg::Int(liella_abi::va::VaSource::int(&mut CVa(ap))));
+            return Ok(Arg::Int(niji_abi::va::VaSource::int(&mut CVa(ap))));
         }
         let n = size.div_ceil(16).max(1);
         let mut mem: TryVec<Object> = TryVec::with_capacity(n)?;
@@ -526,12 +526,12 @@ fn format_at<U: Unit, O: Out<U>>(fmt: &[U], origin: usize, flag: i32, ap: usize,
             mem.push(Object::default())?;
         }
         let addr = mem.as_slice().as_ptr().expose_provenance();
-        let _ = ffi::liella_machine_call3(f, word(addr), word(ap), 0);
+        let _ = ffi::niji_machine_call3(f, word(addr), word(ap), 0);
         objects.push(mem)?;
         Ok(Arg::User(addr))
     };
-    let mut args = liella::mem::InlineVec::new();
-    liella_legacy::printf_va::read(&parsed.classes, &mut CVa(ap), &mut user, &mut args)?;
+    let mut args = niji::mem::InlineVec::new();
+    niji_legacy::printf_va::read(&parsed.classes, &mut CVa(ap), &mut user, &mut args)?;
     let n = pf::render(fmt, &parsed, &args, &mut env, out)?;
     // The result is an `int` (D-12.5).
     if n > usize::try_from(i32::MAX).unwrap_or(usize::MAX) {
@@ -683,7 +683,7 @@ pub fn vfprintf(fp: usize, flag: i32, fmt: KResult<&[u8]>, ap: usize) -> KResult
         // The stream's plan cache (D-12.21), under its lock; `%s` alone has its own path.
         // A hit lends the kept plan (no copy; TAR-TV).
         let (route, kept) = if fmt == b"%s" { (pf::Planned::Unknown, None) } else { plan_cache(&mut ext.printf_plans).map_or((pf::Planned::Unknown, None), |c| c.route(fmt)) };
-        if ext.state.policy == liella::stream::Policy::Unbuffered {
+        if ext.state.policy == niji::stream::Policy::Unbuffered {
             let mut stage = ([0u8; STAGE], 0);
             to_stream(fmt, flag, ap, route, kept, ToStream::new(file, ext, Some(&mut stage)))
         } else {
@@ -702,7 +702,7 @@ fn plan_cache(slot: &mut PlanSlot) -> Option<&'static mut pf::PlanCache> {
             return None;
         }
         // Never freed: the cache stays with the stream's slot (tb::leaked_at).
-        slot.addr = liella::mem::TryBox::new(pf::PlanCache::new()).ok().map_or(0, |b| core::ptr::from_mut(b.leak()).expose_provenance());
+        slot.addr = niji::mem::TryBox::new(pf::PlanCache::new()).ok().map_or(0, |b| core::ptr::from_mut(b.leak()).expose_provenance());
         if slot.addr == 0 {
             slot.calls = 0;
             return None;
@@ -813,7 +813,7 @@ impl Out<u8> for ToFd {
             let n = s.len().min(TO_FD.saturating_sub(self.len));
             let end = self.len.saturating_add(n);
             if let (Some(d), Some(src)) = (self.buf.get_mut(self.len..end), s.get(..n)) {
-                liella::mem::copy(d, src);
+                niji::mem::copy(d, src);
             }
             self.len = end;
             s = s.get(n..).unwrap_or(&[]);
@@ -839,7 +839,7 @@ impl Out<u8> for ToBuffer {
         // (the general code below cost about 33 instructions per piece of ls's `"%s %*s "`).
         let end = self.pos.saturating_add(s.len());
         if end < self.max && end <= self.slen {
-            liella::mem::copy(conv::out_bytes(self.addr.wrapping_add(self.pos), s.len()), s);
+            niji::mem::copy(conv::out_bytes(self.addr.wrapping_add(self.pos), s.len()), s);
             self.pos = end;
             return;
         }
@@ -873,7 +873,7 @@ impl ToBuffer {
             crate::ret::chk_fail();
         }
         if n > 0 {
-            liella::mem::copy(conv::out_bytes(self.addr.wrapping_add(self.pos), n), s.get(..n).unwrap_or(&[]));
+            niji::mem::copy(conv::out_bytes(self.addr.wrapping_add(self.pos), n), s.get(..n).unwrap_or(&[]));
             self.pos = self.pos.saturating_add(n);
         }
     }
@@ -971,7 +971,7 @@ pub fn vasprintf(strp: KResult<usize>, flag: i32, fmt: KResult<&[u8]>, ap: usize
 
 /// `obstack_vprintf(obs, fmt, ap)`: the result grows the obstack's current object (not
 /// terminated, as the reference library leaves it).
-pub fn obstack_vprintf(obs: Option<&mut liella_abi::layout::struct_obstack>, flag: i32, fmt: KResult<&[u8]>, ap: usize) -> KResult<usize> {
+pub fn obstack_vprintf(obs: Option<&mut niji_abi::layout::struct_obstack>, flag: i32, fmt: KResult<&[u8]>, ap: usize) -> KResult<usize> {
     let (o, fmt) = (obs.ok_or(Errno::EINVAL)?, fmt?);
     let mut out = Collect(TryVec::new(), None);
     let n = format(fmt, flag, ap, &mut out)?;

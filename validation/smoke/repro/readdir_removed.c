@@ -2,8 +2,8 @@
    coreutils' test tests/ls/removed-directory.sh ("ls" in a directory that was removed under it).
    Opens a fresh directory, removes it, then reads it: prints readdir's result and errno.
 
-   Build and run as validation/smoke/repro/regcomp_nesting.c says (gcc for the reference, liella-cc for
-   Liella); run it in a writable directory. */
+   Build and run as validation/smoke/repro/regcomp_nesting.c says (gcc for the reference, niji-cc for
+   libniji); run it in a writable directory. */
 #include <dirent.h>
 #include <errno.h>
 #include <stdio.h>

@@ -33,7 +33,7 @@ macro_rules! startup_names {
 startup_names! {
     GLIBC_TUNABLES = b"GLIBC_TUNABLES",
     MALLOC_PERTURB = b"MALLOC_PERTURB_",
-    LIELLA_NSCACHE = b"LIELLA_NSCACHE",
+    NIJI_NSCACHE = b"NIJI_NSCACHE",
     VDSO_CLOCK_GETTIME = b"__vdso_clock_gettime",
     VDSO_CLOCK_GETRES = b"__vdso_clock_getres",
     VDSO_GETTIMEOFDAY = b"__vdso_gettimeofday",

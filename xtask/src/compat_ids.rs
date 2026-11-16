@@ -3,7 +3,7 @@
 //! Ids come from the ops store (`ops reserve COMPAT`); one file per id makes a duplicate impossible. The check (part
 //! of `cargo xtask static`, alone as `cargo xtask compat-ids`) fails when an id mentioned in `docs/`, `crates/`,
 //! `plan/` or `records/` has no record, or when the ids are not contiguous from 1 (a gap must be listed in
-//! [`LISTED_GAPS`]; an unlisted gap only warns, and fails when `LIELLA_PROMOTE=1`). The generated view `docs/compat-flags.md` and the compat records themselves are not scanned;
+//! [`LISTED_GAPS`]; an unlisted gap only warns, and fails when `NIJI_PROMOTE=1`). The generated view `docs/compat-flags.md` and the compat records themselves are not scanned;
 //! handoff notes and reports are history and are not scanned either.
 
 use std::collections::BTreeSet;
@@ -15,7 +15,7 @@ const SCANNED: [&str; 4] = ["docs", "crates", "plan", "records"];
 const EXTENSIONS: [&str; 4] = ["rs", "md", "toml", "tsv"];
 const PREFIX: &str = "COMPAT-";
 /// Set to `1` by the next->main promotion run: a gap in the ids is fatal only there (elsewhere a warning).
-const PROMOTE_ENV: &str = "LIELLA_PROMOTE";
+const PROMOTE_ENV: &str = "NIJI_PROMOTE";
 /// Ids deliberately absent from the registry (none).
 const LISTED_GAPS: [u32; 0] = [];
 

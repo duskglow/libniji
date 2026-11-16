@@ -1,7 +1,7 @@
 @@generated
 /* sys/bitypes.h: the BSD name of <sys/types.h>. */
-#ifndef __LIELLA_H_sys_bitypes_h
-#define __LIELLA_H_sys_bitypes_h 1
+#ifndef __NIJI_H_sys_bitypes_h
+#define __NIJI_H_sys_bitypes_h 1
 
 #include <sys/types.h>
 

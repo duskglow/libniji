@@ -1,5 +1,5 @@
 /* nscache per-call probe: per getpwnam_r call, kernel and user instructions, minor faults, ns.
-   no spec clause (measurement probe, Liella only). usage: percall N name */
+   no spec clause (measurement probe, libniji only). usage: percall N name */
 #define _GNU_SOURCE
 #include <pwd.h>
 #include <stdio.h>

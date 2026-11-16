@@ -1,11 +1,11 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: Liella
-Comment: Liella is a clean-room implementation of the GNU C Library's ABI (glibc 2.39,
+Upstream-Name: libniji
+Comment: libniji is a clean-room implementation of the GNU C Library's ABI (glibc 2.39,
  x86-64) in Rust and C. These are its reference packages (docs/install-packages.md
  in the source tree).
 
 Files: *
-Copyright: The Liella contributors
+Copyright: The libniji contributors
 License: LGPL-2.1+
 
 License: LGPL-2.1+

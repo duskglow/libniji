@@ -5,11 +5,11 @@
 
 //! Clause tests for spec §11 (114 clauses).
 //!
-//! The thin calls are tested through the exports (`liella_boundary::posix::s11_lowio`), which is
+//! The thin calls are tested through the exports (`niji_boundary::posix::s11_lowio`), which is
 //! the contract a C caller sees; what glibc adds is also tested where it lives
-//! (`liella_legacy::io_compat`), with the kernel's failures injected by `Faulty`. The
+//! (`niji_legacy::io_compat`), with the kernel's failures injected by `Faulty`. The
 //! asynchronous I/O clauses run on both of its engines (io_uring and the worker pool, D-11.8).
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 #[path = "support/kernel.rs"]
@@ -22,18 +22,18 @@ use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use liella::error::Errno;
-use liella_abi::ctypes::c_int;
-use liella_boundary::errno;
-use liella_boundary::posix::s11_lowio as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::mem::{IoVec, IoVecMut};
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::sys::Sys;
-use liella_kernel::testing::Faulty;
-use liella_kernel::uapi::{EpollEvent, FdSet, PollFd, Timespec, Timeval};
-use liella_legacy::io_compat;
+use niji::error::Errno;
+use niji_abi::ctypes::c_int;
+use niji_boundary::errno;
+use niji_boundary::posix::s11_lowio as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::mem::{IoVec, IoVecMut};
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::sys::Sys;
+use niji_kernel::testing::Faulty;
+use niji_kernel::uapi::{EpollEvent, FdSet, PollFd, Timespec, Timeval};
+use niji_legacy::io_compat;
 
 const O_RDONLY: c_int = 0;
 const O_RDWR: c_int = 2;
@@ -82,7 +82,7 @@ fn tmp(tag: &str) -> Tmp {
 
 fn file(tag: &str, content: &[u8]) -> (Tmp, c_int) {
     let p = tmp(tag);
-    let fd = x::liella_open3(p.as_ptr(), O_RDWR | O_CREAT | O_TRUNC, 0o600);
+    let fd = x::niji_open3(p.as_ptr(), O_RDWR | O_CREAT | O_TRUNC, 0o600);
     assert!(fd >= 0);
     assert_eq!(x::write(fd, content.as_ptr().cast(), content.len()), content.len() as isize);
     (p, fd)
@@ -118,18 +118,18 @@ fn fdflags(fd: c_int) -> i64 {
 /// Runs `body` in a single-threaded child (this test re-executed alone): descriptor
 /// numbering is process-wide, so "the lowest free number" holds only without concurrent tests.
 fn alone(name: &str, body: impl FnOnce() -> bool) {
-    if std::env::var("LIELLA_C11_ALONE").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_C11_ALONE").is_ok_and(|v| v == name) {
         CSys.exit_group(if body() { 0 } else { 1 });
     }
     let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
-    cmd.args([name, "--exact", "--test-threads=1"]).env("LIELLA_C11_ALONE", name);
+    cmd.args([name, "--exact", "--test-threads=1"]).env("NIJI_C11_ALONE", name);
     let _scratch = child_scratch(&mut cmd);
     let o = cmd.output().unwrap();
     assert_eq!(o.status.code(), Some(0), "{name} failed in its child: {}", child_report(&o));
 }
 
 /// The variable naming a re-executed child's scratch directory ([`child_scratch`]).
-const CHILD_TMP: &str = "LIELLA_C11_TMP";
+const CHILD_TMP: &str = "NIJI_C11_TMP";
 
 /// A directory for the scratch files of the child `cmd` runs ([`tmp`] uses it there), removed by
 /// this process with whatever the child left when the value goes: a child that ends with
@@ -145,7 +145,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    assert!(root.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
+    assert!(root.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
 }
@@ -233,12 +233,12 @@ fn s11_n_3() {
 fn s11_1_c_0() {
     let (p, fd) = file("c0", b"");
     x::close(fd);
-    let fd = x::liella_open3(p.as_ptr(), O_RDONLY, 0);
+    let fd = x::niji_open3(p.as_ptr(), O_RDONLY, 0);
     assert!(fd >= 0, "relative to the current directory (or absolute)");
     let parent = CString::new(std::path::Path::new(p.to_str().unwrap()).parent().unwrap().to_str().unwrap()).unwrap();
-    let dir = x::liella_open3(parent.as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let dir = x::niji_open3(parent.as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let name = CString::new(std::path::Path::new(p.to_str().unwrap()).file_name().unwrap().to_str().unwrap()).unwrap();
-    let at = x::liella_openat4(dir, name.as_ptr(), O_RDONLY, 0);
+    let at = x::niji_openat4(dir, name.as_ptr(), O_RDONLY, 0);
     assert!(at >= 0 && at != fd, "relative to a directory descriptor: a new description");
     for f in [fd, dir, at] {
         x::close(f);
@@ -249,10 +249,10 @@ fn s11_1_c_0() {
 fn s11_1_i_1() {
     let (p, fd) = file("i1", b"x");
     x::close(fd);
-    let ro = x::liella_open3(p.as_ptr(), O_RDONLY, 0);
+    let ro = x::niji_open3(p.as_ptr(), O_RDONLY, 0);
     errno::set_raw(0);
     assert!(err(x::write(ro, b"y".as_ptr().cast(), 1), Errno::EBADF), "O_RDONLY");
-    let path = x::liella_open3(p.as_ptr(), O_PATH, 0);
+    let path = x::niji_open3(p.as_ptr(), O_PATH, 0);
     let mut b = [0u8; 1];
     assert!(err(x::read(path, b.as_mut_ptr().cast(), 1), Errno::EBADF), "O_PATH: no I/O");
     x::close(ro);
@@ -263,11 +263,11 @@ fn s11_1_i_1() {
 fn s11_1_i_2() {
     // The creation flags as a group: create, exclusive, truncate.
     let p = tmp("i2");
-    let fd = x::liella_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
+    let fd = x::niji_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
     assert!(fd >= 0);
     x::write(fd, b"data".as_ptr().cast(), 4);
     x::close(fd);
-    let fd = x::liella_open3(p.as_ptr(), O_RDWR | O_TRUNC, 0);
+    let fd = x::niji_open3(p.as_ptr(), O_RDWR | O_TRUNC, 0);
     assert_eq!(x::lseek(fd, 0, 2), 0);
     x::close(fd);
 }
@@ -275,11 +275,11 @@ fn s11_1_i_2() {
 #[test]
 fn s11_1_i_2_1() {
     let p = tmp("i21");
-    let fd = x::liella_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
+    let fd = x::niji_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
     errno::set_raw(0);
-    assert!(err(x::liella_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600) as isize, Errno::EEXIST));
+    assert!(err(x::niji_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600) as isize, Errno::EEXIST));
     x::write(fd, b"abc".as_ptr().cast(), 3);
-    let t = x::liella_open3(p.as_ptr(), O_RDWR | O_TRUNC, 0);
+    let t = x::niji_open3(p.as_ptr(), O_RDWR | O_TRUNC, 0);
     assert_eq!(x::lseek(t, 0, 2), 0, "O_TRUNC");
     x::close(fd);
     x::close(t);
@@ -292,9 +292,9 @@ fn s11_1_i_2_2() {
     let link = tmp("i22l");
     std::os::unix::fs::symlink(target.to_str().unwrap(), link.to_str().unwrap()).unwrap();
     errno::set_raw(0);
-    assert!(err(x::liella_open3(link.as_ptr(), O_RDONLY | O_NOFOLLOW, 0) as isize, Errno::ELOOP), "O_NOFOLLOW");
-    assert!(err(x::liella_open3(target.as_ptr(), O_RDONLY | O_DIRECTORY, 0) as isize, Errno::ENOTDIR), "O_DIRECTORY");
-    let nc = x::liella_open3(target.as_ptr(), O_RDONLY | 0o400, 0);
+    assert!(err(x::niji_open3(link.as_ptr(), O_RDONLY | O_NOFOLLOW, 0) as isize, Errno::ELOOP), "O_NOFOLLOW");
+    assert!(err(x::niji_open3(target.as_ptr(), O_RDONLY | O_DIRECTORY, 0) as isize, Errno::ENOTDIR), "O_DIRECTORY");
+    let nc = x::niji_open3(target.as_ptr(), O_RDONLY | 0o400, 0);
     assert!(nc >= 0, "O_NOCTTY on a regular file");
     x::close(nc);
 }
@@ -303,9 +303,9 @@ fn s11_1_i_2_2() {
 fn s11_1_i_2_3() {
     let (p, fd) = file("i23", b"");
     x::close(fd);
-    let ce = x::liella_open3(p.as_ptr(), O_RDONLY | O_CLOEXEC, 0);
+    let ce = x::niji_open3(p.as_ptr(), O_RDONLY | O_CLOEXEC, 0);
     assert_eq!(fdflags(ce), 1, "O_CLOEXEC: FD_CLOEXEC set");
-    let t = x::liella_open3(c"/tmp".as_ptr(), O_TMPFILE | O_RDWR, 0o600);
+    let t = x::niji_open3(c"/tmp".as_ptr(), O_TMPFILE | O_RDWR, 0o600);
     assert!(t >= 0 || [Errno::EOPNOTSUPP.get(), Errno::EISDIR.get()].contains(&errno::get()), "O_TMPFILE: an unnamed file");
     x::close(ce);
     x::close(t);
@@ -315,7 +315,7 @@ fn s11_1_i_2_3() {
 fn s11_1_i_3() {
     let (p, fd) = file("i3", b"start");
     x::close(fd);
-    let a = x::liella_open3(p.as_ptr(), O_RDWR | O_APPEND | O_NONBLOCK, 0);
+    let a = x::niji_open3(p.as_ptr(), O_RDWR | O_APPEND | O_NONBLOCK, 0);
     x::lseek(a, 0, 0);
     x::write(a, b"!".as_ptr().cast(), 1);
     assert_eq!(x::lseek(a, 0, 1), 6, "O_APPEND writes at the end");
@@ -332,7 +332,7 @@ fn s11_1_i_4() {
     assert!(!io_compat::needs_mode(O_RDWR | O_DIRECTORY));
     let (p, fd) = file("i4", b"");
     x::close(fd);
-    let r = x::liella_open3(p.as_ptr(), O_RDONLY, 0o777);
+    let r = x::niji_open3(p.as_ptr(), O_RDONLY, 0o777);
     assert!(r >= 0);
     x::close(r);
 }
@@ -345,7 +345,7 @@ fn s11_1_g_1() {
         let b = x::dup(a);
         let _c = x::dup(a);
         x::close(b);
-        x::liella_open3(p.as_ptr(), O_RDONLY, 0) == b // open takes the lowest free number
+        x::niji_open3(p.as_ptr(), O_RDONLY, 0) == b // open takes the lowest free number
     });
 }
 
@@ -357,7 +357,7 @@ fn s11_1_g_2() {
         .map(|_| {
             let p = p.clone();
             std::thread::spawn(move || {
-                let fd = x::liella_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
+                let fd = x::niji_open3(p.as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
                 if fd >= 0 {
                     x::close(fd);
                     1
@@ -376,15 +376,15 @@ fn s11_1_g_2() {
 #[test]
 fn s11_1_g_3() {
     // The mode is masked by umask (here 022 in a child, so the test process is unaffected).
-    if std::env::var("LIELLA_C11_UMASK").is_ok() {
+    if std::env::var("NIJI_C11_UMASK").is_ok() {
         let _ = CSys.umask(0o022);
         let p = tmp("g3");
-        let fd = x::liella_open3(p.as_ptr(), O_RDWR | O_CREAT, 0o666);
+        let fd = x::niji_open3(p.as_ptr(), O_RDWR | O_CREAT, 0o666);
         let mode = CSys.fstat(Fd::new(fd)).unwrap().mode & 0o777;
         CSys.exit_group(if mode == 0o644 { 0 } else { 1 });
     }
     let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
-    cmd.args(["s11_1_g_3", "--exact", "--test-threads=1"]).env("LIELLA_C11_UMASK", "1");
+    cmd.args(["s11_1_g_3", "--exact", "--test-threads=1"]).env("NIJI_C11_UMASK", "1");
     let _scratch = child_scratch(&mut cmd);
     let o = cmd.output().unwrap();
     assert_eq!(o.status.code(), Some(0));
@@ -405,11 +405,11 @@ fn s11_1_g_4() {
 #[test]
 fn s11_1_f_0() {
     errno::set_raw(0);
-    assert!(err(x::liella_open3(tmp("missing").as_ptr(), O_RDONLY, 0) as isize, Errno::ENOENT));
-    assert!(err(x::liella_open3(c"/etc/passwd/x".as_ptr(), O_RDONLY, 0) as isize, Errno::ENOTDIR));
-    assert!(err(x::liella_open3(c"/".as_ptr(), O_RDWR, 0) as isize, Errno::EISDIR));
+    assert!(err(x::niji_open3(tmp("missing").as_ptr(), O_RDONLY, 0) as isize, Errno::ENOENT));
+    assert!(err(x::niji_open3(c"/etc/passwd/x".as_ptr(), O_RDONLY, 0) as isize, Errno::ENOTDIR));
+    assert!(err(x::niji_open3(c"/".as_ptr(), O_RDWR, 0) as isize, Errno::EISDIR));
     let long = CString::new(vec![b'a'; 300]).unwrap();
-    assert!(err(x::liella_open3(long.as_ptr(), O_RDONLY, 0) as isize, Errno::ENAMETOOLONG));
+    assert!(err(x::niji_open3(long.as_ptr(), O_RDONLY, 0) as isize, Errno::ENAMETOOLONG));
 }
 
 /// §11.1 Cancellation: Yes.
@@ -465,7 +465,7 @@ fn s11_3_c_1() {
 #[test]
 fn s11_3_c_2() {
     let (r, w) = pipe();
-    x::liella_fcntl3(w, 4, O_NONBLOCK as usize);
+    x::niji_fcntl3(w, 4, O_NONBLOCK as usize);
     let big = vec![1u8; 1 << 20];
     let n = x::write(w, big.as_ptr().cast(), big.len());
     assert!(n > 0 && (n as usize) < big.len(), "short: the pipe's capacity");
@@ -481,7 +481,7 @@ fn s11_3_c_3() {
     x::pread(fd, b.as_mut_ptr().cast(), 2, 5);
     assert_eq!((&b, x::lseek(fd, 0, 1)), (b"56", 1), "explicit offset, the offset unmoved");
     x::close(fd);
-    let a = x::liella_open3(p.as_ptr(), O_RDWR | O_APPEND, 0);
+    let a = x::niji_open3(p.as_ptr(), O_RDWR | O_APPEND, 0);
     x::pwrite(a, b"X".as_ptr().cast(), 1, 0);
     let mut all = [0u8; 11];
     assert_eq!(x::pread(a, all.as_mut_ptr().cast(), 11, 0), 11, "pwrite on O_APPEND appends (Linux)");
@@ -520,7 +520,7 @@ fn s11_3_c_5() {
 fn s11_3_i_1() {
     // n up to SSIZE_MAX is accepted; Linux caps one transfer (0x7ffff000), so a larger request
     // is a short transfer, not an error. Above SSIZE_MAX the buffer cannot exist (EFAULT).
-    let fd = x::liella_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
+    let fd = x::niji_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
     let mut b = vec![0u8; 1 << 16];
     assert_eq!(x::read(fd, b.as_mut_ptr().cast(), b.len()), 1 << 16);
     errno::set_raw(0);
@@ -571,7 +571,7 @@ fn s11_3_g_0() {
 #[test]
 fn s11_3_f_1() {
     let (r, w) = pipe();
-    x::liella_fcntl3(r, 4, O_NONBLOCK as usize);
+    x::niji_fcntl3(r, 4, O_NONBLOCK as usize);
     let mut b = [0u8; 1];
     errno::set_raw(0);
     assert!(err(x::read(r, b.as_mut_ptr().cast(), 1), Errno::EAGAIN));
@@ -582,9 +582,9 @@ fn s11_3_f_1() {
 #[test]
 fn s11_3_f_2() {
     // EINTR before any transfer: a blocked read interrupted by a signal (SIGALRM via a timer).
-    if std::env::var("LIELLA_C11_EINTR").is_ok() {
+    if std::env::var("NIJI_C11_EINTR").is_ok() {
         let (r, _w) = pipe();
-        let (res, _) = liella_boundary::selftest::with_counting_handler(14, || {
+        let (res, _) = niji_boundary::selftest::with_counting_handler(14, || {
             // Aimed at this thread: a process-directed signal may go to another (libtest's).
             let (pid, tid) = (CSys.getpid(), CSys.gettid());
             std::thread::spawn(move || {
@@ -598,7 +598,7 @@ fn s11_3_f_2() {
         CSys.exit_group(if res == (-1, Errno::EINTR.get()) { 0 } else { 1 });
     }
     let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
-    cmd.args(["s11_3_f_2", "--exact", "--test-threads=1"]).env("LIELLA_C11_EINTR", "1");
+    cmd.args(["s11_3_f_2", "--exact", "--test-threads=1"]).env("NIJI_C11_EINTR", "1");
     let _scratch = child_scratch(&mut cmd);
     let o = cmd.output().unwrap();
     assert_eq!(o.status.code(), Some(0));
@@ -607,8 +607,8 @@ fn s11_3_f_2() {
 #[test]
 fn s11_3_f_3() {
     // EPIPE (and SIGPIPE, here ignored in a child so the error is observable).
-    if std::env::var("LIELLA_C11_EPIPE").is_ok() {
-        let _ = CSys.sigaction_set(13, liella_kernel::sys::Disposition::Ignore, 0, liella_kernel::uapi::SigSet::empty());
+    if std::env::var("NIJI_C11_EPIPE").is_ok() {
+        let _ = CSys.sigaction_set(13, niji_kernel::sys::Disposition::Ignore, 0, niji_kernel::uapi::SigSet::empty());
         let (r, w) = pipe();
         x::close(r);
         errno::set_raw(0);
@@ -616,7 +616,7 @@ fn s11_3_f_3() {
         CSys.exit_group(if ok { 0 } else { 1 });
     }
     let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
-    cmd.args(["s11_3_f_3", "--exact", "--test-threads=1"]).env("LIELLA_C11_EPIPE", "1");
+    cmd.args(["s11_3_f_3", "--exact", "--test-threads=1"]).env("NIJI_C11_EPIPE", "1");
     let _scratch = child_scratch(&mut cmd);
     let o = cmd.output().unwrap();
     assert_eq!(o.status.code(), Some(0));
@@ -624,7 +624,7 @@ fn s11_3_f_3() {
 
 #[test]
 fn s11_3_f_4() {
-    let d = x::liella_open3(c"/tmp".as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let d = x::niji_open3(c"/tmp".as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     let mut b = [0u8; 1];
     errno::set_raw(0);
     assert!(err(x::read(d, b.as_mut_ptr().cast(), 1), Errno::EISDIR));
@@ -745,8 +745,8 @@ fn s11_5_c_4() {
 #[test]
 fn s11_5_c_4_1() {
     let (_f, fd) = file("c541", b"");
-    assert_eq!(x::liella_fcntl3(fd, 0, 200), 200, "F_DUPFD: the lowest at or above 200");
-    let d = x::liella_fcntl3(fd, 1030, 200);
+    assert_eq!(x::niji_fcntl3(fd, 0, 200), 200, "F_DUPFD: the lowest at or above 200");
+    let d = x::niji_fcntl3(fd, 1030, 200);
     assert!(d > 200 && fdflags(d) == 1, "F_DUPFD_CLOEXEC");
     for f in [200, d, fd] {
         x::close(f);
@@ -756,18 +756,18 @@ fn s11_5_c_4_1() {
 #[test]
 fn s11_5_c_4_2() {
     let (_f, fd) = file("c542", b"");
-    assert_eq!(x::liella_fcntl3(fd, 2, 1), 0);
-    assert_eq!(x::liella_fcntl3(fd, 1, 0), 1);
-    assert_eq!(x::liella_fcntl3(fd, 2, 0), 0);
-    assert_eq!(x::liella_fcntl3(fd, 1, 0), 0);
+    assert_eq!(x::niji_fcntl3(fd, 2, 1), 0);
+    assert_eq!(x::niji_fcntl3(fd, 1, 0), 1);
+    assert_eq!(x::niji_fcntl3(fd, 2, 0), 0);
+    assert_eq!(x::niji_fcntl3(fd, 1, 0), 0);
     x::close(fd);
 }
 
 #[test]
 fn s11_5_c_4_3() {
     let (_f, fd) = file("c543", b"");
-    assert_eq!(x::liella_fcntl3(fd, 4, (O_APPEND | O_NONBLOCK) as usize), 0);
-    let fl = x::liella_fcntl3(fd, 3, 0);
+    assert_eq!(x::niji_fcntl3(fd, 4, (O_APPEND | O_NONBLOCK) as usize), 0);
+    let fl = x::niji_fcntl3(fd, 3, 0);
     assert_eq!(fl & (O_APPEND | O_NONBLOCK), O_APPEND | O_NONBLOCK);
     assert_eq!(fl & 3, O_RDWR, "the access mode cannot change");
     x::close(fd);
@@ -776,16 +776,16 @@ fn s11_5_c_4_3() {
 #[test]
 fn s11_5_c_4_4() {
     let (_f, fd) = file("c544", b"0123456789");
-    let mut l = liella_kernel::uapi::Flock::new(1, 0, 0, 5);
-    assert_eq!(x::liella_fcntl3(fd, 6, &raw mut l as usize), 0, "F_SETLK");
-    let mut q = liella_kernel::uapi::Flock::new(1, 0, 0, 5);
-    assert_eq!(x::liella_fcntl3(fd, 5, &raw mut q as usize), 0, "F_GETLK");
+    let mut l = niji_kernel::uapi::Flock::new(1, 0, 0, 5);
+    assert_eq!(x::niji_fcntl3(fd, 6, &raw mut l as usize), 0, "F_SETLK");
+    let mut q = niji_kernel::uapi::Flock::new(1, 0, 0, 5);
+    assert_eq!(x::niji_fcntl3(fd, 5, &raw mut q as usize), 0, "F_GETLK");
     assert_eq!(q.ltype, 2, "our own lock: no conflict (F_UNLCK)");
     // OFD locks conflict with the process's own record locks, so they use another range.
-    let mut o = liella_kernel::uapi::Flock::new(1, 0, 6, 2);
-    assert_eq!(x::liella_fcntl3(fd, 37, &raw mut o as usize), 0, "F_OFD_SETLK");
-    let mut og = liella_kernel::uapi::Flock::new(1, 0, 6, 2);
-    assert_eq!(x::liella_fcntl3(fd, 36, &raw mut og as usize), 0, "F_OFD_GETLK");
+    let mut o = niji_kernel::uapi::Flock::new(1, 0, 6, 2);
+    assert_eq!(x::niji_fcntl3(fd, 37, &raw mut o as usize), 0, "F_OFD_SETLK");
+    let mut og = niji_kernel::uapi::Flock::new(1, 0, 6, 2);
+    assert_eq!(x::niji_fcntl3(fd, 36, &raw mut og as usize), 0, "F_OFD_GETLK");
     x::close(fd);
 }
 
@@ -793,15 +793,15 @@ fn s11_5_c_4_4() {
 fn s11_5_c_4_5() {
     let (r, w) = pipe();
     let me = CSys.getpid();
-    assert_eq!(x::liella_fcntl3(r, 8, me as usize), 0, "F_SETOWN");
-    assert_eq!(x::liella_fcntl3(r, 9, 0), me, "F_GETOWN");
-    let mut ex = liella_kernel::uapi::FOwnerEx { otype: 1, pid: me };
-    assert_eq!(x::liella_fcntl3(r, 15, &raw mut ex as usize), 0, "F_SETOWN_EX");
-    let mut got = liella_kernel::uapi::FOwnerEx::default();
-    assert_eq!(x::liella_fcntl3(r, 16, &raw mut got as usize), 0, "F_GETOWN_EX");
+    assert_eq!(x::niji_fcntl3(r, 8, me as usize), 0, "F_SETOWN");
+    assert_eq!(x::niji_fcntl3(r, 9, 0), me, "F_GETOWN");
+    let mut ex = niji_kernel::uapi::FOwnerEx { otype: 1, pid: me };
+    assert_eq!(x::niji_fcntl3(r, 15, &raw mut ex as usize), 0, "F_SETOWN_EX");
+    let mut got = niji_kernel::uapi::FOwnerEx::default();
+    assert_eq!(x::niji_fcntl3(r, 16, &raw mut got as usize), 0, "F_GETOWN_EX");
     assert_eq!(got.pid, me);
-    assert_eq!(x::liella_fcntl3(r, 10, 10), 0, "F_SETSIG");
-    assert_eq!(x::liella_fcntl3(r, 11, 0), 10, "F_GETSIG");
+    assert_eq!(x::niji_fcntl3(r, 10, 10), 0, "F_SETSIG");
+    assert_eq!(x::niji_fcntl3(r, 11, 0), 10, "F_GETSIG");
     x::close(r);
     x::close(w);
 }
@@ -809,15 +809,15 @@ fn s11_5_c_4_5() {
 #[test]
 fn s11_5_c_4_6() {
     let (_f, fd) = file("c546", b"");
-    assert_eq!(x::liella_fcntl3(fd, 1025, 0), 2, "F_GETLEASE: F_UNLCK");
-    let r = x::liella_fcntl3(fd, 1024, 0);
+    assert_eq!(x::niji_fcntl3(fd, 1025, 0), 2, "F_GETLEASE: F_UNLCK");
+    let r = x::niji_fcntl3(fd, 1024, 0);
     assert!(r == 0 || [Errno::EAGAIN.get(), Errno::EACCES.get(), Errno::EINVAL.get()].contains(&errno::get()), "F_SETLEASE (F_RDLCK)");
     // A directory of this test's own: an access to a shared one (/tmp) by any other process
     // would send this process SIGIO, whose default action ends it.
     let dir = tmp("c546-dir");
     std::fs::create_dir(dir.to_str().unwrap()).unwrap();
-    let d = x::liella_open3(dir.as_ptr(), O_RDONLY | O_DIRECTORY, 0);
-    let n = x::liella_fcntl3(d, 1026, 0x1);
+    let d = x::niji_open3(dir.as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let n = x::niji_fcntl3(d, 1026, 0x1);
     assert!(n == 0 || errno::get() == Errno::EINVAL.get(), "F_NOTIFY on a directory");
     x::close(fd);
     x::close(d);
@@ -827,9 +827,9 @@ fn s11_5_c_4_6() {
 #[test]
 fn s11_5_c_4_7() {
     let (r, w) = pipe();
-    let size = x::liella_fcntl3(r, 1032, 0);
+    let size = x::niji_fcntl3(r, 1032, 0);
     assert!(size >= 4096, "F_GETPIPE_SZ");
-    assert!(x::liella_fcntl3(r, 1031, 1 << 17) >= 1 << 17, "F_SETPIPE_SZ rounds up");
+    assert!(x::niji_fcntl3(r, 1031, 1 << 17) >= 1 << 17, "F_SETPIPE_SZ rounds up");
     x::close(r);
     x::close(w);
 }
@@ -837,8 +837,8 @@ fn s11_5_c_4_7() {
 #[test]
 fn s11_5_c_4_8() {
     let fd = x::memfd_create(c"seals".as_ptr(), 2);
-    assert_eq!(x::liella_fcntl3(fd, 1034, 0), 0, "F_GET_SEALS: none yet");
-    assert_eq!(x::liella_fcntl3(fd, 1033, 0x8), 0, "F_ADD_SEALS: F_SEAL_WRITE");
+    assert_eq!(x::niji_fcntl3(fd, 1034, 0), 0, "F_GET_SEALS: none yet");
+    assert_eq!(x::niji_fcntl3(fd, 1033, 0x8), 0, "F_ADD_SEALS: F_SEAL_WRITE");
     errno::set_raw(0);
     assert!(err(x::write(fd, b"x".as_ptr().cast(), 1), Errno::EPERM), "sealed");
     x::close(fd);
@@ -848,19 +848,19 @@ fn s11_5_c_4_8() {
 fn s11_5_c_4_9() {
     let (_f, fd) = file("c549", b"");
     let mut hint = 2u64;
-    let r = x::liella_fcntl3(fd, 1036, &raw mut hint as usize);
+    let r = x::niji_fcntl3(fd, 1036, &raw mut hint as usize);
     assert!(r == 0 || errno::get() == Errno::EINVAL.get(), "F_SET_RW_HINT");
     let mut got = 0u64;
-    let g = x::liella_fcntl3(fd, 1035, &raw mut got as usize);
+    let g = x::niji_fcntl3(fd, 1035, &raw mut got as usize);
     assert!(g == 0 || errno::get() == Errno::EINVAL.get(), "F_GET_RW_HINT");
     x::close(fd);
 }
 
 #[test]
 fn s11_5_c_5() {
-    let mut l = liella_kernel::uapi::Rlimit { cur: 0, max: 0 };
-    liella_boundary::posix::s24_system::getrlimit(7, Some(&mut l));
-    assert_eq!(liella_boundary::posix::s24_system::getdtablesize() as u64, l.cur.min(i32::MAX as u64), "RLIMIT_NOFILE's soft limit");
+    let mut l = niji_kernel::uapi::Rlimit { cur: 0, max: 0 };
+    niji_boundary::posix::s24_system::getrlimit(7, Some(&mut l));
+    assert_eq!(niji_boundary::posix::s24_system::getdtablesize() as u64, l.cur.min(i32::MAX as u64), "RLIMIT_NOFILE's soft limit");
 }
 
 #[test]
@@ -868,7 +868,7 @@ fn s11_6_c_0() {
     let (r, w) = pipe();
     x::write(w, b"four".as_ptr().cast(), 4);
     let mut n: c_int = 0;
-    assert_eq!(x::liella_ioctl3(r, 0x541B, &raw mut n as usize), 0);
+    assert_eq!(x::niji_ioctl3(r, 0x541B, &raw mut n as usize), 0);
     assert_eq!(n, 4, "FIONREAD");
     x::close(r);
     x::close(w);
@@ -910,7 +910,7 @@ fn s11_7_c_2() {
     let mut rs = FdSet::default();
     rs.set(r);
     let ts = Timespec { sec: 0, nsec: 5_000_000 };
-    let mut m = liella_abi::layout::sigset_t { __val: [0; 16] };
+    let mut m = niji_abi::layout::sigset_t { __val: [0; 16] };
     m.__val[0] = 1 << 9;
     assert_eq!(x::pselect(r + 1, Some(&mut rs), None, None, Some(&ts), Some(&m)), 0);
     assert_eq!(ts.nsec, 5_000_000);
@@ -1123,7 +1123,7 @@ fn s11_8_c_6() {
     x::pread(e, b.as_mut_ptr().cast(), 8, 0);
     assert_eq!(&b, b"abcdefgh");
     assert_eq!(x::lseek(e, 0, 2), 100_002);
-    x::liella_fcntl3(e, 4, O_APPEND as usize);
+    x::niji_fcntl3(e, 4, O_APPEND as usize);
     assert_eq!(io_compat::posix_fallocate(&k, Fd::new(e), 0, 10), Err(Errno::EBADF));
     x::close(fd);
     x::close(e);
@@ -1148,11 +1148,11 @@ fn s11_8_c_7() {
 #[test]
 fn s11_8_c_8() {
     let (p, fd) = file("c88", b"abc");
-    assert_eq!(liella_boundary::posix::s13_filesystem::ftruncate(fd, 6), 0);
+    assert_eq!(niji_boundary::posix::s13_filesystem::ftruncate(fd, 6), 0);
     let mut b = [9u8; 6];
     x::pread(fd, b.as_mut_ptr().cast(), 6, 0);
     assert_eq!(&b, b"abc\0\0\0", "extension reads as zeros");
-    assert_eq!(liella_boundary::posix::s13_filesystem::truncate(p.as_ptr(), 1), 0);
+    assert_eq!(niji_boundary::posix::s13_filesystem::truncate(p.as_ptr(), 1), 0);
     assert_eq!(x::lseek(fd, 0, 2), 1);
     x::close(fd);
 }
@@ -1263,12 +1263,12 @@ fn s11_9_f_0() {
 fn s11_10_c_1() {
     let (_f, fd) = file("c101", b"shared");
     let sh = x::mmap(null_mut(), 4096, 3, 1, fd, 0);
-    liella_boundary::posix::s04_strings::memcpy(sh, b"SH".as_ptr().cast(), 2);
+    niji_boundary::posix::s04_strings::memcpy(sh, b"SH".as_ptr().cast(), 2);
     let mut b = [0u8; 2];
     x::pread(fd, b.as_mut_ptr().cast(), 2, 0);
     assert_eq!(&b, b"SH", "MAP_SHARED writes reach the file");
     let pr = x::mmap(null_mut(), 4096, 3, 2, fd, 0);
-    liella_boundary::posix::s04_strings::memcpy(pr, b"pr".as_ptr().cast(), 2);
+    niji_boundary::posix::s04_strings::memcpy(pr, b"pr".as_ptr().cast(), 2);
     x::pread(fd, b.as_mut_ptr().cast(), 2, 0);
     assert_eq!(&b, b"SH", "MAP_PRIVATE writes do not");
     let v = x::mmap(null_mut(), 4096, 1, 3, fd, 0);
@@ -1362,10 +1362,10 @@ fn s11_10_c_3() {
 #[test]
 fn s11_10_c_4() {
     let p = x::mmap(null_mut(), 4096, 3, 0x22, -1, 0);
-    liella_boundary::posix::s04_strings::memset(p, 9, 4096);
+    niji_boundary::posix::s04_strings::memset(p, 9, 4096);
     assert_eq!(x::madvise(p, 4096, 4), 0, "MADV_DONTNEED (errno {})", errno::get());
     let mut b = [1u8; 1];
-    liella_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p, 1);
+    niji_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p, 1);
     assert_eq!(b[0], 0, "MADV_DONTNEED discards");
     assert_eq!(x::madvise(p, 4096, 0), 0, "MADV_NORMAL");
     x::munmap(p, 4096);
@@ -1374,10 +1374,10 @@ fn s11_10_c_4() {
 #[test]
 fn s11_10_c_5() {
     let p = x::mmap(null_mut(), 4096, 3, 0x22, -1, 0);
-    liella_boundary::posix::s04_strings::memset(p, 9, 4096);
+    niji_boundary::posix::s04_strings::memset(p, 9, 4096);
     assert_eq!(x::posix_madvise(p, 4096, 4), 0);
     let mut b = [0u8; 1];
-    liella_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p, 1);
+    niji_boundary::posix::s04_strings::memcpy(b.as_mut_ptr().cast(), p, 1);
     assert_eq!(b[0], 9, "POSIX_MADV_DONTNEED never discards");
     errno::set_raw(0);
     assert_eq!(x::posix_madvise(p, 4096, 99), Errno::EINVAL.get(), "returned, not in errno");
@@ -1391,7 +1391,7 @@ fn s11_10_c_6() {
     errno::set_raw(0);
     assert_eq!(x::process_mrelease(pidfd.raw(), 0), -1, "reaping a live process is refused");
     let p = x::mmap(null_mut(), 4096, 3, 0x22, -1, 0);
-    let v = [liella_kernel::mem::RemoteIoVec { base: p as usize, len: 4096 }];
+    let v = [niji_kernel::mem::RemoteIoVec { base: p as usize, len: 4096 }];
     let r = x::process_madvise(pidfd.raw(), v.as_ptr().cast(), 1, 21, 0);
     assert!(r == 4096 || [Errno::EPERM.get(), Errno::EINVAL.get(), Errno::ENOSYS.get()].contains(&errno::get()), "MADV_PAGEOUT through a pidfd");
     x::munmap(p, 4096);
@@ -1401,9 +1401,9 @@ fn s11_10_c_6() {
 #[test]
 fn s11_10_c_7() {
     let p = x::mmap(null_mut(), 4096, 3, 0x22, -1, 0);
-    let s = x::liella_mremap5(p, 4096, 2048, 0, null_mut());
+    let s = x::niji_mremap5(p, 4096, 2048, 0, null_mut());
     assert_eq!(s, p, "shrink in place");
-    let g = x::liella_mremap5(s, 2048, 1 << 20, 1, null_mut());
+    let g = x::niji_mremap5(s, 2048, 1 << 20, 1, null_mut());
     assert_ne!(g as isize, -1, "grow, moving if needed");
     x::munmap(g, 1 << 20);
     conformance(&["s11_variadic"]);
@@ -1423,7 +1423,7 @@ fn s11_10_c_8() {
 fn s11_10_c_9() {
     let fd = mem_file(c"c109", &[0u8; 4096]);
     let m = x::mmap(null_mut(), 4096, 3, 1, fd, 0);
-    liella_boundary::posix::s04_strings::memset(m, 1, 10);
+    niji_boundary::posix::s04_strings::memset(m, 1, 10);
     assert_eq!(x::msync(m, 4096, 4), 0, "MS_SYNC");
     assert_eq!(x::msync(m, 4096, 1), 0, "MS_ASYNC");
     assert_eq!(x::msync(m, 4096, 2), 0, "MS_INVALIDATE");
@@ -1440,7 +1440,7 @@ fn s11_10_c_10() {
     let g = x::mmap(null_mut(), 6 * 4096, 0, 0x22, -1, 0);
     let p = g.cast::<u8>().wrapping_add(4096).cast();
     assert_eq!(x::mprotect(p, 4 * 4096, 3), 0);
-    liella_boundary::posix::s04_strings::memset(p.cast::<u8>().wrapping_add(2 * 4096).cast(), 1, 1);
+    niji_boundary::posix::s04_strings::memset(p.cast::<u8>().wrapping_add(2 * 4096).cast(), 1, 1);
     let mut v = [9u8; 4];
     assert_eq!(x::mincore(p, 4 * 4096, v.as_mut_ptr()), 0);
     assert_eq!(v.map(|b| b & 1), [0, 0, 1, 0], "one byte per page");
@@ -1463,7 +1463,7 @@ fn s11_10_c_11() {
 fn s11_10_c_12() {
     let fd = x::memfd_create(c"sealable".as_ptr(), 2);
     assert!(fd >= 0, "MFD_ALLOW_SEALING");
-    assert_eq!(x::liella_fcntl3(fd, 1033, 1), 0, "F_SEAL_SEAL accepted");
+    assert_eq!(x::niji_fcntl3(fd, 1033, 1), 0, "F_SEAL_SEAL accepted");
     x::close(fd);
     let h = x::memfd_create(c"huge".as_ptr(), 4);
     if h >= 0 {
@@ -1473,9 +1473,9 @@ fn s11_10_c_12() {
 
 #[test]
 fn s11_10_c_13() {
-    let page = liella_boundary::process::auxval(6).unwrap();
-    assert_eq!(liella_boundary::posix::s24_system::getpagesize() as u64, page, "AT_PAGESZ");
-    assert_eq!(liella_boundary::posix::s24_system::sysconf(30) as u64, page, "the POSIX form agrees");
+    let page = niji_boundary::process::auxval(6).unwrap();
+    assert_eq!(niji_boundary::posix::s24_system::getpagesize() as u64, page, "AT_PAGESZ");
+    assert_eq!(niji_boundary::posix::s24_system::sysconf(30) as u64, page, "the POSIX form agrees");
 }
 
 #[test]
@@ -1483,7 +1483,7 @@ fn s11_10_c_14() {
     let src = *b"between";
     let mut dst = [0u8; 7];
     let mut l = [IoVecMut::new(&mut dst)];
-    let r = [liella_kernel::mem::RemoteIoVec { base: src.as_ptr() as usize, len: 7 }];
+    let r = [niji_kernel::mem::RemoteIoVec { base: src.as_ptr() as usize, len: 7 }];
     let n = x::process_vm_readv(CSys.getpid(), l.as_mut_ptr().cast(), 1, r.as_ptr().cast(), 1, 0);
     if n == -1 {
         assert_eq!(errno::get(), Errno::EPERM.get(), "ptrace permission");
@@ -1509,7 +1509,7 @@ fn s11_10_f_0() {
     errno::set_raw(0);
     assert_eq!(x::mmap(null_mut(), 1 << 62, 3, 0x22, -1, 0) as isize, -1);
     assert_eq!(errno::get(), Errno::ENOMEM.get());
-    let d = x::liella_open3(c"/tmp".as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+    let d = x::niji_open3(c"/tmp".as_ptr(), O_RDONLY | O_DIRECTORY, 0);
     assert_eq!(x::mmap(null_mut(), 4096, 1, 2, d, 0) as isize, -1);
     assert_eq!(errno::get(), Errno::ENODEV.get(), "not mappable");
     x::close(d);
@@ -1564,7 +1564,7 @@ const LIO_NOWAIT: c_int = 1;
 const AIO_CANCELED: c_int = 0;
 const AIO_NOTCANCELED: c_int = 1;
 const AIO_ALLDONE: c_int = 2;
-const AIO_ENGINE: &str = "LIELLA_TEST_AIO";
+const AIO_ENGINE: &str = "NIJI_TEST_AIO";
 
 impl Cb {
     fn new(fd: c_int, buf: *const u8, n: usize, off: i64) -> Cb {
@@ -1609,9 +1609,9 @@ fn list(cbs: &[*mut Cb]) -> Vec<*mut core::ffi::c_void> {
 /// Runs `body` in this test re-executed on each engine.
 fn on_both_engines(test: &str, body: fn()) {
     if let Ok(engine) = std::env::var(AIO_ENGINE) {
-        liella_boundary::selftest::aio_force_workers(engine == "workers");
+        niji_boundary::selftest::aio_force_workers(engine == "workers");
         body();
-        let used = liella_boundary::selftest::aio_engine();
+        let used = niji_boundary::selftest::aio_engine();
         if engine == "workers" {
             assert_eq!(used, "workers");
         } else if used != "ring" {
@@ -1661,19 +1661,19 @@ fn s11_11_c_0() {
         // back to the workers. It is read after the first request, which is what chooses it (below).
         // aio_init tunes the worker pool: with one worker, a request on another descriptor waits
         // behind a blocked one; the ring has no pool and is not held up.
-        let init = liella_abi::layout::struct_aioinit { aio_threads: 1, aio_num: 1, aio_locks: 0, aio_usedba: 0, aio_debug: 0, aio_numusers: 0, aio_idle_time: 0, aio_reserved: 0 };
+        let init = niji_abi::layout::struct_aioinit { aio_threads: 1, aio_num: 1, aio_locks: 0, aio_usedba: 0, aio_debug: 0, aio_numusers: 0, aio_idle_time: 0, aio_reserved: 0 };
         x::aio_init(Some(&init));
         let (r, w) = pipe();
         let mut pb = [0u8; 8];
         let mut held = Cb::new(r, pb.as_mut_ptr(), 4, 0);
         let hp = &raw mut held;
         assert_eq!(x::aio_read(hp.cast()), 0);
-        let workers = liella_boundary::selftest::aio_engine() == "workers";
+        let workers = niji_boundary::selftest::aio_engine() == "workers";
         if std::env::var(AIO_ENGINE).is_ok_and(|e| e == "workers") {
             assert!(workers, "the workers run uses the worker engine");
         }
         ms(100);
-        let z = x::liella_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
+        let z = x::niji_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
         let mut zb = [1u8; 8];
         let mut zc = Cb::new(z, zb.as_mut_ptr(), 8, 0);
         let zp = &raw mut zc;
@@ -1684,7 +1684,7 @@ fn s11_11_c_0() {
         assert!(settled(hp) && settled(zp));
         assert_eq!((aio_ret(hp), aio_ret(zp)), (4, 8));
         assert_eq!(zb, [0; 8]);
-        let init = liella_abi::layout::struct_aioinit { aio_threads: 64, ..init };
+        let init = niji_abi::layout::struct_aioinit { aio_threads: 64, ..init };
         x::aio_init(Some(&init));
         x::aio_init(None);
 
@@ -1763,7 +1763,7 @@ fn s11_11_c_0() {
 
         // Notification by a signal: exactly one, after the request completed.
         let sig = 40;
-        let (ok, count) = liella_boundary::selftest::with_counting_handler(sig, || {
+        let (ok, count) = niji_boundary::selftest::with_counting_handler(sig, || {
             let mut cb = Cb::new(fd, buf.as_mut_ptr(), 5, 0);
             cb.notify = SIGEV_SIGNAL;
             cb.signo = sig;
@@ -1805,7 +1805,7 @@ fn s11_11_c_0() {
         assert_eq!(x::lio_listio(LIO_WAIT, l.as_ptr().cast(), 4, None), 0);
         assert_eq!((aio_err(pa), aio_ret(pa), aio_err(pbb), aio_ret(pbb)), (0, 3, 0, 8));
         NOTE_CALLS.store(0, Ordering::SeqCst);
-        let ev = liella_kernel::uapi::SigEvent::thread(99, note_addr() as u64, 0);
+        let ev = niji_kernel::uapi::SigEvent::thread(99, note_addr() as u64, 0);
         assert_eq!(x::lio_listio(LIO_NOWAIT, l.as_ptr().cast(), 4, Some(&ev)), 0);
         assert!(calls_reach(1));
         ms(100);
@@ -1925,7 +1925,7 @@ fn s11_11_g_0() {
         let mut held = Cb::new(r, hb.as_mut_ptr(), 1, 0);
         let hp = &raw mut held;
         assert_eq!(x::aio_read(hp.cast()), 0);
-        let z = x::liella_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
+        let z = x::niji_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
         let mut zb = [9u8; 4];
         let mut zc = Cb::new(z, zb.as_mut_ptr(), 4, 0);
         let zp = &raw mut zc;
@@ -1947,16 +1947,16 @@ fn s11_11_f_0() {
     on_both_engines("s11_11_f_0", || {
         // EAGAIN: no engine can start (no thread may be created: RLIMIT_NPROC 1, the user
         // having other processes); this is the process's first request.
-        let old = CSys.prlimit(0, liella_kernel::uapi::RLIMIT_NPROC, None).unwrap();
-        let low = liella_kernel::uapi::Rlimit { cur: 1, max: old.max };
-        CSys.prlimit(0, liella_kernel::uapi::RLIMIT_NPROC, Some(&low)).unwrap();
-        let z = x::liella_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
+        let old = CSys.prlimit(0, niji_kernel::uapi::RLIMIT_NPROC, None).unwrap();
+        let low = niji_kernel::uapi::Rlimit { cur: 1, max: old.max };
+        CSys.prlimit(0, niji_kernel::uapi::RLIMIT_NPROC, Some(&low)).unwrap();
+        let z = x::niji_open3(c"/dev/zero".as_ptr(), O_RDONLY, 0);
         let mut zb = [0u8; 4];
         let mut zc = Cb::new(z, zb.as_mut_ptr(), 4, 0);
         let zp = &raw mut zc;
         errno::set_raw(0);
         let r = x::aio_read(zp.cast());
-        CSys.prlimit(0, liella_kernel::uapi::RLIMIT_NPROC, Some(&old)).unwrap();
+        CSys.prlimit(0, niji_kernel::uapi::RLIMIT_NPROC, Some(&old)).unwrap();
         if CSys.geteuid() == 0 {
             eprintln!("note: root is not held to RLIMIT_NPROC; EAGAIN not checked");
             if r == 0 {
@@ -1964,7 +1964,7 @@ fn s11_11_f_0() {
             }
         } else {
             assert!(err(r as isize, Errno::EAGAIN), "no thread can be made: EAGAIN at submission");
-            assert_ne!(liella_boundary::selftest::aio_engine(), "ring", "nothing was set up");
+            assert_ne!(niji_boundary::selftest::aio_engine(), "ring", "nothing was set up");
         }
         // Once threads can be made again, requests run.
         assert_eq!(x::aio_read(zp.cast()), 0);
@@ -1991,15 +1991,15 @@ fn s11_11_f_0() {
         assert!(err(x::aio_read(null_mut()) as isize, Errno::EINVAL), "no aiocb");
         assert!(err(x::lio_listio(5, core::ptr::null(), 0, None) as isize, Errno::EINVAL), "lio_listio mode");
         assert!(err(x::aio_suspend(core::ptr::null(), -1, None) as isize, Errno::EINVAL), "negative nent");
-        // EBADF at submission where Liella reports it there: aio_fsync and aio_cancel.
+        // EBADF at submission where libniji reports it there: aio_fsync and aio_cancel.
         let mut cb = Cb::new(-1, core::ptr::null(), 0, 0);
         assert!(err(x::aio_fsync(O_SYNC, (&raw mut cb).cast()) as isize, Errno::EBADF));
         assert!(err(x::aio_cancel(-1, null_mut()) as isize, Errno::EBADF));
 
         // The operation's own error is available through aio_error (aio_return -1, errno
         // untouched).
-        let wo = x::liella_open3(c"/dev/null".as_ptr(), 1, 0);
-        let dir = x::liella_open3(c"/".as_ptr(), O_RDONLY | O_DIRECTORY, 0);
+        let wo = x::niji_open3(c"/dev/null".as_ptr(), 1, 0);
+        let dir = x::niji_open3(c"/".as_ptr(), O_RDONLY | O_DIRECTORY, 0);
         for (cbfd, n, off, want) in [(wo, 4, 0, Errno::EBADF), (-1, 4, 0, Errno::EBADF), (dir, 4, 0, Errno::EISDIR), (fd, 4, -1, Errno::EINVAL), (fd, (isize::MAX as usize) + 1, 0, Errno::EFAULT)] {
             let mut cb = Cb::new(cbfd, buf.as_mut_ptr(), n, off);
             let p = &raw mut cb;
@@ -2080,10 +2080,10 @@ fn s11_13_c_1() {
     // Close-on-exec descriptors only: a concurrent test spawning a process would otherwise
     // inherit one and hold the lock past the closes below.
     let (p, f) = file("c131", b"");
-    let a = x::liella_open3(p.as_ptr(), O_RDWR | 0o2000000, 0);
+    let a = x::niji_open3(p.as_ptr(), O_RDWR | 0o2000000, 0);
     x::close(f);
-    let b = x::liella_open3(p.as_ptr(), O_RDWR | 0o2000000, 0);
-    let d = x::liella_fcntl3(a, 1030, 0); // F_DUPFD_CLOEXEC: a duplicate, like dup
+    let b = x::niji_open3(p.as_ptr(), O_RDWR | 0o2000000, 0);
+    let d = x::niji_fcntl3(a, 1030, 0); // F_DUPFD_CLOEXEC: a duplicate, like dup
     assert_eq!(x::flock(a, 2), 0);
     assert_eq!(x::flock(d, 2 | 4), 0, "the same open file description owns it");
     errno::set_raw(0);
@@ -2109,8 +2109,8 @@ fn s11_13_c_2() {
     let (_f, fd) = file("c132", b"0123456789");
     x::lseek(fd, 4, 0);
     assert_eq!(x::lockf(fd, 2, 3), 0, "F_TLOCK on [4, 7)");
-    let mut q = liella_kernel::uapi::Flock::new(1, 0, 0, 0);
-    x::liella_fcntl3(fd, 5, &raw mut q as usize);
+    let mut q = niji_kernel::uapi::Flock::new(1, 0, 0, 0);
+    x::niji_fcntl3(fd, 5, &raw mut q as usize);
     assert_eq!(q.ltype, 2, "fcntl sees no conflict with our own record lock");
     assert_eq!(x::lockf(fd, 3, 3), 0, "F_TEST");
     assert_eq!(x::lockf(fd, 0, 3), 0, "F_ULOCK");

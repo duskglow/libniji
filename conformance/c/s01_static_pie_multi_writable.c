@@ -16,9 +16,9 @@
 #include <unistd.h>
 
 static int multi_a = 1, multi_b = 2;
-int *multi_seg2[] __attribute__((section(".liella_seg2"), aligned(16384))) = { &multi_a, &multi_a };
+int *multi_seg2[] __attribute__((section(".niji_seg2"), aligned(16384))) = { &multi_a, &multi_a };
 int *multi_data1[] __attribute__((section(".data1"), aligned(16384))) = { &multi_a, &multi_b };
-int *multi_seg3[] __attribute__((section(".liella_seg3"), aligned(16384))) = { &multi_b, &multi_a };
+int *multi_seg3[] __attribute__((section(".niji_seg3"), aligned(16384))) = { &multi_b, &multi_a };
 
 __attribute__((constructor)) static void multi_check(void) {
     const Elf64_Phdr *ph = (const Elf64_Phdr *)getauxval(AT_PHDR);

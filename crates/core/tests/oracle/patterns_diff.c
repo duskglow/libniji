@@ -1,6 +1,6 @@
 /* Patterns end to end (spec §14.7-14.10; D-14.4, D-14.5): fnmatch, glob/globfree/glob_pattern_p,
  * the POSIX and GNU regex interfaces, wordexp/wordfree. Built against the host C library and
- * against Liella's products, the outputs must match line for line. Black-box: every line is a
+ * against libniji's products, the outputs must match line for line. Black-box: every line is a
  * result of a public call. Run by patterns_run.sh PROGRAM SCRATCH, which makes the scratch
  * directory and the locales; the program writes its fixture there.
  *

@@ -1,11 +1,11 @@
-//! `liella_legacy::scanf_va::Pointers`: scanf's pointer arguments, read from a `va_list` on demand
+//! `niji_legacy::scanf_va::Pointers`: scanf's pointer arguments, read from a `va_list` on demand
 //! and kept for positional access (spec §12.7, clause `s12_7_c_3`; D-12.13).
 //!
 //! The source is a counting fake of the `va_list`: slot `k` (0-based) holds `0x1000 * (k + 1)`.
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella_abi::va::VaSource;
-use liella_legacy::scanf_va::{Pointers, ARG_MAX};
+use niji_abi::va::VaSource;
+use niji_legacy::scanf_va::{Pointers, ARG_MAX};
 
 struct Fake {
     reads: usize,

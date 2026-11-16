@@ -1,5 +1,5 @@
 //! Regular-expression glue (spec §14.9; D-14.4): `regex_t`, the POSIX, GNU and BSD interfaces
-//! over `liella::pattern::regex`.
+//! over `niji::pattern::regex`.
 //!
 //! A compiled `regex_t` names a caller-heap block (`buffer`, `used` and `allocated` its length):
 //! the interned handle of the locale the pattern was compiled in (8 bytes, D-7.8), the length
@@ -26,12 +26,12 @@
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
-use liella::error::KResult;
-use liella::mem::TryVec;
-use liella::pattern::regex::{self, syntax, Match, Options, Prefilter, ProgRef, ReError, ScratchMem, ScratchNeed, ScratchSource, Window};
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_abi::layout::{regex_t, struct_re_registers};
-use liella_legacy::regex_compat as bsd;
+use niji::error::KResult;
+use niji::mem::TryVec;
+use niji::pattern::regex::{self, syntax, Match, Options, Prefilter, ProgRef, ReError, ScratchMem, ScratchNeed, ScratchSource, Window};
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_abi::layout::{regex_t, struct_re_registers};
+use niji_legacy::regex_compat as bsd;
 
 use crate::{caller_alloc, conv, data, locale};
 
@@ -172,13 +172,13 @@ fn pre_answer(lead: Option<(&[u8], bool)>, leading: bool, end: bool, subject: &[
 }
 
 /// The locale and program of a compiled block.
-fn load_block(addr: usize, len: usize) -> Result<(&'static liella::locale::Locale, ProgRef<'static>), ReError> {
+fn load_block(addr: usize, len: usize) -> Result<(&'static niji::locale::Locale, ProgRef<'static>), ReError> {
     let (handle, _, _, _, _, rest) = block_parts(addr, len)?;
     let prog = ProgRef::from_bytes(rest).ok_or(ReError::BadPat)?;
     Ok((locale::by_handle(handle), prog))
 }
 
-fn load(re: &regex_t) -> Result<(&'static liella::locale::Locale, ProgRef<'static>), ReError> {
+fn load(re: &regex_t) -> Result<(&'static niji::locale::Locale, ProgRef<'static>), ReError> {
     load_block(re.buffer, usize::try_from(re.used).map_err(|_| ReError::BadPat)?)
 }
 

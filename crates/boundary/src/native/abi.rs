@@ -5,12 +5,12 @@
 
 use core::ffi::c_void;
 
-use liella_abi::ret;
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::path::KPathBuf;
-use liella_kernel::Fd;
+use niji_abi::ret;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::path::KPathBuf;
+use niji_kernel::Fd;
 
-use super::types::LiellaTm;
+use super::types::NijiTm;
 use crate::zone;
 
 // ------------------------------------------------------------------------------ inputs
@@ -78,16 +78,16 @@ pub(crate) fn addr(r: KResult<usize>) -> *mut c_void {
 // ------------------------------------------------------------------------------ time zone
 
 /// The local time of `t` (the zone `TZ` names) stored in `*out`.
-pub(crate) fn to_local(t: i64, out: Option<&mut LiellaTm>) -> i64 {
-    store(out, zone::local_at(t).and_then(|(l, abbr)| LiellaTm::from_local(&l, abbr)))
+pub(crate) fn to_local(t: i64, out: Option<&mut NijiTm>) -> i64 {
+    store(out, zone::local_at(t).and_then(|(l, abbr)| NijiTm::from_local(&l, abbr)))
 }
 
 /// The instant of the local time `*tm` stored in `*time`, and `*tm` normalised (every field
 /// set, as by [`to_local`]); both are left alone on failure.
-pub(crate) fn from_local(tm: Option<&mut LiellaTm>, time: Option<&mut i64>) -> i64 {
-    let resolved = |tm: &mut LiellaTm, time: &mut i64| -> KResult<()> {
+pub(crate) fn from_local(tm: Option<&mut NijiTm>, time: Option<&mut i64>) -> i64 {
+    let resolved = |tm: &mut NijiTm, time: &mut i64| -> KResult<()> {
         let (t, l, abbr) = zone::resolve(&tm.fields(), tm.isdst)?;
-        *tm = LiellaTm::from_local(&l, abbr)?;
+        *tm = NijiTm::from_local(&l, abbr)?;
         *time = t;
         Ok(())
     };

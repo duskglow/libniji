@@ -1,11 +1,11 @@
-//! getopt's parser (`liella::getopt`, spec §1.6; D-1.6) against an independent model: random
+//! getopt's parser (`niji::getopt`, spec §1.6; D-1.6) against an independent model: random
 //! argument vectors in the three orders, long vectors, and the parser state between calls
 //! (the end, a moved index, `--`). The model reads the whole vector at once; the parser works
 //! one call at a time and permutes lazily, so agreement checks the permutation and the
 //! returned indices without fixing how the parser moves elements.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
-use liella::getopt::{self, Event, HasArg, LongOpt, Order, Spec, State};
+use niji::getopt::{self, Event, HasArg, LongOpt, Order, Spec, State};
 
 /// A small deterministic generator (xorshift64).
 struct Rng(u64);

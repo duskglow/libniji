@@ -16,9 +16,9 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use liella_kernel::auxv::Auxv;
-use liella_ld::arch::{Arch, Native};
-use liella_ld::start::{self, StartError};
+use niji_kernel::auxv::Auxv;
+use niji_ld::arch::{Arch, Native};
+use niji_ld::start::{self, StartError};
 
 /// The names a secure process must not see (spec/security/threat-model.md, the table: ld.so(8) and
 /// the probe), written out here so a name dropped from `rt::start::UNSECURE` is caught.
@@ -79,7 +79,7 @@ fn target() -> PathBuf {
 
 /// The built interpreter, or `None` (with the reason) before `cargo xtask so`.
 fn product() -> Option<PathBuf> {
-    let p = target().join("liella").join(Native::INTERP);
+    let p = target().join("niji").join(Native::INTERP);
     if p.exists() {
         return Some(p);
     }
@@ -201,7 +201,7 @@ fn ldso_run_aux_rewrite_and_env() {
     assert!(!start::needs_objects(&[5, 0, 0, 0, 1, 7]));
 }
 
-/// The CPU-feature seam (design §0a item 5): outside `liella_ld::arch`, no loader source executes
+/// The CPU-feature seam (design §0a item 5): outside `niji_ld::arch`, no loader source executes
 /// CPUID or reads `AT_HWCAP*`/`AT_PLATFORM`, and the loader's start takes features from
 /// `Native::features`.
 /// (no spec clause: ld.so's start, plan/ph14/design.md §1 steps 3-5, D-27.14.)
@@ -242,11 +242,11 @@ fn ldso_run_by_interp_at_random_bases() {
     let prog = build(&d, &ld, &[]);
     let setarch = setarch_ok();
     for i in 0..100 {
-        let o = run(randomised(i, setarch, &prog).env("LIELLA_KEEP", "1").args(["one", "two"]));
+        let o = run(randomised(i, setarch, &prog).env("NIJI_KEEP", "1").args(["one", "two"]));
         let l = assert_ran(&o, &format!("start {i}"));
         let args: Vec<_> = l.iter().filter(|x| x.starts_with("arg:")).cloned().collect();
         assert_eq!(args, [format!("arg:{}", prog.display()), "arg:one".into(), "arg:two".into()], "start {i}");
-        assert!(l.iter().any(|x| x == "env:LIELLA_KEEP=1") && l.iter().any(|x| x == "secure:0"), "start {i}: {l:?}");
+        assert!(l.iter().any(|x| x == "env:NIJI_KEEP=1") && l.iter().any(|x| x == "secure:0"), "start {i}: {l:?}");
     }
     let _ = std::fs::remove_dir_all(&d);
 }

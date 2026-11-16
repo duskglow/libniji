@@ -5,13 +5,13 @@
 //! control buffer. Spec §15.4 and §15.6 (phase 10): the `getifaddrs` and `if_nameindex`
 //! blocks, and the source-filter structures.
 
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella::net::iface::{Addr, Link, IF_NAMESIZE};
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::SockLevel;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SockAddrBuf, S_IFMT};
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji::net::iface::{Addr, Link, IF_NAMESIZE};
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::SockLevel;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SockAddrBuf, S_IFMT};
 
 /// A caller's address result: its buffer (`*len` bytes on entry) and the length cell, which
 /// receives the address's full length.

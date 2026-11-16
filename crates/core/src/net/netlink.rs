@@ -7,8 +7,8 @@
 //! (`ifinfomsg`, 16 bytes; `ifaddrmsg`, 8 bytes) followed by attributes (`rtattr`: a 2-byte
 //! length including its 4-byte header, a 2-byte type, the payload, padded to 4).
 
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{AF_NETLINK, MSG_PEEK, MSG_TRUNC, NETLINK_ROUTE, NLMSG_DONE, NLMSG_ERROR, SOCK_CLOEXEC, SOCK_RAW};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{AF_NETLINK, MSG_PEEK, MSG_TRUNC, NETLINK_ROUTE, NLMSG_DONE, NLMSG_ERROR, SOCK_CLOEXEC, SOCK_RAW};
 
 use crate::error::{Errno, Result};
 use crate::mem::TryVec;
@@ -142,7 +142,7 @@ pub fn transact<S: Sys>(sys: &S, req: &[u8], seq: u32, dump: bool, mut each: imp
             if want > buf.len() {
                 buf.resize(want, 0)?;
             }
-            let mut from = liella_kernel::uapi::SockAddrBuf::new();
+            let mut from = niji_kernel::uapi::SockAddrBuf::new();
             let n = sys.recvfrom(fd, &mut buf, 0, Some(&mut from))?;
             if u32_at(from.bytes(), 4).unwrap_or(0) != 0 {
                 continue;

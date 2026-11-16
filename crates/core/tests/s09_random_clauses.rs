@@ -3,7 +3,7 @@
 
 //! Clause tests for spec §9 (25 clauses).
 //!
-//! Kernel failures are injected with `liella_kernel::testing::Faulty`. Two clauses stay
+//! Kernel failures are injected with `niji_kernel::testing::Faulty`. Two clauses stay
 //! pending: §9.1's cancellation-point guarantee (cancellation arrives in phase 6), and the
 //! "identical across glibc versions" half of §9.3's guarantee is a recorded incompatibility
 //! (OD-13, ERRATA E5); the determinism half is tested.
@@ -12,20 +12,20 @@
 
 use std::sync::Mutex;
 
-use liella::random::{self, AdditiveFeedback, ByteWords, Rng48, RNG48_A, RNG48_C, SIZES};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::testing::Faulty;
-use liella_kernel::uapi::{GRND_INSECURE, GRND_NONBLOCK, GRND_RANDOM};
-use liella_kernel::Errno;
-use liella_legacy::prng_global;
+use niji::random::{self, AdditiveFeedback, ByteWords, Rng48, RNG48_A, RNG48_C, SIZES};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::testing::Faulty;
+use niji_kernel::uapi::{GRND_INSECURE, GRND_NONBLOCK, GRND_RANDOM};
+use niji_kernel::Errno;
+use niji_legacy::prng_global;
 
 /// Build and run C conformance programs against the products (`conformance/run.sh`).
 fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -151,7 +151,7 @@ fn s9_1_g_3() {
 fn s9_2_c_0() {
     // "The default seed is 1" is only observable before anything touches the generator, so
     // that half runs alone in a fresh process.
-    if std::env::var_os("LIELLA_S9_2_C_0").is_some() {
+    if std::env::var_os("NIJI_S9_2_C_0").is_some() {
         let first: Vec<i64> = (0..5).map(|_| prng_global::random(NoMem)).collect();
         prng_global::srandom(1, NoMem);
         let again: Vec<i64> = (0..5).map(|_| prng_global::random(NoMem)).collect();
@@ -161,7 +161,7 @@ fn s9_2_c_0() {
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["s9_2_c_0", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_S9_2_C_0", "1")
+        .env("NIJI_S9_2_C_0", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

@@ -16,9 +16,9 @@
 //! the segment, not the whole object: probe PTHREAD-ONCE-UNWIND-2), for one in the vDSO the
 //! vDSO's whole mapped range; `dlfo_eh_frame` is the object's `PT_GNU_EH_FRAME` (0 without
 //! one), `dlfo_flags` 0, 0 returned. Else -1 and `*result` untouched. Gap: `dlfo_link_map` is 0
-//! (Liella has no `struct link_map` before phase 14; glibc gives a non-null one).
+//! (libniji has no `struct link_map` before phase 14; glibc gives a non-null one).
 //!
-//! In a program Liella's `ld.so` started, both forward to the loader's lock-free readers
+//! In a program libniji's `ld.so` started, both forward to the loader's lock-free readers
 //! (`crates/boundary/src/ld/readers.rs`, DL-16c): every loaded object in load order, the vDSO
 //! second, the probed `dlpi_adds`/`dlpi_subs`, and `_dl_find_object`'s whole mapped range with the
 //! object's link map (probe `tools/probe/dl/readers`).
@@ -26,11 +26,11 @@
 use crate::{conv, export, process, tb};
 use crate::sys::CSys;
 use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_void};
-use liella_rt::cpu::{feature_leaves, FEATURE_LEAVES};
-use liella_abi::layout::{struct_dl_find_object, struct_dl_phdr_info};
-use liella_kernel::auxv::Auxv;
-use liella_kernel::uapi::{AT_PHDR, AT_PHNUM, AT_SYSINFO_EHDR};
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_void};
+use niji_rt::cpu::{feature_leaves, FEATURE_LEAVES};
+use niji_abi::layout::{struct_dl_find_object, struct_dl_phdr_info};
+use niji_kernel::auxv::Auxv;
+use niji_kernel::uapi::{AT_PHDR, AT_PHNUM, AT_SYSINFO_EHDR};
 
 type Callback = Option<extern "C" fn(&struct_dl_phdr_info, usize, *mut c_void) -> c_int>;
 
@@ -89,7 +89,7 @@ pub static LOADER_FORK: AtomicUsize = AtomicUsize::new(0);
 pub(crate) fn loader_fork(step: i64) {
     let f = LOADER_FORK.load(Ordering::Acquire);
     if f != 0 {
-        let _ = crate::ffi::liella_machine_call3(f, step, 0, 0);
+        let _ = crate::ffi::niji_machine_call3(f, step, 0, 0);
     }
 }
 
@@ -104,7 +104,7 @@ pub extern "C" fn dl_iterate_phdr(cb: Callback, data: *mut c_void) -> c_int {
         #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
         let f = (cb as *const ()).expose_provenance();
         let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
-        return int_result(crate::ffi::liella_machine_call3(walk, w(f), w(data.expose_provenance()), 0));
+        return int_result(crate::ffi::niji_machine_call3(walk, w(f), w(data.expose_provenance()), 0));
     }
     let words = process::AUXV_WORDS.load(core::sync::atomic::Ordering::Acquire);
     let addr = process::AUXV_ADDR.load(core::sync::atomic::Ordering::Acquire);
@@ -160,14 +160,14 @@ pub(crate) fn find_in(phdr: usize, phnum: usize, bias: usize, pc: usize, whole: 
     Some((lo, hi, eh))
 }
 
-// `runtime`: it describes only a process Liella started (its startup auxv); interposed on a
+// `runtime`: it describes only a process libniji started (its startup auxv); interposed on a
 // host process it would hide the host's shared objects from that process's unwinder.
 export! { runtime "GLIBC_2.35";
 pub extern "C" fn _dl_find_object(pc: *mut c_void, result: *mut struct_dl_find_object) -> c_int {
     let find = LOADER_FIND.load(Ordering::Acquire);
     if find != 0 {
         let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
-        return int_result(crate::ffi::liella_machine_call3(find, w(pc.expose_provenance()), w(result.expose_provenance()), 0));
+        return int_result(crate::ffi::niji_machine_call3(find, w(pc.expose_provenance()), w(result.expose_provenance()), 0));
     }
     let pc = pc.addr();
     let words = process::AUXV_WORDS.load(core::sync::atomic::Ordering::Acquire);
@@ -199,7 +199,7 @@ static LEAVES_READY: AtomicBool = AtomicBool::new(false);
 export! { "GLIBC_2.33";
 /// `__x86_get_cpuid_feature_leaf(index)` (§27.5, `<sys/platform/x86.h>`): the
 /// `struct cpuid_feature` (raw CPUID words, then the active words) of leaf `index`
-/// (`liella_rt::cpu::feature_leaves`); any other index gets an all-zero entry, never null.
+/// (`niji_rt::cpu::feature_leaves`); any other index gets an all-zero entry, never null.
 pub extern "C" fn __x86_get_cpuid_feature_leaf(index: c_uint) -> *const c_void {
     if !LEAVES_READY.load(Ordering::Acquire) {
         for (entry, words) in LEAVES.iter().zip(feature_leaves(&CSys)) {
@@ -223,7 +223,7 @@ crate::internal_entry! {
 /// (`crates/boundary/src/ld/dlopen.rs`). Elsewhere (a static program, ruling #5005: loading
 /// objects there is DL-16S) NULL with the text `<file>: shared objects cannot be loaded into a
 /// statically linked program`, never a crash.
-pub extern "C" fn liella_dl_open(file: *const c_char, mode: c_int, caller: usize) -> *mut c_void {
+pub extern "C" fn niji_dl_open(file: *const c_char, mode: c_int, caller: usize) -> *mut c_void {
     let f = LOADER_DLOPEN.load(Ordering::Acquire);
     if f == 0 {
         // UNSAFE(slice): the caller's NUL-terminated name (dlopen(3)), or NULL.
@@ -235,7 +235,7 @@ pub extern "C" fn liella_dl_open(file: *const c_char, mode: c_int, caller: usize
         return core::ptr::null_mut();
     }
     let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
-    let r = crate::ffi::liella_machine_call3(f, w(file.expose_provenance()), i64::from(mode), w(caller));
+    let r = crate::ffi::niji_machine_call3(f, w(file.expose_provenance()), i64::from(mode), w(caller));
     core::ptr::with_exposed_provenance_mut(usize::from_ne_bytes(r.to_ne_bytes()))
 }}
 
@@ -243,7 +243,7 @@ export! { asm "GLIBC_2.34";
 /// `dlopen(file, mode)`: the symbol is `csys/src/machine/dl.S`'s (it captures the caller); this is
 /// its Rust twin for tests, with no caller (the program is the requester).
 pub extern "C" fn dlopen(file: *const c_char, mode: c_int) -> *mut c_void {
-    liella_dl_open(file, mode, 0)
+    niji_dl_open(file, mode, 0)
 }}
 
 /// The loader's `dlsym`/`dlvsym` entry (`StartInfo::dlsym`, stored by `runtime::early_init`): 0 in a
@@ -256,7 +256,7 @@ crate::internal_entry! {
 /// program `ld.so` started, the loader's entry does the work (`crates/boundary/src/ld/dlopen/dlsym.rs`).
 /// Elsewhere (a static program, ruling #5005, D-27.33) NULL with the text `<dlsym|dlvsym>: no
 /// symbols can be looked up in a statically linked program`, never a crash.
-pub extern "C" fn liella_dl_sym(handle: *mut c_void, name: *const c_char, version: *const c_char, caller: usize) -> *mut c_void {
+pub extern "C" fn niji_dl_sym(handle: *mut c_void, name: *const c_char, version: *const c_char, caller: usize) -> *mut c_void {
     let f = LOADER_DLSYM.load(Ordering::Acquire);
     if f == 0 {
         let who: &[u8] = if version.is_null() { b"dlsym" } else { b"dlvsym" };
@@ -264,7 +264,7 @@ pub extern "C" fn liella_dl_sym(handle: *mut c_void, name: *const c_char, versio
         return core::ptr::null_mut();
     }
     let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
-    let r = crate::ffi::liella_machine_call4(f, w(handle.expose_provenance()), w(name.expose_provenance()), w(version.expose_provenance()), w(caller));
+    let r = crate::ffi::niji_machine_call4(f, w(handle.expose_provenance()), w(name.expose_provenance()), w(version.expose_provenance()), w(caller));
     core::ptr::with_exposed_provenance_mut(usize::from_ne_bytes(r.to_ne_bytes()))
 }}
 
@@ -272,14 +272,14 @@ export! { asm "GLIBC_2.34";
 /// `dlsym(handle, name)`: the symbol is `csys/src/machine/dl.S`'s (it captures the caller); this is
 /// its Rust twin for tests, with no caller (the program is the caller).
 pub extern "C" fn dlsym(handle: *mut c_void, name: *const c_char) -> *mut c_void {
-    liella_dl_sym(handle, name, core::ptr::null(), 0)
+    niji_dl_sym(handle, name, core::ptr::null(), 0)
 }}
 
 export! { asm "GLIBC_2.34";
 /// `dlvsym(handle, name, version)`: the symbol is `csys/src/machine/dl.S`'s; this is its Rust twin
 /// for tests, with no caller.
 pub extern "C" fn dlvsym(handle: *mut c_void, name: *const c_char, version: *const c_char) -> *mut c_void {
-    liella_dl_sym(handle, name, version, 0)
+    niji_dl_sym(handle, name, version, 0)
 }}
 
 /// The loader's `dlclose` entry (`StartInfo::dlclose`, stored by `runtime::early_init`): 0 in a
@@ -299,7 +299,7 @@ pub extern "C" fn dlclose(handle: *mut c_void) -> c_int {
         return -1;
     }
     let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
-    let r = crate::ffi::liella_machine_call3(f, w(handle.expose_provenance()), 0, 0);
+    let r = crate::ffi::niji_machine_call3(f, w(handle.expose_provenance()), 0, 0);
     if r == 0 { 0 } else { -1 }
 }}
 
@@ -325,7 +325,7 @@ fn dl_addr(addr: *const c_void, info: *mut c_void, extra: *mut *mut c_void, flag
         return 0;
     }
     let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
-    let r = crate::ffi::liella_machine_call4(f, w(addr.expose_provenance()), w(info.expose_provenance()), w(extra.expose_provenance()), i64::from(flags));
+    let r = crate::ffi::niji_machine_call4(f, w(addr.expose_provenance()), w(info.expose_provenance()), w(extra.expose_provenance()), i64::from(flags));
     c_int::try_from(r).unwrap_or(0)
 }
 
@@ -356,6 +356,6 @@ pub extern "C" fn dlinfo(handle: *mut c_void, request: c_int, arg: *mut c_void) 
         return -1;
     }
     let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
-    let r = crate::ffi::liella_machine_call3(f, w(handle.expose_provenance()), i64::from(request), w(arg.expose_provenance()));
+    let r = crate::ffi::niji_machine_call3(f, w(handle.expose_provenance()), i64::from(request), w(arg.expose_provenance()));
     c_int::try_from(r).unwrap_or(-1)
 }}

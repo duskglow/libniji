@@ -1,8 +1,8 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # THE WORKLOAD GATE: real programs (coreutils, sed, bash, grep, gawk, diffutils, tar, gzip,
-# make, built statically against Liella) timed against the same programs on glibc, for a
-# Liella commit and a baseline commit (INVIOLABLE rule of the owner, 2026-10-09: no real
+# make, built statically against libniji) timed against the same programs on glibc, for a
+# libniji commit and a baseline commit (INVIOLABLE rule of the owner, 2026-10-09: no real
 # workload may get slower overall).
 #
 #   validation/wl_gate.sh [--prep] [--time] [--report] NEW_SHA [BASE_SHA]
@@ -132,7 +132,7 @@ case " $steps " in *" --report "*)
         fi
         echo "$out"
         echo "$out" | grep -q '^WL-GATE PASS' || rc=1
-        # Attribution: top Liella symbols (instructions) for the workloads that failed a counter.
+        # Attribution: top libniji symbols (instructions) for the workloads that failed a counter.
         names=$(echo "$out" | sed -n 's/^WL-GATE FAIL: //p' | grep -oE '[a-zA-Z0-9-]+\((instr|pf|sys_[a-z]+)\)' | sed 's/(.*//' | sort -u | paste -sd' ')
         if [ -n "$names" ]; then
             long "$h" "wl-$ns-attr" 1 "bash $B/wl_attr.sh $base $new $names > ~/wl/out/$ns-$h-attr.txt 2>&1"

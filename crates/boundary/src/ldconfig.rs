@@ -1,18 +1,18 @@
 //! The shipped `ldconfig` program (spec §31.2; D-31.2: freestanding and static, no C library):
-//! `liella_machine_ldconfig_entry` (`machine/entry.S`, `-DLIELLA_LDCONFIG`) calls
-//! [`liella_ldconfig_start`] with the initial stack pointer and the run-time address of the
+//! `niji_machine_ldconfig_entry` (`machine/entry.S`, `-DNIJI_LDCONFIG`) calls
+//! [`niji_ldconfig_start`] with the initial stack pointer and the run-time address of the
 //! program's own ELF header. It relocates the static-PIE image (the loader's pass 1), reads argv,
-//! runs `liella_ld::ldconfig` over [`SysFs`] (the kernel's system calls; `-r` through
+//! runs `niji_ld::ldconfig` over [`SysFs`] (the kernel's system calls; `-r` through
 //! `openat2(RESOLVE_IN_ROOT)`, D-31.9) and writes what it printed. Its global allocator is
 //! [`Arena`]: one short-lived, single-threaded process needs no general heap.
 
 use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
-use liella_ld::arch::Native;
-use liella_ld::ldconfig::{self, sysfs::SysFs};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+use niji_ld::arch::Native;
+use niji_ld::ldconfig::{self, sysfs::SysFs};
 
 use crate::ld::{c_string, exit, stack_word, write_all};
 use crate::sys::CSys;
@@ -20,12 +20,12 @@ use crate::sys::CSys;
 /// Arguments read from the initial stack at most (more is refused: `E2BIG`'s text).
 const ARGS_MAX: usize = 4096;
 
-/// The entry of `ldconfig` (called by `liella_machine_ldconfig_entry` with the initial stack pointer
+/// The entry of `ldconfig` (called by `niji_machine_ldconfig_entry` with the initial stack pointer
 /// `sp` and the run-time address `ehdr` of the image's own ELF header).
 // UNSAFE(export): the Rust side of the ldconfig entry primitive; the program's only entry.
 #[unsafe(no_mangle)]
 #[allow(unsafe_code)]
-pub extern "C" fn liella_ldconfig_start(sp: usize, ehdr: usize) -> ! {
+pub extern "C" fn niji_ldconfig_start(sp: usize, ehdr: usize) -> ! {
     if crate::bootstrap::relocate_image(ehdr).is_err() {
         write_all(2, b"ldconfig: cannot relocate the program\n");
         exit(1)
@@ -49,7 +49,7 @@ pub extern "C" fn liella_ldconfig_start(sp: usize, ehdr: usize) -> ! {
     }
     let argv0 = args.first().copied().unwrap_or(b"ldconfig");
     let rest = args.get(1..).unwrap_or_default();
-    let mut fs = SysFs::new(&CSys, ldconfig::root_of(rest), liella::diag::description);
+    let mut fs = SysFs::new(&CSys, ldconfig::root_of(rest), niji::diag::description);
     let r = ldconfig::run::<Native, _>(argv0, rest, &mut fs, ldconfig::GENERATOR);
     drop(fs);
     write_all(1, &r.out.buf);

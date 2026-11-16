@@ -45,7 +45,7 @@ pub struct ParsedInt<V> {
 }
 
 /// An unsigned parse also reports a leading minus sign, which the C contract applies modulo
-/// 2^64 (D-8.2, applied by `liella-legacy`).
+/// 2^64 (D-8.2, applied by `niji-legacy`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParsedUnsigned {
     /// Magnitude and outcome.

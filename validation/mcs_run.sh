@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # MEMCMP-SIZE-MIX: build the histogram-instrumented kit of SHA (from the role tree ROLE) and run every workload of
 # validation/wl_workloads.sh once with MCS_OUT set; then sum the dumps with validation/mcs_hist.py.
 #   mcs_run.sh ROLE_DIR SHA OUT_DIR

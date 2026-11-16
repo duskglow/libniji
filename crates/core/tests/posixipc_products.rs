@@ -1,13 +1,13 @@
 //! POSIX message queues and shared memory end to end (spec §25.3–25.4; D-25.2, D-25.3):
 //! `tests/oracle/posixipc_diff.c` built against the host C library and statically against
-//! Liella's products, each run by `tests/oracle/posixipc_run.sh` (a private IPC namespace and a
+//! libniji's products, each run by `tests/oracle/posixipc_run.sh` (a private IPC namespace and a
 //! private mount namespace with a fresh `mqueue` mount on `/dev/mqueue` and a fresh tmpfs on
 //! `/dev/shm`: root's fixture entries made first, then the calling user's cases, `/dev/shm` on
 //! the scratch directory's file system, and no `/dev` at all; the namespaces need `sudo -n`; the
-//! scratch directory under `target/` is removed by the script), Liella with the name-service
+//! scratch directory under `target/` is removed by the script), libniji with the name-service
 //! cache on and off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line,
 //! except the recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only
-//! Liella prints) and [`DROPPED`] (a line only the reference prints). Every entry names the case
+//! libniji prints) and [`DROPPED`] (a line only the reference prints). Every entry names the case
 //! it belongs to: the text of the last `== ` header line before it starts with the entry's
 //! first string.
 //!
@@ -31,12 +31,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/posixipc_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -65,7 +65,7 @@ const KNOWN: [(&str, &str, &str); 9] = [
     (SHM_FLAGS, "FIFO: child killed by SIGALRM", NOT_REGULAR),
 ];
 
-/// Lines only Liella prints: the case, the text the line starts with, and why (the first such
+/// Lines only libniji prints: the case, the text the line starts with, and why (the first such
 /// line of the case is taken; a repeated entry takes the next one).
 const ADDED: [(&str, &str, &str); 1] = [(SHM_FLAGS, "shm_open of a FIFO, O_RDONLY: EINVAL", NOT_REGULAR)];
 
@@ -110,7 +110,7 @@ fn posixipc_equals_the_reference() {
     // Clauses: s25_3_c_0, s25_3_c_1, s25_3_c_2, s25_3_c_3, s25_3_c_4, s25_3_f_0, s25_3_x_0, s25_4_c_0
     // (D-25.2, D-25.3, D-25.5).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -121,7 +121,7 @@ fn posixipc_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("posixipc_diff_host"), dir.join("posixipc_diff_liella"));
+    let (host, ours) = (dir.join("posixipc_diff_host"), dir.join("posixipc_diff_niji"));
     assert!(build(&host, false), "posixipc_diff.c does not build against the host C library");
     assert!(build(&ours, true), "posixipc_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/posixipc_run.sh");
@@ -145,28 +145,28 @@ fn posixipc_equals_the_reference() {
     }
     for mode in ["on", "off"] {
         eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("posixipc-liella-{mode}"), Some(mode));
+        let got = run(&ours, &format!("posixipc-niji-{mode}"), Some(mode));
         let want = without(with_headers(&reference), &DROPPED, "the reference");
-        let got = without(with_headers(&got), &ADDED, "Liella");
+        let got = without(with_headers(&got), &ADDED, "libniji");
         let mut diffs = 0;
         let mut seen = vec![false; KNOWN.len()];
         for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
             if let Some(i) = KNOWN.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
                 if w != g {
                     seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
                 }
                 continue;
             }
             if w != g {
                 diffs += 1;
                 if diffs <= 60 {
-                    eprintln!("line {} ({}):\n  glibc  {w}\n  liella {g}", k + 1, h.trim_end());
+                    eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
                 }
             }
         }
         let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- liella\n{}", text(&want), text(&got));
+        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
         assert_eq!(diffs, 0, "lines that differ from the reference");
         for (i, s) in seen.iter().enumerate() {
             assert!(s, "recorded difference no longer seen: {:?}", KNOWN[i]);

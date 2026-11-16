@@ -35,15 +35,15 @@ use std::process::Command;
 use std::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, AtomicUsize, Ordering::SeqCst};
 use std::time::{Duration, Instant};
 
-use liella_abi::ctypes::c_int;
-use liella_abi::layout::pthread_attr_t;
-use liella_boundary::posix::s01_startup as st;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s18_processes as pr;
-use liella_boundary::posix::s22_threads as th;
-use liella_boundary::posix::s23_time as tm;
-use liella_boundary::posix::s25_ipc as mq;
-use liella_kernel::uapi::{Itimerspec, MqAttr, SigEvent, Timespec};
+use niji_abi::ctypes::c_int;
+use niji_abi::layout::pthread_attr_t;
+use niji_boundary::posix::s01_startup as st;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s18_processes as pr;
+use niji_boundary::posix::s22_threads as th;
+use niji_boundary::posix::s23_time as tm;
+use niji_boundary::posix::s25_ipc as mq;
+use niji_kernel::uapi::{Itimerspec, MqAttr, SigEvent, Timespec};
 
 use scratch::Scratch;
 
@@ -261,7 +261,7 @@ fn timer_notification_attributes() {
     assert_eq!(SEEN[TIMER_OWN].clobbered.load(SeqCst), 0, "no call's stack-canary word overwritten by another on the stack");
 }
 
-const ALONE: &str = "LIELLA_SIGEV_ALONE";
+const ALONE: &str = "NIJI_SIGEV_ALONE";
 
 /// Run `body` in this test re-executed as a process of its own (for a test that changes
 /// process-wide state, such as whether threads can be created).
@@ -270,7 +270,7 @@ const ALONE: &str = "LIELLA_SIGEV_ALONE";
 fn alone(test: &str, body: impl FnOnce()) -> Option<String> {
     if std::env::var(ALONE).as_deref() == Ok(test) {
         // This process runs this one test alone: `forbid_threads` may be called in it.
-        liella_boundary::selftest::mark_own_process();
+        niji_boundary::selftest::mark_own_process();
         body();
         return None;
     }
@@ -284,7 +284,7 @@ fn alone(test: &str, body: impl FnOnce()) -> Option<String> {
 
 /// The diagnostic channel's `timers` lines in a child's standard error (D-2.9).
 fn timer_diag_lines(err: &str) -> Vec<&str> {
-    err.lines().filter(|l| l.contains("liella: timers: ")).collect()
+    err.lines().filter(|l| l.contains("niji: timers: ")).collect()
 }
 
 /// The timer of [`timer_expiries_without_a_thread`], its calls and its first call's overrun.
@@ -308,13 +308,13 @@ fn timer_expiries_without_a_thread() {
         let t = timer(&SigEvent::thread(0, lost as extern "C" fn(usize) as usize as u64, 0));
         LOST_TIMER.store(t.addr(), SeqCst);
         // The helper was made with the timer; from here no notification thread can be.
-        liella_boundary::selftest::forbid_threads();
-        let before = liella_boundary::selftest::refused_threads();
+        niji_boundary::selftest::forbid_threads();
+        let before = niji_boundary::selftest::refused_threads();
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 1_000_000)), None), 0);
         // Each refused notification read at least one expiration.
-        assert!(until(|| liella_boundary::selftest::refused_threads() >= before + 5), "the expirations were due and their threads refused");
+        assert!(until(|| niji_boundary::selftest::refused_threads() >= before + 5), "the expirations were due and their threads refused");
         assert_eq!(LOST_CALLS.load(SeqCst), 0, "no thread, no call");
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| LOST_CALLS.load(SeqCst) >= 1), "notified once a thread can be made");
         assert_eq!(tm::timer_settime(t, 0, Some(&its(0, 0)), None), 0);
         let overrun = LOST_OVERRUN.load(SeqCst);
@@ -368,16 +368,16 @@ fn retry_timer_with(attr: u64) -> *mut c_void {
 
 /// The timers' last events (`selftest::timer_trace`), for an assertion's message.
 fn timer_events() -> String {
-    let trace: Vec<String> = liella_boundary::selftest::timer_trace().iter().filter(|&&e| e != 0).map(|e| format!("{}:{:#x}", e >> 32, e & 0xffff_ffff)).collect();
+    let trace: Vec<String> = niji_boundary::selftest::timer_trace().iter().filter(|&&e| e != 0).map(|e| format!("{}:{:#x}", e >> 32, e & 0xffff_ffff)).collect();
     trace.join(" ")
 }
 
 fn refused() -> usize {
-    liella_boundary::selftest::refused_threads()
+    niji_boundary::selftest::refused_threads()
 }
 
 fn episodes() -> (usize, usize) {
-    liella_boundary::selftest::timer_thread_episodes()
+    niji_boundary::selftest::timer_thread_episodes()
 }
 
 #[test]
@@ -394,7 +394,7 @@ fn timer_notification_retried() {
         // 1. A one-shot whose thread is refused is notified once a thread can be made, the retries
         //    being few (back-off) and at most 1 s apart (ceiling).
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let (e0, r0) = (episodes(), refused());
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 0)), None), 0);
         assert!(until(|| refused() > r0), "the expiry's thread was refused");
@@ -405,7 +405,7 @@ fn timer_notification_retried() {
         assert_eq!(RETRY_CALLS.load(SeqCst), 0, "no thread, no call");
         assert_eq!(episodes(), (e0.0 + 1, e0.1), "one episode begun, noted once for {tries} refusals");
         let allowed = Instant::now();
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRY_CALLS.load(SeqCst) == 1), "the one-shot is notified once a thread can be made");
         let late = allowed.elapsed();
         assert!(late < ms(1500), "notified {late:?} after threads were allowed: the retries are at most 1 s apart");
@@ -418,12 +418,12 @@ fn timer_notification_retried() {
         // 2. A periodic timer: the notification that finally starts counts every expiration since
         //    the arming (overrun = expirations - 1), up to the moment it started.
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let armed = since_epoch();
         assert_eq!(tm::timer_settime(t, 0, Some(&its(10_000_000, 10_000_000)), None), 0);
         std::thread::sleep(ms(200));
         let allowed = since_epoch();
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRY_CALLS.load(SeqCst) >= 1), "notified once a thread can be made");
         // The count is read at the launch, between `allowed` and the call; 1 of slack each way
         // for the clocks. It is the FIRST call's: the timer notifies again once that call
@@ -438,7 +438,7 @@ fn timer_notification_retried() {
 
         // 3. `timer_delete` cancels a pending retry: no more attempts, no call.
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let r1 = refused();
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 0)), None), 0);
         assert!(until(|| refused() > r1), "the expiry's thread was refused");
@@ -446,7 +446,7 @@ fn timer_notification_retried() {
         let r2 = refused();
         std::thread::sleep(ms(400));
         assert_eq!(refused(), r2, "no retry after timer_delete");
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         std::thread::sleep(ms(100));
         assert_eq!(RETRY_CALLS.load(SeqCst), 0, "a deleted timer is not notified");
 
@@ -454,7 +454,7 @@ fn timer_notification_retried() {
         //    notified, and a later arming is notified alone (overrun 0) at its expiry, not at the
         //    dropped retry's time (the back-off has grown to 1 s by then).
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let r3 = refused();
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 0)), None), 0);
         assert!(until(|| refused() > r3), "the expiry's thread was refused");
@@ -467,7 +467,7 @@ fn timer_notification_retried() {
         let r4 = refused();
         std::thread::sleep(ms(800));
         assert_eq!(refused(), r4, "no retry after the timer was disarmed");
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         std::thread::sleep(ms(100));
         assert_eq!(RETRY_CALLS.load(SeqCst), 0, "the dropped expiry is not notified");
         let armed = Instant::now();
@@ -483,17 +483,17 @@ fn timer_notification_retried() {
         //    nothing): the old expiry is dropped and the new setting is notified at its expiry,
         //    not at the next retry, 1 s away by then.
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let r5 = refused();
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 0)), None), 0);
         // The refusal and its retries at 10, 30, 70, 150, 310, 630 ms; the one at 1270 ms is held.
         assert!(until(|| refused() >= r5 + 7), "the expiry's thread was refused and retried");
-        liella_boundary::selftest::hold_refused_threads(true);
+        niji_boundary::selftest::hold_refused_threads(true);
         assert!(until(|| refused() >= r5 + 8), "the retry at 1270 ms was refused");
         let set_at = Instant::now();
         assert_eq!(tm::timer_settime(t, 0, Some(&its(20_000_000, 0)), None), 0);
-        liella_boundary::selftest::allow_threads();
-        liella_boundary::selftest::hold_refused_threads(false);
+        niji_boundary::selftest::allow_threads();
+        niji_boundary::selftest::hold_refused_threads(false);
         assert!(until(|| RETRY_CALLS.load(SeqCst) == 1), "the new setting is notified");
         let late = set_at.elapsed();
         assert!(late < ms(500), "a setting made during a refused attempt (due 20 ms after it) notified after {late:?}: at its expiry, not at the next retry 1 s away");
@@ -504,7 +504,7 @@ fn timer_notification_retried() {
     }) else {
         return;
     };
-    // The diagnostic channel is off: no `diag_set`, and `LIELLA_DIAG` is not in the test's
+    // The diagnostic channel is off: no `diag_set`, and `NIJI_DIAG` is not in the test's
     // environment, so the lazy read at the first episode finds nothing. Five episodes, no line
     // (D-2.9: default silent).
     assert_eq!(timer_diag_lines(&err), Vec::<&str>::new(), "the diagnostic channel is off by default");
@@ -523,7 +523,7 @@ fn timer_retry_back_off_ceiling_and_reset() {
         let ms = Duration::from_millis;
         since_epoch();
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let (e0, r0) = (episodes(), refused());
         // Period 5 s: the second expiry comes after the first notification (about 3.3 s in).
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 5_000_000_000)), None), 0);
@@ -533,14 +533,14 @@ fn timer_retry_back_off_ceiling_and_reset() {
         // 5110 ms, 2.5 s after threads are allowed.
         std::thread::sleep(ms(2600));
         let allowed = Instant::now();
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRY_CALLS.load(SeqCst) == 1), "notified once a thread can be made");
         let late = allowed.elapsed();
         assert!(late < ms(1500), "notified {late:?} after threads were allowed, the refusal held past the ceiling: retries at most 1 s apart (back-off ceiling)");
         assert_eq!(episodes(), (e0.0 + 1, e0.1 + 1), "the first episode begun and recovered once each");
 
         // A second episode on the same timer: its next expiry is refused.
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let r1 = refused();
         assert!(until(|| refused() > r1), "the second expiry's thread was refused");
         let refused_at = Instant::now();
@@ -548,7 +548,7 @@ fn timer_retry_back_off_ceiling_and_reset() {
         let first = refused_at.elapsed();
         assert_eq!(episodes(), (e0.0 + 2, e0.1 + 1), "a second episode begun: the first one's recovery reset the back-off");
         assert!(first < ms(500), "the second episode's first retry came {first:?} after its refusal: it starts again from 10 ms, not from the first episode's 1 s");
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRY_CALLS.load(SeqCst) == 2), "the second expiry is notified");
         assert_eq!(episodes(), (e0.0 + 2, e0.1 + 2), "the second episode recovered once");
         assert_eq!(tm::timer_delete(t), 0);
@@ -582,7 +582,7 @@ fn bare_stack() -> Box<pthread_attr_t> {
 /// The count of the timers' helper's wake-up `eventfd` (`/proc/self/fdinfo`): 0 once the helper
 /// has drained it.
 fn wake_count() -> u64 {
-    let fd = liella_boundary::selftest::timer_wake_fd();
+    let fd = niji_boundary::selftest::timer_wake_fd();
     assert!(fd >= 0, "a timer on a caller-supplied stack made the helper's wake-up eventfd");
     let info = std::fs::read_to_string(format!("/proc/self/fdinfo/{fd}")).unwrap();
     let count = info.lines().find_map(|l| l.strip_prefix("eventfd-count:")).expect("an eventfd's fdinfo has its count");
@@ -624,12 +624,12 @@ fn timer_abandoned_notification_retried() {
             assert_eq!(tm::timer_settime(occupant, 0, Some(&its(1_000_000, 0)), None), 0);
             assert!(until(|| BLOCKED.load(SeqCst) > b0), "{what}: the occupant runs on the stack");
             assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, interval)), None), 0);
-            assert!(until(|| liella_boundary::selftest::notifications_queued_for_stacks() == 1), "{what}: the expiry's notification waits for the stack");
+            assert!(until(|| niji_boundary::selftest::notifications_queued_for_stacks() == 1), "{what}: the expiry's notification waits for the stack");
             // 2. The stack is freed while no thread can be made: the notification is abandoned.
-            let (e0, a0) = (episodes(), liella_boundary::selftest::timer_notifications_abandoned());
-            liella_boundary::selftest::forbid_threads();
+            let (e0, a0) = (episodes(), niji_boundary::selftest::timer_notifications_abandoned());
+            niji_boundary::selftest::forbid_threads();
             BLOCK.store(0, SeqCst);
-            assert!(until(|| liella_boundary::selftest::timer_notifications_abandoned() > a0), "{what}: the waiting notification could not be started");
+            assert!(until(|| niji_boundary::selftest::timer_notifications_abandoned() > a0), "{what}: the waiting notification could not be started");
             let r0 = refused();
             std::thread::sleep(ms(400));
             assert_eq!(RETRY_CALLS.load(SeqCst), 0, "{what}: no thread, no call");
@@ -638,7 +638,7 @@ fn timer_abandoned_notification_retried() {
             assert_eq!(wake_count(), 0, "{what}: the helper drained the eventfd that woke it for the retry (a level-triggered event left set would make it spin)");
             // 3. Threads can be made again: the next retry (at most 1 s away) notifies.
             let allowed = Instant::now();
-            liella_boundary::selftest::allow_threads();
+            niji_boundary::selftest::allow_threads();
             assert!(until(|| RETRY_CALLS.load(SeqCst) >= 1), "{what}: notified once a thread can be made");
             let late = allowed.elapsed();
             assert!(late < ms(1500), "{what}: notified {late:?} after threads were allowed: the retries are at most 1 s apart");
@@ -677,8 +677,8 @@ fn timer_deleted_while_waiting_never_called() {
     // The failure is injected (`forbid_threads`), in a process of its own.
     alone("timer_deleted_while_waiting_never_called", || {
         let ms = Duration::from_millis;
-        let st = || liella_boundary::selftest::notifications_queued_for_stacks();
-        let abandoned = || liella_boundary::selftest::timer_notifications_abandoned();
+        let st = || niji_boundary::selftest::notifications_queued_for_stacks();
+        let abandoned = || niji_boundary::selftest::timer_notifications_abandoned();
         for what in ["queued", "abandoned", "queued then abandoned"] {
             let mut a = bare_stack();
             let occupant = occupy_stack(&mut a);
@@ -696,21 +696,21 @@ fn timer_deleted_while_waiting_never_called() {
                 }
                 "abandoned" => {
                     let a0 = abandoned();
-                    liella_boundary::selftest::forbid_threads();
+                    niji_boundary::selftest::forbid_threads();
                     BLOCK.store(0, SeqCst);
                     assert!(until(|| abandoned() > a0), "{what}: the waiting notification could not be started");
                     let r0 = refused();
                     assert!(until(|| refused() > r0), "{what}: it is retried while threads are refused");
                     assert_eq!(tm::timer_delete(t), 0);
-                    liella_boundary::selftest::allow_threads();
+                    niji_boundary::selftest::allow_threads();
                 }
                 _ => {
                     assert_eq!(tm::timer_delete(t), 0);
-                    liella_boundary::selftest::forbid_threads();
+                    niji_boundary::selftest::forbid_threads();
                     BLOCK.store(0, SeqCst);
                     assert!(until(|| st() == 0), "{what}: the waiting notification is handed back");
                     std::thread::sleep(ms(100));
-                    liella_boundary::selftest::allow_threads();
+                    niji_boundary::selftest::allow_threads();
                 }
             }
             // A retry is at most 1 s away (the back-off's ceiling).
@@ -734,22 +734,22 @@ fn timer_set_while_the_helper_reads() {
         since_epoch();
         // 1. The helper held between taking the generation and its read.
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
-        let h0 = liella_boundary::selftest::held_timer_reads();
-        liella_boundary::selftest::hold_timer_reads(true);
+        niji_boundary::selftest::forbid_threads();
+        let h0 = niji_boundary::selftest::held_timer_reads();
+        niji_boundary::selftest::hold_timer_reads(true);
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 0)), None), 0);
-        assert!(until(|| liella_boundary::selftest::held_timer_reads() > h0), "the helper took the expiry and is held before its read");
+        assert!(until(|| niji_boundary::selftest::held_timer_reads() > h0), "the helper took the expiry and is held before its read");
         // The new setting expires 1 ns after it is made; the helper reads only after 100 ms.
         let addr = t.addr();
         let setter = std::thread::spawn(move || tm::timer_settime(core::ptr::without_provenance_mut(addr), 0, Some(&its(1, 0)), None));
         std::thread::sleep(ms(100));
         let r0 = refused();
-        liella_boundary::selftest::hold_timer_reads(false);
+        niji_boundary::selftest::hold_timer_reads(false);
         assert_eq!(setter.join().unwrap(), 0);
         // Threads stay refused until the read's notification has been refused: the count read is
         // then dropped (as the previous setting's) or kept, never notified at once.
         assert!(until(|| refused() > r0), "the notification of the count read was refused");
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         let dl = timeout::deadline(Duration::from_secs(5));
         while RETRY_CALLS.load(SeqCst) == 0 && Instant::now() < dl {
             std::thread::sleep(ms(1));
@@ -765,16 +765,16 @@ fn timer_set_while_the_helper_reads() {
         //    (it cannot tell which setting a count would be), the old expiry is dropped, and the
         //    new setting is notified once threads can be made.
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let r0 = refused();
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 0)), None), 0);
         assert!(until(|| refused() > r0), "the expiry's thread was refused");
-        let (s0, d0) = liella_boundary::selftest::held_timer_sets();
-        let m0 = liella_boundary::selftest::timer_sets_met_reads();
-        liella_boundary::selftest::hold_timer_sets(true);
+        let (s0, d0) = niji_boundary::selftest::held_timer_sets();
+        let m0 = niji_boundary::selftest::timer_sets_met_reads();
+        niji_boundary::selftest::hold_timer_sets(true);
         let addr = t.addr();
         let setter = std::thread::spawn(move || tm::timer_settime(core::ptr::without_provenance_mut(addr), 0, Some(&its(1, 0)), None));
-        assert!(until(|| liella_boundary::selftest::held_timer_sets().0 > s0), "the setting is held in progress");
+        assert!(until(|| niji_boundary::selftest::held_timer_sets().0 > s0), "the setting is held in progress");
         // Either order of the retry's read and the setter's counting in is allowed. Usually the
         // setter counts in first and the retry puts its read off. Under load the retry (10 ms
         // after the refusal) can begin its read just before the setter counts in
@@ -785,15 +785,15 @@ fn timer_set_while_the_helper_reads() {
         // old one), and ruling #269 drops a refused notification of a previous setting, so no
         // put-off read is needed. What #269 does not allow is still checked below: the new
         // setting is notified exactly once, and the dropped expiry is not counted as its overrun.
-        let met_or_deferred = || liella_boundary::selftest::held_timer_sets().1 > d0 || liella_boundary::selftest::timer_sets_met_reads() > m0;
+        let met_or_deferred = || niji_boundary::selftest::held_timer_sets().1 > d0 || niji_boundary::selftest::timer_sets_met_reads() > m0;
         let dl = timeout::deadline(Duration::from_secs(5));
         while !met_or_deferred() && Instant::now() < dl {
             std::thread::sleep(ms(1));
         }
         assert!(met_or_deferred(), "the helper's retry put its read off for the setting in progress, or the setting met the retry's read; timer events: {}", timer_events());
-        liella_boundary::selftest::hold_timer_sets(false);
+        niji_boundary::selftest::hold_timer_sets(false);
         assert_eq!(setter.join().unwrap(), 0);
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         let dl = timeout::deadline(Duration::from_secs(5));
         while RETRY_CALLS.load(SeqCst) == 0 && Instant::now() < dl {
             std::thread::sleep(ms(1));
@@ -810,29 +810,29 @@ fn timer_set_while_the_helper_reads() {
         //    setting's, taken as the previous one's and dropped with the refused thread: the
         //    helper puts its read off instead, and the setting, once done, is notified once.
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
-        let (s0, d0) = liella_boundary::selftest::held_timer_sets();
-        let f0 = liella_boundary::selftest::forced_timer_reads();
-        liella_boundary::selftest::hold_timer_sets_late(true);
+        niji_boundary::selftest::forbid_threads();
+        let (s0, d0) = niji_boundary::selftest::held_timer_sets();
+        let f0 = niji_boundary::selftest::forced_timer_reads();
+        niji_boundary::selftest::hold_timer_sets_late(true);
         let addr = t.addr();
         let setter = std::thread::spawn(move || tm::timer_settime(core::ptr::without_provenance_mut(addr), 0, Some(&its(1, 0)), None));
-        assert!(until(|| liella_boundary::selftest::held_timer_sets().0 > s0), "the setting is held after setting the descriptor");
+        assert!(until(|| niji_boundary::selftest::held_timer_sets().0 > s0), "the setting is held after setting the descriptor");
         let dl = timeout::deadline(Duration::from_secs(5));
-        while liella_boundary::selftest::held_timer_sets().1 == d0 && Instant::now() < dl {
+        while niji_boundary::selftest::held_timer_sets().1 == d0 && Instant::now() < dl {
             std::thread::sleep(ms(1));
         }
-        assert!(liella_boundary::selftest::held_timer_sets().1 > d0, "the helper met the setting in progress");
+        assert!(niji_boundary::selftest::held_timer_sets().1 > d0, "the helper met the setting in progress");
         // Long enough for the helper's first put-off reads (1, 2, 4, 8 ms) to come round.
         std::thread::sleep(ms(20));
-        liella_boundary::selftest::hold_timer_sets_late(false);
+        niji_boundary::selftest::hold_timer_sets_late(false);
         assert_eq!(setter.join().unwrap(), 0);
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         let dl = timeout::deadline(Duration::from_secs(5));
         while RETRY_CALLS.load(SeqCst) == 0 && Instant::now() < dl {
             std::thread::sleep(ms(1));
         }
         assert_eq!(RETRY_CALLS.load(SeqCst), 1, "a setting whose expiry the helper met in progress is notified");
-        assert_eq!(liella_boundary::selftest::forced_timer_reads(), f0, "the helper did not read while the setting was in progress");
+        assert_eq!(niji_boundary::selftest::forced_timer_reads(), f0, "the helper did not read while the setting was in progress");
         assert_eq!(RETRY_OVERRUN.load(SeqCst), 0, "no expiry of the previous setting is the new one's overrun");
         std::thread::sleep(ms(100));
         assert_eq!(RETRY_CALLS.load(SeqCst), 1, "the new setting is notified once");
@@ -845,19 +845,19 @@ fn timer_set_while_the_helper_reads() {
         //    setter preempted between moving the generation and taking the retry did, and the
         //    setting was never notified). Forced with the hold, not by timing.
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
-        let (s0, _) = liella_boundary::selftest::held_timer_sets();
+        niji_boundary::selftest::forbid_threads();
+        let (s0, _) = niji_boundary::selftest::held_timer_sets();
         let r0 = refused();
-        liella_boundary::selftest::hold_timer_sets_done(true);
+        niji_boundary::selftest::hold_timer_sets_done(true);
         let addr = t.addr();
         let setter = std::thread::spawn(move || tm::timer_settime(core::ptr::without_provenance_mut(addr), 0, Some(&its(1, 0)), None));
-        assert!(until(|| liella_boundary::selftest::held_timer_sets().0 > s0), "the setting is held once done with the timer's state");
+        assert!(until(|| niji_boundary::selftest::held_timer_sets().0 > s0), "the setting is held once done with the timer's state");
         assert!(until(|| refused() > r0), "the new setting's expiry was read and its thread refused while the setter was held; timer events: {}", timer_events());
         // The helper schedules the retry after the refusal, under the timers' lock.
-        liella_boundary::selftest::timer_helper_settled();
-        liella_boundary::selftest::hold_timer_sets_done(false);
+        niji_boundary::selftest::timer_helper_settled();
+        niji_boundary::selftest::hold_timer_sets_done(false);
         assert_eq!(setter.join().unwrap(), 0);
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         let dl = timeout::deadline(Duration::from_secs(5));
         while RETRY_CALLS.load(SeqCst) == 0 && Instant::now() < dl {
             std::thread::sleep(ms(1));
@@ -873,10 +873,10 @@ fn timer_set_while_the_helper_reads() {
 #[test]
 fn timer_episodes_reported_on_the_diagnostic_channel() {
     // Clauses: s23_4_c_3_3 (D-23.3, D-2.9, owner ruling #422).
-    // `LIELLA_DIAG=timers`: a notification-thread failure episode writes one line to descriptor
+    // `NIJI_DIAG=timers`: a notification-thread failure episode writes one line to descriptor
     // 2 when it begins and one when a thread starts again, however many retries come between.
     // The value names topics separated by commas (`all`: every one); other names are ignored.
-    let topics = liella_boundary::selftest::diag_topics;
+    let topics = niji_boundary::selftest::diag_topics;
     for (value, on) in [
         (&b"timers"[..], 1),
         (b"all", 1),
@@ -889,17 +889,17 @@ fn timer_episodes_reported_on_the_diagnostic_channel() {
         (b"timersx", 0),
         (b" timers", 0),
     ] {
-        assert_eq!(topics(value), on, "LIELLA_DIAG={:?}", String::from_utf8_lossy(value));
+        assert_eq!(topics(value), on, "NIJI_DIAG={:?}", String::from_utf8_lossy(value));
     }
     let Some(err) = alone("timer_episodes_reported_on_the_diagnostic_channel", || {
-        liella_boundary::selftest::diag_set(b"timers");
+        niji_boundary::selftest::diag_set(b"timers");
         let t = retry_timer();
-        liella_boundary::selftest::forbid_threads();
+        niji_boundary::selftest::forbid_threads();
         let r0 = refused();
         assert_eq!(tm::timer_settime(t, 0, Some(&its(1_000_000, 0)), None), 0);
         // The first refusal and at least three retries (10, 30, 70 ms after it).
         assert!(until(|| refused() > r0 + 3), "the expiry's thread was refused and retried");
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRY_CALLS.load(SeqCst) == 1), "the one-shot is notified once a thread can be made");
         assert_eq!(tm::timer_delete(t), 0);
     }) else {
@@ -907,13 +907,13 @@ fn timer_episodes_reported_on_the_diagnostic_channel() {
     };
     let lines = timer_diag_lines(&err);
     assert_eq!(lines.len(), 2, "one line at the episode's start, one at its recovery: {lines:?}");
-    assert!(lines[0].ends_with("liella: timers: a SIGEV_THREAD timer's notification thread cannot be created (thread or memory starvation?); retrying with back-off"), "{lines:?}");
-    assert!(lines[1].ends_with("liella: timers: a SIGEV_THREAD timer's notification thread started again after a failure episode"), "{lines:?}");
+    assert!(lines[0].ends_with("niji: timers: a SIGEV_THREAD timer's notification thread cannot be created (thread or memory starvation?); retrying with back-off"), "{lines:?}");
+    assert!(lines[1].ends_with("niji: timers: a SIGEV_THREAD timer's notification thread started again after a failure episode"), "{lines:?}");
 }
 
 // ------------------------------------------------------------------------------ message queues
 
-const IPCNS: &str = "LIELLA_SIGEV_IPCNS";
+const IPCNS: &str = "NIJI_SIGEV_IPCNS";
 const O_RDWR: c_int = 2;
 const O_CREAT: c_int = 0o100;
 const O_NONBLOCK: c_int = 0o4000;
@@ -938,7 +938,7 @@ fn in_ipc_ns(test: &str, body: impl FnOnce()) {
 
 fn queue(name: &core::ffi::CStr) -> c_int {
     let attr = MqAttr::new(4, 8);
-    let q = mq::liella_mq_open4(name.as_ptr(), O_RDWR | O_CREAT | O_NONBLOCK, 0o600, &attr);
+    let q = mq::niji_mq_open4(name.as_ptr(), O_RDWR | O_CREAT | O_NONBLOCK, 0o600, &attr);
     assert!(q >= 0, "mq_open");
     q
 }
@@ -1071,7 +1071,7 @@ fn aio_notification_attributes() {
     // Clauses: s11_11_c_0 (D-11.11).
     let file = Scratch::path("sigev-aio");
     std::fs::write(&*file, b"0123456789").unwrap();
-    let fd = io::liella_open3(file.c().as_ptr(), 0, 0);
+    let fd = io::niji_open3(file.c().as_ptr(), 0, 0);
     assert!(fd >= 0);
     for slot in [AIO_SIZED, AIO_OWN] {
         let (mut a, lo) = if slot == AIO_OWN { let (a, lo) = own_stack(slot); (a, Some(lo)) } else { (sized_joinable(BIG_STACK), None) };
@@ -1092,7 +1092,7 @@ fn aio_notification_attributes() {
 const TOGETHER: usize = 8;
 /// Their control blocks (addresses), for the function to wait on.
 static TOGETHER_CBS: [AtomicUsize; TOGETHER] = [const { AtomicUsize::new(0) }; TOGETHER];
-const ENGINE: &str = "LIELLA_SIGEV_AIO_ENGINE";
+const ENGINE: &str = "NIJI_SIGEV_AIO_ENGINE";
 const EINPROGRESS: c_int = 115;
 
 /// The function of the requests completing together: it stays until every request has
@@ -1127,7 +1127,7 @@ fn per_engine(test: &str) -> Option<String> {
         return None;
     };
     if engine == "workers" {
-        liella_boundary::selftest::aio_force_workers(true);
+        niji_boundary::selftest::aio_force_workers(true);
     }
     Some(engine)
 }
@@ -1146,7 +1146,7 @@ fn aio_completions_share_stack() {
     let mut fds = [0; TOGETHER];
     // One descriptor each, so the requests run (and complete) concurrently.
     for (i, cb) in cbs.iter_mut().enumerate() {
-        fds[i] = io::liella_open3(file.c().as_ptr(), 0, 0);
+        fds[i] = io::niji_open3(file.c().as_ptr(), 0, 0);
         assert!(fds[i] >= 0);
         *cb = Cb { fildes: fds[i], buf: bufs[i].as_mut_ptr().addr(), nbytes: 4, value: AIO_TOGETHER as u64, notify: SIGEV_THREAD, function: together as extern "C" fn(usize) as usize, attrs: attr_word(a) as usize, ..Cb::default() };
         TOGETHER_CBS[i].store(core::ptr::from_mut(cb).expose_provenance(), SeqCst);
@@ -1165,7 +1165,7 @@ fn aio_completions_share_stack() {
     assert_eq!(s.max_running.load(SeqCst), 1, "{engine}: one notification at a time on the stack");
     assert_eq!(s.clobbered.load(SeqCst), 0, "{engine}: no call's stack-canary word overwritten by another on the stack");
     if engine == "workers" {
-        assert_eq!(liella_boundary::selftest::aio_engine(), "workers");
+        assert_eq!(niji_boundary::selftest::aio_engine(), "workers");
     }
 }
 
@@ -1188,7 +1188,7 @@ fn lio_completions_share_stack() {
     let mut cbs = [Cb::default(); TOGETHER];
     let mut fds = [0; TOGETHER];
     for (i, cb) in cbs.iter_mut().enumerate() {
-        fds[i] = io::liella_open3(file.c().as_ptr(), 0, 0);
+        fds[i] = io::niji_open3(file.c().as_ptr(), 0, 0);
         assert!(fds[i] >= 0);
         *cb = Cb { fildes: fds[i], opcode: LIO_READ, buf: bufs[i].as_mut_ptr().addr(), nbytes: 4, value: LIO_TOGETHER as u64, notify: SIGEV_THREAD, function, attrs: attr_word(a) as usize, ..Cb::default() };
         TOGETHER_CBS[i].store(core::ptr::from_mut(cb).expose_provenance(), SeqCst);
@@ -1235,7 +1235,7 @@ fn child_without_the_retry(body: impl FnOnce() -> bool) {
     let pid = pr::fork();
     assert!(pid >= 0, "fork");
     if pid == 0 {
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         let ok = body();
         std::thread::sleep(Duration::from_millis(300));
         st::_exit(if ok && RETRIED_CALLS.load(SeqCst) == calls { 0 } else { 1 });
@@ -1254,12 +1254,12 @@ fn mq_refused_notification_retried() {
     // another process, or this one; one at a time), and a child of `fork` does not deliver it.
     // The failure is injected (`forbid_threads`), in a process of its own (the namespace's).
     in_ipc_ns("mq_refused_notification_retried", || {
-        liella_boundary::selftest::mark_own_process();
+        niji_boundary::selftest::mark_own_process();
         let q = queue(c"/retried");
         let ev = SigEvent::thread(0, retried_once_addr(), 0);
         assert_eq!(mq::mq_notify(q, Some(&ev)), 0);
-        let (e0, r0) = (liella_boundary::selftest::mq_thread_episodes(), refused());
-        liella_boundary::selftest::forbid_threads();
+        let (e0, r0) = (niji_boundary::selftest::mq_thread_episodes(), refused());
+        niji_boundary::selftest::forbid_threads();
         assert_eq!(mq::mq_send(q, c"m".as_ptr(), 1, 0), 0);
         assert!(until(|| refused() >= r0 + 2), "the notification thread was refused, then retried");
         assert_eq!(RETRIED_CALLS.load(SeqCst), 0, "no thread, no call");
@@ -1268,10 +1268,10 @@ fn mq_refused_notification_retried() {
         // This process registers again; a second registration is still refused.
         assert_eq!(mq::mq_notify(q, Some(&ev)), 0, "the message used the registration up");
         assert_ne!(mq::mq_notify(q, Some(&ev)), 0, "one registration at a time");
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRIED_CALLS.load(SeqCst) == 1), "notified once a thread can be made");
         settle(1, "the retried notification");
-        let e1 = liella_boundary::selftest::mq_thread_episodes();
+        let e1 = niji_boundary::selftest::mq_thread_episodes();
         assert_eq!((e1.0 - e0.0, e1.1 - e0.1), (1, 1), "one failure episode, ended by the start");
         // The new registration notifies with the next message on the empty queue.
         let mut buf = [0 as core::ffi::c_char; 8];
@@ -1294,29 +1294,29 @@ fn mq_abandoned_notification_retried() {
     // takes a new registration, which notifies. The failure is injected (`forbid_threads`), in a
     // process of its own (the namespace's).
     in_ipc_ns("mq_abandoned_notification_retried", || {
-        liella_boundary::selftest::mark_own_process();
+        niji_boundary::selftest::mark_own_process();
         let mut a = bare_stack();
         let q = queue(c"/abandoned");
         let ev = SigEvent::thread(0, retried_once_addr(), attr_word(&mut a));
         assert_eq!(mq::mq_notify(q, Some(&ev)), 0);
-        let used = liella_boundary::selftest::mq_records_in_use();
+        let used = niji_boundary::selftest::mq_records_in_use();
         // 1. The occupant holds the stack; the message's notification waits for it.
         let occupant = occupy_stack(&mut a);
         assert_eq!(mq::mq_send(q, c"m".as_ptr(), 1, 0), 0);
-        assert!(until(|| liella_boundary::selftest::notifications_queued_for_stacks() == 1), "the message's notification waits for the stack");
+        assert!(until(|| niji_boundary::selftest::notifications_queued_for_stacks() == 1), "the message's notification waits for the stack");
         // 2. The stack is freed while no thread can be made: the notification is abandoned.
-        let a0 = liella_boundary::selftest::mq_notifications_abandoned();
-        liella_boundary::selftest::forbid_threads();
+        let a0 = niji_boundary::selftest::mq_notifications_abandoned();
+        niji_boundary::selftest::forbid_threads();
         BLOCK.store(0, SeqCst);
-        assert!(until(|| liella_boundary::selftest::mq_notifications_abandoned() > a0), "the waiting notification could not be started");
-        assert_eq!(liella_boundary::selftest::mq_records_in_use(), used, "the abandoned registration's record is kept for the retry");
+        assert!(until(|| niji_boundary::selftest::mq_notifications_abandoned() > a0), "the waiting notification could not be started");
+        assert_eq!(niji_boundary::selftest::mq_records_in_use(), used, "the abandoned registration's record is kept for the retry");
         assert_eq!(RETRIED_CALLS.load(SeqCst), 0, "no thread, no call");
         // 3. Threads can be made again: the retry delivers it, once, and frees the record.
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRIED_CALLS.load(SeqCst) == 1), "the abandoned notification is retried");
         settle(1, "the abandoned notification");
-        assert_eq!(liella_boundary::selftest::mq_records_in_use(), used - 1, "its record is freed once it started");
-        assert_eq!(liella_boundary::selftest::notifications_queued_for_stacks(), 0, "nothing left waiting");
+        assert_eq!(niji_boundary::selftest::mq_records_in_use(), used - 1, "its record is freed once it started");
+        assert_eq!(niji_boundary::selftest::notifications_queued_for_stacks(), 0, "nothing left waiting");
         // 4. The message used the registration up: the queue takes a new one, on the free stack.
         let mut buf = [0 as core::ffi::c_char; 8];
         assert_eq!(mq::mq_receive(q, buf.as_mut_ptr(), buf.len(), None), 1);
@@ -1340,7 +1340,7 @@ fn aio_refused_notification_retried() {
     alone("aio_refused_notification_retried", || {
         let file = Scratch::path("sigev-aio-retried");
         std::fs::write(&*file, b"0123456789").unwrap();
-        let fd = io::liella_open3(file.c().as_ptr(), 0, 0);
+        let fd = io::niji_open3(file.c().as_ptr(), 0, 0);
         assert!(fd >= 0);
         let mut bufs = [[0u8; 4]; 3];
         let mut cbs = bufs.each_mut().map(|b| Cb { fildes: fd, buf: b.as_mut_ptr().addr(), nbytes: 4, notify: SIGEV_THREAD, function: retried_once as extern "C" fn(usize) as usize, ..Cb::default() });
@@ -1348,8 +1348,8 @@ fn aio_refused_notification_retried() {
         // The first request makes the engine and the retries' helper, and notifies.
         assert_eq!(io::aio_read(p.cast()), 0);
         assert!(until(|| RETRIED_CALLS.load(SeqCst) == 1), "notified");
-        let (e0, r0) = (liella_boundary::selftest::aio_thread_episodes(), refused());
-        liella_boundary::selftest::forbid_threads();
+        let (e0, r0) = (niji_boundary::selftest::aio_thread_episodes(), refused());
+        niji_boundary::selftest::forbid_threads();
         for i in 1..3 {
             assert_eq!(io::aio_read(p.wrapping_add(i).cast()), 0);
         }
@@ -1360,10 +1360,10 @@ fn aio_refused_notification_retried() {
         }
         assert_eq!(RETRIED_CALLS.load(SeqCst), 1, "no thread, no call");
         child_without_the_retry(|| true);
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRIED_CALLS.load(SeqCst) == 3), "each request notified once a thread can be made");
         settle(3, "the retried notifications");
-        let e1 = liella_boundary::selftest::aio_thread_episodes();
+        let e1 = niji_boundary::selftest::aio_thread_episodes();
         assert_eq!((e1.0 - e0.0, e1.1 - e0.1), (2, 2), "a failure episode per notification, each ended by its start");
         assert_eq!(io::close(fd), 0);
     });
@@ -1381,7 +1381,7 @@ fn aio_abandoned_notification_retried() {
     alone("aio_abandoned_notification_retried", || {
         let file = Scratch::path("sigev-aio-abandoned");
         std::fs::write(&*file, b"0123456789").unwrap();
-        let fd = io::liella_open3(file.c().as_ptr(), 0, 0);
+        let fd = io::niji_open3(file.c().as_ptr(), 0, 0);
         assert!(fd >= 0);
         let mut a = bare_stack();
         let mut bufs = [[0u8; 4]; 2];
@@ -1392,20 +1392,20 @@ fn aio_abandoned_notification_retried() {
         // 1. The occupant holds the stack; the completion's notification waits for it.
         let occupant = occupy_stack(&mut a);
         assert_eq!(io::aio_read(p.cast()), 0);
-        assert!(until(|| liella_boundary::selftest::notifications_queued_for_stacks() == 1), "the completion's notification waits for the stack");
+        assert!(until(|| niji_boundary::selftest::notifications_queued_for_stacks() == 1), "the completion's notification waits for the stack");
         // 2. The stack is freed while no thread can be made: the notification is abandoned.
-        let (a0, f0) = (liella_boundary::selftest::aio_notifications_abandoned(), liella_boundary::selftest::aio_free_records());
-        liella_boundary::selftest::forbid_threads();
+        let (a0, f0) = (niji_boundary::selftest::aio_notifications_abandoned(), niji_boundary::selftest::aio_free_records());
+        niji_boundary::selftest::forbid_threads();
         BLOCK.store(0, SeqCst);
-        assert!(until(|| liella_boundary::selftest::aio_notifications_abandoned() > a0), "the waiting notification could not be started");
-        assert_eq!(liella_boundary::selftest::aio_free_records(), f0, "the abandoned notification's block is kept for the retry");
+        assert!(until(|| niji_boundary::selftest::aio_notifications_abandoned() > a0), "the waiting notification could not be started");
+        assert_eq!(niji_boundary::selftest::aio_free_records(), f0, "the abandoned notification's block is kept for the retry");
         assert_eq!(io::aio_error(p.cast()), 0, "the request completed");
         assert_eq!(io::aio_return(p.cast()), 4);
         // 3. Threads can be made again: the retry delivers it, once, and releases the block.
-        liella_boundary::selftest::allow_threads();
+        niji_boundary::selftest::allow_threads();
         assert!(until(|| RETRIED_CALLS.load(SeqCst) == 1), "the abandoned notification is retried");
         settle(1, "the abandoned notification");
-        assert!(until(|| liella_boundary::selftest::aio_free_records() == f0 + 1), "its block is released once it started");
+        assert!(until(|| niji_boundary::selftest::aio_free_records() == f0 + 1), "its block is released once it started");
         // 4. A later request notifies on the free stack.
         let mut cb2 = mk(b2, &mut a);
         let p2 = &raw mut cb2;

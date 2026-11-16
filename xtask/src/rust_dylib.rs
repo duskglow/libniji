@@ -1,4 +1,4 @@
-//! `cargo xtask rust-dylib [<abi>]`: the Rust dylib `libliella_rust.so.<abi>` of a Rust ABI
+//! `cargo xtask rust-dylib [<abi>]`: the Rust dylib `libniji_rust.so.<abi>` of a Rust ABI
 //! version defined in `spec/abi/rust-abi.toml` (D-X.10; every field and command is explained
 //! in docs/toolchain.md). Without `<abi>`, the version whose `status` is `current`.
 //!
@@ -11,33 +11,33 @@
 //!    names the `rustup toolchain install` command. Its `rustc -vV` must report the version's
 //!    `release`, `commit-hash`, `host` and `LLVM version` exactly, and `rustc --print cfg` its
 //!    target features; otherwise the command refuses.
-//! 3. `liella-native` with feature `dylib` passes clippy (`--all-targets`, so the program of
+//! 3. `niji-native` with feature `dylib` passes clippy (`--all-targets`, so the program of
 //!    step 5 is checked against the crate's rlib too).
 //! 4. The crates of `[<abi>.crates]` are compiled with `rustc` directly (not Cargo, so the
 //!    commands are exactly those docs/toolchain.md gives a third party), in their order, into
-//!    `target/liella/rust/<abi>/`: rlibs, then `liella_native` as a `dylib` with
-//!    `LIELLA_RUST_ABI` and `LIELLA_RUST_ABI_HASH` in its environment, linked by GNU ld
-//!    against Liella's `libc.so.6`. The result is renamed to the version's file name
-//!    (`libliella_rust.so.<abi>`), and `libliella_native.so`, the name `--extern` needs, is
+//!    `target/niji/rust/<abi>/`: rlibs, then `niji_native` as a `dylib` with
+//!    `NIJI_RUST_ABI` and `NIJI_RUST_ABI_HASH` in its environment, linked by GNU ld
+//!    against libniji's `libc.so.6`. The result is renamed to the version's file name
+//!    (`libniji_rust.so.<abi>`), and `libniji.so`, the name `--extern` needs, is
 //!    made a symbolic link to it.
 //! 5. The program `crates/native/examples/native_rust_dylib.rs` is compiled against it
-//!    (`--extern liella_native=.../libliella_native.so`), linked like the dynamic example.
+//!    (`--extern niji_native=.../libniji.so`), linked like the dynamic example.
 //! 6. `readelf` checks the dylib: its soname and `DT_NEEDED` (only `libc.so.6`); the note
-//!    `.note.liella.rustabi` (owner `Liella`, type 0x4c520001, the identifier and the hash);
-//!    the exported `LIELLA_RUST_ABI` (an object holding the identifier and a NUL); every
+//!    `.note.niji.rustabi` (owner `libniji`, type 0x4c520001, the identifier and the hash);
+//!    the exported `NIJI_RUST_ABI` (an object holding the identifier and a NUL); every
 //!    native function with a safe use referenced at its node, none newer than the version's
 //!    `native_c_abi`. And the program: `DT_NEEDED` exactly the version's file and
 //!    `libc.so.6`, its references to native functions (if rustc inlined any into it) at their
-//!    nodes, `LIELLA_RUST_ABI` referenced, no allocator of its own. The program is not run:
-//!    that needs Liella's dynamic loader (phase 14).
+//!    nodes, `NIJI_RUST_ABI` referenced, no allocator of its own. The program is not run:
+//!    that needs libniji's dynamic loader (phase 14).
 //! 7. Coexistence, for the current version: a synthetic variant `lr999-test` (the version's
 //!    tables renamed, `opt_level` changed, the hash recomputed; written to
-//!    `target/liella/rust-test/rust-abi.toml`) is built the same way into
-//!    `target/liella/rust-test/`, with its own program, and checked the same way. Both files
-//!    are then placed side by side in `target/liella/rust-test/lib`: their sonames, notes and
-//!    strings must differ, and the only dynamic symbols both define may be `LIELLA_RUST_ABI`
+//!    `target/niji/rust-test/rust-abi.toml`) is built the same way into
+//!    `target/niji/rust-test/`, with its own program, and checked the same way. Both files
+//!    are then placed side by side in `target/niji/rust-test/lib`: their sonames, notes and
+//!    strings must differ, and the only dynamic symbols both define may be `NIJI_RUST_ABI`
 //!    and the toolchain's own crates (`core`, `alloc`, `compiler_builtins`, the allocator
-//!    shims), never one of Liella's crates (their names carry `-C metadata`, the identifier).
+//!    shims), never one of libniji's crates (their names carry `-C metadata`, the identifier).
 //!    The variant uses the same toolchain: it shows that versions coexist, not that a second
 //!    toolchain works.
 //!
@@ -250,13 +250,13 @@ impl Def {
         };
         want("identifier", id.clone(), &mut errors);
         want("codegen.metadata", id.clone(), &mut errors);
-        want("product.file", format!("libliella_rust.so.{id}"), &mut errors);
-        want("product.soname", format!("libliella_rust.so.{id}"), &mut errors);
-        want("product.link_name", "libliella_native.so".into(), &mut errors);
-        want("product.note_section", ".note.liella.rustabi".into(), &mut errors);
-        want("product.note_owner", "Liella".into(), &mut errors);
+        want("product.file", format!("libniji_rust.so.{id}"), &mut errors);
+        want("product.soname", format!("libniji_rust.so.{id}"), &mut errors);
+        want("product.link_name", "libniji.so".into(), &mut errors);
+        want("product.note_section", ".note.niji.rustabi".into(), &mut errors);
+        want("product.note_owner", "libniji".into(), &mut errors);
         want("product.note_type", NOTE_TYPE.into(), &mut errors);
-        want("product.symbol", "LIELLA_RUST_ABI".into(), &mut errors);
+        want("product.symbol", "NIJI_RUST_ABI".into(), &mut errors);
         match self.string("status") {
             Ok(s) if ["current", "supported", "retired"].contains(&s.as_str()) || s.starts_with("synthetic") => {}
             Ok(s) => errors.push(format!("{id}.status \"{s}\": expected current, supported or retired")),
@@ -411,7 +411,7 @@ fn build(root: &Path, rustc: &str, def: &Def, dir: &Path, libc_so: &Path, nounwi
             for f in def.strings(&format!("crates.{name}_features"))? {
                 cmd.arg("--cfg").arg(format!("feature=\"{f}\""));
             }
-            cmd.env("LIELLA_RUST_ABI", &def.id).env("LIELLA_RUST_ABI_HASH", def.string("hash")?);
+            cmd.env("NIJI_RUST_ABI", &def.id).env("NIJI_RUST_ABI_HASH", def.string("hash")?);
             cmd.arg("-C").arg(format!("linker={}", def.string("toolchain.linker")?));
             cmd.arg("-C").arg(format!("linker-features={}", def.string("toolchain.linker_features")?));
             for a in def.strings("product.link_args")? {
@@ -441,7 +441,7 @@ fn build(root: &Path, rustc: &str, def: &Def, dir: &Path, libc_so: &Path, nounwi
     let program = dir.join("native_rust_dylib");
     let mut cmd = Command::new(rustc);
     cmd.current_dir(root).args(["--crate-name", "native_rust_dylib"]).arg(EXAMPLE).args(["--crate-type", "bin"]).args(&common);
-    cmd.arg("--extern").arg(format!("liella_native={}", link.display())).arg("-L").arg(format!("dependency={}", dir.display()));
+    cmd.arg("--extern").arg(format!("niji_native={}", link.display())).arg("-L").arg(format!("dependency={}", dir.display()));
     cmd.arg("-C").arg(format!("linker={}", driver.display()));
     cmd.arg("-C").arg(format!("linker-features={}", def.string("toolchain.linker_features")?));
     for a in ["-nostartfiles".to_string(), "-nostdlib".into(), nounwind.display().to_string(), libc_so.display().to_string(), "-lgcc".into()] {
@@ -464,12 +464,12 @@ fn dynamic(path: &Path) -> Result<(Vec<String>, Option<String>), String> {
     Ok((needed, soname))
 }
 
-/// The note `.note.liella.rustabi`: owner, type and descriptor bytes.
+/// The note `.note.niji.rustabi`: owner, type and descriptor bytes.
 fn note(path: &Path) -> Result<(String, String, Vec<u8>), String> {
     let text = output(Command::new("readelf").arg("-nW").arg(path))?;
-    let mut lines = text.lines().skip_while(|l| !l.contains("notes found in: .note.liella.rustabi"));
+    let mut lines = text.lines().skip_while(|l| !l.contains("notes found in: .note.niji.rustabi"));
     if lines.next().is_none() {
-        return Err(format!("{}: no section .note.liella.rustabi", path.display()));
+        return Err(format!("{}: no section .note.niji.rustabi", path.display()));
     }
     for l in lines {
         let f: Vec<&str> = l.split_whitespace().collect();
@@ -482,7 +482,7 @@ fn note(path: &Path) -> Result<(String, String, Vec<u8>), String> {
         let bytes = desc.split_whitespace().map(|h| u8::from_str_radix(h, 16).map_err(|e| format!("readelf -n: `{h}`: {e}"))).collect::<Result<Vec<u8>, String>>()?;
         return Ok((owner, kind, bytes));
     }
-    Err(format!("{}: .note.liella.rustabi holds no note", path.display()))
+    Err(format!("{}: .note.niji.rustabi holds no note", path.display()))
 }
 
 /// A dynamic symbol, as `readelf --dyn-syms` shows it.
@@ -543,7 +543,7 @@ fn native_refs(root: &Path, what: &str, syms: &[Sym], newest: &str, errors: &mut
     let rank = |n: &str| order.iter().position(|o| o == n);
     let mut refs = BTreeSet::new();
     for Sym { name, version: ver, defined, .. } in syms {
-        if *defined || !name.starts_with("liella_") {
+        if *defined || !name.starts_with("niji_") {
             continue;
         }
         match table.get(name) {
@@ -579,22 +579,22 @@ fn check(root: &Path, def: &Def, built: &Built) -> Result<String, String> {
     // The note.
     let (owner, kind, desc) = note(file)?;
     let want_desc = format!("{id}\0{}\0", def.string("hash")?).into_bytes();
-    if owner != "Liella" || kind != NOTE_TYPE || desc != want_desc {
-        errors.push(format!("{what}: note owner {owner:?} type {kind:?} descriptor {:?}, expected Liella {NOTE_TYPE} {:?}", String::from_utf8_lossy(&desc), String::from_utf8_lossy(&want_desc)));
+    if owner != "libniji" || kind != NOTE_TYPE || desc != want_desc {
+        errors.push(format!("{what}: note owner {owner:?} type {kind:?} descriptor {:?}, expected libniji {NOTE_TYPE} {:?}", String::from_utf8_lossy(&desc), String::from_utf8_lossy(&want_desc)));
     }
     // The exported string.
     let syms = dyn_syms(file)?;
-    let symbol = syms.iter().find(|s| s.name == "LIELLA_RUST_ABI" && s.defined);
+    let symbol = syms.iter().find(|s| s.name == "NIJI_RUST_ABI" && s.defined);
     let mut text = String::new();
     match symbol {
         Some(Sym { kind: ty, size, value, .. }) => {
             let bytes = read_at(file, *value, *size)?;
             text = String::from_utf8_lossy(&bytes).replace('\0', "\\0");
             if ty != "OBJECT" || bytes != format!("{id}\0").into_bytes() {
-                errors.push(format!("{what}: LIELLA_RUST_ABI is {ty} \"{text}\", expected OBJECT \"{id}\\0\""));
+                errors.push(format!("{what}: NIJI_RUST_ABI is {ty} \"{text}\", expected OBJECT \"{id}\\0\""));
             }
         }
-        None => errors.push(format!("{what}: does not export LIELLA_RUST_ABI")),
+        None => errors.push(format!("{what}: does not export NIJI_RUST_ABI")),
     }
     // Its native references: every native function with a safe use.
     let newest = def.string("native_c_abi")?;
@@ -613,8 +613,8 @@ fn check(root: &Path, def: &Def, built: &Built) -> Result<String, String> {
     }
     let psyms = dyn_syms(&built.program)?;
     let prefs = native_refs(root, prog, &psyms, &newest, &mut errors)?;
-    if !psyms.iter().any(|s| s.name == "LIELLA_RUST_ABI" && !s.defined) {
-        errors.push(format!("{prog}: does not reference LIELLA_RUST_ABI"));
+    if !psyms.iter().any(|s| s.name == "NIJI_RUST_ABI" && !s.defined) {
+        errors.push(format!("{prog}: does not reference NIJI_RUST_ABI"));
     }
     if psyms.iter().any(|s| s.defined && s.name.contains("__rust_alloc")) {
         errors.push(format!("{prog}: defines an allocator symbol; the dylib's must be the only one"));
@@ -624,7 +624,7 @@ fn check(root: &Path, def: &Def, built: &Built) -> Result<String, String> {
     }
     let own = if prefs.is_empty() { "no native references of its own: its calls go through the dylib".to_string() } else { format!("{} native references of its own (inlined), each at its node", prefs.len()) };
     Ok(format!(
-        "{id}: {} (soname {what}, NEEDED libc.so.6; note Liella {NOTE_TYPE} \"{id}\" hash {}; LIELLA_RUST_ABI = \"{text}\"; references {} native functions, each at its node, the newest {newest}); its program: NEEDED {}, {own}",
+        "{id}: {} (soname {what}, NEEDED libc.so.6; note libniji {NOTE_TYPE} \"{id}\" hash {}; NIJI_RUST_ABI = \"{text}\"; references {} native functions, each at its node, the newest {newest}); its program: NEEDED {}, {own}",
         file.strip_prefix(root).unwrap_or(file).display(),
         def.string("hash")?,
         refs.len(),
@@ -633,7 +633,7 @@ fn check(root: &Path, def: &Def, built: &Built) -> Result<String, String> {
 }
 
 /// Two builds side by side: different sonames, notes and symbols, no common symbol of
-/// Liella's crates.
+/// libniji's crates.
 fn coexist(root: &Path, a: (&Def, &Built), b: (&Def, &Built), lib: &Path) -> Result<String, String> {
     let _ = fs::remove_dir_all(lib);
     fs::create_dir_all(lib).map_err(|e| format!("{}: {e}", lib.display()))?;
@@ -658,7 +658,7 @@ fn coexist(root: &Path, a: (&Def, &Built), b: (&Def, &Built), lib: &Path) -> Res
     // crates (v0 names carry the crate name: `4core`, `5alloc`, `17compiler_builtins`, and
     // `7___rustc` for the allocator shims), which the same toolchain compiles identically.
     let common: Vec<&String> = da.intersection(&db).collect();
-    let toolchain = |s: &str| s == "LIELLA_RUST_ABI" || ["4core", "5alloc", "17compiler_builtins", "7___rustc"].iter().any(|c| s.contains(c));
+    let toolchain = |s: &str| s == "NIJI_RUST_ABI" || ["4core", "5alloc", "17compiler_builtins", "7___rustc"].iter().any(|c| s.contains(c));
     let other: Vec<&&String> = common.iter().filter(|s| !toolchain(s.as_str())).collect();
     if let Some(first) = other.first() {
         errors.push(format!("{} symbols defined by both that are not the toolchain's, for example {first}", other.len()));
@@ -667,7 +667,7 @@ fn coexist(root: &Path, a: (&Def, &Built), b: (&Def, &Built), lib: &Path) -> Res
         return Err(errors.join("\n"));
     }
     Ok(format!(
-        "{} and {} side by side in {}: different sonames, notes and LIELLA_RUST_ABI; {} of their {} and {} defined symbols in common, all LIELLA_RUST_ABI or the toolchain's core, alloc and allocator shims, none of Liella's crates",
+        "{} and {} side by side in {}: different sonames, notes and NIJI_RUST_ABI; {} of their {} and {} defined symbols in common, all NIJI_RUST_ABI or the toolchain's core, alloc and allocator shims, none of libniji's crates",
         a.0.id,
         b.0.id,
         lib.strip_prefix(root).unwrap_or(lib).display(),
@@ -726,21 +726,21 @@ pub fn run_rust_dylib(root: &Path, which: Option<&str>) -> Result<(), String> {
     // The crate with feature `dylib` under clippy (the dylib's own root, and its program
     // checked against the rlib).
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    run(Command::new(&cargo).current_dir(root).args(["clippy", "-q", "-p", "liella-native", "--all-targets", "--features", "dylib", "--", "-D", "warnings"]))?;
+    run(Command::new(&cargo).current_dir(root).args(["clippy", "-q", "-p", "niji-native", "--all-targets", "--features", "dylib", "--", "-D", "warnings"]))?;
 
-    let built = build(root, &rustc, def, &root.join("target/liella/rust").join(&def.id), &libc_so, &nounwind, &driver)?;
+    let built = build(root, &rustc, def, &root.join("target/niji/rust").join(&def.id), &libc_so, &nounwind, &driver)?;
     let line = check(root, def, &built)?;
     println!("rust-dylib: {line}");
 
     // Coexistence, with a synthetic second version.
     if def.string("status").is_ok_and(|s| s == "current") {
-        let test = root.join("target/liella/rust-test");
+        let test = root.join("target/niji/rust-test");
         let _ = fs::remove_dir_all(&test);
         fs::create_dir_all(&test).map_err(|e| format!("{}: {e}", test.display()))?;
         let v = variant(def);
         let text = format!("# @generated by `cargo xtask rust-dylib`: a synthetic variant of {} for the coexistence check. Never installed.\n\n{}", def.id, v.to_toml());
         fs::write(test.join("rust-abi.toml"), &text).map_err(|e| format!("rust-abi.toml: {e}"))?;
-        let parsed = parse(&text, "target/liella/rust-test/rust-abi.toml")?;
+        let parsed = parse(&text, "target/niji/rust-test/rust-abi.toml")?;
         let Some(v) = parsed.first() else { return Err("the variant did not parse".into()) };
         v.check(root)?;
         let vbuilt = build(root, &rustc, v, &test.join(VARIANT), &libc_so, &nounwind, &driver)?;
@@ -748,7 +748,7 @@ pub fn run_rust_dylib(root: &Path, which: Option<&str>) -> Result<(), String> {
         println!("rust-dylib: {}", coexist(root, (def, &built), (v, &vbuilt), &test.join("lib"))?);
     }
     println!(
-        "rust-dylib: {} built with {} rustc commands into {}; its program is linked, not run: running it needs Liella's dynamic loader (phase 14), and the host's loader must never load Liella's libc.so.6",
+        "rust-dylib: {} built with {} rustc commands into {}; its program is linked, not run: running it needs libniji's dynamic loader (phase 14), and the host's loader must never load libniji's libc.so.6",
         def.id,
         built.commands,
         built.dir.strip_prefix(root).unwrap_or(&built.dir).display()

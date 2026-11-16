@@ -1,6 +1,6 @@
 //! The `double` sin, cos, tan, sincos quick phase (LIBM-F64-TRIG-QUICK, D-10.51, D-10.61; their
 //! tier 1) in both builds through the boundary (the FMA build needs the startup dispatch, so its
-//! tests live here; the SSE2 build's own tests are in `liella-math`'s `trig/quick/tests.rs`).
+//! tests live here; the SSE2 build's own tests are in `niji-math`'s `trig/quick/tests.rs`).
 //! Clauses: s10_0_f_0 (D-10.3: every value the quick phase returns is the correctly rounded
 //! result, so its two builds are bit-identical wherever both answer) and s10_3_c_r4 (exact
 //! reduction for huge arguments: the integer Payne-Hanek path).
@@ -8,8 +8,8 @@
 // Sample generation is bit-level arithmetic on bounded values.
 #![allow(clippy::arithmetic_side_effects, clippy::indexing_slicing, clippy::as_conversions)]
 
-use liella_boundary::selftest;
-use liella_math::status::Rounding;
+use niji_boundary::selftest;
+use niji_math::status::Rounding;
 
 /// xorshift64 states from `seed`.
 fn bits(n: usize, seed: u64) -> impl Iterator<Item = u64> {
@@ -41,13 +41,13 @@ fn uniform_bits(n: usize, seed: u64) -> impl Iterator<Item = f64> {
 const NAMES: [&str; 3] = ["sin", "cos", "tan"];
 
 /// The correctly rounded result (today's tier, else the accurate path).
-// opaque-ok: `liella_math::trig::{sin,cos,tan}(x, Rounding)` are mangled two-argument Rust
+// opaque-ok: `niji_math::trig::{sin,cos,tan}(x, Rounding)` are mangled two-argument Rust
 // functions, not the C names, so LLVM cannot fold them as its `sin`/`cos`/`tan` builtins.
 fn cr(which: u8, x: f64) -> f64 {
     match which {
-        0 => liella_math::trig::sin(x, Rounding::Nearest).0,
-        1 => liella_math::trig::cos(x, Rounding::Nearest).0,
-        _ => liella_math::trig::tan(x, Rounding::Nearest).0,
+        0 => niji_math::trig::sin(x, Rounding::Nearest).0,
+        1 => niji_math::trig::cos(x, Rounding::Nearest).0,
+        _ => niji_math::trig::tan(x, Rounding::Nearest).0,
     }
 }
 

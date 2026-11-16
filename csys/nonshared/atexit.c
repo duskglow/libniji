@@ -10,7 +10,7 @@
 
 #include "notice.h"
 
-LIELLA_NONSHARED_NOTICE_FOR(atexit)
+NIJI_NONSHARED_NOTICE_FOR(atexit)
 
 extern void *__dso_handle __attribute__((visibility("hidden")));
 extern int __cxa_atexit(void (*)(void *), void *, void *);

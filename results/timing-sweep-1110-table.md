@@ -9,12 +9,12 @@ results/timing-sweep-1107b-table.md.
   `cargo xtask bench --stage <tar> --only cbench_libm,cbench_hot,cbench_locale,cbench_memref` (manifest tree
   6f81339ed45b8669, profile release, 52 products; tarball sha256 b514340f03e0493e...). The tarball was unpacked whole
   on both booked timing hosts.
-- Job per host and group: `./xtask-bin sweep run --out <dir> --only <group>` (interleaved Liella/glibc rounds, 5 per
+- Job per host and group: `./xtask-bin sweep run --out <dir> --only <group>` (interleaved libniji/glibc rounds, 5 per
   row). All eight runs ended `sweep: COMPLETE` with every selected `ratio_host` row measured (166 libm, 37 hot,
   36 locale, 96 memref per class). Ivy Bridge cbench_memref: bench rc 1 because the limit check flagged
   `__memcmpeq_eq_128` (1.105) and `__memcmpeq_tail_1k` (1.001), the same two rows as in 1107b (findings, not a run
   failure). Default dispatch on both hosts (the Ivy Bridge part has no FMA; the N100 runs its FMA paths).
-- Per row: Liella ns and glibc ns are the medians over the rounds; ratio is the median of the per-round Liella/glibc
+- Per row: libniji ns and glibc ns are the medians over the rounds; ratio is the median of the per-round libniji/glibc
   ratios; spread is (max - min) / median of those ratios (the `sweep.tsv` definitions). Verdict: faster < 0.95,
   slower > 1.05, parity in between. instr is the instruction ratio per call from the same run's counters.
 - Before column: the row's ratio on the same class in results/timing-sweep-1107b-table.md if that sweep timed it,
@@ -28,7 +28,7 @@ results/timing-sweep-1107b-table.md.
 
 ## Summary
 
-- **exp on the N100 is no longer above 2x glibc: 1.728 (Liella 14.00 ns, glibc 8.12 ns, spread 0.095), down from
+- **exp on the N100 is no longer above 2x glibc: 1.728 (libniji 14.00 ns, glibc 8.12 ns, spread 0.095), down from
   2.169 in 1107b.** Ivy Bridge exp: 1.489 (27.97 / 18.79 ns, spread 0.108), from 1.690.
 - libm overall median ratio: Ivy Bridge 6.78 -> 5.70, N100 5.32 -> 4.64 (166 rows each).
 - f64 exp/log/pow family median: 3.61 -> 1.49 (Ivy Bridge), 3.53 -> 1.73 (N100). pow 3.38 -> 1.33 / 3.58 -> 1.45;
@@ -49,7 +49,7 @@ results/timing-sweep-1107b-table.md.
 - Group medians: cbench_hot 0.962 / 0.701, cbench_locale 0.865 / 0.809, cbench_memref 0.929 / 0.755 (Ivy Bridge / N100).
   iswctype_en_us 1.98 / 1.82 is still the slowest wide-character row.
 - **Slower than before:** on the N100, strcasecmp_c_256, strcasecmp_en_256 and strcasecmp_utf8_256 went from 0.80
-  (1106e) to 1.55 (glibc 42.1 ns, Liella 65.3 ns, spread <= 0.003; instructions 1.12); the new rows
+  (1106e) to 1.55 (glibc 42.1 ns, libniji 65.3 ns, spread <= 0.003; instructions 1.12); the new rows
   strcasecmp_c_256_pageend / _xpage / _odd are 1.94 / 1.66 / 1.37 there. On Ivy Bridge the same 256-byte rows are
   faster (0.94) but strcasecmp_c_256_pageend is 1.82. nl_langinfo_l_en_us 1.22 -> 1.50 (Ivy Bridge, spread 0).
   Ivy Bridge exp_qnan 0.85 (11-07 morning) -> 1.48 with spread 0.455 (N100 unchanged at 3.13): low confidence. The
@@ -63,7 +63,7 @@ results/timing-sweep-1107b-table.md.
 
 ### Ivy Bridge: cbench_libm (166 rows)
 
-| row | family | Liella ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
+| row | family | libniji ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
 |---|---|---:|---:|---:|---:|---:|---|---:|---|---:|
 | acos | trig f64 | 125.79 | 14.65 | 8.630 | 0.567 | 3.375 | slower | 8.678 | 1107 | 0.994 |
 | acosf | trig f32 | 79.91 | 12.09 | 6.610 | 0.577 | 3.157 | slower | 6.619 | 1107 | 0.999 |
@@ -234,7 +234,7 @@ results/timing-sweep-1107b-table.md.
 
 ### Ivy Bridge: cbench_hot (37 rows)
 
-| row | family | Liella ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
+| row | family | libniji ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
 |---|---|---:|---:|---:|---:|---:|---|---:|---|---:|
 | ctype_b_loc | cbench_hot ctype | 2.41 | 2.81 | 0.858 | 0.004 | 1.199 | faster | 0.858 | 1106e | 1.000 |
 | ctype_get_mb_cur_max | cbench_hot ctype | 2.81 | 2.81 | 1.000 | 0.000 | 0.909 | parity | 1.000 | 1106e | 1.000 |
@@ -276,7 +276,7 @@ results/timing-sweep-1107b-table.md.
 
 ### Ivy Bridge: cbench_locale (36 rows)
 
-| row | family | Liella ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
+| row | family | libniji ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
 |---|---|---:|---:|---:|---:|---:|---|---:|---|---:|
 | fnmatch_casefold_en_32 | cbench_locale fnmatch | 794.07 | 1266.35 | 0.628 | 0.014 | 0.781 | faster | 0.804 | 1106e | 0.781 |
 | fnmatch_en_us | cbench_locale fnmatch | 57.38 | 194.06 | 0.296 | 0.008 | 0.277 | faster | 0.312 | 1106e | 0.949 |
@@ -317,7 +317,7 @@ results/timing-sweep-1107b-table.md.
 
 ### Ivy Bridge: cbench_memref (96 rows)
 
-| row | family | Liella ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
+| row | family | libniji ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
 |---|---|---:|---:|---:|---:|---:|---|---:|---|---:|
 | __memcmpeq_eq_128 | cbench_memref __memcmpeq | 8.43 | 7.63 | 1.105 | 0.001 | 0.907 | slower | 1.105 | 1107b | 1.000 |
 | __memcmpeq_eq_16 | cbench_memref __memcmpeq | 3.62 | 4.02 | 0.900 | 0.000 | 1.001 | faster | 0.900 | 1107b | 1.000 |
@@ -418,7 +418,7 @@ results/timing-sweep-1107b-table.md.
 
 ### N100: cbench_libm (166 rows)
 
-| row | family | Liella ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
+| row | family | libniji ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
 |---|---|---:|---:|---:|---:|---:|---|---:|---|---:|
 | acos | trig f64 | 82.08 | 12.19 | 6.734 | 0.091 | 2.231 | slower | 7.039 | 1107 | 0.957 |
 | acosf | trig f32 | 48.43 | 10.19 | 4.762 | 0.026 | 3.153 | slower | 4.741 | 1107 | 1.004 |
@@ -589,7 +589,7 @@ results/timing-sweep-1107b-table.md.
 
 ### N100: cbench_hot (37 rows)
 
-| row | family | Liella ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
+| row | family | libniji ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
 |---|---|---:|---:|---:|---:|---:|---|---:|---|---:|
 | ctype_b_loc | cbench_hot ctype | 1.26 | 3.35 | 0.376 | 0.000 | 1.198 | faster | 0.376 | 1106e | 1.000 |
 | ctype_get_mb_cur_max | cbench_hot ctype | 1.67 | 3.35 | 0.499 | 0.000 | 0.908 | faster | 0.499 | 1106e | 1.000 |
@@ -631,7 +631,7 @@ results/timing-sweep-1107b-table.md.
 
 ### N100: cbench_locale (36 rows)
 
-| row | family | Liella ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
+| row | family | libniji ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
 |---|---|---:|---:|---:|---:|---:|---|---:|---|---:|
 | fnmatch_casefold_en_32 | cbench_locale fnmatch | 647.29 | 830.53 | 0.779 | 0.004 | 0.795 | faster | 0.984 | 1106e | 0.792 |
 | fnmatch_en_us | cbench_locale fnmatch | 38.85 | 133.16 | 0.292 | 0.006 | 0.293 | faster | 0.323 | 1106e | 0.904 |
@@ -672,7 +672,7 @@ results/timing-sweep-1107b-table.md.
 
 ### N100: cbench_memref (96 rows)
 
-| row | family | Liella ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
+| row | family | libniji ns | glibc ns | ratio | spread | instr | verdict | before | before src | change |
 |---|---|---:|---:|---:|---:|---:|---|---:|---|---:|
 | __memcmpeq_eq_128 | cbench_memref __memcmpeq | 4.61 | 5.01 | 0.918 | 0.012 | 1.058 | faster | 0.918 | 1107b | 1.000 |
 | __memcmpeq_eq_16 | cbench_memref __memcmpeq | 2.51 | 4.60 | 0.546 | 0.011 | 0.767 | faster | 0.546 | 1107b | 1.000 |
@@ -857,7 +857,7 @@ Before = median of the before column over the rows that have one (n = that count
 
 ## Ivy Bridge: ten largest ratios
 
-| row | ratio | Liella ns | glibc ns | spread | before |
+| row | ratio | libniji ns | glibc ns | spread | before |
 |---|---:|---:|---:|---:|---:|
 | cbench_libm/asinl | 817.210 | 31822.58 | 38.83 | 0.014 | 817.355 |
 | cbench_libm/ynf | 760.435 | 134870.51 | 177.25 | 0.533 | 763.086 |
@@ -913,7 +913,7 @@ Ivy Bridge: 335 rows, median ratio 1.134; faster 102 / parity 45 / slower 188
 
 ## N100: ten largest ratios
 
-| row | ratio | Liella ns | glibc ns | spread | before |
+| row | ratio | libniji ns | glibc ns | spread | before |
 |---|---:|---:|---:|---:|---:|
 | cbench_libm/ynf | 906.900 | 109009.44 | 120.21 | 0.010 | 912.498 |
 | cbench_libm/yn | 622.544 | 109120.94 | 175.34 | 0.016 | 628.331 |

@@ -1,5 +1,5 @@
-//! Liella's `ldconfig` as a hosted command (spec §31.2, plan/utilities.md UTIL-3): the engine in
-//! `liella_ld::ldconfig` over a std file system. This binary runs it when started with argv[0] `ldconfig` (the
+//! libniji's `ldconfig` as a hosted command (spec §31.2, plan/utilities.md UTIL-3): the engine in
+//! `niji_ld::ldconfig` over a std file system. This binary runs it when started with argv[0] `ldconfig` (the
 //! transcript runner and the packaging do that). The freestanding product with a syscall file system is a later
 //! story; the engine is the same.
 //!
@@ -7,8 +7,8 @@
 //! component, `..` stops at ROOT, and a symlink's absolute target starts again at ROOT, so nothing a configuration
 //! or a link names can reach outside it. More than 40 symlinks on one path is `ELOOP`.
 
-use liella_ld::arch::X86_64;
-use liella_ld::ldconfig::{self, Fs, Kind, Meta, Stage, Text};
+use niji_ld::arch::X86_64;
+use niji_ld::ldconfig::{self, Fs, Kind, Meta, Stage, Text};
 use std::ffi::{OsStr, OsString};
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
@@ -16,7 +16,7 @@ use std::os::unix::fs::{FileExt, MetadataExt, OpenOptionsExt};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-/// The generator text Liella's caches carry (tag 0, spec Appendix D.3.1).
+/// The generator text libniji's caches carry (tag 0, spec Appendix D.3.1).
 pub(crate) const GENERATOR: &[u8] = ldconfig::GENERATOR;
 
 /// Symlinks followed on one path before `ELOOP` (the kernel's limit).

@@ -3,7 +3,7 @@
 Build: origin/next 34c98f61 (42 landings after the 1106 build 4d454f06; list in
 handoff/timing-sweep-1106e/landings-4d454f06..34c98f61.txt). Staged once with `cargo xtask bench --stage <tar>
 --only <17 groups>` (76 products matched bench-stage.manifest), unpacked whole on each timing host, and run
-unchanged with `./xtask-bin bench --no-build --staged --counters --only <17 groups>`: Liella and glibc on the
+unchanged with `./xtask-bin bench --no-build --staged --counters --only <17 groups>`: libniji and glibc on the
 same host, rounds interleaved, V-4 procedure, the same 17 groups and the same command as the 1106 sweep (aio,
 fstree, hot, locale, malloc, memref, netdb, nscache, opt, patterns, process, services, startup, stdio, thread,
 time, unmeasured). Both runs ran on booked hosts with nothing else queued.
@@ -13,8 +13,8 @@ Hosts (CPU classes):
 - N100 (Intel Alder Lake-N, 4 E-cores, AVX2). Its verdicts are for that core type, not for big cores. The same
   host as the 1106 N100 run.
 
-Columns: `instr` = Liella/glibc instructions per call on that class (counts of this run); `time` = median
-Liella/glibc time ratio over the interleaved rounds; `spread` = (max - min) / median of the round ratios for the
+Columns: `instr` = libniji/glibc instructions per call on that class (counts of this run); `time` = median
+libniji/glibc time ratio over the interleaved rounds; `spread` = (max - min) / median of the round ratios for the
 row; verdict faster (< 0.95), parity, slower (> 1.05); `1106 time` and `now/1106` = the same row in
 results/timing-sweep-1106-table.md and the change. Analyzer: handoff/timing-sweep-1106e/analyze.py (checked first
 on the 1106 raw data: it reproduces the 1106 table, drift median 1.000, p10 0.999, p90 1.001).
@@ -43,7 +43,7 @@ bench's own per-host budget check (1.25 x the ratio calibrated on main 5236e77),
 
 | row | class | instr now (1106) | time now (1106) | spread | likely cause |
 |---|---|---|---|---|---|
-| cbench_opt/first_mktime_new_york | Ivy Bridge | - | 4.885 (0.914) | 0.025 | **coldstart-second-latency-4** (a86c9677): the only landing between the builds that changed the mktime/time-zone C path (crates/legacy/src/time_compat.rs and crates/legacy/src/recheck.rs; no other landing touched crates/core/src/time or crates/boundary/src/posix/s23_time.rs). Liella 8.8 us against glibc 1.8 us per first call, every round. Real, on both classes: open a story. |
+| cbench_opt/first_mktime_new_york | Ivy Bridge | - | 4.885 (0.914) | 0.025 | **coldstart-second-latency-4** (a86c9677): the only landing between the builds that changed the mktime/time-zone C path (crates/legacy/src/time_compat.rs and crates/legacy/src/recheck.rs; no other landing touched crates/core/src/time or crates/boundary/src/posix/s23_time.rs). libniji 8.8 us against glibc 1.8 us per first call, every round. Real, on both classes: open a story. |
 | cbench_opt/first_mktime_new_york | N100 | - | 4.800 (0.994) | 0.060 | Same row and same cause as above. |
 | cbench_opt/first_snprintf | N100 | - | 1.263 (0.990) | 0.179 | Also worse on Ivy Bridge (1.162 -> 1.449, spread 0.017; slower in both sweeps, so not in this list there). Landings on the first-call stdio path: **coldstart-fork-child-reset-2** (bf079683, crates/legacy/src/stdio_compat.rs) and coldstart-second-latency-4 (a86c9677, crates/legacy/src/recheck.rs). Most likely bf079683, the only one that changed stdio code. Real on Ivy Bridge (spread 0.017); open a story with the mktime row. |
 | cbench_opt/gettext_language_steady | Ivy Bridge | 1.587 (1.588) | 1.051 (1.045) | 0.005 | Marginal (0.001 over the line, +0.006 since 1106), instructions unchanged. Landing on the gettext path: coldstart-second-latency-4 (a86c9677, recheck.rs). Not a finding at this size; re-time with the next sweep. |

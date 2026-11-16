@@ -1,14 +1,14 @@
-//! The `double` `lgamma`/`tgamma` fast tier (`liella_math::fast_gamma`) against the oracle
-//! (`liella-mathtools::mp`) and the 384-bit path, spec §10.3 and D-10.13 (correct rounding in
+//! The `double` `lgamma`/`tgamma` fast tier (`niji_math::fast_gamma`) against the oracle
+//! (`niji-mathtools::mp`) and the 384-bit path, spec §10.3 and D-10.13 (correct rounding in
 //! every mode): the oracle's result or `None` on random operands, slot edges, the zero windows
 //! and both sides of the negative poles; kernels within their bounds; identity with the accurate
 //! path (result and status); the fallback rate on the bench's range `[-10, 10]`.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::arithmetic_side_effects, clippy::float_cmp, missing_docs)]
 
-use liella_math::status::{Rounding, Status};
-use liella_math::{fast_gamma, special, stats};
-use liella_mathtools::cmp;
-use liella_mathtools::mp::{self, Approx, Big, Fmt, Round};
+use niji_math::status::{Rounding, Status};
+use niji_math::{fast_gamma, special, stats};
+use niji_mathtools::cmp;
+use niji_mathtools::mp::{self, Approx, Big, Fmt, Round};
 
 #[path = "../../core/tests/support/verdict.rs"]
 mod verdict;
@@ -188,10 +188,10 @@ fn double_gamma_fast_tier_rounds_correctly_at_the_negative_zeros() {
 #[test]
 fn double_gamma_fast_tier_matches_the_accurate_path() {
     // Clauses: s10_3_c_0 (D-10.13).
-    let Some(verdict) = verdict::Key::new(concat!(env!("CARGO_CRATE_NAME"), ".double_gamma_fast_tier_matches_the_accurate_path")).env("LIELLA_GAMMA_SWEEP").begin() else {
+    let Some(verdict) = verdict::Key::new(concat!(env!("CARGO_CRATE_NAME"), ".double_gamma_fast_tier_matches_the_accurate_path")).env("NIJI_GAMMA_SWEEP").begin() else {
         return;
     };
-    let n: u32 = std::env::var("LIELLA_GAMMA_SWEEP").ok().and_then(|s| s.parse().ok()).unwrap_or(1500);
+    let n: u32 = std::env::var("NIJI_GAMMA_SWEEP").ok().and_then(|s| s.parse().ok()).unwrap_or(1500);
     for (name, fast, _, accurate) in FUNCS {
         let mut rng = Rng(0x3c6e_f372_fe94_f82b ^ name.len() as u64);
         for _ in 0..n {

@@ -1,14 +1,14 @@
 //! The ABI tables behind `__ctype_b_loc`, `__ctype_tolower_loc` and `__ctype_toupper_loc`
 //! (spec §5.1 ⚑ COMPAT, Appendix C.9): arrays indexable from -128 to 255, built at compile time
-//! from `liella::ctype` for the built-in `"C"` locale (D-5.3; other locales arrive in phase 7).
+//! from `niji::ctype` for the built-in `"C"` locale (D-5.3; other locales arrive in phase 7).
 //! Index `i` of an array holds the entry for character `i - 128`.
 
 #![allow(clippy::as_conversions, clippy::indexing_slicing, clippy::arithmetic_side_effects)] // const-evaluated table construction
 
-use liella::ctype::{self, ascii_classes, Class, Trans, WClass};
-use liella::locale::ctype::Map;
-use liella::locale::view::LocaleView;
-use liella::locale::{Ctype, Locale};
+use niji::ctype::{self, ascii_classes, Class, Trans, WClass};
+use niji::locale::ctype::Map;
+use niji::locale::view::LocaleView;
+use niji::locale::{Ctype, Locale};
 
 /// Entries in each table (characters -128..=255).
 pub const LEN: usize = 384;
@@ -177,12 +177,12 @@ pub fn wctype(name: &[u8], loc: &Locale) -> u64 {
 }
 
 /// [`wctype`] of a converted name (the conversion's error passes through).
-pub fn wctype_of(name: liella::error::KResult<&[u8]>, loc: &Locale) -> liella::error::KResult<u64> {
+pub fn wctype_of(name: niji::error::KResult<&[u8]>, loc: &Locale) -> niji::error::KResult<u64> {
     name.map(|n| wctype(n, loc))
 }
 
 /// [`wctrans`] of a converted name.
-pub fn wctrans_of(name: liella::error::KResult<&[u8]>, loc: &Locale) -> liella::error::KResult<usize> {
+pub fn wctrans_of(name: niji::error::KResult<&[u8]>, loc: &Locale) -> niji::error::KResult<usize> {
     name.map(|n| wctrans(n, loc))
 }
 

@@ -4,11 +4,11 @@
 
    Build and run against both C libraries (from the tree root, after smoke.sh setup):
      gcc -O1 validation/smoke/repro/regcomp_nesting.c -o /tmp/nest-ref && /tmp/nest-ref 300
-     LIELLA_SMOKE_SYSROOT=<work>/sysroot LIELLA_SMOKE_LDSO=target/liella/ld-linux-x86-64.so.2 \
-       <work>/bin/liella-cc -O1 validation/smoke/repro/regcomp_nesting.c -o /tmp/nest-liella && /tmp/nest-liella 300
+     NIJI_SMOKE_SYSROOT=<work>/sysroot NIJI_SMOKE_LDSO=target/niji/ld-linux-x86-64.so.2 \
+       <work>/bin/niji-cc -O1 validation/smoke/repro/regcomp_nesting.c -o /tmp/nest-niji && /tmp/nest-niji 300
 
    Observed (2026-11-13, host C library glibc 2.39): depth 255 compiles and matches on both; depth 256 to
-   1000: the reference compiles and matches (regcomp 0, regexec 0), Liella refuses the pattern with
+   1000: the reference compiles and matches (regcomp 0, regexec 0), libniji refuses the pattern with
    REG_ESPACE (12; crates/core/src/pattern/regex/parse.rs MAX_DEPTH = 256). */
 #include <regex.h>
 #include <stdio.h>

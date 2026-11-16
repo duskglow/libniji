@@ -3,17 +3,17 @@
 //! the `rcmd` family (§15.3–15.8), whose C conventions are in `crate::netaddr`.
 //!
 //! Addresses in are byte slices of the caller's `socklen_t`. Address and option results go
-//! through `liella_legacy::net_compat`, which copies them back truncated and reports the full
+//! through `niji_legacy::net_compat`, which copies them back truncated and reports the full
 //! length. `struct msghdr` and `struct mmsghdr` have the kernel's layout and are viewed in
 //! place (`conv::msghdr`), so the kernel reads and writes the buffers they name, as for a C
 //! caller. `setsockopt` at a level that registers caller memory, and `SIOCATMARK`, go through
 //! `crate::raw`.
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_ushort, c_void, size_t, ssize_t};
-use liella_kernel::mem::{MMsgHdr, MMsgHdrMut};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::Timespec;
-use liella_legacy::net_compat;
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_ushort, c_void, size_t, ssize_t};
+use niji_kernel::mem::{MMsgHdr, MMsgHdrMut};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::Timespec;
+use niji_legacy::net_compat;
 
 use crate::cancel;
 use crate::conv;
@@ -356,18 +356,18 @@ pub extern "C" fn inet6_opt_get_val(databuf: *mut c_void, offset: c_int, val: *m
 export! { "GLIBC_2.5";
 pub extern "C" fn inet6_opt_next(extbuf: *mut c_void, extlen: c_uint, offset: c_int, typep: Option<&mut u8>, lenp: Option<&mut c_uint>, databufp: Option<&mut usize>) -> c_int {
     // UNSAFE(slice) SAFETY: extbuf holds extlen bytes (RFC 3542).
-    netaddr::opt_walk(unsafe { conv::buf(extbuf.cast_const(), n32(extlen)) }, |b| liella::net::ip6opt::opt_next(b, offset), typep, lenp, databufp)
+    netaddr::opt_walk(unsafe { conv::buf(extbuf.cast_const(), n32(extlen)) }, |b| niji::net::ip6opt::opt_next(b, offset), typep, lenp, databufp)
 }}
 
 export! { "GLIBC_2.5";
 pub extern "C" fn inet6_opt_find(extbuf: *mut c_void, extlen: c_uint, offset: c_int, ty: u8, lenp: Option<&mut c_uint>, databufp: Option<&mut usize>) -> c_int {
     // UNSAFE(slice) SAFETY: extbuf holds extlen bytes (RFC 3542).
-    netaddr::opt_walk(unsafe { conv::buf(extbuf.cast_const(), n32(extlen)) }, |b| liella::net::ip6opt::opt_find(b, offset, ty), None, lenp, databufp)
+    netaddr::opt_walk(unsafe { conv::buf(extbuf.cast_const(), n32(extlen)) }, |b| niji::net::ip6opt::opt_find(b, offset, ty), None, lenp, databufp)
 }}
 
 export! { "GLIBC_2.5";
 pub extern "C" fn inet6_rth_space(ty: c_int, segments: c_int) -> c_uint {
-    u32::try_from(liella::net::ip6opt::rth_space(ty, segments)).unwrap_or(0)
+    u32::try_from(niji::net::ip6opt::rth_space(ty, segments)).unwrap_or(0)
 }}
 
 export! { "GLIBC_2.5";
@@ -402,7 +402,7 @@ pub extern "C" fn inet6_rth_getaddr(bp: *const c_void, index: c_int) -> *mut c_v
 
 export! { "GLIBC_2.3.3";
 pub extern "C" fn inet6_option_space(nbytes: c_int) -> c_int {
-    liella_legacy::inet_compat::option_space(nbytes)
+    niji_legacy::inet_compat::option_space(nbytes)
 }}
 
 export! { "GLIBC_2.3.3";

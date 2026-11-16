@@ -7,7 +7,7 @@
 //! `long double` as the 16 bytes the x87 store wrote (80 significant bits, low word first).
 //! (D-12.25, V1.)
 
-use liella_abi::va::VaSource;
+use niji_abi::va::VaSource;
 
 use crate::ffi;
 
@@ -21,16 +21,16 @@ pub struct CVa(pub usize);
 
 impl VaSource for CVa {
     fn int(&mut self) -> u64 {
-        u64::from_ne_bytes(ffi::liella_va_long(self.0).to_ne_bytes())
+        u64::from_ne_bytes(ffi::niji_va_long(self.0).to_ne_bytes())
     }
 
     fn double(&mut self) -> u64 {
-        ffi::liella_va_double(self.0).to_bits()
+        ffi::niji_va_double(self.0).to_bits()
     }
 
     fn long_double(&mut self) -> u128 {
         let mut slot = LongDouble::default();
-        ffi::liella_va_ldouble(self.0, &mut slot);
+        ffi::niji_va_ldouble(self.0, &mut slot);
         let [lo, hi] = slot.0;
         (u128::from(hi) << 64) | u128::from(lo)
     }

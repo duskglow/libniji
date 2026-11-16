@@ -3,10 +3,10 @@
 //! Implementation phase: 15 (implementation-plan.md §6), except the §13.15 BSD file flags
 //! (phase 5).
 
-use liella::error::{Errno, Result};
-use liella_kernel::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::sys::Sys;
+use niji::error::{Errno, Result};
+use niji_kernel::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::sys::Sys;
 
 /// A call that has nothing to do in this design (`__libc_init_first`: initialisation happens in
 /// `__libc_start_main`).

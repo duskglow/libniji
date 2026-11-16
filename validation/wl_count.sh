@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # One-call deterministic workload counters for a branch (WL-COUNT). Counts, never time: instructions:u,
 # instructions:k, page faults, syscalls and an output check, for glibc / BASE / NEW, measured on Zen 1 host.
 #
@@ -8,7 +8,7 @@
 # RUNS ON THE HOST WHERE IT IS STARTED (VALIDATION-JOBRUN, 2026-10-20; no ssh, no vm_run, no --host: dispatch is the
 # caller's). From a role directory:
 #   ~/bin/jobrun <label> count -- sh -c 'cd ~/w/<role> && bash validation/wl_count.sh --base <full sha> . seq'
-# <dir|rev>: a Liella tree on this host. A role directory (has .synced, no .git): the revision is --rev REV, else the
+# <dir|rev>: a libniji tree on this host. A role directory (has .synced, no .git): the revision is --rev REV, else the
 #   `head=` of its .synced marker, else "unknown" (never an error; not cached across runs); a tree .synced calls dirty is
 #   refused unless --rev names it. WITHOUT git the base is the role's .synced `merge_base=` (written by sync_role --base; `base_sha=` is the base ref's
 #   tip), or --base <full sha> (wins). Its source or products must be cached here (~/wl/src/<sha>, ~/wl/products/<sha>-release;
@@ -38,10 +38,10 @@
 # --nowait: accepted and ignored (jobrun detaches). Env: COUNT_FRESH=1 ignores cached rows; FAULT_PCT (2) = faults difference that triggers a fresh re-measure.
 # WLC_ENV='NAME=VALUE ...' (SSE2-GAP-4, like wl_percall's WLP_ENV): environment for the measured program, applied
 #   to ALL THREE columns (glibc, base, new) - e.g. WLC_ENV='GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX2' forces the
-#   SSE2 variants in glibc AND Liella (both read the tunable). Rows measured under an env are cached apart.
+#   SSE2 variants in glibc AND libniji (both read the tunable). Rows measured under an env are cached apart.
 #   Self-check: with WLC_ENV set, the glibc row is also measured without it and the table prints whether the
 #   glibc column changed (a "WARNING: glibc column unchanged" means the env did not reach glibc). Before this
-#   fix the glibc row came from a cache keyed only by "glibc", so an "SSE2-forced" run compared Liella SSE2
+#   fix the glibc row came from a cache keyed only by "glibc", so an "SSE2-forced" run compared libniji SSE2
 #   with glibc AVX2.
 # Output: the measured program's stdout goes into a pipe (| cat), never straight to /dev/null: GNU grep
 #   stops at the first match when its stdout is /dev/null (and other programs may special-case it).

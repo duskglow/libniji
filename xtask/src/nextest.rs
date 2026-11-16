@@ -1,5 +1,5 @@
 //! The test runner of `cargo xtask test` and `cargo xtask affected --run`: cargo-nextest when it
-//! is installed and `LIELLA_NO_NEXTEST` is unset, else `cargo test` exactly as before.
+//! is installed and `NIJI_NO_NEXTEST` is unset, else `cargo test` exactly as before.
 //!
 //! Why: `cargo test` runs the test binaries one after another, and most integration binaries
 //! hold one or two long tests, so a gate used one or two of a machine's cores. nextest runs every
@@ -15,13 +15,13 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 
 /// Integration targets `(crate, target)` that run in the first pass only, not again with the
-/// exports interposed (#889, GATE-MATH-SHARD-3): liella-math's pure-Rust accuracy sweeps. They
-/// call Liella's Rust functions directly against the Rust test oracle, export no C symbol, call
+/// exports interposed (#889, GATE-MATH-SHARD-3): niji-math's pure-Rust accuracy sweeps. They
+/// call libniji's Rust functions directly against the Rust test oracle, export no C symbol, call
 /// no C-family function and build or run no C program, so the interposed exports change nothing
 /// they check, while the second run doubled the longest part of the gate. A target that calls
 /// C-family code or runs a C program against the products stays in both passes
 /// (`pass0_only_targets_are_pure_rust` guards the list with `pass0_violations`).
-pub const PASS0_ONLY: &[(&str, &str)] = &[("liella-math", "special_cr"), ("liella-math", "mp_kernels")];
+pub const PASS0_ONLY: &[(&str, &str)] = &[("niji-math", "special_cr"), ("niji-math", "mp_kernels")];
 
 /// The `#[path]` includes a `PASS0_ONLY` target may have (paths as written, relative to the
 /// target's directory): support modules that run no program and touch no C code. An include is
@@ -34,7 +34,7 @@ pub const PASS0_INCLUDES: &[&str] = &["../../core/tests/support/verdict.rs"];
 /// What a `PASS0_ONLY` target and its includes may not use: each builds or runs a C program or
 /// reaches C-family code, which the interposed exports would change.
 #[cfg(test)]
-const PASS0_BANNED: &[&str] = &["Command", "extern \"C\"", "liella_boundary", "oracle.rs", "dlsym", "libc::"];
+const PASS0_BANNED: &[&str] = &["Command", "extern \"C\"", "niji_boundary", "oracle.rs", "dlsym", "libc::"];
 
 /// Why the source `src` of a `PASS0_ONLY` target cannot run in the first pass only (empty: it
 /// can): every banned use in the target or in a file it includes, every `#[path]` include not in
@@ -79,11 +79,11 @@ pub fn pass0_only(krate: &str, target: &str) -> bool {
 /// and string functions on the same paths; the other shards only add lines to the same checks.
 /// A suite runs in pass 2 only to the extent that it exercises the interposed functions.
 pub const PASS1_SHARD0: &[(&str, &str)] = &[
-    ("liella-math", "complex_ld_cr_products"),
-    ("liella-math", "complex_f128_products"),
-    ("liella-math", "special_ld_products"),
-    ("liella-math", "special_f128_products"),
-    ("liella-math", "complex_products"),
+    ("niji-math", "complex_ld_cr_products"),
+    ("niji-math", "complex_f128_products"),
+    ("niji-math", "special_ld_products"),
+    ("niji-math", "special_f128_products"),
+    ("niji-math", "complex_products"),
 ];
 
 /// The shard tests other than shard 0 (`<name>_s<k>`, `k >= 1`, the `shards!` macro's names in
@@ -119,12 +119,12 @@ pub fn pass1_filter(extra: &[String], once: &[String]) -> Option<Vec<String>> {
     Some(vec!["-E".to_string(), format!("not ({})", ids.join(" | "))])
 }
 
-/// The marker of liella-boundary's code in a test binary: its crate name, which every symbol
+/// The marker of niji-boundary's code in a test binary: its crate name, which every symbol
 /// (legacy and v0 mangling) and debug-info unit of that crate's code carries.
-const BOUNDARY_MARK: &[u8] = b"liella_boundary";
+const BOUNDARY_MARK: &[u8] = b"niji_boundary";
 
-/// Whether a binary's bytes may hold liella-boundary code. The exports-interposed pass changes
-/// only liella-boundary's features (`export = []` enables nothing in any other crate), and rustc
+/// Whether a binary's bytes may hold niji-boundary code. The exports-interposed pass changes
+/// only niji-boundary's features (`export = []` enables nothing in any other crate), and rustc
 /// links a dependency only into binaries that use it, so a binary without the marker is the same
 /// code in both passes and runs once (CI-GATE-DIET). Unreadable or empty = may hold it.
 pub fn may_hold_boundary_code(bytes: Option<&[u8]>) -> bool {
@@ -147,20 +147,20 @@ fn listed_binaries(json: &str) -> Vec<(String, String, String)> {
 struct PackageGraph {
     /// package id -> the ids of the packages it depends on.
     deps: std::collections::BTreeMap<String, Vec<String>>,
-    /// liella-boundary's package id.
+    /// niji-boundary's package id.
     boundary: String,
 }
 
 impl PackageGraph {
     /// The graph of a `cargo metadata --format-version 1` output; `None` when it has no resolve
-    /// graph or no liella-boundary package (then nothing is proven independent).
+    /// graph or no niji-boundary package (then nothing is proven independent).
     fn parse(json: &str) -> Option<PackageGraph> {
         let (packages, resolve) = json.split_once("\"resolve\":{")?;
         // A package object opens with its name and version, then its id (a dependency entry
         // names the package but carries no version); the id itself names the package.
-        let after = packages.split_once("{\"name\":\"liella-boundary\",\"version\":\"")?.1;
+        let after = packages.split_once("{\"name\":\"niji-boundary\",\"version\":\"")?.1;
         let boundary = after.split_once("\"id\":\"")?.1.split_once('"')?.0.to_string();
-        if !boundary.contains("liella-boundary") {
+        if !boundary.contains("niji-boundary") {
             return None;
         }
         let mut deps = std::collections::BTreeMap::new();
@@ -172,7 +172,7 @@ impl PackageGraph {
         (deps.contains_key(&boundary)).then_some(PackageGraph { deps, boundary })
     }
 
-    /// Whether `pkg` is liella-boundary or depends on it, directly or through other packages.
+    /// Whether `pkg` is niji-boundary or depends on it, directly or through other packages.
     /// A package the graph does not hold may depend on it.
     fn reaches_boundary(&self, pkg: &str) -> bool {
         let mut seen = std::collections::BTreeSet::new();
@@ -191,7 +191,7 @@ impl PackageGraph {
 }
 
 /// Why a test binary runs in the first pass only, or `None` when it runs in both. A binary whose
-/// package does not depend on liella-boundary cannot link it (TVA-XTASK-RUN-ONCE); else the
+/// package does not depend on niji-boundary cannot link it (TVA-XTASK-RUN-ONCE); else the
 /// binary itself must not hold the marker (CI-GATE-DIET). No graph = the byte rule alone.
 fn run_once_reason(package: &str, graph: Option<&PackageGraph>, bytes: impl FnOnce() -> Option<Vec<u8>>) -> Option<&'static str> {
     let independent = match graph {
@@ -199,9 +199,9 @@ fn run_once_reason(package: &str, graph: Option<&PackageGraph>, bytes: impl FnOn
         None => false,
     };
     if independent {
-        Some("no dependency on liella-boundary")
+        Some("no dependency on niji-boundary")
     } else if !may_hold_boundary_code(bytes().as_deref()) {
-        Some("no `liella_boundary` in the binary")
+        Some("no `niji_boundary` in the binary")
     } else {
         None
     }
@@ -217,7 +217,7 @@ fn package_graph(cargo: &str, root: &std::path::Path, features: &[String]) -> Op
     graph
 }
 
-/// The test binaries of the exports-interposed build (`features`) that cannot hold liella-boundary
+/// The test binaries of the exports-interposed build (`features`) that cannot hold niji-boundary
 /// code, printed with the reason. Any failure to list = none (every binary runs in both passes).
 pub fn unchanged_binaries(cargo: &str, root: &std::path::Path, features: &[String]) -> Vec<String> {
     let out = poison(&mut Command::new(cargo)).current_dir(root).args(["nextest", "list", "--workspace"]).args(features).args(["--list-type", "binaries-only", "--message-format", "json"]).stderr(Stdio::inherit()).output();
@@ -229,7 +229,7 @@ pub fn unchanged_binaries(cargo: &str, root: &std::path::Path, features: &[Strin
     let graph = package_graph(cargo, root, features);
     let mut once: Vec<(String, &str)> = listed_binaries(&String::from_utf8_lossy(&out.stdout)).into_iter().filter_map(|(id, path, pkg)| Some((id, run_once_reason(&pkg, graph.as_ref(), || std::fs::read(&path).ok())?))).collect();
     once.sort();
-    eprintln!("export pass: {} test binaries hold no liella-boundary code, so the export features cannot change them; they ran in the first pass and do not run again:", once.len());
+    eprintln!("export pass: {} test binaries hold no niji-boundary code, so the export features cannot change them; they ran in the first pass and do not run again:", once.len());
     for (b, why) in &once {
         eprintln!("  once: {b} ({why})");
     }
@@ -238,7 +238,7 @@ pub fn unchanged_binaries(cargo: &str, root: &std::path::Path, features: &[Strin
 
 /// Whether the workspace tests run under nextest: installed, and not switched off.
 pub fn available(cargo: &str) -> bool {
-    if std::env::var_os("LIELLA_NO_NEXTEST").is_some() {
+    if std::env::var_os("NIJI_NO_NEXTEST").is_some() {
         return false;
     }
     Command::new(cargo).args(["nextest", "--version"]).stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok_and(|s| s.success())
@@ -316,11 +316,11 @@ impl Tally {
 }
 
 /// The test processes poison the blocks they free (FREE-POISON-TESTS): the test builds of
-/// `liella-boundary` take this variable as `M_PERTURB` (`heap::TEST_PERTURB`), so a read after
+/// `niji-boundary` take this variable as `M_PERTURB` (`heap::TEST_PERTURB`), so a read after
 /// `free` sees 0xa5 bytes on every host, every run (a block of the C family: in the exports-interposed
-/// pass, where Liella's heap serves it; perturbation also holds such blocks back a while). Set on test commands only, never on benches
+/// pass, where libniji's heap serves it; perturbation also holds such blocks back a while). Set on test commands only, never on benches
 /// or timing runs; its own name, so the host's `malloc` (cargo, rustc) is not perturbed.
-pub const POISON: (&str, &str) = ("LIELLA_TEST_MALLOC_PERTURB", "165");
+pub const POISON: (&str, &str) = ("NIJI_TEST_MALLOC_PERTURB", "165");
 
 /// `cmd` with [`POISON`] in its environment.
 pub fn poison(cmd: &mut Command) -> &mut Command {
@@ -329,7 +329,7 @@ pub fn poison(cmd: &mut Command) -> &mut Command {
 
 /// The tests that returned early because a tool or capability was missing (MSGFMT-SILENT-PASS): they pass,
 /// and nextest hides a passing test's output, so each wrote its `SKIPPED <binary>: <cause>` line to the
-/// file `LIELLA_SKIP_LOG` names. One heading line with the count, then the sorted distinct lines with how
+/// file `NIJI_SKIP_LOG` names. One heading line with the count, then the sorted distinct lines with how
 /// often each occurred; empty when nothing skipped.
 fn skip_report(log: &str) -> String {
     let mut lines: Vec<&str> = log.lines().filter(|l| l.starts_with("SKIPPED ")).collect();
@@ -380,9 +380,9 @@ fn pick_test_threads(env_set: bool, args: &[String], cpus: Option<usize>) -> Opt
 /// `cargo nextest run <args>`: nextest's report passed through, then the summary lines.
 pub fn run(cargo: &str, root: &std::path::Path, args: &[String]) -> Result<(), String> {
     let mut cmd = Command::new(cargo);
-    let skip_log = root.join("target/liella-skips.log");
+    let skip_log = root.join("target/niji-skips.log");
     let _ = std::fs::remove_file(&skip_log);
-    poison(&mut cmd).current_dir(root).args(["nextest", "run"]).args(args).env("LIELLA_SKIP_LOG", &skip_log).stderr(Stdio::piped());
+    poison(&mut cmd).current_dir(root).args(["nextest", "run"]).args(args).env("NIJI_SKIP_LOG", &skip_log).stderr(Stdio::piped());
     if let Some(t) = chosen_test_threads(args) {
         eprintln!("nextest: {t} test threads ({}/{} per CPU of this process)", TEST_THREADS_PER_CPU.0, TEST_THREADS_PER_CPU.1);
         cmd.env("NEXTEST_TEST_THREADS", t.to_string());
@@ -439,21 +439,21 @@ mod tests {
     fn pass0_only_targets_are_pure_rust() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
         for (c, t) in PASS0_ONLY {
-            let dir = c.strip_prefix("liella-").unwrap_or(c);
+            let dir = c.strip_prefix("niji-").unwrap_or(c);
             let tests = root.join(format!("crates/{dir}/tests"));
             let src = std::fs::read_to_string(tests.join(format!("{t}.rs"))).unwrap_or_else(|e| panic!("{c}::{t}: {e}"));
             let why = pass0_violations(&src, &|inc| std::fs::read_to_string(tests.join(inc)).ok());
             assert!(why.is_empty(), "{c}::{t}: {why:?}: a target that touches C code or a C program runs in both passes");
         }
-        assert!(pass0_only("liella-math", "special_cr") && !pass0_only("liella-math", "special_ld_products"));
-        let later = "(binary_id(liella-math::complex_ld_cr_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(liella-math::complex_f128_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(liella-math::special_ld_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(liella-math::special_f128_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(liella-math::complex_products) & test(/_s[1-9][0-9]*$/))";
-        assert_eq!(pass1_filter(&[], &[]).unwrap_or_default(), ["-E".to_string(), format!("not (binary_id(liella-math::special_cr) | binary_id(liella-math::mp_kernels) | {later})")]);
+        assert!(pass0_only("niji-math", "special_cr") && !pass0_only("niji-math", "special_ld_products"));
+        let later = "(binary_id(niji-math::complex_ld_cr_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(niji-math::complex_f128_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(niji-math::special_ld_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(niji-math::special_f128_products) & test(/_s[1-9][0-9]*$/)) | (binary_id(niji-math::complex_products) & test(/_s[1-9][0-9]*$/))";
+        assert_eq!(pass1_filter(&[], &[]).unwrap_or_default(), ["-E".to_string(), format!("not (binary_id(niji-math::special_cr) | binary_id(niji-math::mp_kernels) | {later})")]);
         assert_eq!(pass1_filter(&["-E".to_string(), "test(x)".to_string()], &[]), None);
-        let once = ["liella-math::special_cr".to_string(), "liella-math::fast64".to_string()];
-        assert_eq!(pass1_filter(&[], &once).unwrap_or_default()[1], format!("not (binary_id(liella-math::special_cr) | binary_id(liella-math::mp_kernels) | binary_id(liella-math::fast64) | {later})"));
+        let once = ["niji-math::special_cr".to_string(), "niji-math::fast64".to_string()];
+        assert_eq!(pass1_filter(&[], &once).unwrap_or_default()[1], format!("not (binary_id(niji-math::special_cr) | binary_id(niji-math::mp_kernels) | binary_id(niji-math::fast64) | {later})"));
         // A run-once products target is left out whole; its later-shard term would be redundant.
-        let once = ["liella-math::complex_products".to_string()];
-        assert!(!pass1_filter(&[], &once).unwrap_or_default()[1].contains("(binary_id(liella-math::complex_products) &"));
+        let once = ["niji-math::complex_products".to_string()];
+        assert!(!pass1_filter(&[], &once).unwrap_or_default()[1].contains("(binary_id(niji-math::complex_products) &"));
     }
 
     #[test]
@@ -484,7 +484,7 @@ mod tests {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
         for (c, t) in PASS1_SHARD0 {
             assert!(!pass0_only(c, t), "{c}::{t} is in both lists");
-            let dir = c.strip_prefix("liella-").unwrap_or(c);
+            let dir = c.strip_prefix("niji-").unwrap_or(c);
             let src = std::fs::read_to_string(root.join(format!("crates/{dir}/tests/{t}.rs"))).unwrap_or_else(|e| panic!("{c}::{t}: {e}"));
             // The shards are `<name>_s<k> = <k>;` lines of `shards!`; shard 0 must exist, and no
             // other test name may end in `_s<digits>` (the filter would drop it from pass 2).
@@ -497,60 +497,60 @@ mod tests {
                 assert!(tail.is_empty() || !tail.bytes().all(|b| b.is_ascii_digit()), "{c}::{t}: `{name}` looks like a shard test");
             }
         }
-        assert_eq!(pass1_shard_filter("liella-math", &["fast64"]), None);
-        assert_eq!(pass1_shard_filter("liella", &["complex_products"]), None);
-        assert_eq!(pass1_shard_filter("liella-math", &["fast64", "special_ld_products"]).unwrap_or_default(), ["-E", "not ((binary_id(liella-math::special_ld_products) & test(/_s[1-9][0-9]*$/)))"]);
+        assert_eq!(pass1_shard_filter("niji-math", &["fast64"]), None);
+        assert_eq!(pass1_shard_filter("niji", &["complex_products"]), None);
+        assert_eq!(pass1_shard_filter("niji-math", &["fast64", "special_ld_products"]).unwrap_or_default(), ["-E", "not ((binary_id(niji-math::special_ld_products) & test(/_s[1-9][0-9]*$/)))"]);
     }
 
     #[test]
     fn a_binary_holding_boundary_code_is_never_run_once() {
         // no spec clause: gate tooling (CI-GATE-DIET), not libc behaviour.
-        assert!(may_hold_boundary_code(Some(b"\x7fELF..._ZN15liella_boundary6export6malloc17h0E...")));
-        assert!(may_hold_boundary_code(Some(b"_RNvNtCs1_15liella_boundary4exp6malloc")));
+        assert!(may_hold_boundary_code(Some(b"\x7fELF..._ZN13niji_boundary6export6malloc17h0E...")));
+        assert!(may_hold_boundary_code(Some(b"_RNvNtCs1_13niji_boundary4exp6malloc")));
         assert!(may_hold_boundary_code(Some(b"")), "an empty binary is not proof of anything");
         assert!(may_hold_boundary_code(None), "an unreadable binary runs in both passes");
-        assert!(!may_hold_boundary_code(Some(b"\x7fELF..._ZN11liella_math7special2j017h0E liella-boundary crates/boundary")));
+        assert!(!may_hold_boundary_code(Some(b"\x7fELF..._ZN9niji_math7special2j017h0E niji-boundary crates/boundary")));
         // This test binary is xtask's: it names the marker in its literals, so it is never skipped.
         assert!(may_hold_boundary_code(std::fs::read(std::env::current_exe().unwrap_or_default()).ok().as_deref()));
-        let json = r#"{"rust-build-meta":{},"rust-binaries":{"liella-math::fast64":{"binary-id":"liella-math::fast64","binary-name":"fast64","package-id":"p","kind":"test","binary-path":"/t/fast64-ab","build-platform":"target"},"liella":{"binary-id":"liella","binary-name":"liella","package-id":"q","kind":"lib","binary-path":"/t/liella-cd","build-platform":"target"}}}"#;
+        let json = r#"{"rust-build-meta":{},"rust-binaries":{"niji-math::fast64":{"binary-id":"niji-math::fast64","binary-name":"fast64","package-id":"p","kind":"test","binary-path":"/t/fast64-ab","build-platform":"target"},"niji":{"binary-id":"niji","binary-name":"niji","package-id":"q","kind":"lib","binary-path":"/t/niji-cd","build-platform":"target"}}}"#;
         let b = |a: &str, p: &str, k: &str| (a.to_string(), p.to_string(), k.to_string());
-        assert_eq!(listed_binaries(json), [b("liella-math::fast64", "/t/fast64-ab", "p"), b("liella", "/t/liella-cd", "q")]);
+        assert_eq!(listed_binaries(json), [b("niji-math::fast64", "/t/fast64-ab", "p"), b("niji", "/t/niji-cd", "q")]);
         assert!(listed_binaries("not json").is_empty());
     }
 
-    /// A `cargo metadata` output in cargo's layout: `a` reaches liella-boundary through `b`, `t`
-    /// (a tool) depends on nothing, liella-boundary depends on itself as a dev-dependency.
-    const METADATA: &str = r#"{"packages":[{"name":"a","version":"0.0.0","id":"path+file:///w/a#0.0.0","dependencies":[{"name":"b","source":null,"req":"*"}]},{"name":"b","version":"0.0.0","id":"path+file:///w/b#0.0.0","dependencies":[{"name":"liella-boundary","source":null,"req":"*"}]},{"name":"liella-boundary","version":"0.0.0","id":"path+file:///w/crates/boundary#liella-boundary@0.0.0","dependencies":[]},{"name":"t","version":"0.0.0","id":"path+file:///w/t#0.0.0","dependencies":[]}],"workspace_members":[],"resolve":{"nodes":[{"id":"path+file:///w/a#0.0.0","dependencies":["path+file:///w/b#0.0.0"],"deps":[{"name":"b","pkg":"path+file:///w/b#0.0.0","dep_kinds":[{"kind":"dev","target":null}]}],"features":[]},{"id":"path+file:///w/b#0.0.0","dependencies":["path+file:///w/crates/boundary#liella-boundary@0.0.0"],"deps":[],"features":[]},{"id":"path+file:///w/crates/boundary#liella-boundary@0.0.0","dependencies":["path+file:///w/crates/boundary#liella-boundary@0.0.0"],"deps":[],"features":[]},{"id":"path+file:///w/t#0.0.0","dependencies":[],"deps":[],"features":[]}],"root":null},"target_directory":"/w/target","version":1}"#;
+    /// A `cargo metadata` output in cargo's layout: `a` reaches niji-boundary through `b`, `t`
+    /// (a tool) depends on nothing, niji-boundary depends on itself as a dev-dependency.
+    const METADATA: &str = r#"{"packages":[{"name":"a","version":"0.0.0","id":"path+file:///w/a#0.0.0","dependencies":[{"name":"b","source":null,"req":"*"}]},{"name":"b","version":"0.0.0","id":"path+file:///w/b#0.0.0","dependencies":[{"name":"niji-boundary","source":null,"req":"*"}]},{"name":"niji-boundary","version":"0.0.0","id":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dependencies":[]},{"name":"t","version":"0.0.0","id":"path+file:///w/t#0.0.0","dependencies":[]}],"workspace_members":[],"resolve":{"nodes":[{"id":"path+file:///w/a#0.0.0","dependencies":["path+file:///w/b#0.0.0"],"deps":[{"name":"b","pkg":"path+file:///w/b#0.0.0","dep_kinds":[{"kind":"dev","target":null}]}],"features":[]},{"id":"path+file:///w/b#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"deps":[],"features":[]},{"id":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"deps":[],"features":[]},{"id":"path+file:///w/t#0.0.0","dependencies":[],"deps":[],"features":[]}],"root":null},"target_directory":"/w/target","version":1}"#;
 
     #[test]
     fn a_package_reaching_boundary_through_another_is_not_independent() {
         // no spec clause: gate tooling (TVA-XTASK-RUN-ONCE), not libc behaviour.
         let g = PackageGraph::parse(METADATA).expect("graph");
-        assert_eq!(g.boundary, "path+file:///w/crates/boundary#liella-boundary@0.0.0");
-        assert!(g.reaches_boundary("path+file:///w/a#0.0.0"), "a -> b -> liella-boundary");
+        assert_eq!(g.boundary, "path+file:///w/crates/boundary#niji-boundary@0.0.0");
+        assert!(g.reaches_boundary("path+file:///w/a#0.0.0"), "a -> b -> niji-boundary");
         assert!(g.reaches_boundary("path+file:///w/b#0.0.0"));
         assert!(g.reaches_boundary(&g.boundary.clone()));
         assert!(g.reaches_boundary("path+file:///w/unknown#0.0.0"), "a package outside the graph may depend on it");
         assert!(!g.reaches_boundary("path+file:///w/t#0.0.0"));
         // Through the decision, with the marker in both binaries: only the graph frees `t`.
-        let marked = || Some(b"_ZN15liella_boundary3foo".to_vec());
+        let marked = || Some(b"_ZN13niji_boundary3foo".to_vec());
         assert_eq!(run_once_reason("path+file:///w/a#0.0.0", Some(&g), marked), None);
-        assert_eq!(run_once_reason("path+file:///w/t#0.0.0", Some(&g), marked), Some("no dependency on liella-boundary"));
+        assert_eq!(run_once_reason("path+file:///w/t#0.0.0", Some(&g), marked), Some("no dependency on niji-boundary"));
         assert_eq!(run_once_reason("", Some(&g), marked), None, "a binary without a package id is not proven independent");
         assert!(PackageGraph::parse("not json").is_none());
-        assert!(PackageGraph::parse(&METADATA.replace("\"name\":\"liella-boundary\",", "\"name\":\"other\",")).is_none(), "no liella-boundary package = no graph");
+        assert!(PackageGraph::parse(&METADATA.replace("\"name\":\"niji-boundary\",", "\"name\":\"other\",")).is_none(), "no niji-boundary package = no graph");
     }
 
     #[test]
     fn without_a_package_graph_only_the_bytes_decide() {
         // no spec clause: gate tooling (TVA-XTASK-RUN-ONCE), not libc behaviour.
-        let marked = || Some(b"_ZN15liella_boundary3foo".to_vec());
-        let clean = || Some(b"_ZN11liella_math3foo".to_vec());
+        let marked = || Some(b"_ZN13niji_boundary3foo".to_vec());
+        let clean = || Some(b"_ZN9niji_math3foo".to_vec());
         assert_eq!(run_once_reason("path+file:///w/t#0.0.0", None, marked), None, "metadata unreadable: a marked binary runs in both passes");
         assert_eq!(run_once_reason("path+file:///w/t#0.0.0", None, || None), None, "metadata unreadable, binary unreadable: both passes");
-        assert_eq!(run_once_reason("path+file:///w/t#0.0.0", None, clean), Some("no `liella_boundary` in the binary"));
+        assert_eq!(run_once_reason("path+file:///w/t#0.0.0", None, clean), Some("no `niji_boundary` in the binary"));
         let g = PackageGraph::parse(METADATA).expect("graph");
-        assert_eq!(run_once_reason("path+file:///w/a#0.0.0", Some(&g), clean), Some("no `liella_boundary` in the binary"), "a dependent package's binary without the marker keeps the byte rule");
+        assert_eq!(run_once_reason("path+file:///w/a#0.0.0", Some(&g), clean), Some("no `niji_boundary` in the binary"), "a dependent package's binary without the marker keeps the byte rule");
     }
 
     #[test]
@@ -565,20 +565,20 @@ mod tests {
     fn counts_and_failures_from_a_report() {
         let mut t = Tally::default();
         for l in [
-            "        PASS [   0.004s] (  1/345) liella::s01_startup_clauses s01_1_a",
-            "        FAIL [   1.250s] (  2/345) liella-boundary::nscache cache_window",
-            "     SIGSEGV [   0.100s] liella::aio_products aio_equals_the_reference",
-            "     TIMEOUT [ 600.000s] (  4/345) liella::dns_products dns_equals_the_reference",
+            "        PASS [   0.004s] (  1/345) niji::s01_startup_clauses s01_1_a",
+            "        FAIL [   1.250s] (  2/345) niji-boundary::nscache cache_window",
+            "     SIGSEGV [   0.100s] niji::aio_products aio_equals_the_reference",
+            "     TIMEOUT [ 600.000s] (  4/345) niji::dns_products dns_equals_the_reference",
             "  stdout ---",
             "     Summary [ 812.345s] 345 tests run: 341 passed (2 slow), 2 failed, 1 timed out, 7 skipped",
-            "        FAIL [   1.250s] (  2/345) liella-boundary::nscache cache_window",
+            "        FAIL [   1.250s] (  2/345) niji-boundary::nscache cache_window",
         ] {
             t.line(l);
         }
         assert_eq!((t.passed, t.failed, t.skipped, t.seconds.as_str()), (341, 3, 7, "812.345s"));
-        assert_eq!(t.failures, ["liella-boundary::nscache cache_window", "liella::aio_products aio_equals_the_reference", "liella::dns_products dns_equals_the_reference"]);
+        assert_eq!(t.failures, ["niji-boundary::nscache cache_window", "niji::aio_products aio_equals_the_reference", "niji::dns_products dns_equals_the_reference"]);
         let r = t.report(false);
-        assert!(r.contains("---- liella-boundary::nscache cache_window stdout ----\n"));
+        assert!(r.contains("---- niji-boundary::nscache cache_window stdout ----\n"));
         assert!(r.ends_with("test result: FAILED. 341 passed; 3 failed; 7 ignored; 0 measured; 0 filtered out; finished in 812.345s (nextest)\n"));
     }
 

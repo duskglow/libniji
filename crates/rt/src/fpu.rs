@@ -15,7 +15,7 @@
 
 use core::hint::black_box;
 
-use liella_kernel::machine::{Machine, X87Env};
+use niji_kernel::machine::{Machine, X87Env};
 
 /// The exception flags, with the x86 values of `FE_INVALID` ... `FE_INEXACT` (the same bit
 /// positions in MXCSR, the x87 status word and the x87 control word's masks).

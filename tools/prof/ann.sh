@@ -1,6 +1,6 @@
 #!/bin/bash
 # tools/prof/ann.sh <row> <symbol-substring> [n] -- the n (default 14) hottest instructions of one function in a
-# profile made by prof.sh (Liella's own code). Usage: OUT=~/prof/rows tools/prof/ann.sh strcmp_equal_16 strcmp 20
+# profile made by prof.sh (libniji's own code). Usage: OUT=~/prof/rows tools/prof/ann.sh strcmp_equal_16 strcmp 20
 set -u
 O=${OUT:-$HOME/prof/rows}; cd "$O" || exit 2
 sym=$(grep -F "$2" "$1.top" | head -1 | awk '{print $NF}')

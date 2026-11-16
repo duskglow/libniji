@@ -3,11 +3,11 @@
 //!
 //! `__errno_location` is a `runtime` export (only the products define it; test processes keep
 //! the host's, D-2.1). The variadic `err`/`warn`/`error` names are C adapters forwarding to
-//! `liella_report7`.
+//! `niji_report7`.
 
 use core::ffi::c_void;
 
-use liella_abi::ctypes::{c_char, c_int, c_long, c_uint, locale_t, size_t};
+use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, locale_t, size_t};
 
 use crate::backtrace as bt;
 use crate::conv;
@@ -20,13 +20,13 @@ use crate::strz;
 use crate::tb;
 
 export! { asm "GLIBC_2.2.5";
-/// Defined in machine/tp.S under `LIELLA_EXPORT` and `LIELLA_RUNTIME` (products only: test
+/// Defined in machine/tp.S under `NIJI_EXPORT` and `NIJI_RUNTIME` (products only: test
 /// processes keep the host's, D-2.1).
 pub extern "C" fn __errno_location() -> *mut c_int {
     tb::errno_location()
 }}
 
-export! { local "liella_errno_rest";
+export! { local "niji_errno_rest";
 /// `__errno_location` in a process the runtime did not start (from machine/tp.S, D-X.60): the
 /// calling thread's registry word.
 pub extern "C" fn errno_rest() -> *mut c_int {
@@ -109,8 +109,8 @@ pub extern "C" fn perror(s: *const c_char) {
 
 // ------------------------------------------------------------------------------ §2.3
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_report7(kind: c_int, status: c_int, errnum: c_int, file: *const c_char, line: c_uint, fmt: *const c_char, ap: *mut c_void) {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_report7(kind: c_int, status: c_int, errnum: c_int, file: *const c_char, line: c_uint, fmt: *const c_char, ap: *mut c_void) {
     // UNSAFE(slice) SAFETY: file and fmt are NULL or strings; ap is the va_list of the arguments fmt names (§2.3).
     report::report(Kind::of(kind), status, errnum, unsafe { strz::strz_opt(file) }, line, unsafe { strz::strz_opt(fmt) }, conv::addr(ap))
 }}

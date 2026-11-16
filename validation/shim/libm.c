@@ -1,5 +1,5 @@
 /* Validation stand-ins for the maths functions gawk's language needs (validation/README.md,
- * "Workarounds", milestone 6): NOT part of Liella.
+ * "Workarounds", milestone 6): NOT part of libniji.
  *
  * Track M's libm is not a product yet (T3). gawk calls sin, cos, atan2, exp, log, sqrt, pow and
  * fmod for its built-in functions and its `^`/`%` operators; linking fails without them. These

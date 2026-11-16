@@ -3,7 +3,7 @@
  * changes the system (the clock, privileged state); the DNS search-list case is in its own run
  * (specman_dns.sh). Build: cc -std=gnu17 -O1 specman_probe.c -lm -lrt -pthread.
  * Sections are named after the finding: p<part>-<number>. With -DNO_LIBM the libm sections and rpmatch
- * are left out, and isastream (for Liella's static products, which have no
+ * are left out, and isastream (for libniji's static products, which have no
  * libm, rpmatch or compatibility symbols yet). */
 #define _GNU_SOURCE
 #include <aio.h>

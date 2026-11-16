@@ -16,9 +16,9 @@ use core::ffi::c_int;
 use std::sync::atomic::{AtomicU16, AtomicU32, Ordering::Relaxed};
 use std::time::{Duration, Instant};
 
-use liella_boundary::posix::{s20_signals as sg, s23_time as tm, s28_profiling as pr};
-use liella_kernel::uapi::{Itimerval, SigSet, SIGPROF};
-use liella_legacy::signal_compat::CSigaction;
+use niji_boundary::posix::{s20_signals as sg, s23_time as tm, s28_profiling as pr};
+use niji_kernel::uapi::{Itimerval, SigSet, SIGPROF};
+use niji_legacy::signal_compat::CSigaction;
 
 
 const ITIMER_PROF: c_int = 2;
@@ -204,7 +204,7 @@ fn s28_1_c_3() {
 // ------------------------------------------------------------------ monstartup, mcount, __fentry__
 
 /// Set in a child this binary re-executes: the test it runs does the child's half.
-const CHILD: &str = "LIELLA_S28_GMON_CHILD";
+const CHILD: &str = "NIJI_S28_GMON_CHILD";
 
 fn in_child() -> bool {
     std::env::var_os(CHILD).is_some()
@@ -386,8 +386,8 @@ fn s28_1_c_1() {
 // ------------------------------------------------------------------ __cyg_profile_func_enter/_exit
 
 /// Builds `tests/oracle/cyg_hooks.c` with `-finstrument-functions`, statically, against the host
-/// C library or against Liella's crt1 and libc.a; `own` adds the program's own hooks.
-fn build_cyg(out: &std::path::Path, liella: bool, own: bool) -> bool {
+/// C library or against libniji's crt1 and libc.a; `own` adds the program's own hooks.
+fn build_cyg(out: &std::path::Path, niji: bool, own: bool) -> bool {
     let r = root();
     let mut cmd = std::process::Command::new("cc");
     cmd.args(["-std=gnu17", "-O1", "-finstrument-functions", "-static"]);
@@ -395,8 +395,8 @@ fn build_cyg(out: &std::path::Path, liella: bool, own: bool) -> bool {
         cmd.arg("-DOWN_HOOKS");
     }
     let src = r.join("crates/core/tests/oracle/cyg_hooks.c");
-    if liella {
-        cmd.args(["-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.arg(&src);
     }
@@ -407,17 +407,17 @@ fn build_cyg(out: &std::path::Path, liella: bool, own: bool) -> bool {
 #[test]
 fn s28_1_c_4() {
     // Clause s28_1_c_4. In process: the hooks leave errno as it was.
-    liella_boundary::errno::set_raw(4242);
+    niji_boundary::errno::set_raw(4242);
     let (f, site) = (core::ptr::null_mut(), core::ptr::null_mut());
     pr::__cyg_profile_func_enter(f, site);
     pr::__cyg_profile_func_exit(f, site);
-    assert_eq!(liella_boundary::errno::get(), 4242, "the hooks leave errno unchanged");
+    assert_eq!(niji_boundary::errno::get(), 4242, "the hooks leave errno unchanged");
 
     // As programs: probe of glibc 2.39 (static, -finstrument-functions): the library's hooks
     // print nothing and keep errno (enter=0 exit=0); a program's own hooks link without a
     // duplicate definition and are called once per instrumented entry and exit (main, 5 mid,
     // 10 leaf: 16 entries, 15 exits when main prints).
-    assert!(root().join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(root().join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -425,9 +425,9 @@ fn s28_1_c_4() {
     let dir = root().join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
     for (own, want) in [(false, "r=85 errno=4242 enter=0 exit=0\n"), (true, "r=85 errno=4242 enter=16 exit=15\n")] {
-        for liella in [false, true] {
-            let exe = dir.join(format!("cyg_hooks_{}_{}", if liella { "liella" } else { "host" }, if own { "own" } else { "lib" }));
-            assert!(build_cyg(&exe, liella, own), "cyg_hooks.c (own hooks: {own}) does not link against {}", if liella { "libc.a" } else { "the host" });
+        for niji in [false, true] {
+            let exe = dir.join(format!("cyg_hooks_{}_{}", if niji { "niji" } else { "host" }, if own { "own" } else { "lib" }));
+            assert!(build_cyg(&exe, niji, own), "cyg_hooks.c (own hooks: {own}) does not link against {}", if niji { "libc.a" } else { "the host" });
             let o = std::process::Command::new("timeout").arg(timeout::secs(30)).arg(&exe).output().unwrap();
             assert!(o.status.success(), "{}: {:?}", exe.display(), o.status);
             assert_eq!((String::from_utf8_lossy(&o.stdout).as_ref(), o.stderr.len()), (want, 0), "{}: output", exe.display());

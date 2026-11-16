@@ -1,8 +1,8 @@
 // validation/smoke/dlclose/plug.cc: the C++ plug-in cxx_host loads and unloads (smoke program cxx_dlclose).
-// Every event prints one line; cxx_host's output on Liella must equal its output on the reference build, so
+// Every event prints one line; cxx_host's output on libniji must equal its output on the reference build, so
 // the order of constructors, destructors, atexit handlers and function-local statics at dlclose is compared
 // line by line. A fresh load starts from fresh data (the counter) when the previous dlclose unloaded it.
-// No libstdc++ types: the Liella build links libstdc++ statically into each object, and its STB_GNU_UNIQUE
+// No libstdc++ types: the libniji build links libstdc++ statically into each object, and its STB_GNU_UNIQUE
 // symbols would make this object differ from the reference build's (the recipe checks there are none).
 #include <cstdio>
 #include <cstdlib>

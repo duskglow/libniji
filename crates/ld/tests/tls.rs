@@ -20,8 +20,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native, RelocKind, TlsOperands};
-use liella_ld::tls::{self, Module, Placed};
+use niji_ld::arch::{Arch, Native, RelocKind, TlsOperands};
+use niji_ld::tls::{self, Module, Placed};
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -37,7 +37,7 @@ fn tools_ok() -> bool {
 }
 
 fn product() -> Option<PathBuf> {
-    let p = target().join("liella").join(Native::INTERP);
+    let p = target().join("niji").join(Native::INTERP);
     if p.exists() {
         return Some(p);
     }

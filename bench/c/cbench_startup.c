@@ -1,7 +1,7 @@
 /* Process lifetime (STARTUP-COST): fork+exec+wait of a tiny program, measured end to end. The same file
  * builds against the products (`cargo xtask bench`) and against the host C library (dynamic and static),
  * and it is its own child: the rows spawn /proc/self/exe with a mode argument, so the child is linked
- * the way the parent is (Liella static, glibc dynamic or glibc static) and the row measures that
+ * the way the parent is (libniji static, glibc dynamic or glibc static) and the row measures that
  * library's exec-to-main, main body and exit. Prints `name<TAB>ns/op` lines, the best of several rounds.
  *
  *   spawn_bin_true     the system's /bin/true (same child for every build): the spawn + wait path alone

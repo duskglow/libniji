@@ -1,5 +1,5 @@
 //! The static path of the native Rust interface (D-X.10): a program linked like a product,
-//! statically, with `liella-crt1.o` and Liella's `libc.a` and no host C library, using the
+//! statically, with `niji-crt1.o` and libniji's `libc.a` and no host C library, using the
 //! heap as its global allocator, the environment, a file round trip, the clocks, the time
 //! zone, the locale and the process's arguments, ID and exit, and printing what it did.
 //!
@@ -21,14 +21,14 @@ use alloc::string::String;
 // With feature `dylib` (all features, under clippy) the library defines both.
 #[cfg(not(feature = "dylib"))]
 #[global_allocator]
-static HEAP: liella_native::heap::Allocator = liella_native::heap::Allocator;
+static HEAP: niji_native::heap::Allocator = niji_native::heap::Allocator;
 
-liella_native::entry!(start);
+niji_native::entry!(start);
 
-/// The public types of liella-kernel, re-exported with feature `static` only.
+/// The public types of niji-kernel, re-exported with feature `static` only.
 fn kernel_types() -> Result<String, String> {
-    let e = liella_native::kernel::Errno::ENOENT;
-    if liella_native::Errno::ENOENT == e { Ok(format!("{e} is the facade's Errno")) } else { Err(String::from("two Errno types")) }
+    let e = niji_native::kernel::Errno::ENOENT;
+    if niji_native::Errno::ENOENT == e { Ok(format!("{e} is the facade's Errno")) } else { Err(String::from("two Errno types")) }
 }
 
 fn start() -> i32 {

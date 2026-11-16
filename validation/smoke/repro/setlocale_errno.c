@@ -10,7 +10,7 @@
    Build and run against both C libraries as validation/smoke/repro/regcomp_nesting.c says.
 
    Observed (2026-11-14, host C library glibc 2.39, three build hosts; names zh_HK.big5hkscs and xx_YY.UTF-8):
-   the first call gives NULL and errno ENOENT on both; the second call gives NULL with errno ENOENT on Liella
+   the first call gives NULL and errno ENOENT on both; the second call gives NULL with errno ENOENT on libniji
    and errno unchanged (0) on the reference. This is the recorded difference "errno after setlocale returns NULL" in
    docs/differences-from-glibc.md (ruling #5480, no compatibility option). */
 #include <errno.h>

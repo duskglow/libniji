@@ -2,7 +2,7 @@
 //! files (IP-21).
 //!
 //! **Tunables** are parsed once at startup from `GLIBC_TUNABLES` (`name=value:name=value`) into
-//! a typed [`Tunables`] value. Names are `liella.*`; the `glibc.*` names that mean something in
+//! a typed [`Tunables`] value. Names are `niji.*`; the `glibc.*` names that mean something in
 //! this design are accepted as aliases. Unknown names and invalid values are ignored, as the
 //! contract requires. In secure mode no tunable is honoured (the environment variable is also
 //! removed, `rt::start::UNSECURE`; `spec/security/threat-model.md`, the `GLIBC_TUNABLES` row).
@@ -12,12 +12,12 @@
 //!
 //! | Name | Alias | Value (range) |
 //! |---|---|---|
-//! | `liella.cpu.hwcaps` | `glibc.cpu.hwcaps` | comma-separated `-AVX2`, `-ERMS` (disable) or `AVX2`, `ERMS` |
-//! | `liella.cpu.rep_movsb_threshold` | `glibc.cpu.x86_rep_movsb_threshold` | bytes, 0x100 or more |
-//! | `liella.cpu.rep_stosb_threshold` | `glibc.cpu.x86_rep_stosb_threshold` | bytes, 1 or more |
-//! | `liella.pthread.rseq` | `glibc.pthread.rseq` | 0 or 1; `0` disables the rseq registration (D-22.7, §22.9) |
-//! | `liella.compat.no_classed_swap` | (none) | 0 or 1; `1` (and unset, the default since ruling #3434) keeps the file's SSE2 page at the classed entries: no page swap at start-up; `0` turns the AVX2-class swap on (COMPAT-20, D-4.53) |
-//! | `liella.malloc.perturb` | `glibc.malloc.perturb` | 0 to 255: `M_PERTURB` for the C `malloc` family (§3.2); overrides `MALLOC_PERTURB_` ([`Tunables::malloc_perturb`]) |
+//! | `niji.cpu.hwcaps` | `glibc.cpu.hwcaps` | comma-separated `-AVX2`, `-ERMS` (disable) or `AVX2`, `ERMS` |
+//! | `niji.cpu.rep_movsb_threshold` | `glibc.cpu.x86_rep_movsb_threshold` | bytes, 0x100 or more |
+//! | `niji.cpu.rep_stosb_threshold` | `glibc.cpu.x86_rep_stosb_threshold` | bytes, 1 or more |
+//! | `niji.pthread.rseq` | `glibc.pthread.rseq` | 0 or 1; `0` disables the rseq registration (D-22.7, §22.9) |
+//! | `niji.compat.no_classed_swap` | (none) | 0 or 1; `1` (and unset, the default since ruling #3434) keeps the file's SSE2 page at the classed entries: no page swap at start-up; `0` turns the AVX2-class swap on (COMPAT-20, D-4.53) |
+//! | `niji.malloc.perturb` | `glibc.malloc.perturb` | 0 to 255: `M_PERTURB` for the C `malloc` family (§3.2); overrides `MALLOC_PERTURB_` ([`Tunables::malloc_perturb`]) |
 //!
 //! **Syntax** (black-box probes of glibc 2.39, LEGACY-TUNABLES-POLICY, 2026-10-23):
 //! * entries are `:`-separated, and a value runs from the first `=` to the next `:`. An entry
@@ -60,7 +60,7 @@ pub struct Tunables {
     pub no_classed_swap: Option<bool>,
 }
 
-/// Which tunable a name denotes (its `liella.*` name or the `glibc.*` alias).
+/// Which tunable a name denotes (its `niji.*` name or the `glibc.*` alias).
 #[derive(Clone, Copy)]
 enum Key {
     Hwcaps,
@@ -74,12 +74,12 @@ enum Key {
 /// The tunable `name` stands for, or `None` for names that mean nothing in this design.
 fn key_of(name: &[u8]) -> Option<Key> {
     Some(match name {
-        b"liella.cpu.hwcaps" | b"glibc.cpu.hwcaps" => Key::Hwcaps,
-        b"liella.cpu.rep_movsb_threshold" | b"glibc.cpu.x86_rep_movsb_threshold" => Key::MovsbThreshold,
-        b"liella.cpu.rep_stosb_threshold" | b"glibc.cpu.x86_rep_stosb_threshold" => Key::StosbThreshold,
-        b"liella.pthread.rseq" | b"glibc.pthread.rseq" => Key::Rseq,
-        b"liella.malloc.perturb" | b"glibc.malloc.perturb" => Key::Perturb,
-        b"liella.compat.no_classed_swap" => Key::NoClassedSwap,
+        b"niji.cpu.hwcaps" | b"glibc.cpu.hwcaps" => Key::Hwcaps,
+        b"niji.cpu.rep_movsb_threshold" | b"glibc.cpu.x86_rep_movsb_threshold" => Key::MovsbThreshold,
+        b"niji.cpu.rep_stosb_threshold" | b"glibc.cpu.x86_rep_stosb_threshold" => Key::StosbThreshold,
+        b"niji.pthread.rseq" | b"glibc.pthread.rseq" => Key::Rseq,
+        b"niji.malloc.perturb" | b"glibc.malloc.perturb" => Key::Perturb,
+        b"niji.compat.no_classed_swap" => Key::NoClassedSwap,
         _ => return None,
     })
 }
@@ -288,7 +288,7 @@ impl Tunables {
         t
     }
 
-    /// The tunable `liella.malloc.perturb` (alias `glibc.malloc.perturb`) in `GLIBC_TUNABLES`:
+    /// The tunable `niji.malloc.perturb` (alias `glibc.malloc.perturb`) in `GLIBC_TUNABLES`:
     /// the C `malloc` family's perturbation byte (`M_PERTURB`, §3.2), 0 to 255; other values
     /// are ignored, the last valid setting counts. In secure mode nothing is honoured.
     pub fn malloc_perturb(text: &[u8], secure: bool) -> Option<u8> {
@@ -333,10 +333,10 @@ mod tests {
 
     #[test]
     fn no_classed_swap() {
-        // COMPAT-20 (D-4.53): no spec clause (a Liella tunable). 0 or 1; other values ignored.
-        assert_eq!(Tunables::parse(b"liella.compat.no_classed_swap=1", false).no_classed_swap, Some(true));
-        assert_eq!(Tunables::parse(b"liella.compat.no_classed_swap=0", false).no_classed_swap, Some(false));
-        assert_eq!(Tunables::parse(b"liella.compat.no_classed_swap=2", false).no_classed_swap, None);
+        // COMPAT-20 (D-4.53): no spec clause (a libniji tunable). 0 or 1; other values ignored.
+        assert_eq!(Tunables::parse(b"niji.compat.no_classed_swap=1", false).no_classed_swap, Some(true));
+        assert_eq!(Tunables::parse(b"niji.compat.no_classed_swap=0", false).no_classed_swap, Some(false));
+        assert_eq!(Tunables::parse(b"niji.compat.no_classed_swap=2", false).no_classed_swap, None);
         assert_eq!(Tunables::parse(b"", false).no_classed_swap, None);
     }
 
@@ -344,7 +344,7 @@ mod tests {
     fn malloc_perturb() {
         assert_eq!(Tunables::malloc_perturb(b"glibc.malloc.perturb=165", false), Some(165));
         assert_eq!(Tunables::malloc_perturb(b"glibc.malloc.perturb=165:glibc.malloc.mmap_threshold=32768", false), Some(165));
-        assert_eq!(Tunables::malloc_perturb(b"liella.malloc.perturb=0x5a", false), Some(0x5a));
+        assert_eq!(Tunables::malloc_perturb(b"niji.malloc.perturb=0x5a", false), Some(0x5a));
         assert_eq!(Tunables::malloc_perturb(b"glibc.malloc.perturb=300", false), None, "out of range: ignored");
         assert_eq!(Tunables::malloc_perturb(b"glibc.malloc.perturb=junk", false), None);
         assert_eq!(Tunables::malloc_perturb(b"glibc.malloc.perturb=1:glibc.malloc.perturb=junk", false), Some(1), "the last valid setting");

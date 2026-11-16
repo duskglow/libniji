@@ -4,18 +4,18 @@
 
 //! Clause tests for spec §1 (68 clauses).
 //!
-//! The logic is tested where it lives (`liella_rt::start`/`tls`/`fatal`, `liella::config`,
-//! `liella_legacy::environ`/`exit_handlers`, `liella::getopt`) over models of C memory; what only
-//! a process Liella started can show runs as C conformance programs (`conformance/c/s01_*.c`).
+//! The logic is tested where it lives (`niji_rt::start`/`tls`/`fatal`, `niji::config`,
+//! `niji_legacy::environ`/`exit_handlers`, `niji::getopt`) over models of C memory; what only
+//! a process libniji started can show runs as C conformance programs (`conformance/c/s01_*.c`).
 //!
-//! getopt (§1.6) is tested through the C interface (`liella_boundary::posix`): its state, its
+//! getopt (§1.6) is tested through the C interface (`niji_boundary::posix`): its state, its
 //! variables (`optind`, `optarg`, `opterr`, `optopt`) and its diagnostics are process-wide, so
 //! each of those tests runs in a re-executed child. getsubopt (§1.6a) works on caller memory only
 //! and runs in place. argp (§1.7) takes C callbacks and has variadic entry points (`argp_error`,
 //! `argp_failure`), and may exit: its clauses are checked by the self-checking C program
 //! `conformance/c/s01_argp.c`, built against the products and run once per test binary; each
 //! clause test requires its clause's checks to have run and passed.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::panic, missing_docs)]
 
 #[path = "support/scratch.rs"]
@@ -28,29 +28,29 @@ use std::os::unix::process::ExitStatusExt;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 
-use liella::config::Tunables;
-use liella::error::Errno;
-use liella::getopt::{self, Event, HasArg, LongOpt, Span, Spec, State};
-use liella_abi::layout::struct_option;
-use liella_boundary::data;
-use liella_boundary::heap::KernelPages;
-use liella_boundary::posix::s01_startup as x;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as io;
-use liella_boundary::sys::CSys;
-use liella_kernel::auxv::Auxv;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::sys::Sys;
-use liella_kernel::testing::Faulty;
-use liella_legacy::environ::{self, EnvState};
-use liella_legacy::exit_handlers::{self, Registry, ATEXIT, CXA, ON_EXIT, QUICK};
-use liella_legacy::obstack::CCall;
-use liella_legacy::search_c::CWords;
-use liella_rt::heap::Pages;
-use liella_rt::{fatal, start, tls};
+use niji::config::Tunables;
+use niji::error::Errno;
+use niji::getopt::{self, Event, HasArg, LongOpt, Span, Spec, State};
+use niji_abi::layout::struct_option;
+use niji_boundary::data;
+use niji_boundary::heap::KernelPages;
+use niji_boundary::posix::s01_startup as x;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as io;
+use niji_boundary::sys::CSys;
+use niji_kernel::auxv::Auxv;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::sys::Sys;
+use niji_kernel::testing::Faulty;
+use niji_legacy::environ::{self, EnvState};
+use niji_legacy::exit_handlers::{self, Registry, ATEXIT, CXA, ON_EXIT, QUICK};
+use niji_legacy::obstack::CCall;
+use niji_legacy::search_c::CWords;
+use niji_rt::heap::Pages;
+use niji_rt::{fatal, start, tls};
 
-const PROBE: &str = "LIELLA_CLAUSE_PROBE";
+const PROBE: &str = "NIJI_CLAUSE_PROBE";
 
 fn probe() -> Option<String> {
     std::env::var(PROBE).ok()
@@ -76,7 +76,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -95,7 +95,7 @@ static ARGP: OnceLock<CRun> = OnceLock::new();
 fn c_run(cell: &'static OnceLock<CRun>, name: &str) -> &'static CRun {
     cell.get_or_init(|| {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let (crt, libc) = (root.join("target/liella/liella-crt1.o"), root.join("target/liella/libc.a"));
+        let (crt, libc) = (root.join("target/niji/niji-crt1.o"), root.join("target/niji/libc.a"));
         assert!(crt.exists() && libc.exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
         let dir = root.join("target/test-oracles");
         std::fs::create_dir_all(&dir).unwrap();
@@ -361,7 +361,7 @@ impl EnvCells {
 /// `mem` read at most `limit` bytes at a time (the bounded reads of `getenv_bounded`).
 struct Bounded<'a>(&'a Mem);
 
-impl liella_legacy::mb_compat::ReadAt<u8> for Bounded<'_> {
+impl niji_legacy::mb_compat::ReadAt<u8> for Bounded<'_> {
     fn read_at(&mut self, addr: usize, limit: usize) -> Option<&[u8]> {
         let t = self.0.text(addr);
         t.get(..limit.min(t.len()))
@@ -460,7 +460,7 @@ fn s1_1_c_3() {
 }
 
 /// §1.1: the runtime initializes the standard streams `stdin`, `stdout` and `stderr`, and the
-/// "C" locale. Only a process Liella started shows it: `s01_streams.c` finds the three streams
+/// "C" locale. Only a process libniji started shows it: `s01_streams.c` finds the three streams
 /// on descriptors 0, 1 and 2 and every category "C", with the environment naming another locale.
 #[test]
 fn s1_1_c_4() {
@@ -568,8 +568,8 @@ fn s1_2_c_4() {
 fn s1_2_c_4_1() {
     // A SIGABRT handler that returns: abort resets the disposition and raises again.
     if probe().as_deref() == Some("caught") {
-        liella_boundary::selftest::expect_crash();
-        let _ = liella_boundary::selftest::with_counting_handler(6, || x::abort());
+        niji_boundary::selftest::expect_crash();
+        let _ = niji_boundary::selftest::with_counting_handler(6, || x::abort());
         CSys.exit_group(99);
     }
     let o = run_probe("s1_2_c_4_1", "caught");
@@ -595,9 +595,9 @@ fn s1_2_c_4_2() {
 fn s1_2_c_4_3() {
     // abort is not stopped by a blocked SIGABRT.
     if probe().as_deref() == Some("blocked") {
-        let set = liella_kernel::uapi::SigSet::empty().with(6);
-        CSys.sigprocmask(liella_kernel::uapi::SIG_BLOCK, Some(&set)).unwrap();
-        liella_boundary::selftest::expect_crash();
+        let set = niji_kernel::uapi::SigSet::empty().with(6);
+        CSys.sigprocmask(niji_kernel::uapi::SIG_BLOCK, Some(&set)).unwrap();
+        niji_boundary::selftest::expect_crash();
         x::abort();
     }
     let o = run_probe("s1_2_c_4_3", "blocked");
@@ -607,17 +607,17 @@ fn s1_2_c_4_3() {
 /// §1.2 (`abort`): streams are *not* flushed.
 #[test]
 fn s1_2_c_4_4() {
-    const FILE_ENV: &str = "LIELLA_S01_ABORT_FILE";
+    const FILE_ENV: &str = "NIJI_S01_ABORT_FILE";
     if probe().as_deref() == Some("pending") {
         // Output pending in a file stream and in a fully buffered stdout, then abort.
         let path = cs(&std::env::var(FILE_ENV).unwrap());
         let fp = io::fopen(path.as_ptr(), c"w".as_ptr());
         assert!(!fp.is_null());
         assert!(io::fputs(c"[pending file]".as_ptr(), fp) >= 0);
-        let out = core::ptr::with_exposed_provenance_mut(liella_boundary::stdio::stdout());
+        let out = core::ptr::with_exposed_provenance_mut(niji_boundary::stdio::stdout());
         assert_eq!(io::setvbuf(out, null_mut(), 0, 8192), 0, "_IOFBF");
         assert!(io::fputs(c"[pending stdout]".as_ptr(), out) >= 0);
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         x::abort();
     }
     let path = scratch::Scratch::path("s01-abort");
@@ -1095,7 +1095,7 @@ fn s1_3_t_0() {
             .map(|t| {
                 std::thread::spawn(move || {
                     for i in 0..50 {
-                        let name = std::ffi::CString::new(format!("LIELLA_MT_{t}_{i}")).unwrap();
+                        let name = std::ffi::CString::new(format!("NIJI_MT_{t}_{i}")).unwrap();
                         assert_eq!(x::setenv(name.as_ptr(), c"1".as_ptr(), 1), 0);
                     }
                 })
@@ -1106,7 +1106,7 @@ fn s1_3_t_0() {
         }
         for t in 0..4 {
             for i in 0..50 {
-                let name = std::ffi::CString::new(format!("LIELLA_MT_{t}_{i}")).unwrap();
+                let name = std::ffi::CString::new(format!("NIJI_MT_{t}_{i}")).unwrap();
                 assert!(!x::getenv(name.as_ptr()).is_null());
                 x::unsetenv(name.as_ptr());
             }
@@ -1142,9 +1142,9 @@ fn s1_5_g_0() {
 
 #[test]
 fn s1_5_f_0() {
-    liella_boundary::errno::set_raw(0);
+    niji_boundary::errno::set_raw(0);
     assert_eq!(x::getauxval(0xdead), 0);
-    assert_eq!(liella_boundary::errno::get(), 2, "ENOENT");
+    assert_eq!(niji_boundary::errno::get(), 2, "ENOENT");
 }
 
 /// The internal parser run to the end: each event shown as `a`, `a=ARG` (a letter and its
@@ -1474,7 +1474,7 @@ fn s1_7_f_0() {
 }
 #[test]
 fn s1_8_c_0() {
-    let t = Tunables::parse(b"glibc.cpu.hwcaps=-AVX2,ERMS:glibc.cpu.x86_rep_movsb_threshold=0x800:liella.cpu.rep_stosb_threshold=4096:bogus=1:glibc.malloc.arena_max=2", false);
+    let t = Tunables::parse(b"glibc.cpu.hwcaps=-AVX2,ERMS:glibc.cpu.x86_rep_movsb_threshold=0x800:niji.cpu.rep_stosb_threshold=4096:bogus=1:glibc.malloc.arena_max=2", false);
     assert_eq!(t, Tunables { avx2: Some(false), erms: Some(true), fma: None, rep_movsb_threshold: Some(2048), rep_stosb_threshold: Some(4096), rseq: None, no_classed_swap: None });
     assert_eq!(Tunables::parse(b"glibc.pthread.rseq=0", false).rseq, Some(false), "rseq registration off (§22.9)");
     assert_eq!(Tunables::parse(b"glibc.cpu.hwcaps=-AVX2_Usable", false).avx2, Some(false), "2.26-era names");
@@ -1550,7 +1550,7 @@ fn s1_8_c_0_warnings() {
     let t = |s: &[u8]| Tunables::parse(s, false);
     let w = |s: &[u8]| {
         let mut out = Vec::new();
-        liella::config::warnings(s, |parts| out.push(parts.concat()));
+        niji::config::warnings(s, |parts| out.push(parts.concat()));
         out.iter().map(|l| String::from_utf8_lossy(l).into_owned()).collect::<Vec<_>>()
     };
     let value = |v: &str, n: &str| format!("WARNING: ld.so: invalid GLIBC_TUNABLES value `{v}' for option `{n}': ignored.\n");
@@ -1570,15 +1570,15 @@ fn s1_8_c_0_warnings() {
     let long = "a".repeat(300);
     assert_eq!(w(format!("{P}={long}").as_bytes()), [value(&long, P)], "no truncation");
     // Silent: well-formed values in or out of range, unknown names, string tunables, the empty string.
-    for s in ["", "glibc.malloc.perturb= 5", "glibc.malloc.perturb=\t5", "glibc.malloc.perturb=+0x1a", "glibc.malloc.perturb=-0x1", "glibc.malloc.perturb=-0", "glibc.malloc.perturb=+", "glibc.malloc.perturb=0x", "glibc.malloc.perturb= ", "glibc.rtld.nns=0", "glibc.rtld.nns=17", "glibc.elision.tries=4294967296", "glibc.pthread.mutex_spin_count=-1", "glibc.cpu.x86_non_temporal_threshold=0x1000000000000000", "foo.bar=junk", "glibc.malloc.perturbx=junk", "GLIBC.MALLOC.PERTURB=junk", "=junk", "liella.malloc.perturb=junk", "glibc.cpu.hwcaps=junk", "glibc.cpu.x86_ibt=junk", "glibc.cpu.x86_shstk=junk", "glibc.malloc.perturb=5:="] {
+    for s in ["", "glibc.malloc.perturb= 5", "glibc.malloc.perturb=\t5", "glibc.malloc.perturb=+0x1a", "glibc.malloc.perturb=-0x1", "glibc.malloc.perturb=-0", "glibc.malloc.perturb=+", "glibc.malloc.perturb=0x", "glibc.malloc.perturb= ", "glibc.rtld.nns=0", "glibc.rtld.nns=17", "glibc.elision.tries=4294967296", "glibc.pthread.mutex_spin_count=-1", "glibc.cpu.x86_non_temporal_threshold=0x1000000000000000", "foo.bar=junk", "glibc.malloc.perturbx=junk", "GLIBC.MALLOC.PERTURB=junk", "=junk", "niji.malloc.perturb=junk", "glibc.cpu.hwcaps=junk", "glibc.cpu.x86_ibt=junk", "glibc.cpu.x86_shstk=junk", "glibc.malloc.perturb=5:="] {
         assert_eq!(w(s.as_bytes()), Vec::<String>::new(), "{s:?} is silent");
     }
     // Every numeric name of the 41 warns about a malformed value; the three string ones never.
     let mut numeric = 0;
-    for (name, ty) in liella::config::GLIBC_TUNABLE_TYPES {
+    for (name, ty) in niji::config::GLIBC_TUNABLE_TYPES {
         let n = String::from_utf8_lossy(name).into_owned();
         let lines = w(format!("{n}=junk").as_bytes());
-        if ty == liella::config::TunableType::Str {
+        if ty == niji::config::TunableType::Str {
             assert!(lines.is_empty(), "{n}");
         } else {
             numeric += 1;
@@ -1601,15 +1601,15 @@ fn s1_8_c_0_warnings() {
         ("pthread.stack_cache_size", 0, m), ("pthread.stack_hugetlb", 0, 1), ("rtld.dynamic_sort", 1, 2), ("rtld.nns", 1, 0x10), ("rtld.optional_static_tls", 0, m),
     ];
     for (name, min, max) in listed {
-        let ty = liella::config::glibc_tunable_type(format!("glibc.{name}").as_bytes());
+        let ty = niji::config::glibc_tunable_type(format!("glibc.{name}").as_bytes());
         let range = match ty {
-            Some(liella::config::TunableType::Int { min, max } | liella::config::TunableType::Size { min, max }) => Some((min, max)),
+            Some(niji::config::TunableType::Int { min, max } | niji::config::TunableType::Size { min, max }) => Some((min, max)),
             _ => None,
         };
         assert_eq!(range, Some((min, max)), "glibc.{name}: listed range");
     }
     assert_eq!(t(b""), Tunables::default());
-    // Names are exact: other case or another namespace mean nothing (the `liella.*` names are ours).
+    // Names are exact: other case or another namespace mean nothing (the `niji.*` names are ours).
     assert_eq!(p(b"GLIBC.MALLOC.PERTURB=5"), None);
     assert_eq!(p(b"glibc.malloc.arena_max=junk:glibc.malloc.perturb=6"), Some(6), "an entry we do not honour leaves the rest alone");
     // Secure mode: nothing, whatever the string (threat model, the `GLIBC_TUNABLES` row).

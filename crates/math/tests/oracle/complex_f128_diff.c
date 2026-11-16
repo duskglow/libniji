@@ -9,7 +9,7 @@
  * smaller grid of bases and exponents; then a random sample of operands per function in
  * round-to-nearest (mode letter 'n'). Each line prints the operands' and the results' bits (the
  * binary128 encoding, 32 hex digits), the raised flags and errno. Built against the host C library
- * and statically against Liella's products, the outputs must agree (complex_f128_products.rs)
+ * and statically against libniji's products, the outputs must agree (complex_f128_products.rs)
  * apart from recorded differences. The values are built from their bits, so the program needs no
  * binary128 arithmetic of its own. */
 #define _GNU_SOURCE

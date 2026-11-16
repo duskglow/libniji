@@ -1,4 +1,4 @@
-//! The current time zone (`liella_tz_*`): the one `TZ` names, shared with the C code's
+//! The current time zone (`niji_tz_*`): the one `TZ` names, shared with the C code's
 //! `localtime` and `mktime`. Conversions between instants (seconds since the epoch) and local
 //! times as [`Tm`].
 
@@ -10,10 +10,10 @@ use crate::buf;
 use crate::ffi;
 use crate::Errno;
 
-/// The capacity of [`Tm::abbr`] (`LIELLA_TZ_ABBR_CAP`).
+/// The capacity of [`Tm::abbr`] (`NIJI_TZ_ABBR_CAP`).
 pub const ABBR_CAP: usize = 16;
 
-/// A local time in the current zone: `struct liella_tm` (64 bytes, alignment 8), field for
+/// A local time in the current zone: `struct niji_tm` (64 bytes, alignment 8), field for
 /// field.
 ///
 /// As a result every field is set. As the input of [`from_local`], `year` to `second` and
@@ -49,7 +49,7 @@ pub struct Tm {
     pub abbr: [u8; ABBR_CAP],
 }
 
-// The layout of `struct liella_tm` (include/liella/native.h asserts the same).
+// The layout of `struct niji_tm` (include/niji/native.h asserts the same).
 const _: () = assert!(size_of::<Tm>() == 64 && align_of::<Tm>() == 8);
 const _: () = assert!(offset_of!(Tm, year) == 0 && offset_of!(Tm, month) == 8 && offset_of!(Tm, day) == 12);
 const _: () = assert!(offset_of!(Tm, hour) == 16 && offset_of!(Tm, minute) == 20 && offset_of!(Tm, second) == 24);
@@ -81,7 +81,7 @@ impl Tm {
 /// its offset and abbreviation.
 pub fn to_local(time: i64) -> Result<Tm, Errno> {
     let mut tm = Tm::default();
-    buf::done(ffi::liella_tz_to_local(time, &mut tm)).map(|()| tm)
+    buf::done(ffi::niji_tz_to_local(time, &mut tm)).map(|()| tm)
 }
 
 /// The instant of the local time `tm` in the current zone, and `tm` normalised (every field
@@ -90,14 +90,14 @@ pub fn to_local(time: i64) -> Result<Tm, Errno> {
 pub fn from_local(tm: &Tm) -> Result<(i64, Tm), Errno> {
     let mut out = *tm;
     let mut time = 0;
-    buf::done(ffi::liella_tz_from_local(&mut out, &mut time)).map(|()| (time, out))
+    buf::done(ffi::niji_tz_from_local(&mut out, &mut time)).map(|()| (time, out))
 }
 
 /// Reload the time-zone data (D-X.13): every zone the process keeps from a file is compared with
 /// its file before its next use and read again if the file changed (a tzdata update); then the
 /// zone `TZ` names is selected, as C's `tzset` does.
 pub fn invalidate() {
-    let _ = ffi::liella_tz_invalidate();
+    let _ = ffi::niji_tz_invalidate();
 }
 
 #[cfg(test)]

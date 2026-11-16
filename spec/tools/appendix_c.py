@@ -188,7 +188,7 @@ def visibility_section(cfg, vis):
         "whichever string is shorter (the ids on a tie), ids in table order. Rows of header `-`",
         "are the empty translation unit (compiler predefines and `stdc-predef.h`); a header's rows leave out what",
         f"that unit already shows. `include-error` ({len(errs)} rows) marks configurations in which the bare",
-        "`#include` fails: a fact about the reference, which Liella's header reproduces (plan/headers.md §2.3).",
+        "`#include` fails: a fact about the reference, which libniji's header reproduces (plan/headers.md §2.3).",
         "",
     ])
 

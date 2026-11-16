@@ -1,5 +1,5 @@
 //! Stdio end to end (spec §12; D-12.1, D-12.11): `tests/oracle/stdio_diff.c` built against the
-//! host C library and statically against Liella's products, run in a scratch directory; the
+//! host C library and statically against libniji's products, run in a scratch directory; the
 //! outputs must be identical line by line, except the recorded differences in [`KNOWN`].
 //! Needs the products (`cargo xtask so`) and a C compiler; without the latter the test says
 //! so and passes.
@@ -17,12 +17,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/stdio_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -33,10 +33,10 @@ fn build(out: &Path, liella: bool) -> bool {
 /// under (`*` any), and why. A recorded line that no longer differs fails the test.
 const KNOWN: [(&str, &str, &str); 2] = [
     // With a caller buffer smaller than 128 bytes, the reference library writes a block that
-    // finds no room in it straight through; Liella keeps it until the buffer fills (§12.1).
+    // finds no room in it straight through; libniji keeps it until the buffer fills (§12.1).
     ("user_buffer ", "buffering", "small caller buffers"),
     // `fdopen(fd, "a")` on a descriptor without O_APPEND, at offset 2: POSIX sets the stream's
-    // position from the descriptor's offset (2, Liella; owner ruling 2026-10-04, D-12.16); the
+    // position from the descriptor's offset (2, libniji; owner ruling 2026-10-04, D-12.16); the
     // reference also moves the descriptor to the end when it adds O_APPEND itself (6), but not
     // when the descriptor already had it (0 stays 0). Both set O_APPEND on the descriptor.
     ("fdopen off2 a ", "append", "fdopen position of a descriptor given O_APPEND"),
@@ -51,10 +51,10 @@ fn stdio_behaviour_equals_the_reference() {
     // s12_8_c_3, s12_8_c_4, s12_8_c_5, s12_8_c_6, s12_8_f_0, s12_12_c_2, s12_12_c_3, s12_13_c_0
     // (D-12.1, D-12.11).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("stdio_diff_host"), dir.join("stdio_diff_liella"));
+    let (host, ours) = (dir.join("stdio_diff_host"), dir.join("stdio_diff_niji"));
     // Without a C compiler the test cannot run; with one, the program must build.
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
@@ -80,14 +80,14 @@ fn stdio_behaviour_equals_the_reference() {
         if let Some(i) = known {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
             }
             continue;
         }
         if w != g {
             diffs += 1;
             if diffs <= 40 {
-                eprintln!("line {} ({locale}):\n  glibc  {}\n  liella {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
+                eprintln!("line {} ({locale}):\n  glibc  {}\n  niji {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
             }
         }
     }

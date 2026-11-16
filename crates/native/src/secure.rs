@@ -1,6 +1,6 @@
 //! Secrets in memory (D-X.11): [`secure_zero`], zeroing the compiler cannot remove
-//! (`liella_secure_zero`), and [`SecureVec`], a byte buffer in *secure* heap blocks
-//! (`liella_heap_alloc_secure`), which the C library zeroes whenever it releases one.
+//! (`niji_secure_zero`), and [`SecureVec`], a byte buffer in *secure* heap blocks
+//! (`niji_heap_alloc_secure`), which the C library zeroes whenever it releases one.
 //!
 //! ```text
 //! let mut key = SecureVec::zeroed(32)?;
@@ -14,12 +14,12 @@
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 
-use liella::error::Errno;
+use niji::error::Errno;
 
 use crate::ffi::{self, SecureBlock};
 
 /// Zero `buf` so that the stores happen even if `buf` is never read again, whatever the
-/// optimiser does with the call (inlining, LTO): `liella_secure_zero`, the function behind
+/// optimiser does with the call (inlining, LTO): `niji_secure_zero`, the function behind
 /// `explicit_bzero` too. Only these bytes: copies of them elsewhere (moved values, registers,
 /// other buffers) are not reached.
 pub fn secure_zero(buf: &mut [u8]) {
@@ -35,7 +35,7 @@ const FIRST: usize = 64;
 ///
 /// * **Zeroed on release.** Each block is a secure block of the C library's heap: when the
 ///   buffer grows and the heap moves it, the old block is zeroed by the heap, and when the
-///   buffer is dropped, its block is zeroed (through `liella_heap_free`) before the memory
+///   buffer is dropped, its block is zeroed (through `niji_heap_free`) before the memory
 ///   can be reused by anything, the heap's own caches included. Bytes removed by
 ///   [`truncate`](SecureVec::truncate) or [`clear`](SecureVec::clear) are zeroed at once.
 /// * **Out of core dumps.** The heap maps each secure block on its own and excludes it from

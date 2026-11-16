@@ -1,4 +1,4 @@
-//! File descriptors (`liella_fd_*`): [`Fd`], an owned descriptor that [`fs::open`] returns and
+//! File descriptors (`niji_fd_*`): [`Fd`], an owned descriptor that [`fs::open`] returns and
 //! that closes itself when dropped, and [`Stdio`], the standard descriptors 0, 1 and 2, which
 //! the program does not own. Transfers are single system calls: a count below the length asked
 //! is not an error, and `EINTR` is reported (`write_all` alone completes, retrying both).
@@ -14,14 +14,14 @@ use crate::ffi;
 use crate::fs::Stat;
 use crate::Errno;
 
-/// The origin of a [`seek`](Fd::seek) (`LIELLA_SEEK_*`).
+/// The origin of a [`seek`](Fd::seek) (`NIJI_SEEK_*`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Whence {
-    /// The offset is absolute (`LIELLA_SEEK_SET`).
+    /// The offset is absolute (`NIJI_SEEK_SET`).
     Set,
-    /// The offset is relative to the current offset (`LIELLA_SEEK_CUR`).
+    /// The offset is relative to the current offset (`NIJI_SEEK_CUR`).
     Current,
-    /// The offset is relative to the end of the file (`LIELLA_SEEK_END`).
+    /// The offset is relative to the end of the file (`NIJI_SEEK_END`).
     End,
 }
 
@@ -58,7 +58,7 @@ fn write_all(fd: i32, mut data: &[u8]) -> Result<(), Errno> {
 
 fn stat(fd: i32) -> Result<Stat, Errno> {
     let mut st = Stat::default();
-    buf::done(ffi::liella_fd_stat(fd, &mut st)).map(|()| st)
+    buf::done(ffi::niji_fd_stat(fd, &mut st)).map(|()| st)
 }
 
 /// An open file descriptor the program owns: dropping it closes it (an error from that close
@@ -112,7 +112,7 @@ impl Fd {
 
     /// Move the file offset: the new offset from the start of the file.
     pub fn seek(&self, offset: i64, whence: Whence) -> Result<u64, Errno> {
-        buf::value(ffi::liella_fd_seek(self.raw, offset, whence.raw()))
+        buf::value(ffi::niji_fd_seek(self.raw, offset, whence.raw()))
     }
 
     /// The status of the open file.
@@ -123,13 +123,13 @@ impl Fd {
     /// Close the descriptor, reporting the result. It is released even when the result is an
     /// error (`EINTR` included): it must not be closed again.
     pub fn close(self) -> Result<(), Errno> {
-        buf::done(ffi::liella_fd_close(self.into_raw()))
+        buf::done(ffi::niji_fd_close(self.into_raw()))
     }
 }
 
 impl Drop for Fd {
     fn drop(&mut self) {
-        let _ = ffi::liella_fd_close(self.raw);
+        let _ = ffi::niji_fd_close(self.raw);
     }
 }
 

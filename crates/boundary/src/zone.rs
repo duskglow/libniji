@@ -1,6 +1,6 @@
 //! Time-zone glue (spec §23.5–23.6; D-23.4 to D-23.6): the process's zone through
-//! `liella_legacy::time_compat` with `TZ` and `TZDIR` from the environment, `struct tm`
-//! results (packed by `liella_abi::pack`), and the library-owned results of `gmtime`,
+//! `niji_legacy::time_compat` with `TZ` and `TZDIR` from the environment, `struct tm`
+//! results (packed by `niji_abi::pack`), and the library-owned results of `gmtime`,
 //! `localtime`, `asctime` and `ctime` in the calling thread's result slots (D-H3, D-23.5).
 //!
 //! Which functions select the zone again (an implicit `tzset`): `localtime`, `mktime`
@@ -14,13 +14,13 @@
 
 use core::sync::atomic::{compiler_fence, Ordering::{Relaxed, Release}};
 
-use liella::error::{Errno, KResult};
-use liella::time::{self, Zone};
-use liella_abi::layout::struct_tm;
-use liella_abi::pack;
-use liella_legacy::time_compat::{self as tc, AscFields, Env, Entry, ZoneObjects};
-use liella_rt::thread::{SLOT_ASCTIME, SLOT_TM};
-use liella_rt::tls::CACHE_TZ_PERIOD;
+use niji::error::{Errno, KResult};
+use niji::time::{self, Zone};
+use niji_abi::layout::struct_tm;
+use niji_abi::pack;
+use niji_legacy::time_compat::{self as tc, AscFields, Env, Entry, ZoneObjects};
+use niji_rt::thread::{SLOT_ASCTIME, SLOT_TM};
+use niji_rt::tls::CACHE_TZ_PERIOD;
 
 use crate::sys::CSys;
 use crate::{data, process, strz, tb, thread};
@@ -64,7 +64,7 @@ pub fn tzset() {
     tc::select(&CSys, &Glue, env(), &data::tz_globals(), true);
 }
 
-/// `liella_tz_invalidate` (D-X.13): every kept zone read from a file is checked against its file
+/// `niji_tz_invalidate` (D-X.13): every kept zone read from a file is checked against its file
 /// before its next use (a changed one is read again); then the zone `TZ` names is selected, as
 /// by `tzset`. It cannot fail.
 pub fn invalidate() -> KResult<()> {

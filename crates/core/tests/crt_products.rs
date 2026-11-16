@@ -1,8 +1,8 @@
 //! The start files of a plain compiler-driver link (SL-CRT): `gcc`, `g++` and `gcc -pg` with no
-//! `-nostartfiles`, each finding Liella's start files under their installed names (the
+//! `-nostartfiles`, each finding libniji's start files under their installed names (the
 //! development package's `crt1.o`, `Scrt1.o`, `rcrt1.o`, `gcrt1.o`, `grcrt1.o`, `crti.o`,
 //! `crtn.o`, `Mcrt1.o`, tools/deb/build.sh) through `-B`, which the driver searches first. Each link
-//! is traced (`-Wl,-t`): every start file and C library file it read must be Liella's, so a file
+//! is traced (`-Wl,-t`): every start file and C library file it read must be libniji's, so a file
 //! missing from the products cannot pass by being taken from the host. The objects themselves are
 //! checked against the x86-64 psABI's `.init`/`.fini` layout. Needs the products
 //! (`cargo xtask so`), `cc`, `c++`, `gprof`, `readelf`, `objcopy` and `nm`; without the tools the test
@@ -22,29 +22,29 @@ fn root() -> PathBuf {
 }
 
 fn products() -> PathBuf {
-    root().join("target/liella")
+    root().join("target/niji")
 }
 
-/// Installed name -> product (tools/deb/build.sh, liella6-dev).
+/// Installed name -> product (tools/deb/build.sh, niji6-dev).
 const START: [(&str, &str); 8] = [
-    ("crt1.o", "liella-crt1.o"),
-    ("Scrt1.o", "liella-crt1.o"),
-    ("rcrt1.o", "liella-rcrt1.o"),
-    ("gcrt1.o", "liella-gcrt1.o"),
-    ("grcrt1.o", "liella-grcrt1.o"),
-    ("crti.o", "liella-crti.o"),
-    ("crtn.o", "liella-crtn.o"),
-    ("Mcrt1.o", "liella-Mcrt1.o"),
+    ("crt1.o", "niji-crt1.o"),
+    ("Scrt1.o", "niji-crt1.o"),
+    ("rcrt1.o", "niji-rcrt1.o"),
+    ("gcrt1.o", "niji-gcrt1.o"),
+    ("grcrt1.o", "niji-grcrt1.o"),
+    ("crti.o", "niji-crti.o"),
+    ("crtn.o", "niji-crtn.o"),
+    ("Mcrt1.o", "niji-Mcrt1.o"),
 ];
 
 /// The archives a link reads by name (`-lc`, `-lm`, the `libc.so` script).
 const ARCHIVES: [&str; 3] = ["libc_nonshared.a", "libc.a", "libm.a"];
 
-/// The C library files a link may read; each must be Liella's.
+/// The C library files a link may read; each must be libniji's.
 const LIBS: [&str; 10] = ["libc.so", "libm.so", "libc.so.6", "libm.so.6", "libc-by-path.so", "libm-by-path.so", "ld-linux-x86-64.so.2", "libc_nonshared.a", "libc.a", "libm.a"];
 
 /// A copy of `so` with its DT_SONAME tag renamed to an unused tag, so that a link names it by its
-/// path: Liella's loader does not search sonames at start yet (DL-8, plan/system-libc.md §6 item
+/// path: libniji's loader does not search sonames at start yet (DL-8, plan/system-libc.md §6 item
 /// 1); conformance/run.sh's `bypath` does the same.
 fn by_path(so: &Path, out: &Path) {
     let o = Command::new("readelf").arg("-Wd").arg(so).output().unwrap();
@@ -68,7 +68,7 @@ fn tools_missing() -> bool {
 /// A fresh work directory with `lib/`: the link-time files under their installed names.
 fn work(name: &str) -> (PathBuf, PathBuf) {
     let p = products();
-    assert!(p.join("liella-crti.o").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(p.join("niji-crti.o").exists(), "the products are missing: run `cargo xtask so`");
     let w = root().join("target/crt-products").join(format!("{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&w);
     let lib = w.join("lib");
@@ -115,7 +115,7 @@ fn start_files(trace: &str, lib: &Path) -> BTreeSet<String> {
     for word in trace.split(|c: char| c.is_whitespace() || c == '(' || c == ')') {
         let Some(name) = word.rsplit('/').next() else { continue };
         if word.starts_with('/') && names.contains(name) {
-            assert!(word.starts_with(&lib) || word.starts_with(&prod), "the link read {word}, not Liella's (from {lib}):\n{trace}");
+            assert!(word.starts_with(&lib) || word.starts_with(&prod), "the link read {word}, not libniji's (from {lib}):\n{trace}");
             if START.iter().any(|s| s.0 == name) {
                 seen.insert(name.to_string());
             }
@@ -206,7 +206,7 @@ fn start_files_follow_the_psabi() {
     let (w, _) = work("psabi");
     let p = products();
     for name in ["crti", "crtn"] {
-        let obj = p.join(format!("liella-{name}.o"));
+        let obj = p.join(format!("niji-{name}.o"));
         let secs = sections(&obj);
         for sec in [".init", ".fini"] {
             let (_, ty, flags, align, _, _) = secs.iter().find(|x| x.0 == sec).unwrap_or_else(|| panic!("{name}.o has no {sec}: {secs:?}"));
@@ -241,17 +241,17 @@ fn start_files_follow_the_psabi() {
     }
     // Mcrt1.o: no driver names it; nothing in it reaches a program (the assembler's empty
     // .text/.data/.bss are allocated but hold no byte).
-    let m = p.join("liella-Mcrt1.o");
+    let m = p.join("niji-Mcrt1.o");
     let msecs = sections(&m);
     assert!(!msecs.iter().any(|x| x.2.contains('A') && x.5 != 0), "Mcrt1.o has allocated content: {msecs:?}");
     assert!(symbols(&m).iter().all(|x| x[1] == "LOCAL"), "Mcrt1.o defines a symbol");
     // grcrt1.o: the static-PIE start plus the profiling hook in .preinit_array.
-    let g = p.join("liella-grcrt1.o");
+    let g = p.join("niji-grcrt1.o");
     let syms = symbols(&g);
     for sym in ["_start", "__gmon_start__"] {
         assert!(syms.iter().any(|x| x[4] == sym && x[1] == "GLOBAL" && x[3] != "UND"), "grcrt1.o does not define {sym}");
     }
-    assert!(syms.iter().any(|x| x[4] == "liella_start_main_static_pie" && x[3] == "UND"), "grcrt1.o does not start through the relocating start");
+    assert!(syms.iter().any(|x| x[4] == "niji_start_main_static_pie" && x[3] == "UND"), "grcrt1.o does not start through the relocating start");
     assert!(sections(&g).iter().any(|x| x.0 == ".preinit_array"), "grcrt1.o has no .preinit_array");
 }
 

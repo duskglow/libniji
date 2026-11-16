@@ -1,10 +1,10 @@
 //! The complex functions of `float` and `double` end to end (spec §10.5, Track M milestone 4):
 //! `tests/oracle/complex_diff.c` built against the host C library and statically against
-//! Liella's products, on a grid of special and boundary parts in every rounding direction and
+//! libniji's products, on a grid of special and boundary parts in every rounding direction and
 //! on a random sample in round-to-nearest. A line where the two agree passes. Where they differ:
 //!
-//! * finite operands: each part of Liella's result is the correctly rounded value by the test
-//!   oracle (`liella_mathtools::cplx`), a part the oracle finds exactly zero has the reference's
+//! * finite operands: each part of libniji's result is the correctly rounded value by the test
+//!   oracle (`niji_mathtools::cplx`), a part the oracle finds exactly zero has the reference's
 //!   sign when the reference's is zero too, the inexact, underflow and overflow flags are those
 //!   of the two roundings, invalid and division by zero are the reference's;
 //! * an infinite or NaN operand (and `cpow` of zero, which is `cexp(w · clog 0)`): each part is
@@ -13,7 +13,7 @@
 //!   zero are the reference's, inexact is raised exactly when a part is such a constant (glibc
 //!   also raises it for exact infinite parts, D-10.14), and underflow and overflow not at all
 //!   (`cpow` may raise any of the three, Annex G.6.4.1);
-//! * `errno` by Liella's rule (§10.0, D-10.18): `ERANGE` for a pole or a part that overflows to
+//! * `errno` by libniji's rule (§10.0, D-10.18): `ERANGE` for a pole or a part that overflows to
 //!   ±∞ or underflows to ±0, `EDOM` for invalid raised by operands that are not NaNs, nothing
 //!   otherwise (the reference sets it only incidentally).
 //!
@@ -42,20 +42,20 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_mathtools::mp::{self, Approx, Big, Fmt, Round};
-use liella_mathtools::{cmp, cplx};
+use niji_mathtools::mp::{self, Approx, Big, Fmt, Round};
+use niji_mathtools::{cmp, cplx};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/math/tests/oracle/complex_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        let p = r.join("target/liella");
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(p.join("liella-crt1.o")).arg(&src).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
+    if niji {
+        let p = r.join("target/niji");
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(p.join("niji-crt1.o")).arg(&src).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1", "-fno-builtin"]).arg(&src).arg("-lm");
     }
@@ -148,7 +148,7 @@ fn is_constant(fmt: Fmt, mode: Round, bits: u128, near: Option<u128>) -> bool {
     false
 }
 
-/// Liella's `errno` rule (§10.0, D-10.18) for its own result; `exact_zero[j]`: part `j` is an
+/// libniji's `errno` rule (§10.0, D-10.18) for its own result; `exact_zero[j]`: part `j` is an
 /// exact zero (not an underflow).
 fn errno_by_rule(fmt: Fmt, lg: &Line<'_>, nan_operand: bool, exact_zero: &[bool]) -> &'static str {
     let fl = lg.flags;
@@ -170,7 +170,7 @@ fn errno_by_rule(fmt: Fmt, lg: &Line<'_>, nan_operand: bool, exact_zero: &[bool]
 /// The test, split by line index over `shard::SHARDS` tests (`shard::mine`); `k` is this shard.
 fn complex_functions(k: usize) {
     let r = root();
-    assert!(r.join("target/liella/libm.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libm.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -178,7 +178,7 @@ fn complex_functions(k: usize) {
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
     let t0 = std::time::Instant::now();
-    let (host, ours) = (dir.join("complex_diff_host"), dir.join("complex_diff_liella"));
+    let (host, ours) = (dir.join("complex_diff_host"), dir.join("complex_diff_niji"));
     assert!(build(&host, false), "complex_diff.c does not build against the host C library");
     assert!(build(&ours, true), "complex_diff.c does not link against the products");
     // Runs only when an input changed since this shard last passed (D-10.57).
@@ -213,7 +213,7 @@ fn complex_functions(k: usize) {
         }
         if matches!(base, "creal" | "cimag" | "conj" | "cproj") {
             if w != g {
-                errors.push(format!("differs\n  reference: {w}\n     liella: {g}"));
+                errors.push(format!("differs\n  reference: {w}\n     niji: {g}"));
             }
             continue;
         }
@@ -226,7 +226,7 @@ fn complex_functions(k: usize) {
                 lg.errno == rule
             };
             if !ok {
-                errors.push(format!("errno (rule: {rule})\n  reference: {w}\n     liella: {g}"));
+                errors.push(format!("errno (rule: {rule})\n  reference: {w}\n     niji: {g}"));
             }
         };
         let same_iz = has(fl, 'I') == has(lw.flags, 'I') && has(fl, 'Z') == has(lw.flags, 'Z');
@@ -236,13 +236,13 @@ fn complex_functions(k: usize) {
                 let c = is_constant(fmt, mode, rg, None);
                 constant_part |= c;
                 if rw != rg && !is_constant(fmt, mode, rg, Some(rw)) {
-                    errors.push(format!("special value, part {j}\n  reference: {w}\n     liella: {g}"));
+                    errors.push(format!("special value, part {j}\n  reference: {w}\n     niji: {g}"));
                 }
             }
             check_errno(&mut errors, &[true, true]);
             let ok_flags = same_iz && (base == "cpow" || (has(fl, 'X') == constant_part && !has(fl, 'U') && !has(fl, 'O')));
             if !ok_flags {
-                errors.push(format!("flags (constant part: {constant_part})\n  reference: {w}\n     liella: {g}"));
+                errors.push(format!("flags (constant part: {constant_part})\n  reference: {w}\n     niji: {g}"));
             }
             continue;
         }
@@ -263,7 +263,7 @@ fn complex_functions(k: usize) {
             // An exact zero has the reference's sign unless the reference's zero is an underflow.
             let ok = if exact_zero { zero(rg) && (!zero(rw) || has(lw.flags, 'U') || rg == rw) } else { rg == c };
             if !ok {
-                errors.push(format!("not correctly rounded, part {j} (want {c:x})\n  reference: {w}\n     liella: {g}"));
+                errors.push(format!("not correctly rounded, part {j} (want {c:x})\n  reference: {w}\n     niji: {g}"));
             }
             all_cr.0 &= ok;
             all_cr.1 &= if exact_zero { zero(rw) } else { rw == c };
@@ -276,7 +276,7 @@ fn complex_functions(k: usize) {
                 } else {
                     t.glibc_infinite += 1;
                 }
-                t.liella_max_ulp = t.liella_max_ulp.max(mp::ulp_error(fmt, rg, &hi.value));
+                t.niji_max_ulp = t.niji_max_ulp.max(mp::ulp_error(fmt, rg, &hi.value));
             }
         }
         if w != g {
@@ -291,12 +291,12 @@ fn complex_functions(k: usize) {
             if undecided {
                 t.undecided += 1;
             } else {
-                t.liella_cr += usize::from(all_cr.0);
+                t.niji_cr += usize::from(all_cr.0);
                 t.glibc_cr += usize::from(all_cr.1);
                 if !same {
                     match all_cr {
                         (true, false) => t.glibc_only_wrong += 1,
-                        (false, true) => t.liella_only_wrong += 1,
+                        (false, true) => t.niji_only_wrong += 1,
                         _ => t.neither += 1,
                     }
                 }
@@ -307,7 +307,7 @@ fn complex_functions(k: usize) {
         }
         let ok_flags = same_iz && (has(lw.flags, 'Z') || (has(fl, 'X') == want_flags.0 && has(fl, 'U') == want_flags.1 && has(fl, 'O') == want_flags.2));
         if !ok_flags {
-            errors.push(format!("flags (want X={} U={} O={})\n  reference: {w}\n     liella: {g}", want_flags.0, want_flags.1, want_flags.2));
+            errors.push(format!("flags (want X={} U={} O={})\n  reference: {w}\n     niji: {g}", want_flags.0, want_flags.1, want_flags.2));
         }
     }
     eprintln!("complex shard {k}: building and running the programs {:.1} s, checking {:.1} s", t_oracle.as_secs_f64(), (t0.elapsed() - t_oracle).as_secs_f64());
@@ -342,13 +342,13 @@ fn accuracy_table(tally: &BTreeMap<String, Tally>) -> String {
             t.identical_other_flags,
             t.lines - t.undecided,
             t.glibc_cr,
-            t.liella_cr,
+            t.niji_cr,
             t.glibc_only_wrong,
-            t.liella_only_wrong,
+            t.niji_only_wrong,
             t.neither,
             t.undecided,
             t.glibc_max_ulp,
-            t.liella_max_ulp,
+            t.niji_max_ulp,
             t.glibc_infinite
         );
     }

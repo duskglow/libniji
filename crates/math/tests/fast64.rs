@@ -1,18 +1,18 @@
-//! The `double` exp/log fast paths (Track M milestone 6, M6-4, `liella_math::fast64`) against the
-//! test oracle (`liella-mathtools::mp`), spec §10.3 and D-10.13 (every result correctly rounded in
+//! The `double` exp/log fast paths (Track M milestone 6, M6-4, `niji_math::fast64`) against the
+//! test oracle (`niji-mathtools::mp`), spec §10.3 and D-10.13 (every result correctly rounded in
 //! the caller's rounding direction). Each fast path either returns the correctly rounded result or
 //! `None` (its rounding test failed; the caller then runs the accurate path), in all four modes:
 //! on random operands over each function's range, on operands whose results sit next to a rounding
 //! boundary (where the rounding test must send them to the accurate path), and on subnormal
 //! results. The public entry (`exp_log::exp::<f64>` and the others, fast path plus fallback) must
 //! give the oracle's result too, and the fast path must be taken for all but at most 1 in 10^4
-//! random operands (the M6-0 fallback-rate counter, `liella_math::stats`).
+//! random operands (the M6-0 fallback-rate counter, `niji_math::stats`).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::arithmetic_side_effects, missing_docs)]
 
-use liella_math::status::{Rounding, Status};
-use liella_math::{exp_log, fast64, stats};
-use liella_mathtools::cmp;
-use liella_mathtools::mp::{self, Approx, Big, Fmt, Round};
+use niji_math::status::{Rounding, Status};
+use niji_math::{exp_log, fast64, stats};
+use niji_mathtools::cmp;
+use niji_mathtools::mp::{self, Approx, Big, Fmt, Round};
 
 const MODES: [(Rounding, Round); 4] =
     [(Rounding::Nearest, Round::Nearest), (Rounding::Up, Round::Up), (Rounding::Down, Round::Down), (Rounding::Zero, Round::Zero)];
@@ -193,7 +193,7 @@ fn check_pow(x: f64, y: f64) -> u32 {
             assert_eq!(v.to_bits(), want, "pow({x:e}, {y:e}) fast path in {mode:?}: {v:e}, oracle {:e}", f64::from_bits(want));
             settled += 1;
         }
-        let v = liella_math::pow::pow::<f64>(x, y, mode).0;
+        let v = niji_math::pow::pow::<f64>(x, y, mode).0;
         assert_eq!(v.to_bits(), want, "pow({x:e}, {y:e}) entry in {mode:?}: {v:e}, oracle {:e}", f64::from_bits(want));
     }
     settled
@@ -209,7 +209,7 @@ fn double_pow_fast_path_rounds_correctly_and_rarely_falls_back() {
     for n in 0..100_000u32 {
         let (x, y) = (0.01 + 9.99 * rng.unit(), -10.0 + 20.0 * rng.unit());
         let mode = if n % 2 == 0 { Rounding::Nearest } else { Rounding::Down };
-        core::hint::black_box(liella_math::pow::pow::<f64>(x, y, mode));
+        core::hint::black_box(niji_math::pow::pow::<f64>(x, y, mode));
     }
     let c = stats::counts("pow").since(before);
     assert!(c.fast + c.fallback >= 100_000, "pow: the fast path was not consulted ({c:?})");
@@ -245,7 +245,7 @@ fn double_pow_fast_path_rounds_correctly_and_rarely_falls_back() {
         let t = -745.0 + 36.0 * rng.unit();
         let (x, y) = if i % 3 == 0 { (-x, (2.0 * (t / x.ln() * 0.5).round()) + 1.0) } else { (x, t / x.ln()) };
         let s = check_pow(x, y);
-        if liella_math::pow::pow::<f64>(x, y, Rounding::Nearest).0.abs() < f64::MIN_POSITIVE {
+        if niji_math::pow::pow::<f64>(x, y, Rounding::Nearest).0.abs() < f64::MIN_POSITIVE {
             sub_settled += s;
         }
     }

@@ -3,7 +3,7 @@
 # Black box: one record per stdin line, "<kind> <fesetround mode> <conversion> <hex bits>", kind d
 # (double, snprintf), f (float, strfromf) or l (x87 long double, strfroml); one output line per record,
 # the host library's text. Runs in its own process, so the calls reach the host C library and never
-# Liella's exports. Run with python3 -I.
+# libniji's exports. Run with python3 -I.
 import ctypes
 import sys
 

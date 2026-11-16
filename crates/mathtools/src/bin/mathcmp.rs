@@ -1,16 +1,16 @@
-//! `mathcmp FUNC FMT [options]`: compare glibc and Liella on one function and format (D-10.3).
+//! `mathcmp FUNC FMT [options]`: compare glibc and libniji on one function and format (D-10.3).
 //! Normally run through `cargo xtask mathcmp`, which builds the two probes first.
 //!
 //! Options: `--mode N|U|D|Z`, `--n COUNT` (random records, default 100000), `--seed S`,
 //! `--span E` (exponent range of the moderate operands, default 64, 40 for `float`),
 //! `--corpus FILE` (records of hexadecimal encodings, one record per line), `--exhaustive` (every
-//! `float`; unary functions only), `--host PROBE`, `--liella PROBE` (omit for glibc alone),
+//! `float`; unary functions only), `--host PROBE`, `--niji PROBE` (omit for glibc alone),
 //! `--oracle all|mismatches|off` (default: all, or mismatches when exhaustive), `--threads T`.
 //!
 //! Output: one tab-separated line: function, format, mode, records, identical, identical
-//! fraction, identical with different flags, classified, glibc correctly rounded, Liella
-//! correctly rounded, mismatches where glibc is not correctly rounded, where Liella is not,
-//! where neither is, undetermined, glibc's and Liella's largest error in ulps. Then up to 20
+//! fraction, identical with different flags, classified, glibc correctly rounded, libniji
+//! correctly rounded, mismatches where glibc is not correctly rounded, where libniji is not,
+//! where neither is, undetermined, glibc's and libniji's largest error in ulps. Then up to 20
 //! mismatching records on stderr.
 
 #![allow(clippy::disallowed_methods)] // a host tool: S8 governs the library crates only
@@ -20,7 +20,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Mutex;
 
-use liella_mathtools::cmp::{self, Oracle, Rng, Run, Tally};
+use niji_mathtools::cmp::{self, Oracle, Rng, Run, Tally};
 
 fn main() -> ExitCode {
     match run() {
@@ -55,8 +55,8 @@ fn run() -> Result<(), String> {
         _ => Oracle::All,
     };
     let host = PathBuf::from(opt("--host").ok_or("--host PROBE is required")?);
-    let liella = opt("--liella").map(PathBuf::from);
-    let run = Run { func: &func, fmt: fmt_letter, mode, host, liella, oracle };
+    let niji = opt("--niji").map(PathBuf::from);
+    let run = Run { func: &func, fmt: fmt_letter, mode, host, niji, oracle };
     if exhaustive && (fmt_letter != 'f' || arity != 1) {
         return Err("--exhaustive covers unary float functions".into());
     }
@@ -118,16 +118,16 @@ fn run() -> Result<(), String> {
     let frac = if t.n == 0 { 0.0 } else { t.identical as f64 / t.n as f64 };
     println!(
         "{func}\t{fmt_letter}\t{mode}\t{}\t{}\t{frac:.6}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{:.3}\t{:.3}",
-        t.n, t.identical, t.flags_differ, t.classified, t.glibc_cr, t.liella_cr, t.glibc_not_cr, t.liella_not_cr, t.neither_cr, t.undetermined,
-        t.glibc_max_ulp, t.liella_max_ulp
+        t.n, t.identical, t.flags_differ, t.classified, t.glibc_cr, t.niji_cr, t.glibc_not_cr, t.niji_not_cr, t.neither_cr, t.undetermined,
+        t.glibc_max_ulp, t.niji_max_ulp
     );
     for (ops, l, cr) in &t.wrong {
         let ops: Vec<String> = ops.iter().map(|o| format!("{o:x}")).collect();
-        eprintln!("liella-wrong {func}{fmt_letter} {mode} {} liella {l:x} correct {cr:x}", ops.join(" "));
+        eprintln!("niji-wrong {func}{fmt_letter} {mode} {} niji {l:x} correct {cr:x}", ops.join(" "));
     }
     for (ops, g, l, gf, lf) in &t.samples {
         let ops: Vec<String> = ops.iter().map(|o| format!("{o:x}")).collect();
-        eprintln!("mismatch {func}{fmt_letter} {} glibc {g:x} flags {gf:#x} liella {l:x} flags {lf:#x}", ops.join(" "));
+        eprintln!("mismatch {func}{fmt_letter} {} glibc {g:x} flags {gf:#x} niji {l:x} flags {lf:#x}", ops.join(" "));
     }
     Ok(())
 }

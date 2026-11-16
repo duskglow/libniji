@@ -1,6 +1,6 @@
 //! Threads: creation, the start and exit sequences, joining and detaching, and the thread list
 //! (spec §22.1, §22.2, §22.6, §22.9; D-22.9, D-22.10). The decisions (layout, join and
-//! cancellation states, keys) are `liella_rt::thread`'s; this module maps memory, starts the
+//! cancellation states, keys) are `niji_rt::thread`'s; this module maps memory, starts the
 //! thread through the C layer and keeps the process-wide lists.
 //!
 //! **Reclaiming a thread's mapping.** A mapping may be reused or unmapped only once the kernel
@@ -16,19 +16,19 @@
 
 use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{
     SigSet, Timespec, CLONE_CHILD_CLEARTID, CLONE_FILES, CLONE_FS, CLONE_PARENT_SETTID, CLONE_SETTLS, CLONE_SIGHAND, CLONE_SYSVSEM, CLONE_THREAD,
     CLONE_VM, MADV_NOHUGEPAGE, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_STACK, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_STACK, RSEQ_SIG, SIG_SETMASK,
 };
-use liella_rt::futex::{self, Clock, Scope};
-use liella_rt::sync::RawMutex;
-use liella_rt::thread::{
+use niji_rt::futex::{self, Clock, Scope};
+use niji_rt::sync::RawMutex;
+use niji_rt::thread::{
     self as rt, KeyTable, Layout, Specific, Thread, DESC_ADOPTED, DESC_C11, DESC_CREATED, DESC_EXITED, DESC_RSEQ, DESC_USER_STACK,
     JOINABLE, KEY_AREA, PAGE, SLOTS, SLOT_AREA, SLOT_SIZE,
 };
-use liella_rt::tls::{TlsImage, FLAG_OWN};
+use niji_rt::tls::{TlsImage, FLAG_OWN};
 
 use crate::sys::CSys;
 use crate::{conv, ffi, fork, raw, tb};
@@ -42,12 +42,12 @@ use crate::data::__libc_single_threaded as SINGLE_THREADED;
 static LIST: RawMutex = RawMutex::new();
 /// The newest listed descriptor (linked through `next`/`prev`).
 static HEAD: AtomicUsize = AtomicUsize::new(0);
-/// Threads running. In a process Liella started the initial thread counts, and the last one to
+/// Threads running. In a process libniji started the initial thread counts, and the last one to
 /// exit ends the process with status 0 (§22.1).
 static LIVE: AtomicUsize = AtomicUsize::new(0);
 /// Whether the runtime started this process: a byte the cancellation-point entries read too
 /// (machine/points.S, D-X.58).
-use crate::ffi::liella_machine_owned as OWNED;
+use crate::ffi::niji_machine_owned as OWNED;
 /// [`OWNED`] as Rust reads it ([`owned_mask`]): a crate-private word, all ones when the runtime
 /// started the process, else 0. A hot path ANDs it into the `%fs` word it loads anyway, so the
 /// gate costs no instruction there (the AND sets the flags its zero test used); the assembler's
@@ -55,18 +55,18 @@ use crate::ffi::liella_machine_owned as OWNED;
 /// writer, before any other thread exists; a fork child inherits both.
 static OWNED_HERE: AtomicUsize = AtomicUsize::new(0);
 /// MUTEX-2: [`alone`] in one byte for the mutex fast paths: set when the runtime takes the
-/// initial thread (so Liella creates every thread), cleared for good before the first thread is
+/// initial thread (so libniji creates every thread), cleared for good before the first thread is
 /// cloned (not set again in a fork child: sticky, as the probes show glibc's single-thread
 /// mode is). Private, unlike `__libc_single_threaded`, which a program can write.
 static LOCK_ALONE: AtomicBool = AtomicBool::new(false);
 /// Thread creation is unavailable (a dynamically linked program under another `ld.so`,
 /// D-22.10).
 static FORBIDDEN: AtomicBool = AtomicBool::new(false);
-/// Liella owns the threads' rseq registration (D-22.7).
+/// libniji owns the threads' rseq registration (D-22.7).
 pub(crate) static RSEQ_OWNED: AtomicBool = AtomicBool::new(false);
 /// Set by [`set_loader_rseq`]: the loader registered the initial thread's rseq area.
 static LOADER_RSEQ: AtomicBool = AtomicBool::new(false);
-/// The thread pointer of the initial thread whose rseq area Liella's loader registered (0: none;
+/// The thread pointer of the initial thread whose rseq area libniji's loader registered (0: none;
 /// D-3.21).
 static LOADER_RSEQ_TP: AtomicUsize = AtomicUsize::new(0);
 /// The executable's TLS segment: address, file size, memory size, alignment (all 0: none).
@@ -88,7 +88,7 @@ const CACHE_MAX: usize = 40 << 20;
 const CLONE_FLAGS: u64 =
     CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS | CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID;
 
-pub use liella_rt::thread::Attr;
+pub use niji_rt::thread::Attr;
 
 // ------------------------------------------------------------------------------ process state
 
@@ -102,7 +102,7 @@ pub(crate) fn set_tls_image(img: Option<TlsImage>) {
 }
 
 /// The TLS block a new thread gets (`None`: none). Its size is read first: a program without TLS
-/// reads one word. Address 0 is the area of Liella's `ld.so` ([`set_loader_tls`]).
+/// reads one word. Address 0 is the area of libniji's `ld.so` ([`set_loader_tls`]).
 fn tls_image() -> Option<TlsImage> {
     let word = |i: usize| TLS_IMAGE.get(i).map_or(0, |a| a.load(Acquire));
     let memsz = word(2);
@@ -112,12 +112,12 @@ fn tls_image() -> Option<TlsImage> {
     Some(TlsImage { addr: word(0), filesz: word(1), memsz, align: word(3) })
 }
 
-/// Liella's `ld.so` owns the modules' TLS (DL-15 `DL-TLS-THREADS`, design §7): its `tls_init` and
+/// libniji's `ld.so` owns the modules' TLS (DL-15 `DL-TLS-THREADS`, design §7): its `tls_init` and
 /// `tls_release` (`StartInfo`); 0 otherwise. The area itself is [`TLS_IMAGE`] with address 0.
 static LOADER_INIT: AtomicUsize = AtomicUsize::new(0);
 static LOADER_RELEASE: AtomicUsize = AtomicUsize::new(0);
 
-/// The loader's per-thread TLS interface (`__liella_libc_early_init`): the bytes a new thread's
+/// The loader's per-thread TLS interface (`__niji_libc_early_init`): the bytes a new thread's
 /// static area needs below its thread pointer, their alignment and the two hooks. Kept only when
 /// usable: an area size, an alignment that is a power of two no larger than a page (a mapping's
 /// base is only page-aligned), and both hooks; otherwise nothing is kept and threads stay refused.
@@ -131,7 +131,7 @@ pub(crate) fn set_loader_tls(size: usize, align: usize, init: usize, release: us
     LOADER_INIT.store(init, Release);
 }
 
-/// Whether Liella's `ld.so` gave its per-thread TLS interface, so threads can be created.
+/// Whether libniji's `ld.so` gave its per-thread TLS interface, so threads can be created.
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 pub(crate) fn loader_tls_ready() -> bool {
     LOADER_INIT.load(Acquire) != 0
@@ -190,7 +190,7 @@ pub(crate) fn default_stack() -> usize {
     }
 }
 
-/// The initial thread of a process Liella started: its descriptor, the thread list, the
+/// The initial thread of a process libniji started: its descriptor, the thread list, the
 /// robust list and the rseq area (the products' startup). Inlined into both instances of
 /// `runtime::start` (D-27.10: the non-PIE start costs what it did before the static-PIE one).
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
@@ -199,7 +199,7 @@ pub(crate) fn init_initial(static_program: bool) {
     let d = if static_program {
         // The area startup mapped holds the descriptor and keys after the block (zeroed).
         let tp = tb::tp();
-        let daddr = tp + liella_rt::tls::BLOCK_SIZE;
+        let daddr = tp + niji_rt::tls::BLOCK_SIZE;
         let d = tb::desc_at(daddr);
         d.init_robust(addr_of(&d.robust));
         d.keys.store(daddr + rt::DESC_SIZE, Relaxed);
@@ -211,7 +211,7 @@ pub(crate) fn init_initial(static_program: bool) {
         let Ok(d) = adopt() else { return };
         d.flags.fetch_and(!DESC_ADOPTED, AcqRel);
         if LOADER_RSEQ.load(Acquire) {
-            // Liella's loader registered this thread's area at tp + RSEQ_OFFSET (D-3.21).
+            // libniji's loader registered this thread's area at tp + RSEQ_OFFSET (D-3.21).
             LOADER_RSEQ_TP.store(tb::tp(), Release);
         }
         d
@@ -230,7 +230,7 @@ pub(crate) fn init_initial(static_program: bool) {
     list_insert(d);
 }
 
-/// A dynamically linked program under Liella's `ld.so`, which registered the initial thread's rseq
+/// A dynamically linked program under libniji's `ld.so`, which registered the initial thread's rseq
 /// area: the threads created here register theirs (D-27.26).
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 pub(crate) fn set_loader_rseq(on: bool) {
@@ -242,28 +242,28 @@ fn register_kernel_areas(d: &'static Thread, rseq: bool) {
     if rseq && CSys.rseq(rseq_static(d), 0, RSEQ_SIG).is_ok() {
         d.flags.fetch_or(DESC_RSEQ, AcqRel);
         // Published once registration works (§22.9); 0 means "none" to applications.
-        crate::data::__rseq_offset.store(isize::try_from(liella_rt::tls::RSEQ_OFFSET).unwrap_or(0), Release);
-        crate::data::__rseq_size.store(liella_rt::thread::RSEQ_SIZE, Release);
+        crate::data::__rseq_offset.store(isize::try_from(niji_rt::tls::RSEQ_OFFSET).unwrap_or(0), Release);
+        crate::data::__rseq_size.store(niji_rt::thread::RSEQ_SIZE, Release);
     }
 }
 
-fn rseq_static(d: &'static Thread) -> &'static liella_kernel::uapi::Rseq {
+fn rseq_static(d: &'static Thread) -> &'static niji_kernel::uapi::Rseq {
     &d.rseq
 }
 
-/// The calling thread's rseq area when Liella registered it (D-3.21): a thread Liella created, or
+/// The calling thread's rseq area when libniji registered it (D-3.21): a thread libniji created, or
 /// a static program's initial thread, whose descriptor's area registration succeeded
-/// (`DESC_RSEQ`); or a dynamic program's initial thread, whose area Liella's loader registered at
+/// (`DESC_RSEQ`); or a dynamic program's initial thread, whose area libniji's loader registered at
 /// tp + RSEQ_OFFSET. `None` for every other thread (another C library's registration is not
-/// Liella's to read).
-pub(crate) fn own_rseq() -> Option<&'static liella_kernel::uapi::Rseq> {
+/// libniji's to read).
+pub(crate) fn own_rseq() -> Option<&'static niji_kernel::uapi::Rseq> {
     if let Some(d) = current() {
         if d.flags.load(Acquire) & DESC_RSEQ != 0 {
             return Some(&d.rseq);
         }
     }
     let tp = tb::tp();
-    (tp != 0 && LOADER_RSEQ_TP.load(Acquire) == tp).then(|| tb::rseq_at(tp.wrapping_add(liella_rt::tls::RSEQ_OFFSET)))
+    (tp != 0 && LOADER_RSEQ_TP.load(Acquire) == tp).then(|| tb::rseq_at(tp.wrapping_add(niji_rt::tls::RSEQ_OFFSET)))
 }
 
 fn addr_of<T>(r: &T) -> usize {
@@ -272,7 +272,7 @@ fn addr_of<T>(r: &T) -> usize {
 
 // ------------------------------------------------------------------------------ descriptors
 
-/// Whether the calling thread is certainly the process's only thread: Liella started the
+/// Whether the calling thread is certainly the process's only thread: libniji started the
 /// process (so it creates every thread) and none has been created (`__libc_single_threaded`,
 /// cleared by the first creation, the library's own service threads included). Locks that only
 /// serialise threads may then be skipped. In a process another C library started, never.
@@ -305,7 +305,7 @@ pub(crate) fn owned() -> bool {
     owned_mask() != 0
 }
 
-/// All ones when the runtime started this process, else 0. A word Liella keeps in the calling
+/// All ones when the runtime started this process, else 0. A word libniji keeps in the calling
 /// thread's block is read as `tb::read::<F>() & owned_mask()`: one `and` with a memory operand
 /// in place of the `test` the word's zero check already costs, so the hot path pays nothing for
 /// the gate, and in a process another library started the value is 0 whatever the block holds
@@ -329,7 +329,7 @@ pub(crate) fn owned_mask() -> usize {
 // ------------------------------------------------------------------------------ whose block (D-X.58)
 //
 // The words at 0x9c-0x187 of a thread block (flags, descriptor, locale, ctype words, lconv,
-// h_errno, resolver state, view, cache line) are Liella's only in a block the runtime made. A
+// h_errno, resolver state, view, cache line) are libniji's only in a block the runtime made. A
 // block another C library's loader made (a test process's threads, a program under another
 // `ld.so`, D-22.10) uses those offsets for its own data, so nothing there is read as a pointer or
 // a decision, and nothing is written there. The test is [`owned`], a process-level fact: when the
@@ -354,7 +354,7 @@ pub(crate) struct Shadow {
     /// Set while the thread at `key` is one `create` made (its own block holds its words).
     own: AtomicBool,
     /// The words of a thread whose block is not the runtime's.
-    block: liella_rt::tls::ThreadBlock,
+    block: niji_rt::tls::ThreadBlock,
 }
 
 /// A chunk of the registry (an anonymous mapping, zero-filled), linked through `next`.
@@ -370,26 +370,26 @@ static SHADOW_HEAD: AtomicUsize = AtomicUsize::new(0);
 /// The words every foreign thread shares when no chunk can be mapped (`ENOMEM`): all atomics,
 /// so sharing them is sound; per-thread state is then the process's.
 #[repr(C, align(64))]
-pub(crate) struct Spare(pub(crate) [AtomicUsize; liella_rt::tls::BLOCK_SIZE / 8]);
-static SPARE: Spare = Spare([const { AtomicUsize::new(0) }; liella_rt::tls::BLOCK_SIZE / 8]);
+pub(crate) struct Spare(pub(crate) [AtomicUsize; niji_rt::tls::BLOCK_SIZE / 8]);
+static SPARE: Spare = Spare([const { AtomicUsize::new(0) }; niji_rt::tls::BLOCK_SIZE / 8]);
 
 /// The block holding the calling thread's words at 0x9c-0x187: its own block in a process the
 /// runtime started (one test of a private byte), else [`foreign_words`].
 #[inline]
-pub(crate) fn words() -> &'static liella_rt::tls::ThreadBlock {
+pub(crate) fn words() -> &'static niji_rt::tls::ThreadBlock {
     if owned() { tb::current() } else { foreign_words() }
 }
 
 /// [`words`] in a process the runtime did not start: the registry entry of the calling thread.
 #[cold]
 #[inline(never)]
-pub(crate) fn foreign_words() -> &'static liella_rt::tls::ThreadBlock {
+pub(crate) fn foreign_words() -> &'static niji_rt::tls::ThreadBlock {
     let tid = u32::try_from(CSys.gettid()).unwrap_or(0);
     let Some(s) = shadow_entry(tb::tp()) else { return tb::spare_at(addr_of(&SPARE)) };
     if s.tid.load(Acquire) != tid {
         // Another TID at this thread pointer: a new thread on a reused block (empty words), or
         // a forked child's only thread, which continues its parent's thread and keeps its words
-        // (a fork by any library: no hook of Liella's need run). A thread whose TID is the
+        // (a fork by any library: no hook of libniji's need run). A thread whose TID is the
         // process ID is a process's first thread, and a process's first thread finds an entry
         // already keyed by its thread pointer only as a copy made by `fork`.
         if i32::try_from(tid).unwrap_or(0) != CSys.getpid() {
@@ -402,7 +402,7 @@ pub(crate) fn foreign_words() -> &'static liella_rt::tls::ThreadBlock {
 }
 
 /// Whether `b` is the shared [`SPARE`] words (whose resolver state is never freed).
-pub(crate) fn is_spare(b: &liella_rt::tls::ThreadBlock) -> bool {
+pub(crate) fn is_spare(b: &niji_rt::tls::ThreadBlock) -> bool {
     addr_of(b) == addr_of(&SPARE)
 }
 
@@ -460,7 +460,7 @@ pub(crate) fn foreign_heap_cache() -> usize {
 /// Empty words (a new thread's). The heap cache word is kept: the cache of the block's dead
 /// thread passes to the new one (it has one owner at a time, and is not lost); its `errno`,
 /// destructor list (never run on another thread) and node hint start empty.
-fn clear_words(b: &liella_rt::tls::ThreadBlock) {
+fn clear_words(b: &niji_rt::tls::ThreadBlock) {
     let words = [&b.thread, &b.locale, &b.ctype_b, &b.ctype_toupper, &b.ctype_tolower, &b.res, &b.view, &b.tls_dtors];
     for w in words.into_iter().chain(&b.lconv).chain(&b.cache) {
         w.store(0, Relaxed);
@@ -584,7 +584,7 @@ fn adopt() -> KResult<&'static Thread> {
 
 /// The calling thread's result slot `i` (D-H3: `SLOT_STRERROR`, ...), `None` when it has no
 /// descriptor and none can be made.
-pub(crate) fn result_slot(i: usize) -> Option<&'static liella_legacy::result_slots::Buf<SLOT_SIZE>> {
+pub(crate) fn result_slot(i: usize) -> Option<&'static niji_legacy::result_slots::Buf<SLOT_SIZE>> {
     if i >= SLOTS {
         return None;
     }
@@ -597,7 +597,7 @@ pub(crate) fn result_slot(i: usize) -> Option<&'static liella_legacy::result_slo
 /// The calling thread's result slots from `i` on, as one buffer of `N` bytes (`SLOT_TM`: the
 /// shared `struct tm`), `None` when they would pass the slot area or the thread has no
 /// descriptor and none can be made.
-pub(crate) fn result_area<const N: usize>(i: usize) -> Option<&'static liella_legacy::result_slots::Buf<N>> {
+pub(crate) fn result_area<const N: usize>(i: usize) -> Option<&'static niji_legacy::result_slots::Buf<N>> {
     if i.checked_mul(SLOT_SIZE)?.checked_add(N)? > SLOT_AREA {
         return None;
     }
@@ -720,7 +720,7 @@ pub(crate) fn find(tp: usize) -> Option<&'static Thread> {
     None
 }
 
-/// `__liella_thread_walk(cb, ctx)` (`LIELLA_PRIVATE`, DL-16d): Liella's `ld.so` gives a
+/// `__niji_thread_walk(cb, ctx)` (`NIJI_PRIVATE`, DL-16d): libniji's `ld.so` gives a
 /// `dlopen`ed module's TLS block to every thread. Under the thread-list lock, which a thread's
 /// creation holds while its loader `tls_init` runs and it is listed: `cb(ctx, tp)` for each listed
 /// thread (and the caller, if it is not listed), then `cb(ctx, 0)` before the lock is released, so
@@ -733,7 +733,7 @@ pub(crate) extern "C" fn walk_threads(cb: usize, ctx: usize) -> usize {
     }
     let call = |tp: usize| {
         let w = |v: usize| i64::from_ne_bytes(v.to_ne_bytes());
-        let _ = ffi::liella_machine_call3(cb, w(ctx), w(tp), 0);
+        let _ = ffi::niji_machine_call3(cb, w(ctx), w(tp), 0);
     };
     let me = tb::tp();
     let _g = LIST.lock(&CSys);
@@ -781,7 +781,7 @@ pub(crate) fn serialized<T>(f: impl FnOnce() -> T) -> T {
 /// thread's, without the lock): `setlocale` storing the global locale's ctype words (D-5.5).
 /// Out of line: its `publish_global` instance is a hot-text key (LAYOUT-HOTKEY-INLINE-STABLE).
 #[inline(never)]
-pub(crate) fn each_block(mut f: impl FnMut(&'static liella_rt::tls::ThreadBlock)) {
+pub(crate) fn each_block(mut f: impl FnMut(&'static niji_rt::tls::ThreadBlock)) {
     if alone() {
         return f(words());
     }
@@ -858,7 +858,7 @@ fn take_mapping(lay: &Layout) -> KResult<usize> {
                 let base = d.map_base.load(Relaxed);
                 // The parts above the stack start clean; the stack itself need not.
                 let span = KEYS.span();
-                // Under Liella's `ld.so` this clears its whole area too (the surplus as in a fresh
+                // Under libniji's `ld.so` this clears its whole area too (the surplus as in a fresh
                 // mapping), before its `tls_init` rewrites the blocks and the dtv.
                 conv::zero_mapped(base + lay.tls, lay.keys - lay.tls);
                 conv::zero_mapped(base + lay.keys, (span * 16).min(KEY_AREA));
@@ -966,7 +966,7 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
         }
         return Err(Errno::EAGAIN);
     }
-    // Under Liella's `ld.so` the static area below TP is the loader's (every initially loaded
+    // Under libniji's `ld.so` the static area below TP is the loader's (every initially loaded
     // module's block, the surplus and the dtv; address 0): reserved here, filled by its `tls_init`.
     let img = tls_image();
     let stack_size = if a.stack_size == 0 { default_stack() } else { a.stack_size };
@@ -1058,18 +1058,18 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
         // its `tls_init` writes every module's block, the dtv and the block's dtv word (a reused
         // mapping held an earlier thread's bytes there; no store above touches that word). Under
         // the list lock, with the listing: a `dlopen` that adds a module walks the list under this
-        // lock (`__liella_thread_walk`), so this thread either reads the loader's table after that
+        // lock (`__niji_thread_walk`), so this thread either reads the loader's table after that
         // walk or is listed for it, and gets the module's block exactly once (DL-16d,
         // plan/ph14/dl-16-dlopen.md §5 point 1). The hook word, not the image kept live from the
         // top: the static path pays one compare here and nothing else.
         let init = LOADER_INIT.load(Acquire);
         if init != 0 {
-            let _ = ffi::liella_machine_call3(init, i64::from_ne_bytes(tp.to_ne_bytes()), 0, 0);
+            let _ = ffi::niji_machine_call3(init, i64::from_ne_bytes(tp.to_ne_bytes()), 0, 0);
         }
         link_locked(d);
     }
     LIVE.fetch_add(1, AcqRel);
-    let r = ffi::liella_machine_clone_thread(CLONE_FLAGS, sp, &b.tid, &b.tid, tp);
+    let r = ffi::niji_machine_clone_thread(CLONE_FLAGS, sp, &b.tid, &b.tid, tp);
     // The creator's own mask again (unchanged if blocking failed).
     if let Ok(old) = blocked {
         let _ = CSys.sigprocmask(SIG_SETMASK, Some(&old));
@@ -1126,7 +1126,7 @@ extern "C" fn entry(daddr: usize) -> i32 {
     let _ = CSys.sigprocmask(SIG_SETMASK, Some(&SigSet(d.sigmask.load(Relaxed))));
     let f = d.start.load(Relaxed);
     let a = d.arg.load(Relaxed);
-    let r = ffi::liella_machine_call3(f, i64::from_ne_bytes(a.to_ne_bytes()), 0, 0);
+    let r = ffi::niji_machine_call3(f, i64::from_ne_bytes(a.to_ne_bytes()), 0, 0);
     finish(usize::from_ne_bytes(r.to_ne_bytes()))
 }
 
@@ -1134,7 +1134,7 @@ fn apply_start_attrs(d: &Thread) -> KResult<()> {
     let tid = CSys.gettid();
     let policy = d.sched_policy.load(Relaxed);
     if policy != 0 {
-        let param = liella_kernel::uapi::SchedParam { priority: d.sched_prio.load(Relaxed) };
+        let param = niji_kernel::uapi::SchedParam { priority: d.sched_prio.load(Relaxed) };
         CSys.sched_setscheduler(tid, u32::try_from(policy - 1).map_err(|_| Errno::EINVAL)?, &param)?;
     }
     let (mask, len) = (d.affinity.load(Relaxed), d.affinity_len.load(Relaxed));
@@ -1148,7 +1148,7 @@ fn apply_start_attrs(d: &Thread) -> KResult<()> {
 
 /// The calling thread's exit sequence (§22.1): its result, `thread_local` destructors, key
 /// destructors, the heap cache, then the thread-only `exit` (or `exit(0)` for the last thread
-/// of a process Liella started). Cleanup buffers have already run (`crate::cancel`).
+/// of a process libniji started). Cleanup buffers have already run (`crate::cancel`).
 pub(crate) fn finish(result: usize) -> ! {
     let d = desc().ok();
     if let Some(d) = d {
@@ -1168,7 +1168,7 @@ pub(crate) fn finish(result: usize) -> ! {
     // The loader's last word on this thread (its static area goes with the mapping).
     let release = LOADER_RELEASE.load(Acquire);
     if release != 0 {
-        let _ = ffi::liella_machine_call3(release, i64::from_ne_bytes(tb::tp().to_ne_bytes()), 0, 0);
+        let _ = ffi::niji_machine_call3(release, i64::from_ne_bytes(tb::tp().to_ne_bytes()), 0, 0);
     }
     crate::heap::HEAP.park(&CSys, &crate::heap::KernelPages);
     if LIVE.fetch_sub(1, AcqRel) == 1 && OWNED.load(Acquire) {
@@ -1199,7 +1199,7 @@ pub(crate) fn run_key_destructors(d: &Thread) {
     }
     let sp = Specific::new(tb::keys_at(keys));
     sp.run_destructors(&KEYS, |f, v| {
-        let _ = ffi::liella_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
+        let _ = ffi::niji_machine_call3(f, i64::from_ne_bytes(v.to_ne_bytes()), 0, 0);
     });
 }
 
@@ -1213,8 +1213,8 @@ pub(crate) fn specific() -> KResult<Specific<'static>> {
 
 /// Wait until the kernel has cleared `b`'s TID word (the thread has exited), until `deadline`
 /// if given.
-fn wait_tid(b: &liella_rt::tls::ThreadBlock, deadline: Option<(Clock, &Timespec)>, cancellable: bool) -> KResult<()> {
-    use liella_rt::pthread_sync::Ctx;
+fn wait_tid(b: &niji_rt::tls::ThreadBlock, deadline: Option<(Clock, &Timespec)>, cancellable: bool) -> KResult<()> {
+    use niji_rt::pthread_sync::Ctx;
     loop {
         let t = b.tid.load(Acquire);
         if t == 0 {
@@ -1316,7 +1316,7 @@ pub(crate) fn tid_of(tp: usize) -> KResult<i32> {
     }
 }
 
-/// MUTEX-3: the calling thread's TID when the block's word holds it (a thread Liella runs and
+/// MUTEX-3: the calling thread's TID when the block's word holds it (a thread libniji runs and
 /// the word set, as [`own_tid`] reads it), from two `%fs`-relative loads; `None`: ask [`own_tid`].
 #[inline]
 pub(crate) fn fast_tid() -> Option<u32> {
@@ -1340,7 +1340,7 @@ pub(crate) fn own_tid_fast() -> Option<u32> {
     (i32::from_ne_bytes(t.to_ne_bytes()) > 0).then_some(t)
 }
 
-/// The calling thread's TID: the thread block's word in a thread Liella runs (`gettid` is that
+/// The calling thread's TID: the thread block's word in a thread libniji runs (`gettid` is that
 /// load, D-22.9); the kernel's answer elsewhere, where the word may be stale (D-22.10).
 #[inline]
 pub(crate) fn own_tid() -> i32 {

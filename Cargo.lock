@@ -3,113 +3,113 @@
 version = 4
 
 [[package]]
-name = "liella"
+name = "niji"
 version = "0.0.0"
 dependencies = [
- "liella-abi",
- "liella-boundary",
- "liella-kernel",
- "liella-legacy",
- "liella-mem",
- "liella-rt",
+ "niji-abi",
+ "niji-boundary",
+ "niji-kernel",
+ "niji-legacy",
+ "niji-mem",
+ "niji-rt",
  "spectest",
 ]
 
 [[package]]
-name = "liella-abi"
+name = "niji-abi"
 version = "0.0.0"
 dependencies = [
- "liella",
- "liella-kernel",
+ "niji",
+ "niji-kernel",
  "spectest",
 ]
 
 [[package]]
-name = "liella-boundary"
+name = "niji-boundary"
 version = "0.0.0"
 dependencies = [
- "liella",
- "liella-abi",
- "liella-boundary",
- "liella-kernel",
- "liella-ld",
- "liella-legacy",
- "liella-math",
- "liella-rt",
+ "niji",
+ "niji-abi",
+ "niji-boundary",
+ "niji-kernel",
+ "niji-ld",
+ "niji-legacy",
+ "niji-math",
+ "niji-rt",
  "spectest",
 ]
 
 [[package]]
-name = "liella-kernel"
+name = "niji-kernel"
 version = "0.0.0"
 dependencies = [
  "spectest",
 ]
 
 [[package]]
-name = "liella-ld"
+name = "niji-ld"
 version = "0.0.0"
 dependencies = [
- "liella-kernel",
- "liella-rt",
+ "niji-kernel",
+ "niji-rt",
  "spectest",
 ]
 
 [[package]]
-name = "liella-legacy"
+name = "niji-legacy"
 version = "0.0.0"
 dependencies = [
- "liella",
- "liella-abi",
- "liella-kernel",
- "liella-rt",
+ "niji",
+ "niji-abi",
+ "niji-kernel",
+ "niji-rt",
  "spectest",
 ]
 
 [[package]]
-name = "liella-math"
+name = "niji-math"
 version = "0.0.0"
 dependencies = [
- "liella-boundary",
- "liella-kernel",
- "liella-math",
- "liella-mathtools",
- "liella-rt",
+ "niji-boundary",
+ "niji-kernel",
+ "niji-math",
+ "niji-mathtools",
+ "niji-rt",
  "spectest",
 ]
 
 [[package]]
-name = "liella-mathtools"
+name = "niji-mathtools"
 version = "0.0.0"
 
 [[package]]
-name = "liella-mem"
+name = "niji-mem"
 version = "0.0.0"
 
 [[package]]
-name = "liella-native"
+name = "niji-native"
 version = "0.0.0"
 dependencies = [
- "liella",
- "liella-kernel",
- "liella-math",
- "liella-rt",
+ "niji",
+ "niji-kernel",
+ "niji-math",
+ "niji-rt",
 ]
 
 [[package]]
-name = "liella-rt"
+name = "niji-rt"
 version = "0.0.0"
 dependencies = [
- "liella-boundary",
- "liella-kernel",
+ "niji-boundary",
+ "niji-kernel",
  "spectest",
 ]
 
 [[package]]
-name = "liella-thread-db"
+name = "niji-thread-db"
 version = "0.0.0"
 dependencies = [
- "liella-kernel",
+ "niji-kernel",
  "spectest",
 ]
 
@@ -121,5 +121,5 @@ version = "0.0.0"
 name = "xtask"
 version = "0.0.0"
 dependencies = [
- "liella-ld",
+ "niji-ld",
 ]

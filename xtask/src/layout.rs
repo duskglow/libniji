@@ -676,13 +676,13 @@ struct Probe {
 /// Link `page_faults.c` against the products as `hot_text_products.rs` does, with a link map; `disasm`: also
 /// disassemble it.
 fn link_startup_probe(pr: &Products, disasm: bool) -> Result<Probe, String> {
-    let work = std::env::temp_dir().join(format!("liella-layout-startup-{}", std::process::id()));
+    let work = std::env::temp_dir().join(format!("niji-layout-startup-{}", std::process::id()));
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     let (exe, map) = (work.join("page_faults"), work.join("page_faults.map"));
     let linked = tool(
         Command::new("cc")
             .args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"])
-            .arg(pr.file("liella-crt1.o")?)
+            .arg(pr.file("niji-crt1.o")?)
             .arg(pr.root.join("crates/core/tests/oracle/page_faults.c"))
             .arg(pr.file("libc.a")?)
             .arg("-lgcc")
@@ -1171,7 +1171,7 @@ pub fn static_check(root: &Path) -> Result<(), String> {
     }
 }
 
-/// `cargo xtask layout-check [--static | <products dir>]` (default `target/liella`).
+/// `cargo xtask layout-check [--static | <products dir>]` (default `target/niji`).
 pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
         Some("--static") => static_check(root),
@@ -1182,7 +1182,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
             check_products(root, Path::new(d), marker_profile(Path::new(d)).as_deref())
         }
         None => {
-            let d = root.join("target/liella");
+            let d = root.join("target/niji");
             crate::hotlists::follow_products(&d);
             check_products(root, &d, marker_profile(&d).as_deref())
         }
@@ -1270,7 +1270,7 @@ mod tests {
     #[test]
     fn decisions_are_read_from_the_tables_and_the_records() {
         // no spec clause: tooling (D-X.48 rows name decisions; D-X.55 moved them to records/decisions/).
-        let dir = std::env::temp_dir().join(format!("liella-layout-decisions-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("niji-layout-decisions-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(decision_ids(&dir).is_err(), "neither place exists");
         std::fs::create_dir_all(dir.join("records/decisions/D-X")).unwrap();
@@ -1294,7 +1294,7 @@ mod tests {
         assert_eq!((t[2].1.as_str(), t[2].2.is_none()), ("SLOTS", true));
     }
 
-    const READELF: &str = "\nFile: libc.a(csys_23.o)\nThere are 4 section headers, starting at offset 0x9298:\n\nSection Headers:\n  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al\n  [ 0]                   NULL            0000000000000000 000000 000000 00      0   0  0\n  [27] .text.liella_machine_rawmemchr_entry PROGBITS        0000000000000000 001800 000636 00  AX  0   0 64\n  [28] .rodata1          PROGBITS        0000000000000000 3b7000 000200 00   A  0   0 512\n  [29] .lbss.T NOBITS          0000000000000000 42f000 001000 00  WA  0   0 4096\n\nSymbol table '.symtab' contains 3 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n   119: 0000000000000000     0 FUNC    WEAK   DEFAULT   27 liella_machine_rawmemchr_entry\n 13517: 0000000000000000   512 OBJECT  LOCAL  DEFAULT   28 _RN13startup_names13STARTUP_NAMES\n 13518: 0000000000000000  4096 OBJECT  LOCAL  DEFAULT   29 _RN4intl8RESOLVED\n     5: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND memcpy\n";
+    const READELF: &str = "\nFile: libc.a(csys_23.o)\nThere are 4 section headers, starting at offset 0x9298:\n\nSection Headers:\n  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al\n  [ 0]                   NULL            0000000000000000 000000 000000 00      0   0  0\n  [27] .text.niji_machine_rawmemchr_entry PROGBITS        0000000000000000 001800 000636 00  AX  0   0 64\n  [28] .rodata1          PROGBITS        0000000000000000 3b7000 000200 00   A  0   0 512\n  [29] .lbss.T NOBITS          0000000000000000 42f000 001000 00  WA  0   0 4096\n\nSymbol table '.symtab' contains 3 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n   119: 0000000000000000     0 FUNC    WEAK   DEFAULT   27 niji_machine_rawmemchr_entry\n 13517: 0000000000000000   512 OBJECT  LOCAL  DEFAULT   28 _RN13startup_names13STARTUP_NAMES\n 13518: 0000000000000000  4096 OBJECT  LOCAL  DEFAULT   29 _RN4intl8RESOLVED\n     5: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND memcpy\n";
 
     #[test]
     fn readelf_index_reads_sections_and_symbols() {
@@ -1325,7 +1325,7 @@ mod tests {
     fn probe(at: u64, size: u64) -> (String, String) {
         let map = format!(
             "Linker script and memory map\n\n.text           0x0000000000400100   0x400000\n \
-             .text          0x0000000000400100       0x40 /x/liella-crt1.o\n \
+             .text          0x0000000000400100       0x40 /x/niji-crt1.o\n \
              .text.sorted.h00001.__libc_start_main\n                0x0000000000401000      0x200 /x/libc.a(start.o)\n \
              .text.sorted.h00002.foo 0x0000000000401200 0x10000 /x/libc.a(foo.o)\n \
              .text.empty    0x0000000000411200        0x0 /x/libc.a(e.o)\n \
@@ -1340,7 +1340,7 @@ mod tests {
     }
 
     fn startup_row(rule: &str) -> Contract {
-        Contract { kind: "startup-text-windows".into(), subjects: vec!["libc.a".into(), "liella-crt1.o".into()], decision: "D-X.49".into(), ..row("STARTUP-TEXT-WINDOWS", rule) }
+        Contract { kind: "startup-text-windows".into(), subjects: vec!["libc.a".into(), "niji-crt1.o".into()], decision: "D-X.49".into(), ..row("STARTUP-TEXT-WINDOWS", rule) }
     }
 
     fn keys() -> Vec<String> {
@@ -1419,7 +1419,7 @@ mod tests {
         [
             "0000000000401000 0000000000000010 T _start".to_string(),
             "0000000000500100 0000000000000040 r _ZN4core3fmt3FMT17h0123456789abcdefE".into(),
-            "0000000000520000 0000000000000200 R _ZN15liella_boundary13startup_names13STARTUP_NAMES17h0123456789abcdefE".into(),
+            "0000000000520000 0000000000000200 R _ZN13niji_boundary13startup_names13STARTUP_NAMES17h0123456789abcdefE".into(),
             "0000000000000008 0000000000000008 B TLS_WORD".into(),
             "0000000000600040 0000000000000010 D AUXV".into(),
             format!("{nscache_at:016x} 0000000000000200 d NSCACHE"),
@@ -1429,12 +1429,12 @@ mod tests {
     }
 
     fn data_keys() -> Vec<String> {
-        ["_ZN4core3fmt3FMTE", "_ZN15liella_boundary13startup_names13STARTUP_NAMESE", "TLS_WORD", "AUXV", "NSCACHE", "HEAP", "_start", "gone"].map(String::from).to_vec()
+        ["_ZN4core3fmt3FMTE", "_ZN13niji_boundary13startup_names13STARTUP_NAMESE", "TLS_WORD", "AUXV", "NSCACHE", "HEAP", "_start", "gone"].map(String::from).to_vec()
     }
 
     fn data_row() -> Contract {
         let rule = "keys=k; text-keys=t; window=65536; page=4096; ro-budget-fast=2; rw-budget-fast=2";
-        Contract { kind: "startup-data-windows".into(), subjects: vec!["libc.a".into(), "liella-crt1.o".into()], decision: "D-X.50".into(), ..row("STARTUP-DATA-WINDOWS", rule) }
+        Contract { kind: "startup-data-windows".into(), subjects: vec!["libc.a".into(), "niji-crt1.o".into()], decision: "D-X.50".into(), ..row("STARTUP-DATA-WINDOWS", rule) }
     }
 
     #[test]
@@ -1472,7 +1472,7 @@ mod tests {
         assert!(e.contains("BROKEN: AUXV: sits alone"), "every lone object of the over-budget class is named: {e}");
         assert!(e.contains("page 0x601000: NSCACHE 0x601800-0x601a00"), "{e}");
         let w = startup_data_verdict(&c, &packed, (STARTUP_WINDOW, STARTUP_PAGE), (1, 2), "fast").unwrap_err().join("\n");
-        assert!(w.contains("BROKEN: _ZN15liella_boundary13startup_names13STARTUP_NAMES17h0123456789abcdefE: sits alone in the 65536-byte window 0x520000: 2 windows > ro-budget-fast 1"), "{w}");
+        assert!(w.contains("BROKEN: _ZN13niji_boundary13startup_names13STARTUP_NAMES17h0123456789abcdefE: sits alone in the 65536-byte window 0x520000: 2 windows > ro-budget-fast 1"), "{w}");
         assert!(!w.contains("pages >"), "the rw class is within its budget: {w}");
     }
 

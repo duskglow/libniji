@@ -14,7 +14,7 @@
 //! * **The walk is live** (probe `tools/probe/dl/readers`, R-2): each step reloads [`PUBLISHED`]
 //!   and the counters, so a callback that calls `dlopen` sees the new object later in the same
 //!   walk, and the callback runs without any lock (ruling #2607; s27_1_c_8 says the reference
-//!   holds one: Liella's callbacks never block a `dlopen` in another thread).
+//!   holds one: libniji's callbacks never block a `dlopen` in another thread).
 //! * **Counters** (dynlink.md `== phdr`): `dlpi_adds` counts every object ever mapped (the start
 //!   objects and the vDSO, then each object a `dlopen` maps, also in an attempt that fails),
 //!   `dlpi_subs` every object unmapped (a failed attempt's).
@@ -34,9 +34,9 @@ use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
 use crate::{conv, tb};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
 use core::sync::atomic::{AtomicU64, AtomicUsize};
-use liella_abi::layout::{struct_dl_find_object, struct_dl_phdr_info};
-use liella_kernel::auxv::Auxv;
-use liella_kernel::uapi::AT_SYSINFO_EHDR;
+use niji_abi::layout::{struct_dl_find_object, struct_dl_phdr_info};
+use niji_kernel::auxv::Auxv;
+use niji_kernel::uapi::AT_SYSINFO_EHDR;
 
 const PT_DYNAMIC: u64 = 2;
 const PT_TLS: u64 = 7;
@@ -249,9 +249,9 @@ fn fill_start() -> usize {
     for k in 0..total {
         let (phdr, phnum, bias) = if k == interp || k == n {
             let base = OWN_BASE.load(Relaxed);
-            let mut header = [0u8; liella_ld::elf::EHDR_SIZE];
+            let mut header = [0u8; niji_ld::elf::EHDR_SIZE];
             read_image(base, &mut header);
-            let (phoff, phnum) = liella_ld::boot::own_headers(&header).unwrap_or((0, 0));
+            let (phoff, phnum) = niji_ld::boot::own_headers(&header).unwrap_or((0, 0));
             (base.wrapping_add(usize::try_from(phoff).unwrap_or(0)), phnum, base)
         } else {
             let w: [usize; 3] = core::array::from_fn(|j| START_OBJS.get(k).and_then(|s| s.get(j)).map_or(0, |x| usize::try_from(x.load(Relaxed)).unwrap_or(0)));
@@ -340,7 +340,7 @@ pub(super) fn find_object_address() -> usize {
 fn call(cb: usize, info: &struct_dl_phdr_info, data: usize) -> i32 {
     let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
     let at = core::ptr::from_ref(info).expose_provenance();
-    int_result(crate::ffi::liella_machine_call3(cb, w(at), w(size_of::<struct_dl_phdr_info>()), w(data)))
+    int_result(crate::ffi::niji_machine_call3(cb, w(at), w(size_of::<struct_dl_phdr_info>()), w(data)))
 }
 
 /// `dl_iterate_phdr(cb, data)` in a program `ld.so` started: every published object in chain

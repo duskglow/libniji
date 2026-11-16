@@ -7,17 +7,17 @@
 //! The reference classification is the C locale's (D-6.7): ASCII only, every byte from 0x80 and
 //! `EOF` in no class. Tables are read through the `memcpy` export, so the tests need no
 //! `unsafe` to look at memory the library owns.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use core::ptr::{null, null_mut};
 use core::sync::atomic::Ordering::Relaxed;
 
-use liella_abi::ctypes::{c_char, c_int, wint_t};
-use liella_boundary::data;
-use liella_boundary::posix::s04_strings as mem;
-use liella_boundary::posix::s05_ctype as s;
+use niji_abi::ctypes::{c_char, c_int, wint_t};
+use niji_boundary::data;
+use niji_boundary::posix::s04_strings as mem;
+use niji_boundary::posix::s05_ctype as s;
 
 const WEOF: wint_t = u32::MAX;
 

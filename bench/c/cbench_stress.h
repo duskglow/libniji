@@ -4,7 +4,7 @@
  * and then sleeps for good with every signal blocked, so process-directed signals still reach the main
  * thread. The rows then run in a multi-threaded process instead of a single-threaded one. Unset (the fixed
  * environment): one getenv at start-up and nothing else. Included by cbench_rows.h, so every C benchmark
- * that filters rows honours it on the Liella and the glibc side alike. */
+ * that filters rows honours it on the libniji and the glibc side alike. */
 #ifndef CBENCH_STRESS_H
 #define CBENCH_STRESS_H
 #include <pthread.h>

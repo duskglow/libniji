@@ -1,30 +1,30 @@
 #!/bin/sh
-# tools/deb/build.sh: build Liella's reference Debian packages (docs/install-packages.md; the layout
+# tools/deb/build.sh: build libniji's reference Debian packages (docs/install-packages.md; the layout
 # is the pending decision records/pending/RELEASE-PACKAGING-DEB-1.toml).
 #
 #   tools/deb/build.sh [--out DIR] [--work DIR]
 #       From a clean tree: the committed HEAD is exported (git archive) into WORK/src, the products
 #       are built there in the release profile with the packages' loader layout
-#       (LIELLA_PREFIX=/usr/lib/liella, LIELLA_LIBDIR=usr/lib/x86_64-linux-gnu), and the packages
+#       (NIJI_PREFIX=/usr/lib/niji, NIJI_LIBDIR=usr/lib/x86_64-linux-gnu), and the packages
 #       are written to OUT (default target/deb). Uncommitted changes are never packaged.
 #   tools/deb/build.sh --products DIR --version V [--out DIR] [--work DIR]
 #       Package an existing products directory (built with that layout) as version V; no build.
 #   --flavour system (with either form; default --flavour coexist)
 #       The system build (plan/system-libc.md section 3, records/pending/SL-FLAVOUR-1.toml): the
-#       same tree built with prefix / (LIELLA_PREFIX=/, LIELLA_LIBDIR=usr/lib/x86_64-linux-gnu),
+#       same tree built with prefix / (NIJI_PREFIX=/, NIJI_LIBDIR=usr/lib/x86_64-linux-gnu),
 #       packaged as the system's C library under Debian's names (libc6, libc-bin, libc6-dev,
 #       libc-dev-bin, locales, libc-l10n; tools/deb/system.sh), into OUT (default
 #       target/deb-system; work directory target/deb-system-work). Version
-#       <abi>+liella<YYYYMMDD>.<n>-<rev> (owner ruling R2): <abi> 2.39, <n> LIELLA_DEB_SERIAL
-#       (default 1), <rev> LIELLA_DEB_REVISION (default 1). tools/deb/check-system.sh checks them.
+#       <abi>+niji<YYYYMMDD>.<n>-<rev> (owner ruling R2): <abi> 2.39, <n> NIJI_DEB_SERIAL
+#       (default 1), <rev> NIJI_DEB_REVISION (default 1). tools/deb/check-system.sh checks them.
 #   --symbols-only (with --flavour system --products)
 #       Stop after libc6's symbols, shlibs and control (WORK/stage/libc6/DEBIAN): no .deb is
 #       written. The gate's check that every version node the libraries define has a dependency
 #       rule (crates/core/tests/deb_symbols_products.rs), a few seconds instead of the packaging.
 #
-# Packages: liella6 (run time: the loader and the shared libraries) and liella6-dev (link time:
-# start files, linker scripts, static archives, the liella-gcc/liella-g++ wrapper). Every file
-# is under the sysroot /usr/lib/liella except the wrapper, its manual page and the packages'
+# Packages: niji6 (run time: the loader and the shared libraries) and niji6-dev (link time:
+# start files, linker scripts, static archives, the niji-gcc/niji-g++ wrapper). Every file
+# is under the sysroot /usr/lib/niji except the wrapper, its manual page and the packages'
 # /usr/share/doc directories: nothing of the system's C library is touched (tools/deb/check.sh
 # enforces it).
 #
@@ -71,7 +71,7 @@ case $flavour in
     *) echo "build.sh: --flavour $flavour: coexist or system" >&2; exit 2 ;;
 esac
 
-sysroot=/usr/lib/liella
+sysroot=/usr/lib/niji
 ma=x86_64-linux-gnu
 # The loader's compile-time prefix (crates/ld/src/search.rs): the sysroot, or / for the system build.
 prefix=$sysroot
@@ -101,11 +101,11 @@ if [ -z "$products" ]; then
         # any other build directory (cargo tags each with CACHEDIR.TAG, e.g. fuzz/target): another
         # job may be writing one while it is copied, and the build never reads them. Through a file
         # again, so that a failed copy stops the build instead of packaging part of the tree.
-        if [ -z "${LIELLA_DEB_COMMIT:-}" ] || [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
-            echo "build.sh: $root is not a git tree: set LIELLA_DEB_COMMIT and SOURCE_DATE_EPOCH" >&2
+        if [ -z "${NIJI_DEB_COMMIT:-}" ] || [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
+            echo "build.sh: $root is not a git tree: set NIJI_DEB_COMMIT and SOURCE_DATE_EPOCH" >&2
             exit 2
         fi
-        commit=$(printf '%.12s' "$LIELLA_DEB_COMMIT")
+        commit=$(printf '%.12s' "$NIJI_DEB_COMMIT")
         epoch=$SOURCE_DATE_EPOCH
         echo "build.sh: note: $root is not a git tree; packaging its files as commit $commit"
         tar -C "$root" --exclude=./target --exclude=./.git --exclude-caches-all -cf "$work/src.tar" .
@@ -115,11 +115,11 @@ if [ -z "$products" ]; then
     if [ "$flavour" = coexist ]; then
         version=0.0~snapshot$(date -u -d "@$epoch" +%Y%m%d)+$commit
     else
-        version=$abi+liella$(date -u -d "@$epoch" +%Y%m%d).${LIELLA_DEB_SERIAL:-1}-${LIELLA_DEB_REVISION:-1}
+        version=$abi+niji$(date -u -d "@$epoch" +%Y%m%d).${NIJI_DEB_SERIAL:-1}-${NIJI_DEB_REVISION:-1}
     fi
     echo "build.sh: building the products of $commit (release profile, prefix $prefix) in $work/src"
-    (cd "$work/src" && LIELLA_PREFIX=$prefix LIELLA_LIBDIR=usr/lib/$ma LIELLA_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
-    products=$work/src/target/liella
+    (cd "$work/src" && NIJI_PREFIX=$prefix NIJI_LIBDIR=usr/lib/$ma NIJI_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
+    products=$work/src/target/niji
     # The specification tables of the tree the products were built from (system.sh's symbols file).
     spec=$work/src/spec
 else
@@ -131,12 +131,12 @@ products=$(cd "$products" && pwd)
 export SOURCE_DATE_EPOCH="$epoch"
 # --products: the commit the products were built from, when the caller names it (the system
 # packages' changelog names it, so a repack of the same products is byte-identical).
-[ -n "${commit:-}" ] || commit=$(printf '%.12s' "${LIELLA_DEB_COMMIT:-}")
+[ -n "${commit:-}" ] || commit=$(printf '%.12s' "${NIJI_DEB_COMMIT:-}")
 
 stage=$work/stage
 rm -rf "$stage"
-rt=$stage/liella6
-dev=$stage/liella6-dev
+rt=$stage/niji6
+dev=$stage/niji6-dev
 
 # put MODE SRC DEST: a copy of SRC at DEST (parents made).
 put() {
@@ -170,7 +170,7 @@ if [ "$flavour" = system ]; then
     exit 0
 fi
 
-# --- liella6: the run-time sysroot, laid out as Debian's libc6 lays out / (merged /usr). ---
+# --- niji6: the run-time sysroot, laid out as Debian's libc6 lays out / (merged /usr). ---
 rlib=$rt$sysroot/usr/lib/$ma
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$rlib/ld-linux-x86-64.so.2"
@@ -178,24 +178,24 @@ for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1
     need "$so"
     put 0644 "$products/$so" "$rlib/$so"
 done
-# The program interpreter's path, /usr/lib/liella/lib64/ld-linux-x86-64.so.2, as Debian's
+# The program interpreter's path, /usr/lib/niji/lib64/ld-linux-x86-64.so.2, as Debian's
 # /lib64/ld-linux-x86-64.so.2: lib64 -> usr/lib64, usr/lib64/<loader> -> the multiarch copy.
 put_link ../lib/$ma/ld-linux-x86-64.so.2 "$rt$sysroot/usr/lib64/ld-linux-x86-64.so.2"
 put_link usr/lib "$rt$sysroot/lib"
 put_link usr/lib64 "$rt$sysroot/lib64"
 
-# --- liella6-dev: link time, as Debian's libc6-dev (static archives included, as there). ---
+# --- niji6-dev: link time, as Debian's libc6-dev (static archives included, as there). ---
 dlib=$dev$sysroot/usr/lib/$ma
-need liella-crt1.o
-need liella-rcrt1.o
-put 0644 "$products/liella-crt1.o" "$dlib/crt1.o"
-put 0644 "$products/liella-crt1.o" "$dlib/Scrt1.o"
-put 0644 "$products/liella-rcrt1.o" "$dlib/rcrt1.o"
+need niji-crt1.o
+need niji-rcrt1.o
+put 0644 "$products/niji-crt1.o" "$dlib/crt1.o"
+put 0644 "$products/niji-crt1.o" "$dlib/Scrt1.o"
+put 0644 "$products/niji-rcrt1.o" "$dlib/rcrt1.o"
 # SL-CRT: the rest of the start files a plain compiler-driver link names (crti.o and crtn.o in
 # every link, gcrt1.o for -pg, grcrt1.o for -pg -static-pie) and Mcrt1.o, which is empty.
 for o in gcrt1 grcrt1 crti crtn Mcrt1; do
-    need "liella-$o.o"
-    put 0644 "$products/liella-$o.o" "$dlib/$o.o"
+    need "niji-$o.o"
+    put 0644 "$products/niji-$o.o" "$dlib/$o.o"
 done
 for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
@@ -203,26 +203,26 @@ for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a l
 done
 # The linker scripts name files inside the sysroot; the wrapper links with --sysroot, so the link
 # editor reads them there (the script lies in the sysroot).
-put_text 0644 "$dlib/libc.so" "/* GNU ld script: Liella's C library (liella6-dev). Paths are inside the sysroot
-   /usr/lib/liella; link with --sysroot=/usr/lib/liella (liella-gcc does). */
+put_text 0644 "$dlib/libc.so" "/* GNU ld script: libniji's C library (niji6-dev). Paths are inside the sysroot
+   /usr/lib/niji; link with --sysroot=/usr/lib/niji (niji-gcc does). */
 OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
-# libm.so stays a link: Liella has no libmvec, so no linker script is needed (SL-SONAMES).
+# libm.so stays a link: libniji has no libmvec, so no linker script is needed (SL-SONAMES).
 put_link libm.so.6 "$dlib/libm.so"
 put_link libresolv.so.2 "$dlib/libresolv.so"
 put_link libBrokenLocale.so.1 "$dlib/libBrokenLocale.so"
-put 0755 "$here/liella-gcc" "$dev/usr/bin/liella-gcc"
-put_link liella-gcc "$dev/usr/bin/liella-g++"
+put 0755 "$here/niji-gcc" "$dev/usr/bin/niji-gcc"
+put_link niji-gcc "$dev/usr/bin/niji-g++"
 mkdir -p "$dev/usr/share/man/man1"
-gzip -9n < "$here/liella-gcc.1" > "$dev/usr/share/man/man1/liella-gcc.1.gz"
-put_link liella-gcc.1.gz "$dev/usr/share/man/man1/liella-g++.1.gz"
+gzip -9n < "$here/niji-gcc.1" > "$dev/usr/share/man/man1/niji-gcc.1.gz"
+put_link niji-gcc.1.gz "$dev/usr/share/man/man1/niji-g++.1.gz"
 
 # --- Documentation of both packages. ---
 date_r=$(date -u -d "@$epoch" -R)
-for p in liella6 liella6-dev; do
+for p in niji6 niji6-dev; do
     d=$stage/$p/usr/share/doc/$p
     put 0644 "$here/copyright" "$d/copyright"
-    printf 'liella (%s) unstable; urgency=medium\n\n  * Snapshot of Liella (reference packages; docs/install-packages.md).\n\n -- %s  %s\n' \
+    printf 'niji (%s) unstable; urgency=medium\n\n  * Snapshot of libniji (reference packages; docs/install-packages.md).\n\n -- %s  %s\n' \
         "$version" "$maint" "$date_r" | gzip -9n > "$d/changelog.gz"
 done
 
@@ -237,32 +237,32 @@ control() {
     mkdir -p "$stage/$p/DEBIAN"
     {
         echo "Package: $p"
-        echo "Source: liella"
+        echo "Source: niji"
         echo "Version: $version"
         echo "Architecture: amd64"
         echo "Maintainer: $maint"
         echo "Installed-Size: $(installed_size "$stage/$p")"
         [ -z "$deps" ] || echo "Depends: $deps"
-        [ "$p" != liella6-dev ] || echo "Recommends: g++"
+        [ "$p" != niji6-dev ] || echo "Recommends: g++"
         echo "Section: $sec"
         echo "Priority: optional"
         for line in "$@"; do echo "$line"; done
     } > "$stage/$p/DEBIAN/control"
     (cd "$stage/$p" && find . -path ./DEBIAN -prune -o -type f -printf '%P\n' | sort | xargs -r md5sum) > "$stage/$p/DEBIAN/md5sums"
 }
-control liella6 libs "" \
-    "Description: Liella C library (run time, beside the system's C library)" \
-    " Liella is an implementation of the GNU C Library's ABI (glibc 2.39, x86-64)." \
+control niji6 libs "" \
+    "Description: libniji C library (run time, beside the system's C library)" \
+    " libniji is an implementation of the GNU C Library's ABI (glibc 2.39, x86-64)." \
     " This package installs its loader and shared libraries in the sysroot" \
-    " /usr/lib/liella. It does not replace or change the system's C library: only" \
-    " programs whose interpreter is /usr/lib/liella/lib64/ld-linux-x86-64.so.2" \
-    " (built with liella-gcc from liella6-dev) run on Liella."
-control liella6-dev libdevel "liella6 (= $version), gcc, libc6-dev, binutils" \
-    "Description: Liella C library (development files and compiler wrapper)" \
-    " Liella is an implementation of the GNU C Library's ABI (glibc 2.39, x86-64)." \
+    " /usr/lib/niji. It does not replace or change the system's C library: only" \
+    " programs whose interpreter is /usr/lib/niji/lib64/ld-linux-x86-64.so.2" \
+    " (built with niji-gcc from niji6-dev) run on libniji."
+control niji6-dev libdevel "niji6 (= $version), gcc, libc6-dev, binutils" \
+    "Description: libniji C library (development files and compiler wrapper)" \
+    " libniji is an implementation of the GNU C Library's ABI (glibc 2.39, x86-64)." \
     " This package installs the start files, linker scripts and static archives in" \
-    " the sysroot /usr/lib/liella, and liella-gcc and liella-g++, which build" \
-    " programs that run on Liella's loader. Programs compile with the system's C" \
+    " the sysroot /usr/lib/niji, and niji-gcc and niji-g++, which build" \
+    " programs that run on libniji's loader. Programs compile with the system's C" \
     " headers (from libc6-dev)."
 
 # Fixed modes and times.
@@ -271,7 +271,7 @@ find "$stage" -path '*/DEBIAN/*' -type f -exec chmod 0644 {} +
 find "$stage" -exec touch -h -d "@$epoch" {} +
 
 mkdir -p "$out"
-for p in liella6 liella6-dev; do
+for p in niji6 niji6-dev; do
     deb=$out/${p}_${version}_amd64.deb
     dpkg-deb --root-owner-group -Zxz -z9 --build "$stage/$p" "$deb" >/dev/null
     echo "build.sh: $(sha256sum "$deb" | cut -c1-64)  $deb"

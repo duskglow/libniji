@@ -1,5 +1,5 @@
 //! The constants and tables of the x87 `long double` exponentials' and logarithms' integer
-//! fixed-point tier (`liella_math::wide_int_el`, D-10.73), written to
+//! fixed-point tier (`niji_math::wide_int_el`, D-10.73), written to
 //! `crates/math/src/coeffs/wide_int_el.rs` by `cargo xtask tables`.
 //!
 //! Every value is a fixed-point word "in units `2^-u`" (`v·2^u` rounded to the nearest integer;
@@ -10,7 +10,7 @@
 //! 1994): the first step's 17-bit reciprocals `c1'` of `1 + (i + 1/2)/128` and `−ln c1`, the
 //! second step's reciprocals `c2` of `1 + i2/4096` and `−ln c2`, the series `1/k`, `ln 2`,
 //! `1/ln 2` and `1/ln 10`. The tier's module doc holds the error analysis that fixes each unit.
-//! The binary128 tier (`liella_math::wide_int::quad::explog`) reuses these words and adds a
+//! The binary128 tier (`niji_math::wide_int::quad::explog`) reuses these words and adds a
 //! signed third limb below `2^(j/128)`, `−ln c1`, `−ln c2`, `ln2/128` and `ln 2` (192 bits), and the
 //! coefficients of its longer series (`1/k!` to `k = 12`, `1/k` to `k = 11`).
 

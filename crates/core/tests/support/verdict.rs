@@ -5,11 +5,11 @@
 //!
 //! The key ([`Key`]) is the content of everything a shard's outcome depends on:
 //! - always: the test binary's own bytes (`/proc/self/exe`, the image this process runs: the
-//!   checker, the mathtools oracle and, for the pure-Rust sweeps, every Liella byte it calls),
+//!   checker, the mathtools oracle and, for the pure-Rust sweeps, every libniji byte it calls),
 //!   the CPU feature flags the dispatch reads (the `flags` line of `/proc/cpuinfo`), the kernel
 //!   release, and the shard's name;
 //! - the C-oracle sweeps add the shard index and count, the bytes of both built programs (the
-//!   static Liella program holds every Liella byte it runs) and of every shared object the
+//!   static libniji program holds every libniji byte it runs) and of every shared object the
 //!   reference program loads (resolved by the dynamic loader itself, `LD_TRACE_LOADED_OBJECTS`:
 //!   the host's libm.so.6, libc.so.6 and the loader; `Key::loaded_by` in `verdict_programs.rs`);
 //! - a sweep whose size an environment variable sets adds that variable ([`Key::env`]).
@@ -17,7 +17,7 @@
 //! An input that cannot be read makes the key incomplete: such a shard always runs and records
 //! nothing. Each file is hashed by two SipHash streams with different prefixes (128 bits) and
 //! its length. The records are `target/test-verdicts/<name>`, one file per shard, written to a
-//! temporary name and renamed, so they stay per tree and per host. `LIELLA_NO_VERDICT_CACHE=1`
+//! temporary name and renamed, so they stay per tree and per host. `NIJI_NO_VERDICT_CACHE=1`
 //! runs every shard (the nightly and release runs); a shard that runs removes its record first,
 //! so a failing shard leaves none.
 //!
@@ -37,7 +37,7 @@ use std::sync::OnceLock;
 pub(crate) type Resolve = fn(&Path) -> Option<Vec<PathBuf>>;
 
 /// The environment variable that runs every shard, cached or not.
-pub(crate) const NO_CACHE: &str = "LIELLA_NO_VERDICT_CACHE";
+pub(crate) const NO_CACHE: &str = "NIJI_NO_VERDICT_CACHE";
 
 /// Where the per-host inputs come from (the real files, or a test's stand-ins).
 #[derive(Clone, Debug)]
@@ -242,7 +242,7 @@ impl Key {
     }
 
     /// The start of a shard: `None` (after printing `verdict cached: <name> <key>`) when a green
-    /// verdict for this key is on record and `LIELLA_NO_VERDICT_CACHE` is not `1`; otherwise the
+    /// verdict for this key is on record and `NIJI_NO_VERDICT_CACHE` is not `1`; otherwise the
     /// record is removed and the shard runs, calling [`Run::pass`] after its last check.
     pub(crate) fn begin(self) -> Option<Run> {
         let forced = std::env::var_os(NO_CACHE).is_some_and(|v| v == "1");

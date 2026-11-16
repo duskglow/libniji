@@ -4,7 +4,7 @@
 //! database (D-16.1).
 //!
 //! **The state** ([`State`]) is the 568 bytes of `struct __res_state` (Appendix C), read and
-//! written at the member offsets: the configuration a caller sees and may change. Liella marks a
+//! written at the member offsets: the configuration a caller sees and may change. libniji marks a
 //! state it initialized (the first word of `_u._ext.__glibc_reserved`) and records there the
 //! generation of `resolv.conf` it was read from. A state shows at most 3 servers (an IPv6
 //! server's `nsaddr_list` entry has family 0 and its address is in `_u._ext.nsaddrs`, as the
@@ -30,17 +30,17 @@
 
 use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering::Relaxed};
 
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella::names::dns::client::{self, Failure, Miss, Transport};
-use liella::names::dns::conf::{self, Config, Server, RES_INIT, RES_NOAAAA, RES_NOALIASES, RES_RECURSE, RES_ROTATE, RES_TRUSTAD, RES_USE_DNSSEC, RES_USE_EDNS0};
-use liella::names::dns::host::{self, Outcome};
-use liella::names::dns::msg::{self, Header, HFIXEDSZ};
-use liella::names::dns::name::{self, Check};
-use liella::names::dns::{rcode, T_A, T_AAAA, T_PTR};
-use liella::names::nss::{Answer, LookupError};
-use liella::names::{Family, Ip};
-use liella_kernel::sys::Sys;
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji::names::dns::client::{self, Failure, Miss, Transport};
+use niji::names::dns::conf::{self, Config, Server, RES_INIT, RES_NOAAAA, RES_NOALIASES, RES_RECURSE, RES_ROTATE, RES_TRUSTAD, RES_USE_DNSSEC, RES_USE_EDNS0};
+use niji::names::dns::host::{self, Outcome};
+use niji::names::dns::msg::{self, Header, HFIXEDSZ};
+use niji::names::dns::name::{self, Check};
+use niji::names::dns::{rcode, T_A, T_AAAA, T_PTR};
+use niji::names::nss::{Answer, LookupError};
+use niji::names::{Family, Ip};
+use niji_kernel::sys::Sys;
 
 use crate::netdb_compat::{HOST_NOT_FOUND, NO_DATA, NO_RECOVERY, TRY_AGAIN};
 use crate::nscache::Life;
@@ -76,7 +76,7 @@ mod off {
     pub(super) const EXT_GEN: usize = 564;
 }
 
-/// The value in `_u._ext.__glibc_reserved[0]` of a state Liella initialized.
+/// The value in `_u._ext.__glibc_reserved[0]` of a state libniji initialized.
 const MARK: u32 = 0x4c69_4c61;
 
 /// A `struct __res_state`, as its bytes.
@@ -129,7 +129,7 @@ impl State<'_> {
         self.put(off::H_ERRNO, &h.to_ne_bytes());
     }
 
-    /// Whether Liella initialized the state, and from which generation of the file.
+    /// Whether libniji initialized the state, and from which generation of the file.
     pub fn generation(&self) -> Option<u32> {
         (self.u32_at(off::EXT_MARK) == MARK).then(|| self.u32_at(off::EXT_GEN))
     }
@@ -165,10 +165,10 @@ impl State<'_> {
             let at = off::NSADDR.saturating_add(i.saturating_mul(16));
             let sa: [u8; 16] = self.get(at);
             let fam = u16::from_ne_bytes([sa[0], sa[1]]);
-            if u32::from(fam) == liella_kernel::uapi::AF_INET {
+            if u32::from(fam) == niji_kernel::uapi::AF_INET {
                 out.push(Server { ip: Ip::V4([sa[4], sa[5], sa[6], sa[7]]), port: u16::from_be_bytes([sa[2], sa[3]]), scope: 0 })?;
             } else if let Some(b) = v6 {
-                if u32::from(u16::from_ne_bytes([b[0], b[1]])) == liella_kernel::uapi::AF_INET6 {
+                if u32::from(u16::from_ne_bytes([b[0], b[1]])) == niji_kernel::uapi::AF_INET6 {
                     let mut a = [0u8; 16];
                     a.copy_from_slice(b.get(8..24).unwrap_or(&[0; 16]));
                     out.push(Server { ip: Ip::V6(a), port: u16::from_be_bytes([b[2], b[3]]), scope: u32::from_ne_bytes([b[24], b[25], b[26], b[27]]) })?;
@@ -217,7 +217,7 @@ impl State<'_> {
             let at = off::NSADDR.saturating_add(i.saturating_mul(16));
             match s.ip {
                 Ip::V4(a) => {
-                    self.put(at, &u16::try_from(liella_kernel::uapi::AF_INET).unwrap_or(2).to_ne_bytes());
+                    self.put(at, &u16::try_from(niji_kernel::uapi::AF_INET).unwrap_or(2).to_ne_bytes());
                     self.put(at.saturating_add(2), &s.port.to_be_bytes());
                     self.put(at.saturating_add(4), &a);
                 }
@@ -289,10 +289,10 @@ pub struct Env<'a> {
 
 /// The configuration of the file `path` (NUL-terminated) and the environment.
 pub fn load<S: Sys>(sys: &S, path: &[u8], env: Env<'_>) -> Result<Config> {
-    let text = liella::system::read_file(sys, path).ok();
+    let text = niji::system::read_file(sys, path).ok();
     let u = sys.uname().unwrap_or_default();
     let host = u.nodename.get(..u.nodename.iter().position(|&c| c == 0).unwrap_or(u.nodename.len())).unwrap_or(&[]);
-    Config::parse(text.as_deref(), env.localdomain, env.res_options, host, |z| liella::net::iface::index_of(sys, z).ok())
+    Config::parse(text.as_deref(), env.localdomain, env.res_options, host, |z| niji::net::iface::index_of(sys, z).ok())
 }
 
 /// The process's view of `resolv.conf`: a generation number that changes with the file.
@@ -350,10 +350,10 @@ fn start<S: Sys>(sys: &S, c: &Config) -> usize {
 /// A random query ID (`res_randomid`).
 pub fn random_id<S: Sys>(sys: &S) -> u16 {
     let mut b = [0u8; 2];
-    if sys.getrandom(&mut b, liella_kernel::uapi::GRND_NONBLOCK).is_ok() {
+    if sys.getrandom(&mut b, niji_kernel::uapi::GRND_NONBLOCK).is_ok() {
         return u16::from_ne_bytes(b);
     }
-    let t = sys.clock_gettime(liella_kernel::uapi::CLOCK_MONOTONIC).unwrap_or_default();
+    let t = sys.clock_gettime(niji_kernel::uapi::CLOCK_MONOTONIC).unwrap_or_default();
     u16::try_from(t.nsec & 0xffff).unwrap_or(0)
 }
 
@@ -577,7 +577,7 @@ fn lookup_one<S: Sys>(sys: &S, c: &Config, n: &[u8], family: Family, net: &mut N
     };
     let mut qs: TryVec<TryVec<u8>> = TryVec::new();
     for &t in types {
-        let mut q = build_query(sys, c, n, liella::names::dns::CLASS_IN, t).map_err(|_| Miss::NoRecovery)?;
+        let mut q = build_query(sys, c, n, niji::names::dns::CLASS_IN, t).map_err(|_| Miss::NoRecovery)?;
         // Distinct IDs for the queries sent together.
         if let (Some(prev), Some(id)) = (qs.first(), q.get_mut(..2)) {
             if prev.get(..2) == Some(&*id) {

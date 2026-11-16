@@ -7,7 +7,7 @@
 
 use std::cmp::Ordering;
 
-use liella::bytes::{self, ByteSet, Move};
+use niji::bytes::{self, ByteSet, Move};
 
 fn pattern(n: usize, seed: u8) -> Vec<u8> {
     (0..n).map(|i| (i as u8).wrapping_mul(37).wrapping_add(seed) | 1).collect()

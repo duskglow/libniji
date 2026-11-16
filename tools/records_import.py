@@ -30,14 +30,14 @@ SAT_INDEX = "docs/saturation-register.md"
 SAT_TABLE_SECTIONS = range(1, 8)
 
 DECISION_COLUMNS = {"ID": "id", "Spec": "spec", "Ann.": "ann", "Pattern": "pattern", "Decision": "body"}
-COMPAT_COLUMNS = ["id", "behaviour", "glibc", "liella", "restore", "cost", "status"]
+COMPAT_COLUMNS = ["id", "behaviour", "glibc", "niji", "restore", "cost", "status"]
 SAT8_COLUMNS = ["row", "now", "limit", "reason_class", "basis", "source", "tried", "flag"]
 SAT3_COLUMNS = ["row", "now", "open"]
 COMPAT_STATUS = ("registered", "implemented", "partial", "withdrawn")
 
 KEYS = {
     "decision": ["id", "series", "section", "spec", "ann", "pattern", "status", "supersedes", "amends", "story", "date", "tests", "body"],
-    "compat": ["id", "behaviour", "glibc", "liella", "restore", "cost", "status", "status_text", "decisions", "story", "date", "body"],
+    "compat": ["id", "behaviour", "glibc", "niji", "restore", "cost", "status", "status_text", "decisions", "story", "date", "body"],
     "saturation": ["id", "section", "row", "now", "limit", "reason_class", "basis", "source", "tried", "flag", "open", "status", "supersedes", "story", "date", "body"],
 }
 

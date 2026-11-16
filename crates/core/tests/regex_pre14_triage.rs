@@ -2,8 +2,8 @@
 //! probed in en_US.UTF-8 (`spec/behaviour/regex-pre14-triage.md`).
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella::locale::Locale;
-use liella::pattern::regex::{self, cflags, syntax, Options, ReError, Window};
+use niji::locale::Locale;
+use niji::pattern::regex::{self, cflags, syntax, Options, ReError, Window};
 
 fn comp(pat: &[u8], syn: u64, loc: &Locale) -> Result<(), ReError> {
     regex::compile(pat, syn, loc).map(|_| ())

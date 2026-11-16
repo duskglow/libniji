@@ -17,8 +17,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::pattern::fnmatch::{self, Pattern};
-use liella_fuzz::Input;
+use niji::pattern::fnmatch::{self, Pattern};
+use niji_fuzz::Input;
 
 const ALL: [i32; 6] = [fnmatch::PATHNAME, fnmatch::NOESCAPE, fnmatch::PERIOD, fnmatch::LEADING_DIR, fnmatch::CASEFOLD, fnmatch::EXTMATCH];
 
@@ -206,7 +206,7 @@ fuzz_target!(|data: &[u8]| {
     if pattern.len() > 256 || string.len() > 256 || string.contains(&0) || pattern.iter().filter(|&&b| b == b'*').count() > 12 {
         return;
     }
-    let loc = liella_fuzz::locale(utf8);
+    let loc = niji_fuzz::locale(utf8);
 
     let direct = fnmatch::fnmatch(pattern, string, flags, &loc);
     let Ok(compiled) = Pattern::new(pattern, flags, &loc) else { return };

@@ -10,7 +10,7 @@ mod oracle;
 use std::path::PathBuf;
 use std::process::Command;
 
-const CHILD: &str = "LIELLA_SKIP_PRECOND_CHILD";
+const CHILD: &str = "NIJI_SKIP_PRECOND_CHILD";
 
 fn scratch(tag: &str) -> PathBuf {
     let d = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("skip-precond-{tag}-{}", std::process::id()));
@@ -25,7 +25,7 @@ fn scratch(tag: &str) -> PathBuf {
 fn child_probe() {
     // Trace: no spec clause (test-harness behaviour; TEST-SILENT-SKIPS).
     let Some(what) = std::env::var_os(CHILD) else { return };
-    let dir = PathBuf::from(std::env::var_os("LIELLA_PRECOND_DIR").unwrap());
+    let dir = PathBuf::from(std::env::var_os("NIJI_PRECOND_DIR").unwrap());
     let r = if what == "locale" {
         oracle::locale(&dir.join("out/xx_XX.UTF-8"), "en_US", "UTF-8", "LC_COLLATE")
     } else {
@@ -41,7 +41,7 @@ fn run_child(what: &str, path: &std::path::Path, dir: &std::path::Path) -> (bool
         .args(["child_probe", "--exact", "--nocapture", "--include-ignored"])
         .env(CHILD, what)
         .env("PATH", path)
-        .env("LIELLA_PRECOND_DIR", dir)
+        .env("NIJI_PRECOND_DIR", dir)
         .output()
         .unwrap();
     let out = String::from_utf8_lossy(&o.stdout).into_owned();

@@ -1,6 +1,6 @@
 /* The working directory, directory streams, scandir, the tree walkers, path canonicalization and
  * temporary names end to end (spec §13.1-13.3, §13.8-13.9; phase 12). Built against the host C
- * library and against Liella's products, the outputs must match line for line. Black-box: every
+ * library and against libniji's products, the outputs must match line for line. Black-box: every
  * line is a result, an errno, or a fact read back through a public function. Scratch paths are
  * printed relative to the scratch directory as <dir>; a 200-byte component of the deep tree is
  * printed as {d200}; nothing prints an inode, a descriptor number, a directory cookie or a time.
@@ -2255,7 +2255,7 @@ static void fts_empty_argv(int unused)
  * listed directories t/a and t/e means none of their descendants is visited, so the walk is
  * shown without the two marked entries themselves (whether a marked listed entry is returned
  * is not defined); FTS_FOLLOW goes only to the listed root t/s_dir. A listed FTS_FOLLOW below
- * a root, FTS_AGAIN on a listed entry and the marked entries' own visits are Liella's own
+ * a root, FTS_AGAIN on a listed entry and the marked entries' own visits are libniji's own
  * behaviour, tested in s13_3_c_4 (D-13.4). */
 static int list_marked(const char *path, int roots)
 {

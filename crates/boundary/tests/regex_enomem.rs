@@ -12,11 +12,11 @@
 //! The limit is process-wide and permanent, so each test runs in a re-executed child.
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella_abi::layout::regex_t;
-use liella_boundary::posix::s14_search as rx;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
+use niji_abi::layout::regex_t;
+use niji_boundary::posix::s14_search as rx;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
 
 const REG_EXTENDED: i32 = 1;
 const REG_ESPACE: i32 = 12;
@@ -169,7 +169,7 @@ fn limit_body() -> i32 {
     // stays usable: the search without subexpressions then finds the match.
     // The subject holds the required `b`, so the prefilter cannot answer before the engine.
     let subject = std::ffi::CString::new("xaby").unwrap();
-    let mut m = [liella_abi::layout::regmatch_t { rm_so: -1, rm_eo: -1 }; 2];
+    let mut m = [niji_abi::layout::regmatch_t { rm_so: -1, rm_eo: -1 }; 2];
     let rc = rx::regexec(Some(&big), subject.as_ptr(), 2, m.as_mut_ptr(), 0);
     if rc != REG_ESPACE {
         eprintln!("regexec (nmatch 2) of the depth-1446 program under the limit: {rc}, not REG_ESPACE");
@@ -200,12 +200,12 @@ fn regcomp_and_regexec_answer_reg_espace_at_the_process_limit() {
     // Trace: D-14.8 as amended (no fixed size cap; the process's limits are the bound).
     // Clauses: s14_9_f_0 (regcomp's failure codes include REG_ESPACE), s14_9_g_0 (regexec's).
     const NAME: &str = "regcomp_and_regexec_answer_reg_espace_at_the_process_limit";
-    if std::env::var("LIELLA_REGCOMP_ENOMEM").is_ok_and(|v| v == NAME) {
+    if std::env::var("NIJI_REGCOMP_ENOMEM").is_ok_and(|v| v == NAME) {
         CSys.exit_group(limit_body());
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([NAME, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_REGCOMP_ENOMEM", NAME)
+        .env("NIJI_REGCOMP_ENOMEM", NAME)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -217,12 +217,12 @@ fn regcomp_out_of_memory_returns_reg_espace_and_releases_its_work() {
     // Trace: D-14.4
     // Clauses: s14_9_f_0 (regcomp's failure codes include REG_ESPACE).
     const NAME: &str = "regcomp_out_of_memory_returns_reg_espace_and_releases_its_work";
-    if std::env::var("LIELLA_REGCOMP_ENOMEM").is_ok_and(|v| v == NAME) {
+    if std::env::var("NIJI_REGCOMP_ENOMEM").is_ok_and(|v| v == NAME) {
         CSys.exit_group(body());
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([NAME, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_REGCOMP_ENOMEM", NAME)
+        .env("NIJI_REGCOMP_ENOMEM", NAME)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

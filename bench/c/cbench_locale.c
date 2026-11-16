@@ -105,7 +105,7 @@ static wint_t (*volatile towlower_fn)(wint_t) = towlower;
 /* The towctrans rows' check (BENCH-ROWS-SINCOS-TOWCTRANS), run once before they are timed: for every code
  * point and WEOF, towctrans with the "toupper" and "tolower" descriptors must equal towupper and towlower
  * of the same library (probed on glibc: no difference in C and C.UTF-8). A difference ends the program; the
- * FNV-1a digest of the mapped values goes to stderr, so the Liella and glibc builds can be compared. */
+ * FNV-1a digest of the mapped values goes to stderr, so the libniji and glibc builds can be compared. */
 static void check_towctrans(wctrans_t up, wctrans_t lo)
 {
     static const char bad[] = "cbench_locale: towctrans identity check failed (towctrans differs from towupper/towlower)\n";

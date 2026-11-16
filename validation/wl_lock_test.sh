@@ -1,21 +1,21 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Self-test of the products profile and cache key of validation/wl_lock.sh (WL-PREP-RELEASE-PROFILE; no spec clause:
 # measurement tooling). The workload gate and the per-call counts must measure what ships, the release profile:
 #   1. wl_key: <sha>-release by default, <sha> (the old key) with WL_PROFILE=fast, an unknown profile refused;
-#   2. wl_build_products builds with LIELLA_FULL_PROFILE=1 and refuses a build that left fast products;
+#   2. wl_build_products builds with NIJI_FULL_PROFILE=1 and refuses a build that left fast products;
 #   3. a fast set cached under the old key <sha> (no .profile marker) is never taken for release, and is kept;
 #   4. a cached set of the other profile under a key is refused, never reused, rebuilt over or deleted;
 #   5. WL_PROFILE=fast reads the old fast cache without building.
 # Runs the real wl_lock.sh functions in a scratch HOME with a stand-in `cargo` that writes products and xtask's
-# target/liella/.profile marker the way `cargo xtask so` does (fast unless LIELLA_FULL_PROFILE is set and not 0).
-# Seconds; no Liella build. `affected` runs it when wl_lock.sh or this file changes (VALIDATION_COVERED).
+# target/niji/.profile marker the way `cargo xtask so` does (fast unless NIJI_FULL_PROFILE is set and not 0).
+# Seconds; no libniji build. `affected` runs it when wl_lock.sh or this file changes (VALIDATION_COVERED).
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 export HOME=$tmp/home
-unset LIELLA_FULL_PROFILE WL_PROFILE
+unset NIJI_FULL_PROFILE WL_PROFILE
 stub=$tmp/stub
 mkdir -p "$HOME/wl/src" "$HOME/wl/products" "$stub"
 # bash -l (wl_build_products) may reset PATH from /etc/profile; the scratch HOME's .profile puts the stand-in first again.
@@ -24,9 +24,9 @@ export PATH=$stub:$PATH
 printf '%s\n' '#!/bin/sh' \
     '[ "$1 $2" = "xtask so" ] || { echo "stand-in cargo: unexpected $*" >&2; exit 2; }' \
     'echo build >> "$HOME/builds"' \
-    'p=fast; case ${LIELLA_FULL_PROFILE:-} in ""|0) ;; *) p=release ;; esac; [ -n "${STUB_PROFILE:-}" ] && p=$STUB_PROFILE' \
-    'mkdir -p target/liella && for f in libc.a libm.a liella-crt1.o; do echo "$p" > target/liella/$f; done' \
-    'echo "$p" > target/liella/.profile' > "$stub/cargo"
+    'p=fast; case ${NIJI_FULL_PROFILE:-} in ""|0) ;; *) p=release ;; esac; [ -n "${STUB_PROFILE:-}" ] && p=$STUB_PROFILE' \
+    'mkdir -p target/niji && for f in libc.a libm.a niji-crt1.o; do echo "$p" > target/niji/$f; done' \
+    'echo "$p" > target/niji/.profile' > "$stub/cargo"
 chmod +x "$stub/cargo"
 . "$here/wl_lock.sh"
 pass=0; fail=0

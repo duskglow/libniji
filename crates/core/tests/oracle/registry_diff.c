@@ -1,5 +1,5 @@
 /* The printf registry end to end (spec §12.11; D-12.8): built against the host C library and
- * against Liella's products, the outputs must match line for line (registry_products.rs).
+ * against libniji's products, the outputs must match line for line (registry_products.rs).
  * Black-box: registered handlers report the `struct printf_info` and arguments they receive
  * through the public <printf.h> interface; the library's results are printed as observed. */
 #define _GNU_SOURCE

@@ -1,22 +1,22 @@
 //! The C conventions of spec §15.3–15.8 (phase 10): result encodings, the library-owned
 //! results (per-thread slots, D-H3; process-wide buffers where the contract names one), the
-//! caller-owned blocks of `getifaddrs` and `if_nameindex`. The logic is in `liella::net` and
-//! `liella_legacy::{inet_compat, net_compat, nss}`; the exports in `posix::s15_sockets` convert
+//! caller-owned blocks of `getifaddrs` and `if_nameindex`. The logic is in `niji::net` and
+//! `niji_legacy::{inet_compat, net_compat, nss}`; the exports in `posix::s15_sockets` convert
 //! the C arguments. (The `rcmd` family is a set of stubs, D-15.7.)
 //!
 //! Buffers whose size a C caller does not pass (a routing header, an ancillary-data object) are
 //! viewed through a callback: the header is read first, through a short view that is dropped,
 //! and then the whole object, so the two views never overlap in time.
 
-use liella::error::Errno;
-use liella::net::{addr, copy_z, ether, iface, ip6opt};
-use liella_kernel::errno::KResult;
-use liella_kernel::uapi::{AF_INET, AF_INET6};
-use liella_legacy::inet_compat as ic;
-use liella_legacy::nss::{self, Ctx};
-use liella_legacy::result_slots::Buf;
-use liella_legacy::net_compat;
-use liella_rt::thread::{SLOT_ETHER_ATON, SLOT_ETHER_NTOA, SLOT_INET_NTOA};
+use niji::error::Errno;
+use niji::net::{addr, copy_z, ether, iface, ip6opt};
+use niji_kernel::errno::KResult;
+use niji_kernel::uapi::{AF_INET, AF_INET6};
+use niji_legacy::inet_compat as ic;
+use niji_legacy::nss::{self, Ctx};
+use niji_legacy::result_slots::Buf;
+use niji_legacy::net_compat;
+use niji_rt::thread::{SLOT_ETHER_ATON, SLOT_ETHER_NTOA, SLOT_INET_NTOA};
 
 use crate::caller_alloc;
 use crate::conv;
@@ -147,7 +147,7 @@ pub fn net_ntop<'a>(af: i32, src: impl FnOnce(usize) -> KResult<&'a [u8]>, bits:
 
 /// `inet_neta(src, dst, size)`: the address of `dst`, `EMSGSIZE` when the text and its
 /// terminator do not fit. (The reference also refuses buffers that would fit: it needs 12 bytes
-/// for `10.1.2.3` and 4 for `10` (probes, phase 10); Liella needs the text's size.)
+/// for `10.1.2.3` and 4 for `10` (probes, phase 10); libniji needs the text's size.)
 pub fn neta(v: u32, out: KResult<&mut [u8]>) -> KResult<usize> {
     let out = out?;
     copy_z(ic::neta(v).as_bytes(), out).ok_or(Errno::EMSGSIZE)?;
@@ -187,7 +187,7 @@ pub fn nsap_ntoa<'a>(len: i32, src: impl FnOnce(usize) -> KResult<&'a [u8]>, out
 /// The caller's places of `__nss_hostname_digits_dots` (§16.1) besides the name and family.
 pub struct DigitsDots<'a> {
     /// The entry filled.
-    pub resbuf: Option<&'a mut liella_abi::layout::struct_hostent>,
+    pub resbuf: Option<&'a mut niji_abi::layout::struct_hostent>,
     /// `*buffer`: the address of the strings' memory.
     pub buffer: Option<&'a mut usize>,
     /// `*buffer_size` (the allocating form), or NULL (the caller-buffer form).
@@ -625,7 +625,7 @@ pub fn ether_line<'a>(line: KResult<&[u8]>, out: Option<&mut [u8; 6]>, host: imp
 }
 
 /// `ether_hostton(hostname, addr)`: 0 or -1 (the `ethers` database through the switch,
-/// `liella_legacy::nss`).
+/// `niji_legacy::nss`).
 pub fn ether_hostton(name: KResult<&[u8]>, out: Option<&mut [u8; 6]>) -> KResult<i64> {
     let (name, out) = (name?, out.ok_or(Errno::EFAULT)?);
     Ok(match nss::ether_by_name(&Ctx::system(&CSys), name) {
@@ -671,12 +671,12 @@ pub fn rth_init(bp: KResult<&mut [u8]>, ty: i32, segments: i32) -> usize {
 
 // ------------------------------------------------------------------------------ §24.5
 
-/// `gethostid()` (`liella_legacy::sys_compat::gethostid`): sign-extended to `long`.
+/// `gethostid()` (`niji_legacy::sys_compat::gethostid`): sign-extended to `long`.
 pub fn gethostid() -> i64 {
-    i64::from(liella_legacy::sys_compat::gethostid(&CSys, liella_legacy::sys_compat::HOSTID_FILE))
+    i64::from(niji_legacy::sys_compat::gethostid(&CSys, niji_legacy::sys_compat::HOSTID_FILE))
 }
 
-/// `sethostid(id)` (`liella_legacy::sys_compat::sethostid`).
+/// `sethostid(id)` (`niji_legacy::sys_compat::sethostid`).
 pub fn sethostid(id: i64) -> KResult<()> {
-    liella_legacy::sys_compat::sethostid(&CSys, liella_legacy::sys_compat::HOSTID_FILE, id)
+    niji_legacy::sys_compat::sethostid(&CSys, niji_legacy::sys_compat::HOSTID_FILE, id)
 }

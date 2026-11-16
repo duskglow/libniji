@@ -10,18 +10,18 @@
 //! leaves only this module's frames, which hold nothing to drop (S11).
 //!
 //! **Interim until phase 14 (D-22.11):** glibc unwinds with `_Unwind_ForcedUnwind` from
-//! `libgcc_s`, which also runs C++ destructors; until Liella can load it, only the registered
+//! `libgcc_s`, which also runs C++ destructors; until libniji can load it, only the registered
 //! C buffers run.
 
 use core::sync::atomic::{AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::errno::KResult;
-use liella_abi::ctypes::c_int;
-use liella_rt::thread::{CANCEL_ACTING, CANCEL_ASYNC, CANCEL_HIT};
+use niji_kernel::errno::KResult;
+use niji_abi::ctypes::c_int;
+use niji_rt::thread::{CANCEL_ACTING, CANCEL_ASYNC, CANCEL_HIT};
 
-use liella_kernel::errno::Errno;
-use liella_kernel::sys::Sys;
-use liella_rt::thread::{CANCEL_DISABLED, CANCEL_REQUESTED};
+use niji_kernel::errno::Errno;
+use niji_kernel::sys::Sys;
+use niji_rt::thread::{CANCEL_DISABLED, CANCEL_REQUESTED};
 
 use crate::sys::CSys;
 use crate::{ffi, raw, tb, thread};
@@ -108,7 +108,7 @@ pub fn unwind(result: usize) -> ! {
 fn continue_unwind(buf: usize, result: usize) -> ! {
     if buf != 0 {
         // The buffer was filled by `__sigsetjmp(buf, 0)` in a live frame of this thread.
-        ffi::liella_machine_siglongjmp(buf, 1);
+        ffi::niji_machine_siglongjmp(buf, 1);
     }
     run_old_records();
     thread::finish(result)
@@ -151,7 +151,7 @@ pub fn unwound_through(routine: usize) {
 /// The type word of a guard record (machine/guard.S): `unwound_guard` stops at the newest one.
 const GUARD_TAG: usize = 0x0047_5541_5244;
 
-/// machine/guard.S (`liella_guard_begin`), before the body: `record` (the 4-word buffer in that
+/// machine/guard.S (`niji_guard_begin`), before the body: `record` (the 4-word buffer in that
 /// frame) is registered, so that an unwind leaving the frame, or a cancellation acting inside
 /// it, runs `undo(ctx)`.
 pub fn guard_begin(record: KResult<&[AtomicUsize]>, undo: usize, ctx: usize) {
@@ -161,12 +161,12 @@ pub fn guard_begin(record: KResult<&[AtomicUsize]>, undo: usize, ctx: usize) {
     }
 }
 
-/// machine/guard.S (`liella_guard_end`), after the body returned: the record is removed.
+/// machine/guard.S (`niji_guard_end`), after the body returned: the record is removed.
 pub fn guard_end(record: KResult<&[AtomicUsize]>) {
     pop_old(record, 0);
 }
 
-/// The personality routine of `liella_machine_guard`'s frame (`liella_guard_personality`; as
+/// The personality routine of `niji_machine_guard`'s frame (`niji_guard_personality`; as
 /// [`crate::sync::once_personality`]): in the cleanup phase it removes the newest guard record
 /// (and the records of the frames the unwind already left) and runs its undo routine; the
 /// unwind goes on. The search phase changes nothing.
@@ -199,7 +199,7 @@ fn unwound_guard() {
 
 fn call(f: usize, arg: usize) {
     if f != 0 {
-        let _ = ffi::liella_machine_call3(f, i64::from_ne_bytes(arg.to_ne_bytes()), 0, 0);
+        let _ = ffi::niji_machine_call3(f, i64::from_ne_bytes(arg.to_ne_bytes()), 0, 0);
     }
 }
 
@@ -256,7 +256,7 @@ pub fn cleanup_routine(frame: KResult<&[AtomicUsize]>) {
 /// calls; filled in with the internal signal's handler).
 pub fn test_cancel() {
     if let Ok(d) = thread::desc() {
-        if liella_rt::thread::cancel_due(d.cancel.load(Acquire)) {
+        if niji_rt::thread::cancel_due(d.cancel.load(Acquire)) {
             unwind(usize::MAX);
         }
     }
@@ -304,11 +304,11 @@ pub const SIG_INTERNAL: i32 = 32;
 extern "C" fn internal(_sig: i32, _info: usize, ctx: usize) {
     let Some(d) = thread::current() else { return };
     crate::setxid::serve(d);
-    if !liella_rt::thread::cancel_due(d.cancel.load(Acquire)) {
+    if !niji_rt::thread::cancel_due(d.cancel.load(Acquire)) {
         return;
     }
     let mut b = [0usize; 3];
-    ffi::liella_machine_cancel_bounds(&mut b);
+    ffi::niji_machine_cancel_bounds(&mut b);
     if let Some(pc) = tb::saved_pc(ctx) {
         let at = pc.load(Relaxed);
         if b[0] <= at && at < b[1] {
@@ -325,7 +325,7 @@ fn internal_addr() -> usize {
 /// Install the internal signal's handler (the products' startup): every signal blocked while
 /// it runs, restarting interrupted calls, on the alternate stack if one is set.
 pub fn install() {
-    use liella_kernel::uapi::{SigSet, SA_ONSTACK, SA_RESTART};
+    use niji_kernel::uapi::{SigSet, SA_ONSTACK, SA_RESTART};
     let _ = raw::install_action(SIG_INTERNAL, internal_addr(), SA_RESTART | SA_ONSTACK, SigSet(!0));
 }
 
@@ -334,17 +334,17 @@ pub fn install() {
 /// asynchronous cancellation acts at once (`pthread_cancel` is async-cancel-safe).
 pub fn request(tp: usize) -> KResult<()> {
     let d = thread::find(tp).ok_or(Errno::ESRCH)?;
-    if d.has(liella_rt::thread::DESC_EXITED) {
+    if d.has(niji_rt::thread::DESC_EXITED) {
         return Err(Errno::ESRCH);
     }
     let now = d.cancel.fetch_or(CANCEL_REQUESTED, AcqRel) | CANCEL_REQUESTED;
     if tp == tb::tp() {
-        if liella_rt::thread::cancel_due(now) && now & CANCEL_ASYNC != 0 {
+        if niji_rt::thread::cancel_due(now) && now & CANCEL_ASYNC != 0 {
             unwind(usize::MAX);
         }
         return Ok(());
     }
-    if liella_rt::thread::cancel_due(now) {
+    if niji_rt::thread::cancel_due(now) {
         if let Ok(tid) = thread::tid_of(tp) {
             let _ = CSys.tgkill(CSys.getpid(), tid, SIG_INTERNAL);
         }
@@ -387,7 +387,7 @@ pub fn set_type(kind: i32) -> KResult<i32> {
 /// also when it exits between the lookup and `tgkill`.
 pub fn kill(tp: usize, sig: i32) -> KResult<()> {
     if sig != 0 {
-        liella_legacy::signal_compat::check(sig)?;
+        niji_legacy::signal_compat::check(sig)?;
     }
     let exited = |e: Errno| if e == Errno::ESRCH && thread::find(tp).is_some() { Ok(()) } else { Err(e) };
     let tid = match thread::tid_of(tp) {
@@ -403,9 +403,9 @@ pub fn kill(tp: usize, sig: i32) -> KResult<()> {
 /// `pthread_sigqueue`: the signal with a value (`SI_QUEUE`) to one thread.
 pub fn sigqueue(tp: usize, sig: i32, value: u64) -> KResult<()> {
     if sig != 0 {
-        liella_legacy::signal_compat::check(sig)?;
+        niji_legacy::signal_compat::check(sig)?;
     }
     let tid = thread::tid_of(tp)?;
-    let info = liella_kernel::uapi::SigInfo::queued(sig, CSys.getpid(), CSys.getuid(), value);
+    let info = niji_kernel::uapi::SigInfo::queued(sig, CSys.getpid(), CSys.getuid(), value);
     CSys.tgsigqueueinfo(CSys.getpid(), tid, sig, &info)
 }

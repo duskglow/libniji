@@ -1,9 +1,9 @@
 //! `cargo xtask codemap [--check] [--in-place]`: regenerates the code map (`docs/codemap/README.md`,
 //! `docs/codemap/symbols.tsv`) from the tree. The two files are train-owned (D-X.66, as the decision views and
 //! `crates/math/KERNELS.md`, D-X.59): a story branch never commits them, the CI train regenerates them. Off the train
-//! the command writes `target/records-views/docs/codemap/` and leaves the tracked files alone; `LIELLA_TRAIN=1` or
+//! the command writes `target/records-views/docs/codemap/` and leaves the tracked files alone; `NIJI_TRAIN=1` or
 //! `--in-place` writes them in place. `--check` (run by `cargo xtask static`) writes nothing; off the train it prints
-//! one advisory line ("codemap: N files pending regeneration by the train"), under `LIELLA_TRAIN=1` it fails when
+//! one advisory line ("codemap: N files pending regeneration by the train"), under `NIJI_TRAIN=1` it fails when
 //! either file differs from what the tree gives ("out of date: run cargo xtask codemap --in-place"). Definitions it
 //! cannot resolve fail everywhere. `codemap-asm` is kept as an alias.
 //!
@@ -15,8 +15,8 @@
 //! * every `export! { asm "V"; ... }`: "defined at" is the global label (`.globl NAME` and `NAME:`) in
 //!   `csys/src/machine/*.S`, the first call the first `call`/`jmp`/`jcc` target after it. No label is an error.
 //!   Labels are read after substituting each product's object-like `#define`s (`preprocess`), so a label written as
-//!   a macro (`SQRTL:` with `#define SQRTL sqrtl` under `LIELLA_LIBM`) gives the name the product exports.
-//! * every `LIELLA_VFWD(NAME)` definition in `csys/src/adapter/*.c` (version empty; first call: the callee after `FWD(`).
+//!   a macro (`SQRTL:` with `#define SQRTL sqrtl` under `NIJI_LIBM`) gives the name the product exports.
+//! * every `NIJI_VFWD(NAME)` definition in `csys/src/adapter/*.c` (version empty; first call: the callee after `FWD(`).
 //! * every family row of `crates/boundary/src/posix/s10_math.tsv` (version `(math-gen)`; first call from the body).
 //!
 //! `README.md`: the header, the section table (one row per spec section `## N. Title`), the differential tests, the
@@ -145,12 +145,12 @@ fn rust_exports(text: &str) -> Vec<(String, String, usize, String)> {
 
 /// The `-D` sets `crates/boundary/build.rs` assembles `csys/src/machine/*.S` with, one per product: libc.so.6,
 /// libm.so.6, ld.so.
-const PRODUCT_DEFINES: [&[&str]; 3] = [&["LIELLA_EXPORT", "LIELLA_RUNTIME"], &["LIELLA_LIBM"], &["LIELLA_LD"]];
+const PRODUCT_DEFINES: [&[&str]; 3] = [&["NIJI_EXPORT", "NIJI_RUNTIME"], &["NIJI_LIBM"], &["NIJI_LD"]];
 
 /// One `.S` source with the object-like `#define NAME VALUE`s active under `defined` substituted into every other
 /// line, each directive line blanked (line numbers are kept). Only the `#define`s follow the conditionals
 /// (`#ifdef`, `#ifndef`, `#if`/`#elif` of `defined(X)` terms joined by `||`, `#else`, `#endif`; another `#if`
-/// expression counts as false); code lines are all kept, as before, so a label under `#ifdef LIELLA_LD` still counts.
+/// expression counts as false); code lines are all kept, as before, so a label under `#ifdef NIJI_LD` still counts.
 fn preprocess(text: &str, defined: &[&str]) -> String {
     fn holds(expr: &str, defined: &[&str], macros: &BTreeMap<String, String>) -> bool {
         expr.split("||").any(|t| {
@@ -274,14 +274,14 @@ fn symvers(text: &str) -> Vec<(String, String, String)> {
         .collect()
 }
 
-/// `(symbol, line, first call)` of each `LIELLA_VFWD(NAME)` definition in one C adapter source.
+/// `(symbol, line, first call)` of each `NIJI_VFWD(NAME)` definition in one C adapter source.
 fn c_forwarders(text: &str) -> Vec<(String, usize, String)> {
     let mut out = Vec::new();
     for (i, l) in text.lines().enumerate() {
         if l.trim_start().starts_with('#') {
             continue;
         }
-        let Some((_, r)) = l.split_once("LIELLA_VFWD(") else { continue };
+        let Some((_, r)) = l.split_once("NIJI_VFWD(") else { continue };
         let Some((name, after)) = r.split_once(')') else { continue };
         let call = after.split_once("FWD(").map(|(_, f)| {
             let b = f.as_bytes();
@@ -388,9 +388,9 @@ fn symbols(root: &Path, errors: &mut Vec<String>) -> Result<String, String> {
             errors.push(format!("{file}: .symver {target}, {alias}: nothing defines {alias}"));
         }
     }
-    // Exported names that only assembly defines (a global label without a `liella_` prefix and no row above).
+    // Exported names that only assembly defines (a global label without a `niji_` prefix and no row above).
     for (name, (f, l, t, g)) in &labels {
-        if *g && !name.starts_with("liella_") && !named.contains(name) {
+        if *g && !name.starts_with("niji_") && !named.contains(name) {
             rows.insert(format!("{name}\t\t{f}:{l}\t{t}"));
         }
     }
@@ -442,7 +442,7 @@ fn names(root: &Path, dir: &str, ext: &str, prefix: &str, full: bool) -> Vec<Str
         .collect()
 }
 
-/// `boundary::x` / `core::x` modules a boundary source names (`crate::x`, `crate::{x, y}`, `liella_core::x`).
+/// `boundary::x` / `core::x` modules a boundary source names (`crate::x`, `crate::{x, y}`, `niji_core::x`).
 fn modules(text: &str, out: &mut BTreeSet<String>) {
     let mut add = |krate: &str, rest: &str| {
         let m: String = rest.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
@@ -464,7 +464,7 @@ fn modules(text: &str, out: &mut BTreeSet<String>) {
             add("boundary", rest);
         }
     }
-    for (k, _) in text.match_indices("liella_") {
+    for (k, _) in text.match_indices("niji_") {
         if k > 0 && is_ident(text.as_bytes()[k - 1]) {
             continue;
         }
@@ -605,9 +605,9 @@ pub fn run(root: &Path, check: bool, in_place: bool) -> Result<(), String> {
     run_on(root, check, in_place, on_train())
 }
 
-/// The CI train's gate (`LIELLA_TRAIN=1`), where a stale code map is fatal (D-X.66).
+/// The CI train's gate (`NIJI_TRAIN=1`), where a stale code map is fatal (D-X.66).
 fn on_train() -> bool {
-    std::env::var("LIELLA_TRAIN").is_ok_and(|v| v == "1")
+    std::env::var("NIJI_TRAIN").is_ok_and(|v| v == "1")
 }
 
 /// [`run`] with the train flag given. The code map is train-owned (D-X.66): `--check` off the train prints one
@@ -638,7 +638,7 @@ fn run_on(root: &Path, check: bool, in_place: bool, train: bool) -> Result<(), S
         }
     }
     if !in_place {
-        println!("codemap: docs/codemap is train-owned and untouched ({} stale in the tree); read {}/docs/codemap (in place: LIELLA_TRAIN=1 or --in-place)", stale.len(), crate::records::OUT_OF_TREE);
+        println!("codemap: docs/codemap is train-owned and untouched ({} stale in the tree); read {}/docs/codemap (in place: NIJI_TRAIN=1 or --in-place)", stale.len(), crate::records::OUT_OF_TREE);
     }
     Ok(())
 }
@@ -651,7 +651,7 @@ mod tests {
     const RS: &str = "export! { asm \"GLIBC_2.2.5\";\npub extern \"C\" fn asm_fn(x: usize) -> usize {\n    x\n}}\n\n\
                       export! { \"GLIBC_2.2.5\";\n/// Doc.\npub extern \"C\" fn rust_fn() {\n    ret::int(core::bytes::len::<u8>(p))\n}}\n\n\
                       export! { local \"hidden\";\npub extern \"C\" fn hidden_fn() {}}\n";
-    const S: &str = "\t.globl asm_fn\nasm_fn:\n\tmovq %rdi, %rax\n\tjmp liella_machine_x\n\t.size asm_fn, .-asm_fn\nnot_global:\n\tret\n\t.globl only_asm\nonly_asm:\n\tcall liella_y\n\t.symver rust_fn, old_name@GLIBC_2.0\n";
+    const S: &str = "\t.globl asm_fn\nasm_fn:\n\tmovq %rdi, %rax\n\tjmp niji_machine_x\n\t.size asm_fn, .-asm_fn\nnot_global:\n\tret\n\t.globl only_asm\nonly_asm:\n\tcall niji_y\n\t.symver rust_fn, old_name@GLIBC_2.0\n";
     const SPEC_MD: &str = "## 0. How to read\n## 1. Startup\n";
     const OLD_README: &str = "# Code map\n\nold generated text\n\n## Hand notes\n\nSee crates/boundary/src/posix/s01_x.rs.\n";
 
@@ -670,19 +670,19 @@ mod tests {
         fixture(tag, &[("crates/boundary/src/posix/s01_x.rs", rs), ("csys/src/machine/x.S", S), (SPEC, SPEC_MD), (README, OLD_README), (HELPERS[0], helper), (HELPERS[1], helper), (HELPERS[2], helper)])
     }
 
-    // A macro label (`SQRTL:` with `#define SQRTL sqrtl` under LIELLA_LIBM) gives the exported name, never the
-    // macro (#4293); the libc branch's `liella_` names stay rowless. no spec clause: code map tooling.
-    const MACRO_S: &str = "#if defined(LIELLA_LIBM)\n#define SQRTL sqrtl\n#define SLOW liella_slow_sqrtl\n#else\n#define SQRTL liella_fwd_sqrtl\n#define SLOW liella_fwd_slow_sqrtl\n#endif\n\t.globl SQRTL\nSQRTL:\n\tjmp SLOW\n\t.size SQRTL, .-SQRTL\n";
+    // A macro label (`SQRTL:` with `#define SQRTL sqrtl` under NIJI_LIBM) gives the exported name, never the
+    // macro (#4293); the libc branch's `niji_` names stay rowless. no spec clause: code map tooling.
+    const MACRO_S: &str = "#if defined(NIJI_LIBM)\n#define SQRTL sqrtl\n#define SLOW niji_slow_sqrtl\n#else\n#define SQRTL niji_fwd_sqrtl\n#define SLOW niji_fwd_slow_sqrtl\n#endif\n\t.globl SQRTL\nSQRTL:\n\tjmp SLOW\n\t.size SQRTL, .-SQRTL\n";
 
     #[test]
     fn macro_labels_give_the_exported_name() {
         let d = base("macro", RS);
         fs::write(d.join("csys/src/machine/m.S"), MACRO_S).unwrap();
         let (tsv, _) = generate(&d).unwrap();
-        assert!(tsv.contains("\nsqrtl\t\tcsys/src/machine/m.S:9\tliella_slow_sqrtl\n"), "{tsv}");
-        assert!(!tsv.contains("SQRTL") && !tsv.contains("SLOW") && !tsv.contains("liella_fwd_sqrtl"), "{tsv}");
-        let libc = preprocess(MACRO_S, &["LIELLA_EXPORT"]);
-        assert_eq!(libc.lines().nth(8), Some("liella_fwd_sqrtl:"), "else branch outside libm; line numbers kept");
+        assert!(tsv.contains("\nsqrtl\t\tcsys/src/machine/m.S:9\tniji_slow_sqrtl\n"), "{tsv}");
+        assert!(!tsv.contains("SQRTL") && !tsv.contains("SLOW") && !tsv.contains("niji_fwd_sqrtl"), "{tsv}");
+        let libc = preprocess(MACRO_S, &["NIJI_EXPORT"]);
+        assert_eq!(libc.lines().nth(8), Some("niji_fwd_sqrtl:"), "else branch outside libm; line numbers kept");
         assert_eq!(preprocess("#ifndef A\n#define X y\n#elif defined(B)\n#define X z\n#endif\nX:\n", &["A", "B"]).lines().nth(5), Some("z:"));
         assert_eq!(preprocess("#ifdef A\n#define X y\n#endif\nX:\n", &[]).lines().nth(3), Some("X:"), "inactive define not applied");
     }
@@ -692,7 +692,7 @@ mod tests {
         let d = base("rows", RS);
         let (tsv, md) = generate(&d).unwrap();
         let rows: Vec<&str> = tsv.lines().collect();
-        assert_eq!(rows, ["symbol\tversion\tdefined at\tfirst implementation call", "asm_fn\tGLIBC_2.2.5\tcsys/src/machine/x.S:2\tliella_machine_x", "old_name\tGLIBC_2.0\tcrates/boundary/src/posix/s01_x.rs:8\tret::int", "only_asm\t\tcsys/src/machine/x.S:9\tliella_y", "rust_fn\tGLIBC_2.2.5\tcrates/boundary/src/posix/s01_x.rs:8\tret::int"]);
+        assert_eq!(rows, ["symbol\tversion\tdefined at\tfirst implementation call", "asm_fn\tGLIBC_2.2.5\tcsys/src/machine/x.S:2\tniji_machine_x", "old_name\tGLIBC_2.0\tcrates/boundary/src/posix/s01_x.rs:8\tret::int", "only_asm\t\tcsys/src/machine/x.S:9\tniji_y", "rust_fn\tGLIBC_2.2.5\tcrates/boundary/src/posix/s01_x.rs:8\tret::int"]);
         assert!(md.contains("| 1 | Startup | crates/boundary/src/posix/s01_x.rs |"), "{md}");
         assert!(md.ends_with("## Hand notes\n\nSee crates/boundary/src/posix/s01_x.rs.\n"), "hand-written section kept: {md}");
         assert!(!md.contains("old generated text"));
@@ -724,7 +724,7 @@ mod tests {
 
     /// D-X.66 (no spec clause): the code map is train-owned. Off the train a stale copy is advisory for `--check` and
     /// generation writes `target/records-views/docs/codemap/` with the tracked files byte-identical; on the train
-    /// (`LIELLA_TRAIN=1`) the same stale copy is fatal, and clean after an in-place regeneration.
+    /// (`NIJI_TRAIN=1`) the same stale copy is fatal, and clean after an in-place regeneration.
     #[test]
     fn train_owned_check_and_out_of_tree_generation() {
         let d = base("train", RS);
@@ -762,7 +762,7 @@ mod tests {
         assert_eq!(first_call("mret::ret(math::fused::add::<{S}>({x}))").as_deref(), Some("mret::ret"));
         assert_eq!(first_call("// a::b(\n\"c::d(\" Some(x) e::f::<u8>()").as_deref(), Some("e::f"));
         assert_eq!(first_call("x.len() + T::C"), None);
-        let c = c_forwarders("#define LIELLA_VFWD(name) name\nint LIELLA_VFWD(printf)(const char *fmt, ...) FWD(fmt, liella_vf(NULL, fmt, &ap))\n");
-        assert_eq!(c, [("printf".to_string(), 2, "liella_vf".to_string())]);
+        let c = c_forwarders("#define NIJI_VFWD(name) name\nint NIJI_VFWD(printf)(const char *fmt, ...) FWD(fmt, niji_vf(NULL, fmt, &ap))\n");
+        assert_eq!(c, [("printf".to_string(), 2, "niji_vf".to_string())]);
     }
 }

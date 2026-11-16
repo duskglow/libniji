@@ -10,7 +10,7 @@
 //! * a file that does not exist, an unreadable file and a pattern without matches are skipped
 //!   silently; a bare `include` is a directory line named `include`.
 //!
-//! **Liella rule:** an include that would re-enter a file already being read (a cycle, found by
+//! **libniji rule:** an include that would re-enter a file already being read (a cycle, found by
 //! file identity) or nest deeper than [`DEPTH_MAX`] is refused with a message naming the file and
 //! line, and the rest of the configuration is read as usual (the exit status does not change).
 

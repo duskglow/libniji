@@ -1,8 +1,8 @@
-# TIMING-SWEEP-1105: Liella vs glibc timing on Ivy Bridge and N100 (non-libm groups)
+# TIMING-SWEEP-1105: libniji vs glibc timing on Ivy Bridge and N100 (non-libm groups)
 
 Hosts: the Ivy Bridge timing host = Ivy Bridge E3-1220L v2 (no AVX2); the N100 timing host = Intel N100 (Alder Lake-N E-cores, AVX2). The N100 verdicts are for that core type only.
 Source: out/counters.tsv and out/rounds.tsv of one run per host (same code, same CPUs; instruction ratios from the same run).
-Tool: handoff/timing-sweep-1105-analyze.py. Time ratio = median of per-round Liella/glibc ratios; spread = (max-min)/median of rounds.
+Tool: handoff/timing-sweep-1105-analyze.py. Time ratio = median of per-round libniji/glibc ratios; spread = (max-min)/median of rounds.
 Verdicts: faster < 0.95, parity 0.95..1.05, slower > 1.05. REOPEN = instr <= 1.05 and time > 1.05. CLOSE = instr > 1.05 and time <= 1.05.
 Benches were not rerun. Full per-row table: results/timing-sweep-1105-table.md (414 rows).
 

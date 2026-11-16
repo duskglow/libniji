@@ -1,4 +1,4 @@
-/* Spec §2.7: backtrace, backtrace_symbols and backtrace_symbols_fd in a program Liella started
+/* Spec §2.7: backtrace, backtrace_symbols and backtrace_symbols_fd in a program libniji started
  * (statically linked, not position-independent: the load bias is 0). Self-checking: each clause
  * ends with `end <clause>` on standard error, each failed check prints `FAIL <clause>: line N:
  * <check>`; the clause tests in crates/core/tests/s02_diagnostics_clauses.rs read these lines.
@@ -27,7 +27,7 @@ static void end(void) { fprintf(stderr, "end %s\n", current); }
 
 #define CHECK(cond) do { if (!(cond)) { failures++; fprintf(stderr, "FAIL %s: line %d: %s\n", current, __LINE__, #cond); } } while (0)
 
-#define PLACED(n) __attribute__((noinline, noclone, section(".text.sorted.liella_bt_" #n)))
+#define PLACED(n) __attribute__((noinline, noclone, section(".text.sorted.niji_bt_" #n)))
 
 extern char __executable_start[], etext[];
 
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
     end();
 
     begin("s2_7_f_1");
-    /* D-2.7: Liella's own unwinder, so the first call needs no loading and is async-signal-safe:
+    /* D-2.7: libniji's own unwinder, so the first call needs no loading and is async-signal-safe:
      * made first from a signal handler, with no memory to map, it traces through the signal
      * frame to the interrupted functions. */
     CHECK(first_bits >= 0 && (first_bits & FIRST_IN_HANDLER) != 0);

@@ -11,14 +11,14 @@
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::OnceLock;
 
-use liella_abi::layout::{regex_t, regmatch_t, sigset_t};
-use liella_boundary::posix::s14_search as rx;
-use liella_boundary::posix::s20_signals as sig;
-use liella_boundary::posix::s23_time as tm;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Itimerval, SigSet, Timeval};
-use liella_legacy::signal_compat::CSigaction;
+use niji_abi::layout::{regex_t, regmatch_t, sigset_t};
+use niji_boundary::posix::s14_search as rx;
+use niji_boundary::posix::s20_signals as sig;
+use niji_boundary::posix::s23_time as tm;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Itimerval, SigSet, Timeval};
+use niji_legacy::signal_compat::CSigaction;
 
 #[path = "../../core/tests/support/single_thread.rs"]
 mod single_thread;
@@ -177,12 +177,12 @@ fn body() -> bool {
 fn regexec_reentered_from_a_signal_handler_keeps_both_answers() {
     // Clauses: no spec clause (D-14.12: the busy word; plan row RX-T2-0).
     const NAME: &str = "regexec_reentered_from_a_signal_handler_keeps_both_answers";
-    if std::env::var("LIELLA_REGEX_REENTRY").is_ok_and(|v| v == NAME) {
+    if std::env::var("NIJI_REGEX_REENTRY").is_ok_and(|v| v == NAME) {
         CSys.exit_group(if single_threaded(body) { 0 } else { 1 });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([NAME, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_REGEX_REENTRY", NAME)
+        .env("NIJI_REGEX_REENTRY", NAME)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

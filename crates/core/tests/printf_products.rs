@@ -1,5 +1,5 @@
 //! printf end to end (spec §12.6; D-12.4, D-12.5, D-12.12): `tests/oracle/printf_diff.c` built
-//! against the host C library and statically against Liella's products, run with the same
+//! against the host C library and statically against libniji's products, run with the same
 //! `LOCPATH`; the outputs must be identical line by line, except the recorded differences in
 //! [`KNOWN`]. Needs the products (`cargo xtask so`), a C compiler and `localedef`; without the
 //! latter two the test says so and passes.
@@ -25,12 +25,12 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/printf_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -50,7 +50,7 @@ fn printf_behaviour_equals_the_reference() {
     // s12_6_g_3_2, s12_6_g_3_3, s12_6_g_4, s12_6_g_5, s12_6_f_0, s12_6_f_1, s12_6_f_2, s12_6_f_3, s12_6_f_4
     // (D-12.4, D-12.5, D-12.12).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let locales = r.join("target/test-locales");
     std::fs::create_dir_all(&locales).unwrap();
     if !["en_US.UTF-8", "de_DE.UTF-8", "ps_AF.UTF-8"].iter().all(|n| ensure_locale(&locales, n)) {
@@ -59,7 +59,7 @@ fn printf_behaviour_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("printf_diff_host"), dir.join("printf_diff_liella"));
+    let (host, ours) = (dir.join("printf_diff_host"), dir.join("printf_diff_niji"));
     // Without a C compiler the test cannot run; with one, the program must build.
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
@@ -82,14 +82,14 @@ fn printf_behaviour_equals_the_reference() {
         if let Some(i) = known {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
             }
             continue;
         }
         if w != g {
             diffs += 1;
             if diffs <= 40 {
-                eprintln!("line {} ({locale}):\n  glibc  {}\n  liella {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
+                eprintln!("line {} ({locale}):\n  glibc  {}\n  niji {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
             }
         }
     }
@@ -107,8 +107,8 @@ fn printf_behaviour_equals_the_reference() {
 #[test]
 fn printf_position_over_nl_argmax_is_einval() {
     // Clauses: s12_6_c_6 (D-12.18).
-    use liella::error::Errno;
-    use liella::printf::{self, Plain, NL_ARGMAX};
+    use niji::error::Errno;
+    use niji::printf::{self, Plain, NL_ARGMAX};
     let top = format!("%{NL_ARGMAX}$d");
     assert!(printf::parse(top.as_bytes(), &mut Plain).is_ok());
     for f in [

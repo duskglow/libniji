@@ -91,19 +91,19 @@ int main(void) {
 fn setlocale_posix_again_costs_what_c_costs() {
     // Trace: s7_2_c_4 (a category already named so is not looked up again) and s7_1_c_p1 ("POSIX"
     // is the built-in "C"); the bound is a cost property (SETLOCALE-POSIX-ATTR).
-    let products = std::env::var_os("LIELLA_PRODUCTS").map_or_else(|| root().join("target/liella"), PathBuf::from);
+    let products = std::env::var_os("NIJI_PRODUCTS").map_or_else(|| root().join("target/niji"), PathBuf::from);
     assert!(products.join("libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let dir = root().join("target/test-scratch/setlocale_posix_repeat").join(format!("{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("p.c"), PROGRAM.replace("CALLS", &CALLS.to_string())).unwrap();
-    let out = Command::new(root().join("scripts/liella-cc"))
-        .env("LIELLA_PRODUCTS", &products)
-        .env_remove("LIELLA_CC_EXTRA")
+    let out = Command::new(root().join("scripts/niji-cc"))
+        .env("NIJI_PRODUCTS", &products)
+        .env_remove("NIJI_CC_EXTRA")
         .current_dir(&dir)
         .args(["-O1", "-o", "p", "p.c"])
         .output()
         .unwrap();
-    assert!(out.status.success(), "liella-cc failed: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success(), "niji-cc failed: {}", String::from_utf8_lossy(&out.stderr));
     let out = Command::new(dir.join("p")).env_clear().output().unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stdout));
     let text = String::from_utf8_lossy(&out.stdout).trim().to_string();

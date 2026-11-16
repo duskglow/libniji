@@ -1,5 +1,5 @@
 //! getopt end to end (spec §1.6, §1.6a; D-1.6): `tests/oracle/getopt_diff.c` built
-//! against the host C library and statically against Liella's products, run with the same
+//! against the host C library and statically against libniji's products, run with the same
 //! `LOCPATH`; the outputs must be identical line by line, except the recorded differences in
 //! [`KNOWN`]. Needs the products (`cargo xtask so`), a C compiler and `localedef`; without the
 //! latter two the test says so and passes.
@@ -25,12 +25,12 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/getopt_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -47,7 +47,7 @@ fn getopt_equals_the_reference() {
     // Clauses: s1_6_c_0, s1_6_i_1, s1_6_i_2, s1_6_i_3, s1_6_g_1, s1_6_g_2, s1_6_g_3, s1_6_g_4, s1_6_g_5,
     // s1_6_f_1, s1_6_f_2, s1_6a_c_0 (D-1.6).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let locales = r.join("target/test-locales");
     std::fs::create_dir_all(&locales).unwrap();
     if !["en_US.UTF-8", "de_DE.UTF-8"].iter().all(|n| ensure_locale(&locales, n)) {
@@ -56,7 +56,7 @@ fn getopt_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("getopt_diff_host"), dir.join("getopt_diff_liella"));
+    let (host, ours) = (dir.join("getopt_diff_host"), dir.join("getopt_diff_niji"));
     // Without a C compiler the test cannot run; with one, the program must build.
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
@@ -79,14 +79,14 @@ fn getopt_equals_the_reference() {
         if let Some(i) = known {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
             }
             continue;
         }
         if w != g {
             diffs += 1;
             if diffs <= 40 {
-                eprintln!("line {} ({locale}):\n  glibc  {}\n  liella {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
+                eprintln!("line {} ({locale}):\n  glibc  {}\n  niji {}", k + 1, &w[..w.len().min(400)], &g[..g.len().min(400)]);
             }
         }
     }

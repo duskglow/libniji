@@ -1,5 +1,5 @@
 /* Error text and diagnostics end to end (spec §2.2, §2.3; D-2.2, D-2.3): built against the
- * host C library and against Liella's products, the outputs must match line for line
+ * host C library and against libniji's products, the outputs must match line for line
  * (diag_products.rs). Standard error is captured in a file and shown with escapes; the
  * functions that exit run in child processes. */
 #define _GNU_SOURCE

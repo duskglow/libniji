@@ -2,7 +2,7 @@
 //! release packaging (issue #3: GitHub does not allow `~` in asset names and publishes it as `.`, so a
 //! SHA256SUMS naming the `~` file failed `sha256sum -c` on the downloads).
 //!
-//! The test builds a small .deb whose version has `~` (like `liella6`'s `0.0~snapshot...`), stages it with
+//! The test builds a small .deb whose version has `~` (like `niji6`'s `0.0~snapshot...`), stages it with
 //! a second file whose version has none, and checks: no staged name has `~`; SHA256SUMS names exactly the
 //! staged files and `sha256sum -c` passes in the staging directory; the version inside the staged .deb
 //! still has `~`; MANIFEST maps the staged name to the package and the Debian version and is no asset;

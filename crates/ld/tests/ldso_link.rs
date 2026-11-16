@@ -1,4 +1,4 @@
-//! The interpreter's link invariant (L14-1, `liella_ld::link`) over objects this test links with the
+//! The interpreter's link invariant (L14-1, `niji_ld::link`) over objects this test links with the
 //! system compiler: a clean shared object (RELATIVE as RELA, and packed as RELR), and one object for
 //! each violation: an undefined symbol (also one a relocation names past the GNU hash count), a `DT_NEEDED`, a non-relative relocation, a text relocation.
 //! Then the built `ld.so` product itself (`cargo xtask so`): the check holds, and it runs as a
@@ -15,17 +15,17 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native, RelocKind};
-use liella_ld::elf::{dt, Elf};
-use liella_ld::link::{check, LinkReport};
-use liella_ld::program::{self, Action};
+use niji_ld::arch::{Arch, Native, RelocKind};
+use niji_ld::elf::{dt, Elf};
+use niji_ld::link::{check, LinkReport};
+use niji_ld::program::{self, Action};
 
 fn cc_ok() -> bool {
     Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success())
 }
 
 fn dir() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("liella-ldso-link-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("niji-ldso-link-{}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
     d
 }
@@ -71,10 +71,10 @@ fn ldso_link_undefined_symbol_refused() {
         eprintln!("SKIP: no cc");
         return;
     }
-    let r_bytes = link(&dir(), "undef", "extern int liella_missing(void);\nint get(void) { return liella_missing(); }\n", &[]);
+    let r_bytes = link(&dir(), "undef", "extern int niji_missing(void);\nint get(void) { return niji_missing(); }\n", &[]);
     let r = report(&r_bytes);
     assert_eq!(r.undefined, 1, "one undefined symbol: {r:?}");
-    assert_eq!(r.first_undefined, Some(&b"liella_missing"[..]));
+    assert_eq!(r.first_undefined, Some(&b"niji_missing"[..]));
     assert!(!r.holds());
 }
 
@@ -88,7 +88,7 @@ fn ldso_link_relocation_symbol_past_hash_count() {
         eprintln!("SKIP: no cc");
         return;
     }
-    let src = "extern int liella_missing(void);\n__attribute__((visibility(\"hidden\"))) int get(void) { return liella_missing(); }\n";
+    let src = "extern int niji_missing(void);\n__attribute__((visibility(\"hidden\"))) int get(void) { return niji_missing(); }\n";
     let mut bytes = link(&dir(), "unhashed", src, &["-Wl,--hash-style=gnu"]);
     let at = {
         let elf = Elf::parse::<Native>(&bytes).unwrap();
@@ -112,7 +112,7 @@ fn ldso_link_needed_refused() {
         return;
     }
     let d = dir();
-    link(&d, "dep", "int dep_value;\n", &["-Wl,-soname,libliella-dep.so"]);
+    link(&d, "dep", "int dep_value;\n", &["-Wl,-soname,libniji-dep.so"]);
     let bytes = link(&d, "needs", CLEAN, &["-Wl,--no-as-needed", d.join("dep.so").to_str().unwrap()]);
     let r = report(&bytes);
     assert_eq!(r.needed, 1, "one DT_NEEDED: {r:?}");
@@ -168,7 +168,7 @@ fn ldso_program_arguments() {
 fn product() -> Option<PathBuf> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let target = std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from);
-    let p = target.join("liella").join(Native::INTERP);
+    let p = target.join("niji").join(Native::INTERP);
     if p.exists() {
         Some(p)
     } else {
@@ -206,7 +206,7 @@ fn ldso_product_runs_at_random_bases() {
         let o = cmd.arg("--version").output().unwrap();
         assert_eq!(o.status.code(), Some(0), "start {i}: {o:?}");
         let out = String::from_utf8_lossy(&o.stdout);
-        assert!(out.starts_with("ld.so (Liella) ") && out.contains(Native::INTERP), "start {i}: {out}");
+        assert!(out.starts_with("ld.so (libniji) ") && out.contains(Native::INTERP), "start {i}: {out}");
     }
     let o = Command::new(&p).arg("--help").output().unwrap();
     assert_eq!(o.status.code(), Some(0));

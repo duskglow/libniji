@@ -9,23 +9,23 @@ State: done. `tools/probe/probe` (python3 stdlib) is installed on Zen 1 as `~/bi
 runs it from the Windows host. Self-test passes on Zen 1 (7 checks). Not part of `cargo xtask test`.
 
 ### For agents (copy 3-4 lines into thread_common)
-    tools/probe/remote.sh my_probe.c [--liella '~/w/b'] [--args a b] [--stdin F] [--env K=V] [--timeout S]
-      -> compiles once, runs vs glibc and vs Liella (static, conformance/run.sh link line), prints SAME/DIFFERENT
+    tools/probe/remote.sh my_probe.c [--niji '~/w/b'] [--args a b] [--stdin F] [--env K=V] [--timeout S]
+      -> compiles once, runs vs glibc and vs libniji (static, conformance/run.sh link line), prints SAME/DIFFERENT
          with exit/signal/stdout/stderr and cache HIT/miss. Exit 0 SAME, 1 DIFFERENT, 2 error. Repeats are free.
     tools/probe/remote.sh --find <words>    search past probes (title = first comment line of the source, functions called)
     tools/probe/remote.sh --show <hash>     a stored result;  --record <hash>  ready-to-paste spec/behaviour block (glibc side)
-    Put `--args` last. Default tree is ~/w/nightly; pass your own role tree (`--liella '~/w/b'`; quote the ~).
+    Put `--args` last. Default tree is ~/w/nightly; pass your own role tree (`--niji '~/w/b'`; quote the ~).
 
 ### How it works (decisions, DECIDE OR ASK)
 - Cache `~/probe-cache/<key>/` (machine state, not committed). key = sha256(source, flags, args, stdin, env, timeout).
-  `glibc.json` keyed by that alone; `liella-<products hash>.json` additionally by sha256 of liella-crt1.o, libc.a,
-  libm.a, libpthread.a, so a new main reruns only the Liella side; compiled binaries cached by (source, flags).
-  `index.tsv`: hash, date, title, functions, verdict, Liella commit (`.published`, else git HEAD, else `products-<hash8>`).
+  `glibc.json` keyed by that alone; `niji-<products hash>.json` additionally by sha256 of niji-crt1.o, libc.a,
+  libm.a, libpthread.a, so a new main reruns only the libniji side; compiled binaries cached by (source, flags).
+  `index.tsv`: hash, date, title, functions, verdict, libniji commit (`.published`, else git HEAD, else `products-<hash8>`).
 - Flags (both sides): `-std=gnu17 -O1 -fno-builtin -fstack-protector-strong` (+ `--cflags`). glibc: dynamic, `-lm -lpthread`.
-  Liella: the run.sh line (`-static -nostdlib -I include crt1 probe.c libc.a -lgcc`); only if that does not link, it retries
+  libniji: the run.sh line (`-static -nostdlib -I include crt1 probe.c libc.a -lgcc`); only if that does not link, it retries
   with libm.a and libpthread.a. A compile/link failure is a result (status compile-error/link-error, text in stderr).
 - Products are built with `cargo xtask so` only if missing or any crates/csys/include/Cargo file is newer than libc.a.
-  ~/w/nightly has NO target/liella yet: the first probe against it runs `cargo xtask so` (slow, once).
+  ~/w/nightly has NO target/niji yet: the first probe against it runs `cargo xtask so` (slow, once).
 - Safety: refuses root; cache misses re-exec under `~/bin/shared` (hits skip the queue); each run has a timeout (default
   20 s, kills the process group), RLIMIT_AS 2 GiB (`--mem`), no core, 64 MiB max file; cwd and HOME/TMPDIR are a scratch dir
   `~/probe-tmp/<key16>/wd` (same path both sides, so printed paths compare equal), removed afterwards; env is only
@@ -34,7 +34,7 @@ runs it from the Windows host. Self-test passes on Zen 1 (7 checks). Not part of
 - Clean room: glibc is only executed as a black box; no source, disassembly or symbols are fetched or shown.
 
 ### Open / not done
-- A `--liella` path with `~` must be quoted so Zen 1, not the Windows shell, expands it (remote.sh passes `~/..` through).
+- A `--niji` path with `~` must be quoted so Zen 1, not the Windows shell, expands it (remote.sh passes `~/..` through).
 - Programs that print the stack/ASLR values differ run to run; use `--no-cache` sparingly (it also reruns glibc).
 - Next step: coordinator copies the usage lines into thread_common; optionally pre-build ~/w/nightly products.
 Full report: this file; record: liella-historic:handoff/reports/PR-8.json.

@@ -6,7 +6,7 @@
 //! |---|---|
 //! | `records-gen [--check] [--in-place]` | render every view under `target/records-views/<view path>` (D-X.59: the tracked
 //! views are train-owned, so a branch reads them there and has nothing to restore); in place only on the train
-//! (`LIELLA_TRAIN=1`) or with `--in-place`; `--check` names each stale tracked view (`<file> is stale: run ...`) |
+//! (`NIJI_TRAIN=1`) or with `--in-place`; `--check` names each stale tracked view (`<file> is stale: run ...`) |
 //! | `records check` | the validation (`check.rs`); also the static check `records` |
 //! | `records fmt [--check]` | rewrite records in canonical form (keys in schema order) |
 //! | `records new <kind> <id> [--section S] [--series S] [--story S]` | write a canonical skeleton |
@@ -244,14 +244,14 @@ fn stale(root: &Path) -> Result<(Rendered, Vec<String>), String> {
 }
 
 /// Whether a train-owned generator (`records-gen`, `kernel-index`) writes the tracked files in place: on the train
-/// (`train` is `LIELLA_TRAIN`, `1` there) or with `--in-place`. Anywhere else it writes under [`OUT_OF_TREE`] (D-X.59).
+/// (`train` is `NIJI_TRAIN`, `1` there) or with `--in-place`. Anywhere else it writes under [`OUT_OF_TREE`] (D-X.59).
 pub fn in_place(args: &[String], train: Option<&str>) -> bool {
     train == Some("1") || args.iter().any(|a| a == "--in-place")
 }
 
-/// [`in_place`] with this process's `LIELLA_TRAIN`.
+/// [`in_place`] with this process's `NIJI_TRAIN`.
 pub fn in_place_env(args: &[String]) -> bool {
-    in_place(args, std::env::var("LIELLA_TRAIN").ok().as_deref())
+    in_place(args, std::env::var("NIJI_TRAIN").ok().as_deref())
 }
 
 /// The directory a train-owned generator writes its tracked-relative paths under: the root in place, else
@@ -287,7 +287,7 @@ pub fn gen_cmd(root: &Path, check_only: bool, in_place: bool) -> Result<(), Stri
         println!("records-gen: {} views, {written} rewritten in place", rendered.len());
     } else {
         println!(
-            "records-gen: {} views ({} stale in the tree), {written} rewritten under {OUT_OF_TREE}/; read them there. The tracked views are train-owned and untouched (in place: LIELLA_TRAIN=1 or --in-place)",
+            "records-gen: {} views ({} stale in the tree), {written} rewritten under {OUT_OF_TREE}/; read them there. The tracked views are train-owned and untouched (in place: NIJI_TRAIN=1 or --in-place)",
             rendered.len(),
             stale.len()
         );
@@ -295,11 +295,11 @@ pub fn gen_cmd(root: &Path, check_only: bool, in_place: bool) -> Result<(), Stri
     Ok(())
 }
 
-/// The static check `records-gen`: stale views are fatal on the train (`LIELLA_TRAIN=1`, which regenerated them just
+/// The static check `records-gen`: stale views are fatal on the train (`NIJI_TRAIN=1`, which regenerated them just
 /// before: a stale view there is a hand edit or a nondeterministic generator); elsewhere one advisory line, because a
 /// story branch does not commit views.
 pub fn fresh_check(root: &Path) -> Result<(), String> {
-    if std::env::var("LIELLA_TRAIN").is_ok_and(|v| v == "1") {
+    if std::env::var("NIJI_TRAIN").is_ok_and(|v| v == "1") {
         return gen_cmd(root, true, true);
     }
     let (_, stale) = stale(root)?;
@@ -509,7 +509,7 @@ mod tests {
         assert!(gen_cmd(&root, true, false).is_err(), "--check still sees the stale tracked views");
     }
 
-    /// D-X.59 (no spec clause): `LIELLA_TRAIN=1` or `--in-place` writes in place; nothing else does.
+    /// D-X.59 (no spec clause): `NIJI_TRAIN=1` or `--in-place` writes in place; nothing else does.
     #[test]
     fn in_place_only_on_the_train_or_when_asked() {
         let none: Vec<String> = vec![];

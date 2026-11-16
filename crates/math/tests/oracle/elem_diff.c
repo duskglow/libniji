@@ -3,7 +3,7 @@
  * domain edges, the overflow and underflow thresholds, huge trigonometric arguments, and the
  * C Annex F tables of pow and atan2, in every rounding direction. Each line prints the result's
  * bits, the raised flags and errno. Built against the host C library and statically against
- * Liella's products, the outputs must agree (elem_products.rs) apart from recorded
+ * libniji's products, the outputs must agree (elem_products.rs) apart from recorded
  * differences. Interior accuracy is measured separately (`cargo xtask mathcmp`). */
 #define _GNU_SOURCE
 #include <errno.h>

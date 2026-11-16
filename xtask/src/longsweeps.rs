@@ -9,7 +9,7 @@
 //! - `long` (10^7 operands or so, minutes in release, and every row measured under [`NIGHTLY_SECS`], ruling
 //!   #5062: the static check keeps a measured row in the group its time allows) and `count` (Ziv retry counts that also assert the
 //!   retries end; about 3 s of tests after a release build of about 4 min on 26 threads, ruling #4751):
-//!   `cargo xtask test` runs both as its `long-sweeps` step when `LIELLA_NO_VERDICT_CACHE=1`, the nightly and
+//!   `cargo xtask test` runs both as its `long-sweeps` step when `NIJI_NO_VERDICT_CACHE=1`, the nightly and
 //!   release runs that already run every accuracy shard (D-10.57). The ordinary gate leaves them out.
 //! - `exhaustive` (every `float` operand, 10^8 to 10^9 operands, or 2^32 to 2^34 calls each: minutes to hours):
 //!   run only by `cargo xtask long-sweeps --group exhaustive`, a weekly job on an idle build host (ruling #4750).
@@ -49,7 +49,7 @@ use std::time::Instant;
 /// When a sweep runs.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Group {
-    /// `cargo xtask test` with `LIELLA_NO_VERDICT_CACHE=1` (nightly and release), and `long-sweeps`.
+    /// `cargo xtask test` with `NIJI_NO_VERDICT_CACHE=1` (nightly and release), and `long-sweeps`.
     Long,
     /// `long-sweeps --group exhaustive` only (weekly, ruling #4750).
     Exhaustive,
@@ -125,14 +125,14 @@ impl Sweep {
 }
 
 /// Every float encoding (fast32 and the boundary's one-pass sweeps).
-const STRIDE1: &[(&str, &str)] = &[("LIELLA_SWEEP_STRIDE", "1")];
+const STRIDE1: &[(&str, &str)] = &[("NIJI_SWEEP_STRIDE", "1")];
 const S10: &str = "crates/boundary/tests/s10_math_symbols.rs";
 /// The 10^7-operand run of the double log family (LIBM-F64-LOG-FAMILY-WIRE).
-const QUICK_LOG: &[(&str, &str)] = &[("LIELLA_QUICK_LOG_N", "10000000")];
+const QUICK_LOG: &[(&str, &str)] = &[("NIJI_QUICK_LOG_N", "10000000")];
 
 /// Every sweep of the workspace. The static check keeps this list and the sources in step.
 pub const SWEEPS: &[Sweep] = &[
-    // liella-math
+    // niji-math
     lib("crates/math/src/wide_int.rs", "wide_int::tests::tier_agrees_with_the_wide_route_long", Group::Long),
     lib("crates/math/src/wide_int_el.rs", "wide_int_el::tests::tier_agrees_with_the_wide_route_long", Group::Long),
     lib("crates/math/src/wide_int/quad.rs", "wide_int::quad::tests::tier_agrees_with_the_wide_route_long", Group::Long),
@@ -144,17 +144,17 @@ pub const SWEEPS: &[Sweep] = &[
     lib("crates/math/src/complex_fast_ls_tests.rs", "complex_fast::ls_tests::clog_csqrt_quick_tier_sweep", Group::Long),
     lib("crates/math/src/complex_fast_sinh_tests.rs", "complex_fast::sinh::tests::csinh_quick_tier_sweep", Group::Long),
     lib("crates/math/src/complex_fast_pow_tests.rs", "complex_fast::pow::tests::cpow_decline_rates", Group::Long),
-    it("crates/math/tests/fast_bessel_n.rs", "fast_bessel_n", "bessel_n_tier_sweep", Group::Long).env(&[("LIELLA_BESSEL_N_SWEEP", "10000000")]),
+    it("crates/math/tests/fast_bessel_n.rs", "fast_bessel_n", "bessel_n_tier_sweep", Group::Long).env(&[("NIJI_BESSEL_N_SWEEP", "10000000")]),
     // The double special-function fast tiers against their 384-bit paths at 10^5 operands per function and mode
     // (ruling #5061; the gate runs 1500 to 2000). Each took 60 s or more, so they run weekly (ruling #5062).
     it("crates/math/tests/fast_special.rs", "fast_special", "double_erf_erfc_fast_tier_matches_the_accurate_path", Group::Exhaustive)
-        .env(&[("LIELLA_ERF_SWEEP", "100000")])
+        .env(&[("NIJI_ERF_SWEEP", "100000")])
         .secs(60),
     it("crates/math/tests/fast_bessel.rs", "fast_bessel", "double_bessel_fast_tier_matches_the_accurate_path", Group::Exhaustive)
-        .env(&[("LIELLA_BESSEL_SWEEP", "100000")])
+        .env(&[("NIJI_BESSEL_SWEEP", "100000")])
         .secs(99),
     it("crates/math/tests/fast_gamma.rs", "fast_gamma", "double_gamma_fast_tier_matches_the_accurate_path", Group::Exhaustive)
-        .env(&[("LIELLA_GAMMA_SWEEP", "100000")])
+        .env(&[("NIJI_GAMMA_SWEEP", "100000")])
         .secs(85),
     lib("crates/math/src/fast32/erf.rs", "fast32::erf::tests::erff_fast_path_agrees_exhaustively", Group::Exhaustive),
     lib("crates/math/src/fast32/erf.rs", "fast32::erf::tests::erfcf_fast_path_agrees_exhaustively", Group::Exhaustive),
@@ -207,22 +207,22 @@ pub const SWEEPS: &[Sweep] = &[
     lib("crates/math/src/fast64/quick_log/tests.rs", "fast64::quick_log::tests::log_family_quick_matches_correctly_rounded", Group::Long).env(QUICK_LOG).secs(3),
     lib("crates/math/src/complex.rs", "complex::ziv_tests::random_sample_retry_count", Group::Count),
     it("crates/math/tests/complex_f128_products.rs", "complex_f128_products", "accuracy_suite_retry_count", Group::Count),
-    // liella-boundary (TEST-LONG-SWEEPS-BOUNDARY, #4752)
+    // niji-boundary (TEST-LONG-SWEEPS-BOUNDARY, #4752)
     it("crates/boundary/tests/exp_quick.rs", "exp_quick", "exp_quick_accuracy_job", Group::Long).env(&[("EXP_QUICK_N", "100000000")]).secs(5),
     // The directed-rounding quick phase of exp (LIBM-DIRECTED-INPLACE, D-10.94): 10^7 operands per distribution,
     // direction and build.
     it("crates/boundary/tests/exp_quick.rs", "exp_quick", "exp_directed_accuracy_job", Group::Long).env(&[("EXP_DIR_N", "10000000")]).secs(3),
     it("crates/boundary/tests/trig_quick.rs", "trig_quick", "trig_quick_accuracy_job", Group::Long).env(&[("TRIG_QUICK_N", "100000000")]).secs(58),
     it("crates/boundary/tests/hyperb_quick.rs", "hyperb_quick", "hyperb_quick_both_builds_round_correctly", Group::Long)
-        .env(&[("LIELLA_HYPERB_N", "1000000")]).secs(23),
-    it("crates/boundary/tests/hyperb_quick.rs", "hyperb_quick", "hyperb_quick_ranges", Group::Long).env(&[("LIELLA_HYPERB_N", "1000000")]).secs(1),
+        .env(&[("NIJI_HYPERB_N", "1000000")]).secs(23),
+    it("crates/boundary/tests/hyperb_quick.rs", "hyperb_quick", "hyperb_quick_ranges", Group::Long).env(&[("NIJI_HYPERB_N", "1000000")]).secs(1),
     it("crates/boundary/tests/invhyp_quick.rs", "invhyp_quick", "invhyp_quick_both_builds_round_correctly", Group::Long)
-        .env(&[("LIELLA_INVHYP_N", "1000000")]).secs(16),
-    it("crates/boundary/tests/erf_quick.rs", "erf_quick", "erf_quick_both_builds_round_correctly", Group::Long).env(&[("LIELLA_ERF_N", "1000000")]).secs(5),
+        .env(&[("NIJI_INVHYP_N", "1000000")]).secs(16),
+    it("crates/boundary/tests/erf_quick.rs", "erf_quick", "erf_quick_both_builds_round_correctly", Group::Long).env(&[("NIJI_ERF_N", "1000000")]).secs(5),
     it("crates/boundary/tests/log_quick.rs", "log_quick", "log_family_both_builds_round_correctly", Group::Long).env(QUICK_LOG).secs(12),
     it("crates/boundary/tests/log_quick.rs", "log_quick", "log_family_quick_fma_error_within_bound", Group::Exhaustive).env(QUICK_LOG).secs(484),
-    it("crates/boundary/tests/pow_quick.rs", "pow_quick", "pow_entry_tiers_round_correctly", Group::Long).env(&[("LIELLA_POW_SWEEP", "25000000")]).secs(36),
-    it(S10, "s10_math_symbols", "math_double_fast_entry_sweep", Group::Exhaustive).env(&[("LIELLA_FE_SWEEP_CHUNKS", "200")]).over(1800),
+    it("crates/boundary/tests/pow_quick.rs", "pow_quick", "pow_entry_tiers_round_correctly", Group::Long).env(&[("NIJI_POW_SWEEP", "25000000")]).secs(36),
+    it(S10, "s10_math_symbols", "math_double_fast_entry_sweep", Group::Exhaustive).env(&[("NIJI_FE_SWEEP_CHUNKS", "200")]).over(1800),
     it(S10, "s10_math_symbols", "math_expf_onepass_sweep", Group::Exhaustive).env(STRIDE1).secs(1136),
     it(S10, "s10_math_symbols", "math_exp2f_onepass_sweep", Group::Exhaustive).env(STRIDE1).secs(1155),
     it(S10, "s10_math_symbols", "math_exp10f_onepass_sweep", Group::Exhaustive).env(STRIDE1).secs(1187),
@@ -232,17 +232,17 @@ pub const SWEEPS: &[Sweep] = &[
     it(S10, "s10_math_symbols", "math_asinf_onepass_sweep", Group::Exhaustive).env(STRIDE1).secs(1334),
     it(S10, "s10_math_symbols", "math_acosf_onepass_sweep", Group::Exhaustive).env(STRIDE1).secs(1135),
     it(S10, "s10_math_symbols", "math_atanf_onepass_sweep", Group::Exhaustive).env(STRIDE1).secs(1305),
-    it(S10, "s10_math_symbols", "math_atan2f_onepass_pairs", Group::Exhaustive).env(&[("LIELLA_PAIRS", "250000000")]).secs(68),
+    it(S10, "s10_math_symbols", "math_atan2f_onepass_pairs", Group::Exhaustive).env(&[("NIJI_PAIRS", "250000000")]).secs(68),
     it(S10, "s10_math_symbols", "math_hypotf_fast_path_sweep", Group::Exhaustive).secs(864),
     // powf's one-pass path (D-10.78): 10^9 random pairs in each of the four rounding directions plus the hard
     // pairs in all 16 modes (LIBM-F32-POWF; its 4·10^9-call run took longer than one jobrun slot allows).
-    it(S10, "s10_math_symbols", "math_powf_onepass_random_pairs", Group::Exhaustive).env(&[("LIELLA_POWF_PAIRS", "1000000000")]),
-    // liella-core
+    it(S10, "s10_math_symbols", "math_powf_onepass_random_pairs", Group::Exhaustive).env(&[("NIJI_POWF_PAIRS", "1000000000")]),
+    // niji-core
     lib("crates/core/src/num/glibc_diff.rs", "num::glibc_diff::differential_millions", Group::Exhaustive)
-        .env(&[("LIELLA_GLIBC_DIFF_N", "2000000")])
+        .env(&[("NIJI_GLIBC_DIFF_N", "2000000")])
         .secs(102),
     lib("crates/core/src/num/format.rs", "num::format::tests::scaled_general_matches_the_general_path_on_millions", Group::Long)
-        .env(&[("LIELLA_PF_DIFF_N", "4000000"), ("LIELLA_PF_DIFF_SEED", "11400714819323198485")])
+        .env(&[("NIJI_PF_DIFF_N", "4000000"), ("NIJI_PF_DIFF_SEED", "11400714819323198485")])
         .secs(7),
 ];
 
@@ -255,12 +255,12 @@ pub const NOT_SWEEPS: &[(&str, &str, &str)] = &[
     ("crates/math/tests/complex_directed.rs", "F128", "the open _Float128 findings of M6-10: a probe that fails until they are fixed"),
     ("crates/boundary/tests/exp_quick.rs", "exp_quick_count_loop", "a measurement loop for perf stat (EXP_QUICK_CALLS calls); it checks nothing"),
     ("crates/spectest/src/lib.rs", "$name", "the pending stubs generated from the spec: each fails if forced to run, by design"),
-    ("crates/core/tests/stdio_short_io.rs", "reference_values", "pins the reference's values where Liella differs (each difference a story); fails on Liella by design"),
+    ("crates/core/tests/stdio_short_io.rs", "reference_values", "pins the reference's values where libniji differs (each difference a story); fails on libniji by design"),
     ("crates/core/tests/enomem_stream_grow.rs", "harness_ignored_case", "a fixture that harness_runs_ignored_cases_in_the_child runs in a re-executed child"),
     ("crates/core/tests/s23_time_clauses.rs", "s23_7_c_3_child", "a fixture that s23_7_c_3 runs in a child with DATEMSK set"),
-    ("crates/core/tests/no_proc_lane.rs", "link_max_without_proc", "LIELLA_NPL_LINK_MAX is the expected value the test hands its re-executed child, not a size"),
-    ("crates/core/tests/no_proc_lane.rs", "getauxval_hosted_without_proc", "LIELLA_NPL_PAGESZ is the expected value the test hands its re-executed child, not a size"),
-    ("crates/core/tests/s25_ipc_clauses.rs", "s25_2_c_3", "LIELLA_C25_UNDO is the semaphore id the test hands its re-executed child, not a size"),
+    ("crates/core/tests/no_proc_lane.rs", "link_max_without_proc", "NIJI_NPL_LINK_MAX is the expected value the test hands its re-executed child, not a size"),
+    ("crates/core/tests/no_proc_lane.rs", "getauxval_hosted_without_proc", "NIJI_NPL_PAGESZ is the expected value the test hands its re-executed child, not a size"),
+    ("crates/core/tests/s25_ipc_clauses.rs", "s25_2_c_3", "NIJI_C25_UNDO is the semaphore id the test hands its re-executed child, not a size"),
     ("crates/ld/tests/cache_write.rs", "write_reader_fuzz_seeds", "regenerates fuzz/seeds/ld_cache from the cache writer; it checks nothing"),
 ];
 

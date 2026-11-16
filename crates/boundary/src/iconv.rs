@@ -1,13 +1,13 @@
 //! `iconv` glue (spec §6.4; D-6.8, D-6.9): an `iconv_t` is a heap block of
 //! [`tb::ICONV_WORDS`] words, a tag and then the descriptor's
-//! [`liella::iconv::Conv::to_words`]. Conversions use the calling thread's current
+//! [`niji::iconv::Conv::to_words`]. Conversions use the calling thread's current
 //! `LC_CTYPE` for `//TRANSLIT`, and the empty name is its codeset.
 
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-use liella::error::{Errno, KResult};
-use liella::iconv::{self, Conv, State};
-use liella_legacy::global_locale as gl;
+use niji::error::{Errno, KResult};
+use niji::iconv::{self, Conv, State};
+use niji_legacy::global_locale as gl;
 
 use crate::conv::IconvArgs;
 use crate::locale::{self, Glue};

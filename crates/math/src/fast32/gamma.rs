@@ -591,7 +591,7 @@ mod tests {
 
     /// The table is exactly the set of operands whose last try is refused (an exhaustive
     /// enumeration of every `float`). On a mismatch it prints the set and, with
-    /// LIELLA_LGAMMAF_TABLE_OUT=<path>, writes the table file (lgamma_tab.rs) there, |F| and its side
+    /// NIJI_LGAMMAF_TABLE_OUT=<path>, writes the table file (lgamma_tab.rs) there, |F| and its side
     /// from the accurate path. (No spec clause: LIBM-LGAMMAF-EDGE-2.)
     #[test]
     #[ignore]
@@ -614,7 +614,7 @@ mod tests {
         if !ok {
             let mut text = std::string::String::from(concat!(
                 "// lgammaf's exception table (LIBM-LGAMMAF-EDGE-2), as written by `lgammaf_table_is_the_refused_set`\n",
-                "// (the exhaustive enumeration of every `float`; LIELLA_LGAMMAF_TABLE_OUT=<this file>): bits 32..63 x,\n",
+                "// (the exhaustive enumeration of every `float`; NIJI_LGAMMAF_TABLE_OUT=<this file>): bits 32..63 x,\n",
                 "// 0..30 |F| for F the `float` nearest lnΓ(x), bit 31 set when |lnΓ(x)| lies above |F|; sorted by\n",
                 "// the bits of x.\n\n"
             ));
@@ -627,7 +627,7 @@ mod tests {
             }
             text += "];\n";
             std::print!("{text}");
-            if let Ok(p) = std::env::var("LIELLA_LGAMMAF_TABLE_OUT") {
+            if let Ok(p) = std::env::var("NIJI_LGAMMAF_TABLE_OUT") {
                 let w = std::fs::write(&p, &text);
                 assert!(w.is_ok(), "{p}: {w:?}");
             }
@@ -732,20 +732,20 @@ mod tests {
     }
 
     /// Where a gamma sweep spends its time: the oracle check (as the exhaustive sweeps) over the
-    /// 512 slices of one sign and exponent each, every `LIELLA_PROFILE_STRIDE`-th encoding
-    /// (default 4099; 1 = in full), only the slices `LIELLA_PROFILE_SLICES=lo-hi` (slice = top 9
-    /// bits, default all) and only `LIELLA_PROFILE_FN` (`lgammaf`, the default, or `tgammaf`).
+    /// 512 slices of one sign and exponent each, every `NIJI_PROFILE_STRIDE`-th encoding
+    /// (default 4099; 1 = in full), only the slices `NIJI_PROFILE_SLICES=lo-hi` (slice = top 9
+    /// bits, default all) and only `NIJI_PROFILE_FN` (`lgammaf`, the default, or `tgammaf`).
     /// Prints per slice: operands checked, fast-path calls taken, oracle mp modes, near-zero
     /// refusals and the slice's wall time (a diagnostic, never asserted). (No spec clause.)
     #[test]
     #[ignore]
     fn gamma_sweep_profile() {
         let env = |k: &str| std::env::var(k).ok();
-        let stride = env("LIELLA_PROFILE_STRIDE").and_then(|s| s.parse::<u32>().ok()).filter(|&k| k > 0).unwrap_or(4099);
-        let (lo, hi) = env("LIELLA_PROFILE_SLICES")
+        let stride = env("NIJI_PROFILE_STRIDE").and_then(|s| s.parse::<u32>().ok()).filter(|&k| k > 0).unwrap_or(4099);
+        let (lo, hi) = env("NIJI_PROFILE_SLICES")
             .and_then(|s| s.split_once('-').and_then(|(a, b)| Some((a.parse::<u32>().ok()?, b.parse::<u32>().ok()?))))
             .unwrap_or((0, 511));
-        let f = if env("LIELLA_PROFILE_FN").as_deref() == Some("tgammaf") { Fast::Tgamma } else { Fast::Lgamma };
+        let f = if env("NIJI_PROFILE_FN").as_deref() == Some("tgammaf") { Fast::Tgamma } else { Fast::Lgamma };
         let next = AtomicU64::new(u64::from(lo));
         let n = std::thread::available_parallelism().map_or(8, |n| n.get());
         let mut rows: std::vec::Vec<(u32, u64, u64, u64, u64, f64)> = std::thread::scope(|sc| {

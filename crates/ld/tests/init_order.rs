@@ -5,7 +5,7 @@
 //! order), s1_1_c_6 (destructors registered to run at normal exit), s27_1_c_1 (the constructors of a
 //! set opened by `dlopen`: the order rule for its root).
 //!
-//! Two layers: (1) [`liella_ld::init`] over the dependency graphs of the order corpus, the expected
+//! Two layers: (1) [`niji_ld::init`] over the dependency graphs of the order corpus, the expected
 //! orders being the reference loader's (tools/probe/dl/order.sh, and DL-0b's `== order` record in
 //! spec/behaviour/dynlink.glibc.txt for `dlopen` and `exit` with an object opened later); (2) the
 //! corpus itself (`-nostdlib` objects printing what runs) under the built `ld.so`, compared line for
@@ -19,8 +19,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::init::{self, OrderError, OBJECTS_MAX};
+use niji_ld::arch::{Arch, Native};
+use niji_ld::init::{self, OrderError, OBJECTS_MAX};
 
 fn init(n: usize, edges: &[(u8, u8)]) -> Vec<u8> {
     let mut out = [0u8; OBJECTS_MAX];
@@ -172,7 +172,7 @@ fn init_order_corpus_matches_reference() {
     if !tools_ok() {
         return;
     }
-    let ld = target().join("liella").join(Native::INTERP);
+    let ld = target().join("niji").join(Native::INTERP);
     if !ld.exists() {
         eprintln!("SKIP: {} not built (run cargo xtask so)", ld.display());
         return;
@@ -181,7 +181,7 @@ fn init_order_corpus_matches_reference() {
     let ours = corpus(&d, Some(&ld));
     for (name, start, exit) in RECORD {
         let want = format!("{start}main\ncall fini\n{exit}   rc=0\n");
-        assert_eq!(section(&ours, name), want, "{name} under Liella's ld.so (left) differs from the reference's order (right)");
+        assert_eq!(section(&ours, name), want, "{name} under libniji's ld.so (left) differs from the reference's order (right)");
     }
     // The reference live: the same build started through its PT_INTERP (start lines), and the C
     // library variants (exit lines).

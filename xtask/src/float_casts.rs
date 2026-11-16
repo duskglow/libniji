@@ -1,4 +1,4 @@
-//! `float-casts` (static check, D-10.95): every float-to-integer `as` cast in liella-math (and in
+//! `float-casts` (static check, D-10.95): every float-to-integer `as` cast in niji-math (and in
 //! the string-to-number parser, [`SCOPE`]) states
 //! why its operand is in the target's range. On x86-64 before AVX-512 such a cast is a signed
 //! conversion (`cvttsd2si` / `cvttss2si`; `as u64` adds a second one on `x − 2^63`): an operand
@@ -31,7 +31,7 @@ pub fn static_check(root: &Path) -> Result<(), String> {
     let out = Command::new(cargo)
         .current_dir(root)
         .env("CARGO_TARGET_DIR", root.join("target/float-casts"))
-        .args(["clippy", "-q", "-p", "liella-math", "-p", "liella", "--lib", "--message-format=short", "--"])
+        .args(["clippy", "-q", "-p", "niji-math", "-p", "niji", "--lib", "--message-format=short", "--"])
         .args(["-A", "clippy::all", "--force-warn", "clippy::cast_possible_truncation", "--force-warn", "clippy::cast_sign_loss"])
         .output()
         .map_err(|e| format!("cannot run cargo clippy: {e}"))?;

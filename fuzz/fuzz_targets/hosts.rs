@@ -5,10 +5,10 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::mem::TryVec;
-use liella::names::{db, Family};
-use liella_fuzz::Input;
-use liella_legacy::nss_files::{self, Host};
+use niji::mem::TryVec;
+use niji::names::{db, Family};
+use niji_fuzz::Input;
+use niji_legacy::nss_files::{self, Host};
 
 fn check_round_trip(h: &Host) {
     let mut bytes = TryVec::new();
@@ -39,7 +39,7 @@ fuzz_target!(|data: &[u8]| {
                 let _ = h.family();
             }
         }
-        if let Some(ip) = liella_legacy::netdb_compat::numeric(name, family)
+        if let Some(ip) = niji_legacy::netdb_compat::numeric(name, family)
             && let Ok(h) = nss_files::host_at(text, ip) {
                 check_round_trip(&h);
             }

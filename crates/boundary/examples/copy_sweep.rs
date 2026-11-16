@@ -1,7 +1,7 @@
 //! Copy-path measurements for the dispatch thresholds of `memcpy` (D-4.14, PJ-7): every copy
 //! path of the boundary at a range of sizes and placements, with the host C library's `memcpy`
 //! as the reference. Run on each timing machine:
-//! `cargo run --release -p liella-boundary --example copy_sweep`.
+//! `cargo run --release -p niji-boundary --example copy_sweep`.
 //!
 //! One line per size and placement: `n d sa ref fwd back erms avx2 memcpy memcpy_noavx2` in ns per
 //! copy (fastest of the timed batches), where `d` is (dst - src) mod 4 KiB and `sa` the source
@@ -12,8 +12,8 @@
 use std::hint::black_box;
 use std::time::Instant;
 
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest;
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest;
 
 fn time(n: usize, mut f: impl FnMut()) -> f64 {
     let iters = (400_000 / n.max(64)).clamp(16, 2000) as u32;
@@ -32,8 +32,8 @@ fn time(n: usize, mut f: impl FnMut()) -> f64 {
 }
 
 fn main() {
-    liella_boundary::cpu::init();
-    println!("# avx2 {} erms_threshold {}", liella_boundary::cpu::avx2(), liella_boundary::cpu::COPY_ERMS_MIN);
+    niji_boundary::cpu::init();
+    println!("# avx2 {} erms_threshold {}", niji_boundary::cpu::avx2(), niji_boundary::cpu::COPY_ERMS_MIN);
     const PAGE: usize = 4096;
     let max = 65_536;
     // Source pages at 0, destination pages at 2 * max: both 4 KiB-aligned bases.
@@ -69,11 +69,11 @@ fn main() {
             let mc = time(n, || {
                 s::memcpy(black_box(dst.as_mut_ptr()).cast(), black_box(src.as_ptr()).cast(), n);
             });
-            liella_boundary::cpu::init_with(&liella::config::Tunables { avx2: Some(false), ..Default::default() });
+            niji_boundary::cpu::init_with(&niji::config::Tunables { avx2: Some(false), ..Default::default() });
             let mc_no = time(n, || {
                 s::memcpy(black_box(dst.as_mut_ptr()).cast(), black_box(src.as_ptr()).cast(), n);
             });
-            liella_boundary::cpu::init();
+            niji_boundary::cpu::init();
             assert_eq!(dst, src);
             println!("{n}\t{d}\t{sa}\t{r:.1}\t{fwd:.1}\t{back:.1}\t{erms:.1}\t{avx2}\t{mc:.1}\t{mc_no:.1}");
         }

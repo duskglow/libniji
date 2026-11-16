@@ -8,7 +8,7 @@
 
 #include "notice.h"
 
-LIELLA_NONSHARED_NOTICE_FOR(pthread_atfork)
+NIJI_NONSHARED_NOTICE_FOR(pthread_atfork)
 
 extern void *__dso_handle __attribute__((visibility("hidden")));
 extern int __register_atfork(void (*)(void), void (*)(void), void (*)(void), void *);

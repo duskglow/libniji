@@ -37,7 +37,7 @@ impl Kind {
     pub fn keys(self) -> &'static [&'static str] {
         match self {
             Kind::Decision => &["id", "series", "section", "spec", "ann", "pattern", "status", "supersedes", "amends", "story", "date", "tests", "body"],
-            Kind::Compat => &["id", "series", "behaviour", "glibc", "liella", "restore", "cost", "status", "status_text", "decisions", "story", "date", "body"],
+            Kind::Compat => &["id", "series", "behaviour", "glibc", "niji", "restore", "cost", "status", "status_text", "decisions", "story", "date", "body"],
             Kind::Saturation => &["id", "series", "section", "row", "now", "limit", "reason_class", "basis", "source", "tried", "flag", "open", "status", "supersedes", "story", "date", "body"],
         }
     }

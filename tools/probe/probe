@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # probe - cached black-box probe service (task PR-8).  Installed on Zen 1 host as ~/bin/probe.
 #
 # Compiles one C program, runs it against the system glibc (a black box: only its behaviour is
-# observed) and against Liella (static link exactly like conformance/run.sh), and prints both
+# observed) and against libniji (static link exactly like conformance/run.sh), and prints both
 # results side by side.  Results are cached by content in ~/probe-cache (machine state, never
 # committed).  Stdlib only.  See tools/probe/README.md for usage.
 import argparse
@@ -90,7 +90,7 @@ def funcs_of(src):
     return sorted(n for n in names if n not in C_KEYWORDS and n not in defined)
 
 
-# ---------------------------------------------------------------- Liella tree
+# ---------------------------------------------------------------- libniji tree
 def tree_commit(tree):
     try:
         with open(os.path.join(tree, ".published"), encoding="utf-8") as f:
@@ -109,8 +109,8 @@ def tree_commit(tree):
 
 
 def products(tree):
-    d = os.path.join(tree, "target", "liella")
-    return {"crt": os.path.join(d, "liella-crt1.o"), "libc": os.path.join(d, "libc.a"),
+    d = os.path.join(tree, "target", "niji")
+    return {"crt": os.path.join(d, "niji-crt1.o"), "libc": os.path.join(d, "libc.a"),
             "libm": os.path.join(d, "libm.a"), "libpthread": os.path.join(d, "libpthread.a")}
 
 
@@ -275,9 +275,9 @@ def stream_text(r, which, full):
 def render(h, meta, g, lr, hit_g, hit_l, commit, tree, full=False):
     v = "SAME" if same(g, lr) else "DIFFERENT"
     out = ["probe %s  %s" % (h[:12], meta["title"]),
-           "liella: %s @ %s   cache: glibc %s, liella %s" % (tree, commit, "HIT" if hit_g else "miss", "HIT" if hit_l else "miss"),
+           "niji: %s @ %s   cache: glibc %s, niji %s" % (tree, commit, "HIT" if hit_g else "miss", "HIT" if hit_l else "miss"),
            "verdict: " + v, ""]
-    for name, r in (("glibc", g), ("liella", lr)):
+    for name, r in (("glibc", g), ("niji", lr)):
         note = " (compiler/linker output in stderr)" if r["status"] in ("compile-error", "link-error") else ""
         out.append("%-6s status: %s%s" % (name, describe(r), note))
         out.append("       stdout=" + stream_text(r, "stdout", full))
@@ -319,9 +319,9 @@ def do_run(a):
         k, v = kv.split("=", 1)
         env[k] = v
     args = a.args or []
-    tree = os.path.abspath(os.path.expanduser(a.liella))
+    tree = os.path.abspath(os.path.expanduser(a.niji))
     if not os.path.isdir(tree):
-        die("no Liella tree at " + tree)
+        die("no libniji tree at " + tree)
     meta = {"title": title_of(src), "funcs": funcs_of(src), "flags": flags, "args": args, "env": env,
             "stdin_len": len(stdin_data), "timeout": a.timeout}
     hc = sha(src_b, *flags)                                             # compile key
@@ -335,7 +335,7 @@ def do_run(a):
     lr = lpath = ph = None
     if not stale:
         ph = products_hash(tree)
-        lpath = os.path.join(ed, "liella-%s.json" % ph[:16])
+        lpath = os.path.join(ed, "niji-%s.json" % ph[:16])
         lr = None if a.no_cache else load(lpath)
     if (g is None or lr is None) and os.environ.get("PROBE_SLOT") != "1":
         shared = os.path.join(HOME, "bin", "shared")
@@ -378,7 +378,7 @@ def do_run(a):
                 store(gpath, g)
             if lr is None:
                 if stale:
-                    print("probe: Liella products %s in %s; running cargo xtask so" % (stale, tree), file=sys.stderr)
+                    print("probe: libniji products %s in %s; running cargo xtask so" % (stale, tree), file=sys.stderr)
                     benv = dict(os.environ, PATH=os.path.join(HOME, ".cargo", "bin") + os.pathsep + os.environ.get("PATH", ""))
                     r = subprocess.run(["cargo", "xtask", "so"], cwd=tree, env=benv, capture_output=True, timeout=5400)
                     if r.returncode != 0:
@@ -386,13 +386,13 @@ def do_run(a):
                     if products_stale(tree) == "missing":
                         die("products still missing after cargo xtask so")
                     ph = products_hash(tree)
-                    lpath = os.path.join(ed, "liella-%s.json" % ph[:16])
+                    lpath = os.path.join(ed, "niji-%s.json" % ph[:16])
                     if not a.no_cache:
                         lr = load(lpath)
                         hit_l = lr is not None
                 if lr is None:
                     p = products(tree)
-                    lexe = os.path.join(entry_dir(hc), "liella-%s.bin" % ph[:16])
+                    lexe = os.path.join(entry_dir(hc), "niji-%s.bin" % ph[:16])
                     lerr = lexe + ".link.txt"
                     if not os.path.isfile(lexe):
                         # The conformance/run.sh line; libm/libpthread archives only if libc.a alone does not link.
@@ -433,17 +433,17 @@ def do_run(a):
     update_index(h, meta, v, commit)
     if a.json:
         print(json.dumps({"hash": h, "verdict": v, "title": meta["title"], "commit": commit,
-                          "cache": {"glibc": hit_g, "liella": hit_l}, "glibc": brief(g, a.full), "liella": brief(lr, a.full)}))
+                          "cache": {"glibc": hit_g, "niji": hit_l}, "glibc": brief(g, a.full), "niji": brief(lr, a.full)}))
     else:
         print(text)
     return 0 if v == "SAME" else 1
 
 
 # ---------------------------------------------------------------- find / show / record
-def latest_liella(ed):
-    cands = [os.path.join(ed, n) for n in os.listdir(ed) if n.startswith("liella-") and n.endswith(".json")]
+def latest_niji(ed):
+    cands = [os.path.join(ed, n) for n in os.listdir(ed) if n.startswith("niji-") and n.endswith(".json")]
     if not cands:
-        die("no Liella result stored for " + os.path.basename(ed))
+        die("no libniji result stored for " + os.path.basename(ed))
     return load(max(cands, key=os.path.getmtime))
 
 
@@ -459,7 +459,7 @@ def do_find(words):
         if all(w in ln.lower() for w in ws):
             print(ln)
             n += 1
-    print("(%d match%s; columns: hash, date, title, functions, verdict, liella commit)" % (n, "" if n == 1 else "es"), file=sys.stderr)
+    print("(%d match%s; columns: hash, date, title, functions, verdict, niji commit)" % (n, "" if n == 1 else "es"), file=sys.stderr)
     return 0 if n else 1
 
 
@@ -467,7 +467,7 @@ def do_show(prefix, full):
     h = find_entry(prefix)
     ed = entry_dir(h)
     meta = load(os.path.join(ed, "meta.json"))
-    g, lr = load(os.path.join(ed, "glibc.json")), latest_liella(ed)
+    g, lr = load(os.path.join(ed, "glibc.json")), latest_niji(ed)
     _v, text = render(h, meta, g, lr, True, True, meta["commit"], meta["tree"], full)
     print(text)
     print("\nargs=%r env=%r stdin=%d bytes flags=%s timeout=%ss" % (meta["args"], meta["env"], meta["stdin_len"], " ".join(meta["flags"]), meta["timeout"]))
@@ -495,7 +495,7 @@ def do_record(prefix):
 SELFTESTS = [
     ("same", "// selftest: same output\n#include <stdio.h>\nint main(void){ printf(\"hello %d\\n\", 42); fputs(\"err\\n\", stderr); return 3; }\n",
      [], "SAME", "exit 3", "exit 3"),
-    ("different", "// selftest: different (AT_BASE: dynamic glibc has an interpreter, static Liella none)\n#include <stdio.h>\n#include <sys/auxv.h>\nint main(void){ printf(\"%d\\n\", getauxval(AT_BASE) != 0); return 0; }\n",
+    ("different", "// selftest: different (AT_BASE: dynamic glibc has an interpreter, static libniji none)\n#include <stdio.h>\n#include <sys/auxv.h>\nint main(void){ printf(\"%d\\n\", getauxval(AT_BASE) != 0); return 0; }\n",
      [], "DIFFERENT", "exit 0", "exit 0"),
     ("crash", "// selftest: crash by signal\n#include <signal.h>\nint main(void){ raise(SIGSEGV); return 0; }\n",
      [], "SAME", "signal 11", "signal 11"),
@@ -523,16 +523,16 @@ def do_selftest(a):
             f = os.path.join(base, name + ".c")
             with open(f, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(code)
-            j1, r1 = call(f, "--liella", a.liella, "--json", *extra)
-            j2, r2 = call(f, "--liella", a.liella, "--json", *extra)
-            ok = bool(j1 and j2) and j1["verdict"] == want_v and describe(j1["glibc"]) == want_g and describe(j1["liella"]) == want_l \
-                and not j1["cache"]["glibc"] and not j1["cache"]["liella"] and j2["cache"]["glibc"] and j2["cache"]["liella"]
+            j1, r1 = call(f, "--niji", a.niji, "--json", *extra)
+            j2, r2 = call(f, "--niji", a.niji, "--json", *extra)
+            ok = bool(j1 and j2) and j1["verdict"] == want_v and describe(j1["glibc"]) == want_g and describe(j1["niji"]) == want_l \
+                and not j1["cache"]["glibc"] and not j1["cache"]["niji"] and j2["cache"]["glibc"] and j2["cache"]["niji"]
             if ok and name == "same":
                 ok = j1["glibc"]["stdout"] == "hello 42\\n" and j1["glibc"]["stderr"] == "err\\n"
             print("selftest %-9s %s" % (name, "ok" if ok else "FAIL " + (json.dumps([j1, j2]) if j1 and j2 else r1.stdout + r1.stderr)[:800]))
             bad += not ok
-        j, r = call(os.path.join(base, "same.c"), "--liella", a.liella, "--json", "--no-cache")
-        ok = bool(j) and not j["cache"]["glibc"] and not j["cache"]["liella"]
+        j, r = call(os.path.join(base, "same.c"), "--niji", a.niji, "--json", "--no-cache")
+        ok = bool(j) and not j["cache"]["glibc"] and not j["cache"]["niji"]
         print("selftest %-9s %s" % ("no-cache", "ok" if ok else "FAIL " + r.stdout + r.stderr))
         bad += not ok
         h = j["hash"] if j else ""
@@ -551,9 +551,9 @@ def do_selftest(a):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Cached black-box probe: run a C program against glibc and Liella and compare.")
+    ap = argparse.ArgumentParser(description="Cached black-box probe: run a C program against glibc and libniji and compare.")
     ap.add_argument("file", nargs="?", help="probe C source")
-    ap.add_argument("--liella", default=os.path.join(HOME, "w", "nightly"), help="Liella tree (default ~/w/nightly)")
+    ap.add_argument("--niji", default=os.path.join(HOME, "w", "nightly"), help="libniji tree (default ~/w/nightly)")
     ap.add_argument("--args", nargs="*", help="program arguments (give --args last)")
     ap.add_argument("--stdin", help="file fed to standard input")
     ap.add_argument("--env", action="append", default=[], metavar="K=V", help="environment variable (repeatable)")

@@ -1,7 +1,7 @@
 //! The verdict cache of the math accuracy sweeps (`crates/core/tests/support/verdict.rs`,
 //! D-10.57): every input of the key changes the key when it changes, the host libraries a
 //! reference program loads are in it, a shard records its verdict only after it passed and only
-//! for the inputs it checked, and `LIELLA_NO_VERDICT_CACHE` runs a cached shard.
+//! for the inputs it checked, and `NIJI_NO_VERDICT_CACHE` runs a cached shard.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, missing_docs)]
 #[path = "../../core/tests/support/skip_note.rs"]
 mod skip_note;
@@ -27,7 +27,7 @@ struct Bench {
 
 impl Bench {
     fn new(tag: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("liella-verdict-{}-{tag}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("niji-verdict-{}-{tag}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("records")).unwrap();
         let src = Sources { exe: dir.join("exe"), cpuinfo: dir.join("cpuinfo"), osrelease: dir.join("osrelease") };
@@ -144,7 +144,7 @@ fn only_a_shard_that_passed_is_recorded_and_then_cached() {
     b.key().begin_with(false).expect("the failed shard runs again").pass();
     assert!(b.record().exists() && b.key().cached());
     assert!(b.key().begin_with(false).is_none(), "an unchanged shard ran again");
-    // LIELLA_NO_VERDICT_CACHE=1 runs it all the same.
+    // NIJI_NO_VERDICT_CACHE=1 runs it all the same.
     assert!(b.key().begin_with(true).is_some(), "the override did not run the shard");
     b.key().begin_with(false).expect("the forced run removed the record until it passes").pass();
     // A changed input reruns it, removing the old record first: if the rerun fails, nothing is cached.

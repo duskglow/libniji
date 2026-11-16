@@ -8,19 +8,19 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-/// A C benchmark is `bench/c/<name>.c`: what only a process Liella started can measure (the
+/// A C benchmark is `bench/c/<name>.c`: what only a process libniji started can measure (the
 /// thread block, for one). It is linked statically against the products like a conformance
 /// program. What it is linked against: the products, or the host C library (for the
 /// comparison of `compare`), dynamically or statically.
 #[derive(Clone, Copy, PartialEq)]
 enum Build {
-    Liella,
+    libniji,
     /// Measurement only (MEASURE-1): the products' archive built with `-Ctarget-cpu=x86-64-v3`
-    /// (`target/liella-v3/libc.a`), an upper bound on what CPU multiversioning could buy.
-    LiellaV3,
-    /// Measurement only (MEASURE-1): the Liella build linked with `--sort-section=name`: the same
+    /// (`target/niji-v3/libc.a`), an upper bound on what CPU multiversioning could buy.
+    NijiV3,
+    /// Measurement only (MEASURE-1): the libniji build linked with `--sort-section=name`: the same
     /// code in another order, to size the code-layout effect on a row.
-    LiellaSorted,
+    NijiSorted,
     HostDynamic,
     HostStatic,
 }
@@ -28,24 +28,24 @@ enum Build {
 /// Set by `compare --no-build`: `c_build` returns the existing programs instead of compiling.
 pub(crate) static COMPARE_NO_BUILD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Builds `bench/c/<name>.c` into `target/liella/bench` and returns the program's path. The
+/// Builds `bench/c/<name>.c` into `target/niji/bench` and returns the program's path. The
 /// host builds use the same compiler flags as the products' build (`-fno-builtin` included), so
 /// both sides run identical code.
-/// The C benches that call libm (M6-0 `cbench_libm`): Liella's `libm.a` goes before `libc.a`, the
+/// The C benches that call libm (M6-0 `cbench_libm`): libniji's `libm.a` goes before `libc.a`, the
 /// host builds add `-lm`. The archive is the one `cargo xtask so` stages (D-10.7), like `xtask mathcmp`.
 fn uses_libm(name: &str) -> bool {
     name == "cbench_libm"
 }
 
 fn c_build(root: &Path, name: &str, build: Build) -> Result<std::path::PathBuf, String> {
-    let dir = root.join("target/liella/bench");
+    let dir = root.join("target/niji/bench");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     if COMPARE_NO_BUILD.load(std::sync::atomic::Ordering::Relaxed) {
         // `compare --no-build`: measure the programs a `--build-only` run left (timing hosts have no compiler).
         let exe = match build {
-            Build::Liella => dir.join(name),
-            Build::LiellaV3 => dir.join(format!("{name}.v3")),
-            Build::LiellaSorted => dir.join(format!("{name}.sorted")),
+            Build::libniji => dir.join(name),
+            Build::NijiV3 => dir.join(format!("{name}.v3")),
+            Build::NijiSorted => dir.join(format!("{name}.sorted")),
             Build::HostDynamic => dir.join(format!("{name}.host-dynamic")),
             Build::HostStatic => dir.join(format!("{name}.host-static")),
         };
@@ -55,23 +55,23 @@ fn c_build(root: &Path, name: &str, build: Build) -> Result<std::path::PathBuf, 
     let mut cmd = Command::new(cc);
     cmd.args(["-std=c17", "-O2", "-fno-builtin"]);
     let exe = match build {
-        Build::Liella | Build::LiellaV3 | Build::LiellaSorted => {
-            let lib = if build == Build::LiellaV3 { "target/liella-v3/libc.a" } else { "target/liella/libc.a" };
+        Build::libniji | Build::NijiV3 | Build::NijiSorted => {
+            let lib = if build == Build::NijiV3 { "target/niji-v3/libc.a" } else { "target/niji/libc.a" };
             cmd.args(["-static", "-nostdlib"]);
-            if build == Build::LiellaSorted {
+            if build == Build::NijiSorted {
                 cmd.arg("-Wl,--sort-section=name");
             }
-            cmd.arg(root.join("target/liella/liella-crt1.o"))
+            cmd.arg(root.join("target/niji/niji-crt1.o"))
                 .arg("-I")
                 .arg(root.join("include"))
                 .arg(root.join(format!("bench/c/{name}.c")));
             if uses_libm(name) {
-                cmd.arg(root.join("target/liella/libm.a"));
+                cmd.arg(root.join("target/niji/libm.a"));
             }
             cmd.arg(root.join(lib)).arg("-lgcc");
             match build {
-                Build::LiellaV3 => dir.join(format!("{name}.v3")),
-                Build::LiellaSorted => dir.join(format!("{name}.sorted")),
+                Build::NijiV3 => dir.join(format!("{name}.v3")),
+                Build::NijiSorted => dir.join(format!("{name}.sorted")),
                 _ => dir.join(name),
             }
         }
@@ -97,7 +97,7 @@ fn c_build(root: &Path, name: &str, build: Build) -> Result<std::path::PathBuf, 
 /// The host-library build of `bench/c/<name>.c` (dynamically linked), rebuilt only when the
 /// source is newer than the program (the host C library and compiler are the machine's).
 fn host_build_cached(root: &Path, name: &str) -> Result<std::path::PathBuf, String> {
-    let exe = root.join(format!("target/liella/bench/{name}.host-dynamic"));
+    let exe = root.join(format!("target/niji/bench/{name}.host-dynamic"));
     let src = root.join(format!("bench/c/{name}.c"));
     match (mtime(&exe), mtime(&src)) {
         (Some(e), Some(s)) if e >= s => Ok(exe),
@@ -240,7 +240,7 @@ const STRESS_LOCALES: usize = 500;
 const STRESS_DEPTH: usize = 64;
 const STRESS_THREADS: usize = 64;
 /// Where `names` and `locale` keep their generated files (under the tree's target/, rebuilt when missing).
-const STRESS_DIR: &str = "target/liella/bench/stress";
+const STRESS_DIR: &str = "target/niji/bench/stress";
 const STRESS_ARCHIVE: &str = "/usr/lib/locale/locale-archive";
 
 /// `id -u` / `id -g` of the caller ("" when `id` fails: the namespace command then fails visibly).
@@ -252,7 +252,7 @@ fn own_id(flag: &str) -> String {
 /// mount namespace (unprivileged; no sudo); there the generated files are bind-mounted over the system ones
 /// (`binds`: source, target; source `tmpfs` mounts a private tmpfs, as `private_shm` does for /dev/shm). A
 /// nested `unshare -U` then maps the caller's own uid and gid back, so the benchmark runs as the caller, with
-/// no capabilities, and sees the same files on the Liella and the glibc side. Mounts made in the namespace end
+/// no capabilities, and sees the same files on the libniji and the glibc side. Mounts made in the namespace end
 /// with it; the host's files are only read.
 fn namespace_command(binds: &[(String, String)], exe: &Path) -> Command {
     let script = r#"while [ "$1" != -- ]; do if [ "$1" = tmpfs ]; then mount -t tmpfs -o mode=1777 tmpfs "$2"; else mount --bind "$1" "$2"; fi || exit 96; shift 2; done; shift; u=$1; g=$2; shift 2; exec unshare -U --map-user="$u" --map-group="$g" env -u PWD -u OLDPWD -u SHLVL -u _ "$@""#;
@@ -382,7 +382,7 @@ fn stress_command_in(dir: &Path, name: &str, exe: &Path, stress: &[String], tuna
     };
     // BENCH-FIXED-ENV: the benchmark sees only `BENCH_ENV`, never the caller's environment (build-tree
     // paths in it moved the environment-sensitive instruction counts with the directory a job ran from).
-    // The same command runs the Liella and the host (glibc) side, so the comparison stays fair.
+    // The same command runs the libniji and the host (glibc) side, so the comparison stays fair.
     c.env_clear();
     c.envs(BENCH_ENV);
     // BENCH-TUNABLES: the one caller setting that is passed on (`--tunables <value>`, or the caller's own
@@ -458,8 +458,8 @@ fn with_tunables(mut c: Command) -> Command {
 static ROW_ENV: std::sync::OnceLock<BTreeMap<String, String>> = std::sync::OnceLock::new();
 
 /// Where `--build-only --affected` leaves the row selection for the measuring `--no-build --affected` run (the
-/// remote-build route copies target/liella to the timing host).
-const AFFECTED_ROWS: &str = "target/liella/bench/affected-rows.tsv";
+/// remote-build route copies target/niji to the timing host).
+const AFFECTED_ROWS: &str = "target/niji/bench/affected-rows.tsv";
 
 /// The `CBENCH_ROWS` list per C binary: the kept rows, plus the base of every kept `ratio_to` row (often an
 /// output row with no budget line, so it is not in `kept`). Binaries that run every row get no list.
@@ -629,17 +629,17 @@ fn base_args(args: &[String], base_out: &Path) -> Vec<String> {
 /// linked (the like-for-like pair of the static products), run alternately: one warm-up round
 /// whose results are discarded, then N rounds (default 5). Prints, per row, the median, minimum
 /// and maximum over the rounds of each build (each value is itself the program's own best of
-/// rounds) and the ratio of the medians (Liella ÷ host, dynamic), as a Markdown table; writes the
-/// same as TSV to `target/liella/bench/<name>.compare.tsv`. A host build that does not build or
+/// rounds) and the ratio of the medians (libniji ÷ host, dynamic), as a Markdown table; writes the
+/// same as TSV to `target/niji/bench/<name>.compare.tsv`. A host build that does not build or
 /// fails (a static glibc cannot load everything) leaves its column empty. No budgets are checked.
 ///
 /// Measurement columns (MEASURE-1; none of them is a product change): `--v3` adds the products'
-/// archive built with `-Ctarget-cpu=x86-64-v3`; `--sorted` adds the Liella build linked with
+/// archive built with `-Ctarget-cpu=x86-64-v3`; `--sorted` adds the libniji build linked with
 /// `--sort-section=name` (the same code in another order: the code-layout effect); `--counters`
 /// runs each build once more with `CBENCH_COUNTERS=1` (`bench/c/cbench_counters.h`: aggregate
 /// hardware counters of the process per row, no sampling) and reports instructions, cycles, IPC,
 /// branch and L1d misses per operation. All columns of all benchmarks go to
-/// `target/liella/bench/measure.tsv`. Liella's `libc.so.6` is not measured: it needs Liella's
+/// `target/niji/bench/measure.tsv`. libniji's `libc.so.6` is not measured: it needs libniji's
 /// dynamic loader (phase 14); the host loader refuses it (it requires its own libc's private
 /// start-up interface).
 /// The options of `bench --compare`, parsed from the words after `bench` (flags may stand before or after
@@ -732,7 +732,7 @@ fn is_glob(p: &str) -> bool {
     p.contains(['*', '?'])
 }
 
-/// The rows a bench's patterns select, in the bench's own row order (`all`: the rows its Liella build prints
+/// The rows a bench's patterns select, in the bench's own row order (`all`: the rows its libniji build prints
 /// without a filter; needed only for globs, `None` otherwise). A glob matching nothing is an error listing `all`.
 fn resolve_row_patterns(name: &str, pats: &[String], all: Option<&[String]>) -> Result<Vec<String>, String> {
     let mut out: Vec<String> = Vec::new();
@@ -758,7 +758,7 @@ fn resolve_row_patterns(name: &str, pats: &[String], all: Option<&[String]>) -> 
 fn unknown_rows_error(name: &str, bad: &[String], all: &[String]) -> String {
     let names = bad.iter().map(|b| format!("`{b}`")).collect::<Vec<_>>().join(", ");
     let verb = if bad.len() == 1 { "is" } else { "are" };
-    format!("bench --compare --rows: {names} {verb} not a row of {name}; its rows (the Liella build, unfiltered): {}", all.join(", "))
+    format!("bench --compare --rows: {names} {verb} not a row of {name}; its rows (the libniji build, unfiltered): {}", all.join(", "))
 }
 
 /// The benchmark command of `--compare` (every build of the comparison goes through here, so a row filter is the
@@ -771,9 +771,9 @@ fn compare_command(name: &str, exe: &Path, rows: Option<&str>) -> Command {
     c
 }
 
-/// The rows a bench's Liella build prints with no filter (one extra run: only for globs and the unknown-row error).
+/// The rows a bench's libniji build prints with no filter (one extra run: only for globs and the unknown-row error).
 fn listed_rows(name: &str, exe: &Path) -> Result<Vec<String>, String> {
-    println!("{name}: --rows: one unfiltered run of the Liella build to list its rows");
+    println!("{name}: --rows: one unfiltered run of the libniji build to list its rows");
     let out = compare_command(name, exe, None).output().map_err(|e| format!("{name}: {e}"))?;
     if !out.status.success() {
         return Err(format!("{} failed:\n{}", exe.display(), String::from_utf8_lossy(&out.stderr).trim()));
@@ -781,8 +781,8 @@ fn listed_rows(name: &str, exe: &Path) -> Result<Vec<String>, String> {
     Ok(parse_rows(name, &out.stdout)?.into_iter().map(|(r, _)| r).collect())
 }
 
-/// The file in `target/liella-v3` that says how the v3 archive was laid out ([`v3_layout`]); the bench output
-/// prints it as `liella_v3 layout: ...` (ruling #5463).
+/// The file in `target/niji-v3` that says how the v3 archive was laid out ([`v3_layout`]); the bench output
+/// prints it as `niji_v3 layout: ...` (ruling #5463).
 const V3_LAYOUT: &str = "layout.txt";
 
 /// Whether this host runs x86-64-v3 code (the psABI's v3 level: AVX, AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE,
@@ -833,13 +833,13 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
         crate::so::run_so_as(root, crate::so::Profile::Release)?;
     }
     if v3 && !no_build {
-        let out = root.join("target/liella-v3");
+        let out = root.join("target/niji-v3");
         fs::create_dir_all(&out).map_err(|e| e.to_string())?;
         // Ruling #5463: the v3 build is traced like every product, so timing measures the layout that ships;
         // ungrouped only where this host cannot run x86-64-v3 code (the tracer runs the probes), said below.
         let (layout, why) = v3_layout(host_runs_v3());
         fs::write(out.join(V3_LAYOUT), format!("{why}\n")).map_err(|e| format!("{}: {e}", out.join(V3_LAYOUT).display()))?;
-        // Own product dir and output dir: a v3 archive never lands in target/product or target/liella,
+        // Own product dir and output dir: a v3 archive never lands in target/product or target/niji,
         // whose `.profile` marker describes the baseline products.
         crate::so::build_archive(root, &root.join("target/product-v3"), &out.join("libc.a"), Some("-Ctarget-cpu=x86-64-v3"), crate::so::Profile::Release, layout)?;
     }
@@ -847,20 +847,20 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
     println!("machine: {}, {cpu}, kernel {}, {} (host C library)", first_line("hostname", &[]), first_line("uname", &["-r"]), first_line("ldd", &["--version"]));
     println!("tunables: GLIBC_TUNABLES={} (both sides)", TUNABLES.get().map_or("(unset)", String::as_str));
     if v3 {
-        let why = fs::read_to_string(root.join("target/liella-v3").join(V3_LAYOUT)).unwrap_or_else(|_| "not recorded (a v3 archive built before LAYOUT-DELETE-LISTS)".into());
-        println!("liella_v3 layout: {}", why.trim_end());
+        let why = fs::read_to_string(root.join("target/niji-v3").join(V3_LAYOUT)).unwrap_or_else(|_| "not recorded (a v3 archive built before LAYOUT-DELETE-LISTS)".into());
+        println!("niji_v3 layout: {}", why.trim_end());
     }
     if let Some(m) = &staged {
         println!("{}", crate::benchstage::header(m));
     }
     println!("method: {runs} rounds after a discarded warm-up round, the builds alternating; each value is the program's best of 7 rounds (cold rows: median of 31 processes)");
-    // Index 0 is Liella (static), 1 the reference (glibc dynamic); the order is the column order.
-    let mut builds = vec![(Build::Liella, "liella"), (Build::HostDynamic, "glibc_dyn"), (Build::HostStatic, "glibc_static")];
+    // Index 0 is libniji (static), 1 the reference (glibc dynamic); the order is the column order.
+    let mut builds = vec![(Build::libniji, "niji"), (Build::HostDynamic, "glibc_dyn"), (Build::HostStatic, "glibc_static")];
     if v3 {
-        builds.push((Build::LiellaV3, "liella_v3"));
+        builds.push((Build::NijiV3, "niji_v3"));
     }
     if sorted {
-        builds.push((Build::LiellaSorted, "liella_sorted"));
+        builds.push((Build::NijiSorted, "niji_sorted"));
     }
     let mut measure = measure_header();
     // XTASK-BENCH-OUTPUTS: `--counters` writes counters.tsv (this run's rows only) and counters-<bench>.tsv.
@@ -892,8 +892,8 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
         } else {
             let pats = compare_row_patterns(name, &names, &row_items)?;
             if pats.iter().any(|p| is_glob(p)) {
-                let liella = exes[0].as_ref().ok_or_else(|| format!("{name}: no Liella build"))?;
-                all_rows = Some(listed_rows(name, liella)?);
+                let niji = exes[0].as_ref().ok_or_else(|| format!("{name}: no libniji build"))?;
+                all_rows = Some(listed_rows(name, niji)?);
             }
             let sel = resolve_row_patterns(name, &pats, all_rows.as_deref())?;
             println!("{name}: --rows: CBENCH_ROWS={} (every build)", sel.join(","));
@@ -917,8 +917,8 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
                     return Err(format!("{} failed:\n{why}", exe.display()));
                 }
                 if round == 0 {
-                    // The warm-up of the Liella build proves every selected row exists (a typo is an error, never an empty table).
-                    if let (Some(sel), Build::Liella) = (&selected, *b) {
+                    // The warm-up of the libniji build proves every selected row exists (a typo is an error, never an empty table).
+                    if let (Some(sel), Build::libniji) = (&selected, *b) {
                         let printed: Vec<String> = parse_rows(name, &out.stdout)?.into_iter().map(|(r, _)| r).collect();
                         let missing: Vec<String> = sel.iter().filter(|r| !printed.contains(r)).cloned().collect();
                         if !missing.is_empty() {
@@ -932,7 +932,7 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
                     continue;
                 }
                 for (row, v) in parse_rows(name, &out.stdout)? {
-                    if *b == Build::Liella && !order.contains(&row) {
+                    if *b == Build::libniji && !order.contains(&row) {
                         order.push(row.clone());
                     }
                     values[k].entry(row).or_default().push(v);
@@ -958,13 +958,13 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
             order.retain(|r| sel.contains(r));
         }
         let cell = |k: usize, row: &str| values[k].get(row).filter(|v| !v.is_empty()).map(|v| stats(v));
-        let mut tsv = String::from("row\thost_median\thost_min\thost_max\tliella_median\tliella_min\tliella_max\tratio\thost_static_median\thost_static_min\thost_static_max\n");
+        let mut tsv = String::from("row\thost_median\thost_min\thost_max\tniji_median\tniji_min\tniji_max\tratio\thost_static_median\thost_static_min\thost_static_max\n");
         println!("\n{name}: ns per operation, median (min-max) over {runs} rounds\n");
         if counters {
-            println!("| Row | glibc (dynamic) | Liella | Ratio | glibc (static) | instr/op Liella | instr/op glibc | instr ratio |");
+            println!("| Row | glibc (dynamic) | libniji | Ratio | glibc (static) | instr/op libniji | instr/op glibc | instr ratio |");
             println!("|---|---:|---:|---:|---:|---:|---:|---:|");
         } else {
-            println!("| Row | glibc (dynamic) | Liella | Ratio | glibc (static) |");
+            println!("| Row | glibc (dynamic) | libniji | Ratio | glibc (static) |");
             println!("|---|---:|---:|---:|---:|");
         }
         let fmt = |c: Option<(f64, f64, f64)>| c.map_or("-".to_string(), |(m, lo, hi)| format!("{m:.2} ({lo:.2}-{hi:.2})"));
@@ -1011,8 +1011,8 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
                 host.map_or("-".into(), |v| format!("{v:.2}")),
                 r(Some(0)),
                 r(col(Build::HostStatic)),
-                r(col(Build::LiellaV3)),
-                r(col(Build::LiellaSorted)),
+                r(col(Build::NijiV3)),
+                r(col(Build::NijiSorted)),
                 q(instr(0), col(Build::HostStatic).and_then(instr)),
                 q(ipc(0), col(Build::HostStatic).and_then(ipc)),
                 q(instr(0), instr(1)),
@@ -1056,11 +1056,11 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
 }
 
 /// The build groups of `measure.tsv`, in column order (bench/parity-measure.tsv has the same 47 columns).
-const MEASURE_GROUPS: [&str; 5] = ["liella", "glibc_dyn", "glibc_static", "liella_v3", "liella_sorted"];
+const MEASURE_GROUPS: [&str; 5] = ["niji", "glibc_dyn", "glibc_static", "niji_v3", "niji_sorted"];
 
 /// The header of `measure.tsv`: 12 leading columns, then seven per build group; always the same, whatever flags ran.
 fn measure_header() -> String {
-    let mut h = String::from("bench\trow\tglibc_dyn_ns\tliella_static_ratio\tliella_dyn_ratio\tglibc_static_ratio\tv3_ratio\tsorted_ratio\tinstr_ratio_ss\tipc_ratio_ss\tinstr_ratio_sd\tipc_ratio_sd");
+    let mut h = String::from("bench\trow\tglibc_dyn_ns\tniji_static_ratio\tniji_dyn_ratio\tglibc_static_ratio\tv3_ratio\tsorted_ratio\tinstr_ratio_ss\tipc_ratio_ss\tinstr_ratio_sd\tipc_ratio_sd");
     for l in MEASURE_GROUPS {
         h.push_str(&format!("\t{l}_ns\t{l}_instr\t{l}_cycles\t{l}_ipc\t{l}_brmiss\t{l}_l1dmiss\t{l}_instr_user"));
     }
@@ -1074,24 +1074,24 @@ pub(crate) const STAGED_OUT: &str = "bench-out";
 /// products, so `bench --stage` leaves them out of the tarball.
 const OUTPUT_FILES: [&str; 6] = ["counters.tsv", "ratio_host.tsv", "rounds.tsv", "bench_times.tsv", "decision.tsv", "measure.tsv"];
 
-/// Whether the file `name` in `target/liella/bench` is a bench run's output (see `OUTPUT_FILES`).
+/// Whether the file `name` in `target/niji/bench` is a bench run's output (see `OUTPUT_FILES`).
 pub(crate) fn is_output(name: &str) -> bool {
     OUTPUT_FILES.contains(&name) || (name.starts_with("counters-") && name.ends_with(".tsv")) || name.ends_with(".compare.tsv")
 }
 
-/// The directory a run writes its tables to: `target/liella/bench`, or `bench-out/` at the root of a staged tree
+/// The directory a run writes its tables to: `target/niji/bench`, or `bench-out/` at the root of a staged tree
 /// (one holding `bench-stage.manifest`), so a run never writes into the staged products and the same unpacked
 /// tree can be run any number of times (XTASK-BENCH-OUTPUTS).
 pub(crate) fn out_dir(root: &Path) -> Result<std::path::PathBuf, String> {
-    let dir = if root.join(crate::benchstage::MANIFEST).is_file() { root.join(STAGED_OUT) } else { root.join("target/liella/bench") };
+    let dir = if root.join(crate::benchstage::MANIFEST).is_file() { root.join(STAGED_OUT) } else { root.join("target/niji/bench") };
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     Ok(dir)
 }
 
 /// The columns of `counters.tsv` and `counters-<bench>.tsv` (both `bench --counters` and `bench --compare --counters`).
-const COUNTERS_HEADER: &str = "bench\trow\tns_ratio\tcycles_ratio\tuops_ratio\tinstr_ratio\tliella_cycles\tglibc_cycles\tliella_uops\tglibc_uops\tliella_instr\tglibc_instr\tspread\tsuspect\n";
+const COUNTERS_HEADER: &str = "bench\trow\tns_ratio\tcycles_ratio\tuops_ratio\tinstr_ratio\tniji_cycles\tglibc_cycles\tniji_uops\tglibc_uops\tniji_instr\tglibc_instr\tspread\tsuspect\n";
 
-/// One `counters.tsv` line: Liella (`l`) and glibc dynamic (`g`) counters per operation (`parse_counters` order),
+/// One `counters.tsv` line: libniji (`l`) and glibc dynamic (`g`) counters per operation (`parse_counters` order),
 /// the ns ratio when known, the spread over the counted runs and the sanity flags.
 fn counters_line(b: &str, row: &str, ns: Option<f64>, l: &[f64; 6], g: &[f64; 6], spread: &str, flags: &str) -> String {
     let q = |a: f64, b: f64| if a > 0.0 && b > 0.0 { Some(a / b) } else { None };
@@ -1180,11 +1180,11 @@ pub(crate) fn parse_counters(stderr: &[u8]) -> BTreeMap<String, [f64; 6]> {
     m
 }
 
-/// The three `--counters` summary cells for one row: instructions per operation for Liella and for glibc
-/// (dynamic), and their ratio (Liella / glibc); `-` where a side has no counted value (TOOLS-2).
-fn instr_cells(liella: Option<&[f64; 6]>, glibc: Option<&[f64; 6]>) -> String {
+/// The three `--counters` summary cells for one row: instructions per operation for libniji and for glibc
+/// (dynamic), and their ratio (libniji / glibc); `-` where a side has no counted value (TOOLS-2).
+fn instr_cells(niji: Option<&[f64; 6]>, glibc: Option<&[f64; 6]>) -> String {
     let get = |v: Option<&[f64; 6]>| v.map(|v| v[0]).filter(|&x| x > 0.0);
-    let (l, g) = (get(liella), get(glibc));
+    let (l, g) = (get(niji), get(glibc));
     let f = |x: Option<f64>| x.map_or("-".to_string(), |x| format!("{x:.1}"));
     let ratio = match (l, g) {
         (Some(l), Some(g)) => format!("{:.2}", l / g),
@@ -1196,8 +1196,8 @@ fn instr_cells(liella: Option<&[f64; 6]>, glibc: Option<&[f64; 6]>) -> String {
 /// Median counters of one row, the spread over the counted runs, and the median ns/op of those runs.
 type CountedRow = ([f64; 6], f64, f64);
 
-/// One counted run (`CBENCH_COUNTERS=1`) of the Liella build and of the host C library per benchmark, outside
-/// the timed rounds, and a compact table per row: Liella/glibc ratios of ns (the timing rounds' median, when
+/// One counted run (`CBENCH_COUNTERS=1`) of the libniji build and of the host C library per benchmark, outside
+/// the timed rounds, and a compact table per row: libniji/glibc ratios of ns (the timing rounds' median, when
 /// given), cycles, uops (issued) and instructions; `-` where the PMU lacks the event (TOOLS-5, MEASUREMENT RULE:
 /// time decides, counts explain). Also `counters.tsv` and `counters-<bench>.tsv` in `out_dir` (per-op values of
 /// both sides; `write_counters`), written also when a counted run fails, with the rows counted before it.
@@ -1214,7 +1214,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
     let mut cyc: BTreeMap<(String, String), CycleCell> = BTreeMap::new();
     let mut printed = 0usize;
     NO_BUILD.store(no_build, std::sync::atomic::Ordering::Relaxed);
-    println!("\ncounters per operation (median of 3 counted runs per side; ratio = Liella / glibc dynamic; `-` = event not available):");
+    println!("\ncounters per operation (median of 3 counted runs per side; ratio = libniji / glibc dynamic; `-` = event not available):");
     println!("{:<14} {:<26} {:>7} {:>7} {:>7} {:>7}  {:>9} {:>9} {:>9}", "bench", "row", "ns", "cycles", "uops", "instr", "cyc/op L", "cyc/op G", "spread L/G");
     let q = |a: f64, b: f64| if a > 0.0 && b > 0.0 { Some(a / b) } else { None };
     let cell = |x: Option<f64>| x.map_or("-".to_string(), |v| format!("{v:.3}"));
@@ -1222,7 +1222,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
     for b in names {
         started.push(b);
         let host = host_build_cached(root, b)?;
-        let liella = if no_build { root.join(format!("target/liella/bench/{b}")) } else { c_build(root, b, Build::Liella)? };
+        let niji = if no_build { root.join(format!("target/niji/bench/{b}")) } else { c_build(root, b, Build::libniji)? };
         // TOOLS-6: three counted runs per side; per row the MEDIAN of every column, a spread column, and sanity flags.
         let run3 = |exe: &Path| -> Result<BTreeMap<String, CountedRow>, String> {
             let mut runs = Vec::new();
@@ -1256,7 +1256,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
             }
             Ok(res)
         };
-        let (l, g) = (run3(&liella)?, run3(&host)?);
+        let (l, g) = (run3(&niji)?, run3(&host)?);
         for (row, (lv, lsp, lns)) in &l {
             if lv[0] > 0.0 {
                 instr.insert((b.to_string(), row.clone()), lv[0]);
@@ -1290,7 +1290,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
     Ok(Counted { instr, cyc, rows: printed })
 }
 
-/// What the counted runs measured: instructions per call of Liella (the instruction limits) and, per row, the
+/// What the counted runs measured: instructions per call of libniji (the instruction limits) and, per row, the
 /// cycles ratio and the clock of each side (FALLBACK-CYCLES).
 struct Counted {
     /// How many rows the table printed (both sides counted).
@@ -1299,7 +1299,7 @@ struct Counted {
     cyc: BTreeMap<(String, String), CycleCell>,
 }
 
-/// One row's cycles: Liella/glibc ratio of the median cycles per call (user+kernel, `PERF_COUNT_HW_CPU_CYCLES`
+/// One row's cycles: libniji/glibc ratio of the median cycles per call (user+kernel, `PERF_COUNT_HW_CPU_CYCLES`
 /// without `exclude_kernel`), and each side's GHz (cycles / ns of its counted runs). `None` = no counter.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct CycleCell {
@@ -1373,7 +1373,7 @@ fn cpu_model_of(cpuinfo: &str) -> Option<String> {
 /// ICOUNT-LIMITS: the file of instruction-per-call limits (see `check_instr_limits`).
 const INSTR_LIMITS: &str = "bench/instr_limits.tsv";
 
-/// One line of `bench/instr_limits.tsv`: the most instructions per call Liella may execute in one row (the
+/// One line of `bench/instr_limits.tsv`: the most instructions per call libniji may execute in one row (the
 /// median of the counted runs, `bench/c/cbench_counters.h`).
 #[derive(Debug, PartialEq)]
 struct InstrLimit {
@@ -1405,7 +1405,7 @@ fn parse_instr_limits(text: &str) -> Result<Vec<InstrLimit>, String> {
 }
 
 /// The failures of the instruction limits for this CPU: a limited row (among the `selected` rows of a bench that
-/// was counted) whose Liella instructions per call exceed the limit, or that has no counted value at all. Instruction
+/// was counted) whose libniji instructions per call exceed the limit, or that has no counted value at all. Instruction
 /// counts are near-deterministic, unlike the time of a one-offset row (code placement moves it +-10%).
 fn check_instr_limits(limits: &[InstrLimit], cpu: &str, instr: &BTreeMap<(String, String), f64>, selected: &std::collections::BTreeSet<(String, String)>, counted: &[&str]) -> Vec<String> {
     let mut out = Vec::new();
@@ -1428,7 +1428,7 @@ enum Status {
     KnownRegression,
 }
 
-/// One line of `bench/host_limits.tsv`: the limit on the median Liella/glibc ratio of one row on
+/// One line of `bench/host_limits.tsv`: the limit on the median libniji/glibc ratio of one row on
 /// one CPU model.
 #[derive(Clone, Debug, PartialEq)]
 struct Limit {
@@ -1465,15 +1465,15 @@ fn limit_for<'a>(limits: &'a [Limit], cpu: &str, bench: &str, row: &str) -> Opti
     limits.iter().find(|l| l.cpu == cpu && l.bench == bench && l.row == row)
 }
 
-/// The gate statistic of one row: the same-run median Liella/glibc ratio (the ratio of the two
+/// The gate statistic of one row: the same-run median libniji/glibc ratio (the ratio of the two
 /// builds' medians over the rounds, as `--compare` prints it), and the worst ratio (slowest
-/// Liella round / fastest glibc round), which is a diagnostic only. `None` without data or with
+/// libniji round / fastest glibc round), which is a diagnostic only. `None` without data or with
 /// a zero glibc time.
-fn ratio_stats(liella: &[f64], host: &[f64]) -> Option<(f64, f64)> {
-    if liella.is_empty() || host.is_empty() {
+fn ratio_stats(niji: &[f64], host: &[f64]) -> Option<(f64, f64)> {
+    if niji.is_empty() || host.is_empty() {
         return None;
     }
-    let (lm, _, lmax) = stats(liella);
+    let (lm, _, lmax) = stats(niji);
     let (hm, hmin, _) = stats(host);
     if hm <= 0.0 || hmin <= 0.0 {
         return None;
@@ -1485,7 +1485,7 @@ fn ratio_stats(liella: &[f64], host: &[f64]) -> Option<(f64, f64)> {
 const ROUNDS_FIRST: usize = 3;
 
 /// The adaptive-rounds rule (BENCH-TP): can rounds 4 and 5 change what this row reports? The gate
-/// statistic is median(Liella) / median(glibc). The median of 5 values, 3 of which are known, lies
+/// statistic is median(libniji) / median(glibc). The median of 5 values, 3 of which are known, lies
 /// between the minimum and maximum of those 3, so with 3 rounds in hand the final statistic lies in
 /// [lmin / hmax, lmax / hmin] whatever the last two rounds bring. The row is settled when that
 /// whole interval is on one side of every line its verdict depends on: the regression limit (if
@@ -1493,11 +1493,11 @@ const ROUNDS_FIRST: usize = 3;
 /// their side of parity; only the printed median and the informational 1.10 target flag may differ
 /// in the last digits. `parity` false (`BENCH_SETTLE_PARITY=0`) drops the parity line: only the
 /// limit has to be settled, and rows near 1.00 are left to the back-to-back rerun they get anyway.
-fn row_settled(liella: &[f64], host: &[f64], limit: Option<f64>, parity: bool) -> bool {
-    if liella.len() < ROUNDS_FIRST || host.len() < ROUNDS_FIRST {
+fn row_settled(niji: &[f64], host: &[f64], limit: Option<f64>, parity: bool) -> bool {
+    if niji.len() < ROUNDS_FIRST || host.len() < ROUNDS_FIRST {
         return false;
     }
-    let (_, lmin, lmax) = stats(liella);
+    let (_, lmin, lmax) = stats(niji);
     let (_, hmin, hmax) = stats(host);
     if hmin <= 0.0 || hmax <= 0.0 {
         return false;
@@ -1522,8 +1522,8 @@ fn bench_settled(b: &str, rows: &[Vec<&str>], limits: &[Limit], cpu: &str, parit
 const TARGET: f64 = 1.10;
 
 /// `cargo xtask bench [--runs N]`. Benchmarks with `ratio_host` rows run N rounds (default 5)
-/// after a discarded warm-up round, the Liella and host-library builds alternating; the gate
-/// statistic of such a row is the median Liella/glibc ratio over the rounds, checked against the
+/// after a discarded warm-up round, the libniji and host-library builds alternating; the gate
+/// statistic of such a row is the median libniji/glibc ratio over the rounds, checked against the
 /// limit for this machine's CPU model in `bench/host_limits.tsv` (a CPU without entries is
 /// measured and reported, not gated). The `bound` of a `ratio_host` row in `budgets.tsv` is the
 /// target, which is reported but never fails the run.
@@ -1531,7 +1531,7 @@ const TARGET: f64 = 1.10;
 /// Adaptive rounds (BENCH-TP): without `--runs` and without `BENCH_ROUNDS_FIXED=1` a benchmark
 /// first runs `ROUNDS_FIRST` rounds; only if one of its rows is unsettled (`row_settled`) does it
 /// run up to the full 5. `--runs N` or `BENCH_ROUNDS_FIXED=1` runs exactly N rounds as before.
-/// Every round's values are written to `target/liella/bench/rounds.tsv` for replaying the rule.
+/// Every round's values are written to `target/niji/bench/rounds.tsv` for replaying the rule.
 pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     let mut runs = 5usize;
     let mut fixed = std::env::var("BENCH_ROUNDS_FIXED").is_ok_and(|v| !v.is_empty() && v != "0");
@@ -1689,10 +1689,10 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     if benches.iter().any(|b| b.starts_with("cbench_")) {
         if mode == Mode::NoBuild {
             let newest = [newest_below(&root.join("crates"), &["rs", "S"]), newest_below(&root.join("csys"), &["rs", "c", "S", "h"])].into_iter().max().flatten();
-            require_fresh(&root.join("target/liella/libc.a"), newest, "libc.a vs the crates/ and csys/ sources")?;
+            require_fresh(&root.join("target/niji/libc.a"), newest, "libc.a vs the crates/ and csys/ sources")?;
             // Performance numbers come from the shipped configuration only (fat LTO, one codegen unit).
             if crate::so::built_profile(root) != Some(crate::so::Profile::Release) {
-                return Err("target/liella holds products built with the fast test profile (or of unknown profile), which are never benchmarked: run `cargo xtask bench --build-only` (or `cargo xtask so` with LIELLA_FULL_PROFILE=1) first".into());
+                return Err("target/niji holds products built with the fast test profile (or of unknown profile), which are never benchmarked: run `cargo xtask bench --build-only` (or `cargo xtask so` with NIJI_FULL_PROFILE=1) first".into());
             }
         } else {
             crate::so::run_so_as(root, crate::so::Profile::Release)?;
@@ -1703,8 +1703,8 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         v.dedup();
         v
     };
-    // Per row, the values of every round: the Liella build and the host C library (same run).
-    let mut liella_rounds: BTreeMap<(String, String), Vec<f64>> = BTreeMap::new();
+    // Per row, the values of every round: the libniji build and the host C library (same run).
+    let mut niji_rounds: BTreeMap<(String, String), Vec<f64>> = BTreeMap::new();
     let mut host_rounds: BTreeMap<(String, String), Vec<f64>> = BTreeMap::new();
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     if mode == Mode::BuildOnly {
@@ -1713,9 +1713,9 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                 host_build_cached(root, b)?;
             }
             if b.starts_with("cbench_") {
-                c_build(root, b, Build::Liella)?;
+                c_build(root, b, Build::libniji)?;
             } else {
-                let st = Command::new(&cargo).current_dir(root).args(["build", "-q", "--release", "-p", "liella-boundary", "--example", b]).status().map_err(|e| format!("{b}: {e}"))?;
+                let st = Command::new(&cargo).current_dir(root).args(["build", "-q", "--release", "-p", "niji-boundary", "--example", b]).status().map_err(|e| format!("{b}: {e}"))?;
                 if !st.success() {
                     return Err(format!("{b} does not build"));
                 }
@@ -1748,7 +1748,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         let rs_new = newest_below(&root.join("crates"), &["rs"]);
         for b in &benches {
             if b.starts_with("cbench_") {
-                require_fresh(&root.join(format!("target/liella/bench/{b}")), mtime(&root.join(format!("bench/c/{b}.c"))).max(mtime(&root.join("target/liella/libc.a"))), "Liella build of the bench")?;
+                require_fresh(&root.join(format!("target/niji/bench/{b}")), mtime(&root.join(format!("bench/c/{b}.c"))).max(mtime(&root.join("target/niji/libc.a"))), "libniji build of the bench")?;
             } else {
                 require_fresh(&root.join(format!("target/release/examples/{b}")), rs_new, "Rust example vs the crates/ sources")?;
             }
@@ -1788,12 +1788,12 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         let bench_started = std::time::Instant::now();
         let ratio = host_benches.contains(b);
         let host_exe = if ratio { Some(host_build_cached(root, b)?) } else { None };
-        let liella_exe = if b.starts_with("cbench_") { Some(if mode == Mode::NoBuild { root.join(format!("target/liella/bench/{b}")) } else { c_build(root, b, Build::Liella)? }) } else { None };
+        let niji_exe = if b.starts_with("cbench_") { Some(if mode == Mode::NoBuild { root.join(format!("target/niji/bench/{b}")) } else { c_build(root, b, Build::libniji)? }) } else { None };
         let mut upto = if !ratio { 0 } else if adaptive { ROUNDS_FIRST } else { runs };
         let mut round = 0usize;
         loop {
             if round > upto {
-                if ratio && adaptive && upto < runs && !bench_settled(b, &rows, &limits, &cpu, settle_parity, &liella_rounds, &host_rounds) {
+                if ratio && adaptive && upto < runs && !bench_settled(b, &rows, &limits, &cpu, settle_parity, &niji_rounds, &host_rounds) {
                     upto = runs;
                 } else {
                     break;
@@ -1810,13 +1810,13 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                     }
                 }
             }
-            let out = match &liella_exe {
+            let out = match &niji_exe {
                 Some(e) => c_command(b, e).output().map_err(|e| format!("{b}: {e}"))?,
                 // A Rust bench inherits the caller's environment; `--tunables` reaches it too (D-X.39).
                 None if mode == Mode::NoBuild => with_tunables(Command::new(root.join(format!("target/release/examples/{b}")))).current_dir(root).output().map_err(|e| format!("{b}: {e}"))?,
                 None => with_tunables(Command::new(&cargo))
                     .current_dir(root)
-                    .args(["run", "-q", "--release", "-p", "liella-boundary", "--example", b])
+                    .args(["run", "-q", "--release", "-p", "niji-boundary", "--example", b])
                     .output()
                     .map_err(|e| format!("{b}: {e}"))?,
             };
@@ -1825,7 +1825,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
             }
             if round > 0 || !ratio {
                 for (name, v) in parse_rows(b, &out.stdout)? {
-                    liella_rounds.entry((b.to_string(), name)).or_default().push(v);
+                    niji_rounds.entry((b.to_string(), name)).or_default().push(v);
                 }
             }
             round += 1;
@@ -1847,7 +1847,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         println!("rounds: fixed {runs} (BENCH_ROUNDS_FIXED or --runs)");
     }
     // The value a max_ns / ratio_to row uses is the median over the rounds.
-    for ((b, name), v) in &liella_rounds {
+    for ((b, name), v) in &niji_rounds {
         let (median, ..) = stats(v);
         println!("{b:<14} {name:<26} {median:>10.2} ns/op");
         results.insert((b.clone(), name.clone()), median);
@@ -1858,8 +1858,8 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     let mut ungated = 0usize;
     let mut ratio_rows = 0usize;
     let mut pending: Vec<(String, String, f64, f64)> = Vec::new();
-    let mut out_tsv = String::from("cpu\tbench\trow\thost_median\tliella_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\n");
-    println!("\nratio_host rows (median Liella/glibc ratio over the rounds run; worst = slowest Liella / fastest glibc, diagnostic only; target {TARGET}):");
+    let mut out_tsv = String::from("cpu\tbench\trow\thost_median\tniji_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\n");
+    println!("\nratio_host rows (median libniji/glibc ratio over the rounds run; worst = slowest libniji / fastest glibc, diagnostic only; target {TARGET}):");
     for r in &rows {
         let [bench, name, rule, bound, ..] = r.as_slice() else {
             return Err(format!("budgets.tsv: short row {r:?}"));
@@ -1876,7 +1876,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
             "ratio_host" => {
                 ratio_rows += 1;
                 let target = bound.parse::<f64>().map_err(|e| format!("{bench}/{name}: {e}"))?;
-                let (lv, hv) = (liella_rounds.get(&key).map(Vec::as_slice).unwrap_or(&[]), host_rounds.get(&key).map(Vec::as_slice).unwrap_or(&[]));
+                let (lv, hv) = (niji_rounds.get(&key).map(Vec::as_slice).unwrap_or(&[]), host_rounds.get(&key).map(Vec::as_slice).unwrap_or(&[]));
                 let (med, worst) = ratio_stats(lv, hv).ok_or(format!("{bench}/{name}: not measured with the host C library"))?;
                 let lim = limit_for(&limits, &cpu, bench, name);
                 let verdict = match lim {
@@ -1927,8 +1927,8 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     let path = dir.join("ratio_host.tsv");
     fs::write(&path, out_tsv).map_err(|e| format!("{}: {e}", path.display()))?;
     // Every round of every ratio_host row, so the adaptive rule can be replayed on real data.
-    let mut rounds_tsv = String::from("bench\trow\tround\tliella_ns\thost_ns\n");
-    for (key, lv) in &liella_rounds {
+    let mut rounds_tsv = String::from("bench\trow\tround\tniji_ns\thost_ns\n");
+    for (key, lv) in &niji_rounds {
         if let Some(hv) = host_rounds.get(key) {
             for (i, (l, h)) in lv.iter().zip(hv).enumerate() {
                 rounds_tsv.push_str(&format!("{}\t{}\t{}\t{l}\t{h}\n", key.0, key.1, i + 1));
@@ -1954,7 +1954,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
     let mut cells: BTreeMap<(String, String), CycleCell> = BTreeMap::new();
     if counters || instr_gated || !pending.is_empty() {
         let names = counted_benches(&benches, &host_capable);
-        let ns: BTreeMap<(String, String), f64> = liella_rounds
+        let ns: BTreeMap<(String, String), f64> = niji_rounds
             .iter()
             .filter_map(|(k, lv)| host_rounds.get(k).and_then(|hv| ratio_stats(lv, hv)).map(|(m, _)| (k.clone(), m)))
             .collect();
@@ -2248,7 +2248,7 @@ ctr	short	1
         got.sort();
         assert_eq!(got, ["CBENCH_STRESS_DEPTH=64", "CBENCH_STRESS_THREADS=64", "HOME=/home/cbench", "PATH=/usr/local/bin:/usr/bin:/bin"]);
         // `names`: 50,000 entries appended after the host's own, root keeps its place.
-        let dir = std::env::temp_dir().join(format!("liella-stress-names-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("niji-stress-names-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         prepare_stress(&dir, &sel(&["names"])).expect("names files");
         let pw = fs::read_to_string(dir.join("passwd")).expect("passwd");
@@ -2343,11 +2343,11 @@ ctr	short	1
     #[test]
     fn compare_rows_reach_both_builds_identically() {
         let env_of = |c: &Command| c.get_envs().find(|(k, _)| *k == "CBENCH_ROWS").and_then(|(_, v)| v.map(|v| v.to_string_lossy().into_owned()));
-        let l = compare_command("cbench_rowtest", Path::new("/t/liella"), Some("memchr_16,memchr_16_mix"));
+        let l = compare_command("cbench_rowtest", Path::new("/t/niji"), Some("memchr_16,memchr_16_mix"));
         let g = compare_command("cbench_rowtest", Path::new("/t/glibc_dyn"), Some("memchr_16,memchr_16_mix"));
         assert_eq!(env_of(&l).as_deref(), Some("memchr_16,memchr_16_mix"));
         assert_eq!(env_of(&l), env_of(&g));
-        assert_eq!(env_of(&compare_command("cbench_rowtest", Path::new("/t/liella"), None)), None);
+        assert_eq!(env_of(&compare_command("cbench_rowtest", Path::new("/t/niji"), None)), None);
         let dir = std::env::temp_dir().join(format!("xtask-rows-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let exe = dir.join("fakebench");
@@ -2490,10 +2490,10 @@ ctr	short	1
 
     #[test]
     fn gate_statistic_is_the_median_ratio() {
-        // Liella 10, 11, 30 (median 11, one slow outlier); glibc 9, 10, 10 (median 10).
+        // libniji 10, 11, 30 (median 11, one slow outlier); glibc 9, 10, 10 (median 10).
         let (median, worst) = ratio_stats(&[10.0, 30.0, 11.0], &[10.0, 9.0, 10.0]).unwrap();
         assert!((median - 1.1).abs() < 1e-12);
-        // The worst ratio (diagnostic) is slowest Liella / fastest glibc.
+        // The worst ratio (diagnostic) is slowest libniji / fastest glibc.
         assert!((worst - 30.0 / 9.0).abs() < 1e-12);
         // An even number of rounds averages the middle pair.
         let (median, _) = ratio_stats(&[10.0, 20.0], &[10.0, 10.0]).unwrap();
@@ -2514,7 +2514,7 @@ ctr	short	1
         let cy = parse_limits("C\tb\tr\t1.1\tgate\tcycles 1.25 x median\nC\tb\tk\t1.0\tknown_regression\tslow\n").unwrap();
         let cell = |r: Option<f64>| CycleCell { ratio: r, ghz_l: Some(1.5), ghz_g: Some(2.4) };
         let (nl, cl) = (limit_for(&ns, "C", "b", "r"), limit_for(&cy, "C", "b", "r"));
-        // Canned: a clock drop on Liella's side made ns 1.38x, cycles are 1.02x: passes on cycles (time drag advisory).
+        // Canned: a clock drop on libniji's side made ns 1.38x, cycles are 1.02x: passes on cycles (time drag advisory).
         let (m, lim, v, fail, _) = decide_cycles(("b", "r"), (1.38, 1.40), nl, Some(&cell(Some(1.02))), cl);
         assert_eq!((m.as_str(), lim, v.as_str(), fail), ("cycles", Some(1.1), "ok", None));
         // Cycles over their limit fail even when ns looks fine (the other side ran slower).
@@ -2570,17 +2570,17 @@ ctr	short	1
         write("bench/instr_limits.tsv", "# none\n");
         write("crates/a/src/lib.rs", "// source\n");
         write("csys/src/b.c", "/* source */\n");
-        write("target/liella/libc.a", "!<arch>\n");
-        write("target/liella/.profile", "release\n");
+        write("target/niji/libc.a", "!<arch>\n");
+        write("target/niji/.profile", "release\n");
         // an earlier run of another bench
-        let out = root.join("target/liella/bench");
-        write("target/liella/bench/counters.tsv", &format!("{COUNTERS_HEADER}cbench_hot\told\n"));
+        let out = root.join("target/niji/bench");
+        write("target/niji/bench/counters.tsv", &format!("{COUNTERS_HEADER}cbench_hot\told\n"));
         for b in ["cbench_ta", "cbench_tb", "cbench_tc"] {
             for (suffix, instr) in [("", 100), (".host-dynamic", 90)] {
                 // cbench_tc's counted run fails
                 let fail = if b == "cbench_tc" { "[ -n \"$CBENCH_COUNTERS\" ] && exit 1\n" } else { "" };
                 let script = format!("#!/bin/sh\n{fail}printf '{b}_r1\\t5\\n{b}_r2\\t6\\n'\n[ -n \"$CBENCH_COUNTERS\" ] && printf 'ctr\\t{b}_r1\\t{instr}\\t50\\t0\\t0\\t{instr}\\t70\\nctr\\t{b}_r2\\t{instr}\\t50\\t0\\t0\\t{instr}\\t70\\n' >&2\nexit 0\n");
-                let p = write(&format!("target/liella/bench/{b}{suffix}"), &script);
+                let p = write(&format!("target/niji/bench/{b}{suffix}"), &script);
                 fs::set_permissions(&p, fs::Permissions::from_mode(0o755)).unwrap();
             }
         }

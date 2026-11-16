@@ -10,7 +10,7 @@
 # and the packages by their hashes in that index).
 #
 # In the chroot (tools/deb/inside.sh): install the packages; build and run the smoke programs
-# with liella-gcc/liella-g++ (dynamic and static); check that the system's programs still run and
+# with niji-gcc/niji-g++ (dynamic and static); check that the system's programs still run and
 # that libc6 and libc6-dev are unchanged (dpkg --verify); lintian the packages (when the suite has
 # lintian); purge and check that nothing is left (the file list before install and after purge are
 # equal). Prints inside.sh's "proof:" lines; exit 1 when any is FAIL.
@@ -49,7 +49,7 @@ else
     cp "$keyring" "$stage/keyring.gpg"
     keyring=$stage/keyring.gpg
 fi
-cp "$debdir"/liella6*_amd64.deb "$stage/proof/debs/"
+cp "$debdir"/niji6*_amd64.deb "$stage/proof/debs/"
 cp -r "$here/smoke" "$stage/proof/smoke"
 cp "$here/inside.sh" "$stage/proof/inside.sh"
 chmod -R a+rX "$stage"

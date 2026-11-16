@@ -1,7 +1,7 @@
 //! Library search (plan/ph14/design.md §4, phase 14 DL-8, D-27.16; clause s27_1_c_1_1): the order
 //! for a name without `/` (`DT_RPATH` of the requester and its loaders when the requester has no
 //! `DT_RUNPATH`, `LD_LIBRARY_PATH`, the requester's `DT_RUNPATH`, the cache, the default
-//! directories), the dynamic string tokens, the `glibc-hwcaps` subdirectories and Liella's pinned
+//! directories), the dynamic string tokens, the `glibc-hwcaps` subdirectories and libniji's pinned
 //! sonames (R14-3 (a)), with the secure-mode rules of spec/security/threat-model.md "The dynamic
 //! loader" (rules 1, 2, 3, 5 and 9; R14-15, R14-18).
 //!
@@ -12,18 +12,18 @@
 use crate::arch::Arch;
 use crate::cache::Cache;
 
-/// The compile-time installation prefix (R14-3 (a)): `LIELLA_PREFIX` when the build sets it, else `/`
+/// The compile-time installation prefix (R14-3 (a)): `NIJI_PREFIX` when the build sets it, else `/`
 /// (the sole-libc layout, where the cache is `/etc/ld.so.cache` and the system directories are the
 /// default ones).
-pub const PREFIX: &str = match option_env!("LIELLA_PREFIX") {
+pub const PREFIX: &str = match option_env!("NIJI_PREFIX") {
     Some(p) => p,
     None => "/",
 };
 
-/// The directory below the prefix that holds Liella's libraries (R14-3 (a)): `LIELLA_LIBDIR` when
+/// The directory below the prefix that holds libniji's libraries (R14-3 (a)): `NIJI_LIBDIR` when
 /// the build sets it, else `lib`. The reference packages set `usr/lib/x86_64-linux-gnu`, the
 /// multiarch directory of their sysroot (docs/install-packages.md, RELEASE-PACKAGING-DEB).
-pub const LIBDIR: &str = match option_env!("LIELLA_LIBDIR") {
+pub const LIBDIR: &str = match option_env!("NIJI_LIBDIR") {
     Some(d) => d,
     None => "lib",
 };
@@ -31,7 +31,7 @@ pub const LIBDIR: &str = match option_env!("LIELLA_LIBDIR") {
 /// The longest path the loader builds (Linux `PATH_MAX`, NUL included); a longer candidate is skipped.
 pub const PATH_MAX: usize = 4096;
 
-/// Liella's own sonames besides the loader (R14-3 (a), threat model rule 9): libc, libm and the
+/// libniji's own sonames besides the loader (R14-3 (a), threat model rule 9): libc, libm and the
 /// placeholder libraries (DL-1). They resolve to `<prefix>/<libdir>` ([`LIBDIR`]) before any search.
 pub const PINNED: &[&str] =
     &["libc.so.6", "libm.so.6", "libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1", "libanl.so.1", "libc_malloc_debug.so.0"];
@@ -85,7 +85,7 @@ pub fn prefixed(sub: &[u8], out: &mut PathBuf) -> bool {
 }
 
 /// `<prefix>/<libdir>` ([`LIBDIR`]) into `out`, then `/<name>` when `name` is not empty: the
-/// directory of Liella's own libraries, or one of them.
+/// directory of libniji's own libraries, or one of them.
 pub fn own_lib(name: &[u8], out: &mut PathBuf) -> bool {
     prefixed(LIBDIR.trim_matches('/').as_bytes(), out) && (name.is_empty() || (out.push(b"/") && out.push(name)))
 }
@@ -168,7 +168,7 @@ impl core::fmt::Debug for CacheRef<'_> {
     }
 }
 
-/// Whether `name` is one of Liella's pinned sonames.
+/// Whether `name` is one of libniji's pinned sonames.
 pub fn pinned(name: &[u8]) -> bool {
     PINNED.iter().any(|p| p.as_bytes() == name)
 }

@@ -1,22 +1,22 @@
 //! D-X.60: in a process the runtime did not start (this test process: another C library's
 //! loader made every thread block), the words at 0x80-0x9b of a thread block (`errno`, TID,
-//! `thread_local` destructor list, heap cache, NUMA hint) are that library's data. Liella reads
+//! `thread_local` destructor list, heap cache, NUMA hint) are that library's data. libniji reads
 //! none of them as a pointer or a decision and writes none: with garbage in all of them (the
 //! heap cache word aimed at page zero, so a use of it as a pointer faults) `errno` still
 //! round-trips through one per-thread address outside the block, the heap allocates and frees
 //! through its slow path, a destructor registers, and the words stay as they were. Nothing but
-//! Liella runs on that thread while the garbage is in place, and the block is restored before
+//! libniji runs on that thread while the garbage is in place, and the block is restored before
 //! anything is asserted; the other test runs in a forked child, which has only its own thread.
-// opaque-ok: the test is about Liella's own `malloc`/`free` in a process another library started.
+// opaque-ok: the test is about libniji's own `malloc`/`free` in a process another library started.
 #![no_builtins]
 #![allow(clippy::unwrap_used, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 
 use core::sync::atomic::Ordering::Relaxed;
 
-use liella_boundary::posix::s02_diagnostics as dg;
-use liella_boundary::posix::s03_memory as mem;
-use liella_boundary::{process, tb};
-use liella_rt::tls::{ThreadBlock, BLOCK_SIZE};
+use niji_boundary::posix::s02_diagnostics as dg;
+use niji_boundary::posix::s03_memory as mem;
+use niji_boundary::{process, tb};
+use niji_rt::tls::{ThreadBlock, BLOCK_SIZE};
 
 /// The block's words at 0x80-0x9b: errno, TID, destructor list, heap cache, node.
 fn low(b: &ThreadBlock) -> (i32, u32, usize, usize, u32) {
@@ -33,7 +33,7 @@ fn put(b: &ThreadBlock, v: (i32, u32, usize, usize, u32)) {
 
 extern "C" fn no_dtor(_: *mut core::ffi::c_void) {}
 
-/// What the test asks Liella, with no allocation of the harness's.
+/// What the test asks libniji, with no allocation of the harness's.
 fn ask() -> [usize; 6] {
     let tp = tb::tp();
     let e = dg::__errno_location();
@@ -61,7 +61,7 @@ fn foreign_block_low_words_neither_trusted_nor_written() {
         put(b, planted);
         // The cache word as the heap's general paths read it (KernelPages): the registry's, never
         // the planted 0x90 (8 is no cache's address).
-        let word = liella_boundary::selftest::heap_cache_word().1;
+        let word = niji_boundary::selftest::heap_cache_word().1;
         let during = ask();
         let after = low(b);
         put(b, saved);
@@ -79,9 +79,9 @@ fn foreign_block_low_words_neither_trusted_nor_written() {
 /// In a forked child (one thread; no allocation, so no lock another test thread held at the fork
 /// is met): with no room in the registry the thread gets the shared spare words, which hold no
 /// heap cache, and `errno` still round-trips through one address outside the block.
-fn spare_child(_: &liella_boundary::sys::CSys) -> i32 {
-    liella_boundary::selftest::starve_registry(true);
-    if liella_boundary::selftest::heap_cache_word() != (false, 0) {
+fn spare_child(_: &niji_boundary::sys::CSys) -> i32 {
+    niji_boundary::selftest::starve_registry(true);
+    if niji_boundary::selftest::heap_cache_word() != (false, 0) {
         return 1;
     }
     let tp = tb::tp();
@@ -99,6 +99,6 @@ fn spare_child(_: &liella_boundary::sys::CSys) -> i32 {
 #[test]
 fn spare_words_hold_no_heap_cache() {
     // Trace: no spec clause (D-X.60, #4837: the spare words when the registry has no room).
-    let end = liella_boundary::selftest::in_child(spare_child).unwrap();
-    assert_eq!(end, liella_boundary::selftest::ChildEnd::Exited(0), "spare words: 1 = a heap cache slot, 2 = errno did not round-trip, 3 = errno in the block");
+    let end = niji_boundary::selftest::in_child(spare_child).unwrap();
+    assert_eq!(end, niji_boundary::selftest::ChildEnd::Exited(0), "spare words: 1 = a heap cache slot, 2 = errno did not round-trip, 3 = errno in the block");
 }

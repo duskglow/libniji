@@ -35,11 +35,11 @@
 
 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering::{Relaxed, SeqCst}};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_legacy::pthread_compat::ATTR_WORDS;
-use liella_rt::futex::{self, Scope};
-use liella_rt::sync::RawMutex;
-use liella_rt::thread::Attr;
+use niji_kernel::errno::{Errno, KResult};
+use niji_legacy::pthread_compat::ATTR_WORDS;
+use niji_rt::futex::{self, Scope};
+use niji_rt::sync::RawMutex;
+use niji_rt::thread::Attr;
 
 use crate::sys::CSys;
 use crate::{heap, pthread, tb, thread};
@@ -106,7 +106,7 @@ fn overlaps(r: &[AtomicUsize], lo: usize, hi: usize) -> bool {
 /// Under the lock: a zeroed record.
 fn alloc() -> KResult<usize> {
     let a = match FREE.load(Relaxed) {
-        0 => liella_legacy::malloc_compat::malloc(&heap::CTX, WORDS.saturating_mul(8)).map_err(|_| Errno::EAGAIN)?,
+        0 => niji_legacy::malloc_compat::malloc(&heap::CTX, WORDS.saturating_mul(8)).map_err(|_| Errno::EAGAIN)?,
         a => {
             FREE.store(w(rec(a), NEXT), Relaxed);
             a

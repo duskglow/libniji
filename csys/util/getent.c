@@ -1,8 +1,8 @@
 /* getent: entries from the name service databases (spec §31, plan/utilities.md UTIL-6, D-31.4).
  *
  * A thin front end over the C library's public name service functions: every answer is what any
- * program gets from Liella's NSS (nsswitch.conf, the built-in `files` and `dns` services, the
- * cache); getent adds only the formatting. Built by `cargo xtask so` into target/liella/getent, a
+ * program gets from libniji's NSS (nsswitch.conf, the built-in `files` and `dns` services, the
+ * cache); getent adds only the formatting. Built by `cargo xtask so` into target/niji/getent, a
  * dynamically linked program shipped in libc-bin as /usr/bin/getent.
  *
  * Behaviour (black-box probes of the reference, recorded as transcripts under
@@ -60,8 +60,8 @@ static const char USAGE[] =
     "            [--service=CONFIG] [--help] [--usage] [--version]\n"
     "            database [key ...]\n";
 
-/* Identity string (D-31.4): Liella's own, the ABI level last. */
-static const char VERSION[] = "getent (Liella) 2.39\n";
+/* Identity string (D-31.4): libniji's own, the ABI level last. */
+static const char VERSION[] = "getent (libniji) 2.39\n";
 
 static void try_line(FILE *f) {
     fprintf(f, "Try `%s --help' or `%s --usage' for more information.\n", prog_short, prog_short);

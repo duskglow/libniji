@@ -1,10 +1,10 @@
 //! Which NaN the two-operand `long double` functions return (spec §10.3, X87-NAN-RULE-AUDIT):
 //! `tests/oracle/x87_nan_diff.c` built against the host C library and statically against
-//! Liella's products (`libm.a`, `libc.a`), every ordered pair of NaNs (signs, payloads, quiet and
+//! libniji's products (`libm.a`, `libc.a`), every ordered pair of NaNs (signs, payloads, quiet and
 //! signalling, equal payloads), invalid x87 encodings, a pseudo-denormal and a few numbers through
 //! each function, and the complex `long double` functions on `a + bi` (`cpowl` raised to `b + ai`).
 //! The result's bits and the invalid flag must be the reference's on every line:
-//! NaN choice is not specified by IEEE 754, so Liella follows the reference (no gain in
+//! NaN choice is not specified by IEEE 754, so libniji follows the reference (no gain in
 //! differing). Needs the products (`cargo xtask so`) and a C compiler.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
 #[path = "../../core/tests/support/skip_note.rs"]
@@ -20,13 +20,13 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/math/tests/oracle/x87_nan_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        let p = r.join("target/liella");
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(p.join("liella-crt1.o")).arg(&src).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
+    if niji {
+        let p = r.join("target/niji");
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(p.join("niji-crt1.o")).arg(&src).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1", "-fno-builtin"]).arg(&src).arg("-lm");
     }
@@ -34,8 +34,8 @@ fn build(out: &Path, liella: bool) -> bool {
 }
 
 /// Kept differences (operand index pairs of `x87_nan_diff.c`): an invalid x87 encoding (8
-/// pseudo-NaN, 9 pseudo-infinity, 10 unnormal) beside a number. Liella gives the default NaN with
-/// invalid, as the x87 unit and every other Liella `long double` function do; the reference
+/// pseudo-NaN, 9 pseudo-infinity, 10 unnormal) beside a number. libniji gives the default NaN with
+/// invalid, as the x87 unit and every other libniji `long double` function do; the reference
 /// returns the number, +0, or another invalid encoding there (X87-NAN-RULE-AUDIT-2, D-10.20: the
 /// gain is a NaN for a non-number operand).
 const KEPT: &[(&str, &str)] = &[
@@ -63,7 +63,7 @@ const COMPLEX: &[&str] = &["cexpl", "clogl", "clog10l", "csqrtl", "cpowl", "cabs
 /// invalid is raised; the reference gives the positive quiet NaN `7fffc000000000000000` there.
 const KEPT_COMPLEX: &[&str] = &["cexpl", "clogl", "clog10l", "csqrtl", "cpowl"];
 
-/// A kept line of Liella's: the default NaN (every NaN part of a complex result) with invalid.
+/// A kept line of libniji's: the default NaN (every NaN part of a complex result) with invalid.
 fn kept_ok(g: &str) -> bool {
     let w: Vec<&str> = g.split_whitespace().collect();
     if !KEPT_COMPLEX.contains(&w[0]) {
@@ -83,14 +83,14 @@ fn nan_text(v: &str) -> bool {
 fn long_double_nan_operands_pick_the_reference_nan() {
     // Clauses: s10_3_c_0 (D-10.20).
     let r = root();
-    assert!(r.join("target/liella/libm.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libm.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("x87_nan_diff_host"), dir.join("x87_nan_diff_liella"));
+    let (host, ours) = (dir.join("x87_nan_diff_host"), dir.join("x87_nan_diff_niji"));
     assert!(build(&host, false), "x87_nan_diff.c does not build against the host C library");
     assert!(build(&ours, true), "x87_nan_diff.c does not link against the products");
     let run = |exe: &Path| String::from_utf8(Command::new(exe).env_clear().output().unwrap().stdout).unwrap();
@@ -109,7 +109,7 @@ fn long_double_nan_operands_pick_the_reference_nan() {
     // The kept differences, for study: target/test-oracles/x87_nan_open.txt.
     let open_diff: Vec<String> = want.iter().zip(&got).filter(|(w, g)| w != g && open(w)).map(|(w, g)| format!("want {w}\n got {g}")).collect();
     std::fs::write(dir.join("x87_nan_open.txt"), open_diff.join("\n")).unwrap();
-    // The kept differences are asserted, not skipped: Liella gives the default NaN with invalid.
+    // The kept differences are asserted, not skipped: libniji gives the default NaN with invalid.
     let kept_bad: Vec<String> = want
         .iter()
         .zip(&got)

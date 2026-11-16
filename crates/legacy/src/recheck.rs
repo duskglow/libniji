@@ -10,8 +10,8 @@
 
 use core::sync::atomic::{AtomicU64, Ordering::Acquire, Ordering::Relaxed, Ordering::Release};
 
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::CLOCK_MONOTONIC_COARSE;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::CLOCK_MONOTONIC_COARSE;
 
 /// The shortest time between two checks of one file (nanoseconds).
 pub const INTERVAL_NS: u64 = 1_000_000_000;

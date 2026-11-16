@@ -4,7 +4,7 @@
  * real C interface and exits 0 on success. Every CHECK names the clause ID it verifies
  * (spec/clauses.tsv), so failures trace straight back to the spec.
  *
- * This file is the first test to run once phase 4 links C programs against Liella. It checks
+ * This file is the first test to run once phase 4 links C programs against libniji. It checks
  * clauses of spec §4.1 and §4.8 that only the C calling convention can exercise. */
 #include <string.h>
 

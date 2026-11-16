@@ -1,4 +1,4 @@
-//! Internal tests of `liella::search` (spec §14.1–14.6): stability, comparator robustness, the
+//! Internal tests of `niji::search` (spec §14.1–14.6): stability, comparator robustness, the
 //! AVL tree against a reference set, hash-table growth with stable entries, and queues.
 
 #![allow(clippy::type_complexity, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
@@ -6,7 +6,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
-use liella::search::*;
+use niji::search::*;
 
 struct Gen(u64);
 impl Gen {

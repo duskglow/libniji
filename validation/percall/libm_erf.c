@@ -2,7 +2,7 @@
  * branch of the fast tier (crates/math/src/fast_special.rs): erf's series (|x| < 2^-5) and table (2^-5 <= |x| < 6),
  * erfc through 1 - erf (-6 < x < 1) and through e^(-x^2)·Y (1 <= x < 27.25). 64 operands cycled through a volatile
  * table so no call is folded; the sum goes to pc_sink. no spec clause (measurement probe).
- * The self-check prints 15 significant digits, not every bit: Liella's erf/erfc are correctly rounded and the
+ * The self-check prints 15 significant digits, not every bit: libniji's erf/erfc are correctly rounded and the
  * reference may differ in the last bit (erfc(0x1.b12e88p+0), the erfc row's ex[17]: correctly rounded
  * 0x1.11c9655380463p-6, a quad-precision oracle puts the exact value 0.69 ulp above ...462p-6; pinned by
  * crates/boundary/tests/erf_quick.rs), which is not a different answer. */

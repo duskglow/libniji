@@ -151,7 +151,7 @@ pub fn section(bin: usize, filler: bool, place: usize, f: &str) -> String {
 /// The empty, [`BIN`]-aligned section the start file (`csys/src/machine/entry.S`) carries to end the
 /// group (LAYOUT-WINDOW-BINS-5): its name sorts after every [`section`] name (`z` after any digit), so GNU
 /// ld places it after the last bin and starts the program's own `.text` on the next window boundary.
-pub const GROUP_END: &str = ".text.sorted.h9z.liella_group_end";
+pub const GROUP_END: &str = ".text.sorted.h9z.niji_group_end";
 
 /// The suffix of a phase mode's warm-up mode in the signatures (LAYOUT-WINDOW-BINS-4). A **phase mode** of
 /// `page_faults.c` (one that prints `f1 - f0`) counts only the faults of its measured phase, after its

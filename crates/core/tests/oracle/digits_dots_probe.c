@@ -2,7 +2,7 @@
  * it; milestone 5, 2026-10-04). The signature below is the hypothesis the probe tests: every
  * argument is filled with a recognisable value, and what the call changes is printed. Public
  * interface only. Build: cc -std=gnu17 -O1 digits_dots_probe.c; digits_dots_products.rs also
- * builds it against Liella (§16.1, owner ruling 2026-10-05). The caller buffers are 8-aligned, so
+ * builds it against libniji (§16.1, owner ruling 2026-10-05). The caller buffers are 8-aligned, so
  * the size threshold does not depend on where the stack puts them. */
 #define _GNU_SOURCE
 #include <arpa/inet.h>

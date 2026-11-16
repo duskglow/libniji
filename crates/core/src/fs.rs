@@ -1,7 +1,7 @@
 //! File-system interface over directory-relative operations (spec §13).
 //!
 //! Phase 5 holds the device-number encoding (§13.5); the thin calls are the typed `Sys`
-//! methods, and what glibc adds to them is in `liella_legacy::fs_compat`. Phase 12 adds the
+//! methods, and what glibc adds to them is in `niji_legacy::fs_compat`. Phase 12 adds the
 //! working directory ([`cwd`], §13.1), directory streams ([`dir`], §13.2), the tree walk
 //! ([`walk`], §13.3), path canonicalization ([`canon`], §13.8) and temporary names ([`temp`],
 //! §13.9). None of them changes the working directory (D-13.4): every lookup is relative to a

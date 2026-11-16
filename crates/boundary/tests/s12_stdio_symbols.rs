@@ -47,7 +47,7 @@
 //! public functions under their old names (§12.13) and reuse those functions' checks; the
 //! open-streams list and the libio data objects are checked in children, and from C by
 //! `s12_symbols_libio.c`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -60,19 +60,19 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicPtr, AtomicU32, Ordering};
 use std::sync::Mutex;
 
-use liella_abi::ctypes::{c_char, c_int, wchar_t, wint_t};
-use liella_abi::layout::{cookie_io_functions_t, fpos_t, fpos_t__state, fpos_t__state__value, struct_printf_info, FILE};
-use liella_boundary::data::FileObject;
-use liella_boundary::errno;
-use liella_boundary::posix::s02_diagnostics as diag;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s12_stdio as x;
-use liella_boundary::posix::s13_filesystem as fs;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::sys::Sys;
+use niji_abi::ctypes::{c_char, c_int, wchar_t, wint_t};
+use niji_abi::layout::{cookie_io_functions_t, fpos_t, fpos_t__state, fpos_t__state__value, struct_printf_info, FILE};
+use niji_boundary::data::FileObject;
+use niji_boundary::errno;
+use niji_boundary::posix::s02_diagnostics as diag;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s12_stdio as x;
+use niji_boundary::posix::s13_filesystem as fs;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::sys::Sys;
 
 const ENOENT: i32 = 2;
 const EIO: i32 = 5;
@@ -95,7 +95,7 @@ const O_WRONLY: c_int = 1;
 const FSETLOCKING_QUERY: c_int = 0;
 const FSETLOCKING_INTERNAL: c_int = 1;
 const FSETLOCKING_BYCALLER: c_int = 2;
-const PROBE: &str = "LIELLA_S12_PROBE";
+const PROBE: &str = "NIJI_S12_PROBE";
 
 // ------------------------------------------------------------------------------ helpers
 
@@ -186,7 +186,7 @@ fn is_open(fd: c_int) -> bool {
 
 /// `path` opened with `flags` on the private descriptor number `high`.
 fn high_fd(path: &str, flags: c_int, high: c_int) -> c_int {
-    let fd = io::liella_open3(cs(path).as_ptr(), flags, 0);
+    let fd = io::niji_open3(cs(path).as_ptr(), flags, 0);
     assert!(fd >= 0, "{path}");
     assert_eq!(io::dup2(fd, high), high);
     io::close(fd);
@@ -196,7 +196,7 @@ fn high_fd(path: &str, flags: c_int, high: c_int) -> c_int {
 /// A read stream on the read end of a pipe (a stream that cannot seek).
 fn pipe_stream() -> *mut FILE {
     let mut p = [0 as c_int; 2];
-    assert_eq!(liella_boundary::posix::s25_ipc::pipe(Some(&mut p)), 0);
+    assert_eq!(niji_boundary::posix::s25_ipc::pipe(Some(&mut p)), 0);
     io::close(p[1]);
     let fp = x::fdopen(p[0], c"r".as_ptr());
     assert!(!fp.is_null());
@@ -255,7 +255,7 @@ fn conformance(names: &[&str]) {
         return;
     }
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(&todo).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -322,7 +322,7 @@ fn freopen_forms(f: Reopen) {
 /// `fileno`/`fileno_unlocked`: the backing descriptor; -1 with `EBADF` for a memory stream.
 fn fileno_forms(f: Query) {
     let t = tmp_with("fileno", b"");
-    let fd = io::liella_open3(t.c().as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_RDONLY, 0);
     let fp = x::fdopen(fd, c"r".as_ptr());
     assert_eq!(f(fp), fd);
     assert_eq!(x::fclose(fp), 0);
@@ -451,7 +451,7 @@ fn wi(c: char) -> wint_t {
     wint_t::from(c)
 }
 
-/// The standard stream `stdin` or `stdout` (`liella_boundary::stdio::stdin`, ...) as a `FILE *`.
+/// The standard stream `stdin` or `stdout` (`niji_boundary::stdio::stdin`, ...) as a `FILE *`.
 fn std_stream(addr: usize) -> *mut FILE {
     with_exposed_provenance_mut(addr)
 }
@@ -517,7 +517,7 @@ fn reexec(test: &str, name: &str, input: &[u8]) -> std::process::Output {
 }
 
 /// The variable naming a re-executed child's scratch directory ([`child_scratch`]).
-const CHILD_TMP: &str = "LIELLA_S12_TMP";
+const CHILD_TMP: &str = "NIJI_S12_TMP";
 
 /// A directory for a re-executed child's scratch files ([`tmp`] uses it there), removed by this
 /// process with whatever the child left: a child that aborts (the fortify cases) or exits
@@ -555,7 +555,7 @@ fn with_stdio(test: &str, name: &str, input: &[u8], body: impl FnOnce() -> bool)
 fn overflows(test: &str, name: &str, input: &[u8], body: impl FnOnce()) {
     match probe() {
         Some(p) if p == name => {
-            liella_boundary::selftest::expect_crash();
+            niji_boundary::selftest::expect_crash();
             body();
             CSys.exit_group(0)
         }
@@ -691,7 +691,7 @@ fn read_front(f: GetC, locked: bool) {
 /// the program's: its byte is returned; the refused cases are those that reach a buffer
 /// boundary (an empty window: the refill validates the record).
 fn read_crafted(f: impl Fn(*mut FILE) -> c_int, trusted: bool) {
-    use liella_legacy::stdio_compat::Ext;
+    use niji_legacy::stdio_compat::Ext;
     const WORDS: usize = 28;
     let fp = open(&tmp_with("getc-crafted", b"abcdefgh"), "r");
     assert_eq!(f(fp), ch(b'a'), "an open read window to copy");
@@ -1453,7 +1453,7 @@ fn window_states(put: &impl Fn(*mut FILE, &[u8]) -> bool) {
 /// clause for the misuse itself), an open window in the program's own `FILE` words is the
 /// program's: the byte goes where they point, as header-inline `putc` puts it.
 fn front_crafted(put: &impl Fn(*mut FILE, &[u8]) -> bool, trusted: bool) {
-    use liella_legacy::stdio_compat::Ext;
+    use niji_legacy::stdio_compat::Ext;
     const WORDS: usize = 28;
     let t = tmp("crafted");
     let fp = open(&t, "w");
@@ -1544,10 +1544,10 @@ fn getdelim_forms(f: Getdelim) {
     delim_front(f);
     // PERF-GETLINE-SHORT: the same records through the SSE2 build of the fused front path (the
     // kernels are correct under either build, so other tests running meanwhile are unaffected).
-    let had_avx2 = liella_boundary::selftest::set_kernel_avx2(true);
-    liella_boundary::selftest::set_kernel_avx2(false);
+    let had_avx2 = niji_boundary::selftest::set_kernel_avx2(true);
+    niji_boundary::selftest::set_kernel_avx2(false);
     delim_front(f);
-    liella_boundary::selftest::set_kernel_avx2(had_avx2);
+    niji_boundary::selftest::set_kernel_avx2(had_avx2);
 }
 
 /// The `getdelim` front path (GETDELIM, D-12.19): records served from the published read window
@@ -1632,7 +1632,7 @@ fn delim_front(f: Getdelim) {
 /// `FILE`'s record, is refused with nothing written through it; a read window set past the
 /// stream's (caller's) buffer onto delimiter bytes is never read.
 fn delim_crafted(f: Getdelim) {
-    use liella_legacy::stdio_compat::Ext;
+    use niji_legacy::stdio_compat::Ext;
     const WORDS: usize = 28;
     let fp = open(&tmp_with("delim-crafted", b"abcdefgh\nijk\n"), "r");
     let (mut l, mut c) = (null_mut::<c_char>(), 0usize);
@@ -1794,7 +1794,7 @@ fn fputws_forms(f: Fputws, locked: bool) {
 fn getchar_forms(test: &str, f: extern "C" fn() -> c_int) {
     with_stdio(test, "stdin", b"a\xff", || {
         let (a, b, end) = (f(), f(), f());
-        (a, b, end) == (ch(b'a'), 0xFF, EOF) && x::feof(std_stream(liella_boundary::stdio::stdin())) != 0
+        (a, b, end) == (ch(b'a'), 0xFF, EOF) && x::feof(std_stream(niji_boundary::stdio::stdin())) != 0
     });
 }
 
@@ -1810,7 +1810,7 @@ fn putchar_forms(test: &str, f: extern "C" fn(c_int) -> c_int) {
 fn getwchar_forms(test: &str, f: extern "C" fn() -> wint_t) {
     with_stdio(test, "stdin", b"ab", || {
         let (a, b, end) = (f(), f(), f());
-        let fp = std_stream(liella_boundary::stdio::stdin());
+        let fp = std_stream(niji_boundary::stdio::stdin());
         (a, b, end) == (wi('a'), wi('b'), WEOF) && x::feof(fp) != 0 && x::fwide(fp, 0) > 0
     });
 }
@@ -1819,7 +1819,7 @@ fn getwchar_forms(test: &str, f: extern "C" fn() -> wint_t) {
 /// locale), which becomes wide-oriented.
 fn putwchar_forms(test: &str, f: extern "C" fn(wchar_t) -> wint_t) {
     if let Some(out) = with_stdio(test, "stdout", b"", || {
-        f(wc('o')) == wi('o') && f(wc('k')) == wi('k') && x::fwide(std_stream(liella_boundary::stdio::stdout()), 0) > 0
+        f(wc('o')) == wi('o') && f(wc('k')) == wi('k') && x::fwide(std_stream(niji_boundary::stdio::stdout()), 0) > 0
     }) {
         assert!(out.ends_with(b"ok"), "{out:?}");
     }
@@ -1828,7 +1828,7 @@ fn putwchar_forms(test: &str, f: extern "C" fn(wchar_t) -> wint_t) {
 /// `fdopen`/`_IO_fdopen`: a stream on the descriptor, in a mode its access allows.
 fn fdopen_forms(f: extern "C" fn(c_int, *const c_char) -> *mut FILE) {
     let t = tmp_with("fdopen", b"abc");
-    let fd = io::liella_open3(t.c().as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_RDONLY, 0);
     errno::set_raw(0);
     assert!(f(fd, c"w".as_ptr()).is_null() && errno::get() == EINVAL, "a mode the descriptor does not allow");
     let fp = f(fd, c"r".as_ptr());
@@ -1863,7 +1863,7 @@ fn gets_forms(test: &str, f: extern "C" fn(*mut c_char) -> *mut c_char) {
         let p = b.as_mut_ptr();
         let first = f(p) == p && bytes(p.cast(), 4) == b"ab\0#";
         let last = f(p) == p && text(p) == "cd";
-        first && last && f(p).is_null() && x::feof(std_stream(liella_boundary::stdio::stdin())) != 0
+        first && last && f(p).is_null() && x::feof(std_stream(niji_boundary::stdio::stdin())) != 0
     });
 }
 
@@ -1876,7 +1876,7 @@ fn puts_forms(test: &str, f: extern "C" fn(*const c_char) -> c_int) {
     // and its newline in the open window; each newline right after its text, nothing between.
     let (s62, s63) = ([b'x'; 62], [b'y'; 63]);
     let front = || {
-        let fp = std_stream(liella_boundary::stdio::stdout());
+        let fp = std_stream(niji_boundary::stdio::stdout());
         x::__fsetlocking(fp, FSETLOCKING_BYCALLER);
         [&b"ab"[..], b"cd", b"", &s62, &s63].iter().all(|s| f(CString::new(*s).unwrap().as_ptr()) >= 0)
     };
@@ -2559,7 +2559,7 @@ fn compat_fmemopen_2_2_5_follows_the_record() {
     // Trace: no spec clause (compat-plan.tsv behaviour row fmemopen@GLIBC_2.2.5; LG-2).
     let record = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../spec/behaviour/compat.glibc.txt")).unwrap();
     let lines = [
-        fmemopen_probe_lines("fmemopen@GLIBC_2.2.5", x::liella_compat_fmemopen),
+        fmemopen_probe_lines("fmemopen@GLIBC_2.2.5", x::niji_compat_fmemopen),
         fmemopen_probe_lines("fmemopen@GLIBC_2.2.5 [default]", x::fmemopen),
     ];
     let mut missing = Vec::new();
@@ -2842,7 +2842,7 @@ fn sym_funlockfile() {
 
 #[test]
 fn fam_funlockfile_by_non_owner_keeps_lock() {
-    // Releasing a lock the caller does not hold is undefined (POSIX); Liella ignores it, so the
+    // Releasing a lock the caller does not hold is undefined (POSIX); libniji ignores it, so the
     // owner keeps the lock: another thread's ftrylockfile still fails afterwards.
     let fp = x::tmpfile();
     let a = fp as usize;
@@ -2914,7 +2914,7 @@ fn fam_flockfile_standard_streams_at_first_use() {
     let test = "fam_flockfile_standard_streams_at_first_use";
     let out = with_stdio(test, "first", b"", || {
         let (so, se, si) =
-            (liella_boundary::stdio::stdout(), liella_boundary::stdio::stderr(), liella_boundary::stdio::stdin());
+            (niji_boundary::stdio::stdout(), niji_boundary::stdio::stderr(), niji_boundary::stdio::stdin());
         x::flockfile(std_stream(so));
         // A writer in another thread sets the stream up if it is not yet: it must still wait.
         let wrote = std::sync::Arc::new(AtomicBool::new(false));
@@ -3132,8 +3132,8 @@ fn sym_getwchar_unlocked() {
 fn sym__IO_2_1_stderr_() {
     // In a child: stderr points at it; what is written to it reaches descriptor 2, unbuffered.
     if let Some((st, err)) = in_child("sym__IO_2_1_stderr_", "object", &[], || {
-        let fp = core::ptr::from_ref(&liella_boundary::data::_IO_2_1_stderr_).cast_mut().cast::<FILE>();
-        points_at(&liella_boundary::data::stderr, &liella_boundary::data::_IO_2_1_stderr_, 2) && x::fputs(c"[ok]".as_ptr(), fp) >= 0
+        let fp = core::ptr::from_ref(&niji_boundary::data::_IO_2_1_stderr_).cast_mut().cast::<FILE>();
+        points_at(&niji_boundary::data::stderr, &niji_boundary::data::_IO_2_1_stderr_, 2) && x::fputs(c"[ok]".as_ptr(), fp) >= 0
     }) {
         assert_eq!(st, Some(0), "{err}");
         assert!(err.ends_with("[ok]"), "{err}");
@@ -3144,8 +3144,8 @@ fn sym__IO_2_1_stderr_() {
 fn sym__IO_2_1_stdin_() {
     // In a child reading "q": stdin points at it; it reads descriptor 0.
     with_stdio("sym__IO_2_1_stdin_", "object", b"q", || {
-        let fp = core::ptr::from_ref(&liella_boundary::data::_IO_2_1_stdin_).cast_mut().cast::<FILE>();
-        points_at(&liella_boundary::data::stdin, &liella_boundary::data::_IO_2_1_stdin_, 0) && getc(fp) == ch(b'q')
+        let fp = core::ptr::from_ref(&niji_boundary::data::_IO_2_1_stdin_).cast_mut().cast::<FILE>();
+        points_at(&niji_boundary::data::stdin, &niji_boundary::data::_IO_2_1_stdin_, 0) && getc(fp) == ch(b'q')
     });
     conformance(&["s12_symbols_libio"]);
 }
@@ -3153,8 +3153,8 @@ fn sym__IO_2_1_stdin_() {
 fn sym__IO_2_1_stdout_() {
     // In a child: stdout points at it; what is written to it reaches descriptor 1.
     if let Some(out) = with_stdio("sym__IO_2_1_stdout_", "object", b"", || {
-        let fp = core::ptr::from_ref(&liella_boundary::data::_IO_2_1_stdout_).cast_mut().cast::<FILE>();
-        points_at(&liella_boundary::data::stdout, &liella_boundary::data::_IO_2_1_stdout_, 1) && x::fputs(c"ok".as_ptr(), fp) >= 0
+        let fp = core::ptr::from_ref(&niji_boundary::data::_IO_2_1_stdout_).cast_mut().cast::<FILE>();
+        points_at(&niji_boundary::data::stdout, &niji_boundary::data::_IO_2_1_stdout_, 1) && x::fputs(c"ok".as_ptr(), fp) >= 0
     }) {
         assert!(out.ends_with(b"ok"), "{out:?}");
     }
@@ -3299,7 +3299,7 @@ fn jump_table(t: &'static [u8; 168]) {
 }
 #[test]
 fn sym__IO_file_jumps() {
-    jump_table(&liella_boundary::data::_IO_file_jumps);
+    jump_table(&niji_boundary::data::_IO_file_jumps);
 }
 #[test]
 fn sym__IO_file_open() {
@@ -3500,7 +3500,7 @@ fn sym__IO_list_all() {
     alone("sym__IO_list_all", "list", || {
         let (a, b) = (tmp("list-all-a"), tmp("list-all-b"));
         let (fa, fb) = (open(&a, "w"), open(&b, "w"));
-        let head = |fp: *mut FILE| liella_boundary::data::_IO_list_all.load(Ordering::SeqCst) == fp as usize;
+        let head = |fp: *mut FILE| niji_boundary::data::_IO_list_all.load(Ordering::SeqCst) == fp as usize;
         let linked = head(fb) && field(fb, core::mem::offset_of!(FILE, _chain)) == fa as usize;
         x::fclose(fb);
         let unlinked = head(fa);
@@ -3563,10 +3563,10 @@ fn sym__IO_peekc_locked() {
 #[test]
 fn sym__IO_popen() {
     // The export is in posix::s18_processes (its contract is §18.7): popen under another name.
-    let fp = liella_boundary::posix::s18_processes::_IO_popen(c"echo io".as_ptr(), c"r".as_ptr());
+    let fp = niji_boundary::posix::s18_processes::_IO_popen(c"echo io".as_ptr(), c"r".as_ptr());
     assert!(!fp.is_null());
     assert_eq!(getc(fp), ch(b'i'));
-    assert_eq!(liella_boundary::posix::s18_processes::pclose(fp), 0);
+    assert_eq!(niji_boundary::posix::s18_processes::pclose(fp), 0);
 }
 #[test]
 fn sym__IO_printf() {
@@ -3808,7 +3808,7 @@ fn sym__IO_wdoallocbuf() {
 }
 #[test]
 fn sym__IO_wfile_jumps() {
-    jump_table(&liella_boundary::data::_IO_wfile_jumps);
+    jump_table(&niji_boundary::data::_IO_wfile_jumps);
 }
 #[test]
 fn sym__IO_wfile_overflow() {
@@ -4047,7 +4047,7 @@ fn sym_parse_printf_format() {
 fn sym_pclose() {
     // The export is in posix::s18_processes (its contract is §18.7): the command's wait status;
     // a stream popen did not return is closed and the call fails with ECHILD.
-    use liella_boundary::posix::s18_processes as p;
+    use niji_boundary::posix::s18_processes as p;
     let fp = p::popen(c"exit 3".as_ptr(), c"r".as_ptr());
     assert_eq!(p::pclose(fp), 3 << 8);
     let t = tmp_with("pclose", b"x");
@@ -4059,7 +4059,7 @@ fn sym_pclose() {
 fn sym_perror() {
     // The export is in posix::s02_diagnostics (its contract is §2.2).
     if let Some((st, err)) = in_child("sym_perror", "perror", &[], || {
-        let fp = with_exposed_provenance_mut(liella_boundary::stdio::stderr());
+        let fp = with_exposed_provenance_mut(niji_boundary::stdio::stderr());
         errno::set_raw(ENOENT);
         diag::perror(c"ctx".as_ptr());
         let kept = errno::get() == ENOENT;
@@ -4078,7 +4078,7 @@ fn sym_perror() {
 #[test]
 fn sym_perror_text_orients() {
     if let Some((st, err)) = in_child("sym_perror_text_orients", "perror_text", &[], || {
-        let fp = with_exposed_provenance_mut(liella_boundary::stdio::stderr());
+        let fp = with_exposed_provenance_mut(niji_boundary::stdio::stderr());
         errno::set_raw(ENOENT);
         diag::perror(c"ctx".as_ptr());
         x::fwide(fp, 0) < 0
@@ -4090,7 +4090,7 @@ fn sym_perror_text_orients() {
 #[test]
 fn sym_perror_bare_orients() {
     if let Some((st, err)) = in_child("sym_perror_bare_orients", "perror_bare", &[], || {
-        let fp = with_exposed_provenance_mut(liella_boundary::stdio::stderr());
+        let fp = with_exposed_provenance_mut(niji_boundary::stdio::stderr());
         errno::set_raw(ENOENT);
         diag::perror(null());
         x::fwide(fp, 0) < 0
@@ -4103,7 +4103,7 @@ fn sym_perror_bare_orients() {
 fn sym_popen() {
     // The export is in posix::s18_processes (its contract is §18.7): a stream on the command's
     // output ("r") or input ("w"), NULL with EINVAL for a bad mode.
-    use liella_boundary::posix::s18_processes as p;
+    use niji_boundary::posix::s18_processes as p;
     let fp = p::popen(c"echo hi".as_ptr(), c"r".as_ptr());
     assert!(!fp.is_null());
     assert_eq!((getc(fp), getc(fp)), (ch(b'h'), ch(b'i')));
@@ -4384,7 +4384,7 @@ fn sym_ftell_known_offset_counts_the_wide_pushback() {
 fn sym_ftell_known_offset_while_writing() {
     // Clauses: s12_8_c_1 (D-12.22 FTELL-CACHE): a stream writing at a known offset answers from
     // it (a descriptor moved under it does not show), but an append stream asks for the end
-    // (probe 27220349984e: 3 and 6, glibc and Liella).
+    // (probe 27220349984e: 3 and 6, glibc and libniji).
     let t = tmp_with("ftell-cache-write", b"hello");
     let fp = open(&t, "r+");
     assert_eq!(x::fseek(fp, 2, 0), 0);
@@ -4420,7 +4420,7 @@ fn sym_fseek_in_window_drops_the_wide_pushback() {
 #[test]
 fn sym_ftell_excludes_a_partial_character_at_eof() {
     // Clauses: s12_8_c_1: a partial multibyte character left at end of file is read but not
-    // delivered, so ftell is before it (probe 27220349984e: 1, glibc and Liella).
+    // delivered, so ftell is before it (probe 27220349984e: 1, glibc and libniji).
     let t = tmp_with("ftell-partial", b"a\xC3");
     let fp = utf8(&t, "r");
     assert_eq!((x::fgetwc(fp), x::fgetwc(fp)), (wi('a'), WEOF));
@@ -4498,12 +4498,12 @@ fn sym_sscanf() {
     conformance(&[SCANF_C]);
 }
 /// In a re-executed child: the path of the file its parent named.
-const FILE_ENV: &str = "LIELLA_S12_FILE";
+const FILE_ENV: &str = "NIJI_S12_FILE";
 
 /// In a fresh child: a standard stream's pointer object (`data`) points at its `FILE` object
 /// (`object`), on descriptor `fd`; then `replaced` runs with the pointer set to a stream on the
 /// file `t` (each implicit use reads the pointer).
-fn standard(test: &str, data: &std::sync::atomic::AtomicPtr<liella_boundary::data::FileObject>, object: &liella_boundary::data::FileObject, fd: c_int, t: &Tmp, mode: &str, replaced: impl FnOnce(*mut FILE) -> bool) {
+fn standard(test: &str, data: &std::sync::atomic::AtomicPtr<niji_boundary::data::FileObject>, object: &niji_boundary::data::FileObject, fd: c_int, t: &Tmp, mode: &str, replaced: impl FnOnce(*mut FILE) -> bool) {
     if let Some((st, err)) = in_child(test, "standard", &[(FILE_ENV, Some(t.0.as_str()))], || {
         let fp: *mut FILE = data.load(Ordering::Relaxed).cast();
         let ours = core::ptr::eq(fp.cast_const().cast(), object) && x::fileno(fp) == fd;
@@ -4520,7 +4520,7 @@ fn standard(test: &str, data: &std::sync::atomic::AtomicPtr<liella_boundary::dat
 #[test]
 fn sym_stderr() {
     let t = tmp("stderr");
-    standard("sym_stderr", &liella_boundary::data::stderr, &liella_boundary::data::_IO_2_1_stderr_, 2, &t, "w", |_| {
+    standard("sym_stderr", &niji_boundary::data::stderr, &niji_boundary::data::_IO_2_1_stderr_, 2, &t, "w", |_| {
         errno::set_raw(ENOENT);
         diag::perror(c"p".as_ptr());
         true
@@ -4537,14 +4537,14 @@ fn sym_stdin() {
     if probe().is_none() {
         std::fs::write(&t.0, b"q").unwrap();
     }
-    standard("sym_stdin", &liella_boundary::data::stdin, &liella_boundary::data::_IO_2_1_stdin_, 0, &t, "r", |_| x::getchar() == ch(b'q'));
+    standard("sym_stdin", &niji_boundary::data::stdin, &niji_boundary::data::_IO_2_1_stdin_, 0, &t, "r", |_| x::getchar() == ch(b'q'));
     conformance(&["s01_streams"]);
 }
 
 #[test]
 fn sym_stdout() {
     let t = tmp("stdout");
-    standard("sym_stdout", &liella_boundary::data::stdout, &liella_boundary::data::_IO_2_1_stdout_, 1, &t, "w", |fp| x::putchar(ch(b'z')) == ch(b'z') && x::fflush(fp) == 0);
+    standard("sym_stdout", &niji_boundary::data::stdout, &niji_boundary::data::_IO_2_1_stdout_, 1, &t, "w", |fp| x::putchar(ch(b'z')) == ch(b'z') && x::fflush(fp) == 0);
     if probe().is_none() {
         assert_eq!(t.read(), b"z", "putchar wrote to the stream stdout pointed at");
     }

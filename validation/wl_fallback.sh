@@ -1,4 +1,4 @@
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Sourced by wl_count.sh / wl_percall.sh / wl_alloctrace.sh for the path taken when S is unset or not exported (WLC-FALLBACK,
 # 2026-10-11). Needs: keke (the ssh command), label, and the caller's nowait.
 # Why this file: the old fallback ran  bash -lc '$cmd; echo $? > done'  and $cmd itself holds single quotes

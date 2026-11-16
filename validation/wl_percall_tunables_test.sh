@@ -1,10 +1,10 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Check for TOOL-PERCALL-TUNABLES-KEY (no spec clause: measurement tooling): two wl_percall.sh runs of one AVX2-dispatched
 # row (strlen_4k) started TOGETHER, one with GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX2 and one default, must
 #   1. print their own tunables value in the header,
 #   2. use different row files (the key is part of the cache file name),
-#   3. report different instruction counts for Liella (the dispatch level changes the code that runs).
+#   3. report different instruction counts for libniji (the dispatch level changes the code that runs).
 # It runs the real tool on the host where it is started (Zen 1 host); COUNT_FRESH is not set on purpose: the second pair of
 # runs after the first must hit each run's OWN cached row and print the same numbers.
 #   ~/bin/jobrun <label> count -- sh -c 'cd ~/w/<role> && bash validation/wl_percall_tunables_test.sh .'
@@ -31,7 +31,7 @@ check "sse2 header" "1" "$(grep -c 'env key: GLIBC_TUNABLES=glibc.cpu.hwcaps=-AV
 check "default header" "1" "$(grep -c 'env key: GLIBC_TUNABLES=<unset>;' "$out/dflt.log")"
 k1=$(grep -o 'row cache key [^;]*' "$out/sse2.log"); k2=$(grep -o 'row cache key [^;]*' "$out/dflt.log")
 ne "cache keys" "$k1" "$k2"
-ne "Liella strlen_4k instructions/call, SSE2 vs default" "$(col sse2 4)" "$(col dflt 4)"
+ne "libniji strlen_4k instructions/call, SSE2 vs default" "$(col sse2 4)" "$(col dflt 4)"
 # second pair: served from each run's own cache, same numbers
 run sse2b glibc.cpu.hwcaps=-AVX2 &
 run dfltb "" &

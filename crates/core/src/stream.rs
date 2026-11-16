@@ -530,7 +530,7 @@ impl State {
     /// Read up to and including `delim` (`getdelim`), giving the bytes to `sink` in pieces; the
     /// total. `Ok(0)` is end of input before any byte.
     pub fn read_until(&mut self, buf: &mut [u8], back: &mut dyn Backing, delim: u8, sink: &mut dyn FnMut(&[u8]) -> Result<()>) -> Result<usize> {
-        self.read_until_with(buf, back, delim, &liella_mem::find_u8, sink)
+        self.read_until_with(buf, back, delim, &niji_mem::find_u8, sink)
     }
 
     /// [`State::read_until`] with the caller's scanner for the delimiter (`find(window, delim)`:

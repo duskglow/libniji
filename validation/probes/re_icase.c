@@ -1,5 +1,5 @@
 /* Milestone-6 probe (grep case-fold-titlecase, ere #38, stack-overflow): regcomp/regexec
- * results printed for the same calls under glibc and Liella. */
+ * results printed for the same calls under glibc and libniji. */
 #include <locale.h>
 #include <regex.h>
 #include <stdio.h>

@@ -4,10 +4,10 @@
 //! sample), and for `long double` at the zeros of `lgamma` and the Bessel functions.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::float_cmp, missing_docs)]
 
-use liella_math::elem::Small;
-use liella_math::{special, Flags, Rounding, Status};
-use liella_mathtools::cmp;
-use liella_mathtools::mp::{self, Big, Fmt, Round};
+use niji_math::elem::Small;
+use niji_math::{special, Flags, Rounding, Status};
+use niji_mathtools::cmp;
+use niji_mathtools::mp::{self, Big, Fmt, Round};
 
 const MODES: [Rounding; 4] = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero];
 
@@ -183,12 +183,12 @@ fn bessel_functions_of_integer_order_are_correctly_rounded() {
 // `long double` (Track M milestone 5b): the same functions, the same oracle, 64-bit significands.
 // ---------------------------------------------------------------------------------------------
 
-use liella_math::{Float, F80};
+use niji_math::{Float, F80};
 
 /// The 80-bit encoding of `x` with low significand bits below the double's filled from `x`'s bits
 /// (an operand no `double` can hold), for a normal `x`.
 fn ld_bits(x: f64) -> u128 {
-    let v = liella_math::float::convert::<f64, F80>(x, Rounding::Nearest).0.to_bits();
+    let v = niji_math::float::convert::<f64, F80>(x, Rounding::Nearest).0.to_bits();
     let field = (v >> 64) & 0x7fff;
     if field == 0 || field == 0x7fff { v } else { v | u128::from((x.to_bits() >> 5) & 0x7ff) }
 }
@@ -267,7 +267,7 @@ fn ld_next(b: u128) -> u128 {
 
 /// The operands around each zero of `f` on `(lo, hi)` (positive), found on a grid of `steps`.
 fn zeros_on_grid(f: Unary<F80>, lo: f64, hi: f64, steps: usize) -> Vec<u128> {
-    let grid: Vec<u128> = (0..=steps).map(|i| liella_math::float::convert::<f64, F80>(lo + (hi - lo) * i as f64 / steps as f64, Rounding::Nearest).0.to_bits()).collect();
+    let grid: Vec<u128> = (0..=steps).map(|i| niji_math::float::convert::<f64, F80>(lo + (hi - lo) * i as f64 / steps as f64, Rounding::Nearest).0.to_bits()).collect();
     let mut out = Vec::new();
     for w in grid.windows(2) {
         if is_neg_ld(f, w[0]) != is_neg_ld(f, w[1]) {
@@ -306,12 +306,12 @@ fn long_double_lgamma_and_tgamma_are_correctly_rounded() {
     xs.extend([ld_bits(p2(-190)), ld_bits(p2(-201)), ld_bits(-p2(-260)), ld_bits(1755.5), ld_bits(-1754.5), ld_bits(-1766.5), ld_bits(-(2.0 - f64::EPSILON) * p2(61)) | 0x3ff]);
     // Next to 1 and 2, where lgamma vanishes.
     for c in [1.0f64, 2.0] {
-        let b = liella_math::float::convert::<f64, F80>(c, Rounding::Nearest).0.to_bits();
+        let b = niji_math::float::convert::<f64, F80>(c, Rounding::Nearest).0.to_bits();
         xs.extend([ld_prev(b), ld_next(b), ld_next(ld_next(b))]);
     }
     // The zeros of lgamma on (−4, −2): the operands around each (negative: magnitude order).
     for k in [2.0f64, 3.0] {
-        let grid: Vec<u128> = (1..64).map(|i| liella_math::float::convert::<f64, F80>(-k - f64::from(i) / 64.0, Rounding::Nearest).0.to_bits()).collect();
+        let grid: Vec<u128> = (1..64).map(|i| niji_math::float::convert::<f64, F80>(-k - f64::from(i) / 64.0, Rounding::Nearest).0.to_bits()).collect();
         for w in grid.windows(2) {
             if is_neg_ld(lgamma_ld, w[0]) != is_neg_ld(lgamma_ld, w[1]) {
                 xs.extend(around_zero(lgamma_ld, w[0], w[1]));
@@ -321,9 +321,9 @@ fn long_double_lgamma_and_tgamma_are_correctly_rounded() {
     check_ld("lgamma", lgamma_ld, &xs);
     // tgamma: the factorials (exact up to 92, rounded beyond) and the overflow threshold. Not the
     // smallest normal value: Γ(2^-16382) = 2^16382 − γ + ... needs some 16,400 bits of the oracle
-    // (Liella's power-of-two path there is the one 2^-201 checks).
+    // (libniji's power-of-two path there is the one 2^-201 checks).
     xs.retain(|&b| b != LD_MIN_NORMAL);
-    xs.extend((1..=100u32).chain((1700..=1760).step_by(3)).map(|n| liella_math::float::convert::<f64, F80>(f64::from(n), Rounding::Nearest).0.to_bits()));
+    xs.extend((1..=100u32).chain((1700..=1760).step_by(3)).map(|n| niji_math::float::convert::<f64, F80>(f64::from(n), Rounding::Nearest).0.to_bits()));
     check_ld("tgamma", special::tgamma::<F80>, &xs);
     verdict.pass();
 }
@@ -725,7 +725,7 @@ fn bessel_jn_beside_its_dyadic_leading_term() {
 // of Ziv's strategy takes over. The oracle works in up to 2^16 bits.
 // ---------------------------------------------------------------------------------------------
 
-use liella_math::F128;
+use niji_math::F128;
 
 #[path = "../../core/tests/support/verdict.rs"]
 mod verdict;
@@ -740,7 +740,7 @@ fn is_neg_q(f: BesselQ, b: u128) -> bool {
 /// (positive encodings are ordered like their values): the last two before the change and
 /// the first two after it.
 fn zeros_q(f: BesselQ, lo: f64, hi: f64, steps: usize) -> Vec<u128> {
-    let enc = |x: f64| liella_math::float::convert::<f64, F128>(x, Rounding::Nearest).0.to_bits();
+    let enc = |x: f64| niji_math::float::convert::<f64, F128>(x, Rounding::Nearest).0.to_bits();
     let grid: Vec<u128> = (0..=steps).map(|i| enc(lo + (hi - lo) * i as f64 / steps as f64)).collect();
     let mut out = Vec::new();
     for w in grid.windows(2) {

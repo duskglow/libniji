@@ -1,4 +1,4 @@
-# Fuzz harnesses for Liella's parsers of untrusted input (implementation-plan.md §6, "Fuzzing
+# Fuzz harnesses for libniji's parsers of untrusted input (implementation-plan.md §6, "Fuzzing
 # infrastructure"). A workspace of its own, outside the product build: the library crates and
 # the products keep zero external dependencies and the pinned stable toolchain; only this crate
 # depends on `libfuzzer-sys` and builds with the nightly named in `rust-toolchain.toml`.
@@ -7,7 +7,7 @@
 # seeds in `seeds/<target>`); `cargo xtask fuzz --list` names the targets.
 
 [package]
-name = "liella-fuzz"
+name = "niji-fuzz"
 version = "0.0.0"
 edition = "2024"
 license = "LGPL-2.1-or-later"
@@ -20,16 +20,16 @@ cargo-fuzz = true
 members = ["."]
 
 [lib]
-name = "liella_fuzz"
+name = "niji_fuzz"
 path = "src/lib.rs"
 
 [dependencies]
 libfuzzer-sys = "0.4"
-liella = { path = "../crates/core" }
-liella-legacy = { path = "../crates/legacy" }
-liella-abi = { path = "../crates/abi" }
-liella-boundary = { path = "../crates/boundary" }
-liella-ld = { path = "../crates/ld" }
+niji = { path = "../crates/core" }
+niji-legacy = { path = "../crates/legacy" }
+niji-abi = { path = "../crates/abi" }
+niji-boundary = { path = "../crates/boundary" }
+niji-ld = { path = "../crates/ld" }
 
 [profile.release]
 debug = 1

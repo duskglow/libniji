@@ -7,16 +7,16 @@
 //! The tests run in the C locale (D-6.7): ASCII, `MB_CUR_MAX` 1, every byte from 0x80
 //! `EILSEQ`. `iconv` is tested with built-in codecs here; `iconv_products.rs` compares it with
 //! the reference library, charmaps included.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use core::ptr::{null, null_mut};
 
-use liella_abi::ctypes::{c_char, mbstate_t, wchar_t};
-use liella_boundary::errno;
-use liella_boundary::posix::s06_multibyte as s;
-use liella_boundary::selftest::{self, ChildEnd};
+use niji_abi::ctypes::{c_char, mbstate_t, wchar_t};
+use niji_boundary::errno;
+use niji_boundary::posix::s06_multibyte as s;
+use niji_boundary::selftest::{self, ChildEnd};
 
 const EILSEQ: i32 = 84;
 const NEG1: usize = usize::MAX;
@@ -39,7 +39,7 @@ fn eilseq<T: PartialEq + core::fmt::Debug>(bad: T, f: impl FnOnce() -> T) {
     assert_eq!(errno::get(), EILSEQ);
 }
 
-fn aborts(body: fn(&liella_boundary::sys::CSys) -> i32) {
+fn aborts(body: fn(&niji_boundary::sys::CSys) -> i32) {
     assert_eq!(selftest::in_child_quiet(body).unwrap(), ChildEnd::Signaled(SIGABRT));
 }
 
@@ -69,16 +69,16 @@ fn sym_mbrtowc() {
 #[test]
 fn single_character_forms_read_no_byte_past_the_character() {
     // Trace: s6_2_c_1 ("at most `n` bytes": only the character's bytes are read); D-6.10.
-    use liella_boundary::sys::CSys;
-    use liella_kernel::sys::Sys;
-    use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+    use niji_boundary::sys::CSys;
+    use niji_kernel::sys::Sys;
+    use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
     const PAGE: usize = 4096;
     let end = selftest::in_child_quiet(|_| {
         let r = CSys.mmap(0, 2 * PAGE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0).unwrap();
         let (lo, mut hi) = r.split_at(PAGE).ok().unwrap();
         CSys.mprotect(&mut hi, PROT_NONE).unwrap();
         let a = (lo.addr() + PAGE - 1) as *mut c_char;
-        liella_boundary::posix::s04_strings::memset(a.cast(), i32::from(b'A'), 1);
+        niji_boundary::posix::s04_strings::memset(a.cast(), i32::from(b'A'), 1);
         let n = 100_000;
         let mut st = mbstate_t::default();
         let mut wc: wchar_t = 0;
@@ -518,7 +518,7 @@ fn single_character_quick_path_matches_the_general_decoder() {
     // The quick path takes an all-zero state; a state whose __count is zero but whose __value is
     // not is the same initial state (mbsinit) yet goes the general way, so it is the oracle. Every
     // one- and two-byte input, n 0..=3, output and state NULL or not, in C and C.UTF-8.
-    use liella_boundary::posix::s07_locale as l;
+    use niji_boundary::posix::s07_locale as l;
     std::thread::spawn(|| {
         for name in ["C", "C.UTF-8"] {
             let cname = c(name.as_bytes());

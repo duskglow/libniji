@@ -10,8 +10,8 @@
 #[path = "support/timeout.rs"]
 mod timeout;
 
-use liella::locale::Locale;
-use liella::pattern::regex::{self, Accel, Options, Window};
+use niji::locale::Locale;
+use niji::pattern::regex::{self, Accel, Options, Window};
 
 /// The pinned inputs whose patterns use back-references (the others are D-14.8's stacked
 /// repetitions, which have no budget: their cost is bounded by the program size).

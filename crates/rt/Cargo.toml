@@ -1,5 +1,5 @@
 [package]
-name = "liella-rt"
+name = "niji-rt"
 description = "Runtime mechanisms that need unsafe: process entry, TLS, threads, allocator, signals, contexts, FPU"
 version.workspace = true
 edition.workspace = true
@@ -8,15 +8,15 @@ license.workspace = true
 publish.workspace = true
 
 [lib]
-name = "liella_rt"
+name = "niji_rt"
 
 [dependencies]
-liella-kernel = { workspace = true }
+niji-kernel = { workspace = true }
 
 [dev-dependencies]
 spectest = { workspace = true }
 # The internal tests run the primitives against the real kernel (CSys).
-liella-boundary = { workspace = true, features = ["selftest"] }
+niji-boundary = { workspace = true, features = ["selftest"] }
 
 [lints]
 workspace = true

@@ -13,7 +13,7 @@
 //!
 //! `--check` (run by `cargo xtask tables --check`, so by static's `tables-fresh`) fails when the
 //! file is missing or differs from what the sources give, but only on the CI train
-//! (`LIELLA_TRAIN=1`): the file is train-owned (RECORDS), so a story branch never commits it and
+//! (`NIJI_TRAIN=1`): the file is train-owned (RECORDS), so a story branch never commits it and
 //! gets one advisory line instead, the same rule as `records::fresh_check`. Without `--check` it writes
 //! `target/records-views/crates/math/KERNELS.md` and leaves the tracked file alone, except on the train or with
 //! `--in-place` (`records::in_place`, D-X.59).
@@ -56,14 +56,14 @@ pub fn run(root: &Path, check: bool, in_place: bool) -> Result<(), String> {
         println!("kernel-index: {shown} unchanged");
     }
     if !in_place {
-        println!("kernel-index: {OUT} is train-owned and untouched; read {shown} (in place: LIELLA_TRAIN=1 or --in-place)");
+        println!("kernel-index: {OUT} is train-owned and untouched; read {shown} (in place: NIJI_TRAIN=1 or --in-place)");
     }
     Ok(())
 }
 
-/// The CI train's gate (`LIELLA_TRAIN=1`), where a stale train-owned file is fatal.
+/// The CI train's gate (`NIJI_TRAIN=1`), where a stale train-owned file is fatal.
 fn on_train() -> bool {
-    std::env::var("LIELLA_TRAIN").is_ok_and(|v| v == "1")
+    std::env::var("NIJI_TRAIN").is_ok_and(|v| v == "1")
 }
 
 /// The source files, sorted by path relative to `crates/math/src`.

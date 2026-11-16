@@ -1,6 +1,6 @@
-//! `liella_secure_zero`: zeroing the compiler cannot remove (D-X.11). It is the one
+//! `niji_secure_zero`: zeroing the compiler cannot remove (D-X.11). It is the one
 //! implementation: `explicit_bzero` and `__explicit_bzero_chk` call it, and the heap wipes a
-//! secure block (`liella_heap_alloc_secure`) with the same function (`conv::secure_zero`).
+//! secure block (`niji_heap_alloc_secure`) with the same function (`conv::secure_zero`).
 //!
 //! **The guarantee.** When the call returns, each of the `len` bytes at `ptr` has been stored
 //! as zero by it, whether the call is compiled separately, inlined or link-time optimised into
@@ -18,11 +18,11 @@ use super::abi;
 use crate::conv;
 use crate::export;
 
-export! { "LIELLA_NATIVE_1";
+export! { "NIJI_NATIVE_1";
 /// Zero the `len` bytes at `ptr` so that the stores are never optimised away: 0, or `-EFAULT`
 /// for NULL with a non-zero length or a length above `PTRDIFF_MAX` (nothing is written then).
 /// NULL with length 0 does nothing.
-pub extern "C" fn liella_secure_zero(ptr: *mut c_void, len: usize) -> i64 {
+pub extern "C" fn niji_secure_zero(ptr: *mut c_void, len: usize) -> i64 {
     // UNSAFE(slice) SAFETY: ptr is valid for writing len bytes (the native slice convention).
     abi::done(unsafe { conv::buf_mut(ptr, len) }.map(conv::secure_zero))
 }}

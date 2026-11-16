@@ -1,4 +1,4 @@
-//! `dlopen` and `dlerror` under Liella's `ld.so` and `libc.so.6` (phase 14 DL-16a, plan/ph14/dl-16-dlopen.md
+//! `dlopen` and `dlerror` under libniji's `ld.so` and `libc.so.6` (phase 14 DL-16a, plan/ph14/dl-16-dlopen.md
 //! §1, §3, §4; spec/behaviour/dynlink.md "dlerror texts" and tools/probe/dl/gaps). One C program built
 //! against the products checks every behaviour itself and exits with the number of the first check
 //! that failed (its text on standard error). Needs `cargo xtask so` and a C compiler (else SKIP).
@@ -9,8 +9,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::elf::Elf;
+use niji_ld::arch::{Arch, Native};
+use niji_ld::elf::Elf;
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -24,10 +24,10 @@ fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
     }
-    let lib = target().join("liella");
+    let lib = target().join("niji");
     let ld = lib.join(Native::INTERP);
-    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("liella-crt1.o").exists() {
-        eprintln!("SKIP: ld.so, libc.so.6 or liella-crt1.o not built (run cargo xtask so)");
+    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("niji-crt1.o").exists() {
+        eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
     let d = target().join(format!("ld-dlopen-{name}-{}", std::process::id()));
@@ -35,13 +35,13 @@ fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
     let d = std::fs::canonicalize(d).unwrap();
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
-    let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
+    let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
     let (off, len) = (dynph.offset as usize, dynph.filesz as usize);
     let at = (off..off + len).step_by(16).find(|&o| so[o..o + 8] == 14u64.to_le_bytes()).expect("libc.so.6 has a DT_SONAME");
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
     let libc = d.join("libc-dl.so");
     std::fs::write(&libc, &so).unwrap();
-    Some((d, ld, libc, lib.join("liella-crt1.o")))
+    Some((d, ld, libc, lib.join("niji-crt1.o")))
 }
 
 /// Build `out` from `src` with `flags` in `d`.
@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
 #[test]
 fn s27_1_f_0_static_program_dlopen_fails_with_text() {
     let Some((d, _ld, _libc, crt1)) = setup("static") else { return };
-    let liba = target().join("liella/libc.a");
+    let liba = target().join("niji/libc.a");
     let lib = cc(&d, "libok.so", LIB_OK, &["-nostdlib", "-fPIC", "-shared"]);
     let p = cc(&d, "sprog", STATIC_PROG, &["-static", "-nostdlib", crt1.to_str().unwrap(), liba.to_str().unwrap(), "-lgcc"]);
     use std::os::unix::process::ExitStatusExt;

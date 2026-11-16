@@ -1,11 +1,11 @@
 //! The Name Service Switch of the process (spec §16.1; D-16.1, D-16.2): the configuration from
 //! `/etc/nsswitch.conf` (re-read when the file changes, as the contract says, and overridden per
 //! database by `__nss_configure_lookup`), `host.conf`'s `multi`, and the lookups of the user,
-//! group, `ethers`, netgroup and `aliases` databases through the engine (`liella::names::nss`).
+//! group, `ethers`, netgroup and `aliases` databases through the engine (`niji::names::nss`).
 //! The netdb databases are in `crate::netdb_compat`, `getaddrinfo` in `crate::gai`.
 //!
 //! **The sources** (D-16.1). A lookup asks the sources of its database's line in order, through
-//! [`liella::names::nss::run`]: `files` (and `compat` for `passwd`, `group` and `shadow`) is
+//! [`niji::names::nss::run`]: `files` (and `compat` for `passwd`, `group` and `shadow`) is
 //! `crate::nss_files`; `dns` answers the `hosts` database (`crate::resolv_compat`, phase 10
 //! part 4) when the lookup's [`Ctx`] carries a resolver, and is unavailable otherwise (and for
 //! every other database); any other source is a module of the NSS module ABI (F27, phase 14)
@@ -27,18 +27,18 @@
 //! tests) and the configuration to use ([`Config`], built from text in the tests).
 
 use core::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, AtomicU8, Ordering::{Acquire, Relaxed, Release}};
-use liella::names::hostconf::{self, Domains, Env, Settings};
+use niji::names::hostconf::{self, Domains, Env, Settings};
 
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella::names::cache::Category;
-use liella::names::db;
-use liella::names::nss::{self, Answer, Config, Database, LookupError, Service, Spec, DATABASES, SPEC_BYTES};
-use liella::users::{self, Group, Gshadow, Passwd, Shadow};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji::names::cache::Category;
+use niji::names::db;
+use niji::names::nss::{self, Answer, Config, Database, LookupError, Service, Spec, DATABASES, SPEC_BYTES};
+use niji::users::{self, Group, Gshadow, Passwd, Shadow};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_rt::sync::RawMutex;
 
 use crate::nss_files::{self as files, Key};
 use crate::result_slots::Buf;
@@ -148,7 +148,7 @@ impl Watched {
                 Err(_) => [2, 0, 0, 0, 0, 0, 0, 0],
             };
             if !loaded || self.stamp.iter().zip(now).any(|(a, b)| a.load(Relaxed) != b) {
-                let text = liella::system::read_file(sys, path).ok();
+                let text = niji::system::read_file(sys, path).ok();
                 load(text.as_deref());
                 for (a, b) in self.stamp.iter().zip(now) {
                     a.store(b, Relaxed);
@@ -342,7 +342,7 @@ impl AtomicPath {
     }
 }
 
-/// `host.conf`'s settings (`liella::names::hostconf`, D-16.13): the file's, re-read when it
+/// `host.conf`'s settings (`niji::names::hostconf`, D-16.13): the file's, re-read when it
 /// changes, with the `RESOLV_*` environment the process gave once ([`HostConf::env_once`]).
 #[derive(Debug)]
 pub struct HostConf {
@@ -493,7 +493,7 @@ impl HostConf {
             let mut pbuf = [0u8; HOST_CONF_PATH_MAX];
             let env_p = if self.env_path.len.load(Relaxed) != u16::MAX && path == SYSTEM.host_conf { self.env_path.load(&mut pbuf) } else { None };
             let p = env_p.unwrap_or(path);
-            if let Ok(text) = liella::system::read_file(sys, p) {
+            if let Ok(text) = niji::system::read_file(sys, p) {
                 let name = p.strip_suffix(&[0]).unwrap_or(p);
                 hostconf::problems(&text, |n, prob| {
                     out.put(name);
@@ -599,7 +599,7 @@ pub struct Ctx<'a, S: Sys> {
     pub dns: Option<&'a crate::resolv_compat::Resolver>,
     /// The locale whose character set `AI_IDN`, `AI_CANONIDN` and `NI_IDN` texts are in
     /// (`None`: ASCII only).
-    pub locale: Option<&'a liella::locale::Locale>,
+    pub locale: Option<&'a niji::locale::Locale>,
     /// The name-service cache's memory (D-16.10; `None`: the lookups are not cached). Only a
     /// context with the system's files uses it ([`Ctx::cached`]).
     pub cache: Option<&'a dyn crate::nscache::Memory>,
@@ -735,7 +735,7 @@ fn merge_group(kept: &mut TryVec<u8>, more: TryVec<u8>) -> Result<()> {
     line.push(b':')?;
     line.extend_from_slice(a.passwd)?;
     line.push(b':')?;
-    let mut gid = liella::net::Text::<12>::new();
+    let mut gid = niji::net::Text::<12>::new();
     gid.push_dec(u64::from(a.gid));
     line.extend_from_slice(gid.as_bytes())?;
     line.push(b':')?;
@@ -922,7 +922,7 @@ pub fn netgroup<S: Sys>(ctx: &Ctx<'_, S>, group: &[u8]) -> Answer<Triples> {
 }
 
 /// `innetgr(group, host, user, domain)`: whether a triple of `group` (expanded) matches; a
-/// `None` argument matches any field (see `liella::names::db::field_matches`).
+/// `None` argument matches any field (see `niji::names::db::field_matches`).
 pub fn in_netgroup<S: Sys>(ctx: &Ctx<'_, S>, group: &[u8], host: Option<&[u8]>, user: Option<&[u8]>, domain: Option<&[u8]>) -> bool {
     let Ok(t) = netgroup(ctx, group) else { return false };
     (0..t.len()).filter_map(|i| t.get(i)).any(|[h, u, d]| db::field_matches(h, host, true) && db::field_matches(u, user, false) && db::field_matches(d, domain, true))

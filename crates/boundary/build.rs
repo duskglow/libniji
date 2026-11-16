@@ -26,7 +26,7 @@ fn sources(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 fn fail(msg: &str) -> ! {
-    eprintln!("liella-boundary build: {msg}");
+    eprintln!("niji-boundary build: {msg}");
     std::process::exit(1)
 }
 
@@ -37,9 +37,9 @@ fn main() {
     let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     // A-8: the portable scanners (`strz::portable`) replace the assembly ones on a target without
     // tuned kernels; the test-only feature `portable-scan` forces them on x86_64.
-    println!("cargo::rustc-check-cfg=cfg(liella_portable_scan)");
+    println!("cargo::rustc-check-cfg=cfg(niji_portable_scan)");
     if arch != "x86_64" || env::var_os("CARGO_FEATURE_PORTABLE_SCAN").is_some() {
-        println!("cargo::rustc-cfg=liella_portable_scan");
+        println!("cargo::rustc-cfg=niji_portable_scan");
     }
     if arch != "x86_64" {
         fail(&format!("not ported to target_arch {arch}: csys and the machine kernels are x86_64 only (aarch64: syscalls A-3, csys A-6, string kernels A-8); `cargo xtask arch-check` checks the crates that build without csys"));
@@ -54,15 +54,15 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CC");
     println!("cargo:rerun-if-env-changed=AR");
 
-    // The shipped products define LIELLA_EXPORT: the C adapters then carry the exported glibc
+    // The shipped products define NIJI_EXPORT: the C adapters then carry the exported glibc
     // names (variadic entry points, the floating-ABI forwarders of OD-C4).
     let export = env::var_os("CARGO_FEATURE_EXPORT").is_some();
-    // The products' runtime (`__libc_start_main`, `environ`, ...): LIELLA_RUNTIME.
+    // The products' runtime (`__libc_start_main`, `environ`, ...): NIJI_RUNTIME.
     let runtime = env::var_os("CARGO_FEATURE_RUNTIME").is_some();
-    // The ld.so product (feature `ld`, D-27.13): LIELLA_LD (the image anchor, adapter/image_anchor.c).
+    // The ld.so product (feature `ld`, D-27.13): NIJI_LD (the image anchor, adapter/image_anchor.c).
     let ld = env::var_os("CARGO_FEATURE_LD").is_some();
 
-    // The libm product (`crates/libm-so`): LIELLA_LIBM names the math forwarders it owns.
+    // The libm product (`crates/libm-so`): NIJI_LIBM names the math forwarders it owns.
     let libm = env::var_os("CARGO_FEATURE_LIBM").is_some();
 
     let mut srcs = Vec::new();
@@ -92,10 +92,10 @@ fn main() {
         cmd.args(["-std=c17", "-O2", "-fPIC", "-ffreestanding", "-fno-builtin", "-nostdlib", "-ffunction-sections", "-fdata-sections",
                   "-fno-stack-protector", "-falign-functions=64", "-Wall", "-Wextra", "-Werror"])
             .arg(if linked { "-c" } else { "-fsyntax-only" })
-            .args(export.then_some("-DLIELLA_EXPORT"))
-            .args(runtime.then_some("-DLIELLA_RUNTIME"))
-            .args(ld.then_some("-DLIELLA_LD"))
-            .args(libm.then_some("-DLIELLA_LIBM"))
+            .args(export.then_some("-DNIJI_EXPORT"))
+            .args(runtime.then_some("-DNIJI_RUNTIME"))
+            .args(ld.then_some("-DNIJI_LD"))
+            .args(libm.then_some("-DNIJI_LIBM"))
             .arg("-I").arg(csys.join("include"))
             .arg(src);
         if linked {
@@ -110,12 +110,12 @@ fn main() {
             other => fail(&format!("compiling {} failed: {other:?}", src.display())),
         }
     }
-    let lib = out.join("libliella_csys.a");
+    let lib = out.join("libniji_csys.a");
     let _ = fs::remove_file(&lib);
     let status = Command::new(&ar).arg("rcs").arg(&lib).args(&objs).status();
     if !matches!(status, Ok(s) if s.success()) {
         fail(&format!("archiving the C syscall layer failed: {status:?}"));
     }
     println!("cargo:rustc-link-search=native={}", out.display());
-    println!("cargo:rustc-link-lib=static=liella_csys");
+    println!("cargo:rustc-link-lib=static=niji_csys");
 }

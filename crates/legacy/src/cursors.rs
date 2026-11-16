@@ -9,13 +9,13 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU64, Ordering::Relaxed};
 
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_RDONLY};
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY};
+use niji_rt::sync::RawMutex;
 
 /// What an enumeration does with the line it reads.
 #[derive(Debug)]
@@ -121,7 +121,7 @@ impl Cursor {
             _ => {
                 let fd = sys.openat(Fd::CWD, KStr::from_nul_terminated(file)?, O_RDONLY | O_CLOEXEC, 0)?;
                 // Kept across calls: never a standard descriptor (validation T12).
-                let fd = liella::io::above_standard(sys, fd)?;
+                let fd = niji::io::above_standard(sys, fd)?;
                 self.fd.store(fd.raw(), Relaxed);
                 Ok(fd)
             }

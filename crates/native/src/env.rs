@@ -1,4 +1,4 @@
-//! The process environment (`liella_env_*`): the one `environ` names, shared with the C code's
+//! The process environment (`niji_env_*`): the one `environ` names, shared with the C code's
 //! `getenv` and `setenv`. Names, values and entries are bytes; a name is not empty and
 //! contains no `=` (else `EINVAL`), and nothing contains a NUL (`EINVAL`).
 
@@ -33,22 +33,22 @@ pub fn unset(name: &[u8]) -> Result<(), Errno> {
     buf::done(ffi::env_unset(name))
 }
 
-/// Turn the environment contract (a Liella extension, off by default) on or off: the previous
+/// Turn the environment contract (a libniji extension, off by default) on or off: the previous
 /// state. While it is on, `getenv` answers from a table that `setenv`, `putenv`, `unsetenv`,
 /// `clearenv` and this module's writers keep current; after changing `environ` any other way,
 /// call [`reload`].
 pub fn contract(on: bool) -> bool {
-    ffi::liella_environ_contract(i32::from(on)) != 0
+    ffi::niji_environ_contract(i32::from(on)) != 0
 }
 
 /// Rebuild the environment contract's table from `environ` (nothing while it is off).
 pub fn reload() {
-    ffi::liella_environ_reload();
+    ffi::niji_environ_reload();
 }
 
 /// The number of entries in the environment.
 pub fn count() -> Result<usize, Errno> {
-    buf::len(ffi::liella_env_count())
+    buf::len(ffi::niji_env_count())
 }
 
 /// Entry `index` (`NAME=VALUE`, 0-based), or `None` past the last.

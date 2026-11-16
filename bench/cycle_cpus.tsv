@@ -1,6 +1,6 @@
 # CPU models whose ratio_host rows are DECIDED ON CYCLES, not ns (FALLBACK-CYCLES; owner ruling 2026-10-10 18:35 UTC:
 # "yes, but keep an eye on time too, if we see a consistent drag, it needs to be investigated").
-# Why: on these low-power Ivy Bridge boxes the core clock is bimodal run to run (1.5-2.5 GHz) for glibc and Liella
+# Why: on these low-power Ivy Bridge boxes the core clock is bimodal run to run (1.5-2.5 GHz) for glibc and libniji
 # alike, so ns ratios gave a false 1.38x and a false 0.85x while cycles moved < 3% (Ivy Bridge clock gap; the Ivy Bridge clock gap handoff (liella-historic), not in the tree when cited).
 # `cargo xtask bench` decides each ratio_host row on the cycles ratio (user+kernel) against bench/host_cycle_limits.tsv;
 # a row without a cycle limit, or without a cycles counter, falls back to its ns limit in bench/host_limits.tsv.

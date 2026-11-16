@@ -8,11 +8,11 @@
 
 use core::sync::atomic::{AtomicI64, AtomicU32, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::sys::Sys;
-use liella_rt::futex::{self, Scope};
-use liella_rt::sync::RawMutex;
-use liella_rt::thread::Thread;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::sys::Sys;
+use niji_rt::futex::{self, Scope};
+use niji_rt::sync::RawMutex;
+use niji_rt::thread::Thread;
 
 use crate::sys::CSys;
 use crate::{cancel, raw, tb, thread};
@@ -51,7 +51,7 @@ pub(crate) fn broadcast(nr: i64, a: i64, b: i64, c: i64) -> KResult<i64> {
     let _g = SERIAL.lock(&CSys);
     let me = raw::syscall(nr, [a, b, c, 0, 0, 0])?;
     // The name-service cache re-keys before its next lookup (D-16.10).
-    liella_legacy::nscache::NSCACHE.credentials_changed();
+    niji_legacy::nscache::NSCACHE.credentials_changed();
     if thread::current().is_none() {
         return Ok(me);
     }
@@ -64,7 +64,7 @@ pub(crate) fn broadcast(nr: i64, a: i64, b: i64, c: i64) -> KResult<i64> {
     // Count the other threads first, then signal them: a handler may finish before the loop.
     let mut others = 0u32;
     thread::each(|d| {
-        if d.tp.load(Relaxed) != own && !d.has(liella_rt::thread::DESC_EXITED) {
+        if d.tp.load(Relaxed) != own && !d.has(niji_rt::thread::DESC_EXITED) {
             others = others.saturating_add(1);
         }
     });
@@ -74,7 +74,7 @@ pub(crate) fn broadcast(nr: i64, a: i64, b: i64, c: i64) -> KResult<i64> {
     }
     let pid = CSys.getpid();
     thread::each(|d| {
-        if d.tp.load(Relaxed) == own || d.has(liella_rt::thread::DESC_EXITED) {
+        if d.tp.load(Relaxed) == own || d.has(niji_rt::thread::DESC_EXITED) {
             return;
         }
         // The list lock is held here: the TID comes from the listed block directly.

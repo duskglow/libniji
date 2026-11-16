@@ -1,4 +1,4 @@
-//! `liella_ld::dlopen`'s rules that need no process (phase 14 DL-16a, plan/ph14/dl-16-dlopen.md §1;
+//! `niji_ld::dlopen`'s rules that need no process (phase 14 DL-16a, plan/ph14/dl-16-dlopen.md §1;
 //! spec/behaviour/dynlink.md "dlerror texts", probes P-1 and the gaps probe; rulings #5294): the order of
 //! the checks on a candidate file, the refusals of malformed headers, the mode word's precedence and
 //! the open count's saturation. The candidates are mutated copies of this test's own executable (a
@@ -7,8 +7,8 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions)]
 
-use liella_ld::arch::Native;
-use liella_ld::dlopen::{check, mode, reopen, ModeError, Refusal, KNOWN, RTLD_LAZY, RTLD_NOW};
+use niji_ld::arch::Native;
+use niji_ld::dlopen::{check, mode, reopen, ModeError, Refusal, KNOWN, RTLD_LAZY, RTLD_NOW};
 
 const PAGE: u64 = 4096;
 const PT_LOAD: u32 = 1;

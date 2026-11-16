@@ -1,4 +1,4 @@
-//! The comparator: two outcomes of one transcript (reference and Liella, or the record and a live run), compared
+//! The comparator: two outcomes of one transcript (reference and libniji, or the record and a live run), compared
 //! aspect by aspect: exit status, stdout, stderr (each stream on its own, so text on the wrong stream is a mismatch),
 //! and every path written. Each difference is one [`Mismatch`] with a readable diff.
 
@@ -36,7 +36,7 @@ pub(crate) fn sha256(bytes: &[u8]) -> String {
     run().unwrap_or_else(|| "sha256sum-failed".into())
 }
 
-/// Compare outcome `b` against `a`. The labels name the sides in the details (`reference`, `liella`, `record`).
+/// Compare outcome `b` against `a`. The labels name the sides in the details (`reference`, `niji`, `record`).
 pub(crate) fn compare(a_label: &str, a: &Outcome, b_label: &str, b: &Outcome) -> Vec<Mismatch> {
     let mut out = Vec::new();
     if a.status != b.status {
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn identical_outcomes_have_no_mismatch() {
         // Trace: no spec clause (test-harness tooling; UTIL-HARNESS comparator).
-        assert_eq!(compare("reference", &outcome(), "liella", &outcome()), vec![]);
+        assert_eq!(compare("reference", &outcome(), "niji", &outcome()), vec![]);
     }
 
     #[test]
@@ -227,7 +227,7 @@ mod tests {
         let mut b = outcome();
         let at = b.stdout.iter().position(|&c| c == b'z').unwrap();
         b.stdout[at] = b'Z';
-        let m = compare("reference", &outcome(), "liella", &b);
+        let m = compare("reference", &outcome(), "niji", &b);
         assert_eq!(m.len(), 1, "{m:?}");
         assert_eq!(m[0].what, "stdout");
         assert!(m[0].detail.contains("  -\\tlibz.so.1") && m[0].detail.contains("  +\\tlibZ.so.1"), "{}", m[0].detail);
@@ -240,10 +240,10 @@ mod tests {
         for status in [Status::Exit(1), Status::Signal(0)] {
             let mut b = outcome();
             b.status = status;
-            let m = compare("reference", &outcome(), "liella", &b);
+            let m = compare("reference", &outcome(), "niji", &b);
             assert_eq!(m.len(), 1, "{m:?}");
             assert_eq!(m[0].what, "status");
-            assert_eq!(m[0].detail, format!("reference exit 0, liella {status}"));
+            assert_eq!(m[0].detail, format!("reference exit 0, niji {status}"));
         }
     }
 
@@ -252,10 +252,10 @@ mod tests {
         // Trace: no spec clause (test-harness tooling; UTIL-HARNESS comparator).
         let mut b = outcome();
         b.stderr = std::mem::take(&mut b.stdout);
-        let m = compare("reference", &outcome(), "liella", &b);
+        let m = compare("reference", &outcome(), "niji", &b);
         let what: Vec<&str> = m.iter().map(|x| x.what.as_str()).collect();
         assert_eq!(what, ["stdout", "stderr"], "{m:?}");
-        assert!(m[0].detail.contains("note: liella wrote reference's stdout text to stderr"), "{}", m[0].detail);
+        assert!(m[0].detail.contains("note: niji wrote reference's stdout text to stderr"), "{}", m[0].detail);
     }
 
     #[test]
@@ -263,7 +263,7 @@ mod tests {
         // Trace: no spec clause (test-harness tooling; UTIL-HARNESS comparator).
         let mut b = outcome();
         b.written[0].1 = Written::File(b"one\nTwo\n".to_vec());
-        let m = compare("reference", &outcome(), "liella", &b);
+        let m = compare("reference", &outcome(), "niji", &b);
         assert_eq!(m.len(), 1, "{m:?}");
         assert_eq!(m[0].what, "written etc/out");
         assert!(m[0].detail.contains("  -two") && m[0].detail.contains("  +Two"), "{}", m[0].detail);

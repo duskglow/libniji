@@ -6,7 +6,7 @@
 mod common;
 
 use common::rel_log2;
-use liella_mathtools::mp::{ln10, ln2, log, pi, Big, Fmt, Round};
+use niji_mathtools::mp::{ln10, ln2, log, pi, Big, Fmt, Round};
 
 /// pi by the Gauss-Legendre (Brent-Salamin) AGM iteration, at `p` bits per operation.
 fn pi_agm(p: u32) -> Big {

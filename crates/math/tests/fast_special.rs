@@ -1,5 +1,5 @@
-//! The `double` `erf`/`erfc` fast tier (`liella_math::fast_special`) against the test oracle
-//! (`liella-mathtools::mp`) and against the 384-bit path it falls back to, spec §10.3 and D-10.13
+//! The `double` `erf`/`erfc` fast tier (`niji_math::fast_special`) against the test oracle
+//! (`niji-mathtools::mp`) and against the 384-bit path it falls back to, spec §10.3 and D-10.13
 //! (every result correctly rounded in the caller's rounding direction). The fast tier either
 //! returns the correctly rounded result or `None`, in all four modes: on random operands, on
 //! every slot boundary and range switch, on subnormal operands and results. Its kernels must
@@ -9,10 +9,10 @@
 //! 2^-15.6, module doc of `fast_special`).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_precision_loss, clippy::arithmetic_side_effects, clippy::float_cmp, missing_docs)]
 
-use liella_math::status::{Rounding, Status};
-use liella_math::{fast_special, special, stats};
-use liella_mathtools::cmp;
-use liella_mathtools::mp::{self, Approx, Big, Fmt, Round};
+use niji_math::status::{Rounding, Status};
+use niji_math::{fast_special, special, stats};
+use niji_mathtools::cmp;
+use niji_mathtools::mp::{self, Approx, Big, Fmt, Round};
 
 const MODES: [(Rounding, Round); 4] =
     [(Rounding::Nearest, Round::Nearest), (Rounding::Up, Round::Up), (Rounding::Down, Round::Down), (Rounding::Zero, Round::Zero)];
@@ -175,9 +175,9 @@ fn double_erf_erfc_fast_tier_rounds_correctly_and_rarely_falls_back() {
 fn double_erf_erfc_fast_tier_matches_the_accurate_path() {
     // Clauses: s10_3_c_0 (D-10.13).
     // Where the fast tier settles, its result and status (flags and errno) are the 384-bit
-    // path's, in every mode. `LIELLA_ERF_SWEEP` operands per function and mode (default 2000;
+    // path's, in every mode. `NIJI_ERF_SWEEP` operands per function and mode (default 2000;
     // `cargo xtask long-sweeps` runs 10^5).
-    let n: u32 = std::env::var("LIELLA_ERF_SWEEP").ok().and_then(|s| s.parse().ok()).unwrap_or(2000);
+    let n: u32 = std::env::var("NIJI_ERF_SWEEP").ok().and_then(|s| s.parse().ok()).unwrap_or(2000);
     for (name, fast, _, accurate) in FUNCS {
         let mut rng = Rng(0x3c6e_f372_fe94_f82b ^ name.len() as u64);
         let mut settled = 0u64;
@@ -198,7 +198,7 @@ fn double_erf_erfc_fast_tier_matches_the_accurate_path() {
 }
 
 /// `|f(x) − y·2^m| / (eps·2^m)` against the oracle at 240 bits.
-fn ratio(name: &str, x: f64, y: liella_math::dd::Dd, eps: f64, m: i32) -> f64 {
+fn ratio(name: &str, x: f64, y: niji_math::dd::Dd, eps: f64, m: i32) -> f64 {
     let exact = cmp::oracle(name, &[Big::from_f64(x)], 240).unwrap().value;
     let got = Big::from_f64(y.hi).add(&Big::from_f64(y.lo)).mul_pow2(i64::from(m));
     exact.sub(&got).abs().mul_pow2(-i64::from(m)).to_f64() / eps

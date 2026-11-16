@@ -7,9 +7,9 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use liella::config::{fields, lines, trim, Tunables};
-use liella::random::{rand_r, AdditiveFeedback, Rng48, SIZES};
-use liella::search::*;
+use niji::config::{fields, lines, trim, Tunables};
+use niji::random::{rand_r, AdditiveFeedback, Rng48, SIZES};
+use niji::search::*;
 
 struct Gen(u64);
 impl Gen {
@@ -159,21 +159,21 @@ fn tunables_parse_shapes() {
     let d = Tunables::default();
     assert_eq!(p(""), d);
     assert_eq!(p(":::"), d);
-    assert_eq!(p("liella.cpu.hwcaps=AVX2"), Tunables { avx2: Some(true), ..d });
-    assert_eq!(p("liella.cpu.hwcaps=-ERMS,AVX2"), Tunables { avx2: Some(true), erms: Some(false), ..d });
+    assert_eq!(p("niji.cpu.hwcaps=AVX2"), Tunables { avx2: Some(true), ..d });
+    assert_eq!(p("niji.cpu.hwcaps=-ERMS,AVX2"), Tunables { avx2: Some(true), erms: Some(false), ..d });
     assert_eq!(p("glibc.cpu.hwcaps=-AVX2,AVX2"), Tunables { avx2: Some(true), ..d }, "the later item wins");
     assert_eq!(p("glibc.cpu.x86_rep_stosb_threshold=0x10"), Tunables { rep_stosb_threshold: Some(16), ..d });
     assert_eq!(p("glibc.cpu.x86_rep_stosb_threshold=16:glibc.cpu.x86_rep_stosb_threshold=32"), Tunables { rep_stosb_threshold: Some(32), ..d }, "the later setting wins");
     assert_eq!(p("glibc.cpu.x86_rep_stosb_threshold=16:glibc.cpu.x86_rep_stosb_threshold=zz"), Tunables { rep_stosb_threshold: Some(16), ..d }, "an invalid later value is ignored");
-    assert_eq!(p("liella.pthread.rseq=1"), Tunables { rseq: Some(true), ..d });
-    assert_eq!(p("liella.pthread.rseq=0"), Tunables { rseq: Some(false), ..d });
+    assert_eq!(p("niji.pthread.rseq=1"), Tunables { rseq: Some(true), ..d });
+    assert_eq!(p("niji.pthread.rseq=0"), Tunables { rseq: Some(false), ..d });
     assert_eq!(p("nonsense"), d);
     assert_eq!(p("=1:glibc.pthread.rseq=0"), Tunables { rseq: Some(false), ..d });
     assert_eq!(p("glibc.pthread.rseq"), d, "no value");
     assert_eq!(p("glibc.cpu.x86_rep_movsb_threshold="), d);
     assert_eq!(Tunables::parse(b"glibc.pthread.rseq=0", true), d);
-    assert_eq!(Tunables::malloc_perturb(b"liella.malloc.perturb=255", false), Some(255));
-    assert_eq!(Tunables::malloc_perturb(b"liella.malloc.perturb=256", false), None);
+    assert_eq!(Tunables::malloc_perturb(b"niji.malloc.perturb=255", false), Some(255));
+    assert_eq!(Tunables::malloc_perturb(b"niji.malloc.perturb=256", false), None);
     assert_eq!(Tunables::malloc_perturb(b"", false), None);
 }
 
@@ -213,10 +213,10 @@ fn tunables_probed_shapes() {
         ("glibc.cpu.x86_rep_movsb_threshold=0xffffffffffffffff", N, N, Some(usize::MAX), N, None),
         ("glibc.cpu.x86_rep_movsb_threshold=0", N, N, None, N, None),
         ("glibc.cpu.x86_rep_movsb_threshold=-1", N, N, None, N, None),
-        ("liella.cpu.rep_movsb_threshold=0x700:glibc.cpu.x86_rep_movsb_threshold=0x900", N, N, Some(0x900), N, None),
-        ("glibc.cpu.x86_rep_movsb_threshold=0x900:liella.cpu.rep_movsb_threshold=0x700", N, N, Some(0x700), N, None),
+        ("niji.cpu.rep_movsb_threshold=0x700:glibc.cpu.x86_rep_movsb_threshold=0x900", N, N, Some(0x900), N, None),
+        ("glibc.cpu.x86_rep_movsb_threshold=0x900:niji.cpu.rep_movsb_threshold=0x700", N, N, Some(0x700), N, None),
         ("glibc.cpu.rep_movsb_threshold=5", N, N, None, N, None),
-        ("liella.cpu.x86_rep_movsb_threshold=5", N, N, None, N, None),
+        ("niji.cpu.x86_rep_movsb_threshold=5", N, N, None, N, None),
         ("glibc.pthread.rseq=0x0", N, N, None, f, None),
         ("glibc.pthread.rseq=00", N, N, None, f, None),
         ("glibc.pthread.rseq=true", N, N, None, N, None),
@@ -239,8 +239,8 @@ fn tunables_probed_shapes() {
         ("glibc.malloc.perturb=0xFF", N, N, None, N, Some(255)),
         ("glibc.malloc.perturb=+5", N, N, None, N, Some(5)),
         ("glibc.malloc.perturb=", N, N, None, N, Some(0)),
-        ("glibc.malloc.perturb=5:liella.malloc.perturb=6", N, N, None, N, Some(6)),
-        ("liella.malloc.perturb=6:glibc.malloc.perturb=5", N, N, None, N, Some(5)),
+        ("glibc.malloc.perturb=5:niji.malloc.perturb=6", N, N, None, N, Some(6)),
+        ("niji.malloc.perturb=6:glibc.malloc.perturb=5", N, N, None, N, Some(5)),
     ];
     for &(input, avx2, erms, movsb, rseq, perturb) in rows {
         let p = Tunables::parse(input.as_bytes(), false);

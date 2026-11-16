@@ -6,7 +6,7 @@
 //! `getc`/`putc` and `feof`/`ferror` read the buffer window and `_flags` directly (Appendix
 //! C.9), so those words always describe the stream: before an operation the engine's window is
 //! read back from them (C code may have advanced it), and after the operation written to them.
-//! Liella's own state is an [`Ext`] record that `_codecvt` points to, and the stream's recursive
+//! libniji's own state is an [`Ext`] record that `_codecvt` points to, and the stream's recursive
 //! lock a [`StreamLock`] that `_lock` points to; both are private to the library.
 //!
 //! **Locking order.** The open-streams list lock is taken before a stream's lock, never while
@@ -16,15 +16,15 @@
 
 use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::error::{Errno, KResult};
-use liella::stream::{Backing, Policy, Role, State, Transfer, Whence, RESERVE};
-use liella::iconv;
-use liella::locale::Locale;
-use liella::text::{self, Decoded, Encoding, MbState};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_rt::futex::Scope;
-use liella_rt::sync::RawMutex;
+use niji::error::{Errno, KResult};
+use niji::stream::{Backing, Policy, Role, State, Transfer, Whence, RESERVE};
+use niji::iconv;
+use niji::locale::Locale;
+use niji::text::{self, Decoded, Encoding, MbState};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_rt::futex::Scope;
+use niji_rt::sync::RawMutex;
 
 /// The words of a `FILE` object: `struct _IO_FILE` (216 bytes) and the vtable word (224 bytes,
 /// the size of the exported `_IO_2_1_*_` objects).
@@ -356,7 +356,7 @@ pub struct Wide {
     partial: usize,
 }
 
-/// Liella's state of one stream (D-12.11).
+/// libniji's state of one stream (D-12.11).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Ext {
     /// The engine's state.
@@ -386,7 +386,7 @@ pub struct Ext {
     pub pos_known: bool,
 }
 
-/// Where a stream's `fprintf` plan cache lives (D-12.21): a [`liella::printf::PlanCache`] made
+/// Where a stream's `fprintf` plan cache lives (D-12.21): a [`niji::printf::PlanCache`] made
 /// on the [`PlanSlot::AFTER`]th formatted call and kept for the slot's life, across `fclose`
 /// and `freopen` (a cache keyed on the format's bytes is not state). Outside the record so a
 /// one-shot printer pays neither its ~220 bytes in every stream's slot nor its fill: inline,
@@ -518,9 +518,9 @@ fn fd_of(fd: i32) -> Fd {
 
 fn whence_code(w: Whence) -> u32 {
     match w {
-        Whence::Set => liella_kernel::uapi::SEEK_SET,
-        Whence::Cur => liella_kernel::uapi::SEEK_CUR,
-        Whence::End => liella_kernel::uapi::SEEK_END,
+        Whence::Set => niji_kernel::uapi::SEEK_SET,
+        Whence::Cur => niji_kernel::uapi::SEEK_CUR,
+        Whence::End => niji_kernel::uapi::SEEK_END,
     }
 }
 
@@ -546,7 +546,7 @@ impl<E: Env> Backing for Live<'_, E> {
                 let n = avail.min(buf.len());
                 let src = self.env.bytes(m.addr, m.size);
                 if let (Some(d), Some(s)) = (buf.get_mut(..n), src.get(m.pos..m.pos + n)) {
-                    liella::mem::copy(d, s);
+                    niji::mem::copy(d, s);
                 }
                 m.pos += n;
                 Ok(n)
@@ -671,7 +671,7 @@ fn mem_write<E: Env>(env: &E, m: &mut MemStream, data: &[u8]) -> KResult<usize> 
     }
     let buf = env.bytes(m.addr, m.size);
     if let (Some(d), Some(s)) = (buf.get_mut(m.pos..m.pos + n), data.get(..n)) {
-        liella::mem::copy(d, s);
+        niji::mem::copy(d, s);
     }
     m.pos += n;
     if m.pos > m.len {
@@ -732,18 +732,18 @@ fn grow_write<E: Env>(env: &E, g: &mut GrowStream, data: &[u8]) -> KResult<usize
     let buf = env.bytes(g.buf, g.cap);
     if g.pos > g.filled {
         if let Some(gap) = buf.get_mut(g.filled..g.pos) {
-            liella::mem::fill(gap, 0);
+            niji::mem::fill(gap, 0);
         }
     }
     if let Some(d) = buf.get_mut(g.pos..end) {
-        liella::mem::copy(d, data);
+        niji::mem::copy(d, data);
     }
     g.pos = end;
     g.len = g.len.max(end);
     if end > g.filled {
         g.filled = end;
         if let Some(t) = buf.get_mut(end..end + unit) {
-            liella::mem::fill(t, 0);
+            niji::mem::fill(t, 0);
         }
     }
     Ok(data.len())
@@ -1175,7 +1175,7 @@ pub fn parse_mode(mode: &[u8]) -> KResult<Mode> {
 
 /// The `open` flags of a mode.
 pub fn open_flags(m: &Mode) -> u32 {
-    use liella_kernel::uapi::{O_APPEND, O_CLOEXEC, O_CREAT, O_EXCL, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY};
+    use niji_kernel::uapi::{O_APPEND, O_CLOEXEC, O_CREAT, O_EXCL, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY};
     let mut f = match (m.read, m.write) {
         (true, true) => O_RDWR,
         (false, true) => O_WRONLY,
@@ -1250,7 +1250,7 @@ pub fn close<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<()
             let unit = if g.wide { 4 } else { 1 };
             let at = g.pos.min(g.len);
             if let Some(t) = env.bytes(g.buf, g.cap).get_mut(at..at + unit) {
-                liella::mem::fill(t, 0);
+                niji::mem::fill(t, 0);
             }
             Ok(())
         }
@@ -1582,7 +1582,7 @@ fn write_straddle<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, data: &[
     }
     let buf = env.bytes(ext.buf, len);
     let (Some(hd), Some(src)) = (buf.get_mut(at..len), data.get(..head)) else { return None };
-    liella::mem::copy(hd, src);
+    niji::mem::copy(hd, src);
     ext.pos_known = false;
     let mut from = RESERVE;
     while from < len {
@@ -1603,7 +1603,7 @@ fn write_straddle<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, data: &[
     }
     let tail = data.len() - head;
     if let (Some(dst), Some(src)) = (buf.get_mut(RESERVE..RESERVE + tail), data.get(head..)) {
-        liella::mem::copy(dst, src);
+        niji::mem::copy(dst, src);
     }
     let s = &mut ext.state;
     (s.rpos, s.rend, s.wpos, s.wend, s.win_known) = (RESERVE, RESERVE, RESERVE + tail, len, false);
@@ -1694,7 +1694,7 @@ fn window_put<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, data: &[u8]) -> 
     match env.bytes(ext.buf, ext.buf_len).get_mut(at..stop) {
         Some(dst) => {
             let shut = low_int(get(file, word::MODE)) >= 0;
-            liella::mem::copy(dst, data);
+            niji::mem::copy(dst, data);
             wp.store(p + data.len(), Relaxed);
             if shut {
                 set(file, word::WRITE_END, p + data.len());
@@ -1752,7 +1752,7 @@ impl Window {
         let to = self.at + data.len();
         match env.bytes(self.buf, self.len).get_mut(self.at..to) {
             Some(dst) => {
-                liella::mem::copy(dst, data);
+                niji::mem::copy(dst, data);
                 self.at = to;
                 true
             }
@@ -1831,7 +1831,7 @@ fn short_copy(dst: &mut [u8], data: &[u8]) {
             }
         }
     } else {
-        liella::mem::copy(dst, data);
+        niji::mem::copy(dst, data);
     }
 }
 
@@ -1840,7 +1840,7 @@ fn short_copy(dst: &mut [u8], data: &[u8]) {
 pub const FRONT_INLINE: usize = 64;
 
 /// [`put_front`]'s copy (`dst` and `data` of one length): 33 to [`FRONT_INLINE`] bytes as two
-/// overlapping 32-byte pieces, plain loads and stores; anything else as [`liella::mem::copy`]
+/// overlapping 32-byte pieces, plain loads and stores; anything else as [`niji::mem::copy`]
 /// (inline up to 32 bytes, a call beyond). FWRITE-FRONT: a 33-64 byte line (sort's, uniq's)
 /// was a `memcpy` call that also gave the whole `fwrite` export a frame.
 #[inline(always)]
@@ -1860,7 +1860,7 @@ fn front_copy(dst: &mut [u8], data: &[u8]) {
         piece(dst, data, 0);
         piece(dst, data, n - HALF);
     } else {
-        liella::mem::copy(dst, data);
+        niji::mem::copy(dst, data);
     }
 }
 
@@ -1949,7 +1949,7 @@ fn ungetc_raw<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KR
 /// `_IO_sungetc` (§12.13, IO-VTABLES): give back the last byte read, which the next read
 /// returns again, as `ungetc` of that byte. Only a byte still in the current read window (from
 /// `RESERVE` up to the read position) counts as read; anything else (nothing read yet, a
-/// writing or idle stream, a wide stream, no buffer) is `EINVAL` and changes nothing. Liella
+/// writing or idle stream, a wide stream, no buffer) is `EINVAL` and changes nothing. libniji
 /// never steps the read position below the window.
 pub fn unget_last<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<u8> {
     if !byte_oriented(file) || ext.buf == 0 {
@@ -2003,7 +2003,7 @@ pub fn gets_into<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, out: &mut
 /// A record up to and including `delim`, appended to `out` (the library's own line readers:
 /// the mount tables, §13.13): the bytes read, 0 at end of input. A read error sets the error
 /// indicator, as `getdelim` does.
-pub fn read_record<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, delim: u8, out: &mut liella::mem::TryVec<u8>) -> KResult<usize> {
+pub fn read_record<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, delim: u8, out: &mut niji::mem::TryVec<u8>) -> KResult<usize> {
     if !byte_oriented(file) {
         return Ok(0);
     }
@@ -2054,7 +2054,7 @@ pub fn getdelim_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize
     if partial && n > 0 && room == n.saturating_add(1) && get(file, word::FLAGS) & ERR_SEEN == 0 {
         let done = env.find_copy_done(n).min(n);
         if let (Some(d), Some(s)) = (dst.get_mut(done..n), window.get(done..n)) {
-            liella::mem::copy(d, s);
+            niji::mem::copy(d, s);
         }
         set(file, word::READ_PTR, p + n);
         return Err(Partial(n));
@@ -2072,7 +2072,7 @@ pub struct Partial(pub usize);
 pub fn find_copy<E: Env + ?Sized>(env: &E, s: &[u8], d: &mut [u8], c: u8) -> Option<usize> {
     let lim = d.len().checked_sub(1)?;
     let n = env.find(s.get(..lim).unwrap_or(s), c)?.checked_add(1)?;
-    liella::mem::copy(d.get_mut(..n)?, s.get(..n)?);
+    niji::mem::copy(d.get_mut(..n)?, s.get(..n)?);
     *d.get_mut(n)? = 0;
     Some(n)
 }
@@ -2109,7 +2109,7 @@ pub fn gets_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize, ou
         None if window.len() >= room && room > 0 => room,
         None => return None,
     };
-    liella::mem::copy(out.get_mut(..n)?, window.get(..n)?);
+    niji::mem::copy(out.get_mut(..n)?, window.get(..n)?);
     *out.get_mut(n)? = 0;
     set(file, word::READ_PTR, p + n);
     Some(n)
@@ -2123,7 +2123,7 @@ pub fn gets_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize, ou
 pub fn read_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize, out: &mut [u8]) -> Option<usize> {
     let window: &[u8] = read_window(env, file, ext, p)?;
     let n = out.len();
-    liella::mem::copy(out, window.get(..n)?);
+    niji::mem::copy(out, window.get(..n)?);
     set(file, word::READ_PTR, p + n);
     Some(n)
 }
@@ -2176,7 +2176,7 @@ pub fn getdelim<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, lineptr: u
                 env.store_word(cap_var, cap);
             }
             if let Some(d) = env.bytes(buf, cap).get_mut(len..len + piece.len()) {
-                liella::mem::copy(d, piece);
+                niji::mem::copy(d, piece);
             }
             len += piece.len();
             Ok(())
@@ -2270,7 +2270,7 @@ fn seek_window_fd<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, offset: 
     let (target, to) = ext.state.window_target(offset, whence)?;
     // `window_target` checked that `win_end` fits a signed offset.
     let end = i64::try_from(ext.state.win_end).unwrap_or(i64::MAX);
-    let r = env.sys().lseek(fd_of(fd), end, liella_kernel::uapi::SEEK_SET);
+    let r = env.sys().lseek(fd_of(fd), end, niji_kernel::uapi::SEEK_SET);
     ext.pos_known = r.is_ok();
     if let Ok(p) = r {
         ext.pos = p;

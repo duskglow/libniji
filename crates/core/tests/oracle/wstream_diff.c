@@ -1,5 +1,5 @@
 /* Wide-character streams end to end (spec §12.10; D-12.7, D-12.14): built against the host C
- * library and against Liella's products, the outputs must match line for line
+ * library and against libniji's products, the outputs must match line for line
  * (wstream_products.rs). Each line is one operation: what it returned, errno where the contract
  * sets it, the indicators and the position. */
 #define _GNU_SOURCE

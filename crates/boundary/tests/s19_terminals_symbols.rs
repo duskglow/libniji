@@ -14,23 +14,23 @@
 //! answers without the file are checked here (in a re-executed child, their cursor being
 //! process-wide); with a fixture table they run in `terminals_products.rs`'s namespace.
 //! `openpty@GLIBC_2.2.5` and `forkpty@GLIBC_2.2.5` (the compat versions) arrive with phase 15.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::unwrap_used, clippy::as_conversions, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 
 use core::ptr::null_mut;
 
-use liella_abi::ctypes::c_char;
-use liella_abi::layout::{struct_termios, struct_winsize};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s19_terminals as s;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::{FcntlInt, IoctlIntOut};
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_RDWR};
+use niji_abi::ctypes::c_char;
+use niji_abi::layout::{struct_termios, struct_winsize};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s19_terminals as s;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::{FcntlInt, IoctlIntOut};
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_RDWR};
 
 mod products;
 use products::{conformance, exported};
@@ -106,7 +106,7 @@ fn null() -> i32 {
 }
 
 /// Set in a re-executed copy: the test it runs alone.
-const ALONE: &str = "LIELLA_S19_ALONE";
+const ALONE: &str = "NIJI_S19_ALONE";
 
 /// Run `body` alone in a re-executed copy of this test binary (process-wide state); the copy's
 /// own assertions decide.
@@ -369,7 +369,7 @@ fn sym_unlockpt() {
     let m = s::posix_openpt((O_RDWR | O_NOCTTY | O_CLOEXEC) as i32);
     let name = format!("/dev/pts/{}\0", CSys.ioctl_get_int(Fd::new(m), IoctlIntOut::Tiocgptn).unwrap());
     let open = || CSys.openat(Fd::CWD, KStr::from_nul_terminated(name.as_bytes()).unwrap(), O_RDWR | O_NOCTTY | O_CLOEXEC, 0);
-    assert_eq!(open().err().map(liella_kernel::errno::Errno::get), Some(EIO), "locked");
+    assert_eq!(open().err().map(niji_kernel::errno::Errno::get), Some(EIO), "locked");
     assert_eq!(s::unlockpt(m), 0);
     let _ = CSys.close(open().unwrap());
     errno::set_raw(0);

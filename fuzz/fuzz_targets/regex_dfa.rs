@@ -15,8 +15,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::pattern::regex::{self, Accel, Options, ScratchMem, ScratchNeed, ScratchSource, Window};
-use liella_fuzz::Input;
+use niji::pattern::regex::{self, Accel, Options, ScratchMem, ScratchNeed, ScratchSource, Window};
+use niji_fuzz::Input;
 
 /// The back-reference work budget (as in the `regex` target).
 const BUDGET: u64 = 16 * regex::BUDGET_PER_FAILURE;
@@ -56,7 +56,7 @@ fuzz_target!(|data: &[u8]| {
     let pattern = input.part();
     let subject = input.rest();
 
-    let loc = liella_fuzz::locale(cflags & 0x10 != 0);
+    let loc = niji_fuzz::locale(cflags & 0x10 != 0);
     let syntax = regex::regcomp_syntax(i32::from(cflags & 0x0f)) ^ xor;
     // The harness bounds its own work: regcomp has no size limit (the process's limits are the
     // bound), and libFuzzer reports one huge allocation as a failure.

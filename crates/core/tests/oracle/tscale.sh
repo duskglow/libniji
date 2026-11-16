@@ -1,8 +1,8 @@
 # Load-tolerant timeouts for the oracle run scripts (task FL-9): `. tscale.sh` sets TSCALE; use
 # `timeout $((600 * TSCALE))`. Same formula as oracle/tscale.h and support/timeout.rs; keep them in step:
 #   pressure = max(load1, running tasks - 1); scale = clamp(1 + ceil(pressure / cpus), 2, 10)
-# LIELLA_TEST_TIMEOUT_SCALE=<n> overrides it.
-TSCALE=${LIELLA_TEST_TIMEOUT_SCALE:-}
+# NIJI_TEST_TIMEOUT_SCALE=<n> overrides it.
+TSCALE=${NIJI_TEST_TIMEOUT_SCALE:-}
 case $TSCALE in
 '' | *[!0-9]* | 0)
     p=0

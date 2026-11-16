@@ -1,18 +1,18 @@
-//! The `double` `atan`/`asin`/`acos`/`atan2`/`hypot` fast tier (`liella_math::invtrig`,
+//! The `double` `atan`/`asin`/`acos`/`atan2`/`hypot` fast tier (`niji_math::invtrig`,
 //! LIBM-F64-INVTRIG-HYPOT-TIER) against the accurate path, spec §10.3 and D-10.13 (every result
 //! correctly rounded): where a kernel answers it gives the accurate path's round-to-nearest
 //! result bit for bit; hard cases (results next to a rounding boundary, exact roots, the table's
 //! nodes, the window edges) are refused or settled right; random operands rarely fall back. The
 //! exported entries (fast tier plus fallback) give the accurate path's bits in both builds of
 //! the kernels (Dekker and FMA, D-10.25, switched by `selftest::set_math_fma`).
-#![no_builtins] // calls to libc names (atan, hypot, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (atan, hypot, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::cast_sign_loss, clippy::cast_precision_loss, clippy::arithmetic_side_effects, clippy::float_arithmetic, missing_docs)]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_math::status::Rounding;
-use liella_math::hwop::SoftOps;
-use liella_math::{invtrig, pow, trig};
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_math::status::Rounding;
+use niji_math::hwop::SoftOps;
+use niji_math::{invtrig, pow, trig};
 
 #[path = "support/hypot_pairs.rs"]
 mod hypot_pairs;
@@ -240,7 +240,7 @@ fn double_atan_fast_tier_table_agrees_with_the_multiprecision_atan() {
     // kernel, so agreement with it cannot catch a wrong entry: here each entry's neighbourhood
     // (operands within 1/128 of j/64) is checked against `mp::atan`, which uses no table,
     // rounded to nearest: the Dekker kernel directly, and the exported entry in each build.
-    use liella_math::mp::{self, Mp};
+    use niji_math::mp::{self, Mp};
     let mut rng = Rng(0x51_7cc1_b727_220a);
     for fma in builds() {
         selftest::set_math_fma(fma);
@@ -273,7 +273,7 @@ fn double_atan_quick_phase_answers_alone_and_agrees_with_the_multiprecision_atan
     // answer nearly every operand by itself (a quick phase that always refuses would hide behind
     // tier 2) and each answer must be the multiprecision `atan` rounded to nearest, also next to
     // every table node j/64 (where `|v|/|y|` is largest) and at the nodes themselves.
-    use liella_math::mp::{self, Mp};
+    use niji_math::mp::{self, Mp};
     let mut rng = Rng(0x2f1d_33a7_9b0c_51e3);
     let (mut answered, mut total) = (0usize, 0usize);
     let mut xs: Vec<f64> = (0..=64).map(|j| f64::from(j) / 64.0).filter(|&x| x > 0.0).collect();
@@ -324,9 +324,9 @@ fn double_hypot_kernel_is_the_exact_path_in_every_direction() {
                 // The directed entry runs the kernel in the selected build (LIBM-HYPOT-DIRECTED-FAST).
                 for (rc, mode) in [(0x800, Rounding::Up), (0x400, Rounding::Down), (0xc00, Rounding::Zero)] {
                     let w = pow::hypot_exact::<f64>(x, y, mode).0;
-                    assert_eq!(liella_boundary::posix::s10_math::fesetround(rc), 0);
+                    assert_eq!(niji_boundary::posix::s10_math::fesetround(rc), 0);
                     let g = m::hypot(x, y);
-                    assert_eq!(liella_boundary::posix::s10_math::fesetround(0), 0);
+                    assert_eq!(niji_boundary::posix::s10_math::fesetround(0), 0);
                     assert_eq!(g.to_bits(), w.to_bits(), "hypot({x:e}, {y:e}) {mode:?} by the entry (fma {fma}): directed entry FAILED");
                 }
             }

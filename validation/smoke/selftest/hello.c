@@ -1,6 +1,6 @@
 /* validation/smoke/selftest/hello.c: the smoke harness's own check program (smoke.sh selftest).
    Prints "hello <sqrt(argv[1])>" computed by libm, from a second thread, so the link brings in libm and
-   the thread functions through liella-cc's -lm / -lpthread handling. */
+   the thread functions through niji-cc's -lm / -lpthread handling. */
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>

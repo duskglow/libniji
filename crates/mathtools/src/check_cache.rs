@@ -17,10 +17,10 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// The environment variable that turns the cache off (any value but empty or `0`).
-pub const NO_CACHE_ENV: &str = "LIELLA_REMEZ_NO_CACHE";
+pub const NO_CACHE_ENV: &str = "NIJI_REMEZ_NO_CACHE";
 /// The environment variable that moves the stamp directory (tests; default
 /// `<target dir>/remez-check`).
-pub const CACHE_DIR_ENV: &str = "LIELLA_REMEZ_CACHE_DIR";
+pub const CACHE_DIR_ENV: &str = "NIJI_REMEZ_CACHE_DIR";
 
 /// FIPS 180-4 4.2.2: the first 32 bits of the fractional parts of the cube roots of the first
 /// 64 primes.
@@ -165,7 +165,7 @@ fn field(s: &mut Sha256, tag: u8, bytes: &[u8]) {
 /// length-prefixed so that no two different input sets give the same byte stream.
 pub fn check_key(k: &KeyInputs) -> String {
     let mut s = Sha256::new();
-    field(&mut s, b'V', b"liella-remez-check-v1");
+    field(&mut s, b'V', b"niji-remez-check-v1");
     for (path, digest) in k.image {
         field(&mut s, b'I', path.as_bytes());
         field(&mut s, b'i', digest);
@@ -230,7 +230,7 @@ pub fn default_dir() -> Result<PathBuf, String> {
 
 /// The first line of every stamp; the report follows it.
 fn header(key: &str) -> String {
-    format!("liella-remez-check v1 {key}\n")
+    format!("niji-remez-check v1 {key}\n")
 }
 
 static SEQ: AtomicUsize = AtomicUsize::new(0);

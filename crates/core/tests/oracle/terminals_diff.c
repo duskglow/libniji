@@ -1,5 +1,5 @@
 /* Terminals, job control and pseudo-terminals end to end (spec §19.1-19.5; phase 11, D-19.1 to
- * D-19.3): built against the host C library and against Liella's products, the outputs must
+ * D-19.3): built against the host C library and against libniji's products, the outputs must
  * match line for line. Black-box: every line is a result of a public function, an errno, or a
  * relative fact (a pty is shown as /dev/pts/<n>, process ids only as comparisons).
  *

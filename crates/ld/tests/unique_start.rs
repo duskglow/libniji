@@ -1,4 +1,4 @@
-//! `STB_GNU_UNIQUE` definitions at start and after it, under Liella's `ld.so` and `libc.so.6`
+//! `STB_GNU_UNIQUE` definitions at start and after it, under libniji's `ld.so` and `libc.so.6`
 //! (DL-LIBSTDCXX; spec/behaviour/dynlink.md "Symbol binding"). Two libraries the program needs each
 //! define the same 200 unique objects (more unique names than a fixed start-up table would hold: a
 //! C++ runtime has about a hundred), and a third, opened with `dlopen` after start, defines them
@@ -18,8 +18,8 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::elf::Elf;
+use niji_ld::arch::{Arch, Native};
+use niji_ld::elf::Elf;
 
 /// Unique names per library: past 64, the size of the start-up table this test replaced.
 const N: usize = 200;
@@ -33,16 +33,16 @@ fn target() -> PathBuf {
 }
 
 /// The scratch directory, `ld.so`, `libc.so.6` without its `DT_SONAME` (the program names it by
-/// path) and `liella-crt1.o`, or `None` with the reason printed.
+/// path) and `niji-crt1.o`, or `None` with the reason printed.
 fn setup() -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
     }
-    let lib = target().join("liella");
+    let lib = target().join("niji");
     let ld = lib.join(Native::INTERP);
-    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("liella-crt1.o").exists() {
-        eprintln!("SKIP: ld.so, libc.so.6 or liella-crt1.o not built (run cargo xtask so)");
+    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("niji-crt1.o").exists() {
+        eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
     let d = target().join(format!("ld-unique-start-{}", std::process::id()));
@@ -50,13 +50,13 @@ fn setup() -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
     let d = std::fs::canonicalize(d).unwrap();
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
-    let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
+    let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
     let (off, len) = (dynph.offset as usize, dynph.filesz as usize);
     let at = (off..off + len).step_by(16).find(|&o| so[o..o + 8] == 14u64.to_le_bytes()).expect("libc.so.6 has a DT_SONAME");
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
     let libc = d.join("libc-dl.so");
     std::fs::write(&libc, &so).unwrap();
-    Some((d, ld, libc, lib.join("liella-crt1.o")))
+    Some((d, ld, libc, lib.join("niji-crt1.o")))
 }
 
 /// Build `out` from `src` with `flags` in `d`.

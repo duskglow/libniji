@@ -4,7 +4,7 @@
 //! child lowers `RLIMIT_AS` to a little above its size as it measures it at the call (never from
 //! the host's memory or CPU count), then drives the exports until memory runs out:
 //! - `qsort`/`qsort_r` on an array whose scratch copy cannot be had still sort, and stably (a
-//!   probe of the host glibc under the same limit sorts but is NOT stable there; Liella keeps its
+//!   probe of the host glibc under the same limit sorts but is NOT stable there; libniji keeps its
 //!   stable order on both paths, D-14.1, which gains the caller a defined result);
 //! - `hcreate`/`hcreate_r` that cannot get their table fail with 0 and leave the table state
 //!   unchanged; `hsearch(ENTER)` that cannot grow fails with 0 and every earlier entry is still found;
@@ -20,12 +20,12 @@
 use std::ffi::CString;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
-use liella_abi::ctypes::c_void;
-use liella_abi::layout::{struct_hsearch_data, ENTRY};
-use liella_boundary::posix::s14_search as sx;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
+use niji_abi::ctypes::c_void;
+use niji_abi::layout::{struct_hsearch_data, ENTRY};
+use niji_boundary::posix::s14_search as sx;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Rlimit, RLIMIT_AS, RLIM_INFINITY};
 
 /// Address space the child may add to its size while the ballast is taken.
 const HEADROOM: u64 = 1 << 20;
@@ -108,8 +108,8 @@ const SETTLE_POLLS: u32 = 100_000;
 /// wait sets up per-thread state that needs memory (std's current-thread handle, a
 /// `pthread_setspecific` value, the channel's waiter entry). Under the limit that setup fails and
 /// std aborts the child ("Unexpected TLS failure"). The `pthread_setspecific` part is particular
-/// to this test process: its threads are the host C library's, and Liella gives such a thread its
-/// key storage on first use (D-22.10); in Liella's products every thread has it from creation
+/// to this test process: its threads are the host C library's, and libniji gives such a thread its
+/// key storage on first use (D-22.10); in libniji's products every thread has it from creation
 /// (D-22.15). The rest (std's handle, the waiter entry) is std allocating, so the wait stays
 /// whatever `pthread_setspecific` needs. Once parked, that thread stays so until this
 /// process exits: the result is never sent, the child ends with `exit_group`. This thread holds no
@@ -187,13 +187,13 @@ fn tighten() {
 
 /// Run `body` in a re-executed child (exit code 0 passes; each failure has its own code).
 fn in_child(name: &str, body: fn() -> i32) {
-    if std::env::var("LIELLA_SEARCH_NOMEM").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_SEARCH_NOMEM").is_ok_and(|v| v == name) {
         let code = body();
         CSys.exit_group(if code == 0 { 0 } else { report(code) });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_SEARCH_NOMEM", name)
+        .env("NIJI_SEARCH_NOMEM", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);

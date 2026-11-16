@@ -1,14 +1,14 @@
 /* memcpy_cycles: cycles:u per memcpy call, kernels INTERLEAVED in one process (MEMCPY-POLICY-2, D-4.14).
  * Not a probe of behaviour: a timing tool. Build it twice, static (same source, same flags):
  *   glibc:  gcc -std=gnu17 -O2 -fno-builtin -static -o mc_glibc memcpy_cycles.c
- *   Liella: gcc -std=gnu17 -O2 -fno-builtin -static -nostdlib -I <tree>/include \
- *           <tree>/target/liella/liella-crt1.o memcpy_cycles.c <tree>/target/liella/libc.a -lgcc -o mc_liella
+ *   libniji: gcc -std=gnu17 -O2 -fno-builtin -static -nostdlib -I <tree>/include \
+ *           <tree>/target/niji/niji-crt1.o memcpy_cycles.c <tree>/target/niji/libc.a -lgcc -o mc_niji
  * Run pinned: taskset -c <cpu> ./mc_x [rounds]. Run 1's cross-process numbers drifted up to 2x on the project
  * VMs, so every comparison here is made inside one process: each round measures, for each case, three kernels
  * in a rotating order:
- *   L  the library's memcpy (glibc; or Liella - with GLIBC_TUNABLES=glibc.cpu.x86_rep_movsb_threshold=
+ *   L  the library's memcpy (glibc; or libniji - with GLIBC_TUNABLES=glibc.cpu.x86_rep_movsb_threshold=
  *      999999999 that is the vector path, without it the shipped policy),
- *   R  `rep movsb` (inline; the same instruction sequence as liella_machine_copy_erms),
+ *   R  `rep movsb` (inline; the same instruction sequence as niji_machine_copy_erms),
  *   A  one unaligned 64-byte store of the head, then `rep movsb` from the next 64-byte-aligned destination.
  * Each sample is the mean cycles per call over a batch (cycles:u of this thread; rdtsc if perf is unavailable,
  * marked in the header line). Output per case: median L, R, A and the medians of the per-round paired ratios

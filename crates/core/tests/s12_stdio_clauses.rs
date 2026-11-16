@@ -4,7 +4,7 @@
 
 //! Clause tests for spec §12 (96 clauses).
 //!
-//! Streams are tested through the exports (`liella_boundary::posix::s12_stdio`): the clauses are
+//! Streams are tested through the exports (`niji_boundary::posix::s12_stdio`): the clauses are
 //! about the C interface (`FILE *`, `errno`, the indicators). C memory is read through the
 //! exported `strlen`/`memcpy` (no unsafe in tests); caller-owned memory (`open_memstream`,
 //! `getline`, `tempnam`) comes from the running C library's `malloc` and is left allocated, as
@@ -20,7 +20,7 @@
 //! each clause test here requires its clause's checks to have run and passed. (The `va_list`
 //! entry points cannot be called from Rust tests: the C layer's `va_arg` accessors share an
 //! object with the variadic forwarders, which need the exported names of the products.)
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::panic, missing_docs)]
 
 #[path = "support/timeout.rs"]
@@ -32,19 +32,19 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use liella::error::Errno;
-use liella_abi::ctypes::{c_char, c_int, locale_t, wchar_t, wint_t};
-use liella_abi::layout::{cookie_io_functions_t, fpos_t, fpos_t__state, fpos_t__state__value, struct_printf_info, FILE};
-use liella_boundary::errno;
-use liella_boundary::posix::s01_startup as rt;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s07_locale as loc;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s12_stdio as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::{FcntlInt, IoctlIntArg, IoctlIntIn};
-use liella_kernel::sys::Sys;
+use niji::error::Errno;
+use niji_abi::ctypes::{c_char, c_int, locale_t, wchar_t, wint_t};
+use niji_abi::layout::{cookie_io_functions_t, fpos_t, fpos_t__state, fpos_t__state__value, struct_printf_info, FILE};
+use niji_boundary::errno;
+use niji_boundary::posix::s01_startup as rt;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s07_locale as loc;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s12_stdio as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::{FcntlInt, IoctlIntArg, IoctlIntIn};
+use niji_kernel::sys::Sys;
 
 const EOF: c_int = -1;
 const WEOF: wint_t = u32::MAX;
@@ -164,15 +164,15 @@ fn file(a: usize) -> *mut FILE {
 }
 
 fn stdin() -> *mut FILE {
-    file(liella_boundary::stdio::stdin())
+    file(niji_boundary::stdio::stdin())
 }
 
 fn stdout() -> *mut FILE {
-    file(liella_boundary::stdio::stdout())
+    file(niji_boundary::stdio::stdout())
 }
 
 fn stderr() -> *mut FILE {
-    file(liella_boundary::stdio::stderr())
+    file(niji_boundary::stdio::stderr())
 }
 
 /// -1 (or `EOF`) with `errno == e`.
@@ -187,7 +187,7 @@ fn is_open(fd: c_int) -> bool {
 
 /// The private descriptor number `high` (each test uses its own) on `path` opened with `flags`.
 fn high_fd(path: &str, flags: c_int, high: c_int) -> c_int {
-    let fd = io::liella_open3(cs(path).as_ptr(), flags, 0);
+    let fd = io::niji_open3(cs(path).as_ptr(), flags, 0);
     assert!(fd >= 0, "{path}");
     assert_eq!(io::dup2(fd, high), high);
     io::close(fd);
@@ -210,7 +210,7 @@ static REGISTRY: OnceLock<CRun> = OnceLock::new();
 fn c_run(cell: &'static OnceLock<CRun>, name: &str) -> &'static CRun {
     cell.get_or_init(|| {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let (crt, libc) = (root.join("target/liella/liella-crt1.o"), root.join("target/liella/libc.a"));
+        let (crt, libc) = (root.join("target/niji/niji-crt1.o"), root.join("target/niji/libc.a"));
         assert!(crt.exists() && libc.exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
         let dir = root.join("target/test-oracles");
         std::fs::create_dir_all(&dir).unwrap();
@@ -263,9 +263,9 @@ impl MemOut {
 }
 
 /// In a re-executed child: the name of the probe to run.
-const PROBE: &str = "LIELLA_C12_PROBE";
+const PROBE: &str = "NIJI_C12_PROBE";
 /// In a re-executed child: the path of the file its parent named.
-const FILE_ENV: &str = "LIELLA_C12_FILE";
+const FILE_ENV: &str = "NIJI_C12_FILE";
 
 fn probe() -> Option<String> {
     std::env::var(PROBE).ok()
@@ -626,10 +626,10 @@ fn s12_1_c_6() {
 #[test]
 fn s12_1_c2_0() {
     if probe().is_none() {
-        use liella_boundary::data;
-        assert_eq!(liella_boundary::stdio::stdin(), core::ptr::addr_of!(data::_IO_2_1_stdin_) as usize);
-        assert_eq!(liella_boundary::stdio::stdout(), core::ptr::addr_of!(data::_IO_2_1_stdout_) as usize);
-        assert_eq!(liella_boundary::stdio::stderr(), core::ptr::addr_of!(data::_IO_2_1_stderr_) as usize);
+        use niji_boundary::data;
+        assert_eq!(niji_boundary::stdio::stdin(), core::ptr::addr_of!(data::_IO_2_1_stdin_) as usize);
+        assert_eq!(niji_boundary::stdio::stdout(), core::ptr::addr_of!(data::_IO_2_1_stdout_) as usize);
+        assert_eq!(niji_boundary::stdio::stderr(), core::ptr::addr_of!(data::_IO_2_1_stderr_) as usize);
         assert_eq!([x::fileno(stdin()), x::fileno(stdout()), x::fileno(stderr())], [0, 1, 2]);
     }
     alone("s12_1_c2_0", "pipe", || {
@@ -644,7 +644,7 @@ fn s12_1_c2_0() {
         held && x::__flbf(stdout()) == 0 && unbuffered
     });
     alone("s12_1_c2_0", "tty", || {
-        let m = io::liella_open3(cs("/dev/ptmx").as_ptr(), O_RDWR | O_NOCTTY, 0);
+        let m = io::niji_open3(cs("/dev/ptmx").as_ptr(), O_RDWR | O_NOCTTY, 0);
         assert!(m >= 0, "no pseudo-terminal");
         CSys.ioctl_set_int(Fd::new(m), IoctlIntIn::Tiocsptlck, 0).unwrap();
         let s = CSys.ioctl_int(Fd::new(m), IoctlIntArg::Tiocgptpeer, i64::from(O_RDWR | O_NOCTTY)).unwrap();
@@ -723,7 +723,7 @@ fn s12_1_g_1() {
     });
 }
 
-/// §12.1: alternating input and output needs no intervening call in Liella (D-12.1: one buffer
+/// §12.1: alternating input and output needs no intervening call in libniji (D-12.1: one buffer
 /// whose role switches; the restriction is not needed functionally).
 #[test]
 fn s12_1_g_2() {
@@ -858,7 +858,7 @@ fn s12_2_c_1_3() {
 #[test]
 fn s12_2_c_2() {
     let t = tmp_with("c22", b"fd data");
-    let fd = io::liella_open3(t.c().as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_RDONLY, 0);
     errno::set_raw(0);
     assert!(x::fdopen(fd, cs("w").as_ptr()).is_null());
     assert_eq!(errno::get(), Errno::EINVAL.get(), "w on a read-only descriptor");
@@ -868,7 +868,7 @@ fn s12_2_c_2() {
     assert_eq!(x::fileno(fp), fd);
     assert_eq!(x::fgetc(fp), c_int::from(b'f'));
     assert_eq!(x::fclose(fp), 0);
-    let fd = io::liella_open3(t.c().as_ptr(), O_WRONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_WRONLY, 0);
     errno::set_raw(0);
     assert!(x::fdopen(fd, cs("r").as_ptr()).is_null());
     assert_eq!(errno::get(), Errno::EINVAL.get(), "r on a write-only descriptor");
@@ -881,7 +881,7 @@ fn s12_2_c_2() {
     // position is the descriptor's offset (POSIX fdopen), and the descriptor gets O_APPEND, so
     // every write through the stream (and, the description being shared, through the caller's
     // descriptor) lands at the end atomically.
-    let fd = io::liella_open3(t.c().as_ptr(), O_WRONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_WRONLY, 0);
     let raw = Fd::new(fd);
     assert_eq!(CSys.lseek(raw, 2, 0), Ok(2));
     let fl = |f: Fd| CSys.fcntl_int(f, FcntlInt::GetFl, 0).unwrap() & 0o2000;
@@ -899,7 +899,7 @@ fn s12_2_c_2() {
     assert_eq!(t.read(), b"fd data!AB", "the caller's descriptor appends too");
     assert_eq!(x::fclose(fp), 0);
     // A descriptor that already has O_APPEND keeps its flags and offset.
-    let fd = io::liella_open3(t.c().as_ptr(), O_WRONLY | 0o2000, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_WRONLY | 0o2000, 0);
     let before = CSys.fcntl_int(Fd::new(fd), FcntlInt::GetFl, 0).unwrap();
     let fp = x::fdopen(fd, cs("a").as_ptr());
     assert!(!fp.is_null());
@@ -992,7 +992,7 @@ fn s12_2_c_4() {
 #[test]
 fn s12_2_c_5() {
     let t = tmp_with("c25", b"");
-    let fd = io::liella_open3(t.c().as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_RDONLY, 0);
     let fp = x::fdopen(fd, cs("r").as_ptr());
     assert_eq!(x::fileno(fp), fd);
     assert_eq!(x::fileno_unlocked(fp), fd);
@@ -1202,7 +1202,7 @@ fn s12_4_c_3_1() {
 #[test]
 fn s12_4_c_3_2() {
     let t = tmp_with("c432", b"0123456789");
-    let fd = io::liella_open3(t.c().as_ptr(), O_RDONLY, 0);
+    let fd = io::niji_open3(t.c().as_ptr(), O_RDONLY, 0);
     let fp = x::fdopen(fd, cs("r").as_ptr());
     assert_eq!(x::fgetc(fp), c_int::from(b'0'));
     assert_eq!(x::fflush(fp), 0);
@@ -2083,7 +2083,7 @@ fn s12_7_g_0() {
     c_clause(&SCANF, "s12_scanf", "s12_7_g_0");
 }
 
-/// §12.7: integer overflow in a conversion: Liella stores the clamped value without an error
+/// §12.7: integer overflow in a conversion: libniji stores the clamped value without an error
 /// (D-12.6; the contract permits wrapped or clamped).
 #[test]
 fn s12_7_f_0() {
@@ -2437,9 +2437,9 @@ fn s12_12_c_3() {
 /// fixture database for the cut, the zero fill and a user without an entry.
 #[test]
 fn s12_12_c_4() {
-    use liella_abi::layout::struct_passwd;
-    use liella_boundary::posix::s17_users as us;
-    const VAR: &str = "LIELLA_S12_CUSERID";
+    use niji_abi::layout::struct_passwd;
+    use niji_boundary::posix::s17_users as us;
+    const VAR: &str = "NIJI_S12_CUSERID";
     if std::env::var(VAR).is_ok() {
         let mut b = [b'x' as core::ffi::c_char; 9];
         let p = x::cuserid(b.as_mut_ptr());

@@ -17,7 +17,7 @@
 /// Define one exported C function (see the module documentation). `export! { runtime "V"; ... }`
 /// exports only with feature `runtime`; `export! { asm "V"; ... }` never exports (the symbol is
 /// the assembly's, D-4.22 COPY-FILL; the function is its tests' Rust twin); the process-runtime symbols (`__libc_start_main`, `exit`,
-/// `__errno_location`, ...) that are meaningful only in a process Liella started.
+/// `__errno_location`, ...) that are meaningful only in a process libniji started.
 /// `export! { libm "V"; ... }` exports only with feature `libm` (the `libm` product's own
 /// symbols), and `export! { libc_libm "V"; ... }` with either feature (the math functions glibc
 /// exports from both `libc.so.6` and `libm.so.6`, such as `frexp`; D-10.7).
@@ -49,7 +49,7 @@ macro_rules! export {
     };
     (asm $version:literal; $(#[$meta:meta])* pub extern "C" fn $name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty)? $body:block) => {
         $(#[$meta])*
-        #[doc = concat!("C symbol `", stringify!($name), "@", $version, "`, defined in assembly (csys/src/machine, under `LIELLA_EXPORT`); this Rust twin calls the same code and is what the tests call.")]
+        #[doc = concat!("C symbol `", stringify!($name), "@", $version, "`, defined in assembly (csys/src/machine, under `NIJI_EXPORT`); this Rust twin calls the same code and is what the tests call.")]
         // UNSAFE(export): no unmangled name here; the allow covers the body's `unsafe` blocks (each with
         // its own UNSAFE(slice) comment), as in the other arms.
         #[allow(unsafe_code)]
@@ -61,7 +61,7 @@ macro_rules! export {
     (local $cname:literal; $(#[$meta:meta])* pub extern "C" fn $name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty)? $body:block) => {
         $(#[$meta])*
         #[doc = concat!("Local C name `", $cname, "` (every build): reached from the assembly in csys/src/machine, never exported (not in the version script).")]
-        // UNSAFE(export): an unmangled name the assembly jumps to; unique (`liella_` prefix).
+        // UNSAFE(export): an unmangled name the assembly jumps to; unique (`niji_` prefix).
         #[unsafe(export_name = $cname)]
         #[allow(unsafe_code)]
         // The names are the ABI's (glibc's mixed-case symbols), not ours to rename.
@@ -103,16 +103,16 @@ macro_rules! export {
     };
 }
 
-/// Define one of the library's internal C entries (D-X.15): `liella_internal_memcpy`,
+/// Define one of the library's internal C entries (D-X.15): `niji_internal_memcpy`,
 /// `_memmove` and `_memset` (`conv`). They are C symbols with feature `export` only, in no
-/// version node: every `liella_` name is local in `libc.so.6`. The products' own calls to
+/// version node: every `niji_` name is local in `libc.so.6`. The products' own calls to
 /// `memcpy`, `memmove` and `memset` reach them through `cargo xtask so`'s archive pass
 /// (`xtask/src/copies.rs`); programs never call them.
 #[macro_export]
 macro_rules! internal_entry {
     ($(#[$meta:meta])* pub extern "C" fn $name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty)? $body:block) => {
         $(#[$meta])*
-        // UNSAFE(export): a C symbol needs an unmangled name; the `liella_internal_` names are
+        // UNSAFE(export): a C symbol needs an unmangled name; the `niji_internal_` names are
         // the library's own (local in `libc.so.6`).
         #[cfg_attr(feature = "export", unsafe(no_mangle))]
         #[allow(unsafe_code)]

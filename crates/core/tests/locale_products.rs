@@ -1,5 +1,5 @@
 //! Locales end to end (phase 7): `tests/oracle/locale_diff.c` built against the host C library
-//! and statically against Liella's products, run with the same environment and `LOCPATH`; the
+//! and statically against libniji's products, run with the same environment and `LOCPATH`; the
 //! outputs must be identical, line by line (D-7.2: the same compiled data gives the same
 //! answers), except the recorded differences in [`KNOWN`]. Needs the products (`cargo xtask so`), a C compiler and `localedef`; without
 //! the latter two the test says so and passes.
@@ -25,12 +25,12 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/locale_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -55,7 +55,7 @@ fn locale_behaviour_equals_the_reference() {
     // s7_2_c_0, s7_2_c_1, s7_2_c_2, s7_2_c_3, s7_2_f_0, s7_2_t_0, s7_2_g_0, s7_3_c_1, s7_3_c_2, s7_3_c_3,
     // s7_3_c_4, s7_3_f_0, s7_4_c_1, s7_4_c_2, s7_4_g_0, s4_3_g_0, s4_4_c_0, s7_6_c_0 (D-7.1, D-7.2, D-7.7, D-7.9).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let locales = r.join("target/test-locales");
     std::fs::create_dir_all(&locales).unwrap();
     let names = ["en_US.UTF-8", "de_DE.UTF-8", "tr_TR.UTF-8", "fr_FR.ISO-8859-1", "ja_JP.EUC-JP", "ru_RU.KOI8-R", "zh_CN.GB18030", "ps_AF.UTF-8"];
@@ -65,7 +65,7 @@ fn locale_behaviour_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("locale_diff_host"), dir.join("locale_diff_liella"));
+    let (host, ours) = (dir.join("locale_diff_host"), dir.join("locale_diff_niji"));
     // Without a C compiler the test cannot run; with one, the program must build.
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
@@ -89,14 +89,14 @@ fn locale_behaviour_equals_the_reference() {
         if let Some(i) = known {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                eprintln!("recorded difference ({}), {locale}:\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
             }
             continue;
         }
         if w != g {
             diffs += 1;
             if diffs <= 15 {
-                eprintln!("line {}:\n  glibc  {}\n  liella {}", k + 1, &w[..w.len().min(300)], &g[..g.len().min(300)]);
+                eprintln!("line {}:\n  glibc  {}\n  niji {}", k + 1, &w[..w.len().min(300)], &g[..g.len().min(300)]);
             }
         }
     }
@@ -124,7 +124,7 @@ fn newlocale_masks_equal_the_reference() {
     // `1 << LC_ALL` alone is every category, with any other bit `EINVAL`; `""` takes each
     // category from the environment; a NULL name is `EINVAL`.
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     let locales = r.join("target/test-locales");
     std::fs::create_dir_all(&locales).unwrap();
     if !ensure_locale(&locales, "en_US.UTF-8") {
@@ -138,12 +138,12 @@ fn newlocale_masks_equal_the_reference() {
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
     let src = r.join("crates/core/tests/oracle/newlocale_mask.c");
-    let (host, ours) = (dir.join("newlocale_mask_host"), dir.join("newlocale_mask_liella"));
+    let (host, ours) = (dir.join("newlocale_mask_host"), dir.join("newlocale_mask_niji"));
     let mut cmd = Command::new("cc");
     cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     assert!(oracle::build(cmd, &host), "newlocale_mask.c does not build against the host C library");
     let mut cmd = Command::new("cc");
-    cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     assert!(oracle::build(cmd, &ours), "newlocale_mask.c does not link against the products");
     let run = |exe: &Path| -> String {
         let mut out = String::new();
@@ -162,12 +162,12 @@ fn newlocale_masks_equal_the_reference() {
     let (want, got) = (run(&host), run(&ours));
     assert!(want.contains("bit6 mask=0x40 name=\"C\" base=NULL: ok"), "the reference accepts 1 << LC_ALL:\n{want}");
     // The one recorded difference: where the reference leaves errno 0 on a failed load into a
-    // base (or from the environment), Liella sets ENOENT (s7_3_f_0). Both return NULL.
+    // base (or from the environment), libniji sets ENOENT (s7_3_f_0). Both return NULL.
     let mut diffs = 0;
     for (k, (w, g)) in want.lines().zip(got.lines()).enumerate() {
         if w != g && !(w.ends_with("NULL errno=0 base_kept=yes") || w.ends_with("NULL errno=0 base_kept=-")) {
             diffs += 1;
-            eprintln!("line {}:\n  glibc  {w}\n  liella {g}", k + 1);
+            eprintln!("line {}:\n  glibc  {w}\n  niji {g}", k + 1);
         } else if w != g {
             assert_eq!(w.replace("errno=0", "errno=2"), g, "line {}: only errno may differ", k + 1);
         }

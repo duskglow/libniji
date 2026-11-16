@@ -1,8 +1,8 @@
 //! Translation for spec §28: profiling and instrumentation (PROFILING-GMON).
 //!
-//! The data model is `liella::prof`. `mcount`/`_mcount`/`__fentry__` are assembly
+//! The data model is `niji::prof`. `mcount`/`_mcount`/`__fentry__` are assembly
 //! (csys/src/machine/mcount.S) that save the argument registers and call
-//! `liella_mcount_record(frompc, selfpc)`. Sampling is `ITIMER_PROF` with a `SIGPROF` handler
+//! `niji_mcount_record(frompc, selfpc)`. Sampling is `ITIMER_PROF` with a `SIGPROF` handler
 //! (SA_SIGINFO | SA_RESTART, every signal blocked, as glibc installs it) that reads the
 //! interrupted pc from the ucontext. `monstartup` maps the histogram and the arc table once and
 //! never unmaps them, so a late `mcount` never touches freed memory. gmon.out holds link-time
@@ -11,14 +11,14 @@
 
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU16, AtomicU32, AtomicU64, AtomicU8, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release}};
 
-use liella::prof::{self, Arcs, Text};
-use liella_abi::ctypes::{c_int, c_uint, c_void};
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Itimerval, SigSet, Timeval, MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_CREAT, O_NOFOLLOW, O_TRUNC, O_WRONLY, PROT_READ, PROT_WRITE, SA_RESTART, SA_SIGINFO, SIGPROF};
-use liella_legacy::signal_compat::CSigaction;
+use niji::prof::{self, Arcs, Text};
+use niji_abi::ctypes::{c_int, c_uint, c_void};
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Itimerval, SigSet, Timeval, MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_CREAT, O_NOFOLLOW, O_TRUNC, O_WRONLY, PROT_READ, PROT_WRITE, SA_RESTART, SA_SIGINFO, SIGPROF};
+use niji_legacy::signal_compat::CSigaction;
 
 use crate::export;
 use crate::ret;
@@ -112,7 +112,7 @@ fn timer(usec: i64) -> KResult<()> {
 }
 
 fn sigaction(act: &CSigaction, old: Option<&mut CSigaction>) -> KResult<()> {
-    let prev = liella_legacy::signal_compat::sigaction(SIGPROF, Some(act), crate::sys::restorer_addr(), crate::raw::sigaction)?;
+    let prev = niji_legacy::signal_compat::sigaction(SIGPROF, Some(act), crate::sys::restorer_addr(), crate::raw::sigaction)?;
     if let Some(o) = old {
         *o = prev;
     }
@@ -238,7 +238,7 @@ pub extern "C" fn moncontrol(mode: c_int) {
     }
 }}
 
-export! { local "liella_mcount_record";
+export! { local "niji_mcount_record";
 /// The body of `mcount`, `_mcount` and `__fentry__` (csys/src/machine/mcount.S): one traversal
 /// of the arc from the instrumented function's caller (`from`) to the function (`to`).
 pub extern "C" fn mcount_record(from: usize, to: usize) {
@@ -260,13 +260,13 @@ pub fn each_arc(f: impl FnMut(usize, usize, u32)) {
 /// an instrumented fentry site, an instrumented mcount site and the caller that calls them.
 pub fn probe_sites() -> [usize; 3] {
     let mut out = [0usize; 3];
-    crate::ffi::liella_machine_probe_addrs(&mut out);
+    crate::ffi::niji_machine_probe_addrs(&mut out);
     out
 }
 
 /// Test fixture: call the mcount site (`mcount`) or the fentry site `n` times from the probe caller.
 pub fn probe_run(mcount: bool, n: u32) {
-    crate::ffi::liella_machine_probe_run(u32::from(mcount), n);
+    crate::ffi::niji_machine_probe_run(u32::from(mcount), n);
 }
 
 /// `gmon.out` or `$GMON_OUT_PREFIX.<pid>` (secure_getenv), NUL-terminated, in `buf`: its length.

@@ -1,27 +1,27 @@
 //! `__libc_start_main` (IP-9; spec §1.1): the products' process start, in the order
-//! `liella_rt::start` documents. Only in the products (feature `runtime`): a process the host C
+//! `niji_rt::start` documents. Only in the products (feature `runtime`): a process the host C
 //! library started must never run it.
 //!
 //! The kernel's initial stack (argc, argv[], NULL, envp[], NULL, auxv) and the program headers
-//! are read here as slices (category *slice*); every decision is in `liella_rt::start`,
-//! `liella_rt::tls`, `liella::config` and `crate::process`.
+//! are read here as slices (category *slice*); every decision is in `niji_rt::start`,
+//! `niji_rt::tls`, `niji::config` and `crate::process`.
 
 use core::ffi::{c_char, c_int, c_void};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use core::sync::atomic::{AtomicBool, AtomicUsize};
 
-use liella::config::Tunables;
-use liella_kernel::auxv::Auxv;
-use liella_kernel::machine::Machine;
+use niji::config::Tunables;
+use niji_kernel::auxv::Auxv;
+use niji_kernel::machine::Machine;
 // ARCH(x86_64): static-or-dynamic test through ARCH_GET_FS; aarch64 reads TPIDR_EL0 (A-4)
-use liella_kernel::ops::ArchGet;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{AT_NULL, AT_PHDR, AT_PHNUM, AT_RANDOM, AT_SECURE, AT_SYSINFO_EHDR, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
-use liella_legacy::exit_handlers::ATEXIT;
-use liella_legacy::search_c::CWords;
+use niji_kernel::ops::ArchGet;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{AT_NULL, AT_PHDR, AT_PHNUM, AT_RANDOM, AT_SECURE, AT_SYSINFO_EHDR, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
+use niji_legacy::exit_handlers::ATEXIT;
+use niji_legacy::search_c::CWords;
 // ARCH(x86_64): x87 control word reset at start-up; FPCR on aarch64 (A-9)
-use liella_rt::fpu::X87_DEFAULT_CONTROL;
-use liella_rt::{fatal, start, tls};
+use niji_rt::fpu::X87_DEFAULT_CONTROL;
+use niji_rt::{fatal, start, tls};
 
 use crate::bootstrap;
 use crate::conv;
@@ -39,7 +39,7 @@ pub type Main = extern "C" fn(c_int, *mut *mut c_char, *mut *mut c_char) -> c_in
 pub type Fn0 = extern "C" fn();
 
 fn die(msg: &[u8]) -> ! {
-    fatal::fatal(&CSys, &[b"liella: ", msg, b"\n"], crate::ret::trap)
+    fatal::fatal(&CSys, &[b"niji: ", msg, b"\n"], crate::ret::trap)
 }
 
 /// Words at `addr` before the first zero word (the argument and environment arrays).
@@ -74,7 +74,7 @@ fn count_auxv(addr: usize) -> usize {
 }
 
 /// The first 64 bytes of the page at `at`, which holds the executable's program headers: the
-/// candidate ELF header `liella_rt::start::bias` checks when the program has no `PT_PHDR`
+/// candidate ELF header `niji_rt::start::bias` checks when the program has no `PT_PHDR`
 /// (`process::exe_bias`, D-27.21). Not called at start-up.
 pub(crate) fn exe_header(at: usize) -> [u8; 64] {
     let mut out = [0u8; 64];
@@ -89,9 +89,9 @@ pub(crate) fn exe_header(at: usize) -> [u8; 64] {
 
 /// A static program's initial thread: map its static TLS and thread block, copy the TLS image,
 /// set the guards from `AT_RANDOM`, and make it the thread pointer. Returns what the headers
-/// said (the TLS image and the RELRO pages), read once. `PIE`: started by `liella-rcrt1.o`, the
+/// said (the TLS image and the RELRO pages), read once. `PIE`: started by `niji-rcrt1.o`, the
 /// static-PIE start object (D-27.10), which relocates the executable first; the choice is made
-/// at link time, so `liella-crt1.o`'s start pays for no test of the executable's type.
+/// at link time, so `niji-crt1.o`'s start pays for no test of the executable's type.
 fn initial_thread<const PIE: bool>(aux: &Auxv<'_>) -> (start::Program, Option<bootstrap::Relocated>) {
     let as_usize = |v: Option<u64>| v.and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
     let (phdr, phnum) = (as_usize(aux.get(AT_PHDR)), as_usize(aux.get(AT_PHNUM)));
@@ -104,13 +104,13 @@ fn initial_thread<const PIE: bool>(aux: &Auxv<'_>) -> (start::Program, Option<bo
     if !PIE {
         if prog.bias != 0 {
             // A static PIE must relocate itself before any address in static data is used.
-            die(b"a static PIE starts from liella-rcrt1.o, not liella-crt1.o");
+            die(b"a static PIE starts from niji-rcrt1.o, not niji-crt1.o");
         }
     } else if let Some(ehdr) = bootstrap::static_pie_header() {
         // A static PIE relocates itself before any address in its data is used (D-27.10). Until
         // then no diagnostic path that reads relocated data may run: one write, then exit 127.
         let Ok(r) = bootstrap::relocate_self(phdr, phnum, ehdr) else {
-            let _ = CSys.write(liella_kernel::fd::Fd::STDERR, b"liella: static PIE: cannot relocate the executable\n");
+            let _ = CSys.write(niji_kernel::fd::Fd::STDERR, b"niji: static PIE: cannot relocate the executable\n");
             CSys.exit_group(127)
         };
         // Without PT_PHDR the headers gave no bias: move the TLS image and RELRO by the real one.
@@ -141,7 +141,7 @@ fn initial_thread<const PIE: bool>(aux: &Auxv<'_>) -> (start::Program, Option<bo
         #[allow(unsafe_code)]
         // SAFETY: the image is `filesz` readable bytes of the loaded executable.
         let src = unsafe { conv::bytes_at(img.addr, img.filesz) };
-        liella::bytes::copy(dst, src);
+        niji::bytes::copy(dst, src);
     }
     // UNSAFE(slice): the thread block in the fresh mapping.
     #[allow(unsafe_code)]
@@ -238,7 +238,7 @@ const R_X86_64_IRELATIVE: usize = 37;
 // LAYOUT-HOTKEY-INLINE-STABLE: release already inlines it; always inlined, its code stays in the keyed caller in both profiles.
 #[inline(always)]
 fn apply_irelative() {
-    let (start, end) = (ffi::liella_link_rela_iplt_start(), ffi::liella_link_rela_iplt_end());
+    let (start, end) = (ffi::niji_link_rela_iplt_start(), ffi::niji_link_rela_iplt_end());
     // `Elf64_Rela`: r_offset, r_info, r_addend.
     let n = end.saturating_sub(start) / 24;
     // UNSAFE(slice): the executable's `.rela.iplt` entries and the words they name.
@@ -253,7 +253,7 @@ fn apply_irelative() {
         if info & 0xffff_ffff != R_X86_64_IRELATIVE {
             die(b"unexpected relocation type in a static executable's .rela.iplt");
         }
-        let target = usize::from_ne_bytes(ffi::liella_machine_call0(addend).to_ne_bytes());
+        let target = usize::from_ne_bytes(ffi::niji_machine_call0(addend).to_ne_bytes());
         mem.set_word(offset, 0, target);
     }
 }
@@ -270,7 +270,7 @@ fn run_array(start: usize, end: usize, argc: c_int, argv: usize, envp: usize) {
         let f = usize::try_from(f).unwrap_or(0);
         if f != 0 && f != usize::MAX {
             let a = usize::from_ne_bytes(i64::from(argc).to_ne_bytes());
-            let _ = ffi::liella_machine_call3(f, i64::from_ne_bytes(a.to_ne_bytes()), i64::from_ne_bytes(argv.to_ne_bytes()), i64::from_ne_bytes(envp.to_ne_bytes()));
+            let _ = ffi::niji_machine_call3(f, i64::from_ne_bytes(a.to_ne_bytes()), i64::from_ne_bytes(argv.to_ne_bytes()), i64::from_ne_bytes(envp.to_ne_bytes()));
         }
     }
 }
@@ -280,7 +280,7 @@ fn run_array(start: usize, end: usize, argc: c_int, argv: usize, envp: usize) {
 // LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
 #[inline(never)]
 extern "C" fn run_fini() {
-    let (start, end) = (ffi::liella_link_fini_start(), ffi::liella_link_fini_end());
+    let (start, end) = (ffi::niji_link_fini_start(), ffi::niji_link_fini_end());
     let n = end.saturating_sub(start) / 8;
     // UNSAFE(slice): the destructor array of the executable.
     #[allow(unsafe_code)]
@@ -289,12 +289,12 @@ extern "C" fn run_fini() {
     for &f in fns.iter().rev() {
         let f = usize::try_from(f).unwrap_or(0);
         if f != 0 && f != usize::MAX {
-            let _ = ffi::liella_machine_call0(f);
+            let _ = ffi::niji_machine_call0(f);
         }
     }
-    let fini = ffi::liella_link_fini();
+    let fini = ffi::niji_link_fini();
     if fini != 0 {
-        let _ = ffi::liella_machine_call0(fini);
+        let _ = ffi::niji_machine_call0(fini);
     }
 }
 
@@ -306,8 +306,8 @@ fn addr0(f: Fn0) -> usize {
 
 /// Start step 3 for [`early_init`]: `environ`, the arguments (the native interface's), the program
 /// names and `__libc_stack_end`, as [`start`] publishes them (kept apart so the static start's code
-/// and its hot-text keys stay as they are; under Liella's `ld.so`, `start` skips its copy, D-27.24).
-/// [`start_under_liella_ld`] calls it again to undo `.preinit_array` changes (inlined at both
+/// and its hot-text keys stay as they are; under libniji's `ld.so`, `start` skips its copy, D-27.24).
+/// [`start_under_niji_ld`] calls it again to undo `.preinit_array` changes (inlined at both
 /// sites: no hot-text key of its own).
 #[inline(always)]
 fn publish(argv_addr: usize, n_args: usize, envp: usize, stack_end: usize) {
@@ -330,12 +330,12 @@ fn publish(argv_addr: usize, n_args: usize, envp: usize, stack_end: usize) {
     ffi::__libc_stack_end.store(stack_end, Release);
 }
 
-/// `__liella_libc_early_init` (`LIELLA_PRIVATE`, plan/ph14/design.md §14, D-27.22): Liella's
+/// `__niji_libc_early_init` (`NIJI_PRIVATE`, plan/ph14/design.md §14, D-27.22): libniji's
 /// `ld.so` calls it after relocation and before any constructor, `.preinit_array` included, so
 /// constructors see an initialised C library: the auxiliary vector, steps 3 and 4 (`environ`, the
 /// program names, `__libc_stack_end`, the tunables and the CPU paths). The NULL-folding guard is
 /// decided at the first small copy or fill (`dispatch::resolve_fold`). `__libc_start_main` then
-/// skips steps 1-4 but publishes `environ` and the program names again ([`start_under_liella_ld`],
+/// skips steps 1-4 but publishes `environ` and the program names again ([`start_under_niji_ld`],
 /// D-27.24): a `.preinit_array` function's `setenv` or change to the program names is undone, a
 /// constructor's stays.
 pub fn early_init(info: usize) {
@@ -343,7 +343,7 @@ pub fn early_init(info: usize) {
     #[allow(unsafe_code)]
     // SAFETY: `ld.so` passes the address of a live, aligned `StartInfo` on its stack for the call
     // (design §14); NULL is ignored.
-    let Some(info) = (unsafe { core::ptr::with_exposed_provenance::<liella_rt::start::private::StartInfo>(info).as_ref() }) else { return };
+    let Some(info) = (unsafe { core::ptr::with_exposed_provenance::<niji_rt::start::private::StartInfo>(info).as_ref() }) else { return };
     let auxv_words = count_auxv(info.auxv);
     process::AUXV_WORDS.store(auxv_words, Release);
     process::AUXV_ADDR.store(info.auxv, Release);
@@ -391,16 +391,16 @@ pub fn early_init(info: usize) {
     EARLY_DONE.store(true, Release);
 }
 
-/// Set by [`early_init`]: Liella's `ld.so` started the program and ran start steps 1-4, so
+/// Set by [`early_init`]: libniji's `ld.so` started the program and ran start steps 1-4, so
 /// `__libc_start_main` must not run them again (D-27.24). Never set in a static program or under
-/// another loader, which never calls `__liella_libc_early_init`.
+/// another loader, which never calls `__niji_libc_early_init`.
 static EARLY_DONE: AtomicBool = AtomicBool::new(false);
 
 /// The program's `DT_INIT`, `DT_INIT_ARRAY` and its entry count, as `ld.so` passed them to
 /// [`early_init`] (0: none).
 static PROGRAM_INIT: [AtomicUsize; 3] = [const { AtomicUsize::new(0) }; 3];
 
-/// `__libc_start_main` in a program Liella's `ld.so` started (design §14, D-27.24): `ld.so` made
+/// `__libc_start_main` in a program libniji's `ld.so` started (design §14, D-27.24): `ld.so` made
 /// the initial thread (step 1), cleared the environment in secure mode and called [`early_init`]
 /// (steps 2-4) before any constructor; it ran the program's `.preinit_array` and every shared
 /// object's initialisation. Left here: the thread's kernel registrations and the library's own
@@ -411,7 +411,7 @@ static PROGRAM_INIT: [AtomicUsize; 3] = [const { AtomicUsize::new(0) }; 3];
 /// old crt1's `fini` is not registered: `rtld_fini` already runs the program's termination, and
 /// running `fini` as well would run its `.fini_array` twice.
 #[inline(never)]
-fn start_under_liella_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init: Option<Fn0>, rtld_fini: Option<Fn0>) -> ! {
+fn start_under_niji_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init: Option<Fn0>, rtld_fini: Option<Fn0>) -> ! {
     let n_args = usize::try_from(argc).unwrap_or(0);
     let envp = argv_addr.wrapping_add(n_args.wrapping_add(1).wrapping_mul(8));
     let t = tb::current();
@@ -423,7 +423,7 @@ fn start_under_liella_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init
         crate::thread::forbid();
     }
     // The program's start-up x87 control word (D-10.5), before any of its code runs from here.
-    let cw = ffi::liella_link_fpu_control();
+    let cw = ffi::niji_link_fpu_control();
     // ARCH(x86_64): x87 control word reset at start-up; FPCR on aarch64 (A-9)
     if cw != X87_DEFAULT_CONTROL {
         CSys.set_x87_control(cw);
@@ -445,12 +445,12 @@ fn start_under_liella_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init
     match init {
         // Before 2.34, crt1 passed `__libc_csu_init(argc, argv, envp)`, which runs the arrays.
         Some(f) => {
-            let _ = ffi::liella_machine_call3(addr0(f), i64::from(argc), a(argv_addr), a(envp));
+            let _ = ffi::niji_machine_call3(addr0(f), i64::from(argc), a(argv_addr), a(envp));
         }
         None => {
             let [dt_init, array, len] = PROGRAM_INIT.each_ref().map(|w| w.load(Relaxed));
             if dt_init != 0 {
-                let _ = ffi::liella_machine_call3(dt_init, i64::from(argc), a(argv_addr), a(envp));
+                let _ = ffi::niji_machine_call3(dt_init, i64::from(argc), a(argv_addr), a(envp));
             }
             if array != 0 {
                 run_array(array, array.wrapping_add(len.wrapping_mul(8)), argc, argv_addr, envp);
@@ -465,16 +465,16 @@ fn start_under_liella_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init
 }
 
 /// `__libc_start_main(main, argc, argv, init, fini, rtld_fini, stack_end)`; with `PIE`, the
-/// static-PIE start `liella-rcrt1.o` calls (`liella_start_main_static_pie`, D-27.10).
+/// static-PIE start `niji-rcrt1.o` calls (`niji_start_main_static_pie`, D-27.10).
 // LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
 #[inline(never)]
 pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c_char, init: Option<Fn0>, fini: Option<Fn0>, rtld_fini: Option<Fn0>, stack_end: *mut c_void) -> ! {
     // 1. The initial thread: a static program has no thread pointer yet.
     // ARCH(x86_64): static-or-dynamic test through ARCH_GET_FS; aarch64 reads TPIDR_EL0 (A-4)
     let static_program = CSys.arch_prctl_get(ArchGet::Fs).map_or(true, |fs| fs == 0);
-    // Liella's `ld.so` ran steps 1-4 already (D-27.24); a static program never tests the flag.
+    // libniji's `ld.so` ran steps 1-4 already (D-27.24); a static program never tests the flag.
     if !static_program && EARLY_DONE.load(Acquire) {
-        start_under_liella_ld(main, argc, argv.expose_provenance(), init, rtld_fini)
+        start_under_niji_ld(main, argc, argv.expose_provenance(), init, rtld_fini)
     }
     let n_args = usize::try_from(argc).unwrap_or(0);
     let argv_addr = argv.expose_provenance();
@@ -546,13 +546,13 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
         // Not in secure mode (glibc prints none there, probe-settled) and not when another
         // `ld.so` started the program: that loader printed them already.
         if static_program && !secure {
-            liella::config::warnings(text, |parts| {
+            niji::config::warnings(text, |parts| {
                 // One line, one write (no allocation): at most 6 pieces.
-                let mut iov = [liella_kernel::mem::IoVec::new(&[]); 6];
+                let mut iov = [niji_kernel::mem::IoVec::new(&[]); 6];
                 for (slot, piece) in iov.iter_mut().zip(parts) {
-                    *slot = liella_kernel::mem::IoVec::new(piece);
+                    *slot = niji_kernel::mem::IoVec::new(piece);
                 }
-                let _ = CSys.writev(liella_kernel::fd::Fd::STDERR, iov.get(..parts.len()).unwrap_or(&iov));
+                let _ = CSys.writev(niji_kernel::fd::Fd::STDERR, iov.get(..parts.len()).unwrap_or(&iov));
             });
         }
         Tunables::parse(text, secure)
@@ -569,7 +569,7 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
     // before `.preinit_array`, probe-settled) and before its RELRO is protected.
     // A static PIE's indirect functions are in its dynamic relocation tables (pass 2 of the
     // self-relocator, D-27.10).
-    // (`PIE` first: `liella-crt1.o`'s start compiles no test here.)
+    // (`PIE` first: `niji-crt1.o`'s start compiles no test here.)
     if let Some(r) = if PIE { pie.as_ref() } else { None } {
         if bootstrap::irelative(r).is_err() {
             die(b"static PIE: an IRELATIVE relocation is outside the writable segment");
@@ -581,7 +581,7 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
     // `__fpu_control` starts with it, before any of its code runs. A static program keeps the
     // default even when it defines the name, as under glibc (probe-settled, #812).
     if !static_program {
-        let cw = ffi::liella_link_fpu_control();
+        let cw = ffi::niji_link_fpu_control();
         // ARCH(x86_64): x87 control word reset at start-up; FPCR on aarch64 (A-9)
         if cw != X87_DEFAULT_CONTROL {
             CSys.set_x87_control(cw);
@@ -592,7 +592,7 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
     // The C `malloc` family's `M_PERTURB` from `glibc.malloc.perturb` or `MALLOC_PERTURB_`
     // (§3.2; both removed in a secure process).
     crate::heap::perturb_from_start(process::getenv(crate::startup_names::GLIBC_TUNABLES).and_then(|v| Tunables::malloc_perturb(strz::env_value(v), secure)));
-    // The name-service cache (D-16.10): `LIELLA_NSCACHE`, and where the shared regions are.
+    // The name-service cache (D-16.10): `NIJI_NSCACHE`, and where the shared regions are.
     crate::nscache::start(secure);
     // The initial thread's descriptor, robust list and rseq area (D-22.7, D-22.9). Under
     // another `ld.so`, that loader registered rseq already.
@@ -627,12 +627,12 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
         // Before 2.34, crt1 passed `__libc_csu_init`, which runs the arrays itself.
         Some(f) => f(),
         None if static_program => {
-            run_array(ffi::liella_link_preinit_start(), ffi::liella_link_preinit_end(), argc, argv_addr, envp);
-            let init = ffi::liella_link_init();
+            run_array(ffi::niji_link_preinit_start(), ffi::niji_link_preinit_end(), argc, argv_addr, envp);
+            let init = ffi::niji_link_init();
             if init != 0 {
-                let _ = ffi::liella_machine_call0(init);
+                let _ = ffi::niji_machine_call0(init);
             }
-            run_array(ffi::liella_link_init_start(), ffi::liella_link_init_end(), argc, argv_addr, envp);
+            run_array(ffi::niji_link_init_start(), ffi::niji_link_init_end(), argc, argv_addr, envp);
         }
         None => {}
     }

@@ -264,7 +264,7 @@ pub(crate) fn order_sections(obj: &mut [u8], want: &[String]) -> Result<usize, S
 /// start of `.bss`, so they share one or two pages instead of one page each among the rest of
 /// `.data` and `.bss` (printf: `SYSINFO_EHDR` and `AVX2_ERMS_FROM` dirtied a `.data` page each,
 /// `global_locale::{GLOBAL, LOCK}` a `.bss` page of their own, read first: two faults).
-/// `liella_machine_scan_level` (scan.S) is placed there by its own `.section` directive.
+/// `niji_machine_scan_level` (scan.S) is placed there by its own `.section` directive.
 /// Measured (one build host, kit printf, `setarch -R`): these six and scan_level 62 -> 61; adding
 /// `cpu::{COPY_MIN, FILL_MIN, ERMS_LARGE_FROM}`, fold.S's `cmp_sse` words and
 /// `global_locale::MAPS` gained nothing more (61: the freed pages got other first writers), so
@@ -301,7 +301,7 @@ pub const STATE_DECLARED_MAX: u64 = 8192;
 /// One entry of [`STATE_LIST_FILE`].
 #[derive(Clone, Debug, PartialEq)]
 enum Declared {
-    /// A Rust static by path, as the tail of its v0 symbol (`C15liella_boundary4heap4HEAP`).
+    /// A Rust static by path, as the tail of its v0 symbol (`C13niji_boundary4heap4HEAP`).
     Path(String),
     /// An object in `.data.<name>` or `.bss.<name>`.
     Symbol(String),
@@ -522,46 +522,46 @@ mod tests {
         // picked whatever its crate hash, split number or ThinLTO suffix, a `symbol` and a `section` entry by
         // name; an undeclared static (also one whose path only ends like a declared one) stays; a missing
         // entry is an error unless it is `fast-only`; a declared section over STATE_DECLARED_MAX is refused.
-        let list = declared("# c\nliella_boundary::heap::HEAP\nliella_boundary::timer::EPOLL # why\nsymbol __rseq_size\nsection .bss.environ\nliella_boundary::dispatch::FMA  fast-only\n").unwrap();
+        let list = declared("# c\nniji_boundary::heap::HEAP\nniji_boundary::timer::EPOLL # why\nsymbol __rseq_size\nsection .bss.environ\nniji_boundary::dispatch::FMA  fast-only\n").unwrap();
         assert_eq!(list.len(), 5);
-        assert_eq!(list[0].0, Declared::Path("C15liella_boundary4heap4HEAP".into()));
+        assert_eq!(list[0].0, Declared::Path("C13niji_boundary4heap4HEAP".into()));
         let mut members = vec![
-            ("a.o".to_string(), vec![sec(".data._RNvNtCsQ9_15liella_boundary5timer5EPOLL.1", 1, 8), sec(".bss._RNvNtCsAbC12_15liella_boundary4heap4HEAP", SHT_NOBITS, 5376), sec(".data._RNvNtCsQ9_15liella_boundary5timer5EPOLL.0.llvm.42", 1, 8)]),
-            ("b.o".to_string(), vec![sec(".bss.__rseq_size", SHT_NOBITS, 4), sec(".bss.environ", SHT_NOBITS, 8), sec(".data._RNvNtCsQ9_15liella_boundary4heap5OTHER", 1, 8), sec(".bss._RNvNtCsQ9_15liella_boundary5xheap4HEAP", SHT_NOBITS, 8)]),
+            ("a.o".to_string(), vec![sec(".data._RNvNtCsQ9_13niji_boundary5timer5EPOLL.1", 1, 8), sec(".bss._RNvNtCsAbC12_13niji_boundary4heap4HEAP", SHT_NOBITS, 5376), sec(".data._RNvNtCsQ9_13niji_boundary5timer5EPOLL.0.llvm.42", 1, 8)]),
+            ("b.o".to_string(), vec![sec(".bss.__rseq_size", SHT_NOBITS, 4), sec(".bss.environ", SHT_NOBITS, 8), sec(".data._RNvNtCsQ9_13niji_boundary4heap5OTHER", 1, 8), sec(".bss._RNvNtCsQ9_13niji_boundary5xheap4HEAP", SHT_NOBITS, 8)]),
         ];
         let got = state_sections(&members, &list).unwrap();
         assert_eq!((got["a.o"].len(), got["b.o"].len()), (3, 2));
         assert!(!got["b.o"].iter().any(|(n, _)| n.contains("OTHER") || n.contains("xheap")));
         // LAYOUT-STARTUP-STATE-LOCALE (#4923): list order, then name, whatever the headers' order.
         let order = state_order(&got);
-        assert_eq!(order["a.o"], [".bss._RNvNtCsAbC12_15liella_boundary4heap4HEAP", ".data._RNvNtCsQ9_15liella_boundary5timer5EPOLL.0.llvm.42", ".data._RNvNtCsQ9_15liella_boundary5timer5EPOLL.1"]);
+        assert_eq!(order["a.o"], [".bss._RNvNtCsAbC12_13niji_boundary4heap4HEAP", ".data._RNvNtCsQ9_13niji_boundary5timer5EPOLL.0.llvm.42", ".data._RNvNtCsQ9_13niji_boundary5timer5EPOLL.1"]);
         assert_eq!(order["b.o"], [".bss.__rseq_size", ".bss.environ"]);
         // LAYOUT-STARTUP-STATE-LOCALE-3 (ruling #4942): entries after the cluster line are first-call state.
         // The zero-filled ones of the member with the most such bytes go to the page-aligned `.lbss` cluster,
         // in list order, ahead of that member's cold tables; an initialised one, and another member's, stay
         // in `.data1` after the every-process tier.
-        let fc_list = declared("liella_boundary::heap::HEAP\ncluster first-call\nliella_legacy::intl::RESOLVED\nsymbol stdout\nsymbol __daylight\nliella_legacy::intl::LOCK\n").unwrap();
+        let fc_list = declared("niji_boundary::heap::HEAP\ncluster first-call\nniji_legacy::intl::RESOLVED\nsymbol stdout\nsymbol __daylight\nniji_legacy::intl::LOCK\n").unwrap();
         assert_eq!(fc_list.iter().map(|e| e.3).collect::<Vec<_>>(), [false, true, true, true, true]);
         assert!(declared("cluster first-call\ncluster first-call\n").unwrap_err().contains("a second"));
         let fc_members = vec![
-            ("r.o".to_string(), vec![sec(".bss.big", SHT_NOBITS, 2048), sec(".bss._RNvNtCs1_13liella_legacy4intl4LOCK", SHT_NOBITS, 4), sec(".data.stdout", 1, 8), sec(".bss._RNvNtCs1_13liella_legacy4intl8RESOLVED", SHT_NOBITS, 4096), sec(".bss._RNvNtCs1_15liella_boundary4heap4HEAP", SHT_NOBITS, 5376)]),
+            ("r.o".to_string(), vec![sec(".bss.big", SHT_NOBITS, 2048), sec(".bss._RNvNtCs1_11niji_legacy4intl4LOCK", SHT_NOBITS, 4), sec(".data.stdout", 1, 8), sec(".bss._RNvNtCs1_11niji_legacy4intl8RESOLVED", SHT_NOBITS, 4096), sec(".bss._RNvNtCs1_13niji_boundary4heap4HEAP", SHT_NOBITS, 5376)]),
             ("c.o".to_string(), vec![sec(".bss.__daylight", SHT_NOBITS, 4)]),
         ];
         let plan = state_plan(&fc_members, &fc_list).unwrap();
         let to = |m: &str, s: &str, want: &str| plan.renames[m].iter().any(|(f, t)| f.ends_with(s) && t == want);
         assert!(to("r.o", "4HEAP", ".data1") && to("r.o", "RESOLVED", ".lbss") && to("r.o", "4LOCK", ".lbss") && to("r.o", "stdout", ".data1") && to("c.o", "__daylight", ".data1"), "{:?}", plan.renames);
-        assert_eq!(plan.order["r.o"], [".bss._RNvNtCs1_15liella_boundary4heap4HEAP", ".data.stdout", ".bss._RNvNtCs1_13liella_legacy4intl8RESOLVED", ".bss._RNvNtCs1_13liella_legacy4intl4LOCK", ".bss.big"]);
-        assert_eq!(plan.lead, Some(("r.o".to_string(), ".bss._RNvNtCs1_13liella_legacy4intl8RESOLVED".to_string())));
+        assert_eq!(plan.order["r.o"], [".bss._RNvNtCs1_13niji_boundary4heap4HEAP", ".data.stdout", ".bss._RNvNtCs1_11niji_legacy4intl8RESOLVED", ".bss._RNvNtCs1_11niji_legacy4intl4LOCK", ".bss.big"]);
+        assert_eq!(plan.lead, Some(("r.o".to_string(), ".bss._RNvNtCs1_11niji_legacy4intl8RESOLVED".to_string())));
         // LAYOUT-STARTUP-STATE-LOCALE-4: the build checks that the cluster's first section starts a page; a
         // later one may be page aligned by its own type (intl::RESOLVED) and is no error.
         let aligned = |name: &str, align: u64| Shdr { align, ..sec(name, SHT_NOBITS, 8) };
         assert!(cluster_starts_page(&[aligned(".data1", 8), aligned(".lbss", 4096), aligned(".lbss", 8), aligned(".lbss", 4096)]).is_ok());
         assert!(cluster_starts_page(&[aligned(".lbss", 8), aligned(".lbss", 4096)]).unwrap_err().contains("first .lbss section aligned to 8"));
         assert!(cluster_starts_page(&[aligned(".lbss.cold", 4096)]).unwrap_err().contains("no .lbss"));
-        assert!(state_sections(&members[1..], &list).unwrap_err().contains("for liella_boundary::heap::HEAP, liella_boundary::timer::EPOLL ("));
+        assert!(state_sections(&members[1..], &list).unwrap_err().contains("for niji_boundary::heap::HEAP, niji_boundary::timer::EPOLL ("));
         members[0].1[0].size = STATE_DECLARED_MAX + 1;
         assert!(state_sections(&members, &list).unwrap_err().contains("over 8192 bytes"));
-        assert!(declared("liella_boundary::_x::Y\n").is_err() && declared("foo bar\n").is_err());
+        assert!(declared("niji_boundary::_x::Y\n").is_err() && declared("foo bar\n").is_err());
     }
 
     #[test]
@@ -574,7 +574,7 @@ mod tests {
         // object through BFD, which takes a section where its relocations are. The pointers sit at both ends
         // of the emitted order and the order is reversed, so a relocated section always lands after its
         // relocation section's slot unless that moves with it.
-        let dir = std::env::temp_dir().join(format!("liella-order-sections-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("niji-order-sections-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let (src, obj, joined, exe) = (dir.join("o.c"), dir.join("o.o"), dir.join("j.o"), dir.join("o"));

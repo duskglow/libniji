@@ -7,7 +7,7 @@
 //! The value keeps the raw registers; each query is one bit test on them, so the boundary can
 //! cache the whole value once at startup (D-22.12 (6)).
 
-use liella_kernel::machine::Machine;
+use niji_kernel::machine::Machine;
 
 /// Decoded CPU features.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]

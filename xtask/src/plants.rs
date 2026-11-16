@@ -9,7 +9,7 @@
 //! - a products test run against the baseline products, blind to the mutant (XTASK-PLANTS-PRODUCTS-REBUILD: the
 //!   products are rebuilt with each plant whose command may use them, see [`cmd_uses_products`]);
 //! - an unanchored pattern that mutated the wrong site (every plant must change exactly one site,
-//!   and a plant on a `.S` file must name its `liella_machine_<fn>:` label);
+//!   and a plant on a `.S` file must name its `niji_machine_<fn>:` label);
 //! - a script that always exits 0 (any SURVIVED exits 1; a failed baseline exits 2);
 //! - a copy missing a source file a test needs: after the copy every source path (`git ls-files`, tracked
 //!   and untracked-not-ignored, in a git work tree; every file and symlink outside `/target` and
@@ -189,7 +189,7 @@ pub fn cmd_uses_products(cmd: &str, lookup: impl Fn(Option<&str>, &str) -> Optio
 }
 
 /// PLANTS-UNGROUPED-MUTANTS: whether `cmd` measures the start-up layout, so its products must be built traced
-/// (`LIELLA_LAYOUT_TRACE=1`) rather than ungrouped: it names a start-up layout test (`cargo xtask affected`'s
+/// (`NIJI_LAYOUT_TRACE=1`) rather than ungrouped: it names a start-up layout test (`cargo xtask affected`'s
 /// [`crate::affected::LAYOUT_TESTS`]) or `layout-check`, or it is a `cargo xtask affected ... --run` without
 /// `--only` (a change that reaches `libc.a` selects the layout tests). Any other plant can mark itself `layout:traced`.
 pub fn targets_layout(cmd: &str) -> bool {
@@ -199,7 +199,7 @@ pub fn targets_layout(cmd: &str) -> bool {
     affected_run || words.iter().any(|w| names(w))
 }
 
-/// The start-up layout of a plants run's product build (`LIELLA_LAYOUT_TRACE`, [`crate::hotlists::TRACE_ENV`]).
+/// The start-up layout of a plants run's product build (`NIJI_LAYOUT_TRACE`, [`crate::hotlists::TRACE_ENV`]).
 fn layout_env(layout: crate::hotlists::Layout) -> &'static str {
     match layout {
         crate::hotlists::Layout::Traced => "1",
@@ -341,7 +341,7 @@ fn parse_line(line: &str) -> Result<Plant, String> {
     if path.ends_with(".S") {
         let text = match &pattern { Pattern::Literal { old, .. } => old.as_str(), Pattern::Perl(e) => e.as_str() };
         if !names_machine_anchor(text) {
-            return Err(format!("{id}: a plant on a .S file must name its `liella_machine_<fn>:` label (e.g. perl:s/(liella_machine_<fn>:.*?)<pattern>/$1<replacement>/s)"));
+            return Err(format!("{id}: a plant on a .S file must name its `niji_machine_<fn>:` label (e.g. perl:s/(niji_machine_<fn>:.*?)<pattern>/$1<replacement>/s)"));
         }
     }
     Ok(Plant { id: id.to_string(), path: path.to_string(), pattern, cmd, expect, layout })
@@ -363,7 +363,7 @@ fn check_perl(e: &str) -> Result<(), String> {
 }
 
 fn names_machine_anchor(text: &str) -> bool {
-    text.match_indices("liella_machine_").any(|(i, m)| {
+    text.match_indices("niji_machine_").any(|(i, m)| {
         let rest = &text[i + m.len()..];
         let name_len = rest.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').count();
         name_len > 0 && rest[name_len..].starts_with(':')
@@ -387,13 +387,13 @@ pub fn mutate(src: &str, pattern: &Pattern) -> Result<String, String> {
 /// Apply a `s///` expression with perl: the number of sites it matches (the same expression with
 /// `/g`) and the text after one substitution.
 fn perl_substitute(src: &str, e: &str) -> Result<(usize, String), String> {
-    const SCRIPT: &str = r#"binmode STDIN; binmode STDOUT; local $/; my $src = <STDIN>; my $e = $ENV{LIELLA_PLANT_EXPR};
+    const SCRIPT: &str = r#"binmode STDIN; binmode STDOUT; local $/; my $src = <STDIN>; my $e = $ENV{NIJI_PLANT_EXPR};
 my $all = $src; my $n = eval "\$all =~ ${e}g"; die "bad perl: expression: $@" if $@;
 my $one = $src; eval "\$one =~ $e"; die "bad perl: expression: $@" if $@;
 print(($n || 0), "\n", $one);"#;
     let mut child = Command::new("perl")
         .args(["-e", SCRIPT])
-        .env("LIELLA_PLANT_EXPR", e)
+        .env("NIJI_PLANT_EXPR", e)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -438,7 +438,7 @@ fn on_ram(dir: &Path) -> Option<bool> {
     Some(best.2 == "tmpfs" || best.2 == "ramfs" || best.0.starts_with("/dev/zram"))
 }
 
-/// Run `argv` (or `sh -c <cmd>`) in `cwd` under `timeout`, its output into `log`, with `LIELLA_LAYOUT_TRACE` set
+/// Run `argv` (or `sh -c <cmd>`) in `cwd` under `timeout`, its output into `log`, with `NIJI_LAYOUT_TRACE` set
 /// for `layout` (a product build, and a command that builds the products itself, get the plant's layout); the exit code.
 fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: crate::hotlists::Layout) -> Result<i32, String> {
     let file = fs::File::create(log).map_err(|e| format!("cannot create {}: {e}", log.display()))?;
@@ -714,7 +714,7 @@ pub fn run(cfg: &Config) -> Outcome {
         match run_logged(&copy, argv, &log, limit, *layout) {
             Ok(0) if build => {
                 held = *layout;
-                println!("plants: {name} ok ({}; layout {}, LIELLA_LAYOUT_TRACE={}, in {:.0}s)", argv.join(" "), layout_name(*layout), layout_env(*layout), start.elapsed().as_secs_f64());
+                println!("plants: {name} ok ({}; layout {}, NIJI_LAYOUT_TRACE={}, in {:.0}s)", argv.join(" "), layout_name(*layout), layout_env(*layout), start.elapsed().as_secs_f64());
             }
             Ok(0) => println!("plants: {name} ok ({}; layout {})", argv.join(" "), layout_name(*layout)),
             Ok(TIMED_OUT) if build => {
@@ -915,18 +915,18 @@ mod tests {
 
     // no spec clause (PLANTS-UNGROUPED-MUTANTS): an ordinary plant's products (and its baseline) are built ungrouped, a
     // plant that measures the layout (marked `layout:traced`, or naming a layout test) is built traced, and each command
-    // sees its plant's layout in LIELLA_LAYOUT_TRACE
+    // sees its plant's layout in NIJI_LAYOUT_TRACE
     #[test]
     fn ordinary_plants_build_ungrouped_and_layout_plants_traced() {
         let (src, dir) = toy("layout");
         let product = "grep -q answer=42 product.txt || { echo WRONG-PRODUCT; exit 1; }";
         let plants = format!(
-            "or | src/value.txt | lit:answer=42 ==> answer=43 | echo cmd-or=$LIELLA_LAYOUT_TRACE >> cmds.txt; {product} | msg:WRONG-PRODUCT\n\
-             mk | src/value.txt | perl:s/answer=42/answer=44/ | echo cmd-mk=$LIELLA_LAYOUT_TRACE >> cmds.txt; {product} | msg:WRONG-PRODUCT | layout:traced\n\
-             nm | src/value.txt | lit:answer=42 ==> answer=45 | echo hot_text_products cmd-nm=$LIELLA_LAYOUT_TRACE >> cmds.txt; {product} | msg:WRONG-PRODUCT\n"
+            "or | src/value.txt | lit:answer=42 ==> answer=43 | echo cmd-or=$NIJI_LAYOUT_TRACE >> cmds.txt; {product} | msg:WRONG-PRODUCT\n\
+             mk | src/value.txt | perl:s/answer=42/answer=44/ | echo cmd-mk=$NIJI_LAYOUT_TRACE >> cmds.txt; {product} | msg:WRONG-PRODUCT | layout:traced\n\
+             nm | src/value.txt | lit:answer=42 ==> answer=45 | echo hot_text_products cmd-nm=$NIJI_LAYOUT_TRACE >> cmds.txt; {product} | msg:WRONG-PRODUCT\n"
         );
         let mut cfg = config(&src, &dir, &plants);
-        cfg.prepare = sh("cp src/value.txt product.txt && echo \"$(head -1 src/value.txt) layout=$LIELLA_LAYOUT_TRACE\" >> builds.txt");
+        cfg.prepare = sh("cp src/value.txt product.txt && echo \"$(head -1 src/value.txt) layout=$NIJI_LAYOUT_TRACE\" >> builds.txt");
         // Only the ordinary plant's command is known to read the products: the layout plants rebuild regardless.
         cfg.uses_products = |_, ps| ps.iter().map(|p| p.id == "or").collect();
         let out = run(&cfg);
@@ -948,7 +948,7 @@ mod tests {
         let (src, dir) = toy("ungrouped");
         let plants = format!("pr | src/value.txt | lit:answer=42 ==> answer=43 | {PRODUCT_CHECK} | msg:WRONG-PRODUCT\n");
         let mut cfg = config(&src, &dir, &plants);
-        cfg.prepare = sh("cp src/value.txt product.txt && echo layout=$LIELLA_LAYOUT_TRACE >> builds.txt");
+        cfg.prepare = sh("cp src/value.txt product.txt && echo layout=$NIJI_LAYOUT_TRACE >> builds.txt");
         cfg.uses_products = |_, ps| vec![true; ps.len()];
         let out = run(&cfg);
         assert_eq!(out.verdicts, vec![("pr".into(), Verdict::Caught)]);
@@ -961,22 +961,22 @@ mod tests {
     #[test]
     fn which_commands_target_the_layout() {
         for cmd in [
-            "cargo test -p liella --test hot_text_products",
-            "cargo test -p liella --test=heap_meta_products",
-            "cargo test -p liella --test cold_bss_products startup",
+            "cargo test -p niji --test hot_text_products",
+            "cargo test -p niji --test=heap_meta_products",
+            "cargo test -p niji --test cold_bss_products startup",
             "cargo xtask layout-check",
-            "cargo xtask affected --only test:liella:hot_text_products --run",
+            "cargo xtask affected --only test:niji:hot_text_products --run",
             "cargo xtask affected --files csys/src/x.c --run",
         ] {
             assert!(targets_layout(cmd), "{cmd}");
         }
         for cmd in [
-            "cargo test -p liella --test stdio_short_io",
+            "cargo test -p niji --test stdio_short_io",
             "cargo xtask affected --only conformance:s27_dladdr --with-exports --run",
             "cargo xtask affected --files csys/src/x.c --list",
             "cargo test -p xtask --bin xtask affected::tests --run",
             "cargo test -p xtask --bin xtask layout::tests",
-            "cargo test -p liella --test hot_text_products_helper",
+            "cargo test -p niji --test hot_text_products_helper",
         ] {
             assert!(!targets_layout(cmd), "{cmd}");
         }
@@ -1001,21 +1001,21 @@ mod tests {
     #[test]
     fn which_commands_use_the_products() {
         let lookup = |k: Option<&str>, t: &str| match (k, t) {
-            (Some("liella") | None, "catalogs_products") => Some(true),
-            (Some("liella") | None, "stdio_short_io") => Some(false),
+            (Some("niji") | None, "catalogs_products") => Some(true),
+            (Some("niji") | None, "stdio_short_io") => Some(false),
             _ => None,
         };
         for (cmd, want) in [
-            ("cargo test -p liella --test stdio_short_io", false),
-            ("cargo test -p liella --test=stdio_short_io short_write -- --test-threads 1", false),
+            ("cargo test -p niji --test stdio_short_io", false),
+            ("cargo test -p niji --test=stdio_short_io short_write -- --test-threads 1", false),
             ("cargo test -p xtask --bin xtask plants::", false),
-            ("cargo test -p liella --lib diag", false),
-            ("cargo test -p liella --test catalogs_products", true),
-            ("cargo test -p liella --test stdio_short_io --test catalogs_products", true),
-            ("cargo test -p liella --test unknown_target", true),
-            ("cargo test -p liella", true),
-            ("cargo test -p liella --tests", true),
-            ("cargo test -p liella --test stdio_short_io && true", true),
+            ("cargo test -p niji --lib diag", false),
+            ("cargo test -p niji --test catalogs_products", true),
+            ("cargo test -p niji --test stdio_short_io --test catalogs_products", true),
+            ("cargo test -p niji --test unknown_target", true),
+            ("cargo test -p niji", true),
+            ("cargo test -p niji --tests", true),
+            ("cargo test -p niji --test stdio_short_io && true", true),
             ("cargo xtask affected --only conformance:printf --with-exports --run", true),
             ("sh tests/oracle/run.sh", true),
         ] {
@@ -1043,10 +1043,10 @@ mod tests {
     // no spec clause (XTASK-PLANTS-CATCHER): one failing test in a recorded `cargo test` log names its binary and test
     #[test]
     fn catcher_names_the_failing_test_of_a_cargo_test_log() {
-        let log = "   Compiling liella-ld v0.1.0\n     Running `target/debug/xtask affected --run`\n     Running unittests src/lib.rs (target/debug/deps/liella_ld-0f3a9c2b1d4e5f60)\n\nrunning 3 tests\ntest elf::ok ... ok\n\n     Running tests/elf_tables.rs (target/debug/deps/elf_tables-a1b2c3d4e5f60718)\n\nrunning 2 tests\ntest tables_read_back ... ok\ntest sysv_chain_loop ... FAILED\n\nfailures:\n\n---- sysv_chain_loop stdout ----\nthread 'sysv_chain_loop' panicked at crates/ld/tests/elf_tables.rs:9:5:\nloop not found\n\nerror: test failed, to rerun pass `-p liella-ld --test elf_tables`\n";
+        let log = "   Compiling niji-ld v0.1.0\n     Running `target/debug/xtask affected --run`\n     Running unittests src/lib.rs (target/debug/deps/niji_ld-0f3a9c2b1d4e5f60)\n\nrunning 3 tests\ntest elf::ok ... ok\n\n     Running tests/elf_tables.rs (target/debug/deps/elf_tables-a1b2c3d4e5f60718)\n\nrunning 2 tests\ntest tables_read_back ... ok\ntest sysv_chain_loop ... FAILED\n\nfailures:\n\n---- sysv_chain_loop stdout ----\nthread 'sysv_chain_loop' panicked at crates/ld/tests/elf_tables.rs:9:5:\nloop not found\n\nerror: test failed, to rerun pass `-p niji-ld --test elf_tables`\n";
         assert_eq!(catcher(log), "elf_tables sysv_chain_loop");
-        assert_eq!(catcher("     Running unittests src/lib.rs (target/debug/deps/liella_ld-0f3a9c2b1d4e5f60)\ntest elf::tests::bad ... FAILED\n"), "liella_ld elf::tests::bad");
-        assert_eq!(catcher("   Doc-tests liella_ld\ntest crates/ld/src/elf.rs - Elf (line 3) ... FAILED\n"), "doctests::liella_ld crates/ld/src/elf.rs - Elf (line 3)");
+        assert_eq!(catcher("     Running unittests src/lib.rs (target/debug/deps/niji_ld-0f3a9c2b1d4e5f60)\ntest elf::tests::bad ... FAILED\n"), "niji_ld elf::tests::bad");
+        assert_eq!(catcher("   Doc-tests niji_ld\ntest crates/ld/src/elf.rs - Elf (line 3) ... FAILED\n"), "doctests::niji_ld crates/ld/src/elf.rs - Elf (line 3)");
     }
 
     // no spec clause (XTASK-PLANTS-CATCHER): with several failing tests the first one in the log is the catcher
@@ -1054,15 +1054,15 @@ mod tests {
     fn catcher_names_the_first_of_several_failing_tests() {
         let cargo = "     Running tests/stdio.rs (target/debug/deps/stdio-00112233aabbccdd)\ntest b_second ... ok\ntest c_third ... FAILED\ntest a_first ... FAILED\n";
         assert_eq!(catcher(cargo), "stdio c_third");
-        let nextest = "    Starting 9 tests across 2 binaries\n        PASS [   0.010s] (1/9) liella-core::stdio ok_one\n        FAIL [   0.004s] (2/9) liella-core::stdio short_write\n     SIGSEGV [   0.020s] (3/9) liella-core::stdio crash\n------------\n     Summary [   0.100s] 9 tests run: 7 passed, 2 failed\n        FAIL [   0.004s] (2/9) liella-core::stdio short_write\n";
-        assert_eq!(catcher(nextest), "liella-core::stdio short_write");
-        assert_eq!(catcher("     SIGABRT [   0.020s] liella-core crash_test\n        FAIL [   0.004s] liella-core other\n"), "liella-core crash_test");
+        let nextest = "    Starting 9 tests across 2 binaries\n        PASS [   0.010s] (1/9) niji-core::stdio ok_one\n        FAIL [   0.004s] (2/9) niji-core::stdio short_write\n     SIGSEGV [   0.020s] (3/9) niji-core::stdio crash\n------------\n     Summary [   0.100s] 9 tests run: 7 passed, 2 failed\n        FAIL [   0.004s] (2/9) niji-core::stdio short_write\n";
+        assert_eq!(catcher(nextest), "niji-core::stdio short_write");
+        assert_eq!(catcher("     SIGABRT [   0.020s] niji-core crash_test\n        FAIL [   0.004s] niji-core other\n"), "niji-core crash_test");
     }
 
     // no spec clause (XTASK-PLANTS-CATCHER): a panic with no test name, a binary that aborted, a build that fails, nothing
     #[test]
     fn catcher_without_a_failing_test_line() {
-        let main = "     Running tests/posixipc_run.rs (target/debug/deps/posixipc_run-0123456789abcdef)\nthread 'main' panicked at crates/core/tests/posixipc_run.rs:40:9:\nphase nodev failed\nerror: test failed, to rerun pass `-p liella-core --test posixipc_run`\n";
+        let main = "     Running tests/posixipc_run.rs (target/debug/deps/posixipc_run-0123456789abcdef)\nthread 'main' panicked at crates/core/tests/posixipc_run.rs:40:9:\nphase nodev failed\nerror: test failed, to rerun pass `-p niji-core --test posixipc_run`\n";
         assert_eq!(catcher(main), "posixipc_run (a panic outside a named test, thread 'main')");
         assert_eq!(catcher("thread '<unnamed>' panicked at src/x.rs:1:1:\nboom\n"), "a binary the log does not name (a panic outside a named test, thread '<unnamed>')");
         let named = "     Running tests/t.rs (target/debug/deps/t-0123456789abcdef)\nthread 'mmap_guard' panicked at tests/t.rs:3:3:\nbad\n";
@@ -1070,7 +1070,7 @@ mod tests {
         let aborted = "     Running tests/t.rs (target/debug/deps/t-0123456789abcdef)\nrunning 1 test\nerror: test failed, to rerun pass `--test t`\n\nCaused by:\n  process didn't exit successfully (signal: 6, SIGABRT)\n";
         assert_eq!(catcher(aborted), "t (the log names no failing test)");
         assert_eq!(catcher("error: test failed, to rerun pass `--test t`\n"), "`--test t` (the log names no failing test)");
-        assert_eq!(catcher("error[E0308]: mismatched types\nerror: could not compile `liella-ld` (lib) due to 1 previous error\n"), "the build (the mutant does not compile)");
+        assert_eq!(catcher("error[E0308]: mismatched types\nerror: could not compile `niji-ld` (lib) due to 1 previous error\n"), "the build (the mutant does not compile)");
         assert_eq!(catcher("WRONG-ANSWER\n"), "no test the log names");
     }
 
@@ -1107,8 +1107,8 @@ mod tests {
         assert!(mutate("a\na\n", &Pattern::Perl("s/a/b/".into())).unwrap_err().contains("2 sites"));
         assert!(mutate("a\n", &Pattern::Perl("s/z/b/".into())).unwrap_err().contains("no site"));
         assert!(parse_plants("t | x.txt | perl:s/a/b/g | true | msg:X").unwrap_err().contains("/g"));
-        assert!(parse_plants("t | csys/src/machine/x.S | perl:s/ret/nop/ | true | msg:X").unwrap_err().contains("liella_machine_"));
-        assert!(parse_plants("t | csys/src/machine/x.S | perl:s/(liella_machine_toyfn:.*?)ret/$1nop/s | true | msg:X").is_ok());
+        assert!(parse_plants("t | csys/src/machine/x.S | perl:s/ret/nop/ | true | msg:X").unwrap_err().contains("niji_machine_"));
+        assert!(parse_plants("t | csys/src/machine/x.S | perl:s/(niji_machine_toyfn:.*?)ret/$1nop/s | true | msg:X").is_ok());
         assert!(parse_plants("t | ../x.txt | lit:a ==> b | true | msg:X").is_err());
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
@@ -1153,7 +1153,7 @@ mod tests {
         assert!(parse_plants("x | a | lit:a ==> b | true | msg:X\nx | a | lit:a ==> c | true | msg:X").unwrap_err().contains("duplicate"));
         assert!(parse_plants("x | a | a ==> b | true | msg:X").is_err());
         assert_eq!(parse_plants("d | a | lit:drop me ==> | true").unwrap()[0].pattern, Pattern::Literal { old: "drop me".into(), new: String::new() });
-        assert!(names_machine_anchor("(liella_machine_toyfn:.*?)x") && !names_machine_anchor("liella_machine_:") && !names_machine_anchor("liella_machine_x"));
+        assert!(names_machine_anchor("(niji_machine_toyfn:.*?)x") && !names_machine_anchor("niji_machine_:") && !names_machine_anchor("niji_machine_x"));
         // PLANTS-UNGROUPED-MUTANTS: `layout:traced` after the expectation (or alone after the command).
         let l = parse_plants("a | f | lit:x ==> y | c1 | c2 | msg:BAD | layout:traced\nb | f | lit:x ==> y | c3 | layout:traced\nc | f | lit:x ==> y | c4 | msg:Z\n").unwrap();
         assert_eq!((l[0].cmd.as_str(), &l[0].expect, l[0].layout), ("c1 | c2", &Expect::Msg("BAD".into()), true));

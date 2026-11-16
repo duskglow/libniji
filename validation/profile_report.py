@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Summarise validation/profile.sh's perf data as Markdown (for validation/profiles.md).
 
-    validation/profile_report.py PROFILE_DIR LIELLA_SYMBOLS > report.md
+    validation/profile_report.py PROFILE_DIR NIJI_SYMBOLS > report.md
 
-For each workload: the timing rows, the share of samples in the C library (Liella: symbols
+For each workload: the timing rows, the share of samples in the C library (libniji: symbols
 libc.a defines, Rust symbols of the library, and its C layer; glibc: libc.so.6 and ld.so), the
 kernel and the program, and the ten hottest C-library functions of each build. Rust symbol
 names are shortened to their path (a light reading of the v0 mangling, enough to name them).
@@ -14,11 +14,11 @@ import sys
 from collections import defaultdict
 
 prof, symfile = sys.argv[1], sys.argv[2]
-liella_syms = set(open(symfile, encoding="utf-8").read().split())
+niji_syms = set(open(symfile, encoding="utf-8").read().split())
 
 
 def short(sym):
-    """`_RNvCs8BLb1pX93Qe_10liella_mem7copy_u8` -> `liella_mem::copy_u8` (approximately)."""
+    """`_RNvCs8BLb1pX93Qe_8niji_mem7copy_u8` -> `niji_mem::copy_u8` (approximately)."""
     if not sym.startswith("_R"):
         return sym
     # Crate disambiguators (`Cs8BLb1pX93Qe_`) and impl disambiguators (`Ms2_`) carry no name.
@@ -64,7 +64,7 @@ def samples(data, glibc):
         elif glibc and (dso.startswith("libc.so") or dso.startswith("ld-linux")):
             share["libc"] += pct
             libc[sym] += pct
-        elif not glibc and (sym in liella_syms or sym.startswith("_R") or sym.startswith("liella_")):
+        elif not glibc and (sym in niji_syms or sym.startswith("_R") or sym.startswith("niji_")):
             share["libc"] += pct
             libc[short(sym)] += pct
         else:
@@ -81,16 +81,16 @@ for name in timings:
     print(f"### {name}\n")
     print("| build | CPU s (mean of 5) | stddev | wall s (one run) | load before | load after |")
     print("|---|---|---|---|---|---|")
-    for b in ("glibc", "liella"):
+    for b in ("glibc", "niji"):
         if b in t:
             f = t[b]
             print(f"| {b} | {f[2]} | {f[3]} | {f[6].replace('wall=', '')} | {f[4]} | {f[5]} |")
     try:
-        g, l = float(t["glibc"][2]), float(t["liella"][2])
-        print(f"\nLiella / glibc CPU time: **{l / g:.2f}**\n")
+        g, l = float(t["glibc"][2]), float(t["niji"][2])
+        print(f"\nlibniji / glibc CPU time: **{l / g:.2f}**\n")
     except (KeyError, ValueError, ZeroDivisionError):
         print()
-    for b, data, glibc in (("glibc", f"{prof}/{name}-glibc.data", True), ("liella", f"{prof}/{name}.data", False)):
+    for b, data, glibc in (("glibc", f"{prof}/{name}-glibc.data", True), ("niji", f"{prof}/{name}.data", False)):
         share, top = samples(data, glibc)
         print(f"{b}: C library {share['libc']:.1f}%, program {share['program']:.1f}%, kernel {share['kernel']:.1f}% of samples. "
               "Hottest C-library functions: " + ", ".join(f"`{s}` {p:.1f}%" for s, p in top) + ".\n")

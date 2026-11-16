@@ -1,21 +1,21 @@
-//! The §22.4–§22.7 exports' calls: the synchronisation objects of `liella_rt::pthread_sync`
+//! The §22.4–§22.7 exports' calls: the synchronisation objects of `niji_rt::pthread_sync`
 //! with the calling thread's context (its TID, its robust list, cancellable waits through the
 //! C layer's window, D-22.11), the attribute objects, `pthread_once` with its reset on
 //! cancellation, priority protection, the C11 forms, and named semaphores.
 
 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering::{Relaxed, Release}};
 
-use liella_abi::ctypes::c_int;
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{
+use niji_abi::ctypes::c_int;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{
     SchedParam, Timespec, FUTEX_BITSET_MATCH_ANY, FUTEX_CLOCK_REALTIME, FUTEX_PRIVATE_FLAG, FUTEX_WAIT, FUTEX_WAIT_BITSET, MAP_SHARED, O_CLOEXEC,
     O_CREAT, O_EXCL, O_NOFOLLOW, O_RDWR, PROT_READ, PROT_WRITE, SCHED_FIFO, SCHED_RR,
 };
-use liella_rt::futex::{Clock, Scope};
-use liella_rt::pthread_sync::{self as ps, mattr, Barrier, Cond, Ctx, FastUnlock, LockWait, Mutex, RwLock, Sem};
+use niji_rt::futex::{Clock, Scope};
+use niji_rt::pthread_sync::{self as ps, mattr, Barrier, Cond, Ctx, FastUnlock, LockWait, Mutex, RwLock, Sem};
 
 use crate::sys::CSys;
 use crate::{cancel, ffi, raw, tb, thread};
@@ -62,7 +62,7 @@ impl Ctx for ThreadCtx {
         let r = match d {
             // A cancellation point (D-22.11): the request is checked inside the window.
             Some(d) => {
-                let r = ffi::liella_machine_syscall_cancel(
+                let r = ffi::niji_machine_syscall_cancel(
                     &d.cancel,
                     202,
                     i64::from_ne_bytes(word.as_ptr().expose_provenance().to_ne_bytes()),
@@ -84,7 +84,7 @@ impl Ctx for ThreadCtx {
                 }
                 r
             }
-            None => return liella_rt::futex::wait_until(&CSys, word, expected, scope, deadline),
+            None => return niji_rt::futex::wait_until(&CSys, word, expected, scope, deadline),
         };
         Errno::decode(r).map(drop)
     }
@@ -438,15 +438,15 @@ pub fn cond_broadcast(c: KResult<&[AtomicU32]>) -> KResult<()> {
 // compat_condvar.c, spec/behaviour/compat.glibc.txt): the old object is ONE 8-byte word. `init`
 // stores zero in it (also when it then refuses a process-shared or CLOCK_MONOTONIC attribute with
 // EINVAL), and zero is the static initializer; the first signal, broadcast or wait fills it in.
-// Liella's condition variable needs OLD_WORDS words, more than the word holds, so the word holds
-// the address of a heap block: Liella's condition variable (all-zero = default, CLOCK_REALTIME,
+// libniji's condition variable needs OLD_WORDS words, more than the word holds, so the word holds
+// the address of a heap block: libniji's condition variable (all-zero = default, CLOCK_REALTIME,
 // private) plus a reference word. This is the one sync object that holds a pointer (an exception
 // to D-22.1, which the old ABI forces: it is never process-shared). The reference word counts the
 // waiters inside the block, so a destroy right after a broadcast (allowed by POSIX) cannot free the
 // block under a woken waiter that has not yet returned; the last one out frees it.
 
-/// Words of Liella's condition variable in an old block (`pthread_cond_t`'s size).
-const OLD_WORDS: usize = size_of::<liella_abi::layout::pthread_cond_t>() / 4;
+/// Words of libniji's condition variable in an old block (`pthread_cond_t`'s size).
+const OLD_WORDS: usize = size_of::<niji_abi::layout::pthread_cond_t>() / 4;
 /// The reference word (the block's last): waiters inside it, plus this bit once destroyed.
 const OLD_DEAD: u32 = 1 << 31;
 
@@ -734,7 +734,7 @@ fn once_cancelled_addr() -> usize {
 }
 
 /// `pthread_once`/`call_once`: `init` runs once. The routine runs in the frame of
-/// `liella_machine_once` (machine/once.S), so that a C++ exception unwinds through no Rust frame
+/// `niji_machine_once` (machine/once.S), so that a C++ exception unwinds through no Rust frame
 /// (S11): if it is cancelled or an exception leaves it, the object is reset (§22.5) and a later
 /// call runs it again.
 pub fn once(w: KResult<&[AtomicU32]>, init: usize) -> KResult<()> {
@@ -742,13 +742,13 @@ pub fn once(w: KResult<&[AtomicU32]>, init: usize) -> KResult<()> {
     if init == 0 {
         return Err(Errno::EINVAL);
     }
-    match ffi::liella_machine_once(word.as_ptr().expose_provenance(), init) {
+    match ffi::niji_machine_once(word.as_ptr().expose_provenance(), init) {
         0 => Ok(()),
         e => Err(Errno::new(e).unwrap_or(Errno::EINVAL)),
     }
 }
 
-/// machine/once.S (`liella_once_begin`), before the routine: -1 when the calling thread now runs
+/// machine/once.S (`niji_once_begin`), before the routine: -1 when the calling thread now runs
 /// `init` (`record`, the 4-word buffer in that frame, is registered so that cancellation resets
 /// the object), else the result (0 when the routine completed, or an error number).
 pub fn once_begin(w: KResult<&[AtomicU32]>, init: usize, record: KResult<&[AtomicUsize]>) -> c_int {
@@ -766,7 +766,7 @@ pub fn once_begin(w: KResult<&[AtomicU32]>, init: usize, record: KResult<&[Atomi
     -1
 }
 
-/// machine/once.S (`liella_once_end`), after the routine returned: the record is removed, the
+/// machine/once.S (`niji_once_end`), after the routine returned: the record is removed, the
 /// object done.
 pub fn once_end(w: KResult<&[AtomicU32]>, record: KResult<&[AtomicUsize]>) {
     cancel::pop_old(record, 0);
@@ -775,7 +775,7 @@ pub fn once_end(w: KResult<&[AtomicU32]>, record: KResult<&[AtomicUsize]>) {
     }
 }
 
-/// The personality routine of `liella_machine_once`'s frame (`liella_once_personality`; Itanium
+/// The personality routine of `niji_machine_once`'s frame (`niji_once_personality`; Itanium
 /// C++ ABI: version 1; `_UA_CLEANUP_PHASE` = 2; `_URC_CONTINUE_UNWIND` = 8,
 /// `_URC_FATAL_PHASE1_ERROR` = 3, `_URC_FATAL_PHASE2_ERROR` = 2). It never handles an exception
 /// and installs no landing pad: in the cleanup phase (an exception thrown by the routine, or a
@@ -833,7 +833,7 @@ pub fn sem_getvalue(s: KResult<&[AtomicU32]>) -> KResult<c_int> {
 // process (opening it twice gives the same address), counted.
 const SEM_SIZE: usize = 32;
 const NAMED_MAX: usize = 256;
-static NAMED_LOCK: liella_rt::sync::RawMutex = liella_rt::sync::RawMutex::new();
+static NAMED_LOCK: niji_rt::sync::RawMutex = niji_rt::sync::RawMutex::new();
 /// Per open name: (device, inode) as one key, the address, the open count.
 static NAMED: [[AtomicUsize; 4]; NAMED_MAX] = [const { [const { AtomicUsize::new(0) }; 4] }; NAMED_MAX];
 
@@ -900,7 +900,7 @@ fn sem_create(path: &[u8; 300], mode: u32, value: u32) -> KResult<()> {
     let _ = CSys.getrandom(&mut rnd, 0);
     const LETTERS: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz012345";
     let random = rnd.map(|b| LETTERS.get(usize::from(b % 32)).copied().unwrap_or(b'x'));
-    for (o, &b) in tmp.iter_mut().zip(b"/dev/shm/sem.liella-".iter().chain(&random)) {
+    for (o, &b) in tmp.iter_mut().zip(b"/dev/shm/sem.niji-".iter().chain(&random)) {
         *o = b;
     }
     let fd = CSys.openat(Fd::CWD, kstr(&tmp)?, O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, mode & 0o7777)?;
@@ -966,12 +966,12 @@ pub fn mtx_init(m: MutexParts<'_>, kind: c_int) -> c_int {
         m.init(if kind & 1 != 0 { ps::MUTEX_RECURSIVE } else { ps::MUTEX_NORMAL }, 0);
         Ok(())
     });
-    liella_legacy::pthread_compat::c11_code(r)
+    niji_legacy::pthread_compat::c11_code(r)
 }
 
 /// A C11 result code for a lock-family call.
 pub fn c11<T>(r: KResult<T>) -> c_int {
-    liella_legacy::pthread_compat::c11_code(r.map(drop))
+    niji_legacy::pthread_compat::c11_code(r.map(drop))
 }
 
 /// `mtx_destroy`.

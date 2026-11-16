@@ -1,7 +1,7 @@
 /* Regex corpus replayer (validation item C; regex_corpus_products.rs). Reads a corpus written by
  * validation/harvest/harvest_reduce.py from the file named by argv[1] (calls glibc made in the
  * validation packages' test suites, with glibc's recorded results) and makes each call again:
- * built against the host C library and against Liella's products, the two outputs must agree.
+ * built against the host C library and against libniji's products, the two outputs must agree.
  * Output: one line per corpus line, "<n>\t<kind>\t<result>\t<recorded result>", where a result
  * has the corpus's own form (P: ret; E: ret regs; G: message; S/M: ret regs). */
 #define _GNU_SOURCE

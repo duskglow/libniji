@@ -6,9 +6,9 @@
 
 use core::sync::atomic::AtomicU32;
 
-use liella_kernel::errno::KResult;
-use liella_kernel::sys::{FutexArg, Sys};
-use liella_kernel::uapi::{Timespec, FUTEX_BITSET_MATCH_ANY, FUTEX_CLOCK_REALTIME, FUTEX_PRIVATE_FLAG, FUTEX_WAIT, FUTEX_WAIT_BITSET, FUTEX_WAKE};
+use niji_kernel::errno::KResult;
+use niji_kernel::sys::{FutexArg, Sys};
+use niji_kernel::uapi::{Timespec, FUTEX_BITSET_MATCH_ANY, FUTEX_CLOCK_REALTIME, FUTEX_PRIVATE_FLAG, FUTEX_WAIT, FUTEX_WAIT_BITSET, FUTEX_WAKE};
 
 /// Who may wait on a word: this process only (the kernel can skip the shared-mapping lookup),
 /// or any process mapping it (`PTHREAD_PROCESS_SHARED`).

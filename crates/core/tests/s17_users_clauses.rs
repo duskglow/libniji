@@ -3,11 +3,11 @@
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
 //! Clause tests for spec §17. From §17.3 the formats, lookups, enumerations and login records
-//! run through `liella::users` and `liella_legacy::{interim_db, accounting}` on fixture files
+//! run through `niji::users` and `niji_legacy::{interim_db, accounting}` on fixture files
 //! (paths are parameters; cursors and `utmp` databases of their own), the C conventions through
 //! the exports; the system's files are only read. `initgroups` runs as a conformance program in
 //! a user namespace.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
@@ -18,30 +18,30 @@ mod scratch;
 use core::ffi::c_void;
 use core::ptr::null_mut;
 
-use liella::error::Errno;
-use liella_boundary::errno;
-use liella_boundary::posix::s17_users as x;
-use liella_boundary::sys::CSys;
-use liella_kernel::testing::Faulty;
-use liella::users;
-use liella_abi::ctypes::c_int;
-use liella_abi::layout::{struct_group, struct_passwd, struct_spwd};
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as sio;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_RDWR};
-use liella_kernel::Fd;
-use liella_legacy::accounting as acct;
-use liella_legacy::cred_compat;
-use liella_legacy::interim_db::{self, Key};
+use niji::error::Errno;
+use niji_boundary::errno;
+use niji_boundary::posix::s17_users as x;
+use niji_boundary::sys::CSys;
+use niji_kernel::testing::Faulty;
+use niji::users;
+use niji_abi::ctypes::c_int;
+use niji_abi::layout::{struct_group, struct_passwd, struct_spwd};
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as sio;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_RDWR};
+use niji_kernel::Fd;
+use niji_legacy::accounting as acct;
+use niji_legacy::cred_compat;
+use niji_legacy::interim_db::{self, Key};
 
 /// Build and run C conformance programs against the products (`conformance/run.sh`).
 fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -394,7 +394,7 @@ fn s17_5_f_0() {
 }
 #[test]
 fn s17_5a_c_0() {
-    if std::env::var("LIELLA_C17_SHELLS").is_ok() {
+    if std::env::var("NIJI_C17_SHELLS").is_ok() {
         let (_g, f) = fixture("c5a-shells", "/bin/sh\n# comment\n\n  /usr/bin/zsh  \nrelative\n/bin/bash # trailing comment\n/bin/csh");
         let k = &CSys;
         let next = || acct::next_shell(k, &f, |s| String::from_utf8_lossy(s).into_owned());
@@ -409,7 +409,7 @@ fn s17_5a_c_0() {
         assert_eq!((missing(), missing(), missing()), (Some("/bin/sh".into()), Some("/bin/csh".into()), None), "no file: /bin/sh and /bin/csh");
         return;
     }
-    let o = std::process::Command::new(std::env::current_exe().unwrap()).args(["s17_5a_c_0", "--exact", "--include-ignored", "--test-threads=1"]).env("LIELLA_C17_SHELLS", "1").output().unwrap();
+    let o = std::process::Command::new(std::env::current_exe().unwrap()).args(["s17_5a_c_0", "--exact", "--include-ignored", "--test-threads=1"]).env("NIJI_C17_SHELLS", "1").output().unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
 }
@@ -464,8 +464,8 @@ fn s17_6_c_3() {
     let b = u.to_bytes();
     assert_eq!(b.len(), 384);
     assert_eq!(users::Utmp::from_bytes(&b), u);
-    assert_eq!(liella_abi::pack::utmp_in(&liella_abi::pack::utmp(&u)), u);
-    assert_eq!(size_of::<liella_abi::layout::struct_utmp>(), 384);
+    assert_eq!(niji_abi::pack::utmp_in(&niji_abi::pack::utmp(&u)), u);
+    assert_eq!(size_of::<niji_abi::layout::struct_utmp>(), 384);
     // Offsets of Appendix C: ut_line 8, ut_id 40, ut_user 44, ut_host 76, ut_tv 340.
     assert_eq!(&b[8..12], b"tty7");
     assert_eq!(&b[40..41], b"7");
@@ -547,20 +547,20 @@ fn s17_6_c_5() {
             assert_eq!(bytes[340..344], old.to_ne_bytes(), "{sec}: the bytes of the signed field");
         }
         assert_eq!(users::Utmp::from_bytes(&bytes).time, (sec, 7), "{sec} round trip through the file");
-        let c = liella_abi::pack::utmp(&late);
+        let c = niji_abi::pack::utmp(&late);
         assert_eq!(c.ut_tv.tv_sec.to_ne_bytes(), raw.to_ne_bytes(), "{sec}: the C member holds the same 32 bits");
-        assert_eq!(liella_abi::pack::utmp_in(&c).time, (sec, 7), "{sec}: and reads back as unsigned");
+        assert_eq!(niji_abi::pack::utmp_in(&c).time, (sec, 7), "{sec}: and reads back as unsigned");
     }
     for sec in [-5, -1, MAX + 1, 1 << 32, i64::MAX, i64::MIN] {
         late.time = (sec, 1);
         assert_eq!(users::Utmp::from_bytes(&late.to_bytes()).time, (0, 0), "{sec}: written as no time");
-        assert_eq!((liella_abi::pack::utmp(&late).ut_tv.tv_sec, liella_abi::pack::utmp(&late).ut_tv.tv_usec), (0, 0), "{sec}: and so to C");
+        assert_eq!((niji_abi::pack::utmp(&late).ut_tv.tv_sec, niji_abi::pack::utmp(&late).ut_tv.tv_usec), (0, 0), "{sec}: and so to C");
     }
     // A C caller's 32-bit value is written as given: a negative member is the unsigned time.
-    let mut c = liella_abi::pack::utmp(&w);
+    let mut c = niji_abi::pack::utmp(&w);
     c.ut_tv.tv_sec = -5;
-    assert_eq!(liella_abi::pack::utmp_in(&c).time.0, MAX - 4);
-    assert_eq!(liella_abi::pack::utmp(&liella_abi::pack::utmp_in(&c)).ut_tv.tv_sec, -5, "the caller's bits unchanged");
+    assert_eq!(niji_abi::pack::utmp_in(&c).time.0, MAX - 4);
+    assert_eq!(niji_abi::pack::utmp(&niji_abi::pack::utmp_in(&c)).ut_tv.tv_sec, -5, "the caller's bits unchanged");
     late.time = (3_000_000_000, 9);
     acct::append(k, &wtmp, &late).unwrap();
     assert_eq!(std::fs::metadata(&wpath).unwrap().len(), 1152, "the record is still written");
@@ -696,7 +696,7 @@ fn s17_5_c_3() {
     // getpass: without a terminal, the prompt on standard error and the line from standard
     // input, into the library's buffer (the terminal case, echo and the bound: the boundary's
     // sym_getpass and sym_getpass_bound, D-17.8).
-    if std::env::var("LIELLA_S17_GETPASS").is_ok() {
+    if std::env::var("NIJI_S17_GETPASS").is_ok() {
         let p = x::getpass(c"Prompt: ".as_ptr()) as usize;
         let s = core::ptr::with_exposed_provenance::<core::ffi::c_char>(p);
         let n = st::strlen(s);
@@ -709,7 +709,7 @@ fn s17_5_c_3() {
         // reexec-guard: allow(spawned; the child's marker output is asserted below)
         .arg(std::env::current_exe().unwrap())
         .args(["s17_5_c_3", "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-        .env("LIELLA_S17_GETPASS", "1")
+        .env("NIJI_S17_GETPASS", "1")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

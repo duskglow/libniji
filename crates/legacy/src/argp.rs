@@ -1,5 +1,5 @@
 //! argp's historical semantics (spec §1.7 ⚑ HIST; D-1.7): when the C interface prints its
-//! messages and when it ends the process. The parser itself (`liella::argp`) only returns
+//! messages and when it ends the process. The parser itself (`niji::argp`) only returns
 //! results and errors; these rules apply them to the flags of a `struct argp_state`.
 //!
 //! * `ARGP_NO_ERRS` in the state silences `argp_error`, `argp_failure`, `argp_usage` and
@@ -8,7 +8,7 @@
 //!   still exits under `ARGP_NO_ERRS` alone.
 //! * Without a state, messages are printed and exits happen.
 
-use liella::argp::{HELP_EXIT_ERR, HELP_EXIT_OK, NO_ERRS, NO_EXIT};
+use niji::argp::{HELP_EXIT_ERR, HELP_EXIT_OK, NO_ERRS, NO_EXIT};
 
 /// Whether a function given a state with `flags` (`None`: no state) prints anything at all.
 pub fn reports(flags: Option<u32>) -> bool {
@@ -55,7 +55,7 @@ pub fn base_name(argv0: &[u8]) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use liella::argp::{HELP_STD_ERR, HELP_STD_HELP};
+    use niji::argp::{HELP_STD_ERR, HELP_STD_HELP};
 
     #[test]
     fn exits_follow_the_state_flags() {

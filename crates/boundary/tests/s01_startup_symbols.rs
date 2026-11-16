@@ -8,11 +8,11 @@
 //! In a test process the host C library started, `environ` and the program names are the host's
 //! objects, so the environment functions are tested on the real environment (cross-checked with
 //! the host's `getenv`). Exits and aborts run in re-executed copies of this binary. What only a
-//! process Liella started can show (the start sequence, the data objects, secure mode) is
+//! process libniji started can show (the start sequence, the data objects, secure mode) is
 //! tested by the C conformance programs these tests run (`conformance/c/s01_*.c`).
 //!
-//! getopt's variables (`optind`, `optarg`, `opterr`, `optopt`) are Liella's own objects in a test
-//! process too (`liella_boundary::data`); the parses here hold [`PARSE`], and their initial
+//! getopt's variables (`optind`, `optarg`, `opterr`, `optopt`) are libniji's own objects in a test
+//! process too (`niji_boundary::data`); the parses here hold [`PARSE`], and their initial
 //! values and the diagnostics are checked in re-executed children. argp's program-wide variables
 //! are defined in C by the products only (in a test process the host's objects of those names
 //! are reached), so they are checked from C. The variadic `argp_error` and `argp_failure` forward
@@ -20,7 +20,7 @@
 //! binary in the plain pass (it would link the C variadic adapters, whose targets only the
 //! products export), so they are tested through real C varargs only. Every getopt and argp
 //! symbol is also called from C by `conformance/c/s01_symbols_options.c`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
@@ -29,24 +29,24 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicI32, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_void};
-use liella_abi::layout::{struct_argp, struct_argp_option, struct_option};
-use liella_boundary::data;
-use liella_boundary::errno;
-use liella_boundary::posix::s01_startup as s;
-use liella_boundary::posix::s12_stdio as io;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_void};
+use niji_abi::layout::{struct_argp, struct_argp_option, struct_option};
+use niji_boundary::data;
+use niji_boundary::errno;
+use niji_boundary::posix::s01_startup as s;
+use niji_boundary::posix::s12_stdio as io;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
 
 mod products;
 
 const EINVAL: i32 = 22;
 const ENOENT: i32 = 2;
-const PROBE: &str = "LIELLA_S01_PROBE";
+const PROBE: &str = "NIJI_S01_PROBE";
 
 /// The process environment is shared by every test: those that change it hold this, and so does
-/// every spawn (a child's environment is read from it; in the export pass that is Liella's
+/// every spawn (a child's environment is read from it; in the export pass that is libniji's
 /// `environ`, which a concurrent `setenv` may replace mid-read).
 static ENV: Mutex<()> = Mutex::new(());
 
@@ -57,9 +57,9 @@ fn env_lock() -> MutexGuard<'static, ()> {
 /// The C text at `p`, through the exported strlen/memcpy (no unsafe in tests).
 fn text(p: *mut c_char) -> String {
     assert!(!p.is_null());
-    let n = liella_boundary::posix::s04_strings::strlen(p);
+    let n = niji_boundary::posix::s04_strings::strlen(p);
     let mut v = vec![0u8; n];
-    liella_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
+    niji_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), p.cast(), n);
     String::from_utf8(v).unwrap()
 }
 
@@ -85,13 +85,13 @@ fn stderr_of(o: &std::process::Output) -> String {
 }
 
 /// Run C conformance programs (conformance/c/<name>.c) against the products: they test what
-/// only a process Liella started can show. `cargo xtask test` builds the products first.
+/// only a process libniji started can show. `cargo xtask test` builds the products first.
 fn conformance(names: &[&str]) {
     // The runner rebuilds its programs in one directory: one run at a time.
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = {
         let _e = env_lock();
@@ -277,7 +277,7 @@ impl Tree {
 
 /// An `open_memstream` stream and the variables it publishes to.
 struct MemOut {
-    fp: *mut liella_abi::layout::FILE,
+    fp: *mut niji_abi::layout::FILE,
     p: Box<*mut c_char>,
     n: Box<usize>,
 }
@@ -295,7 +295,7 @@ impl MemOut {
     fn close(self) -> String {
         assert_eq!(io::fclose(self.fp), 0);
         let mut v = vec![0u8; *self.n];
-        liella_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), (*self.p).cast(), *self.n);
+        niji_boundary::posix::s04_strings::memcpy(v.as_mut_ptr().cast(), (*self.p).cast(), *self.n);
         String::from_utf8(v).unwrap()
     }
 }
@@ -304,7 +304,7 @@ impl MemOut {
 fn sym_abort() {
     if probe().as_deref() == Some("abort") {
         s::atexit(mark_a as *const () as usize);
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::abort();
     }
     use std::os::unix::process::ExitStatusExt;
@@ -323,14 +323,14 @@ fn sym_argp_err_exit_status() {
 
 #[test]
 fn sym_argp_error() {
-    // Variadic: a C adapter over `liella_argp_error3`, which takes a `va_list` (not callable in
+    // Variadic: a C adapter over `niji_argp_error3`, which takes a `va_list` (not callable in
     // the plain pass: see the file header). Real C varargs, with and without ARGP_NO_EXIT.
     conformance(&["s01_symbols_options", "s01_argp"]);
 }
 
 #[test]
 fn sym_argp_failure() {
-    // Variadic: a C adapter over `liella_argp_failure5` (a `va_list` form, as argp_error).
+    // Variadic: a C adapter over `niji_argp_failure5` (a `va_list` form, as argp_error).
     conformance(&["s01_symbols_options", "s01_argp"]);
 }
 
@@ -490,15 +490,15 @@ fn s1_1_c_5_static_relro_read_only() {
 }
 
 /// s1_1_c_0..s1_1_c_6, s1_2_c_1, s1_2_c_3, s1_2_c_5, s1_2_c_6 (D-27.24, design §14): the start-up
-/// and exit conformance programs, linked dynamically, run on the host's glibc and on Liella's
-/// `libc.so.6` under Liella's `ld.so`: the dynamic `__libc_start_main` path sets up what the static
+/// and exit conformance programs, linked dynamically, run on the host's glibc and on libniji's
+/// `libc.so.6` under libniji's `ld.so`: the dynamic `__libc_start_main` path sets up what the static
 /// start does (arguments, environment, TLS, canary, streams, constructors) and exit runs the
 /// handlers, destructors and thread-local destructors.
 #[test]
 fn s1_1_c_0_dynamic_start_conformance() {
     // s1_1_c_0: the C execution environment before main, through ld.so and the dynamic start.
     // Only programs the reference passes too (the static runner never runs them on it):
-    // s12_stdio_front checks Liella's EINVAL for byte output on a wide stream (a recorded
+    // s12_stdio_front checks libniji's EINVAL for byte output on a wide stream (a recorded
     // difference) and s23_timefmt fails its check 75 on the reference; both stay static-only.
     products::conformance_dynamic(&[
         "s01_startup",
@@ -512,10 +512,10 @@ fn s1_1_c_0_dynamic_start_conformance() {
     ]);
 }
 
-/// s1_2_c_5, s1_2_c_3, s1_2_c_1 (D-27.28): Liella's `libc_nonshared.a` and installed `libc.so`.
+/// s1_2_c_5, s1_2_c_3, s1_2_c_1 (D-27.28): libniji's `libc_nonshared.a` and installed `libc.so`.
 /// Code built against them takes `atexit`, `at_quick_exit` and `pthread_atfork` from the archive,
 /// tagged with its own module's `__dso_handle`, and needs only versions the reference exports: a
-/// shared object built against Liella, unloaded by the reference's `dlclose`, has its exit
+/// shared object built against libniji, unloaded by the reference's `dlclose`, has its exit
 /// handler run then and its quick-exit and atfork handlers dropped.
 #[test]
 fn s1_2_c_5_nonshared_archive_two_way() {
@@ -526,7 +526,7 @@ fn s1_2_c_5_nonshared_archive_two_way() {
 #[test]
 fn s1_2_c_5_owner_optin_link_and_reference_refusal() {
     // s1_2_c_5 (D-27.29): the opt-in that registers without the archive's stubs, and its refusal
-    // by a loader without `LIELLA_OWNER_1`.
+    // by a loader without `NIJI_OWNER_1`.
     products::owner_opt_in();
 }
 
@@ -651,13 +651,13 @@ fn sym_getauxval() {
 #[test]
 fn sym_getenv() {
     let _g = env_lock();
-    assert_eq!(s::setenv(c"LIELLA_T_GET".as_ptr(), c"value".as_ptr(), 1), 0);
-    assert_eq!(text(s::getenv(c"LIELLA_T_GET".as_ptr())), "value");
-    assert_eq!(std::env::var("LIELLA_T_GET").unwrap(), "value", "the host's getenv sees the same environ");
-    assert!(s::getenv(c"LIELLA_T_GE".as_ptr()).is_null(), "a prefix is not a match");
-    assert!(s::getenv(c"LIELLA_T_ABSENT".as_ptr()).is_null());
+    assert_eq!(s::setenv(c"NIJI_T_GET".as_ptr(), c"value".as_ptr(), 1), 0);
+    assert_eq!(text(s::getenv(c"NIJI_T_GET".as_ptr())), "value");
+    assert_eq!(std::env::var("NIJI_T_GET").unwrap(), "value", "the host's getenv sees the same environ");
+    assert!(s::getenv(c"NIJI_T_GE".as_ptr()).is_null(), "a prefix is not a match");
+    assert!(s::getenv(c"NIJI_T_ABSENT".as_ptr()).is_null());
     assert!(s::getenv(core::ptr::null()).is_null());
-    s::unsetenv(c"LIELLA_T_GET".as_ptr());
+    s::unsetenv(c"NIJI_T_GET".as_ptr());
 }
 
 #[test]
@@ -670,7 +670,7 @@ fn getenv_reads_whatever_array_the_program_installed() {
         let entries = ["NOEQ", "", "A=1", "=empty", "B==x", "NOEQ=late", "A=2", "AB=3", tail.as_str(), "NOEQX"];
         let keep: Vec<CString> = entries.iter().map(|e| CString::new(*e).unwrap()).collect();
         let mut arr: Vec<*const c_char> = keep.iter().map(|c| c.as_ptr()).chain([core::ptr::null()]).collect();
-        liella_boundary::ffi::environ.store(arr.as_ptr().expose_provenance(), Ordering::Release);
+        niji_boundary::ffi::environ.store(arr.as_ptr().expose_provenance(), Ordering::Release);
         let get = |name: &str| {
             let n = CString::new(name).unwrap();
             let p = s::getenv(n.as_ptr());
@@ -697,7 +697,7 @@ fn getenv_reads_whatever_array_the_program_installed() {
         // An empty array, then none at all.
         arr[0] = core::ptr::null();
         assert_eq!(get("NOEQ"), None, "the array ends at its first NULL");
-        liella_boundary::ffi::environ.store(0, Ordering::Release);
+        niji_boundary::ffi::environ.store(0, Ordering::Release);
         assert_eq!(get("A"), None, "a NULL environ has no variables");
         drop(keep);
     }) {
@@ -748,11 +748,11 @@ fn getenv_word_compare_matches_a_byte_reference() {
                         buf[eoff + e.len()] = 0;
                         let entry = buf.as_ptr().wrapping_add(eoff);
                         let arr = [entry, core::ptr::null()];
-                        liella_boundary::ffi::environ.store(arr.as_ptr().expose_provenance(), Ordering::Release);
+                        niji_boundary::ffi::environ.store(arr.as_ptr().expose_provenance(), Ordering::Release);
                         let got = s::getenv(buf.as_ptr().wrapping_add(noff).cast()).expose_provenance();
                         let want = if e.len() > len && e[..len] == *name && e[len] == b'=' { entry.expose_provenance() + len + 1 } else { 0 };
                         assert_eq!(got, want, "name {:?} at page-{nd}, entry {:?} at page-{ed}", String::from_utf8_lossy(name), String::from_utf8_lossy(e));
-                        liella_boundary::ffi::environ.store(0, Ordering::Release);
+                        niji_boundary::ffi::environ.store(0, Ordering::Release);
                         checked += 1;
                     }
                 }
@@ -958,17 +958,17 @@ fn sym_program_invocation_short_name() {
 fn sym_putenv() {
     let _g = env_lock();
     // The caller's own storage: later changes show through (spec §1.3 contract clause 5).
-    let buf: &'static [AtomicU8] = Box::leak(b"LIELLA_T_PUT=one\0".iter().map(|&b| AtomicU8::new(b)).collect());
+    let buf: &'static [AtomicU8] = Box::leak(b"NIJI_T_PUT=one\0".iter().map(|&b| AtomicU8::new(b)).collect());
     let p = buf.as_ptr().cast::<c_char>().cast_mut();
     assert_eq!(s::putenv(p), 0);
-    assert_eq!(text(s::getenv(c"LIELLA_T_PUT".as_ptr())), "one");
+    assert_eq!(text(s::getenv(c"NIJI_T_PUT".as_ptr())), "one");
     for (i, b) in b"two".iter().enumerate() {
         buf[13 + i].store(*b, Ordering::Relaxed);
     }
-    assert_eq!(text(s::getenv(c"LIELLA_T_PUT".as_ptr())), "two");
-    let name: &'static [AtomicU8] = Box::leak(b"LIELLA_T_PUT\0".iter().map(|&b| AtomicU8::new(b)).collect());
+    assert_eq!(text(s::getenv(c"NIJI_T_PUT".as_ptr())), "two");
+    let name: &'static [AtomicU8] = Box::leak(b"NIJI_T_PUT\0".iter().map(|&b| AtomicU8::new(b)).collect());
     assert_eq!(s::putenv(name.as_ptr().cast::<c_char>().cast_mut()), 0, "a name without '=' removes it");
-    assert!(s::getenv(c"LIELLA_T_PUT".as_ptr()).is_null());
+    assert!(s::getenv(c"NIJI_T_PUT".as_ptr()).is_null());
 }
 
 #[test]
@@ -989,18 +989,18 @@ fn sym_quick_exit() {
 #[test]
 fn sym___secure_getenv() {
     let _g = env_lock();
-    s::setenv(c"LIELLA_T_SEC2".as_ptr(), c"t".as_ptr(), 1);
-    assert_eq!(text(s::__secure_getenv(c"LIELLA_T_SEC2".as_ptr())), "t");
-    s::unsetenv(c"LIELLA_T_SEC2".as_ptr());
+    s::setenv(c"NIJI_T_SEC2".as_ptr(), c"t".as_ptr(), 1);
+    assert_eq!(text(s::__secure_getenv(c"NIJI_T_SEC2".as_ptr())), "t");
+    s::unsetenv(c"NIJI_T_SEC2".as_ptr());
 }
 
 #[test]
 fn sym_secure_getenv() {
     // Not a secure process: as getenv. Secure mode: the s01_secure conformance program.
     let _g = env_lock();
-    s::setenv(c"LIELLA_T_SEC".as_ptr(), c"s".as_ptr(), 1);
-    assert_eq!(text(s::secure_getenv(c"LIELLA_T_SEC".as_ptr())), "s");
-    s::unsetenv(c"LIELLA_T_SEC".as_ptr());
+    s::setenv(c"NIJI_T_SEC".as_ptr(), c"s".as_ptr(), 1);
+    assert_eq!(text(s::secure_getenv(c"NIJI_T_SEC".as_ptr())), "s");
+    s::unsetenv(c"NIJI_T_SEC".as_ptr());
     drop(_g);
     conformance(&["s01_secure"]);
 }
@@ -1008,19 +1008,19 @@ fn sym_secure_getenv() {
 #[test]
 fn sym_setenv() {
     let _g = env_lock();
-    assert_eq!(s::setenv(c"LIELLA_T_SET".as_ptr(), c"1".as_ptr(), 0), 0);
-    let first = s::getenv(c"LIELLA_T_SET".as_ptr());
-    assert_eq!(s::setenv(c"LIELLA_T_SET".as_ptr(), c"2".as_ptr(), 0), 0);
-    assert_eq!(text(s::getenv(c"LIELLA_T_SET".as_ptr())), "1", "no overwrite");
-    assert_eq!(s::setenv(c"LIELLA_T_SET".as_ptr(), c"3".as_ptr(), 1), 0);
-    assert_eq!(text(s::getenv(c"LIELLA_T_SET".as_ptr())), "3");
+    assert_eq!(s::setenv(c"NIJI_T_SET".as_ptr(), c"1".as_ptr(), 0), 0);
+    let first = s::getenv(c"NIJI_T_SET".as_ptr());
+    assert_eq!(s::setenv(c"NIJI_T_SET".as_ptr(), c"2".as_ptr(), 0), 0);
+    assert_eq!(text(s::getenv(c"NIJI_T_SET".as_ptr())), "1", "no overwrite");
+    assert_eq!(s::setenv(c"NIJI_T_SET".as_ptr(), c"3".as_ptr(), 1), 0);
+    assert_eq!(text(s::getenv(c"NIJI_T_SET".as_ptr())), "3");
     assert_eq!(text(first), "1", "a replaced value stays valid (spec §1.3 guarantee 1)");
     for bad in [c"", c"A=B"] {
         errno::set_raw(0);
         assert_eq!(s::setenv(bad.as_ptr(), c"x".as_ptr(), 1), -1);
         assert_eq!(errno::get(), EINVAL);
     }
-    s::unsetenv(c"LIELLA_T_SET".as_ptr());
+    s::unsetenv(c"NIJI_T_SET".as_ptr());
     drop(_g);
     conformance(&["s01_env"]);
 }
@@ -1028,11 +1028,11 @@ fn sym_setenv() {
 #[test]
 fn sym_unsetenv() {
     let _g = env_lock();
-    s::setenv(c"LIELLA_T_UNSET".as_ptr(), c"1".as_ptr(), 1);
-    assert_eq!(s::unsetenv(c"LIELLA_T_UNSET".as_ptr()), 0);
-    assert!(s::getenv(c"LIELLA_T_UNSET".as_ptr()).is_null());
-    assert!(std::env::var("LIELLA_T_UNSET").is_err());
-    assert_eq!(s::unsetenv(c"LIELLA_T_NEVER".as_ptr()), 0);
+    s::setenv(c"NIJI_T_UNSET".as_ptr(), c"1".as_ptr(), 1);
+    assert_eq!(s::unsetenv(c"NIJI_T_UNSET".as_ptr()), 0);
+    assert!(s::getenv(c"NIJI_T_UNSET".as_ptr()).is_null());
+    assert!(std::env::var("NIJI_T_UNSET").is_err());
+    assert_eq!(s::unsetenv(c"NIJI_T_NEVER".as_ptr()), 0);
     errno::set_raw(0);
     assert_eq!(s::unsetenv(c"X=Y".as_ptr()), -1);
     assert_eq!(errno::get(), EINVAL);

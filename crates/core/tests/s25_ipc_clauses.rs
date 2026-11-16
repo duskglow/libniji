@@ -3,7 +3,7 @@
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
 //! Clause tests for spec §25 (pipes and System V IPC through the exports; the `*ctl`
-//! argument shapes through `liella_legacy::ipc_compat`; POSIX message queues and shared
+//! argument shapes through `niji_legacy::ipc_compat`; POSIX message queues and shared
 //! memory through the exports).
 //!
 //! POSIX queues live in the IPC namespace, so their clauses run in a private one: the test
@@ -26,16 +26,16 @@ use std::process::Command;
 use std::sync::atomic::{AtomicI32, AtomicU32, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use liella::error::Errno;
-use liella_abi::ctypes::c_int;
-use liella_boundary::errno;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s25_ipc as x;
-use liella_boundary::selftest::ChildEnd;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MqAttr, SigEvent, SigInfo, SigSet, Sembuf, SemidDs, ShmidDs, Timespec, SIGEV_NONE, SIGEV_SIGNAL, SIGUSR1, SIG_BLOCK};
-use liella_legacy::ipc_compat::{self, CtlShape};
+use niji::error::Errno;
+use niji_abi::ctypes::c_int;
+use niji_boundary::errno;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s25_ipc as x;
+use niji_boundary::selftest::ChildEnd;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MqAttr, SigEvent, SigInfo, SigSet, Sembuf, SemidDs, ShmidDs, Timespec, SIGEV_NONE, SIGEV_SIGNAL, SIGUSR1, SIG_BLOCK};
+use niji_legacy::ipc_compat::{self, CtlShape};
 
 const IPC_PRIVATE: c_int = 0;
 const IPC_NOWAIT: c_int = 0o4000;
@@ -140,31 +140,31 @@ fn s25_1_g_2() {
 
 #[test]
 fn s25_1_g_3() {
-    if std::env::var("LIELLA_C25_PIPE").is_ok() {
+    if std::env::var("NIJI_C25_PIPE").is_ok() {
         // Rust programs start with SIGPIPE ignored; a C program has the default action.
-        let _ = CSys.sigaction_set(13, liella_kernel::sys::Disposition::Default, 0, liella_kernel::uapi::SigSet::empty());
+        let _ = CSys.sigaction_set(13, niji_kernel::sys::Disposition::Default, 0, niji_kernel::uapi::SigSet::empty());
         let [r, w] = pipe();
         io::close(r);
         io::write(w, b"x".as_ptr().cast(), 1);
         CSys.exit_group(0); // not reached: SIGPIPE's default action ends the process
     }
-    if std::env::var("LIELLA_C25_EPIPE").is_ok() {
-        let _ = CSys.sigaction_set(13, liella_kernel::sys::Disposition::Ignore, 0, liella_kernel::uapi::SigSet::empty());
+    if std::env::var("NIJI_C25_EPIPE").is_ok() {
+        let _ = CSys.sigaction_set(13, niji_kernel::sys::Disposition::Ignore, 0, niji_kernel::uapi::SigSet::empty());
         let [r, w] = pipe();
         io::close(r);
         errno::set_raw(0);
         CSys.exit_group(if err(io::write(w, b"x".as_ptr().cast(), 1), Errno::EPIPE) { 0 } else { 1 });
     }
-    let o = child("s25_1_g_3", "LIELLA_C25_PIPE");
+    let o = child("s25_1_g_3", "NIJI_C25_PIPE");
     assert_eq!(std::os::unix::process::ExitStatusExt::signal(&o.status), Some(13), "SIGPIPE");
-    assert_eq!(child("s25_1_g_3", "LIELLA_C25_EPIPE").status.code(), Some(0), "and EPIPE when it is ignored");
+    assert_eq!(child("s25_1_g_3", "NIJI_C25_EPIPE").status.code(), Some(0), "and EPIPE when it is ignored");
 }
 
 #[test]
 fn s25_1_g_4() {
     let [r, w] = pipe();
-    assert_eq!(io::liella_fcntl3(w, 1031, 1 << 16), 1 << 16, "F_SETPIPE_SZ");
-    io::liella_fcntl3(w, 4, 0o4000);
+    assert_eq!(io::niji_fcntl3(w, 1031, 1 << 16), 1 << 16, "F_SETPIPE_SZ");
+    io::niji_fcntl3(w, 4, 0o4000);
     let big = vec![0u8; 1 << 20];
     assert_eq!(io::write(w, big.as_ptr().cast(), big.len()), 1 << 16, "the capacity is what was set");
     io::close(r);
@@ -216,8 +216,8 @@ fn s25_2_c_2() {
 fn s25_2_c_3() {
     // SEM_UNDO: a child's adjustment is reversed when it exits. The child (this test re-run) does only this: it makes no
     // semaphore set of its own, which nothing would remove (SEMTIMEDOP-LOAD).
-    if std::env::var("LIELLA_C25_UNDO").is_ok_and(|v| v.parse::<i32>().is_ok()) {
-        let id: i32 = std::env::var("LIELLA_C25_UNDO").unwrap().parse().unwrap();
+    if std::env::var("NIJI_C25_UNDO").is_ok_and(|v| v.parse::<i32>().is_ok()) {
+        let id: i32 = std::env::var("NIJI_C25_UNDO").unwrap().parse().unwrap();
         let mut up = [Sembuf { num: 0, op: 3, flg: SEM_UNDO }];
         CSys.exit_group(x::semop(id, up.as_mut_ptr().cast(), 1));
     }
@@ -226,7 +226,7 @@ fn s25_2_c_3() {
     let mut ops = [Sembuf { num: 0, op: 1, flg: 0 }, Sembuf { num: 1, op: -1, flg: IPC_NOWAIT as i16 }];
     errno::set_raw(0);
     assert!(err(x::semop(id, ops.as_mut_ptr().cast(), 2) as isize, Errno::EAGAIN));
-    assert_eq!(x::liella_semctl4(id, 0, GETVAL, 0), 0, "all or nothing");
+    assert_eq!(x::niji_semctl4(id, 0, GETVAL, 0), 0, "all or nothing");
     let mut wait = [Sembuf { num: 1, op: -1, flg: 0 }];
     let ts = Timespec { sec: 0, nsec: 10_000_000 };
     // A wait that a signal or the kernel cuts short ends with EINTR (observed under load with no handler installed,
@@ -244,17 +244,17 @@ fn s25_2_c_3() {
     assert!(r == -1 && e == Errno::EAGAIN.get(), "semtimedop's timeout: r={r} errno={e} after {:?}, {tries} tries (id {id})", t0.elapsed());
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["s25_2_c_3", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_C25_UNDO", id.to_string())
+        .env("NIJI_C25_UNDO", id.to_string())
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
     assert_eq!(o.status.code(), Some(0));
-    assert_eq!(x::liella_semctl4(id, 0, GETVAL, 0), 0, "undone at exit");
+    assert_eq!(x::niji_semctl4(id, 0, GETVAL, 0), 0, "undone at exit");
     // The union semun's members by command: an int (SETVAL), a pointer (IPC_STAT).
     assert_eq!(ipc_compat::sem_shape(SETVAL), Some(CtlShape::Val));
     assert_eq!(ipc_compat::sem_shape(IPC_STAT), Some(CtlShape::Ds));
     assert_eq!(ipc_compat::sem_shape(17), Some(CtlShape::Values));
-    x::liella_semctl4(id, 0, IPC_RMID, 0);
+    x::niji_semctl4(id, 0, IPC_RMID, 0);
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn s25_2_c_4() {
 #[test]
 fn s25_2_c_5() {
     let q = x::msgget(IPC_PRIVATE, 0o600);
-    let mut ds = liella_kernel::uapi::MsqidDs::default();
+    let mut ds = niji_kernel::uapi::MsqidDs::default();
     assert_eq!(x::msgctl(q, IPC_STAT, (&raw mut ds).cast()), 0);
     assert_eq!(x::msgctl(q, IPC_SET, (&raw mut ds).cast()), 0, "IPC_SET (the owner may set what IPC_STAT read)");
     let mut info = [0u8; 32];
@@ -287,9 +287,9 @@ fn s25_2_c_5() {
     assert_eq!(x::msgctl(q, IPC_RMID, null_mut()), 0, "IPC_RMID");
     let s = x::semget(IPC_PRIVATE, 1, 0o600);
     let mut sds = SemidDs::default();
-    assert_eq!(x::liella_semctl4(s, 0, IPC_STAT, (&raw mut sds) as usize), 0);
-    assert_eq!(x::liella_semctl4(s, 0, IPC_SET, (&raw mut sds) as usize), 0);
-    assert_eq!(x::liella_semctl4(s, 0, IPC_RMID, 0), 0);
+    assert_eq!(x::niji_semctl4(s, 0, IPC_STAT, (&raw mut sds) as usize), 0);
+    assert_eq!(x::niji_semctl4(s, 0, IPC_SET, (&raw mut sds) as usize), 0);
+    assert_eq!(x::niji_semctl4(s, 0, IPC_RMID, 0), 0);
     let m = x::shmget(IPC_PRIVATE, 4096, 0o600);
     let mut mds = ShmidDs::default();
     assert_eq!(x::shmctl(m, IPC_STAT, (&raw mut mds).cast()), 0);
@@ -343,8 +343,8 @@ fn s25_2_f_0() {
     x::msgctl(q, IPC_RMID, null_mut());
     assert_eq!(waiter.join().unwrap(), (-1, Errno::EIDRM.get()), "EIDRM");
     let s = x::semget(IPC_PRIVATE, 1, 0o600);
-    assert!(err(x::liella_semctl4(s, 0, SETVAL, 40000) as isize, Errno::ERANGE), "ERANGE: above SEMVMX");
-    x::liella_semctl4(s, 0, IPC_RMID, 0);
+    assert!(err(x::niji_semctl4(s, 0, SETVAL, 40000) as isize, Errno::ERANGE), "ERANGE: above SEMVMX");
+    x::niji_semctl4(s, 0, IPC_RMID, 0);
 }
 
 // ------------------------------------------------------------------------------ POSIX queues (§25.3)
@@ -355,7 +355,7 @@ const O_RDWR: c_int = 2;
 const O_CREAT: c_int = 0o100;
 const O_EXCL: c_int = 0o200;
 const O_NONBLOCK: c_int = 0o4000;
-const IPCNS: &str = "LIELLA_S25_IPCNS";
+const IPCNS: &str = "NIJI_S25_IPCNS";
 
 /// Run `body` in a private IPC namespace: this test re-executed under `unshare --user --ipc
 /// --map-current-user` (see the module documentation). In the namespace, `body` runs and the
@@ -378,7 +378,7 @@ fn in_ipc_ns(test: &str, body: impl FnOnce()) {
 
 /// `mq_open(name, flags, mode, attr)` through the variadic adapter's target.
 fn mq(name: &core::ffi::CStr, flags: c_int, mode: u32, attr: Option<&MqAttr>) -> c_int {
-    x::liella_mq_open4(name.as_ptr(), flags, mode, attr.map_or(null(), |a| a as *const MqAttr))
+    x::niji_mq_open4(name.as_ptr(), flags, mode, attr.map_or(null(), |a| a as *const MqAttr))
 }
 
 fn mq_put(q: c_int, m: &[u8], prio: u32) -> c_int {
@@ -516,7 +516,7 @@ fn signal_child(k: &CSys) -> i32 {
 #[test]
 fn s25_3_c_3() {
     in_ipc_ns("s25_3_c_3", || {
-        assert_eq!(liella_boundary::selftest::in_child(signal_child), Ok(ChildEnd::Exited(0)), "SIGEV_SIGNAL");
+        assert_eq!(niji_boundary::selftest::in_child(signal_child), Ok(ChildEnd::Exited(0)), "SIGEV_SIGNAL");
         // SIGEV_THREAD: a new thread calls the function with sigev_value, once per registration.
         let q = mq(c"/c3", O_RDWR | O_CREAT | O_NONBLOCK, 0o600, Some(&MqAttr::new(4, 8)));
         let f = notified as extern "C" fn(usize) as usize as u64;
@@ -584,7 +584,7 @@ fn s25_3_c_3_records() {
         std::thread::sleep(Duration::from_millis(100));
         let seen: Vec<u32> = R_SEEN.iter().map(|s| s.load(Ordering::SeqCst)).collect();
         assert_eq!(seen, [0, 0, 1, 1], "only the live registrations, once each");
-        assert!(until(Duration::from_secs(5), || liella_boundary::selftest::mq_records_in_use() == 0), "every record given back (removed, or notified)");
+        assert!(until(Duration::from_secs(5), || niji_boundary::selftest::mq_records_in_use() == 0), "every record given back (removed, or notified)");
         x::mq_close(b);
         x::mq_close(c);
         for n in [c"/r1", c"/r2", c"/r3"] {
@@ -604,19 +604,19 @@ fn s25_3_c_3_refused() {
         let gone = mq(c"/u2", O_RDWR | O_CREAT | O_NONBLOCK, 0o600, Some(&MqAttr::new(4, 8)));
         assert!(q >= 0 && gone >= 0);
         assert_eq!(x::mq_close(gone), 0);
-        let base = liella_boundary::selftest::mq_records_in_use();
+        let base = niji_boundary::selftest::mq_records_in_use();
         for _ in 0..20 {
             assert!(fails(x::mq_notify(gone, Some(&SigEvent::thread(0, f, 0))) as isize, Errno::EBADF), "closed descriptor");
         }
-        assert_eq!(liella_boundary::selftest::mq_records_in_use(), base, "nothing kept after EBADF");
+        assert_eq!(niji_boundary::selftest::mq_records_in_use(), base, "nothing kept after EBADF");
         assert_eq!(x::mq_notify(q, Some(&SigEvent::thread(0, f, 0))), 0);
-        assert_eq!(liella_boundary::selftest::mq_records_in_use(), base + 1, "the registration");
+        assert_eq!(niji_boundary::selftest::mq_records_in_use(), base + 1, "the registration");
         for _ in 0..20 {
             assert!(fails(x::mq_notify(q, Some(&SigEvent::thread(0, f, 0))) as isize, Errno::EBUSY), "a single registrant");
         }
-        assert_eq!(liella_boundary::selftest::mq_records_in_use(), base + 1, "nothing kept after EBUSY");
+        assert_eq!(niji_boundary::selftest::mq_records_in_use(), base + 1, "nothing kept after EBUSY");
         assert_eq!(x::mq_notify(q, None), 0);
-        assert!(until(Duration::from_secs(5), || liella_boundary::selftest::mq_records_in_use() == base), "the removed registration's record freed");
+        assert!(until(Duration::from_secs(5), || niji_boundary::selftest::mq_records_in_use() == base), "the removed registration's record freed");
         x::mq_close(q);
         for n in [c"/u1", c"/u2"] {
             x::mq_unlink(n.as_ptr());
@@ -637,7 +637,7 @@ extern "C" fn fork_notified(v: usize) {
 /// registration of its own, on another queue, notifies it (once, with its value), and none of
 /// the parent's records is in use.
 fn thread_child(_k: &CSys) -> i32 {
-    if liella_boundary::selftest::mq_records_in_use() != 0 {
+    if niji_boundary::selftest::mq_records_in_use() != 0 {
         return 5;
     }
     let q =mq(c"/k2", O_RDWR | O_CREAT | O_NONBLOCK, 0o600, Some(&MqAttr::new(4, 8)));
@@ -667,7 +667,7 @@ fn s25_3_c_3_fork() {
         let q = mq(c"/k1", O_RDWR | O_CREAT | O_NONBLOCK, 0o600, Some(&MqAttr::new(4, 8)));
         let f = fork_notified as extern "C" fn(usize) as usize as u64;
         assert_eq!(x::mq_notify(q, Some(&SigEvent::thread(5, f, 0))), 0);
-        assert_eq!(liella_boundary::selftest::in_library_child(thread_child), Ok(ChildEnd::Exited(0)), "the child's own notification");
+        assert_eq!(niji_boundary::selftest::in_library_child(thread_child), Ok(ChildEnd::Exited(0)), "the child's own notification");
         std::thread::sleep(Duration::from_millis(100));
         assert_eq!(F_SEEN.load(Ordering::SeqCst), 0, "nothing in the parent from the child");
         assert_eq!(mq_put(q, b"m", 0), 0);
@@ -763,7 +763,7 @@ fn s25_3_x_0() {
 /// Build and run C conformance programs against the products (`conformance/run.sh`).
 fn conformance(names: &[&str]) {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    assert!(root.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
+    assert!(root.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
 }
@@ -777,13 +777,13 @@ fn s25_4_c_0() {
     let mut d = dir.as_os_str().as_encoded_bytes().to_vec();
     d.push(b'/');
     // The only test of this file that uses shared memory: the directory is its alone.
-    liella_boundary::selftest::shm_dir(Some(&d));
+    niji_boundary::selftest::shm_dir(Some(&d));
     let fd = x::shm_open(c"/obj".as_ptr(), O_RDWR | O_CREAT | O_EXCL, 0o600);
     assert!(fd >= 0, "created");
     assert!(dir.join("obj").exists(), "a file named after the name without its slash");
-    assert_eq!(io::liella_fcntl3(fd, 1, 0), 1, "close-on-exec");
-    assert_eq!(io::liella_fcntl3(fd, 3, 0) & O_NONBLOCK, 0, "no O_NONBLOCK unless asked");
-    assert_eq!(liella_boundary::posix::s13_filesystem::ftruncate(fd, 8192), 0, "sized with ftruncate");
+    assert_eq!(io::niji_fcntl3(fd, 1, 0), 1, "close-on-exec");
+    assert_eq!(io::niji_fcntl3(fd, 3, 0) & O_NONBLOCK, 0, "no O_NONBLOCK unless asked");
+    assert_eq!(niji_boundary::posix::s13_filesystem::ftruncate(fd, 8192), 0, "sized with ftruncate");
     let map = io::mmap(null_mut(), 8192, 3, 1, fd, 0);
     assert_ne!(map as isize, -1, "mapped with mmap (shared, read and write)");
     assert_eq!(io::munmap(map, 8192), 0);
@@ -804,7 +804,7 @@ fn s25_4_c_0() {
     std::fs::create_dir(dir.join("dir")).unwrap();
     assert!(fails(x::shm_open(c"/dir".as_ptr(), O_RDONLY, 0) as isize, Errno::EINVAL), "a directory");
     let fifo = std::ffi::CString::new(dir.join("fifo").as_os_str().as_encoded_bytes()).unwrap();
-    assert_eq!(liella_boundary::posix::s13_filesystem::mkfifo(fifo.as_ptr(), 0o600), 0);
+    assert_eq!(niji_boundary::posix::s13_filesystem::mkfifo(fifo.as_ptr(), 0o600), 0);
     assert!(fails(x::shm_open(c"/fifo".as_ptr(), O_RDONLY, 0) as isize, Errno::EINVAL), "a FIFO");
     // shm_unlink removes the name; the descriptors stay usable.
     assert_eq!(x::shm_unlink(c"/obj".as_ptr()), 0);
@@ -815,6 +815,6 @@ fn s25_4_c_0() {
     assert!(fails(x::shm_unlink(c"/a/b".as_ptr()) as isize, Errno::ENOENT), "no object has that name");
     io::close(fd);
     io::close(ro);
-    liella_boundary::selftest::shm_dir(None);
+    niji_boundary::selftest::shm_dir(None);
     std::fs::remove_dir_all(&dir).unwrap();
 }

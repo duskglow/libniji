@@ -5,13 +5,13 @@
 
 // Sample generation is bit-level arithmetic on bounded values; indexing is over equal-length vectors.
 #![allow(clippy::arithmetic_side_effects, clippy::indexing_slicing, clippy::as_conversions)]
-// exp/log are Liella's own C entries (m::exp, m::log): keep LLVM from treating them as builtins.
+// exp/log are libniji's own C entries (m::exp, m::log): keep LLVM from treating them as builtins.
 #![no_builtins]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_math::real::Real;
-use liella_math::status::Rounding;
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_math::real::Real;
+use niji_math::status::Rounding;
 
 /// xorshift64: a fixed, reproducible sample.
 fn next(s: &mut u64) -> u64 {
@@ -213,7 +213,7 @@ fn trig_fma_build_matches_baseline_bit_for_bit() {
 // alone (and underflow for a subnormal result), as the accurate path does.
 #[test]
 fn erf_and_erfc_fma_build_matches_baseline_and_raises_inexact_alone() {
-    use liella_boundary::posix::s10_math::{feclearexcept, fetestexcept};
+    use niji_boundary::posix::s10_math::{feclearexcept, fetestexcept};
     const FE_ALL: i32 = 0x3d;
     const FE_UNDERFLOW: i32 = 0x10;
     const FE_INEXACT: i32 = 0x20;
@@ -232,8 +232,8 @@ fn erf_and_erfc_fma_build_matches_baseline_and_raises_inexact_alone() {
         let mag = 2f64.powi(-((b % 60) as i32)) * (1.0 + (b >> 12) as f64 * 2f64.powi(-52));
         if b & 1 == 0 { mag } else { -mag }
     }));
-    let n = both(m::erf, |x| liella_math::special::erf(x, Rounding::Nearest).0, &xs);
-    let k = both(m::erfc, |x| liella_math::special::erfc(x, Rounding::Nearest).0, &xs);
+    let n = both(m::erf, |x| niji_math::special::erf(x, Rounding::Nearest).0, &xs);
+    let k = both(m::erfc, |x| niji_math::special::erfc(x, Rounding::Nearest).0, &xs);
     assert!(n > 2000 && k > 2000, "sample too small: {n} {k}");
     for build in [true, false] {
         assert!(selftest::set_math_fma(build));
@@ -261,7 +261,7 @@ fn erf_and_erfc_fma_build_matches_baseline_and_raises_inexact_alone() {
 // bits; a black-box probe of the reference raises underflow there too).
 #[test]
 fn erf_tiny_band_rounds_correctly_with_its_flags_in_every_mode() {
-    use liella_boundary::posix::s10_math::{feclearexcept, fesetround, fetestexcept};
+    use niji_boundary::posix::s10_math::{feclearexcept, fesetround, fetestexcept};
     const FE_ALL: i32 = 0x3d;
     const FE_UNDERFLOW: i32 = 0x10;
     const FE_INEXACT: i32 = 0x20;
@@ -286,7 +286,7 @@ fn erf_tiny_band_rounds_correctly_with_its_flags_in_every_mode() {
     let neg: Vec<f64> = xs.iter().map(|x| -x).collect();
     xs.extend(neg);
     let want: Vec<[f64; 4]> =
-        xs.iter().map(|&x| MODES.map(|(_, r)| liella_math::special::erf_accurate::<f64>(x, r).0)).collect();
+        xs.iter().map(|&x| MODES.map(|(_, r)| niji_math::special::erf_accurate::<f64>(x, r).0)).collect();
     let mut builds = 0;
     for fma in [true, false] {
         if !selftest::set_math_fma(fma) {
@@ -361,7 +361,7 @@ fn expm1_log1p_hyperbolic_cbrt_fma_build_matches_baseline_bit_for_bit() {
 
 /// `cexp` through its export, as one pair of bits.
 fn cexp_bits((x, y): (f64, f64)) -> (u64, u64) {
-    let r = m::cexp(liella_boundary::mathret::Complex { re: x, im: y });
+    let r = m::cexp(niji_boundary::mathret::Complex { re: x, im: y });
     (r.re.to_bits(), r.im.to_bits())
 }
 
@@ -392,7 +392,7 @@ fn cexp_fma_build_matches_baseline_bit_for_bit() {
         let plain = cexp_bits(z);
         assert_eq!(fused[i], plain, "cexp({z:?}): FMA build {:x?}, baseline {plain:x?}", fused[i]);
         if i % 16 == 0 {
-            let ((re, im), _) = liella_math::complex::cexp_route(z.0, z.1, Rounding::Nearest);
+            let ((re, im), _) = niji_math::complex::cexp_route(z.0, z.1, Rounding::Nearest);
             assert_eq!(plain, (re.to_bits(), im.to_bits()), "cexp({z:?}): not the 384-bit route's pair");
         }
     }

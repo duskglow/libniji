@@ -17,12 +17,12 @@
 //! * [`bias`]: the mapped program's load bias, from `PT_PHDR` or, without one, its ELF header.
 //! * [`needs_objects`]: whether a dynamic array names a `DT_NEEDED` object (loading dependencies
 //!   comes with DL-8; until then such a program is refused).
-//! * [`private`]: the C library's private start interface (`LIELLA_PRIVATE`, design §14, L14-10,
+//! * [`private`]: the C library's private start interface (`NIJI_PRIVATE`, design §14, L14-10,
 //!   D-27.22): the build tag both products carry, [`private::StartInfo`] and the lookup of
-//!   `__liella_libc_early_init` with the tag check.
+//!   `__niji_libc_early_init` with the tag check.
 
-use liella_kernel::auxv::Auxv;
-use liella_kernel::uapi::{AT_BASE, AT_ENTRY, AT_PHDR, AT_PHENT, AT_PHNUM, AT_SECURE};
+use niji_kernel::auxv::Auxv;
+use niji_kernel::uapi::{AT_BASE, AT_ENTRY, AT_PHDR, AT_PHENT, AT_PHNUM, AT_SECURE};
 
 /// `sizeof(Elf64_Phdr)`: the only program-header size the loader reads.
 pub const PHENT: u64 = 56;
@@ -139,32 +139,32 @@ pub struct LdEnv<'a> {
     pub report_nonshared: bool,
 }
 
-/// The Liella-only setting that asks the loader for the libc_nonshared.a report (D-27.29, owner
+/// The libniji-only setting that asks the loader for the libc_nonshared.a report (D-27.29, owner
 /// ruling #4861): a distribution that built its archive with the notice lists the objects still
 /// registering exit or fork handlers through the archive's members.
-pub const REPORT_NONSHARED_ENV: &[u8] = b"LIELLA_LD_REPORT_NONSHARED";
+pub const REPORT_NONSHARED_ENV: &[u8] = b"NIJI_LD_REPORT_NONSHARED";
 
-/// The owner name of the notice note an archive member built with `LIELLA_NONSHARED_NOTICE=1`
-/// carries (section `.note.liella.nonshared`, allocated, so in the linked object's `PT_NOTE`).
-pub const NONSHARED_NOTE_NAME: &[u8] = b"Liella";
+/// The owner name of the notice note an archive member built with `NIJI_NONSHARED_NOTICE=1`
+/// carries (section `.note.niji.nonshared`, allocated, so in the linked object's `PT_NOTE`).
+pub const NONSHARED_NOTE_NAME: &[u8] = b"libniji";
 
-/// The notice note's `n_type` (Liella's own note namespace; the descriptor is empty).
-pub const NT_LIELLA_NONSHARED: u32 = 1;
+/// The notice note's `n_type` (libniji's own note namespace; the descriptor is empty).
+pub const NT_NIJI_NONSHARED: u32 = 1;
 
 /// Whether the object `elf` carries the libc_nonshared.a notice: a [`NONSHARED_NOTE_NAME`] note of
-/// type [`NT_LIELLA_NONSHARED`] in any `PT_NOTE` segment. Notes the reader cannot read count as
+/// type [`NT_NIJI_NONSHARED`] in any `PT_NOTE` segment. Notes the reader cannot read count as
 /// absent (the report is advice; it never refuses an object).
 #[must_use]
 pub fn uses_nonshared_stubs(elf: &crate::elf::Elf<'_>) -> bool {
     elf.program_headers()
         .filter(|ph| ph.p_type == crate::elf::pt::NOTE)
-        .any(|ph| elf.notes(&ph).is_ok_and(|ns| ns.map_while(Result::ok).any(|n| n.name == NONSHARED_NOTE_NAME && n.n_type == NT_LIELLA_NONSHARED)))
+        .any(|ph| elf.notes(&ph).is_ok_and(|ns| ns.map_while(Result::ok).any(|n| n.name == NONSHARED_NOTE_NAME && n.n_type == NT_NIJI_NONSHARED)))
 }
 
 /// The report line for an object `name` that carries the notice (standard error, in order).
 #[must_use]
 pub fn nonshared_report(name: &[u8]) -> [&[u8]; 3] {
-    [b"ld.so: ", name, b": registers exit or fork handlers through libc_nonshared.a (link with the liella-owner directory to opt in to LIELLA_OWNER_1)\n"]
+    [b"ld.so: ", name, b": registers exit or fork handlers through libc_nonshared.a (link with the niji-owner directory to opt in to NIJI_OWNER_1)\n"]
 }
 
 /// The value of `name` in the environment entry `entry` (`NAME=value`), if it is that name's entry.
@@ -264,19 +264,19 @@ pub const NEEDS_OBJECTS: &[u8] = b"ld.so: the program needs shared objects; load
 
 /// The load bias of a mapped program (D-27.18, ruling #4371): `PT_PHDR`'s, or without one the
 /// one its ELF header and the `PT_LOAD` holding its program headers give. One implementation,
-/// in libc's start (`liella_rt::start::bias`), shared with libc's own lookups of the executable.
-pub use liella_rt::start::bias;
+/// in libc's start (`niji_rt::start::bias`), shared with libc's own lookups of the executable.
+pub use niji_rt::start::bias;
 
-/// The private start interface between `ld.so` and `libc.so.6` (version node `LIELLA_PRIVATE`,
+/// The private start interface between `ld.so` and `libc.so.6` (version node `NIJI_PRIVATE`,
 /// plan/ph14/design.md §14, L14-10, R14-12, D-27.22). Never in a public header.
 pub mod private {
     use crate::reloc::Obj;
     use crate::symbols::{Object, Request, Want};
 
-    pub use liella_rt::start::private::{BUILD_TAG, EARLY_INIT, NODE, OWNER_UNLOAD, StartInfo, TAG_LEN, TAG_PREFIX, THREAD_WALK};
+    pub use niji_rt::start::private::{BUILD_TAG, EARLY_INIT, NODE, OWNER_UNLOAD, StartInfo, TAG_LEN, TAG_PREFIX, THREAD_WALK};
 
-    /// The loader's build tag (`liella_rt::start::private::tag`), compared with the C library's.
-    pub const TAG: [u8; TAG_LEN] = liella_rt::start::private::tag(option_env!("LIELLA_BUILD_TAG"));
+    /// The loader's build tag (`niji_rt::start::private::tag`), compared with the C library's.
+    pub const TAG: [u8; TAG_LEN] = niji_rt::start::private::tag(option_env!("NIJI_BUILD_TAG"));
 
     /// [`TAG_LEN`] as a symbol size.
     const TAG_SIZE: u64 = 64;
@@ -303,8 +303,8 @@ pub mod private {
         /// The diagnostic after the object's name (standard error).
         pub fn message(self) -> &'static [u8] {
             match self {
-                PrivateError::Mismatch(_) => b": LIELLA_PRIVATE build tag differs from the dynamic loader's (the C library and ld.so come from different builds)\n",
-                PrivateError::Malformed(_) => b": malformed LIELLA_PRIVATE symbols\n",
+                PrivateError::Mismatch(_) => b": NIJI_PRIVATE build tag differs from the dynamic loader's (the C library and ld.so come from different builds)\n",
+                PrivateError::Malformed(_) => b": malformed NIJI_PRIVATE symbols\n",
             }
         }
     }
@@ -312,7 +312,7 @@ pub mod private {
     /// The first object but `skip` (the loader itself) that defines [`EARLY_INIT`] at [`NODE`], once its
     /// [`BUILD_TAG`] is checked against [`TAG`] (L14-10): the tag must be a [`TAG_LEN`]-byte object
     /// inside the file part of a `PT_LOAD`, read through `read(address, out)` (the object is mapped).
-    /// `None`: no object has the interface (a program without Liella's C library).
+    /// `None`: no object has the interface (a program without libniji's C library).
     ///
     /// # Errors
     ///

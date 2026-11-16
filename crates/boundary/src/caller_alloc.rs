@@ -2,17 +2,17 @@
 //! (finding F23, decision D-2.1): caller-owned memory through `malloc`/`calloc`/`realloc`/`free`,
 //! and the calling thread's `errno` cell through `__errno_location`.
 //!
-//! In products these symbols resolve to Liella's own exports (phases 3–4), or to a program's own
+//! In products these symbols resolve to libniji's own exports (phases 3–4), or to a program's own
 //! malloc family when it replaces it (D-X.14, "Replacing malloc"); in hosted test builds they
 //! resolve to the running C library. Either way C callers and the library agree on one allocator
 //! and one `errno`. The allocator is reached through the C layer's forwarders
-//! (`liella_caller_malloc`, ...: one call each to the symbol), never directly: within the
+//! (`niji_caller_malloc`, ...: one call each to the symbol), never directly: within the
 //! library's own optimised code a call to `malloc` could be bound to, inlined from or merged with
 //! the library's definition, and a program's replacement would then be bypassed.
 
 use core::ffi::c_void;
 
-use liella_kernel::errno::{Errno, KResult};
+use niji_kernel::errno::{Errno, KResult};
 
 use crate::conv;
 
@@ -24,15 +24,15 @@ use crate::conv;
 // UNSAFE(extern): Rust cannot call C library functions without declaring them.
 #[allow(unsafe_code)]
 unsafe extern "C" {
-    #[link_name = "liella_caller_malloc"]
+    #[link_name = "niji_caller_malloc"]
     safe fn c_malloc(n: usize) -> *mut c_void;
-    #[link_name = "liella_caller_calloc"]
+    #[link_name = "niji_caller_calloc"]
     safe fn c_calloc(n: usize, size: usize) -> *mut c_void;
     /// Obligation: `p` is NULL or came from this allocator and is not used afterwards.
-    #[link_name = "liella_caller_realloc"]
+    #[link_name = "niji_caller_realloc"]
     safe fn c_realloc(p: *mut c_void, n: usize) -> *mut c_void;
     /// Obligation: `p` is NULL or came from this allocator and is not used afterwards.
-    #[link_name = "liella_caller_free"]
+    #[link_name = "niji_caller_free"]
     safe fn c_free(p: *mut c_void);
     pub(crate) safe fn __errno_location() -> *mut i32;
 }
@@ -122,7 +122,7 @@ pub(crate) fn dup_bytes(bytes: &[u8]) -> KResult<usize> {
 /// overflows. A size of 0 is `realloc`'s (the block freed, NULL without an error). Obligation (on
 /// the C caller): `addr` is 0 or came from this allocator.
 /// Without the exported symbols (hosted test builds, where `realloc` is the running C library's
-/// while `free` and `malloc_usable_size` under test are Liella's), the heap's own path.
+/// while `free` and `malloc_usable_size` under test are libniji's), the heap's own path.
 pub(crate) fn reallocarray(addr: usize, k: usize, n: usize) -> KResult<usize> {
     #[cfg(not(feature = "export"))]
     {

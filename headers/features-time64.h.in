@@ -1,7 +1,7 @@
 @@generated
-/* features-time64.h: the _TIME_BITS level is computed by features.h (__LIELLA_TIME64). */
-#ifndef __LIELLA_H_features_time64_h
-#define __LIELLA_H_features_time64_h 1
+/* features-time64.h: the _TIME_BITS level is computed by features.h (__NIJI_TIME64). */
+#ifndef __NIJI_H_features_time64_h
+#define __NIJI_H_features_time64_h 1
 
 #include <features.h>
 

@@ -9,12 +9,12 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::{Relaxed, SeqCst}};
 use std::sync::{Arc, Barrier, Mutex, MutexGuard};
 
-use liella_abi::ctypes::{c_int, c_void};
-use liella_boundary::posix::s03_memory as m;
-use liella_boundary::heap::{rust_alloc, rust_alloc_zeroed, rust_dealloc, rust_realloc};
-use liella_boundary::posix::s04_strings as s;
-use liella_rt::heap::{ALIGN, CLASSES};
-use liella_boundary::selftest;
+use niji_abi::ctypes::{c_int, c_void};
+use niji_boundary::posix::s03_memory as m;
+use niji_boundary::heap::{rust_alloc, rust_alloc_zeroed, rust_dealloc, rust_realloc};
+use niji_boundary::posix::s04_strings as s;
+use niji_rt::heap::{ALIGN, CLASSES};
+use niji_boundary::selftest;
 
 struct Gen(u64);
 impl Gen {
@@ -152,7 +152,7 @@ fn threads_allocate_free_locally_and_remotely_without_overlap() {
                     check(b);
                     m::free(b.0 as *mut c_void);
                 }
-                // As a Liella thread's exit does.
+                // As a libniji thread's exit does.
                 selftest::park_heap_cache();
             })
         })
@@ -161,7 +161,7 @@ fn threads_allocate_free_locally_and_remotely_without_overlap() {
         h.join().unwrap();
     }
     assert_eq!(m::malloc_trim(0), 1, "kept and empty memory goes back");
-    // With `export`, this binary's own `malloc` is Liella's: the test harness and the standard
+    // With `export`, this binary's own `malloc` is libniji's: the test harness and the standard
     // library allocate from the same heap, so only their small residue may differ.
     if cfg!(feature = "export") {
         assert!(in_use().abs_diff(base) < 64 << 10, "every block came back (within the harness's own allocations)");
@@ -174,7 +174,7 @@ fn threads_allocate_free_locally_and_remotely_without_overlap() {
 fn pin_to_cpu0() {
     let mut mask = [0u64; 16];
     mask[0] = 1;
-    let r = liella_boundary::posix::s24_system::sched_setaffinity(0, size_of_val(&mask), mask.as_ptr().cast());
+    let r = niji_boundary::posix::s24_system::sched_setaffinity(0, size_of_val(&mask), mask.as_ptr().cast());
     assert_eq!(r, 0, "sched_setaffinity");
 }
 
@@ -188,7 +188,7 @@ fn a_new_thread_takes_over_a_parked_cache() {
     // A thread allocates, parks its cache; the next thread on its node continues with the
     // same slabs, so its first block of the class comes from where the first thread left off.
     // (A class the standard library's thread start does not use: with `export` it allocates
-    // through Liella too.) Both threads run on CPU 0: caches are parked per NUMA node (D-3.11),
+    // through libniji too.) Both threads run on CPU 0: caches are parked per NUMA node (D-3.11),
     // and on a machine with several nodes the second thread could otherwise start on another.
     // The test harness's own threads start and exit on that node too, parking or adopting a
     // cache between the two, so the check does not compare addresses alone: right before the
@@ -410,7 +410,7 @@ fn rust_alloc_zeroed_is_zero_after_a_dirty_free() {
 fn pin_to(cpu: usize) {
     let mut mask = [0u64; 16];
     mask[(cpu / 64) % 16] = 1 << (cpu % 64);
-    let _ = liella_boundary::posix::s24_system::sched_setaffinity(0, size_of_val(&mask), mask.as_ptr().cast());
+    let _ = niji_boundary::posix::s24_system::sched_setaffinity(0, size_of_val(&mask), mask.as_ptr().cast());
 }
 
 /// Usable bytes handed out by `tracked_malloc` once each call returned, and bytes whose
@@ -445,7 +445,7 @@ fn statistics_never_read_below_the_blocks_live_throughout() {
     let _g = serial();
     const SIZES: [usize; 6] = [24, 32, 100, 1000, 1024, 4000];
     const SAMPLES: usize = 100_000;
-    let cpus = usize::try_from(liella_boundary::posix::s24_system::get_nprocs()).unwrap_or(1).max(1);
+    let cpus = usize::try_from(niji_boundary::posix::s24_system::get_nprocs()).unwrap_or(1).max(1);
     let workers = cpus.clamp(4, 16);
     let base = in_use();
     let (a0, f0) = (ALLOCATED.load(SeqCst), FREEING.load(SeqCst));

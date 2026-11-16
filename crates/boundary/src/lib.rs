@@ -17,7 +17,7 @@
 //! At runtime this crate is both ends of the stack: C callers enter through `posix` (or, for
 //! programs not written against POSIX's conventions, through the native C ABI, `native`,
 //! D-X.10), the clean
-//! library runs generic over `liella_kernel::Sys`, and `sys::CSys` reaches the kernel through
+//! library runs generic over `niji_kernel::Sys`, and `sys::CSys` reaches the kernel through
 //! `ffi`. In Cargo terms it depends on everything and nothing depends on it, so there is no
 //! cycle.
 

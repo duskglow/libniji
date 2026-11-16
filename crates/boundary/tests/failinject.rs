@@ -1,13 +1,13 @@
 //! ALLOC-FAIL-INJECT (#2020): the test builds' allocation-failure hook
-//! (`liella_boundary::selftest::failinject`) fails the allocations a test selects, in both
+//! (`niji_boundary::selftest::failinject`) fails the allocations a test selects, in both
 //! allocation domains (the internal heap behind the fallible collections, and the caller-owned
 //! `malloc` family), and nothing once it is off.
 
 #![allow(clippy::unwrap_used, missing_docs)]
 
-use liella::error::Errno;
-use liella::mem::{TryBox, TryVec};
-use liella_boundary::selftest::failinject::{self, FailAlloc};
+use niji::error::Errno;
+use niji::mem::{TryBox, TryVec};
+use niji_boundary::selftest::failinject::{self, FailAlloc};
 use std::sync::{Arc, Barrier};
 
 #[global_allocator]
@@ -69,7 +69,7 @@ fn failinject_does_not_reach_caller_domain() {
     // (`strdup`, `FTSENT` blocks, stdio buffers) is outside the hook's reach, #2101).
     let src = z("dup");
     failinject::fail_at_least(1);
-    let p = liella_boundary::selftest::opaque::strdup(src.as_ptr().cast());
+    let p = niji_boundary::selftest::opaque::strdup(src.as_ptr().cast());
     failinject::off();
     // Kept (four bytes): in a hosted test build the block is the host C library's.
     assert!(!p.is_null(), "strdup allocates through caller_alloc, which has no hook");
@@ -86,7 +86,7 @@ fn failinject_off_again() {
         let v: Result<TryVec<u8>, _> = TryVec::with_capacity(n);
         assert!(v.is_ok(), "off: {n} bytes allocated");
     }
-    let p = liella_boundary::selftest::opaque::strdup(z("after").as_ptr().cast());
+    let p = niji_boundary::selftest::opaque::strdup(z("after").as_ptr().cast());
     // Kept (six bytes): in a hosted test build the block is the host C library's.
     assert!(!p.is_null(), "off: the caller domain allocates");
     failinject::fail_nth(2);
@@ -118,20 +118,20 @@ fn failinject_plan_is_per_thread() {
 }
 
 #[test]
-fn failinject_reach_global_allocator_not_liella_malloc() {
+fn failinject_reach_global_allocator_not_niji_malloc() {
     // Trace: no spec clause (test facility, ALLOC-FAIL-INJECT-3: which allocations the hook reaches).
     failinject::fail_at_least(1);
-    // Reached: everything that allocates through Rust's global allocator - liella::mem's
+    // Reached: everything that allocates through Rust's global allocator - niji::mem's
     // fallible collections (the fs walkers' and qsort's scratch) and any plain `try_reserve`.
     let tv: Result<TryVec<u8>, _> = TryVec::with_capacity(64);
     let mut v: Vec<u8> = Vec::new();
     let tr = v.try_reserve(64);
-    // Not reached: Liella's own C `malloc` (its process heap, `heap::HEAP`), which never goes
+    // Not reached: libniji's own C `malloc` (its process heap, `heap::HEAP`), which never goes
     // through the global allocator.
-    let m = liella_boundary::selftest::opaque::malloc(64);
+    let m = niji_boundary::selftest::opaque::malloc(64);
     failinject::off();
-    assert_eq!(tv.err(), Some(Errno::ENOMEM), "liella::mem TryVec fails");
+    assert_eq!(tv.err(), Some(Errno::ENOMEM), "niji::mem TryVec fails");
     assert!(tr.is_err(), "Vec::try_reserve fails");
-    assert!(!m.is_null(), "Liella's malloc is not a global-allocator allocation");
-    liella_boundary::selftest::opaque::free(m);
+    assert!(!m.is_null(), "libniji's malloc is not a global-allocator allocation");
+    niji_boundary::selftest::opaque::free(m);
 }

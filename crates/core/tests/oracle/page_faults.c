@@ -90,7 +90,7 @@ int main(int argc, char **argv, char **envp) {
         /* STARTUP-FAULTS-RESTORE-4: "relay <mode>" runs <mode> in a vfork child of this program. The
          * whole-process counts ("true", "locale", "tool") include what the counted process does
          * between fork/spawn and exec, which is the spawning process's code: the test harness spawns
-         * through the host C library in one gate pass and through Liella's interposed exports in the
+         * through the host C library in one gate pass and through libniji's interposed exports in the
          * other, and the two read one apart. Relayed, the counted process does nothing before exec,
          * whoever spawned this program. The child execs the path this program was exec'd by
          * (AT_EXECFN, 31, from the auxiliary vector after envp) with the same environment, so its
@@ -136,7 +136,7 @@ int main(int argc, char **argv, char **envp) {
          * directory and looked up again (cbench_opt's second pass); prints only the faults of the
          * second bindtextdomain + dgettext (the repeat lookup's text is in the hot group). */
         setlocale(LC_ALL, "");
-        char dir[] = "/tmp/liella-pf-rebind.XXXXXX", sub[96], mo[128];
+        char dir[] = "/tmp/niji-pf-rebind.XXXXXX", sub[96], mo[128];
         if (mkdtemp(dir) == NULL)
             return 1;
         snprintf(sub, sizeof sub, "%s/en_US", dir);

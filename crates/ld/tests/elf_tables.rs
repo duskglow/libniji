@@ -1,4 +1,4 @@
-//! The ELF reader, part 2 (`liella_ld::elf`, IP-24 part 2, DL-ELF-READ-2) over a synthetic image and its
+//! The ELF reader, part 2 (`niji_ld::elf`, IP-24 part 2, DL-ELF-READ-2) over a synthetic image and its
 //! malformed variants: the hash tables, the symbol version tables and the RELA/RELR iterators. Every rule
 //! of decision D-27.8 returns its typed error, never a panic or an out-of-range read. The image is built
 //! here byte by byte, so these tests are pure logic and run on any host.
@@ -7,8 +7,8 @@
 //! counts"), which has no clause ID. The relocation-kind test takes an `Arch` parameter (design §0a item 7).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
-use liella_ld::arch::{Arch, RelocKind, X86_64};
-use liella_ld::elf::{dt, pt, Dynamic, Elf, ElfError, GnuEntry, Table, VersionIndex};
+use niji_ld::arch::{Arch, RelocKind, X86_64};
+use niji_ld::elf::{dt, pt, Dynamic, Elf, ElfError, GnuEntry, Table, VersionIndex};
 
 // Layout (file offset == vaddr; one PT_LOAD covers the whole file).
 const DYN_AT: usize = 176;
@@ -50,7 +50,7 @@ const TOTAL: usize = 840;
 struct OtherTable;
 impl Arch for OtherTable {
     const NAME: &'static str = "test-other-table";
-    const TLS_VARIANT: liella_ld::arch::TlsVariant = liella_ld::arch::TlsVariant::I;
+    const TLS_VARIANT: niji_ld::arch::TlsVariant = niji_ld::arch::TlsVariant::I;
     const TCB_SIZE: u64 = 16;
     const TCB_ALIGN: u64 = 16;
     const SELF_SLOT: Option<u64> = None;
@@ -68,14 +68,14 @@ impl Arch for OtherTable {
     const LIB: &'static str = "lib";
     const SYSTEM_DIRS: &'static [&'static str] = &[];
     const CACHE_FLAGS: u32 = 0;
-    fn hwcaps(_: &liella_rt::cpu::Features) -> &'static [&'static str] {
+    fn hwcaps(_: &niji_rt::cpu::Features) -> &'static [&'static str] {
         &[]
     }
-    fn platform(_: &liella_rt::cpu::Features) -> &'static str {
+    fn platform(_: &niji_rt::cpu::Features) -> &'static str {
         "other"
     }
-    fn features(_: &liella_kernel::auxv::Auxv<'_>, _: &impl liella_kernel::machine::Machine) -> liella_rt::cpu::Features {
-        liella_rt::cpu::Features::default()
+    fn features(_: &niji_kernel::auxv::Auxv<'_>, _: &impl niji_kernel::machine::Machine) -> niji_rt::cpu::Features {
+        niji_rt::cpu::Features::default()
     }
     fn classify(r_type: u32) -> RelocKind {
         if r_type == 1 { RelocKind::Relative } else { RelocKind::Unsupported(r_type) }
@@ -194,7 +194,7 @@ struct Summary {
     relr: Vec<u64>,
 }
 
-fn relas(it: Option<impl Iterator<Item = liella_ld::elf::Rela>>) -> Vec<(u64, u32, RelocKind, i64)> {
+fn relas(it: Option<impl Iterator<Item = niji_ld::elf::Rela>>) -> Vec<(u64, u32, RelocKind, i64)> {
     it.into_iter().flatten().map(|r| (r.offset, r.sym, r.kind, r.addend)).collect()
 }
 

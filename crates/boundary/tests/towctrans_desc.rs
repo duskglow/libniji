@@ -12,9 +12,9 @@ use core::ptr::{null, null_mut};
 #[path = "../../core/tests/support/skip_note.rs"]
 mod skip_note;
 
-use liella_abi::ctypes::{c_char, c_int, locale_t, wctrans_t, wint_t};
-use liella_boundary::posix::s05_ctype as s;
-use liella_boundary::posix::s07_locale as l7;
+use niji_abi::ctypes::{c_char, c_int, locale_t, wctrans_t, wint_t};
+use niji_boundary::posix::s05_ctype as s;
+use niji_boundary::posix::s07_locale as l7;
 
 const LC_ALL_MASK: c_int = 0x1fbf;
 const WEOF: wint_t = u32::MAX;

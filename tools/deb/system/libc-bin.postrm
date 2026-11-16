@@ -1,5 +1,5 @@
 #!/bin/sh
-# libc-bin (Liella) postrm. DPKG_ROOT is honoured, as in the postinst (tools/deb/root-system.sh).
+# libc-bin (libniji) postrm. DPKG_ROOT is honoured, as in the postinst (tools/deb/root-system.sh).
 set -e
 
 case "$1" in

@@ -8,19 +8,19 @@
 //! difference, bytes just outside `A`-`Z` (`@ [ \` {`), bytes of 128 and above, a second string
 //! that is shorter, embedded bound `n` values around the difference, and strings that end at the
 //! last byte of a page whose next page is unmapped.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use std::cmp::Ordering;
 use std::sync::{Mutex, MutexGuard};
 
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_boundary::locale;
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_boundary::locale;
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
 
@@ -48,7 +48,7 @@ fn measured(v: &[u8], n: usize) -> &[u8] {
 
 /// The export body before CASECMP-K1 on the bytes `va`, `vb` the strings hold (C locale).
 fn before(va: &[u8], vb: &[u8], n: usize) -> c_int {
-    match liella::ctype::compare_folded(measured(va, n), measured(vb, n), locale::current()) {
+    match niji::ctype::compare_folded(measured(va, n), measured(vb, n), locale::current()) {
         Ordering::Less => -1,
         Ordering::Equal => 0,
         Ordering::Greater => 1,
@@ -203,7 +203,7 @@ fn casecmp_equals_the_path_of_before_on_random_mixed_text() {
 }
 
 /// Two pages; the second unmapped (no access). Returns the mapping and the first page's base.
-fn guarded() -> (liella_kernel::mem::Region, liella_kernel::mem::Region, usize) {
+fn guarded() -> (niji_kernel::mem::Region, niji_kernel::mem::Region, usize) {
     let r = CSys.mmap(0, 2 * PAGE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0).unwrap();
     let (lo, mut hi) = r.split_at(PAGE).ok().unwrap();
     CSys.mprotect(&mut hi, PROT_NONE).unwrap();
@@ -269,7 +269,7 @@ fn casecmp_never_reads_past_the_pages_holding_the_strings_or_the_bound() {
 }
 
 /// One read-write page between two unmapped ones. Returns the three regions and the page's base.
-fn fenced() -> [liella_kernel::mem::Region; 3] {
+fn fenced() -> [niji_kernel::mem::Region; 3] {
     let r = CSys.mmap(0, 3 * PAGE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0).unwrap();
     let (mut lo, rest) = r.split_at(PAGE).ok().unwrap();
     let (mid, mut hi) = rest.split_at(PAGE).ok().unwrap();

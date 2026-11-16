@@ -1,4 +1,4 @@
-# Liella: a clean reimplementation of the glibc ABI in Rust.
+# libniji: a clean reimplementation of the glibc ABI in Rust.
 # Architecture and phase plan: implementation-plan.md. Contracts: glibc-functional-spec.md.
 #
 # Four artifacts: the spec; the C syscall layer (csys/); the Rust library (crates/); and the
@@ -6,22 +6,22 @@
 #
 # Layering at runtime (C callers at the top, the kernel at the bottom):
 #
-#   C callers ──▶ liella-boundary::posix   exports; conversions only        [unsafe: export, slice]
+#   C callers ──▶ niji-boundary::posix   exports; conversions only        [unsafe: export, slice]
 #                   │
-#                   ▼  clean library, generic over liella_kernel::Sys       [forbid(unsafe_code)]
-#                 liella-legacy · liella · liella-math · liella-abi · liella-rt · liella-ld
-#                 (liella-mem: the mem* loops, #![no_builtins], D-4.11)
+#                   ▼  clean library, generic over niji_kernel::Sys       [forbid(unsafe_code)]
+#                 niji-legacy · niji · niji-math · niji-abi · niji-rt · niji-ld
+#                 (niji-mem: the mem* loops, #![no_builtins], D-4.11)
 #                   │
 #                   ▼
-#                 liella-boundary::sys (CSys) ──▶ liella-boundary::ffi       [unsafe: extern]
+#                 niji-boundary::sys (CSys) ──▶ niji-boundary::ffi       [unsafe: extern]
 #                   │
 #                   ▼
 #                 csys/ (C: syscall wrappers, machine primitives)  ──▶  Linux kernel
 #
-# In Cargo terms liella-boundary depends on every library crate and nothing depends on it.
+# In Cargo terms niji-boundary depends on every library crate and nothing depends on it.
 # It is the ONLY crate allowed `unsafe`, and only in four documented categories (extern,
 # export, slice, allocator); `cargo xtask unsafe-audit` enforces this. The one exception is the
-# native Rust facade liella-native (crates/native, D-X.10, a library for programs, not part of
+# native Rust facade niji-native (crates/native, D-X.10, a library for programs, not part of
 # the C library): its declarations of the native C ABI and its allocator over them, in one file
 # (category native).
 #
@@ -78,16 +78,16 @@ publish = false
 # used as a reference (implementation-plan.md, section 1.2).
 [workspace.dependencies]
 spectest = { path = "crates/spectest" }
-liella-kernel = { path = "crates/kernel" }
-liella-abi = { path = "crates/abi" }
-liella-rt = { path = "crates/rt" }
-liella-ld = { path = "crates/ld" }
-liella-mem = { path = "crates/mem" }
-liella = { path = "crates/core" }
-liella-legacy = { path = "crates/legacy" }
-liella-math = { path = "crates/math" }
-liella-boundary = { path = "crates/boundary" }
-liella-mathtools = { path = "crates/mathtools" }
+niji-kernel = { path = "crates/kernel" }
+niji-abi = { path = "crates/abi" }
+niji-rt = { path = "crates/rt" }
+niji-ld = { path = "crates/ld" }
+niji-mem = { path = "crates/mem" }
+niji = { path = "crates/core" }
+niji-legacy = { path = "crates/legacy" }
+niji-math = { path = "crates/math" }
+niji-boundary = { path = "crates/boundary" }
+niji-mathtools = { path = "crates/mathtools" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"             # only crates/boundary overrides this (to deny + audited allows)
@@ -120,29 +120,29 @@ debug = 0
 
 # D-4.13: the memory primitives are always optimised. Unoptimised code lowers fixed-size block
 # copies to calls to `memcpy`, which in a build with the exports is the primitive itself.
-[profile.dev.package.liella-mem]
+[profile.dev.package.niji-mem]
 opt-level = 3
 
 # The libm test oracle (big-number arithmetic) is optimised so that the accuracy tests run in
 # seconds rather than minutes.
-[profile.dev.package.liella-mathtools]
+[profile.dev.package.niji-mathtools]
 opt-level = 3
 
 # GATE-SPEED (2026-10-10): the test builds of the three product crates are optimised; o0/o2/o0 back to
 # back on Zen 1 ran the two test passes in 399/371 s at opt-level 2 against 709/756 and 690/732 s at 0.
 # Debug assertions and overflow checks stay on. Tests that call the exported libc names go through
 # `selftest::opaque` (LLVM treats those names as builtins at opt-level >= 1; `xtask opaque-audit`).
-[profile.dev.package.liella]
+[profile.dev.package.niji]
 opt-level = 2
 debug-assertions = true
 overflow-checks = true
 
-[profile.dev.package.liella-boundary]
+[profile.dev.package.niji-boundary]
 opt-level = 2
 debug-assertions = true
 overflow-checks = true
 
-[profile.dev.package.liella-math]
+[profile.dev.package.niji-math]
 opt-level = 2
 debug-assertions = true
 overflow-checks = true

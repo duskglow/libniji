@@ -1,6 +1,6 @@
 //! `RESOLV_HOST_CONF` end to end in the products against the reference (D-16.13). No spec clause:
 //! §16 is silent on `host.conf`'s environment overrides. `tests/oracle/hostconf_env.c` is built
-//! against the host C library and statically against Liella's products and run in a private user
+//! against the host C library and statically against libniji's products and run in a private user
 //! and mount namespace (`unshare -r -m`, no root) with its own `/etc/hosts` and
 //! `/etc/nsswitch.conf` bound over the system's; the variable names a file in the scratch
 //! directory (`multi on`, `multi off`) or a path that cannot be opened (observed: the defaults).
@@ -21,12 +21,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/hostconf_env.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -51,7 +51,7 @@ fn run(exe: &Path, dir: &Path, conf: Option<&str>) -> String {
 #[test]
 fn resolv_host_conf_names_the_file() {
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -62,7 +62,7 @@ fn resolv_host_conf_names_the_file() {
     }
     let out = r.join("target/test-oracles");
     std::fs::create_dir_all(&out).unwrap();
-    let (host, ours) = (out.join("hostconf_env_host"), out.join("hostconf_env_liella"));
+    let (host, ours) = (out.join("hostconf_env_host"), out.join("hostconf_env_niji"));
     assert!(build(&host, false), "hostconf_env.c does not build against the host C library");
     assert!(build(&ours, true), "hostconf_env.c does not link against the products");
     let dir = std::env::temp_dir().join(format!("hostconf-env-{}", std::process::id()));
@@ -82,7 +82,7 @@ fn resolv_host_conf_names_the_file() {
     for (what, path, want) in &cases {
         let reference = run(&host, &dir, Some(path));
         assert_eq!(&reference, want, "{what}: the reference's output");
-        assert_eq!(run(&ours, &dir, Some(path)), reference, "{what}: Liella differs from the reference");
+        assert_eq!(run(&ours, &dir, Some(path)), reference, "{what}: libniji differs from the reference");
     }
     let _ = std::fs::remove_dir_all(&dir);
 }

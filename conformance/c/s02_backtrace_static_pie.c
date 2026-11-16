@@ -1,5 +1,5 @@
 /* Spec §2.7 (D-2.7, D-27.12): backtrace, backtrace_symbols and backtrace_symbols_fd in a static
- * PIE started from liella-rcrt1.o, which the kernel loads at a non-zero load bias. The same source
+ * PIE started from niji-rcrt1.o, which the kernel loads at a non-zero load bias. The same source
  * built as a fixed-address static program (bias 0) must pass the same checks; the clause tests in
  * crates/core/tests/s02_diagnostics_clauses.rs build it both ways, and conformance/run.sh builds
  * it as the static PIE its directive names. The builder names the link kind in the first
@@ -34,7 +34,7 @@ static void end(void) { fprintf(stderr, "end %s\n", current); }
 
 #define CHECK(cond) do { if (!(cond)) { failures++; fprintf(stderr, "FAIL %s: line %d: %s\n", current, __LINE__, #cond); } } while (0)
 
-#define PLACED(n) __attribute__((noinline, noclone, section(".text.sorted.liella_btpie_" #n)))
+#define PLACED(n) __attribute__((noinline, noclone, section(".text.sorted.niji_btpie_" #n)))
 
 static void *trace[64];
 static int count;

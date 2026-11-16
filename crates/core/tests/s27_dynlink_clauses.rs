@@ -1,13 +1,13 @@
-// Specified from spec §27 (phase 14: the dlopen/dlsym clauses, pending on Liella's loader).
+// Specified from spec §27 (phase 14: the dlopen/dlsym clauses, pending on libniji's loader).
 // Specify a test by replacing its stub with a real #[test] fn of the SAME NAME (see crates/spectest).
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
 //! Clause tests for spec §27 (19 clauses).
 //! The dlopen and dlsym clauses are checked by dynamic-link conformance programs
 //! (`conformance/run.sh`, LINK-HELPERS / DLOPEN-HELPERS), run under the reference and under
-//! Liella's ld.so. A program for behaviour Liella's loader does not have yet carries
-//! PENDING-LIELLA: the reference must meet the expectations, Liella's run is reported PENDING and
-//! counted, and it turns into a FAIL the day Liella's run passes (then drop the directive and the
+//! libniji's ld.so. A program for behaviour libniji's loader does not have yet carries
+//! PENDING-NIJI: the reference must meet the expectations, libniji's run is reported PENDING and
+//! counted, and it turns into a FAIL the day libniji's run passes (then drop the directive and the
 //! pending assertion here). `s27_dlopen_failures` (DL-16a) and `s27_dlsym_handles` (DL-16b) pass
 //! on both.
 
@@ -20,7 +20,7 @@ fn conformance(names: &[&str]) -> String {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.so.6", "target/liella/ld-linux-x86-64.so.2"];
+    let products = ["target/niji/libc.so.6", "target/niji/ld-linux-x86-64.so.2"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -29,7 +29,7 @@ fn conformance(names: &[&str]) -> String {
 }
 
 /// Asserts that `name` ran as a full program, not pending: run.sh (whose success [`conformance`]
-/// checks) passed both the reference's run and Liella's.
+/// checks) passed both the reference's run and libniji's.
 fn assert_not_pending(out: &str, name: &str) {
     let line = format!("conformance: PENDING {name} ");
     assert!(!out.lines().any(|l| l.starts_with(&line)), "{name} is still reported pending:\n{out}");
@@ -43,7 +43,7 @@ clause!(s27_1_c_2, "27.1", "Contract", r##"**`dlmopen(lmid, ...)`** loads into a
 /// §27.1 Contract: **`dlsym(handle, name)`** returns the address of a symbol. The special handles are `RTLD_DEFAULT` (global lookup order) and `RTLD_NEXT` (the next occurrence after the caller's object, for interposition). **`dlvsym`** requests a specific symbol version.
 ///
 /// `s27_dlsym_handles`: RTLD_DEFAULT and RTLD_NEXT through two helpers, dlvsym, and the dlerror
-/// texts of the failing lookups. Passes under the reference and under Liella's ld.so (DL-16b,
+/// texts of the failing lookups. Passes under the reference and under libniji's ld.so (DL-16b,
 /// DL-DLSYM).
 #[test]
 fn s27_1_c_3() {
@@ -57,7 +57,7 @@ clause!(s27_1_c_5, "27.1", "Contract", r##"**`dlerror()`** returns a Text descri
 /// `s27_dladdr`: a helper with a fixed symbol layout (gaps, a size-0 symbol, equal starts,
 /// overlapping symbols, an IFUNC), the program and libc; `dladdr1` with `RTLD_DL_SYMENT` and
 /// `RTLD_DL_LINKMAP`; addresses no object holds; a backtrace through the helper. Checked on the
-/// reference and on Liella's loader (DL-18).
+/// reference and on libniji's loader (DL-18).
 #[test]
 fn s27_1_c_6() {
     let out = conformance(&["s27_dladdr"]);
@@ -69,7 +69,7 @@ fn s27_1_c_6() {
 /// `s27_dlinfo`: `RTLD_DI_LMID`, `LINKMAP`, `ORIGIN`, `TLS_MODID` (the id `__tls_get_addr`
 /// takes), `TLS_DATA` (in two threads), `PHDR` (against the file's headers), `SERINFOSIZE` and
 /// `SERINFO` (`DT_RPATH`, `LD_LIBRARY_PATH`, `DT_RUNPATH`), and the unsupported requests' text.
-/// Checked on the reference and on Liella's loader (DL-18).
+/// Checked on the reference and on libniji's loader (DL-18).
 #[test]
 fn s27_1_c_7() {
     let out = conformance(&["s27_dlinfo"]);
@@ -85,7 +85,7 @@ clause!(s27_1_g_0, "27.1", "Guarantees", r##"Symbol resolution follows ELF rules
 /// objects, the wrong ELF class, a missing dependency, an undefined symbol under RTLD_NOW, a
 /// missing version, bad modes, RTLD_NOLOAD),
 /// each a NULL handle with the reference's dlerror text. Static TLS exhaustion is checked by
-/// `s27_dlopen_tls_surplus` (s27_3_c_0). Checked on the reference and on Liella's loader (DL-16a).
+/// `s27_dlopen_tls_surplus` (s27_3_c_0). Checked on the reference and on libniji's loader (DL-16a).
 #[test]
 fn s27_1_f_0() {
     let out = conformance(&["s27_dlopen_failures"]);
@@ -99,9 +99,9 @@ clause!(s27_2_c_0, "27.2", "Contract", r##"Libraries named in `LD_AUDIT` (or `DT
 /// local-dynamic, initial-exec and TLS-descriptor accesses), from the main thread, a thread
 /// created before the `dlopen`, one created after it and 32 created while it runs: each sees the
 /// initial image, zeros past it, the alignment and a block of its own. Also the static TLS
-/// exhaustion text (s27_1_f_0) and 80 failed opens that each give their TLS place back. Liella
+/// exhaustion text (s27_1_f_0) and 80 failed opens that each give their TLS place back. libniji
 /// places such blocks in the static surplus at `dlopen` (DL-16d); dynamic blocks are DL-19's.
-/// Checked on the reference and on Liella's loader.
+/// Checked on the reference and on libniji's loader.
 #[test]
 fn s27_3_c_0() {
     let out = conformance(&["s27_dlopen_tls_surplus"]);

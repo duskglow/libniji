@@ -1,12 +1,12 @@
-//! `cargo xtask headers-gen [--check]`: Liella's C headers (plan/headers.md section 2.4, SL-HEADERS-S05).
+//! `cargo xtask headers-gen [--check]`: libniji's C headers (plan/headers.md section 2.4, SL-HEADERS-S05).
 //!
-//! Inputs: the templates `headers/<path>.h.in` (structure, include guards, Liella-written function-like
+//! Inputs: the templates `headers/<path>.h.in` (structure, include guards, libniji-written function-like
 //! macros), the feature levels `headers/levels.tsv` (what `features.h` computes in each probed
 //! configuration of `spec/abi/ftm-configs.tsv`), the reserved-name policy `headers/reserved.tsv`, and the
 //! `spec/abi` tables. Output: `libc-include/<path>`, committed, first line `@generated`. It is a root of
 //! its own, not `include/`: tools and tests compile against the build host's headers with `-I include`
-//! for `<liella/native.h>`, and Liella's libc headers there would shadow the host's (SL-HEADERS-S05-4).
-//! `cargo xtask so` stages both trees into `target/liella/include`.
+//! for `<niji/native.h>`, and libniji's libc headers there would shadow the host's (SL-HEADERS-S05-4).
+//! `cargo xtask so` stages both trees into `target/niji/include`.
 //!
 //! Template markers (one per line unless noted; the decision record of SL-HEADERS-S05 holds the format):
 //! * `@@generated`: the `@generated` banner.
@@ -47,17 +47,17 @@ fn tsv(root: &Path, rel: &str) -> Result<Rows, String> {
 /// The level columns of `headers/levels.tsv`, their C names in `features.h` and the thresholds the
 /// condition search may test (an empty list: a 0/1 flag).
 pub(crate) const LEVEL_COLS: &[(&str, &str, &[i64])] = &[
-    ("isoc", "__LIELLA_ISOC", &[1999, 2011, 2023]),
-    ("posix", "__LIELLA_POSIX", &[1, 2, 199309, 199506, 200112, 200809]),
-    ("xsi", "__LIELLA_XSI", &[400, 450, 500, 600, 700]),
-    ("misc", "__LIELLA_MISC", &[]),
-    ("gnu", "__LIELLA_GNU", &[]),
-    ("lfs64", "__LIELLA_LFS64", &[]),
-    ("fob64", "__LIELLA_FOB64", &[]),
-    ("time64", "__LIELLA_TIME64", &[]),
-    ("dynstack", "__LIELLA_DYNSTACK", &[]),
-    ("fortify", "__LIELLA_FORTIFY", &[1, 2, 3]),
-    ("cxx", "__LIELLA_CXX", &[]),
+    ("isoc", "__NIJI_ISOC", &[1999, 2011, 2023]),
+    ("posix", "__NIJI_POSIX", &[1, 2, 199309, 199506, 200112, 200809]),
+    ("xsi", "__NIJI_XSI", &[400, 450, 500, 600, 700]),
+    ("misc", "__NIJI_MISC", &[]),
+    ("gnu", "__NIJI_GNU", &[]),
+    ("lfs64", "__NIJI_LFS64", &[]),
+    ("fob64", "__NIJI_FOB64", &[]),
+    ("time64", "__NIJI_TIME64", &[]),
+    ("dynstack", "__NIJI_DYNSTACK", &[]),
+    ("fortify", "__NIJI_FORTIFY", &[1, 2, 3]),
+    ("cxx", "__NIJI_CXX", &[]),
 ];
 
 pub(crate) struct Levels {
@@ -356,9 +356,9 @@ impl Gen<'_> {
     /// The C spelling of a typedef-resolvable type token; aggregates named for linkage keep their name.
     fn resolve(&self, ty: &str) -> String {
         // C 7.8.2.3: wcstoimax takes wchar_t, which <inttypes.h> must not define in C: features.h's
-        // __LIELLA_WCHAR is the compiler's wchar_t type in C and wchar_t itself in C++.
+        // __NIJI_WCHAR is the compiler's wchar_t type in C and wchar_t itself in C++.
         if ty == "__gwchar_t" {
-            return "__LIELLA_WCHAR".into();
+            return "__NIJI_WCHAR".into();
         }
         match self.t.typedefs.get(&("typedef".to_string(), ty.to_string())) {
             Some(r) if scalar(&r["cxx"]) => r["cxx"].replace('*', " *"),
@@ -393,8 +393,8 @@ impl Gen<'_> {
     }
 
     fn guard(&mut self, key: &str, body: Vec<String>) {
-        self.out.push(format!("# ifndef __LIELLA_D_{key}"));
-        self.out.push(format!("#  define __LIELLA_D_{key} 1"));
+        self.out.push(format!("# ifndef __NIJI_D_{key}"));
+        self.out.push(format!("#  define __NIJI_D_{key} 1"));
         self.out.extend(body);
         self.out.push("# endif".into());
     }
@@ -411,7 +411,7 @@ impl Gen<'_> {
         } else if cxx == name {
             match self.members(name) {
                 Some((kw, m)) => [vec![format!("typedef {kw} {{")], m, vec![format!("}} {name};")]].concat(),
-                None => vec![format!("typedef struct {{ char __liella_opaque[{}] __attribute__ ((__aligned__ ({}))); }} {name};", r["size"], r["align"])],
+                None => vec![format!("typedef struct {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }} {name};", r["size"], r["align"])],
             }
         } else if self.t.typedefs.contains_key(&("typedef".to_string(), cxx.clone())) {
             // Named for linkage by another typedef (C++ mangles through it): that one comes first.
@@ -471,7 +471,7 @@ impl Gen<'_> {
 
     fn function(&mut self, name: &str) {
         let Some(decl) = self.declaration(name) else { return };
-        let nt = if self.t.nothrow.contains(name) { " __LIELLA_NOTHROW" } else { "" };
+        let nt = if self.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
         let syms = self.t.addr.get(name).cloned().unwrap_or_default();
         let builtin = self.t.calls.get(name).map(|s| s == "-").unwrap_or(false);
         let distinct: BTreeSet<&String> = syms.iter().map(|(_, s)| s).collect();
@@ -667,9 +667,9 @@ fn stage_tree(dst: &Path, files: &[(std::path::PathBuf, String)]) -> Result<usiz
     Ok(files.len())
 }
 
-/// `cargo xtask so`'s header step: `out/include` = Liella's libc headers (`libc-include/`) plus the native C
+/// `cargo xtask so`'s header step: `out/include` = libniji's libc headers (`libc-include/`) plus the native C
 /// ABI's (`include/`), and `out/uapi` = the build host's kernel UAPI headers (the `UAPI` list). A program built
-/// against Liella's headers uses `-nostdinc -isystem out/include -isystem <compiler include> -isystem out/uapi`.
+/// against libniji's headers uses `-nostdinc -isystem out/include -isystem <compiler include> -isystem out/uapi`.
 /// Refuses a stale `libc-include/` (the staged tree is what programs compile against).
 pub fn stage(root: &Path, out: &Path) -> Result<(), String> {
     run(root, true)?;
@@ -841,7 +841,7 @@ mod tests {
         assert!(condition(&same, 0b01, 0b11).is_none());
         // gnu17 and gnu, not posix200809 nor c89 nor cxx17: needs a conjunction.
         let c = condition(&l, 0b001010, care).unwrap();
-        assert!(c.contains("&&") && c.contains("__LIELLA_CXX"), "{c}");
+        assert!(c.contains("&&") && c.contains("__NIJI_CXX"), "{c}");
     }
 
     // no spec clause: plan/headers.md 2.4 (constant types survive as literal suffixes).

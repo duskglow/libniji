@@ -1,9 +1,9 @@
 //! The allocator introspection and debugging interfaces end to end (spec §3.2, §3.3; D-3.4,
 //! D-3.5): `tests/oracle/mallocdbg_diff.c` built against the host C library and statically
-//! against Liella's products, each run by `tests/oracle/mallocdbg_run.sh` in its plain mode (no
-//! `libc_malloc_debug.so`: the record's first part), Liella with the name-service cache on and
+//! against libniji's products, each run by `tests/oracle/mallocdbg_run.sh` in its plain mode (no
+//! `libc_malloc_debug.so`: the record's first part), libniji with the name-service cache on and
 //! off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line, except the
-//! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only Liella prints)
+//! recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji prints)
 //! and [`DROPPED`] (a line only the reference prints). Every entry names the case it belongs to:
 //! the scope of a line is its run (the last `#### ` line) and its section within the run (the
 //! last `== ` line since then), written `#### run\n== section\n`, and an entry's first string is
@@ -13,7 +13,7 @@
 //! The probe prints statistics as relations and normalises the numbers in `malloc_stats` and
 //! `malloc_info` text; the numbers themselves are each library's bookkeeping (D-3.4).
 //!
-//! Liella's C library provides the debugging semantics the reference provides only with
+//! libniji's C library provides the debugging semantics the reference provides only with
 //! `libc_malloc_debug.so` preloaded (D-3.5 as decided in phase 13): its `mcheck`, `mprobe` and
 //! `mtrace` lines match the record's reference-only second part, not the plain library they are
 //! compared with here.
@@ -39,12 +39,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/mallocdbg_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -52,21 +52,21 @@ fn build(out: &Path, liella: bool) -> bool {
 }
 
 const NO_THRESHOLD: &str = "D-3.4, D-3.10: every block above 64 KiB has a mapping of its own whatever M_MMAP_THRESHOLD or M_MMAP_MAX say (the heap has no program-break arena); the reference serves such blocks from its arena";
-const MESSAGE: &str = "D-3.4: the abort message names the misuse in Liella's words (`free(): double free detected`); the reference names its per-thread cache (`... in tcache 2`) or its bins";
-const STATS: &str = "D-3.4: mallinfo/mallinfo2 report Liella's neutral quantities (bytes mapped for small blocks, large blocks and their bytes, bytes in use including large blocks, free bytes held, bytes in empty slabs; arena-specific fields 0); the reference reports its arenas' bookkeeping (large blocks not in uordblks)";
-const STARTUP: &str = "D-3.4: Liella's start code has allocated before main (its own heap serves the runtime), so the statistics are not zero at the first call";
+const MESSAGE: &str = "D-3.4: the abort message names the misuse in libniji's words (`free(): double free detected`); the reference names its per-thread cache (`... in tcache 2`) or its bins";
+const STATS: &str = "D-3.4: mallinfo/mallinfo2 report libniji's neutral quantities (bytes mapped for small blocks, large blocks and their bytes, bytes in use including large blocks, free bytes held, bytes in empty slabs; arena-specific fields 0); the reference reports its arenas' bookkeeping (large blocks not in uordblks)";
+const STARTUP: &str = "D-3.4: libniji's start code has allocated before main (its own heap serves the runtime), so the statistics are not zero at the first call";
 const KEPT: &str = "D-3.13: a freed large block stays mapped in its thread's cache for reuse until a trim, so hblks and hblkhd do not go back at once";
 const SAT: &str = "D-3.4: mallinfo saturates at INT_MAX instead of wrapping to the low 32 bits";
 const ARENAS: &str = "D-3.4: the heap has no arenas: malloc_stats prints one Arena 0 block and malloc_info one heap for the small-block segments of every thread; the reference prints one per arena";
-const SIZES: &str = "D-3.4: Liella's heap keeps no free-chunk lists by size, so malloc_info's <sizes> is empty and its byte count differs";
+const SIZES: &str = "D-3.4: libniji's heap keeps no free-chunk lists by size, so malloc_info's <sizes> is empty and its byte count differs";
 const INFO_OPTIONS: &str = "spec §3.2 is silent; malloc_info(3): -1 with errno EINVAL for nonzero options; the reference returns 22 (EINVAL itself) and leaves errno alone (reported to the owner)";
 const INFO_NULL: &str = "S6: a NULL stream is an error (-1, EINVAL); the reference crashes";
 const INFO_FAIL: &str = "malloc_info(3): -1 when the text cannot be written (errno from the stream); the reference returns 0 although the write failed";
-const TRIM: &str = "spec §3.2 and malloc_trim(3): 1 only if memory was released; the reference returns 1 when nothing was (live blocks only, a second call, a pad larger than the heap), and Liella's trim ignores the pad (D-3.4)";
+const TRIM: &str = "spec §3.2 and malloc_trim(3): 1 only if memory was released; the reference returns 1 when nothing was (live blocks only, a second call, a pad larger than the heap), and libniji's trim ignores the pad (D-3.4)";
 const STATIC: &str = "a static program: libc.a defines every name the probe refers to weakly (the compat-only hook symbols and malloc_get_state/malloc_set_state too), and there is no dlopen/dlvsym until phase 14, so the symbol lookups are skipped";
-const DEBUG: &str = "D-3.5 as decided in phase 13: Liella's C library provides libc_malloc_debug semantics itself (mcheck before the first allocation succeeds and checks every block; MCHECK_FREE for a freed block; mtrace logs to MALLOC_TRACE); the plain reference returns -1 and checks nothing without the preloaded library";
+const DEBUG: &str = "D-3.5 as decided in phase 13: libniji's C library provides libc_malloc_debug semantics itself (mcheck before the first allocation succeeds and checks every block; MCHECK_FREE for a freed block; mtrace logs to MALLOC_TRACE); the plain reference returns -1 and checks nothing without the preloaded library";
 const NO_TCACHE: &str = "D-3.4, D-3.11: freed small blocks return to their slab at once (no per-thread cache of freed blocks), so uordblks comes back; arena (segments) does not shrink";
-const NO_ENV: &str = "D-3.4: MALLOC_MMAP_THRESHOLD_, MALLOC_MMAP_MAX_, MALLOC_TOP_PAD_, MALLOC_TRIM_THRESHOLD_, MALLOC_ARENA_MAX and their tunables have no neutral meaning and are not read; Liella's fingerprint is the same in every environment except perturbation";
+const NO_ENV: &str = "D-3.4: MALLOC_MMAP_THRESHOLD_, MALLOC_MMAP_MAX_, MALLOC_TOP_PAD_, MALLOC_TRIM_THRESHOLD_, MALLOC_ARENA_MAX and their tunables have no neutral meaning and are not read; libniji's fingerprint is the same in every environment except perturbation";
 const SEGMENT: &str = "D-3.10: the first small allocation of the fingerprint fits in a segment the start code mapped (16 MiB), so arena does not grow and more than 1 MiB is free in it";
 
 const MAIN_EFFECTS: &str = "#### main\n== mallopt effects\n";
@@ -153,7 +153,7 @@ const KNOWN_ENV: [(&str, &str, &str); 9] = [
     (ENV, "  stderr: [double free or corruption", MESSAGE),
 ];
 
-/// Lines only Liella prints: the scope, the text the line starts with, and why (the first such
+/// Lines only libniji prints: the scope, the text the line starts with, and why (the first such
 /// line of the scope is taken; a repeated entry takes the next one).
 const ADDED: [(&str, &str, &str); 26] = [
     (MAIN_XML, "  malloc_info(0, NULL) = -1", INFO_NULL),
@@ -184,7 +184,7 @@ const ADDED: [(&str, &str, &str); 26] = [
     (MTRACE, "  log: [= End]", DEBUG),
 ];
 
-/// The symbol lookups of the hooks section, which a static Liella program skips (one entry
+/// The symbol lookups of the hooks section, which a static libniji program skips (one entry
 /// per line: the text it starts with).
 const LOOKUPS: [&str; 43] = [
     "__malloc_hook@GLIBC_2.2.5",
@@ -315,14 +315,14 @@ fn mallocdbg_equals_the_reference() {
     // Clauses: s3_2_c_1, s3_2_c_2, s3_2_c_3, s3_2_c_4, s3_2_c_5, s3_2_c_6, s3_3_c_1, s3_3_c_2, s3_3_c_3,
     // s3_3_c_4 (D-3.4, D-3.5).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("mallocdbg_diff_host"), dir.join("mallocdbg_diff_liella"));
+    let (host, ours) = (dir.join("mallocdbg_diff_host"), dir.join("mallocdbg_diff_niji"));
     assert!(build(&host, false), "mallocdbg_diff.c does not build against the host C library");
     assert!(build(&ours, true), "mallocdbg_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/mallocdbg_run.sh");
@@ -351,28 +351,28 @@ fn mallocdbg_equals_the_reference() {
     let dropped: Vec<(&str, &str, &str)> = DROPPED.iter().copied().chain(LOOKUPS.iter().map(|l| (MAIN_HOOKS, *l, STATIC))).chain(DROPPED_LATER.iter().copied()).collect();
     for mode in ["on", "off"] {
         eprintln!("name-service cache {mode}");
-        let got = run(&ours, &format!("mallocdbg-liella-{mode}"), Some(mode));
+        let got = run(&ours, &format!("mallocdbg-niji-{mode}"), Some(mode));
         let want = without(with_headers(&reference), &dropped, "the reference");
-        let got = without(with_headers(&got), &ADDED, "Liella");
+        let got = without(with_headers(&got), &ADDED, "libniji");
         let mut diffs = 0;
         let mut seen = vec![false; known.len()];
         for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
             if let Some(i) = known.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
                 if w != g {
                     seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", known[i].2);
+                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", known[i].2);
                 }
                 continue;
             }
             if w != g {
                 diffs += 1;
                 if diffs <= 40 {
-                    eprintln!("line {} ({}):\n  glibc  {w}\n  liella {g}", k + 1, h.trim_end().replace('\n', " | "));
+                    eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end().replace('\n', " | "));
                 }
             }
         }
         let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- liella\n{}", text(&want), text(&got));
+        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
         assert_eq!(diffs, 0, "lines that differ from the reference");
         for (i, s) in seen.iter().enumerate() {
             assert!(s, "recorded difference no longer seen: {:?}", known[i]);

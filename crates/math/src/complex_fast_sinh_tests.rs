@@ -271,7 +271,7 @@ fn hyperbolic_factors_are_within_their_bounds() {
     }
 }
 
-/// The sweep (`cargo test --release -p liella-math --lib -- --ignored csinh_quick_tier_sweep`):
+/// The sweep (`cargo test --release -p niji-math --lib -- --ignored csinh_quick_tier_sweep`):
 /// the comparison above on 8 threads, 10^6 operands per function and regime in all four modes.
 #[test]
 #[ignore = "long sweep: cargo xtask long-sweeps runs it in release (nightly and release runs)"]

@@ -14,7 +14,7 @@ static SEQ: AtomicU32 = AtomicU32::new(0);
 pub(crate) struct Scratch(PathBuf);
 
 impl Scratch {
-    /// A fresh path `<target>/tmp/liella-<tag>-<pid>-<n>` where nothing exists yet.
+    /// A fresh path `<target>/tmp/niji-<tag>-<pid>-<n>` where nothing exists yet.
     pub(crate) fn path(tag: &str) -> Scratch {
         Scratch::path_in(Path::new(env!("CARGO_TARGET_TMPDIR")), tag)
     }
@@ -22,7 +22,7 @@ impl Scratch {
     /// The same under `base` (for example `/tmp` for a Unix socket, whose path must be short).
     pub(crate) fn path_in(base: &Path, tag: &str) -> Scratch {
         let n = SEQ.fetch_add(1, Ordering::Relaxed);
-        let p = base.join(format!("liella-{tag}-{}-{n}", std::process::id()));
+        let p = base.join(format!("niji-{tag}-{}-{n}", std::process::id()));
         remove(&p);
         Scratch(p)
     }

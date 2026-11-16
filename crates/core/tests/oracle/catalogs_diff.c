@@ -1,5 +1,5 @@
 /* Message catalogs end to end (spec §7.7 gettext family, §7.8 catopen/catgets/catclose; D-7.5,
- * D-7.6): built against the host C library and against Liella's products, the outputs must match
+ * D-7.6): built against the host C library and against libniji's products, the outputs must match
  * line for line. Black-box: every line is a result, an errno, or a fact read back through a public
  * function.
  *
@@ -605,7 +605,7 @@ static void s_bind(void *u)
     bindtextdomain("bd7", P("b7"));
     pl("  first lookup", G("bd7", "where"));
     where_mo(P("b7/de_DE.UTF-8/LC_MESSAGES/bd7.mo"), "new");
-    /* Liella checks a catalog's file at most once per second (owner ruling 2026-10-05), so a
+    /* libniji checks a catalog's file at most once per second (owner ruling 2026-10-05), so a
      * lookup right after the replacement may see either file: only the one 1.1 s later is
      * printed. */
     struct timespec pause = {1, 100000000};
@@ -2149,8 +2149,8 @@ static void s_nlspath(void)
         {"absolute name, a directory", NULL, "de", NULL, NULL, NULL, 0, "<T>/d", 0, {"d", "!dir", NULL}},
         {"absolute name, unreadable", NULL, "de", NULL, NULL, NULL, 0, "<T>/u", 0, {"u", "!000", NULL}},
         {"absolute name below a file", NULL, "de", NULL, NULL, NULL, 0, "<T>/f/x", 0, {"f", "file", NULL}},
-        {"name not found anywhere", "<T>/n/%N", "de", NULL, NULL, NULL, 0, "liella-no-such-catalog", 0, {NULL}},
-        {"NLSPATH unset, name not found", NULL, "de", NULL, NULL, NULL, 0, "liella-no-such-catalog", 0, {NULL}},
+        {"name not found anywhere", "<T>/n/%N", "de", NULL, NULL, NULL, 0, "niji-no-such-catalog", 0, {NULL}},
+        {"NLSPATH unset, name not found", NULL, "de", NULL, NULL, NULL, 0, "niji-no-such-catalog", 0, {NULL}},
         {"NLSPATH empty, cwd holds app", "", "de", NULL, NULL, NULL, 0, "app", 1, {"app", "cwd app", NULL}},
         {"template without %N", "<T>/fixed", "de", NULL, NULL, NULL, 0, "app", 0, {"fixed", "fixed", NULL}},
         {"empty name, NLSPATH <T>/n/%N (a directory <T>/n)", "<T>/n/%N", "de", NULL, NULL, NULL, 0, "", 0, {"n/", "!dir", NULL}},

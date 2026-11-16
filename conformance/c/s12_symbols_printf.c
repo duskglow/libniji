@@ -5,7 +5,7 @@
  * result convention; the fortified forms also check that an overflow of the object (or `%n` in a
  * writable format) ends in the fortify failure, in a child, and the byte forms a format with `%n`
  * in read-only memory (the wide forms' is in s12_symbols_printf_chk.c, with the other cases
- * Liella does not pass yet). The conversions themselves are the clause tests' (s12_printf.c).
+ * libniji does not pass yet). The conversions themselves are the clause tests' (s12_printf.c).
  * Self-checking: each symbol's checks end with `end <symbol>` on standard error, each failed
  * check prints `FAIL <symbol>: line N: <check>`; the exit status is 1 when any check failed. */
 #undef _FORTIFY_SOURCE /* the plain functions are called; the fortified ones by name */
@@ -328,7 +328,7 @@ static void n_vswprintf_chk(void) { wchar_t b[32]; w___vswprintf_chk(b, 32, FLAG
 int main(void)
 {
     int n;
-    snprintf(path, sizeof path, "/tmp/liella-s12-symbols-printf-%d", (int)getpid());
+    snprintf(path, sizeof path, "/tmp/niji-s12-symbols-printf-%d", (int)getpid());
 
     /* ---------------------------------------------------------------- standard output */
 

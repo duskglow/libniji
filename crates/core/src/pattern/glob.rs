@@ -42,10 +42,10 @@ use crate::error::{Errno, Result};
 use crate::fs::dir::{DirStream, DT_DIR, DT_LNK, DT_UNKNOWN, STREAM_BUFFER};
 use crate::locale::Locale;
 use crate::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KPathBuf;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{AT_SYMLINK_NOFOLLOW, S_IFDIR, S_IFMT};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KPathBuf;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{AT_SYMLINK_NOFOLLOW, S_IFDIR, S_IFMT};
 
 use super::fnmatch::{self, Pattern};
 

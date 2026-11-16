@@ -14,9 +14,9 @@
 //! without touching io_uring when the process runs in secure-execution mode (`AT_SECURE`), when
 //! a seccomp filter is installed on the calling thread (a filter that kills on a system call it
 //! does not list would kill the process at `io_uring_setup`, where no fallback can catch it),
-//! when the program asked for threads ([`use_threads`], the native `liella_aio_use_threads`,
+//! when the program asked for threads ([`use_threads`], the native `niji_aio_use_threads`,
 //! before its first request), or when the environment says so at the first request
-//! (`LIELLA_AIO_URING=0`, read with `secure_getenv`). A filter is seen first without any
+//! (`NIJI_AIO_URING=0`, read with `secure_getenv`). A filter is seen first without any
 //! `prctl`, in the `Seccomp:` line of `/proc/thread-self/status` (on procfs: any value but 0);
 //! only when that says 0 or cannot be read is `prctl(PR_GET_SECCOMP)` asked, and anything but 0
 //! from it, a failure included, counts as a filter. Tests force the workers with
@@ -141,15 +141,15 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU32, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst}};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::{FcntlInt, PrctlInt};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{SigEvent, SigInfo, Timespec, CLOCK_MONOTONIC, EFD_CLOEXEC, EFD_NONBLOCK, O_DSYNC, O_NONBLOCK, O_SYNC, S_IFBLK, S_IFMT, S_IFREG, SIGEV_NONE, SIGEV_SIGNAL, SIGEV_THREAD};
-use liella_legacy::pthread_compat::ATTR_WORDS;
-use liella_rt::futex::{self, Clock, Scope};
-use liella_rt::sync::{MutexGuard, RawCondvar, RawMutex};
-use liella_rt::thread::Attr;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::{FcntlInt, PrctlInt};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{SigEvent, SigInfo, Timespec, CLOCK_MONOTONIC, EFD_CLOEXEC, EFD_NONBLOCK, O_DSYNC, O_NONBLOCK, O_SYNC, S_IFBLK, S_IFMT, S_IFREG, SIGEV_NONE, SIGEV_SIGNAL, SIGEV_THREAD};
+use niji_legacy::pthread_compat::ATTR_WORDS;
+use niji_rt::futex::{self, Clock, Scope};
+use niji_rt::sync::{MutexGuard, RawCondvar, RawMutex};
+use niji_rt::thread::Attr;
 
 use crate::sys::{CSys, CP};
 use crate::{conv, ffi, fork, heap, pthread, raw, stacks, tb, thread};
@@ -430,7 +430,7 @@ fn lock() -> Held {
 /// Under the lock: a zeroed block of `words` words from `free` or the heap.
 fn alloc(free: &AtomicUsize, words: usize) -> KResult<usize> {
     let a = match free.load(Relaxed) {
-        0 => liella_legacy::malloc_compat::malloc(&heap::CTX, words.saturating_mul(8)).map_err(|_| Errno::EAGAIN)?,
+        0 => niji_legacy::malloc_compat::malloc(&heap::CTX, words.saturating_mul(8)).map_err(|_| Errno::EAGAIN)?,
         a => {
             free.store(w(tb::words64(a, 1), 0), Relaxed);
             a
@@ -642,7 +642,7 @@ extern "C" fn notification(block: usize) -> usize {
         fv
     };
     // `void f(union sigval)`: the 8-byte union is passed as an integer (psABI).
-    let _ = ffi::liella_machine_call3(f, as_i64(v), 0, 0);
+    let _ = ffi::niji_machine_call3(f, as_i64(v), 0, 0);
     0
 }
 
@@ -1124,7 +1124,7 @@ fn max_workers() -> usize {
 /// environment asked for threads, secure-execution mode, or a seccomp filter.
 fn ring_excluded<K: Uring>(k: &K) -> bool {
     FORCE_WORKERS.load(Relaxed) != 0
-        || crate::process::secure_getenv(b"LIELLA_AIO_URING").map(crate::strz::env_value) == Some(&b"0"[..])
+        || crate::process::secure_getenv(b"NIJI_AIO_URING").map(crate::strz::env_value) == Some(&b"0"[..])
         || crate::process::secure()
         || seccomp_filtered(k)
 }
@@ -1135,7 +1135,7 @@ fn ring_excluded<K: Uring>(k: &K) -> bool {
 /// cannot be read is `PR_GET_SECCOMP` asked, and anything but 0 from it (2 with a filter; a
 /// filter may also make the call fail, with any error) counts as a filter too.
 fn seccomp_filtered<K: Uring>(k: &K) -> bool {
-    match liella::system::seccomp_mode(k) {
+    match niji::system::seccomp_mode(k) {
         Some(m) if m != 0 => true,
         _ => k.prctl_int(PrctlInt::GetSeccomp, 0, 0) != Ok(0),
     }
@@ -1144,7 +1144,7 @@ fn seccomp_filtered<K: Uring>(k: &K) -> bool {
 /// The kernel as the engine choice sees it: the `Sys` calls, and the io_uring calls, which are
 /// not `Sys` methods (`raw`, D-X.9). Production: `CSys`. Tests: `Faulty<CSys>`
 /// (`selftest::aio_choose_engine`), whose plan refuses any of them by name
-/// (`liella_kernel::testing::RAW_FALLIBLE` for the io_uring ones).
+/// (`niji_kernel::testing::RAW_FALLIBLE` for the io_uring ones).
 pub(crate) trait Uring: Sys {
     /// `io_uring_setup` ([`raw::io_uring_setup`]).
     fn uring_setup(&self, entries: u32, params: &mut [u32; 30]) -> KResult<i32>;
@@ -1163,7 +1163,7 @@ impl Uring for CSys {
 }
 
 #[cfg(feature = "selftest")]
-impl Uring for liella_kernel::testing::Faulty<CSys> {
+impl Uring for niji_kernel::testing::Faulty<CSys> {
     fn uring_setup(&self, entries: u32, params: &mut [u32; 30]) -> KResult<i32> {
         match self.take("io_uring_setup") {
             Some(e) => Err(e),
@@ -1179,7 +1179,7 @@ impl Uring for liella_kernel::testing::Faulty<CSys> {
     }
 }
 
-/// `liella_aio_use_threads`: run this process's requests on the worker threads, never on
+/// `niji_aio_use_threads`: run this process's requests on the worker threads, never on
 /// io_uring. Before the first request (or once the workers were chosen) it holds for the life
 /// of the process, `fork` children included; `EBUSY` once a request has started the ring (the
 /// engine is chosen once; the ring is not retired under running requests).
@@ -1828,7 +1828,7 @@ fn ring_open<K: Uring>(k: &K) -> KResult<()> {
     }
     let (fd, p) = made?;
     // Kept for the life of the process: never a standard descriptor (validation T12).
-    let fd = liella::io::above_standard(k, Fd::new(fd))?.raw();
+    let fd = niji::io::above_standard(k, Fd::new(fd))?.raw();
     crate::sys::mark_aio_used(); // the direct close now takes the Rust path (CANCEL-FAST-2)
     RING_FD.store(fd, Release);
     let r = ring_map(k, fd, &p);
@@ -1868,7 +1868,7 @@ fn ring_map<K: Uring>(k: &K, fd: i32, p: &[u32; 30]) -> KResult<()> {
     if !(probe.first().is_some_and(|&last| last >= OPC_WRITE) && [OPC_FSYNC, OPC_POLL_ADD, OPC_READ, OPC_WRITE].into_iter().all(supported)) {
         return Err(Errno::ENOSYS);
     }
-    let ev = liella::io::above_standard(k, k.eventfd2(0, EFD_NONBLOCK | EFD_CLOEXEC)?)?;
+    let ev = niji::io::above_standard(k, k.eventfd2(0, EFD_NONBLOCK | EFD_CLOEXEC)?)?;
     crate::sys::mark_aio_used(); // the direct close now takes the Rust path (CANCEL-FAST-2)
     EVENT_FD.store(ev.raw(), Release);
     k.fcntl_int(Fd::new(fd), FcntlInt::SetFd, 1)?;
@@ -2343,7 +2343,7 @@ pub(crate) fn force_workers(on: bool) {
 /// Choose this process's engine now, as its first request would, asking `k` (tests: a `Faulty`
 /// plan refusing io_uring or a call around it). Only before the process's first request.
 #[cfg(feature = "selftest")]
-pub(crate) fn choose_engine(k: &liella_kernel::testing::Faulty<CSys>) -> KResult<()> {
+pub(crate) fn choose_engine(k: &niji_kernel::testing::Faulty<CSys>) -> KResult<()> {
     let _g = lock();
     engine_with(k).map(drop)
 }

@@ -1,5 +1,5 @@
 /* Built-in wl_percall set: the per-call libc work of the common coreutils paths. Each case ends with a
- * self-check (PC_CHECKING, see percall.h): the values glibc and Liella must agree on. */
+ * self-check (PC_CHECKING, see percall.h): the values glibc and libniji must agree on. */
 #include "percall.h"
 #include <time.h>
 

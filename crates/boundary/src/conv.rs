@@ -14,19 +14,19 @@
 use core::ffi::{c_int, c_void};
 use core::sync::atomic::AtomicI32;
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella::bytes::{self, Unit};
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji::bytes::{self, Unit};
 
 use crate::ffi;
-use liella_kernel::mem::Region;
-use liella_legacy::cstring::Dest;
+use niji_kernel::mem::Region;
+use niji_legacy::cstring::Dest;
 
 /// The kernel-provided image at `addr`, `len` bytes long, for the rest of the process.
 ///
 /// Proof obligation (discharged by the caller in `crate::sys`): `addr` is the
 /// `AT_SYSINFO_EHDR` value from the kernel, and `len` is at most the image length its own ELF
-/// header declares (`liella_kernel::vdso::image_len`, first called on the
+/// header declares (`niji_kernel::vdso::image_len`, first called on the
 /// `vdso::HEADER_LEN`-byte header, which lies within the first mapped page). The kernel maps
 /// the whole image read-only and never unmaps it; only a C caller's `munmap` through `raw`
 /// could, which is outside safe code.
@@ -91,7 +91,7 @@ pub(crate) fn region_words(region: &Region) -> Option<&[core::sync::atomic::Atom
 /// The first `n` words at `addr` of a name-service cache table (D-16.10) as atomics: empty for
 /// NULL or a misaligned address.
 ///
-/// Contract (discharged by `crate::nscache::Memory` and `liella_legacy::nscache`): `addr` is a
+/// Contract (discharged by `crate::nscache::Memory` and `niji_legacy::nscache`): `addr` is a
 /// mapping `crate::nscache` made (`MAP_SHARED` of the user's region file, or private anonymous
 /// memory), read-write, of at least `n` words, and the caller uses the slice only while it holds
 /// the cache's reader count, which keeps the mapping from being unmapped. Other processes of the
@@ -366,7 +366,7 @@ pub(crate) fn errno_cell<'a>(p: *mut i32) -> Option<&'a AtomicI32> {
 /// runs when the CPU and OS support it (owner ruling 2026-10-05, PJ-7); otherwise large copies
 /// use `rep movsb` when the CPU has ERMS (OD-C2 b, P7), except where it is slow
 /// (`erms_placement_ok`); the other copies from 128 bytes take the AVX2 or SSE2 copy (any size,
-/// COPY-INTERNAL); the rest use the `liella-mem` loops, in descending address order when the
+/// COPY-INTERNAL); the rest use the `niji-mem` loops, in descending address order when the
 /// destination sits a short distance above the source modulo 4 KiB (`back_better`).
 pub fn copy_units<T: Unit>(dst: &mut [T], src: &[T]) -> usize {
     let n = dst.len().min(src.len());
@@ -388,9 +388,9 @@ fn copy_large<T: Unit>(dst: &mut [T], src: &[T], n: usize, bytes: usize) -> usiz
         // obligations of the declarations (`ffi`): both regions valid and disjoint (a `&mut`
         // and a `&`), 64 <= 128 <= bytes, AVX2 (the flags above) for the AVX2 copy.
         if crate::hot::avx2_erms(da, sa, bytes) {
-            let _ = ffi::liella_machine_copy_erms_a64(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
+            let _ = ffi::niji_machine_copy_erms_a64(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
         } else {
-            ffi::liella_machine_copy_avx2(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
+            ffi::niji_machine_copy_avx2(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
         }
         return n;
     }
@@ -399,24 +399,24 @@ fn copy_large<T: Unit>(dst: &mut [T], src: &[T], n: usize, bytes: usize) -> usiz
     // valid and disjoint (a `&mut` and a `&`), 64 <= 128 <= bytes.
     let k = if bytes >= crate::cpu::copy_erms_min() && crate::cpu::erms() { crate::hot::erms_kernel(da, sa, bytes) } else { crate::hot::Bulk::Sse2 };
     if k == crate::hot::Bulk::ErmsA64 {
-        let _ = ffi::liella_machine_copy_erms_a64(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
+        let _ = ffi::niji_machine_copy_erms_a64(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
         n
     } else if k == crate::hot::Bulk::Erms {
-        ffi::liella_machine_copy_erms(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
+        ffi::niji_machine_copy_erms(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
         n
     } else if bytes >= crate::cpu::AVX2_COPY_MIN && crate::cpu::copy_avx2() && crate::dispatch::avx2() {
         // Above 64 KiB where `rep movsb` is not used (no ERMS, e.g. Zen 1): the AVX2 copy, not the
         // loops (COPY-INTERNAL: 64 KiB + 1 took 39,100 instructions in the loops on Zen 1, the
         // kernel picks the order from the placement itself). Proof obligation of the declaration
         // (`ffi`): AVX2 (the flags above), 64 <= 128 <= bytes, both regions valid and disjoint.
-        ffi::liella_machine_copy_avx2(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
+        ffi::niji_machine_copy_avx2(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
         n
     } else if bytes >= crate::cpu::AVX2_COPY_MIN {
         // Without AVX2 (MEM-FALLBACK): the SSE2 build of the same copy, which picks the order
         // from the placement as the AVX2 one does; above 64 KiB too where `rep movsb` is not used
         // (COPY-INTERNAL). Proof obligation of the declaration (`ffi`): 64 <= 128 <= bytes, both
         // regions valid (a `&mut [T]` and a `&[T]` of `n` units).
-        let _ = ffi::liella_machine_move_sse2(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
+        let _ = ffi::niji_machine_move_sse2(dst.as_mut_ptr().cast(), src.as_ptr().cast(), bytes);
         n
     } else if back_better(da, sa) {
         bytes::copy_back(dst, src)
@@ -473,16 +473,16 @@ pub fn fill(dst: &mut [u8], v: u8) {
         let head = dst.as_ptr().addr().wrapping_neg() & 63;
         let (lead, rest) = dst.split_at_mut(head.min(dst.len()));
         bytes::fill(lead, v);
-        ffi::liella_machine_fill_erms(rest.as_mut_ptr(), i32::from(v), rest.len());
+        ffi::niji_machine_fill_erms(rest.as_mut_ptr(), i32::from(v), rest.len());
     } else if dst.len() > 128 && crate::dispatch::avx2() {
         // Without `rep stosb` (MEM-FALLBACK): the AVX2 fill. Proof obligation of the declaration
         // (`ffi`): AVX2 with the YMM state saved (the kernel flag; before the startup decision it
         // is false and the loop runs), 128 < len, `dst` a `&mut [u8]`.
-        let _ = ffi::liella_machine_fill_avx2(dst.as_mut_ptr(), i32::from(v), dst.len());
+        let _ = ffi::niji_machine_fill_avx2(dst.as_mut_ptr(), i32::from(v), dst.len());
     } else if dst.len() > 128 {
         // MEMSET-4K-SSE2: the SSE2 fill. Proof obligation of the declaration (`ffi`): 128 < len,
         // `dst` a `&mut [u8]`.
-        let _ = ffi::liella_machine_fill_sse2(dst.as_mut_ptr(), i32::from(v), dst.len());
+        let _ = ffi::niji_machine_fill_sse2(dst.as_mut_ptr(), i32::from(v), dst.len());
     } else {
         bytes::fill(dst, v);
     }
@@ -549,7 +549,7 @@ pub(crate) fn unit_commonness(u: i32) -> u8 {
 /// true for the C, POSIX and UTF-8 locales (a byte of 0x80 and up is no character alone). The
 /// answer for the last locale asked is cached (a pointer, low bit = answer), so a call costs one
 /// load and compare; a racing store of another locale only costs a recomputation.
-fn ascii_fold(l: &'static liella::locale::Locale) -> bool {
+fn ascii_fold(l: &'static niji::locale::Locale) -> bool {
     use core::sync::atomic::{AtomicUsize, Ordering};
     static LAST: AtomicUsize = AtomicUsize::new(0);
     let key = core::ptr::from_ref(l).addr();
@@ -557,14 +557,14 @@ fn ascii_fold(l: &'static liella::locale::Locale) -> bool {
     if seen != 0 && (seen & !1) == (key & !1) {
         return (seen & 1) == 1;
     }
-    let ok = (0..=255u8).all(|b| liella::ctype::to_lower(b, l) == b.to_ascii_lowercase());
+    let ok = (0..=255u8).all(|b| niji::ctype::to_lower(b, l) == b.to_ascii_lowercase());
     LAST.store((key & !1) | usize::from(ok), Ordering::Relaxed);
     ok
 }
 
 /// `strcasestr`'s search: the first position where `needle` matches `hay` under the locale's
 /// byte fold (`locale::lower`). In a locale whose fold is the ASCII fold the pair scanner finds
-/// candidates (an ASCII letter of the pair matches both cases: `liella_machine_pairscan_ci`) and
+/// candidates (an ASCII letter of the pair matches both cases: `niji_machine_pairscan_ci`) and
 /// the compare at each is `eq_ignore_ascii_case`; any other locale takes `bytes::find_seq` with
 /// the locale's fold. Same candidate policy, verification and linear bound as `find_slice`.
 pub fn find_slice_ci(hay: &[u8], needle: &[u8]) -> Option<usize> {
@@ -615,9 +615,9 @@ fn find_core(hay: &[u8], needle: &[u8], ci: bool) -> Option<usize> {
                     (false, true) => 2,
                     (true, true) => 3,
                 };
-                ffi::liella_machine_pairscan_ci(h.as_ptr(), rest, off, i32::from(fold(c0)), i32::from(fold(c1)), flags)
+                ffi::niji_machine_pairscan_ci(h.as_ptr(), rest, off, i32::from(fold(c0)), i32::from(fold(c1)), flags)
             } else {
-                ffi::liella_machine_pairscan(h.as_ptr(), rest, off, i32::from(c0), i32::from(c1))
+                ffi::niji_machine_pairscan(h.as_ptr(), rest, off, i32::from(c0), i32::from(c1))
             };
             if i >= rest {
                 if i == rest {
@@ -660,7 +660,7 @@ fn find_core(hay: &[u8], needle: &[u8], ci: bool) -> Option<usize> {
 pub fn compare(a: &[u8], b: &[u8]) -> core::cmp::Ordering {
     crate::cpu::ready();
     let n = a.len().min(b.len());
-    let i = ffi::liella_machine_memcmp(a.as_ptr(), b.as_ptr(), n);
+    let i = ffi::niji_machine_memcmp(a.as_ptr(), b.as_ptr(), n);
     settle_compare(a, b, i)
 }
 
@@ -697,7 +697,7 @@ fn rescan_compare(a: &[u8], b: &[u8], i: usize) -> core::cmp::Ordering {
 ///
 /// No value wider than two words is built on this path (D-4.13): the compiler lowers wider
 /// copies to calls to `memcpy`, which in the products is this function's own caller. So the
-/// regions go to `liella::bytes` as slices (passed in registers), never as a `Move`.
+/// regions go to `niji::bytes` as slices (passed in registers), never as a `Move`.
 ///
 /// # Safety
 /// `d` is valid for writing and `s` for reading `n` units, and nothing else references them
@@ -744,14 +744,14 @@ pub(crate) unsafe fn move_regions<T: Unit>(d: *mut c_void, s: *const c_void, n: 
     if bytes >= crate::cpu::AVX2_COPY_MIN && crate::cpu::copy_avx2() && crate::dispatch::avx2() {
         // Proof obligation of the declaration (`ffi`): AVX2 (the flags above), 64 <= 128 <= bytes,
         // both regions valid for `bytes` bytes and non-NULL (this function's contract).
-        let _ = ffi::liella_machine_move_avx2(d.cast(), s.cast(), bytes);
+        let _ = ffi::niji_machine_move_avx2(d.cast(), s.cast(), bytes);
         return n;
     }
     // Without AVX2 (MEM-FALLBACK): the SSE2 build of the same copy, any size from 128 bytes.
     if bytes >= crate::cpu::AVX2_COPY_MIN {
         // Proof obligation of the declaration (`ffi`): 64 <= 128 <= bytes, both regions valid for
         // `bytes` bytes and non-NULL (this function's contract).
-        let _ = ffi::liella_machine_move_sse2(d.cast(), s.cast(), bytes);
+        let _ = ffi::niji_machine_move_sse2(d.cast(), s.cast(), bytes);
         return n;
     }
     // One view from the lower start to the higher end (contiguous because the regions overlap).
@@ -819,7 +819,7 @@ pub(crate) unsafe fn internal_fill(d: *mut c_void, c: c_int, n: usize) -> *mut c
 
 crate::internal_entry! {
 /// The library's internal `memcpy` (D-X.15).
-pub extern "C" fn liella_internal_memcpy(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_void {
+pub extern "C" fn niji_internal_memcpy(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_void {
     // UNSAFE(slice): a copy the library's own code makes.
     // SAFETY: its callers pass regions their bounds checks or types guarantee.
     unsafe { internal_move(d, s, n) }
@@ -827,17 +827,17 @@ pub extern "C" fn liella_internal_memcpy(d: *mut c_void, s: *const c_void, n: us
 
 crate::internal_entry! {
 /// The library's internal `memmove` (D-X.15).
-pub extern "C" fn liella_internal_memmove(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_void {
+pub extern "C" fn niji_internal_memmove(d: *mut c_void, s: *const c_void, n: usize) -> *mut c_void {
     // UNSAFE(slice): a move the library's own code makes.
-    // SAFETY: as for `liella_internal_memcpy`.
+    // SAFETY: as for `niji_internal_memcpy`.
     unsafe { internal_move(d, s, n) }
 }}
 
 crate::internal_entry! {
 /// The library's internal `memset` (D-X.15).
-pub extern "C" fn liella_internal_memset(d: *mut c_void, c: c_int, n: usize) -> *mut c_void {
+pub extern "C" fn niji_internal_memset(d: *mut c_void, c: c_int, n: usize) -> *mut c_void {
     // UNSAFE(slice): a fill the library's own code makes.
-    // SAFETY: as for `liella_internal_memcpy`.
+    // SAFETY: as for `niji_internal_memcpy`.
     unsafe { internal_fill(d, c, n) }
 }}
 
@@ -898,7 +898,7 @@ pub(crate) unsafe fn elements_mut<'a>(p: *mut c_void, n: usize, size: usize) -> 
     unsafe { buf_mut(p, bytes) }
 }
 
-/// A C address as an integer (for the storage traits of `liella::search`).
+/// A C address as an integer (for the storage traits of `niji::search`).
 pub(crate) fn addr<T>(p: *const T) -> usize {
     p.expose_provenance()
 }
@@ -982,7 +982,7 @@ pub(crate) unsafe fn ctext() -> CText {
     CText
 }
 
-impl liella_legacy::string_compat::TextAt<u8> for CText {
+impl niji_legacy::string_compat::TextAt<u8> for CText {
     fn text_at(&mut self, addr: usize) -> Option<&mut [u8]> {
         // UNSAFE(slice): see `ctext`.
         #[allow(unsafe_code)]
@@ -992,7 +992,7 @@ impl liella_legacy::string_compat::TextAt<u8> for CText {
     }
 }
 
-impl liella_legacy::string_compat::TextAt<i32> for CText {
+impl niji_legacy::string_compat::TextAt<i32> for CText {
     fn text_at(&mut self, addr: usize) -> Option<&mut [i32]> {
         // UNSAFE(slice): see `ctext`.
         #[allow(unsafe_code)]
@@ -1027,7 +1027,7 @@ pub(crate) fn const_cell<T>(v: Option<&mut *const T>) -> KResult<ConstCell<'_, T
 /// See [`const_cell`].
 pub(crate) struct ConstCell<'a, T>(&'a mut *const T);
 
-impl<T> liella_legacy::string_compat::Cursor for ConstCell<'_, T> {
+impl<T> niji_legacy::string_compat::Cursor for ConstCell<'_, T> {
     fn get(&self) -> usize {
         self.0.expose_provenance()
     }
@@ -1046,7 +1046,7 @@ impl<T> PtrCell<'_, T> {
     }
 }
 
-impl<T> liella_legacy::string_compat::Cursor for PtrCell<'_, T> {
+impl<T> niji_legacy::string_compat::Cursor for PtrCell<'_, T> {
     fn get(&self) -> usize {
         self.0.expose_provenance()
     }
@@ -1184,12 +1184,12 @@ impl ArgzOut<'_> {
 }
 
 /// A caller's `mbstate_t` as its ABI bytes; `None` for NULL (the hidden-state forms).
-pub(crate) fn state(ps: Option<&mut liella_abi::ctypes::mbstate_t>) -> Option<&mut [u8; 8]> {
+pub(crate) fn state(ps: Option<&mut niji_abi::ctypes::mbstate_t>) -> Option<&mut [u8; 8]> {
     ps.map(|m| &mut m.bytes)
 }
 
 /// A read-only `mbstate_t` (`mbsinit`).
-pub(crate) fn state_ref(ps: Option<&liella_abi::ctypes::mbstate_t>) -> Option<&[u8; 8]> {
+pub(crate) fn state_ref(ps: Option<&niji_abi::ctypes::mbstate_t>) -> Option<&[u8; 8]> {
     ps.map(|m| &m.bytes)
 }
 
@@ -1369,7 +1369,7 @@ pub(crate) fn wc(c: i32) -> u32 {
     u32::try_from(c).unwrap_or(u32::MAX)
 }
 
-impl liella_legacy::mb_compat::ReadAt<u8> for CText {
+impl niji_legacy::mb_compat::ReadAt<u8> for CText {
     fn read_at(&mut self, addr: usize, limit: usize) -> Option<&[u8]> {
         // One byte (`environ::getenv_many`'s first-byte test, once per environment entry): read it
         // directly, the byte `strz_n` would read first, instead of a `strnlen` call (~20
@@ -1390,7 +1390,7 @@ impl liella_legacy::mb_compat::ReadAt<u8> for CText {
     }
 }
 
-impl liella_legacy::mb_compat::ReadAt<i32> for CText {
+impl niji_legacy::mb_compat::ReadAt<i32> for CText {
     fn read_at(&mut self, addr: usize, limit: usize) -> Option<&[i32]> {
         // UNSAFE(slice): see `ctext`.
         #[allow(unsafe_code)]
@@ -1400,7 +1400,7 @@ impl liella_legacy::mb_compat::ReadAt<i32> for CText {
     }
 }
 
-impl liella_legacy::prng_global::CMem for CText {
+impl niji_legacy::prng_global::CMem for CText {
     fn bytes(&mut self, addr: usize, len: usize) -> Option<&mut [u8]> {
         // UNSAFE(slice): see `ctext`.
         #[allow(unsafe_code)]
@@ -1410,7 +1410,7 @@ impl liella_legacy::prng_global::CMem for CText {
     }
 }
 
-impl liella_legacy::search_c::CWords for CText {
+impl niji_legacy::search_c::CWords for CText {
     fn word(&self, addr: usize, i: usize) -> usize {
         let at = addr.wrapping_add(i.wrapping_mul(size_of::<usize>()));
         // UNSAFE(slice): see `ctext`.
@@ -1459,11 +1459,11 @@ impl liella_legacy::search_c::CWords for CText {
     /// a quarter of a small environment's `putenv`). The scanner compared `name=` itself.
     fn env_find_end(&self, env: usize, name: &[u8]) -> Result<(usize, usize), usize> {
         if env == 0 || name.is_empty() || name.contains(&0) {
-            return liella_legacy::environ::find_scan(env, name, self).ok_or_else(|| liella_legacy::environ::count(env, self));
+            return niji_legacy::environ::find_scan(env, name, self).ok_or_else(|| niji_legacy::environ::count(env, self));
         }
         // The scanner's contract: `env` is a NULL-terminated array of strings (the constructor's,
         // as for `word`); `name` is `name.len()` readable bytes holding no NUL (checked above).
-        let r = ffi::liella_machine_env_slot(env, name.as_ptr(), name.len());
+        let r = ffi::niji_machine_env_slot(env, name.as_ptr(), name.len());
         // The stop slot is in the array at or after `env`, a whole number of pointers on.
         let i = r.slot.wrapping_sub(env).checked_div(size_of::<usize>()).unwrap_or(0);
         if r.entry == 0 { Err(i) } else { Ok((i, r.entry)) }
@@ -1508,12 +1508,12 @@ pub(crate) unsafe fn elements_room<'a>(p: *mut c_void, n: usize, size: usize) ->
 pub(crate) unsafe fn zero_at(addr: usize, len: usize) {
     // SAFETY: the caller's contract.
     if let Ok(b) = unsafe { buf_mut(core::ptr::with_exposed_provenance_mut(addr), len) } {
-        liella::bytes::fill(b, 0);
+        niji::bytes::fill(b, 0);
     }
 }
 
 /// Zero `buf` so that the stores survive every optimisation (D-X.11, D-4.9): the one
-/// implementation of `liella_secure_zero` (which `explicit_bzero` and `__explicit_bzero_chk`
+/// implementation of `niji_secure_zero` (which `explicit_bzero` and `__explicit_bzero_chk`
 /// call) and of the heap's wiping of secure blocks. The bytes are stored as zero in Rust, then
 /// their address goes to the C layer's barrier (`csys/src/machine/barrier.S`, OD-C1): an
 /// assembly function, so no optimiser sees into it, not even under LTO. To the compiler the
@@ -1521,7 +1521,7 @@ pub(crate) unsafe fn zero_at(addr: usize, len: usize) {
 /// and is performed, in full, before the call; the barrier then returns without touching
 /// memory.
 pub(crate) fn secure_zero(buf: &mut [u8]) {
-    bytes::wipe(buf, |w| ffi::liella_machine_barrier(w.as_ptr()));
+    bytes::wipe(buf, |w| ffi::niji_machine_barrier(w.as_ptr()));
 }
 
 /// Copy `len` bytes between two distinct memory blocks (an obstack object moving to a new
@@ -1545,16 +1545,16 @@ pub(crate) unsafe fn copy_at(from: usize, to: usize, len: usize) {
 }
 
 /// Calls into C functions the C caller supplied as data (obstack callbacks). See the proof
-/// obligations of `ffi::liella_machine_call0`/`call3`.
+/// obligations of `ffi::niji_machine_call0`/`call3`.
 pub(crate) struct CCalls;
 
-impl liella_legacy::obstack::CCall for CCalls {
+impl niji_legacy::obstack::CCall for CCalls {
     fn call3(&mut self, f: usize, a: usize, b: usize, c: usize) -> usize {
         let w = |v: usize| i64::from_ne_bytes(v.to_ne_bytes());
-        usize::from_ne_bytes(crate::ffi::liella_machine_call3(f, w(a), w(b), w(c)).to_ne_bytes())
+        usize::from_ne_bytes(crate::ffi::niji_machine_call3(f, w(a), w(b), w(c)).to_ne_bytes())
     }
     fn call0(&mut self, f: usize) {
-        let _ = crate::ffi::liella_machine_call0(f);
+        let _ = crate::ffi::niji_machine_call0(f);
     }
     fn fatal(&mut self) -> ! {
         crate::ret::abort()
@@ -1653,24 +1653,24 @@ pub(crate) fn env_find_from(env: usize, at: usize, name: &[u8]) -> Option<usize>
     if env == 0 || !name.iter().all(|&b| b != 0) {
         return None;
     }
-    // The proof obligation of `liella_machine_env_find`: slots `at..` of a NULL-terminated
+    // The proof obligation of `niji_machine_env_find`: slots `at..` of a NULL-terminated
     // `environ` array are themselves one, for `at` at most its length. The caller's `at` is a
     // slot it found in this same array (`EnvMemo`: the same `environ`, which this library's
     // writers have not shortened since); `name` is a slice without NUL.
     // Slot `at` of that array: its address does not wrap (the array is in memory).
     let from = env.wrapping_add(at.wrapping_mul(size_of::<usize>()));
-    let p = ffi::liella_machine_env_find(from, name.as_ptr(), name.len());
+    let p = ffi::niji_machine_env_find(from, name.as_ptr(), name.len());
     (p != 0).then_some(p)
 }
 
 /// [`env_find`] for `len` bytes at `name` (the caller measured a readable C string).
 #[inline]
 pub(crate) fn env_find_raw(name: *const u8, len: usize) -> Option<usize> {
-    // The proof obligation of `liella_machine_env_find`: `environ` is 0 or a NULL-terminated
+    // The proof obligation of `niji_machine_env_find`: `environ` is 0 or a NULL-terminated
     // array of strings (its contract, as for `env_text`); `name` is `len` readable bytes, none
     // of them NUL (a measured C string, or a slice `env_find` checked).
     let env = ffi::environ.load(core::sync::atomic::Ordering::Acquire);
-    let p = ffi::liella_machine_env_find(env, name, len);
+    let p = ffi::niji_machine_env_find(env, name, len);
     (p != 0).then_some(p)
 }
 
@@ -1688,7 +1688,7 @@ pub(crate) fn process_text(addr: usize) -> &'static [u8] {
 
 /// The C text at `addr` (empty for NULL): the value of an entry that [`env_find_from`] has just
 /// found in the environment vector the loader handed the libm product's constructor
-/// (`dispatch::liella_libm_start`, D-10.50), which parses it at once.
+/// (`dispatch::niji_libm_start`, D-10.50), which parses it at once.
 #[cfg(feature = "libm")]
 pub(crate) fn env_value_text(addr: usize) -> &'static [u8] {
     // UNSAFE(slice): see the function's documentation.
@@ -1802,33 +1802,33 @@ pub(crate) fn startup_auxv(addr: usize, words: usize) -> &'static [u64] {
 // ------------------------------------------------------------------------------ phase 5: §11
 
 /// Kernel structures a C array of which may be viewed in place: plain data whose every bit
-/// pattern is a value, with the C layout (`liella_kernel::uapi`, Appendix C).
+/// pattern is a value, with the C layout (`niji_kernel::uapi`, Appendix C).
 pub(crate) trait CPod {}
-impl CPod for liella_kernel::uapi::PollFd {}
-impl CPod for liella_kernel::uapi::EpollEvent {}
-impl CPod for liella_kernel::mem::RemoteIoVec {}
-impl CPod for liella_kernel::mem::IoVec<'_> {}
-impl CPod for liella_kernel::mem::IoVecMut<'_> {}
-impl CPod for liella_kernel::uapi::Sembuf {}
-impl CPod for liella_kernel::uapi::MqAttr {}
+impl CPod for niji_kernel::uapi::PollFd {}
+impl CPod for niji_kernel::uapi::EpollEvent {}
+impl CPod for niji_kernel::mem::RemoteIoVec {}
+impl CPod for niji_kernel::mem::IoVec<'_> {}
+impl CPod for niji_kernel::mem::IoVecMut<'_> {}
+impl CPod for niji_kernel::uapi::Sembuf {}
+impl CPod for niji_kernel::uapi::MqAttr {}
 impl CPod for u16 {}
 impl CPod for u32 {}
-impl CPod for liella_kernel::mem::MMsgHdr<'_> {}
-impl CPod for liella_kernel::mem::MMsgHdrMut<'_> {}
-impl CPod for liella_abi::layout::struct_passwd {}
-impl CPod for liella_abi::layout::struct_group {}
-impl CPod for liella_abi::layout::struct_spwd {}
-impl CPod for liella_abi::layout::struct_sgrp {}
-impl CPod for liella_abi::layout::struct_utmp {}
-impl CPod for liella_abi::layout::struct_hostent {}
-impl CPod for liella_abi::layout::struct_netent {}
-impl CPod for liella_abi::layout::struct_servent {}
-impl CPod for liella_abi::layout::struct_protoent {}
-impl CPod for liella_abi::layout::struct_rpcent {}
-impl CPod for liella_abi::layout::struct_aliasent {}
-impl CPod for liella_abi::layout::struct_addrinfo {}
-impl CPod for liella_abi::layout::struct_mntent {}
-impl CPod for liella_abi::layout::struct_fstab {}
+impl CPod for niji_kernel::mem::MMsgHdr<'_> {}
+impl CPod for niji_kernel::mem::MMsgHdrMut<'_> {}
+impl CPod for niji_abi::layout::struct_passwd {}
+impl CPod for niji_abi::layout::struct_group {}
+impl CPod for niji_abi::layout::struct_spwd {}
+impl CPod for niji_abi::layout::struct_sgrp {}
+impl CPod for niji_abi::layout::struct_utmp {}
+impl CPod for niji_abi::layout::struct_hostent {}
+impl CPod for niji_abi::layout::struct_netent {}
+impl CPod for niji_abi::layout::struct_servent {}
+impl CPod for niji_abi::layout::struct_protoent {}
+impl CPod for niji_abi::layout::struct_rpcent {}
+impl CPod for niji_abi::layout::struct_aliasent {}
+impl CPod for niji_abi::layout::struct_addrinfo {}
+impl CPod for niji_abi::layout::struct_mntent {}
+impl CPod for niji_abi::layout::struct_fstab {}
 impl CPod for u8 {}
 
 /// `n` elements of a C array of kernel structures (negative `n` is `EINVAL`).
@@ -1890,21 +1890,21 @@ pub(crate) fn iovcnt(n: c_int) -> i64 {
 /// and referenced by nothing else (the contract of `fcntl`, §11.5).
 // UNSAFE(slice): a pointer argument becomes a reference to its structure.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn fcntl_arg<'a>(cmd: c_int, arg: usize) -> liella_legacy::io_compat::FcntlArg<'a> {
-    use liella_legacy::io_compat::{FcntlArg, FcntlKind};
+pub(crate) unsafe fn fcntl_arg<'a>(cmd: c_int, arg: usize) -> niji_legacy::io_compat::FcntlArg<'a> {
+    use niji_legacy::io_compat::{FcntlArg, FcntlKind};
     let p = core::ptr::with_exposed_provenance_mut::<u8>(arg);
-    match liella_legacy::io_compat::fcntl_kind(cmd) {
+    match niji_legacy::io_compat::fcntl_kind(cmd) {
         // An `int` argument arrives in a 64-bit register whose upper half is unspecified.
         FcntlKind::Int(c) => FcntlArg::Int(c, i64::from(i32::from_ne_bytes(u32::try_from(arg & 0xffff_ffff).unwrap_or(0).to_ne_bytes()))),
         // UNSAFE(slice): the command's `struct flock`.
         #[allow(unsafe_code)]
         // SAFETY: the caller's contract; `as_mut` checks NULL, and a C object of the type is
         // aligned for it.
-        FcntlKind::Lock(c) => FcntlArg::Lock(c, unsafe { p.cast::<liella_kernel::uapi::Flock>().as_mut() }),
+        FcntlKind::Lock(c) => FcntlArg::Lock(c, unsafe { p.cast::<niji_kernel::uapi::Flock>().as_mut() }),
         // UNSAFE(slice): the command's `struct f_owner_ex`.
         #[allow(unsafe_code)]
         // SAFETY: as above.
-        FcntlKind::OwnerEx(set) => FcntlArg::OwnerEx(set, unsafe { p.cast::<liella_kernel::uapi::FOwnerEx>().as_mut() }),
+        FcntlKind::OwnerEx(set) => FcntlArg::OwnerEx(set, unsafe { p.cast::<niji_kernel::uapi::FOwnerEx>().as_mut() }),
         // UNSAFE(slice): the command's `uint64_t`.
         #[allow(unsafe_code)]
         // SAFETY: as above.
@@ -1915,14 +1915,14 @@ pub(crate) unsafe fn fcntl_arg<'a>(cmd: c_int, arg: usize) -> liella_legacy::io_
 
 /// A `sigset_t` argument as the kernel's 64-bit mask (D-20.3: bits beyond 64 are ignored), with
 /// the library's internal signal (32, D-20.1) never blocked.
-pub(crate) fn sigmask(set: Option<&liella_abi::layout::sigset_t>) -> Option<liella_kernel::uapi::SigSet> {
-    set.map(|s| liella_kernel::uapi::SigSet(s.__val[0] & !(1u64 << 31)))
+pub(crate) fn sigmask(set: Option<&niji_abi::layout::sigset_t>) -> Option<niji_kernel::uapi::SigSet> {
+    set.map(|s| niji_kernel::uapi::SigSet(s.__val[0] & !(1u64 << 31)))
 }
 
 /// `__open_2`/`__openat_2`: `O_CREAT` or `O_TMPFILE` without a mode is a program bug, which
 /// glibc reports with a fortify message and an abort (§11.1).
 pub(crate) fn open_without_mode(flags: c_int) -> c_int {
-    if liella_legacy::io_compat::needs_mode(flags) {
+    if niji_legacy::io_compat::needs_mode(flags) {
         crate::process::fortify_fail(b"invalid open call: O_CREAT or O_TMPFILE without mode")
     }
     flags
@@ -1961,8 +1961,8 @@ pub(crate) fn count_ul(n: u64) -> i64 {
 }
 
 /// The advice of `process_madvise`, typed (`EINVAL` for advice the call does not take).
-pub(crate) fn remote_advice(advice: c_int) -> KResult<liella_kernel::ops::RemoteAdvice> {
-    liella_kernel::ops::RemoteAdvice::from_code(bits(advice)).ok_or(Errno::EINVAL)
+pub(crate) fn remote_advice(advice: c_int) -> KResult<niji_kernel::ops::RemoteAdvice> {
+    niji_kernel::ops::RemoteAdvice::from_code(bits(advice)).ok_or(Errno::EINVAL)
 }
 
 /// A `socklen_t` length as a byte count.
@@ -2006,8 +2006,8 @@ unsafe fn object_mut<'a, T>(p: *mut c_void) -> KResult<&'a mut T> {
 /// type or size, writable and referenced by nothing else (the contract of `*ctl`, §25.2).
 // UNSAFE(slice): a structure pointer becomes a reference or a byte slice.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn ipc_ctl_arg<'a, T>(shape: Option<liella_legacy::ipc_compat::CtlShape>, p: *mut c_void) -> KResult<liella_legacy::ipc_compat::CtlArg<'a, T>> {
-    use liella_legacy::ipc_compat::{CtlArg, CtlShape};
+pub(crate) unsafe fn ipc_ctl_arg<'a, T>(shape: Option<niji_legacy::ipc_compat::CtlShape>, p: *mut c_void) -> KResult<niji_legacy::ipc_compat::CtlArg<'a, T>> {
+    use niji_legacy::ipc_compat::{CtlArg, CtlShape};
     match shape.ok_or(Errno::EINVAL)? {
         // UNSAFE(slice): the command's structure.
         #[allow(unsafe_code)]
@@ -2029,8 +2029,8 @@ pub(crate) unsafe fn ipc_ctl_arg<'a, T>(shape: Option<liella_legacy::ipc_compat:
 /// `seminfo` or `unsigned short` array, writable and referenced by nothing else (§25.2).
 // UNSAFE(slice): the union's pointer members become references or slices.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn semctl_arg<'a>(cmd: c_int, arg: usize, nsems: impl FnOnce() -> KResult<usize>) -> KResult<liella_legacy::ipc_compat::SemArg<'a>> {
-    use liella_legacy::ipc_compat::{sem_shape, CtlShape, SemArg};
+pub(crate) unsafe fn semctl_arg<'a>(cmd: c_int, arg: usize, nsems: impl FnOnce() -> KResult<usize>) -> KResult<niji_legacy::ipc_compat::SemArg<'a>> {
+    use niji_legacy::ipc_compat::{sem_shape, CtlShape, SemArg};
     let p = core::ptr::with_exposed_provenance_mut::<c_void>(arg);
     match sem_shape(cmd).ok_or(Errno::EINVAL)? {
         CtlShape::None => Ok(SemArg::None),
@@ -2058,9 +2058,9 @@ pub(crate) unsafe fn semctl_arg<'a>(cmd: c_int, arg: usize, nsems: impl FnOnce()
 /// `value` is what the command takes: NULL, a NUL-terminated string, or `aux` readable bytes.
 // UNSAFE(slice): the value pointer becomes a string or a byte slice.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn fs_value<'a>(cmd: liella_kernel::ops::FsconfigCmd, value: *const c_void, aux: c_int) -> KResult<liella_kernel::sys::FsValue<'a>> {
-    use liella_kernel::ops::FsconfigCmd as C;
-    use liella_kernel::sys::FsValue;
+pub(crate) unsafe fn fs_value<'a>(cmd: niji_kernel::ops::FsconfigCmd, value: *const c_void, aux: c_int) -> KResult<niji_kernel::sys::FsValue<'a>> {
+    use niji_kernel::ops::FsconfigCmd as C;
+    use niji_kernel::sys::FsValue;
     match cmd {
         // UNSAFE(slice): a string value.
         #[allow(unsafe_code)]
@@ -2075,8 +2075,8 @@ pub(crate) unsafe fn fs_value<'a>(cmd: liella_kernel::ops::FsconfigCmd, value: *
 }
 
 /// `fsconfig`'s command, typed.
-pub(crate) fn fsconfig_cmd(cmd: u32) -> KResult<liella_kernel::ops::FsconfigCmd> {
-    liella_kernel::ops::FsconfigCmd::from_code(cmd).ok_or(Errno::EINVAL)
+pub(crate) fn fsconfig_cmd(cmd: u32) -> KResult<niji_kernel::ops::FsconfigCmd> {
+    niji_kernel::ops::FsconfigCmd::from_code(cmd).ok_or(Errno::EINVAL)
 }
 
 /// `mount_setattr`'s attribute structure of `size` bytes: at least the first version (32
@@ -2087,8 +2087,8 @@ pub(crate) fn fsconfig_cmd(cmd: u32) -> KResult<liella_kernel::ops::FsconfigCmd>
 /// `p` points to `size` readable bytes.
 // UNSAFE(slice): the caller's structure becomes a reference.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn mount_attr<'a>(p: *const c_void, size: usize) -> KResult<&'a liella_kernel::uapi::MountAttr> {
-    const V0: usize = size_of::<liella_kernel::uapi::MountAttr>();
+pub(crate) unsafe fn mount_attr<'a>(p: *const c_void, size: usize) -> KResult<&'a niji_kernel::uapi::MountAttr> {
+    const V0: usize = size_of::<niji_kernel::uapi::MountAttr>();
     if size < V0 {
         return Err(Errno::EINVAL);
     }
@@ -2099,13 +2099,13 @@ pub(crate) unsafe fn mount_attr<'a>(p: *const c_void, size: usize) -> KResult<&'
     if bytes.get(V0..).is_some_and(|tail| tail.iter().any(|&b| b != 0)) {
         return Err(Errno::E2BIG);
     }
-    if !p.cast::<liella_kernel::uapi::MountAttr>().is_aligned() {
+    if !p.cast::<niji_kernel::uapi::MountAttr>().is_aligned() {
         return Err(Errno::EFAULT);
     }
     // UNSAFE(slice): see the function's contract.
     #[allow(unsafe_code)]
     // SAFETY: non-NULL (`buf` checked), aligned, at least V0 readable bytes.
-    Ok(unsafe { &*p.cast::<liella_kernel::uapi::MountAttr>() })
+    Ok(unsafe { &*p.cast::<niji_kernel::uapi::MountAttr>() })
 }
 
 /// A message buffer (`struct msgbuf`: `long mtype` then `n` text bytes), read-only.
@@ -2115,7 +2115,7 @@ pub(crate) unsafe fn mount_attr<'a>(p: *const c_void, size: usize) -> KResult<&'
 // UNSAFE(slice): the caller's message becomes a slice.
 #[allow(unsafe_code)]
 pub(crate) unsafe fn msg<'a>(p: *const c_void, n: usize) -> KResult<&'a [u8]> {
-    let len = liella_legacy::ipc_compat::msg_bytes(n)?;
+    let len = niji_legacy::ipc_compat::msg_bytes(n)?;
     // UNSAFE(slice): see the function's contract.
     #[allow(unsafe_code)]
     // SAFETY: the caller's contract.
@@ -2129,7 +2129,7 @@ pub(crate) unsafe fn msg<'a>(p: *const c_void, n: usize) -> KResult<&'a [u8]> {
 // UNSAFE(slice): the caller's message buffer becomes a slice.
 #[allow(unsafe_code)]
 pub(crate) unsafe fn msg_mut<'a>(p: *mut c_void, n: usize) -> KResult<&'a mut [u8]> {
-    let len = liella_legacy::ipc_compat::msg_bytes(n)?;
+    let len = niji_legacy::ipc_compat::msg_bytes(n)?;
     // UNSAFE(slice): see the function's contract.
     #[allow(unsafe_code)]
     // SAFETY: the caller's contract.
@@ -2182,7 +2182,7 @@ pub(crate) unsafe fn opt_sockaddr<'a>(p: *const c_void, len: u32) -> KResult<Opt
 /// `p` is NULL or points to `*len` writable bytes referenced by nothing else.
 // UNSAFE(slice): the caller's result buffer becomes a slice.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn addr_out<'a>(p: *mut c_void, len: Option<&'a mut u32>) -> KResult<Option<liella_legacy::net_compat::AddrOut<'a>>> {
+pub(crate) unsafe fn addr_out<'a>(p: *mut c_void, len: Option<&'a mut u32>) -> KResult<Option<niji_legacy::net_compat::AddrOut<'a>>> {
     if p.is_null() {
         return Ok(None);
     }
@@ -2192,7 +2192,7 @@ pub(crate) unsafe fn addr_out<'a>(p: *mut c_void, len: Option<&'a mut u32>) -> K
     #[allow(unsafe_code)]
     // SAFETY: the caller's contract.
     let b = unsafe { buf_mut(p, n) }?;
-    Ok(Some(liella_legacy::net_compat::AddrOut { buf: b, len }))
+    Ok(Some(niji_legacy::net_compat::AddrOut { buf: b, len }))
 }
 
 /// A C `struct msghdr` for sending, viewed in place: its layout is the kernel's, and the
@@ -2203,14 +2203,14 @@ pub(crate) unsafe fn addr_out<'a>(p: *mut c_void, len: Option<&'a mut u32>) -> K
 /// readable for `'a` (the contract of `sendmsg`, §15.2).
 // UNSAFE(slice): the caller's message header becomes a reference.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn msghdr<'a>(p: *const c_void) -> KResult<&'a liella_kernel::mem::MsgHdr<'a>> {
-    if !p.cast::<liella_kernel::mem::MsgHdr<'_>>().is_aligned() {
+pub(crate) unsafe fn msghdr<'a>(p: *const c_void) -> KResult<&'a niji_kernel::mem::MsgHdr<'a>> {
+    if !p.cast::<niji_kernel::mem::MsgHdr<'_>>().is_aligned() {
         return Err(Errno::EFAULT);
     }
     // UNSAFE(slice): see the function's contract.
     #[allow(unsafe_code)]
     // SAFETY: aligned (checked); `as_ref` checks NULL; the contents are the caller's contract.
-    unsafe { p.cast::<liella_kernel::mem::MsgHdr<'a>>().as_ref() }.ok_or(Errno::EFAULT)
+    unsafe { p.cast::<niji_kernel::mem::MsgHdr<'a>>().as_ref() }.ok_or(Errno::EFAULT)
 }
 
 /// A C `struct msghdr` for receiving, viewed in place: the kernel writes the buffers it names
@@ -2221,7 +2221,7 @@ pub(crate) unsafe fn msghdr<'a>(p: *const c_void) -> KResult<&'a liella_kernel::
 /// writable and referenced by nothing else for `'a` (the contract of `recvmsg`, §15.2).
 // UNSAFE(slice): the caller's message header becomes a reference.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn msghdr_mut<'a>(p: *mut c_void) -> KResult<&'a mut liella_kernel::mem::MsgHdrMut<'a>> {
+pub(crate) unsafe fn msghdr_mut<'a>(p: *mut c_void) -> KResult<&'a mut niji_kernel::mem::MsgHdrMut<'a>> {
     // UNSAFE(slice): see the function's contract.
     #[allow(unsafe_code)]
     // SAFETY: the caller's contract.
@@ -2457,7 +2457,7 @@ pub(crate) unsafe fn obj32<'a, T>(p: *const T) -> KResult<&'a [core::sync::atomi
 /// the context (spec §21.2: "on the stack in `uc.uc_stack`").
 // UNSAFE(slice): the caller's context stack becomes atomic words.
 #[allow(unsafe_code)]
-pub(crate) unsafe fn ucontext_stack<'a>(uc: *const liella_abi::layout::ucontext_t) -> KResult<(usize, &'a [core::sync::atomic::AtomicUsize])> {
+pub(crate) unsafe fn ucontext_stack<'a>(uc: *const niji_abi::layout::ucontext_t) -> KResult<(usize, &'a [core::sync::atomic::AtomicUsize])> {
     // UNSAFE(slice): see the function's contract.
     #[allow(unsafe_code)]
     // SAFETY: the caller's contract.
@@ -2735,7 +2735,7 @@ pub(crate) fn printf_float_arg(args: usize, long_double: bool) -> u128 {
 // `string` has `length` bytes, the register arrays `num_regs` entries, a fastmap 256 bytes);
 // NULL gives `None`.
 
-impl CPod for liella_abi::layout::regmatch_t {}
+impl CPod for niji_abi::layout::regmatch_t {}
 impl CPod for i32 {}
 impl CPod for u64 {}
 impl CPod for usize {}
@@ -2787,7 +2787,7 @@ pub(crate) fn own_array<T: CPod>(addr: usize, n: usize) -> Option<&'static mut [
 }
 
 /// The `n` entries of a `pmatch` array.
-pub(crate) fn regmatch_array(addr: usize, n: usize) -> Option<&'static mut [liella_abi::layout::regmatch_t]> {
+pub(crate) fn regmatch_array(addr: usize, n: usize) -> Option<&'static mut [niji_abi::layout::regmatch_t]> {
     let n = i64::try_from(n).ok()?;
     if addr == 0 {
         return None;
@@ -2908,23 +2908,23 @@ mod tests {
         let mut a = [0u8; 300];
         let b: [u8; 300] = core::array::from_fn(|i| i as u8);
         let p: *mut c_void = a.as_mut_ptr().cast();
-        let _ = liella_internal_memcpy(p, b.as_ptr().cast(), 300);
+        let _ = niji_internal_memcpy(p, b.as_ptr().cast(), 300);
         assert_eq!(a, b);
         let p = a.as_mut_ptr();
-        let _ = liella_internal_memmove(p.wrapping_add(1).cast(), p.cast_const().cast(), 299);
+        let _ = niji_internal_memmove(p.wrapping_add(1).cast(), p.cast_const().cast(), 299);
         assert_eq!(a[0], 0);
         assert_eq!(a[1..], b[..299]);
         let p: *mut c_void = a.as_mut_ptr().cast();
-        let _ = liella_internal_memcpy(p, p.cast_const(), 300); // a self-copy, as LLVM may emit
-        assert_eq!(liella_internal_memset(p, 0x1ab, 300), p);
+        let _ = niji_internal_memcpy(p, p.cast_const(), 300); // a self-copy, as LLVM may emit
+        assert_eq!(niji_internal_memset(p, 0x1ab, 300), p);
         assert!(a.iter().all(|&v| v == 0xab));
         // Zero lengths accept NULL.
-        assert!(liella_internal_memcpy(core::ptr::null_mut(), core::ptr::null(), 0).is_null());
-        assert!(liella_internal_memset(core::ptr::null_mut(), 0, 0).is_null());
+        assert!(niji_internal_memcpy(core::ptr::null_mut(), core::ptr::null(), 0).is_null());
+        assert!(niji_internal_memset(core::ptr::null_mut(), 0, 0).is_null());
     }
 
     /// Every length 0..=64 through the internal entries, disjoint and overlapping both ways
-    /// (the `liella-mem` pairs below 64 bytes and the loops above, PJ-20), against a copy
+    /// (the `niji-mem` pairs below 64 bytes and the loops above, PJ-20), against a copy
     /// through a separate buffer; bytes outside the destination are never touched.
     #[test]
     fn internal_entries_every_short_length_and_overlap() {
@@ -2934,7 +2934,7 @@ mod tests {
                 let mut want = fresh;
                 let tmp = fresh[s..s + n].to_vec();
                 want[d..d + n].copy_from_slice(&tmp);
-                for entry in [liella_internal_memmove as extern "C" fn(*mut c_void, *const c_void, usize) -> *mut c_void, liella_internal_memcpy] {
+                for entry in [niji_internal_memmove as extern "C" fn(*mut c_void, *const c_void, usize) -> *mut c_void, niji_internal_memcpy] {
                     let mut a = fresh;
                     let base = a.as_mut_ptr();
                     let r = entry(base.wrapping_add(d).cast(), base.wrapping_add(s).cast_const().cast(), n);
@@ -2945,7 +2945,7 @@ mod tests {
             for at in 0..8usize {
                 let mut a = fresh;
                 let p = a.as_mut_ptr().wrapping_add(at);
-                assert_eq!(liella_internal_memset(p.cast(), 0x15a, n), p.cast());
+                assert_eq!(niji_internal_memset(p.cast(), 0x15a, n), p.cast());
                 let mut want = fresh;
                 want[at..at + n].fill(0x5a);
                 assert_eq!(a, want, "fill n {n} at {at}");

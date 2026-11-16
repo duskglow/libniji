@@ -1,4 +1,4 @@
-/* The content of liella-Mcrt1.o (installed as Mcrt1.o; SL-CRT, whose decision record states
+/* The content of niji-Mcrt1.o (installed as Mcrt1.o; SL-CRT, whose decision record states
  * the start files' rules): no code, no data and no symbols.
  *
  * GCC's x86-64 GNU/Linux driver never names Mcrt1.o (its startfile spec picks gcrt1.o for -pg,

@@ -1,6 +1,6 @@
 //! The name-service cache's glue (D-16.10): the memory its tables live in
-//! (`liella_legacy::nscache::Memory`), its start-up configuration, and the contexts the lookups
-//! use. The cache's logic is `liella_legacy::nscache`; the table format `liella::names::cache`.
+//! (`niji_legacy::nscache::Memory`), its start-up configuration, and the contexts the lookups
+//! use. The cache's logic is `niji_legacy::nscache`; the table format `niji::names::cache`.
 //!
 //! **Where the shared regions are.** The products (whose start-up is `crate::runtime`) put them
 //! in `/dev/shm/`. A process the library did not start (the test programs) has no region
@@ -9,13 +9,13 @@
 
 use core::sync::atomic::AtomicU64;
 
-use liella::names::cache::Category;
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_SHARED, PROT_READ, PROT_WRITE};
-use liella_legacy::nscache::{self, NSCACHE};
-use liella_legacy::nss::Ctx;
+use niji::names::cache::Category;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_SHARED, PROT_READ, PROT_WRITE};
+use niji_legacy::nscache::{self, NSCACHE};
+use niji_legacy::nss::Ctx;
 
 use crate::sys::CSys;
 use crate::{conv, process, raw, strz};
@@ -44,41 +44,41 @@ impl nscache::Memory for Memory {
     }
 }
 
-/// At process start (`crate::runtime`): `LIELLA_NSCACHE=0` disables the cache, except in
+/// At process start (`crate::runtime`): `NIJI_NSCACHE=0` disables the cache, except in
 /// secure-execution mode; the regions are in `/dev/shm/`. Inlined into both instances of
 /// `runtime::start` (D-27.10: the non-PIE start costs what it did before the static-PIE one).
 #[inline(always)]
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
 pub(crate) fn start(secure: bool) {
-    let off = !secure && process::getenv(crate::startup_names::LIELLA_NSCACHE).map(strz::env_value) == Some(&b"0"[..]);
+    let off = !secure && process::getenv(crate::startup_names::NIJI_NSCACHE).map(strz::env_value) == Some(&b"0"[..]);
     NSCACHE.start(off, secure, Some(b"/dev/shm/"));
 }
 
 // ------------------------------------------------------------------------------ the native interface
 
-/// A category's number (`LIELLA_NSCACHE_*`): `EINVAL` for another.
+/// A category's number (`NIJI_NSCACHE_*`): `EINVAL` for another.
 fn category(n: u32) -> KResult<Category> {
     usize::try_from(n).ok().and_then(Category::from_index).ok_or(Errno::EINVAL)
 }
 
-/// `liella_nscache_enable`: whether it was enabled (1 or 0).
+/// `niji_nscache_enable`: whether it was enabled (1 or 0).
 pub(crate) fn enable(on: u32) -> usize {
     usize::from(NSCACHE.enable(&CSys, &MEMORY, on != 0))
 }
 
-/// `liella_nscache_category`.
+/// `niji_nscache_category`.
 pub(crate) fn set_category(n: u32, on: u32) -> KResult<usize> {
     category(n).map(|c| usize::from(NSCACHE.set_category(c, on != 0)))
 }
 
-/// `liella_nscache_invalidate` (`u32::MAX`: every category).
+/// `niji_nscache_invalidate` (`u32::MAX`: every category).
 pub(crate) fn invalidate(n: u32) -> KResult<()> {
     let which = if n == u32::MAX { None } else { Some(category(n)?) };
     NSCACHE.invalidate(&CSys, &MEMORY, which);
     Ok(())
 }
 
-/// `liella_nscache_status`.
+/// `niji_nscache_status`.
 pub(crate) fn status() -> nscache::Status {
     NSCACHE.status(&MEMORY)
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Self-test of the syscall classification in validation/wl_syscls.sh, used by wl_run.sh and wl_count_run.sh (WLRUN-FUTEX): futex and, for a run that created
 # threads, the memory-mapping calls are reported apart and are not in sys_total / sys_mem / sys_other.
 #   bash validation/wl_run_test.sh                 -> exit 0 and "wl_run_test: N passed" or exit 1

@@ -2,25 +2,25 @@
 //! in both builds through the boundary (the FMA build needs the startup dispatch), and the three
 //! entries over the tiers. Clause: s10_0_f_0 (§10.2, D-10.3): every value the quick phase returns
 //! is the correctly rounded result, so its two builds are bit-identical wherever both answer.
-//! `LIELLA_INVHYP_N` (default 20000) sets the operands per region; the long accuracy job runs it
+//! `NIJI_INVHYP_N` (default 20000) sets the operands per region; the long accuracy job runs it
 //! with a larger value.
 
 // Sample generation is bit-level arithmetic on bounded values.
 #![allow(clippy::arithmetic_side_effects, clippy::as_conversions)]
-// asinh, acosh, atanh are Liella's own C entries: keep LLVM from treating them as builtins.
+// asinh, acosh, atanh are libniji's own C entries: keep LLVM from treating them as builtins.
 #![no_builtins]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_math::fast64::quick_log::{C_PAIR, RHO_PAIR};
-use liella_math::real::Real;
-use liella_math::status::Rounding;
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_math::fast64::quick_log::{C_PAIR, RHO_PAIR};
+use niji_math::real::Real;
+use niji_math::status::Rounding;
 
 /// Serialises the tests that switch the process-wide build.
 static BUILD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn per_region() -> usize {
-    std::env::var("LIELLA_INVHYP_N").ok().and_then(|v| v.parse().ok()).unwrap_or(20_000)
+    std::env::var("NIJI_INVHYP_N").ok().and_then(|v| v.parse().ok()).unwrap_or(20_000)
 }
 
 /// xorshift64 in `[0, 1)`.

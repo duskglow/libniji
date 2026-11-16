@@ -6,4 +6,4 @@
 
 pub use crate::cursors::{line_at, Cursor, Step};
 pub use crate::nss_files::{ether_by_addr, ether_by_name, group_by, group_list, gshadow_by, passwd_by, shadow_by, Key, ETHERS, GROUP, GSHADOW, PASSWD, SHADOW};
-pub use liella::names::{Family, Ip};
+pub use niji::names::{Family, Ip};

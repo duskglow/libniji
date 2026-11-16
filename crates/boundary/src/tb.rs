@@ -1,22 +1,22 @@
-//! The calling thread's block (IP-8; `liella_rt::tls`), reached through the thread pointer.
+//! The calling thread's block (IP-8; `niji_rt::tls`), reached through the thread pointer.
 //!
-//! In a process Liella started, the runtime made the block (`crate::runtime`). Under glibc's
+//! In a process libniji started, the runtime made the block (`crate::runtime`). Under glibc's
 //! `ld.so`, or in a test process the host C library started, the thread pointer names glibc's
 //! thread descriptor, whose `tcbhead_t` has the same prefix and keeps 0x80–0x280 reserved and
-//! zero: Liella's fields fall in that range, and the descriptor is larger than the block.
+//! zero: libniji's fields fall in that range, and the descriptor is larger than the block.
 
 use core::ffi::c_int;
 
 use core::sync::atomic::{AtomicU32, AtomicU8, AtomicUsize};
 
-use liella_rt::thread::{Thread, KEYS, SLOT_SIZE};
+use niji_rt::thread::{Thread, KEYS, SLOT_SIZE};
 #[cfg(feature = "runtime")]
-use liella_rt::tls::ERRNO_OFFSET;
-use liella_rt::tls::ThreadBlock;
+use niji_rt::tls::ERRNO_OFFSET;
+use niji_rt::tls::ThreadBlock;
 
 /// The thread pointer (`%fs:0`): the block's self word (`ThreadBlock::tcb`, which holds the
-/// thread pointer in every block, Liella's and glibc's), read with one `%fs`-relative load
-/// instead of a call to `liella_machine_tp` (TINY-HOT; `__errno_location` is this plus an add).
+/// thread pointer in every block, libniji's and glibc's), read with one `%fs`-relative load
+/// instead of a call to `niji_machine_tp` (TINY-HOT; `__errno_location` is this plus an add).
 #[inline]
 pub fn tp() -> usize {
     read::<Tcb>()
@@ -63,7 +63,7 @@ macro_rules! field {
         const _: () = {
             assert!(size_of::<AtomicUsize>() == 8 && align_of::<AtomicUsize>() == 8);
             assert!(<$marker as Field>::OFFSET % 8 == 0);
-            assert!(<$marker as Field>::OFFSET + 8 <= liella_rt::tls::BLOCK_SIZE);
+            assert!(<$marker as Field>::OFFSET + 8 <= niji_rt::tls::BLOCK_SIZE);
         };
     };
 }
@@ -95,17 +95,17 @@ field! {
 
 field! {
     /// `ThreadBlock::cache[CACHE_TZ_PERIOD]`: word 0 of the thread's `localtime` period (P7).
-    TzPeriod0 = cache[liella_rt::tls::CACHE_TZ_PERIOD]
+    TzPeriod0 = cache[niji_rt::tls::CACHE_TZ_PERIOD]
 }
 
 field! {
     /// `ThreadBlock::cache[CACHE_TZ_PERIOD + 1]`: word 1 of the thread's `localtime` period.
-    TzPeriod1 = cache[liella_rt::tls::CACHE_TZ_PERIOD.wrapping_add(1)]
+    TzPeriod1 = cache[niji_rt::tls::CACHE_TZ_PERIOD.wrapping_add(1)]
 }
 
 field! {
     /// `ThreadBlock::cache[CACHE_TZ_PERIOD + 2]`: word 2 of the thread's `localtime` period.
-    TzPeriod2 = cache[liella_rt::tls::CACHE_TZ_PERIOD.wrapping_add(2)]
+    TzPeriod2 = cache[niji_rt::tls::CACHE_TZ_PERIOD.wrapping_add(2)]
 }
 
 field! {
@@ -199,8 +199,8 @@ const _: () = {
     assert!(align_of::<ThreadBlock>() % 64 == 0);
     assert!(<TidWord as Field>::OFFSET % 4 == 0 && <TidWord as Field>::OFFSET % 64 + 8 <= 64);
     assert!(<FlagsWord as Field>::OFFSET % 4 == 0 && <FlagsWord as Field>::OFFSET % 64 + 8 <= 64);
-    assert!(<TidWord as Field>::OFFSET + 8 <= liella_rt::tls::BLOCK_SIZE);
-    assert!(<FlagsWord as Field>::OFFSET + 8 <= liella_rt::tls::BLOCK_SIZE);
+    assert!(<TidWord as Field>::OFFSET + 8 <= niji_rt::tls::BLOCK_SIZE);
+    assert!(<FlagsWord as Field>::OFFSET + 8 <= niji_rt::tls::BLOCK_SIZE);
     assert!(<Tid as Field32>::SHIFT == 0);
 };
 
@@ -247,7 +247,7 @@ pub fn current() -> &'static ThreadBlock {
 /// test is in assembly (machine/tp.S), which in the products is `__errno_location` itself.
 #[inline(always)]
 pub fn errno_location() -> *mut c_int {
-    crate::ffi::liella_machine_errno_location()
+    crate::ffi::niji_machine_errno_location()
 }
 
 /// The library's own `errno` stores and loads in the products (`crate::errno`): the same test
@@ -266,7 +266,7 @@ pub(crate) fn errno_inline() -> *mut c_int {
     }
 }
 
-/// Store `v` in the `errno` cell [`errno_location`] names (D-X.60 tests: the cell Liella's
+/// Store `v` in the `errno` cell [`errno_location`] names (D-X.60 tests: the cell libniji's
 /// own `__errno_location` gives, which a test process does not otherwise reach).
 pub fn set_own_errno(v: c_int) {
     if let Some(c) = crate::conv::errno_cell(errno_location()) {
@@ -297,12 +297,12 @@ pub(crate) fn desc_at(addr: usize) -> &'static Thread {
 /// The rseq area at `addr`. Crate-private contract: `addr` is `tp + RSEQ_OFFSET` of the initial
 /// thread of a process whose loader mapped that area and registered it there (`ld::register_rseq`):
 /// the mapping lives as long as the process and every field is atomic.
-pub(crate) fn rseq_at(addr: usize) -> &'static liella_kernel::uapi::Rseq {
+pub(crate) fn rseq_at(addr: usize) -> &'static niji_kernel::uapi::Rseq {
     // UNSAFE(slice): the loader's registered rseq area becomes a reference (contract above).
     #[allow(unsafe_code)]
     // SAFETY: the caller's contract: a live, 32-byte aligned area for the process's lifetime.
     unsafe {
-        &*core::ptr::with_exposed_provenance::<liella_kernel::uapi::Rseq>(addr)
+        &*core::ptr::with_exposed_provenance::<niji_kernel::uapi::Rseq>(addr)
     }
 }
 
@@ -310,20 +310,20 @@ pub(crate) fn rseq_at(addr: usize) -> &'static liella_kernel::uapi::Rseq {
 /// contract as [`desc_at`]: an address `result_slot` computed from a descriptor.
 // UNSAFE(slice): a thread's result slot becomes atomic bytes.
 #[allow(unsafe_code)]
-pub(crate) fn slot_at(addr: usize) -> &'static liella_legacy::result_slots::Buf<SLOT_SIZE> {
+pub(crate) fn slot_at(addr: usize) -> &'static niji_legacy::result_slots::Buf<SLOT_SIZE> {
     // SAFETY: the caller's contract; `Buf` is a transparent array of atomic bytes, and the slot
     // area lives as long as the thread's mapping.
-    unsafe { &*core::ptr::with_exposed_provenance::<liella_legacy::result_slots::Buf<SLOT_SIZE>>(addr) }
+    unsafe { &*core::ptr::with_exposed_provenance::<niji_legacy::result_slots::Buf<SLOT_SIZE>>(addr) }
 }
 
 /// `N` bytes of result slots at `addr`. Crate-private contract as [`slot_at`]: an address
 /// `result_area` computed from a descriptor, with the `N` bytes inside its slot area.
 // UNSAFE(slice): a thread's result slots become atomic bytes.
 #[allow(unsafe_code)]
-pub(crate) fn area_at<const N: usize>(addr: usize) -> &'static liella_legacy::result_slots::Buf<N> {
+pub(crate) fn area_at<const N: usize>(addr: usize) -> &'static niji_legacy::result_slots::Buf<N> {
     // SAFETY: the caller's contract; `Buf` is a transparent array of atomic bytes (alignment 1),
     // and the slot area lives as long as the thread's mapping.
-    unsafe { &*core::ptr::with_exposed_provenance::<liella_legacy::result_slots::Buf<N>>(addr) }
+    unsafe { &*core::ptr::with_exposed_provenance::<niji_legacy::result_slots::Buf<N>>(addr) }
 }
 
 /// The `SLOT_RECORDS` result slot as typed atomics (D-C0.2, D-14.12): word 0 the address of the
@@ -357,9 +357,9 @@ pub(crate) fn records_at(addr: usize) -> Option<&'static RecordsSlot> {
 /// the library's own, used only by the calling thread and freed only at its exit.
 // UNSAFE(slice): a thread's result block becomes atomic bytes.
 #[allow(unsafe_code)]
-pub(crate) fn block_buf<const N: usize>(addr: usize) -> &'static liella_legacy::result_slots::Buf<N> {
+pub(crate) fn block_buf<const N: usize>(addr: usize) -> &'static niji_legacy::result_slots::Buf<N> {
     // SAFETY: the caller's contract; `Buf` is a transparent array of atomic bytes (alignment 1).
-    unsafe { &*core::ptr::with_exposed_provenance::<liella_legacy::result_slots::Buf<N>>(addr) }
+    unsafe { &*core::ptr::with_exposed_provenance::<niji_legacy::result_slots::Buf<N>>(addr) }
 }
 
 /// The calling thread's block table at `addr` as `N` words, or `None` when `addr` is not word
@@ -368,8 +368,8 @@ pub(crate) fn block_buf<const N: usize>(addr: usize) -> &'static liella_legacy::
 /// at its exit.
 // UNSAFE(slice): a thread's block table becomes atomic words.
 #[allow(unsafe_code)]
-pub(crate) fn table_words<const N: usize>(addr: usize) -> Option<&'static liella_legacy::result_slots::Words<N>> {
-    if addr == 0 || addr.checked_rem(align_of::<liella_legacy::result_slots::Words<N>>()) != Some(0) {
+pub(crate) fn table_words<const N: usize>(addr: usize) -> Option<&'static niji_legacy::result_slots::Words<N>> {
+    if addr == 0 || addr.checked_rem(align_of::<niji_legacy::result_slots::Words<N>>()) != Some(0) {
         return None;
     }
     // UNSAFE(slice): the checked table address becomes atomic words.
@@ -378,20 +378,20 @@ pub(crate) fn table_words<const N: usize>(addr: usize) -> Option<&'static liella
     // after `users::thread_ending` releases the table (it clears the slot word first, so no later
     // lookup on this thread reaches the freed table). `Words` is a transparent array of atomic
     // words and `addr` was checked above to be non-null and aligned for it.
-    Some(unsafe { &*core::ptr::with_exposed_provenance::<liella_legacy::result_slots::Words<N>>(addr) })
+    Some(unsafe { &*core::ptr::with_exposed_provenance::<niji_legacy::result_slots::Words<N>>(addr) })
 }
 
 /// A selected time zone (D-23.6). Crate-private contract: `addr` is an address
-/// `liella_legacy::time_compat` recorded for an entry it leaked; such values are never freed or
+/// `niji_legacy::time_compat` recorded for an entry it leaked; such values are never freed or
 /// modified. Always inlined, as `zone::Glue::entry_at` (HOTTEXT-TIME-CLUSTER-STABLE).
 #[inline(always)]
-pub(crate) fn zone_entry_at(addr: usize) -> &'static liella_legacy::time_compat::Entry {
+pub(crate) fn zone_entry_at(addr: usize) -> &'static niji_legacy::time_compat::Entry {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
     // SAFETY: a leaked entry, immutable but for its atomic link, that lives for the rest of the
     // process.
     unsafe {
-        &*core::ptr::with_exposed_provenance::<liella_legacy::time_compat::Entry>(addr)
+        &*core::ptr::with_exposed_provenance::<niji_legacy::time_compat::Entry>(addr)
     }
 }
 
@@ -457,7 +457,7 @@ pub(crate) fn listed(tp: usize) -> &'static ThreadBlock {
 pub(crate) fn fresh(tp: usize) -> &'static ThreadBlock {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
-    // SAFETY: the creator's own mapping, laid out by `liella_rt::thread::Layout`.
+    // SAFETY: the creator's own mapping, laid out by `niji_rt::thread::Layout`.
     unsafe {
         at(tp)
     }
@@ -482,7 +482,7 @@ pub(crate) fn shadow_chunk_at(addr: usize) -> &'static crate::thread::ShadowChun
 // UNSAFE(slice): a static of atomic words becomes a block-shaped reference.
 #[allow(unsafe_code)]
 pub(crate) fn spare_at(addr: usize) -> &'static ThreadBlock {
-    const _: () = assert!(size_of::<crate::thread::Spare>() == liella_rt::tls::BLOCK_SIZE);
+    const _: () = assert!(size_of::<crate::thread::Spare>() == niji_rt::tls::BLOCK_SIZE);
     const _: () = assert!(align_of::<crate::thread::Spare>() >= align_of::<ThreadBlock>());
     // UNSAFE(slice): see the function's contract; every field of a block is atomic, and zero
     // words are a valid value of each.
@@ -494,38 +494,38 @@ pub(crate) fn spare_at(addr: usize) -> &'static ThreadBlock {
 }
 
 /// An interned locale's view (D-7.8, D-7.13). Crate-private contract: `addr` is an address
-/// `liella_legacy::global_locale` recorded for a view it leaked (also as stored in a thread
+/// `niji_legacy::global_locale` recorded for a view it leaked (also as stored in a thread
 /// block's `view` word); such values are never freed or modified.
-pub(crate) fn view_at(addr: usize) -> &'static liella::locale::view::LocaleView {
+pub(crate) fn view_at(addr: usize) -> &'static niji::locale::view::LocaleView {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
     // SAFETY: a leaked, immutable `LocaleView` that lives for the rest of the process.
     unsafe {
-        &*core::ptr::with_exposed_provenance::<liella::locale::view::LocaleView>(addr)
+        &*core::ptr::with_exposed_provenance::<niji::locale::view::LocaleView>(addr)
     }
 }
 
 /// A class-word table (D-5.11). Crate-private contract: `addr` is the address of a
-/// [`ClassTable`](liella::locale::classes::ClassTable) a view's
-/// [`class_table`](liella::locale::view::LocaleView::class_table) returned (as stored in a thread
+/// [`ClassTable`](niji::locale::classes::ClassTable) a view's
+/// [`class_table`](niji::locale::view::LocaleView::class_table) returned (as stored in a thread
 /// block's `wclass` word): a static, never freed or moved.
 #[inline(always)]
-pub(crate) fn class_table_at(addr: usize) -> &'static liella::locale::classes::ClassTable {
+pub(crate) fn class_table_at(addr: usize) -> &'static niji::locale::classes::ClassTable {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
     // SAFETY: a `ClassTable` in a static that lives for the rest of the process; it is only
     // read and written through atomics.
     unsafe {
-        &*core::ptr::with_exposed_provenance::<liella::locale::classes::ClassTable>(addr)
+        &*core::ptr::with_exposed_provenance::<niji::locale::classes::ClassTable>(addr)
     }
 }
 
 /// A view's `nl_langinfo` answer table (PARITY-SMALL-ENTRY-2). Crate-private contract: `p` is
-/// what [`LocaleView::answers`](liella::locale::view::LocaleView::answers) returned: the static
+/// what [`LocaleView::answers`](niji::locale::view::LocaleView::answers) returned: the static
 /// `NO_ANSWERS` or a table the view leaked and published whole (Release/Acquire), never freed
 /// or modified.
 #[inline]
-pub(crate) fn answers_at(p: *const liella::locale::view::Answers) -> &'static liella::locale::view::Answers {
+pub(crate) fn answers_at(p: *const niji::locale::view::Answers) -> &'static niji::locale::view::Answers {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
     // SAFETY: a static, or a leaked, immutable `Answers` that lives for the rest of the process.
@@ -535,14 +535,14 @@ pub(crate) fn answers_at(p: *const liella::locale::view::Answers) -> &'static li
 }
 
 /// A loaded charmap (D-6.8). Crate-private contract: `addr` is an address
-/// `liella_legacy::global_locale` recorded for a charmap it leaked; such values are never freed
+/// `niji_legacy::global_locale` recorded for a charmap it leaked; such values are never freed
 /// or modified.
-pub(crate) fn charmap_at(addr: usize) -> &'static liella::charmap::Charmap {
+pub(crate) fn charmap_at(addr: usize) -> &'static niji::charmap::Charmap {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
     // SAFETY: a leaked, immutable `Charmap` that lives for the rest of the process.
     unsafe {
-        &*core::ptr::with_exposed_provenance::<liella::charmap::Charmap>(addr)
+        &*core::ptr::with_exposed_provenance::<niji::charmap::Charmap>(addr)
     }
 }
 
@@ -573,7 +573,7 @@ pub(crate) fn file_words(addr: usize) -> Option<&'static [AtomicUsize]> {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
     // SAFETY: a live FILE object of FILE_WORDS words.
-    let w = unsafe { words64_at(addr, liella_legacy::stdio_compat::FILE_WORDS) };
+    let w = unsafe { words64_at(addr, niji_legacy::stdio_compat::FILE_WORDS) };
     Some(w)
 }
 
@@ -587,18 +587,18 @@ pub(crate) fn file_words_trusted(addr: usize) -> &'static [AtomicUsize] {
     #[allow(unsafe_code)]
     // SAFETY: a live FILE object of FILE_WORDS words (the caller's valid stream).
     unsafe {
-        words64_at(addr, liella_legacy::stdio_compat::FILE_WORDS)
+        words64_at(addr, niji_legacy::stdio_compat::FILE_WORDS)
     }
 }
 
 /// A stream's lock. Crate-private contract: `addr` is a `_lock` word `crate::stdio` stored,
 /// the address of a lock in a slot it leaked (never freed).
-pub(crate) fn stream_lock_at(addr: usize) -> &'static liella_legacy::stdio_compat::StreamLock {
+pub(crate) fn stream_lock_at(addr: usize) -> &'static niji_legacy::stdio_compat::StreamLock {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
     // SAFETY: a leaked StreamLock that lives for the rest of the process; shared access only.
     unsafe {
-        &*core::ptr::with_exposed_provenance::<liella_legacy::stdio_compat::StreamLock>(addr)
+        &*core::ptr::with_exposed_provenance::<niji_legacy::stdio_compat::StreamLock>(addr)
     }
 }
 
@@ -607,12 +607,12 @@ pub(crate) fn stream_lock_at(addr: usize) -> &'static liella_legacy::stdio_compa
 /// that stream's lock (or the caller of the C function does, for the `_unlocked` forms, as
 /// their contract requires), so no other reference to it exists meanwhile.
 #[allow(clippy::mut_from_ref)]
-pub(crate) fn stream_ext_at(addr: usize) -> &'static mut liella_legacy::stdio_compat::Ext {
+pub(crate) fn stream_ext_at(addr: usize) -> &'static mut niji_legacy::stdio_compat::Ext {
     // UNSAFE(slice): the contract above.
     #[allow(unsafe_code)]
     // SAFETY: a leaked Ext that lives for the rest of the process, used under its stream's lock.
     unsafe {
-        &mut *core::ptr::with_exposed_provenance_mut::<liella_legacy::stdio_compat::Ext>(addr)
+        &mut *core::ptr::with_exposed_provenance_mut::<niji_legacy::stdio_compat::Ext>(addr)
     }
 }
 
@@ -759,7 +759,7 @@ pub(crate) fn iconv_object(addr: usize) -> Option<&'static [AtomicUsize]> {
     Some(w)
 }
 
-/// The words of an `iconv_t` descriptor: a tag, then `liella::iconv::Conv::to_words`.
+/// The words of an `iconv_t` descriptor: a tag, then `niji::iconv::Conv::to_words`.
 pub(crate) const ICONV_WORDS: usize = 7;
 
 /// The words in `struct __locale_struct` (13 + 3 + 13).

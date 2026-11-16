@@ -17,7 +17,7 @@ extern int __open(const char *, int, ...);
 extern int __open64(const char *, int, ...);
 extern int __fcntl(int, int, ...);
 
-static const char path[] = "/tmp/liella-s11-variadic";
+static const char path[] = "/tmp/niji-s11-variadic";
 
 int main(void)
 {
@@ -40,7 +40,7 @@ int main(void)
     CHECK("s11_1_c_0", (ro = __open64(path, O_RDONLY)) >= 0 && close(ro) == 0);
     int dir = open("/tmp", O_RDONLY | O_DIRECTORY);
     CHECK("s11_1_c_0", dir >= 0);
-    CHECK("s11_1_c_0", (ro = openat(dir, "liella-s11-variadic", O_RDONLY)) >= 0 && close(ro) == 0);
+    CHECK("s11_1_c_0", (ro = openat(dir, "niji-s11-variadic", O_RDONLY)) >= 0 && close(ro) == 0);
     CHECK("s11_1_c_0", (ro = openat64(AT_FDCWD, path, O_RDONLY)) >= 0 && close(ro) == 0);
 
     /* fcntl: an int argument, a pointer argument, and none. */

@@ -4,7 +4,7 @@
 //! caller's buffers (socket numbers, results, addresses) as they were, open no file descriptor and
 //! keep no memory; `clnt_spcreateerror` must then print the stub's error.
 //! One test only: the heap check reads process-wide counters, which another test thread would move.
-//! With `export` the test harness allocates from Liella's heap too (libtest's main thread may
+//! With `export` the test harness allocates from libniji's heap too (libtest's main thread may
 //! allocate while the test runs), so there the checks run in a child forked from the test's thread:
 //! the child's only thread, so nothing else moves the counters and the equality stays exact
 //! (RPC-STUB-HEAP-CHECK-ISOLATE).
@@ -16,13 +16,13 @@ use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::io::Write;
 
-use liella_boundary::errno;
-use liella_boundary::posix::s03_memory as m;
-use liella_boundary::posix::s29_rpc_auth::EOPNOTSUPP;
-use liella_boundary::posix::s29_rpc_clnt::{self as c, Timeval};
-use liella_boundary::posix::s29_rpc_svc as s;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
+use niji_boundary::errno;
+use niji_boundary::posix::s03_memory as m;
+use niji_boundary::posix::s29_rpc_auth::EOPNOTSUPP;
+use niji_boundary::posix::s29_rpc_clnt::{self as c, Timeval};
+use niji_boundary::posix::s29_rpc_svc as s;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
 
 const CANARY: u8 = 0xA5;
 const RPC_SYSTEMERROR: i64 = 12;
@@ -61,51 +61,51 @@ fn table() -> Vec<(&'static str, i64, bool, Stub)> {
     let udp = c"udp".as_ptr();
     let t = Timeval { tv_sec: 1, tv_usec: 0 };
     vec![
-        ("clnt_create", 0, true, Box::new(move |_| p(c::liella_compat_clnt_create(host, 1, 1, udp).cast()))),
-        ("clntudp_create", 0, true, Box::new(move |b| p(c::liella_compat_clntudp_create(v(b), 1, 1, t, fd(b)).cast()))),
-        ("clntudp_bufcreate", 0, true, Box::new(move |b| p(c::liella_compat_clntudp_bufcreate(v(b), 1, 1, t, fd(b), 0, 0).cast()))),
-        ("clnttcp_create", 0, true, Box::new(move |b| p(c::liella_compat_clnttcp_create(v(b), 1, 1, fd(b), 0, 0).cast()))),
-        ("clntunix_create", 0, true, Box::new(move |b| p(c::liella_compat_clntunix_create(v(b), 1, 1, fd(b), 0, 0).cast()))),
-        ("clntraw_create", 0, true, Box::new(|_| p(c::liella_compat_clntraw_create(1, 1).cast()))),
-        ("authnone_create", 0, true, Box::new(|_| p(c::liella_compat_authnone_create().cast()))),
-        ("callrpc", RPC_SYSTEMERROR, true, Box::new(move |b| i64::from(c::liella_compat_callrpc(host, 1, 1, 1, None, null(), None, b)))),
-        ("clnt_broadcast", RPC_SYSTEMERROR, true, Box::new(|b| i64::from(c::liella_compat_clnt_broadcast(1, 1, 1, None, b, None, b, None)))),
-        ("pmap_rmtcall", RPC_SYSTEMERROR, true, Box::new(move |b| i64::from(c::liella_compat_pmap_rmtcall(v(b), 1, 1, 1, None, b, None, b, t, b.wrapping_add(48).cast::<c_ulong>())))),
-        ("pmap_getport", 0, true, Box::new(|b| i64::from(c::liella_compat_pmap_getport(v(b), 1, 1, 17)))),
-        ("getrpcport", 0, true, Box::new(move |_| i64::from(c::liella_compat_getrpcport(host, 1, 1, 17)))),
-        ("pmap_set", 0, true, Box::new(|_| i64::from(c::liella_compat_pmap_set(1, 1, 17, 2049)))),
-        ("pmap_unset", 0, true, Box::new(|_| i64::from(c::liella_compat_pmap_unset(1, 1)))),
-        ("pmap_getmaps", 0, true, Box::new(|b| p(c::liella_compat_pmap_getmaps(v(b))))),
-        ("get_myaddress", 0, true, Box::new(|b| { c::liella_compat_get_myaddress(v(b)); 0 })),
-        ("rtime", -1, true, Box::new(|b| i64::from(c::liella_compat_rtime(v(b), b.wrapping_add(16).cast(), b.wrapping_add(32).cast())))),
-        ("svcudp_create", 0, true, Box::new(|_| p(s::liella_compat_svcudp_create(s::RPC_ANYSOCK)))),
-        ("svcudp_bufcreate", 0, true, Box::new(|_| p(s::liella_compat_svcudp_bufcreate(s::RPC_ANYSOCK, 0, 0)))),
-        ("svctcp_create", 0, true, Box::new(|_| p(s::liella_compat_svctcp_create(s::RPC_ANYSOCK, 0, 0)))),
-        ("svcfd_create", 0, true, Box::new(|_| p(s::liella_compat_svcfd_create(0, 0, 0)))),
-        ("svcraw_create", 0, true, Box::new(|_| p(s::liella_compat_svcraw_create()))),
-        ("svcunix_create", 0, true, Box::new(|b| p(s::liella_compat_svcunix_create(s::RPC_ANYSOCK, 0, 0, b)))),
-        ("svcunixfd_create", 0, true, Box::new(|_| p(s::liella_compat_svcunixfd_create(0, 0, 0)))),
-        ("svcudp_enablecache", 0, false, Box::new(|b| i64::from(s::liella_compat_svcudp_enablecache(v(b), 16)))),
-        ("xprt_register", 0, false, Box::new(|b| { s::liella_compat_xprt_register(v(b)); 0 })),
-        ("xprt_unregister", 0, false, Box::new(|b| { s::liella_compat_xprt_unregister(v(b)); 0 })),
-        ("svc_register", 0, false, Box::new(|b| i64::from(s::liella_compat_svc_register(v(b), 1, 1, None, 17)))),
-        ("svc_unregister", 0, false, Box::new(|_| { s::liella_compat_svc_unregister(1, 1); 0 })),
-        ("registerrpc", -1, false, Box::new(|_| i64::from(s::liella_compat_registerrpc(1, 1, 1, None, None, None)))),
-        ("_authenticate", AUTH_FAILED, false, Box::new(|b| i64::from(s::liella_compat__authenticate(v(b), v(b))))),
-        ("svc_sendreply", 0, false, Box::new(|b| i64::from(s::liella_compat_svc_sendreply(v(b), None, b)))),
-        ("svcerr_noproc", 0, false, Box::new(|b| { s::liella_compat_svcerr_noproc(v(b)); 0 })),
-        ("svcerr_decode", 0, false, Box::new(|b| { s::liella_compat_svcerr_decode(v(b)); 0 })),
-        ("svcerr_systemerr", 0, false, Box::new(|b| { s::liella_compat_svcerr_systemerr(v(b)); 0 })),
-        ("svcerr_noprog", 0, false, Box::new(|b| { s::liella_compat_svcerr_noprog(v(b)); 0 })),
-        ("svcerr_progvers", 0, false, Box::new(|b| { s::liella_compat_svcerr_progvers(v(b), 1, 2); 0 })),
-        ("svcerr_auth", 0, false, Box::new(|b| { s::liella_compat_svcerr_auth(v(b), 1); 0 })),
-        ("svcerr_weakauth", 0, false, Box::new(|b| { s::liella_compat_svcerr_weakauth(v(b)); 0 })),
-        ("svc_getreq_common", 0, false, Box::new(|_| { s::liella_compat_svc_getreq_common(0); 0 })),
-        ("svc_getreqset", 0, false, Box::new(|b| { s::liella_compat_svc_getreqset(b.cast::<u64>()); 0 })),
-        ("svc_getreq", 0, false, Box::new(|_| { s::liella_compat_svc_getreq(1); 0 })),
-        ("svc_getreq_poll", 0, false, Box::new(|b| { s::liella_compat_svc_getreq_poll(v(b), 1); 0 })),
-        ("svc_run", 0, false, Box::new(|_| { s::liella_compat_svc_run(); 0 })),
-        ("svc_exit", 0, false, Box::new(|_| { s::liella_compat_svc_exit(); 0 })),
+        ("clnt_create", 0, true, Box::new(move |_| p(c::niji_compat_clnt_create(host, 1, 1, udp).cast()))),
+        ("clntudp_create", 0, true, Box::new(move |b| p(c::niji_compat_clntudp_create(v(b), 1, 1, t, fd(b)).cast()))),
+        ("clntudp_bufcreate", 0, true, Box::new(move |b| p(c::niji_compat_clntudp_bufcreate(v(b), 1, 1, t, fd(b), 0, 0).cast()))),
+        ("clnttcp_create", 0, true, Box::new(move |b| p(c::niji_compat_clnttcp_create(v(b), 1, 1, fd(b), 0, 0).cast()))),
+        ("clntunix_create", 0, true, Box::new(move |b| p(c::niji_compat_clntunix_create(v(b), 1, 1, fd(b), 0, 0).cast()))),
+        ("clntraw_create", 0, true, Box::new(|_| p(c::niji_compat_clntraw_create(1, 1).cast()))),
+        ("authnone_create", 0, true, Box::new(|_| p(c::niji_compat_authnone_create().cast()))),
+        ("callrpc", RPC_SYSTEMERROR, true, Box::new(move |b| i64::from(c::niji_compat_callrpc(host, 1, 1, 1, None, null(), None, b)))),
+        ("clnt_broadcast", RPC_SYSTEMERROR, true, Box::new(|b| i64::from(c::niji_compat_clnt_broadcast(1, 1, 1, None, b, None, b, None)))),
+        ("pmap_rmtcall", RPC_SYSTEMERROR, true, Box::new(move |b| i64::from(c::niji_compat_pmap_rmtcall(v(b), 1, 1, 1, None, b, None, b, t, b.wrapping_add(48).cast::<c_ulong>())))),
+        ("pmap_getport", 0, true, Box::new(|b| i64::from(c::niji_compat_pmap_getport(v(b), 1, 1, 17)))),
+        ("getrpcport", 0, true, Box::new(move |_| i64::from(c::niji_compat_getrpcport(host, 1, 1, 17)))),
+        ("pmap_set", 0, true, Box::new(|_| i64::from(c::niji_compat_pmap_set(1, 1, 17, 2049)))),
+        ("pmap_unset", 0, true, Box::new(|_| i64::from(c::niji_compat_pmap_unset(1, 1)))),
+        ("pmap_getmaps", 0, true, Box::new(|b| p(c::niji_compat_pmap_getmaps(v(b))))),
+        ("get_myaddress", 0, true, Box::new(|b| { c::niji_compat_get_myaddress(v(b)); 0 })),
+        ("rtime", -1, true, Box::new(|b| i64::from(c::niji_compat_rtime(v(b), b.wrapping_add(16).cast(), b.wrapping_add(32).cast())))),
+        ("svcudp_create", 0, true, Box::new(|_| p(s::niji_compat_svcudp_create(s::RPC_ANYSOCK)))),
+        ("svcudp_bufcreate", 0, true, Box::new(|_| p(s::niji_compat_svcudp_bufcreate(s::RPC_ANYSOCK, 0, 0)))),
+        ("svctcp_create", 0, true, Box::new(|_| p(s::niji_compat_svctcp_create(s::RPC_ANYSOCK, 0, 0)))),
+        ("svcfd_create", 0, true, Box::new(|_| p(s::niji_compat_svcfd_create(0, 0, 0)))),
+        ("svcraw_create", 0, true, Box::new(|_| p(s::niji_compat_svcraw_create()))),
+        ("svcunix_create", 0, true, Box::new(|b| p(s::niji_compat_svcunix_create(s::RPC_ANYSOCK, 0, 0, b)))),
+        ("svcunixfd_create", 0, true, Box::new(|_| p(s::niji_compat_svcunixfd_create(0, 0, 0)))),
+        ("svcudp_enablecache", 0, false, Box::new(|b| i64::from(s::niji_compat_svcudp_enablecache(v(b), 16)))),
+        ("xprt_register", 0, false, Box::new(|b| { s::niji_compat_xprt_register(v(b)); 0 })),
+        ("xprt_unregister", 0, false, Box::new(|b| { s::niji_compat_xprt_unregister(v(b)); 0 })),
+        ("svc_register", 0, false, Box::new(|b| i64::from(s::niji_compat_svc_register(v(b), 1, 1, None, 17)))),
+        ("svc_unregister", 0, false, Box::new(|_| { s::niji_compat_svc_unregister(1, 1); 0 })),
+        ("registerrpc", -1, false, Box::new(|_| i64::from(s::niji_compat_registerrpc(1, 1, 1, None, None, None)))),
+        ("_authenticate", AUTH_FAILED, false, Box::new(|b| i64::from(s::niji_compat__authenticate(v(b), v(b))))),
+        ("svc_sendreply", 0, false, Box::new(|b| i64::from(s::niji_compat_svc_sendreply(v(b), None, b)))),
+        ("svcerr_noproc", 0, false, Box::new(|b| { s::niji_compat_svcerr_noproc(v(b)); 0 })),
+        ("svcerr_decode", 0, false, Box::new(|b| { s::niji_compat_svcerr_decode(v(b)); 0 })),
+        ("svcerr_systemerr", 0, false, Box::new(|b| { s::niji_compat_svcerr_systemerr(v(b)); 0 })),
+        ("svcerr_noprog", 0, false, Box::new(|b| { s::niji_compat_svcerr_noprog(v(b)); 0 })),
+        ("svcerr_progvers", 0, false, Box::new(|b| { s::niji_compat_svcerr_progvers(v(b), 1, 2); 0 })),
+        ("svcerr_auth", 0, false, Box::new(|b| { s::niji_compat_svcerr_auth(v(b), 1); 0 })),
+        ("svcerr_weakauth", 0, false, Box::new(|b| { s::niji_compat_svcerr_weakauth(v(b)); 0 })),
+        ("svc_getreq_common", 0, false, Box::new(|_| { s::niji_compat_svc_getreq_common(0); 0 })),
+        ("svc_getreqset", 0, false, Box::new(|b| { s::niji_compat_svc_getreqset(b.cast::<u64>()); 0 })),
+        ("svc_getreq", 0, false, Box::new(|_| { s::niji_compat_svc_getreq(1); 0 })),
+        ("svc_getreq_poll", 0, false, Box::new(|b| { s::niji_compat_svc_getreq_poll(v(b), 1); 0 })),
+        ("svc_run", 0, false, Box::new(|_| { s::niji_compat_svc_run(); 0 })),
+        ("svc_exit", 0, false, Box::new(|_| { s::niji_compat_svc_exit(); 0 })),
     ]
 }
 
@@ -121,7 +121,7 @@ fn run(f: &dyn Fn(*mut c_char) -> i64) -> (i64, i32, [u8; 64]) {
 fn every_rpc_client_and_server_stub_fails_cleanly() {
     // Trace: no spec clause (§29.1 RPC client/server stubs; D-29.5 failure table, owner rulings R13 and 2026-10-27).
     // Without `export` the harness's allocations come from the host allocator and never move
-    // Liella's counters: the checks run here.
+    // libniji's counters: the checks run here.
     if cfg!(feature = "export") {
         in_forked_child(check_every_stub);
     } else {
@@ -132,7 +132,7 @@ fn every_rpc_client_and_server_stub_fails_cleanly() {
 /// Runs `body` in a child forked from this thread (the child's only thread) and fails unless
 /// it returned. A failing child writes its panic message to the shared stderr, past the capture.
 fn in_forked_child(body: fn()) {
-    let pid = liella_boundary::fork::fork().unwrap();
+    let pid = niji_boundary::fork::fork().unwrap();
     if pid == 0 {
         let code = match std::panic::catch_unwind(body) {
             Ok(()) => 0,
@@ -177,7 +177,7 @@ fn check_every_stub() {
     // `_seterr_reply` reports the stub's error in its rpc_err.
     let mut e = s::RpcErrC { re_status: 0, a: 7, b: 9 };
     errno::set_raw(0);
-    s::liella_compat__seterr_reply(null_mut(), &raw mut e);
+    s::niji_compat__seterr_reply(null_mut(), &raw mut e);
     assert_eq!((e.re_status, e.a, e.b), (12, 95, 0));
     assert_eq!(errno::get(), EOPNOTSUPP);
 }

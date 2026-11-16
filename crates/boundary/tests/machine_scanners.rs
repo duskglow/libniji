@@ -13,17 +13,17 @@
 //! The scanners are reached through the exports (`strlen`, `strnlen`, `rawmemchr`, `memchr`,
 //! `memcmp`, `bcmp`, `__memcmpeq`), so the Rust
 //! postcondition checks run too.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
 use std::sync::{Mutex, MutexGuard};
 
-use liella_abi::ctypes::{c_char, c_int, c_void};
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_abi::ctypes::{c_char, c_int, c_void};
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
 
@@ -94,11 +94,11 @@ fn scanners_find_the_first_terminator_at_every_alignment_and_length() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 /// Two pages; the second unmapped (no access). Returns the mapping and the first page's base.
-fn guarded() -> (liella_kernel::mem::Region, liella_kernel::mem::Region, usize) {
+fn guarded() -> (niji_kernel::mem::Region, niji_kernel::mem::Region, usize) {
     let r = CSys.mmap(0, 2 * PAGE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0).unwrap();
     let (lo, mut hi) = r.split_at(PAGE).ok().unwrap();
     CSys.mprotect(&mut hi, PROT_NONE).unwrap();
@@ -208,7 +208,7 @@ fn strcpy_family_sweep_on_level() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -236,7 +236,7 @@ fn scanners_never_read_past_the_page_holding_the_terminator() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -260,7 +260,7 @@ fn scanners_never_read_below_the_page_holding_the_start() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -319,7 +319,7 @@ fn every_scanner_reads_only_the_pages_of_an_object_at_either_page_edge() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(mid).unwrap();
     CSys.munmap(lo).unwrap();
@@ -363,7 +363,7 @@ fn avx2_copy_matches_the_source_at_every_alignment_pair_and_size() {
     // Clauses: s4_1_c_1, s4_1_g_0 (D-4.14, PJ-7). The routine itself, also below the dispatch
     // range, nothing outside the destination written.
     let _g = level();
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     // Source and destination in one buffer, the destination 8 KiB + `gap` above the source, so
     // (dst - src) mod 4 KiB is gap + da - sa: both of the routine's directions run (counted).
     const DST: usize = 8192;
@@ -377,7 +377,7 @@ fn avx2_copy_matches_the_source_at_every_alignment_pair_and_size() {
                     let at = DST + gap + da;
                     let (lo, hi) = buf.split_at_mut(DST);
                     let Some(m) = selftest::copy_avx2(&mut hi[gap + da..gap + da + n], &lo[sa..sa + n]) else {
-                        assert!(!liella_boundary::cpu::avx2(), "the AVX2 copy refused on an AVX2 CPU");
+                        assert!(!niji_boundary::cpu::avx2(), "the AVX2 copy refused on an AVX2 CPU");
                         return;
                     };
                     assert_eq!(m, n);
@@ -395,7 +395,7 @@ fn avx2_copy_matches_the_source_at_every_alignment_pair_and_size() {
 
 /// A mapping of `pages` read-write pages between two unmapped ones: (the three regions, the
 /// first read-write byte's address).
-fn fenced(pages: usize) -> ([liella_kernel::mem::Region; 3], usize) {
+fn fenced(pages: usize) -> ([niji_kernel::mem::Region; 3], usize) {
     let r = CSys.mmap(0, (pages + 2) * PAGE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, None, 0).unwrap();
     let (mut lo, rest) = r.split_at(PAGE).ok().unwrap();
     let (mid, mut hi) = rest.split_at(pages * PAGE).ok().unwrap();
@@ -414,7 +414,7 @@ fn memcpy_on_every_path_stays_inside_both_regions_at_every_alignment_pair() {
     // where present), without AVX2 (`rep movsb` where ERMS, else the loops), and the loops
     // alone. The destination's distance from the source modulo 4 KiB varies with the size and
     // the offsets, so both copy directions are reached (counted).
-    use liella::config::Tunables;
+    use niji::config::Tunables;
     let _g = level();
     let pages = 5;
     let top = pages * PAGE;
@@ -432,7 +432,7 @@ fn memcpy_on_every_path_stays_inside_both_regions_at_every_alignment_pair() {
     ];
     let mut dirs = [0usize; 2];
     for (c, t) in configs.iter().enumerate() {
-        liella_boundary::cpu::init_with(t);
+        niji_boundary::cpu::init_with(t);
         for n in COPY_SIZES.iter().copied().chain([16_383, 16_384, 16_385]) {
             // Every alignment pair below 16 KiB; at 16 KiB a few (they share the code paths).
             let w = if n < 16_384 { 64 } else { 3 };
@@ -469,7 +469,7 @@ fn memcpy_on_every_path_stays_inside_both_regions_at_every_alignment_pair() {
             assert_eq!(v, w, "memmove down {n} by {shift}");
         }
     }
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     for r in sm.into_iter().chain(dm) {
         CSys.munmap(r).unwrap();
     }
@@ -538,7 +538,7 @@ fn memchr_finds_the_first_match_inside_the_bound_at_every_alignment_length_and_p
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     assert_eq!(selftest::rescans(), rescans, "a single-threaded memchr sweep took a rescan");
 }
 
@@ -577,7 +577,7 @@ fn memchr_finds_each_byte_value_at_every_position_without_a_rescan() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     assert_eq!(selftest::rescans(), rescans, "a single-threaded memchr sweep took a rescan");
 }
 
@@ -687,7 +687,7 @@ fn memcmp_finds_the_first_difference_at_every_alignment_length_and_position() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 /// C17 7.24.5.1p2: `memchr` behaves as if it read the bytes in order and stopped at the first
@@ -718,7 +718,7 @@ fn memchr_stops_at_the_match_before_an_unmapped_page() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -755,7 +755,7 @@ fn bounded_scanners_never_read_outside_the_region() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi2).unwrap();
     CSys.munmap(lo2).unwrap();
     CSys.munmap(hi).unwrap();
@@ -810,7 +810,7 @@ fn short_memchr_and_memrchr_answer_at_every_length_position_and_page_placement()
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi2).unwrap();
     CSys.munmap(lo2).unwrap();
     CSys.munmap(hi).unwrap();
@@ -831,7 +831,7 @@ fn strcmp_scanner_finds_the_first_difference_at_every_alignment_pair() {
         strcmp_scanner_finds_the_first_difference_at_every_alignment_pair_on_level();
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 fn strcmp_scanner_finds_the_first_difference_at_every_alignment_pair_on_level() {
@@ -876,7 +876,7 @@ fn strcmp_kernel_folded_groups_find_every_difference_up_to_length_300() {
         strcmp_kernel_folded_groups_find_every_difference_up_to_length_300_on_level();
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 fn strcmp_kernel_folded_groups_find_every_difference_up_to_length_300_on_level() {
@@ -923,7 +923,7 @@ fn strcmp_kernel_wide_groups_find_every_difference_past_256_bytes() {
         strcmp_kernel_wide_groups_find_every_difference_past_256_bytes_on_level();
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 fn strcmp_kernel_wide_groups_find_every_difference_past_256_bytes_on_level() {
@@ -972,7 +972,7 @@ fn strcmp_scanner_never_reads_past_the_pages_holding_the_terminators() {
         strcmp_scanner_never_reads_past_the_pages_holding_the_terminators_on_level();
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 fn strcmp_scanner_never_reads_past_the_pages_holding_the_terminators_on_level() {
@@ -1068,7 +1068,7 @@ fn strcmp_head_finds_every_difference_in_strings_ending_at_a_page_end() {
         CSys.munmap(lo).unwrap();
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -1080,7 +1080,7 @@ fn strcmp_scanner_crosses_page_boundaries_inside_the_strings() {
         strcmp_scanner_crosses_page_boundaries_inside_the_strings_on_level();
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 fn strcmp_scanner_crosses_page_boundaries_inside_the_strings_on_level() {
@@ -1109,15 +1109,15 @@ fn strcmp_scanner_crosses_page_boundaries_inside_the_strings_on_level() {
     }
 }
 
-/// The return labels of `liella_machine_strcmp` (`.Lstrcmp_ret_<path>` on the SSE2 level,
+/// The return labels of `niji_machine_strcmp` (`.Lstrcmp_ret_<path>` on the SSE2 level,
 /// `.Lstrcmp_v_ret_<path>` on AVX2), read from the kernel's source. Each `ret` must sit in a block
 /// opened by such a label, so a new return path cannot appear without a name.
 fn strcmp_return_labels() -> Vec<String> {
     let src = include_str!("../../../csys/src/machine/scan.S");
-    let start = src.find("\nliella_machine_strcmp:\n");
+    let start = src.find("\nniji_machine_strcmp:\n");
     assert!(start.is_some(), "no strcmp kernel in scan.S");
     let start = start.unwrap_or(0);
-    let end = src[start..].find(".size liella_machine_strcmp,");
+    let end = src[start..].find(".size niji_machine_strcmp,");
     assert!(end.is_some(), "no .size line for the strcmp kernel in scan.S");
     let end = end.unwrap_or(0) + start;
     let mut labels = Vec::new();
@@ -1132,7 +1132,7 @@ fn strcmp_return_labels() -> Vec<String> {
         } else if t == "ret" {
             assert!(
                 last_label.starts_with(".Lstrcmp_ret_") || last_label.starts_with(".Lstrcmp_v_ret_"),
-                "a ret in liella_machine_strcmp after {last_label}, not after a .Lstrcmp_[v_]ret_ label"
+                "a ret in niji_machine_strcmp after {last_label}, not after a .Lstrcmp_[v_]ret_ label"
             );
         }
     }
@@ -1228,7 +1228,7 @@ fn strcmp_leaves_no_upper_register_state_behind_on_any_return_path() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 /// The byte-loop oracle: the index of the first byte equal to `c` in `buf[from..]`, or `None`.
@@ -1280,7 +1280,7 @@ fn terminator_scanners_match_a_byte_loop_for_every_length_to_512_and_alignment()
     // No writer runs here: a rescan would mean a scanner answered wrong (D-4.21, STR-K1).
     assert_eq!(selftest::rescans(), rescans, "a single-threaded sweep took a rescan");
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -1317,12 +1317,12 @@ fn terminator_scanners_stop_at_a_page_end_for_every_length_to_512_and_alignment(
     // No writer runs here: a rescan would mean a scanner answered wrong (D-4.21, STR-K1).
     assert_eq!(selftest::rescans(), rescans, "a single-threaded sweep took a rescan");
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
 
-/// The index `liella_machine_strdiff` must return: the first index at which the strings differ
+/// The index `niji_machine_strdiff` must return: the first index at which the strings differ
 /// or `a`'s byte is the terminator.
 fn strdiff_ref(a: &[u8], b: &[u8]) -> usize {
     (0..).find(|&i| a[i] != b[i] || a[i] == 0).unwrap()
@@ -1453,10 +1453,10 @@ fn strdiff_reports_a_non_ascii_byte_up_to_the_index_in_blocks_and_near_page_ends
 fn cpuid_is_executed_once_and_every_decision_follows_from_it() {
     // no spec clause (STARTUP-1): `init` and `init_with` share one CPUID detection; each tunable
     // set still decides the paths from it, as the uncached code did.
-    use liella::config::Tunables;
-    use liella_boundary::cpu;
+    use niji::config::Tunables;
+    use niji_boundary::cpu;
     let _g = level();
-    let direct = liella_rt::cpu::Features::detect(&liella_boundary::sys::CSys);
+    let direct = niji_rt::cpu::Features::detect(&niji_boundary::sys::CSys);
     assert_eq!(cpu::features_cached(), direct, "the cached features equal a fresh detection");
     let a = cpu::init_with(&Tunables::default());
     let b = cpu::init_with(&Tunables { avx2: Some(false), ..Tunables::default() });
@@ -1508,7 +1508,7 @@ fn strchr_kernel_finds_the_first_byte_or_the_terminator_at_every_alignment_lengt
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -1532,7 +1532,7 @@ fn strchr_kernel_never_reads_past_the_page_holding_the_terminator() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi).unwrap();
     CSys.munmap(lo).unwrap();
 }
@@ -1575,7 +1575,7 @@ fn memrchr_kernel_finds_the_last_match_inside_the_region_at_every_alignment_leng
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -1607,7 +1607,7 @@ fn memrchr_kernel_never_reads_outside_the_region() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi2).unwrap();
     CSys.munmap(lo2).unwrap();
     CSys.munmap(hi).unwrap();
@@ -1653,7 +1653,7 @@ fn strncmp_kernel_finds_the_first_difference_inside_the_bound_at_every_alignment
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -1682,7 +1682,7 @@ fn strncmp_kernel_never_reads_past_the_bound_at_a_page_end() {
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi2).unwrap();
     CSys.munmap(lo2).unwrap();
     CSys.munmap(hi).unwrap();
@@ -1743,7 +1743,7 @@ fn strncmp_kernel_stays_in_the_terminators_page_from_every_offset_near_its_end()
         }
     }
     selftest::set_scan_avx2(false);
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     CSys.munmap(hi2).unwrap();
     CSys.munmap(lo2).unwrap();
     CSys.munmap(hi).unwrap();
@@ -1756,7 +1756,7 @@ fn strncmp_kernel_stays_in_the_terminators_page_from_every_offset_near_its_end()
 #[test]
 fn the_startup_decision_sets_the_scanners_path() {
     // Clauses: s4_8_c_0 (D-4.39, D-4.14).
-    use liella::config::Tunables;
+    use niji::config::Tunables;
     let _g = level();
     let cpu_avx2 = std::arch::is_x86_feature_detected!("avx2");
     let configs = [
@@ -1766,12 +1766,12 @@ fn the_startup_decision_sets_the_scanners_path() {
         (Tunables { erms: Some(false), ..Tunables::default() }, cpu_avx2),
     ];
     for (c, (t, want)) in configs.iter().enumerate() {
-        liella_boundary::cpu::init_with(t);
-        assert_eq!(liella_boundary::cpu::scan_level(), u32::from(*want), "config {c}: scan level");
-        assert_eq!(liella_boundary::cpu::avx2(), *want, "config {c}: decided flag");
+        niji_boundary::cpu::init_with(t);
+        assert_eq!(niji_boundary::cpu::scan_level(), u32::from(*want), "config {c}: scan level");
+        assert_eq!(niji_boundary::cpu::avx2(), *want, "config {c}: decided flag");
     }
-    liella_boundary::cpu::init();
-    assert_eq!(liella_boundary::cpu::scan_level(), u32::from(cpu_avx2), "init()");
+    niji_boundary::cpu::init();
+    assert_eq!(niji_boundary::cpu::scan_level(), u32::from(cpu_avx2), "init()");
 }
 
 /// A byte-loop move within `buf` (the oracle: never the library's own `memmove`).
@@ -1788,7 +1788,7 @@ fn avx2_move_matches_a_byte_loop_at_every_overlap_alignment_and_size() {
     // take the AVX2 copy, the direction forced by the overlap (both counted); nothing outside the
     // destination written.
     let _g = level();
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     let mut dirs = [0usize; 2];
     for n in AVX2_KERNEL_SIZES {
         let mut shifts: Vec<isize> = (1..=40).chain([63, 64, 65, 96, 127, 128, 129, 200, 2047, 2048, 2049]).collect();
@@ -1802,7 +1802,7 @@ fn avx2_move_matches_a_byte_loop_at_every_overlap_alignment_and_size() {
                     let d_at = (s_at as isize + shift) as usize;
                     let mut buf = pattern.clone();
                     let Some(m) = selftest::move_avx2(&mut buf, s_at, d_at, n) else {
-                        assert!(!liella_boundary::cpu::avx2(), "the AVX2 move refused on an AVX2 CPU");
+                        assert!(!niji_boundary::cpu::avx2(), "the AVX2 move refused on an AVX2 CPU");
                         return;
                     };
                     assert_eq!(m, n);
@@ -1822,7 +1822,7 @@ fn memmove_matches_a_byte_loop_around_the_64_kib_edge_and_above() {
     // Clause: s4_2_c_1. The overlap path at and above the AVX2 copy's range (the entry's direct
     // call ends at 64 KiB, the checked path takes the rest), both directions, odd sizes.
     let _g = level();
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     for n in [65_535usize, 65_536, 65_537, 100_003] {
         for shift in [1isize, 8, 31, 4096, -1, -8, -31, -4096] {
             for a in [0usize, 5, 32] {
@@ -1849,7 +1849,7 @@ fn memset_matches_a_byte_loop_around_the_rep_stosb_threshold_at_every_alignment(
     // Both paths on every machine: ERMS forced off (the loops) and on (`rep stosb`, correct
     // without ERMS too; Zen 1 host's Zen 1 has none).
     let _g = level();
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     for (erms, n) in [false, true].into_iter().flat_map(|e| [129usize, 1279, 1280, 1281, 4095, 4096, 4097, 65_537].map(|n| (e, n))) {
         selftest::set_erms(erms);
         for a in 0..64 {
@@ -1862,7 +1862,7 @@ fn memset_matches_a_byte_loop_around_the_rep_stosb_threshold_at_every_alignment(
             assert!(buf[64 + a + n..].iter().all(|&b| b == 0xA5), "memset {n} at +{a} erms {erms}: above written");
         }
     }
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -1904,7 +1904,7 @@ fn avx2_fill_sets_exactly_the_region_at_every_alignment_and_size() {
         for a in 0..64 {
             let mut buf = vec![0xA5u8; n + 192];
             let Some(m) = selftest::fill_avx2(&mut buf[64 + a..64 + a + n], (n + a) as u8 | 1) else {
-                assert!(!liella_boundary::cpu::avx2(), "the AVX2 fill refused on an AVX2 CPU");
+                assert!(!niji_boundary::cpu::avx2(), "the AVX2 fill refused on an AVX2 CPU");
                 return;
             };
             assert_eq!(m, n);
@@ -1923,7 +1923,7 @@ fn bulk_kernel_choice_follows_the_cpu_flags() {
     // `rep movsb` only with ERMS from its threshold at a fast placement, fills `rep stosb` with
     // ERMS and the AVX2 fill only when AVX2 is on.
     let _g = level();
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     let has_avx2 = selftest::set_kernel_avx2(true);
     selftest::set_kernel_avx2(false);
     let base = 1usize << 20;
@@ -1933,8 +1933,8 @@ fn bulk_kernel_choice_follows_the_cpu_flags() {
         // to a 64-byte-aligned destination; else the head-aligned kernel when the addresses
         // agree modulo 64, and below 16385 bytes (`ERMS_A64_MISALIGNED_END`) at other accepted
         // placements; plain from there. `base` is 64-byte aligned.
-        assert_eq!(liella_boundary::cpu::COPY_ERMS_MIN, 6144);
-        assert_eq!(liella_boundary::cpu::ERMS_A64_MISALIGNED_END, 16_385);
+        assert_eq!(niji_boundary::cpu::COPY_ERMS_MIN, 6144);
+        assert_eq!(niji_boundary::cpu::ERMS_A64_MISALIGNED_END, 16_385);
         for n in [129usize, 1279, 1280, 4096, 6143, 6144, 16_384, 16_385, 65_536] {
             assert_eq!(selftest::bulk_move_kernel(base + 8, base, n), "sse2", "overlap up {n} erms {erms}");
             assert_eq!(selftest::bulk_move_kernel(base, base + 8, n), "sse2", "overlap down {n} erms {erms}");
@@ -1955,10 +1955,10 @@ fn bulk_kernel_choice_follows_the_cpu_flags() {
         }
         // FSRM with the AVX2 copy keeps the AVX2 copy up to 1 MiB (N100); other classes `rep movsb`
         // from 64 KiB + 1; a tunable threshold keeps 64 KiB + 1.
-        assert_eq!(liella_boundary::cpu::erms_large_window(true, true, None), 1_048_577);
-        assert_eq!(liella_boundary::cpu::erms_large_window(true, true, Some(4096)), 65_537);
-        assert_eq!(liella_boundary::cpu::erms_large_window(true, false, None), 65_537);
-        assert_eq!(liella_boundary::cpu::erms_large_window(false, true, None), 65_537);
+        assert_eq!(niji_boundary::cpu::erms_large_window(true, true, None), 1_048_577);
+        assert_eq!(niji_boundary::cpu::erms_large_window(true, true, Some(4096)), 65_537);
+        assert_eq!(niji_boundary::cpu::erms_large_window(true, false, None), 65_537);
+        assert_eq!(niji_boundary::cpu::erms_large_window(false, true, None), 65_537);
         for n in [0usize, 1, 128, 65_537, 1 << 20] {
             assert_ne!(selftest::bulk_move_kernel(base + 8, base, n), "avx2", "move {n} erms {erms}");
             assert_eq!(selftest::bulk_move_kernel(base + 8, base, n), "checked", "move {n} erms {erms}");
@@ -1992,7 +1992,7 @@ fn bulk_kernel_choice_follows_the_cpu_flags() {
             selftest::set_kernel_avx2(false);
         }
     }
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 #[test]
@@ -2002,7 +2002,7 @@ fn memmove_and_memset_match_a_byte_loop_on_every_bulk_path() {
     // AVX2 fill, `rep movsb`/`rep stosb` and the checked paths all run on a gate machine: sizes
     // around every class edge, overlap both ways and disjoint, odd alignments.
     let _g = level();
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     let mut builds = vec![false];
     if selftest::set_kernel_avx2(true) {
         builds.push(true);
@@ -2038,7 +2038,7 @@ fn memmove_and_memset_match_a_byte_loop_on_every_bulk_path() {
             }
         }
     }
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }
 
 /// The NULL child's memchr call (set before the fork; the child gets its own copy).
@@ -2161,7 +2161,7 @@ fn null_strcmp(_k: &CSys) -> i32 {
     if !selftest::set_scan_avx2(CMP_AVX2.load(SeqCst)) {
         return 3;
     }
-    let text = b"liella\0";
+    let text = b"niji\0";
     let p = text.as_ptr().cast::<c_char>();
     let (a, b) = if CMP_NULL_FIRST.load(SeqCst) { (core::ptr::null(), p) } else { (p, core::ptr::null()) };
     std::hint::black_box(s::strcmp(a, b));
@@ -2172,7 +2172,7 @@ fn null_strcmp(_k: &CSys) -> i32 {
 fn strcmp_aborts_on_a_null_string_in_either_argument() {
     // Clause: s4_3_c_1 with S6 (a NULL string is the EFAULT abort; strcmp never folds, owner ruling
     // 2026-10-08 option B). Through the direct entry (STRCMP-ENTRY): each of its two NULL tests must
-    // reach `liella_hot_strcmp_null` and abort (SIGABRT), not fall into the kernel (SIGSEGV on page zero).
+    // reach `niji_hot_strcmp_null` and abort (SIGABRT), not fall into the kernel (SIGSEGV on page zero).
     use std::sync::atomic::Ordering::SeqCst;
     let _g = level();
     for avx2 in paths() {
@@ -2196,7 +2196,7 @@ fn null_chr_cmp(_k: &CSys) -> i32 {
     if !selftest::set_scan_avx2(CMP_AVX2.load(SeqCst)) {
         return 3;
     }
-    let text = b"liella\0";
+    let text = b"niji\0";
     let p = text.as_ptr().cast::<c_char>();
     let z = core::ptr::null::<c_char>();
     match CHR_NULL_FN.load(SeqCst) {
@@ -2214,7 +2214,7 @@ fn strchr_strchrnul_and_strncmp_abort_on_null_through_their_direct_entries() {
     // Clauses: s4_5_c_1 and s4_3_c_1 with S6 (a NULL string is the EFAULT abort). STR-CHR-CMP-SHORT:
     // strchr, index, strchrnul and strncmp are direct assembly entries whose NULL tests sit in the
     // slow path (the head's (s - 1) page test never passes NULL): each must reach its
-    // `liella_hot_*_null` and abort (SIGABRT), never fault on page zero, on both levels; strncmp with
+    // `niji_hot_*_null` and abort (SIGABRT), never fault on page zero, on both levels; strncmp with
     // n == 0 reads nothing and returns 0 for NULL or a dangling pointer.
     use std::sync::atomic::Ordering::SeqCst;
     let _g = level();
@@ -2237,7 +2237,7 @@ fn null_strcoll(_k: &CSys) -> i32 {
     if !selftest::set_scan_avx2(CMP_AVX2.load(SeqCst)) {
         return 3;
     }
-    let text = b"liella\0";
+    let text = b"niji\0";
     let p = text.as_ptr().cast::<c_char>();
     let (a, b) = if CMP_NULL_FIRST.load(SeqCst) { (core::ptr::null(), p) } else { (p, core::ptr::null()) };
     std::hint::black_box(s::strcoll(a, b));
@@ -2248,7 +2248,7 @@ fn null_strcoll(_k: &CSys) -> i32 {
 fn strcoll_aborts_on_a_null_string_in_either_argument_in_the_c_locale() {
     // Clause: s4_3_c_1 with S6 (a NULL string is the EFAULT abort). The C locale orders by code point,
     // so strcoll takes the direct strcmp entry (SORT-UTF8-DRIFT): its NULL tests, which sit in the
-    // kernel's slow path (STRCMP-HEADNULL), must still reach `liella_hot_strcmp_null` and abort (SIGABRT).
+    // kernel's slow path (STRCMP-HEADNULL), must still reach `niji_hot_strcmp_null` and abort (SIGABRT).
     use std::sync::atomic::Ordering::SeqCst;
     let _g = level();
     for avx2 in paths() {
@@ -2306,9 +2306,9 @@ fn memmove_matches_a_byte_loop_around_the_rep_movsb_window_of_the_avx2_range() {
     // both directions through the exported `memmove`/`memcpy` equal a byte-loop reference;
     // nothing outside the destination changes.
     let _g = level();
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
     if !selftest::set_kernel_avx2(true) {
-        liella_boundary::cpu::init();
+        niji_boundary::cpu::init();
         return;
     }
     for erms in [false, true] {
@@ -2338,5 +2338,5 @@ fn memmove_matches_a_byte_loop_around_the_rep_movsb_window_of_the_avx2_range() {
             }
         }
     }
-    liella_boundary::cpu::init();
+    niji_boundary::cpu::init();
 }

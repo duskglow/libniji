@@ -1,12 +1,12 @@
-# Liella vs glibc: performance progress
+# libniji vs glibc: performance progress
 
 One entry per completed phase, newest last. Every entry measures both sides in the same
-session on the same machine, with the same method. Ratios are Liella ÷ glibc, so lower is
+session on the same machine, with the same method. Ratios are libniji ÷ glibc, so lower is
 better and 1.00 is parity.
 
 **How to reproduce:**
 
-* Liella: `cargo xtask bench` runs `crates/boundary/examples/bench_mem.rs` and `bench_heap.rs`
+* libniji: `cargo xtask bench` runs `crates/boundary/examples/bench_mem.rs` and `bench_heap.rs`
   in release mode, and checks `bench/budgets.tsv`.
 * glibc: `sh benchmarks/run_glibc_ref.sh` builds `benchmarks/glibc_ref.c` (`cc -O2`, dynamically
   linked, so glibc's IFUNCs choose the same AVX2/ERMS paths any program gets).
@@ -21,9 +21,9 @@ kernel 5.15.167.4 (built without `CONFIG_NUMA`). Host C library: Ubuntu glibc 2.
 
 ## Entry 1: after phase 3 (2026-10-01; OD-C2 data)
 
-Liella state:
+libniji state:
 
-* The `mem*`/`str*` primitives are safe Rust loops in `liella-mem`: 64-byte blocks for copy
+* The `mem*`/`str*` primitives are safe Rust loops in `niji-mem`: 64-byte blocks for copy
   and fill, and 32-byte word scans for search and compare. Baseline x86-64 build (SSE2), no
   assembly.
 * `strlen` reads one byte at a time: safe Rust may not read past the terminator (F1).
@@ -32,7 +32,7 @@ Liella state:
 
 ### Memory and string primitives (ns per call)
 
-| Function | Size | glibc | Liella | Ratio |
+| Function | Size | glibc | libniji | Ratio |
 |---|---:|---:|---:|---:|
 | `memcpy` | 64 B | 1.80 | 1.63 | 0.91 |
 | `memcpy` | 4 KiB | 24.50 | 34.91 | 1.42 |
@@ -63,7 +63,7 @@ this run) rather than against glibc's own function:
 
 ### Allocator (ns per malloc/free pair)
 
-| Case | glibc | Liella | Ratio |
+| Case | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | 64 B | 4.69 | 37.79 | 8.06 |
 | 4 KiB | 11.51 | 41.58 | 3.61 |
@@ -83,7 +83,7 @@ this run) rather than against glibc's own function:
   so they serialise on one lock. glibc spreads threads over arenas and tcaches and scales. This
   is the multi-core gap phase 6's per-thread caches must close. The phase-3 layout was
   restructured so they need no layout change (D-3.10).
-* **1 MiB.** Liella maps and unmaps every large block (two system calls). glibc raises its
+* **1 MiB.** libniji maps and unmaps every large block (two system calls). glibc raises its
   `mmap` threshold after the first free of a mapped chunk, then serves 1 MiB from its heap
   without a system call.
 
@@ -105,7 +105,7 @@ targets are per glibc function, at 4 KiB.
 
 ## Entry 2: after phase 4 (2026-10-01)
 
-Liella changes since entry 1:
+libniji changes since entry 1:
 
 * `strlen`, `strnlen` and `rawmemchr` are C-layer assembly scanners: AVX2, with SSE2 as the
   fallback (D-4.14).
@@ -115,7 +115,7 @@ Liella changes since entry 1:
 
 ### Memory and string primitives (ns per call)
 
-| Function | Size | glibc | Liella | Ratio | Entry 1 |
+| Function | Size | glibc | libniji | Ratio | Entry 1 |
 |---|---:|---:|---:|---:|---:|
 | `memcpy` | 64 B | 2.03 | 2.01 | 0.99 | 0.91 |
 | `memcpy` | 4 KiB | 25.05 | 24.08 | 0.96 | 1.42 |
@@ -157,7 +157,7 @@ OD-C2 (c) keeps these two functions in Rust.
 
 ### Allocator (ns per malloc/free pair)
 
-| Case | glibc | Liella | Ratio |
+| Case | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | 64 B | 4.91 | 35.90 | 7.31 |
 | 4 KiB | 11.82 | 39.50 | 3.34 |
@@ -176,7 +176,7 @@ Per-thread caches are phase 6.
 
 ## Entry 3: after phase 5 (2026-10-01)
 
-Liella changes since entry 2: the thin kernel surfaces (low-level I/O, the file-system calls,
+libniji changes since entry 2: the thin kernel surfaces (low-level I/O, the file-system calls,
 sockets, signals, clocks, limits, `sysconf`, IPC). The memory primitives and the allocator are
 unchanged, and `cargo xtask bench` still meets all 14 budgets.
 
@@ -186,7 +186,7 @@ glibc. Same method: fastest of 41 batches of 2,000 calls.
 
 ### Thin calls (ns per call)
 
-| Call | glibc | Liella | Ratio | Path |
+| Call | glibc | libniji | Ratio | Path |
 |---|---:|---:|---:|---|
 | `getpid` | 47.50 | 48.72 | 1.03 | system call |
 | `getppid` | 47.34 | 47.37 | 1.00 | system call |
@@ -210,9 +210,9 @@ nanosecond or less.
 * `time()` was a full `clock_gettime(CLOCK_REALTIME)` (11.9 ns, 5.2× glibc). It now reads the
   vDSO's `time` entry as glibc does (D-23.1), which also gives glibc's exact value: whole
   seconds as of the last tick.
-* `sysconf(_SC_PAGESIZE)` took 792 ns in processes Liella did not start (tests, benchmarks):
+* `sysconf(_SC_PAGESIZE)` took 792 ns in processes libniji did not start (tests, benchmarks):
   every auxiliary-vector lookup re-read `/proc/self/auxv`. The vector is now read once and
-  searched in place (4.19 ns). Under Liella's own runtime the lookup always read memory.
+  searched in place (4.19 ns). Under libniji's own runtime the lookup always read memory.
 
 ### Memory primitives and allocator
 
@@ -241,7 +241,7 @@ vector loads that never cross a page, the path chosen once from CPUID, and Rust 
 result independently of the assembly. Expected after phase 6a, against this entry's glibc
 figures:
 
-| Function | Size | glibc | Liella now | Ratio now | Expected | Why |
+| Function | Size | glibc | libniji now | Ratio now | Expected | Why |
 |---|---:|---:|---:|---:|---:|---|
 | `memchr` | 64 B | 2.85 | 3.44 | 1.21 | ≤ 1.1 | one or two vector compares instead of a word loop |
 | `memchr` | 4 KiB | 20.57 | 145.63 | 7.08 | ≤ 1.1 | 32-byte AVX2 compares, 128-byte unrolled groups, as `rawmemchr` (1.01× today) |
@@ -259,7 +259,7 @@ no over-read at all.
 `cargo xtask bench` against `sh benchmarks/run_glibc_ref.sh`, ns/op; the 64-byte figures are
 the medians of four runs of each:
 
-| Function | Size | glibc | Liella | Ratio | Expected | Met |
+| Function | Size | glibc | libniji | Ratio | Expected | Met |
 |---|---:|---:|---:|---:|---:|---|
 | `memchr` | 64 B | 2.81 | 2.75 | 0.98 | ≤ 1.1 | yes |
 | `memchr` | 4 KiB | 20.44 | 19.91 | 0.97 | ≤ 1.1 | yes |
@@ -278,18 +278,18 @@ regression guards: `memchr_4k` within 1.1× of a 4 KiB copy (as `strlen`), `memc
 ## Entry 4: after phase 6 (2026-10-01)
 
 Per-thread heap caches (D-3.11 to D-3.13) and the thread runtime (D-22.9). Same machine and
-method; Liella rows are the medians of three `cargo xtask bench` runs, glibc from one
+method; libniji rows are the medians of three `cargo xtask bench` runs, glibc from one
 `sh benchmarks/run_glibc_ref.sh` in the same session. `bench_heap`'s `ref_*` rows (the host
 glibc reached through Rust's allocator, measured in the same process) are the budgets' base;
 the C reference below is the comparison this file tracks.
 
 **New:** `cargo xtask bench` also builds C benchmarks against the products
-(`bench/c/cbench_*.c`): the thread block exists only in a process Liella started.
+(`bench/c/cbench_*.c`): the thread block exists only in a process libniji started.
 `glibc_ref.c` gains `gettid` and `pthread_self`.
 
 ### Allocator (ns per malloc/free pair)
 
-| Case | glibc | Liella | Ratio | Entry 2 ratio | Budget (owner) |
+| Case | glibc | libniji | Ratio | Entry 2 ratio | Budget (owner) |
 |---|---:|---:|---:|---:|---|
 | 64 B | 4.48 | 5.25 | 1.17 | 7.31 | ≤ 1.5× (1.31× the `ref` row) |
 | 4 KiB | 11.05 | 6.61 | 0.60 | 3.34 | — |
@@ -303,24 +303,24 @@ the C reference below is the comparison this file tracks.
 * **Single thread.** The fast path is the thread's own slab: a find-first-set in the local
   bitmap and two plain stores, with the cache found through the thread block. The remaining
   gap to glibc's tcache has not been profiled; the likely cost is the slab lookup on `free`
-  (glibc reads a header in front of the block, Liella's blocks have none).
+  (glibc reads a header in front of the block, libniji's blocks have none).
 * **Contention** is gone: each thread allocates from slabs it owns, and remote frees go to a
   second bitmap. 16 threads scale like glibc's.
 * **1 MiB** is the closest to its budget (5% headroom on the `ref` row). A freed large block is
   kept in its thread's cache and found again by size (D-3.13), so no system call remains; glibc
   instead raises its mmap threshold after the first free and serves 1 MiB from the main heap.
-  Where Liella's 19 ns go (cache search, large-table update, the CACHED flag) has not been
+  Where libniji's 19 ns go (cache search, large-table update, the CACHED flag) has not been
   profiled yet; that comes first if this row ever needs to move.
 
 ### Thread block reads (ns per call)
 
-| Function | glibc | Liella | Ratio | Notes |
+| Function | glibc | libniji | Ratio | Notes |
 |---|---:|---:|---:|---|
-| `gettid` | 45.17 | 1.57 | 0.03 | glibc makes the system call; Liella reads the TID cached in the thread block (D-22.9) |
+| `gettid` | 45.17 | 1.57 | 0.03 | glibc makes the system call; libniji reads the TID cached in the thread block (D-22.9) |
 | `pthread_self` | 1.72 | 1.04 | 0.60 | a thread-pointer read in both |
 | `getppid` (system call, for scale) | 45.70 | 45.41 | 0.99 | |
 
-Liella's two loads are measured through a function pointer (the headers declare
+libniji's two loads are measured through a function pointer (the headers declare
 `pthread_self` `const`, which lets the compiler hoist a direct call out of the loop), so they
 include an indirect call. The budget is `gettid` ≤ 5 ns and ≤ 0.1× `getppid`.
 
@@ -348,7 +348,7 @@ met (the five new ones are sanity bounds; the phase has no owner budgets).
 
 ### Classification, case mapping, decoding (ns per call)
 
-| Function | Locale | glibc | Liella | Ratio |
+| Function | Locale | glibc | libniji | Ratio |
 |---|---|---:|---:|---:|
 | `isalpha` | C | 2.37 | 9.36 | 3.95 |
 | `toupper` | C | 2.03 | 4.05 | 2.00 |
@@ -368,7 +368,7 @@ comparing) has not been profiled either.
 
 ### `iconv`, 4 KiB of mixed text (ns per conversion)
 
-| Conversion | glibc | Liella | Ratio | Before tuning |
+| Conversion | glibc | libniji | Ratio | Before tuning |
 |---|---:|---:|---:|---:|
 | UTF-8 → UTF-16LE | 8,807 | 38,783 | 4.40 | 12.5 |
 | UTF-8 → ISO-8859-15 (a system charmap) | 14,620 | 59,985 | 4.10 | 27.5 |
@@ -384,7 +384,7 @@ glibc's modules convert in specialised loops. No budget asks for more yet.
 
 ### `strtod` (ns per call)
 
-| Input | glibc | Liella | Ratio |
+| Input | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | `"3.14159"`, C | 116.95 | 2,268 | 19.4 |
 | `"3.14159"`, C.UTF-8 | 117.06 | 2,272 | 19.4 |
@@ -408,7 +408,7 @@ rows did not move.
 
 ### Formatting and stream output (ns per call)
 
-| Call | glibc | Liella | Ratio |
+| Call | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | `snprintf(buf, 64, "%d", n)` | 83.2 | 509.6 | 6.1 |
 | `snprintf(buf, 64, "%s=%d (%5.2f) %x", ...)` | 507.3 | 4,013 | 7.9 |
@@ -421,8 +421,8 @@ rows did not move.
 targets "set in the phase-0 benchmark table", but that table never had them. This phase adds
 sanity bounds only (`bench/budgets.tsv`, `cbench_stdio`); the targets are for the owner to set.
 
-Profile (`perf`, the Liella build of the whole benchmark; no call graph, the products have no
-frame pointers): zero-filling 17% (`liella_mem::fill_u8`), the heap 18% (`alloc` and `free`, plus
+Profile (`perf`, the libniji build of the whole benchmark; no call graph, the products have no
+frame pointers): zero-filling 17% (`niji_mem::fill_u8`), the heap 18% (`alloc` and `free`, plus
 3% vector growth), copying 11%, the format parser 6%, the stream write path the rest. Causes as
 far as the code shows:
 
@@ -434,7 +434,7 @@ far as the code shows:
 * A floating-point conversion clears a 12 KB digit buffer (`num::format::Decimal`, the same
   engine cost as `strtod` in entry 5).
 * Each stream operation takes the stream lock and copies the stream state between the C `FILE`
-  window and Liella's record (`load`/`store`); that is the likely cost of `putc`, not profiled per row.
+  window and libniji's record (`load`/`store`); that is the likely cost of `putc`, not profiled per row.
 
 ### Expected after phase 9
 
@@ -454,7 +454,7 @@ entry 5's 9.36 ns) is now 12 ns.
 
 ### Broken-down time, zones, formatting (ns per call)
 
-| Call | glibc | Liella | Ratio |
+| Call | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | `gmtime_r` | 36.2 | 131.1 | 3.6 |
 | `timegm` | 86.0 | 174.9 | 2.0 |
@@ -466,7 +466,7 @@ entry 5's 9.36 ns) is now 12 ns.
 | `strftime`, `%Y-%m-%dT%H:%M:%S%z` | 203.5 | 1,168.8 | 5.7 |
 | `strftime`, `%c` (C locale) | 386.3 | 1,387.4 | 3.6 |
 
-Profile (`perf`, the Liella build of the whole benchmark): reading `TZ` and `TZDIR` from the
+Profile (`perf`, the libniji build of the whole benchmark): reading `TZ` and `TZDIR` from the
 environment on every call to decide whether the zone changed (`getenv` and `strlen`, about 22%);
 128-bit division in the calendar arithmetic (`__divti3` and `u128_div_rem`, about 19%); the
 transition dates of a POSIX rule computed again on every call (`rule::day_of`, 8%); some heap
@@ -484,17 +484,17 @@ unless the owner sets budgets that require work now.
 
 The owner's standing performance rule (P9): before each phase, every profiled gap of the
 completed phases is either closed by a small, targeted fix or deferred to the optimization pass.
-Same machine and method as entries 5–7; Liella before → after, with glibc for reference
+Same machine and method as entries 5–7; libniji before → after, with glibc for reference
 (ns per call). `cargo xtask bench`: all 37 budgets met. The first run reported
 `bench_heap/threads16_64` over budget because glibc's reference measured 0.80 ns that run; five
-further runs gave 1.63–2.38 ns for the reference and a steady 2.1 ns for Liella (noise, not a
+further runs gave 1.63–2.38 ns for the reference and a steady 2.1 ns for libniji (noise, not a
 regression; no heap code changed), and the rerun met every budget.
 
 | Gap | Before | After | glibc | Fix (or why deferred) |
 |---|---:|---:|---:|---|
 | `strtod`, `"3.14159"` | 2,268 | 88 | 117 | Fixed: inputs of at most 19 significant digits skip the 12 KB digit buffer, and the classic exact fast path (binary64, round to nearest, value ≤ 2^53, exponent within ±22: one correctly rounded IEEE operation) handles exact cases; 200,000 random inputs agree with Rust's correctly rounded parser. |
 | `isalpha`, C | 9.36 | 5.09 | 2.37 | Fixed in part: the built-in locales read the "C" class table (one load) instead of computing the class. The rest is finding the thread's locale per call. |
-| `putc` | 41.9 | 15.0 | 3.9 | Fixed in part: a fully buffered stream with room in its write window takes the bytes there directly, as header-inline `putc` does; the stream lock is skipped while Liella knows the process has one thread (P5). The rest is finding the stream's record per call. |
+| `putc` | 41.9 | 15.0 | 3.9 | Fixed in part: a fully buffered stream with room in its write window takes the bytes there directly, as header-inline `putc` does; the stream lock is skipped while libniji knows the process has one thread (P5). The rest is finding the stream's record per call. |
 | `fputs`, 32 bytes | 63.7 | 45.4 | 14.2 | As `putc`. |
 | `fwrite`, 4 KiB | 478.9 | 358.7 | 221.1 | Lock skip only (4 KiB is larger than the window path). |
 | `snprintf("%d")` | 509.6 | 474.3 | 83.2 | Deferred. Holding the parsed format inline instead of in heap vectors was tried and measured slower (676 ns: a piece is about 100 bytes, so the copies cost more than the allocations); the remedy is architectural (parse into caller storage or render in one pass). |
@@ -525,15 +525,15 @@ messages. The program checks every call once before timing it, so no row times a
 **What each library consults on this VM** (`nsswitch.conf`: `hosts: files dns`,
 `passwd`/`group: files systemd`, `services: db files`; the system calls observed with `strace`):
 `localhost` and `root` are found by `files` in both, so neither reaches `dns` or `systemd`. For
-`services`, Liella treats `db` as unavailable (a module source, phase 14) and reads
+`services`, libniji treats `db` as unavailable (a module source, phase 14) and reads
 `/etc/services`; the reference makes no per-call system call for `db` either and reads the same
 file. Both check `nsswitch.conf` and `resolv.conf` with `stat` on a host lookup; before the
-review below, Liella also checked `host.conf` on every lookup of any database, and all three
+review below, libniji also checked `host.conf` on every lookup of any database, and all three
 files for numeric `getaddrinfo`/`getnameinfo`, where the reference makes no system call.
 
 ### Address conversion, lookups, resolver messages (ns per call)
 
-| Call | glibc | Liella | Ratio |
+| Call | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | `inet_pton`, IPv4 | 29.96 | 39.16 | 1.31 |
 | `inet_pton`, IPv6 | 76.54 | 127.67 | 1.67 |
@@ -553,15 +553,15 @@ files for numeric `getaddrinfo`/`getnameinfo`, where the reference makes no syst
 
 No IDNA row: without DNS the conversion is reached only by a non-ASCII name with `AI_IDN |
 AI_NUMERICHOST`, and there the libraries do different work (the reference converts the name
-first, about 5.7 µs; Liella tries it as a numeric address first and fails without converting,
+first, about 5.7 µs; libniji tries it as a numeric address first and fails without converting,
 with the same `EAI_NONAME`). A row comparing the same work needs a non-ASCII name in
 `/etc/hosts`, which the benchmark does not write.
 
-The `inet_pton` IPv4 row moves with code layout alone: the same Liella source measured 37–55 ns
+The `inet_pton` IPv4 row moves with code layout alone: the same libniji source measured 37–55 ns
 across rebuilds this session (the IPv6 row 105–143 ns, in the other direction), and the
 reference's own binary 30 or 41 ns depending on the benchmark build.
 
-Profile (`perf` and `strace`, the Liella build of the benchmark):
+Profile (`perf` and `strace`, the libniji build of the benchmark):
 
 * **Numeric `getaddrinfo` and `getnameinfo`** built the full lookup context on every call:
   `stat` of `nsswitch.conf`, `host.conf` and `resolv.conf` (about 1–1.5 µs each on this VM),
@@ -586,7 +586,7 @@ measurements (`posix_spawn` and `fork` with `wait`, `isatty`, `tcgetattr`) start
 
 ## Review before phase 11 (2026-10-03; plan rules P8, P9)
 
-Same machine and method as entry 8; Liella before → after (after: medians of three
+Same machine and method as entry 8; libniji before → after (after: medians of three
 `cargo xtask bench` runs), glibc for reference (ns per call, from a run in the same session as
 the after column). `cargo xtask bench`: all 46 budgets met in each of the three runs; no
 pre-existing row moved beyond its earlier range. Every test file covering the changed code
@@ -600,7 +600,7 @@ passes in both passes (plain and `export,selftest`), with `netdb_products`, `use
 | `getnameinfo`, numeric | 5,743 | 270.4 | 305.6 | Fixed: as above (`gai::ni_uses_switch`); now faster than glibc. |
 | `getpwnam_r("root")` | 7,257 | 5,219 | 5,188 | Fixed: `host.conf` is checked by host lookups only (`Ctx::with_multi`), and the `__nss_configure_lookup` overrides are decoded only once one exists. Parity. |
 | `getgrgid_r(0)` | 7,035 | 4,975 | 5,128 | As `getpwnam_r`. |
-| `getservbyname_r("http", "tcp")` | 13,024 | 8,244 | 9,252 | Fixed: as `getpwnam_r`, and the `files` source stops reading at the record found (`liella::system::find_line`, the same lines in the same order as before). Now faster than glibc. |
+| `getservbyname_r("http", "tcp")` | 13,024 | 8,244 | 9,252 | Fixed: as `getpwnam_r`, and the `files` source stops reading at the record found (`niji::system::find_line`, the same lines in the same order as before). Now faster than glibc. |
 | `dn_comp` | 389.5 | 185.1 | 55.45 | Fixed in part: the compression list lives on the stack up to 32 entries, and the label table holds 16-bit offsets (256 bytes to clear instead of 1 KB). The rest is deferred: the text goes through a 256-byte wire buffer, then is packed with generic copies; packing straight from the text is an engine change. |
 | `getaddrinfo("localhost")` | 10,833 | 10,953 | 8,845 | Deferred (P8 below): three configuration files checked with `stat` per host lookup, and the hosts file read and parsed per lookup. Checking `host.conf` once, as the reference does, would change behaviour (an edited file is read again today). |
 | `res_mkquery` | 2,068 | 2,024 | 1,638 | Deferred: one `getrandom` per query ID. A generator seeded once would remove it, but the source of DNS query IDs is a security decision for the owner, not a small fix. |
@@ -623,13 +623,13 @@ program, and on this VM creating, executing and reaping a process costs 0.2–0.
 ratios, not their absolute values, and expect ±15% between runs (process creation on this VM
 varies with CPU placement; pinned to one CPU, `fork` rows repeat within a few percent). Both
 libraries make the same system calls in the parent for each of these rows (`strace`): the
-reference's `posix_spawn` maps a 36 KiB stack for a `CLONE_VM` child, Liella's maps a shared
+reference's `posix_spawn` maps a 36 KiB stack for a `CLONE_VM` child, libniji's maps a shared
 page for the child's error word and creates the child without `CLONE_VM` (D-18.1, D-18.3); `system`
 and `popen` add the same signal and pipe calls in both.
 
 ### Spawning, waiting, terminals (ns per call)
 
-| Call | glibc | Liella | Ratio |
+| Call | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | `posix_spawn("/bin/true")` + `waitpid` | 505,103 | 592,139 | 1.17 |
 | the same with three file actions (open, `dup2`, close) | 513,908 | 580,117 | 1.13 |
@@ -651,10 +651,10 @@ and `popen` add the same signal and pipe calls in both.
 `vfork` is meaningful to measure here because the spec defines it (D-18.1): the child gets its
 own copy-on-write memory instead of the caller's, so a correct program behaves identically and an
 incorrect one becomes safe, at the price this row shows (F24): the kernel copies the caller's
-page tables, which the reference's `CLONE_VM` child does not. The `fork` row unpinned shows Liella
+page tables, which the reference's `CLONE_VM` child does not. The `fork` row unpinned shows libniji
 faster, which is placement noise; pinned, the reference is faster.
 
-Profile (`perf`, `strace` and page-fault counts from `getrusage`, the Liella build):
+Profile (`perf`, `strace` and page-fault counts from `getrusage`, the libniji build):
 
 * **`posix_spawn`, `system`, `popen`, `vfork`**: the child is created without `CLONE_VM`
   (D-18.1, D-18.3), so the kernel duplicates the caller's address space (its mappings and the
@@ -663,18 +663,18 @@ Profile (`perf`, `strace` and page-fault counts from `getrusage`, the Liella bui
   spawn, the reference 0). The system calls are otherwise the reference's, plus one `mmap` and
   `munmap` of the shared error page per spawn. The cost grows with the caller's resident
   memory: with 256 MiB of touched heap (65,536 pages, no transparent huge pages on this VM's
-  `madvise` setting) Liella's spawn costs about 30–110 µs more than with a small heap across
+  `madvise` setting) libniji's spawn costs about 30–110 µs more than with a small heap across
   runs, the reference's nothing (D-18.3's performance note).
-* **`fork`**: the same system calls; Liella's *prepare* step takes about twenty library locks (64
+* **`fork`**: the same system calls; libniji's *prepare* step takes about twenty library locks (64
   heap shards among them) and releases them after `clone`, so the parent writes those pages
   while they are shared copy-on-write: 9 page faults per `fork` in the parent against the
   reference's 3, and the child's resets (thread list, timers, `getaddrinfo_a` queue, stdio locks,
   heap caches, `popen`/`system` state) write about 24 pages against the reference's 10.
 * **`ttyname_r`**: the same four system calls as the reference (`TCGETS2`, `fstat`, `readlink`
-  of `/proc/self/fd/N`, `stat` of the name); Liella also clears and copies three 4 KiB path
-  buffers per call (`liella_mem::fill_u8` 3.5% of the whole benchmark's profile).
-* **`tcsetattr`**: Liella reads the settings, sets them and, only when they changed, reads them
-  again (D-19.1); the reference reads them after every set, so with unchanged settings Liella
+  of `/proc/self/fd/N`, `stat` of the name); libniji also clears and copies three 4 KiB path
+  buffers per call (`niji_mem::fill_u8` 3.5% of the whole benchmark's profile).
+* **`tcsetattr`**: libniji reads the settings, sets them and, only when they changed, reads them
+  again (D-19.1); the reference reads them after every set, so with unchanged settings libniji
   is faster.
 
 ### Expected after phase 12
@@ -686,10 +686,10 @@ the shell as `popen` does; its own measurements (directory streams, `nftw`, `rea
 
 ## Review before phase 12 (2026-10-03; plan rules P8, P9)
 
-Same machine and method as entry 9; Liella before → after (after: medians of three
+Same machine and method as entry 9; libniji before → after (after: medians of three
 `cargo xtask bench` runs), glibc for reference (ns per call, from runs in the same session).
 `cargo xtask bench`: all 61 budgets met in each of the three runs (the 15 new rows are sanity
-bounds, about 5–10× Liella's value; phase 11 has no owner budgets); no pre-existing row moved
+bounds, about 5–10× libniji's value; phase 11 has no owner budgets); no pre-existing row moved
 beyond its earlier range. Under `cargo xtask bench` the spawn rows are 5–10% slower than in the
 shell runs of entry 9 (the children inherit Cargo's larger environment; the reference was not run
 there). Every test file covering the changed code passes in both passes (plain and
@@ -726,7 +726,7 @@ substitution).
 
 ### Directories, walks, paths, mount tables, patterns (ns per call)
 
-| Call | glibc | Liella | Ratio |
+| Call | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | `opendir` + `readdir` to the end + `closedir`, 1,000 files | 348,940 | 344,606 | 0.99 |
 | `readdir`, per entry (an open stream, `rewinddir` then to the end) | 342.7 | 340.1 | 0.99 |
@@ -752,16 +752,16 @@ substitution).
 | `regexec`, `\(b[a-z]*\)@\1` | 3,033 | 8,626 | 2.84 |
 | `regexec`, `(a\|aa)*c` on 4,096 `a`s (no match) | 62,077,873 | 2,437,846 | 0.04 |
 
-`wordexp` with `WRDE_NOCMD` crashed in Liella before these rows could run (fixed in the review
+`wordexp` with `WRDE_NOCMD` crashed in libniji before these rows could run (fixed in the review
 below): a successful call without `WRDE_DOOFFS` left `we_offs` as the caller's structure held it,
 so `wordfree` freed from the wrong slots when the structure was not zeroed (here a stack slot that
 had held `glob`'s `gl_pathc` of 1,000).
 
-Profile (`perf` as root on the Liella build of per-row loop programs, no call graph; `strace -c`
+Profile (`perf` as root on the libniji build of per-row loop programs, no call graph; `strace -c`
 for the system calls):
 
 * **Directory streams, `getcwd`, `mkstemp`**: the same system calls as the reference; parity.
-* **`realpath`**: 17 system calls against the reference's 5. Liella resolves through `O_PATH`
+* **`realpath`**: 17 system calls against the reference's 5. libniji resolves through `O_PATH`
   descriptors (D-13.5, no length limit): per component `fstatat`, `openat` and `close`, the last
   directory opened too; the reference makes one `readlink` per component on the whole path.
   Kernel `memset` (zeroing a new `struct file` per `openat`) was the largest single symbol.
@@ -779,7 +779,7 @@ for the system calls):
   names, then the comparison).
 * **`nftw`**: the same 1,001 `fstatat`s and 22 `getdents64`; about 150 ns of user time per entry
   more than the reference.
-* **`fts`**: the same system calls; about 550 ns of user time per entry more. Liella keeps the
+* **`fts`**: the same system calls; about 550 ns of user time per entry more. libniji keeps the
   tree in Rust nodes and mirrors each into the caller-visible `FTSENT` block (`Fts::write`, written
   when built and again when visited, with the 144-byte `stat` copied), plus a path and a name vector
   per node.
@@ -798,10 +798,10 @@ allocator introspection) adds no hot path to them; its own measurements (`syslog
 
 ## Review before phase 13 (2026-10-03; plan rules P8, P9)
 
-Same machine and method as entry 10; Liella before → after (after: medians of three
+Same machine and method as entry 10; libniji before → after (after: medians of three
 `cargo xtask bench` runs; before: the phase-12 code, three runs of the same programs), glibc for
 reference (ns per call). `cargo xtask bench`: all 93 budgets met in each of the three runs (the 17
-new rows are sanity bounds, about 5–10× Liella's value; phase 12 has no owner budgets); no
+new rows are sanity bounds, about 5–10× libniji's value; phase 12 has no owner budgets); no
 pre-existing row moved beyond its earlier range. Under `cargo xtask bench` the `wordexp` rows are
 slower than in the shell (3.7 and 4.0 µs against 2.9 and 3.6): `getenv` scans Cargo's larger
 environment, as `localtime_r` did in entry 7. Every test file covering the changed code passes in
@@ -833,7 +833,7 @@ POSIX AIO and the allocator's introspection. The same machine as entries 5–10 
 EPYC 7551, Ubuntu 24.04, glibc 2.39, kernel 6.8, 16 vCPUs). `bench/c/cbench_services.c` (new) and
 `bench/c/cbench_aio.c` (phase 13's own rows) build both against the products and against the host
 glibc (`cc -O2`), so the two columns run identical code; medians of three runs, each row the best
-of seven rounds, both builds run in the same shell (the AIO rows: Liella under `cargo xtask bench`,
+of seven rounds, both builds run in the same shell (the AIO rows: libniji under `cargo xtask bench`,
 the reference in the shell). Every call is checked once before it is timed; a failure ends the
 program.
 
@@ -852,7 +852,7 @@ writes to a stream on `/dev/null`.
 
 ### Catalogs, queues, shared memory, logger, allocator introspection, AIO (ns per call)
 
-| Call | glibc | Liella | Ratio |
+| Call | glibc | libniji | Ratio |
 |---|---:|---:|---:|
 | `gettext`, a msgid the catalog holds | 66.84 | 7,866 | 118 |
 | `gettext`, a msgid the catalog lacks | 294.8 | 8,476 | 28.8 |
@@ -870,15 +870,15 @@ writes to a stream on `/dev/null`.
 | the same, 4 KiB | 23,072 | 26,119 | 1.13 |
 | `lio_listio(LIO_WAIT)`, 16 × 4 KiB on one descriptor | 38,611 | 62,009 | 1.61 |
 
-The AIO rows are dominated by thread wakes (Liella: the io_uring helper and back; the reference: a
+The AIO rows are dominated by thread wakes (libniji: the io_uring helper and back; the reference: a
 worker and back) and vary by ±30% between runs on this VM on both sides (entry budgets record
 23–53 µs for the reference); the list row is the known serialisation per descriptor (§11.11 order;
 "linked submissions" in the optimization targets).
 
-Profile (`perf` as root on the Liella build of per-row loop programs, no call graph; `strace -c`
+Profile (`perf` as root on the libniji build of per-row loop programs, no call graph; `strace -c`
 for the system calls):
 
-* **`gettext`, `ngettext`**: 74% in `liella::locale::name::lookup_alias`: every lookup scanned the
+* **`gettext`, `ngettext`**: 74% in `niji::locale::name::lookup_alias`: every lookup scanned the
   whole alias file (`/usr/share/locale/locale.alias`, loaded once and kept) line by line for the
   locale name, splitting each line into fields; 8% clearing a `PATH_MAX` (4 KiB) buffer for each
   directory variant tried, and another in the boundary for the catalog's `stat`. One `newfstatat`
@@ -907,10 +907,10 @@ entries 1–11's rows can then be repeated dynamically linked.
 
 ## Review before phase 14 (2026-10-04; plan rules P8, P9)
 
-Same machine and method as entry 11; Liella before → after (after: medians of three
+Same machine and method as entry 11; libniji before → after (after: medians of three
 `cargo xtask bench` runs; in the shell, for comparison with the before column, where it differs),
 glibc for reference (ns per call). `cargo xtask bench`: all 107 budgets met in each of the three
-runs (the 11 new `cbench_services` rows are sanity bounds, about 5–10× Liella's value; phase 13
+runs (the 11 new `cbench_services` rows are sanity bounds, about 5–10× libniji's value; phase 13
 has no owner budgets); the fixes touch no pre-existing row's path. Under `cargo xtask bench`
 the catalog rows are 0.4 µs slower than in the shell (2.8 against 2.4 µs: `LANGUAGE` is looked up
 through `secure_getenv` in Cargo's larger environment, as `getenv` in entry 7 and the review before
@@ -919,10 +919,10 @@ phase 13). Every test file covering the changed code passes in both passes (plai
 
 | Gap | Before | After | glibc | Fix (or why deferred) |
 |---|---:|---:|---:|---|
-| `gettext`, found | 7,866 | 2,808 (`xtask`; 2,422 in the shell) | 66.84 | Fixed in part (`liella_legacy::intl`): the last alias lookup is kept (the name and the answer as a position in the alias table, which is loaded once and never replaced, so the answer cannot go stale; under the module's lock), and the catalog path of each directory variant is built in a 256-byte buffer when it fits (`join`; `PATH_MAX` only beyond), as is the path for the catalog's `stat` (`boundary::catalog::with_path`). The rest is deferred: the `stat` per lookup is D-7.12's no-stale-answers decision (about 1.5 µs here; see P8 below), and building candidate paths and finding the catalog record by path per lookup is the per-(domain, locale) cache already listed. |
+| `gettext`, found | 7,866 | 2,808 (`xtask`; 2,422 in the shell) | 66.84 | Fixed in part (`niji_legacy::intl`): the last alias lookup is kept (the name and the answer as a position in the alias table, which is loaded once and never replaced, so the answer cannot go stale; under the module's lock), and the catalog path of each directory variant is built in a 256-byte buffer when it fits (`join`; `PATH_MAX` only beyond), as is the path for the catalog's `stat` (`boundary::catalog::with_path`). The rest is deferred: the `stat` per lookup is D-7.12's no-stale-answers decision (about 1.5 µs here; see P8 below), and building candidate paths and finding the catalog record by path per lookup is the per-(domain, locale) cache already listed. |
 | `gettext`, missing | 8,476 | 3,218 (2,820) | 294.8 | As above. |
 | `ngettext` | 7,925 | 2,832 (2,470) | 87.39 | As above. |
-| `mallinfo2` | 4,678 | 1,520 | 132.6 | Fixed in part (`liella_rt::heap::Heap::live_bits`): only the bitmap words that hold blocks of the slab's class are counted (bits past the last block are always set, `adopt`), so a slab of a large class costs a word or two instead of 256; the result is identical. The rest is deferred: the scan of every owned slab's bitmap remains (small classes use all 256 words); per-slab counts kept readable by others (the owner-only `R_USED` is not exact for the current slab) are a change of the slab protocol. |
+| `mallinfo2` | 4,678 | 1,520 | 132.6 | Fixed in part (`niji_rt::heap::Heap::live_bits`): only the bitmap words that hold blocks of the slab's class are counted (bits past the last block are always set, `adopt`), so a slab of a large class costs a word or two instead of 256; the result is identical. The rest is deferred: the scan of every owned slab's bitmap remains (small classes use all 256 words); per-slab counts kept readable by others (the owner-only `R_USED` is not exact for the current slab) are a change of the slab protocol. |
 | `malloc_info` | 8,709 | 5,485 | 1,922 | Fixed in part: the statistics as `mallinfo2`, and the line sink copies a run at a time up to the next newline or the buffer's end (`boundary::heap::StreamLines::put`; the same lines and the same `fputs` calls). The rest is deferred: an `fputs` per line and the formatting through the generic sink; writing the report in larger pieces would change how an unbuffered stream receives it. |
 | `malloc_usable_size` | 7.81 | 7.81 | 3.05 | No action by decision: the pointer is validated (registry and bitmaps, D-3.4) where the reference trusts the chunk header. |
 | `catgets` | 10.22 | 10.25 | 4.74 | No action: 5 ns, the descriptor and header validation per call (D-7.12). |
@@ -988,8 +988,8 @@ retrofitted:
 
 ## Name-service cache (D-16.10, 2026-10-03)
 
-`bench/c/cbench_nscache.c` (Liella only: it switches the cache with `liella_nscache_enable`, as
-`LIELLA_NSCACHE=0` does at start), on the test VM, the shared region warm, `cargo xtask bench`
+`bench/c/cbench_nscache.c` (libniji only: it switches the cache with `niji_nscache_enable`, as
+`NIJI_NSCACHE=0` does at start), on the test VM, the shared region warm, `cargo xtask bench`
 running it with a private `/dev/shm`. ns per call, best of seven rounds:
 
 | Call | Cached | Uncached | glibc (entry 8) |
@@ -1019,7 +1019,7 @@ A fresh process (`execve`d by the benchmark, best of 40, VM; three rounds), ns:
 |---|---|---|---|
 | Region exists and is valid | 150,642–152,452 | 84,430–95,528 | 50,239–57,939 |
 | Region absent (created) | 171,682–172,532 | 88,248–95,938 | 80,399–93,828 |
-| Cache off (`LIELLA_NSCACHE=0`) | 90,901–97,781 | 88,268–95,378 | 9,249–10,850 |
+| Cache off (`NIJI_NSCACHE=0`) | 90,901–97,781 | 88,268–95,378 | 9,249–10,850 |
 | Steady state, `getpwnam_r` | 841–882 | 852–867 | |
 
 Where the 55–77 µs went (strace of the attaching lookup, page-fault counts from `getrusage`):
@@ -1062,7 +1062,7 @@ against the products (static, as `cargo xtask bench`), against the host glibc dy
 since the products are static). It runs the three alternately: one warm-up round, discarded, then
 five rounds, each under `~/bin/timing` (nothing else ran on the machine). Every value in a round
 is the program's own best of seven passes; the tables give the median of the five rounds with
-min and max, and the ratio of the medians, Liella ÷ glibc (dynamic): the headline. Each call is
+min and max, and the ratio of the medians, libniji ÷ glibc (dynamic): the headline. Each call is
 checked once before it is timed.
 
 **Inputs.** `bench/c/cbench_opt.c` (new) holds the P10 targets with inputs typical of coreutils,
@@ -1099,7 +1099,7 @@ stays the regression gate during the pass and is tightened to the achieved ratio
 
 #### P10 targets, realistic and micro rows (`cbench_opt`), ns per operation
 
-| Row | glibc (dynamic) | Liella | Ratio | glibc (static) |
+| Row | glibc (dynamic) | libniji | Ratio | glibc (static) |
 |---|---:|---:|---:|---:|
 | `snprintf_d` | 45.62 (45.60-45.94) | 359.06 (358.70-375.20) | 7.87 | 47.59 (47.53-47.67) |
 | `snprintf_ld_large` | 52.68 (52.64-55.26) | 406.53 (406.00-424.27) | 7.72 | 53.04 (52.94-55.16) |
@@ -1203,7 +1203,7 @@ stays the regression gate during the pass and is tightened to the achieved ratio
 
 #### Streams and formatting (`cbench_stdio`), ns per operation
 
-| Row | glibc (dynamic) | Liella | Ratio | glibc (static) |
+| Row | glibc (dynamic) | libniji | Ratio | glibc (static) |
 |---|---:|---:|---:|---:|
 | `snprintf_d` | 45.70 (45.61-47.00) | 363.58 (361.30-379.23) | 7.96 | 46.35 (46.29-46.40) |
 | `snprintf_mixed` | 453.17 (452.85-472.06) | 2458.70 (2434.90-2515.52) | 5.43 | 460.50 (460.16-461.49) |
@@ -1214,7 +1214,7 @@ stays the regression gate during the pass and is tightened to the achieved ratio
 
 #### Locale, conversion (`cbench_locale`), ns per operation
 
-| Row | glibc (dynamic) | Liella | Ratio | glibc (static) |
+| Row | glibc (dynamic) | libniji | Ratio | glibc (static) |
 |---|---:|---:|---:|---:|
 | `isalpha_c` | 1.96 (1.96-1.96) | 4.48 (4.47-4.57) | 2.29 | 1.68 (1.68-1.68) |
 | `toupper_c` | 1.96 (1.96-1.96) | 3.91 (3.91-4.05) | 1.99 | 1.96 (1.96-1.96) |
@@ -1232,7 +1232,7 @@ stays the regression gate during the pass and is tightened to the achieved ratio
 
 #### Time (`cbench_time`), ns per operation
 
-| Row | glibc (dynamic) | Liella | Ratio | glibc (static) |
+| Row | glibc (dynamic) | libniji | Ratio | glibc (static) |
 |---|---:|---:|---:|---:|
 | `gmtime_r` | 38.23 (38.16-38.84) | 39.20 (39.18-39.29) | 1.03 | 38.04 (38.01-38.38) |
 | `timegm` | 63.67 (63.59-64.34) | 71.29 (71.23-73.66) | 1.12 | 63.55 (63.22-66.02) |
@@ -1246,7 +1246,7 @@ stays the regression gate during the pass and is tightened to the achieved ratio
 
 #### Patterns (`cbench_patterns`), ns per operation
 
-| Row | glibc (dynamic) | Liella | Ratio | glibc (static) |
+| Row | glibc (dynamic) | libniji | Ratio | glibc (static) |
 |---|---:|---:|---:|---:|
 | `regcomp_regexec_regfree_email` | 44867.39 (44468.59-46817.40) | 286178.24 (283437.22-298363.61) | 6.38 | 44381.43 (44078.55-44806.12) |
 | `regexec_literal_1k` | 2227.46 (2213.20-2276.73) | 19505.32 (19382.54-19943.95) | 8.76 | 2233.31 (2217.93-2316.84) |
@@ -1265,7 +1265,7 @@ stays the regression gate during the pass and is tightened to the achieved ratio
 
 #### Catalogs and services (`cbench_services`), ns per operation
 
-| Row | glibc (dynamic) | Liella | Ratio | glibc (static) |
+| Row | glibc (dynamic) | libniji | Ratio | glibc (static) |
 |---|---:|---:|---:|---:|
 | `gettext_found` | 68.75 (68.69-69.27) | 2175.12 (2164.55-2191.06) | 31.64 | 67.99 (67.93-69.97) |
 | `gettext_missing` | 265.41 (264.19-267.91) | 2381.05 (2368.97-2409.45) | 8.97 | 262.54 (257.17-267.31) |
@@ -1297,7 +1297,7 @@ Notes on the baseline:
   (333 ns against 1.1 × 48 ns) and `memset_4k` (75 ns). Probed (a C program against `libc.a`):
   on this CPU `rep movsb` is 7–9× slower than glibc's copy when the destination starts 1–300
   bytes after the source modulo 4 KiB at an offset that is not a multiple of 32 (4 KiB at +16:
-  344 ns, glibc 49 ns, the `liella-mem` loops 82 ns); the benchmark's two `Vec`s sit exactly so
+  344 ns, glibc 49 ns, the `niji-mem` loops 82 ns); the benchmark's two `Vec`s sit exactly so
   (+16). With other placements the products' `memcpy` is 1.0–1.4× glibc (4 KiB aligned: 51 against
   37 ns). `memset_4k` is `rep stosb` at a destination 16 bytes past a 64-byte boundary: 86 ns,
   glibc 82 ns at the same placement, so the budget (measured against an aligned `memcpy`) cannot
@@ -1429,7 +1429,7 @@ Other gaps seen on the way (not P10 targets; existing optimization-target rows):
 | `gettext` of a translated message | 6.7× | Policy change (behaviour) and architectural change | Each lookup reads `LANGUAGE` from the environment (a scan of `environ`, one C-layer call per entry), builds and compares the resolution key, checks the catalog's file time, and parses the charset names. Remembering `LANGUAGE` between calls by the environment's identity would miss a program that writes into the `environ` array itself (RULING NEEDED); the rest needs per-catalog codecs stored at load. |
 | `strftime` | 2.2–2.9× | Architectural change | Every directive goes through the general field engine (a dispatch over the directive and its flags, then a padded field through a `dyn` output); a direct path for unflagged numeric and name directives writing into the caller's buffer would remove most of it. |
 | `fnmatch` with `[[:upper:]]` (en_US.UTF-8) | 1.68× | Architectural change | The class name is looked up and the class tested through the locale file on every call; the same `ctype` cache would serve it. |
-| `setlocale` again with the name in force (`second_setlocale_en_US`) | 86× | Policy change (behaviour): RULING NEEDED | Every call resolves the name again (alias file, archive, candidates). A black-box probe shows glibc keeps the loaded data when the name equals the one in force, even after `LOCPATH` changes or the files go away (it reloads only after another name); Liella resolves again and picks up the new `LOCPATH`. Matching glibc (keep the category when its name is unchanged) would make the call a comparison, and is an observable change. |
+| `setlocale` again with the name in force (`second_setlocale_en_US`) | 86× | Policy change (behaviour): RULING NEEDED | Every call resolves the name again (alias file, archive, candidates). A black-box probe shows glibc keeps the loaded data when the name equals the one in force, even after `LOCPATH` changes or the files go away (it reloads only after another name); libniji resolves again and picks up the new `LOCPATH`. Matching glibc (keep the category when its name is unchanged) would make the call a comparison, and is an observable change. |
 | `bindtextdomain`+`gettext` and `gettext` without a catalog right after a setting change (`second_*` cold rows) | 12–19× | Owner ruling (D-7.12) | After `setlocale`, `bindtextdomain` and the other setting changes every catalog is checked against its file at once (the owner's rate-limit ruling), so the first lookups stat the catalog paths again; glibc never re-reads. |
 | `malloc`/`free` of 1 MiB (`bench_heap` `malloc_free_1m`, 45 ns against glibc's 28 on Haswell-EP) | 1.66× | Architectural change | A kept large block is reused without a system call, but each pair finds the block twice in the shared large-block table and changes its cached flag with two atomic read-modify-writes: the cross-thread double-free check of D-3.13. glibc serves the pair from its main heap once its dynamic mmap threshold has risen. Halving it needs per-thread ownership of kept large blocks without the shared flag, a change to the allocator's design (not an optimization-pass target). |
 | `putc` (`cbench_stdio`), stdio output (`fputs_32`, `fwrite_4k`) | 4.3×, 2.1×, 1.24× | Architectural change | Each call builds the stream's views (`stdio::parts`) and takes the stream lock through the general path; glibc's `putc` is a pointer compare and a store. A fast path on the buffer pointers needs a stream representation the boundary can test without the views. Not one of this pass's targets; the validation profiles show stdio output in `cut-tr-uniq` and `seq`. |
@@ -1442,15 +1442,15 @@ The before-and-after rows above cover every commit with its own numbers; four ea
 of this pass were measured in their commit messages only: `e083cad` (regex overall match over
 flat arrays), `ed4ecf6` (printf parsing into inline buffers, exact small floats), `d94e7eb`
 (setlocale lookup cache) and `d37d74a` (strftime inline buffers). Their effect is in the final
-ratios (`target/liella/bench/*.compare.tsv` of the final run, and the `ratio_host` rows of
+ratios (`target/niji/bench/*.compare.tsv` of the final run, and the `ratio_host` rows of
 `bench/budgets.tsv`).
 
 ### ratio_host limits per CPU (BUDGET-SPLIT, 2026-10-05)
 
-The gate on a `ratio_host` row is the same-run MEDIAN Liella/glibc (dynamic) ratio over 5 rounds
+The gate on a `ratio_host` row is the same-run MEDIAN libniji/glibc (dynamic) ratio over 5 rounds
 (what `cargo xtask bench --compare` prints), checked against the limit for the machine's CPU model
 (`model name` in /proc/cpuinfo) in `bench/host_limits.tsv`. A CPU without entries is measured and
-reported, never gated. The worst ratio (slowest Liella round / fastest glibc round) is printed as a
+reported, never gated. The worst ratio (slowest libniji round / fastest glibc round) is printed as a
 diagnostic only. The target, a ratio of 1.10 or less, is separate and informational (82 of the 114
 rows miss it on Zen 1, 84 on Haswell-EP).
 

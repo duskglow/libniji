@@ -1,14 +1,14 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
-# Timing and profiles of realistic workloads, glibc builds against Liella builds (validation
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
+# Timing and profiles of realistic workloads, glibc builds against libniji builds (validation
 # step 5, input for the optimization thread; validation/profiles.md).
 #
 #   validation/profile.sh OUT_DIR
 #
-# Uses the validation builds in $VALIDATION/build/{glibc,liella-w}/{coreutils,sed,bash}. Each
+# Uses the validation builds in $VALIDATION/build/{glibc,niji-w}/{coreutils,sed,bash}. Each
 # workload runs under `perf stat -r 5` (one warm-up run first, discarded) for both builds, and
 # once under `perf record` for each; the report lists the hottest symbols and how
-# much of the time is Liella's (symbols defined in libc.a) or, for glibc, libc.so.6's. Each
+# much of the time is libniji's (symbols defined in libc.a) or, for glibc, libc.so.6's. Each
 # timing records the machine's load (uptime) before and after. perf runs through sudo -n (the
 # host's perf_event_paranoid is left as it is).
 set -u
@@ -18,7 +18,7 @@ mkdir -p "$out"
 work=$V/work
 mkdir -p "$work"
 G=$V/build/glibc
-L=$V/build/liella-w
+L=$V/build/niji-w
 cu=coreutils/coreutils-9.12/src
 se=sed/sed-4.10/sed/sed
 ba=bash/bash-5.3/bash
@@ -37,7 +37,7 @@ for ((i = 0; i < 300000; i++)); do
 done
 printf '%s %d\n' "${#s}" "$n"
 EOF
-nm "$V/products/libc.a" 2>/dev/null | awk 'NF == 3 { print $3 }' | sort -u > "$work/liella-symbols"
+nm "$V/products/libc.a" 2>/dev/null | awk 'NF == 3 { print $3 }' | sort -u > "$work/niji-symbols"
 
 # name|command (run from $work; @ is the build directory)
 workloads=(
@@ -63,9 +63,9 @@ printf 'workload\tbuild\tmean_s\tstddev_pct\tload_before\tload_after\n' > "$resu
 for w in "${workloads[@]}"; do
     name=${w%%|*}
     cmd=${w#*|}
-    for build in glibc liella; do
+    for build in glibc niji; do
         dir=$G
-        [ $build = liella ] && dir=$L
+        [ $build = niji ] && dir=$L
         c=${cmd//@/$dir}
         (cd "$work" && sh -c "$c" > /dev/null 2>&1) # warm-up, discarded
         before=$(load)
@@ -77,7 +77,7 @@ for w in "${workloads[@]}"; do
         sd=$(echo "$stat" | cut -d, -f4)
         printf '%s\t%s\t%s\t%s\t%s\t%s\twall=%s\n' "$name" "$build" "$(echo "scale=3; $ms / 1000" | bc)" "$sd" "$before" "$after" "$wall" >> "$results"
     done
-    # Profile of the Liella build.
+    # Profile of the libniji build.
     c=${cmd//@/$L}
     (cd "$work" && sudo -n perf record -q -F 2000 -o "$out/$name.data" "${asme[@]}" sh -c "$c" > /dev/null 2>&1)
     sudo -n chown "$(id -u):$(id -g)" "$out/$name.data"

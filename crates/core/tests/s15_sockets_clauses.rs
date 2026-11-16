@@ -5,12 +5,12 @@
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
 //! Clause tests for spec §15: the socket calls through the exports, the address and option
-//! results and the control-message walk through `liella_legacy::net_compat`; from §15.3 the
+//! results and the control-message walk through `niji_legacy::net_compat`; from §15.3 the
 //! conversions, interfaces (compared with sysfs), IPv6 option builders and source filters
-//! through the exports, the Ethernet and trust-file lookups through `liella_legacy` on fixture
+//! through the exports, the Ethernet and trust-file lookups through `niji_legacy` on fixture
 //! files (the system's files are not touched), and `rexec` against a test server on loopback.
 //! `rcmd` and `rresvport` need privileged ports: unprivileged, their refusals are tested.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
@@ -24,23 +24,23 @@ mod scratch;
 use core::ffi::CStr;
 use core::ptr::null_mut;
 
-use liella::error::Errno;
-use liella_abi::ctypes::{c_int, c_void};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as strs;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s12_stdio as sio;
-use liella_boundary::posix::s15_sockets as x;
-use liella_kernel::uapi::{PollFd, SockAddrBuf};
-use liella_legacy::interim_db;
-use liella_legacy::net_compat;
+use niji::error::Errno;
+use niji_abi::ctypes::{c_int, c_void};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as strs;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s12_stdio as sio;
+use niji_boundary::posix::s15_sockets as x;
+use niji_kernel::uapi::{PollFd, SockAddrBuf};
+use niji_legacy::interim_db;
+use niji_legacy::net_compat;
 
 /// Build and run C conformance programs against the products (`conformance/run.sh`).
 fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -209,8 +209,8 @@ fn s15_1_c_4() {
     let s = x::accept4(l, (&raw mut peer).cast(), Some(&mut len), SOCK_NONBLOCK | SOCK_CLOEXEC);
     assert!(s >= 0);
     assert_eq!(peer, name_of(c), "the peer address, optionally");
-    assert_eq!(io::liella_fcntl3(s, 1, 0), 1);
-    assert_ne!(io::liella_fcntl3(s, 3, 0) & 0o4000, 0);
+    assert_eq!(io::niji_fcntl3(s, 1, 0), 1);
+    assert_ne!(io::niji_fcntl3(s, 3, 0) & 0o4000, 0);
     close(&[l, c, s]);
 }
 
@@ -263,7 +263,7 @@ fn s15_1_c_7() {
     assert_eq!(&tiny[2..4], &a.port.to_ne_bytes(), "truncated to the supplied 6 bytes");
     // The library's copy-out: truncate, report.
     let mut src = SockAddrBuf::new();
-    liella_kernel::sys::Sys::getsockname(&liella_boundary::sys::CSys, liella_kernel::fd::Fd::new(l), &mut src).unwrap();
+    niji_kernel::sys::Sys::getsockname(&niji_boundary::sys::CSys, niji_kernel::fd::Fd::new(l), &mut src).unwrap();
     let mut out = [0u8; 4];
     let mut ol = 4u32;
     net_compat::store_addr(&src, Some(net_compat::AddrOut { buf: &mut out, len: &mut ol }));
@@ -303,7 +303,7 @@ fn s15_1_c_9() {
         assert_eq!(x::sockatmark(a), 0, "no out-of-band data");
     }
     assert_eq!(x::isfdtype(a, 0o140000), 1);
-    let f = io::liella_open3(c"/dev/null".as_ptr(), 0, 0);
+    let f = io::niji_open3(c"/dev/null".as_ptr(), 0, 0);
     assert_eq!(x::isfdtype(f, 0o140000), 0);
     assert_eq!(x::isfdtype(f, 0o020000), 1, "a character device");
     close(&[a, b, f]);
@@ -318,7 +318,7 @@ fn s15_1_f_0() {
     let c = x::socket(AF_INET, SOCK_STREAM, 0);
     x::connect(c, (&raw const a).cast(), IN4);
     assert!(err(x::connect(c, (&raw const a).cast(), IN4) as isize, Errno::EISCONN), "EISCONN");
-    let f = io::liella_open3(c"/dev/null".as_ptr(), 0, 0);
+    let f = io::niji_open3(c"/dev/null".as_ptr(), 0, 0);
     assert!(err(x::listen(f, 1) as isize, Errno::ENOTSOCK), "ENOTSOCK");
     let mine = x::socket(AF_INET, SOCK_DGRAM, 0);
     let foreign = In4 { addr: [203, 0, 113, 1], ..lo(0) };
@@ -409,7 +409,7 @@ fn s15_2_c_4() {
     for d in [&b"1"[..], b"22", b"333"] {
         x::send(a, d.as_ptr().cast(), d.len(), 0);
     }
-    let mut ts = liella_kernel::uapi::Timespec { sec: 0, nsec: 100_000_000 };
+    let mut ts = niji_kernel::uapi::Timespec { sec: 0, nsec: 100_000_000 };
     assert_eq!(x::recvmmsg(b, v.as_mut_ptr().cast(), 3, 0, Some(&mut ts)), 3, "several per call, with a timeout");
     assert_eq!(v.iter().map(|m| m.len).collect::<Vec<_>>(), [1, 2, 3]);
     assert_eq!(x::sendmmsg(a, v.as_mut_ptr().cast(), 3, 0), 3);
@@ -603,7 +603,7 @@ fn s15_3_c_4() {
 
 #[test]
 fn s15_3_c2_0() {
-    use liella_boundary::data::{in6addr_any, in6addr_loopback, In6Addr};
+    use niji_boundary::data::{in6addr_any, in6addr_loopback, In6Addr};
     assert_eq!(in6addr_any.0, [0; 16], "::");
     let mut one = [0u8; 16];
     one[15] = 1;
@@ -945,9 +945,9 @@ fn s15_7_c_0() {
     let file = dir.join("ethers");
     std::fs::write(&file, "# fixture\n00:11:22:33:44:55 alpha\n  0a:0b:0c:0d:0e:0f\tBeta # second\nbad line\n0:11:22:33:44:55 again\n").unwrap();
     let path = [file.to_str().unwrap().as_bytes(), b"\0"].concat();
-    assert_eq!(interim_db::ether_by_name(&liella_boundary::sys::CSys, &path, b"beta"), Some([10, 11, 12, 13, 14, 15]), "names match without regard to case");
-    assert_eq!(interim_db::ether_by_name(&liella_boundary::sys::CSys, &path, b"nosuch"), None);
-    let name = interim_db::ether_by_addr(&liella_boundary::sys::CSys, &path, [0, 0x11, 0x22, 0x33, 0x44, 0x55]).unwrap().unwrap();
+    assert_eq!(interim_db::ether_by_name(&niji_boundary::sys::CSys, &path, b"beta"), Some([10, 11, 12, 13, 14, 15]), "names match without regard to case");
+    assert_eq!(interim_db::ether_by_name(&niji_boundary::sys::CSys, &path, b"nosuch"), None);
+    let name = interim_db::ether_by_addr(&niji_boundary::sys::CSys, &path, [0, 0x11, 0x22, 0x33, 0x44, 0x55]).unwrap().unwrap();
     assert_eq!(name.as_slice(), b"alpha", "the first entry wins");
     drop(dir);
     if !std::path::Path::new("/etc/ethers").exists() {

@@ -5,8 +5,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, missing_docs)]
 #![allow(clippy::arithmetic_side_effects, clippy::as_conversions, clippy::indexing_slicing)]
 
-use liella_mathtools::cmp::{oracle, ulp_reference};
-use liella_mathtools::mp::*;
+use niji_mathtools::cmp::{oracle, ulp_reference};
+use niji_mathtools::mp::*;
 
 /// Operands of the seed-1 cosh q sample whose results round to 1 (x near 2^-9900), plus 2^-10000.
 const TINY: [u128; 7] = [

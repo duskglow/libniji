@@ -1,7 +1,7 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # remote.sh <file.c> [probe options...]   - run ~/bin/probe on keke for one probe source.
-#   tools/probe/remote.sh my_probe.c --liella ~/w/b --args a b
+#   tools/probe/remote.sh my_probe.c --niji ~/w/b --args a b
 # The source (and the file named by --stdin, if any) is copied to ~/probe-in/ on keke, then
 # `~/bin/probe` runs there; its output and exit status (0 SAME, 1 DIFFERENT, 2 error) come back.
 # `remote.sh --install` copies tools/probe/probe to keke as ~/bin/probe.

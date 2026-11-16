@@ -1,4 +1,4 @@
-//! `dlclose` under Liella's `ld.so` and `libc.so.6` (phase 14 DL-17 `DL-DLCLOSE`, handoff/DL-DLCLOSE.md;
+//! `dlclose` under libniji's `ld.so` and `libc.so.6` (phase 14 DL-17 `DL-DLCLOSE`, handoff/DL-DLCLOSE.md;
 //! plan/ph14/design.md §7-§10, plan/ph14/dl-16-dlopen.md §1 and §4; spec/behaviour/dynlink.md `== close`,
 //! `== order`, `== phdr`; probe tools/probe/dl/close). One C program built against the products checks
 //! every behaviour itself and exits with the number of the first check that failed (its text on
@@ -11,8 +11,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::elf::Elf;
+use niji_ld::arch::{Arch, Native};
+use niji_ld::elf::Elf;
 
 fn target() -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -26,10 +26,10 @@ fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
     }
-    let lib = target().join("liella");
+    let lib = target().join("niji");
     let ld = lib.join(Native::INTERP);
-    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("liella-crt1.o").exists() {
-        eprintln!("SKIP: ld.so, libc.so.6 or liella-crt1.o not built (run cargo xtask so)");
+    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("niji-crt1.o").exists() {
+        eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
     let d = target().join(format!("ld-dlclose-{name}-{}", std::process::id()));
@@ -37,13 +37,13 @@ fn setup(name: &str) -> Option<(PathBuf, PathBuf, PathBuf, PathBuf)> {
     let d = std::fs::canonicalize(d).unwrap();
     let mut so = std::fs::read(lib.join("libc.so.6")).unwrap();
     let elf = Elf::parse::<Native>(&so).unwrap();
-    let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
+    let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
     let (off, len) = (dynph.offset as usize, dynph.filesz as usize);
     let at = (off..off + len).step_by(16).find(|&o| so[o..o + 8] == 14u64.to_le_bytes()).expect("libc.so.6 has a DT_SONAME");
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
     let libc = d.join("libc-dl.so");
     std::fs::write(&libc, &so).unwrap();
-    Some((d, ld, libc, lib.join("liella-crt1.o")))
+    Some((d, ld, libc, lib.join("niji-crt1.o")))
 }
 
 /// Build `out` from `src` (C, or C++ when `out` ends in `cxx` or `cxx.so`) with `flags` in `d`.
@@ -963,7 +963,7 @@ fn s27_1_c_4_cxx_plugin_load_unload_loop() {
 /// first, each object after every object that needs it. `indep` (E1-E9): N, Y (`RTLD_NODELETE`), G
 /// in load order. `dep` (E17): B opened before A, which needs it, runs after A; N keeps its place.
 /// `bind` (E21): U bound `g_val` in G (`RTLD_GLOBAL`, no `DT_NEEDED`): U before G. `cycle` (E20,
-/// Liella's rule, the decision record of DL-EXIT-ORDER-PROBE-2): the cycle H <-> I (initialised I,
+/// libniji's rule, the decision record of DL-EXIT-ORDER-PROBE-2): the cycle H <-> I (initialised I,
 /// H) runs as one group between N and Y, the last initialised (H) first. `start` (E24, E25): M,
 /// opened between N and Y, needs the start-time object S (which needs the start-time V): N, M, S,
 /// V, then Y.

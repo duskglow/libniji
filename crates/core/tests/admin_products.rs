@@ -1,6 +1,6 @@
 //! Library identification and the system-administration thin wrappers end to end (spec
 //! §24.5–24.6; D-24.5, D-24.11; milestone 5): `tests/oracle/admin_diff.c` built against the host
-//! C library and statically against Liella's products and run three ways: as the unprivileged
+//! C library and statically against libniji's products and run three ways: as the unprivileged
 //! test user, in a private user namespace, and as the first process of a private PID namespace
 //! (where `reboot` reaches the kernel's PID-namespace rules and RB_POWER_OFF ends the namespace).
 //! The outputs, and how each run ended, must be identical line by line, except the recorded
@@ -23,12 +23,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/admin_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -37,7 +37,7 @@ fn build(out: &Path, liella: bool) -> bool {
 
 /// `modify_ldt`'s errors (three-way rule: the spec's "thin wrapper" with C0.1 and modify_ldt(2)'s
 /// RETURN VALUE agree on -1 with `errno`).
-const LDT: &str = "§24.6 and C0.1 (three-way: the spec and modify_ldt(2) agree on -1 with errno): Liella reads the kernel's int-sized result as an int and fails with -1 and errno; the reference returns the negated error number and leaves errno alone";
+const LDT: &str = "§24.6 and C0.1 (three-way: the spec and modify_ldt(2) agree on -1 with errno): libniji reads the kernel's int-sized result as an int and fails with -1 and errno; the reference returns the negated error number and leaves errno alone";
 
 /// Lines that differ from the reference by decision: the text the line starts with, and why. A
 /// recorded line that no longer differs fails the test.
@@ -72,16 +72,16 @@ fn compare(what: &str, want: &str, got: &str, seen: &mut [bool; KNOWN.len()]) {
         if let Some(i) = KNOWN.iter().position(|(needle, _)| w.starts_with(needle)) {
             if w != g {
                 seen[i] = true;
-                eprintln!("recorded difference ({}), {what}:\n  glibc  {w}\n  liella {g}", KNOWN[i].1);
+                eprintln!("recorded difference ({}), {what}:\n  glibc  {w}\n  niji {g}", KNOWN[i].1);
             }
             continue;
         }
         if w != g {
             diffs += 1;
-            eprintln!("{what} line {}:\n  glibc  {w}\n  liella {g}", k + 1);
+            eprintln!("{what} line {}:\n  glibc  {w}\n  niji {g}", k + 1);
         }
     }
-    assert_eq!(want.lines().count(), got.lines().count(), "{what}: line counts differ:\n--- glibc\n{want}\n--- liella\n{got}");
+    assert_eq!(want.lines().count(), got.lines().count(), "{what}: line counts differ:\n--- glibc\n{want}\n--- niji\n{got}");
     assert_eq!(diffs, 0, "{what}: lines that differ from the reference");
 }
 
@@ -89,7 +89,7 @@ fn compare(what: &str, want: &str, got: &str, seen: &mut [bool; KNOWN.len()]) {
 fn admin_equals_the_reference() {
     // Clauses: s24_5_c_5, s24_6_c_1, s24_6_c_4 (D-24.5, D-24.11).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -100,7 +100,7 @@ fn admin_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("admin_diff_host"), dir.join("admin_diff_liella"));
+    let (host, ours) = (dir.join("admin_diff_host"), dir.join("admin_diff_niji"));
     assert!(build(&host, false), "admin_diff.c does not build against the host C library");
     assert!(build(&ours, true), "admin_diff.c does not link against the products");
     let mut seen = [false; KNOWN.len()];

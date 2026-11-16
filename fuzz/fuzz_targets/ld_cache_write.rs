@@ -1,4 +1,4 @@
-//! The loader cache writer then the reader (`liella_ld::cache::write`, UTIL-2): the input is split
+//! The loader cache writer then the reader (`niji_ld::cache::write`, UTIL-2): the input is split
 //! into entries (selector byte for flags, directory and hwcaps level, the rest is the key, which
 //! may be invalid), written, and read back by `Cache::parse`. A valid set must give a file the
 //! reader accepts with every entry readable, in the writer's order, each key found by a lookup when
@@ -9,8 +9,8 @@
 use core::cmp::Ordering;
 
 use libfuzzer_sys::fuzz_target;
-use liella_ld::arch::{Arch, X86_64};
-use liella_ld::cache::{self, Cache, Entry};
+use niji_ld::arch::{Arch, X86_64};
+use niji_ld::cache::{self, Cache, Entry};
 
 const DIRS: [&str; 4] = ["/d0", "/usr/lib/x86_64-linux-gnu", "/opt/sort", "/"];
 const LEVELS: [&str; 4] = ["x86-64-v2", "x86-64-v3", "x86-64-v4", "lvl"];

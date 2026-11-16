@@ -1,4 +1,4 @@
-# The Rust ABI versions of Liella's Rust dylib, libliella_rust.so.<abi> (implementation-plan.md
+# The Rust ABI versions of libniji's Rust dylib, libniji_rust.so.<abi> (implementation-plan.md
 # D-X.10). docs/toolchain.md explains every field and gives the commands they produce;
 # docs/interfaces.md explains when a program uses the dylib at all.
 #
@@ -19,7 +19,7 @@
 # * `hash` is the FNV-1a 64-bit hash of the version's canonical form: every other field of its
 #   tables except `status`, one line `<table>.<key> = <value as written>` each, sorted
 #   bytewise, each line ended by a newline. The dylib carries it in its note
-#   .note.liella.rustabi; `cargo xtask rust-dylib` recomputes it and refuses a version whose
+#   .note.niji.rustabi; `cargo xtask rust-dylib` recomputes it and refuses a version whose
 #   recorded hash differs (a field was changed in place).
 # * `status` is "current" for the version `cargo xtask rust-dylib` builds by default (exactly
 #   one), "supported" for older versions still built and shipped, "retired" for versions no
@@ -32,8 +32,8 @@
 identifier = "lr1"
 status = "current"
 # The native C ABI version node the dylib's stateful services call (spec/abi/native.tsv,
-# include/liella/native.h); the newest node any of its references names.
-native_c_abi = "LIELLA_NATIVE_1"
+# include/niji/native.h); the newest node any of its references names.
+native_c_abi = "NIJI_NATIVE_1"
 hash = "b84ac90a5c7fa1e1"
 
 # The compiler, exactly as `rustc -vV` reports it on the reference system (the test VM:
@@ -51,9 +51,9 @@ llvm_version = "23.1.1"
 # and compiler_builtins are compiled into the dylib from it. std is not used.
 sysroot_crates = ["core", "alloc", "compiler_builtins"]
 std = false
-# The linker: the C compiler driver `cc` running GNU ld (BFD), as for every Liella link. Not
+# The linker: the C compiler driver `cc` running GNU ld (BFD), as for every libniji link. Not
 # rust-lld (-C linker-features=-lld turns rustc's default off): it places the start object's
-# section .eh_frame.liella_end outside .eh_frame on the static path.
+# section .eh_frame.niji_end outside .eh_frame on the static path.
 linker = "cc"
 linker_features = "-lld"
 # Recorded, not checked: the versions of the reference build's C tools. They do not change
@@ -84,46 +84,46 @@ codegen_units = 1
 lto = "off"
 debuginfo = "0"
 # -C metadata of every crate of the dylib: the identifier. It enters every Rust symbol name,
-# so two versions in one process never share a symbol of Liella's crates.
+# so two versions in one process never share a symbol of libniji's crates.
 metadata = "lr1"
 # --remap-path-prefix=<checkout>=<this>: the absolute path of the checkout (the compiler's
 # working directory, recorded in the crate metadata) is written as this fixed path, so the
 # dylib is the same byte for byte wherever it is built.
-remap_path_prefix = "/liella"
+remap_path_prefix = "/niji"
 
 # The crates compiled into the dylib, in build order. Each entry: the crate root, then the
 # crates it is given with --extern. All but the last are rlibs; the last is the dylib.
 [lr1.crates]
-order = ["liella_kernel", "liella_rt", "liella_mem", "liella", "liella_math", "liella_native"]
-liella_kernel = ["crates/kernel/src/lib.rs"]
-liella_rt = ["crates/rt/src/lib.rs", "liella_kernel"]
-liella_mem = ["crates/mem/src/lib.rs"]
-liella = ["crates/core/src/lib.rs", "liella_kernel", "liella_mem", "liella_rt"]
-liella_math = ["crates/math/src/lib.rs", "liella_rt"]
-liella_native = ["crates/native/src/lib.rs", "liella", "liella_math"]
-# Cargo features of liella_native (passed as --cfg feature="..."); the other crates have none.
-liella_native_features = ["dynamic", "dylib"]
+order = ["niji_kernel", "niji_rt", "niji_mem", "niji", "niji_math", "niji_native"]
+niji_kernel = ["crates/kernel/src/lib.rs"]
+niji_rt = ["crates/rt/src/lib.rs", "niji_kernel"]
+niji_mem = ["crates/mem/src/lib.rs"]
+niji = ["crates/core/src/lib.rs", "niji_kernel", "niji_mem", "niji_rt"]
+niji_math = ["crates/math/src/lib.rs", "niji_rt"]
+niji_native = ["crates/native/src/lib.rs", "niji", "niji_math"]
+# Cargo features of niji_native (passed as --cfg feature="..."); the other crates have none.
+niji_native_features = ["dynamic", "dylib"]
 # Defined by the dylib (feature dylib), so its programs define neither: the global allocator
-# (liella_native::heap::Allocator, over liella_heap_* in libc.so.6) and the panic handler
+# (niji_native::heap::Allocator, over niji_heap_* in libc.so.6) and the panic handler
 # (message on standard error, then exit(101)).
 global_allocator = "dylib"
 panic_handler = "dylib"
 
 [lr1.product]
-file = "libliella_rust.so.lr1"
-soname = "libliella_rust.so.lr1"
+file = "libniji_rust.so.lr1"
+soname = "libniji_rust.so.lr1"
 # The name rustc's --extern needs for a dylib (lib<crate>.so): a symbolic link to `file`,
 # used only to build programs.
-link_name = "libliella_native.so"
+link_name = "libniji.so"
 needed = ["libc.so.6"]
 # The link arguments after rustc's own, in order: no start files and no default libraries;
-# the no-unwind helper (crates/native/link/nounwind.c compiled); Liella's libc.so.6; libgcc;
+# the no-unwind helper (crates/native/link/nounwind.c compiled); libniji's libc.so.6; libgcc;
 # the soname. The file names nounwind.o and libc.so.6 stand for those files' paths.
-link_args = ["-nostartfiles", "-nostdlib", "nounwind.o", "libc.so.6", "-lgcc", "-Wl,-soname,libliella_rust.so.lr1"]
-note_section = ".note.liella.rustabi"
-note_owner = "Liella"
+link_args = ["-nostartfiles", "-nostdlib", "nounwind.o", "libc.so.6", "-lgcc", "-Wl,-soname,libniji_rust.so.lr1"]
+note_section = ".note.niji.rustabi"
+note_owner = "libniji"
 note_type = "0x4c520001"
-symbol = "LIELLA_RUST_ABI"
+symbol = "NIJI_RUST_ABI"
 
 # What a program built against this version must do (docs/toolchain.md, "Programs of the
 # dylib"). Not build parameters of the dylib, but part of the version's contract.
@@ -133,4 +133,4 @@ same_target = true
 panic = "abort"
 defines_global_allocator = false
 defines_panic_handler = false
-links = ["libliella_rust.so.lr1", "libc.so.6"]
+links = ["libniji_rust.so.lr1", "libc.so.6"]

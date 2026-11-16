@@ -1,15 +1,15 @@
-//! Result conversion for exports (IP-12): the pure `liella_abi::ret` encoders plus storing the
+//! Result conversion for exports (IP-12): the pure `niji_abi::ret` encoders plus storing the
 //! error in the calling thread's `errno`, pointer results, and the S6 rule (a contract violation
 //! where the C interface has no error channel is a diagnostic plus abort, never UB).
 
 use core::cmp::Ordering;
 use core::ffi::c_void;
 
-use liella_abi::ctypes::{c_int, ssize_t, wint_t};
-use liella_abi::ret::{self as enc, Ret};
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::sys::Sys;
-use liella_kernel::Fd;
+use niji_abi::ctypes::{c_int, ssize_t, wint_t};
+use niji_abi::ret::{self as enc, Ret};
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::sys::Sys;
+use niji_kernel::Fd;
 
 use crate::errno;
 use crate::sys::CSys;
@@ -175,7 +175,7 @@ pub fn truth(b: bool) -> c_int {
 }
 
 /// A new descriptor, or -1 with `errno`.
-pub fn fd(r: KResult<liella_kernel::Fd>) -> c_int {
+pub fn fd(r: KResult<niji_kernel::Fd>) -> c_int {
     int(r.map(|f| i64::from(f.raw())))
 }
 
@@ -249,7 +249,7 @@ pub fn addr(a: usize) -> *mut c_void {
 /// semantics: the signal is unblocked and, if caught, re-raised with the default action).
 pub fn fatal(e: Errno) -> ! {
     let sys = CSys;
-    let _ = sys.write(Fd::STDERR, b"liella: fatal: invalid argument to a C library function (");
+    let _ = sys.write(Fd::STDERR, b"niji: fatal: invalid argument to a C library function (");
     let _ = sys.write(Fd::STDERR, e.name().unwrap_or("error").as_bytes());
     let _ = sys.write(Fd::STDERR, b")\n");
     abort()
@@ -275,10 +275,10 @@ pub fn done<T>(base: *mut T, r: KResult<usize>) -> *mut T {
 
 /// A path component as located by `basename`/`dirname`: in place in `base`, or the static
 /// `"."` (D-4.9).
-pub fn path_part(base: *mut i8, r: KResult<liella::bytes::PathPart>) -> *mut i8 {
+pub fn path_part(base: *mut i8, r: KResult<niji::bytes::PathPart>) -> *mut i8 {
     match must(r) {
-        liella::bytes::PathPart::InPlace { start, .. } => base.wrapping_add(start),
-        liella::bytes::PathPart::Dot => crate::data::DOT.as_ptr().cast_mut().cast::<i8>(),
+        niji::bytes::PathPart::InPlace { start, .. } => base.wrapping_add(start),
+        niji::bytes::PathPart::Dot => crate::data::DOT.as_ptr().cast_mut().cast::<i8>(),
     }
 }
 
@@ -296,12 +296,12 @@ pub fn arc4<T>(v: Option<T>) -> T {
 
 /// The architecture trap instruction (`abort`'s last resort, spec §1.2).
 pub fn trap() {
-    crate::ffi::liella_machine_trap();
+    crate::ffi::niji_machine_trap();
 }
 
 /// Terminate with `SIGABRT`.
 pub fn abort() -> ! {
-    liella_rt::fatal::abort(&CSys, trap)
+    niji_rt::fatal::abort(&CSys, trap)
 }
 
 /// A structure result stored into the caller's object (`stat`, `statfs`, `statvfs`): 0, or -1
@@ -411,7 +411,7 @@ pub fn state_store<T>(dst: Option<&mut T>, r: KResult<(i32, T)>) -> c_int {
 
 /// C11's `timespec_get`/`timespec_getres` result: the base with the time stored when the
 /// destination is given, or 0 (an unsupported base, a failed read).
-pub fn base_store(dst: Option<&mut liella_kernel::uapi::Timespec>, r: (c_int, Option<liella_kernel::uapi::Timespec>)) -> c_int {
+pub fn base_store(dst: Option<&mut niji_kernel::uapi::Timespec>, r: (c_int, Option<niji_kernel::uapi::Timespec>)) -> c_int {
     match (r, dst) {
         ((base, Some(t)), Some(d)) => {
             *d = t;
@@ -634,7 +634,7 @@ pub fn record(r: KResult<Option<usize>>) -> ssize_t {
 /// nonzero `size`) answers `n` without a division (WL-HOT-CUT: a `div` per small `fwrite` costs
 /// ~25 cycles on the timing hosts); a partial one rounds down to whole elements.
 #[inline]
-pub fn elements(t: liella::stream::Transfer, size: usize, n: usize) -> usize {
+pub fn elements(t: niji::stream::Transfer, size: usize, n: usize) -> usize {
     if let Some(e) = t.error {
         errno::set(e);
     }

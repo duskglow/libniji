@@ -4,7 +4,7 @@
 // Once a file contains specified tests, `cargo xtask stubs` stops rewriting it and only checks coverage.
 
 //! Clause tests for spec §23: the clocks through the exports, and the translations glibc adds
-//! through `liella_legacy::clock_compat` with the kernel's answers injected by `Faulty`.
+//! through `niji_legacy::clock_compat` with the kernel's answers injected by `Faulty`.
 //!
 //! Timers (§23.4): `alarm`, the itimers and process-directed timer signals are process-wide,
 //! so those clauses run as the only thread of a process (forked from a re-executed copy of the
@@ -14,7 +14,7 @@
 //!
 //! Broken-down time and zones (§23.5–23.6): `TZ`, the selected zone and the globals are
 //! process-wide, so the clauses that depend on them run in a re-executed copy (`alone`).
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::as_conversions, clippy::indexing_slicing, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
@@ -30,27 +30,27 @@ use core::ffi::c_void;
 use std::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use liella::error::Errno;
-use liella_abi::layout::{pthread_attr_t, struct_timeb};
-use liella_boundary::errno;
-use liella_boundary::posix::s22_threads as th;
-use liella_boundary::posix::s23_time as x;
-use liella_boundary::selftest::ChildEnd;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_kernel::testing::Faulty;
-use liella_kernel::uapi::{
+use niji::error::Errno;
+use niji_abi::layout::{pthread_attr_t, struct_timeb};
+use niji_boundary::errno;
+use niji_boundary::posix::s22_threads as th;
+use niji_boundary::posix::s23_time as x;
+use niji_boundary::selftest::ChildEnd;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_kernel::testing::Faulty;
+use niji_kernel::uapi::{
     Itimerspec, Itimerval, Rlimit, SigEvent, SigInfo, SigSet, Timespec, Timeval, Timex, Timezone, RLIMIT_AS, RLIMIT_NOFILE, SIG_BLOCK, SIG_SETMASK, SIG_UNBLOCK,
 };
-use liella_legacy::clock_compat;
+use niji_legacy::clock_compat;
 
 /// Build and run C conformance programs against the products (`conformance/run.sh`).
 fn conformance(names: &[&str]) {
     static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -75,12 +75,12 @@ fn root() -> bool {
 
 /// Runs `body` in a child (this test re-executed alone): signal dispositions are process-wide.
 fn alone(name: &str, body: impl FnOnce() -> bool) {
-    if std::env::var("LIELLA_C23_ALONE").is_ok_and(|v| v == name) {
+    if std::env::var("NIJI_C23_ALONE").is_ok_and(|v| v == name) {
         CSys.exit_group(if body() { 0 } else { 1 });
     }
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_C23_ALONE", name)
+        .env("NIJI_C23_ALONE", name)
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -332,7 +332,7 @@ fn s23_3_c_0() {
 #[test]
 fn s23_3_c_1() {
     alone("s23_3_c_1", || {
-        let (res, _) = liella_boundary::selftest::with_counting_handler(14, || {
+        let (res, _) = niji_boundary::selftest::with_counting_handler(14, || {
             let (pid, tid) = (CSys.getpid(), CSys.gettid());
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(100));
@@ -364,7 +364,7 @@ fn s23_3_c_2() {
 #[test]
 fn s23_3_c_3() {
     alone("s23_3_c_3", || {
-        let (left, _) = liella_boundary::selftest::with_counting_handler(14, || {
+        let (left, _) = niji_boundary::selftest::with_counting_handler(14, || {
             let (pid, tid) = (CSys.getpid(), CSys.gettid());
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(1100));
@@ -455,9 +455,9 @@ fn sleep_ms(ms: u64) {
 /// signal can only reach it). `body` returns 0, or the number of the first check that failed.
 /// `probe` names the body among those of one test.
 fn single(test: &str, probe: &str, body: fn(&CSys) -> i32) {
-    match std::env::var("LIELLA_C23_ALONE") {
+    match std::env::var("NIJI_C23_ALONE") {
         Ok(p) if p == probe => {
-            let end = liella_boundary::selftest::in_child(body);
+            let end = niji_boundary::selftest::in_child(body);
             eprintln!("{probe}: {end:?}");
             CSys.exit_group(if end == Ok(ChildEnd::Exited(0)) { 0 } else { 1 });
         }
@@ -465,7 +465,7 @@ fn single(test: &str, probe: &str, body: fn(&CSys) -> i32) {
         Err(_) => {
             let o = std::process::Command::new(std::env::current_exe().unwrap())
                 .args([test, "--exact", "--include-ignored", "--test-threads=1", "--nocapture"])
-                .env("LIELLA_C23_ALONE", probe)
+                .env("NIJI_C23_ALONE", probe)
                 .output()
                 .unwrap();
             assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -848,8 +848,8 @@ fn s23_4_f_0() {
     // EAGAIN: resource limits (queued-signal slots for a signal timer; descriptors for a
     // SIGEV_THREAD timer).
     single("s23_4_f_0", "s23_4_f_0/eagain", |k| {
-        liella_boundary::selftest::forbid_threads();
-        if !liella_boundary::selftest::threads_forbidden() {
+        niji_boundary::selftest::forbid_threads();
+        if !niji_boundary::selftest::threads_forbidden() {
             return 9;
         }
         let none = Rlimit { cur: 0, max: 0 };
@@ -864,8 +864,8 @@ fn s23_4_f_0() {
     });
     // ENOMEM: no memory for a SIGEV_THREAD timer's record.
     single("s23_4_f_0", "s23_4_f_0/enomem", |k| {
-        liella_boundary::selftest::forbid_threads();
-        if !liella_boundary::selftest::threads_forbidden() {
+        niji_boundary::selftest::forbid_threads();
+        if !niji_boundary::selftest::threads_forbidden() {
             return 9;
         }
         // Read into a stack buffer: a forked child must not allocate (FORK-CHILD-ALLOC-LINT).
@@ -882,7 +882,7 @@ fn s23_4_f_0() {
         // hold free blocks of a slab that earlier allocations opened (e.g. a growing `realloc`),
         // and the record would come from there.
         for size in core::iter::once(1usize << 20).chain((1..=4096).rev().map(|i| i * 16)) {
-            while !liella_boundary::selftest::opaque::malloc(size).is_null() {}
+            while !niji_boundary::selftest::opaque::malloc(size).is_null() {}
         }
         let f = quiet as extern "C" fn(usize) as usize as u64;
         if timer(1, Some(&SigEvent::thread(0, f, 0))) != Err(ENOMEM) {
@@ -898,7 +898,7 @@ fn s23_4_f_0() {
     assert!(t.is_ok(), "a notification thread can still be made in this process");
     let t = t.unwrap();
     assert_eq!(x::timer_settime(ptr(t), 0, Some(&its(1_000_000, 0)), None), 0);
-    assert!(!liella_boundary::selftest::threads_forbidden(), "threads are forbidden in the shared test process");
+    assert!(!niji_boundary::selftest::threads_forbidden(), "threads are forbidden in the shared test process");
     assert!(until(Duration::from_secs(5), || N_FLAGGED.load(Ordering::SeqCst) != 0), "a notification thread can still be made in this process");
     x::timer_delete(ptr(t));
 }
@@ -912,9 +912,9 @@ fn s23_4_f_0() {
 use core::ffi::c_char;
 use std::ffi::CString;
 
-use liella_abi::layout::struct_tm;
-use liella_boundary::posix::s01_startup as envx;
-use liella_boundary::posix::s04_strings as strs;
+use niji_abi::layout::struct_tm;
+use niji_boundary::posix::s01_startup as envx;
+use niji_boundary::posix::s04_strings as strs;
 
 const EOVERFLOW: i32 = 75;
 const EFAULT: i32 = 14;
@@ -980,7 +980,7 @@ fn local(t: i64) -> struct_tm {
 
 /// tzname[0], tzname[1], timezone, daylight.
 fn globals() -> (String, String, i64, i32) {
-    let g = liella_boundary::data::tz_globals();
+    let g = niji_boundary::data::tz_globals();
     let name = |i: usize| text_at(g.tzname.get(i).unwrap().load(Ordering::SeqCst));
     (name(0), name(1), g.timezone.load(Ordering::SeqCst), g.daylight.load(Ordering::SeqCst))
 }
@@ -1311,7 +1311,7 @@ fn s23_5_f_2() {
 #[test]
 fn s23_5_f_3() {
     // The fixed 26-byte layout: a year that fits (here -999 to 9999) is printed; one that does
-    // not is NULL with EOVERFLOW (Liella decides by the layout; glibc agrees for asctime_r).
+    // not is NULL with EOVERFLOW (libniji decides by the layout; glibc agrees for asctime_r).
     let mut t = tm_of(1973, 9, 16, 1, 3, 52, 0);
     t.tm_wday = 0;
     for (y, want) in [(1000, Some("Sun Sep 16 01:03:52 1000\n")), (9999, Some("Sun Sep 16 01:03:52 9999\n")), (999, Some("Sun Sep 16 01:03:52 999\n")), (0, Some("Sun Sep 16 01:03:52 0\n")), (-999, Some("Sun Sep 16 01:03:52 -999\n")), (10_000, None), (-1000, None), (2_147_481_747, None)] {
@@ -1452,7 +1452,7 @@ fn s23_6_c_2() {
 fn s23_6_c_3() {
     alone("s23_6_c_3", || {
         // TZ unset: /etc/localtime.
-        let sys = liella::time::Zone::from_tzif(&std::fs::read("/etc/localtime").unwrap()).unwrap();
+        let sys = niji::time::Zone::from_tzif(&std::fs::read("/etc/localtime").unwrap()).unwrap();
         zone(None);
         for t in [0i64, T2024, 1_720_000_000] {
             let (l, s) = (local(t), sys.at(t).unwrap());
@@ -1517,13 +1517,13 @@ fn s23_6_g_0() {
         install_zone("Asia/Tokyo", &def);
         let mut path = def.to_str().unwrap().as_bytes().to_vec();
         path.push(0);
-        let first = liella::time::load(&CSys, None, None, &path).unwrap();
+        let first = niji::time::load(&CSys, None, None, &path).unwrap();
         let (_, id) = first.file.as_ref().unwrap();
         assert_eq!(first.zone.as_ref().unwrap().at(t).unwrap().offset, 32_400);
-        assert_eq!(liella::time::file_id(&CSys, &path), *id, "unchanged");
+        assert_eq!(niji::time::file_id(&CSys, &path), *id, "unchanged");
         install_zone("Europe/Berlin", &def);
-        assert_ne!(liella::time::file_id(&CSys, &path), *id, "replaced: seen by stat");
-        let second = liella::time::load(&CSys, None, None, &path).unwrap();
+        assert_ne!(niji::time::file_id(&CSys, &path), *id, "replaced: seen by stat");
+        let second = niji::time::load(&CSys, None, None, &path).unwrap();
         assert_eq!(second.zone.as_ref().unwrap().at(t).unwrap().offset, 7200);
         true
     });
@@ -1535,7 +1535,7 @@ fn s23_6_g_0() {
 // opened with `newlocale` in a re-executed child (`LOCPATH` is process-wide), as are the
 // clauses that depend on `TZ`. Without `localedef` the locale-dependent parts say so and pass.
 
-use liella_boundary::posix::s07_locale as lx;
+use niji_boundary::posix::s07_locale as lx;
 
 const LC_ALL_MASK: i32 = 0x1FBF;
 
@@ -1774,7 +1774,7 @@ fn s23_7_c_1_4() {
 #[test]
 fn s23_1_c_6() {
     // times: the process's and its children's CPU times in clock ticks, and an elapsed value.
-    let mut t = liella_kernel::uapi::Tms { utime: -1, stime: -1, cutime: -1, cstime: -1 };
+    let mut t = niji_kernel::uapi::Tms { utime: -1, stime: -1, cutime: -1, cstime: -1 };
     let a = x::times(Some(&mut t));
     assert!(a > 0 && t.utime >= 0 && t.stime >= 0 && t.cutime >= 0 && t.cstime >= 0);
     // Spin (burning CPU) until `times` itself reports the progress this clause needs: at least 3 ticks (30 ms)
@@ -1783,7 +1783,7 @@ fn s23_1_c_6() {
     // `times` until both advanced, bounded by a load-scaled deadline (20 s). A `times` whose clock never
     // advances still fails, at the deadline.
     let (began, limit) = (std::time::Instant::now(), timeout::deadline(std::time::Duration::from_secs(20)));
-    let mut u = liella_kernel::uapi::Tms { utime: 0, stime: 0, cutime: 0, cstime: 0 };
+    let mut u = niji_kernel::uapi::Tms { utime: 0, stime: 0, cutime: 0, cstime: 0 };
     let b = loop {
         let spin = std::time::Instant::now();
         while spin.elapsed() < std::time::Duration::from_millis(5) {

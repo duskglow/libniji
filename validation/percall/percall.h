@@ -14,7 +14,7 @@
  * prints it in the header and refuses to measure when it disagrees with the requested locale.
  * SELF-CHECK (TOOLS-PERCALL): after the loop, `PC_CHECKING { r = the call once more; pc_check("fmt", r...); }`
  * prints a line in check mode only (`percall <case> check <dir>`; outside it costs the same in n = 0 and n = N, so
- * it cancels). wl_percall compares the lines of glibc and Liella: a reference that computes a different answer
+ * it cancels). wl_percall compares the lines of glibc and libniji: a reference that computes a different answer
  * is not a reference (row marked MISMATCH). Print only what both must agree on (signs, counts, strings; never
  * pointers). Arguments of the checked call go through volatile pointers so gcc cannot fold the call. */
 #ifndef PERCALL_H

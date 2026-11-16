@@ -1,6 +1,6 @@
 //! Locale glue (spec §7; D-7.7, D-7.8): the calling thread's current locale, `locale_t`
 //! objects, the per-thread table pointers of `__ctype_b_loc` and its siblings, and the file
-//! access `liella_legacy::global_locale` loads locales through.
+//! access `niji_legacy::global_locale` loads locales through.
 //!
 //! A `locale_t` is a heap block laid out as `struct __locale_struct` (29 words): `__locales`
 //! (13 words; each holds the interned locale's handle, D-7.8), `__ctype_b`, `__ctype_tolower`,
@@ -9,16 +9,16 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::locale::file::Cat;
-use liella::ctype::Class;
-use liella::locale::view::{LocaleView, EMPTY};
-use liella::locale::{Ctype, Item, Locale};
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_PRIVATE, O_CLOEXEC, O_DIRECTORY, O_RDONLY, PROT_READ};
-use liella_legacy::ctype_tables::{self, C_CLASS, C_TOLOWER, C_TOUPPER, ZERO};
-use liella_legacy::global_locale::{self as gl, Mapper, Objects};
+use niji::locale::file::Cat;
+use niji::ctype::Class;
+use niji::locale::view::{LocaleView, EMPTY};
+use niji::locale::{Ctype, Item, Locale};
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_PRIVATE, O_CLOEXEC, O_DIRECTORY, O_RDONLY, PROT_READ};
+use niji_legacy::ctype_tables::{self, C_CLASS, C_TOLOWER, C_TOUPPER, ZERO};
+use niji_legacy::global_locale::{self as gl, Mapper, Objects};
 
 use crate::sys::CSys;
 use crate::{conv, heap, process, strz, tb};
@@ -38,7 +38,7 @@ impl Objects for Glue {
         if len == 0 { &[] } else { conv::mapped_bytes(addr, len) }
     }
 
-    fn charmap_at(&self, addr: usize) -> &'static liella::charmap::Charmap {
+    fn charmap_at(&self, addr: usize) -> &'static niji::charmap::Charmap {
         tb::charmap_at(addr)
     }
 }
@@ -53,7 +53,7 @@ fn with_path<T>(path: &[u8], f: impl FnOnce(KStr<'_>) -> Option<T>) -> Option<T>
 
 /// A file's identity for `global_locale` (D-X.13): device, inode, size, and the modification
 /// and change times.
-fn identity_of(st: &liella_kernel::uapi::Stat) -> gl::Identity {
+fn identity_of(st: &niji_kernel::uapi::Stat) -> gl::Identity {
     let u = |v: i64| u64::from_ne_bytes(v.to_ne_bytes());
     [st.dev, st.ino, u(st.size), u(st.mtime.sec), u(st.mtime.nsec), u(st.ctime.sec), u(st.ctime.nsec)]
 }
@@ -305,7 +305,7 @@ fn unstored_with_view<R, F: FnOnce(&'static LocaleView) -> R>(f: F) -> R {
 }
 
 /// [`view`] in a process the runtime did not start (D-X.58): the thread block's words are not
-/// Liella's, so the choice comes from the thread's registry words (no `view` word is kept there).
+/// libniji's, so the choice comes from the thread's registry words (no `view` word is kept there).
 #[cold]
 #[inline(never)]
 fn foreign_view() -> &'static LocaleView {
@@ -414,7 +414,7 @@ fn tables(l: &Locale) -> [usize; 3] {
 
 /// Store the ctype words of `b` for its current choice (its object, else the global locale).
 /// Callers serialise against [`publish_global`] (see above).
-pub(crate) fn refresh_words(b: &liella_rt::tls::ThreadBlock) {
+pub(crate) fn refresh_words(b: &niji_rt::tls::ThreadBlock) {
     store_words(b, view_of(b.locale.load(Acquire)));
 }
 
@@ -423,7 +423,7 @@ pub(crate) fn refresh_words(b: &liella_rt::tls::ThreadBlock) {
 /// another `ld.so`'s threads, D-22.10) a thread may not be listed, so `setlocale` in another
 /// thread could not reach its view: the word stays 0 and [`view`] resolves on every call, as
 /// before. In a process the runtime started every thread that runs library code is listed.
-fn store_words(b: &liella_rt::tls::ThreadBlock, v: &'static LocaleView) {
+fn store_words(b: &niji_rt::tls::ThreadBlock, v: &'static LocaleView) {
     let [class, lower, upper] = tables(v.locale());
     b.ctype_b.store(class, Release);
     b.ctype_tolower.store(lower, Release);
@@ -438,7 +438,7 @@ fn store_words(b: &liella_rt::tls::ThreadBlock, v: &'static LocaleView) {
 /// word that still reads 0 sends the reader to the view path). In a process the runtime did not
 /// start ([`owned`](crate::thread::owned) false) nothing is written: those words are another
 /// library's (D-5.11, ruling #4281).
-fn store_view(b: &liella_rt::tls::ThreadBlock, v: &'static LocaleView) {
+fn store_view(b: &niji_rt::tls::ThreadBlock, v: &'static LocaleView) {
     if !crate::thread::owned() {
         return;
     }
@@ -499,9 +499,9 @@ fn ctype_slot_slow(slot: usize) -> usize {
 #[inline(always)]
 fn ctype_off(slot: usize) -> usize {
     let off = match slot {
-        0 => core::mem::offset_of!(liella_rt::tls::ThreadBlock, ctype_b),
-        1 => core::mem::offset_of!(liella_rt::tls::ThreadBlock, ctype_tolower),
-        _ => core::mem::offset_of!(liella_rt::tls::ThreadBlock, ctype_toupper),
+        0 => core::mem::offset_of!(niji_rt::tls::ThreadBlock, ctype_b),
+        1 => core::mem::offset_of!(niji_rt::tls::ThreadBlock, ctype_tolower),
+        _ => core::mem::offset_of!(niji_rt::tls::ThreadBlock, ctype_toupper),
     };
     tb::tp().wrapping_add(off)
 }
@@ -681,11 +681,11 @@ const LC_ALL_BIT: i32 = 1 << 6;
 
 /// The categories of an `LC_*_MASK` combination, or `EINVAL` for unknown bits. `1 << LC_ALL`
 /// alone means every category (libstdc++ asks for it at start-up), as the reference answers it.
-fn categories(mask: i32) -> Result<([Cat; 12], usize), liella::error::Errno> {
+fn categories(mask: i32) -> Result<([Cat; 12], usize), niji::error::Errno> {
     let all = Cat::ALL.iter().fold(0i32, |m, c| m | (1 << c.number()));
     let mask = if mask == LC_ALL_BIT { all } else { mask };
     if mask & !all != 0 {
-        return Err(liella::error::Errno::EINVAL);
+        return Err(niji::error::Errno::EINVAL);
     }
     let mut out = [Cat::Ctype; 12];
     let mut n = 0usize;
@@ -701,9 +701,9 @@ fn categories(mask: i32) -> Result<([Cat; 12], usize), liella::error::Errno> {
 }
 
 /// `newlocale(mask, name, base)`: the new object (or `base`, reused), or 0 and the error.
-pub fn newlocale(mask: i32, name: Option<&[u8]>, base: usize) -> Result<usize, liella::error::Errno> {
+pub fn newlocale(mask: i32, name: Option<&[u8]>, base: usize) -> Result<usize, niji::error::Errno> {
     let (cats, n) = categories(mask)?;
-    let name = name.ok_or(liella::error::Errno::EINVAL)?;
+    let name = name.ok_or(niji::error::Errno::EINVAL)?;
     let base_locale = if base == 0 { Locale::C } else { *of(base) };
     let cats = cats.get(..n).unwrap_or(&[]);
     let handle = if name.is_empty() {
@@ -722,15 +722,15 @@ pub fn newlocale(mask: i32, name: Option<&[u8]>, base: usize) -> Result<usize, l
         }
     }
     match new_object(handle) {
-        0 => Err(liella::error::Errno::ENOMEM),
+        0 => Err(niji::error::Errno::ENOMEM),
         a => Ok(a),
     }
 }
 
 /// `duplocale(loc)`: a new object for the same locale.
-pub fn duplocale(loc: usize) -> Result<usize, liella::error::Errno> {
+pub fn duplocale(loc: usize) -> Result<usize, niji::error::Errno> {
     match new_object(handle_of(loc)) {
-        0 => Err(liella::error::Errno::ENOMEM),
+        0 => Err(niji::error::Errno::ENOMEM),
         a => Ok(a),
     }
 }
@@ -853,11 +853,11 @@ fn setlocale_env(cat: Option<Cat>) -> Option<&'static [u8]> {
     r
 }
 
-/// `liella_locale_invalidate` (D-X.13): the mapped locale files and parsed charmaps are checked
+/// `niji_locale_invalidate` (D-X.13): the mapped locale files and parsed charmaps are checked
 /// against their files before their next use (changed ones are read again), and the global
 /// locale is loaded again by its names. `ENOENT` when a name no longer resolves (the global
 /// locale is then unchanged).
-pub fn invalidate() -> Result<(), liella::error::Errno> {
+pub fn invalidate() -> Result<(), niji::error::Errno> {
     let before = gl::global_handle();
     let r = gl::invalidate_and_reload(&CSys, &Glue);
     if gl::global_handle() != before {
@@ -980,7 +980,7 @@ fn lconv_words(l: &Locale) -> [usize; 12] {
 }
 
 /// `setlocale` for C: the name's address, or 0.
-pub fn setlocale_c(category: i32, name: liella::error::KResult<Option<&[u8]>>) -> usize {
+pub fn setlocale_c(category: i32, name: niji::error::KResult<Option<&[u8]>>) -> usize {
     match name {
         Ok(n) => setlocale(category, n).map_or_else(|| setlocale_failed(category), |s| s.as_ptr().expose_provenance()),
         Err(_) => 0,
@@ -995,27 +995,27 @@ pub fn setlocale_c(category: i32, name: liella::error::KResult<Option<&[u8]>>) -
 #[inline(never)]
 fn setlocale_failed(category: i32) -> usize {
     let known = category == 6 || Cat::from_number(category).is_some();
-    crate::errno::set(if known { liella::error::Errno::ENOENT } else { liella::error::Errno::EINVAL });
+    crate::errno::set(if known { niji::error::Errno::ENOENT } else { niji::error::Errno::EINVAL });
     0
 }
 
 /// `newlocale` for C (`name` NULL: `EINVAL`).
-pub fn newlocale_c(mask: i32, name: liella::error::KResult<&[u8]>, base: usize) -> liella::error::KResult<usize> {
+pub fn newlocale_c(mask: i32, name: niji::error::KResult<&[u8]>, base: usize) -> niji::error::KResult<usize> {
     newlocale(mask, name.ok(), base)
 }
 
 /// The name of category `category` (a C `LC_*` number) of the calling thread's current locale,
 /// copied into `out` if it fits whole: its length (the native interface, D-X.10). `LC_ALL` (6)
 /// is the composite name `setlocale(LC_ALL, NULL)` would give; an unknown category is `EINVAL`.
-pub fn current_name(category: i32, out: &mut [u8]) -> liella::error::KResult<usize> {
+pub fn current_name(category: i32, out: &mut [u8]) -> niji::error::KResult<usize> {
     let l = current();
     if category == 6 {
         // Twelve names below `MAX_NAME` bytes, with their category labels, fit in 4 KiB.
         let mut buf = [0u8; 4096];
-        let n = liella::locale::name::composite(l.names(), &mut buf).ok_or(liella::error::Errno::ERANGE)?;
+        let n = niji::locale::name::composite(l.names(), &mut buf).ok_or(niji::error::Errno::ERANGE)?;
         return Ok(conv::copy_out(buf.get(..n).unwrap_or(&[]), out));
     }
-    let cat = Cat::from_number(category).ok_or(liella::error::Errno::EINVAL)?;
+    let cat = Cat::from_number(category).ok_or(niji::error::Errno::EINVAL)?;
     Ok(conv::copy_out(l.name(cat), out))
 }
 
@@ -1035,12 +1035,12 @@ pub fn wradix(l: &Locale) -> [i32; 1] {
 /// The byte fold of `l` for the case-insensitive functions (`strcasecmp`, `strcasestr`; D-4.4:
 /// the locale's byte `tolower` table).
 pub fn lower(l: &'static Locale) -> impl Fn(u8) -> u8 + Copy {
-    move |b| liella::ctype::to_lower(b, l)
+    move |b| niji::ctype::to_lower(b, l)
 }
 
 /// The wide fold of `l` (`wcscasecmp`): `towlower` on a `wchar_t` unit.
 pub fn wlower(l: &'static Locale) -> impl Fn(i32) -> i32 + Copy {
-    move |c| u32::try_from(c).map_or(c, |u| i32::try_from(liella::ctype::wtrans(u, liella::ctype::Trans::Lower, l)).unwrap_or(c))
+    move |c| u32::try_from(c).map_or(c, |u| i32::try_from(niji::ctype::wtrans(u, niji::ctype::Trans::Lower, l)).unwrap_or(c))
 }
 
 /// `rpmatch(response)` (§7.6; D-7.9): 1 when `response` (a C string's address) matches the
@@ -1055,8 +1055,8 @@ pub fn rpmatch(response: usize) -> i32 {
     for (index, answer) in [(0usize, 1), (1, 0)] {
         let Item::Bytes(expr) = l.item(Cat::Messages, index) else { continue };
         let expr = expr.split(|&b| b == 0).next().unwrap_or(&[]);
-        let mut re = liella_abi::layout::regex_t { buffer: 0, allocated: 0, used: 0, syntax: 0, fastmap: 0, translate: 0, re_nsub: 0, can_be_null: [0] };
-        let flags = liella::pattern::regex::cflags::EXTENDED | liella::pattern::regex::cflags::NOSUB;
+        let mut re = niji_abi::layout::regex_t { buffer: 0, allocated: 0, used: 0, syntax: 0, fastmap: 0, translate: 0, re_nsub: 0, can_be_null: [0] };
+        let flags = niji::pattern::regex::cflags::EXTENDED | niji::pattern::regex::cflags::NOSUB;
         if crate::regex::regcomp(Some(&mut re), Ok(expr), flags) != 0 {
             continue;
         }
@@ -1073,7 +1073,7 @@ pub fn rpmatch(response: usize) -> i32 {
 mod tests {
     use super::*;
 
-    /// D-5.11 safety (no spec clause: a Liella design rule, records/decisions/D-5/D-5.11.toml):
+    /// D-5.11 safety (no spec clause: a libniji design rule, records/decisions/D-5/D-5.11.toml):
     /// in a process the runtime did not start (this test process, its threads made by the
     /// system's `ld.so`; ruling #4281), the words at 0x138-0x187 (`view`, the cache
     /// line, `wclass`) are never used as pointers or values and never written. The test fills
@@ -1115,8 +1115,8 @@ mod tests {
             let vw = with_view(|w| core::ptr::from_ref(w).expose_provenance());
             store_view(b, view_of(GLOBAL));
             let fresh = crate::zone::with_period(|p| {
-                let seen = *p == liella::time::Period::from_words(&[0; 3]);
-                *p = liella::time::Period::from_words(&[1, 2, 3]);
+                let seen = *p == niji::time::Period::from_words(&[0; 3]);
+                *p = niji::time::Period::from_words(&[1, 2, 3]);
                 seen
             });
             let after = words();
@@ -1164,7 +1164,7 @@ mod tests {
         // Not vacuous: plenty of real entries were compared, and both tables were used.
         assert!(asked > 20_000 && hits > 600, "{asked} asked, {hits} non-empty");
         for v in [&c, &utf8] {
-            assert!(!core::ptr::eq(v.answers(), &liella::locale::view::NO_ANSWERS), "{:?}: the answer table was built", v.locale().name(Cat::Ctype));
+            assert!(!core::ptr::eq(v.answers(), &niji::locale::view::NO_ANSWERS), "{:?}: the answer table was built", v.locale().name(Cat::Ctype));
         }
     }
 }

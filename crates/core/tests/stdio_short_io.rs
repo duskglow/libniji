@@ -4,7 +4,7 @@
 //!
 //! The expected results were probed on the reference library (probe cf24d0261c83: results of
 //! return value, `ferror`, `feof`, the bytes the hook received and the call counts). The live
-//! tests pin what Liella and the reference agree on. Where they differ, the reference's result is
+//! tests pin what libniji and the reference agree on. Where they differ, the reference's result is
 //! pinned by an `#[ignore]`d test (`reference_values`) and each difference is a new story.
 //! `fscanf` takes C varargs and cannot be called from a Rust test (see s12_stdio_clauses.rs):
 //! its error paths are not covered here.
@@ -16,16 +16,16 @@ use std::ffi::CString;
 use std::cell::Cell;
 use std::sync::Mutex;
 
-use liella_abi::ctypes::{c_char, c_int};
-use liella_abi::layout::{cookie_io_functions_t, FILE};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s12_stdio as x;
-use liella_boundary::posix::s20_signals as sg;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
-use liella_legacy::signal_compat::CSigaction;
+use niji_abi::ctypes::{c_char, c_int};
+use niji_abi::layout::{cookie_io_functions_t, FILE};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s12_stdio as x;
+use niji_boundary::posix::s20_signals as sg;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
+use niji_legacy::signal_compat::CSigaction;
 
 const EOF: c_int = -1;
 const EINTR: i32 = 4;
@@ -370,13 +370,13 @@ fn read_zero_is_eof_and_clearerr_resumes() {
 
 // ---------------------------------------------------------------- differences (new stories)
 
-/// The reference library's results where Liella differs (probe cf24d0261c83): errno of the hook's
-/// failure is kept (Liella reports `EIO`), a short write stops the flush with `ferror` (Liella
-/// retries and delivers everything), `fgets` returns NULL when interrupted mid-line (Liella
-/// returns the partial line), `getline` returns the partial line (Liella -1), and end of input is
-/// sticky until `clearerr` (Liella reads on).
+/// The reference library's results where libniji differs (probe cf24d0261c83): errno of the hook's
+/// failure is kept (libniji reports `EIO`), a short write stops the flush with `ferror` (libniji
+/// retries and delivers everything), `fgets` returns NULL when interrupted mid-line (libniji
+/// returns the partial line), `getline` returns the partial line (libniji -1), and end of input is
+/// sticky until `clearerr` (libniji reads on).
 #[test]
-#[ignore = "Liella differs from the reference: see the doc comment (new stories)"]
+#[ignore = "libniji differs from the reference: see the doc comment (new stories)"]
 fn reference_values() {
     // no spec clause beyond the ones above: probed behaviour.
     let (id, fp) = writer(&[-1]);
@@ -410,7 +410,7 @@ extern "C" fn on_alarm(_sig: c_int) {
 
 /// A `SIGALRM` handler without `SA_RESTART` (flags 0): a blocked read or write comes back `EINTR`.
 fn install_alarm() {
-    let sa = CSigaction::new(on_alarm as *const () as usize, liella_kernel::uapi::SigSet::empty(), 0);
+    let sa = CSigaction::new(on_alarm as *const () as usize, niji_kernel::uapi::SigSet::empty(), 0);
     assert_eq!(sg::sigaction(SIGALRM, Some(&sa), None), 0);
 }
 
@@ -476,7 +476,7 @@ fn pipe_fgets_interrupted_then_resumes() {
     let first = interrupted(|| gets(fp));
     if first.is_none() {
         assert_eq!(errno::get(), EINTR);
-    } // Liella returns the partial line instead (difference 3): errno is not set then.
+    } // libniji returns the partial line instead (difference 3): errno is not set then.
     assert!(err(fp) && !eof(fp));
     x::clearerr(fp);
     CSys.write(w, b"tial\nnext\n").unwrap();
@@ -538,7 +538,7 @@ fn when_asleep<T>(action: impl FnOnce(i32, i32) + Send + 'static, f: impl FnOnce
 fn scan(fp: *mut FILE, fmt: &str, n: usize) -> (c_int, Vec<i32>) {
     let mut vals = vec![-7i32; n];
     let ptrs: Vec<usize> = (0..n).map(|i| &raw mut vals[i] as usize).collect();
-    let mut ap = liella_abi::layout::va_list { gp_offset: 48, fp_offset: 304, overflow_arg_area: ptrs.as_ptr() as usize, reg_save_area: 0 };
+    let mut ap = niji_abi::layout::va_list { gp_offset: 48, fp_offset: 304, overflow_arg_area: ptrs.as_ptr() as usize, reg_save_area: 0 };
     let f = CString::new(fmt).unwrap();
     let r = x::vfscanf(fp, f.as_ptr(), (&raw mut ap).cast());
     (r, vals)

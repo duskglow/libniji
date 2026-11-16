@@ -7,7 +7,7 @@
 # linked program still starts; the scenarios run with an empty environment and the "C" locale.
 #
 # Usage: resolv_run.sh PROGRAM SCRATCH [SCENARIO...]
-# LIELLA_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phases too
+# NIJI_NSCACHE (the name-service cache switch, D-16.10), when set, reaches the root phases too
 # (`nscache_mode.sh` runs the scripts with the cache on and off).
 set -eu
 prog=$1
@@ -24,5 +24,5 @@ for s in "$@"; do
         cp /etc/ld.so.cache "$dir/$s/etc/ld.so.cache"
     fi
 . "$(dirname "$0")/tscale.sh"
-    sudo -n unshare -m -n env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin ${LIELLA_NSCACHE+"LIELLA_NSCACHE=$LIELLA_NSCACHE"} sh -c 'ip link set lo up && mount --bind "$1/$3/etc" /etc && exec timeout '"$((60 * TSCALE))"' "$2" "$1" "$3"' sh "$dir" "$prog" "$s"
+    sudo -n unshare -m -n env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin ${NIJI_NSCACHE+"NIJI_NSCACHE=$NIJI_NSCACHE"} sh -c 'ip link set lo up && mount --bind "$1/$3/etc" /etc && exec timeout '"$((60 * TSCALE))"' "$2" "$1" "$3"' sh "$dir" "$prog" "$s"
 done

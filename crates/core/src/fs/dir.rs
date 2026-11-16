@@ -17,11 +17,11 @@
 
 use crate::error::{Errno, Result};
 use crate::mem::TryVec;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{FD_CLOEXEC, O_CLOEXEC, O_DIRECTORY, O_NONBLOCK, O_PATH, O_RDONLY, O_WRONLY, SEEK_CUR, SEEK_SET, S_IFDIR, S_IFMT};
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{FD_CLOEXEC, O_CLOEXEC, O_DIRECTORY, O_NONBLOCK, O_PATH, O_RDONLY, O_WRONLY, SEEK_CUR, SEEK_SET, S_IFDIR, S_IFMT};
 
 /// A stream's buffer: big enough that one `getdents64` call returns a small directory whole.
 pub const STREAM_BUFFER: usize = 32 * 1024;

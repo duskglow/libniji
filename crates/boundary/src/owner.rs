@@ -1,7 +1,7 @@
 //! The opted-in registrations (DL-ATEXIT-OWNER, D-27.29; handoff/DL-NONSHARED-OPTOUT.md, owner
 //! rulings #4860-#4862): `atexit`, `at_quick_exit` and `pthread_atfork` exported by `libc.so.6` at
-//! the Liella-only, NON-default version node `LIELLA_OWNER_1`, for modules linked without
-//! `libc_nonshared.a` (the link-stub directory `liella-owner/`). A default link never binds them.
+//! the libniji-only, NON-default version node `NIJI_OWNER_1`, for modules linked without
+//! `libc_nonshared.a` (the link-stub directory `niji-owner/`). A default link never binds them.
 //!
 //! * **Attribution (mechanism (a)).** The entry shims (`csys/owner/owner.S`) pass the caller's
 //!   return address. The owner is the module holding it, found once at registration through the
@@ -16,9 +16,9 @@
 
 use core::sync::atomic::Ordering::Acquire;
 
-use liella_abi::ctypes::c_int;
-use liella_abi::layout::struct_dl_find_object;
-use liella_legacy::exit_handlers::{self, OPTED_EXIT, OPTED_QUICK};
+use niji_abi::ctypes::c_int;
+use niji_abi::layout::struct_dl_find_object;
+use niji_legacy::exit_handlers::{self, OPTED_EXIT, OPTED_QUICK};
 
 use crate::heap::KernelPages;
 use crate::process::{self, EXIT_HANDLERS, QUICK_HANDLERS};
@@ -35,25 +35,25 @@ pub fn module_of(ret_addr: usize) -> usize {
     let mut r = struct_dl_find_object { dlfo_flags: 0, dlfo_map_start: 0, dlfo_map_end: 0, dlfo_link_map: 0, dlfo_eh_frame: 0, __dflo_reserved: [0; 7] };
     let w = |v: usize| i64::from_ne_bytes(u64::try_from(v).unwrap_or(0).to_ne_bytes());
     let at = core::ptr::from_mut(&mut r).expose_provenance();
-    if crate::ffi::liella_machine_call3(find, w(ret_addr), w(at), 0) != 0 {
+    if crate::ffi::niji_machine_call3(find, w(ret_addr), w(at), 0) != 0 {
         return 0;
     }
     r.dlfo_map_start
 }
 
-/// `atexit(f)` at `LIELLA_OWNER_1`, called from return address `ret_addr`.
+/// `atexit(f)` at `NIJI_OWNER_1`, called from return address `ret_addr`.
 pub fn atexit(f: usize, ret_addr: usize) -> c_int {
     let owner = module_of(ret_addr);
     ret::registered(process::register(process::entry(OPTED_EXIT, f, 0, owner)))
 }
 
-/// `at_quick_exit(f)` at `LIELLA_OWNER_1`.
+/// `at_quick_exit(f)` at `NIJI_OWNER_1`.
 pub fn at_quick_exit(f: usize, ret_addr: usize) -> c_int {
     let owner = module_of(ret_addr);
     ret::registered(process::register_quick(process::entry(OPTED_QUICK, f, 0, owner)))
 }
 
-/// `pthread_atfork(prepare, parent, child)` at `LIELLA_OWNER_1`: the node's owner word is the
+/// `pthread_atfork(prepare, parent, child)` at `NIJI_OWNER_1`: the node's owner word is the
 /// owner with bit 0 set (a module's lowest address is page-aligned and a `__dso_handle` is
 /// pointer-aligned, so the bit marks an opted-in node and never equals a `__cxa_finalize` key).
 pub fn pthread_atfork(prepare: usize, parent: usize, child: usize, ret_addr: usize) -> c_int {
@@ -70,19 +70,19 @@ pub fn unload(lo: usize, hi: usize) {
 }
 
 crate::internal_entry! {
-/// The `atexit@LIELLA_OWNER_1` shim's target (`csys/owner/owner.S`).
-pub extern "C" fn liella_owner_atexit(f: usize, ret_addr: usize) -> c_int {
+/// The `atexit@NIJI_OWNER_1` shim's target (`csys/owner/owner.S`).
+pub extern "C" fn niji_owner_atexit(f: usize, ret_addr: usize) -> c_int {
     atexit(f, ret_addr)
 }}
 
 crate::internal_entry! {
-/// The `at_quick_exit@LIELLA_OWNER_1` shim's target.
-pub extern "C" fn liella_owner_at_quick_exit(f: usize, ret_addr: usize) -> c_int {
+/// The `at_quick_exit@NIJI_OWNER_1` shim's target.
+pub extern "C" fn niji_owner_at_quick_exit(f: usize, ret_addr: usize) -> c_int {
     at_quick_exit(f, ret_addr)
 }}
 
 crate::internal_entry! {
-/// The `pthread_atfork@LIELLA_OWNER_1` shim's target.
-pub extern "C" fn liella_owner_pthread_atfork(prepare: usize, parent: usize, child: usize, ret_addr: usize) -> c_int {
+/// The `pthread_atfork@NIJI_OWNER_1` shim's target.
+pub extern "C" fn niji_owner_pthread_atfork(prepare: usize, parent: usize, child: usize, ret_addr: usize) -> c_int {
     pthread_atfork(prepare, parent, child, ret_addr)
 }}

@@ -771,7 +771,7 @@ mod tests {
     }
 
     /// The brief's sweep: 10^7 operands per function in the four modes, half of them in the
-    /// function's hard region. `cargo test --release -p liella-math --lib arc -- --ignored`.
+    /// function's hard region. `cargo test --release -p niji-math --lib arc -- --ignored`.
     #[test]
     #[ignore = "5x10^7 operands against the 384-bit route: cargo xtask long-sweeps runs it in release (nightly and release runs)"]
     fn arc_tier_agrees_with_the_wide_route_long() {

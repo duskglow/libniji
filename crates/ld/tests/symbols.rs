@@ -1,4 +1,4 @@
-//! Symbol lookup (`liella_ld::symbols`, phase 14 DL-9, decision D-27.11) over a corpus this test builds
+//! Symbol lookup (`niji_ld::symbols`, phase 14 DL-9, decision D-27.11) over a corpus this test builds
 //! with the system compiler and linker: a library with several versions of one name (hidden, default,
 //! base, three versions), built with GNU, SysV and both hash styles; an unversioned stub of it; weak and
 //! strong definitions; `STB_GNU_UNIQUE` objects; and two programs whose references carry versions or none.
@@ -18,9 +18,9 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::OnceLock;
 
-use liella_ld::arch::X86_64;
-use liella_ld::elf::{dt, pt, Dynamic, Elf, ElfError, Table, STB_GNU_UNIQUE, STB_WEAK};
-use liella_ld::symbols::{
+use niji_ld::arch::X86_64;
+use niji_ld::elf::{dt, pt, Dynamic, Elf, ElfError, Table, STB_GNU_UNIQUE, STB_WEAK};
+use niji_ld::symbols::{
     gnu_hash, lookup, resolve, sysv_hash, Binding, Found, HashStyle, LookupError, Object, Request, Scope, UniqueRegistry, Want,
 };
 

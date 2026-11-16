@@ -1,19 +1,19 @@
 //! Conversions for the math exports (spec §10, D-10.2): C values to the formats of
-//! `liella-math`, the rounding direction the calling thread has set, and results back to C,
-//! raising the status's exception flags (`liella_rt::fpu::raise`) and setting `errno` from its
+//! `niji-math`, the rounding direction the calling thread has set, and results back to C,
+//! raising the status's exception flags (`niji_rt::fpu::raise`) and setting `errno` from its
 //! error. This is the only place math touches either.
 //!
 //! `long double` and `_Float128` arrive as bit structs (`LdBits`, `F128Bits`) from the C
 //! forwarders (OD-C4); out-parameters arrive as `Option<&mut T>`, and a NULL one where the C
 //! interface has no error channel is a diagnostic plus abort (S6).
 
-use liella_abi::ctypes::{c_int, F128Bits, LdBits};
-use liella_abi::layout::{femode_t, fenv_t, fexcept_t};
-use liella_kernel::machine::X87Env;
-use liella_kernel::errno::Errno;
-use liella_math::float::{self, Float};
-use liella_math::{MathError, Rounding, Status, F128, F80};
-use liella_rt::fpu;
+use niji_abi::ctypes::{c_int, F128Bits, LdBits};
+use niji_abi::layout::{femode_t, fenv_t, fexcept_t};
+use niji_kernel::machine::X87Env;
+use niji_kernel::errno::Errno;
+use niji_math::float::{self, Float};
+use niji_math::{MathError, Rounding, Status, F128, F80};
+use niji_rt::fpu;
 
 use crate::conv;
 use crate::hot::fpregs::{self, Pin};
@@ -21,7 +21,7 @@ use crate::errno;
 use crate::ret;
 use crate::sys::CSys;
 
-/// A value of `liella-math` and its C representation.
+/// A value of `niji-math` and its C representation.
 pub trait CVal: Sized {
     /// The C type.
     type C;
@@ -562,9 +562,9 @@ impl Sqrt for F80 {
         // any other exponent with it set. Pseudo-denormals and the invalid encodings keep the
         // software path's rules (D-10.20).
         let canonical = (e == 0) == (x.mant >> 63 == 0);
-        if canonical && u16::try_from(crate::ffi::liella_machine_x87_cw_get()).is_ok_and(fpu::is_x87_default_but_rounding) {
+        if canonical && u16::try_from(crate::ffi::niji_machine_x87_cw_get()).is_ok_and(fpu::is_x87_default_but_rounding) {
             let mut r = LdBits::default();
-            crate::ffi::liella_machine_fsqrt(&x, &mut r);
+            crate::ffi::niji_machine_fsqrt(&x, &mut r);
             let nan = e == 0x7fff && x.mant << 1 != 0;
             let zero = e == 0 && x.mant == 0;
             if x.se & 0x8000 != 0 && !nan && !zero {
@@ -572,7 +572,7 @@ impl Sqrt for F80 {
             }
             r
         } else {
-            ret(liella_math::fused::sqrt::<F80, F80>(self, mode87()))
+            ret(niji_math::fused::sqrt::<F80, F80>(self, mode87()))
         }
     }
 }
@@ -580,7 +580,7 @@ impl Sqrt for F80 {
 impl Sqrt for F128 {
     #[inline]
     fn sqrt_c(self) -> F128Bits {
-        ret(liella_math::fused::sqrt::<F128, F128>(self, mode()))
+        ret(niji_math::fused::sqrt::<F128, F128>(self, mode()))
     }
 }
 
@@ -610,13 +610,13 @@ impl Hypot for f32 {
     fn hypot_c(self, y: f32) -> f32 {
         // One MXCSR read serves both paths (the envelope fast entry's pattern, MATH-M6-ENVELOPE-COST):
         // a refusal takes its rounding direction from the value read on entry.
-        let mxcsr = crate::ffi::liella_machine_mxcsr_get();
+        let mxcsr = crate::ffi::niji_machine_mxcsr_get();
         if fpu::is_default_but_rounding(mxcsr) {
             if let Some(r) = hypotf_fast(self, y) {
                 return r;
             }
             // No FTZ, no DAZ, every trap masked: the accurate path runs in place as before.
-            return ret(liella_math::pow::hypot(self, y, fpu::rounding_of(mxcsr)));
+            return ret(niji_math::pow::hypot(self, y, fpu::rounding_of(mxcsr)));
         }
         // FTZ, DAZ or an unmasked trap: the caller's FTZ/DAZ is honoured (D-10.22).
         soft_hypot(mxcsr, self, y)
@@ -637,7 +637,7 @@ impl Hypot for f64 {
             |(x, y)| crate::hot::hypot_nearest(x, y),
             // The kernel in its build chosen at startup (LIBM-HYPOT-DIRECTED-FAST); a NaN or an
             // infinity (the kernel's `None`) takes the exact path, as in `pow::hypot_with`.
-            |(x, y), m| crate::hot::hypot_rounded(x, y, m).unwrap_or_else(|| liella_math::pow::hypot_exact(x, y, m)),
+            |(x, y), m| crate::hot::hypot_rounded(x, y, m).unwrap_or_else(|| niji_math::pow::hypot_exact(x, y, m)),
         )
     }
 }
@@ -649,20 +649,20 @@ impl Hypot for f64 {
 fn soft_hypot<T: Float + CVal + Denorm>(mxcsr: u32, x: T, y: T) -> T::C {
     let s = Soft::enter_sse_from(mxcsr);
     let (x, y) = (s.daz(x), s.daz(y));
-    s.ret(liella_math::pow::hypot(x, y, s.mode()))
+    s.ret(niji_math::pow::hypot(x, y, s.mode()))
 }
 
 impl Hypot for F80 {
     #[inline]
     fn hypot_c(self, y: F80) -> LdBits {
-        ret(liella_math::pow::hypot(self, y, mode87()))
+        ret(niji_math::pow::hypot(self, y, mode87()))
     }
 }
 
 impl Hypot for F128 {
     #[inline]
     fn hypot_c(self, y: F128) -> F128Bits {
-        ret(liella_math::pow::hypot(self, y, mode()))
+        ret(niji_math::pow::hypot(self, y, mode()))
     }
 }
 
@@ -691,7 +691,7 @@ impl Hypot for F128 {
 #[inline]
 pub fn hypotf_fast(x: f32, y: f32) -> Option<f32> {
     let (a, b) = (f64::from(x), f64::from(y));
-    let r = crate::ffi::liella_machine_sqrtsd(a * a + b * b);
+    let r = crate::ffi::niji_machine_sqrtsd(a * a + b * b);
     if !(r >= f64::from(f32::MIN_POSITIVE) && r <= f64::from(f32::MAX)) {
         return None;
     }
@@ -874,7 +874,7 @@ pub(crate) fn modes(a: conv::FeArg<'_, femode_t>) -> fpu::Mode {
 /// The payload `nan(tag)` derives from its tag: the tag read as `strtoull` reads it (saturating),
 /// if the whole tag is a number; otherwise 0 (spec §10.2, `strtod("NAN(tag)")`).
 pub fn nan_tag(tag: &[u8]) -> u128 {
-    use liella::num::parse::{parse_u64, Dialect, Status as P};
+    use niji::num::parse::{parse_u64, Dialect, Status as P};
     if !tag.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'_') {
         return 0;
     }
@@ -1012,7 +1012,7 @@ fn peek() -> (u32, bool) {
 
 /// [`elem32_fast`] for any argument and a `float` or `double` result: the `double` exp, exp2,
 /// log, log2, log10 and pow entries use it with the `*_nearest` functions of
-/// `liella_math::fast64` (MATH-M6-F64-FAST-ENTRY), under the same contract (including `HW`).
+/// `niji_math::fast64` (MATH-M6-F64-FAST-ENTRY), under the same contract (including `HW`).
 #[inline(always)]
 pub fn elem_fast<const HW: u8, A: Denorm + Pin, R: CVal<C = R> + Denorm>(
     x: A,
@@ -1132,11 +1132,11 @@ fn elem_rounding_switched<A: Denorm, R: CVal<C = R> + Denorm>(
     saved: u32,
     f: impl FnOnce(A, Rounding) -> (R, Status),
 ) -> R {
-    crate::ffi::liella_machine_mxcsr_set(fpu::MX_DEFAULT_WORD);
+    crate::ffi::niji_machine_mxcsr_set(fpu::MX_DEFAULT_WORD);
     // As in `elem_switched`: the barriers keep the computation between the two writes.
     let x = core::hint::black_box(x);
     let (v, st) = core::hint::black_box(f(x, fpu::rounding_of(saved)));
-    crate::ffi::liella_machine_mxcsr_set(fpu::with_flags(saved, st.flags));
+    crate::ffi::niji_machine_mxcsr_set(fpu::with_flags(saved, st.flags));
     store_error(st.error);
     v
 }
@@ -1182,7 +1182,7 @@ pub struct Complex<T> {
     pub im: T,
 }
 
-/// A part of a [`Complex`] at the C boundary and the format `liella-math` computes it in.
+/// A part of a [`Complex`] at the C boundary and the format `niji-math` computes it in.
 pub trait CPart: Copy + Denorm {
     /// The format.
     type V: Copy + Denorm;

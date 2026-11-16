@@ -20,9 +20,9 @@
 
 use core::sync::atomic::{compiler_fence, AtomicU32, AtomicUsize, Ordering::{AcqRel, Acquire, Relaxed, Release, SeqCst}};
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::sys::{FutexArg, Sys};
-use liella_kernel::uapi::{
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::sys::{FutexArg, Sys};
+use niji_kernel::uapi::{
     Timespec, FUTEX_CLOCK_REALTIME, FUTEX_LOCK_PI, FUTEX_OWNER_DIED, FUTEX_PRIVATE_FLAG, FUTEX_TID_MASK, FUTEX_TRYLOCK_PI, FUTEX_UNLOCK_PI, FUTEX_WAITERS,
 };
 

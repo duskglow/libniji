@@ -1,11 +1,11 @@
 //! `cargo xtask native`: the native Rust interface's examples (D-X.10), built for both paths;
 //! the static one is run and its output checked.
 //!
-//! 1. The products (`cargo xtask so`), if `target/liella` lacks them.
-//! 2. `liella-native` on its own with each feature: `cargo clippy -p liella-native --all-targets
-//!    --features <f> -- -D warnings` and `cargo test -p liella-native --lib --features <f>`.
-//! 3. Two link helpers in `target/liella/native`:
-//!    * `liella-cc`, the linker driver rustc is given: `cc` with `liella-crt1.o` first. The start
+//! 1. The products (`cargo xtask so`), if `target/niji` lacks them.
+//! 2. `niji-native` on its own with each feature: `cargo clippy -p niji-native --all-targets
+//!    --features <f> -- -D warnings` and `cargo test -p niji-native --lib --features <f>`.
+//! 3. Two link helpers in `target/niji/native`:
+//!    * `niji-cc`, the linker driver rustc is given: `cc` with `niji-crt1.o` first. The start
 //!      object must lead the link: its `.eh_frame` label marks the start of the executable's
 //!      call-frame information (D-2.7), and rustc places link arguments after its own objects.
 //!    * `nounwind.o` from `crates/native/link/nounwind.c`: weak `_Unwind_Resume` and
@@ -13,57 +13,57 @@
 //!      a panic=abort program never calls them; the unwinder that would define them (libgcc_eh)
 //!      needs `dl_iterate_phdr` and `_dl_find_object`, which arrive with phase 14.
 //! 4. The static example, linked like a product (GNU ld; rust-lld would put the end label of
-//!    `.eh_frame`, a section `.eh_frame.liella_end`, outside it):
+//!    `.eh_frame`, a section `.eh_frame.niji_end`, outside it):
 //!
 //!    ```text
-//!    cargo rustc -p liella-native --example native_static --features static -- \
-//!        -C linker=target/liella/native/liella-cc -C linker-features=-lld \
-//!        -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=target/liella/native/nounwind.o \
+//!    cargo rustc -p niji-native --example native_static --features static -- \
+//!        -C linker=target/niji/native/niji-cc -C linker-features=-lld \
+//!        -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=target/niji/native/nounwind.o \
 //!        -C relocation-model=static -C target-feature=+crt-static \
-//!        -C link-arg=target/liella/libc.a -C link-arg=-lgcc
+//!        -C link-arg=target/niji/libc.a -C link-arg=-lgcc
 //!    ```
 //!
-//!    It is then run with an empty environment except `LIELLA_NATIVE_GREETING=hello` and a POSIX
+//!    It is then run with an empty environment except `NIJI_NATIVE_GREETING=hello` and a POSIX
 //!    `TZ` rule, with a fresh directory and two arguments; its standard output must be exactly
 //!    [`EXPECTED`], its standard error empty and its status 0. The executable must have no
 //!    program interpreter and no dynamic section.
-//! 5. The dynamic example, linked against Liella's `libc.so.6`:
+//! 5. The dynamic example, linked against libniji's `libc.so.6`:
 //!
 //!    ```text
-//!    cargo rustc -p liella-native --example native_dynamic --features dynamic -- \
-//!        -C linker=target/liella/native/liella-cc -C linker-features=-lld \
-//!        -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=target/liella/native/nounwind.o \
-//!        -C link-arg=target/liella/libc.so.6 -C link-arg=-lgcc
+//!    cargo rustc -p niji-native --example native_dynamic --features dynamic -- \
+//!        -C linker=target/niji/native/niji-cc -C linker-features=-lld \
+//!        -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=target/niji/native/nounwind.o \
+//!        -C link-arg=target/niji/libc.so.6 -C link-arg=-lgcc
 //!    ```
 //!
 //!    `readelf` must show `libc.so.6` as its only `DT_NEEDED` entry and every native function
-//!    except `liella_heap_usable_size` (no safe use) referenced at its node (`@LIELLA_NATIVE_1`),
-//!    and no other `liella_` name. This link is not run (5b runs one under Liella's `ld.so`).
+//!    except `niji_heap_usable_size` (no safe use) referenced at its node (`@NIJI_NATIVE_1`),
+//!    and no other `niji_` name. This link is not run (5b runs one under libniji's `ld.so`).
 //!    Its program interpreter is the host's, which would load the host's `libc.so.6` (no
-//!    `RUNPATH` points at `target/liella`) and stop at the missing `LIELLA_NATIVE_1`, never
-//!    Liella's library.
+//!    `RUNPATH` points at `target/niji`) and stop at the missing `NIJI_NATIVE_1`, never
+//!    libniji's library.
 //!
 //!    Step 5b links the dynamic example again, against a copy of `libc.so.6` named by path (its
 //!    `DT_SONAME` retagged: `ld.so` has no library search yet) with
-//!    `-Wl,--dynamic-linker=target/liella/ld-linux-x86-64.so.2`, and run as in step 4: the same
+//!    `-Wl,--dynamic-linker=target/niji/ld-linux-x86-64.so.2`, and run as in step 4: the same
 //!    output with `linkage dynamic` in its first line (D-27.24).
 //!
-//! 6. The proof that `liella_secure_zero` is never optimised away (D-X.11): the boundary's
+//! 6. The proof that `niji_secure_zero` is never optimised away (D-X.11): the boundary's
 //!    example `secure_zero_codegen` is built with the release profile (fat LTO, one codegen
 //!    unit), not position-independent so that calls name their targets:
 //!
 //!    ```text
-//!    cargo rustc --release -p liella-boundary --example secure_zero_codegen -- -C relocation-model=static
+//!    cargo rustc --release -p niji-boundary --example secure_zero_codegen -- -C relocation-model=static
 //!    ```
 //!
 //!    and disassembled (`objdump -d -C`, and `objdump -s -j .got` to resolve calls through the
 //!    GOT). Three functions zero a dead 4096-byte local buffer. In the two controls (`fill(0)`,
 //!    and `bytes::wipe` without the barrier) the zeroing must be gone: no `memset` call, no
-//!    `rep stos`. In `dead_secure_zero`, which calls `liella_secure_zero` inlined, a zeroing of
-//!    0x1000 bytes must remain, followed by the call to `liella_machine_barrier`.
+//!    `rep stos`. In `dead_secure_zero`, which calls `niji_secure_zero` inlined, a zeroing of
+//!    0x1000 bytes must remain, followed by the call to `niji_machine_barrier`.
 //!
 //! The examples are `#![no_std]` `#![no_main]` programs: a `std` program cannot link against
-//! Liella yet. Statically, `std` and libgcc_eh need `getcwd`, `realpath`, `dl_iterate_phdr`
+//! libniji yet. Statically, `std` and libgcc_eh need `getcwd`, `realpath`, `dl_iterate_phdr`
 //! and `_dl_find_object` from `libc.a`, which does not define them, and `libc.a`'s strong
 //! `rust_eh_personality` (csys/src/adapter/runtime.c) collides with `std`'s; dynamically,
 //! `std` needs `getcwd`, `realpath` and `dl_iterate_phdr` from `libc.so.6`.
@@ -79,7 +79,7 @@ native example: linkage static
 ok heap: 1000 words (sum 499500); 100 lines aligned to 64 after growth
 ok secure: 28-byte secret grown to 5028 bytes (capacity 64 to 8224, moved by the heap), truncated intact; zeroed buffer of 32; stack buffer of 32 zeroed
 ok args: 4 (alpha beta)
-ok env: LIELLA_NATIVE_GREETING=hello; set, overwrite, unset; 2 entries
+ok env: NIJI_NATIVE_GREETING=hello; set, overwrite, unset; 2 entries
 ok file: 25 bytes written, read back, renamed, removed
 ok clock: realtime after 2026-01-01, monotonic non-decreasing
 ok tz: 1782907200 is 2026-07-01 14:00:00 CEST (+7200, dst 1, weekday 3, yearday 181); 2026-01-15 13:00:00 CET is 1768478400; with TZ=JST-9 2026-07-01 21:00:00 JST
@@ -94,7 +94,7 @@ native example: 14 of 14 steps passed
 ";
 
 /// The steps only the static example runs. `kernel types` checks the re-export of
-/// `liella-kernel`'s public types, which the facade makes with feature `static` only (D-X.10:
+/// `niji-kernel`'s public types, which the facade makes with feature `static` only (D-X.10:
 /// the dynamic facade compiles in the stateless clean API and reaches everything else through
 /// `libc.so.6`), so the dynamic example has no such step.
 const STATIC_ONLY: &[&str] = &["kernel types"];
@@ -127,7 +127,7 @@ const TZ: &str = "CET-1CEST,M3.5.0,M10.5.0/3";
 
 /// The native function no example references: it takes any address, so the facade has no safe
 /// use for it.
-pub(crate) const UNUSED: &[&str] = &["liella_heap_usable_size"];
+pub(crate) const UNUSED: &[&str] = &["niji_heap_usable_size"];
 
 fn run(cmd: &mut Command) -> Result<(), String> {
     let status = cmd.status().map_err(|e| format!("cannot run {cmd:?}: {e}"))?;
@@ -150,7 +150,7 @@ fn quote(s: &str) -> String {
 /// Build `example` with `feature` and the link arguments `link`: the executable.
 fn build(root: &Path, example: &str, feature: &str, link: &[String]) -> Result<PathBuf, String> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    run(Command::new(&cargo).current_dir(root).args(["rustc", "-q", "-p", "liella-native", "--example", example, "--features", feature, "--"]).args(link))?;
+    run(Command::new(&cargo).current_dir(root).args(["rustc", "-q", "-p", "niji-native", "--example", example, "--features", feature, "--"]).args(link))?;
     Ok(root.join("target/debug/examples").join(example))
 }
 
@@ -164,7 +164,7 @@ fn run_example(root: &Path, name: &str, exe: &Path, dir: &Path, linkage: &str) -
         .arg(&work)
         .args(["alpha", "beta"])
         .env_clear()
-        .env("LIELLA_NATIVE_GREETING", "hello")
+        .env("NIJI_NATIVE_GREETING", "hello")
         .env("TZ", TZ)
         .output()
         .map_err(|e| format!("cannot run {}: {e}", exe.display()))?;
@@ -200,7 +200,7 @@ fn check_static(root: &Path, exe: &Path, dir: &Path) -> Result<(), String> {
 }
 
 /// A copy of `libc_so` in `dir` whose `DT_SONAME` tag is retagged `DT_CHECKSUM`, so a program
-/// linked against it names it by path: Liella's `ld.so` has no library search yet (#4537).
+/// linked against it names it by path: libniji's `ld.so` has no library search yet (#4537).
 pub(crate) fn libc_by_path(libc_so: &Path, dir: &Path) -> Result<PathBuf, String> {
     let mut so = fs::read(libc_so).map_err(|e| format!("{}: {e}", libc_so.display()))?;
     let word = |so: &[u8], at: usize, n: usize| so.get(at..at.saturating_add(n)).map_or(0, |b| b.iter().rev().fold(0usize, |v, &x| v.wrapping_shl(8) | usize::from(x)));
@@ -231,10 +231,10 @@ fn check_dynamic(root: &Path, exe: &Path) -> Result<(usize, String), String> {
         let f: Vec<&str> = line.split_whitespace().collect();
         if let (Some(&"UND"), Some(sym)) = (f.get(6), f.get(7)) {
             if let Some((name, ver)) = sym.split_once('@') {
-                if name.starts_with("liella_") {
+                if name.starts_with("niji_") {
                     refs.insert(name.to_string(), ver.trim_start_matches('@').to_string());
                 }
-            } else if sym.starts_with("liella_") {
+            } else if sym.starts_with("niji_") {
                 refs.insert((*sym).to_string(), String::new());
             }
         }
@@ -309,16 +309,16 @@ fn got_words(dump: &str) -> BTreeMap<u64, u64> {
     words
 }
 
-/// Step 6: the proof that `liella_secure_zero`'s zeroing survives where a plain one is
+/// Step 6: the proof that `niji_secure_zero`'s zeroing survives where a plain one is
 /// removed (D-X.11; the module documentation). A summary of what was seen.
 fn check_secure_zero(root: &Path) -> Result<String, String> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    run(Command::new(&cargo).current_dir(root).args(["rustc", "-q", "--release", "-p", "liella-boundary", "--example", "secure_zero_codegen", "--", "-C", "relocation-model=static"]))?;
+    run(Command::new(&cargo).current_dir(root).args(["rustc", "-q", "--release", "-p", "niji-boundary", "--example", "secure_zero_codegen", "--", "-C", "relocation-model=static"]))?;
     let exe = root.join("target/release/examples/secure_zero_codegen");
     let funcs = functions(&output(Command::new("objdump").args(["-d", "--no-show-raw-insn", "-C"]).arg(&exe))?);
     let got = got_words(&output(Command::new("objdump").args(["-s", "-j", ".got"]).arg(&exe))?);
     // The barrier's address; absent if nothing calls it (then nothing is linked in).
-    let barrier = funcs.get("liella_machine_barrier").map(|f| f.0);
+    let barrier = funcs.get("niji_machine_barrier").map(|f| f.0);
     let body = |name: &str| -> Result<&Vec<String>, String> {
         funcs.iter().find(|(n, _)| n.ends_with(&format!("::{name}"))).map(|(_, (_, b))| b).ok_or(format!("secure_zero_codegen: no function {name} (inlined or folded?)"))
     };
@@ -327,7 +327,7 @@ fn check_secure_zero(root: &Path) -> Result<String, String> {
     // A call to the barrier: direct, or through a GOT slot holding its address.
     let to_barrier = |l: &str| {
         is_call(l)
-            && (l.contains("<liella_machine_barrier>")
+            && (l.contains("<niji_machine_barrier>")
                 || (l.contains("(%rip)") && l.split('#').nth(1).and_then(|t| t.split_whitespace().next()).and_then(|a| u64::from_str_radix(a, 16).ok()).and_then(|slot| got.get(&slot)).is_some_and(|&a| Some(a) == barrier)))
     };
     let mut errors = Vec::new();
@@ -350,37 +350,37 @@ fn check_secure_zero(root: &Path) -> Result<String, String> {
             }
         }
         (None, _) => errors.push("secure_zero_codegen: dead_secure_zero's zeroing was optimised away".to_string()),
-        (_, None) => errors.push("secure_zero_codegen: dead_secure_zero does not call liella_machine_barrier".to_string()),
+        (_, None) => errors.push("secure_zero_codegen: dead_secure_zero does not call niji_machine_barrier".to_string()),
         _ => errors.push("secure_zero_codegen: dead_secure_zero calls the barrier before zeroing".to_string()),
     }
     if errors.is_empty() {
-        Ok("liella_secure_zero under fat LTO: the 4096-byte zeroing of a dead buffer stays, before the barrier call, where fill(0) and an unbarriered wipe are removed".to_string())
+        Ok("niji_secure_zero under fat LTO: the 4096-byte zeroing of a dead buffer stays, before the barrier call, where fill(0) and an unbarriered wipe are removed".to_string())
     } else {
         Err(errors.join("\n"))
     }
 }
 
-/// Step 1: the products, built if `target/liella` lacks one. Their paths: `libc.a`,
-/// `libc.so.6`, `liella-crt1.o`.
+/// Step 1: the products, built if `target/niji` lacks one. Their paths: `libc.a`,
+/// `libc.so.6`, `niji-crt1.o`.
 pub(crate) fn products(root: &Path) -> Result<(PathBuf, PathBuf, PathBuf), String> {
-    let liella = root.join("target/liella");
-    let (libc_a, libc_so, crt1) = (liella.join("libc.a"), liella.join("libc.so.6"), liella.join("liella-crt1.o"));
+    let niji = root.join("target/niji");
+    let (libc_a, libc_so, crt1) = (niji.join("libc.a"), niji.join("libc.so.6"), niji.join("niji-crt1.o"));
     if !(libc_a.is_file() && libc_so.is_file() && crt1.is_file()) {
         crate::so::run_so(root)?;
     }
     Ok((libc_a, libc_so, crt1))
 }
 
-/// Step 3: the link helpers in `target/liella/native` (also used by `cargo xtask rust-dylib`):
-/// the directory, the driver `liella-cc` and `nounwind.o`.
+/// Step 3: the link helpers in `target/niji/native` (also used by `cargo xtask rust-dylib`):
+/// the directory, the driver `niji-cc` and `nounwind.o`.
 pub(crate) fn link_helpers(root: &Path) -> Result<(PathBuf, PathBuf, PathBuf), String> {
     let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
-    let crt1 = root.join("target/liella/liella-crt1.o");
-    let dir = root.join("target/liella/native");
+    let crt1 = root.join("target/niji/niji-crt1.o");
+    let dir = root.join("target/niji/native");
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let driver = dir.join("liella-cc");
+    let driver = dir.join("niji-cc");
     let script = format!(
-        "#!/bin/sh\n# @generated by `cargo xtask native`: the C compiler driver with Liella's start object first.\nexec {} {} \"$@\"\n",
+        "#!/bin/sh\n# @generated by `cargo xtask native`: the C compiler driver with libniji's start object first.\nexec {} {} \"$@\"\n",
         quote(&cc),
         quote(&crt1.to_string_lossy())
     );
@@ -401,8 +401,8 @@ pub fn run_native(root: &Path) -> Result<(), String> {
 
     // 2. The crate on its own, with each feature.
     for feature in ["static", "dynamic"] {
-        run(Command::new(&cargo).current_dir(root).args(["clippy", "-q", "-p", "liella-native", "--all-targets", "--features", feature, "--", "-D", "warnings"]))?;
-        run(Command::new(&cargo).current_dir(root).args(["test", "-q", "-p", "liella-native", "--lib", "--features", feature]))?;
+        run(Command::new(&cargo).current_dir(root).args(["clippy", "-q", "-p", "niji-native", "--all-targets", "--features", feature, "--", "-D", "warnings"]))?;
+        run(Command::new(&cargo).current_dir(root).args(["test", "-q", "-p", "niji-native", "--lib", "--features", feature]))?;
     }
 
     // 3. The link helpers.
@@ -433,10 +433,10 @@ pub fn run_native(root: &Path) -> Result<(), String> {
     let exe = build(root, "native_dynamic", "dynamic", &link)?;
     let (count, interp) = check_dynamic(root, &exe)?;
 
-    // 5b. The same example run under Liella's `ld.so` (D-27.24): linked against a by-path copy of
+    // 5b. The same example run under libniji's `ld.so` (D-27.24): linked against a by-path copy of
     // `libc.so.6` with that loader as its interpreter, its output must be the static one's
     // without the static-only steps (`expected("dynamic")`).
-    let ld = root.join("target/liella/ld-linux-x86-64.so.2");
+    let ld = root.join("target/niji/ld-linux-x86-64.so.2");
     let mut link = common;
     link.extend(link_arg(&libc_by_path(&libc_so, &dir)?));
     link.extend(arg("link-arg=-lgcc"));
@@ -452,6 +452,6 @@ pub fn run_native(root: &Path) -> Result<(), String> {
 
     let steps = |linkage| expected(linkage).lines().filter(|l| l.starts_with("ok ")).count();
     let (stat, dynamic) = (steps("static"), steps("dynamic"));
-    println!("native: liella-native clean with each feature; static example ran ({stat} steps, output as expected); dynamic example linked (NEEDED libc.so.6, {count} native symbols at their nodes, interpreter {interp}) and ran under Liella's ld.so ({dynamic} steps, output as expected); {proof}");
+    println!("native: niji-native clean with each feature; static example ran ({stat} steps, output as expected); dynamic example linked (NEEDED libc.so.6, {count} native symbols at their nodes, interpreter {interp}) and ran under libniji's ld.so ({dynamic} steps, output as expected); {proof}");
     Ok(())
 }

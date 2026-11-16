@@ -16,7 +16,7 @@ static float *volatile ptab = tab;
 static float lg_r(float x) { int s; float r = lgammaf_r(x, &s); return r * (float)s; }
 /* lgammaf(-2.5) = ln(8 sqrt(pi) / 15) = -0.0562437164976740506725945... (exact; LIBM-INVALID-CONVERT-SCAN-4).
  * Rounded to nearest (and down) it is -0x1.ccbfap-5; rounded up, -0x1.ccbf9ep-5. The reference returns the second
- * (faithful, not correctly rounded), Liella the first (pinned in crates/math/tests/s10_math_clauses.rs). Only at
+ * (faithful, not correctly rounded), libniji the first (pinned in crates/math/tests/s10_math_clauses.rs). Only at
  * this operand the line reads "faithful" for either neighbour of the exact value; any other result prints its
  * value, so a wrong answer on either side still reads MISMATCH. */
 #define LG_M25_DN (-0x1.ccbfap-5f)

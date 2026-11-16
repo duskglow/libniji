@@ -4,11 +4,11 @@
 
 //! Translation-layer tests for the exported symbols of spec §14 (43 entries).
 //! Test names keep the exported C name verbatim (`sym_<name>`) for traceability.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::panic, missing_docs)]
 
-use liella_abi::ctypes::c_char;
+use niji_abi::ctypes::c_char;
 
 // ------------------------------------------------------------------------------ helpers (§14.1–14.6)
 
@@ -16,11 +16,11 @@ use core::ffi::c_void;
 use core::ptr::{null, null_mut};
 use std::sync::Mutex;
 
-use liella_abi::ctypes::c_int;
-use liella_abi::layout::{struct_hsearch_data, ENTRY};
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as mem;
-use liella_boundary::posix::s14_search as s;
+use niji_abi::ctypes::c_int;
+use niji_abi::layout::{struct_hsearch_data, ENTRY};
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as mem;
+use niji_boundary::posix::s14_search as s;
 
 const ESRCH: i32 = 3;
 
@@ -116,16 +116,16 @@ fn sym_qsort() {
         s::qsort_r(w.as_mut_ptr().cast(), n, 4, Some(cmp_ctx), core::ptr::without_provenance_mut(1));
         assert_eq!(w, (0..n as i32).rev().collect::<Vec<_>>(), "n {n}: qsort_r context on the merge path");
     }
-    if std::env::var_os("LIELLA_QSORT_UNWIND").is_some() {
+    if std::env::var_os("NIJI_QSORT_UNWIND").is_some() {
         let mut w = [2i32, 1];
-        liella_boundary::selftest::expect_crash();
+        niji_boundary::selftest::expect_crash();
         s::qsort(w.as_mut_ptr().cast(), 2, 4, Some(boom));
         return;
     }
     use std::os::unix::process::ExitStatusExt;
     let o = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["sym_qsort", "--exact", "--include-ignored", "--test-threads=1"])
-        .env("LIELLA_QSORT_UNWIND", "1")
+        .env("NIJI_QSORT_UNWIND", "1")
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&o.stdout).contains("running 1 test"), "the child ran no test (libtest filtered it out): {:?}", o.status);
@@ -374,8 +374,8 @@ mod rx {
     use std::ffi::CString;
     use std::sync::Mutex;
 
-    pub(crate) use liella_abi::layout::{regex_t, regmatch_t, struct_re_registers};
-    pub(crate) use liella_boundary::posix::s14_search as s;
+    pub(crate) use niji_abi::layout::{regex_t, regmatch_t, struct_re_registers};
+    pub(crate) use niji_boundary::posix::s14_search as s;
 
     /// `re_syntax_options`, `re_max_failures` and the `re_comp` pattern are process-wide.
     pub(crate) static GLOBAL: Mutex<()> = Mutex::new(());
@@ -397,7 +397,7 @@ mod rx {
         let mut k = 0usize;
         loop {
             let mut c = 0u8;
-            liella_boundary::posix::s04_strings::memcpy((&raw mut c).cast(), p.wrapping_add(k).cast(), 1);
+            niji_boundary::posix::s04_strings::memcpy((&raw mut c).cast(), p.wrapping_add(k).cast(), 1);
             if c == 0 {
                 return out;
             }
@@ -411,7 +411,7 @@ mod rx {
         assert!(i < r.num_regs as usize);
         let read = |addr: usize| {
             let mut v = 0i32;
-            liella_boundary::posix::s04_strings::memcpy((&raw mut v).cast(), core::ptr::with_exposed_provenance::<core::ffi::c_void>(addr + 4 * i), 4);
+            niji_boundary::posix::s04_strings::memcpy((&raw mut v).cast(), core::ptr::with_exposed_provenance::<core::ffi::c_void>(addr + 4 * i), 4);
             v
         };
         (read(r.start), read(r.end))
@@ -505,7 +505,7 @@ fn sym_re_set_syntax() {
     let _g = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let old = s::re_set_syntax(POSIX_EXTENDED);
     assert_eq!(s::re_set_syntax(POSIX_BASIC), POSIX_EXTENDED, "the previous syntax");
-    assert_eq!(liella_boundary::data::re_syntax_options.load(std::sync::atomic::Ordering::Relaxed), POSIX_BASIC);
+    assert_eq!(niji_boundary::data::re_syntax_options.load(std::sync::atomic::Ordering::Relaxed), POSIX_BASIC);
     s::re_set_syntax(old);
 }
 
@@ -514,7 +514,7 @@ fn sym_re_syntax_options() {
     use rx::*;
     use std::sync::atomic::Ordering::Relaxed;
     let _g = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let o = &liella_boundary::data::re_syntax_options;
+    let o = &niji_boundary::data::re_syntax_options;
     let old = o.load(Relaxed);
     // Emacs syntax (0): `|` is literal and `\|` alternation.
     o.store(0, Relaxed);
@@ -536,7 +536,7 @@ fn sym_re_max_failures() {
     use rx::*;
     use std::sync::atomic::Ordering::Relaxed;
     let _g = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let f = &liella_boundary::data::re_max_failures;
+    let f = &niji_boundary::data::re_max_failures;
     assert_eq!(f.load(Relaxed), 2000, "the initial value");
     let mut re = blank();
     assert_eq!(s::regcomp(Some(&mut re), z("(a*)*(b*)*\\1\\2c").as_ptr(), 1), 0);
@@ -707,9 +707,9 @@ mod pt {
     use std::cell::RefCell;
     use std::path::PathBuf;
 
-    pub(crate) use liella_abi::callback::GlobT;
-    pub(crate) use liella_abi::layout::wordexp_t;
-    pub(crate) use liella_boundary::posix::s14_search as s;
+    pub(crate) use niji_abi::callback::GlobT;
+    pub(crate) use niji_abi::layout::wordexp_t;
+    pub(crate) use niji_boundary::posix::s14_search as s;
 
     pub(crate) const ERR: i32 = 1;
     pub(crate) const MARK: i32 = 2;
@@ -728,7 +728,7 @@ mod pt {
 
     fn word(addr: usize, i: usize) -> usize {
         let mut v = 0usize;
-        liella_boundary::posix::s04_strings::memcpy((&raw mut v).cast(), core::ptr::with_exposed_provenance::<c_void>(addr + 8 * i), 8);
+        niji_boundary::posix::s04_strings::memcpy((&raw mut v).cast(), core::ptr::with_exposed_provenance::<c_void>(addr + 8 * i), 8);
         v
     }
 
@@ -736,7 +736,7 @@ mod pt {
         let mut out = Vec::new();
         loop {
             let mut ch = 0u8;
-            liella_boundary::posix::s04_strings::memcpy((&raw mut ch).cast(), core::ptr::with_exposed_provenance::<c_void>(p + out.len()), 1);
+            niji_boundary::posix::s04_strings::memcpy((&raw mut ch).cast(), core::ptr::with_exposed_provenance::<c_void>(p + out.len()), 1);
             if ch == 0 {
                 return String::from_utf8_lossy(&out).into_owned();
             }
@@ -795,7 +795,7 @@ mod pt {
     }
 
     pub(crate) fn root_can_read_anything() -> bool {
-        liella_boundary::posix::s17_users::geteuid() == 0
+        niji_boundary::posix::s17_users::geteuid() == 0
     }
 }
 
@@ -818,7 +818,7 @@ fn compat_glob_2_2_5_altdirfunc_checks_with_gl_stat() {
     // Trace: no spec clause (compat-plan.tsv behaviour rows glob/glob64@GLIBC_2.2.5; LG-2).
     use pt::*;
     use std::sync::atomic::{AtomicU32, Ordering::SeqCst};
-    use liella_abi::callback::{GlobClosedirFn, GlobOpendirFn, GlobReaddirFn, GlobStatFn};
+    use niji_abi::callback::{GlobClosedirFn, GlobOpendirFn, GlobReaddirFn, GlobStatFn};
     static LSTAT: AtomicU32 = AtomicU32::new(0);
     static STAT: AtomicU32 = AtomicU32::new(0);
     extern "C-unwind" fn lst(_: *const c_char, _: *mut c_void) -> c_int {
@@ -848,7 +848,7 @@ fn compat_glob_2_2_5_altdirfunc_checks_with_gl_stat() {
         LSTAT.store(0, SeqCst);
         STAT.store(0, SeqCst);
         let p = z("v/dang");
-        let r = if old { s::liella_compat_glob(p.as_ptr(), flags, None, Some(&mut g)) } else { s::glob(p.as_ptr(), flags, None, Some(&mut g)) };
+        let r = if old { s::niji_compat_glob(p.as_ptr(), flags, None, Some(&mut g)) } else { s::glob(p.as_ptr(), flags, None, Some(&mut g)) };
         let out = (r, g.gl_pathc, STAT.load(SeqCst) > 0, LSTAT.load(SeqCst) > 0);
         s::globfree(Some(&mut g));
         out
@@ -913,9 +913,9 @@ fn sym_glob() {
     assert_eq!((g.gl_pathc, pt::first(g.gl_pathv)), (1, "no/such/*".to_string()));
     s::globfree(Some(&mut g));
     assert_eq!(s::glob(z("*").as_ptr(), 1 << 15, None, Some(&mut g)), -1);
-    assert_eq!(liella_boundary::errno::get(), 22, "unknown flag bits: EINVAL");
+    assert_eq!(niji_boundary::errno::get(), 22, "unknown flag bits: EINVAL");
     assert_eq!(s::glob(core::ptr::null(), 0, None, Some(&mut g)), -1);
-    assert_eq!(liella_boundary::errno::get(), 14, "a NULL pattern: EFAULT");
+    assert_eq!(niji_boundary::errno::get(), 14, "a NULL pattern: EFAULT");
     assert_eq!(s::glob(z("*").as_ptr(), 0, None, None), -1, "a NULL glob_t: EFAULT, never a crash");
     remove(&d);
 }
@@ -983,15 +983,15 @@ fn sym_wordexp() {
         assert_eq!((w.we_wordc, w.we_wordv), (777, 0), "{words}");
     }
     assert_eq!(s::wordexp(z("a").as_ptr(), None, 0), 5, "a NULL wordexp_t: an error, never a crash");
-    assert_eq!(liella_boundary::errno::get(), 14);
+    assert_eq!(niji_boundary::errno::get(), 14);
     // ${X:=w} assigns for the rest of the call only; the environment is never written (owner
     // ruling 2026-10-03, D-14.7).
     let mut w = wordexp_t { we_wordc: 0, we_wordv: 0, we_offs: 0 };
-    assert_eq!(s::wordexp(z("${LIELLA_WX_ASSIGN_Q:=v} $LIELLA_WX_ASSIGN_Q").as_ptr(), Some(&mut w), 0), 0);
+    assert_eq!(s::wordexp(z("${NIJI_WX_ASSIGN_Q:=v} $NIJI_WX_ASSIGN_Q").as_ptr(), Some(&mut w), 0), 0);
     assert_eq!((w.we_wordc, names(w.we_wordv, 3)), (2, some(&["v", "v", ""])), "a later reference in the same call sees the value");
     s::wordfree(Some(&mut w));
-    assert!(liella_boundary::posix::s01_startup::getenv(z("LIELLA_WX_ASSIGN_Q").as_ptr()).is_null(), "the environment is untouched");
-    assert_eq!(s::wordexp(z("${LIELLA_WX_ASSIGN_Q-unset}").as_ptr(), Some(&mut w), 0), 0);
+    assert!(niji_boundary::posix::s01_startup::getenv(z("NIJI_WX_ASSIGN_Q").as_ptr()).is_null(), "the environment is untouched");
+    assert_eq!(s::wordexp(z("${NIJI_WX_ASSIGN_Q-unset}").as_ptr(), Some(&mut w), 0), 0);
     assert_eq!(names(w.we_wordv, 2), some(&["unset", ""]), "the next call does not see it");
     s::wordfree(Some(&mut w));
 }

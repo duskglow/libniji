@@ -1,12 +1,12 @@
 //! Translation for spec §12: buffered streams (D-12.11). Each export converts its arguments and
-//! calls `crate::stdio`, which runs `liella_legacy::stdio_compat` on the stream.
+//! calls `crate::stdio`, which runs `niji_legacy::stdio_compat` on the stream.
 
 use core::ffi::c_void;
 
-use liella_abi::ctypes::{c_char, c_int, off_t, size_t, ssize_t, wchar_t, wint_t};
-use liella_abi::layout::{cookie_io_functions_t, fpos_t, struct_obstack, struct_printf_info, FILE};
-use liella_legacy::printf_registry;
-use liella_legacy::stdio_compat::{EOF_SEEN, ERR_SEEN};
+use niji_abi::ctypes::{c_char, c_int, off_t, size_t, ssize_t, wchar_t, wint_t};
+use niji_abi::layout::{cookie_io_functions_t, fpos_t, struct_obstack, struct_printf_info, FILE};
+use niji_legacy::printf_registry;
+use niji_legacy::stdio_compat::{EOF_SEEN, ERR_SEEN};
 
 use crate::conv;
 use crate::export;
@@ -87,7 +87,7 @@ pub extern "C" fn setvbuf(fp: *mut FILE, buf: *mut c_char, mode: c_int, size: si
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn setbuf(fp: *mut FILE, buf: *mut c_char) {
-    ret::unit(stdio::setvbuf(conv::addr(fp), conv::addr(buf), conv::flag_mode(conv::addr(buf), 0, 2), liella_legacy::stdio_compat::BUFSIZ))
+    ret::unit(stdio::setvbuf(conv::addr(fp), conv::addr(buf), conv::flag_mode(conv::addr(buf), 0, 2), niji_legacy::stdio_compat::BUFSIZ))
 }}
 
 export! { "GLIBC_2.2.5";
@@ -467,7 +467,7 @@ pub extern "C" fn fmemopen(buf: *mut c_void, size: size_t, mode: *const c_char) 
 crate::internal_entry! {
 /// `fmemopen@GLIBC_2.2.5`: the old buffer contract (size 0 is `EINVAL`; reads run to the size;
 /// `a` places only the first position; probe-settled, LG-2). Exported only under that compat version.
-pub extern "C" fn liella_compat_fmemopen(buf: *mut c_void, size: size_t, mode: *const c_char) -> *mut FILE {
+pub extern "C" fn niji_compat_fmemopen(buf: *mut c_void, size: size_t, mode: *const c_char) -> *mut FILE {
     // UNSAFE(slice) SAFETY: mode is a string; buf is NULL or size bytes the stream may use until it is closed (§12.3).
     ret::null(stdio::fmemopen_2_2_5(conv::addr(buf), size, unsafe { strz::strz(mode) }))
 }}
@@ -920,26 +920,26 @@ pub extern "C" fn _IO_iter_file(fp: *mut FILE) -> *mut FILE {
 
 // ------------------------------------------------------------------------------ §12.7
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vfscanf4(fp: *mut FILE, flavour: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vfscanf4(fp: *mut FILE, flavour: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a string; ap is the va_list of the pointers it names (§12.7).
     ret::int_or_eof(scanf::vfscanf(conv::addr(fp), scanf::flavour(flavour), unsafe { strz::strz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vsscanf4(s: *const c_char, flavour: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vsscanf4(s: *const c_char, flavour: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: s and fmt are strings; ap is the va_list of the pointers fmt names (§12.7).
     ret::int_or_eof(scanf::vsscanf(unsafe { strz::strz(s) }, scanf::flavour(flavour), unsafe { strz::strz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vfwscanf4(fp: *mut FILE, flavour: c_int, fmt: *const wchar_t, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vfwscanf4(fp: *mut FILE, flavour: c_int, fmt: *const wchar_t, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a wide string; ap is the va_list of the pointers it names (§12.7).
     ret::int_or_eof(scanf::vfwscanf(conv::addr(fp), scanf::flavour(flavour), unsafe { strz::wcsz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vswscanf4(s: *const wchar_t, flavour: c_int, fmt: *const wchar_t, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vswscanf4(s: *const wchar_t, flavour: c_int, fmt: *const wchar_t, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: s and fmt are wide strings; ap is the va_list of the pointers fmt names (§12.7).
     ret::int_or_eof(scanf::vswscanf(unsafe { strz::wcsz(s) }, scanf::flavour(flavour), unsafe { strz::wcsz(fmt) }, conv::addr(ap)))
 }}
@@ -1077,44 +1077,44 @@ pub extern "C" fn _IO_vfscanf(fp: *mut FILE, fmt: *const c_char, ap: *mut c_void
 
 // ------------------------------------------------------------------------------ §12.6
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vfprintf4(fp: *mut FILE, flag: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vfprintf4(fp: *mut FILE, flag: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a string; ap is the va_list of the arguments it names (§12.6).
     ret::count(printf::vfprintf(conv::addr(fp), flag, unsafe { strz::strz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vdprintf4(fd: c_int, flag: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vdprintf4(fd: c_int, flag: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a string; ap is the va_list of the arguments it names (§12.6).
     ret::count(printf::vdprintf(fd, flag, unsafe { strz::strz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vsnprintf6(s: *mut c_char, maxlen: size_t, flag: c_int, slen: size_t, fmt: *const c_char, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vsnprintf6(s: *mut c_char, maxlen: size_t, flag: c_int, slen: size_t, fmt: *const c_char, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a string; ap is the va_list of the arguments it names (§12.6). s has room for min(maxlen, slen) bytes, or the result when unbounded.
     ret::count(printf::vsnprintf(conv::addr(s), maxlen, flag, slen, unsafe { strz::strz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vasprintf4(strp: Option<&mut *mut c_char>, flag: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vasprintf4(strp: Option<&mut *mut c_char>, flag: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a string; ap is the va_list of the arguments it names (§12.6).
     ret::count(printf::vasprintf(conv::var(strp), flag, unsafe { strz::strz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_obstack_vprintf4(obs: Option<&mut struct_obstack>, flag: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_obstack_vprintf4(obs: Option<&mut struct_obstack>, flag: c_int, fmt: *const c_char, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a string; ap is the va_list of the arguments it names (§12.6).
     ret::count(printf::obstack_vprintf(obs, flag, unsafe { strz::strz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vfwprintf4(fp: *mut FILE, flag: c_int, fmt: *const wchar_t, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vfwprintf4(fp: *mut FILE, flag: c_int, fmt: *const wchar_t, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a wide string; ap is the va_list of the arguments it names (§12.6).
     ret::count(printf::vfwprintf(conv::addr(fp), flag, unsafe { strz::wcsz(fmt) }, conv::addr(ap)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_vswprintf6(s: *mut wchar_t, maxlen: size_t, flag: c_int, slen: size_t, fmt: *const wchar_t, ap: *mut c_void) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_vswprintf6(s: *mut wchar_t, maxlen: size_t, flag: c_int, slen: size_t, fmt: *const wchar_t, ap: *mut c_void) -> c_int {
     // UNSAFE(slice) SAFETY: fmt is a wide string; ap is the va_list of the arguments it names (§12.6). s has room for maxlen units.
     ret::count(printf::vswprintf(conv::addr(s), maxlen, flag, slen, unsafe { strz::wcsz(fmt) }, conv::addr(ap)))
 }}

@@ -6,18 +6,18 @@
 #
 # 1. The rules, line by line: one `<soname> libc6 #MINVER#` block per shared library libc6 ships;
 #    no GLIBC_PRIVATE anywhere (R14-12); each name@GLIBC_x has the minimum version x when x is at or
-#    below the packages' ABI level (the version's part before "+liella"), else the build's upstream
-#    version; each name@LIELLA_<KIND>_<n> names the template `| liella-<kind>-abi (>= <n>)`;
-#    LIELLA_PRIVATE only as the `(symver)` pattern; libc6 Provides each such package at the newest
-#    level the file names (today liella-native-abi and liella-owner-abi); any other node fails.
+#    below the packages' ABI level (the version's part before "+niji"), else the build's upstream
+#    version; each name@NIJI_<KIND>_<n> names the template `| niji-<kind>-abi (>= <n>)`;
+#    NIJI_PRIVATE only as the `(symver)` pattern; libc6 Provides each such package at the newest
+#    level the file names (today niji-native-abi and niji-owner-abi); any other node fails.
 #    shlibs: `<name> <n> libc6 (>= <abi>)` per library, nothing else.
 # 2. dpkg-gensymbols -c4 against the packaged libraries: no symbol or library missing or extra.
 # 3. dpkg-shlibdeps on four sample programs linked with plain gcc against the unpacked libc6 and
 #    libc6-dev (smoke/sym-base.c, smoke/hello.c, smoke/sym-native.c, smoke/sym-owner.c) gives exactly:
 #      sym-base   libc6 (>= 2.2.5)                           (GLIBC_2.2.5 symbols only)
 #      hello      libc6 (>= 2.34)                            (the start files' __libc_start_main@GLIBC_2.34)
-#      sym-native libc6 (>= 2.34), liella-native-abi (>= 1)  (liella_heap_alloc@LIELLA_NATIVE_1)
-#      sym-owner  libc6 (>= 2.34), liella-owner-abi (>= 1)   (atexit@LIELLA_OWNER_1, D-27.29)
+#      sym-native libc6 (>= 2.34), niji-native-abi (>= 1)  (niji_heap_alloc@NIJI_NATIVE_1)
+#      sym-owner  libc6 (>= 2.34), niji-owner-abi (>= 1)   (atexit@NIJI_OWNER_1, D-27.29)
 # 4. Version ordering (dpkg --compare-versions): <abi> < the packages' version < the next ABI level.
 # Prints "check-symbols: PASS" or one "check-symbols: FAIL ..." line per problem (exit 1).
 set -eu
@@ -39,7 +39,7 @@ debdev=$(find "$dir" -maxdepth 1 -name 'libc6-dev_*_amd64.deb' | head -1)
 [ -n "$deb6" ] && [ -n "$debdev" ] || { echo "check-symbols: FAIL no libc6 and libc6-dev .deb in $dir"; exit 1; }
 version=$(dpkg-deb -f "$deb6" Version)
 upstream=${version%-*}
-abi=${version%%+liella*}
+abi=${version%%+niji*}
 pkg=$tmp/pkg/debian/libc6
 mkdir -p "$tmp/pkg/debian" "$tmp/root"
 dpkg-deb -R "$deb6" "$pkg"
@@ -74,12 +74,12 @@ awk -v abi="$abi" -v up="$upstream" '
     }
     /^\| / {
         nt++
-        if (match($0, /^\| liella-[a-z]+-abi \(>= [0-9]+\)$/)) tmpl[nt] = $2 " " substr($4, 1, length($4) - 1)
-        else bad("an alternative template other than liella-<kind>-abi (>= <n>)")
+        if (match($0, /^\| niji-[a-z]+-abi \(>= [0-9]+\)$/)) tmpl[nt] = $2 " " substr($4, 1, length($4) - 1)
+        else bad("an alternative template other than niji-<kind>-abi (>= <n>)")
         next
     }
     /^\* / { next }
-    /^ \(symver\)/ { if ($1 != "(symver)LIELLA_PRIVATE" || $2 != up || NF != 2) bad("a pattern other than (symver)LIELLA_PRIVATE " up); next }
+    /^ \(symver\)/ { if ($1 != "(symver)NIJI_PRIVATE" || $2 != up || NF != 2) bad("a pattern other than (symver)NIJI_PRIVATE " up); next }
     /^ / {
         at = index($1, "@"); node = substr($1, at + 1)
         if (at == 0) { bad("no version node"); next }
@@ -87,9 +87,9 @@ awk -v abi="$abi" -v up="$upstream" '
             lvl = substr(node, 7); want = le(lvl, abi) ? lvl : up
             if ($2 != want) bad("minimum version " $2 ", not " want)
             if (NF != 2) bad("a GLIBC node with a template")
-        } else if (node ~ /^LIELLA_[A-Z]+_[0-9]+$/) {
-            kind = node; sub(/^LIELLA_/, "", kind); n = kind; sub(/_[0-9]+$/, "", kind); sub(/^[A-Z]+_/, "", n)
-            pkg = "liella-" tolower(kind) "-abi"
+        } else if (node ~ /^NIJI_[A-Z]+_[0-9]+$/) {
+            kind = node; sub(/^NIJI_/, "", kind); n = kind; sub(/_[0-9]+$/, "", kind); sub(/^[A-Z]+_/, "", n)
+            pkg = "niji-" tolower(kind) "-abi"
             if (NF != 3 || tmpl[$3] != pkg " " n) bad("not on the template " pkg " (>= " n ")")
             if (n + 0 > top[pkg] + 0) top[pkg] = n
         } else bad("node " node)
@@ -111,12 +111,12 @@ fi
 want_prov=$(sed -n 's/^provides //p' "$tmp/provides" | sort | awk '{ printf "%s%s (= %s)", s, $1, $2; s = ", " }')
 provides=$(dpkg-deb -f "$deb6" Provides)
 [ "$provides" = "$want_prov" ] || fail "libc6 Provides '$provides', not '$want_prov'"
-case $want_prov in *liella-native-abi*liella-owner-abi*) ;; *) fail "the templates name '$want_prov', not liella-native-abi and liella-owner-abi" ;; esac
+case $want_prov in *niji-native-abi*niji-owner-abi*) ;; *) fail "the templates name '$want_prov', not niji-native-abi and niji-owner-abi" ;; esac
 want_shl=$(for so in $libs; do echo "${so%.so.*} ${so##*.so.} libc6 (>= $abi)"; done)
 [ "$(cat "$shl" 2>/dev/null)" = "$want_shl" ] || fail "shlibs is '$(tr '\n' ';' < "$shl" 2>/dev/null)', not '$(echo "$want_shl" | tr '\n' ';')'"
 
 # 2. dpkg-gensymbols -c4: the file against the libraries.
-printf 'Source: liella\n\nPackage: libc6\nArchitecture: amd64\n' > "$tmp/pkg/debian/control"
+printf 'Source: niji\n\nPackage: libc6\nArchitecture: amd64\n' > "$tmp/pkg/debian/control"
 if ! (cd "$tmp/pkg" && dpkg-gensymbols -plibc6 -Pdebian/libc6 -v"$version" -c4 -I"$sym" -O"$tmp/gen.symbols") > "$tmp/gen.log" 2>&1; then
     fail "dpkg-gensymbols -c4: $(grep -m 8 -E '^[-+][^-+]|warning|error' "$tmp/gen.log" | tr '\n' ' ')"
 fi
@@ -147,8 +147,8 @@ sample() {
 }
 sample sym-base "libc6 (>= 2.2.5)" -nostartfiles -nodefaultlibs "$here/smoke/sym-base.c" -lc
 sample hello "libc6 (>= 2.34)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/hello.c" -lc -lgcc "$end"
-sample sym-native "libc6 (>= 2.34), liella-native-abi (>= 1)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/sym-native.c" -lc -lgcc "$end"
-sample sym-owner "libc6 (>= 2.34), liella-owner-abi (>= 1)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/sym-owner.c" -lc -lgcc "$end"
+sample sym-native "libc6 (>= 2.34), niji-native-abi (>= 1)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/sym-native.c" -lc -lgcc "$end"
+sample sym-owner "libc6 (>= 2.34), niji-owner-abi (>= 1)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/sym-owner.c" -lc -lgcc "$end"
 
 # 4. Version ordering (R2): the ABI level < this build < the next level.
 next=${abi%.*}.$((${abi##*.} + 1))

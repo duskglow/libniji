@@ -2,9 +2,9 @@
  * lists `user` in, plus `g` (phase 10; the group database is the `files` source, D-15.6). Run as
  * root in a user namespace with several IDs mapped. The user is the session's login user when
  * the user database knows it, else root; the expected list comes from the group enumeration. */
-/* The name-service cache is off (LIELLA_NSCACHE=0, D-16.10): the system's /dev/shm is shared, and a
+/* The name-service cache is off (NIJI_NSCACHE=0, D-16.10): the system's /dev/shm is shared, and a
  * conformance run must not leave a region there. */
-/* RUN-WRAP: unshare -U --map-auto --map-root-user env LIELLA_NSCACHE=0 */
+/* RUN-WRAP: unshare -U --map-auto --map-root-user env NIJI_NSCACHE=0 */
 #define _GNU_SOURCE
 #include <grp.h>
 #include <pwd.h>

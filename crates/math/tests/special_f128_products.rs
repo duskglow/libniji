@@ -1,12 +1,12 @@
 //! The special functions of `_Float128` end to end (spec §10.3, Track M milestone 5, M5-7):
 //! `tests/oracle/special_f128_diff.c` built against the host C library and statically against
-//! Liella's products (`libm.a`, `libc.a`), every function in every rounding direction on special,
-//! boundary and random operands. A line where the two agree passes. Where they differ, Liella
-//! must be right by the test oracle (`liella-mathtools::mp`): its result correctly rounded, its
+//! libniji's products (`libm.a`, `libc.a`), every function in every rounding direction on special,
+//! boundary and random operands. A line where the two agree passes. Where they differ, libniji
+//! must be right by the test oracle (`niji-mathtools::mp`): its result correctly rounded, its
 //! inexact, underflow and overflow flags those of that rounding, its invalid and
 //! division-by-zero flags, its NaNs, the sign of a zero limit and the sign of Γ(x) it stores
 //! (`signgam` for `lgammaf128`) those of the reference, and `errno` as the reference sets it or
-//! (on range lines) as Liella's rule for its own result says (D-10.14). The count of lines where
+//! (on range lines) as libniji's rule for its own result says (D-10.14). The count of lines where
 //! only the reference is wrong is printed. Needs the products (`cargo xtask so`) and a C compiler.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "../../core/tests/support/skip_note.rs"]
@@ -26,20 +26,20 @@ mod shard;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_mathtools::cmp;
-use liella_mathtools::mp::{self, Approx, Big, Fmt, Round};
+use niji_mathtools::cmp;
+use niji_mathtools::mp::{self, Approx, Big, Fmt, Round};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/math/tests/oracle/special_f128_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        let p = r.join("target/liella");
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(p.join("liella-crt1.o")).arg(&src).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
+    if niji {
+        let p = r.join("target/niji");
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(p.join("niji-crt1.o")).arg(&src).arg(p.join("libm.a")).arg(p.join("libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1", "-fno-builtin"]).arg(&src).arg("-lm");
     }
@@ -93,7 +93,7 @@ fn oracle(func: &str, mode: Round, ops: &[u128]) -> Option<(u128, mp::Rounded)> 
 /// A checked line: its problems, whether only the reference is wrong, whether the results agree.
 type Checked = (Vec<String>, bool, bool);
 
-/// Check one line where Liella differs from the reference.
+/// Check one line where libniji differs from the reference.
 fn check_line(w: &str, g: &str) -> Checked {
     let mut errors = Vec::new();
     let mut reference_wrong = false;
@@ -106,39 +106,39 @@ fn check_line(w: &str, g: &str) -> Checked {
     let (rw, rg) = (lw.res[0], lg.res[0]);
     if cmp::is_nan(Fmt::F128, cr) {
         if rw != rg {
-            errors.push(format!("NaN differs\n  reference: {w}\n     liella: {g}"));
+            errors.push(format!("NaN differs\n  reference: {w}\n     niji: {g}"));
         }
     } else if Big::from_bits(Fmt::F128, cr).is_zero() && base(lw.func) == "lgamma" {
         // lgamma(1) = lgamma(2) = +0 in every mode (C F.10.5.3).
         if rg != 0 {
-            errors.push(format!("lgamma's zero is not +0\n  reference: {w}\n     liella: {g}"));
+            errors.push(format!("lgamma's zero is not +0\n  reference: {w}\n     niji: {g}"));
         }
     } else if Big::from_bits(Fmt::F128, cr).is_zero() && Big::from_bits(Fmt::F128, rw).is_zero() {
         // A zero limit (J_n(±∞), J_n(±0), ...): the sign is the reference's convention.
         if rg != rw {
-            errors.push(format!("sign of zero differs\n  reference: {w}\n     liella: {g}"));
+            errors.push(format!("sign of zero differs\n  reference: {w}\n     niji: {g}"));
         }
     } else if rg != cr {
-        errors.push(format!("not correctly rounded (want {cr:x})\n  reference: {w}\n     liella: {g}"));
+        errors.push(format!("not correctly rounded (want {cr:x})\n  reference: {w}\n     niji: {g}"));
     } else if rw != cr {
         reference_wrong = true;
     }
     if lw.res.len() > 1 && lw.res[1] != lg.res[1] {
-        errors.push(format!("sign of gamma differs\n  reference: {w}\n     liella: {g}"));
+        errors.push(format!("sign of gamma differs\n  reference: {w}\n     niji: {g}"));
     }
     let fl = lg.flags;
     let ok_flags = has(fl, 'I') == has(lw.flags, 'I')
         && has(fl, 'Z') == has(lw.flags, 'Z')
         && (has(lw.flags, 'I') || has(lw.flags, 'Z') || (has(fl, 'X') == rd.inexact && has(fl, 'U') == rd.underflow && has(fl, 'O') == rd.overflow));
     if !ok_flags {
-        errors.push(format!("flags (want X={} U={} O={})\n  reference: {w}\n     liella: {g}", rd.inexact, rd.underflow, rd.overflow));
+        errors.push(format!("flags (want X={} U={} O={})\n  reference: {w}\n     niji: {g}", rd.inexact, rd.underflow, rd.overflow));
     }
     let v = Big::from_bits(Fmt::F128, rg);
     let range_by_rule = (v.is_inf() && has(fl, 'O')) || (v.is_zero() && has(fl, 'U'));
     let range_line = has(fl, 'O') || has(fl, 'U') || has(lw.flags, 'O') || has(lw.flags, 'U');
     let ok_errno = lg.errno == lw.errno || (range_line && lg.errno != "EDOM" && (lg.errno == "ERANGE") == range_by_rule);
     if !ok_errno {
-        errors.push(format!("errno\n  reference: {w}\n     liella: {g}"));
+        errors.push(format!("errno\n  reference: {w}\n     niji: {g}"));
     }
     (errors, reference_wrong, lw.res == lg.res)
 }
@@ -147,7 +147,7 @@ fn check_line(w: &str, g: &str) -> Checked {
 fn float128_special_functions(k: usize) {
     let _running = shard::running();
     let r = root();
-    assert!(r.join("target/liella/libm.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libm.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -155,7 +155,7 @@ fn float128_special_functions(k: usize) {
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
     let t0 = std::time::Instant::now();
-    let (host, ours) = (dir.join("special_f128_diff_host"), dir.join("special_f128_diff_liella"));
+    let (host, ours) = (dir.join("special_f128_diff_host"), dir.join("special_f128_diff_niji"));
     assert!(build(&host, false), "special_f128_diff.c does not build against the host C library");
     assert!(build(&ours, true), "special_f128_diff.c does not link against the products");
     // Runs only when an input changed since this shard last passed (D-10.57).

@@ -256,13 +256,13 @@ pub fn static_check(root: &Path) -> Result<(), String> {
         return Err(format!("jcc-check: crates/boundary/jcc_pad.rs no longer pads csys/src/machine/{f} (D-4.67)"));
     }
     let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
-    let dir = std::env::temp_dir().join(format!("liella-jcc-check-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("niji-jcc-check-{}", std::process::id()));
     std::fs::create_dir_all(&dir).map_err(|e| format!("jcc-check: {}: {e}", dir.display()))?;
     let mut res = Ok(());
     for f in JCC_PAD_FILES {
         let obj = dir.join(format!("{f}.o"));
         let src = root.join("csys/src/machine").join(f);
-        let r = tool(Command::new(&cc).args(["-c", "-fPIC", "-DLIELLA_EXPORT", "-DLIELLA_RUNTIME"]).args(JCC_PAD_FLAGS).arg("-I").arg(root.join("csys/include")).arg(&src).arg("-o").arg(&obj), &format!("assembling csys/src/machine/{f}"))
+        let r = tool(Command::new(&cc).args(["-c", "-fPIC", "-DNIJI_EXPORT", "-DNIJI_RUNTIME"]).args(JCC_PAD_FLAGS).arg("-I").arg(root.join("csys/include")).arg(&src).arg("-o").arg(&obj), &format!("assembling csys/src/machine/{f}"))
             .and_then(|_| check_file(&obj, None));
         if let Err(e) = r {
             res = Err(e);
@@ -328,13 +328,13 @@ mod tests {
     #[test]
     fn objdump_text_is_read_per_member_and_section() {
         // no spec clause (D-4.67): an archive's members and sections, and the alignment column.
-        let d = "\nm1.o:     file format elf64-x86-64\n\n\nDisassembly of section .text.sorted.h3.liella_machine_x:\n\n0000000000000000 <f>:\n   0:\t48 89 f8             \tmov    %rdi,%rax\n   3:\tc3                   \tret\n";
-        let h = "\nm1.o:     file format elf64-x86-64\n\nSections:\nIdx Name          Size      VMA               LMA               File off  Algn  Flags\n  0 .text.sorted.h3.liella_machine_x 00000004  0000000000000000  0000000000000000  00000040  2**4  CONTENTS, ALLOC, LOAD, READONLY, CODE\n";
-        let only: BTreeSet<String> = ["liella_machine_x".to_string()].into();
+        let d = "\nm1.o:     file format elf64-x86-64\n\n\nDisassembly of section .text.sorted.h3.niji_machine_x:\n\n0000000000000000 <f>:\n   0:\t48 89 f8             \tmov    %rdi,%rax\n   3:\tc3                   \tret\n";
+        let h = "\nm1.o:     file format elf64-x86-64\n\nSections:\nIdx Name          Size      VMA               LMA               File off  Algn  Flags\n  0 .text.sorted.h3.niji_machine_x 00000004  0000000000000000  0000000000000000  00000040  2**4  CONTENTS, ALLOC, LOAD, READONLY, CODE\n";
+        let only: BTreeSet<String> = ["niji_machine_x".to_string()].into();
         let (jumps, errors) = check_text(d, h, Some(&only));
         assert_eq!(jumps, 1);
         assert_eq!(errors.len(), 1, "2**4 is below 32: {errors:?}");
-        assert!(errors[0].contains("m1.o(.text.sorted.h3.liella_machine_x)"));
+        assert!(errors[0].contains("m1.o(.text.sorted.h3.niji_machine_x)"));
         let other: BTreeSet<String> = ["y".to_string()].into();
         assert_eq!(check_text(d, h, Some(&other)).0, 0, "a section not named is not checked");
         let h32 = h.replace("2**4", "2**5");
@@ -346,9 +346,9 @@ mod tests {
         // no spec clause (D-4.67, LAYOUT-CHECK-VERDICT-CACHE): the -j list of the archive check is every section,
         // in any member, whose base name the padded files declare (hot prefixes or none), each once, and no other.
         let row = |m: &str, s: &str, a: u32| format!("\n{m}:     file format elf64-x86-64\n\nSections:\nIdx Name Size VMA LMA File off Algn Flags\n  0 {s} 00000004  0000000000000000  0000000000000000  00000040  2**{a}  CONTENTS, CODE\n");
-        let h = [row("a.o", ".text.sorted.h3.liella_machine_x", 5), row("b.o", ".text.liella_machine_x", 5), row("c.o", ".text.hot.liella_machine_y", 5), row("d.o", ".text.other", 5), row("e.o", ".text.sorted.h3.liella_machine_x", 6)].concat();
-        let only: BTreeSet<String> = ["liella_machine_x".to_string(), "liella_machine_y".to_string()].into();
-        assert_eq!(selected_sections(&h, &only), [".text.hot.liella_machine_y", ".text.liella_machine_x", ".text.sorted.h3.liella_machine_x"]);
+        let h = [row("a.o", ".text.sorted.h3.niji_machine_x", 5), row("b.o", ".text.niji_machine_x", 5), row("c.o", ".text.hot.niji_machine_y", 5), row("d.o", ".text.other", 5), row("e.o", ".text.sorted.h3.niji_machine_x", 6)].concat();
+        let only: BTreeSet<String> = ["niji_machine_x".to_string(), "niji_machine_y".to_string()].into();
+        assert_eq!(selected_sections(&h, &only), [".text.hot.niji_machine_y", ".text.niji_machine_x", ".text.sorted.h3.niji_machine_x"]);
         assert!(selected_sections(&h, &["z".to_string()].into()).is_empty(), "no hot section: nothing selected");
     }
 }

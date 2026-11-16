@@ -1,16 +1,16 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Workload gate, step 1 (runs on Zen 1 host): products, link kits and inputs.   validation/wl_gate.sh
 #
 #   wl_prep.sh SHA...
 #
 # SHA: full commit ids whose source tree is already unpacked in ~/wl/src/SHA (wl_gate.sh does
-# that with git archive). For each SHA: build the products (`cargo xtask so` with LIELLA_FULL_PROFILE=1, the shipped
-# release profile; WL_PROFILE=fast for the fast one; libc.a, libm.a and liella-crt1.o) into ~/wl/products/KEY, then
+# that with git archive). For each SHA: build the products (`cargo xtask so` with NIJI_FULL_PROFILE=1, the shipped
+# release profile; WL_PROFILE=fast for the fast one; libc.a, libm.a and niji-crt1.o) into ~/wl/products/KEY, then
 # relink every workload program against them into the kit ~/wl/kit/KEY/bin. KEY = $(wl_key SHA) (validation/wl_lock.sh):
 # SHA-release, or SHA for the fast profile. The program objects come from the validation builds
-# (~/validation/build/liella-m, make: liella-noload), compiled with the system's headers, so
-# they do not depend on the Liella commit; only the final link does. The link commands are
+# (~/validation/build/niji-m, make: niji-noload), compiled with the system's headers, so
+# they do not depend on the libniji commit; only the final link does. The link commands are
 # taken once from `make -n` (nothing is built in the validation trees). The glibc kit
 # ~/wl/kit/glibc/bin holds the dynamically linked host builds. Inputs: ~/wl/work.
 set -eu
@@ -37,8 +37,8 @@ if [ -n "${WL_PROGS:-}" ]; then
     for p in "${PROGS[@]}"; do case " $WL_PROGS " in *" ${p%%|*} "*) keep+=("$p") ;; esac; done
     PROGS=("${keep[@]}")
 fi
-ltree() { # name tree -> the liella validation tree
-    case $1 in make) echo "$V/build/liella-noload/$2" ;; *) echo "$V/build/liella-m/$2" ;; esac
+ltree() { # name tree -> the niji validation tree
+    case $1 in make) echo "$V/build/niji-noload/$2" ;; *) echo "$V/build/niji-m/$2" ;; esac
 }
 gtree() { case $1 in make) echo "$V/build/glibc-noload/$2" ;; *) echo "$V/build/glibc/$2" ;; esac; }
 
@@ -81,10 +81,10 @@ for sha in "$@"; do
         [ -x "$kit/$name" ] && continue
         { read -r sub; read -r p; read -r cmd; } < "$W/recipes/$name.cmd"
         extra=
-        # gawk's liella-m objects were configured without -lm (no libm.a then); its maths
-        # functions come from Liella's libm.a, where -lm would put it (no stand-in since GAWK-LM-CHECK-2).
+        # gawk's niji-m objects were configured without -lm (no libm.a then); its maths
+        # functions come from libniji's libm.a, where -lm would put it (no stand-in since GAWK-LM-CHECK-2).
         [ "$name" = gawk ] && extra=$prod/libm.a
-        (cd "$(ltree "$name" "$tree")/$sub" && LIELLA_PRODUCTS=$prod LIELLA_CC_EXTRA=$extra bash -c "${cmd/ -o $p / -o $kit/$name.tmp }") > "$W/kit/$key/link-$name.log" 2>&1 || { echo "wl_prep: link of $name failed (see $W/kit/$key/link-$name.log)" >&2; exit 1; }
+        (cd "$(ltree "$name" "$tree")/$sub" && NIJI_PRODUCTS=$prod NIJI_CC_EXTRA=$extra bash -c "${cmd/ -o $p / -o $kit/$name.tmp }") > "$W/kit/$key/link-$name.log" 2>&1 || { echo "wl_prep: link of $name failed (see $W/kit/$key/link-$name.log)" >&2; exit 1; }
         mv -f "$kit/$name.tmp" "$kit/$name"
     done
     wl_unlock

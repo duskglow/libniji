@@ -3,7 +3,7 @@
 # and libc.so.6 by default, with the C signatures of spec/abi/prototypes.tsv, into
 # crates/boundary/src/posix/s10_math_gen.rs and the C forwarders csys/src/adapter/math_*.c.
 #
-# Placeholders: {x} {y} {z} the arguments (floating ones already in liella-math's formats),
+# Placeholders: {x} {y} {z} the arguments (floating ones already in niji-math's formats),
 # {T} the format's type, {M} the rounding direction the format's unit uses, {E} that unit for the
 # envelope functions (`mret::elem` and the other forms that read MXCSR once on entry). The narrowing
 # families (`fadd`, `daddl`, `f32mulf128`, ...) are rows whose family starts with `@` and use

@@ -1,6 +1,6 @@
 # tools/deb/system.sh: the system packages (sourced by tools/deb/build.sh --flavour system, after the
-# products were built with prefix /). Owner ruling R1 (plan/system-libc.md section 3.1): Liella takes
-# the binary package names of Debian's C library, Source: liella. Layout as plan section 3.3: the
+# products were built with prefix /). Owner ruling R1 (plan/system-libc.md section 3.1): libniji takes
+# the binary package names of Debian's C library, Source: niji. Layout as plan section 3.3: the
 # loader and libraries in /usr/lib/x86_64-linux-gnu, /usr/lib64/ld-linux-x86-64.so.2 a link to the
 # multiarch copy (the program interpreter /lib64/ld-linux-x86-64.so.2 reaches it through base-files'
 # merged-/usr link /lib64 -> usr/lib64, which these packages do not ship). Pending decision
@@ -12,9 +12,9 @@
 #   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries; conffile
 #                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
 #                 symbols and shlibs (tools/deb/symbols.py, plan section 3.2; checked by
-#                 tools/deb/check-symbols.sh); Provides, per Liella-only node kind, the virtual
-#                 package its symbols' template names at the newest level (liella-native-abi
-#                 (= <n>), liella-owner-abi (= <n>); symbols.py --provides).
+#                 tools/deb/check-symbols.sh); Provides, per libniji-only node kind, the virtual
+#                 package its symbols' template names at the newest level (niji-native-abi
+#                 (= <n>), niji-owner-abi (= <n>); symbols.py --provides).
 #   libc-bin      Essential: the loader configuration (/etc/ld.so.conf, ld.so.conf.d/libc.conf),
 #                 /etc/gai.conf, the nsswitch.conf template its postinst installs when the root has
 #                 none; owns the ldconfig trigger, which its postinst handles by running
@@ -62,22 +62,22 @@ need ldd
 put 0755 "$products/ldd" "$bin/usr/bin/ldd"
 
 # --- libc6-dev ---
-need liella-crt1.o
-need liella-rcrt1.o
-put 0644 "$products/liella-crt1.o" "$sdev/$mlib/crt1.o"
-put 0644 "$products/liella-crt1.o" "$sdev/$mlib/Scrt1.o"
-put 0644 "$products/liella-rcrt1.o" "$sdev/$mlib/rcrt1.o"
+need niji-crt1.o
+need niji-rcrt1.o
+put 0644 "$products/niji-crt1.o" "$sdev/$mlib/crt1.o"
+put 0644 "$products/niji-crt1.o" "$sdev/$mlib/Scrt1.o"
+put 0644 "$products/niji-rcrt1.o" "$sdev/$mlib/rcrt1.o"
 # SL-CRT: crti.o and crtn.o (every driver link), gcrt1.o (-pg), grcrt1.o (-pg -static-pie) and
-# the empty Mcrt1.o, as in the coexisting liella6-dev.
+# the empty Mcrt1.o, as in the coexisting niji6-dev.
 for o in gcrt1 grcrt1 crti crtn Mcrt1; do
-    need "liella-$o.o"
-    put 0644 "$products/liella-$o.o" "$sdev/$mlib/$o.o"
+    need "niji-$o.o"
+    put 0644 "$products/niji-$o.o" "$sdev/$mlib/$o.o"
 done
 for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a; do
     need "$a"
     put 0644 "$products/$a" "$sdev/$mlib/$a"
 done
-put_text 0644 "$sdev/$mlib/libc.so" "/* GNU ld script: Liella's C library (libc6-dev). libc.so.6 is the library,
+put_text 0644 "$sdev/$mlib/libc.so" "/* GNU ld script: libniji's C library (libc6-dev). libc.so.6 is the library,
    libc_nonshared.a holds the functions linked into the calling module, the loader
    provides the symbols the ABI places in it. */
 OUTPUT_FORMAT(elf64-x86-64)
@@ -89,7 +89,7 @@ date_r=$(date -u -d "@$epoch" -R)
 for p in $pkgs; do
     d=$stage/$p/usr/share/doc/$p
     put 0644 "$here/copyright" "$d/copyright"
-    printf 'liella (%s) unstable; urgency=medium\n\n  * System build of Liella%s (plan/system-libc.md; docs/install-packages.md).\n\n -- %s  %s\n' \
+    printf 'niji (%s) unstable; urgency=medium\n\n  * System build of libniji%s (plan/system-libc.md; docs/install-packages.md).\n\n -- %s  %s\n' \
         "$version" "${commit:+, commit $commit}" "$maint" "$date_r" | gzip -9n > "$d/changelog.Debian.gz"
 done
 
@@ -107,7 +107,7 @@ sys_control() {
     mkdir -p "$stage/$p/DEBIAN"
     {
         echo "Package: $p"
-        echo "Source: liella"
+        echo "Source: niji"
         echo "Version: $version"
         echo "Architecture: $arch"
         echo "Maintainer: $maint"
@@ -123,7 +123,7 @@ sys_control() {
         (cd "$stage/$p" && find etc -type f | sort | sed 's|^|/|') > "$stage/$p/DEBIAN/conffiles"
     fi
 }
-abi_note=" Liella is an implementation of the GNU C Library's ABI (glibc $abi, x86-64)."
+abi_note=" libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64)."
 # libc6's symbols and shlibs (plan section 3.2), from the specification and the stripped libraries.
 mkdir -p "$s6/DEBIAN"
 python3 "$here/symbols.py" files --versions "$spec/abi/versions.tsv" --native "$spec/abi/native.tsv" \
@@ -135,7 +135,7 @@ sys_control libc6 amd64 libs required \
     "Multi-Arch: same" \
     "Provides: $provides" \
     "Breaks: base-files (<< 13.3~)" \
-    "Description: Liella C library: shared libraries" \
+    "Description: libniji C library: shared libraries" \
     "$abi_note" \
     " This package is the system's C library: the dynamic loader" \
     " /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (program interpreter" \
@@ -149,7 +149,7 @@ sys_control libc-bin amd64 libs required \
     "Essential: yes" \
     "Multi-Arch: foreign" \
     "Depends: libc6 (= $version)" \
-    "Description: Liella C library: configuration and programs" \
+    "Description: libniji C library: configuration and programs" \
     "$abi_note" \
     " This package holds ldconfig, getconf, getent, the loader configuration" \
     " (/etc/ld.so.conf and /etc/ld.so.conf.d), /etc/gai.conf and the template of" \
@@ -159,26 +159,26 @@ sys_control libc6-dev amd64 libdevel optional \
     "Multi-Arch: same" \
     "Depends: libc6 (= $version), libc-dev-bin (= $version)" \
     "Provides: libc-dev" \
-    "Description: Liella C library: development files" \
+    "Description: libniji C library: development files" \
     "$abi_note" \
     " This package holds the start files, the libc.so linker script," \
-    " libc_nonshared.a and the static archives. Liella's C headers are not part of" \
+    " libc_nonshared.a and the static archives. libniji's C headers are not part of" \
     " this build yet."
 sys_control libc-dev-bin amd64 libdevel optional \
     "Multi-Arch: foreign" \
     "Depends: libc6 (= $version)" \
-    "Description: Liella C library: development programs (placeholder)" \
+    "Description: libniji C library: development programs (placeholder)" \
     "$abi_note" \
     " The development program gencat is not part of this build yet; the" \
     " package exists so that libc6-dev's dependency is met."
 sys_control locales all localization optional \
     "Depends: libc-bin (>= $abi)" \
-    "Description: Liella C library: locale support (placeholder)" \
+    "Description: libniji C library: locale support (placeholder)" \
     "$abi_note" \
     " The locale compiler and locale data are not part of this build yet; the" \
     " package exists so that dependencies on locales are met."
 sys_control libc-l10n all localization optional \
-    "Description: Liella C library: translations (placeholder)" \
+    "Description: libniji C library: translations (placeholder)" \
     "$abi_note" \
     " The C library's message translations are not part of this build yet; the" \
     " package exists so that dependencies on libc-l10n are met."

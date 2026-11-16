@@ -3,15 +3,15 @@
 //! the first size above them), every alignment of source and destination in a 32-byte window, and every
 //! overlap shift up to 40 bytes in both directions plus whole-length shifts. Sentinels around the
 //! destination catch a write outside it; guard pages catch a read or write past either end.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella_abi::ctypes::c_void;
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest::{self, opaque, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_FIXED_NOREPLACE, MAP_PRIVATE, MAP_SHARED, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_abi::ctypes::c_void;
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest::{self, opaque, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_FIXED_NOREPLACE, MAP_PRIVATE, MAP_SHARED, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
 const MAX: usize = 257;
@@ -26,7 +26,7 @@ static BUILD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// with NULL folding (D-4.22). The startup decisions are put back afterwards.
 fn each_build(test: fn(&str)) {
     let _turn = BUILD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let avx2 = liella_boundary::cpu::avx2();
+    let avx2 = niji_boundary::cpu::avx2();
     let (before, fold_before) = (selftest::kernel_avx2(), selftest::null_fold());
     let mut builds = vec![false];
     if avx2 {
@@ -210,7 +210,7 @@ fn small_copies_and_fills_stay_inside_regions_that_touch_unmapped_pages_in_each_
     each_build(small_copies_and_fills_stay_inside_regions_that_touch_unmapped_pages);
 }
 
-/// The internal copy (`liella_internal_memcpy`, COPY-INTERNAL) against the exported `memcpy` and
+/// The internal copy (`niji_internal_memcpy`, COPY-INTERNAL) against the exported `memcpy` and
 /// a byte loop: every size 0 to 300 and the 4 KiB and 64 KiB boundaries (the kernels' range ends
 /// at 64 KiB), every alignment of source and destination mod 32, disjoint buffers with sentinels.
 fn internal_copies_match_memcpy_at_every_size_and_alignment(build: &str) {
@@ -249,7 +249,7 @@ fn internal_copies_match_memcpy_at_every_size_and_alignment_in_each_build() {
             internal_copies_match_memcpy_at_every_size_and_alignment(&format!("{build} erms {erms}"));
         }
         // Put the CPUID decision back (ERMS), then the build `each_build` forced.
-        let _ = liella_boundary::cpu::init();
+        let _ = niji_boundary::cpu::init();
         assert!(selftest::set_kernel_avx2(build.starts_with("avx2")));
     });
 }
@@ -268,7 +268,7 @@ const NULL_CALLS: usize = 7;
 fn null_call(k: &CSys) -> i32 {
     use std::sync::atomic::Ordering::SeqCst;
     // No core dump (a crash reporter such as apport took about a second per child).
-    if k.prctl_int(liella_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
+    if k.prctl_int(niji_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
         return 4;
     }
     let (case, fold) = (NULL_CASE.load(SeqCst), NULL_FOLD.load(SeqCst));
@@ -309,7 +309,7 @@ fn null_faults_in_the_folded_sizes_and_aborts_in_every_other() {
     // Third: `rep stosb` forced on, so the `memset` entry's ERMS path (MEMSET-4K-4: NULL is
     // 64-byte aligned and takes its aligned branch) is checked without ERMS hardware too.
     let mut runs = vec![(false, false, false), (true, false, false), (true, false, true)];
-    if liella_boundary::cpu::avx2() {
+    if niji_boundary::cpu::avx2() {
         runs.push((true, true, false));
     }
     for (fold, avx2, erms) in runs {
@@ -348,7 +348,7 @@ const MID_CALLS: usize = 8;
 /// The builds of the 129-256 NULL tests: (folding, AVX2 build); AVX2 only where the CPU has it.
 fn mid_builds() -> Vec<(bool, bool)> {
     let mut runs = vec![(false, false), (true, false)];
-    if liella_boundary::cpu::avx2() {
+    if niji_boundary::cpu::avx2() {
         runs.extend([(false, true), (true, true)]);
     } else {
         println!("no AVX2 on this CPU: the 129-256 NULL tests run the SSE2 build only");
@@ -358,7 +358,7 @@ fn mid_builds() -> Vec<(bool, bool)> {
 
 fn mid_null_call(k: &CSys) -> i32 {
     use std::sync::atomic::Ordering::SeqCst;
-    if k.prctl_int(liella_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
+    if k.prctl_int(niji_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
         return 4;
     }
     // The production order: the build at startup, then the (lazy) folding decision, so the
@@ -417,11 +417,11 @@ fn a_null_source_of_129_to_256_bytes_writes_nothing_into_a_shared_file_mapping()
     // valid destination. The destination is a MAP_SHARED page of a memfd (the parent sees what the
     // child wrote, and so does the file); after each crash (SIGSEGV folded, the abort otherwise)
     // the mapping and the file still hold their pattern.
-    use liella_kernel::path::KStr;
-    use liella_kernel::uapi::{MAP_SHARED, MFD_CLOEXEC};
+    use niji_kernel::path::KStr;
+    use niji_kernel::uapi::{MAP_SHARED, MFD_CLOEXEC};
     use std::sync::atomic::Ordering::SeqCst;
     let _turn = BUILD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let fd = CSys.memfd_create(KStr::from_nul_terminated(b"liella-nullfold\0").unwrap(), MFD_CLOEXEC).unwrap();
+    let fd = CSys.memfd_create(KStr::from_nul_terminated(b"niji-nullfold\0").unwrap(), MFD_CLOEXEC).unwrap();
     let want_bytes: Vec<u8> = (0..PAGE).map(|i| (i % 251) as u8 | 1).collect();
     CSys.pwrite(fd, &want_bytes, 0).unwrap();
     let region = CSys.mmap(0, PAGE, PROT_READ | PROT_WRITE, MAP_SHARED, Some(fd), 0).unwrap();
@@ -556,7 +556,7 @@ static FILL_MODE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsiz
 /// The fill child: folding on, the kernel `FILL_MODE` names, then one fill of 0x3C.
 fn fill_call(k: &CSys) -> i32 {
     use std::sync::atomic::Ordering::SeqCst;
-    if k.prctl_int(liella_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
+    if k.prctl_int(niji_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
         return 4;
     }
     if !selftest::set_null_fold(true) {
@@ -617,12 +617,12 @@ fn null_fill_beside_a_page_at_64_kib(k: &CSys) -> i32 {
     let page = match k.mmap(AT, PAGE, PROT_READ | PROT_WRITE, flags, None, 0) {
         Ok(r) if r.addr() == AT => r,
         _ => {
-            let _ = k.write(liella_kernel::fd::Fd::STDERR, b"small_copy: no page can be mapped at 64 KiB here: that check skipped\n");
+            let _ = k.write(niji_kernel::fd::Fd::STDERR, b"small_copy: no page can be mapped at 64 KiB here: that check skipped\n");
             return 77;
         }
     };
     let clean = [0xA5u8; PAGE];
-    let modes: &[usize] = if liella_boundary::cpu::avx2() { &[0, 1, 2] } else { &[0, 1] };
+    let modes: &[usize] = if niji_boundary::cpu::avx2() { &[0, 1, 2] } else { &[0, 1] };
     for &mode in modes {
         for n in [65_537, AT + PAGE, 1 << 20] {
             for chk in [false, true] {

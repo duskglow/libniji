@@ -9,12 +9,12 @@
 //! * The `_l` forms ignore the locale object: every locale is the C locale (D-6.7).
 //! * Tokenizer cursors and `strtok`'s hidden position are addresses (`string_compat`).
 
-use liella::bytes;
-use liella::random;
-use liella_abi::ctypes::{c_char, c_int, c_uint, c_void, locale_t, size_t, ssize_t, wchar_t};
-use liella_kernel::errno::Errno;
-use liella_legacy::cstring;
-use liella_legacy::string_compat;
+use niji::bytes;
+use niji::random;
+use niji_abi::ctypes::{c_char, c_int, c_uint, c_void, locale_t, size_t, ssize_t, wchar_t};
+use niji_kernel::errno::Errno;
+use niji_legacy::cstring;
+use niji_legacy::string_compat;
 
 use crate::caller_alloc;
 use crate::conv;
@@ -55,7 +55,7 @@ pub extern "C" fn memmove(d: *mut c_void, s: *const c_void, n: size_t) -> *mut c
 crate::internal_entry! {
 /// `memcpy@GLIBC_2.2.5`: the old contract is overlap-safe, `memmove`'s (probe-settled, LG-2);
 /// exported only under that compat version (`csys/src/machine/compat_aliases.S`).
-pub extern "C" fn liella_compat_memcpy(d: *mut c_void, s: *const c_void, n: size_t) -> *mut c_void {
+pub extern "C" fn niji_compat_memcpy(d: *mut c_void, s: *const c_void, n: size_t) -> *mut c_void {
     // UNSAFE(slice) SAFETY: d and s are valid for n bytes and may overlap (memcpy@GLIBC_2.2.5).
     unsafe { hot::move_bytes(d, s, n) }
 }}
@@ -105,7 +105,7 @@ pub extern "C" fn __memset_chk(d: *mut c_void, c: c_int, n: size_t, destlen: siz
     unsafe { hot::set_bytes(d, c, conv::chk(n, destlen)) }
 }}
 
-export! { local "liella_hot_move_rest";
+export! { local "niji_hot_move_rest";
 /// The copy entry's other sizes, reached by name from the direct entry `memcpy`/`memmove`
 /// (machine/fold.S, D-4.22 COPY-FILL).
 pub extern "C" fn hot_move_rest(d: *mut c_void, s: *const c_void, n: size_t) -> *mut c_void {
@@ -113,14 +113,14 @@ pub extern "C" fn hot_move_rest(d: *mut c_void, s: *const c_void, n: size_t) -> 
     unsafe { hot::move_rest(d, s, n) }
 }}
 
-export! { local "liella_hot_fill_large";
+export! { local "niji_hot_fill_large";
 /// The fill entry's sizes above 256, straight to the large-fill choice (from the direct entry `memset`).
 pub extern "C" fn hot_fill_large(d: *mut c_void, c: c_int, n: size_t) -> *mut c_void {
     // UNSAFE(slice) SAFETY: the memset contract with n > 256, passed on unchanged by the direct entry.
     unsafe { hot::fill_big(d, c, n) }
 }}
 
-export! { local "liella_hot_fill_rest";
+export! { local "niji_hot_fill_rest";
 /// The fill entry's other sizes, as `hot_move_rest` (from the direct entry `memset`).
 pub extern "C" fn hot_fill_rest(d: *mut c_void, c: c_int, n: size_t) -> *mut c_void {
     // UNSAFE(slice) SAFETY: the memset contract, passed on unchanged by the direct entry.
@@ -142,13 +142,13 @@ pub extern "C" fn __bzero(d: *mut c_void, n: size_t) {
 export! { "GLIBC_2.25";
 pub extern "C" fn explicit_bzero(d: *mut c_void, n: size_t) {
     // The native interface's secure zeroing, unchanged (D-X.11); NULL with n > 0 aborts (S6).
-    ret::unit(Errno::decode(secure::liella_secure_zero(d, n)).map(drop))
+    ret::unit(Errno::decode(secure::niji_secure_zero(d, n)).map(drop))
 }}
 
 export! { "GLIBC_2.25";
 pub extern "C" fn __explicit_bzero_chk(d: *mut c_void, n: size_t, destlen: size_t) {
     // As explicit_bzero, after the fortify check.
-    ret::unit(Errno::decode(secure::liella_secure_zero(d, conv::chk(n, destlen))).map(drop))
+    ret::unit(Errno::decode(secure::niji_secure_zero(d, conv::chk(n, destlen))).map(drop))
 }}
 
 export! { "GLIBC_2.2.5";
@@ -169,7 +169,7 @@ pub extern "C" fn memchr(s: *const c_void, c: c_int, n: size_t) -> *mut c_void {
     unsafe { strz::find_n_direct(s.cast(), c, n) }.cast_mut().cast()
 }}
 
-export! { local "liella_hot_memchr_rest";
+export! { local "niji_hot_memchr_rest";
 /// The memchr entry's other cases (n == 0, n > isize::MAX, folding off), reached by name from the
 /// direct entry `memchr` (machine/scan.S, MEMCHR-FOLD): the checked entry, which also takes the
 /// lazy folding decision.
@@ -185,7 +185,7 @@ pub extern "C" fn memrchr(s: *const c_void, c: c_int, n: size_t) -> *mut c_void 
     unsafe { strz::rfind_n_direct(s.cast(), c, n) }.cast_mut().cast()
 }}
 
-export! { local "liella_hot_memrchr_rest";
+export! { local "niji_hot_memrchr_rest";
 /// The memrchr entry's other cases (n == 0, n > isize::MAX, NULL s), reached by name from the
 /// direct entry `memrchr` (machine/scan.S, SCAN-RAW): the checked entry (NULL for n == 0, else
 /// the S6 abort).
@@ -206,7 +206,7 @@ pub extern "C" fn __rawmemchr(s: *const c_void, c: c_int) -> *mut c_void {
     unsafe { strz::find_direct(s.cast(), c) }.cast_mut().cast()
 }}
 
-export! { local "liella_hot_rawmemchr_rest";
+export! { local "niji_hot_rawmemchr_rest";
 /// The rawmemchr entry's NULL case, reached by name from the direct entry `rawmemchr`
 /// (machine/scan.S, SCAN-TAIL): the checked entry, which aborts (S6).
 pub extern "C" fn hot_rawmemchr_rest(s: *const c_void, c: c_int) -> *mut c_void {
@@ -234,7 +234,7 @@ pub extern "C" fn __memcmpeq(a: *const c_void, b: *const c_void, n: size_t) -> c
     unsafe { hot::equal_direct(a, b, n) }
 }}
 
-export! { local "liella_hot_compare_rest";
+export! { local "niji_hot_compare_rest";
 /// The compare entry's other cases (above 64, folding off, NULL with 0-7 bytes, a 2-7 byte word that
 /// re-reads equal under a concurrent writer), reached by name from the
 /// direct entry `memcmp` (machine/fold.S, MEMCMP-FOLD): the checked entry.
@@ -243,14 +243,14 @@ pub extern "C" fn hot_compare_rest(a: *const c_void, b: *const c_void, n: size_t
     unsafe { hot::compare_rest(a, b, n) }
 }}
 
-export! { local "liella_hot_compare_tail";
+export! { local "niji_hot_compare_tail";
 /// The compare entry's classes after an equal head probe (machine/fold.S, MEMCMP-FOLD).
 pub extern "C" fn hot_compare_tail(a: *const c_void, b: *const c_void, n: size_t) -> c_int {
     // UNSAFE(slice) SAFETY: 8 <= n <= 64, a and b just read by the direct entry (non-NULL), bytes 0-7 equal.
     unsafe { hot::compare_tail(a, b, n) }
 }}
 
-export! { local "liella_hot_compare_big";
+export! { local "niji_hot_compare_big";
 /// The compare entry's sizes above 64 (machine/fold.S, MEMCMP-SHORT): the checked classes without
 /// the small-size range test and the folding decision (which only 1-64 bytes take).
 pub extern "C" fn hot_compare_big(a: *const c_void, b: *const c_void, n: size_t) -> c_int {
@@ -258,7 +258,7 @@ pub extern "C" fn hot_compare_big(a: *const c_void, b: *const c_void, n: size_t)
     unsafe { hot::compare_big(a, b, n) }
 }}
 
-export! { local "liella_hot_compare_rescan";
+export! { local "niji_hot_compare_rescan";
 /// The compare entry's 65-2048-byte classes when the reported first difference re-reads equal
 /// (machine/fold.S `.Lcmp_big_byte`, MEMCMP-MID-2): the counted D-4.21 rescan from `i + 1`.
 pub extern "C" fn hot_compare_rescan(a: *const c_void, b: *const c_void, n: size_t, i: size_t) -> c_int {
@@ -266,21 +266,21 @@ pub extern "C" fn hot_compare_rescan(a: *const c_void, b: *const c_void, n: size
     unsafe { hot::compare_rescan(a, b, n, i) }
 }}
 
-export! { local "liella_hot_equal_big";
+export! { local "niji_hot_equal_big";
 /// The equality entry's sizes above 64, as `hot_compare_big` (from `bcmp`/`__memcmpeq`).
 pub extern "C" fn hot_equal_big(a: *const c_void, b: *const c_void, n: size_t) -> c_int {
     // UNSAFE(slice) SAFETY: the bcmp contract with n > 64, passed on unchanged by the direct entry.
     unsafe { hot::equal_big(a, b, n) }
 }}
 
-export! { local "liella_hot_equal_rest";
+export! { local "niji_hot_equal_rest";
 /// The equality entry's other cases, as `hot_compare_rest` (from `bcmp`/`__memcmpeq`).
 pub extern "C" fn hot_equal_rest(a: *const c_void, b: *const c_void, n: size_t) -> c_int {
     // UNSAFE(slice) SAFETY: the bcmp contract, passed on unchanged by the direct entry.
     unsafe { hot::equal_rest_entry(a, b, n) }
 }}
 
-export! { local "liella_hot_equal_tail";
+export! { local "niji_hot_equal_tail";
 /// The equality entry's classes after an equal head probe (machine/fold.S, MEMCMP-FOLD).
 pub extern "C" fn hot_equal_tail(a: *const c_void, b: *const c_void, n: size_t) -> c_int {
     // UNSAFE(slice) SAFETY: 8 <= n <= 64, a and b just read by the direct entry (non-NULL), bytes 0-7 equal.
@@ -323,7 +323,7 @@ pub extern "C" fn strcmp(a: *const c_char, b: *const c_char) -> c_int {
     unsafe { strz::order_direct(a, b) }
 }}
 
-export! { local "liella_hot_strcmp_null";
+export! { local "niji_hot_strcmp_null";
 /// The strcmp entry's NULL case, reached by name from the direct entry `strcmp` (machine/scan.S,
 /// STRCMP-ENTRY): the checked entry, which aborts (S6).
 pub extern "C" fn hot_strcmp_null(a: *const c_char, b: *const c_char) -> c_int {
@@ -365,7 +365,7 @@ pub extern "C" fn strncmp(a: *const c_char, b: *const c_char, n: size_t) -> c_in
     unsafe { strz::order_n(a, b, n) }
 }}
 
-export! { local "liella_hot_strncmp_null";
+export! { local "niji_hot_strncmp_null";
 /// The strncmp entry's NULL case (n > 0), reached by name from the direct entry `strncmp`
 /// (machine/scan.S, STR-CHR-CMP-SHORT): the S6 abort, before any read.
 pub extern "C" fn hot_strncmp_null(a: *const c_char, b: *const c_char, n: size_t) -> c_int {
@@ -385,7 +385,7 @@ pub extern "C" fn __strcasecmp(a: *const c_char, b: *const c_char) -> c_int {
     unsafe { let v = locale::view(); strz::casecmp_int(a, b, usize::MAX, v.ascii_case(), v.locale()) }
 }}
 
-export! { local "liella_hot_casecmp_rest";
+export! { local "niji_hot_casecmp_rest";
 /// The casecmp ordering kernels' way out (machine/scan.S, STRCASECMP-SHORT-2), reached by name
 /// with the arguments the kernel got: the deciding bytes hold one of 128 or more (`code` 2: the
 /// measured path for `loc`), or an index above `n` (`code` 3: abort, D-4.21).
@@ -485,7 +485,7 @@ pub extern "C" fn strchrnul(s: *const c_char, c: c_int) -> *mut c_char {
     unsafe { strz::chr_or_end(s, c) }.cast_mut().cast()
 }}
 
-export! { local "liella_hot_strchr_null";
+export! { local "niji_hot_strchr_null";
 /// The NULL case of the strchr, index and strchrnul entries, reached by name from the direct
 /// entries (machine/scan.S, STR-CHR-CMP-SHORT): the S6 abort, before any read.
 pub extern "C" fn hot_strchr_null(s: *const c_char, c: c_int) -> *mut c_char {
@@ -498,10 +498,10 @@ pub extern "C" fn strstr(h: *const c_char, n: *const c_char) -> *mut c_char {
     // The direct entry (machine/scan.S, TIMING-COV-STRSTR-PAIR): a needle of up to 15 bytes that
     // the first candidate decides, in registers; the rest and NULLs in `hot_strstr_slow` /
     // `hot_strstr_next`. Proof obligation: this function's contract (§4.6).
-    crate::ffi::liella_machine_strstr(h.cast(), n.cast()).cast()
+    crate::ffi::niji_machine_strstr(h.cast(), n.cast()).cast()
 }}
 
-export! { local "liella_hot_strstr_slow";
+export! { local "niji_hot_strstr_slow";
 /// `strstr`'s measuring path, reached by name from the direct entry before any scan: a NULL
 /// string, a string at a page offset of 0 or above 4080, or a needle of 16 bytes or more.
 pub extern "C" fn hot_strstr_slow(h: *const c_char, n: *const c_char) -> *mut c_char {
@@ -511,7 +511,7 @@ pub extern "C" fn hot_strstr_slow(h: *const c_char, n: *const c_char) -> *mut c_
     ret::found(h, unsafe { strz::find_str_n(h, n) })
 }}
 
-export! { local "liella_hot_strstr_next";
+export! { local "niji_hot_strstr_next";
 /// `strstr` after the direct entry's first scan, reached by name from it: the needle at `n` has
 /// `m` (1..15) bytes, haystack bytes [0, m - 1) are text, and `r` is the scan's answer for the
 /// pair (0, m - 1) from byte m - 1, which the entry did not settle.
@@ -603,10 +603,10 @@ export! { asm "GLIBC_2.2.5";
 pub extern "C" fn strcpy(d: *mut c_char, s: *const c_char) -> *mut c_char {
     // The direct entry (machine/scan.S, STRCPY-SHORT-2): short strings in one pass, the rest and
     // NULLs in `hot_strcpy_rest`. Proof obligation: this function's contract (§4.2).
-    crate::ffi::liella_machine_strcpy(d.cast(), s.cast()).cast()
+    crate::ffi::niji_machine_strcpy(d.cast(), s.cast()).cast()
 }}
 
-export! { local "liella_hot_strcpy_rest";
+export! { local "niji_hot_strcpy_rest";
 /// `strcpy`'s general path, reached by name from the direct entry with nothing written: a NULL
 /// `d` or `s` (reported, S6), a source whose first 64 bytes leave its page (`skip` 0) or hold no
 /// NUL (`skip` 64: that scan is not repeated). `_room` is not set by that entry.
@@ -643,10 +643,10 @@ export! { asm "GLIBC_2.3.4";
 pub extern "C" fn __strcpy_chk(d: *mut c_char, s: *const c_char, destlen: size_t) -> *mut c_char {
     // The direct entry (machine/scan.S, STRCPY-FAMILY): room checked before any store; the rest,
     // NULLs and failed checks in `hot_strcpy_chk_rest`. Proof obligation: the fortify contract.
-    crate::ffi::liella_machine_strcpy_chk(d.cast(), s.cast(), destlen).cast()
+    crate::ffi::niji_machine_strcpy_chk(d.cast(), s.cast(), destlen).cast()
 }}
 
-export! { local "liella_hot_strcpy_chk_rest";
+export! { local "niji_hot_strcpy_chk_rest";
 /// `__strcpy_chk`'s general path, reached by name from the direct entry with nothing written: a
 /// NULL `d` or `s` (reported, S6), a source whose first 64 bytes leave its page, or a string that
 /// does not fit `destlen` (fortify failure).
@@ -680,23 +680,23 @@ unsafe fn copy_str_chk(d: *mut c_char, s: *const c_char, destlen: usize) -> Opti
 export! { asm "GLIBC_2.2.5";
 pub extern "C" fn stpcpy(d: *mut c_char, s: *const c_char) -> *mut c_char {
     // The direct entry (machine/scan.S, STRCPY-FAMILY). Proof obligation: the contract (§4.2).
-    crate::ffi::liella_machine_stpcpy(d.cast(), s.cast()).cast()
+    crate::ffi::niji_machine_stpcpy(d.cast(), s.cast()).cast()
 }}
 
 export! { asm "GLIBC_2.2.5";
 pub extern "C" fn __stpcpy(d: *mut c_char, s: *const c_char) -> *mut c_char {
     // The direct entry (machine/scan.S, STRCPY-FAMILY): the same code as stpcpy.
-    crate::ffi::liella_machine_stpcpy(d.cast(), s.cast()).cast()
+    crate::ffi::niji_machine_stpcpy(d.cast(), s.cast()).cast()
 }}
 
 export! { asm "GLIBC_2.3.4";
 pub extern "C" fn __stpcpy_chk(d: *mut c_char, s: *const c_char, destlen: size_t) -> *mut c_char {
     // The direct entry (machine/scan.S, STRCPY-FAMILY): room checked before any store.
     // Proof obligation: the fortify contract.
-    crate::ffi::liella_machine_stpcpy_chk(d.cast(), s.cast(), destlen).cast()
+    crate::ffi::niji_machine_stpcpy_chk(d.cast(), s.cast(), destlen).cast()
 }}
 
-export! { local "liella_hot_stpcpy_rest";
+export! { local "niji_hot_stpcpy_rest";
 /// The stpcpy family's general path (`room` = `usize::MAX` for stpcpy/__stpcpy), reached by name
 /// from the direct entry with nothing written: NULLs (S6), a page-leaving head, a failed check.
 pub extern "C" fn hot_stpcpy_rest(d: *mut c_char, s: *const c_char, room: size_t) -> *mut c_char {
@@ -708,10 +708,10 @@ export! { asm "GLIBC_2.2.5";
 pub extern "C" fn strncpy(d: *mut c_char, s: *const c_char, n: size_t) -> *mut c_char {
     // The direct entry (machine/scan.S, STRNCPY-SHORT): 1 <= n <= 64 in one pass, the rest and
     // NULLs in `hot_strncpy_rest`. Proof obligation: this function's contract (§4.2).
-    crate::ffi::liella_machine_strncpy(d.cast(), s.cast(), n).cast()
+    crate::ffi::niji_machine_strncpy(d.cast(), s.cast(), n).cast()
 }}
 
-export! { local "liella_hot_strncpy_rest";
+export! { local "niji_hot_strncpy_rest";
 /// `strncpy`'s general path, reached by name from the direct entry with the arguments unchanged
 /// and nothing written: a NULL `d` or `s` (reported, S6; with `n` 0 nothing is read or written),
 /// `n` 0 or above 64, or a source whose first 64 bytes leave its page.
@@ -725,10 +725,10 @@ pub extern "C" fn __strncpy_chk(d: *mut c_char, s: *const c_char, n: size_t, des
     // The direct entry (machine/scan.S, STRNCPY-FAMILY): n <= destlen checked before any store,
     // then the strncpy body; n > destlen and NULLs in `hot_strncpy_chk_rest`. Proof obligation:
     // this function's contract (fortify, §4.2).
-    crate::ffi::liella_machine_strncpy_chk(d.cast(), s.cast(), n, destlen).cast()
+    crate::ffi::niji_machine_strncpy_chk(d.cast(), s.cast(), n, destlen).cast()
 }}
 
-export! { local "liella_hot_strncpy_chk_rest";
+export! { local "niji_hot_strncpy_chk_rest";
 /// `__strncpy_chk`'s general path, reached by name from the direct entry with the arguments
 /// unchanged and nothing written: `n` above `destlen` (fails the fortify check) or a NULL `d` or `s`.
 pub extern "C" fn hot_strncpy_chk_rest(d: *mut c_char, s: *const c_char, n: size_t, destlen: size_t) -> *mut c_char {
@@ -740,10 +740,10 @@ export! { asm "GLIBC_2.2.5";
 pub extern "C" fn stpncpy(d: *mut c_char, s: *const c_char, n: size_t) -> *mut c_char {
     // The direct entry (machine/scan.S, STRNCPY-FAMILY): the strncpy body returning the end;
     // the rest and NULLs in `hot_stpncpy_rest`. Proof obligation: this function's contract (§4.2).
-    crate::ffi::liella_machine_stpncpy(d.cast(), s.cast(), n).cast()
+    crate::ffi::niji_machine_stpncpy(d.cast(), s.cast(), n).cast()
 }}
 
-export! { local "liella_hot_stpncpy_rest";
+export! { local "niji_hot_stpncpy_rest";
 /// `stpncpy`'s general path, reached by name from the direct entry with the arguments unchanged
 /// and nothing written: a NULL `d` or `s`, `n` above 64, or a source whose first 64 bytes leave its page.
 pub extern "C" fn hot_stpncpy_rest(d: *mut c_char, s: *const c_char, n: size_t) -> *mut c_char {
@@ -755,7 +755,7 @@ export! { asm "GLIBC_2.2.5";
 pub extern "C" fn __stpncpy(d: *mut c_char, s: *const c_char, n: size_t) -> *mut c_char {
     // STPNCPY-ALIAS: in the products a second label on the direct stpncpy entry (machine/scan.S).
     // Proof obligation: this function's contract (§4.2), as stpncpy.
-    crate::ffi::liella_machine_stpncpy(d.cast(), s.cast(), n).cast()
+    crate::ffi::niji_machine_stpncpy(d.cast(), s.cast(), n).cast()
 }}
 
 export! { asm "GLIBC_2.4";
@@ -763,10 +763,10 @@ pub extern "C" fn __stpncpy_chk(d: *mut c_char, s: *const c_char, n: size_t, des
     // The direct entry (machine/scan.S, STPNCPY-ALIAS): n <= destlen checked before any store,
     // then the stpncpy body; n > destlen and NULLs in `hot_stpncpy_chk_rest`. Proof obligation:
     // this function's contract (fortify, §4.2).
-    crate::ffi::liella_machine_stpncpy_chk(d.cast(), s.cast(), n, destlen).cast()
+    crate::ffi::niji_machine_stpncpy_chk(d.cast(), s.cast(), n, destlen).cast()
 }}
 
-export! { local "liella_hot_stpncpy_chk_rest";
+export! { local "niji_hot_stpncpy_chk_rest";
 /// `__stpncpy_chk`'s general path, reached by name from the direct entry with the arguments
 /// unchanged and nothing written: `n` above `destlen` (fails the fortify check) or a NULL `d` or `s`.
 pub extern "C" fn hot_stpncpy_chk_rest(d: *mut c_char, s: *const c_char, n: size_t, destlen: size_t) -> *mut c_char {

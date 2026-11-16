@@ -1,6 +1,6 @@
 /* `sqrtl`'s entry (spec §10, D-10.71: csys/src/machine/sqrtl.S) through the real C calling
  * convention: the operand in the caller's stack slot, the result in st(0). The Rust tests reach
- * the software and in-place paths through `liella_sqrtl_bits`, never this entry, so its own
+ * the software and in-place paths through `niji_sqrtl_bits`, never this entry, so its own
  * tests (control word, operand class) are checked here.
  * Clauses: s10_0_f_0 (the root is correctly rounded in the caller's direction with its flags and
  * errno). Self-checking: each failed check prints `FAIL line N: <check>`; exit 1 on any failure.

@@ -151,7 +151,7 @@ fn fast32_delta() -> u64 {
     crate::fast32::CEXP_DELTA
 }
 
-/// The 10^7-operand sweep per type (`cargo test --release -p liella-math --lib -- --ignored
+/// The 10^7-operand sweep per type (`cargo test --release -p niji-math --lib -- --ignored
 /// cexp_quick_tier_sweep`): the comparison above on 8 threads, 2·10^6 operands per regime.
 #[test]
 #[ignore = "long sweep: cargo xtask long-sweeps runs it in release (nightly and release runs)"]

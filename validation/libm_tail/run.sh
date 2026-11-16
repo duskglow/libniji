@@ -1,13 +1,13 @@
 #!/bin/bash
 # LAB-ONLY: drives validation/libm_tail/probe.c (LIBM-TAIL-PROBE; no spec clause): per-input instruction cost of
-# libm functions, Liella vs the installed glibc (black box), run under jobrun on a build host.
+# libm functions, libniji vs the installed glibc (black box), run under jobrun on a build host.
 #
-#   bash validation/libm_tail/run.sh <liella-tree> <outdir> <spec>...
+#   bash validation/libm_tail/run.sh <niji-tree> <outdir> <spec>...
 #   spec = mode:func:S (probe.c modes u32 b32 u64 b64 n64; S = stride or samples per block), e.g. u32:expf:1
 #   (every f32 input). TAIL_PAR (default 4) processes per function and library, each a residue class of the
 #   blocks. A spec whose .done marker exists is skipped (a rerun resumes). n64 reads env TAIL_POINTS.
-# Binaries: <outdir>/probe-glibc (gcc -O2 -z now, dynamic libm) and <outdir>/probe-liella (scripts/liella-cc,
-# static, the tree's target/liella products), built once per outdir.
+# Binaries: <outdir>/probe-glibc (gcc -O2 -z now, dynamic libm) and <outdir>/probe-niji (scripts/niji-cc,
+# static, the tree's target/niji products), built once per outdir.
 set -u
 tree=$1 out=$2
 shift 2
@@ -18,9 +18,9 @@ if [ ! -x "$out/probe-glibc" ]; then
     gcc -O2 -Wl,-z,now -o "$out/probe-glibc.$$" "$src" -lm || exit 1
     mv -f "$out/probe-glibc.$$" "$out/probe-glibc"
 fi
-if [ ! -x "$out/probe-liella" ]; then
-    LIELLA_PRODUCTS=$tree/target/liella "$tree/scripts/liella-cc" -O2 -o "$out/probe-liella.$$" "$src" -lm || exit 1
-    mv -f "$out/probe-liella.$$" "$out/probe-liella"
+if [ ! -x "$out/probe-niji" ]; then
+    NIJI_PRODUCTS=$tree/target/niji "$tree/scripts/niji-cc" -O2 -o "$out/probe-niji.$$" "$src" -lm || exit 1
+    mv -f "$out/probe-niji.$$" "$out/probe-niji"
 fi
 rc=0
 for spec in "$@"; do
@@ -28,7 +28,7 @@ for spec in "$@"; do
     func=${rest%%:*} S=${rest#*:}
     # mode n64 takes a 4th field: the points, separated by '/'
     case $S in */*|*:*) pts=${S#*:}; S=${S%%:*}; export TAIL_POINTS=${pts//\//,} ;; esac
-    for lib in glibc liella; do
+    for lib in glibc niji; do
         tag=$func.$mode.$S.$lib
         [ -f "$out/$tag.done" ] && continue
         t0=$(date +%s)

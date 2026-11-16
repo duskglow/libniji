@@ -9,7 +9,7 @@
 //! by the program and by the library, three rounds so that later threads reuse exited threads'
 //! mappings: each new thread sees every variable's initial value and zeros, its own `errno`, and
 //! keeps its own values while the others write theirs. Run on the host's glibc (the reference)
-//! and on Liella's `libc.so.6` under Liella's `ld.so`.
+//! and on libniji's `libc.so.6` under libniji's `ld.so`.
 // ARCH(x86_64): the oracle and the descriptor convention are x86-64's.
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -57,7 +57,7 @@ fn tlsdesc_functions_keep_every_register_but_rax() {
         skip_note::skipped("skipped: no C compiler; the TLS descriptor functions not checked");
         return;
     }
-    let d = Scratch::new("liella-tlsdesc-abi");
+    let d = Scratch::new("niji-tlsdesc-abi");
     let oracle = root().join("crates/boundary/tests/oracle");
     let exe = d.0.join("tlsdesc_abi");
     let (abi, harness, prim) = (oracle.join("tlsdesc_abi.c"), oracle.join("tlsdesc_harness.S"), root().join("csys/src/machine/tlsdesc.S"));
@@ -166,14 +166,14 @@ int main(void) {
 }
 ";
 
-/// Build the library and the program in `dir`: `link` are the extra link arguments (Liella's
+/// Build the library and the program in `dir`: `link` are the extra link arguments (libniji's
 /// `libc.so` script and its loader), `pie` the program's. Returns the program.
 fn build(dir: &Path, link: &[&str], prog_link: &[&str]) -> PathBuf {
     for (name, src, dialect) in [("trad", LIB_TRAD, "-mtls-dialect=gnu"), ("desc", LIB_DESC, "-mtls-dialect=gnu2")] {
         std::fs::write(dir.join(format!("{name}.c")), src).unwrap();
         cc(dir, &["-c", "-O1", "-fPIC", dialect, &format!("{name}.c"), "-o", &format!("{name}.o")]);
     }
-    // No soname: the program names the library by path (Liella's loader has no search yet).
+    // No soname: the program names the library by path (libniji's loader has no search yet).
     let lib = dir.join("libtt.so");
     let mut args = vec!["-shared", "trad.o", "desc.o", "-o", lib.to_str().unwrap()];
     args.extend(link);
@@ -194,25 +194,25 @@ fn build(dir: &Path, link: &[&str], prog_link: &[&str]) -> PathBuf {
 /// (`__tls_get_addr`), errno per thread (§2): threads created by a dynamically linked program and
 /// by its library each get every initially loaded module's TLS (GD, LD, IE, TLSDESC in the library,
 /// LE in the program) initialised, zeros where the image ends, the library's 64-byte alignment, and
-/// their own `errno`, in fresh and in reused thread mappings; on the reference and on Liella.
+/// their own `errno`, in fresh and in reused thread mappings; on the reference and on libniji.
 #[test]
 fn threads_get_static_tls_of_every_initial_module() {
     if skip_note::missing("cc") || skip_note::missing("readelf") {
         skip_note::skipped("skipped: no C compiler or readelf; threads with TLS in dynamic programs not checked");
         return;
     }
-    let host = Scratch::new("liella-tls-threads-host");
+    let host = Scratch::new("niji-tls-threads-host");
     let exe = build(&host.0, &["-pthread"], &["-pthread"]);
     let o = Command::new(&exe).output().unwrap();
     assert_eq!(o.status.code(), Some(0), "on the reference: {}", String::from_utf8_lossy(&o.stdout));
 
-    let own = Scratch::new("liella-tls-threads");
-    let (ld, libc) = products::liella_link_script(&own.0);
+    let own = Scratch::new("niji-tls-threads");
+    let (ld, libc) = products::niji_link_script(&own.0);
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let libc = libc.to_str().unwrap();
     let exe = build(&own.0, &["-nodefaultlibs", libc, "-lgcc"], &["-nodefaultlibs", &interp, libc, "-lgcc"]);
     for how in ["PT_INTERP", "ld.so PROGRAM"] {
         let o = if how == "PT_INTERP" { Command::new(&exe).output() } else { Command::new(&ld).arg(&exe).output() }.unwrap();
-        assert_eq!(o.status.code(), Some(0), "on Liella ({how}): {} {}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+        assert_eq!(o.status.code(), Some(0), "on libniji ({how}): {} {}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     }
 }

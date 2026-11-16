@@ -1,10 +1,10 @@
 //! System logging end to end (spec §26.1; D-26.1): `tests/oracle/syslog_diff.c` built against
-//! the host C library and statically against Liella's products, each run by
+//! the host C library and statically against libniji's products, each run by
 //! `tests/oracle/syslog_run.sh` (as the calling user, in a private mount namespace whose `/dev`
 //! is a fresh tmpfs: the program binds its own `/dev/log` and owns `/dev/console`, so nothing
-//! reaches the system log; the namespace needs `sudo -n`), Liella with the name-service cache
+//! reaches the system log; the namespace needs `sudo -n`), libniji with the name-service cache
 //! on and off (`nscache_mode.sh`, D-16.10). The outputs must be identical line by line, except
-//! the recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only Liella
+//! the recorded differences: [`KNOWN`] (a line that differs), [`ADDED`] (a line only libniji
 //! prints) and [`DROPPED`] (a line only the reference prints). Every entry names the case it
 //! belongs to: the text of the last `== ` header line before it starts with the entry's first
 //! string.
@@ -29,12 +29,12 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn build(out: &Path, liella: bool) -> bool {
+fn build(out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join("crates/core/tests/oracle/syslog_diff.c");
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -80,7 +80,7 @@ const KNOWN: [(&str, &str, &str); 18] = [
     ("== /dev/console a FIFO without a reader", "fifo console: child killed by SIGALRM", FIFO),
 ];
 
-/// Lines only Liella prints: the case, the text the line starts with, and why (the first such
+/// Lines only libniji prints: the case, the text the line starts with, and why (the first such
 /// line of the case is taken; a repeated entry takes the next one).
 const ADDED: [(&str, &str, &str); 2] = [(LONG, "returned", NULL_FMT), ("== /dev/console a FIFO without a reader", "returned", FIFO)];
 
@@ -150,7 +150,7 @@ fn syslog_equals_the_reference() {
     // Clauses: s26_1_c_1, s26_1_c_1_1, s26_1_c_1_2, s26_1_c_1_3, s26_1_c_1_4, s26_1_c_2, s26_1_c_3, s26_1_c_4,
     // s26_1_g_1, s26_1_g_2, s26_1_g_3, s26_1_g_4 (D-26.1, D-26.2).
     let r = root();
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -161,7 +161,7 @@ fn syslog_equals_the_reference() {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join("syslog_diff_host"), dir.join("syslog_diff_liella"));
+    let (host, ours) = (dir.join("syslog_diff_host"), dir.join("syslog_diff_niji"));
     assert!(build(&host, false), "syslog_diff.c does not build against the host C library");
     assert!(build(&ours, true), "syslog_diff.c does not link against the products");
     let script = r.join("crates/core/tests/oracle/syslog_run.sh");
@@ -187,7 +187,7 @@ fn syslog_equals_the_reference() {
         eprintln!("name-service cache {mode}");
         let got = run(&ours, Some(mode));
         let want = without(with_headers(&reference), &DROPPED, "the reference");
-        let got = without(with_headers(&got), &ADDED, "Liella");
+        let got = without(with_headers(&got), &ADDED, "libniji");
         let mut diffs = 0;
         let mut seen = vec![false; KNOWN.len()];
         for (k, ((h, w), (_, g))) in want.iter().zip(got.iter()).enumerate() {
@@ -195,19 +195,19 @@ fn syslog_equals_the_reference() {
             if let Some(i) = KNOWN.iter().position(|(case, needle, _)| h.starts_with(case) && w.starts_with(needle)) {
                 if w != g {
                     seen[i] = true;
-                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  liella {g}", KNOWN[i].2);
+                    eprintln!("recorded difference ({}):\n  glibc  {w}\n  niji {g}", KNOWN[i].2);
                 }
                 continue;
             }
             if w != g {
                 diffs += 1;
                 if diffs <= 60 {
-                    eprintln!("line {} ({}):\n  glibc  {w}\n  liella {g}", k + 1, h.trim_end());
+                    eprintln!("line {} ({}):\n  glibc  {w}\n  niji {g}", k + 1, h.trim_end());
                 }
             }
         }
         let text = |v: &[(String, String)]| v.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
-        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- liella\n{}", text(&want), text(&got));
+        assert_eq!(want.len(), got.len(), "line counts differ:\n--- glibc\n{}\n--- niji\n{}", text(&want), text(&got));
         assert_eq!(diffs, 0, "lines that differ from the reference");
         for (i, s) in seen.iter().enumerate() {
             assert!(s, "recorded difference no longer seen: {:?}", KNOWN[i]);

@@ -10,10 +10,10 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::error::Result;
-use liella::mem::TryVec;
-use liella::pattern::wordexp::{self, Shell, ValBuf, Words};
-use liella_fuzz::Input;
+use niji::error::Result;
+use niji::mem::TryVec;
+use niji::pattern::wordexp::{self, Shell, ValBuf, Words};
+use niji_fuzz::Input;
 
 /// The most fields kept, and the most variables `${X:=w}` may set.
 const MAX_FIELDS: usize = 1 << 16;
@@ -99,7 +99,7 @@ struct Fields(usize);
 impl Words for Fields {
     fn push(&mut self, _word: &[u8]) -> Result<()> {
         self.0 += 1;
-        if self.0 > MAX_FIELDS { Err(liella::error::Errno::ENOMEM) } else { Ok(()) }
+        if self.0 > MAX_FIELDS { Err(niji::error::Errno::ENOMEM) } else { Ok(()) }
     }
 }
 
@@ -121,7 +121,7 @@ fuzz_target!(|data: &[u8]| {
     let mut args: Vec<&[u8]> = vec![b"prog"];
     args.extend(args_text.split(|&c| c == b' ').filter(|a| !a.is_empty()).take(64));
     let mut env = Env { vars, args };
-    let loc = liella_fuzz::locale(flags & 0x80 != 0);
+    let loc = niji_fuzz::locale(flags & 0x80 != 0);
     let wflags = i32::from(flags) & (wordexp::NOCMD | wordexp::SHOWERR | wordexp::UNDEF);
     let mut fields = Fields(0);
     if let Err(e) = wordexp::wordexp(words, wflags, &loc, &mut env, &mut fields) {

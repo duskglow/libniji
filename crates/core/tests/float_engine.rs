@@ -5,9 +5,9 @@
 
 #![allow(clippy::panic, clippy::approx_constant, clippy::unwrap_used, clippy::as_conversions, clippy::arithmetic_side_effects, clippy::indexing_slicing, missing_docs)]
 
-use liella::num::format::{format_float, Case, Sink, Spec, Style};
-use liella::num::parse::{parse_float, Dialect, FloatRange};
-use liella::num::{Float, Format, Rounding, Value};
+use niji::num::format::{format_float, Case, Sink, Spec, Style};
+use niji::num::parse::{parse_float, Dialect, FloatRange};
+use niji::num::{Float, Format, Rounding, Value};
 
 struct S(Vec<u8>);
 impl Sink for S {
@@ -105,7 +105,7 @@ fn midpoint_text(x: f64) -> String {
         // Bring both to the smaller exponent, add, halve by lowering the exponent.
         let e = ea.min(eb);
         let sum = (a << (ea - e)) + (b << (eb - e));
-        let r = liella::num::float::round(false, sum, e - 1, false, Format::F128, Rounding::Nearest);
+        let r = niji::num::float::round(false, sum, e - 1, false, Format::F128, Rounding::Nearest);
         assert!(!r.inexact);
         r.value.pack(Format::F128)
     };

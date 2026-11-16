@@ -21,7 +21,7 @@
 //!    * Anything else goes through `affected`'s model: its FULL escalations are FULL here; a crate it selects
 //!      WIDE is FULL here (but the three crates above); a narrowed change gives the reached modules.
 //!      The runtime crate (`crates/rt`, WIDE in `affected`) is narrowed here: its module `m` stands for the
-//!      files of the narrowed crates that name `liella_rt::m` (`start` and its root stay FULL).
+//!      files of the narrowed crates that name `niji_rt::m` (`start` and its root stay FULL).
 //!      `--narrow-allocator` (env `BENCH_NARROW_ALLOC=1` for `bench --affected`; RULING NEEDED, off by default):
 //!      the allocator is not FULL; its entry points (`malloc`, `free`, ...) and the module graph select rows.
 //! 3. Reached modules -> exported symbols: in each boundary file with `export!` blocks whose module is reached,
@@ -102,7 +102,7 @@ const NO_TIMING: &[&str] = &[
 ];
 
 /// Crates no bench links: `affected` selecting them WIDE does not make a bench FULL.
-const NOT_LINKED: &[&str] = &["liella-mathtools", "spectest", "liella-thread-db"];
+const NOT_LINKED: &[&str] = &["niji-mathtools", "spectest", "niji-thread-db"];
 
 /// C header macros that call an exported symbol the bench source does not name.
 const ALIASES: &[(&str, &[&str])] = &[
@@ -764,11 +764,11 @@ fn rt_users(root: &Path, m: &str) -> Vec<String> {
     for c in ["crates/boundary/src", "crates/core/src", "crates/legacy/src", "crates/math/src"] {
         rust_files(root, c, &mut all);
     }
-    let path = format!("liella_rt::{m}");
+    let path = format!("niji_rt::{m}");
     all.into_iter()
         .filter(|f| {
             let text = fs::read_to_string(root.join(f)).unwrap_or_default();
-            text.contains(&format!("{path}::")) || text.contains(&format!("{path};")) || text.lines().any(|l| l.contains("liella_rt::{") && idents(l).contains(m))
+            text.contains(&format!("{path}::")) || text.contains(&format!("{path};")) || text.lines().any(|l| l.contains("niji_rt::{") && idents(l).contains(m))
         })
         .collect()
 }
@@ -824,14 +824,14 @@ pub fn select_with(root: &Path, repo: &Repo, files: &[String], narrow_alloc: boo
         }
         if let Some(m) = f.strip_prefix("crates/rt/src/").and_then(|m| m.strip_suffix(".rs")).filter(|m| !m.contains('/')) {
             // The runtime crate is WIDE in `affected`; here its module `m` stands for the files of the narrowed
-            // crates that name `liella_rt::m` (`start` and the crate root stay FULL: startup).
+            // crates that name `niji_rt::m` (`start` and the crate root stay FULL: startup).
             if matches!(m, "lib" | "start") {
                 plan.full.push(format!("{f}: startup"));
                 continue;
             }
             let users = rt_users(root, m);
             if users.is_empty() {
-                plan.full.push(format!("{f}: no narrowed module names `liella_rt::{m}`"));
+                plan.full.push(format!("{f}: no narrowed module names `niji_rt::{m}`"));
             }
             plan.notes.push(format!("{f}: through its users {}", users.join(", ")));
             through.extend(users);
@@ -924,7 +924,7 @@ pub fn select_with(root: &Path, repo: &Repo, files: &[String], narrow_alloc: boo
         }
     }
     // The libm C forwarders (`long double` and `_Float128` forms, csys/src/adapter/math_libm.c): `MATH_FWD(expl)`
-    // calls the private export `liella_expl_bits`, so the C name is known and is reached when its export is.
+    // calls the private export `niji_expl_bits`, so the C name is known and is reached when its export is.
     let fwd = fs::read_to_string(root.join("csys/src/adapter/math_libm.c")).unwrap_or_default();
     for l in fwd.lines() {
         // `MATH_SLOW(sqrtl)`: the forwarder behind the assembly entry (D-10.71), same name.
@@ -933,7 +933,7 @@ pub fn select_with(root: &Path, repo: &Repo, files: &[String], narrow_alloc: boo
         if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
             continue;
         }
-        let Some(target) = idents(body).into_iter().find(|w| w.starts_with("liella_") && known.contains(w)) else { continue };
+        let Some(target) = idents(body).into_iter().find(|w| w.starts_with("niji_") && known.contains(w)) else { continue };
         known.insert(name.to_string());
         if let Some(why) = reached.get(&target).cloned() {
             reached.entry(name.to_string()).or_insert_with(|| format!("C forwarder of `{target}` ({why})"));
@@ -1210,7 +1210,7 @@ int main(void) { /* MEASURE(\"gone\", 1, memset(0,0,0)) */\n    MEASURE(\"a\", 1
     #[test]
     fn a_test_only_module_is_not_followed() {
         let repo = Repo::load(&root());
-        assert!(repo.test_only_has("liella-boundary", "selftest"), "selftest is declared under cfg(feature = \"selftest\")");
+        assert!(repo.test_only_has("niji-boundary", "selftest"), "selftest is declared under cfg(feature = \"selftest\")");
         let files = ["crates/boundary/src/hot/mem.rs".to_string()];
         let all = affected::select_opts(&repo, &files, false).modules;
         let prod = affected::select_opts(&repo, &files, true).modules;

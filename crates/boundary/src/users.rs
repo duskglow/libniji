@@ -1,9 +1,9 @@
 //! The C conventions of spec §17.2 (`initgroups`) and §17.3–17.6 (phase 10): the `_r` packing
 //! protocol, the library-owned records of the non-`_r` forms, the stream forms, the
-//! process-wide cursors, `getpass` and `getlogin` (`login_tty` is `liella::term::login`). The
-//! formats are `liella::users`; the database files, cursors and login accounting
-//! `liella_legacy::{nss, cursors, accounting}` (through the switch); the C structures are packed by
-//! `liella_abi::pack`. The exports in `posix::s17_users` convert the C arguments.
+//! process-wide cursors, `getpass` and `getlogin` (`login_tty` is `niji::term::login`). The
+//! formats are `niji::users`; the database files, cursors and login accounting
+//! `niji_legacy::{nss, cursors, accounting}` (through the switch); the C structures are packed by
+//! `niji_abi::pack`. The exports in `posix::s17_users` convert the C arguments.
 //!
 //! **Results** (D-17.3). The `_r` forms pack the record into the caller's structure and buffer:
 //! the buffer holds only the record's strings and pointer arrays (no copy of the line), aligned
@@ -19,23 +19,23 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::error::Errno;
-use liella::mem::TryVec;
-use liella::users::{self, PasswdOut, Utmp};
-use liella_abi::layout::{struct_group, struct_passwd, struct_sgrp, struct_spwd, struct_utmp};
-use liella_abi::pack::{self, Packer};
-use liella_kernel::errno::KResult;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::TcSet;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_RDWR};
-use liella_legacy::accounting::{self as acct, UTMP_DB};
-use liella::names::nss::Database;
-use liella_legacy::cursors::{self, Cursor, Step};
-use liella_legacy::nss::{self, Ctx};
-use liella_legacy::nss_files::{self as files, Key};
-use liella_rt::sync::RawMutex;
+use niji::error::Errno;
+use niji::mem::TryVec;
+use niji::users::{self, PasswdOut, Utmp};
+use niji_abi::layout::{struct_group, struct_passwd, struct_sgrp, struct_spwd, struct_utmp};
+use niji_abi::pack::{self, Packer};
+use niji_kernel::errno::KResult;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::TcSet;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{O_CLOEXEC, O_NOCTTY, O_RDWR};
+use niji_legacy::accounting::{self as acct, UTMP_DB};
+use niji::names::nss::Database;
+use niji_legacy::cursors::{self, Cursor, Step};
+use niji_legacy::nss::{self, Ctx};
+use niji_legacy::nss_files::{self as files, Key};
+use niji_rt::sync::RawMutex;
 
 use crate::caller_alloc;
 use crate::conv::{self, CPod};
@@ -146,7 +146,7 @@ const TABLE: usize = TABLE_WORDS * size_of::<usize>();
 const MIN_BLOCK: usize = 256;
 
 /// The calling thread's result table: `TABLE_WORDS` atomic words.
-pub(crate) type Table = liella_legacy::result_slots::Words<TABLE_WORDS>;
+pub(crate) type Table = niji_legacy::result_slots::Words<TABLE_WORDS>;
 
 /// Claim the calling thread's regex scratch for one call (D-14.12): its records slot when the
 /// busy flag (byte 8 of `SLOT_RECORDS`) was free. `None` when a `regexec` on this thread already
@@ -224,7 +224,7 @@ fn block<T: CPod + 'static>(kind: usize, extra: usize) -> KResult<(&'static mut 
 /// The calling thread's text buffer of `kind` (`N` bytes, always the same `N` for a kind, so the
 /// block is made once and never moves): `ENOMEM` when it cannot be had. Never shared between
 /// threads (D-C0.2): a function that cannot get its buffer fails, it does not fall back.
-pub(crate) fn result_buf<const N: usize>(kind: usize) -> KResult<&'static liella_legacy::result_slots::Buf<N>> {
+pub(crate) fn result_buf<const N: usize>(kind: usize) -> KResult<&'static niji_legacy::result_slots::Buf<N>> {
     Ok(crate::tb::block_buf::<N>(block_addr(kind, N)?))
 }
 
@@ -352,7 +352,7 @@ pub(crate) static GSHADOW: Db<struct_sgrp> = Db { file: files::GSHADOW, db: Data
 /// stream is then past it); `Stay` seeks the stream back to where the line started. `None` at
 /// the end of the stream.
 fn stream_next<T>(fp: usize, mut f: impl FnMut(&[u8]) -> Step<T>) -> KResult<Option<T>> {
-    use liella_legacy::stdio_compat as sc;
+    use niji_legacy::stdio_compat as sc;
     stdio::with(fp, Locking::Locked, |g, file, ext| {
         let mut line = TryVec::new();
         loop {
@@ -379,7 +379,7 @@ fn stream_next<T>(fp: usize, mut f: impl FnMut(&[u8]) -> Step<T>) -> KResult<Opt
                 Step::Take(t) => return Ok(Some(t)),
                 Step::Stay(e) => {
                     if let Some(s) = start.and_then(|s| i64::try_from(s).ok()) {
-                        let _ = sc::seek(g, file, ext, s, liella::stream::Whence::Set);
+                        let _ = sc::seek(g, file, ext, s, niji::stream::Whence::Set);
                     }
                     return Err(e);
                 }
@@ -574,7 +574,7 @@ pub fn getpw<'a>(uid: u32, buf: impl FnOnce(usize) -> KResult<&'a mut [u8]>) -> 
             Ok(line)
         }))?;
         let Some(line) = line.transpose()? else { return Ok(false) };
-        liella::net::copy_z(&line, buf(line.len().saturating_add(1))?).ok_or(Errno::EFAULT)?;
+        niji::net::copy_z(&line, buf(line.len().saturating_add(1))?).ok_or(Errno::EFAULT)?;
         Ok(true)
     })();
     match r {
@@ -647,7 +647,7 @@ pub fn getusershell() -> usize {
     acct::next_shell(&CSys, acct::SHELLS, |s| {
         let mut z = [0u8; 4097];
         // A longer line is no path the kernel would take; it is cut to fit.
-        let _ = liella::net::copy_z(s.get(..s.len().min(4096)).unwrap_or(&[]), &mut z);
+        let _ = niji::net::copy_z(s.get(..s.len().min(4096)).unwrap_or(&[]), &mut z);
         match result_buf::<4097>(USER_SHELL) {
             Ok(buf) => {
                 buf.store(&z);
@@ -687,7 +687,7 @@ fn login_name<T>(f: impl FnOnce(&[u8]) -> T) -> KResult<T> {
 pub fn getlogin() -> KResult<usize> {
     login_name(|name| -> KResult<usize> {
         let (addr, bytes) = block_bytes(LOGIN, name.len().saturating_add(1))?;
-        liella::net::copy_z(name, bytes).ok_or(Errno::ENOMEM)?;
+        niji::net::copy_z(name, bytes).ok_or(Errno::ENOMEM)?;
         Ok(addr)
     })?
 }
@@ -695,7 +695,7 @@ pub fn getlogin() -> KResult<usize> {
 /// `getlogin_r(buf, size)`: the error number (`ERANGE` when the name and its terminator do not
 /// fit).
 pub fn getlogin_r(buf: KResult<&mut [u8]>) -> i32 {
-    let r = login_name(|name| -> KResult<()> { liella::net::copy_z(name, buf?).map(|_| ()).ok_or(Errno::ERANGE) });
+    let r = login_name(|name| -> KResult<()> { niji::net::copy_z(name, buf?).map(|_| ()).ok_or(Errno::ERANGE) });
     match r.and_then(|r| r) {
         Ok(()) => 0,
         Err(e) => e.get(),
@@ -717,7 +717,7 @@ static PASS_LOCK: RawMutex = RawMutex::new();
 
 /// `getpass`'s default bound (D-17.8): the most bytes of input before the newline, 1 MiB.
 pub const PASS_DEFAULT_LIMIT: usize = 1 << 20;
-/// The bound in force for the process (`liella_getpass_set_limit`); 0 stands for the default.
+/// The bound in force for the process (`niji_getpass_set_limit`); 0 stands for the default.
 static PASS_LIMIT: AtomicUsize = AtomicUsize::new(0);
 
 /// The bound `getpass` applies now.
@@ -728,7 +728,7 @@ fn pass_limit() -> usize {
     }
 }
 
-/// `liella_getpass_set_limit(bytes)`: the process's bound on `getpass`'s line (0: the default
+/// `niji_getpass_set_limit(bytes)`: the process's bound on `getpass`'s line (0: the default
 /// again); the bound that was in force. More than `PTRDIFF_MAX` is `EINVAL`.
 pub fn set_pass_limit(bytes: usize) -> KResult<usize> {
     if isize::try_from(bytes).is_err() {
@@ -882,7 +882,7 @@ fn without_echo<T>(fd: Fd, f: impl FnOnce() -> KResult<T>) -> (KResult<T>, bool)
 /// the prompt on standard error, read one line with echo off and restore the terminal; the line
 /// (without its newline) in the process-wide buffer. The end of the input before a newline ends
 /// the line (an empty one at once). A line of more than the bound (D-17.8: 1 MiB unless
-/// `liella_getpass_set_limit` changed it) is never returned cut short: it is read to its end
+/// `niji_getpass_set_limit` changed it) is never returned cut short: it is read to its end
 /// and discarded, and the call fails with `EOVERFLOW`. Every buffer of the library's that held
 /// the line is zeroed before it is let go of (a stream's own buffer belongs to the stream), and
 /// the result block is zeroed before each new line goes in.
@@ -932,7 +932,7 @@ pub fn getpass(prompt: KResult<&[u8]>) -> KResult<usize> {
     };
     let out = conv::own_bytes(addr, size).ok_or(Errno::ENOMEM)?;
     wipe(out);
-    liella::net::copy_z(line.bytes(), out).ok_or(Errno::ENOMEM)?;
+    niji::net::copy_z(line.bytes(), out).ok_or(Errno::ENOMEM)?;
     Ok(addr)
 }
 
@@ -1031,7 +1031,7 @@ pub fn pututline(rec: Option<&struct_utmp>) -> KResult<usize> {
 /// `updwtmp(file, rec)`: failures only set `errno`.
 pub fn updwtmp(file: KResult<&[u8]>, rec: Option<&struct_utmp>) -> KResult<()> {
     let (file, rec) = (file?, rec.ok_or(Errno::EINVAL)?);
-    let path = liella_kernel::path::KPathBuf::new(file)?;
+    let path = niji_kernel::path::KPathBuf::new(file)?;
     acct::append(&CSys, path.as_kstr().with_nul(), &pack::utmp_in(rec))
 }
 

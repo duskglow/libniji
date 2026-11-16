@@ -1,5 +1,5 @@
 /* Stdio end to end (spec §12; D-12.1, D-12.11): built against the host C library and against
- * Liella's products, the outputs must match line for line (stdio_products.rs). Output goes
+ * libniji's products, the outputs must match line for line (stdio_products.rs). Output goes
  * through write(2) on a private descriptor, so the program's own stdout and stderr stay free
  * for the cases that test them. Argument: a scratch directory. */
 #define _GNU_SOURCE
@@ -83,7 +83,7 @@ static void files(void) {
     fseek(f, 5, SEEK_SET);
     ungetc('1', f); ungetc('2', f); ungetc('3', f);
     str("ungetc3"); kv("tell", ftell(f)); kv("c1", getc(f)); kv("c2", getc(f)); kv("c3", getc(f)); kv("c4", getc(f)); nl();
-    /* Reading then writing without a seek in between (Liella allows it; the reference allows
+    /* Reading then writing without a seek in between (libniji allows it; the reference allows
      * it for an update stream at EOF only): write at the end. */
     fseek(f, 0, SEEK_END);
     fputs("END", f);

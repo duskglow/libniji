@@ -23,7 +23,7 @@
 //!   `<dir>: (hwcap: "<name>") (from ...)`; no links are made there and the cache entry names the
 //!   file itself.
 //!
-//! Liella rules (the pending decision record of UTIL-LDCONFIG): directory listings and soname
+//! libniji rules (the pending decision record of UTIL-LDCONFIG): directory listings and soname
 //! groups are sorted, so the same tree gives the same output and byte-identical caches on any
 //! file system; a soname link is replaced atomically (a temporary link renamed over it); the
 //! cache is written to `<cache>~`, synced and renamed (the [`Fs`] does this); every ELF file is
@@ -163,8 +163,8 @@ pub trait Fs {
 pub const CONF: &[u8] = b"/etc/ld.so.conf";
 /// The default cache.
 pub const CACHE: &[u8] = b"/etc/ld.so.cache";
-/// The generator text Liella's caches carry (tag 0, spec Appendix D.3.1; D-31.4).
-pub const GENERATOR: &[u8] = b"ldconfig (Liella) 2.39";
+/// The generator text libniji's caches carry (tag 0, spec Appendix D.3.1; D-31.4).
+pub const GENERATOR: &[u8] = b"ldconfig (libniji) 2.39";
 
 /// What the command line asks for.
 #[derive(Debug, Default)]
@@ -208,8 +208,8 @@ pub enum Parsed<'a> {
 pub const EXIT_USAGE: u8 = 64;
 
 const USAGE: &[u8] = b"Usage: ldconfig [-ilnNpvX?V] [-c FORMAT] [-C CACHE] [-f CONF] [-r ROOT]\n            [--format=FORMAT] [--ignore-aux-cache] [--print-cache] [--verbose]\n            [--help] [--usage] [--version]\n";
-const HELP: &[u8] = b"Usage: ldconfig [OPTION...]\nConfigure Dynamic Linker Run Time Bindings.\n\n  -c, --format=FORMAT        Format to use: new (the only one Liella writes)\n  -C CACHE                   Use CACHE as cache file\n  -f CONF                    Use CONF as configuration file\n  -i, --ignore-aux-cache     Ignore auxiliary cache file\n  -l                         Manually link individual libraries.\n  -n                         Only process directories specified on the command\n                             line.  Don't build cache.\n  -N                         Don't build cache\n  -p, --print-cache          Print cache\n  -r ROOT                    Change to and use ROOT as root directory\n  -v, --verbose              Generate verbose messages\n  -X                         Don't update symbolic links\n  -?, --help                 Give this help list\n      --usage                Give a short usage message\n  -V, --version              Print program version\n\nMandatory or optional arguments to long options are also mandatory or optional\nfor any corresponding short options.\n";
-const VERSION: &[u8] = b"ldconfig (Liella) 2.39\n";
+const HELP: &[u8] = b"Usage: ldconfig [OPTION...]\nConfigure Dynamic Linker Run Time Bindings.\n\n  -c, --format=FORMAT        Format to use: new (the only one libniji writes)\n  -C CACHE                   Use CACHE as cache file\n  -f CONF                    Use CONF as configuration file\n  -i, --ignore-aux-cache     Ignore auxiliary cache file\n  -l                         Manually link individual libraries.\n  -n                         Only process directories specified on the command\n                             line.  Don't build cache.\n  -N                         Don't build cache\n  -p, --print-cache          Print cache\n  -r ROOT                    Change to and use ROOT as root directory\n  -v, --verbose              Generate verbose messages\n  -X                         Don't update symbolic links\n  -?, --help                 Give this help list\n      --usage                Give a short usage message\n  -V, --version              Print program version\n\nMandatory or optional arguments to long options are also mandatory or optional\nfor any corresponding short options.\n";
+const VERSION: &[u8] = b"ldconfig (libniji) 2.39\n";
 
 fn usage_error(what: &[u8], arg: &[u8]) -> Result<Vec<u8>, Oom> {
     let mut m = Vec::new();

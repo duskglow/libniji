@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Self-test of validation/wl_stats.sh (median / min / max and the 2% re-measure trigger).
 #   bash validation/wl_stats_test.sh          -> exit 0 and "wl_stats_test: N passed" or exit 1
 #   WL_STATS_PLANT=mean bash validation/wl_stats_test.sh   -> plants a mean-based faults column; MUST fail

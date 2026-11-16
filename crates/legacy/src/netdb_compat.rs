@@ -1,6 +1,6 @@
 //! The netdb databases through the switch (spec §16.3, §16.5; D-16.2): hosts, networks,
 //! services, protocols and RPC programs, their lookups and enumerations, and the `h_errno`
-//! codes. The C structures are packed by the boundary (`liella_boundary::netdb`).
+//! codes. The C structures are packed by the boundary (`niji_boundary::netdb`).
 //!
 //! **Hosts.** A numeric text is answered without a lookup: for IPv4, the forms `inet_aton`
 //! reads (`1.2` is 1.0.0.2, `0x7f.1` is 127.0.0.1: POSIX gives `gethostbyname` and
@@ -15,14 +15,14 @@
 //! and aliases ignore ASCII case; services and RPC programs do not, nor do the protocols of
 //! services.
 
-use liella::error::{Errno, Result};
-use liella::mem::TryVec;
-use liella::names::cache::Category;
-use liella::names::db::{self, HostLine, Numbered, ServLine};
-use liella::names::nss::{self, Answer, Database, LookupError, Service};
-use liella::names::{Family, Ip};
-use liella::net::{addr, is_space};
-use liella_kernel::sys::Sys;
+use niji::error::{Errno, Result};
+use niji::mem::TryVec;
+use niji::names::cache::Category;
+use niji::names::db::{self, HostLine, Numbered, ServLine};
+use niji::names::nss::{self, Answer, Database, LookupError, Service};
+use niji::names::{Family, Ip};
+use niji::net::{addr, is_space};
+use niji_kernel::sys::Sys;
 
 use crate::cursors::{self, Step};
 use crate::nscache;
@@ -141,7 +141,7 @@ fn reorder<S: Sys>(sys: &S, h: &mut Host) {
         *slot = x;
         n = n.saturating_add(1);
     }
-    let Ok(ifs) = liella::net::iface::addrs(sys) else { return };
+    let Ok(ifs) = niji::net::iface::addrs(sys) else { return };
     let mut nets = [([0u8; 4], 0u8); MAX];
     let mut k = 0usize;
     let v4_nets = ifs.iter().filter(|a| a.family == 2).filter_map(|a| a.local.or(a.address).map(|x| ([x[0], x[1], x[2], x[3]], a.prefix)));
@@ -149,7 +149,7 @@ fn reorder<S: Sys>(sys: &S, h: &mut Host) {
         *slot = net;
         k = k.saturating_add(1);
     }
-    if let Some(i) = liella::names::hostconf::reorder_index(v4.get(..n).unwrap_or(&[]), nets.get(..k).unwrap_or(&[])) {
+    if let Some(i) = niji::names::hostconf::reorder_index(v4.get(..n).unwrap_or(&[]), nets.get(..k).unwrap_or(&[])) {
         h.addrs.swap(0, i);
     }
 }
@@ -157,7 +157,7 @@ fn reorder<S: Sys>(sys: &S, h: &mut Host) {
 /// `host.conf`'s `trim` (D-16.13) on a by-address answer.
 fn trimmed<S: Sys>(ctx: &Ctx<'_, S>, h: Answer<Host>) -> Answer<Host> {
     match (h, ctx.hconf) {
-        (Ok(h), Some(s)) if !s.trim.is_empty() => Ok(h.map_names(|n| liella::names::hostconf::trim(n, &s.trim))?),
+        (Ok(h), Some(s)) if !s.trim.is_empty() => Ok(h.map_names(|n| niji::names::hostconf::trim(n, &s.trim))?),
         (h, _) => h,
     }
 }

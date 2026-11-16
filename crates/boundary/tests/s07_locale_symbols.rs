@@ -8,7 +8,7 @@
 //! The built-in locales (`C`, `C.UTF-8`) need no files; the named locales are compared with the
 //! reference library in `crates/core/tests/locale_products.rs`. Tests that set the global
 //! locale hold [`GLOBAL`] and restore `"C"`.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(non_snake_case)]
 #![allow(clippy::unwrap_used, clippy::as_conversions, clippy::arithmetic_side_effects, clippy::indexing_slicing, missing_docs)]
 
@@ -20,10 +20,10 @@ mod skip_note;
 use core::ffi::c_char;
 use core::ptr::{null, null_mut};
 
-use liella_abi::ctypes::locale_t;
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s07_locale as s;
+use niji_abi::ctypes::locale_t;
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s07_locale as s;
 
 const LC_CTYPE: i32 = 0;
 const LC_NUMERIC: i32 = 1;
@@ -180,7 +180,7 @@ fn sym_uselocale() {
 fn tb_read_locale_matches_thread_block() {
     // Trace: no spec clause (thread-block access plumbing); S2 tb-field, D-X.16, D-X.58.
     use core::sync::atomic::Ordering::Relaxed;
-    use liella_boundary::tb;
+    use niji_boundary::tb;
     let both = || (tb::read::<tb::Locale>(), tb::current().locale.load(Relaxed));
     let start = std::sync::Arc::new(std::sync::Barrier::new(4));
     let threads: Vec<_> = (0..4)
@@ -214,12 +214,12 @@ fn tb_read_locale_matches_thread_block() {
 /// A forked child's only thread continues the thread that called `fork` (POSIX `fork`: the
 /// child is a copy of the calling thread), so it keeps that thread's `uselocale` choice and
 /// `h_errno`, here in a process the runtime did not start, where those live outside the
-/// thread's block (D-X.58), and with a fork no hook of Liella's runs for.
+/// thread's block (D-X.58), and with a fork no hook of libniji's runs for.
 #[test]
 fn foreign_thread_words_kept_in_forked_child() {
     // Trace: no spec clause (D-X.58: a forked child's words in a process the runtime did not start).
-    use liella_boundary::netdb;
-    use liella_boundary::selftest::{in_child, ChildEnd};
+    use niji_boundary::netdb;
+    use niji_boundary::selftest::{in_child, ChildEnd};
     static CHOSEN: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
     std::thread::spawn(|| {
         let l = s::newlocale(LC_ALL_MASK, c("C.UTF-8").as_ptr(), null_mut());
@@ -290,13 +290,13 @@ fn sym___nl_langinfo_l() {
 // / `files` -> `Datei` / `Dateien`). The checks in this process use the C locale, which translates
 // nothing, and absolute catalog paths.
 
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
 
 const LC_TIME: i32 = 2;
 const LC_MESSAGES: i32 = 5;
-const PROBE: &str = "LIELLA_S7_SYMBOL";
-const FIXTURES: &str = "LIELLA_S7_SYMBOL_DIR";
+const PROBE: &str = "NIJI_S7_SYMBOL";
+const FIXTURES: &str = "NIJI_S7_SYMBOL_DIR";
 
 fn root() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -523,7 +523,7 @@ fn sym_bind_textdomain_codeset() {
 fn sym__nl_msg_cat_cntr() {
     use std::sync::atomic::Ordering::SeqCst;
     translating("sym__nl_msg_cat_cntr", || {
-        let cntr = &liella_boundary::data::_nl_msg_cat_cntr;
+        let cntr = &niji_boundary::data::_nl_msg_cat_cntr;
         let before = cntr.load(SeqCst);
         s::textdomain(null());
         s::gettext(c("where").as_ptr());
@@ -540,20 +540,20 @@ fn sym__nl_msg_cat_cntr() {
 fn sym__nl_domain_bindings() {
     use std::sync::atomic::Ordering::SeqCst;
     translating("sym__nl_domain_bindings", || {
-        assert_ne!(liella_boundary::data::_nl_domain_bindings.load(SeqCst), 0, "non-NULL after a binding");
+        assert_ne!(niji_boundary::data::_nl_domain_bindings.load(SeqCst), 0, "non-NULL after a binding");
     });
 }
 
 #[test]
 fn sym__nl_default_dirname() {
-    assert_eq!(&liella_boundary::data::_nl_default_dirname, b"/usr/share/locale\0");
-    assert_eq!(size_of_val(&liella_boundary::data::_nl_default_dirname), 18, "the symbol's size");
+    assert_eq!(&niji_boundary::data::_nl_default_dirname, b"/usr/share/locale\0");
+    assert_eq!(size_of_val(&niji_boundary::data::_nl_default_dirname), 18, "the symbol's size");
 }
 
 #[test]
 fn sym__libc_intl_domainname() {
-    assert_eq!(&liella_boundary::data::_libc_intl_domainname, b"libc\0");
-    assert_eq!(size_of_val(&liella_boundary::data::_libc_intl_domainname), 5, "the symbol's size");
+    assert_eq!(&niji_boundary::data::_libc_intl_domainname, b"libc\0");
+    assert_eq!(size_of_val(&niji_boundary::data::_libc_intl_domainname), 5, "the symbol's size");
 }
 
 /// A catalog file below `target/test-scratch` for the X/Open tests in this process.
@@ -637,7 +637,7 @@ fn sym_rpmatch() {
     s::freelocale(own);
 }
 
-// §7.5: strfmon, strfmon_l and __strfmon_l are variadic C adapters over `liella_vstrfmon5`, which
+// §7.5: strfmon, strfmon_l and __strfmon_l are variadic C adapters over `niji_vstrfmon5`, which
 // takes a `va_list`: nothing that reads a `va_list` can be called from this binary in the plain
 // pass (it would link the C variadic adapters, whose targets only the products export). Each is
 // checked through real C varargs (conformance/c/s07_symbols_strfmon.c, one block per symbol;
@@ -650,7 +650,7 @@ fn conformance(names: &[&str]) {
     static RUNNER: Mutex<()> = Mutex::new(());
     let _g = RUNNER.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let products = ["target/liella/libc.a", "target/liella/liella-crt1.o"];
+    let products = ["target/niji/libc.a", "target/niji/niji-crt1.o"];
     assert!(products.iter().all(|p| root.join(p).exists()), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
     let o = std::process::Command::new("sh").arg(root.join("conformance/run.sh")).args(names).output().unwrap();
     assert!(o.status.success(), "{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -733,7 +733,7 @@ fn child_report(o: &std::process::Output) -> String {
 
 /// One round of the wide answers for U+0080..U+00FF: (`iswalpha`, `towupper`, `towlower`, `wcwidth`).
 fn latin_round() -> Vec<(i32, u32, u32, i32)> {
-    use liella_boundary::posix::{s05_ctype as ct, s06_multibyte as mb};
+    use niji_boundary::posix::{s05_ctype as ct, s06_multibyte as mb};
     (0x80u32..=0xff).map(|c| (ct::iswalpha(c), ct::towupper(c), ct::towlower(c), mb::wcwidth(c as i32))).collect()
 }
 

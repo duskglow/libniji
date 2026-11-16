@@ -41,7 +41,7 @@ use std::process::Command;
 const OUT_TABLES: [&str; 5] = ["ratio_host.tsv", "rounds.tsv", "counters.tsv", "decision.tsv", "bench_times.tsv"];
 /// Rows timed but not judged (owner deferral of the wordexp rows, kept from the 1106 sweeps).
 const DEFERRED: [&str; 1] = ["wordexp"];
-/// Verdict bounds on the median Liella/glibc time ratio.
+/// Verdict bounds on the median libniji/glibc time ratio.
 const FASTER: f64 = 0.95;
 const SLOWER: f64 = 1.05;
 const USAGE: &str = "usage: xtask sweep run --out <dir> [--only <bench>,...]\n       xtask sweep compare --new <class>=<sweep.tsv>... (--old <class>=<sweep.tsv>... | --old-table <results.md>) [--label <name>]";
@@ -253,7 +253,7 @@ fn assess(selected: &[(String, String)], code: Option<i32>, log: &str, t: &Table
     let rounds_text = t.rounds.as_deref().ok_or("rounds.tsv was not written by this run")?;
     let cnt_text = t.counters.as_deref().ok_or("counters.tsv was not written by this run (the counted run did not finish)")?;
     let rh = Tsv::parse("ratio_host.tsv", rh_text, &["cpu", "bench", "row", "median_ratio", "limit", "status"])?;
-    let rd = Tsv::parse("rounds.tsv", rounds_text, &["bench", "row", "liella_ns", "host_ns"])?;
+    let rd = Tsv::parse("rounds.tsv", rounds_text, &["bench", "row", "niji_ns", "host_ns"])?;
     let cn = Tsv::parse("counters.tsv", cnt_text, &["bench", "row", "instr_ratio", "cycles_ratio"])?;
     if cn.rows.is_empty() {
         return Err("counters.tsv has no counted row".into());
@@ -302,7 +302,7 @@ fn assess(selected: &[(String, String)], code: Option<i32>, log: &str, t: &Table
     }
     let mut ratios: BTreeMap<(String, String), Vec<f64>> = BTreeMap::new();
     for r in &rd.rows {
-        if let (Some(l), Some(h)) = (num(rd.get(r, "liella_ns")), num(rd.get(r, "host_ns"))) {
+        if let (Some(l), Some(h)) = (num(rd.get(r, "niji_ns")), num(rd.get(r, "host_ns"))) {
             if h > 0.0 {
                 ratios.entry(rd.key(r)).or_default().push(l / h);
             }
@@ -716,7 +716,7 @@ fn report(new: &[(String, SweepTable)], old: &BTreeMap<String, ClassRows>, label
     }
     let classes: Vec<&str> = new.iter().map(|(c, _)| c.as_str()).collect();
     let mut s = format!("# Sweep comparison: {} against {label}\n\n", classes.join(", "));
-    let _ = write!(s, "Verdicts on the median Liella/glibc time ratio: faster < {FASTER}, slower > {SLOWER}, parity between; rows named {} are timed, not judged.\n\n", DEFERRED.join(", "));
+    let _ = write!(s, "Verdicts on the median libniji/glibc time ratio: faster < {FASTER}, slower > {SLOWER}, parity between; rows named {} are timed, not judged.\n\n", DEFERRED.join(", "));
     for n in notes {
         let _ = writeln!(s, "{n}\n");
     }
@@ -751,12 +751,12 @@ mod tests {
 
     // SWEEP-RUN-TOOL: no spec clause (developer tooling). Fixture tables in the bench's own formats
     // (`ratio_host.tsv`, `rounds.tsv`, `counters.tsv`, `decision.tsv` as bench.rs writes them).
-    const RH: &str = "cpu\tbench\trow\thost_median\tliella_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\nCPU X\tcbench_x\ta\t10.00\t9.00\t0.900\t0.950\t1.100\tok\nCPU X\tcbench_x\tb\t10.00\t13.00\t1.300\t1.400\t1.100\tFAIL\n";
-    const RH_OK: &str = "cpu\tbench\trow\thost_median\tliella_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\nCPU X\tcbench_x\ta\t10.00\t9.00\t0.900\t0.950\t1.100\tok\nCPU X\tcbench_x\tb\t10.00\t10.00\t1.000\t1.100\t1.100\tok\n";
-    const RH_NO_B: &str = "cpu\tbench\trow\thost_median\tliella_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\nCPU X\tcbench_x\ta\t10.00\t9.00\t0.900\t0.950\t1.100\tok\n";
-    const RH_CYC: &str = "cpu\tbench\trow\thost_median\tliella_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\nCPU X\tcbench_x\ta\t10.00\t9.00\t0.900\t0.950\t1.100\tadvisory (decided on cycles below)\nCPU X\tcbench_x\tb\t10.00\t13.00\t1.300\t1.400\t1.100\tadvisory (decided on cycles below)\n";
+    const RH: &str = "cpu\tbench\trow\thost_median\tniji_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\nCPU X\tcbench_x\ta\t10.00\t9.00\t0.900\t0.950\t1.100\tok\nCPU X\tcbench_x\tb\t10.00\t13.00\t1.300\t1.400\t1.100\tFAIL\n";
+    const RH_OK: &str = "cpu\tbench\trow\thost_median\tniji_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\nCPU X\tcbench_x\ta\t10.00\t9.00\t0.900\t0.950\t1.100\tok\nCPU X\tcbench_x\tb\t10.00\t10.00\t1.000\t1.100\t1.100\tok\n";
+    const RH_NO_B: &str = "cpu\tbench\trow\thost_median\tniji_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\nCPU X\tcbench_x\ta\t10.00\t9.00\t0.900\t0.950\t1.100\tok\n";
+    const RH_CYC: &str = "cpu\tbench\trow\thost_median\tniji_median\tmedian_ratio\tworst_ratio\tlimit\tstatus\nCPU X\tcbench_x\ta\t10.00\t9.00\t0.900\t0.950\t1.100\tadvisory (decided on cycles below)\nCPU X\tcbench_x\tb\t10.00\t13.00\t1.300\t1.400\t1.100\tadvisory (decided on cycles below)\n";
     const DEC: &str = "bench\trow\tmetric\tns_ratio\tcycles_ratio\tghz_l\tghz_g\tlimit\tverdict\ncbench_x\ta\tcycles\t0.900\t0.880\t-\t-\t1.100\tok\ncbench_x\tb\tcycles\t1.300\t1.200\t-\t-\t1.100\tFAIL\n";
-    const ROUNDS: &str = "bench\trow\tround\tliella_ns\thost_ns\ncbench_x\ta\t1\t9\t10\ncbench_x\ta\t2\t9.5\t10\ncbench_x\tb\t1\t13\t10\n";
+    const ROUNDS: &str = "bench\trow\tround\tniji_ns\thost_ns\ncbench_x\ta\t1\t9\t10\ncbench_x\ta\t2\t9.5\t10\ncbench_x\tb\t1\t13\t10\n";
     const CNT: &str = "bench\trow\tns_ratio\tcycles_ratio\tuops_ratio\tinstr_ratio\ncbench_x\ta\t0.900\t0.880\t-\t0.950\n";
     const CNT_EMPTY: &str = "bench\trow\tns_ratio\tcycles_ratio\tuops_ratio\tinstr_ratio\n";
     const LOG_FLAG: &str = "bench: all done\nxtask bench: bench: budget regressions:\n  cbench_x/b: median ratio 1.300 exceeds the limit 1.100 (worst 1.40; why)\n";

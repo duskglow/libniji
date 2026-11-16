@@ -11,12 +11,12 @@
 //!   reached through the library's `DT_NEEDED libc.so.6`, never defined twice (no duplicated
 //!   logic): for the placeholders that is everything but `__lib<x>_version_placeholder`, for
 //!   `libc_malloc_debug.so.0` everything but `malloc_get_state`/`malloc_set_state`;
-//! * no `GLIBC_PRIVATE` node and no `GLIBC_PRIVATE` export (R14-12: Liella's private interface is
-//!   `LIELLA_PRIVATE`, owned by `libc.so.6`/`ld.so`).
+//! * no `GLIBC_PRIVATE` node and no `GLIBC_PRIVATE` export (R14-12: libniji's private interface is
+//!   `NIJI_PRIVATE`, owned by `libc.so.6`/`ld.so`).
 //!
 //! The bodies: a `__<lib>_version_placeholder` returns (it only carries the version nodes; no
 //! header declares it). Any other export takes its body from `crates/libc-so/placeholders/<lib>.c`
-//! (`liella_ph_<name>`), or, for a library with a failure table `crates/libc-so/placeholders/<lib>.tsv`
+//! (`niji_ph_<name>`), or, for a library with a failure table `crates/libc-so/placeholders/<lib>.tsv`
 //! (`libnsl.so.1`, D-29.6), from the C [`stub_bodies`] generates out of it, one stub per row; an
 //! export without a body is an error, so a new table row never becomes a silent no-op.
 //!
@@ -38,7 +38,7 @@ pub const LIBRARIES: [&str; 9] = ["libpthread.so.0", "libdl.so.2", "librt.so.1",
 /// The empty static archives the development package ships so `-l<x>` resolves in a static link
 /// (SL-SONAMES, plan/system-libc.md §2): the merged libraries' (their symbols are in `libc.a`;
 /// `libresolv.a`: D-16.6), and `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`, which add
-/// nothing a Liella program needs. `libBrokenLocale.a` is not empty ([`OVERRIDES`]).
+/// nothing a libniji program needs. `libBrokenLocale.a` is not empty ([`OVERRIDES`]).
 pub const ARCHIVES: [&str; 9] = ["libpthread.a", "libdl.a", "librt.a", "libutil.a", "libanl.a", "libresolv.a", "libg.a", "libmcheck.a", "libpthread_nonshared.a"];
 
 /// Names a library defines although `libc.so.6` has a row for them, because replacing libc's
@@ -48,7 +48,7 @@ pub const ARCHIVES: [&str; 9] = ["libpthread.a", "libdl.a", "librt.a", "libutil.
 pub const OVERRIDES: [(&str, &str); 1] = [("libBrokenLocale.so.1", "__ctype_get_mb_cur_max")];
 
 /// Libraries whose exports are `libc.so.6`'s own definitions (SL-SONAMES, D-16.6): `libc.a`
-/// defines them, `libc.so.6` exports each as [`FORWARD_PREFIX`]`<name>` at `LIELLA_PRIVATE`
+/// defines them, `libc.so.6` exports each as [`FORWARD_PREFIX`]`<name>` at `NIJI_PRIVATE`
 /// (an alias, so one copy of the code and of the resolver state), and the library's export is a
 /// tail jump to it. A data export is the library's own object, filled from `libc.so.6`'s at load.
 pub const FORWARDED: [&str; 1] = ["libresolv.so.2"];
@@ -96,7 +96,7 @@ pub fn remove_stale(dir: &Path, now: &BTreeSet<String>) -> Result<Vec<String>, S
 }
 
 /// The prefix of `libc.so.6`'s private alias of a forwarded name.
-pub const FORWARD_PREFIX: &str = "__liella_fwd_";
+pub const FORWARD_PREFIX: &str = "__niji_fwd_";
 
 /// The names `libc.so.6` must export for the [`FORWARDED`] libraries (alias name, `libc.a` name).
 pub fn forwarded_names(table: &str) -> Result<Vec<(String, String)>, String> {
@@ -133,18 +133,18 @@ pub fn forward_bodies(plan: &Plan, table: &str, libc_sizes: &BTreeMap<String, u6
             return Err(format!("{}: versions.tsv has no type for {name}", plan.soname));
         };
         if !object {
-            s.push_str(&format!("void liella_ph_{name}(void);\n__asm__(\".text\\n.globl liella_ph_{name}\\n.type liella_ph_{name},@function\\n.p2align 4\\nliella_ph_{name}:\\n\\tjmp {FORWARD_PREFIX}{name}@PLT\\n.size liella_ph_{name},.-liella_ph_{name}\\n\");\n"));
+            s.push_str(&format!("void niji_ph_{name}(void);\n__asm__(\".text\\n.globl niji_ph_{name}\\n.type niji_ph_{name},@function\\n.p2align 4\\nniji_ph_{name}:\\n\\tjmp {FORWARD_PREFIX}{name}@PLT\\n.size niji_ph_{name},.-niji_ph_{name}\\n\");\n"));
             continue;
         }
         let have = *libc_sizes.get(name).ok_or_else(|| format!("{}: libc.a does not define the object {name}", plan.soname))?;
         if have > size || size == 0 {
             return Err(format!("{}: {name} is {have} bytes in libc.a, versions.tsv gives {size}", plan.soname));
         }
-        s.push_str(&format!("unsigned char liella_ph_{name}[{size}] __attribute__((aligned(16)));\nextern unsigned char {name}[];\nextern const unsigned char {FORWARD_PREFIX}{name}[];\n"));
+        s.push_str(&format!("unsigned char niji_ph_{name}[{size}] __attribute__((aligned(16)));\nextern unsigned char {name}[];\nextern const unsigned char {FORWARD_PREFIX}{name}[];\n"));
         copies.push_str(&format!("    __builtin_memcpy({name}, {FORWARD_PREFIX}{name}, {have});\n"));
     }
     if !copies.is_empty() {
-        s.push_str(&format!("__attribute__((constructor)) static void liella_ph_fill(void)\n{{\n{copies}}}\n"));
+        s.push_str(&format!("__attribute__((constructor)) static void niji_ph_fill(void)\n{{\n{copies}}}\n"));
     }
     Ok(s)
 }
@@ -176,7 +176,7 @@ fn is_override(soname: &str, name: &str) -> bool {
 /// The library every placeholder forwards to.
 const LIBC: &str = "libc.so.6";
 
-/// The version node no Liella library defines (R14-12).
+/// The version node no libniji library defines (R14-12).
 pub const PRIVATE_NODE: &str = "GLIBC_PRIVATE";
 
 /// One export: name, version, default (`@@`) or not.
@@ -273,19 +273,19 @@ pub fn c_source(plan: &Plan, body_file: Option<(&Path, &str)>) -> Result<String,
         versions.entry(e.name.as_str()).or_default().push(e);
     }
     for (name, exports) in &versions {
-        let has_body = body_file.is_some_and(|(_, text)| text.contains(&format!("liella_ph_{name}(")) || text.contains(&format!("liella_ph_{name}[")));
+        let has_body = body_file.is_some_and(|(_, text)| text.contains(&format!("niji_ph_{name}(")) || text.contains(&format!("niji_ph_{name}[")));
         if !has_body {
             if !is_version_placeholder(name) {
                 let file = body_file.map_or_else(|| "no body file".to_string(), |(p, _)| p.display().to_string());
-                return Err(format!("{}: export {name} has no body `liella_ph_{name}` ({file}); versions.tsv lists it", plan.soname));
+                return Err(format!("{}: export {name} has no body `niji_ph_{name}` ({file}); versions.tsv lists it", plan.soname));
             }
-            s.push_str(&format!("void liella_ph_{name}(void);\nvoid liella_ph_{name}(void) {{}}\n"));
+            s.push_str(&format!("void niji_ph_{name}(void);\nvoid niji_ph_{name}(void) {{}}\n"));
         }
         for (i, e) in exports.iter().enumerate() {
             let at = if e.default { "@@" } else { "@" };
             // `remove` on the last one: the object keeps only the versioned names.
             let remove = if i + 1 == exports.len() { ", remove" } else { "" };
-            s.push_str(&format!("__asm__(\".symver liella_ph_{name}, {name}{at}{}{remove}\");\n", e.version));
+            s.push_str(&format!("__asm__(\".symver niji_ph_{name}, {name}{at}{}{remove}\");\n", e.version));
         }
     }
     Ok(s)
@@ -360,7 +360,7 @@ pub fn stub_table(text: &str) -> Result<Vec<(String, Stub)>, String> {
 }
 
 /// The C bodies of `plan`'s exports from its failure table `table` (`stub_table` text): one
-/// `liella_ph_<name>` per row. Every export must have exactly one row and every row an export,
+/// `niji_ph_<name>` per row. Every export must have exactly one row and every row an export,
 /// so the table, versions.tsv and the product never drift apart.
 pub fn stub_bodies(plan: &Plan, table: &str) -> Result<String, String> {
     let rows = stub_table(table)?;
@@ -379,14 +379,14 @@ pub fn stub_bodies(plan: &Plan, table: &str) -> Result<String, String> {
     let mut s = format!("/* @generated by `cargo xtask so` from the failure table of {} (D-29.6). */\n", plan.soname);
     s.push_str("#include <errno.h>\n#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n");
     if rows.iter().any(|(_, k)| matches!(k, Stub::Result(_))) {
-        s.push_str(&format!("/* A result object: status first, everything after it zero; freed by the `free` stub. */\nstatic void *liella_ph_result(int status) {{\n    int *r = calloc(1, {NIS_RESULT_SIZE});\n    if (r != NULL)\n        *r = status;\n    return r;\n}}\n\n"));
+        s.push_str(&format!("/* A result object: status first, everything after it zero; freed by the `free` stub. */\nstatic void *niji_ph_result(int status) {{\n    int *r = calloc(1, {NIS_RESULT_SIZE});\n    if (r != NULL)\n        *r = status;\n    return r;\n}}\n\n"));
     }
     for (name, stub) in &rows {
-        let f = format!("liella_ph_{name}");
+        let f = format!("niji_ph_{name}");
         let (proto, body) = match stub {
             Stub::Int(v) => (format!("int {f}(void)"), format!("    return {v};\n")),
             Stub::Null => (format!("void *{f}(void)"), "    errno = EOPNOTSUPP;\n    return NULL;\n".to_string()),
-            Stub::Result(v) => (format!("void *{f}(void)"), format!("    return liella_ph_result({v});\n")),
+            Stub::Result(v) => (format!("void *{f}(void)"), format!("    return niji_ph_result({v});\n")),
             Stub::Void => (format!("void {f}(void)"), String::new()),
             Stub::Free => (format!("void {f}(void *p)"), "    free(p);\n".to_string()),
             Stub::Text(t) => (format!("const char *{f}(void)"), format!("    return \"{t}\";\n")),
@@ -442,7 +442,7 @@ fn verdefs(v: &str) -> Vec<(String, bool)> {
 pub fn private_errors(so: &str, readelf_v: &str, dynsyms: &str) -> Vec<String> {
     let mut errors = Vec::new();
     if verdefs(readelf_v).iter().any(|(n, _)| n == PRIVATE_NODE) {
-        errors.push(format!("{so} defines the {PRIVATE_NODE} version node (R14-12: no {PRIVATE_NODE} exports; the private interface is LIELLA_PRIVATE)"));
+        errors.push(format!("{so} defines the {PRIVATE_NODE} version node (R14-12: no {PRIVATE_NODE} exports; the private interface is NIJI_PRIVATE)"));
     }
     let nodes: BTreeSet<String> = verdefs(readelf_v).into_iter().map(|(n, _)| n).collect();
     for (name, version, _) in defined_dynsyms(dynsyms, &nodes) {
@@ -616,7 +616,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Re
         let names: Vec<&str> = OVERRIDES.iter().filter(|(l, _)| *l == soname).map(|(_, n)| *n).collect();
         let mut src = format!("/* @generated by `cargo xtask so`: {stem}.a (SL-SONAMES). */\n#include \"{}\"\n", body_path(root, soname).display());
         for n in &names {
-            src.push_str(&format!("__asm__(\".globl {n}\\n.set {n}, liella_ph_{n}\");\n"));
+            src.push_str(&format!("__asm__(\".globl {n}\\n.set {n}, niji_ph_{n}\");\n"));
         }
         let c = work.join(format!("{stem}.a.c"));
         let o = work.join(format!("{stem}.o"));
@@ -697,7 +697,7 @@ mod tests {
         assert_eq!(names, ["__libfoo_version_placeholder@V_1.10", "__libfoo_version_placeholder@V_1.2"], "bar is libc.so.6's");
         assert_eq!(version_script(&p).lines().skip(1).collect::<Vec<_>>(), ["V_1.2 { };", "V_1.10 { } V_1.2;"]);
         let c = c_source(&p, None).unwrap();
-        assert!(c.contains("liella_ph___libfoo_version_placeholder, __libfoo_version_placeholder@V_1.2, remove"), "{c}");
+        assert!(c.contains("niji_ph___libfoo_version_placeholder, __libfoo_version_placeholder@V_1.2, remove"), "{c}");
     }
 
     #[test]
@@ -705,7 +705,7 @@ mod tests {
         let table = format!("{TABLE}libfoo.so.1\tquux\tV_1.2\tcompat\tFUNC\tGLOBAL\t\n");
         let p = plan(&table, "libfoo.so.1").unwrap();
         assert!(c_source(&p, None).unwrap_err().contains("quux has no body"));
-        let body = "void *liella_ph_quux(void) { return 0; }\n";
+        let body = "void *niji_ph_quux(void) { return 0; }\n";
         assert!(c_source(&p, Some((Path::new("b.c"), body))).unwrap().contains("#include \"b.c\""));
     }
 
@@ -716,8 +716,8 @@ mod tests {
         let p = plan(&table, "libfoo.so.1").unwrap();
         let rows = "# comment\nsymbol\tkind\tvalue\nquux\tresult\t41\ncorge\tnull\t-\n";
         let c = stub_bodies(&p, rows).unwrap();
-        assert!(c.contains("void *liella_ph_quux(void) {\n    return liella_ph_result(41);\n}"), "{c}");
-        assert!(c.contains("void *liella_ph_corge(void) {\n    errno = EOPNOTSUPP;\n    return NULL;\n}"), "{c}");
+        assert!(c.contains("void *niji_ph_quux(void) {\n    return niji_ph_result(41);\n}"), "{c}");
+        assert!(c.contains("void *niji_ph_corge(void) {\n    errno = EOPNOTSUPP;\n    return NULL;\n}"), "{c}");
         assert!(c.contains(&format!("calloc(1, {NIS_RESULT_SIZE})")), "{c}");
         assert!(c_source(&p, Some((Path::new("b.c"), &c))).is_ok());
         assert!(stub_bodies(&p, "quux\tint\t6\n").unwrap_err().contains("export corge has no row"));
@@ -754,10 +754,10 @@ mod tests {
     #[test]
     fn the_check_refuses_libc_names_unversioned_names_and_gaps() {
         let (v, _) = good();
-        let d = dynsyms(&["__libfoo_version_placeholder@V_1.2", "bar@V_1.2", "liella_ph_bar"]);
+        let d = dynsyms(&["__libfoo_version_placeholder@V_1.2", "bar@V_1.2", "niji_ph_bar"]);
         let e = product_errors(TABLE, "libfoo.so.1", DYNAMIC, &v, &d);
         assert!(e.iter().any(|m| m.contains("bar@V_1.2, which libc.so.6 provides")), "{e:?}");
-        assert!(e.iter().any(|m| m.contains("exports liella_ph_bar unversioned")), "{e:?}");
+        assert!(e.iter().any(|m| m.contains("exports niji_ph_bar unversioned")), "{e:?}");
         assert!(e.iter().any(|m| m.contains("does not export __libfoo_version_placeholder@V_1.10")), "{e:?}");
         let no_needed = " 0x000000000000000e (SONAME)             Library soname: [libfoo.so.1]\n";
         assert!(product_errors(TABLE, "libfoo.so.1", no_needed, &v, &good().1).iter().any(|m| m.contains("no DT_NEEDED libc.so.6")));

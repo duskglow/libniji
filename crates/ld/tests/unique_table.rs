@@ -1,4 +1,4 @@
-//! The `STB_GNU_UNIQUE` table `dlopen` keeps (`liella_ld::reloc::GrowTable`, DL-LIBSTDCXX): no limit
+//! The `STB_GNU_UNIQUE` table `dlopen` keeps (`niji_ld::reloc::GrowTable`, DL-LIBSTDCXX): no limit
 //! on entries or name bytes but memory, a rollback to a mark, a failed record that leaves the table
 //! as it was, and a diagnostic for that failure that names what ran out (never "malformed": the
 //! object's tables are sound). The loader backs the table with its own mappings; here a `Vec`, and
@@ -8,9 +8,9 @@
 //! diagnostic: no spec clause (spec/security/threat-model.md rule 4, failures say what failed).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::cast_possible_truncation)]
 
-use liella_ld::elf::Sym;
-use liella_ld::reloc::{GrowTable, RelocError, Stack, UniqueEntry};
-use liella_ld::symbols::{Def, Found, LookupError, UniqueRegistry, UNIQUE_NO_MEMORY};
+use niji_ld::elf::Sym;
+use niji_ld::reloc::{GrowTable, RelocError, Stack, UniqueEntry};
+use niji_ld::symbols::{Def, Found, LookupError, UniqueRegistry, UNIQUE_NO_MEMORY};
 
 /// A `Vec` that refuses to hold more than `cap` items.
 struct Capped<T> {

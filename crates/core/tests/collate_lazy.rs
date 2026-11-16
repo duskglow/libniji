@@ -11,8 +11,8 @@ mod oracle;
 
 use std::path::PathBuf;
 
-use liella::locale::collate::{self, Collate, Collation};
-use liella::locale::file::Category;
+use niji::locale::collate::{self, Collate, Collation};
+use niji::locale::file::Category;
 
 fn stream(s: &[u8]) -> impl FnMut() -> u8 + '_ {
     let mut i = 0;

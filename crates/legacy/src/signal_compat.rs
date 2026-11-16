@@ -10,10 +10,10 @@
 
 use core::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 
-use liella::error::{Errno, Result};
-use liella_abi::layout::sigset_t;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{KSigAction, SigInfo, SigSet, StackT, Timespec};
+use niji::error::{Errno, Result};
+use niji_abi::layout::sigset_t;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{KSigAction, SigInfo, SigSet, StackT, Timespec};
 
 /// The library's internal signal (D-20.1): cancellation and the credential broadcast.
 pub const SIG_INTERNAL: i32 = 32;
@@ -566,7 +566,7 @@ pub fn sigabbrev(sig: i32) -> Option<&'static [u8]> {
 fn decimal(out: &mut impl FnMut(&[u8]), n: i64) {
     let mut d = [0u8; 20];
     let neg = n < 0;
-    let digits = liella_rt::fatal::decimal(n.unsigned_abs(), &mut d);
+    let digits = niji_rt::fatal::decimal(n.unsigned_abs(), &mut d);
     if neg {
         out(b"-");
     }

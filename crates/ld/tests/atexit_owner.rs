@@ -1,6 +1,6 @@
-//! The opted-in registrations (DL-ATEXIT-OWNER, D-27.29; owner rulings #4860-#4862) under Liella's
+//! The opted-in registrations (DL-ATEXIT-OWNER, D-27.29; owner rulings #4860-#4862) under libniji's
 //! `ld.so` and `libc.so.6`: a module linked against the link-time interface `libc-owner.so` calls
-//! `atexit`, `at_quick_exit` and `pthread_atfork` at `LIELLA_OWNER_1`. One C program checks every
+//! `atexit`, `at_quick_exit` and `pthread_atfork` at `NIJI_OWNER_1`. One C program checks every
 //! behaviour itself and exits with the number of the first check that failed (its text on standard
 //! error); `alarm` is only a hang guard (a registration that deadlocks under `dlopen`'s lock), never
 //! a verdict on speed. Needs `cargo xtask so` and a C compiler (else SKIP).
@@ -11,8 +11,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use liella_ld::arch::{Arch, Native};
-use liella_ld::elf::Elf;
+use niji_ld::arch::{Arch, Native};
+use niji_ld::elf::Elf;
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -35,7 +35,7 @@ fn build(d: &Path, out: &str, src: &str, flags: &[&str]) -> PathBuf {
 /// The helpers. A (opted in): its constructor registers a handler of the program while `dlopen`
 /// holds the loader's lock; `a_register` registers its own handler, one of the program's, one of
 /// another module and quick-exit and atfork handlers. B and H only hold handlers. S registers
-/// through Liella's `libc_nonshared.a` (the archive's stub: `__cxa_atexit` with S's `__dso_handle`).
+/// through libniji's `libc_nonshared.a` (the archive's stub: `__cxa_atexit` with S's `__dso_handle`).
 const LIB: &str = r#"#include <pthread.h>
 #include <stdlib.h>
 extern void ev(const char *);
@@ -136,18 +136,18 @@ int main(int argc, char **argv) {
 /// `libc.so.6` without `DT_SONAME`, so they name it by its path (the bare `libc.so.6` resolves to the
 /// installed prefix, R14-3 (a)); the copy is then replaced by the unmodified `libc.so.6`. A, the
 /// opted-in module, is linked against the product's link-time interface
-/// `liella-owner/libc-owner.so` as a user's link would be: its `libc.so.6` need and version need
+/// `niji-owner/libc-owner.so` as a user's link would be: its `libc.so.6` need and version need
 /// match the loaded library by its `DT_SONAME`. `None` with the reason printed when a tool is missing.
 fn corpus(name: &str) -> Option<(PathBuf, PathBuf)> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
     }
-    let lib = target().join("liella");
+    let lib = target().join("niji");
     let ld = lib.join(Native::INTERP);
-    let iface = lib.join("liella-owner/libc-owner.so");
-    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("liella-crt1.o").exists() || !lib.join("libc_nonshared.a").exists() || !iface.exists() {
-        eprintln!("SKIP: ld.so, libc.so.6, libc_nonshared.a, liella-owner/libc-owner.so or liella-crt1.o not built (run cargo xtask so)");
+    let iface = lib.join("niji-owner/libc-owner.so");
+    if !ld.exists() || !lib.join("libc.so.6").exists() || !lib.join("niji-crt1.o").exists() || !lib.join("libc_nonshared.a").exists() || !iface.exists() {
+        eprintln!("SKIP: ld.so, libc.so.6, libc_nonshared.a, niji-owner/libc-owner.so or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
     let d = target().join(format!("ld-atexit-owner-{name}-{}", std::process::id()));
@@ -156,7 +156,7 @@ fn corpus(name: &str) -> Option<(PathBuf, PathBuf)> {
     let original = std::fs::read(lib.join("libc.so.6")).unwrap();
     let mut so = original.clone();
     let elf = Elf::parse::<Native>(&so).unwrap();
-    let dynph = elf.find(liella_ld::elf::pt::DYNAMIC).unwrap();
+    let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
     let (off, len) = (dynph.offset as usize, dynph.filesz as usize);
     let at = (off..off + len).step_by(16).find(|&o| so[o..o + 8] == 14u64.to_le_bytes()).expect("libc.so.6 has a DT_SONAME");
     so[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
@@ -169,7 +169,7 @@ fn corpus(name: &str) -> Option<(PathBuf, PathBuf)> {
     let nonshared = lib.join("libc_nonshared.a");
     build(&d, "libS.so", LIB, &["-nostdlib", "-fPIC", "-shared", "-DKIND_S", nonshared.to_str().unwrap(), &libc_s]);
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
-    let crt1 = lib.join("liella-crt1.o");
+    let crt1 = lib.join("niji-crt1.o");
     let prog = build(&d, "prog", PROG, &["-nostdlib", "-fPIE", "-pie", "-Wl,--export-dynamic", &interp, crt1.to_str().unwrap(), &libc_s, ld.to_str().unwrap(), "-lgcc"]);
     std::fs::write(&libc, &original).unwrap();
     Some((d, prog))

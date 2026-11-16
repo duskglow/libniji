@@ -1,5 +1,5 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Syscall classification shared by wl_run.sh and wl_count_run.sh (WLCOUNT-MTMEM-2; the rule is WLRUN-FUTEX's). Source this file.
 #
 # Owner rule: workload gates fail only on deterministic counters. Two kinds of calls depend on scheduling and are reported

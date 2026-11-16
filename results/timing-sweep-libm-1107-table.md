@@ -10,7 +10,7 @@ TIMING-SWEEP-LIBM-1107. First libm timing table since the 11-05 snapshot (docs/b
   ended rc 0 with `sweep: COMPLETE`, 166 of 166 selected `ratio_host` rows measured, 0 rows flagged (libm has no
   per-host limits on either class: "not gated"). Ivy Bridge (Xeon E3-1265L v2): 5 rounds per row, bench 63 s.
   N100: 3 rounds per row.
-- Verdicts on the median Liella/glibc time ratio: faster < 0.95, slower > 1.05, parity in between.
+- Verdicts on the median libniji/glibc time ratio: faster < 0.95, slower > 1.05, parity in between.
 - Counts below use the 166 `ratio_host` rows of `bench/budgets.tsv`. The libm bench also counts `add_baseline`,
   `mxcsr_pair` and `mxcsr_wrapper_seq` (calibration rows). They are in `sweep.tsv` and in the `sweep compare` output
   ("judged 169", "rows not in 1105: 3"), but not in these counts. The `sweep: COMPLETE` line of this run counted them
@@ -41,7 +41,7 @@ by complex (median 274 / 239). f32 is closest to glibc (median 2.27 / 2.66).
 
 ## Sweep comparison: ivb against 1105
 
-Verdicts on the median Liella/glibc time ratio: faster < 0.95, slower > 1.05, parity between; rows named wordexp are timed, not judged.
+Verdicts on the median libniji/glibc time ratio: faster < 0.95, slower > 1.05, parity between; rows named wordexp are timed, not judged.
 
 ## Counts
 
@@ -97,7 +97,7 @@ Baseline rows read from the 11-05 appendix: 169
 time ratio median 6.982; spread median 0.009 p90 0.366 max 0.944; flagged 0
 rows without counters: 0 
 
-### Slowest 20 (time ratio Liella/glibc)
+### Slowest 20 (time ratio libniji/glibc)
 
 | row | time | instr | cycles | spread |
 |---|---:|---:|---:|---:|
@@ -145,7 +145,7 @@ tgammaf 0.577, sinhf 0.658, tanhf 0.753, exp_qnan 0.854, hypotf128 0.888, atanhf
 time ratio median 5.831; spread median 0.009 p90 0.026 max 0.128; flagged 0
 rows without counters: 0 
 
-### Slowest 20 (time ratio Liella/glibc)
+### Slowest 20 (time ratio libniji/glibc)
 
 | row | time | instr | cycles | spread |
 |---|---:|---:|---:|---:|

@@ -1,10 +1,10 @@
-//! Internal tests of the C output conventions (`liella_abi::ret`, spec C0.1): sentinels, positive
+//! Internal tests of the C output conventions (`niji_abi::ret`, spec C0.1): sentinels, positive
 //! error numbers, and no error number on success.
 
 #![allow(clippy::unwrap_used, missing_docs)]
 
-use liella_abi::ret::{self, Ret};
-use liella_kernel::Errno;
+use niji_abi::ret::{self, Ret};
+use niji_kernel::Errno;
 
 fn failed<T>(r: &Ret<T>) -> bool {
     r.errno.is_some_and(|e| e.get() > 0)

@@ -1,6 +1,6 @@
 //! POSIX message queues and shared memory (spec §25.3–25.4; D-25.2, D-25.3). Pipes and System V
 //! IPC (§25.1–25.2) are the typed `Sys` calls themselves, with the C shapes in
-//! `liella_legacy::ipc_compat`.
+//! `niji_legacy::ipc_compat`.
 //!
 //! * **Queue names** ([`queue_name`], §25.3): `/name`, one leading slash, which the kernel's
 //!   `mqueue` namespace does not take (⚑ KERN). A name without the slash is `EINVAL`; what
@@ -23,12 +23,12 @@
 //!   for a name it cannot serve; the kernel says `EISDIR`), and a permission refusal by the
 //!   sticky directory on unlink is `EACCES` (POSIX; the kernel says `EPERM`).
 
-use liella_kernel::errno::Errno;
-use liella_kernel::fd::Fd;
-use liella_kernel::ops::FcntlInt;
-use liella_kernel::path::{KStr, NAME_MAX, PATH_MAX};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MqAttr, O_CLOEXEC, O_CREAT, O_NOFOLLOW, O_NONBLOCK, S_IFMT, S_IFREG};
+use niji_kernel::errno::Errno;
+use niji_kernel::fd::Fd;
+use niji_kernel::ops::FcntlInt;
+use niji_kernel::path::{KStr, NAME_MAX, PATH_MAX};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MqAttr, O_CLOEXEC, O_CREAT, O_NOFOLLOW, O_NONBLOCK, S_IFMT, S_IFREG};
 
 use crate::error::Result;
 

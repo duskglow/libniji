@@ -1,6 +1,6 @@
 //! The `double` `exp` quick phase (LIBM-F64-EXP-QUICK, D-10.51, D-10.54; `exp`'s tier 1 since LIBM-F64-EXP-QUICK-WIRE)
 //! in both builds through the boundary (the FMA build needs the startup dispatch, so its tests live
-//! here; the SSE2 build's own tests are in `liella-math`'s `fast64/quick/tests.rs`). Clause:
+//! here; the SSE2 build's own tests are in `niji-math`'s `fast64/quick/tests.rs`). Clause:
 //! s10_0_f_0 (§10.2 exp, D-10.3): every value the quick phase returns is the correctly rounded
 //! `e^x`, so its two builds are bit-identical wherever both answer. Its directed variant
 //! (LIBM-DIRECTED-INPLACE, D-10.94) is checked the same way in each directed rounding direction,
@@ -8,17 +8,17 @@
 
 // Sample generation is bit-level arithmetic on bounded values.
 #![allow(clippy::arithmetic_side_effects, clippy::indexing_slicing, clippy::as_conversions)]
-// exp is Liella's own C entry (m::exp): keep LLVM from treating it as a builtin.
+// exp is libniji's own C entry (m::exp): keep LLVM from treating it as a builtin.
 #![no_builtins]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_boundary::sys::CSys;
-use liella_math::fast64::quick::{RHO_FAM_FMA, RHO_FAM_SSE2, RHO_FMA, RHO_M1, RHO_SSE2};
-use liella_math::mp::{self, Mp};
-use liella_math::real::Real;
-use liella_math::status::Rounding;
-use liella_rt::fpu;
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_boundary::sys::CSys;
+use niji_math::fast64::quick::{RHO_FAM_FMA, RHO_FAM_SSE2, RHO_FMA, RHO_M1, RHO_SSE2};
+use niji_math::mp::{self, Mp};
+use niji_math::real::Real;
+use niji_math::status::Rounding;
+use niji_rt::fpu;
 
 /// xorshift64 over `[lo, hi)`: a fixed, reproducible sample (the cbench operand generator's step).
 fn uniform(n: usize, seed: u64, lo: f64, hi: f64) -> impl Iterator<Item = f64> {
@@ -47,7 +47,7 @@ fn uniform_bits(n: usize, seed: u64) -> impl Iterator<Item = f64> {
 
 /// The correctly rounded `e^x` (tier 2, else the accurate path).
 fn cr(x: f64) -> f64 {
-    liella_math::fast64::exp_nearest(x).unwrap_or_else(|| Real::exp(x, Rounding::Nearest).0)
+    niji_math::fast64::exp_nearest(x).unwrap_or_else(|| Real::exp(x, Rounding::Nearest).0)
 }
 
 /// Held while a test needs one build to stay selected (the choice is process-wide).
@@ -174,7 +174,7 @@ fn exp_quick_misses_are_answered_by_tier_two() {
         let had = selftest::math_fma();
         assert!(selftest::set_math_fma(false));
         let (miss, answered) = check_tiers("SSE2", xs.iter().copied());
-        let tier2 = xs.iter().filter(|&&x| selftest::exp_quick(x).is_none() && liella_math::fast64::exp_nearest(x).is_some()).count();
+        let tier2 = xs.iter().filter(|&&x| selftest::exp_quick(x).is_none() && niji_math::fast64::exp_nearest(x).is_some()).count();
         assert!(selftest::set_math_fma(had));
         eprintln!("exp tiers SSE2: {miss} quick misses, {answered} answered by tier 2 ({tier2} expected)");
         assert!(miss >= 1000, "only {miss} quick-phase misses in the sample: the check is too weak");
@@ -186,7 +186,7 @@ fn exp_quick_misses_are_answered_by_tier_two() {
     }) else {
         return;
     };
-    let tier2 = fma_misses.iter().filter(|&&x| liella_math::fast64::exp_nearest(x).is_some()).count();
+    let tier2 = fma_misses.iter().filter(|&&x| niji_math::fast64::exp_nearest(x).is_some()).count();
     eprintln!("exp tiers FMA: {miss} quick misses, {answered} answered by tier 2 (SSE2 tier 2 answers {tier2})");
     assert!(tier2 >= 100, "only {tier2} FMA quick-phase misses that tier 2 answers: the check is too weak");
     assert!(answered * 10 >= tier2 * 9, "FMA exp tiers: {answered} of {miss} quick-phase misses answered, SSE2 tier 2 answers {tier2}: a miss did not reach tier 2");
@@ -298,8 +298,8 @@ type FamParts = fn(f64) -> Option<(f64, f64, f64)>;
 type FamMember = (&'static str, FamQuick, FamParts, fn(f64) -> f64, Mp, f64);
 
 fn family() -> [FamMember; 2] {
-    let cr2 = |x: f64| liella_math::fast64::exp2_nearest(x).unwrap_or_else(|| Real::exp2(x, Rounding::Nearest).0);
-    let cr10 = |x: f64| liella_math::fast64::exp10_nearest(x).unwrap_or_else(|| Real::exp10(x, Rounding::Nearest).0);
+    let cr2 = |x: f64| niji_math::fast64::exp2_nearest(x).unwrap_or_else(|| Real::exp2(x, Rounding::Nearest).0);
+    let cr10 = |x: f64| niji_math::fast64::exp10_nearest(x).unwrap_or_else(|| Real::exp10(x, Rounding::Nearest).0);
     [
         ("exp2", selftest::exp2_quick, selftest::exp2_quick_parts, cr2, mp::ln2(), 1021.0),
         ("exp10", selftest::exp10_quick, selftest::exp10_quick_parts, cr10, mp::ln10(), 307.0),
@@ -360,7 +360,7 @@ fn exp2_exp10_quick_sse2_build() {
 /// expm1's quick phase in the selected build: every answer and the entry `m::expm1` equal to the
 /// correctly rounded result, every 16th `(zh, zl)` within `RHO_M1` (both regions); the declines.
 fn check_expm1(build: &str) -> usize {
-    let crm1 = |x: f64| liella_math::fast64::expm1_nearest(x).unwrap_or_else(|| Real::expm1(x, Rounding::Nearest).0);
+    let crm1 = |x: f64| niji_math::fast64::expm1_nearest(x).unwrap_or_else(|| Real::expm1(x, Rounding::Nearest).0);
     let mut miss = 0usize;
     for (i, x) in uniform(300_000, 0x1234_5678_9abc_def1, -1.0, 1.0).chain(uniform(200_000, 6, -0.04, 0.04)).chain(uniform(100_000, 8, -37.0, 708.0)).enumerate() {
         let e = crm1(x);
@@ -449,7 +449,7 @@ fn exp_directed_declines_at_breakpoints_and_the_entry_rounds_them() {
 }
 
 /// Every answer of the directed quick phase and of the entry, in each directed direction, against
-/// liella-math's accurate `exp` in that direction; returns the declines per direction.
+/// niji-math's accurate `exp` in that direction; returns the declines per direction.
 fn check_directed(build: &str, xs: &[f64]) -> [usize; 3] {
     let mut miss = [0usize; 3];
     for (i, (mode, word)) in DIRECTED.into_iter().enumerate() {
@@ -488,7 +488,7 @@ fn exp_directed_rounds_correctly_in_both_builds() {
 /// The accuracy job (LIBM-DIRECTED-INPLACE, brief "10^7 in the three directed modes plus
 /// nearest"): `EXP_DIR_N` operands (default 10^7) per distribution, direction and build, over the
 /// threads available (MXCSR is per thread), each through `m::exp` and the directed quick phase
-/// against liella-math's accurate `exp` in that direction; nearest through `m::exp`. Ignored in
+/// against niji-math's accurate `exp` in that direction; nearest through `m::exp`. Ignored in
 /// the gate.
 // s10_0_f_0: 0 mismatches in every direction and build.
 #[test]

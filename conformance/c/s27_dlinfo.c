@@ -5,7 +5,7 @@
  *     helper was opened by;
  *   - RTLD_DI_TLS_MODID: 0 without PT_TLS; else the module id __tls_get_addr takes for the block;
  *     RTLD_DI_TLS_DATA: NULL without PT_TLS; the calling thread's block once that thread used it
- *     (before that the reference gives NULL and Liella the block: docs/differences-from-glibc.md);
+ *     (before that the reference gives NULL and libniji the block: docs/differences-from-glibc.md);
  *   - RTLD_DI_PHDR: returns the program header count, stores the run-time table (the file's headers);
  *   - RTLD_DI_SERINFOSIZE / RTLD_DI_SERINFO: the search path, DT_RPATH, LD_LIBRARY_PATH, DT_RUNPATH
  *     ($ORIGIN expanded), then the system directories; dls_size is the header, the entries and the
@@ -165,7 +165,7 @@ int main(void)
     void *data = (void *)1;
     CHECK(dlinfo(syms, RTLD_DI_TLS_DATA, &data) == 0);
     long *mine = tls_addr();
-    CHECK(data == NULL || data == mine); /* before first use: the reference NULL, Liella the block */
+    CHECK(data == NULL || data == mine); /* before first use: the reference NULL, libniji the block */
     data = (void *)1;
     CHECK(dlinfo(syms, RTLD_DI_TLS_DATA, &data) == 0 && data == mine);
     size_t ti[2] = {modid, 0};

@@ -1,7 +1,7 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Workload gate, attribution (runs on a timing host): for the workloads that failed a counter,
-# the top Liella symbols by user instructions, NEW against BASE.
+# the top libniji symbols by user instructions, NEW against BASE.
 #
 #   wl_attr.sh BASE NEW WORKLOAD...        (WL as in wl_run.sh)
 #
@@ -36,7 +36,7 @@ for want in "$@"; do
                 paste <(cut -f1 "$tmp/$v.sym") "$tmp/$v.dem" > "$tmp/$v.sym2" && mv "$tmp/$v.sym2" "$tmp/$v.sym"
             fi
         done
-        echo "== $want: top Liella symbols by user instructions (Minstr = samples; base $base -> new $new)"
+        echo "== $want: top libniji symbols by user instructions (Minstr = samples; base $base -> new $new)"
         awk -F'\t' 'NR == FNR { b[$2] += $1; next } { n[$2] += $1 } END {
             for (s in n) printf "%d\t%d\t%d\t%s\n", n[s] - b[s], b[s], n[s], substr(s, 1, 110)
             for (s in b) if (!(s in n)) printf "%d\t%d\t0\t%s\n", -b[s], b[s], substr(s, 1, 110) }' \

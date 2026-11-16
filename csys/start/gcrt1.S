@@ -1,5 +1,5 @@
-/* Class machine: the profiling start object, the content of liella-gcrt1.o (spec §28.1,
- * GCRT1-START). A `-pg` program links it instead of liella-crt1.o: the same _start (entry.S),
+/* Class machine: the profiling start object, the content of niji-gcrt1.o (spec §28.1,
+ * GCRT1-START). A `-pg` program links it instead of niji-crt1.o: the same _start (entry.S),
  * plus __gmon_start__, which starts profiling over the executable's text and has gmon.out
  * written at exit, as the compiler driver's gcrt1.o does with glibc.
  *
@@ -19,7 +19,7 @@
  * the GOT, as in entry.S, and the linker relaxes them in a static link. The reserved names
  * __monstartup and _etext keep a program's own monstartup or etext from being taken.
  *
- * Assembled with -DLIELLA_STATIC_PIE it is liella-grcrt1.o (installed as grcrt1.o; SL-CRT), the
+ * Assembled with -DNIJI_STATIC_PIE it is niji-grcrt1.o (installed as grcrt1.o; SL-CRT), the
  * start object the compiler driver links for `-pg -static-pie`: rcrt1's relocating _start
  * (entry.S) and the same hook, which runs from .preinit_array after the relocation. */
 /* Outside csys/src on purpose: crates/boundary/build.rs archives every source under csys/src,
@@ -32,15 +32,15 @@
 	.p2align 6
 __gmon_start__:
 	.cfi_startproc
-	cmpb $0, liella_gmon_started(%rip)
+	cmpb $0, niji_gmon_started(%rip)
 	jne 1f
-	movb $1, liella_gmon_started(%rip)
+	movb $1, niji_gmon_started(%rip)
 	/* Entered with %rsp 8 below a 16-byte boundary: align it for the calls. */
 	subq $8, %rsp
 	.cfi_adjust_cfa_offset 8
 	leaq __executable_start(%rip), %rdi
 	leaq _etext(%rip), %rsi
-#ifdef LIELLA_STATIC_PIE
+#ifdef NIJI_STATIC_PIE
 	/* grcrt1.o: everything is in the one executable, reached PC-relatively like the rest of
 	 * rcrt1's code (no GOT relocation in the object, which `cargo xtask so` checks). */
 	call __monstartup
@@ -61,6 +61,6 @@ __gmon_start__:
 	.p2align 3
 	.quad __gmon_start__
 
-	.local liella_gmon_started
-	.comm liella_gmon_started, 1, 1
+	.local niji_gmon_started
+	.comm niji_gmon_started, 1, 1
 	.section .note.GNU-stack,"",@progbits

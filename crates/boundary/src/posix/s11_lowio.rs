@@ -3,19 +3,19 @@
 //! D-11.8).
 //!
 //! Thin wrappers are the typed `Sys` methods themselves (D-11.1); what glibc's contract adds is
-//! in `liella_legacy::io_compat`. Fixed-size C objects (`fd_set`, `timeval`, `timespec`,
+//! in `niji_legacy::io_compat`. Fixed-size C objects (`fd_set`, `timeval`, `timespec`,
 //! `epoll_event`, the `off_t` cells) are typed parameters (D-X.8). The memory calls take the C
 //! caller's raw addresses through `crate::raw` (D-11.7). `open`, `openat`, `fcntl`, `ioctl` and
 //! `mremap` are variadic: their C entry points are adapters (`csys/src/adapter/variadic.c`)
-//! forwarding to the fixed-arity `liella_*` exports here (OD-C1, version `LIELLA_PRIVATE`).
+//! forwarding to the fixed-arity `niji_*` exports here (OD-C1, version `NIJI_PRIVATE`).
 
-use liella_abi::ctypes::{c_char, c_int, c_long, c_uint, c_ulong, c_void, size_t, ssize_t};
-use liella_abi::layout::{sigset_t, struct_aioinit};
-use liella_kernel::fd::Fd;
-use liella_kernel::mem::{IoVec, IoVecMut, RemoteIoVec};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{EpollEvent, FdSet, PollFd, SigEvent, Timespec, Timeval};
-use liella_legacy::io_compat;
+use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, c_ulong, c_void, size_t, ssize_t};
+use niji_abi::layout::{sigset_t, struct_aioinit};
+use niji_kernel::fd::Fd;
+use niji_kernel::mem::{IoVec, IoVecMut, RemoteIoVec};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{EpollEvent, FdSet, PollFd, SigEvent, Timespec, Timeval};
+use niji_legacy::io_compat;
 
 use crate::aio;
 use crate::cancel;
@@ -26,14 +26,14 @@ use crate::ret;
 use crate::strz;
 use crate::sys::{self, CSys, CP};
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_open3(path: *const c_char, flags: c_int, mode: c_uint) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_open3(path: *const c_char, flags: c_int, mode: c_uint) -> c_int {
     // UNSAFE(slice) SAFETY: path is a NUL-terminated string (§11.1).
     cancel::point(ret::fd(unsafe { strz::path(path) }.and_then(|p| CP.openat(Fd::CWD, p, conv::bits(flags), mode))))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_openat4(dirfd: c_int, path: *const c_char, flags: c_int, mode: c_uint) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_openat4(dirfd: c_int, path: *const c_char, flags: c_int, mode: c_uint) -> c_int {
     // UNSAFE(slice) SAFETY: path is a NUL-terminated string (§11.1).
     cancel::point(ret::fd(unsafe { strz::path(path) }.and_then(|p| CP.openat(conv::fd(dirfd), p, conv::bits(flags), mode))))
 }}
@@ -95,21 +95,21 @@ pub extern "C" fn __close(fd: c_int) -> c_int {
     sys::direct_close(fd)
 }}
 
-export! { local "liella_close_rest";
+export! { local "niji_close_rest";
 /// `close`'s Rust path (CANCEL-FAST-2, from the direct entry in machine/points.S while any
 /// asynchronous I/O was ever started): the descriptor's requests are cancelled first.
 pub extern "C" fn close_rest(fd: c_int) -> c_int {
     ret::raw_zero(sys::close_point(aio::closing(conv::fd(fd))))
 }}
 
-export! { local "liella_close_point_fail";
+export! { local "niji_close_point_fail";
 /// The direct `close`'s error or due-request result (machine/points.S): a due request is acted
 /// on (errno from `r`), else `r` is converted (`-1` and errno, or 0).
 pub extern "C" fn close_point_fail(r: i64) -> c_int {
     ret::raw_zero(sys::point_result(r, true))
 }}
 
-export! { local "liella_cancel_point_fail";
+export! { local "niji_cancel_point_fail";
 /// The direct read/write entries' error result (machine/points.S): a due request is acted on
 /// (D-22.11: only when the cancellation word says it is due), else `-1` and errno.
 pub extern "C" fn cancel_point_fail(r: i64) -> ssize_t {
@@ -131,7 +131,7 @@ pub extern "C" fn read(fd: c_int, buf: *mut c_void, n: size_t) -> ssize_t {
     sys::direct_read(fd, buf, n)
 }}
 
-export! { local "liella_read_rest";
+export! { local "niji_read_rest";
 /// `read`'s Rust path (CANCEL-FAST-2, from the direct entry in machine/points.S): no descriptor
 /// yet, a count of 0 or above isize::MAX, or a NULL buffer.
 pub extern "C" fn read_rest(fd: c_int, buf: *mut c_void, n: size_t) -> ssize_t {
@@ -150,7 +150,7 @@ pub extern "C" fn write(fd: c_int, buf: *const c_void, n: size_t) -> ssize_t {
     sys::direct_write(fd, buf, n)
 }}
 
-export! { local "liella_write_rest";
+export! { local "niji_write_rest";
 /// `write`'s Rust path (CANCEL-FAST-2, from the direct entry in machine/points.S): no descriptor
 /// yet, a count of 0 or above isize::MAX, or a NULL buffer.
 pub extern "C" fn write_rest(fd: c_int, buf: *const c_void, n: size_t) -> ssize_t {
@@ -169,7 +169,7 @@ pub extern "C" fn pread(fd: c_int, buf: *mut c_void, n: size_t, off: i64) -> ssi
     sys::direct_pread(fd, buf, n, off)
 }}
 
-export! { local "liella_pread_rest";
+export! { local "niji_pread_rest";
 /// `pread`'s Rust path (CANCEL-FAST-2, from the direct entry in machine/points.S): no descriptor
 /// yet, a count of 0 or above isize::MAX, or a NULL buffer.
 pub extern "C" fn pread_rest(fd: c_int, buf: *mut c_void, n: size_t, off: i64) -> ssize_t {
@@ -193,7 +193,7 @@ pub extern "C" fn pwrite(fd: c_int, buf: *const c_void, n: size_t, off: i64) -> 
     sys::direct_pwrite(fd, buf, n, off)
 }}
 
-export! { local "liella_pwrite_rest";
+export! { local "niji_pwrite_rest";
 /// `pwrite`'s Rust path (CANCEL-FAST-2, from the direct entry in machine/points.S): no descriptor
 /// yet, a count of 0 or above isize::MAX, or a NULL buffer.
 pub extern "C" fn pwrite_rest(fd: c_int, buf: *const c_void, n: size_t, off: i64) -> ssize_t {
@@ -330,14 +330,14 @@ pub extern "C" fn dup3(old: c_int, new: c_int, flags: c_int) -> c_int {
     ret::fd(CSys.dup3(conv::fd(old), aio::closing_dup(conv::fd(old), conv::fd(new)), conv::bits(flags)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_fcntl3(fd: c_int, cmd: c_int, arg: usize) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_fcntl3(fd: c_int, cmd: c_int, arg: usize) -> c_int {
     // UNSAFE(slice) SAFETY: for a pointer command, arg is that command's structure (§11.5).
     ret::int(io_compat::fcntl(&CSys, conv::fd(fd), unsafe { conv::fcntl_arg(cmd, arg) }))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_ioctl3(fd: c_int, request: c_ulong, arg: usize) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_ioctl3(fd: c_int, request: c_ulong, arg: usize) -> c_int {
     ret::int(raw::ioctl(fd, request, arg))
 }}
 
@@ -586,8 +586,8 @@ pub extern "C" fn process_mrelease(pidfd: c_int, flags: c_uint) -> c_int {
     ret::zero(CSys.process_mrelease(conv::fd(pidfd), flags))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_mremap5(old: *mut c_void, old_len: size_t, new_len: size_t, flags: c_int, new_addr: *mut c_void) -> *mut c_void {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_mremap5(old: *mut c_void, old_len: size_t, new_len: size_t, flags: c_int, new_addr: *mut c_void) -> *mut c_void {
     ret::addr_or_neg1(raw::mremap_c(conv::addr(old), old_len, new_len, flags, conv::addr(new_addr)))
 }}
 

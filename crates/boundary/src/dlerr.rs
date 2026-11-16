@@ -9,7 +9,7 @@
 //! valid until the thread's next failure or its exit (longer than dlopen(3) promises). Releasing the
 //! record at thread exit is DL-15's thread-exit hook. When the mapping cannot be made the failure
 //! has no text (`dlerror` returns NULL), the only way the record can be missing. This module names
-//! no liella-ld item (see `compose`).
+//! no niji-ld item (see `compose`).
 
 use crate::{conv, raw, tb};
 use core::sync::atomic::Ordering::Relaxed;
@@ -59,9 +59,9 @@ pub fn set(parts: &[&[u8]]) {
 }
 
 /// Write `parts` one after another into `buf`, cut to leave room for the NUL written after them:
-/// the length written (without the NUL). An empty `buf` gets nothing. Kept here, not in liella-ld:
-/// this module is built in every boundary build, and a liella-ld edge from it would tie
-/// liella-math's tests (boundary with `selftest`) to every loader change (xtask affected).
+/// the length written (without the NUL). An empty `buf` gets nothing. Kept here, not in niji-ld:
+/// this module is built in every boundary build, and a niji-ld edge from it would tie
+/// niji-math's tests (boundary with `selftest`) to every loader change (xtask affected).
 fn compose(buf: &mut [u8], parts: &[&[u8]]) -> usize {
     let room = buf.len().saturating_sub(1);
     let mut n = 0usize;

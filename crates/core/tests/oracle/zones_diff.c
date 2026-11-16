@@ -1,5 +1,5 @@
 /* Broken-down time and time zones end to end (spec §23.5-23.6; D-23.4 to D-23.6): built against
- * the host C library and against Liella's products, the outputs must match line for line
+ * the host C library and against libniji's products, the outputs must match line for line
  * (zones_products.rs). Black-box: every line is a result of a public function. The zone files are
  * the system's (/usr/share/zoneinfo), the same for both builds. Each TZ value is examined in a
  * fresh child process, so that no result depends on the zones examined before it. */

@@ -11,14 +11,14 @@
 //! `strfmon` (§7.5) takes C varargs: its clauses are checked through the C interface by the
 //! self-checking program `conformance/c/s07_strfmon.c` (built against the products and run once
 //! per test binary; each clause test requires its clause's checks to have run and passed), and
-//! through `liella::monetary` with conventions that have a currency symbol and grouping, which
+//! through `niji::monetary` with conventions that have a currency symbol and grouping, which
 //! the built-in locales lack.
 //!
 //! The message catalogs (§7.7, §7.8) translate only in a named locale: those tests run in
 //! re-executed children with a locale compiled by `localedef` (see the section's comment); they
 //! are compared with the reference library in `catalogs_products.rs`.
 
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
@@ -31,17 +31,17 @@ use std::sync::{Mutex, OnceLock};
 use core::ffi::c_char;
 use core::ptr::{null, null_mut};
 
-use liella::error::Errno;
-use liella::locale::file::Cat;
-use liella::monetary::{self, Amounts, Conventions, Placement};
-use liella::num::{Float, Format, Rounding};
-use liella_abi::ctypes::locale_t;
-use liella_abi::layout::struct_lconv;
-use liella_boundary::errno;
-use liella_boundary::posix::s04_strings as st;
-use liella_boundary::posix::s06_multibyte as mb;
-use liella_boundary::posix::s07_locale as x;
-use liella_legacy::global_locale as gl;
+use niji::error::Errno;
+use niji::locale::file::Cat;
+use niji::monetary::{self, Amounts, Conventions, Placement};
+use niji::num::{Float, Format, Rounding};
+use niji_abi::ctypes::locale_t;
+use niji_abi::layout::struct_lconv;
+use niji_boundary::errno;
+use niji_boundary::posix::s04_strings as st;
+use niji_boundary::posix::s06_multibyte as mb;
+use niji_boundary::posix::s07_locale as x;
+use niji_legacy::global_locale as gl;
 
 const LC_CTYPE: i32 = 0;
 const LC_NUMERIC: i32 = 1;
@@ -354,10 +354,10 @@ fn s7_2_f_0() {
     // are not found, from LOCPATH directories whose parent or self is a compiled locale; the
     // same names from the environment leave the C locale.
     for n in [&b"."[..], b"..", b"", b"a/b", b"/x"] {
-        assert!(!liella::locale::name::acceptable(n), "{n:?}");
+        assert!(!niji::locale::name::acceptable(n), "{n:?}");
     }
     let mut tried = Vec::new();
-    let _ = liella::locale::name::candidates::<()>(&liella::locale::name::parse(b"..@euro"), |c| {
+    let _ = niji::locale::name::candidates::<()>(&niji::locale::name::parse(b"..@euro"), |c| {
         tried.push(String::from_utf8_lossy(c).into_owned());
         None
     });
@@ -559,10 +559,10 @@ static STRFMON: OnceLock<CRun> = OnceLock::new();
 fn c_run(cell: &'static OnceLock<CRun>, name: &str) -> &'static CRun {
     cell.get_or_init(|| {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let (crt, libc) = (root.join("target/liella/liella-crt1.o"), root.join("target/liella/libc.a"));
+        let (crt, libc) = (root.join("target/niji/niji-crt1.o"), root.join("target/niji/libc.a"));
         assert!(crt.exists() && libc.exists(), "the products are missing: run `cargo xtask so` (`cargo xtask test` does)");
         let src = root.join(format!("conformance/c/{name}.c"));
-        let libm = std::fs::read_to_string(&src).unwrap().lines().any(|l| l.trim() == "/* LINK-LIBM: yes */").then(|| root.join("target/liella/libm.a"));
+        let libm = std::fs::read_to_string(&src).unwrap().lines().any(|l| l.trim() == "/* LINK-LIBM: yes */").then(|| root.join("target/niji/libm.a"));
         assert!(libm.as_ref().is_none_or(|m| m.exists()), "{name}.c needs libm.a (LINK-LIBM): run `cargo xtask so`");
         let dir = root.join("target/test-oracles");
         std::fs::create_dir_all(&dir).unwrap();
@@ -621,7 +621,7 @@ fn dollars() -> Conventions<'static> {
     }
 }
 
-/// `strfmon` through `liella::monetary` into a buffer of `max` bytes.
+/// `strfmon` through `niji::monetary` into a buffer of `max` bytes.
 fn fmon(max: usize, fmt: &str, amounts: &[f64]) -> Result<String, Errno> {
     let mut buf = vec![0u8; max];
     let n = monetary::format(&mut buf, fmt.as_bytes(), &dollars(), &mut Doubles(amounts.to_vec()), Rounding::Nearest)?;
@@ -631,7 +631,7 @@ fn fmon(max: usize, fmt: &str, amounts: &[f64]) -> Result<String, Errno> {
 /// §7.5: format `double` or `long double` amounts (`%n` national, `%i` international) by
 /// `LC_MONETARY`; flags control the fill character, grouping, sign style (`+`, `(`) and the
 /// currency symbol; at most `max` bytes are written. Through the C interface with real varargs
-/// in the "C" locale (`conformance/c/s07_strfmon.c`), and through `liella::monetary` with
+/// in the "C" locale (`conformance/c/s07_strfmon.c`), and through `niji::monetary` with
 /// conventions that have a symbol and grouping.
 #[test]
 fn s7_5_c_0() {
@@ -694,15 +694,15 @@ fn s7_6_c_0() {
 // its own ([`in_child`]), with a named locale compiled by the host's `localedef` into
 // `target/test-locales` ([`test_locales`]; without `localedef` the test says so and passes) and
 // catalogs written below `target/test-scratch` ([`fixtures`]). The catalog formats and the plural
-// rules are also checked through `liella::catalog` directly.
+// rules are also checked through `niji::catalog` directly.
 
-use liella::catalog::{mo, plural, xopen};
-use liella_boundary::posix::s01_startup as envx;
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
+use niji::catalog::{mo, plural, xopen};
+use niji_boundary::posix::s01_startup as envx;
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
 
-const PROBE: &str = "LIELLA_S7_PROBE";
-const FIXTURES: &str = "LIELLA_S7_FIXTURES";
+const PROBE: &str = "NIJI_S7_PROBE";
+const FIXTURES: &str = "NIJI_S7_FIXTURES";
 const ENOENT: i32 = 2;
 const EBADF: i32 = 9;
 const EINVAL: i32 = 22;
@@ -1013,7 +1013,7 @@ fn s7_7_c_0() {
     // still see a replaced file after a second.
     in_child("s7_7_c_0", "tsc_off", &dir, &[("LOCPATH", &locales)], || {
         const PR_TSC_SIGSEGV: u64 = 2;
-        assert_eq!(CSys.prctl_int(liella_kernel::ops::PrctlInt::SetTsc, PR_TSC_SIGSEGV, 0), Ok(0), "PR_SET_TSC");
+        assert_eq!(CSys.prctl_int(niji_kernel::ops::PrctlInt::SetTsc, PR_TSC_SIGSEGV, 0), Ok(0), "PR_SET_TSC");
         let at = std::path::Path::new(&*dir).join("de_DE.UTF-8/LC_MESSAGES/tsc.mo");
         std::fs::create_dir_all(at.parent().unwrap()).unwrap();
         std::fs::write(&at, utf8_mo("", &[(b"where", b"old")])).unwrap();
@@ -1414,13 +1414,13 @@ fn s7_7_c_3_bound_later() {
 /// child's first lookup, which decides whether the counter is used.
 fn tsc_off() {
     const PR_TSC_SIGSEGV: u64 = 2;
-    assert_eq!(CSys.prctl_int(liella_kernel::ops::PrctlInt::SetTsc, PR_TSC_SIGSEGV, 0), Ok(0), "PR_SET_TSC");
+    assert_eq!(CSys.prctl_int(niji_kernel::ops::PrctlInt::SetTsc, PR_TSC_SIGSEGV, 0), Ok(0), "PR_SET_TSC");
 }
 
 /// The test clock (`recheck::SKEW_NS`, selftest builds): moved past the one-second interval.
 /// The child called [`tsc_off`] first.
 fn skip_interval() {
-    liella_legacy::recheck::SKEW_NS.fetch_add(1_100_000_000, core::sync::atomic::Ordering::Relaxed);
+    niji_legacy::recheck::SKEW_NS.fetch_add(1_100_000_000, core::sync::atomic::Ordering::Relaxed);
 }
 
 /// §7.7, D-7.12 (owner ruling 2026-10-23, #1056/#1057): an unchanged `bindtextdomain`,
@@ -1436,7 +1436,7 @@ fn s7_7_c_3_rebind_unchanged() {
     let dir = fixtures("c3u", |_| {});
     in_child("s7_7_c_3_rebind_unchanged", "rebind", &dir, &[("LOCPATH", &locales)], || {
         use core::sync::atomic::Ordering::Relaxed;
-        use liella_boundary::catalog::FS_CALLS;
+        use niji_boundary::catalog::FS_CALLS;
         tsc_off();
         need(LC_ALL, "de_DE.UTF-8");
         let path = std::path::Path::new(&*dir).join("de_DE.UTF-8/LC_MESSAGES/u.mo");
@@ -1457,7 +1457,7 @@ fn s7_7_c_3_rebind_unchanged() {
             skip_interval();
             assert_eq!(dc("u", "where", LC_MESSAGES), "where", "no catalog: the path is checked, still missing");
             // The coarse clock: with the counter off, `Instant` (the vDSO's precise clock) would fault.
-            let t = liella_legacy::recheck::now(&CSys);
+            let t = niji_legacy::recheck::now(&CSys);
             let before = FS_CALLS.load(Relaxed);
             put("one");
             bind_dir("u", &dir);
@@ -1465,7 +1465,7 @@ fn s7_7_c_3_rebind_unchanged() {
             assert!(!x::textdomain(c("u").as_ptr()).is_null());
             let got = dc("u", "where", LC_MESSAGES);
             let calls = FS_CALLS.load(Relaxed) - before;
-            if liella_legacy::recheck::now(&CSys) - t < 500_000_000 {
+            if niji_legacy::recheck::now(&CSys) - t < 500_000_000 {
                 counted = Some((calls, got));
                 break;
             }
@@ -1543,7 +1543,7 @@ fn s7_7_c_4_env_memo() {
         let edit = |t: &[AtomicU8], from: usize, b: &str| b.bytes().enumerate().for_each(|(i, b)| t[from + i].store(b, SeqCst));
         let w = || dc("t", "where", LC_MESSAGES);
         let pre: &'static [AtomicUsize] = Box::leak([at(text("AAA=1")), at(text("QQ=1")), 0].map(AtomicUsize::new).into());
-        liella_boundary::ffi::environ.store(pre.as_ptr() as usize, SeqCst);
+        niji_boundary::ffi::environ.store(pre.as_ptr() as usize, SeqCst);
         assert_eq!(w(), "de", "LANGUAGE unset: the locale");
         pre[1].store(at(text("LANGUAGE=it")), SeqCst);
         assert_eq!(w(), "de", "an unset name made to appear by a direct store is not seen (the recorded difference)");
@@ -1552,7 +1552,7 @@ fn s7_7_c_4_env_memo() {
         let buf = text("LANGUAGE=it");
         let words = [at(text("AAA=1")), at(buf), at(text("ZZ=filler")), at(text("LANGUAGE=es")), 0];
         let arr: &'static [AtomicUsize] = Box::leak(words.map(AtomicUsize::new).into());
-        liella_boundary::ffi::environ.store(arr.as_ptr() as usize, SeqCst);
+        niji_boundary::ffi::environ.store(arr.as_ptr() as usize, SeqCst);
         assert_eq!(w(), "it", "a new environ: the first entry wins");
         assert_eq!(w(), "it", "remembered");
         edit(buf, 9, "fr");
@@ -1588,14 +1588,14 @@ fn s7_7_c_4_env_memo() {
         assert_eq!(envx::unsetenv(c("LANGUAGE").as_ptr()), 0);
         assert_eq!(w(), "de", "unset again");
         let again: &'static [AtomicUsize] = Box::leak([at(text("LANGUAGE=it")), 0].map(AtomicUsize::new).into());
-        liella_boundary::ffi::environ.store(again.as_ptr() as usize, SeqCst);
+        niji_boundary::ffi::environ.store(again.as_ptr() as usize, SeqCst);
         assert_eq!(w(), "it", "unset remembered, then a new environ that sets it");
         assert_eq!(envx::clearenv(), 0);
         assert_eq!(w(), "de", "clearenv");
         setenv("LANGUAGE", "es");
         assert_eq!(w(), "es", "set after clearenv");
         let own: &'static [AtomicUsize] = Box::leak([at(text("LANGUAGE=fr")), 0].map(AtomicUsize::new).into());
-        liella_boundary::ffi::environ.store(own.as_ptr() as usize, SeqCst);
+        niji_boundary::ffi::environ.store(own.as_ptr() as usize, SeqCst);
         assert_eq!(w(), "fr", "environ assigned again");
         own[0].store(0, SeqCst);
         assert_eq!(w(), "de", "the remembered slot made the array's end");

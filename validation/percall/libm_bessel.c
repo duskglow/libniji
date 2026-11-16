@@ -39,8 +39,8 @@ static void dzero(double z) {
 /* jnf/ynf of order k (LIBM-JNF-LARGE): orders 0 and +-1 share the float functions' bands. */
 #define LOOPFN(fp, k) { float (*f)(int, float) = fp; double acc = 0; for (long i = 0; i < n; i++) acc += f(k, ft[i & 63]); pc_sink += (long)(acc * 1e3); }
 /* Self-check against an oracle value (LIBM-BESSEL-SELFCHECK): `want` is the true value rounded to nearest, from mpmath
- * 1.4.1 (bessely at 400 bits) and agreeing with Liella's 384-bit path. The two libraries' results for y1(2.0) and
- * y0(1e-10) differ in the last place in round-to-nearest (Liella's is `want`), so printing 17 digits flagged a
+ * 1.4.1 (bessely at 400 bits) and agreeing with libniji's 384-bit path. The two libraries' results for y1(2.0) and
+ * y0(1e-10) differ in the last place in round-to-nearest (libniji's is `want`), so printing 17 digits flagged a
  * mismatch that is no disagreement about the function. These checks print whether the result lies within 1 ulp of
  * `want`, and `want`: a library computing something else still prints `far`. */
 static void pc_check_near(double r, double want) {

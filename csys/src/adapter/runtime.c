@@ -3,7 +3,7 @@
  * 1. The startup data objects C programs name. Several names share one object (`environ`,
  *    `__environ` and `_environ`; `program_invocation_name` and `__progname_full`;
  *    `program_invocation_short_name` and `__progname`), which Rust statics cannot express.
- *    Defined only in the shipped products (LIELLA_RUNTIME): in test builds the host C library
+ *    Defined only in the shipped products (NIJI_RUNTIME): in test builds the host C library
  *    owns them, and the Rust side reaches the host's objects under the same names (D-2.1).
  *    argp's program-wide variables (§1.7, D-1.7) are defined here too, weakly.
  * 2. The link-time symbols of a static executable's constructor and destructor lists, through
@@ -19,9 +19,9 @@
  * (crates/boundary/src/runtime.rs, crates/boundary/src/backtrace.rs). */
 #include <stddef.h>
 #include <stdint.h>
-#include "liella_csys.h"
+#include "niji_csys.h"
 
-#ifdef LIELLA_RUNTIME
+#ifdef NIJI_RUNTIME
 char **environ = 0;
 extern char **__environ __attribute__((alias("environ")));
 extern char **_environ __attribute__((alias("environ")));
@@ -66,21 +66,21 @@ extern void (*__fini_array_end[])(void) __attribute__((weak));
 extern void _init(void) __attribute__((weak));
 extern void _fini(void) __attribute__((weak));
 
-uintptr_t liella_link_preinit_start(void) { return (uintptr_t)__preinit_array_start; }
-uintptr_t liella_link_preinit_end(void) { return (uintptr_t)__preinit_array_end; }
-uintptr_t liella_link_init_start(void) { return (uintptr_t)__init_array_start; }
-uintptr_t liella_link_init_end(void) { return (uintptr_t)__init_array_end; }
-uintptr_t liella_link_fini_start(void) { return (uintptr_t)__fini_array_start; }
-uintptr_t liella_link_fini_end(void) { return (uintptr_t)__fini_array_end; }
-uintptr_t liella_link_init(void) { return (uintptr_t)_init; }
-uintptr_t liella_link_fini(void) { return (uintptr_t)_fini; }
+uintptr_t niji_link_preinit_start(void) { return (uintptr_t)__preinit_array_start; }
+uintptr_t niji_link_preinit_end(void) { return (uintptr_t)__preinit_array_end; }
+uintptr_t niji_link_init_start(void) { return (uintptr_t)__init_array_start; }
+uintptr_t niji_link_init_end(void) { return (uintptr_t)__init_array_end; }
+uintptr_t niji_link_fini_start(void) { return (uintptr_t)__fini_array_start; }
+uintptr_t niji_link_fini_end(void) { return (uintptr_t)__fini_array_end; }
+uintptr_t niji_link_init(void) { return (uintptr_t)_init; }
+uintptr_t niji_link_fini(void) { return (uintptr_t)_fini; }
 
 /* A static executable's IRELATIVE entries (`.rela.iplt`): the linker defines these two symbols
  * in a static link only, so elsewhere both are 0 and the range is empty. */
 extern const char __rela_iplt_start[] __attribute__((weak, visibility("hidden")));
 extern const char __rela_iplt_end[] __attribute__((weak, visibility("hidden")));
-uintptr_t liella_link_rela_iplt_start(void) { return (uintptr_t)__rela_iplt_start; }
-uintptr_t liella_link_rela_iplt_end(void) { return (uintptr_t)__rela_iplt_end; }
+uintptr_t niji_link_rela_iplt_start(void) { return (uintptr_t)__rela_iplt_start; }
+uintptr_t niji_link_rela_iplt_end(void) { return (uintptr_t)__rela_iplt_end; }
 
 /* The x87 control word the program asks for in `__fpu_control` (D-10.5; the definition is
  * `fpu_control.c`). In `libc.so.6` the read goes through the GOT, so it sees a program's
@@ -88,7 +88,7 @@ uintptr_t liella_link_rela_iplt_end(void) { return (uintptr_t)__rela_iplt_end; }
  * (the member is then not pulled in, and no collision arises); start-up reads it only in a
  * dynamic program. */
 extern unsigned short __fpu_control;
-uint16_t liella_link_fpu_control(void) { return __fpu_control; }
+uint16_t niji_link_fpu_control(void) { return __fpu_control; }
 
 /* Caller-owned memory (D-X.14): the library allocates what it hands to C callers, and frees
  * what they hand back, through the symbols `malloc`, `calloc`, `realloc` and `free`, which a
@@ -99,15 +99,15 @@ void *malloc(size_t n);
 void *calloc(size_t k, size_t n);
 void *realloc(void *p, size_t n);
 void free(void *p);
-void *liella_caller_malloc(size_t n) { return malloc(n); }
-void *liella_caller_calloc(size_t k, size_t n) { return calloc(k, n); }
-void *liella_caller_realloc(void *p, size_t n) { return realloc(p, n); }
-void liella_caller_free(void *p) { free(p); }
+void *niji_caller_malloc(size_t n) { return malloc(n); }
+void *niji_caller_calloc(size_t k, size_t n) { return calloc(k, n); }
+void *niji_caller_realloc(void *p, size_t n) { return realloc(p, n); }
+void niji_caller_free(void *p) { free(p); }
 
 extern const char __ehdr_start[] __attribute__((weak, visibility("hidden")));
-extern const char liella_eh_frame_start[] __attribute__((weak, visibility("hidden")));
-static const uint32_t liella_eh_frame_end __attribute__((section(".eh_frame.liella_end"), aligned(4))) = 0;
+extern const char niji_eh_frame_start[] __attribute__((weak, visibility("hidden")));
+static const uint32_t niji_eh_frame_end __attribute__((section(".eh_frame.niji_end"), aligned(4))) = 0;
 
-uintptr_t liella_link_ehdr(void) { return (uintptr_t)__ehdr_start; }
-uintptr_t liella_link_eh_frame_start(void) { return (uintptr_t)liella_eh_frame_start; }
-uintptr_t liella_link_eh_frame_end(void) { return (uintptr_t)&liella_eh_frame_end; }
+uintptr_t niji_link_ehdr(void) { return (uintptr_t)__ehdr_start; }
+uintptr_t niji_link_eh_frame_start(void) { return (uintptr_t)niji_eh_frame_start; }
+uintptr_t niji_link_eh_frame_end(void) { return (uintptr_t)&niji_eh_frame_end; }

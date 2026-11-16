@@ -2,14 +2,14 @@
 //!
 //! The scanners pick AVX2 or SSE2 from a flag in the C layer (SSE2, valid on every x86-64 CPU,
 //! until [`init`] runs); `rep movsb`/`rep stosb` are used only when CPUID reports ERMS. The
-//! decision comes from `liella_rt::cpu::Features`, which counts AVX2 only when the OS saves
+//! decision comes from `niji_rt::cpu::Features`, which counts AVX2 only when the OS saves
 //! the YMM state (XCR0).
 
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::config::Tunables;
+use niji::config::Tunables;
 
-use liella_rt::cpu::Features;
+use niji_rt::cpu::Features;
 
 use crate::ffi;
 use crate::sys::CSys;
@@ -65,7 +65,7 @@ pub fn features_cached() -> Features {
 static DETECTIONS: AtomicUsize = AtomicUsize::new(0);
 
 /// Bytes from which a disjoint copy that the AVX2 copy does not take uses `rep movsb` on an ERMS
-/// CPU (in practice a CPU without AVX2; `liella.cpu.rep_movsb_threshold` overrides it). Measured
+/// CPU (in practice a CPU without AVX2; `niji.cpu.rep_movsb_threshold` overrides it). Measured
 /// (MEMCPY-NONAVX2-THRESHOLD, D-4.14) on Ivy Bridge (Ivy Bridge host A, Ivy Bridge host B; ERMS, no AVX2) against the
 /// SSE2 move, cycles per call with the kernels interleaved in one pinned process
 /// (tools/probe/memcpy_cycles.c): at 2-4 KiB `rep movsb` lost at every placement (1.03-1.07
@@ -75,7 +75,7 @@ static DETECTIONS: AtomicUsize = AtomicUsize::new(0);
 pub const COPY_ERMS_MIN: usize = 6144;
 /// Below this many bytes a copy whose destination and source differ modulo 64 (at a placement
 /// `conv::erms_placement_ok` accepts) takes the head-aligned `rep movsb`
-/// (`liella_machine_copy_erms_a64`), from it the plain one. Ivy Bridge, against the SSE2 move:
+/// (`niji_machine_copy_erms_a64`), from it the plain one. Ivy Bridge, against the SSE2 move:
 /// head-aligned 0.78-0.98 at 6-16 KiB (source +7, destination 600 bytes after the source),
 /// plain 1.01-1.31 there; from 24 KiB head-aligned 1.04-1.05 at +600, plain 0.98-1.00.
 pub const ERMS_A64_MISALIGNED_END: usize = 16_385;
@@ -87,7 +87,7 @@ pub const ERMS_A64_MISALIGNED_END: usize = 16_385;
 /// Broadwell keep it from 64 KiB (1 MiB: 0.80-0.89).
 pub const ERMS_LARGE_FSRM_FROM: usize = 1_048_577;
 /// Bytes from which `rep stosb` beats the fill loop (measured, D-4.14);
-/// `liella.cpu.rep_stosb_threshold` overrides it.
+/// `niji.cpu.rep_stosb_threshold` overrides it.
 pub const FILL_ERMS_MIN: usize = 1280;
 
 /// The size range, in bytes, of the AVX2 copy: from `AVX2_COPY_MIN` up to, not including,
@@ -102,7 +102,7 @@ pub const AVX2_COPY_END: usize = 65_537;
 
 /// The `rep movsb` window inside the AVX2 copy's range (MEMCPY-POLICY-2, D-4.14), per CPU class:
 /// a disjoint copy of `from..end` bytes whose destination and source agree modulo 64 takes
-/// `liella_machine_copy_erms_a64` (one 64-byte head store, then `rep movsb` from the aligned
+/// `niji_machine_copy_erms_a64` (one 64-byte head store, then `rep movsb` from the aligned
 /// destination) instead of the AVX2 copy. Decided by cycles:u per call, the kernels interleaved
 /// in one pinned process (tools/probe/memcpy_cycles.c; paired per-round ratios, 10-90% range):
 /// - ERMS, no FSRM, AVX-512F (Skylake-SP, Skylake-SP host, booked): rep movsb / AVX2 0.90 at 4 KiB, 0.66
@@ -115,7 +115,7 @@ pub const AVX2_COPY_END: usize = 65_537;
 ///
 /// Destinations that differ from the source modulo 64 keep the AVX2 copy: there rep movsb
 /// (head-aligned or not) lost on every class (dst 600 bytes after the source modulo 4 KiB:
-/// Skylake-SP 1.07-1.19, Broadwell 1.08-1.30, N100 1.3-2.0). `liella.cpu.rep_movsb_threshold`
+/// Skylake-SP 1.07-1.19, Broadwell 1.08-1.30, N100 1.3-2.0). `niji.cpu.rep_movsb_threshold`
 /// sets the start and widens the end to [`AVX2_COPY_END`].
 pub const AVX2_ERMS_WIDE: (usize, usize) = (4096, AVX2_COPY_END);
 /// See [`AVX2_ERMS_WIDE`].
@@ -192,12 +192,12 @@ fn flags() -> u8 {
     }
 }
 
-/// The scanners' path as the kernels see it (`liella_machine_scan_level`: 0 = SSE2, 1 = AVX2).
+/// The scanners' path as the kernels see it (`niji_machine_scan_level`: 0 = SSE2, 1 = AVX2).
 /// The scanning exports make no per-call "decided yet?" test (SHORT-3, D-4.39): the SSE2 default
 /// is correct before [`init_with`] runs at startup. Tests compare it with [`avx2`].
 #[cfg(feature = "selftest")]
 pub fn scan_level() -> u32 {
-    ffi::liella_machine_scan_level_get()
+    ffi::niji_machine_scan_level_get()
 }
 
 /// Decide the paths from CPUID (later calls repeat the same decision). Never inlined: the
@@ -231,7 +231,7 @@ pub fn init_with(t: &Tunables) -> u8 {
     let f = features();
     let avx2 = avx2_wanted(&f, t);
     let erms = f.erms() && t.erms.unwrap_or(true);
-    ffi::liella_machine_set_scan_level(u32::from(avx2));
+    ffi::niji_machine_set_scan_level(u32::from(avx2));
     // The hot kernels' builds (D-4.25): the same decision as the scanners'.
     crate::dispatch::select(avx2);
     // The math kernels' FMA builds (D-10.25): `glibc.cpu.hwcaps=-FMA` keeps the baseline.
@@ -258,7 +258,7 @@ pub fn init_with(t: &Tunables) -> u8 {
 fn publish_fill_erms_from() {
     // 257: the first size past the entry's straight-line 129-256 class.
     let from = if erms_decided() { fill_erms_min().max(257) } else { usize::MAX };
-    ffi::liella_machine_fill_erms_from.store(from, Relaxed);
+    ffi::niji_machine_fill_erms_from.store(from, Relaxed);
 }
 
 /// Make sure the paths are decided (the scanners are correct either way; this is for speed).

@@ -7,13 +7,13 @@
  * static PIE, holds an unrelocated link-time value until the relocator has run). The linker
  * defines `__ehdr_start` in every executable and shared object whose ELF header lies in a loaded
  * segment (the default layouts). This file holds nothing else: `cargo xtask so` checks that the
- * member defining `liella_link_image_header` has no GOT-indirect relocation at all.
+ * member defining `niji_link_image_header` has no GOT-indirect relocation at all.
  */
 #include <stdint.h>
 
-#ifdef LIELLA_RUNTIME
+#ifdef NIJI_RUNTIME
 extern const char __ehdr_start[] __attribute__((visibility("hidden")));
 
 /* The run-time address of the ELF header of the image this object is linked into. */
-uintptr_t liella_link_image_header(void) { return (uintptr_t)__ehdr_start; }
+uintptr_t niji_link_image_header(void) { return (uintptr_t)__ehdr_start; }
 #endif

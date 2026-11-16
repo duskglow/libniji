@@ -1,6 +1,6 @@
 //! The architecture seam of the loader (plan/ph14/design.md §0a, L14-13, A-1 `ARCH-PH14-NEUTRAL`).
 //!
-//! Everything in `liella-ld` that changes per architecture is a constant or a pure function of the
+//! Everything in `niji-ld` that changes per architecture is a constant or a pure function of the
 //! [`Arch`] trait, implemented by a zero-sized type per architecture. x86_64 ([`X86_64`]) is the only
 //! implementation; the rest of the crate names no architecture and takes `A: Arch` (or [`Native`]).
 //!
@@ -10,9 +10,9 @@
 //! into the arch-neutral [`RelocKind`], and the RELA iterators of [`crate::elf`] yield only that. Later
 //! stories add the other rows (relocation arithmetic, TLS variant, loader name and paths, ...) here.
 
-use liella_kernel::auxv::Auxv;
-use liella_kernel::machine::Machine;
-use liella_rt::cpu::Features;
+use niji_kernel::auxv::Auxv;
+use niji_kernel::machine::Machine;
+use niji_rt::cpu::Features;
 
 /// `EI_CLASS` value of a 64-bit object (ELF gABI).
 pub const ELFCLASS64: u8 = 2;
@@ -291,7 +291,7 @@ impl Arch for X86_64 {
     /// Variant II (x86-64 psABI §3.4.6 "Thread-Local Storage"; Drepper §3.4.2): `%fs` points at the
     /// thread control block and the static blocks lie below it.
     const TLS_VARIANT: TlsVariant = TlsVariant::II;
-    /// Liella's whole thread block (`liella_rt::tls::ThreadBlock`, D-4.15, 0x300 bytes).
+    /// libniji's whole thread block (`niji_rt::tls::ThreadBlock`, D-4.15, 0x300 bytes).
     const TCB_SIZE: u64 = 0x300;
     /// The thread block's alignment (`#[repr(align(64))]`).
     const TCB_ALIGN: u64 = 64;
@@ -406,7 +406,7 @@ impl Arch for X86_64 {
 ///
 /// Defined only on x86_64. Design §0a asks for a `compile_error!` on other targets until A-12; this
 /// module leaves `Native` undefined there instead, because `cargo xtask arch-check` (A-2) builds
-/// `liella-ld` for aarch64 and must keep passing: nothing in the crate uses `Native` yet, and the
+/// `niji-ld` for aarch64 and must keep passing: nothing in the crate uses `Native` yet, and the
 /// first use on another target fails to compile just as the design intends.
 // ARCH(x86_64): the loader's Arch seam (design §0a); A-12 adds the aarch64 arm.
 #[cfg(target_arch = "x86_64")]

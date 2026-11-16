@@ -7,8 +7,8 @@
 #![allow(clippy::disallowed_methods)] // a test tool: S8 (fallible allocation) governs the library crates only
 
 use libfuzzer_sys::fuzz_target;
-use liella::mem::TryVec;
-use liella::names::dns::{client, host, msg, name, text, CLASS_IN, T_A, T_AAAA, T_PTR};
+use niji::mem::TryVec;
+use niji::names::dns::{client, host, msg, name, text, CLASS_IN, T_A, T_AAAA, T_PTR};
 
 fuzz_target!(|m: &[u8]| {
     // The name asked: the question's name when there is one.

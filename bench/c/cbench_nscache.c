@@ -1,6 +1,6 @@
 /* The integrated name-service cache (D-16.10): the same lookups with the cache (the user's shared
- * region, warm) and without it (`liella_nscache_enable(0)`, as with LIELLA_NSCACHE=0), in one
- * process. Liella only (it uses <liella/native.h>); the reference's numbers for the uncached rows
+ * region, warm) and without it (`niji_nscache_enable(0)`, as with NIJI_NSCACHE=0), in one
+ * process. libniji only (it uses <niji/native.h>); the reference's numbers for the uncached rows
  * are cbench_netdb's. `cargo xtask bench` runs it with a private /dev/shm when it can, so that no
  * region is left in the system's. Prints `name<TAB>ns/op`, the best of several rounds.
  *
@@ -20,7 +20,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <liella/native.h>
+#include <niji/native.h>
 
 static volatile long sink;
 
@@ -119,7 +119,7 @@ static long serv(void)
 static void fresh_process(char *const env[], int fresh, double out[2])
 {
     char region[64];
-    snprintf(region, sizeof region, "/dev/shm/liella-nscache-%u", (unsigned)geteuid());
+    snprintf(region, sizeof region, "/dev/shm/niji-nscache-%u", (unsigned)geteuid());
     if (fresh)
         unlink(region);
     int fd[2];
@@ -175,17 +175,17 @@ int main(int argc, char **argv)
     }
     if (pw() != 1 || gai() != 101 || serv() != 80)
         fail("lookups");
-    struct liella_nscache_info st;
-    if (liella_nscache_status(&st) != 0 || st.hits + st.misses == 0)
+    struct niji_nscache_info st;
+    if (niji_nscache_status(&st) != 0 || st.hits + st.misses == 0)
         fail("the cache is not in use");
     MEASURE("getpwnam_r_cached", 1000000, pw());
     MEASURE("getaddrinfo_localhost_cached", 200000, gai());
     MEASURE("getservbyname_r_cached", 1000000, serv());
-    liella_nscache_enable(0);
+    niji_nscache_enable(0);
     MEASURE("getpwnam_r_uncached", 100000, pw());
     MEASURE("getaddrinfo_localhost_uncached", 100000, gai());
     MEASURE("getservbyname_r_uncached", 50000, serv());
-    liella_nscache_enable(1);
+    niji_nscache_enable(1);
     if (pw() != 1)
         fail("enable");
     /* Fresh processes: the region exists and is valid, the region is created, the cache off.
@@ -194,8 +194,8 @@ int main(int argc, char **argv)
      * none of them is measured only early or only late in the run. The three first lookups do
      * the same work (the same system calls, page faults and instructions, D-16.10's first
      * lookup going to the sources), so these rows differ only by how they are measured. */
-    char *const on[] = {(char *)"PATH=/usr/bin:/bin", (char *)"LIELLA_NSCACHE=1", NULL};
-    char *const off[] = {(char *)"PATH=/usr/bin:/bin", (char *)"LIELLA_NSCACHE=0", NULL};
+    char *const on[] = {(char *)"PATH=/usr/bin:/bin", (char *)"NIJI_NSCACHE=1", NULL};
+    char *const off[] = {(char *)"PATH=/usr/bin:/bin", (char *)"NIJI_NSCACHE=0", NULL};
     double t[3][2];
     fresh_rounds(on, off, 40, t);
     put("first_getpwnam_r_cached", t[0][0]);

@@ -1,15 +1,15 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Allocation trace of one workload's program under gdb on keke (ALLOC-TRACE). Answers "what does this program ask the
 # allocator for, and how": per-size-class call counts, realloc chains (old size -> new size, moved or in place) and the
 # top call sites. HEAP-REUSE settled in two calls what fault attribution had guessed wrong. Counts, never time.
 #
 #   validation/wl_alloctrace.sh [--top N] [--prog P] [--nowait] <worktree|rev> <workload>
 #
-# <worktree|rev>: a Liella worktree (its HEAD; dirty tree refused) or a rev of the repository you run in.
+# <worktree|rev>: a libniji worktree (its HEAD; dirty tree refused) or a rev of the repository you run in.
 # <workload>: a name of validation/wl_workloads.sh (tar-c, ls-lR, ...). The workload command runs unchanged, but the FIRST
 #   invocation of its main program (--prog P, default the first @/prog in the command) runs the kit binary directly under
-#   gdb (not the sh wrapper, not glibc: Liella only). Later invocations (a loop of 10) run untraced.
+#   gdb (not the sh wrapper, not glibc: libniji only). Later invocations (a loop of 10) run untraced.
 # --top N: rows per table (default 10). Env TRMIN (default 256): smallest malloc whose realloc chain is followed; smaller
 #   blocks show up in a chain only from their first realloc ("?"). TRSECS (default 240): time cap on the trace;
 #   when it hits, the program is stopped and the summary says TRUNCATED (counts are then a prefix of the run). The summary has: calls and MB by size class per entry

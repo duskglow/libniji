@@ -1,23 +1,23 @@
 //! The `double` `erf`, `erfc` quick phase (LIBM-F64-SPECIAL-QUICK, D-10.84) through the C entries
 //! in both builds (the FMA build needs the startup dispatch). Clause: s10_0_f_0 (§10.2, D-10.3):
 //! every value the entries return is the correctly rounded result, so the two builds are
-//! bit-identical. `LIELLA_ERF_N` (default 20000) sets the operands per region; the long accuracy
+//! bit-identical. `NIJI_ERF_N` (default 20000) sets the operands per region; the long accuracy
 //! job runs it with a larger value.
 
 // Sample generation is bit-level arithmetic on bounded values.
 #![allow(clippy::arithmetic_side_effects, clippy::as_conversions)]
-// erf, erfc are Liella's own C entries: keep LLVM from treating them as builtins.
+// erf, erfc are libniji's own C entries: keep LLVM from treating them as builtins.
 #![no_builtins]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_math::status::Rounding;
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_math::status::Rounding;
 
 /// Serialises the tests that switch the process-wide build.
 static BUILD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn per_region() -> usize {
-    std::env::var("LIELLA_ERF_N").ok().and_then(|v| v.parse().ok()).unwrap_or(20_000)
+    std::env::var("NIJI_ERF_N").ok().and_then(|v| v.parse().ok()).unwrap_or(20_000)
 }
 
 /// xorshift64 over `[lo, hi)`.
@@ -59,9 +59,9 @@ fn erf_quick_both_builds_round_correctly() {
             continue;
         }
         for &x in &xs {
-            let want = liella_math::special::erf(x, Rounding::Nearest).0;
+            let want = niji_math::special::erf(x, Rounding::Nearest).0;
             assert_eq!(m::erf(x).to_bits(), want.to_bits(), "{build} erf({x:e}) misrounded");
-            let want = liella_math::special::erfc(x, Rounding::Nearest).0;
+            let want = niji_math::special::erfc(x, Rounding::Nearest).0;
             assert_eq!(m::erfc(x).to_bits(), want.to_bits(), "{build} erfc({x:e}) misrounded");
         }
         eprintln!("{build}: {} operands checked", xs.len());

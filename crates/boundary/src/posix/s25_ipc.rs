@@ -1,23 +1,23 @@
 //! Translation for spec §25: pipes (§25.1) and System V IPC (§25.2) (phase 5); POSIX message
 //! queues and shared memory (§25.3–25.4) (phase 13).
 //!
-//! The `*ctl` arguments are decoded by command (`liella_legacy::ipc_compat::*_shape`, then
+//! The `*ctl` arguments are decoded by command (`niji_legacy::ipc_compat::*_shape`, then
 //! `conv`). `semctl` is variadic: its C entry point is an adapter
-//! (`csys/src/adapter/variadic.c`) forwarding to `liella_semctl4` (OD-C1). `shmat` and `shmdt`
+//! (`csys/src/adapter/variadic.c`) forwarding to `niji_semctl4` (OD-C1). `shmat` and `shmdt`
 //! take the caller's addresses through `crate::raw` (D-11.7, as `mmap`).
 //!
-//! POSIX queues and objects are `liella::ipc`; `mq_notify`'s `SIGEV_THREAD` and the
+//! POSIX queues and objects are `niji::ipc`; `mq_notify`'s `SIGEV_THREAD` and the
 //! shared-memory directory are `crate::mqueue` (D-25.2, D-25.3). `mq_open` is variadic: its C
-//! entry point is an adapter forwarding to `liella_mq_open4`, which reads the attributes only
+//! entry point is an adapter forwarding to `niji_mq_open4`, which reads the attributes only
 //! with `O_CREAT`. Sending and receiving are cancellation points (§25.3). `__mq_open_2`, the
 //! fortified form for a call without the optional arguments, refuses `O_CREAT` with `EINVAL`
 //! (it creates nothing; the reference aborts).
 
-use liella::ipc;
-use liella_abi::ctypes::{c_char, c_int, c_long, c_uint, c_void, size_t, ssize_t};
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MqAttr, Sembuf, SigEvent, Timespec};
-use liella_legacy::ipc_compat;
+use niji::ipc;
+use niji_abi::ctypes::{c_char, c_int, c_long, c_uint, c_void, size_t, ssize_t};
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MqAttr, Sembuf, SigEvent, Timespec};
+use niji_legacy::ipc_compat;
 
 use crate::cancel;
 use crate::conv;
@@ -95,8 +95,8 @@ pub extern "C" fn semtimedop(id: c_int, ops: *mut c_void, n: size_t, timeout: Op
     ret::zero(unsafe { conv::array::<Sembuf>(ops, conv::count_sz(n)) }.and_then(|o| CSys.semtimedop(id, o, timeout)))
 }}
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_semctl4(id: c_int, num: c_int, cmd: c_int, arg: usize) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_semctl4(id: c_int, num: c_int, cmd: c_int, arg: usize) -> c_int {
     // UNSAFE(slice) SAFETY: arg is the union semun member cmd takes (§25.2).
     ret::int(unsafe { conv::semctl_arg(cmd, arg, || ipc_compat::nsems(&CSys, id)) }.and_then(|a| ipc_compat::semctl(&CSys, id, num, cmd, a)))
 }}
@@ -124,8 +124,8 @@ pub extern "C" fn shmctl(id: c_int, cmd: c_int, buf: *mut c_void) -> c_int {
 
 // ------------------------------------------------------------------------------ POSIX queues (§25.3)
 
-export! { "LIELLA_PRIVATE";
-pub extern "C" fn liella_mq_open4(name: *const c_char, oflag: c_int, mode: c_uint, attr: *const MqAttr) -> c_int {
+export! { "NIJI_PRIVATE";
+pub extern "C" fn niji_mq_open4(name: *const c_char, oflag: c_int, mode: c_uint, attr: *const MqAttr) -> c_int {
     // UNSAFE(slice) SAFETY: name is a NUL-terminated string; with O_CREAT, attr is NULL or a struct mq_attr, and without it attr is not read (§25.3).
     ret::fd(unsafe { strz::path(name) }.and_then(|n| unsafe { conv::array::<MqAttr>(attr.cast(), mqueue::creation_attrs(conv::bits(oflag), attr)) }.and_then(|a| ipc::mq_open(&CSys, n, conv::bits(oflag), mode, a.first()))))
 }}

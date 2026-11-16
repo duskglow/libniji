@@ -594,7 +594,7 @@ fn abi_stubs(root: &Path, force: bool, problems: &mut Vec<String>) -> Result<(Ve
     }
     let n = ids.len();
     let content = format!("{HEADER}//! ABI data tests, one per type layout and static initializer of spec Appendix C ({n} items).
-//! Each asserts size, alignment and member offsets (or initializer bytes) of the `liella_abi::layout`
+//! Each asserts size, alignment and member offsets (or initializer bytes) of the `niji_abi::layout`
 //! definition against the normative tables in spec/abi/.
 
 use spectest::layout;

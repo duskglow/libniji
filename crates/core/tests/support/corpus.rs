@@ -1,5 +1,5 @@
 //! Shared by the corpus replay tests (validation item C): build a replayer from
-//! `tests/oracle/<name>_corpus.c` against the host C library and statically against Liella's
+//! `tests/oracle/<name>_corpus.c` against the host C library and statically against libniji's
 //! products, run both over `validation/corpus/<name>.corpus`, and compare line by line. A line
 //! may disagree only if `validation/corpus/<name>.known` records it (`<line>\t<reason>`, `#`
 //! comments); a recorded line that agrees again fails the test, so the list stays exact.
@@ -26,12 +26,12 @@ fn ensure_locale(dir: &Path, name: &str) -> bool {
     oracle::locale(&dir.join(name), lang, charset, "LC_COLLATE")
 }
 
-fn build(name: &str, out: &Path, liella: bool) -> bool {
+fn build(name: &str, out: &Path, niji: bool) -> bool {
     let r = root();
     let src = r.join(format!("crates/core/tests/oracle/{name}_corpus.c"));
     let mut cmd = Command::new("cc");
-    if liella {
-        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/liella/liella-crt1.o")).arg(&src).arg(r.join("target/liella/libc.a")).arg("-lgcc");
+    if niji {
+        cmd.args(["-std=gnu17", "-O1", "-static", "-nostdlib", "-fno-builtin"]).arg(r.join("target/niji/niji-crt1.o")).arg(&src).arg(r.join("target/niji/libc.a")).arg("-lgcc");
     } else {
         cmd.args(["-std=gnu17", "-O1"]).arg(&src);
     }
@@ -57,7 +57,7 @@ pub(crate) fn replay(name: &str, locales: &[&str]) {
     let r = root();
     let corpus = r.join(format!("validation/corpus/{name}.corpus"));
     assert!(corpus.exists(), "{} is missing", corpus.display());
-    assert!(r.join("target/liella/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
     if skip_note::missing("cc") {
         skip_note::skipped("skipped: no C compiler");
         return;
@@ -71,7 +71,7 @@ pub(crate) fn replay(name: &str, locales: &[&str]) {
     }
     let dir = r.join("target/test-oracles");
     std::fs::create_dir_all(&dir).unwrap();
-    let (host, ours) = (dir.join(format!("{name}_corpus_host")), dir.join(format!("{name}_corpus_liella")));
+    let (host, ours) = (dir.join(format!("{name}_corpus_host")), dir.join(format!("{name}_corpus_niji")));
     assert!(build(name, &host, false), "{name}_corpus.c does not build against the host C library");
     assert!(build(name, &ours, true), "{name}_corpus.c does not link against the products");
     let run = |exe: &Path| -> Vec<String> {
@@ -95,7 +95,7 @@ pub(crate) fn replay(name: &str, locales: &[&str]) {
         }
         diffs += 1;
         if diffs <= 40 {
-            eprintln!("corpus line {n}:\n  glibc  {}\n  liella {}", &w[..w.len().min(400)], &g[..g.len().min(400)]);
+            eprintln!("corpus line {n}:\n  glibc  {}\n  niji {}", &w[..w.len().min(400)], &g[..g.len().min(400)]);
         }
     }
     eprintln!("{name} corpus: {} lines, {} recorded disagreements seen", want.len(), seen.len());

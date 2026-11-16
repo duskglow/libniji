@@ -23,13 +23,13 @@ use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use liella_boundary::errno;
-use liella_boundary::posix::s12_stdio as io;
-use liella_boundary::posix::s18_processes as x;
-use liella_boundary::posix::s20_signals as sg;
-use liella_boundary::sys::CSys;
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
+use niji_boundary::errno;
+use niji_boundary::posix::s12_stdio as io;
+use niji_boundary::posix::s18_processes as x;
+use niji_boundary::posix::s20_signals as sg;
+use niji_boundary::sys::CSys;
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
 
 const ECHILD: i32 = 10;
 const SIGINT: i32 = 2;
@@ -38,8 +38,8 @@ const SIGUSR1: i32 = 10;
 const SIGCHLD: i32 = 17;
 const WNOHANG: i32 = 1;
 
-const ALONE: &str = "LIELLA_EINTR_ALONE";
-const BASE: &str = "LIELLA_EINTR_BASE";
+const ALONE: &str = "NIJI_EINTR_ALONE";
+const BASE: &str = "NIJI_EINTR_BASE";
 
 static HITS: AtomicU32 = AtomicU32::new(0);
 extern "C" fn count_signal(_sig: i32) {
@@ -104,13 +104,13 @@ fn status_field(out: &str, key: &str) -> u64 {
 
 /// Install `count_signal` for `sig` WITHOUT `SA_RESTART`.
 fn catch(sig: i32) {
-    let sa = liella_legacy::signal_compat::CSigaction::new(handler_addr(), liella_kernel::uapi::SigSet::empty(), 0);
+    let sa = niji_legacy::signal_compat::CSigaction::new(handler_addr(), niji_kernel::uapi::SigSet::empty(), 0);
     assert_eq!(sg::sigaction(sig, Some(&sa), None), 0);
 }
 
 /// The disposition of `sig`: "default", "ignored", "handler" or "other".
 fn disp(sig: i32) -> &'static str {
-    let mut sa = liella_legacy::signal_compat::CSigaction::new(0, liella_kernel::uapi::SigSet::empty(), 0);
+    let mut sa = niji_legacy::signal_compat::CSigaction::new(0, niji_kernel::uapi::SigSet::empty(), 0);
     sg::sigaction(sig, None, Some(&mut sa));
     match sa.handler {
         0 => "default",
@@ -216,7 +216,7 @@ fn system_signal_state_during_and_after() {
             catch(SIGCHLD);
             let script = format!("grep -E '^Sig(Blk|Ign):' /proc/{}/task/{}/status | sed 's/^/R:caller /'", x::getpid(), x::gettid());
             let r = x::system(cs(&script).as_ptr());
-            let mut m = liella_abi::layout::sigset_t { __val: [0; 16] };
+            let mut m = niji_abi::layout::sigset_t { __val: [0; 16] };
             sg::sigprocmask(0, None, Some(&mut m));
             say(&format!("R:after {r} int={} quit={} chld={} blocked={} hits={}\n", disp(SIGINT), disp(SIGQUIT), disp(SIGCHLD), sg::sigismember(Some(&m), SIGCHLD), HITS.load(Ordering::SeqCst)));
             sg::signal(SIGINT, 1);

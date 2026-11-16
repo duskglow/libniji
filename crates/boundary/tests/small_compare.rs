@@ -4,15 +4,15 @@
 //! every first-difference position, and byte pairs on both sides of 0x80 (the order is that of
 //! `unsigned char`). Every byte after the first difference differs the opposite way, so a kernel
 //! that lets a later byte decide gets the sign wrong; and a lone difference catches a skipped byte. Guard pages catch a read past either end.
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::arithmetic_side_effects, clippy::unwrap_used, clippy::indexing_slicing, clippy::as_conversions, missing_docs)]
 
-use liella_abi::ctypes::{c_int, c_void};
-use liella_boundary::posix::s04_strings as s;
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
+use niji_abi::ctypes::{c_int, c_void};
+use niji_boundary::posix::s04_strings as s;
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{MAP_ANONYMOUS, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE};
 
 const PAGE: usize = 4096;
 const MAX: usize = 300; // every size 0-300 (PARITY-MEMCMP-SMALL-EQ: past the 129-256 class into the long one)
@@ -30,7 +30,7 @@ static BUILD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 fn each_build(test: impl Fn()) {
     let _turn = BUILD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let rescans = selftest::rescans();
-    let avx2 = liella_boundary::cpu::avx2();
+    let avx2 = niji_boundary::cpu::avx2();
     let before = selftest::kernel_avx2();
     // Each build with NULL folding on (the direct entries' head probe in fold.S, MEMCMP-FOLD) and
     // off (every size through the checked entry); folding on is then left as the gate machines'
@@ -335,7 +335,7 @@ const NULL_CALLS: usize = 6;
 fn null_call(k: &CSys) -> i32 {
     use std::sync::atomic::Ordering::SeqCst;
     // No core dump (a crash reporter such as apport took about a second per child).
-    if k.prctl_int(liella_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
+    if k.prctl_int(niji_kernel::ops::PrctlInt::SetDumpable, 0, 0).is_err() {
         return 4;
     }
     let (case, fold) = (NULL_CASE.load(SeqCst), NULL_FOLD.load(SeqCst));
@@ -362,8 +362,8 @@ fn null_faults_in_the_folded_compare_sizes_and_aborts_in_every_other() {
     use std::sync::atomic::Ordering::SeqCst;
     let _turn = BUILD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut runs = vec![(false, false), (true, false)];
-    if liella_boundary::cpu::avx2() {
-        // Folding off with AVX2 on too: the 33-64 gate (liella_machine_cmp_wide) must stay shut.
+    if niji_boundary::cpu::avx2() {
+        // Folding off with AVX2 on too: the 33-64 gate (niji_machine_cmp_wide) must stay shut.
         runs.extend([(true, true), (false, true)]);
     }
     for (fold, avx2) in runs {

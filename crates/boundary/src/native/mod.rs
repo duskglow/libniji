@@ -7,12 +7,12 @@
 //!
 //! # Conventions (stable; every later node follows them)
 //!
-//! * **Names.** `liella_<area>_<name>`, areas `heap`, `secure`, `env`, `fd`, `fs`, `clock`, `nscache`,
-//!   `tz`, `locale`, `process`, `aio`, `getpass`. The C syscall layer's internal `liella_sys_*`, `liella_mach_*`,
-//!   `liella_va_*` and the `LIELLA_PRIVATE` adapters' targets are not part of this interface:
+//! * **Names.** `niji_<area>_<name>`, areas `heap`, `secure`, `env`, `fd`, `fs`, `clock`, `nscache`,
+//!   `tz`, `locale`, `process`, `aio`, `getpass`. The C syscall layer's internal `niji_sys_*`, `niji_mach_*`,
+//!   `niji_va_*` and the `NIJI_PRIVATE` adapters' targets are not part of this interface:
 //!   the interface is exactly the rows of `spec/abi/native.tsv`.
-//! * **Versions.** Every symbol belongs to one version node, `LIELLA_NATIVE_1`,
-//!   `LIELLA_NATIVE_2`, ... in `libc.so.6` (and is defined in `libc.a`). A published node never
+//! * **Versions.** Every symbol belongs to one version node, `NIJI_NATIVE_1`,
+//!   `NIJI_NATIVE_2`, ... in `libc.so.6` (and is defined in `libc.a`). A published node never
 //!   changes: no symbol is removed, retyped or given new semantics; additions go in a new node.
 //! * **Types.** Fixed-width integers only (`int32_t`, `uint32_t`, `int64_t`, `uint64_t`), with
 //!   `size_t` for lengths and indexes. Descriptors are `int32_t`; open flags, modes and
@@ -28,22 +28,22 @@
 //! * **Text output** goes into a caller buffer (pointer and length): the result is the full
 //!   length of the text, and the text is copied only if it fits whole. A result greater than
 //!   the buffer's length means "call again with this many bytes"; nothing partial is delivered.
-//! * **Structures** are written through explicit out-parameters (`struct liella_* *`, NULL is
+//! * **Structures** are written through explicit out-parameters (`struct niji_* *`, NULL is
 //!   `-EFAULT`), are `#[repr(C)]` with natural alignment and no implicit padding, and have their
 //!   size, alignment and every field offset asserted in the header and in the layout tests.
-//! * **Handles.** Library objects a later node exposes are opaque handles (`struct liella_x *`
+//! * **Handles.** Library objects a later node exposes are opaque handles (`struct niji_x *`
 //!   never dereferenced by the caller); v1 needs none.
 //! * **The heap** is the one exception to the result convention: its functions mirror Rust's
 //!   `GlobalAlloc` (an address, or NULL when no block can be had: exhaustion, or an alignment
 //!   that is not a power of two). Misusing a block (an invalid or double free) is a diagnostic
 //!   and abort, as for `free`.
 //! * **No cancellation points.** The native calls never act on `pthread_cancel`.
-//! * **Exit** (`liella_process_exit`) runs the C exit handlers and flushes the C streams, as
+//! * **Exit** (`niji_process_exit`) runs the C exit handlers and flushes the C streams, as
 //!   `exit`.
 //!
 //! The table `spec/abi/native.tsv` lists every symbol with its node, C prototype and
 //! documentation, every structure field with its offset, and every constant;
-//! `cargo xtask native-gen` generates `include/liella/native.h` from it and, with `--check`,
+//! `cargo xtask native-gen` generates `include/niji/native.h` from it and, with `--check`,
 //! fails if the header is stale or if the exports here differ from the table in name or
 //! signature. `cargo xtask so` places the symbols in their nodes and checks the products.
 

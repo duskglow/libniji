@@ -4,14 +4,14 @@
 
 //! Clause tests for spec §10 (56 clauses).
 
-#![no_builtins] // calls to libc names (labs, strlen, ...) reach Liella's export, not LLVM's folding (OPAQUE-AUDIT)
+#![no_builtins] // calls to libc names (labs, strlen, ...) reach libniji's export, not LLVM's folding (OPAQUE-AUDIT)
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::float_cmp, clippy::cast_possible_truncation, clippy::panic, clippy::cast_possible_wrap, missing_docs)]
 
 #[path = "../../core/tests/support/skip_note.rs"]
 mod skip_note;
 
 /// The section headers, dynamic symbols (with versions) and bytes of an ELF64 little-endian
-/// shared object: only what `s10_0_c2_0` reads. Reads Liella's own `libm.so.6`.
+/// shared object: only what `s10_0_c2_0` reads. Reads libniji's own `libm.so.6`.
 mod elf {
     /// One dynamic symbol: name, version name, whether that version is hidden (non-default,
     /// `name@V`), section index and value.
@@ -125,9 +125,9 @@ mod elf {
 #[test]
 fn s10_0_c2_0() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lib = root.join("target/liella/libm.so.6");
+    let lib = root.join("target/niji/libm.so.6");
     let Ok(bytes) = std::fs::read(&lib) else {
-        skip_note::skipped("target/liella/libm.so.6 is not built (cargo xtask so)");
+        skip_note::skipped("target/niji/libm.so.6 is not built (cargo xtask so)");
         return;
     };
     let elf = elf::Elf::parse(bytes);
@@ -202,12 +202,12 @@ fn s10_0_c2_0() {
 // rounded operations, the environment). The compat `__*_finite` names (s10_0_c2_0) are above.
 // ---------------------------------------------------------------------------------------------
 
-use liella_boundary::selftest::{self, ChildEnd};
-use liella_boundary::sys::CSys;
-use liella_math::classify::{self, FP_INFINITE, FP_NAN, FP_NORMAL, FP_SUBNORMAL, FP_ZERO};
-use liella_math::float::{self as fl, Float};
-use liella_math::{fenv, fused, manip, minmax, rem, round, Flags, MathError, Rounding, Status, F128, F80};
-use liella_mathtools::mp::{self, Big, Fmt, Round};
+use niji_boundary::selftest::{self, ChildEnd};
+use niji_boundary::sys::CSys;
+use niji_math::classify::{self, FP_INFINITE, FP_NAN, FP_NORMAL, FP_SUBNORMAL, FP_ZERO};
+use niji_math::float::{self as fl, Float};
+use niji_math::{fenv, fused, manip, minmax, rem, round, Flags, MathError, Rounding, Status, F128, F80};
+use niji_mathtools::mp::{self, Big, Fmt, Round};
 
 const MODES: [Rounding; 4] = [Rounding::Nearest, Rounding::Up, Rounding::Down, Rounding::Zero];
 
@@ -751,10 +751,10 @@ fn s10_6_g_0() {
 // `cargo xtask mathcmp` (docs/libm-accuracy.tsv).
 // ---------------------------------------------------------------------------------------------
 
-use liella_math::elem::Small;
-use liella_math::real::Real;
-use liella_math::{exp_log, hyper, pow as pw, trig};
-use liella_mathtools::cmp;
+use niji_math::elem::Small;
+use niji_math::real::Real;
+use niji_math::{exp_log, hyper, pow as pw, trig};
+use niji_mathtools::cmp;
 
 type Unary<F> = fn(F, Rounding) -> (F, Status);
 
@@ -1123,7 +1123,7 @@ fn s10_3_c_r5() {
 // samples: `special_cr.rs`; special operands against the reference: `special_products.rs`.
 // ---------------------------------------------------------------------------------------------
 
-use liella_math::special as sp;
+use niji_math::special as sp;
 
 #[test]
 fn s10_3_c_r6() {
@@ -1290,8 +1290,8 @@ fn s10_3_c_r7() {
 // `complex_products.rs`.
 // ---------------------------------------------------------------------------------------------
 
-use liella_math::complex as cx;
-use liella_mathtools::cplx;
+use niji_math::complex as cx;
+use niji_mathtools::cplx;
 
 type Complex<F> = fn(F, F, Rounding) -> ((F, F), Status);
 

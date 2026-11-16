@@ -8,8 +8,8 @@
 #![allow(missing_docs)]
 #![allow(clippy::unwrap_used)] // the §29.1 stream tests unwrap their own fixtures
 
-use liella_boundary::errno;
-use liella_boundary::posix::s13_filesystem as fs;
+use niji_boundary::errno;
+use niji_boundary::posix::s13_filesystem as fs;
 use spectest::symbol;
 
 const ENOSYS: i32 = 38;
@@ -312,10 +312,10 @@ symbol!(sym_xdrmem_create, "xdrmem_create", "29", "2.2.5", r##""##);
 mod xdr_streams {
     use core::cell::RefCell;
     use core::ffi::{c_char, c_int, c_uint};
-    use liella_boundary::posix::s04_strings::memcpy;
-    use liella_boundary::posix::s12_stdio as io;
-    use liella_boundary::posix::s29_legacy::{Xdr, XdrOps};
-    use liella_boundary::posix::s29_xdr_streams as xs;
+    use niji_boundary::posix::s04_strings::memcpy;
+    use niji_boundary::posix::s12_stdio as io;
+    use niji_boundary::posix::s29_legacy::{Xdr, XdrOps};
+    use niji_boundary::posix::s29_xdr_streams as xs;
 
     struct State {
         data: Vec<u8>,
@@ -382,7 +382,7 @@ mod xdr_streams {
 
     pub fn rec(op: c_int, send: c_uint, _p: &mut Pipe) -> Xdr {
         let mut x = blank(op);
-        xs::liella_compat_xdrrec_create(&mut x, send, 0, core::ptr::null_mut(), Some(rd), Some(wr));
+        xs::niji_compat_xdrrec_create(&mut x, send, 0, core::ptr::null_mut(), Some(rd), Some(wr));
         assert!(!x.x_ops.is_null(), "created");
         x
     }
@@ -408,7 +408,7 @@ mod xdr_streams {
     }
 
     pub fn tmp(name: &str, bytes: &[u8]) -> std::ffi::CString {
-        let path = std::env::temp_dir().join(format!("liella-xdr-{}-{name}", std::process::id()));
+        let path = std::env::temp_dir().join(format!("niji-xdr-{}-{name}", std::process::id()));
         std::fs::write(&path, bytes).unwrap();
         std::ffi::CString::new(path.to_str().unwrap()).unwrap()
     }
@@ -423,7 +423,7 @@ fn sym_xdrrec_create() {
     let mut p = pipe("", 64);
     let mut x = rec(0, 0, &mut p);
     assert_eq!((put(&mut x, 1), put(&mut x, 2)), (1, 1));
-    assert_eq!(liella_boundary::posix::s29_xdr_streams::liella_compat_xdrrec_endofrecord(&mut x, 1), 1);
+    assert_eq!(niji_boundary::posix::s29_xdr_streams::niji_compat_xdrrec_endofrecord(&mut x, 1), 1);
     assert_eq!(p.writes().iter().map(|w| unhex(w)).collect::<Vec<_>>(), ["800000080000000100000002"]);
     // rec enc inline8=ptr inline100000=NULL setpostn0=0
     let inline = ops(&x).x_inline.unwrap();
@@ -439,7 +439,7 @@ fn sym_xdrrec_create() {
 
 #[test]
 fn sym_xdrrec_endofrecord() {
-    use liella_boundary::posix::s29_xdr_streams::liella_compat_xdrrec_endofrecord as eor;
+    use niji_boundary::posix::s29_xdr_streams::niji_compat_xdrrec_endofrecord as eor;
     use xdr_streams::*;
     // send=0 n=2 now=0: nothing written yet.
     let mut p = pipe("", 64);
@@ -467,7 +467,7 @@ fn sym_xdrrec_endofrecord() {
 
 #[test]
 fn sym_xdrrec_skiprecord() {
-    use liella_boundary::posix::s29_xdr_streams::{liella_compat_xdrrec_eof as eof, liella_compat_xdrrec_skiprecord as skip};
+    use niji_boundary::posix::s29_xdr_streams::{niji_compat_xdrrec_eof as eof, niji_compat_xdrrec_skiprecord as skip};
     use xdr_streams::*;
     // rec dec one / one-chunk3 / two-frags: skip0=1 1/1 1/2, then skip=1 eof=1, next=0/5a5a.
     for (data, chunk) in [("80000008 00000001 00000002", 64), ("80000008 00000001 00000002", 3), ("00000004 00000001 80000004 00000002", 64)] {
@@ -489,7 +489,7 @@ fn sym_xdrrec_skiprecord() {
 
 #[test]
 fn sym_xdrrec_eof() {
-    use liella_boundary::posix::s29_xdr_streams::{liella_compat_xdrrec_eof as eof, liella_compat_xdrrec_skiprecord as skip};
+    use niji_boundary::posix::s29_xdr_streams::{niji_compat_xdrrec_eof as eof, niji_compat_xdrrec_skiprecord as skip};
     use xdr_streams::*;
     // skip-unread: eof consumes the rest of the record; nothing buffered after it.
     let mut p = pipe("80000008 00000001 00000002", 64);
@@ -506,7 +506,7 @@ fn sym_xdrrec_eof() {
 
 #[test]
 fn sym_xdrstdio_create() {
-    use liella_boundary::posix::s29_xdr_streams::liella_compat_xdrstdio_create as create;
+    use niji_boundary::posix::s29_xdr_streams::niji_compat_xdrstdio_create as create;
     use xdr_streams::*;
     // stdio enc ok=1 pos=4,24 inline=NULL setpostn0=1 pos=0 file(24)=...
     let path = tmp("enc", b"");

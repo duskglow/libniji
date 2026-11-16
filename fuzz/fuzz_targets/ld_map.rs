@@ -1,12 +1,12 @@
-//! The loader's mapper validation (`liella_ld::map`, phase 14 DL-7, D-27.15): the planner over any
+//! The loader's mapper validation (`niji_ld::map`, phase 14 DL-7, D-27.15): the planner over any
 //! file at three page sizes, and `map::load` against a mapper that only records the calls, so the
 //! reservation, alignment, `.bss` and RELRO arithmetic run on every input the planner accepts.
 //! Every error is a value; a panic, an overflow or a call outside the reservation is a finding.
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use liella_ld::arch::X86_64;
-use liella_ld::map::{self, Mapper, PROT_EXEC, PROT_WRITE};
+use niji_ld::arch::X86_64;
+use niji_ld::map::{self, Mapper, PROT_EXEC, PROT_WRITE};
 
 /// A mapper with no memory: checks each call lies inside the one reservation.
 struct Calls {

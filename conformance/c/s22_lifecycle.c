@@ -1,4 +1,4 @@
-/* Spec §22.1, §22.2, §22.6, §22.8, §22.9: thread lifecycle in a process Liella started.
+/* Spec §22.1, §22.2, §22.6, §22.8, §22.9: thread lifecycle in a process libniji started.
  * Threads start with fresh TLS (the executable's image) and errno, get distinct TIDs and
  * thread pointers, return results through join, keep key values per thread and run key
  * destructors at exit, detach, report their actual attributes, carry names, and C11 threads
@@ -73,9 +73,9 @@ static int c11_main(void *arg)
 static void *named(void *arg)
 {
     char buf[16];
-    if (pthread_setname_np(pthread_self(), "liella-w") != 0)
+    if (pthread_setname_np(pthread_self(), "niji-w") != 0)
         return (void *)1;
-    if (pthread_getname_np(pthread_self(), buf, sizeof buf) != 0 || strcmp(buf, "liella-w") != 0)
+    if (pthread_getname_np(pthread_self(), buf, sizeof buf) != 0 || strcmp(buf, "niji-w") != 0)
         return (void *)2;
     if (pthread_setname_np(pthread_self(), "0123456789abcdef") != ERANGE)
         return (void *)3;
@@ -171,7 +171,7 @@ int main(void)
     while (__atomic_load_n(&named_flag, __ATOMIC_SEQ_CST) == 0)
         sched_yield();
     char nb[16];
-    if (pthread_getname_np(n, nb, sizeof nb) != 0 || strcmp(nb, "liella-w") != 0)
+    if (pthread_getname_np(n, nb, sizeof nb) != 0 || strcmp(nb, "niji-w") != 0)
         return 35; /* another thread's name, through /proc */
     pthread_attr_t actual;
     if (pthread_getattr_np(n, &actual) != 0)

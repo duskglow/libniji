@@ -1,6 +1,6 @@
 #!/bin/sh
 # tools/deb/swap-cmds.sh OUTDIR: the fixed command set tools/deb/swap-system.sh runs inside a Debian root,
-# once on the distribution's C library and once with Liella's system packages swapped in. No spec clause:
+# once on the distribution's C library and once with libniji's system packages swapped in. No spec clause:
 # release validation (plan/system-libc.md section 3.7). Every command is one of the distribution's own
 # programs on a small fixed input (and apt, a C++ program, on the root's own package lists); each writes OUTDIR/<id>.out (stdout and stderr) and OUTDIR/<id>.rc.
 # OUTDIR/info.txt holds what is expected to differ between the roots (the C library's identity).
@@ -67,7 +67,7 @@ run perl-3 perl -e 'use POSIX qw(strftime floor ceil fmod); print strftime("%Y-%
 run perl-4 perl -e 'open(my $f, "<", "/tmp/t/in.txt") or die; my @l = <$f>; print scalar(@l), " ", length(join("", @l)), "\n"; my $s = sprintf("%vd", "1.22.333"); print "$s\n"; die "boom\n"'
 run perl-5 perl -e 'my $pid = fork(); if ($pid == 0) { exit 3 } waitpid($pid, 0); print $? >> 8, "\n"; print join(" ", (getpwuid(0))[0, 2, 7]), "\n"'
 run python3-1 python3 -c 'import math, json, struct; print(math.sqrt(2), math.lgamma(5.5), math.fsum([0.1] * 10), json.dumps({"b": [1, 2.5, None], "a": "é"}, sort_keys=True)); print(struct.pack("<id", 7, 1.5).hex()); print(sorted(["b", "a", "C"]), "%.17g" % 0.1, float("1e308") * 10, 10 ** 30 // 7)'
-run python3-2 python3 -c 'import os, sys, time, hashlib; print(sys.getfilesystemencoding(), sys.stdout.encoding, os.getcwd()); print(time.strftime("%Y %j %a %b", time.gmtime(10 ** 9))); print(hashlib.sha256(b"liella").hexdigest()); print(sorted(os.listdir("/tmp/t/sub")))'
+run python3-2 python3 -c 'import os, sys, time, hashlib; print(sys.getfilesystemencoding(), sys.stdout.encoding, os.getcwd()); print(time.strftime("%Y %j %a %b", time.gmtime(10 ** 9))); print(hashlib.sha256(b"niji").hexdigest()); print(sorted(os.listdir("/tmp/t/sub")))'
 run python3-3 python3 -c 'import subprocess; r = subprocess.run(["sort", "-r", "/tmp/t/in.txt"], capture_output=True, text=True); print(r.returncode, r.stdout, end="")'
 run python3-4 python3 -c 'import threading; out = []; ts = [threading.Thread(target=lambda i=i: out.append(i * i)) for i in range(8)]; [t.start() for t in ts]; [t.join() for t in ts]; print(sorted(out))'
 run python3-5 python3 -c 'import pwd, locale; print(pwd.getpwuid(0).pw_name, locale.setlocale(locale.LC_ALL, "")); raise SystemExit(4)'
@@ -100,16 +100,16 @@ sh_ find-4 "find $t -maxdepth 1 -type d -exec echo dir {} \\; | sort"
 run find-5 find /nonexistent
 # apt is C++: it starts with the distribution's shared libstdc++.so.6 (unique symbols, DL-LIBSTDCXX).
 # apt-get check (apt-1) reads the installed packages' dependencies. In the swapped root it reports the
-# ones Liella's libc6 cannot meet by version (2.39 against a newer suite's "libc6 (>= 2.41)"; the swap
+# ones libniji's libc6 cannot meet by version (2.39 against a newer suite's "libc6 (>= 2.41)"; the swap
 # installs it with --force-depends), with status 100. Those lines, and only those (the installed version
-# must be Liella's), are dropped in both roots, and status 100 counts as 0 when they were apt's only
+# must be libniji's), are dropped in both roots, and status 100 counts as 0 when they were apt's only
 # complaint. Anything else apt reports (another unmet dependency, a loader error, a crash's status)
 # still differs from the stock root. The unfiltered output stays in OUTDIR/apt-1.raw.
 apt_check='apt-get check > "$1" 2>&1; rc=$?
 kept=$(grep -v -e "^You might want to run .apt --fix-broken install" -e "^The following packages have unmet dependencies:" \
-    -e "Depends: libc6 (>= [^)]*) but [^ ]*+liella[^ ]* is installed" -e "^E: Unmet dependencies\. " "$1")
+    -e "Depends: libc6 (>= [^)]*) but [^ ]*+niji[^ ]* is installed" -e "^E: Unmet dependencies\. " "$1")
 printf "%s\n" "$kept"
-if [ "$rc" -eq 100 ] && grep -q "+liella[^ ]* is installed" "$1" && ! printf "%s\n" "$kept" | grep -q -e "Depends:" -e "^[EW]: "; then
+if [ "$rc" -eq 100 ] && grep -q "+niji[^ ]* is installed" "$1" && ! printf "%s\n" "$kept" | grep -q -e "Depends:" -e "^[EW]: "; then
     exit 0
 fi
 exit "$rc"'

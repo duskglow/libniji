@@ -4,12 +4,12 @@
 //! `crate::iconv` (D-6.8, D-6.9). Hidden states (the non-restartable forms, a `NULL` `mbstate_t *`) are process-wide until
 //! the phase-4 thread blocks.
 
-use liella::text::{Encoding, MbState};
+use niji::text::{Encoding, MbState};
 use core::ffi::c_void;
 
-use liella_abi::ctypes::{c_char, c_int, char16_t, char32_t, char8_t, mbstate_t, size_t, wchar_t, wint_t};
-use liella_legacy::mb_compat;
-use liella_legacy::mb_state::{self, Slot};
+use niji_abi::ctypes::{c_char, c_int, char16_t, char32_t, char8_t, mbstate_t, size_t, wchar_t, wint_t};
+use niji_legacy::mb_compat;
+use niji_legacy::mb_state::{self, Slot};
 
 use crate::conv;
 use crate::iconv;

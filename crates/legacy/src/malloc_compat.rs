@@ -1,4 +1,4 @@
-//! The C shapes of the `malloc` family over `liella_rt::heap` (spec §3.1–§3.3; D-3.2–D-3.5):
+//! The C shapes of the `malloc` family over `niji_rt::heap` (spec §3.1–§3.3; D-3.2–D-3.5):
 //! `ENOMEM` and `EINVAL` conventions, the five alignment entry points with their three validity
 //! rules, `realloc`'s NULL and zero cases, `posix_memalign`'s error-number return, and the
 //! implementation-neutral introspection (`mallopt`, `mallinfo`, `mallinfo2`, `malloc_stats`,
@@ -10,11 +10,11 @@
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::Relaxed;
 
-use liella::error::{Errno, Result};
-use liella::num::format::{format_u64, Bounded, Case, Sink};
-use liella_abi::layout::{struct_mallinfo, struct_mallinfo2};
-use liella_kernel::sys::Sys;
-use liella_rt::heap::{Heap, Misuse, Pages, Stats, ALIGN, PAGE};
+use niji::error::{Errno, Result};
+use niji::num::format::{format_u64, Bounded, Case, Sink};
+use niji_abi::layout::{struct_mallinfo, struct_mallinfo2};
+use niji_kernel::sys::Sys;
+use niji_rt::heap::{Heap, Misuse, Pages, Stats, ALIGN, PAGE};
 
 use crate::malloc_debug::Debug;
 use crate::string_compat::Cursor;
@@ -31,7 +31,7 @@ pub struct Ctx<'a, S: Sys, P: Pages> {
 
 impl<S: Sys, P: Pages> Ctx<'_, S, P> {
     #[inline(always)]
-    fn alloc(&self, n: usize, align: usize) -> Result<liella_rt::heap::Block> {
+    fn alloc(&self, n: usize, align: usize) -> Result<niji_rt::heap::Block> {
         self.heap.alloc(self.sys, self.pages, n, align).ok_or(Errno::ENOMEM)
     }
 }
@@ -128,7 +128,7 @@ pub fn aligned_calloc<S: Sys, P: Pages>(c: &Ctx<'_, S, P>, align: usize, n: usiz
     Ok(b.addr)
 }
 
-/// A secure block (the native interface's `liella_heap_alloc_secure`, D-X.11): `n` bytes at
+/// A secure block (the native interface's `niji_heap_alloc_secure`, D-X.11): `n` bytes at
 /// `align` (a power of two, `EINVAL` otherwise) in a mapping of its own that reads as zero,
 /// zeroed by the heap whenever it is released (`free`, `realloc` moving it).
 pub fn aligned_alloc_secure<S: Sys, P: Pages>(c: &Ctx<'_, S, P>, align: usize, n: usize) -> Result<usize> {

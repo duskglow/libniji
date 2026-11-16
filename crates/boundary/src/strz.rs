@@ -11,9 +11,9 @@
 //! Every view excludes the terminator. A NULL pointer is `EFAULT` (rule S6: callers without an
 //! error channel turn it into a diagnostic).
 
-use liella_kernel::errno::{Errno, KResult};
-use liella_kernel::fd::Fd;
-use liella_kernel::sys::Sys;
+use niji_kernel::errno::{Errno, KResult};
+use niji_kernel::fd::Fd;
+use niji_kernel::sys::Sys;
 
 use crate::ffi;
 use crate::sys::CSys;
@@ -22,7 +22,7 @@ use crate::sys::CSys;
 /// abort (never expected; tested exhaustively). D-4.21.
 #[cold]
 pub(crate) fn scanner_fault() -> ! {
-    let _ = CSys.write(Fd::STDERR, b"liella: string scanner postcondition failed\n");
+    let _ = CSys.write(Fd::STDERR, b"niji: string scanner postcondition failed\n");
     crate::ret::abort()
 }
 
@@ -65,7 +65,7 @@ pub(crate) fn note_rescan() {
 #[allow(unsafe_code)]
 unsafe fn byte_len(p: *const u8, limit: usize) -> usize {
     crate::cpu::ready();
-    let n = if limit == usize::MAX { ffi::liella_machine_strlen(p) } else { ffi::liella_machine_strnlen(p, limit) };
+    let n = if limit == usize::MAX { ffi::niji_machine_strlen(p) } else { ffi::niji_machine_strnlen(p, limit) };
     // UNSAFE(slice): checking a scanner's answer: the byte at the reported index, then a rescan after it if a writer changed it (D-4.21).
     // SAFETY: the function's contract; `n` is the scanner's answer for `p` and `limit`.
     unsafe { settle_len(p, limit, n) }
@@ -159,7 +159,7 @@ unsafe fn cursor(mut p: *const u8) -> impl FnMut() -> u8 {
 /// `strcoll` in `l` (D-4.37) as an `int`: byte order (as [`order`]) without collation rules;
 /// otherwise most pairs are decided by the two bytes at the first difference (STRCOLL-3), the
 /// rest by the single pass, and what neither decides (NULL included) by [`coll_general`]. The shared
-/// prefix is found first by the C layer's kernel (`liella_machine_strdiff`, D-4.37), which also
+/// prefix is found first by the C layer's kernel (`niji_machine_strdiff`, D-4.37), which also
 /// reports whether a byte of it is non-ASCII (STRCOLL-4); the bytes at its index are read here
 /// and the single pass reads on from it itself (the answer never comes from the kernel's scan).
 ///
@@ -169,7 +169,7 @@ unsafe fn cursor(mut p: *const u8) -> impl FnMut() -> u8 {
 #[inline(always)]
 // UNSAFE(slice): reading the deciding bytes of C text; the single pass reads on through `cursor`.
 #[allow(unsafe_code)]
-pub unsafe fn coll(a: *const i8, b: *const i8, l: &liella::locale::Locale) -> i32 {
+pub unsafe fn coll(a: *const i8, b: *const i8, l: &niji::locale::Locale) -> i32 {
     if l.code_point_order() {
         // UNSAFE(slice) SAFETY: the caller's contract. The direct entry takes NULL in its kernel's
         // slow path (STRCMP-HEADNULL), which aborts through `order`: no NULL tests here, so a
@@ -181,7 +181,7 @@ pub unsafe fn coll(a: *const i8, b: *const i8, l: &liella::locale::Locale) -> i3
         return unsafe { coll_general(a, b, l) };
     }
     let (a, b) = (a.cast::<u8>(), b.cast::<u8>());
-    let d = ffi::liella_machine_strdiff(a, b);
+    let d = ffi::niji_machine_strdiff(a, b);
     // UNSAFE(slice) SAFETY: a + index is a byte of the string or its terminator (the kernel's
     // index: the bytes before it are not terminators).
     let x = unsafe { byte_at(a, d.index) };
@@ -208,7 +208,7 @@ pub unsafe fn coll(a: *const i8, b: *const i8, l: &liella::locale::Locale) -> i3
 #[inline(never)]
 // UNSAFE(slice): measuring C text through the scanners.
 #[allow(unsafe_code)]
-unsafe fn coll_general(a: *const i8, b: *const i8, l: &liella::locale::Locale) -> i32 {
+unsafe fn coll_general(a: *const i8, b: *const i8, l: &niji::locale::Locale) -> i32 {
     // UNSAFE(slice) SAFETY: the caller's contract: a and b are NULL or strings (§4.3; D-4.18).
     crate::ret::order(unsafe { strz(a) }.and_then(|x| unsafe { strz(b) }.map(|y| l.compare_bytes(x, y))))
 }
@@ -222,7 +222,7 @@ unsafe fn coll_general(a: *const i8, b: *const i8, l: &liella::locale::Locale) -
 #[inline(never)]
 // UNSAFE(slice): reading C text one unit at a time through `cursor`.
 #[allow(unsafe_code)]
-unsafe fn coll_stream_rest(a: *const u8, b: *const u8, i: usize, l: &liella::locale::Locale) -> Option<core::cmp::Ordering> {
+unsafe fn coll_stream_rest(a: *const u8, b: *const u8, i: usize, l: &niji::locale::Locale) -> Option<core::cmp::Ordering> {
     // UNSAFE(slice) SAFETY: the caller's contract: the i bytes at `a` precede a's terminator
     // (none of them is one), so they are readable string bytes; read during this call only.
     let prefix = unsafe { core::slice::from_raw_parts(a, i) };
@@ -244,7 +244,7 @@ unsafe fn byte_at(p: *const u8, i: usize) -> u8 {
 }
 
 /// The order of the strings at `a` and `b` as `strcmp` defines it (unsigned bytes): -1, 0 or 1,
-/// from the C layer's one-pass kernel (`liella_machine_strcmp`, PJ-8; STRCOLL-1, D-4.29), returned
+/// from the C layer's one-pass kernel (`niji_machine_strcmp`, PJ-8; STRCOLL-1, D-4.29), returned
 /// directly (a tail call: the kernel itself reads the two deciding bytes again and rescans after
 /// a writer's change, so the answer always comes from bytes the call read). No CPU decision is
 /// needed first: the runtime decides the scan level at startup, and before that the kernel's
@@ -260,12 +260,12 @@ pub unsafe fn order(a: *const i8, b: *const i8) -> i32 {
     if a.is_null() || b.is_null() {
         null_fault();
     }
-    ffi::liella_machine_strcmp(a.cast(), b.cast())
+    ffi::niji_machine_strcmp(a.cast(), b.cast())
 }
 
-/// [`order`] through the direct entry `liella_machine_strcmp_entry` (STRCMP-ENTRY): `strcmp` in
+/// [`order`] through the direct entry `niji_machine_strcmp_entry` (STRCMP-ENTRY): `strcmp` in
 /// the products; its NULL tests (in the kernel's slow path, which the head's page test sends
-/// NULL to: STRCMP-HEADNULL) jump to `liella_hot_strcmp_null`, which aborts through [`order`].
+/// NULL to: STRCMP-HEADNULL) jump to `niji_hot_strcmp_null`, which aborts through [`order`].
 ///
 /// # Safety
 /// As [`order`].
@@ -273,13 +273,13 @@ pub unsafe fn order(a: *const i8, b: *const i8) -> i32 {
 // UNSAFE(slice): the kernel reads both strings to their first difference (§4.3).
 #[allow(unsafe_code)]
 pub unsafe fn order_direct(a: *const i8, b: *const i8) -> i32 {
-    ffi::liella_machine_strcmp_entry(a.cast(), b.cast())
+    ffi::niji_machine_strcmp_entry(a.cast(), b.cast())
 }
 
-/// Rescans `liella_machine_strcmp` made after a writer's change (self-tests only).
+/// Rescans `niji_machine_strcmp` made after a writer's change (self-tests only).
 #[cfg(feature = "selftest")]
 pub(crate) fn strcmp_rescans() -> usize {
-    usize::try_from(ffi::liella_machine_strcmp_rescan_count()).unwrap_or(usize::MAX)
+    usize::try_from(ffi::niji_machine_strcmp_rescan_count()).unwrap_or(usize::MAX)
 }
 
 /// Check an answer `i` a `strcmp` scanner gave for `a` and `b` (D-4.21) and order the bytes
@@ -339,9 +339,9 @@ unsafe fn rescan_compare(a: *const u8, b: *const u8, i: usize) -> core::cmp::Ord
 
 /// The order of the first `n` bytes of the strings at `a` and `b` after `tolower` in `loc`
 /// (`strcasecmp` with `n` = `usize::MAX`, `strncasecmp`). Where the locale's case maps of 0..127
-/// are ASCII's (`ctype::ascii_case`), one pass of the C layer's `liella_machine_casecmp_avx2`
-/// (CPUs with AVX2) or `liella_machine_casecmp_sse2` (the others, CASECMP) finds the first index where the ASCII-folded bytes differ or `a`
-/// ends (CASECMP-K1), and the `liella_machine_casecmp_ord_*` wrapper around it orders the two bytes there (STRCASECMP-SHORT). Everything else, and every case the
+/// are ASCII's (`ctype::ascii_case`), one pass of the C layer's `niji_machine_casecmp_avx2`
+/// (CPUs with AVX2) or `niji_machine_casecmp_sse2` (the others, CASECMP) finds the first index where the ASCII-folded bytes differ or `a`
+/// ends (CASECMP-K1), and the `niji_machine_casecmp_ord_*` wrapper around it orders the two bytes there (STRCASECMP-SHORT). Everything else, and every case the
 /// kernel leaves open (a byte of 128 or more at the index, whose fold the locale decides; a
 /// concurrent writer), takes the path of before: both strings measured, `ctype::compare_folded`.
 ///
@@ -351,10 +351,10 @@ unsafe fn rescan_compare(a: *const u8, b: *const u8, i: usize) -> core::cmp::Ord
 #[inline]
 // UNSAFE(slice): reading the two bytes at the index the kernel reported.
 #[allow(unsafe_code)]
-pub unsafe fn casecmp(a: *const i8, b: *const i8, n: usize, loc: &liella::locale::Locale) -> KResult<core::cmp::Ordering> {
+pub unsafe fn casecmp(a: *const i8, b: *const i8, n: usize, loc: &niji::locale::Locale) -> KResult<core::cmp::Ordering> {
     // UNSAFE(slice): the same call with the locale's ASCII case flag worked out here.
     // SAFETY: the function's contract.
-    unsafe { casecmp_in(a, b, n, liella::ctype::ascii_case(loc), loc) }
+    unsafe { casecmp_in(a, b, n, niji::ctype::ascii_case(loc), loc) }
 }
 
 /// [`casecmp`] with `ascii` = `ctype::ascii_case(loc)` given by the caller, so that the exports
@@ -365,7 +365,7 @@ pub unsafe fn casecmp(a: *const i8, b: *const i8, n: usize, loc: &liella::locale
 #[inline]
 // UNSAFE(slice): the kernel reads C text under the function's contract.
 #[allow(unsafe_code)]
-pub unsafe fn casecmp_in(a: *const i8, b: *const i8, n: usize, ascii: bool, loc: &liella::locale::Locale) -> KResult<core::cmp::Ordering> {
+pub unsafe fn casecmp_in(a: *const i8, b: *const i8, n: usize, ascii: bool, loc: &niji::locale::Locale) -> KResult<core::cmp::Ordering> {
     let kernel = crate::cpu::casecmp_kernel();
     if ascii && n != 0 && !a.is_null() && !b.is_null() && kernel != crate::cpu::CASECMP_MEASURED {
         // UNSAFE(slice): the kernel call; its obligations are checked just above.
@@ -385,7 +385,7 @@ pub unsafe fn casecmp_in(a: *const i8, b: *const i8, n: usize, ascii: bool, loc:
 #[inline]
 // UNSAFE(slice): the kernel reads C text under the function's contract.
 #[allow(unsafe_code)]
-pub unsafe fn casecmp_int(a: *const i8, b: *const i8, n: usize, ascii: bool, loc: &liella::locale::Locale) -> i32 {
+pub unsafe fn casecmp_int(a: *const i8, b: *const i8, n: usize, ascii: bool, loc: &niji::locale::Locale) -> i32 {
     let kernel = crate::cpu::casecmp_kernel_decided();
     // The default kernel first (PERF-STRCASECMP-AVX2): the AVX2 test is one bit of the CPU
     // state, and the AVX2 kernel tests NULL itself (it sends NULL to the measured path), so this
@@ -414,7 +414,7 @@ pub unsafe fn casecmp_int(a: *const i8, b: *const i8, n: usize, ascii: bool, loc
 #[inline(never)]
 // UNSAFE(slice): the kernel reads C text under the function's contract.
 #[allow(unsafe_code)]
-unsafe fn casecmp_int_slow(a: *const i8, b: *const i8, n: usize, ascii: bool, loc: &liella::locale::Locale) -> i32 {
+unsafe fn casecmp_int_slow(a: *const i8, b: *const i8, n: usize, ascii: bool, loc: &niji::locale::Locale) -> i32 {
     let kernel = crate::cpu::casecmp_kernel();
     if ascii && n != 0 && !a.is_null() && !b.is_null() && kernel != crate::cpu::CASECMP_MEASURED {
         // UNSAFE(slice): the kernel call; its obligations are checked just above.
@@ -426,7 +426,7 @@ unsafe fn casecmp_int_slow(a: *const i8, b: *const i8, n: usize, ascii: bool, lo
     crate::ret::order(unsafe { casecmp_measured(a, b, n, loc) })
 }
 
-/// The ordering kernel `kernel` (`liella_machine_casecmp_ord_*`) on `a` and `b`: -1, 0 or 1
+/// The ordering kernel `kernel` (`niji_machine_casecmp_ord_*`) on `a` and `b`: -1, 0 or 1
 /// (D-4.27). When the bytes that decide hold one of 128 or more (its fold is `loc`'s), the kernel
 /// itself tail-jumps to [`casecmp_rest`] with `loc`, so every answer comes back from this call.
 ///
@@ -438,7 +438,7 @@ unsafe fn casecmp_int_slow(a: *const i8, b: *const i8, n: usize, ascii: bool, lo
 #[inline(always)]
 // UNSAFE(slice): the kernels read C text up to the first folded difference.
 #[allow(unsafe_code)]
-unsafe fn casecmp_kernel_call(a: *const i8, b: *const i8, n: usize, loc: &liella::locale::Locale, kernel: u8) -> i32 {
+unsafe fn casecmp_kernel_call(a: *const i8, b: *const i8, n: usize, loc: &niji::locale::Locale, kernel: u8) -> i32 {
     let (pa, pb) = (a.cast::<u8>(), b.cast::<u8>());
     let pl = core::ptr::from_ref(loc).cast::<core::ffi::c_void>();
     // Self-tests count the kernel's decisions: a call the rest entry did not measure.
@@ -447,9 +447,9 @@ unsafe fn casecmp_kernel_call(a: *const i8, b: *const i8, n: usize, loc: &liella
     // The kernels' contract (`ffi`): the function's contract gives it; they read only inside pages
     // that hold an unended byte below `n`, and they order the deciding bytes themselves.
     let r = if kernel == crate::cpu::CASECMP_AVX2 {
-        ffi::liella_machine_casecmp_ord_avx2(pa, pb, n, pl)
+        ffi::niji_machine_casecmp_ord_avx2(pa, pb, n, pl)
     } else {
-        ffi::liella_machine_casecmp_ord_sse2(pa, pb, n, pl)
+        ffi::niji_machine_casecmp_ord_sse2(pa, pb, n, pl)
     };
     #[cfg(feature = "selftest")]
     if CASECMP_MEASURED.load(core::sync::atomic::Ordering::Relaxed) == measured {
@@ -458,7 +458,7 @@ unsafe fn casecmp_kernel_call(a: *const i8, b: *const i8, n: usize, loc: &liella
     r
 }
 
-/// The ordering kernels' way out (`liella_hot_casecmp_rest`, STRCASECMP-SHORT-2): `code` 2 = the
+/// The ordering kernels' way out (`niji_hot_casecmp_rest`, STRCASECMP-SHORT-2): `code` 2 = the
 /// bytes that decide hold one of 128 or more, whose fold `loc` decides, or the kernel's
 /// re-read at the stop found the text changed: the measured path; 3 = an index above `n` (never
 /// sent by the current kernels; kept as an abort, D-4.21).
@@ -473,7 +473,7 @@ pub unsafe fn casecmp_rest(a: *const i8, b: *const i8, n: usize, loc: *const cor
     }
     // UNSAFE(slice): the locale the kernel passed through unchanged.
     // SAFETY: `loc` came from a `&Locale` the caller holds for the call (the function's contract).
-    let loc = unsafe { &*loc.cast::<liella::locale::Locale>() };
+    let loc = unsafe { &*loc.cast::<niji::locale::Locale>() };
     // UNSAFE(slice): the measured path under the same contract.
     // SAFETY: the function's contract.
     crate::ret::order(unsafe { casecmp_measured(a, b, n, loc) })
@@ -487,7 +487,7 @@ pub unsafe fn casecmp_rest(a: *const i8, b: *const i8, n: usize, loc: *const cor
 #[inline(never)]
 // UNSAFE(slice): measuring C text under the caller's contract.
 #[allow(unsafe_code)]
-unsafe fn casecmp_measured(a: *const i8, b: *const i8, n: usize, loc: &liella::locale::Locale) -> KResult<core::cmp::Ordering> {
+unsafe fn casecmp_measured(a: *const i8, b: *const i8, n: usize, loc: &niji::locale::Locale) -> KResult<core::cmp::Ordering> {
     note_casecmp(false);
     // UNSAFE(slice): measuring `a` under the function's contract.
     // SAFETY: the function's contract.
@@ -495,7 +495,7 @@ unsafe fn casecmp_measured(a: *const i8, b: *const i8, n: usize, loc: &liella::l
     // UNSAFE(slice): measuring `b` under the function's contract.
     // SAFETY: as for `x`.
     let y = unsafe { strz_n(b, n) }?;
-    Ok(liella::ctype::compare_folded(x, y, loc))
+    Ok(niji::ctype::compare_folded(x, y, loc))
 }
 
 /// Units before the terminator at `p`.
@@ -593,11 +593,11 @@ unsafe fn text<'a>(p: *const u8, limit: usize) -> KResult<&'a [u8]> {
 /// (or, for a call that only forwards it, any pointer: the kernel validates it).
 // UNSAFE(slice): a C path becomes a KStr whose bytes are read only on demand.
 #[allow(unsafe_code)]
-pub unsafe fn path<'a>(p: *const i8) -> KResult<liella_kernel::path::KStr<'a>> {
+pub unsafe fn path<'a>(p: *const i8) -> KResult<niji_kernel::path::KStr<'a>> {
     if p.is_null() {
         return Err(Errno::EFAULT);
     }
-    Ok(liella_kernel::path::KStr::from_user(p.cast(), path_bytes))
+    Ok(niji_kernel::path::KStr::from_user(p.cast(), path_bytes))
 }
 
 /// The measuring function of [`path`]'s result: the text at `p` and its terminator.
@@ -625,7 +625,7 @@ fn path_bytes<'a>(p: *const u8) -> &'a [u8] {
 /// As for [`path`].
 // UNSAFE(slice): as for `path`.
 #[allow(unsafe_code)]
-pub unsafe fn opt_path<'a>(p: *const i8) -> KResult<Option<liella_kernel::path::KStr<'a>>> {
+pub unsafe fn opt_path<'a>(p: *const i8) -> KResult<Option<niji_kernel::path::KStr<'a>>> {
     if p.is_null() {
         return Ok(None);
     }
@@ -745,7 +745,7 @@ pub unsafe fn dirent_name<'a>(pp: *const *const core::ffi::c_void) -> KResult<&'
 /// NUL-terminated strings.
 // UNSAFE(slice): reading the C pointer variables; the names are read by `coll`.
 #[allow(unsafe_code)]
-pub unsafe fn dirent_coll(a: *const *const core::ffi::c_void, b: *const *const core::ffi::c_void, l: &liella::locale::Locale) -> i32 {
+pub unsafe fn dirent_coll(a: *const *const core::ffi::c_void, b: *const *const core::ffi::c_void, l: &niji::locale::Locale) -> i32 {
     // SAFETY: the caller's contract: `a` is NULL or a readable pointer variable.
     let x = unsafe { dirent_name_at(a) };
     // SAFETY: the caller's contract: `b` is NULL or a readable pointer variable.
@@ -793,7 +793,7 @@ pub unsafe fn wcsz<'a>(p: *const i32) -> KResult<&'a [i32]> {
 /// `strstr`'s search (STRSTR-VEC): the first index where `needle` occurs in the string at `h`
 /// (an empty needle at 0), the same answer as `bytes::find_seq` over the measured string, found
 /// without measuring the haystack first: the C layer's fused scanner
-/// (`liella_machine_strpair`) names the first candidate (two needle bytes in place: the first
+/// (`niji_machine_strpair`) names the first candidate (two needle bytes in place: the first
 /// and last, after the first false candidate the two rarest) or the terminator, whichever comes
 /// first, and the needle is compared at each candidate. Work spent on failed candidates is
 /// counted; past 4 x progress + 256 units the rest is measured and searched by
@@ -806,7 +806,7 @@ pub unsafe fn wcsz<'a>(p: *const i32) -> KResult<&'a [i32]> {
 pub unsafe fn find_str(h: *const i8, needle: &[u8]) -> KResult<Option<usize>> {
     // UNSAFE(slice): the shared search over the caller's string.
     // SAFETY: the caller's contract; `strpair` is the byte instance of the fused scanner.
-    unsafe { find_z(h.cast::<u8>(), needle, ffi::liella_machine_strpair, crate::conv::commonness) }
+    unsafe { find_z(h.cast::<u8>(), needle, ffi::niji_machine_strpair, crate::conv::commonness) }
 }
 
 /// Needle bytes that [`find_str_n`] measures in its fused loop before it hands the rest to the
@@ -867,10 +867,10 @@ pub unsafe fn find_str_n(h: *const i8, n: *const i8) -> KResult<Option<usize>> {
     crate::cpu::ready();
     // UNSAFE(slice): the search after the prefix check.
     // SAFETY: haystack bytes [0, m - 1) are text (checked above); `strpair` keeps the contract.
-    unsafe { find_known(p, needle, ffi::liella_machine_strpair, crate::conv::commonness) }
+    unsafe { find_known(p, needle, ffi::niji_machine_strpair, crate::conv::commonness) }
 }
 
-/// `wcsstr`'s search (STRSTR-VEC): [`find_str`] over 4-byte units (`liella_machine_wcspair`; a
+/// `wcsstr`'s search (STRSTR-VEC): [`find_str`] over 4-byte units (`niji_machine_wcspair`; a
 /// unit above 255 ranks as rare). A haystack address that is not 4-byte aligned is measured
 /// and searched by `bytes::find_seq` instead.
 ///
@@ -883,11 +883,11 @@ pub unsafe fn find_wcs(h: *const i32, needle: &[i32]) -> KResult<Option<usize>> 
         // UNSAFE(slice): measuring the wide string under the caller's contract.
         // SAFETY: the caller's contract.
         let t = unsafe { wcsz(h) }?;
-        return Ok(liella::bytes::find_seq(t, needle, core::convert::identity));
+        return Ok(niji::bytes::find_seq(t, needle, core::convert::identity));
     }
     // UNSAFE(slice): the shared search over the caller's aligned wide string.
     // SAFETY: the caller's contract; `h` is 4-byte aligned (checked above).
-    unsafe { find_z(h, needle, ffi::liella_machine_wcspair, crate::conv::unit_commonness) }
+    unsafe { find_z(h, needle, ffi::niji_machine_wcspair, crate::conv::unit_commonness) }
 }
 
 /// The search of [`find_str`] and [`find_wcs`] over units `T`, with the fused scanner `kernel`
@@ -896,10 +896,10 @@ pub unsafe fn find_wcs(h: *const i32, needle: &[i32]) -> KResult<Option<usize>> 
 /// scanner's proof obligation for the start `p + from + o1` and the distance `o1 - o0`.
 ///
 /// # Safety
-/// As for [`find_str`] in units `T`; `kernel` keeps `liella_machine_strpair`'s contract for `T`.
+/// As for [`find_str`] in units `T`; `kernel` keeps `niji_machine_strpair`'s contract for `T`.
 // UNSAFE(slice): reading the haystack through its terminator via the scanner's answers.
 #[allow(unsafe_code)]
-unsafe fn find_z<T: Copy + PartialEq + Default + Into<i32> + liella::bytes::Unit>(
+unsafe fn find_z<T: Copy + PartialEq + Default + Into<i32> + niji::bytes::Unit>(
     p: *const T,
     needle: &[T],
     kernel: extern "C" fn(*const T, usize, i32, i32) -> usize,
@@ -929,7 +929,7 @@ unsafe fn find_z<T: Copy + PartialEq + Default + Into<i32> + liella::bytes::Unit
 // UNSAFE(slice): reading the haystack through its terminator via the scanner's answers.
 #[allow(unsafe_code)]
 #[inline(always)]
-unsafe fn find_known<T: Copy + PartialEq + Default + Into<i32> + liella::bytes::Unit>(
+unsafe fn find_known<T: Copy + PartialEq + Default + Into<i32> + niji::bytes::Unit>(
     p: *const T,
     needle: &[T],
     kernel: extern "C" fn(*const T, usize, i32, i32) -> usize,
@@ -944,7 +944,7 @@ unsafe fn find_known<T: Copy + PartialEq + Default + Into<i32> + liella::bytes::
 }
 
 /// `strstr` after the direct entry's first scan (TIMING-COV-STRSTR-PAIR,
-/// `liella_machine_strstr`): [`find_known`] from the scanner's answer `r` for the pair
+/// `niji_machine_strstr`): [`find_known`] from the scanner's answer `r` for the pair
 /// (0, m - 1) from byte m - 1, for the needle of `m` bytes at `n`.
 ///
 /// # Safety
@@ -962,7 +962,7 @@ pub unsafe fn find_str_after(h: *const i8, n: *const i8, m: usize, r: usize) -> 
     crate::cpu::ready();
     // UNSAFE(slice): the rest of the search from the entry's answer.
     // SAFETY: the function's contract; `strpair` is the scanner that answered `r`.
-    unsafe { settle(h.cast::<u8>(), needle, ffi::liella_machine_strpair, crate::conv::commonness, r) }
+    unsafe { settle(h.cast::<u8>(), needle, ffi::niji_machine_strpair, crate::conv::commonness, r) }
 }
 
 /// [`find_known`] after its first scan: `r` is the scanner's answer for the pair (0, last) from
@@ -974,7 +974,7 @@ pub unsafe fn find_str_after(h: *const i8, n: *const i8, m: usize, r: usize) -> 
 // UNSAFE(slice): reading the haystack through its terminator via the scanner's answers.
 #[allow(unsafe_code)]
 #[inline(always)]
-unsafe fn settle<T: Copy + PartialEq + Default + Into<i32> + liella::bytes::Unit>(
+unsafe fn settle<T: Copy + PartialEq + Default + Into<i32> + niji::bytes::Unit>(
     p: *const T,
     needle: &[T],
     kernel: extern "C" fn(*const T, usize, i32, i32) -> usize,
@@ -1011,7 +1011,7 @@ unsafe fn settle<T: Copy + PartialEq + Default + Into<i32> + liella::bytes::Unit
 // UNSAFE(slice): reading the haystack through its terminator via the scanner's answers.
 #[allow(unsafe_code)]
 #[inline(never)]
-unsafe fn find_next<T: Copy + PartialEq + Default + Into<i32> + liella::bytes::Unit>(
+unsafe fn find_next<T: Copy + PartialEq + Default + Into<i32> + niji::bytes::Unit>(
     p: *const T,
     needle: &[T],
     kernel: extern "C" fn(*const T, usize, i32, i32) -> usize,
@@ -1180,11 +1180,11 @@ unsafe fn word_diff<W: Copy + Into<u64>>(a: *const u8, b: *const u8, off: usize)
 /// Unit `from` at `p` is at or before the terminator of a readable string.
 // UNSAFE(slice): measuring the rest of the caller's string.
 #[allow(unsafe_code)]
-unsafe fn find_rest<T: Copy + PartialEq + Default + liella::bytes::Unit>(p: *const T, from: usize, needle: &[T]) -> KResult<Option<usize>> {
+unsafe fn find_rest<T: Copy + PartialEq + Default + niji::bytes::Unit>(p: *const T, from: usize, needle: &[T]) -> KResult<Option<usize>> {
     // UNSAFE(slice): the rest of the string becomes a slice.
     // SAFETY: the function's contract.
     let t = unsafe { wide::<T>(p.wrapping_add(from), usize::MAX) }?;
-    Ok(liella::bytes::find_seq(t, needle, core::convert::identity).map(|k| from.saturating_add(k)))
+    Ok(niji::bytes::find_seq(t, needle, core::convert::identity).map(|k| from.saturating_add(k)))
 }
 
 /// The wide text at `p` as a mutable view (`wcstok`).
@@ -1295,7 +1295,7 @@ pub unsafe fn until<'a>(p: *const u8, c: u8) -> KResult<&'a [u8]> {
         return Err(Errno::EFAULT);
     }
     crate::cpu::ready();
-    let n = ffi::liella_machine_rawmemchr(p, i32::from(c)).addr().wrapping_sub(p.addr());
+    let n = ffi::niji_machine_rawmemchr(p, i32::from(c)).addr().wrapping_sub(p.addr());
     // UNSAFE(slice): checking a scanner's answer: the byte at the reported index, then a rescan after it if a writer changed it (D-4.21).
     // SAFETY: the function's contract; `n` is the scanner's answer for `p` and `c`.
     let n = unsafe { settle_until(p, c, n) };
@@ -1329,7 +1329,7 @@ pub unsafe fn text_n_lazy(p: *const i8, n: usize) -> Option<LazyText> {
     (!p.is_null()).then_some(LazyText { p: p.cast(), n, seen: core::cell::Cell::new(0) })
 }
 
-impl liella_legacy::mb_compat::MbInput for LazyText {
+impl niji_legacy::mb_compat::MbInput for LazyText {
     fn byte(&self, i: usize) -> Option<u8> {
         if i >= self.n || i > self.seen.get() {
             return None;
@@ -1394,8 +1394,8 @@ fn null_fault() -> ! {
     crate::ret::fatal(Errno::EFAULT)
 }
 
-/// The S6 NULL abort (`EFAULT`) of the direct assembly entries' NULL cases (`liella_hot_strchr_null`,
-/// `liella_hot_strncmp_null`; STR-CHR-CMP-SHORT).
+/// The S6 NULL abort (`EFAULT`) of the direct assembly entries' NULL cases (`niji_hot_strchr_null`,
+/// `niji_hot_strncmp_null`; STR-CHR-CMP-SHORT).
 pub fn null_abort() -> ! {
     null_fault()
 }
@@ -1428,7 +1428,7 @@ pub unsafe fn len(p: *const i8) -> usize {
     if p.is_null() {
         null_fault();
     }
-    let n = ffi::liella_machine_strlen(p.cast());
+    let n = ffi::niji_machine_strlen(p.cast());
     if cfg!(feature = "selftest") {
         // UNSAFE(slice): checking a scanner's answer: the byte at the reported index, then a rescan after it if a writer changed it (D-4.21).
         // SAFETY: the caller's contract; the string is readable through its terminator.
@@ -1492,7 +1492,7 @@ pub unsafe fn len_n(p: *const i8, max: usize) -> usize {
     if p.is_null() {
         null_fault();
     }
-    let n = ffi::liella_machine_strnlen(p.cast(), max);
+    let n = ffi::niji_machine_strnlen(p.cast(), max);
     if cfg!(feature = "selftest") {
         // UNSAFE(slice): checking a scanner's answer: the byte at the reported index, then a rescan after it if a writer changed it (D-4.21).
         // SAFETY: the caller's contract; a reported index below `max` is a terminator inside it.
@@ -1514,7 +1514,7 @@ pub unsafe fn find(p: *const u8, c: u8) -> *const u8 {
     if p.is_null() {
         null_fault();
     }
-    let r = ffi::liella_machine_rawmemchr(p, i32::from(c));
+    let r = ffi::niji_machine_rawmemchr(p, i32::from(c));
     if cfg!(feature = "selftest") {
         // UNSAFE(slice): checking a scanner's answer: the byte at the reported index, then a rescan after it if a writer changed it (D-4.21).
         // SAFETY: the caller's contract; the bytes are readable through the asserted occurrence.
@@ -1542,7 +1542,7 @@ pub unsafe fn find_n(p: *const u8, c: i32, n: usize) -> *const u8 {
         return find_n_edge(n);
     }
     // The scanner compares the low byte of `c` only (C17 7.24.5.1p2: converted to unsigned char).
-    let r = ffi::liella_machine_memchr(p, c, n);
+    let r = ffi::niji_machine_memchr(p, c, n);
     if cfg!(feature = "selftest") {
         // UNSAFE(slice): checking a scanner's answer: the byte it points at, then a rescan after it if a writer changed it (D-4.21).
         // SAFETY: the caller's contract; the scanner reported `r` for `p`, `c` and `n`.
@@ -1554,7 +1554,7 @@ pub unsafe fn find_n(p: *const u8, c: i32, n: usize) -> *const u8 {
 
 /// `rawmemchr` through its direct entry (SCAN-TAIL; the products' `rawmemchr` is that entry, this
 /// is its Rust twin so the tests run the assembly): a NULL `p` goes to [`find`] (abort) through
-/// `liella_hot_rawmemchr_rest`; any other `p` enters the kernel with `c` as given (it reads the
+/// `niji_hot_rawmemchr_rest`; any other `p` enters the kernel with `c` as given (it reads the
 /// low byte only). The selftest build checks the answer as [`find`] does (D-4.21).
 ///
 /// # Safety
@@ -1563,7 +1563,7 @@ pub unsafe fn find_n(p: *const u8, c: i32, n: usize) -> *const u8 {
 // UNSAFE(slice): the selftest build checks the scanner's answer (D-4.21).
 #[allow(unsafe_code)]
 pub unsafe fn find_direct(p: *const u8, c: i32) -> *const u8 {
-    let r = ffi::liella_machine_rawmemchr_entry(p, c);
+    let r = ffi::niji_machine_rawmemchr_entry(p, c);
     if cfg!(feature = "selftest") {
         debug_assert!(!p.is_null(), "the rawmemchr entry returned for a NULL pointer");
         let c = crate::conv::byte(c);
@@ -1578,7 +1578,7 @@ pub unsafe fn find_direct(p: *const u8, c: i32) -> *const u8 {
 /// `memchr` through its direct entry (MEMCHR-FOLD; the products' `memchr` is that entry, this is
 /// its Rust twin so the tests run the assembly). With NULL folding on, `1 <= n <= isize::MAX`
 /// enters the kernel with no NULL test (a NULL faults on page zero); every other case comes back
-/// to [`find_n`] through `liella_hot_memchr_rest`. The selftest build checks the answer as
+/// to [`find_n`] through `niji_hot_memchr_rest`. The selftest build checks the answer as
 /// [`find_n`] does (D-4.21, RESULT CHECKS ruling).
 ///
 /// # Safety
@@ -1587,7 +1587,7 @@ pub unsafe fn find_direct(p: *const u8, c: i32) -> *const u8 {
 // UNSAFE(slice): the selftest build checks the scanner's answer (D-4.21).
 #[allow(unsafe_code)]
 pub unsafe fn find_n_direct(p: *const u8, c: i32, n: usize) -> *const u8 {
-    let r = ffi::liella_machine_memchr_entry(p, c, n);
+    let r = ffi::niji_machine_memchr_entry(p, c, n);
     if cfg!(feature = "selftest") && n.wrapping_sub(1) < usize::MAX >> 1 {
         debug_assert!(!p.is_null(), "the memchr entry returned for a NULL region");
         // UNSAFE(slice): checking a scanner's answer, as find_n (D-4.21).
@@ -1699,11 +1699,11 @@ unsafe fn rescan_find_n(p: *const u8, c: u8, n: usize, i: usize) -> *const u8 {
 #[allow(unsafe_code)]
 pub unsafe fn chr(p: *const i8, c: i32) -> *const u8 {
     // The kernel is the direct entry: it takes a NULL p to the S6 abort itself (STR-CHR-CMP-SHORT).
-    let r = ffi::liella_machine_strchr(p.cast(), c);
+    let r = ffi::niji_machine_strchr(p.cast(), c);
     if cfg!(feature = "selftest") {
         // UNSAFE(slice): measuring the caller's string for the reference answer.
         // SAFETY: the caller's contract.
-        let want = unsafe { strz(p) }.ok().and_then(|t| liella::bytes::find_z(t, crate::conv::byte(c)));
+        let want = unsafe { strz(p) }.ok().and_then(|t| niji::bytes::find_z(t, crate::conv::byte(c)));
         check_answer(p.cast(), r, want);
     }
     r
@@ -1718,11 +1718,11 @@ pub unsafe fn chr(p: *const i8, c: i32) -> *const u8 {
 #[allow(unsafe_code)]
 pub unsafe fn chr_or_end(p: *const i8, c: i32) -> *const u8 {
     // The kernel is the direct entry: it takes a NULL p to the S6 abort itself (STR-CHR-CMP-SHORT).
-    let r = ffi::liella_machine_strchrnul(p.cast(), c);
+    let r = ffi::niji_machine_strchrnul(p.cast(), c);
     if cfg!(feature = "selftest") {
         // UNSAFE(slice): measuring the caller's string for the reference answer.
         // SAFETY: the caller's contract.
-        let want = unsafe { strz(p) }.ok().map(|t| liella::bytes::find_z_or_end(t, crate::conv::byte(c)));
+        let want = unsafe { strz(p) }.ok().map(|t| niji::bytes::find_z_or_end(t, crate::conv::byte(c)));
         check_answer(p.cast(), r, want);
     }
     r
@@ -1740,11 +1740,11 @@ pub unsafe fn rfind_n(p: *const u8, c: i32, n: usize) -> *const u8 {
     if n.wrapping_sub(1) >= usize::MAX >> 1 || p.is_null() {
         return find_n_edge(n);
     }
-    let r = ffi::liella_machine_memrchr(p, c, n);
+    let r = ffi::niji_machine_memrchr(p, c, n);
     if cfg!(feature = "selftest") {
         // UNSAFE(slice): the caller's n readable bytes, for the reference answer.
         // SAFETY: p is non-NULL, n <= isize::MAX, and the caller's contract makes them readable.
-        let want = liella::bytes::rfind(unsafe { core::slice::from_raw_parts(p, n) }, crate::conv::byte(c));
+        let want = niji::bytes::rfind(unsafe { core::slice::from_raw_parts(p, n) }, crate::conv::byte(c));
         check_answer(p, r, want);
     }
     r
@@ -1753,7 +1753,7 @@ pub unsafe fn rfind_n(p: *const u8, c: i32, n: usize) -> *const u8 {
 /// `memrchr` through its direct entry (SCAN-RAW; the products' `memrchr` is that entry, this is
 /// its Rust twin so the tests run the assembly). `1 <= n <= isize::MAX` with a non-NULL `p`
 /// enters the kernel; every other case comes back to [`rfind_n`] through
-/// `liella_hot_memrchr_rest`. The selftest build checks the answer as [`rfind_n`] does (D-4.21).
+/// `niji_hot_memrchr_rest`. The selftest build checks the answer as [`rfind_n`] does (D-4.21).
 ///
 /// # Safety
 /// As [`rfind_n`].
@@ -1761,12 +1761,12 @@ pub unsafe fn rfind_n(p: *const u8, c: i32, n: usize) -> *const u8 {
 // UNSAFE(slice): the selftest build checks the scanner's answer (D-4.21).
 #[allow(unsafe_code)]
 pub unsafe fn rfind_n_direct(p: *const u8, c: i32, n: usize) -> *const u8 {
-    let r = ffi::liella_machine_memrchr_entry(p, c, n);
+    let r = ffi::niji_machine_memrchr_entry(p, c, n);
     if cfg!(feature = "selftest") && n.wrapping_sub(1) < usize::MAX >> 1 {
         debug_assert!(!p.is_null(), "the memrchr entry returned for a NULL region");
         // UNSAFE(slice): the caller's n readable bytes, for the reference answer.
         // SAFETY: p is non-NULL (a NULL aborts), n <= isize::MAX, and the caller's contract.
-        let want = liella::bytes::rfind(unsafe { core::slice::from_raw_parts(p, n) }, crate::conv::byte(c));
+        let want = niji::bytes::rfind(unsafe { core::slice::from_raw_parts(p, n) }, crate::conv::byte(c));
         check_answer(p, r, want);
     }
     r
@@ -1784,7 +1784,7 @@ pub unsafe fn rfind_n_direct(p: *const u8, c: i32, n: usize) -> *const u8 {
 pub unsafe fn order_n(a: *const i8, b: *const i8, n: usize) -> i32 {
     // The kernel is the direct entry: n == 0 gives 0 before any read, a NULL a or b with n > 0 the
     // S6 abort (STR-CHR-CMP-SHORT).
-    let r = ffi::liella_machine_strncmp(a.cast(), b.cast(), n);
+    let r = ffi::niji_machine_strncmp(a.cast(), b.cast(), n);
     if cfg!(feature = "selftest") {
         // UNSAFE(slice): measuring both texts within n for the reference answer.
         // SAFETY: the caller's contract.
@@ -1807,14 +1807,14 @@ fn check_answer(p: *const u8, r: *const u8, want: Option<usize>) {
 /// Portable word-at-a-time (SWAR) versions of the `machine/scan.S` scanners (A-8,
 /// ARCH-STRING-PORTABLE): the build uses them on a target without tuned kernels, and the
 /// test-only feature `portable-scan` forces them on x86_64 (`crate::ffi` takes these in place
-/// of the assembly under `cfg(liella_portable_scan)`). Each answers bit for bit what its
+/// of the assembly under `cfg(niji_portable_scan)`). Each answers bit for bit what its
 /// assembly twin answers, with the same edge routing (NULL, `n == 0`, `n > isize::MAX`).
 ///
 /// Every load is one aligned `usize` word holding at least one byte the byte-wise scan would
 /// read, so a load never leaves the page holding such a byte (an aligned word never crosses a
 /// page). The bytes of that word outside the object are read but never decide the answer:
 /// they are masked off before the first-match search.
-#[cfg(liella_portable_scan)]
+#[cfg(niji_portable_scan)]
 pub(crate) mod portable {
     use core::cmp::Ordering;
 
@@ -1929,50 +1929,50 @@ pub(crate) mod portable {
         }
     }
 
-    /// Portable `liella_machine_strlen`.
-    pub(crate) fn liella_machine_strlen(s: *const u8) -> usize {
+    /// Portable `niji_machine_strlen`.
+    pub(crate) fn niji_machine_strlen(s: *const u8) -> usize {
         scan(s, zeros)
     }
 
-    /// Portable `liella_machine_strnlen`.
-    pub(crate) fn liella_machine_strnlen(s: *const u8, max: usize) -> usize {
+    /// Portable `niji_machine_strnlen`.
+    pub(crate) fn niji_machine_strnlen(s: *const u8, max: usize) -> usize {
         if max == 0 {
             return 0;
         }
         scan_n(s, max, zeros).unwrap_or(max)
     }
 
-    /// Portable `liella_machine_rawmemchr`.
-    pub(crate) fn liella_machine_rawmemchr(s: *const u8, c: i32) -> *const u8 {
+    /// Portable `niji_machine_rawmemchr`.
+    pub(crate) fn niji_machine_rawmemchr(s: *const u8, c: i32) -> *const u8 {
         let k = splat(c);
         s.wrapping_add(scan(s, |x| zeros(x ^ k)))
     }
 
-    /// Portable `liella_machine_rawmemchr_entry`: a NULL `s` takes the S6 abort.
-    pub(crate) fn liella_machine_rawmemchr_entry(s: *const u8, c: i32) -> *const u8 {
+    /// Portable `niji_machine_rawmemchr_entry`: a NULL `s` takes the S6 abort.
+    pub(crate) fn niji_machine_rawmemchr_entry(s: *const u8, c: i32) -> *const u8 {
         if s.is_null() {
             super::null_fault();
         }
-        liella_machine_rawmemchr(s, c)
+        niji_machine_rawmemchr(s, c)
     }
 
-    /// Portable `liella_machine_memchr` (`1 <= n <= isize::MAX`).
-    pub(crate) fn liella_machine_memchr(s: *const u8, c: i32, n: usize) -> *const u8 {
+    /// Portable `niji_machine_memchr` (`1 <= n <= isize::MAX`).
+    pub(crate) fn niji_machine_memchr(s: *const u8, c: i32, n: usize) -> *const u8 {
         let k = splat(c);
         scan_n(s, n, |x| zeros(x ^ k)).map_or(core::ptr::null(), |i| s.wrapping_add(i))
     }
 
-    /// Portable `liella_machine_memchr_entry`: the edges and NULL as [`super::find_n`].
-    pub(crate) fn liella_machine_memchr_entry(s: *const u8, c: i32, n: usize) -> *const u8 {
+    /// Portable `niji_machine_memchr_entry`: the edges and NULL as [`super::find_n`].
+    pub(crate) fn niji_machine_memchr_entry(s: *const u8, c: i32, n: usize) -> *const u8 {
         if n.wrapping_sub(1) >= usize::MAX >> 1 || s.is_null() {
             return super::find_n_edge(n);
         }
-        liella_machine_memchr(s, c, n)
+        niji_machine_memchr(s, c, n)
     }
 
-    /// Portable `liella_machine_memrchr` (`1 <= n <= isize::MAX`): words from the last byte
+    /// Portable `niji_machine_memrchr` (`1 <= n <= isize::MAX`): words from the last byte
     /// down, the first and last word masked to the object.
-    pub(crate) fn liella_machine_memrchr(s: *const u8, c: i32, n: usize) -> *const u8 {
+    pub(crate) fn niji_machine_memrchr(s: *const u8, c: i32, n: usize) -> *const u8 {
         let k = splat(c);
         let end = s.wrapping_add(n.wrapping_sub(1));
         let eoff = end.addr() & WM;
@@ -1991,12 +1991,12 @@ pub(crate) mod portable {
         }
     }
 
-    /// Portable `liella_machine_memrchr_entry`: the edges and NULL as [`super::rfind_n`].
-    pub(crate) fn liella_machine_memrchr_entry(s: *const u8, c: i32, n: usize) -> *const u8 {
+    /// Portable `niji_machine_memrchr_entry`: the edges and NULL as [`super::rfind_n`].
+    pub(crate) fn niji_machine_memrchr_entry(s: *const u8, c: i32, n: usize) -> *const u8 {
         if n.wrapping_sub(1) >= usize::MAX >> 1 || s.is_null() {
             return super::find_n_edge(n);
         }
-        liella_machine_memrchr(s, c, n)
+        niji_machine_memrchr(s, c, n)
     }
 
     /// The index of the first byte that is `c` or the terminator.
@@ -2005,8 +2005,8 @@ pub(crate) mod portable {
         scan(s, |x| zeros(x) | zeros(x ^ k))
     }
 
-    /// Portable `liella_machine_strchr`: a NULL `s` takes the S6 abort before any read.
-    pub(crate) fn liella_machine_strchr(s: *const u8, c: i32) -> *const u8 {
+    /// Portable `niji_machine_strchr`: a NULL `s` takes the S6 abort before any read.
+    pub(crate) fn niji_machine_strchr(s: *const u8, c: i32) -> *const u8 {
         if s.is_null() {
             super::null_abort();
         }
@@ -2014,9 +2014,9 @@ pub(crate) mod portable {
         if byte(p) == crate::conv::byte(c) { p } else { core::ptr::null() }
     }
 
-    /// Portable `liella_machine_strchrnul`: as [`liella_machine_strchr`], the terminator's
+    /// Portable `niji_machine_strchrnul`: as [`niji_machine_strchr`], the terminator's
     /// address when `c` does not occur.
-    pub(crate) fn liella_machine_strchrnul(s: *const u8, c: i32) -> *const u8 {
+    pub(crate) fn niji_machine_strchrnul(s: *const u8, c: i32) -> *const u8 {
         if s.is_null() {
             super::null_abort();
         }
@@ -2062,23 +2062,23 @@ pub(crate) mod portable {
         }
     }
 
-    /// Portable `liella_machine_strcmp` (C ABI: the selftest passes it to
-    /// `liella_machine_clean_upper_call` as a function pointer, as it does the assembly one).
-    pub(crate) extern "C" fn liella_machine_strcmp(a: *const u8, b: *const u8) -> i32 {
+    /// Portable `niji_machine_strcmp` (C ABI: the selftest passes it to
+    /// `niji_machine_clean_upper_call` as a function pointer, as it does the assembly one).
+    pub(crate) extern "C" fn niji_machine_strcmp(a: *const u8, b: *const u8) -> i32 {
         order(a, b, usize::MAX)
     }
 
-    /// Portable `liella_machine_strcmp_entry`: a NULL takes the S6 abort.
-    pub(crate) fn liella_machine_strcmp_entry(a: *const u8, b: *const u8) -> i32 {
+    /// Portable `niji_machine_strcmp_entry`: a NULL takes the S6 abort.
+    pub(crate) fn niji_machine_strcmp_entry(a: *const u8, b: *const u8) -> i32 {
         if a.is_null() || b.is_null() {
             super::null_fault();
         }
         order(a, b, usize::MAX)
     }
 
-    /// Portable `liella_machine_strncmp`: `n == 0` reads nothing; a NULL with `n > 0` takes the
+    /// Portable `niji_machine_strncmp`: `n == 0` reads nothing; a NULL with `n > 0` takes the
     /// S6 abort.
-    pub(crate) fn liella_machine_strncmp(a: *const u8, b: *const u8, n: usize) -> i32 {
+    pub(crate) fn niji_machine_strncmp(a: *const u8, b: *const u8, n: usize) -> i32 {
         if n == 0 {
             return 0;
         }

@@ -1,5 +1,5 @@
 //! Message-catalog glue (spec §7.7, §7.8; D-7.5, D-7.6; Appendix D.2): the file access, the
-//! environment and the locale `liella_legacy::intl` works through, the change counter
+//! environment and the locale `niji_legacy::intl` works through, the change counter
 //! `_nl_msg_cat_cntr`, and the `nl_catd` descriptors of `catopen`.
 //!
 //! Catalog files are opened with `O_NONBLOCK` and used only when `fstat` shows a regular file, so a
@@ -10,16 +10,16 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
-use liella::catalog::xopen;
-use liella::error::{Errno, KResult};
-use liella::iconv::Codec;
-use liella::locale::file::Cat;
-use liella::locale::Locale;
-use liella_kernel::fd::Fd;
-use liella_kernel::path::KStr;
-use liella_kernel::sys::Sys;
-use liella_kernel::uapi::{Stat, MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_NONBLOCK, O_RDONLY, PROT_READ, PROT_WRITE, S_IFMT, S_IFREG};
-use liella_legacy::intl::{self, Identity, Image, Load, Setting};
+use niji::catalog::xopen;
+use niji::error::{Errno, KResult};
+use niji::iconv::Codec;
+use niji::locale::file::Cat;
+use niji::locale::Locale;
+use niji_kernel::fd::Fd;
+use niji_kernel::path::KStr;
+use niji_kernel::sys::Sys;
+use niji_kernel::uapi::{Stat, MAP_ANONYMOUS, MAP_PRIVATE, O_CLOEXEC, O_NONBLOCK, O_RDONLY, PROT_READ, PROT_WRITE, S_IFMT, S_IFREG};
+use niji_legacy::intl::{self, Identity, Image, Load, Setting};
 
 use crate::sys::CSys;
 use crate::{conv, data, heap, locale, process, raw, strz, tb};
@@ -143,9 +143,9 @@ impl intl::Host for Catalogs {
         if name.is_empty() { None } else { crate::iconv::codec_named(name) }
     }
 
-    fn charmap_at(&self, addr: usize) -> &'static liella::charmap::Charmap {
+    fn charmap_at(&self, addr: usize) -> &'static niji::charmap::Charmap {
         // The address of a charmap a codec held (this host's `codec`, or a loaded locale's): one
-        // `liella_legacy::global_locale` leaked, as `tb::charmap_at` requires.
+        // `niji_legacy::global_locale` leaked, as `tb::charmap_at` requires.
         crate::tb::charmap_at(addr)
     }
 }

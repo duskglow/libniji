@@ -1,7 +1,7 @@
 #!/bin/bash
-# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test Liella.
-# Exact per-function instruction split of ONE libc call in Liella (TOOLS-PERCALL; was STRCOLL-3/STDIO-3 trace.py).
-# gdb single-steps one call of FUNCTION inside a wl_percall case, Liella only (never glibc), on Zen 1 host, and prints
+# LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
+# Exact per-function instruction split of ONE libc call in libniji (TOOLS-PERCALL; was STRCOLL-3/STDIO-3 trace.py).
+# gdb single-steps one call of FUNCTION inside a wl_percall case, libniji only (never glibc), on Zen 1 host, and prints
 # the instructions executed per function (most first) and the call sequence. Use it after wl_percall.sh named
 # the gap, to see WHERE inside the call the instructions go.
 #
@@ -9,7 +9,7 @@
 #
 # <dir|rev>, --spec, --rev: as wl_percall.sh (runs on the host where it is started; from a role directory:
 #   ~/bin/jobrun <label> count -- sh -c 'cd ~/w/<role> && bash validation/wl_trace.sh . strcoll_short strcoll') (the built-in cases by default; same products and binaries).
-# <case>: a wl_percall case (strcoll_short, fgets_line, ...). <function>: a symbol of the Liella binary to
+# <case>: a wl_percall case (strcoll_short, fgets_line, ...). <function>: a symbol of the libniji binary to
 #   break on (an exported name such as strcoll or fgets, or an internal symbol).
 # --skip K: trace call K+1 (default 10: past first-call initialisation). --max N: step limit (default 200000;
 #   gdb steps ~10-20k instructions per second). --list: also print every executed instruction (I <n> <pc> <sym+off>:

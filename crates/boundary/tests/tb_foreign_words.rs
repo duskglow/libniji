@@ -1,25 +1,25 @@
 //! D-X.58: in a process the runtime did not start (this test process: another C library's
-//! loader made every thread block), the block words Liella keeps at 0x9c-0x17f of a block it
+//! loader made every thread block), the block words libniji keeps at 0x9c-0x17f of a block it
 //! made (flags, descriptor, locale, ctype words, lconv, h_errno, resolver state, view, cache line)
-//! are that library's data. Liella reads none of them as a pointer or a decision and writes none:
+//! are that library's data. libniji reads none of them as a pointer or a decision and writes none:
 //! with decoy values in all of them (bit 0 of 0x9c set, pointers aimed at a decoy area) the
 //! answers stay correct and the words stay as they were. A binary with one test, so the process
-//! has the harness thread and the test's thread only; nothing but Liella runs while the decoys
+//! has the harness thread and the test's thread only; nothing but libniji runs while the decoys
 //! are in place, and the block is restored before anything is asserted.
 #![no_builtins]
 #![allow(clippy::unwrap_used, clippy::as_conversions, clippy::arithmetic_side_effects, clippy::indexing_slicing, missing_docs)]
 
 use core::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-use liella_boundary::posix::s05_ctype as ct;
-use liella_boundary::posix::s06_multibyte as mb;
-use liella_boundary::posix::s07_locale as lc;
-use liella_boundary::posix::s11_lowio as io;
-use liella_boundary::posix::s16_nameservices as ns;
-use liella_boundary::posix::s22_threads as th;
-use liella_boundary::posix::s25_ipc as ipc;
-use liella_boundary::{netdb, tb};
-use liella_rt::tls::{ThreadBlock, BLOCK_SIZE};
+use niji_boundary::posix::s05_ctype as ct;
+use niji_boundary::posix::s06_multibyte as mb;
+use niji_boundary::posix::s07_locale as lc;
+use niji_boundary::posix::s11_lowio as io;
+use niji_boundary::posix::s16_nameservices as ns;
+use niji_boundary::posix::s22_threads as th;
+use niji_boundary::posix::s25_ipc as ipc;
+use niji_boundary::{netdb, tb};
+use niji_rt::tls::{ThreadBlock, BLOCK_SIZE};
 
 /// The area the decoy pointers aim at. Zero words (a table read through a decoy gives 0, not
 /// a fault), except the word at byte 32: a descriptor read through the decoy descriptor pointer
@@ -72,7 +72,7 @@ fn put(b: &ThreadBlock, v: &[usize; WORDS]) {
     }
 }
 
-/// What the test asks Liella, each as one word, with no allocation.
+/// What the test asks libniji, each as one word, with no allocation.
 const ASKED: usize = 16;
 fn ask(fds: [i32; 2]) -> [usize; ASKED] {
     let tp = tb::tp();
@@ -97,7 +97,7 @@ fn ask(fds: [i32; 2]) -> [usize; ASKED] {
         usize::from(byte[0]),
         usize::from(ct::iswalpha(u32::from('z')) != 0),
         mb::__ctype_get_mb_cur_max(),
-        core::ptr::from_ref(liella_boundary::locale::view()).addr(),
+        core::ptr::from_ref(niji_boundary::locale::view()).addr(),
     ]
 }
 
@@ -144,7 +144,7 @@ fn foreign_block_words_neither_trusted_nor_written() {
             first[15],
         ];
         assert_eq!(first, expect, "the answers with the block as the other library left it");
-        assert_ne!(first[10], decoy, "pthread_self is Liella's descriptor");
+        assert_ne!(first[10], decoy, "pthread_self is libniji's descriptor");
         assert_eq!(during, expect, "the answers with decoys in the block's words");
         assert_eq!(after, planted, "no word of the other library's block was written");
         assert_eq!(DECOY.iter().map(|w| w.load(Relaxed)).filter(|&w| w != 0).collect::<Vec<_>>(), [4], "the decoy area is untouched");

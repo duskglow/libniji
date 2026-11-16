@@ -1,10 +1,10 @@
 #!/bin/sh
 # validation/smoke/check-elf.sh LDSO SYSROOT PATH...: check that every ELF program and shared object under the
-# PATHs (files or directories) was linked against Liella by liella-cc, so a test run cannot pass on the
+# PATHs (files or directories) was linked against libniji by niji-cc, so a test run cannot pass on the
 # system's C library by accident.
 #
 #   program (EXEC, or DYN with PT_INTERP)  PT_INTERP is LDSO and DT_NEEDED names SYSROOT/libc-by-path.so
-#   shared object (DYN, no PT_INTERP)      DT_NEEDED names no C library other than Liella's by-path copies
+#   shared object (DYN, no PT_INTERP)      DT_NEEDED names no C library other than libniji's by-path copies
 #   static program (EXEC, no PT_INTERP)    rejected: it carries some other C library
 #   any object                             DT_NEEDED never names libc.so.6, libm.so.6, libpthread.so.0, ld-linux*
 #                                          by soname (the system's libraries would be the ones a search finds),
@@ -44,12 +44,12 @@ while IFS= read -r f; do
     if [ -z "$why" ]; then
         if [ -n "$interp" ]; then
             if [ "$interp" != "$ldso" ]; then
-                why="PT_INTERP is $interp, not Liella's loader"
+                why="PT_INTERP is $interp, not libniji's loader"
             elif ! printf '%s\n' "$needed" | grep -qxF "$libc"; then
-                why="DT_NEEDED does not name Liella's libc ($libc)"
+                why="DT_NEEDED does not name libniji's libc ($libc)"
             fi
         elif [ "$type" = EXEC ]; then
-            why="static program (no PT_INTERP): not Liella's dynamic link"
+            why="static program (no PT_INTERP): not libniji's dynamic link"
         fi
     fi
     if [ -n "$why" ]; then
@@ -64,5 +64,5 @@ while IFS= read -r f; do
         search=$((search + 1))
     fi
 done < "$list"
-echo "smoke-check: $ok on Liella ($search need the library search), $fail failed"
+echo "smoke-check: $ok on libniji ($search need the library search), $fail failed"
 [ $fail -eq 0 ]

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Trace the functions of the fault-bounded probe modes that no hot-text tier covers (D-X.62) into
-# $LIELLA_HOT_LISTS/probe-text.keys (the lists of one product build, LT-5: never committed).
-# usage: LIELLA_HOT_LISTS=<dir> tools/hottext/probe_text.sh <tree with built products> [--products <dir>]
+# $NIJI_HOT_LISTS/probe-text.keys (the lists of one product build, LT-5: never committed).
+# usage: NIJI_HOT_LISTS=<dir> tools/hottext/probe_text.sh <tree with built products> [--products <dir>]
 #   crates/core/tests/hot_text_products.rs bounds the page faults of `page_faults <mode>` for several
 #   modes. The start-up read-only group (xtask/src/startup_ro.rs) takes the read-only data of the
 #   functions those modes run: the hot-text tiers cover `true`, `locale` and the tool (HOT_TIERS there);
@@ -13,9 +13,9 @@
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 T=$(cd "$1" && pwd); shift
-#   HOTLIST-REGEN-CHEAP: --products <dir> (default <tree>/target/liella); the modes are traced in parallel;
+#   HOTLIST-REGEN-CHEAP: --products <dir> (default <tree>/target/niji); the modes are traced in parallel;
 #   --trace-only <new dir> traces into <dir> and stops, --merge-only <dir> merges a trace made so (regen.sh).
-P=$T/target/liella
+P=$T/target/niji
 phase=all
 while [ $# -gt 0 ]; do
     case $1 in --products) P=$(cd "$2" && pwd); shift 2;;
@@ -32,7 +32,7 @@ elif [ $phase = trace ]; then mkdir "$pdir"; work=$(cd "$pdir" && pwd); else wor
 tagged=
 for m in $MODES; do tagged="$tagged extra=$work/names.$m"; done  # these functions' tier is extra
 if [ $phase != merge ]; then
-cc -std=gnu17 -O1 -static -nostdlib -fno-builtin "$P/liella-crt1.o" "$T/crates/core/tests/oracle/page_faults.c" \
+cc -std=gnu17 -O1 -static -nostdlib -fno-builtin "$P/niji-crt1.o" "$T/crates/core/tests/oracle/page_faults.c" \
     "$P/libc.a" -lgcc -o "$work/page_faults"
 echo x > "$work/in.txt"
 canon_prepare  # LAYOUT-TRACE-HOST-CANONICAL: the tree's host data (canon_host.sh)
@@ -44,9 +44,9 @@ fi
 [ $phase = trace ] && exit 0
 # shellcheck disable=SC2086
 python3 -B "$here/keys.py" --tagged $tagged > "$work/probe.keys"
-L=${LIELLA_HOT_LISTS:-}
+L=${NIJI_HOT_LISTS:-}
 if [ -z "$L" ] || [ ! -d "$L" ]; then
-    echo "probe_text: LIELLA_HOT_LISTS must name the lists directory of this build (cargo xtask so sets it; no list is committed, LT-5)" >&2
+    echo "probe_text: NIJI_HOT_LISTS must name the lists directory of this build (cargo xtask so sets it; no list is committed, LT-5)" >&2
     exit 1
 fi
 pkeys=$L/probe-text.keys

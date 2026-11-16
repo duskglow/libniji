@@ -1,5 +1,5 @@
 /* printf end to end (spec §12.6; D-12.4, D-12.5, D-12.12): built against the host C library and
- * against Liella's products, the outputs must match line for line (printf_products.rs). Each
+ * against libniji's products, the outputs must match line for line (printf_products.rs). Each
  * line is one formatting: the format, the return value and the text. */
 #define _GNU_SOURCE
 #include <errno.h>
@@ -169,7 +169,7 @@ static void positional(void) {
     show("m", "[%m] [%.5m] [%20m]");
     errno = 9999;
     show("m", "[%m]");
-    /* Positions up to NL_ARGMAX (4096); past it Liella fails with EINVAL (POSIX's range).
+    /* Positions up to NL_ARGMAX (4096); past it libniji fails with EINVAL (POSIX's range).
        Every position is used (a gap is undefined, and the fortified reference aborts on it):
        the zeros print nothing through `%k$.0d`. */
 #define Z8 0, 0, 0, 0, 0, 0, 0, 0

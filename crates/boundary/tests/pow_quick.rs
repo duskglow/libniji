@@ -1,19 +1,19 @@
 //! The `double` `pow` quick phase (LIBM-F64-POW-QUICK, D-10.51, D-10.62; `pow`'s tier 1) in its
-//! FMA build through the boundary (the SSE2 build's own tests are in `liella-math`'s
+//! FMA build through the boundary (the SSE2 build's own tests are in `niji-math`'s
 //! `fast64/quick_pow/tests.rs`), and the `pow` entry over the tiers. Clause: s10_0_f_0 (§10.2
 //! pow, D-10.3): every value the quick phase returns is the correctly rounded `x^y`, so its two
-//! builds are bit-identical wherever both answer. `LIELLA_POW_SWEEP=<n>` sets the entry sweep's
+//! builds are bit-identical wherever both answer. `NIJI_POW_SWEEP=<n>` sets the entry sweep's
 //! operand count per set (default 50000; the 10^8 job passes 25000000).
 
 // Sample generation is bit-level arithmetic on bounded values.
 #![allow(clippy::arithmetic_side_effects, clippy::indexing_slicing, clippy::as_conversions)]
-// pow is Liella's own C entry (m::pow): keep LLVM from treating it as a builtin.
+// pow is libniji's own C entry (m::pow): keep LLVM from treating it as a builtin.
 #![no_builtins]
 
-use liella_boundary::posix::s10_math_gen as m;
-use liella_boundary::selftest;
-use liella_math::real::Real;
-use liella_math::status::Rounding;
+use niji_boundary::posix::s10_math_gen as m;
+use niji_boundary::selftest;
+use niji_math::real::Real;
+use niji_math::status::Rounding;
 
 /// Serialises the tests that switch the process-wide build.
 static BUILD: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -78,11 +78,11 @@ fn pow_quick_fma_matches_correctly_rounded_pow() {
 }
 
 /// The `pow` entry (both builds; quick phase, tier 2, accurate path) against the correctly rounded
-/// `pow`, bit for bit, over `4·LIELLA_POW_SWEEP` operands per build; exact cases keep their
+/// `pow`, bit for bit, over `4·NIJI_POW_SWEEP` operands per build; exact cases keep their
 /// exact results, and subnormal `x` is rounded correctly. Clause: s10_0_f_0.
 #[test]
 fn pow_entry_tiers_round_correctly() {
-    let n = std::env::var("LIELLA_POW_SWEEP").ok().and_then(|s| s.parse().ok()).unwrap_or(50_000usize);
+    let n = std::env::var("NIJI_POW_SWEEP").ok().and_then(|s| s.parse().ok()).unwrap_or(50_000usize);
     let check = |build: &str| {
         for (x, y) in operands(n, 0x9e37_79b9_7f4a_7c15) {
             let e = Real::pow(x, y, Rounding::Nearest).0;
