@@ -195,7 +195,8 @@ mod tests {
     /// No spec clause (tooling): a rename no code span uses is a problem, and a rename that is not `old => new` is refused.
     #[test]
     fn stale_and_malformed_renames() {
-        let root = root_with(&[("records/views.toml", Some(format!("{}renames = [\"gone.x => new.x\"]\n", super::super::tests::VIEWS_TOML)))]);
+        let prose = "id = \"COMPAT-1\"\nstatus = \"registered\"\nstatus_text = \"gone.x only in prose\"\nbody = '''\n'''\n";
+        let root = root_with(&[("records/views.toml", Some(format!("{}renames = [\"gone.x => new.x\"]\n", super::super::tests::VIEWS_TOML))), ("records/compat/COMPAT-1.toml", Some(prose.into()))]);
         let views = load_views(&root).expect("views");
         let bad = super::super::check::validate(&root, &views, &load_records(&root).0);
         assert!(bad.iter().any(|b| b.contains("rename `gone.x` matches no code span")), "{bad:?}");

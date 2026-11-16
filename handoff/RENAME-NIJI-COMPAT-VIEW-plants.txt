@@ -1,0 +1,5 @@
+rename-not-applied | xtask/src/records/render.rs | lit:.map(|c| rename_code(&c, &v.renames)) ==> .map(|c| c) | cargo test -p xtask --bin xtask -- records:: | msg:renames_touch_code_spans_only.*FAILED
+rename-whole-cell | xtask/src/records/render.rs | lit:ticks.chunks_exact(2).map(|p| (p[0] + 1, p[1])).collect() ==> vec![(0, cell.len())] | cargo test -p xtask --bin xtask -- records:: | msg:renames_touch_code_spans_only.*FAILED
+unused-counts-prose | xtask/src/records/render.rs | lit:!cells.iter().any(|c| code_spans(c).iter().any(|&(s, e)| c[s..e].contains(old.as_str()))) ==> !cells.iter().any(|c| c.contains(old.as_str())) | cargo test -p xtask --bin xtask -- records:: | msg:stale_and_malformed_renames.*FAILED
+unused-not-reported | xtask/src/records/check.rs | lit:unused_renames(v, records) { ==> unused_renames(v, records).into_iter().take(0) { | cargo test -p xtask --bin xtask -- records:: | msg:stale_and_malformed_renames.*FAILED
+same-name-accepted | xtask/src/records/mod.rs | lit:old != new ==> true | cargo test -p xtask --bin xtask -- records:: | msg:stale_and_malformed_renames.*FAILED
