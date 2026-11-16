@@ -210,7 +210,9 @@ fi
 for name in "$@"; do
     src="$here/c/$name.c"
     exe="$here/build/$name${lh:+.lh}"
-    log="$here/build/$name${lh:+.lh}.log"
+    log="$here/build/$name.log"
+    # --liella-headers: its own log (the default line above is the format `cargo xtask affected` reads).
+    [ -z "$lh" ] || log="$here/build/$name.lh.log"
     if [ -n "$lh" ]; then
         miss=""
         for h in $(angle_includes 0 "$src" | LC_ALL=C sort -u); do
