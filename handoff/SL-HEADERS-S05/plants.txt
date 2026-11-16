@@ -2,7 +2,7 @@
 # a table or a probe; the check named in its cmd must fail with the message given.
 hc-levels-cell | headers/levels.tsv | lit:gnu	2023	200809	700	1	1	1	0	0	1 ==> gnu	2023	200809	700	1	1	1	0	0	0 | python3 spec/tools/header_check.py | msg:FAIL levels gnu
 hc-typedef-emit | xtask/src/headers.rs | lit:vec![format!("typedef {} {name};", cxx.replace('*', " *"))] ==> vec![format!("typedef long {name};")] | sh -c 'cargo xtask headers-gen && python3 spec/tools/header_check.py' | msg:FAIL P1 stdint
-hc-stubs-row | spec/abi/stubs.tsv | lit:gtty	default ==> gtty	compat | cargo xtask headers-gen --check | msg:stale under include/: gnu/stubs.h
+hc-stubs-row | spec/abi/stubs.tsv | lit:gtty	default ==> gtty	compat | cargo xtask headers-gen --check | msg:stale under libc-include/: gnu/stubs.h
 hc-template-value | headers/limits.h.in | lit:#  define PTHREAD_STACK_MIN @@value(PTHREAD_STACK_MIN) ==> #  define PTHREAD_STACK_MIN 16384 | cargo xtask headers-gen --check | msg:defines PTHREAD_STACK_MIN, which macros.tsv owns
 hc-probe-candidates | spec/tools/header_probe.py | lit:names.update(c_integer_names()) ==> names.update([]) | sh -c 'cp spec/abi/visibility.tsv vis.ref && python3 spec/tools/header_probe.py --jobs 16 && cmp vis.ref spec/abi/visibility.tsv' | msg:vis.ref spec/abi/visibility.tsv differ
 hc-probe-default-pass | spec/tools/type_probe.py | lit:os.path.join(work, "c"), DEF_CFG[2]) ==> os.path.join(work, "c"), C_CFG[2]) | sh -c 'cp spec/abi/macros.tsv mac.ref && python3 spec/tools/type_probe.py --jobs 16 && cmp mac.ref spec/abi/macros.tsv' | msg:mac.ref spec/abi/macros.tsv differ

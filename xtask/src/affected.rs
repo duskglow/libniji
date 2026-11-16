@@ -1894,7 +1894,7 @@ fn classify(path: &str) -> Option<Class> {
     if file == "build.rs" || file == "Cargo.toml" || file == "Cargo.lock" || file.starts_with("rust-toolchain") || file == "clippy.toml" || path.starts_with(".cargo/") {
         return full("build configuration");
     }
-    if matches!(path, "spec/clauses.tsv" | "spec/symbols.tsv" | "spec/primitives.tsv") || path.starts_with("spec/abi/") || path.starts_with("spec/unicode/") || path.starts_with("include/") {
+    if matches!(path, "spec/clauses.tsv" | "spec/symbols.tsv" | "spec/primitives.tsv") || path.starts_with("spec/abi/") || path.starts_with("spec/unicode/") || path.starts_with("include/") || path.starts_with("libc-include/") || path.starts_with("headers/") {
         return full("generated table or its input");
     }
     if file.ends_with("_gen.rs") || file == "tables.rs" || file == "builtin_items.rs" || path.starts_with("crates/math/fits/") || path.starts_with("crates/math/src/coeffs/") {

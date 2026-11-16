@@ -3,7 +3,10 @@
 //! Inputs: the templates `headers/<path>.h.in` (structure, include guards, Liella-written function-like
 //! macros), the feature levels `headers/levels.tsv` (what `features.h` computes in each probed
 //! configuration of `spec/abi/ftm-configs.tsv`), the reserved-name policy `headers/reserved.tsv`, and the
-//! `spec/abi` tables. Output: `include/<path>`, committed, first line `@generated`.
+//! `spec/abi` tables. Output: `libc-include/<path>`, committed, first line `@generated`. It is a root of
+//! its own, not `include/`: tools and tests compile against the build host's headers with `-I include`
+//! for `<liella/native.h>`, and Liella's libc headers there would shadow the host's (SL-HEADERS-S05-4).
+//! `cargo xtask so` stages both trees into `target/liella/include`.
 //!
 //! Template markers (one per line unless noted; the decision record of SL-HEADERS-S05 holds the format):
 //! * `@@generated`: the `@generated` banner.
@@ -26,7 +29,7 @@ use std::fs;
 use std::path::Path;
 
 const TEMPLATES: &str = "headers";
-const OUT: &str = "include";
+const OUT: &str = "libc-include";
 const LEVELS: &str = "headers/levels.tsv";
 const RESERVED: &str = "headers/reserved.tsv";
 const STUBS: &str = "spec/abi/stubs.tsv";
@@ -602,16 +605,17 @@ fn iso10646(root: &Path) -> Result<String, String> {
     editions.iter().find(|r| r["unicode"] == dirs[0]).map(|r| format!("{}L", r["yyyymm"])).ok_or(format!("headers/iso10646.tsv: no row for Unicode {}", dirs[0]))
 }
 
-/// Every template under `headers/` (path relative to it, without `.in`).
-fn templates(root: &Path) -> Result<Vec<String>, String> {
+/// Every file below `base` (paths relative to it, sorted; symbolic links followed); none when `base` does
+/// not exist.
+fn files_below(base: &Path) -> Result<Vec<String>, String> {
     let mut out = Vec::new();
-    let mut stack = vec![root.join(TEMPLATES)];
+    let mut stack = if base.is_dir() { vec![base.to_path_buf()] } else { Vec::new() };
     while let Some(d) = stack.pop() {
         for e in fs::read_dir(&d).map_err(|e| format!("{}: {e}", d.display()))?.flatten() {
             let p = e.path();
             if p.is_dir() {
                 stack.push(p);
-            } else if let Some(rel) = p.strip_prefix(root.join(TEMPLATES)).ok().and_then(|r| r.to_str()).and_then(|r| r.strip_suffix(".in")) {
+            } else if let Some(rel) = p.strip_prefix(base).ok().and_then(|r| r.to_str()) {
                 out.push(rel.to_string());
             }
         }
@@ -620,8 +624,75 @@ fn templates(root: &Path) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// The generated text of every header: (path under include/, text), and the problems found.
-/// (path under include/, text) per header, and the problems found.
+/// Every template under `headers/` (path relative to it, without `.in`).
+fn templates(root: &Path) -> Result<Vec<String>, String> {
+    Ok(files_below(&root.join(TEMPLATES))?.into_iter().filter_map(|r| r.strip_suffix(".in").map(String::from)).collect())
+}
+
+/// The kernel UAPI directories `stage` copies from the build host (plan/headers.md 2.4, staging), with the
+/// places a distribution puts each; the first that exists is used, a missing one is skipped.
+const UAPI: &[(&str, &[&str])] = &[
+    ("linux", &["/usr/include/linux"]),
+    ("asm", &["/usr/include/x86_64-linux-gnu/asm", "/usr/include/asm"]),
+    ("asm-generic", &["/usr/include/asm-generic"]),
+    ("drm", &["/usr/include/drm"]),
+    ("misc", &["/usr/include/misc"]),
+    ("mtd", &["/usr/include/mtd"]),
+    ("rdma", &["/usr/include/rdma"]),
+    ("sound", &["/usr/include/sound"]),
+    ("video", &["/usr/include/video"]),
+    ("xen", &["/usr/include/xen"]),
+];
+
+/// Copy each `(source file, path)` to `dst/path`, built in a fresh sibling directory and renamed into place,
+/// so a reader never sees a half-written tree. Two sources giving one path is an error.
+fn stage_tree(dst: &Path, files: &[(std::path::PathBuf, String)]) -> Result<usize, String> {
+    let parent = dst.parent().ok_or("stage: no parent")?;
+    let tmp = parent.join(format!(".{}.{}", dst.file_name().and_then(|n| n.to_str()).unwrap_or("stage"), std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    let mut seen = BTreeSet::new();
+    for (src, rel) in files {
+        if !seen.insert(rel.as_str()) {
+            let _ = fs::remove_dir_all(&tmp);
+            return Err(format!("stage: {rel} comes from two trees (the second is {})", src.display()));
+        }
+        let to = tmp.join(rel);
+        fs::create_dir_all(to.parent().ok_or("stage: no parent")?).map_err(|e| e.to_string())?;
+        fs::copy(src, &to).map_err(|e| format!("stage: {}: {e}", src.display()))?;
+    }
+    if dst.exists() {
+        fs::remove_dir_all(dst).map_err(|e| format!("stage: {}: {e}", dst.display()))?;
+    }
+    fs::rename(&tmp, dst).map_err(|e| format!("stage: {}: {e}", dst.display()))?;
+    Ok(files.len())
+}
+
+/// `cargo xtask so`'s header step: `out/include` = Liella's libc headers (`libc-include/`) plus the native C
+/// ABI's (`include/`), and `out/uapi` = the build host's kernel UAPI headers (the `UAPI` list). A program built
+/// against Liella's headers uses `-nostdinc -isystem out/include -isystem <compiler include> -isystem out/uapi`.
+/// Refuses a stale `libc-include/` (the staged tree is what programs compile against).
+pub fn stage(root: &Path, out: &Path) -> Result<(), String> {
+    run(root, true)?;
+    let mut files = Vec::new();
+    for dir in [OUT, "include"] {
+        let base = root.join(dir);
+        files.extend(files_below(&base)?.into_iter().map(|r| (base.join(&r), r)));
+    }
+    let n = stage_tree(&out.join("include"), &files)?;
+    let mut uapi = Vec::new();
+    let mut used = Vec::new();
+    for (name, places) in UAPI {
+        if let Some(src) = places.iter().map(Path::new).find(|p| p.is_dir()) {
+            uapi.extend(files_below(src)?.into_iter().map(|r| (src.join(&r), format!("{name}/{r}"))));
+            used.push(*name);
+        }
+    }
+    let u = stage_tree(&out.join("uapi"), &uapi)?;
+    println!("so: headers staged: {n} in {}/include, {u} kernel UAPI headers ({}) in {}/uapi", out.display(), used.join(" "), out.display());
+    Ok(())
+}
+
+/// (path under `libc-include/`, text) per header, and the problems found.
 type Generated = (Vec<(String, String)>, Vec<String>);
 
 pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
@@ -720,8 +791,18 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
             fs::write(&p, text).map_err(|e| e.to_string())?;
         }
     }
+    // A file under OUT that no template produces (a removed template's output, a hand-added header)
+    // would still be staged and shadow nothing it should: --check refuses it, a write removes it.
+    let made: BTreeSet<&str> = files.iter().map(|(h, _)| h.as_str()).collect();
+    for orphan in files_below(&root.join(OUT))?.into_iter().filter(|f| !made.contains(f.as_str())) {
+        if check {
+            stale.push(format!("{orphan} (no template)"));
+        } else {
+            fs::remove_file(root.join(OUT).join(&orphan)).map_err(|e| format!("{OUT}/{orphan}: {e}"))?;
+        }
+    }
     if !stale.is_empty() {
-        return Err(format!("headers-gen: stale under include/: {} (run `cargo xtask headers-gen`)", stale.join(" ")));
+        return Err(format!("headers-gen: stale under {OUT}/: {} (run `cargo xtask headers-gen`)", stale.join(" ")));
     }
     println!("headers-gen: {} {} headers", if check { "ok," } else { "wrote" }, files.len());
     Ok(())
@@ -774,6 +855,28 @@ mod tests {
     }
 
     // no spec clause: owner rulings R-H2, R-H3 (reserved names stay out unless listed).
+    #[test]
+    fn stage_tree_copies_and_refuses_a_path_from_two_trees() {
+        // no spec clause: plan/headers.md 2.4 staging (both header roots merge into one include tree).
+        let base = std::env::temp_dir().join(format!("headers-stage-test.{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("a/sys")).unwrap();
+        fs::write(base.join("a/sys/x.h"), "x").unwrap();
+        fs::write(base.join("a/y.h"), "y").unwrap();
+        let dst = base.join("out/include");
+        fs::create_dir_all(dst.join("old")).unwrap();
+        fs::write(dst.join("old/stale.h"), "stale").unwrap();
+        let files = vec![(base.join("a/sys/x.h"), "sys/x.h".to_string()), (base.join("a/y.h"), "y.h".to_string())];
+        assert_eq!(stage_tree(&dst, &files), Ok(2));
+        assert_eq!(files_below(&dst).unwrap(), ["sys/x.h", "y.h"], "the old tree is replaced, not merged into");
+        assert_eq!(fs::read_to_string(dst.join("sys/x.h")).unwrap(), "x");
+        let twice = vec![files[1].clone(), (base.join("a/sys/x.h"), "y.h".to_string())];
+        let e = stage_tree(&dst, &twice).unwrap_err();
+        assert!(e.contains("y.h comes from two trees"), "{e}");
+        assert_eq!(fs::read_to_string(dst.join("y.h")).unwrap(), "y", "a refused stage leaves the last tree in place");
+        fs::remove_dir_all(&base).unwrap();
+    }
+
     #[test]
     fn reserved_policy() {
         let r: BTreeMap<String, String> = [("__pid_t".to_string(), "emit".to_string()), ("_SIGSET_NWORDS".to_string(), "omit".to_string())].into();

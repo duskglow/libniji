@@ -52,6 +52,14 @@
 #
 # `sh conformance/run.sh [name ...]` runs only the named tests. Until `cargo xtask so` has
 # produced libc.a and the start object, the suite reports SKIPPED and succeeds.
+#
+# `sh conformance/run.sh --liella-headers [name ...]` (plan/headers.md P6) builds the programs
+# against Liella's own headers instead of the build host's: `-nostdinc`, then the tree `cargo
+# xtask so` staged in target/liella/include, the compiler's own include directory and the staged
+# kernel UAPI headers (target/liella/uapi). Only the programs whose every `#include <...>` one of
+# those directories holds are built (C programs; C++ needs the C++ library's headers); the others
+# are listed NOT-COVERED and are not counted, unless named on the command line (then a FAIL).
+# Executables and logs carry `.lh` (conformance/build/<name>.lh.log), apart from the default mode's.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
@@ -61,6 +69,22 @@ crt="$target/liella/liella-crt1.o"
 # A static PIE's start object (D-27.10: its _start relocates the executable first).
 rcrt="$target/liella/liella-rcrt1.o"
 cc=${CC:-cc}
+lh=""
+if [ "${1:-}" = "--liella-headers" ]; then
+    lh=1; shift
+fi
+# The header search path, as up to four words (a path may hold blanks; the joined `-isystem<dir>`
+# keeps each one word): the build host's headers plus Liella's `include/` (liella/native.h), or
+# in --liella-headers mode Liella's staged headers alone.
+inc1="-I$root/include"; inc2=""; inc3=""; inc4=""
+if [ -n "$lh" ]; then
+    stage="$target/liella/include"; uapi="$target/liella/uapi"; gccinc=$("$cc" -print-file-name=include)
+    if [ ! -f "$stage/features.h" ] || [ ! -d "$uapi" ]; then
+        echo "conformance: FAIL --liella-headers ($stage or $uapi is missing; run cargo xtask so)"
+        exit 1
+    fi
+    inc1="-nostdinc"; inc2="-isystem$stage"; inc3="-isystem$gccinc"; inc4="-isystem$uapi"
+fi
 
 if [ ! -f "$libc" ] || [ ! -f "$crt" ] || [ ! -f "$rcrt" ]; then
     count=$(ls "$here"/c/*.c 2>/dev/null | wc -l)
@@ -158,8 +182,13 @@ else
     phash=$(cat "$libc" "$crt" "$rcrt" | sha256sum | cut -d' ' -f1)
     printf '%s\n%s\n' "$pstat" "$phash" > "$pcache.$$" && mv -f "$pcache.$$" "$pcache"
 fi
-ihash=$(cd "$root" && find include -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
-pass=0; fail=0; pending=0
+if [ -n "$lh" ]; then
+    ihash=lh-$(cd "$target/liella" && find include uapi -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
+else
+    ihash=$(cd "$root" && find include -type f | LC_ALL=C sort | xargs cat | sha256sum | cut -d' ' -f1)
+fi
+pass=0; fail=0; pending=0; uncovered=0
+named=$#
 # A set-group-ID copy (RUN-SECURE) and the libc.so script of dynamic-link mode are removed even
 # if the runner stops in the middle of a test.
 trap '[ -z "${secure:-}" ] || rm -f "$secure"; rm -rf "$here/build/dynlibc.$$"' EXIT
@@ -169,8 +198,25 @@ if [ $# -eq 0 ]; then
 fi
 for name in "$@"; do
     src="$here/c/$name.c"
-    exe="$here/build/$name"
-    log="$here/build/$name.log"
+    exe="$here/build/$name${lh:+.lh}"
+    log="$here/build/$name${lh:+.lh}.log"
+    if [ -n "$lh" ]; then
+        miss=""
+        for h in $(sed -n 's|^[[:space:]]*#[[:space:]]*include[[:space:]]*<\([^>]*\)>.*|\1|p' "$src" | LC_ALL=C sort -u); do
+            [ -f "$stage/$h" ] || [ -f "$uapi/$h" ] || [ -f "$gccinc/$h" ] || miss="$miss $h"
+        done
+        [ -z "$(directive LINK-CXX "$src")" ] || miss="$miss (C++)"
+        if [ -n "$miss" ]; then
+            if [ "$named" -gt 0 ]; then
+                echo "conformance: FAIL $name (not covered by Liella's headers:$miss)"
+                fail=$((fail + 1))
+            else
+                echo "conformance: NOT-COVERED $name:$miss"
+                uncovered=$((uncovered + 1))
+            fi
+            continue
+        fi
+    fi
     # One run of a program at a time across processes (nextest runs tests that share a program
     # concurrently): its executable, logs and RUN-SECURE copy are per name. Opening fd 9 again
     # for the next name releases this one; the program itself does not inherit it.
@@ -259,11 +305,11 @@ $ldir/lib$h.so"
             oldifs=$IFS; IFS='
 '
             # shellcheck disable=SC2086
-            if ! "$cc" -std=c17 -O1 $rdyn -I "$root/include" "$src" -Wl,--no-as-needed $hlibs -o "$exe.$$" >>"$log" 2>&1 \
+            if ! "$cc" -std=c17 -O1 $rdyn "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$src" -Wl,--no-as-needed $hlibs -o "$exe.$$" >>"$log" 2>&1 \
                   || ! mv -f "$exe.$$" "$exe"; then
                 rm -f "$exe.$$"; hbad="does not build"
             # shellcheck disable=SC2086
-            elif ! "$cc" -std=c17 -O1 $rdyn -nodefaultlibs "-Wl,--dynamic-linker=$ldso" $unres -I "$root/include" "$src" \
+            elif ! "$cc" -std=c17 -O1 $rdyn -nodefaultlibs "-Wl,--dynamic-linker=$ldso" $unres "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$src" \
                   -Wl,--no-as-needed $llibs "$dynlibc" -lgcc -o "$exe-liella.$$" >>"$log" 2>&1 \
                   || ! mv -f "$exe-liella.$$" "$exe-liella"; then
                 rm -f "$exe-liella.$$"; hbad="does not build against Liella"
@@ -280,7 +326,7 @@ $ldir/lib$h.so"
     if [ -n "$dyn" ] || { [ -x "$exe" ] && [ -f "$exe.key" ] && [ "$(cat "$exe.key")" = "$key" ]; }; then
         :   # unchanged: no relink, nothing written
     # shellcheck disable=SC2086
-    elif ! "$comp" $flags -I "$root/include" "$start" $cxxbegin $lang "$src" $lang_end $cxxlibs $libm "$libc" $unwind -lgcc $cxxend -o "$exe.$$" >"$log" 2>&1 \
+    elif ! "$comp" $flags "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$start" $cxxbegin $lang "$src" $lang_end $cxxlibs $libm "$libc" $unwind -lgcc $cxxend -o "$exe.$$" >"$log" 2>&1 \
           || ! mv -f "$exe.$$" "$exe" || ! printf '%s\n' "$key" > "$exe.key"; then
         rm -f "$exe.$$" "$exe.key"
         echo "conformance: FAIL $name (does not build; see conformance/build/$name.log)"
@@ -356,6 +402,9 @@ $ldir/lib$h.so"
     fi
 done
 # The pending count (PENDING-LIELLA programs, counted in passed) is reported apart.
+if [ -n "$lh" ]; then
+    echo "conformance: Liella's headers: $uncovered programs not covered (not counted)"
+fi
 if [ "$pending" -gt 0 ]; then
     echo "conformance: $pass passed, $fail failed ($pending of them pending on Liella)"
 else

@@ -16,7 +16,7 @@
 //! | `csys-gen`     | Generate the C layer's syscall wrappers and their Rust declarations from `csys/syscalls.tsv` (K5); `--check` fails if stale. |
 //! | `abi-gen`      | Generate `liella_abi::layout` and the Appendix C layout tests from `spec/abi/layouts.tsv`; `--check` fails if stale. |
 //! | `unicode-gen`  | Generate the Unicode tables (`crates/core/src/unicode/tables.rs`) from `spec/unicode/15.1.0` (IP-19, D-5.4); `--check` fails if stale. |
-//! | `headers-gen`  | Generate Liella's C headers (`include/`) from the templates `headers/*.h.in` and the `spec/abi` tables (plan/headers.md 2.4, SL-HEADERS-S05; `--check` runs in `static`); `--check` fails if stale or a table fact does not fit.
+//! | `headers-gen`  | Generate Liella's C headers (`libc-include/`) from the templates `headers/*.h.in` and the `spec/abi` tables (plan/headers.md 2.4, SL-HEADERS-S05; `--check` runs in `static`); `--check` fails if stale or a table fact does not fit.
 //! | `native-gen`   | Generate the native C ABI's header (`include/liella/native.h`) from `spec/abi/native.tsv` (D-X.10); `--check` fails if stale or if the exports differ from the table. |
 //! | `compat-gen`   | Generate `csys/src/machine/compat_aliases.S` and `crates/libm-so/compat_aliases.S`, the `.symver` stubs of libc.so.6's and libm.so.6's compat versions, from `spec/abi/versions.tsv` and `spec/abi/compat-plan.tsv` (LG-1, LG-4, R15-1); `--check` fails if stale. |
 //! | `locale-gen`   | Generate the built-in locales' `nl_langinfo` items (`crates/core/src/locale/builtin_items.rs`) from `spec/abi/langinfo.tsv` (D-7.10); `--check` fails if stale. |

@@ -2,10 +2,11 @@
 """Check Liella's generated headers (plan/headers.md section 3; SL-HEADERS-S05): P5 hygiene, the level model,
 and P1 identity of the C 7.20 integer types.
 
-    python3 spec/tools/header_check.py [--work DIR]
+    python3 spec/tools/header_check.py [--work DIR] [--include DIR]
 
 Needs gcc and g++ only (any host; no reference headers are read: every unit is compiled with `-nostdinc
--isystem include -isystem <the compiler's own include>`). For each configuration of spec/abi/ftm-configs.tsv:
+-isystem <DIR> -isystem <the compiler's own include>`, DIR = libc-include/ by default, or the tree `cargo xtask
+so` staged, target/liella/include). For each configuration of spec/abi/ftm-configs.tsv:
 
 * levels  a unit that includes features.h and `#error`s unless each `__LIELLA_<level>` equals its
           headers/levels.tsv cell; it must compile, or fail for a configuration levels.tsv rejects;
@@ -61,7 +62,11 @@ def identity_unit(cxx, types):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--work", default="")
+    ap.add_argument("--include", default=os.path.join(ROOT, "libc-include"))
     args = ap.parse_args()
+    inc = os.path.abspath(args.include)
+    if not os.path.isfile(os.path.join(inc, "features.h")):
+        sys.exit(f"header_check: no features.h under {inc}")
     work = args.work or tempfile.mkdtemp(prefix="header_check.")
     os.makedirs(work, exist_ok=True)
     cfgs = rows("spec/abi/ftm-configs.tsv")
@@ -77,7 +82,7 @@ def main():
     for c in cfgs:
         cxx = c["language"] == "c++"
         ext = "cc" if cxx else "c"
-        base = ["g++" if cxx else "gcc", *c["flags"].split(), "-nostdinc", "-isystem", os.path.join(ROOT, "include"),
+        base = ["g++" if cxx else "gcc", *c["flags"].split(), "-nostdinc", "-isystem", inc,
                 "-isystem", gccinc, "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
