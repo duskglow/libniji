@@ -85,9 +85,13 @@ pub struct View {
     pub dir: Option<String>,
     pub head: String,
     pub tail: Option<String>,
+    /// `renames = ["old => new", ...]`: names the view shows under their current spelling, replaced only inside the
+    /// backtick code spans of record cells, so a renamed interface reads by its new name while the record keeps the
+    /// text it was written with (RENAME-NIJI-COMPAT-VIEW; the rename D-X.114). Prose, head and tail are untouched.
+    pub renames: Vec<(String, String)>,
 }
 
-const VIEW_KEYS: [&str; 11] = ["name", "path", "kind", "section", "series", "header", "separator", "columns", "dir", "head", "tail"];
+const VIEW_KEYS: [&str; 12] = ["name", "path", "kind", "section", "series", "header", "separator", "columns", "dir", "head", "tail", "renames"];
 
 pub fn load_views(root: &Path) -> Result<Vec<View>, String> {
     let text = std::fs::read_to_string(root.join(VIEWS)).map_err(|e| format!("{VIEWS}: {e}"))?;
@@ -110,6 +114,13 @@ pub fn load_views(root: &Path) -> Result<Vec<View>, String> {
             k => ViewKind::Table(Kind::from_name(k).ok_or_else(|| format!("{VIEWS}:{at}: unknown kind {k:?}"))?),
         };
         let table = matches!(kind, ViewKind::Table(_));
+        let mut renames = Vec::new();
+        for r in l("renames") {
+            match r.split_once(" => ") {
+                Some((old, new)) if !old.is_empty() && !new.is_empty() && old != new && !old.contains('`') && !new.contains('`') => renames.push((old.to_string(), new.to_string())),
+                _ => return Err(format!("{VIEWS}:{at}: rename {r:?} is not `old => new` (two different non-empty names without backticks)")),
+            }
+        }
         views.push(View {
             name: need("name")?,
             path: need("path")?,
@@ -122,6 +133,7 @@ pub fn load_views(root: &Path) -> Result<Vec<View>, String> {
             dir: if table { None } else { Some(need("dir")?) },
             head: need("head")?,
             tail: s("tail"),
+            renames,
         });
     }
     Ok(views)
