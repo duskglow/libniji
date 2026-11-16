@@ -53,7 +53,9 @@ findings of the first run (`readdir` on a removed directory, `regcomp` refusing 
 ### Packages
 
 Both flavours are built by `tools/deb/build.sh` for Debian 13 (trixie) and Devuan 6 (excalibur), amd64, and are
-attached to this release with `SHA256SUMS`. Two builds of the same commit give byte-identical packages. See
+attached to this release with `SHA256SUMS`. Two builds of the same commit give byte-identical packages. GitHub does not allow `~` in asset names, so
+the `liella6` files are published with `.` where their Debian version has `~` (`0.0.snapshot...` for
+`0.0~snapshot...`); `SHA256SUMS` lists the names as published, and the package versions inside are unchanged. See
 [`docs/install-packages.md`](install-packages.md).
 
 **Beside glibc (`liella6`, `liella6-dev`)**, version `0.0~snapshot20261115+bade54e077b7`: everything under

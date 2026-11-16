@@ -1,0 +1,4 @@
+# RELEASE-ASSET-NAMES plants: cargo xtask plants handoff/RELEASE-ASSET-NAMES-plants.txt (docs/plants.md).
+ran-tilde-kept | tools/deb/stage-release.sh | lit:tr '~' '.' ==> cat | cargo test -p liella --test deb_stage_release | msg:still has '~'|tilde_assets_are_staged
+ran-sums-list-tilde | tools/deb/stage-release.sh | lit:sha256sum -- *.deb > SHA256SUMS ==> sha256sum -- *.deb > SHA256SUMS; sed -i 's/[.]snapshot/~snapshot/' SHA256SUMS | cargo test -p liella --test deb_stage_release | msg:SHA256SUMS|tilde_assets_are_staged
+rn-odd-name-accepted | tools/deb/stage-release.sh | lit:echo "stage-release: '$1' has a character GitHub rewrites in asset names" >&2; return 1 ==> : | cargo test -p liella --test deb_stage_release | msg:name with a space was staged|tilde_assets_are_staged
