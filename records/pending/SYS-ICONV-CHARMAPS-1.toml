@@ -1,0 +1,13 @@
+id = "D-NEW"
+series = "D-6"
+section = "s06"
+spec = "§6.4"
+ann = "ARB"
+status = "active"
+amends = ["D-6.8"]
+story = "SYS-ICONV-CHARMAPS"
+date = "2026-11-16"
+tests = ["crates/core/tests/iconv_codespace_products.rs", "crates/core/src/iconv/jis.rs"]
+body = '''
+**Built-in multi-byte codecs from public mapping tables** (issue #6). The reference library converts about 1180 names on its own; with only libniji's packages, `iconv_open` found 53 (the built-in Unicode, ASCII and Latin-1 codecs), because every other charset came from charmap files that no libniji package ships (D-6.8). Converters the reference's base package provides are now built into libc from **public mapping specifications**, never from charmap or other C-library data: the WHATWG Encoding Standard indexes (CC BY 4.0), vendored unchanged under `spec/encoding/whatwg/` with their identifiers and licence, turned into read-only arrays by `cargo xtask encodings-gen` (checked by `cargo xtask static`). The tables carry the indexes as published; each codec holds its variant rules (rows accepted, cells mapped differently, one-way encodings, `//IGNORE` skip lengths), which the reference decides, probed as a black box over the codec's whole code space. A built-in name is found before any charmap file, so a host's other charmap packages cannot change the result. Cost: shared read-only data, touched only when a descriptor of that codec converts; no start-up work, no heap. First codec: **EUC-JP** (names `EUC-JP`, `EUCJP`, `UJIS`, `CSEUCPKDFMTJAPANESE`, `OSF00030010`, probed to be one converter): JIS X 0208 and JIS X 0212, 89 KB of tables; of the index's JIS X 0208 it leaves out row 13 and rows 89 to 92, maps six cells as probed (0xA1C1 U+301C, 0xA1C2 U+2016, 0xA1DD U+2212, 0xA1F1 U+00A2, 0xA1F2 U+00A3, 0xA2CC U+00AC), reads 0x80..0x8D and 0x90..0x9F as C1 controls, writes U+00A5 and U+203E as 0x5C and 0x7E one way, and writes the tag characters U+E0000..U+E007F as nothing. `iconv_codespace_products.rs` compares every byte sequence, every code point, `//IGNORE` and `//TRANSLIT` with the reference; the only differences are `//TRANSLIT` blocks where the built-in C locale's transliteration (D-6.9) differs, listed in the test. The remaining charsets follow the same pattern (next: Shift_JIS/CP932 and ISO-2022-JP from the same tables, then EUC-KR, GBK/GB18030, Big5, the single-byte code pages).
+'''
