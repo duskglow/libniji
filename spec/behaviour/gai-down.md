@@ -4,7 +4,8 @@ Observed black-box on the reference (glibc 2.39, Zen 1 host, 2026-11-16) with
 `crates/core/tests/oracle/gai_down.c` run by `gai_down_run.sh`: private user, mount and network
 namespaces, only `lo` up, a fixture `/etc` bind-mounted (`services` always present; resolv.conf
 `options timeout:1 attempts:1`). Checked line by line against libniji by
-`crates/core/tests/gai_down_products.rs`. Spec: getaddrinfo(3), RFC 1035; §16.1, §16.2, §16.4.
+`crates/core/tests/gai_down_products.rs`. Spec: getaddrinfo(3), RFC 1035; §16.1, §16.2, §16.4
+(clauses s16_2_f_0, s16_2_c_1, s16_2_c_4, s16_1_c_2, s16_4_c_0).
 
 Scenarios (server on 127.0.0.1:53 where one runs):
 
