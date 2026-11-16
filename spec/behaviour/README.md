@@ -10,7 +10,7 @@ recorded outputs (`*.glibc.txt`) are what the reference library printed. Nothing
 or derives from the reference library's source code.
 
 The same probes are the differential tests (`crates/core/tests/*_products.rs`): each builds the
-probe against the host C library and statically against Liella's products and compares the
+probe against the host C library and statically against libniji's products and compares the
 outputs line by line, except where a deliberate difference is recorded.
 
 How the records were made: on the reference system, each probe built with

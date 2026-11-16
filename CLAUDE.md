@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for Claude Code (and other AI tools) working on **Liella**, a clean-room
+Guidance for Claude Code (and other AI tools) working on **libniji**, a clean-room
 implementation of the GNU C Library (glibc 2.39 ABI) in Rust and C for x86-64 Linux.
 
 Read these first; this file is the short version:
@@ -17,14 +17,14 @@ Read these first; this file is the short version:
    structure, and no code written from memory of how another libc does something. Work from
    `glibc-functional-spec.md` and `spec/`, man-pages, POSIX, the GNU C Library manual, kernel
    UAPI and docs, the psABI, IEEE 754, RFCs, and **black-box probes** of the installed glibc
-   (run a small program against glibc and Liella and compare). Nothing glibc does is settled
-   for Liella: any behaviour or design is open to discussion and reimplementation with a stated
+   (run a small program against glibc and libniji and compare). Nothing glibc does is settled
+   for libniji: any behaviour or design is open to discussion and reimplementation with a stated
    gain. If the spec and probes cannot decide a behaviour, stop and raise a spec gap. The
    reasons are in CONTRIBUTING.md ("Clean-room design").
 2. **Don't break the ABI without a very good reason.** The userspace interface (symbols,
    versions, layouts, behaviour, edge cases) stays identical to glibc's unless there is a very
    good reason to differ. An accepted difference needs a row in `docs/differences-from-glibc.md`
-   (neutral wording: describe Liella, never characterise glibc) and a compatibility option in
+   (neutral wording: describe libniji, never characterise glibc) and a compatibility option in
    `docs/compat-flags.md` that restores glibc's behaviour (take the next free `COMPAT-N`; a
    static check rejects a duplicate id), unless there is a very good reason not to offer one,
    recorded in the row. See [docs/PRINCIPLES.md](docs/PRINCIPLES.md) section 2.
@@ -34,14 +34,14 @@ Read these first; this file is the short version:
 4. **Tests must prove something.** Name the spec clause a test covers (or `no spec clause`). Prove
    new tests with plants (deliberately broken scratch copies of the code that the tests must
    catch), run through `cargo xtask plants` (required; `docs/plants.md`), never a hand-written script. Skip only when a capability is truly absent, and print why.
-5. **`unsafe`** only in `liella-boundary` and the C layer, within the documented categories, each
+5. **`unsafe`** only in `niji-boundary` and the C layer, within the documented categories, each
    use commented `// UNSAFE(<category>) SAFETY:` with the invariant it relies on.
-6. **Security.** A problem in Liella goes to the private channel in [SECURITY.md](SECURITY.md),
+6. **Security.** A problem in libniji goes to the private channel in [SECURITY.md](SECURITY.md),
    not a public issue. A problem found in glibc is glibc's: whether and how to report it is the
    contributor's decision, and a report goes directly to the glibc maintainers. For functionality
-   Liella does not have yet, implement it without the weakness and word that work neutrally
-   (commit message, test names, comments and docs describe Liella's behaviour only, never the
-   glibc hole). If code Liella **already has** shares the weakness, it is a Liella vulnerability:
+   libniji does not have yet, implement it without the weakness and word that work neutrally
+   (commit message, test names, comments and docs describe libniji's behaviour only, never the
+   glibc hole). If code libniji **already has** shares the weakness, it is a libniji vulnerability:
    report it privately through SECURITY.md however minor it looks, never as a public fix first.
    Never point at the glibc hole until glibc's fix is public. See
    [docs/PRINCIPLES.md](docs/PRINCIPLES.md) section 7.
@@ -50,12 +50,12 @@ Read these first; this file is the short version:
 
 ```bash
 cargo xtask stubs            # regenerate test stubs and spec/clauses.tsv from the spec
-cargo xtask so               # build libc.a, libc.so.6, ld.so, crt files, utilities into target/liella/
+cargo xtask so               # build libc.a, libc.so.6, ld.so, crt files, utilities into target/niji/
 cargo xtask affected --list  # tests your change can reach (direct tier); pass --base origin/next
 cargo xtask affected --run   # run them (no mode given: usage, exit 2)
 cargo xtask clippy           # workspace, all targets, -D warnings: must be clean
 cargo xtask static           # policy checks (unsafe audit, traceability, compat ids, ...)
-cargo xtask bench --compare --counters <bench name>   # instructions per call, Liella vs glibc
+cargo xtask bench --compare --counters <bench name>   # instructions per call, libniji vs glibc
 ```
 
 * Branch from `origin/next`; one change per branch; open pull requests against `next`.

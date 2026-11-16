@@ -3,7 +3,7 @@
 Black-box probe of glibc 2.39 (Ubuntu GLIBC 2.39-0ubuntu8.9, x86_64, Skylake-SP host), ERE, C locale.
 Probe: [regex-nesting-depth.probe.c](regex-nesting-depth.probe.c) (`depth_probe <shape> <n>...`: one forked child per
 depth runs `regcomp(REG_EXTENDED)` with a 4 GiB address-space limit and a 40 s alarm; the parent prints the
-return code, the seconds and the child's peak RSS in KiB). Liella: the same source linked statically against
+return code, the seconds and the child's peak RSS in KiB). libniji: the same source linked statically against
 the products of origin/next 239a714a5 (conformance/run.sh's link line).
 
 **Clauses:** `s14_9_c_1_1`, `s14_9_c_1_2` (regcomp's REG_ESPACE); D-14.4 / D-14.8 (the size caps).
@@ -42,10 +42,10 @@ not settled by this probe.
 plus and bnd grow by about 4.6x per level from 10 on; within 4 GiB the reference compiles 16 and answers
 REG_ESPACE from 20.
 
-## Liella without a fixed cap (REGCOMP-FALLIBLE-ALLOC-2, Skylake-SP host)
+## libniji without a fixed cap (REGCOMP-FALLIBLE-ALLOC-2, Skylake-SP host)
 
 D-14.8 as amended (ruling #5594): no fixed program-size cap; the process's limits are the bound, and only the `u32`
-node-id guard remains (about 65,000 nested levels). Each case runs in a forked child of a static Liella program; "no
+node-id guard remains (about 65,000 nested levels). Each case runs in a forked child of a static libniji program; "no
 limit" here is `RLIMIT_AS` 16 GiB, so that no case can take the host's memory. Time and peak RSS are the child's.
 
 | shape | depth | limit | regcomp | child time, peak RSS |
@@ -68,7 +68,7 @@ Tests: `regex_deep_nesting.rs::nested_repetitions_compile_without_a_size_cap` (d
 3000 compiled and searched without a limit), `regex_enomem.rs::regcomp_and_regexec_answer_reg_espace_at_the_process_limit`
 (the limit child).
 
-## Liella after the fusion (REGCOMP-SCOPE-COST-2, same probe and limits, Skylake-SP host)
+## libniji after the fusion (REGCOMP-SCOPE-COST-2, same probe and limits, Skylake-SP host)
 
 A level is one `ENTER` (with the loop's split and the group's open) in the enclosing scope and one `EXIT` (with the
 group's close) in its own: 2k + 1 nodes at depth k. The cap is still 2^21 nodes (D-14.8).
@@ -91,7 +91,7 @@ fallible allocation in REGCOMP-FALLIBLE-ALLOC). bnd at 15 and 16: bounded repeat
 in both libraries (about 2.1x per level here, 4.6x in the reference); refusing them past the cap is D-14.8 working as
 intended (ruling #5595).
 
-## Liella before the fusion (origin/next 239a714a5)
+## libniji before the fusion (origin/next 239a714a5)
 
 | shape | compiles through | REG_ESPACE from | at the last accepted depth |
 |---|---|---|---|
@@ -103,10 +103,10 @@ intended (ruling #5595).
 
 REG_ESPACE comes in 1 ms (the cap is found before the program is built), at every depth up to 100,000.
 
-Gaps (Liella refuses, the reference compiles): rep and rep2 from 915 to at least 3000; bnd at 14 and 16.
-Liella compiles plus from 20 to 914, which the reference refuses within 4 GiB.
+Gaps (libniji refuses, the reference compiles): rep and rep2 from 915 to at least 3000; bnd at 14 and 16.
+libniji compiles plus from 20 to 914, which the reference refuses within 4 GiB.
 
-Why the cap falls at 915 (Liella's compiler, D-14.8's node count): each `( ... )*` level emits SPLIT and ENTER
+Why the cap falls at 915 (libniji's compiler, D-14.8's node count): each `( ... )*` level emits SPLIT and ENTER
 in the enclosing scope and OPEN, CLOSE and EXIT inside its own, and an instruction costs one node per enclosing
 scope plus one, so level k costs 5k + 3 nodes and the program 2.5 n^2 + 6.5 n + 2 (n = 914: 2,094,433;
 n = 915: 2,099,012; the cap is 2^21 = 2,097,152).

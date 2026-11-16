@@ -2,7 +2,7 @@
 
 Code: the round-to-nearest fast tier in `crates/math/src/fast64/exp_log.rs` (expm1, log1p, cbrt) and
 `crates/math/src/fast64/hyperbolic.rs` (sinh, cosh, tanh), on the shared `fast64` exp and log kernels (Ziv's first
-step, double-double, correctly rounded or refused; D-10.13), wired in `crates/boundary/src/hot.rs`. Zen 1 host
+step, double-double, correctly rounded or refused; D-10.13), wired in `crates/boundary/src/hot/` (`exp_log.rs`, `hyperbolic.rs`). Zen 1 host
 (EPYC 7551), `cargo xtask bench --compare --counters --runs 3 cbench_libm`, instructions per call.
 Before = the accurate path (origin/next c6e5db9d); after = the tier (LIBM-F64-EXPM1-HYPER-CBRT-TIER-2 final head).
 

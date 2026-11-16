@@ -16,7 +16,7 @@ of Γ(x) stored for the gamma functions, the flags raised and `errno`). Left out
 `tgammal(±2^-k)` for k = 16382 to 16384 and the general orders at operands below 2^-1000,
 where the oracle needs over 16,000 bits per line (the same code paths are checked at 2^-300
 and through `j0l`, `j1l`, `y0l`, `y1l`). The same program is the differential test
-`crates/math/tests/special_ld_products.rs`, which checks every line where Liella differs
+`crates/math/tests/special_ld_products.rs`, which checks every line where libniji differs
 against the project's oracle (`crates/mathtools`).
 
 Nothing here describes or derives from glibc's source code.
@@ -46,10 +46,10 @@ in every mode, and `lgammal(1)` too).
   2^-383 exactly in every mode, without flags).
 * `lgammal_r` at very large negative integers (−LDBL_MAX and others above 2^64): overflow and
   inexact as well as division by zero.
-* Rounding: of the 4,811 lines where Liella differs, 4,673 are results glibc does not round
+* Rounding: of the 4,811 lines where libniji differs, 4,673 are results glibc does not round
   correctly (the directed modes above all); measured in `docs/libm-accuracy.tsv`.
 
-## What Liella does (D-10.20)
+## What libniji does (D-10.20)
 
 Every result correctly rounded in every mode with the inexact, underflow and overflow flags of
 that rounding; invalid, division by zero, NaN signs, the sign of Γ(x) stored and the signs of

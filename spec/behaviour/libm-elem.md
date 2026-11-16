@@ -11,7 +11,7 @@ Black-box observations of glibc 2.39 (Ubuntu 24.04, x86_64), made for Track M mi
 signalling NaNs, domain edges, the overflow and underflow thresholds, huge trigonometric
 arguments and the Annex F tables of `pow` and `atan2`, in every rounding direction, each with
 the result's bits, the flags raised and `errno`). The same program is the differential test
-`crates/math/tests/elem_products.rs`, which checks every line where Liella differs against the
+`crates/math/tests/elem_products.rs`, which checks every line where libniji differs against the
 project's oracle (`crates/mathtools`). Interior accuracy is measured separately
 (`cargo xtask mathcmp`, `docs/libm-accuracy.tsv`).
 
@@ -55,7 +55,7 @@ Nothing here describes or derives from glibc's source code.
   arguments, `exp10f(2)` upward = 100 + 1 ulp, `tanh(−huge)` upward = −1), measured in
   `docs/libm-accuracy.tsv`.
 
-## What Liella does (D-10.13)
+## What libniji does (D-10.13)
 
 Every result correctly rounded in every mode, with the inexact, underflow and overflow flags of
 that rounding (inexact exactly when the result is inexact; underflow detected after rounding,

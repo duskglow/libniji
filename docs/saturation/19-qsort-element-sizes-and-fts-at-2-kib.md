@@ -4,7 +4,7 @@ Section 17 listed these as "Not measured". `bench/c/cbench_unmeasured.c` gains `
 
 Counted with `cargo xtask bench --counters-only --only cbench_unmeasured` on an AMD EPYC 7551 (Zen 1) host, median of 3 counted runs per side. This is the Zen 1 host: section 17's counts were on a Skylake-SP host, so the `qsort_c_cmp_1024` and flat rows below are also the second-CPU re-count.
 
-| row (per) | Liella instr | glibc instr | instr ratio | Liella cycles | glibc cycles | cycle ratio |
+| row (per) | libniji instr | glibc instr | instr ratio | libniji cycles | glibc cycles | cycle ratio |
 |---|---|---|---|---|---|---|
 | `qsort` 1,024 ints, per comparison (the section 17 row, re-counted) | 47.9 | 31.7 | 1.51 | 24.2 | 21.8 | 1.11 |
 | `qsort` 4-byte elements | 47.9 | 31.8 | 1.51 | 23.9 | 21.9 | 1.09 |
@@ -16,14 +16,14 @@ Counted with `cargo xtask bench --counters-only --only cbench_unmeasured` on an 
 | `fts` per entry, flat (base path short; re-count) | 5781 | 6894 | 0.84 | 3940 | 4341 | 0.91 |
 | `readdir` per entry, flat (re-count) | 487 | 479 | 1.02 | 388 | 441 | 0.88 |
 
-Comparisons per sort (the divisor, counted once per side with a counting comparator): Liella 9,316 (ints), 9,269 / 9,251 / 9,226 / 9,293 / 9,239 (4 / 8 / 16 / 24 / 64 bytes); glibc 8,958, 8,937 / 8,971 / 8,911 / 8,932 / 8,970. The two sides do not make the same number of comparisons (Liella about 3.5% more); each row divides by its own side's count, so the per-comparison figures are per comparison, not per sort.
+Comparisons per sort (the divisor, counted once per side with a counting comparator): libniji 9,316 (ints), 9,269 / 9,251 / 9,226 / 9,293 / 9,239 (4 / 8 / 16 / 24 / 64 bytes); glibc 8,958, 8,937 / 8,971 / 8,911 / 8,932 / 8,970. The two sides do not make the same number of comparisons (libniji about 3.5% more); each row divides by its own side's count, so the per-comparison figures are per comparison, not per sort.
 
 What this settles and what it does not:
 
 * The counted figure here is all instructions (user and kernel together); `--counters-only` does not print a user-mode split. `qsort` makes no system calls, so for those rows all is user, as section 17's 47.83 / 47.85 showed; for the `fts` and `readdir` rows the kernel share is large and the user ratio is **not** measured here.
-* `qsort`: Liella's cost per comparison is flat across element sizes (47.7 to 50.0 instructions). glibc is 31.7 to 32.4 at 4 and 8 bytes, 37.8 at 64, and 54 to 55 at 16 and 24 bytes, so Liella is behind (1.3 to 1.5x in instructions) at 4, 8 and 64 bytes and ahead at 16 and 24. The section 17 row (47.9 vs 31.7) did not change after QSORT-C-COMPARATOR and QSORT-MERGE-INDEX: the count is the same as before the change.
-* In cycles Liella is at most 1.11 of glibc (ints) and below glibc at 16, 24 and 64 bytes; the instruction gap at the small sizes is mostly hidden by IPC on this CPU.
-* `fts` at a 2 KiB path: total instructions per entry are 0.27 of glibc's (5.8 thousand against 21.6 thousand), and cycles 0.45. Liella does not grow with the path length the way glibc's per-entry cost does (glibc: 6.9 thousand flat, 21.6 thousand at 2 KiB; Liella: 5.8 thousand either way). The `fts` user-mode ratio at either path length was not split out.
+* `qsort`: libniji's cost per comparison is flat across element sizes (47.7 to 50.0 instructions). glibc is 31.7 to 32.4 at 4 and 8 bytes, 37.8 at 64, and 54 to 55 at 16 and 24 bytes, so libniji is behind (1.3 to 1.5x in instructions) at 4, 8 and 64 bytes and ahead at 16 and 24. The section 17 row (47.9 vs 31.7) did not change after QSORT-C-COMPARATOR and QSORT-MERGE-INDEX: the count is the same as before the change.
+* In cycles libniji is at most 1.11 of glibc (ints) and below glibc at 16, 24 and 64 bytes; the instruction gap at the small sizes is mostly hidden by IPC on this CPU.
+* `fts` at a 2 KiB path: total instructions per entry are 0.27 of glibc's (5.8 thousand against 21.6 thousand), and cycles 0.45. libniji does not grow with the path length the way glibc's per-entry cost does (glibc: 6.9 thousand flat, 21.6 thousand at 2 KiB; libniji: 5.8 thousand either way). The `fts` user-mode ratio at either path length was not split out.
 * Not measured: wall time (no booking); user-mode instruction splits; other element-size mixes (non-power-of-two keys at offsets other than 0, 128 bytes and up); `qsort_r`; other CPUs.
 
 Proposed PERF story lines (rows whose ratio is above 1.10; `qsort` is user mode throughout, so the instruction ratio is the user ratio):
@@ -48,7 +48,7 @@ provenance plus the offset, safe Rust; `SortCompare::gt_at`, which the boundary'
 index is `i + j - mid` instead of a third counter. Two values fewer stay live across the call.
 
 Counted with `validation/wl_percall.sh` on `validation/percall/qsort.c` (`instructions:u` per sort, deterministic,
-sd 0); the comparison counts are the same before and after (Liella 1,830 at 256 elements and 9,316 at 1,024; glibc
+sd 0); the comparison counts are the same before and after (libniji 1,830 at 256 elements and 9,316 at 1,024; glibc
 1,720 and 8,958), so the per-comparison columns divide by each side's own count:
 
 | Elements | before | after | change | glibc | before / cmp | after / cmp | glibc / cmp | after / glibc per cmp |
@@ -68,8 +68,8 @@ over two disjoint buffers (removes the output bounds check, adds a copy on in-or
 
 ### Update: comparison counts per input pattern (PERF-QSORT-COMPARISONS, 2026-11-05, Zen 1 host): NEGATIVE
 
-Comparator calls per `qsort`, Liella / glibc 2.39, 8-byte elements (an `int` key and the element's original index,
-so the probe also checks stability; Liella was stable in every cell). Probe `the Zen 1 (AVX2-class) counter host:~/work/perf-qsort-comparisons/qcount.c`
+Comparator calls per `qsort`, libniji / glibc 2.39, 8-byte elements (an `int` key and the element's original index,
+so the probe also checks stability; libniji was stable in every cell). Probe `the Zen 1 (AVX2-class) counter host:~/work/perf-qsort-comparisons/qcount.c`
 (static binaries; the keys come from the same LCG as `validation/percall/qsort.c`, so the random 256 and 1,024 cells
 are the percall cases' 1,830 / 1,720 and 9,316 / 8,958):
 
@@ -86,8 +86,8 @@ are the percall cases' 1,830 / 1,720 and 9,316 / 8,958):
 | sorted, 1% swapped | 31 / 37 | 356 / 435 | 699 / 1172 | 4798 / 6499 | 4988 / 6871 | 28592 / 35708 | 81681 / 97213 |
 | all equal | 15 / 32 | 99 / 316 | 255 / 1024 | 999 / 4932 | 1023 / 5120 | 4095 / 24576 | 9999 / 64608 |
 
-Where Liella's surplus on random input comes from (1,024 elements: +358 comparisons, +4.0%). A model of
-`merge_sort_index` / `insertion_index` that reproduces every Liella cell above exactly splits it in two:
+Where libniji's surplus on random input comes from (1,024 elements: +358 comparisons, +4.0%). A model of
+`merge_sort_index` / `insertion_index` that reproduces every libniji cell above exactly splits it in two:
 
 * About 236: each run of 8 compares an element with its predecessor before the binary search. On random input that
   test splits the element's i + 1 possible places into 1 against i, and the search that follows is no longer

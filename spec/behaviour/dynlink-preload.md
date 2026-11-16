@@ -55,7 +55,7 @@ is `LD_PRELOAD` or `/etc/ld.so.preload`, and `<reason>`:
 ## Cost
 
 Every dynamically linked start checks for the preload file once (`access("/etc/ld.so.preload", R_OK)`:
-one system call, `ENOENT` when absent). Liella opens it instead (one `openat`, `ENOENT` when absent):
+one system call, `ENOENT` when absent). libniji opens it instead (one `openat`, `ENOENT` when absent):
 the same count.
 
 ## Clauses covered
@@ -65,7 +65,7 @@ order: the preloads come before the program's dependencies), s27_1_c_3 (`RTLD_NE
 and s1_1_g_4 (secure mode: `LD_PRELOAD` is the one name read before the clear, under the threat
 model's rule 1).
 
-## Liella
+## libniji
 
 `crates/ld/src/start.rs` (`preload_names`, `preload_file_names`, `preload_rule`, `preload_mode_admits`,
 `preload_ignored`) and `crates/boundary/src/ld.rs` (`Preloads`, `link`); tests

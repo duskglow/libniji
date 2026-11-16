@@ -78,7 +78,7 @@ directory, and in a secure program does not read a file outside it or through `.
 
 Each section of this record bears on these clauses of `spec/clauses.tsv`; the record is a fact
 record, so it fixes no clause text, and DL-0d (`plan/ph14/threat-model-draft.md`) decides what
-Liella does.
+libniji does.
 
 | Section | Clause IDs |
 |---|---|

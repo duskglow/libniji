@@ -1,6 +1,6 @@
 ## 16. f64 exp/log/pow: where the 3.4-5.4x over glibc goes (MATH-M6-F64-GAP-BREAKDOWN, 2026-10-24, counted)
 
-Head e7dfac98 (MATH-M6-F64-FAST-ENTRY-3 code), the static `target/liella/libm.a` + `libc.a` that `cargo xtask bench` links,
+Head e7dfac98 (MATH-M6-F64-FAST-ENTRY-3 code), the static `target/niji/libm.a` + `libc.a` that `cargo xtask bench` links,
 The Zen 1 host (AMD EPYC 7551), round to nearest, operands uniform over the cbench_libm ranges (exp/exp2 [-10,10]; logs
 [0.01,100]; pow x [0.01,10], y [-10,10]). No library code changed.
 
@@ -19,7 +19,7 @@ Dekker product 17, `Dd::add` 20, `Dd::mul` 22, `Dd::mul_f64` 21 flops), so phase
 
 **What the measured functions show.** In libm.a the kernel pieces are separate calls (`fast64::exp_kernel` 137,
 `exp_log::reduce` 106, `fast64::settle` 20-26, `fast64::log_kernel` 227-233, `fast64::pow` 501 with log_pow and the exp
-reduction inlined, `liella_machine_mxcsr_get` 3); about a third of the executed instructions are loads, stores and
+reduction inlined, `niji_machine_mxcsr_get` 3); about a third of the executed instructions are loads, stores and
 moves (double-doubles passed through memory, constants reloaded), and `reduce` runs its full double-double chain for
 `exp` although `x.lo = 0`.
 
@@ -27,17 +27,17 @@ moves (double-doubles passed through memory, constants reloaded), and `reduce` r
 two-step strategy [Ziv 1991]; table-driven reductions [Tang 1989, 1990]; a rounding test of one multiply, one add and
 one compare with a precomputed constant [de Dinechin, Lauter, Muller 2007; CRlibm report 2006]; double-word operation
 costs and bounds [Handbook of Floating-Point Arithmetic, Muller et al. 2018; Joldes, Muller, Popescu, TOMS 2017]).
-Two columns: baseline x86-64 (SSE2, no FMA, Liella's default build) and with FMA (2MultFMA = 2 instructions; the
-x86-64-v3 build, `target/liella-v3`). The literature's claim that a CR fast path costs about what a faithful one does
+Two columns: baseline x86-64 (SSE2, no FMA, libniji's default build) and with FMA (2MultFMA = 2 instructions; the
+x86-64-v3 build, `target/niji-v3`). The literature's claim that a CR fast path costs about what a faithful one does
 [CRlibm report; Sibidanov, Zimmermann, Glondu, "The CORE-MATH Project", ARITH 2022] holds in this budget: what a CR
 path adds over a faithful one is the rounding test (3-5) plus carrying the leading terms in double-double (10-30
 without FMA). glibc's totals (67 exp, 63 log, 141 pow, about 4 of each being the caller's loop) are the cost of a
 complete fast path on this machine; the minimum below for exp with FMA (about 64) sits at glibc's, without FMA about
 90 (1.35x). So parity on Zen 1 is reachable only with FMA or a structure that needs fewer double-double steps.
 
-### 16.1 exp (Liella 344, glibc 67; 5.1x)
+### 16.1 exp (libniji 344, glibc 67; 5.1x)
 
-| phase | Liella | measured in | min (no FMA) | min (FMA) | gap (no FMA) |
+| phase | libniji | measured in | min (no FMA) | min (FMA) | gap (no FMA) |
 |---|---:|---|---:|---:|---:|
 | entry/envelope + filter (MXCSR read, range check, call setup) | ~43 | `exp` 47 (~40 of it), mxcsr_get 3 | 10 | 10 | 33 |
 | argument reduction (k, x − k·ln2/64) | ~116 | `reduce` 106, `exp` ~7, range check 3 | 12 | 10 | 104 |
@@ -49,9 +49,9 @@ complete fast path on this machine; the minimum below for exp with FMA (about 64
 | unattributed (fallbacks, sub-threshold blocks) | 21 | exact − attributed | 0 | 0 | 21 |
 | **total** | **344** | | **~91** | **~62** | **253** |
 
-### 16.2 exp2 (Liella 269, glibc 51; 5.3x)
+### 16.2 exp2 (libniji 269, glibc 51; 5.3x)
 
-| phase | Liella | measured in | min (no FMA) | min (FMA) | gap |
+| phase | libniji | measured in | min (no FMA) | min (FMA) | gap |
 |---|---:|---|---:|---:|---:|
 | entry/envelope + filter (incl. the integer test) | ~43 | `exp2` 83 (~40), mxcsr_get 3 | 12 | 12 | 31 |
 | reduction (x − k/64 exact, r·ln2 by `Dd::mul_f64`) | ~46 | `exp2` ~43, `exp_kernel` 3 | 25 | 8 | 21 |
@@ -62,7 +62,7 @@ complete fast path on this machine; the minimum below for exp with FMA (about 64
 | exit + loop / unattributed | 4 / 22 | | 5 / 0 | 5 / 0 | 21 |
 | **total** | **269** | | **~106** | **~62** | **163** |
 
-### 16.3 log, log2, log10 (Liella 295 / 332 / 345; glibc 63 / 63 / 103)
+### 16.3 log, log2, log10 (libniji 295 / 332 / 345; glibc 63 / 63 / 103)
 
 `log_kernel` is shared (227-233 measured): ~62 reduction (integer decompose, index, Dekker `m·c`, 2Sum, range check),
 ~5 table (`LOG_C`, `LOG_L`), ~65 polynomial (deg 7 tail, Dekker `rh²`, 2Sum), ~89 assembly (`e·ln2` by `Dd::mul_f64`,
@@ -79,9 +79,9 @@ two accurate `Dd::add`), ~6 eps.
 | exit + loop / unattributed | 4 / 27 | 4 / 26 | 3 / 22 | 5 / 0 | 5 / 0 | 26 / 25 / 20 |
 | **total** | **295** | **332** | **345** | **~74** (log2/log10 the same with 1/ln b folded into the tables) | **~57** | |
 
-### 16.4 pow (Liella 761, glibc 141; 5.4x)
+### 16.4 pow (libniji 761, glibc 141; 5.4x)
 
-| phase | Liella | measured in | min (no FMA) | min (FMA) | gap |
+| phase | libniji | measured in | min (no FMA) | min (FMA) | gap |
 |---|---:|---|---:|---:|---:|
 | entry/envelope + filter (log domain, y·2^11 integral test) | ~50 | `pow` wrapper 47, mxcsr_get 3 | 12 | 12 | 38 |
 | log: reduction + table | ~64 | `fast64::pow` | 13 | 6 | 51 |

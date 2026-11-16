@@ -1,7 +1,7 @@
-# Liella's own C header set (SL-HEADERS-PLAN)
+# libniji's own C header set (SL-HEADERS-PLAN)
 
 Owner ruling R4 (#5538, 2026-11-14): "we do need headers, and using glibcs is against the spirit of the
-project." Aqours cannot compile anything against Liella alone until Liella ships its own headers
+project." Yohane Linux cannot compile anything against libniji alone until libniji ships its own headers
 (`plan/system-libc.md` §2 and §6 item 7). This plan answers the four questions of the brief: the
 inventory (§1), how the headers are generated (§2), how they are proved (§3) and the slices
 SL-HEADERS-1..20 (§4). §5 records the owner's rulings (all answered on 2026-11-14). Companion files:
@@ -11,22 +11,22 @@ briefs `handoff/SL-HEADERS-PLAN/SL-HEADERS-<n>.md`, and the pending decision
 
 ## 0. Principle (owner, 2026-11-14)
 
-> "We aim to make Liella ABI compatible with glibc for already built programs. For programs that
+> "We aim to make libniji ABI compatible with glibc for already built programs. For programs that
 > want to statically link or link with it at runtime, we have to accept that they may need to make
 > small changes for it to work. 100% compile-out-of-the-box compatibility is unrealistic. We should
 > not identify as glibc so deeply that source can't tell the difference."
 
 This governs the whole plan:
 
-* **The ABI of what is built is exact.** A program compiled against Liella's headers references the
+* **The ABI of what is built is exact.** A program compiled against libniji's headers references the
   same symbols, at the same versions, with the same layouts and constant values as one compiled
   against the reference's (P1, P3). That keeps every binary interchangeable.
 * **Source compatibility is best effort.** The headers declare what the standards, the man pages and
   the spec say, under the documented feature-test macros. When a package does not compile, the first
-  question is whether Liella's header is wrong (a standard or spec name missing or wrong): that is a
-  header fix. Otherwise the package gets a small source change (an Aqours patch, sent upstream where
+  question is whether libniji's header is wrong (a standard or spec name missing or wrong): that is a
+  header fix. Otherwise the package gets a small source change (a Yohane Linux patch, sent upstream where
   it is a portability fix) in preference to imitating more of glibc's internals.
-* **Source can tell the difference.** `__LIELLA__` is always defined (in `features.h` and
+* **Source can tell the difference.** `__NIJI__` is always defined (in `features.h` and
   `stdc-predef.h`). The glibc identity macros are also defined (R-H1), because configure checks and
   the kernel's `libc-compat.h` key on them, but no further glibc-internal vocabulary is copied beyond
   what R-H2 and R-H3 allow.
@@ -56,22 +56,22 @@ architecture), `asm-generic/`, `drm/`, `rdma/`, `sound/`, `scsi/`, `misc/`, `mtd
 
 * No file name is in both packages. The only shared directory is `scsi/`: libc6-dev has `scsi.h`,
   `scsi_ioctl.h` and `sg.h`, and the kernel package has other names there.
-* **Liella ships no UAPI header.** It depends on `linux-libc-dev`, as libc6-dev does.
+* **libniji ships no UAPI header.** It depends on `linux-libc-dev`, as libc6-dev does.
 
-**Not Liella's either.**
+**Not libniji's either.**
 
 * `crypt.h` comes from `libcrypt-dev` (libxcrypt), and the Sun RPC headers except `rpc/netdb.h` come
   from the `rpcsvc-proto` and `libtirpc-dev` packages. These are libc6-dev's other dependencies.
 * The compiler's own headers (`gcc -print-file-name=include`): `stddef.h`, `stdarg.h`, `float.h`,
   `stdbool.h`, `stdalign.h`, `stdnoreturn.h`, `iso646.h`, `stdatomic.h`, `stdckdint.h` and the
-  intrinsics headers. `limits.h` and `stdint.h` **are** Liella's, because the compiler's versions
+  intrinsics headers. `limits.h` and `stdint.h` **are** libniji's, because the compiler's versions
   chain to the C library's.
 
-**Liella's internal split.** None of the 235 internal names are reproduced as such. Liella's internal
-headers are its own design, under `__liella/`, with the parts that depend on the architecture in the
+**libniji's internal split.** None of the 235 internal names are reproduced as such. libniji's internal
+headers are its own design, under `__niji/`, with the parts that depend on the architecture in the
 multiarch directory. There are three exceptions:
 
-* `gnu/stubs.h`: configure scripts test its `__stub_<name>` macros. It lists Liella's own
+* `gnu/stubs.h`: configure scripts test its `__stub_<name>` macros. It lists libniji's own
   ENOSYS-only functions, from the spec.
 * `gnu/lib-names.h`: it holds the soname strings, from `versions.tsv`.
 * Any other internal name that the corpus scan (SL-HEADERS-1) shows programs include directly.
@@ -136,7 +136,7 @@ records facts, not text.
 | inline protocols | Appendix C.9 is normative: `errno`, `assert`, ctype masks, `setjmp`, `FD_*`, `MB_CUR_MAX`, `SIGRTMIN`, `PTHREAD_STACK_MIN`, cleanup push/pop, `CMSG_NXTHDR`, `_chk` argument shapes | none: the headers implement C.9 exactly |
 | call-site symbols | 44 `__isoc*` and 83 `*_chk` names are exported, so compiled programs reference them | which symbol a source call reaches for a given set of flags (`scanf` → `__isoc99_scanf`, `strtol` in C2X mode, `_FILE_OFFSET_BITS=64` names, fortified calls) |
 | visibility | spec 0.5 names the layers; nothing is recorded per name | per (header, configuration): the visible names and their kinds |
-| native | `native.tsv` → `include/liella/native.h` (`native-gen`, D-X.10) | none: it is the pattern for `headers-gen` |
+| native | `native.tsv` → `include/niji/native.h` (`native-gen`, D-X.10) | none: it is the pattern for `headers-gen` |
 
 ### 2.2 New Appendix C tables (SL-HEADERS-2..4, ruling R-H0)
 
@@ -166,13 +166,13 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
   (`_POSIX_C_SOURCE`, `_XOPEN_SOURCE`) and 2.2.2 (the name space per header), C's
   `__STDC_VERSION__` and reserved identifiers (C 7.1.3), the ISO/IEC TS 18661 `__STDC_WANT_IEC_60559_*`
   macros, and `__STDC_WANT_LIB_EXT2__`.
-* **Levels.** Liella's `features.h` turns them into its own levels, computed once:
-  * `__LIELLA_ISOC`: 90, 99, 11, 17 or 23;
-  * `__LIELLA_POSIX`: 0 up to 200809;
-  * `__LIELLA_XSI`: 0, 500, 600 or 700;
-  * `__LIELLA_MISC`: the BSD/SVID set that `_DEFAULT_SOURCE` makes visible;
-  * `__LIELLA_GNU`, `__LIELLA_LFS64` (the `*64` names), `__LIELLA_DYNSTACK`
-    (`_DYNAMIC_STACK_SIZE_SOURCE`, C.9), `__LIELLA_FORTIFY` (0..3).
+* **Levels.** libniji's `features.h` turns them into its own levels, computed once:
+  * `__NIJI_ISOC`: 90, 99, 11, 17 or 23;
+  * `__NIJI_POSIX`: 0 up to 200809;
+  * `__NIJI_XSI`: 0, 500, 600 or 700;
+  * `__NIJI_MISC`: the BSD/SVID set that `_DEFAULT_SOURCE` makes visible;
+  * `__NIJI_GNU`, `__NIJI_LFS64` (the `*64` names), `__NIJI_DYNSTACK`
+    (`_DYNAMIC_STACK_SIZE_SOURCE`, C.9), `__NIJI_FORTIFY` (0..3).
 
   Of glibc's `__USE_*` names, only `__USE_MISC` and `__USE_GNU` are defined, with the same meaning,
   plus any further one that SL-HEADERS-1 finds external headers testing (R-H2).
@@ -205,15 +205,15 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
 * **Shape.** The same shape as `native-gen` and `abi-gen`.
 * **Inputs.**
   * the `spec/abi` tables (§2.1, §2.2);
-  * Liella-written templates `headers/<path>.h.in`. These hold the structure, include guards and
-    Liella-authored function-like macros written from the standard or man page (for example
+  * libniji-written templates `headers/<path>.h.in`. These hold the structure, include guards and
+    libniji-authored function-like macros written from the standard or man page (for example
     `sys/queue.h` from `queue(7)`, obstack from the GNU C Library manual, `CMSG_*` from
     POSIX/`cmsg(3)`, C.9's protocols).
   * **No ABI fact is typed into a template.** Values, layouts, prototypes and conditions enter only
     through generator markers.
-* **Output.** `libc-include/`, generated and committed like `include/liella/native.h`, with an
+* **Output.** `libc-include/`, generated and committed like `include/niji/native.h`, with an
   `@generated` header line. A root of its own (SL-HEADERS-S05-4): tools and tests that build against
-  the build host's headers put `include/` on their path for `<liella/native.h>`, and Liella's libc
+  the build host's headers put `include/` on their path for `<niji/native.h>`, and libniji's libc
   headers there shadowed the host's. Staging merges both roots.
   * Facts that depend on the architecture go to a multiarch subtree, so `Multi-Arch: same` packages
     stay byte-identical in `/usr/include`.
@@ -228,8 +228,8 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
 * **Generated tests.** For each header, a C TU and a C++ TU of `_Static_assert`s cover sizes,
   alignments, offsets, constant values and types, and prototype identity
   (`__builtin_types_compatible_p` against the typedef-resolved form). The gate compiles them.
-* **Staging.** `cargo xtask so` stages `target/liella/include`. Tests compile with `-nostdinc`,
-  `-isystem` on Liella's headers, the compiler's include directory, and a staging of the build
+* **Staging.** `cargo xtask so` stages `target/niji/include`. Tests compile with `-nostdinc`,
+  `-isystem` on libniji's headers, the compiler's include directory, and a staging of the build
   host's `linux-libc-dev` directories (`linux`, `asm`, `asm-generic`, ...).
 * **Kernel UAPI coexistence.** `linux/libc-compat.h` (kernel text) describes a two-way protocol:
   * **Libc header first.** The kernel recognises the libc by `__GLIBC__`, the include guards
@@ -239,8 +239,8 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
   * **Without `__GLIBC__`.** The kernel's other branch defaults every `__UAPI_DEF_*` to 1 unless the
     libc predefined it.
 
-  Liella defines `__GLIBC__` (R-H1) and the three include guards and `__USE_MISC`/`__USE_GNU`
-  (R-H2), so the kernel takes its libc-first branch, and Liella's headers take the kernel-first
+  libniji defines `__GLIBC__` (R-H1) and the three include guards and `__USE_MISC`/`__USE_GNU`
+  (R-H2), so the kernel takes its libc-first branch, and libniji's headers take the kernel-first
   branch with `#if !__UAPI_DEF_*` wrappers. P8 checks both orders.
 
 ## 3. Proof
@@ -248,19 +248,19 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
 Each slice proves its own headers with P1, P2, P3, P5, P6, P8 and P9; P4 and P7 grow per slice.
 Under the principle of §0, P1 and P3 (what a built program binds to) admit no difference. P2 and P7
 (what source compiles) admit a difference that has a differences row; for P7 a package that fails
-only because it relies on a glibc-internal name gets a small source change (an Aqours patch), listed
-in the slice's results, not a new glibc-internal name in Liella's headers.
+only because it relies on a glibc-internal name gets a small source change (a Yohane Linux patch), listed
+in the slice's results, not a new glibc-internal name in libniji's headers.
 
 | | check | how |
 |---|---|---|
 | P1 | identity with the tables | generated `_Static_assert` TUs, C and C++: sizes, offsets, constants, constant types, initializer bytes |
-| P2 | visibility | the SL-HEADERS-2 probe, rerun on Liella's headers, gives `visibility.tsv` per (header, configuration) for the slice's headers, except rows in `docs/differences-from-glibc.md` |
-| P3 | call sites | the `callsites.tsv` probe on Liella's headers, at -O0 and with fortify at -O2: the same symbols |
+| P2 | visibility | the SL-HEADERS-2 probe, rerun on libniji's headers, gives `visibility.tsv` per (header, configuration) for the slice's headers, except rows in `docs/differences-from-glibc.md` |
+| P3 | call sites | the `callsites.tsv` probe on libniji's headers, at -O0 and with fortify at -O2: the same symbols |
 | P4 | C++ | `noexcept.tsv` and `typedefs.tsv` reproduced; `extern "C"` everywhere; the C++-standard overloads ([cstring.syn], [cwchar.syn]); every libstdc++ standard header compiles in every `-std` (SL-HEADERS-20) |
 | P5 | hygiene | each header compiles alone, compiles when included twice, compiles under `-std=c89 -pedantic-errors` where C89 has it, and compiles with `-Wall -Wextra -Wsystem-headers -Werror`; namespace check in strict modes |
-| P6 | conformance | `conformance/run.sh --liella-headers` (SL-HEADERS-5) builds every program whose `#include`s are already covered, against Liella's headers, with the same verdicts. 154 programs use 106 headers today (`string.h` 97, `stdlib.h` 83, `stdio.h` 82, `unistd.h` 80, `errno.h` 62, `pthread.h` 44, ...) |
-| P7 | package corpus | the smoke programs (`validation/smoke`: zlib, xz-utils, sqlite3, grep, sed, diffutils, findutils, coreutils, gawk, bash, miniperl, python3.13 sample, cppunit), built against Liella's headers, give the same test-suite results and the same `nm -D --undefined-only` set per binary as the reference-header build; a source change a package needed is listed with its reason |
-| P8 | kernel UAPI | for each Liella header with a kernel counterpart (the `libc-compat.h` set, plus pairs the corpus uses): both include orders, with and without `_GNU_SOURCE` |
+| P6 | conformance | `conformance/run.sh --niji-headers` (SL-HEADERS-5) builds every program whose `#include`s are already covered, against libniji's headers, with the same verdicts. 154 programs use 106 headers today (`string.h` 97, `stdlib.h` 83, `stdio.h` 82, `unistd.h` 80, `errno.h` 62, `pthread.h` 44, ...) |
+| P7 | package corpus | the smoke programs (`validation/smoke`: zlib, xz-utils, sqlite3, grep, sed, diffutils, findutils, coreutils, gawk, bash, miniperl, python3.13 sample, cppunit), built against libniji's headers, give the same test-suite results and the same `nm -D --undefined-only` set per binary as the reference-header build; a source change a package needed is listed with its reason |
+| P8 | kernel UAPI | for each libniji header with a kernel counterpart (the `libc-compat.h` set, plus pairs the corpus uses): both include orders, with and without `_GNU_SOURCE` |
 | P9 | plants | `cargo xtask plants`: a table row, a template condition, a redirect and a C.9 macro each mutated; the checks above must catch every one |
 | P10 | C.9 macros | differential evaluation against programs built on the reference: ctype for all 384 inputs in C and C.UTF-8, `W*` status macros over all 16-bit values, `FD_*` over 0..1023 |
 
@@ -268,7 +268,7 @@ in the slice's results, not a new glibc-internal name in Liella's headers.
 
 Order: the tables first, then the generator, then a minimal C program, then groups by how much the
 conformance and smoke programs use them. A legacy header (§5.1) is generated by its slice only when
-§5.1 lists it as shipped; until slice 1 (b) decides it, its slice leaves it out. Fortify comes before any Aqours rebuild (R-H6). Slices 7–17
+§5.1 lists it as shipped; until slice 1 (b) decides it, its slice leaves it out. Fortify comes before any Yohane Linux rebuild (R-H6). Slices 7–17
 depend only on 6 and may run in parallel.
 
 | # | slice | size | needs | headers / content | proof |
@@ -277,7 +277,7 @@ depend only on 6 and may run in parallel.
 | 2 | visibility tables | M | none (R-H0 granted) | `ftm-configs.tsv`, `visibility.tsv`, C.12 text | every `prototypes.tsv` and `constants.tsv` name visible somewhere; rerun identical; plants on the checker |
 | 3 | type and value tables | M | 2 | `typedefs.tsv`, `macros.tsv`, data-object types, new layout rows (§2.1) | cross-check with `layouts.tsv` and `versions.tsv` sizes; rerun identical |
 | 4 | call-site and noexcept tables | M | 2 | `callsites.tsv` (-O0, and -O2 fortify 1..3), `noexcept.tsv` | every `__isoc*` and `*_chk` export reached by some call; rerun identical |
-| 5 | generator and base layer | M | 1, 2, 3 | `headers-gen`, the `--check` in static, staging, `run.sh --liella-headers`; `features.h`, `features-time64.h`, `stdc-predef.h` (Liella's `__STDC_ISO_10646__` from its Unicode tables, `__STDC_IEC_559__`, ...), `sys/cdefs.h`, `sys/types.h`, `sys/bitypes.h`, `stdint.h`, `inttypes.h`, `limits.h`, `endian.h`, `byteswap.h`, `errno.h`, `sys/errno.h`, `alloca.h`, `gnu-versions.h`, `gnu/stubs.h` | P1, P2, P5, P9 |
+| 5 | generator and base layer | M | 1, 2, 3 | `headers-gen`, the `--check` in static, staging, `run.sh --niji-headers`; `features.h`, `features-time64.h`, `stdc-predef.h` (libniji's `__STDC_ISO_10646__` from its Unicode tables, `__STDC_IEC_559__`, ...), `sys/cdefs.h`, `sys/types.h`, `sys/bitypes.h`, `stdint.h`, `inttypes.h`, `limits.h`, `endian.h`, `byteswap.h`, `errno.h`, `sys/errno.h`, `alloca.h`, `gnu-versions.h`, `gnu/stubs.h` | P1, P2, P5, P9 |
 | 6 | minimal C program | M | 4, 5 | `stdio.h`, `stdlib.h`, `string.h`, `strings.h`, `memory.h`, `unistd.h`, `sys/unistd.h`, `assert.h`, `ctype.h`, `getopt.h`, `time.h` | P1–P3, P5, P6 (hello and the covered conformance programs), P10 (ctype, `assert`, `errno`) |
 | 7 | POSIX files and processes | M | 6 | 29 headers: `fcntl.h`, `sys/stat.h`, `dirent.h`, `sys/wait.h`, `sys/time.h`, `sys/select.h`, `poll.h`, `sys/mman.h`, `sys/ioctl.h`, `sys/xattr.h`, `spawn.h`, ... | P6; P7 for zlib, xz-utils and sqlite3; P8 for `sys/xattr.h`; P10 for `W*` and `FD_*` |
 | 8 | signals, threads, contexts | M | 6 | `signal.h`, `setjmp.h`, `ucontext.h`, `sys/ucontext.h`, `pthread.h` (C.9 cleanup in its C and C++ forms), `semaphore.h`, `threads.h`, `sched.h`, `sys/single_threaded.h`, `sys/rseq.h` | P6 (the pthread and signal programs); P3 for `setjmp` and `sigsetjmp` |
@@ -292,7 +292,7 @@ depend only on 6 and may run in parallel.
 | 17 | GNU and BSD extension APIs | M | 6 | `argp.h`, `argz.h`, `envz.h`, `obstack.h`, `printf.h`, `stdio_ext.h`, `malloc.h`, `mcheck.h`, `err.h`, `error.h`, `execinfo.h`, `fmtmsg.h`, `sysexits.h`, `sys/queue.h`, `tar.h`, `cpio.h` | P6; P10 for obstack and queue macros |
 | 18 | fortify | M | 4, 6, 7, 10, 12 | `_FORTIFY_SOURCE` 1..3 from GCC's object-size builtins and C.9's `_chk` shapes | P3 at -O2 with every `*_chk` export reached; deliberate overflows abort as the spec says; P7 with `dpkg-buildflags` |
 | 19 | diagnostic attributes | S | 6 | `format`, `nonnull`, `warn_unused_result`, `malloc`/`alloc_size`, `deprecated`, `noreturn`, from the standards and a warning differential | the same warnings (code and line) as the reference headers on a probe corpus with `-Wall -Wextra -Wformat=2` |
-| 20 | switch and package | M | all | the full C++ check (P4); `liella-gcc`/`liella-cc` default to Liella's headers; `liella6-dev` installs them (`/usr/lib/liella/include`; SL-FLAVOUR gets `/usr/include` and the multiarch directory) | P4; P6 for all 154 programs; P7 for the whole smoke corpus; differences rows for anything accepted |
+| 20 | switch and package | M | all | the full C++ check (P4); `niji-gcc`/`niji-cc` default to libniji's headers; `niji6-dev` installs them (`/usr/lib/niji/include`; SL-FLAVOUR gets `/usr/include` and the multiarch directory) | P4; P6 for all 154 programs; P7 for the whole smoke corpus; differences rows for anything accepted |
 
 `plan/system-libc.md` §6 item 7 becomes these slices. Its item 11 (SL-BOOTSTRAP-ESSENTIAL) needs
 slice 20 and, under R-H6, slice 18.
@@ -302,13 +302,13 @@ slice 20 and, under R-H6, slice 18.
 | id | question | ruling |
 |---|---|---|
 | R-H0 | Extend OD-1 (Appendix C) from ABI facts to the API facts of §2.2, read only through the compiler | yes. Slices 2–4 proceed |
-| R-H1 | Identity macros: `__GLIBC__`, `__GLIBC_MINOR__` (the ABI level, 39), `__GNU_LIBRARY__`, `__GLIBC_PREREQ` | yes, together with Liella's own `__LIELLA__`, which is always defined (§0) |
+| R-H1 | Identity macros: `__GLIBC__`, `__GLIBC_MINOR__` (the ABI level, 39), `__GNU_LIBRARY__`, `__GLIBC_PREREQ` | yes, together with libniji's own `__NIJI__`, which is always defined (§0) |
 | R-H2 | glibc-internal names that other software tests | as recommended: exactly the names that external headers and programs test, with the same meaning: `__USE_MISC`, `__USE_GNU` and the include guards `_NET_IF_H`, `_NETINET_IN_H` and `_SYS_XATTR_H` (kernel UAPI), plus whatever SL-HEADERS-1 finds. Nothing else of the `__USE_*` family |
-| R-H3 | `sys/cdefs.h` vocabulary (`__BEGIN_DECLS`, `__THROW`, `__P`, ...) and reserved type names (`__pid_t`, `__off64_t`, ...) | as recommended: the subset that SL-HEADERS-1 finds in use, with Liella-written definitions. A later build failure is fixed by a source change first (§0); a name is added only when a change per package is not reasonable, with a decision row saying why |
+| R-H3 | `sys/cdefs.h` vocabulary (`__BEGIN_DECLS`, `__THROW`, `__P`, ...) and reserved type names (`__pid_t`, `__off64_t`, ...) | as recommended: the subset that SL-HEADERS-1 finds in use, with libniji-written definitions. A later build failure is fixed by a source change first (§0); a name is added only when a change per package is not reasonable, with a decision row saying why |
 | R-H4 | FILE: complete, with the member names from `layouts.tsv`, or opaque | complete, as recommended |
 | R-H5 | libmvec `simd` declarations | none until M-0/M-1 (`plan/system-libc.md` item 19), as recommended |
 | R-H6 | Fortify ordering | as recommended: SL-BOOTSTRAP-ESSENTIAL waits for slice 18 |
-| R-H7 | Legacy headers ("should Liella have it at all?") | not "ship all". Ship a legacy header only if a package on the project mirror includes it, or it has a live purpose (`thread_db.h` and `proc_service.h`, for debuggers). Drop the rest, each with a differences row and its registered future compat flag. §5.1 applies it |
+| R-H7 | Legacy headers ("should libniji have it at all?") | not "ship all". Ship a legacy header only if a package on the project mirror includes it, or it has a live purpose (`thread_db.h` and `proc_service.h`, for debuggers). Drop the rest, each with a differences row and its registered future compat flag. §5.1 applies it |
 
 ### 5.1 Legacy headers (R-H7)
 

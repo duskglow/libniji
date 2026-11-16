@@ -1,6 +1,6 @@
 # Threat model
 
-Liella's trust boundaries: for each, the attacker, what they control, and what they must not be
+libniji's trust boundaries: for each, the attacker, what they control, and what they must not be
 able to achieve. This document is completed in the security pass after phase 15
 (`implementation-plan.md`, "Security pass"); the sections the dynamic loader (phase 14) depends on,
 the environment and secure-execution mode, are written first, before phase 14 starts.
@@ -22,10 +22,10 @@ the attacker's choosing, change what it resolves or reports, or learn anything t
 attacker could not learn directly.
 
 **Two mechanisms.** (1) **Clearing at start** (owner ruling 2026-10-03): in a secure process
-Liella's start code removes every entry whose name is on the list below from the initial
+libniji's start code removes every entry whose name is on the list below from the initial
 environment array, all occurrences, before constructors, `main` or any other code can read it
 (`rt::start::UNSECURE`, applied by `boundary::runtime` in step 2 of the start sequence), so
-neither the program nor a child it executes sees them. (2) **Ignoring on read:** where Liella
+neither the program nor a child it executes sees them. (2) **Ignoring on read:** where libniji
 itself reads a variable that names a file, a directory or behaviour a privileged program must not
 take from its caller, it reads it through `secure_getenv` (or checks `AT_SECURE`), which also
 covers variables a program sets itself after start.
@@ -44,12 +44,12 @@ program printing the names left in `environ`, built dynamically and statically a
 reference library, made set-group-ID with a supplementary group of the user (the kernel then
 sets `AT_SECURE`, no root needed), and run with `env -i` and 90 candidate names set: the 22, every
 other `LD_*`, `MALLOC_*`, `RESOLV_*` and tunable name known from documentation, the variables
-Liella reads, common variables (`PATH`, `HOME`, `IFS`, `LANG`, `LC_ALL`, `TZ`, `PWD`, ...) and
+libniji reads, common variables (`PATH`, `HOME`, `IFS`, `LANG`, `LC_ALL`, `TZ`, `PWD`, ...) and
 near-miss names (`TMPDIRX`, `LD_`, `LD_LIBRARY_PATH_X`). Both builds removed the same 34 names, by
 exact name and every occurrence (a repeated `TMPDIR` was removed twice); nothing else. A name
 absent from the candidate list could not be observed: the list covers what documentation names.
 
-| Variable | Read by (Liella) | In a secure process | Source |
+| Variable | Read by (libniji) | In a secure process | Source |
 |---|---|---|---|
 | `GCONV_PATH` | not read (iconv uses the installed charmaps, D-6.8) | cleared at start | ld.so(8), probe |
 | `GETCONF_DIR` | not read | cleared at start | ld.so(8), probe |
@@ -70,15 +70,15 @@ absent from the candidate list could not be observed: the list covers what docum
 | `TMPDIR` | `tmpfile`, `tempnam`, the temporary-name functions | cleared at start; ignored on read | ld.so(8), probe |
 | `TZDIR` | time-zone selection | cleared at start; ignored on read | ld.so(8), probe |
 | `PWD` | `get_current_dir_name` | **kept**; ignored on read (the physical path is returned) | D-13.14 (owner ruling) |
-| `LIELLA_NSCACHE` | the name-service cache | kept; ignored on read (the cache stays private in secure mode anyway) | D-16.10 |
-| `LIELLA_AIO_URING` | AIO engine (`0` forces worker threads) | kept; ignored on read (secure processes use threads anyway) | D-11.11 (owner ruling) |
+| `NIJI_NSCACHE` | the name-service cache | kept; ignored on read (the cache stays private in secure mode anyway) | D-16.10 |
+| `NIJI_AIO_URING` | AIO engine (`0` forces worker threads) | kept; ignored on read (secure processes use threads anyway) | D-11.11 (owner ruling) |
 | `TZ` | time-zone selection | kept; a zone name or a POSIX rule is honoured; a path (absolute, or `:path`) is honoured only when it lies inside the default zone directory `/usr/share/zoneinfo`; a path outside it, or any value with a `..` component, reads no file and gives offset 0 (abbreviated, as any value that is neither a zone nor a rule, by its leading valid name, empty if none: the DL-0a table); `TZDIR` is cleared, so a relative name always resolves under the default directory | owner approval #2661 (2026-11-04, DL-0d section A); DL-0a probe (`spec/behaviour/dynlink-secure.md`): the reference does the same, so no differences row |
 | `LD_ASSUME_KERNEL`, `LD_PROFILE_OUTPUT`, `LD_TRACE_LOADED_OBJECTS` | the dynamic loader (phase 14) | kept in the environment (not on the reference's list); the loader does not act on them in a secure process (loader rule 1): with `LD_TRACE_LOADED_OBJECTS` set, even empty, the program runs normally | ld.so(8); DL-0a probe: the reference keeps them and does not act on them |
 | `MALLOC_CHECK_`, `LD_USE_LOAD_BIAS`, other names | not read | kept (the reference keeps them too) | probe |
 
-Liella's own security-sensitive variables named in the ruling (`HOSTALIASES`, `RES_OPTIONS`,
+libniji's own security-sensitive variables named in the ruling (`HOSTALIASES`, `RES_OPTIONS`,
 `LOCALDOMAIN`, `TMPDIR`, `TZDIR`, `LOCPATH`, `GCONV_PATH`, `NLSPATH`) are all on the reference
-library's list, so clearing them is no difference from glibc. A variable Liella starts to read in
+library's list, so clearing them is no difference from glibc. A variable libniji starts to read in
 a later phase is added here, with its treatment in a secure process, in the same change. Every
 variable the dynamic loader reads that ld.so(8) lists has a row above (owner approval #2661); a
 loader variable not listed here is added in the change that makes the loader read it.
@@ -92,8 +92,8 @@ loader variable not listed here is added in the change that makes the loader rea
   is a filter, and `prctl` is not called. Only when procfs says 0 or cannot be read is
   `prctl(PR_GET_SECCOMP)` asked, and anything but 0 (an error included) is a filter. A filter that
   kills on `prctl` itself, or answers it `ERRNO(0)`, is therefore covered whenever procfs is
-  readable; the limit remains for a process without a readable procfs. Programs and administrators can force threads with `liella_aio_use_threads`
-  (`LIELLA_NATIVE_1`) or `LIELLA_AIO_URING=0`. A kernel refusal of io_uring falls back silently
+  readable; the limit remains for a process without a readable procfs. Programs and administrators can force threads with `niji_aio_use_threads`
+  (`NIJI_NATIVE_1`) or `NIJI_AIO_URING=0`. A kernel refusal of io_uring falls back silently
   (tested through the injected-failure kernel). `SIGEV_THREAD` notifications on a caller-supplied
   stack (AIO, timers, message queues) run one at a time on it, so requests completing together
   cannot corrupt each other's frames (the reference starts them at once on the one stack).
@@ -119,7 +119,7 @@ stage; the security pass writes the cache region's section around them.
   and eventfd) is now moved above 2 (`F_DUPFD_CLOEXEC`) before use.
 * **User namespaces and `/dev/shm`.** The region is named and owner-checked with the IDs the
   process sees. In a user namespace mapping UID 0 to user 1001, a process created
-  `liella-nscache-0` owned by 1001 in the shared `/dev/shm` (a real root process refused it, by
+  `niji-nscache-0` owned by 1001 in the shared `/dev/shm` (a real root process refused it, by
   the owner check, but the name was squatted and the two views of "UID 0" mixed). A process
   outside the initial user namespace now keeps a private table. A region whose header an
   attacker wrote is rejected or reinitialised on attach (layout, size cap, owner, boot ID, account
@@ -220,7 +220,7 @@ text. Facts about the reference come from black-box probes: `spec/behaviour/dynl
 8. **Secure-process consistency with the C library's own rules:** whatever the loader clears or
    ignores, libc's start code (static programs) does the same, from the one list in
    `rt::start::UNSECURE`, so static and dynamic programs behave alike.
-9. **Liella's own libraries cannot be swapped by the environment in a secure process.** The
+9. **libniji's own libraries cannot be swapped by the environment in a secure process.** The
    pinned sonames (`libc.so.6`, `libm.so.6`, the placeholder libraries, the loader) resolve to the
    build's prefix before any search (R14-3). Outside secure mode `LD_PRELOAD` can still interpose
    symbols, as documented.

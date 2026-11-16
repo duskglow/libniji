@@ -32,13 +32,13 @@ Run it from the role tree on the build host, under plain `jobrun` (not `~/bin/ga
 5. It prints one verdict per plant and a summary line. It exits 1 if any plant SURVIVED (or a step failed), else 0.
 
 **Which commands rebuild the products** (XTASK-PLANTS-PRODUCTS-REBUILD). A test that links `libc.a` or
-`liella-crt1.o` (a `*_products` test, a conformance program) sees a plant only if the products are rebuilt with
+`niji-crt1.o` (a `*_products` test, a conformance program) sees a plant only if the products are rebuilt with
 it, so for each plant whose command may use the products the tool runs `cargo xtask so` in the copy after
 applying the plant and before the command (log `<id>.so.log`; if the mutant does not build, the plant is judged
 on that log and the command is not run). A command is known not to use them only when it is one plain
 `cargo test` whose targets are all named (`--lib`, `--bin <name>`, `--test <name>`) and no named test target
 uses the products by the rule `cargo xtask affected` builds them for (its source or support files name
-`target/liella`, `join("liella")` (the ld tests' path to the built `ld.so`), `libc.a`, `liella-crt1` or
+`target/niji`, `join("niji")` (the ld tests' path to the built `ld.so`), `libc.a`, `niji-crt1` or
 `conformance`). Such a plant reuses the baseline build; anything
 else (shell syntax, `cargo xtask affected`, all targets of a package, an unknown target or option) rebuilds.
 After a plant that rebuilt the products, the next plant that does not use them first rebuilds them unmutated
@@ -48,9 +48,9 @@ layout ungrouped, in <n>s`).
 
 **The layout of each build** (PLANTS-UNGROUPED-MUTANTS). A mutant's behaviour does not depend on the start-up layout,
 and a traced product build costs minutes per mutant, so the tool builds the products of an ordinary plant (and its
-baseline) **ungrouped**: it sets `LIELLA_LAYOUT_TRACE=ungrouped` for the build and for the plant's command (a command
+baseline) **ungrouped**: it sets `NIJI_LAYOUT_TRACE=ungrouped` for the build and for the plant's command (a command
 such as `cargo xtask affected ... --run` that builds the products itself builds them the same way). A plant that
-measures the start-up layout is built **traced** (`LIELLA_LAYOUT_TRACE=1`, the build and its command): a plant whose
+measures the start-up layout is built **traced** (`NIJI_LAYOUT_TRACE=1`, the build and its command): a plant whose
 command names a start-up layout test (`hot_text_products`, `heap_meta_products`, `cold_bss_products`: `cargo xtask
 affected`'s layout tests) or `layout-check`, or runs `cargo xtask affected ... --run` without `--only` (which selects
 the layout tests for a change that reaches `libc.a`), or that is marked `layout:traced` (below). Such a plant always
@@ -81,9 +81,9 @@ id | path | pattern | cmd
     exactly once. The `/g` and `/r` flags are refused. Use this form for multi-line patterns, or when the text contains
     ` | ` (write `\|` in the regex).
   - On a `.S` file, the pattern must name its function's label, for example
-    `perl:s/(liella_machine_strchr:.*?)<pattern>/$1<replacement>/s`. An unanchored pattern mutates the first match in the
+    `perl:s/(niji_machine_strchr:.*?)<pattern>/$1<replacement>/s`. An unanchored pattern mutates the first match in the
     file, which is often another function.
-- `cmd`: the direct tests of the planted file, for example `cargo test -p liella --test stdio_short_io` (crates/core is package `liella`). For code
+- `cmd`: the direct tests of the planted file, for example `cargo test -p niji --test stdio_short_io` (crates/core is package `niji`). For code
   reached only from C programs: `cargo xtask affected --only conformance:<prog> --with-exports --run`; a failed program's
   status and the last 40 lines of its stdout and stderr are on the console (D-X.27), so `msg:` can name the program's own
   failure message. A `cmd` may contain ` | `, but a job's output should not be piped.
@@ -125,8 +125,8 @@ List every WARN line in your hand-back. Exit codes: 0 all caught or equivalent; 
 
 ```
 # STDIO-SHORT-IO plants
-retry | crates/boundary/src/stdio.rs | lit:while done < len { ==> if done < len { | cargo test -p liella --test stdio_short_io | msg:short_write.*(FAILED|panicked)
-memchr-tail | csys/src/machine/scan.S | perl:s/(liella_machine_memchr:.*?)jb\s+\.Ltail/$1jmp .Ltail/s | cargo test -p liella-boundary --test small_copy | msg:memchr
+retry | crates/boundary/src/stdio.rs | lit:while done < len { ==> if done < len { | cargo test -p niji --test stdio_short_io | msg:short_write.*(FAILED|panicked)
+memchr-tail | csys/src/machine/scan.S | perl:s/(niji_machine_memchr:.*?)jb\s+\.Ltail/$1jmp .Ltail/s | cargo test -p niji-boundary --test small_copy | msg:memchr
 ```
 
 ```

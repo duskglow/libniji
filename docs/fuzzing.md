@@ -1,8 +1,8 @@
 # Fuzzing
 
-Liella has libFuzzer harnesses for every parser of untrusted input: 20 targets in `fuzz/fuzz_targets/`
+libniji has libFuzzer harnesses for every parser of untrusted input: 20 targets in `fuzz/fuzz_targets/`
 (implementation-plan.md §6, "Fuzzing infrastructure"). They form a workspace of their own (`fuzz/`, nightly toolchain named in
-`fuzz/rust-toolchain.toml`) outside the product build. Each harness calls Liella's parsers through their internal API on bytes
+`fuzz/rust-toolchain.toml`) outside the product build. Each harness calls libniji's parsers through their internal API on bytes
 in memory. No harness opens a system file, runs a command or uses the network.
 
 | Target | Parser |
@@ -19,9 +19,9 @@ in memory. No harness opens a system file, runs a command or uses the network.
 | iconv | character-set conversion |
 | glob, wordexp | glob patterns, word expansion (no commands are run) |
 | scanners | the C layer's string scanners (`strcmp`, `strlen`, `strnlen`, `getenv`) at page ends, against Rust references |
-| elf | the dynamic loader's ELF reader (`liella_ld::elf`, D-27.7, D-27.8): headers, notes, the dynamic section, both hash tables, the symbol version tables, RELA/RELR |
-| ld_map | the dynamic loader's mapper (`liella_ld::map`, D-27.15): segment and RELRO validation at 4, 16 and 64 KiB pages, and the reservation, alignment and `.bss` arithmetic of `map::load` against a mapper that checks each call lies inside the reservation and is never writable and executable; seeds: a copy of the `elf` seeds |
-| ld_cache | the dynamic loader's cache reader (`liella_ld::cache`, D-27.16): any file parsed as a new-format `ld.so.cache` and looked up with fixed names and a name from the input, at no, one and all hwcaps levels; every inconsistency is "no cache" or "not found"; seeds: none (the reader starts from the magic) |
+| elf | the dynamic loader's ELF reader (`niji_ld::elf`, D-27.7, D-27.8): headers, notes, the dynamic section, both hash tables, the symbol version tables, RELA/RELR |
+| ld_map | the dynamic loader's mapper (`niji_ld::map`, D-27.15): segment and RELRO validation at 4, 16 and 64 KiB pages, and the reservation, alignment and `.bss` arithmetic of `map::load` against a mapper that checks each call lies inside the reservation and is never writable and executable; seeds: a copy of the `elf` seeds |
+| ld_cache | the dynamic loader's cache reader (`niji_ld::cache`, D-27.16): any file parsed as a new-format `ld.so.cache` and looked up with fixed names and a name from the input, at no, one and all hwcaps levels; every inconsistency is "no cache" or "not found"; seeds: none (the reader starts from the magic) |
 
 The `elf` seeds (`fuzz/seeds/elf`) are small stripped objects linked with `-nostdlib`, so no C library start files are in
 them (the shared objects' files have no `.so` suffix, which the repository ignores): a versioned library `dep`; three libraries
@@ -39,7 +39,7 @@ cargo xtask fuzz <target> --tmin <file>         # minimise a crashing input
 cargo xtask fuzz <target> --cmin                # minimise the corpus
 ```
 
-The corpus lives outside the repository, in `$LIELLA_FUZZ_CORPUS/<target>/corpus` (default `the fuzz corpus directory`). Crash
+The corpus lives outside the repository, in `$NIJI_FUZZ_CORPUS/<target>/corpus` (default `the fuzz corpus directory`). Crash
 artifacts go beside it in `artifacts/`. The seeds in `fuzz/seeds/<target>` are read as a second corpus and are never written.
 The build is release with debug assertions and no sanitizer, so integer overflow panics as in the tests. Findings are panics,
 time-outs and memory-limit reports. The per-target limits (input size, time-out, memory, chunk length) are in

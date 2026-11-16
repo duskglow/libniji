@@ -1,6 +1,6 @@
 # Design principles
 
-These are the assumptions and principles Liella is built under, with the reasoning behind
+These are the assumptions and principles libniji is built under, with the reasoning behind
 them. [CONTRIBUTING.md](../CONTRIBUTING.md) says *how* to contribute; this file says *why*
 the project makes the choices it does. Individual decisions are recorded in the decision
 register, [`plan/07-decisions/`](../plan/07-decisions/), as `D-<section>.<n>` rows; this file
@@ -11,24 +11,24 @@ for its case; raise the conflict in an issue.
 
 ## 1. Clean room
 
-Liella is written from a specification and from observing glibc's behaviour, not from glibc's
-(or any other C library's) implementation. Its purpose was never mainly licensing (Liella has
-glibc's licence): it keeps every design decision Liella's own, made for a reason we can state,
+libniji is written from a specification and from observing glibc's behaviour, not from glibc's
+(or any other C library's) implementation. Its purpose was never mainly licensing (libniji has
+glibc's licence): it keeps every design decision libniji's own, made for a reason we can state,
 rather than inherited. See CONTRIBUTING.md ("Clean-room design") and
 [docs/clean-room.md](clean-room.md).
 
-**glibc is a specification, not a foundation.** Liella does not build on glibc's implementation
-in any form. glibc's behaviour is what Liella is measured against (section 2), but nothing glibc
-does, now or in the future, is settled for Liella: any of it is open to discussion and to a
+**glibc is a specification, not a foundation.** libniji does not build on glibc's implementation
+in any form. glibc's behaviour is what libniji is measured against (section 2), but nothing glibc
+does, now or in the future, is settled for libniji: any of it is open to discussion and to a
 different implementation that states its gain.
 
 When the specification and black-box probes are not enough to decide a behaviour, that is a
-spec gap to raise and decide on Liella's own reasons.
+spec gap to raise and decide on libniji's own reasons.
 
 ## 2. Compatibility with glibc
 
 **Don't break the ABI without a very good reason.** Programs are written against glibc's
-interface and observable behaviour, so Liella's userspace interface (symbols, versions, data
+interface and observable behaviour, so libniji's userspace interface (symbols, versions, data
 layouts, calling conventions and behaviour, edge cases included) is kept identical to glibc's
 unless there is a very good reason to differ. It is not quite the kernel's "never break
 userspace", but the bar is high: a difference has to buy something real, such as correctness, a
@@ -36,15 +36,15 @@ documented standard's behaviour, security, or a substantial gain in performance 
 deviating for its own sake is never enough.
 
 **Every accepted difference is documented and can be undone.** It gets a row in
-[docs/differences-from-glibc.md](differences-from-glibc.md) that states what Liella does and
-what it gains, in neutral words (describe Liella's behaviour; never characterise glibc's). It
+[docs/differences-from-glibc.md](differences-from-glibc.md) that states what libniji does and
+what it gains, in neutral words (describe libniji's behaviour; never characterise glibc's). It
 also gets a compatibility option in [docs/compat-flags.md](compat-flags.md) that restores
 glibc's behaviour for a program that depends on it, unless, again, there is a very good reason
 not to offer one; that reason is recorded in the row. An option costs nothing when it is not
 used. Today most options are registered designs that are not yet implemented.
 
-**Where glibc is inconsistent with itself, Liella picks one rule.** If glibc answers the same
-edge case differently in different functions or modes, Liella applies one consistent rule
+**Where glibc is inconsistent with itself, libniji picks one rule.** If glibc answers the same
+edge case differently in different functions or modes, libniji applies one consistent rule
 everywhere, tests it with a table of cases, and records the difference factually.
 
 **The three-way rule** decides disagreements between the specification, a glibc probe and the
@@ -57,7 +57,7 @@ interface (a flag, function or variable) needs a maintainer's ruling.
 
 **Protocol-era design choices are differences, not secrets.** Where glibc keeps a behaviour
 that was a reasonable design decision in a more trusting era (for example accepting an RPC
-reply from any address), Liella may choose the stricter behaviour by default, document the
+reply from any address), libniji may choose the stricter behaviour by default, document the
 reason plainly, and offer the old behaviour behind an explicit opt-in.
 
 **When glibc drops or deprecates something, that is a strong reason to make an active decision,
@@ -69,14 +69,14 @@ it.
 
 ## 3. Safety, and what a C library is for
 
-**libc is a helper library, not a security boundary.** Liella enforces safety in its *own*
+**libc is a helper library, not a security boundary.** libniji enforces safety in its *own*
 code, and it prevents programs from doing things that cause wider harm. A program shares
-responsibility for its own memory: Liella cannot, and does not try to, protect a program from
+responsibility for its own memory: libniji cannot, and does not try to, protect a program from
 corrupting itself on every call.
 
 In practice:
 
-* **Keep:** the safety of Liella's own code (its internal invariants, no undefined behaviour
+* **Keep:** the safety of libniji's own code (its internal invariants, no undefined behaviour
   of its own making, bounds on what it allocates and parses); checks that stop a program from
   affecting others (privileges, other processes, files it does not own); careful parsing of
   untrusted input (DNS answers, locale and configuration files).
@@ -93,7 +93,7 @@ In practice:
 
 **There is always a trade-off.** The line is not always drawn at perfect safety at the
 expense of speed. Each check is weighed on what it actually protects against what it costs.
-A hole in Liella itself is never traded away.
+A hole in libniji itself is never traded away.
 
 `unsafe` Rust is confined to the boundary crate and the C layer, in documented categories,
 each use carrying a `// UNSAFE(<category>) SAFETY:` comment that states the invariant it
@@ -106,7 +106,7 @@ relies on.
   function claims correct rounding in hard cases, it uses a proven retry at higher precision
   (Ziv's strategy) rather than a heuristic.
 * **At the edges, prove what can be proven and document the rest.** 100% certainty is not
-  always possible (for example, no published worst case exists for binary128). Liella proves
+  always possible (for example, no published worst case exists for binary128). libniji proves
   every step, names the one residual assumption in the decision row, counts how often that
   path is reached, and moves on.
 * **libm honours the caller's floating-point environment,** including flush-to-zero and
@@ -154,21 +154,21 @@ relies on.
 
 ## 7. Security reports
 
-**Problems in Liella:** report them privately, as [SECURITY.md](../SECURITY.md) describes.
+**Problems in libniji:** report them privately, as [SECURITY.md](../SECURITY.md) describes.
 
-**Problems you find in glibc while working on Liella** are glibc's to fix, not Liella's. How far
+**Problems you find in glibc while working on libniji** are glibc's to fix, not libniji's. How far
 you investigate, and whether you report, is your own decision. If you report, report directly to
 the glibc maintainers through their security process (<https://sourceware.org/glibc/security.html>,
 as SECURITY.md says).
 
-What happens on Liella's side depends on whether Liella already has the affected code:
+What happens on libniji's side depends on whether libniji already has the affected code:
 
-* **Functionality Liella does not have yet:** when you implement it, make sure Liella does not
+* **Functionality libniji does not have yet:** when you implement it, make sure libniji does not
   repeat the weakness. Word that work neutrally: the commit message, the test names, comments
-  and any differences row describe Liella's behaviour only. Do not mention glibc, the weakness,
+  and any differences row describe libniji's behaviour only. Do not mention glibc, the weakness,
   or why the change is security-relevant.
-* **Functionality Liella already has:** if Liella shares the weakness, it is a Liella
-  vulnerability, and it goes through Liella's own security reporting (SECURITY.md) **however
+* **Functionality libniji already has:** if libniji shares the weakness, it is a libniji
+  vulnerability, and it goes through libniji's own security reporting (SECURITY.md) **however
   minor it looks**. Do not fix it in a public pull request first: report it privately, and the
   maintainers coordinate the fix and its timing, with glibc's process where a report is pending
   there.

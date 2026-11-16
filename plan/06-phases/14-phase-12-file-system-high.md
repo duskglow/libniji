@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 12: File system (high level) and patterns
 
@@ -28,8 +28,8 @@
   * **Owner additions in this phase (2026-10-03):** the integrated name-service cache replacing
     nscd (D-16.5 closed; D-16.10: a per-user shared region with the owner's security amendments,
     stat-based change detection rate-limited to one check a second after a validating first
-    lookup, a native API in `LIELLA_NATIVE_1`); secure memory (D-X.11: `liella_secure_zero`, proven
-    to survive LTO by disassembly, and `liella_heap_alloc_secure`, zeroed on every release path);
+    lookup, a native API in `NIJI_NATIVE_1`); secure memory (D-X.11: `niji_secure_zero`, proven
+    to survive LTO by disassembly, and `niji_heap_alloc_secure`, zeroed on every release path);
     the three-way rule for spec disagreements (§1.2), the decide-or-ask guidance, the security pass
     after phase 15, and `spec/security/threat-model.md` started with the environment of secure
     processes.

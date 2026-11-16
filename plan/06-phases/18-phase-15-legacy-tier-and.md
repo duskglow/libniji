@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 15: Legacy tier and binary-compatibility acceptance
 
@@ -18,7 +18,7 @@
     version and `gl_lstat` by the new, so a dangling link is no match in the old and found in the
     new.
   * At coreutils validation, record which gnulib replacements coreutils' `configure` selects
-    against Liella (owner, 2026-10-03), and compare with the host glibc's selection.
+    against libniji (owner, 2026-10-03), and compare with the host glibc's selection.
   * At coreutils validation, check that `ls`, `find`, `du`, `rm -r` and similar tools behave
     sensibly when a directory is removed during traversal, now that `readdir` reports `ENOENT`
     (D-13.2; owner, 2026-10-03).
@@ -53,12 +53,12 @@ and `isastream` (`crates/core/tests/oracle/patterns_diff.c`, `specman_probe.c`).
 measured glibc's `expf`/`logf`/`powf@GLIBC_2.2.5` at +2.0/+0.6/+3.5 ns over the 2.27 entries and
 recommends aliasing them only if a probe shows the same behaviour (folded into LG-6).
 
-**What needs phase 14.** Liella's `libc.so.6` cannot run a dynamic program until DL-14, and a
+**What needs phase 14.** libniji's `libc.so.6` cannot run a dynamic program until DL-14, and a
 static link can never bind a non-default version. So before DL-14 a story proves its compat
 entries at three levels: (1) link level: readelf/`xtask so` shows `sym@VER` with the manifest's type,
-binding and size; (2) logic: host-side unit tests of the `liella-legacy` code; (3) behaviour:
+binding and size; (2) logic: host-side unit tests of the `niji-legacy` code; (3) behaviour:
 black-box probes of glibc (C programs that bind the old version with `.symver`, run on the host
-glibc) recorded in `spec/behaviour/compat.md` + `.glibc.txt`. The same probes run against Liella
+glibc) recorded in `spec/behaviour/compat.md` + `.glibc.txt`. The same probes run against libniji
 come later, in LG-22. Stories marked **NOW** can start before phase 14 lands; **P14** names the
 DL story they wait for.
 
@@ -87,15 +87,15 @@ Probes, tables and docs (no library code):
    static check (`cargo xtask static`) on the probe list.
 3. **LG-0c `BINCOMPAT-SWEEP-STATIC`** (S, NOW). The real-binary sweep: every ELF under the hosts'
    `/usr/bin`, `/usr/sbin`, `/usr/lib*` (verneed lists, `readelf -V`, files only) against
-   `versions.tsv` and against Liella's current `libc.so.6`/`libm.so.6` exports. Output: the compat
+   `versions.tsv` and against libniji's current `libc.so.6`/`libm.so.6` exports. Output: the compat
    versions real binaries need, counted, which ranks the stories below, and the list of programs
-   whose every need Liella already exports (LG-22's first corpus). An xtask subcommand or
+   whose every need libniji already exports (LG-22's first corpus). An xtask subcommand or
    `validation/` script that a later story reruns. Proof: the report, reproduced on two hosts.
-4. **LG-0d `LEGACY-TUNABLES-POLICY`** (S, NOW, R15-6). §1.8: which `GLIBC_TUNABLES` entries Liella
+4. **LG-0d `LEGACY-TUNABLES-POLICY`** (S, NOW, R15-6). §1.8: which `GLIBC_TUNABLES` entries libniji
    honours, ignores or refuses, and the secure-mode rule (a cross-reference to phase 14's threat
    model); clause tests over `config.rs`. Proof: tests + a plant on the secure-mode filter.
 5. **LG-0e `LEDGER-COREUTILS`** (S, NOW). The two coreutils ledger items above: the gnulib
-   replacements coreutils' `configure` selects against Liella and against the host glibc (configure
+   replacements coreutils' `configure` selects against libniji and against the host glibc (configure
    output and `config.h` only), and `ls`/`find`/`du`/`rm -r` with a directory removed during the walk
    (D-13.2). Proof: `validation/results/` notes; a differences row for every replacement that differs.
 
@@ -106,7 +106,7 @@ Versioned entry points:
    replacing the hand-written `compat_stime.S`; the 189 2.34-merge names and the
    `clock_*@2.2.5` family land here. Compat-only names stay out of `libc.a` (R15-2). Proof: `xtask so`
    version check; readelf shows every `alias` row; plant "drop one alias" fails the check.
-7. **LG-2 `COMPAT-BEHAVIOUR`** (M, after LG-0b and LG-1). `liella-legacy::versioned`: the old
+7. **LG-2 `COMPAT-BEHAVIOUR`** (M, after LG-0b and LG-1). `niji-legacy::versioned`: the old
     **Corpus-gated 2026-11-04 (R14):** build an old-behaviour version only for a user the LG-19 corpus finds.
    contracts of `memcpy@2.2.5` (overlap-safe), `glob@2.2.5` (ledger: `gl_stat` for a
    metacharacter-free pattern under `GLOB_ALTDIRFUNC`), `fmemopen@2.2.5`, `realpath@2.2.5`,
@@ -115,7 +115,7 @@ Versioned entry points:
    Risk of overrun: split point after `glob`/`fmemopen`.
 8. **LG-3 `COMPAT-CONDVAR-OLD`** (M, after LG-0b, HIGH). `pthread_cond_*@GLIBC_2.2.5` (s22_5_c_1_2):
     **Corpus-gated 2026-11-04 (R14):** build only for a user the LG-19 corpus finds.
-   the old-ABI object layout as the clause and LG-0b's probes define it, mapped onto Liella's
+   the old-ABI object layout as the clause and LG-0b's probes define it, mapped onto libniji's
    condvar. Proof: in-process stress in RAM (signal/broadcast/timedwait across threads); a plant
    that loses a wakeup must fail.
 9. **LG-4 `COMPAT-LIBM`** (S, after LG-0b and LG-1). The 112 `__*_finite` (aliases of the current
@@ -137,7 +137,7 @@ Versioned entry points:
 12. **LG-7 `COMPAT-NSS-RESOLV`** (S, after LG-1). s16's 13 compat-only names (D-16.6) and libresolv's
     11 compat rows. Proof: clause tests; `xtask so`.
 13. **LG-8 `IO-VTABLES`** (M, NOW, R15-3, HIGH). §12.13/F32: the 74 `_IO_*` names (default versions,
-    so they link statically and test now): helper functions over Liella's `FILE`;
+    so they link statically and test now): helper functions over libniji's `FILE`;
     `_IO_file_jumps`/`_IO_wfile_jumps` as read-only objects of the manifest size. Proof: clause
     tests; size check from LG-6; stdio workload rows unchanged; a plant per helper family.
 14. **LG-9 `PROFILING-GMON`** (M, NOW). §28: `monstartup`, `_mcleanup`, `moncontrol`, `profil`,
@@ -145,7 +145,7 @@ Versioned entry points:
     `__profile_frequency`, `__cyg_profile_func_*`, `__fentry__`. Proof: a static `-pg` program
     writes `gmon.out`; the host `gprof` shows the same call graph as for the host glibc's build;
     `profil` histogram non-empty. Risk: `-pg -static` needs `gcrt1.o`: check in the first calls,
-    and split if Liella does not ship one.
+    and split if libniji does not ship one.
 15. **LG-10 `REGEXP-H`** (S, after LG-1). `<regexp.h>` `step`/`advance`/`loc1`/`loc2`/`locs` over the
     regex engine. Proof: LG-0b-style probe lines; host-side tests.
     **DEFERRED 2026-11-04 (R6):** until the corpus finds a user, `step`/`advance` are a STUB (no match) with a differences row.
@@ -155,7 +155,7 @@ Versioned entry points:
     libraries.
     **Ruled 2026-11-04 (R9):** the `libc_malloc_debug.so.0` part is lowest priority, after DL-1; `malloc_get_state` is a STUB.
 
-ONC RPC, XDR and NIS (§29.1, §29.2; all HIGH, all in `liella-legacy`):
+ONC RPC, XDR and NIS (§29.1, §29.2; all HIGH, all in `niji-legacy`):
 
 17. **LG-12 `XDR-PRIMITIVES`** (M, NOW). RFC 4506 primitives and `xdrmem`: integers, hyper, enum,
     bool, float/double, opaque, string, bytes, `xdr_free`. Pure logic. Proof: RFC vectors and
@@ -171,7 +171,7 @@ ONC RPC, XDR and NIS (§29.1, §29.2; all HIGH, all in `liella-legacy`):
     host glibc (black box); malformed-call corpus; fuzz on call decode.
     **Re-scoped 2026-11-04 (SCOPE-REVIEW-LEGACY R13, LEGACY-RPC-NIS-STUBS):** `svc_*` and friends are stubs that fail cleanly; no server, no interop test.
 20. **LG-15 `RPC-CLIENT`** (M, after LG-14). `clnt_*`, `callrpc`, `pmap_*`, `rtime`,
-    `bindresvport`, `_rpc_dtablesize`. Proof: Liella client against Liella server and against the
+    `bindresvport`, `_rpc_dtablesize`. Proof: libniji client against libniji server and against the
     host-glibc server; timeouts and truncated replies.
     **Re-scoped 2026-11-04 (SCOPE-REVIEW-LEGACY R13, LEGACY-RPC-NIS-STUBS):** `clnt_*`, `pmap_*`, `callrpc`, `rtime` are stubs that fail cleanly; no client.
 21. **LG-16 `RPC-AUTH-NETNAME`** (M, after LG-15, R15-4). `auth_*`/`authunix_*`, `authdes_*`,
@@ -192,7 +192,7 @@ Acceptance:
 
 24. **LG-19 `BINCOMPAT-CORPUS`** (M, P14: after DL-21, LG-1 to LG-11). §4.2: the corpus (R15-8):
     LG-0c's program list, test programs that bind each `alias`/`behaviour`/`object` row with
-    `.symver`, and LG-0b's probes rerun on Liella; run under our `ld.so` in a user + mount namespace.
+    `.symver`, and LG-0b's probes rerun on libniji; run under our `ld.so` in a user + mount namespace.
     Proof: every corpus program's output equals the host glibc's; the list in `validation/`.
 25. **LG-20 `PHASE15-EXIT`** (S, after all and the phase-14 exit). `cargo xtask status` at 0 pending
     (with R15-7's conversions), all 3,943 names with the manifest's versions (`xtask so` full check),
@@ -211,11 +211,11 @@ recommendation and rewrite if ruled otherwise):
 
 * **R15-1 How compat versions are made.** Recommend one generated `.S` of `.symver` directives
   from `compat-plan.tsv` (the `stime` pattern, K2-clean, no logic), and `behaviour` entries as
-  Rust functions under `liella_compat_*` names that the directives alias. Provisional.
+  Rust functions under `niji_compat_*` names that the directives alias. Provisional.
 * **R15-2 Compat names in `libc.a`.** A static link cannot bind a non-default version. Recommend
   keeping compat-only names out of `libc.a` and testing their logic in-process. Provisional.
-* **R15-3 `_IO_*` and the jump tables.** Recommend working helpers over Liella's `FILE` and the
-  jump tables as read-only data of the manifest size that Liella's own stdio never dispatches
+* **R15-3 `_IO_*` and the jump tables.** Recommend working helpers over libniji's `FILE` and the
+  jump tables as read-only data of the manifest size that libniji's own stdio never dispatches
   through (gain: a vtable overwrite redirects nothing; differences row). Provisional.
 * **R15-4 DES and keyserv.** Recommend implementing `ecb_crypt`/`cbc_crypt` to FIPS 46 (AUTH_DES
   interop needs it) with the docs marking DES as broken, and `key_*` over keyserv's socket, failing
@@ -225,7 +225,7 @@ recommendation and rewrite if ruled otherwise):
   string helpers in full with server operations failing as glibc does with no cold-start file
   (probe-settled). Provisional.
 * **R15-6 Tunables policy (§1.8).** Recommend: parse the full `GLIBC_TUNABLES` syntax, honour the
-  entries that map to a Liella setting, ignore unknown ones silently as glibc does, and apply the
+  entries that map to a libniji setting, ignore unknown ones silently as glibc does, and apply the
   phase-14 secure-mode rule. Provisional.
 * **R15-7 Pending stubs that no library code can close** (s03 `alloca` D-3.8, s04 `__*_small`
   ERRATA E6). Recommend turning the `alloca` clauses into `commentary!` with the D-row, and probing

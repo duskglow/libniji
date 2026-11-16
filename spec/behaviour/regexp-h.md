@@ -24,7 +24,7 @@ values below; there is no separate `.glibc.txt` record (the values here are the 
   executable gets `R_X86_64_COPY` relocations for all three, so the library's writes must go to the
   object the dynamic linker binds, not to a private copy.
 
-## Liella
+## libniji
 
 **Owner ruling R6 (2026-11-04): `step` and `advance` are stubs.** Both return 0 (no match) for every
 argument and never write `loc1`, `loc2` or `locs`; the paragraphs below describe the glibc values
@@ -33,11 +33,11 @@ The text after this paragraph is therefore the deferred design, not current beha
 
 `step`/`advance` are compat-only (`xtask/src/compat.rs`: `BEHAVIOUR`, `DATA`, `LOADS`). The generated
 stubs load the addresses of `loc1`/`loc2` through the GOT and pass them to
-`liella_compat_step`/`liella_compat_advance` (`crates/boundary/src/posix/s14_search.rs`), which run
+`niji_compat_step`/`niji_compat_advance` (`crates/boundary/src/posix/s14_search.rs`), which run
 `regexec` with `REG_NOTEOL`.
 
 Known gap: an expression compiled `REG_NOSUB` makes glibc's `step` return 1 with `loc1` = the real
-start; Liella leaves `loc1` unchanged there (the engine reports no offsets) and sets `loc2` to the
+start; libniji leaves `loc1` unchanged there (the engine reports no offsets) and sets `loc2` to the
 subject's start. The old `compile()` flags are unknown; no program is known to depend on it.
 `advance` runs an unanchored `regexec` and rejects a match that does not start at `string`, so its
 cost grows with the subject when nothing matches at its start.

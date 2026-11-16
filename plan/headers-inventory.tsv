@@ -276,7 +276,7 @@ gnu/lib-names-64.h	multiarch	both	internal	-	0	-	reference's internal split: not
 gnu/lib-names.h	multiarch	both	internal	-	0	16	soname strings from versions.tsv
 gnu/libc-version.h	multiarch	both	public	24	2	15	
 gnu/stubs-64.h	multiarch	both	internal	-	0	-	reference's internal split: not reproduced
-gnu/stubs.h	multiarch	both	internal	-	0	5	Liella's own __stub_ list
+gnu/stubs.h	multiarch	both	internal	-	0	5	libniji's own __stub_ list
 grp.h	plain	both	public	17	14	14	
 gshadow.h	plain	both	public	17	11	14	
 iconv.h	plain	both	public	6	3	10	

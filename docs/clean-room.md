@@ -1,6 +1,6 @@
 # The clean room
 
-Liella reimplements the glibc 2.39 x86_64 ABI without using glibc's source code. This document
+libniji reimplements the glibc 2.39 x86_64 ABI without using glibc's source code. This document
 explains why, how the separation works, how it is enforced, every recorded occasion on which the
 project fell short of it, and what was done about each. The authoritative record is
 [plan §1.4](../plan/01-ground-rules.md#14-clean-room-methodology-and-the-documented-exception)
@@ -12,10 +12,10 @@ wins.
 Each limitation below is stated with what is known about how likely it is to matter, so that a
 real exposure can be told apart from a note made for completeness. Section 6 summarises them.
 
-**For contributors (2026-10-24).** This page is the record of how Liella was built. The policy
+**For contributors (2026-10-24).** This page is the record of how libniji was built. The policy
 for contributions is in [CONTRIBUTING.md](../CONTRIBUTING.md) ("Clean-room design"): do not
 build on glibc's implementation in any form; glibc is a specification, not a foundation, and
-any of its behaviour is open to discussion and reimplementation. Now that Liella has the same
+any of its behaviour is open to discussion and reimplementation. Now that libniji has the same
 licence as glibc, the licence reason in section 1 no longer applies; the design reason does.
 The rules in sections 2 and 3, and plan §1.4, describe the project's own development
 process; where they read stricter than CONTRIBUTING.md, CONTRIBUTING.md is the policy for
@@ -29,11 +29,11 @@ The owner gave two reasons (plan §1.4, 2026-10-02). The first still holds; the 
 library from first principles: from documentation and specifications, with modern techniques.
 Reading glibc's source would import its historical choices and defeat the purpose. For the same
 reason, exact reproduction of glibc is not the aim: where the spec is silent and glibc's observed
-behaviour looks like a historical artifact, Liella may choose a cleaner, consistent behaviour and
+behaviour looks like a historical artifact, libniji may choose a cleaner, consistent behaviour and
 record it as a deliberate difference.
 
 **The licence (no longer applies).** When the plan was written, a change of licence was still
-open, and plan §1.4 noted that it would depend on the clean-room claim. On 2026-10-22 Liella took
+open, and plan §1.4 noted that it would depend on the clean-room claim. On 2026-10-22 libniji took
 glibc's own licence, LGPL-2.1-or-later ([README](../README.md#license)), so licensing is no longer
 a reason for the clean room. The experiment above is.
 
@@ -69,12 +69,12 @@ done in one session on 2026-09-30 (section 4).
   (`*.glibc.txt`) and the spec sections it covers; nothing in it describes glibc internals. The
   implementing session then works from the spec, the document and its own probes.
 * **Differential tests** (`crates/*/tests/*_products.rs`, 36 in `crates/core/tests` alone). The
-  same probe program is built against the host glibc and statically against Liella; the outputs
+  same probe program is built against the host glibc and statically against libniji; the outputs
   must match line by line, except for listed, deliberate differences. See
   [`getopt_products.rs`](../crates/core/tests/getopt_products.rs) for a typical one.
 * **The probe service** ([`tools/probe/`](../tools/probe/), described in
   [`tools/probe/README.md`](../tools/probe/README.md)). It compiles a probe once, runs it against glibc and
-  against Liella and reports SAME or DIFFERENT. glibc is only executed; no source, symbols or
+  against libniji and reports SAME or DIFFERENT. glibc is only executed; no source, symbols or
   disassembly are fetched or shown.
 
 **When sources disagree: the three-way rule** (owner, 2026-10-03, binding; plan §1.4). When an
@@ -85,7 +85,7 @@ behaviour).
 | Outcome | Action |
 |---|---|
 | The spec disagrees with both the probe and the documentation | The spec is wrong: the clause and `spec/clauses.tsv` are corrected, with the evidence in the commit |
-| The spec agrees with the documentation; glibc differs | Liella follows the spec; the difference is recorded in [`differences-from-glibc.md`](differences-from-glibc.md) |
+| The spec agrees with the documentation; glibc differs | libniji follows the spec; the difference is recorded in [`differences-from-glibc.md`](differences-from-glibc.md) |
 | The spec agrees with glibc; the documentation differs | Nothing changes; the case goes to the owner |
 | All three disagree, or the documentation is silent | The case goes to the owner; nobody chooses |
 
@@ -95,7 +95,7 @@ disappears, so the list cannot go stale silently.
 
 ## 3. How it is enforced
 
-Most work on Liella is done by AI agent sessions under a coordinating session and the owner.
+Most work on libniji is done by AI agent sessions under a coordinating session and the owner.
 Enforcement is therefore mainly a matter of what each session is given and allowed to do.
 
 **Standing rules in every brief.** Every task agent receives the same standing rules before its
@@ -115,7 +115,7 @@ branch misses) on a glibc-linked benchmark, reasoning that "watching what the co
 same thing as seeing the code". `perf record`, `report` and `annotate`, symbols, sampling of glibc
 addresses and any disassembly of glibc remain forbidden.
 
-**The gnulib boundary.** gnulib's test suite is used to test Liella. Its logs, configure output,
+**The gnulib boundary.** gnulib's test suite is used to test libniji. Its logs, configure output,
 `config.log`/`config.h`, the programs' own sources and test scripts may be read; its `lib/`,
 `gnulib/` and `gnulib-tests/` sources, much of which is replacement libc code derived from glibc,
 are never opened (plan §1.4, process notes).
@@ -191,7 +191,7 @@ instance found in phases 1-7.
 
 **Event 6: process departures (validation stage, 2026-10-04/05).** None displayed glibc source or
 any earlier revision's content. The ledger thread ran `git log --oneline -4` (hashes and subjects
-of its own latest commits), `git show HEAD:crates/legacy/src/sys_compat.rs | head -0` (Liella's
+of its own latest commits), `git show HEAD:crates/legacy/src/sys_compat.rs | head -0` (libniji's
 own file at its own latest commit, output discarded) and once `git log --oneline -1 | head -0`
 (nothing displayed; recorded from the coordinator's account); for its earlier milestones, whose
 transcript was summarised, it cannot vouch beyond the summary, which records none. The merge agent
@@ -199,7 +199,7 @@ ran `git log --oneline` on the ranges it merged, `git rev-parse` of branch heads
 `git check-ignore` in its working tree; it saw the other branch's content only through conflict
 markers and `git diff --staged`, as its brief allowed. The test thread read gnulib's test logs
 (owner-approved), used `strace` and `nm -u` on two gnulib test objects, set one breakpoint on
-Liella's own `strncpy` (registers only), and once grepped six substitution lines from a generated
+libniji's own `strncpy` (registers only), and once grepped six substitution lines from a generated
 gnulib-tests Makefile (the same values are in `config.log`). Helper agents twice listed or touched
 the coordinator's scratchpad outside their rules; nothing there is glibc material.
 
@@ -254,7 +254,7 @@ differential tests.
 
 ## 6. What this means for the code today
 
-No code in Liella was written from glibc's source code: the source was never open while
+No code in libniji was written from glibc's source code: the source was never open while
 implementation code was written, except for the 2026-10-02 incident, and every piece of code
 identified as written from reading or from recollection of glibc's source was deleted and
 rewritten from sources the clean room allows: the nine items in fresh sessions that never saw it,
@@ -272,4 +272,4 @@ The limitations, as plan §1.4 states them, and what is known about their size:
 **Why the public git history is kept as it is.** The history still contains the code that was
 removed in the remediation, including the items committed in `924a77b`. It is not rewritten: the
 record of what happened, and of how it was remedied, is part of the project. Agents working on
-Liella cannot read earlier revisions (section 3), so the history is a record, not a source.
+libniji cannot read earlier revisions (section 3), so the history is a record, not a source.

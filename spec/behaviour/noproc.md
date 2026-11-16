@@ -1,7 +1,7 @@
 # Without /proc
 
 **Spec:** the functions of §1.5, §11.2, §13.7, §17.1, §17.5, §18.5, §19.3, §22.2 and §24.4
-whose Liella implementation opens a path below `/proc` or `/sys`. Plan decision D-X.12 (OD-5:
+whose libniji implementation opens a path below `/proc` or `/sys`. Plan decision D-X.12 (OD-5:
 Linux 5.10 or later with `/proc` mounted is the supported environment, but no function may
 crash or give a wrong answer without it). Official documentation consulted: proc(5),
 getauxval(3), get_nprocs(3), sysconf(3), pathconf(3), pthread_getattr_np(3),
@@ -16,7 +16,7 @@ Documentation/admin-guide/devices.txt (terminal device numbers).
 **Probe:** `crates/core/tests/oracle/noproc_diff.c`. **Record:** `noproc.glibc.txt` (glibc
 2.39-0ubuntu8.9, dynamically linked, kernel 6.8.0-146, on Zen 1; the working directory on ext4).
 The differential test `crates/core/tests/noproc_products.rs` runs the same probe against
-Liella's products.
+libniji's products.
 
 ## What the probe does
 

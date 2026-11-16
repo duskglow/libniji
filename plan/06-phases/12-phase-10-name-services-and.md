@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 10: Name services and databases
 
@@ -33,7 +33,7 @@
     man pages (allowed from 2026-10-02, §1.2) and those documents. Part 1 was restarted after a
     power failure; its draft was reviewed and completed by a fresh session.
   * **Addresses, interfaces, rcmd, hostid (§15.3–15.8, §24.5; D-15.1 to D-15.5, D-24.9):** strict
-    address texts in `liella::net` (RFC 4291/5952), the historical forms and the rcmd family in
+    address texts in `niji::net` (RFC 4291/5952), the historical forms and the rcmd family in
     legacy; interfaces over netlink only; per-thread slots for `inet_ntoa`/`ether_*`.
     `/etc/hostid`'s format observed with an owner-approved root probe (2026-10-03).
   * **Users and accounting (§17.3–17.6; D-17.3 to D-17.5, D-17.8):** borrowed record views and

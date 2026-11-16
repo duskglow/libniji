@@ -1,6 +1,8 @@
-# Liella
+# libniji
 
-Liella is a clean-room implementation of the GNU C library (glibc) 2.39 ABI for x86-64 Linux,
+libniji was called Liella until November 2026.
+
+libniji is a clean-room implementation of the GNU C library (glibc) 2.39 ABI for x86-64 Linux,
 written in Rust. The goal is a library that exports glibc's symbols with glibc's calling
 conventions, data layouts and symbol versions (3,943 names; see
 [plan section 1.1](plan/01-ground-rules.md)), so that programs built against glibc can run
@@ -10,17 +12,19 @@ does the code look like when it is rewritten from documentation, with modern tec
 
 ## Status: public work in progress
 
-Liella is public as a work in progress. It is not an alpha or a release candidate, and nothing
+libniji is public as a work in progress. It is not an alpha or a release candidate, and nothing
 here should be used in production. In particular:
 
 * **The dynamic loader is complete enough to run real programs, but not every program.** `ld-linux` loads shared
-  objects, honours `LD_PRELOAD` and provides `dlopen`, `dlsym` and `dlclose`; some features (`dlmopen`, lazy
+  objects, honours `LD_PRELOAD` and provides `dlopen`, `dlsym` and `dlclose`. C++ programs linked against the shared
+  `libstdc++.so.6` run: the loader binds C++ unique symbols (`STB_GNU_UNIQUE`) by the order of the global scope, and
+  the table `dlopen` keeps of them grows as needed. Some features (`dlmopen`, lazy
   binding, `LD_AUDIT`) are not provided yet. Running unmodified glibc-linked binaries that need compatibility-only symbol versions (phase 15) is
   not supported yet and has not been demonstrated.
-* **Liella as the system C library is experimental.** The system packages (`libc6`, `libc-bin`, `libc6-dev` and
-  friends) replace glibc's, for building a system on Liella; it has no C headers of its own yet (they are being
+* **libniji as the system C library is experimental.** The system packages (`libc6`, `libc-bin`, `libc6-dev` and
+  friends) replace glibc's, for building a system on libniji; it has no C headers of its own yet (they are being
   built: [plan/headers.md](plan/headers.md)). The packages that
-  sit beside glibc (`liella6`, `liella6-dev`) leave glibc untouched. See
+  sit beside glibc (`niji6`, `niji6-dev`) leave glibc untouched. See
   [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md) and [docs/install-packages.md](docs/install-packages.md).
 * **It has not had a security audit.** That is planned after phase 15.
 * **It is under active development.** Interfaces, behaviour, file layout and the build change
@@ -28,7 +32,7 @@ here should be used in production. In particular:
 
 What changed in this pre-release (2026-11-15, tagged `snapshot-2026-11-15`, `main` at `bade54e0`) is in
 [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md). In short: the dynamic loader loads shared objects and provides `dlopen`,
-`dlsym` and `dlclose`; experimental system packages (`libc6`, `libc-bin`, `libc6-dev` and friends) let Liella replace
+`dlsym` and `dlclose`; experimental system packages (`libc6`, `libc-bin`, `libc6-dev` and friends) let libniji replace
 glibc as the system C library; and the median `libm` time ratio fell from 6.19 to 1.98 on a Zen 3 host.
 
 Its full development history is kept in a separate historical repository; references of the
@@ -37,18 +41,18 @@ form `liella-historic:<path>` point into it.
 | Area | State | Where it is recorded |
 |---|---|---|
 | Phases 1 to 13 (kernel boundary through remaining services: strings, locale, math, stdio, file system, sockets, name services, processes, signals, threads, time, IPC, ...) | Implemented on `main` and covered by the test gate; see [docs/spec-symbol-gaps.md](docs/spec-symbol-gaps.md) (`cargo xtask symcov`) for every name not yet defined. Every change lands on `main` only after the full test gate (unit and integration tests, conformance programs, static checks and an instruction-count check) passes in CI. | [plan/06-phases](plan/06-phases/00-overview.md), [docs/spec-symbol-gaps.md](docs/spec-symbol-gaps.md) |
-| Phase 14, the dynamic loader (`ld-linux`, `dlopen`, TLS descriptors, IFUNC, ...) | **Complete enough to run real programs.** `ld-linux-x86-64.so.2` loads shared objects, finds them by name at start-up, starts `libc.so.6`, runs constructors and destructors, creates threads with thread-local storage, and provides `dlopen`, `dlsym`, `dlvsym`, `dlclose`, `dladdr`, `dladdr1` and `dlinfo`. `LD_PRELOAD` is honoured. Not provided yet: `dlmopen`, lazy binding, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process. | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md), [docs/toolchain.md section 8](docs/toolchain.md), [plan phase 14](plan/06-phases/17-phase-14-dynamic-linking.md) |
+| Phase 14, the dynamic loader (`ld-linux`, `dlopen`, TLS descriptors, IFUNC, ...) | **Complete enough to run real programs.** `ld-linux-x86-64.so.2` loads shared objects, finds them by name at start-up, starts `libc.so.6`, runs constructors and destructors, creates threads with thread-local storage, and provides `dlopen`, `dlsym`, `dlvsym`, `dlclose`, `dladdr`, `dladdr1` and `dlinfo`. `LD_PRELOAD` is honoured. Programs linked against the shared `libstdc++.so.6` run (C++ unique symbols are bound by scope order; `dlopen`'s table of them grows). Not provided yet: `dlmopen`, lazy binding, `LD_AUDIT`, `libthread_db`; at most 512 loaded objects per process. | [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md), [docs/toolchain.md section 8](docs/toolchain.md), [plan phase 14](plan/06-phases/17-phase-14-dynamic-linking.md) |
 | Phase 15, legacy tier and binary-compatibility acceptance | **Not done.** Running unmodified glibc-linked binaries is the project's aim and has not been demonstrated. | [plan phase 15](plan/06-phases/18-phase-15-legacy-tier-and.md) |
 | Security pass | Planned after phase 15. The library has not had a security audit. | [plan](plan/06-phases/19-security-pass-after-phase-15.md) |
 | Rust `std` programs | Not supported yet; Rust programs are `#![no_std]`. | [docs/toolchain.md section 8](docs/toolchain.md) |
-| Performance | Measured against glibc with a micro-benchmark suite (parity per row is the target; some rows are still above it) and with a workload set of real programs (coreutils, gawk, sed, grep, tar, gzip, ...) built statically against Liella. Timing sweeps of every benchmark row against glibc on Ivy Bridge, N100 and Zen 3 (2026-11-06 and 11-07) are summarised in [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md). **Preliminary:** on 2026-10-24 (the previous release's tree, one lab host; not repeated for this pre-release), each of the 30 workloads ran no more user-space instructions as Liella static builds than with the host's glibc 2.39; the geometric mean ratio was 0.821 (below 1.00 means fewer instructions). Their outputs match glibc's, except one documented difference: `ls -l` in `en_US.UTF-8` orders some punctuation differently, because Liella follows the POSIX collation rules there (decision D-4.42). This is one host and one counter, not a release benchmark, and per-call micro-benchmarks still show rows slower than glibc, notably in libm. Merge decisions use deterministic counters (instructions, page faults, system calls), never wall time. | [benchmarks/progress.md](benchmarks/progress.md), [docs/benchmarks.md](docs/benchmarks.md), [validation/README.md](validation/README.md) (workload gate) |
+| Performance | Measured against glibc with a micro-benchmark suite (parity per row is the target; some rows are still above it) and with a workload set of real programs (coreutils, gawk, sed, grep, tar, gzip, ...) built statically against libniji. Timing sweeps of every benchmark row against glibc on Ivy Bridge, N100 and Zen 3 (2026-11-06 and 11-07) are summarised in [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md). **Preliminary:** on 2026-10-24 (the previous release's tree, one lab host; not repeated for this pre-release), each of the 30 workloads ran no more user-space instructions as libniji static builds than with the host's glibc 2.39; the geometric mean ratio was 0.821 (below 1.00 means fewer instructions). Their outputs match glibc's, except one documented difference: `ls -l` in `en_US.UTF-8` orders some punctuation differently, because libniji follows the POSIX collation rules there (decision D-4.42). This is one host and one counter, not a release benchmark, and per-call micro-benchmarks still show rows slower than glibc, notably in libm. Merge decisions use deterministic counters (instructions, page faults, system calls), never wall time. | [benchmarks/progress.md](benchmarks/progress.md), [docs/benchmarks.md](docs/benchmarks.md), [validation/README.md](validation/README.md) (workload gate) |
 | Platforms | Linux x86-64 only. Building on Windows is not supported (use WSL or Linux). | [docs/toolchain.md](docs/toolchain.md) |
 
 For exact numbers, run `cargo xtask status` (specified versus implemented tests) and
 `cargo xtask symgap` (exported symbols versus the glibc symbol list). Do not read the table
 above as a symbol-coverage figure; it is a phase list.
 
-Liella's userspace interface is meant to stay identical to glibc's: it differs only where there
+libniji's userspace interface is meant to stay identical to glibc's: it differs only where there
 is a very good reason, each difference is listed with its reason in
 [docs/differences-from-glibc.md](docs/differences-from-glibc.md), and each comes with a
 compatibility option to restore glibc's behaviour unless there is a very good reason not to
@@ -61,11 +65,11 @@ implemented).
   source of truth.
 * `csys/`: the C syscall layer, system-call wrappers and the few machine primitives that need
   assembly. No logic.
-* `crates/`: the Rust library. Every crate is `#![forbid(unsafe_code)]` except `liella-boundary`,
+* `crates/`: the Rust library. Every crate is `#![forbid(unsafe_code)]` except `niji-boundary`,
   which permits `unsafe` only in documented, audited categories (`cargo xtask unsafe-audit`).
 * `crates/boundary/src/posix`: the translation layer between C conventions and the Rust library.
 * `crates/ld`: the dynamic loader (`ld-linux-x86-64.so.2`) and the `ldconfig` engine; `csys/util/`
-  and `crates/ldconfig-bin`: the C library utilities shipped so far (`getconf`, `ldconfig`).
+  and `crates/ldconfig-bin`: the C library utilities shipped so far (`getconf`, `getent`, `ldconfig`, `ldd`).
 * `implementation-plan.md` and `plan/`: architecture, phases and the decision register.
 
 ## Quick start
@@ -74,20 +78,20 @@ Linux x86-64 (or WSL), Rust stable, `cc` and `ar`. From the repository root:
 
 ```bash
 cargo xtask stubs             # regenerate the test stubs from the spec
-cargo xtask so                # build libc.a, libc.so.6, ld.so, the start files and utilities into target/liella/
+cargo xtask so                # build libc.a, libc.so.6, ld.so, the start files and utilities into target/niji/
 cargo xtask test              # the full test gate (long; see docs/toolchain.md)
 cargo xtask affected --list   # the tests a change can reach (direct tier by default)
 cargo xtask affected --run    # run them (one of --list and --run is required)
 ```
 
 `scripts/dev.sh xtask test` runs the same through a helper script. Every build parameter is in
-[docs/toolchain.md](docs/toolchain.md); the ways a program can use Liella are in
+[docs/toolchain.md](docs/toolchain.md); the ways a program can use libniji are in
 [docs/interfaces.md](docs/interfaces.md). To work on the code, start with
 [CONTRIBUTING.md](CONTRIBUTING.md) and the code map in [docs/codemap/README.md](docs/codemap/README.md).
 
 ## Clean-room record
 
-Liella is developed as a clean room on a best-effort basis, and it was not a perfect one. The
+libniji is developed as a clean room on a best-effort basis, and it was not a perfect one. The
 specification was derived from glibc's source and documentation in a session that then went on
 to begin the implementation, so no wall separated the two halves for the early phases. On
 2026-10-02 the implementing session also read six glibc source files for the printf
@@ -106,19 +110,19 @@ The project makes no claim of purity beyond what that record supports.
 * [docs/clean-room.md](docs/clean-room.md): the clean-room rules and record
 * [docs/benchmarks.md](docs/benchmarks.md): how performance is measured against glibc
 * [docs/differences-from-glibc.md](docs/differences-from-glibc.md): deliberate differences
-* [docs/interfaces.md](docs/interfaces.md): the four ways into Liella
+* [docs/interfaces.md](docs/interfaces.md): the four ways into libniji
 * [docs/toolchain.md](docs/toolchain.md): build parameters and commands
 * [docs/PRINCIPLES.md](docs/PRINCIPLES.md): the design principles and why
 * [CONTRIBUTING.md](CONTRIBUTING.md), [AI_POLICY.md](AI_POLICY.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md)
 
 ## AI use
 
-Liella was written with Claude Code under the direction of a human maintainer. See
+libniji was written with Claude Code under the direction of a human maintainer. See
 [AI_POLICY.md](AI_POLICY.md).
 
 ## License
 
-Liella is licensed under the GNU Lesser General Public License, version 2.1 or (at your option)
+libniji is licensed under the GNU Lesser General Public License, version 2.1 or (at your option)
 any later version (SPDX `LGPL-2.1-or-later`), the same licence as glibc. The full text is in
 [LICENSE](LICENSE).
 
