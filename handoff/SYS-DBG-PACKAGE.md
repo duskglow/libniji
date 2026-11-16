@@ -24,7 +24,7 @@ Branch `task/sys-dbg-package` (from origin/next 24dc5587a). Brief: `~/state/brie
   products (libc6 included, so the layout contracts are untouched).
 * libc6-dbg: one debug file per object (9 objects; build-ids present on every product: gcc passes --build-id).
 * check-system.sh (before the fix in the last commit): 2 FAIL. (1) its own object list picked up libc6-dev's
-  `libc.so` script; fixed (`*.so.*`), not rerun. (2) **the real gap: gdb shows no source line for any libc
+  `libc.so` script; fixed (`*.so.*`); rerun on the final head (job sys-dbg-package-pack4): only (2) fails. (2) **the real gap: gdb shows no source line for any libc
   function.** The release libc.so.6's DWARF holds compile units only for core, alloc and compiler-builtins
   (the precompiled standard library); libniji's own crates contribute none. The Rust archive member
   (target/product/libc-so-input.a, the fat-LTO cgu) does carry `.debug_line`, the profile is `release`

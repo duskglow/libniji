@@ -11,4 +11,4 @@
  "improvement": "the products should carry a check that libniji's own code has line tables in the release build; nothing noticed it was missing until a debugger needed it",
  "next_step": "find why the niji crates emit no DWARF in the release product, then rerun check-system, dbg-system, plants and parity.sh (handoff/SYS-DBG-PACKAGE.md)",
  "report_file": "handoff/SYS-DBG-PACKAGE.md",
- "jobs": ["sys-dbg-package-pack3"]}
+ "jobs": ["sys-dbg-package-pack4"]}
