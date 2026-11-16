@@ -293,7 +293,7 @@ fn deps(out: &[u8]) -> Vec<String> {
     String::from_utf8_lossy(out)
         .lines()
         .filter_map(|l| l.trim().split_once(" => ").map(|(n, p)| (n.to_string(), p.split(" (0x").next().unwrap_or("").to_string())))
-        .filter(|(n, _)| !search::pinned(n.as_bytes()))
+        .filter(|(n, _)| !search::pinned(n.as_bytes()) && !n.ends_with(Native::INTERP))
         .map(|(n, p)| format!("{n} => {p}"))
         .collect()
 }

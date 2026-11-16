@@ -299,3 +299,35 @@ returns 0; Liella's `dl_iterate_phdr` lists the program and the vDSO only until 
 - DL-17: `dlclose(NULL)` and an unknown handle: the reference crashes; returning non-zero with a
   dlerror text costs nothing and gains robustness (a difference row is needed).
 - DL-30/R14-16: the version-not-found status 1 differs from every other load failure (127).
+
+## Trace lists: the interpreter's line (DL-TRACE-INTERP probe, x86-64, glibc 2.39)
+
+Black-box probes of the reference loader (`/lib64/ld-linux-x86-64.so.2`), the same in all three entry points
+(kernel start with `LD_TRACE_LOADED_OBJECTS=1`, `ld.so PROGRAM` with the variable, `ld.so --list PROGRAM`):
+
+| Case | Reference list (addresses omitted) |
+| --- | --- |
+| needs `libfoo.so.1` only (no C library) | `linux-vdso.so.1`, `libfoo.so.1 => …`: no interpreter line |
+| `DT_NEEDED` `ld-linux-x86-64.so.2`, then `libfoo.so.1` | the interpreter, `linux-vdso.so.1`, `libfoo.so.1 => …` |
+| `libfoo.so.1`, then the interpreter | `linux-vdso.so.1`, `libfoo.so.1 => …`, the interpreter |
+| needs `libni.so.1` (which needs the interpreter) and `libfoo.so.1` | vDSO, `libni`, `libfoo`, the interpreter |
+| `DT_NEEDED` `/lib64/ld-linux-x86-64.so.2` (a path) | the interpreter, `linux-vdso.so.1` |
+| `libfoo2.so.1` (needs `libbar.so.1`), `libc.so.6` | vDSO, `libfoo2`, `libc`, `libbar`, the interpreter |
+| `libm.so.6`, `libfoo2.so.1` | vDSO, `libm`, `libfoo2`, `libc`, the interpreter, `libbar` |
+| no `DT_NEEDED` (static PIE, a library needing nothing) | `\tstatically linked`, status 0 (`ld.so` forms) |
+
+Rule: the list is breadth first in `DT_NEEDED` order, each object once; the interpreter is listed only when an
+object names it (by soname or by path), at that breadth-first place; the vDSO's line comes first, after the
+interpreter's when the interpreter is the first object. The reference's `libc.so.6` names the interpreter, and its
+`libm.so.6` names `libc.so.6` then the interpreter (the `libm` row). The line is `\tNAME (0x…)`, or `\tNAME => PATH
+(0x…)` when they differ: NAME is the program's `PT_INTERP` (else the loader's path as run), PATH the loader's path
+as run (at kernel start, the `PT_INTERP`). Run as `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 --list` on a
+program whose `PT_INTERP` is `/lib64/ld-linux-x86-64.so.2`: `/lib64/ld-linux-x86-64.so.2 =>
+/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (0x…)`; on a library operand: `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (0x…)`.
+The reference prints its libraries as `/lib/x86_64-linux-gnu/…` (its cache lists that directory first; `/lib` is a
+link to `usr/lib`).
+
+Liella (D-27.16 as amended, records/pending/DL-TRACE-INTERP-1.toml): the same rule, with libniji's own libraries
+(`search::PINNED`) naming the interpreter after their own `DT_NEEDED` entries, so lists of libc-linked programs
+keep the line consumers such as initramfs-tools' `copy_exec` read. Test: `list_interpreter_line_matches_reference`
+(crates/ld/tests/search_cache.rs).
