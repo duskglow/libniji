@@ -15,7 +15,10 @@
 # 4. Linking: plain gcc with the unpacked libc6-dev (its start files and libc.so script, --sysroot
 #    the unpacked tree) makes a dynamic hello whose program interpreter is
 #    /lib64/ld-linux-x86-64.so.2 (gcc's default) and which needs libc.so.6 alone with no
-#    RPATH/RUNPATH; a static hello runs and prints its line.
+#    RPATH/RUNPATH; a static hello runs and prints its line. The development links and archives
+#    (SYS-DEV-LINKS): libanl.so, libBrokenLocale.so, libc_malloc_debug.so name libc6's libraries;
+#    -lanl -lBrokenLocale -lmcheck -lg link dynamically (each shared library needed) and statically
+#    (the program runs; libBrokenLocale.a's MB_CUR_MAX override is the one linked).
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -100,6 +103,7 @@ for deb in $debs; do
             libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
             libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf | libc-bin:./usr/bin/getent | libc-bin:./usr/bin/ldd) ok=yes ;;
             libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so) ok=yes ;;
+            libc6-dev:./usr/lib/$ma/libanl.so | libc6-dev:./usr/lib/$ma/libBrokenLocale.so | libc6-dev:./usr/lib/$ma/libc_malloc_debug.so) ok=yes ;;
         esac
         [ $ok = yes ] || echo "check: FAIL $pkg: path not in the system layout: $path"
     done > "$tmp/paths"
@@ -129,9 +133,20 @@ if [ -f "$r/usr/sbin/ldconfig" ]; then
 else
     fail "libc-bin has no usr/sbin/ldconfig"
 fi
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libBrokenLocale.so.1; do
     sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
     [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
+done
+# SYS-DEV-LINKS: libc6-dev's development links name libc6's libraries (the link resolves in the
+# unpacked root), and the archives -l<x> needs in a static link are there.
+for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do
+    dl=${so%%.so.*}.so
+    t=$(readlink "$lib/$dl" || true)
+    [ "$t" = "$so" ] || fail "libc6-dev: $dl -> '$t', not $so"
+    [ -f "$lib/$dl" ] || fail "libc6-dev: $dl does not resolve to a file"
+done
+for a in libanl.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
+    [ -f "$lib/$a" ] || fail "libc6-dev has no $a"
 done
 
 # 4. Linking with plain gcc and the unpacked libc6-dev: its start files in the driver's order
@@ -154,6 +169,29 @@ if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$
 else
     fail "static hello does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
 fi
+# SYS-DEV-LINKS: -lanl -lBrokenLocale -lmcheck -lg (and -lc_malloc_debug, dynamic only) link. Dynamic
+# (--no-as-needed, as a linker without that default records every -l): the links take the shared
+# libraries, so each is needed. Static: the archives resolve, and libBrokenLocale.a's override is
+# the one linked (MB_CUR_MAX 4 in C.UTF-8; without -lBrokenLocale the C library's 6, the control).
+dl="-lanl -lBrokenLocale -lmcheck -lg"
+begin=$("$cc" -print-file-name=crtbeginS.o); end=$("$cc" -print-file-name=crtendS.o)
+if "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$lib/crti.o" "$begin" "$here/smoke/devlinks.c" -Wl,--no-as-needed $dl -lc_malloc_debug -lc -lgcc "$end" "$lib/crtn.o" -o "$tmp/devlinks" > "$tmp/log" 2>&1; then
+    needed=$(readelf -dW "$tmp/devlinks" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')
+    [ "$needed" = "libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0 libc.so.6 " ] ||
+        fail "devlinks ($dl -lc_malloc_debug, dynamic) needs '$needed', not libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0 libc.so.6"
+else
+    fail "devlinks ($dl -lc_malloc_debug) does not link dynamically: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+begin=$("$cc" -print-file-name=crtbeginT.o); end=$("$cc" -print-file-name=crtend.o)
+for v in "devlinks-static:$dl:4" "devlinks-control:-lanl -lmcheck -lg:6"; do
+    p=${v%%:*}; libs=${v#*:}; libs=${libs%:*}; want=${v##*:}
+    if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$lib/crti.o" "$begin" "$here/smoke/devlinks.c" $libs -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$end" "$lib/crtn.o" -o "$tmp/$p" > "$tmp/log" 2>&1; then
+        out=$(timeout 60 "$tmp/$p" 2>&1) || fail "$p ($libs, static) exits $?: $out"
+        [ "$out" = "devlinks: MB_CUR_MAX $want" ] || fail "$p ($libs, static) printed '$out', not 'devlinks: MB_CUR_MAX $want'"
+    else
+        fail "$p ($libs) does not link statically: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+    fi
+done
 
 if [ "$fails" -ne 0 ]; then
     echo "check: $fails problem(s)"

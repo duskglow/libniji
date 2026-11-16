@@ -211,6 +211,9 @@ GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-
 put_link libm.so.6 "$dlib/libm.so"
 put_link libresolv.so.2 "$dlib/libresolv.so"
 put_link libBrokenLocale.so.1 "$dlib/libBrokenLocale.so"
+# SYS-DEV-LINKS: -lanl and -lc_malloc_debug link the shared libraries, as in libc6-dev.
+put_link libanl.so.1 "$dlib/libanl.so"
+put_link libc_malloc_debug.so.0 "$dlib/libc_malloc_debug.so"
 put 0755 "$here/niji-gcc" "$dev/usr/bin/niji-gcc"
 put_link niji-gcc "$dev/usr/bin/niji-g++"
 mkdir -p "$dev/usr/share/man/man1"

@@ -9,7 +9,8 @@
 # Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
 # spec, symbols_only) and helpers (put, put_link, put_text, need, installed_size).
 #
-#   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries; conffile
+#   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries (with
+#                 libBrokenLocale.so.1: SYS-DEV-LINKS); conffile
 #                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
 #                 symbols and shlibs (tools/deb/symbols.py, plan section 3.2; checked by
 #                 tools/deb/check-symbols.sh); Provides, per libniji-only node kind, the virtual
@@ -25,7 +26,7 @@
 #                 libc6's name services: UTIL-6), /usr/bin/ldd (UTIL-4: static, runs the loader in trace mode). Its other programs (iconv, locale, ...) come
 #                 with SL-BIN-CORE.
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so. No headers yet (SL-HEADERS, R4).
+#                 libm.so, the development links libanl.so, libBrokenLocale.so, libc_malloc_debug.so. No headers yet (SL-HEADERS, R4).
 #   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
@@ -40,7 +41,7 @@ mlib=usr/lib/$ma
 # --- libc6 ---
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$s6/$mlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libBrokenLocale.so.1; do
     need "$so"
     put 0644 "$products/$so" "$s6/$mlib/$so"
 done
@@ -73,7 +74,9 @@ for o in gcrt1 grcrt1 crti crtn Mcrt1; do
     need "niji-$o.o"
     put 0644 "$products/niji-$o.o" "$sdev/$mlib/$o.o"
 done
-for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a; do
+# SYS-DEV-LINKS: libBrokenLocale.a holds the library's override (D-27.9); libg.a, libmcheck.a and
+# libpthread_nonshared.a are empty (D-27.9), so -lg, -lmcheck and -lpthread_nonshared resolve.
+for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
     put 0644 "$products/$a" "$sdev/$mlib/$a"
 done
@@ -83,6 +86,14 @@ put_text 0644 "$sdev/$mlib/libc.so" "/* GNU ld script: libniji's C library (libc
 OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
 put_link libm.so.6 "$sdev/$mlib/libm.so"
+# Development links to libc6's libraries (SYS-DEV-LINKS): without them -lanl takes the empty
+# libanl.a and -lBrokenLocale takes libBrokenLocale.a in a dynamic link; with them each links the
+# shared library as a plain gcc link does with the reference packages. libnss_compat.so and
+# libnss_hesiod.so wait for their libraries (SL-NSS): a link to a missing file would only turn
+# -lnss_compat into a dangling-link error.
+for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do
+    put_link "$so" "$sdev/$mlib/${so%%.so.*}.so"
+done
 
 # --- Documentation (every package; identical across architectures, as Multi-Arch: same needs). ---
 date_r=$(date -u -d "@$epoch" -R)
