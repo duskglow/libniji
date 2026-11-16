@@ -169,8 +169,8 @@ mod tests {
     #[test]
     fn note_follows_the_gabi_format() {
         let n = note();
-        assert_eq!(n.namesz, 7);
-        assert_eq!(&n.name, b"libniji\0\0");
+        assert_eq!(n.namesz, 8);
+        assert_eq!(&n.name, b"libniji\0");
         assert_eq!(n.kind, 0x4c52_0001);
         let len = usize::try_from(n.descsz).unwrap();
         assert_eq!(len, RUST_ABI.len() + 1 + 16 + 1);
