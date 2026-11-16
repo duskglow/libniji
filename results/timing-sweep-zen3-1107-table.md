@@ -5,7 +5,7 @@ cbench_* groups>` (52 products matched bench-stage.manifest; tarball sha256 0838
 the timing host and run unchanged with the sweep tool (docs/benchmarks.md section 6, "The periodic timing sweep"):
 `./xtask-bin sweep run --out <dir>` (the 17 non-libm groups, its default) and then
 `./xtask-bin sweep run --out <dir> --only cbench_libm`. Each runs `bench --no-build --staged --counters --only
-<groups>`: libniji and glibc on the same host, rounds interleaved. Both runs exited 0 (`sweep: COMPLETE`).
+<groups>`: Liella and glibc on the same host, rounds interleaved. Both runs exited 0 (`sweep: COMPLETE`).
 
 CPU class: Zen 3 (AMD Ryzen 5 5500 class: 6 cores / 12 threads, AVX2, no AVX-512), host glibc 2.39 (the same
 distribution build as the other timing hosts). This is the first sweep on this class: there is no earlier Zen 3
@@ -22,8 +22,8 @@ Measurement conditions (details in the sweep's handoff note, named in the analyz
   gated (0 rows flagged).
 - Run-to-run spread median 0.008 on the non-libm rows; Ivy Bridge 0.009 and N100 0.012 in 1106E.
 
-Columns: `instr` / `cycles` = libniji/glibc instructions / cycles per call (counters of this run; `-` = not counted);
-`time` = median libniji/glibc time ratio over the interleaved rounds; `spread` = (max - min) / median of the round
+Columns: `instr` / `cycles` = Liella/glibc instructions / cycles per call (counters of this run; `-` = not counted);
+`time` = median Liella/glibc time ratio over the interleaved rounds; `spread` = (max - min) / median of the round
 ratios; verdict faster (< 0.95), parity, slower (> 1.05), as the sweep tool judges them. The `wordexp` rows are timed,
 not judged (owner deferral, as in the earlier sweeps). The sweep tool requires the selected `ratio_host` rows (309
 non-libm, 166 libm) to be measured; the tables hold every row the bench printed. Analyzer:

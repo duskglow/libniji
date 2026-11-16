@@ -4,13 +4,13 @@ Build: origin/next bc146cce (bc146ccec5f057f5801902059728eed988c5528b). Staged o
 --stage <tar> --only cbench_libm` (tarball sha256 3fe7b8ab17f8202772a6af5e8b4d3ff338aeb0ce63b7d3b83b4f007992b86587,
 checked on arrival), unpacked whole on the timing host and run unchanged with the sweep tool (docs/benchmarks.md
 section 6), selected as the 11-07 libm sweep was: `./xtask-bin sweep run --out <dir> --only cbench_libm`. It runs
-`bench --no-build --staged --counters --only cbench_libm`: libniji and glibc on the same host, rounds interleaved.
+`bench --no-build --staged --counters --only cbench_libm`: Liella and glibc on the same host, rounds interleaved.
 Exit 0, `sweep: COMPLETE: cpu AMD Ryzen 5 5500; all 176 selected ratio_host rows measured (28 faster, 7 parity,
 141 slower); bench rc 0; 0 rows flagged by the limit check; 3 counted rows outside the selection`.
 
 CPU class: Zen 3 (AMD Ryzen 5 5500 class: 6 cores / 12 threads, AVX2, no AVX-512), host glibc 2.39, the same machine
 as results/timing-sweep-zen3-1107-table.md. The comparison below is therefore the same CPU class and host but a
-different commit (11-07: next 66b8d3ba): it measures what changed in libniji's libm (and in the bench rows) between
+different commit (11-07: next 66b8d3ba): it measures what changed in Liella's libm (and in the bench rows) between
 the two commits, with glibc unchanged as the reference in both.
 
 Measurement conditions (details in the sweep's handoff note, named in the analyzer's header):
@@ -21,8 +21,8 @@ Measurement conditions (details in the sweep's handoff note, named in the analyz
 - No `ratio_host` limits exist for this CPU model in bench/host_limits.tsv: rows are measured and reported, not gated.
 - Run-to-run spread median 0.007 (11-07: 0.006). Every row settled at 3 adaptive rounds.
 
-Columns: `instr` / `cycles` = libniji/glibc instructions / cycles per call (counters of this run); `time` = median
-libniji/glibc time ratio over the interleaved rounds; `spread` = (max - min) / median of the round ratios; verdict
+Columns: `instr` / `cycles` = Liella/glibc instructions / cycles per call (counters of this run); `time` = median
+Liella/glibc time ratio over the interleaved rounds; `spread` = (max - min) / median of the round ratios; verdict
 faster (< 0.95), parity, slower (> 1.05), as the sweep tool judges them; `time 11-07` / `verdict 11-07` from
 results/timing-sweep-zen3-1107-table.md; `change` = time / time 11-07. The 11-07 table counted the 3 baseline rows
 outside the ratio_host selection among its 169 judged rows; the summary gives both views, each sweep counted the same
@@ -50,7 +50,7 @@ Judged rows whose verdict lies inside their own spread (spread > 0.10 and |time 
 ## Change against the 11-07 Zen 3 libm sweep (same CPU class, different commit)
 
 Rows in both sweeps: 169; only in 11-13: 10 (cbench_libm/clog_axis, cbench_libm/clog_near1, cbench_libm/clogf_axis, cbench_libm/clogf_near1, cbench_libm/csqrt_axis, cbench_libm/csqrtf_axis, cbench_libm/sincos, cbench_libm/sincosf, cbench_libm/sincosf128, cbench_libm/sincosl); only in 11-07: 0.
-Change = 11-13 time ratio / 11-07 time ratio (< 1: libniji moved closer to or further ahead of glibc). Median 0.888, geomean 0.357, p10 0.011, p90 1.008; rows with change < 0.95: 90, 0.95-1.05: 72, > 1.05: 7.
+Change = 11-13 time ratio / 11-07 time ratio (< 1: Liella moved closer to or further ahead of glibc). Median 0.888, geomean 0.357, p10 0.011, p90 1.008; rows with change < 0.95: 90, 0.95-1.05: 72, > 1.05: 7.
 
 | 11-07 verdict -> 11-13 verdict | rows |
 |---|---|

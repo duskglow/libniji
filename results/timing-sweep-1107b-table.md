@@ -6,12 +6,12 @@ TIMING-SWEEP-1107B. Same method as results/timing-sweep-libm-1107-table.md (the 
   `cargo xtask bench --stage <tar> --only cbench_libm,cbench_locale,cbench_memref` (manifest tree ad6c7c87face97a6,
   profile release; tarball sha256 b63062abe37dd54d...) and `--only cbench_hot` (sha256 78b680728306e37f...). Each
   tarball was unpacked whole on both booked timing hosts.
-- Job per host and group: `./xtask-bin sweep run --out <dir> --only <group>` (interleaved libniji/glibc rounds, 5 per
+- Job per host and group: `./xtask-bin sweep run --out <dir> --only <group>` (interleaved Liella/glibc rounds, 5 per
   row on both classes). Every run ended `sweep: COMPLETE`. Ivy Bridge cbench_memref: bench rc 1 because the limit check
   flagged `__memcmpeq_eq_128` and `__memcmpeq_tail_1k` (findings, not a run failure). Ivy Bridge cbench_libm was
   run twice (see "Ivy Bridge exp-family spread").
-- Per row: libniji ns and glibc ns are the medians over the rounds; ratio is the median of the per-round
-  libniji/glibc ratios; spread is (max - min) / median of those ratios (the `sweep.tsv` definitions; the script was
+- Per row: Liella ns and glibc ns are the medians over the rounds; ratio is the median of the per-round
+  Liella/glibc ratios; spread is (max - min) / median of those ratios (the `sweep.tsv` definitions; the script was
   checked against the morning `sweep.tsv`, e.g. `exp` 2.901 / 0.845 reproduced exactly). Verdict: faster < 0.95,
   slower > 1.05, parity in between. "morning" columns: that row of the morning sweep (11-07, next 66b8d3ba) on the
   same class; change = ratio now / morning ratio. Only libm has a morning baseline.
@@ -21,11 +21,11 @@ TIMING-SWEEP-1107B. Same method as results/timing-sweep-libm-1107-table.md (the 
 ## Summary
 
 - `sinl` and `cosl` are now faster than glibc: ratio 112.7 -> 0.58 (Ivy Bridge) and 88.2 -> 0.70 (N100);
-  libniji about 119 ns (Ivy Bridge) and 154 ns (N100) per call, down from 19-23 us.
-- `log` improved: 5.18 -> 1.93 (Ivy Bridge), 5.88 -> 1.93 (N100; libniji 49.4 -> 17.8 ns, glibc unchanged).
-- `exp` improved: 3.35 -> 2.17 on N100 (libniji 26.8 -> 17.4 ns), and 2.90 -> 1.69 on Ivy Bridge (high spread, below).
+  Liella about 119 ns (Ivy Bridge) and 154 ns (N100) per call, down from 19-23 us.
+- `log` improved: 5.18 -> 1.93 (Ivy Bridge), 5.88 -> 1.93 (N100; Liella 49.4 -> 17.8 ns, glibc unchanged).
+- `exp` improved: 3.35 -> 2.17 on N100 (Liella 26.8 -> 17.4 ns), and 2.90 -> 1.69 on Ivy Bridge (high spread, below).
 - **`expf` and `exp2f` are slower than in the morning on both classes.** N100: 2.60 -> 3.10 and 2.59 -> 3.13
-  (libniji 13.30 -> 15.91 ns, glibc 5.12 -> 5.13 ns, spread <= 0.013). Ivy Bridge: 2.11 -> 2.52 and 2.31 -> 2.73
+  (Liella 13.30 -> 15.91 ns, glibc 5.12 -> 5.13 ns, spread <= 0.013). Ivy Bridge: 2.11 -> 2.52 and 2.31 -> 2.73
   (spread 0.36-0.40, same direction). The products differ from the morning's in more than one landing; which change
   moved these two rows was not isolated here.
 - `exp2`, `exp10`, `expm1`, `log2`, `log10`, `log1p`, `pow`, `sin`, `cos`, `tan`, `cexp`, `cexpf`: on N100 (the
@@ -52,7 +52,7 @@ expf 2.51, exp2f 2.75. The tables below are run 1.
 
 ### Ivy Bridge: cbench_libm
 
-| row | family | libniji ns | glibc ns | ratio | spread | rounds | verdict | morning ratio | morning spread | change |
+| row | family | Liella ns | glibc ns | ratio | spread | rounds | verdict | morning ratio | morning spread | change |
 |---|---|---|---|---|---|---|---|---|---|---|
 | exp | exp/log f64 | 31.76 | 18.76 | 1.690 | 0.390 | 5 | slower | 2.901 | 0.845 | 0.582 |
 | exp2 | exp/log f64 | 48.17 | 8.92 | 5.459 | 0.245 | 5 | slower | 5.485 | 0.292 | 0.995 |
@@ -75,7 +75,7 @@ expf 2.51, exp2f 2.75. The tables below are run 1.
 
 ### Ivy Bridge: cbench_locale
 
-| row | family | libniji ns | glibc ns | ratio | spread | rounds | verdict |
+| row | family | Liella ns | glibc ns | ratio | spread | rounds | verdict |
 |---|---|---|---|---|---|---|---|
 | iswalpha_en_us | wide classification | 8.32 | 9.25 | 0.899 | 0.023 | 5 | faster |
 | iswalpha_l_en_us | wide classification | 9.16 | 7.11 | 1.287 | 0.069 | 5 | slower |
@@ -86,7 +86,7 @@ expf 2.51, exp2f 2.75. The tables below are run 1.
 
 ### Ivy Bridge: cbench_memref
 
-| row | family | libniji ns | glibc ns | ratio | spread | rounds | verdict |
+| row | family | Liella ns | glibc ns | ratio | spread | rounds | verdict |
 |---|---|---|---|---|---|---|---|
 | strstr_hit_4k | strstr | 456.86 | 480.33 | 0.951 | 0.406 | 5 | parity |
 | strstr_hit_64 | strstr | 15.08 | 12.04 | 1.252 | 0.189 | 5 | slower |
@@ -146,7 +146,7 @@ expf 2.51, exp2f 2.75. The tables below are run 1.
 
 ### N100: cbench_libm
 
-| row | family | libniji ns | glibc ns | ratio | spread | rounds | verdict | morning ratio | morning spread | change |
+| row | family | Liella ns | glibc ns | ratio | spread | rounds | verdict | morning ratio | morning spread | change |
 |---|---|---|---|---|---|---|---|---|---|---|
 | exp | exp/log f64 | 17.35 | 8.00 | 2.169 | 0.040 | 5 | slower | 3.348 | 0.004 | 0.648 |
 | exp2 | exp/log f64 | 23.63 | 6.73 | 3.514 | 0.021 | 5 | slower | 3.510 | 0.001 | 1.001 |
@@ -169,7 +169,7 @@ expf 2.51, exp2f 2.75. The tables below are run 1.
 
 ### N100: cbench_locale
 
-| row | family | libniji ns | glibc ns | ratio | spread | rounds | verdict |
+| row | family | Liella ns | glibc ns | ratio | spread | rounds | verdict |
 |---|---|---|---|---|---|---|---|
 | iswalpha_en_us | wide classification | 5.88 | 5.93 | 0.992 | 0.002 | 3 | parity |
 | iswalpha_l_en_us | wide classification | 7.35 | 5.02 | 1.464 | 0.000 | 3 | slower |
@@ -180,7 +180,7 @@ expf 2.51, exp2f 2.75. The tables below are run 1.
 
 ### N100: cbench_memref
 
-| row | family | libniji ns | glibc ns | ratio | spread | rounds | verdict |
+| row | family | Liella ns | glibc ns | ratio | spread | rounds | verdict |
 |---|---|---|---|---|---|---|---|
 | strstr_hit_4k | strstr | 167.46 | 221.19 | 0.756 | 0.021 | 5 | faster |
 | strstr_hit_64 | strstr | 12.41 | 10.45 | 1.181 | 0.080 | 5 | slower |

@@ -1,4 +1,4 @@
-# System-libc mirror scan, 2026-11-14 (NIJI-SYSTEM-LIBC-PLAN)
+# System-libc mirror scan, 2026-11-14 (LIELLA-SYSTEM-LIBC-PLAN)
 
 Raw numbers for `plan/system-libc.md`. Source: the project's Devuan mirror (liella-ops
 `state/MIRRORS.md`), suites `excalibur`, `excalibur-security`, `excalibur-updates`, components
@@ -81,28 +81,28 @@ the archive imports a `GLIBC_2.40` symbol** (one would carry a 2.40 lower bound;
 ## 1b/1c. Symbols above 2.39 in glibc 2.41 (libc6 2.41-12+deb13u4)
 
 From the dynamic symbol tables of every shared object in `libc6` (20 libraries, 253 gconv modules),
-compared with libniji's export table `spec/abi/versions.tsv` (the 2.39 target):
+compared with Liella's export table `spec/abi/versions.tsv` (the 2.39 target):
 
-* **Public exports: 2.41 = libniji's 2.39 table + 98 symbols, none removed**, in every library the
+* **Public exports: 2.41 = Liella's 2.39 table + 98 symbols, none removed**, in every library the
   table covers (`ld-linux-x86-64.so.2`, `libBrokenLocale`, `libanl`, `libc`, `libc_malloc_debug`,
   `libdl`, `libm`, `libnsl`, `libpthread`, `libresolv`, `librt`, `libthread_db`, `libutil`).
-* `libc.so.6`, node `GLIBC_2.41` (2): `sched_getattr`, `sched_setattr`. libniji: missing.
+* `libc.so.6`, node `GLIBC_2.41` (2): `sched_getattr`, `sched_setattr`. Liella: missing.
 * `libm.so.6`, node `GLIBC_2.40` (40): `exp2m1`, `exp10m1`, `log2p1`, `log10p1`, `logp1`, each as
   `<f>`, `<f>f`, `<f>l`, `<f>f32`, `<f>f32x`, `<f>f64`, `<f>f64x`, `<f>f128`
-  (`exp2m1f`, `exp2m1f32`, `exp10m1f`, `exp10m1f32` are `IFUNC`). libniji: all missing.
+  (`exp2m1f`, `exp2m1f32`, `exp10m1f`, `exp10m1f32` are `IFUNC`). Liella: all missing.
 * `libm.so.6`, node `GLIBC_2.41` (56): `sinpi`, `cospi`, `tanpi`, `asinpi`, `acospi`, `atanpi`,
-  `atan2pi`, each in the same eight forms. libniji: all missing.
+  `atan2pi`, each in the same eight forms. Liella: all missing.
 * No other library has a node above 2.39. The libc6 symbols file lists 41 entries at `GLIBC_2.40`
   and 60 at `GLIBC_2.41` (its per-symbol minimum versions); its `shlibs` file says
   `libc6 (>= 2.41)` for every library.
 * `GLIBC_PRIVATE`: `libc.so.6` 278 names, identical to the table's 278; `ld-linux-x86-64.so.2` 24
-  (table 25, one gone); `libnsl.so.1` 6 = 6; `libresolv.so.2` 2 = 2. libniji's shared products export
+  (table 25, one gone); `libnsl.so.1` 6 = 6; `libresolv.so.2` 2 = 2. Liella's shared products export
   no `GLIBC_PRIVATE` name (D-27.9, R14-12).
 * Libraries libc6 ships that the table does not cover: **`libmvec.so.1`** (216 exports, all at
   `GLIBC_2.22`/`GLIBC_2.35`, i.e. part of the 2.39 ABI too), `libnss_compat.so.2` (15
   `GLIBC_PRIVATE`), `libnss_hesiod.so.2` (17 `GLIBC_PRIVATE`), `libnss_files.so.2` and
   `libnss_dns.so.2` (no versioned exports), `libmemusage.so`, `libpcprofile.so` (preload tools).
-* libniji's products today (`xtask/src/so.rs`, `tools/deb/build.sh`): `ld-linux-x86-64.so.2`,
+* Liella's products today (`xtask/src/so.rs`, `tools/deb/build.sh`): `ld-linux-x86-64.so.2`,
   `libc.so.6`, `libm.so.6`, placeholders `libpthread.so.0`, `libdl.so.2`, `librt.so.1`,
   `libutil.so.1`, `libanl.so.1`, `libc_malloc_debug.so.0`, and `libnsl.so.1`; no `libresolv.so.2`
   (its symbols are in `libc.so.6`, D-16.6, but `-lresolv` programs need the soname),

@@ -1,7 +1,7 @@
 # Timing sweep 1106: non-libm rows, Ivy Bridge and N100 (Alder Lake-N)
 
 Build: origin/next 4d454f06, staged once with `cargo xtask bench --stage --only <17 groups>` and run unchanged on
-both timing hosts with `./xtask-bin bench --no-build --counters --only <17 groups>` (libniji and glibc on the same
+both timing hosts with `./xtask-bin bench --no-build --counters --only <17 groups>` (Liella and glibc on the same
 host, rounds interleaved, V-4 procedure, the same 17 groups as the 1105 sweep: aio, fstree, hot, locale, malloc,
 memref, netdb, nscache, opt, patterns, process, services, startup, stdio, thread, time, unmeasured). The previous
 sweep (results/timing-sweep-1105-table.md) was built from next f2157504.
@@ -10,8 +10,8 @@ Hosts (CPU classes):
 - Ivy Bridge (Xeon E3-1220L v2 class, 4 threads, no AVX2). 1105 ran on another host of the same class.
 - N100 (Intel Alder Lake-N, 4 E-cores, AVX2). Its verdicts are for that core type, not for big cores.
 
-Columns: `instr` = libniji/glibc instructions per call on that class (latest counts, this run); `time` = median
-libniji/glibc time ratio over the interleaved rounds; `spread` = run-to-run spread of the round ratios for the row;
+Columns: `instr` = Liella/glibc instructions per call on that class (latest counts, this run); `time` = median
+Liella/glibc time ratio over the interleaved rounds; `spread` = run-to-run spread of the round ratios for the row;
 verdict faster (< 0.95), parity, slower (> 1.05); `1105 time` and `now/1105` = the same row in the 1105 sweep and
 the change; `1106B re-time` = the new verdict of each of the 38 rows TIMING-COVERAGE-1106B marked "re-time".
 

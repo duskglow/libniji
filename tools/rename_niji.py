@@ -21,7 +21,8 @@ Mapping, applied to each text in this order (the owner's table; identifier stem 
 5. `Liella` -> `Niji` inside an identifier (`LiellaTm`), else `libniji` (prose, messages; owner Q1).
 6. `liella` -> `niji` (crates, modules, paths, packages, run-time names, `+liella`).
 
-Exclusions (EXCLUDE): history (handoff/, records/, validation/results/, the release notes) and
+Exclusions (EXCLUDE): history (handoff/, records/, validation/results/ and results/, the dated
+measurement records, the release notes) and
 the prose RENAME-NIJI-DOCS rewrites (docs/, README.md, plan/, spec/ prose, the top-level
 documents). Binary files change only through equal-length EXPLICIT spellings.
 """
@@ -36,6 +37,7 @@ EXCLUDE = (
     "handoff/",
     "records/",
     "validation/results/",
+    "results/",
     "docs/",
     "plan/",
     "spec/behaviour/",
