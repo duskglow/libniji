@@ -16,7 +16,7 @@
 //! the table's, the `.symver` would name an undefined clone and the build fails.
 //!
 //! Each lane is the scalar function's result: libmvec's results are libm's, bit for bit (the
-//! accuracy bound of the vector variants is looser; D-NEW of SYS-LIBMVEC, docs/differences-from-glibc.md).
+//! accuracy bound of the vector variants is looser; SYS-LIBMVEC's decision record, still to be written).
 //!
 //! **The check** is [`crate::placeholders::product_errors`] (soname, `DT_NEEDED libc.so.6`, version
 //! definitions, every defined dynamic symbol against the table), plus `DT_NEEDED libm.so.6`.
