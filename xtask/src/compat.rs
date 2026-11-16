@@ -486,18 +486,33 @@ mod tests {
     }
 
     /// s10_0_c2_0: the real tables give every `__*_finite` name and `pow10{,f,l}`, each aimed at a
-    /// different (current) function, and no `behaviour` row (those are not aliases).
+    /// different (current) function; the old `GLIBC_2.2.5` versions the probe found identical to the
+    /// default (spec/behaviour/libm-compat.md) aimed at the same-named default; and no `behaviour` row
+    /// (those are not aliases). Every entry outside `__*_finite` is named, so a change to the scope
+    /// names the pairs it adds or drops instead of only moving the count.
     #[test]
     fn the_real_tables_give_the_libm_scope() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let e = libm_entries(root).unwrap();
-        assert_eq!(e.len(), 110);
-        assert_eq!(e.iter().filter(|e| e.name.starts_with("__") && e.name.ends_with("_finite")).count(), 107);
-        assert!(e.iter().all(|e| e.name != e.target && !e.target.is_empty()));
+        let finite = |e: &&Entry| e.name.starts_with("__") && e.name.ends_with("_finite");
+        assert_eq!(e.iter().filter(finite).count(), 107);
+        assert!(e.iter().filter(finite).all(|e| e.name != e.target && !e.target.is_empty()));
+        let rest: Vec<(&str, &str, &str)> =
+            e.iter().filter(|e| !finite(e)).map(|e| (e.name.as_str(), e.version.as_str(), e.target.as_str())).collect();
+        let v = "GLIBC_2.2.5";
+        let renamed = [("pow10", v, "exp10"), ("pow10f", v, "exp10f"), ("pow10l", v, "exp10l")];
+        // SYS-COMPAT-VERSIONS (issue #7): the probe-identical old versions, each its own default.
+        let same = ["exp", "exp10", "fmod", "fmodf", "hypot", "hypotf", "pow"].map(|n| (n, v, n));
+        let mut want: Vec<(&str, &str, &str)> = renamed.into_iter().chain(same).collect();
+        want.sort_unstable();
+        assert_eq!(rest, want, "libm aliases outside __*_finite");
+        assert_eq!(e.len(), 107 + 3 + 7);
         assert!(e.iter().any(|e| e.name == "__exp_finite" && e.version == "GLIBC_2.15" && e.target == "exp"));
-        assert!(!e.iter().any(|e| e.name == "exp" || e.name.starts_with("totalorder") || e.name == "matherr"));
+        assert!(!e.iter().any(|e| e.name.starts_with("totalorder") || e.name == "matherr" || e.name == "log"));
         let text = render_libm(&e);
         assert!(text.contains("\t.symver niji_compat___exp_finite_GLIBC_2_15, __exp_finite@GLIBC_2.15\n"));
+        assert!(text.contains("niji_compat_fmod_GLIBC_2_2_5:\n\tjmp fmod@PLT\n"));
+        assert!(text.contains("\t.symver niji_compat_fmod_GLIBC_2_2_5, fmod@GLIBC_2.2.5\n"));
         assert!(text.contains("\tjmp exp@PLT\n") && !text.contains("@@"));
     }
 
