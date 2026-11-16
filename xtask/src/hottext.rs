@@ -859,8 +859,8 @@ mod tests {
         // HOTTEXT-FAULT-ENV: the same function from two checkouts (Skylake-SP host diag-/d2-cold-table-idna):
         // niji_legacy's disambiguator is one character shorter in the second, so its trailing
         // back-reference reads BU_ instead of BV_. Both expand to the same key.
-        let a = "_RINvNtCs1k36ruIItxX_11niji_legacy12stdio_compat5flushNtNtCse0ehmhVAZlt_13niji_boundary5stdio4GlueEBV_";
-        let b = "_RINvNtCsm9oUc6GLXl_11niji_legacy12stdio_compat5flushNtNtCshvRPlliEZFm_13niji_boundary5stdio4GlueEBU_";
+        let a = "_RINvNtCs1k36ruIItxX_11niji_legacy12stdio_compat5flushNtNtCse0ehmhVAZlt_13niji_boundary5stdio4GlueEBT_";
+        let b = "_RINvNtCsm9oUc6GLXl_11niji_legacy12stdio_compat5flushNtNtCshvRPlliEZFm_13niji_boundary5stdio4GlueEBS_";
         let k = "_RINvNtC11niji_legacy12stdio_compat5flushNtNtC13niji_boundary5stdio4GlueEC13niji_boundary";
         assert_eq!(key(a), k);
         assert_eq!(key(b), k);

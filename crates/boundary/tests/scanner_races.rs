@@ -151,7 +151,7 @@ fn prepare(p: &Shared, c: Case) {
             (b'a', b'c')
         }
         Case::Memcmp | Case::Strcmp | Case::Strcoll => (b'a', b'b'),
-        Case::Getenv => (b'L', b'M'),
+        Case::Getenv => (NAME.to_bytes()[3], NAME.to_bytes()[3] + 1),
     };
     p.put(A, &text);
     p.put(B, &text);

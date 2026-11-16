@@ -963,7 +963,7 @@ fn sym_putenv() {
     assert_eq!(s::putenv(p), 0);
     assert_eq!(text(s::getenv(c"NIJI_T_PUT".as_ptr())), "one");
     for (i, b) in b"two".iter().enumerate() {
-        buf[13 + i].store(*b, Ordering::Relaxed);
+        buf["NIJI_T_PUT=".len() + i].store(*b, Ordering::Relaxed);
     }
     assert_eq!(text(s::getenv(c"NIJI_T_PUT".as_ptr())), "two");
     let name: &'static [AtomicU8] = Box::leak(b"NIJI_T_PUT\0".iter().map(|&b| AtomicU8::new(b)).collect());
