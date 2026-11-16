@@ -6,7 +6,7 @@ sets `errno` to 0 (first pass) and then to a marker, 1234 (second pass, the same
 process), calls `setlocale`, and prints the result and `errno`. Found by AQOURS-SMOKE (F3): bash prints
 `strerror(errno)` in its warning when `setlocale` fails.
 
-| Call | Reference, first pass (errno 0 before) | Reference, second pass (1234 before) | Liella |
+| Call | Reference, first pass (errno 0 before) | Reference, second pass (1234 before) | libniji |
 | --- | --- | --- | --- |
 | `LC_ALL`, unknown name `zh_HK.big5hkscs` | NULL, `ENOENT` | NULL, 1234 (unchanged) | NULL, `ENOENT` |
 | `LC_CTYPE`, `xx_YY`; `LC_MESSAGES`, `xx_YY.UTF-8` | NULL, `ENOENT` | NULL, 1234 | NULL, `ENOENT` |
@@ -19,12 +19,12 @@ process), calls `setlocale`, and prints the result and `errno`. Found by AQOURS-
 | query; `C`; `POSIX`; `en_US.UTF-8`; `""` with nothing set | ok, `errno` unchanged | ok, unchanged | ok, unchanged |
 | `LC_ALL`, `C.UTF-8` (first time in the process) | ok, `errno` **2** | ok, unchanged | ok, unchanged |
 
-Reading of the rows for Liella (decision record `records/pending/SMOKE-ERRNO-FIXES-2.toml`, ruling #5469):
+Reading of the rows for libniji (decision record `records/pending/SMOKE-ERRNO-FIXES-2.toml`, ruling #5469):
 
 * A `setlocale` that fails for a name sets `ENOENT`, on every attempt: the locale data of that name is not
-  available, as Liella's `newlocale` reports it (D-7.18). The reference leaves `errno` unchanged when a name
+  available, as libniji's `newlocale` reports it (D-7.18). The reference leaves `errno` unchanged when a name
   that already failed in the process fails again, and gives `EINVAL` for some names it refuses before any
-  lookup; Liella does not distinguish these (POSIX defines no `setlocale` errors).
+  lookup; libniji does not distinguish these (POSIX defines no `setlocale` errors).
 * An unknown category is `EINVAL`, as the reference.
 * A successful call leaves `errno` alone. The reference's `ENOENT` after the first successful
   `setlocale(LC_ALL, "C.UTF-8")` is a change on success, recorded here as a row and not copied.

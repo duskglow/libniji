@@ -432,7 +432,7 @@ A separate small program (not part of the record) was traced with `strace` on th
   divides by zero kills the process with `SIGFPE`; a FIFO in place of a catalog blocks the
   lookup forever; a hash table naming wrong indices loops forever; damaged offsets crash
   (unstable cases). The spec should either qualify the guarantee (well-formed catalogs) or
-  Liella should decide to be robust (and record the difference).
+  libniji should decide to be robust (and record the difference).
 * **§7.8 Failure "`catgets` returns the default and sets `errno`"** and POSIX (`ENOMSG` "shall
   fail") vs the record: negative numbers, set `INT_MAX` and the invalid descriptor give the
   default with `errno` 0. POSIX's optional `EBADF` for an invalid descriptor is not reported.
@@ -515,7 +515,7 @@ The implementer may decide these differently (and record the difference).
 * The full syntax of system-dependent strings (other `<PRI...>` macros, the `I` flag) and the
   minor-1 header with zero system-dependent strings: only one msgfmt file was probed.
 * The unstable cases (offsets and sizes outside the file): the reference library crashes or
-  reads foreign memory; the record leaves them out, and Liella should not crash (to be recorded
+  reads foreign memory; the record leaves them out, and libniji should not crash (to be recorded
   as a deliberate difference).
 * Lookups concurrent with `setlocale`, `textdomain`, `bindtextdomain` or `LANGUAGE` changes in
   other threads; `catgets` from several threads.

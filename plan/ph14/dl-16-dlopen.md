@@ -1,4 +1,4 @@
-# DL-16 plan: `dlopen`, `dlsym`, `dlvsym`, `dlerror` in Liella's ld.so (DL-16-PLAN, 2026-11-12)
+# DL-16 plan: `dlopen`, `dlsym`, `dlvsym`, `dlerror` in libniji's ld.so (DL-16-PLAN, 2026-11-12)
 
 <!-- Sources: dlopen(3), dlsym(3), dlerror(3), dlinfo(3), ld.so(8), <dlfcn.h>, <link.h>, the ELF gABI, the
      x86-64 psABI, the GNU symbol-versioning document, and black-box probes of the reference
@@ -11,12 +11,12 @@ Status: PROPOSED (planning story). It refines item 20 of `plan/06-phases/17-phas
 placeholder `-5`. DLOPEN-FAILURE-PATHS and DLSYM-SPECIAL-HANDLES are folded in (#2629, #2634, #2637, #2643):
 their probes (`tools/probe/dl/run.sh`, `tools/probe/dl/handles/`) become DL-16's conformance programs.
 
-**What DL-16 builds on.** DL-7 `liella_ld::map` (D-27.15: reserve, map, unmap the reservation on failure), DL-8
-`liella_ld::search` + `cache` (D-27.16: search order, secure mode, the cache), DL-9 `liella_ld::symbols` (D-27.11:
-GNU/SysV hash, versions, `Scope`, the probe table of `dynlink.md`), DL-10 `liella_ld::reloc` (D-27.17, D-27.18: eager
-relocation, IFUNC after the non-IFUNC relocations of an object, RELRO last), DL-11 `liella_ld::init` (D-27.19:
-`init_order`/`fini_order` over a set), DL-12 `liella_ld::tls` (D-27.20: variant II layout with the 64 KiB surplus,
-R14-4; `fill_dtv`, `lookup`), DL-13 (D-27.22: `LIELLA_PRIVATE` with the build-tag check), and the boundary driver
+**What DL-16 builds on.** DL-7 `niji_ld::map` (D-27.15: reserve, map, unmap the reservation on failure), DL-8
+`niji_ld::search` + `cache` (D-27.16: search order, secure mode, the cache), DL-9 `niji_ld::symbols` (D-27.11:
+GNU/SysV hash, versions, `Scope`, the probe table of `dynlink.md`), DL-10 `niji_ld::reloc` (D-27.17, D-27.18: eager
+relocation, IFUNC after the non-IFUNC relocations of an object, RELRO last), DL-11 `niji_ld::init` (D-27.19:
+`init_order`/`fini_order` over a set), DL-12 `niji_ld::tls` (D-27.20: variant II layout with the 64 KiB surplus,
+R14-4; `fill_dtv`, `lookup`), DL-13 (D-27.22: `NIJI_PRIVATE` with the build-tag check), and the boundary driver
 `crates/boundary/src/ld.rs` (`load`, `link`, `run_init`). All of these run once, at start, over the initial set.
 DL-16 runs them again, later, under a lock, over a *new set*, with a way back on failure.
 
@@ -74,11 +74,11 @@ outside secure mode, the caller's `DT_RUNPATH`, the cache, the default directori
 object's own `DT_NEEDED` entries are searched with that object as the requester. The secure-mode rules of the threat
 model (B/C, R14-15) apply unchanged. `$ORIGIN`/`$LIB`/`$PLATFORM` in names follow the `== subst` record of
 `dynlink.md`. The caller is the object containing `dlopen`'s return address (§4 address index); the address is
-captured by the exported entry in `libc.so.6` (a C-layer shim or a `liella_machine_*` primitive: **seam**, per arch)
-and passed to `ld.so` through `LIELLA_PRIVATE`. Identity: before mapping, a found file's `(st_dev, st_ino)` is
+captured by the exported entry in `libc.so.6` (a C-layer shim or a `niji_machine_*` primitive: **seam**, per arch)
+and passed to `ld.so` through `NIJI_PRIVATE`. Identity: before mapping, a found file's `(st_dev, st_ino)` is
 compared with every loaded object (and `DT_SONAME`/name matches skip the search: probe P-2), so one file is never
 mapped twice. An incompatible candidate (class, data, OS ABI, machine) is skipped and the search goes on; when no
-candidate is left the text is the file-missing one (probed for `e_machine`, also with an explicit path): Liella follows
+candidate is left the text is the file-missing one (probed for `e_machine`, also with an explicit path): libniji follows
 this, one rule for both cases.
 
 ## 2. Relocation scope, `dlsym`, `dlvsym`
@@ -106,12 +106,12 @@ probe P-5. **`dlvsym`**: exact version, hidden versions included, the base node'
 IFUNC definitions return the resolver's result; `STT_TLS` definitions return the calling thread's address (initial
 modules through DL-12's static offsets in DL-16b; `dlopen`'d modules in DL-16d). Failures set the probed texts
 (`<object>: undefined symbol: <name>[, version <v>]`; the program is the object for `RTLD_DEFAULT` and the NULL
-handle, the caller for `RTLD_NEXT`). A handle that Liella did not return is refused with a dlerror text (pending decision 3, ruling #5006): the special
+handle, the caller for `RTLD_NEXT`). A handle that libniji did not return is refused with a dlerror text (pending decision 3, ruling #5006): the special
 handles first, then one lookup in the address index or handle set, never a scan on the `dlsym` path.
 
 ## 3. Initialisers and failure
 
-**Order.** After pass 2 the new set is published (§4), then `liella_ld::init::init_order` runs over the new objects
+**Order.** After pass 2 the new set is published (§4), then `niji_ld::init::init_order` runs over the new objects
 only (dependencies first, already-initialised objects skipped, cycles in load order; probed: `dlopen` of E needing C
 and F, with C already loaded, runs F then E). Each object goes `Initialising` -> `Ready`. A constructor may call
 `dlopen`, `dlsym`, `dl_iterate_phdr` (the writer lock is re-entrant for its owner, design §9); an inner `dlopen` of an
@@ -130,7 +130,7 @@ dependency's count; publish the chain before pass 1 ends.
 
 ## 4. dlerror, locking, and room for DL-17
 
-**dlerror** (D-27.2, design §10). Per thread: a pointer slot in Liella's private part of the thread block (the
+**dlerror** (D-27.2, design §10). Per thread: a pointer slot in libniji's private part of the thread block (the
 `tcbhead_t` prefix is untouched, D-22.10) to a record in the loader's arena (R14-5, never the interposable `malloc`),
 allocated at the thread's first failure and released by DL-15's thread-exit hook. The text is built at failure in the
 probed shapes; `dlerror()` returns it once and the next call returns NULL (probed); the returned string stays valid
@@ -145,7 +145,7 @@ empty in DL-16 and gets DL-17's per-thread reader epochs. **Publication** (pendi
 `dlopen`, after pass 2 and before the constructors: the chain append, the global-scope append, the address index and
 `dlpi_adds` together, so code that a constructor starts in another thread can unwind (`_dl_find_object`) and look up
 (`dlsym`) the new objects. The `dlopen` call itself returns after the constructors. Probe P-8 records what the
-reference does with a `dlsym` from another thread during a slow constructor (blocks or not); Liella's readers never
+reference does with a `dlsym` from another thread during a slow constructor (blocks or not); libniji's readers never
 block, so a constructor that waits for a thread calling `dlsym` cannot deadlock. The s27_1_c_8 ruling (#2607) holds:
 callbacks run without the lock, a callback may call `dlopen` (R14-6 differences row, DL-17).
 
@@ -174,14 +174,14 @@ text (interim, like `RTLD_LAZY`). DL-16d needs from DL-15:
    thread's static TLS from the module table *and* inserts the thread into the list under that lock; `dlopen` fills
    the new module's surplus block in every listed thread under the same lock before publication. Either order of a
    racing create and `dlopen` then initialises the block exactly once.
-2. `__liella_tls_init(block)` that copies the images of a **growable, published module table** (not the start-time
+2. `__niji_tls_init(block)` that copies the images of a **growable, published module table** (not the start-time
    array), so threads created after a `dlopen` get its module.
 3. The **dtv** contract: a generation word, capacity growth from the loader arena, and the rule that a surplus
    module's dtv entry is `TP - offset`, filled eagerly for live threads or lazily by `__tls_get_addr`'s slow path when
    the thread's generation is behind.
-4. The TLSDESC static-return primitive (`liella_machine_ld_tlsdesc_static`) for surplus modules; the dynamic one
+4. The TLSDESC static-return primitive (`niji_machine_ld_tlsdesc_static`) for surplus modules; the dynamic one
    stays with DL-19.
-5. A thread-exit hook (`LIELLA_PRIVATE`) that releases the thread's loader state (the dlerror record now, dynamic
+5. A thread-exit hook (`NIJI_PRIVATE`) that releases the thread's loader state (the dlerror record now, dynamic
    blocks in DL-19).
 
 If DL-15's design differs, DL-16d adapts to it; points 1 and 2 are the race that must be closed either way.
@@ -195,7 +195,7 @@ compares with the reference by a probe in `tools/probe/dl/` recorded in `spec/be
 | Story | Size | After | Builds | Proof |
 |---|---|---|---|---|
 | **DL-16P** `DL-DLOPEN-PROBES` | S | now | probes P-1..P-13 below, no product code | `dynlink.md` rows, each from a probe program |
-| **DL-16H** `CONF-DYN-HELPERS` | S | DL-14 | conformance harness: a directive that builds helper objects and links the test dynamically (Liella's `libc.so.6` + `ld.so`, and the reference) | the two folded probes run as conformance programs on the reference; a plant that drops a helper is caught |
+| **DL-16H** `CONF-DYN-HELPERS` | S | DL-14 | conformance harness: a directive that builds helper objects and links the test dynamically (libniji's `libc.so.6` + `ld.so`, and the reference) | the two folded probes run as conformance programs on the reference; a plant that drops a helper is caught |
 | **DL-16a** `DL-DLOPEN-LOAD` | M | DL-14, DL-16H | `dlopen`/`dlerror` exports (`libc.so.6` + `libdl.so.2` versions per `spec/`), caller capture, writer lock, append-only chain, new-set load (search, identity, map, version check, two-pass relocation, publication, init), all modes but `GLOBAL`/`DEEPBIND`, failure unwind, per-thread dlerror | `s27_1_c_1*`, `s27_1_c_5`, `s27_1_f_0`: every dlerror text of `dynlink.md`; mode matrix; failure leaves `/proc/self/maps` and counters as probed; 3 failure plants |
 | **DL-16b** `DL-DLSYM` | M | DL-16a | `dlsym`/`dlvsym`, `RTLD_DEFAULT`/`RTLD_NEXT`, handle scopes, `RTLD_GLOBAL` (+ promotion), `RTLD_DEEPBIND`, unique table, handle validation, `STT_TLS` of initial modules | `s27_1_c_3`, `c_1_3`, `g_0`; `handles.c` adopted; version table rows; plants: `RTLD_NEXT` starting at the caller, `dlopen(NULL)` scope without the program, unique table bypassed |
 | **DL-16c** `DL-DLOPEN-CONCURRENT` | M | DL-16a (DL-15 for the thread cases) | `dl_iterate_phdr`/`_dl_find_object` over the chain, `adds`/`subs`, `read_section`, recursive `dlopen` from constructors, `fork` prepare/child, lock-order rule | `s27_1_c_8`; constructor calls `dlopen`/`dlsym`/`malloc`/`printf`; unwinding a C++ exception through a `dlopen`'d object; concurrent `dlopen` + `dl_iterate_phdr` loop (iteration budget, no wall clock); plant: publish before pass 2 |
@@ -245,9 +245,9 @@ box only, as programs under `tools/probe/dl/<topic>/` with a `run.sh SCRATCH`, a
 unsafe in the reference (a crash, a deadlock), record it as such: DL-16 specifies it (#2607 principle).
 
 **DL-16H `CONF-DYN-HELPERS`.** Give the conformance harness a dynamic mode: a directive in a `conformance/c` program
-names helper sources that are built as shared objects, and the program is linked dynamically and run under Liella's
-`ld.so` (from `target/liella`) and under the reference. Adopt `tools/probe/dl/handles/` and the failure corpus of
-`tools/probe/dl/run.sh` as the first two programs (expected to fail on Liella until DL-16a/b: wire them as pending in
+names helper sources that are built as shared objects, and the program is linked dynamically and run under libniji's
+`ld.so` (from `target/niji`) and under the reference. Adopt `tools/probe/dl/handles/` and the failure corpus of
+`tools/probe/dl/run.sh` as the first two programs (expected to fail on libniji until DL-16a/b: wire them as pending in
 the clause tests, not as skips). Plant: a helper left unbuilt must be caught.
 
 **DL-16a `DL-DLOPEN-LOAD`.** Implement `dlopen` and `dlerror` (plan §1, §3, §4): exports in `libc.so.6` and the

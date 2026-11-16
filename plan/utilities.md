@@ -1,11 +1,11 @@
-# The libc utilities: how Liella provides them (LIELLA-UTILITIES-DESIGN)
+# The libc utilities: how libniji provides them (LIELLA-UTILITIES-DESIGN)
 
 **Status: Proposed. The owner reviews this design before any implementation story starts.**
 
-Builds on the owner's rulings of 2026-11-13/14: R1 (in Aqours, Liella's packages take the names `libc6`,
-`libc-bin`, `libc6-dev`, `libc-dev-bin`, `locales`, `libc-l10n`), R5 (Devuan's locale data compiled by Liella's own
+Builds on the owner's rulings of 2026-11-13/14: R1 (in Yohane Linux, libniji's packages take the names `libc6`,
+`libc-bin`, `libc6-dev`, `libc-dev-bin`, `locales`, `libc-l10n`), R5 (Devuan's locale data compiled by libniji's own
 localedef now, a CLDR-derived set later), R6 (ldconfig, ldd, getent, getconf, iconv, locale and localedef come into
-Liella's spec; ldconfig first), R7 (zic, zdump and tzselect reimplemented clean-room), R8 (no nscd), #941 (the loader
+libniji's spec; ldconfig first), R7 (zic, zdump and tzselect reimplemented clean-room), R8 (no nscd), #941 (the loader
 reads only the new cache format), and the owner's principle **not how glibc does it**: what has to stay compatible is
 what callers depend on (command names, options, output, exit codes, file formats), never the reference's internal
 structure, and every shape below is weighed against the alternatives.
@@ -20,16 +20,16 @@ Appendix D (D.1 locales, D.2 catalogs, D.3 the loader cache). Numbers below are 
 
 ## 1. Summary
 
-* **One library per domain, holding both sides of each file format.** Today the readers live in Liella (TZif in
-  `liella-core::time::tzif`, locales in `liella-core::locale`, charmaps in `liella-core::charmap`, the loader cache in
-  `liella-ld::cache`); the utilities are the writers. Putting each writer in the crate of its reader gives one
+* **One library per domain, holding both sides of each file format.** Today the readers live in libniji (TZif in
+  `niji-core::time::tzif`, locales in `niji-core::locale`, charmaps in `niji-core::charmap`, the loader cache in
+  `niji-ld::cache`); the utilities are the writers. Putting each writer in the crate of its reader gives one
   implementation per format, round-trip tests by construction, and one fuzz target per parser.
-* **Commands are thin front ends, grouped into one executable per domain** (`liella-tz` answers as zic, zdump and
-  tzselect; `liella-locale` as locale, localedef, locale-gen, update-locale and validlocale), chosen by `argv[0]`.
+* **Commands are thin front ends, grouped into one executable per domain** (`niji-tz` answers as zic, zdump and
+  tzselect; `niji-locale` as locale, localedef, locale-gen, update-locale and validlocale), chosen by `argv[0]`.
   **ldconfig stands alone: a freestanding static binary** with no C library dependency, because dpkg refuses to run
   without it and it runs as root on every package operation.
 * **Public interfaces:** the command lines and file formats only, on day one. Proposed for the owner's yes: a public
-  Rust `tz` API (read, list transitions, compile) in `liella-native`'s clean API once zic and zdump are proven. No new
+  Rust `tz` API (read, list transitions, compile) in `niji-native`'s clean API once zic and zdump are proven. No new
   C ABI until a C consumer asks.
 * **Order:** spec part and transcript harness, then ldconfig with the cache writer; then ldd, getent and getconf; then
   iconv and locale; then the tz tools; then localedef with the `locales` commands; gencat and pldd last.
@@ -38,22 +38,22 @@ Appendix D (D.1 locales, D.2 catalogs, D.3 the loader cache). Numbers below are 
 
 ### 2.1 What the reference packages ship
 
-| Path | Package | Kind (reference) | Liella |
+| Path | Package | Kind (reference) | libniji |
 |---|---|---|---|
 | `/usr/sbin/ldconfig` (+ `ldconfig.real`) | libc-bin | wrapper script + static-pie ELF | one binary at `/usr/sbin/ldconfig` |
-| `/usr/bin/ldd` | libc-bin | bash script | front end over Liella's loader |
+| `/usr/bin/ldd` | libc-bin | bash script | front end over libniji's loader |
 | `/usr/bin/getent`, `getconf`, `iconv`, `locale`, `localedef`, `zdump`, `pldd` | libc-bin | dynamic ELF | front ends (§4) |
-| `/usr/sbin/zic`, `/usr/sbin/iconvconfig` | libc-bin | dynamic ELF | zic in `liella-tz`; iconvconfig: Q4 |
-| `/usr/bin/tzselect` | libc-bin | bash script | command of `liella-tz` |
-| `/usr/bin/ld.so` | libc-bin | link to `../lib64/ld-linux-x86-64.so.2` | the same link, to Liella's loader |
+| `/usr/sbin/zic`, `/usr/sbin/iconvconfig` | libc-bin | dynamic ELF | zic in `niji-tz`; iconvconfig: Q4 |
+| `/usr/bin/tzselect` | libc-bin | bash script | command of `niji-tz` |
+| `/usr/bin/ld.so` | libc-bin | link to `../lib64/ld-linux-x86-64.so.2` | the same link, to libniji's loader |
 | `/etc/ld.so.conf` (`include /etc/ld.so.conf.d/*.conf`), `/etc/ld.so.conf.d/libc.conf` (`/usr/local/lib`) | libc-bin | config | the same |
 | `/etc/ld.so.conf.d/x86_64-linux-gnu.conf` | libc6 | config | the same |
-| `/etc/gai.conf`, `/usr/share/libc-bin/nsswitch.conf` | libc-bin | config / template | Liella's own defaults |
+| `/etc/gai.conf`, `/usr/share/libc-bin/nsswitch.conf` | libc-bin | config / template | libniji's own defaults |
 | `/etc/bindresvport.blacklist` | libc-bin | config | Q4 (Sun RPC is not implemented) |
-| `/usr/lib/locale/C.utf8/` | libc-bin | compiled locale | built into Liella; `locale -a` still lists it |
-| `/var/cache/ldconfig/` | libc-bin | directory | Liella's own auxiliary cache, if UTIL-3 measures a gain |
+| `/usr/lib/locale/C.utf8/` | libc-bin | compiled locale | built into libniji; `locale -a` still lists it |
+| `/var/cache/ldconfig/` | libc-bin | directory | libniji's own auxiliary cache, if UTIL-3 measures a gain |
 | `/usr/bin/gencat` | libc-dev-bin | dynamic ELF | UTIL-14 |
-| `/usr/sbin/locale-gen`, `update-locale`, `validlocale`, `/etc/locale.alias` | locales | scripts, config | commands of `liella-locale` (Q8) |
+| `/usr/sbin/locale-gen`, `update-locale`, `validlocale`, `/etc/locale.alias` | locales | scripts, config | commands of `niji-locale` (Q8) |
 | `/usr/bin/sprof`, `sotruss`, `mtrace` | libc-devtools | ELF, scripts | Q4 |
 | `nscd` | (not installed) | | dropped (R8) |
 
@@ -65,7 +65,7 @@ no `posix/` or `right/`. `/etc/localtime` is a symlink into `/usr/share/zoneinfo
 
 * **dpkg** refuses to unpack or configure anything when `ldconfig` is not in `PATH`: `dpkg: warning: 'ldconfig' not
   found in PATH or not executable` ... `dpkg: error: 2 expected programs not found in PATH or not executable`, exit 2
-  (the other is `start-stop-daemon`). An Aqours root needs an executable `ldconfig` before its first package operation.
+  (the other is `start-stop-daemon`). A Yohane Linux root needs an executable `ldconfig` before its first package operation.
 * **dpkg triggers:** 398 of the 440 `.triggers` files on the reference say `activate-noawait ldconfig` (404 packages
   ship `.shlibs`); `libc-bin` is the one package interested in the `ldconfig` trigger.
 * **Maintainer scripts** outside the libc packages: `getent` in 18 (`getent passwd` 13, `getent group` 13, `getent
@@ -79,9 +79,9 @@ no `posix/` or `right/`. `/etc/localtime` is a symlink into `/usr/share/zoneinfo
   `\s+(lib<name>\.[^\s]+)\s+\(libc6,x86-64`; `sos` and an initramfs hook also read `ldconfig -p`.
 * **Scripts** (search of the reference's non-libc scripts): `locale charmap` (6 files), `locale -a` (3), `getent
   passwd` (4), `ldconfig -p`/`-r`/`-v`, `getconf _NPROCESSORS_ONLN`, `getconf PAGESIZE`.
-* **Builds** (Aqours rebuilds from source, route A): `getconf` for job counts, `gencat` for X/Open catalogs, `zic` for
+* **Builds** (Yohane Linux rebuilds from source, route A): `getconf` for job counts, `gencat` for X/Open catalogs, `zic` for
   the `tzdata` package itself, `localedef` for packages that build locales.
-* **The loader:** Liella's ld.so reads `/etc/ld.so.cache` in the new format only (D-27.16, #941). Other programs may
+* **The loader:** libniji's ld.so reads `/etc/ld.so.cache` in the new format only (D-27.16, #941). Other programs may
   read the binary file directly; its layout (D.3) is a de facto interface.
 
 ### 2.3 Each utility
@@ -109,7 +109,7 @@ Options (`--help`): `-c/--format=new|old|compat`, `-C CACHE`, `-f CONF`, `-i/--i
   `\t\t<needed> (<version>) => <path>`.
 * Not ELF: `\tnot a dynamic executable`, exit 1. Static or static-pie: `\tstatically linked`, exit 0. Missing file:
   `ldd: <file>: No such file or directory`, exit 1. No operand: `ldd: missing file arguments` and the `Try` line, exit 1.
-* `LD_TRACE_LOADED_OBJECTS=1 PROGRAM` prints the same list (ld.so(8)). Liella's loader already implements `--list` and
+* `LD_TRACE_LOADED_OBJECTS=1 PROGRAM` prints the same list (ld.so(8)). libniji's loader already implements `--list` and
   the variable with these line formats (D-27.16).
 
 **getent.** `/usr/bin/getent [OPTION...] database [key ...]`: `-A/--no-addrconfig`, `-i/--no-idn`,
@@ -131,7 +131,7 @@ from `sysconf`, `confstr`, `pathconf` (§24); getconf adds the name table.
 `-l/--list`, `-c`, `-o/--output`, `-s/--silent`, `--verbose`, `--help`, `--usage`, `-V`. Errors: `iconv: illegal input
 sequence at position N` (exit 1, output up to that point written); ``iconv: conversion from `X' is not supported``
 and the `Try` line (exit 1); ``iconv: cannot open input file `F': <strerror>`` (exit 1). `-c` dropped an
-unconvertible character with exit 0. `-l` lists 1 180 names (`437//` style) from 253 gconv modules. Liella has no
+unconvertible character with exit 0. `-l` lists 1 180 names (`437//` style) from 253 gconv modules. libniji has no
 gconv modules (D-6.8): its charsets are the built-ins and the 233 charmaps in `/usr/share/i18n/charmaps`, so its `-l`
 lists exactly the names it can convert.
 
@@ -172,7 +172,7 @@ chosen value. The reference zic, given the shipped `tzdata.zi`, reproduces all 4
 * **(d) Domain executables:** (b)'s libraries, and one executable per domain whose commands are names of it; a domain
   with one command is a plain program; ldconfig freestanding and static.
 * **(e) Executable libraries** (the owner's "libtz", taken literally): a shared object per domain with a C ABI
-  (`libliella-tz.so.1`) that, when executed, runs as zic, zdump or tzselect by `argv[0]` (the loader and the C library
+  (`libniji-tz.so.1`) that, when executed, runs as zic, zdump or tzselect by `argv[0]` (the loader and the C library
   are already executable shared objects).
 
 | | (a) separate | (b) library + front ends | (c) one multi-call | (d) domain executables | (e) executable library |
@@ -199,7 +199,7 @@ that domain falls back to (b), which changes the build only.
 * Public already, with the compatibility promise of §2: the commands and the formats (TZif per RFC 8536, the zic
   input language per zic(8), the D.3 cache, the D.1 locale directory and archive, POSIX charmaps and locale sources,
   `/etc/ld.so.conf`, `/etc/locale.gen`).
-* **Proposed (owner's yes):** a Rust `tz` module in `liella-native`'s clean API (D-X.10: stateless computation compiled
+* **Proposed (owner's yes):** a Rust `tz` module in `niji-native`'s clean API (D-X.10: stateless computation compiled
   into the consumer, semver-versioned): read a TZif file, list a zone's transitions in a range (zdump as a function),
   compile zic source to TZif bytes, read the zone tables tzselect uses. Installers, date and calendar tools and language
   runtimes get RFC 8536 handling without spawning zic or writing their own parser. After UTIL-10 proves it.
@@ -211,27 +211,27 @@ that domain falls back to (b), which changes the build only.
 
 ## 4. Recommendation per domain, and the order
 
-**Loader cache (ldconfig).** `liella-ld` gains `cache::write` beside the reader (shared constants and the D.3.3
+**Loader cache (ldconfig).** `niji-ld` gains `cache::write` beside the reader (shared constants and the D.3.3
 comparison `cache::compare`, so writer order and reader search agree by construction), a `conf` parser (`include` with
 globs, comments; `/etc/ld.so.conf.d/*.conf` read in sorted order), a directory scan (sorted listings, the ELF reader the
 loader uses, class and machine checks, `glibc-hwcaps/<level>` subdirectories) and the link rule. ldconfig is
 freestanding (no C library, like ld.so) and static, so it runs in a root with no libc installed and while `libc6` is
 being replaced.
-* Format: exactly the D.3.1 new format with tag 0 and tag 1 extensions: what Liella's loader reads, what direct
+* Format: exactly the D.3.1 new format with tag 0 and tag 1 extensions: what libniji's loader reads, what direct
   readers of the file expect, and the same on Debian coexistence systems. `-c old|compat`: Q5.
-* Gains, described as Liella behaviour: **deterministic output** (entries sorted by the D.3.3 comparison, ties broken
+* Gains, described as libniji behaviour: **deterministic output** (entries sorted by the D.3.3 comparison, ties broken
   by configuration order and then path bytes, directory listings sorted: identical input trees give byte-identical
   caches on any file system); **atomic replacement** (temporary file in the same directory, `fsync`, `rename`); every
   ELF file treated as untrusted input (bounds-checked, never mapped executable); **`-r` without privileges** through
   `openat2(RESOLVE_IN_ROOT)` instead of `chroot` (ordinary users and tests can build roots; `chroot` only as the
   fallback where `openat2` is missing).
-* dpkg: Liella's `libc-bin` declares interest in the `ldconfig` trigger and runs `ldconfig` once per trigger cycle.
-  An auxiliary cache (Liella's own file under `/var/cache/ldconfig/`, never the reference's) only if UTIL-3's counters
+* dpkg: libniji's `libc-bin` declares interest in the `ldconfig` trigger and runs `ldconfig` once per trigger cycle.
+  An auxiliary cache (libniji's own file under `/var/cache/ldconfig/`, never the reference's) only if UTIL-3's counters
   show a gain on a full library tree.
 
-**ldd.** A front end that runs Liella's loader in `--list` mode on each operand (the loader's own search, cache and
+**ldd.** A front end that runs libniji's loader in `--list` mode on each operand (the loader's own search, cache and
 hwcaps choice, D-27.16), so ldd and the loader cannot disagree. It never runs the operand's code; for a file whose
-`PT_INTERP` is not Liella's loader it lists by Liella's rules and says so on stderr (Q6). `-v` reads the version needs
+`PT_INTERP` is not libniji's loader it lists by libniji's rules and says so on stderr (Q6). `-v` reads the version needs
 itself. `-d`, `-r` and `-u` need relocation processing (DL-10); until then they are refused with a message.
 
 **Name service (getent).** A thin dynamic front end over the public NSS functions, so it shows exactly what every
@@ -241,108 +241,108 @@ program gets (modules, `nsswitch.conf`, the integrated cache D-16.10). `-s` uses
 tables, so a name added to the library is added to getconf in the same change.
 
 **iconv.** A thin front end over `iconv(3)` (the command is a client of the API like any program); `-l` from the
-iconv crate (built-ins, charmap names and their `% alias` lines). Liella's charmaps cost a decompress and parse per
+iconv crate (built-ins, charmap names and their `% alias` lines). libniji's charmaps cost a decompress and parse per
 process (D-6.8); a compiled charmap table installed by the package is a possible later performance story, only with
 counters showing the gain. `iconvconfig`: Q4.
 
-**Locale (locale, localedef, and the `locales` commands).** A `liella-locale` crate: the locale source parser (POSIX
+**Locale (locale, localedef, and the `locales` commands).** A `niji-locale` crate: the locale source parser (POSIX
 localedef syntax and the extensions Devuan's sources use), the charmap parser shared with iconv (`core::charmap`), a
 writer for the D.1 category files and the D.1.6 archive (add, delete, list, replace), and locale listing. Output stays
-in the D.1 format: Liella's reader reads it, coexistence systems need it, and a Liella-native format for the CLDR set
+in the D.1 format: libniji's reader reads it, coexistence systems need it, and a libniji-native format for the CLDR set
 (R5) can be proposed later with measurements. `locale-gen`, `update-locale` and `validlocale` (interfaces from their
 man pages, `/etc/locale.gen`, `/etc/default/locale`, `SUPPORTED`) compile in-process: one parse of each charmap and of
 shared sources such as the common collation table for all requested locales, in parallel; counters per locale against
 one `localedef` process per locale decide the claim.
 
-**Time zones (zic, zdump, tzselect).** A `liella-tz` crate: the zic input parser (zic(8): `Rule`, `Zone`, `Link`,
+**Time zones (zic, zdump, tzselect).** A `niji-tz` crate: the zic input parser (zic(8): `Rule`, `Zone`, `Link`,
 `Leap`, `Expires`), the rule engine over the full 64-bit range, the TZif writer (RFC 8536 versions 2-4, `-b slim|fat`,
 `-r` truncation), the footer generator with a check that the footer reproduces the last transitions (RFC 8536 §3.3),
 leap seconds, the zdump renderer (`-v`, `-V`, `-i`, `-c`, `-t`), and the tzselect tables (`zone1970.tab`,
 `zonenow.tab`, `iso3166.tab`, ISO 6709 distances for `-c`). The TZif reader and POSIX rule parser move here from
-`liella-core::time` (or are shared from there), so the C library and the tools read with one implementation. Default
+`niji-core::time` (or are shared from there), so the C library and the tools read with one implementation. Default
 `-b fat`: the observed reference default and the form the shipped files have (Q9 is local).
 
 **Order.**
-1. **ldconfig** (UTIL-2, UTIL-3): dpkg will not run without it; freestanding, so it is in the very first Aqours root.
+1. **ldconfig** (UTIL-2, UTIL-3): dpkg will not run without it; freestanding, so it is in the very first Yohane Linux root.
 2. **ldd, getent, getconf** (UTIL-4 to 6): initramfs generation, maintainer scripts, builds. The dynamic front ends
-   run once DL-10 lets the loader start programs with dependencies (a prerequisite of Aqours as a whole).
+   run once DL-10 lets the loader start programs with dependencies (a prerequisite of Yohane Linux as a whole).
 3. **iconv, locale** (UTIL-7, 8).
-4. **zic, zdump, tzselect** (UTIL-9 to 11). `tzdata` is architecture-independent data, so Aqours can take Devuan's
+4. **zic, zdump, tzselect** (UTIL-9 to 11). `tzdata` is architecture-independent data, so Yohane Linux can take Devuan's
    package unchanged until it rebuilds `tzdata` itself (then zic is a build tool).
 5. **localedef and the `locales` commands** (UTIL-12, 13): R5; not bootstrap-critical (C.UTF-8 is built in).
 6. **gencat, pldd** (UTIL-14, 15); the public `tz` API (UTIL-16) after the owner's yes; the CLDR set (R5) later.
 
 ## 5. Proof plan
 
-Common to all: a transcript harness (UTIL-1) runs the reference command and Liella's with the same argv, environment,
+Common to all: a transcript harness (UTIL-1) runs the reference command and libniji's with the same argv, environment,
 stdin and file tree, inside an unprivileged user and mount namespace when a private root is needed, and compares
 stdout, stderr and exit status; a skipped case prints why. Each domain library gets property tests, a `cargo fuzz`
 target per parser, and plants through `cargo xtask plants`. Identity strings (Q3) are masked in comparisons.
 
 | Utility | Oracle | Corpus | Comparison |
 |---|---|---|---|
-| cache writer | Liella's reader; the reference `ldconfig -p`; the reference loader | generated caches: sonames with digit runs, hwcaps levels, duplicates, empty, maximal | round trip writer -> reader (property test, entries and order); the reference `ldconfig -p -C` lists Liella-written caches as Liella's `-p` does; the reference loader resolves through a Liella cache bind-mounted over `/etc/ld.so.cache` (the D.3 method); fuzz the reader with mutated writer output |
+| cache writer | libniji's reader; the reference `ldconfig -p`; the reference loader | generated caches: sonames with digit runs, hwcaps levels, duplicates, empty, maximal | round trip writer -> reader (property test, entries and order); the reference `ldconfig -p -C` lists libniji-written caches as libniji's `-p` does; the reference loader resolves through a libniji cache bind-mounted over `/etc/ld.so.cache` (the D.3 method); fuzz the reader with mutated writer output |
 | ldconfig | the reference ldconfig in the same private roots | generated roots: versions `1.2/1.9/1.10`, no soname, dev links, `include` globs, merged-`/usr` duplicates, hwcaps subdirectories, foreign-class and truncated ELF files, the reference system's own library tree | decoded cache entries equal (byte equality reported, not required), link trees (`find -type l`, sorted) equal, `-p`/`-v`/`-n`/`-X`/`-N`/`-C`/`-f`/`-r` transcripts; determinism: the same tree built in two orders and on two file systems gives identical bytes; counters (instructions, syscalls) for a full run against the reference |
 | ldd | the reference ldd | dynamic, static, static-pie, scripts, missing dependencies, several operands, `-v` | transcripts with addresses masked; initramfs-tools' copy_exec parsing of both outputs gives the same file list |
 | getent | the reference getent | private `/etc` (passwd, group, shadow, gshadow, hosts, services, protocols, networks, ethers, aliases, netgroup, rpc) in a mount namespace | transcripts per database, key forms, `-s`, enumeration, exit codes 0/1/2/3 |
 | getconf | the reference getconf | every name of `getconf -a`, each with and without a path | name set equal; values equal on the same host; error transcripts |
 | iconv | the reference iconv | built-in charsets and every charmap: valid, invalid, truncated input; `-c`, `//TRANSLIT`, `//IGNORE`; input split at every byte | output bytes, error position and exit status; `-l` checked as "every listed name converts" |
 | locale | the reference locale | every keyword and category of every installed locale; bad environments | transcripts |
-| zic | Debian's compiled files; the reference zic and zdump | the shipped `tzdata.zi` (2026e: 447 zones, 151 links), later releases, `-b slim`, `-r` ranges, leap seconds | semantic equality per zone: transitions (time, UT offset, DST flag, abbreviation) over the full range, the footer (evaluated per year, 1800-2500), leap records, links; byte equality reported; the reference `zdump -v` over Liella's files equals it over the shipped files; Liella's `localtime` agrees on both; fuzz the parser; differential fuzz: random zic sources through both compilers |
+| zic | Debian's compiled files; the reference zic and zdump | the shipped `tzdata.zi` (2026e: 447 zones, 151 links), later releases, `-b slim`, `-r` ranges, leap seconds | semantic equality per zone: transitions (time, UT offset, DST flag, abbreviation) over the full range, the footer (evaluated per year, 1800-2500), leap records, links; byte equality reported; the reference `zdump -v` over libniji's files equals it over the shipped files; libniji's `localtime` agrees on both; fuzz the parser; differential fuzz: random zic sources through both compilers |
 | zdump | the reference zdump | every zone, `-v`, `-V`, `-i`, `-c`, `-t` | exact transcripts |
 | tzselect | the reference tzselect | scripted sessions over every continent and country; `-c` for sample coordinates; `-n` | transcripts of the chosen value and prompts |
-| localedef | Liella's libc as the fixed reader | every locale in `SUPPORTED` compiled by both localedefs into `LOCPATH` directories | Liella's libc gives identical results on both: every `nl_langinfo` item, `strcoll`/`strxfrm`/`wcscoll` over a corpus, classification and case mapping for every code point, `strftime`, `strfmon`, grouping; archive add/delete/list round trips; error exit codes; fuzz the source parser |
+| localedef | libniji's libc as the fixed reader | every locale in `SUPPORTED` compiled by both localedefs into `LOCPATH` directories | libniji's libc gives identical results on both: every `nl_langinfo` item, `strcoll`/`strxfrm`/`wcscoll` over a corpus, classification and case mapping for every code point, `strftime`, `strfmon`, grouping; archive add/delete/list round trips; error exit codes; fuzz the source parser |
 | locales commands | the reference commands | `/etc/locale.gen` variants in a namespace root | resulting locale sets and files; counters per locale |
-| gencat | Liella's `catopen` | catalog sources | Liella-written and reference-written catalogs give the same `catgets` results |
+| gencat | libniji's `catopen` | catalog sources | libniji-written and reference-written catalogs give the same `catgets` results |
 
 ## 6. Stories
 
 | ID | Title | Size | Depends on | Proof |
 |---|---|---|---|---|
 | UTIL-0 | Spec part "Utilities" (a new section with clause ids) from §2, plus a decision series and view for it | M | owner's yes, Q7 | `cargo xtask stubs`/static green; every surface row cites a probe or a man page |
-| UTIL-1 | Transcript harness (reference vs Liella, private roots in user and mount namespaces) | M | UTIL-0 | plants on the comparator (a byte, a status, a stream) caught |
+| UTIL-1 | Transcript harness (reference vs libniji, private roots in user and mount namespaces) | M | UTIL-0 | plants on the comparator (a byte, a status, a stream) caught |
 | UTIL-SHAPE | Measure (d) against (b): start-up instructions, faults and size for two front ends in both shapes | S | UTIL-1, DL-10 | counters on both shapes; decision record |
-| UTIL-2 | Cache writer in `liella-ld` (deterministic, D.3 new format, tags 0 and 1) | M | owner's yes | round trip, reference `-p`, reference loader, fuzz |
+| UTIL-2 | Cache writer in `niji-ld` (deterministic, D.3 new format, tags 0 and 1) | M | owner's yes | round trip, reference `-p`, reference loader, fuzz |
 | UTIL-3 | ldconfig: conf parser, scan, links, `-r` via `openat2`, atomic replace, freestanding static product, dpkg trigger in the package | M | UTIL-1, UTIL-2 | differential roots, determinism, consumer check, counters |
 | UTIL-4 | ldd over the loader's `--list`; `-v`; `-d/-r/-u` after DL-10 | S | UTIL-1, DL-10 | transcripts, initramfs parsing |
 | UTIL-5 | getconf with a generated name table | S | UTIL-1 | name set, values, errors |
 | UTIL-6 | getent (dynamic) | S | UTIL-1, DL-10 | transcripts in private roots |
 | UTIL-7 | iconv command and charset listing | S | UTIL-1 | transcripts, split inputs |
 | UTIL-8 | locale command (keyword table, `-a -v`, `-m`) | S | UTIL-1 | transcripts |
-| UTIL-9 | `liella-tz`: parser, rule engine, TZif writer, footer check; the reader shared with the libc | M | UTIL-1 | semantic equality over all zones, fuzz, differential fuzz |
+| UTIL-9 | `niji-tz`: parser, rule engine, TZif writer, footer check; the reader shared with the libc | M | UTIL-1 | semantic equality over all zones, fuzz, differential fuzz |
 | UTIL-10 | zic and zdump commands (the tz domain executable) | S | UTIL-9 | zdump transcripts for every zone, zic option matrix |
 | UTIL-11 | tzselect command | S | UTIL-9 | scripted sessions |
-| UTIL-12 | `liella-locale`: source parser, D.1 writer, archive writer, listing; localedef command | L | UTIL-1, UTIL-8 | libc-as-reader equality over all `SUPPORTED` locales, fuzz |
+| UTIL-12 | `niji-locale`: source parser, D.1 writer, archive writer, listing; localedef command | L | UTIL-1, UTIL-8 | libc-as-reader equality over all `SUPPORTED` locales, fuzz |
 | UTIL-13 | locale-gen, update-locale, validlocale (in-process, parallel) | S | UTIL-12, Q8 | results, counters per locale |
 | UTIL-14 | gencat (D.2.2 writer) | S | UTIL-1 | `catgets` equality |
 | UTIL-15 | pldd | S | UTIL-1 | transcripts on a test process |
-| UTIL-16 | Public Rust `tz` API in `liella-native` (docs, semver) | M | UTIL-10, Q2 | API tests, docs |
+| UTIL-16 | Public Rust `tz` API in `niji-native` (docs, semver) | M | UTIL-10, Q2 | API tests, docs |
 
 Packaging (the trigger declaration, conffiles, links of the domain executables into `/usr/bin` and `/usr/sbin`) goes
-with the Aqours packaging story that takes over `libc-bin`, `libc-dev-bin` and `locales` (R1); UTIL-3 provides the
+with the Yohane Linux packaging story that takes over `libc-bin`, `libc-dev-bin` and `locales` (R1); UTIL-3 provides the
 trigger handling it needs.
 
 ## 7. Questions for the owner
 
 * **Q1 Architecture:** approve (d): a library per domain holding both sides of each format, one executable per domain,
   ldconfig freestanding and static (recommended); UTIL-SHAPE may move a domain to (b).
-* **Q2 Public interfaces:** a public Rust `tz` API in `liella-native` after UTIL-10 (recommend yes); a `locale` API
+* **Q2 Public interfaces:** a public Rust `tz` API in `niji-native` after UTIL-10 (recommend yes); a `locale` API
   deferred; no new C ABI until a C consumer asks (recommend).
 * **Q3 Identity strings:** `--version` banners, the bug-report line of `--help`, and the `Cache generated by:` text.
-  Recommend Liella's own identity (`<tool> (Liella <version>) 2.39`) after the mirror scan counts scripts that match
+  Recommend libniji's own identity (`<tool> (libniji <version>) 2.39`) after the mirror scan counts scripts that match
   the reference's banners (for example to tell C libraries apart from `ldd --version`); `getconf GNU_LIBC_VERSION`
   follows `confstr`, a library decision outside this plan.
 * **Q4 Not shipped:** `iconvconfig` (no gconv modules; no caller found), `/etc/bindresvport.blacklist` (Sun RPC not
   implemented), `libc-devtools` (`sprof`, `sotruss`, `mtrace`). Recommend dropping them with differences rows, unless
   the mirror scan finds users; gencat and pldd are kept (UTIL-14, 15).
 * **Q5 `ldconfig -c old|compat`:** refuse with a message, consistent with #941 (recommend); differences row, no
-  restore flag (nothing in Liella reads those formats).
-* **Q6 ldd on a program for another loader:** list by Liella's rules with a note on stderr; never run another
+  restore flag (nothing in libniji reads those formats).
+* **Q6 ldd on a program for another loader:** list by libniji's rules with a note on stderr; never run another
   interpreter (recommend).
 * **Q7 Spec home:** a new spec section "Utilities" with its own decision series and view (a records schema change for
   the coordinator); recommend.
 * **Q8 `locales` commands:** reimplement locale-gen, update-locale and validlocale from their man pages inside
-  `liella-locale` (recommend; R1 gives Liella the `locales` package).
+  `niji-locale` (recommend; R1 gives libniji the `locales` package).
 
 Local details decided in the stories (decision records there): zic's default `-b fat` (Q9), the auxiliary cache, the
 `-r` mechanism, getconf's padding, the masking rules of the harness.
@@ -351,6 +351,6 @@ Local details decided in the stories (decision records there): zic's default `-b
 
 * Devuan excalibur's `libc-bin` (glibc 2.41) file list was not probed (this story may not download packages); compare
   when the mirror is served. The caller counts are from one build server; the mirror scan recounts.
-* getent's reach depends on which NSS modules Liella loads (§16); getent itself adds nothing.
+* getent's reach depends on which NSS modules libniji loads (§16); getent itself adds nothing.
 * The `ldconfig -p` label of hwcaps entries, `localedef`'s exit status 1 (output written with warnings) and the exact
   `-a` padding of getconf are left to the stories' probes.

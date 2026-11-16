@@ -127,16 +127,16 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 
 ## Moving an export into assembly (checklist, COPY-FILL 2026-10-10)
 
-1. Define the C name as a second label on the csys kernel under `#ifdef LIELLA_EXPORT` (`csys/src/machine/fold.S` shows
+1. Define the C name as a second label on the csys kernel under `#ifdef NIJI_EXPORT` (`csys/src/machine/fold.S` shows
    it); no `.macro`; `.p2align 6` per entry (D-4.22 MEM-K5b).
 2. Keep the Rust function as an `export! { asm ... }` test twin (never `no_mangle`) so the boundary tests still reach the
    assembly; paths the assembly leaves go to an `export! { local ... }` function (hidden C name, tail-jumped to).
 3. unsafe-audit: `unsafe` for the export machinery is allowed only in `crates/boundary/src/export.rs`; every block needs
    `// UNSAFE(<category>) SAFETY:` with the category the audit allows for that file.
-4. xtask/src/copies.rs: a member that DEFINES memcpy/memmove/memset must also define the `liella_internal_*` entry unless
+4. xtask/src/copies.rs: a member that DEFINES memcpy/memmove/memset must also define the `niji_internal_*` entry unless
    it never uses the name (the asm object); check `cargo xtask so` still passes.
-5. Symbol versions: `nm -D --defined-only target/liella/libc.so.6` shows the name with its GLIBC_x version and no new
-   `liella_` global outside LIELLA_NATIVE_1.
+5. Symbol versions: `nm -D --defined-only target/niji/libc.so.6` shows the name with its GLIBC_x version and no new
+   `niji_` global outside NIJI_NATIVE_1.
 6. `cargo xtask opaque-audit` (tests calling exported names go through selftest::opaque), then `cargo xtask static` and
    `cargo xtask clippy` before vm_affected.
 7. Data the asm reads and Rust writes: declare it in ffi.rs with an atomic type of the same layout (AtomicUsize), never a

@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 14: Dynamic linking
 
@@ -7,7 +7,7 @@
     rendezvous, TLS descriptors, IFUNC, RELR, symbol-version resolution, and hwcaps search;
   * §22.10, `libthread_db` for our thread layout (F30);
   * NSS plugin modules (F27); modules call `__nss_hostname_digits_dots` (§16.1, compat entry
-    written 2026-10-05 by owner ruling), which Liella exports for them;
+    written 2026-10-05 by owner ruling), which libniji exports for them;
   * the placeholder libraries (`libpthread.so.0`, `libdl.so.2`, `librt.so.1`,
     `libutil.so.1`, `libanl.so.1`) with their version nodes, and an empty
     `libc_malloc_debug.so.0` (owner ruling 2026-10-04: libc itself provides `mcheck`/`mtrace`,
@@ -41,7 +41,7 @@ in `plan/ph14/open-questions.md` (none ruled yet), its threat-model text is
 `plan/ph14/threat-model-draft.md`. This list splits the 16 milestones of `plan/ph14/milestones.md`
 (sized at 60-100 calls) into stories of one 50-call run and replaces that table for dispatch.
 
-**What exists today** (checked at `42e682a3`): `crates/ld` (`liella-ld`, `forbid(unsafe)`) and
+**What exists today** (checked at `42e682a3`): `crates/ld` (`niji-ld`, `forbid(unsafe)`) and
 `crates/thread-db` are module skeletons of 3 lines each; `s27_dynlink.rs` exports only the
 static-program `dl_iterate_phdr` (D-27.4), `_dl_find_object` (D-27.5) and
 `__x86_get_cpuid_feature_leaf` (D-27.6); `dlopen`, `dlsym`, `dlclose`, `dlerror`, `dladdr*`,
@@ -67,7 +67,7 @@ saturation register (SATURATION-REGISTER) and V-6 (`PRE14-GATE-REPORT`) has land
 DL-0d are docs and probes: they may run now. The rulings each story needs are named; a story
 whose ruling is still open is not dispatched.
 
-**Proof common to all implementation stories.** Host-side unit tests of the `liella-ld` logic
+**Proof common to all implementation stories.** Host-side unit tests of the `niji-ld` logic
 over objects the test suite builds with the system linker (no process loads our `ld.so` for
 these); process tests that run our `ld.so` as a child (the test harness itself always runs on
 the host's C library, R14-17); a black-box comparison with the reference loader wherever the
@@ -76,7 +76,7 @@ behaviour is observable (dlerror text, order, exit status), recorded in
 gate is static: no phase-14 story may slow a static program (only DL-4 touches the static start).
 
 **Arch seam (A-1 `ARCH-PH14-NEUTRAL`, RL-5 provisional).** x86_64 stays the only implementation.
-Every implementation story puts what it adds per architecture behind `liella_ld::arch::Arch` /
+Every implementation story puts what it adds per architecture behind `niji_ld::arch::Arch` /
 `boundary/src/arch/` (design §0a, L14-13). It ticks the §0a review checklist in its handoff
 (`arch seam: ticked`, or each exception with its reason). A review finds a missed tick
 cheaply; finding a hard-coded `R_X86_64_*` later costs an A-story a rewrite. The stories
@@ -111,10 +111,10 @@ Implementation:
    `versions.tsv`; an xtask check that each export sits in the library versions.tsv names.
    Proof: readelf checks of sonames and version nodes; a program linked with `-ldl -lrt` links.
    **seam:** the export list and version nodes are read from versions.tsv; no x86_64 base node is hard-coded.
-6. **DL-2 `DL-ELF-READ-1`** (M, no deps). IP-24 part 1 in `liella_ld::elf`: ELF header, program
+6. **DL-2 `DL-ELF-READ-1`** (M, no deps). IP-24 part 1 in `niji_ld::elf`: ELF header, program
    headers, dynamic section, notes; bounds-checked, typed errors. Proof: readelf parity over the
    system-linker corpus; a truncated/overlapping-header corpus. **seam:** creates
-   `liella_ld::arch` (the `Arch` trait, `X86_64`, `Native`) with the ELF identity; the reader
+   `niji_ld::arch` (the `Arch` trait, `X86_64`, `Native`) with the ELF identity; the reader
    checks `e_machine` only through it.
 7. **DL-3 `DL-ELF-READ-2`** (M, after DL-2). Hash tables (GNU, SysV), `versym`/`verdef`/`verneed`,
    RELA and RELR iterators; the `elf` fuzz target. Proof: parity with readelf `-V`/`-r`;
@@ -132,7 +132,7 @@ Implementation:
    TEXTREL); `ld.so --version`/`--help` run. Proof: link checks with a plant for each; the
    program runs at random bases. **seam:** product name from `Arch::INTERP`;
    `boundary/src/arch/` with `set_thread_pointer` (provisional block) and the
-   `liella_machine_ld_entry` declaration; the L14-1 check over `RelocKind`.
+   `niji_machine_ld_entry` declaration; the L14-1 check over `RelocKind`.
 10. **DL-6 `DL-LDSO-RUN`** (M, after DL-5, HIGH). auxv/env, the secure decision and
     `UNSECURE` clearing before any `LD_*` read, tunables and CPU features; load and enter a
     `-nostdlib` PIE with no dependencies (by `PT_INTERP` and as `ld.so PROG`). Proof: 100
@@ -142,9 +142,9 @@ Implementation:
     requested, `p_align`, the RELRO hook, unmapping on failure. Proof: `/proc/self/maps` checks;
     malformed-object corpus (overlapping, huge, misaligned segments) refused without a crash.
 12. **DL-8 `DL-SEARCH-CACHE`** (M, after DL-7, DL-0a, DL-0c, DL-0d; HIGH; R14-3, R14-15). Search
-    order, DSTs, pinned Liella sonames, the cache reader, hwcaps subdirectories, `--list` /
+    order, DSTs, pinned libniji sonames, the cache reader, hwcaps subdirectories, `--list` /
     `LD_TRACE_LOADED_OBJECTS`; secure-mode rules; a `cache` fuzz target. Proof: `ldd` lists equal
-    the reference's for non-Liella libraries; corrupt-cache corpus. **seam:** default
+    the reference's for non-libniji libraries; corrupt-cache corpus. **seam:** default
     directories, `$LIB`, `$PLATFORM`, the hwcaps subdirectory list and the cache-entry arch
     flag come from the `Arch` table.
 13. **DL-9 `DL-SYMBOLS`** (M, after DL-3; parallel to DL-4 to DL-8). Lookup: GNU/SysV hash,
@@ -169,19 +169,19 @@ Implementation:
     (LE/IE/GD/LD) over initially loaded objects. **seam:** the layout takes `Arch`'s TLS
     variant, TCB size and placement as parameters; the canary and pointer-guard slots and the
     TLS kinds' bias come from the table (A-4 then adds variant I as host tests).
-17. **DL-13 `DL-LIBC-EARLY`** (M, after DL-11, DL-12, DL-1; R14-12). `LIELLA_PRIVATE` with the
-    version-mismatch refusal (L14-10), `__liella_libc_early_init`, rseq publishing, the export
+17. **DL-13 `DL-LIBC-EARLY`** (M, after DL-11, DL-12, DL-1; R14-12). `NIJI_PRIVATE` with the
+    version-mismatch refusal (L14-10), `__niji_libc_early_init`, rseq publishing, the export
     moves (`__libc_stack_end`, rseq objects to `ld.so`). Proof: a mismatched pair is refused with
     the diagnostic; constructors see an initialised libc (`memcpy(NULL, ..)` from
     `.preinit_array`, design §14).
 18. **DL-14 `DL-LIBC-START`** (M, after DL-13, HIGH). The dynamic path of `__libc_start_main`
     (old and new crt1), the `native_dynamic` example and a C hello world, a dynamic conformance
-    subset; the #814 skips lifted (`fpu_control_*` dynamic on Liella). Risk of overrun: split
+    subset; the #814 skips lifted (`fpu_control_*` dynamic on libniji). Risk of overrun: split
     point is "hello world runs" / "conformance subset".
-19. **DL-15 `DL-TLS-THREADS`** (M, after DL-14, HIGH, R14-8). `__liella_tls_layout/init/release`
+19. **DL-15 `DL-TLS-THREADS`** (M, after DL-14, HIGH, R14-8). `__niji_tls_layout/init/release`
     for `pthread_create` (closes D-22.10's dynamic `EAGAIN`), TLSDESC static return and
     fallback trampoline. Proof: threads with TLS in libc and a library; forced-variant and
-    planted-bug tests for each trampoline. **seam:** `liella_machine_ld_tlsdesc_static` /
+    planted-bug tests for each trampoline. **seam:** `niji_machine_ld_tlsdesc_static` /
     `_dynamic` as fixed-name primitives, with the register convention in the file header.
 20. **DL-16 `DL-DLOPEN`** (M, after DL-14). `dlopen`/`dlsym`/`dlvsym`/`dlerror`, all `RTLD_*`
     modes, `dlopen(NULL)`, `RTLD_DEFAULT`/`RTLD_NEXT`, unique symbols; no unloading yet. Proof:
@@ -201,7 +201,7 @@ Implementation:
 24. **DL-20 `DL-LAZY`** (M, after DL-16, HIGH, R14-8). The PLT trampoline (XSAVE and FXSAVE,
     selected once), `LD_BIND_NOW`/`LD_BIND_NOT`, `RTLD_LAZY` late definitions. Proof: vector
     and x87 registers preserved across a first call (forced variants); plant drops one register.
-    **seam:** `liella_machine_ld_lazy*` primitives, `Arch::trampoline_variant(&Features)`, and
+    **seam:** `niji_machine_ld_lazy*` primitives, `Arch::trampoline_variant(&Features)`, and
     the reserved GOT slots / PLT index convention from the table.
 25. **DL-21 `DL-UNMODIFIED`** (M, after DL-19 and DL-20, R14-14). Host `/usr/bin` programs via
     `ld.so PROG` and in a user + mount namespace; `LD_LIBRARY_PATH`/`LD_PRELOAD`; the dynamic
@@ -221,7 +221,7 @@ Implementation:
     the reference's.
 31. **DL-27 `DL-AUDIT-PLT`** (M, after DL-26, HIGH, R14-8, R14-10). `la_pltenter`/`la_pltexit`
     trampolines, `LD_PROFILE`/`_dl_mcount`. Proof: argument and return registers seen and
-    changed by the auditor; forced-variant tests. **seam:** `liella_machine_ld_audit_plt_*`
+    changed by the auditor; forced-variant tests. **seam:** `niji_machine_ld_audit_plt_*`
     primitives; the per-arch `la_<arch>_gnu_pltenter`/`pltexit` names and register structures
     (rtld-audit(7)) are chosen through the table.
 32. **DL-28 `DL-NSS-MODULES`** (M, after DL-16). F27: module service kind, loading from the
@@ -245,10 +245,10 @@ The libm track must be complete before phase 14 exits (overview).
 **RULING NEEDED** (new ones; the open R14-1 to R14-16 stand as written in `open-questions.md`):
 
 * **R14-17 How the loader is tested before it can load itself.** Recommend a ladder, each rung
-  green before the next: (1) `liella-ld` logic as host-side unit tests over system-linker objects
+  green before the next: (1) `niji-ld` logic as host-side unit tests over system-linker objects
   (no process involved); (2) the relocator first in static-PIE `libc.a` (DL-4), where an ordinary
   test program exercises it at random bases; (3) `ld.so` run as a program on `-nostdlib` PIEs;
-  (4) corpus programs linked with `--dynamic-linker=<our ld.so in target/liella>`; (5) host
+  (4) corpus programs linked with `--dynamic-linker=<our ld.so in target/niji>`; (5) host
   binaries by explicit invocation and in a user + mount namespace (R14-14). The test harness,
   cargo and xtask always run on the host's C library and only spawn children under our loader,
   so a broken loader fails tests, never the harness.

@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 8: Streams and formatting
 
@@ -40,7 +40,7 @@
     after that (argp, backtrace, the clause and symbol tests) was written the same way: a
     behaviour document first where the reference's behaviour mattered, then a fresh session
     with the spec, the documents and its own black-box probes.
-  * **Streams (D-12.1, D-12.2, D-12.11, D-12.14):** `liella::stream`, one buffer whose role
+  * **Streams (D-12.1, D-12.2, D-12.11, D-12.14):** `niji::stream`, one buffer whose role
     switches between reading and writing, over a descriptor, a fixed or growing memory buffer
     or caller callbacks; the C `FILE` object, whose buffer window is the stream's (header-inline
     `getc`/`putc` work on it, `conformance/c/s12_stdio_window.c`); `fmemopen` (the `GLIBC_2.22`
@@ -52,7 +52,7 @@
     printf customization (D-12.8), and the C variadic adapters for printf, scanf, `err`/`error`,
     `argp_error`/`argp_failure` and `strfmon` (IP-14).
   * **§1.6–1.7, §2.2–2.7, §7.5:** getopt/getsubopt, argp, error text (now with per-thread result
-    slots, D-H3), `err`/`error`, `fmtmsg`, backtrace with Liella's own DWARF unwinder (IP-27,
+    slots, D-H3), `err`/`error`, `fmtmsg`, backtrace with libniji's own DWARF unwinder (IP-27,
     D-2.7), `strfmon` (D-7.11).
   * **Tests:**
     * Clause tests: §12 95 of 96, §1 all 68, §2 all 33, §7.5 both (the rest of §7 waits for phases
@@ -73,7 +73,7 @@
     rather than on an actual overflow, and the wide `%n` rule (D-C0.5); a flaky socket test and
     an environment race in the test harness.
   * **Budgets:** `benchmarks/progress.md` entry 6. The phase-0 table never had `printf`/`fputs`
-    targets, so only sanity bounds were added (`cbench_stdio`); Liella is 6.1× glibc at
+    targets, so only sanity bounds were added (`cbench_stdio`); libniji is 6.1× glibc at
     `snprintf("%d")`, 4.5× at `fputs` and 10.7× at `putc`. Targets are for the owner; the gaps are
     listed as optimization targets.
   * **Deviations and open items for the owner:**

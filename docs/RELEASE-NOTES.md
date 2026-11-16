@@ -1,4 +1,116 @@
-# Liella: release notes
+# libniji: release notes
+
+libniji was called Liella until November 2026.
+
+<!-- History: the entries below describe what was released under the project's earlier names and keep
+     them. Add a new release above this line. -->
+
+## Liella (now libniji): fourth pre-release, 2026-11-16 (`snapshot-2026-11-16`)
+
+This is the fourth public pre-release: `main` promoted to commit `23b9dfdb`, tagged `snapshot-2026-11-16`. Like the
+earlier ones, it is a snapshot of a work in progress, not an alpha or a release candidate, and it should not be used
+in production. These notes cover the changes since
+[`snapshot-2026-11-15`](https://github.com/duskglow/liella/releases/tag/snapshot-2026-11-15).
+
+**A name change is coming.** Liella will be renamed **libniji** before its first versioned release. This is the last
+snapshot under the old name. The next one is published as libniji, with a table mapping the old names to the new ones
+(packages, paths, macros, version names). Nothing has been released yet, so the old names get no compatibility aliases.
+
+### Summary
+
+- **Dynamically linked C++ programs** built against the distribution's shared `libstdc++.so.6` now run with Liella as
+  the system C library, including an exception thrown across a shared library.
+- **`LD_PRELOAD` and the preload file** are honoured at program start. `fakeroot` works in a Debian root running on
+  Liella.
+- **`getconf` and `getent`** are part of Liella and ship in `libc-bin`.
+- **`apt`** runs in a Debian 13 (trixie) root with Liella swapped in for glibc. That root now runs 52 commands with the
+  same output and status as on stock glibc (47 before).
+- **Start-up page-fault bounds** tightened again.
+
+### Dynamic linking
+
+- **C++ unique symbols.** `libstdc++` relies on `STB_GNU_UNIQUE` symbols (106 in Debian's build). The loader now binds
+  them at start by the order of the global scope, with no fixed table. Before, a fixed 64-entry table overflowed, and the
+  failure was reported as "malformed symbol tables". `dlopen`'s table of unique symbols now grows as needed, with no cap,
+  and running out of memory is reported as such.
+- **Preloading** works as ld.so(8) describes. The objects named in `LD_PRELOAD` (separated by spaces or colons) load
+  first, then those named in the preload file: `/etc/ld.so.preload` for the system packages, and
+  `/usr/lib/liella/etc/ld.so.preload` for the packages that sit beside glibc. They load after the program and before
+  its libraries, so their symbols interpose, and `dlsym(RTLD_NEXT, ...)` reaches the next definition. A name without a
+  slash is searched like a `DT_NEEDED` name. An object that cannot be preloaded prints the reference's message, and
+  the program runs anyway. In a set-user-ID or set-group-ID
+  program, `LD_PRELOAD` accepts only a name without a slash, from the trusted directories, and only for a library that
+  is itself set-user-ID. See
+  [`docs/install-packages.md`](https://github.com/duskglow/liella/blob/snapshot-2026-11-16/docs/install-packages.md).
+
+### C library utilities
+
+`libc-bin` now ships two more utilities beside `ldconfig`:
+
+- **`getconf`**, with its table of names generated from Liella's ABI tables. Its output matches the reference in 25
+  recorded transcripts.
+- **`getent`**, dynamically linked and using Liella's own name services (`files` and `dns`).
+
+Both are compared against the reference with the transcript harness, in private roots.
+
+### Packages
+
+The same two flavours as before, built by `tools/deb/build.sh` for Debian 13 (trixie) and Devuan 6 (excalibur), amd64,
+attached with `SHA256SUMS`. GitHub does not allow `~` in asset names, so the `liella6` files are published with `.` in
+its place. `SHA256SUMS` lists the names as published, and the package versions inside the files are unchanged.
+
+- **Beside glibc** (`liella6`, `liella6-dev`), version `0.0~snapshot20261116+23b9dfdb5880`.
+- **As the system C library** (`libc6`, `libc-bin`, `libc6-dev`, `libc-dev-bin`, `locales`, `libc-l10n`), version
+  `2.39+liella20261116.1-1`, **experimental**.
+
+Checks on this commit:
+
+| Check | Result |
+|---|---|
+| Empty root | 15 checks pass, including a C++ `iostream` program and an exception thrown across a shared library, both against the shared `libstdc++.so.6` |
+| Trixie root with Liella swapped in | 52 of 52 commands identical to stock glibc. New: `apt-get check`, `apt-cache policy`, and two `fakeroot` cases |
+| Symbol check | All symbol sets as in the last snapshot |
+| Lintian | 7 errors and 48 warnings per suite. The errors are the same as in the last snapshot; the 3 new warnings are on the new utilities (no manual pages yet for `getconf` and `getent`) |
+
+Still true: swapping into a stock trixie root needs `--force-depends`, and dpkg leaves glibc's `/var/cache/ldconfig`
+behind.
+
+**Known issue in the release check, not in the packages.** The package-layout check (`tools/deb/check-system.sh`) at
+this commit does not yet list `/usr/bin/` and `/usr/bin/getent` for `libc-bin`, so it reports two problems on these
+packages. The packages are as intended. The check is fixed on `next`.
+
+### Start-up layout
+
+The start-up page-fault bounds of each product profile (`true`, `locale`, the tools, `localtime`) were tightened to
+the level the 64 KiB window bins reach, and two other CPU classes measure the same. Bounds only ever tighten.
+
+### C headers
+
+Liella's own C headers are being generated from its ABI tables. Since the last snapshot, the tables of which names
+each header makes visible (by feature-test level), which calls each header declares, and which C++ declarations are
+`noexcept` have landed. The generator and the first headers come next.
+
+### Known limitations
+
+Unchanged from [`snapshot-2026-11-15`](https://github.com/duskglow/liella/releases/tag/snapshot-2026-11-15), except
+that `LD_PRELOAD` is now provided:
+
+- at most 512 loaded objects per process;
+- no `dlmopen`, no lazy binding, no `LD_AUDIT` and no `libthread_db` yet;
+- no C headers of Liella's own yet;
+- Rust `std` programs are not supported yet;
+- no security audit yet;
+- Linux x86-64 only.
+
+### What's next
+
+- **The rename to libniji.**
+- **[Yohane Linux](https://github.com/duskglow/aqours)** (formerly Aqours), the Linux distribution built on Liella,
+  starts its first stage from this snapshot.
+- **More utilities:** `ldd` is next, then `iconv`, `locale`, `localedef` and the time-zone tools.
+- **The loader's trace output** (`ld.so --list`, `LD_TRACE_LOADED_OBJECTS`) is being made to match the reference
+  exactly.
+- **The header generator** and the first generated C headers.
 
 ## Liella: third pre-release, 2026-11-15 (`snapshot-2026-11-15`)
 
@@ -65,7 +177,7 @@ was. A program selects Liella through its interpreter: `liella-gcc` / `liella-g+
 
 **As the system C library (`libc6`, `libc-bin`, `libc6-dev`, `libc-dev-bin`, `locales`, `libc-l10n`)**, version
 `2.39+liella20261115.2-1`, **experimental**: these replace glibc's packages, for building a system on Liella (the
-Aqours project, below). They ship the loader at `/lib64/ld-linux-x86-64.so.2`, the multiarch library directory,
+Aqours project (now Yohane Linux), below). They ship the loader at `/lib64/ld-linux-x86-64.so.2`, the multiarch library directory,
 `ldconfig` and its dpkg trigger, dpkg `symbols` and `shlibs` files so packages built against Liella get correct
 dependencies, and the start files, so plain `gcc` links against Liella. Validated on this commit in an empty root (C and
 C++ programs start through the system loader) and in a trixie root with Liella swapped in (the 47 commands above).

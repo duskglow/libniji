@@ -183,12 +183,12 @@ assign	group:appendix	P1	§6 Phase 1 Exit (the 281 Appendix A primitive tests an
 assign	group:csys	P0	§6 Phase 0 Delivered (csys_link.rs)
 assign	group:kernel,uapi,modern,ret,export	P1	§6 Phase 1 Delivered, Tests ("kernel types, uapi against Appendix C, modern calls, ret, export!")
 assign	group:bytes,float,search	P2	§6 Phase 2 Delivered and Builds (exhaustive byte primitives, IP-18, §14.1-14.6 structures)
-assign	group:heap,primitives	P3	§6 Phase 3 Delivered ("liella-rt's own suite"); §4.2 (runtime primitives from phase 3)	heap_threads.rs is phase 6's
+assign	group:heap,primitives	P3	§6 Phase 3 Delivered ("niji-rt's own suite"); §4.2 (runtime primitives from phase 3)	heap_threads.rs is phase 6's
 assign	group:machine	P4	D-4.14 (phase 4); D-4.17 (6a)
 assign	group:as	P5	§6 Phase 5 Delivered (AS-safety exit criterion)
 assign	group:pthread	P6	§6 Phase 6 Delivered (sync objects)
 assign	group:charmap,locale,iconv	P7	§6 Phase 7 Delivered, Tests
-assign	group:stdio,wstream,printf,scanf,registry,diag,getopt,argp,monetary,backtrace,stream	P8	§6 Phase 8 Delivered (differential tests; liella::stream)
+assign	group:stdio,wstream,printf,scanf,registry,diag,getopt,argp,monetary,backtrace,stream	P8	§6 Phase 8 Delivered (differential tests; niji::stream)
 assign	group:timers,zones,timefmt	P9	§6 Phase 9 Delivered, Tests
 assign	group:netaddr,users,netdb,dns	P10	§6 Phase 10 Delivered, Tests
 assign	group:process,terminals	P11	§6 Phase 11 Delivered, Tests
@@ -214,4 +214,4 @@ assign	group:sigev	VAL	§6 "Validation and optimization", TEST thread (caller st
 assign	group:native	UNASSIGNED	D-X.10 (cross-cutting; no phase scope names the native interface)	No pending tests
 assign	group:historical,vocabulary	UNASSIGNED	§7 and §8.3 (no phase named)	No tests yet
 
-assign	group:casecmp,cold,collate,core,cpuid,cxx,env,exec,find,gmon,hot,langpack,legacy,liella,oracle,scanner,skip,small,strstr,time,unwind,wcsstr,wordexp,x87	UNASSIGNED	DOCS-STATUS-REFRESH (#1744): suites added by stories since the table was written; no phase scope names them	No pending tests (0 at 2026-10-24); give each an owner if a test in it ever goes pending
+assign	group:casecmp,cold,collate,core,cpuid,cxx,env,exec,find,gmon,hot,langpack,legacy,niji,oracle,scanner,skip,small,strstr,time,unwind,wcsstr,wordexp,x87	UNASSIGNED	DOCS-STATUS-REFRESH (#1744): suites added by stories since the table was written; no phase scope names them	No pending tests (0 at 2026-10-24); give each an owner if a test in it ever goes pending

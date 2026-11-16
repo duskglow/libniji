@@ -18,9 +18,9 @@ bb7f6ae1c (`next`: the 384-bit route on every call), new = a3abee27b, glibc 2.39
 | `cosl_1e300` | 74 202.0 | 587.7 | 1096.3 | 0.54 |
 | `sincosl` | 164 371.0 | 1080.6 | 1227.5 | 0.88 |
 
-**Cycles.** The same binaries (Liella static; glibc dynamic, against the timing host's own glibc 2.39), cycles:u per
-call, `perf stat -r 5`, (C(N) − C(0))/N with N = 200 000, glibc and Liella interleaved per case, three rounds, the
-median shown (the rounds agree within 2% but for one Liella round of `sinl_1e300` on Ivy Bridge, +14%), booked idle
+**Cycles.** The same binaries (libniji static; glibc dynamic, against the timing host's own glibc 2.39), cycles:u per
+call, `perf stat -r 5`, (C(N) − C(0))/N with N = 200 000, glibc and libniji interleaved per case, three rounds, the
+median shown (the rounds agree within 2% but for one libniji round of `sinl_1e300` on Ivy Bridge, +14%), booked idle
 timing hosts. The instruction counts there equal the build host's.
 
 | Case | Ivy Bridge (E3-1220L v2) glibc | Ivy Bridge new | new/glibc |
@@ -39,7 +39,7 @@ report, `handoff/reports/LIBM-LD-TRIG-INT-2.json` (`informational`).
 **Where one call goes** (`validation/wl_trace.sh`, call 11 of `sinl`, new): 560 instructions. `wide_int::kernel` 371
 (66%: the reduction, the table step, both polynomials, the two table products); `wide::sin` 86 (15%: decode, special
 cases, the tiny-argument test, the integer rounding); the boundary wrapper `mathret::elem` 71, `sinl` and
-`liella_sinl_bits` 23, the MXCSR get/set and x87 control-word read 9 (together 18%, the same wrapper as section 21's
+`niji_sinl_bits` 23, the MXCSR get/set and x87 control-word read 9 (together 18%, the same wrapper as section 21's
 `expl`).
 
 **What was tried.**

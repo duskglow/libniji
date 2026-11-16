@@ -11,7 +11,7 @@ Status: profile done, no code change. Measured on Haswell-EP host (Intel Xeon E5
 The saturation register (section 6) and `docs/benchmarks.md` give `wordexp_*` at t 2.3 to 4.2 and "about
 4x glibc's instructions". Today, on the same CPU family:
 
-| Row (`cbench_opt`) | Liella / glibc, time (median of 3 to 5 rounds) |
+| Row (`cbench_opt`) | libniji / glibc, time (median of 3 to 5 rounds) |
 |---|---:|
 | `wordexp_tilde_var` | 1.51 (worst 1.69) |
 | `wordexp_arith` | 1.38 (worst 1.53) |
@@ -20,7 +20,7 @@ The saturation register (section 6) and `docs/benchmarks.md` give `wordexp_*` at
 
 Instructions per call (`wl_percall`, glibc dynamic 2.39, `en_US.UTF-8`):
 
-| Case | glibc | Liella | Liella / glibc |
+| Case | glibc | libniji | libniji / glibc |
 |---|---:|---:|---:|
 | `we_one_word` (`abc`) | 1203 | 1071 | 0.89 |
 | `we_plain_8` | 6425 | 3853 | 0.60 |
@@ -47,7 +47,7 @@ climbing over codes). The 2.3 to 4.2 figures in `docs/benchmarks.md` come from a
 different method; which one I cannot tell from the repository, and X-1's fresh bench will settle it.
 I did not measure Zen 1 or Broadwell-EP.
 
-## 2. Where Liella's time goes (flat `perf` profile, user symbols)
+## 2. Where libniji's time goes (flat `perf` profile, user symbols)
 
 * `tilde_var`: the expander/driver `wordexp::<ProcessShell, Collected>` 31%; the boundary `wordexp`
   entry 8%; `Field::add` 7.8%; `Expander` methods about 12%; `Parser::words` 6.4%; `Words::push` 5.7%;
@@ -59,7 +59,7 @@ I did not measure Zen 1 or Broadwell-EP.
   the evaluator is about 58% of the call, and about 100 instructions per token more than glibc's whole
   call spends.
 * Environment cost: `$HOME` with 2,000 extra variables costs 13.6k against 13.6k, about 5.5
-  instructions per variable in both libraries, so Liella's lookup adds nothing that grows with the
+  instructions per variable in both libraries, so libniji's lookup adds nothing that grows with the
   environment beyond glibc's own linear scan. `tilde_var` looks `HOME` up twice (the tilde and `$HOME`);
   each lookup is a scan.
 

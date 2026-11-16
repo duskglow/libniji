@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Post-release ledger and experiments
 
@@ -37,7 +37,7 @@ Skylake-SP host and Zen 1 host on 2026-10-23:
 * **Rust side.** `crates/` has nine `target_arch` sites, and only one of them is a non-x86_64
   branch (`boundary/src/sys.rs`). Everything else assumes x86_64 without saying so.
 * **System calls.** `csys/syscalls.tsv` is the single source for `csys/src/sys/*.c`,
-  `liella_sysnr.h` and `ffi_sys.rs` (`cargo xtask csys-gen`). Its numbers come from
+  `niji_sysnr.h` and `ffi_sys.rs` (`cargo xtask csys-gen`). Its numbers come from
   `asm/unistd_64.h`. aarch64 uses the kernel's generic table, which has none of these entries:
   `arch_prctl`, `ioperm`, `iopl` and `modify_ldt` (all x86-only); `time`, `alarm`, `pause`,
   `getpgrp`, `dup2` and `ustat` (legacy calls). A-3 checks this list against the UAPI header.
@@ -121,7 +121,7 @@ crashes before `main`, where nothing inside it can be debugged.
    L14-13. The phase-14 stories carry a common "Arch seam" rule and per-story **seam:** notes.
 2. **A-0 `ARCH-SEAMS`** (S, no deps). Add an xtask check, `arch-audit` (or a clause of
    `static`), that lists every x86_64 dependency: `target_arch`, `core::arch::x86_64`,
-   `asm!`, `extern` declarations of `liella_machine_*`, the x87/MXCSR code, the
+   `asm!`, `extern` declarations of `niji_machine_*`, the x87/MXCSR code, the
    `%fs`/`arch_prctl` uses and the `R_X86_64` names. Each must sit in an allowed module or carry an
    `ARCH(x86_64): why` tag. Write `docs/arch-seams.md` from its output: per seam, what replaces
    it on aarch64 and in which story. This also answers which crates build without compiling
@@ -141,7 +141,7 @@ crashes before `main`, where nothing inside it can be debugged.
    `boundary/build.rs` (a build script runs before any item, so a `compile_error!` there would never be reached).
 4. **A-3 `ARCH-SYSCALLS`** (M, after A-0). Give `csys/syscalls.tsv` an arch column (or a second
    number column) taken from the kernel's `asm-generic/unistd.h` (kernel UAPI, which is allowed).
-   `csys-gen` emits per-arch `liella_sysnr.h` and `ffi_sys.rs`. The calls missing on aarch64
+   `csys-gen` emits per-arch `niji_sysnr.h` and `ffi_sys.rs`. The calls missing on aarch64
    move to generic replacements, chosen by black-box probes of the reference on x86_64 where
    behaviour could differ: `dup2` to `dup3` with its equal-fd case, `pause` to `ppoll`, `alarm` to
    `setitimer`, `time` to `clock_gettime`/vDSO, `getpgrp` to `getpgid(0)`. The x86-only exports
@@ -150,7 +150,7 @@ crashes before `main`, where nothing inside it can be debugged.
    (`csys-gen` diff empty); jobs `arch-syscalls-static`, `-gate`. Risk: medium (the `clone`
    argument order: checked against the kernel source, which is allowed).
 5. **A-4 `ARCH-TLS-LAYOUT`** (M, after A-1 and the phase-14 TLS story; HIGH). Make the static
-   and dynamic TLS layout computation (`rt/src/tls.rs`, `liella_ld::tls`) take the variant as a
+   and dynamic TLS layout computation (`rt/src/tls.rs`, `niji_ld::tls`) take the variant as a
    parameter, as pure logic tested on the host for both variants (offsets, alignment,
    `PT_TLS` with large alignment, a zero-size block). Move the stack-protector canary and pointer
    guard access behind the arch table. Proof: host unit tests for variant I against the AAELF64
@@ -180,7 +180,7 @@ crashes before `main`, where nothing inside it can be debugged.
    static archive (job `arch-csys-cross-build`); `machine-exports` lists the same names per arch.
    Nothing runs yet.
 8. **A-7 `ARCH-QEMU-RUN`** (M, after A-6; RL-2 qemu-user; HIGH). Set a cargo runner
-   `qemu-aarch64 -L ~claude/ref/aarch64`, and get a static Liella program through `_start` to
+   `qemu-aarch64 -L ~claude/ref/aarch64`, and get a static libniji program through `_start` to
    `main` to `exit`, with argv/envp/auxv correct. Then run the kernel-primitive suite
    (`appendix_a_primitives.rs`) under emulation. Proof: job `arch-qemu-run-qemu` (suite rc 0); a
    plant on the entry stack alignment, in job `-plants`. The x86_64 gate is unchanged. qemu-user does
@@ -222,7 +222,7 @@ crashes before `main`, where nothing inside it can be debugged.
    the scan finds nothing, the placeholder stays parked here with the scan result.
 2. **M-1 `LIBMVEC-PLACEHOLDER`** (S, after a positive M-0, DL-1's library generator and phase 14;
    RL-6). Export the reference's `_ZGV*` names from `libmvec.so.1`, under the reference's
-   version nodes (read from its dynsym), each a scalar loop over the lanes calling Liella's libm.
+   version nodes (read from its dynsym), each a scalar loop over the lanes calling libniji's libm.
    The calling convention follows the public x86 Vector Function ABI document (vector registers,
    masked variants). The functions are more accurate but slower than vector code, and the
    differences row states this trade. A vectorised kernel is a later story, and only if M-0 names a
@@ -245,7 +245,7 @@ crashes before `main`, where nothing inside it can be debugged.
    **Outcome (STRCASE-AVX2, 2026-10-23): already built.** The kernel exists (D-4.27: CASECMP-K1,
    CASECMP, STRCASECMP-SHORT, -2); the register's figures were from before it. Recount
    (`strcase-avx2-percall0`, Zen 1 host): cycles 0.93 to 1.42x, instructions 1.12 to 1.74x glibc. The
-   story added fold-boundary plants on `liella_machine_casecmp_ord_avx2` and corrected the
+   story added fold-boundary plants on `niji_machine_casecmp_ord_avx2` and corrected the
    register and `docs/benchmarks.md`. What is left is the fixed cost of short calls
    (`strcasecmp_c_16`, `strncasecmp_c_64`). That is a possible small story (S) after X-1, not
    part of this one.

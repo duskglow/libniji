@@ -36,5 +36,5 @@ daddl(1e-310,0)        000012688b70e62b UF=1 IX=1
 dmull(1e-310,1)        000012688b70e62b UF=1 IX=1
 ```
 
-Not probed: the narrowing from `_Float128` (`f32addf128` ...), which Liella treats like the
+Not probed: the narrowing from `_Float128` (`f32addf128` ...), which libniji treats like the
 narrowing from `double` (both rules apply).

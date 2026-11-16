@@ -11,7 +11,7 @@ instructions); the `PT_GNU_EH_FRAME` program header and its `.eh_frame_hdr` sear
 
 ## What the probe does
 
-The probe's own functions are placed in sections named `.text.sorted.liella_probe_NN`, which the
+The probe's own functions are placed in sections named `.text.sorted.niji_probe_NN`, which the
 default linker script lays out in name order, so each function's address range ends where the next
 one starts (`layout_ok=1` checks it). Each return address in a trace is shown as the name of the
 probe function containing it; a run of addresses outside them (the library's own frames, the
@@ -34,5 +34,5 @@ function; `after_driver` says whether frames follow it.
 
 * The reference's output (a dynamically linked position-independent program) has the form
   `./P(+H) [H]` from `backtrace_symbols` and `./P(+H)[H]` (no space) from `backtrace_symbols_fd`
-  for these functions, which have no dynamic symbols. The differential test links the Liella
+  for these functions, which have no dynamic symbols. The differential test links the libniji
   build statically, so the object name and offset form of those lines may differ legitimately.

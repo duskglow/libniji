@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 4: Process runtime
 
@@ -44,17 +44,17 @@
       `libc_nonshared.a`.
     * §1.6–1.7 (`getopt`, `argp`) are phase 8, as the plan schedules them.
   * **Runtime (IP-8, IP-9, IP-13):**
-    * `csys/src/machine/entry.S` is the `_start` of `liella-crt1.o`. `boundary::runtime` carries
-      out `liella_rt::start`'s sequence: initial-thread TLS and canary for static programs,
+    * `csys/src/machine/entry.S` is the `_start` of `niji-crt1.o`. `boundary::runtime` carries
+      out `niji_rt::start`'s sequence: initial-thread TLS and canary for static programs,
       secure-mode sanitising, environment and names, tunables and CPU paths, destructor
       registration, constructors, `main`, `exit`.
     * `rt::tls::ThreadBlock` is the thread block (D-4.15). `legacy::exit_handlers` and
-      `legacy::environ` are the C shapes (D-1.2, D-1.3, D-1.9). `liella::config` holds the
+      `legacy::environ` are the C shapes (D-1.2, D-1.3, D-1.9). `niji::config` holds the
       tunables and the IP-21 line reader (D-1.8). `rt::fatal` and `rt::panic` are the
       async-signal-safe diagnostics.
-  * **Products (`cargo xtask so`):** `target/liella/libc.a`, `libc.so.6` (647 symbols with
-    default versions from Appendix C.3, soname `libc.so.6`) and `liella-crt1.o` (D-4.16).
-  * **C conformance suite live:** 15 programs, each started by Liella's own runtime. The runner
+  * **Products (`cargo xtask so`):** `target/niji/libc.a`, `libc.so.6` (647 symbols with
+    default versions from Appendix C.3, soname `libc.so.6`) and `niji-crt1.o` (D-4.16).
+  * **C conformance suite live:** 15 programs, each started by libniji's own runtime. The runner
     takes directives for arguments, an exact environment (repeated names kept, through
     `execve`), the expected status or signal, expected stderr, and secure mode (a setgid copy,
     so `AT_SECURE` is genuinely set). `cargo xtask test` builds the products first.
@@ -68,7 +68,7 @@
       all 14 bench budgets met.
   * **Found and fixed:** a `libc.so.6` under `target/release` replaced the host C library for
     every build script Cargo ran, because Cargo puts that directory on `LD_LIBRARY_PATH`. The
-    products now go to `target/liella` (D-4.16). The phase-0 conformance template expected the
+    products now go to `target/niji` (D-4.16). The phase-0 conformance template expected the
     wrong bytes after `memmove`; it had never run.
   * **Pending clauses:** 22. They are §1.1's streams and C locale (phase 8), abort's no-flush
     clause (streams, phase 8), `exit` with several threads (phase 6), and §1.6–1.7 (phase 8).
@@ -79,7 +79,7 @@
        before any address in static data is used (phase 14, with `ld.so`).
     3. **`libc.so.6`** carries default versions only. The 530 compat versions need `.symver`
        aliases (phase 15). It cannot be loaded by the host's `ld.so`, which expects glibc's
-       private interfaces; Liella's own `ld.so` is phase 14.
+       private interfaces; libniji's own `ld.so` is phase 14.
     4. **D-1.3:** values that `setenv` replaces are left allocated, as the contract allows,
        rather than tracked for release by `clearenv`. `clearenv` releases only the array.
     5. **Tunables:** only those that select the C layer's paths apply (D-1.8); other names are
@@ -87,7 +87,7 @@
     6. **The unsafe placement table (§3.2)** gains `boundary/src/tb.rs` and
        `boundary/src/runtime.rs` for category *slice*: the thread block and the initial stack
        are the conversions IP-8 and IP-9 assign to the boundary.
-    7. **A machine primitive, `liella_machine_trap` (`hlt`),** is added for `abort`'s last step,
+    7. **A machine primitive, `niji_machine_trap` (`hlt`),** is added for `abort`'s last step,
        which spec §1.2 requires.
     8. **OD-C2 (c) did not deliver.** The x86-64-v3 build moves `memchr` only from 146 to 116 ns
        at 4 KiB (glibc: 21) and leaves `memcmp` at about 69 (glibc: 28). Two reshapings of the

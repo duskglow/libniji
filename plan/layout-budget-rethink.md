@@ -42,7 +42,7 @@ against traces** (section 5).
 
 ### 2.2 Byte margins on next (the claim measured)
 
-Method: `page_faults.c` linked exactly as `crates/core/tests/hot_text_products.rs` links it, with `liella-crt1.o`
+Method: `page_faults.c` linked exactly as `crates/core/tests/hot_text_products.rs` links it, with `niji-crt1.o`
 `ld -r`-merged with a pad (the test's `padded_start` method) at nine insertion points, pads 0, 64, 128, 256, then
 512-byte steps to 64 KiB (133 pads per point, 2,394 links); every mode run as the test runs it (relay, 35-byte path,
 argv0, cwd /, LANG only, ADDR_NO_RANDOMIZE, warm-up plus two runs). Haswell-EP build host, both profiles built from

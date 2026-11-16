@@ -33,6 +33,6 @@ successive scans on one stream and a `v`-form call; then, per locale (`C`, `en_U
 (`%s %c %[...] %ls %lc %S %C`). In `C`, a `== partial` section covers inputs where the field is
 only the start of a number.
 
-The `partial` section and integers out of range are recorded differences in Liella (the
+The `partial` section and integers out of range are recorded differences in libniji (the
 spec's §12.7 guarantee for partial fields; decision D-12.6 for out-of-range integers), listed
 in `scanf_products.rs`.

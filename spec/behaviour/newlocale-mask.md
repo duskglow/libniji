@@ -27,5 +27,5 @@ runs the same five with `LOCPATH` at the test locales.
 | an unknown name, base NULL | NULL, `ENOENT` |
 | an unknown name loaded into a base; `""` with an environment naming an unknown locale | NULL; `errno` seen 0 in some of these rows |
 
-Liella matches every row but the last, where it sets `ENOENT` (s7_3_f_0); the oracle test
+libniji matches every row but the last, where it sets `ENOENT` (s7_3_f_0); the oracle test
 accepts exactly that `errno` and nothing else (decision record of NEWLOCALE-LC-ALL-BIT).

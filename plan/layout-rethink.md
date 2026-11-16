@@ -122,7 +122,7 @@ dead, and class 3 is grouped automatically. Tracer variants: gdb one-shot breakp
 `trace_gdb.py`); a small ptrace tracer (one-shot `int3` at every function start of the link map, no gdb); or an
 "exploded" link (every function section 64 KiB aligned) under `perf record -e page-faults -d`, whose fault
 addresses name one section each, in first-touch order. Depends on: running the just-built products on the
-build host (native builds only, which Liella already is), ptrace or perf permission, and a hermetic probe
+build host (native builds only, which libniji already is), ptrace or perf permission, and a hermetic probe
 environment. Failure modes: no tracer (sandboxed builder): fall back to an ungrouped product with a loud
 warning, or fail; **host dependence**: the executed set can follow the build host's CPU (IFUNC / CPU-class
 selection) and its locale data, so two hosts could produce different section names unless the trace is

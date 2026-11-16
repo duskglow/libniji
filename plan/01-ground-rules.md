@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ## 1. Ground rules
 
@@ -13,7 +13,7 @@ artifacts:
 |---|---|---|---|
 | **Spec** | `glibc-functional-spec.md`, `spec/` | The contract: functional clauses (§0–§30), symbol index (Appendix B), ABI data (Appendix C, with `spec/abi/*.tsv`). | Source of truth |
 | **C syscall layer** | `csys/` | System call wrappers and the few machine primitives that need assembly. No logic, no error handling, no data transformation. | C (freestanding) and assembly. Every function is a single statement. |
-| **Rust library** | `crates/` | All logic: the clean capability API, quarantined historical semantics, math, runtime, ABI types. | Safe Rust. `#![forbid(unsafe_code)]` in every crate except `liella-boundary` |
+| **Rust library** | `crates/` | All logic: the clean capability API, quarantined historical semantics, math, runtime, ABI types. | Safe Rust. `#![forbid(unsafe_code)]` in every crate except `niji-boundary` |
 | **POSIX translation layer** | `crates/boundary/src/posix` | Converts C inputs to internal values and internal results to C conventions. Nothing else. | Inside the boundary crate, the only place `unsafe` is permitted |
 
 ### 1.2 Sources of truth and sourcing rule
@@ -21,7 +21,7 @@ artifacts:
 | May be used | Why | Where it enters |
 |---|---|---|
 | `glibc-functional-spec.md`, including **Appendix C** | The contract and the ABI data. | Everything. Tests are generated from it (§4). |
-| **Linux kernel UAPI** (syscall numbers, kernel structure layouts, constants, ioctl codes) | Normative reference, approved (OD-2). The kernel ABI is fixed (⚑ KERN). | `csys/` and `liella-kernel` only |
+| **Linux kernel UAPI** (syscall numbers, kernel structure layouts, constants, ioctl codes) | Normative reference, approved (OD-2). The kernel ABI is fixed (⚑ KERN). | `csys/` and `niji-kernel` only |
 | **x86-64 SysV psABI, ELF gABI and GNU extensions, IEEE 754, ISO C Annex F/G, RFCs, the Unicode Character Database, the POSIX lists** | Normative references, approved (OD-2). | Scoped per phase |
 | **Installed public headers and the dynamic symbol tables of the installed libraries** | Interface declarations, approved (OD-1). Already distilled into Appendix C, which is regenerated with `spec/tools/`. | Appendix C |
 | **Installed system data files** (locale archives, iconv modules, nscd protocol, message catalogs, `ld.so.cache`, ...) | Format inspection approved, for interface understanding only: how the data is structured, not how existing code processes it. | The phase that needs each format. Findings become spec Appendix D. |
@@ -31,7 +31,7 @@ artifacts:
 
 ### 1.4 Clean-room methodology and the documented exception
 
-Liella is developed as a clean-room implementation, on a **best-effort** basis: driven by the
+libniji is developed as a clean-room implementation, on a **best-effort** basis: driven by the
 spec, verified by black-box observation, with contamination documented and remediated where it
 is identified.
 
@@ -39,14 +39,14 @@ is identified.
 start, is an experiment: to see what code results from rewriting from first principles, from the
 documentation and specifications, with modern techniques. Consulting glibc's source would pull
 its historical choices in and taint that goal. (A planned licence change also depended on the
-clean-room claim when this was written; since 2026-10-22 Liella has glibc's own licence,
+clean-room claim when this was written; since 2026-10-22 libniji has glibc's own licence,
 LGPL-2.1-or-later, so that reason no longer applies.) Exact reproduction of current glibc is therefore not the aim of
 this pass: where the spec is silent and glibc's observed behaviour looks like a historical
 artifact, a cleaner and consistent choice is preferred and recorded as a deliberate difference.
 Inefficient, suboptimal or even wrong choices are acceptable now and are worked out over time.
 
 **Spec over reference** (owner, 2026-10-02). Where the spec says something and glibc does
-something different, Liella follows the spec and the difference is documented, unless there is a
+something different, libniji follows the spec and the difference is documented, unless there is a
 good reason otherwise; a departure from the spec is recorded as a deviation from the spec.
 
 **Spec disagreements: the three-way rule** (owner, 2026-10-03, binding; amends "spec over
@@ -58,7 +58,7 @@ Library manual, or the kernel's behaviour where the clause is kernel-mediated).
   text and `spec/clauses.tsv`) with the evidence attached (probe output or a document reference),
   the tests derived from it are updated, and the commit message records the correction (examples:
   `waitid`'s exit status, §18.6; `readdir` on a removed directory, §13.2).
-* The spec agrees with (c) and glibc differs: glibc is the odd one out. Liella follows the spec,
+* The spec agrees with (c) and glibc differs: glibc is the odd one out. libniji follows the spec,
   and the difference goes into `docs/differences-from-glibc.md`.
 * The spec agrees with (b) and (c) differs: the spec is the odd one out. Nothing is changed; the
   case goes to the owner for a ruling.
@@ -143,7 +143,7 @@ session record, so for work before phase 8 no equivalent item-level inventory ex
   restricted git command list (status, add, commit, push of their own branch, diff of the working
   tree; never history). Recorded departures, none of which displayed glibc source or any earlier
   revision's content: the ledger thread ran `git log --oneline -4` (hashes and subjects of its own
-  latest commits) and `git show HEAD:crates/legacy/src/sys_compat.rs | head -0` (Liella's own file
+  latest commits) and `git show HEAD:crates/legacy/src/sys_compat.rs | head -0` (libniji's own file
   at its own latest commit, output discarded), and once `git log --oneline -1 | head -0` (nothing
   displayed; recorded from the coordinator's account); for its earlier milestones, whose
   transcript was summarised, it cannot vouch beyond the summary, which records none. The merge
@@ -152,7 +152,7 @@ session record, so for work before phase 8 no equivalent item-level inventory ex
   working tree; it saw the other branch's content only through conflict markers and
   `git diff --staged`, as its brief allows. The TEST thread read gnulib's
   test logs (owner-approved; never its sources), used strace and `nm -u` on two gnulib test objects,
-  set one breakpoint on Liella's own `strncpy` (registers only), and once grepped six substitution
+  set one breakpoint on libniji's own `strncpy` (registers only), and once grepped six substitution
   lines from a generated gnulib-tests Makefile (the same values are in `config.log`). Helper agents
   twice listed or touched the coordinator's scratchpad outside their rules; nothing there is glibc
   material. gnulib's `lib/` (replacement libc code, much of it derived from glibc) is never opened.
@@ -182,7 +182,7 @@ this plan does not claim otherwise.
 
 **Differential testing.** §4.2 originally said that behaviour is never defined by comparing
 against a host libc. From phase 7 onward, differential tests (one C program built against the
-host glibc and against Liella, outputs compared line by line, deliberate differences recorded)
+host glibc and against libniji, outputs compared line by line, deliberate differences recorded)
 were used and reported in the phase reviews, but this plan's text was not updated. The owner
 confirmed the practice on 2026-10-02; §4.2 now says so.
 
