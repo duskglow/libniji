@@ -149,7 +149,7 @@ done
 build_id() { readelf -nW "$1" 2>/dev/null | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
 dbgroot=$r/usr/lib/debug
 : > "$tmp/ids"
-for f in $(find "$lib" -type f -name '*.so*' | sort) "$r/usr/sbin/ldconfig" "$r/usr/bin/getconf" "$r/usr/bin/getent" "$r/usr/bin/ldd"; do
+for f in $(find "$lib" -type f -name '*.so.*' | sort) "$r/usr/sbin/ldconfig" "$r/usr/bin/getconf" "$r/usr/bin/getent" "$r/usr/bin/ldd"; do
     [ -f "$f" ] || continue
     name=${f#"$r"}
     id=$(build_id "$f")
