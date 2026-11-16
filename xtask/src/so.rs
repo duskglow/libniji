@@ -1431,6 +1431,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     println!("so: GOT calls, jumps and loads made relaxable (D-X.15, PJ-19): {}, {} other GOT uses left as they are", copies.relaxable, copies.unrecognised);
     println!("so: target/niji/libc.a ({} functions overridable with internal calls bound to the library, {} names weak in place), libc.so.6 ({count} versioned symbols, {native} of them native), niji-crt1.o, niji-rcrt1.o, niji-gcrt1.o, niji-grcrt1.o, niji-crti.o, niji-crtn.o, niji-Mcrt1.o, libresolv placeholder", weak.0, weak.1);
     run_libm(root, &cc, &ar, profile)?;
+    // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
+    // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
+    println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
     run_ld(root, &cc, profile)?;
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
