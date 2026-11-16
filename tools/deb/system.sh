@@ -9,7 +9,8 @@
 # Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
 # spec, symbols_only) and helpers (put, put_link, put_text, need, installed_size).
 #
-#   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries; conffile
+#   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries, libresolv.so.2
+#                 (D-16.6: its exports jump to libc.so.6's own definitions); conffile
 #                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
 #                 symbols and shlibs (tools/deb/symbols.py, plan section 3.2; checked by
 #                 tools/deb/check-symbols.sh); Provides, per libniji-only node kind, the virtual
@@ -25,7 +26,7 @@
 #                 libc6's name services: UTIL-6), /usr/bin/ldd (UTIL-4: static, runs the loader in trace mode). Its other programs (iconv, locale, ...) come
 #                 with SL-BIN-CORE.
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so. No headers yet (SL-HEADERS, R4).
+#                 libm.so, libresolv.so. No headers yet (SL-HEADERS, R4).
 #   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
@@ -40,7 +41,7 @@ mlib=usr/lib/$ma
 # --- libc6 ---
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$s6/$mlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2; do
     need "$so"
     put 0644 "$products/$so" "$s6/$mlib/$so"
 done
@@ -83,6 +84,10 @@ put_text 0644 "$sdev/$mlib/libc.so" "/* GNU ld script: libniji's C library (libc
 OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
 put_link libm.so.6 "$sdev/$mlib/libm.so"
+# libresolv.so.2's linker name (issue #5): `-lresolv` links against the shared library, so a program
+# needs libresolv.so.2 and binds its GLIBC_2.x versions. libresolv.a stays empty: its functions are in
+# libc.a (D-16.6), so a static `-lresolv` link finds them there.
+put_link libresolv.so.2 "$sdev/$mlib/libresolv.so"
 
 # --- Documentation (every package; identical across architectures, as Multi-Arch: same needs). ---
 date_r=$(date -u -d "@$epoch" -R)
@@ -140,7 +145,8 @@ sys_control libc6 amd64 libs required \
     " This package is the system's C library: the dynamic loader" \
     " /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (program interpreter" \
     " /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6 and the libraries whose" \
-    " functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1, ...)."
+    " functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1," \
+    " libresolv.so.2, ...)."
 if [ -n "$symbols_only" ]; then
     echo "build.sh: symbols step only: $s6/DEBIAN (symbols, shlibs, control; Provides: $provides); no packages written"
     exit 0
