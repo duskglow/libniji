@@ -464,11 +464,12 @@ fn modules(text: &str, out: &mut BTreeSet<String>) {
             add("boundary", rest);
         }
     }
-    for (k, _) in text.match_indices("niji_") {
+    const STEM: &str = "niji_";
+    for (k, _) in text.match_indices(STEM) {
         if k > 0 && is_ident(text.as_bytes()[k - 1]) {
             continue;
         }
-        let rest = &text[k + 7..];
+        let rest = &text[k + STEM.len()..];
         let krate: String = rest.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
         if let Some(r) = rest[krate.len()..].strip_prefix("::") {
             add(&krate, r);
@@ -685,6 +686,15 @@ mod tests {
         assert_eq!(libc.lines().nth(8), Some("niji_fwd_sqrtl:"), "else branch outside libm; line numbers kept");
         assert_eq!(preprocess("#ifndef A\n#define X y\n#elif defined(B)\n#define X z\n#endif\nX:\n", &["A", "B"]).lines().nth(5), Some("z:"));
         assert_eq!(preprocess("#ifdef A\n#define X y\n#endif\nX:\n", &[]).lines().nth(3), Some("X:"), "inactive define not applied");
+    }
+
+    #[test]
+    fn boundary_sources_name_their_modules_by_crate() {
+        // no spec clause: the README's per-section module lists (`crate::x`, `crate::{x, y}`, `niji_<crate>::x`).
+        let mut m = BTreeSet::new();
+        modules("use crate::{sync, fd};\nlet _ = crate::heap::f();\nniji_core::names::get();\nmy_niji_kernel::not();\n", &mut m);
+        let want: BTreeSet<String> = ["boundary::sync", "boundary::fd", "boundary::heap", "core::names"].into_iter().map(String::from).collect();
+        assert_eq!(m, want);
     }
 
     #[test]
