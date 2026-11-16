@@ -93,6 +93,17 @@ if [ ! -f "$libc" ] || [ ! -f "$crt" ] || [ ! -f "$rcrt" ]; then
 fi
 
 directive() { sed -n "s|^/\* $1: \(.*\) \*/\$|\1|p" "$2"; }
+# The `#include <...>` names of a source and of the local files it includes with `#include "..."`
+# (resolved beside the including file; at most 8 deep). A subshell, so the recursion keeps its own
+# variables.
+angle_includes() (
+    depth=$1; f=$2
+    [ "$depth" -lt 8 ] || exit 0
+    sed -n 's|^[[:space:]]*#[[:space:]]*include[[:space:]]*<\([^>]*\)>.*|\1|p' "$f"
+    for q in $(sed -n 's|^[[:space:]]*#[[:space:]]*include[[:space:]]*"\([^"]*\)".*|\1|p' "$f"); do
+        if [ -f "$(dirname "$f")/$q" ]; then angle_includes $((depth + 1)) "$(dirname "$f")/$q"; fi
+    done
+)
 
 # Dynamic-link mode, Liella's side. Liella's ld.so does not search for libraries yet, so every
 # object Liella's build of a program needs is named by path: the program and its helpers link
@@ -202,7 +213,7 @@ for name in "$@"; do
     log="$here/build/$name${lh:+.lh}.log"
     if [ -n "$lh" ]; then
         miss=""
-        for h in $(sed -n 's|^[[:space:]]*#[[:space:]]*include[[:space:]]*<\([^>]*\)>.*|\1|p' "$src" | LC_ALL=C sort -u); do
+        for h in $(angle_includes 0 "$src" | LC_ALL=C sort -u); do
             [ -f "$stage/$h" ] || [ -f "$uapi/$h" ] || [ -f "$gccinc/$h" ] || miss="$miss $h"
         done
         [ -z "$(directive LINK-CXX "$src")" ] || miss="$miss (C++)"
