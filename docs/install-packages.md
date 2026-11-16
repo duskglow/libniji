@@ -29,6 +29,10 @@ digits).
 sudo apt install ./liella6_<version>_amd64.deb ./liella6-dev_<version>_amd64.deb
 ```
 
+To verify the downloads, run `sha256sum -c SHA256SUMS` in the directory that holds them: GitHub does not
+allow `~` in asset names, so the published names use `.` where the Debian version has `~`
+(`liella6_0.0.snapshot...` for `0.0~snapshot...`), and `SHA256SUMS` lists the published names.
+
 `liella6-dev` depends on `gcc`, `binutils` and `libc6-dev`: Liella has no C header set of its own
 yet, so programs compile with the system's headers (Liella implements the glibc 2.39 ABI those
 headers describe). `g++` is recommended for `liella-g++`.
