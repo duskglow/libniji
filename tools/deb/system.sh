@@ -47,6 +47,9 @@ for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1
 done
 put_link ../lib/$ma/ld-linux-x86-64.so.2 "$s6/usr/lib64/ld-linux-x86-64.so.2"
 put 0644 "$sys/x86_64-linux-gnu.conf" "$s6/etc/ld.so.conf.d/$ma.conf"
+# lintian's undeclared-elf-prerequisites (libc.so.6) for each library above: the prerequisite is in
+# this package, which has no Depends to name it.
+put 0644 "$sys/libc6.lintian-overrides" "$s6/usr/share/lintian/overrides/libc6"
 
 # --- libc-bin ---
 put 0644 "$sys/ld.so.conf" "$bin/etc/ld.so.conf"

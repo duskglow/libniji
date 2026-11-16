@@ -1,0 +1,4 @@
+# libc6 ships libc.so.6 itself: its other libraries (libm.so.6, libpthread.so.0, libresolv.so.2, ...)
+# record DT_NEEDED libc.so.6 and find it in this same package, so no Depends can declare it. Only
+# that exact prerequisite is covered: a library needing anything more still raises the tag.
+libc6: undeclared-elf-prerequisites (libc.so.6) [usr/lib/x86_64-linux-gnu/*]
