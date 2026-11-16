@@ -297,12 +297,11 @@ static int one(const char *file, int verbose) {
         /* The interpreter line (a path with no `=>`, last in the list) is printed only when the program or a
            listed object names the interpreter in DT_NEEDED, as the reference lists it (transcripts). */
         const char *skip = NULL;
-        if (nl > 0 && l[nl - 1].path == l[nl - 1].name - (l[nl - 1].name - l[nl - 1].path) && l[nl - 1].path[0] == / &&
-            l[nl - 1].path + l[nl - 1].path_len - l[nl - 1].name_len == l[nl - 1].name) {
+        if (nl > 0 && l[nl - 1].path[0] == '/' && l[nl - 1].path + l[nl - 1].path_len - l[nl - 1].name_len == l[nl - 1].name) {
             int needed = has_needed(shown, l[nl - 1].name, l[nl - 1].name_len) || has_needed(shown, l[nl - 1].path, l[nl - 1].path_len);
             for (size_t j = 0; j + 1 < nl && !needed; j++) {
                 char p[4096];
-                if (l[j].path[0] != / || l[j].path_len >= sizeof p) continue;
+                if (l[j].path[0] != '/' || l[j].path_len >= sizeof p) continue;
                 memcpy(p, l[j].path, l[j].path_len);
                 p[l[j].path_len] = 0;
                 needed = has_needed(p, l[nl - 1].name, l[nl - 1].name_len) || has_needed(p, l[nl - 1].path, l[nl - 1].path_len);
