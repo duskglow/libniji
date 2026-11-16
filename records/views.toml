@@ -339,7 +339,7 @@ separator = "|----|-----------|-------------------|---------------------|-------
 columns = ["id", "behaviour", "glibc", "liella", "restore", "cost", "status"]
 head = "records/views/compat-flags.head.md"
 tail = "records/views/compat-flags.tail.md"
-renames = ["liella.compat. => niji.compat.", "liella::config:: => niji::config::", "liella_ld:: => niji_ld::", "LIELLA_OWNER_1 => NIJI_OWNER_1", "liella-owner/ => niji-owner/"]
+renames = ["liella.compat. => niji.compat.", "liella::config:: => niji::config::", "LIELLA_OWNER_1 => NIJI_OWNER_1", "liella-owner/ => niji-owner/"]
 
 [[view]]
 name = "saturation-1"
