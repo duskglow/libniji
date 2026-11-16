@@ -63,7 +63,7 @@ like `RTLD_NOW` (same answers for every symbol that is defined at load time, bec
 appending); an undefined *function* reference therefore fails the open until DL-20 brings the PLT trampoline and late
 definitions (probed reference: the open succeeds). This is an interim gap of the phase, listed in DL-20's tests, not a
 shipped difference. Unknown mode bits: every bit outside `RTLD_LAZY|RTLD_NOW|RTLD_NOLOAD|RTLD_DEEPBIND|RTLD_GLOBAL|
-RTLD_NODELETE` (`0x40000000` included) fails before the search with NULL and the dlerror text `invalid mode parameter`
+RTLD_NODELETE` fails before the search with NULL and the dlerror text `invalid mode parameter`
 (probe P-1); DL-16a's test sweeps every undefined bit.
 A re-open never re-relocates (probed: an `RTLD_NOW` re-open of an object first opened lazily succeeds).
 
