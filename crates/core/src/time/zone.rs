@@ -28,10 +28,10 @@
 //!   hour, reads as DST). DST asked of a zone that never has it reads one hour ahead of the time
 //!   in force; standard time asked of a zone that never has it is ignored.
 //!
-//! Where Liella differs: glibc's choice of occurrence in a repeated hour with `tm_isdst = -1`
+//! Where libniji differs: glibc's choice of occurrence in a repeated hour with `tm_isdst = -1`
 //! depends on the previous `mktime` call of the process (the first call of a process in a zone
 //! east of UTC takes the later occurrence, a call after one that returned the earlier offset the
-//! earlier one). Liella always takes the first occurrence.
+//! earlier one). libniji always takes the first occurrence.
 #![allow(clippy::arithmetic_side_effects)] // i128 instants derived from i64 values and bounded offsets
 
 use super::civil::{civil_from_days, civil_from_seconds, civil_from_seconds64, fits_tm, CivilTime, Fields, DAY};
