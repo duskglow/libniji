@@ -92,7 +92,7 @@ ldd_ ldd-7 -v "$py"
 ldd_ ldd-8 /etc/passwd
 # initramfs-tools' copy_exec, which builds an initramfs from ldd's listing: /bin/sh, perl and python3 with
 # their libraries into an empty directory; the copied tree (type and path, sorted) is compared.
-sh_ copyexec-1 "verbose=n && . /usr/share/initramfs-tools/hook-functions && DESTDIR=/tmp/ird && rm -rf \$DESTDIR && mkdir -p \$DESTDIR && copy_exec /bin/sh /bin && copy_exec /usr/bin/perl /bin && copy_exec $py /bin && cd \$DESTDIR && find . -printf '%y %p\n' | sort"
+sh_ copyexec-1 "verbose=n && . /usr/share/initramfs-tools/hook-functions && DESTDIR=/tmp/ird && rm -rf \$DESTDIR && mkdir -p \$DESTDIR && copy_exec /bin/sh && copy_exec /usr/bin/perl && copy_exec $py && cd \$DESTDIR && find . -printf '%y %p\n' | sort"
 sh_ find-1 "find $t | sort"
 sh_ find-2 "find $t -type f -name '*.txt' -size -2k -printf '%P %s %m %TY\n' | sort"
 sh_ find-3 "find $t -newer $t/in.txt | sort; find $t -empty | sort"
