@@ -1,12 +1,12 @@
 id = "D-NEW"
 series = "D-27"
-section = "s27"
+section = "s26-29"
 spec = "§27.1"
 ann = "DD"
 status = "active"
+amends = ["D-27.16", "D-31.15"]
 story = "DL-TRACE-INTERP"
 date = "2026-11-16"
-amends = ["D-27.16", "D-31.15"]
 body = '''
 **The interpreter's line in a trace list (DL-TRACE-INTERP; owner-delegated rulings #6043 and #6056).** `ld.so --list`, `ld.so PROGRAM` and kernel start with `LD_TRACE_LOADED_OBJECTS` list the interpreter only when a listed object names it in `DT_NEEDED` (its soname, the program's `PT_INTERP` or the loader's path), at its breadth-first place; the vDSO's line comes first, after the interpreter's when that is the first object. libniji's own libraries (`search::PINNED`) name the interpreter after their own `DT_NEEDED` entries: the reference's `libc.so.6` and `libm.so.6` name theirs, libniji's run only under this loader, and consumers such as initramfs-tools' `copy_exec` take the loader from that line. The line is `\tNAME (0x…)`, `\tNAME => PATH (0x…)` when they differ: NAME the program's `PT_INTERP`, else the loader's path as run; PATH the loader's path as run (`AT_EXECFN`), the `PT_INTERP` at kernel start. A program or library with no `DT_NEEDED` is `\tstatically linked`, status 0. All of it probed on the reference as a black box (spec/behaviour/dynlink.md "Trace lists"); test `list_interpreter_line_matches_reference`. ldd's interim filter (D-31.15) is removed: ldd prints the loader's list as it is. The system build (`tools/deb/build.sh --flavour system`) pins libniji's libraries to `/lib/x86_64-linux-gnu` (`NIJI_LIBDIR=lib/x86_64-linux-gnu`), the directory the reference prints them under; on the merged-/usr systems the packages need it is the installed `/usr/lib/x86_64-linux-gnu` file. Alternative not taken: a real `DT_NEEDED` on the loader in libniji's libc and libm (a product and start-up change, also giving `ldd -v` the reference's blocks for them).
 '''
