@@ -1,0 +1,45 @@
+# The feature levels features.h computes in each configuration of spec/abi/ftm-configs.tsv (same ids and order),
+# from feature_test_macros(7), POSIX XSH 2.2.1 and the C/C++ standard versions (plan/headers.md 2.3).
+# isoc: year of the C standard whose names are visible; xsi: 400 XPG4, 450 X/Open extended, 500/600/700 SUSv2-4.
+# reject 1: features.h refuses the configuration (_TIME_BITS=64 without _FILE_OFFSET_BITS=64).
+id	isoc	posix	xsi	misc	gnu	lfs64	fob64	time64	dynstack	fortify	cxx	reject
+c89	1990	0	0	0	0	0	0	0	0	0	0	0
+c99	1999	0	0	0	0	0	0	0	0	0	0	0
+c11	2011	0	0	0	0	0	0	0	0	0	0	0
+c17	2017	0	0	0	0	0	0	0	0	0	0	0
+c2x	2023	0	0	0	0	0	0	0	0	0	0	0
+gnu17	2017	200809	0	1	0	0	0	0	0	0	0	0
+gnu2x	2023	200809	0	1	0	0	0	0	0	0	0	0
+posix1	2017	1	0	0	0	0	0	0	0	0	0	0
+posix2	2017	2	0	0	0	0	0	0	0	0	0	0
+posix199309	2017	199309	0	0	0	0	0	0	0	0	0	0
+posix199506	2017	199506	0	0	0	0	0	0	0	0	0	0
+posix200112	2017	200112	0	0	0	0	0	0	0	0	0	0
+posix200809	2017	200809	0	0	0	0	0	0	0	0	0	0
+xopen	2017	2	400	0	0	0	0	0	0	0	0	0
+xopen500	2017	199506	500	0	0	0	0	0	0	0	0	0
+xopen600	2017	200112	600	0	0	0	0	0	0	0	0	0
+xopen700	2017	200809	700	0	0	0	0	0	0	0	0	0
+xopenext	2017	2	450	0	0	0	0	0	0	0	0	0
+isoc99	1999	0	0	0	0	0	0	0	0	0	0	0
+isoc11	2011	0	0	0	0	0	0	0	0	0	0	0
+isoc2x	2023	0	0	0	0	0	0	0	0	0	0	0
+default	2017	200809	0	1	0	0	0	0	0	0	0	0
+bsd	2017	200809	0	1	0	0	0	0	0	0	0	0
+svid	2017	200809	0	1	0	0	0	0	0	0	0	0
+gnu	2023	200809	700	1	1	1	0	0	1	0	0	0
+lfs64	2017	200809	0	1	0	1	0	0	0	0	0	0
+fob64	2017	200809	0	1	0	0	1	0	0	0	0	0
+time64	2017	200809	0	1	0	0	1	1	0	0	0	0
+time64only	2017	200809	0	1	0	0	0	1	0	0	0	1
+dynstack	2017	200809	0	1	0	0	0	0	1	0	0	0
+reentrant	2017	200809	0	1	0	0	0	0	0	0	0	0
+fortify1	2017	200809	0	1	0	0	0	0	0	1	0	0
+fortify2	2017	200809	0	1	0	0	0	0	0	2	0	0
+fortify3	2017	200809	0	1	0	0	0	0	0	3	0	0
+cxx98	2023	200809	700	1	1	1	0	0	1	0	1	0
+cxx11	2023	200809	700	1	1	1	0	0	1	0	1	0
+cxx14	2023	200809	700	1	1	1	0	0	1	0	1	0
+cxx17	2023	200809	700	1	1	1	0	0	1	0	1	0
+cxx20	2023	200809	700	1	1	1	0	0	1	0	1	0
+cxx23	2023	200809	700	1	1	1	0	0	1	0	1	0
