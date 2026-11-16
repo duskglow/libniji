@@ -1016,10 +1016,10 @@ fn sym_sched_setscheduler() {
 #[test]
 fn sym_setdomainname() {
     let child = in_uts_namespace("sym_setdomainname", || {
-        assert_eq!(s::setdomainname(c"niji.test".as_ptr(), 11), 0);
+        assert_eq!(s::setdomainname(c"niji.test".as_ptr(), 9), 0);
         let mut b = [0u8; 80];
         assert_eq!(s::getdomainname(b.as_mut_ptr().cast(), b.len()), 0);
-        assert_eq!(&b[..12], b"niji.test\0");
+        assert_eq!(&b[..10], b"niji.test\0");
     });
     if child || root() {
         return;
@@ -1054,10 +1054,10 @@ fn sym_sethostid() {
 #[test]
 fn sym_sethostname() {
     let child = in_uts_namespace("sym_sethostname", || {
-        assert_eq!(s::sethostname(c"niji-test-host".as_ptr(), 16), 0);
+        assert_eq!(s::sethostname(c"niji-test-host".as_ptr(), 14), 0);
         let mut b = [0u8; 80];
         assert_eq!(s::gethostname(b.as_mut_ptr().cast(), b.len()), 0);
-        assert_eq!(&b[..17], b"niji-test-host\0");
+        assert_eq!(&b[..15], b"niji-test-host\0");
         errno::set_raw(0);
         let long = [b'x'; 65];
         assert!(fails(s::sethostname(long.as_ptr().cast(), 65) as isize, EINVAL), "longer than the kernel's 64");

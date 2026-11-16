@@ -25,7 +25,7 @@
             ".popsection\n\t"                                                                         \
             ".pushsection .note.niji.nonshared,\"aR\",@note\n\t"                                    \
             ".p2align 2\n\t"                                                                          \
-            ".long 7\n\t"                                                                             \
+            ".long 8\n\t"                                                                             \
             ".long 0\n\t"                                                                             \
             ".long 1\n\t"                                                                             \
             ".asciz \"libniji\"\n\t"                                                                   \

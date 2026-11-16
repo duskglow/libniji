@@ -4957,8 +4957,8 @@ fn k_personality() {
 #[test]
 fn k_prctl() {
     in_child(|k| {
-        k.prctl_set_name(b"niji-prctl\0\0\0\0").or_exit();
-        if &k.prctl_get_name().or_exit()[..13] != b"niji-prctl\0" {
+        k.prctl_set_name(b"niji-prctl\0\0\0\0\0\0").or_exit();
+        if &k.prctl_get_name().or_exit()[..11] != b"niji-prctl\0" {
             return 1;
         }
         k.prctl_int(PrctlInt::SetPdeathsig, SIGUSR1 as u64, 0).or_exit();

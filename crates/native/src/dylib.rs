@@ -106,8 +106,8 @@ pub(crate) const fn symbol() -> [u8; SYMBOL_LEN] {
     padded(RUST_ABI.as_bytes(), 0, [0; SYMBOL_LEN])
 }
 
-/// An ELF note (System V gABI, "Note Section") with the owner name `libniji` (7 bytes with its
-/// NUL, padded to 8) and a descriptor of `D` bytes (a multiple of 4).
+/// An ELF note (System V gABI, "Note Section") with the owner name `libniji` (8 bytes with its
+/// NUL, no padding) and a descriptor of `D` bytes (a multiple of 4).
 #[repr(C, align(4))]
 pub(crate) struct Note<const D: usize> {
     namesz: u32,
@@ -133,7 +133,7 @@ pub(crate) const fn note() -> Note<DESC_PADDED> {
         namesz: size32(b"libniji\0".len()),
         descsz: size32(DESC_LEN),
         kind: NOTE_TYPE,
-        name: *b"libniji\0\0",
+        name: *b"libniji\0",
         desc: padded(RUST_ABI_HASH.as_bytes(), SYMBOL_LEN, desc),
     }
 }
