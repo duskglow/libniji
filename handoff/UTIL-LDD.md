@@ -1,50 +1,54 @@
 # UTIL-LDD (UTIL-4): ldd
 
-**State.** Branch `task/util-ldd-2` (UTIL-LDD's `task/util-ldd` plus UTIL-LDD-2), code head `4d6d440e5`; this
-note and `handoff/reports/UTIL-LDD-2.json` are the commit after it. Role mei `~/w/s1`; the swap roots run on keke
-(mmdebstrap, the mirror keyrings) from `~/work/UTIL-LDD-2/` (`swap.sh`, the debs, the branch's tools/deb copies).
+**State.** Branch `task/util-ldd-3` = UTIL-LDD-2's `task/util-ldd-2` (`6a3a047ea`) plus the merge of origin/next
+`9bcf93146` (code head); this note and `handoff/reports/UTIL-LDD-3.json` are the commit after it. Role mei `~/w/s1`;
+the swap roots run on keke (mmdebstrap, the mirror keyrings) from `~/work/UTIL-LDD-3/` (`swap.sh`, the debs, the
+branch's tools/deb copies).
 
-## On the branch
+## UTIL-LDD-3 (merge only; ldd unchanged)
+
+* CI could not merge `tools/deb/swap-system.sh`: next added apt (apt-1..3, DL-LIBSTDCXX-4) to the swap-root
+  command set. The only conflict was that script's header comment naming the command set; it now names both (apt,
+  and ldd plus copy_exec). `swap-cmds.sh` merged cleanly with the ldd, copy_exec, apt and fakeroot cases; the
+  mmdebstrap include list keeps fakeroot and initramfs-tools-core. Nothing else changed.
+* Every job reran on `9bcf93146` (see Results). The swap job now has a verdict that can pass: `swap.sh` (keke
+  `~/work/UTIL-LDD-3/swap.sh`, not in the tree) requires every command but ldd-1..7 to PASS (the swap proof,
+  apt, fakeroot, copy_exec, ldd-8 included) and ldd-1..7 to be identical once both sides are normalised for the
+  three loader differences of ruling #6056: (a) `/usr/lib/x86_64-linux-gnu/` -> `/lib/x86_64-linux-gnu/`, (b) the
+  bare interpreter name for a library operand -> `/lib64/...`, (c) `-v` blocks of the replaced libraries
+  (libc.so.6, libm.so.6) dropped on both sides. (c) is wider than UTIL-LDD-2 wrote: ldd-7 (`-v` python3) also
+  differs in libm.so.6's block, because Liella's libm has its own `DT_VERNEED` (it needs only `GLIBC_2.14` of libc,
+  none of the loader); ldd prints what each object records, so this is the library, not ldd.
+
+## On the branch (from UTIL-LDD and UTIL-LDD-2)
 
 * `csys/util/ldd.c`: ldd as a static PIE over `libc.a`, listing through Liella's loader in trace mode (D-31.7);
-  `-v` from `DT_VERNEED`; `-d/-r/-u` refused until DL-10. Interpreter line: kept when a listed object names the
-  interpreter in `DT_NEEDED` **or `libc.so.6` is listed** (UTIL-LDD-2: without that, every libc-linked program lost
-  the line in a Liella root, and initramfs-tools' copy_exec takes the loader from it). Interim per ruling #6043.
-* Decision record `records/pending/UTIL-LDD-2-1.toml` (D-NEW, series D-31): the front end, the identity string,
-  the lazy `-v` header, the interim filter and the libc rule. CI assigns the id.
-* `validation/transcripts/ldd/`: 28 transcripts (no-libc programs; recorded from the reference by UTIL-LDD).
-  `docs/transcripts.md` documents `cc:` and `mask-addresses:`.
-* `tools/deb/swap-cmds.sh` / `swap-system.sh`: the swap-root comparison now runs `ldd` (dash, perl, python3, a
-  library, two operands, `-v` twice, a non-ELF file; only a line's final ` (0x<hex>)` is masked) and initramfs-tools'
-  `copy_exec` on dash, perl and python3 (initramfs-tools-core added to both roots).
-* `tools/deb/check-system.sh`: allows `/usr/bin/getent` and the `./usr/bin/` directory entry (the built libc-bin
-  failed the check on the directory).
-* Plants `handoff/UTIL-LDD-2-plants.txt` (12: 10 on ldd.c, 2 on the harness's address masking).
+  `-v` from `DT_VERNEED`; `-d/-r/-u` refused until DL-10. Interpreter line kept when a listed object names the
+  interpreter in `DT_NEEDED` or `libc.so.6` is listed (interim filter, ruling #6043; D-31.15).
+* `validation/transcripts/ldd/` (28), `docs/transcripts.md`; `tools/deb/swap-cmds.sh` ldd-1..8 and copyexec-1;
+  `tools/deb/check-system.sh` allows `/usr/bin/getent` and `./usr/bin/`. Plants `handoff/UTIL-LDD-2-plants.txt` (12).
 
-## Results (jobs)
+## Results (jobs on `9bcf93146`)
 
-* mei: `util-ldd-2-lint-2` rc 0 (clippy, static, records check on `80e52ac13`); `util-ldd-2-debs-2` rc 0 (system
-  .debs + check-system); `util-ldd-2-gate-2` (direct tier), `util-ldd-2-transcripts-2` (ldd, getent, getconf,
-  ldconfig transcripts), `util-ldd-2-plants-2`: see the hand-back (at writing: 9 of 12 CAUGHT, one WARN-NO-MSG:
-  `ldd-several-header`'s mutant does not build under -Werror, `several` becomes unused).
-* keke `util-ldd-2-swap-3` (final swap-cmds): `copyexec-1` PASS: copy_exec of dash, perl and python3 copies the same
-  20 entries (loader, libc, libm, libcrypt, libexpat, libz, links) in both roots. `ldd-8` PASS. ldd-1..7 differ only
-  by the loader's output (below); rc 1 for those, so it is evidence, not a JOBS entry. swap-1 (before the libc
-  rule) showed the missing interpreter line; swap-2 showed copy_exec ran only for dash (fixed in `4d6d440e5`).
-* The last commit `4d6d440e5` changes only tools/deb/swap-cmds.sh (proved by swap-3); gate/plants ran on `80e52ac13`.
+* mei: `util-ldd-3-lint-0` rc 0 (clippy + static on the inherited `6a3a047ea`, before the merge);
+  `util-ldd-3-debs-1` rc 0 (system .debs, check-system PASS); `util-ldd-3-lint-1` rc 0 (xtask clippy, workspace
+  clippy --all-features -D warnings, static, records check); `util-ldd-3-transcripts-1` rc 0 (ldd, getent,
+  getconf, ldconfig: 120 ok, 0 mismatched); `util-ldd-3-gate-1` (direct tier, --base origin/next): rc 0, 32 suites ok, 12015 passed, 0 failed, conformance 137 passed, peak 16G (page cache) oom_kill 0;
+  `util-ldd-3-plants-1`: rc 0, 12 plants: 11 CAUGHT, 0 SURVIVED, 1 WARN-NO-MSG (`ldd-several-header`: the mutant does not build under -Werror, `several` becomes unused; goes to DL-TRACE-INTERP per ruling #6056).
+* keke `util-ldd-3-swap-1` rc 0: same=54 differ=7, the 7 being ldd-1..7, each KNOWN (a)-(c) only; apt-1..3,
+  fakeroot-1/2, copyexec-1, ldd-8 PASS.
 
-## Open (the loader, not ldd: for a DL story)
+## Open (the loader, not ldd: DL-TRACE-INTERP, ruling #6056)
 
-1. Liella's loader resolves `libc.so.6`, `libm.so.6` ... to `/usr/lib/x86_64-linux-gnu/`, the reference to
-   `/lib/x86_64-linux-gnu/` (same root, same ld.so.conf; Liella's cache has 54 entries, the stock one 64). ldd prints
-   the loader's paths. copy_exec copies the same files either way (merged /usr), so no initramfs difference.
-2. For a library operand (no `PT_INTERP`) the loader's trace prints `ld-linux-x86-64.so.2 (0x..)`, the reference
-   `/lib64/ld-linux-x86-64.so.2 (0x..)` (swap ldd-4).
-3. `-v`: Liella's libc.so.6 has no version needs on the loader, so its `\t/lib/.../libc.so.6:` block is absent.
-4. When the loader lists the interpreter only when needed (and names libc's), remove ldd's filter (ruling #6043).
+1. Loader trace paths `/usr/lib/x86_64-linux-gnu/` vs the reference's `/lib/x86_64-linux-gnu/`.
+2. Bare interpreter name for a library operand (swap ldd-4).
+3. `-v`: libc.so.6's block absent (no version needs on the loader); libm.so.6's block lists Liella's libm's needs.
+4. Then remove ldd's interim filter, take over the `ldd-several-header` plant and the `-v` differences row.
 
-Next step: none for ldd; cut the DL story for 1, 2 and 4. Read: spec §31.3, D-31.7, the pending record, this note.
+Next step: none for ldd; land it. DL-TRACE-INTERP takes 1-4 (its swap check can reuse `swap.sh`'s normalisation
+as the list of what must disappear). Read: spec section 31.3, D-31.7, D-31.15, this note.
 
 ## Rule slips (no effect on the tree)
 
-One `sed -i` on /dev/null (it failed, nothing edited); one oversized `ls` of keke's `~/w`.
+UTIL-LDD-2: one `sed -i` on /dev/null (failed, nothing edited); one oversized `ls`. UTIL-LDD-3: one local
+here-doc (`python3 - <<EOF`) to patch the scratch swap.sh (outside the tree).
