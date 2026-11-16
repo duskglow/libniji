@@ -1742,6 +1742,7 @@ const XTASK_TOOLS: &[(&str, &str)] = &[
     ("compat_plan", "the compat dispatch table check (static: compat-plan)"),
     ("compatprobe", "the compat probe list check (static: compat-probes)"),
     ("privpaths", "the private paths check (static: private-paths)"),
+    ("oldname", "the former-name check (static: old-name)"),
     ("locks", "the lock file freshness check (static: lock-fresh)"),
     ("fuzz", "the fuzz harness build check (static: fuzz-check)"),
     ("arch", "the architecture seam audit (static: arch-audit); `arch-check` is not a gate step"),
