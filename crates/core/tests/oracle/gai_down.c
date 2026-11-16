@@ -291,6 +291,22 @@ static void byname(const char *name, int family)
     host(family == AF_INET ? "gethostbyname" : "gethostbyname2 inet6", name, h, errno);
 }
 
+static void byname_r(const char *name)
+{
+    struct hostent he, *res = NULL;
+    char buf[4096];
+    int herr = -1;
+    errno = 0;
+    int r = gethostbyname_r(name, &he, buf, sizeof buf, &res, &herr);
+    int e = errno;
+    printf("gethostbyname_r %s: %s", name, r ? ename(r) : "0");
+    /* *h_errnop and errno are reported only for a failure (gethostbyname(3)). */
+    if (res)
+        printf(" [%s]\n", res->h_name);
+    else
+        printf(" NULL h_errno=%d errno=%s\n", herr, ename(e));
+}
+
 static void nameinfo(const char *ip, int flags)
 {
     struct sockaddr_in s;
@@ -322,6 +338,8 @@ static void round_of_lookups(void)
     byname("www.gnu.org", AF_INET);
     byname("localhost", AF_INET);
     byname("a.test", AF_INET6);
+    byname_r("www.gnu.org");
+    byname_r("localhost");
     struct in_addr a4;
     inet_pton(AF_INET, "192.0.2.10", &a4);
     errno = 0;

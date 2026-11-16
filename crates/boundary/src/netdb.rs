@@ -326,10 +326,15 @@ pub fn gethostbyname2(name: KResult<&[u8]>, af: i32) -> usize {
 
 /// `gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)`.
 pub fn gethostbyname2_r(name: KResult<&[u8]>, af: i32, out: Option<&mut struct_hostent>, buf: KResult<&mut [u8]>, result: Option<&mut usize>, herr: Option<&mut i32>) -> i32 {
-    r_form(out, buf, result, herr, false, |buf, base| {
+    let code = r_form(out, buf, result, herr, false, |buf, base| {
         let h = with_hosts(|c| netdb::host_by_name(c, name?, family(af)?))?;
         Ok(pack_host(&h, &mut Packer::new(buf, base)))
-    })
+    });
+    // EAGAIN (TRY_AGAIN) comes with `errno` EAGAIN too, as for `gethostbyname2` (observed, `gai_down.c`).
+    if code == Errno::EAGAIN.get() {
+        errno::set(Errno::EAGAIN);
+    }
+    code
 }
 
 /// The address `gethostbyaddr` receives: `len` bytes of family `af`.

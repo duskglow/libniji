@@ -30,6 +30,7 @@ with no `/etc/hosts`):
 |---|---|---|---|
 | `getaddrinfo(name, "http", NULL)` and with hints | -3 `EAI_AGAIN` | not reported | not set |
 | `gethostbyname`, `gethostbyname2(AF_INET6)` | NULL | `EAGAIN` | 2 `TRY_AGAIN` |
+| `gethostbyname_r` (4096-byte buffer) | returns `EAGAIN`, `*result` NULL | `EAGAIN` | `*h_errnop` 2 `TRY_AGAIN` |
 | `gethostbyaddr(192.0.2.10)` | NULL | unchanged (0) | 2 `TRY_AGAIN` |
 | `getnameinfo(192.0.2.10:80, flags 0)` | -3 `EAI_AGAIN` (not the numeric form) | - | - |
 | `getnameinfo(..., NI_NAMEREQD)` | -3 `EAI_AGAIN` | - | - |
