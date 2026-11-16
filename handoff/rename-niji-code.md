@@ -1,12 +1,12 @@
 # RENAME-NIJI-CODE: Liella -> libniji (code). State after RENAME-NIJI-CODE-2, 2026-11-16
 
 Branch `task/rename-niji-code-2` (continues `task/rename-niji-code`), base `origin/next` e1afc4e47, code head
-ee350824a. Role mei `~/w/s1`; proof records in mei `~/work/RENAME-NIJI-CODE-2/{before,after}` (compare with
+30766aacb. Role mei `~/w/s1`; proof records in mei `~/work/RENAME-NIJI-CODE-2/{before,after}` (compare with
 `bash ~/work/RENAME-NIJI-CODE-2/compare.sh`). Brief: `~/state/briefs/RENAME-NIJI-CODE.md`; mapping and reasons:
 liella-ops `state/RENAME-LIBNIJI-PLAN.md`. Full report: handoff/rename-niji-code-report.md.
 
 ## State
-Done. The rename is the script's output plus the fixes listed below; every job named in the report ran on ee350824a (proof records: see the report).
+Done. The rename is the script's output plus the fixes listed below; every job named in the report ran on 30766aacb (proof records: see the report).
 
 ## Decisions in force
 - Pending record `records/pending/RENAME-NIJI-CODE-1.toml` (D-NEW, series D-X): the rename, the mapping, no aliases;
@@ -29,5 +29,6 @@ stub files `cargo xtask stubs` still owns; source files (by suffix) are text eve
 - docs/ (incl. toolchain.md's lr1 hash and `LIELLA_RUST_ABI` lines), README, plan/, spec prose: RENAME-NIJI-DOCS.
 
 ## Open
-- None for this story. Follow-ups: RENAME-NIJI-DOCS (prose, compat-flags wording, spec quotes that the s31
+- The landing must regenerate docs/codemap/symbols.tsv (train-owned) before its gate: 2 affected:: tests read
+  it (RULING NEEDED in the report). Otherwise none for this story. Follow-ups: RENAME-NIJI-DOCS (prose, compat-flags wording, spec quotes that the s31
   stubs regenerate from), DL-TRACE-INTERP (the 7 swap-root ldd cases, unchanged by the rename).

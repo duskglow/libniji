@@ -1,25 +1,76 @@
-{"task": "RENAME-NIJI-CODE-2", "model": "opus", "tokens": null,
+{
+ "task": "RENAME-NIJI-CODE-2",
+ "model": "opus",
+ "tokens": null,
  "result": "Liella -> libniji rename finished: clippy/static/records/generators green, rust-dylib fixed, exported symbol sets identical after renaming, packages and layout contracts unchanged on one host",
- "branch": "task/rename-niji-code-2", "head": "ee350824a",
- "gate": {"affected": "full tier (cargo xtask test) + hot_text_products: see job rename-niji-code-2-gate5", "peak": null},
+ "branch": "task/rename-niji-code-2",
+ "head": "30766aacb",
+ "gate": {
+  "affected": "full tier gate5: 6730/6737 passed; 5 fixed and rerun green (job failing); 2 need the train-owned codemap view regenerated (proven in codemap-check)",
+  "peak": null
+ },
  "accepted_first_attempt": null,
- "rulings": [],
+ "rulings": [
+  {
+   "item": "full gate red on 2 affected:: tests that read the stale train-owned docs/codemap/symbols.tsv",
+   "recommendation": "the landing regenerates the views (codemap) before its gate for this branch"
+  }
+ ],
  "informational": [
-   "Codegen moved slightly with the crate names (libm .so .text -4864 bytes, libm.a -4809, static start-up 6710 -> 6684 instructions:u, faults 17-18 both); cause not traced; the landing's bench/workload count should confirm no row got slower",
-   "lr1's hash recorded in place (b4a17b0ef811ee2c): lr1 was never shipped (Q4); recorded in the pending decision record",
-   "Records keep liella (compat key read by xtask records and tools/records_import.py, liella. tunable text, D-27.43 test names); rename them together in one records correction or RENAME-NIJI-DOCS",
-   "Dynamic start-up not measured on either side: the default products' loader finds libc.so.6 through neither RUNPATH nor RPATH and has no --library-path",
-   "Swapped trixie root rc 1 on base and branch alike (same=54 differ=7, identical differ lines): DL-TRACE-INTERP"
+  "Codegen moved slightly with the crate names (libm .so .text -4864 bytes, libm.a -4809, static start-up 6710 -> 6684 instructions:u, faults 17-18 both); cause not traced; the landing's bench/workload count should confirm no row got slower",
+  "lr1's hash recorded in place (b4a17b0ef811ee2c): lr1 was never shipped (Q4); recorded in the pending decision record",
+  "Records keep liella (compat key read by xtask records and tools/records_import.py, liella. tunable text, D-27.43 test names); rename them together in one records correction or RENAME-NIJI-DOCS",
+  "Dynamic start-up not measured on either side: the default products' loader finds libc.so.6 through neither RUNPATH nor RPATH and has no --library-path",
+  "Swapped trixie root rc 1 on base and branch alike (same=54 differ=7, identical differ lines): DL-TRACE-INTERP"
  ],
  "refused": [],
  "impact": [
-   {"kind": "correctness", "what": "rename completed: tree builds and lints (bare Liella identifiers, records schema key, native-gen prefix, stub files, NUL-byte source file, lr1 hash, rust-dylib output name)", "before": null, "after": null, "unit": null, "measured": true},
-   {"kind": "coverage", "what": "plants through cargo xtask plants on the rename script and the hand fixes", "before": 0, "after": 17, "unit": "plants", "measured": true},
-   {"kind": "perf", "what": "static start-up of a neutral program (mei, Skylake-SP class), instructions:u", "before": 6710, "after": 6684, "unit": "instr", "measured": true},
-   {"kind": "size", "what": "libm.so.6 .text", "before": 3331397, "after": 3326533, "unit": "bytes", "measured": true},
-   {"kind": "unblock", "what": "RENAME-NIJI-DOCS (prose, docs, records wording)", "before": null, "after": null, "unit": null, "measured": false}
+  {
+   "kind": "correctness",
+   "what": "rename completed: tree builds and lints (bare Liella identifiers, records schema key, native-gen prefix, stub files, NUL-byte source file, lr1 hash, rust-dylib output name)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants through cargo xtask plants on the rename script and the hand fixes",
+   "before": 0,
+   "after": 17,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "static start-up of a neutral program (mei, Skylake-SP class), instructions:u",
+   "before": 6710,
+   "after": 6684,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "libm.so.6 .text",
+   "before": 3331397,
+   "after": 3326533,
+   "unit": "bytes",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "RENAME-NIJI-DOCS (prose, docs, records wording)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
  ],
  "improvement": "cargo xtask plants rebuilds the products for a plain `python3 ... --self-test` command (9 plants x ~1 min of needless product builds); it could treat commands that are not cargo/xtask/conformance as product-free",
  "next_step": "land; RENAME-NIJI-DOCS renames prose, docs/toolchain.md's lr1 lines and (with the reader) the records' liella key",
  "report_file": "handoff/rename-niji-code-report.md",
- "jobs": ["rename-niji-code-2-lint7", "rename-niji-code-2-gate5", "rename-niji-code-2-plants5"]}
+ "jobs": [
+  "rename-niji-code-2-failing",
+  "rename-niji-code-2-plants6"
+ ]
+}
