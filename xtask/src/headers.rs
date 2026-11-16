@@ -877,6 +877,29 @@ mod tests {
         fs::remove_dir_all(&base).unwrap();
     }
 
+    // no spec clause: decision D-X.107 (R-H1, `__NIJI__` is always defined) under the libniji rename
+    // (records/pending/RENAME-NIJI-CODE-1.toml). Each header that defines it does so alone, through
+    // the compiler, against the committed headers only.
+    #[test]
+    fn niji_macro_always_defined() {
+        use std::io::Write;
+        let include = Path::new(env!("CARGO_MANIFEST_DIR")).join("../libc-include");
+        for h in ["features.h", "stdc-predef.h"] {
+            let mut cc = std::process::Command::new("cc")
+                .args(["-E", "-nostdinc", "-I"])
+                .arg(&include)
+                .args(["-x", "c", "-o", "/dev/null", "-"])
+                .stdin(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()
+                .expect("cc");
+            let src = format!("#include <{h}>\n#if !defined __NIJI__ || __NIJI__ != 1\n#error __NIJI__ is not 1\n#endif\n");
+            cc.stdin.take().expect("stdin").write_all(src.as_bytes()).expect("write");
+            let out = cc.wait_with_output().expect("cc");
+            assert!(out.status.success(), "<{h}> alone does not define __NIJI__ as 1: {}", String::from_utf8_lossy(&out.stderr));
+        }
+    }
+
     #[test]
     fn reserved_policy() {
         let r: BTreeMap<String, String> = [("__pid_t".to_string(), "emit".to_string()), ("_SIGSET_NWORDS".to_string(), "omit".to_string())].into();
