@@ -1,7 +1,7 @@
 # DL-TRACE-INTERP: the loader's trace list matches the reference
 
 **State.** Branch `task/dl-trace-interp`, code `a754e3c0c` + records/docs/plants `8152fa8df` (this note and
-`handoff/reports/DL-TRACE-INTERP.json` the commit after). Role mei `~/w/s3`. Stopped at the context checkpoint
+`handoff/reports/DL-TRACE-INTERP.json` the commits after; deca7a883 fixes the pending record's section and key order). Role mei `~/w/s3`. Stopped at the context checkpoint
 with the gate and plants running (PENDING JOBS).
 
 ## Done
@@ -28,9 +28,9 @@ with the gate and plants running (PENDING JOBS).
 ## Results
 
 * mei `dl-trace-interp-check-3` rc 0: both list tests pass; ldd transcripts 28 ok, 0 mismatched (filter removed).
-  (`-check-1` compile error, `-check-2` old test's filter: superseded.)
-* Running at hand-back: mei `dl-trace-interp-gate-1` (xtask clippy, workspace clippy -D warnings, static, direct
-  tier --base origin/next, `cargo xtask test`, NIJI_FULL_PROFILE so + hot_text_products), mei `dl-trace-interp-plants-1`.
+  (`-check-1` compile error, `-check-2` old test's filter, `-gate-1`/`-plants-1` stopped: synced before the record fix; all superseded.)
+* Running at hand-back: mei `dl-trace-interp-gate-2` (xtask clippy, workspace clippy -D warnings, static, direct
+  tier --base origin/next, `cargo xtask test`, NIJI_FULL_PROFILE so + hot_text_products), mei `dl-trace-interp-plants-2`.
 
 ## Open / next step
 
