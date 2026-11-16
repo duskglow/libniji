@@ -558,11 +558,14 @@ struct Net {
 
 /// A failed `dns` lookup's error. `res` (the `res_gethostbyname*` report, observed with one
 /// server, `attempts:1 timeout:1`): no server reachable (refused, or no route) is
-/// `Os(ECONNREFUSED)` (`HOST_NOT_FOUND`), a timeout `Os(ETIMEDOUT)` (`TRY_AGAIN`).
+/// `Os(ECONNREFUSED)` (`HOST_NOT_FOUND`), a timeout `Os(ETIMEDOUT)` (`TRY_AGAIN`). Otherwise no
+/// server reachable is `Unreachable` (observed, `gai_down.c`: `unavail` for the switch's rules,
+/// `TRY_AGAIN` / `EAI_AGAIN` for the caller).
 fn host_miss(m: Miss, net: Net, res: bool) -> LookupError {
     match m {
         Miss::TryAgain if res && net.unreachable => LookupError::Os(Errno::ECONNREFUSED),
         Miss::TryAgain if res && net.timed_out => LookupError::Os(Errno::ETIMEDOUT),
+        Miss::TryAgain if net.unreachable => LookupError::Unreachable,
         m => lookup_error(m, net.unreachable),
     }
 }
@@ -597,15 +600,17 @@ fn lookup_one<S: Sys>(sys: &S, c: &Config, n: &[u8], family: Family, net: &mut N
     };
     let answers = match client::exchange(sys, &transport(sys, c), &refs) {
         Ok(a) => a,
-        Err(Failure::Unreachable(_)) => {
-            net.unreachable = true;
+        Err(f) => {
+            // No response: nothing the whole lookup finds may be kept (D-16.10), so a later
+            // source's answer given while DNS was down is not served once it is back.
+            life.dns(None);
+            match f {
+                Failure::Unreachable(_) => net.unreachable = true,
+                Failure::Timeout => net.timed_out = true,
+                _ => {}
+            }
             return Err(Miss::TryAgain);
         }
-        Err(Failure::Timeout) => {
-            net.timed_out = true;
-            return Err(Miss::TryAgain);
-        }
-        Err(_) => return Err(Miss::TryAgain),
     };
     let mut found: Option<host::Found> = None;
     let (mut nodata, mut again, mut norec) = (false, false, false);
@@ -729,10 +734,11 @@ pub fn host_by_addr_life<S: Sys>(sys: &S, r: &Resolver, ip: Ip, life: &mut Life)
     let c = &r.conf;
     let rev = host::reverse_name(&ip)?;
     let q = build_query(sys, c, &rev, 1, T_PTR)?;
-    let resp = match client::exchange(sys, &transport(sys, c), &[&q]) {
-        Ok([Some(a), _]) => a,
-        Ok(_) | Err(Failure::Timeout | Failure::Os(_) | Failure::NoServer) => return Err(LookupError::TryAgain),
-        Err(Failure::Unreachable(_)) => return Err(LookupError::Unavailable),
+    // No response, a server reached or not: TRY_AGAIN (observed, `gai_down.c`: also under
+    // `[!UNAVAIL=return]`), and nothing kept (D-16.10).
+    let Ok([Some(resp), _]) = client::exchange(sys, &transport(sys, c), &[&q]) else {
+        life.dns(None);
+        return Err(LookupError::TryAgain);
     };
     life.dns(host::ttl(&resp));
     match host::read(&resp, &rev, T_PTR) {
@@ -928,7 +934,7 @@ mod tests {
             (Miss::TryAgain, to, true, LookupError::Os(Errno::ETIMEDOUT)),
             (Miss::TryAgain, none, true, LookupError::TryAgain),
             (Miss::NotFound, un, true, LookupError::NotFound),
-            (Miss::TryAgain, un, false, LookupError::Unavailable),
+            (Miss::TryAgain, un, false, LookupError::Unreachable),
             (Miss::TryAgain, to, false, LookupError::TryAgain),
         ];
         for (i, (m, net, res, want)) in table.into_iter().enumerate() {
