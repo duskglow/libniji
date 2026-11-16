@@ -879,15 +879,24 @@ mod tests {
 
     // no spec clause: decision D-X.107 (R-H1, `__NIJI__` is always defined) under the libniji rename
     // (records/pending/RENAME-NIJI-CODE-1.toml). Each header that defines it does so alone, through
-    // the compiler, against the committed headers only.
+    // the compiler, against the committed headers only. features.h includes <stdc-predef.h> first,
+    // so its own definition is checked with an empty stdc-predef.h ahead in the search path (the
+    // case it exists for: another stdc-predef.h found first).
     #[test]
     fn niji_macro_always_defined() {
         use std::io::Write;
         let include = Path::new(env!("CARGO_MANIFEST_DIR")).join("../libc-include");
-        for h in ["features.h", "stdc-predef.h"] {
+        let shadow = std::env::temp_dir().join(format!("niji-macro-test.{}", std::process::id()));
+        fs::create_dir_all(&shadow).unwrap();
+        fs::write(shadow.join("stdc-predef.h"), "/* another stdc-predef.h, first in the search path */\n").unwrap();
+        for (h, first) in [("features.h", Some(&shadow)), ("stdc-predef.h", None)] {
+            let mut args = vec!["-E".into(), "-nostdinc".into()];
+            if let Some(d) = first {
+                args.extend(["-I".into(), d.as_os_str().to_owned()]);
+            }
+            args.extend(["-I".into(), include.as_os_str().to_owned()]);
             let mut cc = std::process::Command::new("cc")
-                .args(["-E", "-nostdinc", "-I"])
-                .arg(&include)
+                .args(&args)
                 .args(["-x", "c", "-o", "/dev/null", "-"])
                 .stdin(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
@@ -898,6 +907,7 @@ mod tests {
             let out = cc.wait_with_output().expect("cc");
             assert!(out.status.success(), "<{h}> alone does not define __NIJI__ as 1: {}", String::from_utf8_lossy(&out.stderr));
         }
+        fs::remove_dir_all(&shadow).unwrap();
     }
 
     #[test]
