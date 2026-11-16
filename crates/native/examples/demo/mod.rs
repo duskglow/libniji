@@ -132,21 +132,26 @@ fn file() -> Result<String, String> {
     let first = path(b"sub/first");
     let second = path(b"sub/second");
     let data = b"niji native round trip\n";
+    // `pwrite` puts `head` over the first word; `pread` reads the second word, after the first space.
+    let head = b"NIJI";
+    let word_at = data.iter().position(|&b| b == b' ').and_then(|p| p.checked_add(1)).ok_or("the data has no second word")?;
+    let word_at = i64::try_from(word_at).map_err(|_| "the second word's offset does not fit")?;
 
     fs::mkdir(&sub, 0o755).map_err(at("mkdir"))?;
     check(fs::stat(&sub).map_err(at("stat"))?.is_dir(), "the directory is not one")?;
     let f = fs::open(&first, fs::O_RDWR | fs::O_CREAT | fs::O_EXCL | fs::O_CLOEXEC, 0o644).map_err(at("open"))?;
     f.write_all(data).map_err(at("write_all"))?;
-    let n = f.pwrite(b"NIJI", 0).map_err(at("pwrite"))?;
-    check(n == 6, "pwrite was short")?;
+    let n = f.pwrite(head, 0).map_err(at("pwrite"))?;
+    check(n == head.len(), "pwrite was short")?;
     let end = f.seek(0, Whence::Current).map_err(at("seek"))?;
     check(usize::try_from(end).ok() == Some(data.len()), "pwrite moved the offset")?;
     f.seek(0, Whence::Set).map_err(at("seek"))?;
     let mut back = [0u8; 64];
     let n = f.read(&mut back).map_err(at("read"))?;
-    check(back.get(..n) == Some(&b"NIJI native round trip\n"[..]), "read gave other bytes")?;
+    let want: Vec<u8> = head.iter().chain(data.iter().skip(head.len())).copied().collect();
+    check(back.get(..n) == Some(want.as_slice()), "read gave other bytes")?;
     let mut word = [0u8; 6];
-    f.pread(&mut word, 7).map_err(at("pread"))?;
+    f.pread(&mut word, word_at).map_err(at("pread"))?;
     check(&word == b"native", "pread gave other bytes")?;
     let st = f.stat().map_err(at("fstat"))?;
     check(st.is_file() && usize::try_from(st.size).ok() == Some(data.len()) && st.permissions() & 0o600 == 0o600, "fstat disagrees")?;

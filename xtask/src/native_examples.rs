@@ -80,7 +80,7 @@ ok heap: 1000 words (sum 499500); 100 lines aligned to 64 after growth
 ok secure: 28-byte secret grown to 5028 bytes (capacity 64 to 8224, moved by the heap), truncated intact; zeroed buffer of 32; stack buffer of 32 zeroed
 ok args: 4 (alpha beta)
 ok env: NIJI_NATIVE_GREETING=hello; set, overwrite, unset; 2 entries
-ok file: 25 bytes written, read back, renamed, removed
+ok file: 23 bytes written, read back, renamed, removed
 ok clock: realtime after 2026-01-01, monotonic non-decreasing
 ok tz: 1782907200 is 2026-07-01 14:00:00 CEST (+7200, dst 1, weekday 3, yearday 181); 2026-01-15 13:00:00 CET is 1768478400; with TZ=JST-9 2026-07-01 21:00:00 JST
 ok clean api: 1782907200 is 2026-07-01 12:00:00 UTC

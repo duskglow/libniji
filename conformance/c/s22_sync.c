@@ -277,14 +277,15 @@ int main(void)
         return 19;
 
     /* Named semaphore: same address twice, O_EXCL, unlink. */
-    char name[64] = "/niji-conf-";
+#define SEM_PREFIX "/niji-conf-"
+    char name[64] = SEM_PREFIX;
     {
         /* the PID in decimal (no stdio before phase 8) */
         char digits[16];
         int nd = 0;
         for (unsigned p = (unsigned)getpid(); p != 0 || nd == 0; p /= 10)
             digits[nd++] = (char)('0' + p % 10);
-        int at = 13;
+        int at = (int)sizeof SEM_PREFIX - 1; /* after the prefix, whatever its length */
         while (nd > 0)
             name[at++] = digits[--nd];
         name[at] = 0;
