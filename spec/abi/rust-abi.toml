@@ -34,7 +34,7 @@ status = "current"
 # The native C ABI version node the dylib's stateful services call (spec/abi/native.tsv,
 # include/niji/native.h); the newest node any of its references names.
 native_c_abi = "NIJI_NATIVE_1"
-hash = "b84ac90a5c7fa1e1"
+hash = "b4a17b0ef811ee2c"
 
 # The compiler, exactly as `rustc -vV` reports it on the reference system (the test VM:
 # Ubuntu 24.04, x86_64; rustup channel "stable" on 2026-10-02).
