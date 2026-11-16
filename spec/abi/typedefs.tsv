@@ -6,12 +6,40 @@ typedef	Dl_serinfo	dlfcn.h	32	8	Dl_serinfo
 typedef	Dl_serpath	dlfcn.h	16	8	Dl_serpath
 typedef	ENTRY	search.h	16	8	entry
 typedef	Elf32_Addr	elf.h	4	4	unsigned int
+typedef	Elf32_Dyn	elf.h	8	4	Elf32_Dyn
+typedef	Elf32_Ehdr	elf.h	52	4	Elf32_Ehdr
+typedef	Elf32_Half	elf.h	2	2	unsigned short
+typedef	Elf32_Nhdr	elf.h	12	4	Elf32_Nhdr
+typedef	Elf32_Off	elf.h	4	4	unsigned int
+typedef	Elf32_Phdr	elf.h	32	4	Elf32_Phdr
+typedef	Elf32_Rel	elf.h	8	4	Elf32_Rel
+typedef	Elf32_Rela	elf.h	12	4	Elf32_Rela
+typedef	Elf32_Section	elf.h	2	2	unsigned short
+typedef	Elf32_Shdr	elf.h	40	4	Elf32_Shdr
+typedef	Elf32_Sword	elf.h	4	4	int
 typedef	Elf32_Sym	elf.h	16	4	Elf32_Sym
+typedef	Elf32_Word	elf.h	4	4	unsigned int
 typedef	Elf64_Addr	elf.h	8	8	unsigned long
+typedef	Elf64_Chdr	elf.h	24	8	Elf64_Chdr
 typedef	Elf64_Dyn	elf.h	16	8	Elf64_Dyn
+typedef	Elf64_Ehdr	elf.h	64	8	Elf64_Ehdr
 typedef	Elf64_Half	elf.h	2	2	unsigned short
+typedef	Elf64_Nhdr	elf.h	12	4	Elf64_Nhdr
+typedef	Elf64_Off	elf.h	8	8	unsigned long
 typedef	Elf64_Phdr	elf.h	56	8	Elf64_Phdr
+typedef	Elf64_Rel	elf.h	16	8	Elf64_Rel
+typedef	Elf64_Rela	elf.h	24	8	Elf64_Rela
+typedef	Elf64_Section	elf.h	2	2	unsigned short
+typedef	Elf64_Shdr	elf.h	64	8	Elf64_Shdr
+typedef	Elf64_Sxword	elf.h	8	8	long
 typedef	Elf64_Sym	elf.h	24	8	Elf64_Sym
+typedef	Elf64_Verdaux	elf.h	8	4	Elf64_Verdaux
+typedef	Elf64_Verdef	elf.h	20	4	Elf64_Verdef
+typedef	Elf64_Vernaux	elf.h	16	4	Elf64_Vernaux
+typedef	Elf64_Verneed	elf.h	16	4	Elf64_Verneed
+typedef	Elf64_Word	elf.h	4	4	unsigned int
+typedef	Elf64_Xword	elf.h	8	8	unsigned long
+typedef	Elf64_auxv_t	elf.h	16	8	Elf64_auxv_t
 typedef	FILE	argp.h	216	8	_IO_FILE
 typedef	FTS	fts.h	72	8	FTS
 typedef	FTS64	fts.h	72	8	FTS64
@@ -105,6 +133,7 @@ function	__atanl	complex.h			long double (long double)
 typedef	__atomic_wide_counter	aio.h	8	8	__atomic_wide_counter
 function	__b64_ntop	resolv.h			int (unsigned char const*, unsigned long, char*, unsigned long)
 function	__b64_pton	resolv.h			int (char const*, unsigned char*, unsigned long)
+typedef	__blkcnt64_t	aio.h	8	8	long
 typedef	__blkcnt_t	aio.h	8	8	long
 typedef	__blksize_t	aio.h	8	8	long
 typedef	__caddr_t	aio.h	8	8	char*
@@ -404,8 +433,10 @@ function	__fromfpxf32x	complex.h			long (_Float32x, int, unsigned int)
 function	__fromfpxf64	complex.h			long (_Float64, int, unsigned int)
 function	__fromfpxf64x	complex.h			long (_Float64x, int, unsigned int)
 function	__fromfpxl	complex.h			long (long double, int, unsigned int)
+typedef	__fsblkcnt64_t	aio.h	8	8	unsigned long
 typedef	__fsblkcnt_t	aio.h	8	8	unsigned long
 function	__fsetlocking	stdio_ext.h			int (_IO_FILE*, int)
+typedef	__fsfilcnt64_t	aio.h	8	8	unsigned long
 typedef	__fsfilcnt_t	aio.h	8	8	unsigned long
 typedef	__fsid_t	aio.h	8	4	__fsid_t
 typedef	__fsword_t	aio.h	8	8	long
@@ -686,6 +717,7 @@ function	__p_rcode	resolv.h			char const* (int)
 function	__p_time	resolv.h			char const* (unsigned int)
 function	__p_type	resolv.h			char const* (int)
 typedef	__pid_t	aio.h	4	4	int
+enum	__pid_type	fcntl.h	4	4	__pid_type
 function	__pow	complex.h			double (double, double)
 function	__powf	complex.h			float (float, float)
 function	__powf128	complex.h			_Float128 (_Float128, _Float128)
@@ -694,6 +726,8 @@ function	__powf32x	complex.h			_Float32x (_Float32x, _Float32x)
 function	__powf64	complex.h			_Float64 (_Float64, _Float64)
 function	__powf64x	complex.h			_Float64x (_Float64x, _Float64x)
 function	__powl	complex.h			long double (long double, long double)
+typedef	__pr_gid_t	proc_service.h	4	4	unsigned int
+typedef	__pr_uid_t	proc_service.h	4	4	unsigned int
 typedef	__priority_which_t	sys/resource.h	4	4	int
 struct	__pthread_cond_s	aio.h	48	8	__pthread_cond_s
 struct	__pthread_internal_list	aio.h	16	8	__pthread_internal_list
@@ -1039,6 +1073,7 @@ function	argz_insert	argz.h			int (char**, unsigned long*, char*, char const*)
 function	argz_next	argz.h			char* (char const*, unsigned long, char const*)
 function	argz_replace	argz.h			int (char**, unsigned long*, char const*, char const*, unsigned int*)
 function	argz_stringify	argz.h			void (char*, unsigned long, int)
+struct	arphdr	net/if_arp.h	8	2	arphdr
 function	asctime	complex.h			char* (tm const*)
 function	asctime_r	complex.h			char* (tm const*, char*)
 function	asin	complex.h			double (double)
@@ -1269,6 +1304,10 @@ function	eaccess	arpa/nameser.h			int (char const*, int)
 function	ecvt	complex.h			char* (double, int, int*, int*)
 function	ecvt_r	complex.h			int (double, int, int*, int*, char*, unsigned long)
 typedef	elf_greg_t	proc_service.h	8	8	unsigned long long
+typedef	elf_gregset_t	proc_service.h	216	8	unsigned long long [27]
+struct	elf_prpsinfo	proc_service.h	136	8	elf_prpsinfo
+struct	elf_prstatus	proc_service.h	336	8	elf_prstatus
+struct	elf_siginfo	proc_service.h	12	4	elf_siginfo
 function	endaliasent	aliases.h			void ()
 function	endfsent	fstab.h			void ()
 function	endgrent	grp.h			void ()
@@ -1330,6 +1369,7 @@ function	errx	err.h			void (int, char const*, ...)
 struct	ether_addr	net/ethernet.h	6	1	ether_addr
 function	ether_aton	netinet/ether.h			ether_addr* (char const*)
 function	ether_aton_r	netinet/ether.h			ether_addr* (char const*, ether_addr*)
+struct	ether_header	net/ethernet.h	14	1	ether_header
 function	ether_hostton	netinet/ether.h			int (char const*, ether_addr*)
 function	ether_line	netinet/ether.h			int (char const*, ether_addr*, char*)
 function	ether_ntoa	netinet/ether.h			char* (ether_addr const*)
@@ -1443,6 +1483,7 @@ function	f64xfmaf128	complex.h			_Float64x (_Float128, _Float128, _Float128)
 function	f64xmulf128	complex.h			_Float64x (_Float128, _Float128)
 function	f64xsqrtf128	complex.h			_Float64x (_Float128)
 function	f64xsubf128	complex.h			_Float64x (_Float128, _Float128)
+struct	f_owner_ex	fcntl.h	8	4	f_owner_ex
 function	fabs	complex.h			double (double)
 function	fabsf	complex.h			float (float)
 function	fabsf128	complex.h			_Float128 (_Float128)
@@ -1542,7 +1583,9 @@ function	finite	complex.h			int (double)
 function	finitef	complex.h			int (float)
 function	finitel	complex.h			int (long double)
 function	flistxattr	sys/xattr.h			long (int, char*, unsigned long)
+struct	flock	fcntl.h	32	8	flock
 function	flock	sys/file.h			int (int, int)
+struct	flock64	fcntl.h	32	8	flock64
 function	flockfile	argp.h			void (_IO_FILE*)
 function	floor	complex.h			double (double)
 function	floorf	complex.h			float (float)
@@ -1988,6 +2031,10 @@ function	hypotf32x	complex.h			_Float32x (_Float32x, _Float32x)
 function	hypotf64	complex.h			_Float64 (_Float64, _Float64)
 function	hypotf64x	complex.h			_Float64x (_Float64x, _Float64x)
 function	hypotl	complex.h			long double (long double, long double)
+struct	icmp	netinet/ip_icmp.h	28	4	icmp
+struct	icmp6_hdr	netinet/icmp6.h	8	4	icmp6_hdr
+struct	icmp_ra_addr	netinet/ip_icmp.h	8	4	icmp_ra_addr
+struct	icmphdr	netinet/ip_icmp.h	8	4	icmphdr
 function	iconv	iconv.h			unsigned long (void*, char**, unsigned long*, char**, unsigned long*)
 function	iconv_close	iconv.h			int (void*)
 function	iconv_open	iconv.h			void* (char const*, char const*)
@@ -2002,6 +2049,9 @@ function	if_nametoindex	net/if.h			unsigned int (char const*)
 struct	ifaddrs	ifaddrs.h	56	8	ifaddrs
 struct	ifmap	net/if.h	24	8	ifmap
 struct	ifreq	net/if.h	40	8	ifreq
+struct	ih_idseq	netinet/ip_icmp.h	4	2	
+struct	ih_pmtu	netinet/ip_icmp.h	4	2	
+struct	ih_rtradv	netinet/ip_icmp.h	4	2	
 function	ilogb	complex.h			int (double)
 function	ilogbf	complex.h			int (float)
 function	ilogbf128	complex.h			int (_Float128)
@@ -2014,10 +2064,12 @@ function	imaxabs	inttypes.h			long (long)
 function	imaxdiv	inttypes.h			imaxdiv_t (long, long)
 typedef	imaxdiv_t	inttypes.h	16	8	imaxdiv_t
 struct	in6_addr	arpa/inet.h	16	4	in6_addr
+struct	in6_pktinfo	arpa/inet.h	20	4	in6_pktinfo
 object	in6addr_any	arpa/inet.h	16	4	in6_addr const
 object	in6addr_loopback	arpa/inet.h	16	4	in6_addr const
 struct	in_addr	arpa/inet.h	4	4	in_addr
 typedef	in_addr_t	arpa/inet.h	4	4	unsigned int
+struct	in_pktinfo	arpa/inet.h	12	4	in_pktinfo
 typedef	in_port_t	arpa/inet.h	2	2	unsigned short
 function	inet6_opt_append	arpa/inet.h			int (void*, unsigned int, int, unsigned char, unsigned int, unsigned char, void**)
 function	inet6_opt_find	arpa/inet.h			int (void*, unsigned int, int, unsigned char, unsigned int*, void**)
@@ -2063,16 +2115,33 @@ function	inotify_init	sys/inotify.h			int ()
 function	inotify_init1	sys/inotify.h			int (int)
 function	inotify_rm_watch	sys/inotify.h			int (int, int)
 function	insque	search.h			void (void*, void*)
+typedef	int16_t	aio.h	2	2	short
 typedef	int32_t	aio.h	4	4	int
+typedef	int64_t	aio.h	8	8	long
+typedef	int8_t	aio.h	1	1	signed char
+typedef	int_fast16_t	arpa/nameser.h	8	8	long
+typedef	int_fast32_t	arpa/nameser.h	8	8	long
+typedef	int_fast64_t	arpa/nameser.h	8	8	long
+typedef	int_fast8_t	arpa/nameser.h	1	1	signed char
+typedef	int_least16_t	arpa/nameser.h	2	2	short
+typedef	int_least32_t	arpa/nameser.h	4	4	int
+typedef	int_least64_t	arpa/nameser.h	8	8	long
+typedef	int_least8_t	arpa/nameser.h	1	1	signed char
 typedef	intmax_t	arpa/nameser.h	8	8	long
 typedef	intptr_t	arpa/nameser.h	8	8	long
 function	ioctl	net/if_ppp.h			int (int, unsigned long, ...)
 function	ioperm	sys/io.h			int (unsigned long, unsigned long, int)
 function	iopl	sys/io.h			int (int)
 struct	iovec	arpa/inet.h	16	8	iovec
+struct	ip	netinet/ip.h	20	4	ip
+struct	ip6_hdr	netinet/ip6.h	40	4	ip6_hdr
+struct	ip6_hdrctl	netinet/ip6.h	8	4	
 struct	ip6_mtuinfo	arpa/inet.h	32	4	ip6_mtuinfo
 struct	ip_mreq	arpa/inet.h	8	4	ip_mreq
+struct	ip_mreqn	arpa/inet.h	12	4	ip_mreqn
 struct	ipc_perm	sys/ipc.h	48	8	ipc_perm
+struct	iphdr	netinet/ip.h	20	4	iphdr
+struct	ipv6_mreq	arpa/inet.h	20	4	ipv6_mreq
 function	iruserok	netdb.h			int (unsigned int, int, char const*, char const*)
 function	iruserok_af	netdb.h			int (void const*, int, char const*, char const*, unsigned short)
 function	isalnum	argp.h			int (int)
@@ -2950,6 +3019,7 @@ function	rintf32x	complex.h			_Float32x (_Float32x)
 function	rintf64	complex.h			_Float64 (_Float64)
 function	rintf64x	complex.h			_Float64x (_Float64x)
 function	rintl	complex.h			long double (long double)
+typedef	rlim64_t	sys/resource.h	8	8	unsigned long
 typedef	rlim_t	sys/resource.h	8	8	unsigned long
 struct	rlimit	sys/resource.h	16	8	rlimit
 struct	rlimit64	sys/resource.h	16	8	rlimit64
@@ -3208,6 +3278,7 @@ function	snprintf	argp.h			int (char*, unsigned long, char const*, ...)
 struct	sockaddr	arpa/inet.h	16	2	sockaddr
 struct	sockaddr_in	arpa/inet.h	16	4	sockaddr_in
 struct	sockaddr_in6	arpa/inet.h	28	4	sockaddr_in6
+struct	sockaddr_ll	netpacket/packet.h	20	4	sockaddr_ll
 struct	sockaddr_storage	arpa/inet.h	128	8	sockaddr_storage
 struct	sockaddr_un	sys/un.h	110	2	sockaddr_un
 function	sockatmark	arpa/inet.h			int (int)
@@ -3443,6 +3514,9 @@ function	tcflush	pty.h			int (int, int)
 function	tcgetattr	pty.h			int (int, termios*)
 function	tcgetpgrp	arpa/nameser.h			int (int)
 function	tcgetsid	pty.h			int (int)
+struct	tcp_info	netinet/tcp.h	104	4	tcp_info
+typedef	tcp_seq	netinet/tcp.h	4	4	unsigned int
+struct	tcphdr	netinet/tcp.h	20	4	tcphdr
 function	tcsendbreak	pty.h			int (int, int)
 function	tcsetattr	pty.h			int (int, int, termios const*)
 function	tcsetpgrp	arpa/nameser.h			int (int, int)
@@ -3610,6 +3684,7 @@ function	ualarm	arpa/nameser.h			unsigned int (unsigned int, unsigned int)
 typedef	ucontext_t	arpa/nameser.h	968	8	
 struct	ucontext_t	arpa/nameser.h	968	8	ucontext_t
 struct	ucred	arpa/inet.h	12	4	ucred
+struct	udphdr	netinet/udp.h	8	2	udphdr
 function	ufromfp	complex.h			unsigned long (double, int, unsigned int)
 function	ufromfpf	complex.h			unsigned long (float, int, unsigned int)
 function	ufromfpf128	complex.h			unsigned long (_Float128, int, unsigned int)
@@ -3631,6 +3706,14 @@ typedef	uint16_t	arpa/inet.h	2	2	unsigned short
 typedef	uint32_t	arpa/inet.h	4	4	unsigned int
 typedef	uint64_t	arpa/inet.h	8	8	unsigned long
 typedef	uint8_t	arpa/inet.h	1	1	unsigned char
+typedef	uint_fast16_t	arpa/nameser.h	8	8	unsigned long
+typedef	uint_fast32_t	arpa/nameser.h	8	8	unsigned long
+typedef	uint_fast64_t	arpa/nameser.h	8	8	unsigned long
+typedef	uint_fast8_t	arpa/nameser.h	1	1	unsigned char
+typedef	uint_least16_t	arpa/nameser.h	2	2	unsigned short
+typedef	uint_least32_t	arpa/nameser.h	4	4	unsigned int
+typedef	uint_least64_t	arpa/nameser.h	8	8	unsigned long
+typedef	uint_least8_t	arpa/nameser.h	1	1	unsigned char
 typedef	uintmax_t	arpa/nameser.h	8	8	unsigned long
 typedef	uintptr_t	arpa/nameser.h	8	8	unsigned long
 function	ulckpwdf	shadow.h			int ()
@@ -3649,6 +3732,7 @@ function	unshare	complex.h			int (int)
 function	updwtmp	lastlog.h			void (char const*, utmp const*)
 function	updwtmpx	utmpx.h			void (char const*, utmpx const*)
 function	uselocale	complex.h			__locale_struct* (__locale_struct*)
+struct	user	proc_service.h	912	8	user
 struct	user_fpregs_struct	proc_service.h	512	8	user_fpregs_struct
 struct	user_regs_struct	proc_service.h	216	8	user_regs_struct
 function	usleep	arpa/nameser.h			int (unsigned int)

@@ -395,9 +395,14 @@ extern long int __sysconf (int) __LIELLA_NOTHROW;
 # endif
 #endif
 
-/* Under _DYNAMIC_STACK_SIZE_SOURCE the minimum stack size is the run-time value of sysconf(3). */
-#if __LIELLA_DYNSTACK
-# define PTHREAD_STACK_MIN __sysconf (75)
+/* Under _DYNAMIC_STACK_SIZE_SOURCE the minimum stack size is the run-time value of sysconf(3); otherwise
+   the constant (macros.tsv: probed without _GNU_SOURCE, which implies _DYNAMIC_STACK_SIZE_SOURCE). */
+#if __LIELLA_POSIX >= 1
+# if __LIELLA_DYNSTACK
+#  define PTHREAD_STACK_MIN __sysconf (75)
+# else
+#  define PTHREAD_STACK_MIN 16384
+# endif
 #endif
 
 __LIELLA_END_C

@@ -10,8 +10,6 @@ __LIELLA_BEGIN_C
 
 @@emit
 
-@@formats
-
 __LIELLA_END_C
 
 #endif

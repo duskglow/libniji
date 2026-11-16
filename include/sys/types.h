@@ -45,9 +45,21 @@ typedef unsigned int gid_t;
 #  define __LIELLA_D_ino_t 1
 typedef unsigned long ino_t;
 # endif
+# ifndef __LIELLA_D_int16_t
+#  define __LIELLA_D_int16_t 1
+typedef short int16_t;
+# endif
 # ifndef __LIELLA_D_int32_t
 #  define __LIELLA_D_int32_t 1
 typedef int int32_t;
+# endif
+# ifndef __LIELLA_D_int64_t
+#  define __LIELLA_D_int64_t 1
+typedef long int64_t;
+# endif
+# ifndef __LIELLA_D_int8_t
+#  define __LIELLA_D_int8_t 1
+typedef signed char int8_t;
 # endif
 # ifndef __LIELLA_D_mode_t
 #  define __LIELLA_D_mode_t 1
