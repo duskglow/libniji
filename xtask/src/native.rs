@@ -321,7 +321,7 @@ fn c_type(rust: &str) -> Option<String> {
     if let Some(inner) = t.strip_prefix("Option<&").and_then(|x| x.strip_suffix('>')) {
         return Some(format!("const {} *", c_type(inner)?));
     }
-    if t.starts_with("libniji") {
+    if t.starts_with("Niji") {
         return Some(format!("struct {}", snake(t)));
     }
     Some(match t {

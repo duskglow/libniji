@@ -423,7 +423,7 @@ fn scratch(name: &str) -> PathBuf {
 /// back by libniji's reader); the reference `ldconfig -p` prints both identically, entry order
 /// included.
 #[test]
-fn reference_ldconfig_lists_niji_cache_alike() {
+fn reference_ldconfig_lists_liella_cache_alike() {
     let Some(ldconfig) = ldconfig().filter(|_| have_cc()) else {
         eprintln!("SKIP: needs cc and the reference ldconfig");
         return;
@@ -451,9 +451,9 @@ fn reference_ldconfig_lists_niji_cache_alike() {
     // equal under the comparison (`libv.so.1.9`, `libv.so.1.09`) follow its directory listing
     // (opposite orders on two file systems; Appendix D.3.3 "not settled"). Such a group compares
     // as a set; libniji's own order there is path bytes (checked here and by the round trip).
-    assert_eq!(tie_groups(&got), tie_groups(&want), "reference_ldconfig_lists_niji_cache_alike: ldconfig -p differs");
+    assert_eq!(tie_groups(&got), tie_groups(&want), "reference_ldconfig_lists_liella_cache_alike: ldconfig -p differs");
     let v = |s: &str| got.find(s).unwrap();
-    assert!(v("/opt/sort/libv.so.1.09\n") < v("/opt/sort/libv.so.1.9\n"), "reference_ldconfig_lists_niji_cache_alike: equal keys of one directory by path bytes");
+    assert!(v("/opt/sort/libv.so.1.09\n") < v("/opt/sort/libv.so.1.9\n"), "reference_ldconfig_lists_liella_cache_alike: equal keys of one directory by path bytes");
     let _ = std::fs::remove_dir_all(&d);
 }
 
@@ -514,7 +514,7 @@ fn resolved(ldso: &Path, cache: &Path, main: &Path, root: &str) -> Vec<String> {
 /// mount namespace; the host's `/etc` is never changed.
 #[cfg(target_arch = "x86_64")] // ARCH(x86_64): runs the host's x86-64 reference loader on objects the host toolchain builds
 #[test]
-fn reference_loader_resolves_through_niji_cache() {
+fn reference_loader_resolves_through_liella_cache() {
     let ldso = Path::new("/lib64").join(Native::INTERP);
     let userns = Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success());
     let Some(ldconfig) = ldconfig().filter(|_| have_cc() && userns && ldso.exists() && Path::new("/etc/ld.so.cache").exists()) else {
@@ -551,6 +551,6 @@ fn reference_loader_resolves_through_niji_cache() {
     let tie = |v: &[String]| v.iter().map(|l| if l.starts_with("libv.so.1.9 => /opt/sort/libv.so.1.") { "libv.so.1.9 => tie".to_string() } else { l.clone() }).collect::<Vec<_>>();
     assert!(want.iter().any(|l| l == "libv.so.1.9 => /opt/sort/libv.so.1.9" || l == "libv.so.1.9 => /opt/sort/libv.so.1.09"));
     assert!(got.iter().any(|l| l == "libv.so.1.9 => /opt/sort/libv.so.1.09"), "reference_loader: equal keys of one directory by path bytes");
-    assert_eq!(tie(&got), tie(&want), "reference_loader_resolves_through_niji_cache: resolution differs from the reference cache's");
+    assert_eq!(tie(&got), tie(&want), "reference_loader_resolves_through_liella_cache: resolution differs from the reference cache's");
     let _ = std::fs::remove_dir_all(&d);
 }
