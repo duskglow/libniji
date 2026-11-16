@@ -129,7 +129,12 @@ static void parse(const char *what, int len)
         show_rr(&h, ns_s_an, 0);
         show_rr(&h, ns_s_qd, 0);
         show_rr(&h, ns_s_ar, 0);
+        /* rrnum -1: after another section, then again in the same section; other negatives. */
         show_rr(&h, ns_s_an, -1);
+        show_rr(&h, ns_s_an, -1);
+        show_rr(&h, ns_s_an, -2);
+        show_rr(&h, ns_s_qd, -1);
+        show_rr(&h, ns_s_qd, -1);
         show_rr(&h, ns_s_max, 0);
         show_rr(&h, -1, 0);
     }

@@ -69,12 +69,14 @@ fn build(link: Link, dir: &Path) -> PathBuf {
 /// Run the probe (a 60 s hang guard, scaled by the machine's load); its stdout.
 fn run(link: Link, exe: &Path) -> String {
     let mut cmd = Command::new("timeout");
-    cmd.arg(timeout::secs(60)).arg(exe);
+    cmd.arg(timeout::secs(60));
     if link == Link::Dynamic {
         // libc.so.6 is a pinned soname: a development build is reached through LD_LIBRARY_PATH
-        // (D-27.16, ruling #5909), and libresolv.so.2 with it.
-        cmd.env("LD_LIBRARY_PATH", products());
+        // (D-27.16, ruling #5909), and libresolv.so.2 with it. It is set by `env` for the probe
+        // alone: the host's `timeout` must keep the host's libc.so.6.
+        cmd.arg("env").arg(format!("LD_LIBRARY_PATH={}", products().display()));
     }
+    cmd.arg(exe);
     let o = cmd.output().unwrap();
     assert!(o.status.success(), "ns_parse_diff ({link:?}) exits {:?}: {}", o.status, String::from_utf8_lossy(&o.stderr));
     String::from_utf8(o.stdout).unwrap()

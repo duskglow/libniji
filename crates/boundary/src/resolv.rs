@@ -706,15 +706,25 @@ pub fn skiprr(ptr: usize, eom: usize, section: i32, count: i32) -> i32 {
 }
 
 /// `ns_parserr(handle, section, rrnum, rr)`: 0, or -1 (`ENODEV` out of range, `EMSGSIZE`).
+/// `rrnum` -1 names the record after the one this handle last parsed in `section`, or the
+/// section's first record when the handle last parsed another section or none (settled by a
+/// black-box probe of the reference; tests/ns_parse_products.rs covers it); any other negative
+/// `rrnum` is `ENODEV`. A failed call leaves the handle as it was.
 pub fn parserr(h: Option<&mut ns_msg>, section: i32, rrnum: i32, rr: Option<&mut ns_rr>) -> i32 {
     let (Some(h), Some(rr)) = (h, rr) else { return -1 };
     let r = (|| -> core::result::Result<(), Errno> {
         let m = handle_msg(h).ok_or(Errno::EMSGSIZE)?;
         let p = msg::Parsed { header: msg::Header { id: h._id, flags: h._flags, counts: h._counts }, sections: h._sections.map(|s| s.checked_sub(h._msg)) };
-        let (s, i) = (usize::try_from(section).map_err(|_| Errno::ENODEV)?, usize::try_from(rrnum).map_err(|_| Errno::ENODEV)?);
+        let s = usize::try_from(section).map_err(|_| Errno::ENODEV)?;
         if s >= 4 {
             return Err(Errno::ENODEV);
         }
+        let rrnum = match rrnum {
+            -1 if usize::try_from(h._sect).ok() == Some(s) => h._rrnum,
+            -1 => 0,
+            n => n,
+        };
+        let i = usize::try_from(rrnum).map_err(|_| Errno::ENODEV)?;
         let r = msg::rr(m, &p, s, i)?;
         let mut text = [0u8; MAXDNAME];
         let n = name::expand_text(r.owner(), &mut text)?;
