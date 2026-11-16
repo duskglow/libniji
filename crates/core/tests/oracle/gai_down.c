@@ -55,6 +55,9 @@ static const struct {
     /* The server comes up between two rounds: a failure must not be kept. */
     {"recover", "nameserver 127.0.0.1\n" FAST, "hosts: files dns\n", HOSTS, ANSWER},
     {"recover_unavail", "nameserver 127.0.0.1\n" FAST, "hosts: dns [!UNAVAIL=return] files\n", HOSTS, ANSWER},
+    /* The address lookup gets no response, so `files` answers it (192.0.2.10 is in /etc/hosts);
+       once the server is up, its answer (a.test) is the one given. */
+    {"recover_dnsfirst", "nameserver 127.0.0.1\n" FAST, "hosts: dns files\n", HOSTS "192.0.2.10 files10.test\n", ANSWER},
 };
 static const int NSCEN = sizeof SCENARIOS / sizeof SCENARIOS[0];
 

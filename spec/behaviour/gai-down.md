@@ -22,6 +22,7 @@ Scenarios (server on 127.0.0.1:53 where one runs):
 | trunc_notcp | nameserver 127.0.0.1 | files dns | yes | TC set, no TCP listener |
 | empty_resolv / no_resolv / no_resolv_nohosts | empty / none / none | files dns | yes / yes / no | none |
 | recover, recover_unavail | nameserver 127.0.0.1 | files dns / dns [!UNAVAIL=return] files | yes | none, then answering |
+| recover_dnsfirst | nameserver 127.0.0.1 | dns files | yes, plus 192.0.2.10 files10.test | none, then answering |
 
 Results, every scenario where DNS gives no answer (a name not in `/etc/hosts`, or any name
 with no `/etc/hosts`):
@@ -44,6 +45,9 @@ with no `/etc/hosts`):
 * `recover`: with the server up in the same process, every lookup gets the server's answer
   (nothing failed earlier is kept); `recover_unavail` likewise (the `files` answers given while the
   server was down are not served afterwards: `localhost` is then NXDOMAIN, `EAI_NONAME`).
+* `recover_dnsfirst`: while the server is down, `gethostbyaddr(192.0.2.10)` and `getnameinfo` give
+  the `files` name (files10.test); once it is up, the server's (a.test): the `files` answer found
+  after an address lookup got no DNS response is not kept.
 
 libniji: the `dns` source reports a lookup that reached no server as `LookupError::Unreachable`
 (`unavail` for the rules; `TRY_AGAIN` / `EAI_AGAIN` for the caller), an address lookup without a
