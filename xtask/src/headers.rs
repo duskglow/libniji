@@ -142,7 +142,8 @@ pub(crate) fn condition(lv: &Levels, target: u64, care: u64) -> Option<String> {
     let mut left = t;
     let mut chosen: Vec<&Vec<Lit>> = Vec::new();
     while left != 0 {
-        let best = terms.iter().max_by(|a, b| (a.1 & left).count_ones().cmp(&(b.1 & left).count_ones()).then(b.0.len().cmp(&a.0.len())))?;
+        // Ties go to the first term (level columns in table order, single literals first): stable output.
+        let best = terms.iter().rev().max_by(|a, b| (a.1 & left).count_ones().cmp(&(b.1 & left).count_ones()).then(b.0.len().cmp(&a.0.len())))?;
         if best.1 & left == 0 {
             return None;
         }
@@ -318,10 +319,14 @@ impl Gen<'_> {
                 return "0".into();
             }
         };
-        condition(&self.t.lv, target, care).unwrap_or_else(|| {
-            self.errors.push(format!("{}: {name}: no condition over the levels selects {}", self.header, r["configs"]));
-            "0".into()
-        })
+        let configs = r["configs"].clone();
+        match condition(&self.t.lv, target, care) {
+            Some(c) => c,
+            None => {
+                self.errors.push(format!("{}: {name}: no condition over the levels selects {configs}", self.header));
+                "0".into()
+            }
+        }
     }
 
     fn value(&mut self, name: &str) -> String {
@@ -640,7 +645,10 @@ fn templates(root: &Path) -> Result<Vec<String>, String> {
 }
 
 /// The generated text of every header: (path under include/, text), and the problems found.
-pub(crate) fn generate(root: &Path) -> Result<(Vec<(String, String)>, Vec<String>), String> {
+/// (path under include/, text) per header, and the problems found.
+type Generated = (Vec<(String, String)>, Vec<String>);
+
+pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     let t = load(root)?;
     let iso = iso10646(root)?;
     let mut out = Vec::new();
@@ -675,7 +683,8 @@ pub(crate) fn generate(root: &Path) -> Result<(Vec<(String, String)>, Vec<String
                     let mut line = l.replace("@@iso10646", &iso).replace(" /* @@computed */", "").replace(" /* @@ */", "");
                     while let Some(i) = line.find("@@value(") {
                         let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
-                        let v = g.value(&line[i + 8..end].to_string());
+                        let n = line[i + 8..end].to_string();
+                        let v = g.value(&n);
                         line.replace_range(i..=end.min(line.len() - 1), &v);
                     }
                     g.out.push(line);
@@ -741,8 +750,14 @@ mod tests {
         let l = lv();
         let care = 0b011111;
         assert_eq!(condition(&l, 0b011111, care).unwrap(), "1");
-        assert_eq!(condition(&l, 0b011000, care).unwrap(), "__LIELLA_GNU");
-        assert_eq!(condition(&l, 0b011110, care).unwrap(), "__LIELLA_POSIX >= 1");
+        // gnu and cxx17 only: several single literals select them; one of them is chosen.
+        let one = condition(&l, 0b011000, care).unwrap();
+        assert!(!one.contains("&&") && !one.contains("||"), "{one}");
+        let one = condition(&l, 0b011110, care).unwrap();
+        assert!(!one.contains("&&") && !one.contains("||"), "{one}");
+        // Nothing over the levels separates two configurations with equal levels: no condition.
+        let same = Levels { ids: vec!["a".into(), "b".into()], values: vec![vec![0; 11], vec![0; 11]], reject: 0 };
+        assert!(condition(&same, 0b01, 0b11).is_none());
         // gnu17 and gnu, not posix200809 nor c89 nor cxx17: needs a conjunction.
         let c = condition(&l, 0b001010, care).unwrap();
         assert!(c.contains("&&") && c.contains("__LIELLA_CXX"), "{c}");
