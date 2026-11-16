@@ -1,30 +1,35 @@
-# SYS-GAI-EAI-AGAIN handoff (checkpoint 1: context budget)
+# SYS-GAI-EAI-AGAIN handoff (SYS-GAI-EAI-AGAIN-2: finished)
 
-State: branch task/sys-gai-eai-again, cut from origin/next; role keke ~/w/n4. Code commit 75b1e0eb4, then this
-handoff, the behaviour record and the plants file.
+State: branch task/sys-gai-eai-again-2 (continues task/sys-gai-eai-again), cut from origin/next; role keke ~/w/n4.
+Code commits 75b1e0eb4 (the mapping), 5af19faad (gethostbyname_r errno, probe line, plants). Report:
+handoff/reports/SYS-GAI-EAI-AGAIN-2.json.
 
 Done:
 * Probe `crates/core/tests/oracle/gai_down.c` + `gai_down_run.sh` (unprivileged `unshare -r -m -n`, fixture /etc,
-  fresh /dev/shm). 17 scenarios: unreachable (v4, v6), refused, two servers down, timeout, SERVFAIL, truncated with TCP
-  refused, empty/missing resolv.conf, missing /etc/hosts / nsswitch.conf, `[!UNAVAIL=return]`, server coming up mid-run.
-  Reference results recorded in `spec/behaviour/gai-down.md` (job sys-gai-eai-again-probe1 on keke, rc 0; output
-  /dev/shm/claude/sys-gai-eai-again/probe-1/glibc.txt there).
-* Before the fix libniji differed in 48 hunks: EAI_FAIL / NO_RECOVERY, or EAI_SYSTEM+ENOENT without /etc/hosts
-  (the issue); gethostbyaddr NO_RECOVERY; getnameinfo numeric / EAI_NONAME; gethostbyname errno 0 on TRY_AGAIN;
-  and the cache served answers found while DNS was down after it came back (recover_unavail).
-* Fix (75b1e0eb4): new `LookupError::Unreachable` (core names/nss.rs): `unavail` for the rules, TRY_AGAIN/EAI_AGAIN for
-  callers, not replaced by an earlier file error in `nss::run`. resolv_compat: host_miss maps no-server to it;
-  host_by_addr_life no response -> TryAgain; both mark `Life` unknown on no response (cache keeps nothing, D-16.10).
-  gai.rs: Unreachable -> EAI_AGAIN; getnameinfo TryAgain/Unreachable -> EAI_AGAIN whatever the flags.
-  boundary netdb.rs: gethostbyname2 sets errno EAGAIN on TRY_AGAIN; _r returns EAGAIN.
-* Test `crates/core/tests/gai_down_products.rs` (line-by-line differential; skips without userns/cc).
+  fresh /dev/shm), 17 scenarios; reference results in `spec/behaviour/gai-down.md`. Differential test
+  `crates/core/tests/gai_down_products.rs` (line by line; skips with a note without userns/cc).
+* Fix: `LookupError::Unreachable` (core names/nss.rs): `unavail` for the rules, TRY_AGAIN / EAI_AGAIN for callers.
+  resolv_compat: host_miss maps no-server to it; the address lookup without a response is TryAgain; both mark the
+  cache `Life` unknown on no response (D-16.10: nothing kept). gai.rs: Unreachable -> EAI_AGAIN; getnameinfo
+  TryAgain/Unreachable -> EAI_AGAIN whatever the flags. boundary netdb.rs: gethostbyname2 and (run 2)
+  gethostbyname2_r set errno EAGAIN on TRY_AGAIN, as the reference does (probed: `_r` returns EAGAIN, `*h_errnop` 2,
+  errno EAGAIN; recorded in the behaviour table). The probe prints `_r`'s h_errno/errno only on failure (on success
+  gethostbyname(3) gives them no meaning).
+* Issue #8 offline reproduction (own small program, host /etc, `unshare -r -n`, lo down and lo up): reference and
+  libniji both print `www.gnu.org: -3 Temporary failure in name resolution`, `localhost: 0 ok` (job
+  sys-gai-eai-again-2-repro on keke). gnulib's test-getaddrinfo itself was not built: no gnutls28 source on the build
+  host; the coordinator's note allows the brief's reproduction instead. It skips on EAI_AGAIN, which this shows.
+* Plants: `handoff/SYS-GAI-EAI-AGAIN-plants.txt`, one per site of the fix (12) plus one equivalent (`nss::found`'s
+  arm: called only with passwd answers).
 
-NOT VERIFIED yet: job sys-gai-eai-again-verify1 (keke; clippy, static, so, gai_down_products, resolv_compat unit
-tests, probe diff) was still running at hand-back: `ssh keke '~/bin/jobwait sys-gai-eai-again-verify1'`, log
-~/logs/sys-gai-eai-again-verify1.log.
+Jobs on the final head (keke): sys-gai-eai-again-2-gate (direct tier), sys-gai-eai-again-2-plants,
+sys-gai-eai-again-2-repro. Results: see the report json.
 
-Next step: read verify1; fix what it shows; sync; run the direct gate (`cargo xtask affected --run` with
---base origin/next) and plants (`handoff/SYS-GAI-EAI-AGAIN-plants.txt`, --timeout 2400, new /dev/shm dir); then the
-gnulib test-getaddrinfo check (gnutls28 source built against the products, offline: must skip, not fail);
-`dns_products` (needs sudo -n) should stay green: Unreachable reaches its `unavail` scenario only through the rules.
-Open: networks (`net_by_*`) keep Unavailable for no server (not probed). Plan rows: D-16.1, D-16.2, D-16.10.
+Open (out of scope, #6124): the networks database's `dns` source (getnetbyname, getnetbyaddr and `_r`) keeps
+`Unavailable` when no server answers; not probed. Probe to run: gai_down.c's fixtures with `networks: dns` in
+nsswitch.conf (unreach and refused scenarios), print getnetbyname("x.test") / getnetbyaddr(0xc0000200, AF_INET)
+result, h_errno, errno and getnetbyname_r's return, `*h_errnop`, errno; compare with libniji.
+
+Not to redo: the probe matrix; the mapping. `dns_products` (needs sudo -n) reaches `unavail` only through the rules.
+Plan rows: D-16.1, D-16.2, D-16.10.
+Next step: none for this story; the networks probe above if the coordinator briefs it.
