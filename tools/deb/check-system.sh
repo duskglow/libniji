@@ -88,7 +88,7 @@ for deb in $debs; do
     [ ! -s "$tmp/owners" ] || fail "$pkg: entries not owned by root/root: $(head -1 "$tmp/owners")"
     awk '{ print substr($1, 1, 1), $6 }' "$tmp/list" | while read -r type path; do
         case $path in
-            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/sbin/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
+            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/bin/ | ./usr/sbin/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
                 [ "$type" = d ] || echo "check: FAIL $pkg: $path is not a directory"
                 continue ;;
             ./usr/share/doc/"$pkg"/ | ./usr/share/doc/"$pkg"/copyright | ./usr/share/doc/"$pkg"/changelog.Debian.gz) continue ;;

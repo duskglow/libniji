@@ -1,0 +1,11 @@
+id = "D-NEW"
+series = "D-31"
+section = "s31"
+spec = "§31.3"
+ann = "DD"
+status = "active"
+story = "UTIL-LDD-2"
+date = "2026-11-16"
+body = '''
+**ldd's front end (UTIL-4; builds on D-31.7).** `ldd` is a static PIE over `libc.a` (`csys/util/ldd.c`, shipped by libc-bin at `/usr/bin/ldd`). It reads each operand's ELF headers itself: not an x86-64 ELF64 file or no `PT_DYNAMIC` gives `not a dynamic executable` on standard error and status 1; no `DT_NEEDED` gives `statically linked` (static and static-pie programs); otherwise it runs Liella's loader on the operand with `LD_TRACE_LOADED_OBJECTS=1` and prints the loader's listing. Options, messages, `<file>:` headers for several operands and exit statuses follow the reference's observable behaviour (28 transcripts in `validation/transcripts/ldd/`, plus the swap-root comparison in `tools/deb/swap-cmds.sh` on the distribution's own libc-linked programs and initramfs-tools' `copy_exec`). `-v` prints `Version information:` only when some listed object has version needs, from `DT_VERNEED` read by ldd itself. `--version` prints `ldd (Liella) 2.39`, as getent and getconf name themselves. Interim (ruling #6043): Liella's loader prints the interpreter's line in trace mode even when no listed object names the interpreter in `DT_NEEDED`; ldd drops that line in exactly that case, so its listing matches the reference's. A DL story makes the loader's trace output match and removes the filter. The comparison masks only a line's final ` (0x<hex>)` load address, which changes from run to run on both systems.
+'''

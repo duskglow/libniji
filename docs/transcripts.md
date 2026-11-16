@@ -45,6 +45,8 @@ without a newline; no lines means empty.
 | `dir: <path>`, `file: <path>` + block, `link: <path> -> <target>` | create an item in the private root before the run |
 | `cache: <path>`, `generator: <text>`, `entry: 0x<flags> <key> <path> [hwcaps=<name>]` | a loader cache written by Liella's writer (`liella_ld::cache::write`, D-27.43), entries in configuration order |
 | `elf: <path> [soname=<name>] [cut=<n>] [class=x86-64\|i386\|x32]` | a minimal shared object (`ET_DYN`, a `PT_DYNAMIC` with `DT_STRTAB`, `DT_STRSZ` and, with `soname=`, `DT_SONAME`) made by the harness, no compiler needed: x86-64 ELF64 by default, `class=i386` an ELF32 `EM_386` one and `class=x32` an ELF32 `EM_X86_64` one; `cut=<n>` keeps only its first `<n>` bytes (a truncated file) |
+| `cc: <path> [<flag>...]` + block | a program or library built from the block's C source by the host's `cc` (`cc -x c - -o <path> <flags>`, run in the private root; `@ROOT@` in a flag stands for its path). A transcript with a `cc:` line is SKIPPED, with the reason, on a host without `cc` in /usr/bin or /bin |
+| `mask-addresses: yes \| no` | `yes`: a stdout or stderr line that ends in ` (0x<hex digits>)` has the hex digits replaced by `@ADDR@` on every side (load addresses, which change from run to run: ldd's listing); nothing else on the line is masked. Default `no` |
 | `as-cache: <path>` | a written file at `<path>` is compared as a loader cache's entry list (one `0x<flags> <key> <path> [hwcaps=<name>]` line per entry, in file order, read by Liella's reader), so the generator text and the byte layout are not compared |
 | `normalise: <literal> => <replacement>` | one more literal replacement in both outcomes (say why in a comment) |
 | `host-value: <line prefix>` | a stdout or stderr line starting with the prefix has the rest replaced by `@HOST@` in the record and when either side is compared with the record; the reference and Liella, run side by side on one host, are compared in full (values that depend on the machine, its limits or a file system: getconf's `-a`) |
@@ -60,7 +62,7 @@ The outcome comes last and is written by `record`: `status: exit <n>` or `status
 Only this, by default: the private root's path is replaced by `@ROOT@` in stdout, stderr, written files and link
 targets (each side has its own root). `@ROOT@` in arguments, environment values, stdin and `link:` targets stands for
 that path. Each `normalise:` line adds one literal replacement, applied to both sides after the root. Nothing else
-(no whitespace folding, no sorting of output, no masking of numbers beyond the `host-value:` and `mask-value:` lines a transcript lists).
+(no whitespace folding, no sorting of output, no masking of numbers beyond the `host-value:` and `mask-value:` lines and the `mask-addresses: yes` a transcript lists).
 
 ## Not covered yet
 
