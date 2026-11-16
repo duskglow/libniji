@@ -1,6 +1,8 @@
 # SYS-COMPAT-VERSIONS plants: libm.so.6's old versions (fmod@GLIBC_2.2.5 and the other aliases).
-# Each mutates one compat stub of the generated crates/libm-so/compat_aliases.S (the product the test binds);
-# the binding test must see the wrong function behind the old version.
-fmod-old-to-remainder | crates/libm-so/compat_aliases.S | perl:s/(niji_compat_fmod_GLIBC_2_2_5:.*?)jmp fmod\x40PLT/$1jmp remainder\x40PLT/s | cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|libniji's old version against the reference's
-pow-old-to-hypot | crates/libm-so/compat_aliases.S | perl:s/(niji_compat_pow_GLIBC_2_2_5:.*?)jmp pow\x40PLT/$1jmp hypot\x40PLT/s | cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|libniji's old version against the reference's
-exp10-old-to-exp | crates/libm-so/compat_aliases.S | perl:s/(niji_compat_exp10_GLIBC_2_2_5:.*?)jmp exp10\x40PLT/$1jmp exp\x40PLT/s | cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|libniji's old version against the reference's
+# Each gives one alias row of spec/abi/compat-plan.tsv a wrong target (the generator's `target=`); the command
+# regenerates the stubs (crates/libm-so/compat_aliases.S), rebuilds the products and runs the binding test, which
+# must see the wrong function behind the old version. (A plant on the generated .S itself is refused: the tool
+# anchors .S plants on niji_machine_ labels only.)
+fmod-old-to-remainder | spec/abi/compat-plan.tsv | lit:probe: identical to fmod@@GLIBC_2.38 ( ==> target=remainder probe: identical to fmod@@GLIBC_2.38 ( | cargo xtask compat-gen && cargo xtask so && cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|cases differ
+pow-old-to-hypot | spec/abi/compat-plan.tsv | lit:probe: identical to pow@@GLIBC_2.29 ( ==> target=hypot probe: identical to pow@@GLIBC_2.29 ( | cargo xtask compat-gen && cargo xtask so && cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|cases differ
+exp10-old-to-exp | spec/abi/compat-plan.tsv | lit:probe: identical to exp10@@GLIBC_2.39 ( ==> target=exp probe: identical to exp10@@GLIBC_2.39 ( | cargo xtask compat-gen && cargo xtask so && cargo test -p niji --test crt_products -- old_libm_versions | msg:old_libm_versions_bind_and_match_the_reference.*(FAILED|panicked)|cases differ
