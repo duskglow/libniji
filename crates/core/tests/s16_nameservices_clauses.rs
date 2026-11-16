@@ -1096,6 +1096,11 @@ fn s16_4_c_3() {
     assert_eq!(out.as_slice(), b"cname.test.\t\t5M IN CNAME\ta.test.");
     assert_eq!(dmsg::rr(&resp, &p, 1, 9).err(), Some(Errno::ENODEV), "an index out of range");
     assert_eq!(dmsg::parse(&resp[..resp.len() - 1]).err(), Some(Errno::EMSGSIZE), "a message cut short");
+    // A record's RDATA lies inside the message up to its last byte (RFC 1035 section 4.1.3); the
+    // record parser checks it itself, as `rr` walks only the records before the one it returns.
+    let one = b"\0\0\x81\x80\0\0\0\x01\0\0\0\0\0\0\x01\0\x01\0\0\0\0\0\x04\x7f\0\0\x01";
+    assert_eq!(dmsg::rr_at(one, 12, 1).map(|r| r.next), Ok(one.len()), "RDATA ending at the message's end");
+    assert_eq!(dmsg::rr_at(&one[..one.len() - 1], 12, 1).err(), Some(Errno::EMSGSIZE), "RDATA one byte past the end");
 }
 
 #[test]

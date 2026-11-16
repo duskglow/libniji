@@ -90,6 +90,13 @@ static void show_name_fns(int at)
     printf("\n");
 }
 
+/* Where the handle stands (its section, record and parse position): what ns_parserr's rrnum -1
+   continues from, so a call that moves it shows here even when it fails. */
+static void show_handle(const ns_msg *h)
+{
+    printf(" handle=s%d #%d @%ld", (int) h->_sect, h->_rrnum, h->_msg_ptr ? (long) (h->_msg_ptr - m) : -1L);
+}
+
 static void show_rr(ns_msg *h, int sect, int i)
 {
     ns_rr rr;
@@ -97,6 +104,7 @@ static void show_rr(ns_msg *h, int sect, int i)
     errno = 0;
     int r = ns_parserr(h, (ns_sect) sect, i, &rr);
     printf("  parserr s%d #%d: %d", sect, i, r);
+    show_handle(h);
     if (r < 0) {
         printf(" errno=%d\n", errno);
         return;
@@ -120,6 +128,7 @@ static void parse(const char *what, int len)
         printf(" id=%u size=%d counts=%d,%d,%d,%d flags", (unsigned) ns_msg_id(h), (int) ns_msg_size(h), ns_msg_count(h, ns_s_qd), ns_msg_count(h, ns_s_an),
                ns_msg_count(h, ns_s_ns), ns_msg_count(h, ns_s_ar));
         for (int f = ns_f_qr; f < ns_f_max; f++) printf(" %d", ns_msg_getflag(h, f));
+        show_handle(&h);
         printf("\n");
         /* In order, one past the end of each section. */
         for (int s = ns_s_qd; s < ns_s_max; s++)
