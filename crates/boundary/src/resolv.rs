@@ -408,38 +408,61 @@ pub fn is_our_server(sa: Option<&niji_abi::layout::struct_sockaddr_in>) -> i32 {
 
 // ------------------------------------------------------------------------------ names
 
-/// `dn_expand(msg, eom, src, dst, dstsiz)`: the bytes the name takes at `src`, or -1.
-pub fn dn_expand(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>) -> i32 {
-    let r = (|| -> Option<usize> {
+/// A name function's byte count, or -1 with `errno` `EMSGSIZE`: every failure of `dn_expand`,
+/// `dn_skipname`, `ns_name_unpack` and `ns_name_uncompress` (a malformed or truncated name, a
+/// pointer out of the message, a name too long for the output) sets it, as the reference does
+/// (settled by tests/ns_parse_products.rs).
+fn count_or_emsgsize(r: Option<usize>) -> i32 {
+    match r.and_then(|n| i32::try_from(n).ok()) {
+        Some(n) => n,
+        None => {
+            errno::set(Errno::EMSGSIZE);
+            -1
+        }
+    }
+}
+
+/// The compressed name at `src` as text into `dst`; the bytes it takes at `src`. The root name is
+/// the empty text for `dn_expand` and "." (as `ns_name_ntop` writes it) for `ns_name_uncompress`.
+fn expand(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>, root_dot: bool) -> i32 {
+    count_or_emsgsize((|| -> Option<usize> {
         let m = conv::named_bytes(msg, eom.checked_sub(msg)?)?;
         let at = src.checked_sub(msg)?;
         let mut w = [0u8; MAXCDNAME + 1];
         let (n, used) = name::unpack(m, at, &mut w).ok()?;
-        name::expand_text(w.get(..n)?, dst.ok()?).ok()?;
+        let wire = w.get(..n)?;
+        if root_dot && wire == [0] {
+            niji::net::copy_z(b".", dst.ok()?)?;
+        } else {
+            name::expand_text(wire, dst.ok()?).ok()?;
+        }
         Some(used)
-    })();
-    r.and_then(|n| i32::try_from(n).ok()).unwrap_or(-1)
+    })())
 }
 
-/// `ns_name_uncompress`: as `dn_expand`.
+/// `dn_expand(msg, eom, src, dst, dstsiz)`: the bytes the name takes at `src`, or -1.
+pub fn dn_expand(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>) -> i32 {
+    expand(msg, eom, src, dst, false)
+}
+
+/// `ns_name_uncompress`: as `dn_expand`, but the root name is ".".
 pub fn name_uncompress(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>) -> i32 {
-    dn_expand(msg, eom, src, dst)
+    expand(msg, eom, src, dst, true)
 }
 
 /// `ns_name_unpack(msg, eom, src, dst, dstsiz)`: the wire name into `dst`; the bytes taken at
 /// `src`.
 pub fn name_unpack(msg: usize, eom: usize, src: usize, dst: KResult<&mut [u8]>) -> i32 {
-    let r = (|| -> Option<usize> {
+    count_or_emsgsize((|| -> Option<usize> {
         let m = conv::named_bytes(msg, eom.checked_sub(msg)?)?;
         let (_, used) = name::unpack(m, src.checked_sub(msg)?, dst.ok()?).ok()?;
         Some(used)
-    })();
-    r.and_then(|n| i32::try_from(n).ok()).unwrap_or(-1)
+    })())
 }
 
-/// `dn_skipname(ptr, eom)`.
+/// `dn_skipname(ptr, eom)`: the bytes the name takes, or -1 (`EMSGSIZE`).
 pub fn dn_skipname(ptr: usize, eom: usize) -> i32 {
-    eom.checked_sub(ptr).and_then(|n| conv::named_bytes(ptr, n)).and_then(|m| name::skip(m).ok()).and_then(|n| i32::try_from(n).ok()).unwrap_or(-1)
+    count_or_emsgsize(eom.checked_sub(ptr).and_then(|n| conv::named_bytes(ptr, n)).and_then(|m| name::skip(m).ok()))
 }
 
 /// `ns_name_skip(&ptr, eom)`: 0 and `*ptr` past the name, or -1.
@@ -719,11 +742,14 @@ pub fn parserr(h: Option<&mut ns_msg>, section: i32, rrnum: i32, rr: Option<&mut
         if s >= 4 {
             return Err(Errno::ENODEV);
         }
-        let rrnum = match rrnum {
-            -1 if usize::try_from(h._sect).ok() == Some(s) => h._rrnum,
-            -1 => 0,
-            n => n,
-        };
+        if usize::try_from(h._sect).ok() != Some(s) {
+            // Another section: the handle moves to its first record, whether or not this call
+            // then finds the record it names.
+            h._sect = u32::try_from(s).unwrap_or(4);
+            h._rrnum = 0;
+            h._msg_ptr = h._sections.get(s).copied().unwrap_or(0);
+        }
+        let rrnum = if rrnum == -1 { h._rrnum } else { rrnum };
         let i = usize::try_from(rrnum).map_err(|_| Errno::ENODEV)?;
         let r = msg::rr(m, &p, s, i)?;
         let mut text = [0u8; MAXDNAME];

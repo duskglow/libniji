@@ -177,7 +177,9 @@ done
 if [ -n "$krblibs" ]; then
     out=$(in_root /lib64/ld-linux-x86-64.so.2 --list /tmp/krb5 2>&1) || true
     case $out in
-        *"libresolv.so.2 => /usr/lib/$ma/libresolv.so.2 "*) pass "ld.so --list in the root resolves libkrb5.so.3's libresolv.so.2 to /usr/lib/$ma/libresolv.so.2" ;;
+        # /lib is the merged-/usr link to /usr/lib: either spelling is the packaged file.
+        *"libresolv.so.2 => /lib/$ma/libresolv.so.2 "* | *"libresolv.so.2 => /usr/lib/$ma/libresolv.so.2 "*)
+            pass "ld.so --list in the root resolves libkrb5.so.3's libresolv.so.2 to the packaged /usr/lib/$ma/libresolv.so.2" ;;
         *) fail "ld.so --list /tmp/krb5 in the root: $(echo "$out" | tr '\n' ' ')" ;;
     esac
     out=$(LD_BIND_NOW=1 in_root /tmp/krb5 2>&1) && rc=0 || rc=$?
