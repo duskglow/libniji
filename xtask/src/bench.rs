@@ -14,7 +14,7 @@ use std::process::Command;
 /// comparison of `compare`), dynamically or statically.
 #[derive(Clone, Copy, PartialEq)]
 enum Build {
-    libniji,
+    Niji,
     /// Measurement only (MEASURE-1): the products' archive built with `-Ctarget-cpu=x86-64-v3`
     /// (`target/niji-v3/libc.a`), an upper bound on what CPU multiversioning could buy.
     NijiV3,
@@ -43,7 +43,7 @@ fn c_build(root: &Path, name: &str, build: Build) -> Result<std::path::PathBuf, 
     if COMPARE_NO_BUILD.load(std::sync::atomic::Ordering::Relaxed) {
         // `compare --no-build`: measure the programs a `--build-only` run left (timing hosts have no compiler).
         let exe = match build {
-            Build::libniji => dir.join(name),
+            Build::Niji => dir.join(name),
             Build::NijiV3 => dir.join(format!("{name}.v3")),
             Build::NijiSorted => dir.join(format!("{name}.sorted")),
             Build::HostDynamic => dir.join(format!("{name}.host-dynamic")),
@@ -55,7 +55,7 @@ fn c_build(root: &Path, name: &str, build: Build) -> Result<std::path::PathBuf, 
     let mut cmd = Command::new(cc);
     cmd.args(["-std=c17", "-O2", "-fno-builtin"]);
     let exe = match build {
-        Build::libniji | Build::NijiV3 | Build::NijiSorted => {
+        Build::Niji | Build::NijiV3 | Build::NijiSorted => {
             let lib = if build == Build::NijiV3 { "target/niji-v3/libc.a" } else { "target/niji/libc.a" };
             cmd.args(["-static", "-nostdlib"]);
             if build == Build::NijiSorted {
@@ -855,7 +855,7 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
     }
     println!("method: {runs} rounds after a discarded warm-up round, the builds alternating; each value is the program's best of 7 rounds (cold rows: median of 31 processes)");
     // Index 0 is libniji (static), 1 the reference (glibc dynamic); the order is the column order.
-    let mut builds = vec![(Build::libniji, "niji"), (Build::HostDynamic, "glibc_dyn"), (Build::HostStatic, "glibc_static")];
+    let mut builds = vec![(Build::Niji, "niji"), (Build::HostDynamic, "glibc_dyn"), (Build::HostStatic, "glibc_static")];
     if v3 {
         builds.push((Build::NijiV3, "niji_v3"));
     }
@@ -918,7 +918,7 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
                 }
                 if round == 0 {
                     // The warm-up of the libniji build proves every selected row exists (a typo is an error, never an empty table).
-                    if let (Some(sel), Build::libniji) = (&selected, *b) {
+                    if let (Some(sel), Build::Niji) = (&selected, *b) {
                         let printed: Vec<String> = parse_rows(name, &out.stdout)?.into_iter().map(|(r, _)| r).collect();
                         let missing: Vec<String> = sel.iter().filter(|r| !printed.contains(r)).cloned().collect();
                         if !missing.is_empty() {
@@ -932,7 +932,7 @@ pub fn compare(root: &Path, args: &[String]) -> Result<(), String> {
                     continue;
                 }
                 for (row, v) in parse_rows(name, &out.stdout)? {
-                    if *b == Build::libniji && !order.contains(&row) {
+                    if *b == Build::Niji && !order.contains(&row) {
                         order.push(row.clone());
                     }
                     values[k].entry(row).or_default().push(v);
@@ -1222,7 +1222,7 @@ fn count_rows<'a>(root: &Path, names: &[&'a str], no_build: bool, ns_ratio: &BTr
     for b in names {
         started.push(b);
         let host = host_build_cached(root, b)?;
-        let niji = if no_build { root.join(format!("target/niji/bench/{b}")) } else { c_build(root, b, Build::libniji)? };
+        let niji = if no_build { root.join(format!("target/niji/bench/{b}")) } else { c_build(root, b, Build::Niji)? };
         // TOOLS-6: three counted runs per side; per row the MEDIAN of every column, a spread column, and sanity flags.
         let run3 = |exe: &Path| -> Result<BTreeMap<String, CountedRow>, String> {
             let mut runs = Vec::new();
@@ -1713,7 +1713,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
                 host_build_cached(root, b)?;
             }
             if b.starts_with("cbench_") {
-                c_build(root, b, Build::libniji)?;
+                c_build(root, b, Build::Niji)?;
             } else {
                 let st = Command::new(&cargo).current_dir(root).args(["build", "-q", "--release", "-p", "niji-boundary", "--example", b]).status().map_err(|e| format!("{b}: {e}"))?;
                 if !st.success() {
@@ -1788,7 +1788,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<(), String> {
         let bench_started = std::time::Instant::now();
         let ratio = host_benches.contains(b);
         let host_exe = if ratio { Some(host_build_cached(root, b)?) } else { None };
-        let niji_exe = if b.starts_with("cbench_") { Some(if mode == Mode::NoBuild { root.join(format!("target/niji/bench/{b}")) } else { c_build(root, b, Build::libniji)? }) } else { None };
+        let niji_exe = if b.starts_with("cbench_") { Some(if mode == Mode::NoBuild { root.join(format!("target/niji/bench/{b}")) } else { c_build(root, b, Build::Niji)? }) } else { None };
         let mut upto = if !ratio { 0 } else if adaptive { ROUNDS_FIRST } else { runs };
         let mut round = 0usize;
         loop {

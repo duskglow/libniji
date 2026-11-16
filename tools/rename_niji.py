@@ -19,7 +19,8 @@ Mapping, applied to each text in this order (the owner's table; identifier stem 
 3. Rust v0/legacy mangled identifiers `<len>liella_x` become `<len-2>niji_x` (the length prefix
    counts the identifier, so a plain substitution would corrupt it).
 4. `LIELLA` -> `NIJI` (version nodes, constants, macros, variables, `__LIELLA__`).
-5. `Liella` -> `Niji` inside an identifier (`LiellaTm`), else `libniji` (prose, messages; owner Q1).
+5. `Liella` -> `Niji` inside an identifier (`LiellaTm`) and, in `.rs` files, where a bare `Liella`
+   is a Rust type or enum variant (RUST_IDENT), else `libniji` (prose, messages; owner Q1).
 6. `liella` -> `niji` (crates, modules, paths, packages, run-time names, `+liella`).
 
 Exclusions (EXCLUDE): history (handoff/, records/, validation/results/ and results/, the dated
@@ -80,6 +81,10 @@ EXPLICIT = (
 
 MANGLED = re.compile(r"(?<![0-9])([0-9]+)(liella)")
 CAMEL = re.compile(r"Liella(?=[A-Za-z0-9_])")
+# A bare `Liella` used as a Rust identifier (a type or an enum variant: `heap::Liella`,
+# `struct Liella`, `for Liella {`, a `    Liella,` variant line) becomes `Niji`, an upper camel
+# case name, not the prose spelling. Applied to `.rs` files only.
+RUST_IDENT = re.compile(r"(?<=::)Liella\b|(?<=\bstruct )Liella\b|(?<=\bfor )Liella(?= \{)|(?<=^    )Liella(?=,$)", re.M)
 
 
 def excluded(path):
@@ -100,7 +105,7 @@ def mangled(text):
     return "".join(out)
 
 
-def rename_text(text):
+def rename_text(text, rust=False):
     keep = {}
     for i, p in enumerate(PROTECT):
         token = "\0P%d\0" % i
@@ -110,6 +115,8 @@ def rename_text(text):
         text = text.replace(old, new)
     text = mangled(text)
     text = text.replace("LIELLA", "NIJI")
+    if rust:
+        text = RUST_IDENT.sub("Niji", text)
     text = CAMEL.sub("Niji", text)
     text = text.replace("Liella", "libniji")
     text = text.replace("liella", "niji")
@@ -147,6 +154,15 @@ EXAMPLES = (
     ("Liella Maintainers <liella@koiren.ai> github.com/duskglow/liella ~/src/liella-ops", "Liella Maintainers <liella@koiren.ai> github.com/duskglow/liella ~/src/liella-ops"),
     ("(liella-historic:handoff/x.md) handoff/LIELLA-UTILITIES-DESIGN.md", "(liella-historic:handoff/x.md) handoff/LIELLA-UTILITIES-DESIGN.md"),
 )
+# Rust identifier rule (`.rs` files): input, output.
+RUST_EXAMPLES = (
+    ("pub struct Liella;\nunsafe impl GlobalAlloc for Liella {\nstatic A: liella_boundary::heap::Liella = x;\n",
+     "pub struct Niji;\nunsafe impl GlobalAlloc for Niji {\nstatic A: niji_boundary::heap::Niji = x;\n"),
+    ("enum Build {\n    Liella,\n    LiellaV3,\n}\n    Build::Liella | Build::LiellaSorted => {}\n",
+     "enum Build {\n    Niji,\n    NijiV3,\n}\n    Build::Niji | Build::NijiSorted => {}\n"),
+    ("// reach Liella's export; Liella the block, for Liella.\n\"Liella's interpreter\"\n",
+     "// reach libniji's export; libniji the block, for libniji.\n\"libniji's interpreter\"\n"),
+)
 PATHS = (
     ("include/liella/native.h", "include/niji/native.h"),
     ("tools/deb/liella-gcc.1", "tools/deb/niji-gcc.1"),
@@ -166,6 +182,14 @@ def self_test():
             bad.append("rename_text(%r) = %r, want %r" % (old, got, new))
         if rename_text(new) != new:
             bad.append("rename_text is not idempotent on %r" % new)
+    for old, new in RUST_EXAMPLES:
+        got = rename_text(old, rust=True)
+        if got != new:
+            bad.append("rename_text(%r, rust) = %r, want %r" % (old, got, new))
+        if rename_text(new, rust=True) != new:
+            bad.append("rename_text(rust) is not idempotent on %r" % new)
+    if rename_text("pub struct Liella;") != "pub struct libniji;":
+        bad.append("the Rust identifier rule applies outside .rs files")
     if rename_bytes(b"\0LIELLANC\0liella") != b"\0NIJI_NSC\0liella":
         bad.append("rename_bytes changes only equal-length explicit spellings")
     for path, new in PATHS:
@@ -174,7 +198,8 @@ def self_test():
             bad.append("path %r -> %r, want %r" % (path, got, new))
     for line in bad:
         print("rename_niji: self-test FAIL " + line)
-    print("rename_niji: self-test %s (%d examples, %d paths)" % ("FAIL" if bad else "PASS", len(EXAMPLES), len(PATHS)))
+    print("rename_niji: self-test %s (%d examples, %d Rust examples, %d paths)"
+          % ("FAIL" if bad else "PASS", len(EXAMPLES), len(RUST_EXAMPLES), len(PATHS)))
     return 1 if bad else 0
 
 
@@ -191,7 +216,8 @@ def main():
         with open(path, "rb") as f:
             data = f.read()
         try:
-            new = rename_text(data.decode("utf-8")).encode("utf-8") if b"\0" not in data else rename_bytes(data)
+            rust = path.endswith(".rs")
+            new = rename_text(data.decode("utf-8"), rust).encode("utf-8") if b"\0" not in data else rename_bytes(data)
         except UnicodeDecodeError:
             new = rename_bytes(data)
         if new != data:

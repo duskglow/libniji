@@ -289,13 +289,13 @@ pub extern "C" fn default_obstack_failure() {
 
 /// Rust's global allocator in the products (`#[global_allocator]` is set by the product
 /// crate, phase 4): the same heap, with sizes and alignments from `Layout`.
-pub struct libniji;
+pub struct Niji;
 
 // UNSAFE(allocator): implementing `GlobalAlloc` is the allocator category itself.
 // SAFETY: blocks come from `HEAP`, which never hands out overlapping live blocks, honours the
 // layout's size and alignment, and returns null on exhaustion.
 #[allow(unsafe_code)]
-unsafe impl GlobalAlloc for libniji {
+unsafe impl GlobalAlloc for Niji {
     // UNSAFE(allocator): the trait's required method.
     #[allow(unsafe_code)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {

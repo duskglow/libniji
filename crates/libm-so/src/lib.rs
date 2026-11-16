@@ -16,7 +16,7 @@
 pub use niji_boundary as _boundary;
 
 #[global_allocator]
-static ALLOCATOR: niji_boundary::heap::libniji = niji_boundary::heap::libniji;
+static ALLOCATOR: niji_boundary::heap::Niji = niji_boundary::heap::Niji;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
