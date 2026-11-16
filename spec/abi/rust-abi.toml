@@ -112,8 +112,8 @@ panic_handler = "dylib"
 [lr1.product]
 file = "libniji_rust.so.lr1"
 soname = "libniji_rust.so.lr1"
-# The name rustc's --extern needs for a dylib (lib<crate>.so): a symbolic link to `file`,
-# used only to build programs.
+# The name programs pass to rustc's --extern (the native interface library's name; rustc itself
+# writes the dylib as lib<crate>.so): a symbolic link to `file`, used only to build programs.
 link_name = "libniji.so"
 needed = ["libc.so.6"]
 # The link arguments after rustc's own, in order: no start files and no default libraries;

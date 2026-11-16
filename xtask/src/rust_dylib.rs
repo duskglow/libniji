@@ -428,10 +428,14 @@ fn build(root: &Path, rustc: &str, def: &Def, dir: &Path, libc_so: &Path, nounwi
         run(&mut cmd)?;
         commands += 1;
     }
-    // The file under its version's name, and the name --extern needs as a link to it.
+    // The file under its version's name, and the name programs pass to --extern as a link to it.
+    // rustc writes a dylib as lib<crate>.so; the link name (`libniji.so`, the native interface
+    // library's name) differs from that, and --extern accepts it (the crate name is read from the
+    // file's metadata).
     let file = dir.join(def.string("product.file")?);
     let link = dir.join(def.string("product.link_name")?);
-    fs::rename(&link, &file).map_err(|e| format!("rename {} to {}: {e}", link.display(), file.display()))?;
+    let built = dir.join("libniji_native.so");
+    fs::rename(&built, &file).map_err(|e| format!("rename {} to {}: {e}", built.display(), file.display()))?;
     #[cfg(unix)]
     std::os::unix::fs::symlink(def.string("product.file")?, &link).map_err(|e| format!("{}: {e}", link.display()))?;
     #[cfg(not(unix))]
