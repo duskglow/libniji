@@ -1,8 +1,9 @@
 #!/bin/sh
 # tools/deb/swap-system.sh DEBDIR [SUITE] [LOGDIR]: swap Liella's system packages (tools/deb/build.sh
 # --flavour system) into a Debian root in place of the distribution's C library, run the distribution's
-# own programs there (tools/deb/swap-cmds.sh: ls, sort, grep, sed, awk, bash, perl, python3, find on a
-# fixed input; ldd and initramfs-tools' copy_exec on the root's own programs) and compare each one's output and exit status with the same command in a stock root of
+# own programs there (tools/deb/swap-cmds.sh: ls, sort, grep, sed, awk, bash, perl, python3, find, apt on a
+# fixed input; ldd and initramfs-tools' copy_exec on the root's own programs) and compare each one's
+# output and exit status with the same command in a stock root of
 # the same suite. Unprivileged (mmdebstrap --mode=unshare; both roots are discarded). No spec clause:
 # release validation (plan/system-libc.md section 3.7).
 #

@@ -57,9 +57,89 @@ const NEW_MAX: usize = init::OBJECTS_MAX;
 const NAMES: usize = 128 * 1024;
 /// Entries of the dependency-list arena.
 const DEPS: usize = 16 * 1024;
-/// The unique-symbol table: (name, version) keys and the bytes of their strings. A full table makes
-/// the binding that needed one more entry fail with a text.
-type Unique = reloc::UniqueTable<1024, { 64 * 1024 }>;
+/// The unique-symbol table: (name, version) keys and the bytes of their strings, each in its own
+/// mapping that grows as needed (no count of unique names is too many; C++ libraries define
+/// hundreds). Only a failed mapping makes the binding that needed the entry fail, with a text that
+/// says memory ran out.
+type Unique = reloc::GrowTable<MapStack<reloc::UniqueEntry>, MapStack<u8>>;
+
+/// A [`reloc::Stack`] in an anonymous private mapping of its own, moved and grown by `mremap` (the
+/// loader runs under its lock and calls no allocator). All zero is the empty stack, as the zeroed
+/// `Loader` holds it. The mapping is never released: a namespace's table lives as long as it.
+#[derive(Debug)]
+pub(super) struct MapStack<T> {
+    at: usize,
+    len: usize,
+    cap: usize,
+    _t: core::marker::PhantomData<T>,
+}
+
+impl<T: Copy> MapStack<T> {
+    /// Room for `extra` more items; `false` when the mapping cannot be made or grown.
+    fn reserve(&mut self, extra: usize) -> bool {
+        let size = size_of::<T>().max(1);
+        let Some(need) = self.len.checked_add(extra) else { return false };
+        if need <= self.cap {
+            return true;
+        }
+        let want = need.max(self.cap.saturating_mul(2));
+        let Some(bytes) = want.checked_mul(size).and_then(|b| b.checked_next_multiple_of(4096)) else { return false };
+        let flags = MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32;
+        let at = if self.at == 0 {
+            raw::mmap(0, bytes, map::PROT_READ | map::PROT_WRITE, flags, -1, 0)
+        } else {
+            // The old range is referenced by nothing: `items` borrows end before `&mut self` here.
+            raw::mremap(self.at, self.cap.wrapping_mul(size), bytes)
+        };
+        let Ok(at) = at else { return false };
+        self.at = at;
+        self.cap = bytes.checked_div(size).unwrap_or(0);
+        true
+    }
+}
+
+impl<T: Copy> reloc::Stack<T> for MapStack<T> {
+    fn items(&self) -> &[T] {
+        if self.at == 0 {
+            return &[];
+        }
+        // UNSAFE(slice): the written prefix of the stack's own mapping.
+        #[allow(unsafe_code)]
+        // SAFETY: `at` is a private read-write mapping of `cap * size_of::<T>()` bytes or more, page
+        // aligned (so aligned for T), made by `reserve` and released by nothing; its first `len <= cap`
+        // items were written by `try_extend` as valid `T`s; the borrow of `self` keeps `reserve` (the
+        // only mover) from running while the slice lives.
+        unsafe {
+            core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<T>(self.at), self.len)
+        }
+    }
+
+    fn try_extend(&mut self, more: &[T]) -> bool {
+        if more.is_empty() {
+            return true;
+        }
+        if !self.reserve(more.len()) {
+            return false;
+        }
+        let end = self.len.wrapping_add(more.len());
+        let dst = core::ptr::with_exposed_provenance_mut::<T>(self.at).wrapping_add(self.len);
+        // UNSAFE(slice): the reserved tail of the stack's own mapping, written once.
+        #[allow(unsafe_code)]
+        // SAFETY: `reserve` made room for `cap >= end` items at the page-aligned `at`, so `dst` is
+        // aligned and `more.len()` items from it are inside the mapping; they are past every slice
+        // `items` handed out (none is live: this borrows `&mut self`) and `more` is not in it. A
+        // plain copy of `Copy` items, so the old bytes need not be valid `T`s.
+        unsafe {
+            core::ptr::copy_nonoverlapping(more.as_ptr(), dst, more.len());
+        }
+        self.len = end;
+        true
+    }
+
+    fn truncate(&mut self, n: usize) {
+        self.len = self.len.min(n);
+    }
+}
 /// `SHN_ABS` (ELF gABI): an absolute symbol, not moved by the load bias.
 const SHN_ABS: u16 = 0xfff1;
 
@@ -112,23 +192,11 @@ impl Binds {
     }
 }
 
-/// A registry that records nothing (the start's scope has no unique table of its own here).
-struct NoUnique;
-
-impl UniqueRegistry for NoUnique {
-    fn find(&self, _: &[u8], _: &[u8]) -> Option<SymFound> {
-        None
-    }
-    fn record(&mut self, _: &[u8], _: &[u8], _: SymFound) -> Result<(), LookupError> {
-        Ok(())
-    }
-}
-
 impl UniqueRegistry for Uniq<'_> {
     fn find(&self, name: &[u8], version: &[u8]) -> Option<SymFound> {
         self.table.find(name, version).or_else(|| {
             let want = if version.is_empty() { Want::Default } else { Want::Version(version) };
-            let f = symbols::lookup(self.syms, symbols::Scope::global(self.start), &Request::new(name, want), &mut NoUnique).ok()??;
+            let f = symbols::lookup(self.syms, symbols::Scope::global(self.start), &Request::new(name, want), &mut symbols::ScopeOrder).ok()??;
             (f.def.st.bind() == STB_GNU_UNIQUE).then_some(f)
         })
     }

@@ -28,7 +28,7 @@ use super::{c_string, dlerr, file_id, loader, objs_of, scope_of, start_arg, syms
 use liella_ld::arch::Native;
 use liella_ld::elf::{STB_GNU_UNIQUE, STT_GNU_IFUNC, STT_TLS};
 use liella_ld::search::{self, PathBuf};
-use liella_ld::symbols::{self, Request, Scope, Want};
+use liella_ld::symbols::{self, LookupError, Request, Scope, Want};
 
 /// `RTLD_DEFAULT` (`<dlfcn.h>`): the NULL handle.
 const RTLD_DEFAULT: usize = 0;
@@ -164,6 +164,11 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
     let Ok(Some(f)) = found else {
         let mut path = PathBuf::default();
         let obj = object_name(l, named, &mut path);
+        if matches!(found, Err(LookupError::NoMemory)) {
+            let t = symbols::UNIQUE_NO_MEMORY;
+            dlerr::set(&[obj, b": ", t.strip_suffix(b"\n").unwrap_or(t)]);
+            return None;
+        }
         match ver {
             Some(v) => dlerr::set(&[obj, b": undefined symbol: ", sym, b", version ", v]),
             None => dlerr::set(&[obj, b": undefined symbol: ", sym]),
