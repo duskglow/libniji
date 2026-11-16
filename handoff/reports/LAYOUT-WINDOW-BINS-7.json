@@ -1,0 +1,80 @@
+{
+ "task": "LAYOUT-WINDOW-BINS-7",
+ "model": "opus",
+ "tokens": null,
+ "result": "Slice 3: start-up page-fault bounds tightened to the window bins' level per product profile (true 11/10, locale 43/43, tool 44/45, localtime and localtime+mktime 36/36); Zen 1 and Skylake-SP read the same",
+ "branch": "task/layout-window-bins-7",
+ "head": "0b946a9df",
+ "gate": {
+  "affected": "direct tier rc 0; cargo xtask test 6666 + 5247 passed, 0 failed, conformance 137/137; release hot_text_products 26 passed",
+  "peak": "13G (xtest1)"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "A program with 0x4000 or more of .text.unlikely ahead of the head bin (fast: 0x800) reads +1 fault in every whole-process mode (head bin unanchored, HEAD_ROOM 0x400); the probe has none, so the bounds hold. Head-bin variant left open for LAYOUT-BYTE-BUDGETS-2 / a follow-up (handoff/LAYOUT-WINDOW-BINS.md, Next 2).",
+  "Levels were measured by running the same probe binaries on both host classes (no role on the Skylake-SP host); the products are host-independent per LAYOUT-TRACE-HOST-CANONICAL and carry no role path.",
+  "Baseline measurement jobs on origin/next f494ad65d (evidence, not proof of the head): layout-window-bins-7-levels1, layout-window-bins-7-padsweep (keke), layout-window-bins-7-levels-mei (mei). The head after 0b946a9df adds only handoff/ files."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "TRUE_BOUND release 11 -> 10 (fast stays 11)",
+   "before": 11,
+   "after": 10,
+   "unit": "page faults (bound)",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "LOCALE_BOUND 47 -> 43 (both profiles)",
+   "before": 47,
+   "after": 43,
+   "unit": "page faults (bound)",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "TOOL_BOUND 50 -> 44 fast / 45 release",
+   "before": 50,
+   "after": 44,
+   "unit": "page faults (bound)",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "LOCALTIME_BOUND and LOCALTIME_MKTIME_BOUND 40 -> 36 (both profiles)",
+   "before": 40,
+   "after": 36,
+   "unit": "page faults (bound)",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants proving each bound sits at its level (7, all caught)",
+   "before": 0,
+   "after": 7,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "LAYOUT-BYTE-BUDGETS-2 (the window-bins chain is complete)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "xtask plants rebuilds traced products for every plant even when only a test file changes (~15 min each, 2 h for 7 constant plants): reuse the baseline's products when the planted path is outside every product input.",
+ "next_step": "LAYOUT-BYTE-BUDGETS-2; then decide the head-bin variant with the pre-pad sweep (handoff/LAYOUT-WINDOW-BINS.md Next 2).",
+ "report_file": "handoff/LAYOUT-WINDOW-BINS.md",
+ "jobs": [
+  "layout-window-bins-7-lint1",
+  "layout-window-bins-7-gate1",
+  "layout-window-bins-7-xtest1",
+  "layout-window-bins-7-relhot1",
+  "layout-window-bins-7-plants1"
+ ]
+}
