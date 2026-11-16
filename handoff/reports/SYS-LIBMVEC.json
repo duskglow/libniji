@@ -1,6 +1,6 @@
 {"task": "SYS-LIBMVEC", "model": "opus", "tokens": null,
  "result": "INCOMPLETE (context checkpoint): libmvec.so.1 (216 exports) and libmvec.a built from versions.tsv, every lane bit-identical to scalar libm (1512 lanes, 4 ISA classes); packaging, records, plants, gate not done",
- "branch": "task/sys-libmvec", "head": "28a881e70",
+ "branch": "task/sys-libmvec", "head": "465f54ecb",
  "gate": {"affected": "not run (sys-libmvec-test3: libmvec_products 3 passed / 0 failed)", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
