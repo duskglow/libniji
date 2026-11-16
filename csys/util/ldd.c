@@ -130,7 +130,7 @@ static size_t parse_list(char *out, size_t n, struct listed *l, size_t max) {
                 if (*c == ' ' && c + 1 < end && c[1] == '(') { paren = c; break; }
             if (arrow && paren && paren > arrow + 4) {
                 l[k++] = (struct listed){ s, (size_t)(arrow - s), arrow + 4, (size_t)(paren - arrow - 4) };
-            } else if (!arrow && paren && s[0] == '/') {
+            } else if (!arrow && paren && strncmp(s, "linux-vdso.so.", 14) != 0) {
                 /* The interpreter: matched by the last component of its path. */
                 const char *base = s;
                 for (const char *c = s; c < paren; c++)
@@ -297,7 +297,7 @@ static int one(const char *file, int verbose) {
         /* The interpreter line (a path with no `=>`, last in the list) is printed only when the program or a
            listed object names the interpreter in DT_NEEDED, as the reference lists it (transcripts). */
         const char *skip = NULL;
-        if (nl > 0 && l[nl - 1].path[0] == '/' && l[nl - 1].path + l[nl - 1].path_len - l[nl - 1].name_len == l[nl - 1].name) {
+        if (nl > 0 && l[nl - 1].path +l[nl - 1].path_len - l[nl - 1].name_len == l[nl - 1].name) {
             int needed = has_needed(shown, l[nl - 1].name, l[nl - 1].name_len) || has_needed(shown, l[nl - 1].path, l[nl - 1].path_len);
             for (size_t j = 0; j + 1 < nl && !needed; j++) {
                 char p[4096];
