@@ -22,11 +22,11 @@
 #                 as it does on configure (an activation while libc-bin is unconfigured is not
 #                 kept, deb-triggers(5)); its postrm removes /etc/ld.so.cache on purge.
 #                 /usr/bin/getconf (UTIL-5: static, over libc.a), /usr/bin/getent (dynamic, over
-#                 libc6's name services: UTIL-6). Its other programs (iconv, locale, ...) come
+#                 libc6's name services: UTIL-6), /usr/bin/ldd (UTIL-4: static, runs the loader in trace mode). Its other programs (iconv, locale, ...) come
 #                 with SL-BIN-CORE.
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
 #                 libm.so. No headers yet (SL-HEADERS, R4).
-#   libc-dev-bin  placeholder (gencat, ldd: SL-DEVTOOLS, SL-BIN-CORE).
+#   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
 
@@ -58,6 +58,8 @@ need getconf
 put 0755 "$products/getconf" "$bin/usr/bin/getconf"
 need getent
 put 0755 "$products/getent" "$bin/usr/bin/getent"
+need ldd
+put 0755 "$products/ldd" "$bin/usr/bin/ldd"
 
 # --- libc6-dev ---
 need liella-crt1.o
@@ -94,7 +96,7 @@ done
 find "$s6" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
 # libc-bin's ldconfig and getconf (static executables) and getent (dynamic) are stripped the same
 # way as the shared libraries.
-strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent"
+strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent" "$bin/usr/bin/ldd"
 find "$sdev" -type f \( -name '*.a' -o -name '*.o' \) -exec strip --strip-debug --remove-section=.comment --enable-deterministic-archives {} +
 
 # --- Control members. ---
@@ -167,7 +169,7 @@ sys_control libc-dev-bin amd64 libdevel optional \
     "Depends: libc6 (= $version)" \
     "Description: Liella C library: development programs (placeholder)" \
     "$abi_note" \
-    " The development programs (gencat, ldd) are not part of this build yet; the" \
+    " The development program gencat is not part of this build yet; the" \
     " package exists so that libc6-dev's dependency is met."
 sys_control locales all localization optional \
     "Depends: libc-bin (>= $abi)" \

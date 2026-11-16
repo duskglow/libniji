@@ -185,6 +185,22 @@ fn setup(t: &Transcript, root: &Path) -> Result<(), String> {
                 let path = at(p)?;
                 std::fs::write(&path, &image).map_err(|e| format!("{}: {e}", path.display()))?;
             }
+            Setup::Cc(p, flags, source) => {
+                let path = at(p)?;
+                let cc = tool("cc").ok_or("no cc(1) in /usr/bin or /bin")?;
+                let mut c = Command::new(cc);
+                c.args(["-x", "c", "-", "-o"]).arg(&path);
+                c.args(flags.iter().map(|f| OsString::from_vec(replace(f, ROOT_TOKEN, rootb))));
+                c.current_dir(root).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+                let mut child = c.spawn().map_err(|e| format!("cc {}: {e}", path.display()))?;
+                let mut stdin = child.stdin.take().ok_or("no stdin pipe")?;
+                stdin.write_all(source).map_err(|e| format!("cc {}: {e}", path.display()))?;
+                drop(stdin);
+                let out = child.wait_with_output().map_err(|e| format!("cc {}: {e}", path.display()))?;
+                if !out.status.success() {
+                    return Err(format!("cc {}: {}", path.display(), String::from_utf8_lossy(&out.stderr).trim()));
+                }
+            }
         }
     }
     Ok(())
@@ -413,6 +429,30 @@ pub(crate) fn normalise(o: &mut Outcome, root: &[u8], extra: &[(Vec<u8>, Vec<u8>
     }
 }
 
+/// `mask-addresses: yes`: in every stdout and stderr line ending in ` (0x<hex digits>)`, the digits become `@ADDR@`.
+/// Only that final group: a line with anything after the `)`, or a non-hex character inside it, is left whole.
+pub(crate) fn mask_addresses(o: &mut Outcome) {
+    const OPEN: &[u8] = b" (0x";
+    let apply = |b: &mut Vec<u8>| {
+        let mut out = Vec::with_capacity(b.len());
+        for line in b.split_inclusive(|&c| c == b'\n') {
+            let (body, nl) = line.strip_suffix(b"\n").map_or((line, &b""[..]), |l| (l, &b"\n"[..]));
+            let at = body.strip_suffix(b")").and_then(|l| l.windows(OPEN.len()).rposition(|w| w == OPEN).map(|i| (l, i)));
+            match at {
+                Some((l, i)) if l.len() > i + OPEN.len() && l[i + OPEN.len()..].iter().all(u8::is_ascii_hexdigit) => {
+                    out.extend_from_slice(&l[..i + OPEN.len()]);
+                    out.extend_from_slice(b"@ADDR@)");
+                    out.extend_from_slice(nl);
+                }
+                _ => out.extend_from_slice(line),
+            }
+        }
+        *b = out;
+    };
+    apply(&mut o.stdout);
+    apply(&mut o.stderr);
+}
+
 /// Replace the rest of every stdout and stderr line that starts with one of `prefixes` by `token`
 /// (`host-value:` and `mask-value:` lines of a transcript).
 pub(crate) fn mask_lines(o: &mut Outcome, prefixes: &[Vec<u8>], token: &[u8]) {
@@ -525,6 +565,16 @@ mod tests {
         );
         assert_eq!(std::fs::read_dir(&s).unwrap().count(), 0, "the private root is removed");
         std::fs::remove_dir_all(&s).unwrap();
+    }
+
+    // no spec clause (harness): `mask-addresses:` masks the final ` (0x<hex>)` group of a line and nothing else.
+    #[test]
+    fn mask_addresses_masks_only_a_final_hex_group() {
+        let text = b"\tlibc.so.6 => /lib/libc.so.6 (0x00007f00deadbeef)\n\tx (0x12) y\n\tz (0xg1)\n\tw (0x)\nlast (0xAb1)";
+        let mut o = Outcome { status: Status::Exit(0), stdout: text.to_vec(), stderr: b"e (0x1)\n".to_vec(), written: Vec::new() };
+        mask_addresses(&mut o);
+        assert_eq!(o.stdout, b"\tlibc.so.6 => /lib/libc.so.6 (0x@ADDR@)\n\tx (0x12) y\n\tz (0xg1)\n\tw (0x)\nlast (0x@ADDR@)".to_vec());
+        assert_eq!(o.stderr, b"e (0x@ADDR@)\n".to_vec());
     }
 
     #[test]

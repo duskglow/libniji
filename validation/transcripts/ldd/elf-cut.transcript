@@ -1,0 +1,10 @@
+name: ldd elf-cut: an ELF file cut short is not a dynamic executable
+clause: s31_3_f_1
+command: ldd
+arg: cut.so
+mask-addresses: yes
+elf: cut.so cut=40
+status: exit 1
+stdout:
+stderr:
+| \tnot a dynamic executable

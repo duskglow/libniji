@@ -2,7 +2,8 @@
 # tools/deb/swap-system.sh DEBDIR [SUITE] [LOGDIR]: swap Liella's system packages (tools/deb/build.sh
 # --flavour system) into a Debian root in place of the distribution's C library, run the distribution's
 # own programs there (tools/deb/swap-cmds.sh: ls, sort, grep, sed, awk, bash, perl, python3, find, apt on a
-# fixed input) and compare each one's output and exit status with the same command in a stock root of
+# fixed input; ldd and initramfs-tools' copy_exec on the root's own programs) and compare each one's
+# output and exit status with the same command in a stock root of
 # the same suite. Unprivileged (mmdebstrap --mode=unshare; both roots are discarded). No spec clause:
 # release validation (plan/system-libc.md section 3.7).
 #
@@ -54,13 +55,13 @@ rm -rf "$res"
 mkdir -p "$res"
 
 # The programs of the comparison: the Essential set (bash, coreutils, findutils, grep, sed, perl-base,
-# dash), mawk, python3-minimal and fakeroot (a preloaded library: LD_PRELOAD and RTLD_NEXT). Same
-# package set in both roots.
+# dash), mawk, python3-minimal, fakeroot (a preloaded library: LD_PRELOAD and RTLD_NEXT) and
+# initramfs-tools-core (copy_exec, a consumer of ldd's listing). Same package set in both roots.
 mmroot() { # mmroot MODE HOOK...: build a root, run the hooks, copy /tmp/swap/out out to $res/MODE.
     mode=$1; shift
     mkdir -p "$res/$mode-tmp"
     "$mm" --mode=unshare --variant=apt --keyring="$stage/keyring.gpg" --components=main \
-        --include=mawk,python3-minimal,fakeroot \
+        --include=mawk,python3-minimal,fakeroot,initramfs-tools-core \
         --customize-hook="copy-in $stage/swap /tmp" \
         "$@" \
         --customize-hook="chroot \"\$1\" sh /tmp/swap/cmds.sh /tmp/swap/out" \

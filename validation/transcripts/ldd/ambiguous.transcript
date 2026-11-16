@@ -1,0 +1,10 @@
+name: ldd ambiguous: an ambiguous long option prefix
+clause: s31_3_i_1
+command: ldd
+arg: --ver
+arg: f
+mask-addresses: yes
+status: exit 1
+stdout:
+stderr:
+| ldd: option `--ver' is ambiguous

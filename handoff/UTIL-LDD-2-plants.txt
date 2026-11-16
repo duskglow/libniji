@@ -1,0 +1,16 @@
+# UTIL-LDD-2 plants: ldd's front end (csys/util/ldd.c) and the harness's address masking
+# (xtask/src/transcript/run.rs), each caught by the recorded transcripts (validation/transcripts/ldd/) or the
+# harness's unit test. Run with cargo xtask plants (docs/plants.md); the tool rebuilds the products
+# (cargo xtask so links target/liella-test/ldd) before each transcript command.
+ldd-several-header | csys/util/ldd.c | lit:if (several) printf("%s:\n", argv[i]); ==> if (0) printf("%s:\n", argv[i]); | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*two-operands
+ldd-static | csys/util/ldd.c | lit:puts("\tstatically linked"); ==> puts("\tnot a dynamic executable"); | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*static
+ldd-not-elf-stream | csys/util/ldd.c | lit:fputs("\tnot a dynamic executable\n", stderr); ==> fputs("\tnot a dynamic executable\n", stdout); | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*not-elf
+ldd-relative-name | csys/util/ldd.c | lit:else { memcpy(shown, "./", 2); memcpy(shown + 2, file, fl + 1); } ==> else memcpy(shown, file, fl + 1); | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*missing-relative
+ldd-interp-filter | csys/util/ldd.c | lit:if (!needed) skip = l[nl - 1].path - 1; ==> | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*(zero|one|several)-needed
+ldd-verbose-object | csys/util/ldd.c | lit:printf("\t%s:\n", shown); ==> printf("\t%s\n", shown); | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*verbose
+ldd-verbose-off | csys/util/ldd.c | lit:if (opt == 5) { verbose = 1; continue; } ==> if (opt == 5) { verbose = 0; continue; } | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*verbose
+ldd-ambiguous | csys/util/ldd.c | lit:if (hits > 1) return usage_error( ==> if (hits > 9) return usage_error( | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*ambiguous
+ldd-double-dash | csys/util/ldd.c | lit:if (strcmp(a, "--") == 0) { i++; break; } ==> if (strcmp(a, "--") == 0) { break; } | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*double-dash
+ldd-try-line | csys/util/ldd.c | lit:if (try_line) fputs("Try ==> if (!try_line) fputs("Try | cargo xtask transcript check validation/transcripts/ldd | msg:MISMATCH .*(unknown|ambiguous|no-operand)
+mask-token | xtask/src/transcript/run.rs | lit:out.extend_from_slice(b"@ADDR@)"); ==> out.extend_from_slice(b"@ADDR)"); | cargo test -p xtask --bin xtask mask_addresses | msg:mask_addresses_masks_only_a_final_hex_group.*(FAILED|panicked)
+mask-hex-only | xtask/src/transcript/run.rs | lit:.all(u8::is_ascii_hexdigit) ==> .any(u8::is_ascii_hexdigit) | cargo test -p xtask --bin xtask mask_addresses | msg:mask_addresses_masks_only_a_final_hex_group.*(FAILED|panicked)

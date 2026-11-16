@@ -88,7 +88,7 @@ for deb in $debs; do
     [ ! -s "$tmp/owners" ] || fail "$pkg: entries not owned by root/root: $(head -1 "$tmp/owners")"
     awk '{ print substr($1, 1, 1), $6 }' "$tmp/list" | while read -r type path; do
         case $path in
-            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/sbin/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
+            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/bin/ | ./usr/sbin/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
                 [ "$type" = d ] || echo "check: FAIL $pkg: $path is not a directory"
                 continue ;;
             ./usr/share/doc/"$pkg"/ | ./usr/share/doc/"$pkg"/copyright | ./usr/share/doc/"$pkg"/changelog.Debian.gz) continue ;;
@@ -98,7 +98,7 @@ for deb in $debs; do
             libc6:./usr/lib/$ma/ld-linux-x86-64.so.2 | libc6:./usr/lib/$ma/lib*.so.[0-9] | libc6:./usr/lib/$ma/libc_malloc_debug.so.0) ok=yes ;;
             libc6:./usr/lib64/ld-linux-x86-64.so.2 | libc6:./etc/ld.so.conf.d/$ma.conf) ok=yes ;;
             libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
-            libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf) ok=yes ;;
+            libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf | libc-bin:./usr/bin/getent | libc-bin:./usr/bin/ldd) ok=yes ;;
             libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so) ok=yes ;;
         esac
         [ $ok = yes ] || echo "check: FAIL $pkg: path not in the system layout: $path"

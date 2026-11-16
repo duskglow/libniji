@@ -72,6 +72,27 @@ run python3-3 python3 -c 'import subprocess; r = subprocess.run(["sort", "-r", "
 run python3-4 python3 -c 'import threading; out = []; ts = [threading.Thread(target=lambda i=i: out.append(i * i)) for i in range(8)]; [t.start() for t in ts]; [t.join() for t in ts]; print(sorted(out))'
 run python3-5 python3 -c 'import pwd, locale; print(pwd.getpwuid(0).pw_name, locale.setlocale(locale.LC_ALL, "")); raise SystemExit(4)'
 run python3-6 python3 -c '1/0'
+# ldd (UTIL-4) on the distribution's own libc-linked programs and libraries. A load address changes from
+# run to run in both roots: only a line's final " (0x<hex>)" is masked, the rest of the line is compared.
+ldd_() { # ldd_ ID ARG...: ldd ARG... with the addresses masked; ldd's own status is kept.
+    id=$1; shift
+    timeout 60 ldd "$@" > "$out/$id.raw" 2>&1 < /dev/null
+    echo $? > "$out/$id.rc"
+    sed 's/ (0x[0-9a-f]*)$/ (@ADDR@)/' "$out/$id.raw" > "$out/$id.out"
+    rm -f "$out/$id.raw"
+}
+py=$(readlink -f /usr/bin/python3)
+ldd_ ldd-1 /bin/sh
+ldd_ ldd-2 /usr/bin/perl
+ldd_ ldd-3 "$py"
+ldd_ ldd-4 /usr/lib/x86_64-linux-gnu/libz.so.1
+ldd_ ldd-5 /bin/sh /usr/bin/perl
+ldd_ ldd-6 -v /bin/sh
+ldd_ ldd-7 -v "$py"
+ldd_ ldd-8 /etc/passwd
+# initramfs-tools' copy_exec, which builds an initramfs from ldd's listing: /bin/sh, perl and python3 with
+# their libraries into an empty directory; the copied tree (type and path, sorted) is compared.
+sh_ copyexec-1 "verbose=n && . /usr/share/initramfs-tools/hook-functions && DESTDIR=/tmp/ird && rm -rf \$DESTDIR && mkdir -p \$DESTDIR && copy_exec /bin/sh && copy_exec /usr/bin/perl && copy_exec $py && cd \$DESTDIR && find . -printf '%y %p\n' | sort"
 sh_ find-1 "find $t | sort"
 sh_ find-2 "find $t -type f -name '*.txt' -size -2k -printf '%P %s %m %TY\n' | sort"
 sh_ find-3 "find $t -newer $t/in.txt | sort; find $t -empty | sort"
