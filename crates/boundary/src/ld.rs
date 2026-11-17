@@ -646,15 +646,19 @@ fn fill_static(tp: usize, dtv_at: usize, zero: bool) -> Option<()> {
 /// offset]`, the IDs following [`THREAD_MODS`]'s, and the generation they make. Handed to the C
 /// library's thread walk as [`tls_visit`]'s context.
 pub(super) struct NewTls {
-    pub(super) mods: [[u64; 5]; dlopen::NEW_MAX],
-    pub(super) len: usize,
+    /// One entry per module, any number (DL-DLOPEN-NEW-OBJECTS).
+    mods: Table<[u64; 5], INLINE>,
     generation: u64,
     /// The modules are unloaded ([`release_tls`], DL-17), not added.
     release: bool,
 }
 
 impl NewTls {
-    pub(super) const NONE: NewTls = NewTls { mods: [[0; 5]; dlopen::NEW_MAX], len: 0, generation: 0, release: false };
+    /// No modules (nothing written, nothing mapped).
+    #[inline(always)]
+    pub(super) fn none() -> NewTls {
+        NewTls { mods: Table::new([0; 5]), generation: 0, release: false }
+    }
 }
 
 /// The static surplus `[lo, hi)` below every thread pointer and the thread pointer's alignment
@@ -721,7 +725,7 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
     // SAFETY: [`publish_tls`] passes the address of a live `NewTls` on its stack and the walk calls
     // back before `publish_tls` returns.
     let Some(new) = (unsafe { core::ptr::with_exposed_provenance::<NewTls>(ctx).as_ref() }) else { return 0 };
-    let mods = new.mods.get(..new.len).unwrap_or(&[]);
+    let mods: &[[u64; 5]] = &new.mods;
     if tp == 0 {
         // Entry `id - 1` holds module `id` (DL-17: a released ID's entry is all zero until reused).
         let mut n = THREAD_MODS_LEN.load(Relaxed);
