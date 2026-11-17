@@ -1,6 +1,6 @@
 {"task": "SL-HEADERS-S08-2", "model": "sonnet", "tokens": null,
  "result": "INCOMPLETE: pointer constants in macros.tsv (ruling #6390) and the 10 headers-gen problems done, headers-gen clean; P5/P1 49 failed of 2305 (pthread.h C++), P2 627 differences unclassified, P3 blocked, P6/plants/gate/clippy/static not run",
- "branch": "task/sl-headers-s08-2", "head": "HEAD_PLACEHOLDER",
+ "branch": "task/sl-headers-s08-2", "head": "359809abf",
  "gate": {"affected": "not run", "peak": null}, "accepted_first_attempt": null,
  "rulings": [{"item": "type_probe pointer class also adds 12 pointer constants beyond the six named (FE_DFL_ENV, MAP_FAILED, RTLD_NEXT, LC_GLOBAL_LOCALE, MM_NULL*, TD_SIGNO_MASK ...)", "recommendation": "keep: later slices use @@value for them; NULL stays excluded"},
               {"item": "headers/fnmembers.tsv hand-types function-pointer member declarators from POSIX and man pages because layouts.tsv records only fn(...) *", "recommendation": "accept (5 rows); alternative is to extend abi_extract.py to print prototypes, which would change other types' rows"}],
