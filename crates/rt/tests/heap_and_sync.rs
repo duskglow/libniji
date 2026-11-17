@@ -625,7 +625,7 @@ fn secure_blocks_are_wiped_on_every_release_and_never_kept() {
 /// holds registries, D-3.19) asked for, by base.
 fn segment_nodes(pages: &FakePages) -> BTreeMap<usize, Option<u32>> {
     // A segment starts at a 16 MiB boundary inside a mapping (after the registries in the first).
-    pages.maps.borrow().iter().filter(|(&b, m)| b.next_multiple_of(SEG) < b + m.len).map(|(&b, m)| (b.next_multiple_of(SEG), m.node)).collect()
+    pages.maps.borrow().iter().filter(|&(&b, m)| b.next_multiple_of(SEG) < b + m.len).map(|(&b, m)| (b.next_multiple_of(SEG), m.node)).collect()
 }
 
 #[test]

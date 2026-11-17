@@ -79,16 +79,16 @@ impl Pages for KernelPages {
         };
         let base = region.addr();
         let addr = base.checked_add(head)?.checked_next_multiple_of(align.max(PAGE))?;
-        let start = addr - head;
+        let start = addr.saturating_sub(head);
         if start > base {
-            let _ = raw::munmap(base, start - base);
+            let _ = raw::munmap(base, start.saturating_sub(base));
         }
         let (end, top) = (addr.saturating_add(len), base.saturating_add(total));
         if top > end {
-            let _ = raw::munmap(end, top - end);
+            let _ = raw::munmap(end, top.saturating_sub(end));
         }
         if let Some(n) = node {
-            let _ = raw::mbind_preferred(start, head + len, n);
+            let _ = raw::mbind_preferred(start, head.saturating_add(len), n);
         }
         Some(addr)
     }
@@ -197,7 +197,7 @@ fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>)
     let total = head.checked_add(len)?;
     let probe = CSys.mmap(0, total, PROT_READ | PROT_WRITE, flags, None, 0).ok()?.addr();
     let addr = if probe.checked_add(head)?.checked_rem(align) == Some(0) {
-        probe + head
+        probe.saturating_add(head)
     } else {
         let _ = raw::munmap(probe, total);
         let up = probe.checked_add(head)?.checked_next_multiple_of(align)?;
@@ -214,7 +214,7 @@ fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>)
         })?
     };
     if let Some(n) = node {
-        let _ = raw::mbind_preferred(addr - head, total, n);
+        let _ = raw::mbind_preferred(addr.saturating_sub(head), total, n);
     }
     Some(addr)
 }
