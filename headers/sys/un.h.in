@@ -1,0 +1,17 @@
+@@generated
+/* sys/un.h: UNIX-domain sockets (XSH <sys/un.h>) */
+#ifndef __NIJI_H_sys_un_h
+#define __NIJI_H_sys_un_h 1
+
+#include <features.h>
+
+@@needs-if strdupa string.h
+
+__NIJI_BEGIN_C
+
+@@owns-macro strdupa strndupa NULL
+@@emit
+
+__NIJI_END_C
+
+#endif

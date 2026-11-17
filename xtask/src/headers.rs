@@ -20,6 +20,8 @@
 //! * `@@intc`: the `INTn_C`/`UINTn_C`/`INTMAX_C`/`UINTMAX_C` macros, derived from the `typedefs.tsv` rows
 //!   of the least-width types (C 7.20.4); a missing row is an error.
 //! * `@@iso10646`: the `__STDC_ISO_10646__` value of the Unicode tables in `spec/unicode/`.
+//! * `@@needs H ...`: the headers H (slices not yet generated) supply the names `visibility.tsv` lists for them; the include is `__has_include`-guarded while H has no template.
+//! * `@@needs-if NAME H`: `#include <H>` where NAME is visible; H supplies the names `visibility.tsv` lists for it.
 //! * `@@stubs`: `__stub_<f>` for each function `spec/abi/stubs.tsv` lists as linkable but ENOSYS-only.
 //!
 //! A condition is searched over the levels: the smallest disjunction of terms (a level test or the
@@ -264,6 +266,30 @@ fn load(root: &Path) -> Result<Tables, String> {
     for r in tsv(root, "spec/abi/layouts.tsv")? {
         layouts.entry(r["type"].clone()).or_default().push(r);
     }
+    // A structure the tables only describe as a member of another (`struct ifmap` inside `struct ifreq`): its own
+    // rows are the member's sub-rows, offsets relative to the member. No size row: the members decide it.
+    let mut synth: Vec<(String, Rows)> = Vec::new();
+    for rows in layouts.values() {
+        for (i, r) in rows.iter().enumerate() {
+            let t = &r["member_type"];
+            if t.starts_with("struct ") && !t.starts_with("struct __pthread_") && !t.ends_with("<anon>") && !t.contains(['*', '[']) && !layouts.contains_key(t) && !synth.iter().any(|(k, _)| k == t) {
+                let sub = format!("{}.", r["member"]);
+                let base: u64 = r["offset_or_size"].parse().unwrap_or(0);
+                let mut mine = Rows::new();
+                for s in rows[i + 1..].iter().take_while(|s| s["member"].starts_with(&sub)) {
+                    let mut s = s.clone();
+                    s.insert("type".into(), t.clone());
+                    s.insert("member".into(), s["member"][sub.len()..].to_string());
+                    s.insert("offset_or_size".into(), (s["offset_or_size"].parse::<u64>().unwrap_or(0) - base).to_string());
+                    mine.push(s);
+                }
+                if !mine.is_empty() {
+                    synth.push((t.clone(), mine));
+                }
+            }
+        }
+    }
+    layouts.extend(synth);
     let mut addr: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     let mut calls = BTreeMap::new();
     for r in tsv(root, "spec/abi/callsites.tsv")? {
@@ -387,6 +413,15 @@ impl Gen<'_> {
     fn members_nested(&self, key: &str) -> Option<(String, Vec<String>, Vec<String>)> {
         let mut nested: Vec<String> = Vec::new();
         let rows = self.t.layouts.get(key)?;
+        if rows.iter().any(|r| r["member"] == "<anon>" || !r["bitfield"].is_empty() || r["member_type"].contains("<anon>") || r["member_type"].starts_with("const struct")) {
+            let members: Vec<&BTreeMap<String, String>> = rows.iter().filter(|r| !r["member"].is_empty()).collect();
+            if let Some(out) = self.tree(&members, "", &mut nested, 1) {
+                let direct: Vec<_> = members.iter().filter(|r| !r["member"].contains('.')).collect();
+                let kw = if !key.starts_with("struct ") && direct.len() > 1 && direct.iter().all(|r| r["offset_or_size"] == "0") { "union" } else { "struct" };
+                return Some((kw.to_string(), out, nested));
+            }
+            nested.clear();
+        }
         let mut out = Vec::new();
         let mut offs = BTreeSet::new();
         // Members that are complete structures: the rows `member.sub` below them describe that structure again.
@@ -441,6 +476,72 @@ impl Gen<'_> {
         }
         let kw = if out.len() > 1 && offs.len() == 1 { "union" } else { "struct" };
         (!out.is_empty()).then(|| (kw.to_string(), out, nested))
+    }
+
+    /// The members of an aggregate that has anonymous or named nested unions and structures and bit-fields
+    /// (layouts.tsv: a nested member is a row of type `union <anon>`/`struct <anon>` followed by its rows
+    /// `member.sub`; an unnamed one is a row `<anon>` whose `size N rows M` says how many rows follow; a bit-field
+    /// carries `bits W@O`). Declaration order is the row order. None when a member type does not resolve.
+    fn tree(&self, rows: &[&BTreeMap<String, String>], prefix: &str, nested: &mut Vec<String>, depth: usize) -> Option<Vec<String>> {
+        let pad = "  ".repeat(depth);
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < rows.len() {
+            let r = rows[i];
+            let m = r["member"].as_str();
+            let kw_of = |t: &str| if t.starts_with("union") { "union" } else { "struct" };
+            if m == "<anon>" {
+                let n: usize = r["bitfield"].split_whitespace().nth(3)?.parse().ok()?;
+                let inner = self.tree(rows.get(i + 1..i + 1 + n)?, prefix, nested, depth + 1)?;
+                out.push(format!("{pad}{} {{", kw_of(&r["member_type"])));
+                out.extend(inner);
+                out.push(format!("{pad}}};"));
+                i += 1 + n;
+                continue;
+            }
+            let rel = m.strip_prefix(prefix).unwrap_or(m);
+            if rel.contains('.') {
+                i += 1;
+                continue;
+            }
+            let aarr = r["member_type"].find('[').map_or("", |k| &r["member_type"][k..]);
+            if r["member_type"][..r["member_type"].len() - aarr.len()].ends_with("<anon>") {
+                let sub = format!("{m}.");
+                let n = rows[i + 1..].iter().take_while(|x| x["member"].starts_with(&sub)).count();
+                let inner = self.tree(&rows[i + 1..i + 1 + n], &sub, nested, depth + 1)?;
+                out.push(format!("{pad}{} {{", kw_of(&r["member_type"])));
+                out.extend(inner);
+                out.push(format!("{pad}}} {rel}{aarr};"));
+                i += 1 + n;
+                continue;
+            }
+            let mt = r["member_type"].strip_prefix("const ").unwrap_or(&r["member_type"]);
+            let konst = if mt.len() < r["member_type"].len() { "const " } else { "" };
+            let (base, arr) = match mt.find('[') {
+                Some(k) => (&mt[..k], &mt[k..]),
+                None => (mt, ""),
+            };
+            let core = base.trim_end_matches(['*', ' ']);
+            let stars = &base[core.len()..];
+            let ty = if core.starts_with("struct ") && self.t.layouts.contains_key(core) && stars.is_empty() {
+                nested.push(core.to_string());
+                core.to_string()
+            } else if core.starts_with("struct ") && stars.is_empty() {
+                return None; // a complete structure the tables do not describe: the aggregate stays opaque
+            } else if core.starts_with("struct ") {
+                format!("{core}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
+            } else {
+                let b = dwarf_scalar(core).or_else(|| {
+                    let x = self.resolve(core);
+                    (scalar(&x) || x == "void").then_some(x)
+                })?;
+                format!("{b}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
+            };
+            let width = r["bitfield"].strip_prefix("bits ").and_then(|b| b.split('@').next()).map(|w| format!(" : {w}")).unwrap_or_default();
+            out.push(format!("{pad}{konst}{ty} {rel}{arr}{width};"));
+            i += 1;
+        }
+        Some(out)
     }
 
     /// The size in bytes of a member type of layouts.tsv (`core`, its `stars` and `[n]` suffix), when known.
@@ -663,9 +764,10 @@ impl Gen<'_> {
             return;
         };
         let ty = r["cxx"].clone();
+        // A structure tag gets its keyword (`in6_addr const` is `struct in6_addr const` in C).
         let line = match ty.find('[') {
-            Some(i) => format!("extern {} {name}{};", ty[..i].replace('*', " *"), &ty[i..]),
-            None => format!("extern {} {name};", ty.replace('*', " *")),
+            Some(i) => format!("extern {} {name}{};", self.type_words(&ty[..i]), &ty[i..]),
+            None => format!("extern {} {name};", self.type_words(&ty)),
         };
         self.guard(name, vec![line]);
     }
@@ -887,7 +989,11 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 stack.extend(includes(&texts[&x]));
             }
         }
-        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        // `@@needs H ...`: headers whose slice is not in this tree yet supply their names; the include is guarded
+        // by `__has_include` until the template exists.
+        let mut needs: Vec<String> = text.lines().filter_map(|l| l.strip_prefix("@@needs ")).flat_map(|r| r.split_whitespace().map(String::from).collect::<Vec<_>>()).collect();
+        needs.extend(text.lines().filter_map(|l| l.strip_prefix("@@needs-if ")).filter_map(|r| r.split_whitespace().nth(1).map(String::from)));
+        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"]) || needs.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         let mut owned = BTreeSet::new();
         let mut owned_macros = BTreeSet::new();
         for l in text.lines() {
@@ -909,6 +1015,22 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 Some("@@generated") => g.out.push(BANNER.into()),
                 Some("@@emit") => g.emit(&owned),
                 Some("@@owns") | Some("@@owns-macro") => {}
+                Some("@@needs-if") => {
+                    // `@@needs-if NAME H`: H is included where NAME is visible, and supplies its own names.
+                    let mut w = l.split_whitespace().skip(1);
+                    let (n, h) = (w.next().unwrap_or(""), w.next().unwrap_or(""));
+                    let c = g.cond(n, None);
+                    g.out.extend([format!("#if {c}"), format!("# include <{h}>"), "#endif".into()]);
+                }
+                Some("@@needs") => {
+                    for n in l.split_whitespace().skip(1) {
+                        if texts.contains_key(n) {
+                            g.out.push(format!("#include <{n}>"));
+                        } else {
+                            g.out.extend([format!("#if __has_include(<{n}>)"), format!("# include <{n}>"), "#endif".into()]);
+                        }
+                    }
+                }
                 Some("@@intc") => g.intc(),
                 Some("@@stubs") => {
                     for f in &t.stubs {

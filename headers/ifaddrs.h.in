@@ -1,0 +1,16 @@
+@@generated
+/* ifaddrs.h: network interface addresses (getifaddrs(3)) */
+#ifndef __NIJI_H_ifaddrs_h
+#define __NIJI_H_ifaddrs_h 1
+
+#include <features.h>
+#include <sys/socket.h>
+#include <stdint.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

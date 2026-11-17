@@ -1,0 +1,26 @@
+@@generated
+/* resolv.h: the resolver (resolver(3)) */
+#ifndef __NIJI_H_resolv_h
+#define __NIJI_H_resolv_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <arpa/nameser.h>
+
+__NIJI_BEGIN_C
+
+@@owns-macro res_init res_nclose res_ninit _res
+@@emit
+
+@@when _res
+# define res_init res_init
+# define res_ninit res_ninit
+# define res_nclose res_nclose
+# define _res (*__res_state ())
+#endif
+
+__NIJI_END_C
+
+#endif

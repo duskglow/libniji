@@ -1,0 +1,18 @@
+@@generated
+/* arpa/nameser.h: domain name system messages (RFC 1035) */
+#ifndef __NIJI_H_arpa_nameser_h
+#define __NIJI_H_arpa_nameser_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <stdint.h>
+#include <arpa/nameser_compat.h>
+
+__NIJI_BEGIN_C
+
+@@needs sys/param.h
+@@emit
+
+__NIJI_END_C
+
+#endif
