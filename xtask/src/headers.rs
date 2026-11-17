@@ -20,6 +20,8 @@
 //! * `@@intc`: the `INTn_C`/`UINTn_C`/`INTMAX_C`/`UINTMAX_C` macros, derived from the `typedefs.tsv` rows
 //!   of the least-width types (C 7.20.4); a missing row is an error.
 //! * `@@iso10646`: the `__STDC_ISO_10646__` value of the Unicode tables in `spec/unicode/`.
+//! * `@@sonames`: one `<STEM>_SO` string macro per shared object `versions.tsv` and `empty-versions.tsv` name
+//!   (`libc.so.6` is `LIBC_SO`, `ld-linux-x86-64.so.2` is `LD_LINUX_X86_64_SO`: the part before `.so`, upper case, `-` as `_`).
 //! * `@@stubs`: `__stub_<f>` for each function `spec/abi/stubs.tsv` lists as linkable but ENOSYS-only.
 //!
 //! A condition is searched over the levels: the smallest disjunction of terms (a level test or the
@@ -252,6 +254,7 @@ struct Tables {
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
     stubs: Vec<String>,
+    sonames: BTreeSet<String>,
 }
 
 fn load(root: &Path) -> Result<Tables, String> {
@@ -279,7 +282,11 @@ fn load(root: &Path) -> Result<Tables, String> {
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let stubs = tsv(root, STUBS)?.into_iter().filter(|r| r["link"] == "default").map(|r| r["function"].clone()).collect();
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, stubs })
+    let mut sonames: BTreeSet<String> = BTreeSet::new();
+    for f in ["spec/abi/versions.tsv", "spec/abi/empty-versions.tsv"] {
+        sonames.extend(tsv(root, f)?.into_iter().map(|r| r["library"].clone()));
+    }
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, stubs, sonames })
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -910,6 +917,12 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 Some("@@emit") => g.emit(&owned),
                 Some("@@owns") | Some("@@owns-macro") => {}
                 Some("@@intc") => g.intc(),
+                Some("@@sonames") => {
+                    for so in &t.sonames {
+                        let stem = so.split(".so").next().unwrap_or(so).to_uppercase().replace('-', "_");
+                        g.out.push(format!("#define {stem}_SO \"{so}\""));
+                    }
+                }
                 Some("@@stubs") => {
                     for f in &t.stubs {
                         g.out.extend([format!("#ifndef __stub_{f}"), format!("# define __stub_{f}"), "#endif".into()]);

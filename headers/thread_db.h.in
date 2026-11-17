@@ -1,0 +1,17 @@
+@@generated
+/* thread_db.h: the thread debugging interface of libthread_db (Sun's thread_db(3) model). */
+#ifndef __NIJI_H_thread_db_h
+#define __NIJI_H_thread_db_h 1
+
+#include <features.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <proc_service.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

@@ -1,0 +1,10 @@
+@@generated
+/* gnu/lib-names.h: the sonames of libniji's shared objects, one macro per object (`libc.so.6` is LIBC_SO). */
+#ifndef __NIJI_H_gnu_lib_names_h
+#define __NIJI_H_gnu_lib_names_h 1
+
+#include <features.h>
+
+@@sonames
+
+#endif
