@@ -3,10 +3,6 @@
 #ifndef __NIJI_H_sys_user_h
 #define __NIJI_H_sys_user_h 1
 
-#include <features.h>
-
-__NIJI_BEGIN_C
-
 #if 1
 # ifndef __NIJI_D_struct_user_regs_struct
 #  define __NIJI_D_struct_user_regs_struct 1
@@ -146,7 +142,5 @@ struct user_regs_struct {
 #  define UPAGES 1
 # endif
 #endif
-
-__NIJI_END_C
 
 #endif

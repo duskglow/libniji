@@ -3,10 +3,6 @@
 #ifndef __NIJI_H_sys_reg_h
 #define __NIJI_H_sys_reg_h 1
 
-#include <features.h>
-
-__NIJI_BEGIN_C
-
 #if 1
 # ifndef CS
 #  define CS 17
@@ -90,7 +86,5 @@ __NIJI_BEGIN_C
 #  define SS 20
 # endif
 #endif
-
-__NIJI_END_C
 
 #endif

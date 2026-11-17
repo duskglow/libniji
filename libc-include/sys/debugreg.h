@@ -4,10 +4,6 @@
 #ifndef __NIJI_H_sys_debugreg_h
 #define __NIJI_H_sys_debugreg_h 1
 
-#include <features.h>
-
-__NIJI_BEGIN_C
-
 #if 1
 # ifndef DR_CONTROL
 #  define DR_CONTROL 7
@@ -88,7 +84,5 @@ __NIJI_BEGIN_C
 #  define DR_TRAP3 8
 # endif
 #endif
-
-__NIJI_END_C
 
 #endif

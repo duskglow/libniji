@@ -4,7 +4,6 @@
 #define __NIJI_H_sys_pidfd_h 1
 
 #include <features.h>
-#include <sys/types.h>
 
 __NIJI_BEGIN_C
 
@@ -161,10 +160,54 @@ union sigval {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
+# ifndef __NIJI_D_mode_t
+#  define __NIJI_D_mode_t 1
+typedef unsigned int mode_t;
+# endif
+# ifndef __NIJI_D_off_t
+#  define __NIJI_D_off_t 1
+typedef long off_t;
+# endif
+# ifndef __NIJI_D_pid_t
+#  define __NIJI_D_pid_t 1
+typedef int pid_t;
+# endif
 # ifndef __NIJI_D_siginfo_t
 #  define __NIJI_D_siginfo_t 1
 typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } siginfo_t;
 # endif
+#endif
+#if __NIJI_GNU
+# ifndef __NIJI_D_size_t
+#  define __NIJI_D_size_t 1
+typedef unsigned long size_t;
+# endif
+#endif
+#if __NIJI_LFS64
+# ifndef __NIJI_D_off64_t
+#  define __NIJI_D_off64_t 1
+typedef long off64_t;
+# endif
+#endif
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_time_t
+#  define __NIJI_D_time_t 1
+typedef long time_t;
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_creat
 #  define __NIJI_D_creat 1
 #  if !__NIJI_FOB64
