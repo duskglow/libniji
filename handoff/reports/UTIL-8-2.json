@@ -1,0 +1,24 @@
+{"task": "UTIL-8-2", "model": "opus", "tokens": null,
+ "result": "locale command finished: -a -v pairs fixed, .gz charmaps read in process, 48/48 transcripts equal to the reference; gate and plants pending",
+ "branch": "task/util-8-2", "head": "b427a5bdb",
+ "gate": {"affected": "pending (util-8-2-gate1); transcripts util-8-2-rec7: 48 ok / 0 mismatched", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "C and C.UTF-8: nl_langinfo gives empty _NL_CTYPE_CLASS_NAMES/_NL_CTYPE_MAP_NAMES and a non-table _NL_CTYPE_WIDTH (reference: 12 class names, toupper;tolower, 7); a section 7 story; LC_CTYPE category transcripts left out",
+   "The reference has no built-in C.UTF-8 (empty /usr/lib/locale: -a lists C and POSIX only); libniji lists C.utf8 always (spec s31_7_g_2) and has it built in",
+   ".bz2 charmaps are listed by name only (differences row); nothing installs one",
+   "sync_role.sh reports BUSY for ~30 s to 20 min after a job ends while its slots wrapper lingers (cost 6 sync calls here)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "locale -a -v: each locale printed with its own source line (sorted pairs)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "correctness", "what": "locale -m: <code_set_name> of .gz charmaps listed (in-process inflater, no spawn)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "locale transcripts recorded from the reference, all equal", "before": 0, "after": 48, "unit": "transcripts", "measured": true},
+   {"kind": "coverage", "what": "plants on csys/util/locale.c", "before": 0, "after": 15, "unit": "plants", "measured": false},
+   {"kind": "size", "what": "locale binary, unstripped", "before": null, "after": 206752, "unit": "bytes", "measured": true}
+ ],
+ "improvement": "sync_role BUSY should ignore a finished job's lingering slots wrapper (jobs.tsv already has its rc)",
+ "next_step": "read util-8-2-gate1 and util-8-2-plants on keke; green: land; then a section 7 story for the C/C.UTF-8 LC_CTYPE class/map/width items",
+ "report_file": "handoff/UTIL-8.md",
+ "jobs": ["util-8-2-lint1", "util-8-2-gate1", "util-8-2-plants"]}
