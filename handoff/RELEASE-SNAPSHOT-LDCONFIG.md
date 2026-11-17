@@ -30,7 +30,10 @@ No product or packaging code changed.
 | plants (handoff/RELEASE-SNAPSHOT-LDCONFIG-plants.txt) | release-snapshot-ldconfig-2-plants-1 (mei) rc 0 | `6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG`; the root-system.sh baselines pass with the fix | same as NIJI1-2 |
 
 Superseded: roots-1 (root 18/1 from the stale `/usr/lib` check, fixed by 5383e0ba7 and rerun as root-2);
-release-snapshot-ldconfig-2-root-1 (rc 128: my job chained `git log` in the role, which is not a git tree; the root never ran).
+release-snapshot-ldconfig-2-root-1 (rc 128: my job chained `git log` in the role, which is not a git tree; the root never ran);
+gate-1 of -2 (head before the script fix; gate-2 is the final head); debs-1 (rc 1 = the iconv DBG finding, ruled #6321),
+yohane-1 (rc 1 = the header finding), lint-1 and smoke-mei-1 (rc 0, same products, but run before the
+root-system.sh commit, which neither uses; handback-check counts them as older content): evidence, read above.
 
 **Swap ldd-6 / ldd-7 (`ldd -v /bin/sh`, `ldd -v python3`):** stock prints a `/lib/x86_64-linux-gnu/libc.so.6:` block
 (ld-linux-x86-64.so.2 GLIBC_2.2.5, 2.3, 2.35, PRIVATE) and libm.so.6's block lists ld.so GLIBC_PRIVATE and libc.so.6

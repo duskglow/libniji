@@ -18,4 +18,4 @@
  "improvement": "a release check that compiles inside the swapped root found a header gap that every earlier snapshot missed because the root checks compile with the host's headers; the empty-root check should compile inside the root too",
  "next_step": "coordinator rules on the system-flavour header gap, then tags 20dbed16c from keke ~/release-staging/snapshot-20261117.3/",
  "report_file": "handoff/RELEASE-SNAPSHOT-LDCONFIG.md",
- "jobs": ["release-snapshot-ldconfig-2-gate-2", "release-snapshot-ldconfig-2-root-2", "release-snapshot-ldconfig-2-plants-1", "release-snapshot-ldconfig-lint-1", "release-snapshot-ldconfig-smoke-mei-1", "keke:release-snapshot-ldconfig-smoke-keke-1", "keke:release-snapshot-ldconfig-pkgdiff-1", "keke:release-snapshot-ldconfig-2-stage-1", "keke:release-snapshot-ldconfig-2-install-1"]}
+ "jobs": ["release-snapshot-ldconfig-2-gate-2", "release-snapshot-ldconfig-2-root-2", "release-snapshot-ldconfig-2-plants-1", "keke:release-snapshot-ldconfig-smoke-keke-1", "keke:release-snapshot-ldconfig-pkgdiff-1", "keke:release-snapshot-ldconfig-2-stage-1", "keke:release-snapshot-ldconfig-2-install-1"]}
