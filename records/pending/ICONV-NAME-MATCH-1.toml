@@ -2,6 +2,7 @@ id = "D-NEW"
 series = "D-6"
 section = "s06"
 spec = "§6.4"
+ann = "HIST"
 status = "active"
 amends = ["D-6.8"]
 story = "ICONV-NAME-MATCH"
