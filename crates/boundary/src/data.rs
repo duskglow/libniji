@@ -238,7 +238,8 @@ pub static __niji_build_tag: [u8; niji_rt::start::private::TAG_LEN] = niji_rt::s
 #[used]
 pub static __niji_thread_db: niji_rt::thread::Debug<'static> =
     niji_rt::thread::Debug::new(&crate::thread::HEAD, &crate::thread::LIVE, &crate::thread::TLS_IMAGE);
-const _: () = assert!(niji_rt::thread::DEBUG_DTV_HEADER == niji_ld::tls::DTV_HEADER);
+// The descriptor's dtv header agrees with the loader's: checked in `bootstrap` (product builds
+// only), so this module, which the test builds compile, names no loader crate.
 
 // ------------------------------------------------------------------------------ §12 objects
 //
