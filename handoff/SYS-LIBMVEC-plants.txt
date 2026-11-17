@@ -10,3 +10,11 @@ mvec-all-compat | xtask/src/libmvec.rs | lit:{ "@@" } else { "@" } ==> { "@" } e
 mvec-float-as-double | xtask/src/libmvec.rs | lit:Some(32) => Ok("float"), ==> Some(32) => Ok("double"), | cargo test -p niji --test libmvec_products | msg:_ZGV[bcde]N(4|8|16)v.*f|undefined|error
 # libmvec.a: the exported aliases made local, so a static link finds no vector symbol.
 mvec-static-local | xtask/src/libmvec.rs | lit:\".globl {n}\\n.type ==> \".local {n}\\n.type | cargo test -p niji --test libmvec_products | msg:undefined reference to `_ZGV|libmvec_lanes_equal_the_scalar_functions.*FAILED
+# Packaging (SYS-LIBMVEC-3, after the merge with next): each repackages the sys-libmvec-3-pkg job's
+# products from the planted copy and runs check-system.sh (the products come from that job's --work).
+# libc6 without libmvec.so.1: the SONAME loop finds no library.
+mvec-pkg-lib | tools/deb/system.sh | lit:libm.so.6 libmvec.so.1 libpthread ==> libm.so.6 libpthread | o=$(mktemp -d) && tools/deb/build.sh --flavour system --products "$HOME/w/s1/target/mvec3-system-work/src/target/niji" --version 2.39+niji20261117.1-1 --out "$o/d" --work "$o/w" && tools/deb/check-system.sh "$o/d" | msg:check: FAIL libmvec\.so\.1: SONAME
+# libc6-dev's libmvec.so naming another library: the dev-link loop reports the target.
+mvec-pkg-link | tools/deb/system.sh | lit:libmvec.so.1 "$sdev/$mlib/libmvec.so" ==> libm.so.6 "$sdev/$mlib/libmvec.so" | o=$(mktemp -d) && tools/deb/build.sh --flavour system --products "$HOME/w/s1/target/mvec3-system-work/src/target/niji" --version 2.39+niji20261117.1-1 --out "$o/d" --work "$o/w" && tools/deb/check-system.sh "$o/d" | msg:check: FAIL libc6-dev: libmvec\.so -> 'libm\.so\.6'
+# libc6-dev without libmvec.a: the archive loop reports it.
+mvec-pkg-archive | tools/deb/system.sh | lit:libm.a libmvec.a libc_nonshared.a ==> libm.a libc_nonshared.a | o=$(mktemp -d) && tools/deb/build.sh --flavour system --products "$HOME/w/s1/target/mvec3-system-work/src/target/niji" --version 2.39+niji20261117.1-1 --out "$o/d" --work "$o/w" && tools/deb/check-system.sh "$o/d" | msg:check: FAIL libc6-dev has no libmvec\.a
