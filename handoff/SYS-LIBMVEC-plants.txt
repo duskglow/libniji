@@ -1,0 +1,12 @@
+# SYS-LIBMVEC plants (cargo xtask plants; docs/plants.md). Each mutates xtask/src/libmvec.rs, the
+# generator of libmvec.so.1 and libmvec.a; the oracle is crates/core/tests/libmvec_products.rs.
+# A two-operand wrapper that swaps its operands: lanes differ from the scalar call (pow, atan2, hypot).
+mvec-vv-swap | xtask/src/libmvec.rs | lit:return {scalar}(x, y); ==> return {scalar}(y, x); | cargo test -p niji --test libmvec_products | msg:libmvec_lanes_equal_the_scalar_functions.*FAILED|[1-9][0-9]* differ \(bit-exact\)
+# The first version node without `local: *`: the wrappers leak as unversioned exports.
+mvec-no-local | xtask/src/libmvec.rs | lit:{ " local: *;" } else ==> { "" } else | cargo test -p niji --test libmvec_products | msg:__niji_mvec|libmvec_exports_are_the_tables.*FAILED
+# Every export bound as a non-default (compat) version: a link against libmvec.so finds none.
+mvec-all-compat | xtask/src/libmvec.rs | lit:{ "@@" } else { "@" } ==> { "@" } else { "@" } | cargo test -p niji --test libmvec_products | msg:libmvec_.*FAILED|default|@@
+# 32-bit lanes typed double: the wrappers' clones get other lane counts than the names the table asks for.
+mvec-float-as-double | xtask/src/libmvec.rs | lit:Some(32) => Ok("float"), ==> Some(32) => Ok("double"), | cargo test -p niji --test libmvec_products | msg:_ZGV[bcde]N(4|8|16)v.*f|undefined|error
+# libmvec.a: the exported aliases made local, so a static link finds no vector symbol.
+mvec-static-local | xtask/src/libmvec.rs | lit:\".globl {n}\\n.type ==> \".local {n}\\n.type | cargo test -p niji --test libmvec_products | msg:undefined reference to `_ZGV|libmvec_lanes_equal_the_scalar_functions.*FAILED

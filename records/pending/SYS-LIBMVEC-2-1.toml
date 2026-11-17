@@ -1,0 +1,11 @@
+id = "D-NEW"
+series = "D-10"
+section = "s10"
+spec = "§10.0; Appendix C"
+ann = "—"
+status = "active"
+story = "SYS-LIBMVEC-2"
+date = "2026-11-17"
+body = '''
+**`libmvec.so.1` and `libmvec.a` compute each lane with libniji's scalar `libm` function** (SYS-LIBMVEC, SYS-LIBMVEC-2; plan/package-parity-audit.md row 2). The library exports the 216 (symbol, version) rows of `spec/abi/versions.tsv` for `libmvec.so.1` (48 at GLIBC_2.22, 168 at GLIBC_2.35). Method: `xtask/src/libmvec.rs` writes one C wrapper per scalar function, declared `__attribute__((simd("notinbranch")))`, whose body calls libniji's scalar function; the compiler emits the x86-64 vector function ABI clones (`b` SSE, `c` AVX, `d` AVX2, `e` AVX-512, unmasked) with the lane counts and register layout of the published vector function ABI document, and a `.symver` per row names the clone (a lane count the table does not match names an undefined clone, so the build fails). Consequences: (1) every lane is bit-identical to the scalar result, so the accuracy is libniji's scalar bound, tighter than the vector ABI's documented 4-ulp bound; (2) `errno` and the exception flags are those the scalar calls set, lane by lane (§10.0's rules; a black-box probe found the same `errno` and flags for pole, domain and overflow lanes on both sides, so this is no difference); (3) a call costs the lane count times a scalar call, slower than dedicated vector kernels, which are later work with their own measurements. No compatibility option: the results stay within the bound the reference documents for its vector variants, and restoring the reference's last bits would need its kernels. libniji's headers keep declaring no `simd` variants (ruling R4), and `libm.so` stays a link to `libm.so.6`, so a program built against libniji never imports `libmvec.so.1`; it serves programs built elsewhere. Tests: `crates/core/tests/libmvec_products.rs` (`libmvec_lanes_equal_the_scalar_functions`, all 216 exports, 1512 lanes over four ISA classes, shared and static; `libmvec_lane_layout_matches_the_reference`, the same program against the reference within 4 ulps; `libmvec_exports_are_the_tables`).
+'''
