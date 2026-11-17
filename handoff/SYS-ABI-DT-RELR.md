@@ -1,11 +1,31 @@
 # SYS-ABI-DT-RELR: libc.so.6 defines GLIBC_ABI_DT_RELR; the ABI tables record symbol-less nodes
 
-**State:** branch `task/sys-abi-dt-relr-3` (continues `-2` and `task/sys-abi-dt-relr`), cut from origin/next
-752955498. Last code commit 31b26287d; later commits are handoff/report prose only. Roles: SYS-ABI-DT-RELR mei:~/w/s4,
--2 keke:~/w/n3, -3 mei:~/w/s3. Report json: `handoff/reports/SYS-ABI-DT-RELR-3.json` (and `-2`); plants:
-`handoff/SYS-ABI-DT-RELR-2-plants.txt`.
+**State:** branch `task/sys-abi-dt-relr-4` (continues `-3`, `-2` and `task/sys-abi-dt-relr`), cut from origin/next
+752955498, origin/next 82ba8df97 merged in at 64cb7ccf4. Last code commit 31b26287d plus that merge; later commits
+are handoff/report prose only. Roles: SYS-ABI-DT-RELR mei:~/w/s4, -2 keke:~/w/n3, -3 mei:~/w/s3, -4 mei:~/w/s1.
+Report json: `handoff/reports/SYS-ABI-DT-RELR-4.json` (and `-3`, `-2`); plants: `handoff/SYS-ABI-DT-RELR-2-plants.txt`.
 
-## SYS-ABI-DT-RELR-3 (this run)
+## SYS-ABI-DT-RELR-4 (this run): merge origin/next
+
+* CI's merge_next stopped on `spec/tools/abi_extract.py` (and `xtask/src/main.rs`): SYS-LIBMVEC (on next) added
+  libmvec.so.1 to `LIBS`, a `--versions-only` mode and `mod libmvec`; this branch added `--empty-versions-only` and
+  `mod empty_versions` at the same spots. Merge 64cb7ccf4 keeps both (independent blocks, each ending in `return`).
+* `spec/abi/empty-versions.tsv` is not regenerated: `empty_versions()` now also walks libmvec.so.1, but on the
+  reference (Ubuntu GLIBC 2.39-0ubuntu8.9, mei) libmvec.so.1 defines only GLIBC_2.22 (49 symbols) and GLIBC_2.35
+  (169), both carried by exports, so the table keeps its three rows.
+* Auto-merged with disjoint hunks: `xtask/src/so.rs` (libmvec build + this branch's node writing and check),
+  `tools/deb/swap-system.sh` / `swap-cmds.sh` (next's optional SWAP_EXTRA_PKGS/CMDS hook; this branch's
+  kept locale/zdump). `sh -n` clean. The deb proof (`-proof2`, keke) was NOT rerun on the merged head.
+* Jobs on the merged head (mei:~/w/s1): `sys-abi-dt-relr-4-lint` (cargo xtask clippy + static) rc 0;
+  `sys-abi-dt-relr-4-gate` (direct tier, `cargo xtask affected --run`), then `sys-abi-dt-relr-4-startup`
+  (`NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products`, then readelf: libmvec.so.1 defines GLIBC_2.22 and
+  GLIBC_2.35), and `sys-abi-dt-relr-4-plants` (the 8 plants again). Results: gate rc 0 (affected escalated to
+  FULL `cargo xtask test`: 32 suites ok, 12079 passed, 0 failed, 1397 ignored; conformance 138/138; 47 min);
+  startup rc 0 (`so: 3 symbol-less version nodes defined`, `so: libmvec.so.1 (2 nodes, 216 exports ...)`,
+  hot_text_products 26 passed; libmvec.so.1 verdefs GLIBC_2.22 and GLIBC_2.35 (parent GLIBC_2.22), Flags none, as
+  the reference's); plants rc 0, 8/8 CAUGHT, no WARN (`handoff/SYS-ABI-DT-RELR-4-plants.txt`).
+
+## SYS-ABI-DT-RELR-3
 
 * -2's red verify (`sys-abi-dt-relr-2-startup3`, keke, rc 101) came from its job script, not the change: the script
   set `LIELLA_FULL_PROFILE=1` and ran `cargo test -p liella` (pre-rename names; `error: package ID specification
@@ -94,4 +114,6 @@
 
 ## Next step
 
-None for this story: land it (keke gate2/plants2/proof2 and mei -3 lint0/startup green).
+None for this story: land it (mei -4 lint/gate/startup/plants on the merged head; keke -2 proof2 on the pre-merge
+code). If CI's merge_next conflicts again in `spec/tools/abi_extract.py`, keep both sides: the extractor's modes are
+independent `if "--x-only" in sys.argv: ... return` blocks.
