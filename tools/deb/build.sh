@@ -11,7 +11,7 @@
 #       Package an existing products directory (built with that layout) as version V; no build.
 #   --flavour system (with either form; default --flavour coexist)
 #       The system build (plan/system-libc.md section 3, records/pending/SL-FLAVOUR-1.toml): the
-#       same tree built with prefix / (NIJI_PREFIX=/, NIJI_LIBDIR=usr/lib/x86_64-linux-gnu),
+#       same tree built with prefix / (NIJI_PREFIX=/, NIJI_LIBDIR=lib/x86_64-linux-gnu),
 #       packaged as the system's C library under Debian's names (libc6, libc-bin, libc6-dev,
 #       libc-dev-bin, locales, libc-l10n; tools/deb/system.sh), into OUT (default
 #       target/deb-system; work directory target/deb-system-work). Version
@@ -76,6 +76,13 @@ ma=x86_64-linux-gnu
 # The loader's compile-time prefix (crates/ld/src/search.rs): the sysroot, or / for the system build.
 prefix=$sysroot
 [ "$flavour" = coexist ] || prefix=/
+# The pinned directory of libniji's own libraries below the prefix. The system build names them
+# /lib/x86_64-linux-gnu/..., the first system directory and the one the reference's loader prints
+# them under (DL-TRACE-INTERP probe: its cache lists /lib/... first); on the merged-/usr systems the
+# packages need (/lib -> usr/lib, as the reference's /lib64 PT_INTERP does) it is the same file as
+# the installed /usr/lib/x86_64-linux-gnu/... one.
+libdir=usr/lib/$ma
+[ "$flavour" = coexist ] || libdir=lib/$ma
 # The ABI level the system packages' versions start with (R2; stays 2.39 until GLIBC_2.41 is complete, R3).
 abi=2.39
 # The project's packaging address (owner 2026-11-13); DEB_MAINTAINER overrides it for a rebuild.
@@ -118,7 +125,7 @@ if [ -z "$products" ]; then
         version=$abi+niji$(date -u -d "@$epoch" +%Y%m%d).${NIJI_DEB_SERIAL:-1}-${NIJI_DEB_REVISION:-1}
     fi
     echo "build.sh: building the products of $commit (release profile, prefix $prefix) in $work/src"
-    (cd "$work/src" && NIJI_PREFIX=$prefix NIJI_LIBDIR=usr/lib/$ma NIJI_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
+    (cd "$work/src" && NIJI_PREFIX=$prefix NIJI_LIBDIR=$libdir NIJI_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
     products=$work/src/target/niji
     # The specification tables of the tree the products were built from (system.sh's symbols file).
     spec=$work/src/spec
