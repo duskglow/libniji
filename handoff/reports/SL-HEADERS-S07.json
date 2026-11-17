@@ -1,6 +1,6 @@
 {"task": "SL-HEADERS-S07", "model": "sonnet", "tokens": null,
  "result": "INCOMPLETE: 24 of 29 slice 7 headers generated, P1 and P5 green (0 failed of 3245); sys/wait.h, wait.h, sys/param.h, spawn.h, sys/ioctl.h blocked on slices 8 and 14; P2, P3, P6, P7, P8, P10 not run; direct gate escalated to FULL and went red at `stubs` and `cargo xtask test` (not diagnosed)",
- "branch": "task/sl-headers-s07", "head": "HEAD_SHA",
+ "branch": "task/sl-headers-s07", "head": "f57dc20af",
  "gate": {"affected": "escalated to FULL: stubs FAIL, cargo xtask test FAIL (0 tests ran); cause not diagnosed", "peak": "992M"},
  "accepted_first_attempt": null,
  "rulings": [
