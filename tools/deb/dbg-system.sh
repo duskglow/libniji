@@ -6,11 +6,11 @@
 # A root of SUITE (trixie default, or excalibur; MIRROR and KEYRING as in tools/deb/proof.sh) with gdb;
 # libniji's libc6 and libc-bin swapped in as tools/deb/swap-system.sh does (dpkg -i --force-downgrade
 # --force-depends), so gdb itself runs on libniji. Then, in the root (tools/deb/dbg-cmds.sh):
-#   - before libc6-dbg: gdb finds no line information for DBG_FUNC (default exit) in the
+#   - before libc6-dbg: gdb finds no line information for DBG_FUNC (default setlocale) in the
 #     stripped libc.so.6;
 #   - dpkg -i libc6-dbg succeeds (its Depends: libc6 (= version) is met by the swapped libc6);
 #   - after: `info line DBG_FUNC` names a source file and line (gdb found the debug file by build-id
-#     under /usr/lib/debug/.build-id), and gdb stopped at DBG_FUNC in a running /usr/bin/true shows
+#     under /usr/lib/debug/.build-id), and gdb stopped at DBG_FUNC in a running /usr/bin/true --version shows
 #     the frame's file:line.
 # The root's libc.so.6 and loader must be the package's (SHA-256). Prints "dbg: PASS|FAIL|INFO ..."
 # lines and "dbg: RESULT ..."; exit 1 when any is FAIL. The outputs are under LOGDIR/dbg-<suite>/.
@@ -22,7 +22,7 @@ suite=${2:-trixie}
 logdir=${3:-$debdir}
 here=$(cd "$(dirname "$0")" && pwd)
 mm=${MMDEBSTRAP:-mmdebstrap}
-func=${DBG_FUNC:-exit}
+func=${DBG_FUNC:-setlocale}
 case $suite in
     trixie) mirror=https://deb.debian.org/debian; keyring=${KEYRING:-/usr/share/keyrings/debian-archive-keyring.gpg} ;;
     excalibur) mirror=http://deb.devuan.org/merged; keyring=${KEYRING:-/usr/share/keyrings/devuan-archive-keyring.gpg} ;;
@@ -81,8 +81,8 @@ grep -q -E "^Breakpoint 1, " "$o/run.out" 2>/dev/null && grep -q -E '^#0 +.* at 
     fail "gdb in a running /usr/bin/true: $(tail -4 "$o/run.out" 2>/dev/null | tr '\n' ' ')"
 # `list` there prints the source line numbers around the stop (the sources are not installed, so gdb
 # names the file and line instead of its text).
-grep -q -E '^[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out" 2>/dev/null &&
-    pass "list at the stop names the source: $(grep -m1 -E '^[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out")" ||
+grep -q -E '^(warning: )?[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out" 2>/dev/null &&
+    pass "list at the stop names the source: $(grep -m1 -E '^(warning: )?[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out")" ||
     fail "list at the stop: $(grep -v '^#' "$o/run.out" 2>/dev/null | tail -3 | tr '\n' ' ')"
 mv "$o"/* "$res/" && rm -rf "$res/tmp"
 echo "dbg: RESULT pass=$npass fail=$nfail"
