@@ -190,6 +190,10 @@ def answer_nodes():
         gdb.selected_inferior().write_memory(mask, struct.pack("<%dQ" % words, (1 << n) - 1, *([0] * (words - 1))))
     gdb.execute("set $rax = 0")
     leave_entry()
+    TOPO_ANSWERS[0] += 1
+
+
+TOPO_ANSWERS = [0]  # node counts answered, all runs (printed at the end: regen.sh checks start-up asked one)
 
 
 def node0_cpus():
@@ -485,6 +489,7 @@ def merge(runs):
 
 
 runs = [run_one(c) for c in classes]
+sys.stderr.write("trace_gdb: node count answered %d times\n" % TOPO_ANSWERS[0])
 shutil.rmtree(stage, ignore_errors=True)
 if host_reads:
     fail("the program read host files the tree does not supply (canon_host.sh): %s" % " ".join(sorted(host_reads)))

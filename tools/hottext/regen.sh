@@ -165,6 +165,12 @@ if ! cmp -s "$work/startup.names" "$work/numa1.names"; then
     exit 1
 fi
 echo "regen: page_faults true traced on a simulated 1-node host: the same trace"
+# The comparison above sees a host's node count only where it differs from the simulated one; this sees the
+# library asking the node count past the tracer's answer (another entry, another call) on any host.
+if ! grep -q '^trace_gdb: node count answered [1-9]' "$work/gdb.startup.log"; then
+    echo "regen: page_faults true asked no node count trace_gdb.py's virtual topology answered (it answers get_mempolicy at niji_sys_syscall): $(grep -m1 '^trace_gdb: node count' "$work/gdb.startup.log")" >&2
+    exit 1
+fi
 # LAYOUT-TRACE-AT-BUILD-2: the trace set covers every mode hot_text_products.rs measures, which is every
 # mode of page_faults.c (its init_startup_data_accesses_are_in_the_data1_cluster checks that, parsing the
 # source the same way; `true` is the default mode, selected by no strcmp): a mode with no trace above
