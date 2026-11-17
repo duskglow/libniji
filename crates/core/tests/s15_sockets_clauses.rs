@@ -361,6 +361,7 @@ fn s15_1_c_7_null_buffer_length_query() {
     assert_eq!(len, 2, "an unnamed Unix peer: the family alone");
     let mut len = 0u32;
     assert!(err(x::getpeername(l, null_mut(), Some(&mut len)) as isize, Errno::ENOTCONN), "not connected");
+    assert!(err(x::getpeername(l, null_mut(), None) as isize, Errno::ENOTCONN), "not connected, before the missing length cell");
     assert!(err(x::getsockname(-1, null_mut(), None) as isize, Errno::EBADF));
     close(&[l, a, b]);
 }
