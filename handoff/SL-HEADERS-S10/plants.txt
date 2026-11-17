@@ -6,4 +6,4 @@ s10-stdbit-count-ones | headers/stdbit.h.in | lit:stdc_count_ones_uc (unsigned c
 s10-fnm-nosys | headers/fnmatch.h.in | lit:# define FNM_NOSYS (-1) ==> # define FNM_NOSYS (1) | cargo xtask headers-gen --check | msg:headers-gen
 s10-lc-global-locale | headers/locale.h.in | lit:((locale_t) -1L) ==> ((locale_t) 0L) | cargo xtask headers-gen --check | msg:headers-gen
 s10-wcschr-overload | headers/wchar.h.in | lit:const_cast<wchar_t *> (wcschr ( ==> const_cast<wchar_t *> (wcsrchr ( | cargo xtask headers-gen --check | msg:headers-gen
-s10-p1-ftw-statx | spec/tools/header_check.py | lit:n in ("statx", "statx_timestamp") ==> n in ("statx",) | python3 spec/tools/header_check.py | msg:FAIL P1 ftw.h
+s10-p1-ftw-statx | spec/tools/header_check.py | lit:n in ("statx", "statx_timestamp") ==> n in ("statx_timestamp",) | python3 spec/tools/header_check.py | msg:FAIL P1 ftw.h
