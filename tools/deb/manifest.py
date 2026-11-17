@@ -47,9 +47,9 @@ ORDER = ("Essential", "Multi-Arch", "Pre-Depends", "Depends", "Recommends", "Sug
          "Breaks", "Conflicts", "Replaces", "Section", "Priority")
 MEMBERS = ("triggers", "symbols", "debug")
 REQUIRED = ("Architecture", "Section", "Priority")
-# The products (top-level files of the build's products directory, dot files aside) that no file
-# row ships, each with why; lint --products refuses any other product no file row names, so a new
-# product cannot be left out of the packages unnoticed.
+# The products (top-level regular files of the build's products directory, dot files and symbolic
+# links aside) that no file row ships, each with why; lint --products refuses any other product no
+# file row names, so a new product cannot be left out of the packages unnoticed.
 UNSHIPPED = {
     "libc.so": "the packages ship the linker script tools/deb/<flavour>/libc-so.ld as libc.so",
     "libm.so.6.source-digest": "the build's cache key for libm.so.6, not a library file",
@@ -139,7 +139,10 @@ def lint_errors(products=None):
     if products is not None and os.path.isdir(products):
         shipped = {f[4] for (_n, f) in man if len(f) == 8 and f[3] == "file"}
         for name in sorted(os.listdir(products)):
-            if name.startswith(".") or not os.path.isfile(os.path.join(products, name)):
+            # A symbolic link among the products (libresolv.so -> libresolv.so.2, for the build's
+            # own links) is not shipped as a file: the packages make their links from link rows.
+            q = os.path.join(products, name)
+            if name.startswith(".") or os.path.islink(q) or not os.path.isfile(q):
                 continue
             if name not in shipped and name not in UNSHIPPED:
                 errs.append("manifest.tsv: product %s is in %s and no file row ships it (add its row, or list it in "
