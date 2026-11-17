@@ -1,0 +1,13 @@
+{"task": "SL-HEADERS-S12", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: 16 slice-12 headers generated and compile alone in C and C++; P1/P2/P3/P8/P10 not done",
+ "branch": "task/sl-headers-s12", "head": "27457b733",
+ "gate": {"affected": "headers-gen --check, clippy, static green; compile of all 16 headers rc 0", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "arpa/nameser.h, resolv.h, netdb.h need sys/param.h and signal.h of slices 7 and 8: __has_include-guarded include until they land", "recommendation": "accept; remove the guard when both slices are on next"}],
+ "informational": ["the plants cmd is headers-gen --check; no test evaluates CMSG_*/IN6_IS_ADDR_* yet (P10)", "struct res_sym rows appended by hand from a probe; abi_extract.py lists it"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "slice 12 headers generated", "before": 27, "after": 43, "unit": "headers in libc-include", "measured": true}],
+ "improvement": "plants rebuild the full product per plant (225 s each) although headers-gen --check needs no products; a plants option to skip the so step would save most of the run",
+ "next_step": "P2/P3 compare, __UAPI_DEF_* wrappers for P8, P1 TUs, pending record",
+ "report_file": "handoff/SL-HEADERS-S12.md",
+ "jobs": ["mei:sl-headers-s12-gate3", "mei:sl-headers-s12-compile3", "mei:sl-headers-s12-plants"]}
