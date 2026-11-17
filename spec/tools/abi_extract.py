@@ -6,12 +6,15 @@ Sources, per the owner's decision on OD-1 (interface declarations, not implement
     type layouts (DWARF of a probe that declares one object per type), sizes and alignments,
     static-initializer bytes, function prototypes (gcc -aux-info), numeric macro values;
   * the dynamic symbol tables of the installed libraries (readelf): symbol versions,
-    default-vs-compat binding, and object sizes of exported data symbols.
+    default-vs-compat binding, and object sizes of exported data symbols;
+  * spec/abi/versions-additions.tsv: the exports libniji adds beyond the reference, each with its
+    decision record, merged into versions.tsv (versions.sha256 pins the reference rows alone).
 
 Run on the reference system (Ubuntu 24.04, glibc 2.39):  python3 spec/tools/abi_extract.py
-Outputs go to spec/abi/. Nothing here reads glibc source code.
+Outputs go to spec/abi/. Nothing here reads glibc source code. `--versions-only` regenerates
+versions.tsv and versions.sha256 alone.
 """
-import os, re, subprocess, sys, tempfile, collections
+import os, re, subprocess, sys, tempfile, collections, hashlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "abi")
@@ -498,6 +501,62 @@ def write(name, header, rows):
         for r in rows:
             f.write("\t".join(str(x) for x in r) + "\n")
 
+VERSIONS_HEAD = ["library", "symbol", "version", "binding", "type", "scope", "size"]
+ADDITIONS = "versions-additions.tsv"
+ADDITIONS_HEAD = ["arch"] + VERSIONS_HEAD + ["decision"]
+
+def additions():
+    """The exports libniji adds beyond the reference (spec/abi/versions-additions.tsv), for this ARCH.
+
+    The reference's symbol tables cannot give them, so a regeneration takes them from that file: one row per
+    export, `all` or one architecture, and the decision record that adds it (for example GLIBC_2.41's
+    sched_getattr/sched_setattr, owner ruling R3, D-24.12). `cargo xtask static` (abi-versions) checks the file
+    and that the committed versions tables are what this script writes."""
+    path = os.path.join(OUT, ADDITIONS)
+    if not os.path.exists(path):
+        sys.exit(f"{path}: missing; it lists the exports libniji adds beyond the reference, which a regeneration "
+                 f"would otherwise drop")
+    lines = open(path).read().splitlines()
+    if not lines or lines[0].split("\t") != ADDITIONS_HEAD:
+        sys.exit(f"{path}: the header must be {' '.join(ADDITIONS_HEAD)}")
+    rows = []
+    for n, line in enumerate(lines[1:], 2):
+        f = line.split("\t")
+        if len(f) != len(ADDITIONS_HEAD):
+            sys.exit(f"{path}:{n}: {len(f)} columns, want {len(ADDITIONS_HEAD)}")
+        if f[0] not in ("all", "x86_64", "aarch64"):
+            sys.exit(f"{path}:{n}: arch `{f[0]}` is none of all, x86_64, aarch64")
+        if not re.fullmatch(r"D-[0-9A-Z]+\.[0-9]+", f[-1]):
+            sys.exit(f"{path}:{n}: {f[2]}: the decision column names no decision record (D-<section>.<n>)")
+        if f[0] in ("all", ARCH):
+            rows.append(tuple(f[1:-1]))
+    return rows
+
+def merged(ref, adds):
+    """The reference rows with each addition after the last row of its library (at the end for a library the
+    reference lacks), in the additions file's order. An addition must not repeat a reference row's
+    library, symbol and version."""
+    keys = {tuple(str(x) for x in r[:3]) for r in ref}
+    out = list(ref)
+    for a in adds:
+        if a[:3] in keys:
+            sys.exit(f"{ADDITIONS}: {a[0]} {a[1]}@{a[2]} is already a row of the reference (or repeated)")
+        keys.add(a[:3])
+        last = max((i for i, r in enumerate(out) if r[0] == a[0]), default=len(out) - 1)
+        out.insert(last + 1, a)
+    return out
+
+def write_versions(syms):
+    """versions{SUFFIX}.tsv: the reference rows merged with the additions. versions{SUFFIX}.sha256: the sha256 of
+    the reference rows alone, rendered as write() renders them (header included), and their count, so that the
+    static check can tell a regenerated row from a hand-written one without the reference system."""
+    ref_text = "\t".join(VERSIONS_HEAD) + "\n" + "".join("\t".join(str(x) for x in r) + "\n" for r in syms)
+    rows = merged(syms, additions())
+    write(f"versions{SUFFIX}.tsv", VERSIONS_HEAD, rows)
+    with open(os.path.join(OUT, f"versions{SUFFIX}.sha256"), "w", newline="\n") as f:
+        f.write(f"{hashlib.sha256(ref_text.encode()).hexdigest()}\t{len(syms)}\n")
+    return rows
+
 def exports_diff(syms):
     """Exports present on only one of x86_64 (versions.tsv) and this arch, by library and name."""
     norm = lambda lib: "ld-linux" if lib.startswith("ld-linux") else lib
@@ -535,8 +594,7 @@ def main_cross():
             ini = initializers(tmp)
             write(f"initializers{SUFFIX}.tsv", ["type", "initializer", "size", "zero", "bytes_hex"], ini)
     syms = symbols()
-    write(f"versions{SUFFIX}.tsv", ["library", "symbol", "version", "binding", "type", "scope", "size"], syms)
-    diff = exports_diff(syms)
+    diff = exports_diff(write_versions(syms))
     write(f"exports-diff{SUFFIX}.tsv", ["library", "symbol", "only_on"], diff)
     oldest = sorted({r[2] for r in syms if r[2].startswith("GLIBC_2.")},
                     key=lambda v: [int(x) for x in v[6:].split(".")])[0]
@@ -562,6 +620,12 @@ def main():
         write("constants.tsv", ["macro", "value"], mac)
         print(f"{ver}\nconstants: {len(mac)}")
         return
+    if "--versions-only" in sys.argv:
+        # Regenerate versions.tsv (reference rows plus versions-additions.tsv) and versions.sha256 alone.
+        syms = symbols()
+        rows = write_versions(syms)
+        print(f"{ver}\nversioned symbol rows: {len(syms)}  additions: {len(rows) - len(syms)}")
+        return
     with tempfile.TemporaryDirectory() as tmp:
         types = available_types(tmp)
         szmap = sizes(tmp, types)
@@ -578,7 +642,7 @@ def main():
         mac = macros(tmp)
         write("constants.tsv", ["macro", "value"], mac)
     syms = symbols()
-    write("versions.tsv", ["library", "symbol", "version", "binding", "type", "scope", "size"], syms)
+    write_versions(syms)
     with open(os.path.join(OUT, "PROVENANCE"), "w", newline="\n") as f:
         f.write(f"Generated by spec/tools/abi_extract.py on the reference system.\n{ver}\n"
                 f"Types: {len(types)}  layout rows: {len(lay)}  initializers: {len(ini)}\n"

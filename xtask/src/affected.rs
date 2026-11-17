@@ -1738,6 +1738,7 @@ const XTASK_TOOLS: &[(&str, &str)] = &[
     ("kernel_index", "the generated KERNELS.md view (static: tables-fresh)"),
     ("register", "the saturation register check (static: register)"),
     ("compat_ids", "the compat id check (static: compat-ids)"),
+    ("abi_versions", "the versions tables against their additions and reference digest (static: abi-versions)"),
     ("codemap", "the code map view (static: codemap)"),
     ("compat_plan", "the compat dispatch table check (static: compat-plan)"),
     ("compatprobe", "the compat probe list check (static: compat-probes)"),
