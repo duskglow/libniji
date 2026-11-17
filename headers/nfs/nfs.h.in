@@ -1,14 +1,8 @@
 @@generated
-/* nfs/nfs.h: NFS protocol constants */
+/* nfs/nfs.h: NFS protocol constants: the kernel's definitions */
 #ifndef __NIJI_H_nfs_nfs_h
 #define __NIJI_H_nfs_nfs_h 1
 
-#include <features.h>
-
-__NIJI_BEGIN_C
-
-@@emit
-
-__NIJI_END_C
+#include <linux/nfs.h>
 
 #endif
