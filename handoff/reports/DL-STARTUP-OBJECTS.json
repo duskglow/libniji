@@ -1,0 +1,17 @@
+{"task": "DL-STARTUP-OBJECTS", "model": "opus", "tokens": null,
+ "result": "ld.so's start-time tables grow with the number of objects (inline 64, spill to mmap); issue #9 reproducer runs at N=63..300; start-up counters lower",
+ "branch": "task/dl-startup-objects", "head": null,
+ "gate": {"affected": "see job dl-startup-objects-gate", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [{"item": "dlopen loader keeps CAP=512 objects per process (a start of >=512 leaves dlopen and dl_iterate_phdr without start-time objects), NEW_MAX=64 per dlopen call, EXIT_MAX=512, THREAD_MODS=512", "recommendation": "follow-up story DL-LOADER-GROW making the dlopen node table growable with the same Table design"}],
+ "informational": ["under an address-space limit a failed candidate mapping is reported as 'No such file or directory' / 'cannot read file data' (existing open_candidate texts)", "no plant covers the requester-chain depth (needs a 65-deep RPATH chain corpus)"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "a program needing more than 63 objects at start (issue #9) failed 'too many objects' exit 127; now runs (tested to 300)", "before": 64, "after": null, "unit": "objects at start", "measured": true},
+  {"kind": "correctness", "what": "dlopen after a start of more than 64 objects failed (adopt_tls bound)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "dynamic start, niji program with 3 libraries, fast profile", "before": 9322123, "after": 9312219, "unit": "instr/process", "measured": true},
+  {"kind": "faults", "what": "dynamic start, niji program with 0 / 3 / 12 libraries", "before": 84, "after": 81, "unit": "page faults (N=0; N=3 99->97; N=12 135->133)", "measured": true},
+  {"kind": "coverage", "what": "tests start_objects_past_every_old_bound, start_objects_out_of_memory_is_clean, init_order_long_chain; 9 plants", "before": 0, "after": 3, "unit": "tests", "measured": true}],
+ "improvement": "a count probe that runs a niji program under perf must not set LD_LIBRARY_PATH (perf inherits it and loads niji's libc): name libc by path instead",
+ "next_step": "read dl-startup-objects-gate and dl-startup-objects-plants; then follow-up DL-LOADER-GROW for the dlopen caps",
+ "report_file": "handoff/DL-STARTUP-OBJECTS.md",
+ "jobs": ["mei:dl-startup-objects-gate", "mei:dl-startup-objects-plants", "mei:dl-startup-objects-counts5"]}
