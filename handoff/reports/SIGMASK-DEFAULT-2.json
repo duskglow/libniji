@@ -6,13 +6,14 @@
  "branch": "task/sigmask-default-2",
  "head": null,
  "gate": {
-  "affected": "FULL cargo xtask test sigmask-default-2-gate: see hand-back",
+  "affected": "FULL cargo xtask test sigmask-default-2-gate2: see hand-back",
   "peak": null
  },
  "accepted_first_attempt": false,
  "rulings": [],
  "informational": [
-  "internal callers checked: posix_spawn, system/popen, thread start, process.rs child mask, setjmp.S, context.S, abort, BSD/SysV mask calls; cancel/setxid/fork do no mask save/restore; none uses the public sigprocmask/pthread_sigmask"
+  "internal callers checked: posix_spawn, system/popen, thread start, process.rs child mask, setjmp.S, context.S, abort, BSD/SysV mask calls; cancel/setxid/fork do no mask save/restore; none uses the public sigprocmask/pthread_sigmask",
+  "first test fix (SIG_BLOCK window) let plant spawn-restore-missing survive: failing spawns before the window had already left the mask all-blocked; window now sets the mask whole and checks the entry mask; stale jobs sigmask-default-2-gate/-plants stopped"
  ],
  "refused": [],
  "impact": [
@@ -26,7 +27,7 @@
   },
   {
    "kind": "coverage",
-   "what": "plants that break posix_spawn's and system()'s mask restore (3 new; 7 in the file)",
+   "what": "plants that break posix_spawn's and system()'s mask restore (3 new; 7 in the file); s18_spawn_vm also checks the mask after the failing spawns",
    "before": 4,
    "after": 7,
    "unit": "plants",
@@ -37,7 +38,7 @@
  "next_step": "none once gate and plants are green",
  "report_file": "handoff/SIGMASK-DEFAULT.md",
  "jobs": [
-  "sigmask-default-2-gate",
-  "sigmask-default-2-plants"
+  "sigmask-default-2-gate2",
+  "sigmask-default-2-plants2"
  ]
 }

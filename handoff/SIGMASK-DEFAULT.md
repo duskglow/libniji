@@ -29,17 +29,22 @@ handoff/reports/SIGMASK-DEFAULT-2.json on top.
   (setjmp.S), getcontext/setcontext/swapcontext (context.S), abort (rt fatal.rs: unblock only), sighold/
   sigrelse/sigpause/sigblock/sigsetmask (signal_compat, same raw call). Cancellation and the set*id broadcast
   (cancel.rs, setxid.rs, fork.rs) do no mask save/restore.
-* Fix (a44697810): `before`/`after` start zeroed; the window now blocks SIGUSR2, SIGRTMIN and SIGRTMAX first and
-  runs `system("exit 3")` too, so a skipped or partial restore in posix_spawn or system() is caught.
+* Fix (a44697810, then the follow-up commit): `before`/`after` start zeroed; the window sets the whole mask
+  (SIG_SETMASK: SIGUSR2, SIGRTMIN, SIGRTMAX) and runs `system("exit 3")` too, and the mask on entry is compared
+  with the one main saw before any spawn. The first version used SIG_BLOCK, and its plant spawn-restore-missing
+  SURVIVED: the failing spawns before the window had already left everything blocked, so before == after (strace
+  of the mutant binary showed the all-blocked mask from the first spawn on). Setting the mask whole fixes that.
 * Plants: handoff/SIGMASK-DEFAULT-2-plants.txt (SIGMASK-DEFAULT's four plus spawn-restore-missing,
   spawn-restore-partial (drops signals 33..64 on restore), system-restore-missing).
 
 ## Proof (SIGMASK-DEFAULT-2, keke ~/w/r1)
 
 * Inherited head 3e6a4f0c9: clippy and static clean; s18_spawn_vm reproduced the CI failure (job
-  `sigmask-default-2-lint`, rc 1 by design). Fixed: `sigmask-default-2-s18` rc 0.
-* Final head: `sigmask-default-2-gate` (clippy, static, `cargo xtask test`: FULL, runs every conformance program,
-  crt_products and s20 clauses) and `sigmask-default-2-plants` (/dev/shm/claude/SIGMASK-DEFAULT-2/plants-1).
+  `sigmask-default-2-lint`, rc 1 by design). First fix: `sigmask-default-2-s18` rc 0; its gate and plants
+  (`sigmask-default-2-gate`, `sigmask-default-2-plants`, head 4ae08cc71) were stopped after the surviving plant
+  (4 CAUGHT, spawn-restore-missing SURVIVED) and are superseded.
+* Final head: `sigmask-default-2-gate2` (clippy, static, `cargo xtask test`: FULL, runs every conformance
+  program, crt_products and s20 clauses) and `sigmask-default-2-plants2` (/dev/shm/claude/SIGMASK-DEFAULT-2/plants-2).
   Results in the hand-back.
 
 ## Decisions in force
