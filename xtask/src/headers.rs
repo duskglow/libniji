@@ -459,7 +459,7 @@ impl Gen<'_> {
                 // A complete structure member (itimerspec holds two timespecs): its definition comes first.
                 nested.push(core.to_string());
                 format!("struct {tag}")
-            } else if core.starts_with("struct ") && !stars.is_empty() {
+            } else if core.trim_start_matches("const ").starts_with("struct ") && !stars.is_empty() {
                 // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
                 format!("{core} {}", stars.trim())
             } else if self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(') && (!stars.is_empty() || t["cxx"].contains("(*"))) {
