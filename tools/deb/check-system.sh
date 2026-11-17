@@ -26,7 +26,8 @@
 #    libc6-dev's libresolv.so links to libresolv.so.2; smoke/resolv.c linked with `-lresolv` needs
 #    libresolv.so.2 and libc.so.6 and binds ns_initparse and ns_parserr at GLIBC_2.9 (as Debian's
 #    libkrb5.so.3 does); linked statically with `-lresolv` (the empty libresolv.a, the functions in
-#    libc.a: D-16.6) it runs and prints its line.
+#    libc.a: D-16.6) it runs and prints its line. libmvec (D-10.124): libc6-dev's libmvec.so links to
+#    libc6's libmvec.so.1 and libmvec.a is there.
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -117,6 +118,7 @@ for deb in $debs; do
             libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
             libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf | libc-bin:./usr/bin/getent | libc-bin:./usr/bin/ldd) ok=yes ;;
             libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so | libc6-dev:./usr/lib/$ma/libresolv.so) ok=yes ;;
+            libc6-dev:./usr/lib/$ma/libmvec.so) ok=yes ;;
             libc6-dev:./usr/lib/$ma/libanl.so | libc6-dev:./usr/lib/$ma/libBrokenLocale.so | libc6-dev:./usr/lib/$ma/libc_malloc_debug.so) ok=yes ;;
         esac
         [ $ok = yes ] || echo "check: FAIL $pkg: path not in the system layout: $path"
@@ -147,19 +149,19 @@ if [ -f "$r/usr/sbin/ldconfig" ]; then
 else
     fail "libc-bin has no usr/sbin/ldconfig"
 fi
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
+for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
     [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
 done
 # SYS-DEV-LINKS: libc6-dev's development links name libc6's libraries (the link resolves in the
 # unpacked root), and the archives -l<x> needs in a static link are there.
-for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do
+for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0 libmvec.so.1; do
     dl=${so%%.so.*}.so
     t=$(readlink "$lib/$dl" || true)
     [ "$t" = "$so" ] || fail "libc6-dev: $dl -> '$t', not $so"
     [ -f "$lib/$dl" ] || fail "libc6-dev: $dl does not resolve to a file"
 done
-for a in libanl.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
+for a in libanl.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a libmvec.a; do
     [ -f "$lib/$a" ] || fail "libc6-dev has no $a"
 done
 

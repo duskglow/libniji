@@ -9,7 +9,7 @@
 # Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
 # spec, symbols_only) and helpers (put, put_link, put_text, need, installed_size).
 #
-#   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries (with
+#   libc6         run time: loader, libc.so.6, libm.so.6, libmvec.so.1, the placeholder libraries (with
 #                 libBrokenLocale.so.1: SYS-DEV-LINKS), libresolv.so.2 (D-16.6: its exports jump
 #                 to libc.so.6's own definitions); conffile
 #                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
@@ -28,7 +28,7 @@
 #                 with SL-BIN-CORE. No /etc/bindresvport.blacklist (spec 31.14, D-31.5: not
 #                 installed) and no /etc/default/nss (libniji's name services read no such file).
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so, libresolv.so, the development links libanl.so, libBrokenLocale.so,
+#                 libm.so, libmvec.so, libresolv.so, the development links libanl.so, libBrokenLocale.so,
 #                 libc_malloc_debug.so. No headers yet (SL-HEADERS, R4). Depends on linux-libc-dev,
 #                 libcrypt-dev and rpcsvc-proto (builds that include <linux/...> or <crypt.h>, or
 #                 run rpcgen, get them through libc6-dev); Provides: libc-dev (= <version>), so
@@ -47,7 +47,7 @@ mlib=usr/lib/$ma
 # --- libc6 ---
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$s6/$mlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
+for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     need "$so"
     put 0644 "$products/$so" "$s6/$mlib/$so"
 done
@@ -85,7 +85,7 @@ for o in gcrt1 grcrt1 crti crtn Mcrt1; do
 done
 # SYS-DEV-LINKS: libBrokenLocale.a holds the library's override (D-27.9); libg.a, libmcheck.a and
 # libpthread_nonshared.a are empty (D-27.9), so -lg, -lmcheck and -lpthread_nonshared resolve.
-for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
+for a in libc.a libm.a libmvec.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
     put 0644 "$products/$a" "$sdev/$mlib/$a"
 done
@@ -95,6 +95,7 @@ put_text 0644 "$sdev/$mlib/libc.so" "/* GNU ld script: libniji's C library (libc
 OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
 put_link libm.so.6 "$sdev/$mlib/libm.so"
+put_link libmvec.so.1 "$sdev/$mlib/libmvec.so"
 # Development links to libc6's libraries (SYS-DEV-LINKS): without them -lanl takes the empty
 # libanl.a and -lBrokenLocale takes libBrokenLocale.a in a dynamic link; with them each links the
 # shared library as a plain gcc link does with the reference packages. libnss_compat.so and
@@ -165,7 +166,7 @@ sys_control libc6 amd64 libs optional \
     "$abi_note" \
     " This package is the system's C library: the dynamic loader" \
     " /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (program interpreter" \
-    " /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6 and the libraries whose" \
+    " /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6, libmvec.so.1 and the libraries whose" \
     " functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1," \
     " libresolv.so.2, ...)."
 if [ -n "$symbols_only" ]; then

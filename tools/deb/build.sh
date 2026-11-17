@@ -174,7 +174,7 @@ fi
 rlib=$rt$sysroot/usr/lib/$ma
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$rlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
+for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     need "$so"
     put 0644 "$products/$so" "$rlib/$so"
 done
@@ -197,7 +197,7 @@ for o in gcrt1 grcrt1 crti crtn Mcrt1; do
     need "niji-$o.o"
     put 0644 "$products/niji-$o.o" "$dlib/$o.o"
 done
-for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
+for a in libc.a libm.a libmvec.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
     put 0644 "$products/$a" "$dlib/$a"
 done
@@ -207,8 +207,10 @@ put_text 0644 "$dlib/libc.so" "/* GNU ld script: libniji's C library (niji6-dev)
    /usr/lib/niji; link with --sysroot=/usr/lib/niji (niji-gcc does). */
 OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
-# libm.so stays a link: libniji has no libmvec, so no linker script is needed (SL-SONAMES).
+# libm.so stays a link, not a script that adds libmvec.so.1: libniji's headers declare no simd
+# variants (R4), so a link against libniji never imports a vector symbol (SL-SONAMES).
 put_link libm.so.6 "$dlib/libm.so"
+put_link libmvec.so.1 "$dlib/libmvec.so"
 put_link libresolv.so.2 "$dlib/libresolv.so"
 put_link libBrokenLocale.so.1 "$dlib/libBrokenLocale.so"
 # SYS-DEV-LINKS: -lanl and -lc_malloc_debug link the shared libraries, as in libc6-dev.

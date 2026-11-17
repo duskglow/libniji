@@ -16,6 +16,11 @@
 # depend on a newer libc6 level than 2.39 (plan section 4). The swap is proved by the root's libc.so.6
 # and loader being byte-identical to the ones in DEBDIR's libc6.
 #
+# Extra programs (optional): SWAP_EXTRA_PKGS, a comma-separated package list installed in both roots, and
+# SWAP_EXTRA_CMDS, a file of further `run ID CMD...` / `sh_ ID SCRIPT` lines (swap-cmds.sh's helpers) that
+# swap-cmds.sh runs after its own set; their results are compared like the rest. For example the users
+# of a library the audit samples (plan/package-parity-audit.md), such as libmvec.so.1's.
+#
 # Prints "swap: PASS|FAIL|INFO ..." lines and "swap: RESULT same=N differ=M"; exit 1 when the swap
 # failed or any command differs (the differences are under LOGDIR/swap-<suite>/).
 set -eu
@@ -48,6 +53,15 @@ mkdir -p "$stage/swap/debs" "$stage/ref"
 cp "$keyring" "$stage/keyring.gpg"
 cp "$libc6" "$libcbin" "$stage/swap/debs/"
 cp "$here/swap-cmds.sh" "$stage/swap/cmds.sh"
+include=mawk,gawk,python3-minimal,fakeroot,initramfs-tools-core
+if [ -n "${SWAP_EXTRA_PKGS:-}" ]; then
+    include=$include,$SWAP_EXTRA_PKGS
+    echo "swap: INFO extra packages in both roots: $SWAP_EXTRA_PKGS"
+fi
+if [ -n "${SWAP_EXTRA_CMDS:-}" ]; then
+    [ -f "$SWAP_EXTRA_CMDS" ] || { echo "swap: FAIL SWAP_EXTRA_CMDS: no file $SWAP_EXTRA_CMDS"; exit 1; }
+    cp "$SWAP_EXTRA_CMDS" "$stage/swap/extra.sh"
+fi
 chmod -R a+rX "$stage"
 dpkg-deb -x "$libc6" "$stage/ref"
 res=$logdir/swap-$suite
@@ -61,7 +75,7 @@ mmroot() { # mmroot MODE HOOK...: build a root, run the hooks, copy /tmp/swap/ou
     mode=$1; shift
     mkdir -p "$res/$mode-tmp"
     "$mm" --mode=unshare --variant=apt --keyring="$stage/keyring.gpg" --components=main \
-        --include=mawk,gawk,python3-minimal,fakeroot,initramfs-tools-core \
+        --include="$include" \
         --customize-hook="copy-in $stage/swap /tmp" \
         "$@" \
         --customize-hook="chroot \"\$1\" sh /tmp/swap/cmds.sh /tmp/swap/out" \
