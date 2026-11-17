@@ -1,0 +1,8 @@
+# PKG-MANIFEST plants (DRAFT, not run yet: check docs/plants.md on how a plant whose command needs the
+# products gets them, and whether `perl:` patterns may use \t, before the first run). The base packages
+# are the merge base's system .debs from the proof job (keke ~/work/PKG-MANIFEST-2/proof/d-system-base).
+pm-row-removed | tools/deb/manifest.tsv | perl:s{^both\tlibc6-dev\tusr/lib/x86_64-linux-gnu/libg\.a\t[^\n]*\n}{}m | python3 tools/deb/manifest.py check system $HOME/work/PKG-MANIFEST-2/proof/d-system-base | msg:libg\.a is shipped and the manifest does not list it
+pm-row-mode | tools/deb/manifest.tsv | perl:s{^(system\tlibc-bin\tusr/sbin/ldconfig\tfile\tldconfig\t)0755}{${1}0750}m | python3 tools/deb/manifest.py check system $HOME/work/PKG-MANIFEST-2/proof/d-system-base | msg:ldconfig has mode 0755, not 0750
+pm-unsorted | tools/deb/manifest.tsv | perl:s{^(both\tlibc6\tusr/lib64/[^\n]*\n)(both\tlibc6-dev\tusr/lib/x86_64-linux-gnu/Mcrt1\.o[^\n]*\n)}{$2$1}m | cargo test -p niji --test deb_manifest | msg:not sorted
+pm-build-extra-file | tools/deb/build.sh | lit:text) put "$mode" "$here/$src" "$dest" ;; ==> text) put "$mode" "$here/$src" "$dest"; put 0644 "$here/$src" "$dest.orig" ;; | cargo test -p niji --test deb_manifest | msg:is shipped and the manifest does not list it
+pm-build-mode | tools/deb/build.sh | lit:file) need "$src"; put "$mode" ==> file) need "$src"; put 0600 | cargo test -p niji --test deb_manifest | msg:has mode 0600, not 06
