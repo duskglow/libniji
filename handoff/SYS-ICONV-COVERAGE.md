@@ -1,51 +1,72 @@
-# SYS-ICONV-COVERAGE: why 1122 of 1180 iconv names fail with libniji's packages alone (issue #6), run 1
+# SYS-ICONV-COVERAGE (issue #6): iconv names with libniji's packages alone — after run 2
 
-**State.** Branch `task/sys-iconv-coverage`, code commit `240313ae9` (head: see report json). Verdict
-PENDING JOBS: code written and pushed; gate and plants were running at hand-back (context checkpoint).
-Decision: `records/pending/SYS-ICONV-COVERAGE-1.toml` (D-NEW, amends D-6.8). Plants:
-`handoff/SYS-ICONV-COVERAGE-plants.txt`. Per-name table: `handoff/SYS-ICONV-COVERAGE-names.tsv`.
+**State.** Branch `task/sys-iconv-coverage-2`, code head `d3b1241bc` (handoff commits after it).
+Decision: `records/pending/SYS-ICONV-COVERAGE-1.toml` (D-NEW, amends D-6.8; updated this run).
+Plants: `handoff/SYS-ICONV-COVERAGE-2-plants.txt`. Per-name before/after table:
+`handoff/SYS-ICONV-COVERAGE-2-names.tsv` (run 1's classes kept in `SYS-ICONV-COVERAGE-names.tsv`).
+Report: `handoff/reports/SYS-ICONV-COVERAGE-2.json`. Jobs and results: see "Jobs" below.
 
-## Cause (evidence; reference system glibc 2.39, role keke n2)
+## What run 2 did
 
-* D-6.8: every converter other than the built-ins is read from `/usr/share/i18n/charmaps`. No
-  libniji package shipped that directory (package-parity audit row 6 confirmed: our `locales` is a
-  placeholder; row 24, gconv, is irrelevant: libniji has no modules). Per name, one process each:
-  libniji opens **58** names alone, **683** with the host's charmaps visible (all 1180 on the reference).
-* A second cause: `CHARMAPS = 32` in `crates/legacy/src/global_locale.rs`: a process loads at most
-  32 charmaps; the 33rd distinct charset fails `EINVAL`. In one process libniji opened only 170
-  names even with the host charmaps (the earlier inventory's "168" was this limit, not missing data).
+* **Run 1's red fixed.** The clippy arithmetic in `iconv_charmaps_products.rs` now uses saturating
+  forms. Run 1's plants baseline failed in `xtask so` because `VENDORS/MICSFT/PC/CP737.TXT` (vendored
+  unchanged) ends with a DOS end-of-file byte (0x1A). The generator now reads such a file up to that byte.
+* **No fixed charmap cap** (owner principle 11-14). `global_locale.rs`: the 4×256 static arrays are
+  replaced by a table of 4-word records that doubles by fallible allocation (`charmap_room`), under
+  `LOCK`, read through a new `Objects::words_at` (the existing `tb::words64`, no new `unsafe`).
+  `ENOMEM` reaches `iconv_open` from every allocation on the path: `Mapper::map` now returns
+  `KResult` (an mmap `ENOMEM` is no longer "file missing"), and the same holds for the parse,
+  `TryBox`, the name interning and the table. Other errors still mean "not there" (`EINVAL`).
+  Loaded charmaps stay usable, and a later call retries.
+* **Tag characters.** The whole code-space test (first run this run) showed the reference's encoders
+  write U+E0000..U+E007F as nothing for every generated charset (CP1250: 379 vs 251 `E` lines). The
+  charmap codec now does the same, as EUC-JP already did (D-6.15). Without this, 43 of 43 charsets differed.
+* **New test** `charmaps_load_past_any_fixed_count_and_fail_cleanly_without_memory`
+  (`tests/oracle/iconv_many_charmaps.c`). It loads 300 distinct charmaps in one process, then sets
+  `RLIMIT_AS` to its size + 256 KiB and opens more until one fails. That failure must be `ENOMEM`;
+  afterwards every earlier descriptor still converts, and the failed name opens once the limit is
+  lifted. Measured: `ok first=300 more_opened=64 errno=ENOMEM`.
 
-## Classes of the 1122 names that failed alone (`names.tsv`, column `class`)
+## Before / after (every reference `iconv -l` name; libniji seeing only the generated charmaps)
 
-| class | names | fix |
-| --- | ---: | --- |
-| charmap-generated (this branch: 43 charsets, Unicode mapping tables reproduce the reference exactly) | 281 | done |
-| charmap-not-shipped (host charmap converts as the reference; no public table vendored yet) | 382 | next: more sources (IBM EBCDIC pages, Mac, multi-byte from WHATWG) |
-| charmap-not-shipped-differs (host charmap differs from the reference) | 59 | next: per-charset variant |
-| single-byte-no-charmap-name (an alias or charset no charmap names) | 229 | next: aliases by probe grouping + data |
-| multi-byte-no-charmap-name | 121 | next: multi-byte data (WHATWG indexes) |
-| stateful-or-no-single-byte (ISO-2022, UTF-7, IBM93x, ...) | 50 | RULING (new converter kind) |
+| class | names | before (alone) | after (alone, converts as the reference) |
+| --- | ---: | ---: | ---: |
+| charmap-not-shipped | 382 | 0 | 0 |
+| charmap-generated | 281 | 0 | 280 |
+| single-byte-no-charmap-name | 229 | 0 | 0 |
+| multi-byte-no-charmap-name | 121 | 0 | 0 |
+| charmap-not-shipped-differs | 59 | 0 | 0 |
+| opens-builtin | 58 | 58 (open) | 52 |
+| stateful-or-no-single-byte | 50 | 0 | 0 |
+| total | 1180 | 58 | 332 (338 open) |
 
-## Design
+One process and one process per name give identical results: the cap is gone. "After" is stricter
+than "before": the probe line must equal the reference's (open both ways plus a fingerprint).
+The 6 built-ins that open but differ are UTF-8, UTF8, ISO-IR-193, UTF-16, UTF16 and CSUNICODE.
+Their fingerprints differ in the built-in Unicode codecs, which this story did not touch, so they
+are not counted here. ISO88591 is the one generated-class name not in `charmaps.tsv`.
 
-`cargo xtask so` writes one POSIX charmap per row of `spec/encoding/charmaps.tsv` into
-`target/niji/charmaps` (`xtask/src/charmaps.rs`), from a Unicode mapping file vendored unchanged
-in `spec/encoding/unicode/` (README: Unicode terms of use). A row exists only where the file's
-decoding of every byte equals the reference's (fingerprint probe); aliases are the reference's
-`iconv -l` names grouped by that fingerprint. `tools/deb/system.sh` installs them in libc6
-(`/usr/share/i18n/charmaps`), `check-system.sh` checks their count and ISO-8859-15. Limit 32 -> 256.
+## Stateful encodings (ruling #6225: separate story; 50 names, class `stateful-or-no-single-byte`)
 
-## Tests and jobs (keke)
+ISO-2022 family (JP/-1/-2/-3, KR, CN, CN-EXT and aliases), UTF-7 (and its aliases), IBM930/933/935/937/939
+and the other names in that class. The exact list is in the names table, class `stateful-or-no-single-byte`.
 
-`crates/core/tests/iconv_charmaps_products.rs` (+ `tests/oracle/iconv_names.c`): every name of the
-table in one process and each charmap's whole code space vs the reference, libniji seeing only
-the generated set (`unshare -r -m` bind mount). Jobs: `sys-iconv-coverage-gate` (clippy, static,
-so, the three iconv product tests, coexist + system package builds, check-system, affected),
-`sys-iconv-coverage-plants` (4 plants). Probes: `-inv1`, `-inv2` (evidence only).
-NOT VERIFIED at hand-back: the after column (expected 58 -> 339 alone) and the round trips.
+## EBCDIC pages (ruling #6226: IBM CDRA data allowed; prefer IBM's own files)
+
+Sources checked (this run). IBM's own registry file
+(`public.dhe.ibm.com/software/globalization/gcoc/attachments/CP00037.txt`) is reachable, but it maps
+bytes to IBM GCGIDs, not to Unicode, and lists graphic characters only (no control range). It needs
+IBM's GCGID-to-Unicode table as well. ICU's CDRA tables in Unicode form are at
+`github.com/unicode-org/icu`, `icu4c/source/data/mappings/ibm-<n>_P100-<year>.ucm` (format `<Uxxxx> \xNN |k`).
+**Do not use** the `icu-data` repository's `glibc-*.ucm` files: they are tables taken from glibc.
+Next: a `ucm` reader in `xtask/src/charmaps.rs` (precision `|0` round trip, `|1` fallback, `|3`
+decode-only), vendored `.ucm` files plus the ICU licence and provenance under
+`spec/encoding/ibm/`, rows only where the whole code-space probe equals the reference.
 
 ## Next step
 
-Read both jobs' logs; fix what is red. Then: measure the after column (`run2.sh` probe with the
-generated dir mounted), add the next classes (IBM EBCDIC pages need a public source: RULING),
-alias groups for host-only names. Plan rows: D-6.8, D-6.15, D-6.9.
+1. EBCDIC pages from the CDRA `.ucm` tables (above): the largest part of `charmap-not-shipped`.
+2. `single-byte-no-charmap-name` (229): alias groups by probe fingerprint onto existing rows plus data.
+3. Multi-byte (WHATWG indexes, D-6.15 pattern). The stateful encodings are their own story (#6225).
+
+Plan rows: D-6.8, D-6.9, D-6.15, the pending D-NEW.
