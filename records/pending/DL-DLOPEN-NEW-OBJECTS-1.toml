@@ -1,0 +1,13 @@
+id = "D-NEW"
+series = "D-27"
+section = "s26-29"
+spec = "§27.1"
+ann = "DD"
+status = "active"
+amends = ["D-27.58"]
+story = "DL-DLOPEN-NEW-OBJECTS"
+date = "2026-11-17"
+tests = ["crates/ld/tests/dlopen_new_objects.rs"]
+body = '''
+**No fixed limit on the new objects one `dlopen` call loads (DL-DLOPEN-NEW-OBJECTS, audit HL-4; owner ruling 2026-11-17 on the hardcoded-limits audit: caps removed with fallible growth).** The call's per-object tables grow with its set: the bindings its relocations make (one row per new object), the pass-2 (IFUNC) marks, the init walk and its order, the constructors run after the loader lock is released, the dependency edges between new objects (`u16` indices below the process bound; were 1024 `u8` pairs) and the new static-TLS modules handed to the threads. Each is a `ld/table.rs` `Table` (the first 64 entries in place, 256 for the edges, then a private anonymous mapping, doubling), so a set of up to 64 objects maps nothing new. The per-object tables are reserved together once the breadth-first walk has found the set, before versions, relocation or publication, so a failure still unwinds the whole attempt; the only failure added is that mapping's: `dlopen` returns NULL and `dlerror` reads `<file>: cannot allocate memory`. A `dlclose` that unloads more TLS modules than its table can grow for releases them in batches (as separate closes would), so it never needs memory. `NEW_MAX` and the text `cannot load more objects in one call` for a large set are gone (the text stays for the dependency-list arena, HL-5). Still bounded, later stories: the process's 512 objects (HL-3) and the arenas (HL-5). Tests: `crates/ld/tests/dlopen_new_objects.rs` (one `dlopen` adding 201 objects with TLS, an IFUNC and a binding outside the dependencies; `dlclose`, a second load, the exit's order; an address-space sweep that never ends in a signal).
+'''
