@@ -24,8 +24,16 @@ fn root() -> PathBuf {
 }
 
 /// The files of the symbols step, named here as paths so that `cargo xtask affected` selects this
-/// test for a change to any of them (the driver, the system flavour, the generator).
-const STEP: [&str; 3] = ["tools/deb/build.sh", "tools/deb/system.sh", "tools/deb/symbols.py"];
+/// test for a change to any of them (the driver, the system flavour, the generator, and the
+/// packages' contents and control fields as data: PKG-MANIFEST).
+const STEP: [&str; 6] = [
+    "tools/deb/build.sh",
+    "tools/deb/system.sh",
+    "tools/deb/symbols.py",
+    "tools/deb/manifest.py",
+    "tools/deb/manifest.tsv",
+    "tools/deb/control.tsv",
+];
 
 #[test]
 fn every_version_node_has_a_dependency_rule() {

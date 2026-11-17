@@ -7,7 +7,10 @@
 # records/pending/SL-FLAVOUR-1.toml; checks tools/deb/check-system.sh, proof tools/deb/root-system.sh.
 #
 # Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
-# spec, symbols_only) and helpers (put, put_link, put_text, need, installed_size).
+# spec, symbols_only, pkgs) and helpers (install_rows, rows_with, strip_rows, write_control,
+# finish). What each package ships is tools/deb/manifest.tsv (flavour system and both rows), its
+# control fields tools/deb/control.tsv and tools/deb/description/<package> (PKG-MANIFEST); the
+# summary below describes those rows.
 #
 #   libc6         run time: loader, libc.so.6, libm.so.6, libmvec.so.1, the placeholder libraries (with
 #                 libBrokenLocale.so.1: SYS-DEV-LINKS), libresolv.so.2 (D-16.6: its exports jump
@@ -43,99 +46,22 @@
 #                 Depends: libc6 (= version); Provides: libc-dbg, libc6-dbgsym; Multi-Arch: same.
 #                 The packaged objects themselves are stripped exactly as before (no debuglink).
 
-sys=$here/system
-pkgs="libc6 libc-bin libc6-dev libc-dev-bin locales libc-l10n libc6-dbg"
-dbg=$stage/libc6-dbg
-s6=$stage/libc6
-bin=$stage/libc-bin
-sdev=$stage/libc6-dev
-mlib=usr/lib/$ma
+# The package holding the detached debugging information (libc6-dbg) and the one with the symbols
+# and shlibs members (libc6): tools/deb/control.tsv's debug and symbols rows.
+dbgpkg=$(python3 "$here/manifest.py" debug-package system)
+sympkg=$(python3 "$here/manifest.py" symbols-package system)
 
-# --- libc6 ---
-need ld-linux-x86-64.so.2
-put 0755 "$products/ld-linux-x86-64.so.2" "$s6/$mlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
-    need "$so"
-    put 0644 "$products/$so" "$s6/$mlib/$so"
-done
-put_link ../lib/$ma/ld-linux-x86-64.so.2 "$s6/usr/lib64/ld-linux-x86-64.so.2"
-put 0644 "$sys/x86_64-linux-gnu.conf" "$s6/etc/ld.so.conf.d/$ma.conf"
-# lintian's undeclared-elf-prerequisites (libc.so.6) for each library above: the prerequisite is in
-# this package, which has no Depends to name it.
-put 0644 "$sys/libc6.lintian-overrides" "$s6/usr/share/lintian/overrides/libc6"
+install_rows
 
-# --- libc-bin ---
-put 0644 "$sys/ld.so.conf" "$bin/etc/ld.so.conf"
-put 0644 "$sys/libc.conf" "$bin/etc/ld.so.conf.d/libc.conf"
-put 0644 "$sys/gai.conf" "$bin/etc/gai.conf"
-put 0644 "$sys/nsswitch.conf" "$bin/usr/share/libc-bin/nsswitch.conf"
-need ldconfig
-put 0755 "$products/ldconfig" "$bin/usr/sbin/ldconfig"
-need getconf
-put 0755 "$products/getconf" "$bin/usr/bin/getconf"
-need getent
-put 0755 "$products/getent" "$bin/usr/bin/getent"
-need iconv
-put 0755 "$products/iconv" "$bin/usr/bin/iconv"
-need ldd
-put 0755 "$products/ldd" "$bin/usr/bin/ldd"
-
-# --- libc6-dev ---
-need niji-crt1.o
-need niji-rcrt1.o
-put 0644 "$products/niji-crt1.o" "$sdev/$mlib/crt1.o"
-put 0644 "$products/niji-crt1.o" "$sdev/$mlib/Scrt1.o"
-put 0644 "$products/niji-rcrt1.o" "$sdev/$mlib/rcrt1.o"
-# SL-CRT: crti.o and crtn.o (every driver link), gcrt1.o (-pg), grcrt1.o (-pg -static-pie) and
-# the empty Mcrt1.o, as in the coexisting niji6-dev.
-for o in gcrt1 grcrt1 crti crtn Mcrt1; do
-    need "niji-$o.o"
-    put 0644 "$products/niji-$o.o" "$sdev/$mlib/$o.o"
-done
-# SYS-DEV-LINKS: libBrokenLocale.a holds the library's override (D-27.9); libg.a, libmcheck.a and
-# libpthread_nonshared.a are empty (D-27.9), so -lg, -lmcheck and -lpthread_nonshared resolve.
-for a in libc.a libm.a libmvec.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
-    need "$a"
-    put 0644 "$products/$a" "$sdev/$mlib/$a"
-done
-put_text 0644 "$sdev/$mlib/libc.so" "/* GNU ld script: libniji's C library (libc6-dev). libc.so.6 is the library,
-   libc_nonshared.a holds the functions linked into the calling module, the loader
-   provides the symbols the ABI places in it. */
-OUTPUT_FORMAT(elf64-x86-64)
-GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
-put_link libm.so.6 "$sdev/$mlib/libm.so"
-put_link libmvec.so.1 "$sdev/$mlib/libmvec.so"
-# Development links to libc6's libraries (SYS-DEV-LINKS): without them -lanl takes the empty
-# libanl.a and -lBrokenLocale takes libBrokenLocale.a in a dynamic link; with them each links the
-# shared library as a plain gcc link does with the reference packages. libnss_compat.so and
-# libnss_hesiod.so wait for their libraries (SL-NSS): a link to a missing file would only turn
-# -lnss_compat into a dangling-link error.
-for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do
-    put_link "$so" "$sdev/$mlib/${so%%.so.*}.so"
-done
-# libresolv.so.2's linker name (issue #5): `-lresolv` links against the shared library, so a program
-# needs libresolv.so.2 and binds its GLIBC_2.x versions. libresolv.a stays empty: its functions are in
-# libc.a (D-16.6), so a static `-lresolv` link finds them there.
-put_link libresolv.so.2 "$sdev/$mlib/libresolv.so"
-
-# --- Documentation (every package; identical across architectures, as Multi-Arch: same needs). ---
-date_r=$(date -u -d "@$epoch" -R)
-for p in $pkgs; do
-    d=$stage/$p/usr/share/doc/$p
-    put 0644 "$here/copyright" "$d/copyright"
-    printf 'niji (%s) unstable; urgency=medium\n\n  * System build of libniji%s (plan/system-libc.md; docs/install-packages.md).\n\n -- %s  %s\n' \
-        "$version" "${commit:+, commit $commit}" "$maint" "$date_r" | gzip -9n > "$d/changelog.Debian.gz"
-done
-
-# --- libc6-dbg: split the debugging information off before the strip below. ---
+# --- libc6-dbg: split the debugging information off the strip debug rows before strip_rows. ---
 # build_id FILE: the hex digits of FILE's GNU build-id note (empty when it has none).
 build_id() { readelf -nW "$1" | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
-if [ -z "$symbols_only" ]; then
-    for f in $(find "$s6/$mlib" -type f -name '*.so*' | sort) "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent" "$bin/usr/bin/ldd"; do
+if [ -z "$symbols_only" ] && [ -n "$dbgpkg" ]; then
+    for f in $(rows_with debug); do
         id=$(build_id "$f")
         # At least one byte for the directory and one for the file name.
-        [ "${#id}" -ge 4 ] || { echo "build.sh: ${f#"$stage"/} has no GNU build-id note (libc6-dbg's files are named by it)" >&2; exit 1; }
-        d=$dbg/usr/lib/debug/.build-id/$(printf '%.2s' "$id")/${id#??}.debug
+        [ "${#id}" -ge 4 ] || { echo "build.sh: ${f#"$stage"/} has no GNU build-id note ($dbgpkg's files are named by it)" >&2; exit 1; }
+        d=$stage/$dbgpkg/usr/lib/debug/.build-id/$(printf '%.2s' "$id")/${id#??}.debug
         # Two objects with one id would make a debugger read the wrong file for one of them.
         [ ! -e "$d" ] || { echo "build.sh: ${f#"$stage"/} has the build-id $id of another packaged object" >&2; exit 1; }
         mkdir -p "$(dirname "$d")"
@@ -144,124 +70,21 @@ if [ -z "$symbols_only" ]; then
     done
 fi
 
-find "$s6" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
-# libc-bin's ldconfig and getconf (static executables) and getent (dynamic) are stripped the same
-# way as the shared libraries.
-strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent" "$bin/usr/bin/iconv" "$bin/usr/bin/ldd"
-find "$sdev" -type f \( -name '*.a' -o -name '*.o' \) -exec strip --strip-debug --remove-section=.comment --enable-deterministic-archives {} +
+strip_rows
 
-# --- Control members. ---
-# sys_control PKG ARCH SECTION PRIORITY FIELD-LINES...: control (the extra field lines verbatim,
-# then the description lines) and md5sums; conffiles from every file under etc/.
-sys_control() {
-    p=$1; arch=$2; sec=$3; prio=$4; shift 4
-    mkdir -p "$stage/$p/DEBIAN"
-    {
-        echo "Package: $p"
-        echo "Source: niji"
-        echo "Version: $version"
-        echo "Architecture: $arch"
-        echo "Maintainer: $maint"
-        echo "Installed-Size: $(installed_size "$stage/$p")"
-        for line in "$@"; do echo "$line"; done
-    } > "$stage/$p/DEBIAN/control.tmp"
-    # Debian's field order: the fields given, then Section and Priority before the description.
-    awk -v sec="$sec" -v prio="$prio" '/^Description:/ && !d { print "Section: " sec; print "Priority: " prio; d = 1 } { print }' \
-        "$stage/$p/DEBIAN/control.tmp" > "$stage/$p/DEBIAN/control"
-    rm "$stage/$p/DEBIAN/control.tmp"
-    (cd "$stage/$p" && find . -path ./DEBIAN -prune -o -type f -printf '%P\n' | sort | xargs -r md5sum) > "$stage/$p/DEBIAN/md5sums"
-    if [ -d "$stage/$p/etc" ]; then
-        (cd "$stage/$p" && find etc -type f | sort | sed 's|^|/|') > "$stage/$p/DEBIAN/conffiles"
-    fi
-}
-abi_note=" libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64)."
 # libc6's symbols and shlibs (plan section 3.2), from the specification and the stripped libraries.
-mkdir -p "$s6/DEBIAN"
+mkdir -p "$stage/$sympkg/DEBIAN"
 python3 "$here/symbols.py" files --versions "$spec/abi/versions.tsv" --native "$spec/abi/native.tsv" \
-    --gaps "$spec/../docs/spec-symbol-gaps.tsv" --abi "$abi" --version "$version" --libdir "$s6/$mlib" --symbols "$s6/DEBIAN/symbols" --shlibs "$s6/DEBIAN/shlibs" \
-    --provides "$stage/libc6.provides"
-provides=$(cat "$stage/libc6.provides")
-[ -n "$provides" ] || { echo "build.sh: symbols.py names no virtual package for libc6 to provide" >&2; exit 1; }
-# Priorities as the distribution's packages of these names have them (SYS-CONTROL-PARITY): libc6
-# optional (Essential libc-bin pulls it in), libc-bin required, locales and libc-l10n standard.
-sys_control libc6 amd64 libs optional \
-    "Multi-Arch: same" \
-    "Provides: $provides" \
-    "Breaks: base-files (<< 13.3~)" \
-    "Description: libniji C library: shared libraries" \
-    "$abi_note" \
-    " This package is the system's C library: the dynamic loader" \
-    " /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (program interpreter" \
-    " /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6, libmvec.so.1 and the libraries whose" \
-    " functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1," \
-    " libresolv.so.2, ...)."
+    --gaps "$spec/../docs/spec-symbol-gaps.tsv" --abi "$abi" --version "$version" --libdir "$stage/$sympkg/usr/lib/$ma" \
+    --symbols "$stage/$sympkg/DEBIAN/symbols" --shlibs "$stage/$sympkg/DEBIAN/shlibs" --provides "$stage/$sympkg.provides"
+provides=$(cat "$stage/$sympkg.provides")
+[ -n "$provides" ] || { echo "build.sh: symbols.py names no virtual package for $sympkg to provide" >&2; exit 1; }
+write_control "$sympkg"
 if [ -n "$symbols_only" ]; then
-    echo "build.sh: symbols step only: $s6/DEBIAN (symbols, shlibs, control; Provides: $provides); no packages written"
+    echo "build.sh: symbols step only: $stage/$sympkg/DEBIAN (symbols, shlibs, control; Provides: $provides); no packages written"
     exit 0
 fi
-sys_control libc-bin amd64 libs required \
-    "Essential: yes" \
-    "Multi-Arch: foreign" \
-    "Depends: libc6 (= $version)" \
-    "Description: libniji C library: configuration and programs" \
-    "$abi_note" \
-    " This package holds ldconfig, getconf, getent, iconv, ldd, the loader configuration" \
-    " (/etc/ld.so.conf and /etc/ld.so.conf.d), /etc/gai.conf and the template of" \
-    " /etc/nsswitch.conf. The C library's other programs (locale, localedef) are not" \
-    " part of this build yet."
-sys_control libc6-dev amd64 libdevel optional \
-    "Multi-Arch: same" \
-    "Depends: libc6 (= $version), libc-dev-bin (= $version), linux-libc-dev, libcrypt-dev, rpcsvc-proto" \
-    "Provides: libc-dev (= $version)" \
-    "Description: libniji C library: development files" \
-    "$abi_note" \
-    " This package holds the start files, the libc.so linker script," \
-    " libc_nonshared.a and the static archives. libniji's C headers are not part of" \
-    " this build yet."
-sys_control libc-dev-bin amd64 libdevel optional \
-    "Multi-Arch: foreign" \
-    "Depends: libc6 (= $version)" \
-    "Description: libniji C library: development programs (placeholder)" \
-    "$abi_note" \
-    " The development program gencat is not part of this build yet; the" \
-    " package exists so that libc6-dev's dependency is met."
-sys_control locales all localization standard \
-    "Depends: libc-bin (>= $abi)" \
-    "Description: libniji C library: locale support (placeholder)" \
-    "$abi_note" \
-    " The locale compiler and locale data are not part of this build yet; the" \
-    " package exists so that dependencies on locales are met."
-sys_control libc-l10n all localization standard \
-    "Multi-Arch: foreign" \
-    "Description: libniji C library: translations (placeholder)" \
-    "$abi_note" \
-    " The C library's message translations are not part of this build yet; the" \
-    " package exists so that dependencies on libc-l10n are met."
-sys_control libc6-dbg amd64 debug optional \
-    "Multi-Arch: same" \
-    "Depends: libc6 (= $version)" \
-    "Provides: libc-dbg, libc6-dbgsym" \
-    "Description: libniji C library: detached debugging symbols" \
-    "$abi_note" \
-    " This package holds the symbol tables and debugging information of the" \
-    " loader, the shared libraries and the programs of libc6 and libc-bin, as" \
-    " files under /usr/lib/debug/.build-id named by each object's build ID," \
-    " where debuggers such as gdb look for them."
-# The ldconfig trigger (plan/system-libc.md section 2): libc6 activates it, libc-bin handles it.
-printf 'activate-noawait ldconfig\n' > "$s6/DEBIAN/triggers"
-printf 'interest-await ldconfig\n' > "$bin/DEBIAN/triggers"
-put 0755 "$sys/libc-bin.postinst" "$bin/DEBIAN/postinst"
-put 0755 "$sys/libc-bin.postrm" "$bin/DEBIAN/postrm"
-
-# Fixed modes and times.
-find "$stage" -type d -exec chmod 0755 {} +
-find "$stage" -path '*/DEBIAN/*' -type f ! -name postinst ! -name postrm -exec chmod 0644 {} +
-find "$stage" -exec touch -h -d "@$epoch" {} +
-
-mkdir -p "$out"
 for p in $pkgs; do
-    arch=$(sed -n 's/^Architecture: //p' "$stage/$p/DEBIAN/control")
-    deb=$out/${p}_${version}_$arch.deb
-    dpkg-deb --root-owner-group -Zxz -z9 --build "$stage/$p" "$deb" >/dev/null
-    echo "build.sh: $(sha256sum "$deb" | cut -c1-64)  $deb"
+    [ "$p" = "$sympkg" ] || write_control "$p"
 done
+finish

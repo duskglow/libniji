@@ -11,7 +11,8 @@
 #   tools/deb/description/<package> (synopsis line, then the extended lines).
 #   Placeholders the build fills: $version (the packages' version), $abi (the ABI level, 2.39),
 #   $provides (libc6's virtual packages, from tools/deb/symbols.py --provides); in a description
-#   also $programs (the names of the package's rows under usr/bin and usr/sbin, sorted).
+#   also $programs (the names of the package's file rows under usr/sbin, then usr/bin, each
+#   sorted).
 #   triggers: one line of the DEBIAN/triggers member (deb-triggers(5)).
 #   symbols: the package's DEBIAN/symbols and DEBIAN/shlibs, written by the named generator.
 #   debug: the package that holds the detached debugging information (the manifest's strip debug

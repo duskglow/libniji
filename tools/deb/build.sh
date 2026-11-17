@@ -28,6 +28,11 @@
 # /usr/share/doc directories: nothing of the system's C library is touched (tools/deb/check.sh
 # enforces it).
 #
+# Contents as data (PKG-MANIFEST): every shipped file is a row of tools/deb/manifest.tsv (path,
+# kind, source, mode, strip rule) and every control field a row of tools/deb/control.tsv, read
+# through tools/deb/manifest.py; this script and system.sh install exactly those rows. Shipping a
+# file is a manifest row, not a shell line.
+#
 # Reproducible: SOURCE_DATE_EPOCH (default: the HEAD commit's time; 1 with --products) is every
 # file's time and the time dpkg-deb records; owners are root:root (--root-owner-group); dpkg-deb
 # writes members in sorted order; modes are fixed below. Building twice gives identical .debs.
@@ -149,12 +154,6 @@ put_link() {
     mkdir -p "$(dirname "$2")"
     ln -s "$1" "$2"
 }
-# put_text MODE DEST TEXT: a file holding TEXT and a newline.
-put_text() {
-    mkdir -p "$(dirname "$2")"
-    printf '%s\n' "$3" > "$2"
-    chmod "$1" "$2"
-}
 need() {
     [ -f "$products/$1" ] || { echo "build.sh: $products/$1 is missing (cargo xtask so)" >&2; exit 1; }
 }
@@ -165,119 +164,97 @@ installed_size() {
         awk '$1 == "f" { t += int(($2 + 1023) / 1024); next } { t += 1 } END { print t + 0 }'
 }
 
+# The flavour's rows of tools/deb/manifest.tsv (package, path, kind, source, mode, strip; manifest.py
+# refuses malformed tables), read by the helpers below.
+rows=$work/manifest-rows.tsv
+mkdir -p "$work"
+python3 "$here/manifest.py" rows "$flavour" > "$rows"
+pkgs=$(python3 "$here/manifest.py" packages "$flavour")
+tab=$(printf '\t')
+date_r=$(date -u -d "@$epoch" -R)
+
+# changelog: the text of every package's changelog row.
+changelog() {
+    if [ "$flavour" = coexist ]; then
+        printf 'niji (%s) unstable; urgency=medium\n\n  * Snapshot of libniji (reference packages; docs/install-packages.md).\n\n -- %s  %s\n' \
+            "$version" "$maint" "$date_r"
+    else
+        printf 'niji (%s) unstable; urgency=medium\n\n  * System build of libniji%s (plan/system-libc.md; docs/install-packages.md).\n\n -- %s  %s\n' \
+            "$version" "${commit:+, commit $commit}" "$maint" "$date_r"
+    fi
+}
+
+# install_rows: every row into STAGE/<package>/<path> (DEBIAN/<name>: a maintainer script).
+install_rows() {
+    while IFS=$tab read -r p path kind src mode strip; do
+        dest=$stage/$p/$path
+        case $kind in
+            file) need "$src"; put "$mode" "$products/$src" "$dest" ;;
+            text) put "$mode" "$here/$src" "$dest" ;;
+            gzip) mkdir -p "$(dirname "$dest")"; gzip -9n < "$here/$src" > "$dest"; chmod "$mode" "$dest" ;;
+            link) put_link "$src" "$dest" ;;
+            changelog) mkdir -p "$(dirname "$dest")"; changelog | gzip -9n > "$dest"; chmod "$mode" "$dest" ;;
+            dir) mkdir -p "$dest" ;;
+            *) echo "build.sh: $p $path: kind $kind" >&2; exit 1 ;;
+        esac
+    done < "$rows"
+}
+
+# rows_with STRIP...: the staged path of every file row whose strip column is one of STRIP.
+rows_with() {
+    awk -F "$tab" -v want=" $* " -v stage="$stage" 'index(want, " " $6 " ") { print stage "/" $1 "/" $2 }' "$rows"
+}
+
+# strip_rows: strip the files as Debian does: the shared objects and programs (strip unneeded or
+# debug) lose debug sections, .comment and .note; the archives and start files (archive) keep their
+# symbols (the link needs them) but lose debug sections and .comment.
+strip_rows() {
+    rows_with unneeded debug | xargs -r strip --strip-unneeded --remove-section=.comment --remove-section=.note
+    rows_with archive | xargs -r strip --strip-debug --remove-section=.comment --enable-deterministic-archives
+}
+
+# write_control PKG: DEBIAN/control (tools/deb/control.tsv and description/PKG), md5sums, and the
+# conffiles and triggers members when the package has them.
+write_control() {
+    p=$1
+    mkdir -p "$stage/$p/DEBIAN"
+    python3 "$here/manifest.py" control "$flavour" "$p" --version "$version" --abi "$abi" --maint "$maint" \
+        --installed-size "$(installed_size "$stage/$p")" --provides "${provides:-}" > "$stage/$p/DEBIAN/control"
+    (cd "$stage/$p" && find . -path ./DEBIAN -prune -o -type f -printf '%P\n' | sort | xargs -r md5sum) > "$stage/$p/DEBIAN/md5sums"
+    for m in conffiles triggers; do
+        python3 "$here/manifest.py" member "$flavour" "$p" "$m" > "$stage/$p/DEBIAN/$m"
+        [ -s "$stage/$p/DEBIAN/$m" ] || rm "$stage/$p/DEBIAN/$m"
+    done
+}
+
+# finish: fixed modes (directories 0755, control members 0644 but the maintainer scripts' rows) and
+# times, then one .deb per package.
+finish() {
+    find "$stage" -type d -exec chmod 0755 {} +
+    find "$stage" -path '*/DEBIAN/*' -type f -exec chmod 0644 {} +
+    while IFS=$tab read -r p path kind src mode strip; do
+        case $path in DEBIAN/*) chmod "$mode" "$stage/$p/$path" ;; esac
+    done < "$rows"
+    find "$stage" -exec touch -h -d "@$epoch" {} +
+    mkdir -p "$out"
+    for p in $pkgs; do
+        arch=$(sed -n 's/^Architecture: //p' "$stage/$p/DEBIAN/control")
+        deb=$out/${p}_${version}_$arch.deb
+        dpkg-deb --root-owner-group -Zxz -z9 --build "$stage/$p" "$deb" >/dev/null
+        echo "build.sh: $(sha256sum "$deb" | cut -c1-64)  $deb"
+    done
+}
+
 if [ "$flavour" = system ]; then
     . "$here/system.sh"
     exit 0
 fi
 
-# --- niji6: the run-time sysroot, laid out as Debian's libc6 lays out / (merged /usr). ---
-rlib=$rt$sysroot/usr/lib/$ma
-need ld-linux-x86-64.so.2
-put 0755 "$products/ld-linux-x86-64.so.2" "$rlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
-    need "$so"
-    put 0644 "$products/$so" "$rlib/$so"
+# niji6 (run time: the sysroot laid out as Debian's libc6 lays out /) and niji6-dev (link time, as
+# Debian's libc6-dev, static archives included): the manifest's both and coexist rows.
+install_rows
+strip_rows
+for p in $pkgs; do
+    write_control "$p"
 done
-# The program interpreter's path, /usr/lib/niji/lib64/ld-linux-x86-64.so.2, as Debian's
-# /lib64/ld-linux-x86-64.so.2: lib64 -> usr/lib64, usr/lib64/<loader> -> the multiarch copy.
-put_link ../lib/$ma/ld-linux-x86-64.so.2 "$rt$sysroot/usr/lib64/ld-linux-x86-64.so.2"
-put_link usr/lib "$rt$sysroot/lib"
-put_link usr/lib64 "$rt$sysroot/lib64"
-
-# --- niji6-dev: link time, as Debian's libc6-dev (static archives included, as there). ---
-dlib=$dev$sysroot/usr/lib/$ma
-need niji-crt1.o
-need niji-rcrt1.o
-put 0644 "$products/niji-crt1.o" "$dlib/crt1.o"
-put 0644 "$products/niji-crt1.o" "$dlib/Scrt1.o"
-put 0644 "$products/niji-rcrt1.o" "$dlib/rcrt1.o"
-# SL-CRT: the rest of the start files a plain compiler-driver link names (crti.o and crtn.o in
-# every link, gcrt1.o for -pg, grcrt1.o for -pg -static-pie) and Mcrt1.o, which is empty.
-for o in gcrt1 grcrt1 crti crtn Mcrt1; do
-    need "niji-$o.o"
-    put 0644 "$products/niji-$o.o" "$dlib/$o.o"
-done
-for a in libc.a libm.a libmvec.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
-    need "$a"
-    put 0644 "$products/$a" "$dlib/$a"
-done
-# The linker scripts name files inside the sysroot; the wrapper links with --sysroot, so the link
-# editor reads them there (the script lies in the sysroot).
-put_text 0644 "$dlib/libc.so" "/* GNU ld script: libniji's C library (niji6-dev). Paths are inside the sysroot
-   /usr/lib/niji; link with --sysroot=/usr/lib/niji (niji-gcc does). */
-OUTPUT_FORMAT(elf64-x86-64)
-GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
-# libm.so stays a link, not a script that adds libmvec.so.1: libniji's headers declare no simd
-# variants (R4), so a link against libniji never imports a vector symbol (SL-SONAMES).
-put_link libm.so.6 "$dlib/libm.so"
-put_link libmvec.so.1 "$dlib/libmvec.so"
-put_link libresolv.so.2 "$dlib/libresolv.so"
-put_link libBrokenLocale.so.1 "$dlib/libBrokenLocale.so"
-# SYS-DEV-LINKS: -lanl and -lc_malloc_debug link the shared libraries, as in libc6-dev.
-put_link libanl.so.1 "$dlib/libanl.so"
-put_link libc_malloc_debug.so.0 "$dlib/libc_malloc_debug.so"
-put 0755 "$here/niji-gcc" "$dev/usr/bin/niji-gcc"
-put_link niji-gcc "$dev/usr/bin/niji-g++"
-mkdir -p "$dev/usr/share/man/man1"
-gzip -9n < "$here/niji-gcc.1" > "$dev/usr/share/man/man1/niji-gcc.1.gz"
-put_link niji-gcc.1.gz "$dev/usr/share/man/man1/niji-g++.1.gz"
-
-# --- Documentation of both packages. ---
-date_r=$(date -u -d "@$epoch" -R)
-for p in niji6 niji6-dev; do
-    d=$stage/$p/usr/share/doc/$p
-    put 0644 "$here/copyright" "$d/copyright"
-    printf 'niji (%s) unstable; urgency=medium\n\n  * Snapshot of libniji (reference packages; docs/install-packages.md).\n\n -- %s  %s\n' \
-        "$version" "$maint" "$date_r" | gzip -9n > "$d/changelog.gz"
-done
-
-# Strip the shared objects as Debian does (debug sections, .comment, .note); the archives and
-# start files keep their symbols (the link needs them) but lose debug sections and .comment.
-find "$rt$sysroot" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
-find "$dev$sysroot" -type f \( -name '*.a' -o -name '*.o' \) -exec strip --strip-debug --remove-section=.comment --enable-deterministic-archives {} +
-
-# control PKG SECTION DEPENDS DESCRIPTION...
-control() {
-    p=$1; sec=$2; deps=$3; shift 3
-    mkdir -p "$stage/$p/DEBIAN"
-    {
-        echo "Package: $p"
-        echo "Source: niji"
-        echo "Version: $version"
-        echo "Architecture: amd64"
-        echo "Maintainer: $maint"
-        echo "Installed-Size: $(installed_size "$stage/$p")"
-        [ -z "$deps" ] || echo "Depends: $deps"
-        [ "$p" != niji6-dev ] || echo "Recommends: g++"
-        echo "Section: $sec"
-        echo "Priority: optional"
-        for line in "$@"; do echo "$line"; done
-    } > "$stage/$p/DEBIAN/control"
-    (cd "$stage/$p" && find . -path ./DEBIAN -prune -o -type f -printf '%P\n' | sort | xargs -r md5sum) > "$stage/$p/DEBIAN/md5sums"
-}
-control niji6 libs "" \
-    "Description: libniji C library (run time, beside the system's C library)" \
-    " libniji is an implementation of the GNU C Library's ABI (glibc 2.39, x86-64)." \
-    " This package installs its loader and shared libraries in the sysroot" \
-    " /usr/lib/niji. It does not replace or change the system's C library: only" \
-    " programs whose interpreter is /usr/lib/niji/lib64/ld-linux-x86-64.so.2" \
-    " (built with niji-gcc from niji6-dev) run on libniji."
-control niji6-dev libdevel "niji6 (= $version), gcc, libc6-dev, binutils" \
-    "Description: libniji C library (development files and compiler wrapper)" \
-    " libniji is an implementation of the GNU C Library's ABI (glibc 2.39, x86-64)." \
-    " This package installs the start files, linker scripts and static archives in" \
-    " the sysroot /usr/lib/niji, and niji-gcc and niji-g++, which build" \
-    " programs that run on libniji's loader. Programs compile with the system's C" \
-    " headers (from libc6-dev)."
-
-# Fixed modes and times.
-find "$stage" -type d -exec chmod 0755 {} +
-find "$stage" -path '*/DEBIAN/*' -type f -exec chmod 0644 {} +
-find "$stage" -exec touch -h -d "@$epoch" {} +
-
-mkdir -p "$out"
-for p in niji6 niji6-dev; do
-    deb=$out/${p}_${version}_amd64.deb
-    dpkg-deb --root-owner-group -Zxz -z9 --build "$stage/$p" "$deb" >/dev/null
-    echo "build.sh: $(sha256sum "$deb" | cut -c1-64)  $deb"
-done
+finish

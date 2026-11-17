@@ -2,6 +2,10 @@
 # tools/deb/check.sh DIR: check the reference packages in DIR (tools/deb/build.sh's output) without
 # installing them. No spec clause: release packaging (records/pending/RELEASE-PACKAGING-DEB-1.toml).
 #
+# 0. Contents (PKG-MANIFEST): `tools/deb/manifest.py check coexist DIR`: exactly the packages of
+#    tools/deb/manifest.tsv's coexist and both rows (niji6, niji6-dev), each with exactly the rows'
+#    paths, types, modes, link targets, contents and strip state, and the control text of
+#    tools/deb/control.tsv and tools/deb/description/.
 # 1. Coexistence: every path a package installs is inside the sysroot /usr/lib/niji, or is the
 #    wrapper (/usr/bin/niji-gcc, niji-g++), its manual page, or the package's own
 #    /usr/share/doc directory; the shared parents (/usr, /usr/bin, ...) only as directories. So no
@@ -29,14 +33,15 @@ fail() {
 
 debs=$(find "$dir" -maxdepth 1 -name 'niji6*_amd64.deb' | sort)
 [ -n "$debs" ] || { echo "check: FAIL no niji6*.deb in $dir"; exit 1; }
-seen=""
+# 0. The manifest's rows and control fields (tools/deb/manifest.py check coexist).
+rc=0
+python3 "$here/manifest.py" check coexist "$dir" > "$tmp/manifest" || rc=$?
+n=$(grep -c '^check: FAIL' "$tmp/manifest" || true)
+cat "$tmp/manifest"
+fails=$((fails + n))
+[ "$rc" -eq 0 ] || [ "$n" -ne 0 ] || fail "tools/deb/manifest.py check coexist exits $rc with no FAIL line"
 for deb in $debs; do
     pkg=$(dpkg-deb -f "$deb" Package)
-    seen="$seen $pkg"
-    case $pkg in
-        niji6 | niji6-dev) ;;
-        *) fail "$deb: package name $pkg is not niji6 or niji6-dev" ;;
-    esac
     dpkg-deb --fsys-tarfile "$deb" | tar -tv > "$tmp/list"
     awk '$2 != "root/root" { print $0 }' "$tmp/list" > "$tmp/owners"
     [ ! -s "$tmp/owners" ] || fail "$deb: entries not owned by root/root: $(head -1 "$tmp/owners")"
@@ -61,10 +66,6 @@ for deb in $debs; do
     [ -z "$extra" ] || fail "$deb: control members besides control and md5sums: $(echo "$extra" | tr '\n' ' ')"
     dpkg-deb -x "$deb" "$tmp/root"
 done
-case "$seen" in
-    *niji6-dev*) ;;
-    *) fail "niji6-dev is missing from $dir" ;;
-esac
 
 # 3. The wrapper.
 cc="$tmp/root/usr/bin/niji-gcc"

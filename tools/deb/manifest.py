@@ -195,8 +195,10 @@ def expand(text, subst):
 
 
 def control(flavour, pkg, version, abi, maint, size, provides):
-    progs = sorted(os.path.basename(q) for (p, q, kind, _s, _m, _t) in rows(flavour)
-                   if p == pkg and kind == "file" and q.split("/")[:2] in (["usr", "bin"], ["usr", "sbin"]))
+    # The administrator's programs (usr/sbin) first, then usr/bin, each sorted by name.
+    progs = [os.path.basename(q) for (_d, q) in sorted(
+        (q.split("/")[1] != "sbin", q) for (p, q, kind, _s, _m, _t) in rows(flavour)
+        if p == pkg and kind == "file" and q.split("/")[:2] in (["usr", "bin"], ["usr", "sbin"]))]
     subst = {"version": version, "abi": abi, "provides": provides, "programs": ", ".join(progs)}
     fs = dict(fields(pkg))
     if "Provides" in fs and "$provides" in fs["Provides"] and not provides:
@@ -211,7 +213,7 @@ def control(flavour, pkg, version, abi, maint, size, provides):
 
 def member(flavour, pkg, name):
     if name == "conffiles":
-        return "".join("/%s\n" % q for (p, q, _k, _s, _m, _t) in rows(flavour) if p == pkg and q.startswith("etc/"))
+        return "".join(sorted("/%s\n" % q for (p, q, _k, _s, _m, _t) in rows(flavour) if p == pkg and q.startswith("etc/")))
     if name == "triggers":
         return "".join(v + "\n" for k, v in fields(pkg) if k == "triggers")
     die("member %s: conffiles or triggers" % name)
