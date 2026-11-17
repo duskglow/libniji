@@ -200,8 +200,9 @@ def vdso_time_fns():
             out = subprocess.run(["nm", "-D", "--defined-only", t.name], capture_output=True, text=True, check=True, env=nm_env).stdout
         for line in out.splitlines():
             p = line.split()
-            if len(p) == 3 and p[2].removeprefix("__vdso_") in ("clock_gettime", "gettimeofday", "time"):
-                fns[lo - vaddr + int(p[0], 16)] = p[2].removeprefix("__vdso_")
+            name = p[-1].split("@")[0].removeprefix("__vdso_")  # nm -D writes the version: clock_gettime@@LINUX_2.6
+            if len(p) == 3 and name in ("clock_gettime", "gettimeofday", "time"):
+                fns[lo - vaddr + int(p[0], 16)] = name
         if not fns:
             fail("the vDSO at %s exports no clock_gettime, gettimeofday or time: the virtual clock cannot find them" % span)
     VCLOCK["vdso"] = fns
