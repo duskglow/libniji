@@ -395,15 +395,18 @@ fn every_page_request_can_fail_without_damage() {
 
 #[test]
 fn an_address_space_limit_sizes_the_registries() {
-    // Clauses: s3_1_c_1, s3_1_f_1 (T14). Under a limit of 20 MiB the registries are small, no
-    // 16 MiB segment is mapped (below four segments' worth), and small blocks get mappings of
-    // their own; under 1 GiB segments are used again, with small registries.
+    // Clauses: s3_1_c_1, s3_1_f_1 (T14). Under a limit of 20 MiB the registries are small and a
+    // segment maps only the slabs it hands out (HEAP-ADDRESS-SPACE: four segments' first parts
+    // fit well under the limit): 100 blocks of 7 classes take one mapping, one page of
+    // registries, the cache chunk, the segment's 256 KiB of metadata and the 8 slabs its
+    // doubling growth mapped (2, 4, 8) for 7 used; no large registry. Under 1 GiB the same
+    // small registries.
     let pages = FakePages::new();
     pages.limit.set(Some(20 << 20));
     let heap = Heap::new();
     let blocks: Vec<usize> = (0..100).map(|i| heap.alloc(&CSys, &pages, 24 + i, ALIGN).unwrap().addr).collect();
-    let biggest = pages.maps.borrow().values().map(|m| m.len).max().unwrap();
-    assert!(biggest <= 1 << 20, "no segment and no large registry: largest mapping {biggest}");
+    let lens: Vec<usize> = pages.maps.borrow().values().map(|m| m.len).collect();
+    assert_eq!(lens, [PAGE + (64 << 10) + 9 * (256 << 10)], "small registries, a segment as far as used: {lens:?}");
     for b in blocks {
         heap.free(&CSys, &pages, b).unwrap();
     }
@@ -461,9 +464,11 @@ fn a_raised_address_space_limit_lets_the_heap_grow() {
 #[test]
 fn the_first_allocation_reserves_one_mapping() {
     // Clauses: s3_1_c_1 (T14, D-3.14, D-3.19). No limit (or 64 GiB and more): the first
-    // allocation maps one range, the first segment at its 16 MiB boundary, one page holding the
-    // generation-0 cache table, segment bases and segment hash, and the first cache chunk; the
-    // next hundred blocks map nothing more. The generations that follow are tested under a
+    // allocation maps one range, one page holding the generation-0 cache table, segment bases
+    // and segment hash, then the first cache chunk, then the first segment at its 16 MiB
+    // boundary, mapped as far as its first two slabs (HEAP-ADDRESS-SPACE); the next 99 blocks
+    // (7 classes in all) only grow that range in place, to 8 slabs (2, 4, 8): still one
+    // mapping. The generations that follow are tested under a
     // raised limit (`a_raised_address_space_limit_lets_the_heap_grow`).
     for limit in [None, Some(64usize << 30)] {
         let pages = FakePages::new();
@@ -475,17 +480,18 @@ fn the_first_allocation_reserves_one_mapping() {
         let maps: Vec<(usize, usize)> = pages.maps.borrow().iter().map(|(&b, m)| (b, m.len)).collect();
         assert_eq!(maps.len(), 1, "{limit:?}: {maps:?}");
         let (base, len) = maps[0];
-        assert_eq!((base % SEG, len), (0, SEG + PAGE + (64 << 10)), "{limit:?}");
-        // The registry page after the segment holds, without overlap, the cache table (64
+        let seg = base + PAGE + (64 << 10);
+        assert_eq!((seg % SEG, len), (0, PAGE + (64 << 10) + 9 * (256 << 10)), "{limit:?}");
+        // The registry page, the mapping's first, holds without overlap the cache table (64
         // words; entry 0 is the first cache, at the chunk after the page), the segment bases
         // (128 words; entry 0 is the segment) and the segment hash (256 words; the entry
         // `key << 21 | index + 1` at the key's slot of the heap's multiplicative hash).
         let w = |x: usize| u64::try_from(x).unwrap();
-        let reg: Vec<(usize, u64)> = pages.words(base + SEG, PAGE / 8).iter().map(|v| v.load(Ordering::Relaxed)).enumerate().filter(|&(_, v)| v != 0).collect();
-        let key = w(base / SEG);
+        let reg: Vec<(usize, u64)> = pages.words(base, PAGE / 8).iter().map(|v| v.load(Ordering::Relaxed)).enumerate().filter(|&(_, v)| v != 0).collect();
+        let key = w(seg / SEG);
         let slot = usize::try_from(key.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> (64 - 21)).unwrap() & 255;
-        assert_eq!(reg, [(0, w(base + SEG + PAGE)), (64, w(base)), (192 + slot, (key << 21) | 1)], "{limit:?}: registry page");
-        assert_eq!(first / SEG, base / SEG, "{limit:?}: the block is in the first segment");
+        assert_eq!(reg, [(0, w(base + PAGE)), (64, w(seg)), (192 + slot, (key << 21) | 1)], "{limit:?}: registry page");
+        assert_eq!(first / SEG, seg / SEG, "{limit:?}: the block is in the first segment");
         heap.free(&CSys, &pages, first).unwrap();
         for b in blocks {
             heap.free(&CSys, &pages, b).unwrap();
@@ -768,10 +774,12 @@ fn a_thread_whose_cache_cannot_be_made_takes_a_parked_cache_of_another_shard() {
     pages.thread.set(1);
     pages.shard.set(3);
     heap.alloc(&CSys, &pages, 100, ALIGN).unwrap();
-    // A segment maps its slabs as they are used: 33 classes leave 30 mapped slabs free, so the
-    // new threads below run out of cache room, not of slabs.
-    for &size in &CLASSES[..33] {
-        heap.alloc(&CSys, &pages, size, ALIGN).unwrap();
+    // A segment maps its slabs as they are used (HEAP-ADDRESS-SPACE): 60 slabs of 64 KiB blocks,
+    // freed, leave 59 empty slabs on shard 3, more than a cache chunk has caches, so the new
+    // threads below run out of cache room, not of slabs.
+    let big: Vec<usize> = (0..240).map(|_| heap.alloc(&CSys, &pages, 65536, ALIGN).unwrap().addr).collect();
+    for p in big {
+        heap.free(&CSys, &pages, p).unwrap();
     }
     // No room for any further mapping. "New threads" (their cache word cleared, nothing parked) use up
     // the cache chunk and then cannot make a cache.
@@ -1112,7 +1120,9 @@ fn segments_are_aligned_and_found_from_any_address() {
     for &p in blocks.iter().rev() {
         heap.free(&CSys, &pages, p).unwrap();
     }
-    assert_eq!(heap.stats(&CSys, &pages).small_mapped, 4 * SEG);
+    // Three whole segments and the fourth as far as used (HEAP-ADDRESS-SPACE): 36 slabs in
+    // use, 40 mapped by doubling steps of at most 8 (2, 4, 8, 16, 24, 32, 40).
+    assert_eq!(heap.stats(&CSys, &pages).small_mapped, 3 * SEG + (256 << 10) + 40 * (256 << 10));
 }
 
 // ------------------------------------------------------------------------------ sync
