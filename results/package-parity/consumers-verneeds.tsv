@@ -1,0 +1,4 @@
+# library	version (required, no symbol imported at it)	packages of 4000 scanned (population 23193)	packages (first 25)
+libc.so.6	GLIBC_2.32	88	apertium,astyle,audacious,ayatana-indicator-datetime,bibledit,biobambam2,btfs,casacore-tools,cc-tool,ccls,cmake-curses-gui,codelite-plugins,cvise,f3d,fastdds-tools,fdb5,freerdp3-sdl,fuse-zip,gccrs-14-x86-64-linux-gnu,gemmi,gqrx-sdr,gr-framework-bin,groops,grub-customizer,gudhi-utils
+ld-linux-x86-64.so.2	GLIBC_2.2.5	9	gnat-12-i686-linux-gnu,gnat-12-riscv64-linux-gnu,gnat-13-arm-linux-gnueabihf,gnat-13-hppa-linux-gnu,gnat-13-i686-linux-gnu,gnat-14-powerpc-linux-gnu,gnat-14-powerpc64le-linux-gnu,gnat-14-x86-64-linux-gnux32,gnat-mingw-w64-i686-win32
+libc.so.6	GLIBC_ABI_DT_RELR	1	thunderbird
