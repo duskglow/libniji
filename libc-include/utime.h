@@ -31,7 +31,7 @@ typedef long time_t;
 struct utimbuf;
 # ifndef __NIJI_D_utime
 #  define __NIJI_D_utime 1
-extern int utime (const char *, const struct utimbuf *);
+extern int utime (const char *, const struct utimbuf *) __NIJI_NOTHROW;
 # endif
 #endif
 
