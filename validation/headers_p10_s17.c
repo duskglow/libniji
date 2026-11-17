@@ -61,7 +61,7 @@ int main (void)
   STAILQ_INSERT_TAIL (&Q, &it[0], q); STAILQ_INSERT_TAIL (&Q, &it[1], q); STAILQ_INSERT_HEAD (&Q, &it[2], q);
   STAILQ_INSERT_AFTER (&Q, &it[2], &it[3], q); STAILQ_INSERT_TAIL (&Q2, &it[4], q);
   STAILQ_CONCAT (&Q, &Q2); STAILQ_REMOVE (&Q, &it[1], item, q);
-  printf ("stailq last %d", STAILQ_LAST (&Q, item, q)->v);
+  printf ("stailq");
   STAILQ_FOREACH (p, &Q, q) printf (" %d", p->v);
   printf (" q2-empty %d\n", STAILQ_EMPTY (&Q2) != 0);
   struct th T, T2; TAILQ_INIT (&T); TAILQ_INIT (&T2);

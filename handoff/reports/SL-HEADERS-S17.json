@@ -1,0 +1,12 @@
+{"task": "SL-HEADERS-S17", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: slice 17 templates and generator support written, headers-gen clean, 8 of 32 header-alone compiles fail, P2/P3/P10/plants/clippy/static not run",
+ "branch": "task/sl-headers-s17", "head": "see git",
+ "gate": {"affected": "not run", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["struct _obstack_chunk has no layouts.tsv rows; declared incomplete", "STAILQ_LAST is not in the reference's visibility table, so sys/queue.h omits it"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "visibility.tsv +152 rows and macros.tsv +63 rows for tar, cpio, sysexits, queue and obstack names", "before": 0, "after": 215, "unit": "rows", "measured": true},
+            {"kind": "unblock", "what": "slice 17 continuation (SL-HEADERS-S17-2): fix 4 generated-header compile errors, then P2/P3/P10 and plants", "before": null, "after": null, "unit": "", "measured": false}],
+ "jobs": ["sl-headers-s17-probe"],
+ "improvement": "a large reading of man-page name lists cost 30k tokens: extract names with a script that prints only the list",
+ "next_step": "fix the 4 compile errors (open items 1-2 in the handoff), extend header_check lists, run P2/P3/P10, plants, clippy, static",
+ "report_file": "handoff/SL-HEADERS-S17.md"}
