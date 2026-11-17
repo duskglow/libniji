@@ -289,3 +289,43 @@ int main(void) {
     }
     std::fs::remove_dir_all(&k.d).ok();
 }
+
+/// s27_1_g_0: the canonical PLT entry of a function the library defines as an IFUNC. The program's
+/// `JUMP_SLOT` for it is bound after the other relocations (its resolver runs then), and must still
+/// skip the entry and reach the function the resolver picks; the library's own reference binds the
+/// entry, which is not the implementation's address. Probe-settled: the reference passes every check,
+/// lazily and with `LD_BIND_NOW`.
+#[test]
+fn s27_1_g_0_canonical_plt_entry_for_ifunc_definition() {
+    let Some(k) = setup("ifunc") else { return };
+    let libf = cc(
+        &k.d,
+        "libf.so",
+        "int f_calls;\nstatic void f_impl(void) { f_calls++; }\nstatic void *f_resolve(void) { return (void *)f_impl; }\nvoid f(void) __attribute__((ifunc(\"f_resolve\")));\nvoid *f_p(void) { return (void *)f; }\nvoid *f_impl_p(void) { return (void *)f_impl; }\n",
+        LIB_FLAGS,
+    );
+    let prog = r"extern void f(void);
+extern void *f_p(void);
+extern void *f_impl_p(void);
+extern int f_calls;
+int main(void) {
+    void *canon = (void *)&f;
+    if (canon != f_p()) return 1;
+    if (canon == f_impl_p()) return 2;
+    f();
+    ((void (*)(void))canon)();
+    return f_calls == 2 ? 0 : 3;
+}
+";
+    let interp = format!("-Wl,--dynamic-linker={}", k.ld.display());
+    let p = cc(
+        &k.d,
+        "prog",
+        prog,
+        &["-nostdlib", "-fno-pic", "-no-pie", "-Wl,--no-as-needed", &interp, k.crt1.to_str().unwrap(), libf.to_str().unwrap(), k.libc.to_str().unwrap(), k.ld.to_str().unwrap(), "-lgcc"],
+    );
+    for (how, o) in run_both(&k, &p, &[], &[]) {
+        assert_ok(how, "IFUNC canonical PLT", &o);
+    }
+    std::fs::remove_dir_all(&k.d).ok();
+}

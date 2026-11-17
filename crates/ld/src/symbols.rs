@@ -223,7 +223,7 @@ impl<'a> Object<'a> {
     /// out the symbols below `symoffset`, which a linker gives only to plain references); a program
     /// without one keeps the plain view.
     #[must_use]
-    #[inline(always)]
+    #[inline(never)]
     pub fn program(self) -> Self {
         let first = match self.hash {
             Hash::Gnu(g) => g.symoffset(),

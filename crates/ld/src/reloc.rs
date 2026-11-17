@@ -236,88 +236,79 @@ fn protected_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, s
     Ok(())
 }
 
-/// [`pass1`] when the program has canonical PLT entries ([`Object::has_canonical_plt`]):
-/// [`relocate_first`] comes here on that one test, so a process whose program has no such entry
-/// never runs this, and `pass1` itself stays as it is. The RELR words as in `pass1`, then
-/// [`tables_canonical`].
+/// The `JUMP_SLOT`s of object `i` after its plain pass `before` ([`pass1`], or the deferred loop
+/// of [`relocate_deferred`] when `deferred`), when the program has canonical PLT entries
+/// ([`Object::has_canonical_plt`]): the plain lookup binds a slot of such a function to the
+/// program's entry, which is itself the slot's caller (gABI "Symbol Values"), so [`slot`] binds it
+/// again. Only this one test is added to the plain path; the rest stays out of it. Whether any
+/// entry was deferred.
 #[cold]
 #[inline(never)]
-fn pass1_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
-    for at in o.dynm.relr().map_err(RelocError::Elf)?.into_iter().flatten() {
-        let at = at.map_err(RelocError::Elf)?;
-        if !inside(&o.elf, at, 8, text) {
-            return Err(RelocError::Outside(at));
-        }
-        let p = o.bias.wrapping_add(at);
-        let mut w = [0u8; 8];
-        img.load(p, &mut w);
-        let v = if A::EI_DATA == ELFDATA2LSB { u64::from_le_bytes(w) } else { u64::from_be_bytes(w) }.wrapping_add(o.bias);
-        img.store(p, &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
-    }
-    tables_canonical::<A, I>(set, i, o, false, text, img, unique)
-}
-
-/// The relocation tables of object `i` in pass `deferred` when the program has canonical PLT entries
-/// ([`Object::has_canonical_plt`]): each `JUMP_SLOT` binds as [`slot`] says, every other entry as in
-/// [`one`]. Reached only from [`pass1_canonical`] and, on the same one test, [`relocate_deferred`].
-/// Whether any entry was deferred.
-#[cold]
-#[inline(never)]
-fn tables_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
-    let mut any = false;
+#[allow(clippy::too_many_arguments)]
+fn canonical_slots<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, before: Result<bool, RelocError<'a>>, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+    let mut any = before?;
+    let o = set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
-            any |= if r.kind == RelocKind::JumpSlot { slot::<A, I>(set, i, o, &r, deferred, text, img, unique)? } else { one::<A, I>(set, i, &r, deferred, text, img, unique)? };
+            if r.kind == RelocKind::JumpSlot {
+                any |= slot::<A, I>(set, i, o, &r, deferred, text, img, unique)?;
+            }
         }
     }
     Ok(any)
 }
 
-/// [`target`] for a `JUMP_SLOT` of object `i`: the program's canonical PLT entries are left out of
-/// the lookup, since such an entry is itself the caller of a slot (gABI "Symbol Values"), never its
-/// target. With the target, whether it is the protected definition, in another object, of the
-/// program's own canonical entry `sym` ([`protected_canonical`]).
-#[cold]
-fn slot_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn UniqueRegistry) -> Result<(Target, bool), RelocError<'a>> {
+/// The definition `JUMP_SLOT` symbol `sym` of object `i` binds when the plain lookup answered with
+/// the program's canonical PLT entry (the only undefined symbol a lookup returns): the lookup again
+/// without the program. `None` when the plain answer stands. With the target, whether it is the
+/// protected definition, in another object, of the program's own canonical entry
+/// ([`protected_canonical`]).
+fn slot_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn UniqueRegistry) -> Result<Option<(Target, bool)>, RelocError<'a>> {
     let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let st = me.symtab().get(sym).map_err(RelocError::Elf)?;
     if sym == 0 || (st.shndx != SHN_UNDEF && (st.bind() == STB_LOCAL || st.visibility() != STV_DEFAULT)) {
-        return target(set, i, sym, false, unique).map(|t| (t, false));
+        return Ok(None);
     }
     let name = me.dynamic().string(u64::from(st.name)).map_err(RelocError::Elf)?;
     let req = Request::new(name, me.reference_want(sym).map_err(RelocError::Lookup)?);
-    let weak = st.bind() == STB_WEAK;
-    let scope = Scope::global(set.global);
-    let mut bound = symbols::resolve(set.syms, scope, &req, weak, unique);
-    if let Ok(Binding::Defined(Found { obj, def })) = bound {
-        // Only the program's view answers with an undefined symbol: its canonical entry. The slot
-        // binds the definition after it.
-        if def.st.shndx == SHN_UNDEF {
-            bound = symbols::resolve(set.syms, scope.excluding(obj), &req, weak, unique);
+    let mut scope = Scope::global(set.global);
+    let mut again = false;
+    loop {
+        match symbols::resolve(set.syms, scope, &req, st.bind() == STB_WEAK, unique) {
+            Ok(Binding::Defined(Found { obj, def })) if !again && def.st.shndx == SHN_UNDEF => {
+                scope = scope.excluding(obj);
+                again = true;
+            }
+            _ if !again => return Ok(None),
+            Ok(Binding::Defined(f @ Found { obj, def })) => {
+                unique.bound(i, &f);
+                let protected = obj != i && def.st.visibility() == STV_PROTECTED && me.has_canonical_plt() && symbols::canonical_plt(&st);
+                return Ok(Some((Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size }, protected)));
+            }
+            Ok(Binding::WeakUndefined) => return Ok(Some((Target { s: 0, ifunc: false, obj: None, size: 0 }, false))),
+            Err(LookupError::Undefined) => return Err(RelocError::Undefined(name)),
+            Err(e) => return Err(RelocError::Lookup(e)),
         }
-    }
-    match bound {
-        Ok(Binding::Defined(f @ Found { obj, def })) => {
-            unique.bound(i, &f);
-            let protected = obj != i && def.st.visibility() == STV_PROTECTED && me.has_canonical_plt() && symbols::canonical_plt(&st);
-            Ok((Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size }, protected))
-        }
-        Ok(Binding::WeakUndefined) => Ok((Target { s: 0, ifunc: false, obj: None, size: 0 }, false)),
-        Err(LookupError::Undefined) => Err(RelocError::Undefined(name)),
-        Err(e) => Err(RelocError::Lookup(e)),
     }
 }
 
-/// `JUMP_SLOT` `r` of object `i` in pass `deferred`, bound by [`slot_target`]; the field is written
-/// (or the IFUNC entry deferred) as [`one`] does for its symbol entries.
-#[cold]
+/// `JUMP_SLOT` `r` of object `i` in pass `deferred` after the plain pass: only a field that points
+/// into the program can hold a canonical entry, so any other is left as written; else bound by
+/// [`slot_target`] and written (or the IFUNC entry deferred) as [`one`] does for its symbol entries.
 #[allow(clippy::too_many_arguments)]
 fn slot<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
-    let (t, protected) = slot_target(set, i, r.sym, unique)?;
+    let p = o.bias.wrapping_add(r.offset);
+    let prog = set.objs.first().ok_or(RelocError::Lookup(LookupError::NoObject(0)))?;
+    let mut w = [0u8; 8];
+    img.load(p, &mut w);
+    let v = if A::EI_DATA == ELFDATA2LSB { u64::from_le_bytes(w) } else { u64::from_be_bytes(w) };
+    if !inside(&prog.elf, v.wrapping_sub(prog.bias), 1, true) {
+        return Ok(false);
+    }
+    let Some((t, protected)) = slot_target(set, i, r.sym, unique)? else { return Ok(false) };
     if protected && !deferred {
         protected_canonical::<A, I>(set, i, r.sym, t, img)?;
     }
-    let p = o.bias.wrapping_add(r.offset);
     let put = |img: &mut I, s: u64, any: bool| -> Result<(), RelocError<'a>> {
         let f = match A::apply(r.kind, Operands { s, a: r.addend, b: o.bias, p }) {
             Ok(f) => f,
@@ -507,11 +498,8 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
     if text {
         text_segments(&o, img, page, true).map_err(|()| RelocError::Protect)?;
     }
-    let first = if set.syms.first().is_some_and(Object::has_canonical_plt) {
-        pass1_canonical::<A, I>(set, i, &o, text, img, unique)
-    } else {
-        pass1::<A, I>(set, i, &o, text, img, unique)
-    };
+    let first = pass1::<A, I>(set, i, &o, text, img, unique);
+    let first = if set.syms.first().is_some_and(Object::has_canonical_plt) { canonical_slots::<A, I>(set, i, first, false, text, img, unique) } else { first };
     if text {
         // Restored before any resolver can run, also on failure.
         text_segments(&o, img, page, false).map_err(|()| RelocError::Protect)?;
@@ -529,18 +517,20 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
 pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<(), RelocError<'a>> {
     let o = *set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let text = textrel(&o.dynm);
-    if set.syms.first().is_some_and(Object::has_canonical_plt) {
-        return tables_canonical::<A, I>(set, i, &o, true, text, img, unique).map(|_| ());
-    }
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
             one::<A, I>(set, i, &r, true, text, img, unique)?;
         }
     }
+    if set.syms.first().is_some_and(Object::has_canonical_plt) {
+        canonical_slots::<A, I>(set, i, Ok(false), true, text, img, unique)?;
+    }
     Ok(())
 }
 
-/// Pass 1 of object `o` (index `i`): RELR, RELA, `JMPREL`. Whether any entry was deferred.
+/// Pass 1 of object `o` (index `i`): RELR, RELA, `JMPREL`. Whether any entry was deferred. Kept
+/// out of [`relocate_first`], which then stays small.
+#[inline(never)]
 fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
     for at in o.dynm.relr().map_err(RelocError::Elf)?.into_iter().flatten() {
         let at = at.map_err(RelocError::Elf)?;
