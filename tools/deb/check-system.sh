@@ -135,7 +135,7 @@ if [ -f "$r/usr/sbin/ldconfig" ]; then
 else
     fail "libc-bin has no usr/sbin/ldconfig"
 fi
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libthread_db.so.1; do
     sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
     [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
 done

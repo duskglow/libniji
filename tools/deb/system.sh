@@ -26,7 +26,7 @@
 #                 libc6's name services: UTIL-6), /usr/bin/ldd (UTIL-4: static, runs the loader in trace mode). Its other programs (iconv, locale, ...) come
 #                 with SL-BIN-CORE.
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so, libresolv.so. No headers yet (SL-HEADERS, R4).
+#                 libm.so, libresolv.so, libthread_db.so. No headers yet (SL-HEADERS, R4).
 #   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
@@ -41,7 +41,7 @@ mlib=usr/lib/$ma
 # --- libc6 ---
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$s6/$mlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libthread_db.so.1; do
     need "$so"
     put 0644 "$products/$so" "$s6/$mlib/$so"
 done
@@ -91,6 +91,8 @@ put_link libm.so.6 "$sdev/$mlib/libm.so"
 # needs libresolv.so.2 and binds its GLIBC_2.x versions. libresolv.a stays empty: its functions are in
 # libc.a (D-16.6), so a static `-lresolv` link finds them there.
 put_link libresolv.so.2 "$sdev/$mlib/libresolv.so"
+# libthread_db.so.1 (SYS-THREAD-DB): debuggers load it by name; libc6-dev links its linker name.
+put_link libthread_db.so.1 "$sdev/$mlib/libthread_db.so"
 
 # --- Documentation (every package; identical across architectures, as Multi-Arch: same needs). ---
 date_r=$(date -u -d "@$epoch" -R)
