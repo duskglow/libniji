@@ -8,38 +8,5 @@ story = "SYS-THREAD-DB-2"
 date = "2026-11-17"
 tests = ["crates/core/tests/thread_db_products.rs"]
 body = '''
-**How `libthread_db.so.1` finds libniji's threads** (SYS-THREAD-DB, package-parity audit row 11). A debugger loads
-`libthread_db.so.1` into its OWN process, which runs the system's C library, and reads the target only through its
-`ps_*` callbacks. So the library is C-layer code (`crates/libc-so/placeholders/libthread_db.c`, built by the
-generated-library step with the version nodes GLIBC_2.2.5/2.3/2.3.3 and the 40 exports of `spec/abi/versions.tsv`)
-that imports nothing but the `ps_*` callbacks; there is no Rust crate for it (ruling #6167 removed the empty
-`niji-thread-db` stub).
-
-*Where the threads are.* `libc` exports one data symbol, `__niji_thread_db@NIJI_PRIVATE` (`niji_rt::thread::Debug`,
-defined in `crates/boundary/src/data.rs`, `#[used]`): 17 64-bit words, magic `nijitdb1`, version 1, word count, the
-addresses of the thread list head, the live count and the executable's TLS image record, then `offset_of!` offsets of
-this build's layout (tid and dtv in the thread block; next, thread pointer, flags, start routine, stack, priority in
-the descriptor), the exited flag and the dtv header length. `td_ta_new` finds it with `ps_pglobal_lookup` and checks
-magic and version (else `TD_NOLIBTHREAD` / `TD_VERSION`); no other C library's private symbols are read, and the
-layout can change freely as long as the descriptor describes it (a meaning change bumps the version; new words go
-at the end). Cost: 3 RELATIVE relocations in `libc.so.6` and static-PIE, none in a non-PIE static program (start-up
-rows before/after in the SYS-THREAD-DB-2 report, ruling #6168).
-
-*Handles and state.* `th_unique` is the thread pointer (= `pthread_t`). `td_ta_map_lwp2thr` reads `fs_base`
-(`user_regs_struct` word 21, kernel UAPI) through `ps_lgetregs`; 0 is the initial thread before its thread pointer is
-set (reported with LWP = `ps_getpid`). A listed thread whose tid word is 0 or whose descriptor has the exited flag is
-`TD_THR_ZOMBIE`. List walks stop after 2^20 entries, so a damaged list in a core file cannot hang the debugger.
-Agents come from a static pool of 64 (the library has no allocator).
-
-*TLS.* `td_thr_tlsbase(th, modid)` returns the module's block from the thread's dtv when the loader made one; in a
-static program (no dtv) module 1's block ends at the thread pointer: `tp - round_up(memsz, align)` from the TLS image
-record. `td_thr_tls_get_addr` (by link_map) returns `TD_NOCAPAB` until the loader publishes a link_map list.
-
-*Not offered* (`TD_NOCAPAB` / `TD_NOEVENT` / `TD_NOXREGS`): event reporting (debuggers learn of threads from ptrace
-clone and exit events), thread-specific data, extra register sets, suspend/resume, setting priority or signals.
-
-*Scope.* Proven on STATIC programs: gdb lists the threads, each thread's backtrace and a `__thread` variable per
-thread, live and from a core file (`thread_db_products.rs`). DYNAMIC programs are pending on DL-23 (ruling #6166):
-libniji's `ld.so` has no debugger rendezvous (`_r_debug` / `_dl_debug_state`) yet, so the debugger never sees
-`libc.so.6`'s symbols.
+**How `libthread_db.so.1` finds libniji's threads** (SYS-THREAD-DB, package-parity audit row 11). A debugger loads `libthread_db.so.1` into its OWN process, which runs the system's C library, and reads the target only through its `ps_*` callbacks. So the library is C-layer code (`crates/libc-so/placeholders/libthread_db.c`, built by the generated-library step with the version nodes GLIBC_2.2.5/2.3/2.3.3 and the 40 exports of `spec/abi/versions.tsv`) that imports nothing but the `ps_*` callbacks; there is no Rust crate for it (ruling #6167 removed the empty `niji-thread-db` stub). *Where the threads are.* `libc` exports one data symbol, `__niji_thread_db@NIJI_PRIVATE` (`niji_rt::thread::Debug`, defined in `crates/boundary/src/data.rs`, `#[used]`): 17 64-bit words, magic `nijitdb1`, version 1, word count, the addresses of the thread list head, the live count and the executable's TLS image record, then `offset_of!` offsets of this build's layout (tid and dtv in the thread block; next, thread pointer, flags, start routine, stack, priority in the descriptor), the exited flag and the dtv header length. `td_ta_new` finds it with `ps_pglobal_lookup` and checks magic and version (else `TD_NOLIBTHREAD` / `TD_VERSION`); no other C library's private symbols are read, and the layout can change freely as long as the descriptor describes it (a meaning change bumps the version; new words go at the end). Cost: 3 RELATIVE relocations in `libc.so.6` and static-PIE, none in a non-PIE static program (start-up rows before/after in the SYS-THREAD-DB-2 report, ruling #6168). *Handles and state.* `th_unique` is the thread pointer (= `pthread_t`). `td_ta_map_lwp2thr` reads `fs_base` (`user_regs_struct` word 21, kernel UAPI) through `ps_lgetregs`; 0 is the initial thread before its thread pointer is set (reported with LWP = `ps_getpid`). A listed thread whose tid word is 0 or whose descriptor has the exited flag is `TD_THR_ZOMBIE`. List walks stop after 2^20 entries, so a damaged list in a core file cannot hang the debugger. Agents come from a static pool of 64 (the library has no allocator). *TLS.* `td_thr_tlsbase(th, modid)` returns the module's block from the thread's dtv when the loader made one; in a static program (no dtv) module 1's block ends at the thread pointer: `tp - round_up(memsz, align)` from the TLS image record. `td_thr_tls_get_addr` (by link_map) returns `TD_NOCAPAB` until the loader publishes a link_map list. *Not offered* (`TD_NOCAPAB` / `TD_NOEVENT` / `TD_NOXREGS`): event reporting (debuggers learn of threads from ptrace clone and exit events), thread-specific data, extra register sets, suspend/resume, setting priority or signals. *Scope.* Proven on STATIC programs: gdb lists the threads, each thread's backtrace and a `__thread` variable per thread, live and from a core file (`thread_db_products.rs`). DYNAMIC programs are pending on DL-23 (ruling #6166): libniji's `ld.so` has no debugger rendezvous (`_r_debug` / `_dl_debug_state`) yet, so the debugger never sees `libc.so.6`'s symbols.
 '''
