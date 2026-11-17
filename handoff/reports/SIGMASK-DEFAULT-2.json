@@ -1,0 +1,44 @@
+{
+ "task": "SIGMASK-DEFAULT-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "CI red s18_spawn_vm was the test comparing uninitialised sigset_t tails (word 0 identical, proven by a diagnostic run); sets zeroed, window now blocks SIGUSR2/SIGRTMIN/SIGRTMAX and calls system(); every internal mask save/restore audited: all use the raw kernel call",
+ "branch": "task/sigmask-default-2",
+ "head": null,
+ "gate": {
+  "affected": "FULL cargo xtask test sigmask-default-2-gate2: see hand-back",
+  "peak": null
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "internal callers checked: posix_spawn, system/popen, thread start, process.rs child mask, setjmp.S, context.S, abort, BSD/SysV mask calls; cancel/setxid/fork do no mask save/restore; none uses the public sigprocmask/pthread_sigmask",
+  "first test fix (SIG_BLOCK window) let plant spawn-restore-missing survive: failing spawns before the window had already left the mask all-blocked; window now sets the mask whole and checks the entry mask; stale jobs sigmask-default-2-gate/-plants stopped"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "conformance s18_spawn_vm no longer reads indeterminate sigset_t bytes (CI red on task/sigmask-default)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants that break posix_spawn's and system()'s mask restore (3 new; 7 in the file); s18_spawn_vm also checks the mask after the failing spawns",
+   "before": 4,
+   "after": 7,
+   "unit": "plants",
+   "measured": false
+  }
+ ],
+ "improvement": "a coordinator hypothesis (internal caller via public API) cost nothing to test because a 3-line diagnostic print settled it in one job; briefs could ask for that diagnostic first",
+ "next_step": "none once gate and plants are green",
+ "report_file": "handoff/SIGMASK-DEFAULT.md",
+ "jobs": [
+  "sigmask-default-2-gate2",
+  "sigmask-default-2-plants2"
+ ]
+}
