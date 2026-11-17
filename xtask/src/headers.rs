@@ -382,13 +382,8 @@ impl Gen<'_> {
         }
     }
 
-    /// The members of an aggregate from layouts.tsv, or None when it must be opaque (nested or
-    /// bit-field members, member types that do not resolve to scalars).
-    fn members(&self, key: &str) -> Option<(String, Vec<String>)> {
-        self.members_nested(key).map(|(k, m, _)| (k, m))
-    }
-
-    /// `members`, and the structure tags its members have as types.
+    /// The members of an aggregate from layouts.tsv (None when it must be opaque: bit-field or unresolved member
+    /// types) and the structure tags and function typedefs its members need first.
     fn members_nested(&self, key: &str) -> Option<(String, Vec<String>, Vec<String>)> {
         let mut nested: Vec<String> = Vec::new();
         let rows = self.t.layouts.get(key)?;
