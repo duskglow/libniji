@@ -65,7 +65,8 @@ fn ctor_dtor(tag: &str) -> String {
 /// `libl<k>.so`: `f<k>` returns its TLS variable (`k`), plus `t()` for `N` and the IFUNC for [`IFUNC_LIB`].
 fn lib_src(k: usize) -> String {
     let mut s = ctor_dtor(&k.to_string());
-    writeln!(s, "static __thread int tv = {k};").unwrap();
+    // Exported (so not folded into a constant): each library has a PT_TLS segment, a TLS module.
+    writeln!(s, "__thread int tv{k} = {k};\n#define tv tv{k}").unwrap();
     let extra = if k == N {
         s.push_str("int t(void);\n");
         " + t()"
@@ -187,6 +188,8 @@ fn corpus(tag: &str) -> Option<(PathBuf, PathBuf)> {
     flags.push(&libc_s);
     jobs.push(("libt.so".to_string(), cc(&d, "libt.so", &format!("{}int t(void) {{ return 1000; }}\n", ctor_dtor("T")), &flags)));
     build_all(jobs);
+    let one = std::fs::read(d.join(format!("libl{N}.so"))).unwrap();
+    assert!(Elf::parse::<Native>(&one).unwrap().find(niji_ld::elf::pt::TLS).is_some(), "each library has a TLS module (PT_TLS)");
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let crt1 = lib.join("niji-crt1.o");
     let flags = ["-nostdlib", "-fPIE", "-pie", "-Wl,--no-as-needed", &interp, crt1.to_str().unwrap(), &rpath, &libc_s, &ld_s, "-lgcc"];
