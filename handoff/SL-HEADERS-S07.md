@@ -1,35 +1,45 @@
-# SL-HEADERS-S07: slice 7, POSIX files and processes (handoff after run 1)
+# SL-HEADERS-S07: slice 7, POSIX files and processes (handoff after run 2, SL-HEADERS-S07-2)
 
-**State.** Branch `task/sl-headers-s07` (stacked on slice 6). Head: see `handoff/reports/SL-HEADERS-S07.json`. INCOMPLETE: 24 of
-the 29 headers are generated and pass P1 and P5 (0 failed of 3245 units, 40 configurations). Say "slice 7" in commits.
+**State.** Branch `task/sl-headers-s07-2` (continues `task/sl-headers-s07`). Head: `handoff/reports/SL-HEADERS-S07-2.json`. Scope is the
+24 generated headers: `fcntl.h sys/fcntl.h sys/stat.h sys/statvfs.h sys/statfs.h sys/vfs.h dirent.h sys/dir.h sys/time.h sys/times.h utime.h
+sys/resource.h sys/utsname.h sys/select.h poll.h sys/poll.h sys/mman.h sys/uio.h sys/file.h sys/sysmacros.h paths.h libgen.h sys/xattr.h
+sys/sendfile.h`. Say "slice 7" in commits. Clippy and static clean on the head.
 
-**Done.**
-* Templates (`headers/`, from `handoff/SL-HEADERS-S07/mk.py`-style plain `@@emit` plus owned macros): `fcntl.h poll.h dirent.h
-  sys/statfs.h sys/statvfs.h sys/times.h utime.h sys/utsname.h sys/mman.h sys/uio.h sys/file.h sys/sendfile.h sys/xattr.h
-  sys/resource.h paths.h sys/select.h sys/stat.h sys/time.h sys/sysmacros.h libgen.h` and the aliases `sys/fcntl.h sys/poll.h
-  sys/vfs.h sys/dir.h` (R-H7: `sys/dir.h` ships). Macros written from the standards and man pages: `S_IS*`, `S_TYPEIS*`, `st_atime`
-  family, `timerisset/clear/cmp/add/sub`, `major/minor/makedev` (call `gnu_dev_*`), `basename` (is `__xpg_basename`), `MAP_FAILED`, `FD_*`.
-* Generator (`xtask/src/headers.rs`): anonymous-union members with a reserved alias (`ru_maxrss`), enumeration members, kernel
-  `__u8..__s64` members, typedef-of-anonymous-structure members (`f_fsid`), opaque `DIR` (incomplete tag), enumeration
-  parameters as `unsigned int` (`prlimit`).
-* Tables: `utime` in `prototypes.tsv`, `callsites.tsv`, `noexcept.tsv` (abi_extract.py `--prototypes-only`, `utime.h` in HEADERS;
-  callsite_probe.py `--names utime`); `struct statx_timestamp` in `layouts.tsv` (4 rows). Other rows unchanged.
-* `getumask` is omitted (`headers/reserved.tsv`): the reference declares it, no library version defines it.
-* `header_check.py` covers the 24 headers (P1 values, sizes; P5). Plants: `handoff/SL-HEADERS-S07/plants.txt` (8).
+**Scope change (ruling 11-17, #6379).** `sys/wait.h`, `wait.h`, `sys/param.h`, `spawn.h`, `sys/ioctl.h` move to story SL-HEADERS-S07-TAIL, held
+until slices 8 and 14 land. No partial state for them is on this branch (no template, no table row, no `header_check.py` entry; only the
+comment in `header_check.py` and this note name them). Their P10 `W*` run goes with them.
 
-**Not done / blocked.**
-* `sys/wait.h`, `wait.h`, `sys/param.h`: the reference's visibility for them includes the whole signal vocabulary (`struct
-  sigaction`, `ucontext_t`, `SIG_DFL`, `SIGRTMIN`, `si_status`, `bsd_signal` ...). They need slice 8's `signal.h` (generate them as
-  `#include <signal.h>` plus their own macros: `W*` from `wait(2)`, `MAX MIN howmany roundup powerof2 setbit...` from the BSD set).
-  `bsd_signal` has a versions row but no prototypes row (a second table gap, like `utime`).
-* `spawn.h` needs `sched.h` (`CPU_ALLOC`, slice 8). `sys/ioctl.h` needs `sys/ttydefaults.h` (`TTYDEF_*`, slice 14) and `TCSETS2`.
-* P2, P3 (probes on libniji's headers), P6 (`cargo xtask so`, `conformance/run.sh --niji-headers`), P7 (zlib, xz-utils, sqlite3),
-  P8 (`sys/xattr.h` with `linux/xattr.h`), P10 (`W*` over all 16-bit statuses, `FD_*` over 0..1023) were NOT run.
-* `_IO _IOR _IOW _IOWR` (kernel `linux/ioctl.h`) are not defined by libniji's `sys/ioctl.h` yet; decide with the kernel-coexistence work.
-* Pending decision record (generator additions) and the differences row for the omitted `getumask` not written.
+**Red gate cause (fixed).** `cargo xtask stubs` reported `abi_struct_statx_timestamp` with neither stub nor test: the four
+`struct statx_timestamp` rows of `layouts.tsv` were never run through `cargo xtask abi-gen`. Regenerated `layout.rs` and
+`appendix_c_layouts.rs` (commit "regenerate abi layout"). The `cargo xtask test` red had the same first step (`stubs`); a rerun on
+the fixed tree was started and stopped at the `cargo test` stage to sync later edits, so `xtask test` on the final head is the gate's job.
 
-**Things not to redo.** The two full table reruns are done; `abi_extract.py` without flags would drop the two `sched_*attr`
-prototype rows the committed table has (kept by hand).
+**Done this run.**
+* Rulings 3: `getumask` stays omitted, `bsd_signal` not declared (symbol exported). Differences rows (after `__STDC_ISO_10646__`) and
+  pending records `records/pending/SL-HEADERS-S07-2-{1,2,3}.toml` (decision D-NEW series D-X; two COMPAT-NEW, registered, not implemented).
+  The rows say "COMPAT-NEW (pending id)": replace with the assigned ids when CI assigns them.
+* Proofs on the 24 headers (keke): P1 and P5 0 failed of 3245; P10 (`spec/tools/header_p10.py`: `FD_*` over 0..1023, `major`/`minor`/
+  `makedev` over 20003 device numbers, -O0 and -O2, against the system's headers) 0 failed; P8 `sys/xattr.h` with `linux/xattr.h`, both orders,
+  with and without `_GNU_SOURCE`: 0 failed (`--uapi target/niji/uapi`).
+* Fixes the proofs drove: `endian.h` macros only under `__NIJI_MISC` (sys/types.h leaked them into strict modes); `paths.h` includes nothing;
+  `major/minor/makedev` expand in place (`gnu_inline` always-inline `gnu_dev_*`, address still binds to the library); `FD_SET/CLR/ISSET` index through
+  `__fdelt_chk` (also in `sys/types.h`); `sys/xattr.h` defines `XATTR_CREATE/REPLACE` only if the kernel header has not.
+* Plants: `handoff/SL-HEADERS-S07/plants.txt` (11).
 
-**Next step.** Slice 8 first (signal.h), then wait.h/param.h/spawn.h/sys/ioctl.h and the P2/P3/P6/P7/P8/P10 runs here.
+**Open (not green).**
+* P2: 32 differences of 1839 rows (`header_probe.py --include libc-include --headers <24> --out D`, `probe_compare.py visibility`). (a) `_STRUCT_TIMESPEC`
+  and `_SIGSET_NWORDS` (17 rows: reference-internal single-underscore names libniji does not define; propose accept with a differences row, no option:
+  reserved names, not interfaces); (b) `struct timespec` visible in strict configurations in `fcntl.h sys/fcntl.h sys/file.h sys/stat.h` (4 rows: `struct stat`
+  members always use it; needs the generator to give `struct stat` pre-2008 timestamp members without the name); (c) `__ino64_t __off_t __pid_t` missing
+  in strict configurations of `sys/uio.h sys/xattr.h sys/sendfile.h` (9 rows: R-H3 reserved typedef names, emitted only where a prototype needs them);
+  (d) `getumask` (1 row, accepted by ruling 3).
+* P3: 32 differences of 369 rows. The `*_chk` and `+gnu64`-with-fortify rows (`open`, `openat`, `poll`, `ppoll`, `lstat`, `fallocate`, `prlimit`, `preadv2`,
+  `scandirat`, `versionsort`, ...) are slice 18 (fortify); `getumask addr` (ruling 3). Not classified one by one.
+* P6 (`cargo xtask so`; `conformance/run.sh --niji-headers`) and P7 (zlib, xz-utils, sqlite3) were NOT run (budget). P3 and P2 above ran on the tree before the
+  last two template fixes only for `sys/xattr.h` (not in the diffs).
+
+**Things not to redo.** abi-gen, the two table reruns, the generator additions (`xtask/src/headers.rs`). Never run `abi_extract.py` without flags (drops two
+`sched_*attr` rows).
+
+**Next step.** Classify P2 (a)-(c) and P3 (accept file with differences rows, or fix: (b) is generator work); P6, P7; then SL-HEADERS-S07-TAIL.
 Plan rows: plan/headers.md section 3 (P-list), section 4 slice 7.
