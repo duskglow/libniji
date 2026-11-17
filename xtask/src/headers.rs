@@ -404,7 +404,7 @@ impl Gen<'_> {
         let anon: BTreeSet<&str> = rows.iter().filter(|r| is_agg(r)).map(|r| r["member"].as_str()).collect();
         let mut end = Some(0u64);
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
-            if let Some(kw) = Some(r["member_type"].strip_suffix(" <anon>").unwrap_or(&r["member_type"])).filter(|_| is_agg(r)) {
+            if let Some(kw) = is_agg(r).then_some(r["member_type"].strip_suffix(" <anon>").unwrap_or(&r["member_type"])) {
                 // One level of an unnamed aggregate whose members are scalars or arrays of them.
                 let prefix = format!("{}.", r["member"]);
                 let mut inner = Vec::new();
