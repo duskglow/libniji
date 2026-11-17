@@ -190,6 +190,50 @@ int main(void) {
     std::fs::remove_dir_all(&k.d).ok();
 }
 
+/// s27_1_g_0: a program that only calls `g` (no address taken) has an undefined `g` with value 0, no
+/// canonical PLT entry. Linked with a SysV hash table only, that symbol sits in the program's hash
+/// chains (a GNU hash table leaves undefined value-0 symbols out), so the loader meets it while
+/// binding the library's `return g;` and `dlsym(RTLD_DEFAULT)`; both must reach the library's own `g`,
+/// never an address made from the program's 0.
+#[test]
+fn s27_1_g_0_sysv_hash_program_call_only_reference_binds_library_definition() {
+    let Some(k) = setup("sysv") else { return };
+    let libg = cc(
+        &k.d,
+        "libg.so",
+        "int g_calls;\nvoid g(void) { g_calls++; }\nvoid *g_p(void) { return (void *)g; }\n\
+         extern void g_own_alias(void) __attribute__((alias(\"g\"), visibility(\"hidden\")));\n\
+         void *g_own(void) { return (void *)g_own_alias; }\n",
+        LIB_FLAGS,
+    );
+    let prog = r#"#define _GNU_SOURCE
+#include <dlfcn.h>
+extern void g(void);
+extern void *g_p(void);
+extern void *g_own(void);
+extern int g_calls;
+int main(void) {
+    g();
+    void *p = g_p();
+    if (p != g_own()) return 1;
+    if (dlsym(RTLD_DEFAULT, "g") != p) return 2;
+    ((void (*)(void))p)();
+    return g_calls == 2 ? 0 : 3;
+}
+"#;
+    let interp = format!("-Wl,--dynamic-linker={}", k.ld.display());
+    let p = cc(
+        &k.d,
+        "prog",
+        prog,
+        &["-nostdlib", "-fPIE", "-pie", "-Wl,--hash-style=sysv", "-Wl,--no-as-needed", &interp, k.crt1.to_str().unwrap(), libg.to_str().unwrap(), k.libc.to_str().unwrap(), k.ld.to_str().unwrap(), "-lgcc"],
+    );
+    for (how, o) in run_both(&k, &p, &[], &[]) {
+        assert_ok(how, "SysV-hash call-only reference", &o);
+    }
+    std::fs::remove_dir_all(&k.d).ok();
+}
+
 /// s27_1_g_0: the program's canonical PLT entry for a function the library (swapped in after the
 /// link, which the linker refuses) defines as protected. The library keeps its own address and the
 /// start goes on with a warning naming the function; when that library is also marked
