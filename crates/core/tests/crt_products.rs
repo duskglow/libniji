@@ -509,23 +509,26 @@ fn old_pthread_sigmask_binds_and_matches_the_reference() {
     assert!(want.ends_with("\npthread_sigmask@GLIBC_2.2.5: 140 cases, 0 differ from the default\n"), "the reference:\n{want}");
     let got = run(&exe, &w);
     assert!(got.ends_with("\npthread_sigmask@GLIBC_2.2.5: 140 cases, 0 differ from the default\n"), "libniji's old version is its default's alias:\n{got}");
-    // Two differences of libniji's DEFAULT version from the reference's, outside this compat version
+    // Differences of libniji's DEFAULT version from the reference's, outside this compat version
     // (both libraries print "same as default" for every case; reported by SYS-COMPAT-VERSIONS-REST
     // for the default's own story): libniji writes the whole 128-byte old set (zeros after the
-    // kernel's 8 bytes, "+120"), the reference only the kernel's 8 bytes ("+0"); and libniji lets a
-    // set block signal 33, which the reference never blocks. Both are masked here, nothing else.
+    // kernel's 8 bytes, "+120"; the reference "+0"); its masks treat signals 32 and 33 otherwise (a set
+    // can block 33; the old set hides 32); and with a null set it still rejects an invalid `how`
+    // (EINVAL; the reference ignores `how` then, as POSIX says). Exactly these are masked or skipped.
     let default_only = |text: &str| -> String {
-        text.lines()
-            .map(|l| {
-                let l = l.replace(" +120 after ", " +0 after ");
-                match l.split_once(" after ") {
-                    Some((head, rest)) if rest.len() >= 16 => {
-                        let mask = u64::from_str_radix(&rest[..16], 16).unwrap() & !(1u64 << 32);
-                        format!("{head} after {mask:016x}{}\n", &rest[16..])
-                    }
-                    _ => format!("{l}\n"),
+        let reserved = !((1u64 << 31) | (1u64 << 32));
+        let field = |l: &str, key: &str| -> String {
+            match l.split_once(key) {
+                Some((head, rest)) if rest.len() >= 16 && rest.as_bytes()[..16].iter().all(u8::is_ascii_hexdigit) => {
+                    let v = u64::from_str_radix(&rest[..16], 16).unwrap() & reserved;
+                    format!("{head}{key}{v:016x}{}", &rest[16..])
                 }
-            })
+                _ => l.to_string(),
+            }
+        };
+        text.lines()
+            .filter(|l| !l.contains(", how 3, set 0000000000000000 (null)") && !l.contains(", how -1, set 0000000000000000 (null)"))
+            .map(|l| field(&field(&l.replace(" +120 after ", " +0 after "), " old "), " after ") + "\n")
             .collect()
     };
     let (got, want) = (default_only(&got), default_only(&want));
