@@ -221,15 +221,14 @@ fn hex_float_to_decimal(h: &str, digits: usize) -> Result<String, String> {
         d.push((r % 1_000_000_000) as u32);
         r /= 1_000_000_000;
     }
-    let dexp;
-    if e2 >= 0 {
+    let dexp = if e2 >= 0 {
         let mut left = e2;
         while left > 0 {
             let s = left.min(29);
             dec_mul(&mut d, 1u64 << s);
             left -= s;
         }
-        dexp = 0;
+        0
     } else {
         // m * 2^-k = m * 5^k * 10^-k
         let mut left = -e2;
@@ -238,8 +237,8 @@ fn hex_float_to_decimal(h: &str, digits: usize) -> Result<String, String> {
             dec_mul(&mut d, 5u64.pow(s as u32));
             left -= s;
         }
-        dexp = e2;
-    }
+        e2
+    };
     let mut s = d.last().map(|t| t.to_string()).unwrap_or_default();
     for limb in d.iter().rev().skip(1) {
         s.push_str(&format!("{limb:09}"));
