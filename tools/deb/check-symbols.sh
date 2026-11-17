@@ -12,15 +12,19 @@
 #    level the file names (today niji-native-abi and niji-owner-abi); any other node fails.
 #    shlibs: `<name> <n> libc6 (>= <abi>)` per library, nothing else.
 # 2. dpkg-gensymbols -c4 against the packaged libraries: no symbol or library missing or extra.
-# 3. dpkg-shlibdeps on five sample programs linked with plain gcc against the unpacked libc6 and
+# 3. dpkg-shlibdeps on six sample programs linked with plain gcc against the unpacked libc6 and
 #    libc6-dev (smoke/sym-base.c, smoke/hello.c, smoke/sym-native.c, smoke/sym-owner.c,
-#    smoke/sym-resolv.c) gives exactly:
+#    smoke/sym-resolv.c, smoke/sym-relr.c) gives exactly:
 #      sym-base   libc6 (>= 2.2.5)                           (GLIBC_2.2.5 symbols only)
 #      hello      libc6 (>= 2.34)                            (the start files' __libc_start_main@GLIBC_2.34)
 #      sym-native libc6 (>= 2.34), niji-native-abi (>= 1)  (niji_heap_alloc@NIJI_NATIVE_1)
 #      sym-owner  libc6 (>= 2.34), niji-owner-abi (>= 1)   (atexit@NIJI_OWNER_1, D-27.29)
 #      sym-resolv libc6 (>= 2.9)                             (-lresolv: ns_initparse@GLIBC_2.9 from
 #                                                             libresolv.so.2, issue #5)
+#      sym-relr   libc6 (>= 2.2.5)                           (sym-base with -z pack-relative-relocs: it
+#                                                             has DT_RELR and requires GLIBC_ABI_DT_RELR,
+#                                                             which dpkg-shlibdeps does not turn into a
+#                                                             dependency: it reads imported symbols only)
 # 4. Version ordering (dpkg --compare-versions): <abi> < the packages' version < the next ABI level.
 # Prints "check-symbols: PASS" or one "check-symbols: FAIL ..." line per problem (exit 1).
 set -eu
@@ -157,6 +161,13 @@ sample hello "libc6 (>= 2.34)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begi
 sample sym-native "libc6 (>= 2.34), niji-native-abi (>= 1)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/sym-native.c" -lc -lgcc "$end"
 sample sym-owner "libc6 (>= 2.34), niji-owner-abi (>= 1)" -nostartfiles -nodefaultlibs "$dl/Scrt1.o" "$begin" "$here/smoke/sym-owner.c" -lc -lgcc "$end"
 sample sym-resolv "libc6 (>= 2.9)" -nostartfiles -nodefaultlibs "$here/smoke/sym-resolv.c" -lresolv -lc
+sample sym-relr "libc6 (>= 2.2.5)" -nostartfiles -nodefaultlibs -fPIE -pie -Wl,-z,pack-relative-relocs "$here/smoke/sym-relr.c" -lc
+relr=$tmp/pkg/debian/samples/usr/bin/sym-relr
+if [ -e "$relr" ]; then
+    readelf -d -W "$relr" | grep -q '(RELR)' || fail "sym-relr has no DT_RELR"
+    readelf -V -W "$relr" | grep -q 'Name: GLIBC_ABI_DT_RELR ' \
+        || fail "sym-relr records no GLIBC_ABI_DT_RELR requirement: the packaged libc.so.6 does not define the node"
+fi
 
 # 4. Version ordering (R2): the ABI level < this build < the next level.
 next=${abi%.*}.$((${abi##*.} + 1))

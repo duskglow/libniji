@@ -265,9 +265,12 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
         }
     }
     // The reference's nodes no symbol carries (GLIBC_ABI_DT_RELR; crate::empty_versions): defined
-    // empty, so a program that requires one starts.
-    for (ver, _) in crate::empty_versions::nodes(root, lib_name)? {
-        nodes.entry(ver).or_default();
+    // empty, so a program that requires one starts. Each names the reference's parent (the table's)
+    // and carries `local: *`: ld flags a node with no pattern WEAK, and the reference's are not
+    // (crate::empty_versions::check compares the flags and the parent).
+    let empty: BTreeMap<String, String> = crate::empty_versions::nodes(root, lib_name)?.into_iter().collect();
+    for ver in empty.keys() {
+        nodes.entry(ver.clone()).or_default();
     }
     // Node order: GLIBC_2.2.5 < GLIBC_2.3 < ... numerically, then the named GLIBC_ nodes
     // (GLIBC_ABI_DT_RELR), GLIBC_PRIVATE last.
@@ -301,10 +304,10 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
                 count += 1;
             }
         }
-        if i == local_node {
+        if i == local_node || (empty.contains_key(*v) && !compat_nodes.contains(*v)) {
             script.push_str("  local:\n    *;\n");
         }
-        match prev {
+        match empty.get(*v).or(prev) {
             Some(p) => script.push_str(&format!("}} {p};\n")),
             None => script.push_str("};\n"),
         }
@@ -1719,10 +1722,11 @@ fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
     if out.is_empty() {
         out.push_str("{\n  local: *;\n};\n");
     }
-    // The reference's nodes no symbol carries (crate::empty_versions), defined empty.
-    for (ver, _) in crate::empty_versions::nodes(root, soname)? {
+    // The reference's nodes no symbol carries (crate::empty_versions): no symbol, the reference's
+    // parent, and `local: *` so that ld does not flag the definition WEAK.
+    for (ver, parent) in crate::empty_versions::nodes(root, soname)? {
         if !nodes.contains_key(&ver) {
-            out.push_str(&format!("{ver} {{\n}};\n"));
+            out.push_str(&format!("{ver} {{\n  local: *;\n}} {parent};\n"));
         }
     }
     Ok(out)

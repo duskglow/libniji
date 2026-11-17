@@ -49,13 +49,49 @@ pub fn nodes(root: &Path, lib: &str) -> Result<Vec<(String, String)>, String> {
     Ok(rows(root)?.into_iter().filter(|(l, _, _)| l == lib).map(|(_, v, p)| (v, p)).collect())
 }
 
-/// The table's nodes `lib` does not define, from its `readelf -V` text.
+/// `(name, flags, first parent)` of each version definition in `readelf -V -W` text.
+fn definitions(readelf_v: &str) -> Vec<(String, String, Option<String>)> {
+    let mut out: Vec<(String, String, Option<String>)> = Vec::new();
+    let mut inside = false;
+    for line in readelf_v.lines() {
+        if line.contains("Version definition section") {
+            inside = true;
+        } else if line.contains("section '") {
+            inside = false;
+        } else if inside && line.contains("Rev:") {
+            let flags = line.split_once("Flags: ").and_then(|(_, r)| r.split_whitespace().next()).unwrap_or("");
+            if let Some((_, name)) = line.split_once("Name: ") {
+                out.push((name.trim().to_string(), flags.to_string(), None));
+            }
+        } else if inside && line.contains("Parent 1: ") {
+            if let (Some(last), Some((_, p))) = (out.last_mut(), line.split_once("Parent 1: ")) {
+                last.2 = Some(p.trim().to_string());
+            }
+        }
+    }
+    out
+}
+
+/// What is wrong with the table's nodes in `lib`, from its `readelf -V` text: a node it does not
+/// define, or one whose flags or parent differ from the reference's (flags `none`: a WEAK flag marks
+/// a definition the link editor saw no symbol or pattern for, which the reference's nodes are not).
 fn missing(rows: &[(String, String, String)], lib: &str, readelf_v: &str) -> Vec<String> {
-    let defined = crate::placeholders::verdefs(readelf_v);
-    rows.iter()
-        .filter(|(l, v, _)| l == lib && !defined.iter().any(|(n, base)| !base && n == v))
-        .map(|(_, v, _)| format!("{lib} does not define the version node {v} ({TABLE}): a program that requires it is refused at start-up"))
-        .collect()
+    let defined = definitions(readelf_v);
+    let mut out = Vec::new();
+    for (_, v, parent) in rows.iter().filter(|(l, _, _)| l == lib) {
+        match defined.iter().find(|(n, flags, _)| n == v && flags != "BASE") {
+            None => out.push(format!("{lib} does not define the version node {v} ({TABLE}): a program that requires it is refused at start-up")),
+            Some((_, flags, p)) => {
+                if flags != "none" {
+                    out.push(format!("{lib} defines the version node {v} with flags {flags}; the reference's has none ({TABLE})"));
+                }
+                if p.as_deref() != Some(parent.as_str()) {
+                    out.push(format!("{lib} defines the version node {v} with parent {}; the reference's is {parent} ({TABLE})", p.as_deref().unwrap_or("(none)")));
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Every table node is a version definition of the linked product in `release`. The number checked.
@@ -84,7 +120,7 @@ mod tests {
         0x0010:   Name: GLIBC_ABI_DT_RELR  Flags: none  Version: 4\n";
 
     fn row(l: &str, v: &str) -> (String, String, String) {
-        (l.to_string(), v.to_string(), String::new())
+        (l.to_string(), v.to_string(), "GLIBC_2.39".to_string())
     }
 
     #[test]
@@ -94,7 +130,23 @@ mod tests {
         let only_needed = V.replace("Name: GLIBC_ABI_DT_RELR\n  0x0054", "Name: GLIBC_2.40\n  0x0054");
         let m = missing(&[row("libc.so.6", "GLIBC_ABI_DT_RELR")], "libc.so.6", &only_needed);
         assert_eq!(m.len(), 1, "{m:?}");
-        assert!(m[0].contains("GLIBC_ABI_DT_RELR"));
+        assert!(m[0].contains("does not define the version node GLIBC_ABI_DT_RELR"), "{m:?}");
+    }
+
+    // no spec clause: the product's definition matches the reference's readelf -V (flags none, parent).
+    #[test]
+    fn a_weak_node_or_another_parent_is_named() {
+        let weak = V.replace("Flags: none  Index: 3", "Flags: WEAK  Index: 3");
+        let m = missing(&[row("libc.so.6", "GLIBC_ABI_DT_RELR")], "libc.so.6", &weak);
+        assert_eq!(m.len(), 1, "{m:?}");
+        assert!(m[0].contains("with flags WEAK"), "{m:?}");
+        let other = V.replace("Parent 1: GLIBC_2.39", "Parent 1: GLIBC_2.41");
+        let m = missing(&[row("libc.so.6", "GLIBC_ABI_DT_RELR")], "libc.so.6", &other);
+        assert_eq!(m.len(), 1, "{m:?}");
+        assert!(m[0].contains("with parent GLIBC_2.41; the reference's is GLIBC_2.39"), "{m:?}");
+        let orphan = V.replace("\n  0x0054: Parent 1: GLIBC_2.39", "");
+        let m = missing(&[row("libc.so.6", "GLIBC_ABI_DT_RELR")], "libc.so.6", &orphan);
+        assert!(m.len() == 1 && m[0].contains("with parent (none)"), "{m:?}");
     }
 
     #[test]

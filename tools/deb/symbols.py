@@ -173,7 +173,9 @@ def nondefault_exports(so, got, defaults):
 
 def min_version(node, abi, upstream):
     # A named symbol-less node (GLIBC_ABI_DT_RELR): the build's upstream version, since libniji builds
-    # before SYS-ABI-DT-RELR do not define it while every build from this one on does.
+    # before SYS-ABI-DT-RELR do not define it while every build from this one on does. dpkg-shlibdeps
+    # derives dependencies from imported symbols, so a program's requirement on the node alone adds
+    # nothing to its shlibs:Depends (measured; check-symbols.sh sample sym-relr pins it).
     if node in NAMED_EMPTY:
         return upstream
     if node.startswith("GLIBC_"):
