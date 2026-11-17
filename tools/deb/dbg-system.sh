@@ -6,7 +6,7 @@
 # A root of SUITE (trixie default, or excalibur; MIRROR and KEYRING as in tools/deb/proof.sh) with gdb;
 # libniji's libc6 and libc-bin swapped in as tools/deb/swap-system.sh does (dpkg -i --force-downgrade
 # --force-depends), so gdb itself runs on libniji. Then, in the root (tools/deb/dbg-cmds.sh):
-#   - before libc6-dbg: gdb finds no line information for DBG_FUNC (default __libc_start_main) in the
+#   - before libc6-dbg: gdb finds no line information for DBG_FUNC (default exit) in the
 #     stripped libc.so.6;
 #   - dpkg -i libc6-dbg succeeds (its Depends: libc6 (= version) is met by the swapped libc6);
 #   - after: `info line DBG_FUNC` names a source file and line (gdb found the debug file by build-id
@@ -22,7 +22,7 @@ suite=${2:-trixie}
 logdir=${3:-$debdir}
 here=$(cd "$(dirname "$0")" && pwd)
 mm=${MMDEBSTRAP:-mmdebstrap}
-func=${DBG_FUNC:-__libc_start_main}
+func=${DBG_FUNC:-exit}
 case $suite in
     trixie) mirror=https://deb.debian.org/debian; keyring=${KEYRING:-/usr/share/keyrings/debian-archive-keyring.gpg} ;;
     excalibur) mirror=http://deb.devuan.org/merged; keyring=${KEYRING:-/usr/share/keyrings/devuan-archive-keyring.gpg} ;;
@@ -74,10 +74,16 @@ grep -q -i 'no line number information' "$o/before.out" 2>/dev/null &&
 grep -q -E '^Line [0-9]+ of "[^"]+"' "$o/after.out" 2>/dev/null &&
     pass "with libc6-dbg gdb shows the source line of $func: $(grep -m1 -E '^Line [0-9]+ of' "$o/after.out")" ||
     fail "with libc6-dbg: $(head -3 "$o/after.out" 2>/dev/null | tr '\n' ' ')"
-# The frame line gdb prints at the stop: "#0  FUNC (...) at FILE:LINE".
-grep -q -E "^#0 +($func|0x[0-9a-f]+ in $func) .* at [^ ]+:[0-9]+\$" "$o/run.out" 2>/dev/null &&
+# The stop at the breakpoint, then the innermost frame gdb prints for `frame` and `bt`: "#0  NAME (...) at
+# FILE:LINE" (NAME may be the libniji function inlined at FUNC's entry, whose line it is).
+grep -q -E "^Breakpoint 1, " "$o/run.out" 2>/dev/null && grep -q -E '^#0 +.* at [^ ]+:[0-9]+$' "$o/run.out" 2>/dev/null &&
     pass "gdb stopped at $func in /usr/bin/true: $(grep -m1 -E '^#0 ' "$o/run.out")" ||
     fail "gdb in a running /usr/bin/true: $(tail -4 "$o/run.out" 2>/dev/null | tr '\n' ' ')"
+# `list` there prints the source line numbers around the stop (the sources are not installed, so gdb
+# names the file and line instead of its text).
+grep -q -E '^[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out" 2>/dev/null &&
+    pass "list at the stop names the source: $(grep -m1 -E '^[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out")" ||
+    fail "list at the stop: $(grep -v '^#' "$o/run.out" 2>/dev/null | tail -3 | tr '\n' ' ')"
 mv "$o"/* "$res/" && rm -rf "$res/tmp"
 echo "dbg: RESULT pass=$npass fail=$nfail"
 [ "$nfail" -eq 0 ]

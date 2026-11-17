@@ -145,7 +145,8 @@ done
 #     stripped (no symbol table) and keeps its GNU build-id note; libc6-dbg holds exactly one
 #     file per object, .build-id/<first byte>/<rest>.debug, whose own build-id is the object's and
 #     which has the symbol table; libc.so.6's has line tables (.debug_line). gdb, given only the
-#     debug directory, prints the source line of DBG_FUNC (default getenv) in libc.so.6.
+#     debug directory, prints the source line of DBG_FUNC's entry address (`info line *getenv` by
+#     default; the address form, because line tables carry no function entries to look a name up in).
 build_id() { readelf -nW "$1" 2>/dev/null | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
 dbgroot=$r/usr/lib/debug
 : > "$tmp/ids"
@@ -179,7 +180,7 @@ else
 fi
 func=${DBG_FUNC:-getenv}
 if command -v gdb > /dev/null; then
-    out=$(timeout 120 gdb -batch -nx -ex "set debug-file-directory $dbgroot" -ex "info line $func" "$lib/libc.so.6" 2>&1 || true)
+    out=$(timeout 120 gdb -batch -nx -ex "set debug-file-directory $dbgroot" -ex "info line *$func" "$lib/libc.so.6" 2>&1 || true)
     case $out in
         *"Line "[0-9]*" of \""*) ;;
         *) fail "gdb with libc6-dbg's directory shows no source line for $func in libc.so.6: $(echo "$out" | tail -2 | tr '\n' ' ')" ;;

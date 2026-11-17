@@ -123,6 +123,7 @@ Do not install them on a Debian or Devuan system that keeps glibc: they replace 
 | `libc-bin` | `Essential: yes`. Conffiles `/etc/ld.so.conf`, `/etc/ld.so.conf.d/libc.conf`, `/etc/gai.conf`; the template `/usr/share/libc-bin/nsswitch.conf`, which its postinst copies to `/etc/nsswitch.conf` when there is none. `/usr/sbin/ldconfig` (static), `/usr/bin/getconf` (static), `/usr/bin/getent` (dynamic, through the system loader) and `/usr/bin/ldd` (static). Handles the `ldconfig` trigger by running `ldconfig`; purging removes `/etc/ld.so.cache` |
 | `libc6-dev` | `Provides: libc-dev`. Start files (as in `niji6-dev`, `crti.o` and `crtn.o` included), the `libc.so` script, `libc_nonshared.a`, the static archives, `libm.so`. No headers yet: plain `gcc` compiles with the system's glibc headers |
 | `libc-dev-bin`, `locales`, `libc-l10n` | placeholders (documentation only) until their programs and data exist |
+| `libc6-dbg` | `Section: debug`, `Depends: libc6 (= version)`, `Provides: libc-dbg, libc6-dbgsym`. The detached debugging information (symbol table and line tables) of every shared object of `libc6` and every program of `libc-bin`, as `/usr/lib/debug/.build-id/xx/yyyy.debug` named by each file's GNU build-id: with it installed, gdb shows the source file and line of a libniji function. The packaged objects stay stripped |
 
 Versions are `<abi>+niji<YYYYMMDD>.<n>-<rev>` (owner ruling R2), for example `2.39+niji20261114.1-1`:
 no epoch, so they sort above glibc 2.39 and below 2.40, and a binary that needs a later ABI is not
