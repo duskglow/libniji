@@ -264,11 +264,18 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
             }
         }
     }
-    // Node order: GLIBC_2.2.5 < GLIBC_2.3 < ... numerically, GLIBC_PRIVATE last.
-    let key = |v: &str| -> (u32, Vec<u32>) {
+    // The reference's nodes no symbol carries (GLIBC_ABI_DT_RELR; crate::empty_versions): defined
+    // empty, so a program that requires one starts.
+    for (ver, _) in crate::empty_versions::nodes(root, lib_name)? {
+        nodes.entry(ver).or_default();
+    }
+    // Node order: GLIBC_2.2.5 < GLIBC_2.3 < ... numerically, then the named GLIBC_ nodes
+    // (GLIBC_ABI_DT_RELR), GLIBC_PRIVATE last.
+    let key = |v: &str| -> (u32, Vec<u32>, String) {
         match v.strip_prefix("GLIBC_") {
-            Some("PRIVATE") | None => (1, Vec::new()),
-            Some(n) => (0, n.split('.').map(|p| p.parse().unwrap_or(0)).collect()),
+            Some("PRIVATE") | None => (2, Vec::new(), v.to_string()),
+            Some(n) if n.split('.').all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit())) => (0, n.split('.').map(|p| p.parse().unwrap_or(0)).collect(), String::new()),
+            Some(_) => (1, Vec::new(), v.to_string()),
         }
     };
     let mut order: Vec<&String> = nodes.keys().collect();
@@ -1439,6 +1446,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     check_placement(root, &release)?;
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
+    // SYS-ABI-DT-RELR: every symbol-less node of the reference that libniji honours is defined.
+    let empty = crate::empty_versions::check(root, &release)?;
+    println!("so: {empty} symbol-less version nodes defined ({})", crate::empty_versions::TABLE);
     // After the last product: every layout contract of layout/contracts.tsv (D-X.48) on the products, among them
     // the 64-byte entries (D-4.33), the classed pages' XREF bias (D-X.34), the hot kernels' jumps off 32-byte
     // boundaries (D-4.67) and no build path in any product (PRODUCT-PATH-REMAP).
@@ -1708,6 +1718,12 @@ fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
     }
     if out.is_empty() {
         out.push_str("{\n  local: *;\n};\n");
+    }
+    // The reference's nodes no symbol carries (crate::empty_versions), defined empty.
+    for (ver, _) in crate::empty_versions::nodes(root, soname)? {
+        if !nodes.contains_key(&ver) {
+            out.push_str(&format!("{ver} {{\n}};\n"));
+        }
     }
     Ok(out)
 }

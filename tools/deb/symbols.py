@@ -56,6 +56,9 @@ KINDS = {
     "OWNER": {"package": "niji-owner-abi", "spec": "nondefault-libc"},
 }
 NIJI_NODE = re.compile(r"NIJI_([A-Z]+)_([0-9]+)")
+# The reference's named version nodes no symbol carries (spec/abi/empty-versions.tsv beside --versions;
+# GLIBC_ABI_DT_RELR): filled in by generate().
+NAMED_EMPTY = set()
 
 
 def die(msg):
@@ -83,6 +86,8 @@ def check_node(so, node):
     if node in (PRIVATE, NIJI_PRIVATE) or niji_node(node) is not None:
         return
     if node.startswith("GLIBC_") and re.fullmatch(r"\d+(\.\d+)*", node[len("GLIBC_"):]):
+        return
+    if node in NAMED_EMPTY:
         return
     die(f"{so}: version node {node} has no dependency rule: a libniji-only node NIJI_<KIND>_<n> "
         f"needs its kind in KINDS (tools/deb/symbols.py; plan/system-libc.md section 3.2), any other "
@@ -167,6 +172,10 @@ def nondefault_exports(so, got, defaults):
 
 
 def min_version(node, abi, upstream):
+    # A named symbol-less node (GLIBC_ABI_DT_RELR): the build's upstream version, since libniji builds
+    # before SYS-ABI-DT-RELR do not define it while every build from this one on does.
+    if node in NAMED_EMPTY:
+        return upstream
     if node.startswith("GLIBC_"):
         level = node[len("GLIBC_"):]
         return level if version_key(level) <= version_key(abi) else upstream
@@ -178,6 +187,8 @@ def min_version(node, abi, upstream):
 
 def generate(args):
     versions = read_tsv(args.versions)
+    empty = os.path.join(os.path.dirname(args.versions), "empty-versions.tsv")
+    NAMED_EMPTY.update(r["version"] for r in read_tsv(empty) if not re.fullmatch(r"GLIBC_\d+(\.\d+)*", r["version"]))
     natives = read_tsv(args.native)
     # The specification's exports the build does not have yet (docs/spec-symbol-gaps.tsv, rows
     # missing in the shared object): left out of the file, which describes the built library.

@@ -61,7 +61,8 @@ done | sort | tr '\n' ' ')
 blocks=$(grep -v '^[ |*#]' "$sym" | awk '{ print $1 }' | sort | tr '\n' ' ')
 [ "$blocks" = "$libs" ] || fail "symbols blocks '$blocks', not the libraries '$libs'"
 ! grep -n 'GLIBC_PRIVATE' "$sym" > "$tmp/priv" || fail "GLIBC_PRIVATE in symbols: $(head -1 "$tmp/priv")"
-awk -v abi="$abi" -v up="$upstream" '
+named=$(awk -F'\t' 'NR > 1 && $2 !~ /^GLIBC_[0-9.]+$/ { print $2 }' "$here/../../spec/abi/empty-versions.tsv" | sort -u | tr '\n' ' ')
+awk -v abi="$abi" -v up="$upstream" -v named="$named" '
     function le(a, b,   x, y, n, m, i) {   # dotted numbers: a <= b
         n = split(a, x, "."); m = split(b, y, ".")
         for (i = 1; i <= (n > m ? n : m); i++) {
@@ -90,6 +91,9 @@ awk -v abi="$abi" -v up="$upstream" '
             lvl = substr(node, 7); want = le(lvl, abi) ? lvl : up
             if ($2 != want) bad("minimum version " $2 ", not " want)
             if (NF != 2) bad("a GLIBC node with a template")
+        } else if (index(" " named " ", " " node " ") && $1 == node "@" node) {
+            # a named node no symbol carries (spec/abi/empty-versions.tsv): the build upstream version
+            if ($2 != up || NF != 2) bad("not " node "@" node " " up)
         } else if (node ~ /^NIJI_[A-Z]+_[0-9]+$/) {
             kind = node; sub(/^NIJI_/, "", kind); n = kind; sub(/_[0-9]+$/, "", kind); sub(/^[A-Z]+_/, "", n)
             pkg = "niji-" tolower(kind) "-abi"

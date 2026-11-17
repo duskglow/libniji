@@ -411,7 +411,7 @@ fn body_path(root: &Path, soname: &str) -> std::path::PathBuf {
     root.join("crates/libc-so/placeholders").join(format!("{stem}.c"))
 }
 
-fn readelf(args: &[&str], so: &Path) -> Result<String, String> {
+pub(crate) fn readelf(args: &[&str], so: &Path) -> Result<String, String> {
     let out = Command::new("readelf").args(args).arg(so).output().map_err(|e| format!("readelf: {e}"))?;
     if !out.status.success() {
         return Err(format!("readelf {} {} failed", args.join(" "), so.display()));
@@ -420,7 +420,7 @@ fn readelf(args: &[&str], so: &Path) -> Result<String, String> {
 }
 
 /// The version definitions in `readelf -V` text: `(name, base?)`.
-fn verdefs(v: &str) -> Vec<(String, bool)> {
+pub(crate) fn verdefs(v: &str) -> Vec<(String, bool)> {
     let mut out = Vec::new();
     let mut inside = false;
     for line in v.lines() {
