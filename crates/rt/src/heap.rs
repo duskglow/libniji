@@ -193,6 +193,9 @@ const SEG_MIN: usize = META + SEG_FIRST * SLAB;
 /// Generation 0 of the large-block table at most: 256 slots, one page (later generations
 /// double, T14). Was the maximum, 16 MiB of address space at the first large block.
 const FIRST_LARGE: usize = 256;
+/// Segment bytes mapped from which a request may spill into a nearby class ([`Heap::refill`]):
+/// a quarter of a segment window, more than a short program's heap maps.
+const SPILL_FROM: usize = SEG / 4;
 // Segment metadata, dense (D-3.15): line 0 the shard + 1 (word 0); line 1 + i slab i's head; from
 // LOCALS the slabs' local bitmaps, 2 KiB each, then their remote bitmaps (REMOTE_OFF after the
 // local one); slab data from META. The heads of all slabs share one page and a bitmap is written
@@ -477,6 +480,12 @@ struct Shard {
 }
 
 impl Shard {
+    /// Whether [`Heap::take_held`] would find a slab, read without the shard's lock (a hint).
+    #[inline]
+    fn seems_to_hold_a_slab(&self) -> bool {
+        self.empty.load(Relaxed) != 0 || (self.seg.load(Relaxed) != 0 && self.next_slab.load(Relaxed) < self.mapped.load(Relaxed))
+    }
+
     const fn new() -> Shard {
         Shard {
             lock: RawMutex::new(),
@@ -1399,22 +1408,22 @@ impl Heap {
             return Some(None);
         }
         let shard = self.shard_of(pages);
-        let held = {
-            let _g = self.shards[shard].lock.lock(sys);
-            self.take_held(pages, shard)
-        };
-        let s = match held {
-            Some(s) => s,
-            None => {
-                if let Some(c2) = spill.then(|| Self::spill_class(pages, k, c)).flatten() {
-                    return Some(Some(c2));
-                }
-                let own = {
-                    let _g = self.shards[shard].lock.lock(sys);
-                    self.take_slab(sys, pages, shard)
-                };
-                own.or_else(|| self.take_elsewhere(sys, pages, shard))?
+        // The spill runs only in a heap whose segments map SPILL_FROM bytes or more, and only when
+        // the shard seems to hold no slab: an unlocked peek, a policy hint that a race merely
+        // makes spill or grow once more. Below SPILL_FROM the address space a spill saves is
+        // small, and short programs (start-up) never run it, so neither it nor a second locked
+        // section joins their hot text (HEAP-ADDRESS-SPACE-4: they cost a start-up text fault).
+        if spill && self.seg_mapped.load(Relaxed) >= SPILL_FROM && !self.shards[shard].seems_to_hold_a_slab() {
+            if let Some(c2) = Self::spill_class(pages, k, c) {
+                return Some(Some(c2));
             }
+        }
+        let s = {
+            let own = {
+                let _g = self.shards[shard].lock.lock(sys);
+                self.take_slab(sys, pages, shard)
+            };
+            own.or_else(|| self.take_elsewhere(sys, pages, shard))?
         };
         self.adopt(pages, k, c, s);
         self.make_current(pages, k, c, s);

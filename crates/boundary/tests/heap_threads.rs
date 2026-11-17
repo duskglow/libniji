@@ -327,6 +327,11 @@ fn rust_realloc_in_place_never_reaches_the_neighbour() {
             put(b, &pattern(i as u8, size));
         }
         let mid = blocks[4];
+        // The block's own size: a class at most half as large again may serve the request when
+        // the next slab of `class` would need new address space (HEAP-ADDRESS-SPACE's spill).
+        let usable = m::malloc_usable_size(mid as *mut c_void);
+        assert!(usable >= class && usable <= class + class / 2, "class {class}: a block of {usable} bytes");
+        let class = usable;
         // Grow within the class (in place), then just past it (must move).
         let same = rust_realloc(mid, size, ALIGN, class);
         assert_eq!(same, mid, "class {class}: a growth inside the class stays in place");

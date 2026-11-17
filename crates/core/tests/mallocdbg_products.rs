@@ -67,6 +67,7 @@ const STATIC: &str = "a static program: libc.a defines every name the probe refe
 const DEBUG: &str = "D-3.5 as decided in phase 13: libniji's C library provides libc_malloc_debug semantics itself (mcheck before the first allocation succeeds and checks every block; MCHECK_FREE for a freed block; mtrace logs to MALLOC_TRACE); the plain reference returns -1 and checks nothing without the preloaded library";
 const NO_TCACHE: &str = "D-3.4, D-3.11: freed small blocks return to their slab at once (no per-thread cache of freed blocks), so uordblks comes back; arena (segments) does not shrink";
 const NO_ENV: &str = "D-3.4: MALLOC_MMAP_THRESHOLD_, MALLOC_MMAP_MAX_, MALLOC_TOP_PAD_, MALLOC_TRIM_THRESHOLD_, MALLOC_ARENA_MAX and their tunables have no neutral meaning and are not read; libniji's fingerprint is the same in every environment except perturbation";
+const GROWS_WITH_USE: &str = "D-3.4 and HEAP-ADDRESS-SPACE (pending D-3 record): arena counts the bytes mapped for small blocks, and a segment is mapped only as far as its slabs are used, so a second thread's 200 x malloc(1000) grows it by its new slabs";
 const SEGMENT: &str = "D-3.10: the first small allocation of the fingerprint fits in a segment the start code mapped (16 MiB), so arena does not grow and more than 1 MiB is free in it";
 
 const MAIN_EFFECTS: &str = "#### main\n== mallopt effects\n";
@@ -86,7 +87,7 @@ const ENV: &str = "#### env";
 /// Lines that differ from the reference by decision: the scope (a prefix of `run\nsection\n`),
 /// the text the reference's line starts with, and why. A recorded line that no longer differs
 /// fails the test.
-const KNOWN: [(&str, &str, &str); 51] = [
+const KNOWN: [(&str, &str, &str); 52] = [
     (MAIN_EFFECTS, "  mallopt(M_MMAP_THRESHOLD, 64 MiB)", NO_THRESHOLD),
     (MAIN_EFFECTS, "malloc(1 MiB) by default", NO_THRESHOLD),
     (MAIN_EFFECTS, "  stderr: [free(): double free detected in tcache 2]", MESSAGE),
@@ -100,6 +101,7 @@ const KNOWN: [(&str, &str, &str); 51] = [
     (MAIN_INFO, "after freeing the 100 blocks", STATS),
     (MAIN_INFO, "  uordblks back to start", STATS),
     (MAIN_INFO, "after a second thread's 200 x malloc(1000)", STATS),
+    (MAIN_INFO, "  uordblks grew by at least 200000", GROWS_WITH_USE),
     (MAIN_INFO, "  mallinfo2 change", STATS),
     (MAIN_INFO, "  mallinfo2 hblkhd >= 3 GiB", STATS),
     (MAIN_INFO, "  mallinfo vs mallinfo2", SAT),

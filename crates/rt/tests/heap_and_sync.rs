@@ -1125,6 +1125,57 @@ fn segments_are_aligned_and_found_from_any_address() {
     assert_eq!(heap.stats(&CSys, &pages).small_mapped, 3 * SEG + (256 << 10) + 40 * (256 << 10));
 }
 
+#[test]
+fn a_small_heap_grows_instead_of_spilling_into_a_nearby_class() {
+    // Trace: no spec clause (the heap's class policy); HEAP-ADDRESS-SPACE-4.
+    // Invariant: below a quarter of a segment of mapped slabs a request takes a slab of its own
+    // class, even when the shard holds no slab and the next class has free blocks: the spill
+    // saves little address space there, and short programs never run it (start-up text).
+    let heap = Heap::new();
+    let pages = FakePages::new();
+    let (c1, c2, c3) = (CLASSES[1], CLASSES[2], CLASSES[3]);
+    assert!(c2 <= c1 + c1 / 2, "class {c2} is a spill target of class {c1}");
+    // A new segment maps two slabs: one for class c2 (most blocks free), one for class c3.
+    let a = heap.alloc(&CSys, &pages, c2, ALIGN).unwrap();
+    let b = heap.alloc(&CSys, &pages, c3, ALIGN).unwrap();
+    assert_eq!((a.usable, b.usable), (c2, c3));
+    // Class c1: the shard holds no slab, class c2's current slab has free blocks.
+    let x = heap.alloc(&CSys, &pages, c1, ALIGN).unwrap();
+    assert_eq!(x.usable, c1, "a small heap grew its segment for class {c1}, not a block of class {}", x.usable);
+    for p in [x.addr, b.addr, a.addr] {
+        heap.free(&CSys, &pages, p).unwrap();
+    }
+}
+
+#[test]
+fn a_large_block_in_a_segments_unmapped_tail_is_found_as_large() {
+    // Trace: no spec clause (the heap's block lookup); D-3.10, D-3.13, HEAP-ADDRESS-SPACE.
+    // Invariant: a segment maps its 16 MiB window only as far as it is used, so another mapping
+    // (here a large block) can sit in the window's unmapped tail. An address there belongs to no
+    // slab: free, usable and realloc take it to the large-block table, which knows the block and
+    // reports any other address there as invalid.
+    let heap = Heap::new();
+    let pages = FakePages::new();
+    let small = heap.alloc(&CSys, &pages, 40, ALIGN).unwrap().addr;
+    // The first large block maps the large-block table too: keep it alive so that the next
+    // large block is a fresh mapping, not a kept one (D-3.13).
+    let warm = heap.alloc(&CSys, &pages, 1 << 20, ALIGN).unwrap().addr;
+    let window = small / SEG * SEG;
+    let (seg_start, seg_map) = pages.mapping_of(small);
+    let tail = seg_start + seg_map.len;
+    assert!(tail + (4 << 20) < window + SEG, "the segment is mapped only as far as it is used");
+    // The kernel's next mapping goes into the window's free tail.
+    *pages.next.borrow_mut() = tail + 4 * PAGE;
+    let big = heap.alloc(&CSys, &pages, 1 << 20, ALIGN).unwrap().addr;
+    assert!(big > tail && big + (1 << 20) <= window + SEG, "the large block {big:#x} sits in the segment's window tail");
+    assert!(heap.usable(&CSys, &pages, big).is_ok_and(|u| u >= 1 << 20), "a large block in a window tail is found: {:?}", heap.usable(&CSys, &pages, big));
+    assert_eq!(heap.free(&CSys, &pages, big + PAGE), Err(Misuse::InvalidPointer), "inside the large block: not a block");
+    let big = heap.resize(&CSys, &pages, big, 3 << 20, |_, _, _| {}).expect("a large block in a window tail grows").expect("mapped").addr;
+    heap.free(&CSys, &pages, big).expect("a large block in a window tail is freed");
+    heap.free(&CSys, &pages, warm).unwrap();
+    heap.free(&CSys, &pages, small).unwrap();
+}
+
 // ------------------------------------------------------------------------------ sync
 
 #[test]
