@@ -1351,7 +1351,8 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             reloc::VersionError::Elf(b, _) => fail_with(&[by(b), b": malformed version tables\n"], program::FAILURE),
         }
     }
-    let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
+    // The program's view: its canonical PLT entries define their functions (DL-CANONICAL-PLT).
+    let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).map(niji_ld::symbols::Object::program).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
     let mut syms: Table<niji_ld::symbols::Object<'static>, INLINE> = Table::new(first_sym);
     let mut global: Table<usize, INLINE> = Table::new(0);
     if syms.reserve(n).is_err() || global.reserve(n).is_err() {
@@ -1378,7 +1379,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     if let Err(f) = relocated {
         let name = objs.get(f.obj).map_or(&b"?"[..], |o| o.name);
         match f.error {
-            reloc::RelocError::Undefined(sym) => fail_with(&[name, b": ", f.error.message(), sym, b"\n"], program::FAILURE),
+            reloc::RelocError::Undefined(sym) | reloc::RelocError::IndirectExternAccess(sym) => fail_with(&[name, b": ", f.error.message(), sym, b"\n"], program::FAILURE),
             e => fail_with(&[name, b": ", e.message()], program::FAILURE),
         }
     }
@@ -1661,6 +1662,11 @@ impl niji_ld::reloc::Image for ProcImage {
 
     fn tlsdesc_static(&mut self) -> Option<u64> {
         Some(crate::arch::tlsdesc_static())
+    }
+
+    fn warn(&mut self, parts: &[&[u8]]) {
+        write_all(2, b"ld.so: ");
+        parts.iter().for_each(|p| write_all(2, p));
     }
 }
 

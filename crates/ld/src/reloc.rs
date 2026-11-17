@@ -18,7 +18,7 @@
 //! deferred store into such a segment is refused. Relocation code matches on [`RelocKind`] only.
 
 use crate::arch::{ApplyError, Arch, Operands, RelocKind, TlsOperands, ELFDATA2LSB};
-use crate::elf::{dt, pt, Dynamic, Elf, ElfError, ProgramHeader, Rela, STB_LOCAL, STB_WEAK, STT_GNU_IFUNC, STT_TLS, STV_DEFAULT, SHN_UNDEF};
+use crate::elf::{dt, pt, Dynamic, Elf, ElfError, ProgramHeader, Rela, STB_LOCAL, STB_WEAK, STT_GNU_IFUNC, STT_TLS, STV_DEFAULT, STV_PROTECTED, SHN_UNDEF};
 use crate::map::{PROT_EXEC, PROT_READ, PROT_WRITE};
 use crate::symbols::{self, Binding, Found, LookupError, Object, Request, Scope, UniqueRegistry};
 
@@ -79,6 +79,8 @@ pub trait Image {
     fn tlsdesc_static(&mut self) -> Option<u64> {
         None
     }
+    /// Report a warning that does not stop the load: `parts` make one line. Nothing by default.
+    fn warn(&mut self, _parts: &[&[u8]]) {}
 }
 
 /// Why an object could not be relocated.
@@ -95,6 +97,10 @@ pub enum RelocError<'a> {
     TextRel(u32),
     /// A strong reference without a definition (the symbol's name).
     Undefined(&'a [u8]),
+    /// The program's canonical PLT entry for a function (the symbol's name) whose definition is
+    /// protected in an object marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`: that object takes
+    /// its own address as the function's, so the two addresses would differ.
+    IndirectExternAccess(&'a [u8]),
     /// A field outside the object's writable segments, or a copy source outside its provider.
     Outside(u64),
     /// The value does not fit the field.
@@ -120,7 +126,8 @@ pub struct Failure<'a> {
 
 impl<'a> RelocError<'a> {
     /// The diagnostic text (after `ld.so: <object>: `), without the symbol name of
-    /// [`RelocError::Undefined`] (the caller prints it after this text).
+    /// [`RelocError::Undefined`] and [`RelocError::IndirectExternAccess`] (the caller prints it after
+    /// this text).
     pub fn message(self) -> &'static [u8] {
         match self {
             RelocError::Unsupported(_) => b"unsupported relocation type\n",
@@ -128,6 +135,7 @@ impl<'a> RelocError<'a> {
             RelocError::TlsModule(_) => b"a thread-local storage relocation refers to an object without a TLS segment\n",
             RelocError::TextRel(_) => b"relocation of a text field in an object not marked DT_TEXTREL\n",
             RelocError::Undefined(_) => b"undefined symbol: ",
+            RelocError::IndirectExternAccess(_) => b"the program's PLT address of a protected function of an object that needs indirect extern access: ",
             RelocError::Outside(_) => b"relocation outside the object's writable segments\n",
             RelocError::Overflow(_) => b"relocated value does not fit its field\n",
             RelocError::Copy(_) => b"COPY relocation outside the program or without a provider\n",
@@ -178,6 +186,9 @@ struct Target {
     obj: Option<usize>,
     /// The definition's size.
     size: u64,
+    /// A `JUMP_SLOT` of the program's canonical PLT entry bound to a protected definition in
+    /// another object, whose own references to the function bind its own address.
+    protected: bool,
 }
 
 /// The run-time value of definition `st` in object `o`.
@@ -187,17 +198,61 @@ fn value_of(set: &Objects<'_, '_>, o: usize, st: &crate::elf::Sym) -> u64 {
     bias.wrapping_add(st.value)
 }
 
+/// `GNU_PROPERTY_1_NEEDED` (Linux extensions to the gABI, "Program Properties": a 32-bit property
+/// whose bits are OR-ed across inputs) and its bit `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`: the
+/// object reaches external symbols only indirectly, so its protected functions' addresses are its own.
+const GNU_PROPERTY_1_NEEDED: u32 = 0xb000_8000;
+const NEEDED_INDIRECT_EXTERN_ACCESS: u32 = 1;
+
+/// Whether `elf` is marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` (no or malformed notes:
+/// not marked).
+pub fn needs_indirect_extern_access<A: Arch>(elf: &Elf<'_>) -> bool {
+    let Some(ph) = elf.find(pt::GNU_PROPERTY) else { return false };
+    let Ok(notes) = elf.notes(&ph) else { return false };
+    let word = |d: &[u8]| {
+        let b: [u8; 4] = d.get(..4)?.try_into().ok()?;
+        Some(if A::EI_DATA == ELFDATA2LSB { u32::from_le_bytes(b) } else { u32::from_be_bytes(b) })
+    };
+    notes
+        .map_while(Result::ok)
+        .flat_map(|n| n.properties().map_while(Result::ok))
+        .any(|p| p.pr_type == GNU_PROPERTY_1_NEEDED && word(p.data).is_some_and(|w| w & NEEDED_INDIRECT_EXTERN_ACCESS != 0))
+}
+
+/// The program's `JUMP_SLOT` `sym` of a canonical PLT entry bound to `t`, a protected definition in
+/// another object: that object's own references to the function bind its own address, not the
+/// entry. Refused when the object is marked as needing indirect extern access (it was built on the
+/// promise that no program takes the function's address directly); otherwise a warning, and the
+/// load goes on.
+#[cold]
+#[inline(never)]
+fn protected_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, sym: u32, t: Target, img: &mut I) -> Result<(), RelocError<'a>> {
+    let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
+    let st = me.symtab().get(sym).map_err(RelocError::Elf)?;
+    let name = me.dynamic().string(u64::from(st.name)).map_err(RelocError::Elf)?;
+    let Some(def) = t.obj.and_then(|d| set.objs.get(d)) else { return Ok(()) };
+    if needs_indirect_extern_access::<A>(&def.elf) {
+        return Err(RelocError::IndirectExternAccess(name));
+    }
+    let prog = set.objs.get(i).map_or(&b""[..], |o| o.name);
+    img.warn(&[prog, b": warning: the program's address of protected function `", name, b"' differs from its address in ", def.name, b"\n"]);
+    Ok(())
+}
+
 /// Resolve symbol `sym` of object `i`. A defined local, or a defined symbol whose visibility is not
 /// default, binds in its own object; every other reference is looked up in the global scope (without
 /// the program for a `COPY`).
-fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mut dyn UniqueRegistry) -> Result<Target, RelocError<'a>> {
+///
+/// `jump_slot`: the reference is a `JUMP_SLOT`, which the program's canonical PLT entries do not define
+/// ([`Request::jump_slot`]); every other reference to such a function binds the entry.
+fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, jump_slot: bool, unique: &mut dyn UniqueRegistry) -> Result<Target, RelocError<'a>> {
     if sym == 0 {
-        return Ok(Target { s: 0, ifunc: false, obj: None, size: 0 });
+        return Ok(Target { s: 0, ifunc: false, obj: None, size: 0, protected: false });
     }
     let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let st = me.symtab().get(sym).map_err(RelocError::Elf)?;
     if !copy && st.shndx != SHN_UNDEF && (st.bind() == STB_LOCAL || st.visibility() != STV_DEFAULT) {
-        return Ok(Target { s: value_of(set, i, &st), ifunc: st.kind() == STT_GNU_IFUNC, obj: Some(i), size: st.size });
+        return Ok(Target { s: value_of(set, i, &st), ifunc: st.kind() == STT_GNU_IFUNC, obj: Some(i), size: st.size, protected: false });
     }
     let dynm = set.objs.get(i).map(|o| o.dynm).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let name = dynm.string(u64::from(st.name)).map_err(RelocError::Elf)?;
@@ -206,12 +261,15 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mu
     if copy {
         scope = scope.excluding(0);
     }
-    match symbols::resolve(set.syms, scope, &Request::new(name, want), st.bind() == STB_WEAK, unique) {
+    let req = Request::new(name, want);
+    let req = if jump_slot { req.jump_slot() } else { req };
+    match symbols::resolve(set.syms, scope, &req, st.bind() == STB_WEAK, unique) {
         Ok(Binding::Defined(f @ Found { obj, def })) => {
             unique.bound(i, &f);
-            Ok(Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size })
+            let protected = jump_slot && obj != i && def.st.visibility() == STV_PROTECTED && me.is_program() && symbols::canonical_plt(&st);
+            Ok(Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size, protected })
         }
-        Ok(Binding::WeakUndefined) => Ok(Target { s: 0, ifunc: false, obj: None, size: 0 }),
+        Ok(Binding::WeakUndefined) => Ok(Target { s: 0, ifunc: false, obj: None, size: 0, protected: false }),
         Err(LookupError::Undefined) => Err(RelocError::Undefined(name)),
         Err(e) => Err(RelocError::Lookup(e)),
     }
@@ -255,7 +313,10 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
             if matches!(r.kind, RelocKind::TextRel { .. }) && !text {
                 return Err(RelocError::TextRel(r.r_type));
             }
-            let t = target(set, i, r.sym, false, unique)?;
+            let t = target(set, i, r.sym, false, r.kind == RelocKind::JumpSlot, unique)?;
+            if t.protected && !deferred {
+                protected_canonical::<A, I>(set, i, r.sym, t, img)?;
+            }
             match (t.ifunc, deferred) {
                 (false, false) => put(img, field(r.kind, t.s)?, text).map(|()| false),
                 (false, true) => Ok(false),
@@ -270,7 +331,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
         RelocKind::Copy => {
             let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
             let size = me.symtab().get(r.sym).map_err(RelocError::Elf)?.size;
-            let t = target(set, i, r.sym, true, unique)?;
+            let t = target(set, i, r.sym, true, false, unique)?;
             let src = t.obj.filter(|&d| i == 0 && d != 0).and_then(|d| set.objs.get(d)).ok_or(RelocError::Copy(r.offset))?;
             // The program's size; a smaller definition copies only what it has.
             let len = size.min(t.size);
@@ -286,7 +347,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
             let (s, def) = if r.sym == 0 {
                 (0, Some(i))
             } else {
-                let t = target(set, i, r.sym, false, unique)?;
+                let t = target(set, i, r.sym, false, false, unique)?;
                 (t.s, t.obj)
             };
             let placed = def.and_then(|d| set.objs.get(d)).and_then(|d| d.tls).ok_or(RelocError::TlsModule(r.offset))?;
