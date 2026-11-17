@@ -323,18 +323,17 @@ impl<A: Arch, F: Fs> Run<'_, A, F> {
 
     /// Points `<dir>/<soname>` at `winner` unless it already reaches the same file; true when it changed.
     ///
-    /// A soname link that already resolves to the winner's file (same device and inode) is left as it is, whatever
-    /// its text (probe: r-dev-alias-cache.transcript, GitHub issue #16). The winner can be a `.so` alias whose chain
-    /// runs through the soname link itself (`libcmockery.so -> libcmocka.so -> libcmocka.so.0`); such a winner
+    /// A soname path that already resolves to the winner's file (same device and inode) is left as it is, silently,
+    /// whatever its text, and also when it is that file itself (`libtcl8.6.so` with `libtcl8.6.so.0 ->
+    /// libtcl8.6.so`) (probe: r-dev-alias-cache.transcript, GitHub issue #16). The winner can be a `.so` alias whose
+    /// chain runs through the soname link itself (`libcmockery.so -> libcmocka.so -> libcmocka.so.0`); such a winner
     /// resolves to whatever the soname link resolves to, so the link is never pointed back into its own chain.
     fn link(&mut self, dir: &[u8], soname: &[u8], winner: &[u8], r: &mut Outcome) -> Result<bool, Oom> {
         let path = join(dir, soname)?;
-        if matches!(self.fs.lstat(&path), Ok(m) if m.kind == Kind::Link) {
-            let target = join(dir, winner)?;
-            if let (Ok(cur), Ok(win)) = (self.fs.stat(&path), self.fs.stat(&target)) {
-                if (cur.dev, cur.ino) == (win.dev, win.ino) {
-                    return Ok(false);
-                }
+        let target = join(dir, winner)?;
+        if let (Ok(cur), Ok(win)) = (self.fs.stat(&path), self.fs.stat(&target)) {
+            if (cur.dev, cur.ino) == (win.dev, win.ino) {
+                return Ok(false);
             }
         }
         self.link_at(&path, winner, r)

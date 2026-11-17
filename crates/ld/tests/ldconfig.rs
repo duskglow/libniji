@@ -364,7 +364,8 @@ fn soname_links_follow_the_highest_version() {
 /// whose chain runs through the soname link (`libcmockery.so -> libcmocka.so -> libcmocka.so.0`) never makes a
 /// loop. Issue #16's layout in both orders (soname link present: kept, not reported as changed; absent: the aliases
 /// dangle during the scan and the link goes to the real file), plus an alias that sorts above the real file, an
-/// upgrade whose alias reaches the old version, and a link whose text differs from the file's name.
+/// upgrade whose alias reaches the old version, a link whose text differs from the file's name, a link at an older
+/// version that must still move, and a regular file at the soname path that is the winner's own file.
 #[test]
 fn a_soname_link_reaching_the_winner_is_kept() {
     let issue = |with_soname_link: bool| {
@@ -391,7 +392,9 @@ fn a_soname_link_reaching_the_winner_is_kept() {
     assert_eq!(m.get("/opt/l/libcmocka.so.0"), Some(&Node::Link(b"libcmocka.so.0.8.0".to_vec())));
 
     let mut m = base();
-    m.file("/etc/ld.so.conf", b"/opt/f\n/opt/g\n/opt/h\n/opt/i\n");
+    m.file("/etc/ld.so.conf", b"/opt/f\n/opt/g\n/opt/h\n/opt/i\n/opt/j\n");
+    // A regular file at the soname path that is the winner's own file: left alone, no message.
+    m.elf("/opt/j/libtk9.so", Some("libtk9.so")).link("/opt/j/libtk9.so.0", "libtk9.so");
     // A link that reaches another file still moves to the winner.
     m.elf("/opt/i/libv.so.1.0", Some("libv.so.1")).elf("/opt/i/libv.so.1.1", Some("libv.so.1"));
     m.link("/opt/i/libv.so.1", "libv.so.1.0");
@@ -412,6 +415,9 @@ fn a_soname_link_reaching_the_winner_is_kept() {
     assert_eq!(m.get("/opt/h/libqvx.so.2"), Some(&Node::Link(b"libqvx.so.2.0".to_vec())));
     assert!(out.contains("\tlibv.so.1 -> libv.so.1.1 (changed)\n"), "{out}");
     assert_eq!(m.get("/opt/i/libv.so.1"), Some(&Node::Link(b"libv.so.1.1".to_vec())));
+    assert!(out.contains("\tlibtk9.so -> libtk9.so.0\n"), "{out}");
+    assert_eq!(text(&o.err), "", "no message for a soname path that is the winner's file");
+    assert!(matches!(m.get("/opt/j/libtk9.so"), Some(Node::File(_))));
 }
 
 /// s31_2_g_4 (probe): a dangling `lib*.so*` link is removed unless `-X` or its name ends in `.so`.

@@ -8,7 +8,9 @@
 # /opt/f  an upgrade: the soname link at the old version, a new version beside it, an alias through the links;
 # /opt/g  a soname link whose text differs from the file's name but which reaches the same file;
 # /opt/h  an alias that sorts above the real file, straight at it, soname link present;
-# /opt/i  the soname link at an old version, a new version beside it, no alias: the link moves.
+# /opt/i  the soname link at an old version, a new version beside it, no alias: the link moves;
+# /opt/j  a regular file at the soname path that is the winner's own file (`libtk9.so.0 -> libtk9.so`, soname
+#         `libtk9.so`): left alone, no message.
 name: ldconfig -r ROOT -v never points a soname link at a .so development name and records the cache
 clause: s31_2_g_4
 clause: s31_2_c_1
@@ -31,6 +33,7 @@ file: etc/ld.so.conf
 | /opt/g
 | /opt/h
 | /opt/i
+| /opt/j
 elf: opt/a/libcmocka.so.0.8.0 soname=libcmocka.so.0
 link: opt/a/libcmocka.so.0 -> libcmocka.so.0.8.0
 link: opt/a/libcmocka.so -> libcmocka.so.0
@@ -55,6 +58,8 @@ link: opt/h/libqvxalt.so -> libqvx.so.2.0
 elf: opt/i/libv.so.1.0 soname=libv.so.1
 elf: opt/i/libv.so.1.1 soname=libv.so.1
 link: opt/i/libv.so.1 -> libv.so.1.0
+elf: opt/j/libtk9.so soname=libtk9.so
+link: opt/j/libtk9.so.0 -> libtk9.so
 dir: lib
 dir: lib/x86_64-linux-gnu
 dir: usr/lib
@@ -79,6 +84,8 @@ stdout:
 | \tlibqvx.so.2 -> libqvxalt.so
 | /opt/i: (from /etc/ld.so.conf:9)
 | \tlibv.so.1 -> libv.so.1.1 (changed)
+| /opt/j: (from /etc/ld.so.conf:10)
+| \tlibtk9.so -> libtk9.so.0
 | /lib/x86_64-linux-gnu: (from <builtin>:0)
 | /usr/lib/x86_64-linux-gnu: (from <builtin>:0)
 | /lib: (from <builtin>:0)
@@ -88,6 +95,7 @@ written-file: etc/ld.so.cache
 | 0x303 libv.so.1 /opt/i/libv.so.1
 | 0x303 libup.so.1 /opt/f/libup.so.1
 | 0x303 libup.so /opt/f/libup.so
+| 0x303 libtk9.so /opt/j/libtk9.so
 | 0x303 libsf.so.1 /opt/g/libsf.so.1
 | 0x303 libqvx.so.2 /opt/h/libqvx.so.2
 | 0x303 libqux.so.2 /opt/c/libqux.so.2
