@@ -1,0 +1,13 @@
+id = "D-NEW"
+series = "D-3"
+section = "s03"
+spec = "§3.1"
+ann = "KERN"
+status = "active"
+amends = ["D-3.14", "D-3.19"]
+story = "HEAP-ADDRESS-SPACE-3"
+date = "2026-11-17"
+tests = ["crates/rt/tests/heap_and_sync.rs", "crates/core/tests/heap_meta_products.rs"]
+body = '''
+**The heap's address space grows with its use** (HEAP-ADDRESS-SPACE, -2, -3; GitHub issue #21, 2026-11-17). A segment's 16 MiB window is mapped only as far as its shard hands slabs out: a new segment maps its metadata and 2 slabs (`SEG_FIRST`, 512 KiB), and the current segment grows in place by doubling, at most 8 slabs (2 MiB) per step (`Pages::grow`), before a new segment is mapped; a window whose next part is taken by another mapping ends there. Generation 0 of the large-block table is at most 256 slots (`FIRST_LARGE`, one page) with or without an address-space limit, later generations double as under D-3.14 (amends D-3.14's "unlimited keeps the maxima" for this table). The first reservation (D-3.19) is the registry page, the cache chunk and the first segment's mapped part, no longer the whole 16 MiB window; below four times a segment's first mapping (`4 * SEG_MIN`) no segment is mapped (was four whole segments, D-3.14). An address inside a registered window whose slab no cache owns is resolved by the large table (`locate_in`: the window's unmapped part can hold another mapping, a large block's too). A default-aligned small request whose class has no free block first takes a free block of one of the next two classes at most half as large again (`spill_class`, cold, checked lookups) before the heap maps more. Measured with `oracle/heap_address_space.c` (the issue's program; Zen 1 build host, identical over 5 runs; VmSize growth over the start of `main`, KiB): one `malloc` +16448 -> +836 (reference +132); 200000 blocks of 96..159 bytes +32836 -> +28996 (+27984); every other one refilled with `malloc(120)` +49220 -> +32836 (+29568); a pointer array grown to 200000 by doubling `realloc` +67652 -> +34888 (+28052); the least `RLIMIT_AS` over start the program needs 67652 -> 34896 (+29568). Not changed: empty segments keep their address space (returning it needs a design for the lock-free registry readers), and the 16-byte steps of the reference's chunk sizes are not copied (a refill of class 112 holes by `malloc(120)` maps new slabs). Tests: `the_heap_keeps_address_space_near_its_use` (core: each step's growth within its measured value plus one slab, and the program under `RLIMIT_AS` = start + 35152 KiB), the rt heap tests of `heap_and_sync.rs`.
+'''

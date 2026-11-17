@@ -1,0 +1,10 @@
+id = "D-NEW"
+series = "D-X"
+section = "x"
+status = "active"
+story = "HEAP-ADDRESS-SPACE-3"
+date = "2026-11-17"
+tests = ["xtask/src/so.rs"]
+body = '''
+**The GOT of a static program starts on a 256-byte boundary** (HEAP-ADDRESS-SPACE-3, 2026-11-17; ruling #6325). GNU ld's default script places `.got` right after the relro output section, so where the GOT starts follows the size of every relro object of the link. The start-up functions read GOT slots (the addresses of large-section objects, which the linker does not relax to immediates), and on HEAP-ADDRESS-SPACE-2 the relro of the start-up probe shrank by 536 bytes (0xb180 -> 0xaf68; the start-up relro cluster itself unchanged, 79 sections, 11384 bytes): the 200-byte GOT crossed a page boundary and STARTUP-DATA-WINDOWS counted 8 written start-up pages > rw-budget-fast 7. The start object (`entry.S`, first in every link) now carries an empty `.got` input section aligned to 256 bytes: the linker's own slots join the same output section, which takes that alignment, so a GOT of at most 32 slots never spans two pages whatever relro precedes it. Cost: at most 255 bytes of padding inside the relro pages, which end on a page boundary anyway (`DATA_SEGMENT_RELRO_END`); the start-up probe is back at 7 written pages. `cargo xtask so` refuses a start object without the aligned section (`check_group_end`, test `the_group_end_is_found_with_its_alignment`). A GOT that outgrows 256 bytes can straddle again; STARTUP-DATA-WINDOWS names it when it does.
+'''
