@@ -4,7 +4,11 @@
 #define __NIJI_H_sched_h 1
 
 #include <features.h>
-#include <time.h>
+/* The levels before POSIX.1-2001 without the default extensions show the whole of <time.h> here; the others only the
+   names this header owns. */
+#if !__NIJI_MISC && __NIJI_POSIX < 200112
+# include <time.h>
+#endif
 
 __NIJI_BEGIN_C
 

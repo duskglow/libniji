@@ -9,6 +9,13 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
 # ifndef __NIJI_D_cnd_t
 #  define __NIJI_D_cnd_t 1
 typedef union {
@@ -201,13 +208,22 @@ enum { thrd_timedout = 4 };
 #endif
 
 /* C 7.26.1: thread_local is a macro for the storage-class specifier before C23 (a keyword in C23 and C++). */
-/* The probe shows the macro in every C++ standard as well (g++ accepts _Thread_local), and in C before C23. */
-#if defined __cplusplus || __NIJI_ISOC < 2023
+/* The probe shows it in C by the compiler's language version (a keyword from C23: -std=c2x, gnu2x) and in no C++ standard. */
+#if !defined __cplusplus && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 202311L)
 # define thread_local _Thread_local
 #endif
 
 #if 1
 # define ONCE_FLAG_INIT { 0 }
+#endif
+
+/* Optimised code compares two thread ids in place (the call-site table: no symbol is referenced); the exported
+   function stays for programs that take its address. */
+#if defined __OPTIMIZE__ && !defined __NO_INLINE__
+extern __inline __attribute__ ((__gnu_inline__)) int thrd_equal (unsigned long __a, unsigned long __b)
+{
+  return __a == __b;
+}
 #endif
 
 __NIJI_END_C

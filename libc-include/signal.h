@@ -170,10 +170,17 @@ union sigval {
 # endif
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
+#  ifdef __cplusplus
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+#  else
 typedef union {
   char __size[56];
   long __align;
 } pthread_attr_t;
+#  endif
 # endif
 # ifndef __NIJI_D_struct_sigevent
 #  define __NIJI_D_struct_sigevent 1
@@ -471,18 +478,23 @@ typedef __sigset_t sigset_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199309
-# ifndef __NIJI_D_time_t
-#  define __NIJI_D_time_t 1
-typedef long time_t;
-# endif
-#endif
-#if __NIJI_POSIX >= 199309 && __NIJI_CXX < 1
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
+#  ifdef __cplusplus
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+#  else
 typedef union {
   char __size[56];
   long __align;
 } pthread_attr_t;
+#  endif
+# endif
+# ifndef __NIJI_D_time_t
+#  define __NIJI_D_time_t 1
+typedef long time_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
@@ -4842,6 +4854,11 @@ enum { TRAP_UNK = 5 };
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
 # define si_status _sifields._sigchld.si_status
+#endif
+/* sigevent(3type): the thread-notification members are named at the top level of struct sigevent. */
+#if __NIJI_POSIX >= 199309
+# define sigev_notify_function _sigev_un._sigev_thread._function
+# define sigev_notify_attributes _sigev_un._sigev_thread._attribute
 #endif
 
 /* unistd.h's retry macro; signal.h shows it under the GNU levels as well (its body names errno and EINTR at the use). */

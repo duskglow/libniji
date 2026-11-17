@@ -58,6 +58,11 @@ __NIJI_BEGIN_C
 @@when si_status
 # define si_status _sifields._sigchld.si_status
 #endif
+/* sigevent(3type): the thread-notification members are named at the top level of struct sigevent. */
+@@when sigevent
+# define sigev_notify_function _sigev_un._sigev_thread._function
+# define sigev_notify_attributes _sigev_un._sigev_thread._attribute
+#endif
 
 /* unistd.h's retry macro; signal.h shows it under the GNU levels as well (its body names errno and EINTR at the use). */
 @@when TEMP_FAILURE_RETRY

@@ -9,12 +9,14 @@
 #define __NIJI_H_pthread_h 1
 
 #include <features.h>
-#include <limits.h>
 #include <sched.h>
 #include <time.h>
-#include <setjmp.h>
 
 __NIJI_BEGIN_C
+
+/* Only what the cleanup macros call: pthread.h does not show the rest of <setjmp.h>. */
+struct __jmp_buf_tag;
+extern int __sigsetjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW;
 
 #if 1
 # ifndef __NIJI_D___jmp_buf
@@ -27,6 +29,24 @@ struct __cancel_jmp_buf_tag {
   __jmp_buf __cancel_jmp_buf;
   int __mask_was_saved;
   int : 32;
+};
+# endif
+# ifndef __NIJI_D___jmp_buf
+#  define __NIJI_D___jmp_buf 1
+typedef long __jmp_buf[8];
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_struct___jmp_buf_tag
+#  define __NIJI_D_struct___jmp_buf_tag 1
+struct __jmp_buf_tag {
+  __jmp_buf __jmpbuf;
+  int __mask_was_saved;
+  __sigset_t __saved_mask;
 };
 # endif
 # ifndef __NIJI_D_struct__pthread_cleanup_buffer
@@ -56,6 +76,20 @@ typedef struct {
   struct __cancel_jmp_buf_tag __cancel_jmp_buf[1] __attribute__ ((__aligned__ (16)));
   void * __pad[4];
 } __pthread_unwind_buf_t;
+# endif
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+#  ifdef __cplusplus
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+#  else
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
+#  endif
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
@@ -142,15 +176,6 @@ typedef int pthread_once_t;
 # ifndef __NIJI_D_pthread_t
 #  define __NIJI_D_pthread_t 1
 typedef unsigned long pthread_t;
-# endif
-#endif
-#if __NIJI_CXX < 1
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
@@ -480,6 +505,12 @@ extern void __pthread_unregister_cancel (__pthread_unwind_buf_t *);
 # ifndef __NIJI_D___pthread_unwind_next
 #  define __NIJI_D___pthread_unwind_next 1
 extern void __pthread_unwind_next (__pthread_unwind_buf_t *);
+# endif
+#endif
+#if __NIJI_DYNSTACK || (__NIJI_POSIX >= 1 && __NIJI_POSIX < 200112)
+# ifndef __NIJI_D___sysconf
+#  define __NIJI_D___sysconf 1
+extern long int __sysconf (int) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_GNU
@@ -871,6 +902,11 @@ enum { PTHREAD_SCOPE_SYSTEM = 0 };
 #  define PTHREAD_ATTR_NO_SIGMASK_NP (-1)
 # endif
 #endif
+#if __NIJI_MISC
+# ifndef PTHREAD_STACK_MIN
+#  define PTHREAD_STACK_MIN 16384
+# endif
+#endif
 #if __NIJI_POSIX >= 200112
 # ifndef PTHREAD_BARRIER_SERIAL_THREAD
 #  define PTHREAD_BARRIER_SERIAL_THREAD (-1)
@@ -974,6 +1010,15 @@ public:
   } while (0)
 #  endif
 # endif
+#endif
+
+/* Optimised code compares two thread ids in place (the call-site table: no symbol is referenced); the exported
+   function stays for programs that take its address. */
+#if defined __OPTIMIZE__ && !defined __NO_INLINE__
+extern __inline __attribute__ ((__gnu_inline__)) int pthread_equal (unsigned long __a, unsigned long __b) __NIJI_NOTHROW
+{
+  return __a == __b;
+}
 #endif
 
 __NIJI_END_C

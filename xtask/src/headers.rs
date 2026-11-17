@@ -331,7 +331,7 @@ struct Gen<'a> {
     errors: Vec<String>,
     emitted: BTreeSet<String>,
     /// (name, kind) rows of the templates this one includes: those headers supply them.
-    covered: BTreeSet<(String, String)>,
+    covered: BTreeMap<(String, String), u64>,
     /// Names whose macro row the template defines itself (`@@owns-macro`); their function rows are still emitted.
     owned_macros: BTreeSet<String>,
 }
@@ -433,6 +433,9 @@ impl Gen<'_> {
                 return "0".into();
             }
         };
+        // A union typedef without a C++ spelling is a union tag in C++, which the visibility probe does not classify as
+        // a typedef: it is declared in every C++ configuration where the C typedef is (typedef()).
+        let target = if r["kind"] == "typedef" && self.union_tag(name) { target | self.cxx_mask() } else { target };
         let configs = r["configs"].clone();
         // The _FORTIFY_SOURCE configurations (-O2 probes) belong to slice 18 (fortify): when no condition over the
         // levels separates a name there, they stop deciding it, and the generated tests keep the C probe's other rows.
@@ -447,6 +450,19 @@ impl Gen<'_> {
                 }
             },
         }
+    }
+
+    /// The configurations of the C++ language (every level column `cxx` above 0, none rejected).
+    fn cxx_mask(&self) -> u64 {
+        let col = LEVEL_COLS.iter().position(|c| c.0 == "cxx").unwrap_or(0);
+        self.t.lv.values.iter().enumerate().filter(|(i, v)| v[col] > 0 && self.t.lv.reject >> i & 1 == 0).fold(0u64, |m, (i, _)| m | 1 << i)
+    }
+
+    /// A typedef of a union that typedefs.tsv gives no C++ spelling (`pthread_attr_t`): C++ declares the tag itself.
+    fn union_tag(&self, name: &str) -> bool {
+        self.t.typedefs.get(&("typedef".to_string(), name.to_string())).is_some_and(|r| r["cxx"].is_empty())
+            && !self.t.typedefs.contains_key(&("struct".to_string(), name.to_string()))
+            && self.members_nested(name).is_some_and(|(kw, _, _)| kw == "union")
     }
 
     fn fortify_mask(&self) -> u64 {
@@ -719,6 +735,11 @@ impl Gen<'_> {
             // `typedef struct ucontext_t {..} ucontext_t;`: the tag has a row of its own (C++ spells the typedef as the tag).
             self.tag(name, "struct");
             vec![format!("typedef struct {name} {name};")]
+        } else if cxx.is_empty() && self.union_tag(name) {
+            // C++ names the union itself (a tag), C a typedef of an unnamed union.
+            let (kw, m, nested) = self.members_nested(name).unwrap_or_default();
+            self.emit_nested(nested);
+            [vec!["#  ifdef __cplusplus".into(), format!("{kw} {name} {{")], m.clone(), vec!["};".into(), "#  else".into(), format!("typedef {kw} {{")], m, vec![format!("}} {name};"), "#  endif".into()]].concat()
         } else if cxx == name || cxx.is_empty() {
             match self.members_nested(name) {
                 Some((kw, m, nested)) => {
@@ -939,11 +960,27 @@ impl Gen<'_> {
         }
     }
 
+    /// An included header shows (name, kind) in every configuration this header does (that matters: not rejected, not
+    /// visible without any header): the name is left to it. A name an included header shows only in some of them
+    /// (pid_t in time.h under POSIX levels) is still emitted here, behind the guard both share.
+    fn fully_covered(&self, name: &str, kind: &str) -> bool {
+        let Some(&by_includes) = self.covered.get(&(name.to_string(), kind.to_string())) else {
+            return false;
+        };
+        // The union tag of C++ has no row of its own in any header: always declared here, behind the shared guard.
+        if kind == "typedef" && self.union_tag(name) {
+            return false;
+        }
+        let all = (1u64 << self.t.lv.ids.len()) - 1;
+        let care = all & !self.dont_care(name, kind);
+        self.rows(name).iter().filter(|r| r["kind"] == kind).all(|r| mask_of(&self.t.lv, &r["configs"]).unwrap_or(0) & care & !by_includes == 0)
+    }
+
     fn emit(&mut self, owned: &BTreeSet<String>) {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
         let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
-            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.covered.contains(&(name.clone(), kind.clone())) {
+            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.fully_covered(&name, &kind) {
                 continue;
             }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
@@ -1102,13 +1139,13 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         texts.insert(h.clone(), fs::read_to_string(root.join(TEMPLATES).join(format!("{h}.in"))).map_err(|e| e.to_string())?);
     }
     // `#include <x>` of another template, at any depth: x's names are not emitted again.
-    // An include right after `@@when` is conditional (its names stay emitted here, under this header's own conditions).
+    // An include right after `@@when` or an `#if` line is conditional (its names stay emitted here, under this header's own conditions).
     let includes = |text: &str| -> Vec<String> {
         let mut prev = "";
         let mut out = Vec::new();
         for l in text.lines() {
             let inc = l.trim_start().strip_prefix('#').map(str::trim_start).and_then(|l| l.strip_prefix("include")).and_then(|l| l.trim().strip_prefix('<')).and_then(|l| l.strip_suffix('>'));
-            if let Some(x) = inc.filter(|x| texts.contains_key(*x) && !prev.starts_with("@@when")) {
+            if let Some(x) = inc.filter(|x| texts.contains_key(*x) && !prev.starts_with("@@when") && !prev.trim_start().starts_with("#if")) {
                 out.push(x.to_string());
             }
             prev = l;
@@ -1124,7 +1161,11 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 stack.extend(includes(&texts[&x]));
             }
         }
-        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        // Per (name, kind): the configurations in which an included header shows it (the union of their rows).
+        let mut covered: BTreeMap<(String, String), u64> = BTreeMap::new();
+        for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
+            *covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(0);
+        }
         let mut owned = BTreeSet::new();
         let mut owned_macros = BTreeSet::new();
         for l in text.lines() {

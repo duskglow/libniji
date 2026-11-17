@@ -4,7 +4,11 @@
 #define __NIJI_H_sched_h 1
 
 #include <features.h>
-#include <time.h>
+/* The levels before POSIX.1-2001 without the default extensions show the whole of <time.h> here; the others only the
+   names this header owns. */
+#if !__NIJI_MISC && __NIJI_POSIX < 200112
+# include <time.h>
+#endif
 
 __NIJI_BEGIN_C
 
@@ -15,12 +19,140 @@ struct sched_param {
   int sched_priority;
 };
 # endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+#endif
+#if __NIJI_POSIX < 200112
+# ifndef __NIJI_D_struct_tm
+#  define __NIJI_D_struct_tm 1
+struct tm {
+  int tm_sec;
+  int tm_min;
+  int tm_hour;
+  int tm_mday;
+  int tm_mon;
+  int tm_year;
+  int tm_wday;
+  int tm_yday;
+  int tm_isdst;
+  long tm_gmtoff;
+  char * tm_zone;
+};
+# endif
+#endif
+#if __NIJI_POSIX >= 199309 && __NIJI_POSIX < 200112
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_itimerspec
+#  define __NIJI_D_struct_itimerspec 1
+struct itimerspec {
+  struct timespec it_interval;
+  struct timespec it_value;
+};
+# endif
+#endif
+#if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
 # ifndef __NIJI_D_cpu_set_t
 #  define __NIJI_D_cpu_set_t 1
 typedef struct {
   unsigned long __bits[16];
 } cpu_set_t;
 # endif
+# ifndef __NIJI_D_pid_t
+#  define __NIJI_D_pid_t 1
+typedef int pid_t;
+# endif
+# ifndef __NIJI_D_size_t
+#  define __NIJI_D_size_t 1
+typedef unsigned long size_t;
+# endif
+# ifndef __NIJI_D_time_t
+#  define __NIJI_D_time_t 1
+typedef long time_t;
+# endif
+#endif
+#if __NIJI_POSIX < 200112
+# ifndef __NIJI_D_clock_t
+#  define __NIJI_D_clock_t 1
+typedef long clock_t;
+# endif
+#endif
+#if __NIJI_POSIX >= 199309 && __NIJI_POSIX < 200112
+# ifndef __NIJI_D_clockid_t
+#  define __NIJI_D_clockid_t 1
+typedef int clockid_t;
+# endif
+# ifndef __NIJI_D_timer_t
+#  define __NIJI_D_timer_t 1
+typedef void * timer_t;
+# endif
+#endif
+#if __NIJI_POSIX < 200112 && __NIJI_XSI >= 400
+# ifndef __NIJI_D_daylight
+#  define __NIJI_D_daylight 1
+extern int daylight;
+# endif
+# ifndef __NIJI_D_timezone
+#  define __NIJI_D_timezone 1
+extern long timezone;
+# endif
+#endif
+#if __NIJI_POSIX < 200112 && __NIJI_XSI >= 450
+# ifndef __NIJI_D_getdate_err
+#  define __NIJI_D_getdate_err 1
+extern int getdate_err;
+# endif
+#endif
+#if __NIJI_POSIX >= 1 && __NIJI_POSIX < 200112
+# ifndef __NIJI_D_tzname
+#  define __NIJI_D_tzname 1
+extern char *  tzname[2];
+# endif
+#endif
+#if (__NIJI_POSIX >= 1 && __NIJI_POSIX < 200112) || (__NIJI_ISOC >= 2023 && __NIJI_POSIX < 1)
+struct tm;
+struct tm;
+# ifndef __NIJI_D_gmtime_r
+#  define __NIJI_D_gmtime_r 1
+extern struct tm *gmtime_r (const long *, struct tm *) __NIJI_NOTHROW;
+# endif
+struct tm;
+struct tm;
+# ifndef __NIJI_D_localtime_r
+#  define __NIJI_D_localtime_r 1
+extern struct tm *localtime_r (const long *, struct tm *) __NIJI_NOTHROW;
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D___sched_cpualloc
 #  define __NIJI_D___sched_cpualloc 1
 extern cpu_set_t *__sched_cpualloc (unsigned long) __NIJI_NOTHROW;
@@ -98,6 +230,148 @@ extern int setns (int, int) __NIJI_NOTHROW;
 # ifndef __NIJI_D_unshare
 #  define __NIJI_D_unshare 1
 extern int unshare (int) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
+struct timespec;
+# ifndef __NIJI_D_timespec_get
+#  define __NIJI_D_timespec_get 1
+extern int timespec_get (struct timespec *, int) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_ISOC >= 2023 && __NIJI_POSIX < 1
+struct tm;
+# ifndef __NIJI_D_timegm
+#  define __NIJI_D_timegm 1
+extern long timegm (struct tm *) __NIJI_NOTHROW;
+# endif
+struct timespec;
+# ifndef __NIJI_D_timespec_getres
+#  define __NIJI_D_timespec_getres 1
+extern int timespec_getres (struct timespec *, int) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_POSIX < 200112
+struct tm;
+# ifndef __NIJI_D_asctime
+#  define __NIJI_D_asctime 1
+extern char *asctime (const struct tm *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_clock
+#  define __NIJI_D_clock 1
+extern long clock (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_ctime
+#  define __NIJI_D_ctime 1
+extern char *ctime (const long *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_difftime
+#  define __NIJI_D_difftime 1
+extern double difftime (long, long) __NIJI_NOTHROW;
+# endif
+struct tm;
+# ifndef __NIJI_D_gmtime
+#  define __NIJI_D_gmtime 1
+extern struct tm *gmtime (const long *) __NIJI_NOTHROW;
+# endif
+struct tm;
+# ifndef __NIJI_D_localtime
+#  define __NIJI_D_localtime 1
+extern struct tm *localtime (const long *) __NIJI_NOTHROW;
+# endif
+struct tm;
+# ifndef __NIJI_D_mktime
+#  define __NIJI_D_mktime 1
+extern long mktime (struct tm *) __NIJI_NOTHROW;
+# endif
+struct tm;
+# ifndef __NIJI_D_strftime
+#  define __NIJI_D_strftime 1
+extern unsigned long strftime (char *, unsigned long, const char *, const struct tm *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_time
+#  define __NIJI_D_time 1
+extern long time (long *) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_POSIX < 200112 && __NIJI_XSI >= 400
+struct tm;
+# ifndef __NIJI_D_strptime
+#  define __NIJI_D_strptime 1
+extern char *strptime (const char *, const char *, struct tm *) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_POSIX < 200112 && __NIJI_XSI >= 450
+struct tm;
+# ifndef __NIJI_D_getdate
+#  define __NIJI_D_getdate 1
+extern struct tm *getdate (const char *);
+# endif
+#endif
+#if __NIJI_POSIX >= 1 && __NIJI_POSIX < 200112
+# ifndef __NIJI_D___sysconf
+#  define __NIJI_D___sysconf 1
+extern long int __sysconf (int) __NIJI_NOTHROW;
+# endif
+struct tm;
+# ifndef __NIJI_D_asctime_r
+#  define __NIJI_D_asctime_r 1
+extern char *asctime_r (const struct tm *, char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_ctime_r
+#  define __NIJI_D_ctime_r 1
+extern char *ctime_r (const long *, char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_tzset
+#  define __NIJI_D_tzset 1
+extern void tzset (void) __NIJI_NOTHROW;
+# endif
+#endif
+#if __NIJI_POSIX >= 199309 && __NIJI_POSIX < 200112
+struct timespec;
+# ifndef __NIJI_D_clock_getres
+#  define __NIJI_D_clock_getres 1
+extern int clock_getres (int, struct timespec *) __NIJI_NOTHROW;
+# endif
+struct timespec;
+# ifndef __NIJI_D_clock_gettime
+#  define __NIJI_D_clock_gettime 1
+extern int clock_gettime (int, struct timespec *) __NIJI_NOTHROW;
+# endif
+struct timespec;
+# ifndef __NIJI_D_clock_settime
+#  define __NIJI_D_clock_settime 1
+extern int clock_settime (int, const struct timespec *) __NIJI_NOTHROW;
+# endif
+struct timespec;
+struct timespec;
+# ifndef __NIJI_D_nanosleep
+#  define __NIJI_D_nanosleep 1
+extern int nanosleep (const struct timespec *, struct timespec *);
+# endif
+struct sigevent;
+# ifndef __NIJI_D_timer_create
+#  define __NIJI_D_timer_create 1
+extern int timer_create (int, struct sigevent *, void * *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_timer_delete
+#  define __NIJI_D_timer_delete 1
+extern int timer_delete (void *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_timer_getoverrun
+#  define __NIJI_D_timer_getoverrun 1
+extern int timer_getoverrun (void *) __NIJI_NOTHROW;
+# endif
+struct itimerspec;
+# ifndef __NIJI_D_timer_gettime
+#  define __NIJI_D_timer_gettime 1
+extern int timer_gettime (void *, struct itimerspec *) __NIJI_NOTHROW;
+# endif
+struct itimerspec;
+struct itimerspec;
+# ifndef __NIJI_D_timer_settime
+#  define __NIJI_D_timer_settime 1
+extern int timer_settime (void *, int, const struct itimerspec *, struct itimerspec *) __NIJI_NOTHROW;
 # endif
 #endif
 #if 1
@@ -210,6 +484,54 @@ extern int unshare (int) __NIJI_NOTHROW;
 # endif
 # ifndef SCHED_RESET_ON_FORK
 #  define SCHED_RESET_ON_FORK 1073741824
+# endif
+#endif
+#if __NIJI_ISOC >= 2011 && __NIJI_POSIX < 200112
+# ifndef TIME_UTC
+#  define TIME_UTC 1
+# endif
+#endif
+#if __NIJI_POSIX < 200112
+# ifndef CLOCKS_PER_SEC
+#  define CLOCKS_PER_SEC 1000000L
+# endif
+#endif
+#if __NIJI_POSIX >= 199309 && __NIJI_POSIX < 200112
+# ifndef CLOCK_BOOTTIME
+#  define CLOCK_BOOTTIME 7
+# endif
+# ifndef CLOCK_BOOTTIME_ALARM
+#  define CLOCK_BOOTTIME_ALARM 9
+# endif
+# ifndef CLOCK_MONOTONIC
+#  define CLOCK_MONOTONIC 1
+# endif
+# ifndef CLOCK_MONOTONIC_COARSE
+#  define CLOCK_MONOTONIC_COARSE 6
+# endif
+# ifndef CLOCK_MONOTONIC_RAW
+#  define CLOCK_MONOTONIC_RAW 4
+# endif
+# ifndef CLOCK_PROCESS_CPUTIME_ID
+#  define CLOCK_PROCESS_CPUTIME_ID 2
+# endif
+# ifndef CLOCK_REALTIME
+#  define CLOCK_REALTIME 0
+# endif
+# ifndef CLOCK_REALTIME_ALARM
+#  define CLOCK_REALTIME_ALARM 8
+# endif
+# ifndef CLOCK_REALTIME_COARSE
+#  define CLOCK_REALTIME_COARSE 5
+# endif
+# ifndef CLOCK_TAI
+#  define CLOCK_TAI 11
+# endif
+# ifndef CLOCK_THREAD_CPUTIME_ID
+#  define CLOCK_THREAD_CPUTIME_ID 3
+# endif
+# ifndef TIMER_ABSTIME
+#  define TIMER_ABSTIME 1
 # endif
 #endif
 

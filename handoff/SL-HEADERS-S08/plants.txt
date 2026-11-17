@@ -1,0 +1,11 @@
+# Plants of slice 8 (cargo xtask plants; docs/plants.md). The committed libc-include/ output must equal the regenerated one
+# (`headers-gen --check`); the proofs P1/P2/P3/P5 themselves run on the generated tree (spec/tools/header_check.py, header_probe.py).
+s8-union-tag-cxx | xtask/src/headers.rs | lit:self.union_tag(name) { target ==> self.union_tag(name) && false { target | cargo xtask headers-gen --check | msg:headers-gen
+s8-conditional-include | xtask/src/headers.rs | lit:!prev.trim_start().starts_with("#if")) ==> !prev.trim_start().starts_with("#ifx")) | cargo xtask headers-gen --check | msg:headers-gen
+s8-partial-cover | xtask/src/headers.rs | lit:& care & !by_includes == 0 ==> & care == 0 | cargo xtask headers-gen --check | msg:headers-gen
+s8-pthread-equal-inline | headers/pthread.h.in | lit:return __a == __b; ==> return __a != __b; | cargo xtask headers-gen --check | msg:headers-gen
+s8-thread-local-language | headers/threads.h.in | lit:__STDC_VERSION__ < 202311L ==> __STDC_VERSION__ < 201112L | cargo xtask headers-gen --check | msg:headers-gen
+s8-sigev-notify-function | headers/signal.h.in | lit:# define sigev_notify_function _sigev_un._sigev_thread._function ==> # define sigev_notify_function _sigev_un._sigev_thread._attribute | cargo xtask headers-gen --check | msg:headers-gen
+s8-sched-time-level | headers/sched.h.in | lit:__NIJI_POSIX < 200112 ==> __NIJI_POSIX < 200809 | cargo xtask headers-gen --check | msg:headers-gen
+s8-fnmember-declarator | headers/fnmembers.tsv | lit:void (*@)(void *)	pthread_cleanup_push(3) ==> void (*@)(int *)	pthread_cleanup_push(3) | cargo xtask headers-gen --check | msg:headers-gen
+s8-pointer-literal | xtask/src/headers.rs | lit:format!("(-{}L)", v.unsigned_abs()) ==> format!("(-{}L)", v.unsigned_abs() + 1) | cargo xtask headers-gen --check | msg:headers-gen

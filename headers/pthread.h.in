@@ -9,12 +9,14 @@
 #define __NIJI_H_pthread_h 1
 
 #include <features.h>
-#include <limits.h>
 #include <sched.h>
 #include <time.h>
-#include <setjmp.h>
 
 __NIJI_BEGIN_C
+
+/* Only what the cleanup macros call: pthread.h does not show the rest of <setjmp.h>. */
+struct __jmp_buf_tag;
+extern int __sigsetjmp (struct __jmp_buf_tag *, int) __NIJI_NOTHROW;
 
 @@owns NULL
 @@owns-macro PTHREAD_CANCELED PTHREAD_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP PTHREAD_RWLOCK_INITIALIZER PTHREAD_RWLOCK_WRITER_NONRECURSIVE_INITIALIZER_NP PTHREAD_COND_INITIALIZER pthread_cleanup_push
@@ -117,6 +119,15 @@ public:
   } while (0)
 #  endif
 # endif
+#endif
+
+/* Optimised code compares two thread ids in place (the call-site table: no symbol is referenced); the exported
+   function stays for programs that take its address. */
+#if defined __OPTIMIZE__ && !defined __NO_INLINE__
+extern __inline __attribute__ ((__gnu_inline__)) int pthread_equal (unsigned long __a, unsigned long __b) __NIJI_NOTHROW
+{
+  return __a == __b;
+}
 #endif
 
 __NIJI_END_C
