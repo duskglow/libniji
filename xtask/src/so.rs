@@ -1439,6 +1439,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
     run_getent(root, &cc)?;
+    run_iconv(root, &cc)?;
     run_ldd(root, &cc, &release)?;
     check_placement(root, &release)?;
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
@@ -1622,14 +1623,25 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
 ///   transcripts (`cargo xtask transcript`) run it on libniji's library on a host whose system C library is
 ///   another one. Kept out of `target/niji`: it names build paths.
 pub(crate) const GETENT_TEST: &str = "target/niji-test/getent";
+/// iconv (UTIL-7, spec §31.6): `csys/util/iconv.c`, a thin front end over `iconv(3)`, built as getent is.
+pub(crate) const ICONV_TEST: &str = "target/niji-test/iconv";
 
 fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
+    run_dynamic_util(root, cc, "getent", GETENT_TEST)
+}
+
+fn run_iconv(root: &Path, cc: &str) -> Result<(), String> {
+    run_dynamic_util(root, cc, "iconv", ICONV_TEST)
+}
+
+/// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
+fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    let obj = product.join("getent.o");
+    let obj = product.join(format!("{name}.o"));
     run(Command::new(cc)
         .args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-asynchronous-unwind-tables", "-c"])
-        .arg(root.join("csys/util/getent.c"))
+        .arg(root.join(format!("csys/util/{name}.c")))
         .arg("-o")
         .arg(&obj))?;
     let link = |out: &Path, interp: &Path, libc: &Path| -> Result<(), String> {
@@ -1647,13 +1659,13 @@ fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
         run(c.arg("-o").arg(&staged))?;
         publish(&staged, out)
     };
-    link(&release.join("getent"), Path::new("/lib64/ld-linux-x86-64.so.2"), &release.join("libc.so.6"))?;
-    let test = root.join(GETENT_TEST);
-    let dir = test.parent().unwrap_or(root);
+    link(&release.join(name), Path::new("/lib64/ld-linux-x86-64.so.2"), &release.join("libc.so.6"))?;
+    let test_path = root.join(test);
+    let dir = test_path.parent().unwrap_or(root);
     fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let by_path = crate::native_examples::libc_by_path(&release.join("libc.so.6"), dir)?;
-    link(&test, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
-    println!("so: target/niji/getent (dynamic, libc.so.6), {GETENT_TEST} (this tree's loader and library)");
+    link(&test_path, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
+    println!("so: target/niji/{name} (dynamic, libc.so.6), {test} (this tree's loader and library)");
     Ok(())
 }
 

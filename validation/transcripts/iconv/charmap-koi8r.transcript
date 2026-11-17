@@ -1,0 +1,13 @@
+name: to KOI8-R (charmap)
+clause: s31_6_i_2
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: KOI8-R
+stdin:
+|~ \xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82\n
+status: exit 0
+stdout:
+| \xd0\xd2\xc9\xd7\xc5\xd4
+stderr:

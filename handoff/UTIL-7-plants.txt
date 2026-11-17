@@ -1,0 +1,13 @@
+# UTIL-7 plants: the iconv front end (csys/util/iconv.c), each caught by the recorded transcripts
+# (validation/transcripts/iconv/) or the -l test. Run with cargo xtask plants (docs/plants.md); the command rebuilds
+# the products (cargo xtask so links target/niji-test/iconv) before checking.
+position | csys/util/iconv.c | lit:(long long)(ip - in)); ==> (long long)(ip - in + 1)); | sh -c 'cargo xtask so && cargo xtask transcript check validation/transcripts/iconv' | msg:MISMATCH .*illegal
+omit-progress | csys/util/iconv.c | lit:omit_invalid && (left == 0 || ip != before) ==> omit_invalid && left == 0 | sh -c 'cargo xtask so && cargo xtask transcript check validation/transcripts/iconv' | msg:MISMATCH .*c-(illegal|unconvertible)
+nofile-continue | csys/util/iconv.c | lit:if (r == 2) ==> if (r != 0) | sh -c 'cargo xtask so && cargo xtask transcript check validation/transcripts/iconv' | msg:MISMATCH .*nofile
+stop-after-error | csys/util/iconv.c | lit:if (r == 2) ==> if (r == 3) | sh -c 'cargo xtask so && cargo xtask transcript check validation/transcripts/iconv' | msg:MISMATCH .*stop-after-illegal
+empty-output | csys/util/iconv.c | lit:if (out_len == 0) ==> if (out_len == 0 && 0) | sh -c 'cargo xtask so && cargo xtask transcript check validation/transcripts/iconv' | msg:MISMATCH .*output-empty
+deferred-output | csys/util/iconv.c | lit:iconv_t cd = open_conversion(); ==> iconv_t cd = open_conversion(); if (output_file) { FILE *g = fopen(output_file, "w"); if (g) fclose(g); } | sh -c 'cargo xtask so && cargo xtask transcript check validation/transcripts/iconv' | msg:MISMATCH .*output-is-input
+which-side | csys/util/iconv.c | lit:else if (!from_ok) ==> else if (!to_ok) | sh -c 'cargo xtask so && cargo xtask transcript check validation/transcripts/iconv' | msg:MISMATCH .*unsupported-(from|to)
+incomplete | csys/util/iconv.c | lit:if (errno == EINVAL) { ==> if (errno == EINVAL && 0) { | sh -c 'cargo xtask so && cargo xtask transcript check validation/transcripts/iconv' | msg:MISMATCH .*(truncated|split-)
+list-filter | csys/util/iconv.c | lit:if (cd == (iconv_t)-1) { ==> if (0) { | sh -c 'cargo xtask so && cargo test -p xtask --test transcripts every_name_iconv_lists_converts' | msg:listed but does not convert|panicked
+names-sync | csys/util/iconv-names.h | lit:"OSF00010001", ==> | cargo test -p niji --test iconv_cmd_names | msg:iconv-names.h lacks
