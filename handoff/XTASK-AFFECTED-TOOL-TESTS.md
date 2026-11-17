@@ -1,6 +1,6 @@
 # XTASK-AFFECTED-TOOL-TESTS: a change to a tool that has tests selects those tests
 
-State: branch `task/xtask-affected-tool-tests`, code HEAD ea943b03 (on origin/next 86b4af50). No decision record
+State: branch `task/xtask-affected-tool-tests`, code HEAD d4032f98, jobs on 213d7f7b (on origin/next 86b4af50). No decision record
 (local, testable selector detail; follows D-X.35's docs-readers rule).
 
 ## What changed (xtask/src/affected.rs)
@@ -44,8 +44,12 @@ Before -> after (`--list`):
 - plants (da6e5b73): 6/6 CAUGHT. SUPERSEDED by plants2 (rows rewritten).
 - check2 (ea943b03): cargo xtask clippy, cargo xtask static, direct_tier_/docs_ tests, the --list checks: rc 0.
 - plants2 (ea943b03): handoff/XTASK-AFFECTED-TOOL-TESTS-plants.txt, 8 plants (each row removed alone, the
-  directory-depth and file-vs-prefix checks, the tools/ root, the table reading itself). Result in the report.
-- gate (ea943b03): `cargo xtask affected --run`. Result in the report.
+  directory-depth and file-vs-prefix checks, the tools/ root, the table reading itself): 8 CAUGHT, no WARN.
+  SUPERSEDED by plants3 (same affected.rs, rerun on the final head).
+- gate (ea943b03): RED, affected_run_runs_the_selection_and_list_does_not (see Informational). SUPERSEDED.
+- gate2 (213d7f7b, final code head): cargo xtask clippy, cargo xtask static, `cargo xtask affected --run`:
+  4 suites, 482 passed / 0 failed, peak 1.1G, rc 0.
+- plants3 (213d7f7b): the same 8 plants; result in the hand-back.
 
 ## Informational
 - Scanning xtask/tests made xtask/tests/affected_mode.rs a "reader" of `docs/plants.md`, which it only passes as a
