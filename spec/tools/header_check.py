@@ -62,6 +62,8 @@ def p1_units(ids, vis, macros, typedefs, layouts):
         if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
+        if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
+            continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
         tests = []
         if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
             m = macros[n]

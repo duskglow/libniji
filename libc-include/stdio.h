@@ -43,6 +43,40 @@ struct _IO_FILE {
   char _unused2[20];
 };
 # endif
+# ifndef __NIJI_D_struct__IO_FILE
+#  define __NIJI_D_struct__IO_FILE 1
+struct _IO_FILE {
+  int _flags;
+  char * _IO_read_ptr;
+  char * _IO_read_end;
+  char * _IO_read_base;
+  char * _IO_write_base;
+  char * _IO_write_ptr;
+  char * _IO_write_end;
+  char * _IO_buf_base;
+  char * _IO_buf_end;
+  char * _IO_save_base;
+  char * _IO_backup_base;
+  char * _IO_save_end;
+  struct _IO_marker * _markers;
+  struct _IO_FILE * _chain;
+  int _fileno;
+  int _flags2;
+  long _old_offset;
+  unsigned short _cur_column;
+  signed char _vtable_offset;
+  char _shortbuf[1];
+  void * _lock;
+  long _offset;
+  struct _IO_codecvt * _codecvt;
+  struct _IO_wide_data * _wide_data;
+  struct _IO_FILE * _freeres_list;
+  void * _freeres_buf;
+  unsigned long __pad5;
+  int _mode;
+  char _unused2[20];
+};
+# endif
 # ifndef __NIJI_D_FILE
 #  define __NIJI_D_FILE 1
 typedef struct _IO_FILE FILE;
@@ -63,6 +97,10 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D_struct__G_fpos_t
+#  define __NIJI_D_struct__G_fpos_t 1
+struct _G_fpos_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+# endif
 # ifndef __NIJI_D_fpos_t
 #  define __NIJI_D_fpos_t 1
 typedef struct _G_fpos_t fpos_t;
@@ -73,6 +111,10 @@ typedef unsigned long size_t;
 # endif
 #endif
 #if __NIJI_LFS64
+# ifndef __NIJI_D_struct__G_fpos64_t
+#  define __NIJI_D_struct__G_fpos64_t 1
+struct _G_fpos64_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+# endif
 # ifndef __NIJI_D_fpos64_t
 #  define __NIJI_D_fpos64_t 1
 typedef struct _G_fpos64_t fpos64_t;
@@ -86,6 +128,31 @@ typedef long off64_t;
 # ifndef __NIJI_D_cookie_close_function_t
 #  define __NIJI_D_cookie_close_function_t 1
 typedef int cookie_close_function_t(void *);
+# endif
+# ifndef __NIJI_D_cookie_read_function_t
+#  define __NIJI_D_cookie_read_function_t 1
+typedef long cookie_read_function_t(void *, char *, unsigned long);
+# endif
+# ifndef __NIJI_D_cookie_write_function_t
+#  define __NIJI_D_cookie_write_function_t 1
+typedef long cookie_write_function_t(void *, char const *, unsigned long);
+# endif
+# ifndef __NIJI_D_cookie_seek_function_t
+#  define __NIJI_D_cookie_seek_function_t 1
+typedef int cookie_seek_function_t(void *, long *, int);
+# endif
+# ifndef __NIJI_D_cookie_close_function_t
+#  define __NIJI_D_cookie_close_function_t 1
+typedef int cookie_close_function_t(void *);
+# endif
+# ifndef __NIJI_D_struct__IO_cookie_io_functions_t
+#  define __NIJI_D_struct__IO_cookie_io_functions_t 1
+struct _IO_cookie_io_functions_t {
+  cookie_read_function_t * read;
+  cookie_write_function_t * write;
+  cookie_seek_function_t * seek;
+  cookie_close_function_t * close;
+};
 # endif
 # ifndef __NIJI_D_cookie_io_functions_t
 #  define __NIJI_D_cookie_io_functions_t 1

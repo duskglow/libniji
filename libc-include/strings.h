@@ -16,7 +16,7 @@ typedef unsigned long size_t;
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_locale_t
 #  define __NIJI_D_locale_t 1
-typedef struct __locale_struct* locale_t;
+typedef struct __locale_struct * locale_t;
 # endif
 #endif
 #if 1

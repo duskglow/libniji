@@ -49,7 +49,10 @@ struct timeval {
 #if (__NIJI_MISC && __NIJI_CXX < 1) || (__NIJI_ISOC < 2023 && __NIJI_XSI >= 500)
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
-typedef struct  pthread_attr_t;
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
 # endif
 #endif
 #if 1
@@ -67,6 +70,10 @@ typedef struct {
   long rem;
 } ldiv_t;
 # endif
+# ifndef __NIJI_D_size_t
+#  define __NIJI_D_size_t 1
+typedef unsigned long size_t;
+# endif
 #endif
 #if __NIJI_CXX < 1
 # ifndef __NIJI_D_wchar_t
@@ -79,7 +86,7 @@ typedef __WCHAR_TYPE__ wchar_t;
 #if __NIJI_GNU
 # ifndef __NIJI_D_locale_t
 #  define __NIJI_D_locale_t 1
-typedef struct __locale_struct* locale_t;
+typedef struct __locale_struct * locale_t;
 # endif
 #endif
 #if __NIJI_ISOC >= 1999
@@ -114,6 +121,18 @@ typedef __sigset_t sigset_t;
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 450
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
 # ifndef __NIJI_D_blkcnt_t
 #  define __NIJI_D_blkcnt_t 1
 typedef long blkcnt_t;
@@ -609,6 +628,10 @@ extern int mkstemps64 (char *, int);
 # endif
 #endif
 #if __NIJI_MISC
+# ifndef __NIJI_D_alloca
+#  define __NIJI_D_alloca 1
+extern void *alloca (unsigned long) __NIJI_NOTHROW;
+# endif
 # ifndef __NIJI_D_arc4random
 #  define __NIJI_D_arc4random 1
 extern unsigned int arc4random (void) __NIJI_NOTHROW;
@@ -947,11 +970,23 @@ extern int posix_openpt (int);
 # endif
 #endif
 #if __NIJI_MISC
+# ifndef BIG_ENDIAN
+#  define BIG_ENDIAN 4321
+# endif
+# ifndef BYTE_ORDER
+#  define BYTE_ORDER 1234
+# endif
 # ifndef FD_SETSIZE
 #  define FD_SETSIZE 1024
 # endif
+# ifndef LITTLE_ENDIAN
+#  define LITTLE_ENDIAN 1234
+# endif
 # ifndef NFDBITS
 #  define NFDBITS 64
+# endif
+# ifndef PDP_ENDIAN
+#  define PDP_ENDIAN 3412
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400

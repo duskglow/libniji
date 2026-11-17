@@ -1,0 +1,10 @@
+# Plants of slice 6 (cargo xtask plants; docs/plants.md). The generator, its templates and the committed libc-include/
+# output are checked by `headers-gen --check` (the committed output must equal the regenerated one) and by
+# spec/tools/header_check.py (P1 values and sizes, P5 hygiene) on libc-include/.
+s6-cxx-level | headers/features.h.in | lit:# define __NIJI_CXX 3 ==> # define __NIJI_CXX 2 | cargo xtask headers-gen --check | msg:headers-gen
+s6-when-include-covers | xtask/src/headers.rs | lit:&& !prev.starts_with("@@when") ==> && !prev.starts_with("@@whenx") | cargo xtask headers-gen --check | msg:headers-gen
+s6-trailing-padding | xtask/src/headers.rs | lit:(0..(total - end) / 4) ==> (0..(total - end) / 8) | cargo xtask headers-gen --check | msg:headers-gen
+s6-wchar-c-typedef | xtask/src/headers.rs | lit:typedef __WCHAR_TYPE__ {name}; ==> typedef short {name}; | cargo xtask headers-gen --check | msg:headers-gen
+s6-p1-macro-value | libc-include/stdlib.h | lit:#  define EXIT_FAILURE 1 ==> #  define EXIT_FAILURE 2 | python3 spec/tools/header_check.py | msg:FAIL P1 stdlib.h
+s6-p1-struct-size | libc-include/stdio.h | lit:char _unused2[20]; ==> char _unused2[19]; | python3 spec/tools/header_check.py | msg:FAIL P1 stdio.h
+s6-p1-check-size | spec/tools/header_check.py | lit:tests.append(f"sizeof({n}) == {t['size']}") ==> tests.append(f"sizeof({n}) == 0") | python3 spec/tools/header_check.py | msg:FAIL P1

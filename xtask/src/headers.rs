@@ -422,6 +422,10 @@ impl Gen<'_> {
             } else if core.starts_with("struct ") && !stars.is_empty() {
                 // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
                 format!("{core} {}", stars.trim())
+            } else if !stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(')) {
+                // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
+                nested.push(format!("typedef {core}"));
+                format!("{core} {}", stars.trim())
             } else {
                 let b = dwarf_scalar(core).or_else(|| {
                     let r = self.resolve(core);
@@ -492,19 +496,47 @@ impl Gen<'_> {
                 Some(a) => vec![format!("typedef {} (*{name}){a};", ret.trim_end())],
                 None => vec![format!("typedef {} {name}{args};", ret.trim_end())],
             }
-        } else if cxx == name {
-            match self.members(name) {
-                Some((kw, m)) => [vec![format!("typedef {kw} {{")], m, vec![format!("}} {name};")]].concat(),
+        } else if cxx == name || cxx.is_empty() {
+            match self.members_nested(name) {
+                Some((kw, m, nested)) => {
+                    self.emit_nested(nested);
+                    [vec![format!("typedef {kw} {{")], m, vec![format!("}} {name};")]].concat()
+                }
                 None => vec![format!("typedef struct {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }} {name};", r["size"], r["align"])],
             }
         } else if self.t.typedefs.contains_key(&("typedef".to_string(), cxx.clone())) {
             // Named for linkage by another typedef (C++ mangles through it): that one comes first.
             self.typedef(&cxx);
             vec![format!("typedef {cxx} {name};")]
+        } else if !cxx.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            // A pointer to a structure (`locale_t` is `struct __locale_struct *`): the tag stays incomplete.
+            vec![format!("typedef struct {} {name};", cxx.replace('*', " *"))]
         } else {
-            vec![format!("typedef struct {cxx} {name};")]
+            // The structure is named for linkage by `cxx` (`fpos_t` is `struct _G_fpos_t`): define it here.
+            let def = match self.members_nested(name) {
+                Some((kw, m, nested)) => {
+                    self.emit_nested(nested);
+                    [vec![format!("{kw} {cxx} {{")], m, vec!["};".into()]].concat()
+                }
+                None => vec![format!("struct {cxx} {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }};", r["size"], r["align"])],
+            };
+            let kw = if def[0].starts_with("union") { "union" } else { "struct" };
+            // The same guard as a `struct` row of visibility.tsv for this tag (tag()), so it is defined once.
+            self.guard(&format!("struct_{cxx}"), def);
+            vec![format!("typedef {kw} {cxx} {name};")]
         };
         self.guard(name, body);
+    }
+
+    /// Emit what a structure's members need first: the structures and function typedefs they name.
+    fn emit_nested(&mut self, nested: Vec<String>) {
+        for n in nested {
+            if let Some(tag) = n.strip_prefix("struct ") {
+                self.tag(tag, "struct");
+            } else if let Some(t) = n.strip_prefix("typedef ") {
+                self.typedef(t);
+            }
+        }
     }
 
     /// The words of a `typedefs.tsv` function type spelled for C: a structure tag gets its keyword and a typedef
@@ -547,11 +579,7 @@ impl Gen<'_> {
         };
         let body = match self.members_nested(&lkey) {
             Some((_, m, nested)) => {
-                for n in nested {
-                    if let Some(tag) = n.strip_prefix("struct ") {
-                        self.tag(tag, "struct");
-                    }
-                }
+                self.emit_nested(nested);
                 [vec![format!("{key} {{")], m, vec!["};".into()]].concat()
             }
             None => {
@@ -842,11 +870,18 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         texts.insert(h.clone(), fs::read_to_string(root.join(TEMPLATES).join(format!("{h}.in"))).map_err(|e| e.to_string())?);
     }
     // `#include <x>` of another template, at any depth: x's names are not emitted again.
+    // An include right after `@@when` is conditional (its names stay emitted here, under this header's own conditions).
     let includes = |text: &str| -> Vec<String> {
-        text.lines()
-            .filter_map(|l| l.trim_start().strip_prefix('#').map(str::trim_start)?.strip_prefix("include")?.trim().strip_prefix('<')?.strip_suffix('>').map(String::from))
-            .filter(|x| texts.contains_key(x))
-            .collect()
+        let mut prev = "";
+        let mut out = Vec::new();
+        for l in text.lines() {
+            let inc = l.trim_start().strip_prefix('#').map(str::trim_start).and_then(|l| l.strip_prefix("include")).and_then(|l| l.trim().strip_prefix('<')).and_then(|l| l.strip_suffix('>'));
+            if let Some(x) = inc.filter(|x| texts.contains_key(*x) && !prev.starts_with("@@when")) {
+                out.push(x.to_string());
+            }
+            prev = l;
+        }
+        out
     };
     for h in names {
         let text = texts[&h].clone();

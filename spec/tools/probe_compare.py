@@ -18,12 +18,23 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 KEYS = {"visibility": ("header", "name", "kind"), "callsites": ("header", "name", "mode", "symbol")}
 
 
+def reserved_omitted():
+    """Names the generator leaves out by policy (C 7.1.3; owner rulings R-H2, R-H3): `__x` names and include guards,
+    except those headers/reserved.tsv emits. They are not part of the comparison."""
+    with open(os.path.join(ROOT, "headers", "reserved.tsv"), newline="") as f:
+        emit = {r["name"] for r in csv.DictReader((l for l in f if not l.startswith("#")), delimiter="\t") if r["policy"] == "emit"}
+    def omitted(n):
+        return n not in emit and (n.startswith("__") or (n.startswith("_") and n.endswith("_H")))
+    return omitted
+
+
 def load(path, table, headers):
+    omitted = reserved_omitted()
     with open(path, newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
     out = {}
     for r in rows:
-        if r["header"] in headers:
+        if r["header"] in headers and not omitted(r["name"]):
             out[tuple(r[k] for k in KEYS[table])] = r["configs"]
     return out
 
