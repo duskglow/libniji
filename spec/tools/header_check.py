@@ -34,15 +34,18 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
            "getopt.h", "time.h",
            # slice 16 (sys/elf.h rejects every configuration and is checked separately; thread_db.h, proc_service.h,
-           # sys/platform/x86.h, a.out.h and stab.h are not generated yet, see handoff/SL-HEADERS-S16.md)
-           "dlfcn.h", "link.h", "elf.h", "ar.h", "sys/gmon.h", "sys/gmon_out.h", "sys/profil.h", "gnu/lib-names.h"]
+           # a.out.h and stab.h are not generated yet, see handoff/SL-HEADERS-S16-2.md; sys/platform/x86.h: x86_header_check.py)
+           "dlfcn.h", "link.h", "elf.h", "ar.h", "sys/gmon.h", "sys/gmon_out.h", "sys/profil.h", "gnu/lib-names.h", "sys/platform/x86.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
           "getopt.h", "time.h"]
-SLICE16 = ["dlfcn.h", "link.h", "elf.h", "ar.h", "sys/gmon.h", "sys/gmon_out.h", "sys/profil.h", "gnu/lib-names.h"]
+SLICE16 = ["dlfcn.h", "link.h", "elf.h", "ar.h", "sys/gmon.h", "sys/gmon_out.h", "sys/profil.h", "gnu/lib-names.h", "sys/platform/x86.h"]
+# Names the reference's header shows through an include of a header no slice has generated yet (<sys/profil.h> includes
+# <sys/time.h>, slice 7, which brings fd_set at every level): P1 skips them until that header exists; P2 reports them.
+PENDING_INCLUDE = {("sys/profil.h", "fd_set")}
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -66,6 +69,8 @@ def p1_units(ids, vis, macros, typedefs, layouts, members):
         if h not in SLICE6 + SLICE16 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
+        if (h, n) in PENDING_INCLUDE:
+            continue
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
         tests = []

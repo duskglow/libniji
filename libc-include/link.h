@@ -48,13 +48,216 @@ struct dl_phdr_info {
 # endif
 #endif
 #if __NIJI_CXX < 1
+# ifndef __NIJI_D_La_x86_64_xmm
+#  define __NIJI_D_La_x86_64_xmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_xmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_ymm
+#  define __NIJI_D_La_x86_64_ymm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_ymm;
+# endif
+# ifndef __NIJI_D_La_x86_64_zmm
+#  define __NIJI_D_La_x86_64_zmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_zmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_xmm
+#  define __NIJI_D_La_x86_64_xmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_xmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_vector
+#  define __NIJI_D_La_x86_64_vector 1
+typedef union {
+  La_x86_64_ymm ymm[2];
+  La_x86_64_zmm zmm[1];
+  La_x86_64_xmm xmm[4];
+} La_x86_64_vector;
+# endif
 # ifndef __NIJI_D_La_x86_64_regs
 #  define __NIJI_D_La_x86_64_regs 1
-typedef struct { char __niji_opaque[768] __attribute__ ((__aligned__ (16))); } La_x86_64_regs;
+typedef struct {
+  unsigned long lr_rdx;
+  unsigned long lr_r8;
+  unsigned long lr_r9;
+  unsigned long lr_rcx;
+  unsigned long lr_rsi;
+  unsigned long lr_rdi;
+  unsigned long lr_rbp;
+  unsigned long lr_rsp;
+  La_x86_64_xmm lr_xmm[8];
+  La_x86_64_vector lr_vector[8];
+  __int128 __glibc_unused1[4];
+} La_x86_64_regs;
+# endif
+# ifndef __NIJI_D_La_x86_64_xmm
+#  define __NIJI_D_La_x86_64_xmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_xmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_xmm
+#  define __NIJI_D_La_x86_64_xmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_xmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_ymm
+#  define __NIJI_D_La_x86_64_ymm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_ymm;
+# endif
+# ifndef __NIJI_D_La_x86_64_zmm
+#  define __NIJI_D_La_x86_64_zmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_zmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_xmm
+#  define __NIJI_D_La_x86_64_xmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_xmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_vector
+#  define __NIJI_D_La_x86_64_vector 1
+typedef union {
+  La_x86_64_ymm ymm[2];
+  La_x86_64_zmm zmm[1];
+  La_x86_64_xmm xmm[4];
+} La_x86_64_vector;
+# endif
+# ifndef __NIJI_D_La_x86_64_ymm
+#  define __NIJI_D_La_x86_64_ymm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_ymm;
+# endif
+# ifndef __NIJI_D_La_x86_64_zmm
+#  define __NIJI_D_La_x86_64_zmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_zmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_xmm
+#  define __NIJI_D_La_x86_64_xmm 1
+typedef struct {
+  int : 32;
+  int : 32;
+  int : 32;
+  int : 32;
+} La_x86_64_xmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_vector
+#  define __NIJI_D_La_x86_64_vector 1
+typedef union {
+  La_x86_64_ymm ymm[2];
+  La_x86_64_zmm zmm[1];
+  La_x86_64_xmm xmm[4];
+} La_x86_64_vector;
 # endif
 # ifndef __NIJI_D_La_x86_64_retval
 #  define __NIJI_D_La_x86_64_retval 1
-typedef struct { char __niji_opaque[240] __attribute__ ((__aligned__ (16))); } La_x86_64_retval;
+typedef struct {
+  unsigned long lrv_rax;
+  unsigned long lrv_rdx;
+  La_x86_64_xmm lrv_xmm0;
+  La_x86_64_xmm lrv_xmm1;
+  long double lrv_st0;
+  long double lrv_st1;
+  La_x86_64_vector lrv_vector0;
+  La_x86_64_vector lrv_vector1;
+  __int128 __glibc_unused1;
+  __int128 __glibc_unused2;
+} La_x86_64_retval;
 # endif
 #endif
 #if 1

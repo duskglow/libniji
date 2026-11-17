@@ -1144,6 +1144,12 @@ Dl_serinfo	dls_cnt	8		unsigned int
 Dl_serinfo	<anon>	16		union <anon>	size 16 rows 2
 Dl_serinfo	dls_serpath	16		Dl_serpath[0]	
 Dl_serinfo	__dls_serpath_pad	16		Dl_serpath[1]	
+Dl_serpath		16	8		
+Dl_serpath	dls_name	0		char *	
+Dl_serpath	dls_flags	8		unsigned int	
+struct cpuid_feature		32	4		
+struct cpuid_feature	cpuid_array	0		unsigned int[4]	
+struct cpuid_feature	active_array	16		unsigned int[4]	
 struct prof		32	8		
 struct prof	pr_base	0		void *	
 struct prof	pr_size	8		size_t	

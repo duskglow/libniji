@@ -23,3 +23,4 @@ __ctype_b_loc	emit	C.9: the is* macros index (*__ctype_b_loc ())[c]
 __ctype_tolower_loc	emit	C.9: tolower indexes (*__ctype_tolower_loc ())[c]
 __ctype_toupper_loc	emit	C.9: toupper indexes (*__ctype_toupper_loc ())[c]
 __ctype_get_mb_cur_max	emit	C.9: MB_CUR_MAX is __ctype_get_mb_cur_max ()
+__x86_get_cpuid_feature_leaf	emit	C.9: CPU_FEATURE_ACTIVE and CPU_FEATURE_PRESENT expand to a call of it (spec/abi/x86-features.tsv)

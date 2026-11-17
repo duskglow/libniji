@@ -36,13 +36,37 @@ typedef struct {
   void * dli_saddr;
 } Dl_info;
 # endif
-# ifndef __NIJI_D_Dl_serinfo
-#  define __NIJI_D_Dl_serinfo 1
-typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (8))); } Dl_serinfo;
+# ifndef __NIJI_D_Dl_serpath
+#  define __NIJI_D_Dl_serpath 1
+typedef struct {
+  char * dls_name;
+  unsigned int dls_flags;
+  int : 32;
+} Dl_serpath;
 # endif
 # ifndef __NIJI_D_Dl_serpath
 #  define __NIJI_D_Dl_serpath 1
-typedef struct { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); } Dl_serpath;
+typedef struct {
+  char * dls_name;
+  unsigned int dls_flags;
+  int : 32;
+} Dl_serpath;
+# endif
+# ifndef __NIJI_D_Dl_serinfo
+#  define __NIJI_D_Dl_serinfo 1
+typedef struct {
+  unsigned long dls_size;
+  unsigned int dls_cnt;
+  __extension__ union { Dl_serpath dls_serpath[0]; Dl_serpath __dls_serpath_pad[1]; };
+} Dl_serinfo;
+# endif
+# ifndef __NIJI_D_Dl_serpath
+#  define __NIJI_D_Dl_serpath 1
+typedef struct {
+  char * dls_name;
+  unsigned int dls_flags;
+  int : 32;
+} Dl_serpath;
 # endif
 # ifndef __NIJI_D_Lmid_t
 #  define __NIJI_D_Lmid_t 1
