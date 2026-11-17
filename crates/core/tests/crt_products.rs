@@ -7,7 +7,8 @@
 //! checked against the x86-64 psABI's `.init`/`.fini` layout. Needs the products
 //! (`cargo xtask so`), `cc`, `c++`, `gprof`, `readelf`, `objcopy` and `nm`; without the tools the test
 //! says so and passes. The same plain link also builds a program that binds `libm.so.6`'s old
-//! versions (`fmod@GLIBC_2.2.5`, SYS-COMPAT-VERSIONS) and compares it with the reference.
+//! versions (`fmod@GLIBC_2.2.5`, SYS-COMPAT-VERSIONS; `log`, `log2`) and one that binds `libc.so.6`'s
+//! `pthread_sigmask@GLIBC_2.2.5` (SYS-COMPAT-VERSIONS-REST), and compares each with the reference.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
@@ -392,7 +393,8 @@ fn old_libm_versions_bind_and_match_the_reference() {
     // Clauses: s0_6_c0_6_0 (a name's old version stays exported for old binaries), s10_2_t_r12
     // (fmod). The program binds each name's GLIBC_2.2.5 version with `.symver` (Debian's gawk binds
     // fmod's) and prints every edge case's result bits, errno and flags; libniji's libm.so.6 must
-    // give the reference's text, case for case, and the default version's result.
+    // give the reference's text, case for case: the default version's result, but for the old
+    // logarithms' NaN sign on a negative argument (spec/behaviour/libm-compat.md).
     if tools_missing() {
         return;
     }
@@ -413,9 +415,21 @@ fn old_libm_versions_bind_and_match_the_reference() {
     std::fs::write(soname.join("libm.so"), format!("GROUP ( \"{}\" )\n", s(&p.join("libm.so.6")))).unwrap();
     drive("cc", Some(&lib), &[ldso(), format!("-L{}", s(&soname)), format!("-Wl,-rpath-link={}", s(&p)), s(&obj), "-lm".into(), "-o".into(), s(&exe)]);
     let bound = bound_versions(&exe);
-    // (name, default version, cases): the old versions Debian trixie's programs bind.
-    let names = [("fmod", "GLIBC_2.38", 484), ("fmodf", "GLIBC_2.38", 484), ("exp", "GLIBC_2.29", 22), ("exp10", "GLIBC_2.39", 22), ("pow", "GLIBC_2.29", 484), ("hypot", "GLIBC_2.35", 484), ("hypotf", "GLIBC_2.35", 484)];
-    for (name, default, _) in names {
+    // (name, default version, cases, cases where the old version differs from the default): the old
+    // versions Debian trixie's programs bind. The old logarithms give a NaN with the sign bit clear for
+    // a negative argument (8 cases; a NaN argument, of either sign, is not one of them).
+    let names = [
+        ("fmod", "GLIBC_2.38", 484, 0),
+        ("fmodf", "GLIBC_2.38", 484, 0),
+        ("exp", "GLIBC_2.29", 22, 0),
+        ("exp10", "GLIBC_2.39", 22, 0),
+        ("pow", "GLIBC_2.29", 484, 0),
+        ("hypot", "GLIBC_2.35", 484, 0),
+        ("hypotf", "GLIBC_2.35", 484, 0),
+        ("log", "GLIBC_2.29", 24, 8),
+        ("log2", "GLIBC_2.29", 24, 8),
+    ];
+    for (name, default, ..) in names {
         for pair in [format!("{name}@GLIBC_2.2.5"), format!("{name}@{default}")] {
             assert!(bound.contains(&pair), "the program binds {pair}: {bound:?}");
         }
@@ -435,8 +449,8 @@ fn old_libm_versions_bind_and_match_the_reference() {
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
     let want = run_v(&host, None);
-    for (name, _, cases) in names {
-        assert!(want.contains(&format!("\n{name}@GLIBC_2.2.5: {cases} cases, 0 differ from the default\n")), "the reference, {name}:\n{want}");
+    for (name, _, cases, diffs) in names {
+        assert!(want.contains(&format!("\n{name}@GLIBC_2.2.5: {cases} cases, {diffs} differ from the default\n")), "the reference, {name}:\n{want}");
     }
     let got = run_v(&exe, Some(&p));
     // Cases where libniji's DEFAULT pow differs from the reference's (both libraries print "same as
@@ -465,5 +479,57 @@ fn old_libm_versions_bind_and_match_the_reference() {
         .map(|(g, r)| format!("libniji:   {g}\nreference: {r}"))
         .collect();
     assert!(differ.is_empty(), "libniji's old version against the reference's, {} cases differ:\n{}", differ.len(), differ.iter().take(12).cloned().collect::<Vec<_>>().join("\n"));
+    assert_eq!(got.lines().count(), want.lines().count(), "the same cases");
+}
+
+#[test]
+fn old_pthread_sigmask_binds_and_matches_the_reference() {
+    // Clauses: s0_6_c0_6_0 (a name's old version stays exported for old binaries), s20_3_c_1
+    // (pthread_sigmask). Debian trixie's btscanner, pbzip2 and wavemon bind
+    // pthread_sigmask@GLIBC_2.2.5; the reference's old version equals its default on every probed case
+    // (spec/behaviour/pthread-sigmask-compat.md), so libniji's is an alias of its default. The program
+    // binds both versions and prints, per case, the return value, errno, the old set and the kernel
+    // mask afterwards; libniji must print the reference's text, case for case.
+    if tools_missing() {
+        return;
+    }
+    let (w, lib) = work("sigmask-compat");
+    let src = s(&root().join("crates/core/tests/oracle/pthread_sigmask_compat.c"));
+    let obj = w.join("pthread_sigmask_compat.o");
+    drive("cc", None, &["-std=gnu17".into(), "-O1".into(), "-fPIE".into(), "-c".into(), src, "-o".into(), s(&obj)]);
+    let exe = w.join("pthread_sigmask_compat");
+    drive("cc", Some(&lib), &[ldso(), s(&obj), "-o".into(), s(&exe)]);
+    let bound = bound_versions(&exe);
+    for pair in ["pthread_sigmask@GLIBC_2.2.5", "pthread_sigmask@GLIBC_2.32"] {
+        assert!(bound.contains(pair), "the program binds {pair}: {bound:?}");
+    }
+    let host = w.join("host-pthread_sigmask_compat");
+    drive("cc", None, &[s(&obj), "-o".into(), s(&host)]);
+    let want = run(&host, &w);
+    assert!(want.ends_with("\npthread_sigmask@GLIBC_2.2.5: 140 cases, 0 differ from the default\n"), "the reference:\n{want}");
+    let got = run(&exe, &w);
+    assert!(got.ends_with("\npthread_sigmask@GLIBC_2.2.5: 140 cases, 0 differ from the default\n"), "libniji's old version is its default's alias:\n{got}");
+    // Two differences of libniji's DEFAULT version from the reference's, outside this compat version
+    // (both libraries print "same as default" for every case; reported by SYS-COMPAT-VERSIONS-REST
+    // for the default's own story): libniji writes the whole 128-byte old set (zeros after the
+    // kernel's 8 bytes, "+120"), the reference only the kernel's 8 bytes ("+0"); and libniji lets a
+    // set block signal 33, which the reference never blocks. Both are masked here, nothing else.
+    let default_only = |text: &str| -> String {
+        text.lines()
+            .map(|l| {
+                let l = l.replace(" +120 after ", " +0 after ");
+                match l.split_once(" after ") {
+                    Some((head, rest)) if rest.len() >= 16 => {
+                        let mask = u64::from_str_radix(&rest[..16], 16).unwrap() & !(1u64 << 32);
+                        format!("{head} after {mask:016x}{}\n", &rest[16..])
+                    }
+                    _ => format!("{l}\n"),
+                }
+            })
+            .collect()
+    };
+    let (got, want) = (default_only(&got), default_only(&want));
+    let differ: Vec<String> = got.lines().zip(want.lines()).filter(|(g, r)| g != r).map(|(g, r)| format!("libniji:   {g}\nreference: {r}")).collect();
+    assert!(differ.is_empty(), "libniji against the reference, {} cases differ:\n{}", differ.len(), differ.iter().take(12).cloned().collect::<Vec<_>>().join("\n"));
     assert_eq!(got.lines().count(), want.lines().count(), "the same cases");
 }

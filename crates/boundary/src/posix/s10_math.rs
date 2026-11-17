@@ -107,3 +107,31 @@ export! { libm "GLIBC_2.2.5";
 pub extern "C" fn fegetexcept() -> c_int {
     fpu::enabled(&CSys).to_c()
 }}
+
+// The old (`GLIBC_2.2.5`) logarithms (LG-4, D-10.2; spec/behaviour/libm-compat.md). The reference's
+// old version gives the default's result, errno and flags on every input but a negative number
+// (finite or -infinity), where its NaN has the sign bit clear. These are their own entries, given
+// that version by the `.symver` stubs `cargo xtask compat-gen` generates in
+// `crates/libm-so/compat_aliases.S` (libm.so.6 only, never libm.a: R15-2); the names are local.
+
+/// Whether `bits` is a negative number: not -0, not a NaN (a NaN argument keeps the default's NaN).
+const fn negative_number(bits: u64) -> bool {
+    bits.wrapping_sub(0x8000_0000_0000_0001) < 0x7ff0_0000_0000_0000
+}
+
+/// The old version's result: the default's `r` for `x`, its sign bit cleared for a negative `x`.
+const fn old_log_result(x: f64, r: f64) -> f64 {
+    if negative_number(x.to_bits()) { f64::from_bits(r.to_bits() & !(1 << 63)) } else { r }
+}
+
+export! { libm "NIJI_PRIVATE";
+/// `log@GLIBC_2.2.5`.
+pub extern "C" fn niji_compat_log(x: f64) -> f64 {
+    old_log_result(x, super::s10_math_gen::log(x))
+}}
+
+export! { libm "NIJI_PRIVATE";
+/// `log2@GLIBC_2.2.5`.
+pub extern "C" fn niji_compat_log2(x: f64) -> f64 {
+    old_log_result(x, super::s10_math_gen::log2(x))
+}}
