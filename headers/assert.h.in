@@ -1,0 +1,38 @@
+@@generated
+/* assert.h: diagnostics (C 7.2). No include guard: C 7.2 says the macro is redefined each time the header is
+   included, following the then current NDEBUG. Appendix C.9: assert calls __assert_fail (expression, file,
+   line, function). */
+#include <features.h>
+
+#undef assert
+#undef assert_perror
+
+__NIJI_BEGIN_C
+
+@@owns assert assert_perror
+@@emit
+
+__NIJI_END_C
+
+/* C 7.2.1.1: the C23 form takes the whole argument list as the expression (commas in it are not separators). */
+#if __NIJI_ISOC >= 2023
+# ifdef NDEBUG
+#  define assert(...) ((void) 0)
+# else
+#  define assert(...) ((__VA_ARGS__) ? (void) 0 : __assert_fail (#__VA_ARGS__, __FILE__, __LINE__, __extension__ __func__))
+# endif
+#else
+# ifdef NDEBUG
+#  define assert(expr) ((void) 0)
+# else
+#  define assert(expr) ((expr) ? (void) 0 : __assert_fail (#expr, __FILE__, __LINE__, __extension__ __func__))
+# endif
+#endif
+
+@@if assert_perror
+# ifdef NDEBUG
+#  define assert_perror(errnum) ((void) 0)
+# else
+#  define assert_perror(errnum) ((errnum) ? __assert_perror_fail ((errnum), __FILE__, __LINE__, __extension__ __func__) : (void) 0)
+# endif
+#endif

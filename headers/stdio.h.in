@@ -1,0 +1,46 @@
+@@generated
+/* stdio.h: input/output (C 7.21, XSH <stdio.h>). Appendix C.9: stdin, stdout and stderr are the exported FILE *
+   variables, read on every use (they are assignable). */
+#ifndef __NIJI_H_stdio_h
+#define __NIJI_H_stdio_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL va_list stdin stdout stderr
+@@owns-macro fwrite_unlocked
+@@emit
+
+@@if va_list
+# ifndef __NIJI_D_va_list
+#  define __NIJI_D_va_list 1
+#  ifndef _VA_LIST_DEFINED
+#   define _VA_LIST_DEFINED
+typedef __builtin_va_list va_list;
+#  endif
+# endif
+#endif
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+@@if stdin
+# define stdin stdin
+# define stdout stdout
+# define stderr stderr
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
+#endif
+
+__NIJI_END_C
+
+#endif
