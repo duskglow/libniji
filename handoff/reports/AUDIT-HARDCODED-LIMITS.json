@@ -1,0 +1,25 @@
+{"task": "AUDIT-HARDCODED-LIMITS", "model": "opus", "tokens": null,
+ "result": "plan/hardcoded-limits.md: 33 ruled limit rows (20 remove, 13 keep) + ABI list, ranked, probed against the reference on keke; ruling table for the owner",
+ "branch": "task/audit-hardcoded-limits", "head": "80d3b4cc9",
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "HL-1..HL-20 resource caps (start objects 64, dlopen 512 / 64 per call, named semaphores 256, locales 78 directory-form, addseverity 256, gai queue 4096, exit handlers 2^20, fnmatch/wordexp nesting, ldconfig, gai.conf, nsswitch, unwinder, error_one_per_line)", "recommendation": "remove with fallible growth; order HL-1/2, HL-4, HL-10, HL-7, HL-3/5, HL-9, rest"},
+  {"item": "HL-19 getpass 1 MiB (D-17.8)", "recommendation": "owner's call between ruling #5594 (remove) and D-17.8 (keep)"},
+  {"item": "HL-21..HL-33 security bounds and correctness guards", "recommendation": "keep; HL-33 static TLS surplus: probe its size against the reference"}
+ ],
+ "informational": [
+  "keke: 7 of 1504 installed programs/objects need more than 64 objects at start; libgtk-3 alone needs 67 (so a dlopen of it from a bare host passes NEW_MAX)",
+  "locale cap is reported as ENOENT (not found), hiding the cause",
+  "ldconfig silently ignores configuration past 1 MiB",
+  "probes ran on a next-era libniji build on keke (~/w/n3, 2026-11-17 07:31), not built from this head (no product change)",
+  "probe and measurement runs on keke (not proofs of a head, so not in jobs): ahl-probes, ahl-probes-2..5, ahl-objects; only ahl-probes-5 and ahl-objects are the recorded results"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "audit and ruling table; no behaviour change", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "unblock", "what": "stories for HL-1..HL-20 once the owner rules", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": [],
+ "improvement": "a static check that flags new fixed-size tables and invented EMFILE/ENOSPC returns in product code would stop new caps landing unnoticed",
+ "next_step": "owner rules on plan/hardcoded-limits.md section 8; coordinator writes the stories",
+ "report_file": "handoff/AUDIT-HARDCODED-LIMITS.md"}
