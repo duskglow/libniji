@@ -219,6 +219,24 @@ fn scalar(c: &str) -> bool {
     SCALARS.contains(&base)
 }
 
+/// The kernel's fixed-width integer names of the UAPI headers (`__u32`, `__s64[2]`) in C types (`linux/types.h`, the
+/// asm-generic/int-ll64.h convention of x86-64): a member type of layouts.tsv that is one of them, array suffix kept.
+fn kernel_int(t: &str) -> String {
+    let (base, arr) = t.split_at(t.find('[').unwrap_or(t.len()));
+    let c = match base {
+        "__u8" => "unsigned char",
+        "__s8" => "signed char",
+        "__u16" => "unsigned short",
+        "__s16" => "short",
+        "__u32" => "unsigned int",
+        "__s32" => "int",
+        "__u64" => "unsigned long long",
+        "__s64" => "long long",
+        _ => return t.to_string(),
+    };
+    format!("{c}{arr}")
+}
+
 /// The DWARF spelling of layouts.tsv (`long unsigned int`) in the C++ form of typedefs.tsv (`unsigned long`).
 fn dwarf_scalar(t: &str) -> Option<String> {
     let words: BTreeSet<&str> = t.split_whitespace().collect();
@@ -395,15 +413,38 @@ impl Gen<'_> {
             .filter(|r| r["member_type"].strip_prefix("struct ").is_some_and(|_| self.t.layouts.contains_key(&r["member_type"])))
             .map(|r| r["member"].as_str())
             .collect();
+        // Members of a typedef of an anonymous structure: their `member.sub` rows are written inline by `anonymous_struct`.
+        let inline: BTreeSet<&str> = rows
+            .iter()
+            .filter(|r| !r["member"].contains('.') && !r["member_type"].contains(['*', '[']) && self.anonymous_struct(rows, &r["member"], &r["member_type"]).is_some())
+            .map(|r| r["member"].as_str())
+            .collect();
         let mut end = Some(0u64);
+        // An anonymous union whose members are one visible name and its reserved alias (`ru_maxrss`, `__ru_maxrss_word`):
+        // the rows after the `<anon>` row (`size N rows R`) are R members at one offset; the reserved alias is left out.
+        let (mut anon_left, mut anon_seen) = (0usize, false);
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
-            if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
+            if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent) || inline.contains(parent)) {
                 continue;
+            }
+            if r["member"] == "<anon>" && r["member_type"].starts_with("union <anon>") {
+                anon_left = r["member_type"].rsplit(' ').next().and_then(|n| n.parse().ok()).unwrap_or(0);
+                anon_seen = false;
+                continue;
+            }
+            if anon_left > 0 {
+                anon_left -= 1;
+                if r["member"].starts_with("__") && anon_seen {
+                    continue;
+                }
+                anon_seen = true;
             }
             if r["member"].contains('.') || !r["bitfield"].is_empty() {
                 return None;
             }
             let mt = &r["member_type"];
+            // An enumeration member has the compiler's underlying type of an enumeration without negative values.
+            let mt = &if mt.starts_with("enum ") { "unsigned int".to_string() } else { kernel_int(mt) };
             let (base, arr) = match mt.find('[') {
                 Some(i) => (&mt[..i], &mt[i..]),
                 None => (mt.as_str(), ""),
@@ -421,6 +462,9 @@ impl Gen<'_> {
                 // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
                 nested.push(format!("typedef {core}"));
                 format!("{core} {}", stars.trim())
+            } else if let Some(inline) = stars.is_empty().then(|| self.anonymous_struct(rows, &r["member"], core)).flatten() {
+                // A typedef of an anonymous structure (`__fsid_t`): the member's rows list its members (`f_fsid.__val`).
+                inline
             } else {
                 let b = dwarf_scalar(core).or_else(|| {
                     let r = self.resolve(core);
@@ -441,6 +485,25 @@ impl Gen<'_> {
         }
         let kw = if out.len() > 1 && offs.len() == 1 { "union" } else { "struct" };
         (!out.is_empty()).then(|| (kw.to_string(), out, nested))
+    }
+
+    /// `struct { int __val[2]; }` for a member of a typedef of an anonymous structure, from the rows `member.sub` below
+    /// it (scalar members only); None when the type is not such a typedef.
+    fn anonymous_struct(&self, rows: &[BTreeMap<String, String>], member: &str, ty: &str) -> Option<String> {
+        if !self.t.typedefs.get(&("typedef".to_string(), ty.to_string())).is_some_and(|t| t["cxx"] == ty) {
+            return None;
+        }
+        let prefix = format!("{member}.");
+        let mut body = String::new();
+        for r in rows.iter().filter(|r| r["member"].starts_with(&prefix)) {
+            let sub = &r["member"][prefix.len()..];
+            let (t, arr) = r["member_type"].split_at(r["member_type"].find('[').unwrap_or(r["member_type"].len()));
+            if sub.contains('.') || !r["bitfield"].is_empty() {
+                return None;
+            }
+            body.push_str(&format!(" {} {sub}{arr};", dwarf_scalar(&kernel_int(t))?));
+        }
+        (!body.is_empty()).then(|| format!("struct {{{body} }}"))
     }
 
     /// The size in bytes of a member type of layouts.tsv (`core`, its `stars` and `[n]` suffix), when known.

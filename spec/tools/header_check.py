@@ -32,13 +32,21 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
+           "getopt.h", "time.h",
+           # slice 7
+           "fcntl.h", "sys/fcntl.h", "sys/stat.h", "sys/statvfs.h", "sys/statfs.h", "sys/vfs.h", "dirent.h", "sys/dir.h",
+           "sys/time.h", "sys/times.h", "utime.h", "sys/resource.h", "sys/utsname.h", "sys/select.h", "poll.h", "sys/poll.h",
+           "sys/mman.h", "sys/uio.h", "sys/file.h", "sys/sysmacros.h", "paths.h", "libgen.h", "sys/xattr.h", "sys/sendfile.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
           "getopt.h", "time.h"]
+# Slice 7 headers (sys/wait.h, wait.h, sys/param.h, spawn.h and sys/ioctl.h wait for slices 8 and 14, see its handoff).
+SLICE7 = ["fcntl.h", "sys/fcntl.h", "sys/stat.h", "sys/statvfs.h", "sys/statfs.h", "sys/vfs.h", "dirent.h", "sys/dir.h",
+          "sys/time.h", "sys/times.h", "utime.h", "sys/resource.h", "sys/utsname.h", "sys/select.h", "poll.h", "sys/poll.h",
+          "sys/mman.h", "sys/uio.h", "sys/file.h", "sys/sysmacros.h", "paths.h", "libgen.h", "sys/xattr.h", "sys/sendfile.h"]
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -59,7 +67,7 @@ def p1_units(ids, vis, macros, typedefs, layouts):
     out = {}
     for r in vis:
         h = r["header"]
-        if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct"):
+        if h not in SLICE6 + SLICE7 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):

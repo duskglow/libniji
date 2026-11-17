@@ -1,0 +1,34 @@
+@@generated
+/* sys/stat.h: data returned by the stat() function (XSH <sys/stat.h>). */
+#ifndef __NIJI_H_sys_stat_h
+#define __NIJI_H_sys_stat_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+/* XSH <sys/stat.h>: the file type tests, with the S_IFMT bits of st_mode. */
+# define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+# define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+# define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+# define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+# define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+# define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+# define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+/* XSH <sys/stat.h>: the typed objects are not distinct files on Linux. */
+# define S_TYPEISMQ(buf) ((void) (buf), 0)
+# define S_TYPEISSEM(buf) ((void) (buf), 0)
+# define S_TYPEISSHM(buf) ((void) (buf), 0)
+# define S_TYPEISTMO(buf) ((void) (buf), 0)
+/* XSH <sys/stat.h> (POSIX 2008, XSI 7): the times are timespec members. */
+# if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC
+#  define st_atime st_atim.tv_sec
+#  define st_mtime st_mtim.tv_sec
+#  define st_ctime st_ctim.tv_sec
+# endif
+
+__NIJI_END_C
+
+#endif

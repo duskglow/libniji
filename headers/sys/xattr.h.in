@@ -1,0 +1,16 @@
+@@generated
+/* sys/xattr.h: extended attributes (xattr(7)). */
+#ifndef __NIJI_H_sys_xattr_h
+#define __NIJI_H_sys_xattr_h 1
+
+#include <features.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+
+__NIJI_END_C
+
+#endif

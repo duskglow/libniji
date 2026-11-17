@@ -527,6 +527,10 @@ struct statx	stx_mnt_id	144		__u64
 struct statx	stx_dio_mem_align	152		__u32	
 struct statx	stx_dio_offset_align	156		__u32	
 struct statx	__spare3	160		__u64[12]	
+struct statx_timestamp		16	8		
+struct statx_timestamp	tv_sec	0		__s64	
+struct statx_timestamp	tv_nsec	8		__u32	
+struct statx_timestamp	__reserved	12		__s32	
 struct statfs		120	8		
 struct statfs	f_type	0		__fsword_t	
 struct statfs	f_bsize	8		__fsword_t	

@@ -1,0 +1,22 @@
+@@generated
+/* sys/sysmacros.h: device numbers: major, minor, makedev (makedev(3)). */
+#ifndef __NIJI_H_sys_sysmacros_h
+#define __NIJI_H_sys_sysmacros_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns major minor makedev
+@@emit
+
+/* makedev(3): the macros are the functions, which are in the library. */
+@@if major
+# define major(dev) gnu_dev_major (dev)
+# define minor(dev) gnu_dev_minor (dev)
+# define makedev(maj, min) gnu_dev_makedev (maj, min)
+#endif
+
+__NIJI_END_C
+
+#endif
