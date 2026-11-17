@@ -73,6 +73,11 @@ fn keys(root: &Path, r: &Record, bad: &mut Vec<String>) {
 pub fn validate(root: &Path, views: &[View], records: &[Record]) -> Vec<String> {
     let mut bad = Vec::new();
     views_sane(root, views, &mut bad);
+    for v in views {
+        for old in super::render::unused_renames(v, records) {
+            bad.push(format!("{}: view {}: rename `{old}` matches no code span of its records: remove it", super::VIEWS, v.name));
+        }
+    }
     let mut by_id: BTreeMap<String, &Record> = BTreeMap::new();
     let mut lower: BTreeMap<String, &str> = BTreeMap::new();
     for r in records {

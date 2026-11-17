@@ -19,7 +19,11 @@
 # 4. Linking: plain gcc with the unpacked libc6-dev (its start files and libc.so script, --sysroot
 #    the unpacked tree) makes a dynamic hello whose program interpreter is
 #    /lib64/ld-linux-x86-64.so.2 (gcc's default) and which needs libc.so.6 alone with no
-#    RPATH/RUNPATH; a static hello runs and prints its line.
+#    RPATH/RUNPATH; a static hello runs and prints its line. libresolv (issue #5):
+#    libc6-dev's libresolv.so links to libresolv.so.2; smoke/resolv.c linked with `-lresolv` needs
+#    libresolv.so.2 and libc.so.6 and binds ns_initparse and ns_parserr at GLIBC_2.9 (as Debian's
+#    libkrb5.so.3 does); linked statically with `-lresolv` (the empty libresolv.a, the functions in
+#    libc.a: D-16.6) it runs and prints its line.
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -105,9 +109,11 @@ for deb in $debs; do
         case $pkg:$path in
             libc6:./usr/lib/$ma/ld-linux-x86-64.so.2 | libc6:./usr/lib/$ma/lib*.so.[0-9] | libc6:./usr/lib/$ma/libc_malloc_debug.so.0) ok=yes ;;
             libc6:./usr/lib64/ld-linux-x86-64.so.2 | libc6:./etc/ld.so.conf.d/$ma.conf) ok=yes ;;
+            libc6:./usr/share/lintian/ | libc6:./usr/share/lintian/overrides/) [ "$type" = d ] && ok=yes ;;
+            libc6:./usr/share/lintian/overrides/libc6) ok=yes ;;
             libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
             libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf | libc-bin:./usr/bin/getent | libc-bin:./usr/bin/ldd) ok=yes ;;
-            libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so) ok=yes ;;
+            libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so | libc6-dev:./usr/lib/$ma/libresolv.so) ok=yes ;;
         esac
         [ $ok = yes ] || echo "check: FAIL $pkg: path not in the system layout: $path"
     done > "$tmp/paths"
@@ -137,7 +143,7 @@ if [ -f "$r/usr/sbin/ldconfig" ]; then
 else
     fail "libc-bin has no usr/sbin/ldconfig"
 fi
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2; do
     sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
     [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
 done
@@ -161,6 +167,28 @@ if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$
     case $out in *"hello from niji"*) ;; *) fail "static hello printed '$out'" ;; esac
 else
     fail "static hello does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+# libresolv (issue #5): the linker name, a dynamic -lresolv link, a static one that runs.
+want_resolv="resolv: a.test A 192.0.2.1 ttl 3600; cut header -1 EMSGSIZE"
+link=$(readlink "$lib/libresolv.so" || true)
+[ "$link" = libresolv.so.2 ] || fail "libc6-dev's libresolv.so -> '$link', not libresolv.so.2"
+begin=$("$cc" -print-file-name=crtbeginS.o); end=$("$cc" -print-file-name=crtendS.o)
+if "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$lib/crti.o" "$begin" "$here/smoke/resolv.c" -lresolv -lc -lgcc "$end" "$lib/crtn.o" -o "$tmp/resolv" > "$tmp/log" 2>&1; then
+    needed=$(readelf -dW "$tmp/resolv" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | sort | tr '\n' ' ')
+    [ "$needed" = "libc.so.6 libresolv.so.2 " ] || fail "resolv (-lresolv): needs '$needed', not libc.so.6 and libresolv.so.2"
+    syms=$(readelf --dyn-syms -W "$tmp/resolv")
+    for s in ns_initparse@GLIBC_2.9 ns_parserr@GLIBC_2.9; do
+        echo "$syms" | grep -q " $s" || fail "resolv (-lresolv) does not bind $s"
+    done
+else
+    fail "resolv (-lresolv) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+fi
+begin=$("$cc" -print-file-name=crtbeginT.o); end=$("$cc" -print-file-name=crtend.o)
+if "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$lib/crti.o" "$begin" "$here/smoke/resolv.c" -lresolv -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$end" "$lib/crtn.o" -o "$tmp/resolv-static" > "$tmp/log" 2>&1; then
+    out=$(timeout 60 "$tmp/resolv-static" 2>&1) || fail "static resolv exits $?: $out"
+    [ "$out" = "$want_resolv" ] || fail "static resolv (-lresolv) printed '$out', not '$want_resolv'"
+else
+    fail "static resolv (-lresolv) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
 fi
 
 if [ "$fails" -ne 0 ]; then

@@ -1,0 +1,18 @@
+{"task": "SYS-ICONV-CHARMAPS", "model": "opus", "tokens": null,
+ "result": "EUC-JP built into iconv from the WHATWG JIS X 0208/0212 indexes, equal to the reference over its whole code space; issue #6 reproducer prints EUC-JP: ok with no charmaps; inventory recorded (58 of 1180 names now open with our packages alone); other converters not yet done",
+ "branch": "task/sys-iconv-charmaps", "head": "9f655ce87",
+ "gate": {"affected": "sys-iconv-charmaps-gate2: clippy, static, iconv unit tests, iconv_codespace_products, iconv_products all passed; direct-tier affected gate started at hand-back", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["The built-in C locale's //TRANSLIT differs from the reference in 32 blocks of EUC-JP's code space (U+00AD, U+00B2, U+00B5, U+2014, ...): the D-6.9 UCD-derived transliteration, listed in iconv_codespace_products.rs", "gh is not installed on the coordinator machine, so issue #6 itself was not read"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "iconv_open with EUC-JP, EUCJP, UJIS, CSEUCPKDFMTJAPANESE, OSF00030010 failed with EINVAL on a system with only our packages; now converts like the reference", "before": 53, "after": 58, "unit": "names that open with our packages alone (of 1180)", "measured": true},
+  {"kind": "size", "what": "read-only EUC-JP tables in libc", "before": 0, "after": 88956, "unit": "bytes", "measured": true},
+  {"kind": "coverage", "what": "code-space differential test (every sequence, every code point, IGNORE, TRANSLIT) and 3 unit tests; 9 plants", "before": 0, "after": 4, "unit": "tests", "measured": true},
+  {"kind": "unblock", "what": "gettext AM_ICONV's EUC-JP check, so gnupg2 and other AM_ICONV packages configure with iconv (issue #6)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "A full code-space dump of the reference (decode walk + every code point) settles a codec's variant in one probe; the same oracle doubles as the test, so each further codec is mostly a table plus its probed rules",
+ "next_step": "Continue with Shift_JIS/CP932 and ISO-2022-JP from the same JIS tables, then EUC-KR, GBK/GB18030, Big5 and the single-byte pages; then the packaging proofs (flavours, check-system, swapped root, AM_ICONV configure)",
+ "report_file": "handoff/SYS-ICONV-CHARMAPS.md",
+ "jobs": ["sys-iconv-charmaps-gate2", "sys-iconv-charmaps-affected", "sys-iconv-charmaps-plants"]}
