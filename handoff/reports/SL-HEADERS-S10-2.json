@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "INCOMPLETE: regexp.h probed and matched, P2 67->38, P3 204->60 classified; P6/P7 not run",
  "branch": "task/sl-headers-s10-2",
- "head": null,
+ "head": "47894e591",
  "gate": {
   "affected": null,
   "peak": null
@@ -28,5 +28,8 @@
  "improvement": "header_check could take --headers to run one header",
  "next_step": "P6/P7 and C++ cwchar compile, then fix endian.h/sys/types.h rows",
  "report_file": "handoff/SL-HEADERS-S10.md",
- "jobs": []
+ "jobs": [
+  "sl-headers-s10-2-gate",
+  "sl-headers-s10-2-plants"
+ ]
 }
