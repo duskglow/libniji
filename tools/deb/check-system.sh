@@ -114,6 +114,8 @@ for deb in $debs; do
             libc6:./usr/lib64/ld-linux-x86-64.so.2 | libc6:./etc/ld.so.conf.d/$ma.conf) ok=yes ;;
             libc6:./usr/share/lintian/ | libc6:./usr/share/lintian/overrides/) [ "$type" = d ] && ok=yes ;;
             libc6:./usr/share/lintian/overrides/libc6) ok=yes ;;
+            libc6:./usr/share/i18n/ | libc6:./usr/share/i18n/charmaps/) [ "$type" = d ] && ok=yes ;;
+            libc6:./usr/share/i18n/charmaps/[A-Z]*) [ "$type" = - ] && ok=yes ;;
             libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
             libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf | libc-bin:./usr/bin/getent | libc-bin:./usr/bin/ldd) ok=yes ;;
             libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so | libc6-dev:./usr/lib/$ma/libresolv.so) ok=yes ;;
@@ -151,6 +153,13 @@ for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1
     sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
     [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
 done
+# SYS-ICONV-COVERAGE: libc6 carries one charmap per row of spec/encoding/charmaps.tsv, each naming
+# itself in its header (iconv_open finds a charset by that name and its aliases).
+want=$(awk -F'\t' '!/^#/ && NR > 1 && $1 != "name" { n++ } END { print n + 0 }' "$here/../../spec/encoding/charmaps.tsv")
+got=$(find "$r/usr/share/i18n/charmaps" -type f 2>/dev/null | wc -l)
+[ "$got" = "$want" ] || fail "libc6: $got charmaps in /usr/share/i18n/charmaps, not $want (spec/encoding/charmaps.tsv)"
+grep -q '^<code_set_name> ISO-8859-15$' "$r/usr/share/i18n/charmaps/ISO-8859-15" 2>/dev/null ||
+    fail "libc6: /usr/share/i18n/charmaps/ISO-8859-15 is missing or does not name ISO-8859-15"
 # SYS-DEV-LINKS: libc6-dev's development links name libc6's libraries (the link resolves in the
 # unpacked root), and the archives -l<x> needs in a static link are there.
 for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do

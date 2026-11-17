@@ -58,6 +58,7 @@ mod abbench;
 mod abi;
 mod affected;
 mod encodings;
+mod charmaps;
 mod align;
 mod bench;
 mod classed;

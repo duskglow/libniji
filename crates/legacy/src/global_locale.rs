@@ -82,8 +82,10 @@ static SLOTS: Slots = Slots([const {
 static COUNT: AtomicUsize = AtomicUsize::new(0);
 static NAME_COUNT: AtomicUsize = AtomicUsize::new(0);
 static FILE_COUNT: AtomicUsize = AtomicUsize::new(0);
-/// The most charmaps a process loads.
-const CHARMAPS: usize = 32;
+/// The most charmaps a process loads: more than a charmaps directory holds (the generated set and
+/// a full distribution set are each under 256), so a process that opens every installed charset
+/// still finds each (SYS-ICONV-COVERAGE: at 32, the 33rd distinct charset failed `EINVAL`).
+const CHARMAPS: usize = 256;
 static CHARMAP_ADDR: [AtomicUsize; CHARMAPS] = [const { AtomicUsize::new(0) }; CHARMAPS];
 static CHARMAP_COUNT: AtomicUsize = AtomicUsize::new(0);
 /// Each charmap's file (its interned path's slot), the address of the mapping it was parsed

@@ -1436,6 +1436,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     run_getconf(root, &cc, &release)?;
     run_getent(root, &cc)?;
     run_ldd(root, &cc, &release)?;
+    // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
+    // packages install for iconv_open (D-6.8's directory).
+    let n = crate::charmaps::write(root, &release.join("charmaps"))?;
+    println!("so: target/niji/charmaps ({n} charmaps from spec/encoding/charmaps.tsv)");
     check_placement(root, &release)?;
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
