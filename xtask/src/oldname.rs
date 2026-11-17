@@ -10,6 +10,8 @@
 //!   rename itself) and the fuzz seeds (binary inputs that hold the old run-time path bytes);
 //! - the release notes' past entries: every line of `docs/RELEASE-NOTES.md` after its history marker
 //!   ([`NOTES_MARKER`]); new releases go above the marker;
+//! - the old-to-new name table for package users: the table rows (lines starting `|`) of the section
+//!   [`RENAME_HEADING`] in [`RENAME_DOC`], up to the next `## ` heading (DOCS-SNAPSHOT-NIJI1);
 //! - fixed spellings ([`ALLOWED`]): the author identity (owner, Q3), the ops checkout's name and the historic
 //!   repository label (Q6), the one "was called" sentence, the two test names the code rename kept, and the compat
 //!   records' column key in the two files that read it;
@@ -31,6 +33,11 @@ const ALLOWED_PATHS: [&str; 6] = ["handoff/", "records/", "validation/results/",
 /// The release notes and the comment line above which new releases are written; past entries follow it.
 const NOTES: &str = "docs/RELEASE-NOTES.md";
 const NOTES_MARKER: &str = "<!-- History: the entries below describe what was released under the project's earlier names";
+
+/// The page that maps the former names to the new ones, and the heading of that section; only its table rows may
+/// name the former name.
+const RENAME_DOC: &str = "docs/install-packages.md";
+const RENAME_HEADING: &str = "## Names before libniji";
 
 /// Fixed spellings that may stand anywhere: `%o` is the former name in lower case, `%O` capitalised.
 const ALLOWED: [&str; 6] = [
@@ -110,11 +117,16 @@ fn scan(path: &str, text: &str) -> Vec<String> {
     let name = old();
     let mut found = Vec::new();
     let mut history = false;
+    let mut rename_section = false;
     for (n, line) in text.lines().enumerate() {
         if path == NOTES && line.starts_with(NOTES_MARKER) {
             history = true;
         }
-        if history || !line.to_ascii_lowercase().contains(&name) {
+        if line.starts_with("## ") {
+            rename_section = path == RENAME_DOC && line == RENAME_HEADING;
+        }
+        let rename_row = rename_section && line.starts_with('|');
+        if history || rename_row || !line.to_ascii_lowercase().contains(&name) {
             continue;
         }
         let rest = strip_allowed(path, line, &name);
@@ -194,6 +206,16 @@ mod tests {
         assert_eq!(scan(NOTES, &text), vec![format!("{NOTES}:3: {} above", cap())]);
         // Elsewhere the marker grants nothing.
         assert_eq!(scan("docs/x.md", &text).len(), 2);
+    }
+
+    #[test]
+    fn rename_table_rows_are_allowed_only_in_their_section() {
+        let row = format!("| packages `{}6` | `niji6` |", o());
+        let text = format!("# Installing\n\n{RENAME_HEADING}\n\nThe {} prose.\n\n{row}\n\n## What they are\n\n{row}\n", cap());
+        // In the rename section only the table row passes; its prose and a row under the next heading do not.
+        assert_eq!(scan(RENAME_DOC, &text), vec![format!("{RENAME_DOC}:5: The {} prose.", cap()), format!("{RENAME_DOC}:11: {row}")]);
+        // The same section in another file grants nothing.
+        assert_eq!(scan("docs/x.md", &text).len(), 3);
     }
 
     #[test]
