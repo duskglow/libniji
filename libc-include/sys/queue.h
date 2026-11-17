@@ -5,8 +5,6 @@
 #ifndef __NIJI_H_sys_queue_h
 #define __NIJI_H_sys_queue_h 1
 
-#include <features.h>
-
 #ifdef __cplusplus
 # define __NIJI_QNULL __null
 #else

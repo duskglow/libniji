@@ -58,6 +58,11 @@ struct obstack;
 #  define __NIJI_D__obstack_newchunk 1
 extern void _obstack_newchunk (struct obstack *, int);
 # endif
+struct obstack;
+# ifndef __NIJI_D_obstack_free
+#  define __NIJI_D_obstack_free 1
+extern void obstack_free (struct obstack *, void *);
+# endif
 #endif
 
 #if 1

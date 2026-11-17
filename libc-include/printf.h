@@ -4,7 +4,6 @@
 #define __NIJI_H_printf_h 1
 
 #include <features.h>
-#include <stdio.h>
 
 __NIJI_BEGIN_C
 
@@ -54,6 +53,44 @@ struct printf_info {
   wchar_t pad;
 };
 # endif
+# ifndef __NIJI_D_struct__IO_FILE
+#  define __NIJI_D_struct__IO_FILE 1
+struct _IO_FILE {
+  int _flags;
+  char * _IO_read_ptr;
+  char * _IO_read_end;
+  char * _IO_read_base;
+  char * _IO_write_base;
+  char * _IO_write_ptr;
+  char * _IO_write_end;
+  char * _IO_buf_base;
+  char * _IO_buf_end;
+  char * _IO_save_base;
+  char * _IO_backup_base;
+  char * _IO_save_end;
+  struct _IO_marker * _markers;
+  struct _IO_FILE * _chain;
+  int _fileno;
+  int _flags2;
+  long _old_offset;
+  unsigned short _cur_column;
+  signed char _vtable_offset;
+  char _shortbuf[1];
+  void * _lock;
+  long _offset;
+  struct _IO_codecvt * _codecvt;
+  struct _IO_wide_data * _wide_data;
+  struct _IO_FILE * _freeres_list;
+  void * _freeres_buf;
+  unsigned long __pad5;
+  int _mode;
+  char _unused2[20];
+};
+# endif
+# ifndef __NIJI_D_FILE
+#  define __NIJI_D_FILE 1
+typedef struct _IO_FILE FILE;
+# endif
 struct printf_info;
 # ifndef __NIJI_D_printf_arginfo_function
 #  define __NIJI_D_printf_arginfo_function 1
@@ -73,6 +110,10 @@ typedef int printf_function(struct _IO_FILE *, struct printf_info const *, void 
 # ifndef __NIJI_D_printf_va_arg_function
 #  define __NIJI_D_printf_va_arg_function 1
 typedef void printf_va_arg_function(void *, __builtin_va_list);
+# endif
+# ifndef __NIJI_D_size_t
+#  define __NIJI_D_size_t 1
+typedef unsigned long size_t;
 # endif
 #endif
 #if __NIJI_CXX < 1

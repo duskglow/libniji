@@ -3,10 +3,6 @@
 #ifndef __NIJI_H_sysexits_h
 #define __NIJI_H_sysexits_h 1
 
-#include <features.h>
-
-__NIJI_BEGIN_C
-
 #if 1
 # ifndef EX_CANTCREAT
 #  define EX_CANTCREAT 73
@@ -63,7 +59,5 @@ __NIJI_BEGIN_C
 #  define EX__MAX 78
 # endif
 #endif
-
-__NIJI_END_C
 
 #endif

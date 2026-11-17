@@ -10,7 +10,8 @@
 
 __NIJI_BEGIN_C
 
-@@owns _obstack_chunk obstack_init obstack_alloc obstack_copy obstack_copy0 obstack_blank obstack_grow obstack_grow0 obstack_1grow obstack_ptr_grow obstack_int_grow obstack_finish obstack_object_size obstack_room obstack_make_room obstack_blank_fast obstack_1grow_fast obstack_ptr_grow_fast obstack_int_grow_fast obstack_base obstack_next_free obstack_chunk_size obstack_alignment_mask obstack_free
+@@owns _obstack_chunk obstack_init obstack_alloc obstack_copy obstack_copy0 obstack_blank obstack_grow obstack_grow0 obstack_1grow obstack_ptr_grow obstack_int_grow obstack_finish obstack_object_size obstack_room obstack_make_room obstack_blank_fast obstack_1grow_fast obstack_ptr_grow_fast obstack_int_grow_fast obstack_base obstack_next_free obstack_chunk_size obstack_alignment_mask
+@@owns-macro obstack_free
 @@emit
 
 @@when obstack_init

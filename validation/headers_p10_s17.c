@@ -38,7 +38,7 @@ int main (void)
           (int) (((unsigned long) obstack_next_free (&ob) & obstack_alignment_mask (&ob)) == 0), big[0], big[4999] == 'a' + 4999 % 26);
   obstack_blank (&ob, 100000);
   obstack_blank_fast (&ob, 0);
-  printf ("room-after-blank %d size %d\n", obstack_room (&ob) >= 0, obstack_object_size (&ob));
+  printf ("room-after-blank %d size %d\n", (int) obstack_room (&ob) >= 0, obstack_object_size (&ob));
   void *e = obstack_finish (&ob);
   obstack_free (&ob, e);
   obstack_free (&ob, NULL);

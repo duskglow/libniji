@@ -3,10 +3,6 @@
 #ifndef __NIJI_H_cpio_h
 #define __NIJI_H_cpio_h 1
 
-#include <features.h>
-
-__NIJI_BEGIN_C
-
 #if 1
 # ifndef C_IRGRP
 #  define C_IRGRP 32
@@ -72,7 +68,5 @@ __NIJI_BEGIN_C
 #  define MAGIC "070707"
 # endif
 #endif
-
-__NIJI_END_C
 
 #endif
