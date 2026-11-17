@@ -12,7 +12,7 @@ Stopped at the context checkpoint (~150k) after the data and tool step; nothing 
   transcribe build.sh + system.sh exactly (iconv is strip `unneeded`: today it gets no libc6-dbg file).
 * `tools/deb/control.tsv` (package, field, value; sorted; `$version $abi $provides` placeholders; member
   rows `triggers`, `symbols`, `debug`) and `tools/deb/description/<pkg>` (9 files, `$abi`, `$programs`).
-* `tools/deb/system/libc.so`, `tools/deb/coexist/libc.so`: the two linker scripts, byte-equal to today's
+* `tools/deb/system/libc-so.ld`, `tools/deb/coexist/libc-so.ld` (`*.so` is git-ignored): the two linker scripts, byte-equal to today's
   put_text output.
 * `tools/deb/manifest.py`: lint [--products DIR], rows, packages, debug-package, symbols-package,
   control, member (conffiles/triggers), check FLAVOUR DEBDIR (exact path set, types, modes, owners,

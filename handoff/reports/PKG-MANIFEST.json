@@ -1,6 +1,6 @@
 {"task": "PKG-MANIFEST", "model": "opus", "tokens": null,
  "result": "WIP at context checkpoint: manifest.tsv, control.tsv, descriptions and manifest.py (lint/rows/control/check) written; build and checks not yet wired",
- "branch": "task/pkg-manifest", "head": null,
+ "branch": "task/pkg-manifest", "head": "c1d051f0c",
  "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
  "rulings": [], "informational": ["iconv is stripped but gets no libc6-dbg file (manifest row strip unneeded keeps today's behaviour)"],
  "refused": [],
