@@ -1,5 +1,5 @@
 //! The C shapes of spec §15.1–15.2 that add something to the kernel call: the in-out
-//! `socklen_t` of the address and option results (truncate to the caller's capacity, report
+//! `socklen_t` of the address results (truncate to the caller's capacity, report
 //! the full length), `setsockopt`'s split between levels the typed call covers and those that
 //! register caller memory with the kernel, `isfdtype`, and the `__cmsg_nxthdr` walk over a
 //! control buffer. Spec §15.4 and §15.6 (phase 10): the `getifaddrs` and `if_nameindex`
@@ -43,11 +43,15 @@ pub fn accept<S: Sys>(sys: &S, fd: Fd, out: Option<AddrOut<'_>>, flags: u32) -> 
     Ok(new)
 }
 
-/// `getsockname` (`peer` false) or `getpeername` (§15.1).
-pub fn sockname<S: Sys>(sys: &S, fd: Fd, out: AddrOut<'_>, peer: bool) -> Result<()> {
+/// `getsockname` (`peer` false) or `getpeername` (§15.1). The kernel call comes first and
+/// `out` (the caller's buffer and length cell) is taken only after it succeeds, the order in
+/// which the kernel itself reports a bad descriptor or an unconnected socket before a bad
+/// result buffer. A buffer of 0 bytes, NULL included, is a length query: nothing is copied and
+/// the full length is reported.
+pub fn sockname<'a, S: Sys>(sys: &S, fd: Fd, out: impl FnOnce() -> Result<AddrOut<'a>>, peer: bool) -> Result<()> {
     let mut a = SockAddrBuf::new();
     if peer { sys.getpeername(fd, &mut a)? } else { sys.getsockname(fd, &mut a)? }
-    store_addr(&a, Some(out));
+    store_addr(&a, Some(out()?));
     Ok(())
 }
 
@@ -57,15 +61,6 @@ pub fn recvfrom<S: Sys>(sys: &S, fd: Fd, buf: &mut [u8], flags: u32, out: Option
     let n = sys.recvfrom(fd, buf, flags, out.is_some().then_some(&mut from))?;
     store_addr(&from, out);
     Ok(n)
-}
-
-/// `getsockopt(fd, level, name, value, len)` (§15.1): the value's length is written back.
-pub fn getsockopt<S: Sys>(sys: &S, fd: Fd, level: i32, name: i32, out: AddrOut<'_>) -> Result<()> {
-    let level = u32::try_from(level).map_err(|_| Errno::EINVAL)?;
-    let name = u32::try_from(name).map_err(|_| Errno::ENOPROTOOPT)?;
-    let n = sys.getsockopt(fd, level, name, out.buf)?;
-    *out.len = u32::try_from(n).map_err(|_| Errno::EINVAL)?;
-    Ok(())
 }
 
 /// `setsockopt(fd, level, name, value, len)` (§15.1). The typed call covers the levels whose

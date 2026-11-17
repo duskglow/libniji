@@ -413,6 +413,17 @@ pub(crate) fn setsockopt(fd: i32, level: i32, name: i32, value: usize, len: u32)
     Errno::decode(rc).map(|_| ())
 }
 
+/// `getsockopt(fd, level, name, value, len)` (§15.1) with the caller's `value` and `len`
+/// addresses as given: the kernel reads `*len`, writes at most that many bytes at `value` and
+/// stores the option's length in `*len`, also for a NULL `value` (a size query such as
+/// `NETLINK_LIST_MEMBERSHIPS`) and on a failure that reports the length needed (`ERANGE` from
+/// `SO_PEERGROUPS`). It keeps neither address after the call. The kernel decides which
+/// addresses are bad and in what order the errors come.
+pub(crate) fn getsockopt(fd: i32, level: i32, name: i32, value: usize, len: usize) -> KResult<()> {
+    let rc = niji_sys_getsockopt(i64::from(fd), i64::from(level), i64::from(name), ptr::with_exposed_provenance_mut(value), ptr::with_exposed_provenance_mut(len));
+    Errno::decode(rc).map(|_| ())
+}
+
 /// `ioctl(fd, SIOCATMARK, &v)` (§15.1 `sockatmark`): 1 at the out-of-band mark, else 0.
 pub(crate) fn sockatmark(fd: i32) -> KResult<i64> {
     let mut v: i32 = 0;
