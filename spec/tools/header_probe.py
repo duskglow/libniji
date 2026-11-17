@@ -287,6 +287,19 @@ def public_headers():
     return sorted(r["header"] for r in rows if r["kind"] == "public" and r["header"].endswith(".h"))
 
 
+def stage_uapi():
+    """The kernel's UAPI directories (linux-libc-dev), staged as symlinks in a scratch directory: they are not libniji's
+    headers, which -nostdinc leaves out."""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="uapi.")
+    for name, srcs in (("linux", ["/usr/include/linux"]), ("asm-generic", ["/usr/include/asm-generic"]),
+                       ("asm", ["/usr/include/x86_64-linux-gnu/asm", "/usr/include/asm"])):
+        src = next((x for x in srcs if os.path.isdir(x)), None)
+        if src:
+            os.symlink(src, os.path.join(d, name))
+    return d
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
@@ -296,7 +309,7 @@ def main():
     args = ap.parse_args()
     if args.include:
         gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
-        BASE.extend(["-nostdinc", "-isystem", os.path.abspath(args.include), "-isystem", gccinc])
+        BASE.extend(["-nostdinc", "-isystem", os.path.abspath(args.include), "-isystem", gccinc, "-isystem", stage_uapi()])
     headers = args.headers.split(",") if args.headers else public_headers()
     names, tags = candidates()
     work = tempfile.mkdtemp(prefix="header_probe.")

@@ -345,6 +345,19 @@ def probe_cxx98(header, names, flags_lang, plain_inc, functions, work):
     return out
 
 
+def stage_uapi():
+    """The kernel's UAPI directories (linux-libc-dev), staged as symlinks in a scratch directory: they are not libniji's
+    headers, which -nostdinc leaves out."""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="uapi.")
+    for name, srcs in (("linux", ["/usr/include/linux"]), ("asm-generic", ["/usr/include/asm-generic"]),
+                       ("asm", ["/usr/include/x86_64-linux-gnu/asm", "/usr/include/asm"])):
+        src = next((x for x in srcs if os.path.isdir(x)), None)
+        if src:
+            os.symlink(src, os.path.join(d, name))
+    return d
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
@@ -371,8 +384,9 @@ def main():
     # -fno-builtin: GCC's own implicit declarations of library builtins (isalnum, abs) accept either specifier.
     plain_inc = ["-fno-builtin", "-nostdinc","-I" + gccinc, "-I/usr/include/x86_64-linux-gnu", "-I/usr/include"]
     if inc:
-        plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc]
-        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc])
+        uapi = stage_uapi()
+        plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc, "-I" + uapi]
+        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc, "-isystem", uapi])
     # Every prototypes.tsv function: a type token with one of these names is a tag the function hides.
     all_functions = frozenset(r["name"] for r in tsv("prototypes.tsv"))
     jobs = []
