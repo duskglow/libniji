@@ -118,13 +118,21 @@ pub extern "C" fn raise(sig: c_int) -> c_int {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn sigprocmask(how: c_int, set: Option<&sigset_t>, oset: Option<&mut sigset_t>) -> c_int {
-    ret::store_if(oset, signal_compat::sigprocmask(&CSys, how, set))
+    ret::zero(signal_compat::sigprocmask(&CSys, how, set).map(|old| report_mask(oset, old)))
 }}
 
 export! { "GLIBC_2.32";
 pub extern "C" fn pthread_sigmask(how: c_int, set: Option<&sigset_t>, oset: Option<&mut sigset_t>) -> c_int {
-    ret::errnum_if(oset, signal_compat::sigprocmask(&CSys, how, set))
+    ret::errnum(signal_compat::sigprocmask(&CSys, how, set).map(|old| report_mask(oset, old)))
 }}
+
+/// The old mask of `sigprocmask`/`pthread_sigmask` into the caller's set: only the first word
+/// (the kernel's 64 signals) is written; the rest of the caller's `sigset_t` keeps its bytes.
+fn report_mask(oset: Option<&mut sigset_t>, old: u64) {
+    if let Some(o) = oset {
+        o.__val[0] = old;
+    }
+}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn sigemptyset(set: Option<&mut sigset_t>) -> c_int {

@@ -127,6 +127,36 @@ static void *timed_waiter(void *arg)
     return NULL;
 }
 
+/* Threads that try to block every signal still take the library's 32: cancelling one and
+ * changing credentials (replayed in every thread through 32, D-17.1) complete. If a caller could
+ * block 32, the join or setuid in main would wait for ever; the watchdog ends the run then. */
+static int block_pipe[2];
+static volatile int blockers_ready;
+
+static void *all_blocked_reader(void *arg)
+{
+    (void)arg;
+    sigset_t s;
+    allbits(&s);
+    pthread_sigmask(SIG_SETMASK, &s, NULL);
+    sigfillset(&s);
+    sigprocmask(SIG_BLOCK, &s, NULL);
+    __atomic_add_fetch(&blockers_ready, 1, __ATOMIC_SEQ_CST);
+    char c;
+    while (read(block_pipe[0], &c, 1) < 0 && errno == EINTR)
+        ;
+    return NULL;
+}
+
+static void *watchdog(void *arg)
+{
+    (void)arg;
+    sleep(120);
+    printf("FAIL threads with every signal blocked: cancel or setuid did not complete (hang guard)\n");
+    fflush(stdout);
+    _exit(1);
+}
+
 static void wait_stage(int n)
 {
     while (waiter_stage < n)
@@ -348,6 +378,27 @@ int main(int argc, char **argv)
     printf("     the child's SigBlk: %016lx\n", cb);
     check(sr == 0 && cb != ~0UL && !(cb & BIT32), "posix_spawn with an all-bits SETSIGMASK: the child has 32 unblocked");
     check(cb == 0xffffffff7ffbfeffUL, "the child has every other signal blocked (but SIGKILL and SIGSTOP)");
+
+    /* Every thread blocks every signal; one is cancelled, then setuid runs with the other waiting. */
+    pthread_t wd, r1, r2;
+    pthread_create(&wd, NULL, watchdog, NULL);
+    pthread_detach(wd);
+    pipe(block_pipe);
+    allbits(&s);
+    pthread_sigmask(SIG_SETMASK, &s, NULL);
+    check(!(kmask() & BIT32) && (kmask() & (1UL << 32)), "an all-bits set blocks 33 (an ordinary signal), never 32");
+    pthread_create(&r1, NULL, all_blocked_reader, NULL);
+    pthread_create(&r2, NULL, all_blocked_reader, NULL);
+    while (blockers_ready < 2)
+        usleep(1000);
+    usleep(20000);
+    void *res = NULL;
+    check(pthread_cancel(r1) == 0 && pthread_join(r1, &res) == 0 && res == PTHREAD_CANCELED,
+          "a thread that blocked every signal is cancelled in read");
+    check(setuid(getuid()) == 0, "setuid completes while every thread blocks every signal");
+    check(write(block_pipe[1], "x", 1) == 1 && pthread_join(r2, NULL) == 0, "the other thread goes on after setuid");
+    sigemptyset(&s);
+    pthread_sigmask(SIG_SETMASK, &s, NULL);
 
     printf("%d failures\n", failures);
     return failures != 0;

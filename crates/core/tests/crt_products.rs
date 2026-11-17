@@ -509,30 +509,75 @@ fn old_pthread_sigmask_binds_and_matches_the_reference() {
     assert!(want.ends_with("\npthread_sigmask@GLIBC_2.2.5: 140 cases, 0 differ from the default\n"), "the reference:\n{want}");
     let got = run(&exe, &w);
     assert!(got.ends_with("\npthread_sigmask@GLIBC_2.2.5: 140 cases, 0 differ from the default\n"), "libniji's old version is its default's alias:\n{got}");
-    // Differences of libniji's DEFAULT version from the reference's, outside this compat version
-    // (both libraries print "same as default" for every case; reported by SYS-COMPAT-VERSIONS-REST
-    // for the default's own story): libniji writes the whole 128-byte old set (zeros after the
-    // kernel's 8 bytes, "+120"; the reference "+0"); its masks treat signals 32 and 33 otherwise (a set
-    // can block 33; the old set hides 32); and with a null set it still rejects an invalid `how`
-    // (EINVAL; the reference ignores `how` then, as POSIX says). Exactly these are masked or skipped.
-    let default_only = |text: &str| -> String {
-        let reserved = !((1u64 << 31) | (1u64 << 32));
-        let field = |l: &str, key: &str| -> String {
-            match l.split_once(key) {
-                Some((head, rest)) if rest.len() >= 16 && rest.as_bytes()[..16].iter().all(u8::is_ascii_hexdigit) => {
-                    let v = u64::from_str_radix(&rest[..16], 16).unwrap() & reserved;
-                    format!("{head}{key}{v:016x}{}", &rest[16..])
-                }
-                _ => l.to_string(),
-            }
+    // The default versions against the reference, sigprocmask's 140 cases and pthread_sigmask's 140
+    // (SIGMASK-DEFAULT; spec/behaviour/pthread-sigmask-compat.md). Equal on every case: the return
+    // value, errno, the old set's first 8 bytes and the other 120 left as they were ("+0"; a valid
+    // call writes only the kernel's 64 signals), and with a null set any `how` succeeds (POSIX: `how`
+    // is not significant then). The old set and the mask afterwards are also equal but for decision
+    // D-20.1, asserted here: libniji reserves one real-time signal (32), so a reported old set never
+    // shows 32 (the reference shows a 32 the kernel has blocked), and 33 is an ordinary signal a set
+    // blocks, unblocks and installs like any other (the reference leaves 33 out of every set). No
+    // caller's set ever blocks 32, in either library.
+    const S32: u64 = 1 << 31;
+    const S33: u64 = 1 << 32;
+    const UNWRITTEN: u64 = 0xa5a5_a5a5_a5a5_a5a5;
+    struct Case<'a> {
+        case: &'a str,
+        start: u64,
+        how: i64,
+        set: Option<u64>,
+        ret: i64,
+        err: i64,
+        old: u64,
+        tail: &'a str,
+        after: u64,
+        rest: &'a str,
+    }
+    fn parse(l: &str) -> Option<Case<'_>> {
+        let (case, out) = l.split_once(") = ")?;
+        let field = |key: &str| case.split_once(key).and_then(|(_, v)| v.split([',', ' ']).next());
+        let hex = |t: &str| u64::from_str_radix(t, 16).ok();
+        let mut w = out.splitn(8, ' ');
+        let ret = w.next()?.parse().ok()?;
+        (w.next()? == "errno").then_some(())?;
+        let err = w.next()?.parse().ok()?;
+        (w.next()? == "old").then_some(())?;
+        let old = hex(w.next()?)?;
+        let tail = w.next()?;
+        (w.next()? == "after").then_some(())?;
+        let last = w.next()?;
+        let (after, rest) = last.split_at(16.min(last.len()));
+        let set = if case.ends_with("(null), old") || case.ends_with("(null), null") { None } else { Some(hex(field(", set ")?)?) };
+        Some(Case { case, start: hex(field("(start ")?)?, how: field(", how ")?.parse().ok()?, set, ret, err, old, tail, after: hex(after)?, rest })
+    }
+    let (glines, rlines): (Vec<&str>, Vec<&str>) = (got.lines().collect(), want.lines().collect());
+    assert_eq!(glines.len(), rlines.len(), "the same cases");
+    let mut cases = 0;
+    let mut differ = Vec::new();
+    for (g, r) in glines.iter().zip(&rlines) {
+        let (Some(gc), Some(rc)) = (parse(g), parse(r)) else {
+            assert_eq!(g, r, "libniji's line against the reference's");
+            continue;
         };
-        text.lines()
-            .filter(|l| !l.contains(", how 3, set 0000000000000000 (null)") && !l.contains(", how -1, set 0000000000000000 (null)"))
-            .map(|l| field(&field(&l.replace(" +120 after ", " +0 after "), " old "), " after ") + "\n")
-            .collect()
-    };
-    let (got, want) = (default_only(&got), default_only(&want));
-    let differ: Vec<String> = got.lines().zip(want.lines()).filter(|(g, r)| g != r).map(|(g, r)| format!("libniji:   {g}\nreference: {r}")).collect();
-    assert!(differ.is_empty(), "libniji against the reference, {} cases differ:\n{}", differ.len(), differ.iter().take(12).cloned().collect::<Vec<_>>().join("\n"));
-    assert_eq!(got.lines().count(), want.lines().count(), "the same cases");
+        cases += 1;
+        let same = gc.case == rc.case && gc.ret == rc.ret && gc.err == rc.err && gc.tail == rc.tail && gc.rest == rc.rest;
+        // D-20.1: the old set is the reference's without 32.
+        let old = gc.old == if rc.old == UNWRITTEN { rc.old } else { rc.old & !S32 };
+        // D-20.1: 33 follows the caller's set as SIG_BLOCK, SIG_UNBLOCK and SIG_SETMASK say; every
+        // other signal, 32 included, ends as the reference's.
+        let s33 = gc.set.unwrap_or(0) & S33;
+        let want33 = match (gc.ret, gc.set, gc.how) {
+            (0, Some(_), 0) => (gc.start & S33) | s33,
+            (0, Some(_), 1) => gc.start & S33 & !s33,
+            (0, Some(_), 2) => s33,
+            _ => gc.start & S33,
+        };
+        let after = gc.after & !S33 == rc.after & !S33 && gc.after & S33 == want33;
+        let never32 = gc.start & S32 != 0 || gc.after & S32 == 0;
+        if !(same && old && after && never32) {
+            differ.push(format!("libniji:   {g}\nreference: {r}"));
+        }
+    }
+    assert!(differ.is_empty(), "libniji against the reference (D-20.1 applied to 32 and 33), {} cases differ:\n{}", differ.len(), differ.iter().take(12).cloned().collect::<Vec<_>>().join("\n"));
+    assert_eq!(cases, 280, "sigprocmask's and pthread_sigmask's cases all compared");
 }

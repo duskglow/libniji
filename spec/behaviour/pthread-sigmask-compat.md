@@ -25,12 +25,16 @@ other 120 bytes changed, and the kernel mask afterwards. Record:
   or 33 stays blocked), and `SIG_SETMASK` leaves both unblocked whatever the set and the starting
   mask; `SIGKILL` and `SIGSTOP` are dropped by the kernel.
 
-libniji's default version differs from the reference's in ways this compat version does not touch
-(both versions alike in each library): it writes the whole 128-byte old set (zeros after the
-kernel's 8 bytes); a set can block signal 33, and the old set it reports hides a blocked 32; and with
-a null set it still rejects an invalid `how` with `EINVAL`, where the reference ignores `how` (POSIX:
-"if set is a null pointer, the value of the argument how is not significant"). The test masks
-exactly these.
+With a null set, any `how` (3 and -1 included) returns 0 and fills the old set (POSIX: "if set is a
+null pointer, the value of the argument how is not significant").
+
+The default versions (SIGMASK-DEFAULT): the probe also runs the same 140 cases through
+`sigprocmask` (the same results in its terms: -1 and `errno`). libniji's `sigprocmask` and
+`pthread_sigmask` give the reference's observations in every case (return value, `errno`, 8 bytes of
+the old set written and the other 120 left as they were, a null set's `how` not significant), but
+for decision D-20.1 (one reserved signal, differences-from-glibc.md): libniji's reported old set
+never shows 32, and 33 is an ordinary signal that a set blocks, unblocks and installs.
 
 Test: `old_pthread_sigmask_binds_and_matches_the_reference` (crates/core/tests/crt_products.rs) runs
-the probe linked against libniji's products and against the reference and requires the same text.
+the probe linked against libniji's products and against the reference, requires the compat lines
+"same as default" in both, and compares every case, asserting D-20.1's behaviour for 32 and 33.
