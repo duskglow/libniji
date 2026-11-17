@@ -1,8 +1,23 @@
 # SYS-ABI-DT-RELR: libc.so.6 defines GLIBC_ABI_DT_RELR; the ABI tables record symbol-less nodes
 
-**State:** branch `task/sys-abi-dt-relr-2` (continues `task/sys-abi-dt-relr`), cut from origin/next 752955498.
-Code head 61c9a7ad3 (+ plants file 71afa1e11 + this handoff). Role keke:~/w/n3 (SYS-ABI-DT-RELR ran on mei:~/w/s4).
-Report json: `handoff/reports/SYS-ABI-DT-RELR-2.json`; plants: `handoff/SYS-ABI-DT-RELR-2-plants.txt`.
+**State:** branch `task/sys-abi-dt-relr-3` (continues `-2` and `task/sys-abi-dt-relr`), cut from origin/next
+752955498. Last code commit 31b26287d; later commits are handoff/report prose only. Roles: SYS-ABI-DT-RELR mei:~/w/s4,
+-2 keke:~/w/n3, -3 mei:~/w/s3. Report json: `handoff/reports/SYS-ABI-DT-RELR-3.json` (and `-2`); plants:
+`handoff/SYS-ABI-DT-RELR-2-plants.txt`.
+
+## SYS-ABI-DT-RELR-3 (this run)
+
+* -2's red verify (`sys-abi-dt-relr-2-startup3`, keke, rc 101) came from its job script, not the change: the script
+  set `LIELLA_FULL_PROFILE=1` and ran `cargo test -p liella` (pre-rename names; `error: package ID specification
+  'liella' did not match any packages`). xtask reads `NIJI_FULL_PROFILE`, so that run also built without the full
+  profile. No code changed in this run.
+* mei:~/w/s3: `sys-abi-dt-relr-3-lint0` (clippy + static on the inherited head a597682d3) rc 0;
+  `sys-abi-dt-relr-3-startup` (`NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test
+  hot_text_products`) rc 0: full-profile layout contracts hold, hot_text_products 26 passed.
+* Ruling #6238 applied: zdump + locale are the RELR proof; Debian's iconv needs GLIBC_PRIVATE, which libniji does
+  not define (R14-12), so it does not run on libniji by design. libniji's own iconv (UTIL-7) replaces it.
+* Gate, plants and proof stand from -2 (keke, same code): `sys-abi-dt-relr-2-gate2`, `-plants2` (8/8 CAUGHT),
+  `-proof2`, all rc 0.
 
 ## What the branch does
 
@@ -54,7 +69,7 @@ Report json: `handoff/reports/SYS-ABI-DT-RELR-2.json`; plants: `handoff/SYS-ABI-
   The system flavour replaces libc-bin with libniji's own, so these three are never run against libniji there.
   The swap's second RELR program is now Debian's `locale` (zdump passed in proof-1). RULING NEEDED (raised in the
   hand-back): the original brief's "iconv --version starts" is met for RELR, not GLIBC_PRIVATE; recommend no
-  GLIBC_PRIVATE (R14-12 stands).
+  GLIBC_PRIVATE (R14-12 stands). Ruled in #6238 (see -3 above).
 * The swap's ldd-1..7 differences (/usr/lib vs /lib in loader trace output) are the known ones SYS-LIBRESOLV found
   identical on origin/next's packages; this run did not rebuild the base packages to re-confirm them. The proof
   script accepts exactly those seven FAIL lines and requires `relr-locale` and `relr-zdump` to PASS.
@@ -79,4 +94,4 @@ Report json: `handoff/reports/SYS-ABI-DT-RELR-2.json`; plants: `handoff/SYS-ABI-
 
 ## Next step
 
-None for this story once its jobs are green.
+None for this story: land it (keke gate2/plants2/proof2 and mei -3 lint0/startup green).
