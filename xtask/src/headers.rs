@@ -395,8 +395,34 @@ impl Gen<'_> {
             .filter(|r| r["member_type"].strip_prefix("struct ").is_some_and(|_| self.t.layouts.contains_key(&r["member_type"])))
             .map(|r| r["member"].as_str())
             .collect();
+        // Members that are unnamed structures or unions (`ut_tv`): their members are the rows `member.sub` below.
+        // A structure tag with no rows of its own (utmpx's `struct __exit_status`) is described the same way, keeping its tag.
+        let is_agg = |r: &BTreeMap<String, String>| {
+            let mt = r["member_type"].as_str();
+            key.starts_with("struct ") && !r["member"].contains('.') && (mt.ends_with(" <anon>") || (mt.starts_with("struct ") && !self.t.layouts.contains_key(mt) && rows.iter().any(|q| q["member"].starts_with(&format!("{}.", r["member"])))))
+        };
+        let anon: BTreeSet<&str> = rows.iter().filter(|r| is_agg(r)).map(|r| r["member"].as_str()).collect();
         let mut end = Some(0u64);
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
+            if let Some(kw) = Some(r["member_type"].strip_suffix(" <anon>").unwrap_or(&r["member_type"])).filter(|_| is_agg(r)) {
+                // One level of an unnamed aggregate whose members are scalars or arrays of them.
+                let prefix = format!("{}.", r["member"]);
+                let mut inner = Vec::new();
+                for q in rows.iter().filter(|q| q["member"].strip_prefix(prefix.as_str()).is_some_and(|m| !m.contains('.'))) {
+                    let mt = &q["member_type"];
+                    let (base, arr) = mt.find('[').map_or((mt.as_str(), ""), |i| (&mt[..i], &mt[i..]));
+                    let b = dwarf_scalar(base).or_else(|| Some(self.resolve(base)).filter(|r| scalar(r)))?;
+                    inner.push(format!("{b} {}{arr};", &q["member"][prefix.len()..]));
+                }
+                let off: u64 = r["offset_or_size"].parse().ok()?;
+                offs.insert(r["offset_or_size"].clone());
+                end = end.zip(rows.iter().filter(|q| q["member"].starts_with(prefix.as_str())).filter_map(|q| Some(q["offset_or_size"].parse::<u64>().ok()? + self.type_size(q["member_type"].split('[').next()?, "", q["member_type"].find('[').map_or("", |i| &q["member_type"][i..]))?)).max()).map(|(e, n)| e.max(n)).or(Some(off));
+                out.push(format!("  {kw} {{ {} }} {};", inner.join(" "), r["member"]));
+                continue;
+            }
+            if r["member"].split_once('.').is_some_and(|(parent, _)| anon.contains(parent)) {
+                continue;
+            }
             if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
                 continue;
             }
@@ -586,7 +612,23 @@ impl Gen<'_> {
     }
 
     fn declaration(&mut self, name: &str) -> Option<String> {
-        let Some(d) = self.t.protos.get(name) else {
+        // A function whose prototype the reference's own header leaves unrecorded (its parameter is a tag only
+        // the header names) has its resolved type in typedefs.tsv (`int (int, sgttyb*)`): spelled as a prototype.
+        let from_type = self.t.typedefs.get(&("function".to_string(), name.to_string())).filter(|_| !self.t.protos.contains_key(name)).and_then(|r| {
+            let (ret, args) = r["cxx"].split_once(" (")?;
+            let args = args.strip_suffix(')')?;
+            // The one such function family (gtty, stty) takes a pointer to a tag, `T*` or `T const*`.
+            let args: Vec<String> = args
+                .split(", ")
+                .map(|a| match (a.strip_suffix(" const*"), a.strip_suffix('*')) {
+                    (Some(t), _) => format!("const struct {t} *"),
+                    (_, Some(t)) => format!("struct {t} *"),
+                    _ => a.to_string(),
+                })
+                .collect();
+            Some(format!("{ret} {name} ({})", args.join(", ")))
+        });
+        let Some(d) = from_type.as_ref().or_else(|| self.t.protos.get(name)) else {
             self.errors.push(format!("{}: function {name} not in prototypes.tsv", self.header));
             return None;
         };
@@ -887,7 +929,23 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 stack.extend(includes(&texts[&x]));
             }
         }
-        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        // A name is covered by the included headers only in the configurations where one of them shows it: when
+        // this header shows it in more (utmp.h has `fd_set` in strict ISO modes, <sys/types.h> only in the BSD set),
+        // the header declares it itself.
+        let mut shown: BTreeMap<(String, String), u64> = BTreeMap::new();
+        for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
+            *shown.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(u64::MAX);
+        }
+        let covered: BTreeSet<(String, String)> = t
+            .vis
+            .iter()
+            .filter(|r| r["header"] == h)
+            .filter_map(|r| {
+                let key = (r["name"].clone(), r["kind"].clone());
+                let own = mask_of(&t.lv, &r["configs"]).unwrap_or(0);
+                shown.get(&key).filter(|m| own & !**m & !t.lv.reject == 0).map(|_| key)
+            })
+            .collect();
         let mut owned = BTreeSet::new();
         let mut owned_macros = BTreeSet::new();
         for l in text.lines() {
