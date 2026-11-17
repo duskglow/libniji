@@ -63,8 +63,8 @@ fn prog_src() -> String {
     s
 }
 
-/// The corpus in a new scratch directory: (directory, `ld.so`, program), or `None` with the reason printed.
-fn corpus() -> Option<(PathBuf, PathBuf, PathBuf)> {
+/// The corpus in a new scratch directory of its own (`tag`: each test builds its own, as tests run at once): (directory, `ld.so`, program), or `None` with the reason printed.
+fn corpus(tag: &str) -> Option<(PathBuf, PathBuf, PathBuf)> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
@@ -75,7 +75,7 @@ fn corpus() -> Option<(PathBuf, PathBuf, PathBuf)> {
         eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
-    let d = target().join(format!("ld-start-objects-{}", std::process::id()));
+    let d = target().join(format!("ld-start-objects-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     let d = std::fs::canonicalize(d).unwrap();
@@ -133,7 +133,7 @@ fn seq(out: &str, tag: char) -> Vec<usize> {
 /// s27_1_c_1_1 (no count of start-time objects is refused): a start of `N` libraries runs whole.
 #[test]
 fn start_objects_past_every_old_bound() {
-    let Some((d, ld, prog)) = corpus() else { return };
+    let Some((d, ld, prog)) = corpus("run") else { return };
     let o = run(&mut Command::new(&prog));
     let out = String::from_utf8_lossy(&o.stdout);
     let err = String::from_utf8_lossy(&o.stderr);
@@ -168,7 +168,7 @@ fn start_objects_past_every_old_bound() {
 /// either runs or ends with one `ld.so:` line and status 127; never a signal.
 #[test]
 fn start_objects_out_of_memory_is_clean() {
-    let Some((d, _, prog)) = corpus() else { return };
+    let Some((d, _, prog)) = corpus("oom") else { return };
     let (mut ran, mut refused) = (0, 0);
     let mut reasons = std::collections::BTreeSet::new();
     for kb in (1024..=48 * 1024).step_by(256) {
