@@ -24,7 +24,7 @@ extern char * program_invocation_short_name;
 #if 1
 # ifndef __NIJI_D___errno_location
 #  define __NIJI_D___errno_location 1
-extern int *__errno_location (void) __NIJI_NOTHROW;
+extern int *__errno_location (void) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef E2BIG
 #  define E2BIG 7

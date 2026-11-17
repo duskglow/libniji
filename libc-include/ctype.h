@@ -32,15 +32,15 @@ typedef struct __locale_struct * locale_t;
 #if 1
 # ifndef __NIJI_D___ctype_b_loc
 #  define __NIJI_D___ctype_b_loc 1
-extern const short unsigned int **__ctype_b_loc (void) __NIJI_NOTHROW;
+extern const short unsigned int **__ctype_b_loc (void) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D___ctype_tolower_loc
 #  define __NIJI_D___ctype_tolower_loc 1
-extern const int **__ctype_tolower_loc (void) __NIJI_NOTHROW;
+extern const int **__ctype_tolower_loc (void) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D___ctype_toupper_loc
 #  define __NIJI_D___ctype_toupper_loc 1
-extern const int **__ctype_toupper_loc (void) __NIJI_NOTHROW;
+extern const int **__ctype_toupper_loc (void) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_isalnum
 #  define __NIJI_D_isalnum 1

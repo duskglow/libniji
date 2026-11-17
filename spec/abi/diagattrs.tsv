@@ -1,0 +1,354 @@
+name	nonnull	wur	noreturn	format	malloc	alloc_size	deprecated	sentinel	pure
+_Exit			1						
+__ctype_b_loc									1
+__ctype_get_mb_cur_max		1							
+__ctype_tolower_loc									1
+__ctype_toupper_loc									1
+__errno_location									1
+_exit			1						
+a64l	1	1							1
+abort			1						
+abs									1
+access	1								
+aligned_alloc		1			1	2			
+alloca					1	1			
+arc4random		1							
+arc4random_buf	1								
+arc4random_uniform		1							
+asprintf		1		printf:2:3					
+at_quick_exit	1								
+atexit	1								
+atof	1	1							1
+atoi	1	1							1
+atol	1	1							1
+atoll	1	1							1
+basename	1								
+bcmp	1,2								1
+bcopy	1,2								
+brk		1							
+bsearch	1,2	1							
+bzero	1								
+calloc		1			1	1,2			
+canonicalize_file_name	1	1			1				
+chdir	1	1							
+chown	1	1							
+chroot	1	1							
+clearerr	1								
+clearerr_unlocked	1								
+clock_adjtime	2								
+clock_gettime	2								
+clock_settime	2								
+crypt	1,2								
+daemon		1							
+difftime									1
+div		1							1
+dprintf				printf:2:3					
+drand48_r	1,2								
+dup		1							
+dysize									1
+eaccess	1								
+ecvt	3,4	1							
+ecvt_r	3,4,5								
+erand48	1								
+erand48_r	1,2								
+euidaccess	1								
+execl	1,2							0	
+execle	1,2							1	
+execlp	1,2							0	
+execv	1,2								
+execve	1,2								
+execveat	2,3								
+execvp	1,2								
+execvpe	1,2								
+exit			1						
+explicit_bzero	1								
+faccessat	2	1							
+fchdir		1							
+fchown		1							
+fchownat	2	1							
+fclose	1								
+fcvt	3,4	1							
+fcvt_r	3,4,5								
+fdopen		1			1				
+feof	1	1							
+feof_unlocked	1	1							
+ferror	1	1							
+ferror_unlocked	1	1							
+fexecve	2								
+ffs									1
+ffsl									1
+ffsll									1
+fgetc	1								
+fgetc_unlocked	1								
+fgetpos	1								
+fgetpos64	1								
+fgets	3	1							
+fgets_unlocked	3	1							
+fileno	1	1							
+fileno_unlocked	1	1							
+flockfile	1								
+fmemopen		1			1				
+fopen		1			1				
+fopen64		1			1				
+fprintf	1,2			printf:2:3					
+fputc	2								
+fputc_unlocked	2								
+fputs	1,2								
+fputs_unlocked	1,2								
+fread	4	1							
+fread_unlocked	4	1							
+freopen	3	1							
+freopen64	3	1							
+fscanf	1,2	1		scanf:2:3					
+fseek	1								
+fseeko	1								
+fseeko64	1								
+fsetpos	1								
+fsetpos64	1								
+ftell	1	1							
+ftello	1	1							
+ftello64	1	1							
+ftruncate		1							
+ftruncate64		1							
+ftrylockfile	1	1							
+funlockfile	1								
+fwrite	1,4								
+gcvt	3	1							
+getc	1								
+getc_unlocked	1								
+getcwd		1							
+getdelim	4	1							
+getdomainname	1	1							
+getentropy	1	1							
+getenv	1	1							
+getgroups		1							
+gethostname	1								
+getline	3	1							
+getloadavg	1								
+getlogin_r	1								
+getopt	2,3								
+getopt_long	2,3								
+getopt_long_only	2,3								
+getpagesize									1
+getpass	1								
+getsubopt	1,2,3	1							
+getw	1								
+getwd	1	1					1		
+imaxabs									1
+imaxdiv									1
+index	1								1
+initstate	2								
+initstate_r	2,4								
+jrand48	1								
+jrand48_r	1,2								
+l64a		1							
+labs									1
+lchown	1	1							
+lcong48	1								
+lcong48_r	1,2								
+ldiv		1							1
+link	1,2	1							
+linkat	2,4	1							
+llabs									1
+lldiv		1							1
+lockf		1							
+lockf64		1							
+lrand48_r	1,2								
+malloc		1			1	1			
+memccpy	1,2								
+memchr	1								1
+memcmp	1,2								1
+memcpy	1,2								
+memfrob	1								
+memmem	1,3								1
+memmove	1,2								
+mempcpy	1,2								
+memrchr	1								1
+memset	1								
+mkdtemp	1	1							
+mkostemp	1	1							
+mkostemp64	1	1							
+mkostemps	1	1							
+mkostemps64	1	1							
+mkstemp	1	1							
+mkstemp64	1	1							
+mkstemps	1	1							
+mkstemps64	1	1							
+mktemp	1								
+mrand48_r	1,2								
+nice		1							
+nrand48	1								
+nrand48_r	1,2								
+obstack_printf				printf:2:3					
+obstack_vprintf				printf:2:0					
+on_exit	1,2								
+open_memstream		1			1				
+pathconf	1								
+pclose	1								
+pipe		1							
+pipe2		1							
+popen		1			1				
+posix_memalign	1	1							
+posix_openpt		1							
+pread		1							
+pread64		1							
+printf	1			printf:1:2					
+profil	1								
+ptsname		1							
+ptsname_r	2								
+putc	2								
+putc_unlocked	2								
+putenv	1								
+puts	1								
+putw	2								
+pwrite	2	1							
+pwrite64	2	1							
+qecvt	3,4	1							
+qecvt_r	3,4,5								
+qfcvt	3,4	1							
+qfcvt_r	3,4,5								
+qgcvt	3	1							
+qsort	1								
+qsort_r	1								
+quick_exit			1						
+random_r	1,2								
+rawmemchr	1								1
+read		1							
+readlink	1,2	1							
+readlinkat	2,3	1							
+realloc		1				2			
+reallocarray		1				2,3			
+realpath		1							
+revoke	1	1							
+rewind	1								
+rindex	1								1
+rmdir	1								
+rpmatch	1	1							
+scanf	1	1		scanf:1:2					
+secure_getenv	1	1							
+seed48	1								
+seed48_r	1,2								
+setbuf	1								
+setbuffer	1								
+setdomainname	1	1							
+setegid		1							
+setenv	2								
+seteuid		1							
+setgid		1							
+sethostid		1							
+sethostname	1	1							
+setlinebuf	1								
+setlogin	1								
+setregid		1							
+setresgid		1							
+setresuid		1							
+setreuid		1							
+setstate	1								
+setstate_r	1,2								
+setuid		1							
+setvbuf	1								
+snprintf	3			printf:3:4					
+sprintf	1,2			printf:2:3					
+srand48_r	2								
+srandom_r	2								
+sscanf	2			scanf:2:3					
+stpcpy	1,2								
+stpncpy	1,2								
+strcasecmp	1,2								1
+strcasecmp_l	1,2								1
+strcasestr	1,2								1
+strcat	1,2								
+strchr	1								1
+strchrnul	1								1
+strcmp	1,2								1
+strcoll	1,2								1
+strcoll_l	1,2								1
+strcpy	1,2								
+strcspn	1,2								1
+strdup	1	1			1				
+strerror_r	2	1							
+strfromd	3								
+strfromf	3								
+strfromf128	3								
+strfromf32	3								
+strfromf32x	3								
+strfromf64	3								
+strfromf64x	3								
+strfroml	3								
+strfry	1								
+strftime	1,3,4			strftime:3:0					
+strlcat	1,2								
+strlcpy	1,2								
+strlen	1								1
+strncasecmp	1,2								1
+strncasecmp_l	1,2								1
+strncat	1,2								
+strncmp	1,2								1
+strncpy	1,2								
+strndup	1	1			1				
+strnlen	1								1
+strpbrk	1,2								1
+strrchr	1								1
+strsep	1,2								
+strspn	1,2								1
+strstr	1,2								1
+strtod	1								
+strtod_l	1								
+strtof	1								
+strtof128	1								
+strtof128_l	1								
+strtof32	1								
+strtof32_l	1								
+strtof32x	1								
+strtof32x_l	1								
+strtof64	1								
+strtof64_l	1								
+strtof64x	1								
+strtof64x_l	1								
+strtof_l	1								
+strtok	2								
+strtok_r	2,3								
+strtol	1								
+strtol_l	1								
+strtold	1								
+strtold_l	1								
+strtoll	1								
+strtoll_l	1								
+strtoq	1								
+strtoul	1								
+strtoul_l	1								
+strtoull	1								
+strtoull_l	1								
+strtouq	1								
+strverscmp	1,2								1
+strxfrm	1,2								
+strxfrm_l	1,2								
+swab	1,2								
+symlink	1,2	1							
+symlinkat	1,3	1							
+system		1							
+tempnam		1			1				
+timespec_get	1								
+tmpfile		1			1				
+tmpfile64		1			1				
+tmpnam		1							
+tmpnam_r		1							
+truncate	1	1							
+truncate64	1	1							
+ttyname_r	2	1							
+ungetc	2								
+unlink	1								
+unlinkat	2								
+unsetenv	1								
+valloc		1			1	1			
+vasprintf		1		printf:2:0					
+vdprintf				printf:2:0					
+vfprintf	1,2			printf:2:0					
+vfscanf	1,2	1		scanf:2:0					
+vprintf	1			printf:1:0					
+vscanf	1	1		scanf:1:0					
+vsnprintf	3			printf:3:0					
+vsprintf	1,2			printf:2:0					
+vsscanf	2			scanf:2:0					
+wctomb		1							
+write	2	1							

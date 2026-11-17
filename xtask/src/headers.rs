@@ -249,6 +249,8 @@ struct Tables {
     addr: BTreeMap<String, Vec<(String, String)>>,
     calls: BTreeMap<String, String>,
     nothrow: BTreeSet<String>,
+    /// `spec/abi/diagattrs.tsv`: the ` __attribute__ ((...))` text of each function that has diagnostic attributes.
+    attrs: BTreeMap<String, String>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
     stubs: Vec<String>,
@@ -276,10 +278,46 @@ fn load(root: &Path) -> Result<Tables, String> {
         }
     }
     let nothrow = tsv(root, "spec/abi/noexcept.tsv")?.into_iter().filter(|r| r["cxx17"] == "noexcept").map(|r| r["name"].clone()).collect();
+    let attrs = tsv(root, "spec/abi/diagattrs.tsv")?.into_iter().filter_map(|r| attr_text(&r).map(|a| (r["name"].clone(), a))).collect();
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let stubs = tsv(root, STUBS)?.into_iter().filter(|r| r["link"] == "default").map(|r| r["function"].clone()).collect();
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, stubs })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, attrs, exported, reserved, stubs })
+}
+
+/// The attribute list of one `diagattrs.tsv` row (plan/headers.md slice 19), in a fixed order.
+fn attr_text(r: &BTreeMap<String, String>) -> Option<String> {
+    let mut a: Vec<String> = Vec::new();
+    let f = &r["format"];
+    if !f.is_empty() {
+        let p: Vec<&str> = f.split(':').collect();
+        a.push(format!("__format__ (__{}__, {}, {})", p[0], p[1], p[2]));
+    }
+    if !r["nonnull"].is_empty() {
+        a.push(format!("__nonnull__ ({})", r["nonnull"].replace(',', ", ")));
+    }
+    if !r["sentinel"].is_empty() {
+        a.push(format!("__sentinel__ ({})", r["sentinel"]));
+    }
+    if !r["malloc"].is_empty() {
+        a.push("__malloc__".into());
+    }
+    if !r["alloc_size"].is_empty() {
+        a.push(format!("__alloc_size__ ({})", r["alloc_size"].replace(',', ", ")));
+    }
+    if !r["pure"].is_empty() {
+        a.push("__pure__".into());
+    }
+    if !r["noreturn"].is_empty() {
+        a.push("__noreturn__".into());
+    }
+    if !r["deprecated"].is_empty() {
+        a.push("__deprecated__".into());
+    }
+    if !r["wur"].is_empty() {
+        a.push("__warn_unused_result__".into());
+    }
+    if a.is_empty() { None } else { Some(format!(" __attribute__ (({}))", a.join(", "))) }
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -623,6 +661,8 @@ impl Gen<'_> {
     fn function(&mut self, name: &str) {
         let Some(decl) = self.declaration(name) else { return };
         let nt = if self.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
+        // The assembler label comes before the attributes (GCC's declarator order).
+        let at = self.t.attrs.get(name).map(String::as_str).unwrap_or("");
         // A configuration in which the probe's own `&f` did not compile (`!error`) says nothing about the symbol.
         let syms: Vec<(String, String)> = self.t.addr.get(name).cloned().unwrap_or_default().into_iter().filter(|(_, s)| s != "!error").collect();
         let builtin = self.t.calls.get(name).map(|s| s == "-").unwrap_or(false);
@@ -634,7 +674,7 @@ impl Gen<'_> {
                 self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
             }
             let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
-            body.push(format!("extern {decl}{nt}{asm};"));
+            body.push(format!("extern {decl}{nt}{asm}{at};"));
         } else {
             let all = (1u64 << self.t.lv.ids.len()) - 1;
             // `addr` probes run in no fortify configuration (callsites.tsv): those do not decide the symbol.
@@ -650,7 +690,7 @@ impl Gen<'_> {
                 });
                 body.push(format!("#  {} {c}", if i == 0 { "if" } else { "elif" }));
                 let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
-                body.push(format!("extern {decl}{nt}{asm};"));
+                body.push(format!("extern {decl}{nt}{asm}{at};"));
             }
             body.push("#  endif".into());
         }
@@ -922,6 +962,15 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
                 _ => {
                     let mut line = l.replace("@@iso10646", &iso).replace(" /* @@computed */", "").replace(" /* @@ */", "");
+                    while let Some(i) = line.find("@@attrs(") {
+                        let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
+                        let n = line[i + 8..end].to_string();
+                        let v = t.attrs.get(&n).cloned().unwrap_or_else(|| {
+                            errors.push(format!("headers/{h}.in: @@attrs({n}): no row in diagattrs.tsv"));
+                            String::new()
+                        });
+                        line.replace_range(i..=end.min(line.len() - 1), v.trim_start());
+                    }
                     while let Some(i) = line.find("@@value(") {
                         let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
                         let n = line[i + 8..end].to_string();

@@ -23,39 +23,39 @@ typedef struct __locale_struct * locale_t;
 #if 1
 # ifndef __NIJI_D_memcmp
 #  define __NIJI_D_memcmp 1
-extern int memcmp (const void *, const void *, unsigned long) __NIJI_NOTHROW;
+extern int memcmp (const void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_memcpy
 #  define __NIJI_D_memcpy 1
-extern void *memcpy (void *, const void *, unsigned long) __NIJI_NOTHROW;
+extern void *memcpy (void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_memmove
 #  define __NIJI_D_memmove 1
-extern void *memmove (void *, const void *, unsigned long) __NIJI_NOTHROW;
+extern void *memmove (void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_memset
 #  define __NIJI_D_memset 1
-extern void *memset (void *, int, unsigned long) __NIJI_NOTHROW;
+extern void *memset (void *, int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_strcat
 #  define __NIJI_D_strcat 1
-extern char *strcat (char *, const char *) __NIJI_NOTHROW;
+extern char *strcat (char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_strcmp
 #  define __NIJI_D_strcmp 1
-extern int strcmp (const char *, const char *) __NIJI_NOTHROW;
+extern int strcmp (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strcoll
 #  define __NIJI_D_strcoll 1
-extern int strcoll (const char *, const char *) __NIJI_NOTHROW;
+extern int strcoll (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strcpy
 #  define __NIJI_D_strcpy 1
-extern char *strcpy (char *, const char *) __NIJI_NOTHROW;
+extern char *strcpy (char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_strcspn
 #  define __NIJI_D_strcspn 1
-extern unsigned long strcspn (const char *, const char *) __NIJI_NOTHROW;
+extern unsigned long strcspn (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strerror
 #  define __NIJI_D_strerror 1
@@ -63,49 +63,49 @@ extern char *strerror (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_strlen
 #  define __NIJI_D_strlen 1
-extern unsigned long strlen (const char *) __NIJI_NOTHROW;
+extern unsigned long strlen (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_strncat
 #  define __NIJI_D_strncat 1
-extern char *strncat (char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern char *strncat (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_strncmp
 #  define __NIJI_D_strncmp 1
-extern int strncmp (const char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern int strncmp (const char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strncpy
 #  define __NIJI_D_strncpy 1
-extern char *strncpy (char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern char *strncpy (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_strspn
 #  define __NIJI_D_strspn 1
-extern unsigned long strspn (const char *, const char *) __NIJI_NOTHROW;
+extern unsigned long strspn (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strtok
 #  define __NIJI_D_strtok 1
-extern char *strtok (char *, const char *) __NIJI_NOTHROW;
+extern char *strtok (char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2)));
 # endif
 # ifndef __NIJI_D_strxfrm
 #  define __NIJI_D_strxfrm 1
-extern unsigned long strxfrm (char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern unsigned long strxfrm (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef __NIJI_D_basename
 #  define __NIJI_D_basename 1
-extern char *basename (const char *);
+extern char *basename (const char *) __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_memfrob
 #  define __NIJI_D_memfrob 1
-extern void *memfrob (void *, unsigned long) __NIJI_NOTHROW;
+extern void *memfrob (void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_memrchr
 #  define __NIJI_D_memrchr 1
-extern void *memrchr (const void *, int, unsigned long);
+extern void *memrchr (const void *, int, unsigned long) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_rawmemchr
 #  define __NIJI_D_rawmemchr 1
-extern void *rawmemchr (const void *, int);
+extern void *rawmemchr (const void *, int) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_sigabbrev_np
 #  define __NIJI_D_sigabbrev_np 1
@@ -125,129 +125,129 @@ extern const char *strerrorname_np (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_strfry
 #  define __NIJI_D_strfry 1
-extern char *strfry (char *) __NIJI_NOTHROW;
+extern char *strfry (char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_strverscmp
 #  define __NIJI_D_strverscmp 1
-extern int strverscmp (const char *, const char *) __NIJI_NOTHROW;
+extern int strverscmp (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_bcmp
 #  define __NIJI_D_bcmp 1
-extern int bcmp (const void *, const void *, unsigned long) __NIJI_NOTHROW;
+extern int bcmp (const void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_bcopy
 #  define __NIJI_D_bcopy 1
-extern void bcopy (const void *, void *, unsigned long) __NIJI_NOTHROW;
+extern void bcopy (const void *, void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_bzero
 #  define __NIJI_D_bzero 1
-extern void bzero (void *, unsigned long) __NIJI_NOTHROW;
+extern void bzero (void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_explicit_bzero
 #  define __NIJI_D_explicit_bzero 1
-extern void explicit_bzero (void *, unsigned long) __NIJI_NOTHROW;
+extern void explicit_bzero (void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 # ifndef __NIJI_D_ffs
 #  define __NIJI_D_ffs 1
-extern int ffs (int) __NIJI_NOTHROW;
+extern int ffs (int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_ffsl
 #  define __NIJI_D_ffsl 1
-extern int ffsl (long int) __NIJI_NOTHROW;
+extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_ffsll
 #  define __NIJI_D_ffsll 1
-extern int ffsll (long long int) __NIJI_NOTHROW;
+extern int ffsll (long long int) __NIJI_NOTHROW __attribute__ ((__pure__));
 # endif
 # ifndef __NIJI_D_index
 #  define __NIJI_D_index 1
-extern char *index (const char *, int);
+extern char *index (const char *, int) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_memmem
 #  define __NIJI_D_memmem 1
-extern void *memmem (const void *, unsigned long, const void *, unsigned long) __NIJI_NOTHROW;
+extern void *memmem (const void *, unsigned long, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 3), __pure__));
 # endif
 # ifndef __NIJI_D_mempcpy
 #  define __NIJI_D_mempcpy 1
-extern void *mempcpy (void *, const void *, unsigned long) __NIJI_NOTHROW;
+extern void *mempcpy (void *, const void *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_rindex
 #  define __NIJI_D_rindex 1
-extern char *rindex (const char *, int);
+extern char *rindex (const char *, int) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_strcasecmp
 #  define __NIJI_D_strcasecmp 1
-extern int strcasecmp (const char *, const char *) __NIJI_NOTHROW;
+extern int strcasecmp (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strcasecmp_l
 #  define __NIJI_D_strcasecmp_l 1
-extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW;
+extern int strcasecmp_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strcasestr
 #  define __NIJI_D_strcasestr 1
-extern char *strcasestr (const char *, const char *);
+extern char *strcasestr (const char *, const char *) __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strchrnul
 #  define __NIJI_D_strchrnul 1
-extern char *strchrnul (const char *, int);
+extern char *strchrnul (const char *, int) __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_strlcat
 #  define __NIJI_D_strlcat 1
-extern unsigned long strlcat (char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern unsigned long strlcat (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_strlcpy
 #  define __NIJI_D_strlcpy 1
-extern unsigned long strlcpy (char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern unsigned long strlcpy (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_strncasecmp
 #  define __NIJI_D_strncasecmp 1
-extern int strncasecmp (const char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern int strncasecmp (const char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strncasecmp_l
 #  define __NIJI_D_strncasecmp_l 1
-extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW;
+extern int strncasecmp_l (const char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strsep
 #  define __NIJI_D_strsep 1
-extern char *strsep (char **, const char *) __NIJI_NOTHROW;
+extern char *strsep (char **, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 400 || __NIJI_ISOC >= 2023
 # ifndef __NIJI_D_memccpy
 #  define __NIJI_D_memccpy 1
-extern void *memccpy (void *, const void *, int, unsigned long) __NIJI_NOTHROW;
+extern void *memccpy (void *, const void *, int, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if __NIJI_POSIX >= 1
 # ifndef __NIJI_D_strtok_r
 #  define __NIJI_D_strtok_r 1
-extern char *strtok_r (char *, const char *, char **) __NIJI_NOTHROW;
+extern char *strtok_r (char *, const char *, char **) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_strerror_r
 #  define __NIJI_D_strerror_r 1
 #  if __NIJI_POSIX >= 200112 && !__NIJI_GNU
-extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __asm__ ("__xpg_strerror_r");
+extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __asm__ ("__xpg_strerror_r") __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 #  elif __NIJI_GNU
-extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW;
+extern char *strerror_r (int, char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2), __warn_unused_result__));
 #  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_stpcpy
 #  define __NIJI_D_stpcpy 1
-extern char *stpcpy (char *, const char *) __NIJI_NOTHROW;
+extern char *stpcpy (char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_stpncpy
 #  define __NIJI_D_stpncpy 1
-extern char *stpncpy (char *, const char *, unsigned long) __NIJI_NOTHROW;
+extern char *stpncpy (char *, const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 # ifndef __NIJI_D_strcoll_l
 #  define __NIJI_D_strcoll_l 1
-extern int strcoll_l (const char *, const char *, locale_t) __NIJI_NOTHROW;
+extern int strcoll_l (const char *, const char *, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
 # endif
 # ifndef __NIJI_D_strerror_l
 #  define __NIJI_D_strerror_l 1
@@ -255,7 +255,7 @@ extern char *strerror_l (int, locale_t) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_strnlen
 #  define __NIJI_D_strnlen 1
-extern unsigned long strnlen (const char *, unsigned long) __NIJI_NOTHROW;
+extern unsigned long strnlen (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 # ifndef __NIJI_D_strsignal
 #  define __NIJI_D_strsignal 1
@@ -263,19 +263,19 @@ extern char *strsignal (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_strxfrm_l
 #  define __NIJI_D_strxfrm_l 1
-extern unsigned long strxfrm_l (char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW;
+extern unsigned long strxfrm_l (char *, const char *, unsigned long, locale_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2)));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_ISOC >= 2023
 # ifndef __NIJI_D_strndup
 #  define __NIJI_D_strndup 1
-extern char *strndup (const char *, unsigned long) __NIJI_NOTHROW;
+extern char *strndup (const char *, unsigned long) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450 || __NIJI_ISOC >= 2023
 # ifndef __NIJI_D_strdup
 #  define __NIJI_D_strdup 1
-extern char *strdup (const char *) __NIJI_NOTHROW;
+extern char *strdup (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __malloc__, __warn_unused_result__));
 # endif
 #endif
 
@@ -292,23 +292,23 @@ extern char *strdup (const char *) __NIJI_NOTHROW;
 #if 1
 # ifdef __cplusplus
 extern "C++" {
-extern const char *strchr (const char *, int) __NIJI_NOTHROW __asm__ ("strchr");
-extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr");
-extern const char *strpbrk (const char *, const char *) __NIJI_NOTHROW __asm__ ("strpbrk");
-extern const char *strstr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strstr");
-extern const void *memchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memchr");
-inline char *strchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strchr (static_cast<const char *> (__s), __c)); }
-inline char *strrchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strrchr (static_cast<const char *> (__s), __c)); }
-inline char *strpbrk (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strpbrk (static_cast<const char *> (__s), __a)); }
-inline char *strstr (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strstr (static_cast<const char *> (__s), __a)); }
-inline void *memchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memchr (static_cast<const void *> (__s), __c, __n)); }
+extern const char *strchr (const char *, int) __NIJI_NOTHROW __asm__ ("strchr") __attribute__ ((__nonnull__ (1), __pure__));
+extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr") __attribute__ ((__nonnull__ (1), __pure__));
+extern const char *strpbrk (const char *, const char *) __NIJI_NOTHROW __asm__ ("strpbrk") __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern const char *strstr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strstr") __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern const void *memchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memchr") __attribute__ ((__nonnull__ (1), __pure__));
+inline char *strchr (char *__s, int __c) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__)) { return const_cast<char *> (strchr (static_cast<const char *> (__s), __c)); }
+inline char *strrchr (char *__s, int __c) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__)) { return const_cast<char *> (strrchr (static_cast<const char *> (__s), __c)); }
+inline char *strpbrk (char *__s, const char *__a) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__)) { return const_cast<char *> (strpbrk (static_cast<const char *> (__s), __a)); }
+inline char *strstr (char *__s, const char *__a) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__)) { return const_cast<char *> (strstr (static_cast<const char *> (__s), __a)); }
+inline void *memchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__)) { return const_cast<void *> (memchr (static_cast<const void *> (__s), __c, __n)); }
 }
 # else
-extern char *strchr (const char *, int) __NIJI_NOTHROW;
-extern char *strrchr (const char *, int) __NIJI_NOTHROW;
-extern char *strpbrk (const char *, const char *) __NIJI_NOTHROW;
-extern char *strstr (const char *, const char *) __NIJI_NOTHROW;
-extern void *memchr (const void *, int, size_t) __NIJI_NOTHROW;
+extern char *strchr (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+extern char *strrchr (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
+extern char *strpbrk (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern char *strstr (const char *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__));
+extern void *memchr (const void *, int, size_t) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
 # endif
 #endif
 

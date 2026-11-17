@@ -1,0 +1,34 @@
+id = "D-NEW"
+series = "D-X"
+section = "x"
+status = "active"
+story = "SL-HEADERS-S19"
+date = "2026-11-17"
+body = '''
+Slice 19 of plan/headers.md: diagnostic attributes of libniji's own C headers.
+
+Decision. The attributes a function declaration carries (format, nonnull, warn_unused_result, noreturn, malloc,
+alloc_size, deprecated, sentinel, pure) are a table, spec/abi/diagattrs.tsv, applied by `cargo xtask headers-gen`
+after the assembler label of each generated declaration (and in templates through `@@attrs(NAME)`). They are
+facts of the interface like noexcept.tsv: what a call site is warned about under -Wall -Wextra -Wformat=2
+-Wformat-security. The standards give the semantics (C 7.21.6 and 7.21.7 for format strings, C 7.24.1 for
+valid pointer arguments, C 7.22.3 for allocation, C 7.22.4 for noreturn); the probe gives which function
+carries which.
+
+Method. spec/tools/attr_probe.py compiles a corpus of its own (one test per line) against the system's
+public headers and reads back only the line number and option name of each diagnostic in its own file and the
+undefined `mk_*` markers of its own object, which a test references only when the optimizer cannot decide a
+property the attribute would give (noreturn, malloc, alloc_size). `check` runs the same corpus against libniji's
+headers and prints each line on which the decided options differ. Result on the landed headers: 519 functions,
+2232 tests, 0 differences outside the two known ones below.
+
+Not decided by attributes and not compared: -Wformat-overflow=, -Wformat-truncation=, -Wstringop-*,
+-Warray-bounds and -Wrestrict also read access and restrict information and the object-size builtins of a
+declaration; they belong to slice 18 (fortify). The check reports their count.
+
+Known differences: the ctype is* macros of slice 6 (not slice 19's), and fwrite_unlocked, which the compiler
+treats as a builtin when declared as a plain function.
+
+Attributes the compiler already knows for a builtin (printf, memcpy, abort, malloc, strlen) do not show in the
+differential when removed, so plants use functions that are not builtins.
+'''

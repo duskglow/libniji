@@ -36,17 +36,17 @@ extern int optopt;
 # endif
 # ifndef __NIJI_D_getopt
 #  define __NIJI_D_getopt 1
-extern int getopt (int, char *const *, const char *) __NIJI_NOTHROW;
+extern int getopt (int, char *const *, const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 struct option;
 # ifndef __NIJI_D_getopt_long
 #  define __NIJI_D_getopt_long 1
-extern int getopt_long (int, char *const *, const char *, const struct option *, int *) __NIJI_NOTHROW;
+extern int getopt_long (int, char *const *, const char *, const struct option *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 struct option;
 # ifndef __NIJI_D_getopt_long_only
 #  define __NIJI_D_getopt_long_only 1
-extern int getopt_long_only (int, char *const *, const char *, const struct option *, int *) __NIJI_NOTHROW;
+extern int getopt_long_only (int, char *const *, const char *, const struct option *, int *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (2, 3)));
 # endif
 # ifndef no_argument
 #  define no_argument 0
