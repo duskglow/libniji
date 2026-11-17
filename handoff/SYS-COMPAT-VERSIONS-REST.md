@@ -54,7 +54,8 @@ archives); the compat-plan rows' notes record each verdict and the probe is the 
   `pbzip2 -p2` (pthread_sigmask@GLIBC_2.2.5 via libpthread.so.0) round-trips 4 MiB and the reference
   pbzip2 decompresses libniji's output. (`sys-compat-versions-rest-diff`: ries' timing line and two
   search statistics differ: distinct 30276 vs 30273 of 58559; the equations do not.)
-* Gate `sys-compat-versions-rest-gate`, plants `sys-compat-versions-rest-plants`: see the report json.
+* Final head (code `3111e1efc`): `sys-compat-versions-rest-lint` rc 0 (clippy --all-targets --all-features -D warnings, static); `sys-compat-versions-rest-t1` rc 0 (both compat tests); gate `sys-compat-versions-rest-gate2` and plants `sys-compat-versions-rest-plants2` (5 plants, RAM dir plants-2) left running at hand-back (PENDING JOBS).
+* Superseded: `-verify`, `-verify2` (script copy clash; libm.a dropped the own entries, fixed in so.rs), `-verify3` (sigmask test before masking), `-gate` (stopped: stale test), `-plants` (baseline-4 red, same cause), `-diff` (diagnostic).
 
 ## INFORMATIONAL
 

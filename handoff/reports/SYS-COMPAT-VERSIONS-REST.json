@@ -1,7 +1,7 @@
 {"task": "SYS-COMPAT-VERSIONS-REST", "model": "opus", "tokens": null,
  "result": "log, log2 (own entries: +NaN for a negative argument) and pthread_sigmask (alias) exported at GLIBC_2.2.5, probe-proven; trixie ries, cbootimage, pbzip2 run on libniji; _r_debug sized (M), not built",
- "branch": "task/sys-compat-versions-rest", "head": "17f76d575",
- "gate": {"affected": "sys-compat-versions-rest-gate (direct tier; rc in jobs.tsv)", "peak": null},
+ "branch": "task/sys-compat-versions-rest", "head": "3111e1efc",
+ "gate": {"affected": "sys-compat-versions-rest-gate2 (direct tier; pending at hand-back)", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [{"item": "_r_debug@GLIBC_2.2.5 (DL-23): link maps exist only after the first dlopen; a debugger rendezvous needs a start-time link_map list (start-up cost)", "recommendation": "cut DL-23 as size M (not S) with a ruling on building start-time link maps eagerly within the start-up bounds"}],
  "informational": ["libniji's default pthread_sigmask: with a null set it rejects an invalid how (POSIX: how not significant; reference returns 0), writes all 128 bytes of the old set (reference 8), lets a set block 33 and hides a blocked 32 in the old set; the test masks exactly these; recommend a default-version story",
@@ -14,4 +14,4 @@
  "improvement": "the libm build silently gc'd any symbol outside the public export list, so own compat entries needed a root/keep/localize path in run_libm; the scan data per symbol (needs.tsv sample column) made picking trixie users instant - keep it as a committed artefact",
  "next_step": "coordinator: DL-23 story (size M, ruling on start-time link maps); a story for libniji's default pthread_sigmask differences",
  "report_file": "handoff/SYS-COMPAT-VERSIONS-REST.md",
- "jobs": ["sys-compat-versions-rest-gate", "sys-compat-versions-rest-plants", "sys-compat-versions-rest-trixie", "sys-compat-versions-rest-lint"]}
+ "jobs": ["sys-compat-versions-rest-gate2", "sys-compat-versions-rest-plants2", "sys-compat-versions-rest-lint", "sys-compat-versions-rest-t1", "sys-compat-versions-rest-trixie"]}
