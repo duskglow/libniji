@@ -13,6 +13,8 @@
 //! * `@@emit`: every name `visibility.tsv` assigns to this header, from the tables, each under its
 //!   condition, except names the template owns and reserved names `headers/reserved.tsv` omits.
 //! * `@@if NAME`: `#if <condition>` with the condition of NAME in this header; the template owns NAME.
+//! * `@@partial-cover`: a name that an included header makes visible in only some of the configurations the tables
+//!   list for this header is still emitted here (guarded, so it is defined once).
 //! * `@@owns A B ...`: the template owns these names too (it defines them itself under an `@@if`).
 //! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
@@ -314,7 +316,10 @@ struct Gen<'a> {
     errors: Vec<String>,
     emitted: BTreeSet<String>,
     /// (name, kind) rows of the templates this one includes: those headers supply them.
-    covered: BTreeSet<(String, String)>,
+    /// (name, kind) -> the configurations in which a header this one includes makes the name visible.
+    covered: BTreeMap<(String, String), u64>,
+    /// `@@partial-cover`: a name an included header makes visible only in some configurations is also emitted here.
+    partial: bool,
     /// Names whose macro row the template defines itself (`@@owns-macro`); their function rows are still emitted.
     owned_macros: BTreeSet<String>,
 }
@@ -724,9 +729,13 @@ impl Gen<'_> {
 
     fn emit(&mut self, owned: &BTreeSet<String>) {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
-        let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
-        for (name, kind) in rows {
-            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.covered.contains(&(name.clone(), kind.clone())) {
+        let rows: Vec<(String, String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone(), r["configs"].clone())).collect();
+        let care = !self.t.lv.reject & ((1u64 << self.t.lv.ids.len()) - 1);
+        for (name, kind, configs) in rows {
+            // Covered only where an included header makes the name visible there: the rest is emitted here (every
+            // definition is guarded, so a name both headers define is defined once).
+            let covered = self.covered.get(&(name.clone(), kind.clone())).is_some_and(|m| !self.partial || mask_of(&self.t.lv, &configs).map_or(true, |own| own & care & !m == 0));
+            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || covered {
                 continue;
             }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
@@ -908,7 +917,10 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 stack.extend(includes(&texts[&x]));
             }
         }
-        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        let mut covered: BTreeMap<(String, String), u64> = BTreeMap::new();
+        for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
+            *covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(u64::MAX);
+        }
         let mut owned = BTreeSet::new();
         let mut owned_macros = BTreeSet::new();
         for l in text.lines() {
@@ -924,12 +936,12 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
             }
         }
-        let mut g = Gen { t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, owned_macros };
+        let mut g = Gen { t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, partial: text.lines().any(|l| l == "@@partial-cover"), owned_macros };
         for l in text.lines() {
             match l.split_whitespace().next() {
                 Some("@@generated") => g.out.push(BANNER.into()),
                 Some("@@emit") => g.emit(&owned),
-                Some("@@owns") | Some("@@owns-macro") => {}
+                Some("@@owns") | Some("@@owns-macro") | Some("@@partial-cover") => {}
                 Some("@@intc") => g.intc(),
                 Some("@@stubs") => {
                     for f in &t.stubs {
