@@ -17,6 +17,8 @@
 
 use crate::charmap::Charmap;
 use crate::error::Errno;
+mod aliases;
+pub use aliases::{charmap_alias, charmap_aliases};
 mod fast;
 mod jis;
 mod jis_tables;

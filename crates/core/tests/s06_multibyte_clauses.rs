@@ -285,6 +285,41 @@ fn s6_4_c_1_name_spellings() {
 }
 
 #[test]
+fn s6_4_c_1_charmap_aliases() {
+    // Clauses: s6_4_c_1 (spec/encoding/iconv-names.md rule 5: listed names that stand for a charmap).
+    let show = |n: &[u8]| String::from_utf8_lossy(n).into_owned();
+    let rows: Vec<_> = iconv::charmap_aliases().collect();
+    assert!(rows.len() > 100, "the table lost rows: {}", rows.len());
+    for w in rows.windows(2) {
+        assert!(w[0].0 < w[1].0, "not sorted (the lookup is a binary search): {} before {}", show(w[0].0), show(w[1].0));
+    }
+    for &(name, target) in &rows {
+        for n in [name, target] {
+            assert_eq!(iconv::parse_name(n).name(), Some(n), "{} is not in matching form", show(n));
+        }
+        assert_ne!(name, target, "{} stands for itself", show(name));
+        assert!(iconv::builtin(name).is_none(), "{} is a built-in name", show(name));
+        assert_eq!(iconv::charmap_alias(name), Some(target), "{} is not found", show(name));
+    }
+    assert_eq!(iconv::charmap_alias(b"KOI8R"), Some(&b"KOI8-R"[..]));
+    assert_eq!(iconv::charmap_alias(b"ISO885915"), Some(&b"ISO-8859-15"[..]));
+    assert_eq!(iconv::charmap_alias(b"KOI8-R"), None, "a charmap's own name is no alias");
+    assert_eq!(iconv::charmap_alias(b"koi8r"), None, "looked up in matching form");
+    // A generated charmap (spec/encoding/charmaps.tsv) that carries a row's name must be that
+    // row's charmap: otherwise the name would denote two conversions.
+    let table = include_str!("../../../spec/encoding/charmaps.tsv");
+    for line in table.lines().filter(|l| !l.starts_with('#') && !l.starts_with("name\t")) {
+        let f: Vec<&str> = line.split('\t').collect();
+        let own = f[0].to_ascii_uppercase();
+        for n in f.get(3).copied().unwrap_or("").split_whitespace().chain([f[0]]) {
+            if let Some(t) = iconv::charmap_alias(n.to_ascii_uppercase().as_bytes()) {
+                assert_eq!(show(t), own, "{n} is a name of the generated charmap {own}");
+            }
+        }
+    }
+}
+
+#[test]
 fn s6_4_c_1_1() {
     let t = "x€œ“q”一y".as_bytes();
     let (o, out) = iconv_once("ASCII//TRANSLIT", "UTF-8", t, 64, &Locale::C);

@@ -18,6 +18,15 @@ same way: `bind_textdomain_codeset`, `fopen`'s `ccs=`). Decision: `records/pendi
    and each installed charmap's `<code_set_name>`, aliases and file name, after steps 2 and 3. The
    punctuation that counts is not ignored: `CP-1252` is not `CP1252`. A spelling the system knows
    (for example `ISO88591` beside `ISO-8859-1`) is a listed name of its own.
+   The known names also include libniji's table of listed names that stand for a charmap
+   (`crates/core/src/iconv/aliases.rs`, 106 rows, for example `KOI8R` for `KOI8-R` and
+   `ISO885915` for `ISO-8859-15`). These names work whichever charmap files are installed, as on
+   the reference system, where the names do not come from the charmap files. The table holds every
+   name `iconv -l` lists that is not a name of an installed charmap or a built-in, but has the same
+   letters and digits as one. Each row passed a black-box check on the reference: both names decode
+   every one- and two-byte input and encode every code point (all of the BMP and a stride of the
+   rest) the same way. Listed names without such a partner (`BIG-FIVE`, `CP1140`, ...) are not in
+   the table; they are an open item (`handoff/ICONV-NAME-MATCH.md`).
 6. An empty result is the current locale's codeset. A result longer than 128 bytes names nothing (`EINVAL`).
 
 Locale codeset names are matched differently (Appendix D.1, letters and digits only); that rule is unchanged.
