@@ -23,6 +23,8 @@ fn excl() -> i32 {
     i32::try_from(O_CREAT | O_EXCL).unwrap()
 }
 
+/// §22.7 Contract (s22_7_c_5): named semaphores, open many at once in one process; the table of
+/// open names grows, and only memory running out refuses an open (`ENOMEM`, S8).
 #[test]
 fn table_growth_failure_is_enomem_and_keeps_open_names() {
     let mut open: Vec<(Vec<u8>, usize)> = Vec::new();
