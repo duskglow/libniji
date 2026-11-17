@@ -369,6 +369,9 @@ fn rwlocks_share_readers_exclude_writers_and_detect_self_deadlock() {
         r.write(&T, LockWait::Block).unwrap();
         assert_eq!(r.write(&T, LockWait::Block), Err(Errno::EDEADLK));
         assert_eq!(r.read(&T, LockWait::Block), Err(Errno::EDEADLK));
+        // The try forms report a lock the caller holds for writing as busy (issue #15).
+        assert_eq!(r.read(&T, LockWait::Try), Err(Errno::EBUSY));
+        assert_eq!(r.write(&T, LockWait::Try), Err(Errno::EBUSY));
         assert_eq!(r.destroy(), Err(Errno::EBUSY));
         r.unlock(&T).unwrap();
         assert_eq!(r.unlock(&T), Err(Errno::EPERM));

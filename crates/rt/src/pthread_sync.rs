@@ -955,11 +955,24 @@ impl<'a> RwLock<'a> {
         w(self.words, R_FLAGS).load(Relaxed) == RW_PREFER_WRITER_NONRECURSIVE
     }
 
-    /// `pthread_rwlock_rdlock` and its forms. `EDEADLK` if the caller holds it for writing.
-    pub fn read<C: Ctx>(&self, c: &C, how: LockWait<'_>) -> KResult<()> {
-        if w(self.words, R_WRITER).load(Relaxed) == c.tid() {
-            return Err(Errno::EDEADLK);
+    /// The checks every lock call makes before looking at the lock state: a timed form's
+    /// deadline is validated first (`EINVAL`, even when the lock is free or the caller holds it);
+    /// then the blocking and timed forms report a lock the caller holds for writing as
+    /// `EDEADLK`. The try forms skip that check and report the lock as busy (`EBUSY`): POSIX
+    /// requires `EBUSY` from a try-lock that cannot acquire, and callers read it as "held"
+    /// (issue #15).
+    fn enter<C: Ctx>(&self, c: &C, how: LockWait<'_>) -> KResult<()> {
+        match how {
+            LockWait::Try => Ok(()),
+            LockWait::Until(_, t) if !valid(t) => Err(Errno::EINVAL),
+            _ if w(self.words, R_WRITER).load(Relaxed) == c.tid() => Err(Errno::EDEADLK),
+            _ => Ok(()),
         }
+    }
+
+    /// `pthread_rwlock_rdlock` and its forms (checks as `enter`).
+    pub fn read<C: Ctx>(&self, c: &C, how: LockWait<'_>) -> KResult<()> {
+        self.enter(c, how)?;
         let st = w(self.words, R_STATE);
         loop {
             let s = st.load(Relaxed);
@@ -977,12 +990,10 @@ impl<'a> RwLock<'a> {
         }
     }
 
-    /// `pthread_rwlock_wrlock` and its forms. `EDEADLK` if the caller holds it for writing.
+    /// `pthread_rwlock_wrlock` and its forms (checks as `enter`).
     pub fn write<C: Ctx>(&self, c: &C, how: LockWait<'_>) -> KResult<()> {
+        self.enter(c, how)?;
         let me = c.tid();
-        if w(self.words, R_WRITER).load(Relaxed) == me {
-            return Err(Errno::EDEADLK);
-        }
         let st = w(self.words, R_STATE);
         let wwait = w(self.words, R_WWAIT);
         let mut counted = false;
@@ -1019,12 +1030,8 @@ impl<'a> RwLock<'a> {
         let st = w(self.words, R_STATE);
         let deadline = match how {
             LockWait::Try => return Err(Errno::EBUSY),
-            LockWait::Until(clk, t) => {
-                if !valid(t) {
-                    return Err(Errno::EINVAL);
-                }
-                Some((clk, t))
-            }
+            // The deadline was validated by `enter`.
+            LockWait::Until(clk, t) => Some((clk, t)),
             LockWait::Block => None,
         };
         if s & WAITING == 0 && st.compare_exchange(s, s | WAITING, Relaxed, Relaxed).is_err() {

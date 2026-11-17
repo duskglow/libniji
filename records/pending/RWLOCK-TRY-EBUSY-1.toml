@@ -1,0 +1,12 @@
+id = "D-NEW"
+series = "D-22"
+section = "s22"
+spec = "§22.5"
+ann = "COMPAT"
+status = "active"
+story = "RWLOCK-TRY-EBUSY"
+date = "2026-11-17"
+tests = ["conformance/c/s22_rwlock_self.c", "crates/core/tests/s22_threads_clauses.rs", "crates/rt/tests/pthread_sync.rs"]
+body = '''
+**Read-write lock calls on a lock the caller already holds** (issue #15; D-22.4). Every lock call checks in this order before it looks at the lock state: (1) a timed or clock form validates its deadline, so `tv_nsec` outside [0, 1e9) or an unknown clock is `EINVAL` whatever the lock state, even when the lock is free; (2) a lock the caller holds for writing is `EDEADLK` from `rdlock`, `wrlock` and the timed and clock forms, and `EBUSY` from `tryrdlock` and `trywrlock`, which take no self-deadlock check and report the lock busy like any lock they cannot take. POSIX requires `EBUSY` from a try-lock that cannot acquire and only allows `EDEADLK`; callers read `EBUSY` from a try-lock as "held" and treat `EDEADLK` as fatal (Berkeley DB's shared latches probe with `tryrdlock` and refuse to open an environment). POSIX also lets a timed lock skip the deadline check when the lock is free; checking it first gives one answer for a bad deadline whatever the lock state. Every cell (static initialiser, default attributes, each kind `setkind_np` accepts, private and process-shared; caller holding nothing, a read lock or the write lock; each non-blocking call form) was settled by a black-box probe of the reference and is pinned by `conformance/c/s22_rwlock_self.c`.
+'''
