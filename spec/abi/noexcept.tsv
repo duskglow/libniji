@@ -3633,6 +3633,7 @@ updwtmp	utmp.h	noexcept	no	throw()
 updwtmpx	utmpx.h	none	no	none
 uselocale	locale.h	noexcept	no	throw()
 usleep	unistd.h	none	no	none
+utime	utime.h	noexcept	no	throw()
 utimensat	sys/stat.h	noexcept	no	throw()
 utimes	sys/time.h	noexcept	no	throw()
 utmpname	utmp.h	noexcept	no	throw()

@@ -7549,6 +7549,8 @@ uselocale	locale.h	addr	gnu17,gnu2x,posix200809,xopen700,default,bsd,svid,gnu,lf
 uselocale	locale.h	call	*	uselocale
 usleep	unistd.h	addr	!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,posix200809,xopen,xopen700,isoc99,isoc11,isoc2x,time64only	usleep
 usleep	unistd.h	call	*	usleep
+utime	utime.h	addr	!time64only	utime
+utime	utime.h	call	*	utime
 utimensat	sys/stat.h	addr	gnu17,gnu2x,posix200809,xopen700,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23	utimensat
 utimensat	sys/stat.h	call	*	utimensat
 utimes	sys/time.h	addr	!time64only	utimes
