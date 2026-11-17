@@ -36,15 +36,27 @@ Job scripts and scratch on mei: `~/work/SYS-DBG-PACKAGE-2/`, `/mnt/zram/claude/S
   (cannot match by construction). libc6-dbg .deb 8.6 MB (was 0.27 MB without libniji DWARF).
 * docs/install-packages.md: libc6-dbg row. docs/RELEASE-NOTES.md not touched (only released entries exist).
 
-## Pending at hand-back (final head)
+## Final head aac54df06 (job sys-dbg-package-2-final3, mei)
 
-Jobs on mei: `sys-dbg-package-2-gate2` (direct tier), `sys-dbg-package-2-final2` (package from the final
-products, check-system, root-system, dbg-system in trixie with KEYRING=~/keyrings/debian-archive-keyring.gpg),
-`sys-dbg-package-2-plants` (handoff/sys-dbg-package-2.plants; results into handoff/SYS-DBG-PACKAGE-2-plants.txt
-by the tool if it writes there).
+repro PASS (7 .debs twice), check-system PASS (7 packages), allocated sections of the packaged objects
+identical to the build without line tables, root-system PASS. dbg-system in trixie: 6 PASS, 1 FAIL:
+without libc6-dbg no line for setlocale; with it `Line 102 of "boundary/src/export.rs"` (gdb found the
+debug file by build-id); `list` names the source. **FAIL: gdb in a running /usr/bin/true --version stops
+only at `setlocale@plt`**, with "warning: Unable to find dynamic linker breakpoint function. GDB will be
+unable to debug shared library initializers": gdb finds no rendezvous breakpoint function in libniji's
+loader, so it never sees libc.so.6 load and cannot place the breakpoint inside it or unwind
+through it. That is the loader's debugger interface (r_debug and its breakpoint function as gdb looks
+them up), not packaging: a story of its own (loader), then rerun dbg-system.sh.
+Started on aac54df06, not collected at hand-back: `sys-dbg-package-2-gate3` (direct tier),
+`sys-dbg-package-2-plants2` (5 plants, --timeout 1800, dir /mnt/zram/claude/SYS-DBG-PACKAGE-2/plants-2).
+Superseded: -lint0 (inherited head, green), -bisect1, -before/-after/-flag/-compare (experiments), -final
+(c9378a18c, the -ex/libresolv failures), -gate/-gate2/-plants (killed: older heads), -final2 (exit-breakpoint).
 
 ## Next step
 
-If final2 or plants are red: read `~/logs/sys-dbg-package-2-final2.log` (dbg outputs under
-`/mnt/zram/claude/SYS-DBG-PACKAGE-2/dbglog2/dbg-trixie/`). Possible follow-up: line tables for the C layer
-(csys, e.g. printf in variadic.c) need `-g` on its compiles, checked the same way (cmpalloc).
+1. Loader story: gdb's shared-library tracking on libniji's ld.so ("Unable to find dynamic linker breakpoint
+   function"); black-box probe what gdb needs, design it in the loader, then `KEYRING=~/keyrings/debian-archive-keyring.gpg
+   sh tools/deb/dbg-system.sh <debs> trixie` must be all PASS (frame `#0 setlocale ... at file:line`).
+2. Read gate3/plants2 (`~/bin/jobwait` on mei); a red there is this branch's.
+3. Optional: line tables for the C layer (csys, e.g. printf in variadic.c) need `-g` on its compiles,
+   checked the same way (cmpalloc.py in ~/work/SYS-DBG-PACKAGE-2 on mei).
