@@ -418,7 +418,7 @@ pub fn unsafe_audit(root: &Path) -> Result<(), String> {
                 let (cat, allowed_in): (&str, &[&str]) = if l.contains("unsafe extern") {
                     ("extern", &["src/ffi.rs", "src/ffi_sys.rs", "src/ffi_sys_aarch64.rs", "src/caller_alloc.rs", "src/arch/"])
                 } else if l.contains("unsafe(no_mangle)") || l.contains("unsafe(export_name") {
-                    ("export", &["src/export.rs", "src/data.rs", "src/ld.rs", "src/ldconfig.rs"])
+                    ("export", &["src/export.rs", "src/data.rs", "src/ld.rs", "src/ld/entry.rs", "src/ld/tls.rs", "src/ldconfig.rs"])
                 } else if l.contains("unsafe impl") {
                     // ALLOC-FAIL-INJECT-4 (#2101): the test-only `FailAlloc` (`selftest` feature, never
                     // in a product) lives outside every product-compiled file.
