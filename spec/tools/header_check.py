@@ -72,14 +72,16 @@ def p1_units(ids, vis, macros, typedefs, layouts):
         if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
             m = macros[n]
             v = int(m["value"])
-            lit = ("(%d%s)" % (v, INT_SUFFIX[m["type"]])) if v >= 0 else "(%d%s)" % (v, INT_SUFFIX[m["type"]])
+            sfx = INT_SUFFIX[m["type"]]
+            # The most negative value has no literal (its magnitude is unsigned): (-max - 1).
+            lit = "(%d%s)" % (v, sfx) if v > -(1 << 31) or (v != -(1 << 31) and v != -(1 << 63)) else "(%d%s-1)" % (v + 1, sfx)
             tests.append(f"(({n}) == {lit})")
         elif r["kind"] == "macro" and n in macros and macros[n]["type"] in FLOAT_SUFFIX and macros[n]["header"] == h and macros[n]["value"].startswith("0x"):
             # A floating macro (C 7.12, TS 18661): its size is its type's and its value the exact probed constant.
             m = macros[n]
             suffix, size = FLOAT_SUFFIX[m["type"]]
             tests.append(f"sizeof({n}) == {size}")
-            tests.append(f"(({n}) == {m['value']}{suffix})")
+            tests.append(f"F:(({n}) == {m['value']}{suffix})")
         elif r["kind"] == "typedef" and n in typedefs and typedefs[n]["size"]:
             t = typedefs[n]
             tests.append(f"sizeof({n}) == {t['size']}")
@@ -93,7 +95,12 @@ def p1_units(ids, vis, macros, typedefs, layouts):
     units = {}
     for (h, cid), tests in out.items():
         if tests:
-            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
+            # A floating comparison is not an integer constant expression: those use _Static_assert (C11, C++11).
+            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests) if not t.startswith("F:"))
+            ft = [t[2:] for t in tests if t.startswith("F:")]
+            if ft:
+                body += "#if (defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L) || (defined __cplusplus && __cplusplus >= 201103L)\n"
+                body += "".join(f"_Static_assert({t}, \"niji_p1_float\");\n" for t in ft) + "#endif\n"
             units.setdefault(cid, []).append((f"P1 {h}", body))
     return units
 
