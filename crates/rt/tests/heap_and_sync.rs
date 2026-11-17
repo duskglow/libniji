@@ -1170,7 +1170,9 @@ fn a_large_block_in_a_segments_unmapped_tail_is_found_as_large() {
     assert!(big > tail && big + (1 << 20) <= window + SEG, "the large block {big:#x} sits in the segment's window tail");
     assert!(heap.usable(&CSys, &pages, big).is_ok_and(|u| u >= 1 << 20), "a large block in a window tail is found: {:?}", heap.usable(&CSys, &pages, big));
     assert_eq!(heap.free(&CSys, &pages, big + PAGE), Err(Misuse::InvalidPointer), "inside the large block: not a block");
-    let Ok(Some(grown)) = heap.resize(&CSys, &pages, big, 3 << 20, |_, _, _| {}) else { panic!("a large block in a window tail grows") };
+    let grown = heap.resize(&CSys, &pages, big, 3 << 20, |_, _, _| {});
+    assert!(matches!(grown, Ok(Some(_))), "a large block in a window tail grows");
+    let grown = grown.unwrap().unwrap();
     assert_eq!(heap.free(&CSys, &pages, grown.addr), Ok(()), "a large block in a window tail is freed");
     heap.free(&CSys, &pages, warm).unwrap();
     heap.free(&CSys, &pages, small).unwrap();
