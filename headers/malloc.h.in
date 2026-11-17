@@ -1,0 +1,15 @@
+@@generated
+/* malloc.h: heap tuning and statistics (malloc(3), mallopt(3), mallinfo(3)). */
+#ifndef __NIJI_H_malloc_h
+#define __NIJI_H_malloc_h 1
+
+#include <features.h>
+#include <stdio.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

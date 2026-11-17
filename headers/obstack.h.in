@@ -1,0 +1,46 @@
+@@generated
+/* obstack.h: object stacks (GNU C Library manual, Obstacks). The growth macros evaluate the obstack argument
+   once and use only the members of `struct obstack` that the layout table records; the chunk allocation and
+   release functions are the ones the program names in obstack_chunk_alloc and obstack_chunk_free. */
+#ifndef __NIJI_H_obstack_h
+#define __NIJI_H_obstack_h 1
+
+#include <features.h>
+#include <string.h>
+
+__NIJI_BEGIN_C
+
+@@owns obstack_init obstack_alloc obstack_copy obstack_copy0 obstack_blank obstack_grow obstack_grow0 obstack_1grow obstack_ptr_grow obstack_int_grow obstack_finish obstack_object_size obstack_room obstack_make_room obstack_blank_fast obstack_1grow_fast obstack_ptr_grow_fast obstack_int_grow_fast obstack_base obstack_next_free obstack_chunk_size obstack_alignment_mask obstack_free
+@@emit
+
+@@when obstack_init
+/* Obstack macros: a statement expression keeps each argument evaluated once. */
+# define obstack_init(__h) _obstack_begin ((__h), 0, 0, (void *(*) (long int)) obstack_chunk_alloc, (void (*) (void *)) obstack_chunk_free)
+# define obstack_base(__h) ((void *) (__h)->object_base)
+# define obstack_next_free(__h) ((void *) (__h)->next_free)
+# define obstack_object_size(__h) ((int) ((__h)->next_free - (__h)->object_base))
+# define obstack_room(__h) ((int) ((__h)->chunk_limit - (__h)->next_free))
+# define obstack_chunk_size(__h) ((__h)->chunk_size)
+# define obstack_alignment_mask(__h) ((__h)->alignment_mask)
+# define obstack_make_room(__h, __n) __extension__ ({ __typeof__ (__h) __o = (__h); int __l = (int) (__n); if (__o->chunk_limit - __o->next_free < __l) _obstack_newchunk (__o, __l); (void) 0; })
+# define obstack_blank_fast(__h, __n) ((void) ((__h)->next_free += (__n)))
+# define obstack_blank(__h, __n) __extension__ ({ __typeof__ (__h) __o = (__h); int __l = (int) (__n); if (__o->chunk_limit - __o->next_free < __l) _obstack_newchunk (__o, __l); __o->next_free += __l; (void) 0; })
+# define obstack_1grow_fast(__h, __c) ((void) (*(__h)->next_free++ = (char) (__c)))
+# define obstack_1grow(__h, __c) __extension__ ({ __typeof__ (__h) __o = (__h); char __ch = (char) (__c); if (__o->chunk_limit - __o->next_free < 1) _obstack_newchunk (__o, 1); *__o->next_free++ = __ch; (void) 0; })
+# define obstack_ptr_grow_fast(__h, __p) ((void) (*(const void **) (__h)->next_free = (__p), (__h)->next_free += sizeof (const void *)))
+# define obstack_ptr_grow(__h, __p) __extension__ ({ __typeof__ (__h) __o = (__h); const void *__v = (__p); if (__o->chunk_limit - __o->next_free < (int) sizeof (const void *)) _obstack_newchunk (__o, sizeof (const void *)); *(const void **) __o->next_free = __v; __o->next_free += sizeof (const void *); (void) 0; })
+# define obstack_int_grow_fast(__h, __i) ((void) (*(int *) (__h)->next_free = (__i), (__h)->next_free += sizeof (int)))
+# define obstack_int_grow(__h, __i) __extension__ ({ __typeof__ (__h) __o = (__h); int __v = (__i); if (__o->chunk_limit - __o->next_free < (int) sizeof (int)) _obstack_newchunk (__o, sizeof (int)); *(int *) __o->next_free = __v; __o->next_free += sizeof (int); (void) 0; })
+# define obstack_grow(__h, __d, __n) __extension__ ({ __typeof__ (__h) __o = (__h); int __l = (int) (__n); if (__o->chunk_limit - __o->next_free < __l) _obstack_newchunk (__o, __l); __builtin_memcpy (__o->next_free, (__d), __l); __o->next_free += __l; (void) 0; })
+# define obstack_grow0(__h, __d, __n) __extension__ ({ __typeof__ (__h) __o = (__h); int __l = (int) (__n); if (__o->chunk_limit - __o->next_free < __l + 1) _obstack_newchunk (__o, __l + 1); __builtin_memcpy (__o->next_free, (__d), __l); __o->next_free += __l; *__o->next_free++ = 0; (void) 0; })
+/* Finish the object: the next object starts at an address aligned by alignment_mask and inside the chunk. */
+# define obstack_finish(__h) __extension__ ({ __typeof__ (__h) __o = (__h); void *__v = (void *) __o->object_base; if (__o->next_free == __o->object_base) __o->maybe_empty_object = 1; __o->next_free = (char *) (((__PTRDIFF_TYPE__) __o->next_free + __o->alignment_mask) & ~ (__PTRDIFF_TYPE__) __o->alignment_mask); if (__o->next_free - (char *) __o->chunk > __o->chunk_limit - (char *) __o->chunk) __o->next_free = __o->chunk_limit; __o->object_base = __o->next_free; __v; })
+# define obstack_alloc(__h, __n) __extension__ ({ __typeof__ (__h) __a = (__h); obstack_blank (__a, (__n)); obstack_finish (__a); })
+# define obstack_copy(__h, __d, __n) __extension__ ({ __typeof__ (__h) __a = (__h); obstack_grow (__a, (__d), (__n)); obstack_finish (__a); })
+# define obstack_copy0(__h, __d, __n) __extension__ ({ __typeof__ (__h) __a = (__h); obstack_grow0 (__a, (__d), (__n)); obstack_finish (__a); })
+# define obstack_free(__h, __obj) obstack_free ((__h), (__obj))
+#endif
+
+__NIJI_END_C
+
+#endif

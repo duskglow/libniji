@@ -1,0 +1,14 @@
+@@generated
+/* fmtmsg.h: message display (XSH fmtmsg). */
+#ifndef __NIJI_H_fmtmsg_h
+#define __NIJI_H_fmtmsg_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

@@ -1,0 +1,15 @@
+@@generated
+/* printf.h: printf extension interface (GNU C Library manual, Customizing Printf; printf.h(3head)). */
+#ifndef __NIJI_H_printf_h
+#define __NIJI_H_printf_h 1
+
+#include <features.h>
+#include <stdio.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif
