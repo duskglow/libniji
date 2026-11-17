@@ -31,7 +31,8 @@
 //! Not here yet (plan §6): lazy binding (DL-20).
 
 use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
-use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_OBJS, START_ARGS, START_PAGE};
+use super::table::{Table, INLINE};
+use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_PAGE};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
@@ -51,8 +52,8 @@ use niji_ld::{init, map, start};
 
 /// Objects the process can hold, the start-time ones included; one more is refused with a text.
 pub(super) const CAP: usize = 512;
-/// Objects one `dlopen` can add (the bound of `init::init_order`).
-const NEW_MAX: usize = init::OBJECTS_MAX;
+/// Objects one `dlopen` can add.
+pub(super) const NEW_MAX: usize = 64;
 /// Bytes of the path arena.
 const NAMES: usize = 128 * 1024;
 /// Entries of the dependency-list arena.
@@ -702,7 +703,7 @@ fn describe(l: &mut Loader, i: usize, o: &Obj<'static>, name: usize, id: (u64, u
 /// Read the start-time objects again from their memory images ([`image_view`], as `link` did) and
 /// make them the first nodes, all global, never unloaded. `ld.so` itself joins (not global) when
 /// no object named it at start. False when `link` did not run (no records).
-// Indices stay below CAP (checked) and OBJECTS_MAX (START_N's bound).
+// Indices stay below CAP (checked).
 #[allow(clippy::indexing_slicing)]
 fn adopt_start(l: &mut Loader) -> bool {
     let n = START_N.load(Acquire);
@@ -714,7 +715,7 @@ fn adopt_start(l: &mut Loader) -> bool {
     for k in 0..total {
         // The views are kept for the process's lifetime: they are the loader's copies.
         let mut views = [(0usize, 0usize); 3];
-        let w = START_OBJS.get(k).map_or([0; 5], |s| [0, 1, 2, 3, 4].map(|j| s[j].load(Relaxed)));
+        let w = super::start_obj(k);
         let o = if k == interp || k == n {
             interp = k;
             own_object(Native::INTERP.as_bytes(), &mut views)
@@ -760,12 +761,12 @@ fn adopt_start(l: &mut Loader) -> bool {
 /// The start's static TLS placement of each start-time object, computed again from the same
 /// segments in the same order as `link` placed them (`ltls::layout` is deterministic), so `dlsym` of
 /// an `STT_TLS` symbol finds the calling thread's block (plan §2).
-#[allow(clippy::indexing_slicing)] // n < CAP <= OBJECTS_MAX bounds (START_N's bound)
+#[allow(clippy::indexing_slicing)] // both tables hold n entries (reserved)
 fn adopt_tls(l: &mut Loader, n: usize, interp: usize) -> bool {
-    let mut mods: [Option<Module>; init::OBJECTS_MAX] = [None; init::OBJECTS_MAX];
-    let mut placed: [Option<Placed>; init::OBJECTS_MAX] = [None; init::OBJECTS_MAX];
+    let mut mods: Table<Option<Module>, INLINE> = Table::new(None);
+    let mut placed: Table<Option<Placed>, INLINE> = Table::new(None);
     let Some(objs) = l.objs_upto(n).get(..n) else { return false };
-    if n > mods.len() {
+    if mods.reserve(n).is_err() || placed.reserve(n).is_err() {
         return false;
     }
     for (k, o) in objs.iter().enumerate() {
@@ -2012,11 +2013,11 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         make_global(l, &local[..llen]);
     }
     // Constructors of the new set, dependencies first (D-27.19).
-    let mut order = [0u8; init::OBJECTS_MAX];
-    let len = init::init_order(k - base, &edges[..ne], &mut order).unwrap_or(0);
+    let (mut order, mut work) = ([0usize; NEW_MAX], [init::Walk::default(); NEW_MAX]);
+    let len = init::init_order(k - base, &edges[..ne], &mut order, &mut work).unwrap_or(0);
     let mut ctors = Ctors::NONE;
     for &j in &order[..len] {
-        let i = base + usize::from(j);
+        let i = base + j;
         let o = l.objs_upto(k)[i];
         let h = init::hooks(&o.dynm, o.bias, false);
         l.nodes[i].fini = [h.fini_array.addr, h.fini_array.len, h.fini];

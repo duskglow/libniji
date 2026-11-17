@@ -32,6 +32,7 @@ use niji_legacy::search_c::CWords;
 use niji_rt::tls::{ThreadBlock, FLAG_OWN};
 
 use crate::{conv, raw};
+use table::{Kept, PathStore, Table, INLINE};
 use crate::ffi_sys::{niji_sys_exit_group, niji_sys_write};
 
 /// Words in the provisional thread block: libniji's whole thread block, so every `%fs`-relative
@@ -645,7 +646,7 @@ fn fill_static(tp: usize, dtv_at: usize, zero: bool) -> Option<()> {
 /// offset]`, the IDs following [`THREAD_MODS`]'s, and the generation they make. Handed to the C
 /// library's thread walk as [`tls_visit`]'s context.
 pub(super) struct NewTls {
-    pub(super) mods: [[u64; 5]; init::OBJECTS_MAX],
+    pub(super) mods: [[u64; 5]; dlopen::NEW_MAX],
     pub(super) len: usize,
     generation: u64,
     /// The modules are unloaded ([`release_tls`], DL-17), not added.
@@ -653,7 +654,7 @@ pub(super) struct NewTls {
 }
 
 impl NewTls {
-    pub(super) const NONE: NewTls = NewTls { mods: [[0; 5]; init::OBJECTS_MAX], len: 0, generation: 0, release: false };
+    pub(super) const NONE: NewTls = NewTls { mods: [[0; 5]; dlopen::NEW_MAX], len: 0, generation: 0, release: false };
 }
 
 /// The static surplus `[lo, hi)` below every thread pointer and the thread pointer's alignment
@@ -876,8 +877,11 @@ fn lo32(w: u64) -> u32 {
     u32::try_from(w & 0xffff_ffff).unwrap_or(0)
 }
 
-/// Objects one start can load (the program included).
-const OBJECTS_MAX: usize = 64;
+/// End the start for a table that cannot grow (the only limit on the number of objects, DL-STARTUP-OBJECTS):
+/// `name` (the object being loaded, or what needed the table), then the reason, status 127.
+fn no_memory(name: &[u8]) -> ! {
+    fail_with(&[name, b": cannot allocate memory\n"], program::FAILURE)
+}
 
 /// Print `parts` after `ld.so: ` on standard error and end with `status`.
 fn fail_with(parts: &[&[u8]], status: i32) -> ! {
@@ -1102,8 +1106,8 @@ fn own_object(name: &'static [u8], maps: &mut [(usize, usize)]) -> niji_ld::relo
 /// cache is read only when a search reaches it. The program is read from its memory image
 /// ([`image_view`], ruling #4229, D-27.18), never from its file; `name` names it in messages (its
 /// path for `ld.so PROGRAM`, else `argv[0]`).
-// Indices stay below `n`, which never passes OBJECTS_MAX (checked before each store).
-#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_arguments)]
+// Indices stay below `n`; every per-object table is reserved to `n + 1` entries before each store.
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_arguments, clippy::too_many_lines)]
 fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin<'_>, preloads: &Preloads<'_>) -> usize {
     use niji_ld::reloc::{self, Obj, Objects};
     let prog_name = name;
@@ -1111,36 +1115,34 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     // The search state, used only for a name without `/`: each object's first requester and the
     // path it was opened by (empty: unknown, or the program's, from `origin`); the store for the
     // paths found (address space mapped at the first search hit, so it never runs out); the cache.
-    let mut parent = [0u8; OBJECTS_MAX];
-    let mut paths: [&'static [u8]; OBJECTS_MAX] = [&[]; OBJECTS_MAX];
-    let mut store: &'static mut [u8] = &mut [];
-    let mut store_map = (0usize, 0usize);
+    let mut parent: Table<usize, INLINE> = Table::new(0);
+    let mut paths: Table<&'static [u8], INLINE> = Table::new(&[]);
+    let mut store = PathStore::default();
     let cache: search::LazyCache<'_> = core::cell::OnceCell::new();
-    let mut maps = [(0usize, 0usize); OBJECTS_MAX];
+    let mut maps: Table<(usize, usize), INLINE> = Table::new((0, 0));
     // The scratch mappings of the two image views: the program's, then the interpreter's own.
     let mut views = [(0usize, 0usize); 6];
     let (prog_views, own_views) = views.split_at_mut(3);
     let (head, view) = image_view(prog, bias, name, prog_views);
     // The program's own file is not known (no file is read): (dev, ino) that no file has.
-    let mut ids: [FileId; OBJECTS_MAX] = [(u64::MAX, u64::MAX); OBJECTS_MAX];
+    let mut ids: Table<FileId, INLINE> = Table::new((u64::MAX, u64::MAX));
     // Each object's run-time program header table (address, count), for `dlopen` (DL-16a).
-    let mut phdrs = [(prog.phdr, prog.phnum); OBJECTS_MAX];
+    let mut phdrs: Table<(usize, usize), INLINE> = Table::new((prog.phdr, prog.phnum));
     let image = niji_ld::elf::Elf::from_image::<Native>(head, view).unwrap_or_else(|_| fail_with(&[name, b": malformed program headers\n"], program::FAILURE));
     let dynm = image.dynamic().ok().flatten().unwrap_or_else(|| fail_with(&[name, b": no valid dynamic section\n"], program::FAILURE));
     let first = Obj { elf: image, dynm, bias: u64::try_from(bias).unwrap_or(0), name, tls: None };
-    let mut objs = [first; OBJECTS_MAX];
+    let mut objs: Table<Obj<'static>, INLINE> = Table::new(first);
     let mut n = 1usize;
     let mut q = 0usize;
     // The interpreter itself, when an object names it (`__tls_get_addr`): already relocated, in the
     // scope with its exports, never relocated again (D-27.20); read from its memory image.
     let mut interp: Option<usize> = None;
     // The DT_NEEDED links (dependent, dependency) in the order each object names them (DL-11).
-    let mut edges = [(0u8, 0u8); EDGES_MAX];
+    let mut edges: Table<(usize, usize), EDGES_INLINE> = Table::new((0, 0));
     let mut ne = 0usize;
     let mut edge = |from: usize, to: usize, name: &[u8]| {
-        let (Ok(a), Ok(b)) = (u8::try_from(from), u8::try_from(to)) else { fail_with(&[name, b": too many objects\n"], program::FAILURE) };
-        let Some(slot) = edges.get_mut(ne) else { fail_with(&[name, b": too many DT_NEEDED entries\n"], program::FAILURE) };
-        *slot = (a, b);
+        edges.reserve(ne + 1).unwrap_or_else(|_| no_memory(name));
+        edges[ne] = (from, to);
         ne += 1;
     };
     // The preloads (DL-LD-PRELOAD) come first, as the program's (q == 0) names before its own
@@ -1168,15 +1170,18 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             if is_interp && pre.is_some() {
                 continue;
             }
-            if n == OBJECTS_MAX {
-                fail_with(&[name, b": too many objects\n"], program::FAILURE);
+            // Room for object `n` in every per-object table (each holds INLINE entries without a mapping).
+            let grown = [parent.reserve(n + 1), paths.reserve(n + 1), maps.reserve(n + 1), ids.reserve(n + 1), phdrs.reserve(n + 1), objs.reserve(n + 1)];
+            if grown.iter().any(Result::is_err) {
+                no_memory(name);
             }
             let mut found = None;
             if (bare || pre.is_some()) && !is_interp {
                 // The requester chain: this object, then each first requester up to the program.
-                let mut chain = [Scope::default(); OBJECTS_MAX];
+                let mut chain: Table<Scope<'_>, INLINE> = Table::new(Scope::default());
                 let (mut depth, mut k) = (0usize, q);
                 loop {
+                    chain.reserve(depth + 1).unwrap_or_else(|_| no_memory(name));
                     let at = if k == 0 {
                         let o = *origin_at.get_or_insert_with(|| origin.at());
                         if o == 0 { &[][..] } else { c_string(o) }
@@ -1186,10 +1191,11 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                     let d = &objs[k].dynm;
                     chain[depth] = Scope { rpath: dyn_string(d, elf::dt::RPATH), runpath: dyn_string(d, elf::dt::RUNPATH), origin: (!at.is_empty()).then(|| dir_of(at)) };
                     depth += 1;
-                    if k == 0 || depth == OBJECTS_MAX {
+                    // Each first requester was loaded before its object: the chain ends at the program.
+                    if k == 0 || depth > n {
                         break;
                     }
-                    k = usize::from(parent[k]);
+                    k = parent[k];
                 }
                 let ctx = env.ctx(CacheRef::Lazy(&cache, read_cache));
                 let mut refused: Option<Refusal> = None;
@@ -1236,20 +1242,8 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                     }
                     fail_loading(prog_name, name, niji_ld::dlopen::FILE_MISSING)
                 }
-                // Kept for its `$ORIGIN` (the store is address space for OBJECTS_MAX full paths).
-                if store_map.0 == 0 {
-                    let len = OBJECTS_MAX * search::PATH_MAX;
-                    let (at, buf) = scratch(len, prog_name);
-                    (store_map, store) = ((at, len), buf);
-                }
-                let p = at_path.as_bytes();
-                if p.len() > store.len() {
-                    fail_with(&[p, b": too many objects\n"], program::FAILURE);
-                }
-                let (kept, rest) = core::mem::take(&mut store).split_at_mut(p.len());
-                kept.copy_from_slice(p);
-                store = rest;
-                paths[n] = kept;
+                // Kept for its `$ORIGIN`.
+                paths[n] = store.keep(at_path.as_bytes()).unwrap_or_else(|_| no_memory(name));
             }
             let id = if is_interp {
                 (u64::MAX, u64::MAX)
@@ -1281,7 +1275,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             if is_interp {
                 objs[n] = own_object(name, own_views);
                 paths[n] = &[];
-                parent[n] = u8::try_from(q).unwrap_or(0);
+                parent[n] = q;
                 edge(q, n, name);
                 interp = Some(n);
                 n += 1;
@@ -1298,7 +1292,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             ids[n] = id;
             phdrs[n] = (usize::try_from(loaded.phdr).unwrap_or(0), usize::from(loaded.phnum));
             objs[n] = parse(file, name, loaded.bias);
-            parent[n] = u8::try_from(q).unwrap_or(0);
+            parent[n] = q;
             if pre.is_none() {
                 edge(q, n, name);
             }
@@ -1312,7 +1306,11 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
         }
     }
     // Static TLS of the initially loaded objects (design §7, R14-4, D-27.20).
-    let mut mods: [Option<Module>; OBJECTS_MAX] = [None; OBJECTS_MAX];
+    let mut mods: Table<Option<Module>, INLINE> = Table::new(None);
+    let mut placed: Table<Option<Placed>, INLINE> = Table::new(None);
+    if mods.reserve(n).is_err() || placed.reserve(n).is_err() {
+        no_memory(prog_name);
+    }
     for (k, (m, o)) in mods.iter_mut().zip(&objs[..n]).enumerate() {
         if Some(k) == interp {
             continue;
@@ -1322,7 +1320,6 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             fail_with(&[o.name, b": the TLS image lies outside the object's segments\n"], program::FAILURE);
         }
     }
-    let mut placed: [Option<Placed>; OBJECTS_MAX] = [None; OBJECTS_MAX];
     let area = ltls::layout::<Native>(&mods[..n], &mut placed[..n], INITIAL_TAIL, ltls::SURPLUS).unwrap_or_else(|e| {
         let at = match e {
             ltls::TlsError::Align(k) | ltls::TlsError::Size(k) => k,
@@ -1350,7 +1347,11 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
         }
     }
     let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
-    let mut syms = [first_sym; OBJECTS_MAX];
+    let mut syms: Table<niji_ld::symbols::Object<'static>, INLINE> = Table::new(first_sym);
+    let mut global: Table<usize, INLINE> = Table::new(0);
+    if syms.reserve(n).is_err() || global.reserve(n).is_err() {
+        no_memory(prog_name);
+    }
     for (s, o) in syms.iter_mut().zip(objs).skip(1) {
         *s = niji_ld::symbols::Object::new(o.dynm).unwrap_or_else(|_| fail_with(&[o.name, b": malformed symbol tables\n"], program::FAILURE));
     }
@@ -1360,7 +1361,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
         let (start::private::PrivateError::Mismatch(k) | start::private::PrivateError::Malformed(k)) = e;
         fail_with(&[objs.get(k).map_or(&b"?"[..], |o| o.name), e.message()], program::FAILURE)
     });
-    let global: [usize; OBJECTS_MAX] = core::array::from_fn(|i| i);
+    for (k, g) in global.iter_mut().enumerate() {
+        *g = k;
+    }
     let set = Objects { objs, syms: &syms[..n], global: &global[..n] };
     // The start's lookups all search the global scope, whose order decides each unique name
     // (`ScopeOrder`): no table to fill, so no count of unique names can make the start fail.
@@ -1378,20 +1381,44 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
         fail_with(&[objs.get(i).map_or(&b"?"[..], |o| o.name), b": cannot protect the RELRO segment\n"], program::FAILURE);
     }
     // The images are copied after relocation: a `.tdata` word may hold a relocated address.
-    let biases: [u64; OBJECTS_MAX] = core::array::from_fn(|k| objs.get(k).map_or(0, |o| o.bias));
+    let mut biases: Table<u64, INLINE> = Table::new(0);
+    let mut hooks: Table<init::Hooks, INLINE> = Table::new(init::Hooks::default());
+    if biases.reserve(n).is_err() || hooks.reserve(n).is_err() {
+        no_memory(prog_name);
+    }
+    for (b, o) in biases.iter_mut().zip(objs) {
+        *b = o.bias;
+    }
     install_tls(&mods[..n], &biases[..n], &placed[..n], &area, area_base);
     // The interpreter, when in the list, ran its own start already: no hooks of its own here.
-    let hooks: [init::Hooks; OBJECTS_MAX] = core::array::from_fn(|i| objs.get(i).filter(|_| Some(i) != interp).map_or_else(init::Hooks::default, |o| init::hooks(&o.dynm, o.bias, i == 0)));
+    for (i, (h, o)) in hooks.iter_mut().zip(objs).enumerate() {
+        if Some(i) != interp {
+            *h = init::hooks(&o.dynm, o.bias, i == 0);
+        }
+    }
     // The cache, when a search read it, and the path store: no longer needed.
     let cache_map = cache.get().and_then(Option::as_ref).map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
     let preload_map = (preloads.file.as_ptr().expose_provenance(), preloads.file.len());
-    for &(at, len) in maps[1..n].iter().chain(&views).chain([&store_map, &cache_map, &preload_map]).filter(|m| m.1 != 0) {
+    for &(at, len) in maps[1..n].iter().chain(&views).chain([&cache_map, &preload_map]).filter(|m| m.1 != 0) {
         let _ = raw::munmap(at, len);
     }
-    for (k, (slot, o)) in START_OBJS.iter().zip(objs).enumerate() {
+    store.release();
+    let words = |k: usize, o: &Obj<'_>| {
         let (phdr, phnum) = phdrs[k];
-        let words = [u64::try_from(phdr).unwrap_or(0), u64::try_from(phnum).unwrap_or(0), o.bias, ids[k].0, ids[k].1];
-        slot.iter().zip(words).for_each(|(w, v)| w.store(v, Relaxed));
+        [u64::try_from(phdr).unwrap_or(0), u64::try_from(phnum).unwrap_or(0), o.bias, ids[k].0, ids[k].1]
+    };
+    if n <= INLINE {
+        for (k, (slot, o)) in START_OBJS.iter().zip(objs).enumerate() {
+            slot.iter().zip(words(k, o)).for_each(|(w, v)| w.store(v, Relaxed));
+        }
+    } else {
+        // More objects than the static records hold: all of them in a kept table instead.
+        let mut rows: Table<[u64; 5], 0> = Table::new([0; 5]);
+        rows.reserve(n).unwrap_or_else(|_| no_memory(prog_name));
+        for (k, (row, o)) in rows.iter_mut().zip(objs).enumerate() {
+            *row = words(k, o);
+        }
+        START_SPILL.keep(rows, n).unwrap_or_else(|_| no_memory(prog_name));
     }
     START_INTERP.store(interp.unwrap_or(usize::MAX), Relaxed);
     START_PAGE.store(page, Relaxed);
@@ -1405,13 +1432,26 @@ fn fn_addr(f: extern "C" fn(usize) -> usize) -> usize {
     (f as *const ()).expose_provenance()
 }
 
-/// Most `DT_NEEDED` links over all objects of one start.
-const EDGES_MAX: usize = 1024;
+/// `DT_NEEDED` links one start holds without a mapping (more grow the table).
+const EDGES_INLINE: usize = 128;
 
 /// What `dlopen` needs to see the start-time objects again (DL-16a, D-27.34; nothing is allocated at
-/// start): per object, in load order, its run-time program header table address and count, its
-/// bias and its file's (`st_dev`, `st_ino`) (the program's: none, `u64::MAX`).
-static START_OBJS: [[AtomicU64; 5]; OBJECTS_MAX] = [const { [const { AtomicU64::new(0) }; 5] }; OBJECTS_MAX];
+/// start for up to [`INLINE`] objects): per object, in load order, its run-time program header table
+/// address and count, its bias and its file's (`st_dev`, `st_ino`) (the program's: none, `u64::MAX`).
+/// Read through [`start_obj`].
+static START_OBJS: [[AtomicU64; 5]; INLINE] = [const { [const { AtomicU64::new(0) }; 5] }; INLINE];
+/// The same records for a start of more than [`INLINE`] objects (DL-STARTUP-OBJECTS), all of them.
+static START_SPILL: Kept<[u64; 5]> = Kept::new();
+
+/// Start-time object `k`'s record ([`START_OBJS`]); zeros past the last.
+fn start_obj(k: usize) -> [u64; 5] {
+    let spill = START_SPILL.get();
+    if spill.is_empty() {
+        START_OBJS.get(k).map_or([0; 5], |s| [0, 1, 2, 3, 4].map(|j| s.get(j).map_or(0, |w| w.load(Relaxed))))
+    } else {
+        spill.get(k).copied().unwrap_or([0; 5])
+    }
+}
 /// Start-time objects recorded in [`START_OBJS`] (0: `link` did not run).
 static START_N: AtomicUsize = AtomicUsize::new(0);
 /// Index of `ld.so` itself among them (`usize::MAX`: not among them).
@@ -1438,11 +1478,14 @@ fn array_words(a: init::Array) -> &'static [u64] {
 
 /// The objects' termination hooks in finalisation order (DL-11): `[DT_FINI_ARRAY address, entries,
 /// DT_FINI]` per object, written once before the program is entered, read by [`fini_all`].
-static FINI_HOOKS: [[AtomicU64; 3]; OBJECTS_MAX] = [const { [const { AtomicU64::new(0) }; 3] }; OBJECTS_MAX];
+static FINI_HOOKS: [[AtomicU64; 3]; INLINE] = [const { [const { AtomicU64::new(0) }; 3] }; INLINE];
 static FINI_LEN: AtomicUsize = AtomicUsize::new(0);
 /// Each [`FINI_HOOKS`] slot's start-time object (its index in [`START_OBJS`], the `dlopen` loader's
-/// node index), for the exit order with the `dlopen`ed objects (DL-EXIT-ORDER-PROBE).
-static FINI_IDX: [AtomicU8; OBJECTS_MAX] = [const { AtomicU8::new(0) }; OBJECTS_MAX];
+/// node index), for the exit order with the `dlopen`ed objects (DL-EXIT-ORDER-PROBE). Every index
+/// is below [`INLINE`]: a larger start keeps its whole sequence in [`FINI_SPILL`] instead.
+static FINI_IDX: [AtomicU8; INLINE] = [const { AtomicU8::new(0) }; INLINE];
+/// The finalisation sequence of a start of more than [`INLINE`] objects: (object, hooks) per entry.
+static FINI_SPILL: Kept<(usize, [u64; 3])> = Kept::new();
 static FINI_DONE: AtomicBool = AtomicBool::new(false);
 
 /// Run the initialisation functions after relocation (design §9, D-27.19): the program's
@@ -1453,12 +1496,19 @@ static FINI_DONE: AtomicBool = AtomicBool::new(false);
 /// termination function the program gets in `%rdx`. First of all, `early` (the C library's
 /// `__niji_libc_early_init`, design §14, D-27.22) gets the initial stack, so every constructor,
 /// `.preinit_array` included, sees an initialised C library.
-fn run_init(hooks: &[init::Hooks], edges: &[(u8, u8)], sp: usize, early: Option<u64>, rseq_size: usize) -> usize {
-    let mut order = [0u8; OBJECTS_MAX];
-    let mut fini_order = [0u8; OBJECTS_MAX];
-    let (Ok(len), Ok(fini_len)) = (init::init_order(hooks.len(), edges, &mut order), init::fini_order(hooks.len(), edges, &mut fini_order)) else {
+fn run_init(hooks: &[init::Hooks], edges: &[(usize, usize)], sp: usize, early: Option<u64>, rseq_size: usize) -> usize {
+    let n = hooks.len();
+    let mut order: Table<usize, INLINE> = Table::new(0);
+    let mut work: Table<init::Walk, INLINE> = Table::new(init::Walk::default());
+    if order.reserve(n).is_err() || work.reserve(n).is_err() {
+        no_memory(b"ld.so");
+    }
+    let Ok(len) = init::init_order(n, edges, &mut order, &mut work) else {
         refuse(b"ld.so: cannot order the objects' initialisation\n")
     };
+    drop(work);
+    // The finalisation order is the initialisation order reversed (`init::fini_order`).
+    let fini_order = order.get(..len).unwrap_or(&[]).iter().rev();
     let argc = stack_word(sp);
     let argv = sp.wrapping_add(8);
     let envp = argv.wrapping_add(usize::try_from(argc).unwrap_or(0).wrapping_add(1).wrapping_mul(8));
@@ -1512,17 +1562,26 @@ fn run_init(hooks: &[init::Hooks], edges: &[(u8, u8)], sp: usize, early: Option<
         init::init_calls(0, array_words(h.preinit)).for_each(call);
     }
     for &i in order.get(..len).unwrap_or(&[]) {
-        let Some(h) = hooks.get(usize::from(i)).filter(|_| i != 0) else { continue };
+        let Some(h) = hooks.get(i).filter(|_| i != 0) else { continue };
         init::init_calls(h.init, array_words(h.init_array)).for_each(call);
     }
-    for ((slot, x), &i) in FINI_HOOKS.iter().zip(&FINI_IDX).zip(fini_order.get(..fini_len).unwrap_or(&[])) {
-        x.store(i, Relaxed);
-        let h = hooks.get(usize::from(i)).copied().unwrap_or_default();
-        for (w, v) in slot.iter().zip([h.fini_array.addr, h.fini_array.len, h.fini]) {
-            w.store(v, Relaxed);
+    let fini_of = |i: usize| hooks.get(i).map_or([0; 3], |h| [h.fini_array.addr, h.fini_array.len, h.fini]);
+    if len <= INLINE {
+        for ((slot, x), &i) in FINI_HOOKS.iter().zip(&FINI_IDX).zip(fini_order) {
+            x.store(u8::try_from(i).unwrap_or(0), Relaxed);
+            for (w, v) in slot.iter().zip(fini_of(i)) {
+                w.store(v, Relaxed);
+            }
         }
+    } else {
+        let mut seq: Table<(usize, [u64; 3]), 0> = Table::new((0, [0; 3]));
+        seq.reserve(len).unwrap_or_else(|_| no_memory(b"ld.so"));
+        for (e, &i) in seq.iter_mut().zip(fini_order) {
+            *e = (i, fini_of(i));
+        }
+        FINI_SPILL.keep(seq, len).unwrap_or_else(|_| no_memory(b"ld.so"));
     }
-    FINI_LEN.store(fini_len, Release);
+    FINI_LEN.store(len, Release);
     #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
     (fini_all as *const ()).expose_provenance()
 }
@@ -1535,12 +1594,13 @@ extern "C" fn fini_all() {
     if FINI_DONE.swap(true, AcqRel) {
         return;
     }
-    let len = FINI_LEN.load(Acquire).min(OBJECTS_MAX);
-    let start: [(usize, [u64; 3]); OBJECTS_MAX] = core::array::from_fn(|k| {
+    let len = FINI_LEN.load(Acquire);
+    let inline: [(usize, [u64; 3]); INLINE] = core::array::from_fn(|k| {
         let words = FINI_HOOKS.get(k).map_or([0; 3], |s| [0, 1, 2].map(|j| s.get(j).map_or(0, |w| w.load(Relaxed))));
         (FINI_IDX.get(k).map_or(0, |x| usize::from(x.load(Relaxed))), words)
     });
-    let start = start.get(..len).unwrap_or(&[]);
+    let spill = FINI_SPILL.get();
+    let start = if spill.is_empty() { inline.get(..len.min(INLINE)).unwrap_or(&[]) } else { spill };
     if dlopen::fini_exit(start) {
         return;
     }
@@ -1691,10 +1751,6 @@ const MAP_PRIVATE_I32: i32 = 0x02;
 const MAP_FIXED_I32: i32 = 0x10;
 const MAP_ANONYMOUS_I32: i32 = 0x20;
 const MAP_FIXED_NOREPLACE_I32: i32 = 0x10_0000;
-/// Objects a dependency list (`--list`) holds (the program included); more is refused (D-27.16).
-const LIST_OBJECTS_MAX: usize = 256;
-/// Bytes of resolved paths a dependency list holds; more is refused (D-27.16).
-const PATHS_MAX: usize = 64 * 1024;
 
 /// Where a kernel-started program's `$ORIGIN` comes from: the path it was run by (`ld.so PROGRAM`,
 /// nonzero), else `AT_EXECFN` of `aux`, read only when a search needs it (a program whose
@@ -1766,7 +1822,8 @@ struct Obj {
     name: &'static [u8],
     soname: &'static [u8],
     file: &'static [u8],
-    path: (usize, usize),
+    /// The path it was found by (the program's: as given; none: not found, or the interpreter).
+    path: &'static [u8],
     parent: usize,
     bias: u64,
     /// The interpreter's place in a list (it is never mapped again).
@@ -1932,13 +1989,10 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
     // The cache, once (R14-3 (a): `<prefix>/etc/ld.so.cache`); unreadable or inconsistent = none.
     let cache = read_cache();
     let ctx = env.ctx(cache.as_ref().map(|(_, c)| c).into());
-    let mut objs = [Obj::default(); LIST_OBJECTS_MAX];
-    let mut store = [0u8; PATHS_MAX];
-    let first = store.get_mut(..prog.len()).unwrap_or_else(|| fail(prog, b"path too long\n"));
-    first.copy_from_slice(prog);
-    let mut used = prog.len();
+    let mut objs: Table<Obj, INLINE> = Table::new(Obj::default());
+    let mut store = PathStore::default();
     if let Some(o) = objs.first_mut() {
-        *o = Obj { name: prog, file, path: (0, prog.len()), ..Obj::default() };
+        *o = Obj { name: prog, file, path: prog, ..Obj::default() };
     }
     let mut count = 1usize;
     let mut i = 0usize;
@@ -1946,16 +2000,15 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
         let me = i;
         i = i.wrapping_add(1);
         let Some(d) = objs.get(me).and_then(|o| dynamic_of(o.file)) else { continue };
-        let (old, free) = store.split_at_mut(used);
-        let old: &[u8] = old;
-        let mut wrote = 0usize;
         // The requester chain: this object, then each object that loaded it, up to the program.
-        let mut chain = [Scope::default(); LIST_OBJECTS_MAX];
+        let mut chain: Table<Scope<'_>, INLINE> = Table::new(Scope::default());
         let mut depth = 0usize;
         let mut k = me;
-        while let (Some(slot), Some(o)) = (chain.get_mut(depth), objs.get(k)) {
+        while let Some(o) = objs.get(k) {
+            chain.reserve(depth.wrapping_add(1)).unwrap_or_else(|_| fail(o.name, b"cannot allocate memory\n"));
+            let Some(slot) = chain.get_mut(depth) else { break };
             let od = dynamic_of(o.file);
-            let origin = old.get(o.path.0..o.path.0.saturating_add(o.path.1)).map(dir_of);
+            let origin = Some(dir_of(o.path));
             *slot = Scope { rpath: od.as_ref().and_then(|x| dyn_string(x, elf::dt::RPATH)), runpath: od.as_ref().and_then(|x| dyn_string(x, elf::dt::RUNPATH)), origin };
             depth = depth.wrapping_add(1);
             if k == 0 {
@@ -1968,6 +2021,7 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
         // DT_NEEDED entries, where the reference's libc and libm name theirs (DL-TRACE-INTERP probe).
         let own = me != 0 && objs.get(me).is_some_and(|o| !o.file.is_empty() && niji_ld::search::pinned(o.name));
         for name in d.needed().flatten().chain(core::iter::once(Native::INTERP.as_bytes()).filter(|_| own)) {
+            objs.reserve(count.wrapping_add(1)).unwrap_or_else(|_| fail(name, b"cannot allocate memory\n"));
             if name == Native::INTERP.as_bytes() || name == interp_name || name == interp_path {
                 // The interpreter: listed once, at its breadth-first place, only when an object needs it.
                 if !objs.get(..count).unwrap_or(&[]).iter().any(|o| o.interp) {
@@ -1981,9 +2035,6 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
             let known = objs.get(..count).unwrap_or(&[]).iter().any(|o| o.name == name || (!o.soname.is_empty() && o.soname == name));
             if known {
                 continue;
-            }
-            if count >= LIST_OBJECTS_MAX {
-                fail(name, b"too many shared objects\n");
             }
             let mut hit: Option<(&'static [u8], i64)> = None;
             let mut refused: Option<Refusal> = None;
@@ -2023,17 +2074,13 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
             let loaded = map::load::<Native, _>(&mut SysMapper { fd: i32::try_from(fd).unwrap_or(-1) }, f, env.page);
             let _ = crate::ffi_sys::niji_sys_close(fd);
             let loaded = loaded.unwrap_or_else(|e| fail(found, e.message()));
-            let at = wrote;
-            let dst = free.get_mut(at..at.saturating_add(found.len())).unwrap_or_else(|| fail(found, b"too many shared objects\n"));
-            dst.copy_from_slice(found);
-            wrote = wrote.saturating_add(found.len());
+            let path = store.keep(found).unwrap_or_else(|_| fail(found, b"cannot allocate memory\n"));
             let soname = dynamic_of(f).and_then(|x| dyn_string(&x, elf::dt::SONAME)).unwrap_or(b"");
             if let Some(o) = objs.get_mut(count) {
-                *o = Obj { name, soname, file: f, path: (used.saturating_add(at), found.len()), parent: me, bias: loaded.bias, interp: false };
+                *o = Obj { name, soname, file: f, path, parent: me, bias: loaded.bias, interp: false };
             }
             count = count.wrapping_add(1);
         }
-        used = used.saturating_add(wrote);
     }
     let vdso = || {
         if let Some(v) = env.vdso.filter(|&v| v != 0) {
@@ -2066,8 +2113,7 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
                 write_all(1, part);
             }
         } else {
-            let found = store.get(o.path.0..o.path.0.saturating_add(o.path.1)).unwrap_or(&[]);
-            for part in [&b"\t"[..], o.name, b" => ", found, b" (0x", &hex16(o.bias), b")\n"] {
+            for part in [&b"\t"[..], o.name, b" => ", o.path, b" (0x", &hex16(o.bias), b")\n"] {
                 write_all(1, part);
             }
         }
@@ -2083,6 +2129,7 @@ const AUXV_WORDS_MAX: usize = 256;
 
 mod dlopen;
 mod readers;
+mod table;
 /// Words per program header.
 const PHDR_WORDS: usize = niji_rt::start::PHDR_WORDS;
 

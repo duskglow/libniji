@@ -20,17 +20,17 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use niji_ld::arch::{Arch, Native};
-use niji_ld::init::{self, OrderError, OBJECTS_MAX};
+use niji_ld::init::{self, OrderError, Walk};
 
-fn init(n: usize, edges: &[(u8, u8)]) -> Vec<u8> {
-    let mut out = [0u8; OBJECTS_MAX];
-    let len = init::init_order(n, edges, &mut out).unwrap();
+fn init(n: usize, edges: &[(u8, u8)]) -> Vec<usize> {
+    let (mut out, mut work) = (vec![0usize; n], vec![Walk::default(); n]);
+    let len = init::init_order(n, edges, &mut out, &mut work).unwrap();
     out[..len].to_vec()
 }
 
-fn fini(n: usize, edges: &[(u8, u8)]) -> Vec<u8> {
-    let mut out = [0u8; OBJECTS_MAX];
-    let len = init::fini_order(n, edges, &mut out).unwrap();
+fn fini(n: usize, edges: &[(u8, u8)]) -> Vec<usize> {
+    let (mut out, mut work) = (vec![0usize; n], vec![Walk::default(); n]);
+    let len = init::fini_order(n, edges, &mut out, &mut work).unwrap();
     out[..len].to_vec()
 }
 
@@ -82,10 +82,11 @@ fn init_order_exit_with_object_opened_later() {
 /// no spec clause: limits are refused, not walked past.
 #[test]
 fn init_order_refuses_bad_input() {
-    let mut out = [0u8; OBJECTS_MAX];
-    assert_eq!(init::init_order(OBJECTS_MAX + 1, &[], &mut out), Err(OrderError::TooMany));
-    assert_eq!(init::init_order(2, &[(0, 2)], &mut out), Err(OrderError::BadEdge));
-    assert_eq!(init::init_order(0, &[], &mut out), Ok(0));
+    let (mut out, mut work) = ([0usize; 4], [Walk::default(); 4]);
+    assert_eq!(init::init_order(5, &[(0u8, 1u8)], &mut out, &mut work), Err(OrderError::TooMany));
+    assert_eq!(init::init_order(4, &[(0u8, 1u8)], &mut out, &mut work[..3]), Err(OrderError::TooMany));
+    assert_eq!(init::init_order(2, &[(0u8, 2u8)], &mut out, &mut work), Err(OrderError::BadEdge));
+    assert_eq!(init::init_order(0, &[(0u8, 0u8); 0], &mut out, &mut work), Ok(0));
 }
 
 /// s1_1_c_5, s1_1_c_6: one object's calls: `DT_INIT` before `DT_INIT_ARRAY` (in order); `DT_FINI_ARRAY` in

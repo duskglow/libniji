@@ -20,78 +20,83 @@
 
 use crate::elf::{dt, Dynamic};
 
-/// The most objects one order covers.
-pub const OBJECTS_MAX: usize = 64;
-
 /// Why an order cannot be computed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OrderError {
-    /// More than [`OBJECTS_MAX`] objects.
+    /// More objects than the caller's storage holds (`out` or `work` shorter than `n`; for
+    /// [`exit_order`], more than [`EXIT_MAX`] units).
     TooMany,
     /// An edge names an object outside `0..n`.
     BadEdge,
 }
 
 /// Walk state of one object.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum Mark {
+    #[default]
     New,
     Active,
     Done,
 }
 
+/// The working storage of one [`init_order`] walk, one entry per object (the caller's, so the
+/// number of objects has no bound but the caller's memory, DL-STARTUP-OBJECTS): the object's walk
+/// state and one frame of the walk's stack, (object, index of the next edge to look at).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Walk {
+    mark: Mark,
+    frame: (usize, usize),
+}
+
 /// The initialisation order of objects `0..n` (see the module documentation) into `out`; returns
-/// the number of entries (`n`).
+/// the number of entries (`n`). `edges` are `(dependent, dependency)` indices of any width;
+/// `work` is the walk's storage (its contents on entry do not matter).
 ///
 /// # Errors
 ///
-/// [`OrderError`] for more than [`OBJECTS_MAX`] objects or an edge outside `0..n`.
-pub fn init_order(n: usize, edges: &[(u8, u8)], out: &mut [u8; OBJECTS_MAX]) -> Result<usize, OrderError> {
-    if n > OBJECTS_MAX {
-        return Err(OrderError::TooMany);
-    }
-    if edges.iter().any(|&(a, b)| usize::from(a) >= n || usize::from(b) >= n) {
+/// [`OrderError`] for `out` or `work` shorter than `n` or an edge outside `0..n`.
+pub fn init_order<E: Copy + Into<usize>>(n: usize, edges: &[(E, E)], out: &mut [usize], work: &mut [Walk]) -> Result<usize, OrderError> {
+    let (Some(out), Some(work)) = (out.get_mut(..n), work.get_mut(..n)) else { return Err(OrderError::TooMany) };
+    if edges.iter().any(|&(a, b)| a.into() >= n || b.into() >= n) {
         return Err(OrderError::BadEdge);
     }
-    let mut mark = [Mark::New; OBJECTS_MAX];
     if n == 0 {
         return Ok(0);
     }
+    work.fill(Walk::default());
     // The root is held back: never entered through an edge, placed last.
-    if let Some(m) = mark.first_mut() {
-        *m = Mark::Active;
+    if let Some(w) = work.first_mut() {
+        w.mark = Mark::Active;
     }
     let mut len = 0usize;
-    let mut emit = |v: u8, out: &mut [u8; OBJECTS_MAX]| {
+    let mut emit = |v: usize, out: &mut [usize]| {
         if let Some(slot) = out.get_mut(len) {
             *slot = v;
             len = len.saturating_add(1);
         }
     };
-    // The walk's stack: (object, index of the next edge to look at).
-    let mut stack = [(0u8, 0usize); OBJECTS_MAX];
     for start in (1..n).rev() {
-        let Ok(start) = u8::try_from(start) else { return Err(OrderError::TooMany) };
-        if mark.get(usize::from(start)) != Some(&Mark::New) {
+        if work.get(start).map(|w| w.mark) != Some(Mark::New) {
             continue;
         }
         let mut depth = 0usize;
-        push(&mut stack, &mut depth, &mut mark, start);
-        while let Some(&(v, from)) = depth.checked_sub(1).and_then(|t| stack.get(t)) {
-            let next = edges.iter().enumerate().skip(from).find(|(_, e)| e.0 == v);
+        push(work, &mut depth, start);
+        while let Some((v, from)) = depth.checked_sub(1).and_then(|t| work.get(t)).map(|w| w.frame) {
+            let next = edges.iter().enumerate().skip(from).find(|(_, e)| e.0.into() == v);
             match next {
                 Some((k, &(_, w))) => {
-                    if let Some(top) = depth.checked_sub(1).and_then(|t| stack.get_mut(t)) {
-                        top.1 = k.saturating_add(1);
+                    if let Some(top) = depth.checked_sub(1).and_then(|t| work.get_mut(t)) {
+                        top.frame.1 = k.saturating_add(1);
                     }
-                    if mark.get(usize::from(w)) == Some(&Mark::New) {
-                        push(&mut stack, &mut depth, &mut mark, w);
+                    let w = w.into();
+                    if work.get(w).map(|x| x.mark) == Some(Mark::New) {
+                        push(work, &mut depth, w);
                     }
                 }
                 None => {
                     depth = depth.saturating_sub(1);
-                    if let Some(m) = mark.get_mut(usize::from(v)) {
-                        *m = Mark::Done;
+                    if let Some(x) = work.get_mut(v) {
+                        x.mark = Mark::Done;
                     }
                     emit(v, out);
                 }
@@ -102,14 +107,15 @@ pub fn init_order(n: usize, edges: &[(u8, u8)], out: &mut [u8; OBJECTS_MAX]) -> 
     Ok(len)
 }
 
-/// Push `v` on the walk's stack and mark it active.
-fn push(stack: &mut [(u8, usize); OBJECTS_MAX], depth: &mut usize, mark: &mut [Mark; OBJECTS_MAX], v: u8) {
-    if let Some(slot) = stack.get_mut(*depth) {
-        *slot = (v, 0);
+/// Push `v` on the walk's stack and mark it active. The stack never holds more than `n` frames:
+/// each object is pushed once (it leaves state [`Mark::New`] here).
+fn push(work: &mut [Walk], depth: &mut usize, v: usize) {
+    if let Some(slot) = work.get_mut(*depth) {
+        slot.frame = (v, 0);
         *depth = depth.saturating_add(1);
     }
-    if let Some(m) = mark.get_mut(usize::from(v)) {
-        *m = Mark::Active;
+    if let Some(x) = work.get_mut(v) {
+        x.mark = Mark::Active;
     }
 }
 
@@ -118,8 +124,8 @@ fn push(stack: &mut [(u8, usize); OBJECTS_MAX], depth: &mut usize, mark: &mut [M
 /// # Errors
 ///
 /// As [`init_order`].
-pub fn fini_order(n: usize, edges: &[(u8, u8)], out: &mut [u8; OBJECTS_MAX]) -> Result<usize, OrderError> {
-    let len = init_order(n, edges, out)?;
+pub fn fini_order<E: Copy + Into<usize>>(n: usize, edges: &[(E, E)], out: &mut [usize], work: &mut [Walk]) -> Result<usize, OrderError> {
+    let len = init_order(n, edges, out, work)?;
     if let Some(s) = out.get_mut(..len) {
         s.reverse();
     }
