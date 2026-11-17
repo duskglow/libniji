@@ -620,8 +620,8 @@ fn sym_catclose() {
 }
 
 /// The C locale's answers (`YESEXPR` `^[yY]`, `NOEXPR` `^[nN]`), as the host's glibc gives them
-/// (probed 2026-10-04), globally and as a thread's own locale (D-7.9); NULL is -1 (the
-/// reference crashes).
+/// (probed 2026-10-04), globally and as a thread's own locale (D-7.9); NULL is -1 (no
+/// response: neither yes nor no).
 #[test]
 fn sym_rpmatch() {
     let _g = global();

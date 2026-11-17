@@ -55,7 +55,7 @@ fn build(out: &Path, niji: bool) -> bool {
 }
 
 const D13_5: &str = "D-13.5: canonicalization has no length limit internally, so the allocating forms resolve a path whose result is longer than PATH_MAX; the reference fails with ENAMETOOLONG";
-const D13_13_CHDIR: &str = "D-13.13 (owner ruling): nftw with FTW_CHDIR walks paths of any length (D-13.4: descriptor-relative, no depth limit); the reference aborts on an internal assertion past about 4.2 KB";
+const D13_13_CHDIR: &str = "D-13.13 (owner ruling): nftw with FTW_CHDIR walks paths of any length (D-13.4: descriptor-relative, no depth limit)";
 const D13_4_NOPENFD: &str = "D-13.4 (P-lift): nopenfd does not bound the walk; one descriptor is held per directory level, so a 25-level tree is walked whole with any nopenfd and 26 descriptors are open at the bottom";
 const D13_4_FTS: &str = "D-13.4: fts walks descriptor-relative in every mode, so paths longer than PATH_MAX are walked (the reference stats by path in FTS_NOCHDIR and FTS_LOGICAL mode and fails with ENAMETOOLONG), holding one descriptor per directory level (the reference holds 1 in chdir mode, 0 otherwise)";
 const FTS_SET: &str = "fts(3): fts_set returns -1 on an error (an invalid instruction, EINVAL); the reference returns 1";
@@ -78,14 +78,14 @@ const KNOWN: [(&str, &str); 20] = [
     ("nftw(deep, nopenfd=1, FTW_PHYS): callbacks=21 -> -1 errno=ENAMETOOLONG", D13_4_NOPENFD),
     ("nftw(deep, nopenfd=2, FTW_PHYS)", D13_4_NOPENFD),
     ("nftw(deep, nopenfd=5, FTW_PHYS)", D13_4_NOPENFD),
-    ("  the process was killed by signal 11", "D-13.13 (owner ruling): fts_open with an empty argument list returns NULL with EINVAL; the reference returns a stream whose first fts_read crashes"),
+    ("  the process was killed by signal 11", "D-13.13 (owner ruling): fts_open with an empty argument list returns NULL with EINVAL"),
     ("    fts_set(7): 1 EINVAL", FTS_SET),
     ("    fts_set(-1): 1 EINVAL", FTS_SET),
     (
         "  remaining fts_read: t/a:D t/a/f1:F t/a/s_up:SL t/a/sub:D t/a/sub/x:F t/a/sub:DP t/a:DP t/b:F [fts_children at file: NULL errno=0] t/e:D [fts_children at empty t/e: NULL errno=0] t/e:DP t/noread:D [fts_children at t/noread: NULL errno=EACCES] t/noread:DNR t/nosearch:D [fts_children at t/nosearch: ns_f:NS(EACCES) errno=EACCES]",
         "X3: errno is written only on failure; fts_children returning the entries of an unsearchable directory (each FTS_NS) succeeds, and the reference leaves its internal stat's EACCES in errno",
     ),
-    ("  fts_children after the end (in a child process): the process was killed by signal 11", "D-13.13 (owner ruling): fts_children after the walk has ended returns NULL with errno 0, as at the end of a directory; the reference crashes"),
+    ("  fts_children after the end (in a child process): the process was killed by signal 11", "D-13.13 (owner ruling): fts_children after the walk has ended returns NULL with errno 0, as at the end of a directory"),
 ];
 
 /// Lines that differ only in the deep fts walks (each counted once per mode).

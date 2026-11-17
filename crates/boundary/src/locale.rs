@@ -1045,7 +1045,7 @@ pub fn wlower(l: &'static Locale) -> impl Fn(i32) -> i32 + Copy {
 
 /// `rpmatch(response)` (§7.6; D-7.9): 1 when `response` (a C string's address) matches the
 /// current locale's `YESEXPR`, 0 when it matches `NOEXPR`, otherwise -1 (also for an expression
-/// that does not compile, and for NULL, where the reference crashes). The expressions are
+/// that does not compile, and for NULL: no response). The expressions are
 /// POSIX extended regular expressions, matched with the library's `regcomp`/`regexec`.
 pub fn rpmatch(response: usize) -> i32 {
     if response == 0 {

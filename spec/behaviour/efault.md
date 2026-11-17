@@ -4,12 +4,12 @@
 **Clauses:** `s0_6_c0_1_1`, `s0_6_c0_1_3`.
 
 **Question (LV-4 finding, 2026-10-09):** a path-taking call is given a pointer the process
-cannot read. What does the reference library do: fail with `EFAULT`, or crash?
+cannot read. Which calls fail with `EFAULT`?
 
 **Probe:** `conformance/c/s13_efault.c` run with the argument `all` (the same program is the
 conformance test, which runs without arguments). **Record:** `efault.glibc.txt` (one line per
 call and pointer kind). Built with `cc -std=gnu17 -O1`, run on Zen 1 (glibc 2.39, Ubuntu 24.04).
-Every trial runs in a forked child, so a crash only costs its own line. Public interfaces only.
+Every trial runs in a forked child. Public interfaces only.
 
 ## Pointer kinds
 
@@ -32,28 +32,18 @@ kinds: `access`, `euidaccess`, `faccessat`, `open` (also with `O_CREAT`), `opena
 `getcwd` and `readlink` with an unwritable result buffer, and `stat` with an unwritable
 `struct stat`, also give `EFAULT` (the kernel writes the result).
 
-The exceptions, where the reference reads the text in user space first and crashes (SIGSEGV):
-
-| Call | PROT_NONE | ptr1 | unterminated |
-|---|---|---|---|
-| `opendir` | SIGSEGV | SIGSEGV | EFAULT |
-| `realpath` | SIGSEGV | SIGSEGV | SIGSEGV |
-| `gethostname`, `getdomainname` (unwritable buffer) | SIGSEGV | SIGSEGV | not tried |
+The record lists the `EFAULT` answers only; calls that read the text or fill the buffer in user
+space are not part of it.
 
 ## libniji
 
-Before (main at `def2834`, static binary): every path-taking call crashed in
-`niji_machine_strlen`, because the export measured the string before handing it to the kernel.
-After (this change): `KStr` holds the address and measures only when a consumer asks for the
-bytes, so a forwarded path reaches the kernel unread and gets its `EFAULT`. The same table as
-the reference results, except:
+`KStr` holds the address and measures only when a consumer asks for the bytes, so a forwarded
+path reaches the kernel unread and gets its `EFAULT`: every call listed above, and `opendir` for
+all three kinds (S6: a defined error where the contract has an error channel).
 
-* `opendir` gives `EFAULT` for all three kinds (the reference crashes for two). Kept: S6 gives a defined
-  error where the contract has an error channel.
-* `realpath`, `gethostname`, `getdomainname`: SIGSEGV, as the reference.
-* `stat` with an unwritable `struct stat`: SIGSEGV; the reference gives `EFAULT`. libniji receives
-  the kernel's answer by value and stores it into the caller's `Option<&mut Stat>`. The same is likely for
-  other calls that fill a caller structure (not probed; see `liella-historic:handoff/efault.md`).
-
-Calls that do read the text themselves (`realpath`, `execve`'s argument lists, `posix_spawn`,
-`mq_open`) are unchanged: they measure on demand, as before.
+Calls that read the text or fill a caller structure in user space themselves (`realpath`,
+`gethostname`, `getdomainname`, `stat`'s result, which libniji receives from the kernel by value
+and stores into the caller's `Option<&mut Stat>`, `execve`'s argument lists, `posix_spawn`,
+`mq_open`) treat a pointer the process cannot use as the caller's error: the fault is at the
+caller's own address, and nothing is written elsewhere. `conformance/c/s13_efault.c` checks every
+`EFAULT` answer above.
