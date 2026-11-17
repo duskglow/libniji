@@ -26,7 +26,8 @@
 #    libc6-dev's libresolv.so links to libresolv.so.2; smoke/resolv.c linked with `-lresolv` needs
 #    libresolv.so.2 and libc.so.6 and binds ns_initparse and ns_parserr at GLIBC_2.9 (as Debian's
 #    libkrb5.so.3 does); linked statically with `-lresolv` (the empty libresolv.a, the functions in
-#    libc.a: D-16.6) it runs and prints its line.
+#    libc.a: D-16.6) it runs and prints its line. libmvec (D-10.124): libc6-dev's libmvec.so links to
+#    libc6's libmvec.so.1 and libmvec.a is there.
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -154,13 +155,13 @@ for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1
 done
 # SYS-DEV-LINKS: libc6-dev's development links name libc6's libraries (the link resolves in the
 # unpacked root), and the archives -l<x> needs in a static link are there.
-for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do
+for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0 libmvec.so.1; do
     dl=${so%%.so.*}.so
     t=$(readlink "$lib/$dl" || true)
     [ "$t" = "$so" ] || fail "libc6-dev: $dl -> '$t', not $so"
     [ -f "$lib/$dl" ] || fail "libc6-dev: $dl does not resolve to a file"
 done
-for a in libanl.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
+for a in libanl.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a libmvec.a; do
     [ -f "$lib/$a" ] || fail "libc6-dev has no $a"
 done
 
