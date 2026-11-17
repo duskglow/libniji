@@ -1018,38 +1018,6 @@ pub struct struct_stat {
     pub __glibc_reserved: [i64; 3],
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_statx__stx_atime {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __reserved: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_statx__stx_btime {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __reserved: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_statx__stx_ctime {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __reserved: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_statx__stx_mtime {
-    pub tv_sec: i64,
-    pub tv_nsec: u32,
-    pub __reserved: i32,
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct struct_statx {
@@ -1065,10 +1033,10 @@ pub struct struct_statx {
     pub stx_size: u64,
     pub stx_blocks: u64,
     pub stx_attributes_mask: u64,
-    pub stx_atime: struct_statx__stx_atime,
-    pub stx_btime: struct_statx__stx_btime,
-    pub stx_ctime: struct_statx__stx_ctime,
-    pub stx_mtime: struct_statx__stx_mtime,
+    pub stx_atime: struct_statx_timestamp,
+    pub stx_btime: struct_statx_timestamp,
+    pub stx_ctime: struct_statx_timestamp,
+    pub stx_mtime: struct_statx_timestamp,
     pub stx_rdev_major: u32,
     pub stx_rdev_minor: u32,
     pub stx_dev_major: u32,
@@ -1077,6 +1045,14 @@ pub struct struct_statx {
     pub stx_dio_mem_align: u32,
     pub stx_dio_offset_align: u32,
     pub __spare3: [u64; 12],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_statx_timestamp {
+    pub tv_sec: i64,
+    pub tv_nsec: u32,
+    pub __reserved: i32,
 }
 
 #[repr(C)]
