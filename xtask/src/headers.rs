@@ -395,9 +395,33 @@ impl Gen<'_> {
             .filter(|r| r["member_type"].strip_prefix("struct ").is_some_and(|_| self.t.layouts.contains_key(&r["member_type"])))
             .map(|r| r["member"].as_str())
             .collect();
+        let anon: BTreeSet<&str> = rows.iter().filter(|r| r["member_type"] == "union <anon>").map(|r| r["member"].as_str()).collect();
         let mut end = Some(0u64);
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
-            if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
+            if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent) || anon.contains(parent)) {
+                continue;
+            }
+            // An anonymous union member (`temp`) with the rows `temp.a`, `temp.b` below it: declared with those members
+            // (scalar and pointer members only, each at the union's offset).
+            if r["member_type"] == "union <anon>" {
+                let pre = format!("{}.", r["member"]);
+                let subs: Vec<String> = rows
+                    .iter()
+                    .filter(|s| s["member"].starts_with(&pre))
+                    .filter_map(|s| {
+                        let t = &s["member_type"];
+                        let core = t.trim_end_matches(['*', ' ']);
+                        let b = dwarf_scalar(core)?;
+                        Some(format!("{b}{} {};", if t.len() > core.len() { " *" } else { "" }, &s["member"][pre.len()..]))
+                    })
+                    .collect();
+                let n = rows.iter().filter(|s| s["member"].starts_with(&pre)).count();
+                if subs.len() != n || n == 0 {
+                    return None;
+                }
+                offs.insert(r["offset_or_size"].clone());
+                end = end.map(|e| e.max(r["offset_or_size"].parse::<u64>().unwrap_or(0) + 8));
+                out.push(format!("  union {{ {} }} {};", subs.join(" "), r["member"]));
                 continue;
             }
             if r["member"].contains('.') {
@@ -438,7 +462,7 @@ impl Gen<'_> {
             } else if core.starts_with("struct ") && !stars.is_empty() {
                 // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
                 format!("{core} {}", stars.trim())
-            } else if !stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(')) {
+            } else if self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(') && (!stars.is_empty() || t["cxx"].contains("(*"))) {
                 // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
                 nested.push(format!("typedef {core}"));
                 format!("{core} {}", stars.trim())

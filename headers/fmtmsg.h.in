@@ -15,10 +15,10 @@ __NIJI_BEGIN_C
 # define MM_NULLLBL ((char *) 0)
 #endif
 #ifndef MM_NULLSEV
-# define MM_NULLSEV 0
+# define MM_NULLSEV @@value(MM_NULLSEV)
 #endif
 #ifndef MM_NULLMC
-# define MM_NULLMC 0L
+# define MM_NULLMC @@value(MM_NULLMC)
 #endif
 #ifndef MM_NULLTXT
 # define MM_NULLTXT ((char *) 0)
