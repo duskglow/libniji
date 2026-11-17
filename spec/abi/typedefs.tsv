@@ -1285,6 +1285,7 @@ function	dn_comp	resolv.h			int (char const*, unsigned char*, int, unsigned char
 function	dn_expand	resolv.h			int (unsigned char const*, unsigned char const*, unsigned char const*, char*, int)
 function	dn_skipname	resolv.h			int (unsigned char const*, unsigned char const*)
 function	dngettext	libintl.h			char* (char const*, char const*, char const*, unsigned long)
+typedef	double_t	math.h	8	8	double
 function	dprintf	argp.h			int (int, char const*, ...)
 struct	dqblk	sys/quota.h	72	8	dqblk
 function	drand48	complex.h			double ()
@@ -1583,6 +1584,7 @@ function	finite	complex.h			int (double)
 function	finitef	complex.h			int (float)
 function	finitel	complex.h			int (long double)
 function	flistxattr	sys/xattr.h			long (int, char*, unsigned long)
+typedef	float_t	math.h	4	4	float
 struct	flock	fcntl.h	32	8	flock
 function	flock	sys/file.h			int (int, int)
 struct	flock64	fcntl.h	32	8	flock64
@@ -1722,6 +1724,7 @@ typedef	fpos64_t	argp.h	16	8	_G_fpos64_t
 typedef	fpos_t	argp.h	16	8	_G_fpos_t
 typedef	fpregset_t	arpa/nameser.h	8	8	_libc_fpstate*
 function	fprintf	argp.h			int (_IO_FILE*, char const*, ...)
+typedef	fpu_control_t	fpu_control.h	2	2	unsigned short
 function	fputc	argp.h			int (int, _IO_FILE*)
 function	fputc_unlocked	argp.h			int (int, _IO_FILE*)
 function	fputs	argp.h			int (char const*, _IO_FILE*)
@@ -2041,6 +2044,9 @@ function	iconv_open	iconv.h			void* (char const*, char const*)
 typedef	iconv_t	iconv.h	8	8	void*
 typedef	id_t	aio.h	4	4	unsigned int
 typedef	idtype_t	sys/wait.h	4	4	idtype_t
+union	ieee754_double	ieee754.h	8	8	ieee754_double
+union	ieee754_float	ieee754.h	4	4	ieee754_float
+union	ieee854_long_double	ieee754.h	16	16	ieee854_long_double
 function	if_freenameindex	net/if.h			void (if_nameindex*)
 function	if_indextoname	net/if.h			char* (unsigned int, char*)
 struct	if_nameindex	net/if.h	16	8	if_nameindex
