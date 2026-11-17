@@ -11,7 +11,10 @@ one come from `spec/abi/visibility.tsv`. Writes two tables into spec/abi/ (or --
   spelling that enters C++ linkage names: `FILE` is spelled through its tag). For an object, `cxx` is its
   declared type (`decltype(O)`); for a function, its function type with the parameter typedefs resolved.
 * `macros.tsv`    name, header, type, value: the C type of each integer constant (`_Generic`) with its
-  value, and the type and value of each floating macro (hexadecimal, exact) and string macro.
+  value, and the type and value of each floating macro (hexadecimal, exact) and string macro. A macro whose
+  value is a pointer constant that is a small or a negated small address (`SIG_DFL`, `SIG_ERR`, `SEM_FAILED`,
+  `PTHREAD_CANCELED`) has type `pointer` and the signed address as its value; the pointer's own type is the
+  header's to spell.
 
 Clean room (plan/headers.md section 2.2, ruling R-H0). A probe unit includes one public header and declares
 objects and functions of its own, one test per line. The probe reads back exactly three things: the line
@@ -52,7 +55,9 @@ FLOAT_SEL = ", ".join(f"{t}: {i + 1}" for i, t in enumerate(FLOAT_ORDER))
 # Not header facts: compiler macros whose value depends on the probe unit itself (its path, line, build time),
 # the type keywords visibility.tsv's empty unit shows as typedefs (`long *p;` declares), and `main`.
 POSITIONAL = {"__FILE__", "__LINE__", "__DATE__", "__TIME__", "__TIMESTAMP__", "__COUNTER__", "__BASE_FILE__",
-              "__FILE_NAME__", "__INCLUDE_LEVEL__", "long", "short", "signed", "unsigned", "main"}
+              "__FILE_NAME__", "__INCLUDE_LEVEL__", "long", "short", "signed", "unsigned", "main",
+              # NULL is the language's null pointer constant: C++ spells it `__null`, so no value fits both.
+              "NULL"}
 MISSING = object()
 
 
@@ -197,6 +202,10 @@ def probe_c(header, kinds, names_undef, work, flags=C_CFG[2]):
         u.test(("flt", n), f"_Static_assert(_Generic(({n}), {FLOAT_SEL}, default: 0), \"f\"); "
                            f"const int tp_k_{n} = _Generic(({n}), {FLOAT_SEL}); const __typeof__({n}) tp_f_{n} = ({n});")
         u.test(("str", n), f"_Static_assert(_Generic(({n}), char *: 1, default: 0), \"s\"); const char tp_s_{n}[] = {n};")
+        # A pointer constant whose address is known at translation time (not an object's or a string's address).
+        u.test(("ptr", n), f"_Static_assert(__builtin_classify_type({n}) == 5, \"p\"); "
+                           f"_Static_assert((unsigned long)({n}) < 4096UL || (unsigned long)({n}) > -4096UL, \"p\"); "
+                           f"const long tp_p_{n} = (long)({n});")
     for n in sorted(names_undef):
         u.raw(f"#undef {n}")
     for kind in ("typedef", "struct", "union", "enum"):
@@ -232,6 +241,8 @@ def probe_c(header, kinds, names_undef, work, flags=C_CFG[2]):
         elif f"tp_s_{n}" in data:
             s = data[f"tp_s_{n}"]
             macros[n] = (f"char[{len(s)}]", c_string(s[:-1]))
+        elif f"tp_p_{n}" in data:
+            macros[n] = ("pointer", str(struct.unpack("<q", data[f"tp_p_{n}"])[0]))
     return sizes, macros
 
 
@@ -332,7 +343,8 @@ def main():
                        for k, v in ks.items()) for lang in plan}
     print(f"units {len(jobs)}  C names {asked['c']}  C++ names {asked['c++']}  typedefs.tsv rows {len(trows)}"
           f"  macros.tsv rows {len(mrows)} (integer {sum(1 for r in mrows if r[2] in INT_TYPES)},"
-          f" floating {sum(1 for r in mrows if r[2] in FLOAT_TYPES)}, string {sum(1 for r in mrows if r[2].startswith('char['))})")
+          f" floating {sum(1 for r in mrows if r[2] in FLOAT_TYPES)}, string {sum(1 for r in mrows if r[2].startswith('char['))},"
+          f" pointer {sum(1 for r in mrows if r[2] == 'pointer')})")
 
 
 if __name__ == "__main__":

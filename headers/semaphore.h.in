@@ -12,7 +12,7 @@ __NIJI_BEGIN_C
 @@emit
 
 @@if SEM_FAILED
-# define SEM_FAILED ((sem_t *) 0)
+# define SEM_FAILED ((sem_t *) @@value(SEM_FAILED))
 #endif
 
 __NIJI_END_C

@@ -32,13 +32,17 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
+           "getopt.h", "time.h",
+           # slice 8
+           "signal.h", "sys/signal.h", "setjmp.h", "ucontext.h", "sys/ucontext.h", "pthread.h", "semaphore.h", "threads.h",
+           "sched.h", "sys/single_threaded.h", "sys/rseq.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-          "getopt.h", "time.h"]
+          "getopt.h", "time.h", "signal.h", "sys/signal.h", "setjmp.h", "ucontext.h", "sys/ucontext.h", "pthread.h", "semaphore.h",
+          "threads.h", "sched.h", "sys/single_threaded.h", "sys/rseq.h"]
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
