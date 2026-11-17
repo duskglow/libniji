@@ -367,7 +367,7 @@ fn s22_7_c_4() {
 /// §22.7 Contract: **Named semaphores** (`sem_open(name, O_CREAT|O_EXCL, mode, value)`) are files in `/dev/shm` named `sem.<name>`. Opening the same name twice in one process returns the same address.
 #[test]
 fn s22_7_c_5() {
-    conformance(&["s22_sync"]);
+    conformance(&["s22_sync", "s22_sem_named_many"]);
 }
 /// §22.7 Failure: Returns -1 with `errno`: `EAGAIN` (trywait), `ETIMEDOUT`, `EINTR`, `EINVAL`, `EOVERFLOW` (`SEM_VALUE_MAX` = `INT_MAX`), `ENOENT`, `EEXIST`, `EACCES`.
 #[test]
