@@ -78,7 +78,8 @@ def p1_units(ids, vis, macros, typedefs, layouts, members):
             t = typedefs[n]
             tests.append(f"sizeof({n}) == {t['size']}")
             tests.append(f"__alignof__({n}) == {t['align']}")
-            tests += [f"__builtin_offsetof({n}, {m}) == {o}" for m, o in members.get(n, [])]
+            if t["header"] == h:
+                tests += [f"__builtin_offsetof({n}, {m}) == {o}" for m, o in members.get(n, [])]
         elif r["kind"] == "struct" and ("struct " + n) in layouts:
             t = layouts["struct " + n]
             tests.append(f"sizeof(struct {n}) == {t['offset_or_size']}")

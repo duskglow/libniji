@@ -407,45 +407,56 @@ impl Gen<'_> {
             .map(|r| r["member"].as_str())
             .collect();
         let mut end = Some(0u64);
-        for r in rows.iter().filter(|r| !r["member"].is_empty()) {
-            if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
+        let rows: Vec<&BTreeMap<String, String>> = rows.iter().filter(|r| !r["member"].is_empty()).collect();
+        let mut i = 0;
+        while i < rows.len() {
+            let r = rows[i];
+            i += 1;
+            let m = r["member"].as_str();
+            if m.split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
                 continue;
             }
-            if r["member"].contains('.') || !r["bitfield"].is_empty() {
+            if m.contains('.') || !r["bitfield"].is_empty() {
                 return None;
             }
-            let mt = &r["member_type"];
-            let (base, arr) = match mt.find('[') {
-                Some(i) => (&mt[..i], &mt[i..]),
-                None => (mt.as_str(), ""),
-            };
-            let core = base.trim_end_matches(['*', ' ']);
-            let stars = &base[core.len()..];
-            let base = if let Some(tag) = core.strip_prefix("struct ").filter(|_| stars.is_empty() && self.t.layouts.contains_key(core)) {
-                // A complete structure member (itimerspec holds two timespecs): its definition comes first.
-                nested.push(core.to_string());
-                format!("struct {tag}")
-            } else if core.starts_with("struct ") && !stars.is_empty() {
-                // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
-                format!("{core} {}", stars.trim())
-            } else if !stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(')) {
-                // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
-                nested.push(format!("typedef {core}"));
-                format!("{core} {}", stars.trim())
-            } else if !stars.is_empty() && self.t.typedefs.contains_key(&("typedef".to_string(), core.trim_start_matches("const ").to_string())) {
-                // A pointer to a typedef name (`const Elf64_Phdr *`): the typedef is declared before the structure.
-                format!("{core} {}", stars.trim())
-            } else {
-                let b = dwarf_scalar(core).or_else(|| {
-                    let r = self.resolve(core);
-                    (scalar(&r) || r == "void").then_some(r)
-                })?;
-                format!("{b}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
-            };
             let off: u64 = r["offset_or_size"].parse().ok()?;
-            end = self.type_size(core, stars, arr).zip(end).map(|(n, e)| e.max(off + n));
+            let mt = r["member_type"].as_str();
+            if let Some(kw) = ["union", "struct"].iter().find(|k| mt == format!("{k} <anon>")) {
+                // An anonymous aggregate type: a named member (`d_un`, its parts are the rows `d_un.d_val`) or an unnamed
+                // union (its parts are the following rows at the same offset).
+                let mut kids: Vec<(String, &BTreeMap<String, String>)> = Vec::new();
+                while i < rows.len() {
+                    let k = rows[i];
+                    let km = k["member"].as_str();
+                    let sub = if m == "<anon>" { (*kw == "union" && !km.contains('.') && km != "<anon>" && k["offset_or_size"] == r["offset_or_size"]).then_some(km) } else { km.strip_prefix(m).and_then(|x| x.strip_prefix('.')).filter(|x| !x.contains('.')) };
+                    match sub {
+                        Some(x) => kids.push((x.to_string(), k)),
+                        None => break,
+                    }
+                    i += 1;
+                }
+                if kids.is_empty() {
+                    return None;
+                }
+                let mut parts = Vec::new();
+                let mut size = Some(0u64);
+                for (name, k) in &kids {
+                    let (decl, sz) = self.member_decl(k, name, &mut nested)?;
+                    let rel = k["offset_or_size"].parse::<u64>().ok()? - off;
+                    size = size.zip(sz).map(|(a, b)| a.max(rel + b));
+                    parts.push(decl);
+                }
+                let tail = if m == "<anon>" { String::new() } else { format!(" {m}") };
+                let ext = if m == "<anon>" { "__extension__ " } else { "" };
+                end = end.zip(size).map(|(e, n)| e.max(off + n));
+                offs.insert(r["offset_or_size"].clone());
+                out.push(format!("  {ext}{kw} {{ {} }}{tail};", parts.join(" ")));
+                continue;
+            }
+            let (decl, sz) = self.member_decl(r, m, &mut nested)?;
+            end = sz.zip(end).map(|(n, e)| e.max(off + n));
             offs.insert(r["offset_or_size"].clone());
-            out.push(format!("  {base} {}{arr};", r["member"]));
+            out.push(format!("  {decl}"));
         }
         // Unnamed padding the layout rows do not list (`struct timex` ends in 44 bytes of it).
         if let (Some(end), Some(total)) = (end, rows.iter().find(|r| r["member"].is_empty()).and_then(|r| r["offset_or_size"].parse::<u64>().ok())) {
@@ -455,6 +466,45 @@ impl Gen<'_> {
         }
         let kw = if out.len() > 1 && offs.len() == 1 { "union" } else { "struct" };
         (!out.is_empty()).then(|| (kw.to_string(), out, nested))
+    }
+
+    /// One member row as a C declaration `type name[n];` (with the tags and typedefs it needs first pushed to `nested`)
+    /// and its size in bytes when known.
+    fn member_decl(&self, r: &BTreeMap<String, String>, name: &str, nested: &mut Vec<String>) -> Option<(String, Option<u64>)> {
+        let mt = &r["member_type"];
+        let (base, arr) = match mt.find('[') {
+            Some(i) => (&mt[..i], &mt[i..]),
+            None => (mt.as_str(), ""),
+        };
+        let core = base.trim_end_matches(['*', ' ']);
+        let stars = &base[core.len()..];
+        let base = if let Some(tag) = core.strip_prefix("struct ").filter(|_| stars.is_empty() && self.t.layouts.contains_key(core)) {
+            // A complete structure member (itimerspec holds two timespecs): its definition comes first.
+            nested.push(core.to_string());
+            format!("struct {tag}")
+        } else if core.starts_with("struct ") && !stars.is_empty() {
+            // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
+            format!("{core} {}", stars.trim())
+        } else if !stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(')) {
+            // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
+            nested.push(format!("typedef {core}"));
+            format!("{core} {}", stars.trim())
+        } else if !stars.is_empty() && self.covered.contains(&(core.trim_start_matches("const ").to_string(), "typedef".to_string())) {
+            // A pointer to a typedef name an included header declares (`const Elf64_Phdr *`).
+            format!("{core} {}", stars.trim())
+        } else if stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| !scalar(&t["cxx"]) && !t["size"].is_empty()) && dwarf_scalar(core).is_none() {
+            // A member of a structure typedef (`Dl_serpath`): the typedef comes first.
+            nested.push(format!("typedef {core}"));
+            core.to_string()
+        } else {
+            let b = dwarf_scalar(core).or_else(|| {
+                let r = self.resolve(core);
+                (scalar(&r) || r == "void").then_some(r)
+            })?;
+            format!("{b}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
+        };
+        let size = self.type_size(core, stars, arr);
+        Some((format!("{base} {name}{arr};"), size))
     }
 
     /// The size in bytes of a member type of layouts.tsv (`core`, its `stars` and `[n]` suffix), when known.
