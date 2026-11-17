@@ -141,6 +141,17 @@ niji_machine_ldconfig_entry:
 	 * coreutils-shaped probe each took one more fault. */
 	.section .data.rel.ro.local,"aw",@progbits
 	.balign NIJI_RELRO_ALIGN
+	/* HEAP-ADDRESS-SPACE-3: the GOT of a static program starts on a 256-byte boundary. GNU ld places
+	 * `.got` right after the relro section, so where it starts follows the size of every relro
+	 * object of the link; the start-up functions read their slots (the addresses of large-section
+	 * objects, which the linker does not relax) and a GOT across a page boundary cost start-up a
+	 * written page of its own whenever unrelated relro changed size (8 > 7 pages, 536 bytes less
+	 * relro). Aligned to a power of two not below its size (25 slots, 200 bytes in the start-up
+	 * probe), it never spans two pages; the padding (at most 255 bytes) sits in the relro pages,
+	 * which end on a page boundary anyway. An empty input section of this object: the linker puts
+	 * its own GOT slots in the same output section. `cargo xtask so` checks the alignment. */
+	.section .got,"aw",@progbits
+	.balign 256
 	/* LAYOUT-WINDOW-BINS-5: the end of the hot text group's window bins (xtask/src/bins.rs GROUP_END,
 	 * whose name this must match; `cargo xtask so` checks it). The name sorts after every bin in GNU
 	 * ld's SORT(.text.sorted.*), so the program's own `.text` after the group starts on a 64 KiB

@@ -1263,23 +1263,29 @@ fn build_crt1(root: &Path, cc: &str, dir: &Path) -> Result<Vec<String>, String> 
     Ok(defines)
 }
 
-/// LAYOUT-WINDOW-BINS-5: the start object ends the window bins with an empty section named
-/// [`crate::bins::GROUP_END`] aligned to [`crate::bins::BIN`] (`entry.S`), or the program's text after the
-/// group starts wherever the last bin ends.
+/// HEAP-ADDRESS-SPACE-3: the start object's empty `.got` section and its alignment (`entry.S`): the
+/// output GOT, whose slots start-up reads, starts on this boundary and never spans two pages while it is
+/// no larger (200 bytes in the start-up probe).
+const GOT_ALIGN: u64 = 256;
+
+/// The start object's empty alignment sections: LAYOUT-WINDOW-BINS-5, the window bins end with a section
+/// named [`crate::bins::GROUP_END`] aligned to [`crate::bins::BIN`], or the program's text after the group
+/// starts wherever the last bin ends; HEAP-ADDRESS-SPACE-3, `.got` aligned to [`GOT_ALIGN`], or the GOT
+/// starts wherever the relro objects end.
 fn check_group_end(obj: &Path) -> Result<(), String> {
     let out = Command::new("readelf").arg("-SW").arg(obj).output().map_err(|e| format!("readelf: {e}"))?;
-    group_end_align(&String::from_utf8_lossy(&out.stdout))
-        .filter(|&a| a == crate::bins::BIN)
-        .map(|_| ())
-        .ok_or_else(|| format!("{}: no {} section aligned to {:#x} (csys/src/machine/entry.S)", obj.display(), crate::bins::GROUP_END, crate::bins::BIN))
+    let text = String::from_utf8_lossy(&out.stdout);
+    for (name, align) in [(crate::bins::GROUP_END, crate::bins::BIN), (".got", GOT_ALIGN)] {
+        if section_align(&text, name) != Some(align) {
+            return Err(format!("{}: no {name} section aligned to {align:#x} (csys/src/machine/entry.S)", obj.display()));
+        }
+    }
+    Ok(())
 }
 
-/// The alignment of the [`crate::bins::GROUP_END`] section in `readelf -SW` output (its last column).
-fn group_end_align(readelf: &str) -> Option<u64> {
-    readelf
-        .lines()
-        .find(|l| l.split_whitespace().any(|f| f == crate::bins::GROUP_END))
-        .and_then(|l| l.split_whitespace().last()?.parse().ok())
+/// The alignment of the section `name` in `readelf -SW` output (its last column).
+fn section_align(readelf: &str, name: &str) -> Option<u64> {
+    readelf.lines().find(|l| l.split_whitespace().any(|f| f == name)).and_then(|l| l.split_whitespace().last()?.parse().ok())
 }
 
 pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
@@ -2246,10 +2252,15 @@ mod tests {
         // LAYOUT-WINDOW-BINS-5 (no spec clause: build tooling): the start object's group-end section is
         // read from readelf's last column; another section's alignment or a missing one is not taken.
         let ok = "  [ 7] .data.rel.ro.local PROGBITS 0000000000000000 000040 000000 00  WA  0   0 65536\n  [ 8] .text.sorted.h9z.niji_group_end PROGBITS 0000000000000000 000040 000000 00  AX  0   0 65536\n";
-        assert_eq!(group_end_align(ok), Some(crate::bins::BIN));
+        let end = crate::bins::GROUP_END;
+        assert_eq!(section_align(ok, end), Some(crate::bins::BIN));
         let low = "  [ 8] .text.sorted.h9z.niji_group_end PROGBITS 0000000000000000 000040 000000 00  AX  0   0 1\n";
-        assert_eq!(group_end_align(low), Some(1));
-        assert_eq!(group_end_align("  [ 7] .data.rel.ro.local PROGBITS 0 40 0 00 WA 0 0 65536\n"), None);
+        assert_eq!(section_align(low, end), Some(1));
+        assert_eq!(section_align("  [ 7] .data.rel.ro.local PROGBITS 0 40 0 00 WA 0 0 65536\n", end), None);
+        // HEAP-ADDRESS-SPACE-3: `.got` is matched by its whole name, not as the prefix of `.got.plt`.
+        let got = "  [ 9] .got.plt PROGBITS 0 40 0 00 WA 0 0 8\n  [10] .got PROGBITS 0 40 0 00 WA 0 0 256\n";
+        assert_eq!(section_align(got, ".got"), Some(GOT_ALIGN));
+        assert_eq!(section_align("  [ 9] .got.plt PROGBITS 0 40 0 00 WA 0 0 8\n", ".got"), None);
     }
 
     struct Dir(std::path::PathBuf);
