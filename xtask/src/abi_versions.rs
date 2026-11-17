@@ -198,7 +198,8 @@ mod tests {
 
     #[test]
     fn a_hand_added_row_fails_naming_the_additions_file() {
-        let t = format!("{}libc.so.6\textra\tGLIBC_2.41\tdefault\tFUNC\tGLOBAL\t\n", merged());
+        // Just before the addition: the merge alone would place the addition after it again, only the digest sees it.
+        let t = merged().replace("libc.so.6\tnew_fn", "libc.so.6\textra\tGLIBC_2.41\tdefault\tFUNC\tGLOBAL\t\nlibc.so.6\tnew_fn");
         let e = table_errors("x86_64", "v.tsv", &t, &digest(), &adds(ADDS), &fake_sha);
         assert!(e.iter().any(|m| m.contains("differs from a fresh generation") && m.contains(ADDITIONS)), "{e:?}");
     }
