@@ -1,9 +1,9 @@
 # SYS-THREAD-DB: libthread_db.so.1 (handoff, checkpoint 1)
 
-State: branch `task/sys-thread-db`, WIP head `85fe2d0f9` (on origin/next `ebb670553`). Role mei:~/w/s4.
-Stopped at the context checkpoint (~150k of the run); NOTHING BUILT OR TESTED yet. Job started on
-the WIP head: `sys-thread-db-build1` on mei (`cargo xtask clippy && cargo xtask so`); read
-`~/logs/sys-thread-db-build1.log` first.
+State: branch `task/sys-thread-db`, WIP head `649dc9493` (on origin/next `ebb670553`). Role mei:~/w/s4.
+Stopped at the context checkpoint (~150k of the run); NOTHING BUILT OR TESTED yet. Job `sys-thread-db-build1` on mei (`cargo xtask clippy && cargo xtask so`, head 85fe2d0f9)
+ended rc 1 on clippy::as_conversions in `Debug::new`; fixed in 649dc9493 (not rebuilt).
+Nothing of this run is left running.
 
 ## Design (in force, to become the decision record)
 
@@ -41,7 +41,7 @@ the WIP head: `sys-thread-db-build1` on mei (`cargo xtask clippy && cargo xtask 
 
 ## Next step (exact)
 
-1. Read the build1 log; fix compile/clippy issues (watch `as` casts in `Debug::new`, the
+1. Sync, rerun clippy + `cargo xtask so`; fix what remains (watch `as` casts in `Debug::new`, the
    `#[used]`+`no_mangle` static, placeholders tests that count LIBRARIES).
 2. `tools/deb/system.sh` (system flavour) needs the same two lines as `tools/deb/build.sh`;
    `tools/deb/check-system.sh:138` list may need libthread_db.so.1.
