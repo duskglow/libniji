@@ -58,7 +58,7 @@ pub(crate) const LEVEL_COLS: &[(&str, &str, &[i64])] = &[
     ("time64", "__NIJI_TIME64", &[]),
     ("dynstack", "__NIJI_DYNSTACK", &[]),
     ("fortify", "__NIJI_FORTIFY", &[1, 2, 3]),
-    ("cxx", "__NIJI_CXX", &[]),
+    ("cxx", "__NIJI_CXX", &[1, 2, 3]),
 ];
 
 pub(crate) struct Levels {
@@ -394,7 +394,17 @@ impl Gen<'_> {
         let rows = self.t.layouts.get(key)?;
         let mut out = Vec::new();
         let mut offs = BTreeSet::new();
+        // Members that are complete structures: the rows `member.sub` below them describe that structure again.
+        let whole: BTreeSet<&str> = rows
+            .iter()
+            .filter(|r| r["member_type"].strip_prefix("struct ").is_some_and(|_| self.t.layouts.contains_key(&r["member_type"])))
+            .map(|r| r["member"].as_str())
+            .collect();
+        let mut end = Some(0u64);
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
+            if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
+                continue;
+            }
             if r["member"].contains('.') || !r["bitfield"].is_empty() {
                 return None;
             }
@@ -409,18 +419,49 @@ impl Gen<'_> {
                 // A complete structure member (itimerspec holds two timespecs): its definition comes first.
                 nested.push(core.to_string());
                 format!("struct {tag}")
+            } else if core.starts_with("struct ") && !stars.is_empty() {
+                // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
+                format!("{core} {}", stars.trim())
             } else {
                 let b = dwarf_scalar(core).or_else(|| {
                     let r = self.resolve(core);
-                    scalar(&r).then_some(r)
+                    (scalar(&r) || r == "void").then_some(r)
                 })?;
                 format!("{b}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
             };
+            let off: u64 = r["offset_or_size"].parse().ok()?;
+            end = self.type_size(core, stars, arr).zip(end).map(|(n, e)| e.max(off + n));
             offs.insert(r["offset_or_size"].clone());
             out.push(format!("  {base} {}{arr};", r["member"]));
         }
+        // Unnamed padding the layout rows do not list (`struct timex` ends in 44 bytes of it).
+        if let (Some(end), Some(total)) = (end, rows.iter().find(|r| r["member"].is_empty()).and_then(|r| r["offset_or_size"].parse::<u64>().ok())) {
+            if total > end && (total - end) % 4 == 0 {
+                out.extend((0..(total - end) / 4).map(|_| "  int : 32;".to_string()));
+            }
+        }
         let kw = if out.len() > 1 && offs.len() == 1 { "union" } else { "struct" };
         (!out.is_empty()).then(|| (kw.to_string(), out, nested))
+    }
+
+    /// The size in bytes of a member type of layouts.tsv (`core`, its `stars` and `[n]` suffix), when known.
+    fn type_size(&self, core: &str, stars: &str, arr: &str) -> Option<u64> {
+        let one = if !stars.is_empty() {
+            8
+        } else if let Some(r) = self.t.layouts.get(core).and_then(|r| r.iter().find(|r| r["member"].is_empty())) {
+            r["offset_or_size"].parse().ok()?
+        } else {
+            let t = dwarf_scalar(core).unwrap_or_else(|| self.resolve(core));
+            match t.as_str() {
+                "char" | "signed char" | "unsigned char" => 1,
+                "short" | "unsigned short" => 2,
+                "int" | "unsigned int" | "float" => 4,
+                "long" | "unsigned long" | "long long" | "unsigned long long" | "double" => 8,
+                _ => self.t.typedefs.get(&("typedef".to_string(), core.to_string()))?["size"].parse().ok()?,
+            }
+        };
+        let n: u64 = if arr.is_empty() { 1 } else { arr.trim_matches(['[', ']']).parse().ok()? };
+        Some(one * n)
     }
 
     fn guard(&mut self, key: &str, body: Vec<String>) {
@@ -437,8 +478,20 @@ impl Gen<'_> {
         };
         let cxx = r["cxx"].clone();
         // A qualified scalar (pthread_spinlock_t is `int volatile`) is still a scalar typedef.
-        let body = if scalar(&cxx) || scalar(cxx.replace("volatile", "").replace("const", "").trim()) {
+        let body = if cxx.is_empty() && name == "wchar_t" {
+            // A keyword in C++ (typedefs.tsv leaves its spelling empty); in C the compiler's type.
+            vec!["#  ifndef __cplusplus".into(), format!("typedef __WCHAR_TYPE__ {name};"), "#  endif".into()]
+        } else if scalar(&cxx) || scalar(cxx.replace("volatile", "").replace("const", "").trim()) {
             vec![format!("typedef {} {name};", cxx.replace('*', " *"))]
+        } else if let Some(open) = cxx.find('(') {
+            // A function or function-pointer type (`int (*)(void const*, void const*)` or `int (void*)`).
+            let (ret, rest) = cxx.split_at(open);
+            let args = self.type_words(rest);
+            let ret = self.type_words(ret);
+            match args.strip_prefix("(*)") {
+                Some(a) => vec![format!("typedef {} (*{name}){a};", ret.trim_end())],
+                None => vec![format!("typedef {} {name}{args};", ret.trim_end())],
+            }
         } else if cxx == name {
             match self.members(name) {
                 Some((kw, m)) => [vec![format!("typedef {kw} {{")], m, vec![format!("}} {name};")]].concat(),
@@ -454,9 +507,45 @@ impl Gen<'_> {
         self.guard(name, body);
     }
 
+    /// The words of a `typedefs.tsv` function type spelled for C: a structure tag gets its keyword and a typedef
+    /// that is not a scalar is emitted first (`stat const*` is `struct stat const *`).
+    fn type_words(&mut self, text: &str) -> String {
+        let mut out = String::new();
+        let mut word = String::new();
+        for c in text.chars().chain(std::iter::once(' ')) {
+            if c.is_alphanumeric() || c == '_' {
+                word.push(c);
+                continue;
+            }
+            if !word.is_empty() {
+                let w = std::mem::take(&mut word);
+                let tag = format!("struct {w}");
+                let typedef_known = self.t.typedefs.contains_key(&("typedef".to_string(), w.clone()));
+                if matches!(w.as_str(), "const" | "volatile" | "void" | "int" | "long" | "short" | "char" | "unsigned" | "signed") {
+                    out.push_str(&w);
+                } else if !typedef_known && self.t.layouts.contains_key(&tag) {
+                    out.push_str(&tag);
+                } else if typedef_known && !scalar(&self.resolve(&w)) && w != "__va_list_tag" {
+                    self.typedef(&w);
+                    out.push_str(&w);
+                } else {
+                    out.push_str(&self.resolve(&w));
+                }
+            }
+            out.push(c);
+        }
+        out.trim_end().replace('*', " *").replace("  *", " *").replace("__va_list_tag (*) [1]", "__builtin_va_list").replace("( *)", "(*)")
+    }
+
     fn tag(&mut self, name: &str, kind: &str) {
         let key = format!("{kind} {name}");
-        let body = match self.members_nested(&key) {
+        // `struct _IO_FILE` is described under its typedef name, FILE (layouts.tsv keys a tag by the name the program uses).
+        let lkey = if self.t.layouts.contains_key(&key) {
+            key.clone()
+        } else {
+            self.t.typedefs.iter().find(|((k, n), r)| k == "typedef" && r["cxx"] == name && self.t.layouts.contains_key(n.as_str())).map_or(key.clone(), |((_, n), _)| n.clone())
+        };
+        let body = match self.members_nested(&lkey) {
             Some((_, m, nested)) => {
                 for n in nested {
                     if let Some(tag) = n.strip_prefix("struct ") {
@@ -504,7 +593,8 @@ impl Gen<'_> {
         for t in tags {
             self.out.push(t);
         }
-        Some(out.trim_end().to_string())
+        // The decayed form of the compiler's `va_list` (an array of one `__va_list_tag`).
+        Some(out.trim_end().replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list"))
     }
 
     fn function(&mut self, name: &str) {
@@ -869,7 +959,7 @@ mod tests {
             [2017, 200809, 0, 1, 0, 0, 0, 0, 0, 0, 0],
             [2017, 200809, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [2023, 200809, 700, 1, 1, 1, 0, 0, 1, 0, 0],
-            [2023, 200809, 700, 1, 1, 1, 0, 0, 1, 0, 1],
+            [2023, 200809, 700, 1, 1, 1, 0, 0, 1, 0, 2],
             [2017, 200809, 0, 1, 0, 0, 0, 1, 0, 0, 0],
         ];
         Levels { ids: ["c89", "gnu17", "posix200809", "gnu", "cxx17", "time64only"].map(String::from).to_vec(), values: rows.iter().map(|r| r.to_vec()).collect(), reject: 1 << 5 }

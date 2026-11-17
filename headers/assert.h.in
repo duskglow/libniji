@@ -9,8 +9,13 @@
 
 __NIJI_BEGIN_C
 
-@@owns assert assert_perror
+@@owns assert assert_perror __assert __assert_fail __assert_perror_fail
 @@emit
+
+/* The failure functions the macros call (LSB core: __assert_fail; they do not return). */
+extern void __assert_fail (const char *__assertion, const char *__file, unsigned int __line, const char *__function) __NIJI_NOTHROW __attribute__ ((__noreturn__));
+extern void __assert_perror_fail (int __errnum, const char *__file, unsigned int __line, const char *__function) __NIJI_NOTHROW __attribute__ ((__noreturn__));
+extern void __assert (const char *__assertion, const char *__file, int __line) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 
 __NIJI_END_C
 
