@@ -7,5 +7,14 @@ pm-product-unshipped | tools/deb/manifest.tsv | perl:s{^both\tlibc6-dev\tusr/lib
 pm-unsorted | tools/deb/manifest.tsv | perl:s{^(both\tlibc6\tusr/lib64/[^\n]*\n)(both\tlibc6-dev\tusr/lib/x86_64-linux-gnu/Mcrt1\.o[^\n]*\n)}{$2$1}m | cargo test -p niji --test deb_manifest | msg:not sorted
 pm-build-extra-file | tools/deb/build.sh | lit:text) put "$mode" "$here/$src" "$dest" ;; ==> text) put "$mode" "$here/$src" "$dest"; put 0644 "$here/$src" "$dest.orig" ;; | cargo test -p niji --test deb_manifest | msg:is shipped and the manifest does not list it
 pm-build-mode | tools/deb/build.sh | lit:file) need "$src"; put "$mode" ==> file) need "$src"; put 0600 | cargo test -p niji --test deb_manifest | msg:has mode 0600, not 0[67]
-pm-build-nostrip-debug | tools/deb/build.sh | lit:rows_with unneeded debug ==> rows_with unneeded | cargo test -p niji --test deb_manifest | msg:libc\.so\.6 has .*symtab
-pm-system-no-dbg | tools/deb/system.sh | lit:dbgpkg=$(python3 "$here/manifest.py" debug-package system) ==> dbgpkg= | rm -rf target/pm-sys && sh tools/deb/build.sh --flavour system --products $HOME/work/PKG-MANIFEST-3/proof/p-system --version 2.39+niji20251117.1-1 --work target/pm-sys/w --out target/pm-sys/out && python3 tools/deb/manifest.py check system target/pm-sys/out | msg:packages are .*, not the manifest's
+pm-build-nostrip-debug | tools/deb/build.sh | lit:rows_with unneeded debug ==> rows_with unneeded | cargo test -p niji --test deb_manifest | msg:libc\.so\.6 is not stripped \(strip debug\): has .*symtab
+pm-system-no-dbg | tools/deb/system.sh | lit:dbgpkg=$(python3 "$here/manifest.py" debug-package system) ==> dbgpkg= | rm -rf target/pm-sys && sh tools/deb/build.sh --flavour system --products $HOME/work/PKG-MANIFEST-3/proof/p-system --version 2.39+niji20251117.1-1 --work target/pm-sys/w --out target/pm-sys/out && python3 tools/deb/manifest.py check system target/pm-sys/out | msg:libc6-dbg: 0 detached debugging files, the manifest has [0-9]+ strip debug rows
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# pm-row-removed: CAUGHT, caught by no test the log names
+# pm-row-mode: CAUGHT, caught by no test the log names
+# pm-product-unshipped: CAUGHT, caught by deb_manifest tables_are_sorted_well_formed_and_name_built_products
+# pm-unsorted: CAUGHT, caught by deb_manifest tables_are_sorted_well_formed_and_name_built_products
+# pm-build-extra-file: CAUGHT, caught by deb_manifest coexist_packages_are_the_manifest
+# pm-build-mode: CAUGHT, caught by deb_manifest coexist_packages_are_the_manifest
+# pm-build-nostrip-debug: CAUGHT, caught by deb_manifest coexist_packages_are_the_manifest
+# pm-system-no-dbg: CAUGHT, caught by no test the log names

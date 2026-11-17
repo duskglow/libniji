@@ -1,57 +1,64 @@
-# PKG-MANIFEST: package contents as data (checkpoint 2, PKG-MANIFEST-2, WIP)
+# PKG-MANIFEST: package contents as data (PKG-MANIFEST-3, ready to land once gate2 is green)
 
-State: branch `task/pkg-manifest-2` (continues `task/pkg-manifest`), cut from origin/next 59c31ec19.
-Role keke `~/w/n2`. Brief: `~/state/briefs/PKG-MANIFEST.md` ("## The change", "## Proof") plus
-`~/state/briefs/PKG-MANIFEST-2.md` (packages byte-identical to today, description program order as
-today). Stopped at the context checkpoint (~145k) with the proof and gate jobs started.
+State: branch `task/pkg-manifest-3` (continues `task/pkg-manifest-2` and `task/pkg-manifest`), cut
+from origin/next 59c31ec19. Role keke `~/w/n2`. Spec: `~/state/briefs/PKG-MANIFEST.md` ("## The
+change", "## Proof") plus `~/state/briefs/PKG-MANIFEST-2.md` (packages byte-identical to today).
 
 ## Done
 
-* Run 1 (c1d051f0c): `tools/deb/manifest.tsv` (80 rows), `control.tsv`, `description/<pkg>`,
-  `system|coexist/libc-so.ld`, `manifest.py` (lint, rows, packages, debug-package, symbols-package,
-  control, member, check).
-* Run 2 (5bb3eb4bb): build.sh helpers `install_rows`, `rows_with`, `strip_rows`, `write_control`,
-  `finish` (both flavours; no per-file shell lines, `put_text` gone); system.sh: debug split over
-  `rows_with debug` into `manifest.py debug-package`, symbols into `symbols-package`, controls from
-  the tables. check-system.sh / check.sh run `manifest.py check <flavour>` (FAIL lines counted;
-  rc != 0 with no FAIL line is a failure too); SONAME, dev-link-resolves and debug-file loops read
-  `manifest.py rows`; the restated expect/ctrl/conffiles/triggers/path-case blocks are gone (R2
-  version, Source and Maintainer identity kept). root-system.sh: package count and conffiles from
-  the manifest (its purge line keeps a fixed package order: dpkg ordering, code not data).
-  `$programs` = usr/sbin then usr/bin, each sorted: gives today's "ldconfig, getconf, getent,
-  iconv, ldd" (checked locally). conffiles member sorted. New test `crates/core/tests/deb_manifest.rs`
-  (lint --products target/niji; coexist build with --products then `manifest.py check coexist`);
-  `deb_symbols_products.rs` STEP names the data files.
-* Step 0 (inherited head e0b9ce0e7): clippy + static green (job `pkg-manifest-2-lint0`).
-* Merge demo (local, plumbing commits, nothing pushed): two rows (libnss_files.so.2,
-  libthread_db.so.1) added to the manifest on head merge clean (`git merge-tree --write-tree`);
-  the same two added to the base's system.sh `for so in` line: CONFLICT in tools/deb/system.sh.
+* Run 1 (c1d051f0c): `tools/deb/manifest.tsv`, `control.tsv`, `description/<pkg>`,
+  `system|coexist/libc-so.ld`, `manifest.py` (lint, rows, packages, debug-package,
+  symbols-package, control, member, check).
+* Run 2 (5bb3eb4bb): build.sh / system.sh install, strip and write the controls from the tables;
+  check-system.sh / check.sh run `manifest.py check`; root-system.sh takes its package count and
+  conffiles from the manifest; test `crates/core/tests/deb_manifest.rs`.
+* Run 3 (30b04a17c, 32700c07a; handoff commits after):
+  - **The red proof was the proof's fault, not a regression.** `pkg-manifest-2-proof` stopped at
+    its sanity check `grep -a /usr/lib/niji ld-linux-x86-64.so.2` on the coexist loader. The
+    loader does use the prefix: the compiler stores the short `option_env!("NIJI_PREFIX")`
+    constant as immediate stores (`strings` shows `lib/nijiH`, split across instructions), so
+    the bytes are never contiguous. strace shows the coexist loader opening
+    `/usr/lib/niji/etc/ld.so.cache` and `/usr/lib/niji/usr/lib/x86_64-linux-gnu/libc.so.6`. This
+    branch changes no product source. The new proof (`~/work/PKG-MANIFEST-3/proof.sh`, copy in
+    the session scratch) checks the paths each loader opens under strace instead, and reuses
+    PKG-MANIFEST-2's products (built from the 5bb3eb4bb tree, release, full profile).
+  - **The byte comparison then found a real defect:** the manifest had no row for `rcrt1.o`
+    (product `niji-rcrt1.o`), so libc6-dev and niji6-dev were one file short. The head's own checks
+    passed because they read the same manifest. Fixed: row added. Also,
+    `manifest.py lint --products` now refuses a product that no file row ships unless
+    `UNSHIPPED` names it with why (libc.so: the packages ship libc-so.ld in its place;
+    libm.so.6.source-digest: a cache key). deb_manifest's lint test now catches a dropped product.
+  - 32700c07a: the reverse check skips symbolic links (the products hold the build's own dev
+    links libresolv.so, libmvec.so, libBrokenLocale.so; the packages make links from link rows).
+  - Proof `pkg-manifest-3-proof3` on 32700c07a: all 9 .debs IDENTICAL (7 system, 2 coexist),
+    check-system / check / check-symbols / root-system PASS, parity inventory IDENTICAL, rc 0.
+  - Plants `pkg-manifest-3-plants4`: 8 of 8 CAUGHT, no WARN (results block in
+    `handoff/PKG-MANIFEST-plants.txt`). The three plants judged by `manifest.py check` name no test
+    (the checker is the test there).
 
-## Jobs started on 5bb3eb4bb (keke)
+## Jobs (keke)
 
-* `pkg-manifest-2-proof`: `~/work/PKG-MANIFEST-2/proof.sh` (copy in the session scratch): builds
-  system and coexist products once (release profile, prefixes / and /usr/lib/niji) in
-  `~/work/PKG-MANIFEST-2/proof/src`, packages each with the base scripts
-  (`~/wl/src/59c31ec1.../tools/deb`) and the head scripts (`--products`, fixed SOURCE_DATE_EPOCH and
-  NIJI_DEB_COMMIT), prints IDENTICAL/DIFFERENT per .deb (with `dpkg-deb -c/-I` diffs), then runs
-  check-system.sh, check.sh, check-symbols.sh, root-system.sh and a parity inventory diff
-  (base vs head; the network audit itself is not rerun: identical .debs give identical inventories).
-* `pkg-manifest-2-gate`: `cargo xtask affected --run` in `~/w/n2` under `~/bin/gate 16G`.
-
-## Next step (exact)
-
-1. Read both logs (`~/bin/jobwait pkg-manifest-2-proof pkg-manifest-2-gate`, then grep `proof:` and
-   `check:`/`root:` FAIL lines; the gate with `~/bin/test-summary`). Any DIFFERENT .deb means a
-   manifest or helper bug: fix it, never the comparison.
-2. Plants: finish `handoff/PKG-MANIFEST-plants.txt` (draft; check docs/plants.md on products for
-   `cargo test -p niji --test deb_manifest` and `\t` in perl patterns), run through `cargo xtask
-   plants` under plain jobrun with `--dir /dev/shm/claude/PKG-MANIFEST-2/plants-1` after the proof
-   job (two plants read its base .debs).
-3. Final clippy + static on the role, report json, `ops handback-check`.
+Final head code 32700c07a: `pkg-manifest-3-proof3` (rc 0), `pkg-manifest-3-plants4` (rc 0),
+`pkg-manifest-3-gate2` (clippy, static, `cargo xtask affected --run`). The gate escalates to FULL
+by its own rule (`*/libc-so.ld`: "linker or export list, or a script"); the inherited
+`pkg-manifest-2-gate` escalated the same way and passed (12079 passed, 0 failed, 138 conformance).
+Step 0: `pkg-manifest-3-lint0` (inherited head 856e876: clippy + static, rc 0).
+Superseded: `pkg-manifest-3-proof` (found the rcrt1.o defect), `-proof2` (head 30b04a17c), `-gate`
+(stopped: 30b04a17c failed the deb_manifest lint on the dev links), `-plants` (refused: a `lit:`
+pattern held ` | `), `-plants2` (baseline red: dev links), `-plants3` (two `msg:` regexes did not
+match the right failures: WARN-NO-MSG).
 
 ## Not to redo / notes
 
-* The libc6-dbg file set is unchanged: iconv is strip `unneeded` (SYS-DBG-DWARF adds its dbg file
-  after this lands).
-* xtask has no single product list; lint checks file rows against the products directory.
-* Process slips: one empty no-op heredoc in run 2 (no effect), one heredoc in run 1.
+* The libc6-dbg file set is unchanged: iconv is strip `unneeded`.
+* Merge demo (run 2): two manifest rows added on head merge clean; the same in the old system.sh
+  `for so in` line conflict.
+* A proof's "the product names X" check must be behavioural (what the binary opens or prints),
+  not a byte grep: constants may be emitted as immediates.
+* Process slip, run 3: one heredoc (a python one-off that rewrote the report json; no other effect).
+* The plants' system-flavour commands read keke `~/work/PKG-MANIFEST-3/proof/{d-system-base,p-system}`.
+
+## Next step
+
+Land when `pkg-manifest-3-gate2` is green (if red: run only the failing suite). Optional follow-up: a CI step that runs the base-vs-head byte comparison for any change to
+tools/deb (the proof script is the recipe).
