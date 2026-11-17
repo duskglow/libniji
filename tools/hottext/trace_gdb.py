@@ -34,7 +34,28 @@
 #  a program's reads are far under the one-second interval apart, as they are live. The clock restarts
 #  at every run of the program. HOT_TEXT_SLOW=<seconds> (the check in regen.sh) sleeps that long at
 #  every time read: a source answered from the host's time then shows as a different trace.
+#
+# TRACE-NUMA-PIN: the trace is a function of the program, not of the host's NUMA topology. The heap
+# (D-3.20) asks once how many nodes the process may allocate on and, when more than one, reads the
+# calling thread's node at its slow paths (D-3.12, D-3.21) and places each shard's memory on its node.
+# Every trace sees one virtual topology, in every class (`host` too): VNODES (2) allowed nodes, the
+# program running on node 0.
+#  * The node count: `get_mempolicy(MPOL_F_MEMS_ALLOWED)` at the library's generic system call entry
+#    `niji_sys_syscall` (crates/boundary/src/raw.rs allowed_node_count, its one caller) is answered
+#    with nodes 0..VNODES-1; the call never reaches the kernel. Other system calls run as they are.
+#  * The node read: the rseq area's `node_id` (written by the kernel: no entry to answer at), else the
+#    vDSO's getcpu, both inside `<KernelPages as Pages>::shard` (crates/boundary/src/heap.rs, out of
+#    line for this; `OwnPages` calls it): answered 0 there, its own code never runs. Pinning the
+#    program to node 0's CPUs instead fails where the build's CPU set (a slot) holds none of them.
+#  Why two nodes on node 0 (measured, handoff/TRACE-NUMA-PIN.md): the layout traced so keeps
+#  the NUMA path the 2-node build hosts run live in the start-up group, and a 1-node host runs a
+#  subset of it, with no bound of hot_text_products exceeded on either.
+#  HOT_TEXT_HOST_NODES=<n> (test-only; the check in regen.sh) simulates a host that allows n nodes,
+#  the program on node 0: the tracer answers as that host would, and the virtual topology answers
+#  over it, so the trace must not change. The tracer prints how many node counts and node reads it
+#  answered; regen.sh fails when the start-up trace shows none (an entry the tracer no longer finds).
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -134,6 +155,50 @@ REALTIME0 = 1759579200 * 10**9  # the wall clock's start (the probes' own date, 
 REALTIME_IDS = (0, 5, 8, 11)  # CLOCK_REALTIME, _COARSE, _ALARM, CLOCK_TAI
 MONO_IDS = (1, 2, 3, 4, 6, 7, 9)  # MONOTONIC, PROCESS/THREAD_CPUTIME, MONOTONIC_RAW, _COARSE, BOOTTIME, _ALARM
 VCLOCK = {}
+# TRACE-NUMA-PIN: the virtual topology (header). get_mempolicy is system call 239 on x86-64; the
+# library passes it to `niji_sys_syscall(nr, a0..a5)`: nr in rdi, the mask in rdx, maxnode in rcx,
+# the flags in r9. The node read is `<KernelPages as Pages>::shard` (v0-mangled: its path ends in
+# `11KernelPages` ... `5Pages5shard`), returning the node in rax.
+NR_GET_MEMPOLICY = 239
+MPOL_F_MEMS_ALLOWED = 4
+VNODES = 2
+VIRTUAL_NODES = True
+NODE_READ = re.compile(r"11KernelPages.*5Pages5shard$")
+topo = {by_name["niji_sys_syscall"]: "count"} if "niji_sys_syscall" in by_name else {}
+topo.update({a: "read" for a, ns in names.items() if any(NODE_READ.search(n) for n in ns)})
+TOPO_ANSWERS = {"count": 0, "read": 0}  # all runs; printed at the end (regen.sh checks start-up's)
+HOST_NODES = os.environ.get("HOT_TEXT_HOST_NODES", "")
+if HOST_NODES and not HOST_NODES.isdigit():
+    fail("HOT_TEXT_HOST_NODES: want a node count, got %r" % HOST_NODES)
+
+
+def nodes_answer():
+    """The allowed-node count the program is told: the virtual topology's. Without it, the host's:
+    the simulated host's (HOT_TEXT_HOST_NODES), else None (the kernel answers)."""
+    host = int(HOST_NODES) if HOST_NODES else None
+    return VNODES if VIRTUAL_NODES else host
+
+
+def answer_topology(kind):
+    """At a topology entry's stop (header): answer get_mempolicy(MPOL_F_MEMS_ALLOWED) or the node
+    read; any other system call runs."""
+    if kind == "count":
+        if reg("rdi") != NR_GET_MEMPOLICY or not reg("r9") & MPOL_F_MEMS_ALLOWED:
+            return
+        n = nodes_answer()
+        if n is None:
+            return
+        mask, maxnode = reg("rdx"), reg("rcx")
+        words = (maxnode - 1 + 63) // 64  # the kernel writes maxnode - 1 bits, in whole longs
+        if n >= 64 or words < 1 or words > 1024:
+            fail("get_mempolicy: a %d-node answer does not fit a mask of %d bits" % (n, maxnode - 1))
+        if mask:
+            gdb.selected_inferior().write_memory(mask, struct.pack("<%dQ" % words, (1 << n) - 1, *([0] * (words - 1))))
+    elif not VIRTUAL_NODES and not HOST_NODES:
+        return  # the host's node: the kernel answers
+    gdb.execute("set $rax = 0")  # get_mempolicy succeeded; the node read: node 0
+    leave_entry()
+    TOPO_ANSWERS[kind] += 1
 
 # The program's copy at a fixed-length path (argv[0] is the path gdb runs).
 stage = tempfile.mkdtemp(prefix="niji-trace.", dir="/tmp")
@@ -317,7 +382,7 @@ def run_one(cls):
     made, once = [], {}
     VCLOCK.clear()
     VCLOCK.update(ns=0, tsc=1 << 32)
-    every = set(clocks) | (set(emul) if cls != "host" else set())  # entries answered at every call
+    every = set(clocks) | set(topo) | (set(emul) if cls != "host" else set())  # entries answered at every call
     for addr in names:
         if addr in every:
             continue
@@ -369,6 +434,8 @@ def run_one(cls):
                 if slow:
                     time.sleep(slow)
                 answer_time(*read)
+        elif pc in topo and (not redirect or reg("orig_rax") == NOT_SYSCALL):  # its breakpoint, not a system call stop
+            answer_topology(topo[pc])
         try:
             gdb.execute("continue", to_string=True)
         except gdb.error:
@@ -398,6 +465,7 @@ def merge(runs):
 
 
 runs = [run_one(c) for c in classes]
+sys.stderr.write("trace_gdb: node count answered %d times, node read %d times\n" % (TOPO_ANSWERS["count"], TOPO_ANSWERS["read"]))
 shutil.rmtree(stage, ignore_errors=True)
 if host_reads:
     fail("the program read host files the tree does not supply (canon_host.sh): %s" % " ".join(sorted(host_reads)))
