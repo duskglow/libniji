@@ -181,6 +181,101 @@ pub(crate) fn mask_of(lv: &Levels, configs: &str) -> Result<u64, String> {
     Ok(if neg { !m & all } else { m })
 }
 
+/// Multiply a little-endian base-1e9 number by `k` (below 2^32).
+fn dec_mul(v: &mut Vec<u32>, k: u64) {
+    let mut carry = 0u64;
+    for limb in v.iter_mut() {
+        let t = u64::from(*limb) * k + carry;
+        *limb = (t % 1_000_000_000) as u32;
+        carry = t / 1_000_000_000;
+    }
+    while carry != 0 {
+        v.push((carry % 1_000_000_000) as u32);
+        carry /= 1_000_000_000;
+    }
+}
+
+/// The exact value of a hexadecimal floating constant `0x<int>.<frac>p<exp>` (at most 128 significant bits),
+/// as a decimal literal with `digits` significant digits (rounded to nearest, ties up), in the form
+/// `d.ddde<exp>` (no suffix). The digits count is the one that reads back as the same binary value.
+fn hex_float_to_decimal(h: &str, digits: usize) -> Result<String, String> {
+    let bad = || format!("bad hexadecimal floating constant {h:?}");
+    let body = h.strip_prefix("0x").ok_or_else(bad)?;
+    let (mant, exp) = body.split_once('p').ok_or_else(bad)?;
+    let exp: i32 = exp.parse().map_err(|_| bad())?;
+    let (int, frac) = mant.split_once('.').unwrap_or((mant, ""));
+    let all = format!("{int}{frac}");
+    let all = all.trim_start_matches('0');
+    if all.is_empty() {
+        return Ok("0.0".to_string());
+    }
+    if all.len() > 32 {
+        return Err(bad());
+    }
+    let m = u128::from_str_radix(all, 16).map_err(|_| bad())?;
+    let e2 = exp - 4 * frac.len() as i32;
+    // value = D * 10^dexp, with D an exact decimal integer.
+    let mut d: Vec<u32> = Vec::new();
+    let mut r = m;
+    while r != 0 {
+        d.push((r % 1_000_000_000) as u32);
+        r /= 1_000_000_000;
+    }
+    let dexp;
+    if e2 >= 0 {
+        let mut left = e2;
+        while left > 0 {
+            let s = left.min(29);
+            dec_mul(&mut d, 1u64 << s);
+            left -= s;
+        }
+        dexp = 0;
+    } else {
+        // m * 2^-k = m * 5^k * 10^-k
+        let mut left = -e2;
+        while left > 0 {
+            let s = left.min(13);
+            dec_mul(&mut d, 5u64.pow(s as u32));
+            left -= s;
+        }
+        dexp = e2;
+    }
+    let mut s = d.last().map(|t| t.to_string()).unwrap_or_default();
+    for limb in d.iter().rev().skip(1) {
+        s.push_str(&format!("{limb:09}"));
+    }
+    let mut sci = s.len() as i32 - 1 + dexp;
+    let mut ds: Vec<u8> = s.bytes().map(|b| b - b'0').collect();
+    if ds.len() > digits {
+        let up = ds[digits] >= 5;
+        ds.truncate(digits);
+        if up {
+            let mut i = digits;
+            loop {
+                if i == 0 {
+                    ds.insert(0, 1);
+                    ds.truncate(digits);
+                    sci += 1;
+                    break;
+                }
+                i -= 1;
+                if ds[i] == 9 {
+                    ds[i] = 0;
+                } else {
+                    ds[i] += 1;
+                    break;
+                }
+            }
+        }
+    }
+    while ds.len() > 1 && ds.last() == Some(&0) {
+        ds.pop();
+    }
+    let tail: String = ds[1..].iter().map(|x| char::from(b'0' + x)).collect();
+    let point = if tail.is_empty() { ".0".to_string() } else { format!(".{tail}") };
+    Ok(format!("{}{point}e{sci}", ds[0]))
+}
+
 /// The C literal of a `macros.tsv` value of the given type.
 pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
     if ty.starts_with("char[") {
@@ -206,7 +301,18 @@ pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
         let body = match mag {
             "inf" => format!("__builtin_inf{fs} ()"),
             "nan" => format!("__builtin_nan{fs} (\"\")"),
-            h if h.starts_with("0x") => format!("{h}{}", if fs == "l" { "L" } else { fs }),
+            // The constant is exact in hexadecimal, but a hexadecimal floating literal is not a token in C89 and
+            // C++98 (the header is read at every language level), so it is spelled as the decimal literal that
+            // reads back as the same value: 9, 17, 21 or 36 significant digits for 24, 53, 64 or 113 bits.
+            h if h.starts_with("0x") => {
+                let digits = match ty {
+                    "float" | "_Float32" => 9,
+                    "double" | "_Float64" | "_Float32x" => 17,
+                    "long double" | "_Float64x" => 21,
+                    _ => 36,
+                };
+                format!("{}{}", hex_float_to_decimal(h, digits)?, if fs == "l" { "L" } else { fs })
+            }
             _ => return Err(format!("bad floating value {value:?}")),
         };
         return Ok(if neg.is_empty() { body } else { format!("(-{body})") });
@@ -1077,6 +1183,19 @@ mod tests {
         assert_eq!(literal("unsigned long", "18446744073709551615").unwrap(), "18446744073709551615UL");
         assert_eq!(literal("int", "-128").unwrap(), "(-128)");
         assert!(literal("double", "1.0").is_err());
+    }
+
+    // no spec clause: plan/headers.md 2.4 (a floating constant is a token at every language level: decimal, not
+    // hexadecimal, and reading back as the same value).
+    #[test]
+    fn floating_literals_are_decimal_and_exact() {
+        assert_eq!(literal("float", "0x1.fffffep+127").unwrap(), "3.40282347e38f");
+        assert_eq!(literal("double", "0x1.fffffffffffffp+1023").unwrap(), "1.7976931348623157e308");
+        assert_eq!(literal("double", "0x1p-1022").unwrap(), "2.2250738585072014e-308");
+        assert_eq!(literal("double", "0x1.921fb54442d18p+1").unwrap(), "3.1415926535897931e0");
+        assert_eq!(literal("long double", "0x1p+0").unwrap(), "1.0e0L");
+        assert_eq!(literal("_Float128", "0x1.ffffffffffffffffffffffffffffp+16383").unwrap(), "1.18973149535723176508575932662800702e4932f128");
+        assert_eq!(literal("double", "-0x1p+0").unwrap(), "(-1.0e0)");
     }
 
     // no spec clause: owner rulings R-H2, R-H3 (reserved names stay out unless listed).

@@ -8,7 +8,7 @@
 
 __NIJI_BEGIN_C
 
-@@owns-macro fpclassify isfinite isnormal isnan isinf signbit issignaling iszero issubnormal iscanonical iseqsig isgreater isgreaterequal isless islessequal islessgreater isunordered
+@@owns-macro fpclassify isfinite isnormal isnan isinf signbit issignaling iszero issubnormal iscanonical __iscanonical iseqsig isgreater isgreaterequal isless islessequal islessgreater isunordered
 @@emit-c
 
 @@if fpclassify
@@ -39,8 +39,15 @@ __NIJI_BEGIN_C
 @@if issubnormal
 # define issubnormal(x) (__builtin_fpclassify (FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_SUBNORMAL)
 #endif
+@@if __iscanonical
+/* Every encoding of float, double and binary128 is canonical. The x87 types (long double, _Float64x) have encodings
+   that are not (pseudo-denormals, unnormals, pseudo-infinities, pseudo-NaNs): the library tests those bits. */
+# define __iscanonical(x) (__builtin_types_compatible_p (__typeof (x), long double) \
+			   || __builtin_types_compatible_p (__typeof (x), _Float64x) \
+			   ? __iscanonicall ((long double) (x)) : ((void) (x), 1))
+#endif
 @@if iscanonical
-# define iscanonical(x) ((void) (x), 1)
+# define iscanonical(x) __iscanonical (x)
 #endif
 @@if iseqsig
 /* C2X 7.12.17.7: the relational operators raise "invalid" for a quiet NaN too, as the signaling comparison needs. */

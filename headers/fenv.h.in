@@ -9,7 +9,16 @@
 __NIJI_BEGIN_C
 
 @@owns-macro FE_DFL_ENV FE_NOMASK_ENV FE_DFL_MODE
+/* The compiler has a built-in `int fegetexceptflag (void *, int)` (and one for fesetexceptflag): the exact `fexcept_t *`
+   parameter of the ABI differs from it by name only, so the two declarations are made with that diagnostic off. */
+#ifdef __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch"
+#endif
 @@emit-c
+#ifdef __GNUC__
+# pragma GCC diagnostic pop
+#endif
 
 @@if FE_DFL_ENV
 # define FE_DFL_ENV ((const fenv_t *) -1)

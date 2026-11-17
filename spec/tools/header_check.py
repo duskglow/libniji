@@ -18,7 +18,9 @@ so` staged, target/niji/include). For each configuration of spec/abi/ftm-configs
 Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed.
 """
 import argparse
+import glob
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -55,17 +57,44 @@ def expand(configs, ids):
     return set(configs.split(","))
 
 
+def decimal_literal(hexconst):
+    """The exact value of a probed hexadecimal floating constant as a decimal literal (60 digits: well above the 36 a
+    binary128 value needs, so the compiler reads it back as the same value). Hexadecimal floating constants are not
+    tokens in C89 and C++98 to C++14, and the unit is compiled in every mode."""
+    import decimal
+    neg = hexconst.startswith("-")
+    h = hexconst.lstrip("-")
+    mant, exp = h[2:].split("p")
+    ip, _, fp = mant.partition(".")
+    m = int((ip + fp) or "0", 16)
+    e = int(exp) - 4 * len(fp)
+    with decimal.localcontext() as ctx:
+        ctx.prec = 60
+        v = decimal.Decimal(m) * (decimal.Decimal(2) ** e)
+    return ("-" if neg else "") + format(v, "e")
+
+
 def p1_units(ids, vis, macros, typedefs, layouts):
     """P1 of slice 6 (plan/headers.md section 3): per (header, configuration) one unit that includes the header and
     asserts, for what the header makes visible there, every macros.tsv integer value, every typedef size and
     alignment of typedefs.tsv and every structure size and alignment of layouts.tsv. A false condition is a
     negative array size, which every language mode rejects (C89 and C++98 have no static assertion)."""
     out = {}
+    # A template with `@@emit-c` (slice 11) decides a name by its C configurations only: the C++ names of such a header
+    # come from the C++ standard library's wrappers, so a name with no C row is not the header's (same filter as headers-gen).
+    emit_c = set()
+    for t in glob.glob(os.path.join(ROOT, "headers", "**", "*.h.in"), recursive=True):
+        with open(t) as f:
+            if any(l.startswith("@@emit-c") for l in f):
+                emit_c.add(os.path.relpath(t, os.path.join(ROOT, "headers"))[:-3])
+    c_names = {(r["header"], r["name"]) for r in vis if any(not c.startswith("cxx") for c in re.split(r"[,!]", r["configs"]) if c)}
     for r in vis:
         h = r["header"]
         if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
+        if h in emit_c and (h, n) not in c_names:
+            continue
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
         tests = []
@@ -81,7 +110,7 @@ def p1_units(ids, vis, macros, typedefs, layouts):
             m = macros[n]
             suffix, size = FLOAT_SUFFIX[m["type"]]
             tests.append(f"sizeof({n}) == {size}")
-            tests.append(f"F:(({n}) == {m['value']}{suffix})")
+            tests.append(f"F:(({n}) == {decimal_literal(m['value'])}{suffix})")
         elif r["kind"] == "typedef" and n in typedefs and typedefs[n]["size"]:
             t = typedefs[n]
             tests.append(f"sizeof({n}) == {t['size']}")
@@ -99,7 +128,9 @@ def p1_units(ids, vis, macros, typedefs, layouts):
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests) if not t.startswith("F:"))
             ft = [t[2:] for t in tests if t.startswith("F:")]
             if ft:
-                body += "#if (defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L) || (defined __cplusplus && __cplusplus >= 201103L)\n"
+                body += "#if defined __cplusplus && __cplusplus >= 201103L\n"
+                body += "".join(f"static_assert({t}, \"niji_p1_float\");\n" for t in ft)
+                body += "#elif !defined __cplusplus && defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L\n"
                 body += "".join(f"_Static_assert({t}, \"niji_p1_float\");\n" for t in ft) + "#endif\n"
             units.setdefault(cid, []).append((f"P1 {h}", body))
     return units

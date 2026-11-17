@@ -1,0 +1,413 @@
+@@generated
+/* tgmath.h: type-generic math (C 7.25). Each macro is GCC's __builtin_tgmath over the functions of math.h and complex.h
+   (GCC manual, "Other Builtins"): the function whose parameter types suit the arguments, narrowest first. */
+#ifndef __NIJI_H_tgmath_h
+#define __NIJI_H_tgmath_h 1
+
+#include <features.h>
+#include <math.h>
+#include <complex.h>
+
+__NIJI_BEGIN_C
+
+@@owns-macro acos acosh asin asinh atan atan2 atanh carg cbrt ceil cimag conj copysign cos cosh cproj creal dadd ddiv dfma dmul dsqrt dsub erf erfc exp exp10 exp2 expm1 f32add f32div f32fma f32mul f32sqrt f32sub f32xadd f32xdiv f32xfma f32xmul f32xsqrt f32xsub f64add f64div f64fma f64mul f64sqrt f64sub f64xadd f64xdiv f64xfma f64xmul f64xsqrt f64xsub fabs fadd fdim fdiv ffma floor fma fmax fmaximum fmaximum_mag fmaximum_mag_num fmaximum_num fmaxmag fmin fminimum fminimum_mag fminimum_mag_num fminimum_num fminmag fmod fmul frexp fromfp fromfpx fsqrt fsub hypot ilogb ldexp lgamma llogb llrint llround log log10 log1p log2 logb lrint lround nearbyint nextafter nextdown nexttoward nextup pow remainder remquo rint round roundeven scalb scalbln scalbn sin sinh sqrt tan tanh tgamma trunc ufromfp ufromfpx
+@@emit-c
+
+@@if acos
+# define acos(x) __builtin_tgmath (acosf, acos, acosl, acosf32, acosf64, acosf32x, acosf64x, acosf128, cacosf, cacos,  \
+    cacosl, cacosf32, cacosf64, cacosf32x, cacosf64x, cacosf128, x)
+#endif
+@@if acosh
+# define acosh(x) __builtin_tgmath (acoshf, acosh, acoshl, acoshf32, acoshf64, acoshf32x, acoshf64x, acoshf128,  \
+    cacoshf, cacosh, cacoshl, cacoshf32, cacoshf64, cacoshf32x, cacoshf64x, cacoshf128, x)
+#endif
+@@if asin
+# define asin(x) __builtin_tgmath (asinf, asin, asinl, asinf32, asinf64, asinf32x, asinf64x, asinf128, casinf, casin,  \
+    casinl, casinf32, casinf64, casinf32x, casinf64x, casinf128, x)
+#endif
+@@if asinh
+# define asinh(x) __builtin_tgmath (asinhf, asinh, asinhl, asinhf32, asinhf64, asinhf32x, asinhf64x, asinhf128,  \
+    casinhf, casinh, casinhl, casinhf32, casinhf64, casinhf32x, casinhf64x, casinhf128, x)
+#endif
+@@if atan
+# define atan(x) __builtin_tgmath (atanf, atan, atanl, atanf32, atanf64, atanf32x, atanf64x, atanf128, catanf, catan,  \
+    catanl, catanf32, catanf64, catanf32x, catanf64x, catanf128, x)
+#endif
+@@if atan2
+# define atan2(x, y) __builtin_tgmath (atan2f, atan2, atan2l, atan2f32, atan2f64, atan2f32x, atan2f64x, atan2f128, x, y)
+#endif
+@@if atanh
+# define atanh(x) __builtin_tgmath (atanhf, atanh, atanhl, atanhf32, atanhf64, atanhf32x, atanhf64x, atanhf128,  \
+    catanhf, catanh, catanhl, catanhf32, catanhf64, catanhf32x, catanhf64x, catanhf128, x)
+#endif
+@@if carg
+# define carg(x) __builtin_tgmath (cargf, carg, cargl, cargf32, cargf64, cargf32x, cargf64x, cargf128, x)
+#endif
+@@if cbrt
+# define cbrt(x) __builtin_tgmath (cbrtf, cbrt, cbrtl, cbrtf32, cbrtf64, cbrtf32x, cbrtf64x, cbrtf128, x)
+#endif
+@@if ceil
+# define ceil(x) __builtin_tgmath (ceilf, ceil, ceill, ceilf32, ceilf64, ceilf32x, ceilf64x, ceilf128, x)
+#endif
+@@if cimag
+# define cimag(x) __builtin_tgmath (cimagf, cimag, cimagl, cimagf32, cimagf64, cimagf32x, cimagf64x, cimagf128, x)
+#endif
+@@if conj
+# define conj(x) __builtin_tgmath (conjf, conj, conjl, conjf32, conjf64, conjf32x, conjf64x, conjf128, x)
+#endif
+@@if copysign
+# define copysign(x, y) __builtin_tgmath (copysignf, copysign, copysignl, copysignf32, copysignf64, copysignf32x,  \
+    copysignf64x, copysignf128, x, y)
+#endif
+@@if cos
+# define cos(x) __builtin_tgmath (cosf, cos, cosl, cosf32, cosf64, cosf32x, cosf64x, cosf128, ccosf, ccos, ccosl,  \
+    ccosf32, ccosf64, ccosf32x, ccosf64x, ccosf128, x)
+#endif
+@@if cosh
+# define cosh(x) __builtin_tgmath (coshf, cosh, coshl, coshf32, coshf64, coshf32x, coshf64x, coshf128, ccoshf, ccosh,  \
+    ccoshl, ccoshf32, ccoshf64, ccoshf32x, ccoshf64x, ccoshf128, x)
+#endif
+@@if cproj
+# define cproj(x) __builtin_tgmath (cprojf, cproj, cprojl, cprojf32, cprojf64, cprojf32x, cprojf64x, cprojf128, x)
+#endif
+@@if creal
+# define creal(x) __builtin_tgmath (crealf, creal, creall, crealf32, crealf64, crealf32x, crealf64x, crealf128, x)
+#endif
+@@if dadd
+# define dadd(x, y) __builtin_tgmath (daddl, x, y)
+#endif
+@@if ddiv
+# define ddiv(x, y) __builtin_tgmath (ddivl, x, y)
+#endif
+@@if dfma
+# define dfma(x, y, z) __builtin_tgmath (dfmal, x, y, z)
+#endif
+@@if dmul
+# define dmul(x, y) __builtin_tgmath (dmull, x, y)
+#endif
+@@if dsqrt
+# define dsqrt(x) __builtin_tgmath (dsqrtl, x)
+#endif
+@@if dsub
+# define dsub(x, y) __builtin_tgmath (dsubl, x, y)
+#endif
+@@if erf
+# define erf(x) __builtin_tgmath (erff, erf, erfl, erff32, erff64, erff32x, erff64x, erff128, x)
+#endif
+@@if erfc
+# define erfc(x) __builtin_tgmath (erfcf, erfc, erfcl, erfcf32, erfcf64, erfcf32x, erfcf64x, erfcf128, x)
+#endif
+@@if exp
+# define exp(x) __builtin_tgmath (expf, exp, expl, expf32, expf64, expf32x, expf64x, expf128, cexpf, cexp, cexpl,  \
+    cexpf32, cexpf64, cexpf32x, cexpf64x, cexpf128, x)
+#endif
+@@if exp10
+# define exp10(x) __builtin_tgmath (exp10f, exp10, exp10l, exp10f32, exp10f64, exp10f32x, exp10f64x, exp10f128, x)
+#endif
+@@if exp2
+# define exp2(x) __builtin_tgmath (exp2f, exp2, exp2l, exp2f32, exp2f64, exp2f32x, exp2f64x, exp2f128, x)
+#endif
+@@if expm1
+# define expm1(x) __builtin_tgmath (expm1f, expm1, expm1l, expm1f32, expm1f64, expm1f32x, expm1f64x, expm1f128, x)
+#endif
+@@if f32add
+# define f32add(x, y) __builtin_tgmath (f32addf32x, f32addf64, f32addf64x, f32addf128, x, y)
+#endif
+@@if f32div
+# define f32div(x, y) __builtin_tgmath (f32divf32x, f32divf64, f32divf64x, f32divf128, x, y)
+#endif
+@@if f32fma
+# define f32fma(x, y, z) __builtin_tgmath (f32fmaf32x, f32fmaf64, f32fmaf64x, f32fmaf128, x, y, z)
+#endif
+@@if f32mul
+# define f32mul(x, y) __builtin_tgmath (f32mulf32x, f32mulf64, f32mulf64x, f32mulf128, x, y)
+#endif
+@@if f32sqrt
+# define f32sqrt(x) __builtin_tgmath (f32sqrtf32x, f32sqrtf64, f32sqrtf64x, f32sqrtf128, x)
+#endif
+@@if f32sub
+# define f32sub(x, y) __builtin_tgmath (f32subf32x, f32subf64, f32subf64x, f32subf128, x, y)
+#endif
+@@if f32xadd
+# define f32xadd(x, y) __builtin_tgmath (f32xaddf64x, f32xaddf128, x, y)
+#endif
+@@if f32xdiv
+# define f32xdiv(x, y) __builtin_tgmath (f32xdivf64x, f32xdivf128, x, y)
+#endif
+@@if f32xfma
+# define f32xfma(x, y, z) __builtin_tgmath (f32xfmaf64x, f32xfmaf128, x, y, z)
+#endif
+@@if f32xmul
+# define f32xmul(x, y) __builtin_tgmath (f32xmulf64x, f32xmulf128, x, y)
+#endif
+@@if f32xsqrt
+# define f32xsqrt(x) __builtin_tgmath (f32xsqrtf64x, f32xsqrtf128, x)
+#endif
+@@if f32xsub
+# define f32xsub(x, y) __builtin_tgmath (f32xsubf64x, f32xsubf128, x, y)
+#endif
+@@if f64add
+# define f64add(x, y) __builtin_tgmath (f64addf64x, f64addf128, x, y)
+#endif
+@@if f64div
+# define f64div(x, y) __builtin_tgmath (f64divf64x, f64divf128, x, y)
+#endif
+@@if f64fma
+# define f64fma(x, y, z) __builtin_tgmath (f64fmaf64x, f64fmaf128, x, y, z)
+#endif
+@@if f64mul
+# define f64mul(x, y) __builtin_tgmath (f64mulf64x, f64mulf128, x, y)
+#endif
+@@if f64sqrt
+# define f64sqrt(x) __builtin_tgmath (f64sqrtf64x, f64sqrtf128, x)
+#endif
+@@if f64sub
+# define f64sub(x, y) __builtin_tgmath (f64subf64x, f64subf128, x, y)
+#endif
+@@if f64xadd
+# define f64xadd(x, y) __builtin_tgmath (f64xaddf128, x, y)
+#endif
+@@if f64xdiv
+# define f64xdiv(x, y) __builtin_tgmath (f64xdivf128, x, y)
+#endif
+@@if f64xfma
+# define f64xfma(x, y, z) __builtin_tgmath (f64xfmaf128, x, y, z)
+#endif
+@@if f64xmul
+# define f64xmul(x, y) __builtin_tgmath (f64xmulf128, x, y)
+#endif
+@@if f64xsqrt
+# define f64xsqrt(x) __builtin_tgmath (f64xsqrtf128, x)
+#endif
+@@if f64xsub
+# define f64xsub(x, y) __builtin_tgmath (f64xsubf128, x, y)
+#endif
+@@if fabs
+# define fabs(x) __builtin_tgmath (fabsf, fabs, fabsl, fabsf32, fabsf64, fabsf32x, fabsf64x, fabsf128, cabsf, cabs,  \
+    cabsl, cabsf32, cabsf64, cabsf32x, cabsf64x, cabsf128, x)
+#endif
+@@if fadd
+# define fadd(x, y) __builtin_tgmath (fadd, faddl, x, y)
+#endif
+@@if fdim
+# define fdim(x, y) __builtin_tgmath (fdimf, fdim, fdiml, fdimf32, fdimf64, fdimf32x, fdimf64x, fdimf128, x, y)
+#endif
+@@if fdiv
+# define fdiv(x, y) __builtin_tgmath (fdiv, fdivl, x, y)
+#endif
+@@if ffma
+# define ffma(x, y, z) __builtin_tgmath (ffma, ffmal, x, y, z)
+#endif
+@@if floor
+# define floor(x) __builtin_tgmath (floorf, floor, floorl, floorf32, floorf64, floorf32x, floorf64x, floorf128, x)
+#endif
+@@if fma
+# define fma(x, y, z) __builtin_tgmath (fmaf, fma, fmal, fmaf32, fmaf64, fmaf32x, fmaf64x, fmaf128, x, y, z)
+#endif
+@@if fmax
+# define fmax(x, y) __builtin_tgmath (fmaxf, fmax, fmaxl, fmaxf32, fmaxf64, fmaxf32x, fmaxf64x, fmaxf128, x, y)
+#endif
+@@if fmaximum
+# define fmaximum(x, y) __builtin_tgmath (fmaximumf, fmaximum, fmaximuml, fmaximumf32, fmaximumf64, fmaximumf32x,  \
+    fmaximumf64x, fmaximumf128, x, y)
+#endif
+@@if fmaximum_mag
+# define fmaximum_mag(x, y) __builtin_tgmath (fmaximum_magf, fmaximum_mag, fmaximum_magl, fmaximum_magf32,  \
+    fmaximum_magf64, fmaximum_magf32x, fmaximum_magf64x, fmaximum_magf128, x, y)
+#endif
+@@if fmaximum_mag_num
+# define fmaximum_mag_num(x, y) __builtin_tgmath (fmaximum_mag_numf, fmaximum_mag_num, fmaximum_mag_numl,  \
+    fmaximum_mag_numf32, fmaximum_mag_numf64, fmaximum_mag_numf32x, fmaximum_mag_numf64x, fmaximum_mag_numf128, x, y)
+#endif
+@@if fmaximum_num
+# define fmaximum_num(x, y) __builtin_tgmath (fmaximum_numf, fmaximum_num, fmaximum_numl, fmaximum_numf32,  \
+    fmaximum_numf64, fmaximum_numf32x, fmaximum_numf64x, fmaximum_numf128, x, y)
+#endif
+@@if fmaxmag
+# define fmaxmag(x, y) __builtin_tgmath (fmaxmagf, fmaxmag, fmaxmagl, fmaxmagf32, fmaxmagf64, fmaxmagf32x,  \
+    fmaxmagf64x, fmaxmagf128, x, y)
+#endif
+@@if fmin
+# define fmin(x, y) __builtin_tgmath (fminf, fmin, fminl, fminf32, fminf64, fminf32x, fminf64x, fminf128, x, y)
+#endif
+@@if fminimum
+# define fminimum(x, y) __builtin_tgmath (fminimumf, fminimum, fminimuml, fminimumf32, fminimumf64, fminimumf32x,  \
+    fminimumf64x, fminimumf128, x, y)
+#endif
+@@if fminimum_mag
+# define fminimum_mag(x, y) __builtin_tgmath (fminimum_magf, fminimum_mag, fminimum_magl, fminimum_magf32,  \
+    fminimum_magf64, fminimum_magf32x, fminimum_magf64x, fminimum_magf128, x, y)
+#endif
+@@if fminimum_mag_num
+# define fminimum_mag_num(x, y) __builtin_tgmath (fminimum_mag_numf, fminimum_mag_num, fminimum_mag_numl,  \
+    fminimum_mag_numf32, fminimum_mag_numf64, fminimum_mag_numf32x, fminimum_mag_numf64x, fminimum_mag_numf128, x, y)
+#endif
+@@if fminimum_num
+# define fminimum_num(x, y) __builtin_tgmath (fminimum_numf, fminimum_num, fminimum_numl, fminimum_numf32,  \
+    fminimum_numf64, fminimum_numf32x, fminimum_numf64x, fminimum_numf128, x, y)
+#endif
+@@if fminmag
+# define fminmag(x, y) __builtin_tgmath (fminmagf, fminmag, fminmagl, fminmagf32, fminmagf64, fminmagf32x,  \
+    fminmagf64x, fminmagf128, x, y)
+#endif
+@@if fmod
+# define fmod(x, y) __builtin_tgmath (fmodf, fmod, fmodl, fmodf32, fmodf64, fmodf32x, fmodf64x, fmodf128, x, y)
+#endif
+@@if fmul
+# define fmul(x, y) __builtin_tgmath (fmul, fmull, x, y)
+#endif
+@@if frexp
+# define frexp(x, y) __builtin_tgmath (frexpf, frexp, frexpl, frexpf32, frexpf64, frexpf32x, frexpf64x, frexpf128, x, y)
+#endif
+@@if fromfp
+# define fromfp(x, y, z) __builtin_tgmath (fromfpf, fromfp, fromfpl, fromfpf32, fromfpf64, fromfpf32x, fromfpf64x,  \
+    fromfpf128, x, y, z)
+#endif
+@@if fromfpx
+# define fromfpx(x, y, z) __builtin_tgmath (fromfpxf, fromfpx, fromfpxl, fromfpxf32, fromfpxf64, fromfpxf32x,  \
+    fromfpxf64x, fromfpxf128, x, y, z)
+#endif
+@@if fsqrt
+# define fsqrt(x) __builtin_tgmath (fsqrt, fsqrtl, x)
+#endif
+@@if fsub
+# define fsub(x, y) __builtin_tgmath (fsub, fsubl, x, y)
+#endif
+@@if hypot
+# define hypot(x, y) __builtin_tgmath (hypotf, hypot, hypotl, hypotf32, hypotf64, hypotf32x, hypotf64x, hypotf128, x, y)
+#endif
+@@if ilogb
+# define ilogb(x) __builtin_tgmath (ilogbf, ilogb, ilogbl, ilogbf32, ilogbf64, ilogbf32x, ilogbf64x, ilogbf128, x)
+#endif
+@@if ldexp
+# define ldexp(x, y) __builtin_tgmath (ldexpf, ldexp, ldexpl, ldexpf32, ldexpf64, ldexpf32x, ldexpf64x, ldexpf128, x, y)
+#endif
+@@if lgamma
+# define lgamma(x) __builtin_tgmath (lgammaf, lgamma, lgammal, lgammaf32, lgammaf64, lgammaf32x, lgammaf64x,  \
+    lgammaf128, x)
+#endif
+@@if llogb
+# define llogb(x) __builtin_tgmath (llogbf, llogb, llogbl, llogbf32, llogbf64, llogbf32x, llogbf64x, llogbf128, x)
+#endif
+@@if llrint
+# define llrint(x) __builtin_tgmath (llrintf, llrint, llrintl, llrintf32, llrintf64, llrintf32x, llrintf64x,  \
+    llrintf128, x)
+#endif
+@@if llround
+# define llround(x) __builtin_tgmath (llroundf, llround, llroundl, llroundf32, llroundf64, llroundf32x, llroundf64x,  \
+    llroundf128, x)
+#endif
+@@if log
+# define log(x) __builtin_tgmath (logf, log, logl, logf32, logf64, logf32x, logf64x, logf128, clogf, clog, clogl,  \
+    clogf32, clogf64, clogf32x, clogf64x, clogf128, x)
+#endif
+@@if log10
+# define log10(x) __builtin_tgmath (log10f, log10, log10l, log10f32, log10f64, log10f32x, log10f64x, log10f128, x)
+#endif
+@@if log1p
+# define log1p(x) __builtin_tgmath (log1pf, log1p, log1pl, log1pf32, log1pf64, log1pf32x, log1pf64x, log1pf128, x)
+#endif
+@@if log2
+# define log2(x) __builtin_tgmath (log2f, log2, log2l, log2f32, log2f64, log2f32x, log2f64x, log2f128, x)
+#endif
+@@if logb
+# define logb(x) __builtin_tgmath (logbf, logb, logbl, logbf32, logbf64, logbf32x, logbf64x, logbf128, x)
+#endif
+@@if lrint
+# define lrint(x) __builtin_tgmath (lrintf, lrint, lrintl, lrintf32, lrintf64, lrintf32x, lrintf64x, lrintf128, x)
+#endif
+@@if lround
+# define lround(x) __builtin_tgmath (lroundf, lround, lroundl, lroundf32, lroundf64, lroundf32x, lroundf64x,  \
+    lroundf128, x)
+#endif
+@@if nearbyint
+# define nearbyint(x) __builtin_tgmath (nearbyintf, nearbyint, nearbyintl, nearbyintf32, nearbyintf64, nearbyintf32x,  \
+    nearbyintf64x, nearbyintf128, x)
+#endif
+@@if nextafter
+# define nextafter(x, y) __builtin_tgmath (nextafterf, nextafter, nextafterl, nextafterf32, nextafterf64,  \
+    nextafterf32x, nextafterf64x, nextafterf128, x, y)
+#endif
+@@if nextdown
+# define nextdown(x) __builtin_tgmath (nextdownf, nextdown, nextdownl, nextdownf32, nextdownf64, nextdownf32x,  \
+    nextdownf64x, nextdownf128, x)
+#endif
+@@if nexttoward
+# define nexttoward(x, y) __builtin_tgmath (nexttowardf, nexttoward, nexttowardl, x, y)
+#endif
+@@if nextup
+# define nextup(x) __builtin_tgmath (nextupf, nextup, nextupl, nextupf32, nextupf64, nextupf32x, nextupf64x,  \
+    nextupf128, x)
+#endif
+@@if pow
+# define pow(x, y) __builtin_tgmath (powf, pow, powl, powf32, powf64, powf32x, powf64x, powf128, cpowf, cpow, cpowl,  \
+    cpowf32, cpowf64, cpowf32x, cpowf64x, cpowf128, x, y)
+#endif
+@@if remainder
+# define remainder(x, y) __builtin_tgmath (remainderf, remainder, remainderl, remainderf32, remainderf64,  \
+    remainderf32x, remainderf64x, remainderf128, x, y)
+#endif
+@@if remquo
+# define remquo(x, y, z) __builtin_tgmath (remquof, remquo, remquol, remquof32, remquof64, remquof32x, remquof64x,  \
+    remquof128, x, y, z)
+#endif
+@@if rint
+# define rint(x) __builtin_tgmath (rintf, rint, rintl, rintf32, rintf64, rintf32x, rintf64x, rintf128, x)
+#endif
+@@if round
+# define round(x) __builtin_tgmath (roundf, round, roundl, roundf32, roundf64, roundf32x, roundf64x, roundf128, x)
+#endif
+@@if roundeven
+# define roundeven(x) __builtin_tgmath (roundevenf, roundeven, roundevenl, roundevenf32, roundevenf64, roundevenf32x,  \
+    roundevenf64x, roundevenf128, x)
+#endif
+@@if scalb
+# define scalb(x, y) __builtin_tgmath (scalbf, scalb, scalbl, x, y)
+#endif
+@@if scalbln
+# define scalbln(x, y) __builtin_tgmath (scalblnf, scalbln, scalblnl, scalblnf32, scalblnf64, scalblnf32x,  \
+    scalblnf64x, scalblnf128, x, y)
+#endif
+@@if scalbn
+# define scalbn(x, y) __builtin_tgmath (scalbnf, scalbn, scalbnl, scalbnf32, scalbnf64, scalbnf32x, scalbnf64x,  \
+    scalbnf128, x, y)
+#endif
+@@if sin
+# define sin(x) __builtin_tgmath (sinf, sin, sinl, sinf32, sinf64, sinf32x, sinf64x, sinf128, csinf, csin, csinl,  \
+    csinf32, csinf64, csinf32x, csinf64x, csinf128, x)
+#endif
+@@if sinh
+# define sinh(x) __builtin_tgmath (sinhf, sinh, sinhl, sinhf32, sinhf64, sinhf32x, sinhf64x, sinhf128, csinhf, csinh,  \
+    csinhl, csinhf32, csinhf64, csinhf32x, csinhf64x, csinhf128, x)
+#endif
+@@if sqrt
+# define sqrt(x) __builtin_tgmath (sqrtf, sqrt, sqrtl, sqrtf32, sqrtf64, sqrtf32x, sqrtf64x, sqrtf128, csqrtf, csqrt,  \
+    csqrtl, csqrtf32, csqrtf64, csqrtf32x, csqrtf64x, csqrtf128, x)
+#endif
+@@if tan
+# define tan(x) __builtin_tgmath (tanf, tan, tanl, tanf32, tanf64, tanf32x, tanf64x, tanf128, ctanf, ctan, ctanl,  \
+    ctanf32, ctanf64, ctanf32x, ctanf64x, ctanf128, x)
+#endif
+@@if tanh
+# define tanh(x) __builtin_tgmath (tanhf, tanh, tanhl, tanhf32, tanhf64, tanhf32x, tanhf64x, tanhf128, ctanhf, ctanh,  \
+    ctanhl, ctanhf32, ctanhf64, ctanhf32x, ctanhf64x, ctanhf128, x)
+#endif
+@@if tgamma
+# define tgamma(x) __builtin_tgmath (tgammaf, tgamma, tgammal, tgammaf32, tgammaf64, tgammaf32x, tgammaf64x,  \
+    tgammaf128, x)
+#endif
+@@if trunc
+# define trunc(x) __builtin_tgmath (truncf, trunc, truncl, truncf32, truncf64, truncf32x, truncf64x, truncf128, x)
+#endif
+@@if ufromfp
+# define ufromfp(x, y, z) __builtin_tgmath (ufromfpf, ufromfp, ufromfpl, ufromfpf32, ufromfpf64, ufromfpf32x,  \
+    ufromfpf64x, ufromfpf128, x, y, z)
+#endif
+@@if ufromfpx
+# define ufromfpx(x, y, z) __builtin_tgmath (ufromfpxf, ufromfpx, ufromfpxl, ufromfpxf32, ufromfpxf64, ufromfpxf32x,  \
+    ufromfpxf64x, ufromfpxf128, x, y, z)
+#endif
+
+__NIJI_END_C
+
+#endif

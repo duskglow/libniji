@@ -8,6 +8,12 @@
 
 __NIJI_BEGIN_C
 
+/* The compiler has a built-in `int fegetexceptflag (void *, int)` (and one for fesetexceptflag): the exact `fexcept_t *`
+   parameter of the ABI differs from it by name only, so the two declarations are made with that diagnostic off. */
+#ifdef __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch"
+#endif
 #if 1
 # ifndef __NIJI_D_fenv_t
 #  define __NIJI_D_fenv_t 1
@@ -173,6 +179,9 @@ enum { FE_UPWARD = 2048 };
 # ifndef FE_UPWARD
 #  define FE_UPWARD 2048
 # endif
+#endif
+#ifdef __GNUC__
+# pragma GCC diagnostic pop
 #endif
 
 #if 1
