@@ -96,7 +96,7 @@ TYPES = [
  ("posix_spawnattr_t", "posix_spawnattr_t"), ("posix_spawn_file_actions_t", "posix_spawn_file_actions_t"),
  ("Dl_info", "Dl_info"), ("struct dl_phdr_info", "struct dl_phdr_info"), ("struct link_map", "struct link_map"),
  ("struct r_debug", "struct r_debug"), ("struct dl_find_object", "struct dl_find_object"),
- ("Dl_serinfo", "Dl_serinfo"),
+ ("Dl_serinfo", "Dl_serinfo"), ("struct prof", "struct prof"),
  ("struct mntent", "struct mntent"), ("struct fstab", "struct fstab"), ("struct ttyent", "struct ttyent"),
  ("struct option", "struct option"), ("struct argp", "struct argp"), ("struct argp_option", "struct argp_option"),
  ("struct argp_state", "struct argp_state"), ("struct argp_child", "struct argp_child"),

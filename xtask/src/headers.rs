@@ -223,6 +223,10 @@ fn scalar(c: &str) -> bool {
 
 /// The DWARF spelling of layouts.tsv (`long unsigned int`) in the C++ form of typedefs.tsv (`unsigned long`).
 fn dwarf_scalar(t: &str) -> Option<String> {
+    // An anonymous enumeration member (`r_state`): the enumerators are unsigned, so GCC's type is `unsigned int`.
+    if t == "enum <anon>" {
+        return Some("unsigned int".to_string());
+    }
     let words: BTreeSet<&str> = t.split_whitespace().collect();
     let uns = words.contains("unsigned");
     let s = if words.contains("char") {
@@ -637,7 +641,10 @@ impl Gen<'_> {
         let mut body = Vec::new();
         if distinct.len() <= 1 {
             let sym = distinct.into_iter().next().cloned().unwrap_or_else(|| name.to_string());
-            if !builtin && !self.t.exported.contains(&sym) && !LINKED_ELSEWHERE.contains(&sym.as_str()) {
+            // `la_*` of link.h are the entry points an audit library provides to the loader (rtld-audit(7)): the
+            // header declares them for that library's author and libniji exports none.
+            let audit_hook = self.header == "link.h" && sym.starts_with("la_");
+            if !builtin && !self.t.exported.contains(&sym) && !LINKED_ELSEWHERE.contains(&sym.as_str()) && !audit_hook {
                 self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
             }
             let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
