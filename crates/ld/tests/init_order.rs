@@ -89,6 +89,18 @@ fn init_order_refuses_bad_input() {
     assert_eq!(init::init_order(0, &[(0u8, 0u8); 0], &mut out, &mut work), Ok(0));
 }
 
+/// s1_1_c_5, s1_1_c_6: the order has no bound of its own on the number of objects (DL-STARTUP-OBJECTS): a
+/// chain of 300 objects (the program needs 299, each object `k` needs `k - 1`) initialises 1 to 299, then the
+/// program, walking 299 deep.
+#[test]
+fn init_order_long_chain() {
+    let edges: Vec<(usize, usize)> = [(0, 299)].into_iter().chain((2..300).map(|k| (k, k - 1))).collect();
+    let want: Vec<usize> = (1..300).chain([0]).collect();
+    let (mut out, mut work) = (vec![0usize; 300], vec![Walk::default(); 300]);
+    assert_eq!(init::init_order(300, &edges, &mut out, &mut work), Ok(300));
+    assert_eq!(out, want);
+}
+
 /// s1_1_c_5, s1_1_c_6: one object's calls: `DT_INIT` before `DT_INIT_ARRAY` (in order); `DT_FINI_ARRAY` in
 /// reverse before `DT_FINI`; 0 and all-ones entries left out (D-27.19).
 #[test]

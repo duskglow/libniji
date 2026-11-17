@@ -185,8 +185,9 @@ impl Default for PathStore {
 }
 
 impl PathStore {
-    /// Address space one chunk takes: [`INLINE`] full paths (touched only as far as written).
-    const CHUNK: usize = INLINE * PATH_MAX;
+    /// Address space one chunk takes (touched only as far as written): four full paths, or a few
+    /// hundred ordinary ones; a longer path gets a chunk of its own size.
+    const CHUNK: usize = 4 * PATH_MAX;
 
     /// A copy of `p` in the store.
     ///
