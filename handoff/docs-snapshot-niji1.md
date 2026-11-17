@@ -46,7 +46,8 @@ handoff/DOCS-SNAPSHOT-NIJI1-plants.txt, 3 of 3 CAUGHT (job `docs-snapshot-niji1-
   `the_shipped_ldconfig_passes_the_transcripts`). Cause: the role's `target/niji/ldconfig` was not built from this
   tree (static's partial-write line said so) and an xtask-only change does not rebuild the products.
   `docs-snapshot-niji1-transcripts` (`cargo xtask so`, then `cargo test -p xtask --test transcripts`): 3 passed, rc 0.
-- `docs-snapshot-niji1-gate-2`: direct tier rerun on the final tree (result in the report json).
+- `docs-snapshot-niji1-gate-2`: direct tier rerun on the final code tree (static included): 4 suites, 473 passed,
+  0 failed, peak 1.4G, rc 0.
 
 ## Open / informational
 
