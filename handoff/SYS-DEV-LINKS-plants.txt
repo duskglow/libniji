@@ -7,3 +7,10 @@ link-target | tools/deb/system.sh | lit:put_link "$so" "$sdev ==> put_link "$so.
 bl-archive | tools/deb/system.sh | lit:libresolv.a libBrokenLocale.a libg.a ==> libresolv.a libg.a | o=$(mktemp -d) && tools/deb/build.sh --flavour system --products "$HOME/w/s1/target/sdl-system-work/src/target/niji" --version 2.39+niji20261116.1-1 --out "$o/d" --work "$o/w" && tools/deb/check-system.sh "$o/d" | msg:check: FAIL libc6-dev has no libBrokenLocale\.a
 mcheck-archive | tools/deb/system.sh | lit:libg.a libmcheck.a libpthread_nonshared.a; do ==> libg.a libpthread_nonshared.a; do | o=$(mktemp -d) && tools/deb/build.sh --flavour system --products "$HOME/w/s1/target/sdl-system-work/src/target/niji" --version 2.39+niji20261116.1-1 --out "$o/d" --work "$o/w" && tools/deb/check-system.sh "$o/d" | msg:check: FAIL libc6-dev has no libmcheck\.a
 coexist-anl | tools/deb/build.sh | lit:put_link libanl.so.1 "$dlib/libanl.so" ==> | o=$(mktemp -d) && tools/deb/build.sh --products "$HOME/w/s1/target/sdl-coexist-work/src/target/niji" --version 0.0~snapshot20261116+ebb6791ec365 --out "$o/d" --work "$o/w" && tools/deb/check.sh "$o/d" | msg:check: FAIL wrapper: devlinks
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# bl-lib: CAUGHT, caught by no test the log names
+# anl-link: CAUGHT, caught by no test the log names
+# link-target: CAUGHT, caught by no test the log names
+# bl-archive: CAUGHT, caught by no test the log names
+# mcheck-archive: CAUGHT, caught by no test the log names
+# coexist-anl: CAUGHT, caught by no test the log names
