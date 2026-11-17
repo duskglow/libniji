@@ -116,7 +116,7 @@ for deb in $debs; do
             libc6:./usr/share/lintian/ | libc6:./usr/share/lintian/overrides/) [ "$type" = d ] && ok=yes ;;
             libc6:./usr/share/lintian/overrides/libc6) ok=yes ;;
             libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
-            libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf | libc-bin:./usr/bin/getent | libc-bin:./usr/bin/ldd) ok=yes ;;
+            libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf | libc-bin:./usr/bin/getent | libc-bin:./usr/bin/locale | libc-bin:./usr/bin/ldd) ok=yes ;;
             libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so | libc6-dev:./usr/lib/$ma/libresolv.so) ok=yes ;;
             libc6-dev:./usr/lib/$ma/libmvec.so) ok=yes ;;
             libc6-dev:./usr/lib/$ma/libanl.so | libc6-dev:./usr/lib/$ma/libBrokenLocale.so | libc6-dev:./usr/lib/$ma/libc_malloc_debug.so) ok=yes ;;

@@ -1613,13 +1613,23 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
 ///   another one. Kept out of `target/niji`: it names build paths.
 pub(crate) const GETENT_TEST: &str = "target/niji-test/getent";
 
+/// locale (UTIL-8, spec §31.7): `csys/util/locale.c`, a front end over `setlocale` and `nl_langinfo`, linked as
+/// getent is: `target/niji/locale` (libc-bin's `/usr/bin/locale`) and the test link `target/niji-test/locale`.
+pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
+
 fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
+    run_dynamic_util(root, cc, "getent", GETENT_TEST)?;
+    run_dynamic_util(root, cc, "locale", LOCALE_TEST)
+}
+
+/// One dynamic front end `csys/util/<name>.c`: the shipped link in `target/niji` and the test link `test_path`.
+fn run_dynamic_util(root: &Path, cc: &str, name: &str, test_path: &str) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    let obj = product.join("getent.o");
+    let obj = product.join(format!("{name}.o"));
     run(Command::new(cc)
         .args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-asynchronous-unwind-tables", "-c"])
-        .arg(root.join("csys/util/getent.c"))
+        .arg(root.join(format!("csys/util/{name}.c")))
         .arg("-o")
         .arg(&obj))?;
     let link = |out: &Path, interp: &Path, libc: &Path| -> Result<(), String> {
@@ -1637,13 +1647,13 @@ fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
         run(c.arg("-o").arg(&staged))?;
         publish(&staged, out)
     };
-    link(&release.join("getent"), Path::new("/lib64/ld-linux-x86-64.so.2"), &release.join("libc.so.6"))?;
-    let test = root.join(GETENT_TEST);
+    link(&release.join(name), Path::new("/lib64/ld-linux-x86-64.so.2"), &release.join("libc.so.6"))?;
+    let test = root.join(test_path);
     let dir = test.parent().unwrap_or(root);
     fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let by_path = crate::native_examples::libc_by_path(&release.join("libc.so.6"), dir)?;
     link(&test, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
-    println!("so: target/niji/getent (dynamic, libc.so.6), {GETENT_TEST} (this tree's loader and library)");
+    println!("so: target/niji/{name} (dynamic, libc.so.6), {test_path} (this tree's loader and library)");
     Ok(())
 }
 
