@@ -328,9 +328,6 @@ static void archive_names(struct names *s) {
 
 static void list_locales(void) {
     struct names s = {0};
-    add(&s, "C", NULL);
-    add(&s, "C.utf8", NULL);
-    add(&s, "POSIX", NULL);
     archive_names(&s);
     DIR *d = opendir(LOCALE_DIR);
     if (d) {
@@ -344,6 +341,10 @@ static void list_locales(void) {
         }
         closedir(d);
     }
+    /* Built in, listed always; added last so that an installed C.utf8 keeps its directory for `-v`. */
+    add(&s, "C", NULL);
+    add(&s, "C.utf8", NULL);
+    add(&s, "POSIX", NULL);
     qsort(s.v, s.n, sizeof *s.v, by_collation);
     for (size_t i = 0, shown = 0; i < s.n; i++) {
         if (!opt_v) {
@@ -518,12 +519,12 @@ int main(int argc, char **argv) {
         show_environment();
         return 0;
     }
-    int rc = 0;
+    /* The first unknown name ends the run (probe: `decimal_point nosuch grouping` prints only the first). */
     for (; i < argc; i++)
         if (!show(argv[i])) {
             fflush(stdout);
             fprintf(stderr, "locale: unknown name \"%s\"\n", argv[i]);
-            rc = 1;
+            return 1;
         }
-    return rc;
+    return 0;
 }
