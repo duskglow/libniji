@@ -14,7 +14,10 @@ Plants: `handoff/LOCALE-SLOTS-GROWTH-4-plants.txt` (20; earlier files `-plants.t
   `locale-slots-growth-4-dev1` (reload suite on the new tests: 10 passed, none skipped),
   `locale-slots-growth-4-plants` (20 plants), `locale-slots-growth-4-gate` (direct tier),
   `locale-slots-growth-4-startup` (`cargo xtask test`, then NIJI_FULL_PROFILE `so` and `hot_text_products`),
-  `locale-slots-growth-4-lint1` (clippy and static on the final head). Results: see the hand-back and jobs.tsv.
+  Results: lint0 rc 0; dev1 rc 0; plants rc 0 (20 CAUGHT, no WARN); gate rc 1 (two hot_text_products start-up text
+  tests: strings mode 1 fault; see the handoff); `locale-slots-growth-4-basepf` (base: 0 faults, rc 0) and
+  `locale-slots-growth-4-pfstr` (attribution) are diagnostics. The start-up job never ran (chain stopped after the
+  red gate, so the gate's products could be attributed); no lint1 (no code changed after the red).
 - Run 3's chain in n1 (`~/work/LOCALE-SLOTS-GROWTH-3/chain.sh`) was still running its gate on run 3's head. Run 4
   stopped it (chain by PID, then `kill-label`, then `kill-mine n1`); its gate row reads rc 124 and is superseded.
 
