@@ -1,0 +1,60 @@
+{
+ "task": "SYS-ICONV-COVERAGE",
+ "model": "opus",
+ "tokens": null,
+ "result": "cause found (no charmaps shipped; 32-charmap limit); 43 generated single-byte charmaps (281 names) shipped in libc6, limit 256; jobs pending",
+ "branch": "task/sys-iconv-coverage",
+ "head": null,
+ "gate": {
+  "affected": null,
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "stateful encodings (ISO-2022 family, UTF-7, IBM93x: 50 names) need a new converter kind",
+   "recommendation": "separate story, M size"
+  },
+  {
+   "item": "IBM EBCDIC pages have no Unicode Consortium table; IBM CDRA tables as published via ICU data",
+   "recommendation": "allow as a public mapping source (data, not libc code)"
+  }
+ ],
+ "informational": [
+  "the earlier 168-name inventory was capped by the 32-charmap per-process limit; per name, 683 open with host charmaps"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "iconv_open names opening with libniji packages alone",
+   "before": 58,
+   "after": 339,
+   "unit": "names of 1180",
+   "measured": false
+  },
+  {
+   "kind": "correctness",
+   "what": "distinct charmaps per process",
+   "before": 32,
+   "after": 256,
+   "unit": "charmaps",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "product test iconv_charmaps_products + 4 plants",
+   "before": 0,
+   "after": 1,
+   "unit": "tests",
+   "measured": false
+  }
+ ],
+ "improvement": "probe one process per name: a per-process cache limit made the earlier inventory under-count by 4x",
+ "next_step": "verify gate and plants; measure the after column; next classes per handoff",
+ "report_file": "handoff/SYS-ICONV-COVERAGE.md",
+ "jobs": [
+  "sys-iconv-coverage-gate",
+  "sys-iconv-coverage-plants"
+ ]
+}
