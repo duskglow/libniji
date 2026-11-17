@@ -432,6 +432,9 @@ impl Gen<'_> {
                 // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
                 nested.push(format!("typedef {core}"));
                 format!("{core} {}", stars.trim())
+            } else if !stars.is_empty() && self.t.typedefs.contains_key(&("typedef".to_string(), core.trim_start_matches("const ").to_string())) {
+                // A pointer to a typedef name (`const Elf64_Phdr *`): the typedef is declared before the structure.
+                format!("{core} {}", stars.trim())
             } else {
                 let b = dwarf_scalar(core).or_else(|| {
                     let r = self.resolve(core);
