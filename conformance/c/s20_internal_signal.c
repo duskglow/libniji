@@ -151,7 +151,10 @@ static void *all_blocked_reader(void *arg)
 static void *watchdog(void *arg)
 {
     (void)arg;
-    sleep(120);
+    /* The library's 32 (the setuid replay) reaches this thread too and ends a sleep early. */
+    unsigned left = 120;
+    while (left > 0)
+        left = sleep(left);
     printf("FAIL threads with every signal blocked: cancel or setuid did not complete (hang guard)\n");
     fflush(stdout);
     _exit(1);
@@ -383,7 +386,7 @@ int main(int argc, char **argv)
     pthread_t wd, r1, r2;
     pthread_create(&wd, NULL, watchdog, NULL);
     pthread_detach(wd);
-    pipe(block_pipe);
+    check(pipe(block_pipe) == 0, "a pipe for the threads that block every signal");
     allbits(&s);
     pthread_sigmask(SIG_SETMASK, &s, NULL);
     check(!(kmask() & BIT32) && (kmask() & (1UL << 32)), "an all-bits set blocks 33 (an ordinary signal), never 32");
