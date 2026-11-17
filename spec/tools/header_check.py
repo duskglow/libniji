@@ -32,13 +32,17 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
+           "getopt.h", "time.h",
+           # slice 16 (sys/elf.h rejects every configuration and is checked separately; thread_db.h, proc_service.h,
+           # sys/platform/x86.h, a.out.h and stab.h are not generated yet, see handoff/SL-HEADERS-S16.md)
+           "dlfcn.h", "link.h", "elf.h", "ar.h", "sys/gmon.h", "sys/gmon_out.h", "sys/profil.h", "gnu/lib-names.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
           "getopt.h", "time.h"]
+SLICE16 = ["dlfcn.h", "link.h", "elf.h", "ar.h", "sys/gmon.h", "sys/gmon_out.h", "sys/profil.h", "gnu/lib-names.h"]
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -51,7 +55,7 @@ def expand(configs, ids):
     return set(configs.split(","))
 
 
-def p1_units(ids, vis, macros, typedefs, layouts):
+def p1_units(ids, vis, macros, typedefs, layouts, members):
     """P1 of slice 6 (plan/headers.md section 3): per (header, configuration) one unit that includes the header and
     asserts, for what the header makes visible there, every macros.tsv integer value, every typedef size and
     alignment of typedefs.tsv and every structure size and alignment of layouts.tsv. A false condition is a
@@ -59,7 +63,7 @@ def p1_units(ids, vis, macros, typedefs, layouts):
     out = {}
     for r in vis:
         h = r["header"]
-        if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct"):
+        if h not in SLICE6 + SLICE16 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
@@ -74,10 +78,12 @@ def p1_units(ids, vis, macros, typedefs, layouts):
             t = typedefs[n]
             tests.append(f"sizeof({n}) == {t['size']}")
             tests.append(f"__alignof__({n}) == {t['align']}")
+            tests += [f"__builtin_offsetof({n}, {m}) == {o}" for m, o in members.get(n, [])]
         elif r["kind"] == "struct" and ("struct " + n) in layouts:
             t = layouts["struct " + n]
             tests.append(f"sizeof(struct {n}) == {t['offset_or_size']}")
             tests.append(f"__alignof__(struct {n}) == {t['align']}")
+            tests += [f"__builtin_offsetof(struct {n}, {m}) == {o}" for m, o in members.get("struct " + n, [])]
         for cid in expand(r["configs"], ids):
             out.setdefault((h, cid), []).extend(tests)
     units = {}
@@ -132,11 +138,14 @@ def main():
     gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
     vis = rows("spec/abi/visibility.tsv")
     macros = {r["name"]: r for r in rows("spec/abi/macros.tsv")}
-    layouts = {}
+    layouts, members = {}, {}
     for r in rows("spec/abi/layouts.tsv"):
         if not r["member"]:
             layouts[r["type"]] = r
-    p1s = p1_units([c["id"] for c in cfgs], vis, macros, typedefs, layouts)
+        elif "." not in r["member"] and "<" not in r["member"] and not r["bitfield"] and "<anon>" not in r["member_type"]:
+            members.setdefault(r["type"], []).append((r["member"], r["offset_or_size"]))
+    p1s = p1_units([c["id"] for c in cfgs], vis, macros, typedefs, layouts, members)
+    names = {r["library"] for r in rows("spec/abi/versions.tsv")}
     fails, total = len(missing), len(missing)
     for n in missing:
         print(f"FAIL P1 {n}: no typedefs.tsv row")
@@ -151,6 +160,12 @@ def main():
             f"#if __NIJI_{mac} != {lv[col]}\n#error \"__NIJI_{mac} is not {lv[col]}\"\n#endif\n" for col, mac in COLS))]
         if not rejected:
             units += [(f"P5 {h}", f"#include <{h}>\n#include <{h}>\nint niji_check_tu;\n") for h in HEADERS]
+            # sys/elf.h declares nothing and rejects every configuration (spec/abi/visibility.tsv).
+            units.append(("P5 reject sys/elf.h", "#include <sys/elf.h>\n"))
+            # gnu/lib-names.h: one string macro per library of versions.tsv, with the library's soname.
+            units.append(("P1 gnu/lib-names.h", "#include <gnu/lib-names.h>\n" + "".join(
+                f"typedef char niji_so_{i}[__builtin_strcmp({n.split('.so')[0].upper().replace('-', '_')}_SO, \"{n}\") == 0 ? 1 : -1];\n"
+                for i, n in enumerate(sorted(names)))))
             # static_assert is C++11 and _Static_assert C11 (C89 mode has neither as a keyword).
             if c["id"] not in ("cxx98", "c89", "isoc99"):
                 units.append(("P1 stdint", identity_unit(cxx, types)))
@@ -162,7 +177,7 @@ def main():
                 f.write(text)
             r = subprocess.run(base + [src], capture_output=True, text=True)
             total += 1
-            ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
+            ok = (r.returncode != 0) if ((rejected and what == "levels") or what.startswith("P5 reject")) else (r.returncode == 0)
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
