@@ -40,18 +40,19 @@ fn table_growth_failure_is_enomem_and_keeps_open_names() {
             }
         }
     }
-    let (n, e) = refused.expect("an open that needed more room");
-    // The file exists (O_CREAT ran before the table refused); unlink everything on the way out.
-    let names: Vec<Vec<u8>> = open.iter().map(|(n, _)| n.clone()).chain([n.clone()]).collect();
+    // The refused file exists (O_CREAT ran before the table refused); unlink everything on the way out.
+    let names: Vec<Vec<u8>> = open.iter().map(|(n, _)| n.clone()).chain(refused.iter().map(|(n, _)| n.clone())).collect();
     let cleanup = || {
         for n in &names {
             let _ = sync::sem_unlink(Ok(n));
         }
     };
-    if e != Errno::ENOMEM || open.len() < 16 {
+    let good = refused.as_ref().is_some_and(|&(_, e)| e == Errno::ENOMEM) && open.len() >= 16;
+    if !good {
         cleanup();
-        panic!("open {} refused with {e:?}: want ENOMEM, after the static area's 16", open.len());
     }
+    assert!(good, "open {} refused with {refused:?}: want ENOMEM, after the static area's 16", open.len());
+    let Some((n, _)) = refused else { return };
     // Memory back: the refused name opens, as a semaphore of its own.
     let a = sync::sem_open(Ok(&n), 0, 0, 0);
     let ok_reopen = a.is_ok_and(|a| open.iter().all(|&(_, b)| b != a));
