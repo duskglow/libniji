@@ -1,7 +1,14 @@
 # UTIL-8: the `locale` command (issue #14)
 
-**State.** Branch `task/util-8-3` (UTIL-8-3, continuing `task/util-8-2` and `task/util-8` from origin/next
-`575214f4b`), role mei `~/w/s1`. Head: see `handoff/reports/UTIL-8-3.json`.
+**State.** Branch `task/util-8-4` (UTIL-8-4, continuing `task/util-8-3`, `-2` and `task/util-8`), merged with
+origin/next `06c0b561e`, role mei `~/w/s4`. Head: see `handoff/reports/UTIL-8-4.json`.
+
+**UTIL-8-4 (merge only, no new scope).** UTIL-7 (iconv) and SYS-ICONV-COVERAGE-2 had landed on the same lines.
+Both sides kept: libc-bin installs and strips `/usr/bin/iconv` and `/usr/bin/locale`; `check-system.sh` allows
+both; `so.rs` keeps next's `run_dynamic_util` and `run_iconv`, and `run_getent` also links locale; the transcript
+runner maps both test links; the differences table keeps next's `ldd -v` row and the two locale rows. locale.c and
+the transcripts are unchanged by the merge. Proof on the merged head: `util-8-4-lint1` (clippy + static),
+`util-8-4-gate` (direct tier, `--base origin/next`), `util-8-4-plants` (the 15 plants of `UTIL-8-3-plants.txt`).
 
 **UTIL-8-3.** (1) `util-8-2-plants` was refused (rc 3): five plants used two-line `lit:` patterns with `\n`, and
 `lit:` takes one line without escapes. `handoff/UTIL-8-3-plants.txt` replaces the file (one-line `lit:` or anchored
