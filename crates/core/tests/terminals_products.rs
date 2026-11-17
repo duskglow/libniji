@@ -53,12 +53,12 @@ const KNOWN: [(&str, &str); 19] = [
     ("posix_openpt O_RDWR|O_PATH: fd errno=0", "O_PATH is EINVAL (above): the reference returns a descriptor that is not a terminal"),
     ("posix_openpt O_RDWR|0x40000000: fd errno=0", "a bit open does not define is EINVAL (above)"),
     ("posix_openpt -1: -1 errno=ENOTDIR", "all bits set is EINVAL (above)"),
-    ("ptsname_r NULL buffer: child killed by SIGSEGV", "S6 and ptsname(3): a NULL buffer is EINVAL (as ttyname_r's is); the reference dereferences it"),
+    ("ptsname_r NULL buffer: child killed by SIGSEGV", "S6 and ptsname(3): a NULL buffer is EINVAL (as ttyname_r's is)"),
     (
         "openpty all iflag bits read back: iflag=0x7fffffff",
         "D-19.1: the termp mode words reach the terminal as given (see \"all flag bits read back\"); the reference clears c_iflag bit 31",
     ),
-    ("openpty NULL master: child killed by SIGSEGV", "S6: a NULL amaster is EFAULT and nothing is opened; the reference dereferences it (the child reports instead of crashing)"),
+    ("openpty NULL master: child killed by SIGSEGV", "S6: a NULL amaster is EFAULT and nothing is opened"),
     ("openpty NULL slave: child killed by SIGSEGV", "S6: a NULL aslave is EFAULT and nothing is opened (above)"),
     (
         "after failed login_tty: session leader=1",

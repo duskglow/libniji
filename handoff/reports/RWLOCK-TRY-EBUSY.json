@@ -1,0 +1,16 @@
+{"task": "RWLOCK-TRY-EBUSY", "model": "opus", "tokens": null,
+ "result": "rwlock try-locks return EBUSY on a lock the caller holds for writing (issue #15); timed/clock forms validate tv_nsec first (EINVAL), matching every probed cell; Berkeley DB environment opens in a swapped trixie root",
+ "branch": "task/rwlock-try-ebusy", "head": "522d82446",
+ "gate": {"affected": "2010 passed / 0 failed (11 suites, conformance 13 passed)", "peak": "2.8G"},
+ "accepted_first_attempt": null,
+ "rulings": [], "informational": ["plants deadline-first and blocking-deadlk print 'caught by no test the log names': they are caught by the conformance program s22_rwlock_self (named in the msg), not a cargo test"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "pthread_rwlock_tryrdlock/trywrlock on a lock the caller holds for writing: EBUSY (was EDEADLK); Berkeley DB environments open (db5.3 in a swapped trixie root)", "before": 16, "after": 0, "unit": "probe cells differing from the reference (8 configs x 2 try forms)", "measured": true},
+  {"kind": "correctness", "what": "timed/clock rwlock forms with tv_nsec outside [0, 1e9): EINVAL first whatever the lock state (was 0 on a free or read-held lock, EDEADLK on a write-held one)", "before": 80, "after": 0, "unit": "probe cells differing from the reference", "measured": true},
+  {"kind": "coverage", "what": "conformance/c/s22_rwlock_self.c (every non-blocking self-held cell, 8 configs, plus the issue's reproducer); rt unit test try-form asserts; 4 plants", "before": 0, "after": 4, "unit": "plants caught", "measured": true}
+ ],
+ "improvement": "tools/deb/swap-system.sh with SWAP_EXTRA_PKGS/SWAP_EXTRA_CMDS made the distribution-program proof one job (17 min); a ready wrapper taking a role dir (it needs a git tree, the role is not one) would save the snapshot step",
+ "next_step": "land; CI assigns the id of records/pending/RWLOCK-TRY-EBUSY-1.toml",
+ "report_file": "handoff/RWLOCK-TRY-EBUSY.md",
+ "jobs": ["rwlock-try-ebusy-lint-1", "rwlock-try-ebusy-gate-1", "rwlock-try-ebusy-plants-1", "rwlock-try-ebusy-bdb-1"]}

@@ -1,0 +1,4 @@
+library	version	parent
+libc.so.6	GLIBC_ABI_DT_RELR	GLIBC_2.39
+libm.so.6	GLIBC_2.4	GLIBC_2.2.5
+ld-linux-x86-64.so.2	GLIBC_2.4	GLIBC_2.3

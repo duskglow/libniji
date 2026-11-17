@@ -175,8 +175,8 @@ fn store_cmp_gates(fold: bool, avx2: bool) {
 
 /// NULL folding (owner rulings 2026-10-08, D-4.22): the copy and fill entries take sizes
 /// `1..=FOLD` straight to their assembly classes (`csys/src/machine/fold.S`) with no NULL test,
-/// where a NULL faults on page zero (SIGSEGV, what glibc observably does: it has no NULL check of
-/// its own). Every other size, 65-128 included, keeps the explicit S6 checks in Rust (option B:
+/// where a NULL faults on page zero (SIGSEGV: a NULL with a non-zero size is the caller's error,
+/// and the fault stops the process at it). Every other size, 65-128 included, keeps the explicit S6 checks in Rust (option B:
 /// no Rust code performs a deliberate NULL access); the compare and equality entries also fold
 /// 65-2048 in their AVX2 classes (ruling #2517 (coordinator, 2026-11-04), PERF-MEMCMP-TAILS; `CMP_LONG_WORD`). `0` (the start value, and the value whenever
 /// page zero could be mapped) keeps the explicit checks for every size.

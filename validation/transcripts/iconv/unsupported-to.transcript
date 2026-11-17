@@ -1,0 +1,14 @@
+name: unknown target charset, suffix kept in the message
+clause: s31_6_f_2
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: NOSUCH//TRANSLIT
+stdin:
+|~ a
+status: exit 1
+stdout:
+stderr:
+| iconv: conversion to `NOSUCH//TRANSLIT' is not supported
+| Try `iconv --help' or `iconv --usage' for more information.

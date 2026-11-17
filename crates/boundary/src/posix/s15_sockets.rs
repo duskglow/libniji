@@ -2,12 +2,12 @@
 //! (phase 10) address conversion, interfaces, IPv6 helpers, source filters, Ethernet names and
 //! the `rcmd` family (§15.3–15.8), whose C conventions are in `crate::netaddr`.
 //!
-//! Addresses in are byte slices of the caller's `socklen_t`. Address and option results go
-//! through `niji_legacy::net_compat`, which copies them back truncated and reports the full
-//! length. `struct msghdr` and `struct mmsghdr` have the kernel's layout and are viewed in
-//! place (`conv::msghdr`), so the kernel reads and writes the buffers they name, as for a C
-//! caller. `setsockopt` at a level that registers caller memory, and `SIOCATMARK`, go through
-//! `crate::raw`.
+//! Addresses in are byte slices of the caller's `socklen_t`. Address results go through
+//! `niji_legacy::net_compat`, which copies them back truncated and reports the full length.
+//! `struct msghdr` and `struct mmsghdr` have the kernel's layout and are viewed in place
+//! (`conv::msghdr`), so the kernel reads and writes the buffers they name, as for a C caller.
+//! `getsockopt`, `setsockopt` with a NULL value or at a level that registers caller memory,
+//! and `SIOCATMARK` go through `crate::raw` with the caller's addresses (D-15.5 as amended).
 
 use niji_abi::ctypes::{c_char, c_int, c_uint, c_ushort, c_void, size_t, ssize_t};
 use niji_kernel::mem::{MMsgHdr, MMsgHdrMut};
@@ -82,24 +82,30 @@ pub extern "C" fn shutdown(fd: c_int, how: c_int) -> c_int {
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getsockname(fd: c_int, addr: *mut c_void, len: Option<&mut c_uint>) -> c_int {
-    // UNSAFE(slice) SAFETY: addr is NULL or holds *len writable bytes (§15.1).
-    ret::zero(unsafe { conv::addr_out(addr, len) }.and_then(conv::req).and_then(|o| net_compat::sockname(&CSys, conv::fd(fd), o, false)))
+    // UNSAFE(slice) SAFETY: addr holds *len writable bytes, or is NULL with *len 0 (§15.1).
+    ret::zero(net_compat::sockname(&CSys, conv::fd(fd), || unsafe { conv::name_out(addr, len) }, false))
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getpeername(fd: c_int, addr: *mut c_void, len: Option<&mut c_uint>) -> c_int {
-    // UNSAFE(slice) SAFETY: addr is NULL or holds *len writable bytes (§15.1).
-    ret::zero(unsafe { conv::addr_out(addr, len) }.and_then(conv::req).and_then(|o| net_compat::sockname(&CSys, conv::fd(fd), o, true)))
+    // UNSAFE(slice) SAFETY: addr holds *len writable bytes, or is NULL with *len 0 (§15.1).
+    ret::zero(net_compat::sockname(&CSys, conv::fd(fd), || unsafe { conv::name_out(addr, len) }, true))
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn getsockopt(fd: c_int, level: c_int, name: c_int, value: *mut c_void, len: Option<&mut c_uint>) -> c_int {
-    // UNSAFE(slice) SAFETY: value holds *len writable bytes (§15.1).
-    ret::zero(unsafe { conv::addr_out(value, len) }.and_then(conv::req).and_then(|o| net_compat::getsockopt(&CSys, conv::fd(fd), level, name, o)))
+    // The caller's addresses go to the kernel as given (D-15.5 as amended): it reads and
+    // writes them, a NULL value with *len 0 being the option's size query.
+    ret::zero(raw::getsockopt(fd, level, name, conv::addr(value), len.map_or(0, |l| conv::addr(core::ptr::from_mut(l)))))
 }}
 
 export! { "GLIBC_2.2.5";
 pub extern "C" fn setsockopt(fd: c_int, level: c_int, name: c_int, value: *const c_void, len: c_uint) -> c_int {
+    // A NULL value goes to the kernel as given: whether it is valid is the option's
+    // (D-15.5 as amended).
+    if value.is_null() {
+        return ret::zero(raw::setsockopt(fd, level, name, 0, len));
+    }
     // UNSAFE(slice) SAFETY: value holds len readable bytes (§15.1).
     ret::zero(unsafe { conv::sockaddr(value, len) }.and_then(|v| net_compat::setsockopt(&CSys, conv::fd(fd), level, name, v, || raw::setsockopt(fd, level, name, conv::addr(value), len))))
 }}

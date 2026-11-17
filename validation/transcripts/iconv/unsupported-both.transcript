@@ -1,0 +1,14 @@
+name: both charsets unknown
+clause: s31_6_f_2
+command: iconv
+arg: -f
+arg: NOSUCH
+arg: -t
+arg: NOSUCH2
+stdin:
+|~ a
+status: exit 1
+stdout:
+stderr:
+| iconv: conversions from `NOSUCH' and to `NOSUCH2' are not supported
+| Try `iconv --help' or `iconv --usage' for more information.

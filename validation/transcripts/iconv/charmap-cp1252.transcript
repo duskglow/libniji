@@ -1,0 +1,13 @@
+name: from CP1252 (charmap)
+clause: s31_6_i_2
+command: iconv
+arg: -f
+arg: CP1252
+arg: -t
+arg: UTF-8
+stdin:
+|~ \x80\x93x\x94\n
+status: exit 0
+stdout:
+| \xe2\x82\xac\xe2\x80\x9cx\xe2\x80\x9d
+stderr:

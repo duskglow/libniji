@@ -543,7 +543,7 @@ pub fn fopen(path: KResult<KStr<'_>>, mode: KResult<&[u8]>) -> KResult<usize> {
     let m = sc::parse_mode(mode)?;
     // `,ccs=CHARSET`: wide-oriented on that charset (an unknown one fails, as `iconv_open`).
     let codec = match sc::mode_charset(mode) {
-        Some(name) => Some(crate::iconv::codec_named(name).ok_or(Errno::EINVAL)?),
+        Some(name) => Some(crate::iconv::codec_named(name)?),
         None => None,
     };
     let fd = CSys.openat(Fd::CWD, path?, sc::open_flags(&m), 0o666)?;

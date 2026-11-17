@@ -264,11 +264,21 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
             }
         }
     }
-    // Node order: GLIBC_2.2.5 < GLIBC_2.3 < ... numerically, GLIBC_PRIVATE last.
-    let key = |v: &str| -> (u32, Vec<u32>) {
+    // The reference's nodes no symbol carries (GLIBC_ABI_DT_RELR; crate::empty_versions): defined
+    // empty, so a program that requires one starts. Each names the reference's parent (the table's)
+    // and carries `local: *`: ld flags a node with no pattern WEAK, and the reference's are not
+    // (crate::empty_versions::check compares the flags and the parent).
+    let empty: BTreeMap<String, String> = crate::empty_versions::nodes(root, lib_name)?.into_iter().collect();
+    for ver in empty.keys() {
+        nodes.entry(ver.clone()).or_default();
+    }
+    // Node order: GLIBC_2.2.5 < GLIBC_2.3 < ... numerically, then the named GLIBC_ nodes
+    // (GLIBC_ABI_DT_RELR), GLIBC_PRIVATE last.
+    let key = |v: &str| -> (u32, Vec<u32>, String) {
         match v.strip_prefix("GLIBC_") {
-            Some("PRIVATE") | None => (1, Vec::new()),
-            Some(n) => (0, n.split('.').map(|p| p.parse().unwrap_or(0)).collect()),
+            Some("PRIVATE") | None => (2, Vec::new(), v.to_string()),
+            Some(n) if n.split('.').all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit())) => (0, n.split('.').map(|p| p.parse().unwrap_or(0)).collect(), String::new()),
+            Some(_) => (1, Vec::new(), v.to_string()),
         }
     };
     let mut order: Vec<&String> = nodes.keys().collect();
@@ -294,10 +304,10 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
                 count += 1;
             }
         }
-        if i == local_node {
+        if i == local_node || (empty.contains_key(*v) && !compat_nodes.contains(*v)) {
             script.push_str("  local:\n    *;\n");
         }
-        match prev {
+        match empty.get(*v).or(prev) {
             Some(p) => script.push_str(&format!("}} {p};\n")),
             None => script.push_str("};\n"),
         }
@@ -960,7 +970,8 @@ impl ProductBuild {
         let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
         let mut cmd = Command::new(cargo);
         cmd.current_dir(root).args(["rustc", "-q", "--profile", profile.name(), "--crate-type", "staticlib", "--manifest-path"]).arg(root.join(self.manifest)).arg("--target-dir").arg(self.target_dir(product));
-        let flags: Vec<&str> = self.extra.into_iter().chain(rustflags).collect();
+        let debug = (profile == Profile::Release).then_some(RELEASE_DEBUG_RUSTFLAGS);
+        let flags: Vec<&str> = self.extra.into_iter().chain(debug).chain(rustflags).collect();
         let flags = flags.join("\x1f");
         cmd.env("CARGO_ENCODED_RUSTFLAGS", crate::align::encoded_rustflags(root, (!flags.is_empty()).then_some(flags.as_str())));
         cmd.env("NIJI_BUILD_TAG", tag);
@@ -1438,10 +1449,18 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
     run_getent(root, &cc)?;
+    run_iconv(root, &cc)?;
     run_ldd(root, &cc, &release)?;
+    // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
+    // packages install for iconv_open (D-6.8's directory).
+    let n = crate::charmaps::write(root, &release.join("charmaps"))?;
+    println!("so: target/niji/charmaps ({n} charmaps from spec/encoding/charmaps.tsv)");
     check_placement(root, &release)?;
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
+    // SYS-ABI-DT-RELR: every symbol-less node of the reference that libniji honours is defined.
+    let empty = crate::empty_versions::check(root, &release)?;
+    println!("so: {empty} symbol-less version nodes defined ({})", crate::empty_versions::TABLE);
     // After the last product: every layout contract of layout/contracts.tsv (D-X.48) on the products, among them
     // the 64-byte entries (D-4.33), the classed pages' XREF bias (D-X.34), the hot kernels' jumps off 32-byte
     // boundaries (D-4.67) and no build path in any product (PRODUCT-PATH-REMAP).
@@ -1475,6 +1494,15 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
 /// load the callee from the GOT; the first, `niji_link_image_header`, crashed ld.so). Every
 /// symbol is local in the linked object (version script), so the model's assumption holds.
 const LD_RUSTFLAGS: &str = "-Crelocation-model=pie";
+
+/// SYS-DBG-PACKAGE-2: line tables for libniji's own crates in the shipped (`release`) products, which
+/// libc6-dbg carries and a debugger reads. The product workspace (crates/Cargo.toml) has its own
+/// profiles, so the root Cargo.toml's `debug` never reached these builds. A flag, not the profile's
+/// `debug` key: cargo hashes profile settings into `-C metadata`, which changes every Rust symbol
+/// hash and with it the bytes of the loaded image; the flag changes the debug sections only
+/// (measured: every allocated section of every product and archive member identical, the build-id
+/// note aside). The `fast` tool profile stays without DWARF.
+const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
 
 fn run_ld(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     use niji_ld::arch::Arch as _;
@@ -1612,6 +1640,8 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
 ///   transcripts (`cargo xtask transcript`) run it on libniji's library on a host whose system C library is
 ///   another one. Kept out of `target/niji`: it names build paths.
 pub(crate) const GETENT_TEST: &str = "target/niji-test/getent";
+/// iconv (UTIL-7, spec §31.6): `csys/util/iconv.c`, a thin front end over `iconv(3)`, built as getent is.
+pub(crate) const ICONV_TEST: &str = "target/niji-test/iconv";
 
 /// locale (UTIL-8, spec §31.7): `csys/util/locale.c`, a front end over `setlocale` and `nl_langinfo`, linked as
 /// getent is: `target/niji/locale` (libc-bin's `/usr/bin/locale`) and the test link `target/niji-test/locale`.
@@ -1622,8 +1652,12 @@ fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
     run_dynamic_util(root, cc, "locale", LOCALE_TEST)
 }
 
-/// One dynamic front end `csys/util/<name>.c`: the shipped link in `target/niji` and the test link `test_path`.
-fn run_dynamic_util(root: &Path, cc: &str, name: &str, test_path: &str) -> Result<(), String> {
+fn run_iconv(root: &Path, cc: &str) -> Result<(), String> {
+    run_dynamic_util(root, cc, "iconv", ICONV_TEST)
+}
+
+/// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
+fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
     let obj = product.join(format!("{name}.o"));
@@ -1648,12 +1682,12 @@ fn run_dynamic_util(root: &Path, cc: &str, name: &str, test_path: &str) -> Resul
         publish(&staged, out)
     };
     link(&release.join(name), Path::new("/lib64/ld-linux-x86-64.so.2"), &release.join("libc.so.6"))?;
-    let test = root.join(test_path);
-    let dir = test.parent().unwrap_or(root);
+    let test_path = root.join(test);
+    let dir = test_path.parent().unwrap_or(root);
     fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let by_path = crate::native_examples::libc_by_path(&release.join("libc.so.6"), dir)?;
-    link(&test, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
-    println!("so: target/niji/{name} (dynamic, libc.so.6), {test_path} (this tree's loader and library)");
+    link(&test_path, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
+    println!("so: target/niji/{name} (dynamic, libc.so.6), {test} (this tree's loader and library)");
     Ok(())
 }
 
@@ -1721,6 +1755,13 @@ fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
     }
     if out.is_empty() {
         out.push_str("{\n  local: *;\n};\n");
+    }
+    // The reference's nodes no symbol carries (crate::empty_versions): no symbol, the reference's
+    // parent, and `local: *` so that ld does not flag the definition WEAK.
+    for (ver, parent) in crate::empty_versions::nodes(root, soname)? {
+        if !nodes.contains_key(&ver) {
+            out.push_str(&format!("{ver} {{\n  local: *;\n}} {parent};\n"));
+        }
     }
     Ok(out)
 }

@@ -170,7 +170,7 @@ static void positional(void) {
     errno = 9999;
     show("m", "[%m]");
     /* Positions up to NL_ARGMAX (4096); past it libniji fails with EINVAL (POSIX's range).
-       Every position is used (a gap is undefined, and the fortified reference aborts on it):
+       Every position is used (a gap is undefined):
        the zeros print nothing through `%k$.0d`. */
 #define Z8 0, 0, 0, 0, 0, 0, 0, 0
 #define Z64 Z8, Z8, Z8, Z8, Z8, Z8, Z8, Z8

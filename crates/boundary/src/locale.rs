@@ -9,6 +9,7 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
+use niji::error::{Errno, KResult};
 use niji::locale::file::Cat;
 use niji::ctype::Class;
 use niji::locale::view::{LocaleView, EMPTY};
@@ -41,6 +42,11 @@ impl Objects for Glue {
     fn charmap_at(&self, addr: usize) -> &'static niji::charmap::Charmap {
         tb::charmap_at(addr)
     }
+
+    fn words_at(&self, addr: usize, n: usize) -> &'static [AtomicUsize] {
+        // The charmap table: a leaked heap allocation of `n` words (`words64`'s contract).
+        if n == 0 || addr == 0 { &[] } else { tb::words64(addr, n) }
+    }
 }
 
 /// `f` with `path` as a kernel path (NUL-terminated in a buffer).
@@ -59,16 +65,17 @@ fn identity_of(st: &niji_kernel::uapi::Stat) -> gl::Identity {
 }
 
 impl Mapper for Glue {
-    fn map(&self, path: &[u8]) -> Option<(usize, usize, gl::Identity)> {
-        let fd = with_path(path, |p| CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0).ok())?;
+    fn map(&self, path: &[u8]) -> KResult<(usize, usize, gl::Identity)> {
+        let fd = with_path(path, |p| Some(CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0)))
+            .unwrap_or(Err(Errno::ENAMETOOLONG))?;
         let mapped = (|| {
-            let st = CSys.fstat(fd).ok()?;
-            let size = usize::try_from(st.size).ok()?;
+            let st = CSys.fstat(fd)?;
+            let size = usize::try_from(st.size).map_err(|_| Errno::EFBIG)?;
             if size == 0 {
-                return Some((0, 0, identity_of(&st)));
+                return Ok((0, 0, identity_of(&st)));
             }
-            let region = CSys.mmap(0, size, PROT_READ, MAP_PRIVATE, Some(fd), 0).ok()?;
-            Some((region.addr(), size, identity_of(&st)))
+            let region = CSys.mmap(0, size, PROT_READ, MAP_PRIVATE, Some(fd), 0)?;
+            Ok((region.addr(), size, identity_of(&st)))
         })();
         let _ = CSys.close(fd);
         mapped
@@ -1045,7 +1052,7 @@ pub fn wlower(l: &'static Locale) -> impl Fn(i32) -> i32 + Copy {
 
 /// `rpmatch(response)` (§7.6; D-7.9): 1 when `response` (a C string's address) matches the
 /// current locale's `YESEXPR`, 0 when it matches `NOEXPR`, otherwise -1 (also for an expression
-/// that does not compile, and for NULL, where the reference crashes). The expressions are
+/// that does not compile, and for NULL: no response). The expressions are
 /// POSIX extended regular expressions, matched with the library's `regcomp`/`regexec`.
 pub fn rpmatch(response: usize) -> i32 {
     if response == 0 {

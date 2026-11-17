@@ -37,7 +37,7 @@ pub extern "C" fn __nss_configure_lookup(db: *const c_char, spec: *const c_char)
 // spec/abi/compat-plan.tsv), never into `libc.a` (R15-2); tests call these Rust functions.
 crate::internal_entry! {
 /// `__nss_database_lookup@GLIBC_2.2.5`: -1; the fourth argument (the result slot) is cleared when
-/// not NULL (the reference dereferences it unconditionally; libniji does not fault on NULL).
+/// not NULL (libniji does not fault on NULL, S6).
 pub extern "C" fn niji_compat___nss_database_lookup(_db: *const c_char, _alt: *const c_char, _defconfig: *const c_char, ni: Option<&mut usize>) -> c_int {
     if let Some(ni) = ni {
         *ni = 0;

@@ -18,23 +18,24 @@ use crate::{heap, tb};
 const TAG: usize = 0x6c69_6963_6f6e_7600;
 
 /// The codec a charset name denotes (as `iconv_open` reads it, without suffixes).
-pub fn codec_named(name: &[u8]) -> Option<iconv::Codec> {
+pub fn codec_named(name: &[u8]) -> KResult<iconv::Codec> {
     codec(iconv::parse_name(name).name)
 }
 
-fn codec(name: &[u8]) -> Option<iconv::Codec> {
+fn codec(name: &[u8]) -> KResult<iconv::Codec> {
     if name.is_empty() {
-        return Some(iconv::of_locale(locale::current()));
+        return Ok(iconv::of_locale(locale::current()));
     }
     gl::codec(&CSys, &Glue, name)
 }
 
-/// `iconv_open(to, from)`: the descriptor's address, or `EINVAL` for an unsupported pair.
+/// `iconv_open(to, from)`: the descriptor's address, `EINVAL` for an unsupported pair, or
+/// `ENOMEM` when a charmap or the descriptor cannot be allocated.
 pub fn open(to: KResult<&[u8]>, from: KResult<&[u8]>) -> KResult<usize> {
     let (to, from) = (iconv::parse_name(to?), iconv::parse_name(from?));
     let conv = Conv {
-        from: codec(from.name).ok_or(Errno::EINVAL)?,
-        to: codec(to.name).ok_or(Errno::EINVAL)?,
+        from: codec(from.name)?,
+        to: codec(to.name)?,
         translit: to.translit,
         ignore: to.ignore,
         state: State::default(),

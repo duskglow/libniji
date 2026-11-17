@@ -1,0 +1,14 @@
+name: //IGNORE over invalid input
+clause: s31_6_f_1
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ISO-8859-1//IGNORE
+stdin:
+|~ ab\xffcd\n
+status: exit 1
+stdout:
+| abcd
+stderr:
+| iconv: illegal input sequence at position 6

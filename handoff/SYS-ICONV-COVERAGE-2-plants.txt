@@ -1,0 +1,10 @@
+# Plants for SYS-ICONV-COVERAGE-2 (growable charmap table, ENOMEM, tag characters, DOS end-of-file)
+# and the generated charmaps of SYS-ICONV-COVERAGE. Run:
+# cargo xtask plants handoff/SYS-ICONV-COVERAGE-2-plants.txt --dir <new RAM dir> --timeout 1800
+charmap-table-no-growth | crates/legacy/src/global_locale.rs | lit:room.checked_mul(2) ==> room.checked_mul(1) | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:charmaps_load_past_any_fixed_count.*(FAILED\|panicked)
+charmap-table-copy-lost | crates/legacy/src/global_locale.rs | lit:let old = self.charmap_table(); ==> let old: &[AtomicUsize] = &[]; | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:charmaps_load_past_any_fixed_count.*(FAILED\|panicked)
+charmap-enomem-as-einval | crates/legacy/src/global_locale.rs | lit:if e == Errno::ENOMEM { Err(e) } else { Ok(None) } ==> if e == Errno::EPERM { Err(e) } else { Ok(None) } | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:not ENOMEM
+charmap-tag-kept | crates/core/src/iconv/mod.rs | lit:Codec::Charmap(_) if (0xE0000..=0xE007F).contains(&c) => Some(0), ==> | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:line counts differ
+charmap-dos-eof | xtask/src/charmaps.rs | lit:.trim_end_matches('\u{1a}') ==> .trim_end_matches('\u{1b}') | cargo xtask so | msg:CP737.TXT:274
+charmap-alias-lost | xtask/src/charmaps.rs | lit:"% alias {a}" ==> "% alias X{a}" | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:names that do not convert as the reference does
+charmap-fill-short | xtask/src/charmaps.rs | lit:(0..0x20).chain([0x7F]) ==> (0..0x1F).chain([0x7F]) | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:do not convert as the reference does\|lines that differ from the reference\|line counts differ
