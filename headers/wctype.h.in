@@ -1,0 +1,14 @@
+@@generated
+/* wctype.h: wide character classification (C 7.30, XSH <wctype.h>). */
+#ifndef __NIJI_H_wctype_h
+#define __NIJI_H_wctype_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

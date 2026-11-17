@@ -32,13 +32,21 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
-COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
+           "getopt.h", "time.h",
+           # slice 10
+           "locale.h", "langinfo.h", "nl_types.h", "libintl.h", "monetary.h", "wchar.h", "wctype.h", "uchar.h", "iconv.h",
+           "gconv.h", "stdbit.h", "regex.h", "re_comp.h", "regexp.h", "fnmatch.h", "glob.h", "wordexp.h", "search.h",
+           "fts.h", "ftw.h"]
+COLS =[("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-          "getopt.h", "time.h"]
+          "getopt.h", "time.h",
+          # slice 10
+          "locale.h", "langinfo.h", "nl_types.h", "libintl.h", "monetary.h", "wchar.h", "wctype.h", "uchar.h", "iconv.h",
+          "gconv.h", "stdbit.h", "regex.h", "re_comp.h", "regexp.h", "fnmatch.h", "glob.h", "wordexp.h", "search.h",
+          "fts.h", "ftw.h"]
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 

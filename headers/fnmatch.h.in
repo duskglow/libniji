@@ -1,0 +1,20 @@
+@@generated
+/* fnmatch.h: file name matching (XSH <fnmatch.h>). */
+#ifndef __NIJI_H_fnmatch_h
+#define __NIJI_H_fnmatch_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns FNM_NOSYS
+@@emit
+
+@@if FNM_NOSYS
+/* XSI: the value of the "not supported" return. */
+# define FNM_NOSYS (-1)
+#endif
+
+__NIJI_END_C
+
+#endif

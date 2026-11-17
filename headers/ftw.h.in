@@ -1,0 +1,16 @@
+@@generated
+/* ftw.h: file tree walk (XSH <ftw.h>). */
+#ifndef __NIJI_H_ftw_h
+#define __NIJI_H_ftw_h 1
+
+#include <features.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@owns statx statx_timestamp getumask
+@@emit
+
+__NIJI_END_C
+
+#endif

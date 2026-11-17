@@ -400,9 +400,16 @@ impl Gen<'_> {
             if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
                 continue;
             }
-            if r["member"].contains('.') || !r["bitfield"].is_empty() {
+            if r["member"].contains('.') {
                 return None;
             }
+            // A bit-field row (`bits W@B`): consecutive bit-fields pack in declaration order, so the width is all
+            // the declaration needs (`regex_t` ends in seven flag bits).
+            let bits = if r["bitfield"].is_empty() {
+                None
+            } else {
+                Some(r["bitfield"].strip_prefix("bits ")?.split('@').next()?.parse::<u32>().ok()?)
+            };
             let mt = &r["member_type"];
             let (base, arr) = match mt.find('[') {
                 Some(i) => (&mt[..i], &mt[i..]),
@@ -430,8 +437,10 @@ impl Gen<'_> {
             };
             let off: u64 = r["offset_or_size"].parse().ok()?;
             end = self.type_size(core, stars, arr).zip(end).map(|(n, e)| e.max(off + n));
-            offs.insert(r["offset_or_size"].clone());
-            out.push(format!("  {base} {}{arr};", r["member"]));
+            if bits.is_none() {
+                offs.insert(r["offset_or_size"].clone());
+            }
+            out.push(format!("  {base} {}{arr}{};", r["member"], bits.map_or(String::new(), |w| format!(" : {w}"))));
         }
         // Unnamed padding the layout rows do not list (`struct timex` ends in 44 bytes of it).
         if let (Some(end), Some(total)) = (end, rows.iter().find(|r| r["member"].is_empty()).and_then(|r| r["offset_or_size"].parse::<u64>().ok())) {
