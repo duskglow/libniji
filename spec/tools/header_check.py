@@ -43,9 +43,10 @@ COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
           "getopt.h", "time.h"]
 SLICE16 = ["dlfcn.h", "link.h", "elf.h", "ar.h", "sys/gmon.h", "sys/gmon_out.h", "sys/profil.h", "gnu/lib-names.h", "sys/platform/x86.h"]
-# Names the reference's header shows through an include of a header no slice has generated yet (<sys/profil.h> includes
-# <sys/time.h>, slice 7, which brings fd_set at every level): P1 skips them until that header exists; P2 reports them.
-PENDING_INCLUDE = {("sys/profil.h", "fd_set")}
+# <sys/profil.h> of the reference includes <sys/time.h> (slice 7, not generated yet), which brings fd_set, sigset_t,
+# the pthread types and more at every level: until that header exists P1 checks only the structure <sys/profil.h>
+# itself declares, and P2 reports the rest.
+PENDING_INCLUDE = {"sys/profil.h": {"prof"}}
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -69,7 +70,7 @@ def p1_units(ids, vis, macros, typedefs, layouts, members):
         if h not in SLICE6 + SLICE16 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
-        if (h, n) in PENDING_INCLUDE:
+        if h in PENDING_INCLUDE and r["kind"] in ("typedef", "struct") and n not in PENDING_INCLUDE[h]:
             continue
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)

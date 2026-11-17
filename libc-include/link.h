@@ -47,7 +47,7 @@ struct dl_phdr_info {
 };
 # endif
 #endif
-#if __NIJI_CXX < 1
+#if 1
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
 typedef struct {
@@ -259,8 +259,6 @@ typedef struct {
   __int128 __glibc_unused2;
 } La_x86_64_retval;
 # endif
-#endif
-#if 1
 # ifndef __NIJI_D__r_debug
 #  define __NIJI_D__r_debug 1
 extern struct r_debug _r_debug;
