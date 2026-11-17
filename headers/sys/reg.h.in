@@ -1,0 +1,14 @@
+@@generated
+/* sys/reg.h: the indexes of the registers in struct user_regs_struct. */
+#ifndef __NIJI_H_sys_reg_h
+#define __NIJI_H_sys_reg_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

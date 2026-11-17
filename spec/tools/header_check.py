@@ -27,12 +27,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import header_probe as hp  # noqa: E402  (ROOT, c_integer_names)
 
 ROOT = hp.ROOT
+SLICE9 = ["sys/signalfd.h", "sys/timerfd.h", "sys/eventfd.h", "sys/epoll.h", "sys/inotify.h", "sys/fanotify.h", "sys/prctl.h",
+          "sys/personality.h", "sys/pidfd.h", "sys/auxv.h", "sys/random.h", "sys/syscall.h", "syscall.h", "sys/ptrace.h",
+          "sys/user.h", "sys/reg.h", "sys/procfs.h", "sys/debugreg.h"]
 HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "sys/types.h", "sys/bitypes.h",
            "stdint.h", "inttypes.h", "limits.h", "endian.h", "byteswap.h", "errno.h", "sys/errno.h", "alloca.h",
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
+           "getopt.h", "time.h"] + SLICE9
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
@@ -59,7 +62,7 @@ def p1_units(ids, vis, macros, typedefs, layouts):
     out = {}
     for r in vis:
         h = r["header"]
-        if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct"):
+        if h not in SLICE6 + SLICE9 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
@@ -85,7 +88,22 @@ def p1_units(ids, vis, macros, typedefs, layouts):
         if tests:
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             units.setdefault(cid, []).append((f"P1 {h}", body))
+    # sys/syscall.h (SL-HEADERS-S09): SYS_<name> is the number of spec/abi/syscalls.tsv, which is the kernel's __NR_<name>.
+    sysrows = rows("spec/abi/syscalls.tsv")
+    body = "#include <sys/syscall.h>\n" + "".join(f"typedef char niji_p1_sys_{r['name']}[(SYS_{r['name']} == {r['number']}) ? 1 : -1];\n" for r in sysrows)
+    for cid in ids:
+        units.setdefault(cid, []).append(("P1 sys/syscall.h", body))
     return units
+
+
+def uapi_flags():
+    """`-isystem` for the kernel UAPI directories (linux-libc-dev) the headers of slice 9 include: $NIJI_UAPI (the tree
+    `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include
+    directories (their glibc headers stay out of reach: the units use -nostdinc and the libniji tree comes first)."""
+    d = os.environ.get("NIJI_UAPI")
+    if d:
+        return ["-isystem", d]
+    return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
 
 
 def rows(rel):
@@ -144,7 +162,7 @@ def main():
         cxx = c["language"] == "c++"
         ext = "cc" if cxx else "c"
         base = ["g++" if cxx else "gcc", *c["flags"].split(), "-nostdinc", "-isystem", inc,
-                "-isystem", gccinc, "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
+                "-isystem", gccinc, *uapi_flags(), "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
         units = [("levels", "#include <features.h>\n" + "".join(

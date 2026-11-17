@@ -1,0 +1,7 @@
+# Plants of slice 9 (cargo xtask plants; docs/plants.md). The committed libc-include/ output must equal the regenerated one,
+# so each generator plant changes the output and `headers-gen --check` reports it.
+s9-packed-rule | xtask/src/headers.rs | lit:.is_some_and(|r| r["align"] == "1"); ==> .is_some_and(|r| r["align"] == "2"); | cargo xtask headers-gen --check | msg:headers-gen
+s9-syscall-define | xtask/src/headers.rs | lit:format!("#  define SYS_{n} __NR_{n}") ==> format!("#  define SYS_{n} 0") | cargo xtask headers-gen --check | msg:headers-gen
+s9-enum-prefix | headers/sys/ptrace.h.in | lit:@@enum __ptrace_request PTRACE_ ==> @@enum __ptrace_request PTRACEX_ | cargo xtask headers-gen --check | msg:headers-gen|no enumerator
+s9-mangled-symbol | xtask/src/headers.rs | lit:s.starts_with("_Z") && !self.t.exported.contains(s) ==> s.starts_with("_Q") && !self.t.exported.contains(s) | cargo xtask headers-gen --check | msg:headers-gen|not exported
+s9-syscall-number | spec/abi/syscalls.tsv | lit:read	0 ==> read	9 | python3 spec/tools/header_check.py --include libc-include | msg:niji_p1_sys_read|failed of

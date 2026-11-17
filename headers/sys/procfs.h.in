@@ -1,0 +1,16 @@
+@@generated
+/* sys/procfs.h: the structures of an ELF core file's notes (prstatus, prpsinfo, ...). */
+#ifndef __NIJI_H_sys_procfs_h
+#define __NIJI_H_sys_procfs_h 1
+
+#include <features.h>
+#include <sys/types.h>
+#include <sys/user.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

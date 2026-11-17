@@ -1,0 +1,9 @@
+id = "D-NEW"
+series = "D-X"
+section = "x"
+status = "active"
+story = "SL-HEADERS-S09"
+date = "2026-11-17"
+body = '''
+Slice 9 headers (plan/headers.md section 4): generator additions in xtask/src/headers.rs. A typedef used as a member type with no layout rows of its own takes the member's dotted rows, rebased, as its layout (epoll_data_t); anonymous unions (<anon> rows) are union members; a structure with layout alignment 1 and a member wider than a byte is packed (struct epoll_event); array typedefs are arrays (elf_gregset_t). The marker @@enum TAG PREFIX defines an enumeration from the header's enumerator rows so a prototype can take it (ptrace). The marker @@syscalls emits SYS_name as __NR_name under #ifdef for each row of spec/abi/syscalls.tsv, whose names and x86-64 numbers come from the kernel UAPI header asm/unistd_64.h (spec/tools/syscall_table.py), never from a libc header; sys/debugreg.h includes the kernel's asm/debugreg.h. A call-site symbol that is a C++-mangled name no library exports is ignored: libniji declares every function extern "C", so a C++ program binds to the plain name (differences row open, see handoff/SL-HEADERS-S09.md).
+'''
