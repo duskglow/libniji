@@ -447,6 +447,16 @@ pub fn mappings() -> usize {
     MAPS.load(Acquire)
 }
 
+/// The names interned so far (each distinct name once).
+pub fn names_interned() -> usize {
+    NAME_COUNT.load(Acquire)
+}
+
+/// The locales interned so far (each distinct locale once).
+pub fn locales_interned() -> usize {
+    COUNT.load(Acquire)
+}
+
 /// The cause of the last failed `setlocale`: `ENOMEM` when memory ran out, else `ENOENT` (a
 /// locale's data is not available).
 pub fn last_failure() -> Errno {

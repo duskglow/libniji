@@ -392,9 +392,12 @@ fn locales_and_files_past_the_static_table_load() {
             assert!(!got.is_null(), "setlocale selects {n:?}");
             assert_eq!(text(got.expose_provenance()), n.as_bytes());
         }
+        let interned = || (niji_legacy::global_locale::names_interned(), niji_legacy::global_locale::locales_interned());
+        let interned_before = interned();
         let again = loc::newlocale(LC_ALL_MASK, names[0].as_ptr(), core::ptr::null_mut());
         assert!(!again.is_null());
         assert_eq!(niji_legacy::global_locale::mappings() - before, made, "a locale loaded again maps nothing");
+        assert_eq!(interned(), interned_before, "a locale loaded again interns no name and no locale");
         // Found again through the lookup indexes (the tables are past their scanned entries):
         // the same interned locale and the same interned name.
         let view = |h: niji_abi::ctypes::locale_t| niji_boundary::locale::view_of(h.expose_provenance());
