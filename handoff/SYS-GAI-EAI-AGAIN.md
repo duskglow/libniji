@@ -21,12 +21,12 @@ Done:
   libniji both print `www.gnu.org: -3 Temporary failure in name resolution`, `localhost: 0 ok` (job
   sys-gai-eai-again-2-repro on keke). gnulib's test-getaddrinfo itself was not built: no gnutls28 source on the build
   host; the coordinator's note allows the brief's reproduction instead. It skips on EAI_AGAIN, which this shows.
-* Plants: `handoff/SYS-GAI-EAI-AGAIN-plants.txt`, one per site of the fix (12) plus one equivalent (`nss::found`'s
+* Plants: `handoff/SYS-GAI-EAI-AGAIN-plants.txt`, one per site of the fix (11, all CAUGHT in plants2) plus one equivalent (`nss::found`'s
   arm: called only with passwd answers).
 
 Jobs on the final head (keke): sys-gai-eai-again-2-gate2 (direct tier), sys-gai-eai-again-2-plants2,
 sys-gai-eai-again-2-repro (reproduction; product code unchanged since). Superseded: -gate (s16_4_c_0), -plants
-(addr-cache-keeps survived: fixed by the new scenario). Results: see the report json.
+(addr-cache-keeps survived: fixed by the new scenario). Results: gate2 6051 passed / 0 failed; plants2 11 CAUGHT, 1 EQUIVALENT, 0 SURVIVED; repro2 fail=0.
 
 Open (out of scope, #6124): the networks database's `dns` source (getnetbyname, getnetbyaddr and `_r`) keeps
 `Unavailable` when no server answers; not probed. Probe to run: gai_down.c's fixtures with `networks: dns` in
