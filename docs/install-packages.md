@@ -8,7 +8,7 @@ this page, for Yohane Linux.
 
 ## Names before libniji
 
-libniji was called Liella until November 2026; `snapshot-2026-11-17` is the first snapshot under the new name.
+libniji was called Liella until November 2026. `snapshot-2026-11-17` is the first snapshot under the new name.
 Nothing had been released, so the old names have no compatibility aliases: a program, build script or package
 that uses an old name needs the new one. The system flavour's Debian package names (`libc6`, `libc-bin`, ...),
 `libc.so.6` and the loader's name do not change. The decision is D-X.114 (`records/decisions/D-X/D-X.114.toml`).
