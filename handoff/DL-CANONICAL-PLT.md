@@ -27,9 +27,11 @@ Indirect-extern-access: on a default-visibility definition it changes nothing; a
 refuses the link): reference warns and runs (addresses differ); protected + marked library: refused, exit 127.
 libniji now does the same (own message texts). PIE `leaq test(%rip)` in text cannot link (ld refuses).
 
-**Jobs (mei).** `dl-canonical-plt-build1` (clippy + so, rc 0, contracts hold). `dl-canonical-plt-gate` (static,
-affected --run, xtask test, full-profile so + hot_text_products) and `dl-canonical-plt-plants` (10 plants,
-`handoff/DL-CANONICAL-PLT-plants.txt`) were RUNNING at hand-back: read `~/logs/<label>.log`.
+**Jobs (mei).** `dl-canonical-plt-build1` (clippy + so, rc 0, contracts hold). `dl-canonical-plt-gate2` (static,
+affected --run, xtask test, full-profile so + hot_text_products) and `dl-canonical-plt-plants2` (10 plants,
+`handoff/DL-CANONICAL-PLT-plants.txt`) on head 27adc2516 were RUNNING at hand-back: read `~/logs/<label>.log`.
+Superseded: `dl-canonical-plt-gate` (rc 1: trace check, test names with short words; renamed in 27adc2516),
+`dl-canonical-plt-plants` (stopped, old test names).
 
 **NOT VERIFIED / open.**
 - Start-up counters (brief proof): not measured. Next: build origin/next in a RAM copy and compare a dynamic niji
