@@ -960,7 +960,8 @@ impl ProductBuild {
         let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
         let mut cmd = Command::new(cargo);
         cmd.current_dir(root).args(["rustc", "-q", "--profile", profile.name(), "--crate-type", "staticlib", "--manifest-path"]).arg(root.join(self.manifest)).arg("--target-dir").arg(self.target_dir(product));
-        let flags: Vec<&str> = self.extra.into_iter().chain(rustflags).collect();
+        let debug = (profile == Profile::Release).then_some(RELEASE_DEBUG_RUSTFLAGS);
+        let flags: Vec<&str> = self.extra.into_iter().chain(debug).chain(rustflags).collect();
         let flags = flags.join("\x1f");
         cmd.env("CARGO_ENCODED_RUSTFLAGS", crate::align::encoded_rustflags(root, (!flags.is_empty()).then_some(flags.as_str())));
         cmd.env("NIJI_BUILD_TAG", tag);
@@ -1475,6 +1476,15 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
 /// load the callee from the GOT; the first, `niji_link_image_header`, crashed ld.so). Every
 /// symbol is local in the linked object (version script), so the model's assumption holds.
 const LD_RUSTFLAGS: &str = "-Crelocation-model=pie";
+
+/// SYS-DBG-PACKAGE-2: line tables for libniji's own crates in the shipped (`release`) products, which
+/// libc6-dbg carries and a debugger reads. The product workspace (crates/Cargo.toml) has its own
+/// profiles, so the root Cargo.toml's `debug` never reached these builds. A flag, not the profile's
+/// `debug` key: cargo hashes profile settings into `-C metadata`, which changes every Rust symbol
+/// hash and with it the bytes of the loaded image; the flag changes the debug sections only
+/// (measured: every allocated section of every product and archive member identical, the build-id
+/// note aside). The `fast` tool profile stays without DWARF.
+const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
 
 fn run_ld(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     use niji_ld::arch::Arch as _;

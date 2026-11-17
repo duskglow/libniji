@@ -6,7 +6,7 @@
 #
 # The root starts as the merged-/usr skeleton base-files lays down (bin, lib, lib64, sbin links into
 # /usr) and an empty dpkg database, nothing else: no shell, no libraries. dpkg --root installs all
-# six packages, and empty stand-ins for linux-libc-dev, libcrypt-dev and rpcsvc-proto (libc6-dev's
+# seven packages, and empty stand-ins for linux-libc-dev, libcrypt-dev and rpcsvc-proto (libc6-dev's
 # dependencies from other sources), with --force-script-chrootless (libc-bin's postinst honours DPKG_ROOT, since the root
 # has no shell to run it). Then, in the root (chroot inside the namespace):
 #   - every package is "install ok installed" (the ldconfig trigger was processed), the conffiles
@@ -71,15 +71,15 @@ done
 
 dpkg_r() { ns dpkg --root="$r" --force-script-chrootless --log=/dev/null "$@"; }
 if dpkg_r -i "$@" > "$tmp/install.log" 2>&1; then
-    pass "dpkg --root installs the six packages into the empty root"
+    pass "dpkg --root installs the seven packages into the empty root"
 else
     fail "dpkg --root -i: $(tail -5 "$tmp/install.log" | tr '\n' ' ')"
 fi
 q() { dpkg-query --admindir="$r/var/lib/dpkg" "$@"; }
 bad=$(q -W -f '${Package} ${Status}\n' | grep -v ' install ok installed$' || true)
 n=$(q -W -f '${Package} ${Status}\n' | grep -c ' install ok installed$' || true)
-if [ -z "$bad" ] && [ "$n" -eq 9 ]; then
-    pass "all six packages (and the three stand-ins) are installed, no trigger pending"
+if [ -z "$bad" ] && [ "$n" -eq 10 ]; then
+    pass "all seven packages (and the three stand-ins) are installed, no trigger pending"
 else
     fail "package states: $(q -W -f '${Package}=${Status}; ' 2>&1)"
 fi
@@ -208,7 +208,7 @@ fi
 for f in $cxxlibs $krblibs; do rm -f "$lib/$f"; done
 
 # Purge everything; only the skeleton, the database and the administrator's nsswitch.conf remain.
-if dpkg_r --force-remove-essential --force-depends -P libc6-dev $standins libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
+if dpkg_r --force-remove-essential --force-depends -P libc6-dbg libc6-dev $standins libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
     (cd "$r" && find . | sort) | grep -v -e '^\./var/lib/dpkg' -e '^\./tmp/' -e '^\./etc/nsswitch.conf$' > "$tmp/after"
     left=$(comm -13 "$tmp/before" "$tmp/after" | tr '\n' ' ')
     [ -z "$left" ] && pass "purge leaves the empty root (and /etc/nsswitch.conf)" || fail "left after purge: $left"

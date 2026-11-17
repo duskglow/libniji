@@ -36,9 +36,16 @@
 #   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
+#   libc6-dbg     the detached debugging information of libc6's shared objects and libc-bin's
+#                 programs (SYS-DBG-PACKAGE): objcopy --only-keep-debug of each unstripped file
+#                 (its symbol table and DWARF) as /usr/lib/debug/.build-id/xx/yyyy.debug, xx/yyyy its
+#                 GNU build-id note, which the stripped file keeps, so debuggers find it by the id.
+#                 Depends: libc6 (= version); Provides: libc-dbg, libc6-dbgsym; Multi-Arch: same.
+#                 The packaged objects themselves are stripped exactly as before (no debuglink).
 
 sys=$here/system
-pkgs="libc6 libc-bin libc6-dev libc-dev-bin locales libc-l10n"
+pkgs="libc6 libc-bin libc6-dev libc-dev-bin locales libc-l10n libc6-dbg"
+dbg=$stage/libc6-dbg
 s6=$stage/libc6
 bin=$stage/libc-bin
 sdev=$stage/libc6-dev
@@ -117,6 +124,23 @@ for p in $pkgs; do
     printf 'niji (%s) unstable; urgency=medium\n\n  * System build of libniji%s (plan/system-libc.md; docs/install-packages.md).\n\n -- %s  %s\n' \
         "$version" "${commit:+, commit $commit}" "$maint" "$date_r" | gzip -9n > "$d/changelog.Debian.gz"
 done
+
+# --- libc6-dbg: split the debugging information off before the strip below. ---
+# build_id FILE: the hex digits of FILE's GNU build-id note (empty when it has none).
+build_id() { readelf -nW "$1" | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
+if [ -z "$symbols_only" ]; then
+    for f in $(find "$s6/$mlib" -type f -name '*.so*' | sort) "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent" "$bin/usr/bin/ldd"; do
+        id=$(build_id "$f")
+        # At least one byte for the directory and one for the file name.
+        [ "${#id}" -ge 4 ] || { echo "build.sh: ${f#"$stage"/} has no GNU build-id note (libc6-dbg's files are named by it)" >&2; exit 1; }
+        d=$dbg/usr/lib/debug/.build-id/$(printf '%.2s' "$id")/${id#??}.debug
+        # Two objects with one id would make a debugger read the wrong file for one of them.
+        [ ! -e "$d" ] || { echo "build.sh: ${f#"$stage"/} has the build-id $id of another packaged object" >&2; exit 1; }
+        mkdir -p "$(dirname "$d")"
+        objcopy --only-keep-debug --compress-debug-sections=zlib "$f" "$d"
+        chmod 0644 "$d"
+    done
+fi
 
 find "$s6" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
 # libc-bin's ldconfig and getconf (static executables) and getent (dynamic) are stripped the same
@@ -211,6 +235,16 @@ sys_control libc-l10n all localization standard \
     "$abi_note" \
     " The C library's message translations are not part of this build yet; the" \
     " package exists so that dependencies on libc-l10n are met."
+sys_control libc6-dbg amd64 debug optional \
+    "Multi-Arch: same" \
+    "Depends: libc6 (= $version)" \
+    "Provides: libc-dbg, libc6-dbgsym" \
+    "Description: libniji C library: detached debugging symbols" \
+    "$abi_note" \
+    " This package holds the symbol tables and debugging information of the" \
+    " loader, the shared libraries and the programs of libc6 and libc-bin, as" \
+    " files under /usr/lib/debug/.build-id named by each object's build ID," \
+    " where debuggers such as gdb look for them."
 # The ldconfig trigger (plan/system-libc.md section 2): libc6 activates it, libc-bin handles it.
 printf 'activate-noawait ldconfig\n' > "$s6/DEBIAN/triggers"
 printf 'interest-await ldconfig\n' > "$bin/DEBIAN/triggers"
