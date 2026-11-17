@@ -32,7 +32,7 @@ struct obstack {
 # endif
 # ifndef __NIJI_D_obstack_alloc_failed_handler
 #  define __NIJI_D_obstack_alloc_failed_handler 1
-extern void ( *)() obstack_alloc_failed_handler;
+extern void (*obstack_alloc_failed_handler)(void);
 # endif
 # ifndef __NIJI_D_obstack_exit_failure
 #  define __NIJI_D_obstack_exit_failure 1

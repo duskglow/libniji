@@ -13,6 +13,7 @@
 __NIJI_BEGIN_C
 
 #if 1
+struct argp_state;
 # ifndef __NIJI_D_argp_parser_t
 #  define __NIJI_D_argp_parser_t 1
 typedef int (*argp_parser_t)(int, char *, struct argp_state *);
@@ -146,9 +147,14 @@ struct argp_state {
   void * pstate;
 };
 # endif
+struct argp_state;
 # ifndef __NIJI_D_argp_parser_t
 #  define __NIJI_D_argp_parser_t 1
 typedef int (*argp_parser_t)(int, char *, struct argp_state *);
+# endif
+# ifndef __NIJI_D_error_t
+#  define __NIJI_D_error_t 1
+typedef int error_t;
 # endif
 # ifndef __NIJI_D_argp_err_exit_status
 #  define __NIJI_D_argp_err_exit_status 1
@@ -162,9 +168,11 @@ extern char const * argp_program_bug_address;
 #  define __NIJI_D_argp_program_version 1
 extern char const * argp_program_version;
 # endif
+struct _IO_FILE;
+struct argp_state;
 # ifndef __NIJI_D_argp_program_version_hook
 #  define __NIJI_D_argp_program_version_hook 1
-extern void ( *)(_IO_FILE *, argp_state *) argp_program_version_hook;
+extern void (*argp_program_version_hook)(struct _IO_FILE *, struct argp_state *);
 # endif
 struct argp_option;
 # ifndef __NIJI_D__option_is_end

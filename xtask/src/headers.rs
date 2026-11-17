@@ -600,7 +600,9 @@ impl Gen<'_> {
                 let typedef_known = self.t.typedefs.contains_key(&("typedef".to_string(), w.clone()));
                 if matches!(w.as_str(), "const" | "volatile" | "void" | "int" | "long" | "short" | "char" | "unsigned" | "signed") {
                     out.push_str(&w);
-                } else if !typedef_known && self.t.layouts.contains_key(&tag) {
+                } else if !typedef_known && (self.t.layouts.contains_key(&tag) || self.tag_of_typedef(&w)) {
+                    // The tag is declared first: a tag first named in a parameter list is a different, unreachable type.
+                    self.out.push(format!("{tag};"));
                     out.push_str(&tag);
                 } else if typedef_known && !scalar(&self.resolve(&w)) && w != "__va_list_tag" {
                     self.typedef(&w);
@@ -611,7 +613,12 @@ impl Gen<'_> {
             }
             out.push(c);
         }
-        out.trim_end().replace('*', " *").replace("  *", " *").replace("__va_list_tag (*) [1]", "__builtin_va_list").replace("( *)", "(*)")
+        out.trim_end().replace('*', " *").replace("  *", " *").replace("( *)", "(*)").replace("__va_list_tag (*) [1]", "__builtin_va_list")
+    }
+
+    /// Whether `name` is the structure tag a typedef with layouts.tsv rows is spelled through (`_IO_FILE` for `FILE`).
+    fn tag_of_typedef(&self, name: &str) -> bool {
+        self.t.typedefs.iter().any(|((k, n), r)| k == "typedef" && r["cxx"] == name && self.t.layouts.contains_key(n.as_str()))
     }
 
     fn tag(&mut self, name: &str, kind: &str) {
@@ -713,9 +720,18 @@ impl Gen<'_> {
             return;
         };
         let ty = r["cxx"].clone();
-        let line = match ty.find('[') {
-            Some(i) => format!("extern {} {name}{};", ty[..i].replace('*', " *"), &ty[i..]),
-            None => format!("extern {} {name};", ty.replace('*', " *")),
+        let line = if let Some(open) = ty.find("(*)") {
+            // A pointer to a function (`void (*)()`): the name goes inside the parentheses. An empty list is `(void)` in C.
+            let (ret, rest) = ty.split_at(open);
+            let args = self.type_words(&rest[3..]);
+            let args = if args == "()" { "(void)".to_string() } else { args };
+            let ret = self.type_words(ret);
+            format!("extern {} (*{name}){args};", ret.trim_end())
+        } else {
+            match ty.find('[') {
+                Some(i) => format!("extern {} {name}{};", ty[..i].replace('*', " *"), &ty[i..]),
+                None => format!("extern {} {name};", ty.replace('*', " *")),
+            }
         };
         self.guard(name, vec![line]);
     }
@@ -937,7 +953,19 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 stack.extend(includes(&texts[&x]));
             }
         }
-        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        // A name an included header provides is not emitted again, but only where that header makes it visible in every
+        // configuration this header does (`error_t` is visible through errno.h in the GNU configurations only, and
+        // argz.h declares it in all of them).
+        let care = ((1u64 << t.lv.ids.len()) - 1) & !t.lv.reject;
+        let mut cover: BTreeMap<(String, String), u64> = BTreeMap::new();
+        for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
+            *cover.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(0);
+        }
+        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| r["header"] == h).filter_map(|r| {
+            let key = (r["name"].clone(), r["kind"].clone());
+            let own = mask_of(&t.lv, &r["configs"]).unwrap_or(0);
+            cover.get(&key).filter(|c| own & care & !**c == 0).map(|_| key)
+        }).collect();
         let mut owned = BTreeSet::new();
         let mut owned_macros = BTreeSet::new();
         for l in text.lines() {

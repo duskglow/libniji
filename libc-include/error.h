@@ -18,7 +18,7 @@ extern int error_one_per_line;
 # endif
 # ifndef __NIJI_D_error_print_progname
 #  define __NIJI_D_error_print_progname 1
-extern void ( *)() error_print_progname;
+extern void (*error_print_progname)(void);
 # endif
 # ifndef __NIJI_D_error
 #  define __NIJI_D_error 1

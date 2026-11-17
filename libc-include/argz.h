@@ -10,6 +10,10 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_error_t
+#  define __NIJI_D_error_t 1
+typedef int error_t;
+# endif
 # ifndef __NIJI_D_argz_add
 #  define __NIJI_D_argz_add 1
 extern int argz_add (char **, unsigned long *, const char *) __NIJI_NOTHROW;

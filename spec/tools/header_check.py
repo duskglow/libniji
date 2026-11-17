@@ -32,13 +32,21 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
+           "getopt.h", "time.h",
+           # slice 17
+           "argp.h", "argz.h", "envz.h", "obstack.h", "printf.h", "stdio_ext.h", "malloc.h", "mcheck.h", "err.h",
+           "error.h", "execinfo.h", "fmtmsg.h", "sysexits.h", "sys/queue.h", "tar.h", "cpio.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-          "getopt.h", "time.h"]
+          "getopt.h", "time.h",
+          "argp.h", "argz.h", "envz.h", "obstack.h", "printf.h", "stdio_ext.h", "malloc.h", "mcheck.h", "err.h",
+          "error.h", "execinfo.h", "fmtmsg.h", "sysexits.h", "sys/queue.h", "tar.h", "cpio.h"]
+# Macros whose definition is not a constant expression in some configurations (limits.h.in: a sysconf call where the
+# minimum thread stack size is dynamic), so a static assertion on the value cannot be written for them.
+NOT_CONSTANT = {"PTHREAD_STACK_MIN"}
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -62,13 +70,17 @@ def p1_units(ids, vis, macros, typedefs, layouts):
         if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
-        if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
+        if n in NOT_CONSTANT:
+            continue
+        if n.startswith("__") or (n.startswith("_") and n.rstrip("_").endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
         tests = []
         if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
             m = macros[n]
             v = int(m["value"])
-            lit = ("(%d%s)" % (v, INT_SUFFIX[m["type"]])) if v >= 0 else "(%d%s)" % (v, INT_SUFFIX[m["type"]])
+            sfx = INT_SUFFIX[m["type"]]
+            # The most negative 64-bit value has no literal: its magnitude does not fit the type (C 6.4.4.1).
+            lit = ("(%d%s - 1)" % (v + 1, sfx)) if v in (-2**63, -2**31) and sfx in ("L", "LL", "") else "(%d%s)" % (v, sfx)
             tests.append(f"(({n}) == {lit})")
         elif r["kind"] == "typedef" and n in typedefs and typedefs[n]["size"]:
             t = typedefs[n]

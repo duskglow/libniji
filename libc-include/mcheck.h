@@ -7,6 +7,16 @@
 
 __NIJI_BEGIN_C
 
+/* The results of mprobe (mcheck(3)). */
+enum mcheck_status
+{
+  MCHECK_DISABLED = (-1),
+  MCHECK_OK = 0,
+  MCHECK_FREE = 1,
+  MCHECK_HEAD = 2,
+  MCHECK_TAIL = 3
+};
+
 #if 1
 # ifndef __NIJI_D_mcheck
 #  define __NIJI_D_mcheck 1
@@ -33,16 +43,6 @@ extern void mtrace (void) __NIJI_NOTHROW;
 extern void muntrace (void) __NIJI_NOTHROW;
 # endif
 #endif
-
-/* The results of mprobe (mcheck(3)). */
-enum mcheck_status
-{
-  MCHECK_DISABLED = (-1),
-  MCHECK_OK = 0,
-  MCHECK_FREE = 1,
-  MCHECK_HEAD = 2,
-  MCHECK_TAIL = 3
-};
 
 __NIJI_END_C
 

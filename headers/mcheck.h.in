@@ -8,8 +8,6 @@
 __NIJI_BEGIN_C
 
 @@owns mcheck_status MCHECK_DISABLED MCHECK_OK MCHECK_FREE MCHECK_HEAD MCHECK_TAIL
-@@emit
-
 /* The results of mprobe (mcheck(3)). */
 enum mcheck_status
 {
@@ -19,6 +17,8 @@ enum mcheck_status
   MCHECK_HEAD = @@value(MCHECK_HEAD),
   MCHECK_TAIL = @@value(MCHECK_TAIL)
 };
+
+@@emit
 
 __NIJI_END_C
 

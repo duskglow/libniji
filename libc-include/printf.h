@@ -8,6 +8,15 @@
 
 __NIJI_BEGIN_C
 
+/* The reference makes va_list visible through printf.h in every configuration (stdio.h only in some). */
+# ifndef __NIJI_D_va_list
+#  define __NIJI_D_va_list 1
+#  ifndef _VA_LIST_DEFINED
+#   define _VA_LIST_DEFINED
+typedef __builtin_va_list va_list;
+#  endif
+# endif
+
 #if 1
 # ifndef __NIJI_D_wchar_t
 #  define __NIJI_D_wchar_t 1
@@ -45,21 +54,25 @@ struct printf_info {
   wchar_t pad;
 };
 # endif
+struct printf_info;
 # ifndef __NIJI_D_printf_arginfo_function
 #  define __NIJI_D_printf_arginfo_function 1
 typedef int printf_arginfo_function(struct printf_info const *, unsigned long, int *);
 # endif
+struct printf_info;
 # ifndef __NIJI_D_printf_arginfo_size_function
 #  define __NIJI_D_printf_arginfo_size_function 1
 typedef int printf_arginfo_size_function(struct printf_info const *, unsigned long, int *, int *);
 # endif
+struct _IO_FILE;
+struct printf_info;
 # ifndef __NIJI_D_printf_function
 #  define __NIJI_D_printf_function 1
-typedef int printf_function(_IO_FILE *, struct printf_info const *, void const * const *);
+typedef int printf_function(struct _IO_FILE *, struct printf_info const *, void const * const *);
 # endif
 # ifndef __NIJI_D_printf_va_arg_function
 #  define __NIJI_D_printf_va_arg_function 1
-typedef void printf_va_arg_function(void *, __va_list_tag (*) [1]);
+typedef void printf_va_arg_function(void *, __builtin_va_list);
 # endif
 #endif
 #if __NIJI_CXX < 1
