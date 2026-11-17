@@ -227,6 +227,19 @@ pub static __rseq_flags: core::sync::atomic::AtomicU32 = core::sync::atomic::Ato
 #[allow(non_upper_case_globals)]
 pub static __niji_build_tag: [u8; niji_rt::start::private::TAG_LEN] = niji_rt::start::private::tag(option_env!("NIJI_BUILD_TAG"));
 
+/// `__niji_thread_db@NIJI_PRIVATE` (spec §22.10, decision record SYS-THREAD-DB-2-1): where a
+/// debugger's `libthread_db.so.1` finds the thread list and this build's layout. Only read, by
+/// another process through the debugger's memory access; `#[used]` keeps it in a program linked
+/// with `--gc-sections`, since nothing in the process refers to it.
+// UNSAFE(export): as above; read only by a debugger.
+#[cfg_attr(feature = "runtime", unsafe(no_mangle))]
+#[allow(unsafe_code)]
+#[allow(non_upper_case_globals)]
+#[used]
+pub static __niji_thread_db: niji_rt::thread::Debug<'static> =
+    niji_rt::thread::Debug::new(&crate::thread::HEAD, &crate::thread::LIVE, &crate::thread::TLS_IMAGE);
+const _: () = assert!(niji_rt::thread::DEBUG_DTV_HEADER == niji_ld::tls::DTV_HEADER);
+
 // ------------------------------------------------------------------------------ §12 objects
 //
 // The standard streams (D-12.11): `_IO_2_1_stdin_`, `_IO_2_1_stdout_` and `_IO_2_1_stderr_` are

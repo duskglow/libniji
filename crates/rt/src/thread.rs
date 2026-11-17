@@ -210,7 +210,7 @@ pub const DEBUG_VERSION: u64 = 1;
 pub const DEBUG_DTV_HEADER: u64 = 2;
 
 /// The thread-list descriptor a debugger's `libthread_db.so.1` reads through its memory
-/// callbacks (spec §22.10, decision record SYS-THREAD-DB-1): `libc` exports one, named
+/// callbacks (spec §22.10, decision record SYS-THREAD-DB-2-1): `libc` exports one, named
 /// `__niji_thread_db`, so the library finds libniji's own thread list and layout without
 /// any private symbol of another C library. Every word is 64 bits, in this order; the C reader
 /// (`crates/libc-so/placeholders/libthread_db.c`) indexes the same words.

@@ -1,4 +1,4 @@
-/* libthread_db.so.1 (spec §22.10; decision record SYS-THREAD-DB-1): the library a debugger loads
+/* libthread_db.so.1 (spec §22.10; decision record SYS-THREAD-DB-2-1): the library a debugger loads
    into its own process to list a libniji program's threads, live or in a core file. It reads the
    target only through the debugger's ps_* callbacks, starting at the descriptor libniji's C
    library exports as `__niji_thread_db` (niji_rt::thread::Debug: 17 words, the list head's
