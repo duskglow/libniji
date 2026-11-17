@@ -112,6 +112,7 @@ mod register;
 mod arch;
 mod plants;
 mod placeholders;
+mod empty_versions;
 mod libmvec;
 mod labnames;
 mod privpaths;

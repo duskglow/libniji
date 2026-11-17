@@ -1,0 +1,12 @@
+libc-bin_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_2.36	9	./usr/bin/getconf,./usr/bin/getent,./usr/bin/iconv,./usr/bin/locale,./usr/bin/localedef,./usr/bin/pldd,./usr/bin/zdump,./usr/sbin/iconvconfig,./usr/sbin/zic
+libc-bin_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_ABI_DT_RELR	9	./usr/bin/getconf,./usr/bin/getent,./usr/bin/iconv,./usr/bin/locale,./usr/bin/localedef,./usr/bin/pldd,./usr/bin/zdump,./usr/sbin/iconvconfig,./usr/sbin/zic
+libc-dev-bin_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_2.36	1	./usr/bin/gencat
+libc-dev-bin_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_ABI_DT_RELR	1	./usr/bin/gencat
+libc-devtools_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_2.36	2	./usr/bin/memusagestat,./usr/bin/sprof
+libc-devtools_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_ABI_DT_RELR	2	./usr/bin/memusagestat,./usr/bin/sprof
+libc6-dev_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_2.36	1	./usr/lib/x86_64-linux-gnu/audit/sotruss-lib.so
+libc6-dev_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_ABI_DT_RELR	1	./usr/lib/x86_64-linux-gnu/audit/sotruss-lib.so
+libc6_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_2.36	271	./usr/lib/x86_64-linux-gnu/gconv/ANSI_X3.110.so,./usr/lib/x86_64-linux-gnu/gconv/ARMSCII-8.so,./usr/lib/x86_64-linux-gnu/gconv/ASMO_449.so,./usr/lib/x86_64-linux-gnu/gconv/BIG5.so,./usr/lib/x86_64-linux-gnu/gconv/BIG5HKSCS.so,./usr/lib/x86_64-linux-gnu/gconv/BRF.so,./usr/lib/x86_64-linux-gnu/gconv/CP10007.so,./usr/lib/x86_64-linux-gnu/gconv/CP1125.so,./usr/lib/x86_64-linux-gnu/gconv/CP1250.so,./usr/lib/x86_64-linux-gnu/gconv/CP1251.so
+libc6_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_ABI_DT_RELR	270	./usr/lib/x86_64-linux-gnu/gconv/ANSI_X3.110.so,./usr/lib/x86_64-linux-gnu/gconv/ARMSCII-8.so,./usr/lib/x86_64-linux-gnu/gconv/ASMO_449.so,./usr/lib/x86_64-linux-gnu/gconv/BIG5.so,./usr/lib/x86_64-linux-gnu/gconv/BIG5HKSCS.so,./usr/lib/x86_64-linux-gnu/gconv/BRF.so,./usr/lib/x86_64-linux-gnu/gconv/CP10007.so,./usr/lib/x86_64-linux-gnu/gconv/CP1125.so,./usr/lib/x86_64-linux-gnu/gconv/CP1250.so,./usr/lib/x86_64-linux-gnu/gconv/CP1251.so
+nscd_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_2.36	1	./usr/sbin/nscd
+nscd_2.41-12+deb13u4_amd64.deb	libc.so.6	GLIBC_ABI_DT_RELR	1	./usr/sbin/nscd
