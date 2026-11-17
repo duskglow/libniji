@@ -1,0 +1,12 @@
+id = "D-NEW"
+series = "D-27"
+section = "s26-29"
+spec = "§27.1"
+ann = "DD"
+status = "active"
+amends = ["D-27.16", "D-27.37"]
+story = "DL-STARTUP-OBJECTS"
+date = "2026-11-17"
+body = '''
+**No fixed limit on the objects loaded at program start (DL-STARTUP-OBJECTS, GitHub issue #9; owner principle 11-14, "protect from malice, not from themselves").** Every start-time table of `ld.so` grows with the number of objects: the load list and its per-object records (path, first requester, file identity, program headers, mapping), the `DT_NEEDED` links, each search's requester chain, the static-TLS modules and placements, the symbol tables and global scope, the init and fini order (`init::init_order` takes its output and walk storage from the caller, indices `usize`, no bound of its own), the records `dlopen` and `dl_iterate_phdr` read (`START_OBJS`), the exit sequence (`FINI_HOOKS`), and the `--list` walk (its objects, chains and paths). Design: `ld/table.rs` `Table<T, N>` holds the first `N` entries inline (64 per object table, 128 links) and spills to a private anonymous mapping beyond that, doubling, so a start of up to 64 objects maps nothing new and keeps the static records as before; a start past 64 keeps its records and exit sequence in mappings published once before the program runs (`Kept`). The resolved paths kept for `$ORIGIN` go into chunks of 16 KiB of address space (a longer path gets its own chunk), mapped on the first search hit as before. The only failure is a mapping the kernel refuses: the start ends with `ld.so: <name>: cannot allocate memory` and status 127, never a signal (`crates/ld/tests/start_objects.rs` sweeps address-space limits). This replaces D-27.16's bounds for `--list` (256 objects, 64 KiB of paths) and D-27.37's `init::OBJECTS_MAX` (a `dlopen` call's new objects are now bounded by its own `NEW_MAX`, 64, unchanged). Still bounded, outside the start: the `dlopen` loader's node table (512 objects in the process, start-time ones included; a start of 512 or more leaves `dlopen` and `dl_iterate_phdr` without the start-time objects), its 64 new objects per call, and 512 static-TLS modules recorded for new threads (follow-up story recommended). Tests: `crates/ld/tests/start_objects.rs` (`start_objects_past_every_old_bound`, `start_objects_out_of_memory_is_clean`), `crates/ld/tests/init_order.rs` (`init_order_long_chain`).
+'''
