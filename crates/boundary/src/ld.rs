@@ -31,6 +31,7 @@ use niji_legacy::search_c::CWords;
 use niji_rt::tls::{ThreadBlock, FLAG_OWN};
 use crate::{conv, raw};
 use self::io::{fail_loading, fail_with, lo32, refuse};
+use self::state::{AUXV_WORDS_MAX, OBJECTS_MAX, OWN_BASE, PHDR_WORDS, START_ARGS, START_INTERP, START_N, START_OBJS, START_PAGE};
 
 pub(crate) use self::io::{c_string, exit, stack_word, write_all};
 
@@ -44,10 +45,6 @@ const TB_WORDS: usize = core::mem::size_of::<ThreadBlock>().div_ceil(8);
 struct Provisional([AtomicUsize; TB_WORDS]);
 
 static PROVISIONAL: Provisional = Provisional([const { AtomicUsize::new(0) }; TB_WORDS]);
-
-/// The run-time address of the interpreter's own ELF header (its load bias: `ld.so` is linked at 0),
-/// stored once its image is relocated.
-static OWN_BASE: AtomicUsize = AtomicUsize::new(0);
 
 /// The TLS generation (design §7): the dtv of every thread was built for it; loading or unloading a
 /// module with TLS after start (DL-15/DL-16) moves it on. 0 for the initially loaded objects.
@@ -811,9 +808,6 @@ fn tls_slow(dtv: &[AtomicU64], module: u64, offset: u64) -> usize {
     }
 }
 
-/// Objects one start can load (the program included).
-const OBJECTS_MAX: usize = 64;
-
 /// The identity of an open file, (`st_dev`, `st_ino`): one object reached by two paths (a symlink, a
 /// hard link) is the same object (L14-4).
 type FileId = (u64, u64);
@@ -1335,21 +1329,6 @@ fn fn_addr(f: extern "C" fn(usize) -> usize) -> usize {
 
 /// Most `DT_NEEDED` links over all objects of one start.
 const EDGES_MAX: usize = 1024;
-
-/// What `dlopen` needs to see the start-time objects again (DL-16a, D-27.34; nothing is allocated at
-/// start): per object, in load order, its run-time program header table address and count, its
-/// bias and its file's (`st_dev`, `st_ino`) (the program's: none, `u64::MAX`).
-static START_OBJS: [[AtomicU64; 5]; OBJECTS_MAX] = [const { [const { AtomicU64::new(0) }; 5] }; OBJECTS_MAX];
-/// Start-time objects recorded in [`START_OBJS`] (0: `link` did not run).
-static START_N: AtomicUsize = AtomicUsize::new(0);
-/// Index of `ld.so` itself among them (`usize::MAX`: not among them).
-static START_INTERP: AtomicUsize = AtomicUsize::new(usize::MAX);
-/// The page size.
-static START_PAGE: AtomicU64 = AtomicU64::new(0);
-/// The program's `argc`, `argv`, `envp` and auxiliary vector as `run_init` found them on the initial
-/// stack, for `dlopen` (its constructors' arguments, its search's environment). Recorded, never
-/// re-read from the stack: after `ld.so PROGRAM` the start's words are rearranged (argv[0] dropped).
-static START_ARGS: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
 
 /// The words of a function array in a mapped, relocated object.
 fn array_words(a: init::Array) -> &'static [u64] {
@@ -1951,14 +1930,10 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool) -> ! {
     exit(0)
 }
 
-/// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).
-const AUXV_WORDS_MAX: usize = 256;
-
 mod io;
+mod state;
 mod dlopen;
 mod readers;
-/// Words per program header.
-const PHDR_WORDS: usize = niji_rt::start::PHDR_WORDS;
 
 /// The panic handler of `ld.so` (a panic is a loader bug): a fixed message, status 127. It formats
 /// nothing, so it works whatever state the image is in.
