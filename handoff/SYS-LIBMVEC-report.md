@@ -1,6 +1,49 @@
-# SYS-LIBMVEC / SYS-LIBMVEC-2: report
+# SYS-LIBMVEC / SYS-LIBMVEC-2 / SYS-LIBMVEC-3: report
 
-Branch `task/sys-libmvec-2`, role keke:~/w/n2 (Zen 1). Handoff: handoff/SYS-LIBMVEC.md.
+Handoff: handoff/SYS-LIBMVEC.md.
+
+## Run 3 (SYS-LIBMVEC-3): branch `task/sys-libmvec-3`, role mei:~/w/s1 (Skylake-SP)
+
+Cause of the last red: CI's merge with next conflicted in tools/deb (system.sh, check-system.sh,
+swap-system.sh): SYS-CONTROL-PARITY-2, SYS-LIBRESOLV-3, SYS-DEV-LINKS-2 and the libm old-versions change had
+landed on the same lines. No job of run 2 had failed.
+
+Commits:
+* 9d62fdff5 Merge origin/next (2da237f41): both sides kept. system.sh's libc6 list and libc6-dev archive list
+  carry next's libresolv.so.2, libBrokenLocale.so.1, libBrokenLocale.a, libg.a, libmcheck.a,
+  libpthread_nonshared.a and libmvec.so.1 / libmvec.a; the libmvec.so link sits beside next's dev links;
+  check-system.sh's SONAME loop and layout allow both; swap-system.sh's base list gains next's gawk and stays
+  the `$include` variable that SWAP_EXTRA_PKGS extends.
+* 35250c7134 check-system.sh: libc6-dev's libmvec.so must resolve to libmvec.so.1 and libmvec.a must be there
+  (next's dev-link and archive loops; before, libmvec.so was only allowed by the layout check).
+* 6414b1292 Three packaging plants (handoff/SYS-LIBMVEC-plants.txt).
+
+Jobs on mei, all on the code of 6414b1292 (later commits touch handoff/ only):
+* `sys-libmvec-3-lint0` rc 0: step 0, `cargo xtask clippy` + `cargo xtask static` on the inherited head 45db63021.
+* `sys-libmvec-3-lint` rc 0: `cargo clippy --workspace --all-targets --all-features -D warnings`,
+  `cargo xtask clippy`, `cargo xtask static`.
+* `sys-libmvec-3-pkg2` rc 0 (~/work/SYS-LIBMVEC-3/pkg.sh; both flavours from the role tree, NIJI_DEB_COMMIT
+  6414b1292): check-system PASS (6 packages, 2.39+niji20261117.1-1); check-symbols PASS (4432 lines, 13
+  libraries; 216 `_ZGV` lines, shlibs `libmvec 1 libc6 (>= 2.39)`); root-system pass=19 fail=0; coexist
+  check.sh PASS (2 packages); libmvec.so.1 66872 bytes in libc6 and niji6, libmvec.a 86404 bytes and
+  `libmvec.so -> libmvec.so.1` in libc6-dev and niji6-dev.
+  Parity (offline: `parity.py inventory` + `compare` against the committed reference inventory, as
+  SYS-DEV-LINKS-2 did): **audit row 2 closed**: the a rows libmvec.so.1, libmvec.a, libmvec.so, the b row
+  libmvec.so.1 and the e row `symbols: libmvec.so.1 libc6 #MINVER#` are gone; left only
+  `e shlibs: libmvec 1 libc6` (2.41 reference / 2.39 ours, the version shape every library's shlibs line has).
+  Other new rows are next's (libresolv class c, libBrokenLocale/libresolv shlibs, symbols line count).
+  Swapped trixie root (SWAP_EXTRA_PKGS=direwolf,cif2hkl): mvec-ldd, mvec-direwolf-gen,
+  mvec-direwolf-decode, mvec-cif2hkl-powder same output and status; mvec-cif2hkl-xtal same status, 16
+  |F|^2 values differ in the 7th digit (per-lane scalar results; D-10.124's differences row). RESULT
+  same=60 differ=8 (the other 7: ldd-1..7, listing directory /lib vs /usr/lib, as in run 2). The script
+  fails if a libmvec row other than xtal differs or a libmvec a/b gap row remains.
+* `sys-libmvec-3-plants` rc 0: 8 plants, 8 CAUGHT, 0 SURVIVED, 0 WARN-RC-ONLY, 0 WARN-NO-MSG (the 5 generator
+  plants of run 2 and mvec-pkg-lib, mvec-pkg-link, mvec-pkg-archive, each by its check-system FAIL line).
+* `sys-libmvec-3-gate`: `cargo xtask affected --base origin/next --run`; the xtask change escalates it to
+  the workspace clippy + `cargo xtask test` (run 2's equal gate took 110 min: 12059 passed, 0 failed).
+  Running at hand-back; the dispatcher reads it.
+* Superseded: `sys-libmvec-3-pkg` (started with a placeholder NIJI_DEB_COMMIT, stopped with kill-label).
+* Start-up checks not run: the change touches packaging and the libmvec generator, no start-up code.
 
 ## Commits (run 2)
 * 57abcb1c4 Package libmvec and record its per-lane scalar method (tools/deb/build.sh, system.sh,
@@ -45,6 +88,7 @@ as libniji's per-lane scalar calls do: no difference, so the record states it an
 * `tools/deb/parity.sh` rerun: it downloads the archive indices and streams a 4000-package sample (network, hours
   of host time); out of this run's budget. The three reference files (ref-files.tsv 697, 1643, 1981) are now in the
   packages and the soname is exported, so row 2 cannot reappear; a rerun belongs to the next audit refresh.
+  (Run 3 ran the offline inventory + compare step instead: row 2 closed, see above.)
 
 ## RULING NEEDED / INFORMATIONAL
 * Pending record `records/pending/SYS-LIBMVEC-2-1.toml` (D-NEW, D-10): CI assigns the id.
