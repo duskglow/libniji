@@ -1,9 +1,15 @@
 @@generated
-/* sys/debugreg.h: the x86 debug register layout (DR_*): the kernel's own definitions of the same names. */
+/* sys/debugreg.h: the x86 debug register layout (DR_*), kernel ABI: the names and values of the kernel UAPI header
+   asm/debugreg.h that the reference system's header also gives (spec/tools/uapi_regs_table.py). */
 #ifndef __NIJI_H_sys_debugreg_h
 #define __NIJI_H_sys_debugreg_h 1
 
 #include <features.h>
-#include <asm/debugreg.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
 
 #endif
