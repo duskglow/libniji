@@ -2,3 +2,7 @@
 rename-any-file | xtask/src/oldname.rs | lit:rename_section = path == RENAME_DOC && line == RENAME_HEADING; ==> rename_section = line == RENAME_HEADING; | cargo test -p xtask --bin xtask oldname | msg:rename_table_rows_are_allowed_only_in_their_section.*(FAILED|panicked)|test result: FAILED
 rename-prose-too | xtask/src/oldname.rs | lit:let rename_row = rename_section && line.starts_with('|'); ==> let rename_row = rename_section; | cargo test -p xtask --bin xtask oldname | msg:rename_table_rows_are_allowed_only_in_their_section.*(FAILED|panicked)|test result: FAILED
 rename-no-section-end | xtask/src/oldname.rs | lit:if line.starts_with("## ") { ==> if line == RENAME_HEADING { | cargo test -p xtask --bin xtask oldname | msg:rename_table_rows_are_allowed_only_in_their_section.*(FAILED|panicked)|test result: FAILED
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# rename-any-file: CAUGHT, caught by xtask oldname::tests::rename_table_rows_are_allowed_only_in_their_section
+# rename-prose-too: CAUGHT, caught by xtask oldname::tests::rename_table_rows_are_allowed_only_in_their_section
+# rename-no-section-end: CAUGHT, caught by xtask oldname::tests::rename_table_rows_are_allowed_only_in_their_section
