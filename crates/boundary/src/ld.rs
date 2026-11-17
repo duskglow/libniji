@@ -17,7 +17,6 @@ use core::ffi::c_int;
 use core::ffi::c_void;
 use core::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize};
 use core::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, Release};
-
 use niji::config::Tunables;
 use niji_kernel::auxv::Auxv;
 use niji_kernel::uapi::{AT_ENTRY, AT_EXECFN, AT_RANDOM, AT_SYSINFO_EHDR, O_CLOEXEC, O_RDONLY, SEEK_END};
@@ -30,9 +29,10 @@ use niji_ld::{boot, elf, init, map, start};
 use niji_ld::tls::{self as ltls, Area, Module, Placed};
 use niji_legacy::search_c::CWords;
 use niji_rt::tls::{ThreadBlock, FLAG_OWN};
-
 use crate::{conv, raw};
-use crate::ffi_sys::{niji_sys_exit_group, niji_sys_write};
+use self::io::{fail_loading, fail_with, lo32, refuse};
+
+pub(crate) use self::io::{c_string, exit, stack_word, write_all};
 
 /// Words in the provisional thread block: libniji's whole thread block, so every `%fs`-relative
 /// field (errno, canary, pointer guard, ...) lands inside it.
@@ -134,64 +134,6 @@ const _: () = {
     assert!(matches!(Native::STACK_GUARD_SLOT, Some(s) if s as usize == core::mem::offset_of!(ThreadBlock, stack_guard)));
     assert!(matches!(Native::POINTER_GUARD_SLOT, Some(s) if s as usize == core::mem::offset_of!(ThreadBlock, pointer_guard)));
 };
-
-/// The longest argument read (an option is short; a longer argument is only echoed, cut here).
-const ARG_MAX_READ: usize = 4096;
-
-/// Write all of `bytes` to `fd` (short writes continued; errors give up: there is nowhere to report them).
-pub(crate) fn write_all(fd: i64, mut bytes: &[u8]) {
-    while !bytes.is_empty() {
-        let n = niji_sys_write(fd, bytes.as_ptr().cast::<c_void>(), i64::try_from(bytes.len()).unwrap_or(i64::MAX));
-        match usize::try_from(n) {
-            Ok(n) if n > 0 => bytes = bytes.get(n..).unwrap_or(&[]),
-            _ => return,
-        }
-    }
-}
-
-/// End the process with `status`.
-pub(crate) fn exit(status: i32) -> ! {
-    loop {
-        niji_sys_exit_group(i64::from(status));
-    }
-}
-
-/// The word at `addr` on the initial stack.
-pub(crate) fn stack_word(addr: usize) -> u64 {
-    // UNSAFE(slice): one word of the initial stack (argc, argv[], envp[], auxv).
-    #[allow(unsafe_code)]
-    // SAFETY: the kernel laid out argc, argv[] and NULL, envp[] and NULL and the auxiliary vector
-    // ending in AT_NULL contiguously from the entry stack pointer (⚑ KERN, execve); callers walk
-    // that layout in order and never past its terminators.
-    let w = unsafe { conv::words_at(addr, 1) };
-    w.first().copied().unwrap_or(0)
-}
-
-/// The NUL-terminated string at `addr` (an argv element), without its NUL, at most [`ARG_MAX_READ`] bytes.
-pub(crate) fn c_string(addr: usize) -> &'static [u8] {
-    let mut len = 0usize;
-    while len < ARG_MAX_READ {
-        // UNSAFE(slice): one byte of an argument string.
-        #[allow(unsafe_code)]
-        // SAFETY: argv strings are NUL-terminated in the kernel's copy on the initial stack
-        // (⚑ KERN); bytes are read one at a time up to and excluding the NUL.
-        let b = unsafe { conv::bytes_at(addr.wrapping_add(len), 1) };
-        if b.first().is_none_or(|&b| b == 0) {
-            break;
-        }
-        len = len.wrapping_add(1);
-    }
-    // UNSAFE(slice): the argument string measured above.
-    #[allow(unsafe_code)]
-    // SAFETY: the `len` bytes just read one by one are mapped and stay unchanged for the process.
-    unsafe { conv::bytes_at(addr, len) }
-}
-
-/// End the process with `msg` on standard error and status 127 (design §1 "Failure").
-fn refuse(msg: &[u8]) -> ! {
-    write_all(2, msg);
-    exit(program::FAILURE)
-}
 
 /// Copy the auxiliary vector at `auxv` (key/value pairs up to `AT_NULL`) into `copy`; the number of
 /// words before the `AT_NULL` pair, or `None` when it does not fit with its `AT_NULL` pair (a
@@ -869,20 +811,8 @@ fn tls_slow(dtv: &[AtomicU64], module: u64, offset: u64) -> usize {
     }
 }
 
-/// The low 32 bits of `w`.
-fn lo32(w: u64) -> u32 {
-    u32::try_from(w & 0xffff_ffff).unwrap_or(0)
-}
-
 /// Objects one start can load (the program included).
 const OBJECTS_MAX: usize = 64;
-
-/// Print `parts` after `ld.so: ` on standard error and end with `status`.
-fn fail_with(parts: &[&[u8]], status: i32) -> ! {
-    write_all(2, b"ld.so: ");
-    parts.iter().for_each(|p| write_all(2, p));
-    exit(status)
-}
 
 /// The identity of an open file, (`st_dev`, `st_ino`): one object reached by two paths (a symlink, a
 /// hard link) is the same object (L14-4).
@@ -1847,15 +1777,6 @@ fn open_candidate(path: &[u8], page: u64) -> Result<(i32, usize, &'static [u8], 
     Ok((fd32, at, file, (st.dev, st.ino)))
 }
 
-/// End the start for an object that cannot be loaded, as the reference does (DL-START-SEARCH
-/// probe): `<prog>: error while loading shared libraries: <what>: <text>`, status 127.
-fn fail_loading(prog: &[u8], what: &[u8], text: &[u8]) -> ! {
-    for part in [prog, &b": error while loading shared libraries: "[..], what, b": ", text, b"\n"] {
-        write_all(2, part);
-    }
-    exit(program::FAILURE)
-}
-
 /// The dynamic section of the object file `file`, when it is one of this architecture's.
 fn dynamic_of(file: &'static [u8]) -> Option<elf::Dynamic<'static>> {
     elf::Elf::parse::<Native>(file).ok()?.dynamic().ok().flatten()
@@ -2033,6 +1954,7 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool) -> ! {
 /// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).
 const AUXV_WORDS_MAX: usize = 256;
 
+mod io;
 mod dlopen;
 mod readers;
 /// Words per program header.
