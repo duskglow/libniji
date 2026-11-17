@@ -1,0 +1,35 @@
+name: locale -a -v over a private locale directory
+clause: s31_7_g_2
+command: locale
+namespace: user
+# A private /usr/lib/locale (no archive): aa_AA and zz_ZZ.utf8 hold LC_IDENTIFICATION, mm_MM does not,
+# .hidden is hidden; names that sort before and after the built-in ones.
+dir: loc
+bind: loc /usr/lib/locale
+dir: loc/aa_AA
+file: loc/aa_AA/LC_IDENTIFICATION
+| placeholder
+dir: loc/zz_ZZ.utf8
+file: loc/zz_ZZ.utf8/LC_IDENTIFICATION
+| placeholder
+dir: loc/mm_MM
+file: loc/mm_MM/LC_TIME
+| placeholder
+dir: loc/.hidden
+file: loc/.hidden/LC_IDENTIFICATION
+| placeholder
+file: loc/plain
+| placeholder
+arg: -a
+arg: -v
+status: exit 0
+stdout:
+| locale: .hidden         directory: /usr/lib/locale/.hidden
+| -------------------------------------------------------------------------------
+|
+| locale: aa_AA           directory: /usr/lib/locale/aa_AA
+| -------------------------------------------------------------------------------
+|
+| locale: zz_ZZ.utf8      directory: /usr/lib/locale/zz_ZZ.utf8
+| -------------------------------------------------------------------------------
+stderr:

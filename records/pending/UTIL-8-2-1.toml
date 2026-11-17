@@ -1,0 +1,12 @@
+id = "D-NEW"
+series = "D-31"
+section = "s31"
+spec = "§31.7"
+ann = "—"
+status = "active"
+story = "UTIL-8-2"
+date = "2026-11-17"
+tests = ["validation/transcripts/locale/charmaps.transcript", "validation/transcripts/locale/list-all-verbose.transcript", "validation/transcripts/locale/ck-c-utf8-time.transcript"]
+body = '''
+**The `locale` command is a C front end over the public locale interfaces until UTIL-12 folds it into `niji-locale` (UTIL-8; rulings #6246, #6247).** `csys/util/locale.c` prints keyword values through `nl_langinfo`/`nl_langinfo_l` on their public `<langinfo.h>` items (the keyword table is the reference's 180 keywords, probed with `locale -k LC_<cat>`; value kinds per Appendix D.1.5), lists `-a` from the archive's name table (Appendix D.1.6) and the directories under `/usr/lib/locale` that hold `LC_IDENTIFICATION` plus the built-in `C`, `C.utf8` and `POSIX`, in `strcoll` order, and lists `-m` from `/usr/share/i18n/charmaps`. It adds no export to `libc.so.6`. `-m` reads the `<code_set_name>` of plain and gzip charmaps in process (ruling #6246: never spawn a decompressor): the program carries its own RFC 1952/RFC 1951 inflater, the method of `core::charmap::inflate`'s `gunzip_prefix` (D-6.8), which decodes at most the first 64 KiB of a file and keeps what it decoded when the input ends or turns malformed; only the header lines before `CHARMAP` are read from it. A `.bz2` charmap is listed by its name only (differences row: nothing installs one). Cost: the program is 206 752 bytes before stripping; the inflater runs only under `-m`, so other start-ups do not change. `time-era-entries` and `category` print exactly the item's own data, its string up to the first NUL byte (ruling #6247: a differences row, no compatibility option).
+'''

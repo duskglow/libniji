@@ -1,0 +1,32 @@
+name: locale --help
+clause: s31_7_i_1
+command: locale
+namespace: user
+# Private, empty /usr/lib/locale and charmap directory: only the built-in C, C.UTF-8 and POSIX exist.
+dir: loc
+bind: loc /usr/lib/locale
+dir: i18n
+dir: i18n/charmaps
+bind: i18n /usr/share/i18n
+# The reference's identity strings (D-31.4): libniji prints its own.
+normalise: Print program version\n\nFor bug reporting instructions, please see:\n<https://bugs.launchpad.net/ubuntu/+source/glibc/+bugs>.\n => Print program version\n
+arg: --help
+status: exit 0
+stdout:
+| Usage: locale [OPTION...] NAME
+| \x20 or:  locale [OPTION...] [-a|-m]
+| Get locale-specific information.
+|
+| \x20System information:
+| \x20 -a, --all-locales          Write names of available locales
+| \x20 -m, --charmaps             Write names of available charmaps
+|
+| \x20Modify output format:
+| \x20 -c, --category-name        Write names of selected categories
+| \x20 -k, --keyword-name         Write names of selected keywords
+| \x20 -v, --verbose              Print more information
+|
+| \x20 -?, --help                 Give this help list
+| \x20     --usage                Give a short usage message
+| \x20 -V, --version              Print program version
+stderr:
