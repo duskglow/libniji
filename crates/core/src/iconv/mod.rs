@@ -304,6 +304,9 @@ impl Codec {
             Codec::Utf8 => encode_utf8_31(c, out),
             Codec::Ascii => (c < 0x80).then(|| put(out, c, 1, Order::Le)),
             Codec::Latin1 => (c < 0x100).then(|| put(out, c, 1, Order::Le)),
+            // The tag characters encode as nothing, as in EUC-JP (D-6.15): probed over the whole
+            // code space of each generated charmap (iconv_charmaps_products.rs).
+            Codec::Charmap(_) if (0xE0000..=0xE007F).contains(&c) => Some(0),
             Codec::Charmap(cm) => cm.0.encode(c, out),
             Codec::EucJp => jis::encode(c, out),
             Codec::Ucs2(o) => (c < 0x1_0000).then(|| put(out, c, 2, o)),

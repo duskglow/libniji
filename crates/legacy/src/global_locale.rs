@@ -82,17 +82,25 @@ static SLOTS: Slots = Slots([const {
 static COUNT: AtomicUsize = AtomicUsize::new(0);
 static NAME_COUNT: AtomicUsize = AtomicUsize::new(0);
 static FILE_COUNT: AtomicUsize = AtomicUsize::new(0);
-/// The most charmaps a process loads: more than a charmaps directory holds (the generated set and
-/// a full distribution set are each under 256), so a process that opens every installed charset
-/// still finds each (SYS-ICONV-COVERAGE: at 32, the 33rd distinct charset failed `EINVAL`).
-const CHARMAPS: usize = 256;
-static CHARMAP_ADDR: [AtomicUsize; CHARMAPS] = [const { AtomicUsize::new(0) }; CHARMAPS];
+/// The loaded charmaps (D-6.8): a table of [`CHARMAP_WORDS`]-word records at `CHARMAP_TABLE` with
+/// room for `CHARMAP_ROOM` of them, `CHARMAP_COUNT` in use. A record holds the charmap's address
+/// ([`CM_ADDR`]), its file (the interned path's slot, [`CM_PATH`]), the address of the mapping it
+/// was parsed from ([`CM_SRC`]) and the generation it was last checked in ([`CM_GEN`]). The table
+/// has no fixed size: it doubles by fallible allocation when full (the old table stays leaked, so
+/// all of them together hold at most twice the records in use), and a growth that cannot be
+/// allocated fails that one load with `ENOMEM`, leaving every loaded charmap as it was. Read and
+/// written only under [`LOCK`]. (Before SYS-ICONV-COVERAGE-2 a fixed table of 32, then 256,
+/// failed the next distinct charset with `EINVAL`.)
+static CHARMAP_TABLE: AtomicUsize = AtomicUsize::new(0);
+static CHARMAP_ROOM: AtomicUsize = AtomicUsize::new(0);
 static CHARMAP_COUNT: AtomicUsize = AtomicUsize::new(0);
-/// Each charmap's file (its interned path's slot), the address of the mapping it was parsed
-/// from, and the generation it was last checked in.
-static CHARMAP_PATH: [AtomicUsize; CHARMAPS] = [const { AtomicUsize::new(0) }; CHARMAPS];
-static CHARMAP_SRC: [AtomicUsize; CHARMAPS] = [const { AtomicUsize::new(0) }; CHARMAPS];
-static CHARMAP_GEN: [AtomicUsize; CHARMAPS] = [const { AtomicUsize::new(0) }; CHARMAPS];
+const CHARMAP_WORDS: usize = 4;
+const CM_ADDR: usize = 0;
+const CM_PATH: usize = 1;
+const CM_SRC: usize = 2;
+const CM_GEN: usize = 3;
+/// The first table's room, in records (a process that loads charmaps at all usually loads few).
+const CHARMAP_FIRST: usize = 16;
 /// The invalidation generation (D-X.13).
 static GENERATION: AtomicUsize = AtomicUsize::new(0);
 
@@ -116,13 +124,15 @@ pub trait Objects {
     fn bytes_at(&self, addr: usize, len: usize) -> &'static [u8];
     /// The charmap at `addr`, an address [`charmap`] recorded.
     fn charmap_at(&self, addr: usize) -> &'static Charmap;
+    /// The `n` words at `addr`, a table this module leaked (none when `n` is 0).
+    fn words_at(&self, addr: usize, n: usize) -> &'static [AtomicUsize];
 }
 
 /// The file system access locale loading needs (the POSIX layer).
 pub trait Mapper: Objects {
     /// Map the file at `path` read-only, for the rest of the process: its address, length and
-    /// identity.
-    fn map(&self, path: &[u8]) -> Option<(usize, usize, Identity)>;
+    /// identity, or why it cannot be (`ENOMEM`: no memory for the mapping).
+    fn map(&self, path: &[u8]) -> KResult<(usize, usize, Identity)>;
     /// Unmap a mapping [`Mapper::map`] just returned and nothing has used (it could not be
     /// recorded).
     fn unmap(&self, addr: usize, len: usize);
@@ -275,51 +285,14 @@ pub fn invalidate() -> usize {
     GENERATION.fetch_add(1, Release).wrapping_add(1)
 }
 
+/// A mapping error that a load reports (`ENOMEM`); any other means the file is not there to use.
+fn mapping_error(e: Errno) -> KResult<Option<&'static [u8]>> {
+    if e == Errno::ENOMEM { Err(e) } else { Ok(None) }
+}
+
 impl<M: Mapper> Source for Files<'_, M> {
     fn file(&self, path: &[u8]) -> Option<&'static [u8]> {
-        let generation = GENERATION.load(Acquire);
-        let n = FILE_COUNT.load(Acquire);
-        for i in 0..n {
-            let slot = field(|s| &s.file_name, i);
-            if self.m.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot)) != path {
-                continue;
-            }
-            let current = self.m.bytes_at(field(|s| &s.file_addr, i), field(|s| &s.file_len, i));
-            if field(|s| &s.file_gen, i) == generation {
-                return Some(current);
-            }
-            // The first use since an invalidation: the same file is used again, a changed one
-            // mapped again (the old mapping stays for the locales that point into it).
-            if self.m.identity(path) == Some(file_id(i)) {
-                if let Some(g) = SLOTS.0.get(i).map(|e| &e.file_gen) {
-                    g.store(generation, Release);
-                }
-                return Some(current);
-            }
-            if MAPS.load(Acquire) >= MAP_LIMIT {
-                return None;
-            }
-            let (addr, len, id) = self.m.map(path)?;
-            MAPS.fetch_add(1, Release);
-            record_file(i, addr, len, &id, generation);
-            return Some(self.m.bytes_at(addr, len));
-        }
-        // A new file: only when it can be recorded (a full table fails the load cleanly, as a
-        // missing file does, instead of mapping again at every call).
-        let fname = &SLOTS.0.get(n)?.file_name;
-        if MAPS.load(Acquire) >= MAP_LIMIT {
-            return None;
-        }
-        let (addr, len, id) = self.m.map(path)?;
-        let Ok((slot, _)) = intern_name_locked(self.m, path) else {
-            self.m.unmap(addr, len);
-            return None;
-        };
-        MAPS.fetch_add(1, Release);
-        fname.store(slot, Release);
-        record_file(n, addr, len, &id, generation);
-        FILE_COUNT.store(n.saturating_add(1), Release);
-        Some(self.m.bytes_at(addr, len))
+        self.file_or_error(path).ok().flatten()
     }
 
     fn locpath(&self) -> Option<&[u8]> {
@@ -332,34 +305,138 @@ impl<M: Mapper> Source for Files<'_, M> {
     }
 
     fn charmap(&self, name: &[u8]) -> Option<&'static Charmap> {
-        let n = CHARMAP_COUNT.load(Acquire);
-        if let Some(i) = (0..n).find(|&i| names(self.m.charmap_at(load(&CHARMAP_ADDR, i)), name)) {
-            return self.current_charmap(i);
-        }
-        let slot = CHARMAP_ADDR.get(n)?;
-        let parsed = match self.read_charmap(name) {
-            Some(cm) => cm,
-            None => self.read_charmap(&self.find_charmap(name)?)?,
-        };
-        // The file found for an alias may be one already loaded under its own name.
-        if let Some(i) = (0..n).find(|&i| self.m.charmap_at(load(&CHARMAP_ADDR, i)).name() == parsed.0.name()) {
-            return self.current_charmap(i);
-        }
-        let cm = TryBox::new(parsed.0).ok()?.leak();
-        slot.store(addr_of(cm), Release);
-        record_charmap(n, parsed.1, parsed.2);
-        CHARMAP_COUNT.store(n.saturating_add(1), Release);
-        Some(cm)
+        self.load_charmap(name).ok().flatten()
     }
 }
 
-/// Record charmap slot `i`'s file (the interned path's slot) and the mapping it was parsed from,
-/// checked in the current generation. The caller holds [`LOCK`].
-fn record_charmap(i: usize, path: usize, src: usize) {
-    if let (Some(p), Some(s), Some(g)) = (CHARMAP_PATH.get(i), CHARMAP_SRC.get(i), CHARMAP_GEN.get(i)) {
-        p.store(path, Release);
-        s.store(src, Release);
-        g.store(GENERATION.load(Acquire), Release);
+impl<M: Mapper> Files<'_, M> {
+    /// [`Source::file`], with `Err(ENOMEM)` when memory for the file (its mapping, its recorded
+    /// name) cannot be had; `Ok(None)`: no such file, or one that cannot be used.
+    fn file_or_error(&self, path: &[u8]) -> KResult<Option<&'static [u8]>> {
+        let generation = GENERATION.load(Acquire);
+        let n = FILE_COUNT.load(Acquire);
+        for i in 0..n {
+            let slot = field(|s| &s.file_name, i);
+            if self.m.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot)) != path {
+                continue;
+            }
+            let current = self.m.bytes_at(field(|s| &s.file_addr, i), field(|s| &s.file_len, i));
+            if field(|s| &s.file_gen, i) == generation {
+                return Ok(Some(current));
+            }
+            // The first use since an invalidation: the same file is used again, a changed one
+            // mapped again (the old mapping stays for the locales that point into it).
+            if self.m.identity(path) == Some(file_id(i)) {
+                if let Some(g) = SLOTS.0.get(i).map(|e| &e.file_gen) {
+                    g.store(generation, Release);
+                }
+                return Ok(Some(current));
+            }
+            if MAPS.load(Acquire) >= MAP_LIMIT {
+                return Ok(None);
+            }
+            let (addr, len, id) = match self.m.map(path) {
+                Ok(m) => m,
+                Err(e) => return mapping_error(e),
+            };
+            MAPS.fetch_add(1, Release);
+            record_file(i, addr, len, &id, generation);
+            return Ok(Some(self.m.bytes_at(addr, len)));
+        }
+        // A new file: only when it can be recorded (a full table fails the load cleanly, as a
+        // missing file does, instead of mapping again at every call).
+        let Some(fname) = SLOTS.0.get(n).map(|s| &s.file_name) else { return Ok(None) };
+        if MAPS.load(Acquire) >= MAP_LIMIT {
+            return Ok(None);
+        }
+        let (addr, len, id) = match self.m.map(path) {
+            Ok(m) => m,
+            Err(e) => return mapping_error(e),
+        };
+        let slot = match intern_name_locked(self.m, path) {
+            Ok((slot, _)) => slot,
+            Err(e) => {
+                self.m.unmap(addr, len);
+                return Err(e);
+            }
+        };
+        MAPS.fetch_add(1, Release);
+        fname.store(slot, Release);
+        record_file(n, addr, len, &id, generation);
+        FILE_COUNT.store(n.saturating_add(1), Release);
+        Ok(Some(self.m.bytes_at(addr, len)))
+    }
+
+    /// The charmap table's words (all records with room, [`CHARMAP_TABLE`]).
+    fn charmap_table(&self) -> &'static [AtomicUsize] {
+        self.m.words_at(CHARMAP_TABLE.load(Acquire), CHARMAP_ROOM.load(Acquire).saturating_mul(CHARMAP_WORDS))
+    }
+
+    /// Word `w` of charmap record `i` (0 past the end).
+    fn cm_word(&self, i: usize, w: usize) -> usize {
+        let k = i.saturating_mul(CHARMAP_WORDS).saturating_add(w);
+        self.charmap_table().get(k).map_or(0, |x| x.load(Acquire))
+    }
+
+    /// Record `i`: the charmap at `addr`, parsed from the file of interned slot `path` mapped at
+    /// `src`, checked in the current generation. The caller holds [`LOCK`] and made the room.
+    fn record_charmap(&self, i: usize, addr: usize, path: usize, src: usize) {
+        let table = self.charmap_table();
+        let base = i.saturating_mul(CHARMAP_WORDS);
+        for (w, v) in [(CM_ADDR, addr), (CM_PATH, path), (CM_SRC, src), (CM_GEN, GENERATION.load(Acquire))] {
+            if let Some(x) = table.get(base.saturating_add(w)) {
+                x.store(v, Release);
+            }
+        }
+    }
+
+    /// Room in the table for record `n`: the table doubles (copied into a new allocation) when it
+    /// is full. `ENOMEM` when the larger table cannot be allocated; the table is then unchanged.
+    fn charmap_room(&self, n: usize) -> KResult<()> {
+        let room = CHARMAP_ROOM.load(Acquire);
+        if n < room {
+            return Ok(());
+        }
+        let grown = if room == 0 { CHARMAP_FIRST } else { room.checked_mul(2).ok_or(Errno::ENOMEM)? };
+        let words = grown.checked_mul(CHARMAP_WORDS).ok_or(Errno::ENOMEM)?;
+        let old = self.charmap_table();
+        let mut table: TryVec<AtomicUsize> = TryVec::with_capacity(words)?;
+        for k in 0..words {
+            table.push(AtomicUsize::new(old.get(k).map_or(0, |x| x.load(Acquire))))?;
+        }
+        let table: &'static [AtomicUsize] = table.leak();
+        CHARMAP_TABLE.store(addr_of(table), Release);
+        CHARMAP_ROOM.store(grown, Release);
+        Ok(())
+    }
+
+    /// [`Source::charmap`], with its errors: `Ok(None)` when no installed charmap names `name`,
+    /// `Err(ENOMEM)` when memory for it (the file's mapping, the parsed charmap, a larger table)
+    /// cannot be had. Either way the charmaps already loaded stay as they are.
+    fn load_charmap(&self, name: &[u8]) -> KResult<Option<&'static Charmap>> {
+        let n = CHARMAP_COUNT.load(Acquire);
+        if let Some(i) = (0..n).find(|&i| names(self.m.charmap_at(self.cm_word(i, CM_ADDR)), name)) {
+            return self.current_charmap(i);
+        }
+        let parsed = match self.read_charmap(name)? {
+            Some(cm) => cm,
+            None => match self.find_charmap(name) {
+                Some(stem) => match self.read_charmap(&stem)? {
+                    Some(cm) => cm,
+                    None => return Ok(None),
+                },
+                None => return Ok(None),
+            },
+        };
+        // The file found for an alias may be one already loaded under its own name.
+        if let Some(i) = (0..n).find(|&i| self.m.charmap_at(self.cm_word(i, CM_ADDR)).name() == parsed.0.name()) {
+            return self.current_charmap(i);
+        }
+        self.charmap_room(n)?;
+        let cm = TryBox::new(parsed.0)?.leak();
+        self.record_charmap(n, addr_of(cm), parsed.1, parsed.2);
+        CHARMAP_COUNT.store(n.saturating_add(1), Release);
+        Ok(Some(cm))
     }
 }
 
@@ -431,65 +508,79 @@ impl<M: Mapper> Files<'_, M> {
     /// Parse the charmap file for `name` (`<name>.gz`, else `<name>`): the charmap, its path's
     /// interned slot, and the address of the mapping it was parsed from. A name holding `/`, or
     /// `.` or `..`, is not a file name.
-    fn read_charmap(&self, name: &[u8]) -> Option<(Charmap, usize, usize)> {
-        if !name::component(name) {
-            return None;
-        }
+    fn read_charmap(&self, name: &[u8]) -> KResult<Option<(Charmap, usize, usize)>> {
         let mut buf = [0u8; 256];
-        let total = CHARMAP_DIR.len().checked_add(name.len())?;
-        buf.get_mut(..CHARMAP_DIR.len())?.copy_from_slice(CHARMAP_DIR);
-        buf.get_mut(CHARMAP_DIR.len()..total)?.copy_from_slice(name);
-        buf.get_mut(total..total.checked_add(3)?)?.copy_from_slice(b".gz");
-        for path in [buf.get(..total.checked_add(3)?)?, buf.get(..total)?] {
-            if let Some(raw) = self.file(path) {
-                let cm = parse_charmap(path, raw)?;
-                let (slot, _) = intern_name_locked(self.m, path).ok()?;
-                return Some((cm, slot, raw.as_ptr().expose_provenance()));
+        let Some(total) = charmap_path(&mut buf, name) else { return Ok(None) };
+        for len in [total.saturating_add(3), total] {
+            let Some(path) = buf.get(..len) else { continue };
+            if let Some(raw) = self.file_or_error(path)? {
+                let Some(cm) = parse_charmap(path, raw)? else { return Ok(None) };
+                let (slot, _) = intern_name_locked(self.m, path)?;
+                return Ok(Some((cm, slot, raw.as_ptr().expose_provenance())));
             }
         }
-        None
+        Ok(None)
     }
 
-    /// Charmap slot `i`, checked against its file in the current generation: parsed again (in
-    /// the same slot; the old charmap stays for its users) only when the file was mapped again.
-    fn current_charmap(&self, i: usize) -> Option<&'static Charmap> {
-        let cm = self.m.charmap_at(load(&CHARMAP_ADDR, i));
+    /// Charmap record `i`, checked against its file in the current generation: parsed again (in
+    /// the same record; the old charmap stays for its users) only when the file was mapped again.
+    fn current_charmap(&self, i: usize) -> KResult<Option<&'static Charmap>> {
+        let cm = self.m.charmap_at(self.cm_word(i, CM_ADDR));
         let generation = GENERATION.load(Acquire);
-        if load(&CHARMAP_GEN, i) == generation {
-            return Some(cm);
+        if self.cm_word(i, CM_GEN) == generation {
+            return Ok(Some(cm));
         }
-        let slot = load(&CHARMAP_PATH, i);
+        let slot = self.cm_word(i, CM_PATH);
         let path = self.m.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot));
-        let raw = self.file(path)?;
+        let Some(raw) = self.file_or_error(path)? else { return Ok(None) };
         let src = raw.as_ptr().expose_provenance();
-        if src != load(&CHARMAP_SRC, i) {
-            let fresh: &'static Charmap = TryBox::new(parse_charmap(path, raw)?).ok()?.leak();
-            CHARMAP_ADDR.get(i)?.store(addr_of(fresh), Release);
-            record_charmap(i, slot, src);
-            return Some(fresh);
+        if src != self.cm_word(i, CM_SRC) {
+            let Some(parsed) = parse_charmap(path, raw)? else { return Ok(None) };
+            let fresh: &'static Charmap = TryBox::new(parsed)?.leak();
+            self.record_charmap(i, addr_of(fresh), slot, src);
+            return Ok(Some(fresh));
         }
-        record_charmap(i, slot, src);
-        Some(cm)
+        self.record_charmap(i, addr_of(cm), slot, src);
+        Ok(Some(cm))
     }
 }
 
-/// Parse the charmap text `raw` read from `path` (inflated first for a `.gz` file).
-fn parse_charmap(path: &[u8], raw: &[u8]) -> Option<Charmap> {
-    if path.ends_with(b".gz") {
-        let text = inflate::gunzip(raw, CHARMAP_LIMIT).ok()?;
-        return Charmap::parse(&text).ok();
+/// `CHARMAP_DIR` + `name` + `.gz` in `buf`: the length without `.gz`. `None` when `name` is not
+/// a file name (it holds `/`, or is `.` or `..`) or the path does not fit.
+fn charmap_path(buf: &mut [u8; 256], name: &[u8]) -> Option<usize> {
+    if !name::component(name) {
+        return None;
     }
-    Charmap::parse(raw).ok()
+    let total = CHARMAP_DIR.len().checked_add(name.len())?;
+    buf.get_mut(..CHARMAP_DIR.len())?.copy_from_slice(CHARMAP_DIR);
+    buf.get_mut(CHARMAP_DIR.len()..total)?.copy_from_slice(name);
+    buf.get_mut(total..total.checked_add(3)?)?.copy_from_slice(b".gz");
+    Some(total)
+}
+
+/// Parse the charmap text `raw` read from `path` (inflated first for a `.gz` file): `Ok(None)`
+/// for text that is not a charmap, `Err(ENOMEM)` when memory for it cannot be had.
+fn parse_charmap(path: &[u8], raw: &[u8]) -> KResult<Option<Charmap>> {
+    let parsed = if path.ends_with(b".gz") { inflate::gunzip(raw, CHARMAP_LIMIT).and_then(|text| Charmap::parse(&text)) } else { Charmap::parse(raw) };
+    match parsed {
+        Ok(cm) => Ok(Some(cm)),
+        Err(e) if e == Errno::ENOMEM => Err(e),
+        Err(_) => Ok(None),
+    }
 }
 
 /// The codec `name` (without suffixes) denotes for `iconv_open`: built in, else an installed
-/// charmap found by its name or an alias (D-6.8, D-6.9).
-pub fn codec<S: Sys, M: Mapper>(sys: &S, m: &M, name: &[u8]) -> Option<Codec> {
+/// charmap found by its name or an alias (D-6.8, D-6.9). `EINVAL` when nothing names it,
+/// `ENOMEM` when its charmap cannot be loaded for want of memory.
+pub fn codec<S: Sys, M: Mapper>(sys: &S, m: &M, name: &[u8]) -> KResult<Codec> {
     if let Some(c) = iconv::builtin(name) {
-        return Some(c);
+        return Ok(c);
     }
     let _g = LOCK.lock(sys);
-    Files { m, locpath: core::cell::Cell::new(None) }.charmap(name).map(|c| Codec::Charmap(CharmapRef(c)))
+    match (Files { m, locpath: core::cell::Cell::new(None) }).load_charmap(name)? {
+        Some(c) => Ok(Codec::Charmap(CharmapRef(c))),
+        None => Err(Errno::EINVAL),
+    }
 }
 
 /// The name `setlocale(cat, "")` takes for `cat`: `LC_ALL`, then `LC_<cat>`, then `LANG`

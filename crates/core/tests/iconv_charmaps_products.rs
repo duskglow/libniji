@@ -51,13 +51,12 @@ fn build(src: &str, out: &Path, niji: bool) -> bool {
 
 const DIR: &str = "/usr/share/i18n/charmaps";
 
-/// Run `exe args` on the host (`niji` false) or with the generated charmaps mounted over [`DIR`].
-fn run(exe: &Path, args: &[String], niji: bool) -> String {
-    let o = if niji {
-        let charmaps = root().join("target/niji/charmaps");
+/// Run `exe args` on the host (`charmaps` none) or with the directory `charmaps` mounted over [`DIR`].
+fn run(exe: &Path, args: &[String], charmaps: Option<&Path>) -> String {
+    let o = if let Some(charmaps) = charmaps {
         Command::new("unshare")
             .args(["-r", "-m", "sh", "-c", "mount --bind \"$1\" \"$2\" && shift 2 && exec \"$@\"", "sh"])
-            .arg(&charmaps)
+            .arg(charmaps)
             .arg(DIR)
             .arg(exe)
             .args(args)
@@ -74,12 +73,12 @@ fn run(exe: &Path, args: &[String], niji: bool) -> String {
 /// Lines that differ (at most 20 printed); `skip` drops lines neither side should be held to.
 fn differences(what: &str, want: &str, got: &str, skip: impl Fn(&str) -> bool) -> usize {
     assert_eq!(want.lines().count(), got.lines().count(), "{what}: line counts differ");
-    let mut n = 0;
+    let mut n = 0usize;
     for (k, (w, g)) in want.lines().zip(got.lines()).enumerate() {
         if w != g && !skip(w) {
-            n += 1;
+            n = n.saturating_add(1);
             if n <= 20 {
-                eprintln!("{what} line {}:\n  reference {w}\n  niji      {g}", k + 1);
+                eprintln!("{what} line {}:\n  reference {w}\n  niji      {g}", k.saturating_add(1));
             }
         }
     }
@@ -113,20 +112,62 @@ fn generated_charmaps_convert_like_the_reference() {
 
     // Every name of the table in one process: each opens, as the conversion of its row.
     let names: Vec<String> = rows.iter().flat_map(|(n, a)| std::iter::once(n.clone()).chain(a.iter().cloned())).collect();
-    let want = run(&exe("iconv_names_host"), &names, false);
-    let got = run(&exe("iconv_names_niji"), &names, true);
+    let generated = r.join("target/niji/charmaps");
+    let want = run(&exe("iconv_names_host"), &names, None);
+    let got = run(&exe("iconv_names_niji"), &names, Some(&generated));
     let not_ref = want.lines().filter(|l| !l.contains(" open 1 1")).count();
     assert_eq!(not_ref, 0, "the host C library does not open every name of charmaps.tsv:\n{want}");
     assert_eq!(differences("names", &want, &got, |_| false), 0, "names that do not convert as the reference does");
 
     // Each charmap over its whole code space.
-    let mut diffs = 0;
+    let mut diffs = 0usize;
     for (name, _) in &rows {
         let args = [name.clone()];
-        let w = run(&exe("iconv_codespace_host"), &args, false);
-        let g = run(&exe("iconv_codespace_niji"), &args, true);
-        diffs += differences(name, &w, &g, |l| l.starts_with("BT "));
+        let w = run(&exe("iconv_codespace_host"), &args, None);
+        let g = run(&exe("iconv_codespace_niji"), &args, Some(&generated));
+        diffs = differences(name, &w, &g, |l| l.starts_with("BT ")).saturating_add(diffs);
     }
     assert_eq!(diffs, 0, "code-space lines that differ from the reference");
     eprintln!("{} charmaps ({} names) compared with the reference", rows.len(), names.len());
+}
+
+/// Charmaps the many-charmaps test loads in one process before limiting memory: more than the
+/// fixed tables of earlier libniji held (32, then 256).
+const MANY_FIRST: usize = 300;
+/// Charmaps it may load after limiting memory (the first failure comes long before these run out).
+const MANY_MORE: usize = 600;
+
+#[test]
+fn charmaps_load_past_any_fixed_count_and_fail_cleanly_without_memory() {
+    // Clauses: s6_4_c_1, s6_4_f_1; POSIX iconv_open ERRORS [ENOMEM] (no spec clause names it).
+    // libniji's charmap table grows by fallible allocation (SYS-ICONV-COVERAGE-2): a process
+    // loads MANY_FIRST distinct charmaps, and under RLIMIT_AS the first load that cannot get
+    // memory fails ENOMEM while every loaded charmap keeps converting. libniji only: the host C
+    // library does not build converters from charmap files.
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    if skip_note::missing("cc") {
+        skip_note::skipped("skipped: no C compiler");
+        return;
+    }
+    if !Path::new(DIR).is_dir() || !Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success()) {
+        skip_note::skipped(&format!("skipped: needs `unshare -r -m` and a {DIR} directory to mount the test charmaps over"));
+        return;
+    }
+    let dir = r.join("target/test-oracles");
+    let many = dir.join("many-charmaps");
+    if many.exists() {
+        std::fs::remove_dir_all(&many).unwrap();
+    }
+    std::fs::create_dir_all(&many).unwrap();
+    for k in 0..MANY_FIRST.saturating_add(MANY_MORE) {
+        let cp = k.saturating_add(0x100);
+        let text = format!("<code_set_name> MANY-{k}\n<comment_char> %\n<escape_char> /\n<mb_cur_min> 1\n<mb_cur_max> 1\nCHARMAP\n<U000A> /x0a\n<U{cp:04X}> /x41\nEND CHARMAP\n");
+        std::fs::write(many.join(format!("MANY-{k}")), text).unwrap();
+    }
+    let exe = dir.join("iconv_many_charmaps_niji");
+    assert!(build("iconv_many_charmaps.c", &exe, true), "iconv_many_charmaps.c does not link against the products");
+    let out = run(&exe, &[MANY_FIRST.to_string(), MANY_MORE.to_string()], Some(&many));
+    eprintln!("{}", out.trim());
+    assert!(out.starts_with(&format!("ok first={MANY_FIRST} ")), "iconv_many_charmaps: {out}");
 }

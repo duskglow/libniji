@@ -17,13 +17,14 @@ const TABLE: &str = "spec/encoding/charmaps.tsv";
 const SOURCES: &str = "spec/encoding/unicode";
 
 /// The byte-to-code-point pairs of the Unicode mapping file `src` (format A: `0xBB<TAB>0xUUUU`,
-/// `#` comments; a byte with no code point is unmapped).
+/// `#` comments, a final DOS end-of-file byte; a byte with no code point is unmapped).
 fn mapping(root: &Path, src: &str) -> Result<BTreeMap<u8, u32>, String> {
     let path = root.join(SOURCES).join(src);
     let text = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut out = BTreeMap::new();
     for (k, line) in String::from_utf8_lossy(&text).lines().enumerate() {
-        let line = line.split('#').next().unwrap_or("").trim();
+        // Some published files end with a DOS end-of-file byte (0x1A) on a line of its own.
+        let line = line.split('#').next().unwrap_or("").trim().trim_end_matches('\u{1a}');
         if line.is_empty() {
             continue;
         }
