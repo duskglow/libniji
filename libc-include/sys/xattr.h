@@ -57,22 +57,19 @@ extern int removexattr (const char *, const char *) __NIJI_NOTHROW;
 #  define __NIJI_D_setxattr 1
 extern int setxattr (const char *, const char *, const void *, unsigned long, int) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_enum_XATTR_CREATE
-#  define __NIJI_D_enum_XATTR_CREATE 1
-enum { XATTR_CREATE = 1 };
-# endif
-# ifndef __NIJI_D_enum_XATTR_REPLACE
-#  define __NIJI_D_enum_XATTR_REPLACE 1
-enum { XATTR_REPLACE = 2 };
-# endif
-# ifndef XATTR_CREATE
-#  define XATTR_CREATE 1
-# endif
-# ifndef XATTR_REPLACE
-#  define XATTR_REPLACE 2
-# endif
 # ifndef _SYS_XATTR_H
 #  define _SYS_XATTR_H 1
+# endif
+#endif
+
+/* The flags of setxattr(2) are an enumeration whose members are also macros. When the kernel's <linux/xattr.h> came
+   first it has defined them as macros (it sees this header's _SYS_XATTR_H guard when it comes second, and then
+   defines nothing); either order gives one definition (plan/headers.md 2.5, P8). */
+#if 1
+# ifndef XATTR_CREATE
+enum { XATTR_CREATE = 1, XATTR_REPLACE = 2 };
+#  define XATTR_CREATE 1
+#  define XATTR_REPLACE 2
 # endif
 #endif
 

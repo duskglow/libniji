@@ -9,3 +9,6 @@ s7-map-failed | headers/sys/mman.h.in | lit:# define MAP_FAILED ((void *) -1) ==
 s7-minor | headers/sys/sysmacros.h.in | lit:# define minor(dev) gnu_dev_minor (dev) ==> # define minor(dev) gnu_dev_major (dev) | cargo xtask headers-gen --check | msg:headers-gen
 s7-s-isdir | headers/sys/stat.h.in | lit:# define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR) ==> # define S_ISDIR(m) (((m) & S_IFMT) == S_IFREG) | cargo xtask headers-gen --check | msg:headers-gen
 s7-p1-macro-value | libc-include/fcntl.h | lit:#  define O_CREAT 64 ==> #  define O_CREAT 65 | python3 spec/tools/header_check.py | msg:FAIL P1 fcntl.h
+s7-statx-ts | crates/abi/src/layout.rs | lit:    pub tv_nsec: u32, ==> pub tv_nsec: u64, | cargo test -p niji-abi --test appendix_c_layouts abi_struct_statx_timestamp | msg:abi_struct_statx_timestamp.*FAILED|panicked
+s7-p10-major | libc-include/sys/sysmacros.h | lit:(__dev >> 8) & 0xfffUL ==> (__dev >> 8) & 0xffUL | python3 spec/tools/header_p10.py | msg:FAIL P10
+s7-p10-fdelt | libc-include/sys/select.h | lit:__fdelt_chk (fd)] |= ==> (fd) / 64] |= | python3 spec/tools/header_p10.py | msg:FAIL P10

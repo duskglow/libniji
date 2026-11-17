@@ -1,0 +1,16 @@
+id = "COMPAT-NEW"
+behaviour = "`bsd_signal` declaration (slice 7 and slice 8; ruling #6378)"
+glibc = "A header declares `bsd_signal` in the configurations where the BSD signal interface is visible; the symbol is exported (`GLIBC_2.2.5`, weak)"
+liella = "No libniji header declares `bsd_signal` (POSIX removed the interface in 2008); the symbol stays exported with its version, so a binary that already references it still resolves"
+restore = "A header option (a feature macro read by `<signal.h>`) that declares `bsd_signal` in the reference's configurations; not implemented"
+cost = "none (the flag does not exist; the declaration is a header line, the function is already exported)"
+status = "registered"
+decisions = ["D-X.113"]
+story = "SL-HEADERS-S07-2"
+date = "2026-11-17"
+body = '''
+Registered option for ruling #6378 (bsd_signal is not declared; the symbol stays exported). The declaration belongs to
+`<signal.h>` (slice 8); `bsd_signal` has no row in `spec/abi/prototypes.tsv`, so no generated header declares it. The
+slice 7 decision record (pending D-NEW of SL-HEADERS-S07-2, extending D-X.113) holds the reasoning. The differences row
+is in `docs/differences-from-glibc.md` ("`bsd_signal` declaration").
+'''
