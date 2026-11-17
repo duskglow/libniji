@@ -1,0 +1,21 @@
+{"task": "RELEASE-SNAPSHOT-LDCONFIG-2", "model": "opus", "tokens": null,
+ "result": "20dbed16c validated and staged as snapshot-20261117.3 (keke); #16 fixed end to end and identical to stock ldconfig; tag waits on a ruling: the system flavour's libc6-dev ships no C headers",
+ "branch": "task/release-snapshot-ldconfig-2", "head": null,
+ "gate": {"affected": "gate-2: clippy, xtask clippy, static, records, affected all rc 0; root 19/0; plants 6 CAUGHT / 0 SURVIVED", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "system-flavour libc6-dev has no /usr/include (replacing Debian's libc6-dev removes /usr/include/stdint.h and every libc header), so no C program compiles after a system install; not a regression (also in snapshot-20261117.2)", "recommendation": "tag 20dbed16c with it written as a known system-flavour limitation and cut a headers story for libc6-dev; re-cut first only if system-flavour compiles must work in this snapshot"}],
+ "informational": [
+   "libc6-dbg lacks the debug file of /usr/bin/iconv (tools/deb/system.sh:134; SYS-DBG-DWARF's fix, ruling #6321)",
+   "lintian 10 E / 59 W per suite vs 10 E / 57 W: +libc-bin extended-description-line-too-long, +libc-bin no-manual-page usr/bin/iconv (UTIL-7)",
+   "swap ldd-6/ldd-7 (ldd -v) differ only as D-31.15 documents; ldd-1..5 identical to stock",
+   "docs: install-packages.md:123 omits /usr/bin/iconv, :124 header sentence false for the system flavour, :126 libc6-dbg claim excludes iconv; RELEASE-NOTES.md has no section after 11-16 and :110 is stale; differences-from-glibc.md:534 says libm lists only GLIBC_2.14 (also lists GLIBC_2.2.5)"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "tools/deb/root-system.sh ld.so --list check accepts the /lib/x86_64-linux-gnu spelling the system loader prints since DL-TRACE-INTERP-2 (empty root 18/1 -> 19/0)", "before": 1, "after": 0, "unit": "false root FAILs", "measured": true},
+   {"kind": "unblock", "what": "snapshot-20261117.3 staged on keke for the tag (after the header ruling)", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "a release check that compiles inside the swapped root found a header gap that every earlier snapshot missed because the root checks compile with the host's headers; the empty-root check should compile inside the root too",
+ "next_step": "coordinator rules on the system-flavour header gap, then tags 20dbed16c from keke ~/release-staging/snapshot-20261117.3/",
+ "report_file": "handoff/RELEASE-SNAPSHOT-LDCONFIG.md",
+ "jobs": ["release-snapshot-ldconfig-2-gate-2", "release-snapshot-ldconfig-2-root-2", "release-snapshot-ldconfig-2-plants-1", "release-snapshot-ldconfig-lint-1", "release-snapshot-ldconfig-smoke-mei-1", "keke:release-snapshot-ldconfig-smoke-keke-1", "keke:release-snapshot-ldconfig-pkgdiff-1", "keke:release-snapshot-ldconfig-2-stage-1", "keke:release-snapshot-ldconfig-2-install-1"]}
