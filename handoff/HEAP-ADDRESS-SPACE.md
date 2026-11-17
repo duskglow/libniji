@@ -42,10 +42,27 @@ libniji stays far lower (it never touches the blocks it hands out).
   `map_room`/`grow` (merging like a VMA); the 1 GiB-limit test expects the new first mapping; the two
   borrow-from-another-shard tests first make the donor shard map enough slabs.
 
+## After (head 032fc0883, job heap-address-space-t3 on mei; libniji static, VmSize KiB)
+
+| step | reference | libniji before | libniji after | after, growth over start vs reference's |
+|---|---|---|---|---|
+| start | 4176 | 7180 | 7184 | - |
+| first malloc | 4308 | 23632 | 8020 | +836 vs +132 |
+| 200000 x malloc(96..159) | 32160 | 40016 | 36180 | +28996 vs +27984 |
+| refill with malloc(120) | 33744 | 56400 | 40020 | +32836 vs +29568 |
+| doubling realloc | 32228 | 74832 | 42072 | +34888 vs +28052 (segments are never unmapped) |
+
+Peak growth 34888 KiB (was 67652): just inside the issue's 35000 KiB headroom for this program. Clippy and the
+products build passed in t3 (its log); the issue probe ran on the new products.
+
 ## Not done / next step (exact)
 
-1. Read `heap-address-space-t2`'s log; fix what the rt tests or clippy report (8 rt tests failed on the first
-   version before the test adaptations above; they were not re-run yet).
+1. Four rt tests still fail on 032fc0883 (`cargo test -p niji-rt --test heap_and_sync`):
+   `an_address_space_limit_sizes_the_registries` (line 406), `the_first_allocation_reserves_one_mapping`
+   (478), `segments_are_aligned_and_found_from_any_address` (1115) and
+   `a_thread_whose_cache_cannot_be_made_takes_a_parked_cache_of_another_shard` (796, the alloc after the
+   parked cache is taken). Find each cause (FakePages `map_room`/`grow` model, segment counting, the spill
+   path) before changing any expectation; none was investigated (context checkpoint).
 2. Wire `crates/core/tests/oracle/heap_address_space.c` (committed, unused) into a test in
    `crates/core/tests/heap_meta_products.rs`: growth over start at each step <= the reference's measured growth
    (malloc1 132, alloc 27984, refill 29568, realloc 28052 KiB on the Zen 1 host) + a margin set from the after

@@ -1,0 +1,17 @@
+{"task": "HEAP-ADDRESS-SPACE", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (context checkpoint): heap segments mapped as far as used and grown in place, large table starts at one page, nearby-class reuse before growth; issue probe peak VmSize growth 67652 -> 34888 KiB (reference 29568); 4 rt heap tests still fail, no plants/gate yet",
+ "branch": "task/heap-address-space", "head": "032fc0883",
+ "gate": {"affected": "not run (rt heap_and_sync: 23 passed / 4 failed)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["libniji's VmSize at start (no heap) is about 3 MiB above the reference's: text/data size, not the heap; out of scope here"],
+ "refused": [],
+ "impact": [
+  {"kind": "size", "what": "VmSize growth at the first malloc (issue #21 probe, Zen 1 host)", "before": 16452, "after": 836, "unit": "KiB", "measured": true},
+  {"kind": "size", "what": "peak VmSize growth over start, issue #21 probe", "before": 67652, "after": 34888, "unit": "KiB", "measured": true},
+  {"kind": "cost", "what": "4 rt heap tests fail on the WIP head; fix-forward in the continuation", "before": null, "after": null, "unit": "tests", "measured": true}
+ ],
+ "jobs": ["heap-address-space-t3"],
+ "improvement": "a story whose first step is a mapping audit of a 110 KB file needs a larger context budget or a pre-made per-function index of heap.rs; reading by range still cost most of the budget",
+ "next_step": "fix the 4 failing rt heap tests by cause, wire oracle/heap_address_space.c into heap_meta_products.rs (step margins + RLIMIT_AS run), decision record D-NEW amending D-3.19/D-3.14, plants, direct gate, start-up checks, malloc/startup counters",
+ "report_file": "handoff/HEAP-ADDRESS-SPACE.md"}
