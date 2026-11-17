@@ -343,7 +343,8 @@ fn list_matches_reference() {
 /// when an object names the interpreter in DT_NEEDED (by soname or path), at its breadth-first place, the
 /// vDSO's line after it when it comes first; libniji's libc and libm name it after their own needs, where
 /// the reference's do; no DT_NEEDED at all is `statically linked`, status 0. Every entry point (kernel
-/// start, `ld.so PROGRAM` and `--list`) against the reference loader, whole outputs compared with the
+/// start, `ld.so PROGRAM` and `--list`, and `--list` with the loader run through a link, which spells the
+/// line `NAME => PATH`) against the reference loader, whole outputs compared with the
 /// addresses, the loaders' paths and the C library's directory masked. s27_1_c_1_1, s31_3_g_1.
 #[cfg(target_arch = "x86_64")] // ARCH(x86_64): runs the host's x86-64 reference loader on objects the host toolchain builds
 #[test]
@@ -419,6 +420,12 @@ fn list_interpreter_line_matches_reference() {
         let file = if operand.ends_with(".so.1") || operand == "spie" { d.join(operand) } else { d.join(format!("{side}-{operand}")) };
         outs.push(Command::new(loader).arg(&file).env("LD_TRACE_LOADED_OBJECTS", "1").env("LD_LIBRARY_PATH", &lp).output().unwrap());
         outs.push(Command::new(loader).arg("--list").arg(&file).env("LD_LIBRARY_PATH", &lp).output().unwrap());
+        // The loader run by another path than the program's PT_INTERP names: the interpreter's
+        // line spells `NAME => PATH`, PATH the loader as run (the same link name on both sides).
+        let link = d.join("ldrun");
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(loader, &link).unwrap();
+        outs.push(Command::new(&link).arg("--list").arg(&file).env("LD_LIBRARY_PATH", &lp).output().unwrap());
         outs.iter().map(|o| norm(o, &lds)).collect::<Vec<_>>()
     };
     let mut bad = Vec::new();
