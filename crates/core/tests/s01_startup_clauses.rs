@@ -416,6 +416,12 @@ impl Pages for NoPages {
     fn remap(&self, _: usize, _: usize, _: usize) -> Option<usize> {
         None
     }
+    fn map_room(&self, _: usize, _: usize, _: usize, _: usize, _: Option<u32>) -> Option<usize> {
+        None
+    }
+    fn grow(&self, _: usize, _: usize, _: Option<u32>) -> bool {
+        false
+    }
     fn wipe(&self, _: usize, _: usize) {}
     fn words(&self, _: usize, _: usize) -> &[std::sync::atomic::AtomicU64] {
         &[]

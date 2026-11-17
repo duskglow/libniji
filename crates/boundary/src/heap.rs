@@ -49,7 +49,7 @@ impl Pages for KernelPages {
         let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, None, 0) else {
             // The over-mapping may not fit under an address-space limit (T14): an aligned range
             // without the slack, found from where the kernel would place `len` bytes.
-            return if slack > 0 { map_aligned_exactly(len, align, node) } else { None };
+            return if slack > 0 { map_aligned_exactly(0, len, align, node) } else { None };
         };
         let base = region.addr();
         let addr = base.checked_next_multiple_of(align.max(PAGE))?;
@@ -66,6 +66,45 @@ impl Pages for KernelPages {
             let _ = raw::mbind_preferred(addr, len, n);
         }
         Some(addr)
+    }
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        // Over-map by the room and the alignment (address space only, never touched), keep
+        // `head + len` bytes with the aligned address after `head`, and cut the rest off: the
+        // room above the kept part was free a moment ago, and the kernel places later mappings
+        // at the top of that gap first, so the mapping can usually grow in place.
+        let total = head.checked_add(room.max(len))?.checked_add(align)?;
+        let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, None, 0) else {
+            // Under an address-space limit the over-mapping may not fit (T14).
+            return map_aligned_exactly(head, len, align, node);
+        };
+        let base = region.addr();
+        let addr = base.checked_add(head)?.checked_next_multiple_of(align.max(PAGE))?;
+        let start = addr - head;
+        if start > base {
+            let _ = raw::munmap(base, start - base);
+        }
+        let (end, top) = (addr.saturating_add(len), base.saturating_add(total));
+        if top > end {
+            let _ = raw::munmap(end, top - end);
+        }
+        if let Some(n) = node {
+            let _ = raw::mbind_preferred(start, head + len, n);
+        }
+        Some(addr)
+    }
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+        use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE;
+        let Ok(region) = CSys.mmap(addr, len, PROT_READ | PROT_WRITE, flags, None, 0) else { return false };
+        if region.addr() != addr {
+            // A kernel without MAP_FIXED_NOREPLACE (before 4.17) takes the address as a hint.
+            let _ = raw::munmap(region.addr(), len);
+            return false;
+        }
+        if let Some(n) = node {
+            let _ = raw::mbind_preferred(addr, len, n);
+        }
+        true
     }
     fn unmap(&self, addr: usize, len: usize) {
         let _ = raw::munmap(addr, len);
@@ -150,28 +189,32 @@ pub struct OwnPages;
 /// `len` bytes at a multiple of `align` without mapping `len + align` first (T14): the kernel
 /// picks where `len` bytes go; if that is not aligned, the aligned addresses just above and just
 /// below are tried with `MAP_FIXED_NOREPLACE` (never replacing a mapping).
-fn map_aligned_exactly(len: usize, align: usize, node: Option<u32>) -> Option<usize> {
+/// With `head`: `head + len` bytes whose address plus `head` is the multiple (the address
+/// returned), as [`Pages::map_room`] places them.
+fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
     use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
     let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
-    let probe = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).ok()?.addr();
-    let addr = if probe.checked_rem(align) == Some(0) {
-        probe
+    let total = head.checked_add(len)?;
+    let probe = CSys.mmap(0, total, PROT_READ | PROT_WRITE, flags, None, 0).ok()?.addr();
+    let addr = if probe.checked_add(head)?.checked_rem(align) == Some(0) {
+        probe + head
     } else {
-        let _ = raw::munmap(probe, len);
-        let up = probe.checked_next_multiple_of(align)?;
+        let _ = raw::munmap(probe, total);
+        let up = probe.checked_add(head)?.checked_next_multiple_of(align)?;
         let down = up.checked_sub(align)?;
         [up, down].into_iter().find_map(|a| {
-            let got = CSys.mmap(a, len, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
-            if got == a {
+            let start = a.checked_sub(head)?;
+            let got = CSys.mmap(start, total, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
+            if got == start {
                 Some(a)
             } else {
-                let _ = raw::munmap(got, len);
+                let _ = raw::munmap(got, total);
                 None
             }
         })?
     };
     if let Some(n) = node {
-        let _ = raw::mbind_preferred(addr, len, n);
+        let _ = raw::mbind_preferred(addr - head, total, n);
     }
     Some(addr)
 }
@@ -1043,6 +1086,12 @@ impl Pages for OwnPages {
     #[inline(always)]
     fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize> {
         KernelPages.remap(addr, old_len, new_len)
+    }
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        KernelPages.map_room(head, len, room, align, node)
+    }
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+        KernelPages.grow(addr, len, node)
     }
     #[inline(always)]
     fn wipe(&self, addr: usize, len: usize) {

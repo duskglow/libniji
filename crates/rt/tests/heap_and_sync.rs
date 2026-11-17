@@ -141,6 +141,33 @@ impl Pages for FakePages {
         self.maps.borrow_mut().insert(addr, Mapping { len, slot: n, node });
         Some(addr)
     }
+    fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+        // As the kernel places it: the room past the aligned address stays free (`next` skips it).
+        let start = self.map(head + len, PAGE, node)?;
+        let addr = (start + head).next_multiple_of(align);
+        let m = self.maps.borrow_mut().remove(&start).unwrap();
+        self.maps.borrow_mut().insert(addr - head, m);
+        *self.next.borrow_mut() = addr + room.max(len) + 16 * PAGE;
+        Some(addr)
+    }
+    fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+        let n = *self.calls.borrow();
+        *self.calls.borrow_mut() += 1;
+        let mapped: usize = self.maps.borrow().values().map(|m| m.len).sum();
+        let taken = self.maps.borrow().range(..addr + len).next_back().is_some_and(|(&b, m)| b + m.len > addr);
+        if *self.fail_at.borrow() == Some(n) || taken || self.limit.get().is_some_and(|l| mapped + len > l) {
+            return false;
+        }
+        // The kernel merges the new pages into the mapping they extend (one VMA).
+        let below = self.maps.borrow().range(..addr).next_back().map(|(&b, m)| (b, m.len));
+        match below {
+            Some((b, l)) if b + l == addr => self.maps.borrow_mut().get_mut(&b).unwrap().len += len,
+            _ => {
+                self.maps.borrow_mut().insert(addr, Mapping { len, slot: n, node });
+            }
+        }
+        true
+    }
     fn unmap(&self, addr: usize, len: usize) {
         assert_eq!(self.maps.borrow_mut().remove(&addr).map(|m| m.len), Some(len), "unmap of exactly a mapping");
     }
@@ -386,8 +413,9 @@ fn an_address_space_limit_sizes_the_registries() {
     let heap = Heap::new();
     let a = heap.alloc(&CSys, &pages, 40, ALIGN).unwrap().addr;
     let lens: Vec<usize> = pages.maps.borrow().values().map(|m| m.len).collect();
-    // One mapping: the segment, one page of registries sized to 1 GiB, the first cache chunk (D-3.19).
-    assert_eq!(lens, [SEG + PAGE + (64 << 10)], "a segment and small registries: {lens:?}");
+    // One mapping: one page of registries sized to 1 GiB, the first cache chunk (D-3.19), then
+    // the segment as far as it is used: its 256 KiB of metadata and two 256 KiB slabs.
+    assert_eq!(lens, [PAGE + (64 << 10) + 3 * (256 << 10)], "small registries and a segment's first slabs: {lens:?}");
     heap.free(&CSys, &pages, a).unwrap();
 }
 
@@ -596,7 +624,8 @@ fn secure_blocks_are_wiped_on_every_release_and_never_kept() {
 /// The node each segment (a mapping of 16 MiB or more at a 16 MiB boundary: the first one also
 /// holds registries, D-3.19) asked for, by base.
 fn segment_nodes(pages: &FakePages) -> BTreeMap<usize, Option<u32>> {
-    pages.maps.borrow().iter().filter(|(b, m)| m.len >= SEG && *b % SEG == 0).map(|(&b, m)| (b, m.node)).collect()
+    // A segment starts at a 16 MiB boundary inside a mapping (after the registries in the first).
+    pages.maps.borrow().iter().filter(|(&b, m)| b.next_multiple_of(SEG) < b + m.len).map(|(&b, m)| (b.next_multiple_of(SEG), m.node)).collect()
 }
 
 #[test]
@@ -689,8 +718,11 @@ fn borrow_from_another_shard(donor: usize, caller: usize) {
     let heap = Heap::new();
     let pages = FakePages::new();
     // Shard 0 maps its segment; thread 1 on shard 1 gets its cache (via a large block) but no segment.
+    // A segment maps its slabs as they are used: nine classes leave seven mapped slabs free.
     pages.shard.set(donor);
-    heap.alloc(&CSys, &pages, 100, ALIGN).unwrap();
+    for size in [100, 16, 32, 48, 64, 80, 96, 128, 160] {
+        heap.alloc(&CSys, &pages, size, ALIGN).unwrap();
+    }
     pages.thread.set(1);
     pages.shard.set(caller);
     let big = heap.alloc(&CSys, &pages, 1 << 20, ALIGN).unwrap();
@@ -736,6 +768,11 @@ fn a_thread_whose_cache_cannot_be_made_takes_a_parked_cache_of_another_shard() {
     pages.thread.set(1);
     pages.shard.set(3);
     heap.alloc(&CSys, &pages, 100, ALIGN).unwrap();
+    // A segment maps its slabs as they are used: 33 classes leave 30 mapped slabs free, so the
+    // new threads below run out of cache room, not of slabs.
+    for &size in &CLASSES[..33] {
+        heap.alloc(&CSys, &pages, size, ALIGN).unwrap();
+    }
     // No room for any further mapping. "New threads" (their cache word cleared, nothing parked) use up
     // the cache chunk and then cannot make a cache.
     let mapped: usize = pages.maps.borrow().values().map(|m| m.len).sum();
