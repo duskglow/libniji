@@ -6,6 +6,28 @@ existing program are left as they are, and purging the packages leaves the syste
 Replacing `libc6` (libniji as the system's C library) is the separate system flavour at the end of
 this page, for Yohane Linux.
 
+## Names before libniji
+
+libniji was called Liella until November 2026; `snapshot-2026-11-17` is the first snapshot under the new name.
+Nothing had been released, so the old names have no compatibility aliases: a program, build script or package
+that uses an old name needs the new one. The system flavour's Debian package names (`libc6`, `libc-bin`, ...),
+`libc.so.6` and the loader's name do not change. The decision is D-X.114 (`records/decisions/D-X/D-X.114.toml`).
+
+| Old | New |
+|---|---|
+| packages `liella6`, `liella6-dev`, `liella-gcc`, `liella-g++`, `liella-native-abi`, `liella-owner-abi` | `niji6`, `niji6-dev`, `niji-gcc`, `niji-g++`, `niji-native-abi`, `niji-owner-abi` |
+| version suffix `+liella` | `+niji` |
+| install prefix `/usr/lib/liella` (`liella-crt1.o`, `liella-cc`) | `/usr/lib/niji` (`niji-crt1.o`, `niji-cc`) |
+| native interface library `libliella_native.so` (`-lliella_native`) | `libniji.so` (`-lniji`) |
+| headers `include/liella/` | `include/niji/` |
+| version nodes `LIELLA_NATIVE_1`, `LIELLA_OWNER_1`, `LIELLA_PRIVATE` | `NIJI_NATIVE_1`, `NIJI_OWNER_1`, `NIJI_PRIVATE` |
+| macros, constants, compatibility flags and environment variables `LIELLA_*` | `NIJI_*` |
+| `__LIELLA__` (still always defined) | `__NIJI__` |
+| tunables `liella.*`, run-time names `/dev/shm/liella-nscache-*`, `sem.liella-*`, notes `.note.liella.*` | `niji.*`, `/dev/shm/niji-nscache-*`, `sem.niji-*`, `.note.niji.*` |
+| Rust crates `liella`, `liella-*` (modules `liella_*`) | `niji`, `niji-*` (modules `niji_*`) |
+
+The release notes of that snapshot ([docs/RELEASE-NOTES.md](RELEASE-NOTES.md)) carry the same table.
+
 ## What they are
 
 | Package | Like Debian's | Contents |
@@ -121,7 +143,7 @@ Do not install them on a Debian or Devuan system that keeps glibc: they replace 
 |---|---|
 | `libc6` | the loader `/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2` (`/usr/lib64/ld-linux-x86-64.so.2` links to it; the program interpreter is `/lib64/ld-linux-x86-64.so.2`, reached through base-files' `/lib64 -> usr/lib64`), the shared libraries as in `niji6`, the conffile `/etc/ld.so.conf.d/x86_64-linux-gnu.conf`; activates the `ldconfig` trigger |
 | `libc-bin` | `Essential: yes`. Conffiles `/etc/ld.so.conf`, `/etc/ld.so.conf.d/libc.conf`, `/etc/gai.conf`; the template `/usr/share/libc-bin/nsswitch.conf`, which its postinst copies to `/etc/nsswitch.conf` when there is none. `/usr/sbin/ldconfig` (static), `/usr/bin/getconf` (static), `/usr/bin/getent` (dynamic, through the system loader) and `/usr/bin/ldd` (static). Handles the `ldconfig` trigger by running `ldconfig`; purging removes `/etc/ld.so.cache` |
-| `libc6-dev` | `Provides: libc-dev (= <version>)`; `Depends` also on `linux-libc-dev`, `libcrypt-dev` and `rpcsvc-proto` (kernel headers, `<crypt.h>`, `rpcgen`), as builds expect of `libc6-dev`. Start files (as in `niji6-dev`, `crti.o` and `crtn.o` included), the `libc.so` script, `libc_nonshared.a`, the static archives (with `libBrokenLocale.a` and the empty `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`), `libm.so`, `libresolv.so`, the development links `libanl.so`, `libBrokenLocale.so`, `libc_malloc_debug.so` (`libnss_compat.so`, `libnss_hesiod.so` wait for their libraries). No headers yet: plain `gcc` compiles with the system's glibc headers |
+| `libc6-dev` | `Provides: libc-dev (= <version>)`; `Depends` also on `linux-libc-dev`, `libcrypt-dev` and `rpcsvc-proto` (kernel headers, `<crypt.h>`, `rpcgen`), as builds expect of `libc6-dev`. Start files (as in `niji6-dev`, `crti.o` and `crtn.o` included), the `libc.so` script, `libc_nonshared.a`, the static archives (with `libBrokenLocale.a` and the empty `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`), `libm.so`, `libresolv.so`, the development links `libanl.so`, `libBrokenLocale.so`, `libc_malloc_debug.so` (`libnss_compat.so`, `libnss_hesiod.so` wait for their libraries). No C headers yet: this `libc6-dev` replaces Debian's, so a root using the system packages has no `/usr/include/stdio.h` and cannot compile C until libniji's own headers land ([plan/headers.md](../plan/headers.md)). The packages beside glibc (`niji6-dev`) are not affected: there the system's glibc headers stay |
 | `libc-dev-bin`, `locales`, `libc-l10n` | placeholders (documentation only) until their programs and data exist (`locales` and `libc-l10n`: `Priority: standard`; `libc-l10n`: `Multi-Arch: foreign`) |
 | `libc6-dbg` | `Section: debug`, `Depends: libc6 (= version)`, `Provides: libc-dbg, libc6-dbgsym`. The detached debugging information (symbol table and line tables) of every shared object of `libc6` and every program of `libc-bin`, as `/usr/lib/debug/.build-id/xx/yyyy.debug` named by each file's GNU build-id: with it installed, gdb shows the source file and line of a libniji function. The packaged objects stay stripped |
 
@@ -143,3 +165,16 @@ tools/deb/lint.sh target/deb-system excalibur # lintian in an unprivileged chroo
 The products are built with `NIJI_PREFIX=/` and `NIJI_LIBDIR=usr/lib/x86_64-linux-gnu`: libniji's
 own sonames resolve to `/usr/lib/x86_64-linux-gnu`, the cache is `/etc/ld.so.cache`, and the default
 directories are the system ones. The design is decision D-X.106 (`records/decisions/D-X/D-X.106.toml`).
+
+What a Debian binary can expect of these packages (from `snapshot-2026-11-17`; the
+[release notes](RELEASE-NOTES.md) give the details):
+
+- `libm.so.6` and `libc.so.6` export the old `GLIBC_2.2.5` versions that binaries built against older C
+  libraries bind (`fmod`, `fmodf`, `exp`, `exp10`, `pow`, `hypot`, `hypotf`, `log`, `log2`,
+  `pthread_sigmask`), so programs such as Debian's `gawk` start.
+- `libc6` ships `libresolv.so.2` (and `libc6-dev` `libresolv.so`), so programs that need it (`libkrb5` and its
+  users) load. `libresolv.a` is an empty archive: the functions are in `libc.a`, so a static `-lresolv` link works.
+- `getaddrinfo` returns `EAI_AGAIN` ("Temporary failure in name resolution") when no nameserver can be reached.
+- `iconv` is partial: EUC-JP converts (a round trip is byte for byte identical), but only 58 of the 1180
+  character-set names glibc 2.39 lists open; ISO-8859-15 and most others do not open yet, and
+  Debian's own `iconv` program does not start yet ([issue #6](https://github.com/duskglow/libniji/issues/6)).
