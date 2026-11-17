@@ -1,47 +1,50 @@
-# SYS-DBG-PACKAGE: libc6-dbg from the system build (INCOMPLETE)
+# SYS-DBG-PACKAGE(-2): libc6-dbg from the system build
 
-Branch `task/sys-dbg-package` (from origin/next 24dc5587a). Brief: `~/state/briefs/SYS-DBG-PACKAGE.md`
-(gap 12 of plan/package-parity-audit.md). Build role mei:~/w/s1.
+Branch `task/sys-dbg-package-2` (from origin/next 24dc5587a; carries SYS-DBG-PACKAGE's commits). Briefs:
+`~/state/briefs/SYS-DBG-PACKAGE.md` (the change), `~/state/briefs/SYS-DBG-PACKAGE-2.md`. Build role mei:~/w/s4.
+Job scripts and scratch on mei: `~/work/SYS-DBG-PACKAGE-2/`, `/mnt/zram/claude/SYS-DBG-PACKAGE-2/`.
 
 ## State
 
-* `tools/deb/system.sh`: a seventh package, `libc6-dbg` (Section debug, Priority optional, Multi-Arch: same,
-  Depends: libc6 (= version), Provides: libc-dbg, libc6-dbgsym). Before the strip, every shared object of
-  libc6 and libc-bin's four programs is split with `objcopy --only-keep-debug --compress-debug-sections=zlib`
-  into `/usr/lib/debug/.build-id/xx/yyyy.debug` (xx/yyyy its GNU build-id; the build stops if an object has
-  no build-id or two share one). The packaged objects are stripped exactly as before (no debuglink).
-* `tools/deb/check-system.sh`: checks the fields; each stripped object keeps its build-id and has exactly
-  one debug file with the same id and a symbol table; no orphan debug files; libc.so.6's debug file has
-  `.debug_line`; host gdb with only the debug directory shows a source line for `DBG_FUNC` (default getenv).
-* `tools/deb/root-system.sh`: seven packages installed and purged.
-* `tools/deb/dbg-system.sh` + `dbg-cmds.sh` (new, NOT RUN yet): trixie root with gdb, libniji's libc6 and
-  libc-bin swapped in, gdb `info line` before/after installing libc6-dbg, and a stop in a running /usr/bin/true.
+* libc6-dbg (SYS-DBG-PACKAGE): `tools/deb/system.sh` splits every libc6 shared object and libc-bin's four
+  programs with `objcopy --only-keep-debug` into `/usr/lib/debug/.build-id/xx/yyyy.debug`; fields, checks
+  (`check-system.sh`), install/purge (`root-system.sh`), swapped-root gdb proof (`dbg-system.sh`, `dbg-cmds.sh`).
+* **The open item is fixed (SYS-DBG-PACKAGE-2).** Cause, found by listing the DWARF compile units of each
+  step of `cargo xtask so`: libniji's crates emitted no DWARF at compile time. The products build in their
+  own workspace (`crates/Cargo.toml`), whose `[profile.release]` has no `debug` key; the root Cargo.toml's
+  `debug = "line-tables-only"` never applied. Nothing in the post-link pipeline drops DWARF.
+* Fix: `xtask/src/so.rs` `RELEASE_DEBUG_RUSTFLAGS` = `-Cdebuginfo=line-tables-only`, added to every
+  release-profile product build (`ProductBuild::command`). The `fast` tool profile is unchanged (no DWARF).
+  NOT the profile key: tried first; cargo hashes profile settings into `-C metadata`, every Rust symbol
+  hash changed and libc.so.6's .text/.rodata/.data/.dynsym bytes differed. Do not redo.
+* Loaded image unchanged (job sys-dbg-package-2-final, `cmpalloc.py`, every SHF_ALLOC section's
+  type/flags/address/size/SHA-256): 37 ELF products and every libc.a/libm.a member, 0 differences against
+  the build without line tables; only the `.note.gnu.build-id` of 5 files differs (ld's build-id hashes
+  the debug sections too). Layout contract lines identical (STARTUP-TEXT-WINDOWS 1 window, 100/100
+  functions; STARTUP-DATA-WINDOWS 1 ro window, 8 rw pages). libc.so.6: 613 CUs, 10 of libniji's crates
+  (0 before).
+* gdb checks: `info line *FUNC` (entry address; the linespec form found no function entries) and
+  `-iex "set debug-file-directory ..."` (with `-ex` gdb had loaded the file first and never read the
+  debug file: that, not only the missing DWARF, made the earlier check fail). dbg-system.sh now stops at
+  `exit` in /usr/bin/true and checks frame, `list` and `bt`.
+* libc6 now also ships `libresolv.so.2` and `libBrokenLocale.so.1` (the products build them; without them
+  the swap removed the distribution's copies and gdb could not start in the swapped root). This is a libc6
+  content change (two files added); the existing objects are unchanged.
+* Measured on c9378a18c products: reproducible (7 identical .debs twice), root-system PASS, coexist
+  flavour builds and `check.sh` PASS, parity.sh (sample 300): the `d libc6-dbg` (package missing) gap row
+  is gone; new rows are the Depends version and the content-addressed `.build-id/xx` directory names
+  (cannot match by construction). libc6-dbg .deb 8.6 MB (was 0.27 MB without libniji DWARF).
+* docs/install-packages.md: libc6-dbg row. docs/RELEASE-NOTES.md not touched (only released entries exist).
 
-## Measured (mei, job sys-dbg-package-pack3, products of sys-dbg-package-build1)
+## Pending at hand-back (final head)
 
-* Packaging the same products twice: identical .debs (all seven).
-* The six existing packages are byte-identical to the ones the pre-story system.sh makes from the same
-  products (libc6 included, so the layout contracts are untouched).
-* libc6-dbg: one debug file per object (9 objects; build-ids present on every product: gcc passes --build-id).
-* check-system.sh (before the fix in the last commit): 2 FAIL. (1) its own object list picked up libc6-dev's
-  `libc.so` script; fixed (`*.so.*`); rerun on the final head (job sys-dbg-package-pack4): only (2) fails. (2) **the real gap: gdb shows no source line for any libc
-  function.** The release libc.so.6's DWARF holds compile units only for core, alloc and compiler-builtins
-  (the precompiled standard library); libniji's own crates contribute none. The Rust archive member
-  (target/product/libc-so-input.a, the fat-LTO cgu) does carry `.debug_line`, the profile is `release`
-  (`debug = "line-tables-only"`), the product rustflags are `-Cllvm-args=-align-all-functions=6` and two
-  `--remap-path-prefix`; nothing in xtask strips debug from libc. Cause NOT found.
+Jobs on mei: `sys-dbg-package-2-gate2` (direct tier), `sys-dbg-package-2-final2` (package from the final
+products, check-system, root-system, dbg-system in trixie with KEYRING=~/keyrings/debian-archive-keyring.gpg),
+`sys-dbg-package-2-plants` (handoff/sys-dbg-package-2.plants; results into handoff/SYS-DBG-PACKAGE-2-plants.txt
+by the tool if it writes there).
 
 ## Next step
 
-1. Find why the niji crates emit no DWARF in the release product (start: does `cargo rustc --profile release
-   --crate-type staticlib` of crates/core apply `debug` to the workspace crate; compare `readelf -wi` CU names
-   of the archive member with the linked libc.so.6; check the hot-text grouping relink). Fix in xtask/so.rs or
-   Cargo.toml; the stripped libc6 must stay byte-identical (strip removes the DWARF; check with the pre-story
-   system.sh as pack.sh did).
-2. Rerun: build, `check-system.sh` (expect PASS), `root-system.sh`, `dbg-system.sh <debs> trixie` with
-   `KEYRING=~/keyrings/debian-archive-keyring.gpg` (mei has no Debian keyring in /usr/share/keyrings), plants
-   (e.g. drop `--only-keep-debug`, drop the Provides line, skip one object), the coexist build, and
-   `tools/deb/parity.sh` (gap 12, `gaps.tsv:5`, should go).
-3. docs/install-packages.md and docs/RELEASE-NOTES.md: add libc6-dbg to the system-package table.
-
-Job scripts: `~/work/SYS-DBG-PACKAGE/pack.sh` on mei (old system.sh in `old-system.sh` there).
+If final2 or plants are red: read `~/logs/sys-dbg-package-2-final2.log` (dbg outputs under
+`/mnt/zram/claude/SYS-DBG-PACKAGE-2/dbglog2/dbg-trixie/`). Possible follow-up: line tables for the C layer
+(csys, e.g. printf in variadic.c) need `-g` on its compiles, checked the same way (cmpalloc).
