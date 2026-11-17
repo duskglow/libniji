@@ -174,7 +174,7 @@ fi
 rlib=$rt$sysroot/usr/lib/$ma
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$rlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1 libthread_db.so.1; do
     need "$so"
     put 0644 "$products/$so" "$rlib/$so"
 done
@@ -211,6 +211,7 @@ GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-
 put_link libm.so.6 "$dlib/libm.so"
 put_link libresolv.so.2 "$dlib/libresolv.so"
 put_link libBrokenLocale.so.1 "$dlib/libBrokenLocale.so"
+put_link libthread_db.so.1 "$dlib/libthread_db.so"
 put 0755 "$here/niji-gcc" "$dev/usr/bin/niji-gcc"
 put_link niji-gcc "$dev/usr/bin/niji-g++"
 mkdir -p "$dev/usr/share/man/man1"

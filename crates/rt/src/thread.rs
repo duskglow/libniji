@@ -198,6 +198,92 @@ pub const DESC_RSEQ: u32 = 16;
 /// Descriptor flag: the thread has exited (its exit sequence ran).
 pub const DESC_EXITED: u32 = 32;
 
+// ------------------------------------------------------------------------------ the debugger's view
+
+/// [`Debug::magic`]: the bytes `nijitdb1` read as a little-endian word.
+pub const DEBUG_MAGIC: u64 = u64::from_le_bytes(*b"nijitdb1");
+/// [`Debug::version`]: bumped when a word's meaning changes (new words go at the end, with
+/// [`Debug::words`] saying how many there are).
+pub const DEBUG_VERSION: u64 = 1;
+/// The dtv words before the first module slot (generation, slot count): the loader's layout
+/// (`niji_ld::tls::DTV_HEADER`; the boundary checks the two agree).
+pub const DEBUG_DTV_HEADER: u64 = 2;
+
+/// The thread-list descriptor a debugger's `libthread_db.so.1` reads through its memory
+/// callbacks (spec §22.10, decision record SYS-THREAD-DB-1): `libc` exports one, named
+/// `__niji_thread_db`, so the library finds libniji's own thread list and layout without
+/// any private symbol of another C library. Every word is 64 bits, in this order; the C reader
+/// (`crates/libc-so/placeholders/libthread_db.c`) indexes the same words.
+#[repr(C)]
+pub struct Debug<'a> {
+    /// [`DEBUG_MAGIC`].
+    pub magic: u64,
+    /// [`DEBUG_VERSION`].
+    pub version: u64,
+    /// The number of words in the descriptor.
+    pub words: u64,
+    /// The thread list's head: the newest listed descriptor's address (0: none).
+    pub list: &'a AtomicUsize,
+    /// The number of threads running.
+    pub live: &'a AtomicUsize,
+    /// The executable's TLS segment as the startup recorded it: address, file size, memory size,
+    /// alignment (memory size 0: none, or the loader's dtv describes the blocks).
+    pub tls_image: &'a [AtomicUsize; 4],
+    /// The kernel thread ID's offset in the thread block (32 bits).
+    pub tb_tid: u64,
+    /// The dtv pointer's offset in the thread block (0 in the word: no dtv).
+    pub tb_dtv: u64,
+    /// The next-descriptor link's offset in a descriptor.
+    pub desc_next: u64,
+    /// The thread pointer's offset in a descriptor (`pthread_t`).
+    pub desc_tp: u64,
+    /// The flag word's offset in a descriptor (32 bits).
+    pub desc_flags: u64,
+    /// The start routine's offset in a descriptor.
+    pub desc_start: u64,
+    /// The stack's lowest address's offset in a descriptor.
+    pub desc_stack_lo: u64,
+    /// The stack size's offset in a descriptor.
+    pub desc_stack_size: u64,
+    /// The scheduling priority's offset in a descriptor (32 bits).
+    pub desc_prio: u64,
+    /// The flag meaning the thread has exited ([`DESC_EXITED`]).
+    pub exited_flag: u64,
+    /// [`DEBUG_DTV_HEADER`].
+    pub dtv_header: u64,
+}
+
+/// The number of 64-bit words in [`Debug`].
+pub const DEBUG_WORDS: u64 = (size_of::<Debug<'static>>() / 8) as u64;
+const _: () = assert!(size_of::<Debug<'static>>() == 17 * 8 && size_of::<&AtomicUsize>() == 8);
+
+impl<'a> Debug<'a> {
+    /// The descriptor of this build's layout over the given process-wide words.
+    pub const fn new(list: &'a AtomicUsize, live: &'a AtomicUsize, tls_image: &'a [AtomicUsize; 4]) -> Debug<'a> {
+        use core::mem::offset_of;
+        use crate::tls::ThreadBlock;
+        Debug {
+            magic: DEBUG_MAGIC,
+            version: DEBUG_VERSION,
+            words: DEBUG_WORDS,
+            list,
+            live,
+            tls_image,
+            tb_tid: offset_of!(ThreadBlock, tid) as u64,
+            tb_dtv: offset_of!(ThreadBlock, dtv) as u64,
+            desc_next: offset_of!(Thread, next) as u64,
+            desc_tp: offset_of!(Thread, tp) as u64,
+            desc_flags: offset_of!(Thread, flags) as u64,
+            desc_start: offset_of!(Thread, start) as u64,
+            desc_stack_lo: offset_of!(Thread, stack_lo) as u64,
+            desc_stack_size: offset_of!(Thread, stack_size) as u64,
+            desc_prio: offset_of!(Thread, sched_prio) as u64,
+            exited_flag: DESC_EXITED as u64,
+            dtv_header: DEBUG_DTV_HEADER,
+        }
+    }
+}
+
 /// The descriptor's size.
 pub const DESC_SIZE: usize = size_of::<Thread>();
 /// `__rseq_size`: the registered size (the original 32-byte area).

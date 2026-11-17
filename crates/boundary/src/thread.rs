@@ -71,6 +71,18 @@ static LOADER_RSEQ: AtomicBool = AtomicBool::new(false);
 static LOADER_RSEQ_TP: AtomicUsize = AtomicUsize::new(0);
 /// The executable's TLS segment: address, file size, memory size, alignment (all 0: none).
 static TLS_IMAGE: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
+
+/// `__niji_thread_db@NIJI_PRIVATE` (spec §22.10, decision record SYS-THREAD-DB-1): where a
+/// debugger's `libthread_db.so.1` finds the thread list and this build's layout. Only read, by
+/// another process through the debugger's memory access; `#[used]` keeps it in a program linked
+/// with `--gc-sections`, since nothing in the process refers to it.
+// UNSAFE(export): a C data symbol needs an unmangled name; unique (libniji's own prefix).
+#[cfg_attr(feature = "runtime", unsafe(no_mangle))]
+#[allow(unsafe_code)]
+#[allow(non_upper_case_globals)]
+#[used]
+pub static __niji_thread_db: rt::Debug<'static> = rt::Debug::new(&HEAD, &LIVE, &TLS_IMAGE);
+const _: () = assert!(rt::DEBUG_DTV_HEADER == niji_ld::tls::DTV_HEADER);
 /// Process-wide defaults (`pthread_setattr_default_np`): 0 means "not decided yet".
 pub(crate) static DEFAULT_STACK: AtomicUsize = AtomicUsize::new(0);
 /// The default guard size.
