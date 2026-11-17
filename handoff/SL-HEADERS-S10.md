@@ -1,40 +1,20 @@
-# SL-HEADERS-S10: slice 10, locale, text, matching (handoff after run 1)
+# SL-HEADERS-S10: slice 10, locale, text, matching (handoff after run 2)
 
-**State.** Branch `task/sl-headers-s10`. INCOMPLETE (context checkpoint). Say "slice 10" in commits and handoffs.
-The 20 headers are generated and committed (`headers/<name>.in`, `libc-include/`): `locale.h langinfo.h nl_types.h libintl.h
-monetary.h wchar.h wctype.h uchar.h iconv.h gconv.h stdbit.h regex.h re_comp.h regexp.h fnmatch.h glob.h wordexp.h search.h
-fts.h ftw.h` (the three legacy ones, `gconv.h`, `re_comp.h`, `regexp.h`, are shipped: plan/headers.md section 5.1 lists them).
-`headers-gen` clean; `header_check.py` (P5, P1, now covering the 20 headers): 0 failed of 2987 units.
+**State.** Branch `task/sl-headers-s10-2` (continues `task/sl-headers-s10`). Say "slice 10" in commits. 20 headers generated and
+committed; `header_check.py` (P5, P1, plus the inverse `regexp.h` unit) 0 failed of 2987; clippy and static clean on the final head.
 
-**Done.**
-* Templates: mostly `@@emit` only. `wchar.h` has the [cwchar.syn] overloads of the five search functions, `NULL`, `va_list`;
-  `locale.h` owns `LC_GLOBAL_LOCALE` (`((locale_t) -1L)`, from crates/boundary/src/locale.rs); `fnmatch.h` owns `FNM_NOSYS`
-  (`(-1)`, value read from the probe's own object under `_XOPEN_SOURCE`); `uchar.h` owns `char8_t`/`char16_t`/`char32_t`;
-  `stdbit.h` is written from C23 7.18 (70 static inline functions over the compiler's popcount/clz/ctz builtins, 14
-  type-generic macros via `_Generic` in C and overloads in C++, `__STDC_ENDIAN_*`).
-* Generator: bit-field members in `members_nested` (`regex_t`); `features.h` skips the `_TIME_BITS` check when
-  `__NIJI_TIME_BITS_UNCHECKED` is defined (only `fnmatch.h` does: the probe table says it compiles under `_TIME_BITS=64` alone).
-* Plants: `handoff/SL-HEADERS-S10/plants.txt` (6 plants; run through `cargo xtask plants`).
+**Done in run 2.** `regexp.h` (ruling #6415, premise checked): the reference fails in all 40 configurations even with INIT/GETC/PEEKC/UNGETC/RETURN/ERROR
+defined, and `step`/`advance`/`loc1`/`loc2`/`locs` have no default version in either library, so libniji's header is an `#error`; probe
+table in `records/pending/SL-HEADERS-S10-2-1.toml` (no differs row needed). P2 67 -> 38, P3 204 -> 60: `fnmatch.h` leaks no
+feature-test macros; `stdbit.h` gnu_inline externs (address names the exported `stdc_*`) and C++ generic names as macros;
+`wchar.h` `FILE` incomplete plus `wcswcs` overloads; `ftw.h` `nftw` redirect to `nftw64` under FOB64. Plants: 6 + 6 in `plants.txt`.
 
-**Open.**
-* P2 (`header_probe.py` + `probe_compare.py visibility`): 67 differences of 1594 rows on the last tree, not classified. Seen:
-  feature-test macros (`_DEFAULT_SOURCE`, `_ATFILE_SOURCE`, ...) defined in fewer configurations by `features.h`;
-  `regexp.h`: the probe table says the reference header fails to compile in every configuration (`include-error *`), libniji's compiles
-  (RULING NEEDED, below); `fts.h`/`regex.h` lack `_SIGSET_NWORDS`, `_STRUCT_TIMESPEC` (reserved include-guard names);
-  `wchar.h` shows `struct _IO_FILE` (not in the table).
-* P3 (`callsite_probe.py` + `probe_compare.py callsites`): 204 differences of 641 rows, not classified (`call` rows under
-  fortify are slice 18's).
-* P6, P7 (grep, sed, diffutils, findutils, gawk), the C++ `<cwchar>` compile, P9 on the P2/P3 checkers: not run.
-* `ftw.h` and `fts.h` do not include `<sys/stat.h>` / `<sys/select.h>` yet (slice 7 and the `FD_*` owner are separate): `ftw.h`
-  owns `statx`, `statx_timestamp`, `getumask` (skipped), and `header_check.py` P1 skips `statx*` for it. After slice 7 lands, add
-  the include and drop those exceptions.
-* Pending decision record for the generator additions (bit-field members, `__NIJI_TIME_BITS_UNCHECKED`) not written:
-  `cargo xtask records new decision D-NEW --series D-X --story SL-HEADERS-S10`.
-* `libintl.h`: `dgettext`/`gettext`... macros (fortify rows) are left to slice 18 (`@@owns-macro`).
+**P2 (38 left, not slice 10's).** 28 from `sys/types.h`/`endian.h` (earlier slices; the same 7 rows differ on those headers themselves: `be16toh`,
+`le64toh` in every configuration, `__off_t`/`__ino64_t`/`__pid_t` typedef conditions, `_SIGSET_NWORDS`, `_STRUCT_TIMESPEC`) on regex.h, fts.h, ftw.h,
+re_comp.h; 5 `ftw.h` rows (`statx`, `statx_timestamp`, `getumask`, `timespec`) wait for `<sys/stat.h>` (slice 7); 5 `libintl.h` fortify macro rows (slice 18).
+**P3 (60 left).** All `call` rows of `wchar.h` and `libintl.h` under the fortify configurations (slice 18).
 
-**Tools.** `$S/work/SL-HEADERS-S10/{mk.py,mk_stdbit.py,run.sh}` generate the templates and run gen, check, P2, P3 (run.sh on the
-role: `bash ~/work/SL-HEADERS-S10/run.sh <n>`; output under the role host's RAM dir `run-<n>/p2.txt`, `p3.txt`). The templates
-are committed; the scripts are scratch.
+**Open.** P6 and P7 (grep, sed, diffutils, findutils, gawk) and the C++ `<cwchar>` compile were not run (budget). After slice 7: add the
+`sys/stat.h` include to `ftw.h`/`fts.h` and drop the `statx` exception in `header_check.py`. Fix `endian.h`/`sys/types.h` rows in their own story.
 
-**Next steps.** Classify the 67 P2 and 204 P3 rows (fix a template, or a differences row plus a compat option), run P6/P7, the
-pending record, plants on the checkers, clippy and static.
+**Tools.** scratch `run.sh <n>` on the role host (gen, header_check, P2, P3); `regexp_probe.py` in scratch.

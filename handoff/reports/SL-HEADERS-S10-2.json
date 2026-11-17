@@ -1,0 +1,32 @@
+{
+ "task": "SL-HEADERS-S10-2",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "INCOMPLETE: regexp.h probed and matched, P2 67->38, P3 204->60 classified; P6/P7 not run",
+ "branch": "task/sl-headers-s10-2",
+ "head": null,
+ "gate": {
+  "affected": null,
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "P2: 28 rows come from sys/types.h and endian.h (earlier slices); 5 ftw.h rows wait for sys/stat.h (slice 7); fortify rows are slice 18"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "regexp.h, wchar.h FILE, stdbit.h addresses, nftw redirect, fnmatch.h macros now match the reference tables",
+   "before": 271,
+   "after": 98,
+   "unit": "P2+P3 differences",
+   "measured": true
+  }
+ ],
+ "improvement": "header_check could take --headers to run one header",
+ "next_step": "P6/P7 and C++ cwchar compile, then fix endian.h/sys/types.h rows",
+ "report_file": "handoff/SL-HEADERS-S10.md",
+ "jobs": []
+}
