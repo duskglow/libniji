@@ -27,18 +27,29 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import header_probe as hp  # noqa: E402  (ROOT, c_integer_names)
 
 ROOT = hp.ROOT
+SLICE15 = ["mntent.h", "fstab.h", "sys/mount.h", "sys/swap.h", "sys/reboot.h", "sys/klog.h", "sys/sysinfo.h", "sys/quota.h",
+           "sys/acct.h", "sys/io.h", "sys/perm.h", "sys/vlimit.h", "ulimit.h", "gnu/libc-version.h", "sys/timeb.h",
+           "sys/timex.h", "sys/kd.h", "sys/vt.h", "sys/soundcard.h", "sys/mtio.h", "sys/pci.h", "sys/raw.h",
+           "scsi/scsi.h", "scsi/scsi_ioctl.h", "scsi/sg.h", "nfs/nfs.h", "sys/vm86.h"]
 HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "sys/types.h", "sys/bitypes.h",
            "stdint.h", "inttypes.h", "limits.h", "endian.h", "byteswap.h", "errno.h", "sys/errno.h", "alloca.h",
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
+           "getopt.h", "time.h",
+           # slice 15
+           *SLICE15]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-          "getopt.h", "time.h"]
+          "getopt.h", "time.h", *SLICE15]
+# Names a slice 15 header gets from a header of another slice that is not generated yet: P1 is asserted when it is.
+# `sys/mount.h` takes the mount flags of the kernel's linux/mount.h: MS_NOUSER is `(1<<31)` there (not an integer constant
+# expression for P1's array bound) and OPEN_TREE_CLOEXEC is O_CLOEXEC (<fcntl.h>, slice 7).
+DEFERRED = {("sys/timex.h", "fd_set"), ("sys/timex.h", "sigset_t"), ("sys/mount.h", "f_owner_ex"),
+            ("sys/mount.h", "OPEN_TREE_CLOEXEC"), ("sys/mount.h", "MS_NOUSER")}
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -62,6 +73,8 @@ def p1_units(ids, vis, macros, typedefs, layouts):
         if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
+        if (h, n) in DEFERRED:
+            continue
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
         tests = []
@@ -129,6 +142,15 @@ def main():
     wanted = [n for n in hp.c_integer_names() if n.islower()] + ["intmax_t", "uintmax_t", "intptr_t", "uintptr_t"]
     missing = [n for n in wanted if n not in typedefs]
     types = [(n, typedefs[n]) for n in wanted if n in typedefs]
+    # The kernel's UAPI headers (linux-libc-dev) are not libniji's: stage the directories the slice's headers include.
+    uapi = os.path.join(work, "uapi")
+    os.makedirs(uapi, exist_ok=True)
+    for d, srcs in (("linux", ["/usr/include/linux"]), ("asm-generic", ["/usr/include/asm-generic"]),
+                    ("asm", ["/usr/include/x86_64-linux-gnu/asm", "/usr/include/asm"])):
+        link = os.path.join(uapi, d)
+        src = next((x for x in srcs if os.path.isdir(x)), None)
+        if src and not os.path.lexists(link):
+            os.symlink(src, link)
     gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
     vis = rows("spec/abi/visibility.tsv")
     macros = {r["name"]: r for r in rows("spec/abi/macros.tsv")}
@@ -144,7 +166,7 @@ def main():
         cxx = c["language"] == "c++"
         ext = "cc" if cxx else "c"
         base = ["g++" if cxx else "gcc", *c["flags"].split(), "-nostdinc", "-isystem", inc,
-                "-isystem", gccinc, "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
+                "-isystem", gccinc, "-isystem", uapi, "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
         units = [("levels", "#include <features.h>\n" + "".join(
