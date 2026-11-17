@@ -6,7 +6,8 @@
 #
 # The root starts as the merged-/usr skeleton base-files lays down (bin, lib, lib64, sbin links into
 # /usr) and an empty dpkg database, nothing else: no shell, no libraries. dpkg --root installs all
-# six packages with --force-script-chrootless (libc-bin's postinst honours DPKG_ROOT, since the root
+# six packages, and empty stand-ins for linux-libc-dev, libcrypt-dev and rpcsvc-proto (libc6-dev's
+# dependencies from other sources), with --force-script-chrootless (libc-bin's postinst honours DPKG_ROOT, since the root
 # has no shell to run it). Then, in the root (chroot inside the namespace):
 #   - every package is "install ok installed" (the ldconfig trigger was processed), the conffiles
 #     are registered, /etc/nsswitch.conf came from the template, dpkg --verify is clean;
@@ -55,6 +56,17 @@ chmod 1777 "$r/tmp"
 set -- "$debdir"/*.deb
 [ -e "$1" ] || { echo "root: FAIL no .deb in $debdir"; exit 1; }
 info "installing $(echo "$@" | tr ' ' '\n' | sed 's|.*/||' | tr '\n' ' ')into an empty root"
+# libc6-dev depends on packages the distribution builds from other sources (kernel headers,
+# libcrypt, rpcgen). The empty root has no archive: empty stand-ins of those names meet the
+# relations, so dpkg configures libc6-dev without --force-depends.
+standins="linux-libc-dev libcrypt-dev rpcsvc-proto"
+for s in $standins; do
+    mkdir -p "$tmp/standin/$s/DEBIAN"
+    printf 'Package: %s\nVersion: 0~niji-standin\nArchitecture: all\nMaintainer: niji root check <root@localhost>\nDescription: empty stand-in (tools/deb/root-system.sh)\n' "$s" \
+        > "$tmp/standin/$s/DEBIAN/control"
+    dpkg-deb --root-owner-group --build "$tmp/standin/$s" "$tmp/standin/$s.deb" > /dev/null
+    set -- "$@" "$tmp/standin/$s.deb"
+done
 
 dpkg_r() { ns dpkg --root="$r" --force-script-chrootless --log=/dev/null "$@"; }
 if dpkg_r -i "$@" > "$tmp/install.log" 2>&1; then
@@ -65,8 +77,8 @@ fi
 q() { dpkg-query --admindir="$r/var/lib/dpkg" "$@"; }
 bad=$(q -W -f '${Package} ${Status}\n' | grep -v ' install ok installed$' || true)
 n=$(q -W -f '${Package} ${Status}\n' | grep -c ' install ok installed$' || true)
-if [ -z "$bad" ] && [ "$n" -eq 6 ]; then
-    pass "all six packages are installed, no trigger pending"
+if [ -z "$bad" ] && [ "$n" -eq 9 ]; then
+    pass "all six packages (and the three stand-ins) are installed, no trigger pending"
 else
     fail "package states: $(q -W -f '${Package}=${Status}; ' 2>&1)"
 fi
@@ -191,7 +203,7 @@ fi
 for f in $cxxlibs $krblibs; do rm -f "$lib/$f"; done
 
 # Purge everything; only the skeleton, the database and the administrator's nsswitch.conf remain.
-if dpkg_r --force-remove-essential --force-depends -P libc6-dev libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
+if dpkg_r --force-remove-essential --force-depends -P libc6-dev $standins libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
     (cd "$r" && find . | sort) | grep -v -e '^\./var/lib/dpkg' -e '^\./tmp/' -e '^\./etc/nsswitch.conf$' > "$tmp/after"
     left=$(comm -13 "$tmp/before" "$tmp/after" | tr '\n' ' ')
     [ -z "$left" ] && pass "purge leaves the empty root (and /etc/nsswitch.conf)" || fail "left after purge: $left"

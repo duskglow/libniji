@@ -24,9 +24,13 @@
 #                 kept, deb-triggers(5)); its postrm removes /etc/ld.so.cache on purge.
 #                 /usr/bin/getconf (UTIL-5: static, over libc.a), /usr/bin/getent (dynamic, over
 #                 libc6's name services: UTIL-6), /usr/bin/ldd (UTIL-4: static, runs the loader in trace mode). Its other programs (iconv, locale, ...) come
-#                 with SL-BIN-CORE.
+#                 with SL-BIN-CORE. No /etc/bindresvport.blacklist (spec 31.14, D-31.5: not
+#                 installed) and no /etc/default/nss (libniji's name services read no such file).
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so, libresolv.so. No headers yet (SL-HEADERS, R4).
+#                 libm.so, libresolv.so. No headers yet (SL-HEADERS, R4). Depends on linux-libc-dev,
+#                 libcrypt-dev and rpcsvc-proto (builds that include <linux/...> or <crypt.h>, or
+#                 run rpcgen, get them through libc6-dev); Provides: libc-dev (= <version>), so
+#                 versioned relations on libc-dev are met.
 #   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
@@ -139,7 +143,9 @@ python3 "$here/symbols.py" files --versions "$spec/abi/versions.tsv" --native "$
     --provides "$stage/libc6.provides"
 provides=$(cat "$stage/libc6.provides")
 [ -n "$provides" ] || { echo "build.sh: symbols.py names no virtual package for libc6 to provide" >&2; exit 1; }
-sys_control libc6 amd64 libs required \
+# Priorities as the distribution's packages of these names have them (SYS-CONTROL-PARITY): libc6
+# optional (Essential libc-bin pulls it in), libc-bin required, locales and libc-l10n standard.
+sys_control libc6 amd64 libs optional \
     "Multi-Arch: same" \
     "Provides: $provides" \
     "Breaks: base-files (<< 13.3~)" \
@@ -166,8 +172,8 @@ sys_control libc-bin amd64 libs required \
     " part of this build yet."
 sys_control libc6-dev amd64 libdevel optional \
     "Multi-Arch: same" \
-    "Depends: libc6 (= $version), libc-dev-bin (= $version)" \
-    "Provides: libc-dev" \
+    "Depends: libc6 (= $version), libc-dev-bin (= $version), linux-libc-dev, libcrypt-dev, rpcsvc-proto" \
+    "Provides: libc-dev (= $version)" \
     "Description: libniji C library: development files" \
     "$abi_note" \
     " This package holds the start files, the libc.so linker script," \
@@ -180,13 +186,14 @@ sys_control libc-dev-bin amd64 libdevel optional \
     "$abi_note" \
     " The development program gencat is not part of this build yet; the" \
     " package exists so that libc6-dev's dependency is met."
-sys_control locales all localization optional \
+sys_control locales all localization standard \
     "Depends: libc-bin (>= $abi)" \
     "Description: libniji C library: locale support (placeholder)" \
     "$abi_note" \
     " The locale compiler and locale data are not part of this build yet; the" \
     " package exists so that dependencies on locales are met."
-sys_control libc-l10n all localization optional \
+sys_control libc-l10n all localization standard \
+    "Multi-Arch: foreign" \
     "Description: libniji C library: translations (placeholder)" \
     "$abi_note" \
     " The C library's message translations are not part of this build yet; the" \
