@@ -63,7 +63,7 @@ mmroot() { # mmroot MODE HOOK...: build a root, run the hooks, copy /tmp/swap/ou
     "$mm" --mode=unshare --variant=apt --keyring="$stage/keyring.gpg" --components=main \
         --include=mawk,gawk,python3-minimal,fakeroot,initramfs-tools-core \
         --customize-hook="copy-in $stage/swap /tmp" \
-        --customize-hook="chroot \"\$1\" sh -c 'mkdir -p /tmp/swap/keep && cp /usr/bin/iconv /usr/bin/zdump /tmp/swap/keep/'" \
+        --customize-hook="chroot \"\$1\" sh -c 'mkdir -p /tmp/swap/keep && cp /usr/bin/locale /usr/bin/zdump /tmp/swap/keep/'" \
         "$@" \
         --customize-hook="chroot \"\$1\" sh /tmp/swap/cmds.sh /tmp/swap/out" \
         --customize-hook="copy-out /tmp/swap/out $res/$mode-tmp" \
