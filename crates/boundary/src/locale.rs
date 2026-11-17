@@ -41,6 +41,10 @@ impl Objects for Glue {
     fn charmap_at(&self, addr: usize) -> &'static niji::charmap::Charmap {
         tb::charmap_at(addr)
     }
+
+    fn slots_at(&self, addr: usize, len: usize) -> &'static [gl::Slot] {
+        tb::locale_slots_at(addr, len)
+    }
 }
 
 /// `f` with `path` as a kernel path (NUL-terminated in a buffer).
@@ -59,16 +63,18 @@ fn identity_of(st: &niji_kernel::uapi::Stat) -> gl::Identity {
 }
 
 impl Mapper for Glue {
-    fn map(&self, path: &[u8]) -> Option<(usize, usize, gl::Identity)> {
-        let fd = with_path(path, |p| CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0).ok())?;
+    fn map(&self, path: &[u8]) -> niji::error::KResult<(usize, usize, gl::Identity)> {
+        use niji::error::Errno;
+        // A path that does not fit the buffer names no file the kernel would open.
+        let fd = with_path(path, |p| Some(CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0))).unwrap_or(Err(Errno::ENAMETOOLONG))?;
         let mapped = (|| {
-            let st = CSys.fstat(fd).ok()?;
-            let size = usize::try_from(st.size).ok()?;
+            let st = CSys.fstat(fd)?;
+            let size = usize::try_from(st.size).map_err(|_| Errno::EINVAL)?;
             if size == 0 {
-                return Some((0, 0, identity_of(&st)));
+                return Ok((0, 0, identity_of(&st)));
             }
-            let region = CSys.mmap(0, size, PROT_READ, MAP_PRIVATE, Some(fd), 0).ok()?;
-            Some((region.addr(), size, identity_of(&st)))
+            let region = CSys.mmap(0, size, PROT_READ, MAP_PRIVATE, Some(fd), 0)?;
+            Ok((region.addr(), size, identity_of(&st)))
         })();
         let _ = CSys.close(fd);
         mapped
@@ -995,7 +1001,9 @@ pub fn setlocale_c(category: i32, name: niji::error::KResult<Option<&[u8]>>) -> 
 #[inline(never)]
 fn setlocale_failed(category: i32) -> usize {
     let known = category == 6 || Cat::from_number(category).is_some();
-    crate::errno::set(if known { niji::error::Errno::ENOENT } else { niji::error::Errno::EINVAL });
+    // A known category: the locale's data is not available (`ENOENT`) or memory ran out while
+    // loading it (`ENOMEM`; `global_locale` keeps the cause).
+    crate::errno::set(if known { gl::last_failure() } else { niji::error::Errno::EINVAL });
     0
 }
 

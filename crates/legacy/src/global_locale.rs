@@ -5,7 +5,9 @@
 //! the rest of the process: a handle (index + 1; 0 is `"C"`) names it, so a thread that read a
 //! handle never sees its locale freed, and `setlocale` stays safe while other threads use the
 //! global locale (D-7.1). Distinct locales are few (one per combination of categories a
-//! process uses); the table holds [`CAPACITY`]. Names are interned the same way.
+//! process uses), but there is no limit on them but memory: the static table holds the common
+//! case ([`INLINE`] entries) and further entries spill to allocated chunks that are never moved
+//! ([`SPILL`]). Names are interned the same way.
 //!
 //! **Files.** Locale files are mapped once, by path, and never unmapped (D-7.7). Charmaps
 //! (D-6.8) are read from `/usr/share/i18n/charmaps`, parsed once, and kept.
@@ -13,10 +15,11 @@
 //! **Invalidation** (D-X.13). [`invalidate`] advances a generation. The next use of a mapped file
 //! in a new generation compares the file's identity (`stat`) with the one recorded when it was
 //! mapped: unchanged, the mapping is used again; changed, the file is mapped again (the old
-//! mapping stays, for the locales that point into it); gone, it is missing. The mappings are
-//! bounded ([`FILES`] distinct files, [`MAP_LIMIT`] mappings in all): past a limit, a load that
-//! needs a new mapping fails as for a missing file. A charmap is parsed
-//! again only when its file was mapped again. Then the global locale is loaded again by its names.
+//! mapping stays, for the locales that point into it) unless its bytes are the ones mapped
+//! already (a reinstall, a regenerated locale), when the new mapping is released and the old one
+//! kept, so repeated updates that change nothing grow nothing; gone, it is missing. A charmap is
+//! parsed again only when its file was mapped again. Then the global locale is loaded again by
+//! its names. The only failure besides a missing file is memory exhaustion (`ENOMEM`).
 //!
 //! The values live at addresses this module leaked; the POSIX layer turns an address back into
 //! a reference ([`Objects`]) and maps files ([`Mapper`]).
@@ -34,22 +37,32 @@ use niji::mem::{TryBox, TryVec};
 use niji_kernel::sys::Sys;
 use niji_rt::sync::RawMutex;
 
-/// The most distinct locales, and separately names, a process can intern.
-pub const CAPACITY: usize = 1024;
-/// The most locale files a process maps (each distinct path once; D-7.7).
-pub const FILES: usize = 1024;
-/// The most mappings a process makes in all: every distinct file once, and a file replaced and
-/// mapped again after an invalidation (D-X.13) counts again. Past either limit a load that would
-/// need a new mapping fails (the locale is not found), so the mapped memory is bounded; nothing
-/// is ever mapped without being recorded.
-pub const MAP_LIMIT: usize = 2 * FILES;
+/// Entries in the static table: interned locales, interned names and mapped files each count
+/// their own entries in it (a process that loads one locale uses a few dozen). Entries past it
+/// spill to allocated chunks.
+pub const INLINE: usize = 1024;
+/// The entries of the first spill chunk; chunk `k` holds `SPILL << k`, from entry
+/// `INLINE + SPILL * (2^k - 1)` on. A chunk is allocated (fallibly, under [`LOCK`]) when its first
+/// entry is about to be written, and its address published before that entry's count, so a
+/// reader that holds an index finds its entry without the lock; chunks are never moved or freed.
+pub const SPILL: usize = 64;
+/// Spill chunk addresses (0: not allocated). Chunk 40 alone would hold `64 << 40` entries,
+/// more than an address space: an index past the last chunk is memory exhaustion.
+static SPILL_AT: [AtomicUsize; 40] = [const { AtomicUsize::new(0) }; 40];
+/// The mappings made in all (each distinct file once, and a file replaced by different bytes and
+/// mapped again after an invalidation once more): [`mappings`].
 static MAPS: AtomicUsize = AtomicUsize::new(0);
+/// Whether the last failed `setlocale` failed for want of memory rather than for a missing locale
+/// ([`last_failure`]). Written under [`LOCK`].
+static FAILED_NOMEM: AtomicUsize = AtomicUsize::new(0);
 
 /// Entry `i` of the three tables: the `i`th interned locale, the `i`th interned name and the
 /// `i`th mapped file (each table counts on its own). The tables are interleaved, one record per
 /// index, so a process that loads one locale touches one page of them, not one per column
-/// (separate 8 KiB columns cost one page fault each; task PAGEFAULTS).
-struct Slot {
+/// (separate 8 KiB columns cost one page fault each; task PAGEFAULTS). Every field is atomic and
+/// all-zero words are a valid value of each (the POSIX layer reads a spill chunk through
+/// [`Objects::slots_at`]).
+pub struct Slot {
     interned: AtomicUsize,
     name_addr: AtomicUsize,
     name_len: AtomicUsize,
@@ -61,24 +74,26 @@ struct Slot {
     /// The file's identity ([`Identity`]).
     file_id: [AtomicU64; 7],
 }
-const _: () = assert!(CAPACITY == FILES);
+impl Slot {
+    const fn new() -> Slot {
+        Slot {
+            interned: AtomicUsize::new(0),
+            name_addr: AtomicUsize::new(0),
+            name_len: AtomicUsize::new(0),
+            file_name: AtomicUsize::new(0),
+            file_addr: AtomicUsize::new(0),
+            file_len: AtomicUsize::new(0),
+            file_gen: AtomicUsize::new(0),
+            file_id: [const { AtomicU64::new(0) }; 7],
+        }
+    }
+}
 /// The table, page-aligned (STARTUP-DATA-PAGE-ALIGN-3): start-up writes its first records, whose page
 /// then stays the same wherever the objects ahead of it in `.lbss` end (unaligned, the head straddled
 /// two pages). The alignment costs at most 4 KiB of zero-filled address space, no file bytes.
 #[repr(C, align(4096))]
-struct Slots([Slot; CAPACITY]);
-static SLOTS: Slots = Slots([const {
-    Slot {
-        interned: AtomicUsize::new(0),
-        name_addr: AtomicUsize::new(0),
-        name_len: AtomicUsize::new(0),
-        file_name: AtomicUsize::new(0),
-        file_addr: AtomicUsize::new(0),
-        file_len: AtomicUsize::new(0),
-        file_gen: AtomicUsize::new(0),
-        file_id: [const { AtomicU64::new(0) }; 7],
-    }
-}; CAPACITY]);
+struct Slots([Slot; INLINE]);
+static SLOTS: Slots = Slots([const { Slot::new() }; INLINE]);
 static COUNT: AtomicUsize = AtomicUsize::new(0);
 static NAME_COUNT: AtomicUsize = AtomicUsize::new(0);
 static FILE_COUNT: AtomicUsize = AtomicUsize::new(0);
@@ -114,15 +129,18 @@ pub trait Objects {
     fn bytes_at(&self, addr: usize, len: usize) -> &'static [u8];
     /// The charmap at `addr`, an address [`charmap`] recorded.
     fn charmap_at(&self, addr: usize) -> &'static Charmap;
+    /// The `len` table entries at `addr`: a spill chunk this module leaked and recorded.
+    fn slots_at(&self, addr: usize, len: usize) -> &'static [Slot];
 }
 
 /// The file system access locale loading needs (the POSIX layer).
 pub trait Mapper: Objects {
     /// Map the file at `path` read-only, for the rest of the process: its address, length and
-    /// identity.
-    fn map(&self, path: &[u8]) -> Option<(usize, usize, Identity)>;
+    /// identity, or the error (`ENOMEM` when the mapping did not fit; anything else is a file
+    /// that cannot be read).
+    fn map(&self, path: &[u8]) -> KResult<(usize, usize, Identity)>;
     /// Unmap a mapping [`Mapper::map`] just returned and nothing has used (it could not be
-    /// recorded).
+    /// recorded, or it holds the bytes of the mapping already in use).
     fn unmap(&self, addr: usize, len: usize);
     /// The identity of the file at `path` now (`None`: it cannot be examined).
     fn identity(&self, path: &[u8]) -> Option<Identity>;
@@ -142,9 +160,74 @@ fn load(a: &[AtomicUsize], i: usize) -> usize {
     a.get(i).map_or(0, |x| x.load(Acquire))
 }
 
-/// Field `f` of slot `i` (0 past the end).
-fn field(f: fn(&'static Slot) -> &'static AtomicUsize, i: usize) -> usize {
-    SLOTS.0.get(i).map_or(0, |s| f(s).load(Acquire))
+/// Entry `i` (`None`: in a spill chunk not allocated, so never published). The static table
+/// answers inline; the spill chunks are out of line, so the common case pays no more than the
+/// static table's bounds check.
+#[inline(always)]
+fn slot(objs: &impl Objects, i: usize) -> Option<&'static Slot> {
+    match SLOTS.0.get(i) {
+        Some(s) => Some(s),
+        None => spilled(objs, i),
+    }
+}
+
+/// Spill chunk `k` and entry `i`'s place in it (`i` at least [`INLINE`]).
+fn spill_place(i: usize) -> Option<(usize, usize)> {
+    let j = i.checked_sub(INLINE)?.checked_add(SPILL)?;
+    let k = usize::try_from(j.ilog2().checked_sub(SPILL.ilog2())?).ok()?;
+    Some((k, j.checked_sub(SPILL.checked_shl(u32::try_from(k).ok()?)?)?))
+}
+
+/// The length of spill chunk `k`.
+fn spill_len(k: usize) -> Option<usize> {
+    SPILL.checked_mul(1usize.checked_shl(u32::try_from(k).ok()?)?)
+}
+
+/// [`slot`] past the static table.
+#[cold]
+#[inline(never)]
+fn spilled(objs: &impl Objects, i: usize) -> Option<&'static Slot> {
+    let (k, off) = spill_place(i)?;
+    let addr = load(&SPILL_AT, k);
+    if addr == 0 {
+        return None;
+    }
+    objs.slots_at(addr, spill_len(k)?).get(off)
+}
+
+/// Entry `i`, about to be written and then published by its table's count: its spill chunk is
+/// allocated first if it has none. `ENOMEM` when it cannot be. The caller holds [`LOCK`].
+fn slot_for_write(objs: &impl Objects, i: usize) -> KResult<&'static Slot> {
+    if let Some(s) = slot(objs, i) {
+        return Ok(s);
+    }
+    let (k, off) = spill_place(i).ok_or(Errno::ENOMEM)?;
+    let at = SPILL_AT.get(k).ok_or(Errno::ENOMEM)?;
+    let len = spill_len(k).ok_or(Errno::ENOMEM)?;
+    let mut v = TryVec::with_capacity(len)?;
+    for _ in 0..len {
+        v.push(Slot::new())?;
+    }
+    let chunk: &'static [Slot] = v.leak();
+    at.store(addr_of(chunk), Release);
+    chunk.get(off).ok_or(Errno::ENOMEM)
+}
+
+/// Field `f` of slot `i` (0 for an entry never published).
+fn field(objs: &impl Objects, f: fn(&'static Slot) -> &'static AtomicUsize, i: usize) -> usize {
+    slot(objs, i).map_or(0, |s| f(s).load(Acquire))
+}
+
+/// The mappings made so far (each distinct file once; a file replaced by other bytes, once
+/// more after the invalidation that finds it).
+pub fn mappings() -> usize {
+    MAPS.load(Acquire)
+}
+
+/// The cause of the last failed `setlocale`: `ENOMEM` when memory ran out, else `ENOENT` (a
+/// locale's data is not available).
+pub fn last_failure() -> Errno {
+    if FAILED_NOMEM.load(Acquire) != 0 { Errno::ENOMEM } else { Errno::ENOENT }
 }
 
 /// The view of the `"C"` locale, as a static for [`view`].
@@ -158,7 +241,7 @@ pub fn get(objs: &impl Objects, handle: usize) -> &'static Locale {
 /// The view of the interned locale named by `handle` (0, and a value that names none: `"C"`'s;
 /// D-7.13).
 pub fn view(objs: &impl Objects, handle: usize) -> &'static LocaleView {
-    let addr = handle.checked_sub(1).map_or(0, |i| field(|s| &s.interned, i));
+    let addr = handle.checked_sub(1).map_or(0, |i| field(objs, |s| &s.interned, i));
     if addr == 0 { &C } else { objs.view_at(addr) }
 }
 
@@ -169,14 +252,14 @@ fn intern_locked(objs: &impl Objects, l: Locale) -> KResult<usize> {
         return Ok(0);
     }
     let n = COUNT.load(Acquire);
-    if let Some(i) = (0..n).find(|&i| *objs.view_at(field(|s| &s.interned, i)).locale() == l) {
+    if let Some(i) = (0..n).find(|&i| *objs.view_at(field(objs, |s| &s.interned, i)).locale() == l) {
         return Ok(i.saturating_add(1));
     }
-    let slot = &SLOTS.0.get(n).ok_or(Errno::ENOMEM)?.interned;
+    let slot = &slot_for_write(objs, n)?.interned;
     // A category file an earlier view already tabulated is not tabulated again (LV-3).
     let reuse = |cat: Cat, d: &Data| {
         (0..n).find_map(|i| {
-            let earlier = objs.view_at(field(|s| &s.interned, i)).locale();
+            let earlier = objs.view_at(field(objs, |s| &s.interned, i)).locale();
             if earlier.data(cat).same(d) { earlier.table(cat) } else { None }
         })
     };
@@ -197,12 +280,12 @@ pub fn intern<S: Sys>(sys: &S, objs: &impl Objects, l: Locale) -> KResult<usize>
 fn intern_name_locked(objs: &impl Objects, name: &[u8]) -> KResult<(usize, &'static [u8])> {
     let n = NAME_COUNT.load(Acquire);
     for i in 0..n {
-        let stored = objs.bytes_at(field(|s| &s.name_addr, i), field(|s| &s.name_len, i));
+        let stored = objs.bytes_at(field(objs, |s| &s.name_addr, i), field(objs, |s| &s.name_len, i));
         if stored == name {
             return Ok((i, stored));
         }
     }
-    let e = SLOTS.0.get(n).ok_or(Errno::ENOMEM)?;
+    let e = slot_for_write(objs, n)?;
     let (addr, len) = (&e.name_addr, &e.name_len);
     let mut v = TryVec::with_capacity(name.len().saturating_add(1))?;
     v.extend_from_slice(name)?;
@@ -241,12 +324,42 @@ struct Files<'a, M: Mapper> {
     /// text, where its distance from other cold code (and so its page-fault count) followed the
     /// codegen-unit partition of unrelated code.
     locpath: core::cell::Cell<Option<Option<&'a [u8]>>>,
+    /// Whether a file could not be mapped or recorded for want of memory: a load that then
+    /// finds nothing fails with `ENOMEM`, not as a missing locale.
+    nomem: core::cell::Cell<bool>,
+}
+
+impl<'a, M: Mapper> Files<'a, M> {
+    fn new(m: &'a M) -> Self {
+        Files { m, locpath: core::cell::Cell::new(None), nomem: core::cell::Cell::new(false) }
+    }
+
+    /// `r`'s value; an error is noted when it is `ENOMEM`.
+    fn recorded<T>(&self, r: KResult<T>) -> Option<T> {
+        r.map_err(|e| {
+            if e == Errno::ENOMEM {
+                self.nomem.set(true);
+            }
+        })
+        .ok()
+    }
+
+    /// The file at `path` mapped ([`Mapper::map`]); a failure for want of memory is noted.
+    fn mapped(&self, path: &[u8]) -> Option<(usize, usize, Identity)> {
+        self.recorded(self.m.map(path))
+    }
+
+    /// The error a load that found nothing reports: `ENOMEM` when memory ran out on the way,
+    /// else `ENOENT`.
+    fn missing(&self) -> Errno {
+        if self.nomem.get() { Errno::ENOMEM } else { Errno::ENOENT }
+    }
 }
 
 /// Record file slot `i`: the mapping, its identity, checked in `generation`. The caller holds
 /// [`LOCK`].
-fn record_file(i: usize, addr: usize, len: usize, id: &Identity, generation: usize) {
-    if let Some(e) = SLOTS.0.get(i) {
+fn record_file(objs: &impl Objects, i: usize, addr: usize, len: usize, id: &Identity, generation: usize) {
+    if let Some(e) = slot(objs, i) {
         let (a, l, w, g) = (&e.file_addr, &e.file_len, &e.file_id, &e.file_gen);
         a.store(addr, Release);
         l.store(len, Release);
@@ -257,9 +370,9 @@ fn record_file(i: usize, addr: usize, len: usize, id: &Identity, generation: usi
     }
 }
 
-fn file_id(i: usize) -> Identity {
+fn file_id(objs: &impl Objects, i: usize) -> Identity {
     let mut id = [0u64; 7];
-    if let Some(w) = SLOTS.0.get(i).map(|e| &e.file_id) {
+    if let Some(w) = slot(objs, i).map(|e| &e.file_id) {
         for (v, slot) in id.iter_mut().zip(w) {
             *v = slot.load(Acquire);
         }
@@ -278,44 +391,51 @@ impl<M: Mapper> Source for Files<'_, M> {
         let generation = GENERATION.load(Acquire);
         let n = FILE_COUNT.load(Acquire);
         for i in 0..n {
-            let slot = field(|s| &s.file_name, i);
-            if self.m.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot)) != path {
+            let name = field(self.m, |s| &s.file_name, i);
+            if self.m.bytes_at(field(self.m, |s| &s.name_addr, name), field(self.m, |s| &s.name_len, name)) != path {
                 continue;
             }
-            let current = self.m.bytes_at(field(|s| &s.file_addr, i), field(|s| &s.file_len, i));
-            if field(|s| &s.file_gen, i) == generation {
+            let current = self.m.bytes_at(field(self.m, |s| &s.file_addr, i), field(self.m, |s| &s.file_len, i));
+            if field(self.m, |s| &s.file_gen, i) == generation {
                 return Some(current);
             }
             // The first use since an invalidation: the same file is used again, a changed one
             // mapped again (the old mapping stays for the locales that point into it).
-            if self.m.identity(path) == Some(file_id(i)) {
-                if let Some(g) = SLOTS.0.get(i).map(|e| &e.file_gen) {
+            if self.m.identity(path) == Some(file_id(self.m, i)) {
+                if let Some(g) = slot(self.m, i).map(|e| &e.file_gen) {
                     g.store(generation, Release);
                 }
                 return Some(current);
             }
-            if MAPS.load(Acquire) >= MAP_LIMIT {
-                return None;
+            let (addr, len, id) = self.mapped(path)?;
+            if self.m.bytes_at(addr, len) == current {
+                // Replaced by the same bytes: the mapping in use stays and the new one goes, so
+                // an update that changes nothing grows nothing (and the locale built on the
+                // file stays the same interned locale).
+                if len != 0 {
+                    self.m.unmap(addr, len);
+                }
+                let (old_addr, old_len) = (field(self.m, |s| &s.file_addr, i), field(self.m, |s| &s.file_len, i));
+                record_file(self.m, i, old_addr, old_len, &id, generation);
+                return Some(current);
             }
-            let (addr, len, id) = self.m.map(path)?;
             MAPS.fetch_add(1, Release);
-            record_file(i, addr, len, &id, generation);
+            record_file(self.m, i, addr, len, &id, generation);
             return Some(self.m.bytes_at(addr, len));
         }
-        // A new file: only when it can be recorded (a full table fails the load cleanly, as a
-        // missing file does, instead of mapping again at every call).
-        let fname = &SLOTS.0.get(n)?.file_name;
-        if MAPS.load(Acquire) >= MAP_LIMIT {
-            return None;
-        }
-        let (addr, len, id) = self.m.map(path)?;
-        let Ok((slot, _)) = intern_name_locked(self.m, path) else {
-            self.m.unmap(addr, len);
+        // A new file: only when it can be recorded (a load that cannot record it fails, for want
+        // of memory, instead of mapping again at every call).
+        let fname = &self.recorded(slot_for_write(self.m, n))?.file_name;
+        let (addr, len, id) = self.mapped(path)?;
+        let Some((slot, _)) = self.recorded(intern_name_locked(self.m, path)) else {
+            if len != 0 {
+                self.m.unmap(addr, len);
+            }
             return None;
         };
         MAPS.fetch_add(1, Release);
         fname.store(slot, Release);
-        record_file(n, addr, len, &id, generation);
+        record_file(self.m, n, addr, len, &id, generation);
         FILE_COUNT.store(n.saturating_add(1), Release);
         Some(self.m.bytes_at(addr, len))
     }
@@ -441,7 +561,7 @@ impl<M: Mapper> Files<'_, M> {
         for path in [buf.get(..total.checked_add(3)?)?, buf.get(..total)?] {
             if let Some(raw) = self.file(path) {
                 let cm = parse_charmap(path, raw)?;
-                let (slot, _) = intern_name_locked(self.m, path).ok()?;
+                let (slot, _) = self.recorded(intern_name_locked(self.m, path))?;
                 return Some((cm, slot, raw.as_ptr().expose_provenance()));
             }
         }
@@ -457,7 +577,7 @@ impl<M: Mapper> Files<'_, M> {
             return Some(cm);
         }
         let slot = load(&CHARMAP_PATH, i);
-        let path = self.m.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot));
+        let path = self.m.bytes_at(field(self.m, |s| &s.name_addr, slot), field(self.m, |s| &s.name_len, slot));
         let raw = self.file(path)?;
         let src = raw.as_ptr().expose_provenance();
         if src != load(&CHARMAP_SRC, i) {
@@ -487,7 +607,7 @@ pub fn codec<S: Sys, M: Mapper>(sys: &S, m: &M, name: &[u8]) -> Option<Codec> {
         return Some(c);
     }
     let _g = LOCK.lock(sys);
-    Files { m, locpath: core::cell::Cell::new(None) }.charmap(name).map(|c| Codec::Charmap(CharmapRef(c)))
+    Files::new(m).charmap(name).map(|c| Codec::Charmap(CharmapRef(c)))
 }
 
 /// The name `setlocale(cat, "")` takes for `cat`: `LC_ALL`, then `LC_<cat>`, then `LANG`
@@ -523,19 +643,20 @@ pub enum Request<'a> {
 }
 
 /// `base` with the categories in `cats` replaced by the locales `names` gives them (indexed
-/// like [`Cat::ALL`]). The caller holds [`LOCK`].
-fn replace<M: Mapper>(m: &M, base: Locale, cats: &[Cat], names: &[&[u8]; 12]) -> Option<Locale> {
-    let src = Files { m, locpath: core::cell::Cell::new(None) };
+/// like [`Cat::ALL`]): `ENOENT` when a locale is not available, `ENOMEM` when memory ran out.
+/// The caller holds [`LOCK`].
+fn replace<M: Mapper>(m: &M, base: Locale, cats: &[Cat], names: &[&[u8]; 12]) -> KResult<Locale> {
+    let src = Files::new(m);
     let mut l = base;
     // The alias and the archive search are shared by the categories of one name.
     let mut cache = locale::FindCache::default();
     for &c in cats {
-        let (_, stored) = intern_name_locked(m, names.get(c.index()).copied()?).ok()?;
-        let data = locale::find_cached(&src, c, stored, &mut cache)?;
+        let (_, stored) = intern_name_locked(m, names.get(c.index()).copied().ok_or(Errno::ENOENT)?)?;
+        let data = locale::find_cached(&src, c, stored, &mut cache).ok_or_else(|| src.missing())?;
         let reported = locale::builtin(stored).map_or(stored, |(_, r)| r);
-        l = l.with(c, reported, data)?;
+        l = l.with(c, reported, data).ok_or(Errno::ENOENT)?;
     }
-    locale::attach_charmap(&src, l)
+    locale::attach_charmap(&src, l).ok_or_else(|| src.missing())
 }
 
 /// [`replace`] for `setlocale` (§7.2, s7_2_c_4): a category whose current name is the name
@@ -543,12 +664,12 @@ fn replace<M: Mapper>(m: &M, base: Locale, cats: &[Cat], names: &[&[u8]; 12]) ->
 /// again), as the reference does (SETLOCALE-4 probe). `current` itself when every category asked
 /// keeps its name. The caller holds [`LOCK`]. `current` by reference: one copy of the locale
 /// fewer on the first `setlocale` of a process (SETLOCALE-4 trace).
-fn replace_changed<M: Mapper>(m: &M, current: &Locale, cats: &[Cat], names: &[&[u8]; 12]) -> Option<Locale> {
+fn replace_changed<M: Mapper>(m: &M, current: &Locale, cats: &[Cat], names: &[&[u8]; 12]) -> KResult<Locale> {
     let mut changed = [Cat::Ctype; 12];
     let mut n = 0;
     for &c in cats {
-        if names.get(c.index()).copied()? != current.name(c) {
-            *changed.get_mut(n)? = c;
+        if names.get(c.index()).copied().ok_or(Errno::ENOENT)? != current.name(c) {
+            *changed.get_mut(n).ok_or(Errno::ENOENT)? = c;
             n = n.saturating_add(1);
         }
     }
@@ -556,10 +677,18 @@ fn replace_changed<M: Mapper>(m: &M, current: &Locale, cats: &[Cat], names: &[&[
         // Nothing kept (the common first call): the caller's list as it is.
         return replace(m, *current, cats, names);
     }
-    match changed.get(..n)? {
-        [] => Some(*current),
+    match changed.get(..n).ok_or(Errno::ENOENT)? {
+        [] => Ok(*current),
         some => replace(m, *current, some, names),
     }
+}
+
+/// Note why a `setlocale` failed ([`last_failure`]): `None`. The caller holds [`LOCK`].
+#[cold]
+#[inline(never)]
+fn failed<T>(e: Errno) -> Option<T> {
+    FAILED_NOMEM.store(usize::from(e == Errno::ENOMEM), Release);
+    None
 }
 
 /// The query cache (WL-HOT-LS): for the global locale `QUERY_HANDLE`, each category's answer
@@ -591,7 +720,7 @@ fn query_cached(objs: &impl Objects, cat: Option<Cat>) -> Option<&'static [u8]> 
     if QUERY_SEQ.load(Relaxed) != seq || handle != GLOBAL.load(Acquire) {
         return None;
     }
-    Some(objs.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot)))
+    Some(objs.bytes_at(field(objs, |s| &s.name_addr, slot), field(objs, |s| &s.name_len, slot)))
 }
 
 /// [`query_cached`] for the global locale `handle` only: `None` once the global locale is another.
@@ -605,7 +734,7 @@ fn query_cached_for(objs: &impl Objects, cat: Option<Cat>, handle: usize) -> Opt
     if QUERY_SEQ.load(Relaxed) != seq || handle != GLOBAL.load(Acquire) {
         return None;
     }
-    Some(objs.bytes_at(field(|s| &s.name_addr, slot), field(|s| &s.name_len, slot)))
+    Some(objs.bytes_at(field(objs, |s| &s.name_addr, slot), field(objs, |s| &s.name_len, slot)))
 }
 
 /// `setlocale(cat, "")` when every category asked already has the name the environment selects
@@ -711,6 +840,16 @@ pub fn setlocale<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req: Reque
 #[inline(never)]
 pub fn setlocale_locked<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req: &Request<'_>) -> Option<&'static [u8]> {
     let _g = LOCK.lock(sys);
+    match select_locked(m, cat, req) {
+        Ok(s) => Some(s),
+        Err(e) => failed(e),
+    }
+}
+
+/// [`setlocale_locked`]'s work, with the cause of a failure: `ENOENT` (a locale is not
+/// available) or `ENOMEM`. The caller holds [`LOCK`].
+#[inline(always)]
+fn select_locked<M: Mapper>(m: &M, cat: Option<Cat>, req: &Request<'_>) -> KResult<&'static [u8]> {
     let current = *global(m);
     let one = [cat.unwrap_or(Cat::Ctype)];
     let cats: &[Cat] = if cat.is_some() { &one } else { &Cat::ALL };
@@ -735,32 +874,32 @@ pub fn setlocale_locked<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req
                     Some(n) => n,
                     None => lang.get_or_insert_with(|| nonempty(ENV_LANG)).unwrap_or(b"C"),
                 };
-                *names.get_mut(c.index())? = n;
+                *names.get_mut(c.index()).ok_or(Errno::ENOENT)? = n;
             }
             replace_changed(m, &current, cats, &names)?
         }
     };
     if next != current {
-        GLOBAL.store(intern_locked(m, next).ok()?, Release);
+        GLOBAL.store(intern_locked(m, next)?, Release);
     } else if let Some(s) = query_cached(m, cat) {
-        return Some(s);
+        return Ok(s);
     }
     let (slot, s) = match cat {
         // Interned for its NUL: built-in names are plain literals.
-        Some(c) => intern_name_locked(m, next.name(c)).ok()?,
+        Some(c) => intern_name_locked(m, next.name(c))?,
         None => {
             let mut buf = [0u8; 12 * (name::MAX_NAME + 20)];
-            let len = name::composite(next.names(), &mut buf)?;
-            intern_name_locked(m, buf.get(..len)?).ok()?
+            let len = name::composite(next.names(), &mut buf).ok_or(Errno::ENOENT)?;
+            intern_name_locked(m, buf.get(..len).ok_or(Errno::ENOENT)?)?
         }
     };
     query_record(GLOBAL.load(Acquire), cat, slot);
-    Some(s)
+    Ok(s)
 }
 
 /// `niji_locale_invalidate` (D-X.13): advance the generation, then load the global locale
 /// again by its names (the files are checked, and read again where they changed). `ENOENT` when
-/// a name no longer resolves; the global locale is then unchanged.
+/// a name no longer resolves, `ENOMEM` when memory ran out; the global locale is then unchanged.
 pub fn invalidate_and_reload<S: Sys, M: Mapper>(sys: &S, m: &M) -> KResult<()> {
     let _g = LOCK.lock(sys);
     invalidate();
@@ -769,7 +908,7 @@ pub fn invalidate_and_reload<S: Sys, M: Mapper>(sys: &S, m: &M) -> KResult<()> {
     for c in Cat::ALL {
         *names.get_mut(c.index()).ok_or(Errno::EINVAL)? = current.name(c);
     }
-    let next = replace(m, Locale::C, &Cat::ALL, &names).ok_or(Errno::ENOENT)?;
+    let next = replace(m, Locale::C, &Cat::ALL, &names)?;
     if next != current {
         GLOBAL.store(intern_locked(m, next)?, Release);
     }
@@ -777,26 +916,27 @@ pub fn invalidate_and_reload<S: Sys, M: Mapper>(sys: &S, m: &M) -> KResult<()> {
 }
 
 /// `newlocale`: `base` with the categories `cats` taken from the locale `name` (a composite
-/// name when `cats` is every category). The new locale's handle, or `ENOENT`.
+/// name when `cats` is every category). The new locale's handle, or `ENOENT` (not available) or
+/// `ENOMEM`.
 pub fn newlocale<S: Sys, M: Mapper>(sys: &S, m: &M, cats: &[Cat], name: &[u8], base: Locale) -> KResult<usize> {
     let _g = LOCK.lock(sys);
     let names = match name::parse_composite(name) {
         Some(all) if cats.len() == Cat::ALL.len() => all,
         _ => [name; 12],
     };
-    let l = replace(m, base, cats, &names).ok_or(Errno::ENOENT)?;
+    let l = replace(m, base, cats, &names)?;
     intern_locked(m, l)
 }
 
 /// `newlocale(mask, "", base)`: `base` with each category in `cats` taken from the locale the
 /// environment names for it ([`env_name`], as `setlocale(cat, "")` reads it). The new locale's
-/// handle, or `ENOENT` when a name does not resolve.
+/// handle, or `ENOENT` when a name does not resolve, `ENOMEM` when memory ran out.
 pub fn newlocale_env<S: Sys, M: Mapper>(sys: &S, m: &M, cats: &[Cat], getenv: &dyn Fn(&[u8]) -> Option<&'static [u8]>, base: Locale) -> KResult<usize> {
     let mut names: [&[u8]; 12] = [b"C"; 12];
     for &c in cats {
         *names.get_mut(c.index()).ok_or(Errno::EINVAL)? = env_name(c, getenv);
     }
     let _g = LOCK.lock(sys);
-    let l = replace(m, base, cats, &names).ok_or(Errno::ENOENT)?;
+    let l = replace(m, base, cats, &names)?;
     intern_locked(m, l)
 }

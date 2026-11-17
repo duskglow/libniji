@@ -319,52 +319,212 @@ fn a_changed_tz_is_seen_by_the_next_implicit_selection() {
     in_child("a_changed_tz_is_seen_by_the_next_implicit_selection", &d);
 }
 
+const LC_ALL_MASK: i32 = 0x1FBF;
+const CODESET: i32 = 14;
+/// `_NL_LOCALE_NAME(LC_CTYPE)`.
+const NL_LOCALE_NAME_CTYPE: i32 = 0xFFFF;
+const RLIMIT_AS: i32 = 9;
+const ENOMEM: i32 = 12;
+
+/// The directory the many-locale tests link each locale to: the installed `C.utf8` (directory
+/// form), else `en_US.UTF-8` compiled into `scratch`. `None`: neither is available.
+fn link_target(scratch: &Path) -> Option<PathBuf> {
+    let installed = Path::new("/usr/lib/locale/C.utf8");
+    if installed.join("LC_CTYPE").exists() && installed.join("LC_TIME").exists() {
+        return Some(installed.to_path_buf());
+    }
+    let compiled = scratch.join("compiled");
+    std::fs::create_dir_all(&compiled).unwrap();
+    compile(&compiled, "en_US").then(|| compiled.join("en_US.UTF-8"))
+}
+
+/// `n` locales `l<k>.UTF-8` under `scratch/many`, each a link to the same locale directory (each
+/// file a distinct path), as the audit's probe made them. False (a skip, printed): no locale to
+/// link to.
+fn many_locales(scratch: &Path, n: usize) -> bool {
+    let Some(target) = link_target(scratch) else {
+        skip_note::skipped("skipped: no installed C.utf8 and no localedef");
+        return false;
+    };
+    let many = scratch.join("many");
+    std::fs::create_dir_all(&many).unwrap();
+    for k in 0..n {
+        std::os::unix::fs::symlink(&target, many.join(format!("l{k}.UTF-8"))).unwrap();
+    }
+    true
+}
+
+/// The lines of `/proc/self/maps` that map a file under `dir`.
+fn mapped_under(dir: &Path) -> usize {
+    let dir = dir.display().to_string();
+    std::fs::read_to_string("/proc/self/maps").unwrap().lines().filter(|l| l.contains(dir.as_str())).count()
+}
+
+fn codeset(l: niji_abi::ctypes::locale_t) -> Vec<u8> {
+    text(loc::nl_langinfo_l(CODESET, l).expose_provenance())
+}
+
 #[test]
-fn the_locale_file_table_is_bounded() {
-    // Clauses: s7_2_c_0, s7_1_c_0 (D-7.7, D-X.13): loading more distinct locale files than the
-    // tables hold fails those loads cleanly; a load that fails maps nothing (repeating it does
-    // not grow the process's mappings), and the locales loaded before still work.
+fn locales_and_files_past_the_static_table_load() {
+    // Clauses: s7_1_c_0, s7_2_c_0 (D-7.1, D-7.7): no limit on the locales, names and files a
+    // process loads but memory. 1100 directory-form locales under a private LOCPATH: more
+    // interned locales and names than the static table's 1024 entries, and their files (each a
+    // distinct path) more than ten times as many mappings.
     const N: usize = 1100;
     if let Some(d) = probe() {
         set("LOCPATH", &d.join("many").display().to_string());
-        let maps = || std::fs::read_to_string("/proc/self/maps").unwrap().lines().filter(|l| l.contains("/many/") && l.ends_with("/LC_CTYPE")).count();
-        let mut loaded = 0;
-        let mut failed = Vec::new();
-        for k in 0..N {
-            if loc::setlocale(0, c(&format!("l{k}.UTF-8")).as_ptr()).is_null() {
-                failed.push(k);
-            } else {
-                loaded += 1;
-            }
+        let names: Vec<CString> = (0..N).map(|k| c(&format!("l{k}.UTF-8"))).collect();
+        let before = niji_legacy::global_locale::mappings();
+        let mut handles = Vec::with_capacity(N);
+        for (k, n) in names.iter().enumerate() {
+            let h = loc::newlocale(LC_ALL_MASK, n.as_ptr(), core::ptr::null_mut());
+            assert!(!h.is_null(), "l{k} loads (errno {})", niji_boundary::errno::get());
+            handles.push(h);
         }
-        let after_first = maps();
-        assert!(after_first <= niji_legacy::global_locale::FILES, "{after_first} mappings");
-        assert!(after_first <= loaded, "every mapping belongs to a loaded locale ({after_first} for {loaded})");
-        for _ in 0..20 {
-            for &k in failed.iter().take(50) {
-                assert!(loc::setlocale(0, c(&format!("l{k}.UTF-8")).as_ptr()).is_null(), "l{k} still fails");
-            }
+        let made = niji_legacy::global_locale::mappings() - before;
+        assert!(made > 2 * N, "each locale maps its own files: {made} mappings for {N} locales");
+        // Each handle names its own interned locale (entries past the static table included).
+        for (k, &h) in handles.iter().enumerate() {
+            assert_eq!((text(loc::nl_langinfo_l(NL_LOCALE_NAME_CTYPE, h).expose_provenance()), codeset(h)), (names[k].as_bytes().to_vec(), b"UTF-8".to_vec()), "l{k}");
         }
-        assert_eq!(maps(), after_first, "failed loads map nothing");
-        assert!(!loc::setlocale(0, c("l0.UTF-8").as_ptr()).is_null(), "an early locale still loads");
-        println!("loaded {loaded}, failed {}, mappings {after_first}", failed.len());
+        for n in [&names[0], &names[N - 1]] {
+            let got = loc::setlocale(LC_ALL, n.as_ptr());
+            assert!(!got.is_null(), "setlocale selects {n:?}");
+            assert_eq!(text(got.expose_provenance()), n.as_bytes());
+        }
+        assert!(!loc::newlocale(LC_ALL_MASK, names[0].as_ptr(), core::ptr::null_mut()).is_null());
+        assert_eq!(niji_legacy::global_locale::mappings() - before, made, "a locale loaded again maps nothing");
+        assert!(!loc::setlocale(LC_ALL, c("C").as_ptr()).is_null());
+        for h in handles {
+            loc::freelocale(h);
+        }
+        println!("loaded {N}, mappings {made}");
         println!("child: ok");
         return;
     }
     let d = scratch::Scratch::dir("reload-many");
-    let locales = d.join("compiled");
+    if many_locales(&d, N) {
+        in_child("locales_and_files_past_the_static_table_load", &d);
+    }
+}
+
+/// The calling process's address-space size, in bytes (`VmSize`).
+fn vm_size() -> u64 {
+    let status = std::fs::read_to_string("/proc/self/status").unwrap();
+    let kb = status.lines().find_map(|l| l.strip_prefix("VmSize:")).unwrap().trim().trim_end_matches("kB").trim();
+    kb.parse::<u64>().unwrap() * 1024
+}
+
+/// Limit the address space to what is in use now plus `slack` bytes.
+fn limit_address_space(slack: u64, max: u64) {
+    let rl = niji_kernel::uapi::Rlimit { cur: vm_size() + slack, max };
+    assert_eq!(niji_boundary::posix::s24_system::setrlimit(RLIMIT_AS, Some(&rl)), 0);
+}
+
+#[test]
+fn a_load_that_runs_out_of_memory_fails_with_enomem() {
+    // Clauses: s7_1_c_0, s7_2_c_0 (D-7.7): with an address-space limit too small for the
+    // growth, `newlocale` and `setlocale` fail cleanly with ENOMEM (not as a missing locale), a
+    // failed load repeated maps nothing more, the locales loaded before keep working, and the
+    // same load succeeds once memory is available again.
+    const N: usize = 1100;
+    if let Some(d) = probe() {
+        set("LOCPATH", &d.join("many").display().to_string());
+        // Everything the limited phase needs is allocated before it.
+        let names: Vec<CString> = (0..N).map(|k| c(&format!("l{k}.UTF-8"))).collect();
+        let mut handles = Vec::with_capacity(N);
+        let mut old = niji_kernel::uapi::Rlimit { cur: 0, max: 0 };
+        assert_eq!(niji_boundary::posix::s24_system::getrlimit(RLIMIT_AS, Some(&mut old)), 0);
+        limit_address_space(16 << 20, old.max);
+        let mut failed = None;
+        for (k, n) in names.iter().enumerate() {
+            let h = loc::newlocale(LC_ALL_MASK, n.as_ptr(), core::ptr::null_mut());
+            if h.is_null() {
+                failed = Some((k, niji_boundary::errno::get()));
+                break;
+            }
+            handles.push(h);
+        }
+        let made = niji_legacy::global_locale::mappings();
+        let mut again = [0i32; 20];
+        for e in &mut again {
+            let h = loc::newlocale(LC_ALL_MASK, names[handles.len()].as_ptr(), core::ptr::null_mut());
+            *e = if h.is_null() { niji_boundary::errno::get() } else { -1 };
+        }
+        let made_again = niji_legacy::global_locale::mappings();
+        assert_eq!(niji_boundary::posix::s24_system::setrlimit(RLIMIT_AS, Some(&old)), 0);
+        let (k, errno) = failed.expect("the address-space limit stops a load");
+        assert_eq!(errno, ENOMEM, "newlocale of l{k} under the limit: ENOMEM, not a missing locale");
+        assert_eq!(again, [ENOMEM; 20], "the load keeps failing the same way");
+        assert_eq!(made_again, made, "a failed load repeated maps nothing more");
+        for (j, &h) in handles.iter().enumerate() {
+            assert_eq!(codeset(h), b"UTF-8", "l{j}, loaded before the failure, still works");
+        }
+        let h = loc::newlocale(LC_ALL_MASK, names[k].as_ptr(), core::ptr::null_mut());
+        assert!(!h.is_null(), "l{k} loads once memory is available");
+        // setlocale reports the same cause.
+        let rest = &names[k + 1..];
+        limit_address_space(4 << 20, old.max);
+        let mut selected = 0;
+        let mut set_errno = 0;
+        for n in rest {
+            if loc::setlocale(LC_ALL, n.as_ptr()).is_null() {
+                set_errno = niji_boundary::errno::get();
+                break;
+            }
+            selected += 1;
+        }
+        assert_eq!(niji_boundary::posix::s24_system::setrlimit(RLIMIT_AS, Some(&old)), 0);
+        assert!(selected < rest.len(), "the address-space limit stops a setlocale");
+        assert_eq!(set_errno, ENOMEM, "setlocale under the limit: ENOMEM");
+        println!("loaded {k} before ENOMEM; setlocale selected {selected} more");
+        println!("child: ok");
+        return;
+    }
+    let d = scratch::Scratch::dir("reload-nomem");
+    if many_locales(&d, N) {
+        in_child("a_load_that_runs_out_of_memory_fails_with_enomem", &d);
+    }
+}
+
+#[test]
+fn repeated_updates_that_change_nothing_grow_nothing() {
+    // Clauses: s7_1_c_0, s7_2_c_0 (D-X.13, D-7.7): 5000 cycles of replacing a category file of
+    // the global locale with the same bytes (a new inode, as a reinstall makes) and invalidating:
+    // every reload succeeds, the same mapping keeps serving and the process's mappings stay as
+    // they were. A replacement with other bytes is still read.
+    const CYCLES: usize = 5000;
+    if let Some(d) = probe() {
+        let locales = d.join("locales");
+        set("LOCPATH", &locales.display().to_string());
+        assert!(!loc::setlocale(LC_ALL, c("xx_XX.UTF-8").as_ptr()).is_null(), "the fixture locale loads");
+        let file = locales.join("xx_XX.UTF-8/LC_TIME");
+        let same = d.join("LC_TIME.same");
+        let (maps, made, item) = (mapped_under(&locales), niji_legacy::global_locale::mappings(), loc::nl_langinfo(DAY_1).expose_provenance());
+        for k in 0..CYCLES {
+            replace(&same, &file);
+            assert_eq!(niji_locale_invalidate(), 0, "reload {k}");
+        }
+        assert_eq!(niji_legacy::global_locale::mappings(), made, "no mapping is kept beside an identical one");
+        assert_eq!(mapped_under(&locales), maps, "the locale files' address space is flat");
+        assert_eq!((loc::nl_langinfo(DAY_1).expose_provenance(), day1()), (item, b"Sunday".to_vec()), "the same mapping serves");
+        replace(&locales.join("de_DE.UTF-8/LC_TIME"), &file);
+        assert_eq!(niji_locale_invalidate(), 0);
+        assert_eq!(day1(), b"Sonntag", "other bytes are read");
+        assert_eq!(niji_legacy::global_locale::mappings(), made + 1);
+        println!("child: ok");
+        return;
+    }
+    let d = scratch::Scratch::dir("reload-repeat");
+    let locales = d.join("locales");
     std::fs::create_dir_all(&locales).unwrap();
-    if !compile(&locales, "en_US") {
+    if !(compile(&locales, "en_US") && compile(&locales, "de_DE")) {
         skip_note::skipped("skipped: no localedef");
         return;
     }
-    let ctype = locales.join("en_US.UTF-8/LC_CTYPE");
-    for k in 0..N {
-        let dir = d.join(format!("many/l{k}.UTF-8"));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::hard_link(&ctype, dir.join("LC_CTYPE")).unwrap();
-    }
-    in_child("the_locale_file_table_is_bounded", &d);
+    std::fs::rename(locales.join("en_US.UTF-8"), locales.join("xx_XX.UTF-8")).unwrap();
+    std::fs::copy(locales.join("xx_XX.UTF-8/LC_TIME"), d.join("LC_TIME.same")).unwrap();
+    in_child("repeated_updates_that_change_nothing_grow_nothing", &d);
 }
 
 /// Compile locale `lang`.`charset` into `dest` with the host's `localedef`, atomically: it is built

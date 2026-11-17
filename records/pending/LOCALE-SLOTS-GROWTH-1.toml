@@ -1,0 +1,19 @@
+id = "D-NEW"
+series = "D-7"
+section = "s07"
+spec = "§7.1–7.3"
+ann = "—"
+status = "active"
+amends = ["D-7.7", "D-7.19", "D-X.13"]
+story = "LOCALE-SLOTS-GROWTH"
+date = "2026-11-17"
+tests = ["crates/boundary/tests/reload.rs::locales_and_files_past_the_static_table_load", "crates/boundary/tests/reload.rs::a_load_that_runs_out_of_memory_fails_with_enomem", "crates/boundary/tests/reload.rs::repeated_updates_that_change_nothing_grow_nothing"]
+body = '''
+**No limit on the locales, names and locale files a process loads but memory** (owner ruling 2026-11-17, hardcoded-limits audit row HL-10; ruling #5594: process limits are the user's bound, running out is a clean error). The interned locales, interned names and mapped files keep one table (`crates/legacy/src/global_locale.rs`): its first 1024 entries are the static, page-aligned table every process has (STARTUP-DATA-PAGE-ALIGN-3; the common case, a few dozen entries, never leaves it), and entries past it spill to allocated chunks of `64 << k` entries. A chunk is allocated fallibly, under the module's lock, when its first entry is about to be written, and its address is published before that entry's count, so lock-free readers (handles, the `setlocale` query cache) that hold an index read its entry; chunks are never moved or freed. The fixed caps (1024 locales, 1024 names, 1024 files, 2048 mappings in all) are gone.
+
+**Failures.** A load that cannot record or map a file for want of memory fails with `ENOMEM`: `newlocale` returns NULL with `ENOMEM`, `niji_locale_invalidate` returns `-ENOMEM`, and a failed `setlocale` sets `errno` to `ENOMEM` (amends D-7.19, whose `ENOENT` stays for a locale whose data is not available). Before, a full table failed as for a missing locale (`ENOENT`). A failed load repeated maps nothing more.
+
+**Replaced files** (amends D-X.13). When an invalidation finds a mapped file replaced and its new bytes equal the mapping in use (a reinstall, a regenerated locale), the new mapping is released and the old one kept, with the new identity recorded: repeated updates that change nothing grow nothing, and the locale built on the file stays the same interned locale. A file replaced by other bytes is mapped again as before (the old mapping stays for the locales that point into it, D-7.7).
+
+**Locale-archive locales** count one file in all: the archive is mapped once, by its path, whatever the number of locales taken from it.
+'''
