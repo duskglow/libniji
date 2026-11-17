@@ -273,7 +273,7 @@ fn write_hwcaps_key_other_than_the_file_name() {
 }
 
 /// s27_1_c_1_1, threat model rule 5 (the cache is untrusted input), UTIL-2: keys, paths, hwcaps
-/// names and the generator are validated and bounded before anything is written; a short buffer
+/// names and the generator are validated before anything is written; a short buffer
 /// is refused with the size needed. Nothing is written on a refusal.
 #[test]
 fn write_refuses_invalid_input() {
@@ -322,20 +322,52 @@ fn write_refuses_invalid_input() {
     assert!(encoded_len(&[ok("libz.so", "/glibc-hwcaps/x86-64-v2/libz.so", Some("x86-64-v2")), ok("libz.so", "/libz.so", None)], b"").is_ok(), "a library in /");
     let mut e = [good];
     assert_eq!(cache::write(&mut e, b"a\0b", &mut [0; 512]), Err(WriteError::Generator));
-    assert_eq!(cache::write(&mut e, &[b'g'; cache::GENERATOR_MAX + 1], &mut [0; 8192]), Err(WriteError::Generator));
-    assert!(cache::write(&mut e, &[b'g'; cache::GENERATOR_MAX], &mut [0; 8192]).is_ok());
     let need = encoded_len(&e, b"gen").unwrap();
     let mut short = vec![0x55u8; need - 1];
     assert_eq!(cache::write(&mut e, b"gen", &mut short), Err(WriteError::Buffer(need)));
     assert!(short.iter().all(|&b| b == 0x55), "write_refuses: nothing written into a short buffer");
-    // At most HWCAPS_MAX distinct names.
-    let names: Vec<String> = (0..=cache::HWCAPS_MAX).map(|i| format!("lvl{i}")).collect();
-    let paths: Vec<String> = names.iter().map(|n| format!("/l/glibc-hwcaps/{n}/libz.so")).collect();
-    let many: Vec<Entry<'_>> = names.iter().zip(&paths).map(|(n, p)| ok("libz.so", p, Some(n))).collect();
-    assert_eq!(encoded_len(&many, b""), Err(WriteError::TooManyHwcaps));
-    assert!(encoded_len(&many[1..], b"").is_ok(), "write_refuses: HWCAPS_MAX names are accepted");
-    let too_many = vec![good; cache::ENTRIES_MAX + 1];
-    assert_eq!(encoded_len(&too_many, b""), Err(WriteError::TooManyEntries));
+}
+
+/// s27_1_c_1_1, Appendix D.3.1 and D.3.2, LDCONFIG-LIMITS (owner ruling: no artificial caps, growth with use):
+/// the writer takes any number of distinct hwcaps names (the inline list's size, one more, and 100: past the old cap
+/// of 64, in an order that is neither sorted nor grouped, so the spilled list's sort and deduplication matter), a
+/// 64 KiB generator text (old cap 4096) and 2^20 + 1 entries (old cap 2^20, written and read back whole: practical
+/// in memory, so no lowered test threshold is needed); the reader finds every name, the text and every entry.
+#[test]
+fn write_has_no_count_caps() {
+    for count in [cache::NAMES_INLINE, cache::NAMES_INLINE + 1, 100] {
+        let names: Vec<String> = (0..count).map(|i| format!("h{}", (i * 37) % count)).collect();
+        let rows: Vec<Row> = names
+            .iter()
+            .chain(names.iter().rev())
+            .map(|n| (FLAGS, "libz.so".to_string(), format!("/l/glibc-hwcaps/{n}/libz.so"), Some(n.clone()), 0))
+            .collect();
+        let file = build(&rows, "");
+        let mut reversed = rows.clone();
+        reversed.reverse();
+        assert_eq!(build(&reversed, ""), file, "write_has_no_count_caps: {count} names, same bytes in any input order");
+        let c = Cache::parse(&file).unwrap_or_else(|| panic!("write_has_no_count_caps: the reader refuses {count} hwcaps names"));
+        assert_eq!(c.len(), rows.len());
+        for n in &names {
+            let want = format!("/l/glibc-hwcaps/{n}/libz.so");
+            assert_eq!(c.lookup(b"libz.so", FLAGS, &[n.as_str()]), Some(want.as_bytes()), "write_has_no_count_caps: {count} names, {n} found");
+        }
+        let stored: BTreeSet<Vec<u8>> = (0..c.len()).map(|i| c.get(i).unwrap().hwcaps.expect("a hwcaps entry").to_vec()).collect();
+        assert_eq!(stored.len(), count, "write_has_no_count_caps: each name indexed");
+        for n in &names {
+            let s = format!("{n}\0");
+            assert_eq!(file.windows(s.len()).filter(|w| *w == s.as_bytes()).count(), 1, "write_has_no_count_caps: {count} names, {n} stored once");
+        }
+    }
+    let generator = "g".repeat(64 << 10);
+    let file = build(&[(FLAGS, "libz.so".to_string(), "/l/libz.so".to_string(), None, 0)], &generator);
+    assert_eq!(Cache::parse(&file).and_then(|c| c.generator()), Some(generator.as_bytes()), "write_has_no_count_caps: 64 KiB generator text");
+    let good = Entry { flags: FLAGS, key: b"libz.so", path: b"/l/libz.so", hwcaps: None, order: 0 };
+    let mut many = vec![good; (1 << 20) + 1];
+    let len = encoded_len(&many, b"").expect("write_has_no_count_caps: 2^20 + 1 entries are accepted");
+    let mut out = vec![0u8; len];
+    assert_eq!(cache::write(&mut many, b"", &mut out), Ok(len));
+    assert_eq!(Cache::parse(&out).map(|c| c.len()), Some((1 << 20) + 1), "write_has_no_count_caps: every entry read back");
 }
 
 fn target() -> PathBuf {

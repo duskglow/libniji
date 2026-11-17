@@ -12,17 +12,21 @@
 //!   apart. The order is total, so the output depends only on the set of entries given, never on
 //!   the order they arrive in (no directory-order or file-system dependence).
 //! * **Untrusted input.** Keys, paths, hwcaps names and the generator text come from file names
-//!   and ELF headers: each is validated and bounded ([`NAME_MAX`], [`PATH_MAX`], [`HWCAPS_MAX`],
-//!   [`GENERATOR_MAX`], [`ENTRIES_MAX`], and every offset must fit the format's 32 bits) before
-//!   anything is written. A path is absolute, its components are non-empty and neither `.` nor
+//!   and ELF headers: each is validated and bounded ([`NAME_MAX`], [`PATH_MAX`], and every offset
+//!   must fit the format's 32 bits) before anything is written. The number of entries, of distinct
+//!   hwcaps names and the generator text's length have no cap of their own: the format's 32-bit
+//!   offsets bound them ([`WriteError::TooLarge`]). A path is absolute, its components are non-empty and neither `.` nor
 //!   `..`, and it ends in `/<key>`: the value is the soname link in the scanned directory
 //!   (Appendix D.3.1). A hwcaps entry's path is `<dir>/glibc-hwcaps/<name>/<file>` with any valid
 //!   file name (no links are made there); when `<file>` is not the key, the key gets its own
 //!   string, otherwise a key is the tail of its path.
-//! * **No allocation.** The caller's entry slice is sorted in place and the file is written into
-//!   the caller's buffer ([`encoded_len`] gives its size), so the freestanding ldconfig (UTIL-3)
-//!   and the loader crate need no allocator for it. Nothing is mapped or executed.
+//! * **Allocation only past the common case.** The caller's entry slice is sorted in place and the
+//!   file is written into the caller's buffer ([`encoded_len`] gives its size). The distinct hwcaps
+//!   names are kept in a fixed inline list ([`NAMES_INLINE`]); a cache with more spills them to
+//!   allocated storage, fallibly ([`WriteError::Oom`] when memory runs out). Nothing is mapped or
+//!   executed.
 
+use alloc::vec::Vec;
 use core::cmp::Ordering;
 
 use super::{compare, ENTRY, EXT_MAGIC, HEADER, HEADER_FLAGS, HWCAP_INDEX, MAGIC, TAG_GENERATOR, TAG_HWCAPS};
@@ -31,12 +35,9 @@ use super::{compare, ENTRY, EXT_MAGIC, HEADER, HEADER_FLAGS, HWCAP_INDEX, MAGIC,
 pub const NAME_MAX: usize = 255;
 /// The longest path (bytes, without the NUL).
 pub const PATH_MAX: usize = 4095;
-/// The most distinct hwcaps subdirectory names in one cache.
-pub const HWCAPS_MAX: usize = 64;
-/// The longest generator text.
-pub const GENERATOR_MAX: usize = 4096;
-/// The most entries in one cache.
-pub const ENTRIES_MAX: usize = 1 << 20;
+/// Distinct hwcaps subdirectory names held without allocating (a system has a handful); more
+/// spill to allocated storage.
+pub const NAMES_INLINE: usize = 64;
 
 /// The directory a hwcaps entry's subdirectory lives in.
 const HWCAPS_DIR: &[u8] = b"/glibc-hwcaps/";
@@ -60,8 +61,6 @@ pub struct Entry<'a> {
 /// Why a cache was not written. An index names the entry in the caller's order (before sorting).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WriteError {
-    /// More than [`ENTRIES_MAX`] entries.
-    TooManyEntries,
     /// The key is empty, longer than [`NAME_MAX`], `.` or `..`, or holds `/` or NUL.
     Key(usize),
     /// The path is not absolute and canonical, is longer than [`PATH_MAX`], or does not end in
@@ -69,9 +68,9 @@ pub enum WriteError {
     Path(usize),
     /// The hwcaps name is not a valid subdirectory name (as for a key).
     Hwcaps(usize),
-    /// More than [`HWCAPS_MAX`] distinct hwcaps names.
-    TooManyHwcaps,
-    /// The generator text is longer than [`GENERATOR_MAX`] or holds NUL.
+    /// Memory for the list of distinct hwcaps names ran out (only past [`NAMES_INLINE`] names).
+    Oom,
+    /// The generator text holds NUL.
     Generator,
     /// An offset or size would not fit the format's 32 bits.
     TooLarge,
@@ -136,31 +135,57 @@ fn key_is_tail(e: &Entry<'_>) -> bool {
     e.path.strip_suffix(e.key).is_some_and(|d| d.ends_with(b"/"))
 }
 
-/// The distinct hwcaps names, sorted by bytes (deterministic indexes).
+/// The distinct hwcaps names, sorted by bytes (deterministic indexes): inline while there are at
+/// most [`NAMES_INLINE`], in `heap` (then the only list) beyond.
 struct Names<'a> {
-    names: [&'a [u8]; HWCAPS_MAX],
+    names: [&'a [u8]; NAMES_INLINE],
     len: usize,
+    heap: Vec<&'a [u8]>,
 }
 
 impl<'a> Names<'a> {
     fn collect(entries: &[Entry<'a>]) -> Result<Self, WriteError> {
-        let mut n = Names { names: [&[]; HWCAPS_MAX], len: 0 };
+        let mut n = Names { names: [&[]; NAMES_INLINE], len: 0, heap: Vec::new() };
         for h in entries.iter().filter_map(|e| e.hwcaps) {
+            if !n.heap.is_empty() {
+                // Spilled: gather, skipping a run of one name (a directory's entries arrive together); sorted and
+                // deduplicated once at the end, so the cost stays O(n log n) whatever the order.
+                if n.heap.last() != Some(&h) {
+                    n.heap.try_reserve(1).map_err(|_| WriteError::Oom)?;
+                    #[allow(clippy::disallowed_methods)] // capacity reserved on the line above, so this cannot allocate
+                    n.heap.push(h);
+                }
+                continue;
+            }
             let used = n.names.get(..n.len).unwrap_or(&[]);
             if let Err(at) = used.binary_search(&h) {
-                if n.len >= HWCAPS_MAX {
-                    return Err(WriteError::TooManyHwcaps);
+                if n.len >= NAMES_INLINE {
+                    n.heap.try_reserve(NAMES_INLINE.saturating_mul(2)).map_err(|_| WriteError::Oom)?;
+                    #[allow(clippy::disallowed_methods)] // capacity reserved above (twice the inline list), so no allocation
+                    n.heap.extend_from_slice(&n.names);
+                    #[allow(clippy::disallowed_methods)] // as above: one more than the inline list fits the reservation
+                    n.heap.push(h);
+                    continue;
                 }
-                n.names.get_mut(at..=n.len).ok_or(WriteError::TooManyHwcaps)?.rotate_right(1);
-                *n.names.get_mut(at).ok_or(WriteError::TooManyHwcaps)? = h;
+                if let Some(tail) = n.names.get_mut(at..=n.len) {
+                    tail.rotate_right(1);
+                }
+                if let Some(slot) = n.names.get_mut(at) {
+                    *slot = h;
+                }
                 n.len = n.len.saturating_add(1);
             }
+        }
+        if !n.heap.is_empty() {
+            n.heap.sort_unstable();
+            n.heap.dedup();
+            n.len = n.heap.len();
         }
         Ok(n)
     }
 
     fn used(&self) -> &[&'a [u8]] {
-        self.names.get(..self.len).unwrap_or(&[])
+        if self.heap.is_empty() { self.names.get(..self.len).unwrap_or(&[]) } else { &self.heap }
     }
 }
 
@@ -218,10 +243,7 @@ fn layout(entries: &[Entry<'_>], names: &Names<'_>, generator: &[u8]) -> Result<
 
 /// Validate everything; the hwcaps names and the layout.
 fn prepare<'a>(entries: &[Entry<'a>], generator: &[u8]) -> Result<(Names<'a>, Layout), WriteError> {
-    if entries.len() > ENTRIES_MAX {
-        return Err(WriteError::TooManyEntries);
-    }
-    if generator.len() > GENERATOR_MAX || generator.contains(&0) {
+    if generator.contains(&0) {
         return Err(WriteError::Generator);
     }
     for (i, e) in entries.iter().enumerate() {
@@ -275,9 +297,7 @@ pub fn write(entries: &mut [Entry<'_>], generator: &[u8], out: &mut [u8]) -> Res
     // The string table: the hwcaps names, then each entry's path, followed by its key when the key
     // is not the tail of the path.
     let mut at = l.strings;
-    let mut name_at = [0usize; HWCAPS_MAX];
-    for (slot, n) in name_at.iter_mut().zip(names.used()) {
-        *slot = at;
+    for n in names.used() {
         o.put(at, n)?;
         at = add(at, add(n.len(), 1)?)?;
     }
@@ -320,8 +340,11 @@ pub fn write(entries: &mut [Entry<'_>], generator: &[u8], out: &mut [u8]) -> Res
         }
         if names.len != 0 {
             record(&mut o, TAG_HWCAPS, l.array, mul(4, names.len)?)?;
-            for (k, off) in name_at.iter().take(names.len).enumerate() {
-                o.u32(add(l.array, mul(4, k)?)?, *off)?;
+            // Each name's offset again: they lead the string table, in this order.
+            let mut off = l.strings;
+            for (k, n) in names.used().iter().enumerate() {
+                o.u32(add(l.array, mul(4, k)?)?, off)?;
+                off = add(off, add(n.len(), 1)?)?;
             }
         }
         o.put(l.ext, &EXT_MAGIC.to_le_bytes())?;

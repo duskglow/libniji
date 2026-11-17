@@ -548,7 +548,7 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
     }
     let bytes = match cache::encoded_len(&entries, generator).and_then(|len| {
         let mut out = Vec::new();
-        out.try_reserve_exact(len).map_err(|_| cache::WriteError::Buffer(len))?;
+        out.try_reserve_exact(len).map_err(|_| cache::WriteError::Oom)?;
         #[allow(clippy::disallowed_methods)] // capacity reserved on the line above, so this cannot allocate
         out.resize(len, 0);
         cache::write(&mut entries, generator, &mut out).map(|n| {
@@ -557,11 +557,11 @@ fn go<A: Arch, F: Fs>(me: &[u8], o: &Options<'_>, fs: &mut F, generator: &[u8], 
         })
     }) {
         Ok(b) => b,
+        // Memory ran out: the run's own `out of memory` report (`run`), exit 1.
+        Err(cache::WriteError::Oom) => return Err(Oom),
         Err(e) => {
             r.err.bytes(me).bytes(b": the cache was not written: ");
             let why: &[u8] = match e {
-                cache::WriteError::TooManyEntries => b"too many libraries",
-                cache::WriteError::TooManyHwcaps => b"too many glibc-hwcaps subdirectories",
                 cache::WriteError::TooLarge | cache::WriteError::Buffer(_) => b"too large",
                 _ => b"an entry the format cannot hold",
             };
