@@ -5,4 +5,5 @@ seg-first-whole | crates/rt/src/heap.rs | lit:const SEG_FIRST: usize = 2; ==> co
 first-large-max | crates/rt/src/heap.rs | lit:large.min(FIRST_LARGE) ==> large | cargo test -p niji --test heap_meta_products | msg:the_heap_keeps_address_space_near_its_use.*FAILED|the heap added
 no-spill | crates/rt/src/heap.rs | lit:s2 <= size + size / 2 ==> s2 <= size | cargo test -p niji --test heap_meta_products | msg:the_heap_keeps_address_space_near_its_use.*FAILED|refill: the heap added
 window-tail-invalid | crates/rt/src/heap.rs | lit:uz(d & 0xff).checked_sub(1) else { return Ok(Loc::Large) } ==> uz(d & 0xff).checked_sub(1) else { return Err(Misuse::InvalidPointer) } | cargo test -p niji --test heap_meta_products | msg:the_heap_keeps_address_space_near_its_use.*FAILED|failed: ExitStatus|steps failed
-got-unaligned | csys/src/machine/entry.S | lit:.balign 256 ==> .balign 8 | cargo xtask so | msg:no \.got section aligned to 0x100
+# got-unaligned: the .got section follows the last label of entry.S (the ldconfig entry), the anchor the tool asks for.
+got-unaligned | csys/src/machine/entry.S | perl:s/(niji_machine_ldconfig_entry:.*?)\.balign 256/$1.balign 8/s | cargo xtask so | msg:no \.got section aligned to 0x100
