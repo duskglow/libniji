@@ -219,6 +219,26 @@ fn scalar(c: &str) -> bool {
     SCALARS.contains(&base)
 }
 
+/// `d` with each `enum TAG` replaced by `unsigned int`.
+fn enum_params(d: &str) -> String {
+    let mut out = String::new();
+    let mut rest = d;
+    while let Some(i) = rest.find("enum ") {
+        let at_word_start = i == 0 || !rest[..i].ends_with(|c: char| c.is_alphanumeric() || c == '_');
+        out.push_str(&rest[..i]);
+        rest = &rest[i + 5..];
+        if at_word_start {
+            let n = rest.find(|c: char| !(c.is_alphanumeric() || c == '_')).unwrap_or(rest.len());
+            rest = &rest[n..];
+            out.push_str("unsigned int");
+        } else {
+            out.push_str("enum ");
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// The kernel's fixed-width integer names of the UAPI headers (`__u32`, `__s64[2]`) in C types (`linux/types.h`, the
 /// asm-generic/int-ll64.h convention of x86-64): a member type of layouts.tsv that is one of them, array suffix kept.
 fn kernel_int(t: &str) -> String {
@@ -428,7 +448,7 @@ impl Gen<'_> {
                 continue;
             }
             if r["member"] == "<anon>" && r["member_type"].starts_with("union <anon>") {
-                anon_left = r["member_type"].rsplit(' ').next().and_then(|n| n.parse().ok()).unwrap_or(0);
+                anon_left = r["bitfield"].rsplit(' ').next().and_then(|n| n.parse().ok()).unwrap_or(0);
                 anon_seen = false;
                 continue;
             }
@@ -576,6 +596,8 @@ impl Gen<'_> {
                     self.emit_nested(nested);
                     [vec![format!("{kw} {cxx} {{")], m, vec!["};".into()]].concat()
                 }
+                // No size in typedefs.tsv (`DIR`): the program only holds pointers to it, so the tag stays incomplete.
+                None if r["size"].is_empty() => vec![format!("struct {cxx};")],
                 None => vec![format!("struct {cxx} {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }};", r["size"], r["align"])],
             };
             let kw = if def[0].starts_with("union") { "union" } else { "struct" };
@@ -654,6 +676,9 @@ impl Gen<'_> {
             return None;
         };
         let d = d.strip_prefix("extern ").unwrap_or(d);
+        // A parameter of an enumeration type (`enum __rlimit_resource`) is the enumeration's underlying type, `unsigned int` for
+        // one without negative values: the header declares no reserved enumeration tag, and the call passes the same value.
+        let d = &enum_params(d);
         let mut out = String::new();
         let mut word = String::new();
         let mut tags = Vec::new();

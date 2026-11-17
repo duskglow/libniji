@@ -35,33 +35,19 @@ struct rusage {
   struct timeval ru_utime;
   struct timeval ru_stime;
   long ru_maxrss;
-  long __ru_maxrss_word;
   long ru_ixrss;
-  long __ru_ixrss_word;
   long ru_idrss;
-  long __ru_idrss_word;
   long ru_isrss;
-  long __ru_isrss_word;
   long ru_minflt;
-  long __ru_minflt_word;
   long ru_majflt;
-  long __ru_majflt_word;
   long ru_nswap;
-  long __ru_nswap_word;
   long ru_inblock;
-  long __ru_inblock_word;
   long ru_oublock;
-  long __ru_oublock_word;
   long ru_msgsnd;
-  long __ru_msgsnd_word;
   long ru_msgrcv;
-  long __ru_msgrcv_word;
   long ru_nsignals;
-  long __ru_nsignals_word;
   long ru_nvcsw;
-  long __ru_nvcsw_word;
   long ru_nivcsw;
-  long __ru_nivcsw_word;
 };
 # endif
 # ifndef __NIJI_D_struct_timeval
@@ -147,13 +133,13 @@ struct rlimit;
 struct rlimit;
 # ifndef __NIJI_D_prlimit
 #  define __NIJI_D_prlimit 1
-extern int prlimit (int, enum __rlimit_resource, const struct rlimit *, struct rlimit *) __NIJI_NOTHROW;
+extern int prlimit (int, unsigned int, const struct rlimit *, struct rlimit *) __NIJI_NOTHROW;
 # endif
 struct rlimit64;
 struct rlimit64;
 # ifndef __NIJI_D_prlimit64
 #  define __NIJI_D_prlimit64 1
-extern int prlimit64 (int, enum __rlimit_resource, const struct rlimit64 *, struct rlimit64 *) __NIJI_NOTHROW;
+extern int prlimit64 (int, unsigned int, const struct rlimit64 *, struct rlimit64 *) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_LFS64

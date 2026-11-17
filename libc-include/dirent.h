@@ -34,7 +34,7 @@ struct dirent64 {
 #if 1
 # ifndef __NIJI_D_struct___dirstream
 #  define __NIJI_D_struct___dirstream 1
-struct __dirstream { char __niji_opaque[] __attribute__ ((__aligned__ ())); };
+struct __dirstream;
 # endif
 # ifndef __NIJI_D_DIR
 #  define __NIJI_D_DIR 1

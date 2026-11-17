@@ -1,0 +1,11 @@
+# Plants of slice 7 (cargo xtask plants; docs/plants.md). The generator, its templates and the committed libc-include/
+# output are checked by `headers-gen --check`: the committed output must equal the regenerated one, so a mutated
+# generator or template makes the committed header stale. spec/tools/header_check.py checks the values and sizes.
+s7-kernel-int | xtask/src/headers.rs | lit:"__u32" => "unsigned int", ==> "__u32" => "int", | cargo xtask headers-gen --check | msg:headers-gen
+s7-anon-alias | xtask/src/headers.rs | lit:starts_with("__") && anon_seen ==> starts_with("__") && !anon_seen | cargo xtask headers-gen --check | msg:headers-gen
+s7-enum-param | xtask/src/headers.rs | lit:out.push_str("unsigned int"); ==> out.push_str("int"); | cargo xtask headers-gen --check | msg:headers-gen
+s7-opaque-dir | xtask/src/headers.rs | lit:vec![format!("struct {cxx};")] ==> vec![format!("struct {cxx} {{ }};")] | cargo xtask headers-gen --check | msg:headers-gen
+s7-map-failed | headers/sys/mman.h.in | lit:# define MAP_FAILED ((void *) -1) ==> # define MAP_FAILED ((void *) 0) | cargo xtask headers-gen --check | msg:headers-gen
+s7-minor | headers/sys/sysmacros.h.in | lit:# define minor(dev) gnu_dev_minor (dev) ==> # define minor(dev) gnu_dev_major (dev) | cargo xtask headers-gen --check | msg:headers-gen
+s7-s-isdir | headers/sys/stat.h.in | lit:# define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR) ==> # define S_ISDIR(m) (((m) & S_IFMT) == S_IFREG) | cargo xtask headers-gen --check | msg:headers-gen
+s7-p1-macro-value | libc-include/fcntl.h | lit:#  define O_CREAT 0100 ==> #  define O_CREAT 0200 | python3 spec/tools/header_check.py | msg:FAIL P1 fcntl.h
