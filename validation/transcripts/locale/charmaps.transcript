@@ -59,6 +59,8 @@ arg: -m
 status: exit 0
 stdout:
 | .hidden-map
+| BACKREF
+| BACKREF-SET-NAME
 | DYNAMIC
 | DYNAMIC-SET
 | FIXED
