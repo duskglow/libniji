@@ -1,24 +1,72 @@
-{"task": "SYS-ICONV-COVERAGE-2", "model": "opus", "tokens": null,
+{
+ "task": "SYS-ICONV-COVERAGE-2",
+ "model": "opus",
+ "tokens": null,
  "result": "No fixed charmap cap (growable table, ENOMEM from iconv_open), tag characters as the reference, run 1's red fixed; 58 -> 332 of 1180 names convert as the reference with libniji's packages alone",
- "branch": "task/sys-iconv-coverage-2", "head": "d3b1241bc",
- "gate": {"affected": "see jobs: sys-iconv-coverage-2-gate2 (keke)", "peak": null},
+ "branch": "task/sys-iconv-coverage-2",
+ "head": "d3b1241bc",
+ "gate": {
+  "affected": "gate3 running at hand-back (affected escalated to everything: spec/encoding/charmaps.tsv unknown to the selection); iconv product tests 4 passed / 0 failed; packages and check-system passed",
+  "peak": null
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   "Built-in UTF-8/UTF8/ISO-IR-193/UTF-16/UTF16/CSUNICODE open but their probe fingerprint differs from the reference (built-in Unicode codecs, not touched here)",
-   "The file table (FILES = 1024) and name table (CAPACITY = 1024) in global_locale.rs still bound the files a process maps, charmaps included; past them a load fails as a missing file. Not changed here (start-up layout, page-aligned SLOTS); a follow-up should make them grow the same way",
-   "icu-data's glibc-*.ucm files are glibc-derived tables: never a source; IBM's CPxxxxx.txt registry files map to GCGIDs, not Unicode",
-   "Plants WARN-NO-MSG (charmap-table-no-growth, charmap-table-copy-lost): caught by the intended test (charmaps_load_past_any_fixed_count... FAILED); the msg regex used \\| which the tool reads as a literal pipe"
+  "Built-in UTF-8/UTF8/ISO-IR-193/UTF-16/UTF16/CSUNICODE open but their probe fingerprint differs from the reference (built-in Unicode codecs, not touched here)",
+  "The file table (FILES = 1024) and name table (CAPACITY = 1024) in global_locale.rs still bound the files a process maps, charmaps included; past them a load fails as a missing file. Not changed here (start-up layout, page-aligned SLOTS); a follow-up should make them grow the same way",
+  "icu-data's glibc-*.ucm files are glibc-derived tables: never a source; IBM's CPxxxxx.txt registry files map to GCGIDs, not Unicode",
+  "Plants WARN-NO-MSG (charmap-table-no-growth, charmap-table-copy-lost): caught by the intended test (charmaps_load_past_any_fixed_count... FAILED); the msg regex used \\| which the tool reads as a literal pipe",
+  "cargo xtask affected treats spec/encoding/charmaps.tsv as unknown and runs everything; a selection rule (charmaps.tsv -> iconv_charmaps_products) would keep this story direct-tier"
  ],
  "refused": [],
  "impact": [
-   {"kind": "correctness", "what": "iconv names converting exactly as the reference with libniji's packages alone (all 1180 reference iconv -l names)", "before": 58, "after": 332, "unit": "names", "measured": true},
-   {"kind": "correctness", "what": "distinct charmaps one process can load (fixed table before; now bounded by memory)", "before": 256, "after": null, "unit": "charmaps", "measured": true},
-   {"kind": "correctness", "what": "charmap converters encode U+E0000..U+E007F as nothing, as the reference (43 generated charsets, whole code space)", "before": 0, "after": 43, "unit": "charsets", "measured": true},
-   {"kind": "coverage", "what": "new products test (300 charmaps + RLIMIT_AS ENOMEM) and plants", "before": 0, "after": 7, "unit": "plants", "measured": true},
-   {"kind": "unblock", "what": "issue #6 next classes: EBCDIC via CDRA ucm (ruling #6226), stateful encodings story (#6225)", "before": null, "after": null, "unit": null, "measured": false}
+  {
+   "kind": "correctness",
+   "what": "iconv names converting exactly as the reference with libniji's packages alone (all 1180 reference iconv -l names)",
+   "before": 58,
+   "after": 332,
+   "unit": "names",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "distinct charmaps one process can load (fixed table before; now bounded by memory)",
+   "before": 256,
+   "after": null,
+   "unit": "charmaps",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "charmap converters encode U+E0000..U+E007F as nothing, as the reference (43 generated charsets, whole code space)",
+   "before": 0,
+   "after": 43,
+   "unit": "charsets",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "new products test (300 charmaps + RLIMIT_AS ENOMEM) and plants",
+   "before": 0,
+   "after": 7,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "issue #6 next classes: EBCDIC via CDRA ucm (ruling #6226), stateful encodings story (#6225)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
  ],
  "improvement": "The plants tool's msg field reads \\| as a literal pipe while docs/plants.md suggests \\| for the separator; a check that rejects a msg regex containing \\| would have saved two WARN lines",
  "next_step": "EBCDIC pages from IBM CDRA .ucm tables (ICU icu4c/source/data/mappings, never icu-data glibc-*), then alias groups for single-byte-no-charmap-name",
  "report_file": "handoff/SYS-ICONV-COVERAGE.md",
- "jobs": ["sys-iconv-coverage-2-gate2", "sys-iconv-coverage-2-plants"]}
+ "jobs": [
+  "sys-iconv-coverage-2-gate3",
+  "sys-iconv-coverage-2-plants",
+  "sys-iconv-coverage-2-xtest"
+ ]
+}

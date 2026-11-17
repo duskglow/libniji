@@ -63,6 +63,27 @@ Next: a `ucm` reader in `xtask/src/charmaps.rs` (precision `|0` round trip, `|1`
 decode-only), vendored `.ucm` files plus the ICU licence and provenance under
 `spec/encoding/ibm/`, rows only where the whole code-space probe equals the reference.
 
+## Jobs (keke, role n2, code head d3b1241bc)
+
+* `sys-iconv-coverage-2-gate3` (`~/work/SYS-ICONV-COVERAGE-2/gate.sh <commit> <epoch>`). Passed
+  before hand-back: clippy, static, so, `iconv_charmaps_products` (2 tests: 43 charmaps / 280
+  names over the whole code space; the 300-charmap + ENOMEM test), `iconv_codespace_products`,
+  `iconv_products`; the after column (above) and round trips (ISO-8859-15, CP1252, ISO-8859-2,
+  KOI8-R, CP1250, IBM850: libniji's bytes and round trips equal the reference's); both package
+  flavours; check-system. Running at hand-back: `affected --run --base origin/next`. It runs
+  everything because `spec/encoding/charmaps.tsv` is a path the selection does not know. After it,
+  the FULL_PROFILE `hot_text_products` start-up check.
+* `sys-iconv-coverage-2-xtest`: `cargo xtask test` (start-up/layout check: the 8 KiB of static
+  charmap arrays are gone), queued to start when gate3 ends.
+* `sys-iconv-coverage-2-plants`: rc 0, 7 plants, 4 CAUGHT, 0 SURVIVED, 3 WARN-NO-MSG. All three
+  failed in the intended test: `charmap-table-no-growth` and `charmap-table-copy-lost` as
+  `charmaps_load_past_any_fixed_count... FAILED`, `charmap-fill-short` as
+  `generated_charmaps_convert_like_the_reference ... FAILED` at the names assert. Their msg regex
+  used `\|`, which the tool reads as a literal pipe.
+* Superseded: `-clippy1` (untyped counter), `-dev1` (the code-space test found the tag
+  characters), `-gate` and `-gate2` (package build: the role is not a git tree, and `~/bin/gate`
+  drops environment variables, so the commit is now a script argument). `-cs1` is a probe (evidence).
+
 ## Next step
 
 1. EBCDIC pages from the CDRA `.ucm` tables (above): the largest part of `charmap-not-shipped`.
