@@ -35,8 +35,8 @@
   The static start (`cbench_startup`) does not link the loader: unchanged by construction (not re-measured).
   A first version (inline tables filled at construction, as the old arrays were) measured +7k instructions and
   +1-2 faults: superseded by the uninitialised inline storage.
-- Plants: `handoff/DL-STARTUP-OBJECTS-plants.txt` (9: each old bound restored alone), job dl-startup-objects-plants.
-- Gate: dl-startup-objects-gate (static, `affected --run`, `xtask test`, full-profile `so` + `hot_text_products`).
+- Plants: `handoff/DL-STARTUP-OBJECTS-plants.txt` (9: each old bound restored alone), job dl-startup-objects-plants2.
+- Gate: dl-startup-objects-gate2 (static, `affected --run`, `xtask test`, full-profile `so` + `hot_text_products`).
 
 **Open / RULING NEEDED.** The `dlopen` loader (`ld/dlopen.rs`) keeps fixed capacities: `CAP` = 512 objects in the
 process (start-time ones included; `adopt_start` and `readers::fill_start` give up at a start of >= 512, so then
