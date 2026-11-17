@@ -6,7 +6,7 @@
 //! reported by the caller as an allocation failure. No count of objects is refused.
 
 use core::marker::PhantomData;
-use core::mem::{align_of, size_of, ManuallyDrop};
+use core::mem::{align_of, size_of, ManuallyDrop, MaybeUninit};
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
@@ -25,10 +25,13 @@ pub(super) const INLINE: usize = 64;
 #[derive(Clone, Copy, Debug)]
 pub(super) struct NoMemory;
 
-/// A table of `T`, `N` entries inline, grown on demand ([`Table::reserve`]); every entry, beyond
-/// the ones written, holds the table's fill value. Dereferences to all its entries.
+/// A table of `T`: its first `N` entries inline, never written until reserved, then a mapping
+/// ([`Table::reserve`], which sets every new entry to the table's fill value). Dereferences to its
+/// `len` entries, the most reserved so far.
 pub(super) struct Table<T: Copy, const N: usize> {
-    inline: [T; N],
+    inline: [MaybeUninit<T>; N],
+    /// Entries reserved (each holds a value), in `inline` or in the mapping.
+    len: usize,
     /// The mapping holding the entries once they outgrow `inline` (0: none) and its entry count.
     heap: usize,
     cap: usize,
@@ -39,38 +42,58 @@ impl<T: Copy, const N: usize> Table<T, N> {
     /// A mapping is page-aligned and holds at least one entry.
     const FITS: () = assert!(size_of::<T>() > 0 && align_of::<T>() <= 4096);
 
-    /// `N` entries of `fill`, nothing mapped.
+    /// No entries; nothing written, nothing mapped.
+    #[inline(always)]
     pub(super) fn new(fill: T) -> Self {
         let () = Self::FITS;
-        Self { inline: [fill; N], heap: 0, cap: 0, fill }
+        Self { inline: [const { MaybeUninit::uninit() }; N], len: 0, heap: 0, cap: 0, fill }
     }
 
-    /// Room for at least `len` entries: the entries so far are kept, the new ones hold the fill.
+    /// The first entry's address and the entries the storage holds.
+    fn storage(&mut self) -> (*mut T, usize) {
+        if self.heap == 0 {
+            (self.inline.as_mut_ptr().cast::<T>(), N)
+        } else {
+            (core::ptr::with_exposed_provenance_mut::<T>(self.heap), self.cap)
+        }
+    }
+
+    /// At least `len` entries: the entries so far are kept, each new one holds the fill value.
     ///
     /// # Errors
     ///
-    /// [`NoMemory`] when the mapping fails; the table is unchanged.
+    /// [`NoMemory`] when a mapping is needed and fails; the table is unchanged.
     pub(super) fn reserve(&mut self, len: usize) -> Result<(), NoMemory> {
-        let have = self.len();
-        if len <= have {
+        if len <= self.len {
             return Ok(());
         }
-        let cap = len.max(have.saturating_mul(2));
-        let bytes = cap.checked_mul(size_of::<T>()).ok_or(NoMemory)?;
-        let at = raw::mmap(0, bytes, map::PROT_READ | map::PROT_WRITE, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0).map_err(|_| NoMemory)?;
-        let p = core::ptr::with_exposed_provenance_mut::<T>(at);
-        for i in 0..cap {
-            let v = self.get(i).copied().unwrap_or(self.fill);
-            // UNSAFE(slice): one entry of a table's new mapping, written before the mapping is used.
+        let (mut p, room) = self.storage();
+        if len > room {
+            let cap = len.max(room.saturating_mul(2));
+            let bytes = cap.checked_mul(size_of::<T>()).ok_or(NoMemory)?;
+            let at = raw::mmap(0, bytes, map::PROT_READ | map::PROT_WRITE, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0).map_err(|_| NoMemory)?;
+            let to = core::ptr::with_exposed_provenance_mut::<T>(at);
+            // UNSAFE(slice): the table's entries copied into its new mapping.
             #[allow(unsafe_code)]
-            // SAFETY: `at` is a fresh private read-write mapping of `cap` entries (page-aligned, so aligned for
-            // `T`: FITS); `i < cap`; nothing else refers to it yet.
+            // SAFETY: `p` holds `self.len` written entries (aligned, in the old storage); `to` is a fresh private
+            // read-write mapping of `cap` >= `len` > `self.len` entries, page-aligned (so aligned for `T`: FITS),
+            // which nothing else refers to; the two do not overlap.
             unsafe {
-                p.wrapping_add(i).write(v);
+                core::ptr::copy_nonoverlapping(p, to, self.len);
+            }
+            self.release();
+            (self.heap, self.cap, p) = (at, cap, to);
+        }
+        for i in self.len..len {
+            // UNSAFE(slice): one new entry of the table, written before it is reserved.
+            #[allow(unsafe_code)]
+            // SAFETY: `i < len`, at most the storage's entry count (inline `N`, or the mapping's `cap`, grown above),
+            // `p` its aligned first entry; the table is borrowed uniquely.
+            unsafe {
+                p.wrapping_add(i).write(self.fill);
             }
         }
-        self.release();
-        (self.heap, self.cap) = (at, cap);
+        self.len = len;
         Ok(())
     }
 
@@ -87,30 +110,27 @@ impl<T: Copy, const N: usize> Deref for Table<T, N> {
     type Target = [T];
 
     fn deref(&self) -> &[T] {
-        if self.heap == 0 {
-            return &self.inline;
-        }
-        // UNSAFE(slice): a table's entries in its own mapping.
+        let p = if self.heap == 0 { self.inline.as_ptr().cast::<T>() } else { core::ptr::with_exposed_provenance::<T>(self.heap) };
+        // UNSAFE(slice): a table's reserved entries.
         #[allow(unsafe_code)]
-        // SAFETY: `heap` is the private mapping `reserve` made for this table, aligned for `T`, its `cap` entries
-        // all written there; only this table refers to it, and it stays mapped until `release` (by `reserve`
-        // after its copy, or drop), which needs `&mut self`, so not while this borrow lives.
+        // SAFETY: `reserve` wrote the first `len` entries of the current storage (inline, or the mapping it made,
+        // aligned for `T`, which only this table refers to and which stays mapped until `release`, called only
+        // through `&mut self`, so not while this borrow lives).
         unsafe {
-            core::slice::from_raw_parts(core::ptr::with_exposed_provenance::<T>(self.heap), self.cap)
+            core::slice::from_raw_parts(p, self.len)
         }
     }
 }
 
 impl<T: Copy, const N: usize> DerefMut for Table<T, N> {
     fn deref_mut(&mut self) -> &mut [T] {
-        if self.heap == 0 {
-            return &mut self.inline;
-        }
-        // UNSAFE(slice): a table's entries in its own mapping, borrowed uniquely.
+        let len = self.len;
+        let (p, _) = self.storage();
+        // UNSAFE(slice): a table's reserved entries, borrowed uniquely.
         #[allow(unsafe_code)]
         // SAFETY: as for `deref`; the borrow of `self` is unique, so is the slice.
         unsafe {
-            core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut::<T>(self.heap), self.cap)
+            core::slice::from_raw_parts_mut(p, len)
         }
     }
 }
@@ -142,8 +162,10 @@ impl<T: Copy> Kept<T> {
     ///
     /// [`NoMemory`] when `t` has no mapping and none can be made.
     pub(super) fn keep<const N: usize>(&self, mut t: Table<T, N>, len: usize) -> Result<(), NoMemory> {
+        // A kept table lives in a mapping (an inline one would go with the caller's frame).
+        t.reserve(len)?;
         if t.heap == 0 {
-            t.reserve(N.saturating_add(1).max(len))?;
+            t.reserve(N.saturating_add(1))?;
         }
         let t = ManuallyDrop::new(t);
         self.at.store(t.heap, Relaxed);

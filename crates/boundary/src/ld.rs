@@ -1132,6 +1132,11 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     let dynm = image.dynamic().ok().flatten().unwrap_or_else(|| fail_with(&[name, b": no valid dynamic section\n"], program::FAILURE));
     let first = Obj { elf: image, dynm, bias: u64::try_from(bias).unwrap_or(0), name, tls: None };
     let mut objs: Table<Obj<'static>, INLINE> = Table::new(first);
+    // Entry 0, the program, in every per-object table (inline: nothing can fail).
+    let grown = [parent.reserve(1), paths.reserve(1), maps.reserve(1), ids.reserve(1), phdrs.reserve(1), objs.reserve(1)];
+    if grown.iter().any(Result::is_err) {
+        no_memory(name);
+    }
     let mut n = 1usize;
     let mut q = 0usize;
     // The interpreter itself, when an object names it (`__tls_get_addr`): already relocated, in the
@@ -1991,6 +1996,7 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
     let ctx = env.ctx(cache.as_ref().map(|(_, c)| c).into());
     let mut objs: Table<Obj, INLINE> = Table::new(Obj::default());
     let mut store = PathStore::default();
+    objs.reserve(1).unwrap_or_else(|_| fail(prog, b"cannot allocate memory\n"));
     if let Some(o) = objs.first_mut() {
         *o = Obj { name: prog, file, path: prog, ..Obj::default() };
     }
