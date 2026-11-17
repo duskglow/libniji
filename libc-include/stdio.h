@@ -32,7 +32,7 @@ struct _IO_FILE {
   unsigned short _cur_column;
   signed char _vtable_offset;
   char _shortbuf[1];
-  _IO_lock_t * _lock;
+  void * _lock;
   long _offset;
   struct _IO_codecvt * _codecvt;
   struct _IO_wide_data * _wide_data;
@@ -66,7 +66,7 @@ struct _IO_FILE {
   unsigned short _cur_column;
   signed char _vtable_offset;
   char _shortbuf[1];
-  _IO_lock_t * _lock;
+  void * _lock;
   long _offset;
   struct _IO_codecvt * _codecvt;
   struct _IO_wide_data * _wide_data;

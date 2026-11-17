@@ -60,7 +60,7 @@ typedef struct { char __niji_opaque[240] __attribute__ ((__aligned__ (16))); } L
 #if 1
 # ifndef __NIJI_D__r_debug
 #  define __NIJI_D__r_debug 1
-extern r_debug _r_debug;
+extern struct r_debug _r_debug;
 # endif
 # ifndef __NIJI_D_la_x32_gnu_pltenter
 #  define __NIJI_D_la_x32_gnu_pltenter 1
