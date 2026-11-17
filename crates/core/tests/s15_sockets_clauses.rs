@@ -324,7 +324,7 @@ fn s15_1_c_8_null_value_size_query() {
 /// fails because the buffer is too small (`SO_PEERGROUPS`: `ERANGE` with the size of the
 /// peer's group list).
 #[test]
-fn s15_1_c_8_length_reported_on_erange() {
+fn s15_1_c_8_length_reported_with_erange() {
     const SO_PEERGROUPS: c_int = 59;
     let [a, b] = pair(SOCK_STREAM);
     let mut g = [0u32; 1024];
