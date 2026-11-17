@@ -8,7 +8,9 @@
 //! black-box probe of the reference decodes every one- and two-byte input and encodes every
 //! code point (all of the BMP, a stride of the rest) the same way through both. The table does
 //! not depend on which charmap files are installed: a name whose charmap is missing names
-//! nothing, as the charmap's own name does.
+//! nothing, as the charmap's own name does. Where a generated charmap already carries a row's
+//! name, the row points to that charmap: `HPTHAI8` is `ISO-8859-11`, which the probe found
+//! identical to `HP-THAI8`.
 //!
 //! Sorted by name for a binary search; the core test `s6_4_c_1_charmap_aliases` checks the
 //! order, that no row is a built-in name, and that the generated charmaps
@@ -48,7 +50,7 @@ const CHARMAP_ALIASES: &[(&[u8], &[u8])] = &[
     (b"HPGREEK8", b"HP-GREEK8"),
     (b"HPROMAN8", b"HP-ROMAN8"),
     (b"HPROMAN9", b"HP-ROMAN9"),
-    (b"HPTHAI8", b"HP-THAI8"),
+    (b"HPTHAI8", b"ISO-8859-11"),
     (b"HPTURKISH8", b"HP-TURKISH8"),
     (b"IBM-1124", b"IBM1124"),
     (b"IBM-1129", b"IBM1129"),
