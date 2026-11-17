@@ -145,8 +145,7 @@ program's preinit array but not its constructors or `init_array` (its C library'
 does not run a shared object's `DT_PREINIT_ARRAY` (made by retagging `DT_INIT_ARRAY`). Start order:
 `main -> R, Q, P; P -> R`: R, P, Q. `main -> L, K; L -> N; N -> K; K -> M`: M, K, N, L. A cycle at
 start, `main -> H; H <-> I`: H, I. `main -> X; X -> Y; Y -> Z, W; Z -> X`: W, Y, X, Z. The
-reference's termination function cannot be called without its C library (an internal assertion,
-status 127), so the exit order comes from the same programs linked with it: the program's
+reference's termination function needs its C library, so the exit order comes from the same programs linked with it: the program's
 `fini_array` and destructor, then the objects in the reverse of the start order (H <-> I: I, H;
 cycle of three: Z, X, Y, W). Rule that fits every case here and DL-0b's: a depth-first walk over the
 objects in reverse load order, each after the objects it needs, a cycle member already being walked
@@ -296,6 +295,6 @@ returns 0; libniji's `dl_iterate_phdr` lists the program and the vDSO only until
 
 - DL-16: the texts above are the targets; the `e_machine` case reports a file-missing text for
   an existing file (follow it, or record a difference with its gain).
-- DL-17: `dlclose(NULL)` and an unknown handle: the reference crashes; returning non-zero with a
-  dlerror text costs nothing and gains robustness (a difference row is needed).
+- DL-17: `dlclose(NULL)` and an unknown handle: returning non-zero with a dlerror text costs
+  nothing and gives a defined result (a difference row is needed).
 - DL-30/R14-16: the version-not-found status 1 differs from every other load failure (127).

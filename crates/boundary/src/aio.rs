@@ -95,7 +95,7 @@
 //!
 //! **Errors.** At submission: `EINVAL` for an `aio_reqprio` outside 0..`AIO_PRIO_DELTA_MAX`
 //! (20), an `aio_fsync` operation other than `O_SYNC`/`O_DSYNC` (checked first), a `SIGEV_THREAD`
-//! without a function (the reference crashes at the completion), a NULL or misaligned block;
+//! without a function (nothing could be notified at the completion), a NULL or misaligned block;
 //! `EBADF` from `aio_fsync` and `aio_cancel` for a descriptor that is not open; `EAGAIN` when no
 //! ring helper or worker can be made, or without memory. Everything else is the request's own
 //! result, through `aio_error`: a negative offset is `EINVAL` (also on a pipe), an invalid
@@ -113,8 +113,8 @@
 //!
 //! **Lists.** `AIO_LISTIO_MAX` has no fixed value (`sysconf` returns -1, as the reference's): a
 //! list may hold any number of entries, bounded by memory (`EAGAIN`, with the entries not
-//! queued marked `EAGAIN`); a negative `nent` is an empty list (the reference crashes for
-//! `INT_MIN`). An unknown opcode makes that entry `EINVAL`; an invalid priority makes that entry
+//! queued marked `EAGAIN`); a negative `nent` is an empty list (every negative value,
+//! `INT_MIN` included). An unknown opcode makes that entry `EINVAL`; an invalid priority makes that entry
 //! `EINVAL` and `LIO_NOWAIT` return -1 `EINVAL` while the other entries run (the reference's
 //! behaviour); `LIO_WAIT` returns -1 `EIO` when any entry failed.
 //!

@@ -55,17 +55,17 @@ const LANGUAGE: &str = "D-7.5 (caching): LANGUAGE and the locale are read at eve
 const PATHS: &str = "D-7.5 (security default, reported): a locale name with `/` is never a catalog directory, so LANGUAGE cannot leave the bound directory; the reference uses it as a path";
 const FORMS: &str = "D-7.5: plural forms are found in the stored translation and each is converted on its own; the reference splits the converted text at its first NUL byte, which in UTF-16 is inside the first character";
 const TRANSLIT: &str = "D-6.9: the built-in C locale's transliteration is derived from the Unicode database, which has no Latin rendering of Cyrillic; the reference's own table gives ZHa";
-const NO_TRAP: &str = "§7.7 never fails visibly (three-way: the spec and gettext(3) agree): a division or remainder by zero in Plural-Forms selects the default rule n != 1; the reference is killed by SIGFPE";
-const HASH: &str = "D-7.5 (decision 2026-10-04): the sorted originals are searched by binary search and the hash table is not used, so every entry of a catalog with a damaged hash table is found; the reference trusts the table alone (zeroed: nothing found; wrong indices: it never returns)";
-const DAMAGED_MO: &str = "D-7.5: a .mo whose strings start beyond the file is not a catalog (absent); the reference reads past the end of the file";
-const FIFO: &str = "D-7.5/D-7.6: a catalog that is not a regular file (here a FIFO) is opened non-blocking and treated as absent (catopen: EINVAL, as for a directory); the reference blocks forever";
+const NO_TRAP: &str = "§7.7 never fails visibly (three-way: the spec and gettext(3) agree): a division or remainder by zero in Plural-Forms selects the default rule n != 1";
+const HASH: &str = "D-7.5 (decision 2026-10-04): the sorted originals are searched by binary search and the hash table is not used, so every entry of a catalog with a damaged hash table is found; the reference trusts the table alone";
+const DAMAGED_MO: &str = "D-7.5: a .mo whose strings start beyond the file is not a catalog (absent): nothing outside the file is read";
+const FIFO: &str = "D-7.5/D-7.6: a catalog that is not a regular file (here a FIFO) is opened non-blocking and treated as absent (catopen: EINVAL, as for a directory)";
 const CATGETS_ERRNO: &str = "§7.8 and C0.1 (three-way: the spec and POSIX catgets agree): a message the catalog lacks sets ENOMSG, negative numbers and set INT_MAX included; the reference leaves errno alone for those";
 const CATGETS_BADF: &str = "§7.8 and C0.1 (three-way: the spec and POSIX catgets, EBADF, agree): an invalid descriptor sets EBADF; the reference leaves errno alone";
 const PERCENT: &str = "D-7.6: an NLSPATH template ending in a lone % is skipped like one with an unknown conversion; the reference abandons the whole search there";
 const NOT_CAT: &str = "§7.8 and C0.1 (three-way: the spec and POSIX catopen agree that a failure sets errno): a file that is not a catalog fails with EINVAL; the reference leaves errno 0";
 const LANG_PATH: &str = "D-7.6 (security default, reported): a locale value with `/` (or `.`, `..`) is never substituted into an NLSPATH or default template; the reference substitutes it unchecked";
-const CAT_CUT: &str = "D-7.6: a .cat whose strings start beyond the file is not a catalog; the reference accepts it and reads past the end";
-const CAT_ZERO: &str = "D-7.6: a .cat with plane size 0 is not a catalog (EINVAL); the reference is killed by SIGFPE";
+const CAT_CUT: &str = "D-7.6: a .cat whose strings start beyond the file is not a catalog: nothing outside the file is read";
+const CAT_ZERO: &str = "D-7.6: a .cat with plane size 0 is not a catalog (EINVAL)";
 
 /// Lines that differ from the reference by decision: the case (the start of the last header
 /// line), the text the reference's line starts with, and why. A recorded line that no longer
@@ -195,8 +195,8 @@ fn line_diff(want: &[(String, String)], got: &[(String, String)]) -> String {
     out.join("\n")
 }
 
-/// The damaged catalogs the record leaves out (offsets and sizes outside the file, where the
-/// reference crashes or reads foreign memory; catalogs.md, "Unstable cases") are safe in libniji
+/// The damaged catalogs the record leaves out (offsets and sizes outside the file;
+/// catalogs.md, "Unstable cases") are safe in libniji
 /// (D-7.5, D-7.6: a damaged catalog is absent): every case ends normally, a `.mo` translates
 /// nothing it cannot read, and `catopen` fails with `EINVAL`.
 #[test]

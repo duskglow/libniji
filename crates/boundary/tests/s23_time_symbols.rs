@@ -791,7 +791,7 @@ fn sym_timer_create() {
     assert_eq!(create(1, Some(&SigEvent::new(SIGEV_SIGNAL, 0, 0, 0))), Err(EINVAL));
     assert_eq!(create(1, Some(&SigEvent::new(SIGEV_SIGNAL, 65, 0, 0))), Err(EINVAL));
     assert_eq!(create(1, Some(&SigEvent::new(SIGEV_THREAD_ID, SIGUSR1, 0, 1))), Err(EINVAL), "a thread of another process");
-    // SIGEV_THREAD: a function is required (glibc accepts NULL and crashes at the expiry); a
+    // SIGEV_THREAD: a function is required (nothing could be notified at the expiry); a
     // timerfd measures neither the CPU-time clocks nor CLOCK_TAI (ENOTSUP; glibc accepts them);
     // the clock errors are the kernel timers'; the attributes must be an object.
     assert_eq!(create(1, Some(&SigEvent::thread(0, 0, 0))), Err(EINVAL));
@@ -801,7 +801,7 @@ fn sym_timer_create() {
     assert_eq!(create(4, Some(&thread_event(0))), Err(EOPNOTSUPP));
     assert_eq!(create(99, Some(&thread_event(0))), Err(EINVAL));
     assert_eq!(create(1, Some(&thread_event(0x1003))), Err(EINVAL), "misaligned attributes");
-    // NULL for the id: EFAULT (glibc crashes).
+    // NULL for the id: EFAULT (S6: the contract's error channel).
     errno::set_raw(0);
     assert_eq!(s::timer_create(1, Some(&none()), None), -1);
     assert_eq!(errno::get(), EFAULT);

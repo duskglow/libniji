@@ -658,7 +658,7 @@ pub(crate) fn bulk_fill(n: usize, avx2: bool, erms: bool, erms_min: usize) -> Bu
 
 /// `memmove` (and `memcpy`, D-4.2): `n` bytes from `s` to `d`; returns `d`. NULL with `n > 0`
 /// is the `EFAULT` abort (S6), or with NULL folding (D-4.22, `dispatch`) for `1 <= n <= 64` and
-/// `129 <= n <= 256` (D-4.55) the page-zero fault in assembly (SIGSEGV), as glibc observably does.
+/// `129 <= n <= 256` (D-4.55) the page-zero fault in assembly (SIGSEGV: the caller's error stops the process at it).
 ///
 /// # Safety
 /// `d` is valid for writing and `s` for reading `n` bytes (they may overlap).
