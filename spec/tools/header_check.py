@@ -35,8 +35,10 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "getopt.h", "time.h",
            # slice 10
            "locale.h", "langinfo.h", "nl_types.h", "libintl.h", "monetary.h", "wchar.h", "wctype.h", "uchar.h", "iconv.h",
-           "gconv.h", "stdbit.h", "regex.h", "re_comp.h", "regexp.h", "fnmatch.h", "glob.h", "wordexp.h", "search.h",
+           "gconv.h", "stdbit.h", "regex.h", "re_comp.h", "fnmatch.h", "glob.h", "wordexp.h", "search.h",
            "fts.h", "ftw.h"]
+# <regexp.h> is shipped to fail in every configuration (an #error), so it gets the inverse unit below, not P5.
+MUST_FAIL = ["regexp.h"]
 COLS =[("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
@@ -74,6 +76,8 @@ def p1_units(ids, vis, macros, typedefs, layouts):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
         if h == "ftw.h" and n in ("statx", "statx_timestamp"):
             continue  # defined by <sys/stat.h> (slice 7), which ftw.h includes once that header exists
+        if h == "wchar.h" and n == "FILE":
+            continue  # wchar.h names FILE and shows no struct _IO_FILE (visibility.tsv): the type stays incomplete there
         tests = []
         if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
             m = macros[n]
@@ -162,6 +166,7 @@ def main():
         if not rejected:
             units += [(f"P5 {h}", f"#include <{h}>\n#include <{h}>\nint niji_check_tu;\n") for h in HEADERS]
             # static_assert is C++11 and _Static_assert C11 (C89 mode has neither as a keyword).
+            units += [(f"P5 {h} must fail", f"#include <{h}>\n") for h in MUST_FAIL]
             if c["id"] not in ("cxx98", "c89", "isoc99"):
                 units.append(("P1 stdint", identity_unit(cxx, types)))
         if not rejected:
@@ -172,7 +177,11 @@ def main():
                 f.write(text)
             r = subprocess.run(base + [src], capture_output=True, text=True)
             total += 1
-            ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
+            if what.endswith(" must fail"):
+                # libniji's own header: the failure must be its #error, not a missing file or a syntax slip.
+                ok = r.returncode != 0 and "is not provided" in r.stderr
+            else:
+                ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")

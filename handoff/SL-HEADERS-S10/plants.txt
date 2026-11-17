@@ -7,3 +7,9 @@ s10-fnm-nosys | headers/fnmatch.h.in | lit:# define FNM_NOSYS (-1) ==> # define 
 s10-lc-global-locale | headers/locale.h.in | lit:((locale_t) -1L) ==> ((locale_t) 0L) | cargo xtask headers-gen --check | msg:headers-gen
 s10-wcschr-overload | headers/wchar.h.in | lit:const_cast<wchar_t *> (wcschr ( ==> const_cast<wchar_t *> (wcsrchr ( | cargo xtask headers-gen --check | msg:headers-gen
 s10-p1-ftw-statx | spec/tools/header_check.py | lit:n in ("statx", "statx_timestamp") ==> n in ("statx_timestamp",) | python3 spec/tools/header_check.py | msg:FAIL P1 ftw.h
+s10-regexp-must-fail | libc-include/regexp.h | lit:#error "<regexp.h> is not provided ==> #warning "<regexp.h> is not provided | python3 spec/tools/header_check.py | msg:FAIL P5 regexp.h must fail
+s10-stdbit-extern-inline | headers/stdbit.h.in | lit:extern __inline __attribute__ ((__gnu_inline__)) unsigned int stdc_count_ones_uc ==> static __inline unsigned int stdc_count_ones_uc | cargo xtask headers-gen --check | msg:headers-gen
+s10-fnm-pop-macro | headers/fnmatch.h.in | lit:#pragma pop_macro("_DEFAULT_SOURCE") ==> #pragma push_macro("_DEFAULT_SOURCE") | cargo xtask headers-gen --check | msg:headers-gen
+s10-nftw-redirect | headers/ftw.h.in | lit:__asm__ ("nftw64") ==> __asm__ ("nftw") | cargo xtask headers-gen --check | msg:headers-gen
+s10-wcswcs-overload | headers/wchar.h.in | lit:const_cast<wchar_t *> (wcswcs ( ==> const_cast<wchar_t *> (wcsstr ( | cargo xtask headers-gen --check | msg:headers-gen
+s10-file-tag-incomplete | xtask/src/headers.rs | lit:cxx == "_IO_FILE" && !tag_shown ==> cxx == "_IO_FILEX" && !tag_shown | cargo xtask headers-gen --check | msg:headers-gen

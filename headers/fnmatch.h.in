@@ -3,8 +3,35 @@
 #ifndef __NIJI_H_fnmatch_h
 #define __NIJI_H_fnmatch_h 1
 
+/* This header does not leave the feature-test macros that features.h derives defined for the program. */
+#pragma push_macro("_ATFILE_SOURCE")
+#pragma push_macro("_DEFAULT_SOURCE")
+#pragma push_macro("_DYNAMIC_STACK_SIZE_SOURCE")
+#pragma push_macro("_ISOC11_SOURCE")
+#pragma push_macro("_ISOC2X_SOURCE")
+#pragma push_macro("_ISOC95_SOURCE")
+#pragma push_macro("_ISOC99_SOURCE")
+#pragma push_macro("_LARGEFILE64_SOURCE")
+#pragma push_macro("_LARGEFILE_SOURCE")
+#pragma push_macro("_POSIX_C_SOURCE")
+#pragma push_macro("_POSIX_SOURCE")
+#pragma push_macro("_XOPEN_SOURCE")
+#pragma push_macro("_XOPEN_SOURCE_EXTENDED")
 # define __NIJI_TIME_BITS_UNCHECKED 1
 #include <features.h>
+#pragma pop_macro("_ATFILE_SOURCE")
+#pragma pop_macro("_DEFAULT_SOURCE")
+#pragma pop_macro("_DYNAMIC_STACK_SIZE_SOURCE")
+#pragma pop_macro("_ISOC11_SOURCE")
+#pragma pop_macro("_ISOC2X_SOURCE")
+#pragma pop_macro("_ISOC95_SOURCE")
+#pragma pop_macro("_ISOC99_SOURCE")
+#pragma pop_macro("_LARGEFILE64_SOURCE")
+#pragma pop_macro("_LARGEFILE_SOURCE")
+#pragma pop_macro("_POSIX_C_SOURCE")
+#pragma pop_macro("_POSIX_SOURCE")
+#pragma pop_macro("_XOPEN_SOURCE")
+#pragma pop_macro("_XOPEN_SOURCE_EXTENDED")
 
 __NIJI_BEGIN_C
 

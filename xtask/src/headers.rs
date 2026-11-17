@@ -517,6 +517,13 @@ impl Gen<'_> {
             vec![format!("typedef struct {} {name};", cxx.replace('*', " *"))]
         } else {
             // The structure is named for linkage by `cxx` (`fpos_t` is `struct _G_fpos_t`): define it here.
+            // `FILE` named by a header that does not show the tag (`wchar.h`; `stdio.h` defines `struct _IO_FILE`)
+            // only declares the tag: visibility.tsv has the structure incomplete there.
+            let tag_shown = self.t.vis.iter().any(|v| v["header"] == self.header && v["name"] == cxx && v["kind"] == "struct");
+            if cxx == "_IO_FILE" && !tag_shown {
+                self.guard(name, vec![format!("struct {cxx};"), format!("typedef struct {cxx} {name};")]);
+                return;
+            }
             let def = match self.members_nested(name) {
                 Some((kw, m, nested)) => {
                     self.emit_nested(nested);

@@ -53,42 +53,9 @@ typedef unsigned long wctype_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE {
-  int _flags;
-  char * _IO_read_ptr;
-  char * _IO_read_end;
-  char * _IO_read_base;
-  char * _IO_write_base;
-  char * _IO_write_ptr;
-  char * _IO_write_end;
-  char * _IO_buf_base;
-  char * _IO_buf_end;
-  char * _IO_save_base;
-  char * _IO_backup_base;
-  char * _IO_save_end;
-  struct _IO_marker * _markers;
-  struct _IO_FILE * _chain;
-  int _fileno;
-  int _flags2;
-  long _old_offset;
-  unsigned short _cur_column;
-  signed char _vtable_offset;
-  char _shortbuf[1];
-  void * _lock;
-  long _offset;
-  struct _IO_codecvt * _codecvt;
-  struct _IO_wide_data * _wide_data;
-  struct _IO_FILE * _freeres_list;
-  void * _freeres_buf;
-  unsigned long __pad5;
-  int _mode;
-  char _unused2[20];
-};
-# endif
 # ifndef __NIJI_D_FILE
 #  define __NIJI_D_FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE FILE;
 # endif
 #endif
@@ -103,60 +70,45 @@ typedef struct __locale_struct * locale_t;
 #  define __NIJI_D_btowc 1
 extern unsigned int btowc (int) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fgetwc
 #  define __NIJI_D_fgetwc 1
 extern unsigned int fgetwc (__FILE *);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fgetws
 #  define __NIJI_D_fgetws 1
 extern wchar_t *fgetws (wchar_t *, int, __FILE *);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fputwc
 #  define __NIJI_D_fputwc 1
 extern unsigned int fputwc (wchar_t, __FILE *);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fputws
 #  define __NIJI_D_fputws 1
 extern int fputws (const wchar_t *, __FILE *);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_getwc
@@ -183,12 +135,9 @@ extern int mbsinit (const mbstate_t *) __NIJI_NOTHROW;
 #  define __NIJI_D_mbsrtowcs 1
 extern unsigned long mbsrtowcs (wchar_t *, const char **, unsigned long, mbstate_t *) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_putwc
@@ -199,12 +148,9 @@ extern unsigned int putwc (wchar_t, __FILE *);
 #  define __NIJI_D_putwchar 1
 extern unsigned int putwchar (wchar_t);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_ungetwc
@@ -314,60 +260,45 @@ extern wchar_t *wmemset (wchar_t *, wchar_t, unsigned long) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_GNU
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fgetwc_unlocked
 #  define __NIJI_D_fgetwc_unlocked 1
 extern unsigned int fgetwc_unlocked (__FILE *);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fgetws_unlocked
 #  define __NIJI_D_fgetws_unlocked 1
 extern wchar_t *fgetws_unlocked (wchar_t *, int, __FILE *);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fputwc_unlocked
 #  define __NIJI_D_fputwc_unlocked 1
 extern unsigned int fputwc_unlocked (wchar_t, __FILE *);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fputws_unlocked
 #  define __NIJI_D_fputws_unlocked 1
 extern int fputws_unlocked (const wchar_t *, __FILE *);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_getwc_unlocked
@@ -378,12 +309,9 @@ extern unsigned int getwc_unlocked (__FILE *);
 #  define __NIJI_D_getwchar_unlocked 1
 extern unsigned int getwchar_unlocked (void);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_putwc_unlocked
@@ -551,36 +479,27 @@ extern unsigned long wctype (const char *) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_ISOC >= 1999
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fwide
 #  define __NIJI_D_fwide 1
 extern int fwide (__FILE *, int) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fwprintf
 #  define __NIJI_D_fwprintf 1
 extern int fwprintf (__FILE *, const wchar_t *, ...);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_fwscanf
@@ -607,24 +526,18 @@ extern int swscanf (const wchar_t *, const wchar_t *, ...) __NIJI_NOTHROW __asm_
 extern int swscanf (const wchar_t *, const wchar_t *, ...) __NIJI_NOTHROW;
 #  endif
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_vfwprintf
 #  define __NIJI_D_vfwprintf 1
 extern int vfwprintf (__FILE *, const wchar_t *, __builtin_va_list);
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_vfwscanf
@@ -719,12 +632,9 @@ extern unsigned long wcslcpy (wchar_t *, const wchar_t *, unsigned long) __NIJI_
 #  define __NIJI_D_mbsnrtowcs 1
 extern unsigned long mbsnrtowcs (wchar_t *, const char **, unsigned long, unsigned long, mbstate_t *) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_struct__IO_FILE
-#  define __NIJI_D_struct__IO_FILE 1
-struct _IO_FILE { char __niji_opaque[216] __attribute__ ((__aligned__ (8))); };
-# endif
 # ifndef __NIJI_D___FILE
 #  define __NIJI_D___FILE 1
+struct _IO_FILE;
 typedef struct _IO_FILE __FILE;
 # endif
 # ifndef __NIJI_D_open_wmemstream
@@ -777,10 +687,6 @@ extern unsigned long wcsxfrm_l (wchar_t *, const wchar_t *, unsigned long, local
 # endif
 #endif
 #if __NIJI_XSI >= 400
-# ifndef __NIJI_D_wcswcs
-#  define __NIJI_D_wcswcs 1
-extern wchar_t *wcswcs (const wchar_t *, const wchar_t *);
-# endif
 # ifndef __NIJI_D_wcswidth
 #  define __NIJI_D_wcswidth 1
 extern int wcswidth (const wchar_t *, unsigned long) __NIJI_NOTHROW;
@@ -845,6 +751,18 @@ extern wchar_t *wcsrchr (const wchar_t *, wchar_t) __NIJI_NOTHROW;
 extern wchar_t *wcspbrk (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
 extern wchar_t *wcsstr (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
 extern wchar_t *wmemchr (const wchar_t *, wchar_t, size_t) __NIJI_NOTHROW;
+# endif
+#endif
+
+#if __NIJI_XSI >= 400
+/* The XSI alias of wcsstr takes the same two overloads in C++. */
+# ifdef __cplusplus
+extern "C++" {
+extern const wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW __asm__ ("wcswcs");
+inline wchar_t *wcswcs (wchar_t *__s, const wchar_t *__a) __NIJI_NOTHROW { return const_cast<wchar_t *> (wcswcs (static_cast<const wchar_t *> (__s), __a)); }
+}
+# else
+extern wchar_t *wcswcs (const wchar_t *, const wchar_t *) __NIJI_NOTHROW;
 # endif
 #endif
 

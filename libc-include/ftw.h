@@ -259,16 +259,6 @@ struct timespec;
 extern int utimensat (int, const char *, const struct timespec *, int) __NIJI_NOTHROW;
 # endif
 #endif
-#if __NIJI_XSI >= 450
-# ifndef __NIJI_D___nftw_func_t
-#  define __NIJI_D___nftw_func_t 1
-typedef int (*__nftw_func_t)(char const *, struct stat const *, int, struct FTW *);
-# endif
-# ifndef __NIJI_D_nftw
-#  define __NIJI_D_nftw 1
-extern int nftw (const char *, __nftw_func_t, int, int);
-# endif
-#endif
 #if 1
 # ifndef __NIJI_D_enum_FTW_D
 #  define __NIJI_D_enum_FTW_D 1
@@ -578,6 +568,18 @@ enum { FTW_SLN = 6 };
 # endif
 # ifndef FTW_SLN
 #  define FTW_SLN 6
+# endif
+#endif
+
+#if __NIJI_XSI >= 450
+# ifndef __NIJI_D___nftw_func_t
+#  define __NIJI_D___nftw_func_t 1
+typedef int (*__nftw_func_t)(char const *, struct stat const *, int, struct FTW *);
+# endif
+# if __NIJI_FOB64
+extern int nftw (const char *, __nftw_func_t, int, int) __asm__ ("nftw64");
+# else
+extern int nftw (const char *, __nftw_func_t, int, int);
 # endif
 #endif
 
