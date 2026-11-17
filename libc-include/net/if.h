@@ -4,7 +4,9 @@
 #define __NIJI_H_net_if_h 1
 
 #include <features.h>
-#include <sys/socket.h>
+#if __NIJI_MISC
+# include <sys/socket.h>
+#endif
 
 __NIJI_BEGIN_C
 

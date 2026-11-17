@@ -5,7 +5,7 @@
 
 #include <features.h>
 
-@@needs-if strdupa string.h
+@@needs-if strlen string.h
 
 __NIJI_BEGIN_C
 

@@ -4,8 +4,12 @@
 #define __NIJI_H_netinet_tcp_h 1
 
 #include <features.h>
-#include <sys/socket.h>
-#include <stdint.h>
+#if __NIJI_MISC
+# include <sys/socket.h>
+#endif
+#if __NIJI_MISC
+# include <stdint.h>
+#endif
 
 __NIJI_BEGIN_C
 

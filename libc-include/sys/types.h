@@ -4,7 +4,6 @@
 #define __NIJI_H_sys_types_h 1
 
 #include <features.h>
-#include <endian.h>
 
 __NIJI_BEGIN_C
 
@@ -25,6 +24,18 @@ struct timeval {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
 # ifndef __NIJI_D_blkcnt_t
 #  define __NIJI_D_blkcnt_t 1
 typedef long blkcnt_t;
@@ -229,12 +240,29 @@ struct timeval;
 #  define __NIJI_D_select 1
 extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # endif
+# ifndef BIG_ENDIAN
+#  define BIG_ENDIAN 4321
+# endif
+# ifndef BYTE_ORDER
+#  define BYTE_ORDER 1234
+# endif
 # ifndef FD_SETSIZE
 #  define FD_SETSIZE 1024
+# endif
+# ifndef LITTLE_ENDIAN
+#  define LITTLE_ENDIAN 1234
 # endif
 # ifndef NFDBITS
 #  define NFDBITS 64
 # endif
+# ifndef PDP_ENDIAN
+#  define PDP_ENDIAN 3412
+# endif
+#endif
+
+/* The byte-order conversions are <endian.h>'s, where this header exposes them. */
+#if __NIJI_MISC
+# include <endian.h>
 #endif
 
 /* select(2): the bit of a descriptor in an fd_set. */

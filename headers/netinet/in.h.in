@@ -6,12 +6,19 @@
 
 #include <features.h>
 #include <sys/socket.h>
-#include <stdint.h>
 
 __NIJI_BEGIN_C
 
 @@owns-macro htonl htons ntohl ntohs
 @@emit
+
+/* RFC 3493: the members of an IPv6 address by their names; the table names the union members (layouts.tsv). */
+# define s6_addr __in6_u.__u6_addr8
+# if __NIJI_MISC
+#  define s6_addr16 __in6_u.__u6_addr16
+#  define s6_addr32 __in6_u.__u6_addr32
+# endif
+# define IN6_ARE_ADDR_EQUAL(a, b) (((const uint32_t *) (a))[0] == ((const uint32_t *) (b))[0] && ((const uint32_t *) (a))[1] == ((const uint32_t *) (b))[1] && ((const uint32_t *) (a))[2] == ((const uint32_t *) (b))[2] && ((const uint32_t *) (a))[3] == ((const uint32_t *) (b))[3])
 
 @@when htonl
 # define ntohl(x) __builtin_bswap32 (x)

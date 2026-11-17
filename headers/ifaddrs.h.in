@@ -5,7 +5,6 @@
 
 #include <features.h>
 #include <sys/socket.h>
-#include <stdint.h>
 
 __NIJI_BEGIN_C
 

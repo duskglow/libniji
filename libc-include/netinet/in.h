@@ -6,7 +6,6 @@
 
 #include <features.h>
 #include <sys/socket.h>
-#include <stdint.h>
 
 __NIJI_BEGIN_C
 
@@ -219,6 +218,22 @@ typedef unsigned int in_addr_t;
 # ifndef __NIJI_D_in_port_t
 #  define __NIJI_D_in_port_t 1
 typedef unsigned short in_port_t;
+# endif
+# ifndef __NIJI_D_uint16_t
+#  define __NIJI_D_uint16_t 1
+typedef unsigned short uint16_t;
+# endif
+# ifndef __NIJI_D_uint32_t
+#  define __NIJI_D_uint32_t 1
+typedef unsigned int uint32_t;
+# endif
+# ifndef __NIJI_D_uint64_t
+#  define __NIJI_D_uint64_t 1
+typedef unsigned long uint64_t;
+# endif
+# ifndef __NIJI_D_uint8_t
+#  define __NIJI_D_uint8_t 1
+typedef unsigned char uint8_t;
 # endif
 # ifndef __NIJI_D_in6addr_any
 #  define __NIJI_D_in6addr_any 1
@@ -1084,6 +1099,14 @@ enum { IPPROTO_UDPLITE = 136 };
 #  define MCAST_UNBLOCK_SOURCE 44
 # endif
 #endif
+
+/* RFC 3493: the members of an IPv6 address by their names; the table names the union members (layouts.tsv). */
+# define s6_addr __in6_u.__u6_addr8
+# if __NIJI_MISC
+#  define s6_addr16 __in6_u.__u6_addr16
+#  define s6_addr32 __in6_u.__u6_addr32
+# endif
+# define IN6_ARE_ADDR_EQUAL(a, b) (((const uint32_t *) (a))[0] == ((const uint32_t *) (b))[0] && ((const uint32_t *) (a))[1] == ((const uint32_t *) (b))[1] && ((const uint32_t *) (a))[2] == ((const uint32_t *) (b))[2] && ((const uint32_t *) (a))[3] == ((const uint32_t *) (b))[3])
 
 #if __NIJI_FORTIFY >= 1
 # define ntohl(x) __builtin_bswap32 (x)

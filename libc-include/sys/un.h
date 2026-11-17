@@ -5,7 +5,7 @@
 
 #include <features.h>
 
-#if __NIJI_GNU
+#if __NIJI_MISC
 # include <string.h>
 #endif
 

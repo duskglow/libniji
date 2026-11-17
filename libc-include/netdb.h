@@ -5,7 +5,6 @@
 
 #include <features.h>
 #include <netinet/in.h>
-#include <stdint.h>
 
 __NIJI_BEGIN_C
 

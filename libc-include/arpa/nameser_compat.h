@@ -4,8 +4,9 @@
 #define __NIJI_H_arpa_nameser_compat_h 1
 
 #include <features.h>
-#include <sys/types.h>
-#include <endian.h>
+#if __NIJI_MISC
+# include <endian.h>
+#endif
 
 __NIJI_BEGIN_C
 
