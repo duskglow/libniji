@@ -2187,7 +2187,7 @@ fn docs_readers(repo: &Repo, f: &str, sel: &mut Selection) {
     // XTASK-AFFECTED-TOOL-TESTS: an operator tool that a test reaches without naming it selects the readers of the
     // path the test does name.
     for (_, _, via, why) in TOOL_REACH.iter().filter(|(dir, ext, _, _)| tool_reached(f, dir, ext)) {
-        readers.extend(readers_of(repo, via, &format!("{f}: reached through {via} ({why})"), sel));
+        readers.extend(readers_of(repo, &format!("tools/{via}"), &format!("{f}: reached through tools/{via} ({why})"), sel));
     }
     readers.sort();
     readers.dedup();
@@ -2205,19 +2205,21 @@ fn path_readers(repo: &Repo, f: &str, sel: &mut Selection) -> Vec<String> {
 }
 
 /// XTASK-AFFECTED-TOOL-TESTS: operator tools under `tools/` (rule 2) that a test reaches at run time without naming
-/// the file, so `names_path` cannot see them: `(directory or file, extension, the path the test names, why)`. A
+/// the file, so `names_path` cannot see them: `(directory or file, extension, the path the test names, why)`, the
+/// paths relative to `tools/` (written in full, this module's own text would name them and read as their reader). A
 /// changed file under the directory (direct children only) with that extension (`""`: any), or the file itself,
 /// selects the readers of the named path. The tools a test names directly (`tools/probe/probe` in
 /// `xtask/tests/probe_client.rs`, the `tools/deb` steps, `tools/hottext/runner.sh`, ...) need no row.
 const TOOL_REACH: [(&str, &str, &str, &str); 3] = [
-    ("tools/hottext/", ".sh", "tools/hottext", "a test lists the directory and reads every script; runner.sh's test runs canon_host.sh"),
-    ("tools/deb/copyright", "", "tools/deb/system.sh", "system.sh stages it in the symbols-only run"),
-    ("tools/deb/system/", "", "tools/deb/system.sh", "system.sh stages its configuration files in the symbols-only run"),
+    ("hottext/", ".sh", "hottext", "a test lists the directory and reads every script; runner.sh's test runs canon_host.sh"),
+    ("deb/copyright", "", "deb/system.sh", "system.sh stages it in the symbols-only run"),
+    ("deb/system/", "", "deb/system.sh", "system.sh stages its configuration files in the symbols-only run"),
 ];
 
-/// Whether changed file `f` is reached through a `TOOL_REACH` row `(dir, ext)`: `dir` itself, or a direct child of
-/// the directory `dir` (ending in `/`) whose name ends in `ext`.
+/// Whether changed file `f` is reached through a `TOOL_REACH` row `(dir, ext)`: `tools/<dir>` itself, or a direct
+/// child of the directory `tools/<dir>` (`dir` ending in `/`) whose name ends in `ext`.
 fn tool_reached(f: &str, dir: &str, ext: &str) -> bool {
+    let Some(f) = f.strip_prefix("tools/") else { return false };
     f == dir || (dir.ends_with('/') && f.strip_prefix(dir).is_some_and(|rest| !rest.contains('/') && rest.ends_with(ext)))
 }
 
@@ -4818,6 +4820,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         for f in ["tools/hottext/canon_host.sh", "tools/hottext/probe_text.sh", "tools/hottext/startup_data.sh"] {
             let s = tier(&[f], Tier::Direct);
             assert!(s.full.is_empty() && s.xtask_tests && s.tests.is_empty(), "{f}: {s:?}");
+            assert!(!s.notes.iter().any(|n| n.contains("xtask (xtask/src/affected.rs)")), "this module's table is no reader: {:?}", s.notes);
         }
         for f in ["tools/hottext/faultmap.py", "tools/hottext/probes/made-up.sh"] {
             let s = tier(&[f], Tier::Direct);
@@ -4830,7 +4833,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     #[test]
     fn direct_tier_deb_copyright_selects_the_deb_symbols_test() {
         let s = tier(&["tools/deb/copyright"], Tier::Direct);
-        assert!(s.full.is_empty() && has_test(&s, "deb_symbols_products"), "{s:?}");
+        assert!(s.full.is_empty() && has_test(&s, "deb_symbols_products") && !s.xtask_tests, "only the deb test, not this module's table: {s:?}");
         let s = tier(&["tools/deb/copyright.made-up"], Tier::Direct);
         assert!(!has_test(&s, "deb_symbols_products"), "{s:?}");
     }
@@ -4841,7 +4844,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     fn direct_tier_deb_system_files_select_the_deb_symbols_test() {
         for f in ["tools/deb/system/gai.conf", "tools/deb/system/nsswitch.conf"] {
             let s = tier(&[f], Tier::Direct);
-            assert!(s.full.is_empty() && has_test(&s, "deb_symbols_products"), "{f}: {s:?}");
+            assert!(s.full.is_empty() && has_test(&s, "deb_symbols_products") && !s.xtask_tests, "{f}: only the deb test: {s:?}");
         }
         let s = tier(&["tools/deb/system/made-up/x.conf"], Tier::Direct);
         assert!(!has_test(&s, "deb_symbols_products"), "{s:?}");
