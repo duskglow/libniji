@@ -1144,6 +1144,11 @@ Dl_serinfo	dls_cnt	8		unsigned int
 Dl_serinfo	<anon>	16		union <anon>	size 16 rows 2
 Dl_serinfo	dls_serpath	16		Dl_serpath[0]	
 Dl_serinfo	__dls_serpath_pad	16		Dl_serpath[1]	
+struct prof		32	8		
+struct prof	pr_base	0		void *	
+struct prof	pr_size	8		size_t	
+struct prof	pr_off	16		size_t	
+struct prof	pr_scale	24		long unsigned int	
 struct mntent		40	8		
 struct mntent	mnt_fsname	0		char *	
 struct mntent	mnt_dir	8		char *	
