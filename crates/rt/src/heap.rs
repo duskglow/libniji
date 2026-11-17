@@ -1406,11 +1406,7 @@ impl Heap {
         let s = match held {
             Some(s) => s,
             None => {
-                let roomy = |c2: usize| {
-                    k.class(c2, K_PARTIAL) != 0
-                        || (k.class(c2, K_CUR) != 0 && k.free_word(c2, Self::rec_at(pages, uz(k.class(c2, K_REC))).local).is_some())
-                };
-                if let Some(c2) = (c + 1..CLASSES.len().min(c + 3)).find(|&c2| spill && CLASSES[c2] <= CLASSES[c] * 3 / 2 && roomy(c2)) {
+                if let Some(c2) = spill.then(|| Self::spill_class(pages, k, c)).flatten() {
                     return Some(Some(c2));
                 }
                 let own = {
@@ -1423,6 +1419,21 @@ impl Heap {
         self.adopt(pages, k, c, s);
         self.make_current(pages, k, c, s);
         Some(None)
+    }
+
+    /// One of the next two classes, at most half as large again as class `c`, whose slabs in
+    /// cache `k` hold a free block (a listed partial slab, or room in the current one): a
+    /// default-aligned request of class `c` takes it before the heap maps more address space
+    /// (HEAP-ADDRESS-SPACE). Checked lookups only: no panic location joins the start-up
+    /// relro data, whose page budget the layout contract counts (STARTUP-DATA-WINDOWS).
+    #[cold]
+    fn spill_class<P: Pages>(pages: &P, k: &Cache<'_>, c: usize) -> Option<usize> {
+        let size = *CLASSES.get(c)?;
+        (c + 1..c + 3).find(|&c2| {
+            CLASSES.get(c2).is_some_and(|&s2| s2 <= size + size / 2)
+                && (k.class(c2, K_PARTIAL) != 0
+                    || (k.class(c2, K_CUR) != 0 && k.free_word(c2, Self::rec_at(pages, uz(k.class(c2, K_REC))).local).is_some()))
+        })
     }
 
     /// Collect the remote frees of every pending slab of cache `k`.

@@ -133,3 +133,50 @@ fn several_nodes_read_the_node_from_rseq() {
     eprintln!("rseq node read: node {node}, page on node {page}");
     assert_eq!(node, page, "the thread on node {node} took a slab placed on node {page} (node_id read from the wrong field?)");
 }
+
+/// The address space (VmSize) the steps of GitHub issue #21 add over the process's start, in
+/// KiB: `tests/oracle/heap_address_space.c` (one `malloc(16)`; 200000 blocks of 96..159 bytes;
+/// every other one freed and refilled with `malloc(120)`; all freed; a pointer array grown to
+/// 200000 by doubling `realloc`). Per step: the reference's growth (glibc 2.39, measured on the
+/// Zen 1 build host, identical over 5 runs) and libniji's bound, its measured growth (identical
+/// over 5 runs) plus 256 KiB (one slab of a segment's growth). Before HEAP-ADDRESS-SPACE libniji
+/// grew by 16448, 32836, 49220 and 67652 KiB (whole 16 MiB segment windows, a 16 MiB large-block
+/// table): every step but the first fails.
+const AS_STEPS: [(&str, u64, u64); 4] =
+    [("malloc1", 132, 836 + 256), ("alloc", 27984, 28996 + 256), ("refill", 29568, 32836 + 256), ("realloc", 28052, 34888 + 256)];
+/// RLIMIT_AS over the VmSize at start under which the whole program must still succeed: the
+/// least the reference needs is 29568 KiB, libniji 34896 KiB (bisected to 16 KiB); this is
+/// libniji's need plus 256 KiB, inside the issue's 35000 KiB headroom (findutils'
+/// many-dir-entries-vs-OOM test). Before HEAP-ADDRESS-SPACE libniji needed 67652 KiB.
+const AS_HEADROOM: u64 = 34896 + 256;
+
+#[test]
+fn the_heap_keeps_address_space_near_its_use() {
+    // Clauses: s3_1_c_1 (T14: address space under a limit); GitHub issue #21, HEAP-ADDRESS-SPACE.
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("heap_address_space_niji");
+    build("heap_address_space.c", &exe);
+    let o = Command::new(&exe).env_clear().stdin(Stdio::null()).output().unwrap();
+    assert!(o.status.success(), "{} failed: {:?}", exe.display(), o.status);
+    let out = String::from_utf8_lossy(&o.stdout);
+    let kib = |step: &str| -> u64 {
+        out.lines()
+            .find_map(|l| l.strip_prefix(step).and_then(|v| v.strip_prefix(' ')).and_then(|v| v.parse().ok()))
+            .unwrap_or_else(|| panic!("no step {step} in {out:?}"))
+    };
+    let start = kib("start");
+    for (step, reference, bound) in AS_STEPS {
+        let grew = kib(step).saturating_sub(start);
+        eprintln!("{step}: VmSize +{grew} KiB over start (reference +{reference}, bound {bound})");
+        assert!(grew <= bound, "{step}: the heap added {grew} KiB of address space > {bound} (reference {reference}): whole segments or tables mapped up front, or freed space not reused?");
+    }
+    let o = Command::new(&exe).arg(AS_HEADROOM.to_string()).env_clear().stdin(Stdio::null()).output().unwrap();
+    assert!(
+        o.status.success(),
+        "under RLIMIT_AS = start + {AS_HEADROOM} KiB the issue's steps failed: {:?} (exit 9..12: the malloc1, alloc, refill or realloc step)",
+        o.status
+    );
+}
