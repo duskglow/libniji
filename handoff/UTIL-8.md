@@ -1,7 +1,23 @@
 # UTIL-8: the `locale` command (issue #14)
 
-**State.** Branch `task/util-8-2` (UTIL-8-2, continuing `task/util-8` from origin/next `575214f4b`), role keke `~/w/r1`.
-Head: see `handoff/reports/UTIL-8-2.json`. Decisions in force: pending record `records/pending/UTIL-8-2-1.toml`
+**State.** Branch `task/util-8-3` (UTIL-8-3, continuing `task/util-8-2` and `task/util-8` from origin/next
+`575214f4b`), role mei `~/w/s1`. Head: see `handoff/reports/UTIL-8-3.json`.
+
+**UTIL-8-3.** (1) `util-8-2-plants` was refused (rc 3): five plants used two-line `lit:` patterns with `\n`, and
+`lit:` takes one line without escapes. `handoff/UTIL-8-3-plants.txt` replaces the file (one-line `lit:` or anchored
+`perl:`; a scratch check showed every plant changes exactly one site). (2) Its first run (`util-8-3-plants`, stopped
+once the cause was known) showed `bytes-signed` SURVIVED: C and C.utf8 have empty grouping, so no transcript reached
+the grouping loop. A probe with a LOCPATH locale built by `localedef -c` (`grouping 3;-1`) found a real difference:
+the library gives bytes `03 7f` (both libraries), the reference `locale` prints `grouping=3;-1`, libniji's printed
+`3;127`. Fixed in `value()` (a CHAR_MAX byte prints `-1`); new transcript `numeric-grouping-no-further` carries
+that LC_NUMERIC (54 bytes, escaped) and is recorded from the reference (`util-8-3-rec`: 49 ok). `localedef`
+refuses grouping values >= 127, so bytes >= 128 cannot occur in a locale it makes: the signed cast stays and
+has no plant. LC_MONETARY byte items with `-1` (frac_digits, p_cs_precedes, ...) were probed: both print `-1`.
+(3) `gz-distance` SURVIVED in `util-8-3-plants2` (stopped before its last two plants by a `kill-mine` of stale gate
+processes; superseded): no gzip charmap built its `<code_set_name>` from a deflate match. `charmaps.transcript` now
+has `BACKREF.gz` (python3 `gzip.compress`, level 9, mtime 0; the set name repeats a comment line above it), recorded
+from the reference (`util-8-3-rec2`: 49 ok). Final proof: `util-8-3-lint3`, `util-8-3-gate3`, `util-8-3-plants3`.
+Previous head: Decisions in force: pending record `records/pending/UTIL-8-2-1.toml`
 (D-31 series, id assigned by CI), D-31.4 (identity strings), D-7.10, D-6.8; coordinator rulings #6246 (inflate `.gz`
 charmaps in process, no libc.so.6 export) and #6247 (`time-era-entries`, `category`: differences row, no compat flag).
 
@@ -24,7 +40,8 @@ charmaps in process, no libc.so.6 export) and #6247 (`time-era-entries`, `catego
   `<code_set_name>`; hidden file), `-m` without the directory, options. `--help`/`-V` normalise the identity strings.
 * Differences rows (utilities table): `time-era-entries`/`category` print exactly the item's own data; `.bz2`
   charmaps listed by name only.
-* Plants: `handoff/UTIL-8-2-plants.txt` (15, all on locale.c, each naming the transcript that must fail).
+* Plants: `handoff/UTIL-8-3-plants.txt` (15, all on locale.c, each naming the transcript that must fail; it
+  supersedes `handoff/UTIL-8-2-plants.txt`).
 
 ## Probe-settled (reference, black box)
 
@@ -35,7 +52,7 @@ too; `-v` header `locale: %-15.15s directory: <path>`, 79 dashes, non-empty iden
 line between locales. The reference has no built-in C.UTF-8: with an empty `/usr/lib/locale` it lists only `C` and
 `POSIX` and cannot set `C.UTF-8`; libniji lists `C.utf8` always (spec s31_7_g_2) and has it built in.
 `-m` lists file names minus `.gz`/`.bz2`, hidden files too, plus `<code_set_name>`; a missing directory:
-`locale: [error] cannot read character map directory `…': <strerror>` exit 1. `-a -m`: `-a` wins. Byte items signed.
+`locale: [error] cannot read character map directory `…': <strerror>` exit 1. `-a -m`: `-a` wins. Byte items signed. Grouping bytes: CHAR_MAX (localedef `-1`) prints `-1`.
 
 ## Open (INFORMATIONAL; library, not the command: no transcripts for them)
 

@@ -24,3 +24,19 @@ gz-dynamic-repeat | csys/util/locale.c | lit:repeat = r + (sym == 18 ? 11 : 3); 
 gz-distance | csys/util/locale.c | lit:out[*n] = out[*n - back]; ==> out[*n] = out[*n - back + 1]; | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
 gz-file-name-field | csys/util/locale.c | lit:for (unsigned flag = 8; flag <= 16; ==> for (unsigned flag = 16; flag <= 16; | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
 code-set-blanks | csys/util/locale.c | lit:while (v < stop && (*v == ' ' || *v == '\t')) v++; ==> | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
+# cargo xtask plants results (15 plants: 15 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# bytes-char-max: CAUGHT, caught by no test the log names
+# byte-signed: CAUGHT, caught by no test the log names
+# sarr-quote: CAUGHT, caught by no test the log names
+# env-implied-quote: CAUGHT, caught by no test the log names
+# env-lc-all-wins: CAUGHT, caught by no test the log names
+# list-sorted: CAUGHT, caught by no test the log names
+# list-needs-identification: CAUGHT, caught by no test the log names
+# list-lists-hidden: CAUGHT, caught by no test the log names
+# verbose-own-source: CAUGHT, caught by no test the log names
+# gz-stored-check: CAUGHT, caught by no test the log names
+# gz-fixed-lengths: CAUGHT, caught by no test the log names
+# gz-dynamic-repeat: CAUGHT, caught by no test the log names
+# gz-distance: CAUGHT, caught by no test the log names
+# gz-file-name-field: CAUGHT, caught by no test the log names
+# code-set-blanks: CAUGHT, caught by no test the log names
