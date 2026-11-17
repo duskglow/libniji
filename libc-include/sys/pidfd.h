@@ -4,7 +4,6 @@
 #define __NIJI_H_sys_pidfd_h 1
 
 #include <features.h>
-#include <stdint.h>
 #include <sys/types.h>
 
 __NIJI_BEGIN_C

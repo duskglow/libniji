@@ -4,7 +4,6 @@
 #define __NIJI_H_sys_ptrace_h 1
 
 #include <features.h>
-#include <sys/types.h>
 
 __NIJI_BEGIN_C
 
@@ -70,6 +69,18 @@ enum __ptrace_request {
 # endif
 # endif
 #if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
 # ifndef __NIJI_D_ptrace
 #  define __NIJI_D_ptrace 1
 extern long int ptrace (enum __ptrace_request, ...) __NIJI_NOTHROW;

@@ -106,6 +106,58 @@ def uapi_flags():
     return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
 
 
+# P8 (plan/headers.md section 3, slice 9): a libniji header and the kernel UAPI header that defines the same names. Both
+# include orders must compile, as C and as C++, with and without _GNU_SOURCE; a pair whose kernel header is not installed
+# is skipped.
+P8_PAIRS = [("sys/ptrace.h", "linux/ptrace.h"), ("sys/ptrace.h", "asm/ptrace.h"), ("sys/prctl.h", "linux/prctl.h"),
+            ("sys/inotify.h", "linux/inotify.h"), ("sys/fanotify.h", "linux/fanotify.h"), ("sys/epoll.h", "linux/eventpoll.h"),
+            ("sys/random.h", "linux/random.h"), ("sys/pidfd.h", "linux/pidfd.h"), ("sys/auxv.h", "linux/auxvec.h"),
+            ("sys/auxv.h", "asm/auxvec.h"), ("sys/personality.h", "linux/personality.h"), ("sys/eventfd.h", "linux/eventfd.h"),
+            ("sys/timerfd.h", "linux/timerfd.h"), ("sys/signalfd.h", "linux/signalfd.h"), ("sys/syscall.h", "asm/unistd.h"),
+            ("syscall.h", "asm/unistd.h"), ("sys/debugreg.h", "asm/debugreg.h"), ("sys/user.h", "asm/user.h")]
+P8_MODES = [("c", "-std=c17"), ("c", "-std=c17 -D_GNU_SOURCE"), ("c", "-std=gnu17"), ("c++", "-std=c++17 -D_GNU_SOURCE")]
+
+
+def reference_works(work):
+    """Whether the system's own C library headers compile here (the reference of black-box probes)."""
+    src = os.path.join(work, "ref.c")
+    with open(src, "w") as f:
+        f.write("#include <stdio.h>\n#include <sys/types.h>\nint niji_ref_tu;\n")
+    return subprocess.run(["gcc", "-fsyntax-only", src], capture_output=True).returncode == 0
+
+
+def p8(inc, gccinc, work):
+    """(failures, units) of the P8 include-order units. The kernel's own headers conflict with a libc's for most
+    of these pairs (only `linux/libc-compat.h`'s set has a protocol); a unit that does not compile with the reference
+    system's headers either is printed as a NOTE and is not a failure (black-box parity, plan/headers.md 2.2)."""
+    ref = reference_works(work)
+    uapi = uapi_flags()
+    dirs = [uapi[i + 1] for i in range(0, len(uapi), 2)]
+    fails = total = 0
+    for a, b in P8_PAIRS:
+        if not any(os.path.isfile(os.path.join(d, b)) for d in dirs):
+            continue
+        for lang, flags in P8_MODES:
+            for order in ((a, b), (b, a)):
+                src = os.path.join(work, f"p8-{total}.{'cc' if lang == 'c++' else 'c'}")
+                with open(src, "w") as f:
+                    f.write("".join(f"#include <{h}>\n" for h in order) + "int niji_p8_tu;\n")
+                cmd = ["g++" if lang == "c++" else "gcc", *flags.split(), "-nostdinc", "-isystem", inc, "-isystem", gccinc, *uapi,
+                       "-fsyntax-only", "-Wall", "-Wextra", "-Werror", src]  # a program's flags: no -Wsystem-headers (P5 has it)
+                r = subprocess.run(cmd, capture_output=True, text=True)
+                total += 1
+                if r.returncode != 0 and ref:
+                    rr = subprocess.run(["g++" if lang == "c++" else "gcc", *flags.split(), "-fsyntax-only", "-Wall", "-Wextra", "-Werror", src],
+                                        capture_output=True)
+                    if rr.returncode != 0:
+                        print(f"NOTE P8 {order[0]} then {order[1]} [{flags}]: the reference system does not compile it either")
+                        continue
+                if r.returncode != 0:
+                    fails += 1
+                    print(f"FAIL P8 {order[0]} then {order[1]} [{flags}]: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
+    return fails, total
+
+
 def rows(rel):
     out, head = [], None
     with open(os.path.join(ROOT, rel)) as f:
@@ -184,6 +236,8 @@ def main():
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
+    f8, t8 = p8(inc, gccinc, work)
+    fails, total = fails + f8, total + t8
     print(f"header_check: {fails} failed of {total}")
     return 1 if fails else 0
 

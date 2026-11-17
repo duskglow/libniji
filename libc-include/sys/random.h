@@ -4,6 +4,7 @@
 #define __NIJI_H_sys_random_h 1
 
 #include <features.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 __NIJI_BEGIN_C

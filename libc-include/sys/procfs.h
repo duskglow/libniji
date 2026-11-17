@@ -4,6 +4,7 @@
 #define __NIJI_H_sys_procfs_h 1
 
 #include <features.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/user.h>
 
