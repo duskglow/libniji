@@ -325,6 +325,7 @@ const CODESET: i32 = 14;
 const NL_LOCALE_NAME_CTYPE: i32 = 0xFFFF;
 const RLIMIT_AS: i32 = 9;
 const ENOMEM: i32 = 12;
+const ENOENT: i32 = 2;
 
 /// The directory the many-locale tests link each locale to: the installed `C.utf8` (directory
 /// form), else `en_US.UTF-8` compiled into `scratch`. `None`: neither is available.
@@ -387,23 +388,28 @@ fn locales_and_files_past_the_static_table_load() {
         for (k, &h) in handles.iter().enumerate() {
             assert_eq!((text(loc::nl_langinfo_l(NL_LOCALE_NAME_CTYPE, h).expose_provenance()), codeset(h)), (names[k].as_bytes().to_vec(), b"UTF-8".to_vec()), "l{k}");
         }
-        for n in [&names[0], &names[N - 1]] {
-            let got = loc::setlocale(LC_ALL, n.as_ptr());
-            assert!(!got.is_null(), "setlocale selects {n:?}");
-            assert_eq!(text(got.expose_provenance()), n.as_bytes());
-        }
+        // The first locale (its entries in the static table) and the last (its files, names and
+        // locale in spill chunks), each selected and loaded again: found through the lookup
+        // indexes (the tables are past their scanned entries), so nothing is mapped or interned
+        // again, and the load gives the same interned locale and name.
         let interned = || (niji_legacy::global_locale::names_interned(), niji_legacy::global_locale::locales_interned());
-        let interned_before = interned();
-        let again = loc::newlocale(LC_ALL_MASK, names[0].as_ptr(), core::ptr::null_mut());
-        assert!(!again.is_null());
-        assert_eq!(niji_legacy::global_locale::mappings() - before, made, "a locale loaded again maps nothing");
-        assert_eq!(interned(), interned_before, "a locale loaded again interns no name and no locale");
-        // Found again through the lookup indexes (the tables are past their scanned entries):
-        // the same interned locale and the same interned name.
         let view = |h: niji_abi::ctypes::locale_t| niji_boundary::locale::view_of(h.expose_provenance());
-        assert!(core::ptr::eq(view(again), view(handles[0])), "l0 loaded again is the interned l0");
-        assert_eq!(loc::nl_langinfo_l(NL_LOCALE_NAME_CTYPE, again), loc::nl_langinfo_l(NL_LOCALE_NAME_CTYPE, handles[0]));
-        loc::freelocale(again);
+        for k in [0, N - 1] {
+            let n = &names[k];
+            let (maps_before, interned_before) = (niji_legacy::global_locale::mappings(), interned());
+            let got = loc::setlocale(LC_ALL, n.as_ptr());
+            assert!(!got.is_null(), "setlocale selects l{k}");
+            assert_eq!(text(got.expose_provenance()), n.as_bytes());
+            assert_eq!(niji_legacy::global_locale::mappings(), maps_before, "l{k}, already loaded, is selected without mapping");
+            let again = loc::newlocale(LC_ALL_MASK, n.as_ptr(), core::ptr::null_mut());
+            assert!(!again.is_null(), "l{k} loads again");
+            assert_eq!(niji_legacy::global_locale::mappings(), maps_before, "l{k} loaded again maps nothing");
+            assert_eq!(interned(), interned_before, "l{k} loaded again interns no name and no locale");
+            assert!(core::ptr::eq(view(again), view(handles[k])), "l{k} loaded again is the interned l{k}");
+            assert_eq!(loc::nl_langinfo_l(NL_LOCALE_NAME_CTYPE, again), loc::nl_langinfo_l(NL_LOCALE_NAME_CTYPE, handles[k]), "l{k}");
+            loc::freelocale(again);
+        }
+        assert_eq!(niji_legacy::global_locale::mappings() - before, made, "selecting and loading again maps nothing");
         assert!(!loc::setlocale(LC_ALL, c("C").as_ptr()).is_null());
         for h in handles {
             loc::freelocale(h);
@@ -476,7 +482,8 @@ fn a_load_that_runs_out_of_memory_fails_with_enomem() {
     // Clauses: s7_1_c_0, s7_2_c_0 (D-7.7): with an address-space limit too small for the
     // growth, `newlocale` and `setlocale` fail cleanly with ENOMEM (not as a missing locale), a
     // failed load repeated maps nothing more, the locales loaded before keep working, and the
-    // same load succeeds once memory is available again.
+    // same load succeeds once memory is available again, while a missing locale still fails with
+    // ENOENT.
     const N: usize = 1100;
     if let Some(d) = probe() {
         set("LOCPATH", &d.join("many").display().to_string());
@@ -512,6 +519,15 @@ fn a_load_that_runs_out_of_memory_fails_with_enomem() {
         }
         let h = loc::newlocale(LC_ALL_MASK, names[k].as_ptr(), core::ptr::null_mut());
         assert!(!h.is_null(), "l{k} loads once memory is available");
+        // Only running out of memory is reported as ENOMEM: a locale that is not there still
+        // fails as missing (ENOENT), from newlocale and from setlocale.
+        let absent = c("absent.UTF-8");
+        niji_boundary::errno::set_raw(0);
+        assert!(loc::newlocale(LC_ALL_MASK, absent.as_ptr(), core::ptr::null_mut()).is_null());
+        assert_eq!(niji_boundary::errno::get(), ENOENT, "newlocale of a missing locale after ENOMEM: ENOENT");
+        niji_boundary::errno::set_raw(0);
+        assert!(loc::setlocale(LC_ALL, absent.as_ptr()).is_null());
+        assert_eq!(niji_boundary::errno::get(), ENOENT, "setlocale of a missing locale after ENOMEM: ENOENT");
         // setlocale reports the same cause.
         let rest = &names[k + 1..];
         limit_address_space(4 << 20, old.max);
