@@ -125,7 +125,7 @@ impl<'n> Request<'n> {
         Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new(), jump_slot: false }
     }
     /// This request as the lookup of a `JUMP_SLOT` relocation: the program's canonical PLT entries
-    /// ([`Object::program`]) are not definitions for it, since such an entry is itself the caller of
+    /// ([`Object::lookup_as`]) are not definitions for it, since such an entry is itself the caller of
     /// the slot (gABI "Symbol Values").
     #[must_use]
     pub fn jump_slot(self) -> Self {
@@ -173,7 +173,6 @@ pub struct Object<'a> {
     symtab: Symtab<'a>,
     hash: Hash<'a>,
     versym: Option<Versym<'a>>,
-    program: bool,
 }
 
 /// Whether `s` is a definition another object may bind: defined, a global, weak or unique binding, a
@@ -217,22 +216,7 @@ impl<'a> Object<'a> {
             HashStyle::Gnu => Hash::Gnu(dynm.gnu_hash()?.ok_or(LookupError::NoHashTable)?),
             HashStyle::Sysv => Hash::Sysv(dynm.sysv_hash()?.ok_or(LookupError::NoHashTable)?),
         };
-        Ok(Object { dynm, symtab, hash, versym: dynm.versym()?, program: false })
-    }
-
-    /// This view as the program's: its canonical PLT entries ([`canonical_plt`]) define their
-    /// functions for every request but a `JUMP_SLOT` one ([`Request::jump_slot`]). Only the program
-    /// has them (gABI "Symbol Values": the executable file's PLT); a shared object's undefined
-    /// symbols stay references whatever their value.
-    #[must_use]
-    pub fn program(self) -> Self {
-        Object { program: true, ..self }
-    }
-
-    /// Whether this is the program's view ([`Object::program`]).
-    #[must_use]
-    pub fn is_program(&self) -> bool {
-        self.program
+        Ok(Object { dynm, symtab, hash, versym: dynm.versym()? })
     }
 
     /// The dynamic section the view reads.
@@ -352,10 +336,23 @@ impl<'a> Object<'a> {
     /// The reader's errors for the hash chain, symbol, string and version tables, and
     /// [`LookupError::UnknownVersion`] for a definition whose version index no definition gives.
     pub fn lookup(&self, req: &Request<'_>) -> Result<Option<Def>, LookupError> {
+        self.lookup_as(req, false)
+    }
+
+    /// [`Object::lookup`], with `program` saying this is the program's object (index 0 of the
+    /// process's object list, as [`lookup`] walks it): the program's canonical PLT entries
+    /// ([`canonical_plt`]) then define their functions for every request but a `JUMP_SLOT` one
+    /// ([`Request::jump_slot`]). Only the program has them (gABI "Symbol Values": the executable
+    /// file's PLT); a shared object's undefined symbols stay references whatever their value.
+    ///
+    /// # Errors
+    ///
+    /// As [`Object::lookup`].
+    pub fn lookup_as(&self, req: &Request<'_>, program: bool) -> Result<Option<Def>, LookupError> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !(exported(&st) || (self.program && !req.jump_slot && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || (program && !req.jump_slot && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
@@ -514,7 +511,8 @@ impl UniqueRegistry for ScopeOrder {
 pub fn lookup(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
     for o in scope.iter() {
         let obj = objects.get(o).ok_or(LookupError::NoObject(o))?;
-        let Some(def) = obj.lookup(req)? else { continue };
+        // Index 0 of the process's object list is the program (as `COPY` relocations assume).
+        let Some(def) = obj.lookup_as(req, o == 0)? else { continue };
         let found = Found { obj: o, def };
         if def.st.bind() == STB_GNU_UNIQUE {
             let version = obj.def_version_name(def.version)?.unwrap_or(&[]);

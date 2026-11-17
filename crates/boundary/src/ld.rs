@@ -1351,8 +1351,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             reloc::VersionError::Elf(b, _) => fail_with(&[by(b), b": malformed version tables\n"], program::FAILURE),
         }
     }
-    // The program's view: its canonical PLT entries define their functions (DL-CANONICAL-PLT).
-    let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).map(niji_ld::symbols::Object::program).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
+    let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
     let mut syms: Table<niji_ld::symbols::Object<'static>, INLINE> = Table::new(first_sym);
     let mut global: Table<usize, INLINE> = Table::new(0);
     if syms.reserve(n).is_err() || global.reserve(n).is_err() {

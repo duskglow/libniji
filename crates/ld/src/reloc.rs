@@ -266,7 +266,8 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, jump_slot: 
     match symbols::resolve(set.syms, scope, &req, st.bind() == STB_WEAK, unique) {
         Ok(Binding::Defined(f @ Found { obj, def })) => {
             unique.bound(i, &f);
-            let protected = jump_slot && obj != i && def.st.visibility() == STV_PROTECTED && me.is_program() && symbols::canonical_plt(&st);
+            // Object 0 is the program (as for `COPY`).
+            let protected = i == 0 && jump_slot && obj != 0 && def.st.visibility() == STV_PROTECTED && symbols::canonical_plt(&st);
             Ok(Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size, protected })
         }
         Ok(Binding::WeakUndefined) => Ok(Target { s: 0, ifunc: false, obj: None, size: 0, protected: false }),
