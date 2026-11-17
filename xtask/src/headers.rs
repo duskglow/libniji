@@ -466,6 +466,11 @@ impl Gen<'_> {
                 // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
                 nested.push(format!("typedef {core}"));
                 format!("{core} {}", stars.trim())
+            } else if dwarf_scalar(core).is_none() && self.t.typedefs.contains_key(&("typedef".to_string(), core.to_string())) && !(scalar(&self.resolve(core)) || self.resolve(core) == "void") {
+                // A member of a typedef name that does not resolve to a scalar here (`FILE *`, `wchar_t`): the typedef
+                // is emitted first and the member uses its name.
+                nested.push(format!("typedef {core}"));
+                format!("{core}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
             } else {
                 let b = dwarf_scalar(core).or_else(|| {
                     let r = self.resolve(core);
