@@ -1,44 +1,48 @@
-# SL-HEADERS-S09: slice 9, Linux process and event interfaces (handoff after run 1)
+# SL-HEADERS-S09: slice 9, Linux process and event interfaces (handoff after run 2)
 
-**State.** Branch `task/sl-headers-s09` (cut from origin/next 20e47e117, slice 6 landed). Head: see
-`handoff/reports/SL-HEADERS-S09.json`. INCOMPLETE: all 18 headers generate and clippy, static and `records check` are green
-(job `sl-headers-s09-lint3`), but `header_check.py` (P1 and P5, 40 configurations) still reports 88 failures of 2789
-units (322 before the run's last fixes). P2, P3, P6 and P8 not run. Say "slice 9" in commits and handoffs.
+**State.** Branch `task/sl-headers-s09-2` (stacks on `task/sl-headers-s09`); head in `handoff/reports/SL-HEADERS-S09-2.json`.
+INCOMPLETE: header_check (P1, P5 and the new P8) is green, 0 failed of 2964 (job `sl-headers-s09-2-hc7`); P3 has 8 rows,
+all the accepted C-linkage difference; P2 has 19 differences (below); P6 not run; the gate not run (budget). Clippy and
+`cargo xtask static` are clean on the head (foreground, before the last commit's docs edit: static re-run after it, clean).
+Say "slice 9" in commits and handoffs.
 
-**Done.**
-* Templates `headers/sys/{signalfd,timerfd,eventfd,epoll,inotify,fanotify,prctl,personality,pidfd,auxv,random,syscall,
-  ptrace,user,reg,procfs,debugreg}.h.in` and `headers/syscall.h.in`; `libc-include/` regenerated (42 headers).
-* Generator (`xtask/src/headers.rs`): derived layouts for a typedef member that only has dotted rows (`epoll_data_t`);
-  anonymous-union members (`struct user`); packed structures (`struct epoll_event`); array typedefs (`elf_gregset_t`);
-  enumeration members as `unsigned int`; `@@enum TAG PREFIX...` (`enum __ptrace_request`); `@@syscalls`; a C++-mangled
-  call-site symbol that no library exports is ignored (pidfd_*): libniji declares `extern "C"`.
-* `spec/abi/syscalls.tsv` (373 rows) by `spec/tools/syscall_table.py` from the kernel UAPI `asm/unistd_64.h` of the build
-  host's linux-libc-dev (6.8; the plan names 6.12.116: regenerate there). `sys/debugreg.h` includes the kernel's
-  `asm/debugreg.h`; `sys/syscall.h` includes `asm/unistd.h`.
-* `header_check.py`: slice 9 in `HEADERS`/P1, SYS_x number check, `-isystem` for the kernel UAPI (`$NIJI_UAPI`, else the
-  host's include dirs).
-* Pending record `records/pending/SL-HEADERS-S09-1.toml` (D-NEW, series D-X). Plants `handoff/SL-HEADERS-S09/plants.txt` (5).
+**Done in run 2.**
+* Generator: a name an included template supplies counts as covered only in the configurations that template gives it in
+  (`is_covered` in `xtask/src/headers.rs`); otherwise the header emits it under its own condition. This fixed the 88 failures.
+* `sys/reg.h`, `sys/debugreg.h` (ruling #6399): 53 rows in `macros.tsv`/`constants.tsv`/`visibility.tsv` by
+  `spec/tools/uapi_regs_table.py` (register index = member order of `struct user_regs_struct`; DR_ names = kernel UAPI
+  `asm/debugreg.h`), each cross-checked by a black-box probe of the reference (exit status only). Six kernel names the
+  reference does not give are not rows. `sys/debugreg.h` is generated from the table (no kernel include). PROVENANCE has it.
+* Includes follow the visibility rows (stdint.h, sys/types.h, time.h only where the reference shows their names); `sys/reg.h`,
+  `sys/debugreg.h`, `sys/user.h` include nothing (not even features.h).
+* #6400: `docs/differences-from-glibc.md` row for the C linkage of `pidfd_*` and `thread_db.h` functions in C++ (no compat
+  option: no library exports the mangled names); `handoff/SL-HEADERS-S09/p3-accept.txt` is the `--accept` file for
+  `probe_compare.py callsites`.
+* P8 in `header_check.py` (both orders, C and C++, with and without _GNU_SOURCE, program flags without -Wsystem-headers; a
+  unit the reference system does not compile either is a NOTE).
+* Plants `handoff/SL-HEADERS-S09/plants.txt` (7).
 
-**Decisions in force.** The pending record. Not typed into templates: only `si_status` and `si_value` in `sys/pidfd.h.in`
-(POSIX member shorthands of siginfo_t, which is slice 8's; they are `#ifndef`-guarded).
+**Open (next step, in order).**
+1. P2: 19 differences left. (a) `sys/syscall.h`, `syscall.h`: `include-error [*]` because `header_probe.py --include` adds no
+   kernel UAPI `-isystem` (header_check has `uapi_flags()`); add the same to `header_probe.py` (line ~299) and
+   `callsite_probe.py` (~375), `$NIJI_UAPI` or the host's dirs after libniji's tree (an untested edit was reverted for budget).
+   (b) `_SIGSET_NWORDS`, `_STRUCT_TIMESPEC`: reference-internal macros that libniji does not define (7 rows): add them to an
+   accept file or `headers/reserved.tsv` with a differences row. (c) `be16toh`/`le64toh` in `sys/epoll.h`, `sys/procfs.h`,
+   `sys/random.h` are visible only in the table's gnu configurations but libniji's `sys/types.h` (slice 5) includes `endian.h`
+   unconditionally: fix in the `sys/types.h` template (condition of the endian names), re-run slice 6's P2 too. (d)
+   `sys/pidfd.h` `timespec` and `_STRUCT_TIMESPEC`: the struct is emitted for the POSIX configurations; the table lists it
+   only for the non-POSIX ones.
+2. P6 (`cargo xtask so`, `conformance/run.sh --niji-headers`), C++ units, the gate on the final head (direct tier, clippy and
+   static green).
+3. `struct siginfo_t` members of `sys/pidfd.h` (`si_status`, `si_value` shorthands are `#ifndef`-guarded in the template)
+   belong to slice 8.
 
-**Open.**
-1. The 88 failures (sample, config isoc2x): `sigset_t` / `fd_set` / `struct itimerspec` used by the P1 unit for a header
-   whose visibility row says visible there but the header does not define it (`sys/epoll.h`, `signalfd.h`, `procfs.h`,
-   `timerfd.h`): the name comes through an include of the reference that libniji's template does not make, or a covered
-   header's condition excludes the configuration. Group the failures by (header, config) and fix the includes or the
-   conditions. The `c89`/`strict` rows with `include-error` are expected to be skipped.
-2. P2/P3: `header_probe.py --include libc-include --headers <slice 9>` then `probe_compare.py`; the mangled `pidfd_*`
-   call-site rows (and the 44 like them) need an `--accept` entry and a `docs/differences-from-glibc.md` row (neutral
-   wording: libniji declares its functions with C linkage in C++). No compat option: no program can bind to a name no
-   library exports.
-3. Table gaps seen: `sys/reg.h` has only `SS` in `visibility.tsv` (the other register index names are not in
-   `constants.tsv`), so the generated `sys/reg.h` is nearly empty; the names are `user_regs_struct` member indexes.
-   `sys/debugreg.h` has no table rows at all. Both need a table slice (SL-HEADERS-3 style) or a ruling to derive them.
-4. P8 (both include orders with `linux/*.h`: `linux/ptrace.h`, `linux/prctl.h`, `linux/inotify.h`, `linux/fanotify.h`, ...), P6,
-   C++ units for the new headers, `struct siginfo_t` members (slice 8).
+**Not typed into templates:** only `si_status`/`si_value` in `sys/pidfd.h.in`, and the descriptor-set macros in `sys/procfs.h.in`
+(a copy of `sys/types.h.in`'s under its own `#ifndef FD_SET` guard until slice 7's `sys/select.h` can be included).
 
-**Do not redo.** The plan rows of section 2.4 and 3; the generator additions above. Do not regenerate `libc-include/` by hand:
-`cargo xtask headers-gen` on the role.
+**Do not redo.** The generator additions of run 1 and 2; `cargo xtask headers-gen` on the role regenerates `libc-include/`
+(rsync it back to the worktree; never edit it). Run the probes on the role: `header_probe.py --include libc-include --headers
+<slice> --out D`, `probe_compare.py visibility --got D --headers <slice>`; `callsite_probe.py ...` and `probe_compare.py
+callsites ... --accept handoff/SL-HEADERS-S09/p3-accept.txt`.
 
-**Next step.** Run `header_check.py --include libc-include --work <ram dir>` on the role, group the 88 by header and config.
+**Plan rows.** plan/headers.md section 2.4 and 3; pending record `records/pending/SL-HEADERS-S09-1.toml`.
