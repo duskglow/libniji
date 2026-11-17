@@ -1,0 +1,26 @@
+@@generated
+/* fenv.h: floating-point environment (C 7.6, XSH <fenv.h>). The environment constants are pointer values
+   (the default environment is -1 and the one with every trap enabled is -2; fesetenv and fegetenv treat them so). */
+#ifndef __NIJI_H_fenv_h
+#define __NIJI_H_fenv_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns-macro FE_DFL_ENV FE_NOMASK_ENV FE_DFL_MODE
+@@emit-c
+
+@@if FE_DFL_ENV
+# define FE_DFL_ENV ((const fenv_t *) -1)
+#endif
+@@if FE_NOMASK_ENV
+# define FE_NOMASK_ENV ((const fenv_t *) -2)
+#endif
+@@if FE_DFL_MODE
+# define FE_DFL_MODE ((const femode_t *) -1)
+#endif
+
+__NIJI_END_C
+
+#endif

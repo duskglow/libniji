@@ -122,7 +122,7 @@ def math_names():
     <values.h> constants, C 7.3 (<complex.h>: _Complex_I, CMPLX*), C 7.6 (<fenv.h>) and the x87 control-word names
     of <fpu_control.h>. Only names: their visibility, types and values are probed (ruling #6047 for the pattern)."""
     suffixes = ["", "f", "l", "f32", "f64", "f128", "f32x", "f64x"]
-    out = ["float_t", "double_t", "MAXFLOAT", "HUGE", "X_TLOSS", "DOMAIN", "SING", "OVERFLOW", "UNDERFLOW", "TLOSS",
+    out = ["isgreaterequal", "isless", "islessequal", "islessgreater", "float_t", "double_t", "MAXFLOAT", "HUGE", "X_TLOSS", "DOMAIN", "SING", "OVERFLOW", "UNDERFLOW", "TLOSS",
            "PLOSS", "exception", "matherr", "_LIB_VERSION", "_IEEE_", "_SVID_", "_XOPEN_", "_POSIX_", "_ISOC_"]
     out += [f"HUGE_VAL{s.upper()}" for s in suffixes] + [f"SNAN{s.upper()}" for s in suffixes]
     out += ["FP_FAST_FMA", "FP_FAST_FMAF", "FP_FAST_FMAL"]

@@ -32,13 +32,17 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
+           "getopt.h", "time.h",
+           # slice 11
+           "math.h", "complex.h", "fenv.h", "fpu_control.h", "values.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-          "getopt.h", "time.h"]
+          "getopt.h", "time.h", "math.h", "complex.h", "fenv.h", "fpu_control.h", "values.h"]
+FLOAT_SUFFIX = {"float": ("f", 4), "double": ("", 8), "long double": ("L", 16), "_Float32": ("f32", 4), "_Float64": ("f64", 8),
+                "_Float128": ("f128", 16), "_Float32x": ("f32x", 8), "_Float64x": ("f64x", 16)}
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -70,6 +74,12 @@ def p1_units(ids, vis, macros, typedefs, layouts):
             v = int(m["value"])
             lit = ("(%d%s)" % (v, INT_SUFFIX[m["type"]])) if v >= 0 else "(%d%s)" % (v, INT_SUFFIX[m["type"]])
             tests.append(f"(({n}) == {lit})")
+        elif r["kind"] == "macro" and n in macros and macros[n]["type"] in FLOAT_SUFFIX and macros[n]["header"] == h and macros[n]["value"].startswith("0x"):
+            # A floating macro (C 7.12, TS 18661): its size is its type's and its value the exact probed constant.
+            m = macros[n]
+            suffix, size = FLOAT_SUFFIX[m["type"]]
+            tests.append(f"sizeof({n}) == {size}")
+            tests.append(f"(({n}) == {m['value']}{suffix})")
         elif r["kind"] == "typedef" and n in typedefs and typedefs[n]["size"]:
             t = typedefs[n]
             tests.append(f"sizeof({n}) == {t['size']}")

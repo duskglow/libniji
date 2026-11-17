@@ -1,0 +1,3 @@
+@@generated-fortran
+! math-vector-fortran.h: libniji declares no vector (simd) versions of the math functions (plan/headers.md, R-H5);
+! a Fortran compiler that includes this file finds nothing to declare.
