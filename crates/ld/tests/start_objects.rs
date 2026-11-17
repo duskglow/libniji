@@ -117,7 +117,7 @@ fn corpus() -> Option<(PathBuf, PathBuf, PathBuf)> {
 }
 
 /// Run `cmd` with an empty environment.
-fn run(mut cmd: Command) -> Output {
+fn run(cmd: &mut Command) -> Output {
     cmd.env_clear();
     if let Some(p) = std::env::var_os("PATH") {
         cmd.env("PATH", p);
@@ -134,7 +134,7 @@ fn seq(out: &str, tag: char) -> Vec<usize> {
 #[test]
 fn start_objects_past_every_old_bound() {
     let Some((d, ld, prog)) = corpus() else { return };
-    let o = run(Command::new(&prog));
+    let o = run(&mut Command::new(&prog));
     let out = String::from_utf8_lossy(&o.stdout);
     let err = String::from_utf8_lossy(&o.stderr);
     assert!(o.status.success(), "a start of {N} libraries failed: {:?}\n{err}", o.status);
@@ -153,7 +153,7 @@ fn start_objects_past_every_old_bound() {
     assert!(seen > N + 2, "dl_iterate_phdr reports the program, its {N} libraries, libc and ld.so: {line}");
     assert_eq!(fields.get(5), Some(&"120"), "dlopen after a start of {N} objects works: {line}");
     // `--list`: every library on its own line.
-    let o = run(Command::new(&ld).arg("--list").arg(&prog));
+    let o = run(&mut Command::new(&ld).arg("--list").arg(&prog));
     let out = String::from_utf8_lossy(&o.stdout);
     assert!(o.status.success(), "--list of {N} libraries failed: {}", String::from_utf8_lossy(&o.stderr));
     for k in 1..=N {
@@ -172,7 +172,7 @@ fn start_objects_out_of_memory_is_clean() {
     let (mut ran, mut refused) = (0, 0);
     let mut reasons = std::collections::BTreeSet::new();
     for kb in (1024..=48 * 1024).step_by(256) {
-        let o = run(Command::new("sh").arg("-c").arg(format!("ulimit -v {kb}; exec \"$0\"")).arg(&prog));
+        let o = run(&mut Command::new("sh").arg("-c").arg(format!("ulimit -v {kb}; exec \"$0\"")).arg(&prog));
         let err = String::from_utf8_lossy(&o.stderr).into_owned();
         let loader = err.starts_with("ld.so:") || err.contains("error while loading shared libraries");
         if ran + refused == 0 && !o.status.success() && !loader {
