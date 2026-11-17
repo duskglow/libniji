@@ -106,14 +106,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "niji-thread-db"
-version = "0.0.0"
-dependencies = [
- "niji-kernel",
- "spectest",
-]
-
-[[package]]
 name = "spectest"
 version = "0.0.0"
 

@@ -253,6 +253,12 @@ pub struct Debug<'a> {
     pub dtv_header: u64,
 }
 
+/// [`DESC_EXITED`] widened to the descriptor's 64-bit word (`From` is not callable in a const fn).
+const DEBUG_EXITED: u64 = {
+    let [a, b, c, d] = DESC_EXITED.to_le_bytes();
+    u64::from_le_bytes([a, b, c, d, 0, 0, 0, 0])
+};
+
 /// The number of 64-bit words in [`Debug`].
 pub const DEBUG_WORDS: usize = size_of::<Debug<'static>>() / 8;
 const _: () = assert!(size_of::<Debug<'static>>() == 17 * 8 && size_of::<&AtomicUsize>() == 8);
@@ -278,7 +284,7 @@ impl<'a> Debug<'a> {
             desc_stack_lo: offset_of!(Thread, stack_lo),
             desc_stack_size: offset_of!(Thread, stack_size),
             desc_prio: offset_of!(Thread, sched_prio),
-            exited_flag: u64::from(DESC_EXITED),
+            exited_flag: DEBUG_EXITED,
             dtv_header: DEBUG_DTV_HEADER,
         }
     }

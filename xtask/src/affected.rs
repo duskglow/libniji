@@ -45,7 +45,7 @@
 //!      `sN_...`, a plan row `D-N.`), or references an affected module, or carries no section at
 //!      all (then nothing says it is unrelated). A root file (`lib.rs`, `main.rs`) or a module
 //!      re-exported with `pub use` is not narrowed.
-//!    * every other crate (`kernel`, `rt`, `mem`, `ld`, `native`, `thread-db`, ...), a root file:
+//!    * every other crate (`kernel`, `rt`, `mem`, `ld`, `native`, ...), a root file:
 //!      WIDE: every test target of every crate that depends on it (dev-dependencies included),
 //!      directly or not, and every conformance program.
 //!    * "Depends" (both bullets, every tier; XTASK-AFFECTED-LOADER): a crate's own dependencies always count; a
@@ -4370,7 +4370,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         for d in ["crates/boundary", "crates/math", "crates/ld", "crates/core", "crates/kernel", "crates/mem"] {
             assert!(r.image.dirs.contains(d), "{d} is linked into libc.a: {:?}", r.image.dirs);
         }
-        for d in ["crates/native", "crates/thread-db", "crates/mathtools", "crates/spectest", "xtask"] {
+        for d in ["crates/native", "crates/mathtools", "crates/spectest", "xtask"] {
             assert!(!r.image.dirs.contains(d), "{d} is not linked into libc.a");
         }
         assert!(r.image.off.contains(&("niji-boundary".into(), "ld".into())) && !r.image.off.contains(&("niji-boundary".into(), "runtime".into())), "{:?}", r.image.off);
@@ -5244,7 +5244,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert!(s.conf.len() == 1 && s.conf.contains_key("s12_printf") && s.libs.len() == 1 && s.clippy.is_empty());
         let krate = &s.tests.keys().next().map(|(c, _)| c.clone()).unwrap_or_default();
         assert!(select_only(repo, &format!("{krate}::s12_stdio_clauses")).is_ok());
-        for bad in ["no_such_target", "conformance:no_such", "lib:no-such", "", "niji-thread-db::s12_stdio_clauses"] {
+        for bad in ["no_such_target", "conformance:no_such", "lib:no-such", "", "niji-kernel::s12_stdio_clauses"] {
             assert!(select_only(repo, bad).is_err(), "{bad}");
         }
     }

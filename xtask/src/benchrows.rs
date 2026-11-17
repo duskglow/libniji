@@ -10,7 +10,7 @@
 //! 2. Per file, in order:
 //!    * NO TIMING EFFECT: docs, plans, handoffs, `*.md`, `spec/behaviour`, the operator tools, validation,
 //!      conformance programs, fuzz harnesses, test files and non-bench examples of the crates, the crates no
-//!      bench links (`mathtools`, `spectest`, `thread-db`), `bench/host_limits.tsv`, `bench/parity-measure.tsv`,
+//!      bench links (`mathtools`, `spectest`), `bench/host_limits.tsv`, `bench/parity-measure.tsv`,
 //!      `bench/sentinels.tsv`, xtask modules other than the bench and build ones.
 //!    * FULL (every row; `FULL_TRIGGERS`): build configuration (`Cargo.*`, the toolchain, `.cargo/`, build
 //!      scripts), `csys/include`, link and export lists, the allocator, startup and the export machinery, the
@@ -98,11 +98,11 @@ const FULL_TRIGGERS: &[(&str, &str)] = &[
 /// Paths with no timing effect (prefix; `*` = suffix).
 const NO_TIMING: &[&str] = &[
     "docs/", "plan/", "handoff/", "*.md", "spec/behaviour/", "spec/schedule.tsv", "tools/", "validation/", "conformance/", "fuzz/", "benchmarks/",
-    "bench/host_limits.tsv", "bench/parity-measure.tsv", "bench/sentinels.tsv", "bench/budgets.tsv", "crates/mathtools/", "crates/spectest/", "crates/thread-db/", "xtask/",
+    "bench/host_limits.tsv", "bench/parity-measure.tsv", "bench/sentinels.tsv", "bench/budgets.tsv", "crates/mathtools/", "crates/spectest/", "xtask/",
 ];
 
 /// Crates no bench links: `affected` selecting them WIDE does not make a bench FULL.
-const NOT_LINKED: &[&str] = &["niji-mathtools", "spectest", "niji-thread-db"];
+const NOT_LINKED: &[&str] = &["niji-mathtools", "spectest"];
 
 /// C header macros that call an exported symbol the bench source does not name.
 const ALIASES: &[(&str, &[&str])] = &[

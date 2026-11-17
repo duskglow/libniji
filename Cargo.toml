@@ -26,7 +26,7 @@
 # (category native).
 #
 # Products (separate builds from phase 4): crates/libc-so -> libc.so.6 / libc.a, plus the
-# ld.so and libthread_db products.
+# ld.so product; libthread_db.so.1 is C-layer code (crates/libc-so/placeholders/libthread_db.c).
 
 [workspace]
 resolver = "2"
@@ -41,7 +41,6 @@ members = [
     "crates/math",
     "crates/boundary",
     "crates/ld",
-    "crates/thread-db",
     "crates/native",
     "crates/mathtools",
     "xtask",
@@ -61,7 +60,6 @@ default-members = [
     "crates/math",
     "crates/boundary",
     "crates/ld",
-    "crates/thread-db",
     "crates/native",
     "crates/mathtools",
     "xtask",
