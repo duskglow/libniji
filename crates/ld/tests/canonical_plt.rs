@@ -17,7 +17,7 @@
 //! Trace: s27_1_g_0 (symbol resolution follows ELF rules), s27_1_c_3 (`dlsym(RTLD_DEFAULT)`).
 // ARCH(x86_64): the corpus is built with the host compiler for x86_64 and run under the x86_64 loader.
 #![cfg(target_arch = "x86_64")]
-#![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::expect_used, clippy::panic)]
+#![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::expect_used, clippy::panic)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
