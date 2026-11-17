@@ -320,8 +320,9 @@ fn s15_1_c_8_null_value_size_query() {
     close(&[nl, u]);
 }
 
-/// §15.1 `getsockopt`: `*len` receives the kernel's length also when the call fails because
-/// the buffer is too small (`SO_PEERGROUPS`: `ERANGE` with the size of the peer's group list).
+/// §15.1 `getsockopt` (s15_1_c_8): `*len` receives the kernel's length also when the call
+/// fails because the buffer is too small (`SO_PEERGROUPS`: `ERANGE` with the size of the
+/// peer's group list).
 #[test]
 fn s15_1_c_8_length_reported_on_erange() {
     const SO_PEERGROUPS: c_int = 59;
