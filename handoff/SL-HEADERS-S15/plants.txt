@@ -1,0 +1,15 @@
+# Plants of slice 15 (cargo xtask plants; docs/plants.md). The generator, the templates, headers/reserved.tsv and the committed
+# libc-include/ output are checked by `headers-gen --check` (the committed output must equal the regenerated one) and by
+# spec/tools/header_check.py (P1 values, sizes, alignments; P5 hygiene) on libc-include/.
+s15-float-inf | xtask/src/headers.rs | lit:"inf" => Ok(format!("(__builtin_inf{f} ())")) ==> "inf" => Ok(format!("(__builtin_nan{f} (\"\"))")) | cargo xtask headers-gen --check | msg:headers-gen
+s15-enumerator-yields | xtask/src/headers.rs | lit:format!("#  ifndef {name}"), format!("enum { ==> format!("#  ifdef {name}"), format!("enum { | cargo xtask headers-gen --check | msg:headers-gen
+s15-partial-cover | xtask/src/headers.rs | lit:is_some_and(|m| !self.partial || ==> is_some_and(|m| true || | cargo xtask headers-gen --check | msg:headers-gen
+s15-enum-placeholder | xtask/src/headers.rs | lit:__NIJI_ENUM{name} = 0 ==> __NIJI_ENUM{name} = 1 | cargo xtask headers-gen --check | msg:headers-gen
+s15-timex-partial-directive | headers/sys/timex.h.in | lit:@@partial-cover ==> | cargo xtask headers-gen --check | msg:headers-gen
+s15-vlimit-reserved | headers/reserved.tsv | lit:__vlimit_resource ==> __vlimit_resourcX | cargo xtask headers-gen --check | msg:headers-gen
+s15-mount-kernel-include | headers/sys/mount.h.in | lit:#include <linux/mount.h> ==> | cargo xtask headers-gen --check | msg:headers-gen
+s15-p1-swap-value | libc-include/sys/swap.h | lit:#  define SWAP_FLAG_PREFER 32768 ==> #  define SWAP_FLAG_PREFER 32769 | python3 spec/tools/header_check.py | msg:FAIL P1 sys/swap.h
+s15-p1-reboot-value | libc-include/sys/reboot.h | lit:#  define RB_AUTOBOOT 19088743 ==> #  define RB_AUTOBOOT 19088744 | python3 spec/tools/header_check.py | msg:FAIL P1 sys/reboot.h
+s15-p1-mount-value | libc-include/sys/mount.h | lit:#  define MNT_FORCE 1 ==> #  define MNT_FORCE 2 | python3 spec/tools/header_check.py | msg:FAIL P1 sys/mount.h
+s15-p1-deferred-nousers | spec/tools/header_check.py | lit:("sys/mount.h", "MS_NOUSER")} ==> ("sys/mount.h", "NO_SUCH_NAME")} | python3 spec/tools/header_check.py | msg:FAIL P1 sys/mount.h
+s15-uapi-staging | spec/tools/header_check.py | lit:("linux", ["/usr/include/linux"]), ==> ("linux", ["/nonexistent/linux"]), | python3 spec/tools/header_check.py | msg:FAIL P5 sys/mount.h
