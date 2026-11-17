@@ -186,9 +186,6 @@ struct Target {
     obj: Option<usize>,
     /// The definition's size.
     size: u64,
-    /// A `JUMP_SLOT` of the program's canonical PLT entry bound to a protected definition in
-    /// another object, whose own references to the function bind its own address.
-    protected: bool,
 }
 
 /// The run-time value of definition `st` in object `o`.
@@ -239,20 +236,105 @@ fn protected_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, s
     Ok(())
 }
 
+/// The relocation tables of object `i` in pass `deferred` when the program has canonical PLT entries
+/// ([`Object::has_canonical_plt`]): each `JUMP_SLOT` binds as [`slot`] says, every other entry as in
+/// [`one`]. [`pass1`] and [`relocate_deferred`] come here on that one test, so a process whose
+/// program has no such entry never runs this. Whether any entry was deferred.
+#[cold]
+#[inline(never)]
+fn tables_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+    let mut any = false;
+    for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
+        for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
+            any |= if r.kind == RelocKind::JumpSlot { slot::<A, I>(set, i, o, &r, deferred, text, img, unique)? } else { one::<A, I>(set, i, &r, deferred, text, img, unique)? };
+        }
+    }
+    Ok(any)
+}
+
+/// [`target`] for a `JUMP_SLOT` of object `i`: the program's canonical PLT entries are left out of
+/// the lookup, since such an entry is itself the caller of a slot (gABI "Symbol Values"), never its
+/// target. With the target, whether it is the protected definition, in another object, of the
+/// program's own canonical entry `sym` ([`protected_canonical`]).
+#[cold]
+fn slot_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn UniqueRegistry) -> Result<(Target, bool), RelocError<'a>> {
+    let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
+    let st = me.symtab().get(sym).map_err(RelocError::Elf)?;
+    if sym == 0 || (st.shndx != SHN_UNDEF && (st.bind() == STB_LOCAL || st.visibility() != STV_DEFAULT)) {
+        return target(set, i, sym, false, unique).map(|t| (t, false));
+    }
+    let name = me.dynamic().string(u64::from(st.name)).map_err(RelocError::Elf)?;
+    let req = Request::new(name, me.reference_want(sym).map_err(RelocError::Lookup)?);
+    let weak = st.bind() == STB_WEAK;
+    let scope = Scope::global(set.global);
+    let mut bound = symbols::resolve(set.syms, scope, &req, weak, unique);
+    if let Ok(Binding::Defined(Found { obj, def })) = bound {
+        // Only the program's view answers with an undefined symbol: its canonical entry. The slot
+        // binds the definition after it.
+        if def.st.shndx == SHN_UNDEF {
+            bound = symbols::resolve(set.syms, scope.excluding(obj), &req, weak, unique);
+        }
+    }
+    match bound {
+        Ok(Binding::Defined(f @ Found { obj, def })) => {
+            unique.bound(i, &f);
+            let protected = obj != i && def.st.visibility() == STV_PROTECTED && me.has_canonical_plt() && symbols::canonical_plt(&st);
+            Ok((Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size }, protected))
+        }
+        Ok(Binding::WeakUndefined) => Ok((Target { s: 0, ifunc: false, obj: None, size: 0 }, false)),
+        Err(LookupError::Undefined) => Err(RelocError::Undefined(name)),
+        Err(e) => Err(RelocError::Lookup(e)),
+    }
+}
+
+/// `JUMP_SLOT` `r` of object `i` in pass `deferred`, bound by [`slot_target`]; the field is written
+/// (or the IFUNC entry deferred) as [`one`] does for its symbol entries.
+#[cold]
+#[allow(clippy::too_many_arguments)]
+fn slot<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+    let (t, protected) = slot_target(set, i, r.sym, unique)?;
+    if protected && !deferred {
+        protected_canonical::<A, I>(set, i, r.sym, t, img)?;
+    }
+    let p = o.bias.wrapping_add(r.offset);
+    let put = |img: &mut I, s: u64, any: bool| -> Result<(), RelocError<'a>> {
+        let f = match A::apply(r.kind, Operands { s, a: r.addend, b: o.bias, p }) {
+            Ok(f) => f,
+            Err(ApplyError::Overflow) => return Err(RelocError::Overflow(r.offset)),
+            Err(ApplyError::NoArithmetic) => return Err(RelocError::Unsupported(r.r_type)),
+        };
+        let Some(f) = f else { return Ok(()) };
+        let w = usize::from(f.width);
+        if !inside(&o.elf, r.offset, u64::from(f.width), any) {
+            return Err(RelocError::Outside(r.offset));
+        }
+        let (le, be) = (f.value.to_le_bytes(), f.value.to_be_bytes());
+        let bytes = if A::EI_DATA == ELFDATA2LSB { le.get(..w) } else { be.get(8usize.saturating_sub(w)..) };
+        img.store(p, bytes.ok_or(RelocError::Overflow(r.offset))?);
+        Ok(())
+    };
+    match (t.ifunc, deferred) {
+        (false, false) => put(img, t.s, text).map(|()| false),
+        (false, true) => Ok(false),
+        (true, false) => inside(&o.elf, r.offset, 8, false).then_some(true).ok_or(RelocError::Outside(r.offset)),
+        (true, true) => {
+            let s = img.call(t.s);
+            put(img, s, false).map(|()| true)
+        }
+    }
+}
+
 /// Resolve symbol `sym` of object `i`. A defined local, or a defined symbol whose visibility is not
 /// default, binds in its own object; every other reference is looked up in the global scope (without
 /// the program for a `COPY`).
-///
-/// `jump_slot`: the reference is a `JUMP_SLOT`, which the program's canonical PLT entries do not define
-/// ([`Request::jump_slot`]); every other reference to such a function binds the entry.
-fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, jump_slot: bool, unique: &mut dyn UniqueRegistry) -> Result<Target, RelocError<'a>> {
+fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mut dyn UniqueRegistry) -> Result<Target, RelocError<'a>> {
     if sym == 0 {
-        return Ok(Target { s: 0, ifunc: false, obj: None, size: 0, protected: false });
+        return Ok(Target { s: 0, ifunc: false, obj: None, size: 0 });
     }
     let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let st = me.symtab().get(sym).map_err(RelocError::Elf)?;
     if !copy && st.shndx != SHN_UNDEF && (st.bind() == STB_LOCAL || st.visibility() != STV_DEFAULT) {
-        return Ok(Target { s: value_of(set, i, &st), ifunc: st.kind() == STT_GNU_IFUNC, obj: Some(i), size: st.size, protected: false });
+        return Ok(Target { s: value_of(set, i, &st), ifunc: st.kind() == STT_GNU_IFUNC, obj: Some(i), size: st.size });
     }
     let dynm = set.objs.get(i).map(|o| o.dynm).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let name = dynm.string(u64::from(st.name)).map_err(RelocError::Elf)?;
@@ -261,15 +343,12 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, jump_slot: 
     if copy {
         scope = scope.excluding(0);
     }
-    let req = Request::new(name, want);
-    let req = if jump_slot { req.jump_slot() } else { req };
-    match symbols::resolve(set.syms, scope, &req, st.bind() == STB_WEAK, unique) {
+    match symbols::resolve(set.syms, scope, &Request::new(name, want), st.bind() == STB_WEAK, unique) {
         Ok(Binding::Defined(f @ Found { obj, def })) => {
             unique.bound(i, &f);
-            let protected = jump_slot && obj != i && def.st.visibility() == STV_PROTECTED && me.is_program() && symbols::canonical_plt(&st);
-            Ok(Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size, protected })
+            Ok(Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size })
         }
-        Ok(Binding::WeakUndefined) => Ok(Target { s: 0, ifunc: false, obj: None, size: 0, protected: false }),
+        Ok(Binding::WeakUndefined) => Ok(Target { s: 0, ifunc: false, obj: None, size: 0 }),
         Err(LookupError::Undefined) => Err(RelocError::Undefined(name)),
         Err(e) => Err(RelocError::Lookup(e)),
     }
@@ -313,10 +392,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
             if matches!(r.kind, RelocKind::TextRel { .. }) && !text {
                 return Err(RelocError::TextRel(r.r_type));
             }
-            let t = target(set, i, r.sym, false, r.kind == RelocKind::JumpSlot, unique)?;
-            if t.protected && !deferred {
-                protected_canonical::<A, I>(set, i, r.sym, t, img)?;
-            }
+            let t = target(set, i, r.sym, false, unique)?;
             match (t.ifunc, deferred) {
                 (false, false) => put(img, field(r.kind, t.s)?, text).map(|()| false),
                 (false, true) => Ok(false),
@@ -331,7 +407,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
         RelocKind::Copy => {
             let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
             let size = me.symtab().get(r.sym).map_err(RelocError::Elf)?.size;
-            let t = target(set, i, r.sym, true, false, unique)?;
+            let t = target(set, i, r.sym, true, unique)?;
             let src = t.obj.filter(|&d| i == 0 && d != 0).and_then(|d| set.objs.get(d)).ok_or(RelocError::Copy(r.offset))?;
             // The program's size; a smaller definition copies only what it has.
             let len = size.min(t.size);
@@ -347,7 +423,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
             let (s, def) = if r.sym == 0 {
                 (0, Some(i))
             } else {
-                let t = target(set, i, r.sym, false, false, unique)?;
+                let t = target(set, i, r.sym, false, unique)?;
                 (t.s, t.obj)
             };
             let placed = def.and_then(|d| set.objs.get(d)).and_then(|d| d.tls).ok_or(RelocError::TlsModule(r.offset))?;
@@ -428,6 +504,9 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
 pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<(), RelocError<'a>> {
     let o = *set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let text = textrel(&o.dynm);
+    if set.syms.first().is_some_and(Object::has_canonical_plt) {
+        return tables_canonical::<A, I>(set, i, &o, true, text, img, unique).map(|_| ());
+    }
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
             one::<A, I>(set, i, &r, true, text, img, unique)?;
@@ -448,6 +527,9 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
         img.load(p, &mut w);
         let v = if A::EI_DATA == ELFDATA2LSB { u64::from_le_bytes(w) } else { u64::from_be_bytes(w) }.wrapping_add(o.bias);
         img.store(p, &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
+    }
+    if set.syms.first().is_some_and(Object::has_canonical_plt) {
+        return tables_canonical::<A, I>(set, i, o, false, text, img, unique);
     }
     let mut deferred = false;
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {

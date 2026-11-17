@@ -115,21 +115,13 @@ pub struct Request<'n> {
     want: Want<'n>,
     gnu: u32,
     sysv: OnceCell<u32>,
-    jump_slot: bool,
 }
 
 impl<'n> Request<'n> {
     /// A request for `name` accepting `want`.
     #[must_use]
     pub fn new(name: &'n [u8], want: Want<'n>) -> Self {
-        Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new(), jump_slot: false }
-    }
-    /// This request as the lookup of a `JUMP_SLOT` relocation: the program's canonical PLT entries
-    /// ([`Object::program`]) are not definitions for it, since such an entry is itself the caller of
-    /// the slot (gABI "Symbol Values").
-    #[must_use]
-    pub fn jump_slot(self) -> Self {
-        Request { jump_slot: true, ..self }
+        Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new() }
     }
     /// The name.
     #[must_use]
@@ -173,7 +165,8 @@ pub struct Object<'a> {
     symtab: Symtab<'a>,
     hash: Hash<'a>,
     versym: Option<Versym<'a>>,
-    program: bool,
+    /// The program's view, and the program has canonical PLT entries ([`Object::program`]).
+    canonical: bool,
 }
 
 /// Whether `s` is a definition another object may bind: defined, a global, weak or unique binding, a
@@ -217,22 +210,34 @@ impl<'a> Object<'a> {
             HashStyle::Gnu => Hash::Gnu(dynm.gnu_hash()?.ok_or(LookupError::NoHashTable)?),
             HashStyle::Sysv => Hash::Sysv(dynm.sysv_hash()?.ok_or(LookupError::NoHashTable)?),
         };
-        Ok(Object { dynm, symtab, hash, versym: dynm.versym()?, program: false })
+        Ok(Object { dynm, symtab, hash, versym: dynm.versym()?, canonical: false })
     }
 
     /// This view as the program's: its canonical PLT entries ([`canonical_plt`]) define their
-    /// functions for every request but a `JUMP_SLOT` one ([`Request::jump_slot`]). Only the program
-    /// has them (gABI "Symbol Values": the executable file's PLT); a shared object's undefined
-    /// symbols stay references whatever their value.
+    /// functions for every lookup. Only the program has them (gABI "Symbol Values": the executable
+    /// file's PLT); a shared object's undefined symbols stay references whatever their value. A
+    /// `JUMP_SLOT` must not bind such an entry (the entry is itself the slot's caller): the relocator
+    /// takes those through its own path when [`Object::has_canonical_plt`] says there are entries.
+    ///
+    /// The entries are found once here, among the symbols the hash table covers (a GNU table leaves
+    /// out the symbols below `symoffset`, which a linker gives only to plain references); a program
+    /// without one keeps the plain view.
     #[must_use]
     pub fn program(self) -> Self {
-        Object { program: true, ..self }
+        let first = match self.hash {
+            Hash::Gnu(g) => g.symoffset(),
+            Hash::Sysv(_) => 1,
+        };
+        let count = self.symtab.count().unwrap_or(0);
+        let canonical = (first..count).any(|i| self.symtab.get(i).is_ok_and(|s| canonical_plt(&s)));
+        Object { canonical, ..self }
     }
 
-    /// Whether this is the program's view ([`Object::program`]).
+    /// Whether this is the program's view and the program has canonical PLT entries
+    /// ([`Object::program`]).
     #[must_use]
-    pub fn is_program(&self) -> bool {
-        self.program
+    pub fn has_canonical_plt(&self) -> bool {
+        self.canonical
     }
 
     /// The dynamic section the view reads.
@@ -355,7 +360,7 @@ impl<'a> Object<'a> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !(exported(&st) || (self.program && !req.jump_slot && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || (self.canonical && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
