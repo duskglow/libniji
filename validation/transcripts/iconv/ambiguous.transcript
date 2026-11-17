@@ -1,0 +1,5 @@
+name: an ambiguous long prefix
+clause: s31_1_f_1
+command: iconv
+arg: --ver
+stdin:

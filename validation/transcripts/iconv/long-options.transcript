@@ -1,0 +1,8 @@
+name: long options with = and a separate value
+clause: s31_6_i_1
+command: iconv
+arg: --from-code=UTF-8
+arg: --to-code
+arg: UCS-2BE
+stdin:
+|~ x\n

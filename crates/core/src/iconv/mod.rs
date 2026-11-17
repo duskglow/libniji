@@ -121,6 +121,12 @@ const NAMES: [(&[u8], Codec); 57] = [
 /// More names of ISO-8859-1 (its charmap's aliases).
 const LATIN1_MORE: [&[u8]; 6] = [b"ISO-IR-100", b"ISO_8859-1:1987", b"IBM819", b"CSISOLATIN1", b"8859_1", b"OSF00010001"];
 
+/// Every built-in name, in table order: what the `iconv` command lists beside the installed
+/// charmaps (`iconv -l`, spec §31.6, UTIL-7).
+pub fn builtin_names() -> impl Iterator<Item = &'static [u8]> {
+    NAMES.iter().map(|(n, _)| *n).chain(LATIN1_MORE.iter().copied())
+}
+
 /// The built-in codec `name` denotes (without suffixes), if any.
 pub fn builtin(name: &[u8]) -> Option<Codec> {
     if let Some((_, c)) = NAMES.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)) {

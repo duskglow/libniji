@@ -1,0 +1,5 @@
+name: a value for an option without one
+clause: s31_1_f_1
+command: iconv
+arg: --list=x
+stdin:

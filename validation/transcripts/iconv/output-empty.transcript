@@ -1,0 +1,12 @@
+name: -o with no output creates no file
+clause: s31_6_g_1
+command: iconv
+namespace: none
+file: keep
+arg: -f
+arg: UTF-8
+arg: -t
+arg: UTF-16
+arg: -o
+arg: o.txt
+stdin:

@@ -1,0 +1,5 @@
+name: --usage
+clause: s31_1_c_2
+command: iconv
+arg: --usage
+stdin:

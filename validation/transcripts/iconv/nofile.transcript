@@ -1,0 +1,13 @@
+name: a missing input file; the next file is still converted
+clause: s31_6_f_3
+command: iconv
+namespace: none
+file: b
+|~ x\n
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+arg: missing
+arg: b
+stdin:

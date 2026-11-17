@@ -1,0 +1,10 @@
+name: --verbose without operands
+clause: s31_6_i_1
+command: iconv
+arg: --verbose
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+stdin:
+|~ y\n

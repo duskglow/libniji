@@ -1,0 +1,9 @@
+name: UTF-8 to ISO-8859-1
+clause: s31_6_c_1 s31_6_g_1
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ISO-8859-1
+stdin:
+|~ h\xc3\xa9llo\n

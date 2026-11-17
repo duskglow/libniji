@@ -1,0 +1,13 @@
+name: -o keeps the output up to an error
+clause: s31_6_g_1 s31_6_f_1
+command: iconv
+namespace: none
+file: keep
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+arg: -o
+arg: o.txt
+stdin:
+|~ x\xff\n

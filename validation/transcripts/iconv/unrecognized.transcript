@@ -1,0 +1,5 @@
+name: an unknown long option
+clause: s31_1_f_1
+command: iconv
+arg: --frob
+stdin:

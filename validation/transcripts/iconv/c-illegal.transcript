@@ -1,0 +1,10 @@
+name: -c drops invalid input, exit 0
+clause: s31_6_g_2
+command: iconv
+arg: -c
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ISO-8859-1
+stdin:
+|~ ab\xffcd\n

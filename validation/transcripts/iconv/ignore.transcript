@@ -1,0 +1,9 @@
+name: //IGNORE: all output, then the message and exit 1
+clause: s31_6_f_1
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ISO-8859-1//IGNORE
+stdin:
+|~ a\xe2\x82\xacb\n

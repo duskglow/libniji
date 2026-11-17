@@ -1,0 +1,14 @@
+name: -o naming the input file
+clause: s31_6_g_1
+command: iconv
+namespace: none
+file: a
+|~ abc
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+arg: -o
+arg: a
+arg: a
+stdin:

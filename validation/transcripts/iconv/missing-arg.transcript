@@ -1,0 +1,5 @@
+name: a short option without its value
+clause: s31_1_f_1
+command: iconv
+arg: -t
+stdin:

@@ -1,0 +1,9 @@
+name: unknown source charset
+clause: s31_6_f_2 s31_1_f_1
+command: iconv
+arg: -f
+arg: NOSUCH
+arg: -t
+arg: UTF-8
+stdin:
+|~ a

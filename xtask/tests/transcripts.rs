@@ -15,6 +15,43 @@ fn check(operands: &[&str]) -> (Option<i32>, String) {
     (out.status.code(), text)
 }
 
+/// The test link of iconv (`cargo xtask so`, UTIL-7), if built.
+fn iconv_test_link() -> Option<std::path::PathBuf> {
+    let p = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("tree root").join("target/niji-test/iconv");
+    if p.is_file() {
+        return Some(p);
+    }
+    println!("SKIPPED: target/niji-test/iconv is not built (run `cargo xtask so` first)");
+    None
+}
+
+#[test]
+fn the_committed_iconv_transcripts_hold() {
+    // Trace: s31_6_c_1, s31_6_i_1, s31_6_g_1, s31_6_g_2, s31_6_f_1, s31_6_f_2, s31_6_f_3, s31_1_f_1.
+    if iconv_test_link().is_none() {
+        return;
+    }
+    let (code, text) = check(&["validation/transcripts/iconv"]);
+    println!("{text}");
+    assert_eq!(code, Some(0), "{text}");
+    assert!(text.contains(" 0 mismatched, ") && text.contains(" 0 errors "), "{text}");
+}
+
+#[test]
+fn every_name_iconv_lists_converts() {
+    // Trace: s31_6_g_3 (`-l`: exactly the names libniji can convert; this checks every listed name converts).
+    let Some(iconv) = iconv_test_link() else { return };
+    let out = Command::new(&iconv).arg("-l").env_clear().output().expect("run iconv -l");
+    assert_eq!(out.status.code(), Some(0));
+    let text = String::from_utf8(out.stdout).expect("UTF-8 listing");
+    let names: Vec<&str> = text.lines().map(|l| l.strip_suffix("//").or_else(|| l.strip_suffix('/')).expect("NAME// form")).collect();
+    assert!(names.len() >= 63, "only {} names", names.len());
+    for name in names {
+        let r = Command::new(&iconv).args(["-f", name, "-t", "UTF-8", "/dev/null"]).env_clear().output().expect("run iconv");
+        assert_eq!(r.status.code(), Some(0), "{name} is listed but does not convert: {}", String::from_utf8_lossy(&r.stderr));
+    }
+}
+
 #[test]
 fn the_committed_ldconfig_transcripts_hold() {
     // Trace: s31_2_g_6, s31_2_f_1.

@@ -1,0 +1,16 @@
+name: --verbose names each file on stdout
+clause: s31_6_i_1
+command: iconv
+namespace: none
+file: b
+|~ x\n
+arg: --verbose
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+arg: b
+arg: -
+arg: b
+stdin:
+|~ y\n

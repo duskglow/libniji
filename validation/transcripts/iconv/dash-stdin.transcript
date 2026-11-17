@@ -1,0 +1,10 @@
+name: - reads standard input
+clause: s31_6_i_1
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: UTF-16LE
+arg: -
+stdin:
+|~ xy

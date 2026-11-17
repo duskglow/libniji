@@ -1,0 +1,9 @@
+name: both charsets unknown
+clause: s31_6_f_2
+command: iconv
+arg: -f
+arg: NOSUCH
+arg: -t
+arg: NOSUCH2
+stdin:
+|~ a

@@ -1,0 +1,11 @@
+name: a write error
+clause: none (write error message: probe only)
+command: iconv
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+arg: -o
+arg: /dev/full
+stdin:
+|~ x\n

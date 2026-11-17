@@ -1,0 +1,18 @@
+name: an illegal sequence stops before the next file; position within the file
+clause: s31_6_f_1
+command: iconv
+namespace: none
+file: f3
+|~ abc\n
+file: f4
+|~ d\xffe\n
+file: f5
+|~ z\n
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+arg: f3
+arg: f4
+arg: f5
+stdin:

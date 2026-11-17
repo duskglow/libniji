@@ -1,0 +1,9 @@
+name: EUC-JP (built-in) to UTF-8
+clause: s31_6_i_2
+command: iconv
+arg: -f
+arg: EUC-JP
+arg: -t
+arg: UTF-8
+stdin:
+|~ \xc6\xfc\xcb\xdc\n

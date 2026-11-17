@@ -1,0 +1,9 @@
+name: EUC-KR input cut inside a character
+clause: s31_6_f_1
+command: iconv
+arg: -f
+arg: EUC-KR
+arg: -t
+arg: UTF-8
+stdin:
+|~ a\xb0
