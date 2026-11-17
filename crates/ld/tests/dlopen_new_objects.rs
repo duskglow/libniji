@@ -21,8 +21,9 @@ use std::process::{Command, Output};
 use niji_ld::arch::{Arch, Native};
 use niji_ld::elf::Elf;
 
-/// Libraries one `dlopen` adds besides the root: past 64 objects, 1024 links (about `6 N`) and 255.
-const N: usize = 200;
+/// Libraries one `dlopen` adds besides the root: past 64 objects, 1024 links (about `6 N`) and an
+/// 8-bit index (more than 256 new objects).
+const N: usize = 300;
 /// The library that calls an IFUNC of its own.
 const IFUNC_LIB: usize = 150;
 /// What `froot` returns: every `f<k>` returns `k` from its TLS variable, library `N` adds `t()`
