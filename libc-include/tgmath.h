@@ -72,22 +72,22 @@ __NIJI_BEGIN_C
 # define creal(x) __builtin_tgmath (crealf, creal, creall, crealf32, crealf64, crealf32x, crealf64x, crealf128, x)
 #endif
 #if __NIJI_ISOC >= 2023 && __NIJI_CXX < 2
-# define dadd(x, y) __builtin_tgmath (daddl, x, y)
+# define dadd(x, y) daddl (x, y)
 #endif
 #if __NIJI_ISOC >= 2023 && __NIJI_CXX < 2
-# define ddiv(x, y) __builtin_tgmath (ddivl, x, y)
+# define ddiv(x, y) ddivl (x, y)
 #endif
 #if __NIJI_ISOC >= 2023 && __NIJI_CXX < 2
-# define dfma(x, y, z) __builtin_tgmath (dfmal, x, y, z)
+# define dfma(x, y, z) dfmal (x, y, z)
 #endif
 #if __NIJI_ISOC >= 2023 && __NIJI_CXX < 2
-# define dmul(x, y) __builtin_tgmath (dmull, x, y)
+# define dmul(x, y) dmull (x, y)
 #endif
 #if __NIJI_ISOC >= 2023 && __NIJI_CXX < 2
-# define dsqrt(x) __builtin_tgmath (dsqrtl, x)
+# define dsqrt(x) dsqrtl (x)
 #endif
 #if __NIJI_ISOC >= 2023 && __NIJI_CXX < 2
-# define dsub(x, y) __builtin_tgmath (dsubl, x, y)
+# define dsub(x, y) dsubl (x, y)
 #endif
 #if __NIJI_CXX < 2
 # define erf(x) __builtin_tgmath (erff, erf, erfl, erff32, erff64, erff32x, erff64x, erff128, x)
@@ -163,22 +163,22 @@ __NIJI_BEGIN_C
 # define f64sub(x, y) __builtin_tgmath (f64subf64x, f64subf128, x, y)
 #endif
 #if __NIJI_GNU && __NIJI_CXX < 2
-# define f64xadd(x, y) __builtin_tgmath (f64xaddf128, x, y)
+# define f64xadd(x, y) f64xaddf128 (x, y)
 #endif
 #if __NIJI_GNU && __NIJI_CXX < 2
-# define f64xdiv(x, y) __builtin_tgmath (f64xdivf128, x, y)
+# define f64xdiv(x, y) f64xdivf128 (x, y)
 #endif
 #if __NIJI_GNU && __NIJI_CXX < 2
-# define f64xfma(x, y, z) __builtin_tgmath (f64xfmaf128, x, y, z)
+# define f64xfma(x, y, z) f64xfmaf128 (x, y, z)
 #endif
 #if __NIJI_GNU && __NIJI_CXX < 2
-# define f64xmul(x, y) __builtin_tgmath (f64xmulf128, x, y)
+# define f64xmul(x, y) f64xmulf128 (x, y)
 #endif
 #if __NIJI_GNU && __NIJI_CXX < 2
-# define f64xsqrt(x) __builtin_tgmath (f64xsqrtf128, x)
+# define f64xsqrt(x) f64xsqrtf128 (x)
 #endif
 #if __NIJI_GNU && __NIJI_CXX < 2
-# define f64xsub(x, y) __builtin_tgmath (f64xsubf128, x, y)
+# define f64xsub(x, y) f64xsubf128 (x, y)
 #endif
 #if __NIJI_CXX < 2
 # define fabs(x) __builtin_tgmath (fabsf, fabs, fabsl, fabsf32, fabsf64, fabsf32x, fabsf64x, fabsf128, cabsf, cabs,  \

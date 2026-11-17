@@ -36,13 +36,13 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
            "getopt.h", "time.h",
            # slice 11
-           "math.h", "complex.h", "fenv.h", "fpu_control.h", "values.h"]
+           "math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "values.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-          "getopt.h", "time.h", "math.h", "complex.h", "fenv.h", "fpu_control.h", "values.h"]
+          "getopt.h", "time.h", "math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "values.h"]
 FLOAT_SUFFIX = {"float": ("f", 4), "double": ("", 8), "long double": ("L", 16), "_Float32": ("f32", 4), "_Float64": ("f64", 8),
                 "_Float128": ("f128", 16), "_Float32x": ("f32x", 8), "_Float64x": ("f64x", 16)}
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
@@ -204,6 +204,9 @@ def main():
                 units.append(("P1 stdint", identity_unit(cxx, types)))
         if not rejected:
             units += p1s.get(c["id"], [])
+        if c["id"] == "gnu":
+            with open(os.path.join(ROOT, "spec", "tools", "tgmath_types.c")) as f:
+                units.append(("P6 tgmath", f.read()))
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
             with open(src, "w") as f:
