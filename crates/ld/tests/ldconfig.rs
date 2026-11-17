@@ -144,9 +144,12 @@ impl Fs for Mem {
             return Err(ENOTDIR);
         }
         let prefix = if d == b"/" { d.clone() } else { [d.as_slice(), b"/"].concat() };
+        // Only the keys under the prefix (a range of the sorted map), so a listing costs what the directory holds.
         let mut names: Vec<Vec<u8>> = self
             .nodes
-            .keys()
+            .range(prefix.clone()..)
+            .map(|(k, _)| k)
+            .take_while(|k| k.starts_with(&prefix))
             .filter_map(|k| k.strip_prefix(prefix.as_slice()).filter(|r| !r.is_empty() && !r.contains(&b'/')).map(<[u8]>::to_vec))
             .collect();
         if self.reverse {
