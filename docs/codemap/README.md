@@ -68,8 +68,8 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/etc/host.conf` | crates/legacy/src/nss.rs:84 |
 | `/etc/hostid` | crates/legacy/src/sys_compat.rs:282 |
 | `/etc/hosts` | crates/legacy/src/nss.rs:86 |
-| `/etc/ld.so.cache` | crates/ld/src/ldconfig/mod.rs:165 |
-| `/etc/ld.so.conf` | crates/ld/src/ldconfig/mod.rs:163 |
+| `/etc/ld.so.cache` | crates/ld/src/ldconfig/mod.rs:175 |
+| `/etc/ld.so.conf` | crates/ld/src/ldconfig/mod.rs:173 |
 | `/etc/localtime` | crates/core/src/time.rs:39 |
 | `/etc/netgroup` | crates/legacy/src/nss.rs:92 |
 | `/etc/networks` | crates/legacy/src/nss.rs:87 |
