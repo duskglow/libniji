@@ -17,7 +17,8 @@
 #     /usr/lib/x86_64-linux-gnu/libc.so.6;
 #   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache libc-bin's postinst wrote
 #     (configure; the ldconfig trigger after later library installs);
-#   - the smoke programs hello, threads (C) and except, iostream (C++; libstdc++ linked statically)
+#   - the smoke programs hello, threads, devlinks (C; devlinks with -lanl -lBrokenLocale -lmcheck
+#     -lg through libc6-dev's development links: SYS-DEV-LINKS) and except, iostream (C++; libstdc++ linked statically)
 #     built dynamically with plain gcc/g++ run in the root and print their lines: the loader finds
 #     libc.so.6 and libm.so.6 by soname at start (DL-START-SEARCH);
 #   - iostream and throwmain (an exception thrown in the shared libthrowlib.so, caught in the
@@ -98,6 +99,10 @@ b=$("$cc" -print-file-name=crtbeginS.o); e=$("$cc" -print-file-name=crtendS.o)
     fail "dynamic hello does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/threads.c" -lc -lgcc "$e" -o "$r/tmp/threads" > "$tmp/cc.log" 2>&1 ||
     fail "dynamic threads does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+# SYS-DEV-LINKS: -lanl -lBrokenLocale -lmcheck -lg through libc6-dev's development links and archives;
+# the program needs libanl.so.1 and libBrokenLocale.so.1, whose MB_CUR_MAX override it prints.
+"$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/devlinks.c" -Wl,--no-as-needed -lanl -lBrokenLocale -lmcheck -lg -lc -lgcc "$e" -o "$r/tmp/devlinks" > "$tmp/cc.log" 2>&1 ||
+    fail "dynamic devlinks does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 # C++ as niji-g++ links it: libstdc++ and the unwinder static (the root has no libstdc++.so.6), the C
 # library and libm.so.6 the root's.
 cxx=${CXX:-g++}
@@ -172,9 +177,9 @@ case $out in
     *) fail "ldconfig -p in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
 esac
 # The seven dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds
-# libc.so.6 (and libm.so.6, libstdc++.so.6, libgcc_s.so.1, libthrowlib.so, libresolv.so.2) by soname
-# at start (DL-START-SEARCH), and prints its line.
-for pe in "hello:hello from niji" "threads:threads: total 40000" "except:except: caught" "iostream:iostream: 42" \
+# libc.so.6 (and libm.so.6, libstdc++.so.6, libgcc_s.so.1, libthrowlib.so, libresolv.so.2,
+# libanl.so.1, libBrokenLocale.so.1) by soname at start (DL-START-SEARCH), and prints its line.
+for pe in "hello:hello from niji" "threads:threads: total 40000" "devlinks:devlinks: MB_CUR_MAX 4" "except:except: caught" "iostream:iostream: 42" \
     "iostream-so:iostream: 42" "throwmain:throwmain: caught: throwlib: value 3 (throwlib)" \
     "resolv:resolv: a.test A 192.0.2.1 ttl 3600; cut header -1 EMSGSIZE"; do
     p=${pe%%:*}; want=${pe#*:}
