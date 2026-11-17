@@ -1,0 +1,27 @@
+@@generated
+/* utmpx.h: user accounting database (XSH <utmpx.h>). */
+#ifndef __NIJI_H_utmpx_h
+#define __NIJI_H_utmpx_h 1
+
+#include <features.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@owns FD_CLR FD_ISSET FD_ZERO
+@@emit
+
+/* select(2): the fd_set macros, as <sys/types.h> has them, in the modes where this header shows fd_set and that one does not. */
+@@if FD_SET
+# ifndef __NIJI_FD_BITS
+#  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
+#  define FD_SET(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+#  define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+#  define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif
