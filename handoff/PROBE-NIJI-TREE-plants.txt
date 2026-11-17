@@ -1,0 +1,5 @@
+# PROBE-NIJI-TREE plants: the probe client has no default libniji tree; a probe or --selftest without --niji exits 2
+# naming the option. xtask/tests/probe_client.rs must catch a restored default and a dropped check.
+# Run: cargo xtask plants handoff/PROBE-NIJI-TREE-plants.txt --dir <new RAM dir>
+default-restored | tools/probe/probe | lit:ap.add_argument("--niji", help= ==> ap.add_argument("--niji", default=os.path.join(HOME, "w", "nightly"), help= | cargo test -p xtask --test probe_client | msg:a_probe_without_niji_exits_2_naming_the_option.*(FAILED|panicked)
+check-dropped | tools/probe/probe | lit:if (a.file or a.selftest) and not a.niji: ==> if False: | cargo test -p xtask --test probe_client | msg:a_probe_without_niji_exits_2_naming_the_option.*(FAILED|panicked)

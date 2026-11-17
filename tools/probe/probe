@@ -272,10 +272,11 @@ def stream_text(r, which, full):
     return "[%s] (%s)" % (s, note)
 
 
-def render(h, meta, g, lr, hit_g, hit_l, commit, tree, full=False):
+def render(h, meta, g, lr, hit_g, hit_l, commit, tree, ph, full=False):
     v = "SAME" if same(g, lr) else "DIFFERENT"
     out = ["probe %s  %s" % (h[:12], meta["title"]),
-           "niji: %s @ %s   cache: glibc %s, niji %s" % (tree, commit, "HIT" if hit_g else "miss", "HIT" if hit_l else "miss"),
+           "niji: %s @ %s   products %s" % (tree, commit, ph or "unknown"),
+           "cache: glibc %s, niji %s" % ("HIT" if hit_g else "miss", "HIT" if hit_l else "miss"),
            "verdict: " + v, ""]
     for name, r in (("glibc", g), ("niji", lr)):
         note = " (compiler/linker output in stderr)" if r["status"] in ("compile-error", "link-error") else ""
@@ -428,12 +429,12 @@ def do_run(a):
                 pass
     if commit == "unknown" and ph:
         commit = "products-" + ph[:8]
-    store(os.path.join(ed, "meta.json"), dict(meta, source=src, key=h, commit=commit, tree=tree))
-    v, text = render(h, meta, g, lr, hit_g, hit_l, commit, tree, a.full)
+    store(os.path.join(ed, "meta.json"), dict(meta, source=src, key=h, commit=commit, tree=tree, products_hash=ph))
+    v, text = render(h, meta, g, lr, hit_g, hit_l, commit, tree, ph, a.full)
     update_index(h, meta, v, commit)
     if a.json:
         print(json.dumps({"hash": h, "verdict": v, "title": meta["title"], "commit": commit,
-                          "cache": {"glibc": hit_g, "niji": hit_l}, "glibc": brief(g, a.full), "niji": brief(lr, a.full)}))
+                          "tree": tree, "products_hash": ph, "cache": {"glibc": hit_g, "niji": hit_l}, "glibc": brief(g, a.full), "niji": brief(lr, a.full)}))
     else:
         print(text)
     return 0 if v == "SAME" else 1
@@ -468,7 +469,7 @@ def do_show(prefix, full):
     ed = entry_dir(h)
     meta = load(os.path.join(ed, "meta.json"))
     g, lr = load(os.path.join(ed, "glibc.json")), latest_niji(ed)
-    _v, text = render(h, meta, g, lr, True, True, meta["commit"], meta["tree"], full)
+    _v, text = render(h, meta, g, lr, True, True, meta["commit"], meta["tree"], meta.get("products_hash"), full)
     print(text)
     print("\nargs=%r env=%r stdin=%d bytes flags=%s timeout=%ss" % (meta["args"], meta["env"], meta["stdin_len"], " ".join(meta["flags"]), meta["timeout"]))
     return 0
@@ -553,7 +554,7 @@ def do_selftest(a):
 def main():
     ap = argparse.ArgumentParser(description="Cached black-box probe: run a C program against glibc and libniji and compare.")
     ap.add_argument("file", nargs="?", help="probe C source")
-    ap.add_argument("--niji", default=os.path.join(HOME, "w", "nightly"), help="libniji tree (default ~/w/nightly)")
+    ap.add_argument("--niji", help="libniji tree to compare with (required to run a probe or --selftest; no default)")
     ap.add_argument("--args", nargs="*", help="program arguments (give --args last)")
     ap.add_argument("--stdin", help="file fed to standard input")
     ap.add_argument("--env", action="append", default=[], metavar="K=V", help="environment variable (repeatable)")
@@ -574,6 +575,10 @@ def main():
         return do_show(a.show, a.full)
     if a.record:
         return do_record(a.record)
+    if (a.file or a.selftest) and not a.niji:
+        # No default tree: a default once pointed at a tree nobody kept current, so probes measured an old libniji.
+        die("--niji <tree> is required: the libniji tree to compare with, usually your own role tree "
+            "(--niji ~/w/<role>)")
     if a.selftest:
         sh = os.path.join(HOME, "bin", "shared")
         if os.environ.get("PROBE_SLOT") != "1" and os.path.exists(sh):
