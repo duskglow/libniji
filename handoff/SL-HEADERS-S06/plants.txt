@@ -6,5 +6,5 @@ s6-when-include-covers | xtask/src/headers.rs | lit:&& !prev.starts_with("@@when
 s6-trailing-padding | xtask/src/headers.rs | lit:(0..(total - end) / 4) ==> (0..(total - end) / 8) | cargo xtask headers-gen --check | msg:headers-gen
 s6-wchar-c-typedef | xtask/src/headers.rs | lit:typedef __WCHAR_TYPE__ {name}; ==> typedef short {name}; | cargo xtask headers-gen --check | msg:headers-gen
 s6-p1-macro-value | libc-include/stdlib.h | lit:#  define EXIT_FAILURE 1 ==> #  define EXIT_FAILURE 2 | python3 spec/tools/header_check.py | msg:FAIL P1 stdlib.h
-s6-p1-struct-size | libc-include/stdio.h | lit:char _unused2[20]; ==> char _unused2[19]; | python3 spec/tools/header_check.py | msg:FAIL P1 stdio.h
+s6-p1-second-macro | libc-include/stdlib.h | lit:#  define EXIT_SUCCESS 0 ==> #  define EXIT_SUCCESS 1 | python3 spec/tools/header_check.py | msg:FAIL P1 stdlib.h
 s6-p1-check-size | spec/tools/header_check.py | lit:tests.append(f"sizeof({n}) == {t['size']}") ==> tests.append(f"sizeof({n}) == 0") | python3 spec/tools/header_check.py | msg:FAIL P1

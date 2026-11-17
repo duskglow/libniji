@@ -1,74 +1,39 @@
-# SL-HEADERS-S06: slice 6, minimal C program (handoff after run 1, a checkpoint hand-back)
+# SL-HEADERS-S06: slice 6, minimal C program (handoff after run 2, SL-HEADERS-S06-2)
 
-**State.** Branch `task/sl-headers-s06`, cut from origin/next 06c0b561e. INCOMPLETE: slice 6 is started, not finished. The
-branch must not land as it stands: `headers-gen` still reports 20 problems, so no `libc-include/` file exists for the
-eleven new templates and `cargo xtask static` (the `headers-gen --check` step) is red for them. Head: see
-`handoff/reports/SL-HEADERS-S06.json`. Say "slice 6" in commits and handoffs.
+**State.** Branch `task/sl-headers-s06-2` (continues `task/sl-headers-s06`). Head: see `handoff/reports/SL-HEADERS-S06-2.json`.
+`headers-gen` is clean (27 headers written, `libc-include/` committed), `header_check.py` P5 and P1 are green
+(0 failed of 1502 units over 40 configurations), clippy and static are clean. INCOMPLETE: P2, P3 and P6 are not green.
+Say "slice 6" in commits and handoffs.
 
-**Done (run 1).**
-* Templates `headers/{assert,ctype,stdio,stdlib,string,strings,memory,unistd,getopt,time}.h.in` and
-  `headers/sys/unistd.h.in` (`memory.h` is the R-H7 "ship" row of plan/headers.md section 5.1; `memory.h` and
-  `sys/unistd.h` include `string.h` and `unistd.h`). They carry the Appendix C.9 protocols: `assert` with
-  `__assert_fail` (C23 variadic form, `NDEBUG`, no include guard), the ctype masks (`__isctype`, `(*__ctype_b_loc ())[c]`,
-  `tolower`/`toupper` through `__ctype_tolower_loc`/`__ctype_toupper_loc`, only in the configurations whose rows say
-  they are macros), `MB_CUR_MAX` as `__ctype_get_mb_cur_max ()`, `stdin`/`stdout`/`stderr` as `FILE *` objects with
-  `#define stdin stdin`, `NULL`, the wait-status macros, `FD_*` (same text as `sys/types.h`), `TEMP_FAILURE_RETRY`,
-  `strdupa`/`strndupa`, and the [cstring.syn] overloads of `strchr strrchr strpbrk strstr memchr` in C++.
-* Generator (`xtask/src/headers.rs`):
-  * `@@owns-macro A B`: the template defines these macros; their function rows are still emitted (ctype's `isalpha`
-    is both a function and a macro).
-  * the `enumerator` kind: `enum { NAME = value };` once per translation unit (guard `__NIJI_D_enum_NAME`), the value from
-    `macros.tsv` (the macro row of the same name gives the `#define`). Needed by `_SC_*`, `_CS_*`, `_PC_*` and `_IS*`.
-  * structure members that are complete structures (their definition is emitted first) and pointer members with a
-    typedef-named target (`int32_t *`).
-  * a call-site row whose `&f` probe did not compile (`!error`) is ignored; `LINKED_ELSEWHERE` lists the four declared
-    names no default-version export provides (`atexit`, `at_quick_exit`, `pthread_atfork` from the static archive
-    linked into every program; `crypt` from the crypt library).
-  * `_FORTIFY_SOURCE` configurations stop deciding a name's condition when no condition over the levels separates it
-    there (they are slice 18's; the `addr` probes also run in none), and they are outside the care set of the `addr`
-    symbol conditions.
-* `headers/reserved.tsv`: `__assert_fail`, `__assert_perror_fail`, `__assert`, `__ctype_b_loc`, `__ctype_tolower_loc`,
-  `__ctype_toupper_loc`, `__ctype_get_mb_cur_max` are emitted (C.9 names).
+**Done (run 2).**
+* Level `cxx` has four values (C 0, C++98 1, C++11 2, C++14 and later 3; `levels.tsv`, `features.h.in`, `LEVEL_COLS`
+  thresholds 1 2 3): the `__isoc99_`/`__isoc23_` scanf conditions and `gets` (C89/C99, C++98/11) are expressible.
+* Generator (`xtask/src/headers.rs`): nested-structure member rows (`it_interval.tv_sec`) skipped, pointer-to-tag members,
+  function-typedef members (`cookie_read_function_t *`), trailing padding as `int : 32;` (`struct timex`), `struct _IO_FILE`
+  defined from the `FILE` layout rows, function and function-pointer typedefs (`__compar_fn_t`, `cookie_*_function_t`),
+  `wchar_t` in C (`__WCHAR_TYPE__`), the decayed `va_list`, structures named for linkage (`fpos_t` -> `struct _G_fpos_t`),
+  an include right after `@@when` no longer counts as covering names (stdlib.h's size_t was missing in strict modes).
+* Templates: `assert.h` declares `__assert_fail`, `__assert_perror_fail`, `__assert`; `stdio.h` declares `gets`; `stdlib.h`
+  owns the macros `alloca be16toh le64toh` (they come from the conditional includes).
+* Tools: `header_check.py` P5 over the slice 6 headers and P1 (macro integer values, typedef and structure sizes and
+  alignments of the headers' visible names, per configuration; reserved `__x` names and include guards skipped);
+  `header_probe.py --include DIR` and `callsite_probe.py --include DIR [--headers a.h,b.h]` (P2, P3 on libniji's headers);
+  `spec/tools/probe_compare.py visibility|callsites --got DIR --headers ...` prints the rows that differ from the tables.
+* Plants: `handoff/SL-HEADERS-S06/plants.txt` (7 plants).
 
-**Results (keke, role n2).**
-* `sl-headers-s06-gate` (final head): `cargo clippy -p xtask --all-targets -D warnings` and the 5 xtask `headers` unit tests:
-  rc 0.
-* `headers-gen` runs (jobs `sl-headers-s06-gen1` 49 problems, `-gen2` 27, `-gen3` 20): evidence of progress, not on the
-  final head's proof list, all rc 1.
-* NOT RUN: plants (`cargo xtask plants`), P1 to P3, P5, P6, P10, `cargo xtask static`, the conformance programs. No plants
-  file exists yet: the generator changes and the templates are unproved.
+**Open (measured on the first tree of run 2, before the last generator fixes; rerun `bash`-free as below).**
+* P2 (`header_probe.py --include libc-include --headers <slice> --out D --jobs 16`, then `probe_compare.py visibility`): 455
+  differences of 3034 rows, most reserved `__x` names and guards (now ignored by the compare script). The remaining real
+  ones to settle: `_tolower/_toupper/isascii/toascii` macro configurations, `ispunct_l` (the `*_l` ctype macros are
+  not defined), `WIFCONTINUED` configurations, `__STDC_ISO_10646__` extra in every header (has a differences row; the
+  compare needs an `--accept` file for it).
+* P3 (`callsite_probe.py --include ... --headers ...`, `probe_compare.py callsites`): 250 differences of 1110 rows, not
+  yet classified (the `call` rows in fortify configurations are slice 18's; the `getc`/`putc` inline forms need a row or an
+  implementation).
+* P6 not run (`cargo xtask so`, `conformance/run.sh --niji-headers`); P10 and the C++ `<cstdio>`... compiles not run.
+* Pending record for the generator additions (owns-macro, enumerator kind, fortify fallback, `LINKED_ELSEWHERE`, cxx level
+  values) not written: `records/pending/SL-HEADERS-S06-1.toml`, `id = "D-NEW"`, series D-X.
+* The `*_l` ctype macros and the `getc_unlocked` family inline forms (see run 1 notes) are still open.
 
-**The 20 remaining `headers-gen` problems and the fix for each.**
-1. `scanf` family (14): `__isoc99_*` in C++98 and `__isoc23_*` from C++11 on, but the levels have one `cxx` flag. Add a level
-   `cxx11` (`headers/levels.tsv` column, `LEVEL_COLS`, `features.h.in`, the `lv()` unit test array, `spec/tools/header_check.py`
-   reads the columns) or let the symbol condition use `__cplusplus`.
-2. `gets` (3 lines): visible in C89/C99 and C++98/11, absent from `prototypes.tsv` (removed in C11). The template must declare
-   it (name and type from the standard, C99 7.19.7.7) or `visibility.tsv` row gets a differences row.
-3. `struct _IO_FILE` has no usable layout rows: members whose type is a pointer to a structure (`struct _IO_marker *`) or an
-   array of `char`. Extend `members_nested` to pointers to a structure named in `layouts.tsv` or opaque (an incomplete tag).
-   Appendix C.9's inline `getc_unlocked` protocol needs the member names (R-H4: complete).
-4. `struct timex`, `struct itimerspec` (time.h): check why the nested-structure rule does not take them (`struct timeval`,
-   `struct timespec` members: the tag may be keyed `struct timespec` in `layouts.tsv` with a header column filter).
-
-**Not designed or started.** P1 `_Static_assert` TUs (C and C++), P2 and P3 on the staged tree (`header_probe.py` and
-`callsite_probe.py` with an extra-flags option), P5 hygiene run, P6 hello and the covered conformance programs
-(`conformance/run.sh --liella-headers`), P10 ctype/`assert`/`errno` differentials, the C++ `<cstdio>`... compile in every
-`-std`, plants file `handoff/SL-HEADERS-S06/plants.txt`, the pending record for the generator additions
-(`records/pending/SL-HEADERS-S06-1.toml`, `id = "D-NEW"`, series D-X: owns-macro, the enumerator kind, the fortify
-fallback, `LINKED_ELSEWHERE`).
-
-**Open design points.**
-* The brief says `__LIELLA__` is always defined; the tree has `__NIJI__` (D-X.107, the libniji rename). The templates use the tree's.
-* The `*_l` ctype macros (`isalnum_l` ...: inline through the locale's `__ctype_b` member) and the `-O2` inline forms of
-  `getc_unlocked`, `putc_unlocked`, `getchar` and `putchar` in `callsites.tsv` (`call` rows: `__uflow`, `__overflow`,
-  `getc`+`stdin`) are not implemented; they need a differences row or an implementation. The `call` rows are measured only in
-  the fortify configurations, so slice 18 may own them.
-* The templates emit every name `visibility.tsv` lists for the header (the reference's pollution too: `stdlib.h` shows
-  `pthread_*`, `unistd.h` shows `__environ`-style types). P2 will confirm or ask for differences rows.
-* `size_t` and `va_list` are typedefs of libniji's own under a guard; whether the compiler's `<stddef.h>`/`<stdarg.h>`
-  included afterwards under `-std=c99 -pedantic-errors` redefine them is not tested.
-
-**Next steps.** Fix the four problems above (`TAILN=30 bash` a run helper that syncs to the role, runs `cargo xtask headers-gen`
-through `jobrun` and waits is the quickest loop: about 2.5 minutes the first time, less cached); run `cargo xtask headers-gen`
-to write `libc-include/`; `cargo xtask static`; then P5 with `spec/tools/header_check.py --include libc-include`; the plants;
-the gate. Plan rows: plan/headers.md section 2.4, 3, 4 (slice 6).
+**Next steps.** Rerun P2/P3 on the final tree; classify differences (fix the template or add a differences row with a
+compat option); `cargo xtask so` then `conformance/run.sh --niji-headers` (P6); P10; the pending record.
