@@ -236,10 +236,31 @@ fn protected_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, s
     Ok(())
 }
 
+/// [`pass1`] when the program has canonical PLT entries ([`Object::has_canonical_plt`]):
+/// [`relocate_first`] comes here on that one test, so a process whose program has no such entry
+/// never runs this, and `pass1` itself stays as it is. The RELR words as in `pass1`, then
+/// [`tables_canonical`].
+#[cold]
+#[inline(never)]
+fn pass1_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+    for at in o.dynm.relr().map_err(RelocError::Elf)?.into_iter().flatten() {
+        let at = at.map_err(RelocError::Elf)?;
+        if !inside(&o.elf, at, 8, text) {
+            return Err(RelocError::Outside(at));
+        }
+        let p = o.bias.wrapping_add(at);
+        let mut w = [0u8; 8];
+        img.load(p, &mut w);
+        let v = if A::EI_DATA == ELFDATA2LSB { u64::from_le_bytes(w) } else { u64::from_be_bytes(w) }.wrapping_add(o.bias);
+        img.store(p, &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
+    }
+    tables_canonical::<A, I>(set, i, o, false, text, img, unique)
+}
+
 /// The relocation tables of object `i` in pass `deferred` when the program has canonical PLT entries
 /// ([`Object::has_canonical_plt`]): each `JUMP_SLOT` binds as [`slot`] says, every other entry as in
-/// [`one`]. [`pass1`] and [`relocate_deferred`] come here on that one test, so a process whose
-/// program has no such entry never runs this. Whether any entry was deferred.
+/// [`one`]. Reached only from [`pass1_canonical`] and, on the same one test, [`relocate_deferred`].
+/// Whether any entry was deferred.
 #[cold]
 #[inline(never)]
 fn tables_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
@@ -486,7 +507,11 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
     if text {
         text_segments(&o, img, page, true).map_err(|()| RelocError::Protect)?;
     }
-    let first = pass1::<A, I>(set, i, &o, text, img, unique);
+    let first = if set.syms.first().is_some_and(Object::has_canonical_plt) {
+        pass1_canonical::<A, I>(set, i, &o, text, img, unique)
+    } else {
+        pass1::<A, I>(set, i, &o, text, img, unique)
+    };
     if text {
         // Restored before any resolver can run, also on failure.
         text_segments(&o, img, page, false).map_err(|()| RelocError::Protect)?;
@@ -527,9 +552,6 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
         img.load(p, &mut w);
         let v = if A::EI_DATA == ELFDATA2LSB { u64::from_le_bytes(w) } else { u64::from_be_bytes(w) }.wrapping_add(o.bias);
         img.store(p, &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
-    }
-    if set.syms.first().is_some_and(Object::has_canonical_plt) {
-        return tables_canonical::<A, I>(set, i, o, false, text, img, unique);
     }
     let mut deferred = false;
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
