@@ -6,3 +6,11 @@ file-deleted | xtask/src/abi_versions.rs | lit:pub const ADDITIONS: &str = "spec
 digest-ignored | xtask/src/abi_versions.rs | lit:Ok(got) if got == want && count == reference.len().to_string() => {} ==> Ok(got) if got == got || count == reference.len().to_string() => {} | cargo test -p xtask --bins -- abi_versions | msg:a_hand_added_row_fails.*FAILED|panicked
 merge-at-end | xtask/src/abi_versions.rs | lit:.map_or(out.len(), |i| i + 1); ==> .map_or(out.len(), |_| out.len()); | cargo test -p xtask --bins -- abi_versions | msg:a_merged_table_passes.*FAILED|panicked
 record-unchecked | xtask/src/abi_versions.rs | lit:} else if !decision_exists(f[8]) { ==> } else if false && !decision_exists(f[8]) { | cargo test -p xtask --bins -- abi_versions | msg:an_addition_without_a_decision_fails.*FAILED|panicked
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# hand-row: CAUGHT, caught by no test the log names
+# no-decision: CAUGHT, caught by no test the log names
+# rows-removed: CAUGHT, caught by no test the log names
+# file-deleted: CAUGHT, caught by no test the log names
+# digest-ignored: CAUGHT, caught by xtask abi_versions::tests::a_hand_added_row_fails_naming_the_additions_file
+# merge-at-end: CAUGHT, caught by xtask abi_versions::tests::a_misplaced_addition_fails
+# record-unchecked: CAUGHT, caught by xtask abi_versions::tests::an_addition_without_a_decision_fails

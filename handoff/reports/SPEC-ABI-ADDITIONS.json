@@ -1,0 +1,21 @@
+{"task": "SPEC-ABI-ADDITIONS", "model": "opus", "tokens": null,
+ "result": "Exports beyond the reference live in spec/abi/versions-additions.tsv (with decision ids); abi_extract.py merges them and records a reference-row digest; static check abi-versions fails hand edits; full regeneration reproduces versions.tsv and versions-aarch64.tsv byte for byte",
+ "branch": "task/spec-abi-additions", "head": null,
+ "gate": {"affected": "spec-abi-additions-gate (affected escalated to FULL: spec/abi tables and xtask main.rs) still running at hand-back; static + clippy + xtask unit tests green (spec-abi-additions-lint2)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Only two rows per table were hand additions: a fresh extraction on origin/next differed from versions.tsv and versions-aarch64.tsv by exactly sched_getattr and sched_setattr at GLIBC_2.41 (job spec-abi-additions-fresh0).",
+   "prototypes.tsv still carries the two sched_*attr rows by hand (a rerun drops them); same fix shape would work, separate story.",
+   "A full native rerun of abi_extract.py rewrites constants.tsv (396 diff lines vs the committed --constants-only output, ERRATA E10) and PROVENANCE (hand notes); regenerate versions with the new --versions-only until reconciled.",
+   "The two GLIBC_2.41 rows moved from beside sched_setscheduler to the end of the libc.so.6 block (the merge rule); no consumer depends on row order."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "a full regeneration of versions.tsv / versions-aarch64.tsv no longer drops sched_getattr/sched_setattr@GLIBC_2.41", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "static check abi-versions + 8 xtask unit tests; plants caught", "before": 0, "after": 7, "unit": "plants", "measured": true}
+ ],
+ "jobs": ["spec-abi-additions-gate", "spec-abi-additions-plants", "spec-abi-additions-lint2", "spec-abi-additions-regen-final"],
+ "improvement": "A spec/abi data file read only by the extractor and a static check escalates the gate to FULL; affected could classify such extractor-only inputs as static-check inputs.",
+ "next_step": "Land once spec-abi-additions-gate is green; optional follow-up: the same additions mechanism for prototypes.tsv.",
+ "report_file": "handoff/SPEC-ABI-ADDITIONS.md"}
