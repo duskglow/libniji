@@ -26,11 +26,14 @@
 //!    `include/`; but the math wiring, coefficients, fits and tables generator, rule 8), the product crates, linker and export lists,
 //!    any non-Rust file under a crate's `src/`, and any path this table does not know.
 //! 2. DOCS ONLY (`docs/`, `plan/`, `handoff/`, `results/`, top-level `*.md`, `spec/**/*.md`, `spec/behaviour`,
-//!    `spec/schedule.tsv`, and the operator tools under the top-level `tools/`, e.g. the probe service, which no test
-//!    reaches): `stubs` (which runs `trace`), the policy checks and `cargo xtask static`, no tests; but a file that code
-//!    names as a path (a quoted path on a non-comment line, e.g. a test's `spec/behaviour/*.glibc.txt` record or
-//!    `docs/codemap/symbols.tsv`, which this command reads) selects its readers: that test target, the crate's unit
-//!    tests, or the xtask unit tests (XTASK-AFFECTED-DOCS-PATHS, D-X.35).
+//!    `spec/schedule.tsv`, and the operator tools under the top-level `tools/`): `stubs` (which runs `trace`), the
+//!    policy checks and `cargo xtask static`, no tests; but a file that code names as a path (a quoted path on a
+//!    non-comment line, e.g. a test's `spec/behaviour/*.glibc.txt` record, `docs/codemap/symbols.tsv`, which this
+//!    command reads, or a tool a test runs, `tools/probe/probe`) selects its readers: that test target, the crate's
+//!    unit tests, or the xtask tests (unit and `xtask/tests/`) (XTASK-AFFECTED-DOCS-PATHS, D-X.35). A tool a test
+//!    reaches without naming it (run by another tool, or found by listing its directory) selects the readers of
+//!    the path the test names, through the `TOOL_REACH` table (XTASK-AFFECTED-TOOL-TESTS). A tool that no test
+//!    reaches selects no tests.
 //! 3. A conformance program (`conformance/c/*.c`): that program, and the tests that name it.
 //!    A header `conformance/c/*.h`: the programs that `#include` it (none: every program) and
 //!    the tests that name it. `conformance/run.sh` and `conformance/tools`: every conformance program.
@@ -255,7 +258,8 @@ pub struct Repo {
     /// here was removed, and `cargo xtask remez --check` cannot check it: FULL.
     fits: BTreeSet<String>,
     /// XTASK-AFFECTED-DOCS-PATHS: the xtask sources (path, text) that may read a documentation file; this command's own
-    /// unit tests are left out (they name made-up paths, not files they read).
+    /// unit tests are left out (they name made-up paths, not files they read). XTASK-AFFECTED-TOOL-TESTS: with the
+    /// integration tests under `xtask/tests/`.
     xtask_texts: Vec<(String, String)>,
     /// XTASK-AFFECTED-EXAMPLES: the crates' example programs, `<crate dir>/examples/<name>.rs` (path, text): which
     /// example a file of a module directory `examples/<d>/` belongs to (`example_steps`).
@@ -1176,6 +1180,9 @@ impl Repo {
         let closure = build_closures(root, &crates, &nodes);
         let mut xs = Vec::new();
         files_under(&root.join("xtask/src"), &["rs"], &mut xs);
+        // XTASK-AFFECTED-TOOL-TESTS: the integration tests too, so a docs or tool path one of them names (the probe
+        // client, `tools/probe/probe`) selects the xtask tests (`docs_readers`).
+        files_under(&root.join("xtask/tests"), &["rs"], &mut xs);
         let xtask_texts = xs
             .iter()
             .map(|p| {
@@ -2176,7 +2183,14 @@ fn ordinary_mapping(repo: &Repo, f: &str, sel: &mut Selection) {
 /// not seen; the readers found that way today are static checks, which run anyway.
 fn docs_readers(repo: &Repo, f: &str, sel: &mut Selection) {
     sel.xtask_cmds.insert("static".to_string());
-    let readers = path_readers(repo, f, sel);
+    let mut readers = path_readers(repo, f, sel);
+    // XTASK-AFFECTED-TOOL-TESTS: an operator tool that a test reaches without naming it selects the readers of the
+    // path the test does name.
+    for (_, _, via, why) in TOOL_REACH.iter().filter(|(dir, ext, _, _)| tool_reached(f, dir, ext)) {
+        readers.extend(readers_of(repo, via, &format!("{f}: reached through {via} ({why})"), sel));
+    }
+    readers.sort();
+    readers.dedup();
     if readers.is_empty() {
         sel.notes.push(format!("{f}: docs only (stubs, policy checks, `cargo xtask static`; no tests)"));
     } else {
@@ -2187,14 +2201,36 @@ fn docs_readers(repo: &Repo, f: &str, sel: &mut Selection) {
 /// The code that names `f` as a path (`names_path`), selected: a test target, the owning crate's unit tests (a crate
 /// source), the xtask unit tests (an xtask source). Returns the readers' names for the note.
 fn path_readers(repo: &Repo, f: &str, sel: &mut Selection) -> Vec<String> {
-    let why = format!("{f}: the source names the file");
+    readers_of(repo, f, &format!("{f}: the source names the file"), sel)
+}
+
+/// XTASK-AFFECTED-TOOL-TESTS: operator tools under `tools/` (rule 2) that a test reaches at run time without naming
+/// the file, so `names_path` cannot see them: `(directory or file, extension, the path the test names, why)`. A
+/// changed file under the directory (direct children only) with that extension (`""`: any), or the file itself,
+/// selects the readers of the named path. The tools a test names directly (`tools/probe/probe` in
+/// `xtask/tests/probe_client.rs`, the `tools/deb` steps, `tools/hottext/runner.sh`, ...) need no row.
+const TOOL_REACH: [(&str, &str, &str, &str); 3] = [
+    ("tools/hottext/", ".sh", "tools/hottext", "a test lists the directory and reads every script; runner.sh's test runs canon_host.sh"),
+    ("tools/deb/copyright", "", "tools/deb/system.sh", "system.sh stages it in the symbols-only run"),
+    ("tools/deb/system/", "", "tools/deb/system.sh", "system.sh stages its configuration files in the symbols-only run"),
+];
+
+/// Whether changed file `f` is reached through a `TOOL_REACH` row `(dir, ext)`: `dir` itself, or a direct child of
+/// the directory `dir` (ending in `/`) whose name ends in `ext`.
+fn tool_reached(f: &str, dir: &str, ext: &str) -> bool {
+    f == dir || (dir.ends_with('/') && f.strip_prefix(dir).is_some_and(|rest| !rest.contains('/') && rest.ends_with(ext)))
+}
+
+/// The code that names `f` as a path, selected with the reason `why` (see `path_readers`). The xtask sources include
+/// the xtask integration tests (`xtask/tests/`), which `cargo test -p xtask` runs with the unit tests.
+fn readers_of(repo: &Repo, f: &str, why: &str, sel: &mut Selection) -> Vec<String> {
     let mut readers = Vec::new();
     for t in repo.targets.iter().filter(|t| names_path(&t.text, f)) {
-        add(&mut sel.tests, (t.krate.clone(), t.name.clone()), &why);
+        add(&mut sel.tests, (t.krate.clone(), t.name.clone()), why);
         readers.push(format!("{}::{}", t.krate, t.name));
     }
     for n in repo.nodes.iter().filter(|n| names_path(&n.text, f)) {
-        add(&mut sel.libs, n.krate.clone(), &why);
+        add(&mut sel.libs, n.krate.clone(), why);
         readers.push(format!("lib:{}", n.krate));
     }
     if let Some((x, _)) = repo.xtask_texts.iter().find(|(_, t)| names_path(t, f)) {
@@ -4724,7 +4760,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
 
     #[test]
     fn docs_only_runs_no_tests() {
-        for f in ["docs/differences-from-glibc.md", "plan/05.md", "handoff/process.md", "README.md", "spec/behaviour/x.md", "handoff/reports/PR-4.json", "tools/probe/probe"] {
+        for f in ["docs/differences-from-glibc.md", "plan/05.md", "handoff/process.md", "README.md", "spec/behaviour/x.md", "handoff/reports/PR-4.json", "tools/prof/prof.sh"] {
             let (_, s) = sel(&[f]);
             assert!(s.full.is_empty() && s.tests.is_empty() && s.conf.is_empty() && s.libs.is_empty() && s.clippy.is_empty(), "{f}: {s:?}");
         }
@@ -4763,6 +4799,52 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             let s = tier(&["docs/codemap/symbols.tsv"], t);
             assert!(s.full.is_empty() && s.xtask_tests, "{t:?}: {s:?}");
         }
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. The probe client is run by an xtask integration test that names it
+    // (`xtask/tests/probe_client.rs`): a change to the client alone selects the xtask tests (it selected none).
+    #[test]
+    fn direct_tier_tool_named_by_an_xtask_integration_test_selects_the_xtask_tests() {
+        let s = tier(&["tools/probe/probe"], Tier::Direct);
+        assert!(s.full.is_empty() && s.xtask_tests && s.xtask_cmds.contains("static") && s.tests.is_empty() && s.libs.is_empty(), "{s:?}");
+        assert!(s.notes.iter().any(|n| n.contains("xtask/tests/probe_client.rs")), "the reader is the integration test: {:?}", s.notes);
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 1: the tools/hottext scripts no code names (a test lists
+    // the directory and reads each script; runner.sh's test runs canon_host.sh) select the xtask tests; only `.sh`
+    // files directly in the directory.
+    #[test]
+    fn direct_tier_hottext_scripts_reached_by_listing_select_the_xtask_tests() {
+        for f in ["tools/hottext/canon_host.sh", "tools/hottext/probe_text.sh", "tools/hottext/startup_data.sh"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(s.full.is_empty() && s.xtask_tests && s.tests.is_empty(), "{f}: {s:?}");
+        }
+        for f in ["tools/hottext/faultmap.py", "tools/hottext/probes/made-up.sh"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(!s.xtask_tests && s.tests.is_empty() && s.libs.is_empty(), "{f}: {s:?}");
+        }
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 2: tools/deb/copyright, which system.sh stages in the
+    // symbols-only run of deb_symbols_products, selects that test; the row names the file, not a prefix.
+    #[test]
+    fn direct_tier_deb_copyright_selects_the_deb_symbols_test() {
+        let s = tier(&["tools/deb/copyright"], Tier::Direct);
+        assert!(s.full.is_empty() && has_test(&s, "deb_symbols_products"), "{s:?}");
+        let s = tier(&["tools/deb/copyright.made-up"], Tier::Direct);
+        assert!(!has_test(&s, "deb_symbols_products"), "{s:?}");
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 3: the configuration files under tools/deb/system/,
+    // which system.sh stages in the same run, select deb_symbols_products; a deeper path does not.
+    #[test]
+    fn direct_tier_deb_system_files_select_the_deb_symbols_test() {
+        for f in ["tools/deb/system/gai.conf", "tools/deb/system/nsswitch.conf"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(s.full.is_empty() && has_test(&s, "deb_symbols_products"), "{f}: {s:?}");
+        }
+        let s = tier(&["tools/deb/system/made-up/x.conf"], Tier::Direct);
+        assert!(!has_test(&s, "deb_symbols_products"), "{s:?}");
     }
 
     // XTASK-AFFECTED-DOCS-PATHS; no spec clause. Mixed with code: the code's selection as before, plus `static`.
