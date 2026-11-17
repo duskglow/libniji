@@ -113,7 +113,7 @@ fn assert_ok(how: &str, what: &str, o: &Output) {
 /// `dlsym(RTLD_DEFAULT)` give one address, the program's PLT entry, and a call through that entry
 /// reaches the library's `f`.
 #[test]
-fn s27_1_g_0_non_pie_program_canonical_plt_entry_is_every_reference_address() {
+fn s27_1_g_0_nonpie_program_canonical_plt_entry_binds_every_address_reference() {
     let Some(k) = setup("nonpie") else { return };
     let libf = cc(&k.d, "libf.so", LIBF, LIB_FLAGS);
     cc(&k.d, "libd.so", "extern void f(void);\nvoid *d_f(void) { return (void *)f; }\n", LIB_FLAGS);
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
 /// its load bias) and that carries the x86 used-ISA notes: the library's `foo` gets the entry's
 /// address and compares it with its own reference to `test`.
 #[test]
-fn s27_1_g_0_pie_canonical_plt_entry_is_the_library_address() {
+fn s27_1_g_0_pie_canonical_plt_entry_binds_library_reference() {
     let Some(k) = setup("pie") else { return };
     let libt = cc(&k.d, "libt.so", "int test_calls;\nvoid test(void) { test_calls++; }\nint foo(void (*bar)(void)) { return bar == test; }\n", LIB_FLAGS);
     let prog = r#"extern void test(void);
@@ -196,7 +196,7 @@ int main(void) {
 /// `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` the start is refused (status 127, a message naming
 /// the function). Without such a compiler option the marked half is skipped (printed).
 #[test]
-fn s27_1_g_0_canonical_plt_entry_for_a_protected_definition() {
+fn s27_1_g_0_canonical_plt_entry_for_protected_definition() {
     let Some(k) = setup("protected") else { return };
     let soname = ["-Wl,-soname,libcp.so"];
     let plain = k.d.join("plain");
