@@ -6,16 +6,10 @@
 # Never add rows to make the check pass: build the missing compat version instead (SO-CHECK-DEFAULT-VERSION).
 symbol	version
 _LIB_VERSION	GLIBC_2.2.5
-exp	GLIBC_2.2.5
-exp10	GLIBC_2.2.5
 exp10f	GLIBC_2.2.5
 exp2	GLIBC_2.2.5
 exp2f	GLIBC_2.2.5
 expf	GLIBC_2.2.5
-fmod	GLIBC_2.2.5
-fmodf	GLIBC_2.2.5
-hypot	GLIBC_2.2.5
-hypotf	GLIBC_2.2.5
 lgamma	GLIBC_2.2.5
 lgammaf	GLIBC_2.2.5
 lgammal	GLIBC_2.2.5
@@ -24,7 +18,6 @@ log2	GLIBC_2.2.5
 log2f	GLIBC_2.2.5
 logf	GLIBC_2.2.5
 matherr	GLIBC_2.2.5
-pow	GLIBC_2.2.5
 powf	GLIBC_2.2.5
 totalorder	GLIBC_2.25
 totalorderf	GLIBC_2.25

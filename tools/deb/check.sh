@@ -10,7 +10,8 @@
 #    files (no ld.so.conf, no cache).
 # 3. The wrapper, from the unpacked packages: a dynamic program's interpreter is exactly libniji's
 #    loader and it needs libc.so.6 with no RPATH/RUNPATH; static programs (C, threads, C++ with an
-#    exception) build and run and have no interpreter.
+#    exception) build and run and have no interpreter; -lanl -lBrokenLocale -lc_malloc_debug link
+#    the shared libraries through niji6-dev's development links (SYS-DEV-LINKS).
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -78,6 +79,16 @@ if [ -x "$cc" ]; then
         ! readelf -dW "$tmp/hello-dyn" | grep -q -E '\((RPATH|RUNPATH)\)' || fail "wrapper: hello has an RPATH or RUNPATH"
     else
         fail "wrapper: dynamic hello does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
+    fi
+    # SYS-DEV-LINKS: niji6-dev's development links take the shared libraries in a dynamic link
+    # (--no-as-needed records each -l), and -lmcheck -lg resolve to the empty archives.
+    if "$cc" -O1 "$here/smoke/devlinks.c" -Wl,--no-as-needed -lanl -lBrokenLocale -lc_malloc_debug -lmcheck -lg -o "$tmp/devlinks-dyn" > "$tmp/log" 2>&1; then
+        needed=" $(readelf -dW "$tmp/devlinks-dyn" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
+        for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do
+            case $needed in *" $so "*) ;; *) fail "wrapper: devlinks needs '$needed', without $so" ;; esac
+        done
+    else
+        fail "wrapper: dynamic devlinks does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"
     fi
     # run_static NAME COMPILER SOURCE EXPECTED: a static program builds, has no interpreter, prints EXPECTED.
     run_static() {

@@ -53,7 +53,7 @@ mkdir -p "$stage/swap/debs" "$stage/ref"
 cp "$keyring" "$stage/keyring.gpg"
 cp "$libc6" "$libcbin" "$stage/swap/debs/"
 cp "$here/swap-cmds.sh" "$stage/swap/cmds.sh"
-include=mawk,python3-minimal,fakeroot,initramfs-tools-core
+include=mawk,gawk,python3-minimal,fakeroot,initramfs-tools-core
 if [ -n "${SWAP_EXTRA_PKGS:-}" ]; then
     include=$include,$SWAP_EXTRA_PKGS
     echo "swap: INFO extra packages in both roots: $SWAP_EXTRA_PKGS"
@@ -69,7 +69,7 @@ rm -rf "$res"
 mkdir -p "$res"
 
 # The programs of the comparison: the Essential set (bash, coreutils, findutils, grep, sed, perl-base,
-# dash), mawk, python3-minimal, fakeroot (a preloaded library: LD_PRELOAD and RTLD_NEXT) and
+# dash), mawk, gawk (old libm versions), python3-minimal, fakeroot (a preloaded library: LD_PRELOAD and RTLD_NEXT) and
 # initramfs-tools-core (copy_exec, a consumer of ldd's listing). Same package set in both roots.
 mmroot() { # mmroot MODE HOOK...: build a root, run the hooks, copy /tmp/swap/out out to $res/MODE.
     mode=$1; shift

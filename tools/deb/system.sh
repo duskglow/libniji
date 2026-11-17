@@ -9,7 +9,9 @@
 # Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
 # spec, symbols_only) and helpers (put, put_link, put_text, need, installed_size).
 #
-#   libc6         run time: loader, libc.so.6, libm.so.6, libmvec.so.1, the placeholder libraries; conffile
+#   libc6         run time: loader, libc.so.6, libm.so.6, libmvec.so.1, the placeholder libraries (with
+#                 libBrokenLocale.so.1: SYS-DEV-LINKS), libresolv.so.2 (D-16.6: its exports jump
+#                 to libc.so.6's own definitions); conffile
 #                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
 #                 symbols and shlibs (tools/deb/symbols.py, plan section 3.2; checked by
 #                 tools/deb/check-symbols.sh); Provides, per libniji-only node kind, the virtual
@@ -23,9 +25,14 @@
 #                 kept, deb-triggers(5)); its postrm removes /etc/ld.so.cache on purge.
 #                 /usr/bin/getconf (UTIL-5: static, over libc.a), /usr/bin/getent (dynamic, over
 #                 libc6's name services: UTIL-6), /usr/bin/ldd (UTIL-4: static, runs the loader in trace mode). Its other programs (iconv, locale, ...) come
-#                 with SL-BIN-CORE.
+#                 with SL-BIN-CORE. No /etc/bindresvport.blacklist (spec 31.14, D-31.5: not
+#                 installed) and no /etc/default/nss (libniji's name services read no such file).
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so, libmvec.so. No headers yet (SL-HEADERS, R4).
+#                 libm.so, libmvec.so, libresolv.so, the development links libanl.so, libBrokenLocale.so,
+#                 libc_malloc_debug.so. No headers yet (SL-HEADERS, R4). Depends on linux-libc-dev,
+#                 libcrypt-dev and rpcsvc-proto (builds that include <linux/...> or <crypt.h>, or
+#                 run rpcgen, get them through libc6-dev); Provides: libc-dev (= <version>), so
+#                 versioned relations on libc-dev are met.
 #   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
@@ -40,12 +47,15 @@ mlib=usr/lib/$ma
 # --- libc6 ---
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$s6/$mlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     need "$so"
     put 0644 "$products/$so" "$s6/$mlib/$so"
 done
 put_link ../lib/$ma/ld-linux-x86-64.so.2 "$s6/usr/lib64/ld-linux-x86-64.so.2"
 put 0644 "$sys/x86_64-linux-gnu.conf" "$s6/etc/ld.so.conf.d/$ma.conf"
+# lintian's undeclared-elf-prerequisites (libc.so.6) for each library above: the prerequisite is in
+# this package, which has no Depends to name it.
+put 0644 "$sys/libc6.lintian-overrides" "$s6/usr/share/lintian/overrides/libc6"
 
 # --- libc-bin ---
 put 0644 "$sys/ld.so.conf" "$bin/etc/ld.so.conf"
@@ -73,7 +83,9 @@ for o in gcrt1 grcrt1 crti crtn Mcrt1; do
     need "niji-$o.o"
     put 0644 "$products/niji-$o.o" "$sdev/$mlib/$o.o"
 done
-for a in libc.a libm.a libmvec.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a; do
+# SYS-DEV-LINKS: libBrokenLocale.a holds the library's override (D-27.9); libg.a, libmcheck.a and
+# libpthread_nonshared.a are empty (D-27.9), so -lg, -lmcheck and -lpthread_nonshared resolve.
+for a in libc.a libm.a libmvec.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
     put 0644 "$products/$a" "$sdev/$mlib/$a"
 done
@@ -84,6 +96,18 @@ OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
 put_link libm.so.6 "$sdev/$mlib/libm.so"
 put_link libmvec.so.1 "$sdev/$mlib/libmvec.so"
+# Development links to libc6's libraries (SYS-DEV-LINKS): without them -lanl takes the empty
+# libanl.a and -lBrokenLocale takes libBrokenLocale.a in a dynamic link; with them each links the
+# shared library as a plain gcc link does with the reference packages. libnss_compat.so and
+# libnss_hesiod.so wait for their libraries (SL-NSS): a link to a missing file would only turn
+# -lnss_compat into a dangling-link error.
+for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do
+    put_link "$so" "$sdev/$mlib/${so%%.so.*}.so"
+done
+# libresolv.so.2's linker name (issue #5): `-lresolv` links against the shared library, so a program
+# needs libresolv.so.2 and binds its GLIBC_2.x versions. libresolv.a stays empty: its functions are in
+# libc.a (D-16.6), so a static `-lresolv` link finds them there.
+put_link libresolv.so.2 "$sdev/$mlib/libresolv.so"
 
 # --- Documentation (every package; identical across architectures, as Multi-Arch: same needs). ---
 date_r=$(date -u -d "@$epoch" -R)
@@ -132,7 +156,9 @@ python3 "$here/symbols.py" files --versions "$spec/abi/versions.tsv" --native "$
     --provides "$stage/libc6.provides"
 provides=$(cat "$stage/libc6.provides")
 [ -n "$provides" ] || { echo "build.sh: symbols.py names no virtual package for libc6 to provide" >&2; exit 1; }
-sys_control libc6 amd64 libs required \
+# Priorities as the distribution's packages of these names have them (SYS-CONTROL-PARITY): libc6
+# optional (Essential libc-bin pulls it in), libc-bin required, locales and libc-l10n standard.
+sys_control libc6 amd64 libs optional \
     "Multi-Arch: same" \
     "Provides: $provides" \
     "Breaks: base-files (<< 13.3~)" \
@@ -141,7 +167,8 @@ sys_control libc6 amd64 libs required \
     " This package is the system's C library: the dynamic loader" \
     " /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (program interpreter" \
     " /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6, libmvec.so.1 and the libraries whose" \
-    " functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1, ...)."
+    " functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1," \
+    " libresolv.so.2, ...)."
 if [ -n "$symbols_only" ]; then
     echo "build.sh: symbols step only: $s6/DEBIAN (symbols, shlibs, control; Provides: $provides); no packages written"
     exit 0
@@ -158,8 +185,8 @@ sys_control libc-bin amd64 libs required \
     " part of this build yet."
 sys_control libc6-dev amd64 libdevel optional \
     "Multi-Arch: same" \
-    "Depends: libc6 (= $version), libc-dev-bin (= $version)" \
-    "Provides: libc-dev" \
+    "Depends: libc6 (= $version), libc-dev-bin (= $version), linux-libc-dev, libcrypt-dev, rpcsvc-proto" \
+    "Provides: libc-dev (= $version)" \
     "Description: libniji C library: development files" \
     "$abi_note" \
     " This package holds the start files, the libc.so linker script," \
@@ -172,13 +199,14 @@ sys_control libc-dev-bin amd64 libdevel optional \
     "$abi_note" \
     " The development program gencat is not part of this build yet; the" \
     " package exists so that libc6-dev's dependency is met."
-sys_control locales all localization optional \
+sys_control locales all localization standard \
     "Depends: libc-bin (>= $abi)" \
     "Description: libniji C library: locale support (placeholder)" \
     "$abi_note" \
     " The locale compiler and locale data are not part of this build yet; the" \
     " package exists so that dependencies on locales are met."
-sys_control libc-l10n all localization optional \
+sys_control libc-l10n all localization standard \
+    "Multi-Arch: foreign" \
     "Description: libniji C library: translations (placeholder)" \
     "$abi_note" \
     " The C library's message translations are not part of this build yet; the" \

@@ -6,7 +6,8 @@
 #
 # The root starts as the merged-/usr skeleton base-files lays down (bin, lib, lib64, sbin links into
 # /usr) and an empty dpkg database, nothing else: no shell, no libraries. dpkg --root installs all
-# six packages with --force-script-chrootless (libc-bin's postinst honours DPKG_ROOT, since the root
+# six packages, and empty stand-ins for linux-libc-dev, libcrypt-dev and rpcsvc-proto (libc6-dev's
+# dependencies from other sources), with --force-script-chrootless (libc-bin's postinst honours DPKG_ROOT, since the root
 # has no shell to run it). Then, in the root (chroot inside the namespace):
 #   - every package is "install ok installed" (the ldconfig trigger was processed), the conffiles
 #     are registered, /etc/nsswitch.conf came from the template, dpkg --verify is clean;
@@ -16,12 +17,17 @@
 #     /usr/lib/x86_64-linux-gnu/libc.so.6;
 #   - the packaged ldconfig -p lists libc.so.6 from the /etc/ld.so.cache libc-bin's postinst wrote
 #     (configure; the ldconfig trigger after later library installs);
-#   - the smoke programs hello, threads (C) and except, iostream (C++; libstdc++ linked statically)
+#   - the smoke programs hello, threads, devlinks (C; devlinks with -lanl -lBrokenLocale -lmcheck
+#     -lg through libc6-dev's development links: SYS-DEV-LINKS) and except, iostream (C++; libstdc++ linked statically)
 #     built dynamically with plain gcc/g++ run in the root and print their lines: the loader finds
 #     libc.so.6 and libm.so.6 by soname at start (DL-START-SEARCH);
 #   - iostream and throwmain (an exception thrown in the shared libthrowlib.so, caught in the
 #     program) linked against the build system's shared libstdc++.so.6 and libgcc_s.so.1, copied
 #     into the root for the run, start and print their lines (DL-LIBSTDCXX);
+#   - libresolv (issue #5): resolv, linked with plain -lresolv, runs and prints its line; krb5, linked
+#     with -lgssapi_krb5 -lkrb5 against the build system's Kerberos libraries (copied in like the C++
+#     runtime; skipped with an INFO line when the build system has none), whose libkrb5.so.3 needs
+#     libresolv.so.2: ld.so --list finds the root's libresolv.so.2 and it runs with LD_BIND_NOW;
 #   - purge (libc-bin is Essential: --force-remove-essential) leaves the skeleton, the database and
 #     /etc/nsswitch.conf (the administrator's file) and nothing else.
 # Prints "root: PASS|FAIL|INFO ..." lines and "root: RESULT ..."; exit 1 when any is FAIL.
@@ -51,6 +57,17 @@ chmod 1777 "$r/tmp"
 set -- "$debdir"/*.deb
 [ -e "$1" ] || { echo "root: FAIL no .deb in $debdir"; exit 1; }
 info "installing $(echo "$@" | tr ' ' '\n' | sed 's|.*/||' | tr '\n' ' ')into an empty root"
+# libc6-dev depends on packages the distribution builds from other sources (kernel headers,
+# libcrypt, rpcgen). The empty root has no archive: empty stand-ins of those names meet the
+# relations, so dpkg configures libc6-dev without --force-depends.
+standins="linux-libc-dev libcrypt-dev rpcsvc-proto"
+for s in $standins; do
+    mkdir -p "$tmp/standin/$s/DEBIAN"
+    printf 'Package: %s\nVersion: 0~niji-standin\nArchitecture: all\nMaintainer: niji root check <root@localhost>\nDescription: empty stand-in (tools/deb/root-system.sh)\n' "$s" \
+        > "$tmp/standin/$s/DEBIAN/control"
+    dpkg-deb --root-owner-group --build "$tmp/standin/$s" "$tmp/standin/$s.deb" > /dev/null
+    set -- "$@" "$tmp/standin/$s.deb"
+done
 
 dpkg_r() { ns dpkg --root="$r" --force-script-chrootless --log=/dev/null "$@"; }
 if dpkg_r -i "$@" > "$tmp/install.log" 2>&1; then
@@ -61,8 +78,8 @@ fi
 q() { dpkg-query --admindir="$r/var/lib/dpkg" "$@"; }
 bad=$(q -W -f '${Package} ${Status}\n' | grep -v ' install ok installed$' || true)
 n=$(q -W -f '${Package} ${Status}\n' | grep -c ' install ok installed$' || true)
-if [ -z "$bad" ] && [ "$n" -eq 6 ]; then
-    pass "all six packages are installed, no trigger pending"
+if [ -z "$bad" ] && [ "$n" -eq 9 ]; then
+    pass "all six packages (and the three stand-ins) are installed, no trigger pending"
 else
     fail "package states: $(q -W -f '${Package}=${Status}; ' 2>&1)"
 fi
@@ -82,6 +99,10 @@ b=$("$cc" -print-file-name=crtbeginS.o); e=$("$cc" -print-file-name=crtendS.o)
     fail "dynamic hello does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/threads.c" -lc -lgcc "$e" -o "$r/tmp/threads" > "$tmp/cc.log" 2>&1 ||
     fail "dynamic threads does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+# SYS-DEV-LINKS: -lanl -lBrokenLocale -lmcheck -lg through libc6-dev's development links and archives;
+# the program needs libanl.so.1 and libBrokenLocale.so.1, whose MB_CUR_MAX override it prints.
+"$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/devlinks.c" -Wl,--no-as-needed -lanl -lBrokenLocale -lmcheck -lg -lc -lgcc "$e" -o "$r/tmp/devlinks" > "$tmp/cc.log" 2>&1 ||
+    fail "dynamic devlinks does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
 # C++ as niji-g++ links it: libstdc++ and the unwinder static (the root has no libstdc++.so.6), the C
 # library and libm.so.6 the root's.
 cxx=${CXX:-g++}
@@ -117,6 +138,25 @@ shared_cxx "$lib/libthrowlib.so" "$here/smoke/throwlib.cc" "" -fPIC -shared -Wl,
 shared_cxx "$r/tmp/iostream-so" "$here/smoke/iostream.cc" "" "$lib/Scrt1.o" "$b"
 shared_cxx "$r/tmp/throwmain" "$here/smoke/throwmain.cc" "$lib/libthrowlib.so" "$lib/Scrt1.o" "$b"
 cxxlibs="$cxxlibs libthrowlib.so"
+# libresolv (issue #5): smoke/resolv.c linked with plain -lresolv against the root's libc6-dev (needs
+# libresolv.so.2), and smoke/krb5.c linked with -lgssapi_krb5 -lkrb5 against the build system's
+# shared Kerberos libraries, whose libkrb5.so.3 needs libresolv.so.2 (ns_initparse, ns_parserr at
+# GLIBC_2.9). The Kerberos libraries are copied into the root's library directory by soname and
+# removed before the purge, as the C++ runtime above; the link itself resolves libkrb5.so.3's
+# libresolv.so.2 symbols against the root's.
+"$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/resolv.c" -lresolv -lc -lgcc "$e" -o "$r/tmp/resolv" > "$tmp/cc.log" 2>&1 ||
+    fail "dynamic resolv (-lresolv) does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+krbdir=/usr/lib/$ma
+krblibs=
+for f in libgssapi_krb5.so.2 libkrb5.so.3 libk5crypto.so.3 libkrb5support.so.0 libcom_err.so.2 libkeyutils.so.1; do
+    [ -f "$krbdir/$f" ] || { krblibs=; info "skip krb5: the build system has no $krbdir/$f"; break; }
+    krblibs="$krblibs $f"
+done
+for f in $krblibs; do cp "$(readlink -f "$krbdir/$f")" "$lib/$f"; done
+if [ -n "$krblibs" ]; then
+    "$cc" -O1 -nostartfiles -nodefaultlibs "-Wl,--sysroot=$r" -L"$lib" "$lib/Scrt1.o" "$b" "$here/smoke/krb5.c" "$lib/libgssapi_krb5.so.2" "$lib/libkrb5.so.3" -lc -lgcc "$e" -o "$r/tmp/krb5" > "$tmp/cc.log" 2>&1 ||
+        fail "krb5 (-lgssapi_krb5 -lkrb5) does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
+fi
 b=$("$cc" -print-file-name=crtbeginT.o); e=$("$cc" -print-file-name=crtend.o)
 "$cc" -O1 -static -nostartfiles -nodefaultlibs -Wl,--eh-frame-hdr -L"$lib" "$lib/crt1.o" "$b" "$here/smoke/hello.c" -Wl,--start-group -lc -lgcc -lgcc_eh -Wl,--end-group "$e" -o "$r/tmp/hello-static" > "$tmp/cc.log" 2>&1 ||
     fail "static hello does not link: $(tail -3 "$tmp/cc.log" | tr '\n' ' ')"
@@ -136,11 +176,12 @@ case $out in
     *"libc.so.6 (libc6,x86-64) => "*"/lib/$ma/libc.so.6"*) pass "libc-bin's postinst wrote /etc/ld.so.cache: ldconfig -p in the root lists libc.so.6" ;;
     *) fail "ldconfig -p in the root: $(echo "$out" | head -5 | tr '\n' ' ')" ;;
 esac
-# The six dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds
-# libc.so.6 (and libm.so.6, libstdc++.so.6, libgcc_s.so.1, libthrowlib.so) by soname at start
-# (DL-START-SEARCH), and prints its line.
-for pe in "hello:hello from niji" "threads:threads: total 40000" "except:except: caught" "iostream:iostream: 42" \
-    "iostream-so:iostream: 42" "throwmain:throwmain: caught: throwlib: value 3 (throwlib)"; do
+# The seven dynamic programs: each starts the packaged loader through /lib64 (PT_INTERP), which finds
+# libc.so.6 (and libm.so.6, libstdc++.so.6, libgcc_s.so.1, libthrowlib.so, libresolv.so.2,
+# libanl.so.1, libBrokenLocale.so.1) by soname at start (DL-START-SEARCH), and prints its line.
+for pe in "hello:hello from niji" "threads:threads: total 40000" "devlinks:devlinks: MB_CUR_MAX 4" "except:except: caught" "iostream:iostream: 42" \
+    "iostream-so:iostream: 42" "throwmain:throwmain: caught: throwlib: value 3 (throwlib)" \
+    "resolv:resolv: a.test A 192.0.2.1 ttl 3600; cut header -1 EMSGSIZE"; do
     p=${pe%%:*}; want=${pe#*:}
     out=$(in_root "/tmp/$p" 2>&1) && rc=0 || rc=$?
     case $rc:$out in
@@ -148,10 +189,26 @@ for pe in "hello:hello from niji" "threads:threads: total 40000" "except:except:
         *) fail "dynamic $p in the root exits $rc: $(echo "$out" | head -3 | tr '\n' ' ')" ;;
     esac
 done
-for f in $cxxlibs; do rm -f "$lib/$f"; done
+# krb5: the loader finds libresolv.so.2 in the root for libkrb5.so.3, and with LD_BIND_NOW every
+# symbol of every library (libkrb5.so.3's ns_initparse@GLIBC_2.9 among them) resolves before main.
+if [ -n "$krblibs" ]; then
+    out=$(in_root /lib64/ld-linux-x86-64.so.2 --list /tmp/krb5 2>&1) || true
+    case $out in
+        # /lib is the merged-/usr link to /usr/lib: either spelling is the packaged file.
+        *"libresolv.so.2 => /lib/$ma/libresolv.so.2 "* | *"libresolv.so.2 => /usr/lib/$ma/libresolv.so.2 "*)
+            pass "ld.so --list in the root resolves libkrb5.so.3's libresolv.so.2 to the packaged /usr/lib/$ma/libresolv.so.2" ;;
+        *) fail "ld.so --list /tmp/krb5 in the root: $(echo "$out" | tr '\n' ' ')" ;;
+    esac
+    out=$(LD_BIND_NOW=1 in_root /tmp/krb5 2>&1) && rc=0 || rc=$?
+    case $rc:$out in
+        0:"krb5: started"*) pass "krb5 (libgssapi_krb5.so.2, libkrb5.so.3 -> libresolv.so.2) runs in the root with LD_BIND_NOW: $(echo "$out" | head -1)" ;;
+        *) fail "krb5 in the root (LD_BIND_NOW) exits $rc: $(echo "$out" | head -3 | tr '\n' ' ')" ;;
+    esac
+fi
+for f in $cxxlibs $krblibs; do rm -f "$lib/$f"; done
 
 # Purge everything; only the skeleton, the database and the administrator's nsswitch.conf remain.
-if dpkg_r --force-remove-essential --force-depends -P libc6-dev libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
+if dpkg_r --force-remove-essential --force-depends -P libc6-dev $standins libc-dev-bin locales libc-l10n libc-bin libc6 > "$tmp/purge.log" 2>&1; then
     (cd "$r" && find . | sort) | grep -v -e '^\./var/lib/dpkg' -e '^\./tmp/' -e '^\./etc/nsswitch.conf$' > "$tmp/after"
     left=$(comm -13 "$tmp/before" "$tmp/after" | tr '\n' ' ')
     [ -z "$left" ] && pass "purge leaves the empty root (and /etc/nsswitch.conf)" || fail "left after purge: $left"
