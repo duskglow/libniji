@@ -39,9 +39,9 @@ does not compile; stages 1-7 were NOT VERIFIED to compile one by one.
 
 ## Not done (next run, in order)
 
-1. Audits: xtask/src/policy.rs `export` category lists `src/ld.rs` only: add `src/ld/entry.rs`, `src/ld/tls.rs`
-   (rseq statics, niji_ld_start, __libc_stack_end, __tls_get_addr moved there); then `cargo xtask static` and
-   compare the unsafe counts with the base. Paths in spec/behaviour/dynlink-preload.md:71, records D-27.18/.19
+1. Audits: DONE in 0302a123d: policy.rs `export` category now names `src/ld/entry.rs`, `src/ld/tls.rs` (the 6
+   moved export sites); `ops handback-check` on 0302a123d ok (static + clippy merged with next). Still to do:
+   print the unsafe-audit counts on base and branch and show them equal. Paths in spec/behaviour/dynlink-preload.md:71, records D-27.18/.19
    (text only), tb.rs:298 doc, xtask/src/affected.rs:4432 test list (add an ld/ file).
 2. Module-map `//!` doc in ld.rs (the old header still describes DL-5 only).
 3. Proofs vs base copy keke `~/work/LD-SPLIT/base` (origin/next tree, no target): exported dyn-syms of every

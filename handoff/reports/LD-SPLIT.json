@@ -1,12 +1,42 @@
-{"task": "LD-SPLIT", "model": "opus", "tokens": null,
+{
+ "task": "LD-SPLIT",
+ "model": "opus",
+ "tokens": null,
  "result": "INCOMPLETE (context checkpoint): ld.rs split into 8 modules (io, state, tls, image, initfini, link, trace, entry), lint-clean in both loader configurations; audits, proofs and gates not run",
- "branch": "task/ld-split", "head": "a0a5326e8",
- "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
- "rulings": [{"item": "DL-TRACE-INTERP is not in next (CI precheck red 03:43) but edits ld.rs", "recommendation": "land DL-TRACE-INTERP first, then rerun the split generator on that next (seconds), or land this first and rebase DL-TRACE-INTERP onto the modules"}],
- "informational": ["dlopen/dlclose live in ld/dlopen.rs (2,082 lines), untouched; a dlclose module would be a second split", "commit 539edadd3 alone does not compile (link/trace import List from super); fixed by a0a5326e8, use lines only", "brief names LIELLA_FULL_PROFILE; xtask reads NIJI_FULL_PROFILE"],
+ "branch": "task/ld-split",
+ "head": "0302a123d",
+ "gate": {
+  "affected": "not run (lint only: ld-split-check-4 rc 0; handback-check ok on 0302a123d)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "DL-TRACE-INTERP is not in next (CI precheck red 03:43) but edits ld.rs",
+   "recommendation": "land DL-TRACE-INTERP first, then rerun the split generator on that next (seconds), or land this first and rebase DL-TRACE-INTERP onto the modules"
+  }
+ ],
+ "informational": [
+  "dlopen/dlclose live in ld/dlopen.rs (2,082 lines), untouched; a dlclose module would be a second split",
+  "commit 539edadd3 alone does not compile (link/trace import List from super); fixed by a0a5326e8, use lines only",
+  "brief names LIELLA_FULL_PROFILE; xtask reads NIJI_FULL_PROFILE",
+  "unsafe-audit export category extended to src/ld/entry.rs and src/ld/tls.rs (0302a123d); handback-check ok there"
+ ],
  "refused": [],
- "impact": [{"kind": "unblock", "what": "loader stories on different concerns edit different files (DL-23 waits on this)", "before": null, "after": null, "unit": null, "measured": false}],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "loader stories on different concerns edit different files (DL-23 waits on this)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
  "improvement": "a generator that moves items by name makes the split re-runnable on any base in seconds; briefs for a split should name every file of the area (ld/dlopen.rs was missed)",
  "next_step": "policy.rs export list + path refs, module-map doc, then symbol/counter/full-gate/swap/plants proofs against keke ~/work/LD-SPLIT/base",
  "report_file": "handoff/LD-SPLIT.md",
- "jobs": ["ld-split-check-4"]}
+ "jobs": [
+  "ld-split-check-4"
+ ]
+}
