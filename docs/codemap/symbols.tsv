@@ -2601,7 +2601,7 @@ niji_jnf128_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3515	mre
 niji_jnf64x_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3535	mret::elem
 niji_jnl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3540	mret::elem
 niji_ld_start		crates/boundary/src/ld.rs:258	crate::bootstrap::relocate_image
-niji_ldconfig_start		crates/boundary/src/ldconfig.rs:28	crate::bootstrap::relocate_image
+niji_ldconfig_start		crates/boundary/src/ldconfig.rs:25	crate::bootstrap::relocate_image
 niji_ldexpf128_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3557	mret::ret
 niji_ldexpf64x_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3580	mret::ret
 niji_ldexpl_bits	NIJI_PRIVATE	crates/boundary/src/posix/s10_math_gen.rs:3585	mret::ret
