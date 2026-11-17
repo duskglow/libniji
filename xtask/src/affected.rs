@@ -257,6 +257,9 @@ pub struct Repo {
     /// XTASK-AFFECTED-DOCS-PATHS: the xtask sources (path, text) that may read a documentation file; this command's own
     /// unit tests are left out (they name made-up paths, not files they read).
     xtask_texts: Vec<(String, String)>,
+    /// XTASK-AFFECTED-EXAMPLES: the crates' example programs, `<crate dir>/examples/<name>.rs` (path, text): which
+    /// example a file of a module directory `examples/<d>/` belongs to (`example_steps`).
+    examples: Vec<(String, String)>,
     /// XTASK-AFFECTED-XTASK-TESTS (D-X.41): `git diff -U0` of `xtask/` against the base (from git, else the file
     /// `.changed.xtask` a sync may write). `None`: no diff, so a changed xtask source cannot be shown to touch only
     /// its test module (FULL, as before).
@@ -1181,7 +1184,15 @@ impl Repo {
                 (rel(p), text)
             })
             .collect();
-        Repo { crates, support_texts, closure, nodes, targets, conf, hubs, test_only, image,csys, entries, entry_hubs, csys_refs, hdr_diff: fs::read_to_string(root.join(".changed.hdr")).ok(), fits: fit_files(root), xtask_texts, xtask_diff: fs::read_to_string(root.join(".changed.xtask")).ok() }
+        let mut examples = Vec::new();
+        for c in &crates {
+            let mut xs = Vec::new();
+            files_under(&root.join(&c.dir).join("examples"), &["rs"], &mut xs);
+            let top = format!("{}/examples/", c.dir);
+            examples.extend(xs.iter().map(|p| (rel(p), p)).filter(|(r, _)| r.strip_prefix(&top).is_some_and(|n| !n.contains('/'))).map(|(r, p)| (r, read(p))));
+        }
+        examples.sort();
+        Repo { crates, support_texts, closure, nodes, targets, conf, hubs, test_only, image,csys, entries, entry_hubs, csys_refs, hdr_diff: fs::read_to_string(root.join(".changed.hdr")).ok(), fits: fit_files(root), xtask_texts, examples, xtask_diff: fs::read_to_string(root.join(".changed.xtask")).ok() }
     }
 
     /// The module of the graph a source path belongs to, `(crate, module)`, as `classify_path` names it.
@@ -1239,6 +1250,9 @@ pub struct Selection {
     pub direct: bool,
     /// GATE-VALIDATION-SH-TESTS: `validation/` self-tests to run (`bash <path>` from the root) -> reason.
     pub scripts: BTreeMap<String, String>,
+    /// XTASK-AFFECTED-EXAMPLES: an xtask command of an example step is selected (`example_steps`); those steps
+    /// link and run the examples against the built products, so `cargo xtask so` runs first.
+    pub example_steps: bool,
 }
 
 /// GATE-TIER (coordinator ruling 10-11, owner intent "only run the tests that are impacted by a fix for gate runs and
@@ -1901,7 +1915,7 @@ fn classify(path: &str) -> Option<Class> {
     if file.ends_with("_gen.rs") || file == "tables.rs" || file == "builtin_items.rs" || path.starts_with("crates/math/fits/") || path.starts_with("crates/math/src/coeffs/") {
         return full("generated source");
     }
-    if path.starts_with("crates/libc-so/") || path.starts_with("crates/libm-so/") || path.starts_with("crates/native/link/") || path.starts_with("crates/native/examples/") {
+    if path.starts_with("crates/libc-so/") || path.starts_with("crates/libm-so/") || path.starts_with("crates/native/link/") {
         return full("a product crate or its linker input");
     }
     if path.ends_with(".map") || path.ends_with(".ld") || path.ends_with(".lds") || path.ends_with(".version") || path.starts_with("scripts/") {
@@ -2328,9 +2342,70 @@ fn classify_path(repo: &Repo, f: &str, sel: &mut Selection) {
     }
     if rest.starts_with("examples/") || rest.starts_with("benches/") || rest.ends_with(".md") {
         add(&mut sel.clippy, cname.clone(), &format!("{f} changed"));
+        if rest.starts_with("examples/") {
+            match example_steps(repo, &c.dir, f) {
+                Err(why) => sel.full.push(format!("{f}: {why}")),
+                Ok(steps) => {
+                    for (cmd, why) in steps {
+                        sel.example_steps = true;
+                        sel.xtask_cmds.insert(cmd.clone());
+                        sel.notes.push(format!("{f}: {why} (`cargo xtask {cmd}` on fresh products)"));
+                    }
+                }
+            }
+        }
         return;
     }
     sel.full.push(format!("{f}: unknown file of crate `{cname}`"));
+}
+
+/// XTASK-AFFECTED-EXAMPLES: the gate steps that build and run the crate example a changed file `f` under
+/// `<dir>/examples/` belongs to, read from what uses the file rather than from a list:
+/// 1. the examples: `examples/<n>.rs` itself; for a file of a module directory `examples/<d>/`, every example that
+///    declares `mod <d>;`; for another top-level file, every example that names it;
+/// 2. the xtask sources (this command's own excepted) that name such an example: `"<n>"` (`cargo rustc --example
+///    <n>`) or its path `examples/<n>.rs`;
+/// 3. for each, the step `cargo xtask test` runs from that module (`t.time("<step>", || <module>::<fn>(...))` in
+///    `xtask/src/main.rs`) and the command arm that runs the same function alone (`"<cmd>" => <module>::<fn>(`).
+///
+/// Returns (command, why) per step. Empty: no gate step uses the file (`cargo xtask bench` builds the bench examples
+/// off the gate), and its crate's clippy covers it. `Err` (FULL): the file belongs to no example, or a gate step uses
+/// it with no command that runs that step alone.
+fn example_steps(repo: &Repo, dir: &str, f: &str) -> Result<BTreeMap<String, String>, String> {
+    let top = format!("{dir}/examples/");
+    let rest = f.strip_prefix(&top).ok_or_else(|| format!("not under `{top}`"))?;
+    let stem = |p: &str| p.rsplit('/').next().unwrap_or(p).trim_end_matches(".rs").to_string();
+    let examples: Vec<String> = match rest.split_once('/') {
+        None if rest.ends_with(".rs") => vec![stem(rest)],
+        found => {
+            let names = |t: &str| match found {
+                Some((d, _)) => t.lines().map(str::trim).any(|l| l == format!("mod {d};") || l == format!("pub mod {d};")),
+                None => t.contains(rest),
+            };
+            let users: Vec<String> = repo.examples.iter().filter(|(p, t)| p.starts_with(&top) && names(t)).map(|(p, _)| stem(p)).collect();
+            if users.is_empty() {
+                return Err(format!("no example of `{dir}` uses the file (cannot place it)"));
+            }
+            users
+        }
+    };
+    let main = repo.xtask_texts.iter().find(|(p, _)| p == "xtask/src/main.rs").map_or("", |(_, t)| t.as_str());
+    let mut steps = BTreeMap::new();
+    for (p, text) in repo.xtask_texts.iter().filter(|(p, _)| p != "xtask/src/affected.rs") {
+        let Some(m) = xtask_module(p) else { continue };
+        let Some(n) = examples.iter().find(|n| text.contains(&format!("\"{n}\"")) || text.contains(&format!("examples/{n}.rs"))) else { continue };
+        for line in main.lines().filter(|l| l.contains("t.time(\"")) {
+            let Some(call) = line.split(&format!("|| {m}::")).nth(1) else { continue };
+            let func = call.split('(').next().unwrap_or_default();
+            let step = line.split('"').nth(1).unwrap_or_default();
+            let arm = format!("=> {m}::{func}(");
+            let Some(cmd) = main.lines().find(|l| l.contains(&arm)).and_then(|l| l.trim().strip_prefix('"')).and_then(|l| l.split('"').next()) else {
+                return Err(format!("the `{step}` step of `cargo xtask test` builds example `{n}` ({p}), but no `cargo xtask` command runs `{m}::{func}` alone"));
+            };
+            steps.insert(cmd.to_string(), format!("example `{n}` is built and run by the `{step}` step ({p})"));
+        }
+    }
+    Ok(steps)
 }
 
 /// GATE-TIER-3: the targets of `krate` whose own source names a non-Rust file `parts` of a `tests/` support directory
@@ -3506,9 +3581,9 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
 }
 
 /// Whether the selection runs on built products (`cargo xtask so` first): a conformance program, a products test, or
-/// an xtask command that reads the products (`symgap`, `layout-check`).
+/// an xtask command that reads the products (`symgap`, `layout-check`, an example step).
 fn needs_products(repo: &Repo, sel: &Selection) -> bool {
-    !sel.conf.is_empty() || sel.xtask_cmds.contains("symgap") || sel.xtask_cmds.contains(LAYOUT_CHECK) || repo.targets.iter().any(|t| t.products && sel.tests.contains_key(&(t.krate.clone(), t.name.clone())))
+    !sel.conf.is_empty() || sel.example_steps || sel.xtask_cmds.contains("symgap") || sel.xtask_cmds.contains(LAYOUT_CHECK) || repo.targets.iter().any(|t| t.products && sel.tests.contains_key(&(t.krate.clone(), t.name.clone())))
 }
 
 /// The cargo target flag that runs a package's unit tests: `--lib`, or `--bins` for a bin-only package (xtask, which
@@ -5408,6 +5483,65 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         }
         let p = tier(&["crates/core/src/printf.rs"], Tier::Direct);
         assert!(p.conf.contains_key("s12_printf"), "{:?}", p.conf.keys().collect::<Vec<_>>());
+    }
+
+    // XTASK-AFFECTED-EXAMPLES red-before-green (no spec clause): a crate example that a step of `cargo xtask test`
+    // builds and runs selects that step's command on fresh products. Before: the native examples escalated to FULL
+    // and the boundary's `secure_zero_codegen` (built by the native-examples step) selected its crate's clippy only.
+    #[test]
+    fn direct_tier_maps_an_example_to_the_step_that_runs_it() {
+        for (f, want) in [
+            ("crates/native/examples/demo/mod.rs", &["native", "rust-dylib"][..]),
+            ("crates/native/examples/native_static.rs", &["native"]),
+            ("crates/native/examples/native_dynamic.rs", &["native"]),
+            ("crates/native/examples/native_rust_dylib.rs", &["rust-dylib"]),
+            ("crates/boundary/examples/secure_zero_codegen.rs", &["native"]),
+        ] {
+            for t in [Tier::Direct, Tier::Wide] {
+                let s = tier(&[f], t);
+                let got: BTreeSet<&str> = s.xtask_cmds.iter().map(String::as_str).filter(|c| ["native", "rust-dylib"].contains(c)).collect();
+                assert!(s.full.is_empty(), "{f} ({t:?}): {:?}", s.full);
+                assert_eq!(got, want.iter().copied().collect::<BTreeSet<_>>(), "{f} ({t:?}): {:?}", s.xtask_cmds);
+                assert!(needs_products(repo(), &s), "{f} ({t:?}): the example steps link against the products");
+            }
+        }
+    }
+
+    // XTASK-AFFECTED-EXAMPLES (no spec clause): an example no gate step runs (the bench examples, which `cargo xtask
+    // bench` builds) keeps its crate's clippy only; a file that belongs to no example cannot be placed (FULL).
+    #[test]
+    fn direct_tier_keeps_clippy_only_for_examples_no_gate_step_runs() {
+        for f in ["crates/boundary/examples/bench_mem.rs", "crates/boundary/examples/copy_sweep.rs"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(s.full.is_empty() && s.clippy.contains_key("niji-boundary") && !s.example_steps && !needs_products(repo(), &s), "{f}: {s:?}");
+        }
+        let s = tier(&["crates/native/examples/no_such_module/x.rs"], Tier::Direct);
+        assert!(s.full.iter().any(|w| w.contains("cannot place")), "{:?}", s.full);
+    }
+
+    // XTASK-AFFECTED-EXAMPLES (no spec clause): the steps come from the xtask sources: a module naming the example by
+    // path, the `cargo xtask test` step calling that module and the command arm running the same function; a step
+    // with no such arm is FULL, and a module no step calls (a bench runner) selects nothing.
+    #[test]
+    fn example_steps_follow_the_xtask_source_that_names_the_example() {
+        let mut r = Repo { hdr_diff: None, xtask_diff: None, ..Repo::load(&root()) };
+        let main = r#"
+    t.time("demo-run", || demo_runner::go(root))?;
+    t.time("lonely", || lonely::go(root))?;
+        "demo-run" => demo_runner::go(&root),
+        "benchy" => benchy::go(&root),
+"#;
+        r.xtask_texts = vec![
+            ("xtask/src/main.rs".to_string(), main.to_string()),
+            ("xtask/src/demo_runner.rs".to_string(), r#"const P: &str = "crates/native/examples/native_static.rs";"#.to_string()),
+            ("xtask/src/benchy.rs".to_string(), r#"build("native_dynamic")"#.to_string()),
+        ];
+        let got = example_steps(&r, "crates/native", "crates/native/examples/native_static.rs").expect("placed");
+        assert_eq!(got.keys().collect::<Vec<_>>(), ["demo-run"], "{got:?}");
+        assert!(example_steps(&r, "crates/native", "crates/native/examples/native_dynamic.rs").expect("placed").is_empty(), "a module off the test steps");
+        r.xtask_texts.push(("xtask/src/lonely.rs".to_string(), r#"build("native_dynamic")"#.to_string()));
+        let err = example_steps(&r, "crates/native", "crates/native/examples/native_dynamic.rs").expect_err("no command runs the step alone");
+        assert!(err.contains("`lonely` step"), "{err}");
     }
 
     // GATE-TIER-3b: an oracle diff prints its results: a change to printf's entry (or a module it names) reaches the tests
