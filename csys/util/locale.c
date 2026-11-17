@@ -28,7 +28,7 @@ enum kind {
     STR,    /* a string */
     SARR,   /* `n` consecutive string items, one value joined by ';' */
     SLIST,  /* NUL-separated strings ended by an empty one, each its own value */
-    BYTES,  /* bytes up to a NUL, as signed numbers joined by ';' (none: -1) */
+    BYTES,  /* bytes up to a NUL, as signed numbers joined by ';', CHAR_MAX as -1 (none: -1) */
     BYTE,   /* one signed byte */
     WORD,   /* a word item (the value itself) */
     WREF,   /* a word at the item's address */
@@ -211,8 +211,10 @@ static void value(const struct kw *k) {
         }
         break;
     case BYTES:
+        /* A CHAR_MAX byte ends the grouping (no further grouping) and prints as -1, the localedef spelling
+         * (POSIX localedef `grouping`; probe: `grouping 3;-1` prints `3;-1`). */
         if (!*p) fputs("-1", stdout);
-        for (const char *b = p; *b; b++) printf("%s%d", b == p ? "" : ";", (signed char)*b);
+        for (const char *b = p; *b; b++) printf("%s%d", b == p ? "" : ";", *b == CHAR_MAX ? -1 : (signed char)*b);
         break;
     case BYTE:
         printf("%d", (signed char)*p);

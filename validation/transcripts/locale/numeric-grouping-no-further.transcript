@@ -1,0 +1,16 @@
+name: locale -k grouping of a locale whose grouping ends in "no further grouping"
+clause: s31_7_g_4
+command: locale
+# A private LOCPATH locale `g` with only LC_NUMERIC, built by the host's localedef -c from:
+#   LC_NUMERIC / decimal_point "<U002E>" / thousands_sep "<U002C>" / grouping 3;-1 / END LC_NUMERIC
+# Its grouping bytes are 3 and CHAR_MAX (POSIX: -1 means no further grouping), which `locale` prints as -1.
+dir: loc
+dir: loc/g
+file: loc/g/LC_NUMERIC
+|~ \x14\x11\x03\x20\x06\x00\x00\x00\x20\x00\x00\x00\x22\x00\x00\x00\x24\x00\x00\x00\x28\x00\x00\x00\x2c\x00\x00\x00\x30\x00\x00\x00\x2e\x00\x2c\x00\x03\x7f\x00\x00\x2e\x00\x00\x00\x2c\x00\x00\x00\x55\x54\x46\x2d\x38\x00
+env: LOCPATH=@ROOT@/loc
+env: LC_NUMERIC=g
+arg: -k
+arg: grouping
+arg: thousands_sep
+arg: decimal_point

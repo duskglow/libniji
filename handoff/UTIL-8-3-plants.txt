@@ -5,7 +5,11 @@
 # UTIL-8-3: the UTIL-8-2 file with its five multi-line `lit:` patterns (sarr-quote, env-lc-all-wins, list-sorted,
 # list-lists-hidden, code-set-blanks) rewritten: `lit:` takes one line without escapes, so those five matched no site
 # and the tool refused the file. Each still plants the defect its name says; the anchored ones use `perl:`.
-bytes-signed | csys/util/locale.c | lit:for (const char *b = p; *b; b++) printf("%s%d", b == p ? "" : ";", (signed char)*b); ==> for (const char *b = p; *b; b++) printf("%s%d", b == p ? "" : ";", (unsigned char)*b); | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*(ck-c-numeric|ck-c-monetary|keywords-ck)
+# bytes-signed (signed vs unsigned grouping bytes) SURVIVED in util-8-3-plants: C and C.utf8 have empty grouping, and
+# localedef refuses grouping values >= 127, so no locale it makes holds a byte >= 128. Its probe found the real gap:
+# CHAR_MAX (`-1`, no further grouping) printed as 127. bytes-char-max plants that defect against the new
+# numeric-grouping-no-further transcript.
+bytes-char-max | csys/util/locale.c | lit:*b == CHAR_MAX ? -1 : (signed char)*b ==> (signed char)*b | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*numeric-grouping-no-further
 byte-signed | csys/util/locale.c | lit:printf("%d", (signed char)*p); ==> printf("%d", (unsigned char)*p); | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*(ck-c-monetary|keywords)
 sarr-quote | csys/util/locale.c | perl:s/(case SARR:\n\s*)if \(opt_k\) putchar\('"'\);/${1}/ | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*ck-c
 env-implied-quote | csys/util/locale.c | lit:printf("%s=\"%s\"\n", cats[c].name, lang && *lang ? lang : "POSIX"); ==> printf("%s=%s\n", cats[c].name, lang && *lang ? lang : "POSIX"); | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*env-
