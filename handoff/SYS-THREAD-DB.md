@@ -1,59 +1,42 @@
-# SYS-THREAD-DB: libthread_db.so.1 (handoff, checkpoint 1)
+# SYS-THREAD-DB: libthread_db.so.1 (handoff after SYS-THREAD-DB-2)
 
-State: branch `task/sys-thread-db`, WIP head `649dc9493` (on origin/next `ebb670553`). Role mei:~/w/s4.
-Stopped at the context checkpoint (~150k of the run); NOTHING BUILT OR TESTED yet. Job `sys-thread-db-build1` on mei (`cargo xtask clippy && cargo xtask so`, head 85fe2d0f9)
-ended rc 1 on clippy::as_conversions in `Debug::new`; fixed in 649dc9493 (not rebuilt).
-Nothing of this run is left running.
+State: branch `task/sys-thread-db-2` (on origin/next `ebb670553`, continues `task/sys-thread-db` 01530fdd5). Role
+keke:~/w/r1. Report: handoff/SYS-THREAD-DB-2-report.md (jobs, results, start-up rows).
 
-## Design (in force, to become the decision record)
+## Done
 
-* gdb `dlopen`s libthread_db into its OWN process (system C library), so the library imports
-  nothing but the `ps_*` callbacks (+ possibly compiler-emitted `memset`). It is written in the
-  C layer (`crates/libc-so/placeholders/libthread_db.c`): every entry is raw-pointer FFI, and
-  `unsafe` is allowed only in boundary and C. The `crates/thread-db` Rust crate stays a stub
-  (propose removing it, or keep for a later safe-Rust port).
-* Built by the generated-library step (`xtask/src/placeholders.rs`: `LIBRARIES` + `DEV_LINKS`
-  now include `libthread_db.so.1`): version nodes GLIBC_2.2.5/2.3/2.3.3 and the 40 exports come
-  from `spec/abi/versions.tsv`, checked by `product_errors`. Bodies are `niji_ph_td_*`.
-* How it finds the thread list (brief item 3): libc exports `__niji_thread_db@NIJI_PRIVATE`
-  (`xtask/src/so.rs` LIBC_PRIVATE), a `#[used]` static in `crates/boundary/src/thread.rs` of type
-  `niji_rt::thread::Debug` (17 u64 words: magic `nijitdb1`, version 1, word count, addresses of
-  `HEAD`, `LIVE`, `TLS_IMAGE`, `offset_of!` offsets of tid/dtv in the thread block and
-  next/tp/flags/start/stack_lo/stack_size/sched_prio in the descriptor, DESC_EXITED, dtv header 2).
-  Cost: 3 RELATIVE relocations in libc.so.6 and static-PIE (none in non-PIE static).
-* Handle `th_unique` = thread pointer (= `pthread_t`). `td_ta_map_lwp2thr` takes `fs_base`
-  (`user_regs_struct` word 21, kernel UAPI) from `ps_lgetregs`; 0 = initial thread before TLS
-  setup (get_info reports lid = `ps_getpid`). State: ZOMBIE if tid word 0 or DESC_EXITED.
-* TLS: `td_thr_tlsbase` uses the thread's dtv when the loader made one, else (static) module 1's
-  block = tp - round_up(memsz, align) from TLS_IMAGE. `td_thr_tls_get_addr` returns TD_NOCAPAB.
-* Agents: static pool of 64 (no allocator). Events, TSD, xregs, suspend: TD_NOCAPAB/TD_NOEVENT.
+* `libthread_db.so.1` (C layer, `crates/libc-so/placeholders/libthread_db.c`; 40 exports, GLIBC_2.2.5/2.3/2.3.3
+  from versions.tsv) reading `__niji_thread_db@NIJI_PRIVATE` (`niji_rt::thread::Debug`, now defined in
+  `crates/boundary/src/data.rs`: the unsafe audit allows `UNSAFE(export)` only in the export files).
+* Both package flavours ship it and the `libthread_db.so` development link (`tools/deb/build.sh`, `system.sh`,
+  `check-system.sh`).
+* Ruling #6167: the `crates/thread-db` stub crate is removed (workspace, lock, arch/bench/affected lists, plan lists);
+  nothing depended on it.
+* Proof (static programs, ruling #6166): `crates/core/tests/thread_db_products.rs` + `tests/oracle/thread_db_target.c`:
+  gdb loads the products' library, `info threads` shows 4 thread-library threads, each backtrace reaches its
+  function, `thread apply all print tv` gives 7/111/122/133; a core file written by gdb reads back the same.
+  Passed on keke (gdb 15.1) in job sys-thread-db-2-lint2.
+* Decision record: `records/pending/SYS-THREAD-DB-2-1.toml` (D-NEW, series D-22; CI assigns the id; code comments
+  name "SYS-THREAD-DB-2-1").
+* Plants: handoff/SYS-THREAD-DB-2-plants.txt (6: fs_base index, thr_iter state filter, tlsbase direction, magic,
+  LWP = pid, descriptor next offset).
 
-## Open questions / blockers
+## Decisions in force
 
-* DYNAMIC programs cannot be thread-debugged yet: libniji's `ld.so` has no `_r_debug` /
-  `_dl_debug_state` (`crates/ld/src/debug.rs` is a stub), so gdb never sees `libc.so.6` (no
-  symbol lookup, no link_map for `td_thr_tls_get_addr`). Needs its own story (spec §27.4).
-  This story's proof uses STATIC programs.
-* gdb loads a libthread_db from `$pdir` only inside `auto-load safe-path`; the test must pass
-  `-iex "set auto-load safe-path /" -iex "set libthread-db-search-path <target/niji>"`.
-* Check that the initial thread's tid word (tb +0x84) is set in a static program (else gdb skips
-  it as ZOMBIE).
+The pending record above (design unchanged from run 1). Rulings #6166 (static only here; dynamic pending on DL-23),
+#6167 (crate removed), #6168 (3 RELATIVE relocations accepted within start-up bounds: rows in the report).
+
+## Open / not to redo
+
+* DYNAMIC programs: pending on DL-23 (`_r_debug` / `_dl_debug_state` in libniji's `ld.so`). After DL-23: extend
+  `thread_db_products.rs` with a dynamic target, and implement `td_thr_tls_get_addr` (link_map -> module id).
+* gdb needs `set libthread-db-search-path <dir>` to pick the products' library in tests; an installed package
+  puts it next to libc where gdb looks by default.
+* `tools/deb/parity.sh` rerun not done this run (budget); the gap row is libthread_db.so.1 (ref-elf.tsv:285).
 
 ## Next step (exact)
 
-1. Sync, rerun clippy + `cargo xtask so`; fix what remains (watch `as` casts in `Debug::new`, the
-   `#[used]`+`no_mangle` static, placeholders tests that count LIBRARIES).
-2. `tools/deb/system.sh` (system flavour) needs the same two lines as `tools/deb/build.sh`;
-   `tools/deb/check-system.sh:138` list may need libthread_db.so.1.
-3. Test `crates/core/tests/thread_db_products.rs`: static libniji C program, 4 threads, `__thread
-   int tv` distinct per thread, all parked at a barrier then a breakpoint function; gdb -batch:
-   expect "[Thread debugging using libthread_db enabled]", 4 `Thread 0x... (LWP n)` lines,
-   `thread apply all print tv` values; `generate-core-file`, then a second gdb on the core: same
-   `info threads`. Skip with a printed reason when gdb is absent (mei has gdb 15.1).
-4. Decision record: `cargo xtask records new decision D-NEW --series D-22 --story SYS-THREAD-DB`
-   (the code comments say "decision record SYS-THREAD-DB-1": fix to the pending file name).
-5. Plants (cargo xtask plants): fs_base index, D_NEXT walk, tlsbase size rounding, magic check.
-6. Gate (direct tier) + start-up checks (touches thread start-up data: `cargo xtask test`,
-   LIELLA_FULL_PROFILE hot_text_products), both package flavours, `tools/deb/parity.sh` rerun.
+1. Read the jobs in the report; if all green the branch lands. 2. After DL-23 lands: the dynamic proof above.
+3. Rerun `tools/deb/parity.sh` with both flavours built and confirm the libthread_db gap row is gone.
 
-Plan rows to read: plan/package-parity-audit.md row 11; spec §22.10.
+Plan rows: plan/package-parity-audit.md row 11; spec §22.10; plan/ph14/design.md §17.
