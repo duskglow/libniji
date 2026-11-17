@@ -1,0 +1,12 @@
+id = "D-NEW"
+series = "D-10"
+section = "s10"
+spec = "§10.1"
+ann = "—"
+status = "active"
+story = "SL-HEADERS-S11-2"
+date = "2026-11-17"
+tests = ["spec/tools/tgmath_types.c", "xtask/src/headers.rs::floating_literals_are_decimal_and_exact"]
+body = '''
+**Slice 11 headers (math.h, complex.h, tgmath.h, fenv.h, fpu_control.h, values.h): floating constants, `iscanonical`, the type-generic macros** (SL-HEADERS-S11, S11-2; plan/headers.md slice 11). (1) A floating constant of `macros.tsv` (`M_PI`, `MAXFLOAT`, `M_PIf128`, ...) is written as a decimal literal that reads back as the same value (9, 17, 21 or 36 significant digits for 24, 53, 64 or 113 bits; exact conversion in `headers-gen`), because a hexadecimal floating constant is not a token in C89 and C++98 to C++14 and the header is read at every language level. (2) `@@emit-c`: a template names the names a C configuration shows; the C++ names of the same header (complex.h has thousands) come from the C++ standard library's wrappers. (3) `iscanonical` is 1 for float, double and `_Float128` and calls `__iscanonicall` for the x87 types: spec §10.2 (`canonicalize`) names the x87 pseudo-denormals as the non-canonical encodings and an encoding that represents no value (unnormals, pseudo-infinities, pseudo-NaNs) as non-canonical too; a black-box probe of the reference gives 0 for exactly those four encodings and 1 for 1.0, a denormal, infinity and a quiet NaN; GCC's manual lists no builtin. The spec, the probe and libniji agree, so there is no difference row and no compat flag (the library's `__iscanonicall` already tests the bits). (4) `tgmath.h` is `__builtin_tgmath` over the functions math.h and complex.h declare (narrowest type first; a family with one function is a plain call, `__builtin_tgmath` needs two). (5) `fenv.h` declares `fegetexceptflag`/`fesetexceptflag` with `-Wbuiltin-declaration-mismatch` off around the declarations: the compiler's built-in takes `void *`, the ABI prototype `fexcept_t *`. (6) `iseqsig` is written on the relational operators, which raise "invalid" for a quiet NaN as the function must; no probe of the reference for that macro was run (open in the handoff).
+'''

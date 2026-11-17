@@ -1196,6 +1196,8 @@ mod tests {
         assert_eq!(literal("long double", "0x1p+0").unwrap(), "1.0e0L");
         assert_eq!(literal("_Float128", "0x1.ffffffffffffffffffffffffffffp+16383").unwrap(), "1.18973149535723176508575932662800702e4932f128");
         assert_eq!(literal("double", "-0x1p+0").unwrap(), "(-1.0e0)");
+        // Rounding that carries through every digit moves the exponent: 0.99999994 to 3 digits is 1.0.
+        assert_eq!(hex_float_to_decimal("0x1.fffffep-1", 3).unwrap(), "1.0e0");
     }
 
     // no spec clause: owner rulings R-H2, R-H3 (reserved names stay out unless listed).
