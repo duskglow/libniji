@@ -1643,8 +1643,13 @@ pub(crate) const GETENT_TEST: &str = "target/niji-test/getent";
 /// iconv (UTIL-7, spec §31.6): `csys/util/iconv.c`, a thin front end over `iconv(3)`, built as getent is.
 pub(crate) const ICONV_TEST: &str = "target/niji-test/iconv";
 
+/// locale (UTIL-8, spec §31.7): `csys/util/locale.c`, a front end over `setlocale` and `nl_langinfo`, linked as
+/// getent is: `target/niji/locale` (libc-bin's `/usr/bin/locale`) and the test link `target/niji-test/locale`.
+pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
+
 fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
-    run_dynamic_util(root, cc, "getent", GETENT_TEST)
+    run_dynamic_util(root, cc, "getent", GETENT_TEST)?;
+    run_dynamic_util(root, cc, "locale", LOCALE_TEST)
 }
 
 fn run_iconv(root: &Path, cc: &str) -> Result<(), String> {

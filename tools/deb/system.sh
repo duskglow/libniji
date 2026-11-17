@@ -84,6 +84,8 @@ need getent
 put 0755 "$products/getent" "$bin/usr/bin/getent"
 need iconv
 put 0755 "$products/iconv" "$bin/usr/bin/iconv"
+need locale
+put 0755 "$products/locale" "$bin/usr/bin/locale"
 need ldd
 put 0755 "$products/ldd" "$bin/usr/bin/ldd"
 
@@ -154,7 +156,7 @@ fi
 find "$s6" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
 # libc-bin's ldconfig and getconf (static executables) and getent (dynamic) are stripped the same
 # way as the shared libraries.
-strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent" "$bin/usr/bin/iconv" "$bin/usr/bin/ldd"
+strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent" "$bin/usr/bin/iconv" "$bin/usr/bin/locale" "$bin/usr/bin/ldd"
 find "$sdev" -type f \( -name '*.a' -o -name '*.o' \) -exec strip --strip-debug --remove-section=.comment --enable-deterministic-archives {} +
 
 # --- Control members. ---
