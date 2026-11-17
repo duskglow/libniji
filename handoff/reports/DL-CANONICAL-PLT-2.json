@@ -14,4 +14,4 @@
  "improvement": "a primed base with built products (~/wl/products) for every next revision would save a 6-minute RAM build per counts job",
  "next_step": "attribute the +5.7k start-up instructions exactly (equal-length paths, precise per-function counts), fix to parity, then full plants and gate",
  "report_file": "handoff/DL-CANONICAL-PLT.md",
- "jobs": ["dl-canonical-plt-2-lint0", "dl-canonical-plt-2-t1", "dl-canonical-plt-2-counts"]}
+ "jobs": ["dl-canonical-plt-2-lint1","dl-canonical-plt-2-t1", "dl-canonical-plt-2-counts"]}
