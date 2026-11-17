@@ -3,7 +3,6 @@
 #ifndef __NIJI_H_sys_syscall_h
 #define __NIJI_H_sys_syscall_h 1
 
-#include <features.h>
 #include <asm/unistd.h>
 
 #ifdef __NR_read
