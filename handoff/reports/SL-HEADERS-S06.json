@@ -1,0 +1,10 @@
+{"task": "SL-HEADERS-S06", "model": "sonnet", "tokens": null, "result": "INCOMPLETE: slice 6 templates and generator additions written and compile; headers-gen still has 20 problems, no libc-include output, no plants", "branch": "task/sl-headers-s06", "head": "1c95be9b2",
+ "jobs": ["keke:sl-headers-s06-gate"],
+ "gate": {"affected": "xtask clippy + 5 headers unit tests: rc 0 (not the affected tier)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [{"item": "brief says __LIELLA__ is always defined; the tree defines __NIJI__ (D-X.107)", "recommendation": "keep __NIJI__ and correct the brief text"}],
+ "informational": ["20 headers-gen problems remain (scanf-family C++98/C++11 level, gets, struct _IO_FILE, struct timex, struct itimerspec)", "no plants, P1-P3, P5, P6, P10 run", "earlier gen jobs sl-headers-s06-gen1/2/3 rc 1 (progress runs, not on the proof list)"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "templates and generator additions are not generating headers yet", "before": null, "after": null, "unit": "", "measured": false}],
+ "improvement": "a run helper that syncs, runs one xtask command under jobrun and prints the log tail saved a call per iteration; worth a tool in liella-ops",
+ "next_step": "fix the 4 listed headers-gen problems, generate libc-include/, static, P5, plants, gate",
+ "report_file": "handoff/SL-HEADERS-S06.md"}

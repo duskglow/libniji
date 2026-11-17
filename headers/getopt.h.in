@@ -1,0 +1,14 @@
+@@generated
+/* getopt.h: command-line option parsing (GNU C Library manual, getopt(3)). */
+#ifndef __NIJI_H_getopt_h
+#define __NIJI_H_getopt_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

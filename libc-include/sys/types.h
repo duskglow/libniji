@@ -162,10 +162,13 @@ typedef int pthread_once_t;
 typedef unsigned long pthread_t;
 # endif
 #endif
-#if __NIJI_POSIX >= 199506 && !__NIJI_CXX
+#if __NIJI_POSIX >= 199506 && __NIJI_CXX < 1
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
-typedef struct  pthread_attr_t;
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
