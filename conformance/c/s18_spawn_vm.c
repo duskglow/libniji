@@ -24,6 +24,7 @@
 extern char **environ;
 
 static int fails;
+static sigset_t start_mask; /* the caller's mask before any spawn */
 #define CHECK(c, what)                                                         \
     do {                                                                       \
         if (!(c)) {                                                            \
@@ -82,16 +83,19 @@ static void running_spawns(void)
     pid_t pid = 0;
     /* A query writes only the kernel's 64 signals (the first 8 bytes) of the old set and leaves
      * the rest of the caller's sigset_t as it was, so both sets start zeroed for the whole-set
-     * comparison. A few blocked signals, a real-time one among them, check that the spawn's
-     * internal block-all and restore gives back every bit of the caller's mask. */
+     * comparison. The window starts from a mask set whole (a few blocked signals, real-time ones
+     * among them), so a spawn or system() that skips or trims its restore of the caller's mask
+     * shows here even if an earlier call already left the mask wrong. */
     sigset_t before, after, blocked, entry;
     memset(&before, 0, sizeof before);
     memset(&after, 0, sizeof after);
+    memset(&entry, 0, sizeof entry);
     sigemptyset(&blocked);
     sigaddset(&blocked, SIGUSR2);
     sigaddset(&blocked, SIGRTMIN);
     sigaddset(&blocked, SIGRTMAX);
-    pthread_sigmask(SIG_BLOCK, &blocked, &entry);
+    pthread_sigmask(SIG_SETMASK, &blocked, &entry);
+    CHECK(memcmp(&entry, &start_mask, sizeof entry) == 0, "the failed spawns left the caller's signal mask as it was");
     pthread_sigmask(SIG_SETMASK, NULL, &before);
     errno = 4242;
     CHECK(posix_spawn(&pid, "/bin/true", NULL, NULL, argv_true, environ) == 0 && pid > 0, "spawn /bin/true");
@@ -106,7 +110,9 @@ static void running_spawns(void)
     CHECK(WIFEXITED(st) && WEXITSTATUS(st) == 3, "system returns the shell's status");
     pthread_sigmask(SIG_SETMASK, NULL, &after);
     CHECK(memcmp(&before, &after, sizeof before) == 0, "the caller's signal mask is as it was");
-    CHECK(sigismember(&after, SIGRTMIN) == 1 && sigismember(&after, SIGUSR2) == 1, "the blocked signals stay blocked");
+    CHECK(sigismember(&after, SIGRTMIN) == 1 && sigismember(&after, SIGUSR2) == 1 && sigismember(&after, SIGCHLD) == 0 &&
+              sigismember(&after, SIGUSR1) == 0,
+          "the blocked signals stay blocked, the others unblocked");
     pthread_sigmask(SIG_SETMASK, &entry, NULL);
     CHECK(no_children(), "no child left behind");
 
@@ -222,6 +228,8 @@ static void under_load(void)
 int main(void)
 {
     parent_pid = getpid();
+    memset(&start_mask, 0, sizeof start_mask);
+    pthread_sigmask(SIG_SETMASK, NULL, &start_mask);
     setpgid(0, 0); /* the group signals below reach only this program and its children */
     failing_spawns();
     running_spawns();
