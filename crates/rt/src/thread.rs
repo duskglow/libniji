@@ -203,7 +203,7 @@ pub const DESC_EXITED: u32 = 32;
 /// [`Debug::magic`]: the bytes `nijitdb1` read as a little-endian word.
 pub const DEBUG_MAGIC: u64 = u64::from_le_bytes(*b"nijitdb1");
 /// [`Debug::version`]: bumped when a word's meaning changes (new words go at the end, with
-/// [`Debug::words`] saying how many there are).
+/// [`Debug::words`] saying how many there are). Words are `u64` or `usize`: one 64-bit word each.
 pub const DEBUG_VERSION: u64 = 1;
 /// The dtv words before the first module slot (generation, slot count): the loader's layout
 /// (`niji_ld::tls::DTV_HEADER`; the boundary checks the two agree).
@@ -221,7 +221,7 @@ pub struct Debug<'a> {
     /// [`DEBUG_VERSION`].
     pub version: u64,
     /// The number of words in the descriptor.
-    pub words: u64,
+    pub words: usize,
     /// The thread list's head: the newest listed descriptor's address (0: none).
     pub list: &'a AtomicUsize,
     /// The number of threads running.
@@ -230,23 +230,23 @@ pub struct Debug<'a> {
     /// alignment (memory size 0: none, or the loader's dtv describes the blocks).
     pub tls_image: &'a [AtomicUsize; 4],
     /// The kernel thread ID's offset in the thread block (32 bits).
-    pub tb_tid: u64,
+    pub tb_tid: usize,
     /// The dtv pointer's offset in the thread block (0 in the word: no dtv).
-    pub tb_dtv: u64,
+    pub tb_dtv: usize,
     /// The next-descriptor link's offset in a descriptor.
-    pub desc_next: u64,
+    pub desc_next: usize,
     /// The thread pointer's offset in a descriptor (`pthread_t`).
-    pub desc_tp: u64,
+    pub desc_tp: usize,
     /// The flag word's offset in a descriptor (32 bits).
-    pub desc_flags: u64,
+    pub desc_flags: usize,
     /// The start routine's offset in a descriptor.
-    pub desc_start: u64,
+    pub desc_start: usize,
     /// The stack's lowest address's offset in a descriptor.
-    pub desc_stack_lo: u64,
+    pub desc_stack_lo: usize,
     /// The stack size's offset in a descriptor.
-    pub desc_stack_size: u64,
+    pub desc_stack_size: usize,
     /// The scheduling priority's offset in a descriptor (32 bits).
-    pub desc_prio: u64,
+    pub desc_prio: usize,
     /// The flag meaning the thread has exited ([`DESC_EXITED`]).
     pub exited_flag: u64,
     /// [`DEBUG_DTV_HEADER`].
@@ -254,7 +254,7 @@ pub struct Debug<'a> {
 }
 
 /// The number of 64-bit words in [`Debug`].
-pub const DEBUG_WORDS: u64 = (size_of::<Debug<'static>>() / 8) as u64;
+pub const DEBUG_WORDS: usize = size_of::<Debug<'static>>() / 8;
 const _: () = assert!(size_of::<Debug<'static>>() == 17 * 8 && size_of::<&AtomicUsize>() == 8);
 
 impl<'a> Debug<'a> {
@@ -269,16 +269,16 @@ impl<'a> Debug<'a> {
             list,
             live,
             tls_image,
-            tb_tid: offset_of!(ThreadBlock, tid) as u64,
-            tb_dtv: offset_of!(ThreadBlock, dtv) as u64,
-            desc_next: offset_of!(Thread, next) as u64,
-            desc_tp: offset_of!(Thread, tp) as u64,
-            desc_flags: offset_of!(Thread, flags) as u64,
-            desc_start: offset_of!(Thread, start) as u64,
-            desc_stack_lo: offset_of!(Thread, stack_lo) as u64,
-            desc_stack_size: offset_of!(Thread, stack_size) as u64,
-            desc_prio: offset_of!(Thread, sched_prio) as u64,
-            exited_flag: DESC_EXITED as u64,
+            tb_tid: offset_of!(ThreadBlock, tid),
+            tb_dtv: offset_of!(ThreadBlock, dtv),
+            desc_next: offset_of!(Thread, next),
+            desc_tp: offset_of!(Thread, tp),
+            desc_flags: offset_of!(Thread, flags),
+            desc_start: offset_of!(Thread, start),
+            desc_stack_lo: offset_of!(Thread, stack_lo),
+            desc_stack_size: offset_of!(Thread, stack_size),
+            desc_prio: offset_of!(Thread, sched_prio),
+            exited_flag: u64::from(DESC_EXITED),
             dtv_header: DEBUG_DTV_HEADER,
         }
     }
