@@ -23,7 +23,7 @@ No installed header declares the hook variables, `__morecore`, `__default_moreco
 `malloc_get_state`, `malloc_set_state`, `mallwatch` or `tr_break` (a `-Werror` compile naming
 `__malloc_hook` with `<malloc.h>` fails: "undeclared"). The probe reaches them only through
 weak references of its own and through `dlvsym(handle, name, "GLIBC_2.2.5")`, both of which may be
-absent; it prints what it finds, so it also builds statically against Liella's products.
+absent; it prints what it finds, so it also builds statically against libniji's products.
 
 **Probe:** `crates/core/tests/oracle/mallocdbg_diff.c`, run by
 `mallocdbg_run.sh PROGRAM SCRATCH [DEBUGLIB]`.
@@ -343,16 +343,16 @@ Against the fingerprint of the run without environment (lines 434 to 450):
 * **`mallopt`'s return** (§3.2 "returns 1 on success and 0 on error"; mallopt(3) the same): the
   reference returns 1 for unknown parameters, unimplemented SVID parameters and out-of-range values
   of every parameter except `M_MXFAST`; mallopt(3)'s BUGS section concedes that an invalid
-  parameter is not an error. D-3.4 (1 only for the neutral parameters, 0 otherwise) and Liella's
+  parameter is not an error. D-3.4 (1 only for the neutral parameters, 0 otherwise) and libniji's
   `s3_2_c_1` therefore differ from the record for `M_MMAP_MAX`, `M_CHECK_ACTION`, `M_MXFAST` within
   range, `M_ARENA_TEST`, the SVID constants and unknown parameters: a deliberate difference.
 * **`M_MMAP_THRESHOLD`'s upper limit:** mallopt(3) gives 32 MiB on 64-bit systems; the reference
   accepts and honours 64 MiB.
 * **`mallinfo` over 2 GiB** (§3.2 ⚑ COMPAT "truncates"; mallinfo(3) "may wrap around zero"): the
-  record shows the low 32 bits, negative, which is what "wrap" means; D-3.4 makes Liella saturate
+  record shows the low 32 bits, negative, which is what "wrap" means; D-3.4 makes libniji saturate
   at `INT_MAX` instead (deliberate, stricter).
 * **`uordblks`:** mallinfo(3) calls it "the total number of bytes used by in-use allocations"; the
-  reference excludes mmapped blocks from it. Liella's `s3_2_c_2` (D-3.4) requires it to include the
+  reference excludes mmapped blocks from it. libniji's `s3_2_c_2` (D-3.4) requires it to include the
   8 MiB block: a deliberate difference.
 * **Other arenas in `mallinfo`:** mallinfo(3)'s BUGS says only the main arena is reported; the
   record shows a second thread's allocations in `uordblks`.
@@ -407,7 +407,7 @@ The implementer may decide these differently (and record the difference).
 ## What the record does not settle
 
 * The numbers themselves: `malloc_stats`, `malloc_info` and `mallinfo` values are glibc's
-  bookkeeping (D-3.4 makes Liella's neutral); only the line and element structure, the field
+  bookkeeping (D-3.4 makes libniji's neutral); only the line and element structure, the field
   relations and the return values are recorded. The number and kind of `<size>`/`<unsorted>`
   lines in `malloc_info` depend on the free chunks present.
 * Which allocations are served by `mmap` (the 64 KiB block with a 32 KiB threshold, the 8192-byte
@@ -422,5 +422,5 @@ The implementer may decide these differently (and record the difference).
 * With the debug library: whether `free` of a clobbered block actually releases it when `abortfn`
   returns (the record shows only that it returns), and how often `mcheck_pedantic` reports a
   corruption that persists over several calls (the probe restores the byte after one call). The
-  reference-only part is not compared with Liella until phase 13.
+  reference-only part is not compared with libniji until phase 13.
 * `mallinfo` saturation for the count fields (`hblks`, `ordblks`): not reachable here.

@@ -36,7 +36,7 @@ wrapper are scripts; they are run, never opened), and no libc or tzcode source i
   only a static-pie program gives `\tstatically linked` and exit 0 (`ldd-static`, `ldd-static-pie`). The design note
   (`plan/utilities.md` §2.3) had both as `statically linked`; §31.3 follows the record.
 * `ldconfig -r ROOT` by an ordinary user succeeds on the reference (`ldconfig-r-user`), so running `-r` without
-  privilege is not a difference; `openat2` is only Liella's mechanism (pending decision UTIL-SPEC-9).
+  privilege is not a difference; `openat2` is only libniji's mechanism (pending decision UTIL-SPEC-9).
 * `iconv` with `//IGNORE` still reports the illegal sequence and exits 1 after writing the rest (`iconv-ignore`).
 
 ## Gaps (left to the stories)

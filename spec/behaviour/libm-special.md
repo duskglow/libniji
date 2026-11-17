@@ -11,7 +11,7 @@ NaNs, poles, the overflow and underflow thresholds, zeros of the Bessel function
 `lgamma`, huge arguments, orders −3, −1, 0, 1, 2, 5, 30 and 200, in every rounding direction;
 each line with the result's bits, the sign of Γ(x) stored for the gamma functions, the flags
 raised and `errno`). The same program is the differential test
-`crates/math/tests/special_products.rs`, which checks every line where Liella differs against
+`crates/math/tests/special_products.rs`, which checks every line where libniji differs against
 the project's oracle (`crates/mathtools`).
 
 Nothing here describes or derives from glibc's source code.
@@ -45,7 +45,7 @@ Nothing here describes or derives from glibc's source code.
   the correctly rounded value, most at large arguments) and in the
   directed modes; measured in `docs/libm-accuracy.tsv`.
 
-## What Liella does (D-10.15, D-10.16)
+## What libniji does (D-10.15, D-10.16)
 
 Every result correctly rounded in every mode (384-bit evaluation, one rounding) with the
 inexact, underflow and overflow flags of that rounding; invalid, division by zero, NaN signs,

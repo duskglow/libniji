@@ -4,9 +4,9 @@ Spec §1.8; decision D-1.8 (policy R15-6, LEGACY-TUNABLES-POLICY, 2026-10-23); c
 `crates/core/src/config.rs`; tests `s1_8_c_0`, `s1_8_c_0_syntax`, `s3_2_c_1`.
 
 `GLIBC_TUNABLES=name=value:name=value` is read once at startup, before any user code runs.
-Liella parses the whole syntax as glibc 2.39 does (black-box probes on the host glibc,
-2026-10-23), honours the entries that map to a Liella setting, and ignores every other entry
-silently. Each tunable also has a `liella.*` name (a Liella extension; glibc ignores those names).
+libniji parses the whole syntax as glibc 2.39 does (black-box probes on the host glibc,
+2026-10-23), honours the entries that map to a libniji setting, and ignores every other entry
+silently. Each tunable also has a `niji.*` name (a libniji extension; glibc ignores those names).
 
 ## Secure mode
 
@@ -18,12 +18,12 @@ loader rule 1; phase 14 applies the same rule in the dynamic loader).
 
 | Name (alias) | Range | Effect |
 |---|---|---|
-| `glibc.cpu.hwcaps` (`liella.cpu.hwcaps`) | comma list | `-AVX2`, `-ERMS` forbid those machine paths; `AVX2`, `ERMS` ask for them (used only when the CPU has the feature, otherwise refused). The 2.26-era `_Usable` suffix is accepted. Other items are ignored |
-| `glibc.cpu.x86_rep_movsb_threshold` (`liella.cpu.rep_movsb_threshold`) | 0x100 and up | bytes from which copies use `rep movsb` |
-| `glibc.cpu.x86_rep_stosb_threshold` (`liella.cpu.rep_stosb_threshold`) | 1 and up | bytes from which fills use `rep stosb` |
-| `glibc.pthread.rseq` (`liella.pthread.rseq`) | 0 or 1 | 0: threads register no rseq area (§22.9) |
-| `glibc.malloc.perturb` (`liella.malloc.perturb`) | 0 to 255 | `M_PERTURB` of the C `malloc` family (§3.2); wins over `MALLOC_PERTURB_` |
-| `liella.compat.no_classed_swap` (Liella only) | 0 or 1 | 1, or not set (the default, ruling #3434): the classed entries keep the file's SSE2 page; no page swap at start-up, so debuggers, profilers and core files see the code that runs. 0: on the AVX2 class the AVX2 page is swapped in at start-up (COMPAT-20, D-4.53) |
+| `glibc.cpu.hwcaps` (`niji.cpu.hwcaps`) | comma list | `-AVX2`, `-ERMS` forbid those machine paths; `AVX2`, `ERMS` ask for them (used only when the CPU has the feature, otherwise refused). The 2.26-era `_Usable` suffix is accepted. Other items are ignored |
+| `glibc.cpu.x86_rep_movsb_threshold` (`niji.cpu.rep_movsb_threshold`) | 0x100 and up | bytes from which copies use `rep movsb` |
+| `glibc.cpu.x86_rep_stosb_threshold` (`niji.cpu.rep_stosb_threshold`) | 1 and up | bytes from which fills use `rep stosb` |
+| `glibc.pthread.rseq` (`niji.pthread.rseq`) | 0 or 1 | 0: threads register no rseq area (§22.9) |
+| `glibc.malloc.perturb` (`niji.malloc.perturb`) | 0 to 255 | `M_PERTURB` of the C `malloc` family (§3.2); wins over `MALLOC_PERTURB_` |
+| `niji.compat.no_classed_swap` (libniji only) | 0 or 1 | 1, or not set (the default, ruling #3434): the classed entries keep the file's SSE2 page; no page swap at start-up, so debuggers, profilers and core files see the code that runs. 0: on the AVX2 class the AVX2 page is swapped in at start-up (COMPAT-20, D-4.53) |
 
 The ranges are the ones the host loader lists (`ld.so --list-tunables`).
 
@@ -32,7 +32,7 @@ The ranges are the ones the host loader lists (`ld.so --list-tunables`).
 Every other name, silently: the rest of the 41 tunables glibc 2.39 lists (`glibc.malloc.*`
 arena, tcache, threshold and `check` settings, `glibc.elision.*`, `glibc.rtld.*`,
 `glibc.mem.*`, `glibc.gmon.*`, the other `glibc.cpu.*` and `glibc.pthread.*` entries) have no
-neutral meaning in Liella's design (D-3.4 for the allocator), and unknown names are ignored by
+neutral meaning in libniji's design (D-3.4 for the allocator), and unknown names are ignored by
 glibc too. Phase 14 and later stories add a row here when a tunable gains a meaning.
 
 ## Syntax (probe-settled)
@@ -57,10 +57,10 @@ Not probed (the model above is assumed): a form feed as the leading blank, a sig
 
 * glibc writes `WARNING: ld.so: invalid GLIBC_TUNABLES ...: ignored.` to standard error for a
   malformed string or a malformed value of a name it knows (static programs too); out-of-range
-  values are silent. Liella writes the same lines (ruling #1096, TUNABLES-WARNING:
-  `liella::config::warnings`, one line per malformed value of the 38 numeric names, or one
+  values are silent. libniji writes the same lines (ruling #1096, TUNABLES-WARNING:
+  `niji::config::warnings`, one line per malformed value of the 38 numeric names, or one
   line for a malformed string; none in secure mode, as glibc). A dynamic program started by
   another `ld.so` gets that loader's lines only.
 * glibc applies a CPU-dependent minimum to `glibc.cpu.x86_rep_movsb_threshold` above the listed
-  0x100 (0x100 itself was not taken on the probe host, 0x1000 was). Liella takes the listed
+  0x100 (0x100 itself was not taken on the probe host, 0x1000 was). libniji takes the listed
   range; the threshold chooses between two correct copy paths, so only timing can differ.

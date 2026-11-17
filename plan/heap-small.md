@@ -4,11 +4,11 @@ Task HEAP-SMALL-DESIGN, 2026-10-09 (branch design/heap-small off 1e3b191). Measu
 pure-overhead cut made (section 4). Scratch programs: coordinator scratchpad work/heapsmall/ (hs.c, hs.sh,
 trace.gdb).
 
-## 1. Measurement (Zen 1, instructions:u, N-call delta, N = 200000, static Liella vs dynamic glibc 2.39)
+## 1. Measurement (Zen 1, instructions:u, N-call delta, N = 200000, static libniji vs dynamic glibc 2.39)
 
 Per pair (or per iteration where stated), main 1e3b191:
 
-| pattern                                  | Liella | glibc | ratio |
+| pattern                                  | libniji | glibc | ratio |
 |------------------------------------------|-------:|------:|------:|
 | malloc(16/32/64/128) + free              |    163 |   150 | 1.09  |
 | malloc(512) + free                       |    168 |   150 | 1.12  |
@@ -27,7 +27,7 @@ The ~230 seen inside wordexp comes from the paths around it, not from the pair i
 * A free that is not of the latest allocation's slab takes the second fast path (segment check +
   `locate_in`): 97 instructions instead of 70 (mix3).
 
-## 2. Attribution of one warm pair (gdb single-step of malloc(32) and free, Liella static)
+## 2. Attribution of one warm pair (gdb single-step of malloc(32) and free, libniji static)
 
 malloc = 85 instructions, free = 70 (+8 loop = 163).
 
@@ -36,7 +36,7 @@ malloc = 85 instructions, free = 70 (+8 loop = 163).
 | export prologue/epilogue (push/pop, sret frame)                   |   ~10  |   ~3 |
 | DEBUG word test (P6, D-3.5) + NULL test                           |     3  |    4 |
 | class_for (size.max(1), MAX_SMALL, <=128 branch, align mask)      |   ~15  |    - |
-| thread pointer: out-of-line `liella_machine_tp` call + load 0x90   |     4  |    4 |
+| thread pointer: out-of-line `niji_machine_tp` call + load 0x90   |     4  |    4 |
 | unused cache-id load (`cache_of` reads C_ID)                       |     1  |    1 |
 | alloc_hint as a call: Option<Block> returned through memory,      |   ~12  |    - |
 |   re-tested discriminant                                          |        |      |
@@ -131,7 +131,7 @@ Skipped: S-B (a fast path for frees into an owned non-current slab): such a free
 and may list or release the slab (`after_free`), which is `free_slow`'s owner branch already; with S-C the
 mixed-size pattern no longer reaches it, and the target was met without it.
 
-Measured (Zen 1 instructions:u per op, hs.c N = 200000 delta, threads = 1, LIELLA_FULL_PROFILE=1 products):
+Measured (Zen 1 instructions:u per op, hs.c N = 200000 delta, threads = 1, NIJI_FULL_PROFILE=1 products):
 | pattern           | eae2b24 | HEAP-CUTS2 | glibc |
 | malloc(n) + free  |     148 |        136 |   150 |
 | calloc(1,32)+free |     178 |        170 |   333 |
@@ -155,7 +155,7 @@ Done (crates/rt/src/heap.rs `Heap::resize` / `resize_slow` / `forecast`; boundar
 * `realloc(NULL, n)` is taken at the boundary as `malloc(n)`, before the resize path's frame.
 
 Measured (Zen 1 instructions:u per op, hs2.c = hs.c + rdouble/rinplace/rnull, N = 200000 delta, threads = 1,
-LIELLA_FULL_PROFILE=1 products; tree = opt/realloc-fuse merged with main 66571cf; base = the same tree with the
+NIJI_FULL_PROFILE=1 products; tree = opt/realloc-fuse merged with main 66571cf; base = the same tree with the
 REALLOC-FUSE source changes reversed):
 | pattern                          | base | REALLOC-FUSE | glibc |
 | malloc(32)+free                  |  136 |          136 |   150 |

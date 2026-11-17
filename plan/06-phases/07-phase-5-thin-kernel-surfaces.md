@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 5: Thin kernel surfaces
 
@@ -37,10 +37,10 @@
   * **Exports:** 418 glibc symbols: §11 except AIO, §13.4–13.7 and §13.10–13.15, §15.1–15.2,
     §17.1, §18.1, §20.1–20.9, §23.1–23.3, §24.1–24.4, §25.1–25.2 and `syscall`. Each is a
     single-expression translation (purity gate). What glibc adds to a kernel call lives in
-    new `liella-legacy` modules: `io_compat`, `fs_compat`, `net_compat`, `cred_compat`,
+    new `niji-legacy` modules: `io_compat`, `fs_compat`, `net_compat`, `cred_compat`,
     `ipc_compat`, `clock_compat`, `sys_compat` (with the generated `sysconf_table`) and
-    `signal_compat`. The computed configuration answers are in `liella::system`, the
-    device-number encoding in `liella::fs`.
+    `signal_compat`. The computed configuration answers are in `niji::system`, the
+    device-number encoding in `niji::fs`.
   * **C layer:** variadic adapters for `open`, `openat`, `fcntl`, `ioctl`, `mremap`, `semctl`,
     `ulimit` and `syscall` (D-11.10). The system-call table gains `ustat` and a generic
     `syscall` row (kernel name `*`: the number is the first argument, generated like every
@@ -68,7 +68,7 @@
     wait for phase 6; §13.13's four move to phase 12 (D-13.10).
   * **Found and fixed:**
     * Phase 1's `CSys::getpriority` reached C callers biased (20 − nice); D-24.8.
-    * A process Liella did not start re-read `/proc/self/auxv` on every lookup
+    * A process libniji did not start re-read `/proc/self/auxv` on every lookup
       (`sysconf(_SC_PAGESIZE)` at 792 ns); it is now read once (4.19 ns, glibc 4.17).
     * `time()` went through `clock_gettime` at 5× glibc; D-23.8.
     * The sysfs CPU-list parser rejected the trailing newline every real file has, so the

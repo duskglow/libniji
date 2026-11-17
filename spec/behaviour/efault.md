@@ -40,10 +40,10 @@ The exceptions, where the reference reads the text in user space first and crash
 | `realpath` | SIGSEGV | SIGSEGV | SIGSEGV |
 | `gethostname`, `getdomainname` (unwritable buffer) | SIGSEGV | SIGSEGV | not tried |
 
-## Liella
+## libniji
 
 Before (main at `def2834`, static binary): every path-taking call crashed in
-`liella_machine_strlen`, because the export measured the string before handing it to the kernel.
+`niji_machine_strlen`, because the export measured the string before handing it to the kernel.
 After (this change): `KStr` holds the address and measures only when a consumer asks for the
 bytes, so a forwarded path reaches the kernel unread and gets its `EFAULT`. The same table as
 the reference results, except:
@@ -51,7 +51,7 @@ the reference results, except:
 * `opendir` gives `EFAULT` for all three kinds (the reference crashes for two). Kept: S6 gives a defined
   error where the contract has an error channel.
 * `realpath`, `gethostname`, `getdomainname`: SIGSEGV, as the reference.
-* `stat` with an unwritable `struct stat`: SIGSEGV; the reference gives `EFAULT`. Liella receives
+* `stat` with an unwritable `struct stat`: SIGSEGV; the reference gives `EFAULT`. libniji receives
   the kernel's answer by value and stores it into the caller's `Option<&mut Stat>`. The same is likely for
   other calls that fill a caller structure (not probed; see `liella-historic:handoff/efault.md`).
 

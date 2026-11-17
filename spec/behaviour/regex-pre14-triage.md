@@ -22,12 +22,12 @@ Test: `crates/core/tests/regex_pre14_triage.rs`.
 * `[[:upper:]]` and `[[:lower:]]` under `REG_ICASE` match all 19 cased characters probed (ß and the Kelvin sign included).
 * Ranges in en_US.UTF-8 follow collation (`[a-z]` matches ǅ, ẞ, the Angstrom sign; `[j-l]` matches the Kelvin sign
   but `[k-k]` does not). Degenerate ranges such as `[i-i]` and `[µ-µ]` fold like the single character.
-  Liella's range handling was not changed by this story.
+  libniji's range handling was not changed by this story.
 
 ## T30: deep nesting (bounded sizes only: 200 to 10,000 levels)
 * Unbalanced `(`×n, `(`×n `a`, `\(`×n (BRE), `(a`×n `b`, `(a|`×n `b`, `(a*`×n `b`: `REG_EPAREN` at every size probed.
 * Balanced `(`×n `a` `)`×n: compiles (rc 0) up to 1,000. `[`×n: `REG_EBRACK`.
-* Liella has no nesting bound (REGCOMP-DEEP-NESTING, 2026-11-13; it had one of 256 levels before): the parser,
+* libniji has no nesting bound (REGCOMP-DEEP-NESTING, 2026-11-13; it had one of 256 levels before): the parser,
   the tree passes and the compiler keep their work on heap stacks, so a balanced pattern compiles at any depth
   memory and the program-size cap (D-14.8) allow, on any thread stack. Unbalanced patterns are `REG_EPAREN`
   and an open bracket `REG_EBRACK`, as above. Later probes (main thread, ERE): balanced groups and nested

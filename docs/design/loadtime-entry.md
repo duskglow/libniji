@@ -14,20 +14,20 @@ per-call "which CPU?" test costs about what the AVX2 build saves (D-4.25 measure
 gives any memory-write bug a target to redirect. So the code has to be chosen per CPU class with no test on each
 call, and whatever holds that choice has to be read-only once the choice is made.
 
-## 1. How a Liella entry is bound today
+## 1. How a libniji entry is bound today
 
 | Link | What the caller's `call memset` reaches | Evidence |
 |---|---|---|
-| Static (`libc.a`, the only mode that runs programs today, and the mode the benches compare) | A direct `call rel32` to the exported label, which **is** the kernel: `memset`, `memcpy`/`memmove`, `strcmp` are second labels on `liella_machine_*` under `LIELLA_EXPORT` | `csys/src/machine/fold.S:28-60` (memmove/memcpy), `:269-284` (memset); `csys/src/machine/scan.S:3225-3242` (strcmp) |
+| Static (`libc.a`, the only mode that runs programs today, and the mode the benches compare) | A direct `call rel32` to the exported label, which **is** the kernel: `memset`, `memcpy`/`memmove`, `strcmp` are second labels on `niji_machine_*` under `NIJI_EXPORT` | `csys/src/machine/fold.S:28-60` (memmove/memcpy), `:269-284` (memset); `csys/src/machine/scan.S:3225-3242` (strcmp) |
 | Dynamic (`libc.so.6`) | Nothing runs yet: `crates/ld` is a placeholder (phase 14, `crates/ld/src/reloc.rs:3` "Not yet implemented"). When it runs, calls from a program go through its PLT/GOT (or `call *GOT` with `-fno-plt`) as for any shared object | `docs/architecture.md:559` |
-| Inside libc | rustc's and the C layer's implicit `memcpy`/`memset`/`memmove` calls bind straight to `liella_internal_*` (D-X.15); other internal users call the hidden `liella_machine_*` names directly | `plan/07-decisions/x-implementation-decisions.md` D-X.15; `crates/boundary/src/hot.rs:743,809` |
+| Inside libc | rustc's and the C layer's implicit `memcpy`/`memset`/`memmove` calls bind straight to `niji_internal_*` (D-X.15); other internal users call the hidden `niji_machine_*` names directly | `plan/07-decisions/x-implementation-decisions.md` D-X.15; `crates/boundary/src/hot/mem.rs` |
 
 How the CPU class is applied today (D-4.14, D-4.25, D-4.45): a **per-call data test**. `cpu::init_with` (static
 start-up step 4, `crates/boundary/src/runtime.rs`, the `// 4. Tunables and the CPU paths.` step; `cpu.rs:54-75`)
-writes `liella_machine_avx2` (a byte in `.bss`, `fold.S:1351-1356`) and `liella_machine_scan_level` (`.data`,
-`scan.S:18-25`). The kernels test them on the classes that have an AVX2 build: `cmpb $0, liella_machine_avx2(%rip)`
+writes `niji_machine_avx2` (a byte in `.bss`, `fold.S:1351-1356`) and `niji_machine_scan_level` (`.data`,
+`scan.S:18-25`). The kernels test them on the classes that have an AVX2 build: `cmpb $0, niji_machine_avx2(%rip)`
 then a branch (memset 129-256 at `fold.S` `.Lset_129`, the copy's 65-256, the compare classes through the
-`liella_machine_cmp_*` words), and `cmpl $0, liella_machine_scan_level(%rip); jne` at the head of **every** `strcmp`
+`niji_machine_cmp_*` words), and `cmpl $0, niji_machine_scan_level(%rip); jne` at the head of **every** `strcmp`
 call (`scan.S:3241-3242`). The words are 0 (the SSE2 baseline, correct on any x86-64) until step 4, so calls before it
 are correct. They stay writable for the whole process, but they hold data, not code addresses.
 
@@ -38,9 +38,9 @@ When a load-time choice can be made:
   (`apply_irelative`) and every constructor run after it. Libc code that runs before step 4 runs the baseline. The
   program's RELRO is protected after it (`protect_relro`, D-1.13). **This is the only binding that can take the
   choice today.**
-* **Dynamic (phase 14):** either Liella's `ld.so`, while it relocates `libc.so.6` (before RELRO and before any
+* **Dynamic (phase 14):** either libniji's `ld.so`, while it relocates `libc.so.6` (before RELRO and before any
   constructor; IFUNC resolvers run then, but with no tunables unless the loader passes them, which is the problem
-  D-10.50 had for libm), or libc's own initialisation, which Liella's loader runs before any other object's
+  D-10.50 had for libm), or libc's own initialisation, which libniji's loader runs before any other object's
   constructors. The second gets the same decision as the static start-up.
 * **Internal calls:** they never go through the exported entry (D-X.15), so the choice does not reach them unless
   the internal entries use the same mechanism. They are correct with either body.
@@ -55,7 +55,7 @@ of M2 is an unconditional direct `jmp` (cheap, but the instruction counter count
 | Per call, SSE2 class | +2 (`cmp`+`jcc`) on each class with an AVX2 build, 0 elsewhere | static: +1 (`jmp *GOT` in the `.iplt` stub) on **every** class; dynamic: +0 (the PLT `jmp *GOT` is paid anyway) | 0 (the entry is the SSE2 body; nothing is patched) | +1 (`jmp *word(%rip)`) on every class; +2 if the index is loaded per call | 0 |
 | Per call, AVX2 class | +2 on those classes | as SSE2 | +1 on **every** class, including those with no AVX2 gain (memset < 16, copy 1-64) | as SSE2 | 0 |
 | What is writable, how long | the flag bytes, the whole process (data: they can switch to the AVX2 code on a CPU without it, a crash, never a redirect) | the GOT word until RELRO is protected (static: step 4 + `protect_relro`; dynamic: the loader, provided IFUNC slots are bound eagerly, never lazily) | one text page, RW during start-up, RX after | the pointer word until RELRO | the live text page is **never** writable: a private copy is patched, made RX, then `mremap`ed over it (section 2.1) |
-| Early calls (before the choice) | baseline: correct | static: a call before `apply_irelative` jumps through an unfilled word (none happen today: internal calls bind to `liella_internal_*`; constructors run after); dynamic: resolved before any code runs | baseline: correct | static non-PIE: the word's link-time value is the SSE2 body: correct; dynamic: needs the loader to write it before RELRO, i.e. an IFUNC by another name | baseline: correct |
+| Early calls (before the choice) | baseline: correct | static: a call before `apply_irelative` jumps through an unfilled word (none happen today: internal calls bind to `niji_internal_*`; constructors run after); dynamic: resolved before any code runs | baseline: correct | static non-PIE: the word's link-time value is the SSE2 body: correct; dynamic: needs the loader to write it before RELRO, i.e. an IFUNC by another name | baseline: correct |
 | CPU without the feature | flag stays 0 | resolver returns SSE2 | not patched | word stays SSE2 | not installed |
 | Tunables (`-AVX2`) | honoured (step 4) | static: yes (resolver runs after step 4); dynamic: only if the loader passes them | honoured | honoured (static) | honoured |
 | Static binary | works | works (`apply_irelative` exists), +1 per call | works | works (non-PIE: no relocation needed) | works |
@@ -76,18 +76,18 @@ needed.)*
 *Superseded by M6 (section 5). The probes show M4's step (4) is refused under `PR_SET_MDWE` and systemd
 `MemoryDenyWriteExecute=`. Kept as the record.*
 
-* **Layout.** The entries that have per-class builds live in one page-aligned section, `.text.liella_classed`: each
+* **Layout.** The entries that have per-class builds live in one page-aligned section, `.text.niji_classed`: each
   exported label is the start of a fixed-size **slot** holding the SSE2 body (the slots keep D-4.33's 64-byte
   alignment). The AVX2 bodies sit in ordinary text with the same slot sizes; `.org`/`.ifne` checks in the assembly
   fail the build when a body outgrows its slot. Neither body tests a flag: each is straight code for its class.
 * **Fixups.** A body moved from its own address A to the slot at S keeps its internal jumps but its PC-relative
-  references outside the slot (`liella_machine_fold_limit`, the tail jumps to `liella_hot_fill_rest` and friends)
+  references outside the slot (`niji_machine_fold_limit`, the tail jumps to `niji_hot_fill_rest` and friends)
   are off by A - S. The assembly emits, next to each AVX2 body, a `.rodata` table of the offsets of those `rel32`
   fields (a label after each such instruction, `.long label - body - 4`); the installer adds A - S to each. Nothing
   else in a body is position-dependent (no absolute addresses: `libc.so.6` is PIC).
 * **Install protocol** (start-up step 4, after `cpu::init_with`, one thread, before `apply_irelative` and every
   constructor): (1) open the object's own file (static: `/proc/self/exe`; `libc.so.6`: its path from the loader),
-  (2) `mmap` the page holding `.text.liella_classed` from that file, `MAP_PRIVATE`, `PROT_READ|PROT_WRITE`, at a new
+  (2) `mmap` the page holding `.text.niji_classed` from that file, `MAP_PRIVATE`, `PROT_READ|PROT_WRITE`, at a new
   address, (3) copy each AVX2 body into its slot and apply its fixups, (4) `mprotect` it `PROT_READ|PROT_EXEC`,
   (5) `mremap(copy, 4096, 4096, MREMAP_MAYMOVE|MREMAP_FIXED, live)` (one call replaces the live page), (6) close.
   Any failure before (5) unmaps the copy and leaves the live page as it was (SSE2, correct). W^X holds throughout:
@@ -97,14 +97,14 @@ needed.)*
   supported configuration) the same code runs in libc's initialisation.
 * **FP and feature state.** The bodies use integer and vector moves only (no MXCSR or x87 dependence). A body that
   touches `ymm` ends with `vzeroupper` (no SSE/AVX transition penalty in the caller); the 16-32 B class uses VEX-128
-  only and needs none. AVX2 is installed only when `liella_rt::cpu::Features` reports AVX2 **and** XCR0 shows the OS
+  only and needs none. AVX2 is installed only when `niji_rt::cpu::Features` reports AVX2 **and** XCR0 shows the OS
   saves the YMM state (the existing D-4.25 proof obligation, now on the installer). AVX-512 CPUs take the AVX2 class.
 * **Threads and signals.** Installation happens before any thread or handler can exist (static step 4). If a future
   path ever finds more than one thread, it does not install.
 
 ### 2.2 Testing, both entries on every host
 
-1. **Test builds** (no `LIELLA_EXPORT`) name both bodies, `liella_machine_<f>_sse2` and `liella_machine_<f>_avx2`;
+1. **Test builds** (no `NIJI_EXPORT`) name both bodies, `niji_machine_<f>_sse2` and `niji_machine_<f>_avx2`;
    the existing kernel tests (`crates/boundary/tests/small_copy.rs`, `small_compare.rs`, the memset cases) run every
    case on each body. The AVX2 body is skipped, with the reason printed, only on a CPU without AVX2.
 2. **The installed export**: a static conformance program runs its sweep twice, by default and under
@@ -158,7 +158,7 @@ phase 14 loads it. M1 (IFUNC + RELRO) stays the fallback for `libc.so.6` only. M
 
 Stories (the coordinator splits further as needed). JOBS labels follow the story id.
 
-1. **CLASSED-SLOT-INFRA** (wiring, M): the `.text.liella_classed` section with its two pages (5.3), the `XREF` bias
+1. **CLASSED-SLOT-INFRA** (wiring, M): the `.text.niji_classed` section with its two pages (5.3), the `XREF` bias
    macro and the page-size checks, the guard and the swap at step 4 (5.4), the failure handling (5.5), and the
    `classed_id` slot (5.3). `memset` moves into a slot with its SSE2 body unchanged except the 129-256 flag test, and
    an AVX2 page body identical to it (so behaviour and counts are unchanged except -2 at 129-256). JOBS: `-gate`
@@ -186,7 +186,7 @@ Stories (the coordinator splits further as needed). JOBS labels follow the story
 
 ### Decision-register entry (reserved: D-4.53)
 
-| D-4.53 | §4.1–4.3 | PERF | **One entry per CPU class: pre-built read-only pages, one swapped in at start-up, never written** (LOADTIME-ENTRY-DESIGN, -2; owner ruling #3069 option b; design `docs/design/loadtime-entry.md` sections 4-5). Entries with CPU-variant builds (memset, the copy entries, strcmp, then the compares) live in one page-aligned input section `.text.liella_classed` of two 4096-byte pages with the same slot layout: page 0 holds the SSE2 bodies at the exported labels (correct on every x86-64, and what runs before start-up step 4), page 1 the AVX2 bodies, assembled for page 0's address (every out-of-page PC-relative reference biased by +4096). At step 4, after `cpu::init_with` and before the program's IFUNC resolvers and constructors, on a CPU whose `Features` report AVX2 with the YMM state saved and no `glibc.cpu.hwcaps=-AVX2`, the start-up reads the two pages' `/proc/self/pagemap` entries and, if neither has become an anonymous (modified) page, runs `mremap(page1, 4096, 4096, MREMAP_MAYMOVE\|MREMAP_FIXED, page0)`. Any refusal or failure keeps page 0 (SSE2). A failed `mremap` that leaves page 0 unmapped ends the process with a message. No write to code, no gain of exec permission, no private memory, no per-call CPU test, no code pointer. Chosen over writing a patched private copy (M4: refused under `PR_SET_MDWE`, systemd `MemoryDenyWriteExecute=` and SELinux `execmod`; 5 system calls and one private page), the D-4.25 flag (two instructions per call on tested classes), IFUNC + RELRO (+1 instruction per static call on every class, Ivy Bridge included, and a symbol-type change), a patched `jmp` and a RELRO pointer. Amends D-4.25's mechanism for the entries moved. Tests: both bodies in test builds; the installed export by default and with `-AVX2`, read back by the `classed_id` slot; the guard under a tracer; `mremap` failure injection; the swap under `PR_SET_MDWE`. |
+| D-4.53 | §4.1–4.3 | PERF | **One entry per CPU class: pre-built read-only pages, one swapped in at start-up, never written** (LOADTIME-ENTRY-DESIGN, -2; owner ruling #3069 option b; design `docs/design/loadtime-entry.md` sections 4-5). Entries with CPU-variant builds (memset, the copy entries, strcmp, then the compares) live in one page-aligned input section `.text.niji_classed` of two 4096-byte pages with the same slot layout: page 0 holds the SSE2 bodies at the exported labels (correct on every x86-64, and what runs before start-up step 4), page 1 the AVX2 bodies, assembled for page 0's address (every out-of-page PC-relative reference biased by +4096). At step 4, after `cpu::init_with` and before the program's IFUNC resolvers and constructors, on a CPU whose `Features` report AVX2 with the YMM state saved and no `glibc.cpu.hwcaps=-AVX2`, the start-up reads the two pages' `/proc/self/pagemap` entries and, if neither has become an anonymous (modified) page, runs `mremap(page1, 4096, 4096, MREMAP_MAYMOVE\|MREMAP_FIXED, page0)`. Any refusal or failure keeps page 0 (SSE2). A failed `mremap` that leaves page 0 unmapped ends the process with a message. No write to code, no gain of exec permission, no private memory, no per-call CPU test, no code pointer. Chosen over writing a patched private copy (M4: refused under `PR_SET_MDWE`, systemd `MemoryDenyWriteExecute=` and SELinux `execmod`; 5 system calls and one private page), the D-4.25 flag (two instructions per call on tested classes), IFUNC + RELRO (+1 instruction per static call on every class, Ivy Bridge included, and a symbol-type change), a patched `jmp` and a RELRO pointer. Amends D-4.25's mechanism for the entries moved. Tests: both bodies in test builds; the installed export by default and with `-AVX2`, read back by the `classed_id` slot; the guard under a tracer; `mremap` failure injection; the swap under `PR_SET_MDWE`. |
 
 **Compat-flag note:** none needed. Results are bit-identical. Symbol names, versions and types do not change.
 `&memset` is the same address before and after the swap. The `glibc.cpu.hwcaps=-AVX2` tunable keeps the SSE2 page,
@@ -282,15 +282,15 @@ The probe source and driver are in the story's scratch directory. They are not p
 
 ### 5.3 Layout and linker placement
 
-* **One input section, two pages.** `.text.liella_classed` (`"ax"`, `.balign 4096`) holds page 0 (the SSE2 bodies)
+* **One input section, two pages.** `.text.niji_classed` (`"ax"`, `.balign 4096`) holds page 0 (the SSE2 bodies)
   and page 1 (the AVX2 bodies). Each page has the same slot offsets: `.org page + SLOT_<fn>` with one set of constants
   for both pages, and `.org page + 4096` at the end of each page. GAS rejects a body that outgrows its slot or page
   (".org backwards"), so both pages are exactly 4096 bytes. The exported labels (`memset`, ...) and the hidden
-  `liella_machine_*` names point into page 0. Page 1 carries local symbols (`liella_machine_<fn>_avx2`) at the same
+  `niji_machine_*` names point into page 0. Page 1 carries local symbols (`niji_machine_<fn>_avx2`) at the same
   offsets and with the same sizes, so a tool that symbolises by the moved mapping's file offset (5.6) still finds a
   name.
 * **References.** A body in page 1 executes at page 0's address. Jumps within the page need nothing. Every reference
-  that leaves the page (RIP-relative data, tail jumps to `liella_hot_fill_rest` and similar) is written
+  that leaves the page (RIP-relative data, tail jumps to `niji_hot_fill_rest` and similar) is written
   `XREF(sym)` = `sym + 4096` in page 1. This is fixed at assembly and link time, with no fixup tables and no runtime
   writes. Page 1 must not reference page 0 or itself through `XREF`. The story-1 export sweep on an AVX2 host is the
   proof, and one plant drops a bias. Both bodies are leaf code with no stack adjustment, so one CFI description (CFA
@@ -347,7 +347,7 @@ diagnosable instead of silent. A refusal of the guard's `openat` (no `/proc`, or
   offset and name the slot with page 1's local symbol. That naming is predicted from the maps line and NOT VERIFIED.
 * **uprobes** (`uprobetracer.rst`: probes are placed by file and offset): a uprobe on `memset` (page 0's offset) that
   is registered before start makes the guard keep SSE2. One registered after the swap does not fire, because nothing
-  maps that offset any more. It has to target `liella_machine_memset_avx2` (page 1's offset) instead. M4 also loses
+  maps that offset any more. It has to target `niji_machine_memset_avx2` (page 1's offset) instead. M4 also loses
   uprobes, because the copy is written. NOT VERIFIED by a probe.
 * **Core files:** the default `coredump_filter` does not dump clean file-backed text. A debugger reading a core then
   shows the executable's page 0 bytes at page 0's address, although page 1's code ran there. The shared CFI keeps
@@ -371,13 +371,13 @@ but tools that read the file instead of the process see the other page:
 * **perf**: samples are named correctly (`memset`). `perf annotate` shows the file's SSE2 bytes for that symbol, not
   the AVX2 code that ran.
 * **uprobes** are placed by file offset: one on `memset` registered after start-up does not fire. Use
-  `liella_machine_memset_avx2` (the AVX2 page's local symbol), or keep the SSE2 page.
+  `niji_machine_memset_avx2` (the AVX2 page's local symbol), or keep the SSE2 page.
 * **Core files**: the default `coredump_filter` does not dump clean file-backed text, so a debugger reading a core
   shows the file's SSE2 bytes at `memset`. Backtraces are correct.
 * **The swap is off by default** (ruling #3434, D-4.53: it cost 22-26 us per process start on an Alder Lake-N
   class CPU with no measured `memset` gain; CLASSED-SLOT-SWAP-COST cuts that cost). The notes above apply when
-  `GLIBC_TUNABLES=liella.compat.no_classed_swap=0` (COMPAT-20) turns it on.
+  `GLIBC_TUNABLES=niji.compat.no_classed_swap=0` (COMPAT-20) turns it on.
 * **To run the file's SSE2 page** (the code at every exported label is then the code in the file): the default, or
-  `GLIBC_TUNABLES=liella.compat.no_classed_swap=1` (COMPAT-20), keeps it and leaves the other AVX2 paths on;
+  `GLIBC_TUNABLES=niji.compat.no_classed_swap=1` (COMPAT-20), keeps it and leaves the other AVX2 paths on;
   `GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX2` keeps it and turns every AVX2 path off. A program without `/proc` also
   keeps it.

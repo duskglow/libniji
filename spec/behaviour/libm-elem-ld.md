@@ -13,7 +13,7 @@ domain edges, the overflow and underflow thresholds, huge trigonometric argument
 largest finite value, exact cases and the Annex F tables of `powl` and `atan2l`, plus 150
 random operands per function and mode, in every rounding direction, each with the 80-bit
 encodings, the flags raised and `errno`). The same program is the differential test
-`crates/math/tests/elem_ld_products.rs`, which checks every line where Liella differs against
+`crates/math/tests/elem_ld_products.rs`, which checks every line where libniji differs against
 the project's oracle (`crates/mathtools`). Interior accuracy is measured separately
 (`cargo xtask mathcmp FUNC l`, `docs/libm-accuracy.tsv`). A separate probe settled the NaN
 operands of `acosl` and the domain NaNs (2026-10-05, the results below).
@@ -48,7 +48,7 @@ Nothing here describes or derives from glibc's source code.
   often a neighbour), `cosl` and `coshl` return 1; `tanhl` upward returns the next value above
   the operand (tanh x < x).
 
-## What Liella does (D-10.19)
+## What libniji does (D-10.19)
 
 Every result correctly rounded in every mode, with the inexact, underflow and overflow flags of
 that rounding; invalid, division by zero, NaN signs and payloads as glibc (including `acosl`'s

@@ -14,7 +14,7 @@ comments and string literals stripped, for these tokens:
 | cfg | `target_arch` | 9 |
 | intrinsics | `arch::x86_64`, `arch::x86::` | 3 |
 | asm | `asm!`, `global_asm!`, `naked_asm!` | 1 |
-| machine-decl | `fn liella_machine_` (the extern declarations of `csys/src/machine/*.S`) | 89 |
+| machine-decl | `fn niji_machine_` (the extern declarations of `csys/src/machine/*.S`) | 89 |
 | fpu | `mxcsr`/`MXCSR`/`Mxcsr`, `x87`/`X87` (not in a `0x87` literal), `fnstcw`, `fldcw`, `fnstsw` | 242 |
 | thread-pointer | `arch_prctl`, `ARCH_SET_FS`/`GS`, `ARCH_GET_FS`/`GS`, `ArchGet` | 43 |
 | reloc | `R_X86_64` | 2 |
@@ -26,7 +26,7 @@ line or on one of the three lines above it. Anything else fails the check. `--li
 
 Limits (labelled, not covered per site): a token check is a tripwire, not a proof. Code that depends on x86_64
 without naming one of the tokens is listed by kind below, not per site: struct layouts from `crates/abi`, syscall
-numbers from `csys/syscalls.tsv`, `long double` handled as raw 80-bit words, and callers of `liella_machine_*`
+numbers from `csys/syscalls.tsv`, `long double` handled as raw 80-bit words, and callers of `niji_machine_*`
 (only the declarations are seams). `xtask/`, `tools/` and `csys/` (C and assembly) are not scanned.
 
 ## Seams and their replacements
@@ -66,7 +66,7 @@ because csys is x86_64 C and assembly and the build script compiles it with the 
 ## String and memory kernels without a portable Rust path
 
 The machine kernels are all x86_64 assembly: `scan.S` (49 labels) and `fold.S` (13) plus the copy/fill entry points.
-By name, a portable Rust implementation exists for the memory family only: `liella-mem` holds plain loops behind
+By name, a portable Rust implementation exists for the memory family only: `niji-mem` holds plain loops behind
 `memcpy`, `memmove`, `memset`, `memcmp` and `bcmp` (D-4.11). `hot.rs` serves the 1-64 byte classes of the fold
 kernels in Rust (with AVX2 intrinsics, see above). No portable Rust function was found for `strlen`, `strnlen`,
 `strcpy`, `strncpy`, `stpcpy`, `stpncpy` (and their `_chk` forms), `rawmemchr`, `memchr`, `memrchr`, `strchr`,
@@ -75,7 +75,7 @@ kernels in Rust (with AVX2 intrinsics, see above). No portable Rust function was
 This is a name-level search (`fn <name>` in `mem`, `core`, `rt`, `legacy`), not a per-kernel review; A-8
 confirms each before writing the portable path.
 
-A-8 progress (D-4.22 PORTABLE-SCAN): `crates/boundary/src/strz.rs` module `portable` (cfg `liella_portable_scan`:
+A-8 progress (D-4.22 PORTABLE-SCAN): `crates/boundary/src/strz.rs` module `portable` (cfg `niji_portable_scan`:
 every target but x86_64, or the test-only feature `portable-scan`) holds word-at-a-time Rust versions of `strlen`,
 `strnlen`, `rawmemchr`, `memchr`, `memrchr`, `strchr`, `strchrnul`, `strcmp` and `strncmp` with their entries.
 Still without one: the copy family (`strcpy` ... `stpncpy`, `_chk`), `strdiff`, `casecmp_ord_*`, `pairscan`,

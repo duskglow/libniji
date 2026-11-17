@@ -1,0 +1,10 @@
+# Plants for the built-in EUC-JP codec (SYS-ICONV-CHARMAPS). Run: cargo xtask plants handoff/SYS-ICONV-CHARMAPS-plants.txt --dir <new RAM dir> --timeout 600
+ignore-skip-threshold | crates/core/src/iconv/jis.rs | lit:if second < 0xA0 { 1 } else { 2 } ==> if second < 0x80 { 1 } else { 2 } | cargo test -p niji --lib iconv::jis | msg:euc_jp_invalid_input.*FAILED|panicked
+ignore-skip-threshold-products | crates/core/src/iconv/jis.rs | lit:if second < 0xA0 { 1 } else { 2 } ==> if second < 0x80 { 1 } else { 2 } | cargo test -p niji --test iconv_codespace_products | msg:lines that differ from the reference
+nec-row-kept | crates/core/src/iconv/jis.rs | lit:if row == 12 || ==> if row == 99 || | cargo test -p niji --lib iconv::jis | msg:euc_jp_(variant_cells|round_trips).*FAILED|panicked
+cell-override-wrong | crates/core/src/iconv/jis.rs | lit:(32, 0x301C) ==> (32, 0x301D) | cargo test -p niji --lib iconv::jis | msg:euc_jp_variant_cells.*FAILED|panicked
+jis0212-row-span | crates/core/src/iconv/jis.rs | lit:!(0xA2..=0xED).contains(&b1) ==> !(0xA1..=0xED).contains(&b1) | cargo test -p niji --lib iconv::jis | msg:euc_jp_invalid_input.*FAILED|panicked
+yen-one-way-lost | crates/core/src/iconv/jis.rs | lit:0xA5 => return put(out, b"\\"), ==> 0xA6 => return put(out, b"\\"), | cargo test -p niji --lib iconv::jis | msg:euc_jp_variant_cells.*FAILED|panicked
+encode-search-wrong | crates/core/src/iconv/jis.rs | lit:.take_while(|&(&x, _)| x == c) ==> .take_while(|&(&x, _)| x != c) | cargo test -p niji --lib iconv::jis | msg:euc_jp_(variant_cells|round_trips).*FAILED|panicked
+katakana-range | crates/core/src/iconv/jis.rs | lit:Some(&b1 @ 0xA1..=0xDF) ==> Some(&b1 @ 0xA1..=0xDE) | cargo test -p niji --lib iconv::jis | msg:euc_jp_(variant_cells|round_trips).*FAILED|panicked
+tag-range | crates/core/src/iconv/jis.rs | lit:0xE0000..=0xE007F => return Some(0), ==> 0xE0000..=0xE007E => return Some(0), | cargo test -p niji --test iconv_codespace_products | msg:lines that differ from the reference

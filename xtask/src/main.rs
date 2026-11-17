@@ -16,6 +16,7 @@
 //! | `csys-gen`     | Generate the C layer's syscall wrappers and their Rust declarations from `csys/syscalls.tsv` (K5); `--check` fails if stale. |
 //! | `abi-gen`      | Generate `niji_abi::layout` and the Appendix C layout tests from `spec/abi/layouts.tsv`; `--check` fails if stale. |
 //! | `unicode-gen`  | Generate the Unicode tables (`crates/core/src/unicode/tables.rs`) from `spec/unicode/15.1.0` (IP-19, D-5.4); `--check` fails if stale. |
+//! | `encodings-gen` | Generate the built-in multi-byte `iconv` codecs' tables (`crates/core/src/iconv/jis_tables.rs`) from the WHATWG Encoding Standard indexes in `spec/encoding/whatwg`; `--check` fails if stale. |
 //! | `headers-gen`  | Generate libniji's C headers (`libc-include/`) from the templates `headers/*.h.in` and the `spec/abi` tables (plan/headers.md 2.4, SL-HEADERS-S05; `--check` runs in `static`); `--check` fails if stale or a table fact does not fit.
 //! | `native-gen`   | Generate the native C ABI's header (`include/niji/native.h`) from `spec/abi/native.tsv` (D-X.10); `--check` fails if stale or if the exports differ from the table. |
 //! | `compat-gen`   | Generate `csys/src/machine/compat_aliases.S` and `crates/libm-so/compat_aliases.S`, the `.symver` stubs of libc.so.6's and libm.so.6's compat versions, from `spec/abi/versions.tsv` and `spec/abi/compat-plan.tsv` (LG-1, LG-4, R15-1); `--check` fails if stale. |
@@ -56,6 +57,7 @@
 mod abbench;
 mod abi;
 mod affected;
+mod encodings;
 mod align;
 mod bench;
 mod classed;
@@ -112,6 +114,7 @@ mod plants;
 mod placeholders;
 mod labnames;
 mod privpaths;
+mod oldname;
 mod kernel_index;
 mod records;
 mod locks;
@@ -178,9 +181,11 @@ fn main() -> ExitCode {
         "lab-names" => labnames::check(&root),
         "hottext-check" => hottext::static_check(&root),
         "private-paths" => privpaths::check(&root),
+        "old-name" => oldname::check(&root),
         "csys-gen" => csys::run(&root, args.iter().any(|a| a == "--check")),
         "abi-gen" => abi::run(&root, args.iter().any(|a| a == "--check")),
         "unicode-gen" => unicode::run(&root, args.iter().any(|a| a == "--check")),
+        "encodings-gen" => encodings::run(&root, args.iter().any(|a| a == "--check")),
         "locale-gen" => langinfo::run(&root, args.iter().any(|a| a == "--check")),
         "native-gen" => native::run(&root, args.iter().any(|a| a == "--check")),
         "headers-gen" => headers::run(&root, args.iter().any(|a| a == "--check")),
@@ -218,7 +223,7 @@ fn main() -> ExitCode {
         "layout-check" => layout::run(&root, &args[1..]),
         "startup-ro-plan" => startup_ro::dump(&root, &args[1..]),
         _ => {
-            println!("usage: cargo xtask <stubs [--force] | trace [--untested [--out F]] | static | clippy | status [--schedule] | symgap | symcov [--tsv <file | compat-plan | register [--check]>] | arch-audit [--list] | arch-check | purity | unsafe-audit | csys-audit | env-audit | opaque-audit | crash-audit | csys-gen [--check] | abi-gen [--check] | unicode-gen [--check] | locale-gen [--check] | native-gen [--check] | compat-gen [--check] | math-gen [--check] | mathcmp FUNC FMT [opts] (FMT: f32|float|f, f64|double|d, f80|ld|long-double|l, f128|_Float128|q; whole names only) | remez [--check] FIT... | tables [--check] [--in-place] | kernel-index [--check] [--in-place] | codemap [--check] [--in-place] | records-gen [--check] [--in-place] | records (check | fmt [--check] | new <decision|compat|saturation> <id> [--section S] [--series S] [--story S]) | bench [--runs N] [--only <bench>,...] [--rows <bench>/<row>,... | --rows-file F | --affected <base>] [--build-only | --no-build] | bench-rows [--base <ref> | --range <a>..<b> | --files <p>,...] [--out F] | sweep (run --out <dir> [--only a,b] | compare --new <class>=<tsv>... (--old <class>=<tsv>... | --old-table <md>) [--label L]) [--compare [--runs N] [--v3] [--sorted] [--counters] [--tunables V] [--only a,b | <cbench>...]] (flags may stand anywhere after bench; an unknown --flag is an error; --tunables V, or else a non-empty GLIBC_TUNABLES in the caller's environment, sets it for both sides; the two differing is an error) | fuzz <target> --time <minutes> | fuzz-check | so | test | ctest | nextest <args> | affected (--list | --run) [--base <ref>] [--files <path>...] [--only <names>] [--tier direct|wide|full] [--with-exports] | native | rust-dylib [<abi>] | repro [--release] [--dir <base>] | transcript (check | record) <file | dir>... [--reference C=PATH] [--niji C=PATH]>");
+            println!("usage: cargo xtask <stubs [--force] | trace [--untested [--out F]] | static | clippy | status [--schedule] | symgap | symcov [--tsv <file | compat-plan | register [--check]>] | arch-audit [--list] | arch-check | purity | unsafe-audit | csys-audit | env-audit | opaque-audit | crash-audit | csys-gen [--check] | abi-gen [--check] | unicode-gen [--check] | encodings-gen [--check] | locale-gen [--check] | native-gen [--check] | compat-gen [--check] | math-gen [--check] | mathcmp FUNC FMT [opts] (FMT: f32|float|f, f64|double|d, f80|ld|long-double|l, f128|_Float128|q; whole names only) | remez [--check] FIT... | tables [--check] [--in-place] | kernel-index [--check] [--in-place] | codemap [--check] [--in-place] | records-gen [--check] [--in-place] | records (check | fmt [--check] | new <decision|compat|saturation> <id> [--section S] [--series S] [--story S]) | bench [--runs N] [--only <bench>,...] [--rows <bench>/<row>,... | --rows-file F | --affected <base>] [--build-only | --no-build] | bench-rows [--base <ref> | --range <a>..<b> | --files <p>,...] [--out F] | sweep (run --out <dir> [--only a,b] | compare --new <class>=<tsv>... (--old <class>=<tsv>... | --old-table <md>) [--label L]) [--compare [--runs N] [--v3] [--sorted] [--counters] [--tunables V] [--only a,b | <cbench>...]] (flags may stand anywhere after bench; an unknown --flag is an error; --tunables V, or else a non-empty GLIBC_TUNABLES in the caller's environment, sets it for both sides; the two differing is an error) | fuzz <target> --time <minutes> | fuzz-check | so | test | ctest | nextest <args> | affected (--list | --run) [--base <ref>] [--files <path>...] [--only <names>] [--tier direct|wide|full] [--with-exports] | native | rust-dylib [<abi>] | repro [--release] [--dir <base>] | transcript (check | record) <file | dir>... [--reference C=PATH] [--niji C=PATH]>");
             Ok(())
         }
     };
@@ -256,8 +261,8 @@ fn arch_tools() -> arch::Tools {
 /// on Zen 1 host before a long gate. `~/bin/static-checks` on the VMs is the same list.
 fn static_checks(root: &Path) -> Result<(), String> {
     type Check = fn(&Path) -> Result<(), String>;
-    let checks: [(&str, Check); 38] =
-        [("align", align::static_check), ("arch-audit", |r| arch::audit(r, false, &arch_tools())), ("remap", remap::static_check), ("classed-xref", classed::static_check), ("jcc-check", jcc::static_check), ("layout", layout::static_check), ("k5", csys::machine_decls_match), ("purity", policy::purity), ("unsafe-audit", policy::unsafe_audit), ("csys-audit", policy::csys_audit), ("env-audit", policy::env_audit), ("opaque-audit", policy::opaque_audit), ("crash-audit", policy::crash_audit), ("fork-child-alloc", forkalloc::fork_child_alloc), ("fs-order", fs_order::fs_order), ("trace", trace::run), ("fuzz-check", fuzz::check), ("machine-exports", affected::machine_exports_check), ("compat-gen", |r| compat::run(r, true)), ("compat-plan", compat_plan::check), ("compat-probes", compatprobe::check), ("records", records::check), ("records-gen", records::fresh_check), ("register", register::check), ("compat-ids", compat_ids::check), ("visibility", visibility::check), ("abi-types", abi_types::check), ("callsites", callsites::check),("lab-names", labnames::check), ("private-paths", privpaths::check), ("reexec-audit", policy::reexec_audit), ("tables-fresh", |r| math::run_tables(r, &["--check".to_string()])), ("lock-fresh", locks::static_check), ("hottext", hottext::static_check), ("codemap", |r| codemap::run(r, true, false)), ("partial-write", partial_write::static_check), ("float-casts", float_casts::static_check), ("long-sweeps", longsweeps::static_check)];
+    let checks: [(&str, Check); 39] =
+        [("align", align::static_check), ("arch-audit", |r| arch::audit(r, false, &arch_tools())), ("remap", remap::static_check), ("classed-xref", classed::static_check), ("jcc-check", jcc::static_check), ("layout", layout::static_check), ("k5", csys::machine_decls_match), ("purity", policy::purity), ("unsafe-audit", policy::unsafe_audit), ("csys-audit", policy::csys_audit), ("env-audit", policy::env_audit), ("opaque-audit", policy::opaque_audit), ("crash-audit", policy::crash_audit), ("fork-child-alloc", forkalloc::fork_child_alloc), ("fs-order", fs_order::fs_order), ("trace", trace::run), ("fuzz-check", fuzz::check), ("machine-exports", affected::machine_exports_check), ("compat-gen", |r| compat::run(r, true)), ("compat-plan", compat_plan::check), ("compat-probes", compatprobe::check), ("records", records::check), ("records-gen", records::fresh_check), ("register", register::check), ("compat-ids", compat_ids::check), ("visibility", visibility::check), ("abi-types", abi_types::check), ("callsites", callsites::check),("lab-names", labnames::check), ("private-paths", privpaths::check), ("old-name", oldname::check), ("reexec-audit", policy::reexec_audit), ("tables-fresh", |r| math::run_tables(r, &["--check".to_string()])), ("lock-fresh", locks::static_check), ("hottext", hottext::static_check), ("codemap", |r| codemap::run(r, true, false)), ("partial-write", partial_write::static_check), ("float-casts", float_casts::static_check), ("long-sweeps", longsweeps::static_check)];
     let failed: Vec<&str> = checks.iter().filter(|(name, f)| f(root).map_err(|e| eprintln!("static: {name} FAILED: {e}")).is_err()).map(|(name, _)| *name).collect();
     if failed.is_empty() { Ok(()) } else { Err(format!("failed: {}", failed.join(", "))) }
 }
@@ -293,6 +298,7 @@ fn test_steps(root: &Path, extra: &[String], t: &mut steptime::Steps) -> Result<
     t.time("csys-gen-check", || csys::run(root, true))?;
     t.time("abi-gen-check", || abi::run(root, true))?;
     t.time("unicode-gen-check", || unicode::run(root, true))?;
+    t.time("encodings-gen-check", || encodings::run(root, true))?;
     t.time("locale-gen-check", || langinfo::run(root, true))?;
     t.time("native-gen-check", || native::run(root, true))?;
     t.time("headers-gen-check", || headers::run(root, true))?;

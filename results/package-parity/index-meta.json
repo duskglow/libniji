@@ -1,0 +1,47 @@
+{
+ "trixie": {
+  "date": "Sat, 12 Sep 2026 07:55:41 UTC",
+  "files": {
+   "contrib/binary-amd64/Packages.xz": "sha256 ok",
+   "contrib/source/Sources.xz": "sha256 ok",
+   "main/binary-amd64/Packages.xz": "sha256 ok",
+   "main/source/Sources.xz": "sha256 ok",
+   "non-free-firmware/binary-amd64/Packages.xz": "sha256 ok",
+   "non-free-firmware/source/Sources.xz": "sha256 ok",
+   "non-free/binary-amd64/Packages.xz": "sha256 ok",
+   "non-free/source/Sources.xz": "sha256 ok"
+  },
+  "root": "http://deb.debian.org/debian",
+  "signature": "not checked (no keyring given)"
+ },
+ "trixie-security": {
+  "date": "Mon, 16 Nov 2026 21:02:50 UTC",
+  "files": {
+   "contrib/binary-amd64/Packages.xz": "sha256 ok",
+   "contrib/source/Sources.xz": "sha256 ok",
+   "main/binary-amd64/Packages.xz": "sha256 ok",
+   "main/source/Sources.xz": "sha256 ok",
+   "non-free-firmware/binary-amd64/Packages.xz": "sha256 ok",
+   "non-free-firmware/source/Sources.xz": "sha256 ok",
+   "non-free/binary-amd64/Packages.xz": "sha256 ok",
+   "non-free/source/Sources.xz": "sha256 ok"
+  },
+  "root": "http://security.debian.org/debian-security",
+  "signature": "not checked (no keyring given)"
+ },
+ "trixie-updates": {
+  "date": "Mon, 16 Nov 2026 20:12:46 UTC",
+  "files": {
+   "contrib/binary-amd64/Packages.xz": "sha256 ok",
+   "contrib/source/Sources.xz": "sha256 ok",
+   "main/binary-amd64/Packages.xz": "sha256 ok",
+   "main/source/Sources.xz": "sha256 ok",
+   "non-free-firmware/binary-amd64/Packages.xz": "sha256 ok",
+   "non-free-firmware/source/Sources.xz": "sha256 ok",
+   "non-free/binary-amd64/Packages.xz": "sha256 ok",
+   "non-free/source/Sources.xz": "sha256 ok"
+  },
+  "root": "http://deb.debian.org/debian",
+  "signature": "not checked (no keyring given)"
+ }
+}

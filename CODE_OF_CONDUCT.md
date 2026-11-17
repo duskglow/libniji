@@ -15,7 +15,7 @@ let a maintainer settle it.
 
 ## Stay on topic: no politics
 
-Liella exists to implement the glibc ABI in Rust. Every project space stays on that purpose.
+libniji exists to implement the glibc ABI in Rust. Every project space stays on that purpose.
 
 **Political, ideological, religious and social-cause content is not allowed in any project
 space.** This applies equally to every cause, side and viewpoint, without exception. It is
@@ -39,7 +39,7 @@ Contributors are free to hold and express any views they like outside project sp
 However, directing public attacks, harassment or bad-faith criticism at the project, its
 maintainers or its community from outside project spaces is incompatible with contributing
 to it. Honest, good-faith criticism is always welcome, wherever it is made: a public bug
-report, a critical review, or a write-up of where Liella failed you or where its clean-room
+report, a critical review, or a write-up of where libniji failed you or where its clean-room
 record falls short. (Though we would prefer that you raise it with us first, so that we can
 make sure no one else has to deal with the same problem.)
 

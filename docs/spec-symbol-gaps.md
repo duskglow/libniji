@@ -1,4 +1,4 @@
-# ABI names that no Liella product defines (2026-10-24)
+# ABI names that no libniji product defines (2026-10-24)
 
 This page is generated from `cargo xtask symcov` (README-COVERAGE-TRUTH, rulings #809/#811). It replaces the
 SPEC-SYMBOLS-TRIAGE table, which started from the names listed one by one in `spec/symbols.tsv`: that file names a
@@ -8,11 +8,11 @@ per-name table is [`spec-symbol-gaps.tsv`](spec-symbol-gaps.tsv) (class, symbol,
 versions, where it is missing, owner, spec section). Regenerate both with
 `cargo xtask so && cargo xtask symcov --tsv docs/spec-symbol-gaps.tsv`.
 
-**How it is checked.** A version row is present when the library's `target/liella/*.so*` defines `name@@version`
+**How it is checked.** A version row is present when the library's `target/niji/*.so*` defines `name@@version`
 (default rows; an unversioned definition also counts) or `name@version` (compatibility rows), by
 `nm -D --defined-only`. A default name must also be defined by the library's static archive (`nm --defined-only`);
-`missing_in` says where it is missing (`so`, `a`, `so+a`). A library Liella ships only as an empty archive
-(`libresolv.a`) and the loader's names count as present when any Liella archive defines them, since a static
+`missing_in` says where it is missing (`so`, `a`, `so+a`). A library libniji ships only as an empty archive
+(`libresolv.a`) and the loader's names count as present when any libniji archive defines them, since a static
 program takes them from `libc.a`. Version class: `private` (`GLIBC_PRIVATE` only), `compat` (every missing version
 is a compatibility version, so new programs cannot link against it), else `default`. Products scanned: job
 `readme-coverage-truth-2-symcov` on Broadwell-EP host (`cargo xtask so` then `symcov` on the tree of run 1 merged onto next).
@@ -24,8 +24,8 @@ is a compatibility version, so new programs cannot link against it), else `defau
 | Class | Names | What it is | Owner in the plan |
 |---|---:|---|---|
 | (a) dynamic linking / ld.so | 113 | `ld-linux-x86-64.so.2` (3 default, 25 private, 1 placeholder); `libc.so.6` §27 (11: `dlopen` family, `_dl_mcount*`); `libthread_db.so.1` (40 `td_*`); `libc_malloc_debug.so.0` (28, compat); the version-node placeholders of `libpthread`, `libdl`, `librt`, `libutil`, `libanl` (5) | Phase 14 |
-| (b) compat-only, in a library Liella ships | 176 | `libc.so.6` 128, `libm.so.6` 37, `libresolv.so.2` 11 (compatibility versions only: new programs cannot link against them) | Phase 15 |
-| (c) library Liella does not replace yet | 127 | `libnsl.so.1` (121 compat, 6 private) | Phase 15 (§29.2) |
+| (b) compat-only, in a library libniji ships | 176 | `libc.so.6` 128, `libm.so.6` 37, `libresolv.so.2` 11 (compatibility versions only: new programs cannot link against them) | Phase 15 |
+| (c) library libniji does not replace yet | 127 | `libnsl.so.1` (121 compat, 6 private) | Phase 15 (§29.2) |
 | (e) legacy tier, default version | 2 | `libc.so.6`: `__libc_sa_len`, `bindresvport` (the 86 other `_IO_*`, profiling and §29 names of 2026-10-22 are defined now) | Phase 15 |
 | **milestone 5 (libm)** (m) | **0** | none left: the 18 complex `_Float128` members of 2026-10-24 are defined now (Track M milestone 5 closed by MATH-M5-CLOSE, 2026-11-04) | Track M milestone 5 (plan/06-phases/04-track-m-parallel-from-p2.md) |
 | (p) GLIBC_PRIVATE | 280 | `libc.so.6` 278, `libresolv.so.2` 2: interfaces between glibc's own libraries, not linkable by programs | Out of scope (ruling #822; see Notes) |
@@ -74,24 +74,24 @@ reads the control word with `fnstcw` at the start of `main`):
 | `main` assigns `0x27f`, then starts a thread | the thread's control word is `0x37f` | the same |
 
 So the variable is read only at start-up, before the constructors, and only in a dynamic program. In a static
-program it is not read at all, and a program's own definition must still link. In Liella that means a weak or
+program it is not read at all, and a program's own definition must still link. In libniji that means a weak or
 separate-member definition in `libc.a`, so that it never collides with the program's.
 
 **Implemented (#812, D-10.5).** `unsigned short __fpu_control = 0x037f` is defined in an archive member of its own
 (`csys/src/adapter/fpu_control.c`), exported as a 2-byte `OBJECT` at `GLIBC_2.2.5`. The start-up code
-(`crates/boundary/src/runtime.rs`, `start()`) reads it through `liella_link_fpu_control` (`csys/src/adapter/runtime.c`)
+(`crates/boundary/src/runtime.rs`, `start()`) reads it through `niji_link_fpu_control` (`csys/src/adapter/runtime.c`)
 on the dynamic path only, before the constructors, and loads it into the x87 control word when it differs from
 `0x037f`. Tests: `sym___fpu_control` in `crates/boundary/tests/s10_math_symbols.rs` (symbol, size, archive member)
-and the conformance programs `fpu_control_default` and `fpu_control_own` (static on Liella; dynamic on glibc as the
-oracle). Their dynamic run on Liella waits for Liella's `ld.so` (phase 14, #814) and is a reported skip. So the
-dynamic start-up hook has no Liella-side test yet. Class (d) is empty: `lgammaf128_r` and `__clog10l` are
+and the conformance programs `fpu_control_default` and `fpu_control_own` (static on libniji; dynamic on glibc as the
+oracle). Their dynamic run on libniji waits for libniji's `ld.so` (phase 14, #814) and is a reported skip. So the
+dynamic start-up hook has no libniji-side test yet. Class (d) is empty: `lgammaf128_r` and `__clog10l` are
 milestone-5 names (row (m) above), left to milestone 5.
 
 ## Notes
 
 * `symgap` compares against glibc's installed `libc.a` only; `symcov` covers every library of the ABI table.
 * The (p) class is out of scope (ruling #822): `GLIBC_PRIVATE` names are glibc-internal, and programs cannot link
-  them. Liella replaces those components together with its own internal interfaces. Phase 14 revisits them only if
-  Liella's ld.so must interoperate with glibc libraries.
-* The `libresolv` default names are defined in Liella's `libc.a` and its `libresolv.a` is empty; Liella does not
+  them. libniji replaces those components together with its own internal interfaces. Phase 14 revisits them only if
+  libniji's ld.so must interoperate with glibc libraries.
+* The `libresolv` default names are defined in libniji's `libc.a` and its `libresolv.a` is empty; libniji does not
   ship `libresolv.so.2` (dynamic linking is phase 14).

@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ## 4. Test methodology
 
@@ -48,10 +48,10 @@ stale reference; `stubs` and `test` run it.
 
 | Kind | What it proves | Where | From phase |
 |---|---|---|---|
-| **Internal unit** | The clean contract of `liella`/`liella-math`, including all edge and failure clauses, against `Faulty<CSys>` where the kernel is involved. | `crates/{core,math}/tests` | 2 |
+| **Internal unit** | The clean contract of `niji`/`niji-math`, including all edge and failure clauses, against `Faulty<CSys>` where the kernel is involved. | `crates/{core,math}/tests` | 2 |
 | **Translation** | Each export converts correctly: argument mapping, return convention, errno behaviour, `_r`/static-slot/data-symbol semantics. Rust tests call the `extern "C"` functions directly, without symbol export. | `crates/boundary/tests` | 2 |
 | **Kernel primitives** | Each `Sys`/`Machine` method against the real kernel, through the C layer: success cases, reachable errnos, and argument layout. | `crates/boundary/tests` | 1 |
-| **ABI data** | `size_of`/`align_of`/`offset_of` of every `liella_abi::layout` type and every initializer's bytes against Appendix C. | `crates/abi/tests` | 1 |
+| **ABI data** | `size_of`/`align_of`/`offset_of` of every `niji_abi::layout` type and every initializer's bytes against Appendix C. | `crates/abi/tests` | 1 |
 | **Runtime primitives** | Heap, sync, thread-block and signal-table invariants against `Faulty<CSys>`. | `crates/rt/tests` | 3 |
 | **Policy** | `purity`, `unsafe-audit`, `csys-audit` on every `cargo xtask test`. | `xtask` | 0 |
 | **C conformance** | Real C programs, compiled against system headers and statically linked to `libc.a`. They exercise the calling convention, header-inline protocols (Appendix C.9) and data symbols. | `conformance/c` | 4 |
@@ -136,11 +136,11 @@ safe-Rust library can still get wrong: panics (with debug assertions on, so inte
 panics as in the test builds), time-outs (unbounded work) and memory blow-ups. AFL++ was not
 chosen (a separate installation and a fork per input, slower on parsers this small), nor an
 in-repository mutation driver (no coverage feedback, so blind beyond the seeds). AddressSanitizer
-is off by default (the harnesses run safe Rust over Liella's internal API; `--asan` turns it on).
+is off by default (the harnesses run safe Rust over libniji's internal API; `--asan` turns it on).
 
 **Isolation.** `fuzz/` is a workspace of its own, excluded from the root workspace: only it
 depends on `libfuzzer-sys` and uses the nightly; the library crates and the products keep zero
-dependencies and the pinned toolchain. Each harness calls Liella's own code (internal API) on
+dependencies and the pinned toolchain. Each harness calls libniji's own code (internal API) on
 bytes in memory: no system file, no command, no network, never the host C library.
 
 **Harnesses** (`fuzz/fuzz_targets/<target>.rs`; each file's header states its input format):
@@ -163,7 +163,7 @@ bytes in memory: no system file, no command, no network, never the host C librar
 | `digits_dots` | the numeric host parsers `__nss_hostname_digits_dots` is to layer on (ruling 2026-10-05) | `inet_aton` agrees with `inet_pton`; text round trips |
 
 Locale data and charmaps are `'static` in the library (D-7.7, D-6.8), so those harnesses leak a
-copy of the input, within a budget per process (`liella_fuzz::LEAK_BUDGET`, 1 GiB); their runs
+copy of the input, within a budget per process (`niji_fuzz::LEAK_BUDGET`, 1 GiB); their runs
 are cut into short chunks.
 
 **Seeds and corpora.** `fuzz/seeds/<target>` holds small seeds (at most 160 per target, about
@@ -171,12 +171,12 @@ are cut into short chunks.
 (`patterns`, `scanf`), the probes' format strings and fixture texts
 (`crates/core/tests/oracle/*.c`), and inputs built by the script (DNS messages, synthetic locale
 and charmap files). Campaign corpora and crash artifacts live outside the repository, in
-`~/liella-fuzz-corpus/<target>/{corpus,artifacts}` on the fuzzing machine
-(`LIELLA_FUZZ_CORPUS` overrides); `harvest_seeds.py --system ~/liella-fuzz-corpus` adds seeds
+`~/niji-fuzz-corpus/<target>/{corpus,artifacts}` on the fuzzing machine
+(`NIJI_FUZZ_CORPUS` overrides); `harvest_seeds.py --system ~/niji-fuzz-corpus` adds seeds
 made from the installed locale files and charmaps there, never in the repository.
 
 **Running.** `cargo xtask fuzz <target> --time <minutes>` (or `--all`), under the machine queue
-(`~/bin/shared bash -lc 'cd ~/liella-fuzz && cargo xtask fuzz regex --time 60'`). One invocation
+(`~/bin/shared bash -lc 'cd ~/niji-fuzz && cargo xtask fuzz regex --time 60'`). One invocation
 is refused above 140 minutes (the queue's cap is 150); a campaign is repeated invocations, each
 resuming from the corpus, and inside an invocation each target runs in chunks (10 to 30 minutes)
 of fresh processes. `--jobs <n>` uses libFuzzer's fork mode on `n` cores. `cargo xtask fuzz
@@ -192,9 +192,9 @@ answers more than 32 bits (the reference answers 40 for `1.2.3.4.5` with room, p
 
 **Crash triage** (a crash, a time-out, a memory-limit report or a failed check):
 1. *Reproduce*: `cargo xtask fuzz <target> --repro <artifact>` (the artifact path is printed;
-   it is under `~/liella-fuzz-corpus/<target>/artifacts`).
+   it is under `~/niji-fuzz-corpus/<target>/artifacts`).
 2. *Minimise*: `cargo xtask fuzz <target> --tmin <artifact>`.
-3. *Classify*: a library bug (the panic or the unbounded work is in Liella's code); a harness bug
+3. *Classify*: a library bug (the panic or the unbounded work is in libniji's code); a harness bug
    (the harness's own check or simulation is wrong: fix the harness, say so in the report); or
    behaviour the contract allows (work proportional to a documented bound): the harness then
    bounds that input, with a comment naming the bound. A fix that changes observable behaviour

@@ -7,14 +7,14 @@ the gaps phase 9 listed with no probe behind them (plan `06-phases/11-phase-9-ti
 
 **Probe and test:** `crates/core/tests/time_gaps_probe.rs` (the C probe is the `PROBE` text in it,
 written to `target/test-oracles/time_gaps_probe.c`), built against the host C library (glibc 2.39,
-Ubuntu 24.04, x86_64) and statically against Liella's products, run with an empty environment.
+Ubuntu 24.04, x86_64) and statically against libniji's products, run with an empty environment.
 Every zone is a POSIX rule string; `TZDIR` names an empty directory of the test's own, so no zone
 file of the host is read. The `/etc/localtime` cases run in a private user and mount namespace
 (`unshare -r -m`) with a tmpfs over `/etc`. Recorded on the Zen 1 host, 2026-10-24.
 
 ## Settled
 
-| Gap | Reference (glibc) | Liella | Status |
+| Gap | Reference (glibc) | libniji | Status |
 |---|---|---|---|
 | `mktime` in a skipped hour (`EST5EDT,M3.2.0,M11.1.0`, `AEST-10AEDT,M10.1.0,M4.1.0/3`, a 30-minute change `<+1030>-10:30<+11>-11,M10.1.0,M4.1.0`), `tm_isdst` -1, 0, 1 | The wall time is read with the offset `tm_isdst` names (-1: the offset before the change) and normalised past the gap. | Same, line for line. | Equal |
 | `mktime` in a repeated hour, `tm_isdst` 0 and 1 | The occurrence with that offset. | Same. | Equal |
@@ -28,7 +28,7 @@ file of the host is read. The `/etc/localtime` cases run in a private user and m
 | `strptime` `%y` with a sign (`+5`, `+05`, `-0`, `+99`; `%C%y` `20+5`) | Rejected (NULL), any sign. | Accepted (POSIX allows a leading `+` or `-`); a negative value is rejected as out of range (`-5`, `-99`). | Kept: D-23.7, differences row |
 
 The test fails when one of the kept differences goes away (the record would be stale) or when
-Liella's line no longer matches what the decision says, so a change on either side shows.
+libniji's line no longer matches what the decision says, so a change on either side shows.
 The `getdate` `%Y-%m` difference is not required to show (the reference's day may be the first).
 Times relative to the call (`getdate` partial times) are printed as day offsets from the current
 date and `cur` for fields equal to the current time, so the two runs compare. The `getdate` cases

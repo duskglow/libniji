@@ -240,7 +240,7 @@ fn r_form<T: Copy>(out: Option<&mut T>, buf: KResult<&mut [u8]>, result: Option<
                 h = hh;
                 match (e, en) {
                     (LookupError::NotFound | LookupError::NoData | LookupError::Unavailable, _) => 0,
-                    (LookupError::TryAgain, _) => Errno::EAGAIN.get(),
+                    (LookupError::TryAgain | LookupError::Unreachable, _) => Errno::EAGAIN.get(),
                     (LookupError::Os(x), Some(_)) if h == NETDB_INTERNAL => {
                         errno::set(x);
                         x.get()
@@ -314,15 +314,27 @@ fn own_host(a: Answer<Host>) -> usize {
 
 /// `gethostbyname2(name, af)` (`AF_INET` for `gethostbyname`).
 pub fn gethostbyname2(name: KResult<&[u8]>, af: i32) -> usize {
-    own_host(name.map_err(LookupError::Os).and_then(|n| with_hosts(|c| netdb::host_by_name(c, n, family(af)?))))
+    let a = name.map_err(LookupError::Os).and_then(|n| with_hosts(|c| netdb::host_by_name(c, n, family(af)?)));
+    let again = matches!(a, Err(LookupError::TryAgain | LookupError::Unreachable));
+    let p = own_host(a);
+    // TRY_AGAIN comes with `errno` EAGAIN here (observed, `gai_down.c`; `gethostbyaddr` leaves it).
+    if again {
+        errno::set(Errno::EAGAIN);
+    }
+    p
 }
 
 /// `gethostbyname2_r(name, af, ret, buf, buflen, result, h_errnop)`.
 pub fn gethostbyname2_r(name: KResult<&[u8]>, af: i32, out: Option<&mut struct_hostent>, buf: KResult<&mut [u8]>, result: Option<&mut usize>, herr: Option<&mut i32>) -> i32 {
-    r_form(out, buf, result, herr, false, |buf, base| {
+    let code = r_form(out, buf, result, herr, false, |buf, base| {
         let h = with_hosts(|c| netdb::host_by_name(c, name?, family(af)?))?;
         Ok(pack_host(&h, &mut Packer::new(buf, base)))
-    })
+    });
+    // EAGAIN (TRY_AGAIN) comes with `errno` EAGAIN too, as for `gethostbyname2` (observed, `gai_down.c`).
+    if code == Errno::EAGAIN.get() {
+        errno::set(Errno::EAGAIN);
+    }
+    code
 }
 
 /// The address `gethostbyaddr` receives: `len` bytes of family `af`.

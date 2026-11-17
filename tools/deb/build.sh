@@ -125,7 +125,7 @@ if [ -z "$products" ]; then
         version=$abi+niji$(date -u -d "@$epoch" +%Y%m%d).${NIJI_DEB_SERIAL:-1}-${NIJI_DEB_REVISION:-1}
     fi
     echo "build.sh: building the products of $commit (release profile, prefix $prefix) in $work/src"
-    (cd "$work/src" && NIJI_PREFIX=$prefix NIJI_LIBDIR=$libdirNIJI_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
+    (cd "$work/src" && NIJI_PREFIX=$prefix NIJI_LIBDIR=$libdir NIJI_FULL_PROFILE=1 SOURCE_DATE_EPOCH=$epoch cargo xtask so)
     products=$work/src/target/niji
     # The specification tables of the tree the products were built from (system.sh's symbols file).
     spec=$work/src/spec
@@ -218,6 +218,9 @@ GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-
 put_link libm.so.6 "$dlib/libm.so"
 put_link libresolv.so.2 "$dlib/libresolv.so"
 put_link libBrokenLocale.so.1 "$dlib/libBrokenLocale.so"
+# SYS-DEV-LINKS: -lanl and -lc_malloc_debug link the shared libraries, as in libc6-dev.
+put_link libanl.so.1 "$dlib/libanl.so"
+put_link libc_malloc_debug.so.0 "$dlib/libc_malloc_debug.so"
 put 0755 "$here/niji-gcc" "$dev/usr/bin/niji-gcc"
 put_link niji-gcc "$dev/usr/bin/niji-g++"
 mkdir -p "$dev/usr/share/man/man1"

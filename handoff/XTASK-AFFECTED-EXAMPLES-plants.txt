@@ -1,0 +1,10 @@
+# XTASK-AFFECTED-EXAMPLES: plants on the example -> test-step mapping of `cargo xtask affected` (`example_steps`).
+# Run: cargo xtask plants handoff/XTASK-AFFECTED-EXAMPLES-plants.txt --dir <new-directory>
+xae-quoted-name | xtask/src/affected.rs | lit:text.contains(&format!("\"{n}\"")) ==> false | cargo test -p xtask --bin xtask example | msg:direct_tier_maps_an_example_to_the_step_that_runs_it \.\.\. FAILED
+xae-path-name | xtask/src/affected.rs | lit:text.contains(&format!("examples/{n}.rs")) ==> false | cargo test -p xtask --bin xtask example | msg:example_steps_follow_the_xtask_source_that_names_the_example \.\.\. FAILED
+xae-mod-dir | xtask/src/affected.rs | lit:l == format!("mod {d};") || l == format!("pub mod {d};") ==> false | cargo test -p xtask --bin xtask example | msg:direct_tier_maps_an_example_to_the_step_that_runs_it \.\.\. FAILED
+xae-no-arm-full | xtask/src/affected.rs | lit:return Err(format!("the `{step}` step of ==> if true { continue; } return Err(format!("the `{step}` step of | cargo test -p xtask --bin xtask example | msg:example_steps_follow_the_xtask_source_that_names_the_example \.\.\. FAILED
+xae-products | xtask/src/affected.rs | lit:!sel.conf.is_empty() || sel.example_steps || ==> !sel.conf.is_empty() || | cargo test -p xtask --bin xtask example | msg:direct_tier_maps_an_example_to_the_step_that_runs_it \.\.\. FAILED
+xae-select | xtask/src/affected.rs | lit:sel.xtask_cmds.insert(cmd.clone()); ==> let _ = 0; | cargo test -p xtask --bin xtask example | msg:direct_tier_maps_an_example_to_the_step_that_runs_it \.\.\. FAILED
+xae-unplaced | xtask/src/affected.rs | lit:return Err(format!("no example of `{dir}` uses the file (cannot place it)")); ==> return Ok(BTreeMap::new()); | cargo test -p xtask --bin xtask example | msg:direct_tier_keeps_clippy_only_for_examples_no_gate_step_runs \.\.\. FAILED
+xae-native-full | xtask/src/affected.rs | lit:path.starts_with("crates/native/link/") { ==> path.starts_with("crates/native/link/") || path.starts_with("crates/native/examples/") { | cargo test -p xtask --bin xtask example | msg:direct_tier_maps_an_example_to_the_step_that_runs_it \.\.\. FAILED

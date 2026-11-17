@@ -23,14 +23,14 @@ lowercase letter there, 0xc9 its uppercase; neither is a letter in "C").
 3. After `freelocale` of the active object the word still names its tables.
 4. Another thread's `setlocale` does NOT reach a thread using the global locale: neither its
    fetched pointer, nor a fresh `__ctype_b_loc()`, nor `isalpha`/`toupper` in that thread see
-   the new tables (Liella differs deliberately, D-7.8, docs/differences-from-glibc.md).
+   the new tables (libniji differs deliberately, D-7.8, docs/differences-from-glibc.md).
 5. A new thread starts with the global locale's tables, also when its creator uses its own
    object.
 6. A forked child keeps its parent thread's choice and words; `uselocale` and `setlocale` in the
    child act on it as in observation 1.
 7. Entry -1 (`EOF`): class 0, `toupper` -1, `tolower` -1.
 
-Liella before PJ-22 (main a0e6694) answered observation 1 differently: its words were refreshed
+libniji before PJ-22 (main a0e6694) answered observation 1 differently: its words were refreshed
 only by the next `__ctype_*_loc` call, so a fetched pointer kept the old tables (probe
 6ce8863ef33f: DIFFERENT). PJ-22 fixes that (D-5.5); `conformance/c/s05_ctype_words.c` checks
 observations 1, 3, 5, 6, 7 and D-7.8.

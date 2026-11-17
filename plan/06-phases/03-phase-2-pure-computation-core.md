@@ -1,4 +1,4 @@
-<!-- Part of the Liella implementation plan; index and reading guide: implementation-plan.md -->
+<!-- Part of the libniji implementation plan; index and reading guide: implementation-plan.md -->
 
 ### Phase 2: Pure computation core
 
@@ -27,7 +27,7 @@
   * `str*` go through `strz`.
   * `_chk` forms pass the destination size as the slice bound (D-C0.5).
   * `strtok`, `strncpy` padding, XPG `basename` and the global generators come from
-    `liella-legacy`.
+    `niji-legacy`.
   * `qsort` receives its comparator as an `Option<extern "C" fn>` parameter, which is safe
     to call, and the array as one category-*slice* conversion.
 * **Test surface:**
@@ -49,12 +49,12 @@
   * **Exports:** 701 of the 709 phase-2 symbols (§4 171/174, §5 115, §6 34/37, §8 212, §9 34,
     §14.1–14.6 19), each a single-expression translation (`cargo xtask purity` clean). The
     26 `long double`/`_Float128` names of §8 are the OD-C4 forwarders in
-    `csys/src/adapter/float.c` around `liella_*_bits` functions (version node
-    `LIELLA_PRIVATE`). Not exported: `__mempcpy_small`, `__stpcpy_small`, `__strcpy_small`
+    `csys/src/adapter/float.c` around `niji_*_bits` functions (version node
+    `NIJI_PRIVATE`). Not exported: `__mempcpy_small`, `__stpcpy_small`, `__strcpy_small`
     (ERRATA E6) and `iconv*` (with the conversion modules).
-  * **Crates:** new leaf crate `liella-mem` (D-4.11); `liella-legacy` gains `cstring`,
-    `mb_compat`, `prng_r`, `search_c`, `result_slots` and depends on `liella-abi` for the C
-    structures it fills in place; `liella-abi` gains `callback` (D-14.6) and the `LdBits`/
+  * **Crates:** new leaf crate `niji-mem` (D-4.11); `niji-legacy` gains `cstring`,
+    `mb_compat`, `prng_r`, `search_c`, `result_slots` and depends on `niji-abi` for the C
+    structures it fills in place; `niji-abi` gains `callback` (D-14.6) and the `LdBits`/
     `F128Bits` bit structs.
   * **Tests:** 625 translation tests and 178 clause tests specified for §4–§9 and §14.1–14.6,
     plus exhaustive byte-primitive tests (every length 0–256 at every alignment 0–15, every

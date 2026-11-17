@@ -1,6 +1,6 @@
 # Architecture
 
-This document explains how Liella is put together: where things are, which rules shape the
+This document explains how libniji is put together: where things are, which rules shape the
 code, and why. It is written for experienced C, Rust and systems developers who are new to the
 project. Every design claim names the plan row (`D-…`, `S…`, `P…`) or the file it comes from,
 so you can check it and read the full reasoning. The plan itself starts at
@@ -29,9 +29,9 @@ yet, the text says so.
 
 ## 1. Purpose and scope
 
-Liella is a clean-room reimplementation of the GNU C library's ABI, version 2.39, for x86-64
+libniji is a clean-room reimplementation of the GNU C library's ABI, version 2.39, for x86-64
 Linux, written in Rust. A program compiled against the glibc 2.39 headers should link against
-Liella's `libc.a` (and later `libc.so.6`) and behave as it does on glibc.
+libniji's `libc.a` (and later `libc.so.6`) and behave as it does on glibc.
 
 The single source of truth is [glibc-functional-spec.md](../glibc-functional-spec.md): a
 functional description of every exported symbol, written for this project, with Appendix C
@@ -46,7 +46,7 @@ deliberate difference is recorded in
 | Aspect | What it means | Where it is recorded |
 |---|---|---|
 | Symbols and versions | Every exported name carries glibc's version node (`malloc@@GLIBC_2.2.5`). `cargo xtask so` generates the version script from `spec/abi/versions.tsv` and checks the result with `readelf`. | [spec/abi/versions.tsv](../spec/abi/versions.tsv), [docs/toolchain.md §3.2](toolchain.md) |
-| Struct layouts | Every type a header exposes (`FILE`, `pthread_mutex_t`, `struct __locale_struct`, `jmp_buf`, ...) has glibc's size, alignment and field offsets. Each layout is a test. | `crates/abi` (`liella_abi::layout`), tests in `crates/abi/tests` |
+| Struct layouts | Every type a header exposes (`FILE`, `pthread_mutex_t`, `struct __locale_struct`, `jmp_buf`, ...) has glibc's size, alignment and field offsets. Each layout is a test. | `crates/abi` (`niji_abi::layout`), tests in `crates/abi/tests` |
 | Conventions | `errno` through `__errno_location`, the thread pointer at `%fs` with the offsets compiled code reads (`%fs:0x28` canary, `%fs:0x30` pointer guard), the header-inline protocols (`getc`, `__ctype_b_loc`). | [crates/rt/src/tls.rs](../crates/rt/src/tls.rs), spec Appendix C.9 |
 
 The scope is the whole exported surface: 3,943 exports
@@ -62,7 +62,7 @@ applied uniformly to every symbol) ([implementation-plan.md](../implementation-p
 **Status.** Phases 0 to 13 are done; phase 14 (dynamic linking) is complete enough to run real
 programs, and phase 15 (legacy tier and binary compatibility) is open
 ([plan/06-phases/](../plan/06-phases/00-overview.md), `spec/schedule.tsv`). In practice that
-means: statically linked programs run on Liella, and dynamically linked ones run under Liella's
+means: statically linked programs run on libniji, and dynamically linked ones run under libniji's
 own `ld.so`, with the limits in section 13.
 
 ## 2. The four artifacts
@@ -82,29 +82,29 @@ own `ld.so`, with the limits in section 13.
            C programs (glibc 2.39 headers, existing object code)
                               |  C ABI, versioned symbols
 +-----------------------------v-------------------------------------+
-| liella-boundary   posix/ (exports), native/ (native C ABI),       |
+| niji-boundary   posix/ (exports), native/ (native C ABI),       |
 |                   conv, strz, export, data, heap, tb, hot         |
 |                   the only crate with unsafe Rust                 |
 +------+--------------------+-----------------+---------------+-----+
        | calls, passing CSys as the kernel     |               | GlobalAlloc
 +------v---------+ +--------v-------+ +-------v--------+ +----v----------+
-| liella-legacy  | | liella (core)  | | liella-math    | | liella-rt     |
+| niji-legacy  | | niji (core)  | | niji-math    | | niji-rt     |
 | historical     | | the clean API  | | generic floats | | startup, heap |
 | semantics      | |                | |                | | threads, sync |
 +------+---------+ +--------+-------+ +-------+--------+ | signals, TLS  |
        |                    |                 |          +----+----------+
        |  all generic over S: Sys + Machine, all #![forbid(unsafe_code)]
 +------v--------------------v-----------------v---------------v-------+
-| liella-kernel   the Sys and Machine traits, Fd, KPath, Errno, uapi |
-| liella-abi      C types, Appendix C layouts, return conventions    |
-| liella-mem      memcpy/memset/memcmp loops, #![no_builtins]         |
+| niji-kernel   the Sys and Machine traits, Fd, KPath, Errno, uapi |
+| niji-abi      C types, Appendix C layouts, return conventions    |
+| niji-mem      memcpy/memset/memcmp loops, #![no_builtins]         |
 +------------------------------+--------------------------------------+
                                | implemented by
 +------------------------------v--------------------------------------+
-| liella-boundary::sys (CSys) -> liella-boundary::ffi                 |
+| niji-boundary::sys (CSys) -> niji-boundary::ffi                 |
 +------------------------------+--------------------------------------+
 +------------------------------v--------------------------------------+
-| csys/  liella_sys_* wrappers, machine/*.S, variadic adapters (C/asm)|
+| csys/  niji_sys_* wrappers, machine/*.S, variadic adapters (C/asm)|
 +------------------------------+--------------------------------------+
                                v
                Linux kernel (syscall, vDSO, auxv, signal frames)
@@ -116,20 +116,20 @@ Adapted from [plan/03-architecture.md](../plan/03-architecture.md) §3.1.
 
 | Crate (package) | Path | Owns | Normal dependencies |
 |---|---|---|---|
-| `liella-kernel` | `crates/kernel` | The kernel as a value: the `Sys` and `Machine` traits, kernel types (`Fd`, `KPath`, `Errno`), uapi structs, auxv and vDSO parsing over slices, the `Faulty` fault injector. Makes no system call itself. | none |
-| `liella-abi` | `crates/abi` | C types, the Appendix C layouts, the safe half of the conversion vocabulary (`ret`, `pack`, `chk`, the `va` reader) | kernel, core |
-| `liella-mem` | `crates/mem` | The loops behind `memcpy`, `memmove`, `memset`, `memcmp`, `bcmp`, in a `#![no_builtins]` crate so they never compile back into calls to themselves (D-4.11) | none |
-| `liella-rt` | `crates/rt` | Runtime logic: process start, threads, synchronisation primitives, the allocator algorithm, signal dispatch, contexts, FPU and CPU features, the thread block layout, the DWARF unwinder | kernel |
-| `liella` (core) | `crates/core` | The clean library: every functional contract implemented once, in the shape the need requires (text, numbers, locales, streams, printf/scanf engines, time zones, regex, name services, ...) | kernel, mem, rt |
-| `liella-legacy` | `crates/legacy` | Historical semantics the ABI obliges: hidden cursors, static result slots, process-global ambient state, superseded versioned contracts, mode-string parsing, `va_list` decoding (rule C5) | kernel, rt, core, abi |
-| `liella-math` | `crates/math` | `libm`: one generic implementation per operation over binary32, binary64, x87 extended and binary128 (D-10.1) | rt |
-| `liella-boundary` | `crates/boundary` | The C boundary: the POSIX exports, the native C ABI, the `CSys` implementation of `Sys`, the global allocator shim, exported data objects, the hot kernels | kernel, rt, abi, core, legacy, math |
-| `liella-native` | `crates/native` | A facade for Rust programs that want the clean API without POSIX conventions (D-X.10, [docs/interfaces.md](interfaces.md)) | core, math, optionally rt, kernel |
-| `liella-ld` | `crates/ld` | The dynamic linker (phase 14): `ld-linux-x86-64.so.2`'s loader and the `dlopen` machinery, and the `ldconfig` engine | kernel, rt |
-| `liella-thread-db` | `crates/thread-db` | `libthread_db` for Liella's thread layout (phase 14) | kernel |
-| `liella-mathtools` | `crates/mathtools` | Test and tool code only: the arbitrary-precision oracle, the Remez fitter, the glibc comparison (D-10.12). No product depends on it. | none |
+| `niji-kernel` | `crates/kernel` | The kernel as a value: the `Sys` and `Machine` traits, kernel types (`Fd`, `KPath`, `Errno`), uapi structs, auxv and vDSO parsing over slices, the `Faulty` fault injector. Makes no system call itself. | none |
+| `niji-abi` | `crates/abi` | C types, the Appendix C layouts, the safe half of the conversion vocabulary (`ret`, `pack`, `chk`, the `va` reader) | kernel, core |
+| `niji-mem` | `crates/mem` | The loops behind `memcpy`, `memmove`, `memset`, `memcmp`, `bcmp`, in a `#![no_builtins]` crate so they never compile back into calls to themselves (D-4.11) | none |
+| `niji-rt` | `crates/rt` | Runtime logic: process start, threads, synchronisation primitives, the allocator algorithm, signal dispatch, contexts, FPU and CPU features, the thread block layout, the DWARF unwinder | kernel |
+| `niji` (core) | `crates/core` | The clean library: every functional contract implemented once, in the shape the need requires (text, numbers, locales, streams, printf/scanf engines, time zones, regex, name services, ...) | kernel, mem, rt |
+| `niji-legacy` | `crates/legacy` | Historical semantics the ABI obliges: hidden cursors, static result slots, process-global ambient state, superseded versioned contracts, mode-string parsing, `va_list` decoding (rule C5) | kernel, rt, core, abi |
+| `niji-math` | `crates/math` | `libm`: one generic implementation per operation over binary32, binary64, x87 extended and binary128 (D-10.1) | rt |
+| `niji-boundary` | `crates/boundary` | The C boundary: the POSIX exports, the native C ABI, the `CSys` implementation of `Sys`, the global allocator shim, exported data objects, the hot kernels | kernel, rt, abi, core, legacy, math |
+| `niji-native` | `crates/native` | A facade for Rust programs that want the clean API without POSIX conventions (D-X.10, [docs/interfaces.md](interfaces.md)) | core, math, optionally rt, kernel |
+| `niji-ld` | `crates/ld` | The dynamic linker (phase 14): `ld-linux-x86-64.so.2`'s loader and the `dlopen` machinery, and the `ldconfig` engine | kernel, rt |
+| `niji-thread-db` | `crates/thread-db` | `libthread_db` for libniji's thread layout (phase 14) | kernel |
+| `niji-mathtools` | `crates/mathtools` | Test and tool code only: the arbitrary-precision oracle, the Remez fitter, the glibc comparison (D-10.12). No product depends on it. | none |
 | `spectest` | `crates/spectest` | Traceability macros: pending tests generated per clause and symbol | none |
-| products | `crates/libc-so`, `crates/libm-so` | Separate workspaces that link `liella-boundary` with the export features into `libc.a`/`libc.so.6` and `libm.a`/`libm.so.6`, and name the global allocator and panic handler once | boundary |
+| products | `crates/libc-so`, `crates/libm-so` | Separate workspaces that link `niji-boundary` with the export features into `libc.a`/`libc.so.6` and `libm.a`/`libm.so.6`, and name the global allocator and panic handler once | boundary |
 | `xtask` | `xtask/` | Every build, check, generation and test command (section 11) | none |
 
 The dependency columns are the `[dependencies]` sections of each `Cargo.toml`
@@ -137,12 +137,12 @@ The dependency columns are the `[dependencies]` sections of each `Cargo.toml`
 
 ### 3.3 The rules about who may call whom
 
-* **No cycle.** At run time `liella-boundary` is both the top (the exports) and the bottom (the
+* **No cycle.** At run time `niji-boundary` is both the top (the exports) and the bottom (the
   `Sys` implementation), but in Cargo terms it depends on every library crate and nothing depends
   on it. The library crates reach the kernel only through the `Sys`/`Machine` traits they are
   generic over (rule X5, [plan/02](../plan/02-design-rules.md) §2.2).
 * **Core never imports legacy** (rule C5). Historical behaviour (a static result buffer, a
-  hidden cursor, a superseded version of a function) lives in `liella-legacy`, which calls core.
+  hidden cursor, a superseded version of a function) lives in `niji-legacy`, which calls core.
   Core stays free of it.
 * **The translation layer contains no logic** (§8 of the plan, checked by `cargo xtask purity`).
   Each export in `posix/` is one expression: convert the arguments, call one library function,
@@ -151,13 +151,13 @@ The dependency columns are the `[dependencies]` sections of each `Cargo.toml`
   seeds and the kernel itself are parameters or values, never ambient state inside core.
 * **`no_std` everywhere.** Rust's `std` links a C library, and this project is the C library.
   All library crates are `#![no_std]` with `alloc`; the global allocator is
-  `liella_boundary::heap`, which delegates every decision to `liella_rt::heap`
+  `niji_boundary::heap`, which delegates every decision to `niji_rt::heap`
   ([plan/03](../plan/03-architecture.md) §3.1).
 * **Zero external dependencies**, by policy: no existing libc bindings or implementations may be
   used, even as a reference (workspace [Cargo.toml](../Cargo.toml), plan §1.2). The fuzz
   harnesses are a separate workspace with `libfuzzer-sys`, outside the product build.
 * **Test builds never interpose.** Rust exports carry `#[unsafe(no_mangle)]` only under feature
-  `export`, and C adapters carry glibc names only under `LIELLA_EXPORT`; only the products
+  `export`, and C adapters carry glibc names only under `NIJI_EXPORT`; only the products
   enable them, so a test binary runs on the host's C library unless a test asks otherwise.
 
 ### 3.4 Where state lives
@@ -165,9 +165,9 @@ The dependency columns are the `[dependencies]` sections of each `Cargo.toml`
 | State | Owner | Examples |
 |---|---|---|
 | Kernel-held, process-wide | The kernel, never cached | cwd, umask, signal dispositions, limits, credentials |
-| Contract-visible library state | `liella-legacy` logic, storage in `liella-boundary::data` when exported | `errno`, `environ`, the global locale, `getopt` data symbols, `*ent` cursors, `tzname`, `_res`, `h_errno` |
-| Clean library state | Explicit values in `liella` | `Locale`, `Zone`, `Env`, `Stream`, `Resolver`, `OptParser` |
-| Runtime state | `liella-rt`, in memory the boundary converts to slices | thread blocks, allocator metadata, the signal table, CPU features |
+| Contract-visible library state | `niji-legacy` logic, storage in `niji-boundary::data` when exported | `errno`, `environ`, the global locale, `getopt` data symbols, `*ent` cursors, `tzname`, `_res`, `h_errno` |
+| Clean library state | Explicit values in `niji` | `Locale`, `Zone`, `Env`, `Stream`, `Resolver`, `OptParser` |
+| Runtime state | `niji-rt`, in memory the boundary converts to slices | thread blocks, allocator metadata, the signal table, CPU features |
 
 Source: [plan/03-architecture.md](../plan/03-architecture.md) §3.3. Rule C7 (P-scope) decides
 per item whether hidden state stays process-global (where cross-thread use is legal) or becomes
@@ -177,10 +177,10 @@ per-thread (where cross-thread use was already a data race).
 
 The policy is rules S1-S11 in [plan/02-design-rules.md](../plan/02-design-rules.md) §2.1.
 
-* **S1.** Every crate except `liella-boundary` carries `#![forbid(unsafe_code)]`, which cannot
-  be overridden. The one exception is `liella-native`, a library for programs, whose C-ABI
+* **S1.** Every crate except `niji-boundary` carries `#![forbid(unsafe_code)]`, which cannot
+  be overridden. The one exception is `niji-native`, a library for programs, whose C-ABI
   declarations sit in one file under category *native*.
-* **S2.** `liella-boundary` is `#![deny(unsafe_code)]`, and each site carries
+* **S2.** `niji-boundary` is `#![deny(unsafe_code)]`, and each site carries
   `#[allow(unsafe_code)]` after a comment `// UNSAFE(<category>): <why>` plus clippy's
   `SAFETY:` justification. There are seven categories, each limited to named files
   ([plan/03](../plan/03-architecture.md) §3.2):
@@ -245,7 +245,7 @@ library call  (here Sys::read directly;      safe Rust, generic over S: Sys
   v
 CSys::read  (boundary/src/sys.rs)            the one implementation of Sys
   v
-ffi::liella_sys_read  (boundary/src/ffi.rs)  `safe` extern declaration
+ffi::niji_sys_read  (boundary/src/ffi.rs)  `safe` extern declaration
   v
 csys/src/sys/io.c                            one statement: the system call,
   |                                          returns value or -errno; never touches errno
@@ -259,7 +259,7 @@ cancel::point(...)                           a deferred cancellation acts here (
 The conventions on the way back are fixed by rules X1-X5 ([plan/02](../plan/02-design-rules.md)
 §2.2): one internal error type (`Errno` plus an internal `Canceled` marker); non-error outcomes
 are typed results (`Parsed::NoDigits`, `Written::Truncated`); `errno` is written only on
-failure, only by the translation layer, through one `liella_abi::ret` function per C convention;
+failure, only by the translation layer, through one `niji_abi::ret` function per C convention;
 `EINTR` is surfaced with no hidden retry unless a contract requires completion.
 
 Cancellation (D-22.2) is an ordinary error: a cancellation point returns `Error::Canceled`,
@@ -268,7 +268,7 @@ which propagates through Rust frames like any error, and at the boundary `ret` h
 unwound through (S11).
 
 Because every library function is generic over `S: Sys`, tests substitute
-`liella_kernel::testing::Faulty`, which injects `EINTR`, `ENOSPC`, `EMFILE`, `ENOMEM` and short
+`niji_kernel::testing::Faulty`, which injects `EINTR`, `ENOSPC`, `EMFILE`, `ENOMEM` and short
 transfers into chosen calls (X5). In the product, `CSys` is a zero-sized type and the generics
 monomorphise away.
 
@@ -281,8 +281,8 @@ library-internal memory uses the internal heap directly (D-3.1).
 Each thread has a **thread block** at the thread pointer (`%fs`), defined in
 [crates/rt/src/tls.rs](../crates/rt/src/tls.rs) (IP-8). It is 0x300 bytes, 64-byte aligned,
 made of atomic words. The prefix up to 0x80 keeps the offsets compiled code expects (`%fs:0`
-self pointer, `%fs:0x28` stack canary, `%fs:0x30` pointer guard). Liella's own fields sit in the
-range glibc reserves as unused, so a block glibc's `ld.so` laid out is also a valid Liella block:
+self pointer, `%fs:0x28` stack canary, `%fs:0x30` pointer guard). libniji's own fields sit in the
+range glibc reserves as unused, so a block glibc's `ld.so` laid out is also a valid libniji block:
 
 | Offset | Field | Purpose |
 |---|---|---|
@@ -322,7 +322,7 @@ Two decisions build on it:
 ## 7. The main subsystems
 
 **Memory allocator** (spec §3; [crates/rt/src/heap.rs](../crates/rt/src/heap.rs),
-D-3.1, D-3.7, D-3.10 to D-3.13). The algorithm lives in safe Rust in `liella-rt` and manages
+D-3.1, D-3.7, D-3.10 to D-3.13). The algorithm lives in safe Rust in `niji-rt` and manages
 addresses only; the boundary supplies the slices and the copy and zero callbacks. Pages come
 from `mmap`, never `brk`, so `brk`/`sbrk` cannot corrupt the heap (D-3.7). The heap has one
 shard per NUMA node (up to 64), each with its own lock, free lists and counters on separate
@@ -349,7 +349,7 @@ session.
 is loaded once from the system's compiled locale files, interned, and shared read-only by every
 thread; one lock serialises only first loads and changes of the global locale, and every lookup
 is lock-free. Interned locales are never freed, which is what makes the lock-free reads and the
-per-thread view pointers safe; an explicit reload (`liella_locale_invalidate`, D-X.13) builds a
+per-thread view pointers safe; an explicit reload (`niji_locale_invalidate`, D-X.13) builds a
 new view and leaks the old one. The reads go through the thread block words described in
 section 6.
 
@@ -372,14 +372,14 @@ once and pinned until explicitly invalidated (D-X.13). `mktime` allocates nothin
 
 **Name services and the integrated cache** (spec §16-§17; `crates/core/src/names/`,
 D-16.10). The NSS engine implements the built-in `files` and `dns` sources, including a DNS
-stub resolver and IDNA. In place of `nscd`, Liella has an integrated name-service cache:
+stub resolver and IDNA. In place of `nscd`, libniji has an integrated name-service cache:
 answers of the built-in sources for hosts, passwd, group, services, protocols and networks,
 keyed by the exact query and the lookup-steering environment, in a per-user shared region
-(`/dev/shm/liella-nscache-<euid>`) whose every word is treated as untrusted input
+(`/dev/shm/niji-nscache-<euid>`) whose every word is treated as untrusted input
 ([crates/core/src/names/cache.rs](../crates/core/src/names/cache.rs)). It exists for speed
 only: a cached answer is at most about a second older than the last check of its files (or
 within the DNS TTL), shadow and gshadow are never cached, and disabling the cache or calling
-`liella_nscache_invalidate` makes the next lookup see every change. Everything that depends on
+`niji_nscache_invalidate` makes the next lookup see every change. Everything that depends on
 per-process state (interface-dependent sorting, `getaddrinfo` flags, a modified `_res`) runs
 after the cache or bypasses it.
 
@@ -398,7 +398,7 @@ each fit regenerated and checked by `cargo xtask test`. The `libm` product is se
 `csys/src/machine/entry.S`, startup sequencing is `rt::start` (IP-9). Synchronisation objects
 are built on atomics and `futex`, fit their ABI sizes, are valid when all-zero and hold no
 pointers, so they work process-shared (D-22.1). Signal handlers enter through
-`machine/restorer.S` and a dispatch table in rt (IP-16). `backtrace` uses Liella's own DWARF
+`machine/restorer.S` and a dispatch table in rt (IP-16). `backtrace` uses libniji's own DWARF
 call-frame unwinder (`rt::unwind`, D-2.7).
 
 ## 8. Hot kernels
@@ -455,12 +455,12 @@ written from the spec before the code, and every test is traceable.
 |---|---|---|
 | Spec traceability | `cargo xtask stubs` generates one pending test per spec clause and per exported symbol; a pending test is `#[ignore]`d and fails if forced to run, so it is never mistaken for a pass. `cargo xtask trace` requires every test to name its clause (or say why it has none), and every row of the differences document and every behaviour record to name one too. | `crates/spectest`, `spec/clauses.tsv`, `xtask/src/trace.rs` |
 | Unit and translation tests | The clean contract of core and math against `Faulty<CSys>`; each export's argument mapping, return convention and errno behaviour; each `Sys` method against the real kernel; every Appendix C layout and initializer | `crates/*/tests` |
-| Interposed run | The workspace tests run a second time with Liella's exports interposed on the test processes, so the harness itself runs on Liella's `malloc` and `memcpy` (D-4.13). A suite runs in this pass only to the extent that it exercises the interposed functions (D-X.36): binaries without Liella's boundary code and the pure-Rust sweeps (`nextest::PASS0_ONLY`) run in the first pass only, and the heavy sharded math products sweeps (`nextest::PASS1_SHARD0`) run all shards in the first pass and shard 0 here | `cargo xtask test` |
-| C conformance | Self-checking C programs compiled against the installed glibc 2.39 headers, statically linked to Liella's `libc.a`, started by Liella's own runtime: real headers, calling convention, data symbols, process start and exit | [conformance/c/](../conformance/c), [conformance/run.sh](../conformance/run.sh) |
-| Differential tests | `*_products.rs` tests build the same probe against the host glibc and statically against Liella, run both (some in private namespaces), and require identical output except recorded differences | `crates/core/tests/*_products.rs`, `crates/core/tests/oracle/` |
+| Interposed run | The workspace tests run a second time with libniji's exports interposed on the test processes, so the harness itself runs on libniji's `malloc` and `memcpy` (D-4.13). A suite runs in this pass only to the extent that it exercises the interposed functions (D-X.36): binaries without libniji's boundary code and the pure-Rust sweeps (`nextest::PASS0_ONLY`) run in the first pass only, and the heavy sharded math products sweeps (`nextest::PASS1_SHARD0`) run all shards in the first pass and shard 0 here | `cargo xtask test` |
+| C conformance | Self-checking C programs compiled against the installed glibc 2.39 headers, statically linked to libniji's `libc.a`, started by libniji's own runtime: real headers, calling convention, data symbols, process start and exit | [conformance/c/](../conformance/c), [conformance/run.sh](../conformance/run.sh) |
+| Differential tests | `*_products.rs` tests build the same probe against the host glibc and statically against libniji, run both (some in private namespaces), and require identical output except recorded differences | `crates/core/tests/*_products.rs`, `crates/core/tests/oracle/` |
 | Oracle diffs | Engines with an independent oracle (regex, libm against the arbitrary-precision reference) are compared against it | `crates/core/src/pattern/regex_oracle*.rs`, `crates/mathtools` |
 | Fuzzing | libFuzzer harnesses for the parsers (printf and scanf formats, regex, glob, wordexp, locale and charmap files, `nsswitch.conf`, `resolv.conf`, DNS messages, the files databases, the nscache table), seeds in `fuzz/seeds`, crash triage rules | `fuzz/`, `cargo xtask fuzz`, plan §4.5 |
-| Validation | GNU coreutils, bash and sed test suites run against Liella, failures triaged | [validation/](../validation) |
+| Validation | GNU coreutils, bash and sed test suites run against libniji, failures triaged | [validation/](../validation) |
 | Kernel range | Merge gates also run on a Linux 5.10 guest, the oldest supported kernel; tests that depend on newer kernel features detect them at run time and are counted when reduced or skipped (the guest is project infrastructure, not part of the repository) | supported environment: OD-5, D-X.12 |
 | Static checks | `purity` (translation layer: conversions and one call), `unsafe-audit`, `csys-audit` (C layer: one statement per body, freestanding includes), `env-audit` (environment writes in tests that also start processes) | `xtask/src/policy.rs` |
 
@@ -478,7 +478,7 @@ as sets, not sequences (D-T.1).
 
 `cargo xtask bench` builds the benchmarks in the shipped (release) profile and checks them
 against [bench/budgets.tsv](../bench/budgets.tsv) (rule P6). The rows that matter most are
-`ratio_host` rows: the same benchmark built once against Liella and once against the host's
+`ratio_host` rows: the same benchmark built once against libniji and once against the host's
 glibc, run in the same session, reported as a ratio. Absolute nanoseconds are never compared
 across machines; only the same-run ratio is (rule P10, item 13).
 
@@ -506,7 +506,7 @@ test inside Linux (or WSL); the library targets x86-64 Linux only.
 | Command | What it does |
 |---|---|
 | `cargo xtask stubs` | Regenerate the pending tests and `spec/clauses.tsv` from the spec |
-| `cargo xtask so` | Build the products into `target/liella/`: `libc.a`, `libc.so.6`, `liella-crt1.o`, the `libpthread` placeholders, the `libm` products |
+| `cargo xtask so` | Build the products into `target/niji/`: `libc.a`, `libc.so.6`, `niji-crt1.o`, the `libpthread` placeholders, the `libm` products |
 | `cargo xtask test` | The full gate: static checks, generated-file checks, the products, the workspace tests twice (plain and interposed), the C conformance suite, the native examples, the Rust dylib, the symbol-gap report, the status table. Each step prints `step: <name> <seconds>s` when it ends (the remez check also one `step: remez/<fit>` line per fit), and the run ends with `step-summary: <name> <seconds>s` lines, slowest first, and `step-total: <seconds>s`, also when a step failed; `cargo xtask affected --run` escalated to FULL prints the same for its own steps and those of `xtask test` (prefixed `test/`). Wall time is reported for trends, never asserted (`xtask/src/steptime.rs`) |
 | `cargo xtask affected --list \| --run` | Only the tests a change can reach: `--list` prints them, `--run` runs them (one is required; without either, exit 2) |
 | `cargo xtask bench` | Benchmarks against budgets and per-CPU limits (release profile only) |
@@ -522,7 +522,7 @@ test inside Linux (or WSL); the library targets x86-64 Linux only.
 | Profile | Settings | Used for |
 |---|---|---|
 | `fast` | thin LTO, 16 codegen units | `so`, `test`, `affected`: a one-line change relinks in 20-40 s instead of 77-95 s |
-| `release` | fat LTO, one codegen unit, `panic = "abort"` | what ships, and every benchmark (`bench` refuses `fast` products); `LIELLA_FULL_PROFILE=1` selects it for the test paths |
+| `release` | fat LTO, one codegen unit, `panic = "abort"` | what ships, and every benchmark (`bench` refuses `fast` products); `NIJI_FULL_PROFILE=1` selects it for the test paths |
 
 The C layer is compiled by `crates/boundary/build.rs` with
 `-ffreestanding -fno-builtin -Wall -Wextra -Werror`. Exact flags, toolchain versions, link
@@ -534,19 +534,19 @@ The rows below shape the code most. Each links back to its full text in `plan/`.
 
 | Row | Decision | Why |
 |---|---|---|
-| S1-S3 | `unsafe` only in `liella-boundary`, in named categories and files; the machine only in `csys/` | Memory safety by construction everywhere else, and an unsafe surface a reviewer can enumerate |
+| S1-S3 | `unsafe` only in `niji-boundary`, in named categories and files; the machine only in `csys/` | Memory safety by construction everywhere else, and an unsafe surface a reviewer can enumerate |
 | X5 | The kernel is a value: every kernel-touching function is generic over `S: Sys` | Fault injection in tests (`Faulty`), and an acyclic crate graph |
-| C5 | Historical semantics quarantined in `liella-legacy`; core never imports it | The clean API stays free of static buffers and hidden cursors |
+| C5 | Historical semantics quarantined in `niji-legacy`; core never imports it | The clean API stays free of static buffers and hidden cursors |
 | D-3.1 | Two allocation domains: memory handed to callers comes from the interposable `malloc` | Programs that interpose `malloc` must get their own blocks back |
 | D-3.7 | The allocator never uses `brk` | `brk`/`sbrk` calls by the program cannot corrupt the heap |
 | D-3.10, D-3.11, D-3.12 | Sharded NUMA-aware heap, thread-owned slabs, remote frees by bitmap and pending list, preferred (not bound) placement | Scales with cores and nodes without global locks on the hot path (rules M1-M5) |
-| D-4.11, D-4.13, D-X.15 | Memory primitives in a `#![no_builtins]` crate; nothing wider than two words copied on the `memcpy` path; internal copies bind directly | In the product `memcpy` is Liella's own export, so it must never call itself |
+| D-4.11, D-4.13, D-X.15 | Memory primitives in a `#![no_builtins]` crate; nothing wider than two words copied on the `memcpy` path; internal copies bind directly | In the product `memcpy` is libniji's own export, so it must never call itself |
 | D-4.14, D-4.21 | Terminator scans in the C layer with constant-time postcondition checks in Rust | Speed at glibc's level while the Rust side keeps its safety argument |
 | D-4.22, D-4.23 | Small copies, fills and compares in a validated register kernel | Measured: the safe path kept these rows above parity |
 | D-5.5 | Per-thread ctype pointers always current | One load and one index per classification, and the ABI's own cache used as intended |
 | D-7.8, D-7.13 | Locales interned, never freed, with an immutable pre-decoded view per locale | Lock-free reads, and locale-sensitive calls read pre-validated data |
 | D-10.1, D-10.2 | One generic math implementation per operation; errno only at the boundary | One body instead of seven per function; the core stays pure |
-| D-12.11 | The `FILE` object's ABI-visible prefix aliases the engine's buffer window | Header-inline `getc`/`putc` work against Liella's streams |
+| D-12.11 | The `FILE` object's ABI-visible prefix aliases the engine's buffer window | Header-inline `getc`/`putc` work against libniji's streams |
 | D-14.4 | Regex by automaton, linear time without back-references | No catastrophic backtracking on ordinary patterns |
 | D-16.10 | Integrated, per-user name-service cache replacing `nscd` | Speed with bounded staleness and no daemon; untrusted shared data is validated |
 | D-22.1 | Sync objects fit their ABI size, valid when zero, pointer-free | Static initialisers and process-shared use work |
@@ -562,7 +562,7 @@ The rows below shape the code most. Each links back to its full text in `plan/`.
 | **Compatibility-only symbol versions** (phase 15) | `sym@OLD_VERSION` entries are not produced, so binaries linked against glibc versions older than a function's current version would not resolve them. |
 | **x86-64 Linux only** | No other architecture or OS; the C layer's assembly and the Appendix C layouts are x86-64. Porting would mean a new `csys/src/machine/` and layout set. |
 | **One CPU level** | Products are built for baseline x86-64. The string scanners pick AVX2 or SSE2 at run time; other code does not. This affects speed on AVX2 hosts for some rows, not correctness. |
-| **Rust `std` programs** | Rust programs on Liella are `#![no_std]`: the C symbols `std` needs are defined now, but no `std` program has been linked yet ([docs/toolchain.md §8](toolchain.md)). C programs are unaffected. |
+| **Rust `std` programs** | Rust programs on libniji are `#![no_std]`: the C symbols `std` needs are defined now, but no `std` program has been linked yet ([docs/toolchain.md §8](toolchain.md)). C programs are unaffected. |
 | **Hot kernels** (section 8) | Listed for completeness: two files of SSE2 intrinsics and assembly over ranges Rust validates first, exhaustively tested. Unlikely to have practical impact. |
 
 ## 14. Where to start reading

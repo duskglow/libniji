@@ -8,7 +8,8 @@
 //! on its own branch, not on the next system build. The version nodes and exports do not depend on
 //! the flavour's prefix, so the gate's products stand in for the system build's. Then each symbol
 //! of a libniji-only node `NIJI_<KIND>_<n>` must name the template `| niji-<kind>-abi (>= <n>)`,
-//! and libc6's `Provides:` must offer that package at that level or newer. Needs the products
+//! and libc6's `Provides:` must offer that package at that level or newer, and libc6 must ship
+//! libresolv.so.2 with `ns_initparse` and `ns_parserr` at GLIBC_2.9 (issue #5). Needs the products
 //! (`cargo xtask so`), `sh`, `python3`, `readelf` and `strip`; without the tools it says so and passes.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, missing_docs)]
 #[path = "support/skip_note.rs"]
@@ -86,6 +87,12 @@ fn every_version_node_has_a_dependency_rule() {
     for (pkg, level) in &named {
         let offered = provides.split(", ").find_map(|p| p.strip_prefix(&format!("{pkg} (= "))?.strip_suffix(')')?.parse::<u32>().ok());
         assert!(offered.is_some_and(|o| o >= *level), "libc6 Provides '{provides}': no {pkg} (= {level} or newer)");
+    }
+    // libc6 ships libresolv.so.2 (issue #5): its block lists the GLIBC_2.9 parsers that Debian's
+    // libkrb5.so.3 binds.
+    let resolv: Vec<&str> = symbols.lines().skip_while(|l| !l.starts_with("libresolv.so.2 ")).skip(1).take_while(|l| l.starts_with([' ', '|', '*'])).collect();
+    for s in ["ns_initparse@GLIBC_2.9 ", "ns_parserr@GLIBC_2.9 "] {
+        assert!(resolv.iter().any(|l| l.trim_start().starts_with(s)), "libc6's symbols file has no {s}in a libresolv.so.2 block");
     }
     let _ = std::fs::remove_dir_all(&work);
 }

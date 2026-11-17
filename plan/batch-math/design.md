@@ -17,7 +17,7 @@ for the owner are numbered **BQ-n** and listed in section 9.
 
 ## 0. What exists to build on
 
-* `liella-math` (`crates/math`, `no_std`, depends only on `liella-rt`) has one generic scalar
+* `niji-math` (`crates/math`, `no_std`, depends only on `niji-rt`) has one generic scalar
   function per operation, `fn f<F: Small>(x: F, mode: Rounding) -> (F, Status)` (for example
   `exp_log::exp`, `trig::sincos`). The rounding direction is an argument (rule C2). `Status`
   carries the IEEE flags and the error (D-10.2). Errno is set only by the C translation.
@@ -25,27 +25,27 @@ for the owner are numbered **BQ-n** and listed in section 9.
   (D-10.13, double-double evaluation), and so are the special functions (D-10.15). Their NaN
   conventions follow glibc (D-10.10, D-10.16). So a correctly rounded result is unique, and the
   scalar function is a bit-exact oracle for any faster path.
-* `liella-rt::cpu` holds the CPU feature detection, and `liella-mathtools` holds the
+* `niji-rt::cpu` holds the CPU feature detection, and `niji-mathtools` holds the
   arbitrary-precision oracle (D-10.12, test code only).
-* `liella-native` (D-X.10) is the facade for Rust programs. Only static Rust programs run today;
+* `niji-native` (D-X.10) is the facade for Rust programs. Only static Rust programs run today;
   `std` and `dlopen` wait for phase 14 (`docs/interfaces.md` §6).
 
 ## 1. Shape (B-1, B-2)
 
 | Part | Where | Depends on | Built by |
 |---|---|---|---|
-| `liella-batch` | `crates/batch`, in the workspace | `liella-math`, `liella-rt` (CPU features only); **no external crate** | the normal workspace build and gate |
-| GPU backend `liella-batch-gpu` | `batch-gpu/`, a **separate workspace** excluded from the root one (like `fuzz/`) | `liella-batch` (path), `std`, and the GPU API (BQ-2) | its own job on the GPU host only |
+| `niji-batch` | `crates/batch`, in the workspace | `niji-math`, `niji-rt` (CPU features only); **no external crate** | the normal workspace build and gate |
+| GPU backend `niji-batch-gpu` | `batch-gpu/`, a **separate workspace** excluded from the root one (like `fuzz/`) | `niji-batch` (path), `std`, and the GPU API (BQ-2) | its own job on the GPU host only |
 
-* **B-1.** `liella-batch` is `#![no_std]` with **no `alloc`**. Every element-wise operation
+* **B-1.** `niji-batch` is `#![no_std]` with **no `alloc`**. Every element-wise operation
   writes into a slice the caller provides. It contains the interface, the complete scalar
   fallback and the CPU SIMD kernels (X-8). It has no exports and no `#[no_mangle]`, no C header,
   and no symbol version. `libc.so.6`, `libm.so.6` and their `.a` forms never contain it.
 * **B-2.** The GPU backend lives outside the product workspace, so neither the product build nor
   the gate, `cargo xtask static` or a default `cargo build` ever compiles it or resolves its
-  dependencies. It implements a `Backend` trait defined in `liella-batch`, and a program opts in
-  by depending on both crates and passing the backend in. `liella-batch` knows of no GPU.
-* `liella-native` re-exports `liella-batch` behind a feature `batch` only after RL-7 approves
+  dependencies. It implements a `Backend` trait defined in `niji-batch`, and a program opts in
+  by depending on both crates and passing the backend in. `niji-batch` knows of no GPU.
+* `niji-native` re-exports `niji-batch` behind a feature `batch` only after RL-7 approves
   the interface. Until then, a program depends on the crate directly.
 * **Not libmvec.** M-1's `_ZGV*` placeholder is the C ABI that compilers call, and its contract
   is the reference's. This crate is a Rust interface with its own contract. M-1 may later reuse
@@ -97,7 +97,7 @@ Each (function, format, backend) has **one** published contract. It is recorded 
 table, `docs/batch-math-contract.tsv`, with columns function, format, backend, contract, bound,
 modes, and evidence job.
 
-* **B-8. `Exact`.** The result is bit-identical to the scalar `liella-math` function in the same
+* **B-8. `Exact`.** The result is bit-identical to the scalar `niji-math` function in the same
   rounding mode, including the NaN sign and payload rules (D-10.10) and the OR of the flags.
   Because the scalar result is correctly rounded (D-10.13, D-10.15), any correctly rounded
   algorithm meets `Exact`. The scalar fallback is `Exact` by construction. The X-8 SIMD kernels
@@ -134,11 +134,11 @@ modes, and evidence job.
 ## 4. The CPU fallback (B-12, B-13)
 
 * **B-12. Complete.** Every function and format in the interface has a scalar path: a loop
-  over `liella-math` in the requested mode, which ORs the `Status`. This is what `Choice::Scalar`
+  over `niji-math` in the requested mode, which ORs the `Status`. This is what `Choice::Scalar`
   runs, and it is the reference that every other path is tested against. A build with no SIMD and
   no GPU is fully functional.
 * **B-13. SIMD (X-8).** The kernels for x86_64 (SSE2 baseline, plus AVX2 and FMA selected at run
-  time through `liella-rt::cpu`) vectorise the double-double evaluation of D-10.13. With FMA, the
+  time through `niji-rt::cpu`) vectorise the double-double evaluation of D-10.13. With FMA, the
   Dekker product becomes one instruction, and the result is still `Exact` because of the final
   rounding test (B-8). Table lookups use gathers or a scalar index loop, whichever measures
   faster. Tails shorter than a vector run the scalar path. aarch64 (ASIMD, RL-1) follows in the A
@@ -165,20 +165,20 @@ modes, and evidence job.
 
 ## 6. The dependency boundary (B-16 .. B-18)
 
-* **B-16.** The core stays zero-dependency (D-X.4): `liella-batch` has no external crate, and no
-  library crate or product depends on `liella-batch`. A check in `cargo xtask static` (X-8) fails
+* **B-16.** The core stays zero-dependency (D-X.4): `niji-batch` has no external crate, and no
+  library crate or product depends on `niji-batch`. A check in `cargo xtask static` (X-8) fails
   if any `[dependencies]` of `kernel`, `abi`, `rt`, `mem`, `core`, `legacy`, `math`, `boundary`,
-  `ld`, `thread-db`, `libc-so` or `libm-so` names `liella-batch`, or if `crates/batch/Cargo.toml`
+  `ld`, `thread-db`, `libc-so` or `libm-so` names `niji-batch`, or if `crates/batch/Cargo.toml`
   names a crate outside the workspace.
 * **B-17.** The GPU workspace is the only place an external crate may appear, and only the one
   the owner approves (BQ-2). It has its own `Cargo.lock` and its own toolchain file, like
   `fuzz/`. The root workspace's `exclude` list names it.
 * **B-18. GPU stays optional** (owner 2026-10-22). Nothing in the product, the gate or CI needs a
   GPU, a GPU driver or the GPU crate. The CPU fallback is complete (B-12). The GPU backend needs
-  `std` and loading the vendor driver at run time. On Liella that means phase 14 (`dlopen`) and
+  `std` and loading the vendor driver at run time. On libniji that means phase 14 (`dlopen`) and
   the `std` symbols of `docs/interfaces.md` §6. Before then it runs only in programs linked
   against the host C library, which is enough to measure the crossover but not to ship it on
-  Liella.
+  libniji.
 
 ## 7. Tests the implementation stories owe (X-8, X-9)
 
@@ -199,7 +199,7 @@ modes, and evidence job.
 
 The final names, the first function set (B-7, which needs a named workload), the GPU API and its
 crate (BQ-2), and whether a C ABI for batch math ever exists. A C ABI would be new native
-interface (`LIELLA_NATIVE_*`) and needs its own ruling. None is proposed.
+interface (`NIJI_NATIVE_*`) and needs its own ruling. None is proposed.
 
 ## 9. Questions for the owner (each with a recommendation)
 

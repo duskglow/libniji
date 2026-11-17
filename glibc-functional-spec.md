@@ -4261,13 +4261,13 @@ versions (⚑ COMPAT).
 **Guarantees.** Static TLS for the executable and initially loaded libraries is at a fixed
 offset from the thread pointer.
 
-**Failure.** `pthread_setspecific` (and `tss_set`) never fails with `ENOMEM` in Liella: every
+**Failure.** `pthread_setspecific` (and `tss_set`) never fails with `ENOMEM` in libniji: every
 thread holds the value storage for all its keys from its creation (D-22.15). glibc 2.39, with the
 address space exhausted, sets the first 32 keys a process creates (creation index 0 to 31) on a
 thread that has never stored a value, on the initial thread and on a new thread alike, and
 returns `ENOMEM` for a later key (index 32 and up), after which `pthread_getspecific` returns
 NULL for it (probe `spec/behaviour/key-nomem.probe.c`, spec/behaviour/key-nomem.md). POSIX
-allows `ENOMEM` here, so Liella succeeds wherever glibc does.
+allows `ENOMEM` here, so libniji succeeds wherever glibc does.
 
 **Kernel.** The thread pointer register (`arch_prctl(ARCH_SET_FS)` for the main thread, and
 `CLONE_SETTLS` for others). `mmap` for dynamic TLS blocks.
@@ -5059,13 +5059,13 @@ A reimplementation cannot remove these, because the kernel ABI imposes them:
 
 The commands the C library's packages install (Debian's `libc-bin`, `libc-dev-bin` and `locales`): what callers
 depend on, namely command names and paths, options, output formats, exit codes, files read and written, and
-environment. Their internals are not specified; Liella builds them as described in `plan/utilities.md` (owner's
+environment. Their internals are not specified; libniji builds them as described in `plan/utilities.md` (owner's
 approval 2026-11-14). Sources: POSIX.1-2024 (XCU `getconf`, `iconv`, `locale`, `localedef`, `gencat`), the man pages
 (ldconfig(8), ldd(1), ld.so(8), getent(1), iconv(1), locale(1), localedef(1), zic(8), zdump(8), tzselect(1),
 tzfile(5), gencat(1), pldd(1)), RFC 8536 (TZif), Appendix D of this document (D.1 locales, D.2 catalogs, D.3 the
 loader cache), and black-box probes of the reference: `probe <case>` names a case of
 `spec/behaviour/utilities.glibc.txt`, recorded by `tools/probe/util_spec.sh` (see `spec/behaviour/utilities.md`).
-Messages are quoted as the reference prints them in the `POSIX` locale. A **Liella rule** is behaviour the design
+Messages are quoted as the reference prints them in the `POSIX` locale. A **libniji rule** is behaviour the design
 decided differently from the reference; each has a row in `docs/differences-from-glibc.md` and a pending decision
 (`records/pending/UTIL-SPEC-<k>.toml`, series D-31).
 
@@ -5075,7 +5075,7 @@ decided differently from the reference; each has a row in `docs/differences-from
 
 | Command | Path | Kind on the reference | Source |
 |---|---|---|---|
-| `ldconfig` | `/usr/sbin/ldconfig` | a shell script wrapper over a static program (Liella: one program, §31.2) | probe `paths`, `ldconfig-help` |
+| `ldconfig` | `/usr/sbin/ldconfig` | a shell script wrapper over a static program (libniji: one program, §31.2) | probe `paths`, `ldconfig-help` |
 | `ldd` | `/usr/bin/ldd` | a shell script | probe `paths` |
 | `getent`, `getconf`, `iconv`, `locale`, `localedef`, `zdump`, `gencat`, `pldd` | `/usr/bin/<name>` | dynamic programs | probe `paths` |
 | `zic` | `/usr/sbin/zic` | a dynamic program | probe `paths` |
@@ -5094,8 +5094,8 @@ decided differently from the reference; each has a row in `docs/differences-from
 
 * `--help` writes the usage text to standard output and exits 0 (probe `*-help`, every case `rc=0`).
 * `--version` writes a banner whose first line is `<command> (<identity>) 2.39` and exits 0 (probe `*-version`:
-  `ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39`). **Liella rule:** `<identity>` is `Liella <version>`, and the bug-report
-  line of `--help` names Liella's channel (pending `UTIL-SPEC-4`; differences row "Identity strings of the utilities").
+  `ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39`). **libniji rule:** `<identity>` is `libniji <version>`, and the bug-report
+  line of `--help` names libniji's channel (pending `UTIL-SPEC-4`; differences row "Identity strings of the utilities").
 
 **Failure.**
 
@@ -5110,7 +5110,7 @@ decided differently from the reference; each has a row in `docs/differences-from
 * Builds the loader cache (Appendix D.3) from the directories of the configuration and the trusted directories, and
   creates or updates the soname links in them (ldconfig(8)).
 * `dpkg` runs it through the `ldconfig` trigger (`activate-noawait ldconfig` in a package's `triggers` file) after
-  library packages change; Liella's `libc-bin` declares interest in that trigger (pending `UTIL-SPEC-2`).
+  library packages change; libniji's `libc-bin` declares interest in that trigger (pending `UTIL-SPEC-2`).
 
 **Inputs.**
 
@@ -5123,17 +5123,17 @@ decided differently from the reference; each has a row in `docs/differences-from
   `/lib`, `/usr/lib` (the same list as the loader's default directories, D-27.16); a directory reached twice is
   scanned once (ldconfig(8)).
 * `-r ROOT`: the configuration, the scanned directories and the cache are taken inside ROOT; the reference does this
-  for an ordinary user too (probe `ldconfig-r-user`, exit 0). **Liella rule** (mechanism only, not observable):
+  for an ordinary user too (probe `ldconfig-r-user`, exit 0). **libniji rule** (mechanism only, not observable):
   paths are resolved inside ROOT without `chroot` (pending `UTIL-SPEC-9`).
 
 **Guarantees.**
 
 * The cache is written in the D.3.1 new format with the D.3.2 extensions (tag 0 generator text, tag 1 hwcaps names)
   (probe `ldconfig-c-new`: the file starts `glibc-ld.so.cache1.1`; pending `UTIL-SPEC-3`).
-* The cache is replaced through a temporary file `<cache>~` (probe `ldconfig-user`). **Liella rule:** the temporary
+* The cache is replaced through a temporary file `<cache>~` (probe `ldconfig-user`). **libniji rule:** the temporary
   file is in the cache's directory, synced, then renamed over the cache, so a reader sees the old or the new file
   whole (pending `UTIL-SPEC-9`).
-* **Liella rule:** the cache is deterministic: entries in the D.3.3 order, ties broken by configuration order and then
+* **libniji rule:** the cache is deterministic: entries in the D.3.3 order, ties broken by configuration order and then
   path bytes, directory listings sorted, so the same tree gives byte-identical caches on any file system; every ELF
   file read is untrusted input, bounds-checked and never mapped executable (pending `UTIL-SPEC-9`).
 * Soname links (probe `ldconfig-n-links`): in each scanned directory, the link `<soname>` points to the file with
@@ -5153,7 +5153,7 @@ decided differently from the reference; each has a row in `docs/differences-from
 * A cache directory that is not writable: `<program>: Can't create temporary cache file <cache>~: Permission denied`,
   exit 1 (probe `ldconfig-user`).
 * `-c old` and `-c compat`: the reference writes the old format (probe `ldconfig-c-old`: the file starts
-  `ld.so-1.7.0`). **Liella rule:** refused with a message and a nonzero exit, nothing written; `-c new` is accepted
+  `ld.so-1.7.0`). **libniji rule:** refused with a message and a nonzero exit, nothing written; `-c new` is accepted
   (pending `UTIL-SPEC-6`; differences row "`ldconfig -c old`, `-c compat`").
 
 ### 31.3 ldd
@@ -5162,14 +5162,14 @@ decided differently from the reference; each has a row in `docs/differences-from
 
 * Prints the shared objects each operand needs, as the loader would resolve them; the same list as
   `LD_TRACE_LOADED_OBJECTS=1` or the loader's `--list` (ld.so(8), ldd(1); D-27.16).
-* **Liella rule:** ldd never runs the operand's code or an interpreter other than Liella's loader: it lists through
-  Liella's loader in list mode, and for an operand whose `PT_INTERP` names another loader it lists by Liella's rules
+* **libniji rule:** ldd never runs the operand's code or an interpreter other than libniji's loader: it lists through
+  libniji's loader in list mode, and for an operand whose `PT_INTERP` names another loader it lists by libniji's rules
   and says so on standard error (pending `UTIL-SPEC-7`; differences row "`ldd` on a program for another loader").
 
 **Inputs.**
 
 * `ldd [OPTION]... FILE...`; options `--help`, `--version`, `-d`/`--data-relocs`, `-r`/`--function-relocs`,
-  `-u`/`--unused`, `-v`/`--verbose` (probe `ldd-help`). **Liella rule:** `-d`, `-r` and `-u` are refused with a
+  `-u`/`--unused`, `-v`/`--verbose` (probe `ldd-help`). **libniji rule:** `-d`, `-r` and `-u` are refused with a
   message until the loader processes relocations of a listed program (DL-10; pending `UTIL-SPEC-7`).
 
 **Guarantees.**
@@ -5262,7 +5262,7 @@ decided differently from the reference; each has a row in `docs/differences-from
 * `iconv [OPTION...] [FILE...]`; options `-f`/`--from-code=NAME`, `-t`/`--to-code=NAME` (with `//TRANSLIT` and
   `//IGNORE`), `-l`/`--list`, `-c`, `-o`/`--output=FILE`, `-s`/`--silent`, `--verbose`, `-?`/`--help`, `--usage`,
   `-V`/`--version` (probe `iconv-help`); no FILE or `-` reads standard input (POSIX `iconv`).
-* The character sets are the library's (§6): Liella's built-ins and the charmaps of `/usr/share/i18n/charmaps`
+* The character sets are the library's (§6): libniji's built-ins and the charmaps of `/usr/share/i18n/charmaps`
   (D-6.8).
 
 **Guarantees.**
@@ -5270,7 +5270,7 @@ decided differently from the reference; each has a row in `docs/differences-from
 * The converted bytes on standard output or in the `-o` file (probe `iconv-o`).
 * `-c` omits characters that cannot be converted, exit 0 (probe `iconv-c`); `//TRANSLIT` replaces them by the target
   set's transliteration or `?` (probe `iconv-translit`).
-* `-l` lists the names the command accepts. **Liella rule:** exactly the names it can convert (the reference lists
+* `-l` lists the names the command accepts. **libniji rule:** exactly the names it can convert (the reference lists
   1180 names of its conversion modules, `437//` style; probe `iconv-l`); differences row "Character sets of `iconv`
   and `iconv -l`".
 
@@ -5307,7 +5307,7 @@ decided differently from the reference; each has a row in `docs/differences-from
   then `LC_ALL=<value>` (probe `locale-noenv`, `locale-lang`).
 * `-a`: `C`, `C.utf8`, `POSIX` and the installed locales with normalised codeset names (probe `locale-a`); `-a -v`:
   per locale `locale: <name>  directory: <path>` (or `archive: <path>`), a rule line and its `LC_IDENTIFICATION`
-  fields (`title`, `email`, `revision`, `date`, `codeset`) (probe `locale-a-v`). Liella builds `C.utf8` into the library
+  fields (`title`, `email`, `revision`, `date`, `codeset`) (probe `locale-a-v`). libniji builds `C.utf8` into the library
   and still lists it (`plan/utilities.md` §2.1); what `-a -v` prints for it is left to UTIL-8.
 * `-m`: the charmap names (probe `locale-m`).
 * A keyword operand prints its value; with `-k` as `keyword=value`, strings quoted and numbers bare, including the
@@ -5357,7 +5357,7 @@ decided differently from the reference; each has a row in `docs/differences-from
 **Contract.**
 
 * Compiles time-zone source (the `Rule`, `Zone`, `Link`, `Leap` and `Expires` lines of zic(8)) into TZif files
-  (RFC 8536; tzfile(5)); Liella's `localtime` reads the same files (§23.5).
+  (RFC 8536; tzfile(5)); libniji's `localtime` reads the same files (§23.5).
 
 **Inputs.**
 
@@ -5470,11 +5470,11 @@ decided differently from the reference; each has a row in `docs/differences-from
 
 **Contract.**
 
-* **Liella rule:** `iconvconfig` (the reference indexes its conversion modules; Liella has none, D-6.8),
+* **libniji rule:** `iconvconfig` (the reference indexes its conversion modules; libniji has none, D-6.8),
   `/etc/bindresvport.blacklist` (Sun RPC is not implemented), and the `libc-devtools` commands `sprof`, `sotruss` and
   `mtrace` are not installed, and `nscd` is dropped (R8) (probe `iconvconfig-help`, `devtools`; pending
   `UTIL-SPEC-5`; differences row "Commands not installed").
-* **Liella rule:** `locale-gen`, `update-locale` and `validlocale` of the `locales` package are Liella's own
+* **libniji rule:** `locale-gen`, `update-locale` and `validlocale` of the `locales` package are libniji's own
   implementations from their man pages (locale-gen(8), update-locale(8)) and `/etc/locale.gen`,
   `/etc/default/locale` and `SUPPORTED` (pending `UTIL-SPEC-8`); their interface is specified with UTIL-13.
 
@@ -6796,7 +6796,7 @@ is a `function`. `configs` is `*` (every configuration), the ids, or `!` and the
 whichever string is shorter (the ids on a tie), ids in table order. Rows of header `-`
 are the empty translation unit (compiler predefines and `stdc-predef.h`); a header's rows leave out what
 that unit already shows. `include-error` (216 rows) marks configurations in which the bare
-`#include` fails: a fact about the reference, which Liella's header reproduces (plan/headers.md §2.3).
+`#include` fails: a fact about the reference, which libniji's header reproduces (plan/headers.md §2.3).
 
 ### C.13 Call-site symbols and exception specifications
 
@@ -6851,7 +6851,7 @@ both forms.
   unset.
 * **Archive form:** `/usr/lib/locale/locale-archive` (D.1.6). The reference system used for
   this inspection has no archive, so the precedence between archive and directories could not
-  be observed; Liella consults the archive only when `LOCPATH` is unset, and then before
+  be observed; libniji consults the archive only when `LOCPATH` is unset, and then before
   `/usr/lib/locale` directories (implementation-plan.md D-7.7).
 
 **Name resolution** (observed). A name has the form
@@ -7056,7 +7056,7 @@ u32 sumhash_offset,  sumhash_used,  sumhash_size
 
 ### D.2 Message catalogs (phase 13)
 
-Moved here on 2026-10-04 from `spec/behaviour/catalogs-format.md` (format inspection under plan §1.2; the behaviour document `spec/behaviour/catalogs.md` and its record check it). **Lookup in Liella (decision, 2026-10-04):** a `.mo` file is searched in its sorted original-string table by binary search; the hash table is not used, so no hash function is needed, every entry of a well-formed catalog is found, and a damaged hash table cannot make a lookup loop.
+Moved here on 2026-10-04 from `spec/behaviour/catalogs-format.md` (format inspection under plan §1.2; the behaviour document `spec/behaviour/catalogs.md` and its record check it). **Lookup in libniji (decision, 2026-10-04):** a `.mo` file is searched in its sorted original-string table by binary search; the hash table is not used, so no hash function is needed, every entry of a well-formed catalog is found, and a damaged hash table cannot make a lookup loop.
 
 **How it was established** (plan §1.2, "Installed system data files": format inspection of files
 that exist on the reference system or that its own tools generate; structure only). On the VM
@@ -7214,7 +7214,7 @@ gettext's list of candidate directories for a locale name is not D.1's `setlocal
 For `language[_territory][.codeset][@modifier]` the candidates drop, in order, the modifier last,
 then the territory, then the codeset; a codeset is tried as written and then normalized
 (lowercased, non-alphanumerics removed), and an all-digit normalized codeset gains the prefix
-`iso` (`8859-1` → `iso88591`, where D.1 gives `88591`). An empty codeset counts as absent. Liella
+`iso` (`8859-1` → `iso88591`, where D.1 gives `88591`). An empty codeset counts as absent. libniji
 never uses a candidate component that is empty, `.`, `..` or contains `/` (a decision, pending
 the owner's confirmation as a security default).
 

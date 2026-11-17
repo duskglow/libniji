@@ -355,7 +355,7 @@ libc.so.6	pthread_setconcurrency	GLIBC_2.2.5	alias	LG-1	-
 libc.so.6	pthread_setname_np	GLIBC_2.12	alias	LG-1	-	
 libc.so.6	pthread_setschedprio	GLIBC_2.3.4	alias	LG-1	-	
 libc.so.6	pthread_setspecific	GLIBC_2.2.5	alias	LG-1	-	
-libc.so.6	pthread_sigmask	GLIBC_2.2.5	behaviour	LG-2	-	LG-0b probe
+libc.so.6	pthread_sigmask	GLIBC_2.2.5	alias	LG-2	-	LG-0b probe: identical to the default (spec/behaviour/pthread-sigmask-compat.md)
 libc.so.6	pthread_sigqueue	GLIBC_2.11	alias	LG-1	-	
 libc.so.6	pthread_spin_destroy	GLIBC_2.2.5	alias	LG-1	-	
 libc.so.6	pthread_spin_init	GLIBC_2.2.5	alias	LG-1	-	
@@ -670,25 +670,25 @@ libm.so.6	__yn_finite	GLIBC_2.15	alias	LG-4	D-10.2	target=yn
 libm.so.6	__ynf128_finite	GLIBC_2.26	alias	LG-4	D-10.2	target=ynf128
 libm.so.6	__ynf_finite	GLIBC_2.15	alias	LG-4	D-10.2	target=ynf
 libm.so.6	__ynl_finite	GLIBC_2.15	alias	LG-4	D-10.2	target=ynl
-libm.so.6	exp	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	exp10	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
+libm.so.6	exp	GLIBC_2.2.5	alias	LG-4	D-10.2	probe: identical to exp@@GLIBC_2.29 (spec/behaviour/libm-compat.md)
+libm.so.6	exp10	GLIBC_2.2.5	alias	LG-4	D-10.2	probe: identical to exp10@@GLIBC_2.39 (spec/behaviour/libm-compat.md)
 libm.so.6	exp10f	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	exp2	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	exp2f	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	expf	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	fmod	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	fmodf	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	hypot	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	hypotf	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
+libm.so.6	fmod	GLIBC_2.2.5	alias	LG-4	D-10.2	probe: identical to fmod@@GLIBC_2.38 (spec/behaviour/libm-compat.md)
+libm.so.6	fmodf	GLIBC_2.2.5	alias	LG-4	D-10.2	probe: identical to fmodf@@GLIBC_2.38 (spec/behaviour/libm-compat.md)
+libm.so.6	hypot	GLIBC_2.2.5	alias	LG-4	D-10.2	probe: identical to hypot@@GLIBC_2.35 (spec/behaviour/libm-compat.md)
+libm.so.6	hypotf	GLIBC_2.2.5	alias	LG-4	D-10.2	probe: identical to hypotf@@GLIBC_2.35 (spec/behaviour/libm-compat.md)
 libm.so.6	lgamma	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	lgammaf	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	lgammal	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	log	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
-libm.so.6	log2	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
+libm.so.6	log	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); LG-0b probe: a negative argument gives +NaN, so own entry niji_compat_log (spec/behaviour/libm-compat.md)
+libm.so.6	log2	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); LG-0b probe: a negative argument gives +NaN, so own entry niji_compat_log2 (spec/behaviour/libm-compat.md)
 libm.so.6	log2f	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	logf	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
 libm.so.6	matherr	GLIBC_2.2.5	stub	LG-4	D-10.2	the library default handler: returns 0
-libm.so.6	pow	GLIBC_2.2.5	behaviour	LG-4	D-10.2	SVID error handling (_LIB_VERSION, matherr); alias if LG-0b shows identical results
+libm.so.6	pow	GLIBC_2.2.5	alias	LG-4	D-10.2	probe: identical to pow@@GLIBC_2.29 (spec/behaviour/libm-compat.md)
 libm.so.6	pow10	GLIBC_2.2.5	alias	LG-4	D-10.2	target=exp10
 libm.so.6	pow10f	GLIBC_2.2.5	alias	LG-4	D-10.2	target=exp10f
 libm.so.6	pow10l	GLIBC_2.2.5	alias	LG-4	D-10.2	target=exp10l
