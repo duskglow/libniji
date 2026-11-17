@@ -407,6 +407,7 @@ impl Gen<'_> {
             .map(|r| r["member"].as_str())
             .collect();
         let mut end = Some(0u64);
+        let total = rows.iter().find(|r| r["member"].is_empty()).and_then(|r| r["offset_or_size"].parse::<u64>().ok());
         let rows: Vec<&BTreeMap<String, String>> = rows.iter().filter(|r| !r["member"].is_empty()).collect();
         let mut i = 0;
         while i < rows.len() {
@@ -459,7 +460,7 @@ impl Gen<'_> {
             out.push(format!("  {decl}"));
         }
         // Unnamed padding the layout rows do not list (`struct timex` ends in 44 bytes of it).
-        if let (Some(end), Some(total)) = (end, rows.iter().find(|r| r["member"].is_empty()).and_then(|r| r["offset_or_size"].parse::<u64>().ok())) {
+        if let (Some(end), Some(total)) = (end, total) {
             if total > end && (total - end) % 4 == 0 {
                 out.extend((0..(total - end) / 4).map(|_| "  int : 32;".to_string()));
             }
@@ -729,7 +730,9 @@ impl Gen<'_> {
             self.errors.push(format!("{}: object {name} not in typedefs.tsv", self.header));
             return;
         };
-        let ty = r["cxx"].clone();
+        let cxx = r["cxx"].clone();
+        // A structure object (`_r_debug` is a `struct r_debug`) needs its tag keyword in C.
+        let ty = if scalar(&cxx) || cxx.contains(['*', '[', ' ']) { cxx } else { self.type_words(&cxx) };
         let line = match ty.find('[') {
             Some(i) => format!("extern {} {name}{};", ty[..i].replace('*', " *"), &ty[i..]),
             None => format!("extern {} {name};", ty.replace('*', " *")),
