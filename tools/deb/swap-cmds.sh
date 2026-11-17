@@ -128,6 +128,12 @@ drop='$) = "65534 65534"; $( = 65534; $< = $> = 65534; exec @ARGV or die "exec: 
 run fakeroot-1 perl -e "$drop" -- sh -c 'cd /tmp/fr && fakeroot sh -c "touch f && chown 0:0 f && echo inside \$(id -u) \$(id -g) \$(stat -c %u:%g f)" && echo outside $(id -u) $(id -g) $(stat -c %u:%g f)'
 run fakeroot-2 perl -e "$drop" -- sh -c 'cd /tmp/fr && mkdir d && echo x > d/a && fakeroot sh -c "chown -R 0:0 d && tar --numeric-owner -cf a.tar d" && tar --numeric-owner -tvf a.tar | awk "{print substr(\$1, 1, 1), \$2, \$6}" && tar --numeric-owner -cf b.tar d && tar --numeric-owner -tvf b.tar | awk "{print substr(\$1, 1, 1), \$2, \$6}"'
 
+# The caller's extra commands (swap-system.sh's SWAP_EXTRA_CMDS), next to this script.
+extra=$(dirname "$0")/extra.sh
+if [ -f "$extra" ]; then
+    . "$extra"
+fi
+
 {
     echo "libc6 $(dpkg-query -W -f '${Version}' libc6 2>&1)"
     echo "libc-bin $(dpkg-query -W -f '${Version}' libc-bin 2>&1)"
