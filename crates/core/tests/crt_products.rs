@@ -440,17 +440,11 @@ fn old_libm_versions_bind_and_match_the_reference() {
     }
     let got = run_v(&exe, Some(&p));
     // Cases where libniji's DEFAULT pow differs from the reference's (both libraries print "same as
-    // default" for them, so the old version is still the default's alias): pow(-1, +-1e308) is 0
-    // with ERANGE in libniji, 1 in the reference (a defect of the default pow, reported by
-    // SYS-COMPAT-VERSIONS for its own story); a signalling NaN with a zero exponent or base 1 gives 1
-    // and FE_INVALID in libniji, a quiet NaN in the reference; an exact subnormal result raises
-    // FE_UNDERFLOW in the reference only (IEEE 754 7.5: underflow needs an inexact tiny result).
-    const DEFAULT_POW: [&str; 8] = [
-        "pow@GLIBC_2.2.5(-0x1p+0, 0x1.1ccf385ebc8ap+1023)",
-        "pow@GLIBC_2.2.5(-0x1p+0, -0x1.1ccf385ebc8ap+1023)",
-        "pow@GLIBC_2.2.5(0x1p+0, nan)",
-        "pow@GLIBC_2.2.5(nan, 0x0p+0)",
-        "pow@GLIBC_2.2.5(nan, -0x0p+0)",
+    // default" for them, so the old version is still the default's alias): an exact subnormal
+    // result raises FE_UNDERFLOW in the reference only (IEEE 754 7.5: underflow needs an inexact
+    // tiny result). pow(-1, +-1e308) = 1 and the signalling-NaN cases (sNaN^+-0, 1^sNaN: a quiet
+    // NaN with FE_INVALID) are compared like every other case (MATH-POW-EDGES).
+    const DEFAULT_POW: [&str; 3] = [
         "pow@GLIBC_2.2.5(0x1p-1, 0x1p+10)",
         "pow@GLIBC_2.2.5(0x0.012688b70e62bp-1022, 0x1p+0)",
         "pow@GLIBC_2.2.5(-0x0.012688b70e62bp-1022, 0x1p+0)",
