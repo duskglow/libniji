@@ -45,6 +45,10 @@ impl Objects for Glue {
     fn slots_at(&self, addr: usize, len: usize) -> &'static [gl::Slot] {
         tb::locale_slots_at(addr, len)
     }
+
+    fn words_at(&self, addr: usize, len: usize) -> &'static [core::sync::atomic::AtomicUsize] {
+        tb::locale_words_at(addr, len)
+    }
 }
 
 /// `f` with `path` as a kernel path (NUL-terminated in a buffer).

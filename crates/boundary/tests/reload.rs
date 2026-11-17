@@ -392,8 +392,15 @@ fn locales_and_files_past_the_static_table_load() {
             assert!(!got.is_null(), "setlocale selects {n:?}");
             assert_eq!(text(got.expose_provenance()), n.as_bytes());
         }
-        assert!(!loc::newlocale(LC_ALL_MASK, names[0].as_ptr(), core::ptr::null_mut()).is_null());
+        let again = loc::newlocale(LC_ALL_MASK, names[0].as_ptr(), core::ptr::null_mut());
+        assert!(!again.is_null());
         assert_eq!(niji_legacy::global_locale::mappings() - before, made, "a locale loaded again maps nothing");
+        // Found again through the lookup indexes (the tables are past their scanned entries):
+        // the same interned locale and the same interned name.
+        let view = |h: niji_abi::ctypes::locale_t| niji_boundary::locale::view_of(h.expose_provenance());
+        assert!(core::ptr::eq(view(again), view(handles[0])), "l0 loaded again is the interned l0");
+        assert_eq!(loc::nl_langinfo_l(NL_LOCALE_NAME_CTYPE, again), loc::nl_langinfo_l(NL_LOCALE_NAME_CTYPE, handles[0]));
+        loc::freelocale(again);
         assert!(!loc::setlocale(LC_ALL, c("C").as_ptr()).is_null());
         for h in handles {
             loc::freelocale(h);
@@ -405,6 +412,46 @@ fn locales_and_files_past_the_static_table_load() {
     let d = scratch::Scratch::dir("reload-many");
     if many_locales(&d, N) {
         in_child("locales_and_files_past_the_static_table_load", &d);
+    }
+}
+
+#[test]
+fn locales_past_the_scanned_entries_share_category_tables() {
+    // Clauses: s7_1_c_0 (LV-3, D-7.13): a category file an earlier locale's view already
+    // tabulated is not tabulated again, also once the interned locales are past the entries
+    // looked up by a scan (64) and are found through the hash index. 80 locales each take
+    // LC_CTYPE, LC_TIME and LC_MONETARY from l0 and the rest from their own directory: each
+    // shares l0's item tables for the categories it shares l0's file data for.
+    const N: usize = 80;
+    const MIXED: i32 = 1 | 4 | 16;
+    if let Some(d) = probe() {
+        set("LOCPATH", &d.join("many").display().to_string());
+        let view = |h: niji_abi::ctypes::locale_t| niji_boundary::locale::view_of(h.expose_provenance()).locale();
+        let l0 = loc::newlocale(LC_ALL_MASK, c("l0.UTF-8").as_ptr(), core::ptr::null_mut());
+        assert!(!l0.is_null());
+        let mut checked = 0;
+        for k in 1..N {
+            let own = loc::newlocale(LC_ALL_MASK, c(&format!("l{k}.UTF-8")).as_ptr(), core::ptr::null_mut());
+            assert!(!own.is_null(), "l{k} loads");
+            let mixed = loc::newlocale(MIXED, c("l0.UTF-8").as_ptr(), own);
+            assert!(!mixed.is_null(), "l{k} with l0's categories loads");
+            for cat in niji::locale::file::Cat::ALL {
+                let (m, z) = (view(mixed), view(l0));
+                if let (true, Some(t)) = (m.data(cat).same(&z.data(cat)), z.table(cat)) {
+                    assert!(m.table(cat).is_some_and(|mt| mt.same(t)), "l{k}: {cat:?} takes l0's table");
+                    checked += 1;
+                }
+            }
+            loc::freelocale(mixed);
+        }
+        assert!(checked >= N - 1, "each mixed locale shares a tabulated category with l0 ({checked} checked)");
+        loc::freelocale(l0);
+        println!("child: ok");
+        return;
+    }
+    let d = scratch::Scratch::dir("reload-shared-tables");
+    if many_locales(&d, N) {
+        in_child("locales_past_the_scanned_entries_share_category_tables", &d);
     }
 }
 

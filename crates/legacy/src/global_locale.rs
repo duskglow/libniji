@@ -7,7 +7,9 @@
 //! global locale (D-7.1). Distinct locales are few (one per combination of categories a
 //! process uses), but there is no limit on them but memory: the static table holds the common
 //! case ([`INLINE`] entries) and further entries spill to allocated chunks that are never moved
-//! ([`SPILL`]). Names are interned the same way.
+//! ([`SPILL`]). Names are interned the same way. A table of a few dozen entries is searched by a
+//! scan; past [`INDEXED_AT`] entries, through a hash index that grows with it ([`INDEX`]), so a
+//! lookup costs about the same with a thousand locales loaded as with one.
 //!
 //! **Files.** Locale files are mapped once, by path, and never unmapped (D-7.7). Charmaps
 //! (D-6.8) are read from `/usr/share/i18n/charmaps`, parsed once, and kept.
@@ -131,6 +133,8 @@ pub trait Objects {
     fn charmap_at(&self, addr: usize) -> &'static Charmap;
     /// The `len` table entries at `addr`: a spill chunk this module leaked and recorded.
     fn slots_at(&self, addr: usize, len: usize) -> &'static [Slot];
+    /// The `len` words at `addr`: a lookup index chunk this module leaked and recorded.
+    fn words_at(&self, addr: usize, len: usize) -> &'static [AtomicUsize];
 }
 
 /// The file system access locale loading needs (the POSIX layer).
@@ -218,6 +222,225 @@ fn field(objs: &impl Objects, f: fn(&'static Slot) -> &'static AtomicUsize, i: u
     slot(objs, i).map_or(0, |s| f(s).load(Acquire))
 }
 
+/// Interned name `i`.
+fn name_bytes(objs: &impl Objects, i: usize) -> &'static [u8] {
+    objs.bytes_at(field(objs, |s| &s.name_addr, i), field(objs, |s| &s.name_len, i))
+}
+
+/// The interned locale of entry `i`.
+fn interned(objs: &impl Objects, i: usize) -> &'static Locale {
+    objs.view_at(field(objs, |s| &s.interned, i)).locale()
+}
+
+// The lookup indexes. A table is searched by a scan while it has fewer than [`INDEXED_AT`]
+// entries: the common case (a process that loads a locale or two uses a few dozen entries) keeps
+// its instructions and touches no index memory. From that size on, a lookup goes through the
+// table's hash index, so loading or selecting a locale costs the same with a thousand locales
+// loaded as with a few (audit HL-10: a scan made 1100 locales quadratic).
+//
+// An index is split into chunks over the entries: chunk 0 indexes entries `0..INDEXED_AT`, and
+// chunk `c` from 1 on the `INDEXED_AT << (c - 1)` entries from `INDEXED_AT << (c - 1)` on. A
+// chunk's words are allocated (fallibly) before its first entry is written, and never moved or
+// freed: the index grows with its table and nothing is rebuilt. A lookup probes every chunk
+// (their number grows with the logarithm of the entries). Each chunk is an open-addressed table
+// with linear probing, a word per key: the top bits of the key's hash, then the entry's offset
+// in the chunk + 1 ([`OFFSET`]; 0: empty); a chunk has at least 4/3 of its keys' words, so a
+// probe meets an empty word. Used with [`LOCK`] held.
+
+/// The interned locales, by their names.
+const LOCALES: usize = 0;
+/// The interned names, by their bytes.
+const NAMES: usize = 1;
+/// The mapped files, by their paths.
+const FILES: usize = 2;
+/// The interned locales again, by each category's file data (the address of the mapping), for
+/// the view tables a new locale's view takes from an earlier one (LV-3).
+const TABS: usize = 3;
+/// The entries from which a table is searched through its index; chunk 0's entries.
+const INDEXED_AT: usize = 64;
+/// Index chunks per table: the first 42 index `64 << 41` entries, each needing an entry of the
+/// table (over 100 bytes), more than an address space holds, so an entry past them is memory
+/// exhaustion. A chunk's offsets (below `64 << 40`) fit a word's [`OFFSET`] bits.
+const INDEX_CHUNKS: usize = 42;
+/// A word's offset bits; the bits above them keep the top bits of the key's hash, to skip most
+/// entries that are not the key.
+const OFFSET: usize = 0x0000_ffff_ffff_ffff;
+/// The shift that takes a hash's top bits to a word's tag bits.
+const TAG_SHIFT: u32 = 48;
+/// Each index's chunk addresses (0: not allocated).
+static INDEX: [[AtomicUsize; INDEX_CHUNKS]; 4] = [const { [const { AtomicUsize::new(0) }; INDEX_CHUNKS] }; 4];
+
+/// Index words per entry of index `t`, a power of two: two per key for one key per entry, 16
+/// for [`TABS`]' one key per category (12).
+fn words_per_entry(t: usize) -> usize {
+    if t == TABS { 16 } else { 2 }
+}
+
+/// The index chunk of entry `i` and `i`'s offset in it.
+fn ix_chunk(i: usize) -> Option<(usize, usize)> {
+    let j = i.checked_div(INDEXED_AT)?;
+    if j == 0 {
+        return Some((0, i));
+    }
+    let c = usize::try_from(j.ilog2()).ok()?.checked_add(1)?;
+    Some((c, i.checked_sub(ix_span(c)?.0)?))
+}
+
+/// Index chunk `c`'s first entry and entries.
+fn ix_span(c: usize) -> Option<(usize, usize)> {
+    match c.checked_sub(1) {
+        None => Some((0, INDEXED_AT)),
+        Some(k) => {
+            let len = INDEXED_AT.checked_shl(u32::try_from(k).ok()?)?;
+            (len.leading_zeros() > 0).then_some((len, len))
+        }
+    }
+}
+
+/// FNV-1a (64 bits) over `bytes`, from `h`.
+fn hash_more(h: u64, bytes: &[u8]) -> u64 {
+    bytes.iter().fold(h, |h, &b| (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3))
+}
+
+/// `bytes`' hash, mixed so that its low bits (a probe's start) and its top bits (the tag) both
+/// depend on every byte.
+fn hash(bytes: &[u8]) -> u64 {
+    let h = hash_more(0xcbf2_9ce4_8422_2325, bytes);
+    h ^ h.rotate_right(29)
+}
+
+/// A locale's key: its categories' names (equal locales have equal names).
+fn locale_hash(l: &Locale) -> u64 {
+    let h = l.names().iter().fold(0xcbf2_9ce4_8422_2325, |h, n| hash_more(hash_more(h, n), &[0]));
+    h ^ h.rotate_right(29)
+}
+
+/// The [`TABS`] key of category `cat`'s file data at `addr`.
+fn tab_hash(cat: Cat, addr: usize) -> u64 {
+    hash(&addr.wrapping_add(cat.index()).to_le_bytes())
+}
+
+/// Call `put` with each key of entry `i` of index `t` (its fields written).
+fn index_keys(objs: &impl Objects, t: usize, i: usize, put: &mut impl FnMut(u64)) {
+    match t {
+        LOCALES => put(locale_hash(interned(objs, i))),
+        NAMES => put(hash(name_bytes(objs, i))),
+        FILES => put(hash(name_bytes(objs, field(objs, |s| &s.file_name, i)))),
+        _ => {
+            let l = interned(objs, i);
+            for cat in Cat::ALL {
+                if let (Data::File(f), Some(_)) = (l.data(cat), l.table(cat)) {
+                    put(tab_hash(cat, addr_of(f.bytes())));
+                }
+            }
+        }
+    }
+}
+
+/// The words of index `t`'s chunk `c` (`None`: not allocated) and the chunk's first entry.
+fn ix_words(objs: &impl Objects, t: usize, c: usize) -> Option<(&'static [AtomicUsize], usize)> {
+    let addr = load(INDEX.get(t)?, c);
+    let (base, len) = ix_span(c)?;
+    if addr == 0 {
+        return None;
+    }
+    Some((objs.words_at(addr, len.checked_mul(words_per_entry(t))?), base))
+}
+
+/// The probe start and the tag of a key hashed to `h` in a chunk of `words` words.
+fn ix_start(h: u64, words: usize) -> (usize, usize) {
+    let mask = words.wrapping_sub(1);
+    let start = usize::try_from(h & u64::try_from(mask).unwrap_or(0)).unwrap_or(0);
+    let tag = usize::try_from(h.wrapping_shr(TAG_SHIFT)).unwrap_or(0).wrapping_shl(TAG_SHIFT);
+    (start, tag)
+}
+
+/// The first of the `n` entries of index `t` whose key hashes to `h` and for which `is` holds.
+#[cold]
+#[inline(never)]
+fn index_find(objs: &impl Objects, t: usize, n: usize, h: u64, is: impl Fn(usize) -> bool) -> Option<usize> {
+    let (last, _) = ix_chunk(n.checked_sub(1)?)?;
+    for c in 0..=last {
+        let Some((words, base)) = ix_words(objs, t, c) else { continue };
+        let mask = words.len().wrapping_sub(1);
+        let (mut p, tag) = ix_start(h, words.len());
+        for _ in 0..words.len() {
+            let v = words.get(p)?.load(Relaxed);
+            if v == 0 {
+                break;
+            }
+            if v & !OFFSET == tag {
+                let i = base.checked_add((v & OFFSET).wrapping_sub(1))?;
+                if i < n && is(i) {
+                    return Some(i);
+                }
+            }
+            p = p.wrapping_add(1) & mask;
+        }
+    }
+    None
+}
+
+/// Make sure index `t` has its words for entry `n` (allocated if new), before the entry is
+/// written: `ENOMEM` when they cannot be. Nothing below [`INDEXED_AT`]` - 1`. The caller holds
+/// [`LOCK`].
+fn index_reserve(t: usize, n: usize) -> KResult<()> {
+    if n.saturating_add(1) < INDEXED_AT {
+        return Ok(());
+    }
+    index_grow(t, n)
+}
+
+#[cold]
+#[inline(never)]
+fn index_grow(t: usize, n: usize) -> KResult<()> {
+    let (c, _) = ix_chunk(n).ok_or(Errno::ENOMEM)?;
+    let at = INDEX.get(t).and_then(|x| x.get(c)).ok_or(Errno::ENOMEM)?;
+    if at.load(Acquire) != 0 {
+        return Ok(());
+    }
+    let len = ix_span(c).ok_or(Errno::ENOMEM)?.1.checked_mul(words_per_entry(t)).ok_or(Errno::ENOMEM)?;
+    let mut v = TryVec::with_capacity(len)?;
+    for _ in 0..len {
+        v.push(AtomicUsize::new(0))?;
+    }
+    let words: &'static [AtomicUsize] = v.leak();
+    at.store(addr_of(words), Release);
+    Ok(())
+}
+
+/// Add entry `n` of index `t` (written, words reserved by [`index_reserve`]) before it is
+/// published; the entry that brings the table to [`INDEXED_AT`] adds the earlier ones too. The
+/// caller holds [`LOCK`].
+fn index_add(objs: &impl Objects, t: usize, n: usize) {
+    if n.saturating_add(1) < INDEXED_AT {
+        return;
+    }
+    index_add_cold(objs, t, n);
+}
+
+#[cold]
+#[inline(never)]
+fn index_add_cold(objs: &impl Objects, t: usize, n: usize) {
+    let first = if n.saturating_add(1) == INDEXED_AT { 0 } else { n };
+    for i in first..=n {
+        let Some((c, off)) = ix_chunk(i) else { return };
+        let Some((words, _)) = ix_words(objs, t, c) else { return };
+        let mask = words.len().wrapping_sub(1);
+        index_keys(objs, t, i, &mut |h| {
+            let (mut p, tag) = ix_start(h, words.len());
+            for _ in 0..words.len() {
+                let Some(w) = words.get(p) else { return };
+                if w.load(Relaxed) == 0 {
+                    w.store(tag | off.wrapping_add(1), Relaxed);
+                    return;
+                }
+                p = p.wrapping_add(1) & mask;
+            }
+        });
+    }
+}
+
 /// The mappings made so far (each distinct file once; a file replaced by other bytes, once
 /// more after the invalidation that finds it).
 pub fn mappings() -> usize {
@@ -252,19 +475,35 @@ fn intern_locked(objs: &impl Objects, l: Locale) -> KResult<usize> {
         return Ok(0);
     }
     let n = COUNT.load(Acquire);
-    if let Some(i) = (0..n).find(|&i| *objs.view_at(field(objs, |s| &s.interned, i)).locale() == l) {
+    let found = if n < INDEXED_AT {
+        (0..n).find(|&i| *interned(objs, i) == l)
+    } else {
+        index_find(objs, LOCALES, n, locale_hash(&l), |i| *interned(objs, i) == l)
+    };
+    if let Some(i) = found {
         return Ok(i.saturating_add(1));
     }
     let slot = &slot_for_write(objs, n)?.interned;
+    index_reserve(LOCALES, n)?;
+    index_reserve(TABS, n)?;
     // A category file an earlier view already tabulated is not tabulated again (LV-3).
     let reuse = |cat: Cat, d: &Data| {
-        (0..n).find_map(|i| {
-            let earlier = objs.view_at(field(objs, |s| &s.interned, i)).locale();
-            if earlier.data(cat).same(d) { earlier.table(cat) } else { None }
-        })
+        let tabulates = |i: usize| {
+            let earlier = interned(objs, i);
+            earlier.data(cat).same(d) && earlier.table(cat).is_some()
+        };
+        let i = if n < INDEXED_AT {
+            (0..n).find(|&i| tabulates(i))
+        } else {
+            let Data::File(f) = d else { return None };
+            index_find(objs, TABS, n, tab_hash(cat, addr_of(f.bytes())), tabulates)
+        };
+        interned(objs, i?).table(cat)
     };
     let leaked: &'static LocaleView = TryBox::new(LocaleView::new(l, n.saturating_add(1), &reuse)?)?.leak();
     slot.store(addr_of(leaked), Release);
+    index_add(objs, LOCALES, n);
+    index_add(objs, TABS, n);
     COUNT.store(n.saturating_add(1), Release);
     Ok(n.saturating_add(1))
 }
@@ -279,13 +518,16 @@ pub fn intern<S: Sys>(sys: &S, objs: &impl Objects, l: Locale) -> KResult<usize>
 /// The caller holds [`LOCK`].
 fn intern_name_locked(objs: &impl Objects, name: &[u8]) -> KResult<(usize, &'static [u8])> {
     let n = NAME_COUNT.load(Acquire);
-    for i in 0..n {
-        let stored = objs.bytes_at(field(objs, |s| &s.name_addr, i), field(objs, |s| &s.name_len, i));
-        if stored == name {
-            return Ok((i, stored));
-        }
+    let found = if n < INDEXED_AT {
+        (0..n).find(|&i| name_bytes(objs, i) == name)
+    } else {
+        index_find(objs, NAMES, n, hash(name), |i| name_bytes(objs, i) == name)
+    };
+    if let Some(i) = found {
+        return Ok((i, name_bytes(objs, i)));
     }
     let e = slot_for_write(objs, n)?;
+    index_reserve(NAMES, n)?;
     let (addr, len) = (&e.name_addr, &e.name_len);
     let mut v = TryVec::with_capacity(name.len().saturating_add(1))?;
     v.extend_from_slice(name)?;
@@ -293,6 +535,7 @@ fn intern_name_locked(objs: &impl Objects, name: &[u8]) -> KResult<(usize, &'sta
     let leaked: &'static [u8] = v.leak();
     addr.store(addr_of(leaked), Release);
     len.store(name.len(), Release);
+    index_add(objs, NAMES, n);
     NAME_COUNT.store(n.saturating_add(1), Release);
     Ok((n, leaked.get(..name.len()).unwrap_or(&[])))
 }
@@ -390,11 +633,9 @@ impl<M: Mapper> Source for Files<'_, M> {
     fn file(&self, path: &[u8]) -> Option<&'static [u8]> {
         let generation = GENERATION.load(Acquire);
         let n = FILE_COUNT.load(Acquire);
-        for i in 0..n {
-            let name = field(self.m, |s| &s.file_name, i);
-            if self.m.bytes_at(field(self.m, |s| &s.name_addr, name), field(self.m, |s| &s.name_len, name)) != path {
-                continue;
-            }
+        let path_is = |i: usize| name_bytes(self.m, field(self.m, |s| &s.file_name, i)) == path;
+        let found = if n < INDEXED_AT { (0..n).find(|&i| path_is(i)) } else { index_find(self.m, FILES, n, hash(path), path_is) };
+        if let Some(i) = found {
             let current = self.m.bytes_at(field(self.m, |s| &s.file_addr, i), field(self.m, |s| &s.file_len, i));
             if field(self.m, |s| &s.file_gen, i) == generation {
                 return Some(current);
@@ -426,6 +667,7 @@ impl<M: Mapper> Source for Files<'_, M> {
         // A new file: only when it can be recorded (a load that cannot record it fails, for want
         // of memory, instead of mapping again at every call).
         let fname = &self.recorded(slot_for_write(self.m, n))?.file_name;
+        self.recorded(index_reserve(FILES, n))?;
         let (addr, len, id) = self.mapped(path)?;
         let Some((slot, _)) = self.recorded(intern_name_locked(self.m, path)) else {
             if len != 0 {
@@ -436,6 +678,7 @@ impl<M: Mapper> Source for Files<'_, M> {
         MAPS.fetch_add(1, Release);
         fname.store(slot, Release);
         record_file(self.m, n, addr, len, &id, generation);
+        index_add(self.m, FILES, n);
         FILE_COUNT.store(n.saturating_add(1), Release);
         Some(self.m.bytes_at(addr, len))
     }
