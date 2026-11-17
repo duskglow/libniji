@@ -642,7 +642,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str) -> Re
 /// No shared product in `release` defines or exports a `GLIBC_PRIVATE` version (R14-12).
 pub fn check_no_private(release: &Path) -> Result<(), String> {
     let mut errors = Vec::new();
-    for so in ["libc.so.6", "libm.so.6"].into_iter().chain(LIBRARIES) {
+    for so in ["libc.so.6", "libm.so.6", crate::libmvec::SONAME].into_iter().chain(LIBRARIES) {
         let p = release.join(so);
         errors.extend(private_errors(so, &readelf(&["-V"], &p)?, &readelf(&["--dyn-syms", "-W"], &p)?));
     }

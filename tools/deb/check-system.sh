@@ -3,7 +3,7 @@
 # without installing them. No spec clause: release packaging (plan/system-libc.md sections 3.1-3.3,
 # owner rulings R1 and R2; records/pending/SL-FLAVOUR-1.toml).
 #
-# 1. Identity (R1, R2): exactly libc6, libc-bin, libc6-dev, libc-dev-bin, locales, libc-l10n, each
+# 1. Identity (R1, R2): exactly libc6, libc-bin, libc6-dev, libc-dev-bin, locales, libc-l10n, libc6-dbg, each
 #    Source: niji, the project's Maintainer, one version <abi>+niji<YYYYMMDD>.<n>-<rev> (no
 #    epoch); libc-bin Essential: yes, Priority: required, Multi-Arch: foreign; libc6 and libc6-dev
 #    Multi-Arch: same; locales and libc-l10n Architecture: all. Control fields as the
@@ -11,6 +11,8 @@
 #    rows 7, 8, 25): libc6-dev Depends also on linux-libc-dev, libcrypt-dev, rpcsvc-proto and
 #    Provides: libc-dev (= <version>); libc-l10n Multi-Arch: foreign; Priority libc6, libc6-dev,
 #    libc-dev-bin optional, locales and libc-l10n standard.
+#    libc6-dbg Section: debug, Multi-Arch: same, Priority: optional, Depends: libc6 (= version),
+#    Provides: libc-dbg, libc6-dbgsym (SYS-DBG-PACKAGE).
 # 2. Layout (section 3.3): every path is in the package's list below (nothing in a sysroot, no
 #    /lib64: base-files owns it); owners root:root; the control members, conffiles and triggers
 #    are exactly the ones named below.
@@ -26,7 +28,8 @@
 #    libc6-dev's libresolv.so links to libresolv.so.2; smoke/resolv.c linked with `-lresolv` needs
 #    libresolv.so.2 and libc.so.6 and binds ns_initparse and ns_parserr at GLIBC_2.9 (as Debian's
 #    libkrb5.so.3 does); linked statically with `-lresolv` (the empty libresolv.a, the functions in
-#    libc.a: D-16.6) it runs and prints its line.
+#    libc.a: D-16.6) it runs and prints its line. libmvec (D-10.124): libc6-dev's libmvec.so links to
+#    libc6's libmvec.so.1 and libmvec.a is there.
 # Prints "check: PASS" or one "check: FAIL ..." line per problem (exit 1).
 set -eu
 export LC_ALL=C
@@ -45,7 +48,7 @@ fail() {
 # field DEB NAME: one control field.
 field() { dpkg-deb -f "$1" "$2"; }
 
-want="libc-bin libc-dev-bin libc-l10n libc6 libc6-dev locales"
+want="libc-bin libc-dev-bin libc-l10n libc6 libc6-dbg libc6-dev locales"
 debs=$(find "$dir" -maxdepth 1 -name '*.deb' | sort)
 [ -n "$debs" ] || { echo "check: FAIL no .deb in $dir"; exit 1; }
 got=$(for d in $debs; do field "$d" Package; done | sort | tr '\n' ' ')
@@ -86,6 +89,10 @@ for deb in $debs; do
         libc-l10n)
             expect libc-l10n Architecture all; expect libc-l10n Priority standard
             expect libc-l10n Multi-Arch foreign ;;
+        libc6-dbg)
+            expect libc6-dbg Architecture amd64; expect libc6-dbg Multi-Arch same; expect libc6-dbg Section debug
+            expect libc6-dbg Priority optional; expect libc6-dbg Depends "libc6 (= $v)"
+            expect libc6-dbg Provides "libc-dbg, libc6-dbgsym" ;;
     esac
     dpkg-deb --ctrl-tarfile "$deb" | tar -t | sort | tr '\n' ' ' > "$tmp/ctrl"
     [ "$(cat "$tmp/ctrl")" = "$(echo "$ctrl_want" | tr ' ' '\n' | sort | tr '\n' ' ')" ] ||
@@ -103,7 +110,7 @@ for deb in $debs; do
     [ ! -s "$tmp/owners" ] || fail "$pkg: entries not owned by root/root: $(head -1 "$tmp/owners")"
     awk '{ print substr($1, 1, 1), $6 }' "$tmp/list" | while read -r type path; do
         case $path in
-            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/bin/ | ./usr/sbin/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
+            ./ | ./usr/ | ./usr/lib/ | ./usr/lib/debug/ | ./usr/lib/debug/.build-id/ | ./usr/lib/$ma/ | ./usr/lib64/ | ./usr/bin/ | ./usr/sbin/ | ./usr/share/ | ./usr/share/doc/ | ./etc/ | ./etc/ld.so.conf.d/ | ./usr/share/libc-bin/)
                 [ "$type" = d ] || echo "check: FAIL $pkg: $path is not a directory"
                 continue ;;
             ./usr/share/doc/"$pkg"/ | ./usr/share/doc/"$pkg"/copyright | ./usr/share/doc/"$pkg"/changelog.Debian.gz) continue ;;
@@ -117,7 +124,9 @@ for deb in $debs; do
             libc-bin:./etc/ld.so.conf | libc-bin:./etc/ld.so.conf.d/libc.conf | libc-bin:./etc/gai.conf) ok=yes ;;
             libc-bin:./usr/share/libc-bin/nsswitch.conf | libc-bin:./usr/sbin/ldconfig | libc-bin:./usr/bin/getconf | libc-bin:./usr/bin/getent | libc-bin:./usr/bin/ldd) ok=yes ;;
             libc6-dev:./usr/lib/$ma/*crt1.o | libc6-dev:./usr/lib/$ma/crt[in].o | libc6-dev:./usr/lib/$ma/lib*.a | libc6-dev:./usr/lib/$ma/libc.so | libc6-dev:./usr/lib/$ma/libm.so | libc6-dev:./usr/lib/$ma/libresolv.so) ok=yes ;;
+            libc6-dev:./usr/lib/$ma/libmvec.so) ok=yes ;;
             libc6-dev:./usr/lib/$ma/libanl.so | libc6-dev:./usr/lib/$ma/libBrokenLocale.so | libc6-dev:./usr/lib/$ma/libc_malloc_debug.so) ok=yes ;;
+            libc6-dbg:./usr/lib/debug/.build-id/??/ | libc6-dbg:./usr/lib/debug/.build-id/??/*.debug) ok=yes ;;
         esac
         [ $ok = yes ] || echo "check: FAIL $pkg: path not in the system layout: $path"
     done > "$tmp/paths"
@@ -147,21 +156,69 @@ if [ -f "$r/usr/sbin/ldconfig" ]; then
 else
     fail "libc-bin has no usr/sbin/ldconfig"
 fi
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
+for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
     [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
 done
 # SYS-DEV-LINKS: libc6-dev's development links name libc6's libraries (the link resolves in the
 # unpacked root), and the archives -l<x> needs in a static link are there.
-for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0; do
+for so in libanl.so.1 libBrokenLocale.so.1 libc_malloc_debug.so.0 libmvec.so.1; do
     dl=${so%%.so.*}.so
     t=$(readlink "$lib/$dl" || true)
     [ "$t" = "$so" ] || fail "libc6-dev: $dl -> '$t', not $so"
     [ -f "$lib/$dl" ] || fail "libc6-dev: $dl does not resolve to a file"
 done
-for a in libanl.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
+for a in libanl.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a libmvec.a; do
     [ -f "$lib/$a" ] || fail "libc6-dev has no $a"
 done
+
+# 3b. libc6-dbg (SYS-DBG-PACKAGE): every shared object of libc6 and every program of libc-bin is
+#     stripped (no symbol table) and keeps its GNU build-id note; libc6-dbg holds exactly one
+#     file per object, .build-id/<first byte>/<rest>.debug, whose own build-id is the object's and
+#     which has the symbol table; libc.so.6's has line tables (.debug_line). gdb, given only the
+#     debug directory, prints the source line of DBG_FUNC's entry address (`info line *getenv` by
+#     default; the address form, because line tables carry no function entries to look a name up in).
+build_id() { readelf -nW "$1" 2>/dev/null | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
+dbgroot=$r/usr/lib/debug
+: > "$tmp/ids"
+for f in $(find "$lib" -type f -name '*.so.*' | sort) "$r/usr/sbin/ldconfig" "$r/usr/bin/getconf" "$r/usr/bin/getent" "$r/usr/bin/ldd"; do
+    [ -f "$f" ] || continue
+    name=${f#"$r"}
+    id=$(build_id "$f")
+    if [ "${#id}" -lt 4 ]; then
+        fail "$name has no GNU build-id note"
+        continue
+    fi
+    ! readelf -SW "$f" | grep -q -E ' \.(symtab|debug_[a-z_]+) ' || fail "$name is not stripped (it has a symbol table or debug sections)"
+    d=.build-id/$(printf '%.2s' "$id")/${id#??}.debug
+    echo "$d" >> "$tmp/ids"
+    if [ ! -f "$dbgroot/$d" ]; then
+        fail "libc6-dbg has no $d for $name"
+        continue
+    fi
+    [ "$(build_id "$dbgroot/$d")" = "$id" ] || fail "libc6-dbg's $d has the build-id '$(build_id "$dbgroot/$d")', not $name's $id"
+    readelf -SW "$dbgroot/$d" | grep -q ' \.symtab ' || fail "libc6-dbg's $d (for $name) has no symbol table"
+    case $name in
+        */libc.so.6) readelf -SW "$dbgroot/$d" | grep -q ' \.debug_line ' || fail "libc6-dbg's $d (for libc.so.6) has no line tables (.debug_line)" ;;
+    esac
+done
+if [ -d "$dbgroot" ]; then
+    (cd "$dbgroot" && find . -type f | sed 's|^\./||' | sort) > "$tmp/dbgfiles"
+    extra=$(sort "$tmp/ids" | comm -13 - "$tmp/dbgfiles" | tr '\n' ' ')
+    [ -z "$extra" ] || fail "libc6-dbg has debug files no packaged object names: $extra"
+else
+    fail "libc6-dbg ships no /usr/lib/debug"
+fi
+func=${DBG_FUNC:-getenv}
+if command -v gdb > /dev/null; then
+    out=$(timeout 120 gdb -batch -nx -iex "set debug-file-directory $dbgroot" -ex "info line *$func" "$lib/libc.so.6" 2>&1 || true)
+    case $out in
+        *"Line "[0-9]*" of \""*) ;;
+        *) fail "gdb with libc6-dbg's directory shows no source line for $func in libc.so.6: $(echo "$out" | tail -2 | tr '\n' ' ')" ;;
+    esac
+else
+    echo "check: INFO no gdb on this host: the source-line check of libc6-dbg was not run"
+fi
 
 # 4. Linking with plain gcc and the unpacked libc6-dev: its start files in the driver's order
 #    (crt1, crti, crtbegin ... crtend, crtn), named by path so none comes from the host's libc6-dev.
@@ -233,4 +290,4 @@ if [ "$fails" -ne 0 ]; then
     echo "check: $fails problem(s)"
     exit 1
 fi
-echo "check: PASS (6 packages, version $version)"
+echo "check: PASS (7 packages, version $version)"

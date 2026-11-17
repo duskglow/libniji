@@ -9,7 +9,7 @@
 # Uses build.sh's variables (products, version, epoch, maint, ma, abi, commit, here, out, stage,
 # spec, symbols_only) and helpers (put, put_link, put_text, need, installed_size).
 #
-#   libc6         run time: loader, libc.so.6, libm.so.6, the placeholder libraries (with
+#   libc6         run time: loader, libc.so.6, libm.so.6, libmvec.so.1, the placeholder libraries (with
 #                 libBrokenLocale.so.1: SYS-DEV-LINKS), libresolv.so.2 (D-16.6: its exports jump
 #                 to libc.so.6's own definitions); conffile
 #                 /etc/ld.so.conf.d/x86_64-linux-gnu.conf; activates the ldconfig trigger;
@@ -28,7 +28,7 @@
 #                 with SL-BIN-CORE. No /etc/bindresvport.blacklist (spec 31.14, D-31.5: not
 #                 installed) and no /etc/default/nss (libniji's name services read no such file).
 #   libc6-dev     link time: start files, the libc.so script, libc_nonshared.a, static archives,
-#                 libm.so, libresolv.so, the development links libanl.so, libBrokenLocale.so,
+#                 libm.so, libmvec.so, libresolv.so, the development links libanl.so, libBrokenLocale.so,
 #                 libc_malloc_debug.so. No headers yet (SL-HEADERS, R4). Depends on linux-libc-dev,
 #                 libcrypt-dev and rpcsvc-proto (builds that include <linux/...> or <crypt.h>, or
 #                 run rpcgen, get them through libc6-dev); Provides: libc-dev (= <version>), so
@@ -36,9 +36,16 @@
 #   libc-dev-bin  placeholder (gencat: SL-DEVTOOLS, SL-BIN-CORE).
 #   locales       placeholder, Architecture all (localedef, locale-gen: SL-LOCALEDEF; data: R5).
 #   libc-l10n     placeholder, Architecture all (translations: R5).
+#   libc6-dbg     the detached debugging information of libc6's shared objects and libc-bin's
+#                 programs (SYS-DBG-PACKAGE): objcopy --only-keep-debug of each unstripped file
+#                 (its symbol table and DWARF) as /usr/lib/debug/.build-id/xx/yyyy.debug, xx/yyyy its
+#                 GNU build-id note, which the stripped file keeps, so debuggers find it by the id.
+#                 Depends: libc6 (= version); Provides: libc-dbg, libc6-dbgsym; Multi-Arch: same.
+#                 The packaged objects themselves are stripped exactly as before (no debuglink).
 
 sys=$here/system
-pkgs="libc6 libc-bin libc6-dev libc-dev-bin locales libc-l10n"
+pkgs="libc6 libc-bin libc6-dev libc-dev-bin locales libc-l10n libc6-dbg"
+dbg=$stage/libc6-dbg
 s6=$stage/libc6
 bin=$stage/libc-bin
 sdev=$stage/libc6-dev
@@ -47,7 +54,7 @@ mlib=usr/lib/$ma
 # --- libc6 ---
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$s6/$mlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
+for so in libc.so.6 libm.so.6 libmvec.so.1 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     need "$so"
     put 0644 "$products/$so" "$s6/$mlib/$so"
 done
@@ -85,7 +92,7 @@ for o in gcrt1 grcrt1 crti crtn Mcrt1; do
 done
 # SYS-DEV-LINKS: libBrokenLocale.a holds the library's override (D-27.9); libg.a, libmcheck.a and
 # libpthread_nonshared.a are empty (D-27.9), so -lg, -lmcheck and -lpthread_nonshared resolve.
-for a in libc.a libm.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
+for a in libc.a libm.a libmvec.a libc_nonshared.a libpthread.a libdl.a librt.a libutil.a libanl.a libresolv.a libBrokenLocale.a libg.a libmcheck.a libpthread_nonshared.a; do
     need "$a"
     put 0644 "$products/$a" "$sdev/$mlib/$a"
 done
@@ -95,6 +102,7 @@ put_text 0644 "$sdev/$mlib/libc.so" "/* GNU ld script: libniji's C library (libc
 OUTPUT_FORMAT(elf64-x86-64)
 GROUP ( /lib/$ma/libc.so.6 /usr/lib/$ma/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )"
 put_link libm.so.6 "$sdev/$mlib/libm.so"
+put_link libmvec.so.1 "$sdev/$mlib/libmvec.so"
 # Development links to libc6's libraries (SYS-DEV-LINKS): without them -lanl takes the empty
 # libanl.a and -lBrokenLocale takes libBrokenLocale.a in a dynamic link; with them each links the
 # shared library as a plain gcc link does with the reference packages. libnss_compat.so and
@@ -116,6 +124,23 @@ for p in $pkgs; do
     printf 'niji (%s) unstable; urgency=medium\n\n  * System build of libniji%s (plan/system-libc.md; docs/install-packages.md).\n\n -- %s  %s\n' \
         "$version" "${commit:+, commit $commit}" "$maint" "$date_r" | gzip -9n > "$d/changelog.Debian.gz"
 done
+
+# --- libc6-dbg: split the debugging information off before the strip below. ---
+# build_id FILE: the hex digits of FILE's GNU build-id note (empty when it has none).
+build_id() { readelf -nW "$1" | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
+if [ -z "$symbols_only" ]; then
+    for f in $(find "$s6/$mlib" -type f -name '*.so*' | sort) "$bin/usr/sbin/ldconfig" "$bin/usr/bin/getconf" "$bin/usr/bin/getent" "$bin/usr/bin/ldd"; do
+        id=$(build_id "$f")
+        # At least one byte for the directory and one for the file name.
+        [ "${#id}" -ge 4 ] || { echo "build.sh: ${f#"$stage"/} has no GNU build-id note (libc6-dbg's files are named by it)" >&2; exit 1; }
+        d=$dbg/usr/lib/debug/.build-id/$(printf '%.2s' "$id")/${id#??}.debug
+        # Two objects with one id would make a debugger read the wrong file for one of them.
+        [ ! -e "$d" ] || { echo "build.sh: ${f#"$stage"/} has the build-id $id of another packaged object" >&2; exit 1; }
+        mkdir -p "$(dirname "$d")"
+        objcopy --only-keep-debug --compress-debug-sections=zlib "$f" "$d"
+        chmod 0644 "$d"
+    done
+fi
 
 find "$s6" -type f -name '*.so*' -exec strip --strip-unneeded --remove-section=.comment --remove-section=.note {} +
 # libc-bin's ldconfig and getconf (static executables) and getent (dynamic) are stripped the same
@@ -165,7 +190,7 @@ sys_control libc6 amd64 libs optional \
     "$abi_note" \
     " This package is the system's C library: the dynamic loader" \
     " /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (program interpreter" \
-    " /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6 and the libraries whose" \
+    " /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6, libmvec.so.1 and the libraries whose" \
     " functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1," \
     " libresolv.so.2, ...)."
 if [ -n "$symbols_only" ]; then
@@ -210,6 +235,16 @@ sys_control libc-l10n all localization standard \
     "$abi_note" \
     " The C library's message translations are not part of this build yet; the" \
     " package exists so that dependencies on libc-l10n are met."
+sys_control libc6-dbg amd64 debug optional \
+    "Multi-Arch: same" \
+    "Depends: libc6 (= $version)" \
+    "Provides: libc-dbg, libc6-dbgsym" \
+    "Description: libniji C library: detached debugging symbols" \
+    "$abi_note" \
+    " This package holds the symbol tables and debugging information of the" \
+    " loader, the shared libraries and the programs of libc6 and libc-bin, as" \
+    " files under /usr/lib/debug/.build-id named by each object's build ID," \
+    " where debuggers such as gdb look for them."
 # The ldconfig trigger (plan/system-libc.md section 2): libc6 activates it, libc-bin handles it.
 printf 'activate-noawait ldconfig\n' > "$s6/DEBIAN/triggers"
 printf 'interest-await ldconfig\n' > "$bin/DEBIAN/triggers"

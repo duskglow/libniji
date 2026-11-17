@@ -1,0 +1,19 @@
+# RELEASE-SNAPSHOT-NIJI1-2 plants: cargo xtask plants handoff/RELEASE-SNAPSHOT-NIJI1-2-plants.txt (docs/plants.md).
+# RELEASE-SNAPSHOT-NIJI1's six release-check plants (handoff/RELEASE-SNAPSHOT-NIJI1-plants.txt), rerun on 30d07e74b's
+# products (job release-snapshot-niji1-debs-1, copied to ~/work/RELEASE-SNAPSHOT-NIJI1-2/products/niji on the build
+# host, libc.so.6 sha256 bc64496a...). One change: rsnj-swap-not-done judges the swap with ~/work/RELEASE-SNAPSHOT-NIJI1-2/
+# swapverdict.sh (UTIL-LDD-3's verdict: ldd-1..7 may differ only by the DL-TRACE-INTERP loader trace output, every other
+# command identical), because swap-system.sh alone exits 1 on those known differences and failed the last run's baseline.
+rsnj-ldconfig-unstripped | tools/deb/system.sh | lit:strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" ==> true | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-NIJI1-2/products/niji --version 2.39+niji20261117.1-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL usr/sbin/ldconfig is not stripped
+rsnj-postinst-configure-ldconfig | tools/deb/system/libc-bin.postinst | perl:s/(ldconfig itself\.\n\s+)run_ldconfig/$1true/ | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-NIJI1-2/products/niji --version 2.39+niji20261117.1-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL ldconfig -p in the root
+rsnj-postrm-purge-cache | tools/deb/system/libc-bin.postrm | lit:rm -f "$DPKG_ROOT/etc/ld.so.cache" ==> true | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-NIJI1-2/products/niji --version 2.39+niji20261117.1-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL left after purge: .*ld\.so\.cache
+rsnj-postrm-not-packaged | tools/deb/system.sh | lit:put 0755 "$sys/libc-bin.postrm" "$bin/DEBIAN/postrm" ==> | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-NIJI1-2/products/niji --version 2.39+niji20261117.1-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL libc-bin: control members
+rsnj-cxx-needs-libstdcxx | tools/deb/root-system.sh | lit:-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm ==> -lstdc++ -lm | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-NIJI1-2/products/niji --version 2.39+niji20261117.1-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL dynamic except
+rsnj-swap-not-done | tools/deb/swap-system.sh | lit:dpkg -i --force-downgrade --force-depends /tmp/swap/debs/*.deb ==> dpkg --version | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-NIJI1-2/products/niji --version 2.39+niji20261117.1-1 --out target/rp --work target/rpw && sh ~/work/RELEASE-SNAPSHOT-NIJI1-2/swapverdict.sh tools/deb/swap-system.sh target/rp target/rpl | msg:swap: FAIL the swapped root does not run the package's libc\.so\.6
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# rsnj-ldconfig-unstripped: CAUGHT, caught by no test the log names
+# rsnj-postinst-configure-ldconfig: CAUGHT, caught by no test the log names
+# rsnj-postrm-purge-cache: CAUGHT, caught by no test the log names
+# rsnj-postrm-not-packaged: CAUGHT, caught by no test the log names
+# rsnj-cxx-needs-libstdcxx: CAUGHT, caught by no test the log names
+# rsnj-swap-not-done: CAUGHT, caught by no test the log names

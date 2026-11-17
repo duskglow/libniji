@@ -144,7 +144,7 @@ INITIALIZERS = [
  ("mbstate_t", "{0}"),
 ]
 
-LIBS = ["libc.so.6", "libm.so.6", "libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1",
+LIBS = ["libc.so.6", "libm.so.6", "libmvec.so.1", "libpthread.so.0", "libdl.so.2", "librt.so.1", "libutil.so.1",
         "libanl.so.1", "libresolv.so.2", "libnsl.so.1", "libthread_db.so.1", "libBrokenLocale.so.1",
         "libc_malloc_debug.so.0", "ld-linux-x86-64.so.2"]
 
@@ -602,6 +602,13 @@ def main():
             f.write(f"empty-versions.tsv: abi_extract.py --empty-versions-only ({ver}): {len(emp)} version "
                     f"definitions no exported symbol carries.\n")
         print(f"{ver}\nempty versions: {len(emp)}")
+        return
+    if "--versions-only" in sys.argv:
+        # Regenerate versions.tsv alone (SYS-LIBMVEC added libmvec.so.1 to LIBS; the other tables
+        # do not depend on the library list).
+        syms = symbols()
+        write("versions.tsv", ["library", "symbol", "version", "binding", "type", "scope", "size"], syms)
+        print(f"{ver}\nversioned symbol rows: {len(syms)}")
         return
     with tempfile.TemporaryDirectory() as tmp:
         types = available_types(tmp)
