@@ -1,81 +1,60 @@
 # HEAP-ADDRESS-SPACE (GitHub issue #21): handoff
 
-State: branch `task/heap-address-space`, WIP head `3daf6e03f` (code written; checkpoint at the context budget).
-Built and run on the Zen 1 build host (role `mei:~/w/s3`). Job `heap-address-space-t2` (rt heap tests, clippy,
-products, issue probe on the WIP head) was started detached at hand-back: read `~/logs/heap-address-space-t2.log`.
+State: branch `task/heap-address-space-2` (continues `task/heap-address-space`), WIP head after `ee9377a71` (this
+handoff's commit). Build role keke `~/w/n1`; probe scripts in keke `~/work/HEAP-ADDRESS-SPACE-2/` (`probe.sh`: issue
+probe, reference vs libniji, RLIMIT_AS bisection; `base.sh`: base products in a RAM copy).
+Spec: `~/state/briefs/HEAP-ADDRESS-SPACE.md` "## The change". Decisions in force: D-3.19, D-3.14 (to be amended).
 
-## Mapping table before the change (step 1 of the brief; KiB, VmSize)
+## Done (runs -1 and -2)
 
-Probe: `~/work/HEAP-ADDRESS-SPACE/vmprobe.c` on mei (the issue's steps, no stdio; smaps saved per step under
-`~/work/HEAP-ADDRESS-SPACE/before/`). Reference = dynamic, libniji = static (the heap's mappings are the same).
+- Segments mapped as far as used, grown in place by doubling (at most 8 slabs per step); first reservation is
+  [registry page][cache chunk][segment]; large table generation 0 at most one page; no-segments threshold 4 x
+  `SEG_MIN`; nearby-class reuse (`spill_class`, cold, checked lookups) before the heap maps more; `locate_in`
+  sends addresses in a window's unmapped part to the large table. Details: run -1's commits.
+- Run -2: the 4 failing rt tests fixed by cause (all were expectations of whole 16 MiB windows, or a premise the
+  new growth broke; no assertion weakened): job `heap-address-space-2-rt2`, 27 passed.
+- Regression test `the_heap_keeps_address_space_near_its_use` (crates/core/tests/heap_meta_products.rs) written
+  with the numbers below; NOT RUN yet (products blocked, below). On next it must fail (next grew 16448 / 32836 /
+  49220 / 67652 KiB): not yet shown.
 
-| step | reference | libniji | libniji's new mappings (from smaps) |
+## Issue probe, keke, identical over 5 runs (VmSize growth over start, KiB)
+
+| step | reference (dynamic) | libniji next (run -1, mei) | libniji this branch |
 |---|---|---|---|
-| start | 4176 | 7180 | none from the heap (binary 4532 with all of libc; bss 2424 holds the probe's own 1563 KiB array; a 68 KiB start-up mapping) |
-| first malloc(16) | 4308 | 23632 | first reservation 16452 = the whole 16 MiB segment window + 4 KiB registry page + 64 KiB cache chunk |
-| 200000 x malloc(96..159) | 32160 | 40016 | + a second whole segment (16384) |
-| free every other | 32160 | 40016 | - |
-| refill with malloc(120) | 33744 | 56400 | + a third segment (16384): class-128 requests cannot use the class 96/112/160 holes |
-| free everything | 33744 | 56400 | - (segments are never unmapped) |
-| doubling realloc to 200000 | 32228 | 74832 | + large-table generation 0 (16384 = 2^20 slots x 16 B) + the final 2 MiB array |
+| malloc1 | +132 | +16448 | +836 |
+| alloc 200000 x 96..159 | +27984 | +32836 | +28996 |
+| refill malloc(120) | +29568 | +49220 | +32836 |
+| realloc to 200000 | +28052 | +67652 | +34888 |
+| least RLIMIT_AS headroom | 29568 | 67652 | 34896 |
 
-So the "+20 MiB at start" is the 16 MiB first segment window (the rest is libniji's larger text/data, not the heap);
-the realloc step's +18 MiB is the large table's up-front 16 MiB, not kept outgrown blocks (realloc of large
-blocks uses mremap; `LARGE_KEEP_BYTES` only applies to freed large blocks and is unchanged). Resident memory of
-libniji stays far lower (it never touches the blocks it hands out).
+Remaining gap, by cause: refill (+3268): 25000 refills cannot use class-112 holes (blocks of 97..112 bytes; the
+reference's 16-byte rounding puts 105..111 in a chunk that fits 120); realloc (+6836): empty segments are never
+unmapped and the 2 MiB array gets its own mapping.
 
-## The change (WIP, not yet verified)
+## BLOCKER: `cargo xtask so` fails STARTUP-DATA-WINDOWS (8 written start-up pages > rw-budget-fast 7)
 
-- `Pages::map_room` / `Pages::grow` (rt trait; boundary: over-map room + alignment then trim; grow with
-  `MAP_FIXED_NOREPLACE`; `map_aligned_exactly` gained a head offset for the limited case).
-- A segment maps its metadata and 2 slabs (`SEG_FIRST`, `SEG_MIN` = 768 KiB) and grows in place by doubling, at
-  most 8 slabs (2 MiB) per step, as its shard hands slabs out (`Shard::mapped`); a taken window ends the segment.
-- The first reservation is now [registry page][cache chunk][segment], one mapping (D-3.19 kept).
-- `locate_in`: a slab no cache owns sends the address to the large table (another mapping, a large block's
-  too, can sit in a window's unmapped part); invalid pointers are still refused there.
-- Large table generation 0 at most 256 slots (`FIRST_LARGE`, one page); it grows by generations (T14).
-- No-segments threshold under `RLIMIT_AS`: 4 x `SEG_MIN` (3 MiB) instead of 4 x 16 MiB.
-- `refill(spill)`: when the shard holds no slab (more address space needed) and the request has default
-  alignment, a class at most 1.5x larger with a free block in this cache serves it first.
-- Stats `small_mapped` / peaks count mapped segment bytes (`seg_mapped`).
-- rt tests adapted: `segment_nodes` finds segments by their 16 MiB boundary inside a mapping; FakePages has
-  `map_room`/`grow` (merging like a VMA); the 1 GiB-limit test expects the new first mapping; the two
-  borrow-from-another-shard tests first make the donor shard map enough slabs.
+Jobs `heap-address-space-2-probe1/probe2`. The `.got` (0xc8 bytes, start-up entries at +0x30..+0xc0) follows
+`.data.rel.ro` (64 KiB aligned) and now straddles a page. Base (`heap-address-space-2-base`, merge base 7f7e6c9e4,
+same host): `.data.rel.ro` 0xb180, `.got` at 0x86b180, 7 pages, contract ok. Branch: `.data.rel.ro` 0xaf68
+(536 bytes SMALLER), `.got` 0x86af68..0x86b030, 8 pages. The start-up relro cluster is identical to the base after
+`spill_class` (79 sections, 11384 bytes; the inline closure had made it 81 / 11446). So the page is lost by a
+shrink of relro outside the start-up cluster: layout jitter. It fits again if `.data.rel.ro` is <= 0xaf40 or
+>= 0xafd0. Not chased (no padding or section moves): coordinator/owner call (RULING NEEDED in the report).
 
-## After (head 032fc0883, job heap-address-space-t3 on mei; libniji static, VmSize KiB)
+## Next steps (exact, in order)
 
-| step | reference | libniji before | libniji after | after, growth over start vs reference's |
-|---|---|---|---|---|
-| start | 4176 | 7180 | 7184 | - |
-| first malloc | 4308 | 23632 | 8020 | +836 vs +132 |
-| 200000 x malloc(96..159) | 32160 | 40016 | 36180 | +28996 vs +27984 |
-| refill with malloc(120) | 33744 | 56400 | 40020 | +32836 vs +29568 |
-| doubling realloc | 32228 | 74832 | 42072 | +34888 vs +28052 (segments are never unmapped) |
+1. Ruling on the blocker. If it is to be fixed here: find the 536-byte relro difference (symbol names are
+   anonymous per build: compare `.data.rel.ro` input sections by object with a linker map of both builds).
+2. `cargo xtask so`, then `cargo test -p niji --test heap_meta_products` on the branch; show the new test fails
+   on next (link the same oracle against next's products, e.g. keke `/dev/shm/claude/HEAP-ADDRESS-SPACE-2/base-1`).
+3. Decision record (`cargo xtask records new decision D-NEW --series D-3 --story HEAP-ADDRESS-SPACE-2`, amends
+   D-3.19 and D-3.14), plants file (grow step size, the locate_in Large route, the spill bound, FIRST_LARGE,
+   SEG_FIRST), `cargo xtask plants`, direct gate, start-up checks (`cargo xtask test`, hot_text_products with
+   NIJI_FULL_PROFILE=1), cbench_malloc and cbench_startup counters before/after.
+4. Then the gap: returning the address space of wholly empty segments (needs a design for lock-free
+   `find_seg` readers; decision record) would remove most of the realloc-step gap.
+5. findutils `find` over 200000 entries under the issue's `ulimit -v` formula: not reproduced yet.
 
-Peak growth 34888 KiB (was 67652): just inside the issue's 35000 KiB headroom for this program. Clippy and the
-products build passed in t3 (its log); the issue probe ran on the new products.
+## Process notes
 
-## Not done / next step (exact)
-
-1. Four rt tests still fail on 032fc0883 (`cargo test -p niji-rt --test heap_and_sync`):
-   `an_address_space_limit_sizes_the_registries` (line 406), `the_first_allocation_reserves_one_mapping`
-   (478), `segments_are_aligned_and_found_from_any_address` (1115) and
-   `a_thread_whose_cache_cannot_be_made_takes_a_parked_cache_of_another_shard` (796, the alloc after the
-   parked cache is taken). Find each cause (FakePages `map_room`/`grow` model, segment counting, the spill
-   path) before changing any expectation; none was investigated (context checkpoint).
-2. Wire `crates/core/tests/oracle/heap_address_space.c` (committed, unused) into a test in
-   `crates/core/tests/heap_meta_products.rs`: growth over start at each step <= the reference's measured growth
-   (malloc1 132, alloc 27984, refill 29568, realloc 28052 KiB on the Zen 1 host) + a margin set from the after
-   numbers; and the run with argument N (RLIMIT_AS = start + N KiB) at the reference's need + margin. Show it
-   fails on next.
-3. Decision record (`cargo xtask records new decision D-NEW --series D-3 --story HEAP-ADDRESS-SPACE`, amends
-   D-3.19 and D-3.14), plants file (`docs/plants.md`: grow step, the locate_in Large route, the spill bound,
-   FIRST_LARGE), `cargo xtask plants`, direct gate, the start-up checks (`cargo xtask test`, hot_text_products),
-   cbench_malloc / cbench_startup counters before and after.
-4. findutils' `find` over 200000 entries under the issue's `ulimit -v` formula: not reproduced yet (no
-   libniji-built find on the build hosts; `validation/suite.sh` builds findutils).
-
-## Process notes (own deviations, for the record)
-
-One heredoc (`python3 - <<EOF`) applied mechanical edits to heap.rs, and one `cargo xtask so` ran in the
-foreground over ssh outside jobrun (its output was empty; the products were rebuilt by the t1/t2 jobs).
+Run -1: one heredoc and one foreground `cargo xtask so` outside jobrun (its own note). Run -2: none.
