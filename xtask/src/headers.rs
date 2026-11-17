@@ -336,13 +336,24 @@ struct Gen<'a> {
     out: Vec<String>,
     errors: Vec<String>,
     emitted: BTreeSet<String>,
-    /// (name, kind) rows of the templates this one includes: those headers supply them.
-    covered: BTreeSet<(String, String)>,
+    /// (name, kind) rows of the templates this one includes, with the configurations in which those headers
+    /// supply them (the union over the including chain): a name is covered only where they do (SL-HEADERS-S09).
+    covered: BTreeMap<(String, String), u64>,
     /// Names whose macro row the template defines itself (`@@owns-macro`); their function rows are still emitted.
     owned_macros: BTreeSet<String>,
 }
 
 impl Gen<'_> {
+    /// Whether the included headers supply (name, kind) in every configuration this header's row asks for and
+    /// that matters (the ones `dont_care` leaves): otherwise this header emits it too, under its own condition.
+    fn is_covered(&self, name: &str, kind: &str) -> bool {
+        let Some(&have) = self.covered.get(&(name.to_string(), kind.to_string())) else { return false };
+        let Some(r) = self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == name && r["kind"] == kind) else { return true };
+        let all = (1u64 << self.t.lv.ids.len()) - 1;
+        let want = mask_of(&self.t.lv, &r["configs"]).unwrap_or(0) & all & !self.dont_care(name, kind);
+        want & !have == 0
+    }
+
     fn rows(&self, name: &str) -> Vec<&BTreeMap<String, String>> {
         self.t.vis.iter().filter(|r| r["header"] == self.header && r["name"] == name).collect()
     }
@@ -806,7 +817,7 @@ impl Gen<'_> {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
         let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
-            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.covered.contains(&(name.clone(), kind.clone())) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
+            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
                 continue;
             }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
@@ -987,7 +998,10 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 stack.extend(includes(&texts[&x]));
             }
         }
-        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        let mut covered: BTreeMap<(String, String), u64> = BTreeMap::new();
+        for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
+            *covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(0);
+        }
         let mut owned = BTreeSet::new();
         let mut owned_macros = BTreeSet::new();
         for l in text.lines() {

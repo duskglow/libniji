@@ -37,6 +37,16 @@ struct signalfd_siginfo {
   unsigned char __pad[28];
 };
 # endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
+# endif
 # ifndef __NIJI_D_signalfd
 #  define __NIJI_D_signalfd 1
 extern int signalfd (int, const sigset_t *, int) __NIJI_NOTHROW;

@@ -100,6 +100,15 @@ struct stat64 {
 };
 # endif
 #endif
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+#endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1

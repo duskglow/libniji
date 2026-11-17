@@ -10,6 +10,34 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_itimerspec
+#  define __NIJI_D_struct_itimerspec 1
+struct itimerspec {
+  struct timespec it_interval;
+  struct timespec it_value;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
 # ifndef __NIJI_D_timerfd_create
 #  define __NIJI_D_timerfd_create 1
 extern int timerfd_create (int, int) __NIJI_NOTHROW;

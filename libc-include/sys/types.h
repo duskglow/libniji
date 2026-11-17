@@ -25,6 +25,18 @@ struct timeval {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
 # ifndef __NIJI_D_blkcnt_t
 #  define __NIJI_D_blkcnt_t 1
 typedef long blkcnt_t;

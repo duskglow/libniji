@@ -117,6 +117,13 @@ struct itimerval {
   struct timeval it_value;
 };
 # endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_struct_timezone
@@ -124,6 +131,15 @@ struct itimerval {
 struct timezone {
   int tz_minuteswest;
   int tz_dsttime;
+};
+# endif
+#endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
 };
 # endif
 #endif
@@ -135,6 +151,12 @@ typedef unsigned long long elf_greg_t;
 # ifndef __NIJI_D_elf_gregset_t
 #  define __NIJI_D_elf_gregset_t 1
 typedef unsigned long long elf_gregset_t[27];
+# endif
+# ifndef __NIJI_D_fd_set
+#  define __NIJI_D_fd_set 1
+typedef struct {
+  long fds_bits[16];
+} fd_set;
 # endif
 # ifndef __NIJI_D_lwpid_t
 #  define __NIJI_D_lwpid_t 1
@@ -152,6 +174,16 @@ typedef struct user_fpregs_struct prfpregset_t;
 #  define __NIJI_D_psaddr_t 1
 typedef void * psaddr_t;
 # endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
+# endif
 struct itimerval;
 # ifndef __NIJI_D_getitimer
 #  define __NIJI_D_getitimer 1
@@ -161,6 +193,11 @@ struct timeval;
 # ifndef __NIJI_D_gettimeofday
 #  define __NIJI_D_gettimeofday 1
 extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_select
+#  define __NIJI_D_select 1
+extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # endif
 struct itimerval;
 struct itimerval;
@@ -205,6 +242,19 @@ struct timezone;
 extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
 # endif
 #endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+struct timespec;
+# ifndef __NIJI_D_pselect
+#  define __NIJI_D_pselect 1
+extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D_enum_ITIMER_PROF
 #  define __NIJI_D_enum_ITIMER_PROF 1
@@ -224,6 +274,9 @@ enum { ITIMER_VIRTUAL = 1 };
 # ifndef ELF_PRARGSZ
 #  define ELF_PRARGSZ 80
 # endif
+# ifndef FD_SETSIZE
+#  define FD_SETSIZE 1024
+# endif
 # ifndef ITIMER_PROF
 #  define ITIMER_PROF 2
 # endif
@@ -232,6 +285,18 @@ enum { ITIMER_VIRTUAL = 1 };
 # endif
 # ifndef ITIMER_VIRTUAL
 #  define ITIMER_VIRTUAL 1
+# endif
+#endif
+
+/* The descriptor-set macros are visible here in every configuration, where sys/types.h defines them only in some:
+   until sys/select.h (slice 7) exists to be included, the same text under its own guard. */
+#if 1
+# ifndef FD_SET
+#  define __NIJI_FD_BITS(s) (8 * (int) sizeof (*(s)->fds_bits))
+#  define FD_SET(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] |= (__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s))))
+#  define FD_CLR(fd, s) ((void) ((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] &= ~((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))))
+#  define FD_ISSET(fd, s) (((s)->fds_bits[(fd) / __NIJI_FD_BITS (s)] & ((__typeof__ (*(s)->fds_bits)) 1 << ((fd) % __NIJI_FD_BITS (s)))) != 0)
+#  define FD_ZERO(s) ((void) __builtin_memset ((s), 0, sizeof (*(s))))
 # endif
 #endif
 

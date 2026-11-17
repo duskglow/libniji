@@ -30,6 +30,13 @@ struct __attribute__ ((__packed__)) epoll_event {
   epoll_data_t data;
 };
 # endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
 # ifndef __NIJI_D_struct_epoll_data
 #  define __NIJI_D_struct_epoll_data 1
 union epoll_data {
@@ -42,6 +49,16 @@ union epoll_data {
 # ifndef __NIJI_D_epoll_data_t
 #  define __NIJI_D_epoll_data_t 1
 typedef union epoll_data epoll_data_t;
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
 # endif
 # ifndef __NIJI_D_epoll_create
 #  define __NIJI_D_epoll_create 1
