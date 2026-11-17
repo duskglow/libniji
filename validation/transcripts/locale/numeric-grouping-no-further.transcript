@@ -14,3 +14,9 @@ arg: -k
 arg: grouping
 arg: thousands_sep
 arg: decimal_point
+status: exit 0
+stdout:
+| grouping=3;-1
+| thousands_sep=","
+| decimal_point="."
+stderr:
