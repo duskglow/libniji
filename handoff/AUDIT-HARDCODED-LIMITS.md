@@ -1,6 +1,7 @@
 # AUDIT-HARDCODED-LIMITS (planning, no product change)
 
-**State.** Branch `task/audit-hardcoded-limits`, from `next` 575214f4b. The deliverable is
+**State.** Branch `task/audit-hardcoded-limits` (continued as `task/audit-hardcoded-limits-2`, which holds
+the ruling), from `next` 575214f4b. Finished: the owner has ruled. The deliverable is
 `plan/hardcoded-limits.md`. Probes, measurements and the rerunnable search are in
 `results/hardcoded-limits/` (`search.sh`, `probes.c`, `run.sh`, `objects.sh`, `probes.log`,
 `objects.log`; run on keke). The report json is `handoff/reports/AUDIT-HARDCODED-LIMITS.json`.
@@ -19,8 +20,14 @@ owner 2026-11-17 (no artificial limits, but use memory responsibly). Rows mentio
 1 MiB), D-22.5 (4096 keys), D-22.9 (stack cache), D-27.16 (`--list`), D-2.6 (addseverity), D-X.13
 (locale invalidation).
 
-**Open questions (for the owner, in the ruling table):** every HL row. HL-19 (getpass) needs an
-explicit choice between ruling #5594 and D-17.8.
+**Owner ruling 2026-11-17: "Yes, as recommended."** (AUDIT-HARDCODED-LIMITS-2 filled section 8's Decision
+column with it): HL-1..HL-20 remove (HL-19 remove: ruling #5594 over D-17.8), HL-21..HL-33 keep, HL-33 keep
+and probe its size. D-17.8 is amended by `records/pending/AUDIT-HARDCODED-LIMITS-2-1.toml` (D-NEW, series
+D-17; CI assigns the id): its 1 MiB `getpass` default is removed by the ruling; the code change is a later
+story, which also decides whether `liella_getpass_set_limit` stays as an opt-in bound.
+
+**Open questions:** none for the audit. The `getpass` removal story must settle `liella_getpass_set_limit`
+(a public interface: RULING NEEDED in that story).
 
 **Do not redo.** The five search routes (rerun `search.sh`), the probes (rerun `run.sh <dir>
 <niji products>` on a host with a compiler; link libniji programs as `run.sh` does, and set
@@ -31,5 +38,6 @@ under libniji's own loader, `getaddrinfo_a` past 4096 pending). The products pro
 build on keke (`~/w/n3`, 2026-11-17 07:31), not built from this branch's head (which changes no
 product code).
 
-**Next step.** The coordinator turns the owner's decisions into stories. Suggested order by
+**Next step.** The coordinator turns the ruled rows into stories (remove HL-1..HL-20; probe HL-33's
+size). Suggested order by
 likelihood: HL-1/2 (in progress), HL-4, HL-10, HL-7, then HL-3/5, HL-9, the rest.

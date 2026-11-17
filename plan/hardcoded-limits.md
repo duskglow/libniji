@@ -244,36 +244,36 @@ mqueue retry back-off (`boundary/src/timer.rs:131-208`, `boundary/src/mqueue.rs:
 
 | ID | What | Class | Recommendation | Decision |
 |---|---|---|---|---|
-| HL-1 | start-time objects 64 | resource cap | remove (DL-STARTUP-OBJECTS, in progress) | |
-| HL-2 | start-time `DT_NEEDED` links 1024 | resource cap | remove with HL-1 | |
-| HL-3 | process objects / TLS modules / exit order 512 | resource cap | remove (several stories; generations, dtv growth) | |
-| HL-4 | new objects per `dlopen` 64 | resource cap | remove, first of the dlopen set (libgtk-3 alone is 67) | |
-| HL-5 | dlopen name arena 128 KiB, deps arena 16 Ki | resource cap | remove with HL-3 | |
-| HL-6 | `--list`/`ldd` 256 objects, 64 KiB paths | resource cap | remove with HL-1 | |
-| HL-7 | named semaphores 256 (`EMFILE`) | resource cap | remove (small; Python multiprocessing) | |
-| HL-8 | `addseverity` 256 | resource cap | remove (small) | |
-| HL-9 | `getaddrinfo_a` queue 4096, groups 256 | resource cap | remove (small) | |
-| HL-10 | locale files 1024, mappings 2048, locales/names 1024 (`ENOENT` at 78 directory locales) | resource cap | remove; release replaced mappings | |
-| HL-11 | iconv charmaps 32 | resource cap | already ruled: remove (SYS-ICONV-COVERAGE-2) | |
-| HL-12 | exit handlers 2^20 (+ 32 MiB mapping) | resource cap | remove (doubling mappings) | |
-| HL-13 | `fnmatch` extglob nesting 64 | resource cap (stack) | remove: explicit heap stack, keep work bounded | |
-| HL-14 | `wordexp` nesting 128 | resource cap (stack) | remove: explicit heap stack | |
-| HL-15 | ldconfig: 1 MiB config (silent truncation), 65536 dirs, 64 hwcaps, 2^20 entries, 4096 args | resource cap | remove; the truncation first | |
-| HL-16 | `gai.conf` 32 entries per table (silent) | resource cap | remove (small) | |
-| HL-17 | `nsswitch.conf` 16 sources per line | resource cap | remove (inline 16 + spill) | |
-| HL-18 | `error_one_per_line` name 4096 | resource cap | remove (tiny) | |
-| HL-19 | `getpass` 1 MiB (D-17.8) | resource cap | owner's call: remove under #5594, or keep D-17.8 | |
-| HL-20 | unwinder remember-state 4, expression stack 32 | resource cap | remove with an optional spill | |
-| HL-21 | zone file 4 MiB | security bound | keep | |
-| HL-22 | charmap inflation 32 MiB | security bound | keep | |
-| HL-23 | name-service cache region 8 MiB, entry 64 KiB | security bound | keep | |
-| HL-24 | hostile cache/ELF/vDSO bounds | security bound | keep | |
-| HL-25 | locale data levels 16, composite text 2^20, composite depth | security bound | keep | |
-| HL-26 | DWARF expression budget 1024 | security bound (loop guard) | keep | |
-| HL-27 | auxv 256 words | correctness guard | keep | |
-| HL-28 | ld.so.conf include depth 32 | correctness guard (cycles) | keep | |
-| HL-29 | argp tree 4096 / 2^20 | correctness guard (cycles) | keep | |
-| HL-30 | AVL depth 96 | correctness guard (unreachable) | keep | |
-| HL-31 | strtod / printf exact digits | correctness guard | keep | |
-| HL-32 | heap registries 2^20 | representation bound | keep | |
-| HL-33 | static TLS surplus 64 KiB | design bound | keep; probe its size against the reference | |
+| HL-1 | start-time objects 64 | resource cap | remove (DL-STARTUP-OBJECTS, in progress) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-2 | start-time `DT_NEEDED` links 1024 | resource cap | remove with HL-1 | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-3 | process objects / TLS modules / exit order 512 | resource cap | remove (several stories; generations, dtv growth) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-4 | new objects per `dlopen` 64 | resource cap | remove, first of the dlopen set (libgtk-3 alone is 67) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-5 | dlopen name arena 128 KiB, deps arena 16 Ki | resource cap | remove with HL-3 | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-6 | `--list`/`ldd` 256 objects, 64 KiB paths | resource cap | remove with HL-1 | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-7 | named semaphores 256 (`EMFILE`) | resource cap | remove (small; Python multiprocessing) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-8 | `addseverity` 256 | resource cap | remove (small) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-9 | `getaddrinfo_a` queue 4096, groups 256 | resource cap | remove (small) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-10 | locale files 1024, mappings 2048, locales/names 1024 (`ENOENT` at 78 directory locales) | resource cap | remove; release replaced mappings | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-11 | iconv charmaps 32 | resource cap | already ruled: remove (SYS-ICONV-COVERAGE-2) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-12 | exit handlers 2^20 (+ 32 MiB mapping) | resource cap | remove (doubling mappings) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-13 | `fnmatch` extglob nesting 64 | resource cap (stack) | remove: explicit heap stack, keep work bounded | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-14 | `wordexp` nesting 128 | resource cap (stack) | remove: explicit heap stack | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-15 | ldconfig: 1 MiB config (silent truncation), 65536 dirs, 64 hwcaps, 2^20 entries, 4096 args | resource cap | remove; the truncation first | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-16 | `gai.conf` 32 entries per table (silent) | resource cap | remove (small) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-17 | `nsswitch.conf` 16 sources per line | resource cap | remove (inline 16 + spill) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-18 | `error_one_per_line` name 4096 | resource cap | remove (tiny) | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-19 | `getpass` 1 MiB (D-17.8) | resource cap | owner's call: remove under #5594, or keep D-17.8 | remove (owner 2026-11-17: "Yes, as recommended."; ruling #5594 over D-17.8) |
+| HL-20 | unwinder remember-state 4, expression stack 32 | resource cap | remove with an optional spill | remove (owner 2026-11-17: "Yes, as recommended.") |
+| HL-21 | zone file 4 MiB | security bound | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-22 | charmap inflation 32 MiB | security bound | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-23 | name-service cache region 8 MiB, entry 64 KiB | security bound | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-24 | hostile cache/ELF/vDSO bounds | security bound | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-25 | locale data levels 16, composite text 2^20, composite depth | security bound | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-26 | DWARF expression budget 1024 | security bound (loop guard) | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-27 | auxv 256 words | correctness guard | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-28 | ld.so.conf include depth 32 | correctness guard (cycles) | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-29 | argp tree 4096 / 2^20 | correctness guard (cycles) | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-30 | AVL depth 96 | correctness guard (unreachable) | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-31 | strtod / printf exact digits | correctness guard | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-32 | heap registries 2^20 | representation bound | keep | keep (owner 2026-11-17: "Yes, as recommended.") |
+| HL-33 | static TLS surplus 64 KiB | design bound | keep; probe its size against the reference | keep, and probe its size (owner 2026-11-17: "Yes, as recommended.") |

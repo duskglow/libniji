@@ -1,0 +1,12 @@
+id = "D-NEW"
+series = "D-17"
+section = "s17"
+spec = "§17.5, §17.5a"
+ann = "ARB"
+status = "active"
+amends = ["D-17.8"]
+story = "AUDIT-HARDCODED-LIMITS-2"
+date = "2026-11-17"
+body = '''
+**`getpass`'s 1 MiB input bound is removed** (owner 2026-11-17, ruling on plan/hardcoded-limits.md row HL-19: "Yes, as recommended."; ruling #5594 over D-17.8; amends D-17.8). Ruling #5594 (no artificial caps; the process's own limits bound memory) applies to `getpass`: its input is the caller's own terminal or standard input, so the default line length is bounded only by memory, and D-17.8's "at most 1 MiB of input before the newline by default" no longer holds once the removal lands. The rest of D-17.8 stays in force (no truncation, the `secure_zero` of every buffer of the library's that held the line, `EOVERFLOW` for a line beyond a bound the process set itself). Whether `liella_getpass_set_limit` (LIELLA_NATIVE_1) stays as an opt-in bound with "no bound" as the default, or goes, is decided by the story that removes the cap. Until that story lands, the code keeps D-17.8's 1 MiB default; this record states the ruling, not a behaviour change.
+'''
