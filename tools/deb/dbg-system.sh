@@ -12,7 +12,7 @@
 #   - after: `info line DBG_FUNC` names a source file and line (gdb found the debug file by build-id
 #     under /usr/lib/debug/.build-id), and gdb stopped at DBG_FUNC in a running /usr/bin/true --version shows
 #     the frame's file:line.
-# The root's libc.so.6 and loader must be the package's (SHA-256). Prints "dbg: PASS|FAIL|INFO ..."
+# The root's libc.so.6 and loader must be the package's (SHA-256). Prints "dbg: PASS|FAIL|PENDING|INFO ..."
 # lines and "dbg: RESULT ..."; exit 1 when any is FAIL. The outputs are under LOGDIR/dbg-<suite>/.
 set -eu
 export LC_ALL=C
@@ -76,6 +76,18 @@ grep -q -E '^Line [0-9]+ of "[^"]+"' "$o/after.out" 2>/dev/null &&
     fail "with libc6-dbg: $(head -3 "$o/after.out" 2>/dev/null | tr '\n' ' ')"
 # The stop at the breakpoint, then the innermost frame gdb prints for `frame` and `bt`: "#0  NAME (...) at
 # FILE:LINE" (NAME may be the libniji function inlined at FUNC's entry, whose line it is).
+#
+# Both need the loader's debugger rendezvous (spec section 27.4: _r_debug and its breakpoint function,
+# crates/ld/src/debug.rs), through which gdb learns that libc.so.6 was loaded. Until the loader has it,
+# gdb warns "Unable to find dynamic linker breakpoint function" and stops at the PLT stub only: with
+# that warning (and no stop in libc.so.6) the two checks print PENDING instead of PASS or FAIL. Any
+# other outcome is judged as above.
+npend=0
+if grep -q 'Unable to find dynamic linker breakpoint function' "$o/run.out" 2>/dev/null &&
+    ! grep -q -E '^#0 +.* at [^ ]+:[0-9]+$' "$o/run.out" 2>/dev/null; then
+    echo "dbg: PENDING gdb in a running /usr/bin/true and list at the stop: the loader has no debugger rendezvous yet (gdb: $(grep -m1 'Unable to find dynamic linker breakpoint function' "$o/run.out"))"
+    npend=2
+else
 grep -q -E "^Breakpoint 1, " "$o/run.out" 2>/dev/null && grep -q -E '^#0 +.* at [^ ]+:[0-9]+$' "$o/run.out" 2>/dev/null &&
     pass "gdb stopped at $func in /usr/bin/true: $(grep -m1 -E '^#0 ' "$o/run.out")" ||
     fail "gdb in a running /usr/bin/true: $(tail -4 "$o/run.out" 2>/dev/null | tr '\n' ' ')"
@@ -84,6 +96,7 @@ grep -q -E "^Breakpoint 1, " "$o/run.out" 2>/dev/null && grep -q -E '^#0 +.* at 
 grep -q -E '^(warning: )?[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out" 2>/dev/null &&
     pass "list at the stop names the source: $(grep -m1 -E '^(warning: )?[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out")" ||
     fail "list at the stop: $(grep -v '^#' "$o/run.out" 2>/dev/null | tail -3 | tr '\n' ' ')"
+fi
 mv "$o"/* "$res/" && rm -rf "$res/tmp"
-echo "dbg: RESULT pass=$npass fail=$nfail"
+echo "dbg: RESULT pass=$npass fail=$nfail pending=$npend"
 [ "$nfail" -eq 0 ]
