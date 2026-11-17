@@ -3,6 +3,7 @@
 #ifndef __NIJI_H_fnmatch_h
 #define __NIJI_H_fnmatch_h 1
 
+# define __NIJI_TIME_BITS_UNCHECKED 1
 #include <features.h>
 
 __NIJI_BEGIN_C

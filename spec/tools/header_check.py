@@ -72,6 +72,8 @@ def p1_units(ids, vis, macros, typedefs, layouts):
         n = r["name"]
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
+        if h == "ftw.h" and n in ("statx", "statx_timestamp"):
+            continue  # defined by <sys/stat.h> (slice 7), which ftw.h includes once that header exists
         tests = []
         if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
             m = macros[n]

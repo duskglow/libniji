@@ -7,15 +7,90 @@
 #define __NIJI_H_stdbit_h 1
 
 #include <features.h>
-#include <stdint.h>
 #include <stdbool.h>
 
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
+# ifndef __NIJI_D_int16_t
+#  define __NIJI_D_int16_t 1
+typedef short int16_t;
+# endif
+# ifndef __NIJI_D_int32_t
+#  define __NIJI_D_int32_t 1
+typedef int int32_t;
+# endif
+# ifndef __NIJI_D_int64_t
+#  define __NIJI_D_int64_t 1
+typedef long int64_t;
+# endif
+# ifndef __NIJI_D_int8_t
+#  define __NIJI_D_int8_t 1
+typedef signed char int8_t;
+# endif
+# ifndef __NIJI_D_int_least16_t
+#  define __NIJI_D_int_least16_t 1
+typedef short int_least16_t;
+# endif
+# ifndef __NIJI_D_int_least32_t
+#  define __NIJI_D_int_least32_t 1
+typedef int int_least32_t;
+# endif
+# ifndef __NIJI_D_int_least64_t
+#  define __NIJI_D_int_least64_t 1
+typedef long int_least64_t;
+# endif
+# ifndef __NIJI_D_int_least8_t
+#  define __NIJI_D_int_least8_t 1
+typedef signed char int_least8_t;
+# endif
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;
+# endif
+# ifndef __NIJI_D_uint16_t
+#  define __NIJI_D_uint16_t 1
+typedef unsigned short uint16_t;
+# endif
+# ifndef __NIJI_D_uint32_t
+#  define __NIJI_D_uint32_t 1
+typedef unsigned int uint32_t;
+# endif
+# ifndef __NIJI_D_uint64_t
+#  define __NIJI_D_uint64_t 1
+typedef unsigned long uint64_t;
+# endif
+# ifndef __NIJI_D_uint8_t
+#  define __NIJI_D_uint8_t 1
+typedef unsigned char uint8_t;
+# endif
+# ifndef __NIJI_D_uint_least16_t
+#  define __NIJI_D_uint_least16_t 1
+typedef unsigned short uint_least16_t;
+# endif
+# ifndef __NIJI_D_uint_least32_t
+#  define __NIJI_D_uint_least32_t 1
+typedef unsigned int uint_least32_t;
+# endif
+# ifndef __NIJI_D_uint_least64_t
+#  define __NIJI_D_uint_least64_t 1
+typedef unsigned long uint_least64_t;
+# endif
+# ifndef __NIJI_D_uint_least8_t
+#  define __NIJI_D_uint_least8_t 1
+typedef unsigned char uint_least8_t;
 # endif
 #endif
 

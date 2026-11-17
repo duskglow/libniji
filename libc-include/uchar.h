@@ -7,6 +7,21 @@
 
 __NIJI_BEGIN_C
 
+/* Before C++20 `char8_t` is a typedef, and each use of the name draws -Wc++20-compat. */
+#if defined __cplusplus && !defined __cpp_char8_t
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wc++20-compat"
+#endif
+
+#if (defined __cplusplus || __NIJI_ISOC >= 2023 || __NIJI_GNU) && !defined __cpp_char8_t
+typedef unsigned char char8_t;
+#endif
+/* char16_t and char32_t are typedefs of uint_least16_t and uint_least32_t in C before C23 and in C++98. */
+#if defined __cplusplus ? __cplusplus < 201103L : (!defined __STDC_VERSION__ || __STDC_VERSION__ < 202000L || __GNUC__ < 15)
+typedef __CHAR16_TYPE__ char16_t;
+typedef __CHAR32_TYPE__ char32_t;
+#endif
+
 #if 1
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
@@ -32,24 +47,6 @@ typedef __mbstate_t mbstate_t;
 #  define __NIJI_D_size_t 1
 typedef unsigned long size_t;
 # endif
-#endif
-#if __NIJI_CXX < 1
-# ifndef __NIJI_D_char16_t
-#  define __NIJI_D_char16_t 1
-typedef struct { char __niji_opaque[2] __attribute__ ((__aligned__ (2))); } char16_t;
-# endif
-# ifndef __NIJI_D_char32_t
-#  define __NIJI_D_char32_t 1
-typedef struct { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); } char32_t;
-# endif
-#endif
-#if __NIJI_ISOC >= 2023 && __NIJI_CXX < 1
-# ifndef __NIJI_D_char8_t
-#  define __NIJI_D_char8_t 1
-typedef struct { char __niji_opaque[1] __attribute__ ((__aligned__ (1))); } char8_t;
-# endif
-#endif
-#if 1
 # ifndef __NIJI_D_c16rtomb
 #  define __NIJI_D_c16rtomb 1
 extern unsigned long c16rtomb (char *, char16_t, mbstate_t *) __NIJI_NOTHROW;
@@ -76,6 +73,10 @@ extern unsigned long c8rtomb (char *, char8_t, mbstate_t *) __NIJI_NOTHROW;
 #  define __NIJI_D_mbrtoc8 1
 extern unsigned long mbrtoc8 (char8_t *, const char *, unsigned long, mbstate_t *) __NIJI_NOTHROW;
 # endif
+#endif
+
+#if defined __cplusplus && !defined __cpp_char8_t
+# pragma GCC diagnostic pop
 #endif
 
 __NIJI_END_C
