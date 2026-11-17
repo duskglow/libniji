@@ -1,16 +1,56 @@
-{"task": "HEAP-ADDRESS-SPACE-3", "model": "opus", "tokens": null,
+{
+ "task": "HEAP-ADDRESS-SPACE-3",
+ "model": "opus",
+ "tokens": null,
  "result": "INCOMPLETE (context checkpoint): STARTUP-DATA-WINDOWS blocker fixed forward (start object aligns .got to 256; 7 written start-up pages, all 12 layout contracts hold); issue #21 test passes on mei; decision records pending; gate and plants running",
- "branch": "task/heap-address-space-3", "head": null,
- "gate": {"affected": "running (heap-address-space-3-gate)", "peak": null}, "accepted_first_attempt": null,
+ "branch": "task/heap-address-space-3",
+ "head": null,
+ "gate": {
+  "affected": "running (heap-address-space-3-gate)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
  "rulings": [],
- "informational": ["Ruling #6325 step (1) (attributing the 536-byte relro shrink by linker maps) is not finished: the branch map is taken (44904 B, 462 input sections, mostly anonymous), next's map comes from job heap-address-space-3-base1"],
+ "informational": [
+  "Ruling #6325 step (1) (attributing the 536-byte relro shrink by linker maps) is not finished: the branch map is taken (44904 B, 462 input sections, mostly anonymous), next's map comes from job heap-address-space-3-base1",
+  "heap-address-space-3-plants refused (rc 3): the .S plant lacked a niji_machine_ label anchor; rerun as heap-address-space-3-plants2 from ~/work/HEAP-ADDRESS-SPACE-3/plants.txt (same content as handoff/HEAP-ADDRESS-SPACE-3-plants.txt; the role could not be synced while the gate ran)"
+ ],
  "refused": [],
  "impact": [
-   {"kind": "faults", "what": "STARTUP-DATA-WINDOWS written start-up pages of the start-up probe (branch)", "before": 8, "after": 7, "unit": "pages", "measured": true},
-   {"kind": "correctness", "what": "issue #21: VmSize growth at the realloc step of the issue's program", "before": 67652, "after": 34888, "unit": "KiB", "measured": false},
-   {"kind": "coverage", "what": "plants written for the heap growth and the GOT alignment (run pending)", "before": 0, "after": 6, "unit": "plants", "measured": true}
+  {
+   "kind": "faults",
+   "what": "STARTUP-DATA-WINDOWS written start-up pages of the start-up probe (branch)",
+   "before": 8,
+   "after": 7,
+   "unit": "pages",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "issue #21: VmSize growth at the realloc step of the issue's program",
+   "before": 67652,
+   "after": 34888,
+   "unit": "KiB",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants written for the heap growth and the GOT alignment (run pending)",
+   "before": 0,
+   "after": 6,
+   "unit": "plants",
+   "measured": true
+  }
  ],
- "jobs": ["heap-address-space-3-gate", "heap-address-space-3-plants", "heap-address-space-3-lint1", "heap-address-space-3-rt1", "heap-address-space-3-so1", "heap-address-space-3-hmp1"],
+ "jobs": [
+  "heap-address-space-3-gate",
+  "heap-address-space-3-plants2",
+  "heap-address-space-3-lint1",
+  "heap-address-space-3-rt1",
+  "heap-address-space-3-so1",
+  "heap-address-space-3-hmp1"
+ ],
  "improvement": "the plants/gate queue on a full host plus the 150k context checkpoint means a code story with a layout fix ends before its proofs: a Park: 1 header for such stories would let the same session read the verdicts",
  "next_step": "read gate/plants/base1, finish the relro attribution, run the two start-up checks and the counters (handoff/HEAP-ADDRESS-SPACE.md steps 1-5)",
- "report_file": "handoff/HEAP-ADDRESS-SPACE.md"}
+ "report_file": "handoff/HEAP-ADDRESS-SPACE.md"
+}

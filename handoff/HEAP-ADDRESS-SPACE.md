@@ -22,8 +22,8 @@ Decisions in force: D-3.19, D-3.14, ruling #6325; pending records `records/pendi
 
 ## Running at hand-back (mei, detached)
 
-- `heap-address-space-3-gate` (direct tier, `cargo xtask affected --run`), `heap-address-space-3-plants`
-  (handoff/HEAP-ADDRESS-SPACE-3-plants.txt, 6 plants, dir `/mnt/zram/claude/HEAP-ADDRESS-SPACE-3/plants-1`),
+- `heap-address-space-3-gate` (direct tier, `cargo xtask affected --run`), `heap-address-space-3-plants2`
+  (handoff/HEAP-ADDRESS-SPACE-3-plants.txt, 6 plants, dir `/mnt/zram/claude/HEAP-ADDRESS-SPACE-3/plants-2`; run -3 first try `-plants` refused: .S plant without a label anchor),
   `heap-address-space-3-base1` (evidence: next's products; its log prints the issue steps on next, the RLIMIT_AS
   run, and the probe's relro).
 
