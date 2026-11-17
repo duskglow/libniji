@@ -1432,6 +1432,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     println!("so: GOT calls, jumps and loads made relaxable (D-X.15, PJ-19): {}, {} other GOT uses left as they are", copies.relaxable, copies.unrecognised);
     println!("so: target/niji/libc.a ({} functions overridable with internal calls bound to the library, {} names weak in place), libc.so.6 ({count} versioned symbols, {native} of them native), niji-crt1.o, niji-rcrt1.o, niji-gcrt1.o, niji-grcrt1.o, niji-crti.o, niji-crtn.o, niji-Mcrt1.o, libresolv placeholder", weak.0, weak.1);
     run_libm(root, &cc, &ar, profile)?;
+    // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
+    // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
+    println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
     run_ld(root, &cc, profile)?;
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
@@ -2083,17 +2086,24 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
     let mut exports: BTreeSet<String> = libm_only.union(&both).filter(|s| !s.starts_with("niji_")).cloned().collect();
     exports.extend(LIBM_DATA.iter().map(|s| (*s).to_string()));
 
-    // 2. One object, unused sections dropped, only the exports global.
+    // 2. One object, unused sections dropped, only the exports global. The own entries of the
+    //    compat versions (`niji_compat_<name>`, compat.rs: the old `log`, `log2`) are roots and
+    //    global too, for the shared object's stubs; the archive's copy makes them local (R15-2: a
+    //    static link cannot bind an old version) and the version script keeps them out of libm.so.6's
+    //    dynamic symbols.
+    let compat = crate::compat::libm_entries(root)?;
+    let own: BTreeSet<String> = compat.iter().filter(|e| e.target.starts_with("niji_compat_")).map(|e| e.target.clone()).collect();
     let keep = product.join("libm.keep");
     let weak = product.join("libm.weak");
-    fs::write(&keep, exports.iter().map(|s| format!("{s}\n")).collect::<String>()).map_err(|e| e.to_string())?;
+    let local = product.join("libm.local");
+    fs::write(&keep, exports.iter().chain(&own).map(|s| format!("{s}\n")).collect::<String>()).map_err(|e| e.to_string())?;
     let staged = product.join("libm-raw.a");
     fs::copy(&raw, &staged).map_err(|e| format!("copy libm.a: {e}"))?;
     localize_builtins(ar, &staged, &keep, &product.join("libm-work"))?;
     let all = product.join("libm-all.o");
     let mut ld = Command::new("ld");
     ld.args(["-r", "--gc-sections"]);
-    for s in &exports {
+    for s in exports.iter().chain(&own) {
         ld.arg("-u").arg(s);
     }
     run(ld.arg("--whole-archive").arg(&staged).arg("--no-whole-archive").arg("-o").arg(&all))?;
@@ -2103,7 +2113,8 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
     // The archive's copy: the names glibc exports from both libraries are libc.a's alone in a
     // static link (glibc's libm.a does not define them, LIBC-A-PLACEMENT), so they are local here.
     let obj_a = product.join("libm-archive.o");
-    run(Command::new("objcopy").arg(format!("--localize-symbols={}", weak.display())).arg(&obj).arg(&obj_a))?;
+    fs::write(&local, both.iter().filter(|s| !s.starts_with("niji_")).chain(&own).map(|s| format!("{s}\n")).collect::<String>()).map_err(|e| e.to_string())?;
+    run(Command::new("objcopy").arg(format!("--localize-symbols={}", local.display())).arg(&obj).arg(&obj_a))?;
     let archive = release.join("libm.a");
     let staged_archive = tmp_name(&archive);
     let _ = fs::remove_file(&staged_archive);
@@ -2160,11 +2171,15 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
 
     // 4. The shared object, with the compat versions (LG-4, `compat.rs`): their stubs are
     //    assembled here and linked into libm.so.6 only, never archived (R15-2); every stub's
-    //    target must be a libm export.
+    //    target must be a libm export, or an own entry the shared object's input defines.
     let compat_obj = product.join("compat_aliases_libm.o");
     run(Command::new(cc).arg("-c").arg(root.join(crate::compat::LIBM_FILE)).arg("-o").arg(&compat_obj))?;
-    let compat = crate::compat::libm_entries(root)?;
-    let missing: Vec<String> = compat.iter().filter(|e| !defined.contains(&e.target)).map(|e| format!("{}@{} -> {}", e.name, e.version, e.target)).collect();
+    let so_input = self::defined(&obj)?;
+    let missing: Vec<String> = compat
+        .iter()
+        .filter(|e| !(defined.contains(&e.target) || (own.contains(&e.target) && so_input.contains(&e.target))))
+        .map(|e| format!("{}@{} -> {}", e.name, e.version, e.target))
+        .collect();
     if !missing.is_empty() {
         return Err(format!("libm.a does not define the target of {} compat versions: {}", missing.len(), missing.join(", ")));
     }

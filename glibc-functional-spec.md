@@ -5708,7 +5708,7 @@ The TSV files are part of this appendix. The tables below reproduce the parts mo
 
 | File | Contents | Rows |
 |---|---|---|
-| `spec/abi/versions.tsv` | library, symbol, version node, binding (`default` = `@@`, `compat` = `@`), type, scope, size (data objects only) | 4602 (4600 + 2 R3 additions) |
+| `spec/abi/versions.tsv` | library, symbol, version node, binding (`default` = `@@`, `compat` = `@`), type, scope, size (data objects only) | 4818 (4600 + 2 R3 additions + 216 `libmvec.so.1` rows) |
 | `spec/abi/layouts.tsv` | per type: size and alignment, then each member's offset, type and bit-field position | 1372 (161 types) |
 | `spec/abi/initializers.tsv` | static initializer bit patterns | 10 |
 | `spec/abi/prototypes.tsv` | C declaration of every function the public headers declare, with its header | 3780 (3778 + 2 R3 additions) |

@@ -1,0 +1,18 @@
+{"task": "SYS-CONTROL-PARITY", "model": "opus", "tokens": null,
+ "result": "libc6-dev Depends linux-libc-dev/libcrypt-dev/rpcsvc-proto and Provides libc-dev (= version); libc-l10n Multi-Arch foreign; Priority as the reference; no bindresvport/default-nss conffiles (libniji reads neither); checks, plants, parity rerun 3028 -> 3012 rows",
+ "branch": "task/sys-control-parity", "head": "fb23a22ec (code; later commits handoff/ only)",
+ "gate": {"affected": "affected: ok (direct tier, base origin/next), 0 SKIPPED", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["apt-get build-dep probe: in a trixie root with libniji's libc6/libc-bin swapped in, apt installing libniji's libc6-dev pulled linux-libc-dev, libcrypt-dev, rpcsvc-proto; build-dep hello resolved through it. In a stock root apt refuses every install because util-linux PreDepends libc6 (>= 2.41) (SYS-COMPAT-VERSIONS territory); the probe root left util-linux out, so two postinsts lacking getopt failed (probe artefact).",
+                   "libc-bin and libc-dev-bin Depends libc6 (= <version>) stays a gap row: the reference uses (>> 2.41), (<< 2.42) there; out of this story's scope."],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "libc6-dev pulls linux-libc-dev, libcrypt-dev, rpcsvc-proto; Provides libc-dev (= version) meets versioned libc-dev relations", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "package-parity gap rows closed (gaps.tsv 3028 -> 3012, no new row)", "before": 3028, "after": 3012, "unit": "rows", "measured": true},
+   {"kind": "coverage", "what": "plants on tools/deb/system.sh control fields", "before": 0, "after": 9, "unit": "plants", "measured": true}
+ ],
+ "improvement": "parity.py compare now reads each side's own version as <version>, so version-only relation rows no longer pad the gap list",
+ "next_step": "none for this story; remaining audit item 25 rows (libgcc-s1, Recommends/Suggests, debconf, Breaks) are out of scope",
+ "jobs": ["sys-control-parity-lint", "sys-control-parity-gate", "sys-control-parity-pkg", "sys-control-parity-plants"],
+ "report_file": "handoff/SYS-CONTROL-PARITY.md"}

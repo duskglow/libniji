@@ -56,7 +56,8 @@
 //! to the locale's character set (kept in ASCII when it cannot be, observed).
 //!
 //! **Errors** of the lookup: `EAI_NONAME` (not found), `EAI_NODATA` (no address of the family),
-//! `EAI_AGAIN`, `EAI_FAIL` (sources unavailable: the reference reports `EAI_SYSTEM` with
+//! `EAI_AGAIN` (also when no DNS server could be reached, observed; `getnameinfo` too, whatever
+//! its flags), `EAI_FAIL` (sources unavailable: the reference reports `EAI_SYSTEM` with
 //! `errno` `EBUSY`, an artifact), `EAI_MEMORY`, `EAI_SYSTEM` with the error of a database file
 //! that cannot be read.
 
@@ -157,7 +158,7 @@ pub fn of_lookup(e: LookupError) -> GaiError {
     match e {
         LookupError::NotFound => GaiError::Code(EAI_NONAME),
         LookupError::NoData => GaiError::Code(EAI_NODATA),
-        LookupError::TryAgain => GaiError::Code(EAI_AGAIN),
+        LookupError::TryAgain | LookupError::Unreachable => GaiError::Code(EAI_AGAIN),
         LookupError::Unavailable => GaiError::Code(EAI_FAIL),
         LookupError::Os(e) => GaiError::from(e),
     }
@@ -722,7 +723,8 @@ pub fn getnameinfo<S: Sys>(ctx: &Ctx<'_, S>, sa: &[u8], flags: i32, want_host: b
                     }
                     out.host = Some(if flags & NI_IDN != 0 { idn_to_unicode(name, ctx.locale)? } else { TryVec::from_slice(name)? });
                 }
-                Err(LookupError::TryAgain) if flags & NI_NAMEREQD != 0 => return Err(GaiError::Code(EAI_AGAIN)),
+                // Observed (`gai_down.c`): with or without NI_NAMEREQD, not the numeric form.
+                Err(LookupError::TryAgain | LookupError::Unreachable) => return Err(GaiError::Code(EAI_AGAIN)),
                 Err(LookupError::Os(e)) if e == Errno::ENOMEM => return Err(GaiError::Code(EAI_MEMORY)),
                 Err(_) if flags & NI_NAMEREQD != 0 => return Err(GaiError::Code(EAI_NONAME)),
                 Err(_) => out.host = Some(numeric_text(ctx.sys, ip, scope)?),

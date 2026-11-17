@@ -1,0 +1,4 @@
+# MATH-POW-EDGES plants: cargo xtask plants handoff/MATH-POW-EDGES-plants.txt --dir <RAM dir>
+snan-shortcut-small | crates/math/src/pow.rs | lit:if !snan && (b.kind == Kind::Zero || (xf == 1.0 ==> if (b.kind == Kind::Zero || (xf == 1.0 | cargo test -p niji-math --release --test s10_math_clauses -- s10_3_c_r3 | msg:pow\(sNaN neg=false, zero neg=false\) prec 24
+minus-one-shortcut | crates/math/src/pow.rs | perl:s/if ax == 1\.0 \{(\n\s+return elem::exact\(if neg \{ -1\.0)/if ax == 1.5 {$1/ | cargo test -p niji-math --release --test s10_math_clauses -- s10_3_c_r3 | msg:pow\(-1, .*\) prec (24|53)
+snan-shortcut-wide | crates/math/src/wide.rs | lit:if !snan && (b.kind == Kind::Zero || x_is_one) ==> if (b.kind == Kind::Zero || x_is_one) | cargo test -p niji-math --release --test s10_math_clauses -- s10_3_c_r3 | msg:pow\(sNaN neg=false, zero neg=false\) prec (64|113)

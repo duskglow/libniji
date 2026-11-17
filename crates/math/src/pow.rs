@@ -58,10 +58,12 @@ fn exact_int<F: Small>(neg: bool, odd: u128, e: i64, mode: Rounding) -> (F, Stat
 pub fn pow<F: Small>(x: F, y: F, mode: Rounding) -> (F, Status) {
     let (a, b) = (float::decode(x), float::decode(y));
     let (xf, yf) = (x.widen(), y.widen());
-    // x^±0 = 1 and 1^y = 1, even for a quiet NaN.
-    if b.kind == Kind::Zero || (xf == 1.0 && a.kind == Kind::Finite) {
-        let st = if a.kind == Kind::SNan || b.kind == Kind::SNan { Status::INVALID } else { Status::OK };
-        return (elem::exact::<F>(1.0).0, st);
+    // x^±0 = 1 and 1^y = 1, even for a quiet NaN (IEEE 754-2019 9.2.1, C23 F.10.4.5). A signalling
+    // NaN operand takes the general rule instead (IEEE 754-2019 6.2): invalid and a quiet NaN, from
+    // `nan_operands` below.
+    let snan = a.kind == Kind::SNan || b.kind == Kind::SNan;
+    if !snan && (b.kind == Kind::Zero || (xf == 1.0 && a.kind == Kind::Finite)) {
+        return elem::exact::<F>(1.0);
     }
     if let Some(r) = fused::nan_operands::<F, F>(&[a, b]) {
         return r;
@@ -93,6 +95,13 @@ pub fn pow<F: Small>(x: F, y: F, mode: Rounding) -> (F, Status) {
         return elem::domain();
     }
     let ax = dd::abs(xf);
+    // x = -1 (x = 1 returned above) and an integer y: (-1)^y = ±1 by y's parity, exactly. Every
+    // finite y of magnitude 2^PREC or more is an even integer (`integer_parity`), so the result is
+    // 1 there with no range error; the paths below would form e·y, ln|x|·y or a core call for
+    // |x| = 1, which they are not built for (the double-double splitting of a huge y overflows).
+    if ax == 1.0 {
+        return elem::exact(if neg { -1.0 } else { 1.0 });
+    }
     // The exactly computable cases.
     if yf == 1.0 {
         return (x, Status::OK);

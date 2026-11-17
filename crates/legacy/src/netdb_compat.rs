@@ -49,7 +49,7 @@ pub fn h_errno_of(e: LookupError) -> (i32, Option<Errno>) {
     match e {
         LookupError::NotFound => (HOST_NOT_FOUND, None),
         LookupError::NoData => (NO_DATA, None),
-        LookupError::TryAgain => (TRY_AGAIN, None),
+        LookupError::TryAgain | LookupError::Unreachable => (TRY_AGAIN, None),
         LookupError::Unavailable => (NO_RECOVERY, None),
         LookupError::Os(e) if e == Errno::ENOMEM || e == Errno::ERANGE => (NETDB_INTERNAL, Some(e)),
         LookupError::Os(e) => (NO_RECOVERY, Some(e)),

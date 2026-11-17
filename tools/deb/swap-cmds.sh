@@ -57,6 +57,9 @@ run awk-2 awk '{printf "%-8s|%6.3f|%e|%5d\n", $1, sqrt($2), exp($2), $2*1000}' "
 run awk-3 awk '$2>5 {print toupper($1), length($0), substr($0, 3, 4)}' "$t/in.txt"
 run awk-4 awk 'BEGIN {print sprintf("%.10g", 1/3), int(-3.7), 2^0.5, sin(1), log(10), atan2(0, -1); x["b"]=1; x["a"]=2; n=split("q,w,e", y, ","); print n, y[3]}'
 run awk-5 awk -F ' ' '{c[$3]++} END {for (k in c) print k, c[k] | "sort"}' "$t/in.txt"
+# gawk: built against an older C library, it binds libm's old versions (fmod@GLIBC_2.2.5, issue #7).
+run gawk-1 gawk 'BEGIN {print 7.5 % 2}'
+run gawk-2 gawk 'BEGIN {printf "%.17g %.17g %.17g %.17g %.17g\n", -7.5 % 2, 1e300 % 7, exp(1), log(10), 2 ^ 0.5}'
 run bash-1 bash -c 'a=(3 1 2); for i in "${a[@]}"; do echo $((i*i)); done; printf "%s %5.2f %x %q\n" x 3.14159 255 "a b"; [[ abc == a* ]] && echo match; echo ${#a[@]} $((2**40)); x=$(echo sub); echo "$x"; f() { return 3; }; f || echo rc=$?'
 run bash-2 bash -c 'read -r a b c < /tmp/t/in.txt; echo "$c-$b-$a"; while IFS=" " read -r w n rest; do echo "${w^^}:$n"; done < /tmp/t/in.txt | head -3; echo ${BASH_VERSINFO[0]} >/dev/null; shopt -s nullglob; echo /tmp/t/sub/*.txt'
 run bash-3 bash -c 'echo out; echo err >&2; exit 7'
@@ -127,6 +130,12 @@ chmod 1777 /tmp/fr
 drop='$) = "65534 65534"; $( = 65534; $< = $> = 65534; exec @ARGV or die "exec: $!\n"'
 run fakeroot-1 perl -e "$drop" -- sh -c 'cd /tmp/fr && fakeroot sh -c "touch f && chown 0:0 f && echo inside \$(id -u) \$(id -g) \$(stat -c %u:%g f)" && echo outside $(id -u) $(id -g) $(stat -c %u:%g f)'
 run fakeroot-2 perl -e "$drop" -- sh -c 'cd /tmp/fr && mkdir d && echo x > d/a && fakeroot sh -c "chown -R 0:0 d && tar --numeric-owner -cf a.tar d" && tar --numeric-owner -tvf a.tar | awk "{print substr(\$1, 1, 1), \$2, \$6}" && tar --numeric-owner -cf b.tar d && tar --numeric-owner -tvf b.tar | awk "{print substr(\$1, 1, 1), \$2, \$6}"'
+
+# The caller's extra commands (swap-system.sh's SWAP_EXTRA_CMDS), next to this script.
+extra=$(dirname "$0")/extra.sh
+if [ -f "$extra" ]; then
+    . "$extra"
+fi
 
 {
     echo "libc6 $(dpkg-query -W -f '${Version}' libc6 2>&1)"

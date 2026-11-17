@@ -1,0 +1,21 @@
+{"task": "SYS-LIBRESOLV-3", "model": "opus", "tokens": null,
+ "result": "libresolv.so.2/libresolv.so ship in the system packages (issue #5): final-head gate, 9/9 plants, both package flavours, dynamic and static -lresolv proofs green; lintian 7/42 (base 7/50) via a libc6 override for its self-provided libc.so.6",
+ "branch": "task/sys-libresolv-3", "head": "66e010524",
+ "gate": {"affected": "1494 passed / 0 failed (10 ignored)", "peak": "1.3G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Swap ldd-1..7 differences are identical on origin/next's system packages (deb.sh compares both): loader trace output, not this story",
+  "lintian undeclared-elf-prerequisites was raised for every libc6 library with NEEDED libc.so.6 (8 on next) because libc6 has no Depends; libresolv.so.2 already had NEEDED libc.so.6 like the reference's",
+  "System flavour lacks libBrokenLocale.so.1/.so/.a, libg.a, libmcheck.a, libpthread_nonshared.a that the coexist flavour ships"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "system packages ship libresolv.so.2 and libresolv.so: dynamic -lresolv programs and libkrb5 run (issue #5)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "lintian warnings on the system packages", "before": 50, "after": 42, "unit": "warnings", "measured": true},
+  {"kind": "coverage", "what": "plants on the ns_* parser and libc6 packaging, all caught; differential probe now compares the ns_msg handle state", "before": 0, "after": 9, "unit": "plants", "measured": true}
+ ],
+ "improvement": "A plants file written in one run and run in the next named two lines the intervening fix had replaced; run plants in the same run as the code they cover",
+ "next_step": "none for issue #5; land",
+ "report_file": "handoff/SYS-LIBRESOLV.md",
+ "jobs": ["sys-libresolv-3-gate2", "sys-libresolv-3-plants2", "sys-libresolv-3-deb2", "sys-libresolv-3-lint2", "sys-libresolv-3-ns5"]}

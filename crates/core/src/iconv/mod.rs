@@ -18,6 +18,8 @@
 use crate::charmap::Charmap;
 use crate::error::Errno;
 mod fast;
+mod jis;
+mod jis_tables;
 
 use crate::locale::{Ctype, Locale};
 use crate::text::{self, CharmapRef};
@@ -50,11 +52,18 @@ pub enum Codec {
     Latin1,
     /// A charset read from the installed charmaps.
     Charmap(CharmapRef),
+    /// EUC-JP, built in from the WHATWG JIS X 0208 and JIS X 0212 indexes (`jis`).
+    EucJp,
 }
 
 /// The built-in names (compared without regard to case). The reference library's aliases of
 /// ASCII and ISO-8859-1 are the ones their charmaps list.
-const NAMES: [(&[u8], Codec); 52] = [
+const NAMES: [(&[u8], Codec); 57] = [
+    (b"EUC-JP", Codec::EucJp),
+    (b"EUCJP", Codec::EucJp),
+    (b"UJIS", Codec::EucJp),
+    (b"CSEUCPKDFMTJAPANESE", Codec::EucJp),
+    (b"OSF00030010", Codec::EucJp),
     (b"UTF-8", Codec::Utf8),
     (b"UTF8", Codec::Utf8),
     (b"ISO-10646/UTF8", Codec::Utf8),
@@ -216,7 +225,7 @@ impl Codec {
     fn decode(self, input: &[u8], order: Option<Order>) -> Dec {
         let need = |n: usize| input.len() < n;
         // ASCII is itself in the byte codecs that contain it.
-        if let (Some(&b), Codec::Utf8 | Codec::Ascii | Codec::Latin1) = (input.first(), self) {
+        if let (Some(&b), Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp) = (input.first(), self) {
             if b < 0x80 {
                 return Dec::Char(u32::from(b), 1);
             }
@@ -234,6 +243,7 @@ impl Codec {
                 crate::charmap::Step::Incomplete => Dec::Incomplete,
                 crate::charmap::Step::Invalid => Dec::Invalid(1),
             },
+            Codec::EucJp => jis::decode(input),
             Codec::Ucs2(o) => match unit(input, 2, o) {
                 None => Dec::Incomplete,
                 Some(c) if is_surrogate(c) => Dec::Invalid(2),
@@ -295,6 +305,7 @@ impl Codec {
             Codec::Ascii => (c < 0x80).then(|| put(out, c, 1, Order::Le)),
             Codec::Latin1 => (c < 0x100).then(|| put(out, c, 1, Order::Le)),
             Codec::Charmap(cm) => cm.0.encode(c, out),
+            Codec::EucJp => jis::encode(c, out),
             Codec::Ucs2(o) => (c < 0x1_0000).then(|| put(out, c, 2, o)),
             Codec::Utf16(fixed) => {
                 let o = fixed.unwrap_or(Order::Le);
@@ -320,7 +331,7 @@ impl Codec {
     /// Whether a byte below 0x80 decodes to itself, one byte per character.
     fn ascii_source(self) -> bool {
         match self {
-            Codec::Utf8 | Codec::Ascii | Codec::Latin1 => true,
+            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp => true,
             Codec::Charmap(c) => c.0.ascii(),
             _ => false,
         }
@@ -329,7 +340,7 @@ impl Codec {
     /// For ASCII code points: the unit this codec writes them as (its size and order).
     fn ascii_unit(self) -> Option<(usize, Order)> {
         match self {
-            Codec::Utf8 | Codec::Ascii | Codec::Latin1 => Some((1, Order::Le)),
+            Codec::Utf8 | Codec::Ascii | Codec::Latin1 | Codec::EucJp => Some((1, Order::Le)),
             Codec::Charmap(c) => c.0.ascii().then_some((1, Order::Le)),
             Codec::Utf16(o) => Some((2, o.unwrap_or(Order::Le))),
             Codec::Ucs2(o) => Some((2, o)),
@@ -819,6 +830,7 @@ fn tag(c: Codec) -> (usize, usize) {
         Codec::Ascii => (12, 0),
         Codec::Latin1 => (13, 0),
         Codec::Charmap(cm) => (14, core::ptr::from_ref(cm.0).expose_provenance()),
+        Codec::EucJp => (15, 0),
     }
 }
 
@@ -835,6 +847,7 @@ fn untag(t: usize, addr: usize, charmap_at: &dyn Fn(usize) -> &'static Charmap) 
         12 => Codec::Ascii,
         13 => Codec::Latin1,
         14 if addr != 0 => Codec::Charmap(CharmapRef(charmap_at(addr))),
+        15 => Codec::EucJp,
         _ => return None,
     })
 }

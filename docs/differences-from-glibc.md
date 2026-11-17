@@ -499,6 +499,12 @@ accuracy against the oracle is the baseline. The full table is
   and boundary parts in every direction is checked line by line (no libniji error).
 
 
+The vector variants (`libmvec.so.1`, `libmvec.a`), recorded in `crates/core/tests/libmvec_products.rs`:
+
+| Case | libniji | glibc 2.39 | Decision (clause) |
+|---|---|---|---|
+| Results of the 216 vector-ABI exports (`_ZGV[bcde]N*_<f>`) | Each lane is the scalar function's result, bit for bit, so the accuracy is libniji's scalar bound for that function. No compatibility option: the results stay within the 4-ulp bound documented for the vector variants, and the reference's last bits would need its kernels. | Within the documented 4-ulp bound; a lane can differ from the scalar function's result. | SYS-LIBMVEC-2 decision record (`records/pending/SYS-LIBMVEC-2-1.toml`) (no clause ID: Appendix C) |
+
 ## Character sets (`iconv`, non-UTF-8 locales)
 
 Charsets other than the Unicode ones, ASCII and ISO-8859-1 are read from the installed
