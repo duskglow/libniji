@@ -1,0 +1,16 @@
+{"task": "RELEASE-SNAPSHOT-NIJI1", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (checkpoint at ~150k context): 30d07e74b builds and passes check-system, check-symbols, gate, empty root 19/0, smoke on two hosts and the #8, #7, #5 checks; #6 only EUC-JP (58 of 1180 names); swap, lint, plants running; staging and 4(b) not started",
+ "branch": "task/release-snapshot-niji1", "head": null,
+ "gate": {"affected": "gate-1 rc 0 (clippy, static, records check, affected --base origin/next)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "Y6: issue #6 only partly fixed in the swapped root: EUC-JP round-trips byte-identically, ISO-8859-15 and 1121 other names do not open, iconv -l cannot run (no iconv program; Debian's needs GLIBC_ABI_DT_RELR)", "recommendation": "not blocking (no regression); release notes say EUC-JP only and keep issue #6 open; follow-ups: more built-in converters, GLIBC_ABI_DT_RELR node, an iconv program"},
+  {"item": "N1: every package's Maintainer field is still 'Liella Maintainers <liella@koiren.ai>' (build.sh, check-system.sh, install-packages.md:105)", "recommendation": "owner decides the libniji maintainer address; not blocking for this snapshot"},
+  {"item": "N2: libniji's libc6-dev ships no headers and replaces Debian's, so a root with the system flavour cannot compile C", "recommendation": "not blocking (headers are a known gap); correct install-packages.md:124 in a docs story"}],
+ "informational": ["differences-from-glibc.md:307 names records/pending/SL-HEADERS-S05-3-1.toml, now an assigned record", "no RELEASE-NOTES section and no old-to-new name table for this snapshot yet", "rule slip: one empty local heredoc in a Bash call (no effect)"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "release validation; no product or packaging code changed", "before": null, "after": null, "unit": null, "measured": true}],
+ "jobs": ["keke:release-snapshot-niji1-debs-1", "keke:release-snapshot-niji1-gate-1", "keke:release-snapshot-niji1-smoke-keke-1", "mei:release-snapshot-niji1-smoke-mei-1", "keke:release-snapshot-niji1-yohane-2", "keke:release-snapshot-niji1-pkgdiff-1", "keke:release-snapshot-niji1-roots-1", "keke:release-snapshot-niji1-lint-1", "keke:release-snapshot-niji1-plants-1"],
+ "improvement": "a release brief's end-to-end checks should be dry-run against the packages' known gaps first: the #6 check assumed an iconv program that the system packages do not ship and Debian's cannot load (GLIBC_ABI_DT_RELR)",
+ "next_step": "jobwait roots-1, lint-1, plants-1; compare swap and lintian; stage serial 1; run install.sh (4b); finish the report",
+ "report_file": "handoff/RELEASE-SNAPSHOT-NIJI1.md"}
