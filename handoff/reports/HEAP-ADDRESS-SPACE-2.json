@@ -1,15 +1,65 @@
-{"task": "HEAP-ADDRESS-SPACE-2", "model": "opus", "tokens": null,
+{
+ "task": "HEAP-ADDRESS-SPACE-2",
+ "model": "opus",
+ "tokens": null,
  "result": "INCOMPLETE (context checkpoint): 4 rt heap tests fixed by cause (27 pass), spill path moved out of refill, issue #21 regression test written; products build blocked by STARTUP-DATA-WINDOWS 8 > 7 (layout jitter: branch .data.rel.ro 536 B smaller than base, .got straddles a page)",
- "branch": "task/heap-address-space-2", "head": null,
- "gate": {"affected": "not run (products blocked)", "peak": null}, "accepted_first_attempt": null,
- "rulings": [{"item": "STARTUP-DATA-WINDOWS 8 > rw-budget-fast 7 on this branch: start-up relro cluster identical to base (79 sections, 11384 B), but .data.rel.ro is 0xaf68 vs base 0xb180, so .got (start-up entries +0x30..+0xc0) straddles 0x86b000", "recommendation": "treat as LAYOUT-JITTER (hold until trace-at-build lands) rather than padding relro by hand; if it must be fixed here, find the 536-byte relro difference with linker maps of both builds"}],
- "informational": ["Issue probe on the Zen 1 build host, identical over 5 runs, VmSize growth KiB: reference 132/27984/29568/28052 (needs 29568 under RLIMIT_AS), branch 836/28996/32836/34888 (needs 34896), next 16448/32836/49220/67652"],
+ "branch": "task/heap-address-space-2",
+ "head": null,
+ "gate": {
+  "affected": "not run (products blocked)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "STARTUP-DATA-WINDOWS 8 > rw-budget-fast 7 on this branch: start-up relro cluster identical to base (79 sections, 11384 B), but .data.rel.ro is 0xaf68 vs base 0xb180, so .got (start-up entries +0x30..+0xc0) straddles 0x86b000",
+   "recommendation": "treat as LAYOUT-JITTER (hold until trace-at-build lands) rather than padding relro by hand; if it must be fixed here, find the 536-byte relro difference with linker maps of both builds"
+  }
+ ],
+ "informational": [
+  "Issue probe on the Zen 1 build host, identical over 5 runs, VmSize growth KiB: reference 132/27984/29568/28052 (needs 29568 under RLIMIT_AS), branch 836/28996/32836/34888 (needs 34896), next 16448/32836/49220/67652",
+  "Evidence jobs on keke (not head proofs): heap-address-space-2-probe3 (issue probe), heap-address-space-2-base (base products layout); superseded: heap-address-space-2-rt1/rt2 (older heads), probe1/probe2 (products build stopped at the layout contract, rc 1)"
+ ],
  "refused": [],
- "impact": [{"kind": "size", "what": "issue #21 probe peak VmSize growth (address space)", "before": 67652, "after": 34888, "unit": "KiB", "measured": true},
-            {"kind": "size", "what": "issue #21 probe least RLIMIT_AS headroom", "before": 67652, "after": 34896, "unit": "KiB", "measured": true},
-            {"kind": "coverage", "what": "regression test the_heap_keeps_address_space_near_its_use (not yet run)", "before": 0, "after": 1, "unit": "tests", "measured": false},
-            {"kind": "cost", "what": "STARTUP-DATA-WINDOWS written start-up pages (fast profile), layout jitter; fix-forward per ruling", "before": 7, "after": 8, "unit": "pages", "measured": true}],
+ "impact": [
+  {
+   "kind": "size",
+   "what": "issue #21 probe peak VmSize growth (address space)",
+   "before": 67652,
+   "after": 34888,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "issue #21 probe least RLIMIT_AS headroom",
+   "before": 67652,
+   "after": 34896,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "regression test the_heap_keeps_address_space_near_its_use (not yet run)",
+   "before": 0,
+   "after": 1,
+   "unit": "tests",
+   "measured": false
+  },
+  {
+   "kind": "cost",
+   "what": "STARTUP-DATA-WINDOWS written start-up pages (fast profile), layout jitter; fix-forward per ruling",
+   "before": 7,
+   "after": 8,
+   "unit": "pages",
+   "measured": true
+  }
+ ],
  "improvement": "the layout contract should print .data.rel.ro size and the .got offset next to the page list, so a straddle is diagnosed without a second products build of the base",
  "next_step": "ruling on the STARTUP-DATA-WINDOWS jitter; then products, run the new test (and show it fails on next), decision record, plants, gate, malloc/startup counters",
  "report_file": "handoff/HEAP-ADDRESS-SPACE.md",
- "jobs": ["heap-address-space-2-rt2", "heap-address-space-2-lint2", "heap-address-space-2-probe3", "heap-address-space-2-base"]}
+ "jobs": [
+  "heap-address-space-2-rt3",
+  "heap-address-space-2-lint2"
+ ]
+}
