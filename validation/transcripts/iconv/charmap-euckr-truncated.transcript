@@ -7,3 +7,8 @@ arg: -t
 arg: UTF-8
 stdin:
 |~ a\xb0
+status: exit 1
+stdout:
+|~ a
+stderr:
+| iconv: incomplete character or shift sequence at end of buffer

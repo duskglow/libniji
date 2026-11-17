@@ -8,3 +8,8 @@ arg: -t
 arg: ISO-8859-1
 stdin:
 |~ ab\xc3
+status: exit 1
+stdout:
+|~ ab
+stderr:
+| iconv: incomplete character or shift sequence at end of buffer

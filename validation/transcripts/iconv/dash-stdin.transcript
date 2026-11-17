@@ -8,3 +8,7 @@ arg: UTF-16LE
 arg: -
 stdin:
 |~ xy
+status: exit 0
+stdout:
+|~ x\x00y\x00
+stderr:

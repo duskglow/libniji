@@ -3,3 +3,9 @@ clause: s31_1_c_2
 command: iconv
 arg: --usage
 stdin:
+status: exit 0
+stdout:
+| Usage: iconv [-lcs?V] [-f NAME] [-t NAME] [-o FILE] [--from-code=NAME]
+| \x20           [--to-code=NAME] [--list] [--output=FILE] [--silent] [--verbose]
+| \x20           [--help] [--usage] [--version] [FILE...]
+stderr:

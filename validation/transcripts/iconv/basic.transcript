@@ -7,3 +7,7 @@ arg: -t
 arg: ISO-8859-1
 stdin:
 |~ h\xc3\xa9llo\n
+status: exit 0
+stdout:
+| h\xe9llo
+stderr:

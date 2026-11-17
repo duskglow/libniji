@@ -14,3 +14,7 @@ arg: -o
 arg: d
 arg: b
 stdin:
+status: exit 1
+stdout:
+stderr:
+| iconv: cannot open output file: Is a directory

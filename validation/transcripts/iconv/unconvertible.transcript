@@ -7,3 +7,8 @@ arg: -t
 arg: ISO-8859-1
 stdin:
 |~ a\xe2\x82\xacb\n
+status: exit 1
+stdout:
+|~ a
+stderr:
+| iconv: illegal input sequence at position 1

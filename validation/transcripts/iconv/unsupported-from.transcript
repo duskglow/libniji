@@ -7,3 +7,8 @@ arg: -t
 arg: UTF-8
 stdin:
 |~ a
+status: exit 1
+stdout:
+stderr:
+| iconv: conversion from `NOSUCH' is not supported
+| Try `iconv --help' or `iconv --usage' for more information.

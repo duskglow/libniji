@@ -3,3 +3,8 @@ clause: s31_1_f_1
 command: iconv
 arg: -q
 stdin:
+status: exit 64
+stdout:
+stderr:
+| iconv: invalid option -- 'q'
+| Try `iconv --help' or `iconv --usage' for more information.

@@ -1,4 +1,4 @@
-name: --verbose names each file on stdout
+name: --verbose names each operand on stderr
 clause: s31_6_i_1
 command: iconv
 namespace: none
@@ -14,3 +14,12 @@ arg: -
 arg: b
 stdin:
 |~ y\n
+status: exit 0
+stdout:
+| x
+| y
+| x
+stderr:
+| b:
+| -:
+| b:

@@ -9,3 +9,7 @@ arg: -o
 arg: /dev/full
 stdin:
 |~ x\n
+status: exit 1
+stdout:
+stderr:
+| iconv: error while closing output file: No space left on device

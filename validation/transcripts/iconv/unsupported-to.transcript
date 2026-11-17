@@ -7,3 +7,8 @@ arg: -t
 arg: NOSUCH//TRANSLIT
 stdin:
 |~ a
+status: exit 1
+stdout:
+stderr:
+| iconv: conversion to `NOSUCH//TRANSLIT' is not supported
+| Try `iconv --help' or `iconv --usage' for more information.

@@ -10,3 +10,6 @@ arg: UTF-16
 arg: -o
 arg: o.txt
 stdin:
+status: exit 0
+stdout:
+stderr:

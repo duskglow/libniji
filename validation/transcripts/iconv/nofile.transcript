@@ -11,3 +11,8 @@ arg: ASCII
 arg: missing
 arg: b
 stdin:
+status: exit 1
+stdout:
+| x
+stderr:
+| iconv: cannot open input file `missing': No such file or directory

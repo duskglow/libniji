@@ -8,3 +8,7 @@ arg: -t
 arg: ISO-8859-1
 stdin:
 |~ a\xe2\x82\xacb\n
+status: exit 0
+stdout:
+| ab
+stderr:

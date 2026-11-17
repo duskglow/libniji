@@ -13,3 +13,7 @@ arg: UTF-16LE
 arg: p1
 arg: p2
 stdin:
+status: exit 0
+stdout:
+|~ h\x00\xe9\x00\xac b\x00
+stderr:

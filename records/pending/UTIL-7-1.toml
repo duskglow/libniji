@@ -1,0 +1,11 @@
+id = "D-NEW"
+series = "D-31"
+section = "s31"
+spec = "§31.6"
+ann = "IMPL"
+status = "active"
+story = "UTIL-7"
+date = "2026-11-17"
+body = '''
+**The `iconv` command is a dynamic C front end over `iconv(3)`; each input is converted whole and the output written at the end; `-l` lists what `iconv_open` accepts (UTIL-7, `plan/utilities.md` §4).** `csys/util/iconv.c` is built by `cargo xtask so` as getent is (`target/niji/iconv` for libc-bin's `/usr/bin/iconv`, a test link on the tree's loader for the transcripts). It reads each operand whole and converts it with its own `iconv` calls, so a character split across two files is incomplete in the first, and collects the output, written once at exit (also after an error), so `-o` may name an input and an empty output creates no file: all as black-box probes of the reference showed (`validation/transcripts/iconv/`). `-c` appends `IGNORE` to the target's suffixes and continues past `EILSEQ` while the library makes progress. `-l` prints the built-in names (`csys/util/iconv-names.h`, held equal to `niji::iconv::builtin_names` by a core test) and every file stem of `/usr/share/i18n/charmaps` that `iconv_open` accepts, sorted, once each, as `NAME//` (`NAME/` for a name holding `/`). Charmap alias names are not listed yet: the front end has no gzip reader (open question in the UTIL-7 hand-back). Identity strings follow §31.1 (`iconv (libniji) 2.39`, no distribution bug-report line).
+'''

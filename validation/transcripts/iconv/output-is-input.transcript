@@ -12,3 +12,6 @@ arg: -o
 arg: a
 arg: a
 stdin:
+status: exit 0
+stdout:
+stderr:

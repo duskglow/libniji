@@ -11,3 +11,7 @@ arg: ASCII
 arg: --
 arg: -c
 stdin:
+status: exit 0
+stdout:
+| z
+stderr:

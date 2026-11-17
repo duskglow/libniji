@@ -6,3 +6,7 @@ arg: --to-code
 arg: UCS-2BE
 stdin:
 |~ x\n
+status: exit 0
+stdout:
+| \x00x\x00
+stderr:

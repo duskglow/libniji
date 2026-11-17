@@ -11,3 +11,9 @@ arg: -o
 arg: o.txt
 stdin:
 |~ x\xff\n
+status: exit 1
+stdout:
+stderr:
+| iconv: illegal input sequence at position 1
+written-file: o.txt
+|~ x

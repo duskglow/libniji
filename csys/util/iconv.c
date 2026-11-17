@@ -413,8 +413,9 @@ static char *read_all(int fd, size_t *len) {
     return buf;
 }
 
-/* Convert the file `name` (`-`: standard input); 0, 1 to go on with status 1, 2 to stop. */
-static int process(iconv_t cd, const char *name) {
+/* Convert the file `name` (`-`: standard input; `named`: an operand, which --verbose names on stderr);
+ * 0, 1 to go on with status 1, 2 to stop. */
+static int process(iconv_t cd, const char *name, int named) {
     int fd = 0;
     if (strcmp(name, "-") != 0) {
         fd = open(name, O_RDONLY | O_CLOEXEC);
@@ -423,9 +424,8 @@ static int process(iconv_t cd, const char *name) {
             return 1;
         }
     }
-    if (verbose) {
-        printf("%s:\n", name);
-    }
+    if (verbose && named)
+        fprintf(stderr, "%s:\n", name);
     size_t len = 0;
     char *data = read_all(fd, &len);
     if (fd != 0)
@@ -469,10 +469,11 @@ int main(int argc, char **argv) {
         list();
     iconv_t cd = open_conversion();
     int status = 0;
+    int named = n != 0;
     if (n == 0)
         operands[n++] = "-";
     for (int k = 0; k < n; k++) {
-        int r = process(cd, operands[k]);
+        int r = process(cd, operands[k], named);
         if (r != 0)
             status = 1;
         if (r == 2)

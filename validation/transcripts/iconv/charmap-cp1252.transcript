@@ -7,3 +7,7 @@ arg: -t
 arg: UTF-8
 stdin:
 |~ \x80\x93x\x94\n
+status: exit 0
+stdout:
+| \xe2\x82\xac\xe2\x80\x9cx\xe2\x80\x9d
+stderr:

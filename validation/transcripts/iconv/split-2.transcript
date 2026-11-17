@@ -13,3 +13,8 @@ arg: UTF-16LE
 arg: p1
 arg: p2
 stdin:
+status: exit 1
+stdout:
+|~ h\x00
+stderr:
+| iconv: incomplete character or shift sequence at end of buffer

@@ -11,3 +11,8 @@ arg: -o
 arg: o.txt
 stdin:
 |~ x\n
+status: exit 0
+stdout:
+stderr:
+written-file: o.txt
+| x

@@ -3,3 +3,8 @@ clause: s31_1_f_1
 command: iconv
 arg: --from-code
 stdin:
+status: exit 64
+stdout:
+stderr:
+| iconv: option '--from-code' requires an argument
+| Try `iconv --help' or `iconv --usage' for more information.

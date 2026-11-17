@@ -8,3 +8,7 @@ arg: -t
 arg: ASCII
 stdin:
 |~ y\n
+status: exit 0
+stdout:
+| y
+stderr:

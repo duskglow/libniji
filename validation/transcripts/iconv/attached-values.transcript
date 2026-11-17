@@ -5,3 +5,8 @@ arg: -fUTF-8
 arg: -tUTF-16
 stdin:
 |~ x\n
+status: exit 0
+stdout:
+| \xff\xfex\x00
+|~ \x00
+stderr:

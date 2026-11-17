@@ -16,3 +16,9 @@ arg: f3
 arg: f4
 arg: f5
 stdin:
+status: exit 1
+stdout:
+| abc
+|~ d
+stderr:
+| iconv: illegal input sequence at position 1

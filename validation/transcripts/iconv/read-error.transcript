@@ -13,3 +13,7 @@ arg: ASCII
 arg: d
 arg: b
 stdin:
+status: exit 1
+stdout:
+stderr:
+| iconv: error while reading the input: Is a directory
