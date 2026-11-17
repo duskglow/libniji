@@ -66,6 +66,7 @@ both	libc6-dev	usr/lib/x86_64-linux-gnu/libresolv.a	file	libresolv.a	0644	archiv
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libresolv.so	link	libresolv.so.2	-	none	-lresolv links the shared library (issue #5)
 both	libc6-dev	usr/lib/x86_64-linux-gnu/librt.a	file	librt.a	0644	archive	empty: the functions are in libc.a
 both	libc6-dev	usr/lib/x86_64-linux-gnu/libutil.a	file	libutil.a	0644	archive	empty: the functions are in libc.a
+both	libc6-dev	usr/lib/x86_64-linux-gnu/rcrt1.o	file	niji-rcrt1.o	0644	archive	the start file of -static-pie links
 coexist	niji6	usr/lib/niji/lib	link	usr/lib	-	none	the sysroot's merged-/usr link
 coexist	niji6	usr/lib/niji/lib64	link	usr/lib64	-	none	the sysroot's merged-/usr link (the program interpreter's path)
 coexist	niji6	usr/share/doc/niji6/changelog.gz	changelog	-	0644	none	-

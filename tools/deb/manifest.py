@@ -5,7 +5,8 @@ tools/deb/control.tsv (the control fields), each documented in its header.
 
   manifest.py lint [--products DIR]
       The tables are well formed and sorted; every text source and description exists; with
-      --products, every product a file row names is in DIR (the build's products, target/niji).
+      --products, every product a file row names is in DIR (the build's products, target/niji),
+      and every product in DIR is named by a file row or listed in UNSHIPPED.
   manifest.py rows FLAVOUR
       The flavour's rows, resolved (both rows mapped to the coexist packages and sysroot):
       package, path, kind, source, mode, strip, tab-separated (build.sh installs them).
@@ -46,6 +47,13 @@ ORDER = ("Essential", "Multi-Arch", "Pre-Depends", "Depends", "Recommends", "Sug
          "Breaks", "Conflicts", "Replaces", "Section", "Priority")
 MEMBERS = ("triggers", "symbols", "debug")
 REQUIRED = ("Architecture", "Section", "Priority")
+# The products (top-level files of the build's products directory, dot files aside) that no file
+# row ships, each with why; lint --products refuses any other product no file row names, so a new
+# product cannot be left out of the packages unnoticed.
+UNSHIPPED = {
+    "libc.so": "the packages ship the linker script tools/deb/<flavour>/libc-so.ld as libc.so",
+    "libm.so.6.source-digest": "the build's cache key for libm.so.6, not a library file",
+}
 
 
 def die(msg):
@@ -128,6 +136,14 @@ def lint_errors(products=None):
             parent = parent.rsplit("/", 1)[0]
             if (flav, p, parent) in seen:
                 errs.append("manifest.tsv:%d: %s is a row and a directory of %s" % (seen[(flav, p, parent)], parent, q))
+    if products is not None and os.path.isdir(products):
+        shipped = {f[4] for (_n, f) in man if len(f) == 8 and f[3] == "file"}
+        for name in sorted(os.listdir(products)):
+            if name.startswith(".") or not os.path.isfile(os.path.join(products, name)):
+                continue
+            if name not in shipped and name not in UNSHIPPED:
+                errs.append("manifest.tsv: product %s is in %s and no file row ships it (add its row, or list it in "
+                            "manifest.py's UNSHIPPED with why)" % (name, products))
     pkgs = {p for (_f, p, _q) in seen}
     cpkgs = set()
     for n, f in ctl:

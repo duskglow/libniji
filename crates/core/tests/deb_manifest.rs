@@ -5,8 +5,9 @@
 //! `tools/deb/manifest.py`. Two tests:
 //!
 //! * the tables are well formed and sorted (so two stories adding rows merge cleanly), every
-//!   text source and description exists, and every product a file row names is one the build
-//!   writes (`target/niji`): a bad row fails here, not in a package build;
+//!   text source and description exists, every product a file row names is one the build
+//!   writes (`target/niji`), and every product the build writes is shipped by a file row or
+//!   listed in manifest.py's `UNSHIPPED`: a bad or missing row fails here, not in a package build;
 //! * the coexisting flavour (niji6, niji6-dev) built from the products with `build.sh --products`
 //!   is exactly the manifest (`manifest.py check coexist`: every row with its type, mode, link
 //!   target, contents and strip state, nothing unlisted, the control text): the build's shared
