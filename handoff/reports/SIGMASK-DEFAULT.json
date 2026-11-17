@@ -1,0 +1,53 @@
+{
+ "task": "SIGMASK-DEFAULT",
+ "model": "opus",
+ "tokens": null,
+ "result": "sigprocmask/pthread_sigmask: null set ignores how (POSIX) and only the kernel's 8 bytes of the old set are written; differential test unmasked, asserts D-20.1 for 32/33; threads-block-everything cancel+setuid test; reserved-signal differences row added",
+ "branch": "task/sigmask-default",
+ "head": "45b5058e4",
+ "gate": {
+  "affected": "direct tier ok (sigmask-default-gate rc 0); plants 3 CAUGHT + 1 WARN-NO-MSG (caught, msg hidden by harness)",
+  "peak": "13G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "D-20.1 decides item 4 (no reported set contains 32): asserted in the test, not changed",
+  "differences row for the reserved signal has no compatibility option (OD-8, reason in the row); coordinator may ask the owner if one is wanted",
+  "first conformance run showed a false hang: the setuid replay's signal 32 ended the watchdog's sleep early; fixed with a remainder loop"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "sigprocmask/pthread_sigmask with a null set and how 3 or -1: 0 and the old set filled (was EINVAL)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "old set: only the first 8 bytes written, the other 120 of the caller's sigset_t untouched (were zeroed)",
+   "before": 128,
+   "after": 8,
+   "unit": "bytes written",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "differential cases compared unmasked (sigprocmask 140 new + pthread_sigmask 140), 5 conformance checks, 4 plants",
+   "before": null,
+   "after": 280,
+   "unit": "cases",
+   "measured": true
+  }
+ ],
+ "improvement": "the conformance runner has no per-program timeout; a hang guard must live in each program (and must survive the library's own signal 32)",
+ "next_step": "none once gate and plants are green",
+ "report_file": "handoff/SIGMASK-DEFAULT.md",
+ "jobs": [
+  "sigmask-default-gate",
+  "sigmask-default-plants"
+ ]
+}
