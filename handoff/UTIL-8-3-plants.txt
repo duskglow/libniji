@@ -1,0 +1,22 @@
+# UTIL-8-3 plants: the locale command (csys/util/locale.c): keyword value kinds, the environment listing, unknown
+# operands, the -a filter and order, -a -v attribution, -m and its in-process gzip reader. Each must make a recorded
+# transcript (validation/transcripts/locale/) fail. Run with cargo xtask plants (docs/plants.md); the tool rebuilds
+# the products (cargo xtask so links target/niji-test/locale) before each plant's command.
+# UTIL-8-3: the UTIL-8-2 file with its five multi-line `lit:` patterns (sarr-quote, env-lc-all-wins, list-sorted,
+# list-lists-hidden, code-set-blanks) rewritten: `lit:` takes one line without escapes, so those five matched no site
+# and the tool refused the file. Each still plants the defect its name says; the anchored ones use `perl:`.
+bytes-signed | csys/util/locale.c | lit:for (const char *b = p; *b; b++) printf("%s%d", b == p ? "" : ";", (signed char)*b); ==> for (const char *b = p; *b; b++) printf("%s%d", b == p ? "" : ";", (unsigned char)*b); | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*(ck-c-numeric|ck-c-monetary|keywords-ck)
+byte-signed | csys/util/locale.c | lit:printf("%d", (signed char)*p); ==> printf("%d", (unsigned char)*p); | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*(ck-c-monetary|keywords)
+sarr-quote | csys/util/locale.c | perl:s/(case SARR:\n\s*)if \(opt_k\) putchar\('"'\);/${1}/ | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*ck-c
+env-implied-quote | csys/util/locale.c | lit:printf("%s=\"%s\"\n", cats[c].name, lang && *lang ? lang : "POSIX"); ==> printf("%s=%s\n", cats[c].name, lang && *lang ? lang : "POSIX"); | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*env-
+env-lc-all-wins | csys/util/locale.c | lit:if (all && *all) ==> if (all && *all && !own) | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*env-lc-all
+list-sorted | csys/util/locale.c | perl:s/(add\(&s, "POSIX", NULL\);\n\s*)qsort\(s\.v, s\.n, sizeof \*s\.v, by_collation\);/${1}/ | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*list-all
+list-needs-identification | csys/util/locale.c | lit:LOCALE_DIR "/%s/LC_IDENTIFICATION" ==> LOCALE_DIR "/%s/LC_TIME" | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*list-all
+list-lists-hidden | csys/util/locale.c | perl:s/(are skipped\. \*\/\n\s*if \()strcmp\(e->d_name, "\."\) == 0/${1}e->d_name[0] == '.'/ | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*list-all
+verbose-own-source | csys/util/locale.c | lit:        const struct entry *e = &s.v[i]; ==>         const struct entry *e = &s.v[opt_v ? s.n - 1 - i : i]; | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*list-all-verbose
+gz-stored-check | csys/util/locale.c | lit:if (len != (~nlen & 0xffffu)) return n; ==> if (len == (~nlen & 0xffffu)) return n; | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
+gz-fixed-lengths | csys/util/locale.c | lit:memset(l + 256, 7, 24) ==> memset(l + 256, 8, 24) | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
+gz-dynamic-repeat | csys/util/locale.c | lit:repeat = r + (sym == 18 ? 11 : 3); ==> repeat = r + (sym == 18 ? 10 : 3); | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
+gz-distance | csys/util/locale.c | lit:out[*n] = out[*n - back]; ==> out[*n] = out[*n - back + 1]; | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
+gz-file-name-field | csys/util/locale.c | lit:for (unsigned flag = 8; flag <= 16; ==> for (unsigned flag = 16; flag <= 16; | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
+code-set-blanks | csys/util/locale.c | lit:while (v < stop && (*v == ' ' || *v == '\t')) v++; ==> | cargo xtask transcript check validation/transcripts/locale | msg:MISMATCH.*charmaps
