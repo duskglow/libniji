@@ -47,7 +47,7 @@ mlib=usr/lib/$ma
 # --- libc6 ---
 need ld-linux-x86-64.so.2
 put 0755 "$products/ld-linux-x86-64.so.2" "$s6/$mlib/ld-linux-x86-64.so.2"
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     need "$so"
     put 0644 "$products/$so" "$s6/$mlib/$so"
 done

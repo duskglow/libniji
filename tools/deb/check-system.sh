@@ -136,7 +136,7 @@ if [ -f "$r/usr/sbin/ldconfig" ]; then
 else
     fail "libc-bin has no usr/sbin/ldconfig"
 fi
-for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0; do
+for so in libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libutil.so.1 libanl.so.1 libnsl.so.1 libc_malloc_debug.so.0 libresolv.so.2 libBrokenLocale.so.1; do
     sn=$(readelf -dW "$lib/$so" 2>/dev/null | sed -n 's/.*(SONAME).*\[\(.*\)\]$/\1/p')
     [ "$sn" = "$so" ] || fail "$so: SONAME '$sn'"
 done
@@ -180,7 +180,7 @@ else
 fi
 func=${DBG_FUNC:-getenv}
 if command -v gdb > /dev/null; then
-    out=$(timeout 120 gdb -batch -nx -ex "set debug-file-directory $dbgroot" -ex "info line *$func" "$lib/libc.so.6" 2>&1 || true)
+    out=$(timeout 120 gdb -batch -nx -iex "set debug-file-directory $dbgroot" -ex "info line *$func" "$lib/libc.so.6" 2>&1 || true)
     case $out in
         *"Line "[0-9]*" of \""*) ;;
         *) fail "gdb with libc6-dbg's directory shows no source line for $func in libc.so.6: $(echo "$out" | tail -2 | tr '\n' ' ')" ;;
