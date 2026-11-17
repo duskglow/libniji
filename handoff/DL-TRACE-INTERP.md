@@ -1,47 +1,42 @@
 # DL-TRACE-INTERP: the loader's trace list matches the reference
 
-**State.** Branch `task/dl-trace-interp`, code `a754e3c0c` + records/docs/plants `8152fa8df` (this note and
-`handoff/reports/DL-TRACE-INTERP.json` the commits after; deca7a883 fixes the pending record's section and key order). Role mei `~/w/s3`. Stopped at the context checkpoint
-with the gate and plants running (PENDING JOBS).
+**State.** Branch `task/dl-trace-interp-2` (DL-TRACE-INTERP-2, continuing `task/dl-trace-interp`). Code head
+`a389fd4e2` (merge of origin/next `ff292f6af`, test `30ff851ec`, plants file `a389fd4e2`); this note and
+`handoff/reports/DL-TRACE-INTERP-2.json` are the commits after. Role keke `~/w/n1`; job scripts in keke
+`~/work/DL-TRACE-INTERP-2/` (gate.sh, debs.sh, swap.sh; not in the tree). Full report: `handoff/DL-TRACE-INTERP-report.md`.
 
-## Done
+## Decisions in force
 
-* Probes (mei, reference loader black box; scripts in scratch, results in `spec/behaviour/dynlink.md` "Trace lists"):
-  the interpreter is listed only when an object names it in `DT_NEEDED` (soname or path), at its breadth-first
-  place; vDSO first, after the interpreter when that comes first; `NAME => PATH` when the program's `PT_INTERP`
-  differs from the loader's path as run; library operand: the loader's path as run; no `DT_NEEDED`:
-  `statically linked`, status 0. The reference's libc names the loader; its libm names libc then the loader.
-* `crates/boundary/src/ld.rs` `list()`: that rule for all three entry points (`invoked` = the loader's `AT_EXECFN`
-  when run as a program); libniji's own libraries (`search::PINNED`) name the interpreter after their own needs.
-  This fixes (b) and (c) of ruling #6056.
-* (a): only libc and libm differed (pinned sonames resolve to `<prefix>/<libdir>`, `usr/lib/x86_64-linux-gnu` in
-  the system build). `tools/deb/build.sh --flavour system` now builds with `NIJI_LIBDIR=lib/x86_64-linux-gnu`
-  (same file on merged /usr, which the reference's `/lib64` PT_INTERP needs too). Coexist flavour unchanged.
-* `csys/util/ldd.c`: interim filter and `has_needed` removed. D-31.15's interim note replaced; pending record
-  `records/pending/DL-TRACE-INTERP-1.toml` (D-NEW, series D-27, amends D-27.16 and D-31.15).
-* `docs/differences-from-glibc.md`: `ldd -v` row (libc/libm version-need blocks), no compat option (reason in row).
-* Test `list_interpreter_line_matches_reference` (crates/ld/tests/search_cache.rs): 11 operands x 2-3 entry points,
-  whole outputs vs the reference, addresses/loader paths/libc dir masked. `list_matches_reference`'s `deps()` now
-  drops the interpreter line as its doc says (it is `NAME => PATH` there, correctly).
-* Plants `handoff/DL-TRACE-INTERP-plants.txt` (6): `ldd-several-header` fixed to compile (`several < 0`).
+D-27.16 as amended by **D-27.56** (the trace list's interpreter rule), D-31.15 (ldd; interim filter of ruling #6043
+removed, now cites D-27.56). `docs/differences-from-glibc.md` `ldd -v` row (libc/libm version-need blocks; no compat
+option, reason in the row). Spec: `spec/behaviour/dynlink.md` "Trace lists".
+
+## Done (DL-TRACE-INTERP)
+
+* Probes (reference loader as a black box): interpreter listed only when an object names it in `DT_NEEDED`, at its
+  breadth-first place; vDSO first, after the interpreter when that comes first; `NAME => PATH` when the program's
+  `PT_INTERP` differs from the loader's path as run; library operand: the loader's path as run; no `DT_NEEDED`:
+  `statically linked`, status 0.
+* `crates/boundary/src/ld.rs` `list()` follows it for all entry points; libniji's own libraries name the interpreter
+  after their own needs. `csys/util/ldd.c` interim filter removed. System build pins libc/libm under
+  `/lib/x86_64-linux-gnu` (`tools/deb/build.sh --flavour system`). Test `list_interpreter_line_matches_reference`.
+
+## Done (DL-TRACE-INTERP-2)
+
+* CI red (static old-name: one `Liella` in spec/behaviour/dynlink.md) fixed by merging origin/next and writing libniji;
+  the spec note and D-31.15 cite D-27.56 instead of the pending file. Conflict in the differences table: next's rows
+  kept, the `ldd -v` row kept and given the reference column it lacked (5-column table).
+* `tools/deb/build.sh`: the system build line read `NIJI_LIBDIR=$libdirNIJI_FULL_PROFILE=1` (one assignment of an
+  unset variable: empty libdir, full profile off); split back into two assignments.
+* The handoff's gap closed: the test now also runs `--list` with each side's loader through a symlink, so
+  `NAME => PATH` is compared whole; two plants on it (`handoff/DL-TRACE-INTERP-2-plants.txt`, 8 plants).
 
 ## Results
 
-* mei `dl-trace-interp-check-3` rc 0: both list tests pass; ldd transcripts 28 ok, 0 mismatched (filter removed).
-  (`-check-1` compile error, `-check-2` old test's filter, `-gate-1`/`-plants-1` stopped: synced before the record fix; all superseded.)
-* Running at hand-back: mei `dl-trace-interp-gate-2` (xtask clippy, workspace clippy -D warnings, static, direct
-  tier --base origin/next, `cargo xtask test`, NIJI_FULL_PROFILE so + hot_text_products), mei `dl-trace-interp-plants-2`.
+See the report. Swap root (keke, trixie): verdict requires ldd-1..5 and every other command identical with NO
+normalisation, ldd-6/7 (`-v`) identical once only libc.so.6/libm.so.6's version-need blocks are dropped (the row).
 
 ## Open / next step
 
-1. Collect the two jobs; a red is fixed by a continuation.
-2. Not verified: the keke swap-root run (UTIL-LDD-3's `swap.sh`, ldd-1..7) with a system build of this branch and
-   the normalisation for (a)-(c) removed; expected same=61. Needs `tools/deb/build.sh --flavour system` + keke.
-3. Gap: the `NAME => PATH` spelling is exercised only by `list_matches_reference` (filtered); no plant on it.
-
-Read: spec/behaviour/dynlink.md "Trace lists", records/pending/DL-TRACE-INTERP-1.toml, D-27.16, D-31.15.
-
-## Rule slips
-
-One local here-doc (`python3 - <<X`, patching a scratch probe script outside the tree); one `git commit --amend`
-of an unpushed local commit of mine.
+Nothing in this story once the named jobs are green. Do not redo: the probes, the merge, the plants.
+Read: spec/behaviour/dynlink.md "Trace lists", D-27.56, D-31.15, `handoff/DL-TRACE-INTERP-report.md`.

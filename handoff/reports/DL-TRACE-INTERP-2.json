@@ -1,0 +1,14 @@
+{"task": "DL-TRACE-INTERP-2", "model": "opus", "tokens": null,
+ "result": "Merged next (libniji names; CI old-name red fixed), build.sh system libdir assignment fixed, NAME => PATH line tested and planted; swap root ldd-1..5 identical to the reference unnormalised",
+ "branch": "task/dl-trace-interp-2", "head": "a389fd4e2",
+ "gate": {"affected": "clippy, static, direct tier rc 0 (affected.log summary 12059 passed / 0 failed, possibly xtask test figures); xtask test + full-profile start-up checks running at hand-back", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": [], "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "ld.so trace lists (ldd, --list, LD_TRACE_LOADED_OBJECTS): swap-root commands identical to the reference, trixie (ldd-6/7 differ only by the documented libc/libm -v blocks)", "before": 54, "after": 61, "unit": "identical commands of 63", "measured": true},
+  {"kind": "correctness", "what": "tools/deb/build.sh --flavour system: NIJI_LIBDIR was empty and NIJI_FULL_PROFILE unset (two assignments joined)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "plants on the trace list (2 new on NAME => PATH), all CAUGHT", "before": 6, "after": 8, "unit": "plants", "measured": true}
+ ],
+ "improvement": "build.sh's system build line carried two joined assignments (`$libdirNIJI_FULL_PROFILE=1`, cause not traced) that no check caught; a lint for a `$name` run straight into an upper-case NAME= in tools/ shell scripts would catch that class",
+ "next_step": "none in this story; LD-SPLIT-2 can proceed once this lands",
+ "report_file": "handoff/DL-TRACE-INTERP-report.md",
+ "jobs": ["dl-trace-interp-2-gate-2", "dl-trace-interp-2-plants-1", "dl-trace-interp-2-debs-2", "dl-trace-interp-2-swap-2"]}
