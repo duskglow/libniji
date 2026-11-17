@@ -140,7 +140,7 @@ impl intl::Host for Catalogs {
     }
 
     fn codec(&self, name: &[u8]) -> Option<Codec> {
-        if name.is_empty() { None } else { crate::iconv::codec_named(name) }
+        if name.is_empty() { None } else { crate::iconv::codec_named(name).ok() }
     }
 
     fn charmap_at(&self, addr: usize) -> &'static niji::charmap::Charmap {

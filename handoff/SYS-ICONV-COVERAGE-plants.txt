@@ -1,0 +1,5 @@
+# Plants for the generated charmaps (SYS-ICONV-COVERAGE). Run: cargo xtask plants handoff/SYS-ICONV-COVERAGE-plants.txt --dir <new RAM dir> --timeout 1800
+charmap-cap-32 | crates/legacy/src/global_locale.rs | lit:const CHARMAPS: usize = 256; ==> const CHARMAPS: usize = 32; | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:names that do not convert as the reference does
+charmap-alias-lost | xtask/src/charmaps.rs | lit:"% alias {a}" ==> "% alias X{a}" | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:names that do not convert as the reference does
+charmap-fill-short | xtask/src/charmaps.rs | lit:(0..0x20).chain([0x7F]) ==> (0..0x1F).chain([0x7F]) | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:do not convert as the reference does|lines that differ from the reference
+charmap-byte-shift | xtask/src/charmaps.rs | lit:"<U{cp:04X}> /x{b:02x}" ==> "<U{cp:04X}> /x{:02x}", b ^ 0x80 | cargo xtask so && cargo test -p niji --test iconv_charmaps_products | msg:do not convert as the reference does|lines that differ from the reference
