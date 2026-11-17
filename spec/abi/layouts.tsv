@@ -1735,7 +1735,7 @@ Elf64_Ehdr	e_shentsize	58		Elf64_Half
 Elf64_Ehdr	e_shnum	60		Elf64_Half	
 Elf64_Ehdr	e_shstrndx	62		Elf64_Half	
 Elf32_Phdr		32	4		
-Elf32_Phdr	__p_type	0		Elf32_Word	
+Elf32_Phdr	p_type	0		Elf32_Word	
 Elf32_Phdr	p_offset	4		Elf32_Off	
 Elf32_Phdr	p_vaddr	8		Elf32_Addr	
 Elf32_Phdr	p_paddr	12		Elf32_Addr	
@@ -1744,7 +1744,7 @@ Elf32_Phdr	p_memsz	20		Elf32_Word
 Elf32_Phdr	p_flags	24		Elf32_Word	
 Elf32_Phdr	p_align	28		Elf32_Word	
 Elf64_Phdr		56	8		
-Elf64_Phdr	__p_type	0		Elf64_Word	
+Elf64_Phdr	p_type	0		Elf64_Word	
 Elf64_Phdr	p_flags	4		Elf64_Word	
 Elf64_Phdr	p_offset	8		Elf64_Off	
 Elf64_Phdr	p_vaddr	16		Elf64_Addr	

@@ -21,3 +21,4 @@ empty-versions.tsv: abi_extract.py --empty-versions-only (ldd (Ubuntu GLIBC 2.39
 Slice 16 (SL-HEADERS-S16): layouts.tsv rerun with abi_extract.py --layouts-only after adding struct prof (sprofil, sys/profil.h): 1 type added (5 rows), earlier rows unchanged. GCC 13.3, glibc 2.39.
 Slice 16 (SL-HEADERS-S16): La_x86_64_regs, La_x86_64_retval, La_x86_64_xmm, La_x86_64_ymm, La_x86_64_zmm, La_x86_64_vector added to layouts.tsv (abi_extract.py --layouts-only).
 Slice 16 (SL-HEADERS-S16-2): Dl_serpath and struct cpuid_feature added to layouts.tsv (abi_extract.py --layouts-only): 2 types added, earlier rows unchanged. GCC 13.3, glibc 2.39.
+Slice 16 (SL-HEADERS-S16-2): the p_type member of Elf32_Phdr and Elf64_Phdr is spelled __p_type in the DWARF of abi_extract.py's probe and p_type by every program that uses it (conformance/c/s27_dladdr.c): the two rows were respelled by hand; abi_extract.py needs a rerun check (handoff/SL-HEADERS-S16-2.md).
