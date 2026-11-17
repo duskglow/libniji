@@ -1,34 +1,40 @@
 # DL-CANONICAL-PLT: the loader honours canonical PLT addresses (GitHub issue #10)
 
-**State.** Branch `task/dl-canonical-plt-3` (stacks on dl-canonical-plt-2; merge base next e035b3034; not
-rebased). Code head 1cfd6cd07. Role mei:~/w/s3; scripts ~/work/DL-CANONICAL-PLT-3/ on mei (count.sh: equal-length
-RAM copies, 41 single runs, ASLR on/off; pt.sh: lossless Intel PT per-function counts; step2.sh: static, clippy, so,
-canonical_plt tests, count, pt). Decision: the pending record `records/pending/DL-CANONICAL-PLT-2-1.toml` (D-NEW,
-series D-27); its body still describes the run-2 mechanism (Request::jump_slot): update it to the design below.
+**State (run 4, checkpoint at context).** Branch `task/dl-canonical-plt-4` (= dl-canonical-plt-3 + origin/next
+a67d30d2f merged + run-4 commit cc062fcfd, WIP). Role keke:~/w/n1. Scripts on keke ~/work/DL-CANONICAL-PLT-4/:
+`lint.sh` (static, clippy), `step.sh <tag>` (builds the base = next a67d30d2f once in ~/work/DL-CANONICAL-PLT-4/base,
+then the role's products, the canonical_plt tests, `count.sh`), `count.sh` (RAM copies at equal-length paths, 21 runs,
+ASLR on/off, N=0/3/12; then every N=0 page fault mapped to object/perms/file page with `pfmap.py`, base vs branch).
+Pending record `records/pending/DL-CANONICAL-PLT-2-1.toml` (D-NEW, D-27): its body still describes run 2; update it
+to the design below and add the new test to `tests`.
 
-**Design now (run 3).** `target`, `one`, `pass1` and `Request` are back to their source on next. `Object::program`
-(inlined) scans the program's hashed symbols once (GNU: symoffset..count; SysV: 1..nchain) and marks the view only
-when a canonical PLT entry exists (`has_canonical_plt`); the lookup closure accepts such entries for that view only.
-`relocate_first` and `relocate_deferred` test `syms[0].has_canonical_plt()` once per object and then go to the
-cold `pass1_canonical` / `tables_canonical`: a `JUMP_SLOT` resolves via `slot_target` (re-resolves with the program
-excluded when the first answer is an undefined symbol, i.e. the canonical entry) and the protected check
-(`protected_canonical`) runs there; every other entry goes through `one`.
+**Run 4 finding (job dl-canonical-plt-4-step1, head 7ff6d42d4 = run 3 + next merged; ASLR off, 21 runs, zero spread).**
+Instructions below base at every N (N=0 9027952 -> 9016192, -11.8k; N=3 -11.8k; N=12 -12.0k). Faults N=0 80 -> 85,
+N=3 97 -> 100, N=12 133 -> 136 (ASLR on medians 82->85, 98->100, 134->136). layout-bins.tsv and hot-text.signatures
+identical; libc.so.6's layout is identical (same section offsets). Every extra page comes from ld.so's growth (.text
+289664 -> 310895, +21 KB): ld.so has no traced layout, so link order decides; the run-3 `#[cold]` functions are placed
+in `.text.unlikely` AHEAD of `niji_machine_ld_entry` (entry moved from file 0x1000 to 0x3000), inlining shifted
+(`relocate_first` +2984 with pass1 inlined, `link` +3142, `list` +2773, `exit_order` newly out of line +4453), and the
+bigger ld.so image moves libc's address (ASLR off) into other fault-around windows (new fault: libc page 0x435000,
+`.dynamic`, read by `Elf::dynamic`). Diff (N=0): ld.so r-xp 5 -> 6 pages, anon +2, stack +1, libc r--p +1.
 
-**Where the +5.5k went (run 3, measured).** Equal-length paths, 41 runs: the delta was real and deterministic
-(N=0 +5458, N=3 +5574, N=12 +5910). Lossless PT trace: all in `reloc::target` (+6450; `one` -807, lookup closure
--545): the `jump_slot` argument and `Target.protected` caused register spills on every symbol relocation. A first
-cut with the test inside `pass1` left +2686 (pass1 loop codegen +2877) and +2 faults.
+**Design now (cc062fcfd, NOT YET MEASURED).** The plain path is next's: `pass1` (now `#[inline(never)]`, as next
+generates it) and the deferred loop run unchanged; when `syms[0].has_canonical_plt()`, the cold `canonical_slots`
+then visits the JUMP_SLOTs: `slot` reads the field back and skips any that does not point into the program (only a
+canonical entry can); else `slot_target` re-resolves (one `resolve` call site, a 2-step loop: a first answer that is
+an undefined symbol, the program's entry, is resolved again without the program) and writes / defers it, with the
+protected check (`protected_canonical`) in pass 1. `pass1_canonical`/`tables_canonical` are gone.
+`Object::program` is `#[inline(never)]` (was inline(always), which grew `link`). New test
+`s27_1_g_0_canonical_plt_entry_for_ifunc_definition` (IFUNC definition: the slot is bound in the deferred pass;
+probe-settled on keke: the reference passes all checks, lazy and LD_BIND_NOW).
 
-**Counters at 1cfd6cd07 (job dl-canonical-plt-3-step3, ASLR off, min/med/max of 41):** instructions base -> branch
-N=0 9028049 -> 9027904 (-145), N=3 9307696 -> 9307435 (-261), N=12 10109444 -> 10108761 (-683); faults N=0 82 -> 83
-(+1, open), N=3 98 -> 98, N=12 134 -> 134. layout-bins.tsv and hot-text.signatures identical to base. PT diff:
-pass1 now inlined into relocate_first; `init::init_order` newly out of line (+214 instr, new symbol): the likely
-source of the N=0 fault.
-
-**Next step.** (1) Remove the N=0 +1 fault: check `nm` for init_order / relocate_first placement vs the hot group
-(target/niji/.hot-lists); keep pass1 out of line (`#[inline(never)]` on pass1, measure) or otherwise restore base
-inlining; recount with step2.sh <new tag>. (2) Update the pending record body. (3) Plants: rerun
-`handoff/DL-CANONICAL-PLT-plants.txt` adjusted to the new code (patterns naming `jump_slot`/`protected` field no
-longer exist; add plants for the has_canonical test, slot_target's exclusion and the scan range) in a new dir
-/mnt/zram/claude/DL-CANONICAL-PLT-4/plants-1. (4) Gate: ~/work/DL-CANONICAL-PLT-2/gate.sh (static, clippy, records
-check, affected --base origin/next, xtask test, full-profile so + hot_text_products).
+**Next step.** (1) Read job `dl-canonical-plt-4-step2` on keke (lint, then step.sh m2): canonical_plt 5 tests
+green? counts and the fault-page diff vs base. (2) If faults are still above base: reduce the remaining ld.so growth
+(sizes: `nm -S --size-sort` of /dev/shm/claude/DL-CANONICAL-PLT-4/m2/{base,new_}/ld-linux-x86-64.so.2); consider
+dropping `#[cold]` on protected_canonical/canonical_slots (`.text.unlikely` goes first in ld.so). If it cannot reach
+base: RULING NEEDED with this diff (ld.so is ungrouped, so any loader growth moves its start-up pages; a fix is a
+traced/ordered ld.so layout, outside this story). (3) Update the pending record body. (4) Plants:
+`handoff/DL-CANONICAL-PLT-4-plants.txt` (13 plants, rewritten for this design) in a NEW dir
+/dev/shm/claude/DL-CANONICAL-PLT-5/plants-1, `--timeout 900`. (5) Gate as ~/work/DL-CANONICAL-PLT-2/gate.sh on mei
+did (static, clippy, full clippy line, records check, affected --base origin/next, xtask test, full-profile so +
+hot_text_products, plain so): copy it to keke with `cd ~/w/n1`.
