@@ -1,6 +1,28 @@
 # SYS-DEV-LINKS: libBrokenLocale.so.1, the missing development links and archives
 
-State: branch `task/sys-dev-links` (from `origin/next` cc18a11ef). HEAD: see `handoff/reports/SYS-DEV-LINKS.json`.
+State: branch `task/sys-dev-links-2` (SYS-DEV-LINKS' `task/sys-dev-links` e201bf454 with origin/next
+21b03d08c merged in). HEAD: see `handoff/reports/SYS-DEV-LINKS-2.json`.
+
+## SYS-DEV-LINKS-2: the merge of origin/next (CI conflict)
+
+next (with SYS-CONTROL-PARITY-2) had landed libresolv.so.2 / libresolv.so in the system packages (issue
+#5), the control-field parity (libc6-dev Depends/Provides) and the libc6 lintian override, in the same
+four files. Resolution keeps both sides: libc6's library loop ends `... libresolv.so.2
+libBrokenLocale.so.1`; libc6-dev has the `libresolv.so` link and this story's three links;
+check-system.sh checks both SONAME lists, layout paths and both link blocks (devlinks, resolv);
+root-system.sh runs devlinks and resolv in the root; docs/install-packages.md lists both (and no longer
+says libc6 lacks libresolv.so.2). The `bl-lib` plant's literal followed the new loop text.
+Proof on the merged head (role s1 on mei): `sys-dev-links-2-pkg` rc 0 (system check PASS, check-symbols
+PASS 4214 lines, root-system all PASS incl. devlinks MB_CUR_MAX 4, resolv and krb5; coexist check.sh
+PASS; niji6-dev links present; parity compare: new rows only next's libresolv rows (3 class-c private
+or data symbols, its shlibs line) plus the expected `shlibs: libBrokenLocale 1 libc6 (>= 2.39)`),
+`sys-dev-links-2-lint` (clippy all features, static) rc 0, gate `sys-dev-links-2-gate` rc 0
+(`affected --run --base origin/next`: 4 suites, 463 passed / 0 failed, peak 2.0G), plants
+`sys-dev-links-2-plants` rc 0 (6 CAUGHT, 0 WARN). The changes touch no start-up code, so the
+start-up checks were not run. Superseded: none (`sys-dev-links-2-lint0` was step 0's check of the
+inherited head, rc 0).
+Version question (coordinator #6144/#6146): `libm-2.41.a` (audit row 13) is the reference's versioned
+static libm name; libniji is the 2.39 ABI, so no 2.41-named file is shipped.
 Brief: `~/state/briefs/SYS-DEV-LINKS.md` (gap 13 of `plan/package-parity-audit.md`).
 
 ## What changed
