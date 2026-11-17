@@ -354,7 +354,7 @@ impl map::Mapper for SysMapper {
 }
 
 /// An address or length as a machine word.
-pub(super) fn word(v: u64) -> Result<usize, ()> {
+fn word(v: u64) -> Result<usize, ()> {
     usize::try_from(v).map_err(|_| ())
 }
 

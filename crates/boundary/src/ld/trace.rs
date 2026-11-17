@@ -6,7 +6,7 @@ use niji_ld::program;
 use niji_ld::dlopen::Refusal;
 use niji_ld::search::{self, PathBuf, Scope};
 use niji_ld::{elf, map};
-use super::List;
+use super::entry::List;
 use super::image::{SysMapper, Unusable, dir_of, dyn_string, dynamic_of, open_candidate, open_whole, read_cache};
 use super::io::{exit, fail_loading, write_all};
 

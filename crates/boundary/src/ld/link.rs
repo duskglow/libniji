@@ -12,7 +12,7 @@ use niji_ld::search::{self, CacheRef, PathBuf, Scope};
 use niji_ld::{elf, init, map, start};
 use niji_ld::tls::{self as ltls, Module, Placed};
 use crate::raw;
-use super::{List, __libc_stack_end, register_rseq, report_nonshared};
+use super::entry::{List, __libc_stack_end, register_rseq, report_nonshared};
 use super::image::{FileId, ProcImage, SysMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image, scratch};
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, write_all};
