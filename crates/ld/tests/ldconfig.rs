@@ -25,6 +25,7 @@ struct Mem {
 
 const ENOENT: i32 = 2;
 const ENOTDIR: i32 = 20;
+const ENOMEM: i32 = 12;
 const ELOOP: i32 = 40;
 
 fn comps(p: &[u8]) -> Vec<Vec<u8>> {
@@ -162,6 +163,9 @@ impl Fs for Mem {
         Ok(n)
     }
     fn read_file(&mut self, path: &[u8], max: usize, out: &mut Vec<u8>) -> Result<(), i32> {
+        if path.ends_with(b"/enomem.conf") {
+            return Err(ENOMEM); // a file system that runs out of memory reading this file
+        }
         let b = self.body(path)?;
         out.extend_from_slice(&b[..b.len().min(max)]);
         Ok(())
@@ -450,6 +454,81 @@ fn hwcaps_subdirectories_get_no_links_and_name_the_file() {
     let p = text(&ldconfig(&mut m, &["-p"]).out);
     assert!(p.contains("\tlibz.so.1 (libc6,x86-64, hwcap: \"x86-64-v3\") => /opt/l/glibc-hwcaps/x86-64-v3/libz.so.1.2\n"), "{p}");
     assert!(text(&o.out).contains("/opt/l/glibc-hwcaps/x86-64-v3: (hwcap: \"x86-64-v3\") (from /etc/ld.so.conf:1)\n\tlibz.so.1 -> libz.so.1.2\n"));
+}
+
+/// s31_2_i_2, LDCONFIG-LIMITS (owner ruling: no artificial caps): a 3 MiB `ld.so.conf` (old cap 1 MiB, the rest
+/// was ignored silently) is read whole: its last line's directory is scanned and its library gets its link.
+#[test]
+fn a_large_configuration_is_read_to_its_last_line() {
+    let mut m = base();
+    let mut conf = Vec::new();
+    while conf.len() < 3 << 20 {
+        conf.extend_from_slice(b"# filler comment line of a large configuration file, ignored by the reader\n");
+    }
+    conf.extend_from_slice(b"/opt/last\n");
+    m.file("/etc/ld.so.conf", &conf).elf("/opt/last/liblast.so.1.0", Some("liblast.so.1"));
+    let o = ldconfig(&mut m, &["-N", "-v"]);
+    assert_eq!(o.status, 0, "{}", text(&o.err));
+    assert!(text(&o.out).starts_with("/opt/last: (from /etc/ld.so.conf:"), "a_large_configuration: the last line is read: {}", text(&o.out));
+    assert_eq!(m.get("/opt/last/liblast.so.1"), Some(&Node::Link(b"liblast.so.1.0".to_vec())), "a_large_configuration: the last directory is scanned");
+}
+
+/// s31_2_i_2, LDCONFIG-LIMITS (ruling #5594: running out of memory is a clean error): a configuration file the file
+/// system cannot read for want of memory ends the run with `out of memory`, exit 1; it is not skipped like a missing
+/// file.
+#[test]
+fn a_configuration_read_out_of_memory_ends_the_run() {
+    let mut m = base();
+    m.file("/etc/ld.so.conf", b"include /etc/enomem.conf\n/opt/a\n").file("/etc/enomem.conf", b"/opt/b\n").dir("/opt/a").dir("/opt/b");
+    let o = ldconfig(&mut m, &["-N", "-X"]);
+    assert_eq!((o.status, text(&o.err)), (1, "ldconfig: out of memory\n".to_string()), "a_configuration_read_out_of_memory");
+}
+
+/// s31_2_i_2, s31_2_i_3, LDCONFIG-LIMITS: 70000 configured directories (old cap 65536, the rest ignored with a
+/// message) are all kept, in order; one named again at the end is still found as a duplicate of its first line.
+#[test]
+fn many_configured_directories_are_all_kept() {
+    const N: usize = 70_000;
+    let mut m = base();
+    let mut conf = Vec::new();
+    for i in 0..N {
+        let d = format!("/d/{i}");
+        m.dir(&d);
+        conf.extend_from_slice(d.as_bytes());
+        conf.push(b'\n');
+    }
+    conf.extend_from_slice(b"/d/0\n");
+    m.file("/etc/ld.so.conf", &conf);
+    let o = ldconfig(&mut m, &["-N", "-X", "-v"]);
+    assert_eq!(o.status, 0, "{}", text(&o.err));
+    let out = text(&o.out);
+    let dirs: Vec<&str> = out.lines().filter(|l| l.starts_with("/d/")).collect();
+    assert_eq!(dirs.len(), N, "many_configured_directories: every directory kept");
+    assert_eq!(dirs[N - 1], format!("/d/{}: (from /etc/ld.so.conf:{N})", N - 1));
+    assert_eq!(
+        text(&o.err),
+        format!("ldconfig: Path `/d/0' given more than once\n(from /etc/ld.so.conf:{} and /etc/ld.so.conf:1)\n", N + 1),
+        "many_configured_directories: the duplicate is found, nothing is ignored"
+    );
+}
+
+/// s31_2_g_1, s31_2_g_5, LDCONFIG-LIMITS: 100 glibc-hwcaps subdirectories (old cap 64 distinct names, the cache was
+/// not written) all go into the cache, each with its name.
+#[test]
+fn many_hwcaps_subdirectories_reach_the_cache() {
+    let mut m = base();
+    m.file("/etc/ld.so.conf", b"/opt/h\n").elf("/opt/h/libh.so.1.0", Some("libh.so.1"));
+    for i in 0..100 {
+        m.elf(&format!("/opt/h/glibc-hwcaps/level{i}/libh.so.1.0"), Some("libh.so.1"));
+    }
+    let o = ldconfig(&mut m, &[]);
+    assert_eq!(o.status, 0, "{}", text(&o.err));
+    let p = text(&ldconfig(&mut m, &["-p"]).out);
+    for i in 0..100 {
+        let line = format!("\tlibh.so.1 (libc6,x86-64, hwcap: \"level{i}\") => /opt/h/glibc-hwcaps/level{i}/libh.so.1.0\n");
+        assert!(p.contains(&line), "many_hwcaps_subdirectories: level{i} in the cache: {p}");
+    }
+    assert!(p.starts_with("101 libs found in cache"), "{p}");
 }
 
 /// s31_2_g_3 (libniji rule): the same tree listed in the opposite order gives the same output and the same cache.

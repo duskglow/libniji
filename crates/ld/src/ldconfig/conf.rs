@@ -13,6 +13,10 @@
 //! **libniji rule:** an include that would re-enter a file already being read (a cycle, found by
 //! file identity) or nest deeper than [`DEPTH_MAX`] is refused with a message naming the file and
 //! line, and the rest of the configuration is read as usual (the exit status does not change).
+//!
+//! No size or count caps: a file is read whole and any number of directories is kept, in storage
+//! that grows with use; only memory exhaustion stops the run (`out of memory`, exit 1). Duplicate
+//! directories are found through a hash index of file identities, so naming many costs linear time.
 
 use alloc::vec::Vec;
 
@@ -20,13 +24,12 @@ use super::{push, Fs, Kind, Oom, Text};
 
 /// `ENOTDIR`: a configured path that is not a directory.
 const ENOTDIR: i32 = 20;
+/// `ENOMEM`: the file system ran out of memory reading a file.
+const ENOMEM: i32 = 12;
 
-/// The deepest include nesting read; one deeper is refused with a message.
+/// The deepest include nesting read; one deeper is refused with a message (it stops include
+/// cycles that file identity cannot see, such as a chain of distinct generated files).
 pub const DEPTH_MAX: usize = 32;
-/// The largest configuration file read; the rest of a longer file is ignored.
-pub const FILE_MAX: usize = 1 << 20;
-/// The most directories a configuration may name in total (the rest are ignored with a message).
-pub const DIRS_MAX: usize = 1 << 16;
 
 /// One configured directory and where it was named.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,6 +65,30 @@ pub struct Reader<'f, F: Fs> {
     stack: Vec<(u64, u64)>,
     /// The directories kept, in order, with their file identity (device, inode).
     pub kept: Vec<(Dir, (u64, u64))>,
+    /// Open-addressing index of `kept` by file identity: a slot holds a `kept` position plus one,
+    /// 0 is empty; the length is a power of two at least twice `kept.len()` (or 0), so a probe
+    /// always ends at an empty slot.
+    index: Vec<usize>,
+}
+
+/// The index slot a file identity starts probing at (a multiplicative hash; `mask` = length - 1).
+fn slot_of(id: (u64, u64), mask: usize) -> usize {
+    let h = (id.0.rotate_left(32) ^ id.1).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+    usize::try_from(h >> 32).unwrap_or_default() & mask
+}
+
+/// Puts `value` (a `kept` position plus one) for `id` in the first empty slot of `table` (which
+/// has one: it is at most half full).
+fn place(table: &mut [usize], id: (u64, u64), value: usize) {
+    let mask = table.len().wrapping_sub(1);
+    let mut i = slot_of(id, mask);
+    while let Some(slot) = table.get_mut(i) {
+        if *slot == 0 {
+            *slot = value;
+            return;
+        }
+        i = i.wrapping_add(1) & mask;
+    }
 }
 
 /// `#` to the end of the line goes; then blanks at both ends.
@@ -83,7 +110,41 @@ fn word(s: &[u8]) -> (&[u8], &[u8]) {
 impl<'f, F: Fs> Reader<'f, F> {
     /// A reader; `rooted` = a `-r` root is in use.
     pub fn new(fs: &'f mut F, rooted: bool) -> Self {
-        Reader { fs, rooted, stack: Vec::new(), kept: Vec::new() }
+        Reader { fs, rooted, stack: Vec::new(), kept: Vec::new(), index: Vec::new() }
+    }
+
+    /// The position in `kept` of the directory with file identity `id`.
+    fn find(&self, id: (u64, u64)) -> Option<usize> {
+        let mask = self.index.len().checked_sub(1)?;
+        let mut i = slot_of(id, mask);
+        loop {
+            let k = self.index.get(i).copied()?.checked_sub(1)?;
+            if self.kept.get(k).is_some_and(|e| e.1 == id) {
+                return Some(k);
+            }
+            i = i.wrapping_add(1) & mask;
+        }
+    }
+
+    /// Indexes the last directory of `kept`, growing the index (rebuilt at twice the size) first
+    /// when it would be more than half full.
+    fn index_last(&mut self) -> Result<(), Oom> {
+        let n = self.kept.len();
+        if self.index.len() < n.saturating_mul(2) {
+            let size = n.saturating_mul(2).checked_next_power_of_two().ok_or(Oom)?.max(16);
+            let mut table = Vec::new();
+            table.try_reserve_exact(size).map_err(|_| Oom)?;
+            #[allow(clippy::disallowed_methods)] // capacity reserved on the line above, so this cannot allocate
+            table.resize(size, 0);
+            for (k, e) in self.kept.iter().enumerate().take(n.saturating_sub(1)) {
+                place(&mut table, e.1, k.wrapping_add(1));
+            }
+            self.index = table;
+        }
+        if let Some(last) = self.kept.last() {
+            place(&mut self.index, last.1, n);
+        }
+        Ok(())
     }
 
     /// Takes `d` as the next directory to scan, checked at once (probe: the messages come in configuration order,
@@ -101,19 +162,22 @@ impl<'f, F: Fs> Reader<'f, F> {
             }
         };
         let id = (m.dev, m.ino);
-        if let Some((first, _)) = self.kept.iter().find(|k| k.1 == id) {
+        if let Some((first, _)) = self.find(id).and_then(|k| self.kept.get(k)) {
             err.bytes(me).bytes(b": Path `").bytes(&d.path).bytes(b"' given more than once\n(from ").bytes(&d.from).bytes(b":").num(u64::from(d.line));
             err.bytes(b" and ").bytes(&first.from).bytes(b":").num(u64::from(first.line)).bytes(b")\n");
             return Ok(());
         }
-        push(&mut self.kept, (d, id))
+        push(&mut self.kept, (d, id))?;
+        self.index_last()
     }
 
     /// Reads `path` (shown in messages as `shown`), nested includes included; diagnostics go to `err`.
     pub fn read(&mut self, path: &[u8], shown: &[u8], me: &[u8], err: &mut Text) -> Result<(), Fatal> {
         let mut text = Vec::new();
-        if self.fs.read_file(path, FILE_MAX, &mut text).is_err() {
-            return Ok(()); // probe: a missing or unreadable file is skipped silently
+        match self.fs.read_file(path, usize::MAX, &mut text) {
+            Ok(()) => {}
+            Err(ENOMEM) => return Err(Fatal::Oom),
+            Err(_) => return Ok(()), // probe: a missing or unreadable file is skipped silently
         }
         let id = match self.fs.stat(path) {
             Ok(m) => (m.dev, m.ino),
@@ -145,8 +209,6 @@ impl<'f, F: Fs> Reader<'f, F> {
                 }
             } else if first == b"hwcap" && !rest.trim_ascii().is_empty() {
                 err.bytes(me).bytes(b": ").bytes(shown).bytes(b":").num(u64::from(line)).bytes(b": hwcap directive ignored\n");
-            } else if self.kept.len() >= DIRS_MAX {
-                err.bytes(me).bytes(b": ").bytes(shown).bytes(b":").num(u64::from(line)).bytes(b": too many directories, ignored\n");
             } else {
                 let mut d = Dir { path: Vec::new(), from: Vec::new(), line };
                 super::extend(&mut d.path, s)?;

@@ -14,7 +14,7 @@
 use core::cmp::Ordering;
 
 mod writer;
-pub use writer::{encoded_len, order, write, Entry, WriteError, ENTRIES_MAX, GENERATOR_MAX, HWCAPS_MAX, NAME_MAX, PATH_MAX};
+pub use writer::{encoded_len, order, write, Entry, WriteError, NAMES_INLINE, NAME_MAX, PATH_MAX};
 
 /// The magic and version at offset 0 (no NUL).
 pub const MAGIC: &[u8; 20] = b"glibc-ld.so.cache1.1";
