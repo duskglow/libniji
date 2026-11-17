@@ -69,7 +69,6 @@ pthread_getaffinity_np	GLIBC_2.3.3
 pthread_getattr_np	GLIBC_2.2.5
 pthread_kill_other_threads_np	GLIBC_2.2.5
 pthread_setaffinity_np	GLIBC_2.3.3
-pthread_sigmask	GLIBC_2.2.5
 quick_exit	GLIBC_2.10
 regexec	GLIBC_2.2.5
 rpc_createerr	GLIBC_2.2.5
