@@ -1,0 +1,23 @@
+id = "D-NEW"
+series = "D-X"
+section = "x"
+status = "active"
+story = "SL-HEADERS-S17-2"
+date = "2026-11-17"
+body = '''
+Slice 17 header generation (plan/headers.md section 2.4): what the generator (xtask/src/headers.rs) does for the GNU and BSD extension headers.
+No spec clause: header generation, proved by spec/tools/header_check.py (P5, P1), P2/P3 against the tables and validation/headers_p10_s17.sh (P10).
+
+* A structure member may be a bit-field, a pointer to function (declared `void (*)(void)`), an anonymous union, a pointer to a
+  const structure, or of a typedef name that does not resolve to a scalar here (`FILE *`, `wchar_t`): the typedef or tag it needs is emitted first.
+* A name an included header already provides is not emitted again only where that header makes it visible in every
+  configuration of the including header (`error_t` comes from errno.h in the GNU configurations; argz.h declares it in all).
+  This also emits `__ino64_t`, `__off_t` and `__pid_t` in sys/types.h in the configurations where the table lists them there.
+* An object whose type is a pointer to function is declared with its name inside the parentheses (`extern void (*obstack_alloc_failed_handler)(void);`).
+* A structure tag first named in a function type's parameter list, also one spelled through a typedef (`_IO_FILE` for `FILE`), is declared first (`struct argp_state;`).
+* Macro-only headers (sysexits.h, cpio.h, sys/queue.h) do not include features.h: the table lists them in every configuration.
+* The obstack macros are written from the GNU C Library manual (Obstacks) over the `struct obstack` members of layouts.tsv; sys/queue.h
+  from queue(7), list(3), slist(3), stailq(3), tailq(3) and circleq(3). `STAILQ_LAST` is not defined (the tables do not list it).
+* Not provided: the reference's internal inline helpers of argp.h (`_argp_input`, `_option_is_short`, `_option_is_end`) and the
+  inline forms of `argp_usage` and `argz_next`; libniji calls the exported function. Open for a ruling (P2 and P3 differences).
+'''
