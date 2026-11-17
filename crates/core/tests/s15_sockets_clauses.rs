@@ -292,6 +292,88 @@ fn s15_1_c_8() {
     io::close(l);
 }
 
+/// §15.1 `getsockopt`: a NULL value with `*len` 0 is the option's size query and reaches the
+/// kernel, which reports the size in `*len` (`NETLINK_LIST_MEMBERSHIPS`, how a netlink user
+/// sizes its group list); a NULL value with room claimed is the kernel's `EFAULT`, after its
+/// own descriptor check.
+#[test]
+fn s15_1_c_8_null_value_size_query() {
+    const SOL_NETLINK: c_int = 270;
+    const NETLINK_LIST_MEMBERSHIPS: c_int = 9;
+    let nl = x::socket(AF_NETLINK, SOCK_RAW, 0);
+    assert!(nl >= 0, "a NETLINK_ROUTE socket");
+    // struct sockaddr_nl: family, pad, pid, groups (RTMGRP_LINK, so the group list is not empty).
+    let mut a = [0u8; 12];
+    a[..2].copy_from_slice(&(AF_NETLINK as u16).to_ne_bytes());
+    a[8..].copy_from_slice(&1u32.to_ne_bytes());
+    assert_eq!(x::bind(nl, a.as_ptr().cast(), 12), 0);
+    let mut len = 0u32;
+    assert_eq!(x::getsockopt(nl, SOL_NETLINK, NETLINK_LIST_MEMBERSHIPS, null_mut(), Some(&mut len)), 0, "errno {}", errno::get());
+    assert!(len != 0 && len % 4 == 0, "the group bitmap's size in u32 words: {len}");
+    let u = x::socket(AF_INET, SOCK_DGRAM, 0);
+    let mut len = 0u32;
+    assert_eq!(x::getsockopt(u, 1, 3, null_mut(), Some(&mut len)), 0, "SO_TYPE, nothing to copy");
+    assert_eq!(len, 0);
+    let mut len = 4u32;
+    assert!(err(x::getsockopt(u, 1, 3, null_mut(), Some(&mut len)) as isize, Errno::EFAULT), "room claimed at NULL");
+    assert!(err(x::getsockopt(-1, 1, 3, null_mut(), None) as isize, Errno::EBADF), "the descriptor is checked first");
+    close(&[nl, u]);
+}
+
+/// §15.1 `getsockopt`: `*len` receives the kernel's length also when the call fails because
+/// the buffer is too small (`SO_PEERGROUPS`: `ERANGE` with the size of the peer's group list).
+#[test]
+fn s15_1_c_8_length_reported_on_erange() {
+    const SO_PEERGROUPS: c_int = 59;
+    let [a, b] = pair(SOCK_STREAM);
+    let mut g = [0u32; 1024];
+    let mut full = 4096u32;
+    assert_eq!(x::getsockopt(a, 1, SO_PEERGROUPS, g.as_mut_ptr().cast(), Some(&mut full)), 0);
+    for (p, cap) in [(null_mut(), 0u32), (g.as_mut_ptr().cast(), 1)] {
+        let mut len = cap;
+        let r = x::getsockopt(a, 1, SO_PEERGROUPS, p, Some(&mut len));
+        if full > cap {
+            assert!(err(r as isize, Errno::ERANGE), "ERANGE for {cap} bytes, {full} needed");
+        } else {
+            assert_eq!(r, 0);
+        }
+        assert_eq!(len, full, "the peer's group list size, for a {cap}-byte buffer");
+    }
+    close(&[a, b]);
+}
+
+/// §15.1 `getsockname`/`getpeername`: NULL with `*len` 0 is a length query (the full length
+/// comes back); NULL with room claimed is `EFAULT` with `*len` untouched; the descriptor and
+/// connection errors come before the result buffer's.
+#[test]
+fn s15_1_c_7_null_buffer_length_query() {
+    let (l, _) = listener(SOCK_DGRAM);
+    let mut len = 0u32;
+    assert_eq!(x::getsockname(l, null_mut(), Some(&mut len)), 0, "errno {}", errno::get());
+    assert_eq!(len, IN4);
+    let mut len = 8u32;
+    assert!(err(x::getsockname(l, null_mut(), Some(&mut len)) as isize, Errno::EFAULT));
+    assert_eq!(len, 8, "untouched");
+    let [a, b] = pair(SOCK_STREAM);
+    let mut len = 0u32;
+    assert_eq!(x::getpeername(a, null_mut(), Some(&mut len)), 0);
+    assert_eq!(len, 2, "an unnamed Unix peer: the family alone");
+    let mut len = 0u32;
+    assert!(err(x::getpeername(l, null_mut(), Some(&mut len)) as isize, Errno::ENOTCONN), "not connected");
+    assert!(err(x::getsockname(-1, null_mut(), None) as isize, Errno::EBADF));
+    close(&[l, a, b]);
+}
+
+/// §15.1 `setsockopt`: a NULL value reaches the kernel, which decides (`EBADF` for a bad
+/// descriptor before anything is read, `EFAULT` when it must read the value).
+#[test]
+fn s15_1_c_8_setsockopt_null_value() {
+    let u = x::socket(AF_INET, SOCK_DGRAM, 0);
+    assert!(err(x::setsockopt(-1, 1, 2, core::ptr::null(), 4) as isize, Errno::EBADF));
+    assert!(err(x::setsockopt(u, 1, 2, core::ptr::null(), 4) as isize, Errno::EFAULT));
+    io::close(u);
+}
+
 #[test]
 fn s15_1_c_9() {
     let [a, b] = pair(SOCK_STREAM);
