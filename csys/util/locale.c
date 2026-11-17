@@ -5,6 +5,7 @@
  * LC_IDENTIFICATION fields), `-m` the charmaps. The keyword table below is the reference's keyword set
  * (black-box: `locale -k LC_<category>` for every category), each mapped to its public langinfo.h item.
  * Item kinds follow Appendix D.1.5: word items arrive as values, every other item as the address of its data. */
+#define _GNU_SOURCE
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
