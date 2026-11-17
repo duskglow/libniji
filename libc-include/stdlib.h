@@ -22,13 +22,13 @@ struct drand48_data {
 # ifndef __NIJI_D_struct_random_data
 #  define __NIJI_D_struct_random_data 1
 struct random_data {
-  int * fptr;
-  int * rptr;
-  int * state;
+  int32_t * fptr;
+  int32_t * rptr;
+  int32_t * state;
   int rand_type;
   int rand_deg;
   int rand_sep;
-  int * end_ptr;
+  int32_t * end_ptr;
 };
 # endif
 # ifndef __NIJI_D_struct_timespec
