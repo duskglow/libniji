@@ -1,0 +1,43 @@
+{
+ "task": "SYS-THREAD-DB",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: checkpoint 1 - descriptor export, libthread_db.so.1 C body, build and packaging wiring written; not yet built or tested",
+ "branch": "task/sys-thread-db",
+ "head": null,
+ "gate": {
+  "affected": null,
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "dynamic libniji programs cannot be thread-debugged until ld.so publishes _r_debug (crates/ld/src/debug.rs is a stub)",
+   "recommendation": "cut a story for the spec 27.4 debugger rendezvous; this story proves static programs"
+  },
+  {
+   "item": "crates/thread-db Rust crate stays a stub: the library is C-layer FFI that runs inside the debugger process",
+   "recommendation": "remove the stub crate or keep it for a later safe-Rust port"
+  }
+ ],
+ "informational": [
+  "__niji_thread_db adds 3 RELATIVE relocations to libc.so.6 and static-PIE programs"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "libthread_db.so.1 for gdb thread listing and TLS of static libniji programs (unverified)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "the brief should say up front that dynamic thread debugging needs ld.so _r_debug, which does not exist yet",
+ "next_step": "read sys-thread-db-build1 log, fix, write the gdb products test, decision record, plants, gate",
+ "report_file": "handoff/SYS-THREAD-DB.md",
+ "jobs": [
+  "sys-thread-db-build1"
+ ]
+}
