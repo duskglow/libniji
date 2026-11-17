@@ -282,9 +282,13 @@ fn s22_5_c_1_2() {
     conformance(&["s22_compat_condvar"]);
 }
 /// §22.5 Contract: **Read-write locks.** Many readers or one writer. The preference is set by `kind_np`: `PREFER_READER` (the default; ⚑ HIST: writer starvation is possible), `PREFER_WRITER_NONRECURSIVE`. A recursive re
+///
+/// `conformance/c/s22_rwlock_self.c` pins what each call form returns when the caller already
+/// holds the lock, in every lock configuration: the try forms `EBUSY` for a write-held lock
+/// (issue #15), the blocking and timed forms `EDEADLK`, and a bad deadline `EINVAL` first.
 #[test]
 fn s22_5_c_2() {
-    conformance(&["s22_sync"]);
+    conformance(&["s22_sync", "s22_rwlock_self"]);
 }
 /// §22.5 Contract: **Spin locks.** Busy-waiting mutual exclusion with no blocking. **Kernel:** none.
 #[test]
