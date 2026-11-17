@@ -304,7 +304,7 @@ Delivered blocks, not here.
 | `dlopen` in a statically linked program (`libc.a`; §27, phase 14) | Fails cleanly: `dlopen` returns `NULL` and `dlerror()` returns a text; `dlsym`/`dlvsym` fail the same way. Never a crash, never an undefined symbol at link time. A later phase-14 story (DL-16S) loads objects there. | The shared object is loaded (the static link warns that the run time needs the shared libraries of the glibc used for linking). | D-27.33 (ruling #5005); compatibility option registered, not implemented: COMPAT-22 | `s27_1_c_1` |
 | `dlsym`, `dlvsym` (and `dlclose`, DL-17) with a handle that `dlopen` did not return, or one already closed (§27) | Refused: the call fails with a dlerror text and has no other effect. The check is one lookup, not a scan. | Not defined by the documented interface. | D-27.32 (ruling #5006; no compat option: restoring undefined behaviour, such as a crash, has no value) | `s27_1_c_3`, `s27_1_c_4` |
 | Exit order inside a dependency cycle of loaded objects (§27.1; the order outside cycles is the reference's) | The cycle runs as one group at its place in the exit sequence, the member initialised last first, whatever other objects are loaded. Gain: a deterministic order that reverses construction. | The members run in an order that depends on the other objects loaded (black-box probe `== exit-order` E19-E30). | D-27.54 (ruling #5790); compatibility option COMPAT-31, registered, not implemented | `s27_1_c_1` |
-| `__STDC_ISO_10646__` (`<stdc-predef.h>`, libniji's own headers; C 6.10.8.2) | `202309L`: the ISO/IEC 10646 edition of Unicode 15.1, the version of libniji's character tables (`spec/unicode/`, `headers/iso10646.tsv`), so `wchar_t` values follow the repertoire the classification and case functions implement. Generated from those tables; it moves with them. No compatibility option: the macro states which repertoire the implementation supports, and an older value would misstate libniji's own tables. | `201706L`. | SL-HEADERS-S05 decision record (`records/pending/SL-HEADERS-S05-3-1.toml`; plan/headers.md section 0) | no clause ID (C 6.10.8.2) |
+| `__STDC_ISO_10646__` (`<stdc-predef.h>`, libniji's own headers; C 6.10.8.2) | `202309L`: the ISO/IEC 10646 edition of Unicode 15.1, the version of libniji's character tables (`spec/unicode/`, `headers/iso10646.tsv`), so `wchar_t` values follow the repertoire the classification and case functions implement. Generated from those tables; it moves with them. No compatibility option: the macro states which repertoire the implementation supports, and an older value would misstate libniji's own tables. | `201706L`. | D-X.113 (SL-HEADERS-S05; plan/headers.md section 0) | no clause ID (C 6.10.8.2) |
 
 ## Deliberate user-facing incompatibilities
 
@@ -509,7 +509,13 @@ The vector variants (`libmvec.so.1`, `libmvec.a`), recorded in `crates/core/test
 
 Charsets other than the Unicode ones, ASCII and ISO-8859-1 are read from the installed
 charmaps (`/usr/share/i18n/charmaps`), where glibc uses its own conversion modules. Where the
-two disagree, libniji follows the charmap (D-6.8, D-6.9):
+two disagree, libniji follows the charmap (D-6.8, D-6.9).
+
+Coverage is partial, and that is a gap of scope, not a deliberate difference: in `snapshot-2026-11-17`, 58 of
+the 1180 character-set names glibc 2.39 lists open (EUC-JP among them, converting byte for byte the same both
+ways); ISO-8859-15 and most others do not open yet, and Debian's own `iconv` program does not start on libniji
+yet ([issue #6](https://github.com/duskglow/libniji/issues/6), [release notes](RELEASE-NOTES.md)). The rows
+below are the deliberate differences:
 
 | Case | libniji | glibc 2.39 | Clauses |
 |---|---|---|---|
