@@ -1,0 +1,6 @@
+libniji C library: configuration and programs
+ libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
+ This package holds $programs, the loader configuration
+ (/etc/ld.so.conf and /etc/ld.so.conf.d), /etc/gai.conf and the template of
+ /etc/nsswitch.conf. The C library's other programs (locale, localedef) are not
+ part of this build yet.

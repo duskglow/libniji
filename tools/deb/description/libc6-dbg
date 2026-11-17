@@ -1,0 +1,6 @@
+libniji C library: detached debugging symbols
+ libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
+ This package holds the symbol tables and debugging information of the
+ loader, the shared libraries and the programs of libc6 and libc-bin, as
+ files under /usr/lib/debug/.build-id named by each object's build ID,
+ where debuggers such as gdb look for them.

@@ -1,0 +1,11 @@
+{"task": "PKG-MANIFEST", "model": "opus", "tokens": null,
+ "result": "WIP at context checkpoint: manifest.tsv, control.tsv, descriptions and manifest.py (lint/rows/control/check) written; build and checks not yet wired",
+ "branch": "task/pkg-manifest", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["iconv is stripped but gets no libc6-dbg file (manifest row strip unneeded keeps today's behaviour)"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "data and tool only; not used by the build yet", "before": null, "after": null, "unit": null, "measured": false}],
+ "jobs": [],
+ "improvement": "the context checkpoint (~150k) hit before wiring: a story this size wants the 240k brief budget as its context checkpoint, or a split into data+tool and wiring+proof",
+ "next_step": "wire build.sh/system.sh and the checks to manifest.py, then the byte-identical proof on keke (handoff/PKG-MANIFEST.md, Next step)",
+ "report_file": "handoff/PKG-MANIFEST.md"}

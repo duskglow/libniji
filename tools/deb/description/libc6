@@ -1,0 +1,7 @@
+libniji C library: shared libraries
+ libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
+ This package is the system's C library: the dynamic loader
+ /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 (program interpreter
+ /lib64/ld-linux-x86-64.so.2), libc.so.6, libm.so.6, libmvec.so.1 and the libraries whose
+ functions live in libc.so.6 (libpthread.so.0, libdl.so.2, librt.so.1,
+ libresolv.so.2, ...).

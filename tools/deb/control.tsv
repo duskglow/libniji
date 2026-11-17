@@ -1,0 +1,68 @@
+# tools/deb/control.tsv: the control fields of the Debian packages (PKG-MANIFEST), read by
+# tools/deb/manifest.py for the build (tools/deb/build.sh, system.sh) and the checks (check.sh,
+# check-system.sh). No spec clause: release packaging (deb-control(5); the system packages' values:
+# plan/system-libc.md section 3, SYS-CONTROL-PARITY).
+#
+# Columns, tab-separated: package, field, value. Sorted (LC_ALL=C sort), one row per field.
+#   A capitalised field is a control field. The build writes Package, Source (niji), Version,
+#   Architecture, Maintainer and Installed-Size first, then the package's other fields in the
+#   order Essential, Multi-Arch, Pre-Depends, Depends, Recommends, Suggests, Provides, Breaks,
+#   Conflicts, Replaces, Section, Priority, then the Description: the text of
+#   tools/deb/description/<package> (synopsis line, then the extended lines).
+#   Placeholders the build fills: $version (the packages' version), $abi (the ABI level, 2.39),
+#   $provides (libc6's virtual packages, from tools/deb/symbols.py --provides); in a description
+#   also $programs (the names of the package's rows under usr/bin and usr/sbin, sorted).
+#   triggers: one line of the DEBIAN/triggers member (deb-triggers(5)).
+#   symbols: the package's DEBIAN/symbols and DEBIAN/shlibs, written by the named generator.
+#   debug: the package that holds the detached debugging information (the manifest's strip debug
+#   rows), as /usr/lib/debug/.build-id/xx/yyyy.debug.
+# The conffiles member lists the package's manifest rows under etc/.
+libc-bin	Architecture	amd64
+libc-bin	Depends	libc6 (= $version)
+libc-bin	Essential	yes
+libc-bin	Multi-Arch	foreign
+libc-bin	Priority	required
+libc-bin	Section	libs
+libc-bin	triggers	interest-await ldconfig
+libc-dev-bin	Architecture	amd64
+libc-dev-bin	Depends	libc6 (= $version)
+libc-dev-bin	Multi-Arch	foreign
+libc-dev-bin	Priority	optional
+libc-dev-bin	Section	libdevel
+libc-l10n	Architecture	all
+libc-l10n	Multi-Arch	foreign
+libc-l10n	Priority	standard
+libc-l10n	Section	localization
+libc6	Architecture	amd64
+libc6	Breaks	base-files (<< 13.3~)
+libc6	Multi-Arch	same
+libc6	Priority	optional
+libc6	Provides	$provides
+libc6	Section	libs
+libc6	symbols	tools/deb/symbols.py
+libc6	triggers	activate-noawait ldconfig
+libc6-dbg	Architecture	amd64
+libc6-dbg	Depends	libc6 (= $version)
+libc6-dbg	Multi-Arch	same
+libc6-dbg	Priority	optional
+libc6-dbg	Provides	libc-dbg, libc6-dbgsym
+libc6-dbg	Section	debug
+libc6-dbg	debug	the detached debugging information of the other packages' strip-debug rows
+libc6-dev	Architecture	amd64
+libc6-dev	Depends	libc6 (= $version), libc-dev-bin (= $version), linux-libc-dev, libcrypt-dev, rpcsvc-proto
+libc6-dev	Multi-Arch	same
+libc6-dev	Priority	optional
+libc6-dev	Provides	libc-dev (= $version)
+libc6-dev	Section	libdevel
+locales	Architecture	all
+locales	Depends	libc-bin (>= $abi)
+locales	Priority	standard
+locales	Section	localization
+niji6	Architecture	amd64
+niji6	Priority	optional
+niji6	Section	libs
+niji6-dev	Architecture	amd64
+niji6-dev	Depends	niji6 (= $version), gcc, libc6-dev, binutils
+niji6-dev	Priority	optional
+niji6-dev	Recommends	g++
+niji6-dev	Section	libdevel

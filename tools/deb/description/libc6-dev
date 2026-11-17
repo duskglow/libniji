@@ -1,0 +1,5 @@
+libniji C library: development files
+ libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
+ This package holds the start files, the libc.so linker script,
+ libc_nonshared.a and the static archives. libniji's C headers are not part of
+ this build yet.

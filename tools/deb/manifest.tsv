@@ -1,0 +1,107 @@
+# tools/deb/manifest.tsv: every file the Debian packages ship, one row each (PKG-MANIFEST). Read by
+# tools/deb/build.sh and system.sh (they install exactly these rows), by tools/deb/check.sh and
+# check-system.sh (every row is shipped with its mode, link target, contents and strip state, and
+# nothing else is) and by tools/deb/root-system.sh, all through tools/deb/manifest.py, whose `lint`
+# (run by the build, the checks and crates/core/tests/deb_manifest.rs) refuses a malformed or
+# unsorted row. No spec clause: release packaging.
+#
+# Columns, tab-separated: flavour, package, path, kind, source, mode, strip, note.
+#   flavour  system (tools/deb/build.sh --flavour system), coexist (the default flavour) or both. A
+#            both row names the system package (libc6 or libc6-dev) and path; the coexist flavour
+#            ships it in niji6 or niji6-dev under the sysroot usr/lib/niji/.
+#   package  the binary package.
+#   path     the installed path, relative to /; DEBIAN/<name> is a maintainer script.
+#   kind     file (a product of `cargo xtask so`), text (a file under tools/deb/, copied), gzip (a
+#            file under tools/deb/, gzip -9n), link (a symbolic link), changelog (the package's
+#            changelog, written by the build), dir (an empty directory).
+#   source   the product's name (file), the file under tools/deb/ (text, gzip), the link's target
+#            (link), - otherwise.
+#   mode     the octal mode; - for a link.
+#   strip    for a file: unneeded (strip --strip-unneeded, .comment and .note removed), debug (as
+#            unneeded, after its symbol table and DWARF were copied into libc6-dbg, named by its
+#            build-id: system flavour only), archive (strip --strip-debug, .comment removed,
+#            deterministic archive) or none; none for every other kind.
+#   note     what the row is for, - when the path says it.
+# Every directory a path needs is shipped with mode 0755; the control members (control, md5sums,
+# conffiles from the rows under etc/, triggers, symbols, shlibs) come from tools/deb/control.tsv.
+# The rows are sorted (LC_ALL=C sort), so stories adding different rows merge without a conflict.
+both	libc6	usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2	file	ld-linux-x86-64.so.2	0755	debug	the dynamic loader
+both	libc6	usr/lib/x86_64-linux-gnu/libBrokenLocale.so.1	file	libBrokenLocale.so.1	0644	debug	the MB_CUR_MAX override (D-27.9)
+both	libc6	usr/lib/x86_64-linux-gnu/libanl.so.1	file	libanl.so.1	0644	debug	placeholder: its functions are in libc.so.6
+both	libc6	usr/lib/x86_64-linux-gnu/libc.so.6	file	libc.so.6	0644	debug	the C library
+both	libc6	usr/lib/x86_64-linux-gnu/libc_malloc_debug.so.0	file	libc_malloc_debug.so.0	0644	debug	placeholder
+both	libc6	usr/lib/x86_64-linux-gnu/libdl.so.2	file	libdl.so.2	0644	debug	placeholder: its functions are in libc.so.6
+both	libc6	usr/lib/x86_64-linux-gnu/libm.so.6	file	libm.so.6	0644	debug	the maths library
+both	libc6	usr/lib/x86_64-linux-gnu/libmvec.so.1	file	libmvec.so.1	0644	debug	the vector maths library (D-10.124)
+both	libc6	usr/lib/x86_64-linux-gnu/libnsl.so.1	file	libnsl.so.1	0644	debug	placeholder
+both	libc6	usr/lib/x86_64-linux-gnu/libpthread.so.0	file	libpthread.so.0	0644	debug	placeholder: its functions are in libc.so.6
+both	libc6	usr/lib/x86_64-linux-gnu/libresolv.so.2	file	libresolv.so.2	0644	debug	its exports jump to libc.so.6's definitions (D-16.6)
+both	libc6	usr/lib/x86_64-linux-gnu/librt.so.1	file	librt.so.1	0644	debug	placeholder: its functions are in libc.so.6
+both	libc6	usr/lib/x86_64-linux-gnu/libutil.so.1	file	libutil.so.1	0644	debug	placeholder: its functions are in libc.so.6
+both	libc6	usr/lib64/ld-linux-x86-64.so.2	link	../lib/x86_64-linux-gnu/ld-linux-x86-64.so.2	-	none	the program interpreter /lib64/ld-linux-x86-64.so.2 through the merged-/usr link lib64 -> usr/lib64
+both	libc6-dev	usr/lib/x86_64-linux-gnu/Mcrt1.o	file	niji-Mcrt1.o	0644	archive	empty (SL-CRT)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/Scrt1.o	file	niji-crt1.o	0644	archive	the start file of -pie links: the same object as crt1.o
+both	libc6-dev	usr/lib/x86_64-linux-gnu/crt1.o	file	niji-crt1.o	0644	archive	the start file
+both	libc6-dev	usr/lib/x86_64-linux-gnu/crti.o	file	niji-crti.o	0644	archive	every driver link (SL-CRT)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/crtn.o	file	niji-crtn.o	0644	archive	every driver link (SL-CRT)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/gcrt1.o	file	niji-gcrt1.o	0644	archive	-pg links (SL-CRT)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/grcrt1.o	file	niji-grcrt1.o	0644	archive	-pg -static-pie links (SL-CRT)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libBrokenLocale.a	file	libBrokenLocale.a	0644	archive	the library's override (D-27.9)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libBrokenLocale.so	link	libBrokenLocale.so.1	-	none	-lBrokenLocale links the shared library (SYS-DEV-LINKS)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libanl.a	file	libanl.a	0644	archive	empty: the functions are in libc.a
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libanl.so	link	libanl.so.1	-	none	-lanl links the shared library (SYS-DEV-LINKS)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libc.a	file	libc.a	0644	archive	the static C library
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libc_malloc_debug.so	link	libc_malloc_debug.so.0	-	none	-lc_malloc_debug links the shared library (SYS-DEV-LINKS)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libc_nonshared.a	file	libc_nonshared.a	0644	archive	the functions linked into the calling module
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libdl.a	file	libdl.a	0644	archive	empty: the functions are in libc.a
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libg.a	file	libg.a	0644	archive	empty (D-27.9)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libm.a	file	libm.a	0644	archive	the static maths library
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libm.so	link	libm.so.6	-	none	a link, not a script adding libmvec.so.1: no simd declarations in the headers (R4, SL-SONAMES)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libmcheck.a	file	libmcheck.a	0644	archive	empty (D-27.9)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libmvec.a	file	libmvec.a	0644	archive	the static vector maths library (D-10.124)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libmvec.so	link	libmvec.so.1	-	none	-lmvec links the shared library
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libpthread.a	file	libpthread.a	0644	archive	empty: the functions are in libc.a
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libpthread_nonshared.a	file	libpthread_nonshared.a	0644	archive	empty (D-27.9)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libresolv.a	file	libresolv.a	0644	archive	empty: the functions are in libc.a (D-16.6)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libresolv.so	link	libresolv.so.2	-	none	-lresolv links the shared library (issue #5)
+both	libc6-dev	usr/lib/x86_64-linux-gnu/librt.a	file	librt.a	0644	archive	empty: the functions are in libc.a
+both	libc6-dev	usr/lib/x86_64-linux-gnu/libutil.a	file	libutil.a	0644	archive	empty: the functions are in libc.a
+coexist	niji6	usr/lib/niji/lib	link	usr/lib	-	none	the sysroot's merged-/usr link
+coexist	niji6	usr/lib/niji/lib64	link	usr/lib64	-	none	the sysroot's merged-/usr link (the program interpreter's path)
+coexist	niji6	usr/share/doc/niji6/changelog.gz	changelog	-	0644	none	-
+coexist	niji6	usr/share/doc/niji6/copyright	text	copyright	0644	none	-
+coexist	niji6-dev	usr/bin/niji-g++	link	niji-gcc	-	none	the C++ driver: the wrapper reads its own name
+coexist	niji6-dev	usr/bin/niji-gcc	text	niji-gcc	0755	none	the compiler wrapper (links with --sysroot=/usr/lib/niji)
+coexist	niji6-dev	usr/lib/niji/usr/lib/x86_64-linux-gnu/libc.so	text	coexist/libc-so.ld	0644	none	the linker script; its paths are inside the sysroot
+coexist	niji6-dev	usr/share/doc/niji6-dev/changelog.gz	changelog	-	0644	none	-
+coexist	niji6-dev	usr/share/doc/niji6-dev/copyright	text	copyright	0644	none	-
+coexist	niji6-dev	usr/share/man/man1/niji-g++.1.gz	link	niji-gcc.1.gz	-	none	-
+coexist	niji6-dev	usr/share/man/man1/niji-gcc.1.gz	gzip	niji-gcc.1	0644	none	-
+system	libc-bin	DEBIAN/postinst	text	system/libc-bin.postinst	0755	none	runs ldconfig on configure and on the ldconfig trigger; installs the nsswitch.conf template
+system	libc-bin	DEBIAN/postrm	text	system/libc-bin.postrm	0755	none	removes /etc/ld.so.cache on purge
+system	libc-bin	etc/gai.conf	text	system/gai.conf	0644	none	conffile
+system	libc-bin	etc/ld.so.conf	text	system/ld.so.conf	0644	none	conffile
+system	libc-bin	etc/ld.so.conf.d/libc.conf	text	system/libc.conf	0644	none	conffile
+system	libc-bin	usr/bin/getconf	file	getconf	0755	debug	static, over libc.a (UTIL-5)
+system	libc-bin	usr/bin/getent	file	getent	0755	debug	dynamic, over libc6's name services (UTIL-6)
+system	libc-bin	usr/bin/iconv	file	iconv	0755	unneeded	dynamic, over libc6's iconv(3) (UTIL-7); no libc6-dbg file
+system	libc-bin	usr/bin/ldd	file	ldd	0755	debug	static, runs the loader in trace mode (UTIL-4)
+system	libc-bin	usr/sbin/ldconfig	file	ldconfig	0755	debug	static, no interpreter (D-31.2)
+system	libc-bin	usr/share/doc/libc-bin/changelog.Debian.gz	changelog	-	0644	none	-
+system	libc-bin	usr/share/doc/libc-bin/copyright	text	copyright	0644	none	-
+system	libc-bin	usr/share/libc-bin/nsswitch.conf	text	system/nsswitch.conf	0644	none	the template the postinst installs when the root has no /etc/nsswitch.conf
+system	libc-dev-bin	usr/share/doc/libc-dev-bin/changelog.Debian.gz	changelog	-	0644	none	-
+system	libc-dev-bin	usr/share/doc/libc-dev-bin/copyright	text	copyright	0644	none	-
+system	libc-l10n	usr/share/doc/libc-l10n/changelog.Debian.gz	changelog	-	0644	none	-
+system	libc-l10n	usr/share/doc/libc-l10n/copyright	text	copyright	0644	none	-
+system	libc6	etc/ld.so.conf.d/x86_64-linux-gnu.conf	text	system/x86_64-linux-gnu.conf	0644	none	conffile
+system	libc6	usr/share/doc/libc6/changelog.Debian.gz	changelog	-	0644	none	-
+system	libc6	usr/share/doc/libc6/copyright	text	copyright	0644	none	-
+system	libc6	usr/share/lintian/overrides/libc6	text	system/libc6.lintian-overrides	0644	none	undeclared-elf-prerequisites: libc.so.6 is in this package
+system	libc6-dbg	usr/share/doc/libc6-dbg/changelog.Debian.gz	changelog	-	0644	none	-
+system	libc6-dbg	usr/share/doc/libc6-dbg/copyright	text	copyright	0644	none	-
+system	libc6-dev	usr/lib/x86_64-linux-gnu/libc.so	text	system/libc-so.ld	0644	none	the linker script
+system	libc6-dev	usr/share/doc/libc6-dev/changelog.Debian.gz	changelog	-	0644	none	-
+system	libc6-dev	usr/share/doc/libc6-dev/copyright	text	copyright	0644	none	-
+system	locales	usr/share/doc/locales/changelog.Debian.gz	changelog	-	0644	none	-
+system	locales	usr/share/doc/locales/copyright	text	copyright	0644	none	-
