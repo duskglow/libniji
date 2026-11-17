@@ -119,7 +119,7 @@ const NAMES: [(&[u8], Codec); 57] = [
 ];
 
 /// More names of ISO-8859-1 (its charmap's aliases).
-const LATIN1_MORE: [&[u8]; 6] = [b"ISO-IR-100", b"ISO_8859-1:1987", b"IBM819", b"CSISOLATIN1", b"8859_1", b"OSF00010001"];
+const LATIN1_MORE: [&[u8]; 7] = [b"ISO-IR-100", b"ISO_8859-1:1987", b"IBM819", b"CSISOLATIN1", b"8859_1", b"OSF00010001", b"ISO88591"];
 
 /// Every built-in name, in table order: what the `iconv` command lists beside the installed
 /// charmaps (`iconv -l`, spec §31.6, UTIL-7).
@@ -127,12 +127,34 @@ pub fn builtin_names() -> impl Iterator<Item = &'static [u8]> {
     NAMES.iter().map(|(n, _)| *n).chain(LATIN1_MORE.iter().copied())
 }
 
-/// The built-in codec `name` denotes (without suffixes), if any.
+/// The built-in codec `name` denotes, if any: `name` in its matching form ([`Spec::name`]), so
+/// an exact compare (the table is in that form).
 pub fn builtin(name: &[u8]) -> Option<Codec> {
-    if let Some((_, c)) = NAMES.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)) {
+    if let Some((_, c)) = NAMES.iter().find(|(n, _)| *n == name) {
         return Some(*c);
     }
-    LATIN1_MORE.iter().any(|n| n.eq_ignore_ascii_case(name)).then_some(Codec::Latin1)
+    LATIN1_MORE.contains(&name).then_some(Codec::Latin1)
+}
+
+/// Whether byte `b` counts in a charset name: letters, digits and `, - . / : _`. Every other
+/// byte (space, control, other punctuation, any byte above 0x7F) is dropped before matching
+/// (D-6.8 amendment, `spec/encoding/iconv-names.md`).
+#[inline]
+fn significant(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || matches!(b, b',' | b'-' | b'.' | b'/' | b':' | b'_')
+}
+
+/// Whether `listed` (a charmap's name or alias, as its file spells it) is the charset `name`
+/// (matching form, [`Spec::name`]): equal once `listed`'s dropped bytes are removed and its
+/// letters uppercased. Punctuation that counts must match: `CP-1252` is not `CP1252`.
+pub fn names_charset(listed: &[u8], name: &[u8]) -> bool {
+    let mut want = name.iter();
+    for c in listed.iter().filter(|&&c| significant(c)) {
+        if want.next() != Some(&c.to_ascii_uppercase()) {
+            return false;
+        }
+    }
+    want.next().is_none()
 }
 
 /// The codec of `loc`'s `LC_CTYPE` codeset (the empty name of `iconv_open`).
@@ -145,23 +167,74 @@ pub fn of_locale(loc: &Locale) -> Codec {
     }
 }
 
-/// A charset name and its suffixes: the name ends at the first `/` that begins `//`; the
-/// suffixes after it are separated by `/` or `,` and matched without regard to case. Unknown
-/// suffixes are ignored, as by the reference library.
-pub struct Spec<'a> {
-    /// The charset name.
-    pub name: &'a [u8],
+/// Longest charset name (in matching form) that can name anything: a longer one names nothing.
+/// Above every built-in name and every charmap file name ([`Spec::name`]).
+pub const NAME_MAX: usize = 128;
+
+/// A charset name in matching form and its suffixes (D-6.8 amendment,
+/// `spec/encoding/iconv-names.md`). The text is `PART[/PART2][/SUFFIXES]`: the name ends at the
+/// second `/`. Each part keeps its significant bytes ([`significant`]) with letters uppercased;
+/// trailing commas of the second part are dropped, and when it is then empty the name is the
+/// first part without its trailing commas. The suffixes are separated by `/` or `,` and matched
+/// without regard to case; unknown ones are ignored.
+pub struct Spec {
+    name: [u8; NAME_MAX],
+    len: usize,
+    fits: bool,
     /// `//TRANSLIT`.
     pub translit: bool,
     /// `//IGNORE`.
     pub ignore: bool,
 }
 
-/// Split `full` into its name and suffixes.
-pub fn parse_name(full: &[u8]) -> Spec<'_> {
-    let cut = full.windows(2).position(|w| w == b"//").unwrap_or(full.len());
-    let (name, rest) = full.split_at(cut);
-    let mut s = Spec { name, translit: false, ignore: false };
+impl Spec {
+    /// The name in matching form; empty for the locale's codeset; `None` when it is longer than
+    /// [`NAME_MAX`] (it names nothing).
+    pub fn name(&self) -> Option<&[u8]> {
+        if self.fits { self.name.get(..self.len) } else { None }
+    }
+
+    fn push(&mut self, b: u8) {
+        match self.name.get_mut(self.len) {
+            Some(slot) => {
+                *slot = b.to_ascii_uppercase();
+                self.len = self.len.saturating_add(1);
+            }
+            None => self.fits = false,
+        }
+    }
+
+    fn push_part(&mut self, part: &[u8]) {
+        for &b in part.iter().filter(|&&b| significant(b)) {
+            self.push(b);
+        }
+    }
+
+    /// Drop trailing commas (only from what fitted: an overlong name stays unusable).
+    fn trim_commas(&mut self) {
+        while self.len > 0 && self.name.get(self.len.saturating_sub(1)) == Some(&b',') {
+            self.len = self.len.saturating_sub(1);
+        }
+    }
+}
+
+/// Split `full` into its name (matching form) and suffixes.
+pub fn parse_name(full: &[u8]) -> Spec {
+    let mut parts = full.splitn(3, |&b| b == b'/');
+    let mut s = Spec { name: [0; NAME_MAX], len: 0, fits: true, translit: false, ignore: false };
+    s.push_part(parts.next().unwrap_or(&[]));
+    if let Some(second) = parts.next() {
+        let first = s.len;
+        s.push(b'/');
+        s.push_part(second);
+        s.trim_commas();
+        if s.len == first.saturating_add(1) {
+            s.len = first;
+        }
+    }
+    // The first part's commas when it stands alone; after a second part this finds none.
+    s.trim_commas();
+    let rest = parts.next().unwrap_or(&[]);
     for word in rest.split(|&b| b == b'/' || b == b',') {
         if word.eq_ignore_ascii_case(b"TRANSLIT") {
             s.translit = true;

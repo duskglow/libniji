@@ -725,7 +725,7 @@ fn lookup<H: Host>(h: &H, rec: &'static [AtomicUsize], msgid: &[u8], n: Option<u
         }
     }
     let to = cached_codec(h, rec, C_TO.saturating_add(3), || match codeset {
-        Some(cs) => h.codec(iconv::parse_name(cs).name),
+        Some(cs) => h.codec(iconv::parse_name(cs).name()?),
         None => Some(iconv::of_locale(loc)),
     })?;
     for (j, w) in selector.iter().enumerate() {

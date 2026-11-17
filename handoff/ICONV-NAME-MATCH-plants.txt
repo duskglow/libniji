@@ -1,0 +1,11 @@
+# Plants for ICONV-NAME-MATCH (iconv_open name rule, spec/encoding/iconv-names.md). Run:
+# cargo xtask plants handoff/ICONV-NAME-MATCH-plants.txt --dir <new RAM dir> --timeout 2400
+name-dash-dropped | crates/core/src/iconv/mod.rs | lit:b'-' ==> b'#' | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_name_spellings | msg:s6_4_c_1_name_spellings.*(FAILED|panicked)
+name-space-kept | crates/core/src/iconv/mod.rs | lit:    b.is_ascii_alphanumeric() || matches! ==>     b.is_ascii_alphanumeric() || b == b' ' || matches! | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_name_spellings | msg:s6_4_c_1_name_spellings.*(FAILED|panicked)
+name-case-kept | crates/core/src/iconv/mod.rs | lit:*slot = b.to_ascii_uppercase(); ==> *slot = b; | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_name_spellings | msg:s6_4_c_1_name_spellings.*(FAILED|panicked)
+name-empty-second-part-kept | crates/core/src/iconv/mod.rs | lit:if s.len == first.saturating_add(1) { ==> if false { | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_name_spellings | msg:s6_4_c_1_name_spellings.*(FAILED|panicked)
+name-overflow-truncates | crates/core/src/iconv/mod.rs | lit:None => self.fits = false, ==> None => {} | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_name_spellings | msg:s6_4_c_1_name_spellings.*(FAILED|panicked)
+name-ends-at-first-slash | crates/core/src/iconv/mod.rs | lit:full.splitn(3, ==> full.splitn(2, | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_name_spellings | msg:s6_4_c_1_name_spellings.*(FAILED|panicked)
+latin1-iso88591-missing | crates/core/src/iconv/mod.rs | lit:b"OSF00010001", b"ISO88591"] ==> b"OSF00010001", b"OSF00010001"] | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_name_spellings | msg:s6_4_c_1_name_spellings.*(FAILED|panicked)
+charset-prefix-matches | crates/core/src/iconv/mod.rs | lit:want.next().is_none() ==> true | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_name_spellings | msg:s6_4_c_1_name_spellings.*(FAILED|panicked)
+iconv-charmaps-matched-as-codesets | crates/legacy/src/global_locale.rs | lit:load_charmap(name, iconv::names_charset) ==> load_charmap(name, name::same_codeset) | cargo xtask so && cargo test -p niji --test iconv_charmaps_products iconv_open_matches_name_spellings | msg:spellings not matched by the name rule

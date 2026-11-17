@@ -227,7 +227,7 @@ fn iconv_once(to: &str, from: &str, input: &[u8], room: usize, loc: &Locale) -> 
 /// A descriptor for built-in names (the charmaps are tested through the products, D-6.8).
 fn open(to: &str, from: &str) -> Option<Conv> {
     let (t, f) = (iconv::parse_name(to.as_bytes()), iconv::parse_name(from.as_bytes()));
-    Some(Conv { from: iconv::builtin(f.name)?, to: iconv::builtin(t.name)?, translit: t.translit, ignore: t.ignore, state: IconvState::default() })
+    Some(Conv { from: iconv::builtin(f.name()?)?, to: iconv::builtin(t.name()?)?, translit: t.translit, ignore: t.ignore, state: IconvState::default() })
 }
 
 const C_UTF8: Locale = Locale::c_utf8(b"C.UTF-8");
@@ -235,14 +235,53 @@ const C_UTF8: Locale = Locale::c_utf8(b"C.UTF-8");
 #[test]
 fn s6_4_c_1() {
     for (a, b) in [("UTF-8", "utf-8"), ("UTF-16LE", "utf-16le"), ("ISO-8859-1", "latin1"), ("ISO-8859-1", "L1"), ("ASCII", "ANSI_X3.4-1968"), ("UCS-4", "ISO-10646/UCS4")] {
-        assert_eq!(iconv::builtin(a.as_bytes()), iconv::builtin(b.as_bytes()), "{b} names {a}");
-        assert!(iconv::builtin(b.as_bytes()).is_some());
+        let named = |n: &str| iconv::parse_name(n.as_bytes()).name().and_then(iconv::builtin);
+        assert_eq!(named(a), named(b), "{b} names {a}");
+        assert!(named(b).is_some());
     }
     let s = iconv::parse_name(b"ascii//translit");
-    assert_eq!((s.name, s.translit, s.ignore), (&b"ascii"[..], true, false), "suffixes on the target, any case");
+    assert_eq!((s.name(), s.translit, s.ignore), (Some(&b"ASCII"[..]), true, false), "suffixes on the target, any case");
     let s = iconv::parse_name(b"ASCII//BOGUS");
-    assert_eq!((s.name, s.translit, s.ignore), (&b"ASCII"[..], false, false), "unknown suffixes are ignored");
+    assert_eq!((s.name(), s.translit, s.ignore), (Some(&b"ASCII"[..]), false, false), "unknown suffixes are ignored");
     assert!(iconv::builtin(b"NO-SUCH").is_none());
+}
+
+/// The name rule of `iconv_open` (spec/encoding/iconv-names.md): dropped bytes, significant
+/// punctuation, the two-part `/` form and trailing commas, and charmap names compared by it.
+#[test]
+fn s6_4_c_1_name_spellings() {
+    // Clauses: s6_4_c_1.
+    let name = |s: &[u8]| iconv::parse_name(s).name().map(<[u8]>::to_vec);
+    for (spelling, want) in [
+        (&b"iso88591"[..], &b"ISO88591"[..]),
+        (b" utf\t-8\xe9+()", b"UTF-8"),
+        (b"UTF-8,,,", b"UTF-8"),
+        (b"UTF-8/", b"UTF-8"),
+        (b"UTF-8,/, ", b"UTF-8"),
+        (b"iso-10646/utf8,", b"ISO-10646/UTF8"),
+        (b"ISO-10646,/UTF8", b"ISO-10646,/UTF8"),
+        (b"ISO-10646//UTF8", b"ISO-10646"),
+        (b"UTF-8,x", b"UTF-8,X"),
+        (b" ,/", b""),
+    ] {
+        assert_eq!(name(spelling), Some(want.to_vec()), "{:?}", String::from_utf8_lossy(spelling));
+    }
+    let s = iconv::parse_name(b"latin1/ /translit");
+    assert_eq!((s.name(), s.translit), (Some(&b"LATIN1"[..]), true), "suffixes follow the second slash");
+    let s = iconv::parse_name(b"ISO-10646/UCS4/IGNORE");
+    assert_eq!((s.name(), s.ignore), (Some(&b"ISO-10646/UCS4"[..]), true));
+    assert_eq!(name(&[b'A'; iconv::NAME_MAX + 1]), None, "too long to name anything");
+    assert_eq!(name(&[b'A'; iconv::NAME_MAX]).map(|n| n.len()), Some(iconv::NAME_MAX));
+    let mut spaced = b"UTF-8".to_vec();
+    spaced.resize(400, b' ');
+    assert_eq!(name(&spaced), Some(b"UTF-8".to_vec()), "dropped bytes take no room");
+    assert_eq!(iconv::builtin(b"ISO88591"), Some(iconv::Codec::Latin1));
+    assert_eq!(iconv::builtin(b"utf-8"), None, "the table is matched in matching form");
+    assert!(iconv::names_charset(b"NF_Z_62-010_(1973)", b"NF_Z_62-010_1973"));
+    assert!(iconv::names_charset(b"cp1252", b"CP1252"));
+    for (listed, asked) in [(&b"CP1252"[..], &b"CP-1252"[..]), (b"CP1252", b"CP1252X"), (b"CP1252", b"CP125"), (b"KOI8-R", b"KOI8R")] {
+        assert!(!iconv::names_charset(listed, asked), "{:?} is not {:?}", String::from_utf8_lossy(listed), String::from_utf8_lossy(asked));
+    }
 }
 
 #[test]

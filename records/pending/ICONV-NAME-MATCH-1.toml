@@ -1,0 +1,12 @@
+id = "D-NEW"
+series = "D-6"
+section = "s06"
+spec = "§6.4"
+status = "active"
+amends = ["D-6.8"]
+story = "ICONV-NAME-MATCH"
+date = "2026-11-17"
+tests = ["crates/core/tests/s06_multibyte_clauses.rs::s6_4_c_1_name_spellings", "crates/core/tests/iconv_charmaps_products.rs::iconv_open_matches_name_spellings_like_the_reference"]
+body = '''
+**How `iconv_open` matches a charset name** (ICONV-NAME-MATCH, GitHub issue #6; amends D-6.8). The text before the suffixes is reduced to a matching form, then compared exactly with the known names: the built-in table and each installed charmap's name and aliases, reduced the same way. Letters are uppercased. Letters, digits and `, - . / : _` count. Every other byte (space, control, other ASCII punctuation, any byte above 0x7F) is dropped. The name is `PART[/PART2]`, and the suffixes start after the second `/`. Trailing commas of the second part are dropped. When the second part is then empty, the name is the first part without its trailing commas. A name longer than 128 bytes in matching form names nothing. So `iso88591` opens (`ISO88591` is a known name of ISO-8859-1), `iso 8859 1//TRANSLIT` opens with transliteration, and `cp-1252` names nothing (the `-` counts). Conversions match charmaps this way; locale codesets keep their own normalisation (letters and digits only, Appendix D.1). The rule and its evidence (a black-box probe table of 32,915 spellings over the 1,180 names of `iconv -l`) are in `spec/encoding/iconv-names.md`. It replaces the earlier matching: built-ins compared ignoring case only, charmaps compared by letters and digits alone. That accepted `cp-1252` and rejected ` utf-8`. Listing (`iconv -l`) is unchanged apart from the added built-in name `ISO88591`.
+'''

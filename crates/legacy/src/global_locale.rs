@@ -305,7 +305,7 @@ impl<M: Mapper> Source for Files<'_, M> {
     }
 
     fn charmap(&self, name: &[u8]) -> Option<&'static Charmap> {
-        self.load_charmap(name).ok().flatten()
+        self.load_charmap(name, name::same_codeset).ok().flatten()
     }
 }
 
@@ -413,14 +413,14 @@ impl<M: Mapper> Files<'_, M> {
     /// [`Source::charmap`], with its errors: `Ok(None)` when no installed charmap names `name`,
     /// `Err(ENOMEM)` when memory for it (the file's mapping, the parsed charmap, a larger table)
     /// cannot be had. Either way the charmaps already loaded stay as they are.
-    fn load_charmap(&self, name: &[u8]) -> KResult<Option<&'static Charmap>> {
+    fn load_charmap(&self, name: &[u8], same: Same) -> KResult<Option<&'static Charmap>> {
         let n = CHARMAP_COUNT.load(Acquire);
-        if let Some(i) = (0..n).find(|&i| names(self.m.charmap_at(self.cm_word(i, CM_ADDR)), name)) {
+        if let Some(i) = (0..n).find(|&i| names(self.m.charmap_at(self.cm_word(i, CM_ADDR)), name, same)) {
             return self.current_charmap(i);
         }
         let parsed = match self.read_charmap(name)? {
             Some(cm) => cm,
-            None => match self.find_charmap(name) {
+            None => match self.find_charmap(name, same) {
                 Some(stem) => match self.read_charmap(&stem)? {
                     Some(cm) => cm,
                     None => return Ok(None),
@@ -440,10 +440,14 @@ impl<M: Mapper> Files<'_, M> {
     }
 }
 
-/// Whether `name` names `cm`: its name or an alias, compared like codeset names (case and
-/// punctuation aside: `eucjp` is `EUC-JP`).
-fn names(cm: &Charmap, name: &[u8]) -> bool {
-    core::iter::once(cm.name()).chain(cm.aliases()).any(|n| name::same_codeset(n, name))
+/// How a charmap's name or alias (first) is compared with the name asked for (second): like
+/// codeset names for locales ([`name::same_codeset`]: case and punctuation aside, `eucjp` is
+/// `EUC-JP`), as `iconv_open` matches names for conversions ([`iconv::names_charset`]).
+type Same = fn(&[u8], &[u8]) -> bool;
+
+/// Whether `name` names `cm`: its name or an alias, compared by `same`.
+fn names(cm: &Charmap, name: &[u8], same: Same) -> bool {
+    core::iter::once(cm.name()).chain(cm.aliases()).any(|n| same(n, name))
 }
 
 /// A charmap file name (without `.gz`).
@@ -460,7 +464,7 @@ impl core::ops::Deref for Stem {
 impl<M: Mapper> Files<'_, M> {
     /// The charmap file whose name or header names `name`, by a scan of the directory: first a
     /// file name that matches, then the header names (`<code_set_name>`, aliases).
-    fn find_charmap(&self, name: &[u8]) -> Option<Stem> {
+    fn find_charmap(&self, name: &[u8], same: Same) -> Option<Stem> {
         let mut entries: TryVec<Stem> = TryVec::new();
         self.m.list_dir(CHARMAP_DIR.strip_suffix(b"/").unwrap_or(CHARMAP_DIR), &mut |e| {
             let stem = e.strip_suffix(b".gz").unwrap_or(e);
@@ -473,7 +477,7 @@ impl<M: Mapper> Files<'_, M> {
                 let _ = entries.push(s);
             }
         });
-        if let Some(i) = entries.iter().position(|s| name::same_codeset(s, name)) {
+        if let Some(i) = entries.iter().position(|s| same(s, name)) {
             return entries.get(i).copied();
         }
         let mut raw = [0u8; 4096];
@@ -490,7 +494,7 @@ impl<M: Mapper> Files<'_, M> {
                 tail.copy_from_slice(ext);
                 let Some(n) = self.m.read_prefix(p, &mut raw) else { continue };
                 let data = raw.get(..n).unwrap_or(&[]);
-                let mut check = |t: &[u8]| charmap::header_names(t, &mut |h| found |= name::same_codeset(h, name));
+                let mut check = |t: &[u8]| charmap::header_names(t, &mut |h| found |= same(h, name));
                 if ext.is_empty() {
                     check(data);
                 } else if let Ok(t) = inflate::gunzip_prefix(data, 8192) {
@@ -569,15 +573,16 @@ fn parse_charmap(path: &[u8], raw: &[u8]) -> KResult<Option<Charmap>> {
     }
 }
 
-/// The codec `name` (without suffixes) denotes for `iconv_open`: built in, else an installed
-/// charmap found by its name or an alias (D-6.8, D-6.9). `EINVAL` when nothing names it,
+/// The codec `name` (in matching form, [`iconv::Spec::name`]) denotes for `iconv_open`: built in,
+/// else an installed charmap found by its name or an alias (D-6.8, D-6.9; matched by
+/// [`iconv::names_charset`], not as locale codesets are). `EINVAL` when nothing names it,
 /// `ENOMEM` when its charmap cannot be loaded for want of memory.
 pub fn codec<S: Sys, M: Mapper>(sys: &S, m: &M, name: &[u8]) -> KResult<Codec> {
     if let Some(c) = iconv::builtin(name) {
         return Ok(c);
     }
     let _g = LOCK.lock(sys);
-    match (Files { m, locpath: core::cell::Cell::new(None) }).load_charmap(name)? {
+    match (Files { m, locpath: core::cell::Cell::new(None) }).load_charmap(name, iconv::names_charset)? {
         Some(c) => Ok(Codec::Charmap(CharmapRef(c))),
         None => Err(Errno::EINVAL),
     }
