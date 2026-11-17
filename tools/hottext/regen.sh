@@ -143,6 +143,11 @@ run_traced "$work/slow.names" "$work/gdb.slow.log" HOT_TEXT_SLOW=2 LANG=en_US.UT
 # crates/core/tests/hot_text_products.rs bounds, linked as that test links it), first-touch order, into
 # $L/startup-text.keys; the layout check of layout/contracts.tsv counts their 64 KiB windows.
 run_traced "$work/startup.names" "$work/gdb.startup.log" LANG=C HOT_TEXT_STDIN="$work/in.txt" HOT_TEXT_FOLLOW_FORK= -- ./page_faults true
+# TRACE-NUMA-PIN: the trace follows the virtual NUMA topology (trace_gdb.py), never the build host's. The
+# start-up trace again (its first heap slow path asks the node count), the tracer simulating a host that
+# allows one node (HOT_TEXT_HOST_NODES): a node count the tracer does not answer then turns the heap's
+# node reads off in this trace only, and the two traces differ (checked after traces_done).
+run_traced "$work/numa1.names" "$work/gdb.numa1.log" HOT_TEXT_HOST_NODES=1 LANG=C HOT_TEXT_STDIN="$work/in.txt" HOT_TEXT_FOLLOW_FORK= -- ./page_faults true
 # D-X.62: the probe-text modes, traced with the others (probe_text.sh merges them below).
 probe_text_trace() { local rc=0; bash "$here/probe_text.sh" "$T" --products "$P" --trace-only "$work/probe" > "$work/probe.log" 2>&1 || rc=$?; echo $rc > "$work/probe.log.rc"; }
 probe_text_trace &
@@ -154,6 +159,12 @@ if ! cmp -s "$mk" "$work/slow.names"; then
     exit 1
 fi
 echo "regen: page_faults mktime traced with 2 s between time reads: the same trace"
+if ! cmp -s "$work/startup.names" "$work/numa1.names"; then
+    echo "regen: page_faults true traced on a simulated 1-node host differs from its trace (a NUMA topology trace_gdb.py's virtual topology does not answer):" \
+         "$(diff "$work/startup.names" "$work/numa1.names" | grep '^[<>]' | tr '\n' ' ')" >&2
+    exit 1
+fi
+echo "regen: page_faults true traced on a simulated 1-node host: the same trace"
 # LAYOUT-TRACE-AT-BUILD-2: the trace set covers every mode hot_text_products.rs measures, which is every
 # mode of page_faults.c (its init_startup_data_accesses_are_in_the_data1_cluster checks that, parsing the
 # source the same way; `true` is the default mode, selected by no strcmp): a mode with no trace above

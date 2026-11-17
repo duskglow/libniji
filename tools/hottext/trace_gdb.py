@@ -34,6 +34,25 @@
 #  a program's reads are far under the one-second interval apart, as they are live. The clock restarts
 #  at every run of the program. HOT_TEXT_SLOW=<seconds> (the check in regen.sh) sleeps that long at
 #  every time read: a source answered from the host's time then shows as a different trace.
+#
+# TRACE-NUMA-PIN: the trace is a function of the program, not of the host's NUMA topology. The heap
+# (D-3.20) asks once how many nodes the process may allocate on and, when more than one, reads the
+# calling thread's node at its slow paths (D-3.12, D-3.21) and places each shard's memory on its node.
+# Every trace sees one virtual topology, in every class (`host` too): VNODES (2) allowed nodes, the
+# program running on node 0.
+#  * The node count: `get_mempolicy(MPOL_F_MEMS_ALLOWED)` at the library's generic system call entry
+#    `niji_sys_syscall` (crates/boundary/src/raw.rs allowed_node_count, its one caller) is answered
+#    with nodes 0..VNODES-1; the call never reaches the kernel. Other system calls run as they are.
+#  * The node read: the rseq area's `node_id` (written by the kernel, no entry to answer at) or the
+#    vDSO's getcpu. The program runs pinned to node 0's CPUs (pin_node0), so the kernel itself answers
+#    0 on every host (a host without NUMA has one node, 0: nothing to pin). A program that moved
+#    between nodes, or ran on node 1, would build another shard and trace other functions.
+#  Why two nodes pinned to node 0 (measured, handoff/TRACE-NUMA-PIN.md): the layout traced so keeps
+#  the NUMA path the 2-node build hosts run live in the start-up group, and a 1-node host runs a
+#  subset of it, with no bound of hot_text_products exceeded on either.
+#  HOT_TEXT_HOST_NODES=<n> (test-only; the check in regen.sh) simulates a host that allows n nodes:
+#  the tracer answers the node count as that host would, and the virtual topology answers over it,
+#  so the trace must not change.
 import os
 import shutil
 import struct
@@ -134,6 +153,69 @@ REALTIME0 = 1759579200 * 10**9  # the wall clock's start (the probes' own date, 
 REALTIME_IDS = (0, 5, 8, 11)  # CLOCK_REALTIME, _COARSE, _ALARM, CLOCK_TAI
 MONO_IDS = (1, 2, 3, 4, 6, 7, 9)  # MONOTONIC, PROCESS/THREAD_CPUTIME, MONOTONIC_RAW, _COARSE, BOOTTIME, _ALARM
 VCLOCK = {}
+# TRACE-NUMA-PIN: the virtual topology (header). get_mempolicy is system call 239 on x86-64; the
+# library passes it to `niji_sys_syscall(nr, a0..a5)`: nr in rdi, the mask in rdx, maxnode in rcx,
+# the flags in r9.
+TOPO_ENTRY = "niji_sys_syscall"
+topo = {by_name[TOPO_ENTRY]} if TOPO_ENTRY in by_name else set()
+NR_GET_MEMPOLICY = 239
+MPOL_F_MEMS_ALLOWED = 4
+VNODES = 2
+VIRTUAL_NODES = True
+HOST_NODES = os.environ.get("HOT_TEXT_HOST_NODES", "")
+if HOST_NODES and not HOST_NODES.isdigit():
+    fail("HOT_TEXT_HOST_NODES: want a node count, got %r" % HOST_NODES)
+
+
+def nodes_answer():
+    """The allowed-node count the program is told: the virtual topology's. Without it, the host's:
+    the simulated host's (HOT_TEXT_HOST_NODES), else None (the kernel answers)."""
+    host = int(HOST_NODES) if HOST_NODES else None
+    return VNODES if VIRTUAL_NODES else host
+
+
+def answer_nodes():
+    """At `niji_sys_syscall`'s stop: answer get_mempolicy(MPOL_F_MEMS_ALLOWED) (header); any other
+    call runs."""
+    if reg("rdi") != NR_GET_MEMPOLICY or not reg("r9") & MPOL_F_MEMS_ALLOWED:
+        return
+    n = nodes_answer()
+    if n is None:
+        return
+    mask, maxnode = reg("rdx"), reg("rcx")
+    words = (maxnode - 1 + 63) // 64  # the kernel writes maxnode - 1 bits, in whole longs
+    if n >= 64 or words < 1 or words > 1024:
+        fail("get_mempolicy: a %d-node answer does not fit a mask of %d bits" % (n, maxnode - 1))
+    if mask:
+        gdb.selected_inferior().write_memory(mask, struct.pack("<%dQ" % words, (1 << n) - 1, *([0] * (words - 1))))
+    gdb.execute("set $rax = 0")
+    leave_entry()
+
+
+def node0_cpus():
+    """The CPUs of node 0 this process may run on, or None on a host without NUMA (one node)."""
+    try:
+        with open("/sys/devices/system/node/node0/cpulist") as f:
+            text = f.read().strip()
+    except FileNotFoundError:
+        return None
+    cpus = set()
+    for part in filter(None, text.split(",")):
+        lo, _, hi = part.partition("-")
+        cpus.update(range(int(lo), int(hi or lo) + 1))
+    cpus &= os.sched_getaffinity(0)
+    if not cpus:
+        fail("node 0 has no CPU this process may run on (%r): the trace cannot run on node 0" % text)
+    return cpus
+
+
+NODE0 = node0_cpus()
+
+
+def pin_node0(pid):
+    """Pin the program (its threads and children inherit it) to node 0's CPUs (header)."""
+    if NODE0 is not None and pid:
+        os.sched_setaffinity(pid, NODE0)
 
 # The program's copy at a fixed-length path (argv[0] is the path gdb runs).
 stage = tempfile.mkdtemp(prefix="niji-trace.", dir="/tmp")
@@ -317,7 +399,7 @@ def run_one(cls):
     made, once = [], {}
     VCLOCK.clear()
     VCLOCK.update(ns=0, tsc=1 << 32)
-    every = set(clocks) | (set(emul) if cls != "host" else set())  # entries answered at every call
+    every = set(clocks) | topo | (set(emul) if cls != "host" else set())  # entries answered at every call
     for addr in names:
         if addr in every:
             continue
@@ -335,6 +417,9 @@ def run_one(cls):
         gdb.execute(CATCH, to_string=True)
     hit, seen, in_call = [], set(), set()
     gdb.execute("run", to_string=True)
+    # The first stop is the program's first function (every function has a breakpoint), before its
+    # first node read: from here on it runs on node 0 (TRACE-NUMA-PIN).
+    pin_node0(gdb.selected_inferior().pid)
     while True:
         try:
             pc = int(gdb.selected_frame().pc())
@@ -369,6 +454,8 @@ def run_one(cls):
                 if slow:
                     time.sleep(slow)
                 answer_time(*read)
+        elif pc in topo and (not redirect or reg("orig_rax") == NOT_SYSCALL):  # its breakpoint, not a system call stop
+            answer_nodes()
         try:
             gdb.execute("continue", to_string=True)
         except gdb.error:
