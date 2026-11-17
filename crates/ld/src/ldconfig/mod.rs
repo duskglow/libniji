@@ -16,6 +16,15 @@
 //!   `DT_SONAME` is keyed by its own name; a symlink whose name ends in `.so` and is a prefix of
 //!   its target's soname (a development link) is recorded in the cache under its own name, gets no
 //!   link and no `-v` line;
+//! * libniji's soname-link rule (spec §31.2, settled by probes, LDCONFIG-DEV-ALIAS, GitHub issue #16): any other
+//!   symlink that resolves to a library, a `.so` alias such as `libcmockery.so` included, is a candidate like a
+//!   regular file and gets no cache entry of its own; a `.so` alias that dangles during the scan is no candidate;
+//!   a `.so` regular file is a candidate (`libbar.so` with soname `libbar.so.3` gets `libbar.so.3 -> libbar.so`;
+//!   one whose soname is its own name is recorded under it, no link). An existing soname link that already
+//!   resolves to the winner's file (same device and inode) is left as it is and not reported as changed,
+//!   whatever its text (`./libfoo.so.1.2`, or a chain through a development link): `-v` names the winner, without
+//!   ` (changed)`. So an alias whose chain runs through the soname link itself never becomes that link's target,
+//!   and no run makes a link loop;
 //! * `-v` prints `<dir>: (from <file>:<line>)` and `\t<soname> -> <file>`, plus ` (changed)` when
 //!   the link was created or replaced; `-X` makes no links, `-N` writes no cache (with both, the
 //!   directories are still scanned and shown); `-n` takes only the operands and writes no cache;

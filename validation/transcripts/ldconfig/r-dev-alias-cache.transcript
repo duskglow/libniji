@@ -1,0 +1,101 @@
+# -r ROOT with a cache: `.so` development names that are not a prefix of their soname, one case per directory (so -v
+# does not depend on the order the reference lists a directory in):
+# /opt/a  issue #16's layout, soname link present: an alias -> development link -> soname link -> real file;
+# /opt/b  an alias that sorts below the real file, `libfoo-compat.so`, straight at it, soname link present;
+# /opt/c  an alias that sorts above the real file, `libquxalt.so`, straight at it, no soname link before the run;
+# /opt/d  a `.so` regular file with a versioned soname and no other file of that soname;
+# /opt/e  a `.so` regular file whose soname is its own name;
+# /opt/f  an upgrade: the soname link at the old version, a new version beside it, an alias through the links;
+# /opt/g  a soname link whose text differs from the file's name but which reaches the same file;
+# /opt/h  an alias that sorts above the real file, straight at it, soname link present;
+# /opt/i  the soname link at an old version, a new version beside it, no alias: the link moves.
+name: ldconfig -r ROOT -v never points a soname link at a .so development name and records the cache
+clause: s31_2_g_4
+clause: s31_2_c_1
+# The reference is Debian's wrapper script, which execs /sbin/ldconfig.real: its program name is normalised.
+normalise: /sbin/ldconfig.real => ldconfig
+normalise: ldconfig.real => ldconfig
+command: ldconfig
+env: LC_ALL=C
+arg: -r
+arg: @ROOT@
+arg: -v
+as-cache: etc/ld.so.cache
+file: etc/ld.so.conf
+| /opt/a
+| /opt/b
+| /opt/c
+| /opt/d
+| /opt/e
+| /opt/f
+| /opt/g
+| /opt/h
+| /opt/i
+elf: opt/a/libcmocka.so.0.8.0 soname=libcmocka.so.0
+link: opt/a/libcmocka.so.0 -> libcmocka.so.0.8.0
+link: opt/a/libcmocka.so -> libcmocka.so.0
+link: opt/a/libcmockery.so -> libcmocka.so
+elf: opt/b/libfoo.so.1.0 soname=libfoo.so.1
+link: opt/b/libfoo.so.1 -> libfoo.so.1.0
+link: opt/b/libfoo-compat.so -> libfoo.so.1.0
+elf: opt/c/libqux.so.2.0 soname=libqux.so.2
+link: opt/c/libquxalt.so -> libqux.so.2.0
+elf: opt/d/libbar.so soname=libbar.so.3
+elf: opt/e/libbaz.so soname=libbaz.so
+elf: opt/f/libup.so.1.0 soname=libup.so.1
+elf: opt/f/libup.so.1.1 soname=libup.so.1
+link: opt/f/libup.so.1 -> libup.so.1.0
+link: opt/f/libup.so -> libup.so.1
+link: opt/f/libupcompat.so -> libup.so
+elf: opt/g/libsf.so.1.2 soname=libsf.so.1
+link: opt/g/libsf.so.1 -> ./libsf.so.1.2
+elf: opt/h/libqvx.so.2.0 soname=libqvx.so.2
+link: opt/h/libqvx.so.2 -> libqvx.so.2.0
+link: opt/h/libqvxalt.so -> libqvx.so.2.0
+elf: opt/i/libv.so.1.0 soname=libv.so.1
+elf: opt/i/libv.so.1.1 soname=libv.so.1
+link: opt/i/libv.so.1 -> libv.so.1.0
+dir: lib
+dir: lib/x86_64-linux-gnu
+dir: usr/lib
+dir: usr/lib/x86_64-linux-gnu
+status: exit 0
+stdout:
+| /opt/a: (from /etc/ld.so.conf:1)
+| \tlibcmocka.so.0 -> libcmockery.so
+| /opt/b: (from /etc/ld.so.conf:2)
+| \tlibfoo.so.1 -> libfoo.so.1.0
+| /opt/c: (from /etc/ld.so.conf:3)
+| \tlibqux.so.2 -> libquxalt.so (changed)
+| /opt/d: (from /etc/ld.so.conf:4)
+| \tlibbar.so.3 -> libbar.so (changed)
+| /opt/e: (from /etc/ld.so.conf:5)
+| \tlibbaz.so -> libbaz.so
+| /opt/f: (from /etc/ld.so.conf:6)
+| \tlibup.so.1 -> libupcompat.so
+| /opt/g: (from /etc/ld.so.conf:7)
+| \tlibsf.so.1 -> libsf.so.1.2
+| /opt/h: (from /etc/ld.so.conf:8)
+| \tlibqvx.so.2 -> libqvxalt.so
+| /opt/i: (from /etc/ld.so.conf:9)
+| \tlibv.so.1 -> libv.so.1.1 (changed)
+| /lib/x86_64-linux-gnu: (from <builtin>:0)
+| /usr/lib/x86_64-linux-gnu: (from <builtin>:0)
+| /lib: (from <builtin>:0)
+| /usr/lib: (from <builtin>:0)
+stderr:
+written-file: etc/ld.so.cache
+| 0x303 libv.so.1 /opt/i/libv.so.1
+| 0x303 libup.so.1 /opt/f/libup.so.1
+| 0x303 libup.so /opt/f/libup.so
+| 0x303 libsf.so.1 /opt/g/libsf.so.1
+| 0x303 libqvx.so.2 /opt/h/libqvx.so.2
+| 0x303 libqux.so.2 /opt/c/libqux.so.2
+| 0x303 libfoo.so.1 /opt/b/libfoo.so.1
+| 0x303 libcmocka.so.0 /opt/a/libcmocka.so.0
+| 0x303 libcmocka.so /opt/a/libcmocka.so
+| 0x303 libbaz.so /opt/e/libbaz.so
+| 0x303 libbar.so.3 /opt/d/libbar.so.3
+written-link: opt/c/libqux.so.2 -> libquxalt.so
+written-link: opt/d/libbar.so.3 -> libbar.so
+written-link: opt/i/libv.so.1 -> libv.so.1.1

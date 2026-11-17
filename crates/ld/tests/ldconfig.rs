@@ -359,6 +359,61 @@ fn soname_links_follow_the_highest_version() {
     assert!(p.contains("\tlibfoo.so.1 (libc6,x86-64) => /opt/l/libfoo.so.1\n"), "{p}");
 }
 
+/// s31_2_g_4 (probe: validation/transcripts/ldconfig/{n-dev-alias,n-dev-alias-no-link,r-dev-alias-cache}.transcript;
+/// GitHub issue #16): a soname link that already resolves to the winner's file is left as it is, so a `.so` alias
+/// whose chain runs through the soname link (`libcmockery.so -> libcmocka.so -> libcmocka.so.0`) never makes a
+/// loop. Issue #16's layout in both orders (soname link present: kept, not reported as changed; absent: the aliases
+/// dangle during the scan and the link goes to the real file), plus an alias that sorts above the real file, an
+/// upgrade whose alias reaches the old version, and a link whose text differs from the file's name.
+#[test]
+fn a_soname_link_reaching_the_winner_is_kept() {
+    let issue = |with_soname_link: bool| {
+        let mut m = base();
+        m.elf("/opt/l/libcmocka.so.0.8.0", Some("libcmocka.so.0"));
+        if with_soname_link {
+            m.link("/opt/l/libcmocka.so.0", "libcmocka.so.0.8.0");
+        }
+        m.link("/opt/l/libcmocka.so", "libcmocka.so.0").link("/opt/l/libcmockery.so", "libcmocka.so");
+        m
+    };
+    let mut m = issue(true);
+    let o = ldconfig(&mut m, &["-n", "-v", "/opt/l"]);
+    assert_eq!(o.status, 0, "{}", text(&o.err));
+    assert_eq!(text(&o.out), "/opt/l: (from <cmdline>:0)\n\tlibcmocka.so.0 -> libcmockery.so\n");
+    assert_eq!(m.get("/opt/l/libcmocka.so.0"), Some(&Node::Link(b"libcmocka.so.0.8.0".to_vec())));
+    let mut m = issue(false);
+    let o = ldconfig(&mut m, &["-n", "/opt/l"]);
+    assert_eq!(o.status, 0, "{}", text(&o.err));
+    assert_eq!(m.get("/opt/l/libcmocka.so.0"), Some(&Node::Link(b"libcmocka.so.0.8.0".to_vec())));
+    // A second run over the result changes nothing.
+    let o = ldconfig(&mut m, &["-n", "-v", "/opt/l"]);
+    assert!(!text(&o.out).contains("(changed)"), "{}", text(&o.out));
+    assert_eq!(m.get("/opt/l/libcmocka.so.0"), Some(&Node::Link(b"libcmocka.so.0.8.0".to_vec())));
+
+    let mut m = base();
+    m.file("/etc/ld.so.conf", b"/opt/f\n/opt/g\n/opt/h\n/opt/i\n");
+    // A link that reaches another file still moves to the winner.
+    m.elf("/opt/i/libv.so.1.0", Some("libv.so.1")).elf("/opt/i/libv.so.1.1", Some("libv.so.1"));
+    m.link("/opt/i/libv.so.1", "libv.so.1.0");
+    m.elf("/opt/f/libup.so.1.0", Some("libup.so.1")).elf("/opt/f/libup.so.1.1", Some("libup.so.1"));
+    m.link("/opt/f/libup.so.1", "libup.so.1.0").link("/opt/f/libup.so", "libup.so.1");
+    m.link("/opt/f/libupcompat.so", "libup.so");
+    m.elf("/opt/g/libsf.so.1.2", Some("libsf.so.1")).link("/opt/g/libsf.so.1", "./libsf.so.1.2");
+    m.elf("/opt/h/libqvx.so.2.0", Some("libqvx.so.2")).link("/opt/h/libqvx.so.2", "libqvx.so.2.0");
+    m.link("/opt/h/libqvxalt.so", "libqvx.so.2.0");
+    let o = ldconfig(&mut m, &["-v"]);
+    assert_eq!(o.status, 0, "{}", text(&o.err));
+    let out = text(&o.out);
+    for line in ["\tlibup.so.1 -> libupcompat.so\n", "\tlibsf.so.1 -> libsf.so.1.2\n", "\tlibqvx.so.2 -> libqvxalt.so\n"] {
+        assert!(out.contains(line), "{line:?} in {out}");
+    }
+    assert_eq!(m.get("/opt/f/libup.so.1"), Some(&Node::Link(b"libup.so.1.0".to_vec())));
+    assert_eq!(m.get("/opt/g/libsf.so.1"), Some(&Node::Link(b"./libsf.so.1.2".to_vec())));
+    assert_eq!(m.get("/opt/h/libqvx.so.2"), Some(&Node::Link(b"libqvx.so.2.0".to_vec())));
+    assert!(out.contains("\tlibv.so.1 -> libv.so.1.1 (changed)\n"), "{out}");
+    assert_eq!(m.get("/opt/i/libv.so.1"), Some(&Node::Link(b"libv.so.1.1".to_vec())));
+}
+
 /// s31_2_g_4 (probe): a dangling `lib*.so*` link is removed unless `-X` or its name ends in `.so`.
 #[test]
 fn dangling_links_are_removed_unless_x_or_development_links() {
