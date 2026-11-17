@@ -922,7 +922,11 @@ fn s16_4_c_0() {
     assert_eq!(host(netdb::host_lookup_addr(&ctx, Ip::V4([192, 0, 2, 10]))), Ok("a.test [] 192.0.2.10".into()));
     let unreachable = Resolver { conf: rconf(dns_server::closed_port()), aliases: None };
     let ctx = Ctx { dns: Some(&unreachable), ..fx.ctx("hosts: dns\n") };
-    assert_eq!(host(netdb::host_lookup(&ctx, b"a.test", Family::V4)), Err(LookupError::Unavailable), "no server reachable: UNAVAIL");
+    // No server reachable: `unavail` for the rules, TRY_AGAIN / EAI_AGAIN for the caller
+    // (observed, spec/behaviour/gai-down.md).
+    let e = host(netdb::host_lookup(&ctx, b"a.test", Family::V4));
+    assert_eq!(e, Err(LookupError::Unreachable), "no server reachable");
+    assert_eq!(LookupError::Unreachable.status(), nss::Status::Unavail, "unavail for the rules");
 }
 
 #[test]
@@ -1096,6 +1100,11 @@ fn s16_4_c_3() {
     assert_eq!(out.as_slice(), b"cname.test.\t\t5M IN CNAME\ta.test.");
     assert_eq!(dmsg::rr(&resp, &p, 1, 9).err(), Some(Errno::ENODEV), "an index out of range");
     assert_eq!(dmsg::parse(&resp[..resp.len() - 1]).err(), Some(Errno::EMSGSIZE), "a message cut short");
+    // A record's RDATA lies inside the message up to its last byte (RFC 1035 section 4.1.3); the
+    // record parser checks it itself, as `rr` walks only the records before the one it returns.
+    let one = b"\0\0\x81\x80\0\0\0\x01\0\0\0\0\0\0\x01\0\x01\0\0\0\0\0\x04\x7f\0\0\x01";
+    assert_eq!(dmsg::rr_at(one, 12, 1).map(|r| r.next), Ok(one.len()), "RDATA ending at the message's end");
+    assert_eq!(dmsg::rr_at(&one[..one.len() - 1], 12, 1).err(), Some(Errno::EMSGSIZE), "RDATA one byte past the end");
 }
 
 #[test]

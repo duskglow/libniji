@@ -672,7 +672,7 @@ pub fn found<T>(a: Answer<T>) -> Result<Option<T>> {
     match a {
         Ok(v) => Ok(Some(v)),
         Err(LookupError::NotFound | LookupError::NoData | LookupError::Unavailable) => Ok(None),
-        Err(LookupError::TryAgain) => Err(Errno::EAGAIN),
+        Err(LookupError::TryAgain | LookupError::Unreachable) => Err(Errno::EAGAIN),
         Err(LookupError::Os(e)) => Err(e),
     }
 }

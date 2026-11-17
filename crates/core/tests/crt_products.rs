@@ -6,7 +6,8 @@
 //! missing from the products cannot pass by being taken from the host. The objects themselves are
 //! checked against the x86-64 psABI's `.init`/`.fini` layout. Needs the products
 //! (`cargo xtask so`), `cc`, `c++`, `gprof`, `readelf`, `objcopy` and `nm`; without the tools the test
-//! says so and passes.
+//! says so and passes. The same plain link also builds a program that binds `libm.so.6`'s old
+//! versions (`fmod@GLIBC_2.2.5`, SYS-COMPAT-VERSIONS) and compares it with the reference.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
 mod skip_note;
@@ -372,4 +373,97 @@ fn plain_cc_pg_writes_gmon_out() {
         let text = String::from_utf8_lossy(&o.stdout);
         assert!(o.status.success() && text.contains("main"), "cc -pg {tag}: gprof cannot read gmon.out:\n{text}{}", String::from_utf8_lossy(&o.stderr));
     }
+}
+
+/// The `name@VERSION` pairs `readelf --dyn-syms` shows `exe` binding (undefined).
+fn bound_versions(exe: &Path) -> BTreeSet<String> {
+    let o = Command::new("readelf").args(["--dyn-syms", "-W"]).arg(exe).output().unwrap();
+    String::from_utf8_lossy(&o.stdout)
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            (f.len() >= 8 && f[6] == "UND").then(|| f[7].split(" (").next().unwrap_or(f[7]).to_string())
+        })
+        .collect()
+}
+
+#[test]
+fn old_libm_versions_bind_and_match_the_reference() {
+    // Clauses: s0_6_c0_6_0 (a name's old version stays exported for old binaries), s10_2_t_r12
+    // (fmod). The program binds each name's GLIBC_2.2.5 version with `.symver` (Debian's gawk binds
+    // fmod's) and prints every edge case's result bits, errno and flags; libniji's libm.so.6 must
+    // give the reference's text, case for case, and the default version's result.
+    if tools_missing() {
+        return;
+    }
+    let (w, lib) = work("libm-compat");
+    let src = s(&root().join("crates/core/tests/oracle/libm_compat_versions.c"));
+    let obj = w.join("libm_compat_versions.o");
+    drive("cc", None, &["-std=gnu17".into(), "-O1".into(), "-fPIE".into(), "-fno-builtin".into(), "-c".into(), src, "-o".into(), s(&obj)]);
+    let exe = w.join("libm_compat_versions");
+    // libm.so.6 needs libc.so.6 by name, so this program names both by soname (a by-path libc beside
+    // it would load a second C library): `soname/` holds link scripts naming the products, the link
+    // checks libm's needs against libniji's files (-rpath-link) and the loader finds them through
+    // LD_LIBRARY_PATH.
+    let p = products();
+    let soname = w.join("soname");
+    std::fs::create_dir_all(&soname).unwrap();
+    let libc_script = format!("GROUP ( \"{}\" \"{}\" AS_NEEDED ( \"{}\" ) )\n", s(&p.join("libc.so.6")), s(&lib.join("libc_nonshared.a")), s(&p.join("ld-linux-x86-64.so.2")));
+    std::fs::write(soname.join("libc.so"), libc_script).unwrap();
+    std::fs::write(soname.join("libm.so"), format!("GROUP ( \"{}\" )\n", s(&p.join("libm.so.6")))).unwrap();
+    drive("cc", Some(&lib), &[ldso(), format!("-L{}", s(&soname)), format!("-Wl,-rpath-link={}", s(&p)), s(&obj), "-lm".into(), "-o".into(), s(&exe)]);
+    let bound = bound_versions(&exe);
+    // (name, default version, cases): the old versions Debian trixie's programs bind.
+    let names = [("fmod", "GLIBC_2.38", 484), ("fmodf", "GLIBC_2.38", 484), ("exp", "GLIBC_2.29", 22), ("exp10", "GLIBC_2.39", 22), ("pow", "GLIBC_2.29", 484), ("hypot", "GLIBC_2.35", 484), ("hypotf", "GLIBC_2.35", 484)];
+    for (name, default, _) in names {
+        for pair in [format!("{name}@GLIBC_2.2.5"), format!("{name}@{default}")] {
+            assert!(bound.contains(&pair), "the program binds {pair}: {bound:?}");
+        }
+    }
+    let host = w.join("host-libm_compat_versions");
+    drive("cc", None, &[s(&obj), "-lm".into(), "-o".into(), s(&host)]);
+    let run_v = |e: &Path, libs: Option<&Path>| {
+        // The path is set by `env` after `timeout` starts, so only the program sees it (the host's
+        // `timeout` must not load libniji's libc.so.6 under the host's loader).
+        let mut cmd = Command::new("timeout");
+        cmd.arg(timeout::secs(30)).arg("env");
+        if let Some(l) = libs {
+            cmd.arg(format!("LD_LIBRARY_PATH={}", s(l)));
+        }
+        let o = cmd.arg(e).arg("-v").current_dir(&w).env_clear().output().unwrap();
+        assert!(o.status.success(), "{}: {:?} {}", e.display(), o.status, String::from_utf8_lossy(&o.stderr));
+        String::from_utf8_lossy(&o.stdout).into_owned()
+    };
+    let want = run_v(&host, None);
+    for (name, _, cases) in names {
+        assert!(want.contains(&format!("\n{name}@GLIBC_2.2.5: {cases} cases, 0 differ from the default\n")), "the reference, {name}:\n{want}");
+    }
+    let got = run_v(&exe, Some(&p));
+    // Cases where libniji's DEFAULT pow differs from the reference's (both libraries print "same as
+    // default" for them, so the old version is still the default's alias): pow(-1, +-1e308) is 0
+    // with ERANGE in libniji, 1 in the reference (a defect of the default pow, reported by
+    // SYS-COMPAT-VERSIONS for its own story); a signalling NaN with a zero exponent or base 1 gives 1
+    // and FE_INVALID in libniji, a quiet NaN in the reference; an exact subnormal result raises
+    // FE_UNDERFLOW in the reference only (IEEE 754 7.5: underflow needs an inexact tiny result).
+    const DEFAULT_POW: [&str; 8] = [
+        "pow@GLIBC_2.2.5(-0x1p+0, 0x1.1ccf385ebc8ap+1023)",
+        "pow@GLIBC_2.2.5(-0x1p+0, -0x1.1ccf385ebc8ap+1023)",
+        "pow@GLIBC_2.2.5(0x1p+0, nan)",
+        "pow@GLIBC_2.2.5(nan, 0x0p+0)",
+        "pow@GLIBC_2.2.5(nan, -0x0p+0)",
+        "pow@GLIBC_2.2.5(0x1p-1, 0x1p+10)",
+        "pow@GLIBC_2.2.5(0x0.012688b70e62bp-1022, 0x1p+0)",
+        "pow@GLIBC_2.2.5(-0x0.012688b70e62bp-1022, 0x1p+0)",
+    ];
+    for g in got.lines().filter(|g| DEFAULT_POW.iter().any(|k| g.starts_with(&format!("{k} = ")))) {
+        assert!(g.ends_with(": same as default"), "libniji's old pow is its default's alias: {g}");
+    }
+    let differ: Vec<String> = got
+        .lines()
+        .zip(want.lines())
+        .filter(|(g, r)| g != r && !DEFAULT_POW.iter().any(|k| g.starts_with(&format!("{k} = "))))
+        .map(|(g, r)| format!("libniji:   {g}\nreference: {r}"))
+        .collect();
+    assert!(differ.is_empty(), "libniji's old version against the reference's, {} cases differ:\n{}", differ.len(), differ.iter().take(12).cloned().collect::<Vec<_>>().join("\n"));
+    assert_eq!(got.lines().count(), want.lines().count(), "the same cases");
 }

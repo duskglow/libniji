@@ -55,13 +55,13 @@ rm -rf "$res"
 mkdir -p "$res"
 
 # The programs of the comparison: the Essential set (bash, coreutils, findutils, grep, sed, perl-base,
-# dash), mawk, python3-minimal, fakeroot (a preloaded library: LD_PRELOAD and RTLD_NEXT) and
+# dash), mawk, gawk (old libm versions), python3-minimal, fakeroot (a preloaded library: LD_PRELOAD and RTLD_NEXT) and
 # initramfs-tools-core (copy_exec, a consumer of ldd's listing). Same package set in both roots.
 mmroot() { # mmroot MODE HOOK...: build a root, run the hooks, copy /tmp/swap/out out to $res/MODE.
     mode=$1; shift
     mkdir -p "$res/$mode-tmp"
     "$mm" --mode=unshare --variant=apt --keyring="$stage/keyring.gpg" --components=main \
-        --include=mawk,python3-minimal,fakeroot,initramfs-tools-core \
+        --include=mawk,gawk,python3-minimal,fakeroot,initramfs-tools-core \
         --customize-hook="copy-in $stage/swap /tmp" \
         "$@" \
         --customize-hook="chroot \"\$1\" sh /tmp/swap/cmds.sh /tmp/swap/out" \
