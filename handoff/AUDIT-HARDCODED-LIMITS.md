@@ -2,8 +2,8 @@
 
 **State.** Branch `task/audit-hardcoded-limits`, from `next` 575214f4b. The deliverable is
 `plan/hardcoded-limits.md`. Probes, measurements and the rerunnable search are in
-`results/hardcoded-limits/` (`search.sh`, `probes.c`, `run.sh`, `objects.sh`, `probes-keke.log`,
-`objects-keke.log`). The report json is `handoff/reports/AUDIT-HARDCODED-LIMITS.json`.
+`results/hardcoded-limits/` (`search.sh`, `probes.c`, `run.sh`, `objects.sh`, `probes.log`,
+`objects.log`; run on keke). The report json is `handoff/reports/AUDIT-HARDCODED-LIMITS.json`.
 
 **What it found.** 20 remove candidates (resource caps, HL-1..HL-20), 13 keep candidates (security
 bounds HL-21..26; correctness and representation guards HL-27..33), an ABI/spec-fixed list, a list of

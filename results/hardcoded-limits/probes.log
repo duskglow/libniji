@@ -1,14 +1,14 @@
 reference: ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
-libniji products: /home/claude/w/n3/target/niji (2026-11-17 07:31)
-== ./probes dlopen_many 600 /home/claude/w/ahl-probes/lib
+libniji products: ~/w/n3/target/niji (2026-11-17 07:31)
+== ./probes dlopen_many 600 ~/w/ahl-probes/lib
   ref:   dlopen_many: ok 600 objects open at once
   ref rc 0
-  niji:  dlopen_many: stopped at 509 of 600: /home/claude/w/ahl-probes/lib/libp509.so: cannot load more objects
+  niji:  dlopen_many: stopped at 509 of 600: ~/w/ahl-probes/lib/libp509.so: cannot load more objects
   niji rc 1
-== ./probes dlopen_wide /home/claude/w/ahl-probes/lib/libwide.so
+== ./probes dlopen_wide ~/w/ahl-probes/lib/libwide.so
   ref:   dlopen_wide: ok
   ref rc 0
-  niji:  dlopen_wide: failed: /home/claude/w/ahl-probes/lib/libwide.so: cannot load more objects in one call
+  niji:  dlopen_wide: failed: ~/w/ahl-probes/lib/libwide.so: cannot load more objects in one call
   niji rc 1
 == ./need100
   ref rc 0
@@ -20,7 +20,7 @@ libniji products: /home/claude/w/n3/target/niji (2026-11-17 07:31)
   niji rc 127
 == ldd need300 (count of listed lines)
   ref:   303 lines, rc 0
-  niji:  304 lines; tail: 	/home/claude/w/n3/target/niji/ld-linux-x86-64.so.2 => /lib64/ld-linux-x86-64.so.2 (0x000075c75ea84000)
+  niji:  304 lines; tail: 	~/w/n3/target/niji/ld-linux-x86-64.so.2 => /lib64/ld-linux-x86-64.so.2 (0x000075c75ea84000)
 == ./probes sem_many 300
   ref:   sem_many: ok 300 named semaphores open at once
   ref rc 0

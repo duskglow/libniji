@@ -1,5 +1,5 @@
 #!/bin/bash
-# AUDIT-HARDCODED-LIMITS probe driver (keke). usage: run.sh <workdir> <niji products dir>
+# AUDIT-HARDCODED-LIMITS probe driver (a build host with a compiler). usage: run.sh <workdir> <niji products dir>
 # Builds the probes and N tiny shared objects, then runs every probe against the reference (the
 # installed C library) and against libniji's products (through libniji's loader). Every run has a
 # timeout. Output: one line per probe and library.

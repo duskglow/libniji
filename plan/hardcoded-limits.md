@@ -30,11 +30,11 @@ bounds a variable number of things a user can reach. Section 6 lists the caches 
 looked like limits but fall back without failing, so a reader can see they were checked.
 
 **Probes** (`results/hardcoded-limits/`): `probes.c` and `run.sh` run each probe past the limit against
-the reference (keke, Ubuntu GLIBC 2.39-0ubuntu8.9) and against libniji's products built on keke on
-2026-11-17 07:31 (`~/w/n3/target/niji`, a `next`-era build: the code read here is the same, but the
+the reference (a build host running Ubuntu 24.04, GLIBC 2.39-0ubuntu8.9) and against libniji's products
+built on that host on 2026-11-17 07:31 (a role directory's `target/niji`, a `next`-era build: the code read here is the same, but the
 products were not built from this branch's head). Probe programs are linked against libniji the same
-way `xtask so` links its utilities. Output: `probes-keke.log` (job `ahl-probes-5`). `objects.sh`
-measures how many shared objects real programs load (`objects-keke.log`, job `ahl-objects`). Summary:
+way `xtask so` links its utilities. Output: `probes.log` (job `ahl-probes-5`). `objects.sh`
+measures how many shared objects real programs load (`objects.log`, job `ahl-objects`). Summary:
 
 | Probe | Reference | libniji |
 |---|---|---|
@@ -51,7 +51,7 @@ measures how many shared objects real programs load (`objects-keke.log`, job `ah
 | `wordexp` with 129 / 300 nested `${x:-...}` | ok / ok | `WRDE_SYNTAX` / `WRDE_SYNTAX` |
 | `ldd` of the 300-object program | 303 lines | 304 lines (this build's `ldd` traces with the reference loader, so libniji's `--list` limit was not exercised) |
 
-Real programs on keke (a build server with no desktop; `objects-keke.log`): 1504 programs and shared
+Real programs on that host (a build server with no desktop; `objects.log`): 1504 programs and shared
 objects examined, **7 need more than 64 objects at start** (`libvte-2.91` 80, `fwupdtool` 77, the
 `gtk-*` tools 68, `libgtk-3` 67, `fwupdmgr` 67, `dbxtool` 64 + more), none more than 256. A
 `python3` that imports its 47 stdlib extension modules maps 65 shared objects.
@@ -143,7 +143,7 @@ larger preallocation.
 | 5 | HL-3, HL-5 | possible | large desktop sessions and scientific Python (each extension module is an object; a stdlib-only python3 already maps 65, measured) |
 | 6 | HL-9 | possible | mass resolvers (crawlers, mail servers) with more than 4096 lookups pending at once; not reached by the probe |
 | 7 | HL-13, HL-14 | rare | only generated or hostile patterns nest past 64 / 128 |
-| 8 | HL-6, HL-15 | rare | no program on keke needs more than 80 objects; ldconfig inputs are far below the caps |
+| 8 | HL-6, HL-15 | rare | no program on the build host needs more than 80 objects; ldconfig inputs are far below the caps |
 | 9 | HL-8, HL-12, HL-16, HL-17, HL-18, HL-19, HL-20 | very rare | no known program near them |
 
 ## 3. Keep candidates
