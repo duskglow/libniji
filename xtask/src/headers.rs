@@ -400,10 +400,31 @@ impl Gen<'_> {
             if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
                 continue;
             }
-            if r["member"].contains('.') || !r["bitfield"].is_empty() {
+            if r["member"].contains('.') {
                 return None;
             }
             let mt = &r["member_type"];
+            let off0: u64 = r["offset_or_size"].parse().ok()?;
+            // A pointer to a function whose parameters the table does not record (`fn(...) *`): the program never
+            // calls it through the structure, so it is declared as a pointer to `void (void)`; size and offset are
+            // those of any object pointer.
+            if mt.starts_with("fn(") && mt.trim_end().ends_with('*') {
+                end = end.map(|e| e.max(off0 + 8));
+                offs.insert(r["offset_or_size"].clone());
+                out.push(format!("  void (*{}) (void);", r["member"]));
+                continue;
+            }
+            // A bit-field (`bits W@B`): declared in table order with its width; its position follows from the order.
+            if let Some(w) = r["bitfield"].strip_prefix("bits ").and_then(|b| b.split('@').next()).filter(|w| w.parse::<u32>().is_ok()) {
+                let ty = dwarf_scalar(mt).filter(|_| !mt.contains('*'))?;
+                offs.insert(r["offset_or_size"].clone());
+                end = end.zip(self.type_size(mt, "", "")).map(|(e, n)| e.max(off0 + n));
+                out.push(format!("  {ty} {} : {w};", r["member"]));
+                continue;
+            }
+            if !r["bitfield"].is_empty() {
+                return None;
+            }
             let (base, arr) = match mt.find('[') {
                 Some(i) => (&mt[..i], &mt[i..]),
                 None => (mt.as_str(), ""),

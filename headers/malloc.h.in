@@ -5,9 +5,11 @@
 
 #include <features.h>
 #include <stdio.h>
+#include <stddef.h>
 
 __NIJI_BEGIN_C
 
+@@owns max_align_t
 @@emit
 
 __NIJI_END_C
