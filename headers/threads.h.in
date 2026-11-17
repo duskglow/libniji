@@ -1,0 +1,37 @@
+@@generated
+/* threads.h: C11 threads (C 7.26). */
+#ifndef __NIJI_H_threads_h
+#define __NIJI_H_threads_h 1
+
+#include <features.h>
+#include <time.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL thread_local
+@@owns-macro ONCE_FLAG_INIT
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+/* C 7.26.1: thread_local is a macro for the storage-class specifier before C23 (a keyword in C23 and C++). */
+/* The probe shows the macro in every C++ standard as well (g++ accepts _Thread_local), and in C before C23. */
+#if defined __cplusplus || __NIJI_ISOC < 2023
+# define thread_local _Thread_local
+#endif
+
+@@if ONCE_FLAG_INIT
+# define ONCE_FLAG_INIT @@init(ONCE_FLAG_INIT)
+#endif
+
+__NIJI_END_C
+
+#endif

@@ -1,0 +1,124 @@
+@@generated
+/* pthread.h: threads (XSH <pthread.h>). Appendix C.9: PTHREAD_STACK_MIN (from <limits.h>) is the run-time
+   sysconf (_SC_THREAD_STACK_MIN) under _DYNAMIC_STACK_SIZE_SOURCE; pthread_cleanup_push and pthread_cleanup_pop
+   are a pair of macros: in C they open and close one block holding a __pthread_unwind_buf_t, registered with
+   __pthread_register_cancel after __sigsetjmp, and unregistered by __pthread_unregister_cancel; in C++ with
+   exceptions they hold a destructor object instead, so that cancellation, which unwinds the stack, runs the
+   handler. */
+#ifndef __NIJI_H_pthread_h
+#define __NIJI_H_pthread_h 1
+
+#include <features.h>
+#include <limits.h>
+#include <sched.h>
+#include <time.h>
+#include <setjmp.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL
+@@owns-macro PTHREAD_CANCELED PTHREAD_MUTEX_INITIALIZER PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP PTHREAD_RWLOCK_INITIALIZER PTHREAD_RWLOCK_WRITER_NONRECURSIVE_INITIALIZER_NP PTHREAD_COND_INITIALIZER pthread_cleanup_push
+@@emit
+
+@@if PTHREAD_CANCELED
+# define PTHREAD_CANCELED ((void *) -1)
+#endif
+
+/* Static initializers: the bytes of initializers.tsv, as the members of the object they initialise. */
+@@if PTHREAD_MUTEX_INITIALIZER
+# define PTHREAD_MUTEX_INITIALIZER @@init(PTHREAD_MUTEX_INITIALIZER)
+#endif
+@@if PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+# define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP @@init(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP)
+# define PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP @@init(PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP)
+# define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP @@init(PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP)
+#endif
+@@if PTHREAD_RWLOCK_INITIALIZER
+# define PTHREAD_RWLOCK_INITIALIZER @@init(PTHREAD_RWLOCK_INITIALIZER)
+#endif
+@@if PTHREAD_RWLOCK_WRITER_NONRECURSIVE_INITIALIZER_NP
+# define PTHREAD_RWLOCK_WRITER_NONRECURSIVE_INITIALIZER_NP @@init(PTHREAD_RWLOCK_WRITER_NONRECURSIVE_INITIALIZER_NP)
+#endif
+@@if PTHREAD_COND_INITIALIZER
+# define PTHREAD_COND_INITIALIZER @@init(PTHREAD_COND_INITIALIZER)
+#endif
+
+/* The handler chain of the pre-unwinding interface: the buffer is the caller's, linked through __prev. */
+@@if pthread_cleanup_push
+# if defined __cplusplus && defined __EXCEPTIONS
+/* C++ with exceptions: a frame object, whose destructor runs the handler when the block is left by an
+   exception or by cancellation. */
+class __pthread_cleanup_class
+{
+  void (*__cancel_routine) (void *);
+  void *__cancel_arg;
+  int __do_it;
+  int __cancel_type;
+
+public:
+  __pthread_cleanup_class (void (*__fct) (void *), void *__arg)
+    : __cancel_routine (__fct), __cancel_arg (__arg), __do_it (1) { }
+  ~__pthread_cleanup_class () { if (__do_it) __cancel_routine (__cancel_arg); }
+  void __setdoit (int __newval) { __do_it = __newval; }
+  void __defer () { pthread_setcanceltype (PTHREAD_CANCEL_DEFERRED, &__cancel_type); }
+  void __restore () const { pthread_setcanceltype (__cancel_type, 0); }
+};
+#  define pthread_cleanup_push(routine, arg) \
+  do { __pthread_cleanup_class __clframe (routine, arg)
+#  define pthread_cleanup_pop(execute) \
+  __clframe.__setdoit (execute); } while (0)
+#  if __NIJI_GNU
+#   define pthread_cleanup_push_defer_np(routine, arg) \
+  do { __pthread_cleanup_class __clframe (routine, arg); __clframe.__defer ()
+#   define pthread_cleanup_pop_restore_np(execute) \
+  __clframe.__restore (); __clframe.__setdoit (execute); } while (0)
+#  endif
+# else
+/* C (and C++ without exceptions): the buffer lives in the block; a cancellation jumps back through the
+   __sigsetjmp below and runs the handler, then continues unwinding with __pthread_unwind_next. */
+#  define pthread_cleanup_push(routine, arg) \
+  do { \
+    __pthread_unwind_buf_t __cancel_buf; \
+    void (*__cancel_routine) (void *) = (routine); \
+    void *__cancel_arg = (arg); \
+    int __not_first_call = __sigsetjmp ((struct __jmp_buf_tag *) (void *) __cancel_buf.__cancel_jmp_buf, 0); \
+    if (__builtin_expect (__not_first_call, 0)) \
+      { \
+        __cancel_routine (__cancel_arg); \
+        __pthread_unwind_next (&__cancel_buf); \
+      } \
+    __pthread_register_cancel (&__cancel_buf); \
+    do { } while (0)
+#  define pthread_cleanup_pop(execute) \
+    do { } while (0); \
+    __pthread_unregister_cancel (&__cancel_buf); \
+    if (execute) \
+      __cancel_routine (__cancel_arg); \
+  } while (0)
+#  if __NIJI_GNU
+#   define pthread_cleanup_push_defer_np(routine, arg) \
+  do { \
+    __pthread_unwind_buf_t __cancel_buf; \
+    void (*__cancel_routine) (void *) = (routine); \
+    void *__cancel_arg = (arg); \
+    int __not_first_call = __sigsetjmp ((struct __jmp_buf_tag *) (void *) __cancel_buf.__cancel_jmp_buf, 0); \
+    if (__builtin_expect (__not_first_call, 0)) \
+      { \
+        __cancel_routine (__cancel_arg); \
+        __pthread_unwind_next (&__cancel_buf); \
+      } \
+    __pthread_register_cancel_defer (&__cancel_buf); \
+    do { } while (0)
+#   define pthread_cleanup_pop_restore_np(execute) \
+    do { } while (0); \
+    __pthread_unregister_cancel_restore (&__cancel_buf); \
+    if (execute) \
+      __cancel_routine (__cancel_arg); \
+  } while (0)
+#  endif
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif

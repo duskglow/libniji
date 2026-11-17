@@ -1,0 +1,63 @@
+@@generated
+/* sched.h: execution scheduling (XSH <sched.h>), and the CPU set macros of CPU_SET(3) (GNU). */
+#ifndef __NIJI_H_sched_h
+#define __NIJI_H_sched_h 1
+
+#include <features.h>
+#include <time.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL
+@@owns-macro CPU_ALLOC
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+/* CPU_SET(3). A set is an array of unsigned long words; the _S forms take its size in bytes. */
+@@if CPU_ALLOC
+# define __NIJI_CPU_BITS (8 * sizeof (unsigned long))
+# define __NIJI_CPU_WORD(cpu) ((cpu) / __NIJI_CPU_BITS)
+# define __NIJI_CPU_MASK(cpu) (1UL << ((cpu) % __NIJI_CPU_BITS))
+# define CPU_ZERO_S(setsize, set) ((void) __builtin_memset ((set), 0, (setsize)))
+# define CPU_SET_S(cpu, setsize, set) \
+  ((void) (((cpu) / 8 < (setsize)) ? (((unsigned long *) (set))[__NIJI_CPU_WORD (cpu)] |= __NIJI_CPU_MASK (cpu)) : 0))
+# define CPU_CLR_S(cpu, setsize, set) \
+  ((void) (((cpu) / 8 < (setsize)) ? (((unsigned long *) (set))[__NIJI_CPU_WORD (cpu)] &= ~__NIJI_CPU_MASK (cpu)) : 0))
+# define CPU_ISSET_S(cpu, setsize, set) \
+  (((cpu) / 8 < (setsize)) ? ((((const unsigned long *) (set))[__NIJI_CPU_WORD (cpu)] & __NIJI_CPU_MASK (cpu)) != 0) : 0)
+# define CPU_COUNT_S(setsize, set) __sched_cpucount (setsize, set)
+# define CPU_EQUAL_S(setsize, set1, set2) (__builtin_memcmp ((set1), (set2), (setsize)) == 0)
+# define __NIJI_CPU_OP_S(setsize, dest, set1, set2, op) \
+  (__extension__ ({ unsigned long *__d = (unsigned long *) (dest); const unsigned long *__a = (const unsigned long *) (set1); \
+                    const unsigned long *__b = (const unsigned long *) (set2); size_t __i; \
+                    for (__i = 0; __i < (setsize) / sizeof (unsigned long); __i++) __d[__i] = __a[__i] op __b[__i]; \
+                    (dest); }))
+# define CPU_AND_S(setsize, dest, set1, set2) __NIJI_CPU_OP_S (setsize, dest, set1, set2, &)
+# define CPU_OR_S(setsize, dest, set1, set2) __NIJI_CPU_OP_S (setsize, dest, set1, set2, |)
+# define CPU_XOR_S(setsize, dest, set1, set2) __NIJI_CPU_OP_S (setsize, dest, set1, set2, ^)
+# define CPU_ALLOC_SIZE(count) ((((count) + __NIJI_CPU_BITS - 1) / __NIJI_CPU_BITS) * sizeof (unsigned long))
+# define CPU_ALLOC(count) __sched_cpualloc (count)
+# define CPU_FREE(set) __sched_cpufree (set)
+# define CPU_ZERO(set) CPU_ZERO_S (sizeof (cpu_set_t), set)
+# define CPU_SET(cpu, set) CPU_SET_S (cpu, sizeof (cpu_set_t), set)
+# define CPU_CLR(cpu, set) CPU_CLR_S (cpu, sizeof (cpu_set_t), set)
+# define CPU_ISSET(cpu, set) CPU_ISSET_S (cpu, sizeof (cpu_set_t), set)
+# define CPU_COUNT(set) CPU_COUNT_S (sizeof (cpu_set_t), set)
+# define CPU_EQUAL(set1, set2) CPU_EQUAL_S (sizeof (cpu_set_t), set1, set2)
+# define CPU_AND(dest, set1, set2) CPU_AND_S (sizeof (cpu_set_t), dest, set1, set2)
+# define CPU_OR(dest, set1, set2) CPU_OR_S (sizeof (cpu_set_t), dest, set1, set2)
+# define CPU_XOR(dest, set1, set2) CPU_XOR_S (sizeof (cpu_set_t), dest, set1, set2)
+#endif
+
+__NIJI_END_C
+
+#endif

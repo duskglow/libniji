@@ -15,6 +15,7 @@
 //! * `@@if NAME`: `#if <condition>` with the condition of NAME in this header; the template owns NAME.
 //! * `@@owns A B ...`: the template owns these names too (it defines them itself under an `@@if`).
 //! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
+//! * `@@init(NAME)` (inline): the brace initializer of the `initializers.tsv` row NAME, built from the layout of its type.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
 //! * `@@when NAME`: `#if` with the condition of NAME, which the template does not own.
 //! * `@@intc`: the `INTn_C`/`UINTn_C`/`INTMAX_C`/`UINTMAX_C` macros, derived from the `typedefs.tsv` rows
@@ -252,6 +253,8 @@ struct Tables {
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
     stubs: Vec<String>,
+    /// initializers.tsv: macro name -> (type, bytes).
+    inits: BTreeMap<String, (String, Vec<u8>)>,
 }
 
 fn load(root: &Path) -> Result<Tables, String> {
@@ -279,7 +282,13 @@ fn load(root: &Path) -> Result<Tables, String> {
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let stubs = tsv(root, STUBS)?.into_iter().filter(|r| r["link"] == "default").map(|r| r["function"].clone()).collect();
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, stubs })
+    let mut inits = BTreeMap::new();
+    for r in tsv(root, "spec/abi/initializers.tsv")? {
+        let hex = &r["bytes_hex"];
+        let bytes: Vec<u8> = (0..hex.len() / 2).filter_map(|i| u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).ok()).collect();
+        inits.insert(r["initializer"].clone(), (r["type"].clone(), bytes));
+    }
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, stubs, inits })
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -306,6 +315,71 @@ struct Gen<'a> {
 }
 
 impl Gen<'_> {
+    /// The size in bytes of a member type of `layouts.tsv`: a scalar, a pointer, an array or a described aggregate.
+    fn size_of(&self, ty: &str) -> Option<usize> {
+        if let Some(i) = ty.find('[') {
+            let n: usize = ty[i + 1..ty.len() - 1].parse().ok()?;
+            return Some(n * self.size_of(&ty[..i])?);
+        }
+        if ty.ends_with('*') {
+            return Some(8);
+        }
+        match ty {
+            "char" | "signed char" | "unsigned char" => Some(1),
+            "short int" | "short unsigned int" => Some(2),
+            "int" | "unsigned int" => Some(4),
+            "long int" | "long unsigned int" | "long long int" | "long long unsigned int" => Some(8),
+            _ => self.t.layouts.get(ty).and_then(|r| r.first()).and_then(|r| r["offset_or_size"].parse().ok()).or_else(|| {
+                self.t.typedefs.get(&("typedef".to_string(), ty.to_string())).and_then(|r| r["size"].parse().ok())
+            }),
+        }
+    }
+
+    /// The brace initializer that gives an object of type `ty` the bytes `b` (little-endian): a union by its first
+    /// member, a structure by its members (`layouts.tsv`), a scalar by its value. None when a byte is not covered.
+    fn init_of(&self, ty: &str, b: &[u8]) -> Option<String> {
+        if let Some(i) = ty.find('[') {
+            let esz = self.size_of(&ty[..i])?;
+            let n: usize = ty[i + 1..ty.len() - 1].parse().ok()?;
+            let parts: Option<Vec<String>> = (0..n).map(|k| self.init_of(&ty[..i], b.get(k * esz..(k + 1) * esz)?)).collect();
+            return Some(format!("{{ {} }}", parts?.join(", ")));
+        }
+        if let Some(rows) = self.t.layouts.get(ty) {
+            let union = rows.iter().filter(|r| !r["member"].is_empty()).count() > 1 && rows.iter().filter(|r| !r["member"].is_empty() && !r["member"].contains('.')).all(|r| r["offset_or_size"] == "0");
+            let members: Vec<&BTreeMap<String, String>> = rows.iter().filter(|r| !r["member"].is_empty() && !r["member"].contains('.')).collect();
+            if members.is_empty() {
+                return None;
+            }
+            let used: Vec<&&BTreeMap<String, String>> = if union { members.iter().take(1).collect() } else { members.iter().collect() };
+            let mut parts = Vec::new();
+            for m in used {
+                let off: usize = m["offset_or_size"].parse().ok()?;
+                let sz = self.size_of(&m["member_type"])?;
+                parts.push(self.init_of(&m["member_type"], b.get(off..off + sz)?)?);
+            }
+            return Some(format!("{{ {} }}", parts.join(", ")));
+        }
+        let sz = self.size_of(ty)?;
+        let v = b.get(..sz)?.iter().rev().fold(0u64, |a, x| a << 8 | *x as u64);
+        Some(if ty.ends_with('*') && v == 0 { "0".into() } else { v.to_string() })
+    }
+
+    /// `@@init(NAME)`: the initializer of the macro NAME from `initializers.tsv`.
+    fn init(&mut self, name: &str) -> String {
+        let Some((ty, bytes)) = self.t.inits.get(name).cloned() else {
+            self.errors.push(format!("{}: {name} has no initializers.tsv row", self.header));
+            return String::new();
+        };
+        let key = self.t.typedefs.get(&("typedef".to_string(), ty.clone())).map_or(ty.clone(), |r| if self.t.layouts.contains_key(&ty) { ty.clone() } else { r["cxx"].clone() });
+        match self.init_of(&key, &bytes) {
+            Some(s) => s,
+            None => {
+                self.errors.push(format!("{}: {name}: no initializer of type {ty} covers its bytes", self.header));
+                String::new()
+            }
+        }
+    }
+
     fn rows(&self, name: &str) -> Vec<&BTreeMap<String, String>> {
         self.t.vis.iter().filter(|r| r["header"] == self.header && r["name"] == name).collect()
     }
@@ -392,7 +466,7 @@ impl Gen<'_> {
         // Members that are complete structures: the rows `member.sub` below them describe that structure again.
         let whole: BTreeSet<&str> = rows
             .iter()
-            .filter(|r| r["member_type"].strip_prefix("struct ").is_some_and(|_| self.t.layouts.contains_key(&r["member_type"])))
+            .filter(|r| !r["member"].contains('.') && !r["member_type"].contains("<anon>") && rows.iter().any(|q| q["member"].strip_prefix(r["member"].as_str()).is_some_and(|x| x.starts_with('.'))))
             .map(|r| r["member"].as_str())
             .collect();
         let mut end = Some(0u64);
@@ -421,6 +495,10 @@ impl Gen<'_> {
                 // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
                 nested.push(format!("typedef {core}"));
                 format!("{core} {}", stars.trim())
+            } else if dwarf_scalar(core).is_none() && !scalar(&self.resolve(core)) && self.t.typedefs.contains_key(&("typedef".to_string(), core.to_string())) {
+                // A typedef of an aggregate or an array (`__sigset_t`, `__jmp_buf`): the member keeps its name, which comes first.
+                nested.push(format!("typedef {core}"));
+                format!("{core}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
             } else {
                 let b = dwarf_scalar(core).or_else(|| {
                     let r = self.resolve(core);
@@ -922,6 +1000,12 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
                 _ => {
                     let mut line = l.replace("@@iso10646", &iso).replace(" /* @@computed */", "").replace(" /* @@ */", "");
+                    while let Some(i) = line.find("@@init(") {
+                        let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
+                        let n = line[i + 7..end].to_string();
+                        let v = g.init(&n);
+                        line.replace_range(i..=end.min(line.len() - 1), &v);
+                    }
                     while let Some(i) = line.find("@@value(") {
                         let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
                         let n = line[i + 8..end].to_string();

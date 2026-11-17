@@ -1,0 +1,53 @@
+@@generated
+/* signal.h: signals (C 7.14, XSH <signal.h>). Appendix C.9: SIGRTMIN and SIGRTMAX are the run-time values
+   __libc_current_sigrtmin () and __libc_current_sigrtmax (); under _DYNAMIC_STACK_SIZE_SOURCE MINSIGSTKSZ and
+   SIGSTKSZ are sysconf (_SC_MINSIGSTKSZ) and sysconf (_SC_SIGSTKSZ). */
+#ifndef __NIJI_H_signal_h
+#define __NIJI_H_signal_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL SIG_HOLD
+@@owns-macro SIG_DFL SIG_IGN SIG_ERR SIGRTMIN SIGRTMAX MINSIGSTKSZ SIGSTKSZ
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+/* C 7.14.1: the dispositions. SIG_DFL and SIG_IGN are the kernel's values for the default and ignore actions
+   (0 and 1); SIG_ERR is the value signal returns on failure (-1). */
+#define SIG_DFL ((__sighandler_t) 0)
+#define SIG_IGN ((__sighandler_t) 1)
+#define SIG_ERR ((__sighandler_t) -1)
+
+@@if SIG_HOLD
+# define SIG_HOLD ((__sighandler_t) 2)
+#endif
+
+@@if SIGRTMIN
+# define SIGRTMIN (__libc_current_sigrtmin ())
+# define SIGRTMAX (__libc_current_sigrtmax ())
+#endif
+
+@@if MINSIGSTKSZ
+# if __NIJI_DYNSTACK
+#  define MINSIGSTKSZ __sysconf (@@value(_SC_MINSIGSTKSZ))
+#  define SIGSTKSZ __sysconf (@@value(_SC_SIGSTKSZ))
+# else
+#  define MINSIGSTKSZ @@value(MINSIGSTKSZ)
+#  define SIGSTKSZ @@value(SIGSTKSZ)
+# endif
+#endif
+
+__NIJI_END_C
+
+#endif
