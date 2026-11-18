@@ -21,7 +21,8 @@
   "Rule slip: one no-op heredoc call (`python3 - <<X` with an empty body, ran nothing) in leg 1 of this run.",
   "Run -5's fullhot red cause: the window-bin planner moved the rebind-only phase group (Resolution::same_texts, Mo::hinted, Mo::form, unlink, unlinkat, rmdir; 1142 B) from bin 1 into bin 0's tail once bin 0 shrank by 226 B; with a 0x800 pre pad its tail sat alone in a second window. Fixed in xtask/src/bins.rs head_may_take (pending record HEAP-ADDRESS-SPACE-6-1, amends D-X.103).",
   "Under a limit, when growth fails the heap retries a 4 KiB map plus the 32 MiB and 4.25 MiB maps on every allocation (strace); a cost for HEAP-SPILL-COLD.",
-  "xtest1 stopped (superseded head); no cargo xtask test run on a84abbe23."
+  "xtest1 stopped (superseded head); no cargo xtask test run on a84abbe23.",
+  "Diagnostic probes (not verification): asn1, asn2, asn3, asn5 on keke (need bisections and strace)."
  ],
  "refused": [],
  "impact": [
@@ -102,16 +103,12 @@
  "next_step": "Ruling on the RLIMIT_AS check, then test edit, plant for a84abbe23, gate, fullhot, xtask test, plants (handoff Exact next step)",
  "report_file": "handoff/HEAP-ADDRESS-SPACE.md",
  "jobs": [
-  "keke:heap-address-space-6-fullhot1",
-  "keke:heap-address-space-6-plants",
-  "keke:heap-address-space-6-gate1",
-  "keke:heap-address-space-6-m4",
-  "keke:heap-address-space-6-asn1",
-  "keke:heap-address-space-6-asn2",
-  "keke:heap-address-space-6-asn3",
-  "keke:heap-address-space-6-asn5"
+  "keke:heap-address-space-6-m4"
  ],
  "superseded": [
+  "keke:heap-address-space-6-gate1 (rc 1 on ce6328854: the two reds this run diagnosed)",
+  "keke:heap-address-space-6-fullhot1 (green, on ce6328854 before a84abbe23)",
+  "keke:heap-address-space-6-plants (3/3 CAUGHT, on ce6328854)",
   "keke:heap-address-space-6-fullhot0",
   "keke:heap-address-space-6-xtest1 (stopped, superseded head)",
   "keke:heap-address-space-6-m3 (static red: home path in handoff)"
