@@ -1,0 +1,19 @@
+{"task": "STARTUP-GOT-PAGE", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: start-up reads no .got (STARTUP-DATA-WINDOWS 7 on next and on the LSG-5 merged head), but the first %.2f call reads 4 faults > FLOAT_BOUND 3: one relro fault moved from start-up into the first relro-reading call; ruling needed",
+ "branch": "task/startup-got-page", "head": null,
+ "gate": {"affected": "startup-got-page-gate1 (FULL, escalated by xtask change) running at hand-back; float bound expected red", "peak": null},
+ "accepted_first_attempt": false,
+ "rulings": [{"item": "FLOAT_BOUND 3 -> 4: with no start-up .got read, the first relro read (render_simple's trait-object vtable) faults in the first %.2f call instead of start-up; whole-process float 17 = 17, tool 42 = 42, true 82 -> 81", "recommendation": "A: accept and raise FLOAT_BOUND to 4 with the measured reason; alternatives B (deliberate start-up read of relro's first 64 KiB window: all at base level, one hot-path load) or C (page-align .got instead)"}],
+ "informational": ["perf stat mean tool 107 -> 108 on the merged head is noise: base minflt alternates 134/135; per-fault recording gives 42 = 42 in 3 runs each"],
+ "refused": [],
+ "impact": [
+  {"kind": "faults", "what": "true probe whole-process user page faults (origin/next)", "before": 82, "after": 81, "unit": "faults", "measured": true},
+  {"kind": "faults", "what": "first %.2f call-only faults (origin/next and LSG-5 merged head)", "before": 3, "after": 4, "unit": "faults", "measured": true},
+  {"kind": "faults", "what": "float probe whole-process faults (LSG-5 head vs merged)", "before": 17, "after": 17, "unit": "faults", "measured": true},
+  {"kind": "correctness", "what": "STARTUP-DATA-WINDOWS on LSG-5 merged head", "before": 8, "after": 7, "unit": "pages", "measured": true},
+  {"kind": "coverage", "what": "tests added/extended (xtask unit test, relro-tail pads in data-phase test) and plants", "before": 0, "after": 4, "unit": "plants", "measured": true}
+ ],
+ "improvement": "the start-up fault tests count per call but fault-around makes one start-up read prefetch for later calls; a whole-process plus per-fault-address diff (pfaddr.sh) would turn such moves into one-step diagnoses",
+ "next_step": "after the ruling: A = set FLOAT_BOUND 4 with the reason and rerun the direct gate, xtask test, release so + hot_text_products, static; B/C = implement, plant, gate",
+ "report_file": "handoff/STARTUP-GOT-PAGE.md",
+ "jobs": ["keke:startup-got-page-gate1", "keke:startup-got-page-plants1", "keke:startup-got-page-proof1"]}
