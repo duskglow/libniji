@@ -327,7 +327,7 @@ fn reloc_model_corpus_one_object_per_type() {
     std::fs::remove_dir_all(&d).ok();
 }
 
-/// No spec clause (DL-DYNAMIC-RELOC, probe `tools/probe/dl/dynreloc`): each loaded object's dynamic
+/// `no spec clause` (DL-DYNAMIC-RELOC, probe `tools/probe/dl/dynreloc`): each loaded object's dynamic
 /// array holds the address tags as run-time addresses after `publish_dynamic`, every other entry
 /// as the file has it; a second call stores the same words (it reads the link-time view); a copy of
 /// the published array shifted back by the bias is the file's array again.
