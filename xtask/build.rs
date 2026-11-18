@@ -4,6 +4,7 @@
 //!
 //! Writes `$OUT_DIR/header_slices.rs`: one `#[path] mod <slice>;` per file (sorted by name, not directory order) and
 //! `ALL`, each module's `SLICE` with its name.
+#![allow(clippy::disallowed_methods)] // a host tool: S8 governs the library crates only
 use std::env;
 use std::fs;
 use std::path::PathBuf;
