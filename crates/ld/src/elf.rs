@@ -90,6 +90,8 @@ pub mod dt {
     pub const NEEDED: u64 = 1;
     /// Size in bytes of the PLT relocations (`DT_JMPREL`).
     pub const PLTRELSZ: u64 = 2;
+    /// Address of the PLT/GOT (processor-specific use; x86-64: `.got.plt`).
+    pub const PLTGOT: u64 = 3;
     /// Address of the SysV hash table.
     pub const HASH: u64 = 4;
     /// Address of the dynamic string table.
@@ -414,6 +416,41 @@ const PF_R: u32 = 4;
 /// The dynamic tags whose value is the link-time address of a table the reader reads.
 const IMAGE_TABLES: [u64; 10] = [dt::STRTAB, dt::SYMTAB, dt::HASH, dt::GNU_HASH, dt::VERSYM, dt::VERDEF, dt::VERNEED, dt::RELA, dt::JMPREL, dt::RELR];
 
+/// The dynamic tags whose entries a loaded object's dynamic array holds as run-time addresses
+/// (load bias added) once the loader has relocated it (DL-DYNAMIC-RELOC, probe
+/// `tools/probe/dl/dynreloc`): programs read these through `_DYNAMIC`, `dl_iterate_phdr` and `l_ld`
+/// and use them as pointers. Every other entry (`DT_INIT`, the `*_ARRAY` tables, `DT_VERDEF`,
+/// `DT_VERNEED`, `DT_TLSDESC_*`, the sizes and flags) keeps its link-time value.
+pub const RUNTIME_ADDRESS_TAGS: [u64; 9] = [dt::PLTGOT, dt::HASH, dt::STRTAB, dt::SYMTAB, dt::RELA, dt::JMPREL, dt::RELR, dt::GNU_HASH, dt::VERSYM];
+
+/// Whether a loaded object's dynamic array (link-time address `vaddr`, `size` bytes) holds the
+/// [`RUNTIME_ADDRESS_TAGS`] entries as run-time addresses: when it lies wholly inside one of
+/// `writable` (each writable `PT_LOAD` as link-time address and size in memory). The loader writes
+/// nothing outside a writable segment, so an array anywhere else keeps its link-time values. The one
+/// rule for the loader that writes the array and for every reader of the loaded array.
+pub fn dynamic_published(vaddr: u64, size: u64, writable: impl IntoIterator<Item = (u64, u64)>) -> bool {
+    let Some(end) = vaddr.checked_add(size) else { return false };
+    writable.into_iter().any(|(v, m)| v <= vaddr && v.checked_add(m).is_some_and(|e| end <= e))
+}
+
+/// Add `delta` (wrapping) to the value of each [`RUNTIME_ADDRESS_TAGS`] entry of `bytes`, dynamic
+/// entries in native byte order up to the first `DT_NULL` (a trailing partial entry is left alone).
+/// With the load bias negated, this turns a copy of a published array back into link-time values.
+pub fn shift_address_entries(bytes: &mut [u8], delta: u64) {
+    for e in bytes.chunks_exact_mut(DYN_SIZE) {
+        let (tag, val) = e.split_at_mut(8);
+        let word = |b: &[u8]| <[u8; 8]>::try_from(b).map_or(0, u64::from_ne_bytes);
+        let tag = word(tag);
+        if tag == dt::NULL {
+            break;
+        }
+        if RUNTIME_ADDRESS_TAGS.contains(&tag) {
+            let v = word(val).wrapping_add(delta);
+            val.copy_from_slice(&v.to_ne_bytes());
+        }
+    }
+}
+
 /// Image mode: `bytes` are the contents of link-time addresses `vaddr .. vaddr + bytes.len()` of a
 /// mapped object (a slice of its memory, or a copy taken before relocation; D-27.18).
 #[derive(Clone, Copy, Debug)]
@@ -676,6 +713,15 @@ impl<'a> Elf<'a> {
     #[must_use]
     pub fn find(&self, p_type: u32) -> Option<ProgramHeader> {
         self.program_headers().find(|p| p.p_type == p_type)
+    }
+
+    /// `PT_DYNAMIC` when, loaded, the object's dynamic array holds run-time addresses
+    /// ([`dynamic_published`]); `None` without `PT_DYNAMIC` or when it keeps link-time values.
+    #[must_use]
+    pub fn published_dynamic(&self) -> Option<ProgramHeader> {
+        let d = self.find(pt::DYNAMIC)?;
+        let writable = self.program_headers().filter(|p| p.p_type == pt::LOAD && p.flags & PF_W != 0).map(|p| (p.vaddr, p.memsz));
+        dynamic_published(d.vaddr, d.memsz, writable).then_some(d)
     }
 
     /// The file bytes of a segment (`p_offset .. p_offset + p_filesz`).
