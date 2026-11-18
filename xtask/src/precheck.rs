@@ -413,16 +413,21 @@ pub(crate) struct Changes {
     pub notes: Vec<String>,
 }
 
+/// The merge base's source primed on the host (`--base-src`, else `~/wl/src/<merge_base of .synced>`).
+fn base_src(root: &Path, opts: &Opts) -> Option<PathBuf> {
+    opts.base_src.clone().or_else(|| {
+        let synced = read_kv(&root.join(".synced"));
+        let mb = synced.get("merge_base").filter(|s| !s.is_empty())?;
+        Some(std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default().join("wl/src").join(mb))
+    })
+}
+
 impl Changes {
     fn find(root: &Path, opts: &Opts) -> Result<Changes, String> {
         if root.join(".git").exists() {
             Changes::from_git(root, &opts.base)
         } else {
-            let synced = read_kv(&root.join(".synced"));
-            let base_src = opts.base_src.clone().or_else(|| {
-                let mb = synced.get("merge_base").filter(|s| !s.is_empty())?;
-                Some(std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default().join("wl/src").join(mb))
-            });
+            let base_src = base_src(root, opts);
             let list = fs::read_to_string(root.join(".changed")).map_err(|e| format!("no .git and no .changed ({e}): sync the role with --base"))?;
             Ok(Changes::from_role(root, &list, base_src.as_deref()))
         }
@@ -623,53 +628,80 @@ pub(crate) fn is_prose(path: &str) -> bool {
     ["handoff", "docs", "records", "results"].iter().any(|p| path == *p || path.starts_with(&format!("{p}/"))) || path.ends_with(".md")
 }
 
-/// The role-root entries the sync never copies (sync_role.sh's excludes) or the tree ignores (`.gitignore`).
-fn role_skip(rel: &str, ignore: &[String]) -> bool {
+/// The ignore patterns of one `.gitignore`: (the directory it sits in, as a `dir/` prefix or "" at the root, its
+/// patterns). Negations (`!`) are not read: an entry they would keep counts as ignored, which errs only on paths
+/// the tree marks as build output.
+type Ignores = Vec<(String, Vec<String>)>;
+
+fn read_ignores(root: &Path, dir: &str, into: &mut Ignores) {
+    let p = if dir.is_empty() { root.join(".gitignore") } else { root.join(dir).join(".gitignore") };
+    let Ok(text) = fs::read_to_string(p) else { return };
+    let pats: Vec<String> = text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('!')).map(str::to_string).collect();
+    into.push((if dir.is_empty() { String::new() } else { format!("{dir}/") }, pats));
+}
+
+/// The role-root entries the sync never copies (sync_role.sh's excludes) or the tree ignores (each `.gitignore` for
+/// the paths below its own directory, as git reads them: `fuzz/.gitignore`'s `target/` is `fuzz/**/target`).
+fn role_skip(rel: &str, ignores: &Ignores) -> bool {
     let first = rel.split('/').next().unwrap_or("");
     if matches!(first, "target" | ".git" | ".synced" | ".released" | ".changed" | ".changed.hdr" | ".changed.xtask") {
         return true;
     }
-    let base = rel.rsplit('/').next().unwrap_or(rel);
-    ignore.iter().any(|p| {
-        if let Some(anch) = p.strip_prefix('/') {
-            rel == anch || rel.starts_with(&format!("{anch}/"))
-        } else if let Some(dir) = p.strip_suffix('/') {
-            rel.split('/').any(|c| c == dir)
-        } else if let Some(ext) = p.strip_prefix('*') {
-            !ext.contains(['*', '?', '[']) && base.ends_with(ext)
-        } else {
-            !p.contains(['*', '?', '[']) && rel.split('/').any(|c| c == p)
-        }
+    ignores.iter().any(|(dir, pats)| {
+        let Some(rel) = rel.strip_prefix(dir.as_str()) else { return false };
+        let base = rel.rsplit('/').next().unwrap_or(rel);
+        pats.iter().any(|p| {
+            if let Some(anch) = p.strip_prefix('/') {
+                rel == anch || rel.starts_with(&format!("{anch}/"))
+            } else if let Some(d) = p.strip_suffix('/') {
+                rel.split('/').any(|c| c == d)
+            } else if let Some(ext) = p.strip_prefix('*') {
+                !ext.contains(['*', '?', '[']) && base.ends_with(ext)
+            } else {
+                !p.contains(['*', '?', '[']) && rel.split('/').any(|c| c == p)
+            }
+        })
     })
 }
 
 /// Step a2 in a role without git. jobrun copied the role's `.synced` to `.tested/<label>` when the job started, and a
 /// sync refuses (BUSY) while a job runs in the role, so every file a later sync wrote has a newer modification time
-/// than that copy (the sync copies by content and never preserves times, so an unchanged file is not touched), and a
-/// directory where it added or removed an entry is newer too. The files and directories newer than the copy, outside
-/// prose and outside what the sync never copies, are what the job did not test. A directory counts as a change (an
-/// entry added or removed: a deleted file shows only there), which can only make the check stricter. The role root
-/// itself is skipped (every sync relinks `target`): removing a top-level file after a job is not seen here, but is
-/// by `ops handback-check`.
-pub(crate) fn stale_files(root: &Path, since: SystemTime) -> Vec<String> {
-    let ignore: Vec<String> = fs::read_to_string(root.join(".gitignore")).unwrap_or_default().lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('!')).map(str::to_string).collect();
+/// than that copy (the sync copies by content and never preserves times, so an unchanged file is not touched). The
+/// files newer than the copy, outside prose and outside what the sync never copies or the tree ignores, are what the
+/// job did not test.
+///
+/// A removed file shows only as a newer directory, but so does an ignored build output a job or the sync added or
+/// removed there (the gate's `conformance/build`, the fuzz check's `fuzz/target`). With the merge base's source
+/// (`base`): a newer directory counts when it lacks an entry the merge base has there (removed after the job; or
+/// before it, in a directory a build output touched since, which only errs strict). A file the branch added and a
+/// later sync removed is not seen here, nor a removed top-level file (the root is newer after every sync, which
+/// relinks `target`); `ops handback-check` compares the content trees and sees both. Without the merge base's source
+/// every newer directory counts (strict).
+pub(crate) fn stale_files(root: &Path, since: SystemTime, base: Option<&Path>) -> Vec<String> {
+    let base = base.filter(|b| b.is_dir());
+    let mut ignores = Ignores::new();
+    read_ignores(root, "", &mut ignores);
     let mut out = Vec::new();
-    let mut stack = vec![PathBuf::new()];
+    let mut stack = vec![String::new()];
     while let Some(rel) = stack.pop() {
-        let Ok(rd) = fs::read_dir(root.join(&rel)) else { continue };
+        let Ok(rd) = fs::read_dir(if rel.is_empty() { root.to_path_buf() } else { root.join(&rel) }) else { continue };
         for e in rd.flatten() {
-            let r = rel.join(e.file_name());
-            let rs = r.to_string_lossy().into_owned();
-            if role_skip(&rs, &ignore) {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let rs = if rel.is_empty() { name } else { format!("{rel}/{name}") };
+            if role_skip(&rs, &ignores) {
                 continue;
             }
             let Ok(md) = fs::symlink_metadata(e.path()) else { continue };
             let newer = md.modified().is_ok_and(|m| m > since);
             if md.is_dir() {
+                read_ignores(root, &rs, &mut ignores);
                 if newer && !is_prose(&rs) {
-                    out.push(format!("{rs}/"));
+                    match base {
+                        Some(b) => out.extend(removed_entries(root, b, &rs, &ignores)),
+                        None => out.push(format!("{rs}/")),
+                    }
                 }
-                stack.push(r);
+                stack.push(rs);
             } else if newer && !is_prose(&rs) {
                 out.push(rs);
             }
@@ -677,6 +709,16 @@ pub(crate) fn stale_files(root: &Path, since: SystemTime) -> Vec<String> {
     }
     out.sort();
     out
+}
+
+/// The entries of the merge base's `dir` (outside prose and what the tree ignores) that the role's `dir` lacks.
+fn removed_entries(root: &Path, base: &Path, dir: &str, ignores: &Ignores) -> Vec<String> {
+    let Ok(rd) = fs::read_dir(base.join(dir)) else { return vec![] };
+    rd.flatten()
+        .map(|e| format!("{dir}/{}", e.file_name().to_string_lossy()))
+        .filter(|r| !role_skip(r, ignores) && !is_prose(r) && fs::symlink_metadata(root.join(r)).is_err())
+        .map(|r| format!("{r} (removed)"))
+        .collect()
 }
 
 fn jobs_verdict(root: &Path, opts: &Opts) -> Verdict {
@@ -748,7 +790,7 @@ fn jobs_verdict(root: &Path, opts: &Opts) -> Verdict {
         let since = fs::metadata(&tested_path).and_then(|m| m.modified());
         match since {
             Ok(since) => {
-                let files = stale_files(root, since);
+                let files = stale_files(root, since, base_src(root, opts).as_deref());
                 if files.is_empty() {
                     notes.push(format!("{lab}: tested content {} differs from the role's {} only in prose since the job started (handoff/, docs/, records/, results/, *.md): counts", &tree[..9], now_tree.get(..9).unwrap_or("?")));
                 } else {
@@ -1029,11 +1071,47 @@ mod tests {
         for p in ["handoff/x.md", "README.md", "target/debug/y", "conformance/build/p", "handoff"] {
             newer(p);
         }
-        assert!(stale_files(&tmp, since).is_empty(), "{:?}", stale_files(&tmp, since));
+        assert!(stale_files(&tmp, since, None).is_empty(), "{:?}", stale_files(&tmp, since, None));
         newer("src/sub");
-        assert_eq!(stale_files(&tmp, since), ["src/sub/"], "an entry removed from a code directory");
+        assert_eq!(stale_files(&tmp, since, None), ["src/sub/"], "without the merge base's source: a newer code directory");
         newer("src/a.rs");
-        assert_eq!(stale_files(&tmp, since), ["src/a.rs", "src/sub/"]);
+        assert_eq!(stale_files(&tmp, since, None), ["src/a.rs", "src/sub/"]);
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn stale_files_tells_a_removed_file_from_a_build_output() {
+        // no spec clause: HANDBACK-INLOOP-CHECKS-2. After a gate, a handoff-only sync removed the ignored
+        // `conformance/build` and precheck's own fuzz check wrote the nested-ignored `fuzz/target`: both directories
+        // are newer, nothing tested changed. A file the merge base has and the role lost is a change.
+        let tmp = std::env::temp_dir().join(format!("xtask-precheck-stale-base-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let (r, b) = (tmp.join("r"), tmp.join("b"));
+        for d in ["r/src/sub", "r/conformance", "r/fuzz/target/debug", "b/src/sub", "b/conformance", "b/fuzz"] {
+            fs::create_dir_all(tmp.join(d)).unwrap();
+        }
+        for f in ["src/sub/b.rs", "conformance/run.sh", "fuzz/Cargo.toml"] {
+            fs::write(r.join(f), "x").unwrap();
+            fs::write(b.join(f), "x").unwrap();
+        }
+        fs::write(r.join("fuzz/target/debug/x"), "x").unwrap();
+        fs::write(b.join("src/sub/c.rs"), "x").unwrap();
+        fs::write(b.join("conformance/README.md"), "x").unwrap();
+        for t in [&r, &b] {
+            fs::write(t.join(".gitignore"), "/target\n/conformance/build\n").unwrap();
+            fs::write(t.join("fuzz/.gitignore"), "target/\n").unwrap();
+        }
+        let since = SystemTime::now() - Duration::from_secs(3600);
+        set_all(&tmp, SystemTime::now() - Duration::from_secs(7200));
+        let newer = |p: &str| fs::File::open(r.join(p)).unwrap().set_modified(SystemTime::now()).unwrap();
+        for p in ["conformance", "fuzz", "fuzz/target", "fuzz/target/debug", "fuzz/target/debug/x"] {
+            newer(p);
+        }
+        assert!(stale_files(&r, since, Some(&b)).is_empty(), "build outputs only: {:?}", stale_files(&r, since, Some(&b)));
+        assert_eq!(stale_files(&r, since, None), ["conformance/", "fuzz/"], "strict without the base; fuzz/target ignored by fuzz/.gitignore");
+        assert_eq!(stale_files(&r, since, Some(&tmp.join("absent"))), ["conformance/", "fuzz/"], "a base not primed is no base");
+        newer("src/sub");
+        assert_eq!(stale_files(&r, since, Some(&b)), ["src/sub/c.rs (removed)"]);
         let _ = fs::remove_dir_all(&tmp);
     }
 
