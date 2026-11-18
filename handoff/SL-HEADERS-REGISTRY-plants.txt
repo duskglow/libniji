@@ -11,3 +11,18 @@ reg-linked-elsewhere | xtask/src/headers/slices/s06.rs | lit:"pthread_atfork", "
 reg-module-order | xtask/build.rs | lit:names.sort(); ==> names.sort(); names.reverse(); | cargo test -p xtask --bin xtask headers::tests::slice_modules_are_listed | msg:slice_modules_are_listed_and_markers_unique.*FAILED|panicked
 reg-s09-units | spec/tools/header_checks/s09.py | lit:== {r['number']}) ? 1 : -1 ==> == {r['number']} + 1) ? 1 : -1 | python3 spec/tools/header_check.py --include libc-include | msg:FAIL P1 sys/syscall\.h
 reg-s05-units | spec/tools/header_checks/s05.py | lit:_Alignof({name}) == {r['align']} ==> _Alignof({name}) == {r['align']} + 1 | python3 spec/tools/header_check.py --include libc-include | msg:FAIL P1 stdint
+# cargo xtask plants results (11 plants: 10 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 1 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# reg-missing-row-gen: CAUGHT, caught by no test the log names
+# reg-missing-row-check: WARN-NO-MSG, caught by no test the log names
+# reg-duplicate-row: CAUGHT, caught by no test the log names
+# reg-unlisted-template: CAUGHT, caught by no test the log names
+# reg-marker-twice: CAUGHT, caught by no test the log names
+# reg-marker-dispatch: CAUGHT, caught by no test the log names
+# reg-inline-token: CAUGHT, caught by no test the log names
+# reg-linked-elsewhere: CAUGHT, caught by no test the log names
+# reg-module-order: CAUGHT, caught by xtask headers::tests::slice_modules_are_listed_and_markers_unique
+# reg-s09-units: CAUGHT, caught by no test the log names
+# reg-s05-units: CAUGHT, caught by no test the log names
+# reg-missing-row-check WARN-NO-MSG: rc 1 came from the products build the plants tool runs first (`cargo xtask so` stages
+# the headers through headers-gen, which refuses the row as in reg-missing-row-gen), so header_check.py never ran on the
+# mutant; its own copy of the row check is not proven by a plant (the tests of a later run cannot reach it either).
