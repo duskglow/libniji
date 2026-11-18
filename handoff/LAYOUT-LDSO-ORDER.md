@@ -49,6 +49,10 @@ the new story LAYOUT-LDSO-WINDOW. **This story does not claim insensitivity to u
   probe 86, bound 86), fast 27 passed (dynamic probe 87, bound 89; the ungrouped plant read 90 on this host, so the
   grouping saves 3 faults on Skylake-SP fast too). Fast on Skylake-SP (87) is under the Zen 1 level (89), inside the
   slack of 4; the bound stays at the higher class.
+  Plants rerun on the final content (1ccdc50f8's code, synced at bc8347942), `layout-ldso-order-3-plants4`
+  (/mnt/zram/claude/layout-ldso-order-3/plants-4, --timeout 3600): rc 0, 2 CAUGHT, 0 SURVIVED, 0 WARN.
+  Hand-back JOBS: plants4, rerun4. SUPERSEDED: lint1 and plants3 (older head; repeated by rerun4 and plants4),
+  gate3 (rc 101 on its last step; its affected and xtask test steps green; the failing suite fixed and rerun in rerun4).
 * Layout bins (§9): no libc source changes on this branch; run 3 measured libc.so.6 byte-identical to the base, so
   libc's start-up bins do not change.
 
@@ -56,4 +60,4 @@ the new story LAYOUT-LDSO-WINDOW. **This story does not claim insensitivity to u
 Land (train). Follow-up: LAYOUT-LDSO-WINDOW (window phase independent of image size, e.g. keep the interpreter's
 mapped size a multiple of 64 KiB or align its base; ld.so data/bss pages; the insensitivity proof with the pad).
 
-Do not redo: base/new/pad builds and counts (run 2), the +347 search, the plants (plants3 on a530f933b).
+Do not redo: base/new/pad builds and counts (run 2), the +347 search, the plants (plants4).

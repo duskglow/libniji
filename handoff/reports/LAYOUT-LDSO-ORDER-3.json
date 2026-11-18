@@ -18,4 +18,5 @@
  "improvement": "a gate script for an xtask-touching branch should not add `cargo xtask test` after `affected --run`: it escalates to FULL and runs it already (about 25 minutes repeated); also, a new whole-process bound should be measured on every host class CI runs before its first gate",
  "next_step": "land (train); follow-up story LAYOUT-LDSO-WINDOW (window phase independent of image size, ld.so data/bss pages, insensitivity proof)",
  "report_file": "handoff/LAYOUT-LDSO-ORDER.md",
- "jobs": ["mei:layout-ldso-order-3-lint1", "mei:layout-ldso-order-3-plants3", "mei:layout-ldso-order-3-gate3", "mei:layout-ldso-order-3-rerun4"]}
+ "jobs": ["mei:layout-ldso-order-3-plants4", "mei:layout-ldso-order-3-rerun4"],
+ "superseded": ["mei:layout-ldso-order-3-lint1 (older head; lint repeated in rerun4)", "mei:layout-ldso-order-3-plants3 (older head; repeated as plants4)", "mei:layout-ldso-order-3-gate3 (rc 101 on its last step; affected and xtask test green; failing suite fixed and rerun in rerun4)"]}
