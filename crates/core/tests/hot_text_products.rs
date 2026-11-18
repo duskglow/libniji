@@ -1043,6 +1043,9 @@ fn padded_start(dir: &Path, region: &str, pad: u64, start: &Path) -> PathBuf {
         "lbss" => format!(".section .lbss.niji_pad,\"aw\",@nobits\n.zero {pad}\n"),
         // A program's own relro inputs, which the linker takes ahead of the library's start-up relro cluster.
         "relro" => format!(".section .data.rel.ro.local.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
+        // Relro inputs behind the cluster (`*(.data.rel.ro .data.rel.ro.*)`), ahead of `.got`: they move `.got`
+        // against the page grid and leave the cluster where it is, as a longer or shorter library relro does.
+        "relro-tail" => format!(".section .data.rel.ro.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
         _ => format!(".text\n.fill {pad},1,0xcc\n"),
     };
     let (s, o, crt1) = (dir.join("pad.s"), dir.join("pad.o"), dir.join("crt1pad.o"));
@@ -1306,12 +1309,19 @@ fn output_fill(map: &str, name: &str) -> u64 {
 /// bytes and two pages) and of `.lbss` (`lbss`): the start-up relro cluster (`.data.rel.ro.local.niji_startup*`,
 /// xtask/src/startup_ro.rs) starts on a page boundary and spans the same number of pages at every pad and unpadded,
 /// and `heap::RESERVE_MEM` and `global_locale::SLOTS` start on a page boundary (their heads are the start-up part).
+/// STARTUP-GOT-PAGE (amends the record above): padded by 0x10-0x1000 bytes of `.data.rel.ro` behind the cluster
+/// (`relro-tail`), which moves `.got` against the page grid (LOCALE-SLOTS-GROWTH-5: relro 400 bytes shorter, the
+/// six start-up GOT entries over two pages), the hot text reads no `.got` entry at any pad (D-X.15 step 3 makes
+/// its `add`/`cmp` GOT operands relaxable and the static link turns them into immediates), so the written relro
+/// pages, cluster and `.got` reads together, are the same in number at every pad.
 /// No spec clause (layout of the products).
 #[test]
 fn init_startup_data_pages_hold_at_every_data_phase() {
     let base = std::env::temp_dir().join(format!("niji-startup-pages-{}", std::process::id()));
     let (mut bad, mut spans) = (Vec::new(), Vec::new());
-    for (region, pad) in [("none", 0_u64), ("relro", 0x4d0), ("relro", 0x800), ("relro", 0xc18), ("relro", 0x14d0), ("lbss", 0x4d0), ("lbss", 0xc18)] {
+    let tail = [0x10_u64, 0x408, 0x800, 0xc18, 0xe40, 0xff8, 0x1000].map(|p| ("relro-tail", p));
+    let phases = [("none", 0_u64), ("relro", 0x4d0), ("relro", 0x800), ("relro", 0xc18), ("relro", 0x14d0), ("lbss", 0x4d0), ("lbss", 0xc18)];
+    for (region, pad) in phases.into_iter().chain(tail) {
         let dir = base.join(format!("{region}-{pad:x}"));
         std::fs::create_dir_all(&dir).expect("temp dir");
         let crt1 = if pad == 0 { root().join("target/niji/niji-crt1.o") } else { padded_crt1(&dir, region, pad) };
@@ -1327,7 +1337,15 @@ fn init_startup_data_pages_hold_at_every_data_phase() {
         if lo & 0xfff != 0 {
             bad.push(format!("{region} {pad:#x}: relro cluster starts at {lo:#x}, not on a page boundary"));
         }
-        spans.push((format!("{region} {pad:#x}"), pages));
+        // STARTUP-GOT-PAGE: the `.got` entries the hot text reads are written start-up relro pages too.
+        let got = got_reads(&dir.join("page_faults"), &map);
+        let mut written: std::collections::BTreeSet<u64> = ((lo >> 12)..=(hi.saturating_sub(1) >> 12)).collect();
+        written.extend(got.iter().map(|(a, _)| a >> 12));
+        eprintln!("startup pages {region} {pad:#x}: {} .got reads in the hot text, {} written relro pages", got.len(), written.len());
+        if !got.is_empty() {
+            bad.push(format!("{region} {pad:#x}: the hot text reads {} .got entries (D-X.15 step 3 relaxes test/binop GOT operands): {:?}", got.len(), &got[..got.len().min(8)]));
+        }
+        spans.push((format!("{region} {pad:#x}"), written.len()));
         // STARTUP-DATA-PAGE-ALIGN-2: the start file's 64 KiB relro alignment comes ahead of the cluster, so relro
         // holds no more fill than the cluster head's own alignment (behind the cluster it padded the rest of relro
         // by 56 KiB, into a second fault-around window: first %.2f 3 -> 4 faults, coreutils-shaped 50 -> 51).
@@ -1352,9 +1370,33 @@ fn init_startup_data_pages_hold_at_every_data_phase() {
     }
     let _ = std::fs::remove_dir_all(&base);
     if spans.iter().any(|(_, n)| *n != spans[0].1) {
-        bad.push(format!("the start-up relro cluster's page count moves with the data phase: {spans:?}"));
+        bad.push(format!("the written start-up relro pages (cluster and .got reads) move with the data phase: {spans:?}"));
     }
     assert!(bad.is_empty(), "startup data pages: {bad:#?}");
+}
+
+/// The `.got` entries the start-up and hot text (`hot_text_range`) of the linked program `exe` read: `(entry
+/// address, instruction)` for every RIP-relative operand (`# <addr>` in `objdump -d`) inside `.got` (from the map).
+fn got_reads(exe: &Path, map: &str) -> Vec<(u64, String)> {
+    let hex = |s: &str| s.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok());
+    let got = map.lines().find_map(|l| {
+        let f: Vec<&str> = l.split_whitespace().collect();
+        (l.starts_with(".got ") && f.len() >= 3).then(|| (hex(f[1]), hex(f[2]))).and_then(|(a, s)| Some((a?, s?)))
+    });
+    let Some((glo, gsize)) = got.filter(|g| g.1 > 0) else { return Vec::new() };
+    let (lo, hi) = hot_text_range(map);
+    assert!(lo < hi, "no start-up or hot text in the link map");
+    let d = Command::new("objdump").args(["-d", "--no-show-raw-insn"]).arg(exe).output().expect("objdump");
+    assert!(d.status.success(), "objdump -d failed");
+    let mut out = Vec::new();
+    for l in String::from_utf8_lossy(&d.stdout).lines() {
+        let (Some((at, _)), Some((_, t))) = (l.trim_start().split_once(':'), l.rsplit_once("# ")) else { continue };
+        let (Ok(at), Some(target)) = (u64::from_str_radix(at, 16), t.split_whitespace().next().and_then(|h| u64::from_str_radix(h, 16).ok())) else { continue };
+        if (lo..hi).contains(&at) && (glo..glo.saturating_add(gsize)).contains(&target) {
+            out.push((target, l.trim().to_string()));
+        }
+    }
+    out
 }
 
 /// The default linker script (`ld --verbose`) with every input section of `.data`, `.bss` and `.lbss` on
