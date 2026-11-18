@@ -705,6 +705,72 @@ pub union sem_t {
     pub __align: i64,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee754_float__ieee {
+    pub mantissa: [u8; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee754_float__ieee_nan {
+    pub mantissa: [u8; 4],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub union union_ieee754_float {
+    pub f: f32,
+    pub ieee: union_ieee754_float__ieee,
+    pub ieee_nan: union_ieee754_float__ieee_nan,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee754_double__ieee {
+    pub mantissa1: [u8; 4],
+    pub mantissa0: [u8; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee754_double__ieee_nan {
+    pub mantissa1: [u8; 4],
+    pub mantissa0: [u8; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub union union_ieee754_double {
+    pub d: f64,
+    pub ieee: union_ieee754_double__ieee,
+    pub ieee_nan: union_ieee754_double__ieee_nan,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee854_long_double__ieee {
+    pub mantissa1: [u8; 4],
+    pub mantissa0: [u8; 4],
+    pub exponent: [u8; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct union_ieee854_long_double__ieee_nan {
+    pub mantissa1: [u8; 4],
+    pub mantissa0: [u8; 4],
+    pub exponent: [u8; 4],
+}
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub union union_ieee854_long_double {
+    pub d: u128,
+    pub ieee: union_ieee854_long_double__ieee,
+    pub ieee_nan: union_ieee854_long_double__ieee_nan,
+}
+
 #[repr(transparent)]
 #[derive(Clone, Copy)]
 pub struct thrd_t(pub u64);

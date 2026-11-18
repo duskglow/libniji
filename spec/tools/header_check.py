@@ -207,6 +207,8 @@ def main():
         if c["id"] == "gnu":
             with open(os.path.join(ROOT, "spec", "tools", "tgmath_types.c")) as f:
                 units.append(("P6 tgmath", f.read()))
+            with open(os.path.join(ROOT, "spec", "tools", "ieee754_fields.c")) as f:
+                units.append(("P6 ieee754 fields", f.read()))
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
             with open(src, "w") as f:
