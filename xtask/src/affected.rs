@@ -91,9 +91,11 @@
 //!    enable; csys sources and headers; `crates/libc-so/`; the image tools) selects the start-up layout tests
 //!    (`LAYOUT_TESTS`). Their programs link statically against `libc.a`, so growth anywhere in it can move start-up
 //!    pages. Not selected for `ld.so`-only code (boundary's `ld` feature), other crates, tests and docs.
-//! 10. HEADERS-ABI-REGEN, in addition and in every tier: a table that feeds more than one generator (`GEN_PRECHECKS`:
+//! 10. HEADERS-ABI-REGEN, in addition and in every tier: a generator's input or output (`GEN_PRECHECKS`, e.g.
 //!     `spec/abi/layouts.tsv` -> `abi-gen --check`, `headers-gen --check`, `stubs`) runs those checks first, in
-//!     process; a red one ends the run in seconds, before an escalated FULL run starts.
+//!     process; a red one ends the run in seconds, before an escalated FULL run starts. HANDBACK-INLOOP-CHECKS: a run
+//!     that escalates to FULL, for any reason, first runs every seconds-long FULL step (`precheck::CHEAP_STEPS`,
+//!     `stubs` first) the same way (`prechecks`).
 //!
 //! TIERS (GATE-TIER, coordinator ruling 10-11): `--tier direct` (the DEFAULT, per-fix gates) applies rule 4 to EVERY
 //! crate's non-root module through `Selection::narrow_direct`: the changed module, its one-hop users, the targets
@@ -1273,25 +1275,92 @@ pub struct Selection {
 /// layout test names abi-gen writes; a row written out by one generator alone showed only in the landing gate, after
 /// hand-back (four header slices on 11-17). The checks take seconds, so a direct-tier gate shows it before hand-back,
 /// and an escalated (FULL) one fails in seconds instead of after the whole suite.
-pub const GEN_PRECHECKS: &[(&str, &[&str])] = &[("spec/abi/layouts.tsv", &["abi-gen-check", "headers-gen-check", "stubs"])];
+///
+/// HANDBACK-INLOOP-CHECKS widened it to every generator's inputs AND outputs (a hand edit of a generated file fails its
+/// `--check` as surely as a table edit nobody regenerated): an entry ending in `/` is a directory prefix, any other a
+/// file. The checks are [`crate::precheck::CHEAP_STEPS`] names (the FULL tier's seconds-long steps). Stub outputs
+/// (`crates/*/tests/s<NN>_*_clauses.rs`, `_symbols.rs`) have no fixed path: [`gen_prechecks_for`] adds `stubs` for them.
+pub const GEN_PRECHECKS: &[(&str, &[&str])] = &[
+    // spec/abi/: layouts.tsv feeds abi-gen, headers-gen and stubs (initializers.tsv too); prototypes and versions feed
+    // headers-gen, compat-gen and math-gen; langinfo.tsv locale-gen; native.tsv native-gen; compat-plan.tsv compat-gen.
+    ("spec/abi/", &["abi-gen-check", "headers-gen-check", "compat-gen-check", "math-gen-check", "locale-gen-check", "native-gen-check", "stubs"]),
+    ("headers/", &["headers-gen-check"]),
+    ("libc-include/", &["headers-gen-check"]),
+    ("crates/abi/src/layout.rs", &["abi-gen-check", "headers-gen-check"]),
+    ("crates/abi/src/layout_aarch64.rs", &["abi-gen-check", "headers-gen-check"]),
+    ("crates/abi/tests/appendix_c_layouts.rs", &["abi-gen-check", "headers-gen-check", "stubs"]),
+    ("crates/abi/tests/appendix_c_layouts_aarch64.rs", &["abi-gen-check", "headers-gen-check"]),
+    ("spec/unicode/", &["unicode-gen-check"]),
+    ("crates/core/src/unicode/tables.rs", &["unicode-gen-check"]),
+    ("crates/core/src/unicode/class_words.rs", &["unicode-gen-check"]),
+    ("crates/core/src/names/dns/idna_tables.rs", &["unicode-gen-check"]),
+    ("spec/encoding/", &["encodings-gen-check"]),
+    ("crates/core/src/iconv/jis_tables.rs", &["encodings-gen-check"]),
+    ("csys/syscalls.tsv", &["csys-gen-check"]),
+    ("csys/src/sys/", &["csys-gen-check"]),
+    ("csys/include/niji_sys.h", &["csys-gen-check"]),
+    ("csys/include/niji_sysnr.h", &["csys-gen-check"]),
+    ("csys/include/aarch64/niji_sysnr.h", &["csys-gen-check"]),
+    ("crates/boundary/src/ffi_sys.rs", &["csys-gen-check"]),
+    ("crates/boundary/src/ffi_sys_aarch64.rs", &["csys-gen-check"]),
+    ("crates/boundary/src/nr.rs", &["csys-gen-check"]),
+    ("crates/boundary/src/nr_aarch64.rs", &["csys-gen-check"]),
+    ("crates/boundary/src/posix/s10_math.tsv", &["math-gen-check"]),
+    ("crates/boundary/src/posix/s10_math_gen.rs", &["math-gen-check"]),
+    ("csys/src/adapter/math_both.c", &["math-gen-check"]),
+    ("csys/src/adapter/math_libc.c", &["math-gen-check"]),
+    ("csys/src/adapter/math_libm.c", &["math-gen-check"]),
+    ("crates/core/src/locale/builtin_items.rs", &["locale-gen-check"]),
+    ("crates/boundary/src/native/", &["native-gen-check"]),
+    ("crates/native/src/ffi.rs", &["native-gen-check"]),
+    ("csys/src/machine/compat_aliases.S", &["compat-gen-check"]),
+    ("crates/libm-so/compat_aliases.S", &["compat-gen-check"]),
+    ("glibc-functional-spec.md", &["stubs"]),
+    ("spec/clauses.tsv", &["stubs"]),
+    ("spec/symbols.tsv", &["stubs"]),
+    ("spec/primitives.tsv", &["stubs"]),
+    ("crates/boundary/tests/appendix_a_primitives.rs", &["stubs"]),
+];
 
-/// One check of [`GEN_PRECHECKS`], in process.
-fn gen_precheck(root: &Path, name: &str) -> Result<(), String> {
-    match name {
-        "abi-gen-check" => crate::abi::run(root, true),
-        "headers-gen-check" => crate::headers::run(root, true),
-        "stubs" => crate::spec::stubs(root, false),
-        _ => Err(format!("unknown generator precheck `{name}`")),
+/// The [`GEN_PRECHECKS`] checks one changed file selects (a directory entry matches every path under it).
+pub fn gen_prechecks_for(f: &str) -> Vec<&'static str> {
+    let mut out: Vec<&'static str> = Vec::new();
+    for (p, checks) in GEN_PRECHECKS {
+        if f == *p || (p.ends_with('/') && f.starts_with(p)) {
+            out.extend(checks.iter().copied());
+        }
     }
+    // A stub file `cargo xtask stubs` writes: crates/<krate>/tests/s<NN>_<slug>_clauses.rs or _symbols.rs.
+    let stub = f.strip_prefix("crates/").and_then(|r| r.split_once("/tests/")).map(|(_, t)| t).is_some_and(|t| {
+        !t.contains('/') && t.starts_with('s') && t[1..].chars().take(2).all(|c| c.is_ascii_digit()) && (t.ends_with("_clauses.rs") || t.ends_with("_symbols.rs"))
+    });
+    if stub {
+        out.push("stubs");
+    }
+    out
 }
 
-/// Every precheck of `sel`, each logged on its own; false when one is red.
-fn run_gen_prechecks(root: &Path, log: &Path, sel: &Selection) -> bool {
-    let mut ok = true;
-    for c in &sel.gen_prechecks {
-        ok &= check_logged(log, &format!("precheck {c}"), gen_precheck(root, c)).is_ok();
+/// The prechecks `sel` runs first, in [`crate::precheck::CHEAP_STEPS`] order (`stubs` first): the ones its files
+/// selected, and EVERY cheap step when the selection escalated to FULL, whatever the reason (HANDBACK-INLOOP-CHECKS:
+/// a FULL-tier `stubs` red used to show after the whole suite, often after the hand-back; now it ends the run in
+/// seconds). The FULL run repeats them inside `cargo xtask test` (about 45 s, headers-gen the bulk), kept so that
+/// command stays complete on its own. `--only` runs no prechecks.
+pub fn prechecks(sel: &Selection) -> Vec<&'static str> {
+    if sel.only {
+        return Vec::new();
     }
-    ok
+    crate::precheck::CHEAP_STEPS.iter().copied().filter(|c| !sel.full.is_empty() || sel.gen_prechecks.contains(*c)).collect()
+}
+
+/// Every precheck of `sel` (`prechecks`), each logged on its own; the names of the red ones.
+fn run_gen_prechecks(root: &Path, log: &Path, sel: &Selection) -> Vec<&'static str> {
+    let mut red = Vec::new();
+    for c in prechecks(sel) {
+        if check_logged(log, &format!("precheck {c}"), crate::precheck::cheap_step(root, c)).is_err() {
+            red.push(c);
+        }
+    }
+    red
 }
 
 /// GATE-TIER (coordinator ruling 10-11, owner intent "only run the tests that are impacted by a fix for gate runs and
@@ -2082,11 +2151,7 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
         if f == "crates/boundary/src/ffi.rs" || f.starts_with("csys/include/") || f.starts_with("csys/src/machine/") {
             sel.k5 = true;
         }
-        for (table, checks) in GEN_PRECHECKS {
-            if f == *table {
-                sel.gen_prechecks.extend(checks.iter().map(|c| c.to_string()));
-            }
-        }
+        sel.gen_prechecks.extend(gen_prechecks_for(f).into_iter().map(String::from));
         // XTASK-AFFECTED-LAYOUT: whatever else the file selects, a change linked into libc.a can move start-up pages.
         if repo.reaches_image(f) {
             sel.layout_tests(repo, f);
@@ -3019,8 +3084,8 @@ fn print_selection(repo: &Repo, files: &[String], sel: &Selection) {
     for f in files {
         println!("  {f}");
     }
-    if !sel.only && !sel.gen_prechecks.is_empty() {
-        println!("prechecks (first, in seconds; a red one stops the run): {}", sel.gen_prechecks.iter().cloned().collect::<Vec<_>>().join(", "));
+    if !prechecks(sel).is_empty() {
+        println!("prechecks (first, in seconds; a red one stops the run): {}", prechecks(sel).join(", "));
     }
     if !sel.full.is_empty() {
         println!("FULL (escalated; run the whole gate):");
@@ -3515,12 +3580,15 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
     let _ = fs::remove_file(&log);
     let mut ok = true;
     let mut skipped: Vec<String> = Vec::new();
-    if !sel.only && !sel.gen_prechecks.is_empty() {
-        println!("prechecks (a changed table feeds more than one generator):");
-        ok &= run_gen_prechecks(root, &log, sel);
-        if !ok {
+    if !prechecks(sel).is_empty() {
+        println!("prechecks (generator checks of the changed files; every cheap FULL step when escalated):");
+        let red = run_gen_prechecks(root, &log, sel);
+        if !red.is_empty() {
             print!("{}", summary(&read(&log)));
-            println!("affected: FAILED (a precheck; nothing else was run). spec/abi/layouts.tsv: run `cargo xtask headers-gen` (it also runs abi-gen), then `cargo xtask stubs`");
+            println!("affected: FAILED (a precheck; nothing else was run)");
+            for c in &red {
+                println!("  {c}: {}", crate::precheck::fix(c));
+            }
             return Err("a generator precheck failed".into());
         }
     }
@@ -4466,17 +4534,75 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     fn layouts_table_selects_the_generator_prechecks() {
         for tier in [Tier::Direct, Tier::Wide, Tier::Full] {
             let s = select_tier(repo(), &["spec/abi/layouts.tsv".to_string()], tier);
-            assert_eq!(s.gen_prechecks.iter().map(String::as_str).collect::<Vec<_>>(), ["abi-gen-check", "headers-gen-check", "stubs"], "{tier:?}");
+            for c in ["abi-gen-check", "headers-gen-check", "stubs"] {
+                assert!(s.gen_prechecks.contains(c), "{tier:?}: {c}: {:?}", s.gen_prechecks);
+            }
             assert!(!s.full.is_empty(), "{tier:?}: still FULL");
         }
-        for f in ["spec/abi/langinfo.tsv", "spec/abi/layouts-aarch64.tsv", "docs/plants.md", "xtask/src/abi.rs"] {
+        for f in ["docs/plants.md", "crates/core/src/string/strlen.rs", "xtask/src/abi.rs"] {
             let (_, s) = sel(&[f]);
             assert!(s.gen_prechecks.is_empty(), "{f}: {:?}", s.gen_prechecks);
         }
     }
 
+    // no spec clause: HANDBACK-INLOOP-CHECKS. Every generator's inputs and outputs select its own check (directory
+    // entries by prefix, the stub files by their name pattern), so the direct tier shows a stale generated file before
+    // the hand-back; a path that is neither selects none.
+    #[test]
+    fn generator_inputs_and_outputs_select_their_checks() {
+        let cases: &[(&str, &[&str])] = &[
+            ("spec/abi/langinfo.tsv", &["locale-gen-check"]),
+            ("spec/abi/prototypes.tsv", &["headers-gen-check", "compat-gen-check", "math-gen-check"]),
+            ("spec/abi/native.tsv", &["native-gen-check"]),
+            ("headers/stdio.h.in", &["headers-gen-check"]),
+            ("libc-include/stdio.h", &["headers-gen-check"]),
+            ("crates/abi/src/layout.rs", &["abi-gen-check"]),
+            ("spec/unicode/15.1.0/UnicodeData.txt", &["unicode-gen-check"]),
+            ("crates/core/src/unicode/tables.rs", &["unicode-gen-check"]),
+            ("spec/encoding/whatwg/index-jis0208.txt", &["encodings-gen-check"]),
+            ("csys/syscalls.tsv", &["csys-gen-check"]),
+            ("csys/src/sys/file.c", &["csys-gen-check"]),
+            ("crates/boundary/src/posix/s10_math.tsv", &["math-gen-check"]),
+            ("crates/boundary/src/native/mod.rs", &["native-gen-check"]),
+            ("csys/src/machine/compat_aliases.S", &["compat-gen-check"]),
+            ("glibc-functional-spec.md", &["stubs"]),
+            ("crates/core/tests/s07_string_clauses.rs", &["stubs"]),
+            ("crates/boundary/tests/s10_math_symbols.rs", &["stubs"]),
+        ];
+        for (f, want) in cases {
+            let got = gen_prechecks_for(f);
+            for w in *want {
+                assert!(got.contains(w), "{f}: {w} not in {got:?}");
+            }
+        }
+        for f in ["spec/abi.md", "headers.md", "csys/src/sysdeps.c", "crates/core/tests/strlen.rs", "crates/core/tests/sx7_clauses.rs", "crates/core/tests/sub/s07_x_clauses.rs", "crates/boundary/src/nr.rs.bak"] {
+            assert!(gen_prechecks_for(f).is_empty(), "{f}: {:?}", gen_prechecks_for(f));
+        }
+        // Every name is a step `precheck::cheap_step` knows.
+        for (p, checks) in GEN_PRECHECKS {
+            for c in *checks {
+                assert!(crate::precheck::CHEAP_STEPS.contains(c), "{p}: {c}");
+            }
+        }
+    }
+
+    // no spec clause: HANDBACK-INLOOP-CHECKS. A selection that escalates to FULL runs every cheap FULL step first,
+    // `stubs` first; one that does not runs only what its files selected; `--only` runs none.
+    #[test]
+    fn escalated_selection_runs_every_cheap_step_first() {
+        let mut s = Selection { full: vec!["test".into()], ..Selection::default() };
+        assert_eq!(prechecks(&s), crate::precheck::CHEAP_STEPS, "escalated: all, in order");
+        s.full.clear();
+        assert!(prechecks(&s).is_empty(), "nothing selected");
+        s.gen_prechecks = ["stubs".to_string(), "headers-gen-check".to_string()].into();
+        assert_eq!(prechecks(&s), ["stubs", "headers-gen-check"], "selected only, in CHEAP_STEPS order");
+        s.only = true;
+        s.full.push("x".into());
+        assert!(prechecks(&s).is_empty(), "--only runs no precheck");
+    }
+
     // no spec clause: HEADERS-ABI-REGEN. The prechecks really run the generators' checks: green on this (consistent)
-    // tree, red on a tree whose tables are missing, red for a name the table does not know.
+    // tree, red on a tree whose tables are missing; the red ones are named.
     #[test]
     fn generator_prechecks_run_the_checks() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
@@ -4484,14 +4610,12 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         fs::create_dir_all(&empty).unwrap();
         let log = empty.join("affected.log");
         let mut s = Selection::default();
-        assert!(run_gen_prechecks(&empty, &log, &s), "no precheck selected: nothing to fail");
+        assert!(run_gen_prechecks(&empty, &log, &s).is_empty(), "no precheck selected: nothing to fail");
         for c in ["abi-gen-check", "headers-gen-check"] {
             s.gen_prechecks = [c.to_string()].into();
-            assert!(run_gen_prechecks(root, &log, &s), "{c} on the consistent tree");
-            assert!(!run_gen_prechecks(&empty, &log, &s), "{c} on a tree without spec/abi");
+            assert!(run_gen_prechecks(root, &log, &s).is_empty(), "{c} on the consistent tree");
+            assert_eq!(run_gen_prechecks(&empty, &log, &s), [c], "{c} on a tree without spec/abi");
         }
-        s.gen_prechecks = ["zzz".to_string()].into();
-        assert!(!run_gen_prechecks(root, &log, &s), "an unknown precheck is red");
         let _ = fs::remove_dir_all(&empty);
     }
 

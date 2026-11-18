@@ -218,7 +218,7 @@ pub fn main(root: &Path, args: &[String]) -> ExitCode {
 
 fn print_verdict(name: &str, secs: f64, v: &Verdict) {
     match v.level {
-        Level::Ok => println!("precheck: {name} ok ({secs:.1}s){}", v.lines.first().map(|l| format!(": {l}")).unwrap_or_default()),
+        Level::Ok => println!("precheck: {name} ok ({secs:.1}s){}", v.lines.first().filter(|l| !l.is_empty()).map(|l| format!(": {l}")).unwrap_or_default()),
         Level::Note => {
             for l in &v.lines {
                 println!("precheck: {name} note ({secs:.1}s): {l}");
