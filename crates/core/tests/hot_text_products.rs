@@ -237,6 +237,11 @@ fn stage(exe: &Path, run: &Path) {
 /// process's spawn code before exec, and the whole-process modes (startup, setlocale + printf,
 /// tool) read one more fault in that pass (CI, Skylake-SP host: 58 / 61 against bounds 57 / 60).
 fn faults(exe: &Path, mode: &str) -> u64 {
+    faults_env(exe, mode, &[])
+}
+
+/// [`faults`] with `env` added to the program's fixed environment (a dynamic program's `LD_LIBRARY_PATH`).
+fn faults_env(exe: &Path, mode: &str, env: &[(&str, &str)]) -> u64 {
     // One directory per call (the tests run in parallel); the name always has the same length.
     static CALL: AtomicUsize = AtomicUsize::new(0);
     let n = CALL.fetch_add(1, Ordering::Relaxed) % 10;
@@ -255,6 +260,7 @@ fn faults(exe: &Path, mode: &str) -> u64 {
             .current_dir("/")
             .env_clear()
             .env("LANG", "en_US.UTF-8")
+            .envs(env.iter().copied())
             .stdin(Stdio::null())
             .output()
             .unwrap();
@@ -283,6 +289,57 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
     let (t, l) = (faults(&exe, "true"), faults(&exe, "locale"));
     check_whole_count("startup-only program", t, TRUE_BOUND, "start-up grew or its text left the hot group?");
     check_whole_count("setlocale + printf program", l, LOCALE_BOUND, "hot-text grouping lost?");
+}
+
+/// LAYOUT-LDSO-ORDER: the static probes above never map the interpreter. This one is `page_faults.c`
+/// linked as a dynamic program of the products, run in its `true` mode: the whole process's faults, the
+/// interpreter's and libc.so.6's own pages included. The interpreter's start-up text is grouped from its
+/// entry in the order a trace of the build ran it (`ldso-text.list`); ungrouped, the same program reads
+/// more. The interpreter and libc.so.6 are staged in a fixed-length directory that the program's PT_INTERP
+/// names and LD_LIBRARY_PATH (ruling #5909) points to, so the count does not depend on the checkout's path.
+/// Measured (LAYOUT-LDSO-ORDER-2, next 627ef49ca plus the grouping, Zen 1 host, warm-up + 5 runs, every run
+/// identical), fast / release: 89 / 85. The bound sits at that level, no margin (D-X.103's rule for these
+/// counts). No spec clause (layout of the products).
+const DYN_TRUE_BOUND: [u64; 2] = [89, 85];
+
+#[test]
+fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
+    let r = root();
+    let p = r.join("target/niji");
+    assert!(p.join("ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
+    let lib = PathBuf::from(format!("/tmp/niji-hot-ldso-{:010}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&lib);
+    std::fs::create_dir_all(&lib).unwrap();
+    for f in ["ld-linux-x86-64.so.2", "libc.so.6"] {
+        stage(&p.join(f), &lib.join(f));
+    }
+    let exe = lib.join("page_faults_dyn");
+    // The compiler's own start and end files of a position-independent program (`__dso_handle`, which
+    // `atexit` in libc_nonshared.a names).
+    let gcc_file = |f: &str| {
+        let o = Command::new("cc").arg(format!("-print-file-name={f}")).output().expect("cc -print-file-name");
+        PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())
+    };
+    let st = Command::new("cc")
+        .args(["-std=gnu17", "-O1", "-nostdlib", "-fno-builtin", "-fPIE", "-pie"])
+        .arg(format!("-Wl,--dynamic-linker={}", lib.join("ld-linux-x86-64.so.2").display()))
+        .arg(p.join("niji-crt1.o"))
+        .arg(gcc_file("crtbeginS.o"))
+        .arg(r.join("crates/core/tests/oracle/page_faults.c"))
+        .arg(p.join("libc_nonshared.a"))
+        .arg(lib.join("libc.so.6"))
+        .arg(lib.join("ld-linux-x86-64.so.2"))
+        .arg("-lgcc")
+        .arg(gcc_file("crtendS.o"))
+        .arg("-o")
+        .arg(&exe)
+        .status()
+        .expect("cc");
+    assert!(st.success(), "page_faults.c does not link as a dynamic program of the products");
+    let path = lib.display().to_string();
+    let t = faults_env(&exe, "true", &[("LD_LIBRARY_PATH", path.as_str())]);
+    let _ = std::fs::remove_dir_all(&lib);
+    check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
 }
 
 #[test]
