@@ -55,12 +55,16 @@ cargo xtask affected --list  # tests your change can reach (direct tier); pass -
 cargo xtask affected --run   # run them (no mode given: usage, exit 2)
 cargo xtask clippy           # workspace, all targets, -D warnings: must be clean
 cargo xtask static           # policy checks (unsafe audit, traceability, compat ids, ...)
+cargo xtask precheck --jobs <labels> --head <sha>   # every cheap hand-back check; red = NOT READY
 cargo xtask bench --compare --counters <bench name>   # instructions per call, libniji vs glibc
 ```
 
 * Branch from `origin/next`; one change per branch; open pull requests against `next`.
 * Before handing back: clippy and static clean, the affected tests green on your final commit,
-  plants for new or changed code, and (for performance work) before/after/glibc counts.
+  plants for new or changed code, and (for performance work) before/after/glibc counts. Then,
+  on the synced final head, `cargo xtask precheck --jobs <the labels you name> --head <sha>`:
+  exit 1 (a red) means the hand-back is not ready (fix what it names); exit 3 means a named job
+  has not ended yet.
 * Performance claims use deterministic counters (instructions, faults, syscalls), never wall
   time alone, and keep only changes that make no measured row slower.
 * Decisions go in `plan/07-decisions/` as `D-<section>.<n>` rows. Decide local, testable details

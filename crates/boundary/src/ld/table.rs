@@ -97,6 +97,25 @@ impl<T: Copy, const N: usize> Table<T, N> {
         Ok(())
     }
 
+    /// Append `v` (one more entry, growing as [`Table::reserve`] does).
+    ///
+    /// # Errors
+    ///
+    /// [`NoMemory`] when the table must grow and cannot; the table is unchanged.
+    pub(super) fn push(&mut self, v: T) -> Result<(), NoMemory> {
+        let n = self.len;
+        self.reserve(n.checked_add(1).ok_or(NoMemory)?)?;
+        if let Some(slot) = self.get_mut(n) {
+            *slot = v;
+        }
+        Ok(())
+    }
+
+    /// No entries; the storage is kept, so as many pushes as the table held before need no memory.
+    pub(super) fn clear(&mut self) {
+        self.len = 0;
+    }
+
     /// Unmap the table's mapping, if it has one (its entries are `Copy`: nothing to drop).
     fn release(&mut self) {
         if self.heap != 0 {

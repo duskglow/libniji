@@ -445,6 +445,7 @@ CREPRINT	net/if_ppp.h	int	18
 CRNCYSTR	langinfo.h	int	262159
 CRPRNT	net/if_ppp.h	int	18
 CRTSCTS	pty.h	unsigned int	2147483648
+CS	sys/reg.h	int	17
 CS5	pty.h	int	0
 CS6	pty.h	int	16
 CS7	pty.h	int	32
@@ -529,6 +530,33 @@ DN_MULTISHOT	fcntl.h	unsigned int	2147483648
 DN_RENAME	fcntl.h	int	16
 DQF_ROOT_SQUASH	sys/quota.h	int	1
 DQF_SYS_FILE	sys/quota.h	int	65536
+DR_CONTROL	sys/debugreg.h	int	7
+DR_CONTROL_SHIFT	sys/debugreg.h	int	16
+DR_CONTROL_SIZE	sys/debugreg.h	int	4
+DR_ENABLE_SIZE	sys/debugreg.h	int	2
+DR_FIRSTADDR	sys/debugreg.h	int	0
+DR_GLOBAL_ENABLE_MASK	sys/debugreg.h	int	170
+DR_GLOBAL_ENABLE_SHIFT	sys/debugreg.h	int	1
+DR_GLOBAL_SLOWDOWN	sys/debugreg.h	int	512
+DR_LASTADDR	sys/debugreg.h	int	3
+DR_LEN_1	sys/debugreg.h	int	0
+DR_LEN_2	sys/debugreg.h	int	4
+DR_LEN_4	sys/debugreg.h	int	12
+DR_LEN_8	sys/debugreg.h	int	8
+DR_LOCAL_ENABLE_MASK	sys/debugreg.h	int	85
+DR_LOCAL_ENABLE_SHIFT	sys/debugreg.h	int	0
+DR_LOCAL_SLOWDOWN	sys/debugreg.h	int	256
+DR_RW_EXECUTE	sys/debugreg.h	int	0
+DR_RW_READ	sys/debugreg.h	int	3
+DR_RW_WRITE	sys/debugreg.h	int	1
+DR_STATUS	sys/debugreg.h	int	6
+DR_STEP	sys/debugreg.h	int	16384
+DR_SWITCH	sys/debugreg.h	int	32768
+DR_TRAP0	sys/debugreg.h	int	1
+DR_TRAP1	sys/debugreg.h	int	2
+DR_TRAP2	sys/debugreg.h	int	4
+DR_TRAP3	sys/debugreg.h	int	8
+DS	sys/reg.h	int	23
 DTF_1_CONFEXP	elf.h	int	2
 DTF_1_PARINIT	elf.h	int	1
 DT_AARCH64_BTI_PLT	elf.h	int	1879048193
@@ -762,6 +790,7 @@ EFBIG	argp.h	int	27
 EFD_CLOEXEC	sys/eventfd.h	int	524288
 EFD_NONBLOCK	sys/eventfd.h	int	2048
 EFD_SEMAPHORE	sys/eventfd.h	int	1
+EFLAGS	sys/reg.h	int	18
 EF_ALPHA_32BIT	elf.h	int	1
 EF_ALPHA_CANRELAX	elf.h	int	2
 EF_ARC_ALL_MSK	elf.h	int	4095
@@ -1261,6 +1290,7 @@ EREMOTEIO	argp.h	int	121
 ERESTART	argp.h	int	85
 ERFKILL	argp.h	int	132
 EROFS	argp.h	int	30
+ES	sys/reg.h	int	24
 ESHUTDOWN	argp.h	int	108
 ESOCKTNOSUPPORT	argp.h	int	94
 ESPIPE	argp.h	int	29
@@ -1592,6 +1622,7 @@ FP_XSTATE_MAGIC2	arpa/nameser.h	unsigned int	1179670597
 FP_XSTATE_MAGIC2_SIZE	arpa/nameser.h	unsigned long	4
 FP_ZERO	math.h	int	2
 FRAC_DIGITS	langinfo.h	int	262152
+FS	sys/reg.h	int	25
 FSETLOCKING_BYCALLER	stdio_ext.h	int	2
 FSETLOCKING_INTERNAL	stdio_ext.h	int	1
 FSETLOCKING_QUERY	stdio_ext.h	int	0
@@ -1601,6 +1632,7 @@ FSPICK_CLOEXEC	sys/mount.h	int	1
 FSPICK_EMPTY_PATH	sys/mount.h	int	8
 FSPICK_NO_AUTOMOUNT	sys/mount.h	int	4
 FSPICK_SYMLINK_NOFOLLOW	sys/mount.h	int	2
+FS_BASE	sys/reg.h	int	21
 FTS_AGAIN	fts.h	int	1
 FTS_COMFOLLOW	fts.h	int	1
 FTS_D	fts.h	int	1
@@ -1764,6 +1796,8 @@ GRND_RANDOM	sys/random.h	int	2
 GROUPING	langinfo.h	int	65538
 GRPQUOTA	sys/quota.h	int	1
 GRP_COMDAT	elf.h	int	1
+GS	sys/reg.h	int	26
+GS_BASE	sys/reg.h	int	22
 HASHFRACTION	sys/gmon.h	int	2
 HFIXEDSZ	arpa/nameser.h	int	12
 HIBITL	values.h	long	-9223372036854775808
@@ -2862,6 +2896,7 @@ OPTION_ARG_OPTIONAL	argp.h	int	1
 OPTION_DOC	argp.h	int	8
 OPTION_HIDDEN	argp.h	int	2
 OPTION_NO_USAGE	argp.h	int	16
+ORIG_RAX	sys/reg.h	int	15
 O_ACCMODE	fcntl.h	int	3
 O_APPEND	fcntl.h	int	1024
 O_ASYNC	fcntl.h	int	8192
@@ -3446,8 +3481,19 @@ Q_QUOTAON	sys/quota.h	int	8388610
 Q_SETINFO	sys/quota.h	int	8388614
 Q_SETQUOTA	sys/quota.h	int	8388616
 Q_SYNC	sys/quota.h	int	8388609
+R10	sys/reg.h	int	7
+R11	sys/reg.h	int	6
+R12	sys/reg.h	int	3
+R13	sys/reg.h	int	2
+R14	sys/reg.h	int	1
+R15	sys/reg.h	int	0
+R8	sys/reg.h	int	9
+R9	sys/reg.h	int	8
 RADIXCHAR	langinfo.h	int	65536
 RAND_MAX	stdlib.h	int	2147483647
+RAX	sys/reg.h	int	10
+RBP	sys/reg.h	int	4
+RBX	sys/reg.h	int	5
 RB_AUTOBOOT	sys/reboot.h	int	19088743
 RB_DISABLE_CAD	sys/reboot.h	int	0
 RB_ENABLE_CAD	sys/reboot.h	unsigned int	2309737967
@@ -3455,6 +3501,9 @@ RB_HALT_SYSTEM	sys/reboot.h	unsigned int	3454992675
 RB_KEXEC	sys/reboot.h	int	1163412803
 RB_POWER_OFF	sys/reboot.h	int	1126301404
 RB_SW_SUSPEND	sys/reboot.h	unsigned int	3489725666
+RCX	sys/reg.h	int	11
+RDI	sys/reg.h	int	14
+RDX	sys/reg.h	int	12
 REFUSED	arpa/nameser.h	int	5
 REGS_FIXED	re_comp.h	int	2
 REGS_REALLOCATE	re_comp.h	int	1
@@ -3612,6 +3661,7 @@ RHF_REQUICKSTART	elf.h	int	1024
 RHF_REQUICKSTARTED	elf.h	int	2048
 RHF_RLD_ORDER_SAFE	elf.h	int	16384
 RHF_SGI_ONLY	elf.h	int	16
+RIP	sys/reg.h	int	16
 RLIM64_INFINITY	sys/resource.h	unsigned long long	18446744073709551615
 RLIMIT_AS	sys/resource.h	int	9
 RLIMIT_CORE	sys/resource.h	int	4
@@ -3637,6 +3687,8 @@ RLIM_SAVED_CUR	sys/resource.h	unsigned long	18446744073709551615
 RLIM_SAVED_MAX	sys/resource.h	unsigned long	18446744073709551615
 RRFIXEDSZ	arpa/nameser.h	int	10
 RSEQ_SIG	sys/rseq.h	int	1392848979
+RSI	sys/reg.h	int	13
+RSP	sys/reg.h	int	19
 RTLD_BINDING_MASK	dlfcn.h	int	3
 RTLD_DEEPBIND	dlfcn.h	int	8
 RTLD_GLOBAL	dlfcn.h	int	256
@@ -6412,6 +6464,11 @@ TRAP_TRACE	arpa/nameser.h	int	2
 TRAP_UNK	arpa/nameser.h	int	5
 TRY_AGAIN	netdb.h	int	2
 TSS_DTOR_ITERATIONS	threads.h	int	4
+TTYDEF_CFLAG	pty.h	int	1440
+TTYDEF_IFLAG	pty.h	int	11554
+TTYDEF_LFLAG	pty.h	int	35355
+TTYDEF_OFLAG	pty.h	int	6149
+TTYDEF_SPEED	pty.h	int	13
 TTY_NAME_MAX	argp.h	int	32
 TTY_ON	ttyent.h	int	1
 TTY_SECURE	ttyent.h	int	2
