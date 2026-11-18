@@ -111,7 +111,7 @@ against `next`; the maintainers run the lab steps (counts, the merge queue) for 
    deterministic; wall time is advisory. See [validation/README.md](validation/README.md).
 5. **Precheck before you hand back.** On the tree you synced from your final commit, run
    `cargo xtask precheck --jobs <the labels you will name> --head <sha>` (about 75 s on a warm
-   Zen 1 build host). It runs the seconds-long steps of the FULL gate (`stubs`, the
+   Skylake-SP build host). It runs the seconds-long steps of the FULL gate (`stubs`, the
    policy audits, `trace`, every `*-gen --check`, the validation self-tests), the rest of
    `cargo xtask static`, the hand-back's record checks (placeholder ids, train-owned views),
    checks that each named job ended rc 0 on the content you hand back, and clippy. It prints one line

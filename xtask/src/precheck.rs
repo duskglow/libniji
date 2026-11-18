@@ -14,7 +14,7 @@
 //!    ([`CHEAP_STEPS`], whatever the change touches), then the validation self-tests the FULL tier adds
 //!    (`affected::VALIDATION_SELF_TESTS`). `stubs` writes into the tree: a file it rewrites is a red ("run
 //!    `cargo xtask stubs` and commit"), since the committed tree is then not what the gate tests. Not here because
-//!    they take minutes (times from a FULL gate on the Zen 1 host, 11-18): `products` (424 s), the two nextest passes
+//!    they take minutes (times from a FULL gate on the Skylake-SP host, 11-18): `products` (424 s), the two nextest passes
 //!    (1385 s and 875 s), `conformance` (27 s, needs the products), `native-examples` (54 s), `rust-dylib` (66 s).
 //! 2. `static`: the rest of `cargo xtask static` (the list `~/bin/static-checks` and CI's precheck run), each check by
 //!    name; the ones step 1 already ran are not run twice.
