@@ -36,6 +36,11 @@ fn p2_visibility_of_the_fixed_rows() {
         .output()
         .expect("run xtask headers-gen");
     assert!(made.status.success(), "headers-gen --out: {}", String::from_utf8_lossy(&made.stderr));
+    // A header missing below `inc` would be found in the system's include path instead, and P2 would compare the
+    // reference with itself.
+    for h in HEADERS.split(',') {
+        assert!(inc.join(h).is_file(), "headers-gen --out wrote no {h} below {}", inc.display());
+    }
 
     let probe = Command::new("python3")
         .arg(root.join("spec/tools/header_probe.py"))
