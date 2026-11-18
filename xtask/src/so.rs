@@ -1493,7 +1493,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
 /// never through a GOT slot that still holds a link-time address (rustc's default no-PLT calls
 /// load the callee from the GOT; the first, `niji_link_image_header`, crashed ld.so). Every
 /// symbol is local in the linked object (version script), so the model's assumption holds.
-const LD_RUSTFLAGS: &str = "-Crelocation-model=pie";
+///
+/// LAYOUT-LDSO-WINDOW: one codegen unit per crate in every profile, as `release` already has. With the
+/// `fast` profile's 16, a change anywhere in the interpreter's crates re-partitioned them: each unit
+/// keeps private copies of the constants it uses (`anon.*`, in `.data.rel.ro` when they hold
+/// pointers) and the static data comes out in unit order, so a 46 KiB cold function moved unrelated
+/// `.bss` arrays (20 KiB each) between the start-up statics and grew RELRO across a page: +3 start-up
+/// faults that came from the partition, not from the change (Skylake-SP host, Linux 6.8).
+const LD_RUSTFLAGS: &str = "-Crelocation-model=pie\x1f-Ccodegen-units=1";
 
 /// SYS-DBG-PACKAGE-2: line tables for libniji's own crates in the shipped (`release`) products, which
 /// libc6-dbg carries and a debugger reads. The product workspace (crates/Cargo.toml) has its own
