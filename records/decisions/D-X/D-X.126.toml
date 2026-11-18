@@ -1,6 +1,5 @@
 id = "D-X.126"
 section = "x"
-pattern = "MS_* of <sys/mount.h> are macros, not enumerators (headers slice 15)"
 status = "active"
 story = "SL-HEADERS-S15-2"
 date = "2026-11-18"
