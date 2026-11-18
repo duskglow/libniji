@@ -28,14 +28,14 @@ fn p2_visibility_of_the_fixed_rows() {
     let (inc, got) = (base.join("include"), base.join("got"));
     std::fs::create_dir_all(&got).expect("make the scratch directory");
 
-    let gen = Command::new(env!("CARGO_BIN_EXE_xtask"))
+    let made = Command::new(env!("CARGO_BIN_EXE_xtask"))
         .arg("headers-gen")
         .arg("--out")
         .arg(&inc)
         .current_dir(&root)
         .output()
         .expect("run xtask headers-gen");
-    assert!(gen.status.success(), "headers-gen --out: {}", String::from_utf8_lossy(&gen.stderr));
+    assert!(made.status.success(), "headers-gen --out: {}", String::from_utf8_lossy(&made.stderr));
 
     let probe = Command::new("python3")
         .arg(root.join("spec/tools/header_probe.py"))
