@@ -1,6 +1,7 @@
 # ICONV-NAME-MATCH (issue #6: `iso88591`): iconv_open name rule — run 2 (ICONV-NAME-MATCH-2)
 
-**State.** Branch `task/iconv-name-match-2` (on `task/iconv-name-match`), code head `b79bfe76a`. Role mei:~/w/s2.
+**State (run 3, leg 1).** Branch `task/iconv-name-match-3`, code head `dc120f974` (WIP, see "Run 3" below; still
+above base, must not land). Run 2: branch `task/iconv-name-match-2`, code head `b79bfe76a`, role mei:~/w/s2.
 Decision: `records/pending/ICONV-NAME-MATCH-1.toml` (D-NEW, series D-6, amends D-6.8; CI assigns the id). Rule,
 probe table and alias provenance: `spec/encoding/iconv-names.md`. Plants: `handoff/ICONV-NAME-MATCH-plants.txt` (14).
 
@@ -56,13 +57,45 @@ result must equal a known name exactly (`cp-1252`, `-utf8`, `utf8.` name nothing
   name (zero-filled, a bounds-checked `push` per byte, `significant` + uppercase). Before, it returned a borrowed
   slice. `builtin` then scans the table with exact compares. All of this happens twice per `iconv_open`.
 
-## Exact next step
+## Run 3 (ICONV-NAME-MATCH-3, branch `task/iconv-name-match-3`, role mei:~/w/s3): in-place matching, leg 1
 
-Profile one `iconv_open("UTF-8","UTF-8")` per phase (validation/wl_trace.sh on base `06c0b561e` and this head), then
-make name parsing cost no more than before. For example: match in place without the 128-byte copy (compare the
-significant bytes of the argument against each candidate as `names_charset` does), or index the built-ins by
-length or first byte. Re-measure with `~/work/ICONV-NAME-MATCH-2/{counts.sh,before.sh}` (mei) and land only at
-or below the before row. Do not change the rule or the alias table; both are verified.
+Ruling #6385: no landing at +28..69%; remove the 128-byte copy, reach base for every measured case.
+
+* Profile (perf record instructions:u, `-n 500000`, per symbol; `~/work/ICONV-NAME-MATCH-3/prof.sh` on mei builds
+  base `06c0b561e` once into `/mnt/zram/claude/ICONV-NAME-MATCH-3/base-06c0b561e` and the role head, prints the
+  count table and per-symbol profiles; run it under `jobrun`): run 2's cost was `parse_name` (37%: zero-fill,
+  bounds-checked push per byte), `memmove` (7%, the 150-byte `Spec` moved by value) and `bcmp`.
+* Commit `dc120f974` (WIP): `iconv::Name` keeps the caller's text (first/second part slices, matching-form
+  length, `plain` flag); one pass with a plain-byte shortcut (`part`); `Name::is` compares a row in place;
+  `builtin` walks only the rows of the name's length (`BY_LEN`, const bit table, `#[allow]` as in
+  time/format.rs); only the cold `gl::charmap_codec` writes the form out (`Name::form`, into a stack buffer);
+  `names_charset` takes a case-only match first. Rule, alias table, `iconv -l` header unchanged. Tests adapted;
+  new: every byte 0..=255 between two letters (both paths), `Name::is` table. clippy clean; s06 + iconv_cmd_names pass.
+
+  | name (x1000, instructions:u) | base 06c0b561e | run 2 b79bfe76a | dc120f974 |
+  | --- | ---: | ---: | ---: |
+  | UTF-8 / utf-8 | 1,697,671 | 2,635,671 | 2,029,663 (+19.6%) |
+  | CP1252 | 3,208,960 | 4,691,334 | 3,701,032 (+15.3%) |
+  | ISO-8859-15 | 3,013,762 | 5,079,913 | 3,585,701 (+19.0%) |
+  | KOI8R | 4,051,082 | 5,203,462 | 4,111,191 (+1.5%) |
+  | latin1 | 2,378,671 | 3,426,671 | 2,380,663 (+0.1%) |
+  | EUC-JP | 1,656,672 | 2,604,671 | 2,018,664 (+21.9%) |
+
+  Remaining UTF-8 gap (+332/iteration = 4 names), per symbol vs base: `parse_name` +165 (78 vs 37 per name),
+  `boundary::iconv::open` (+ inlined `codec`) +100 (the 56-byte `Spec` x2), `builtin` +58.
+
+## Exact next step (leg 2)
+
+1. Shrink `Name` to 4 words: `text` (first part, then `/` and the cut second part, contiguous in the caller's
+   string), `split` (index of that `/`; `text.len()` when none), `len`. Drop `plain`: the shortcut condition is
+   `text.len() == len` (every byte significant, so the form is `text` uppercased, `/` included).
+2. Classify bytes with one `static CLASS: [u8; 256]` (dropped / plain / comma / slash, built by a const fn,
+   `#[allow(clippy::indexing_slicing, clippy::as_conversions)]`) instead of the `SIG_LO`/`SIG_HI` masks.
+3. Re-measure (`prof.sh`); if still above base, look at `open` (avoid moving `Spec`; parse `to` after `from`
+   fails?) and the `builtin` row compare. Below base everywhere: update `handoff/ICONV-NAME-MATCH-plants.txt`
+   (plants `name-case-kept`, `name-empty-second-part-kept`, `name-overflow-truncates` target removed code; add
+   plants for `BY_LEN`, the plain shortcut, `cut` of commas, `names_charset` shortcut), then gate, plants, start-up
+   checks, counts. Parity impossible: RULING NEEDED with the table above and the profile.
 
 ## Open items
 
