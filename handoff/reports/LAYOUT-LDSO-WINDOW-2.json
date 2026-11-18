@@ -1,0 +1,22 @@
+{"task": "LAYOUT-LDSO-WINDOW-2", "model": "opus", "tokens": null,
+ "result": "ld.so's span rounded to 512 KiB, its crates in one codegen unit and its large tables in .lbss: a 46 KiB ld.so pad no longer changes start-up faults or instructions (fast and release), and start-up faults drop by 1-2 (fast 79/95/131 -> 78/93/129, release 76/92/128 -> 74/90/126 at N=0/3/12, Skylake-SP)",
+ "branch": "task/layout-ldso-window-2", "head": null,
+ "gate": {"affected": "32 suites ok, 12161 passed / 0 failed (escalated to FULL by xtask change); conformance 139 passed", "peak": "11G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["DYN_TRUE_BOUND [89, 86] not tightened: its rule takes the highest of the Zen 1 and Skylake-SP host classes and only Skylake-SP was measured", "keke (Zen 1) half of the pad proof not run (earlier refusal, not retried)"],
+ "refused": [],
+ "impact": [
+  {"kind": "faults", "what": "dynamic start-up probe page faults N=0, fast profile, Skylake-SP, ASLR off", "before": 79, "after": 78, "unit": "faults", "measured": true},
+  {"kind": "faults", "what": "dynamic start-up probe page faults N=12, fast profile, Skylake-SP, ASLR off", "before": 131, "after": 129, "unit": "faults", "measured": true},
+  {"kind": "faults", "what": "dynamic start-up probe page faults N=0, release profile, Skylake-SP, ASLR off", "before": 76, "after": 74, "unit": "faults", "measured": true},
+  {"kind": "faults", "what": "dynamic start-up probe page faults N=12, release profile, Skylake-SP, ASLR off", "before": 128, "after": 126, "unit": "faults", "measured": true},
+  {"kind": "perf", "what": "dynamic start-up probe instructions N=0, fast profile", "before": 9037985, "after": 9003818, "unit": "instr", "measured": true},
+  {"kind": "faults", "what": "start-up faults after a 46 KiB cold pad in ld.so, fast N=0 (sensitivity)", "before": 4, "after": 0, "unit": "faults added by the pad", "measured": true},
+  {"kind": "coverage", "what": "tests/plants: 1 products test, 1 unit test, 7 plants (all CAUGHT)", "before": null, "after": 7, "unit": "plants", "measured": true},
+  {"kind": "cost", "what": "fast-profile interpreter build: one codegen unit per crate (serial per crate); span rounding costs under 512 KiB untouched address space/commit", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "the direct-tier gate escalated to FULL for an xtask change (84 min); the start-up check list duplicated its cargo xtask test, which I dropped",
+ "next_step": "land; then measure DYN_TRUE_BOUND on a Zen 1 host and tighten it",
+ "report_file": "handoff/LAYOUT-LDSO-WINDOW-2-report.md",
+ "jobs": ["layout-ldso-window-2-gate2", "layout-ldso-window-2-plants2", "layout-ldso-window-2-fullprof2", "layout-ldso-window-2-proof3", "layout-ldso-window-2-relproof3"]}
