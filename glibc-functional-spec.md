@@ -3222,8 +3222,8 @@ list of *sources* (services), with rules for what to do on each outcome. The dat
   `NSS_STATUS_NOTFOUND` (0); `*result` is not written. `*h_errnop` is 0 or `HOST_NOT_FOUND`.
 * **Failure.** A caller buffer too small: 1, `*status` `NSS_STATUS_TRYAGAIN` (-2), `*h_errnop`
   `NETDB_INTERNAL` (-1), `errno` `ERANGE`. No memory in the allocating form: 1, `*result` NULL,
-  `NETDB_INTERNAL`, `ENOMEM`. A NULL `status` or `h_errnop` is not written (the reference
-  dereferences it; S6). `errno` is not otherwise written. (Written 2026-10-05, owner ruling:
+  `NETDB_INTERNAL`, `ENOMEM`. A NULL `status` or `h_errnop` is not written (S6). `errno`
+  is not otherwise written. (Written 2026-10-05, owner ruling:
   observed black-box, `spec/behaviour/digits-dots.md`.)
 
 The switch is configured by `/etc/nsswitch.conf`, and each source is a shared object

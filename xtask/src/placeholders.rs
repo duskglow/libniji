@@ -420,7 +420,7 @@ pub(crate) fn readelf(args: &[&str], so: &Path) -> Result<String, String> {
 }
 
 /// The version definitions in `readelf -V` text: `(name, base?)`.
-fn verdefs(v: &str) -> Vec<(String, bool)> {
+pub(crate) fn verdefs(v: &str) -> Vec<(String, bool)> {
     let mut out = Vec::new();
     let mut inside = false;
     for line in v.lines() {

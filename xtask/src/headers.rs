@@ -14,6 +14,7 @@
 //!   condition, except names the template owns and reserved names `headers/reserved.tsv` omits.
 //! * `@@if NAME`: `#if <condition>` with the condition of NAME in this header; the template owns NAME.
 //! * `@@owns A B ...`: the template owns these names too (it defines them itself under an `@@if`).
+//! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
 //! * `@@when NAME`: `#if` with the condition of NAME, which the template does not own.
 //! * `@@intc`: the `INTn_C`/`UINTn_C`/`INTMAX_C`/`UINTMAX_C` macros, derived from the `typedefs.tsv` rows
@@ -57,7 +58,7 @@ pub(crate) const LEVEL_COLS: &[(&str, &str, &[i64])] = &[
     ("time64", "__NIJI_TIME64", &[]),
     ("dynstack", "__NIJI_DYNSTACK", &[]),
     ("fortify", "__NIJI_FORTIFY", &[1, 2, 3]),
-    ("cxx", "__NIJI_CXX", &[]),
+    ("cxx", "__NIJI_CXX", &[1, 2, 3]),
 ];
 
 pub(crate) struct Levels {
@@ -203,6 +204,11 @@ pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
     Ok(format!("{value}{suffix}"))
 }
 
+/// Functions a header declares that no default-version export of the shared library provides: `atexit`,
+/// `at_quick_exit` and `pthread_atfork` come from the static archive that links into every program, and `crypt`
+/// from the crypt library (plan/headers.md section 1: `crypt.h` is not libniji's, `unistd.h` declares the function).
+const LINKED_ELSEWHERE: &[&str] = &["atexit", "at_quick_exit", "pthread_atfork", "crypt"];
+
 const SCALARS: &[&str] = &[
     "char", "signed char", "unsigned char", "short", "unsigned short", "int", "unsigned int", "long", "unsigned long", "long long",
     "unsigned long long", "__int128", "unsigned __int128", "float", "double", "long double", "bool", "_Bool", "void",
@@ -295,6 +301,8 @@ struct Gen<'a> {
     emitted: BTreeSet<String>,
     /// (name, kind) rows of the templates this one includes: those headers supply them.
     covered: BTreeSet<(String, String)>,
+    /// Names whose macro row the template defines itself (`@@owns-macro`); their function rows are still emitted.
+    owned_macros: BTreeSet<String>,
 }
 
 impl Gen<'_> {
@@ -330,13 +338,21 @@ impl Gen<'_> {
             }
         };
         let configs = r["configs"].clone();
-        match condition(&self.t.lv, target, care) {
+        // The _FORTIFY_SOURCE configurations (-O2 probes) belong to slice 18 (fortify): when no condition over the
+        // levels separates a name there, they stop deciding it, and the generated tests keep the C probe's other rows.
+        let fortify = self.fortify_mask();
+        match condition(&self.t.lv, target, care).or_else(|| condition(&self.t.lv, target & !fortify, care & !fortify)) {
             Some(c) => c,
             None => {
                 self.errors.push(format!("{}: {name}: no condition over the levels selects {configs}", self.header));
                 "0".into()
             }
         }
+    }
+
+    fn fortify_mask(&self) -> u64 {
+        let col = LEVEL_COLS.iter().position(|c| c.0 == "fortify").unwrap_or(0);
+        self.t.lv.values.iter().enumerate().filter(|(_, v)| v[col] > 0).fold(0u64, |m, (i, _)| m | 1 << i)
     }
 
     fn value(&mut self, name: &str) -> String {
@@ -366,13 +382,50 @@ impl Gen<'_> {
         }
     }
 
-    /// The members of an aggregate from layouts.tsv, or None when it must be opaque (nested or
-    /// bit-field members, member types that do not resolve to scalars).
-    fn members(&self, key: &str) -> Option<(String, Vec<String>)> {
+    /// The members of an aggregate from layouts.tsv (None when it must be opaque: bit-field or unresolved member
+    /// types) and the structure tags and function typedefs its members need first.
+    fn members_nested(&self, key: &str) -> Option<(String, Vec<String>, Vec<String>)> {
+        let mut nested: Vec<String> = Vec::new();
         let rows = self.t.layouts.get(key)?;
         let mut out = Vec::new();
         let mut offs = BTreeSet::new();
+        // Members that are complete structures: the rows `member.sub` below them describe that structure again.
+        let whole: BTreeSet<&str> = rows
+            .iter()
+            .filter(|r| r["member_type"].strip_prefix("struct ").is_some_and(|_| self.t.layouts.contains_key(&r["member_type"])))
+            .map(|r| r["member"].as_str())
+            .collect();
+        // Members that are unnamed structures or unions (`ut_tv`): their members are the rows `member.sub` below.
+        // A structure tag with no rows of its own (utmpx's `struct __exit_status`) is described the same way, keeping its tag.
+        let is_agg = |r: &BTreeMap<String, String>| {
+            let mt = r["member_type"].as_str();
+            key.starts_with("struct ") && !r["member"].contains('.') && (mt.ends_with(" <anon>") || (mt.starts_with("struct ") && !self.t.layouts.contains_key(mt) && rows.iter().any(|q| q["member"].starts_with(&format!("{}.", r["member"])))))
+        };
+        let anon: BTreeSet<&str> = rows.iter().filter(|r| is_agg(r)).map(|r| r["member"].as_str()).collect();
+        let mut end = Some(0u64);
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
+            if let Some(kw) = is_agg(r).then_some(r["member_type"].strip_suffix(" <anon>").unwrap_or(&r["member_type"])) {
+                // One level of an unnamed aggregate whose members are scalars or arrays of them.
+                let prefix = format!("{}.", r["member"]);
+                let mut inner = Vec::new();
+                for q in rows.iter().filter(|q| q["member"].strip_prefix(prefix.as_str()).is_some_and(|m| !m.contains('.'))) {
+                    let mt = &q["member_type"];
+                    let (base, arr) = mt.find('[').map_or((mt.as_str(), ""), |i| (&mt[..i], &mt[i..]));
+                    let b = dwarf_scalar(base).or_else(|| Some(self.resolve(base)).filter(|r| scalar(r)))?;
+                    inner.push(format!("{b} {}{arr};", &q["member"][prefix.len()..]));
+                }
+                let off: u64 = r["offset_or_size"].parse().ok()?;
+                offs.insert(r["offset_or_size"].clone());
+                end = end.zip(rows.iter().filter(|q| q["member"].starts_with(prefix.as_str())).filter_map(|q| Some(q["offset_or_size"].parse::<u64>().ok()? + self.type_size(q["member_type"].split('[').next()?, "", q["member_type"].find('[').map_or("", |i| &q["member_type"][i..]))?)).max()).map(|(e, n)| e.max(n)).or(Some(off));
+                out.push(format!("  {kw} {{ {} }} {};", inner.join(" "), r["member"]));
+                continue;
+            }
+            if r["member"].split_once('.').is_some_and(|(parent, _)| anon.contains(parent)) {
+                continue;
+            }
+            if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
+                continue;
+            }
             if r["member"].contains('.') || !r["bitfield"].is_empty() {
                 return None;
             }
@@ -381,15 +434,59 @@ impl Gen<'_> {
                 Some(i) => (&mt[..i], &mt[i..]),
                 None => (mt.as_str(), ""),
             };
-            let base = dwarf_scalar(base).or_else(|| {
-                let r = self.resolve(base);
-                scalar(&r).then_some(r)
-            })?;
+            let core = base.trim_end_matches(['*', ' ']);
+            let stars = &base[core.len()..];
+            let base = if let Some(tag) = core.strip_prefix("struct ").filter(|_| stars.is_empty() && self.t.layouts.contains_key(core)) {
+                // A complete structure member (itimerspec holds two timespecs): its definition comes first.
+                nested.push(core.to_string());
+                format!("struct {tag}")
+            } else if core.starts_with("struct ") && !stars.is_empty() {
+                // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
+                format!("{core} {}", stars.trim())
+            } else if !stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(')) {
+                // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
+                nested.push(format!("typedef {core}"));
+                format!("{core} {}", stars.trim())
+            } else {
+                let b = dwarf_scalar(core).or_else(|| {
+                    let r = self.resolve(core);
+                    (scalar(&r) || r == "void").then_some(r)
+                })?;
+                format!("{b}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
+            };
+            let off: u64 = r["offset_or_size"].parse().ok()?;
+            end = self.type_size(core, stars, arr).zip(end).map(|(n, e)| e.max(off + n));
             offs.insert(r["offset_or_size"].clone());
             out.push(format!("  {base} {}{arr};", r["member"]));
         }
+        // Unnamed padding the layout rows do not list (`struct timex` ends in 44 bytes of it).
+        if let (Some(end), Some(total)) = (end, rows.iter().find(|r| r["member"].is_empty()).and_then(|r| r["offset_or_size"].parse::<u64>().ok())) {
+            if total > end && (total - end) % 4 == 0 {
+                out.extend((0..(total - end) / 4).map(|_| "  int : 32;".to_string()));
+            }
+        }
         let kw = if out.len() > 1 && offs.len() == 1 { "union" } else { "struct" };
-        (!out.is_empty()).then(|| (kw.to_string(), out))
+        (!out.is_empty()).then(|| (kw.to_string(), out, nested))
+    }
+
+    /// The size in bytes of a member type of layouts.tsv (`core`, its `stars` and `[n]` suffix), when known.
+    fn type_size(&self, core: &str, stars: &str, arr: &str) -> Option<u64> {
+        let one = if !stars.is_empty() {
+            8
+        } else if let Some(r) = self.t.layouts.get(core).and_then(|r| r.iter().find(|r| r["member"].is_empty())) {
+            r["offset_or_size"].parse().ok()?
+        } else {
+            let t = dwarf_scalar(core).unwrap_or_else(|| self.resolve(core));
+            match t.as_str() {
+                "char" | "signed char" | "unsigned char" => 1,
+                "short" | "unsigned short" => 2,
+                "int" | "unsigned int" | "float" => 4,
+                "long" | "unsigned long" | "long long" | "unsigned long long" | "double" => 8,
+                _ => self.t.typedefs.get(&("typedef".to_string(), core.to_string()))?["size"].parse().ok()?,
+            }
+        };
+        let n: u64 = if arr.is_empty() { 1 } else { arr.trim_matches(['[', ']']).parse().ok()? };
+        Some(one * n)
     }
 
     fn guard(&mut self, key: &str, body: Vec<String>) {
@@ -406,27 +503,106 @@ impl Gen<'_> {
         };
         let cxx = r["cxx"].clone();
         // A qualified scalar (pthread_spinlock_t is `int volatile`) is still a scalar typedef.
-        let body = if scalar(&cxx) || scalar(cxx.replace("volatile", "").replace("const", "").trim()) {
+        let body = if cxx.is_empty() && name == "wchar_t" {
+            // A keyword in C++ (typedefs.tsv leaves its spelling empty); in C the compiler's type.
+            vec!["#  ifndef __cplusplus".into(), format!("typedef __WCHAR_TYPE__ {name};"), "#  endif".into()]
+        } else if scalar(&cxx) || scalar(cxx.replace("volatile", "").replace("const", "").trim()) {
             vec![format!("typedef {} {name};", cxx.replace('*', " *"))]
-        } else if cxx == name {
-            match self.members(name) {
-                Some((kw, m)) => [vec![format!("typedef {kw} {{")], m, vec![format!("}} {name};")]].concat(),
+        } else if let Some(open) = cxx.find('(') {
+            // A function or function-pointer type (`int (*)(void const*, void const*)` or `int (void*)`).
+            let (ret, rest) = cxx.split_at(open);
+            let args = self.type_words(rest);
+            let ret = self.type_words(ret);
+            match args.strip_prefix("(*)") {
+                Some(a) => vec![format!("typedef {} (*{name}){a};", ret.trim_end())],
+                None => vec![format!("typedef {} {name}{args};", ret.trim_end())],
+            }
+        } else if cxx == name || cxx.is_empty() {
+            match self.members_nested(name) {
+                Some((kw, m, nested)) => {
+                    self.emit_nested(nested);
+                    [vec![format!("typedef {kw} {{")], m, vec![format!("}} {name};")]].concat()
+                }
                 None => vec![format!("typedef struct {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }} {name};", r["size"], r["align"])],
             }
         } else if self.t.typedefs.contains_key(&("typedef".to_string(), cxx.clone())) {
             // Named for linkage by another typedef (C++ mangles through it): that one comes first.
             self.typedef(&cxx);
             vec![format!("typedef {cxx} {name};")]
+        } else if !cxx.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            // A pointer to a structure (`locale_t` is `struct __locale_struct *`): the tag stays incomplete.
+            vec![format!("typedef struct {} {name};", cxx.replace('*', " *"))]
         } else {
-            vec![format!("typedef struct {cxx} {name};")]
+            // The structure is named for linkage by `cxx` (`fpos_t` is `struct _G_fpos_t`): define it here.
+            let def = match self.members_nested(name) {
+                Some((kw, m, nested)) => {
+                    self.emit_nested(nested);
+                    [vec![format!("{kw} {cxx} {{")], m, vec!["};".into()]].concat()
+                }
+                None => vec![format!("struct {cxx} {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }};", r["size"], r["align"])],
+            };
+            let kw = if def[0].starts_with("union") { "union" } else { "struct" };
+            // The same guard as a `struct` row of visibility.tsv for this tag (tag()), so it is defined once.
+            self.guard(&format!("struct_{cxx}"), def);
+            vec![format!("typedef {kw} {cxx} {name};")]
         };
         self.guard(name, body);
     }
 
+    /// Emit what a structure's members need first: the structures and function typedefs they name.
+    fn emit_nested(&mut self, nested: Vec<String>) {
+        for n in nested {
+            if let Some(tag) = n.strip_prefix("struct ") {
+                self.tag(tag, "struct");
+            } else if let Some(t) = n.strip_prefix("typedef ") {
+                self.typedef(t);
+            }
+        }
+    }
+
+    /// The words of a `typedefs.tsv` function type spelled for C: a structure tag gets its keyword and a typedef
+    /// that is not a scalar is emitted first (`stat const*` is `struct stat const *`).
+    fn type_words(&mut self, text: &str) -> String {
+        let mut out = String::new();
+        let mut word = String::new();
+        for c in text.chars().chain(std::iter::once(' ')) {
+            if c.is_alphanumeric() || c == '_' {
+                word.push(c);
+                continue;
+            }
+            if !word.is_empty() {
+                let w = std::mem::take(&mut word);
+                let tag = format!("struct {w}");
+                let typedef_known = self.t.typedefs.contains_key(&("typedef".to_string(), w.clone()));
+                if matches!(w.as_str(), "const" | "volatile" | "void" | "int" | "long" | "short" | "char" | "unsigned" | "signed") {
+                    out.push_str(&w);
+                } else if !typedef_known && self.t.layouts.contains_key(&tag) {
+                    out.push_str(&tag);
+                } else if typedef_known && !scalar(&self.resolve(&w)) && w != "__va_list_tag" {
+                    self.typedef(&w);
+                    out.push_str(&w);
+                } else {
+                    out.push_str(&self.resolve(&w));
+                }
+            }
+            out.push(c);
+        }
+        out.trim_end().replace('*', " *").replace("  *", " *").replace("__va_list_tag (*) [1]", "__builtin_va_list").replace("( *)", "(*)")
+    }
+
     fn tag(&mut self, name: &str, kind: &str) {
         let key = format!("{kind} {name}");
-        let body = match self.members(&key) {
-            Some((_, m)) => [vec![format!("{key} {{")], m, vec!["};".into()]].concat(),
+        // `struct _IO_FILE` is described under its typedef name, FILE (layouts.tsv keys a tag by the name the program uses).
+        let lkey = if self.t.layouts.contains_key(&key) {
+            key.clone()
+        } else {
+            self.t.typedefs.iter().find(|((k, n), r)| k == "typedef" && r["cxx"] == name && self.t.layouts.contains_key(n.as_str())).map_or(key.clone(), |((_, n), _)| n.clone())
+        };
+        let body = match self.members_nested(&lkey) {
+            Some((_, m, nested)) => {
+                self.emit_nested(nested);
+                [vec![format!("{key} {{")], m, vec!["};".into()]].concat()
+            }
             None => {
                 self.errors.push(format!("{}: {key} has no usable layouts.tsv rows", self.header));
                 return;
@@ -436,7 +612,23 @@ impl Gen<'_> {
     }
 
     fn declaration(&mut self, name: &str) -> Option<String> {
-        let Some(d) = self.t.protos.get(name) else {
+        // A function whose prototype the reference's own header leaves unrecorded (its parameter is a tag only
+        // the header names) has its resolved type in typedefs.tsv (`int (int, sgttyb*)`): spelled as a prototype.
+        let from_type = self.t.typedefs.get(&("function".to_string(), name.to_string())).filter(|_| !self.t.protos.contains_key(name)).and_then(|r| {
+            let (ret, args) = r["cxx"].split_once(" (")?;
+            let args = args.strip_suffix(')')?;
+            // The one such function family (gtty, stty) takes a pointer to a tag, `T*` or `T const*`.
+            let args: Vec<String> = args
+                .split(", ")
+                .map(|a| match (a.strip_suffix(" const*"), a.strip_suffix('*')) {
+                    (Some(t), _) => format!("const struct {t} *"),
+                    (_, Some(t)) => format!("struct {t} *"),
+                    _ => a.to_string(),
+                })
+                .collect();
+            Some(format!("{ret} {name} ({})", args.join(", ")))
+        });
+        let Some(d) = from_type.as_ref().or_else(|| self.t.protos.get(name)) else {
             self.errors.push(format!("{}: function {name} not in prototypes.tsv", self.header));
             return None;
         };
@@ -466,26 +658,29 @@ impl Gen<'_> {
         for t in tags {
             self.out.push(t);
         }
-        Some(out.trim_end().to_string())
+        // The decayed form of the compiler's `va_list` (an array of one `__va_list_tag`).
+        Some(out.trim_end().replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list"))
     }
 
     fn function(&mut self, name: &str) {
         let Some(decl) = self.declaration(name) else { return };
         let nt = if self.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
-        let syms = self.t.addr.get(name).cloned().unwrap_or_default();
+        // A configuration in which the probe's own `&f` did not compile (`!error`) says nothing about the symbol.
+        let syms: Vec<(String, String)> = self.t.addr.get(name).cloned().unwrap_or_default().into_iter().filter(|(_, s)| s != "!error").collect();
         let builtin = self.t.calls.get(name).map(|s| s == "-").unwrap_or(false);
         let distinct: BTreeSet<&String> = syms.iter().map(|(_, s)| s).collect();
         let mut body = Vec::new();
         if distinct.len() <= 1 {
             let sym = distinct.into_iter().next().cloned().unwrap_or_else(|| name.to_string());
-            if !builtin && !self.t.exported.contains(&sym) {
+            if !builtin && !self.t.exported.contains(&sym) && !LINKED_ELSEWHERE.contains(&sym.as_str()) {
                 self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
             }
             let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
             body.push(format!("extern {decl}{nt}{asm};"));
         } else {
             let all = (1u64 << self.t.lv.ids.len()) - 1;
-            let care = all & !self.t.lv.reject;
+            // `addr` probes run in no fortify configuration (callsites.tsv): those do not decide the symbol.
+            let care = all & !self.t.lv.reject & !self.fortify_mask();
             for (i, (configs, sym)) in syms.iter().enumerate() {
                 if !self.t.exported.contains(sym) {
                     self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
@@ -553,10 +748,10 @@ impl Gen<'_> {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
         let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
-            if kind == "include-error" || owned.contains(&name) || omitted(&self.t.reserved, &name) || self.covered.contains(&(name.clone(), kind.clone())) {
+            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.covered.contains(&(name.clone(), kind.clone())) {
                 continue;
             }
-            let rank = ["struct", "union", "enum", "typedef", "object", "function", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
+            let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
             if rank == 9 {
                 self.errors.push(format!("{}: {name}: kind {kind} is not generated yet", self.header));
                 continue;
@@ -582,6 +777,12 @@ impl Gen<'_> {
                 "macro" => {
                     let v = self.value(&name);
                     self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+                }
+                "enumerator" => {
+                    // The name is an enumerator and (its macro row) a macro of the same value, as the reference's
+                    // enumerations with a `#define` each: an anonymous enum constant, declared once per translation unit.
+                    let v = self.value(&name);
+                    self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
                 }
                 "typedef" => self.typedef(&name),
                 "struct" | "union" | "enum" => self.tag(&name, &kind),
@@ -706,11 +907,18 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         texts.insert(h.clone(), fs::read_to_string(root.join(TEMPLATES).join(format!("{h}.in"))).map_err(|e| e.to_string())?);
     }
     // `#include <x>` of another template, at any depth: x's names are not emitted again.
+    // An include right after `@@when` is conditional (its names stay emitted here, under this header's own conditions).
     let includes = |text: &str| -> Vec<String> {
-        text.lines()
-            .filter_map(|l| l.trim_start().strip_prefix('#').map(str::trim_start)?.strip_prefix("include")?.trim().strip_prefix('<')?.strip_suffix('>').map(String::from))
-            .filter(|x| texts.contains_key(x))
-            .collect()
+        let mut prev = "";
+        let mut out = Vec::new();
+        for l in text.lines() {
+            let inc = l.trim_start().strip_prefix('#').map(str::trim_start).and_then(|l| l.strip_prefix("include")).and_then(|l| l.trim().strip_prefix('<')).and_then(|l| l.strip_suffix('>'));
+            if let Some(x) = inc.filter(|x| texts.contains_key(*x) && !prev.starts_with("@@when")) {
+                out.push(x.to_string());
+            }
+            prev = l;
+        }
+        out
     };
     for h in names {
         let text = texts[&h].clone();
@@ -721,9 +929,29 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 stack.extend(includes(&texts[&x]));
             }
         }
-        let covered: BTreeSet<(String, String)> = t.vis.iter().filter(|r| seen.contains(&r["header"])).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        // A name is covered by the included headers only in the configurations where one of them shows it: when
+        // this header shows it in more (utmp.h has `fd_set` in strict ISO modes, <sys/types.h> only in the BSD set),
+        // the header declares it itself.
+        let mut shown: BTreeMap<(String, String), u64> = BTreeMap::new();
+        for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
+            *shown.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(u64::MAX);
+        }
+        let covered: BTreeSet<(String, String)> = t
+            .vis
+            .iter()
+            .filter(|r| r["header"] == h)
+            .filter_map(|r| {
+                let key = (r["name"].clone(), r["kind"].clone());
+                let own = mask_of(&t.lv, &r["configs"]).unwrap_or(0);
+                shown.get(&key).filter(|m| own & !**m & !t.lv.reject == 0).map(|_| key)
+            })
+            .collect();
         let mut owned = BTreeSet::new();
+        let mut owned_macros = BTreeSet::new();
         for l in text.lines() {
+            if let Some(rest) = l.strip_prefix("@@owns-macro ") {
+                owned_macros.extend(rest.split_whitespace().map(String::from));
+            }
             if let Some(rest) = l.strip_prefix("@@if ").or_else(|| l.strip_prefix("@@owns ")) {
                 owned.extend(rest.split_whitespace().map(String::from));
             }
@@ -733,12 +961,12 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
             }
         }
-        let mut g = Gen { t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered };
+        let mut g = Gen { t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, owned_macros };
         for l in text.lines() {
             match l.split_whitespace().next() {
                 Some("@@generated") => g.out.push(BANNER.into()),
                 Some("@@emit") => g.emit(&owned),
-                Some("@@owns") => {}
+                Some("@@owns") | Some("@@owns-macro") => {}
                 Some("@@intc") => g.intc(),
                 Some("@@stubs") => {
                     for f in &t.stubs {
@@ -805,6 +1033,14 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
         return Err(format!("headers-gen: stale under {OUT}/: {} (run `cargo xtask headers-gen`)", stale.join(" ")));
     }
     println!("headers-gen: {} {} headers", if check { "ok," } else { "wrote" }, files.len());
+    if !check {
+        // HEADERS-ABI-REGEN: spec/abi/layouts.tsv also feeds abi-gen (`niji_abi::layout` and the Appendix C layout
+        // tests, whose `abi_*` names `cargo xtask stubs` checks). A struct row added for a header and written out
+        // here alone left those stale, red only in the landing gate (four header slices on 11-17). One command now
+        // leaves the headers, the layouts and their tests consistent; abi-gen writes only files whose text changed.
+        // `--check` stays headers-only: `abi-gen --check` is its own gate step.
+        crate::abi::run(root, false).map_err(|e| format!("headers-gen: abi-gen (spec/abi/layouts.tsv feeds both): {e}"))?;
+    }
     Ok(())
 }
 
@@ -819,7 +1055,7 @@ mod tests {
             [2017, 200809, 0, 1, 0, 0, 0, 0, 0, 0, 0],
             [2017, 200809, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [2023, 200809, 700, 1, 1, 1, 0, 0, 1, 0, 0],
-            [2023, 200809, 700, 1, 1, 1, 0, 0, 1, 0, 1],
+            [2023, 200809, 700, 1, 1, 1, 0, 0, 1, 0, 2],
             [2017, 200809, 0, 1, 0, 0, 0, 1, 0, 0, 0],
         ];
         Levels { ids: ["c89", "gnu17", "posix200809", "gnu", "cxx17", "time64only"].map(String::from).to_vec(), values: rows.iter().map(|r| r.to_vec()).collect(), reject: 1 << 5 }
@@ -915,5 +1151,51 @@ mod tests {
         let r: BTreeMap<String, String> = [("__pid_t".to_string(), "emit".to_string()), ("_SIGSET_NWORDS".to_string(), "omit".to_string())].into();
         assert!(!omitted(&r, "__pid_t") && omitted(&r, "__off64_t") && omitted(&r, "_STDINT_H"));
         assert!(omitted(&r, "_SIGSET_NWORDS") && !omitted(&r, "_POSIX_ARG_MAX") && !omitted(&r, "INT8_MAX"));
+    }
+
+    fn copy_dir(src: &Path, dst: &Path) {
+        fs::create_dir_all(dst).unwrap();
+        for e in fs::read_dir(src).unwrap().flatten() {
+            let to = dst.join(e.file_name());
+            if e.file_type().unwrap().is_dir() {
+                copy_dir(&e.path(), &to);
+            } else {
+                fs::copy(e.path(), &to).unwrap();
+            }
+        }
+    }
+
+    // no spec clause: HEADERS-ABI-REGEN. A struct row added to spec/abi/layouts.tsv (as a header slice adds one)
+    // and written out with `headers-gen` alone leaves abi-gen's outputs current and every Appendix C layout stub
+    // id present in the layout tests (the `cargo xtask stubs` check that went red in the landing gate).
+    #[test]
+    fn headers_gen_regenerates_the_abi_layouts() {
+        let src = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
+        let root = std::env::temp_dir().join(format!("xtask-headers-abi-regen-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for d in ["headers", "spec/abi", "spec/unicode", OUT] {
+            copy_dir(&src.join(d), &root.join(d));
+        }
+        for f in ["crates/abi/src/layout.rs", "crates/abi/src/layout_aarch64.rs", "crates/abi/tests/appendix_c_layouts.rs", "crates/abi/tests/appendix_c_layouts_aarch64.rs"] {
+            fs::create_dir_all(root.join(f).parent().unwrap()).unwrap();
+            fs::copy(src.join(f), root.join(f)).unwrap();
+        }
+        let mut problems = Vec::new();
+        crate::spec::abi_stubs(&root, false, &mut problems).unwrap();
+        assert!(problems.is_empty(), "the copied tree starts consistent: {problems:?}");
+        let table = root.join("spec/abi/layouts.tsv");
+        let mut text = fs::read_to_string(&table).unwrap();
+        assert!(!text.contains("struct niji_regen_probe\t"));
+        text.push_str("struct niji_regen_probe\t\t16\t8\t\t\nstruct niji_regen_probe\ta\t0\t\tlong int\t\nstruct niji_regen_probe\tb\t8\t\tint\t\n");
+        fs::write(&table, text).unwrap();
+
+        run(&root, false).expect("headers-gen");
+        let fresh = crate::abi::run(&root, true);
+        crate::spec::abi_stubs(&root, false, &mut problems).unwrap();
+        let tests = fs::read_to_string(root.join("crates/abi/tests/appendix_c_layouts.rs")).unwrap();
+        let _ = fs::remove_dir_all(&root);
+        assert!(fresh.is_ok(), "abi-gen --check after headers-gen alone: {fresh:?}");
+        assert!(problems.is_empty(), "stubs after headers-gen alone: {problems:?}");
+        assert!(tests.contains("fn abi_struct_niji_regen_probe()"), "the new row has its layout test");
     }
 }

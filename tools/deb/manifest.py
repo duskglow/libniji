@@ -4,9 +4,11 @@ release packaging. The data: tools/deb/manifest.tsv (one row per shipped file) a
 tools/deb/control.tsv (the control fields), each documented in its header.
 
   manifest.py lint [--products DIR]
-      The tables are well formed and sorted; every text source and description exists; with
+      The tables are well formed and sorted; every text source and description exists; the
+      charmap rows are exactly spec/encoding/charmaps.tsv's (SYS-ICONV-COVERAGE); with
       --products, every product a file row names is in DIR (the build's products, target/niji),
-      and every product in DIR is named by a file row or listed in UNSHIPPED.
+      and every product in DIR (its top level and each directory a file row reads from) is
+      named by a file row or listed in UNSHIPPED.
   manifest.py rows FLAVOUR
       The flavour's rows, resolved (both rows mapped to the coexist packages and sysroot):
       package, path, kind, source, mode, strip, tab-separated (build.sh installs them).
@@ -20,7 +22,8 @@ tools/deb/control.tsv (the control fields), each documented in its header.
   manifest.py check FLAVOUR DEBDIR
       The .debs in DEBDIR against the tables: exactly the flavour's packages; in each, exactly the
       rows' paths and their directories (root:root, the rows' types, modes, link targets, text
-      contents), every file row stripped as its strip column says, the control members and their
+      contents), every file row stripped as its strip column says, each charmap naming itself
+      in its <code_set_name> line (SYS-ICONV-COVERAGE), the control members and their
       contents, the control text, Installed-Size and md5sums. Prints one "check: FAIL ..." line per
       problem and exits 1 when there is any.
 """
@@ -47,9 +50,14 @@ ORDER = ("Essential", "Multi-Arch", "Pre-Depends", "Depends", "Recommends", "Sug
          "Breaks", "Conflicts", "Replaces", "Section", "Priority")
 MEMBERS = ("triggers", "symbols", "debug")
 REQUIRED = ("Architecture", "Section", "Priority")
-# The products (top-level regular files of the build's products directory, dot files and symbolic
-# links aside) that no file row ships, each with why; lint --products refuses any other product no
+# The products (regular files at the top of the build's products directory or in a directory a
+# file row reads from, dot files and symbolic links aside) that no file row ships, each with why; lint --products refuses any other product no
 # file row names, so a new product cannot be left out of the packages unnoticed.
+# The charmaps iconv_open reads (SYS-ICONV-COVERAGE, D-6.8): `cargo xtask so` writes one product
+# charmaps/<name> per row of CHARMAP_SPEC, and libc6 ships each as CHARMAPS<name> (lint checks the
+# rows against the table; check, that each shipped charmap names itself in its <code_set_name> line).
+CHARMAP_SPEC = "spec/encoding/charmaps.tsv"
+CHARMAPS = "usr/share/i18n/charmaps/"
 UNSHIPPED = {
     "libc.so": "the packages ship the linker script tools/deb/<flavour>/libc-so.ld as libc.so",
     "libm.so.6.source-digest": "the build's cache key for libm.so.6, not a library file",
@@ -114,8 +122,8 @@ def lint_errors(products=None):
         elif not re.fullmatch(r"0[0-7]{3}", mode):
             errs.append("%s: mode %s is not four octal digits" % (where, mode))
         if kind == "file":
-            if "/" in src or src == "-":
-                errs.append("%s: a file row's source is a product name, not %s" % (where, src))
+            if not re.fullmatch(r"[A-Za-z0-9_+-][A-Za-z0-9_.+-]*(/[A-Za-z0-9_+-][A-Za-z0-9_.+-]*)?", src):
+                errs.append("%s: a file row's source is a product name or <dir>/<name>, not %s" % (where, src))
             elif products is not None and not os.path.isfile(os.path.join(products, src)):
                 errs.append("%s: product %s is not in %s (cargo xtask so writes no such file)" % (where, src, products))
         elif kind in ("text", "gzip"):
@@ -136,17 +144,25 @@ def lint_errors(products=None):
             parent = parent.rsplit("/", 1)[0]
             if (flav, p, parent) in seen:
                 errs.append("manifest.tsv:%d: %s is a row and a directory of %s" % (seen[(flav, p, parent)], parent, q))
+    errs += charmap_errors(man)
     if products is not None and os.path.isdir(products):
         shipped = {f[4] for (_n, f) in man if len(f) == 8 and f[3] == "file"}
-        for name in sorted(os.listdir(products)):
-            # A symbolic link among the products (libresolv.so -> libresolv.so.2, for the build's
-            # own links) is not shipped as a file: the packages make their links from link rows.
-            q = os.path.join(products, name)
-            if name.startswith(".") or os.path.islink(q) or not os.path.isfile(q):
-                continue
-            if name not in shipped and name not in UNSHIPPED:
-                errs.append("manifest.tsv: product %s is in %s and no file row ships it (add its row, or list it in "
-                            "manifest.py's UNSHIPPED with why)" % (name, products))
+        # The top level, and each product directory a file row reads from (charmaps/): every file
+        # of it is shipped.
+        dirs = [""] + sorted({s.split("/")[0] for s in shipped if "/" in s})
+        for d in dirs:
+            top = os.path.join(products, d)
+            for name in (sorted(os.listdir(top)) if os.path.isdir(top) else []):
+                # A symbolic link among the products (libresolv.so -> libresolv.so.2, for the
+                # build's own links) is not shipped as a file: the packages make their links from
+                # link rows.
+                q = os.path.join(top, name)
+                name = d + "/" + name if d else name
+                if name.split("/")[-1].startswith(".") or os.path.islink(q) or not os.path.isfile(q):
+                    continue
+                if name not in shipped and name not in UNSHIPPED:
+                    errs.append("manifest.tsv: product %s is in %s and no file row ships it (add its row, or list it in "
+                                "manifest.py's UNSHIPPED with why)" % (name, products))
     pkgs = {p for (_f, p, _q) in seen}
     cpkgs = set()
     for n, f in ctl:
@@ -171,6 +187,31 @@ def lint_errors(products=None):
                 errs.append("control.tsv: package %s has no %s" % (p, r))
         if not os.path.isfile(os.path.join(HERE, "description", p)):
             errs.append("tools/deb/description/%s is missing" % p)
+    return errs
+
+
+def charmap_errors(man):
+    """SYS-ICONV-COVERAGE: the system flavour's libc6 ships exactly one charmap row per row of
+    spec/encoding/charmaps.tsv, CHARMAPS/<name> from the product charmaps/<name>."""
+    errs = []
+    spec = os.path.join(HERE, "..", "..", CHARMAP_SPEC)
+    try:
+        with open(spec, encoding="utf-8") as f:
+            want = {ln.split("\t")[0] for ln in f.read().splitlines()
+                    if ln and not ln.startswith("#") and ln.split("\t")[0] != "name"}
+    except OSError as e:
+        return ["%s: %s" % (CHARMAP_SPEC, e)]
+    got = {}
+    for n, f in man:
+        if len(f) == 8 and f[3] == "file" and f[4].startswith("charmaps/"):
+            name = f[4].split("/", 1)[1]
+            got[name] = n
+            if (f[0], f[1], f[2], f[5], f[6]) != ("system", "libc6", CHARMAPS + name, "0644", "none"):
+                errs.append("manifest.tsv:%d: the charmap %s is system libc6 %s%s, mode 0644, strip none" % (n, name, CHARMAPS, name))
+    for name in sorted(want - set(got)):
+        errs.append("manifest.tsv: no row ships the charmap %s (%s)" % (name, CHARMAP_SPEC))
+    for name in sorted(set(got) - want):
+        errs.append("manifest.tsv:%d: the charmap %s is not a row of %s" % (got[name], name, CHARMAP_SPEC))
     return errs
 
 
@@ -357,6 +398,10 @@ def check_package(flavour, pkg, deb, is_dbg, ndebug, fail):
             fail("%s: %s is not tools/deb/%s compressed" % (pkg, path, src))
         if kind == "changelog" and not gzip.decompress(body).startswith(b"niji ("):
             fail("%s: %s is not a niji changelog" % (pkg, path))
+        if kind == "file" and src.startswith("charmaps/"):
+            name = src.split("/", 1)[1]
+            if ("<code_set_name> %s" % name).encode() not in body.splitlines():
+                fail("%s: %s does not name itself in a '<code_set_name> %s' line" % (pkg, path, name))
         if kind == "file" and strip != "none":
             why = strip_fault(strip, body)
             if why:

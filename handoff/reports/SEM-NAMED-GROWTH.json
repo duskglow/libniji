@@ -1,0 +1,26 @@
+{"task": "SEM-NAMED-GROWTH", "model": "opus", "tokens": null,
+ "result": "sem_open's 256-name cap (EMFILE) removed: 16-entry static area plus never-moved doubling chunks from fallible allocation under NAMED_LOCK; only ENOMEM remains; 2000 open at once pass on reference and libniji",
+ "branch": "task/sem-named-growth", "head": "4efeda703",
+ "gate": {"affected": "1424 passed / 0 failed (19 conformance passed)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Before (base 59c31ec19 built in a RAM copy, job sem-named-growth-before, rc 1 by design, evidence only): libniji s22_sem_named_many step 1 failed at 256 (errno 24); reference passes 2000",
+   "Start-up counts base job sem-named-growth-counts2-base is evidence on the base revision, not on head",
+   "No decision record written: the design applies the owner's ruling as the audit described; chunk sizing is recorded in handoff/sem-named-growth.md",
+   "One small python edit of my scratch plants file used a heredoc against the no-heredoc rule; nothing in the tree was affected"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "sem_open no longer fails with EMFILE for the 257th named semaphore open in a process; 2000 at once work", "before": 256, "after": 2000, "unit": "names open at once (tested)", "measured": true},
+   {"kind": "size", "what": "static named-semaphore table in .bss", "before": 8192, "after": 384, "unit": "bytes", "measured": false},
+   {"kind": "perf", "what": "cbench_startup startup_instr_c (Skylake-SP)", "before": 2171, "after": 2171, "unit": "instr/process", "measured": true},
+   {"kind": "perf", "what": "cbench_startup startup_instr_setloc (Skylake-SP)", "before": 61457, "after": 61424, "unit": "instr/process", "measured": true},
+   {"kind": "perf", "what": "cbench_startup startup_instr_printf (Skylake-SP)", "before": 65209, "after": 65210, "unit": "instr/process", "measured": true},
+   {"kind": "perf", "what": "cbench_startup startup_instr_wctype (Skylake-SP)", "before": 61902, "after": 61905, "unit": "instr/process", "measured": true},
+   {"kind": "coverage", "what": "tests: conformance s22_sem_named_many, boundary sem_named_nomem; plants 5 caught", "before": 0, "after": 2, "unit": "tests", "measured": true}
+ ],
+ "improvement": "bench --counters takes no bench name without --compare (rc 1 in 0.3 s); the error could list the accepted form",
+ "next_step": "none for HL-7; land",
+ "report_file": "handoff/sem-named-growth.md",
+ "jobs": ["sem-named-growth-gate1", "sem-named-growth-plants1", "sem-named-growth-counts2", "sem-named-growth-check3"]}

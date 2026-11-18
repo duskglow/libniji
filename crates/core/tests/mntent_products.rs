@@ -51,9 +51,9 @@ const R_SMALL: &str = "D-13.15: getmntent_r with a buffer too small for the entr
 const R_WRITTEN: &str = "D-13.15: getmntent_r's buffer holds only the four strings and their terminators (32 bytes here); the reference copies the whole line";
 const R_NEG: &str = "D-13.15: a negative buffer size is EINVAL; the reference returns NULL with errno 0, as at the end of the table";
 const ADD_INVALID: &str = "D-13.15: addmntent refuses (1, EINVAL) an entry that would not read back: an empty string, or a source starting with #; the reference writes it";
-const ADD_NULL: &str = "D-13.15: addmntent with a NULL string in the entry returns 1 with EINVAL; the reference crashes";
+const ADD_NULL: &str = "D-13.15: addmntent with a NULL string in the entry returns 1 with EINVAL";
 const HASOPT: &str = "D-13.15: a hasmntopt query with = names one option exactly, and a query with a comma names no option; the reference matches the query as a prefix followed by = or a comma, also across options";
-const HASOPT_NULL: &str = "D-13.15: hasmntopt with a NULL mnt_opts returns NULL with EINVAL; the reference crashes";
+const HASOPT_NULL: &str = "D-13.15: hasmntopt with a NULL mnt_opts returns NULL with EINVAL";
 const FSTYPE: &str = "D-13.15: fs_type is the last of rw, rq, ro, sw, xx among the options, since a later option overrides an earlier one (mount(8)); the reference picks by the fixed priority rw, rq, ro, sw, xx";
 const LOOKUP: &str = "D-13.15: getfsspec and getfsfile read /etc/fstab through a descriptor of their own and leave getfsent's position alone; the reference moves it past the entry found, or to the end";
 const DIR: &str = "D-13.15: setfsent on a directory fails with EISDIR (a directory is not an empty table); the reference returns 1";

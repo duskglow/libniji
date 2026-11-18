@@ -14,7 +14,9 @@
 #   kind     file (a product of `cargo xtask so`), text (a file under tools/deb/, copied), gzip (a
 #            file under tools/deb/, gzip -9n), link (a symbolic link), changelog (the package's
 #            changelog, written by the build), dir (an empty directory).
-#   source   the product's name (file), the file under tools/deb/ (text, gzip), the link's target
+#   source   the product's name (file; <dir>/<name> for a file of a product directory, such as
+#            charmaps/<name>: every file of that directory then needs a row), the file under
+#            tools/deb/ (text, gzip), the link's target
 #            (link), - otherwise.
 #   mode     the octal mode; - for a link.
 #   strip    for a file: unneeded (strip --strip-unneeded, .comment and .note removed), debug (as
@@ -87,6 +89,7 @@ system	libc-bin	usr/bin/getconf	file	getconf	0755	debug	static, over libc.a (UTI
 system	libc-bin	usr/bin/getent	file	getent	0755	debug	dynamic, over libc6's name services (UTIL-6)
 system	libc-bin	usr/bin/iconv	file	iconv	0755	unneeded	dynamic, over libc6's iconv(3) (UTIL-7); no libc6-dbg file
 system	libc-bin	usr/bin/ldd	file	ldd	0755	debug	static, runs the loader in trace mode (UTIL-4)
+system	libc-bin	usr/bin/locale	file	locale	0755	unneeded	dynamic, over libc6's locale data (UTIL-8); no libc6-dbg file
 system	libc-bin	usr/sbin/ldconfig	file	ldconfig	0755	debug	static, no interpreter (D-31.2)
 system	libc-bin	usr/share/doc/libc-bin/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc-bin	usr/share/doc/libc-bin/copyright	text	copyright	0644	none	-
@@ -98,6 +101,49 @@ system	libc-l10n	usr/share/doc/libc-l10n/copyright	text	copyright	0644	none	-
 system	libc6	etc/ld.so.conf.d/x86_64-linux-gnu.conf	text	system/x86_64-linux-gnu.conf	0644	none	conffile
 system	libc6	usr/share/doc/libc6/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc6	usr/share/doc/libc6/copyright	text	copyright	0644	none	-
+system	libc6	usr/share/i18n/charmaps/CP1250	file	charmaps/CP1250	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/CP1251	file	charmaps/CP1251	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/CP1252	file	charmaps/CP1252	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/CP1253	file	charmaps/CP1253	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/CP1254	file	charmaps/CP1254	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/CP1256	file	charmaps/CP1256	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/CP1257	file	charmaps/CP1257	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/CP737	file	charmaps/CP737	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/CP874	file	charmaps/CP874	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM037	file	charmaps/IBM037	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM437	file	charmaps/IBM437	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM500	file	charmaps/IBM500	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM775	file	charmaps/IBM775	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM850	file	charmaps/IBM850	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM852	file	charmaps/IBM852	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM855	file	charmaps/IBM855	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM857	file	charmaps/IBM857	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM860	file	charmaps/IBM860	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM861	file	charmaps/IBM861	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM862	file	charmaps/IBM862	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM863	file	charmaps/IBM863	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM864	file	charmaps/IBM864	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM865	file	charmaps/IBM865	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM866	file	charmaps/IBM866	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/IBM869	file	charmaps/IBM869	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-10	file	charmaps/ISO-8859-10	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-11	file	charmaps/ISO-8859-11	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-13	file	charmaps/ISO-8859-13	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-14	file	charmaps/ISO-8859-14	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-15	file	charmaps/ISO-8859-15	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-16	file	charmaps/ISO-8859-16	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-2	file	charmaps/ISO-8859-2	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-3	file	charmaps/ISO-8859-3	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-4	file	charmaps/ISO-8859-4	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-5	file	charmaps/ISO-8859-5	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-6	file	charmaps/ISO-8859-6	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-7	file	charmaps/ISO-8859-7	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-8	file	charmaps/ISO-8859-8	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/ISO-8859-9	file	charmaps/ISO-8859-9	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/KOI8-R	file	charmaps/KOI8-R	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/KOI8-U	file	charmaps/KOI8-U	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/MAC-CENTRALEUROPE	file	charmaps/MAC-CENTRALEUROPE	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
+system	libc6	usr/share/i18n/charmaps/RK1048	file	charmaps/RK1048	0644	none	SYS-ICONV-COVERAGE: read by iconv_open (D-6.8)
 system	libc6	usr/share/lintian/overrides/libc6	text	system/libc6.lintian-overrides	0644	none	undeclared-elf-prerequisites: libc.so.6 is in this package
 system	libc6-dbg	usr/share/doc/libc6-dbg/changelog.Debian.gz	changelog	-	0644	none	-
 system	libc6-dbg	usr/share/doc/libc6-dbg/copyright	text	copyright	0644	none	-

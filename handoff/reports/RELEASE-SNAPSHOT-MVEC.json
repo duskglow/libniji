@@ -1,0 +1,48 @@
+{
+ "task": "RELEASE-SNAPSHOT-MVEC",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: snapshot-ready at e40107432; libmvec.so.1 shipped and listed by ldconfig -p, Debian's graphviz (NEEDED libmvec.so.1) installs with its postinst and dot -V runs on libniji, -lmvec C program bit-identical to scalar cos; libc6-dbg resolves by build-id (17/17) and gdb shows source lines; every other check as at snapshot-2026-11-17; 9 assets staged (serial 2); mei smoke round refused",
+ "branch": "task/release-snapshot-mvec",
+ "head": "e4010743214ea636aae0784fb8c36806ca4ffad7",
+ "gate": {
+  "affected": "release-snapshot-mvec-gate-1 rc 0 (clippy --all-features -D warnings, xtask clippy, static, records check, affected --base origin/next: 0 suites, no diff)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "the mei lua_reload/cxx_dlclose round was not run (the command preparing mei's tree was refused)", "recommendation": "accept keke's round (same products, ok 1/1 both sides) for this snapshot, or run the mei round in the tagging step"}
+ ],
+ "informational": [
+  "apt-get install in the swapped trixie root is refused by apt (util-linux PreDepends libc6 (>= 2.41) unmet after the forced swap); graphviz was installed with dpkg from .debs apt downloaded on the stock root. Not a libmvec issue; the known --force-depends state of the trixie swap",
+  "lintian +17 W per suite (E unchanged 10): libc6-dbg 15 (12 debug-file-with-no-debug-symbols, copyright-without-copyright-notice, debian-changelog-line-too-long, initial-upload-closes-no-bugs); libc6 extended-description-line-too-long and undeclared-elf-prerequisites (libc.so.6 libm.so.6) for libmvec.so.1 (override covers only libc.so.6): packaging story",
+  "12 of 17 libc6-dbg debug files carry no DWARF (libm, libmvec, libpthread, libdl, librt, libutil, libanl, libnsl, libresolv, libBrokenLocale, libc_malloc_debug, getent); no .gnu_debuglink by design (build-id lookup works 17/17)",
+  "docs story: docs/install-packages.md rows niji6 (:13), niji6-dev (:14), libc6, libc6-dev (:124) do not list libmvec.so.1 / libmvec.a / libmvec.so",
+  "docs story: docs/install-packages.md:126 (libc6-dbg) does not say the package is optional, and 'symbol table and line tables of every shared object' is false for 12 of 17 objects",
+  "docs story: docs/differences-from-glibc.md:506 names records/pending/SYS-LIBMVEC-2-1.toml, now records/decisions/D-10/D-10.124.toml",
+  "gdb's stop in a running program stays PENDING (loader debugger rendezvous not implemented, #6151), as SYS-DBG-PACKAGE-3 reported"
+ ],
+ "refused": [
+  "mei: \"${VSSH[@]}\" 'mkdir -p ~/work/RELEASE-SNAPSHOT-MVEC/tree' && git archive e4010743214ea636aae0784fb8c36806ca4ffad7 | \"${VSSH[@]}\" 'tar xf - -C ~/work/RELEASE-SNAPSHOT-MVEC/tree && ...' (preparing the mei smoke tree)"
+ ],
+ "impact": [
+  {"kind": "none", "what": "release validation of e40107432; 9 assets staged (keke ~/release-staging/snapshot-20261117.2), no product or packaging change", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "size", "what": "largest package: libc6-dbg (new); libc6-dev 3001884 -> 3027384 (libmvec.a)", "before": 3001884, "after": 8631332, "unit": "bytes", "measured": true},
+  {"kind": "unblock", "what": "Yohane graphviz postinst (and libidn's build) can find libmvec.so.1 in the snapshot assets", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "jobs": [
+  "keke:release-snapshot-mvec-gate-1",
+  "keke:release-snapshot-mvec-debscheck-2",
+  "keke:release-snapshot-mvec-pkgdiff-1",
+  "keke:release-snapshot-mvec-roots-1",
+  "keke:release-snapshot-mvec-lint-1",
+  "keke:release-snapshot-mvec-yohane-2",
+  "keke:release-snapshot-mvec-smoke-keke-1",
+  "keke:release-snapshot-mvec-stage-1",
+  "keke:release-snapshot-mvec-install-1",
+  "keke:release-snapshot-mvec-plants-1"
+ ],
+ "improvement": "the release checks should own the expected-change probes this run hand-wrote (build-id resolution, ldconfig -p of every packaged soname, a libmvec consumer root): fold debscheck.sh's DBG loop and fresh.sh into check-system.sh/root-system.sh so the next snapshot reuses them unchanged",
+ "next_step": "coordinator tags e40107432 and publishes ~/release-staging/snapshot-20261117.2 after the mei round or a ruling; docs and packaging stories take the INFORMATIONAL items",
+ "report_file": "handoff/RELEASE-SNAPSHOT-MVEC.md"
+}

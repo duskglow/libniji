@@ -25,6 +25,18 @@ struct timeval {
 # endif
 #endif
 #if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
 # ifndef __NIJI_D_blkcnt_t
 #  define __NIJI_D_blkcnt_t 1
 typedef long blkcnt_t;
@@ -162,10 +174,13 @@ typedef int pthread_once_t;
 typedef unsigned long pthread_t;
 # endif
 #endif
-#if __NIJI_POSIX >= 199506 && !__NIJI_CXX
+#if __NIJI_POSIX >= 199506 && __NIJI_CXX < 1
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
-typedef struct  pthread_attr_t;
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112

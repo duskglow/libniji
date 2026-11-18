@@ -2,7 +2,10 @@
 """Probe which symbol a compiled program references for each function, and each function's C++ exception
 specification (plan/headers.md slice 4, Appendix C.13).
 
-    python3 spec/tools/callsite_probe.py [--jobs N] [--names a,b] [--out DIR]
+    python3 spec/tools/callsite_probe.py [--jobs N] [--names a,b] [--out DIR] [--include DIR] [--headers a.h,b.h]
+
+`--include DIR` probes libniji's headers (P3 of plan/headers.md section 3): every compile gets `-nostdinc -isystem DIR`;
+`--headers` keeps the functions probed through those headers.
 
 Run on the reference system (Appendix C.0), like header_probe.py, after it: the function list is
 prototypes.tsv, and the header and configurations each function is probed in come from visibility.tsv
@@ -347,7 +350,11 @@ def main():
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--names", default="")
     ap.add_argument("--out", default=ABI)
+    ap.add_argument("--include", default="", help="probe the headers under DIR (libniji's libc-include/) instead of the system's")
+    ap.add_argument("--headers", default="", help="only the functions probed through these headers (a.h,b.h)")
     args = ap.parse_args()
+    only = set(args.headers.split(",")) if args.headers else set()
+    inc = os.path.abspath(args.include) if args.include else ""
     names_filter = set(args.names.split(",")) if args.names else set()
     all_ids, cfg = configs()
     protos = {r["name"]: r["declaration"] for r in tsv("prototypes.tsv") if not names_filter or r["name"] in names_filter}
@@ -363,12 +370,15 @@ def main():
     gccinc = subprocess.run(["g++", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
     # -fno-builtin: GCC's own implicit declarations of library builtins (isalnum, abs) accept either specifier.
     plain_inc = ["-fno-builtin", "-nostdinc","-I" + gccinc, "-I/usr/include/x86_64-linux-gnu", "-I/usr/include"]
+    if inc:
+        plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc]
+        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc])
     # Every prototypes.tsv function: a type token with one of these names is a tag the function hides.
     all_functions = frozenset(r["name"] for r in tsv("prototypes.tsv"))
     jobs = []
     by_header = {}
     for n, (h, cs) in sorted(fns.items()):
-        if n in protos:
+        if n in protos and (not only or h in only):
             by_header.setdefault(h, []).append((n, cs))
     for h, items in sorted(by_header.items()):
         for c in addr_ids:
@@ -384,7 +394,7 @@ def main():
             if names:
                 jobs.append((label, h, std, cfg[std], names))
     # One unit per (header, configuration) for the macros too: every job writes its own file names.
-    for h in sorted({m[1] for m in MACROS}):
+    for h in sorted({m[1] for m in MACROS if not only or m[1] in only}):
         items = [(m, [e]) for m, mh, e in MACROS if mh == h and (not names_filter or m in names_filter)]
         if items:
             for c in call_ids:

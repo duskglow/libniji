@@ -18,12 +18,50 @@
 #    from a copy at a path of fixed length (argv[0]), so the work directory's path does not reach it.
 #  HOT_TEXT_CLASSES (comma list of CLASSES names, default all) picks the classes; `host` alone runs the
 #  host's own CPU (no virtual CPU: a diagnosis aid, never a list the build groups).
+#
+# TRACE-TIME-PIN: the trace is a function of the program, not of how fast it ran. Under gdb a program
+# runs far slower than live, and the library times its once-a-second file checks (crates/legacy/src/
+# recheck.rs: `now`, `due`, and the TSC gate in front of them): a real clock let a slow trace run a
+# check the live program never runs (mktime's zone-file stat). So every time source the library
+# reads is answered from one virtual clock (VCLOCK below), in every class (`host` too), and its own
+# code never runs:
+#  * `niji_machine_rdtsc` (the TSC gate's counter): a virtual counter, TSC_STEP ticks per read;
+#  * the vDSO's clock_gettime, gettimeofday and time, at the library's vDSO call entries
+#    (`niji_machine_vcall2` / `niji_machine_vcall3`, when their target is one of these: the other
+#    vDSO calls, getcpu and clock_getres, run as they are);
+#  * the system call fallbacks `niji_sys_clock_gettime`, `niji_sys_gettimeofday`, `niji_sys_time`.
+#  Every clock read advances the virtual clock by CLOCK_STEP_NS (1 us): two reads always differ, and
+#  a program's reads are far under the one-second interval apart, as they are live. The clock restarts
+#  at every run of the program. HOT_TEXT_SLOW=<seconds> (the check in regen.sh) sleeps that long at
+#  every time read: a source answered from the host's time then shows as a different trace.
+#
+# TRACE-NUMA-PIN: the trace is a function of the program, not of the host's NUMA topology. The heap
+# (D-3.20) asks once how many nodes the process may allocate on and, when more than one, reads the
+# calling thread's node at its slow paths (D-3.12, D-3.21) and places each shard's memory on its node.
+# Every trace sees one virtual topology, in every class (`host` too): VNODES (2) allowed nodes, the
+# program running on node 0.
+#  * The node count: `get_mempolicy(MPOL_F_MEMS_ALLOWED)` at the library's generic system call entry
+#    `niji_sys_syscall` (crates/boundary/src/raw.rs allowed_node_count, its one caller) is answered
+#    with nodes 0..VNODES-1; the call never reaches the kernel. Other system calls run as they are.
+#  * The node read: the rseq area's `node_id` (written by the kernel: no entry to answer at), else the
+#    vDSO's getcpu, both inside `<KernelPages as Pages>::shard` (crates/boundary/src/heap.rs, out of
+#    line for this; `OwnPages` calls it): answered 0 there, its own code never runs. Pinning the
+#    program to node 0's CPUs instead fails where the build's CPU set (a slot) holds none of them.
+#  Why two nodes on node 0 (measured, handoff/TRACE-NUMA-PIN.md): the layout traced so keeps
+#  the NUMA path the 2-node build hosts run live in the start-up group, and a 1-node host runs a
+#  subset of it, with no bound of hot_text_products exceeded on either.
+#  HOT_TEXT_HOST_NODES=<n> (test-only; the check in regen.sh) simulates a host that allows n nodes,
+#  the program on node 0: the tracer answers as that host would, and the virtual topology answers
+#  over it, so the trace must not change. The tracer prints how many node counts and node reads it
+#  answered; regen.sh fails when the start-up trace shows none (an entry the tracer no longer finds).
 import os
+import re
 import shutil
 import struct
 import subprocess
 import sys
 import tempfile
+import time
 
 import gdb
 
@@ -105,6 +143,62 @@ if virtual:
         if n not in by_name:
             fail("%s: no %s: the virtual CPU cannot answer for it" % (binp, n))
         emul[by_name[n]] = kind
+# TRACE-TIME-PIN: the library's time entries (header). A program that never reads the time links none.
+TIME_ENTRIES = {"niji_machine_rdtsc": "rdtsc", "niji_machine_vcall2": "vcall", "niji_machine_vcall3": "vcall",
+                "niji_sys_clock_gettime": "clock_gettime", "niji_sys_gettimeofday": "gettimeofday", "niji_sys_time": "time"}
+clocks = {by_name[n]: kind for n, kind in TIME_ENTRIES.items() if n in by_name}
+slow = float(os.environ.get("HOT_TEXT_SLOW", "0") or 0)
+CLOCK_STEP_NS = 1000
+TSC_STEP = 1000
+MONO0 = 1000 * 10**9  # the monotonic clocks' start (any value above 0: 0 is the library's "never checked")
+REALTIME0 = 1759579200 * 10**9  # the wall clock's start (the probes' own date, 2025-10-04)
+REALTIME_IDS = (0, 5, 8, 11)  # CLOCK_REALTIME, _COARSE, _ALARM, CLOCK_TAI
+MONO_IDS = (1, 2, 3, 4, 6, 7, 9)  # MONOTONIC, PROCESS/THREAD_CPUTIME, MONOTONIC_RAW, _COARSE, BOOTTIME, _ALARM
+VCLOCK = {}
+# TRACE-NUMA-PIN: the virtual topology (header). get_mempolicy is system call 239 on x86-64; the
+# library passes it to `niji_sys_syscall(nr, a0..a5)`: nr in rdi, the mask in rdx, maxnode in rcx,
+# the flags in r9. The node read is `<KernelPages as Pages>::shard` (v0-mangled: its path ends in
+# `11KernelPages` ... `5Pages5shard`), returning the node in rax.
+NR_GET_MEMPOLICY = 239
+MPOL_F_MEMS_ALLOWED = 4
+VNODES = 2
+VIRTUAL_NODES = True
+NODE_READ = re.compile(r"11KernelPages.*5Pages5shard$")
+topo = {by_name["niji_sys_syscall"]: "count"} if "niji_sys_syscall" in by_name else {}
+topo.update({a: "read" for a, ns in names.items() if any(NODE_READ.search(n) for n in ns)})
+TOPO_ANSWERS = {"count": 0, "read": 0}  # all runs; printed at the end (regen.sh checks start-up's)
+HOST_NODES = os.environ.get("HOT_TEXT_HOST_NODES", "")
+if HOST_NODES and not HOST_NODES.isdigit():
+    fail("HOT_TEXT_HOST_NODES: want a node count, got %r" % HOST_NODES)
+
+
+def nodes_answer():
+    """The allowed-node count the program is told: the virtual topology's. Without it, the host's:
+    the simulated host's (HOT_TEXT_HOST_NODES), else None (the kernel answers)."""
+    host = int(HOST_NODES) if HOST_NODES else None
+    return VNODES if VIRTUAL_NODES else host
+
+
+def answer_topology(kind):
+    """At a topology entry's stop (header): answer get_mempolicy(MPOL_F_MEMS_ALLOWED) or the node
+    read; any other system call runs."""
+    if kind == "count":
+        if reg("rdi") != NR_GET_MEMPOLICY or not reg("r9") & MPOL_F_MEMS_ALLOWED:
+            return
+        n = nodes_answer()
+        if n is None:
+            return
+        mask, maxnode = reg("rdx"), reg("rcx")
+        words = (maxnode - 1 + 63) // 64  # the kernel writes maxnode - 1 bits, in whole longs
+        if n >= 64 or words < 1 or words > 1024:
+            fail("get_mempolicy: a %d-node answer does not fit a mask of %d bits" % (n, maxnode - 1))
+        if mask:
+            gdb.selected_inferior().write_memory(mask, struct.pack("<%dQ" % words, (1 << n) - 1, *([0] * (words - 1))))
+    elif not VIRTUAL_NODES and not HOST_NODES:
+        return  # the host's node: the kernel answers
+    gdb.execute("set $rax = 0")  # get_mempolicy succeeded; the node read: node 0
+    leave_entry()
+    TOPO_ANSWERS[kind] += 1
 
 # The program's copy at a fixed-length path (argv[0] is the path gdb runs).
 stage = tempfile.mkdtemp(prefix="niji-trace.", dir="/tmp")
@@ -140,10 +234,90 @@ def answer(kind, cls):
         inf.write_memory(reg("rdx"), struct.pack("<4I", *regs))
     else:
         gdb.execute("set $rax = %d" % CLASSES[cls][3])
+    leave_entry()
+
+
+def leave_entry():
+    """Return from the entry at pc to its caller (the entry's own code never runs)."""
+    inf = gdb.selected_inferior()
     sp = reg("rsp")
     ret = struct.unpack("<Q", bytes(inf.read_memory(sp, 8)))[0]
     gdb.execute("set $rsp = %d" % (sp + 8))
     gdb.execute("set $pc = %d" % ret)
+
+
+def vdso_time_fns():
+    """The vDSO's clock_gettime, gettimeofday and time: {address: kind} in this run's process."""
+    if "vdso" in VCLOCK:
+        return VCLOCK["vdso"]
+    inf, fns = gdb.selected_inferior(), {}
+    with open("/proc/%d/maps" % inf.pid) as f:
+        span = next((ln.split()[0] for ln in f if ln.rstrip().endswith("[vdso]")), None)
+    if span is not None:
+        lo, hi = (int(x, 16) for x in span.split("-"))
+        img = bytes(inf.read_memory(lo, hi - lo))
+        phoff, phent, phnum = struct.unpack_from("<Q", img, 0x20)[0], *struct.unpack_from("<HH", img, 0x36)
+        loads = [struct.unpack_from("<IIQQ", img, phoff + i * phent) for i in range(phnum)]
+        vaddr = min(p[3] for p in loads if p[0] == 1)  # PT_LOAD
+        with tempfile.NamedTemporaryFile(prefix="niji-vdso.", dir="/tmp") as t:
+            t.write(img)
+            t.flush()
+            out = subprocess.run(["nm", "-D", "--defined-only", t.name], capture_output=True, text=True, check=True, env=nm_env).stdout
+        for line in out.splitlines():
+            p = line.split()
+            name = p[-1].split("@")[0].removeprefix("__vdso_")  # nm -D writes the version: clock_gettime@@LINUX_2.6
+            if len(p) == 3 and name in ("clock_gettime", "gettimeofday", "time"):
+                fns[lo - vaddr + int(p[0], 16)] = name
+        if not fns:
+            fail("the vDSO at %s exports no clock_gettime, gettimeofday or time: the virtual clock cannot find them" % span)
+    VCLOCK["vdso"] = fns
+    return fns
+
+
+def time_read(kind):
+    """At a time entry's stop: (kind, args) when this call reads the time, else None (a vDSO call
+    entry calling another vDSO function)."""
+    if kind == "vcall":
+        kind = vdso_time_fns().get(reg("rdi"))
+        return None if kind is None else (kind, (reg("rsi"), reg("rdx")))
+    return kind, (reg("rdi"), reg("rsi"))
+
+
+def virtual_ns(clock):
+    """The virtual clock `clock` (a clockid_t) after one more read, or None for an id it has not."""
+    clock = clock & 0xFFFFFFFF
+    if clock not in REALTIME_IDS and clock not in MONO_IDS:
+        return None
+    VCLOCK["ns"] += CLOCK_STEP_NS
+    return VCLOCK["ns"] + (REALTIME0 if clock in REALTIME_IDS else MONO0)
+
+
+def answer_time(kind, args):
+    """Return from a time entry with the virtual clock's answer (header)."""
+    inf = gdb.selected_inferior()
+    if kind == "rdtsc":
+        VCLOCK["tsc"] += TSC_STEP
+        gdb.execute("set $rax = %d" % VCLOCK["tsc"])
+    elif kind == "clock_gettime":
+        ns = virtual_ns(args[0])
+        if ns is None:
+            return  # an id the virtual clock has not: the call runs (EINVAL)
+        if args[1]:
+            inf.write_memory(args[1], struct.pack("<qq", ns // 10**9, ns % 10**9))
+        gdb.execute("set $rax = 0")
+    elif kind == "gettimeofday":
+        ns = virtual_ns(0)
+        if args[0]:
+            inf.write_memory(args[0], struct.pack("<qq", ns // 10**9, ns % 10**9 // 1000))
+        if args[1]:
+            inf.write_memory(args[1], struct.pack("<ii", 0, 0))
+        gdb.execute("set $rax = 0")
+    else:  # time
+        sec = virtual_ns(0) // 10**9
+        if args[0]:
+            inf.write_memory(args[0], struct.pack("<q", sec))
+        gdb.execute("set $rax = %d" % sec)
+    leave_entry()
 
 
 # HOT_TEXT_REDIRECT (canon_host.sh): `<host path>=<file>` joined by `:`. At the entry of each path
@@ -206,18 +380,20 @@ def redirect_path():
 def run_one(cls):
     """One run of the program on class `cls`: the function start addresses in first-touch order."""
     made, once = [], {}
+    VCLOCK.clear()
+    VCLOCK.update(ns=0, tsc=1 << 32)
+    every = set(clocks) | set(topo) | (set(emul) if cls != "host" else set())  # entries answered at every call
     for addr in names:
-        if addr in emul and cls != "host":
+        if addr in every:
             continue
         bp = gdb.Breakpoint("*0x%x" % addr, internal=True, temporary=True)
         bp.silent = True
         made.append(bp)
         once[addr] = bp
-    if cls != "host":
-        for addr in emul:
-            bp = gdb.Breakpoint("*0x%x" % addr, internal=True)
-            bp.silent = True
-            made.append(bp)
+    for addr in sorted(every):
+        bp = gdb.Breakpoint("*0x%x" % addr, internal=True)
+        bp.silent = True
+        made.append(bp)
     if redirect:
         shutil.rmtree(run_dir, ignore_errors=True)
         os.mkdir(run_dir)
@@ -252,6 +428,14 @@ def run_one(cls):
             hit.append(pc)
         if pc in emul and cls != "host":
             answer(emul[pc], cls)
+        elif pc in clocks and (not redirect or reg("orig_rax") == NOT_SYSCALL):  # its breakpoint, not a system call stop
+            read = time_read(clocks[pc])
+            if read is not None:
+                if slow:
+                    time.sleep(slow)
+                answer_time(*read)
+        elif pc in topo and (not redirect or reg("orig_rax") == NOT_SYSCALL):  # its breakpoint, not a system call stop
+            answer_topology(topo[pc])
         try:
             gdb.execute("continue", to_string=True)
         except gdb.error:
@@ -281,6 +465,7 @@ def merge(runs):
 
 
 runs = [run_one(c) for c in classes]
+sys.stderr.write("trace_gdb: node count answered %d times, node read %d times\n" % (TOPO_ANSWERS["count"], TOPO_ANSWERS["read"]))
 shutil.rmtree(stage, ignore_errors=True)
 if host_reads:
     fail("the program read host files the tree does not supply (canon_host.sh): %s" % " ".join(sorted(host_reads)))

@@ -26,7 +26,12 @@ usage:
   parity.py rank WD DIR [--sample N] [--seed S] [--jobs J]
       Exact reverse-relation counts from WD's indices, and an ELF scan of N packages drawn at
       random (seed S) from the amd64 packages that depend on libc6: DIR/consumers-*.tsv and
-      DIR/rank.tsv (each gap with its counts).
+      DIR/rank.tsv (each gap with its counts). consumers-verneeds.tsv: the GLIBC-family version
+      requirements a package's ELF files record with no symbol imported at them (GLIBC_ABI_DT_RELR,
+      which the link editor adds for packed relative relocations).
+  parity.py verneeds DEB... [--tmp T]
+      The same symbol-less version requirements for local .debs (the reference's own packages,
+      libc-bin and locales, which the sample leaves out): deb, library, version, ELF files, first 10.
 """
 import argparse, bisect, concurrent.futures, hashlib, io, json, lzma, os, random, re, shutil
 import subprocess, sys, tarfile, tempfile, urllib.request
@@ -208,13 +213,14 @@ def readelf(path, *opts):
 
 
 def elf_dynamic(path):
-    """(soname, [needed], [(symbol, version, '@@'|'@'|'', type)] defined, [(lib, sym, ver)] undefined)."""
+    """(soname, [needed], [(symbol, version, '@@'|'@'|'', type)] defined, [(lib, sym, ver)] undefined,
+    {(lib, ver)} version requirements)."""
     d = readelf(path, "-d")
     soname = (re.findall(r"\(SONAME\).*\[(.*)\]", d) or [""])[0]
     needed = re.findall(r"\(NEEDED\).*\[(.*)\]", d)
     v = readelf(path, "-V")
     # .gnu.version_r: "File: libm.so.6  Cnt: 2" then "Name: GLIBC_2.2.5  Flags: none  Version: 3"
-    vlib, cur = {}, None
+    vlib, cur, vneed = {}, None, set()
     for line in v.splitlines():
         m = re.search(r"File: (\S+)", line)
         if m:
@@ -223,6 +229,7 @@ def elf_dynamic(path):
         m = re.search(r"Name: (\S+)\s+Flags: \S+\s+Version: (\d+)", line)
         if m and cur:
             vlib[m.group(2)] = cur
+            vneed.add((cur, m.group(1)))
     defined, undef = [], []
     for line in readelf(path, "--dyn-syms").splitlines():
         f = line.split()
@@ -236,7 +243,15 @@ def elf_dynamic(path):
             undef.append((vlib.get(idx, ""), sym, ver))
         else:
             defined.append((sym, ver, at, f[3]))
-    return soname, needed, defined, undef
+    return soname, needed, defined, undef, vneed
+
+
+def symbolless(undef, vneed):
+    """The GLIBC-family version requirements (lib, ver) that no imported symbol names: a node such as
+    GLIBC_ABI_DT_RELR, which the link editor records for packed relative relocations, is needed by
+    the program although no symbol is imported at it."""
+    used = {(l, v) for l, _, v in undef}
+    return {(l, v) for l, v in vneed if v.startswith("GLIBC_") and (l, v) not in used}
 
 
 def is_x86_64(body):
@@ -298,7 +313,7 @@ def cmd_inventory(a):
                 tmp = f"{td}/x"
                 with open(tmp, "wb") as f:
                     f.write(body)
-                soname, needed, defined, _ = elf_dynamic(tmp)
+                soname, needed, defined, _, _ = elf_dynamic(tmp)
                 x64 = is_x86_64(body)
                 elf_rows.append((pkg, name, soname if x64 else soname + " (" + elf_class(body) + ")",
                                  ",".join(needed)))
@@ -446,23 +461,42 @@ def rel_names(v):
 
 
 def scan_one(st, td):
-    """NEEDED sonames and GLIBC-family imports (lib, sym, ver) of one package's ELF files."""
+    """NEEDED sonames, GLIBC-family imports (lib, sym, ver) and symbol-less GLIBC-family version
+    requirements {(lib, ver): [ELF member]} of one package's ELF files."""
     deb = fetch_deb(st, td)
-    sonames, imports = set(), set()
     try:
-        for kind, size, name, link, body in data_members(deb, True):
-            if body is None or not is_x86_64(body):
-                continue
-            fd, tmp = tempfile.mkstemp(dir=td)
-            with os.fdopen(fd, "wb") as f:
-                f.write(body)
-            _, needed, _, undef = elf_dynamic(tmp)
-            os.unlink(tmp)
-            sonames.update(needed)
-            imports.update(u for u in undef if u[2].startswith("GLIBC_"))
+        return scan_deb(deb, td)
     finally:
         os.unlink(deb)
-    return sonames, imports
+
+
+def scan_deb(deb, td):
+    sonames, imports, bare = set(), set(), defaultdict(list)
+    for kind, size, name, link, body in data_members(deb, True):
+        if body is None or not is_x86_64(body):
+            continue
+        fd, tmp = tempfile.mkstemp(dir=td)
+        with os.fdopen(fd, "wb") as f:
+            f.write(body)
+        _, needed, _, undef, vneed = elf_dynamic(tmp)
+        os.unlink(tmp)
+        sonames.update(needed)
+        imports.update(u for u in undef if u[2].startswith("GLIBC_"))
+        for x in symbolless(undef, vneed):
+            bare[x].append(name)
+    return sonames, imports, bare
+
+
+def cmd_verneeds(a):
+    """Each local .deb's ELF members that require a GLIBC-family version no imported symbol names."""
+    td = tempfile.mkdtemp(dir=a.tmp)
+    try:
+        for deb in a.debs:
+            _, _, bare = scan_deb(deb, td)
+            for (l, v), members in sorted(bare.items()):
+                print(f"{os.path.basename(deb)}\t{l}\t{v}\t{len(members)}\t{','.join(sorted(members)[:10])}")
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
 
 
 def cmd_rank(a):
@@ -506,18 +540,21 @@ def cmd_rank(a):
             gap_pair.add((r[1], m.group(1), m.group(3)))
     users = defaultdict(set)
     son, imp, done, failed = Counter(), Counter(), 0, []
+    bare_users = defaultdict(set)
     td = tempfile.mkdtemp(dir=a.tmp)
     with concurrent.futures.ThreadPoolExecutor(a.jobs) as ex:
         futs = {ex.submit(scan_one, pk[n], td): n for n in sample}
         for fu in concurrent.futures.as_completed(futs):
             try:
-                s, i = fu.result()
+                s, i, b = fu.result()
             except Exception as e:  # recorded, never hidden
                 failed.append((futs[fu], str(e)[:120]))
                 continue
             done += 1
             son.update(s)
             imp.update(i)
+            for x in b:
+                bare_users[x].add(futs[fu])
             for x in s & gap_son:
                 users[("soname", x)].add(futs[fu])
             for x in i & gap_pair:
@@ -537,6 +574,13 @@ def cmd_rank(a):
         f.write(f"# library\tsymbol\tversion\tpackages of {done} scanned (population {len(pop)})\n")
         for (l, s, v), c in sorted(imp.items(), key=lambda x: (-x[1], x[0])):
             f.write(f"{l}\t{s}\t{v}\t{c}\n")
+    # version requirements without an imported symbol (VERNEED only: GLIBC_ABI_DT_RELR and the like),
+    # which consumers-imports.tsv cannot show
+    with open(f"{D}/consumers-verneeds.tsv", "w") as f:
+        f.write(f"# library\tversion (required, no symbol imported at it)\tpackages of {done} scanned "
+                f"(population {len(pop)})\tpackages (first 25)\n")
+        for (l, v), us in sorted(bare_users.items(), key=lambda x: (-len(x[1]), x[0])):
+            f.write(f"{l}\t{v}\t{len(us)}\t{','.join(sorted(us)[:25])}\n")
     # one level of reverse dependencies (Depends, Pre-Depends; every architecture and source)
     rdep = defaultdict(set)
     for n, st in pk.items():
@@ -558,13 +602,14 @@ def main():
     p = sp.add_parser("fetch-ref"); p.add_argument("wd"); p.add_argument("--suite", default="trixie")
     p = sp.add_parser("inventory"); p.add_argument("prefix"); p.add_argument("debs", nargs="+")
     p = sp.add_parser("compare"); p.add_argument("dir")
+    p = sp.add_parser("verneeds"); p.add_argument("debs", nargs="+"); p.add_argument("--tmp", default="/tmp")
     p = sp.add_parser("rank"); p.add_argument("wd"); p.add_argument("dir")
     p.add_argument("--suite", default="trixie"); p.add_argument("--sample", type=int, default=3000)
     p.add_argument("--seed", type=int, default=20261116); p.add_argument("--jobs", type=int, default=12)
     p.add_argument("--tmp", default="/tmp")
     a = ap.parse_args()
     {"index": cmd_index, "fetch-ref": cmd_fetch_ref, "inventory": cmd_inventory,
-     "compare": cmd_compare, "rank": cmd_rank}[a.cmd](a)
+     "compare": cmd_compare, "rank": cmd_rank, "verneeds": cmd_verneeds}[a.cmd](a)
 
 
 if __name__ == "__main__":
