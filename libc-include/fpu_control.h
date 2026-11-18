@@ -13,6 +13,10 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_fpu_control_t 1
 typedef unsigned short fpu_control_t;
 # endif
+# ifndef __NIJI_D___fpu_control
+#  define __NIJI_D___fpu_control 1
+extern unsigned short __fpu_control;
+# endif
 # ifndef _FPU_DEFAULT
 #  define _FPU_DEFAULT 895
 # endif
