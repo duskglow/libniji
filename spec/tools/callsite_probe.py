@@ -345,18 +345,14 @@ def probe_cxx98(header, names, flags_lang, plain_inc, functions, work):
     return out
 
 
-def stage_uapi():
-    """The kernel's UAPI directories (linux-libc-dev), staged as symlinks in a scratch directory: they are not libniji's
-    headers, which -nostdinc leaves out."""
-    import tempfile
-    d = tempfile.mkdtemp(prefix="uapi.")
-    for name, srcs in (("linux", ["/usr/include/linux"]), ("asm-generic", ["/usr/include/asm-generic"]),
-                       ("asm", ["/usr/include/x86_64-linux-gnu/asm", "/usr/include/asm"])):
-        src = next((x for x in srcs if os.path.isdir(x)), None)
-        if src:
-            os.symlink(src, os.path.join(d, name))
-    return d
-
+def uapi_flags():
+    """`-isystem` for the kernel UAPI directories (linux-libc-dev) that slice 9 headers include: $NIJI_UAPI (the tree
+    `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include directories,
+    placed after libniji's tree so the host's libc headers stay out of reach."""
+    d = os.environ.get("NIJI_UAPI")
+    if d:
+        return ["-isystem", d]
+    return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -384,9 +380,8 @@ def main():
     # -fno-builtin: GCC's own implicit declarations of library builtins (isalnum, abs) accept either specifier.
     plain_inc = ["-fno-builtin", "-nostdinc","-I" + gccinc, "-I/usr/include/x86_64-linux-gnu", "-I/usr/include"]
     if inc:
-        uapi = stage_uapi()
-        plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc, "-I" + uapi]
-        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc, "-isystem", uapi])
+        plain_inc = ["-fno-builtin", "-nostdinc", "-I" + gccinc, "-I" + inc]
+        DIAG.extend(["-nostdinc", "-isystem", inc, "-isystem", gccinc, *uapi_flags()])
     # Every prototypes.tsv function: a type token with one of these names is a tag the function hides.
     all_functions = frozenset(r["name"] for r in tsv("prototypes.tsv"))
     jobs = []

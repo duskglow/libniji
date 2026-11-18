@@ -287,18 +287,14 @@ def public_headers():
     return sorted(r["header"] for r in rows if r["kind"] == "public" and r["header"].endswith(".h"))
 
 
-def stage_uapi():
-    """The kernel's UAPI directories (linux-libc-dev), staged as symlinks in a scratch directory: they are not libniji's
-    headers, which -nostdinc leaves out."""
-    import tempfile
-    d = tempfile.mkdtemp(prefix="uapi.")
-    for name, srcs in (("linux", ["/usr/include/linux"]), ("asm-generic", ["/usr/include/asm-generic"]),
-                       ("asm", ["/usr/include/x86_64-linux-gnu/asm", "/usr/include/asm"])):
-        src = next((x for x in srcs if os.path.isdir(x)), None)
-        if src:
-            os.symlink(src, os.path.join(d, name))
-    return d
-
+def uapi_flags():
+    """`-isystem` for the kernel UAPI directories (linux-libc-dev) that slice 9 headers include: $NIJI_UAPI (the tree
+    `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include directories,
+    placed after libniji's tree so the host's libc headers stay out of reach."""
+    d = os.environ.get("NIJI_UAPI")
+    if d:
+        return ["-isystem", d]
+    return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -309,7 +305,7 @@ def main():
     args = ap.parse_args()
     if args.include:
         gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
-        BASE.extend(["-nostdinc", "-isystem", os.path.abspath(args.include), "-isystem", gccinc, "-isystem", stage_uapi()])
+        BASE.extend(["-nostdinc", "-isystem", os.path.abspath(args.include), "-isystem", gccinc, *uapi_flags()])
     headers = args.headers.split(",") if args.headers else public_headers()
     names, tags = candidates()
     work = tempfile.mkdtemp(prefix="header_probe.")

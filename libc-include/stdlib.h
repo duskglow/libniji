@@ -113,7 +113,9 @@ typedef struct {
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 # ifndef __NIJI_D_sigset_t
 #  define __NIJI_D_sigset_t 1
@@ -714,7 +716,9 @@ extern int on_exit (void (*) (int, void *), void *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 struct timespec;
 # ifndef __NIJI_D_pselect

@@ -1,0 +1,11 @@
+# TRACE-NUMA-PIN plants (cargo xtask plants; docs/plants.md), run on a 2-node Zen 1 host (RAM under /dev/shm/claude).
+# Each command runs the whole build trace (regen.sh) of the plant copy against a RAM copy of the role's trace products
+# (target/product/fast/trace of a build of this tree); the tracer under test is the plant copy's. regen.sh traces
+# `page_faults true` twice, once on a simulated 1-node host (HOT_TEXT_HOST_NODES=1), fails when the two differ, and
+# fails when the start-up trace answered no node count or node read.
+# tnuma-off: the virtual topology removed (the host's node count and node reads reach the program).
+tnuma-off | tools/hottext/trace_gdb.py | lit:VIRTUAL_NODES = True ==> VIRTUAL_NODES = False | d=$(mktemp -d /dev/shm/claude/TRACE-NUMA-PIN/pt.XXXXXX) && NIJI_HOT_LISTS=$d bash tools/hottext/regen.sh . --products /dev/shm/claude/TRACE-NUMA-PIN/prod | msg:page_faults true traced on a simulated 1-node host differs
+# tnuma-read-entry: the node read's entry not found (the kernel's node reaches the heap).
+tnuma-read-entry | tools/hottext/trace_gdb.py | lit:5Pages5shard$") ==> 5Pages5shardX$") | d=$(mktemp -d /dev/shm/claude/TRACE-NUMA-PIN/pt.XXXXXX) && NIJI_HOT_LISTS=$d bash tools/hottext/regen.sh . --products /dev/shm/claude/TRACE-NUMA-PIN/prod | msg:asked no node count or node read .*node read 0 times
+# tnuma-count-nr: the node count's system call not recognised (the kernel answers it, in both traces alike).
+tnuma-count-nr | tools/hottext/trace_gdb.py | lit:NR_GET_MEMPOLICY = 239 ==> NR_GET_MEMPOLICY = 236 | d=$(mktemp -d /dev/shm/claude/TRACE-NUMA-PIN/pt.XXXXXX) && NIJI_HOT_LISTS=$d bash tools/hottext/regen.sh . --products /dev/shm/claude/TRACE-NUMA-PIN/prod | msg:asked no node count or node read .*node count answered 0 times
