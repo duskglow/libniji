@@ -1,0 +1,19 @@
+name: locale -ck LC_COLLATE in C.UTF-8
+clause: s31_7_g_4
+command: locale
+namespace: user
+# The installed C.utf8 (part of the C library package on every system; the reference has no built-in C.UTF-8).
+dir: i18n
+dir: i18n/charmaps
+bind: i18n /usr/share/i18n
+env: LC_ALL=C.UTF-8
+arg: -ck
+arg: LC_COLLATE
+status: exit 0
+stdout:
+| LC_COLLATE
+| collate-nrules=0
+| collate-rulesets=""
+| collate-symb-hash-sizemb=0
+| collate-codeset="UTF-8"
+stderr:

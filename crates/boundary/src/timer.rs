@@ -433,7 +433,7 @@ fn pinned<T>(serial: usize, f: impl FnOnce(&[AtomicUsize]) -> KResult<T>) -> KRe
 
 fn create_thread(clock: i32, e: &SigEvent, attr: Option<&[AtomicUsize]>) -> KResult<usize> {
     let [function, _] = e.thread_words();
-    // No function: nothing could be notified (glibc accepts it and crashes at the expiry).
+    // No function: nothing could be notified at the expiry, so the call fails at once.
     let function = usize::try_from(function).map_err(|_| Errno::EINVAL)?;
     if function == 0 {
         return Err(Errno::EINVAL);

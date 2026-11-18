@@ -26,11 +26,14 @@
 //!    `include/`; but the math wiring, coefficients, fits and tables generator, rule 8), the product crates, linker and export lists,
 //!    any non-Rust file under a crate's `src/`, and any path this table does not know.
 //! 2. DOCS ONLY (`docs/`, `plan/`, `handoff/`, `results/`, top-level `*.md`, `spec/**/*.md`, `spec/behaviour`,
-//!    `spec/schedule.tsv`, and the operator tools under the top-level `tools/`, e.g. the probe service, which no test
-//!    reaches): `stubs` (which runs `trace`), the policy checks and `cargo xtask static`, no tests; but a file that code
-//!    names as a path (a quoted path on a non-comment line, e.g. a test's `spec/behaviour/*.glibc.txt` record or
-//!    `docs/codemap/symbols.tsv`, which this command reads) selects its readers: that test target, the crate's unit
-//!    tests, or the xtask unit tests (XTASK-AFFECTED-DOCS-PATHS, D-X.35).
+//!    `spec/schedule.tsv`, and the operator tools under the top-level `tools/`): `stubs` (which runs `trace`), the
+//!    policy checks and `cargo xtask static`, no tests; but a file that code names as a path (a quoted path on a
+//!    non-comment line, e.g. a test's `spec/behaviour/*.glibc.txt` record, `docs/codemap/symbols.tsv`, which this
+//!    command reads, or a tool a test runs, `tools/probe/probe`) selects its readers: that test target, the crate's
+//!    unit tests, or the xtask tests (unit and `xtask/tests/`) (XTASK-AFFECTED-DOCS-PATHS, D-X.35). A tool a test
+//!    reaches without naming it (run by another tool, or found by listing its directory) selects the readers of
+//!    the path the test names, through the `TOOL_REACH` table (XTASK-AFFECTED-TOOL-TESTS). A tool that no test
+//!    reaches selects no tests.
 //! 3. A conformance program (`conformance/c/*.c`): that program, and the tests that name it.
 //!    A header `conformance/c/*.h`: the programs that `#include` it (none: every program) and
 //!    the tests that name it. `conformance/run.sh` and `conformance/tools`: every conformance program.
@@ -88,6 +91,9 @@
 //!    enable; csys sources and headers; `crates/libc-so/`; the image tools) selects the start-up layout tests
 //!    (`LAYOUT_TESTS`). Their programs link statically against `libc.a`, so growth anywhere in it can move start-up
 //!    pages. Not selected for `ld.so`-only code (boundary's `ld` feature), other crates, tests and docs.
+//! 10. HEADERS-ABI-REGEN, in addition and in every tier: a table that feeds more than one generator (`GEN_PRECHECKS`:
+//!     `spec/abi/layouts.tsv` -> `abi-gen --check`, `headers-gen --check`, `stubs`) runs those checks first, in
+//!     process; a red one ends the run in seconds, before an escalated FULL run starts.
 //!
 //! TIERS (GATE-TIER, coordinator ruling 10-11): `--tier direct` (the DEFAULT, per-fix gates) applies rule 4 to EVERY
 //! crate's non-root module through `Selection::narrow_direct`: the changed module, its one-hop users, the targets
@@ -255,7 +261,8 @@ pub struct Repo {
     /// here was removed, and `cargo xtask remez --check` cannot check it: FULL.
     fits: BTreeSet<String>,
     /// XTASK-AFFECTED-DOCS-PATHS: the xtask sources (path, text) that may read a documentation file; this command's own
-    /// unit tests are left out (they name made-up paths, not files they read).
+    /// unit tests are left out (they name made-up paths, not files they read). XTASK-AFFECTED-TOOL-TESTS: with the
+    /// integration tests under `xtask/tests/`.
     xtask_texts: Vec<(String, String)>,
     /// XTASK-AFFECTED-EXAMPLES: the crates' example programs, `<crate dir>/examples/<name>.rs` (path, text): which
     /// example a file of a module directory `examples/<d>/` belongs to (`example_steps`).
@@ -1176,6 +1183,9 @@ impl Repo {
         let closure = build_closures(root, &crates, &nodes);
         let mut xs = Vec::new();
         files_under(&root.join("xtask/src"), &["rs"], &mut xs);
+        // XTASK-AFFECTED-TOOL-TESTS: the integration tests too, so a docs or tool path one of them names (the probe
+        // client, `tools/probe/probe`) selects the xtask tests (`docs_readers`).
+        files_under(&root.join("xtask/tests"), &["rs"], &mut xs);
         let xtask_texts = xs
             .iter()
             .map(|p| {
@@ -1253,6 +1263,35 @@ pub struct Selection {
     /// XTASK-AFFECTED-EXAMPLES: an xtask command of an example step is selected (`example_steps`); those steps
     /// link and run the examples against the built products, so `cargo xtask so` runs first.
     pub example_steps: bool,
+    /// HEADERS-ABI-REGEN: the generator checks a changed table selects ([`GEN_PRECHECKS`]), run before everything
+    /// else in every tier; a red one stops the run.
+    pub gen_prechecks: BTreeSet<String>,
+}
+
+/// HEADERS-ABI-REGEN: a table that feeds more than one generator, and the checks that prove all of their outputs
+/// agree with it. `spec/abi/layouts.tsv` feeds headers-gen and abi-gen, and `cargo xtask stubs` checks the Appendix C
+/// layout test names abi-gen writes; a row written out by one generator alone showed only in the landing gate, after
+/// hand-back (four header slices on 11-17). The checks take seconds, so a direct-tier gate shows it before hand-back,
+/// and an escalated (FULL) one fails in seconds instead of after the whole suite.
+pub const GEN_PRECHECKS: &[(&str, &[&str])] = &[("spec/abi/layouts.tsv", &["abi-gen-check", "headers-gen-check", "stubs"])];
+
+/// One check of [`GEN_PRECHECKS`], in process.
+fn gen_precheck(root: &Path, name: &str) -> Result<(), String> {
+    match name {
+        "abi-gen-check" => crate::abi::run(root, true),
+        "headers-gen-check" => crate::headers::run(root, true),
+        "stubs" => crate::spec::stubs(root, false),
+        _ => Err(format!("unknown generator precheck `{name}`")),
+    }
+}
+
+/// Every precheck of `sel`, each logged on its own; false when one is red.
+fn run_gen_prechecks(root: &Path, log: &Path, sel: &Selection) -> bool {
+    let mut ok = true;
+    for c in &sel.gen_prechecks {
+        ok &= check_logged(log, &format!("precheck {c}"), gen_precheck(root, c)).is_ok();
+    }
+    ok
 }
 
 /// GATE-TIER (coordinator ruling 10-11, owner intent "only run the tests that are impacted by a fix for gate runs and
@@ -2043,6 +2082,11 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
         if f == "crates/boundary/src/ffi.rs" || f.starts_with("csys/include/") || f.starts_with("csys/src/machine/") {
             sel.k5 = true;
         }
+        for (table, checks) in GEN_PRECHECKS {
+            if f == *table {
+                sel.gen_prechecks.extend(checks.iter().map(|c| c.to_string()));
+            }
+        }
         // XTASK-AFFECTED-LAYOUT: whatever else the file selects, a change linked into libc.a can move start-up pages.
         if repo.reaches_image(f) {
             sel.layout_tests(repo, f);
@@ -2176,7 +2220,14 @@ fn ordinary_mapping(repo: &Repo, f: &str, sel: &mut Selection) {
 /// not seen; the readers found that way today are static checks, which run anyway.
 fn docs_readers(repo: &Repo, f: &str, sel: &mut Selection) {
     sel.xtask_cmds.insert("static".to_string());
-    let readers = path_readers(repo, f, sel);
+    let mut readers = path_readers(repo, f, sel);
+    // XTASK-AFFECTED-TOOL-TESTS: an operator tool that a test reaches without naming it selects the readers of the
+    // path the test does name.
+    for (_, _, via, why) in TOOL_REACH.iter().filter(|(dir, ext, _, _)| tool_reached(f, dir, ext)) {
+        readers.extend(readers_of(repo, &format!("tools/{via}"), &format!("{f}: reached through tools/{via} ({why})"), sel));
+    }
+    readers.sort();
+    readers.dedup();
     if readers.is_empty() {
         sel.notes.push(format!("{f}: docs only (stubs, policy checks, `cargo xtask static`; no tests)"));
     } else {
@@ -2187,14 +2238,38 @@ fn docs_readers(repo: &Repo, f: &str, sel: &mut Selection) {
 /// The code that names `f` as a path (`names_path`), selected: a test target, the owning crate's unit tests (a crate
 /// source), the xtask unit tests (an xtask source). Returns the readers' names for the note.
 fn path_readers(repo: &Repo, f: &str, sel: &mut Selection) -> Vec<String> {
-    let why = format!("{f}: the source names the file");
+    readers_of(repo, f, &format!("{f}: the source names the file"), sel)
+}
+
+/// XTASK-AFFECTED-TOOL-TESTS: operator tools under `tools/` (rule 2) that a test reaches at run time without naming
+/// the file, so `names_path` cannot see them: `(directory or file, extension, the path the test names, why)`, the
+/// paths relative to `tools/` (written in full, this module's own text would name them and read as their reader). A
+/// changed file under the directory (direct children only) with that extension (`""`: any), or the file itself,
+/// selects the readers of the named path. The tools a test names directly (`tools/probe/probe` in
+/// `xtask/tests/probe_client.rs`, the `tools/deb` steps, `tools/hottext/runner.sh`, ...) need no row.
+const TOOL_REACH: [(&str, &str, &str, &str); 3] = [
+    ("hottext/", ".sh", "hottext", "a test lists the directory and reads every script; runner.sh's test runs canon_host.sh"),
+    ("deb/copyright", "", "deb/system.sh", "system.sh stages it in the symbols-only run"),
+    ("deb/system/", "", "deb/system.sh", "system.sh stages its configuration files in the symbols-only run"),
+];
+
+/// Whether changed file `f` is reached through a `TOOL_REACH` row `(dir, ext)`: `tools/<dir>` itself, or a direct
+/// child of the directory `tools/<dir>` (`dir` ending in `/`) whose name ends in `ext`.
+fn tool_reached(f: &str, dir: &str, ext: &str) -> bool {
+    let Some(f) = f.strip_prefix("tools/") else { return false };
+    f == dir || (dir.ends_with('/') && f.strip_prefix(dir).is_some_and(|rest| !rest.contains('/') && rest.ends_with(ext)))
+}
+
+/// The code that names `f` as a path, selected with the reason `why` (see `path_readers`). The xtask sources include
+/// the xtask integration tests (`xtask/tests/`), which `cargo test -p xtask` runs with the unit tests.
+fn readers_of(repo: &Repo, f: &str, why: &str, sel: &mut Selection) -> Vec<String> {
     let mut readers = Vec::new();
     for t in repo.targets.iter().filter(|t| names_path(&t.text, f)) {
-        add(&mut sel.tests, (t.krate.clone(), t.name.clone()), &why);
+        add(&mut sel.tests, (t.krate.clone(), t.name.clone()), why);
         readers.push(format!("{}::{}", t.krate, t.name));
     }
     for n in repo.nodes.iter().filter(|n| names_path(&n.text, f)) {
-        add(&mut sel.libs, n.krate.clone(), &why);
+        add(&mut sel.libs, n.krate.clone(), why);
         readers.push(format!("lib:{}", n.krate));
     }
     if let Some((x, _)) = repo.xtask_texts.iter().find(|(_, t)| names_path(t, f)) {
@@ -2944,6 +3019,9 @@ fn print_selection(repo: &Repo, files: &[String], sel: &Selection) {
     for f in files {
         println!("  {f}");
     }
+    if !sel.only && !sel.gen_prechecks.is_empty() {
+        println!("prechecks (first, in seconds; a red one stops the run): {}", sel.gen_prechecks.iter().cloned().collect::<Vec<_>>().join(", "));
+    }
     if !sel.full.is_empty() {
         println!("FULL (escalated; run the whole gate):");
         for r in &sel.full {
@@ -3437,6 +3515,15 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
     let _ = fs::remove_file(&log);
     let mut ok = true;
     let mut skipped: Vec<String> = Vec::new();
+    if !sel.only && !sel.gen_prechecks.is_empty() {
+        println!("prechecks (a changed table feeds more than one generator):");
+        ok &= run_gen_prechecks(root, &log, sel);
+        if !ok {
+            print!("{}", summary(&read(&log)));
+            println!("affected: FAILED (a precheck; nothing else was run). spec/abi/layouts.tsv: run `cargo xtask headers-gen` (it also runs abi-gen), then `cargo xtask stubs`");
+            return Err("a generator precheck failed".into());
+        }
+    }
     if !sel.full.is_empty() {
         println!("escalated to FULL: running the workspace clippy and `cargo xtask test`");
         // Step times (XTASK-TEST-STEP-TIMES): a `step:` line per step on the console, those `cargo xtask test` wrote
@@ -4373,6 +4460,41 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert_eq!(header_symbols(&d("+int niji_a(void);\n"), "csys/include/zzz.h"), None, "other file's lines are not this file's");
     }
 
+    // no spec clause: HEADERS-ABI-REGEN. A layouts.tsv change runs the abi-gen, headers-gen and stubs checks first,
+    // in every tier (it still escalates); a table that feeds one generator only selects none.
+    #[test]
+    fn layouts_table_selects_the_generator_prechecks() {
+        for tier in [Tier::Direct, Tier::Wide, Tier::Full] {
+            let s = select_tier(repo(), &["spec/abi/layouts.tsv".to_string()], tier);
+            assert_eq!(s.gen_prechecks.iter().map(String::as_str).collect::<Vec<_>>(), ["abi-gen-check", "headers-gen-check", "stubs"], "{tier:?}");
+            assert!(!s.full.is_empty(), "{tier:?}: still FULL");
+        }
+        for f in ["spec/abi/langinfo.tsv", "spec/abi/layouts-aarch64.tsv", "docs/plants.md", "xtask/src/abi.rs"] {
+            let (_, s) = sel(&[f]);
+            assert!(s.gen_prechecks.is_empty(), "{f}: {:?}", s.gen_prechecks);
+        }
+    }
+
+    // no spec clause: HEADERS-ABI-REGEN. The prechecks really run the generators' checks: green on this (consistent)
+    // tree, red on a tree whose tables are missing, red for a name the table does not know.
+    #[test]
+    fn generator_prechecks_run_the_checks() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
+        let empty = std::env::temp_dir().join(format!("xtask-gen-precheck-{}", std::process::id()));
+        fs::create_dir_all(&empty).unwrap();
+        let log = empty.join("affected.log");
+        let mut s = Selection::default();
+        assert!(run_gen_prechecks(&empty, &log, &s), "no precheck selected: nothing to fail");
+        for c in ["abi-gen-check", "headers-gen-check"] {
+            s.gen_prechecks = [c.to_string()].into();
+            assert!(run_gen_prechecks(root, &log, &s), "{c} on the consistent tree");
+            assert!(!run_gen_prechecks(&empty, &log, &s), "{c} on a tree without spec/abi");
+        }
+        s.gen_prechecks = ["zzz".to_string()].into();
+        assert!(!run_gen_prechecks(root, &log, &s), "an unknown precheck is red");
+        let _ = fs::remove_dir_all(&empty);
+    }
+
     #[test]
     fn header_change_maps_to_users_or_escalates_and_k5_always_runs() {
         let (_, s) = sel(&["csys/include/niji_csys.h"]);
@@ -4724,7 +4846,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
 
     #[test]
     fn docs_only_runs_no_tests() {
-        for f in ["docs/differences-from-glibc.md", "plan/05.md", "handoff/process.md", "README.md", "spec/behaviour/x.md", "handoff/reports/PR-4.json", "tools/probe/probe"] {
+        for f in ["docs/differences-from-glibc.md", "plan/05.md", "handoff/process.md", "README.md", "spec/behaviour/x.md", "handoff/reports/PR-4.json", "tools/prof/prof.sh"] {
             let (_, s) = sel(&[f]);
             assert!(s.full.is_empty() && s.tests.is_empty() && s.conf.is_empty() && s.libs.is_empty() && s.clippy.is_empty(), "{f}: {s:?}");
         }
@@ -4763,6 +4885,53 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             let s = tier(&["docs/codemap/symbols.tsv"], t);
             assert!(s.full.is_empty() && s.xtask_tests, "{t:?}: {s:?}");
         }
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. The probe client is run by an xtask integration test that names it
+    // (`xtask/tests/probe_client.rs`): a change to the client alone selects the xtask tests (it selected none).
+    #[test]
+    fn direct_tier_tool_named_by_an_xtask_integration_test_selects_the_xtask_tests() {
+        let s = tier(&["tools/probe/probe"], Tier::Direct);
+        assert!(s.full.is_empty() && s.xtask_tests && s.xtask_cmds.contains("static") && s.tests.is_empty() && s.libs.is_empty(), "{s:?}");
+        assert!(s.notes.iter().any(|n| n.contains("xtask/tests/probe_client.rs")), "the reader is the integration test: {:?}", s.notes);
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 1: the tools/hottext scripts no code names (a test lists
+    // the directory and reads each script; runner.sh's test runs canon_host.sh) select the xtask tests; only `.sh`
+    // files directly in the directory.
+    #[test]
+    fn direct_tier_hottext_scripts_reached_by_listing_select_the_xtask_tests() {
+        for f in ["tools/hottext/canon_host.sh", "tools/hottext/probe_text.sh", "tools/hottext/startup_data.sh"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(s.full.is_empty() && s.xtask_tests && s.tests.is_empty(), "{f}: {s:?}");
+            assert!(!s.notes.iter().any(|n| n.contains("xtask (xtask/src/affected.rs)")), "this module's table is no reader: {:?}", s.notes);
+        }
+        for f in ["tools/hottext/faultmap.py", "tools/hottext/probes/made-up.sh"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(!s.xtask_tests && s.tests.is_empty() && s.libs.is_empty(), "{f}: {s:?}");
+        }
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 2: tools/deb/copyright, which system.sh stages in the
+    // symbols-only run of deb_symbols_products, selects that test; the row names the file, not a prefix.
+    #[test]
+    fn direct_tier_deb_copyright_selects_the_deb_symbols_test() {
+        let s = tier(&["tools/deb/copyright"], Tier::Direct);
+        assert!(s.full.is_empty() && has_test(&s, "deb_symbols_products") && !s.xtask_tests, "only the deb test, not this module's table: {s:?}");
+        let s = tier(&["tools/deb/copyright.made-up"], Tier::Direct);
+        assert!(!has_test(&s, "deb_symbols_products"), "{s:?}");
+    }
+
+    // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 3: the configuration files under tools/deb/system/,
+    // which system.sh stages in the same run, select deb_symbols_products; a deeper path does not.
+    #[test]
+    fn direct_tier_deb_system_files_select_the_deb_symbols_test() {
+        for f in ["tools/deb/system/gai.conf", "tools/deb/system/nsswitch.conf"] {
+            let s = tier(&[f], Tier::Direct);
+            assert!(s.full.is_empty() && has_test(&s, "deb_symbols_products") && !s.xtask_tests, "{f}: only the deb test: {s:?}");
+        }
+        let s = tier(&["tools/deb/system/made-up/x.conf"], Tier::Direct);
+        assert!(!has_test(&s, "deb_symbols_products"), "{s:?}");
     }
 
     // XTASK-AFFECTED-DOCS-PATHS; no spec clause. Mixed with code: the code's selection as before, plus `static`.

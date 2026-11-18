@@ -1,0 +1,17 @@
+name: -- ends the options
+clause: s31_6_i_1
+command: iconv
+namespace: none
+file: -c
+|~ z\n
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+arg: --
+arg: -c
+stdin:
+status: exit 0
+stdout:
+| z
+stderr:

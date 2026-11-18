@@ -371,7 +371,7 @@ pub fn shm_dir() -> &'static [u8] {
 }
 
 /// `__mq_open_2(name, flags)`: `mq_open` without the optional arguments, which `O_CREAT`
-/// needs: then `EINVAL`, creating nothing (the reference aborts).
+/// needs: then `EINVAL`, creating nothing (S6: a defined error where the contract has one).
 pub fn open_2(name: KStr<'_>, flags: u32) -> KResult<Fd> {
     if flags & O_CREAT != 0 {
         return Err(Errno::EINVAL);

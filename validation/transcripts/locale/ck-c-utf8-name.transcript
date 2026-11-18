@@ -1,0 +1,22 @@
+name: locale -ck LC_NAME in C.UTF-8
+clause: s31_7_g_4
+command: locale
+namespace: user
+# The installed C.utf8 (part of the C library package on every system; the reference has no built-in C.UTF-8).
+dir: i18n
+dir: i18n/charmaps
+bind: i18n /usr/share/i18n
+env: LC_ALL=C.UTF-8
+arg: -ck
+arg: LC_NAME
+status: exit 0
+stdout:
+| LC_NAME
+| name_fmt="%p%t%g%t%m%t%f"
+| name_gen=""
+| name_mr=""
+| name_mrs=""
+| name_miss=""
+| name_ms=""
+| name-codeset="UTF-8"
+stderr:

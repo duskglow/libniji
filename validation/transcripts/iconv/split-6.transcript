@@ -1,0 +1,19 @@
+name: input split across two files after byte 6
+clause: s31_6_f_1
+command: iconv
+namespace: none
+file: p1
+|~ h\xc3\xa9\xe2\x82\xac
+file: p2
+|~ b
+arg: -f
+arg: UTF-8
+arg: -t
+arg: UTF-16LE
+arg: p1
+arg: p2
+stdin:
+status: exit 0
+stdout:
+|~ h\x00\xe9\x00\xac b\x00
+stderr:

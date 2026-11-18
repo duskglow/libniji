@@ -19,10 +19,17 @@ fn affected(args: &[&str]) -> (Option<i32>, String, String) {
     (out.status.code(), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
 }
 
+/// The docs file passed to `--files`, built at run time: this file passes it as an argument and never reads it, and
+/// written as a quoted path it would make this file its reader for `cargo xtask affected` (XTASK-AFFECTED-TOOL-TESTS).
+fn docs_file() -> String {
+    ["docs", "plants.md"].join("/")
+}
+
 #[test]
 fn affected_without_a_mode_exits_2_with_the_usage() {
     // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-EXPLICIT).
-    for args in [&[][..], &["--files", "docs/plants.md"][..], &["--base", "origin/next", "--tier", "direct"][..]] {
+    let docs = docs_file();
+    for args in [&[][..], &["--files", docs.as_str()][..], &["--base", "origin/next", "--tier", "direct"][..]] {
         let (code, stdout, stderr) = affected(args);
         assert_eq!(code, Some(2), "affected {args:?}: stdout {stdout:?} stderr {stderr:?}");
         let lines: Vec<&str> = stderr.lines().collect();
@@ -35,16 +42,17 @@ fn affected_without_a_mode_exits_2_with_the_usage() {
 #[test]
 fn affected_list_prints_the_selection_and_exits_0() {
     // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-EXPLICIT).
-    let (code, stdout, stderr) = affected(&["--files", "docs/plants.md", "--list"]);
+    let docs = docs_file();
+    let (code, stdout, stderr) = affected(&["--files", &docs, "--list"]);
     assert_eq!(code, Some(0), "stdout {stdout:?} stderr {stderr:?}");
-    assert!(stdout.contains("tier: Direct") && stdout.contains("docs/plants.md: docs only"), "{stdout}");
+    assert!(stdout.contains("tier: Direct") && stdout.contains(&format!("{docs}: docs only")), "{stdout}");
     assert!(!stdout.contains("--- summary"), "--list must not run the selection: {stdout}");
 }
 
 #[test]
 fn affected_list_and_run_together_are_refused() {
     // Trace: no spec clause (test-harness tooling; XTASK-AFFECTED-EXPLICIT).
-    let (code, stdout, stderr) = affected(&["--files", "docs/plants.md", "--list", "--run"]);
+    let (code, stdout, stderr) = affected(&["--files", &docs_file(), "--list", "--run"]);
     assert_eq!(code, Some(1), "stdout {stdout:?} stderr {stderr:?}");
     assert!(stderr.contains("--list and --run together") && stdout.is_empty(), "{stderr}");
 }

@@ -1,0 +1,19 @@
+{"task": "AUDIT-HARDCODED-LIMITS-2", "model": "opus", "tokens": null,
+ "result": "owner ruling of 2026-11-17 recorded: plan/hardcoded-limits.md Decision column filled (HL-1..HL-20 remove, HL-19 under ruling #5594 over D-17.8, HL-21..HL-33 keep, HL-33 probe size); D-17.8 amended by a pending D-17 record",
+ "branch": "task/audit-hardcoded-limits-2", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "the inherited head ed4c1fa35 already carried the lab-names/private-paths fix; clippy + static on it were rc 0 (job audit-hardcoded-limits-2-static0)",
+  "records/pending/AUDIT-HARDCODED-LIMITS-2-1.toml (D-NEW, series D-17, amends D-17.8) needs its id from the coordinator; CI holds the branch until then",
+  "the getpass removal story must settle liella_getpass_set_limit (LIELLA_NATIVE_1): keep as opt-in bound or drop (public interface)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "ruling recorded in the audit and the decision register; no behaviour change", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "unblock", "what": "removal stories for HL-1..HL-20 and the HL-33 size probe", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "jobs": ["audit-hardcoded-limits-2-static1"],
+ "improvement": "the brief's static red had already been fixed on the branch before this run; the dispatcher's 'how the last run ended' line could re-check the branch head before cutting a continuation",
+ "next_step": "coordinator assigns the D-17 id and writes the removal stories in the ranked order of section 2",
+ "report_file": "handoff/AUDIT-HARDCODED-LIMITS.md"}

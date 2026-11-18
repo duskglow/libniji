@@ -29,9 +29,68 @@ import header_probe as hp  # noqa: E402  (ROOT, c_integer_names)
 ROOT = hp.ROOT
 HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "sys/types.h", "sys/bitypes.h",
            "stdint.h", "inttypes.h", "limits.h", "endian.h", "byteswap.h", "errno.h", "sys/errno.h", "alloca.h",
-           "gnu-versions.h", "gnu/stubs.h"]
+           "gnu-versions.h", "gnu/stubs.h",
+           # slice 6
+           "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
+           "getopt.h", "time.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
+
+
+# Slice 14 (aio.h and mqueue.h wait for the generation of struct sigevent and struct f_owner_ex).
+SLICE14 = ["pwd.h", "grp.h", "shadow.h", "gshadow.h", "utmp.h", "utmpx.h", "lastlog.h", "sys/fsuid.h", "termios.h",
+           "sys/termios.h", "termio.h", "sgtty.h", "pty.h", "ttyent.h", "sys/ttychars.h", "sys/ttydefaults.h", "syslog.h",
+           "sys/syslog.h", "sys/ipc.h", "sys/msg.h", "sys/sem.h", "sys/shm.h"]
+HEADERS += SLICE14
+SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
+          "getopt.h", "time.h"]
+INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
+
+
+def expand(configs, ids):
+    """The configuration ids a visibility.tsv `configs` cell names."""
+    if configs == "*":
+        return set(ids)
+    if configs.startswith("!"):
+        return set(ids) - set(configs[1:].split(","))
+    return set(configs.split(","))
+
+
+def p1_units(ids, vis, macros, typedefs, layouts):
+    """P1 of slice 6 (plan/headers.md section 3): per (header, configuration) one unit that includes the header and
+    asserts, for what the header makes visible there, every macros.tsv integer value, every typedef size and
+    alignment of typedefs.tsv and every structure size and alignment of layouts.tsv. A false condition is a
+    negative array size, which every language mode rejects (C89 and C++98 have no static assertion)."""
+    out = {}
+    for r in vis:
+        h = r["header"]
+        if h not in SLICE6 + SLICE14 or r["kind"] not in ("macro", "typedef", "struct"):
+            continue
+        n = r["name"]
+        if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
+            continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
+        tests = []
+        if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
+            m = macros[n]
+            v = int(m["value"])
+            lit = ("(%d%s)" % (v, INT_SUFFIX[m["type"]])) if v >= 0 else "(%d%s)" % (v, INT_SUFFIX[m["type"]])
+            tests.append(f"(({n}) == {lit})")
+        elif r["kind"] == "typedef" and n in typedefs and typedefs[n]["size"]:
+            t = typedefs[n]
+            tests.append(f"sizeof({n}) == {t['size']}")
+            tests.append(f"__alignof__({n}) == {t['align']}")
+        elif r["kind"] == "struct" and ("struct " + n) in layouts:
+            t = layouts["struct " + n]
+            tests.append(f"sizeof(struct {n}) == {t['offset_or_size']}")
+            tests.append(f"__alignof__(struct {n}) == {t['align']}")
+        for cid in expand(r["configs"], ids):
+            out.setdefault((h, cid), []).extend(tests)
+    units = {}
+    for (h, cid), tests in out.items():
+        if tests:
+            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
+            units.setdefault(cid, []).append((f"P1 {h}", body))
+    return units
 
 
 def rows(rel):
@@ -76,14 +135,30 @@ def main():
     missing = [n for n in wanted if n not in typedefs]
     types = [(n, typedefs[n]) for n in wanted if n in typedefs]
     gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+    vis = rows("spec/abi/visibility.tsv")
+    macros = {r["name"]: r for r in rows("spec/abi/macros.tsv")}
+    layouts = {}
+    for r in rows("spec/abi/layouts.tsv"):
+        if not r["member"]:
+            layouts[r["type"]] = r
+    p1s = p1_units([c["id"] for c in cfgs], vis, macros, typedefs, layouts)
     fails, total = len(missing), len(missing)
     for n in missing:
         print(f"FAIL P1 {n}: no typedefs.tsv row")
+    # The kernel's UAPI headers (linux-libc-dev; libniji ships none): a directory of links to the build host's
+    # `linux`, `asm-generic` and `asm`, so the C library's own headers of the host stay out of the units.
+    kern = os.path.join(work, "kernel-uapi")
+    os.makedirs(kern, exist_ok=True)
+    for d in ("linux", "asm-generic", "asm"):
+        for base_dir in ("/usr/include", "/usr/include/x86_64-linux-gnu"):
+            src = os.path.join(base_dir, d)
+            if os.path.isdir(src) and not os.path.lexists(os.path.join(kern, d)):
+                os.symlink(src, os.path.join(kern, d))
     for c in cfgs:
         cxx = c["language"] == "c++"
         ext = "cc" if cxx else "c"
         base = ["g++" if cxx else "gcc", *c["flags"].split(), "-nostdinc", "-isystem", inc,
-                "-isystem", gccinc, "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
+                "-isystem", gccinc, "-isystem", kern, "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
         units = [("levels", "#include <features.h>\n" + "".join(
@@ -93,6 +168,8 @@ def main():
             # static_assert is C++11 and _Static_assert C11 (C89 mode has neither as a keyword).
             if c["id"] not in ("cxx98", "c89", "isoc99"):
                 units.append(("P1 stdint", identity_unit(cxx, types)))
+        if not rejected:
+            units += p1s.get(c["id"], [])
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
             with open(src, "w") as f:

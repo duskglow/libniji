@@ -126,8 +126,9 @@ int main(int argc, char **argv) {
     int fails = 0, total = 0;
     for (int w = 0; w < count(); w++) {
         const char *nm = name(w);
-        /* Recorded differences (efault.md): the reference crashes too (realpath, gethostname,
-           getdomainname) or answers EFAULT only because the kernel fills the buffer (stat). */
+        /* Not checked (efault.md): libniji reads these texts or fills these buffers itself
+           (realpath, gethostname, getdomainname, stat's result): a pointer it cannot use is the
+           caller's error, not an EFAULT. */
         if (check && (!strcmp(nm, "realpath") || !strcmp(nm, "gethostname_buf") || !strcmp(nm, "getdomainname_buf")
                       || !strcmp(nm, "stat_statbuf")))
             continue;

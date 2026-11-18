@@ -29,7 +29,7 @@
 //!   the thread block's `dl_reading` counts) or holds the writer lock (ruling #5651).
 
 use super::dlopen::{node_address, CAP};
-use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, START_OBJS, THREAD_MODS, THREAD_MODS_LEN};
+use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS, THREAD_MODS_LEN};
 use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
 use crate::{conv, tb};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
@@ -254,7 +254,7 @@ fn fill_start() -> usize {
             let (phoff, phnum) = niji_ld::boot::own_headers(&header).unwrap_or((0, 0));
             (base.wrapping_add(usize::try_from(phoff).unwrap_or(0)), phnum, base)
         } else {
-            let w: [usize; 3] = core::array::from_fn(|j| START_OBJS.get(k).and_then(|s| s.get(j)).map_or(0, |x| usize::try_from(x.load(Relaxed)).unwrap_or(0)));
+            let w = super::start_obj(k).map(|x| usize::try_from(x).unwrap_or(0));
             (w[0], w[1], w[2])
         };
         let name = if k == 0 { c"".as_ptr().expose_provenance() } else { soname_at(bias, phdr, phnum) };

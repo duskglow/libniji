@@ -43,7 +43,7 @@ fn build(out: &Path, niji: bool) -> bool {
     oracle::build_quiet(cmd, out)
 }
 
-const OPEN_2: &str = "__mq_open_2 (the fortified call without mode and attributes) with O_CREAT fails with EINVAL and creates nothing; the reference aborts";
+const OPEN_2: &str = "__mq_open_2 (the fortified call without mode and attributes) with O_CREAT fails with EINVAL and creates nothing";
 const DOTS: &str = "§25.4: a shared-memory name is one path component; `.` and `..` name no object: shm_open is EINVAL and shm_unlink ENOENT, as for the other names that cannot be objects; the reference opens /dev/shm itself and /dev (EEXIST with O_CREAT|O_EXCL, EISDIR on unlink)";
 const NOT_REGULAR: &str = "§25.4: shm_open returns only regular files (shared-memory objects): a directory or a FIFO in /dev/shm is EINVAL, and the open never blocks on a FIFO; the reference opens a directory read-only and blocks on a FIFO without a writer";
 

@@ -2174,9 +2174,8 @@ pub(crate) unsafe fn opt_sockaddr<'a>(p: *const c_void, len: u32) -> KResult<Opt
     unsafe { sockaddr(p, len) }.map(Some)
 }
 
-/// A result buffer with its in-out `socklen_t` (`accept`, `getsockname`, `recvfrom`,
-/// `getsockopt`): `*len` bytes at `p`. NULL `p` means no result wanted; a buffer without a
-/// length cell is `EFAULT`.
+/// A result buffer with its in-out `socklen_t` (`accept`, `recvfrom`): `*len` bytes at `p`.
+/// NULL `p` means no result wanted; a buffer without a length cell is `EFAULT`.
 ///
 /// # Safety
 /// `p` is NULL or points to `*len` writable bytes referenced by nothing else.
@@ -2193,6 +2192,24 @@ pub(crate) unsafe fn addr_out<'a>(p: *mut c_void, len: Option<&'a mut u32>) -> K
     // SAFETY: the caller's contract.
     let b = unsafe { buf_mut(p, n) }?;
     Ok(Some(niji_legacy::net_compat::AddrOut { buf: b, len }))
+}
+
+/// The result buffer of `getsockname`/`getpeername`: `*len` bytes at `p`, where NULL with
+/// `*len` 0 is an empty buffer (a length query), as the kernel treats it. A missing length cell
+/// or NULL with room claimed is `EFAULT`, a length beyond `INT_MAX` `EINVAL`.
+///
+/// # Safety
+/// `p` is NULL or points to `*len` writable bytes referenced by nothing else.
+// UNSAFE(slice): the caller's result buffer becomes a slice.
+#[allow(unsafe_code)]
+pub(crate) unsafe fn name_out<'a>(p: *mut c_void, len: Option<&'a mut u32>) -> KResult<niji_legacy::net_compat::AddrOut<'a>> {
+    let len = len.ok_or(Errno::EFAULT)?;
+    let n = socklen(*len)?;
+    // UNSAFE(slice): see the function's contract.
+    #[allow(unsafe_code)]
+    // SAFETY: the caller's contract; `buf_mut` refuses NULL with n > 0.
+    let b = unsafe { buf_mut(p, n) }?;
+    Ok(niji_legacy::net_compat::AddrOut { buf: b, len })
 }
 
 /// A C `struct msghdr` for sending, viewed in place: its layout is the kernel's, and the

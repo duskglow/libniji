@@ -9,6 +9,7 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering::{Acquire, Relaxed, Release}};
 
+use niji::error::{Errno, KResult};
 use niji::locale::file::Cat;
 use niji::ctype::Class;
 use niji::locale::view::{LocaleView, EMPTY};
@@ -46,8 +47,10 @@ impl Objects for Glue {
         tb::locale_slots_at(addr, len)
     }
 
-    fn words_at(&self, addr: usize, len: usize) -> &'static [core::sync::atomic::AtomicUsize] {
-        tb::locale_words_at(addr, len)
+    fn words_at(&self, addr: usize, n: usize) -> &'static [AtomicUsize] {
+        // A lookup index chunk or the charmap table: a leaked heap allocation of `n` words
+        // (`words64`'s contract).
+        if n == 0 || addr == 0 { &[] } else { tb::words64(addr, n) }
     }
 }
 
@@ -67,13 +70,13 @@ fn identity_of(st: &niji_kernel::uapi::Stat) -> gl::Identity {
 }
 
 impl Mapper for Glue {
-    fn map(&self, path: &[u8]) -> niji::error::KResult<(usize, usize, gl::Identity)> {
-        use niji::error::Errno;
+    fn map(&self, path: &[u8]) -> KResult<(usize, usize, gl::Identity)> {
         // A path that does not fit the buffer names no file the kernel would open.
-        let fd = with_path(path, |p| Some(CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0))).unwrap_or(Err(Errno::ENAMETOOLONG))?;
+        let fd = with_path(path, |p| Some(CSys.openat(Fd::CWD, p, O_RDONLY | O_CLOEXEC, 0)))
+            .unwrap_or(Err(Errno::ENAMETOOLONG))?;
         let mapped = (|| {
             let st = CSys.fstat(fd)?;
-            let size = usize::try_from(st.size).map_err(|_| Errno::EINVAL)?;
+            let size = usize::try_from(st.size).map_err(|_| Errno::EFBIG)?;
             if size == 0 {
                 return Ok((0, 0, identity_of(&st)));
             }
@@ -1057,7 +1060,7 @@ pub fn wlower(l: &'static Locale) -> impl Fn(i32) -> i32 + Copy {
 
 /// `rpmatch(response)` (§7.6; D-7.9): 1 when `response` (a C string's address) matches the
 /// current locale's `YESEXPR`, 0 when it matches `NOEXPR`, otherwise -1 (also for an expression
-/// that does not compile, and for NULL, where the reference crashes). The expressions are
+/// that does not compile, and for NULL: no response). The expressions are
 /// POSIX extended regular expressions, matched with the library's `regcomp`/`regexec`.
 pub fn rpmatch(response: usize) -> i32 {
     if response == 0 {
