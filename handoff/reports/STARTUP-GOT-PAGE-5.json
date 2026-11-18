@@ -1,0 +1,21 @@
+{"task": "STARTUP-GOT-PAGE-5", "model": "opus", "tokens": null,
+ "result": "Hand-back of run 4's option C (.got page-aligned in entry.S, D-X.122) on the merged head: precheck GREEN, lint green, fast layout-bins.tsv identical to the merge base",
+ "branch": "task/startup-got-page-5", "head": null,
+ "gate": {"affected": "run 4: FULL (escalated) rc 0 on code head 1e555af95; hot_text_products release 26 passed, fast 26 passed; run 5: precheck GREEN (31 checks) and lint rc 0 on merged head dd57bcca4", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "HEAP-ADDRESS-SPACE-8 adds its own 256-aligned .got in entry.S; on merge keep this one 4096 alignment",
+   "xtask plants' .S rule assumes every site is in a function: the .got directive plant anchors on the preceding niji_machine_ld_enter: label",
+   "Option D (relaxation plus a fast first %.2f that reads no RELRO) not measured; would save one written start-up page; possible follow-up",
+   "run 5 used one empty no-op heredoc in a local scratch command (nothing written), against the no-heredoc rule"],
+ "refused": [],
+ "impact": [
+   {"kind": "faults", "what": "written start-up .got page no longer moves with relro length (LOCALE-SLOTS-GROWTH-5's STARTUP-DATA-WINDOWS 8 > 7 case); fast whole-process counts at bound: true 11, setlocale+printf 43, coreutils-shaped 44, localtime 36, STARTUP-DATA-WINDOWS rw 7", "before": null, "after": 7, "unit": "written start-up pages (fast)", "measured": true},
+   {"kind": "size", "what": "RELRO padding of a static program (static probe)", "before": 28672, "after": 32768, "unit": "bytes (release; fast 0xc000 -> 0xd000)", "measured": true},
+   {"kind": "size", "what": "fast layout-bins.tsv rows that differ from the merge base 3743713c (start-up bins did not grow)", "before": 0, "after": 0, "unit": "rows", "measured": true},
+   {"kind": "coverage", "what": "init_startup_data_pages_hold_at_every_data_phase: 7 relro-tail pads, .got page-start and one-page checks; 1 plant CAUGHT", "before": null, "after": 1, "unit": "plants", "measured": true}],
+ "improvement": "a merge-only re-run of a finished story could be a dispatcher step (precheck + layout diff) rather than an agent run",
+ "next_step": "land",
+ "report_file": "handoff/STARTUP-GOT-PAGE.md",
+ "jobs": ["keke:startup-got-page-4-lint", "keke:startup-got-page-4-gate", "keke:startup-got-page-4-plants", "keke:startup-got-page-4-htp-release", "keke:startup-got-page-4-htp-fast", "mei:startup-got-page-5-lint", "mei:startup-got-page-5-layout"]}

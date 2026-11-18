@@ -1,6 +1,6 @@
 # STARTUP-GOT-PAGE: `.got` starts on a page (D-X.122, ruling #6606 option C)
 
-State: branch `task/startup-got-page-4` (continues `task/startup-got-page-3`, `-2`, `task/startup-got-page`), cut
+State: branch `task/startup-got-page-5` (run 5, hand-back only; continues `task/startup-got-page-4`, `task/startup-got-page-3`, `-2`, `task/startup-got-page`), cut
 from origin/next 923df67e9. Role keke:~/w/n1 (Zen 1 host). Decision `records/decisions/D-X/D-X.122.toml` (amends
 D-X.101). Plants: `handoff/STARTUP-GOT-PAGE-4-plants.txt`.
 
@@ -34,6 +34,14 @@ pages; at every relro pad the cluster is 2 pages and written relro pages 3). Not
 against the merge base (no text changed: runtime.rs is back to base byte for byte). Note: run 4's edit script used
 a heredoc once (scratch only), against the no-heredoc rule.
 
+## Run 5 (hand-back only, branch `task/startup-got-page-5`, role mei:~/w/s3, Zen 1 host)
+Merged head dd57bcca4 (run 4's merge of origin/next 3743713c; next had not moved since). `cargo xtask precheck
+--jobs <run 4's labels> --head dd57bcca4`: GREEN (31 checks; the keke jobs left to handback-check).
+`startup-got-page-5-lint` (clippy workspace all-targets all-features -D warnings, then static): rc 0.
+`startup-got-page-5-layout` (`cargo xtask so`, fast, on the merged head and on a copy of 3743713c): rc 0; all 12
+layout contracts hold on both (STARTUP-DATA-WINDOWS 1 ro window, 7 rw pages on the head); the fast
+`layout-bins.tsv` is identical (543 rows, empty diff), so no start-up bin grew. Nothing redone from run 4.
+
 ## Open / informational
 * HEAP-ADDRESS-SPACE-8 adds its own 256-aligned `.got` in `entry.S`; when it merges, keep one alignment (this one,
   4096) per the coordinator's note.
@@ -46,4 +54,4 @@ a heredoc once (scratch only), against the no-heredoc rule.
 A/B/C/D measurements (run 3). Do not move a read into a `#[cold]` function (run 2).
 
 ## Exact next step
-None if the run-4 jobs are green: land. Plan rows: D-X.101, D-X.122.
+None: land (run 4's jobs plus run 5's lint, precheck and layout-bins diff are green on the merged head). Plan rows: D-X.101, D-X.122.
