@@ -126,7 +126,7 @@ const CHARMAP_ALIASES: &[(&[u8], &[u8])] = &[
     (b"WINSAMI2", b"SAMI-WS2"),
 ];
 
-/// The charmap `name` (matching form, [`super::Spec::name`]) stands for when it is not a name of
+/// The charmap `name` (matching form, [`super::Name::form`]) stands for when it is not a name of
 /// that charmap itself, if any.
 pub fn charmap_alias(name: &[u8]) -> Option<&'static [u8]> {
     let i = CHARMAP_ALIASES.binary_search_by(|(a, _)| (*a).cmp(name)).ok()?;

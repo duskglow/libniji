@@ -129,27 +129,81 @@ pub fn builtin_names() -> impl Iterator<Item = &'static [u8]> {
     NAMES.iter().map(|(n, _)| *n).chain(LATIN1_MORE.iter().copied())
 }
 
-/// The built-in codec `name` denotes, if any: `name` in its matching form ([`Spec::name`]), so
-/// an exact compare (the table is in that form).
-pub fn builtin(name: &[u8]) -> Option<Codec> {
-    if let Some((_, c)) = NAMES.iter().find(|(n, _)| *n == name) {
-        return Some(*c);
+/// The built-in codec `name` denotes, if any. The table is in matching form, so each row is
+/// compared with the name in place ([`Name::is`]; most rows differ in length and cost one compare).
+pub fn builtin(name: Name<'_>) -> Option<Codec> {
+    // Only the rows of the name's length are compared, in table order.
+    let mut rows = BY_LEN.get(name.len).copied().unwrap_or(0);
+    while rows != 0 {
+        let i = usize::try_from(rows.trailing_zeros()).unwrap_or(usize::MAX);
+        rows &= rows.wrapping_sub(1);
+        match NAMES.get(i) {
+            Some((n, c)) if name.is(n) => return Some(*c),
+            Some(_) => {}
+            None if LATIN1_MORE.get(i.wrapping_sub(NAMES.len())).is_some_and(|n| name.is(n)) => return Some(Codec::Latin1),
+            None => {}
+        }
     }
-    LATIN1_MORE.contains(&name).then_some(Codec::Latin1)
+    None
 }
+
+/// Longer than every built-in name: [`BY_LEN`]'s size.
+const BY_LEN_SIZE: usize = 20;
+
+/// For each name length, the built-in rows of that length: bit `i` for row `i` of [`NAMES`],
+/// then bit `NAMES.len() + j` for row `j` of [`LATIN1_MORE`].
+const BY_LEN: [u64; BY_LEN_SIZE] = by_len();
+
+// A const fn (no `get_mut`): a row past bit 63 or a name of `BY_LEN_SIZE` bytes or more fails
+// the build (overflow or index out of range in constant evaluation).
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+const fn by_len() -> [u64; BY_LEN_SIZE] {
+    let mut t = [0u64; BY_LEN_SIZE];
+    let mut i = 0;
+    while i < NAMES.len() {
+        t[NAMES[i].0.len()] |= 1 << i;
+        i += 1;
+    }
+    let mut j = 0;
+    while j < LATIN1_MORE.len() {
+        t[LATIN1_MORE[j].len()] |= 1 << (NAMES.len() + j);
+        j += 1;
+    }
+    t
+}
+
+/// The significant bytes below 64, by bit: `, - . / 0-9 :` (44 to 58).
+const SIG_LO: u64 = 0x07FF_F000_0000_0000;
+/// The significant bytes from 64 to 127, by bit `b - 64`: `A-Z _ a-z`.
+const SIG_HI: u64 = 0x07FF_FFFE_87FF_FFFE;
+/// [`SIG_LO`] without `,` and `/` (bits 44 and 47).
+const PLAIN_LO: u64 = 0x07FF_6000_0000_0000;
 
 /// Whether byte `b` counts in a charset name: letters, digits and `, - . / : _`. Every other
 /// byte (space, control, other punctuation, any byte above 0x7F) is dropped before matching
 /// (D-6.8 amendment, `spec/encoding/iconv-names.md`).
 #[inline]
 fn significant(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || matches!(b, b',' | b'-' | b'.' | b'/' | b':' | b'_')
+    let m = if b < 64 { SIG_LO } else if b < 128 { SIG_HI } else { 0 };
+    m.wrapping_shr(u32::from(b)) & 1 != 0
+}
+
+/// Whether byte `b` is significant and neither `,` nor `/`: what names are usually made of,
+/// read without the bookkeeping of the full rule.
+#[inline]
+fn plain(b: u8) -> bool {
+    let m = if b < 64 { PLAIN_LO } else if b < 128 { SIG_HI } else { 0 };
+    m.wrapping_shr(u32::from(b)) & 1 != 0
 }
 
 /// Whether `listed` (a charmap's name or alias, as its file spells it) is the charset `name`
-/// (matching form, [`Spec::name`]): equal once `listed`'s dropped bytes are removed and its
+/// (matching form, [`Name::form`]): equal once `listed`'s dropped bytes are removed and its
 /// letters uppercased. Punctuation that counts must match: `CP-1252` is not `CP1252`.
 pub fn names_charset(listed: &[u8], name: &[u8]) -> bool {
+    // Same length and equal but for case: `name`'s bytes are all significant, so `listed`'s are.
+    if listed.eq_ignore_ascii_case(name) {
+        return true;
+    }
     let mut want = name.iter();
     for c in listed.iter().filter(|&&c| significant(c)) {
         if want.next() != Some(&c.to_ascii_uppercase()) {
@@ -170,73 +224,144 @@ pub fn of_locale(loc: &Locale) -> Codec {
 }
 
 /// Longest charset name (in matching form) that can name anything: a longer one names nothing.
-/// Above every built-in name and every charmap file name ([`Spec::name`]).
+/// Above every built-in name and every charmap file name ([`Name::form`]).
 pub const NAME_MAX: usize = 128;
 
-/// A charset name in matching form and its suffixes (D-6.8 amendment,
-/// `spec/encoding/iconv-names.md`). The text is `PART[/PART2][/SUFFIXES]`: the name ends at the
-/// second `/`. Each part keeps its significant bytes ([`significant`]) with letters uppercased;
-/// trailing commas of the second part are dropped, and when it is then empty the name is the
-/// first part without its trailing commas. The suffixes are separated by `/` or `,` and matched
-/// without regard to case; unknown ones are ignored.
-pub struct Spec {
-    name: [u8; NAME_MAX],
+/// A charset name as the caller wrote it, read in place in its matching form (D-6.8 amendment,
+/// `spec/encoding/iconv-names.md`): the significant bytes ([`significant`]) of `first`, then,
+/// when `second` is not empty, `/` and those of `second`, letters uppercased. Nothing is copied:
+/// [`Name::is`] compares a table row with the text where it lies, and [`Name::form`] writes the
+/// matching form out only for the charmap lookup.
+#[derive(Clone, Copy, Debug)]
+pub struct Name<'a> {
+    /// The first part (its trailing commas already cut when it stands alone).
+    first: &'a [u8],
+    /// The second part with its trailing commas cut; empty when there is none.
+    second: &'a [u8],
+    /// Length of the matching form.
     len: usize,
-    fits: bool,
+    /// Whether the name is `first` alone and every byte of it is [`plain`]: the matching form is
+    /// then `first` uppercased.
+    plain: bool,
+}
+
+impl<'a> Name<'a> {
+    /// Length of the matching form.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Whether the matching form is empty (the locale's codeset).
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// The matching form, byte by byte.
+    fn bytes(&self) -> impl Iterator<Item = u8> + 'a {
+        let sig = |p: &'a [u8]| p.iter().copied().filter(|&b| significant(b)).map(|b| b.to_ascii_uppercase());
+        let slash = (!self.second.is_empty()).then_some(b'/');
+        sig(self.first).chain(slash).chain(sig(self.second))
+    }
+
+    /// Whether the matching form is `form` (itself in matching form: a table row).
+    #[inline]
+    pub fn is(&self, form: &[u8]) -> bool {
+        if form.len() != self.len {
+            return false;
+        }
+        if self.plain {
+            // Only the case can differ, and `form` has no lower case.
+            return self.first.eq_ignore_ascii_case(form);
+        }
+        self.bytes().eq(form.iter().copied())
+    }
+
+    /// The matching form, written into `buf`; `None` when it is longer than [`NAME_MAX`] (it
+    /// names nothing).
+    pub fn form<'b>(&self, buf: &'b mut [u8; NAME_MAX]) -> Option<&'b [u8]> {
+        let out = buf.get_mut(..self.len)?;
+        if self.plain {
+            for (o, b) in out.iter_mut().zip(self.first) {
+                *o = b.to_ascii_uppercase();
+            }
+        } else {
+            for (o, b) in out.iter_mut().zip(self.bytes()) {
+                *o = b;
+            }
+        }
+        Some(out)
+    }
+}
+
+/// A charset name and its suffixes. The text is `PART[/PART2][/SUFFIXES]`: the name ends at
+/// the second `/` ([`Name`]); trailing commas of the second part are dropped, and when it is
+/// then empty the name is the first part without its trailing commas. The suffixes are
+/// separated by `/` or `,` and matched without regard to case; unknown ones are ignored.
+#[derive(Clone, Copy, Debug)]
+pub struct Spec<'a> {
+    /// The charset name.
+    pub name: Name<'a>,
     /// `//TRANSLIT`.
     pub translit: bool,
     /// `//IGNORE`.
     pub ignore: bool,
 }
 
-impl Spec {
-    /// The name in matching form; empty for the locale's codeset; `None` when it is longer than
-    /// [`NAME_MAX`] (it names nothing).
-    pub fn name(&self) -> Option<&[u8]> {
-        if self.fits { self.name.get(..self.len) } else { None }
-    }
-
-    fn push(&mut self, b: u8) {
-        match self.name.get_mut(self.len) {
-            Some(slot) => {
-                *slot = b.to_ascii_uppercase();
-                self.len = self.len.saturating_add(1);
-            }
-            None => self.fits = false,
-        }
-    }
-
-    fn push_part(&mut self, part: &[u8]) {
-        for &b in part.iter().filter(|&&b| significant(b)) {
-            self.push(b);
-        }
-    }
-
-    /// Drop trailing commas (only from what fitted: an overlong name stays unusable).
-    fn trim_commas(&mut self) {
-        while self.len > 0 && self.name.get(self.len.saturating_sub(1)) == Some(&b',') {
-            self.len = self.len.saturating_sub(1);
-        }
-    }
+/// One part of a name, read in a single pass up to the next `/` (or the end).
+struct Part<'a> {
+    /// The part, up to the `/`.
+    all: &'a [u8],
+    /// Significant bytes in `all`.
+    len: usize,
+    /// The part without its trailing commas: up to its last significant byte that is not a comma
+    /// (dropped bytes after it do not count either).
+    cut: &'a [u8],
+    /// Significant bytes in `cut`.
+    cut_len: usize,
+    /// What follows the `/`; `None` when the text ended.
+    after: Option<&'a [u8]>,
+    /// Whether the text ended and every byte was [`plain`].
+    plain: bool,
 }
 
-/// Split `full` into its name (matching form) and suffixes.
-pub fn parse_name(full: &[u8]) -> Spec {
-    let mut parts = full.splitn(3, |&b| b == b'/');
-    let mut s = Spec { name: [0; NAME_MAX], len: 0, fits: true, translit: false, ignore: false };
-    s.push_part(parts.next().unwrap_or(&[]));
-    if let Some(second) = parts.next() {
-        let first = s.len;
-        s.push(b'/');
-        s.push_part(second);
-        s.trim_commas();
-        if s.len == first.saturating_add(1) {
-            s.len = first;
+#[inline]
+fn part(text: &[u8]) -> Part<'_> {
+    // The usual name first: plain bytes to the end, no bookkeeping.
+    let start = text.iter().position(|&b| !plain(b)).unwrap_or(text.len());
+    if start == text.len() {
+        return Part { all: text, len: start, cut: text, cut_len: start, after: None, plain: true };
+    }
+    let (mut len, mut cut, mut cut_len) = (start, start, start);
+    let mut end = text.len();
+    for (i, &b) in text.iter().enumerate().skip(start) {
+        if b == b'/' {
+            end = i;
+            break;
+        }
+        if significant(b) {
+            len = len.saturating_add(1);
+            if b != b',' {
+                cut = i.saturating_add(1);
+                cut_len = len;
+            }
         }
     }
-    // The first part's commas when it stands alone; after a second part this finds none.
-    s.trim_commas();
-    let rest = parts.next().unwrap_or(&[]);
+    let after = (end < text.len()).then(|| text.get(end.saturating_add(1)..).unwrap_or(&[]));
+    Part { all: text.get(..end).unwrap_or(&[]), len, cut: text.get(..cut).unwrap_or(&[]), cut_len, after, plain: false }
+}
+
+/// Split `full` into its name and suffixes, in one pass over the name.
+pub fn parse_name(full: &[u8]) -> Spec<'_> {
+    let first = part(full);
+    let (name, rest) = match first.after.map(part) {
+        Some(second) if second.cut_len > 0 => {
+            let len = first.len.saturating_add(1).saturating_add(second.cut_len);
+            (Name { first: first.all, second: second.cut, len, plain: false }, second.after)
+        }
+        second => (Name { first: first.cut, second: &[], len: first.cut_len, plain: first.plain }, second.and_then(|s| s.after)),
+    };
+    let mut s = Spec { name, translit: false, ignore: false };
+    let Some(rest) = rest else { return s };
     for word in rest.split(|&b| b == b'/' || b == b',') {
         if word.eq_ignore_ascii_case(b"TRANSLIT") {
             s.translit = true;

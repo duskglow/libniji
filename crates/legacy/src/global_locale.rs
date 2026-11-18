@@ -586,15 +586,26 @@ fn parse_charmap(path: &[u8], raw: &[u8]) -> KResult<Option<Charmap>> {
     }
 }
 
-/// The codec `name` (in matching form, [`iconv::Spec::name`]) denotes for `iconv_open`: built in,
-/// else an installed charmap found by its name or an alias (D-6.8, D-6.9; matched by
-/// [`iconv::names_charset`], not as locale codesets are), or by a listed name that stands for
-/// it ([`iconv::charmap_alias`]). `EINVAL` when nothing names it, `ENOMEM` when its charmap
-/// cannot be loaded for want of memory.
-pub fn codec<S: Sys, M: Mapper>(sys: &S, m: &M, name: &[u8]) -> KResult<Codec> {
+/// The codec `name` denotes for `iconv_open`: built in (compared in place), else an installed
+/// charmap found by its name or an alias (D-6.8, D-6.9; matched by [`iconv::names_charset`],
+/// not as locale codesets are), or by a listed name that stands for it
+/// ([`iconv::charmap_alias`]); only this second step writes out the matching form
+/// ([`iconv::Name::form`]). `EINVAL` when nothing names it (a matching form longer than
+/// [`iconv::NAME_MAX`] names nothing), `ENOMEM` when its charmap cannot be loaded for want of
+/// memory.
+pub fn codec<S: Sys, M: Mapper>(sys: &S, m: &M, name: iconv::Name<'_>) -> KResult<Codec> {
     if let Some(c) = iconv::builtin(name) {
         return Ok(c);
     }
+    charmap_codec(sys, m, name)
+}
+
+/// [`codec`] for a name that is not built in: the charmap lookup.
+#[cold]
+#[inline(never)]
+fn charmap_codec<S: Sys, M: Mapper>(sys: &S, m: &M, name: iconv::Name<'_>) -> KResult<Codec> {
+    let mut buf = [0u8; iconv::NAME_MAX];
+    let name = name.form(&mut buf).ok_or(Errno::EINVAL)?;
     let _g = LOCK.lock(sys);
     match (Files { m, locpath: core::cell::Cell::new(None) }).load_charmap(name, iconv::names_charset, iconv::charmap_alias)? {
         Some(c) => Ok(Codec::Charmap(CharmapRef(c))),

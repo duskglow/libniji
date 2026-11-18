@@ -28,7 +28,7 @@ const CODECS: [Codec; 12] = [
 
 fn codec(full: &[u8]) -> (Codec, bool, bool) {
     let spec = iconv::parse_name(full);
-    let c = spec.name().and_then(iconv::builtin).unwrap_or(CODECS[usize::from(full.first().copied().unwrap_or(0)) % CODECS.len()]);
+    let c = iconv::builtin(spec.name).unwrap_or(CODECS[usize::from(full.first().copied().unwrap_or(0)) % CODECS.len()]);
     (c, spec.translit, spec.ignore)
 }
 

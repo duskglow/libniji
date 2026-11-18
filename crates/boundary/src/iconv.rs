@@ -22,14 +22,12 @@ pub fn codec_named(name: &[u8]) -> KResult<iconv::Codec> {
     codec(&iconv::parse_name(name))
 }
 
-/// The codec of a parsed name: the locale's codeset for an empty one, `EINVAL` for one too long
-/// to name anything.
-fn codec(spec: &iconv::Spec) -> KResult<iconv::Codec> {
-    match spec.name() {
-        None => Err(Errno::EINVAL),
-        Some([]) => Ok(iconv::of_locale(locale::current())),
-        Some(name) => gl::codec(&CSys, &Glue, name),
+/// The codec of a parsed name: the locale's codeset for an empty one.
+fn codec(spec: &iconv::Spec<'_>) -> KResult<iconv::Codec> {
+    if spec.name.is_empty() {
+        return Ok(iconv::of_locale(locale::current()));
     }
+    gl::codec(&CSys, &Glue, spec.name)
 }
 
 /// `iconv_open(to, from)`: the descriptor's address, `EINVAL` for an unsupported pair, or
