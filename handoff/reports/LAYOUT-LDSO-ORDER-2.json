@@ -14,4 +14,5 @@
  "improvement": "count scripts must run every side through equal-length paths; the shared count2.sh pattern does not",
  "next_step": "lint + plants + direct gate + start-up checks on this head, then the ruling on the +347 instructions",
  "report_file": "handoff/LAYOUT-LDSO-ORDER.md",
- "jobs": ["layout-ldso-order-2-lint0", "layout-ldso-order-2-build-base", "layout-ldso-order-2-build-new", "layout-ldso-order-2-count2", "layout-ldso-order-2-pagediff", "mei:layout-ldso-order-2-mei-build", "mei:layout-ldso-order-2-mei-dyn"]}
+ "jobs": ["layout-ldso-order-2-build-base", "layout-ldso-order-2-count2", "layout-ldso-order-2-pagediff", "mei:layout-ldso-order-2-mei-dyn"],
+ "superseded": ["layout-ldso-order-2-lint0 (inherited head)", "layout-ldso-order-2-build-new (before the test change)", "mei:layout-ldso-order-2-mei-build (before the test change)", "layout-ldso-order-2-count1 (unequal path lengths)", "layout-ldso-order-2-count3 (rc 127: script replaced while it ran)", "layout-ldso-order-2-count4 (rc 127 at the ld.so-only swap, build tag refusal; its base/new rows are the table)", "layout-ldso-order-2-fast-measure, -fast-measure2, -rel-measure, -rel-measure2, -rel-measure3 (rc 101: measurement runs at a placeholder bound / link fixes)"]}
