@@ -9,6 +9,10 @@ unnamed-aggregate scan and slice 9's anonymous-union state both bound `anon` (re
 are kept out of next's scan). `headers-gen` then rewrote `utmp.h` and `utmpx.h` (their `__sigset_t` now has its members).
 Run 4 results (role on the Skylake-SP host): header_check 0 failed of 4563 (all headers, P1/P5/P8); P2 0 unaccepted of 1 difference
 over 5024 rows; P3 0 unaccepted of 8 differences over 62 rows; the affected gate (escalated to full by the generator change, so it ran `cargo xtask test` too): 32 suites ok, 12125 passed, 0 failed, conformance 139 passed, 0 failed; plants 10 of 10 caught (jobs in the report json). Next step: land slice 9.
+Run 4, final leg: no code change; the same head was re-proved on a new role (Zen 1 host, 32 cores): clippy and `cargo xtask static` clean,
+header_check 0 failed of 4563, headers-gen --check ok (67 headers), P2 0 unaccepted of 1 over 5024 rows, P3 0 unaccepted of 8 over 62 rows,
+gate (escalated to full) 32 suites ok, 12125 passed, 0 failed, conformance 139 passed, plants 10 of 10 caught (jobs `sl-headers-s09-4-hc`,
+`-plants`, `-gate`). Exact next step: land slice 9.
 The `D-X.119` record is the slice's decision (the pending record was assigned before this run); two further ids D-X.120 and D-X.121
 were reserved by this run for it and are not used.
 Say "slice 9" in commits and handoffs.
