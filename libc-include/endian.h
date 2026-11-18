@@ -35,6 +35,7 @@ typedef int __pid_t;
 #endif
 
 /* endian(3): host to and from big- and little-endian order. */
+#if __NIJI_MISC
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 # define htobe16(x) __builtin_bswap16 (x)
 # define htole16(x) ((__typeof__ (__builtin_bswap16 (x))) (x))
@@ -67,6 +68,7 @@ typedef int __pid_t;
 # define htole64(x) __builtin_bswap64 (x)
 # define be64toh(x) ((__typeof__ (__builtin_bswap64 (x))) (x))
 # define le64toh(x) __builtin_bswap64 (x)
+#endif
 #endif
 
 __NIJI_END_C

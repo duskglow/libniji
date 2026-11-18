@@ -1,0 +1,9 @@
+tree=1111111111111111111111111111111111111111-clean
+head=1111111111111111111111111111111111111111
+base=origin/next
+base_sha=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+merge_base=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+branch=task/fixture-story
+story=FIXTURE-STORY
+time=2026-11-18T00:00:00Z
+content_tree=cccccccccccccccccccccccccccccccccccccccc

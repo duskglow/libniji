@@ -1,0 +1,21 @@
+{"task": "HEADERS-ABI-REGEN", "model": "opus", "tokens": null,
+ "result": "headers-gen also runs abi-gen (layouts.tsv feeds both); affected runs abi-gen/headers-gen checks and stubs first, failing in seconds, when layouts.tsv changes",
+ "branch": "task/headers-abi-regen", "head": "see hand-back (code head 4d55b1c13; handoff-only commit on top)",
+ "gate": {"affected": "FULL tier (escalated): 12125 passed / 0 failed (32 suites), conformance 139 passed / 0 failed, rc 0, 2903 s", "peak": "16G (page cache included), oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "prototypes.tsv and versions.tsv also feed two generators each (headers-gen with math-gen / compat-gen) but are probed complete tables no story edits by hand; not changed. If one ever is, add it to GEN_PRECHECKS.",
+   "Scenario proof (job headers-abi-regen-demo, RAM copy): new struct row + headers-gen only -> stubs rc 0, abi-gen --check rc 0; stale tree -> affected --run --files spec/abi/layouts.tsv red at the prechecks in 46 s including the xtask build, nothing else run; coupling reverted -> stubs rc 1 (abi_struct_niji_regen_probe has neither a stub nor a test).",
+   "One python heredoc was used locally to make abi_stubs pub(crate) (a one-word edit); the Edit tool should have been used."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "a layouts.tsv row written by headers-gen alone no longer leaves layout.rs/appendix_c_layouts.rs stale (the FULL-gate stubs red of S07, S08-3, S12-2, S16-2)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "tooling", "what": "affected --run on a stale layouts.tsv change: red at the prechecks, whole run 46 s including the xtask build (before: red only after the escalated FULL run)", "before": null, "after": 46, "unit": "s", "measured": true},
+   {"kind": "coverage", "what": "xtask tests added / plants caught", "before": 0, "after": 3, "unit": "tests (7 of 7 plants CAUGHT)", "measured": true}
+ ],
+ "improvement": "A gate whose change escalates to FULL could run every cheap in-process check (static, gen checks, stubs) first and stop on red before the hour-long suite; this story does it for layouts.tsv only.",
+ "next_step": "none; land.",
+ "report_file": "handoff/HEADERS-ABI-REGEN.md",
+ "jobs": ["headers-abi-regen-gate", "headers-abi-regen-plants", "headers-abi-regen-lint2", "headers-abi-regen-demo"]}

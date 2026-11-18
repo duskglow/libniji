@@ -178,6 +178,9 @@ def corpus(names, heads, pr):
     return "\n".join(L) + "\n", meta
 
 
+HEADER_ERRORS = []
+
+
 def compile_side(text, inc, keep, tag):
     d = keep or tempfile.mkdtemp(prefix="attr-")
     os.makedirs(d, exist_ok=True)
@@ -202,6 +205,10 @@ def compile_side(text, inc, keep, tag):
             continue
         c = locs[0].get("caret", {})
         if os.path.basename(c.get("file", "")) != tag + ".c":
+            # An error inside an included header fails the whole corpus. Only libniji's own headers (inc given) are
+            # quoted: the reference side keeps nothing but lines and option names (plan/headers.md section 2.2).
+            if inc and dg.get("kind") == "error" and len(HEADER_ERRORS) < 5:
+                HEADER_ERRORS.append("%s:%s: %s" % (os.path.relpath(c.get("file", "?"), os.path.abspath(inc)), c.get("line"), dg.get("message", "")))
             continue
         opt = dg.get("option") or ""
         if dg.get("kind") == "error":
@@ -232,7 +239,8 @@ def results(text, meta, inc, keep, tag):
             break
         dropped |= {e for e in errs if e in meta}
     if marks is None:
-        sys.exit("attr_probe: the %s corpus does not build outside its test lines (lines %s)" % (tag, sorted(errs - dropped)[:10]))
+        sys.exit("attr_probe: the %s corpus does not build outside its test lines (lines %s)%s"
+                 % (tag, sorted(errs - dropped)[:10], "".join("\n  compiler error: " + e for e in HEADER_ERRORS)))
     errs = dropped
     res = {}
     for ln, key in meta.items():
