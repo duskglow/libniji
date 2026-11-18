@@ -1,9 +1,10 @@
-# ICONV-NAME-MATCH (issue #6: `iso88591`): iconv_open name rule — run 2 (ICONV-NAME-MATCH-2)
+# ICONV-NAME-MATCH (issue #6: `iso88591`): iconv_open name rule — run 3 (ICONV-NAME-MATCH-3)
 
-**State (run 3, leg 1).** Branch `task/iconv-name-match-3`, code head `dc120f974` (WIP, see "Run 3" below; still
-above base, must not land). Run 2: branch `task/iconv-name-match-2`, code head `b79bfe76a`, role mei:~/w/s2.
-Decision: `records/pending/ICONV-NAME-MATCH-1.toml` (D-NEW, series D-6, amends D-6.8; CI assigns the id). Rule,
-probe table and alias provenance: `spec/encoding/iconv-names.md`. Plants: `handoff/ICONV-NAME-MATCH-plants.txt` (14).
+**State (run 3, leg 2, finished).** Branch `task/iconv-name-match-3`, code head `876a0e018`; role mei:~/w/s3.
+Every measured `iconv_open` case is now below base (table in "Run 3" below); gate, start-up checks and 20 plants
+green. Run 2: branch `task/iconv-name-match-2`, head `b79bfe76a`. Decision: `records/pending/ICONV-NAME-MATCH-1.toml`
+(D-NEW, series D-6, amends D-6.8; CI assigns the id). Rule, probe table and alias provenance:
+`spec/encoding/iconv-names.md`. Plants: `handoff/ICONV-NAME-MATCH-plants.txt` (20).
 
 ## The rule (run 1, unchanged)
 
@@ -31,7 +32,7 @@ result must equal a known name exactly (`cp-1252`, `-utf8`, `utf8.` name nothing
   matching form, no row is a built-in, and the generated charmaps never give a row's name to another charmap
   (that check found the HPTHAI8 conflict). `iconv_products` proves the lookup end to end (KOI8R, ISO885915).
 
-## Results (final head)
+## Run 2 results (head b79bfe76a; its cost is fixed by run 3)
 
 * Gate `iconv-name-match-2-gate` (mei, head `b79bfe76a`), rc 0. Direct tier: 32 suites, 12,104 passed, 0 failed,
   1,397 ignored; conformance 138 passed. Start-up checks: `cargo xtask test` (6,784 + 5,296 passed) and
@@ -57,45 +58,47 @@ result must equal a known name exactly (`cp-1252`, `-utf8`, `utf8.` name nothing
   name (zero-filled, a bounds-checked `push` per byte, `significant` + uppercase). Before, it returned a borrowed
   slice. `builtin` then scans the table with exact compares. All of this happens twice per `iconv_open`.
 
-## Run 3 (ICONV-NAME-MATCH-3, branch `task/iconv-name-match-3`, role mei:~/w/s3): in-place matching, leg 1
+## Run 3 (ICONV-NAME-MATCH-3, role mei:~/w/s3): name matching at or below base
 
-Ruling #6385: no landing at +28..69%; remove the 128-byte copy, reach base for every measured case.
+Ruling #6385: no landing at +28..69%; remove the 128-byte copy and reach base for every measured case.
 
-* Profile (perf record instructions:u, `-n 500000`, per symbol; `~/work/ICONV-NAME-MATCH-3/prof.sh` on mei builds
-  base `06c0b561e` once into `/mnt/zram/claude/ICONV-NAME-MATCH-3/base-06c0b561e` and the role head, prints the
-  count table and per-symbol profiles; run it under `jobrun`): run 2's cost was `parse_name` (37%: zero-fill,
-  bounds-checked push per byte), `memmove` (7%, the 150-byte `Spec` moved by value) and `bcmp`.
-* Commit `dc120f974` (WIP): `iconv::Name` keeps the caller's text (first/second part slices, matching-form
-  length, `plain` flag); one pass with a plain-byte shortcut (`part`); `Name::is` compares a row in place;
-  `builtin` walks only the rows of the name's length (`BY_LEN`, const bit table, `#[allow]` as in
-  time/format.rs); only the cold `gl::charmap_codec` writes the form out (`Name::form`, into a stack buffer);
-  `names_charset` takes a case-only match first. Rule, alias table, `iconv -l` header unchanged. Tests adapted;
-  new: every byte 0..=255 between two letters (both paths), `Name::is` table. clippy clean; s06 + iconv_cmd_names pass.
+* Profile (leg 1; perf record instructions:u, `-n 500000`, per symbol; `~/work/ICONV-NAME-MATCH-3/prof.sh` on mei
+  builds base `06c0b561e` once into `/mnt/zram/claude/ICONV-NAME-MATCH-3/base-06c0b561e`, then the role head):
+  run 2's cost was `parse_name` (37%: zero-fill, bounds-checked push per byte), `memmove` (7%, the 150-byte `Spec`
+  moved by value) and `bcmp`. Leg 1 (`dc120f974`) compared names in place and was still +15..22%.
+* Leg 2 (`876a0e018`): `iconv::Name` is 4 words: one slice of the caller's text (first part, then `/` and the cut
+  second part), the index of that `/`, and the matching-form length. When every byte counts (`text.len() == len`)
+  the form is the text uppercased and table rows compare in place (`folds_to`). One const 256-byte table `FOLD` gives
+  each byte's matching-form byte (0 = dropped) and a plain flag (significant, not `,` or `/`). A name made only of
+  plain bytes is read in one pass with no bookkeeping. The full rule (`parse_full`, `#[inline(never)]`) is used only
+  for suffixes, a second part or dropped bytes. `names_charset` uses the same table for its case-only shortcut.
+  `builtin` walks only the rows of the name's length (`BY_LEN`). The rule, the alias table and the `iconv -l` header
+  are unchanged. New tests: a two-part name with a dropped byte (the slow path's `/`) and a same-length non-match
+  for `names_charset`'s shortcut.
 
-  | name (x1000, instructions:u) | base 06c0b561e | run 2 b79bfe76a | dc120f974 |
-  | --- | ---: | ---: | ---: |
-  | UTF-8 / utf-8 | 1,697,671 | 2,635,671 | 2,029,663 (+19.6%) |
-  | CP1252 | 3,208,960 | 4,691,334 | 3,701,032 (+15.3%) |
-  | ISO-8859-15 | 3,013,762 | 5,079,913 | 3,585,701 (+19.0%) |
-  | KOI8R | 4,051,082 | 5,203,462 | 4,111,191 (+1.5%) |
-  | latin1 | 2,378,671 | 3,426,671 | 2,380,663 (+0.1%) |
-  | EUC-JP | 1,656,672 | 2,604,671 | 2,018,664 (+21.9%) |
+  Job `iconv-name-match-3-counts` (mei, head `876a0e018`; iconv_open both ways + close, x1000, instructions:u,
+  generated charmaps mounted, same host and probe for both):
 
-  Remaining UTF-8 gap (+332/iteration = 4 names), per symbol vs base: `parse_name` +165 (78 vs 37 per name),
-  `boundary::iconv::open` (+ inlined `codec`) +100 (the 56-byte `Spec` x2), `builtin` +58.
+  | name | base 06c0b561e | run 2 b79bfe76a | leg 1 dc120f974 | final 876a0e018 | final vs base |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | UTF-8 / utf-8 | 1,697,672 | 2,635,671 | 2,029,663 | 1,533,671 | −9.7% |
+  | CP1252 | 3,208,966 | 4,691,334 | 3,701,032 | 2,931,122 | −8.7% |
+  | ISO-8859-15 | 3,013,762 | 5,079,913 | 3,585,701 | 2,855,829 | −5.2% |
+  | KOI8R | 4,051,088 | 5,203,462 | 4,111,191 | 3,211,339 | −20.7% |
+  | latin1 | 2,378,672 | 3,426,671 | 2,380,663 | 1,756,671 | −26.1% |
+  | EUC-JP | 1,656,673 | 2,604,671 | 2,018,664 | 1,514,671 | −8.6% |
+  | ISO88591 | 788,151 (EINVAL) | | 2,668,664 | 1,906,670 | not comparable |
 
-## Exact next step (leg 2)
+  ISO88591: base fails both opens with EINVAL (errno 22, print mode in the same job), which is issue #6, so its
+  count is the cost of failing. The final head opens it as Latin-1 with the same fingerprint as `latin1`.
+  Start-up alone (`-n 0`): 3,191 base, 3,190 final.
+* Gate `iconv-name-match-3-gate` (direct tier, head `876a0e018`): rc 0, 32 suites, 12,104 passed, 0 failed, 1,397
+  ignored; conformance 138/0; peak 16G. Plants `iconv-name-match-3-plants`: 20 CAUGHT, 0 SURVIVED, 0 WARN.
+  Start-up checks `iconv-name-match-3-startup`: rc 0: `cargo xtask test` 6,784 + 5,296 passed; `NIJI_FULL_PROFILE=1` `xtask so` and `hot_text_products` 26 passed; peak 11G.
 
-1. Shrink `Name` to 4 words: `text` (first part, then `/` and the cut second part, contiguous in the caller's
-   string), `split` (index of that `/`; `text.len()` when none), `len`. Drop `plain`: the shortcut condition is
-   `text.len() == len` (every byte significant, so the form is `text` uppercased, `/` included).
-2. Classify bytes with one `static CLASS: [u8; 256]` (dropped / plain / comma / slash, built by a const fn,
-   `#[allow(clippy::indexing_slicing, clippy::as_conversions)]`) instead of the `SIG_LO`/`SIG_HI` masks.
-3. Re-measure (`prof.sh`); if still above base, look at `open` (avoid moving `Spec`; parse `to` after `from`
-   fails?) and the `builtin` row compare. Below base everywhere: update `handoff/ICONV-NAME-MATCH-plants.txt`
-   (plants `name-case-kept`, `name-empty-second-part-kept`, `name-overflow-truncates` target removed code; add
-   plants for `BY_LEN`, the plain shortcut, `cut` of commas, `names_charset` shortcut), then gate, plants, start-up
-   checks, counts. Parity impossible: RULING NEEDED with the table above and the profile.
+## Exact next step
+
+None for this story: it is ready to land. Follow-ups are under "Open items".
 
 ## Open items
 
