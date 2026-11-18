@@ -312,11 +312,7 @@ pub(crate) fn run_checks(root: &Path, opts: &Opts) -> Vec<(String, f64, Verdict)
             let before = if step == "stubs" { Some(stubs_snapshot(root)) } else { None };
             let r = cheap_step(root, step);
             let rewrote: Vec<String> = before.map(|b| changed_paths(&b, &stubs_snapshot(root))).unwrap_or_default();
-            match r {
-                Err(e) => Verdict { level: Level::Red, lines: vec![first_lines(&e, 4), format!("fix: {}", fix(step))] },
-                Ok(()) if !rewrote.is_empty() => Verdict { level: Level::Red, lines: vec![format!("stubs rewrote {} (the committed tree is not what the gate tests)", list5(&rewrote)), format!("fix: {}", fix(step))] },
-                Ok(()) => Verdict::ok(""),
-            }
+            step_verdict(step, r, &rewrote)
         });
     }
     if wanted(opts, "validation") {
@@ -375,6 +371,16 @@ pub(crate) fn run_checks(root: &Path, opts: &Opts) -> Vec<(String, f64, Verdict)
         timed("clippy", &mut || clippy_verdict(root));
     }
     out
+}
+
+/// A cheap step's verdict: red when it failed, or when it passed but rewrote files (`stubs`: the committed tree is
+/// then not the one the gate tests, which runs `stubs` first).
+fn step_verdict(step: &str, r: Result<(), String>, rewrote: &[String]) -> Verdict {
+    match r {
+        Err(e) => Verdict { level: Level::Red, lines: vec![first_lines(&e, 4), format!("fix: {}", fix(step))] },
+        Ok(()) if !rewrote.is_empty() => Verdict { level: Level::Red, lines: vec![format!("stubs rewrote {} (the committed tree is not what the gate tests)", list5(rewrote)), format!("fix: {}", fix(step))] },
+        Ok(()) => Verdict::ok(""),
+    }
 }
 
 fn first_lines(s: &str, n: usize) -> String {
@@ -909,6 +915,12 @@ mod tests {
     /// `.tested/`, `jobs` (the JOBS: list), `head`; `newer` lists the role paths a later sync wrote (their time is set
     /// after the jobs started, every other time before).
     fn fixture_run(fixture: &Path) -> Vec<(String, f64, Verdict)> {
+        fixture_run_with(fixture, &|_| {}, &[])
+    }
+
+    /// [`fixture_run`] with `edit` applied to the copy (its root holds `role/`, `logs/` and `base/`) and `newer`
+    /// role paths written after the jobs' tested records.
+    fn fixture_run_with(fixture: &Path, edit: &dyn Fn(&Path), newer: &[&str]) -> Vec<(String, f64, Verdict)> {
         let tmp = std::env::temp_dir().join(format!("xtask-precheck-fixture-{}-{:?}", std::process::id(), std::thread::current().id()));
         let _ = fs::remove_dir_all(&tmp);
         let (role, logs, base) = (tmp.join("role"), tmp.join("logs"), tmp.join("base"));
@@ -927,11 +939,13 @@ mod tests {
                 fs::write(&f, t.replace("{{NEW}}", "NEW")).unwrap();
             }
         }
+        edit(&tmp);
         let now = SystemTime::now();
         let (t0, t1, t2) = (now - Duration::from_secs(3 * 3600), now - Duration::from_secs(2 * 3600), now - Duration::from_secs(3600));
         set_all(&tmp, t0);
         set_all(&logs.join(".tested"), t1);
-        for p in fs::read_to_string(fixture.join("newer")).unwrap().lines().map(str::trim).filter(|l| !l.is_empty()) {
+        let listed = fs::read_to_string(fixture.join("newer")).unwrap();
+        for p in listed.lines().map(str::trim).filter(|l| !l.is_empty()).chain(newer.iter().copied()) {
             fs::File::open(role.join(p)).unwrap().set_modified(t2).unwrap();
         }
         let opts = Opts {
@@ -965,6 +979,68 @@ mod tests {
         assert_eq!(r.len(), 4, "placeholders, train-owned, jobs, head");
         assert!(lines.iter().any(|l| l.contains("pending record records/pending/")), "the pending record is a note");
         assert!(lines.iter().any(|l| l.contains("only in prose since")), "the prose-only commit after the jobs is told apart");
+    }
+
+    #[test]
+    fn stubs_rewrite_is_red_even_when_stubs_passes() {
+        // no spec clause: HANDBACK-INLOOP-CHECKS. The FULL gate runs `stubs` first and tests what it writes, so a
+        // stub file or spec/clauses.tsv it rewrites (same length, other text included) is a red with its fix.
+        let tmp = std::env::temp_dir().join(format!("xtask-precheck-stubs-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("spec")).unwrap();
+        fs::create_dir_all(tmp.join("crates/k/tests")).unwrap();
+        fs::write(tmp.join("spec/clauses.tsv"), "id\ttext\n").unwrap();
+        fs::write(tmp.join("crates/k/tests/s07_x_clauses.rs"), "// a\n").unwrap();
+        let before = stubs_snapshot(&tmp);
+        assert!(changed_paths(&before, &stubs_snapshot(&tmp)).is_empty(), "nothing written");
+        fs::write(tmp.join("crates/k/tests/s07_x_clauses.rs"), "// b\n").unwrap();
+        let rewrote = changed_paths(&before, &stubs_snapshot(&tmp));
+        assert_eq!(rewrote, ["crates/k/tests/s07_x_clauses.rs"], "same length, other text");
+        let _ = fs::remove_dir_all(&tmp);
+        let v = step_verdict("stubs", Ok(()), &rewrote);
+        assert!(v.level == Level::Red && v.lines.iter().any(|l| l.contains("stubs rewrote crates/k/tests/s07_x_clauses.rs")) && v.lines.iter().any(|l| l.contains("run `cargo xtask stubs`")), "{:?}", v.lines);
+        assert_eq!(step_verdict("stubs", Ok(()), &[]).level, Level::Ok);
+        let v = step_verdict("abi-gen-check", Err("stale".into()), &[]);
+        assert!(v.level == Level::Red && v.lines.iter().any(|l| l.contains("headers-gen")), "{:?}", v.lines);
+    }
+
+    /// One fixture edit: `from` must occur exactly once in `rel` (under the copy's root).
+    fn edit_once(root: &Path, rel: &str, from: &str, to: &str) {
+        let p = root.join(rel);
+        let t = fs::read_to_string(&p).unwrap();
+        assert_eq!(t.matches(from).count(), 1, "{rel}: `{from}`");
+        fs::write(&p, t.replacen(from, to, 1)).unwrap();
+    }
+
+    #[test]
+    fn precheck_fixture_names_each_red_class() {
+        // no spec clause: HANDBACK-INLOOP-CHECKS. Each red class of the hand-back put into the green fixture is named
+        // by its check (ops/handback.py steps a, a2, b): a named job still queued (WAIT), a failed job, a job that
+        // tested older code, a gate log without its verdict, a plants job outside `cargo xtask plants`, a placeholder
+        // id in a docs row. (The sixth class, a FULL-tier `stubs` red, needs the real tree: the plants file has it.)
+        let fx = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/precheck");
+        let placeholder = format!("COMPAT-{}", "NEW");
+        type Case<'a> = (&'a str, Option<(&'a str, &'a str, &'a str)>, &'a [&'a str], &'a str, Level, &'a str);
+        let cases: [Case; 6] = [
+            ("queued", Some(("logs/jobs.tsv", "fixture-story-gate\tgate", "fixture-story-other\tgate")), &[], "jobs", Level::Wait, "fixture-story-gate"),
+            ("failed", Some(("logs/jobs.tsv", "\t0\t540\t", "\t1\t540\t")), &[], "jobs", Level::Red, "fixture-story-plants ended rc=1"),
+            ("stale", None, &["src/a.rs"], "jobs", Level::Red, "src/a.rs"),
+            ("undiagnosed gate", Some(("logs/fixture-story-gate.log", "affected: ok", "affected: stopped")), &[], "jobs", Level::Red, "no `affected: ok` verdict"),
+            ("plants outside the tool", Some(("logs/fixture-story-plants.log", "plants: copy", "plants: copied")), &[], "jobs", Level::Red, "did not run through `cargo xtask plants`"),
+            ("placeholder", Some(("role/docs/differences-from-glibc.md", "COMPAT-12", &placeholder)), &[], "placeholders", Level::Red, "differences-from-glibc.md"),
+        ];
+        for (what, edit, newer, check, level, msg) in cases {
+            let r = fixture_run_with(&fx, &|root| {
+                if let Some((rel, from, to)) = edit {
+                    edit_once(root, rel, from, to);
+                }
+            }, newer);
+            let (_, _, v) = r.iter().find(|(n, _, _)| n == check).unwrap_or_else(|| panic!("{what}: no {check} verdict"));
+            assert_eq!(v.level, level, "{what}: {check}: {:?}", v.lines);
+            assert!(v.lines.iter().any(|l| l.contains(msg)), "{what}: {check} does not name `{msg}`: {:?}", v.lines);
+            let others: Vec<&String> = r.iter().filter(|(n, _, v)| n != check && v.level >= Level::Wait).map(|(n, _, _)| n).collect();
+            assert!(others.is_empty(), "{what}: only {check} changes, not {others:?}");
+        }
     }
 
     #[test]

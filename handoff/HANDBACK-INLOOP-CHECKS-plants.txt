@@ -1,0 +1,34 @@
+# HANDBACK-INLOOP-CHECKS plants (cargo xtask plants; format docs/plants.md).
+# Data plants put one red class of the hand-back into the green fixture (or the real tree, for stubs); code plants
+# break one rule of xtask/src/precheck.rs or the affected prechecks. The unplanted baseline is the green precheck.
+# The six red classes: a named job still queued
+red-queued | xtask/tests/fixtures/precheck/logs/jobs.tsv | perl:s/^fixture-story-gate\t/fixture-story-other\t/m | cargo test -p xtask precheck_fixture_hand_back_is_green | msg:jobs Wait: fixture-story-gate: queued or running
+# a named job that failed
+red-failed-job | xtask/tests/fixtures/precheck/logs/jobs.tsv | perl:s/^(fixture-story-plants\tplants\t[^\t]*\t[^\t]*\t)0\t/${1}1\t/m | cargo test -p xtask precheck_fixture_hand_back_is_green | msg:jobs Red: fixture-story-plants ended rc=1
+# a job that tested older content (a code file changed after it ran)
+red-stale-job | xtask/tests/fixtures/precheck/newer | lit:handoff/FIXTURE-STORY.md ==> src/a.rs | cargo test -p xtask precheck_fixture_hand_back_is_green | msg:jobs Red: fixture-story-gate tested other content than this head
+# a FULL-tier stubs red (the real tree: spec/clauses.tsv as stubs would not write it)
+red-stubs | spec/clauses.tsv | perl:s/^id\tsection\tfield\ttext$/id\tsection\tfield\tbody/m | cargo xtask precheck --only stubs | msg:precheck: stubs RED.*stubs rewrote spec/clauses.tsv
+# an undiagnosed gate (rc 0, no verdict line)
+red-undiagnosed-gate | xtask/tests/fixtures/precheck/logs/fixture-story-gate.log | lit:affected: ok (3 suites, 42 passed) ==> affected: stopped | cargo test -p xtask precheck_fixture_hand_back_is_green | msg:jobs Red: fixture-story-gate: a gate job with rc 0 but no
+# a placeholder record id in a docs row
+red-placeholder | xtask/tests/fixtures/precheck/role/docs/differences-from-glibc.md | lit:COMPAT-12 ==> COMPAT-NEW | cargo test -p xtask precheck_fixture_hand_back_is_green | msg:placeholders Red: placeholder docs/differences-from-glibc.md
+# and a plants job that did not run through the tool
+red-plants-outside-tool | xtask/tests/fixtures/precheck/logs/fixture-story-plants.log | lit:plants: copy ==> plants: copied | cargo test -p xtask precheck_fixture_hand_back_is_green | msg:jobs Red: fixture-story-plants: a plants job that did not run through
+# Code plants: precheck.rs
+code-placeholder-word-end | xtask/src/precheck.rs | lit:let after_ok = end >= b.len() || !word(b[end]); ==> let after_ok = true; | cargo test -p xtask placeholder_pattern_is_cis | msg:placeholder_pattern_is_cis.*FAILED|panicked
+code-baseline-pre | xtask/src/precheck.rs | lit:["before", "baseline", "base", "pre"] ==> ["before", "baseline", "base"] | cargo test -p xtask baseline_labels_are_the_dispatchers | msg:baseline_labels_are_the_dispatchers.*FAILED|panicked
+code-stale-dir-rule | xtask/src/precheck.rs | lit:out.push(format!("{rs}/")); ==> | cargo test -p xtask stale_files_sees_code_and_removed_entries_not_prose | msg:stale_files_sees_code_and_removed_entries_not_prose.*FAILED|panicked
+code-role-base-lines | xtask/src/precheck.rs | lit:filter(|l| !old_lines.contains(l)) ==> filter(|l| !l.is_empty()) | cargo test -p xtask role_changes_count_lines_the_base_lacks | msg:role_changes_count_lines_the_base_lacks.*FAILED|panicked
+code-job-rc | xtask/src/precheck.rs | lit:if *rc != 0 { ==> if *rc > 1 { | cargo test -p xtask precheck_fixture_names_each_red_class | msg:failed: jobs
+code-gate-verdict | xtask/src/precheck.rs | lit:l.starts_with("affected: ok") ==> l.starts_with("affected:") | cargo test -p xtask precheck_fixture_names_each_red_class | msg:undiagnosed gate: jobs
+code-plants-copy | xtask/src/precheck.rs | lit:l.starts_with("plants: copy ") ==> l.starts_with("plants: ") | cargo test -p xtask precheck_fixture_names_each_red_class | msg:plants outside the tool: jobs
+code-queued-wait | xtask/src/precheck.rs | lit:wait.push(format!("{lab}: queued ==> red.push(format!("{lab}: queued | cargo test -p xtask precheck_fixture_names_each_red_class | msg:queued: jobs
+code-stubs-rewrite | xtask/src/precheck.rs | lit:Ok(()) if !rewrote.is_empty() => ==> Ok(()) if false => | cargo test -p xtask stubs_rewrite_is_red_even_when_stubs_passes | msg:stubs_rewrite_is_red_even_when_stubs_passes.*FAILED|panicked
+code-stubs-snapshot | xtask/src/precheck.rs | lit:keys.into_iter().filter(|k| a.get(*k) != b.get(*k)) ==> keys.into_iter().filter(|k| a.get(*k).map(|v| v.0) != b.get(*k).map(|v| v.0)) | cargo test -p xtask stubs_rewrite_is_red_even_when_stubs_passes | msg:stubs_rewrite_is_red_even_when_stubs_passes.*FAILED|panicked
+# Code plants: affected.rs prechecks
+code-gen-prefix | xtask/src/affected.rs | lit:f == *p || (p.ends_with('/') && f.starts_with(p)) ==> f == *p | cargo test -p xtask generator_inputs_and_outputs_select_their_checks | msg:generator_inputs_and_outputs_select_their_checks.*FAILED|panicked
+code-gen-stub-pattern | xtask/src/affected.rs | lit:t.ends_with("_clauses.rs") || t.ends_with("_symbols.rs") ==> t.ends_with("_clauses.rs") | cargo test -p xtask generator_inputs_and_outputs_select_their_checks | msg:s10_math_symbols.rs: stubs not in
+code-full-all-cheap | xtask/src/affected.rs | lit:!sel.full.is_empty() || sel.gen_prechecks.contains(*c) ==> sel.gen_prechecks.contains(*c) | cargo test -p xtask escalated_selection_runs_every_cheap_step_first | msg:escalated_selection_runs_every_cheap_step_first.*FAILED|panicked
+code-gen-red-named | xtask/src/affected.rs | lit:red.push(c); ==> | cargo test -p xtask generator_prechecks_run_the_checks | msg:generator_prechecks_run_the_checks.*FAILED|panicked
+code-gen-red-stops | xtask/src/affected.rs | lit:if red.is_empty() { ==> if true { | cargo test -p xtask generator_prechecks_run_the_checks | msg:red stops the run

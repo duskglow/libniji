@@ -1352,6 +1352,25 @@ pub fn prechecks(sel: &Selection) -> Vec<&'static str> {
     crate::precheck::CHEAP_STEPS.iter().copied().filter(|c| !sel.full.is_empty() || sel.gen_prechecks.contains(*c)).collect()
 }
 
+/// The first step of a run: `sel`'s prechecks; any red one ends the run (`Err`) before anything else starts, with the
+/// fix of each.
+fn run_prechecks_or_stop(root: &Path, log: &Path, sel: &Selection) -> Result<(), String> {
+    if prechecks(sel).is_empty() {
+        return Ok(());
+    }
+    println!("prechecks (generator checks of the changed files; every cheap FULL step when escalated):");
+    let red = run_gen_prechecks(root, log, sel);
+    if red.is_empty() {
+        return Ok(());
+    }
+    print!("{}", summary(&read(log)));
+    println!("affected: FAILED (a precheck; nothing else was run)");
+    for c in &red {
+        println!("  {c}: {}", crate::precheck::fix(c));
+    }
+    Err(format!("a generator precheck failed: {}", red.join(", ")))
+}
+
 /// Every precheck of `sel` (`prechecks`), each logged on its own; the names of the red ones.
 fn run_gen_prechecks(root: &Path, log: &Path, sel: &Selection) -> Vec<&'static str> {
     let mut red = Vec::new();
@@ -3580,18 +3599,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
     let _ = fs::remove_file(&log);
     let mut ok = true;
     let mut skipped: Vec<String> = Vec::new();
-    if !prechecks(sel).is_empty() {
-        println!("prechecks (generator checks of the changed files; every cheap FULL step when escalated):");
-        let red = run_gen_prechecks(root, &log, sel);
-        if !red.is_empty() {
-            print!("{}", summary(&read(&log)));
-            println!("affected: FAILED (a precheck; nothing else was run)");
-            for c in &red {
-                println!("  {c}: {}", crate::precheck::fix(c));
-            }
-            return Err("a generator precheck failed".into());
-        }
-    }
+    run_prechecks_or_stop(root, &log, sel)?;
     if !sel.full.is_empty() {
         println!("escalated to FULL: running the workspace clippy and `cargo xtask test`");
         // Step times (XTASK-TEST-STEP-TIMES): a `step:` line per step on the console, those `cargo xtask test` wrote
@@ -4615,7 +4623,10 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             s.gen_prechecks = [c.to_string()].into();
             assert!(run_gen_prechecks(root, &log, &s).is_empty(), "{c} on the consistent tree");
             assert_eq!(run_gen_prechecks(&empty, &log, &s), [c], "{c} on a tree without spec/abi");
+            assert_eq!(run_prechecks_or_stop(root, &log, &s), Ok(()), "{c}: green, the run goes on");
+            assert_eq!(run_prechecks_or_stop(&empty, &log, &s), Err(format!("a generator precheck failed: {c}")), "{c}: red stops the run");
         }
+        assert_eq!(run_prechecks_or_stop(&empty, &log, &Selection::default()), Ok(()), "nothing selected");
         let _ = fs::remove_dir_all(&empty);
     }
 
