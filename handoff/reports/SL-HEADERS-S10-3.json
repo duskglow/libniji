@@ -16,7 +16,8 @@
   "P7 cannot run: grep, sed, diffutils, findutils, gawk include fcntl.h, sys/stat.h, dirent.h, signal.h (slices 7 and 8, not on next)",
   "Shared generator change: the FILE tag-only rule is data driven, so pwd.h, grp.h, shadow.h, gshadow.h (slice 14) are regenerated with an incomplete struct _IO_FILE as visibility.tsv has them (header_check.py P1 leaves out FILE there)",
   "plants: 16 plants, 15 CAUGHT, 1 WARN-NO-MSG: s10-regexp-must-fail mutates the generated libc-include/regexp.h, so the products build of the plants tool stops at headers-gen --check before header_check.py runs (caught, by the generator check)",
-  "jobs run foreground without jobrun: two ad-hoc cargo xtask headers-gen calls over ssh at the start (before I switched to jobrun); their results were repeated under sl-headers-s10-3-hc2"
+  "jobs run foreground without jobrun: two ad-hoc cargo xtask headers-gen calls over ssh at the start (before I switched to jobrun); their results were repeated under sl-headers-s10-3-hc2",
+  "not named in JOBS, run info only: sl-headers-s10-3-hc2 (generated the libc-include tree, committed afterwards; header_check 0 failed of 6048 on it), sl-headers-s10-3-probes (P2/P3: 10 and 60 unaccepted rows, classified in records/pending/SL-HEADERS-S10-3-1.toml; no tested-content record because it ran a script), sl-headers-s10-3-p6 (rc 1: the 5 P6 failures above, none in a slice 10 header)"
  ],
  "refused": [],
  "impact": [
@@ -50,9 +51,6 @@
  "report_file": "handoff/SL-HEADERS-S10.md",
  "jobs": [
   "sl-headers-s10-3-lint",
-  "sl-headers-s10-3-hc2",
-  "sl-headers-s10-3-probes",
-  "sl-headers-s10-3-p6",
   "sl-headers-s10-3-gate",
   "sl-headers-s10-3-plants"
  ]
