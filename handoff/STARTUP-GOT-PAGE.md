@@ -1,67 +1,76 @@
-# STARTUP-GOT-PAGE: start-up reads no GOT entry; it reads RELRO's first window once, at a fixed point
+# STARTUP-GOT-PAGE: start-up reads no GOT entry; RULING NEEDED on how the first RELRO window is paid
 
-State: branch `task/startup-got-page-2` (continues `task/startup-got-page`), cut from origin/next 923df67e9.
-Commits: 341f4f7d3 (relaxable test/binop GOT operands), 9be5c2f79 (D-X.122 + plants), cb4eeb062 (start-up RELRO
-read, run 2), e985d991a (D-X.122 amendment + plants file), then this handoff and the report. Role keke:~/w/n1 (Zen 1
-host). Decision `records/decisions/D-X/D-X.122.toml` (amends D-X.101 and D-X.15). Plants:
-`handoff/STARTUP-GOT-PAGE-2-plants.txt` (5: the four of run 1 and `sgp2-no-relro-read`). Scratch scripts (keke):
-`~/work/startup-got-page-2/{proof2,relay,gate2}.sh`, run 1's `~/work/startup-got-page/{gotprobe,pfaddr}.sh`.
+State: branch `task/startup-got-page-3` (continues `task/startup-got-page-2`, `task/startup-got-page`), cut from
+origin/next 923df67e9. Code head b91d73666 (unchanged in run 3; run 3 adds only this note and its report). Role
+keke:~/w/n1 (Zen 1 host). Decision `records/decisions/D-X/D-X.122.toml` (amends D-X.101, D-X.15). Plants:
+`handoff/STARTUP-GOT-PAGE-2-plants.txt`. Run 3 scratch (keke): `~/work/startup-got-page-3/` (`proof3b.sh`,
+`pfrelay.sh`, `c-got-align.patch`, clones `rel/` and `fast/`).
 
 ## What the branch does
-* `xtask/src/copies.rs` (run 1): D-X.15 step 3 also marks 64-bit `test`/binop GOT operands `R_X86_64_REX_GOTPCRELX`,
-  so the static link turns them into immediates; start-up reads no `.got` and `.got`'s place no longer moves a
-  written start-up page (STARTUP-DATA-WINDOWS 7 on next and on LOCALE-SLOTS-GROWTH-5 merged, which reads 8 without it).
-* `crates/boundary/src/runtime.rs` (run 2, ruling #6541 option B): `protect_relro` (inlined into `runtime::start`, an
-  existing start-up function) reads RELRO's first byte once before its `mprotect`. RELRO starts on a 64 KiB boundary
-  (`.data.rel.ro` aligned 65536), so that read fault maps the first window at a fixed point; before, the `.got` read
-  did it by luck, and without either the first relro-reading call paid it (first `%.2f`: 4 > FLOAT_BOUND 3).
-* Tests: `init_startup_data_pages_hold_at_every_data_phase` (run 1, relro pads move `.got`) and
-  `init_first_float_conversion_stays_within_its_page_fault_bound` (the read's effect, plant `sgp2-no-relro-read`).
+* `xtask/src/copies.rs` (run 1, "relaxation"): 64-bit `test`/binop GOT operands are marked `R_X86_64_REX_GOTPCRELX`,
+  so the static link turns them into immediates; the static probe has no `.got`.
+* `crates/boundary/src/runtime.rs` (run 2, ruling #6541 option B): `protect_relro` reads RELRO's first byte before
+  its `mprotect`, so start-up maps RELRO's first 64 KiB window.
+* `tools/hottext/startup_data.py` (run 2): a `cmp`/`test` immediate is not a start-up data touch.
 
-## Measurements (run 2; keke, fast products, static probe, ASLR off; base / + relaxation alone / + relaxation and read)
-Jobs `startup-got-page-2-proof-next`, `-proof-lsg5` (scratch clones, nothing pushed), `-relay` (10 relayed runs).
-| base | STARTUP-DATA-WINDOWS | relayed true | tool | fork | first %.2f | instr:u true | instr:u tool |
+## Run 3: why gate3 was red (measured; nothing changed)
+gate3 failed only the RELEASE-profile `init_short_programs_stay_within_their_page_fault_bounds`:
+`startup-only program (whole process, release products): 11 page faults > 10`. Reproduced in a scratch clone.
+Cause, from per-fault records of the relayed run (`perf record -e page-faults -d`, both processes): the `true`
+probe takes its count (`getrusage`) BEFORE its own closing `fprintf`. In release, base's only RELRO read in `true`
+is that `fprintf`'s `.got` read (`stdio::parts_first_use`), after the count. B adds a counted start-up RELRO read
+(fault at 0x7c0000 by `runtime::start`). The relay parent shows the same thing: 12 -> 13 faults, and the one extra
+is B's read. The exec'd child's list is the same length on base and B; only the RELRO fault's address moves. So the
+extra page is B's deliberate read. It costs a page in every program that reads no RELRO. Following the coordinator
+note, no bound was raised.
+
+## Measurements (keke, static probe, ASLR off; relayed minflt 10 runs each, all identical; tests = page_fault bound tests)
+| profile / state (base 923df67e9) | true | locale | tool | fork | first %.2f | DATA-WINDOWS rw | bound tests |
 |---|---|---|---|---|---|---|---|
-| origin/next 18cf8293f | 7 / 7 / 7 | 11 / 10 / 11 | 43 / 43 / 43 | 5 / 5 / 5 | 3 / 4 / 3 | 239063 / 239139 / 239085 | 295514 / 295543 / 295534 |
-| LSG-5 1ed232a5a | 8 BROKEN / 7 / 7 | 11 / 10 / 11 | 43 / 43 / 43 (one 44) | 5 / 5 / 5 | 3 / 4 / 3 | 239073 / 239059 / 239057 | 295978 / 295971 / 295969 |
-Per-fault records (`perf record`, env -i LANG): true 15, tool 42, float 17 in all six builds. Layout-bins (next pair):
-only `runtime::start` changes, 5902 -> 5926 B in bin 0 (the read is one 3-byte `movzbl`; the rest is codegen around
-it); no section changes bin. `perf stat` "true" page-faults:u means read 81 / 81 / 82 on next, but the probe's own
-per-run minflt spreads 100-105 there, so the relayed counts above are the comparison. C (page-aligned `.got`) was
-not built: B is at base level and its instruction delta is inside the build-to-build spread.
+| release base | 10 | 42 | 44 | 5 | 3 | 8 | ok |
+| release relaxation alone (0006344e5) | 10 | 42 | 44 | 5 | 3 | 7 | ok |
+| release B (b91d73666) | **11** (bound 10) | 42 | 44 | 5 | 3 | 7 | FAIL (true) |
+| release C (base + `.got` 4 KiB-aligned) | 10 | 42 | 44 | 5 | 3 | 8 | ok |
+| fast base | 11 | 42 | 43 | 5 | 3 | 7 | ok |
+| fast relaxation alone (run 2, next 18cf8293f) | 10 | - | 43 | 5 | **4** (bound 3) | 7 | FAIL (float) |
+| fast B | 11 | 42 | 43 | 5 | 3 | 6 | ok |
+| fast C | 11 | 42 | 43 | 5 | 3 | 7 | ok |
+Whole-process test counts (release): tool 45, locale 43, localtime 36, localtime+mktime 36 in every state.
+instructions:u (`perf stat -r 5`) true / tool / fork: fast base 239845 / 296519 / 240387, fast C 239893 / 296479 /
+240394, fast B 239858 / 296313 / 240409, release C 239924 / 296405 / 240462, release relaxation 239908 / 296368 / 240452 (each state's spread is
+about ±80, run 2). C prototype: `csys/src/machine/entry.S` adds an empty `.got` input section `.balign 4096` after
+the `.data.rel.ro.local` one, so GNU ld starts the output `.got` on a page. RELRO grows 0x7000 -> 0x8000 (release)
+and 0xc000 -> 0xd000 (fast).
 
-## Run 2, third fix: a compared immediate is not a start-up data touch (b91d73666)
-Run 1's gate (and run 2's affected gate, job `startup-got-page-2-gate`) failed
-`init_written_startup_objects_are_in_the_data1_cluster`: `_IO_2_1_stdin_ (224 bytes) in .bss._IO_2_1_stdin_`.
-Cause: `tools/hottext/startup_data.py` declares start-up data from the start-up functions' operands, `$0x<addr>`
-immediates included; the relaxation turned `stdio::parts_first_use`'s `cmp` against the GOT slot of
-`&_IO_2_1_stdin_` (an unnamed `.got` byte, left out) into `cmp $<stdin>, %reg`, so stdin became an "rw" key. Fix:
-the `$` immediates of `cmp`/`test` are skipped (memory operands still count). Plant `sgp2-cmp-imm-counted`. Not yet
-gated (see next step). Run 1's handoff did not list this failure.
+Reading: B costs release `true` +1. Relaxation alone costs fast first `%.2f` +1: in fast, `render_simple` reads a
+trait-object vtable in `.data.rel.ro`; in release that call reads no RELRO. C is at base everywhere in both profiles.
+It keeps the `.got` reads and does not give the relaxation's one fewer written start-up page (release 8 -> 7,
+fast 7 -> 6 on this base). Its float
+protection is still placement luck: start-up's `.got` read (`locale::refresh_words`, fast) shares the 64 KiB window
+with the vtable only while RELRO stays under 64 KiB. It avoids LSG-5's failure by construction (0xc8 bytes of
+`.got` from a page start never span two pages), but that was not measured on LSG-5.
 
-## Jobs
-* Final-head code: b91d73666 (later commits are handoff/report only). Leg 2 synced the role (rc 0; no orphaned trace
-  processes were left by then) and ran on keke:~/w/n1: `startup-got-page-2-lint2` (clippy --workspace --all-targets
-  --all-features -D warnings + `cargo xtask static`) rc 0; `startup-got-page-2-gate3` (`gate3.sh`: static rc 0, then
-  FULL affected, then NIJI_FULL_PROFILE so + hot_text_products) and `startup-got-page-2-plants3` (6 plants, dir
-  /dev/shm/claude/startup-got-page-2/plants-3; baselines 1-3 ok, so and so-traced ok) were STILL RUNNING at the
-  wall-time deadline. Gate logs: ~/logs/startup-got-page-2-g3-{static,affected,xtest,rel}.out.
-* `startup-got-page-2-lint1` (rc 0) was on cb4eeb062, superseded by lint2.
-* SUPERSEDED: `startup-got-page-2-gate` (killed: pre-fix tree; its affected step FAILED on the data1 test above),
-  `startup-got-page-2-plants` (rc 2: my `--timeout 600` timed out the traced baseline; a traced so takes ~1100 s),
-  `startup-got-page-2-plants2` (killed: pre-fix tree), `-lint0` (inherited head, rc 0), proofs/relay (evidence,
-  above; not gates).
+## RULING NEEDED (ruling #6541 follow-up)
+B costs a page in short programs (release `true` 11 > 10). Options, all measured above except D:
+* C (recommended, per #6541's own fallback): revert B and the relaxation, page-align `.got` in `entry.S`. All
+  bounds at base in both profiles. Costs ~4 KiB of RELRO and keeps one written `.got` page.
+* Relaxation alone, plus a follow-up story so the fast-profile first `%.2f` reads no RELRO (D, NOT measured): best
+  counts (fast `true` 10, one fewer written start-up page), but it changes printf's fast-profile codegen.
+* B as is: needs TRUE_BOUND release 10 -> 11 (a loosening; not done).
 
-## Open / not to redo
-* "true 81 or better" from the ruling note: with B `true` is at base level (relayed 11 = 11; run 1's 82 -> 81 was the
-  relaxation leaving `true` with no relro read, which B gives back by design). Report as INFORMATIONAL; not chased.
-* Do not re-measure options A or C. Do not move the read into a `#[cold]` function: it runs on every static start,
-  so a cold call would cost a text fault.
+## Jobs (run 3, keke)
+`startup-got-page-3-lint0` (clippy all-targets + static on the inherited head, rc 0); evidence, not gates:
+`startup-got-page-3-proof-rel` (release B, base; its relaxation-only state is VOID: see below),
+`startup-got-page-3-proof-relc` (release C), `startup-got-page-3-proof-relrelax` (release relaxation alone, clean
+rerun), `startup-got-page-3-proof-fast` (fast base, C, B). VOID: `proof-relc` waited for `proof-rel` with an
+in-job `~/bin/jobwait`, which returned 3 at its own timeout. Its `git checkout -f` then switched the shared clone
+during `proof-rel`'s relaxation-only build, so that state's numbers were discarded and rerun (`proof-relrelax`).
+
+## Not to redo
+Options A/B/C are measured in both profiles; do not re-measure. Do not move the read into a `#[cold]` function (run 2).
 
 ## Exact next step
-Leg 2 did steps 1-3 of the old list (sync, lint2, gate3 + plants3 started, report json written). Remaining:
-collect `~/bin/jobwait startup-got-page-2-gate3 startup-got-page-2-plants3` on keke. Green = land (the report json
-then needs only `head` and the gate line). Red = find the cause, fix, rerun only the failing suite or plant, hand back.
-Do not re-sync keke:~/w/n1 while gate3 runs (the handoff/report commits after db97397a7 are not on the role and do
-not need to be: no code changed).
+Apply the ruling. For C: remove the start-up read (`runtime.rs`), the relaxation (`copies.rs` step 3 and its unit
+test and plants) and the cmp-immediate tool change if no longer needed. Add the `entry.S` `.got` alignment, rework
+D-X.122 (and its plants for C), run release and fast `hot_text_products`, the gate and plants on the final head.
 Plan rows: D-X.101, D-X.15, D-X.122.

@@ -1,0 +1,18 @@
+{"task": "STARTUP-GOT-PAGE-3", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: gate3's red is option B's own deliberate start-up RELRO read (release true 11 > 10, the read is the one extra fault); B and C measured in both profiles, C at base everywhere; RULING NEEDED",
+ "branch": "task/startup-got-page-3", "head": null,
+ "gate": {"affected": "not rerun (no code change); inherited gate3 failed 1 test (release init_short_programs_stay_within_their_page_fault_bounds: 11 > 10), reproduced and explained; lint0 (clippy all-targets + static) rc 0", "peak": null},
+ "accepted_first_attempt": false,
+ "rulings": [{"item": "ruling #6541 follow-up: option B costs one fault in every program that reads no RELRO (release startup-only 10 -> 11 > TRUE_BOUND 10); relaxation alone costs the fast-profile first %.2f 3 -> 4; C (no relaxation, .got page-aligned) is at base in both profiles",
+              "recommendation": "C (revert B and the relaxation, page-align .got in entry.S; ~4 KiB RELRO, keeps one written .got page); optionally later D = relaxation alone + a fast-profile printf with no RELRO read on the first %.2f (not measured)"}],
+ "informational": ["the true probe takes its count before its own closing fprintf; in release that fprintf (stdio::parts_first_use's .got read) is base's only RELRO read, so base never counted the RELRO window in true",
+                   "job startup-got-page-3-proof-rel's relaxation-only state is void: the chained job proof-relc waited with an in-job jobwait that returned 3 at its own timeout and switched the shared clone mid-build; rerun as proof-relrelax"],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "measurement only: B, C and relaxation-alone page faults and instructions in both profiles (handoff table); no code changed", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "cost", "what": "option B (branch as is): release startup-only program whole-process faults", "before": 10, "after": 11, "unit": "faults", "measured": true}
+ ],
+ "improvement": "jobrun has no --after <label>: chaining a job on another with an in-job jobwait silently proceeds when jobwait times out (exit 3); a jobrun --after (or jobwait --forever) would have saved a void 20-minute build",
+ "next_step": "apply the ruling; for C: remove the start-up read and the relaxation, add entry.S's .got alignment, rework D-X.122 and plants, gate + plants + both-profile hot_text_products on the final head",
+ "report_file": "handoff/STARTUP-GOT-PAGE.md",
+ "jobs": ["keke:startup-got-page-3-lint0", "keke:startup-got-page-3-proof-rel", "keke:startup-got-page-3-proof-relc", "keke:startup-got-page-3-proof-relrelax", "keke:startup-got-page-3-proof-fast"]}
