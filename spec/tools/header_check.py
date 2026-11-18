@@ -213,7 +213,9 @@ def main():
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
             with open(src, "w") as f:
                 f.write(text)
-            r = subprocess.run(base + [src], capture_output=True, text=True)
+            # A unit whose first lines say `niji: codegen` needs the optimiser (its checks are folded, not evaluated by the parser).
+            cmd = [("-O1" if a == "-fsyntax-only" else a) for a in base] + ["-S", "-o", os.devnull] if "niji: codegen" in text else base
+            r = subprocess.run(cmd + [src], capture_output=True, text=True)
             total += 1
             ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
             if not ok:
