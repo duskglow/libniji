@@ -8,6 +8,8 @@
 
 __NIJI_BEGIN_C
 
+/* The reference's <sys/profil.h> includes <sys/time.h>, which makes the FD_ macros visible; <sys/time.h> (slice 7)
+   is not generated yet, so they are left out until it exists. */
 #if 1
 # ifndef __NIJI_D_struct_timeval
 #  define __NIJI_D_struct_timeval 1
@@ -39,6 +41,13 @@ struct prof {
   unsigned long pr_scale;
 };
 # endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_struct_timezone
@@ -49,7 +58,32 @@ struct timezone {
 };
 # endif
 #endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+#endif
 #if 1
+# ifndef __NIJI_D_fd_set
+#  define __NIJI_D_fd_set 1
+typedef struct {
+  long fds_bits[16];
+} fd_set;
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
+# endif
 struct itimerval;
 # ifndef __NIJI_D_getitimer
 #  define __NIJI_D_getitimer 1
@@ -59,6 +93,11 @@ struct timeval;
 # ifndef __NIJI_D_gettimeofday
 #  define __NIJI_D_gettimeofday 1
 extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_select
+#  define __NIJI_D_select 1
+extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 # endif
 struct itimerval;
 struct itimerval;
@@ -109,6 +148,19 @@ struct timezone;
 extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI_NOTHROW;
 # endif
 #endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+struct timespec;
+# ifndef __NIJI_D_pselect
+#  define __NIJI_D_pselect 1
+extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D_enum_ITIMER_PROF
 #  define __NIJI_D_enum_ITIMER_PROF 1
@@ -121,6 +173,9 @@ enum { ITIMER_REAL = 0 };
 # ifndef __NIJI_D_enum_ITIMER_VIRTUAL
 #  define __NIJI_D_enum_ITIMER_VIRTUAL 1
 enum { ITIMER_VIRTUAL = 1 };
+# endif
+# ifndef FD_SETSIZE
+#  define FD_SETSIZE 1024
 # endif
 # ifndef ITIMER_PROF
 #  define ITIMER_PROF 2

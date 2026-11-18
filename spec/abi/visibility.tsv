@@ -14909,8 +14909,8 @@ link.h	LL_NONE	macro	!time64only
 link.h	LL_REQUIRE_MINOR	macro	!time64only
 link.h	LM_ID_BASE	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 link.h	LM_ID_NEWLM	macro	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
-link.h	La_x86_64_regs	typedef	!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
-link.h	La_x86_64_retval	typedef	!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
+link.h	La_x86_64_regs	typedef	!time64only
+link.h	La_x86_64_retval	typedef	!time64only
 link.h	Lmid_t	typedef	gnu,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23
 link.h	MIPS_AFL_ASE_DSP	macro	!time64only
 link.h	MIPS_AFL_ASE_DSPR2	macro	!time64only

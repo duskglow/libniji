@@ -57,7 +57,10 @@ typedef struct {
 typedef struct {
   unsigned long dls_size;
   unsigned int dls_cnt;
-  __extension__ union { Dl_serpath dls_serpath[0]; Dl_serpath __dls_serpath_pad[1]; };
+  union {
+  Dl_serpath dls_serpath[0];
+  Dl_serpath __dls_serpath_pad[1];
+  };
 } Dl_serinfo;
 # endif
 # ifndef __NIJI_D_Dl_serpath

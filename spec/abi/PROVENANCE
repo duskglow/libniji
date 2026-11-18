@@ -29,3 +29,4 @@ are the `#define`s of the UAPI header asm/debugreg.h (linux-libc-dev 6.8). Each 
 the reference (exit status only: the macro exists, with this value and type); six kernel names the reference does not give
 (DR6_RESERVED DR_BUS_LOCK DR_CONTROL_RESERVED DR_GLOBAL_ENABLE DR_LOCAL_ENABLE DR_TRAP_BITS) are not rows. visibility.tsv
 rows of the two headers by header_probe.py --headers sys/reg.h,sys/debugreg.h (27 and 26 macros, every configuration).
+Slice 16 (SL-HEADERS-S16-3, ruling #6472): the visibility.tsv rows of link.h `La_x86_64_regs` and `La_x86_64_retval` were edited by hand from `!time64only,cxx98,...` (C only, as probed) to `!time64only`: libniji declares them in C++ too, because the C++ prototypes of the la_* entry points name them (D-X.130; docs/differences-from-glibc.md). A rerun of header_probe.py would restore the probed rows.
