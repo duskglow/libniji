@@ -128,9 +128,18 @@ if virtual:
 # byte order (LAYOUT-TRACE-HOST-CANONICAL-3): nm sorts by the caller's locale (en_US ignores the
 # underscores, C does not), so its order was a host input; nm runs in the C locale and the names are
 # sorted here as well.
+#
+# LAYOUT-LDSO-ORDER: HOT_TEXT_LDSO=<interpreter> traces the interpreter instead of the program: the program
+# is a dynamic one whose PT_INTERP is that file, and the functions are the interpreter's. Its symbol
+# values are offsets in its image; every run stops at its first instruction (`starti`: the interpreter's
+# entry, where the kernel starts the process), takes the load base from there (pc - e_entry) and puts
+# the breakpoints and the answered entries at base + offset. Everything else (virtual CPU, clock,
+# topology, environment, host files) is as for a static program.
+ldso = os.environ.get("HOT_TEXT_LDSO", "")
+syms_of = ldso or binp
 names = {}
 nm_env = dict(os.environ, LC_ALL="C")
-nm = subprocess.run(["nm", "--defined-only", binp], capture_output=True, text=True, check=True, env=nm_env).stdout
+nm = subprocess.run(["nm", "--defined-only", syms_of], capture_output=True, text=True, check=True, env=nm_env).stdout
 for line in nm.splitlines():
     p = line.split()
     if len(p) == 3 and p[1] in "tTwWiI":
@@ -140,6 +149,8 @@ by_name = {n: a for a, ns in names.items() for n in ns}
 emul = {}
 if virtual:
     for n, kind in (("niji_machine_cpuid", "cpuid"), ("niji_machine_xgetbv0", "xgetbv")):
+        if n not in by_name and ldso:
+            continue  # an interpreter that reads no CPU feature has nothing to answer
         if n not in by_name:
             fail("%s: no %s: the virtual CPU cannot answer for it" % (binp, n))
         emul[by_name[n]] = kind
@@ -170,6 +181,27 @@ TOPO_ANSWERS = {"count": 0, "read": 0}  # all runs; printed at the end (regen.sh
 HOST_NODES = os.environ.get("HOT_TEXT_HOST_NODES", "")
 if HOST_NODES and not HOST_NODES.isdigit():
     fail("HOT_TEXT_HOST_NODES: want a node count, got %r" % HOST_NODES)
+
+# LAYOUT-LDSO-ORDER: the interpreter's entry offset (e_entry of its ELF header) and the image offsets of
+# everything above; rebase() moves them to this run's load base.
+LDSO_ENTRY = 0
+if ldso:
+    with open(ldso, "rb") as f:
+        head = f.read(64)
+    if head[:4] != b"\x7fELF" or head[4] != 2 or struct.unpack_from("<H", head, 16)[0] != 3:
+        fail("%s: not an ELF64 shared object" % ldso)
+    LDSO_ENTRY = struct.unpack_from("<Q", head, 24)[0]
+OFFSETS = [(d, dict(d)) for d in (names, emul, clocks, topo)]
+BASE = [0]
+
+
+def rebase(base):
+    if base & 0xFFF or base <= 0:
+        fail("%s: load base 0x%x from the entry stop is not a page start" % (ldso, base))
+    BASE[0] = base
+    for d, d0 in OFFSETS:
+        d.clear()
+        d.update({a + base: v for a, v in d0.items()})
 
 
 def nodes_answer():
@@ -380,6 +412,9 @@ def redirect_path():
 def run_one(cls):
     """One run of the program on class `cls`: the function start addresses in first-touch order."""
     made, once = [], {}
+    if ldso:
+        gdb.execute("starti", to_string=True)
+        rebase(int(gdb.selected_frame().pc()) - LDSO_ENTRY)
     VCLOCK.clear()
     VCLOCK.update(ns=0, tsc=1 << 32)
     every = set(clocks) | set(topo) | (set(emul) if cls != "host" else set())  # entries answered at every call
@@ -399,7 +434,16 @@ def run_one(cls):
         os.mkdir(run_dir)
         gdb.execute(CATCH, to_string=True)
     hit, seen, in_call = [], set(), set()
-    gdb.execute("run", to_string=True)
+    if ldso:
+        # Stopped at the entry (the starti stop, not a breakpoint's): it is the first function run.
+        entry = int(gdb.selected_frame().pc())
+        if entry not in names:
+            fail("%s: no function at its entry (offset 0x%x)" % (ldso, LDSO_ENTRY))
+        seen.add(entry)
+        hit.append(entry)
+        gdb.execute("continue", to_string=True)
+    else:
+        gdb.execute("run", to_string=True)
     while True:
         try:
             pc = int(gdb.selected_frame().pc())
@@ -445,6 +489,8 @@ def run_one(cls):
             bp.delete()
     for bp in gdb.breakpoints() or ():  # the catchpoint
         bp.delete()
+    if ldso:  # offsets in the image: the same in every run, whatever the base
+        hit = [a - BASE[0] for a in hit]
     return hit
 
 
@@ -472,12 +518,15 @@ if host_reads:
 # The virtual CPU reached the program: a class with AVX2 and one without never run the same code
 # (start-up reads XCR0 only when CPUID shows OSXSAVE and AVX). Equal runs mean the program saw one CPU,
 # the host's, and the list would follow it.
-if virtual:
+# LAYOUT-LDSO-ORDER: not for the interpreter, whose start-up chooses no code by CPU class (its CPU entries
+# are still answered); the same interpreter trace on two hosts is the check (handoff/LAYOUT-LDSO-ORDER.md).
+if virtual and not ldso:
     for a in classes:
         for b in classes:
             if CLASSES[a][1] & L7B_V3 and not CLASSES[b][1] & L7B_V3 and runs[classes.index(a)] == runs[classes.index(b)]:
                 fail("classes %s and %s ran the same functions: the program did not see the virtual CPU" % (a, b))
+out_names = OFFSETS[0][1] if ldso else names
 with open(out_path, "w") as f:
     for addr in merge(runs):
-        for n in names.get(addr, []):
+        for n in out_names.get(addr, []):
             f.write(n + "\n")
