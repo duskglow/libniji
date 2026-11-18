@@ -1214,7 +1214,28 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     Ok((out, errors))
 }
 
-pub fn run(root: &Path, check: bool) -> Result<(), String> {
+/// `--out DIR` writes the generated headers below DIR and nothing else (no `libc-include/`, no orphan removal, no
+/// abi-gen): a test or a P2 run can probe the headers the templates make now without touching the tree.
+pub fn run_args(root: &Path, args: &[String]) -> Result<(), String> {
+    let check = args.iter().any(|a| a == "--check");
+    match args.iter().position(|a| a == "--out") {
+        None => run(root, check),
+        Some(_) if check => Err("headers-gen: --out and --check do not go together".into()),
+        Some(i) => {
+            let dir = args.get(i + 1).ok_or("headers-gen: --out needs a directory")?;
+            let files = generated(root)?;
+            for (h, text) in &files {
+                let p = Path::new(dir).join(h);
+                fs::create_dir_all(p.parent().ok_or("no parent")?).map_err(|e| format!("{}: {e}", p.display()))?;
+                fs::write(&p, text).map_err(|e| format!("{}: {e}", p.display()))?;
+            }
+            println!("headers-gen: wrote {} headers below {dir}", files.len());
+            Ok(())
+        }
+    }
+}
+
+fn generated(root: &Path) -> Result<Vec<(String, String)>, String> {
     let (files, errors) = generate(root)?;
     if !errors.is_empty() {
         for e in &errors {
@@ -1222,6 +1243,11 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
         }
         return Err(format!("headers-gen: {} problems", errors.len()));
     }
+    Ok(files)
+}
+
+pub fn run(root: &Path, check: bool) -> Result<(), String> {
+    let files = generated(root)?;
     let mut stale = Vec::new();
     for (h, text) in &files {
         let p = root.join(OUT).join(h);
@@ -1383,45 +1409,6 @@ mod tests {
     // no spec clause: HEADERS-ABI-REGEN. A struct row added to spec/abi/layouts.tsv (as a header slice adds one)
     // and written out with `headers-gen` alone leaves abi-gen's outputs current and every Appendix C layout stub
     // id present in the layout tests (the `cargo xtask stubs` check that went red in the landing gate).
-    // plan/headers.md section 3, P2 (no spec clause): the headers as the generator makes them now (not the committed
-    // libc-include/) show the names of SL-HEADERS-VIS-FIX's rows in exactly the configurations of visibility.tsv:
-    // WIFCONTINUED (stdlib.h), no feature-test macro from features-time64.h or gnu/stubs.h alone, struct timespec
-    // beside struct stat (sys/pidfd.h). Runs header_probe.py and probe_compare.py; needs cc and python3.
-    #[test]
-    fn p2_visibility_of_the_fixed_rows() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
-        let have = |c: &str| std::process::Command::new(c).arg("--version").output().is_ok_and(|o| o.status.success());
-        if !have("cc") || !have("python3") {
-            eprintln!("p2_visibility_of_the_fixed_rows: skipped, no cc or python3 (P2 compiles probes with them)");
-            return;
-        }
-        let (files, errors) = generate(root).expect("generate");
-        assert!(errors.is_empty(), "generator errors: {errors:?}");
-        let base = std::env::temp_dir().join(format!("headers-p2-test.{}", std::process::id()));
-        let _ = fs::remove_dir_all(&base);
-        for (rel, text) in &files {
-            let p = base.join("include").join(rel);
-            fs::create_dir_all(p.parent().unwrap()).unwrap();
-            fs::write(p, text).unwrap();
-        }
-        fs::create_dir_all(base.join("got")).unwrap();
-        let headers = "stdlib.h,gnu/stubs.h,features-time64.h,sys/pidfd.h";
-        let probe = std::process::Command::new("python3")
-            .arg(root.join("spec/tools/header_probe.py"))
-            .args(["--include".as_ref(), base.join("include").as_os_str(), "--headers".as_ref(), headers.as_ref(), "--out".as_ref(), base.join("got").as_os_str(), "--jobs".as_ref(), "8".as_ref()])
-            .output()
-            .expect("header_probe.py");
-        assert!(probe.status.success(), "header_probe.py: {}", String::from_utf8_lossy(&probe.stderr));
-        let cmp = std::process::Command::new("python3")
-            .arg(root.join("spec/tools/probe_compare.py"))
-            .args(["visibility".as_ref(), "--got".as_ref(), base.join("got").as_os_str(), "--headers".as_ref(), headers.as_ref()])
-            .output()
-            .expect("probe_compare.py");
-        let out = String::from_utf8_lossy(&cmp.stdout).into_owned();
-        let _ = fs::remove_dir_all(&base);
-        assert!(cmp.status.success(), "P2 differences:\n{out}");
-    }
-
     #[test]
     fn headers_gen_regenerates_the_abi_layouts() {
         let src = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
