@@ -1043,6 +1043,10 @@ extern int posix_openpt (int);
 # define WTERMSIG(status) ((status) & 0x7f)
 # define WSTOPSIG(status) WEXITSTATUS (status)
 # define WIFEXITED(status) (WTERMSIG (status) == 0)
+#endif
+
+/* WIFCONTINUED has its own condition: _XOPEN_SOURCE defined empty shows the four above but not it. */
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # define WIFCONTINUED(status) ((status) == 0xffff)
 #endif
 

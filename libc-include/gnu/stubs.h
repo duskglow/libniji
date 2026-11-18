@@ -4,8 +4,7 @@
 #ifndef __NIJI_H_gnu_stubs_h
 #define __NIJI_H_gnu_stubs_h 1
 
-#include <features.h>
-
+/* No <features.h>: the __stub_ macros need no level, and included alone this header shows no feature-test macro. */
 #ifndef __stub_chflags
 # define __stub_chflags
 #endif
