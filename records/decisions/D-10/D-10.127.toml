@@ -1,5 +1,4 @@
-id = "D-NEW"
-series = "D-10"
+id = "D-10.127"
 section = "s10"
 spec = "spec/abi/visibility.tsv (regexp.h include-error *), plan/headers.md sections 2.3 and 5.1"
 ann = "headers/regexp.h.in"

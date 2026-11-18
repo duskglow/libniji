@@ -1,5 +1,4 @@
-id = "D-NEW"
-series = "D-10"
+id = "D-10.128"
 section = "s10"
 spec = "spec/abi/visibility.tsv, spec/abi/callsites.tsv, plan/headers.md section 3 (P2, P3, P7) and section 4 (slice 10)"
 ann = "headers/slices/s10.tsv"
