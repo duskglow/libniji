@@ -1922,6 +1922,9 @@ impl<'a, A: Arch> Relas<'a, A> {
 
 impl<A: Arch> Iterator for Relas<'_, A> {
     type Item = Rela;
+    // Inlined into each pass (one call per relocation otherwise; the start-up pass is the hot one).
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     fn next(&mut self) -> Option<Rela> {
         let at = self.off;
         let offset = self.rd.u64(at)?;

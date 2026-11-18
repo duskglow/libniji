@@ -258,7 +258,9 @@ fn canonical_slots<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, befor
     // The RELA table's `DT_RELACOUNT` prefix holds only `RELATIVE` entries: no `JUMP_SLOT` there.
     let prefix = usize::try_from(o.dynm.get(dt::RELACOUNT).unwrap_or(0)).unwrap_or(usize::MAX);
     for (table, skip) in [(o.dynm.rela::<A>(), prefix), (o.dynm.jmprel::<A>(), 0)] {
-        for r in table.map_err(RelocError::Elf)?.into_iter().flatten().skip(skip) {
+        // `Skip` reaches `Relas::nth`, which jumps over the prefix (a `flatten` would decode it).
+        let Some(table) = table.map_err(RelocError::Elf)? else { continue };
+        for r in table.skip(skip) {
             if r.kind == RelocKind::JumpSlot {
                 any |= slot::<A, I>(set, i, o, &r, span, deferred, text, img, unique)?;
             }
