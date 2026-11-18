@@ -880,7 +880,7 @@ mod tests {
     #[test]
     fn jobs_list_drops_remarks() {
         // no spec clause: the JOBS: line's remarks in parentheses
-        assert_eq!(split_jobs("a-gate, b-plants (all caught), mei:c"), ["a-gate", "b-plants", "mei:c"]);
+        assert_eq!(split_jobs("a-gate, b-plants (all caught), otherhost:c"), ["a-gate", "b-plants", "otherhost:c"]);
     }
 
     fn copy_dir(from: &Path, to: &Path) {
