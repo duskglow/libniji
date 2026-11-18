@@ -1,0 +1,16 @@
+{"task": "SL-HEADERS-S09", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: 18 slice 9 headers generate, clippy/static green; header_check P1/P5 has 88 of 2789 units failing; P2, P3, P6, P8 not run; plants baseline red because of those 88",
+ "branch": "task/sl-headers-s09", "head": "f3dab367b",
+ "gate": {"affected": "not run", "peak": null},
+ "accepted_first_attempt": null,
+ "jobs": ["keke:sl-headers-s09-lint3", "keke:sl-headers-s09-chk2", "keke:sl-headers-s09-plants"],
+ "rulings": [
+  {"item": "sys/reg.h has only SS in visibility.tsv and sys/debugreg.h has no table rows (register index and DR_ names are not in constants.tsv)", "recommendation": "extend constants.tsv/visibility.tsv for these two headers in a table slice, or rule that they derive from the kernel UAPI (user_regs_struct member order, asm/debugreg.h)"},
+  {"item": "C++-mangled call-site symbols (pidfd_*, thread_db.h: 44 rows) are ignored by the generator; libniji declares extern C", "recommendation": "accept: differences row without compat option (no library exports the mangled names), plus an --accept entry for probe_compare"}
+ ],
+ "informational": ["spec/abi/syscalls.tsv comes from the build host's linux-libc-dev 6.8; the plan names 6.12.116, regenerate there", "derived layouts changed the generated stdio.h, stdlib.h and sys/types.h (opaque __sigset_t and __mbstate_t became real members); sizes verified by header_check P1"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "slice 9 headers generated (17 templates plus syscall.h) and 5 plants written", "before": 27, "after": 42, "unit": "generated headers", "measured": true}],
+ "improvement": "header_check.py prints one long line per failing unit; a grouped summary by (header, config) would save a full-output read each run",
+ "next_step": "group the 88 header_check failures by header and configuration, fix includes or conditions, then P2/P3/P8, differences row, plants",
+ "report_file": "handoff/SL-HEADERS-S09.md"}

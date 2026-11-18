@@ -27,12 +27,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import header_probe as hp  # noqa: E402  (ROOT, c_integer_names)
 
 ROOT = hp.ROOT
+SLICE9 = ["sys/signalfd.h", "sys/timerfd.h", "sys/eventfd.h", "sys/epoll.h", "sys/inotify.h", "sys/fanotify.h", "sys/prctl.h",
+          "sys/personality.h", "sys/pidfd.h", "sys/auxv.h", "sys/random.h", "sys/syscall.h", "syscall.h", "sys/ptrace.h",
+          "sys/user.h", "sys/reg.h", "sys/procfs.h", "sys/debugreg.h"]
 HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "sys/types.h", "sys/bitypes.h",
            "stdint.h", "inttypes.h", "limits.h", "endian.h", "byteswap.h", "errno.h", "sys/errno.h", "alloca.h",
            "gnu-versions.h", "gnu/stubs.h",
            # slice 6
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"]
+           "getopt.h", "time.h"] + SLICE9
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
@@ -64,7 +67,7 @@ def p1_units(ids, vis, macros, typedefs, layouts):
     out = {}
     for r in vis:
         h = r["header"]
-        if h not in SLICE6 + SLICE14 or r["kind"] not in ("macro", "typedef", "struct"):
+        if h not in SLICE6 + SLICE9 + SLICE14 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
@@ -90,7 +93,74 @@ def p1_units(ids, vis, macros, typedefs, layouts):
         if tests:
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             units.setdefault(cid, []).append((f"P1 {h}", body))
+    # sys/syscall.h (SL-HEADERS-S09): SYS_<name> is the number of spec/abi/syscalls.tsv, which is the kernel's __NR_<name>.
+    sysrows = rows("spec/abi/syscalls.tsv")
+    body = "#include <sys/syscall.h>\n" + "".join(f"typedef char niji_p1_sys_{r['name']}[(SYS_{r['name']} == {r['number']}) ? 1 : -1];\n" for r in sysrows)
+    for cid in ids:
+        units.setdefault(cid, []).append(("P1 sys/syscall.h", body))
     return units
+
+
+def uapi_flags():
+    """`-isystem` for the kernel UAPI directories (linux-libc-dev) the headers of slice 9 include: $NIJI_UAPI (the tree
+    `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include
+    directories (their glibc headers stay out of reach: the units use -nostdinc and the libniji tree comes first)."""
+    d = os.environ.get("NIJI_UAPI")
+    if d:
+        return ["-isystem", d]
+    return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
+
+
+# P8 (plan/headers.md section 3, slice 9): a libniji header and the kernel UAPI header that defines the same names. Both
+# include orders must compile, as C and as C++, with and without _GNU_SOURCE; a pair whose kernel header is not installed
+# is skipped.
+P8_PAIRS = [("sys/ptrace.h", "linux/ptrace.h"), ("sys/ptrace.h", "asm/ptrace.h"), ("sys/prctl.h", "linux/prctl.h"),
+            ("sys/inotify.h", "linux/inotify.h"), ("sys/fanotify.h", "linux/fanotify.h"), ("sys/epoll.h", "linux/eventpoll.h"),
+            ("sys/random.h", "linux/random.h"), ("sys/pidfd.h", "linux/pidfd.h"), ("sys/auxv.h", "linux/auxvec.h"),
+            ("sys/auxv.h", "asm/auxvec.h"), ("sys/personality.h", "linux/personality.h"), ("sys/eventfd.h", "linux/eventfd.h"),
+            ("sys/timerfd.h", "linux/timerfd.h"), ("sys/signalfd.h", "linux/signalfd.h"), ("sys/syscall.h", "asm/unistd.h"),
+            ("syscall.h", "asm/unistd.h"), ("sys/debugreg.h", "asm/debugreg.h"), ("sys/user.h", "asm/user.h")]
+P8_MODES = [("c", "-std=c17"), ("c", "-std=c17 -D_GNU_SOURCE"), ("c", "-std=gnu17"), ("c++", "-std=c++17 -D_GNU_SOURCE")]
+
+
+def reference_works(work):
+    """Whether the system's own C library headers compile here (the reference of black-box probes)."""
+    src = os.path.join(work, "ref.c")
+    with open(src, "w") as f:
+        f.write("#include <stdio.h>\n#include <sys/types.h>\nint niji_ref_tu;\n")
+    return subprocess.run(["gcc", "-fsyntax-only", src], capture_output=True).returncode == 0
+
+
+def p8(inc, gccinc, work):
+    """(failures, units) of the P8 include-order units. The kernel's own headers conflict with a libc's for most
+    of these pairs (only `linux/libc-compat.h`'s set has a protocol); a unit that does not compile with the reference
+    system's headers either is printed as a NOTE and is not a failure (black-box parity, plan/headers.md 2.2)."""
+    ref = reference_works(work)
+    uapi = uapi_flags()
+    dirs = [uapi[i + 1] for i in range(0, len(uapi), 2)]
+    fails = total = 0
+    for a, b in P8_PAIRS:
+        if not any(os.path.isfile(os.path.join(d, b)) for d in dirs):
+            continue
+        for lang, flags in P8_MODES:
+            for order in ((a, b), (b, a)):
+                src = os.path.join(work, f"p8-{total}.{'cc' if lang == 'c++' else 'c'}")
+                with open(src, "w") as f:
+                    f.write("".join(f"#include <{h}>\n" for h in order) + "int niji_p8_tu;\n")
+                cmd = ["g++" if lang == "c++" else "gcc", *flags.split(), "-nostdinc", "-isystem", inc, "-isystem", gccinc, *uapi,
+                       "-fsyntax-only", "-Wall", "-Wextra", "-Werror", src]  # a program's flags: no -Wsystem-headers (P5 has it)
+                r = subprocess.run(cmd, capture_output=True, text=True)
+                total += 1
+                if r.returncode != 0 and ref:
+                    rr = subprocess.run(["g++" if lang == "c++" else "gcc", *flags.split(), "-fsyntax-only", "-Wall", "-Wextra", "-Werror", src],
+                                        capture_output=True)
+                    if rr.returncode != 0:
+                        print(f"NOTE P8 {order[0]} then {order[1]} [{flags}]: the reference system does not compile it either")
+                        continue
+                if r.returncode != 0:
+                    fails += 1
+                    print(f"FAIL P8 {order[0]} then {order[1]} [{flags}]: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
+    return fails, total
 
 
 def rows(rel):
@@ -158,7 +228,8 @@ def main():
         cxx = c["language"] == "c++"
         ext = "cc" if cxx else "c"
         base = ["g++" if cxx else "gcc", *c["flags"].split(), "-nostdinc", "-isystem", inc,
-                "-isystem", gccinc, "-isystem", kern, "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
+                "-isystem", gccinc, *(uapi_flags() if os.environ.get("NIJI_UAPI") else ["-isystem", kern]),
+                "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
         units = [("levels", "#include <features.h>\n" + "".join(
@@ -180,6 +251,8 @@ def main():
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
+    f8, t8 = p8(inc, gccinc, work)
+    fails, total = fails + f8, total + t8
     print(f"header_check: {fails} failed of {total}")
     return 1 if fails else 0
 
