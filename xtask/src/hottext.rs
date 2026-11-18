@@ -1129,7 +1129,7 @@ mod tests {
         // The tracer must run nm in the C locale and sort each address's names itself.
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let py = std::fs::read_to_string(root.join("tools/hottext/trace_gdb.py")).unwrap();
-        let nm = py.find("subprocess.run([\"nm\", \"--defined-only\", binp]").expect("trace_gdb.py: no nm call");
+        let nm = py.find("subprocess.run([\"nm\", \"--defined-only\", syms_of]").expect("trace_gdb.py: no nm call");
         let nm_line = py[nm..].lines().next().unwrap();
         assert!(nm_line.contains("env=nm_env") && py.contains("nm_env = dict(os.environ, LC_ALL=\"C\")"), "trace_gdb.py runs nm in the caller's locale");
         let sorted = py.find("names = {a: sorted(ns) for a, ns in names.items()}").expect("trace_gdb.py does not sort the names at one address");
