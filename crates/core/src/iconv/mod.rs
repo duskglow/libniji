@@ -172,41 +172,70 @@ const fn by_len() -> [u64; BY_LEN_SIZE] {
     t
 }
 
-/// The significant bytes below 64, by bit: `, - . / 0-9 :` (44 to 58).
-const SIG_LO: u64 = 0x07FF_F000_0000_0000;
-/// The significant bytes from 64 to 127, by bit `b - 64`: `A-Z _ a-z`.
-const SIG_HI: u64 = 0x07FF_FFFE_87FF_FFFE;
-/// [`SIG_LO`] without `,` and `/` (bits 44 and 47).
-const PLAIN_LO: u64 = 0x07FF_6000_0000_0000;
+/// For each byte, how it reads in a charset name (D-6.8 amendment, `spec/encoding/iconv-names.md`):
+/// 0 when it is dropped (space, control, other punctuation, any byte above 0x7F); else its byte in
+/// the matching form (letters uppercased) in the low seven bits, with [`PLAIN`] set unless it is
+/// `,` or `/`. Letters, digits and `, - . / : _` count.
+static FOLD: [u8; 256] = fold_table();
 
-/// Whether byte `b` counts in a charset name: letters, digits and `, - . / : _`. Every other
-/// byte (space, control, other punctuation, any byte above 0x7F) is dropped before matching
-/// (D-6.8 amendment, `spec/encoding/iconv-names.md`).
-#[inline]
-fn significant(b: u8) -> bool {
-    let m = if b < 64 { SIG_LO } else if b < 128 { SIG_HI } else { 0 };
-    m.wrapping_shr(u32::from(b)) & 1 != 0
+/// [`FOLD`]'s flag of a plain byte: significant and neither `,` nor `/`, what names are usually
+/// made of (read without the bookkeeping of the full rule).
+const PLAIN: u8 = 0x80;
+
+// A const fn (no `get_mut`): `b` stays below 256.
+#[allow(clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects)]
+const fn fold_table() -> [u8; 256] {
+    let mut t = [0u8; 256];
+    let mut b = 0usize;
+    while b < 256 {
+        let c = b as u8;
+        if c.is_ascii_alphanumeric() || matches!(c, b'-' | b'.' | b':' | b'_') {
+            t[b] = c.to_ascii_uppercase() | PLAIN;
+        } else if matches!(c, b',' | b'/') {
+            t[b] = c;
+        }
+        b += 1;
+    }
+    t
 }
 
-/// Whether byte `b` is significant and neither `,` nor `/`: what names are usually made of,
-/// read without the bookkeeping of the full rule.
-#[inline]
-fn plain(b: u8) -> bool {
-    let m = if b < 64 { PLAIN_LO } else if b < 128 { SIG_HI } else { 0 };
-    m.wrapping_shr(u32::from(b)) & 1 != 0
+/// [`FOLD`] of `b`.
+#[inline(always)]
+fn fold(b: u8) -> u8 {
+    FOLD.get(usize::from(b)).copied().unwrap_or(0)
+}
+
+/// Whether `b` counts in a charset name.
+#[inline(always)]
+fn significant(b: u8) -> bool {
+    fold(b) != 0
+}
+
+/// `b` in the matching form (meaningful for a significant byte).
+#[inline(always)]
+fn upper(b: u8) -> u8 {
+    fold(b) & !PLAIN
+}
+
+/// Whether `text`, every byte of it significant, reads as `form` (in matching form): equal but
+/// for case. Most rows differ in their first byte.
+#[inline(always)]
+fn folds_to(text: &[u8], form: &[u8]) -> bool {
+    text.len() == form.len() && text.iter().zip(form).all(|(&t, &f)| upper(t) == f)
 }
 
 /// Whether `listed` (a charmap's name or alias, as its file spells it) is the charset `name`
 /// (matching form, [`Name::form`]): equal once `listed`'s dropped bytes are removed and its
 /// letters uppercased. Punctuation that counts must match: `CP-1252` is not `CP1252`.
 pub fn names_charset(listed: &[u8], name: &[u8]) -> bool {
-    // Same length and equal but for case: `name`'s bytes are all significant, so `listed`'s are.
-    if listed.eq_ignore_ascii_case(name) {
+    // Same length and equal but for case (`name` has no dropped byte, so a dropped byte of
+    // `listed`, read as 0, never matches).
+    if folds_to(listed, name) {
         return true;
     }
     let mut want = name.iter();
     for c in listed.iter().filter(|&&c| significant(c)) {
-        if want.next() != Some(&c.to_ascii_uppercase()) {
+        if want.next() != Some(&upper(*c)) {
             return false;
         }
     }
@@ -228,21 +257,21 @@ pub fn of_locale(loc: &Locale) -> Codec {
 pub const NAME_MAX: usize = 128;
 
 /// A charset name as the caller wrote it, read in place in its matching form (D-6.8 amendment,
-/// `spec/encoding/iconv-names.md`): the significant bytes ([`significant`]) of `first`, then,
-/// when `second` is not empty, `/` and those of `second`, letters uppercased. Nothing is copied:
-/// [`Name::is`] compares a table row with the text where it lies, and [`Name::form`] writes the
-/// matching form out only for the charmap lookup.
+/// `spec/encoding/iconv-names.md`): the significant bytes ([`FOLD`]) of the first part, then,
+/// when there is a second part, `/` and those of the second part, letters uppercased. Nothing is
+/// copied: [`Name::is`] compares a table row with the text where it lies, and [`Name::form`]
+/// writes the matching form out only for the charmap lookup.
 #[derive(Clone, Copy, Debug)]
 pub struct Name<'a> {
-    /// The first part (its trailing commas already cut when it stands alone).
-    first: &'a [u8],
-    /// The second part with its trailing commas cut; empty when there is none.
-    second: &'a [u8],
-    /// Length of the matching form.
+    /// The name in the caller's text: the first part, then, when there is a second part, the `/`
+    /// and the second part without its trailing commas (the first part alone without its
+    /// trailing commas otherwise).
+    text: &'a [u8],
+    /// Index of the `/` before the second part in `text`; `text.len()` when there is none.
+    split: usize,
+    /// Length of the matching form. Equal to `text.len()` when every byte counts: the matching
+    /// form is then `text` uppercased.
     len: usize,
-    /// Whether the name is `first` alone and every byte of it is [`plain`]: the matching form is
-    /// then `first` uppercased.
-    plain: bool,
 }
 
 impl<'a> Name<'a> {
@@ -258,31 +287,31 @@ impl<'a> Name<'a> {
 
     /// The matching form, byte by byte.
     fn bytes(&self) -> impl Iterator<Item = u8> + 'a {
-        let sig = |p: &'a [u8]| p.iter().copied().filter(|&b| significant(b)).map(|b| b.to_ascii_uppercase());
-        let slash = (!self.second.is_empty()).then_some(b'/');
-        sig(self.first).chain(slash).chain(sig(self.second))
+        let (first, rest) = self.text.split_at(self.split.min(self.text.len()));
+        let sig = |p: &'a [u8]| p.iter().copied().filter(|&b| significant(b)).map(upper);
+        let (slash, second) = match rest.split_first() {
+            Some((_, second)) => (Some(b'/'), second),
+            None => (None, rest),
+        };
+        sig(first).chain(slash).chain(sig(second))
     }
 
     /// Whether the matching form is `form` (itself in matching form: a table row).
     #[inline]
     pub fn is(&self, form: &[u8]) -> bool {
-        if form.len() != self.len {
-            return false;
+        if self.text.len() == self.len {
+            return folds_to(self.text, form);
         }
-        if self.plain {
-            // Only the case can differ, and `form` has no lower case.
-            return self.first.eq_ignore_ascii_case(form);
-        }
-        self.bytes().eq(form.iter().copied())
+        form.len() == self.len && self.bytes().eq(form.iter().copied())
     }
 
     /// The matching form, written into `buf`; `None` when it is longer than [`NAME_MAX`] (it
     /// names nothing).
     pub fn form<'b>(&self, buf: &'b mut [u8; NAME_MAX]) -> Option<&'b [u8]> {
         let out = buf.get_mut(..self.len)?;
-        if self.plain {
-            for (o, b) in out.iter_mut().zip(self.first) {
-                *o = b.to_ascii_uppercase();
+        if self.text.len() == self.len {
+            for (o, &b) in out.iter_mut().zip(self.text) {
+                *o = upper(b);
             }
         } else {
             for (o, b) in out.iter_mut().zip(self.bytes()) {
@@ -309,31 +338,23 @@ pub struct Spec<'a> {
 
 /// One part of a name, read in a single pass up to the next `/` (or the end).
 struct Part<'a> {
-    /// The part, up to the `/`.
-    all: &'a [u8],
-    /// Significant bytes in `all`.
+    /// Length of the part, up to the `/`.
+    all: usize,
+    /// Significant bytes in the part.
     len: usize,
-    /// The part without its trailing commas: up to its last significant byte that is not a comma
-    /// (dropped bytes after it do not count either).
-    cut: &'a [u8],
-    /// Significant bytes in `cut`.
+    /// Length of the part without its trailing commas: up to its last significant byte that is
+    /// not a comma (dropped bytes after it do not count either).
+    cut: usize,
+    /// Significant bytes in the first `cut` bytes.
     cut_len: usize,
     /// What follows the `/`; `None` when the text ended.
     after: Option<&'a [u8]>,
-    /// Whether the text ended and every byte was [`plain`].
-    plain: bool,
 }
 
-#[inline]
 fn part(text: &[u8]) -> Part<'_> {
-    // The usual name first: plain bytes to the end, no bookkeeping.
-    let start = text.iter().position(|&b| !plain(b)).unwrap_or(text.len());
-    if start == text.len() {
-        return Part { all: text, len: start, cut: text, cut_len: start, after: None, plain: true };
-    }
-    let (mut len, mut cut, mut cut_len) = (start, start, start);
+    let (mut len, mut cut, mut cut_len) = (0usize, 0, 0);
     let mut end = text.len();
-    for (i, &b) in text.iter().enumerate().skip(start) {
+    for (i, &b) in text.iter().enumerate() {
         if b == b'/' {
             end = i;
             break;
@@ -347,18 +368,33 @@ fn part(text: &[u8]) -> Part<'_> {
         }
     }
     let after = (end < text.len()).then(|| text.get(end.saturating_add(1)..).unwrap_or(&[]));
-    Part { all: text.get(..end).unwrap_or(&[]), len, cut: text.get(..cut).unwrap_or(&[]), cut_len, after, plain: false }
+    Part { all: end, len, cut, cut_len, after }
 }
 
 /// Split `full` into its name and suffixes, in one pass over the name.
+#[inline]
 pub fn parse_name(full: &[u8]) -> Spec<'_> {
+    // The usual name: plain bytes to the end, no bookkeeping.
+    if full.iter().all(|&b| fold(b) & PLAIN != 0) {
+        return Spec { name: Name { text: full, split: full.len(), len: full.len() }, translit: false, ignore: false };
+    }
+    parse_full(full)
+}
+
+/// [`parse_name`] for a name with suffixes, a second part or bytes that do not count.
+#[inline(never)]
+fn parse_full(full: &[u8]) -> Spec<'_> {
     let first = part(full);
     let (name, rest) = match first.after.map(part) {
         Some(second) if second.cut_len > 0 => {
+            let end = first.all.saturating_add(1).saturating_add(second.cut);
             let len = first.len.saturating_add(1).saturating_add(second.cut_len);
-            (Name { first: first.all, second: second.cut, len, plain: false }, second.after)
+            (Name { text: full.get(..end).unwrap_or(&[]), split: first.all, len }, second.after)
         }
-        second => (Name { first: first.cut, second: &[], len: first.cut_len, plain: first.plain }, second.and_then(|s| s.after)),
+        second => {
+            let text = full.get(..first.cut).unwrap_or(&[]);
+            (Name { text, split: text.len(), len: first.cut_len }, second.and_then(|s| s.after))
+        }
     };
     let mut s = Spec { name, translit: false, ignore: false };
     let Some(rest) = rest else { return s };

@@ -273,6 +273,7 @@ fn s6_4_c_1_name_spellings() {
         (b"ISO-10646//UTF8", b"ISO-10646"),
         (b"UTF-8,x", b"UTF-8,X"),
         (b" ,/", b""),
+        (b"iso 10646/ucs4 ", b"ISO10646/UCS4"),
     ] {
         assert_eq!(name(spelling), Some(want.to_vec()), "{:?}", String::from_utf8_lossy(spelling));
         let n = iconv::parse_name(spelling).name;
@@ -319,7 +320,7 @@ fn s6_4_c_1_name_spellings() {
     assert_eq!(builtin(b"utf_8"), None, "significant punctuation must match");
     assert!(iconv::names_charset(b"NF_Z_62-010_(1973)", b"NF_Z_62-010_1973"));
     assert!(iconv::names_charset(b"cp1252", b"CP1252"));
-    for (listed, asked) in [(&b"CP1252"[..], &b"CP-1252"[..]), (b"CP1252", b"CP1252X"), (b"CP1252", b"CP125"), (b"KOI8-R", b"KOI8R")] {
+    for (listed, asked) in [(&b"CP1252"[..], &b"CP-1252"[..]), (b"CP1252", b"CP1252X"), (b"CP1252", b"CP125"), (b"CP1252", b"CP1251"), (b"KOI8-R", b"KOI8R")] {
         assert!(!iconv::names_charset(listed, asked), "{:?} is not {:?}", String::from_utf8_lossy(listed), String::from_utf8_lossy(asked));
     }
 }
