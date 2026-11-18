@@ -568,7 +568,7 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
 }
 
 /// Layout and initializer stubs from spec/abi/layouts.tsv and initializers.tsv (Appendix C).
-fn abi_stubs(root: &Path, force: bool, problems: &mut Vec<String>) -> Result<(Vec<String>, usize), String> {
+pub(crate) fn abi_stubs(root: &Path, force: bool, problems: &mut Vec<String>) -> Result<(Vec<String>, usize), String> {
     let lay = fs::read_to_string(root.join("spec/abi/layouts.tsv")).map_err(|e| format!("layouts.tsv: {e}"))?;
     let ini = fs::read_to_string(root.join("spec/abi/initializers.tsv")).map_err(|e| format!("initializers.tsv: {e}"))?;
     let mut body = String::new();

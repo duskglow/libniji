@@ -1033,6 +1033,14 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
         return Err(format!("headers-gen: stale under {OUT}/: {} (run `cargo xtask headers-gen`)", stale.join(" ")));
     }
     println!("headers-gen: {} {} headers", if check { "ok," } else { "wrote" }, files.len());
+    if !check {
+        // HEADERS-ABI-REGEN: spec/abi/layouts.tsv also feeds abi-gen (`niji_abi::layout` and the Appendix C layout
+        // tests, whose `abi_*` names `cargo xtask stubs` checks). A struct row added for a header and written out
+        // here alone left those stale, red only in the landing gate (four header slices on 11-17). One command now
+        // leaves the headers, the layouts and their tests consistent; abi-gen writes only files whose text changed.
+        // `--check` stays headers-only: `abi-gen --check` is its own gate step.
+        crate::abi::run(root, false).map_err(|e| format!("headers-gen: abi-gen (spec/abi/layouts.tsv feeds both): {e}"))?;
+    }
     Ok(())
 }
 
@@ -1143,5 +1151,51 @@ mod tests {
         let r: BTreeMap<String, String> = [("__pid_t".to_string(), "emit".to_string()), ("_SIGSET_NWORDS".to_string(), "omit".to_string())].into();
         assert!(!omitted(&r, "__pid_t") && omitted(&r, "__off64_t") && omitted(&r, "_STDINT_H"));
         assert!(omitted(&r, "_SIGSET_NWORDS") && !omitted(&r, "_POSIX_ARG_MAX") && !omitted(&r, "INT8_MAX"));
+    }
+
+    fn copy_dir(src: &Path, dst: &Path) {
+        fs::create_dir_all(dst).unwrap();
+        for e in fs::read_dir(src).unwrap().flatten() {
+            let to = dst.join(e.file_name());
+            if e.file_type().unwrap().is_dir() {
+                copy_dir(&e.path(), &to);
+            } else {
+                fs::copy(e.path(), &to).unwrap();
+            }
+        }
+    }
+
+    // no spec clause: HEADERS-ABI-REGEN. A struct row added to spec/abi/layouts.tsv (as a header slice adds one)
+    // and written out with `headers-gen` alone leaves abi-gen's outputs current and every Appendix C layout stub
+    // id present in the layout tests (the `cargo xtask stubs` check that went red in the landing gate).
+    #[test]
+    fn headers_gen_regenerates_the_abi_layouts() {
+        let src = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
+        let root = std::env::temp_dir().join(format!("xtask-headers-abi-regen-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for d in ["headers", "spec/abi", "spec/unicode", OUT] {
+            copy_dir(&src.join(d), &root.join(d));
+        }
+        for f in ["crates/abi/src/layout.rs", "crates/abi/src/layout_aarch64.rs", "crates/abi/tests/appendix_c_layouts.rs", "crates/abi/tests/appendix_c_layouts_aarch64.rs"] {
+            fs::create_dir_all(root.join(f).parent().unwrap()).unwrap();
+            fs::copy(src.join(f), root.join(f)).unwrap();
+        }
+        let mut problems = Vec::new();
+        crate::spec::abi_stubs(&root, false, &mut problems).unwrap();
+        assert!(problems.is_empty(), "the copied tree starts consistent: {problems:?}");
+        let table = root.join("spec/abi/layouts.tsv");
+        let mut text = fs::read_to_string(&table).unwrap();
+        assert!(!text.contains("struct niji_regen_probe\t"));
+        text.push_str("struct niji_regen_probe\t\t16\t8\t\t\nstruct niji_regen_probe\ta\t0\t\tlong int\t\nstruct niji_regen_probe\tb\t8\t\tint\t\n");
+        fs::write(&table, text).unwrap();
+
+        run(&root, false).expect("headers-gen");
+        let fresh = crate::abi::run(&root, true);
+        crate::spec::abi_stubs(&root, false, &mut problems).unwrap();
+        let tests = fs::read_to_string(root.join("crates/abi/tests/appendix_c_layouts.rs")).unwrap();
+        let _ = fs::remove_dir_all(&root);
+        assert!(fresh.is_ok(), "abi-gen --check after headers-gen alone: {fresh:?}");
+        assert!(problems.is_empty(), "stubs after headers-gen alone: {problems:?}");
+        assert!(tests.contains("fn abi_struct_niji_regen_probe()"), "the new row has its layout test");
     }
 }
