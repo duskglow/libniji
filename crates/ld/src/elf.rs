@@ -104,6 +104,9 @@ pub mod dt {
     pub const RELASZ: u64 = 8;
     /// Size of one RELA entry.
     pub const RELAENT: u64 = 9;
+    /// The number of `R_*_RELATIVE` entries the RELA table starts with (GNU extension of the gABI's
+    /// OS-specific tag range).
+    pub const RELACOUNT: u64 = 0x6fff_fff9;
     /// Size of the dynamic string table in bytes.
     pub const STRSZ: u64 = 10;
     /// The object's soname (string table offset).
@@ -1928,6 +1931,13 @@ impl<A: Arch> Iterator for Relas<'_, A> {
         let r_type = u32::try_from(info & 0xffff_ffff).ok()?;
         let sym = u32::try_from(info.checked_shr(32)?).ok()?;
         Some(Rela { offset, sym, r_type, kind: A::classify(r_type), addend })
+    }
+
+    /// The entry `n` places on, without decoding the ones before it (a pass that wants only a
+    /// table's tail, after its `DT_RELACOUNT` prefix, starts there).
+    fn nth(&mut self, n: usize) -> Option<Rela> {
+        self.off = n.checked_mul(RELA_SIZE).and_then(|b| self.off.checked_add(b)).unwrap_or(usize::MAX);
+        self.next()
     }
 }
 

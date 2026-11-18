@@ -248,10 +248,19 @@ fn protected_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, s
 fn canonical_slots<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, before: Result<bool, RelocError<'a>>, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
     let mut any = before?;
     let o = set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
-    for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
-        for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
+    // Where a field can point after the plain pass to hold a canonical entry: the program's span
+    // (lowest to highest `PT_LOAD` address, run time), read once here, not once per slot.
+    let prog = set.objs.first().ok_or(RelocError::Lookup(LookupError::NoObject(0)))?;
+    let loads = || prog.elf.program_headers().filter(|p| p.p_type == pt::LOAD);
+    let lo = loads().map(|p| p.vaddr).min().unwrap_or(0);
+    let hi = loads().filter_map(|p| p.vaddr.checked_add(p.memsz)).max().unwrap_or(0);
+    let span = (prog.bias.wrapping_add(lo), hi.saturating_sub(lo));
+    // The RELA table's `DT_RELACOUNT` prefix holds only `RELATIVE` entries: no `JUMP_SLOT` there.
+    let prefix = usize::try_from(o.dynm.get(dt::RELACOUNT).unwrap_or(0)).unwrap_or(usize::MAX);
+    for (table, skip) in [(o.dynm.rela::<A>(), prefix), (o.dynm.jmprel::<A>(), 0)] {
+        for r in table.map_err(RelocError::Elf)?.into_iter().flatten().skip(skip) {
             if r.kind == RelocKind::JumpSlot {
-                any |= slot::<A, I>(set, i, o, &r, deferred, text, img, unique)?;
+                any |= slot::<A, I>(set, i, o, &r, span, deferred, text, img, unique)?;
             }
         }
     }
@@ -296,13 +305,12 @@ fn slot_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn U
 /// into the program can hold a canonical entry, so any other is left as written; else bound by
 /// [`slot_target`] and written (or the IFUNC entry deferred) as [`one`] does for its symbol entries.
 #[allow(clippy::too_many_arguments)]
-fn slot<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+fn slot<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, r: &Rela, span: (u64, u64), deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
     let p = o.bias.wrapping_add(r.offset);
-    let prog = set.objs.first().ok_or(RelocError::Lookup(LookupError::NoObject(0)))?;
     let mut w = [0u8; 8];
     img.load(p, &mut w);
     let v = if A::EI_DATA == ELFDATA2LSB { u64::from_le_bytes(w) } else { u64::from_be_bytes(w) };
-    if !inside(&prog.elf, v.wrapping_sub(prog.bias), 1, true) {
+    if v.wrapping_sub(span.0) >= span.1 {
         return Ok(false);
     }
     let Some((t, protected)) = slot_target(set, i, r.sym, unique)? else { return Ok(false) };
