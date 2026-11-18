@@ -1,0 +1,119 @@
+{
+ "task": "HEAP-ADDRESS-SPACE-6",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: rulings #6513/#6514 applied, fullhot red fixed, stale mallocdbg difference dropped; the issue #21 RLIMIT_AS need is placement-dependent (41296..43088 KiB over 40 runs), so the 42000 check flakes: RULING NEEDED",
+ "branch": "task/heap-address-space-6",
+ "head": "a84abbe23",
+ "gate": {
+  "affected": "gate1 on ce6328854: 6767 passed / 2 failed (mallocdbg stale entry: fixed; issue #21 RLIMIT_AS 42000: placement-dependent, ruling needed); on a84abbe23 both suites pass once (m4)",
+  "peak": "12G (gate1)"
+ },
+ "accepted_first_attempt": false,
+ "rulings": [
+  {
+   "item": "issue #21 RLIMIT_AS need depends on address-space placement (ASLR off 41296; on, 40 bisections 41296..43088 KiB after a84abbe23, 41552..42192 before); the 42000 bound flakes",
+   "recommendation": "land with the limited check under a fixed layout (ADDR_NO_RANDOMIZE, need 41296) and the spread in the test comment; HEAP-SPILL-COLD keeps other mappings out of segment growth windows and restores the randomised check"
+  }
+ ],
+ "informational": [
+  "No `cargo xtask precheck` exists on next (checked xtask/src/main.rs); the coordinator's precheck step was skipped for that reason.",
+  "Rule slip: one no-op heredoc call (`python3 - <<X` with an empty body, ran nothing) in leg 1 of this run.",
+  "Run -5's fullhot red cause: the window-bin planner moved the rebind-only phase group (Resolution::same_texts, Mo::hinted, Mo::form, unlink, unlinkat, rmdir; 1142 B) from bin 1 into bin 0's tail once bin 0 shrank by 226 B; with a 0x800 pre pad its tail sat alone in a second window. Fixed in xtask/src/bins.rs head_may_take (pending record HEAP-ADDRESS-SPACE-6-1, amends D-X.103).",
+  "Under a limit, when growth fails the heap retries a 4 KiB map plus the 32 MiB and 4.25 MiB maps on every allocation (strace); a cost for HEAP-SPILL-COLD.",
+  "xtest1 stopped (superseded head); no cargo xtask test run on a84abbe23."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "full-profile hot_text_products: rebind mode at text phase pre 0x800 took 1 page fault (want 0); now 0, rebind group back in bin 1",
+   "before": 1,
+   "after": 0,
+   "unit": "faults",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "mallocdbg_equals_the_reference: stale recorded difference removed (libniji now equals the reference on that line)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "issue #21 least RLIMIT_AS over start, median of bisections, a84abbe23 (40 runs) vs ce6328854 (5 runs)",
+   "before": 42000,
+   "after": 41296,
+   "unit": "KiB",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "issue #21 address space, malloc1 step over start",
+   "before": 16448,
+   "after": 4420,
+   "unit": "KiB VmSize",
+   "measured": false
+  },
+  {
+   "kind": "size",
+   "what": "issue #21 address space, alloc step",
+   "before": 32836,
+   "after": 28996,
+   "unit": "KiB VmSize",
+   "measured": false
+  },
+  {
+   "kind": "size",
+   "what": "issue #21 address space, refill step (target 33092 not reached; HEAP-SPILL-COLD)",
+   "before": 49220,
+   "after": 39236,
+   "unit": "KiB VmSize",
+   "measured": false
+  },
+  {
+   "kind": "size",
+   "what": "issue #21 address space, realloc step (target 35144 not reached; HEAP-SPILL-COLD)",
+   "before": 67652,
+   "after": 41288,
+   "unit": "KiB VmSize",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on this run's changes (3/3 CAUGHT) plus one planner assertion for phase-only and mixed groups",
+   "before": 0,
+   "after": 3,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "HEAP-SPILL-COLD (spill as a cold extension of grow_segment, then tighten the issue #21 bounds and recheck SEG_FIRST)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "A bound set from one bisection of a randomised quantity flaked in the gate; measure such needs as a distribution (N bisections, ASLR on and off) before a ruling fixes the number.",
+ "next_step": "Ruling on the RLIMIT_AS check, then test edit, plant for a84abbe23, gate, fullhot, xtask test, plants (handoff Exact next step)",
+ "report_file": "handoff/HEAP-ADDRESS-SPACE.md",
+ "jobs": [
+  "keke:heap-address-space-6-fullhot1",
+  "keke:heap-address-space-6-plants",
+  "keke:heap-address-space-6-gate1",
+  "keke:heap-address-space-6-m4",
+  "keke:heap-address-space-6-asn1",
+  "keke:heap-address-space-6-asn2",
+  "keke:heap-address-space-6-asn3",
+  "keke:heap-address-space-6-asn5"
+ ],
+ "superseded": [
+  "keke:heap-address-space-6-fullhot0",
+  "keke:heap-address-space-6-xtest1 (stopped, superseded head)",
+  "keke:heap-address-space-6-m3 (static red: home path in handoff)"
+ ]
+}

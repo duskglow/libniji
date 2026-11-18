@@ -3,3 +3,7 @@
 head-takes-phase | xtask/src/bins.rs | lit:(head || *n > 0) && fits ==> (head || *n < usize::MAX) && fits | cargo test -p xtask a_measured_phase | msg:a_measured_phase_shares_its_warm_up_windows.*FAILED|panicked
 head-refuses-mixed | xtask/src/bins.rs | lit:sig.is_empty() || !sig.is_subset(phases) ==> sig.is_empty() || sig.is_disjoint(phases) | cargo test -p xtask a_measured_phase | msg:a_measured_phase_shares_its_warm_up_windows.*FAILED|panicked
 first-large-max | crates/rt/src/heap.rs | lit:large.min(FIRST_LARGE) ==> large | cargo test -p niji --test heap_meta_products | msg:the_heap_keeps_address_space_near_its_use.*FAILED|the heap added
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# head-takes-phase: CAUGHT, caught by xtask bins::tests::a_measured_phase_shares_its_warm_up_windows
+# head-refuses-mixed: CAUGHT, caught by xtask bins::tests::a_measured_phase_shares_its_warm_up_windows
+# first-large-max: CAUGHT, caught by heap_meta_products the_heap_keeps_address_space_near_its_use
