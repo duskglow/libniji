@@ -49,7 +49,7 @@ impl Pages for KernelPages {
         let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, None, 0) else {
             // The over-mapping may not fit under an address-space limit (T14): an aligned range
             // without the slack, found from where the kernel would place `len` bytes.
-            return if slack > 0 { map_aligned_exactly(0, len, len, align, node) } else { None };
+            return if slack > 0 { map_aligned_exactly(0, len, align, node) } else { None };
         };
         let base = region.addr();
         let addr = base.checked_next_multiple_of(align.max(PAGE))?;
@@ -75,7 +75,7 @@ impl Pages for KernelPages {
         let total = head.checked_add(room.max(len))?.checked_add(align)?;
         let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, None, 0) else {
             // Under an address-space limit the over-mapping may not fit (T14).
-            return map_aligned_exactly(head, len, room, align, node);
+            return map_aligned_exactly(head, len, align, node);
         };
         let base = region.addr();
         let addr = base.checked_add(head)?.checked_next_multiple_of(align.max(PAGE))?;
@@ -195,28 +195,18 @@ pub struct OwnPages;
 /// below are tried with `MAP_FIXED_NOREPLACE` (never replacing a mapping).
 /// With `head`: `head + len` bytes whose address plus `head` is the multiple (the address
 /// returned), as [`Pages::map_room`] places them.
-/// With `room > len` (the caller grows the mapping in place up to `room` bytes): the highest
-/// multiple whose `room` bytes end at or below the top of the gap the kernel chose comes first,
-/// so the room above is the gap's, as the over-mapping path leaves it, and not a remainder that
-/// depends on where the gap starts (address-space layout randomisation).
-fn map_aligned_exactly(head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
     use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
     let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
     let total = head.checked_add(len)?;
     let probe = CSys.mmap(0, total, PROT_READ | PROT_WRITE, flags, None, 0).ok()?.addr();
-    let addr = if room <= len && probe.checked_add(head)?.checked_rem(align) == Some(0) {
+    let addr = if probe.checked_add(head)?.checked_rem(align) == Some(0) {
         probe.saturating_add(head)
     } else {
         let _ = raw::munmap(probe, total);
         let up = probe.checked_add(head)?.checked_next_multiple_of(align)?;
         let down = up.checked_sub(align)?;
-        // The kernel places a mapping at the top of the highest gap it fits in: the gap ends at
-        // `probe + total`.
-        let fit = (room > len)
-            .then(|| probe.checked_add(total)?.checked_sub(room)?.checked_div(align)?.checked_mul(align))
-            .flatten()
-            .filter(|&a| a >= head && a != up && a != down);
-        fit.into_iter().chain([up, down]).find_map(|a| {
+        [up, down].into_iter().find_map(|a| {
             let start = a.checked_sub(head)?;
             let got = CSys.mmap(start, total, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
             if got == start {
