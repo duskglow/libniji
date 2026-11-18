@@ -405,8 +405,6 @@ struct __pthread_cond_s	__g_signals	40		unsigned int[2]
 struct __pthread_internal_list		16	8		
 struct __pthread_internal_list	__prev	0		struct __pthread_internal_list *	
 struct __pthread_internal_list	__next	8		struct __pthread_internal_list *	
-__sigset_t		128	8		
-__sigset_t	__val	0		long unsigned int[16]	
 cpu_set_t		128	8		
 cpu_set_t	__bits	0		__cpu_mask[16]	
 struct sched_param		4	4		

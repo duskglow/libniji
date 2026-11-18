@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (232 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (231 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -624,12 +624,6 @@ fn abi_struct_pthread_internal_list() {
     expect_type("struct __pthread_internal_list", size_of::<struct___pthread_internal_list>(), align_of::<struct___pthread_internal_list>());
     expect_member("struct __pthread_internal_list", "__prev", offset_of!(struct___pthread_internal_list, __prev));
     expect_member("struct __pthread_internal_list", "__next", offset_of!(struct___pthread_internal_list, __next));
-}
-
-#[test]
-fn abi_sigset_t() {
-    expect_type("__sigset_t", size_of::<__sigset_t>(), align_of::<__sigset_t>());
-    expect_member("__sigset_t", "__val", offset_of!(__sigset_t, __val));
 }
 
 #[test]

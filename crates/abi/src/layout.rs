@@ -282,12 +282,24 @@ pub struct struct_lconv {
     pub int_n_sign_posn: i8,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct jmp_buf__saved_mask {
+    pub __val: [u64; 16],
+}
+
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct jmp_buf {
     pub __jmpbuf: [i64; 8],
     pub __mask_was_saved: i32,
-    pub __saved_mask: __sigset_t,
+    pub __saved_mask: jmp_buf__saved_mask,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct sigjmp_buf__saved_mask {
+    pub __val: [u64; 16],
 }
 
 #[repr(C, align(8))]
@@ -295,7 +307,13 @@ pub struct jmp_buf {
 pub struct sigjmp_buf {
     pub __jmpbuf: [i64; 8],
     pub __mask_was_saved: i32,
-    pub __saved_mask: __sigset_t,
+    pub __saved_mask: sigjmp_buf__saved_mask,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct___jmp_buf_tag__saved_mask {
+    pub __val: [u64; 16],
 }
 
 #[repr(C, align(8))]
@@ -303,7 +321,7 @@ pub struct sigjmp_buf {
 pub struct struct___jmp_buf_tag {
     pub __jmpbuf: [i64; 8],
     pub __mask_was_saved: i32,
-    pub __saved_mask: __sigset_t,
+    pub __saved_mask: struct___jmp_buf_tag__saved_mask,
 }
 
 #[repr(C, align(8))]
@@ -398,11 +416,17 @@ pub union struct_sigaction__sigaction_handler {
     pub sa_sigaction: usize,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct_sigaction__sa_mask {
+    pub __val: [u64; 16],
+}
+
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct struct_sigaction {
     pub __sigaction_handler: struct_sigaction__sigaction_handler,
-    pub sa_mask: __sigset_t,
+    pub sa_mask: struct_sigaction__sa_mask,
     pub sa_flags: i32,
     pub sa_restorer: usize,
 }
@@ -768,12 +792,6 @@ pub struct struct___pthread_cond_s {
 pub struct struct___pthread_internal_list {
     pub __prev: usize,
     pub __next: usize,
-}
-
-#[repr(C, align(8))]
-#[derive(Clone, Copy)]
-pub struct __sigset_t {
-    pub __val: [u64; 16],
 }
 
 #[repr(C, align(8))]
