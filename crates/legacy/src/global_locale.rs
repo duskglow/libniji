@@ -779,16 +779,15 @@ impl<M: Mapper> Files<'_, M> {
     /// [`Source::file`], with `Err(ENOMEM)` when memory for the file (its mapping, its recorded
     /// name) cannot be had; `Ok(None)`: no such file, or one that cannot be used.
     ///
-    /// [`Source::file`] notes a step that ran out of memory in `nomem` (sticky for the whole
-    /// load); here only this call's own steps count, and the load's earlier notes stay. Out of
-    /// line, so [`Source::file`], which `setlocale` runs at start-up, is not reshaped by it.
+    /// [`Source::file`] notes a step that ran out of memory in `nomem`, which stays set for the
+    /// whole load; so the file is looked up through a `Files` of its own, whose note is this
+    /// call's alone (an `Err` reaches the load through `?`, and [`Source::charmap`] notes it).
+    /// Out of line, so [`Source::file`], which `setlocale` runs at start-up, is not reshaped.
     #[inline(never)]
     fn file_or_error(&self, path: &[u8]) -> KResult<Option<&'static [u8]>> {
-        let earlier = self.nomem.replace(false);
-        let found = self.file(path);
-        let nomem = self.nomem.get();
-        self.nomem.set(earlier || nomem);
-        if found.is_none() && nomem { Err(Errno::ENOMEM) } else { Ok(found) }
+        let call = Files::new(self.m);
+        let found = call.file(path);
+        if found.is_none() && call.nomem.get() { Err(Errno::ENOMEM) } else { Ok(found) }
     }
 
     /// The charmap table's words (all records with room, [`CHARMAP_TABLE`]).
