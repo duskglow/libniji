@@ -46,6 +46,16 @@ Decisions in force: D-3.19, D-3.14, D-X.103, ruling #6325; pending records `reco
   (the ssh session stayed attached; the local ssh was ended by PID, the job ran on); one `sed -i` on this handoff
   whose substitution replaced a line with itself (no change; Edit only from here on).
 
+## Run -7 leg 2 (wall-time checkpoint, 16:47Z of a 16:53Z deadline: no code change)
+
+- `heap-address-space-7-fullhot1` was ended (kill-label) before it finished building: it was on the superseded head
+  and held the role. `heap-address-space-7-plants2` was left running in its own copy (old head, superseded too once
+  the fault fix lands).
+- libc.so.6 head (`~/w/n3`, products 15:04) vs base: text +0x840 bytes moves .rodata and the RW segment up one page
+  (0x344000 -> 0x345000, 0x42b000 -> 0x42c000); .data.rel.ro 0xac50 -> 0xab38; .got (0x9b0 bytes, both cross one
+  page boundary) at page offset 0xdf0 (base) vs 0xcd8 (head); .bss 0xfb8 -> 0xfe0 (+40, heap state). RELRO 0xc000
+  in both. Not yet compared: the dynamic test program itself and the faulting pages (mincore / per-page fault list).
+
 ## Exact next step
 
 Find the dynamic start-up program's extra fault on the head vs the base (89, base products ready in
