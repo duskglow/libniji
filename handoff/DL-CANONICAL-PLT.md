@@ -39,14 +39,17 @@ one stack page more, one ld.so r--p page fewer, anonymous pages at other address
 grew by the `canonical` flag, so the inline `syms` table in `link` takes more stack. Recommendation: accept, with a
 follow-up that keeps the flag out of `Object`, e.g. one bool beside the table. Do not chase it in this chain (no 6th run).
 
-**Next step (leg 2 of run 5).** (1) `~/bin/jobwait dl-canonical-plt-5-plants2` on mei (17 plants, started on
-84166b3fb whose code equals the final code; dir /mnt/zram/claude/DL-CANONICAL-PLT-5/plants-2): read the CAUGHT/SURVIVED
-lines; `relacount-prefix-all` is expected EQUIVALENT. (2) `dl-canonical-plt-5-gate2` went RED only on `cargo xtask
-static` records: the record body had newlines (fixed in the record-only commit after 84166b3fb; no code change). When
-plants2 has ended (the role is BUSY while it runs), sync (`sync_role.sh ... mei s1`, check rc 0) and start
-`dl-canonical-plt-5-gate3` = `~/bin/gate 16G sh ~/work/DL-CANONICAL-PLT-5/gate.sh`; wait. (3) `cargo xtask precheck
---jobs <labels> --head <sha>` on the role; write handoff/DL-CANONICAL-PLT-5-report.md (results above + jobs) and
-handoff/reports/DL-CANONICAL-PLT-5.json; push; `ops handback-check`. Hand back with the RULING NEEDED above.
+**Done in leg 2.** plants2 ended rc 1 (details in handoff/DL-CANONICAL-PLT-5-report.md): 10 CAUGHT, 1 EQUIVALENT,
+5 WARN-NO-MSG (a `\d` regex that `grep -E` on the build host does not match; each verified caught; the plants file
+now uses `[0-9]+`), **1 SURVIVED: dladdr-any-undefined** (no test asks dladdr about an object's load base, the one
+address where an ordinary import, value 0 size 0, would then match). Report and json written. gate3 started on the
+synced final head after the plants (they held the role until 19:10Z, 23 minutes before the run's deadline).
+
+**Next step.** (1) Probe the reference (black box, the existing probe in ~/work/DL-CANONICAL-PLT-5/probe on mei) for
+dladdr at a library's and the program's `dli_fbase`; add the case to the scoped canonical_plt test; re-run plant
+dladdr-any-undefined alone (a one-line plants file, new dir). (2) Collect `mei:dl-canonical-plt-5-gate3`
+(`GATE-OK` at the end of ~/logs/dl-canonical-plt-5-gate3.log); after the test change, gate again. (3) The RULING
+NEEDED above. The brief says no 6th run of this chain: the coordinator decides where (1) goes.
 SUPERSEDED jobs: lint0 (inherited head, green), step1/step2 (trace-name failures, fixed), step3 + count-m3 (+5.4k
 codegen, fixed), gate/plants (killed, older head), step4 (killed: started after a BUSY sync), gate2 (records newline).
 Kept: count-pre, step5 (lint + build + 6/6 tests + probe match + merged count m5), probe-ref, probe-ref2.
