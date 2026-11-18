@@ -1,0 +1,18 @@
+id = "D-X.124"
+section = "x"
+status = "active"
+story = "SL-HEADERS-S12"
+date = "2026-11-18"
+body = '''
+**Slice 12 headers (network core and name services): generator additions, accepted probe classes, P10 and kernel coexistence** (SL-HEADERS-S12, plan/headers.md section 2.4; rulings #6406, #6458). The sixteen headers `sys/socket.h`, `sys/un.h`, `netinet/in.h`, `arpa/inet.h`, `netdb.h`, `net/if.h`, `ifaddrs.h`, `netinet/tcp.h`, `netinet/udp.h`, `resolv.h`, `arpa/nameser.h`, `arpa/nameser_compat.h`, `nss.h`, `aliases.h`, `rpc/netdb.h` and `sys/socketvar.h` are templates under `headers/`, generated into `libc-include/`. The tables gained `struct res_sym` (`spec/abi/layouts.tsv`, with the `abi-gen` output regenerated).
+
+*Alias macros.* `headers/aliases.tsv` lists macros that headers-gen spells as another macro (`IP_RECVRETOPTS` as `IP_RETOPTS`, `IP_RECVORIGDSTADDR` as `IP_ORIGDSTADDR`, `IPV6_RECVORIGDSTADDR` as `IPV6_ORIGDSTADDR`) and refuses to generate when the two have different `macros.tsv` types or values. The kernel UAPI header `linux/in.h` defines these names with that spelling; a literal in libniji's header made the second definition differ token for token, so `<netinet/in.h>` followed by `<linux/in.h>` failed with a redefinition error (P8, the libc-first order). The same spelling makes the redefinition identical, which C 6.10.3 allows, so both include orders after libniji's header work with and without `_GNU_SOURCE`.
+
+*Kernel header first.* `<linux/in.h>` before `<netinet/in.h>` is not supported (#6458: libc-first only; the kernel-first measurement and an extension proposal are with slice 13). `spec/tools/header_check.py --kernel DIR` therefore asserts the libc-first order only; `--system` prints the same units against the build host's own headers for comparison.
+
+*Optional includes.* `arpa/nameser.h`, `resolv.h` and `netdb.h` include `<sys/param.h>` and `<signal.h>` behind `__has_include` until those slices are in the tree (ruling #6406); SL-HEADERS-S07-TAIL removes the guard and adds the check.
+
+*Accepted differences of the P2 and P3 probes* (`handoff/SL-HEADERS-S12/accept.py`): (a) names that `sys/param.h` and `signal.h`, and what they include, supply to the three headers above; (b) `_SIGSET_NWORDS` and `_STRUCT_TIMESPEC`, reserved names no template defines; (c) `bindresvport6`, which is omitted (`headers/reserved.tsv`): it is not exported at a default version, so no program can link it, and a row in docs/differences-from-glibc.md records it with no compatibility option; (d) the `recv` and `recvfrom` fortified call forms, which belong to slice 18.
+
+*P10.* `spec/tools/p10_net.c` evaluates `CMSG_*`, `IN6_IS_ADDR_*`, `IN6_ARE_ADDR_EQUAL` and the byte-order conversions on both header sets (1299 output lines, identical); `header_check.py --p10` runs it. P1 (sizes, alignments, member offsets and integer constants) and P5 pass for all sixteen headers.
+'''

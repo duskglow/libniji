@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (221 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (222 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -2697,6 +2697,14 @@ fn abi_struct_elf_siginfo() {
     expect_member("struct elf_siginfo", "si_signo", offset_of!(struct_elf_siginfo, si_signo));
     expect_member("struct elf_siginfo", "si_code", offset_of!(struct_elf_siginfo, si_code));
     expect_member("struct elf_siginfo", "si_errno", offset_of!(struct_elf_siginfo, si_errno));
+}
+
+#[test]
+fn abi_struct_res_sym() {
+    expect_type("struct res_sym", size_of::<struct_res_sym>(), align_of::<struct_res_sym>());
+    expect_member("struct res_sym", "number", offset_of!(struct_res_sym, number));
+    expect_member("struct res_sym", "name", offset_of!(struct_res_sym, name));
+    expect_member("struct res_sym", "humanname", offset_of!(struct_res_sym, humanname));
 }
 
 #[test]

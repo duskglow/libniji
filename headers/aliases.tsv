@@ -1,0 +1,8 @@
+# Macros that headers-gen spells as another macro instead of as a literal, so a kernel UAPI header that defines the same name
+# with that spelling (linux/in.h: IP_RECVRETOPTS is IP_RETOPTS) repeats it token for token and C 6.10.3p2 allows the
+# redefinition in either include order (plan/headers.md 2.4, kernel coexistence). headers-gen fails unless `of` has the same
+# macros.tsv type and value as `name`.
+name	of	reason
+IP_RECVRETOPTS	IP_RETOPTS	linux/in.h defines IP_RECVRETOPTS as IP_RETOPTS
+IP_RECVORIGDSTADDR	IP_ORIGDSTADDR	linux/in.h defines IP_RECVORIGDSTADDR as IP_ORIGDSTADDR
+IPV6_RECVORIGDSTADDR	IPV6_ORIGDSTADDR	linux/in.h defines IPV6_RECVORIGDSTADDR as IPV6_ORIGDSTADDR
