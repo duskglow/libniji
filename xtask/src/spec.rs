@@ -427,6 +427,9 @@ fn emit(path: &Path, content: &str, ids: &[String], force: bool, problems: &mut 
             return Ok(());
         }
     }
+    if fs::read_to_string(path).ok().as_deref() == Some(content) {
+        return Ok(()); // unchanged: keep its modification time (`cargo xtask precheck` reads the role's times)
+    }
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
@@ -465,7 +468,10 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
         }
         emit(&file, &body, &ids, force, &mut problems)?;
     }
-    fs::write(root.join("spec/clauses.tsv"), tsv).map_err(|e| e.to_string())?;
+    // Written only when it changed: a role's modification times tell `cargo xtask precheck` what a later sync changed.
+    if fs::read_to_string(root.join("spec/clauses.tsv")).ok().as_deref() != Some(tsv.as_str()) {
+        fs::write(root.join("spec/clauses.tsv"), tsv).map_err(|e| e.to_string())?;
+    }
 
     // --- Commentary items (spec §0.3): the mark's form, and each one present as `commentary!`
     // (not a pending `clause!` stub, not a test).
