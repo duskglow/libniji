@@ -18,8 +18,9 @@
 //! * `pthread_cond_t__data__g1_start.__value32 (struct <anon>)`
 //! * `__pthread_unwind_buf_t.__cancel_jmp_buf (struct __cancel_jmp_buf_tag[1])`
 //! * `struct___res_state.sort_list (struct <anon>[10])`
-//! * `Dl_serinfo__anon_16.dls_serpath (Dl_serpath[0])`
-//! * `Dl_serinfo__anon_16.__dls_serpath_pad (Dl_serpath[1])`
+//! * `La_x86_64_regs.__glibc_unused1 (__int128[4])`
+//! * `La_x86_64_retval.__glibc_unused1 (__int128)`
+//! * `La_x86_64_retval.__glibc_unused2 (__int128)`
 //! * `struct_argp.parser (argp_parser_t)`
 //! * `struct_rlimit64.rlim_cur (rlim64_t)`
 //! * `struct_rlimit64.rlim_max (rlim64_t)`
@@ -41,7 +42,7 @@
 //! * `Elf32_Ehdr.e_shstrndx (Elf32_Half)`
 //! * `Elf64_Ehdr.e_version (Elf64_Word)`
 //! * `Elf64_Ehdr.e_flags (Elf64_Word)`
-//! * `Elf32_Phdr.__p_type (Elf32_Word)`
+//! * `Elf32_Phdr.p_type (Elf32_Word)`
 //! * `Elf32_Phdr.p_offset (Elf32_Off)`
 //! * `Elf32_Phdr.p_vaddr (Elf32_Addr)`
 //! * `Elf32_Phdr.p_paddr (Elf32_Addr)`
@@ -49,7 +50,7 @@
 //! * `Elf32_Phdr.p_memsz (Elf32_Word)`
 //! * `Elf32_Phdr.p_flags (Elf32_Word)`
 //! * `Elf32_Phdr.p_align (Elf32_Word)`
-//! * `Elf64_Phdr.__p_type (Elf64_Word)`
+//! * `Elf64_Phdr.p_type (Elf64_Word)`
 //! * `Elf64_Phdr.p_flags (Elf64_Word)`
 //! * `Elf32_Shdr.sh_name (Elf32_Word)`
 //! * `Elf32_Shdr.sh_type (Elf32_Word)`
@@ -1960,8 +1961,8 @@ pub struct struct_dl_find_object {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union Dl_serinfo__anon_16 {
-    pub dls_serpath: [u64; 2],
-    pub __dls_serpath_pad: [u64; 2],
+    pub dls_serpath: [Dl_serpath; 0],
+    pub __dls_serpath_pad: [Dl_serpath; 1],
 }
 
 #[repr(C, align(8))]
@@ -1970,6 +1971,80 @@ pub struct Dl_serinfo {
     pub dls_size: u64,
     pub dls_cnt: u32,
     pub __anon_16: Dl_serinfo__anon_16,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct Dl_serpath {
+    pub dls_name: usize,
+    pub dls_flags: u32,
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct_cpuid_feature {
+    pub cpuid_array: [u32; 4],
+    pub active_array: [u32; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_prof {
+    pub pr_base: usize,
+    pub pr_size: u64,
+    pub pr_off: u64,
+    pub pr_scale: u64,
+}
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_regs {
+    pub lr_rdx: u64,
+    pub lr_r8: u64,
+    pub lr_r9: u64,
+    pub lr_rcx: u64,
+    pub lr_rsi: u64,
+    pub lr_rdi: u64,
+    pub lr_rbp: u64,
+    pub lr_rsp: u64,
+    pub lr_xmm: [La_x86_64_xmm; 8],
+    pub lr_vector: [La_x86_64_vector; 8],
+    pub __glibc_unused1: [u64; 8],
+}
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_retval {
+    pub lrv_rax: u64,
+    pub lrv_rdx: u64,
+    pub lrv_xmm0: La_x86_64_xmm,
+    pub lrv_xmm1: La_x86_64_xmm,
+    pub lrv_st0: u128,
+    pub lrv_st1: u128,
+    pub lrv_vector0: La_x86_64_vector,
+    pub lrv_vector1: La_x86_64_vector,
+    pub __glibc_unused1: [u64; 2],
+    pub __glibc_unused2: [u64; 2],
+}
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_xmm(pub [u8; 16]);
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_ymm(pub [u8; 32]);
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub struct La_x86_64_zmm(pub [u8; 64]);
+
+#[repr(C, align(16))]
+#[derive(Clone, Copy)]
+pub union La_x86_64_vector {
+    pub ymm: [La_x86_64_ymm; 2],
+    pub zmm: [La_x86_64_zmm; 1],
+    pub xmm: [La_x86_64_xmm; 4],
 }
 
 #[repr(C, align(8))]
@@ -2758,7 +2833,7 @@ pub struct Elf64_Ehdr {
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct Elf32_Phdr {
-    pub __p_type: [u32; 1],
+    pub p_type: [u32; 1],
     pub p_offset: [u32; 1],
     pub p_vaddr: [u32; 1],
     pub p_paddr: [u32; 1],
@@ -2771,7 +2846,7 @@ pub struct Elf32_Phdr {
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct Elf64_Phdr {
-    pub __p_type: [u32; 1],
+    pub p_type: [u32; 1],
     pub p_flags: [u32; 1],
     pub p_offset: u64,
     pub p_vaddr: u64,
