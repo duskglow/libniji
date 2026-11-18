@@ -252,7 +252,7 @@ fn reloc_model_corpus_one_object_per_type() {
     }
     let syms: Vec<Object> = objs.iter().map(|o| Object::new(o.dynm).unwrap()).collect();
     let global: Vec<usize> = (0..objs.len()).collect();
-    let set = Objects { objs: &objs, syms: &syms, global: &global };
+    let set = Objects { objs: &objs, syms: &syms, global: &global, canonical: false };
     reloc::check_versions(&objs).unwrap();
     let mut unique = UniqueTable::<8, 256>::default();
     reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut unique).unwrap();

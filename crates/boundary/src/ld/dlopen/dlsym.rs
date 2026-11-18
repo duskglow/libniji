@@ -160,7 +160,8 @@ fn find_locked(handle: usize, name: usize, version: usize, caller: usize) -> Opt
     let mark = l.unique.len();
     let syms = syms_of(&l.syms, l.n);
     let start = &l.global[..l.n_start_global];
-    let found = symbols::lookup(syms, Scope::global(&buf[..len]), &req, &mut Uniq { table: &mut l.unique, syms, start, binds: None });
+    let canonical = l.canonical;
+    let found = symbols::lookup(syms, Scope::global(&buf[..len]).program_entries(canonical), &req, &mut Uniq { table: &mut l.unique, syms, start, canonical, binds: None });
     let Ok(Some(f)) = found else {
         let mut path = PathBuf::default();
         let obj = object_name(l, named, &mut path);

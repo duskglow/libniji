@@ -364,6 +364,11 @@ static void info(const char *what, void *at) {
     int ok = dladdr(at, &di);
     printf("%s %d %s %s %s\n", what, ok != 0, base(di.dli_fname), di.dli_sname ? di.dli_sname : "(null)", cls(di.dli_saddr));
 }
+static void *fbase(void *at) {
+    Dl_info di;
+    memset(&di, 0, sizeof di);
+    return dladdr(at, &di) ? di.dli_fbase : 0;
+}
 static void *open_in(const char *dir, const char *name, int mode) {
     char path[4096];
     snprintf(path, sizeof path, "%s/%s", dir, name);
@@ -393,6 +398,8 @@ int main(int argc, char **argv) {
     info("dladdr_canon", canon);
     info("dladdr_canon_plus1", (char *)canon + 1);
     info("dladdr_real", real);
+    info("dladdr_prog_base", fbase(canon));
+    info("dladdr_libdeep_base", fbase((void *)deep_f));
     void *cv = (void *)&v;
     printf("v_canon_is_v1 %d\n", cv == v1_real());
     printf("v_lib_ref %s\n", use_v() == cv ? "canon" : use_v() == v1_real() ? "v1" : "other");
@@ -422,6 +429,8 @@ local_handle null
 dladdr_canon 1 prog f canon
 dladdr_canon_plus1 1 prog (null) null
 dladdr_real 1 libf.so f real
+dladdr_prog_base 1 prog (null) null
+dladdr_libdeep_base 1 libdeep.so (null) null
 v_canon_is_v1 0
 v_lib_ref canon
 dlvsym_V1 canon
@@ -435,7 +444,8 @@ copy 1 42
 /// `dlsym(RTLD_NEXT)` from the program, `dlsym` on the defining library's handle, and a library opened
 /// `RTLD_DEEPBIND` (its own scope first: its reference and its handle) give libf.so's own `f`; a library
 /// opened `RTLD_LOCAL` still binds the entry, and its handle (no definition of `f`) gives NULL.
-/// `dladdr` names `f` at the entry's own address only (the symbol's size is 0); a versioned entry
+/// `dladdr` names `f` at the entry's own address only (the symbol's size is 0), and nothing at the
+/// program's or a library's load base (`dli_fbase`, where an import's value 0 would sit); a versioned entry
 /// (`v@V1`) is found by `dlvsym(.., "V1")` and by a library's `v@V1` reference while `V0` gives libv.so's
 /// old definition; a COPY of the defining library's data is unaffected. Probe-settled: the reference
 /// prints [`SCOPED_EXPECTED`].
