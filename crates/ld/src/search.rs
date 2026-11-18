@@ -17,8 +17,24 @@ use crate::cache::Cache;
 /// default ones).
 pub const PREFIX: &str = match option_env!("NIJI_PREFIX") {
     Some(p) => p,
-    None => "/",
+    None => DEFAULT_PREFIX,
 };
+
+/// The prefix of a build that does not set `NIJI_PREFIX` ([`PREFIX`]); the product build's
+/// interpreter trace reads it too (xtask/src/so.rs, LDSO-TRACE-PREFIX).
+pub const DEFAULT_PREFIX: &str = "/";
+
+/// The preload file below the prefix ([`prefixed`]): `<prefix>/etc/ld.so.preload`.
+pub const PRELOAD_FILE: &[u8] = b"etc/ld.so.preload";
+
+/// The cache below the prefix ([`prefixed`], R14-3 (a)): `<prefix>/etc/ld.so.cache`.
+pub const CACHE_FILE: &[u8] = b"etc/ld.so.cache";
+
+/// Every configuration file the interpreter reads below its prefix. The product build's interpreter
+/// trace (`tools/hottext/ldso_trace.sh`, LDSO-TRACE-PREFIX) points each of these paths of the build's
+/// prefix at a file that does not exist, so no trace reads the host's: a file the loader opens below
+/// the prefix belongs in this list.
+pub const CONFIG_FILES: &[&[u8]] = &[PRELOAD_FILE, CACHE_FILE];
 
 /// The directory below the prefix that holds libniji's libraries (R14-3 (a)): `NIJI_LIBDIR` when
 /// the build sets it, else `lib`. The reference packages set `usr/lib/x86_64-linux-gnu`, the

@@ -418,7 +418,7 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
         let dyn_words = unsafe { conv::words_at(dynamic, usize::try_from(img.dynamic.1).unwrap_or(0) / 8) };
         // The preload file: one open per start when it is absent (the reference's one `access`).
         let mut file_path = PathBuf::default();
-        let file = if search::prefixed(b"etc/ld.so.preload", &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
+        let file = if search::prefixed(search::PRELOAD_FILE, &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
         let file = file.map_or(&[][..], |(f, fd)| {
             let _ = crate::ffi_sys::niji_sys_close(fd);
             f
@@ -1892,7 +1892,7 @@ fn open_whole(path: &[u8]) -> Option<(&'static [u8], i64)> {
 /// rule 5; an inconsistent file is unmapped). One reader for program start, `--list` and `dlopen`.
 fn read_cache() -> Option<(&'static [u8], Cache<'static>)> {
     let mut path = PathBuf::default();
-    let (f, fd) = if search::prefixed(b"etc/ld.so.cache", &mut path) { path.c_str().and_then(open_whole) } else { None }?;
+    let (f, fd) = if search::prefixed(search::CACHE_FILE, &mut path) { path.c_str().and_then(open_whole) } else { None }?;
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let parsed = Cache::parse(f);
     if parsed.is_none() {
