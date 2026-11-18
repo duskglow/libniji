@@ -186,6 +186,20 @@ pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
     if ty.starts_with("char[") {
         return Ok(value.to_string());
     }
+    // The floating special values (math.h: INFINITY, HUGE_VAL, NAN) are the compiler's built-ins of their type.
+    let float_fn = match ty {
+        "float" => Some("f"),
+        "double" => Some(""),
+        "long double" => Some("l"),
+        _ => None,
+    };
+    if let Some(f) = float_fn {
+        return match value {
+            "inf" => Ok(format!("(__builtin_inf{f} ())")),
+            "nan" => Ok(format!("(__builtin_nan{f} (\"\"))")),
+            _ => Err(format!("no literal form for {ty} value {value:?}")),
+        };
+    }
     let suffix = match ty {
         "int" => "",
         "long" => "L",
@@ -771,6 +785,12 @@ impl Gen<'_> {
         } else {
             self.t.typedefs.iter().find(|((k, n), r)| k == "typedef" && r["cxx"] == name && self.t.layouts.contains_key(n.as_str())).map_or(key.clone(), |((_, n), _)| n.clone())
         };
+        // An enumeration the tables record only by name and size (no enumerator is a constant of its own): one
+        // placeholder enumerator makes the tag a complete type of the recorded size.
+        if kind == "enum" && !self.t.layouts.contains_key(&key) {
+            self.guard(&format!("{kind}_{name}"), vec![format!("enum {name} {{ __NIJI_ENUM{name} = 0 }};")]);
+            return;
+        }
         let body = match self.members_nested(&lkey) {
             Some((kw, m, nested)) => {
                 self.emit_nested(nested);
@@ -956,7 +976,8 @@ impl Gen<'_> {
                     // The name is an enumerator and (its macro row) a macro of the same value, as the reference's
                     // enumerations with a `#define` each: an anonymous enum constant, declared once per translation unit.
                     let v = self.value(&name);
-                    self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
+                    // A macro of the same name (a kernel header that came first) already provides the value.
+                    self.guard(&format!("enum_{name}"), vec![format!("#  ifndef {name}"), format!("enum {{ {name} = {v} }};"), "#  endif".into()]);
                 }
                 "typedef" => self.typedef(&name),
                 "struct" | "union" | "enum" => self.tag(&name, &kind),
