@@ -447,13 +447,13 @@ impl Gen<'_> {
         // A structure tag with no rows of its own (utmpx's `struct __exit_status`) is described the same way, keeping its tag.
         let is_agg = |r: &BTreeMap<String, String>| {
             let mt = r["member_type"].as_str();
-            key.starts_with("struct ") && !r["member"].contains('.') && (mt.ends_with(" <anon>") || (mt.starts_with("struct ") && !self.t.layouts.contains_key(mt) && rows.iter().any(|q| q["member"].starts_with(&format!("{}.", r["member"])))))
+            key.starts_with("struct ") && !r["member"].contains('.') && r["member"] != "<anon>" && (mt.ends_with(" <anon>") || (mt.starts_with("struct ") && !self.t.layouts.contains_key(mt) && rows.iter().any(|q| q["member"].starts_with(&format!("{}.", r["member"])))))
         };
         let anon: BTreeSet<&str> = rows.iter().filter(|r| is_agg(r)).map(|r| r["member"].as_str()).collect();
         let mut end = Some(0u64);
         let mut wide = false;
         // An anonymous union (`<anon>`, SL-HEADERS-S09): the rows after it at its offset are its members.
-        let mut anon: Option<String> = None;
+        let mut open_anon: Option<String> = None;
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
             if let Some(kw) = is_agg(r).then_some(r["member_type"].strip_suffix(" <anon>").unwrap_or(&r["member_type"])) {
                 // One level of an unnamed aggregate whose members are scalars or arrays of them.
@@ -477,13 +477,13 @@ impl Gen<'_> {
             if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
                 continue;
             }
-            if anon.as_ref().is_some_and(|o| *o != r["offset_or_size"] || r["member"] == "<anon>") {
+            if open_anon.as_ref().is_some_and(|o| *o != r["offset_or_size"] || r["member"] == "<anon>") {
                 out.push("  };".into());
-                anon = None;
+                open_anon = None;
             }
             if r["member"] == "<anon>" && r["member_type"] == "union <anon>" {
                 out.push("  union {".into());
-                anon = Some(r["offset_or_size"].clone());
+                open_anon = Some(r["offset_or_size"].clone());
                 continue;
             }
             if r["member"].contains('.') || !r["bitfield"].is_empty() {
@@ -534,7 +534,7 @@ impl Gen<'_> {
                 out.extend((0..(total - end) / 4).map(|_| "  int : 32;".to_string()));
             }
         }
-        if anon.is_some() {
+        if open_anon.is_some() {
             out.push("  };".into());
         }
         let packed = wide && rows.iter().find(|r| r["member"].is_empty()).is_some_and(|r| r["align"] == "1");
