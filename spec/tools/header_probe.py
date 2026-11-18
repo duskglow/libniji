@@ -115,6 +115,16 @@ def c_integer_names():
     return out
 
 
+def standard_names():
+    """Names the standards give that no other table spells: the integer type of the signal-handler flag
+    (`sig_atomic_t`, C 7.14 and POSIX <signal.h>), the notification structure's type name (`sigevent_t`,
+    POSIX <signal.h>), and the mutex kinds of pthread_mutexattr_settype (POSIX: NORMAL, ERRORCHECK, RECURSIVE,
+    DEFAULT) and the GNU timed kind `PTHREAD_MUTEX_TIMED_NP`, the name the layout notes of the pthread
+    types use for kind 0 (crates/abi/src/layout_init.rs)."""
+    return ["sig_atomic_t", "sigevent_t", "PTHREAD_MUTEX_NORMAL", "PTHREAD_MUTEX_RECURSIVE",
+            "PTHREAD_MUTEX_ERRORCHECK", "PTHREAD_MUTEX_DEFAULT", "PTHREAD_MUTEX_TIMED_NP"]
+
+
 def candidates():
     """(ordinary names, tag names) from the existing spec/abi tables."""
     names, tags = set(), set()
@@ -141,6 +151,7 @@ def candidates():
     with open(os.path.join(ROOT, "glibc-functional-spec.md"), encoding="utf-8") as f:
         names.update(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)(?:\(\))?`", f.read()))
     names.update(c_integer_names())
+    names.update(standard_names())
     names = {n for n in names if IDENT.match(n) and not n.startswith("__builtin")}
     tags = {n for n in tags if IDENT.match(n)}
     return sorted(names), sorted(tags)
