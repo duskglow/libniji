@@ -10,6 +10,8 @@
    "not this story: a static-pie's own array is not adjusted (the reference adjusts it); DT_DEBUG not set; dlpi_name of start-time objects is the SONAME (reference: the path)"
  ],
  "refused": [],
+ "pending_jobs": ["mei:dl-dynamic-reloc-xtest (cargo xtask test, running)", "mei:dl-dynamic-reloc-fullhtp (NIJI_FULL_PROFILE so + hot_text_products, chained after xtest)"],
+ "counts_job": "mei:dl-dynamic-reloc-counts1 (diagnostic measurement script, base vs head; no tested-content record)",
  "impact": [
    {"kind": "correctness", "what": "_DYNAMIC / dl_iterate_phdr d_ptr entries are absolute addresses (systemd test-build-path SIGSEGV, Yohane #22)", "before": null, "after": null, "unit": null, "measured": true},
    {"kind": "coverage", "what": "conformance s27_dynamic_address_entries + 2 unit tests + 6 plants", "before": 0, "after": 9, "unit": "tests+plants", "measured": true},
@@ -19,4 +21,4 @@
  "improvement": "the plants msg should match the test log, not the C program's stderr file: s27 conformance helpers could print the failing program's stderr into the test log so plants and humans see the line",
  "next_step": "land; optional: measure a one-pass Elf::published_dynamic to win back the +2.5K start-up instructions",
  "report_file": "handoff/DL-DYNAMIC-RELOC.md",
- "jobs": ["mei:dl-dynamic-reloc-lint", "mei:dl-dynamic-reloc-gate", "mei:dl-dynamic-reloc-xtest", "mei:dl-dynamic-reloc-fullhtp", "mei:dl-dynamic-reloc-plants4", "mei:dl-dynamic-reloc-counts1"]}
+ "jobs": ["mei:dl-dynamic-reloc-lint", "mei:dl-dynamic-reloc-gate", "mei:dl-dynamic-reloc-xtest", "mei:dl-dynamic-reloc-fullhtp", "mei:dl-dynamic-reloc-plants4"]}
