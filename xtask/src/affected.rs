@@ -91,6 +91,9 @@
 //!    enable; csys sources and headers; `crates/libc-so/`; the image tools) selects the start-up layout tests
 //!    (`LAYOUT_TESTS`). Their programs link statically against `libc.a`, so growth anywhere in it can move start-up
 //!    pages. Not selected for `ld.so`-only code (boundary's `ld` feature), other crates, tests and docs.
+//! 10. HEADERS-ABI-REGEN, in addition and in every tier: a table that feeds more than one generator (`GEN_PRECHECKS`:
+//!     `spec/abi/layouts.tsv` -> `abi-gen --check`, `headers-gen --check`, `stubs`) runs those checks first, in
+//!     process; a red one ends the run in seconds, before an escalated FULL run starts.
 //!
 //! TIERS (GATE-TIER, coordinator ruling 10-11): `--tier direct` (the DEFAULT, per-fix gates) applies rule 4 to EVERY
 //! crate's non-root module through `Selection::narrow_direct`: the changed module, its one-hop users, the targets
@@ -1260,6 +1263,35 @@ pub struct Selection {
     /// XTASK-AFFECTED-EXAMPLES: an xtask command of an example step is selected (`example_steps`); those steps
     /// link and run the examples against the built products, so `cargo xtask so` runs first.
     pub example_steps: bool,
+    /// HEADERS-ABI-REGEN: the generator checks a changed table selects ([`GEN_PRECHECKS`]), run before everything
+    /// else in every tier; a red one stops the run.
+    pub gen_prechecks: BTreeSet<String>,
+}
+
+/// HEADERS-ABI-REGEN: a table that feeds more than one generator, and the checks that prove all of their outputs
+/// agree with it. `spec/abi/layouts.tsv` feeds headers-gen and abi-gen, and `cargo xtask stubs` checks the Appendix C
+/// layout test names abi-gen writes; a row written out by one generator alone showed only in the landing gate, after
+/// hand-back (four header slices on 11-17). The checks take seconds, so a direct-tier gate shows it before hand-back,
+/// and an escalated (FULL) one fails in seconds instead of after the whole suite.
+pub const GEN_PRECHECKS: &[(&str, &[&str])] = &[("spec/abi/layouts.tsv", &["abi-gen-check", "headers-gen-check", "stubs"])];
+
+/// One check of [`GEN_PRECHECKS`], in process.
+fn gen_precheck(root: &Path, name: &str) -> Result<(), String> {
+    match name {
+        "abi-gen-check" => crate::abi::run(root, true),
+        "headers-gen-check" => crate::headers::run(root, true),
+        "stubs" => crate::spec::stubs(root, false),
+        _ => Err(format!("unknown generator precheck `{name}`")),
+    }
+}
+
+/// Every precheck of `sel`, each logged on its own; false when one is red.
+fn run_gen_prechecks(root: &Path, log: &Path, sel: &Selection) -> bool {
+    let mut ok = true;
+    for c in &sel.gen_prechecks {
+        ok &= check_logged(log, &format!("precheck {c}"), gen_precheck(root, c)).is_ok();
+    }
+    ok
 }
 
 /// GATE-TIER (coordinator ruling 10-11, owner intent "only run the tests that are impacted by a fix for gate runs and
@@ -2049,6 +2081,11 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
         }
         if f == "crates/boundary/src/ffi.rs" || f.starts_with("csys/include/") || f.starts_with("csys/src/machine/") {
             sel.k5 = true;
+        }
+        for (table, checks) in GEN_PRECHECKS {
+            if f == *table {
+                sel.gen_prechecks.extend(checks.iter().map(|c| c.to_string()));
+            }
         }
         // XTASK-AFFECTED-LAYOUT: whatever else the file selects, a change linked into libc.a can move start-up pages.
         if repo.reaches_image(f) {
@@ -2982,6 +3019,9 @@ fn print_selection(repo: &Repo, files: &[String], sel: &Selection) {
     for f in files {
         println!("  {f}");
     }
+    if !sel.only && !sel.gen_prechecks.is_empty() {
+        println!("prechecks (first, in seconds; a red one stops the run): {}", sel.gen_prechecks.iter().cloned().collect::<Vec<_>>().join(", "));
+    }
     if !sel.full.is_empty() {
         println!("FULL (escalated; run the whole gate):");
         for r in &sel.full {
@@ -3475,6 +3515,15 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
     let _ = fs::remove_file(&log);
     let mut ok = true;
     let mut skipped: Vec<String> = Vec::new();
+    if !sel.only && !sel.gen_prechecks.is_empty() {
+        println!("prechecks (a changed table feeds more than one generator):");
+        ok &= run_gen_prechecks(root, &log, sel);
+        if !ok {
+            print!("{}", summary(&read(&log)));
+            println!("affected: FAILED (a precheck; nothing else was run). spec/abi/layouts.tsv: run `cargo xtask headers-gen` (it also runs abi-gen), then `cargo xtask stubs`");
+            return Err("a generator precheck failed".into());
+        }
+    }
     if !sel.full.is_empty() {
         println!("escalated to FULL: running the workspace clippy and `cargo xtask test`");
         // Step times (XTASK-TEST-STEP-TIMES): a `step:` line per step on the console, those `cargo xtask test` wrote
@@ -4409,6 +4458,41 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             assert_eq!(header_symbols(&d(bad), "csys/include/h.h"), None, "{bad:?}");
         }
         assert_eq!(header_symbols(&d("+int niji_a(void);\n"), "csys/include/zzz.h"), None, "other file's lines are not this file's");
+    }
+
+    // no spec clause: HEADERS-ABI-REGEN. A layouts.tsv change runs the abi-gen, headers-gen and stubs checks first,
+    // in every tier (it still escalates); a table that feeds one generator only selects none.
+    #[test]
+    fn layouts_table_selects_the_generator_prechecks() {
+        for tier in [Tier::Direct, Tier::Wide, Tier::Full] {
+            let s = select_tier(repo(), &["spec/abi/layouts.tsv".to_string()], tier);
+            assert_eq!(s.gen_prechecks.iter().map(String::as_str).collect::<Vec<_>>(), ["abi-gen-check", "headers-gen-check", "stubs"], "{tier:?}");
+            assert!(!s.full.is_empty(), "{tier:?}: still FULL");
+        }
+        for f in ["spec/abi/langinfo.tsv", "spec/abi/layouts-aarch64.tsv", "docs/plants.md", "xtask/src/abi.rs"] {
+            let (_, s) = sel(&[f]);
+            assert!(s.gen_prechecks.is_empty(), "{f}: {:?}", s.gen_prechecks);
+        }
+    }
+
+    // no spec clause: HEADERS-ABI-REGEN. The prechecks really run the generators' checks: green on this (consistent)
+    // tree, red on a tree whose tables are missing, red for a name the table does not know.
+    #[test]
+    fn generator_prechecks_run_the_checks() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
+        let empty = std::env::temp_dir().join(format!("xtask-gen-precheck-{}", std::process::id()));
+        fs::create_dir_all(&empty).unwrap();
+        let log = empty.join("affected.log");
+        let mut s = Selection::default();
+        assert!(run_gen_prechecks(&empty, &log, &s), "no precheck selected: nothing to fail");
+        for c in ["abi-gen-check", "headers-gen-check"] {
+            s.gen_prechecks = [c.to_string()].into();
+            assert!(run_gen_prechecks(root, &log, &s), "{c} on the consistent tree");
+            assert!(!run_gen_prechecks(&empty, &log, &s), "{c} on a tree without spec/abi");
+        }
+        s.gen_prechecks = ["zzz".to_string()].into();
+        assert!(!run_gen_prechecks(root, &log, &s), "an unknown precheck is red");
+        let _ = fs::remove_dir_all(&empty);
     }
 
     #[test]
