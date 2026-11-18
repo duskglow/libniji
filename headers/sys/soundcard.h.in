@@ -4,7 +4,7 @@
 #define __NIJI_H_sys_soundcard_h 1
 
 #include <features.h>
-#include <sys/types.h>
+#include <endian.h>
 
 __NIJI_BEGIN_C
 

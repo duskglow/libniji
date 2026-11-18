@@ -4,8 +4,6 @@
 #define __NIJI_H_sys_timex_h 1
 
 #include <features.h>
-#include <sys/types.h>
-#include <time.h>
 
 /* fd_set comes with <sys/select.h> (slice 7); until that header is generated the name is owned here. */
 #if defined __has_include
@@ -118,7 +116,28 @@ struct timezone {
 };
 # endif
 #endif
+#if __NIJI_POSIX >= 200112
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+#endif
 #if 1
+# ifndef __NIJI_D___ino64_t
+#  define __NIJI_D___ino64_t 1
+typedef unsigned long __ino64_t;
+# endif
+# ifndef __NIJI_D___off_t
+#  define __NIJI_D___off_t 1
+typedef long __off_t;
+# endif
+# ifndef __NIJI_D___pid_t
+#  define __NIJI_D___pid_t 1
+typedef int __pid_t;
+# endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
 typedef struct {
@@ -128,6 +147,10 @@ typedef struct {
 # ifndef __NIJI_D_sigset_t
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
+# endif
+# ifndef __NIJI_D_time_t
+#  define __NIJI_D_time_t 1
+typedef long time_t;
 # endif
 struct timex;
 # ifndef __NIJI_D_adjtimex
@@ -382,6 +405,11 @@ enum { ITIMER_VIRTUAL = 1 };
 # endif
 # ifndef TIME_WAIT
 #  define TIME_WAIT 4
+# endif
+#endif
+#if __NIJI_MISC
+# ifndef NFDBITS
+#  define NFDBITS 64
 # endif
 #endif
 

@@ -4,8 +4,6 @@
 #define __NIJI_H_sys_timex_h 1
 
 #include <features.h>
-#include <sys/types.h>
-#include <time.h>
 
 /* fd_set comes with <sys/select.h> (slice 7); until that header is generated the name is owned here. */
 #if defined __has_include

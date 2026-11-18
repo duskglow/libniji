@@ -5,7 +5,6 @@
 
 #include <features.h>
 #include <stdint.h>
-#include <sys/types.h>
 #include <stddef.h>
 #include <linux/mount.h>
 

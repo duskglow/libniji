@@ -5,7 +5,6 @@
 
 #include <features.h>
 #include <stdint.h>
-#include <sys/types.h>
 #include <stddef.h>
 #include <linux/mount.h>
 
@@ -164,12 +163,42 @@ struct stat {
 };
 # endif
 #endif
+#if 1
+# ifndef __NIJI_D_mode_t
+#  define __NIJI_D_mode_t 1
+typedef unsigned int mode_t;
+# endif
+# ifndef __NIJI_D_off_t
+#  define __NIJI_D_off_t 1
+typedef long off_t;
+# endif
+# ifndef __NIJI_D_pid_t
+#  define __NIJI_D_pid_t 1
+typedef int pid_t;
+# endif
+# ifndef __NIJI_D_size_t
+#  define __NIJI_D_size_t 1
+typedef unsigned long size_t;
+# endif
+#endif
 #if __NIJI_CXX < 1
 # ifndef __NIJI_D_wchar_t
 #  define __NIJI_D_wchar_t 1
 #  ifndef __cplusplus
 typedef __WCHAR_TYPE__ wchar_t;
 #  endif
+# endif
+#endif
+#if __NIJI_LFS64
+# ifndef __NIJI_D_off64_t
+#  define __NIJI_D_off64_t 1
+typedef long off64_t;
+# endif
+#endif
+#if __NIJI_POSIX >= 200809
+# ifndef __NIJI_D_time_t
+#  define __NIJI_D_time_t 1
+typedef long time_t;
 # endif
 #endif
 #if 1
