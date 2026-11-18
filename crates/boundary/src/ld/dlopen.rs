@@ -729,7 +729,7 @@ fn adopt_start(l: &mut Loader) -> bool {
         } else {
             let at = |v: u64| usize::try_from(v).unwrap_or(0);
             let prog = start::Program { phdr: at(w[0]), phnum: at(w[1]), entry: 0 };
-            let (head, view) = image_view(&prog, at(w[2]), b"", &mut views);
+            let (head, view) = image_view(&prog, at(w[2]), b"", &mut views, true);
             let Ok(elf) = Elf::from_image::<Native>(head, view) else { return false };
             let Ok(Some(dynm)) = elf.dynamic() else { return false };
             // Its static block, so a `dlopen`ed object's TLS relocation against one of its
@@ -2005,6 +2005,11 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
             unwind(l, base, k, names_top, deps_top);
             return Err(t);
         }
+    }
+    // Each new dynamic array's address entries as run-time addresses, before any reader or
+    // constructor sees the object (DL-DYNAMIC-RELOC).
+    for o in &objs[base..k] {
+        reloc::publish_dynamic(o, &mut ProcImage);
     }
     if let Err(i) = reloc::protect_relro(&objs[base..k], &mut ProcImage, page) {
         let t = fail_parts(&[l_path_static(l, base + i), b": cannot apply additional memory protection after relocation"]);

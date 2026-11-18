@@ -111,6 +111,13 @@ pub(crate) fn relocate_image(ehdr: usize) -> Result<Relocated, BootError> {
     relocate_self(ehdr.wrapping_add(usize::try_from(phoff).unwrap_or(0)), phnum, ehdr)
 }
 
+/// After pass 1 of `ld.so`'s own image: its dynamic array's address entries as run-time addresses
+/// (`niji_ld::boot::publish_dynamic`, DL-DYNAMIC-RELOC), before anything reads them.
+#[cfg(feature = "ld")]
+pub(crate) fn publish_dynamic(r: &Relocated) -> Result<(), BootError> {
+    boot::publish_dynamic(boot::image(r.headers, r.phnum)?, Mapped(r.bias), u64::try_from(r.bias).unwrap_or(0))
+}
+
 /// Pass 2: each IRELATIVE entry's resolver (bias + addend) is called and its result stored. Runs
 /// after pass 1 and after the CPU paths are chosen, before the RELRO segment is protected.
 #[cfg_attr(not(feature = "runtime"), allow(dead_code))]
