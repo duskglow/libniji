@@ -6333,6 +6333,11 @@ TRAP_TRACE	arpa/nameser.h	int	2
 TRAP_UNK	arpa/nameser.h	int	5
 TRY_AGAIN	netdb.h	int	2
 TSS_DTOR_ITERATIONS	threads.h	int	4
+TTYDEF_CFLAG	pty.h	int	1440
+TTYDEF_IFLAG	pty.h	int	11554
+TTYDEF_LFLAG	pty.h	int	35355
+TTYDEF_OFLAG	pty.h	int	6149
+TTYDEF_SPEED	pty.h	int	13
 TTY_NAME_MAX	argp.h	int	32
 TTY_ON	ttyent.h	int	1
 TTY_SECURE	ttyent.h	int	2

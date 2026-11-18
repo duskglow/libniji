@@ -443,11 +443,37 @@ impl Gen<'_> {
             .filter(|r| self.t.layouts.contains_key(&r["member_type"]))
             .map(|r| r["member"].as_str())
             .collect();
+        // Members that are unnamed structures or unions (`ut_tv`): their members are the rows `member.sub` below.
+        // A structure tag with no rows of its own (utmpx's `struct __exit_status`) is described the same way, keeping its tag.
+        let is_agg = |r: &BTreeMap<String, String>| {
+            let mt = r["member_type"].as_str();
+            key.starts_with("struct ") && !r["member"].contains('.') && (mt.ends_with(" <anon>") || (mt.starts_with("struct ") && !self.t.layouts.contains_key(mt) && rows.iter().any(|q| q["member"].starts_with(&format!("{}.", r["member"])))))
+        };
+        let anon: BTreeSet<&str> = rows.iter().filter(|r| is_agg(r)).map(|r| r["member"].as_str()).collect();
         let mut end = Some(0u64);
         let mut wide = false;
         // An anonymous union (`<anon>`, SL-HEADERS-S09): the rows after it at its offset are its members.
         let mut anon: Option<String> = None;
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
+            if let Some(kw) = is_agg(r).then_some(r["member_type"].strip_suffix(" <anon>").unwrap_or(&r["member_type"])) {
+                // One level of an unnamed aggregate whose members are scalars or arrays of them.
+                let prefix = format!("{}.", r["member"]);
+                let mut inner = Vec::new();
+                for q in rows.iter().filter(|q| q["member"].strip_prefix(prefix.as_str()).is_some_and(|m| !m.contains('.'))) {
+                    let mt = &q["member_type"];
+                    let (base, arr) = mt.find('[').map_or((mt.as_str(), ""), |i| (&mt[..i], &mt[i..]));
+                    let b = dwarf_scalar(base).or_else(|| Some(self.resolve(base)).filter(|r| scalar(r)))?;
+                    inner.push(format!("{b} {}{arr};", &q["member"][prefix.len()..]));
+                }
+                let off: u64 = r["offset_or_size"].parse().ok()?;
+                offs.insert(r["offset_or_size"].clone());
+                end = end.zip(rows.iter().filter(|q| q["member"].starts_with(prefix.as_str())).filter_map(|q| Some(q["offset_or_size"].parse::<u64>().ok()? + self.type_size(q["member_type"].split('[').next()?, "", q["member_type"].find('[').map_or("", |i| &q["member_type"][i..]))?)).max()).map(|(e, n)| e.max(n)).or(Some(off));
+                out.push(format!("  {kw} {{ {} }} {};", inner.join(" "), r["member"]));
+                continue;
+            }
+            if r["member"].split_once('.').is_some_and(|(parent, _)| anon.contains(parent)) {
+                continue;
+            }
             if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
                 continue;
             }
@@ -670,7 +696,23 @@ impl Gen<'_> {
     }
 
     fn declaration(&mut self, name: &str) -> Option<String> {
-        let Some(d) = self.t.protos.get(name) else {
+        // A function whose prototype the reference's own header leaves unrecorded (its parameter is a tag only
+        // the header names) has its resolved type in typedefs.tsv (`int (int, sgttyb*)`): spelled as a prototype.
+        let from_type = self.t.typedefs.get(&("function".to_string(), name.to_string())).filter(|_| !self.t.protos.contains_key(name)).and_then(|r| {
+            let (ret, args) = r["cxx"].split_once(" (")?;
+            let args = args.strip_suffix(')')?;
+            // The one such function family (gtty, stty) takes a pointer to a tag, `T*` or `T const*`.
+            let args: Vec<String> = args
+                .split(", ")
+                .map(|a| match (a.strip_suffix(" const*"), a.strip_suffix('*')) {
+                    (Some(t), _) => format!("const struct {t} *"),
+                    (_, Some(t)) => format!("struct {t} *"),
+                    _ => a.to_string(),
+                })
+                .collect();
+            Some(format!("{ret} {name} ({})", args.join(", ")))
+        });
+        let Some(d) = from_type.as_ref().or_else(|| self.t.protos.get(name)) else {
             self.errors.push(format!("{}: function {name} not in prototypes.tsv", self.header));
             return None;
         };
@@ -998,9 +1040,13 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 stack.extend(includes(&texts[&x]));
             }
         }
+        // A name is covered by the included headers only in the configurations where one of them shows it (and
+        // `is_covered` asks only for the ones that matter for this header's own row): when this header shows it in
+        // more (utmp.h has `fd_set` in strict ISO modes, <sys/types.h> only in the BSD set), the header declares
+        // it itself.
         let mut covered: BTreeMap<(String, String), u64> = BTreeMap::new();
         for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
-            *covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(0);
+            *covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(u64::MAX);
         }
         let mut owned = BTreeSet::new();
         let mut owned_macros = BTreeSet::new();
@@ -1095,6 +1141,14 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
         return Err(format!("headers-gen: stale under {OUT}/: {} (run `cargo xtask headers-gen`)", stale.join(" ")));
     }
     println!("headers-gen: {} {} headers", if check { "ok," } else { "wrote" }, files.len());
+    if !check {
+        // HEADERS-ABI-REGEN: spec/abi/layouts.tsv also feeds abi-gen (`niji_abi::layout` and the Appendix C layout
+        // tests, whose `abi_*` names `cargo xtask stubs` checks). A struct row added for a header and written out
+        // here alone left those stale, red only in the landing gate (four header slices on 11-17). One command now
+        // leaves the headers, the layouts and their tests consistent; abi-gen writes only files whose text changed.
+        // `--check` stays headers-only: `abi-gen --check` is its own gate step.
+        crate::abi::run(root, false).map_err(|e| format!("headers-gen: abi-gen (spec/abi/layouts.tsv feeds both): {e}"))?;
+    }
     Ok(())
 }
 
@@ -1205,5 +1259,51 @@ mod tests {
         let r: BTreeMap<String, String> = [("__pid_t".to_string(), "emit".to_string()), ("_SIGSET_NWORDS".to_string(), "omit".to_string())].into();
         assert!(!omitted(&r, "__pid_t") && omitted(&r, "__off64_t") && omitted(&r, "_STDINT_H"));
         assert!(omitted(&r, "_SIGSET_NWORDS") && !omitted(&r, "_POSIX_ARG_MAX") && !omitted(&r, "INT8_MAX"));
+    }
+
+    fn copy_dir(src: &Path, dst: &Path) {
+        fs::create_dir_all(dst).unwrap();
+        for e in fs::read_dir(src).unwrap().flatten() {
+            let to = dst.join(e.file_name());
+            if e.file_type().unwrap().is_dir() {
+                copy_dir(&e.path(), &to);
+            } else {
+                fs::copy(e.path(), &to).unwrap();
+            }
+        }
+    }
+
+    // no spec clause: HEADERS-ABI-REGEN. A struct row added to spec/abi/layouts.tsv (as a header slice adds one)
+    // and written out with `headers-gen` alone leaves abi-gen's outputs current and every Appendix C layout stub
+    // id present in the layout tests (the `cargo xtask stubs` check that went red in the landing gate).
+    #[test]
+    fn headers_gen_regenerates_the_abi_layouts() {
+        let src = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("workspace root");
+        let root = std::env::temp_dir().join(format!("xtask-headers-abi-regen-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for d in ["headers", "spec/abi", "spec/unicode", OUT] {
+            copy_dir(&src.join(d), &root.join(d));
+        }
+        for f in ["crates/abi/src/layout.rs", "crates/abi/src/layout_aarch64.rs", "crates/abi/tests/appendix_c_layouts.rs", "crates/abi/tests/appendix_c_layouts_aarch64.rs"] {
+            fs::create_dir_all(root.join(f).parent().unwrap()).unwrap();
+            fs::copy(src.join(f), root.join(f)).unwrap();
+        }
+        let mut problems = Vec::new();
+        crate::spec::abi_stubs(&root, false, &mut problems).unwrap();
+        assert!(problems.is_empty(), "the copied tree starts consistent: {problems:?}");
+        let table = root.join("spec/abi/layouts.tsv");
+        let mut text = fs::read_to_string(&table).unwrap();
+        assert!(!text.contains("struct niji_regen_probe\t"));
+        text.push_str("struct niji_regen_probe\t\t16\t8\t\t\nstruct niji_regen_probe\ta\t0\t\tlong int\t\nstruct niji_regen_probe\tb\t8\t\tint\t\n");
+        fs::write(&table, text).unwrap();
+
+        run(&root, false).expect("headers-gen");
+        let fresh = crate::abi::run(&root, true);
+        crate::spec::abi_stubs(&root, false, &mut problems).unwrap();
+        let tests = fs::read_to_string(root.join("crates/abi/tests/appendix_c_layouts.rs")).unwrap();
+        let _ = fs::remove_dir_all(&root);
+        assert!(fresh.is_ok(), "abi-gen --check after headers-gen alone: {fresh:?}");
+        assert!(problems.is_empty(), "stubs after headers-gen alone: {problems:?}");
+        assert!(tests.contains("fn abi_struct_niji_regen_probe()"), "the new row has its layout test");
     }
 }

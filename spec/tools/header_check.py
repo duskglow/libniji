@@ -40,6 +40,11 @@ COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), 
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
+# Slice 14 (aio.h and mqueue.h wait for the generation of struct sigevent and struct f_owner_ex).
+SLICE14 = ["pwd.h", "grp.h", "shadow.h", "gshadow.h", "utmp.h", "utmpx.h", "lastlog.h", "sys/fsuid.h", "termios.h",
+           "sys/termios.h", "termio.h", "sgtty.h", "pty.h", "ttyent.h", "sys/ttychars.h", "sys/ttydefaults.h", "syslog.h",
+           "sys/syslog.h", "sys/ipc.h", "sys/msg.h", "sys/sem.h", "sys/shm.h"]
+HEADERS += SLICE14
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
           "getopt.h", "time.h"]
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
@@ -62,7 +67,7 @@ def p1_units(ids, vis, macros, typedefs, layouts):
     out = {}
     for r in vis:
         h = r["header"]
-        if h not in SLICE6 + SLICE9 or r["kind"] not in ("macro", "typedef", "struct"):
+        if h not in SLICE6 + SLICE9 + SLICE14 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
@@ -210,11 +215,21 @@ def main():
     fails, total = len(missing), len(missing)
     for n in missing:
         print(f"FAIL P1 {n}: no typedefs.tsv row")
+    # The kernel's UAPI headers (linux-libc-dev; libniji ships none): a directory of links to the build host's
+    # `linux`, `asm-generic` and `asm`, so the C library's own headers of the host stay out of the units.
+    kern = os.path.join(work, "kernel-uapi")
+    os.makedirs(kern, exist_ok=True)
+    for d in ("linux", "asm-generic", "asm"):
+        for base_dir in ("/usr/include", "/usr/include/x86_64-linux-gnu"):
+            src = os.path.join(base_dir, d)
+            if os.path.isdir(src) and not os.path.lexists(os.path.join(kern, d)):
+                os.symlink(src, os.path.join(kern, d))
     for c in cfgs:
         cxx = c["language"] == "c++"
         ext = "cc" if cxx else "c"
         base = ["g++" if cxx else "gcc", *c["flags"].split(), "-nostdinc", "-isystem", inc,
-                "-isystem", gccinc, *uapi_flags(), "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
+                "-isystem", gccinc, *(uapi_flags() if os.environ.get("NIJI_UAPI") else ["-isystem", kern]),
+                "-fsyntax-only", "-Wall", "-Wextra", "-Wsystem-headers", "-Werror"]
         lv = levels[c["id"]]
         rejected = lv["reject"] == "1"
         units = [("levels", "#include <features.h>\n" + "".join(
