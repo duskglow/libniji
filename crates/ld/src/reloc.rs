@@ -418,6 +418,22 @@ pub fn relro_range(o: &Obj<'_>, page: u64) -> Option<(u64, u64)> {
     (end > start).then(|| (start, end.wrapping_sub(start)))
 }
 
+/// Write `o`'s loaded dynamic array's [`crate::elf::RUNTIME_ADDRESS_TAGS`] entries as run-time
+/// addresses: each such entry of the reader's view `o.dynm` (link-time values, read from the file or
+/// from a copy taken before this) plus the load bias, so a second call stores the same words. Nothing
+/// when the array is not in a writable segment ([`Elf::published_dynamic`]). After the object is
+/// relocated, before its RELRO pages are protected (DL-DYNAMIC-RELOC).
+pub fn publish_dynamic<I: Image>(o: &Obj<'_>, img: &mut I) {
+    let Some(d) = o.elf.published_dynamic() else { return };
+    let mut at = o.bias.wrapping_add(d.vaddr).wrapping_add(8);
+    for e in o.dynm.entries() {
+        if crate::elf::RUNTIME_ADDRESS_TAGS.contains(&e.tag) {
+            img.store(at, &e.val.wrapping_add(o.bias).to_ne_bytes());
+        }
+        at = at.wrapping_add(16);
+    }
+}
+
 /// Make every object's RELRO pages read-only (after [`relocate_all`]; L14-8).
 ///
 /// # Errors

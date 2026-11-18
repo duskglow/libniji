@@ -113,7 +113,9 @@ typedef struct {
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 # ifndef __NIJI_D_sigset_t
 #  define __NIJI_D_sigset_t 1
@@ -714,7 +716,9 @@ extern int on_exit (void (*) (int, void *), void *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 struct timespec;
 # ifndef __NIJI_D_pselect
@@ -1039,6 +1043,10 @@ extern int posix_openpt (int);
 # define WTERMSIG(status) ((status) & 0x7f)
 # define WSTOPSIG(status) WEXITSTATUS (status)
 # define WIFEXITED(status) (WTERMSIG (status) == 0)
+#endif
+
+/* WIFCONTINUED has its own condition: _XOPEN_SOURCE defined empty shows the four above but not it. */
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # define WIFCONTINUED(status) ((status) == 0xffff)
 #endif
 

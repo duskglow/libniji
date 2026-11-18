@@ -1,0 +1,11 @@
+{"task": "LAYOUT-LDSO-ORDER", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (context checkpoint): ld.so start-up text traced at build and grouped from its entry; builds green on keke; proof, plants, gate not run",
+ "branch": "task/layout-ldso-order", "head": null,
+ "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["libniji ld.so takes no libc.so.6 from DT_RUNPATH (#4537); the trace names libc by path"],
+ "refused": [],
+ "impact": [{"kind": "unblock", "what": "loader stories (DL-CANONICAL-PLT, DL-PROCESS-OBJECTS) stop paying start-up faults for cold loader growth once proven", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "A brief for tooling that adds a trace mode could name the host-file and libc-by-path constraints of dynamic probes up front",
+ "next_step": "decision record, keke vs mei list comparison, count2 proof and 32 KiB cold insensitivity, ld.so bound, plants, gate (handoff/LAYOUT-LDSO-ORDER.md)",
+ "report_file": "handoff/LAYOUT-LDSO-ORDER.md",
+ "jobs": ["layout-ldso-order-so2"]}

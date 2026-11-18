@@ -427,6 +427,15 @@ fn emit(path: &Path, content: &str, ids: &[String], force: bool, problems: &mut 
             return Ok(());
         }
     }
+    write_if_changed(path, content)
+}
+
+/// Write `content` to `path` only when its text differs: an unchanged file keeps its modification time, because a
+/// role's times tell `cargo xtask precheck` what changed after a job started (the gate runs `stubs` in the role).
+fn write_if_changed(path: &Path, content: &str) -> Result<(), String> {
+    if fs::read_to_string(path).ok().as_deref() == Some(content) {
+        return Ok(());
+    }
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
@@ -465,7 +474,7 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
         }
         emit(&file, &body, &ids, force, &mut problems)?;
     }
-    fs::write(root.join("spec/clauses.tsv"), tsv).map_err(|e| e.to_string())?;
+    write_if_changed(&root.join("spec/clauses.tsv"), &tsv)?;
 
     // --- Commentary items (spec §0.3): the mark's form, and each one present as `commentary!`
     // (not a pending `clause!` stub, not a test).
@@ -519,7 +528,7 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
         }
         emit(&file, &body, &ids, force, &mut problems)?;
     }
-    fs::write(root.join("spec/symbols.tsv"), stsv).map_err(|e| e.to_string())?;
+    write_if_changed(&root.join("spec/symbols.tsv"), &stsv)?;
 
     // --- Kernel primitive stubs (Appendix A).
     let mut body = format!("{HEADER}//! Kernel-boundary tests, one per primitive of spec Appendix A ({} primitives).\n\nuse spectest::primitive;\n\n", prims.len());
@@ -535,7 +544,7 @@ pub fn stubs(root: &Path, force: bool) -> Result<(), String> {
         ids.push(id);
     }
     emit(&root.join("crates/boundary/tests/appendix_a_primitives.rs"), &body, &ids, force, &mut problems)?;
-    fs::write(root.join("spec/primitives.tsv"), ptsv).map_err(|e| e.to_string())?;
+    write_if_changed(&root.join("spec/primitives.tsv"), &ptsv)?;
 
     // --- ABI data stubs (spec Appendix C): one per type layout and per static initializer.
     let (layout_ids, layout_n) = abi_stubs(root, force, &mut problems)?;
@@ -615,6 +624,23 @@ pub(crate) fn collapse(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::clauses;
+
+    #[test]
+    fn stubs_keeps_the_time_of_an_unchanged_file() {
+        // no spec clause: HANDBACK-INLOOP-CHECKS-2. The gate runs `stubs` in the role after its job started; a
+        // rewrite of identical spec/symbols.tsv made precheck call the job stale. Same text: time kept; other: written.
+        use std::time::{Duration, SystemTime};
+        let p = std::env::temp_dir().join(format!("xtask-spec-wic-{}/spec/symbols.tsv", std::process::id()));
+        super::write_if_changed(&p, "a\n").unwrap();
+        let old = SystemTime::now() - Duration::from_secs(3600);
+        std::fs::File::options().write(true).open(&p).unwrap().set_modified(old).unwrap();
+        super::write_if_changed(&p, "a\n").unwrap();
+        assert_eq!(std::fs::metadata(&p).unwrap().modified().unwrap(), old, "same text rewritten");
+        super::write_if_changed(&p, "b\n").unwrap();
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), "b\n");
+        assert!(std::fs::metadata(&p).unwrap().modified().unwrap() > old);
+        let _ = std::fs::remove_dir_all(p.parent().unwrap().parent().unwrap());
+    }
 
     #[test]
     fn a_flag_line_does_not_end_the_field() {

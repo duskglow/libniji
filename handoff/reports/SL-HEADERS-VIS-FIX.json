@@ -1,0 +1,22 @@
+{"task": "SL-HEADERS-VIS-FIX", "model": "opus", "tokens": null,
+ "result": "P2 differences in slices 5/6 + sys/pidfd.h from 50 to 21 (the 21 are names libniji misses, other owners); endian.h and sys/types.h already 0 on this base; struct stat no longer needs struct timespec where the program owns the name (layout probed identical); P2 test target + plants tool fix so header plants are judged; 6/6 plants CAUGHT",
+ "branch": "task/sl-headers-vis-fix", "head": "e5b548342",
+ "gate": {"affected": "FULL (escalated, xtask changed): 32 suites, 12171 passed / 0 failed, 1396 ignored; conformance 140 passed / 0 failed; peak 12G", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   {"item": "spec/tools/header_probe.py --include DIR falls back to the system include path for a header missing under DIR, so P2 then compares the reference with itself and reports no difference", "recommendation": "header_probe.py should refuse (or list as missing) a requested header not present under --include; header_p2_fixed_rows checks this itself"},
+   {"item": "affected::Repo leaves the xtask crate out, so plants on xtask test targets always rebuilt the products; fixed in fd7eceefb for plants only (affected still does not select xtask test targets by tier)", "recommendation": "none needed for this story"},
+   {"item": "21 remaining P2 differences in slices 5/6 are names libniji does not show (alloca, _LIBC_LIMITS_H_, 18 ctype.h *_l and C++ macros, fwrite_unlocked under fortify)", "recommendation": "the ctype, alloca, limits and fortify slice owners"}
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "P2 visibility differences across 28 headers x 40 configurations (slices 5, 6, sys/pidfd.h)", "before": 50, "after": 21, "unit": "differences", "measured": true},
+   {"kind": "correctness", "what": "struct timespec no longer visible through struct stat under _XOPEN_SOURCE < 700 without POSIX 2008; st_atime/st_mtime/st_ctime offsets 72/88/104, size 144 unchanged (black-box probe, 11 tests x 9 configurations)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "plants added (header rows, single struct stat, plants rule, headers-gen --out)", "before": 0, "after": 6, "unit": "plants", "measured": true},
+   {"kind": "coverage", "what": "test targets: header_p2_fixed_rows (P2 on generated headers), plants unit test for xtask targets", "before": 0, "after": 2, "unit": "tests", "measured": true},
+   {"kind": "tooling", "what": "a plant on a header template or generator is judged by an xtask test on the baseline build instead of a product rebuild that stops before the test", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "improvement": "plants on generator inputs could never be judged (product build refused the stale tree first); the tool now knows xtask test targets, and P2's silent fallback to system headers should become an error in header_probe.py",
+ "next_step": "land; a later sys/stat.h or fcntl.h template giving struct stat copies the @@hidden-member lines from sys/pidfd.h.in",
+ "report_file": "handoff/SL-HEADERS-VIS-FIX.md",
+ "jobs": ["sl-headers-vis-fix-plants4", "sl-headers-vis-fix-gate2", "sl-headers-vis-fix-precheck"]}
