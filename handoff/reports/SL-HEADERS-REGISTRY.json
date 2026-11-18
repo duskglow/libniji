@@ -1,7 +1,7 @@
 {"task": "SL-HEADERS-REGISTRY", "model": "opus", "tokens": null,
  "result": "Header slices now add files only: headers/slices/<slice>.tsv rows, spec/tools/header_checks/<slice>.py and xtask/src/headers/slices/<slice>.rs (listed by xtask/build.rs); slices 5, 6, 9, 14 moved with identical verdicts and an identical libc-include tree",
- "branch": "task/sl-headers-registry", "head": null,
- "gate": {"affected": "pending: escalated to FULL by the affected tool (xtask and headers/ inputs), still running at hand-back", "peak": null},
+ "branch": "task/sl-headers-registry", "head": "233a0a14c (precheck GREEN; this report's own commit follows it)",
+ "gate": {"affected": "FULL tier (escalated by the affected tool): 32 suites, 12162 passed / 0 failed, 1397 ignored; conformance 139 passed / 0 failed", "peak": "16G (page cache included), oom_kill=0"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [

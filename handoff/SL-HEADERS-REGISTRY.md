@@ -35,8 +35,9 @@ Tooling only: no generated header content changed (libc-include/ byte for byte t
 * Unit tests (xtask headers::tests): 8 passed, two new (slice_modules_are_listed_and_markers_unique,
   slice_table_problems_name_the_row). clippy and static: job sl-headers-registry-lint, rc 0.
 * Gate (sl-headers-registry-gate, `cargo xtask affected --run --base origin/next`): the affected tool escalates
-  this change to FULL (every `xtask/` file and every `headers/` table counts as "generated table or its input"), so
-  it was still running at hand-back (over 50 minutes): pending.
+  this change to FULL (every `xtask/` file and every `headers/` table counts as "generated table or its input"):
+  61 minutes, 32 suites ok, 12162 passed, 0 failed, 1397 ignored; conformance 139 passed, 0 failed; peak 16G.
+* `cargo xtask precheck` on 233a0a14c (job sl-headers-registry-precheck): GREEN, 31 checks.
 
 **Moving an open slice branch onto this (for the coordinator's continuation notes)** — after `git merge origin/next`
 conflicts in `spec/tools/header_check.py` and/or `xtask/src/headers.rs`:
