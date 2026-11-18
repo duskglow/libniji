@@ -7,12 +7,11 @@
 * `p1_skip`: rows of visibility.tsv whose P1 unit would assert what the header does not show.
   - `ftw.h` `statx`, `statx_timestamp`: defined by <sys/stat.h> (slice 7), which ftw.h includes once that header
     exists; drop the entries then.
-  - `wchar.h` `FILE`: wchar.h names FILE and shows no struct _IO_FILE (visibility.tsv), so the type stays incomplete.
 Loaded by spec/tools/header_check.py (plan/headers.md section 4, "Adding a slice").
 """
 
 must_fail = ["regexp.h"]
-p1_skip = [("ftw.h", "statx"), ("ftw.h", "statx_timestamp"), ("wchar.h", "FILE")]
+p1_skip = [("ftw.h", "statx"), ("ftw.h", "statx_timestamp")]
 
 
 def units(ctx):

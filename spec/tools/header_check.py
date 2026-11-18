@@ -124,6 +124,9 @@ def p1_units(ctx):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
         if (h, n) in ctx.p1_skip:
             continue  # a slice check module's `p1_skip` names it, with the reason
+        if r["kind"] == "typedef" and n in typedefs and typedefs[n]["cxx"] == "_IO_FILE" and not any(
+                v["header"] == h and v["name"] == "_IO_FILE" and v["kind"] == "struct" for v in ctx.vis):
+            continue  # FILE named by a header that does not show struct _IO_FILE: the type stays incomplete there
         tests = []
         if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
             m = macros[n]
