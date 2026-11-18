@@ -133,7 +133,11 @@ struct rlimit;
 struct rlimit;
 # ifndef __NIJI_D_prlimit
 #  define __NIJI_D_prlimit 1
+#  if __NIJI_FOB64
+extern int prlimit (int, unsigned int, const struct rlimit *, struct rlimit *) __NIJI_NOTHROW __asm__ ("prlimit64");
+#  else
 extern int prlimit (int, unsigned int, const struct rlimit *, struct rlimit *) __NIJI_NOTHROW;
+#  endif
 # endif
 struct rlimit64;
 struct rlimit64;

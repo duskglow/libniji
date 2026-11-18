@@ -31,7 +31,11 @@ extern long writev (int, const struct iovec *, int);
 struct iovec;
 # ifndef __NIJI_D_preadv2
 #  define __NIJI_D_preadv2 1
+#  if __NIJI_FOB64
+extern long preadv2 (int, const struct iovec *, int, long, int) __asm__ ("preadv64v2");
+#  else
 extern long preadv2 (int, const struct iovec *, int, long, int);
+#  endif
 # endif
 struct iovec;
 # ifndef __NIJI_D_preadv64v2
@@ -53,7 +57,11 @@ extern long process_vm_writev (int, const struct iovec *, long unsigned int, con
 struct iovec;
 # ifndef __NIJI_D_pwritev2
 #  define __NIJI_D_pwritev2 1
+#  if __NIJI_FOB64
+extern long pwritev2 (int, const struct iovec *, int, long, int) __asm__ ("pwritev64v2");
+#  else
 extern long pwritev2 (int, const struct iovec *, int, long, int);
+#  endif
 # endif
 struct iovec;
 # ifndef __NIJI_D_pwritev64v2

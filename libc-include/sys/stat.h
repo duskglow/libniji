@@ -8,6 +8,7 @@
 __NIJI_BEGIN_C
 
 #if 1
+#if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -49,6 +50,31 @@ struct stat {
   long __glibc_reserved[3];
 };
 # endif
+#else
+# ifndef __NIJI_D_struct_stat
+#  define __NIJI_D_struct_stat 1
+struct stat {
+  unsigned long st_dev;
+  unsigned long st_ino;
+  unsigned long st_nlink;
+  unsigned int st_mode;
+  unsigned int st_uid;
+  unsigned int st_gid;
+  int __pad0;
+  unsigned long st_rdev;
+  long st_size;
+  long st_blksize;
+  long st_blocks;
+  long st_atime;
+  unsigned long st_atimensec;
+  long st_mtime;
+  unsigned long st_mtimensec;
+  long st_ctime;
+  unsigned long st_ctimensec;
+  long __glibc_reserved[3];
+};
+# endif
+#endif
 #endif
 #if __NIJI_GNU
 # ifndef __NIJI_D_struct_statx_timestamp
@@ -122,6 +148,7 @@ struct statx_timestamp {
 # endif
 #endif
 #if __NIJI_LFS64
+#if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -163,6 +190,31 @@ struct stat64 {
   long __glibc_reserved[3];
 };
 # endif
+#else
+# ifndef __NIJI_D_struct_stat64
+#  define __NIJI_D_struct_stat64 1
+struct stat64 {
+  unsigned long st_dev;
+  unsigned long st_ino;
+  unsigned long st_nlink;
+  unsigned int st_mode;
+  unsigned int st_uid;
+  unsigned int st_gid;
+  int __pad0;
+  unsigned long st_rdev;
+  long st_size;
+  long st_blksize;
+  long st_blocks;
+  long st_atime;
+  unsigned long st_atimensec;
+  long st_mtime;
+  unsigned long st_mtimensec;
+  long st_ctime;
+  unsigned long st_ctimensec;
+  long __glibc_reserved[3];
+};
+# endif
+#endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_struct_timespec
@@ -321,7 +373,11 @@ struct stat;
 # ifndef __NIJI_D_lstat
 #  define __NIJI_D_lstat 1
 #  if (__NIJI_POSIX >= 200112 && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64");
+#   else
 extern int lstat (const char *, struct stat *) __NIJI_NOTHROW;
+#   endif
 #  elif __NIJI_FOB64
 extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64");
 #  endif

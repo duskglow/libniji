@@ -12,3 +12,11 @@ s7-p1-macro-value | libc-include/fcntl.h | lit:#  define O_CREAT 64 ==> #  defin
 s7-statx-ts | crates/abi/src/layout.rs | lit:    pub tv_nsec: u32, ==> pub tv_nsec: u64, | cargo test -p niji-abi --test appendix_c_layouts abi_struct_statx_timestamp | msg:abi_struct_statx_timestamp.*FAILED|panicked
 s7-p10-major | libc-include/sys/sysmacros.h | lit:(__dev >> 8) & 0xfffUL ==> (__dev >> 8) & 0xffUL | python3 spec/tools/header_p10.py | msg:FAIL P10
 s7-p10-fdelt | libc-include/sys/select.h | lit:__fdelt_chk (fd)] |= ==> (fd) / 64] |= | python3 spec/tools/header_p10.py | msg:FAIL P10
+# Run 3: 64-bit redirections of GNU-only functions, pre-2008 struct stat, header_s07.py.
+s7-lfs-rows | xtask/src/headers.rs | lit:cfgs.iter().all(|c| c.ends_with("+gnu64") ==> cfgs.iter().all(|c| c.ends_with("+gnu64x") | cargo xtask headers-gen --check | msg:headers-gen
+s7-lfs-excl | xtask/src/headers.rs | lit:c.contains("!__NIJI_FOB64") && !c.contains("||") ==> c.contains("!__NIJI_FOB64") | cargo xtask headers-gen --check | msg:headers-gen
+s7-stat-old-gen | xtask/src/headers.rs | lit:#if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC ==> #if __NIJI_POSIX >= 200909L || __NIJI_XSI >= 700 || __NIJI_MISC | cargo xtask headers-gen --check | msg:headers-gen
+s7-fob64-header | libc-include/fcntl.h | lit:extern int fallocate (int, int, long, long) __asm__ ("fallocate64"); ==> extern int fallocate (int, int, long, long) __asm__ ("fallocate"); | python3 spec/tools/header_s07.py | msg:FAIL fob64 fallocate
+s7-fob64-lstat | libc-include/sys/stat.h | lit:extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat64"); ==> extern int lstat (const char *, struct stat *) __NIJI_NOTHROW __asm__ ("lstat"); | python3 spec/tools/header_s07.py | msg:FAIL fob64 lstat
+s7-stat-old-guard | libc-include/sys/stat.h | perl:s/#if __NIJI_POSIX >= 200809L \|\| __NIJI_XSI >= 700 \|\| __NIJI_MISC\n/#if 1\n/ | python3 spec/tools/header_s07.py | msg:FAIL stat-old
+s7-stat-old-member | libc-include/sys/stat.h | perl:s/(struct stat \{\n(?:  .*\n){11}  long st_atime;\n  unsigned long st_atimensec;\n  long st_mtime;\n)  unsigned long st_mtimensec;/$1  unsigned long st_mtimensecx;/ | python3 spec/tools/header_s07.py | msg:FAIL stat-old

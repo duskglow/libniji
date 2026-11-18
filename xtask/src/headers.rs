@@ -286,6 +286,8 @@ struct Tables {
     layouts: BTreeMap<String, Rows>,
     addr: BTreeMap<String, Vec<(String, String)>>,
     calls: BTreeMap<String, String>,
+    /// The symbol a call binds to under `_FILE_OFFSET_BITS=64` where the probes saw one only with `+gnu64` (a GNU-only function).
+    lfs: BTreeMap<String, String>,
     nothrow: BTreeSet<String>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
@@ -304,7 +306,13 @@ fn load(root: &Path) -> Result<Tables, String> {
     }
     let mut addr: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     let mut calls = BTreeMap::new();
+    let mut lfs = BTreeMap::new();
     for r in tsv(root, "spec/abi/callsites.tsv")? {
+        let sym = &r["symbol"];
+        let cfgs: Vec<&str> = r["configs"].split(',').collect();
+        if r["mode"] == "call" && !sym.starts_with("__") && *sym != r["name"] && cfgs.iter().all(|c| c.ends_with("+gnu64") && !c.starts_with('!')) {
+            lfs.insert(r["name"].clone(), sym.clone());
+        }
         match r["mode"].as_str() {
             "addr" => addr.entry(r["name"].clone()).or_default().push((r["configs"].clone(), r["symbol"].clone())),
             "call" if r["configs"] == "*" => {
@@ -317,7 +325,7 @@ fn load(root: &Path) -> Result<Tables, String> {
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let stubs = tsv(root, STUBS)?.into_iter().filter(|r| r["link"] == "default").map(|r| r["function"].clone()).collect();
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, stubs })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, exported, reserved, stubs })
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -659,6 +667,24 @@ impl Gen<'_> {
         };
         let body = match self.members_nested(&lkey) {
             Some((_, m, nested)) => {
+                // Before POSIX 2008 the times of `struct stat` are `st_atime` and `st_atimensec` (and the like), not timespec members:
+                // `struct timespec` is then no name of this header (probe: the reference's st_atim is absent below that level).
+                if kind == "struct" && (name == "stat" || name == "stat64") && m.iter().any(|l| l.trim() == "struct timespec st_atim;") {
+                    let old: Vec<String> = m
+                        .iter()
+                        .flat_map(|l| match l.trim().strip_prefix("struct timespec st_").and_then(|r| r.strip_suffix("im;")) {
+                            Some(t) => vec![format!("  long st_{t}ime;"), format!("  unsigned long st_{t}imensec;")],
+                            None => vec![l.clone()],
+                        })
+                        .collect();
+                    self.out.push("#if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC".into());
+                    self.emit_nested(nested);
+                    self.guard(&format!("{kind}_{name}"), [vec![format!("{key} {{")], m, vec!["};".into()]].concat());
+                    self.out.push("#else".into());
+                    self.guard(&format!("{kind}_{name}"), [vec![format!("{key} {{")], old, vec!["};".into()]].concat());
+                    self.out.push("#endif".into());
+                    return;
+                }
                 self.emit_nested(nested);
                 [vec![format!("{key} {{")], m, vec!["};".into()]].concat()
             }
@@ -708,6 +734,23 @@ impl Gen<'_> {
         Some(out.trim_end().replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list"))
     }
 
+    /// The declaration of `name` binding to `sym`. A function that binds to its own name is redirected to its 64-bit twin under
+    /// `_FILE_OFFSET_BITS=64` where the call probes saw that (`lfs`); the addresses probed in no GNU configuration cannot show it.
+    /// `excl`: the branch's own condition already excludes `_FILE_OFFSET_BITS=64` (a plain conjunction with `!__NIJI_FOB64`).
+    fn extern_lines(&self, name: &str, decl: &str, nt: &str, sym: &str, ind: &str, excl: bool) -> Vec<String> {
+        match self.t.lfs.get(name) {
+            Some(y) if sym == name && !excl && self.t.exported.contains(y) => vec![
+                format!("{ind}if __NIJI_FOB64"),
+                format!("extern {decl}{nt} __asm__ (\"{y}\");"),
+                format!("{ind}else"),
+                format!("extern {decl}{nt};"),
+                format!("{ind}endif"),
+            ],
+            _ if sym != name => vec![format!("extern {decl}{nt} __asm__ (\"{sym}\");")],
+            _ => vec![format!("extern {decl}{nt};")],
+        }
+    }
+
     fn function(&mut self, name: &str) {
         let Some(decl) = self.declaration(name) else { return };
         let nt = if self.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
@@ -721,8 +764,7 @@ impl Gen<'_> {
             if !builtin && !self.t.exported.contains(&sym) && !LINKED_ELSEWHERE.contains(&sym.as_str()) {
                 self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
             }
-            let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
-            body.push(format!("extern {decl}{nt}{asm};"));
+            body.extend(self.extern_lines(name, &decl, nt, &sym, "#  ", false));
         } else {
             let all = (1u64 << self.t.lv.ids.len()) - 1;
             // `addr` probes run in no fortify configuration (callsites.tsv): those do not decide the symbol.
@@ -737,8 +779,7 @@ impl Gen<'_> {
                     "0".into()
                 });
                 body.push(format!("#  {} {c}", if i == 0 { "if" } else { "elif" }));
-                let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
-                body.push(format!("extern {decl}{nt}{asm};"));
+                body.extend(self.extern_lines(name, &decl, nt, sym, "#   ", c.contains("!__NIJI_FOB64") && !c.contains("||")));
             }
             body.push("#  endif".into());
         }

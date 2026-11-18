@@ -119,7 +119,11 @@ struct dirent;
 struct dirent;
 # ifndef __NIJI_D_scandirat
 #  define __NIJI_D_scandirat 1
+#  if __NIJI_FOB64
+extern int scandirat (int, const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **)) __asm__ ("scandirat64");
+#  else
 extern int scandirat (int, const char *, struct dirent ***, int (*) (const struct dirent *), int (*) (const struct dirent **, const struct dirent **));
+#  endif
 # endif
 struct dirent64;
 struct dirent64;
@@ -133,7 +137,11 @@ struct dirent;
 struct dirent;
 # ifndef __NIJI_D_versionsort
 #  define __NIJI_D_versionsort 1
+#  if __NIJI_FOB64
+extern int versionsort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW __asm__ ("versionsort64");
+#  else
 extern int versionsort (const struct dirent **, const struct dirent **) __NIJI_NOTHROW;
+#  endif
 # endif
 struct dirent64;
 struct dirent64;

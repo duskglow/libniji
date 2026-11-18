@@ -56,6 +56,7 @@ struct flock64 {
   int : 32;
 };
 # endif
+#if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -97,6 +98,31 @@ struct stat64 {
   long __glibc_reserved[3];
 };
 # endif
+#else
+# ifndef __NIJI_D_struct_stat64
+#  define __NIJI_D_struct_stat64 1
+struct stat64 {
+  unsigned long st_dev;
+  unsigned long st_ino;
+  unsigned long st_nlink;
+  unsigned int st_mode;
+  unsigned int st_uid;
+  unsigned int st_gid;
+  int __pad0;
+  unsigned long st_rdev;
+  long st_size;
+  long st_blksize;
+  long st_blocks;
+  long st_atime;
+  unsigned long st_atimensec;
+  long st_mtime;
+  unsigned long st_mtimensec;
+  long st_ctime;
+  unsigned long st_ctimensec;
+  long __glibc_reserved[3];
+};
+# endif
+#endif
 #endif
 #if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_struct_timespec
@@ -108,6 +134,7 @@ struct timespec {
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
+#if __NIJI_POSIX >= 200809L || __NIJI_XSI >= 700 || __NIJI_MISC
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -149,6 +176,31 @@ struct stat {
   long __glibc_reserved[3];
 };
 # endif
+#else
+# ifndef __NIJI_D_struct_stat
+#  define __NIJI_D_struct_stat 1
+struct stat {
+  unsigned long st_dev;
+  unsigned long st_ino;
+  unsigned long st_nlink;
+  unsigned int st_mode;
+  unsigned int st_uid;
+  unsigned int st_gid;
+  int __pad0;
+  unsigned long st_rdev;
+  long st_size;
+  long st_blksize;
+  long st_blocks;
+  long st_atime;
+  unsigned long st_atimensec;
+  long st_mtime;
+  unsigned long st_mtimensec;
+  long st_ctime;
+  unsigned long st_ctimensec;
+  long __glibc_reserved[3];
+};
+# endif
+#endif
 #endif
 #if 1
 # ifndef __NIJI_D___ino64_t
@@ -227,7 +279,11 @@ extern int open (const char *, int, ...) __asm__ ("open64");
 #if __NIJI_GNU
 # ifndef __NIJI_D_fallocate
 #  define __NIJI_D_fallocate 1
+#  if __NIJI_FOB64
+extern int fallocate (int, int, long, long) __asm__ ("fallocate64");
+#  else
 extern int fallocate (int, int, long, long);
+#  endif
 # endif
 # ifndef __NIJI_D_fallocate64
 #  define __NIJI_D_fallocate64 1
@@ -299,7 +355,11 @@ extern int posix_fallocate64 (int, long, long);
 # ifndef __NIJI_D_lockf
 #  define __NIJI_D_lockf 1
 #  if (__NIJI_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int lockf (int, int, long) __asm__ ("lockf64");
+#   else
 extern int lockf (int, int, long);
+#   endif
 #  elif __NIJI_FOB64
 extern int lockf (int, int, long) __asm__ ("lockf64");
 #  endif
