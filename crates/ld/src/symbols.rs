@@ -350,7 +350,7 @@ impl<'a> Object<'a> {
     /// The reader's errors for the hash chain, symbol, string and version tables, and
     /// [`LookupError::UnknownVersion`] for a definition whose version index no definition gives.
     pub fn lookup(&self, req: &Request<'_>) -> Result<Option<Def>, LookupError> {
-        self.find(req, false)
+        self.find::<false>(req)
     }
 
     /// [`Object::lookup`] in the program when it has canonical PLT entries
@@ -362,18 +362,19 @@ impl<'a> Object<'a> {
     #[cold]
     #[inline(never)]
     pub fn lookup_program(&self, req: &Request<'_>) -> Result<Option<Def>, LookupError> {
-        self.find(req, true)
+        self.find::<true>(req)
     }
 
-    /// [`Object::lookup`]; with `entries`, a canonical PLT entry counts as a definition. Inlined into
-    /// each of the two, so the plain one tests nothing more.
+    /// [`Object::lookup`]; with `ENTRIES`, a canonical PLT entry counts as a definition. A constant,
+    /// so each of the two gets its own copy of the candidate walk and the plain one tests nothing
+    /// more.
     #[allow(clippy::inline_always)]
     #[inline(always)]
-    fn find(&self, req: &Request<'_>, entries: bool) -> Result<Option<Def>, LookupError> {
+    fn find<const ENTRIES: bool>(&self, req: &Request<'_>) -> Result<Option<Def>, LookupError> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !(exported(&st) || (entries && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || (ENTRIES && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
@@ -543,23 +544,23 @@ pub fn lookup(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, uniqu
     if scope.entries {
         return lookup_entries(objects, scope, req, unique);
     }
-    search(objects, scope, req, unique, false)
+    search::<false>(objects, scope, req, unique)
 }
 
 /// [`lookup`] in a scope whose program has canonical PLT entries ([`Scope::program_entries`]).
 #[cold]
 #[inline(never)]
 fn lookup_entries(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
-    search(objects, scope, req, unique, true)
+    search::<true>(objects, scope, req, unique)
 }
 
-/// The walk of [`lookup`]; with `entries`, object 0 is searched by [`Object::lookup_program`].
+/// The walk of [`lookup`]; with `ENTRIES`, object 0 is searched by [`Object::lookup_program`].
 #[allow(clippy::inline_always)]
 #[inline(always)]
-fn search(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry, entries: bool) -> Result<Option<Found>, LookupError> {
+fn search<const ENTRIES: bool>(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
     for o in scope.iter() {
         let obj = objects.get(o).ok_or(LookupError::NoObject(o))?;
-        let found = if entries && o == 0 { obj.lookup_program(req)? } else { obj.lookup(req)? };
+        let found = if ENTRIES && o == 0 { obj.lookup_program(req)? } else { obj.lookup(req)? };
         let Some(def) = found else { continue };
         let found = Found { obj: o, def };
         if def.st.bind() == STB_GNU_UNIQUE {
