@@ -55,7 +55,9 @@ session died on a login expiry while gate2 and plants2 ran; the second session f
   then REFUSED `code-stale-dir-rule` (pattern matched no site since e1ebc67 put that push in a `None =>` arm), fixed in
   513d2eb (every lit: plant checked to match one site). `-plants6` (head 513d2eb, code = 4f3530282): 26/26 CAUGHT,
   0 WARN, 70 min. Results: handoff/HANDBACK-INLOOP-CHECKS-plants.txt. Superseded: `-plants4`, `-plants5`.
-- Final `cargo xtask precheck --jobs gate4,plants6 --head <sha>` (`-pc4`): see the report json / hand-back.
+- Final `cargo xtask precheck --jobs gate4,plants6 --head <sha>` (`-pc4`): RED, static
+  private-paths: two home paths in leg 2's handoff/report text (the refused command); written as `~/...`, then `-pc5`
+  on the final head (verdict in the hand-back). Superseded: `-pc4`.
 
 ## Post-hand-back checks and where they are now
 
@@ -98,7 +100,7 @@ fix what it names. Exit 3 (WAIT) = a named job has not ended: jobwait it, or han
 
 State (leg 3): code done at 4f3530282; gate4 and plants6 green; the final precheck `-pc4` and
 `ops handback-check` ran on the last head (results in the hand-back and the report json). Nothing left to do.
-REFUSED in leg 2 (reported): `python3 /home/claude/src/liella-ops/bin/ops extend-budget HANDBACK-INLOOP-CHECKS-2
+REFUSED in leg 2 (reported): `python3 ~/src/liella-ops/bin/ops extend-budget HANDBACK-INLOOP-CHECKS-2
 --why "..."` (auto-mode classifier).
 
 The story is done. A plants-file check (parse every line, each pattern matches one site) belongs in precheck: two
