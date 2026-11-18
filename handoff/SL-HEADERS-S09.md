@@ -1,6 +1,16 @@
-# SL-HEADERS-S09: slice 9, Linux process and event interfaces (handoff after run 3)
+# SL-HEADERS-S09: slice 9, Linux process and event interfaces (handoff after run 4, a merge of next)
 
-**State.** Branch `task/sl-headers-s09-3` (continues `task/sl-headers-s09-2`); head in `handoff/reports/SL-HEADERS-S09-3.json`.
+**State.** Branch `task/sl-headers-s09-4` (continues `task/sl-headers-s09-3`); head in `handoff/reports/SL-HEADERS-S09-4.json`.
+Run 4 only merged `origin/next` (no other change). Conflicts: `spec/tools/header_check.py` (slice 14 and slice 9 both in the
+probed set; next's isolated `kernel-uapi` link directory is used unless `NIJI_UAPI` names the staged tree) and
+`xtask/src/headers.rs` (the `covered` computation: both sides had made an included header cover a name only where it shows it;
+kept slice 9's `is_covered` with `dont_care`, next's rule for unparsable configurations). One merge error the compiler found: next's
+unnamed-aggregate scan and slice 9's anonymous-union state both bound `anon` (renamed to `open_anon`; the `<anon>` union marker rows
+are kept out of next's scan). `headers-gen` then rewrote `utmp.h` and `utmpx.h` (their `__sigset_t` now has its members).
+Run 4 results (role on the Skylake-SP host): header_check 0 failed of 4563 (all headers, P1/P5/P8); P2 0 unaccepted of 1 difference
+over 5024 rows; P3 0 unaccepted of 8 differences over 62 rows; `cargo xtask test` and the affected gate, plants: see the report json.
+The `D-X.119` record is the slice's decision (the pending record was assigned before this run); two further ids D-X.120 and D-X.121
+were reserved by this run for it and are not used.
 Say "slice 9" in commits and handoffs.
 
 **Results on the final tree (keke, role n4).**
