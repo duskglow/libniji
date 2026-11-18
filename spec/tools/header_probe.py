@@ -120,9 +120,18 @@ def standard_names():
     (`sig_atomic_t`, C 7.14 and POSIX <signal.h>), the notification structure's type name (`sigevent_t`,
     POSIX <signal.h>), and the mutex kinds of pthread_mutexattr_settype (POSIX: NORMAL, ERRORCHECK, RECURSIVE,
     DEFAULT) and the GNU timed kind `PTHREAD_MUTEX_TIMED_NP`, the name the layout notes of the pthread
-    types use for kind 0 (crates/abi/src/layout_init.rs)."""
+    types use for kind 0 (crates/abi/src/layout_init.rs). Also the other pthread attribute values that are
+    enumeration constants, which constants.tsv (macros only) cannot hold: the priority protocols
+    (pthread_mutexattr_setprotocol(3): PTHREAD_PRIO_NONE, _INHERIT, _PROTECT), the robustness values
+    (pthread_mutexattr_setrobust(3): PTHREAD_MUTEX_STALLED, _ROBUST and their `_NP` spellings) and the lock
+    preference kinds (pthread_rwlockattr_setkind_np(3): PTHREAD_RWLOCK_PREFER_READER_NP, _PREFER_WRITER_NP,
+    _PREFER_WRITER_NONRECURSIVE_NP, _DEFAULT_NP)."""
     return ["sig_atomic_t", "sigevent_t", "PTHREAD_MUTEX_NORMAL", "PTHREAD_MUTEX_RECURSIVE",
-            "PTHREAD_MUTEX_ERRORCHECK", "PTHREAD_MUTEX_DEFAULT", "PTHREAD_MUTEX_TIMED_NP"]
+            "PTHREAD_MUTEX_ERRORCHECK", "PTHREAD_MUTEX_DEFAULT", "PTHREAD_MUTEX_TIMED_NP",
+            "PTHREAD_PRIO_NONE", "PTHREAD_PRIO_INHERIT", "PTHREAD_PRIO_PROTECT",
+            "PTHREAD_MUTEX_STALLED", "PTHREAD_MUTEX_ROBUST", "PTHREAD_MUTEX_STALLED_NP", "PTHREAD_MUTEX_ROBUST_NP",
+            "PTHREAD_RWLOCK_PREFER_READER_NP", "PTHREAD_RWLOCK_PREFER_WRITER_NP",
+            "PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP", "PTHREAD_RWLOCK_DEFAULT_NP"]
 
 
 def candidates():
