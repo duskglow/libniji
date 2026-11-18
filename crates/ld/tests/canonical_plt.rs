@@ -440,7 +440,7 @@ copy 1 42
 /// old definition; a COPY of the defining library's data is unaffected. Probe-settled: the reference
 /// prints [`SCOPED_EXPECTED`].
 #[test]
-fn s27_1_g_0_canonical_plt_entry_in_scoped_lookups_dladdr_versions_and_copy() {
+fn s27_1_g_0_canonical_plt_entry_for_scoped_lookups_dladdr_versions_and_copy() {
     let Some(k) = setup("scoped") else { return };
     let libf = cc(
         &k.d,
