@@ -14,4 +14,4 @@
  "improvement": "STARTUP-DATA-WINDOWS prints its page list only when over budget, so the base's pages cannot be diffed without relinking; have so always write the list (and .got's start) to target/product so a page-count red is attributable with one diff",
  "next_step": "after the .got ruling or layout fix: so, direct gate, cargo xtask test, NIJI_FULL_PROFILE so + hot_text_products, plants (21) on the head",
  "report_file": "handoff/LOCALE-SLOTS-GROWTH.md",
- "jobs": ["keke:locale-slots-growth-5-lint", "keke:locale-slots-growth-5-baseso"]}
+ "jobs": ["keke:locale-slots-growth-5-lint", "keke:locale-slots-growth-5-static", "keke:locale-slots-growth-5-baseso"]}
