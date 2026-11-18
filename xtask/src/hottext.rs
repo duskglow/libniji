@@ -1133,8 +1133,12 @@ mod tests {
         let nm_line = py[nm..].lines().next().unwrap();
         assert!(nm_line.contains("env=nm_env") && py.contains("nm_env = dict(os.environ, LC_ALL=\"C\")"), "trace_gdb.py runs nm in the caller's locale");
         let sorted = py.find("names = {a: sorted(ns) for a, ns in names.items()}").expect("trace_gdb.py does not sort the names at one address");
-        let written = py.find("for n in names.get(addr, []):").expect("trace_gdb.py: no names output");
-        assert!(nm < sorted && sorted < written, "trace_gdb.py sorts the names after it writes them");
+        // The interpreter's mode writes a rebased copy of the names (LAYOUT-LDSO-ORDER): the copy is
+        // taken after the sort, so both modes write the sorted lists.
+        let copied = py.find("OFFSETS = [(d, dict(d)) for d in (names, ").expect("trace_gdb.py: no rebased copy of the names");
+        let chosen = py.find("out_names = OFFSETS[0][1] if ldso else names").expect("trace_gdb.py: no choice of the names written");
+        let written = py.find("for n in out_names.get(addr, []):").expect("trace_gdb.py: no names output");
+        assert!(nm < sorted && sorted < copied && copied < chosen && chosen < written, "trace_gdb.py sorts the names after it copies or writes them");
     }
 
     #[test]
