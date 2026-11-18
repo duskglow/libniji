@@ -711,6 +711,54 @@ impl Gen<'_> {
         out.trim_end().replace('*', " *").replace("  *", " *").replace("__va_list_tag (*) [1]", "__builtin_va_list").replace("( *)", "(*)")
     }
 
+    /// The definition of an aggregate whose members are scalars and anonymous structures of bit-fields (the unions of
+    /// ieee754.h), from layouts.tsv. A bit-field row says `bits W@K`: width W, first bit K counted from the start of the
+    /// type (little-endian). The bit-fields are written in table order and each K is checked against the allocation of
+    /// consecutive bit-fields of a 32-bit type (no field crosses a 32-bit unit), so a row the allocation would not
+    /// reproduce is an error here and never a header with other bit positions.
+    fn bitfield_aggregate(&mut self, key: &str, head: &str) -> Option<Vec<String>> {
+        let rows = self.t.layouts.get(key)?.clone();
+        let mut members = rows.iter().filter(|r| !r["member"].is_empty()).peekable();
+        let mut out = vec![format!("{head} {{")];
+        let mut top_offsets = BTreeSet::new();
+        let mut count = 0;
+        let mut ok = true;
+        while let Some(r) = members.next() {
+            let m = &r["member"];
+            if m.contains('.') || !r["bitfield"].is_empty() {
+                return None;
+            }
+            let mt = &r["member_type"];
+            top_offsets.insert(r["offset_or_size"].clone());
+            count += 1;
+            if mt.starts_with("struct <anon>") {
+                let start: u64 = r["offset_or_size"].parse::<u64>().ok()? * 8;
+                out.push("  struct {".into());
+                let mut at = start;
+                while let Some(c) = members.next_if(|c| c["member"].strip_prefix(m.as_str()).is_some_and(|x| x.starts_with('.'))) {
+                    let (w, k) = c["bitfield"].strip_prefix("bits ")?.split_once('@')?;
+                    let (w, k): (u64, u64) = (w.parse().ok()?, k.parse().ok()?);
+                    if dwarf_scalar(&c["member_type"]).as_deref() != Some("unsigned int") || w == 0 || k != at || (at % 32) + w > 32 {
+                        self.errors.push(format!("{}: {head}: bit-field {} (bits {w}@{k}) does not fit the allocation of unsigned int bit-fields", self.header, c["member"]));
+                        ok = false;
+                    }
+                    out.push(format!("    unsigned int {} : {w};", &c["member"][m.len() + 1..]));
+                    at = k + w;
+                }
+                out.push(format!("  }} {m};"));
+            } else {
+                let base = dwarf_scalar(mt).filter(|b| b == mt)?;
+                out.push(format!("  {base} {m};"));
+            }
+        }
+        out.push("};".into());
+        // Several members at offset 0 are the alternatives of a union; the head says which it is.
+        if !ok || count == 0 || (head.starts_with("union") && (count < 2 || top_offsets.len() != 1)) {
+            return None;
+        }
+        Some(out)
+    }
+
     fn tag(&mut self, name: &str, kind: &str) {
         let key = format!("{kind} {name}");
         // `struct _IO_FILE` is described under its typedef name, FILE (layouts.tsv keys a tag by the name the program uses).
@@ -724,10 +772,13 @@ impl Gen<'_> {
                 self.emit_nested(nested);
                 [vec![format!("{key} {{")], m, vec!["};".into()]].concat()
             }
-            None => {
-                self.errors.push(format!("{}: {key} has no usable layouts.tsv rows", self.header));
-                return;
-            }
+            None => match self.bitfield_aggregate(&lkey, &key) {
+                Some(body) => body,
+                None => {
+                    self.errors.push(format!("{}: {key} has no usable layouts.tsv rows", self.header));
+                    return;
+                }
+            },
         };
         self.guard(&format!("{kind}_{name}"), body);
     }

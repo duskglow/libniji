@@ -349,7 +349,16 @@ def members(dies, off, prefix="", base=0, out=None, depth=0):
         full = f"{prefix}{name}" if name else prefix.rstrip(".") or "<anon>"
         bits = ""
         if "DW_AT_bit_size" in at:
-            bits = f"bits {num(at['DW_AT_bit_size'])}@{num(at.get('DW_AT_data_bit_offset', '0'))}"
+            # `bits W@K`: width W, K the member's first bit counted from the start of the type
+            # (little-endian). The probe is DWARF 4: DW_AT_bit_offset counts from the top of the
+            # storage unit (DW_AT_byte_size) at DW_AT_data_member_location.
+            w = num(at["DW_AT_bit_size"])
+            if "DW_AT_data_bit_offset" in at:
+                k = (base * 8) + num(at["DW_AT_data_bit_offset"])
+            else:
+                unit = num(at.get("DW_AT_byte_size", "0")) or num(dies[t]["attrs"].get("DW_AT_byte_size", "0"))
+                k = (base + o) * 8 + unit * 8 - num(at.get("DW_AT_bit_offset", "0")) - w
+            bits = f"bits {w}@{k}"
         inner = resolve(dies, t)
         out.append((base + o, full, tname(dies, t), bits))
         at_row = len(out) - 1

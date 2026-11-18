@@ -36,13 +36,13 @@ HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "s
            "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
            "getopt.h", "time.h",
            # slice 11
-           "math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "values.h"]
+           "math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
 
 
 SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-          "getopt.h", "time.h", "math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "values.h"]
+          "getopt.h", "time.h", "math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
 FLOAT_SUFFIX = {"float": ("f", 4), "double": ("", 8), "long double": ("L", 16), "_Float32": ("f32", 4), "_Float64": ("f64", 8),
                 "_Float128": ("f128", 16), "_Float32x": ("f32x", 8), "_Float64x": ("f64x", 16)}
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
@@ -90,7 +90,7 @@ def p1_units(ids, vis, macros, typedefs, layouts):
     c_names = {(r["header"], r["name"]) for r in vis if any(not c.startswith("cxx") for c in re.split(r"[,!]", r["configs"]) if c)}
     for r in vis:
         h = r["header"]
-        if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct"):
+        if h not in SLICE6 or r["kind"] not in ("macro", "typedef", "struct", "union"):
             continue
         n = r["name"]
         if h in emit_c and (h, n) not in c_names:
@@ -115,10 +115,10 @@ def p1_units(ids, vis, macros, typedefs, layouts):
             t = typedefs[n]
             tests.append(f"sizeof({n}) == {t['size']}")
             tests.append(f"__alignof__({n}) == {t['align']}")
-        elif r["kind"] == "struct" and ("struct " + n) in layouts:
-            t = layouts["struct " + n]
-            tests.append(f"sizeof(struct {n}) == {t['offset_or_size']}")
-            tests.append(f"__alignof__(struct {n}) == {t['align']}")
+        elif r["kind"] in ("struct", "union") and (r["kind"] + " " + n) in layouts:
+            t = layouts[r["kind"] + " " + n]
+            tests.append(f"sizeof({r['kind']} {n}) == {t['offset_or_size']}")
+            tests.append(f"__alignof__({r['kind']} {n}) == {t['align']}")
         for cid in expand(r["configs"], ids):
             out.setdefault((h, cid), []).extend(tests)
     units = {}
