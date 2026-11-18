@@ -1,0 +1,8 @@
+id = "D-X.127"
+section = "x"
+status = "active"
+story = "SL-HEADERS-VIS-FIX"
+date = "2026-11-18"
+body = '''
+Header visibility fixes of slices 5, 6 and 9 (plan/headers.md section 3, P2). A new template marker `@@hidden-member MEMBER NAME...` (xtask/src/headers.rs): where an aggregate's member is a structure whose tag the header shows in fewer configurations than the aggregate, outside the tag's condition the member is spelled as that structure's scalar members under the given names, at the same offsets. `<sys/pidfd.h>` uses it for `struct stat` and `struct stat64`: under `_XOPEN_SOURCE` below 700 without POSIX 2008 `struct timespec` stays the program's (C 7.1.3) and `st_atime`/`st_mtime`/`st_ctime` are `time_t` members with `__st_atimensec`/`__st_mtimensec`/`__st_ctimensec` beside them; elsewhere `st_atim` etc. are `struct timespec` and `st_atime` etc. are macros naming their `tv_sec`. Black-box probes in 9 configurations (offsets 72/88/104, size 144, member type, macro or member, a program's own `struct timespec`) give the reference's results; the layout is unchanged, so this replaces the interim differences row of slice 9. `features-time64.h` and `gnu/stubs.h` no longer include `<features.h>` (included alone they show no feature-test macro; features-time64.h keeps the _TIME_BITS check itself), and `WIFCONTINUED` in `<stdlib.h>` has its own condition (not under `_XOPEN_SOURCE` defined empty).
+'''

@@ -979,6 +979,17 @@ fn build_closures(root: &Path, crates: &[Crate], nodes: &[Node]) -> BTreeMap<Str
     out
 }
 
+/// Whether a test target's text (its source and the support files it names) uses the products, so they are built
+/// before it runs. `join("niji")`: the products directory under the target dir, as the ld tests that run the built
+/// `ld.so` name it (`target().join("niji").join(Native::INTERP)`).
+pub fn names_products(text: &str) -> bool {
+    text.contains("target/niji")
+        || text.contains("join(\"niji\")")
+        || text.contains("libc.a")
+        || text.contains("niji-crt1")
+        || text.contains("conformance")
+}
+
 impl Repo {
     /// XTASK-AFFECTED-LAYOUT: can a change to `f` change what a static program links from `libc.a`? A source,
     /// data file or build script of a crate the libc product links (not a module compiled only for tests or only
@@ -1101,13 +1112,7 @@ impl Repo {
                         }
                     }
                 }
-                // `join("niji")`: the products directory under the target dir, as the ld tests that
-                // run the built `ld.so` name it (`target().join("niji").join(Native::INTERP)`).
-                let products = text.contains("target/niji")
-                    || text.contains("join(\"niji\")")
-                    || text.contains("libc.a")
-                    || text.contains("niji-crt1")
-                    || text.contains("conformance");
+                let products = names_products(&text);
                 targets.push(Target { krate: c.name.clone(), sections: sections_of(&name, &text), refs: refs_of(&text, &aliases), name, support, products, text, own });
             }
         }

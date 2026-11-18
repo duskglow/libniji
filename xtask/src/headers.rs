@@ -18,6 +18,10 @@
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
 //! * `@@when NAME`: `#if` with the condition of NAME, which the template does not own.
 //! * `@@enum TAG PREFIX...`: `enum TAG` of this header's enumerators with those prefixes (a prototype takes the enumeration).
+//! * `@@hidden-member MEMBER NAME...`: where an aggregate's member MEMBER is a structure whose tag this header shows
+//!   in fewer configurations than the aggregate, the member is spelled, outside the tag's condition, as the scalar
+//!   members of that structure named NAME... in order (same offsets and sizes): `struct stat`'s `st_atim` is
+//!   `st_atime` and `__st_atimensec` where `struct timespec` belongs to the program (C 7.1.3).
 //!
 //! Markers and inputs of one slice only (`@@intc`, `@@syscalls`, ...) live in that slice's module,
 //! `headers/slices/<slice>.rs` (a [`Slice`]), which `xtask/build.rs` finds by listing the directory, and the headers
@@ -238,7 +242,7 @@ mod slices {
 }
 
 /// The markers of the generator itself; a slice marker may not reuse one.
-const CORE_MARKERS: &[&str] = &["@@generated", "@@emit", "@@owns", "@@owns-macro", "@@if", "@@when", "@@enum"];
+const CORE_MARKERS: &[&str] = &["@@generated", "@@emit", "@@owns", "@@owns-macro", "@@if", "@@when", "@@enum", "@@hidden-member"];
 
 /// The slice marker named `word`.
 fn slice_marker(word: &str) -> Option<&'static Marker> {
@@ -431,6 +435,8 @@ struct Gen<'a> {
     covered: BTreeMap<(String, String), u64>,
     /// Names whose macro row the template defines itself (`@@owns-macro`); their function rows are still emitted.
     owned_macros: BTreeSet<String>,
+    /// `@@hidden-member`: member name to the names of its scalar members where its structure tag is not visible.
+    hidden_members: BTreeMap<String, Vec<String>>,
 }
 
 impl Gen<'_> {
@@ -486,6 +492,21 @@ impl Gen<'_> {
                 "0".into()
             }
         }
+    }
+
+    /// The condition of the structure tag `inner` in this header when the header shows it in fewer of the
+    /// configurations that matter than the aggregate `outer` that has a member of that type, else None.
+    fn narrower_tag(&self, outer: &str, inner: &str) -> Option<String> {
+        let row = |n: &str| self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == n && r["kind"] == "struct");
+        let (o, i) = (row(outer)?, row(inner)?);
+        let all = (1u64 << self.t.lv.ids.len()) - 1;
+        let care = all & !self.dont_care(inner, "struct");
+        let (om, im) = (mask_of(&self.t.lv, &o["configs"]).ok()?, mask_of(&self.t.lv, &i["configs"]).ok()?);
+        if om & care & !im == 0 {
+            return None;
+        }
+        let fortify = self.fortify_mask();
+        condition(&self.t.lv, im, care).or_else(|| condition(&self.t.lv, im & !fortify, care & !fortify))
     }
 
     fn fortify_mask(&self) -> u64 {
@@ -586,9 +607,26 @@ impl Gen<'_> {
             };
             let core = base.trim_end_matches(['*', ' ']);
             let stars = &base[core.len()..];
+            // `@@hidden-member`: outside the condition of the member's structure tag, its scalar members by the given names.
+            let mut hidden: Option<(String, Vec<String>)> = None;
             let base = if let Some(tag) = core.strip_prefix("struct ").filter(|_| stars.is_empty() && self.t.layouts.contains_key(core)) {
-                // A complete structure member (itimerspec holds two timespecs): its definition comes first.
-                nested.push(core.to_string());
+                if let (Some(names), Some(c)) = (self.hidden_members.get(r["member"].as_str()).filter(|_| arr.is_empty()), key.strip_prefix("struct ").and_then(|o| self.narrower_tag(o, tag))) {
+                    let prefix = format!("{}.", r["member"]);
+                    let subs: Vec<_> = rows.iter().filter(|q| q["member"].strip_prefix(prefix.as_str()).is_some_and(|m| !m.contains('.'))).collect();
+                    if subs.len() != names.len() {
+                        return None;
+                    }
+                    let mut alt = Vec::new();
+                    for (q, n) in subs.iter().zip(names) {
+                        let b = dwarf_scalar(&q["member_type"]).or_else(|| Some(self.resolve(&q["member_type"])).filter(|r| scalar(r)))?;
+                        alt.push(format!("  {b} {n};"));
+                    }
+                    nested.push(format!("#if {c}\t{core}"));
+                    hidden = Some((c, alt));
+                } else {
+                    // A complete structure member (itimerspec holds two timespecs): its definition comes first.
+                    nested.push(core.to_string());
+                }
                 format!("struct {tag}")
             } else if stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].ends_with(']') || self.t.layouts.contains_key(core)) {
                 // A typedef that is an array type, or an aggregate with a layout of its own: it comes first.
@@ -616,7 +654,14 @@ impl Gen<'_> {
             wide |= size.is_some_and(|n| n > 1);
             end = size.zip(end).map(|(n, e)| e.max(off + n));
             offs.insert(r["offset_or_size"].clone());
-            out.push(format!("  {base} {}{arr};", r["member"]));
+            match hidden {
+                Some((c, alt)) => {
+                    out.extend([format!("#if {c}"), format!("  {base} {}{arr};", r["member"]), "#else".into()]);
+                    out.extend(alt);
+                    out.push("#endif".into());
+                }
+                None => out.push(format!("  {base} {}{arr};", r["member"])),
+            }
         }
         // Unnamed padding the layout rows do not list (`struct timex` ends in 44 bytes of it).
         if let (Some(end), Some(total)) = (end, rows.iter().find(|r| r["member"].is_empty()).and_then(|r| r["offset_or_size"].parse::<u64>().ok())) {
@@ -725,7 +770,12 @@ impl Gen<'_> {
     /// Emit what a structure's members need first: the structures and function typedefs they name.
     fn emit_nested(&mut self, nested: Vec<String>) {
         for n in nested {
-            if let Some(tag) = n.strip_prefix("struct ") {
+            // `#if <condition>\tstruct TAG` (`@@hidden-member`): the tag is defined only under its own condition.
+            if let Some((c, tag)) = n.strip_prefix("#if ").and_then(|r| r.split_once('\t')).and_then(|(c, t)| Some((c.to_string(), t.strip_prefix("struct ")?.to_string()))) {
+                self.out.push(format!("# if {c}"));
+                self.tag(&tag, "struct");
+                self.out.push("# endif".into());
+            } else if let Some(tag) = n.strip_prefix("struct ") {
                 self.tag(tag, "struct");
             } else if let Some(t) = n.strip_prefix("typedef ") {
                 self.typedef(t);
@@ -1109,7 +1159,11 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         }
         let mut owned = BTreeSet::new();
         let mut owned_macros = BTreeSet::new();
+        let mut hidden_members = BTreeMap::new();
         for l in text.lines() {
+            if let Some((m, names)) = l.strip_prefix("@@hidden-member ").and_then(|r| r.split_whitespace().collect::<Vec<_>>().split_first().map(|(m, n)| (m.to_string(), n.iter().map(|x| x.to_string()).collect::<Vec<_>>()))) {
+                hidden_members.insert(m, names);
+            }
             if let Some(rest) = l.strip_prefix("@@owns-macro ") {
                 owned_macros.extend(rest.split_whitespace().map(String::from));
             }
@@ -1122,7 +1176,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                 }
             }
         }
-        let mut g = Gen { root, t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, owned_macros };
+        let mut g = Gen { root, t: &t, header: h.clone(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered, owned_macros, hidden_members };
         for l in text.lines() {
             let mut words = l.split_whitespace();
             if let Some(m) = words.next().and_then(slice_marker) {
@@ -1132,7 +1186,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
             match l.split_whitespace().next() {
                 Some("@@generated") => g.out.push(BANNER.into()),
                 Some("@@emit") => g.emit(&owned),
-                Some("@@owns") | Some("@@owns-macro") => {}
+                Some("@@owns") | Some("@@owns-macro") | Some("@@hidden-member") => {}
                 Some("@@enum") => g.enumeration(&l.split_whitespace().skip(1).collect::<Vec<_>>()),
                 Some("@@if") | Some("@@when") => {
                     let n = l.split_whitespace().nth(1).unwrap_or("");
@@ -1160,7 +1214,28 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     Ok((out, errors))
 }
 
-pub fn run(root: &Path, check: bool) -> Result<(), String> {
+/// `--out DIR` writes the generated headers below DIR and nothing else (no `libc-include/`, no orphan removal, no
+/// abi-gen): a test or a P2 run can probe the headers the templates make now without touching the tree.
+pub fn run_args(root: &Path, args: &[String]) -> Result<(), String> {
+    let check = args.iter().any(|a| a == "--check");
+    match args.iter().position(|a| a == "--out") {
+        None => run(root, check),
+        Some(_) if check => Err("headers-gen: --out and --check do not go together".into()),
+        Some(i) => {
+            let dir = args.get(i + 1).ok_or("headers-gen: --out needs a directory")?;
+            let files = generated(root)?;
+            for (h, text) in &files {
+                let p = Path::new(dir).join(h);
+                fs::create_dir_all(p.parent().ok_or("no parent")?).map_err(|e| format!("{}: {e}", p.display()))?;
+                fs::write(&p, text).map_err(|e| format!("{}: {e}", p.display()))?;
+            }
+            println!("headers-gen: wrote {} headers below {dir}", files.len());
+            Ok(())
+        }
+    }
+}
+
+fn generated(root: &Path) -> Result<Vec<(String, String)>, String> {
     let (files, errors) = generate(root)?;
     if !errors.is_empty() {
         for e in &errors {
@@ -1168,6 +1243,11 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
         }
         return Err(format!("headers-gen: {} problems", errors.len()));
     }
+    Ok(files)
+}
+
+pub fn run(root: &Path, check: bool) -> Result<(), String> {
+    let files = generated(root)?;
     let mut stale = Vec::new();
     for (h, text) in &files {
         let p = root.join(OUT).join(h);
