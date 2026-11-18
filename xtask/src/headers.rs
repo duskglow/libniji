@@ -15,6 +15,8 @@
 //! * `@@emit`: every name `visibility.tsv` assigns to this header, from the tables, each under its
 //!   condition, except names the template owns and reserved names `headers/reserved.tsv` omits.
 //! * `@@if NAME`: `#if <condition>` with the condition of NAME in this header; the template owns NAME.
+//! * `@@if-macro NAME`: `#if` with the condition of the macro NAME in this header; the template owns the macro only (a
+//!   function of the same name, which the header also declares, is still emitted: `isinf` and `isnan`).
 //! * `@@owns A B ...`: the template owns these names too (it defines them itself under an `@@if`).
 //! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
@@ -1099,6 +1101,9 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
             if let Some(rest) = l.strip_prefix("@@owns-macro ") {
                 owned_macros.extend(rest.split_whitespace().map(String::from));
             }
+            if let Some(rest) = l.strip_prefix("@@if-macro ") {
+                owned_macros.extend(rest.split_whitespace().map(String::from));
+            }
             if let Some(rest) = l.strip_prefix("@@if ").or_else(|| l.strip_prefix("@@owns ")) {
                 owned.extend(rest.split_whitespace().map(String::from));
             }
@@ -1126,9 +1131,9 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                         g.out.extend([format!("#ifndef __stub_{f}"), format!("# define __stub_{f}"), "#endif".into()]);
                     }
                 }
-                Some("@@if") | Some("@@when") => {
+                Some("@@if") | Some("@@when") | Some("@@if-macro") => {
                     let n = l.split_whitespace().nth(1).unwrap_or("");
-                    let c = g.cond(n, None);
+                    let c = g.cond(n, l.starts_with("@@if-macro").then_some("macro"));
                     g.out.push(format!("#if {c}"));
                 }
                 _ => {
