@@ -10,6 +10,8 @@ Every unit is compiled with `-nostdinc -isystem DIR -isystem <the compiler's own
              `st_atimensec` (and the mtime and ctime pairs) at the offsets of the timespec members, and sizeof 144.
 * stat-new   from POSIX 2008 on (`-D_POSIX_C_SOURCE=200809L`, the default) the members are `st_atim`, `st_mtim`, `st_ctim`, the
              macros `st_atime`... name their seconds, the size is the same.
+* ctype-masks every class mask the C classification macros expand to is declared (the twelve `_IS*` constants, the table's
+             little-endian bit order) and each macro compiles; found by P7 (a package using `isalpha`).
 * fob64      under `-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64` a program taking the address of each function below references its
              64-bit twin, without `_FILE_OFFSET_BITS` the function itself (the symbols the reference's headers bind to).
 
@@ -58,6 +60,12 @@ long niji_sec (struct stat *s) {{ return s->st_atime + s->st_mtime + s->st_ctime
 """
 
 
+CTYPE_MASKS = [("upper", 256), ("lower", 512), ("alpha", 1024), ("digit", 2048), ("xdigit", 4096), ("space", 8192),
+               ("print", 16384), ("graph", 32768), ("blank", 1), ("cntrl", 2), ("punct", 4), ("alnum", 8)]
+CTYPE_UNIT = "#include <ctype.h>\n" + "".join(f'_Static_assert(_IS{n} == {v}, "_IS{n}");\n' for n, v in CTYPE_MASKS) + (
+    "int niji_all (int c) { return " + " + ".join(f"is{n}(c)" for n, _ in CTYPE_MASKS) + "; }\n")
+
+
 def fob_unit(name, headers):
     inc = "".join(f"#include <{h}>\n" for h in ["sys/types.h", *headers])
     return inc + f"const void *niji_addr = (const void *) {name};\n"
@@ -93,6 +101,8 @@ def main():
             run(f"stat-old {h}", flags, OLD_UNIT.format(h=h) + (OLD_STAT if h == "sys/stat.h" else ""))
     for flags in NEW:
         run("stat-new", flags, NEW_UNIT)
+    for flags in ([], ["-O2"], ["-D_GNU_SOURCE"]):
+        run("ctype-masks", flags, CTYPE_UNIT)
     for name, headers, twin in FOB64:
         text = fob_unit(name, headers)
         words = lambda out: {w.strip(",") for l in out.splitlines() for w in l.replace("\t", " ").split()}

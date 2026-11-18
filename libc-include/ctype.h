@@ -194,6 +194,50 @@ enum { _ISupper = 256 };
 # endif
 #endif
 
+/* The class masks the macros below name: an enumeration of twelve constants. The visibility probes see macros only, so the
+   generated part above holds the two the reference also defines as macros; the other ten are listed here (values: the
+   little-endian bit order of the table, Appendix C.9; each settled by compiling a program against the reference). */
+#ifndef __NIJI_D_enum__ISlower
+# define __NIJI_D_enum__ISlower 1
+enum { _ISlower = 512 };
+#endif
+#ifndef __NIJI_D_enum__ISalpha
+# define __NIJI_D_enum__ISalpha 1
+enum { _ISalpha = 1024 };
+#endif
+#ifndef __NIJI_D_enum__ISdigit
+# define __NIJI_D_enum__ISdigit 1
+enum { _ISdigit = 2048 };
+#endif
+#ifndef __NIJI_D_enum__ISxdigit
+# define __NIJI_D_enum__ISxdigit 1
+enum { _ISxdigit = 4096 };
+#endif
+#ifndef __NIJI_D_enum__ISspace
+# define __NIJI_D_enum__ISspace 1
+enum { _ISspace = 8192 };
+#endif
+#ifndef __NIJI_D_enum__ISprint
+# define __NIJI_D_enum__ISprint 1
+enum { _ISprint = 16384 };
+#endif
+#ifndef __NIJI_D_enum__ISgraph
+# define __NIJI_D_enum__ISgraph 1
+enum { _ISgraph = 32768 };
+#endif
+#ifndef __NIJI_D_enum__ISblank
+# define __NIJI_D_enum__ISblank 1
+enum { _ISblank = 1 };
+#endif
+#ifndef __NIJI_D_enum__IScntrl
+# define __NIJI_D_enum__IScntrl 1
+enum { _IScntrl = 2 };
+#endif
+#ifndef __NIJI_D_enum__ISpunct
+# define __NIJI_D_enum__ISpunct 1
+enum { _ISpunct = 4 };
+#endif
+
 __NIJI_END_C
 
 #ifndef __cplusplus
