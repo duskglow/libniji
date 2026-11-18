@@ -1,7 +1,7 @@
 # HANDBACK-INLOOP-CHECKS: the hand-back's checks in the agent's own loop
 
 Branch `task/handback-inloop-checks-2` (from origin/next 923df67e9; carries run 1's `task/handback-inloop-checks`).
-Role mei:~/w/s1 (Skylake-SP, 48 threads). Code head 59d90efc9 (later commits: handoff/ only).
+Role mei:~/w/s1 (Skylake-SP, 48 threads). Code head 4f3530282 (later commits: handoff/ only).
 Run 2 (HANDBACK-INLOOP-CHECKS-2) finished the story: affected prechecks, plants, docs, wall time, gate. Its first
 session died on a login expiry while gate2 and plants2 ran; the second session fixed gate2's red (below) and reran.
 
@@ -18,7 +18,8 @@ session died on a login expiry while gate2 and plants2 ran; the second session f
 - `main.rs`: `cheap_step` runs one `CHEAP_STEPS` step (test_steps, precheck and affected all call it: one list,
   cannot drift); `static_list()` shared with precheck. `cheap_step` stays in main.rs because only main.rs may name
   the audit/tool modules (`policy`, `fuzz`) for a gate step (affected's leaf tests).
-- `spec.rs`: `stubs` writes only changed files (precheck tells a rewrite from mtimes/hashes).
+- `spec.rs`: `stubs` writes only changed files, every table and stub (`write_if_changed`): the gate runs stubs in
+  the role, and precheck reads the role's times to tell what changed after a job started.
 - Docs: CLAUDE.md workflow and CONTRIBUTING.md step 5 (run precheck before a hand-back; exit 1 = NOT READY).
 
 ## Results (run 2)
@@ -38,11 +39,18 @@ session died on a login expiry while gate2 and plants2 ran; the second session f
   green (`-lint4`). Superseded: `-gate`, `-plants` (rc 124 after 10-17 s, restarted a minute later as -gate2/-plants2 by the first session; its
   reason was not recorded), `-gate2` (red),
   `-plants2` (22/22 CAUGHT, but on f4ebaaf), `-lint3` (the static_list half still red).
-- Plants `handoff/HANDBACK-INLOOP-CHECKS-plants.txt` on 59d90efc9 (`-plants3`): 22 plants, 22 CAUGHT, 0 SURVIVED,
-  0 WARN (7 red-class plants against the fixture or the real tree, 15 code plants on precheck.rs and affected.rs).
-- Gate on 59d90efc9 (`-gate3`, escalated to FULL: xtask changed): GREEN, 32 suites, 12147 passed, 0 failed,
-  1397 ignored; conformance 139 passed; peak 15G, oom_kill 0. Wall 74 min, with plants3 building beside it.
-- Final `cargo xtask precheck --jobs <gate,plants> --head <sha>`: FINAL_PRECHECK
+- On 59d90efc9: plants3 22/22 CAUGHT; gate3 GREEN (12147 passed, 0 failed). Both superseded by the fixes below.
+- The first real hand-back precheck (`-pc2`, after a handoff-only sync) was a FALSE RED: it called gate3 and plants3
+  stale, for two reasons. (a) The sync had removed the ignored `conformance/build`, and precheck's own fuzz check
+  had written `fuzz/target`, which only `fuzz/.gitignore` ignores; a newer directory counted as a change.
+  (b) `stubs` rewrote identical `spec/symbols.tsv` and `spec/primitives.tsv` inside the gate. Fixed in e1ebc6786
+  (nested .gitignores; a newer directory counts only when it lacks an entry of the merge base's copy
+  `~/wl/src/<merge base>`; strict without the copy) and 4f3530282 (`write_if_changed` for all stubs tables; the stubs
+  snapshot covers them). `-pc3` (after e1ebc67) named only the real change plus the two tables, which 4f35302 fixed.
+  Full xtask tests 488 passed, clippy, static green (`-lint6`). Superseded: `-lint5`, `-pc2`, `-pc3`, `-gate3`, `-plants3`.
+- Plants (26: 7 red classes on the fixture or the real tree, 19 code plants) on 4f3530282 (`-plants4`): PLANTS_RESULT
+- Gate on 4f3530282 (`-gate4`, escalated to FULL: xtask changed): GATE_RESULT
+- Final `cargo xtask precheck --jobs <gate4,plants4> --head <sha>` (`-pc4`): FINAL_PRECHECK
 
 ## Post-hand-back checks and where they are now
 
@@ -73,14 +81,29 @@ fix what it names. Exit 3 (WAIT) = a named job has not ended: jobwait it, or han
 
 - Role trees have no git: changed files from the sync's `.changed`, added lines against `~/wl/src/<merge_base>`
   (without it every line counts: stricter). Tested content: equal `content_tree`, else role files newer than the
-  `.tested` record outside prose; a newer directory is red (entry added/removed). Blind spot: a removed top-level
-  file (`ops handback-check` still catches it).
+  `.tested` record outside prose and every `.gitignore` (nested ones for their own subtree); a newer directory is red
+  only when it lacks an entry the merge base's copy has (without the copy: any newer directory, strict). Blind spots,
+  both caught by `ops handback-check` (it compares the content trees): a branch-added file removed after the job,
+  and a removed top-level file.
 - A `gate` job with rc 0 and no `affected: ok` line is red.
 - The escalated FULL run repeats the cheap steps (~45 s of a ~45 min gate) rather than adding a skip switch to
   `cargo xtask test` (a switch could make that command incomplete; slow and working wins).
 
 ## Not to redo / next step
 
-Done; nothing left in the brief. Possible follow-ups: (1) wire `ops handback-check` to run precheck on the role;
+EXACT NEXT STEP (refresh leg; code is done, head 4f3530282, synced to mei:~/w/s1 as of 5b59921ad):
+1. On mei: `~/bin/jobwait handback-inloop-checks-2-gate4 handback-inloop-checks-2-plants4` (both started 05:53Z;
+   ONE jobwait per call, it returns within ~9.5 min). A red: fix the cause, rerun only that suite.
+2. Green: copy `/mnt/zram/claude/HANDBACK-INLOOP-CHECKS-2/plants-4/results.txt` over
+   handoff/HANDBACK-INLOOP-CHECKS-plants.txt; fill PLANTS_RESULT and GATE_RESULT above; commit, push, sync.
+3. Start `handback-inloop-checks-2-pc4` (jobrun, kind lint): `cargo xtask precheck --jobs
+   handback-inloop-checks-2-gate4,handback-inloop-checks-2-plants4 --head <synced sha> --story HANDBACK-INLOOP-CHECKS-2`;
+   jobwait it; fill FINAL_PRECHECK; set head and gate in handoff/reports/HANDBACK-INLOOP-CHECKS-2.json; commit, push.
+4. `ops handback-check HANDBACK-INLOOP-CHECKS-2 --head <sha> --jobs "mei:handback-inloop-checks-2-gate4,
+   mei:handback-inloop-checks-2-plants4, mei:handback-inloop-checks-2-lint6, mei:handback-inloop-checks-2-pc4"`.
+   REFUSED in leg 2 (report it): `python3 /home/claude/src/liella-ops/bin/ops extend-budget HANDBACK-INLOOP-CHECKS-2
+   --why "..."` (auto-mode classifier).
+
+Then the story is done. Possible follow-ups: (1) wire `ops handback-check` to run precheck on the role;
 (2) when the FULL escalation comes from xtask/src only, run the xtask unit tests (~3 min warm) among the prechecks,
 before the products: gate2's red (two xtask unit tests) took 44 min to show and would have shown in about 3.
