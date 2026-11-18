@@ -1,48 +1,46 @@
-# SL-HEADERS-S09: slice 9, Linux process and event interfaces (handoff after run 2)
+# SL-HEADERS-S09: slice 9, Linux process and event interfaces (handoff after run 3)
 
-**State.** Branch `task/sl-headers-s09-2` (stacks on `task/sl-headers-s09`); head in `handoff/reports/SL-HEADERS-S09-2.json`.
-INCOMPLETE: header_check (P1, P5 and the new P8) is green, 0 failed of 2964 (job `sl-headers-s09-2-hc7`); P3 has 8 rows,
-all the accepted C-linkage difference; P2 has 19 differences (below); P6 not run; the gate not run (budget). Clippy and
-`cargo xtask static` are clean on the head (foreground, before the last commit's docs edit: static re-run after it, clean).
+**State.** Branch `task/sl-headers-s09-3` (continues `task/sl-headers-s09-2`); head in `handoff/reports/SL-HEADERS-S09-3.json`.
 Say "slice 9" in commits and handoffs.
 
-**Done in run 2.**
-* Generator: a name an included template supplies counts as covered only in the configurations that template gives it in
-  (`is_covered` in `xtask/src/headers.rs`); otherwise the header emits it under its own condition. This fixed the 88 failures.
-* `sys/reg.h`, `sys/debugreg.h` (ruling #6399): 53 rows in `macros.tsv`/`constants.tsv`/`visibility.tsv` by
-  `spec/tools/uapi_regs_table.py` (register index = member order of `struct user_regs_struct`; DR_ names = kernel UAPI
-  `asm/debugreg.h`), each cross-checked by a black-box probe of the reference (exit status only). Six kernel names the
-  reference does not give are not rows. `sys/debugreg.h` is generated from the table (no kernel include). PROVENANCE has it.
-* Includes follow the visibility rows (stdint.h, sys/types.h, time.h only where the reference shows their names); `sys/reg.h`,
-  `sys/debugreg.h`, `sys/user.h` include nothing (not even features.h).
-* #6400: `docs/differences-from-glibc.md` row for the C linkage of `pidfd_*` and `thread_db.h` functions in C++ (no compat
-  option: no library exports the mangled names); `handoff/SL-HEADERS-S09/p3-accept.txt` is the `--accept` file for
-  `probe_compare.py callsites`.
-* P8 in `header_check.py` (both orders, C and C++, with and without _GNU_SOURCE, program flags without -Wsystem-headers; a
-  unit the reference system does not compile either is a NOTE).
-* Plants `handoff/SL-HEADERS-S09/plants.txt` (7).
+**Results on the final tree (keke, role n4).**
+* header_check P1/P5/P8: 0 failed of 2964 (job `s09-3-hc`).
+* P2 (visibility): 0 unaccepted of 1 difference over 5024 rows (job `s09-3-p23b`). The one accepted difference is `struct timespec` in
+  `sys/pidfd.h` under `_XOPEN_SOURCE` below 700 (differences row, `handoff/SL-HEADERS-S09/p2-accept.txt`).
+* P3 (callsites): 0 unaccepted of 8 differences, all the accepted C-linkage row (`p3-accept.txt`).
+* P6 (`cargo xtask so`, `conformance/run.sh --niji-headers`, job `SL-HEADERS-S09-3-p6`): 25 passed, 2 failed (`s02_assert`,
+  `s02_chk_fail`), neither includes a slice 9 header: see Open.
+* clippy (workspace, all targets, -D warnings) and `cargo xtask static`: clean on the final head.
+* Plants (job `SL-HEADERS-S09-3-plants`, 10 plants) and the gate (job `SL-HEADERS-S09-3-gate`): see the report json.
 
-**Open (next step, in order).**
-1. P2: 19 differences left. (a) `sys/syscall.h`, `syscall.h`: `include-error [*]` because `header_probe.py --include` adds no
-   kernel UAPI `-isystem` (header_check has `uapi_flags()`); add the same to `header_probe.py` (line ~299) and
-   `callsite_probe.py` (~375), `$NIJI_UAPI` or the host's dirs after libniji's tree (an untested edit was reverted for budget).
-   (b) `_SIGSET_NWORDS`, `_STRUCT_TIMESPEC`: reference-internal macros that libniji does not define (7 rows): add them to an
-   accept file or `headers/reserved.tsv` with a differences row. (c) `be16toh`/`le64toh` in `sys/epoll.h`, `sys/procfs.h`,
-   `sys/random.h` are visible only in the table's gnu configurations but libniji's `sys/types.h` (slice 5) includes `endian.h`
-   unconditionally: fix in the `sys/types.h` template (condition of the endian names), re-run slice 6's P2 too. (d)
-   `sys/pidfd.h` `timespec` and `_STRUCT_TIMESPEC`: the struct is emitted for the POSIX configurations; the table lists it
-   only for the non-POSIX ones.
-2. P6 (`cargo xtask so`, `conformance/run.sh --niji-headers`), C++ units, the gate on the final head (direct tier, clippy and
-   static green).
-3. `struct siginfo_t` members of `sys/pidfd.h` (`si_status`, `si_value` shorthands are `#ifndef`-guarded in the template)
-   belong to slice 8.
+**Done in run 3.**
+* `headers/endian.h.in`: the endian(3) macros now sit under their own condition (`@@if be16toh`); before, every header that
+  includes `<endian.h>` through `<sys/types.h>` showed them in every configuration (6 of the 19 P2 differences, in
+  `sys/epoll.h`, `sys/procfs.h`, `sys/random.h`).
+* `headers/sys/syscall.h.in`: no `#include <features.h>` (the table shows no feature-test macros for it; that was 30 `extra` rows
+  and the `time64only` include error of `sys/syscall.h`, `syscall.h`).
+* `header_probe.py` and `callsite_probe.py`: `uapi_flags()` (the kernel UAPI directories after libniji's tree), as `header_check.py` has.
+* `probe_compare.py`: the names `headers/reserved.tsv` marks `omit` (`_SIGSET_NWORDS`, `_STRUCT_TIMESPEC`) are not compared.
+* `docs/differences-from-glibc.md`: row for `struct timespec` in `sys/pidfd.h` (XOPEN_SOURCE < 700), no compat option (compile-time
+  header text, same layout); `p2-accept.txt`.
+* 3 more plants (endian condition, syscall.h include, the probes' UAPI flags).
+* Run the probes on the role after `cargo xtask headers-gen`, then copy `libc-include/` back (`ssh ... 'tar -C libc-include -cf - .' |
+  tar -C libc-include -xf -`, in its own call: headers-gen prints to stdout) and commit it; a sync overwrites the role's copy with the
+  worktree's.
+
+**Open.**
+1. P6 failures, outside slice 9: `s02_assert` (the program prints `s02_assert.lh:` and an absolute `__FILE__` path in
+   `--niji-headers` mode, the test expects `s02_assert:` and `s02_assert.c:12`: a harness expectation of the `.lh` mode) and
+   `s02_chk_fail` (libniji's `string.h` has no `_FORTIFY_SOURCE` redirection yet, so `strcpy` overflows into
+   "stack smashing" instead of "buffer overflow detected"; a later slice's work). Slice 6 owns both.
+2. The same `struct timespec` row applies to `fcntl.h` and every header that gives `struct stat`; slice 6 should list it too.
+3. The all-headers P2 shows differences in `ctype.h` (18), `features-time64.h`, `gnu/stubs.h`, `limits.h`, `stdio.h`, `stdlib.h`,
+   `alloca.h`: slices 5 and 6, not touched here.
+4. `struct siginfo_t` members of `sys/pidfd.h` (`si_status`, `si_value` shorthands are `#ifndef`-guarded) belong to slice 8.
 
 **Not typed into templates:** only `si_status`/`si_value` in `sys/pidfd.h.in`, and the descriptor-set macros in `sys/procfs.h.in`
 (a copy of `sys/types.h.in`'s under its own `#ifndef FD_SET` guard until slice 7's `sys/select.h` can be included).
 
-**Do not redo.** The generator additions of run 1 and 2; `cargo xtask headers-gen` on the role regenerates `libc-include/`
-(rsync it back to the worktree; never edit it). Run the probes on the role: `header_probe.py --include libc-include --headers
-<slice> --out D`, `probe_compare.py visibility --got D --headers <slice>`; `callsite_probe.py ...` and `probe_compare.py
-callsites ... --accept handoff/SL-HEADERS-S09/p3-accept.txt`.
+**Do not redo.** Generator additions of runs 1-2; P8; the 53 `sys/reg.h`/`sys/debugreg.h` rows; the C-linkage row.
 
 **Plan rows.** plan/headers.md section 2.4 and 3; pending record `records/pending/SL-HEADERS-S09-1.toml`.
