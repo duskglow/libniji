@@ -141,9 +141,12 @@ fn several_nodes_read_the_node_from_rseq() {
 /// Zen 1 build host, identical over 5 runs) and libniji's bound, its measured growth (identical
 /// over 5 runs) plus 256 KiB (one slab of a segment's growth). Before HEAP-ADDRESS-SPACE libniji
 /// grew by 16448, 32836, 49220 and 67652 KiB (whole 16 MiB segment windows, a 16 MiB large-block
-/// table): every step but the first fails.
+/// table): every step but the first fails. malloc1: a new segment's first 16 slabs (4 MiB of
+/// address space, HEAP-ADDRESS-SPACE-5). refill, realloc and [`AS_HEADROOM`] were measured with
+/// the reuse of a nearby class's freed blocks (the spill, HEAP-SPILL-COLD); without it this
+/// branch measures +39236, +41288 and a need of 42000 KiB (RULING NEEDED, HEAP-ADDRESS-SPACE-5).
 const AS_STEPS: [(&str, u64, u64); 4] =
-    [("malloc1", 132, 836 + 256), ("alloc", 27984, 28996 + 256), ("refill", 29568, 32836 + 256), ("realloc", 28052, 34888 + 256)];
+    [("malloc1", 132, 4420 + 256), ("alloc", 27984, 28996 + 256), ("refill", 29568, 32836 + 256), ("realloc", 28052, 34888 + 256)];
 /// RLIMIT_AS over the VmSize at start under which the whole program must still succeed: the
 /// least the reference needs is 29568 KiB, libniji 34896 KiB (bisected to 16 KiB); this is
 /// libniji's need plus 256 KiB, inside the issue's 35000 KiB headroom (findutils'

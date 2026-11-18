@@ -187,15 +187,16 @@ const SLABS: usize = 63;
 /// only as far as its shard hands slabs out, growing in place by doubling ([`Pages::grow`]);
 /// a window whose next part is taken simply ends there. Mapping whole windows cost every
 /// process 16 MiB of address space at its first `malloc` and 16 MiB per segment after it.
-const SEG_FIRST: usize = 2;
+/// 16 slabs (4 MiB, address space only: untouched until used) because the start-up probes of
+/// `page_faults.c` use up to 16 classes: with 2 the locale, tool, strings, mktime, localtime
+/// and rebind modes grew 1 to 3 times (one `mmap` each, strace on the Zen 1 build host), so the
+/// growth joined the start-up trace and its text; with 16 no start-up mode grows.
+const SEG_FIRST: usize = 16;
 /// The bytes a new segment maps: its metadata and [`SEG_FIRST`] slabs.
 const SEG_MIN: usize = META + SEG_FIRST * SLAB;
 /// Generation 0 of the large-block table at most: 256 slots, one page (later generations
 /// double, T14). Was the maximum, 16 MiB of address space at the first large block.
 const FIRST_LARGE: usize = 256;
-/// Segment bytes mapped from which a request may spill into a nearby class ([`Heap::refill`]):
-/// a quarter of a segment window, more than a short program's heap maps.
-const SPILL_FROM: usize = SEG / 4;
 // Segment metadata, dense (D-3.15): line 0 the shard + 1 (word 0); line 1 + i slab i's head; from
 // LOCALS the slabs' local bitmaps, 2 KiB each, then their remote bitmaps (REMOTE_OFF after the
 // local one); slab data from META. The heads of all slabs share one page and a bitmap is written
@@ -480,12 +481,6 @@ struct Shard {
 }
 
 impl Shard {
-    /// Whether [`Heap::take_held`] would find a slab, read without the shard's lock (a hint).
-    #[inline]
-    fn seems_to_hold_a_slab(&self) -> bool {
-        self.empty.load(Relaxed) != 0 || (self.seg.load(Relaxed) != 0 && self.next_slab.load(Relaxed) < self.mapped.load(Relaxed))
-    }
-
     const fn new() -> Shard {
         Shard {
             lock: RawMutex::new(),
@@ -1054,25 +1049,40 @@ impl Heap {
             return Some(s);
         }
         let sh = &self.shards[shard];
-        // Grow the current segment in place (doubling its mapped slabs) before mapping a new one.
-        let (seg, mapped) = (sh.seg.load(Relaxed), sh.mapped.load(Relaxed));
-        if let Some(idx) = seg.checked_sub(1).filter(|_| mapped < SLABS) {
-            // Doubling, by at most 2 MiB: a segment never maps more than 2 MiB it does not use.
-            let more = mapped.min(8).min(SLABS - mapped);
-            if pages.grow(self.seg_base(pages, idx) + META + mapped * SLAB, more * SLAB, self.node_for(shard)) {
-                self.seg_mapped.fetch_add(more * SLAB, Relaxed);
-                self.peak_mapped.fetch_max(self.seg_mapped.load(Relaxed) + self.large_mapped.load(Relaxed), Relaxed);
-                sh.mapped.store(mapped + more, Relaxed);
-                sh.next_slab.store(mapped + 1, Relaxed);
-                return Some(w64(idx * SLABS + mapped));
+        // The current segment's mapped part is spent but its window is not: grow it in place.
+        // The test stays here and the growth out of line, so a program whose heap fits a new
+        // segment's first SEG_FIRST slabs (start-up) neither runs nor carries it.
+        if sh.seg.load(Relaxed) != 0 && sh.mapped.load(Relaxed) < SLABS {
+            if let Some(s) = self.grow_segment(pages, shard) {
+                return Some(s);
             }
-            // The window's next part is taken: the segment ends here.
         }
         let idx = self.new_segment(sys, pages, shard)?;
         sh.seg.store(idx + 1, Relaxed);
         sh.next_slab.store(1, Relaxed);
         sh.mapped.store(SEG_FIRST, Relaxed);
         Some(w64(idx * SLABS))
+    }
+
+    /// Map more of the current segment of `shard` (its lock held) in place, doubling its mapped
+    /// slabs by at most 8 (2 MiB: a segment never maps more than 2 MiB it does not use), and hand
+    /// out the first new slab (HEAP-ADDRESS-SPACE). `None` when the window's next part is taken
+    /// by another mapping: the segment then ends there and the caller maps a new one. Cold and
+    /// out of line: it runs once per doubling, never in a short program.
+    #[cold]
+    #[inline(never)]
+    fn grow_segment<P: Pages>(&self, pages: &P, shard: usize) -> Option<u64> {
+        let sh = &self.shards[shard];
+        let (idx, mapped) = (sh.seg.load(Relaxed).checked_sub(1)?, sh.mapped.load(Relaxed));
+        let more = mapped.min(8).min(SLABS.checked_sub(mapped)?);
+        if more == 0 || !pages.grow(self.seg_base(pages, idx) + META + mapped * SLAB, more * SLAB, self.node_for(shard)) {
+            return None;
+        }
+        self.seg_mapped.fetch_add(more * SLAB, Relaxed);
+        self.peak_mapped.fetch_max(self.seg_mapped.load(Relaxed) + self.large_mapped.load(Relaxed), Relaxed);
+        sh.mapped.store(mapped + more, Relaxed);
+        sh.next_slab.store(mapped + 1, Relaxed);
+        Some(w64(idx * SLABS + mapped))
     }
 
     /// An empty or never-used slab `shard` already holds (its lock held); maps nothing.
@@ -1358,9 +1368,7 @@ impl Heap {
     }
 
     /// Allocate a block of class `c` from cache `k`.
-    /// `spill`: the request takes any class's alignment, so a slightly larger class may serve
-    /// it ([`Heap::refill`]).
-    fn alloc_small<S: Sys, P: Pages>(&self, sys: &S, pages: &P, k: &Cache<'_>, c: usize, spill: bool) -> Option<Block> {
+    fn alloc_small<S: Sys, P: Pages>(&self, sys: &S, pages: &P, k: &Cache<'_>, c: usize) -> Option<Block> {
         loop {
             if k.class(c, K_CUR) != 0 {
                 let r = Self::rec_at(pages, uz(k.class(c, K_REC)));
@@ -1374,20 +1382,14 @@ impl Heap {
                     return Some(Block { addr: uz(k.class(c, K_BASE)) + i * CLASSES[c], usable: CLASSES[c], zeroed: false });
                 }
             }
-            if let Some(c2) = self.refill(sys, pages, k, c, spill)? {
-                return self.alloc_small(sys, pages, k, c2, false);
-            }
+            self.refill(sys, pages, k, c)?;
         }
     }
 
     /// The current slab of class `c` is full (or absent): make another current. Pending
     /// slabs first, then the cache's partial slabs, then an empty slab from the shard.
     #[cold]
-    /// When the shard holds no slab (the next would need new address space) and `spill` allows,
-    /// a class at most half as large again whose slabs in this cache have a free block serves
-    /// instead: `Some(Some(c2))` (HEAP-ADDRESS-SPACE: freed blocks of a nearby size are reused
-    /// before the heap grows). `Some(None)`: class `c` has a current slab again.
-    fn refill<S: Sys, P: Pages>(&self, sys: &S, pages: &P, k: &Cache<'_>, c: usize, spill: bool) -> Option<Option<usize>> {
+    fn refill<S: Sys, P: Pages>(&self, sys: &S, pages: &P, k: &Cache<'_>, c: usize) -> Option<()> {
         // A full current slab simply stops being current, with every block counted in its use
         // count (some may be pending remote frees, which stay counted there until collected); a
         // free will list it again.
@@ -1405,19 +1407,9 @@ impl Heap {
         if let Some(s) = k.class(c, K_PARTIAL).checked_sub(1) {
             self.unlist(pages, k, c, s);
             self.make_current(pages, k, c, s);
-            return Some(None);
+            return Some(());
         }
         let shard = self.shard_of(pages);
-        // The spill runs only in a heap whose segments map SPILL_FROM bytes or more, and only when
-        // the shard seems to hold no slab: an unlocked peek, a policy hint that a race merely
-        // makes spill or grow once more. Below SPILL_FROM the address space a spill saves is
-        // small, and short programs (start-up) never run it, so neither it nor a second locked
-        // section joins their hot text (HEAP-ADDRESS-SPACE-4: they cost a start-up text fault).
-        if spill && self.seg_mapped.load(Relaxed) >= SPILL_FROM && !self.shards[shard].seems_to_hold_a_slab() {
-            if let Some(c2) = Self::spill_class(pages, k, c) {
-                return Some(Some(c2));
-            }
-        }
         let s = {
             let own = {
                 let _g = self.shards[shard].lock.lock(sys);
@@ -1427,22 +1419,7 @@ impl Heap {
         };
         self.adopt(pages, k, c, s);
         self.make_current(pages, k, c, s);
-        Some(None)
-    }
-
-    /// One of the next two classes, at most half as large again as class `c`, whose slabs in
-    /// cache `k` hold a free block (a listed partial slab, or room in the current one): a
-    /// default-aligned request of class `c` takes it before the heap maps more address space
-    /// (HEAP-ADDRESS-SPACE). Checked lookups only: no panic location joins the start-up
-    /// relro data, whose page budget the layout contract counts (STARTUP-DATA-WINDOWS).
-    #[cold]
-    fn spill_class<P: Pages>(pages: &P, k: &Cache<'_>, c: usize) -> Option<usize> {
-        let size = *CLASSES.get(c)?;
-        (c + 1..c + 3).find(|&c2| {
-            CLASSES.get(c2).is_some_and(|&s2| s2 <= size + size / 2)
-                && (k.class(c2, K_PARTIAL) != 0
-                    || (k.class(c2, K_CUR) != 0 && k.free_word(c2, Self::rec_at(pages, uz(k.class(c2, K_REC))).local).is_some()))
-        })
+        Some(())
     }
 
     /// Collect the remote frees of every pending slab of cache `k`.
@@ -1862,7 +1839,7 @@ impl Heap {
         match class_for(size, align) {
             Some(c) => {
                 let k = self.cache(sys, pages);
-                if let Some(b) = k.as_ref().and_then(|k| self.alloc_small(sys, pages, k, c, align <= ALIGN)) {
+                if let Some(b) = k.as_ref().and_then(|k| self.alloc_small(sys, pages, k, c)) {
                     return Some(b);
                 }
                 // No slab (a segment does not fit, as under a small address-space limit, T14):

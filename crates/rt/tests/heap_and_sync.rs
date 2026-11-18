@@ -398,15 +398,15 @@ fn an_address_space_limit_sizes_the_registries() {
     // Clauses: s3_1_c_1, s3_1_f_1 (T14). Under a limit of 20 MiB the registries are small and a
     // segment maps only the slabs it hands out (HEAP-ADDRESS-SPACE: four segments' first parts
     // fit well under the limit): 100 blocks of 7 classes take one mapping, one page of
-    // registries, the cache chunk, the segment's 256 KiB of metadata and the 8 slabs its
-    // doubling growth mapped (2, 4, 8) for 7 used; no large registry. Under 1 GiB the same
-    // small registries.
+    // registries, the cache chunk, the segment's 256 KiB of metadata and the 16 slabs a new
+    // segment maps first, 7 of them used; no large registry. Under 1 GiB the same small
+    // registries.
     let pages = FakePages::new();
     pages.limit.set(Some(20 << 20));
     let heap = Heap::new();
     let blocks: Vec<usize> = (0..100).map(|i| heap.alloc(&CSys, &pages, 24 + i, ALIGN).unwrap().addr).collect();
     let lens: Vec<usize> = pages.maps.borrow().values().map(|m| m.len).collect();
-    assert_eq!(lens, [PAGE + (64 << 10) + 9 * (256 << 10)], "small registries, a segment as far as used: {lens:?}");
+    assert_eq!(lens, [PAGE + (64 << 10) + 17 * (256 << 10)], "small registries, a segment's first slabs: {lens:?}");
     for b in blocks {
         heap.free(&CSys, &pages, b).unwrap();
     }
@@ -417,8 +417,8 @@ fn an_address_space_limit_sizes_the_registries() {
     let a = heap.alloc(&CSys, &pages, 40, ALIGN).unwrap().addr;
     let lens: Vec<usize> = pages.maps.borrow().values().map(|m| m.len).collect();
     // One mapping: one page of registries sized to 1 GiB, the first cache chunk (D-3.19), then
-    // the segment as far as it is used: its 256 KiB of metadata and two 256 KiB slabs.
-    assert_eq!(lens, [PAGE + (64 << 10) + 3 * (256 << 10)], "small registries and a segment's first slabs: {lens:?}");
+    // the segment's first part: its 256 KiB of metadata and sixteen 256 KiB slabs.
+    assert_eq!(lens, [PAGE + (64 << 10) + 17 * (256 << 10)], "small registries and a segment's first slabs: {lens:?}");
     heap.free(&CSys, &pages, a).unwrap();
 }
 
@@ -466,9 +466,9 @@ fn the_first_allocation_reserves_one_mapping() {
     // Clauses: s3_1_c_1 (T14, D-3.14, D-3.19). No limit (or 64 GiB and more): the first
     // allocation maps one range, one page holding the generation-0 cache table, segment bases
     // and segment hash, then the first cache chunk, then the first segment at its 16 MiB
-    // boundary, mapped as far as its first two slabs (HEAP-ADDRESS-SPACE); the next 99 blocks
-    // (7 classes in all) only grow that range in place, to 8 slabs (2, 4, 8): still one
-    // mapping. The generations that follow are tested under a
+    // boundary, mapped as far as its first 16 slabs (HEAP-ADDRESS-SPACE); the next 99 blocks
+    // (7 classes in all) fit in them: still one mapping. Growth in place is tested by
+    // `segments_are_aligned_and_found_from_any_address`. The generations that follow are tested under a
     // raised limit (`a_raised_address_space_limit_lets_the_heap_grow`).
     for limit in [None, Some(64usize << 30)] {
         let pages = FakePages::new();
@@ -481,7 +481,7 @@ fn the_first_allocation_reserves_one_mapping() {
         assert_eq!(maps.len(), 1, "{limit:?}: {maps:?}");
         let (base, len) = maps[0];
         let seg = base + PAGE + (64 << 10);
-        assert_eq!((seg % SEG, len), (0, PAGE + (64 << 10) + 9 * (256 << 10)), "{limit:?}");
+        assert_eq!((seg % SEG, len), (0, PAGE + (64 << 10) + 17 * (256 << 10)), "{limit:?}");
         // The registry page, the mapping's first, holds without overlap the cache table (64
         // words; entry 0 is the first cache, at the chunk after the page), the segment bases
         // (128 words; entry 0 is the segment) and the segment hash (256 words; the entry
@@ -1121,30 +1121,8 @@ fn segments_are_aligned_and_found_from_any_address() {
         heap.free(&CSys, &pages, p).unwrap();
     }
     // Three whole segments and the fourth as far as used (HEAP-ADDRESS-SPACE): 36 slabs in
-    // use, 40 mapped by doubling steps of at most 8 (2, 4, 8, 16, 24, 32, 40).
+    // use, 40 mapped by growth steps of at most 8 (16, 24, 32, 40).
     assert_eq!(heap.stats(&CSys, &pages).small_mapped, 3 * SEG + (256 << 10) + 40 * (256 << 10));
-}
-
-#[test]
-fn a_small_heap_grows_instead_of_spilling_into_a_nearby_class() {
-    // Trace: no spec clause (the heap's class policy); HEAP-ADDRESS-SPACE-4.
-    // Invariant: below a quarter of a segment of mapped slabs a request takes a slab of its own
-    // class, even when the shard holds no slab and the next class has free blocks: the spill
-    // saves little address space there, and short programs never run it (start-up text).
-    let heap = Heap::new();
-    let pages = FakePages::new();
-    let (c1, c2, c3) = (CLASSES[1], CLASSES[2], CLASSES[3]);
-    assert!(c2 <= c1 + c1 / 2, "class {c2} is a spill target of class {c1}");
-    // A new segment maps two slabs: one for class c2 (most blocks free), one for class c3.
-    let a = heap.alloc(&CSys, &pages, c2, ALIGN).unwrap();
-    let b = heap.alloc(&CSys, &pages, c3, ALIGN).unwrap();
-    assert_eq!((a.usable, b.usable), (c2, c3));
-    // Class c1: the shard holds no slab, class c2's current slab has free blocks.
-    let x = heap.alloc(&CSys, &pages, c1, ALIGN).unwrap();
-    assert_eq!(x.usable, c1, "a small heap grew its segment for class {c1}, not a block of class {}", x.usable);
-    for p in [x.addr, b.addr, a.addr] {
-        heap.free(&CSys, &pages, p).unwrap();
-    }
 }
 
 #[test]
