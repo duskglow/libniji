@@ -331,7 +331,7 @@ int main(void) {
     std::fs::remove_dir_all(&k.d).ok();
 }
 
-/// The corpus of [`s27_1_g_0_canonical_plt_entry_in_scoped_lookups_dladdr_versions_and_copy`]: a non-PIE
+/// The corpus of the scoped-lookups test below: a non-PIE
 /// program with canonical PLT entries for `f` (libf.so) and `v` (libv.so's default `v@@V1`) and a COPY
 /// of libf.so's `data_x`; one observation per line. `canon` is the program's entry, `real` libf.so's own
 /// address of `f`.
