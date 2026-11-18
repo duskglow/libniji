@@ -1,0 +1,7 @@
+# LAYOUT-LDSO-WINDOW plants: ld.so's mapped span rounded to LDSO_SPAN_BUCKET (xtask/src/so.rs).
+# The interpreter linked without the span script: the build's span check refuses it.
+lsw-no-script | xtask/src/so.rs | lit:.arg(format!("-Wl,-T,{}", span_script.display())) ==> .arg("-Wl,-z,now") | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:mapped span 0x[0-9a-f]+ is not a whole number of 0x80000-byte buckets
+# The script rounds to one page instead of the bucket: the span check refuses it.
+lsw-page-align | xtask/src/so.rs | lit:{{ . = ALIGN({LDSO_SPAN_BUCKET:#x}); }} ==> {{ . = ALIGN(0x1000); }} | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:mapped span 0x[0-9a-f]+ is not a whole number of 0x80000-byte buckets
+# The span measured from the file end instead of the memory end (.bss left out): the check refuses the rounded image.
+lsw-span-filesz | xtask/src/so.rs | lit:p.vaddr.saturating_add(p.memsz).next_multiple_of(0x1000) ==> p.vaddr.saturating_add(p.filesz).next_multiple_of(0x1000) | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:mapped span 0x[0-9a-f]+ is not a whole number of 0x80000-byte buckets

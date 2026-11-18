@@ -1,0 +1,4 @@
+libniji C library: translations (placeholder)
+ libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
+ The C library's message translations are not part of this build yet; the
+ package exists so that dependencies on libc-l10n are met.

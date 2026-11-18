@@ -294,6 +294,29 @@ depend only on 6 and may run in parallel.
 | 19 | diagnostic attributes | S | 6 | `format`, `nonnull`, `warn_unused_result`, `malloc`/`alloc_size`, `deprecated`, `noreturn`, from the standards and a warning differential | the same warnings (code and line) as the reference headers on a probe corpus with `-Wall -Wextra -Wformat=2` |
 | 20 | switch and package | M | all | the full C++ check (P4); `niji-gcc`/`niji-cc` default to libniji's headers; `niji6-dev` installs them (`/usr/lib/niji/include`; SL-FLAVOUR gets `/usr/include` and the multiarch directory) | P4; P6 for all 154 programs; P7 for the whole smoke corpus; differences rows for anything accepted |
 
+### 4.1 Adding a slice (SL-HEADERS-REGISTRY)
+
+Slices run in parallel, so a slice **adds files and edits no shared list or function** of the tools.
+Slice `N` (two digits, `s07`) adds:
+
+* its templates `headers/<path>.h.in` (one file per header);
+* `headers/slices/sNN.tsv`: one row per header it ships, columns `header`, `p1` (`1`: the table P1
+  units of `spec/tools/header_check.py` cover it) and `uapi` (the kernel UAPI headers P8 pairs it with,
+  comma-separated, `-` for none). P5 runs on every row. `headers-gen --check` and `header_check.py`
+  refuse a row whose header has no template, a header in two rows and a template in no row, naming
+  the row (`headers/slices/s09.tsv:7`);
+* only if it has checks of its own: `spec/tools/header_checks/sNN.py` with `units(ctx)` (a list of
+  `(configuration id, label, unit text)`) and optionally `problems(ctx)` (FAIL messages). `ctx` holds the
+  tables header_check loads once (`cfgs`, `ids`, `vis`, `macros`, `typedefs`, `layouts`, `slice_rows`,
+  `rows()`, `hp`). header_check lists the directory;
+* only if its templates need a marker of their own: `xtask/src/headers/slices/sNN.rs` with
+  `pub(super) const SLICE: Slice` (line markers, inline tokens, names linked from elsewhere).
+  `xtask/build.rs` lists the directory, so there is no `mod` line to add; a marker defined twice is a
+  `headers-gen` error.
+
+A slice that still needs a change to the shared generator or checker (a new kind of table row, a fix in
+`Gen`) makes it a separate commit and names it in its hand-back: only that commit can conflict.
+
 `plan/system-libc.md` §6 item 7 becomes these slices. Its item 11 (SL-BOOTSTRAP-ESSENTIAL) needs
 slice 20 and, under R-H6, slice 18.
 

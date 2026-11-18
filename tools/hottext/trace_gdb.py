@@ -34,7 +34,28 @@
 #  a program's reads are far under the one-second interval apart, as they are live. The clock restarts
 #  at every run of the program. HOT_TEXT_SLOW=<seconds> (the check in regen.sh) sleeps that long at
 #  every time read: a source answered from the host's time then shows as a different trace.
+#
+# TRACE-NUMA-PIN: the trace is a function of the program, not of the host's NUMA topology. The heap
+# (D-3.20) asks once how many nodes the process may allocate on and, when more than one, reads the
+# calling thread's node at its slow paths (D-3.12, D-3.21) and places each shard's memory on its node.
+# Every trace sees one virtual topology, in every class (`host` too): VNODES (2) allowed nodes, the
+# program running on node 0.
+#  * The node count: `get_mempolicy(MPOL_F_MEMS_ALLOWED)` at the library's generic system call entry
+#    `niji_sys_syscall` (crates/boundary/src/raw.rs allowed_node_count, its one caller) is answered
+#    with nodes 0..VNODES-1; the call never reaches the kernel. Other system calls run as they are.
+#  * The node read: the rseq area's `node_id` (written by the kernel: no entry to answer at), else the
+#    vDSO's getcpu, both inside `<KernelPages as Pages>::shard` (crates/boundary/src/heap.rs, out of
+#    line for this; `OwnPages` calls it): answered 0 there, its own code never runs. Pinning the
+#    program to node 0's CPUs instead fails where the build's CPU set (a slot) holds none of them.
+#  Why two nodes on node 0 (measured, handoff/TRACE-NUMA-PIN.md): the layout traced so keeps
+#  the NUMA path the 2-node build hosts run live in the start-up group, and a 1-node host runs a
+#  subset of it, with no bound of hot_text_products exceeded on either.
+#  HOT_TEXT_HOST_NODES=<n> (test-only; the check in regen.sh) simulates a host that allows n nodes,
+#  the program on node 0: the tracer answers as that host would, and the virtual topology answers
+#  over it, so the trace must not change. The tracer prints how many node counts and node reads it
+#  answered; regen.sh fails when the start-up trace shows none (an entry the tracer no longer finds).
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -107,9 +128,18 @@ if virtual:
 # byte order (LAYOUT-TRACE-HOST-CANONICAL-3): nm sorts by the caller's locale (en_US ignores the
 # underscores, C does not), so its order was a host input; nm runs in the C locale and the names are
 # sorted here as well.
+#
+# LAYOUT-LDSO-ORDER: HOT_TEXT_LDSO=<interpreter> traces the interpreter instead of the program: the program
+# is a dynamic one whose PT_INTERP is that file, and the functions are the interpreter's. Its symbol
+# values are offsets in its image; every run stops at its first instruction (`starti`: the interpreter's
+# entry, where the kernel starts the process), takes the load base from there (pc - e_entry) and puts
+# the breakpoints and the answered entries at base + offset. Everything else (virtual CPU, clock,
+# topology, environment, host files) is as for a static program.
+ldso = os.environ.get("HOT_TEXT_LDSO", "")
+syms_of = ldso or binp
 names = {}
 nm_env = dict(os.environ, LC_ALL="C")
-nm = subprocess.run(["nm", "--defined-only", binp], capture_output=True, text=True, check=True, env=nm_env).stdout
+nm = subprocess.run(["nm", "--defined-only", syms_of], capture_output=True, text=True, check=True, env=nm_env).stdout
 for line in nm.splitlines():
     p = line.split()
     if len(p) == 3 and p[1] in "tTwWiI":
@@ -119,6 +149,8 @@ by_name = {n: a for a, ns in names.items() for n in ns}
 emul = {}
 if virtual:
     for n, kind in (("niji_machine_cpuid", "cpuid"), ("niji_machine_xgetbv0", "xgetbv")):
+        if n not in by_name and ldso:
+            continue  # an interpreter that reads no CPU feature has nothing to answer
         if n not in by_name:
             fail("%s: no %s: the virtual CPU cannot answer for it" % (binp, n))
         emul[by_name[n]] = kind
@@ -134,6 +166,71 @@ REALTIME0 = 1759579200 * 10**9  # the wall clock's start (the probes' own date, 
 REALTIME_IDS = (0, 5, 8, 11)  # CLOCK_REALTIME, _COARSE, _ALARM, CLOCK_TAI
 MONO_IDS = (1, 2, 3, 4, 6, 7, 9)  # MONOTONIC, PROCESS/THREAD_CPUTIME, MONOTONIC_RAW, _COARSE, BOOTTIME, _ALARM
 VCLOCK = {}
+# TRACE-NUMA-PIN: the virtual topology (header). get_mempolicy is system call 239 on x86-64; the
+# library passes it to `niji_sys_syscall(nr, a0..a5)`: nr in rdi, the mask in rdx, maxnode in rcx,
+# the flags in r9. The node read is `<KernelPages as Pages>::shard` (v0-mangled: its path ends in
+# `11KernelPages` ... `5Pages5shard`), returning the node in rax.
+NR_GET_MEMPOLICY = 239
+MPOL_F_MEMS_ALLOWED = 4
+VNODES = 2
+VIRTUAL_NODES = True
+NODE_READ = re.compile(r"11KernelPages.*5Pages5shard$")
+topo = {by_name["niji_sys_syscall"]: "count"} if "niji_sys_syscall" in by_name else {}
+topo.update({a: "read" for a, ns in names.items() if any(NODE_READ.search(n) for n in ns)})
+TOPO_ANSWERS = {"count": 0, "read": 0}  # all runs; printed at the end (regen.sh checks start-up's)
+HOST_NODES = os.environ.get("HOT_TEXT_HOST_NODES", "")
+if HOST_NODES and not HOST_NODES.isdigit():
+    fail("HOT_TEXT_HOST_NODES: want a node count, got %r" % HOST_NODES)
+
+# LAYOUT-LDSO-ORDER: the interpreter's entry offset (e_entry of its ELF header) and the image offsets of
+# everything above; rebase() moves them to this run's load base.
+LDSO_ENTRY = 0
+if ldso:
+    with open(ldso, "rb") as f:
+        head = f.read(64)
+    if head[:4] != b"\x7fELF" or head[4] != 2 or struct.unpack_from("<H", head, 16)[0] != 3:
+        fail("%s: not an ELF64 shared object" % ldso)
+    LDSO_ENTRY = struct.unpack_from("<Q", head, 24)[0]
+OFFSETS = [(d, dict(d)) for d in (names, emul, clocks, topo)]
+BASE = [0]
+
+
+def rebase(base):
+    if base & 0xFFF or base <= 0:
+        fail("%s: load base 0x%x from the entry stop is not a page start" % (ldso, base))
+    BASE[0] = base
+    for d, d0 in OFFSETS:
+        d.clear()
+        d.update({a + base: v for a, v in d0.items()})
+
+
+def nodes_answer():
+    """The allowed-node count the program is told: the virtual topology's. Without it, the host's:
+    the simulated host's (HOT_TEXT_HOST_NODES), else None (the kernel answers)."""
+    host = int(HOST_NODES) if HOST_NODES else None
+    return VNODES if VIRTUAL_NODES else host
+
+
+def answer_topology(kind):
+    """At a topology entry's stop (header): answer get_mempolicy(MPOL_F_MEMS_ALLOWED) or the node
+    read; any other system call runs."""
+    if kind == "count":
+        if reg("rdi") != NR_GET_MEMPOLICY or not reg("r9") & MPOL_F_MEMS_ALLOWED:
+            return
+        n = nodes_answer()
+        if n is None:
+            return
+        mask, maxnode = reg("rdx"), reg("rcx")
+        words = (maxnode - 1 + 63) // 64  # the kernel writes maxnode - 1 bits, in whole longs
+        if n >= 64 or words < 1 or words > 1024:
+            fail("get_mempolicy: a %d-node answer does not fit a mask of %d bits" % (n, maxnode - 1))
+        if mask:
+            gdb.selected_inferior().write_memory(mask, struct.pack("<%dQ" % words, (1 << n) - 1, *([0] * (words - 1))))
+    elif not VIRTUAL_NODES and not HOST_NODES:
+        return  # the host's node: the kernel answers
+    gdb.execute("set $rax = 0")  # get_mempolicy succeeded; the node read: node 0
+    leave_entry()
+    TOPO_ANSWERS[kind] += 1
 
 # The program's copy at a fixed-length path (argv[0] is the path gdb runs).
 stage = tempfile.mkdtemp(prefix="niji-trace.", dir="/tmp")
@@ -315,9 +412,12 @@ def redirect_path():
 def run_one(cls):
     """One run of the program on class `cls`: the function start addresses in first-touch order."""
     made, once = [], {}
+    if ldso:
+        gdb.execute("starti", to_string=True)
+        rebase(int(gdb.selected_frame().pc()) - LDSO_ENTRY)
     VCLOCK.clear()
     VCLOCK.update(ns=0, tsc=1 << 32)
-    every = set(clocks) | (set(emul) if cls != "host" else set())  # entries answered at every call
+    every = set(clocks) | set(topo) | (set(emul) if cls != "host" else set())  # entries answered at every call
     for addr in names:
         if addr in every:
             continue
@@ -334,7 +434,16 @@ def run_one(cls):
         os.mkdir(run_dir)
         gdb.execute(CATCH, to_string=True)
     hit, seen, in_call = [], set(), set()
-    gdb.execute("run", to_string=True)
+    if ldso:
+        # Stopped at the entry (the starti stop, not a breakpoint's): it is the first function run.
+        entry = int(gdb.selected_frame().pc())
+        if entry not in names:
+            fail("%s: no function at its entry (offset 0x%x)" % (ldso, LDSO_ENTRY))
+        seen.add(entry)
+        hit.append(entry)
+        gdb.execute("continue", to_string=True)
+    else:
+        gdb.execute("run", to_string=True)
     while True:
         try:
             pc = int(gdb.selected_frame().pc())
@@ -369,6 +478,8 @@ def run_one(cls):
                 if slow:
                     time.sleep(slow)
                 answer_time(*read)
+        elif pc in topo and (not redirect or reg("orig_rax") == NOT_SYSCALL):  # its breakpoint, not a system call stop
+            answer_topology(topo[pc])
         try:
             gdb.execute("continue", to_string=True)
         except gdb.error:
@@ -378,6 +489,8 @@ def run_one(cls):
             bp.delete()
     for bp in gdb.breakpoints() or ():  # the catchpoint
         bp.delete()
+    if ldso:  # offsets in the image: the same in every run, whatever the base
+        hit = [a - BASE[0] for a in hit]
     return hit
 
 
@@ -398,18 +511,22 @@ def merge(runs):
 
 
 runs = [run_one(c) for c in classes]
+sys.stderr.write("trace_gdb: node count answered %d times, node read %d times\n" % (TOPO_ANSWERS["count"], TOPO_ANSWERS["read"]))
 shutil.rmtree(stage, ignore_errors=True)
 if host_reads:
     fail("the program read host files the tree does not supply (canon_host.sh): %s" % " ".join(sorted(host_reads)))
 # The virtual CPU reached the program: a class with AVX2 and one without never run the same code
 # (start-up reads XCR0 only when CPUID shows OSXSAVE and AVX). Equal runs mean the program saw one CPU,
 # the host's, and the list would follow it.
-if virtual:
+# LAYOUT-LDSO-ORDER: not for the interpreter, whose start-up chooses no code by CPU class (its CPU entries
+# are still answered); the same interpreter trace on two hosts is the check (handoff/LAYOUT-LDSO-ORDER.md).
+if virtual and not ldso:
     for a in classes:
         for b in classes:
             if CLASSES[a][1] & L7B_V3 and not CLASSES[b][1] & L7B_V3 and runs[classes.index(a)] == runs[classes.index(b)]:
                 fail("classes %s and %s ran the same functions: the program did not see the virtual CPU" % (a, b))
+out_names = OFFSETS[0][1] if ldso else names
 with open(out_path, "w") as f:
     for addr in merge(runs):
-        for n in names.get(addr, []):
+        for n in out_names.get(addr, []):
             f.write(n + "\n")
