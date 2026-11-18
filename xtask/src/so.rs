@@ -1518,6 +1518,7 @@ fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(),
     let release = root.join("target/niji");
     run(&mut LD_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
     let archive = LD_BUILD.raw_archive(&product, profile);
+    check_ld_units(&archive)?;
     let entry = product.join("ld-entry.o");
     run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
     let map = product.join("ld.map");
@@ -1599,6 +1600,34 @@ fn check_interp_span(path: &Path) -> Result<u64, String> {
         ));
     }
     Ok(span)
+}
+
+/// The members of the interpreter's archive (`ar t` output) that rustc wrote for a codegen unit other
+/// than the first of its crate: `ld_so-<hash>.<crate>.<hash>-cgu.<n>.rcgu.o` with `n` > 0. Only the
+/// members rustc wrote for this build (the `ld_so-` prefix) count: the C objects and the prebuilt
+/// `compiler_builtins` objects are not partitioned by it.
+pub(crate) fn split_unit_members(members: &str) -> Vec<&str> {
+    let unit = |m: &str| -> Option<u32> { m.rsplit_once("-cgu.")?.1.split('.').next()?.parse().ok() };
+    members.lines().filter(|m| m.starts_with("ld_so-") && unit(m).is_some_and(|n| n > 0)).collect()
+}
+
+/// LAYOUT-LDSO-WINDOW: the interpreter's crates were built as one codegen unit each ([`LD_RUSTFLAGS`]).
+fn check_ld_units(archive: &Path) -> Result<(), String> {
+    let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
+    let out = Command::new(&ar).arg("t").arg(archive).output().map_err(|e| format!("{ar} t {}: {e}", archive.display()))?;
+    if !out.status.success() {
+        return Err(format!("{ar} t {}: {}", archive.display(), out.status));
+    }
+    let names = String::from_utf8_lossy(&out.stdout);
+    let split = split_unit_members(&names);
+    if let Some(first) = split.first() {
+        return Err(format!(
+            "{}: {} members come from crates split into more than one codegen unit (first {first}): the interpreter's crates build as one unit each (LD_RUSTFLAGS), or a change anywhere in them re-partitions them and moves ld.so's start-up data pages",
+            archive.display(),
+            split.len()
+        ));
+    }
+    Ok(())
 }
 
 /// LAYOUT-LDSO-ORDER: the interpreter's start-up layout, from a trace of this build, as libc's
@@ -2423,6 +2452,30 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// LAYOUT-LDSO-WINDOW (no spec clause: the build of the interpreter): member names as rustc writes them
+    /// (a fast-profile interpreter archive, 16 units). A crate in units 1.. is reported, two-digit unit
+    /// numbers included; unit 0 of every crate, the allocator shim, the C objects and the prebuilt
+    /// `compiler_builtins` object are not, nor (a constructed name, for the prefix rule) a unit object
+    /// some other build wrote.
+    #[test]
+    fn interpreter_archive_units_beyond_the_first_are_reported() {
+        let one = "csys_0.o\n45c91108d938afe8-ucmpti2.o\n\
+            ld_so-a1b2c3d4e5f60718.c26v8dzsdn4j9tn3iv73ubmlb.rcgu.o\n\
+            ld_so-a1b2c3d4e5f60718.core-1d288395a3394ed3.core.efd5e57aef94d71e-cgu.0.rcgu.o.rcgu.o\n\
+            ld_so-a1b2c3d4e5f60718.ld_so.703c93925344c515-cgu.0.rcgu.o\n\
+            ld_so-a1b2c3d4e5f60718.niji-435adf0fa956650f.niji.bc4ae866f3bb43a4-cgu.00.rcgu.o.rcgu.o\n\
+            compiler_builtins-0a1b2c3d4e5f6071.compiler_builtins.9f8e7d6c5b4a3921-cgu.117.rcgu.o\n";
+        assert!(split_unit_members(one).is_empty(), "{:?}", split_unit_members(one));
+        let split = format!(
+            "{one}ld_so-a1b2c3d4e5f60718.ld_so.703c93925344c515-cgu.1.rcgu.o\n\
+             ld_so-a1b2c3d4e5f60718.niji-435adf0fa956650f.niji.bc4ae866f3bb43a4-cgu.15.rcgu.o.rcgu.o\n"
+        );
+        assert_eq!(
+            split_unit_members(&split),
+            ["ld_so-a1b2c3d4e5f60718.ld_so.703c93925344c515-cgu.1.rcgu.o", "ld_so-a1b2c3d4e5f60718.niji-435adf0fa956650f.niji.bc4ae866f3bb43a4-cgu.15.rcgu.o.rcgu.o"]
+        );
+    }
 
     /// UTIL-5 (no spec clause: the build of getconf's name table): each name takes the kind and number of its
     /// constant, in file order; a constant the library does not answer for, a repeated name or a bad `listed` cell
