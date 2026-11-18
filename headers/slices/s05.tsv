@@ -1,0 +1,19 @@
+# One row per header this slice ships (plan/headers.md section 4, "Adding a slice"). p1: 1 = the table P1 units of
+# spec/tools/header_check.py cover it; uapi: the kernel UAPI headers P8 pairs it with (comma-separated), - for none.
+header	p1	uapi
+features.h	0	-
+features-time64.h	0	-
+stdc-predef.h	0	-
+sys/cdefs.h	0	-
+sys/types.h	0	-
+sys/bitypes.h	0	-
+stdint.h	0	-
+inttypes.h	0	-
+limits.h	0	-
+endian.h	0	-
+byteswap.h	0	-
+errno.h	0	-
+sys/errno.h	0	-
+alloca.h	0	-
+gnu-versions.h	0	-
+gnu/stubs.h	0	-
