@@ -55,6 +55,11 @@ pins the join against `search::prefixed`.
   (750abb9a6). Its chained release steps did not run.
 * `ldso-trace-prefix-rerun1` (750abb9a6): clippy -D warnings, static, `affected::` unit tests 96 passed;
   `NIJI_FULL_PROFILE=1` so + whole hot_text_products 28 passed (the new test included, release). rc 0, peak 3.0G.
+* Final head 094cb703a (code as 750abb9a6, plus this note): `ldso-trace-prefix-gate2` (`cargo xtask affected
+  --run --base origin/next`, FULL: 32 suites, 12172 passed, 0 failed, `affected: ok`; then `NIJI_FULL_PROFILE=1`
+  so + whole hot_text_products, 28 passed; rc 0, peak 14G) and `ldso-trace-prefix-plants2`
+  (/mnt/zram/claude/ldso-trace-prefix/plants-2): 3 CAUGHT, 0 SURVIVED, 0 WARN. Superseded: gate1, rerun1,
+  plants1 (older content), debs1 (no build).
 * Start-up code: crates/boundary/src/ld.rs changes only literals to constants with the same bytes.
 
 ## Next step

@@ -4,15 +4,16 @@
  "tokens": null,
  "result": "The interpreter trace redirects every configuration file below the build's own prefix (one list in niji_ld::search::CONFIG_FILES); a products test traces a coexist-prefixed interpreter and requires the same names as the system trace",
  "branch": "task/ldso-trace-prefix",
- "head": "750abb9a6",
+ "head": "094cb703a (code 750abb9a6)",
  "gate": {
-  "affected": "FULL 6826 passed / 1 failed (affected selection test, expectation fixed; failing suite and release hot_text_products rerun green in ldso-trace-prefix-rerun1)",
-  "peak": null
+  "affected": "FULL 12172 passed / 0 failed (32 suites); release hot_text_products 28 passed",
+  "peak": "14G"
  },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-  "A change to any tools/hottext/*.sh now also selects hot_text_products (it runs ldso_trace.sh), so such a change builds the products in the direct tier."
+  "A change to any tools/hottext/*.sh now also selects hot_text_products (it runs ldso_trace.sh), so such a change builds the products in the direct tier.",
+  "Both package flavours built on 750abb9a6 (mei:ldso-trace-prefix-debs2): 7 system .debs, niji6 and niji6-dev; interpreter lists byte-identical between flavours."
  ],
  "refused": [],
  "impact": [
@@ -53,9 +54,7 @@
  "next_step": "Land (train); then rerun the snapshot's coexist debs step.",
  "report_file": "handoff/LDSO-TRACE-PREFIX.md",
  "jobs": [
-  "mei:ldso-trace-prefix-gate1",
-  "mei:ldso-trace-prefix-rerun1",
-  "mei:ldso-trace-prefix-plants1",
-  "mei:ldso-trace-prefix-debs2"
+  "mei:ldso-trace-prefix-gate2",
+  "mei:ldso-trace-prefix-plants2"
  ]
 }
