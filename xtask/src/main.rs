@@ -294,13 +294,49 @@ fn test_all(root: &Path, extra: &[String]) -> Result<(), String> {
     r
 }
 
+/// One [`precheck::CHEAP_STEPS`] step, in process (`test_steps`, `cargo xtask precheck` and the escalated `affected`
+/// run call it). It lives here, not in precheck.rs: main.rs is the one module that may name the audit and tool
+/// modules for a gate step (`affected`'s `audit_modules_are_leaves`, `tool_modules_stay_off_the_product_path`).
+pub(crate) fn cheap_step(root: &Path, name: &str) -> Result<(), String> {
+    match name {
+        "stubs" => spec::stubs(root, false),
+        "purity" => policy::purity(root),
+        "unsafe-audit" => policy::unsafe_audit(root),
+        "csys-audit" => policy::csys_audit(root),
+        "env-audit" => policy::env_audit(root),
+        "opaque-audit" => policy::opaque_audit(root),
+        "crash-audit" => policy::crash_audit(root),
+        "reexec-audit" => policy::reexec_audit(root),
+        "trace" => trace::run(root),
+        "fuzz-check" => fuzz::check(root),
+        "csys-gen-check" => csys::run(root, true),
+        "abi-gen-check" => abi::run(root, true),
+        "unicode-gen-check" => unicode::run(root, true),
+        "encodings-gen-check" => encodings::run(root, true),
+        "locale-gen-check" => langinfo::run(root, true),
+        "native-gen-check" => native::run(root, true),
+        "headers-gen-check" => headers::run(root, true),
+        "compat-gen-check" => compat::run(root, true),
+        "math-gen-check" => math::run(root, true),
+        "remez-check" => {
+            // The generated coefficients still follow from their fit files (D-10.12), every fit.
+            let mut fits: Vec<String> = std::fs::read_dir(root.join("crates/math/fits")).map_err(|e| e.to_string())?.flatten().map(|e| e.path().display().to_string()).filter(|p| p.ends_with(".fit")).collect();
+            fits.sort();
+            fits.insert(0, "--check".into());
+            math::run_remez(root, &fits)
+        }
+        "tables-check" => math::run_tables(root, &["--check".to_string()]),
+        _ => Err(format!("unknown cheap step `{name}`")),
+    }
+}
+
 fn test_steps(root: &Path, extra: &[String], t: &mut steptime::Steps) -> Result<(), String> {
     // The steps that take seconds (precheck::CHEAP_STEPS, shared with `cargo xtask precheck` and the escalated
     // `affected` run, so the three cannot drift apart), without `stubs` (the gate runs it before `test`). The fuzz
     // harnesses still compile (HYGIENE-1); the generated coefficients still follow from their fit files (D-10.12;
     // the remez binary prints a `step: remez/<fit>` line per fit, run in parallel, so those times overlap).
     for name in precheck::CHEAP_STEPS.iter().filter(|s| **s != "stubs") {
-        t.time(name, || precheck::cheap_step(root, name))?;
+        t.time(name, || cheap_step(root, name))?;
     }
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     // The products first: tests of what only a process libniji started can show run C

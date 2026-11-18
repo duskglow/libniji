@@ -68,39 +68,6 @@ const STATIC_SAME_AS_CHEAP: &[(&str, &str)] = &[
     ("trace", "trace"), ("fuzz-check", "fuzz-check"), ("compat-gen", "compat-gen-check"), ("tables-fresh", "tables-check"),
 ];
 
-/// One [`CHEAP_STEPS`] step, in process.
-pub(crate) fn cheap_step(root: &Path, name: &str) -> Result<(), String> {
-    match name {
-        "stubs" => crate::spec::stubs(root, false),
-        "purity" => crate::policy::purity(root),
-        "unsafe-audit" => crate::policy::unsafe_audit(root),
-        "csys-audit" => crate::policy::csys_audit(root),
-        "env-audit" => crate::policy::env_audit(root),
-        "opaque-audit" => crate::policy::opaque_audit(root),
-        "crash-audit" => crate::policy::crash_audit(root),
-        "reexec-audit" => crate::policy::reexec_audit(root),
-        "trace" => crate::trace::run(root),
-        "fuzz-check" => crate::fuzz::check(root),
-        "csys-gen-check" => crate::csys::run(root, true),
-        "abi-gen-check" => crate::abi::run(root, true),
-        "unicode-gen-check" => crate::unicode::run(root, true),
-        "encodings-gen-check" => crate::encodings::run(root, true),
-        "locale-gen-check" => crate::langinfo::run(root, true),
-        "native-gen-check" => crate::native::run(root, true),
-        "headers-gen-check" => crate::headers::run(root, true),
-        "compat-gen-check" => crate::compat::run(root, true),
-        "math-gen-check" => crate::math::run(root, true),
-        "remez-check" => {
-            // The generated coefficients still follow from their fit files (D-10.12), every fit.
-            let mut fits: Vec<String> = fs::read_dir(root.join("crates/math/fits")).map_err(|e| e.to_string())?.flatten().map(|e| e.path().display().to_string()).filter(|p| p.ends_with(".fit")).collect();
-            fits.sort();
-            fits.insert(0, "--check".into());
-            crate::math::run_remez(root, &fits)
-        }
-        "tables-check" => crate::math::run_tables(root, &["--check".to_string()]),
-        _ => Err(format!("unknown cheap step `{name}`")),
-    }
-}
 
 /// The fix a red step names.
 pub(crate) fn fix(name: &str) -> String {
@@ -310,7 +277,7 @@ pub(crate) fn run_checks(root: &Path, opts: &Opts) -> Vec<(String, f64, Verdict)
         }
         timed(step, &mut || {
             let before = if step == "stubs" { Some(stubs_snapshot(root)) } else { None };
-            let r = cheap_step(root, step);
+            let r = crate::cheap_step(root, step);
             let rewrote: Vec<String> = before.map(|b| changed_paths(&b, &stubs_snapshot(root))).unwrap_or_default();
             step_verdict(step, r, &rewrote)
         });

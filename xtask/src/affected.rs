@@ -1375,7 +1375,7 @@ fn run_prechecks_or_stop(root: &Path, log: &Path, sel: &Selection) -> Result<(),
 fn run_gen_prechecks(root: &Path, log: &Path, sel: &Selection) -> Vec<&'static str> {
     let mut red = Vec::new();
     for c in prechecks(sel) {
-        if check_logged(log, &format!("precheck {c}"), crate::precheck::cheap_step(root, c)).is_err() {
+        if check_logged(log, &format!("precheck {c}"), crate::cheap_step(root, c)).is_err() {
             red.push(c);
         }
     }
@@ -4586,7 +4586,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         for f in ["spec/abi.md", "headers.md", "csys/src/sysdeps.c", "crates/core/tests/strlen.rs", "crates/core/tests/sx7_clauses.rs", "crates/core/tests/sub/s07_x_clauses.rs", "crates/boundary/src/nr.rs.bak"] {
             assert!(gen_prechecks_for(f).is_empty(), "{f}: {:?}", gen_prechecks_for(f));
         }
-        // Every name is a step `precheck::cheap_step` knows.
+        // Every name is a step main.rs's `cheap_step` knows.
         for (p, checks) in GEN_PRECHECKS {
             for c in *checks {
                 assert!(crate::precheck::CHEAP_STEPS.contains(c), "{p}: {c}");
@@ -5596,9 +5596,11 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             }
         }
         let main = read(&root().join("xtask/src/main.rs"));
-        let body = |name: &str| main.split(&format!("\nfn {name}(")).nth(1).and_then(|b| b.split("\n}\n").next()).unwrap_or_default().to_string();
-        let (steps, checks) = (body("test_steps"), body("static_checks"));
-        assert!(steps.contains("so::run_so") && checks.contains("records::check"), "main.rs's test_steps / static_checks not found");
+        let body = |name: &str| ["\nfn ", "\npub(crate) fn "].iter().find_map(|p| main.split(&format!("{p}{name}(")).nth(1)).and_then(|b| b.split("\n}\n").next()).unwrap_or_default().to_string();
+        // The gate's steps: test_steps and the cheap steps it runs through `cheap_step`; static's checks: the list
+        // `static_list` returns, which `static_checks` runs (HANDBACK-INLOOP-CHECKS split both out).
+        let (steps, checks) = (body("test_steps") + &body("cheap_step"), body("static_checks") + &body("static_list"));
+        assert!(steps.contains("so::run_so") && steps.contains("fuzz::check") && checks.contains("records::check"), "main.rs's test_steps / cheap_step / static_checks / static_list not found");
         for m in &tools {
             assert!(!names_xtask_module(&steps, m) || names_xtask_module(&checks, m), "the full gate's steps call the tool module {m}, which `cargo xtask static` does not: take it out of XTASK_TOOLS");
         }
