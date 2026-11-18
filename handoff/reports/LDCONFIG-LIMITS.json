@@ -1,0 +1,59 @@
+{
+ "task": "LDCONFIG-LIMITS",
+ "model": "opus",
+ "tokens": null,
+ "result": "ldconfig input caps removed (conf size, dir count, hwcaps names, generator, entries, args); final gate and plants queued, not yet verified",
+ "branch": "task/ldconfig-limits",
+ "head": "dcb509b4d",
+ "gate": {
+  "affected": "queued (ldconfig-limits-gate)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "with -n the reference prints nothing for a repeated operand; libniji prints given more than once (pre-existing)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "3 MiB ld.so.conf: last directory now read (was silently ignored past 1 MiB)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "correctness",
+   "what": "70000 dirs, 100 hwcaps subdirs, 5002 args now accepted like the reference (next: 65536 kept, cache not written, E2BIG)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added",
+   "before": 0,
+   "after": 6,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants",
+   "before": 0,
+   "after": 12,
+   "unit": "plants",
+   "measured": false
+  }
+ ],
+ "improvement": "the brief could say up front that ldconfig mock-fs tests at 70000 entries need a range-listing mock; the plants tool doc should state whether lit: replacements interpret escapes",
+ "next_step": "read ldconfig-limits-gate and ldconfig-limits-plants on keke; fill the head probe column",
+ "report_file": "handoff/LDCONFIG-LIMITS.md",
+ "jobs": [
+  "ldconfig-limits-gate",
+  "ldconfig-limits-plants"
+ ]
+}

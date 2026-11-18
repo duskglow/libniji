@@ -1,0 +1,17 @@
+# RELEASE-SNAPSHOT-MVEC plants: cargo xtask plants handoff/RELEASE-SNAPSHOT-MVEC-plants.txt (docs/plants.md).
+# RELEASE-SNAPSHOT-NIJI1-2's six release-check plants unchanged except the paths and version: rerun on e40107432's
+# system products (job release-snapshot-mvec-debs-1's build, ~/work/RELEASE-SNAPSHOT-MVEC/debs/system-work/src/target/niji)
+# with this run's swap verdict script (~/work/RELEASE-SNAPSHOT-MVEC/swapverdict.sh, a copy of NIJI1-2's).
+rsmv-ldconfig-unstripped | tools/deb/system.sh | lit:strip --strip-unneeded --remove-section=.comment --remove-section=.note "$bin/usr/sbin/ldconfig" ==> true | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-MVEC/debs/system-work/src/target/niji --version 2.39+niji20261117.2-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL usr/sbin/ldconfig is not stripped
+rsmv-postinst-configure-ldconfig | tools/deb/system/libc-bin.postinst | perl:s/(ldconfig itself\.\n\s+)run_ldconfig/$1true/ | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-MVEC/debs/system-work/src/target/niji --version 2.39+niji20261117.2-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL ldconfig -p in the root
+rsmv-postrm-purge-cache | tools/deb/system/libc-bin.postrm | lit:rm -f "$DPKG_ROOT/etc/ld.so.cache" ==> true | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-MVEC/debs/system-work/src/target/niji --version 2.39+niji20261117.2-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL left after purge: .*ld\.so\.cache
+rsmv-postrm-not-packaged | tools/deb/system.sh | lit:put 0755 "$sys/libc-bin.postrm" "$bin/DEBIAN/postrm" ==> | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-MVEC/debs/system-work/src/target/niji --version 2.39+niji20261117.2-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:check: FAIL libc-bin: control members
+rsmv-cxx-needs-libstdcxx | tools/deb/root-system.sh | lit:-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm ==> -lstdc++ -lm | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-MVEC/debs/system-work/src/target/niji --version 2.39+niji20261117.2-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL dynamic except
+rsmv-swap-not-done | tools/deb/swap-system.sh | lit:dpkg -i --force-downgrade --force-depends /tmp/swap/debs/*.deb ==> dpkg --version | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-MVEC/debs/system-work/src/target/niji --version 2.39+niji20261117.2-1 --out target/rp --work target/rpw && sh ~/work/RELEASE-SNAPSHOT-MVEC/swapverdict.sh tools/deb/swap-system.sh target/rp target/rpl | msg:swap: FAIL the swapped root does not run the package's libc\.so\.6
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# rsmv-ldconfig-unstripped: CAUGHT, caught by no test the log names
+# rsmv-postinst-configure-ldconfig: CAUGHT, caught by no test the log names
+# rsmv-postrm-purge-cache: CAUGHT, caught by no test the log names
+# rsmv-postrm-not-packaged: CAUGHT, caught by no test the log names
+# rsmv-cxx-needs-libstdcxx: CAUGHT, caught by no test the log names
+# rsmv-swap-not-done: CAUGHT, caught by no test the log names

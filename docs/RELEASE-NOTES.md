@@ -2,6 +2,91 @@
 
 libniji was called Liella until November 2026.
 
+## libniji: fifth pre-release, 2026-11-17 (`snapshot-2026-11-17`)
+
+This is the fifth public pre-release, and the first under the project's new name, **libniji**. `main` is promoted to
+commit `30d07e74`, tagged `snapshot-2026-11-17`. Like the earlier ones, it is a snapshot of a work in progress, not an
+alpha or a release candidate, and it should not be used in production. These notes cover the changes since
+[`snapshot-2026-11-16`](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-16).
+
+### The new name
+
+Nothing had been released, so the old names have no compatibility aliases. The C library's own Debian package names
+(`libc6`, `libc-bin`, ...), `libc.so.6` and the loader's name do not change. The table of old and new names (packages,
+the version suffix, the install prefix, the native interface library, headers, version nodes, macros, variables,
+tunables and run-time names) is in
+[`docs/install-packages.md`](install-packages.md#names-before-libniji), and on the
+[GitHub release](https://github.com/duskglow/libniji/releases/tag/snapshot-2026-11-17).
+
+### Summary
+
+Four issues found by [Yohane Linux](https://github.com/duskglow/aqours) (the distribution built on libniji, formerly
+Aqours) in its first stage are fixed or partly fixed:
+
+- **[#7](https://github.com/duskglow/libniji/issues/7):** binaries built against older C libraries, such as Debian's
+  `gawk`, start: `libm.so.6` and `libc.so.6` now export the old `GLIBC_2.2.5` versions they bind (`fmod`, `fmodf`, `exp`,
+  `exp10`, `pow`, `hypot`, `hypotf`, `log`, `log2`, `pthread_sigmask`).
+- **[#5](https://github.com/duskglow/libniji/issues/5):** the system packages ship `libresolv.so.2` and `libresolv.so`,
+  so Debian programs that need it (`libkrb5` and its users) load. `libresolv.a` stays an empty archive:
+  its functions are in `libc.a`, so a static `-lresolv` link works.
+- **[#8](https://github.com/duskglow/libniji/issues/8):** `getaddrinfo` returns `EAI_AGAIN` ("Temporary failure in name
+  resolution") when no nameserver can be reached, as the reference does, instead of `EAI_SYSTEM`.
+- **[#6](https://github.com/duskglow/libniji/issues/6), partly:** `iconv` converts EUC-JP (a round trip is byte for byte
+  identical), and 58 of the 1180 character-set names the reference lists open. ISO-8859-15 and most of the others do
+  not open yet, and Debian's own `iconv` program does not start on libniji yet. The issue stays open; the work to cover
+  the rest is under way.
+
+Also new: **`ldd`** ships in `libc-bin`; the development package carries the remaining development links and archives
+(`libBrokenLocale`, `libg.a`, `libmcheck.a`, `libpthread_nonshared.a`); and `libc6-dev`'s control fields now pull in
+`linux-libc-dev`, `libcrypt-dev` and `rpcsvc-proto` and provide a versioned `libc-dev`, as Debian's do.
+
+### Packages
+
+The same two flavours as before, built by `tools/deb/build.sh` for Debian 13 (trixie) and Devuan 6 (excalibur), amd64,
+attached with `SHA256SUMS`. GitHub does not allow `~` in asset names, so the `niji6` files are published with `.` in its
+place. `SHA256SUMS` lists the names as published, and the package versions inside the files are unchanged.
+
+- **Beside glibc** (`niji6`, `niji6-dev`), version `0.0~snapshot20261117+30d07e74b559`.
+- **As the system C library** (`libc6`, `libc-bin`, `libc6-dev`, `libc-dev-bin`, `locales`, `libc-l10n`), version
+  `2.39+niji20261117.1-1`, **experimental**.
+
+Checks on this commit:
+
+| Check | Result |
+|---|---|
+| Empty root | 19 checks pass, none fail |
+| Trixie root with libniji swapped in | 63 commands: 56 identical to stock glibc, 7 known differences, none unexpected. The 7 are `ldd` output: library paths spelled `/usr/lib/...` where the reference prints `/lib/...`, the interpreter line, and `ldd -v`'s blocks. A fix is in progress |
+| The Yohane issues | #7, #5 and #8 checked with Debian's own binaries in the trixie root; #6 as described above |
+| Symbol check | Symbol sets as in the last snapshot, plus the new old-version exports and `libresolv.so.2` |
+| Lintian | 10 errors and 40 warnings per suite (7 and 48 before). The 3 new errors flag the new empty archives (`libg.a`, `libmcheck.a`, `libpthread_nonshared.a`), which are empty on purpose. 8 warnings fewer because `libc6` now declares its self-provided `libc.so.6` prerequisite, 2 fewer with the added development links, and 2 new ones on `ldd` |
+
+**The system flavour has no C headers yet.** Its `libc6-dev` replaces Debian's, so a root using the system packages
+cannot compile C until libniji's own headers land. The flavour beside glibc keeps the system's headers.
+
+Still true: swapping into a stock trixie root needs `--force-depends`, because some trixie packages require a C
+library version of at least 2.41 and libniji presents 2.39.
+
+### Known limitations
+
+- **[#9](https://github.com/duskglow/libniji/issues/9):** a program that needs more than 63 shared libraries at start
+  fails before `main` with "too many objects". A fix (no fixed limit) is queued at high priority.
+- at most 512 loaded objects per process in all (start-time objects plus `dlopen`);
+- no `dlmopen`, no lazy binding, no `LD_AUDIT`, and no debugger rendezvous (`_r_debug`) or `libthread_db` yet, so
+  debuggers cannot follow shared libraries or threads in a running program;
+- no vector math library (`libmvec.so.1`) in this snapshot (it has landed since);
+- no C headers of libniji's own yet;
+- Rust `std` programs are not supported yet;
+- no security audit yet;
+- Linux x86-64 only.
+
+### What's next
+
+- **The loader:** issue #9 (no limit on start-time objects), the trace output of `ldd` and `ld.so --list`, a split of
+  the loader into modules, and the debugger rendezvous.
+- **`iconv`:** the remaining character sets (#6).
+- **Packages:** `libmvec.so.1`, `libc6-dbg`, `libthread_db.so.1`.
+- **The header generator** and the first generated C headers.
+
 <!-- History: the entries below describe what was released under the project's earlier names and keep
      them. Add a new release above this line. -->
 

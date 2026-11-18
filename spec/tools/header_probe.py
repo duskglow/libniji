@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Probe which names each public header makes visible under each feature-test configuration.
 
-    python3 spec/tools/header_probe.py [--jobs N] [--headers a.h,b.h] [--out DIR]
+    python3 spec/tools/header_probe.py [--jobs N] [--headers a.h,b.h] [--out DIR] [--include DIR]
+
+`--include DIR` probes libniji's headers (P2 of plan/headers.md section 3): every compile gets `-nostdinc -isystem DIR`.
 
 Run on the reference system (Appendix C.0), like abi_extract.py. Writes `ftm-configs.tsv` (the
 configurations of plan/headers.md section 2.3) and `visibility.tsv` (Appendix C.12) into spec/abi/
@@ -285,12 +287,25 @@ def public_headers():
     return sorted(r["header"] for r in rows if r["kind"] == "public" and r["header"].endswith(".h"))
 
 
+def uapi_flags():
+    """`-isystem` for the kernel UAPI directories (linux-libc-dev) that slice 9 headers include: $NIJI_UAPI (the tree
+    `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include directories,
+    placed after libniji's tree so the host's libc headers stay out of reach."""
+    d = os.environ.get("NIJI_UAPI")
+    if d:
+        return ["-isystem", d]
+    return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--headers", default="")
     ap.add_argument("--out", default=ABI)
+    ap.add_argument("--include", default="", help="probe the headers under DIR (libniji's libc-include/) instead of the system's")
     args = ap.parse_args()
+    if args.include:
+        gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+        BASE.extend(["-nostdinc", "-isystem", os.path.abspath(args.include), "-isystem", gccinc, *uapi_flags()])
     headers = args.headers.split(",") if args.headers else public_headers()
     names, tags = candidates()
     work = tempfile.mkdtemp(prefix="header_probe.")

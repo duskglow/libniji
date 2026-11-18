@@ -1,0 +1,20 @@
+name: -o naming a directory
+clause: s31_6_g_1
+command: iconv
+namespace: none
+file: b
+|~ x\n
+dir: d
+file: d/keep
+arg: -f
+arg: UTF-8
+arg: -t
+arg: ASCII
+arg: -o
+arg: d
+arg: b
+stdin:
+status: exit 1
+stdout:
+stderr:
+| iconv: cannot open output file: Is a directory

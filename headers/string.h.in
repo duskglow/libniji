@@ -1,0 +1,55 @@
+@@generated
+/* string.h: string handling (C 7.24, XSH <string.h>). In C++ the search functions are overloaded on the constness
+   of their argument ([cstring.syn]): the const overload is the C function, the other one calls it. */
+#ifndef __NIJI_H_string_h
+#define __NIJI_H_string_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns NULL strchr strrchr strpbrk strstr memchr strdupa strndupa
+@@emit
+
+@@if NULL
+# ifndef NULL
+#  ifdef __cplusplus
+#   define NULL __null
+#  else
+#   define NULL ((void *) 0)
+#  endif
+# endif
+#endif
+
+@@if strchr
+# ifdef __cplusplus
+extern "C++" {
+extern const char *strchr (const char *, int) __NIJI_NOTHROW __asm__ ("strchr");
+extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr");
+extern const char *strpbrk (const char *, const char *) __NIJI_NOTHROW __asm__ ("strpbrk");
+extern const char *strstr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strstr");
+extern const void *memchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memchr");
+inline char *strchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strchr (static_cast<const char *> (__s), __c)); }
+inline char *strrchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strrchr (static_cast<const char *> (__s), __c)); }
+inline char *strpbrk (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strpbrk (static_cast<const char *> (__s), __a)); }
+inline char *strstr (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strstr (static_cast<const char *> (__s), __a)); }
+inline void *memchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memchr (static_cast<const void *> (__s), __c, __n)); }
+}
+# else
+extern char *strchr (const char *, int) __NIJI_NOTHROW;
+extern char *strrchr (const char *, int) __NIJI_NOTHROW;
+extern char *strpbrk (const char *, const char *) __NIJI_NOTHROW;
+extern char *strstr (const char *, const char *) __NIJI_NOTHROW;
+extern void *memchr (const void *, int, size_t) __NIJI_NOTHROW;
+# endif
+#endif
+
+/* GNU: a copy on the caller's stack, as long as the calling function runs. */
+@@when strdupa
+# define strdupa(s) (__extension__ ({ const char *__old = (s); size_t __len = __builtin_strlen (__old) + 1; char *__new = (char *) __builtin_alloca (__len); (char *) __builtin_memcpy (__new, __old, __len); }))
+# define strndupa(s, n) (__extension__ ({ const char *__old = (s); size_t __len = __builtin_strnlen (__old, (n)); char *__new = (char *) __builtin_alloca (__len + 1); __new[__len] = '\0'; (char *) __builtin_memcpy (__new, __old, __len); }))
+#endif
+
+__NIJI_END_C
+
+#endif

@@ -264,11 +264,21 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
             }
         }
     }
-    // Node order: GLIBC_2.2.5 < GLIBC_2.3 < ... numerically, GLIBC_PRIVATE last.
-    let key = |v: &str| -> (u32, Vec<u32>) {
+    // The reference's nodes no symbol carries (GLIBC_ABI_DT_RELR; crate::empty_versions): defined
+    // empty, so a program that requires one starts. Each names the reference's parent (the table's)
+    // and carries `local: *`: ld flags a node with no pattern WEAK, and the reference's are not
+    // (crate::empty_versions::check compares the flags and the parent).
+    let empty: BTreeMap<String, String> = crate::empty_versions::nodes(root, lib_name)?.into_iter().collect();
+    for ver in empty.keys() {
+        nodes.entry(ver.clone()).or_default();
+    }
+    // Node order: GLIBC_2.2.5 < GLIBC_2.3 < ... numerically, then the named GLIBC_ nodes
+    // (GLIBC_ABI_DT_RELR), GLIBC_PRIVATE last.
+    let key = |v: &str| -> (u32, Vec<u32>, String) {
         match v.strip_prefix("GLIBC_") {
-            Some("PRIVATE") | None => (1, Vec::new()),
-            Some(n) => (0, n.split('.').map(|p| p.parse().unwrap_or(0)).collect()),
+            Some("PRIVATE") | None => (2, Vec::new(), v.to_string()),
+            Some(n) if n.split('.').all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit())) => (0, n.split('.').map(|p| p.parse().unwrap_or(0)).collect(), String::new()),
+            Some(_) => (1, Vec::new(), v.to_string()),
         }
     };
     let mut order: Vec<&String> = nodes.keys().collect();
@@ -294,10 +304,10 @@ fn lib_version_script(root: &Path, have: &BTreeSet<String>, lib_name: &str, nati
                 count += 1;
             }
         }
-        if i == local_node {
+        if i == local_node || (empty.contains_key(*v) && !compat_nodes.contains(*v)) {
             script.push_str("  local:\n    *;\n");
         }
-        match prev {
+        match empty.get(*v).or(prev) {
             Some(p) => script.push_str(&format!("}} {p};\n")),
             None => script.push_str("};\n"),
         }
@@ -1441,14 +1451,22 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
     // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
     println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
-    run_ld(root, &cc, profile)?;
+    run_ld(root, &cc, profile, layout)?;
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
     run_getent(root, &cc)?;
+    run_iconv(root, &cc)?;
     run_ldd(root, &cc, &release)?;
+    // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
+    // packages install for iconv_open (D-6.8's directory).
+    let n = crate::charmaps::write(root, &release.join("charmaps"))?;
+    println!("so: target/niji/charmaps ({n} charmaps from spec/encoding/charmaps.tsv)");
     check_placement(root, &release)?;
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
+    // SYS-ABI-DT-RELR: every symbol-less node of the reference that libniji honours is defined.
+    let empty = crate::empty_versions::check(root, &release)?;
+    println!("so: {empty} symbol-less version nodes defined ({})", crate::empty_versions::TABLE);
     // After the last product: every layout contract of layout/contracts.tsv (D-X.48) on the products, among them
     // the 64-byte entries (D-4.33), the classed pages' XREF bias (D-X.34), the hot kernels' jumps off 32-byte
     // boundaries (D-4.67) and no build path in any product (PRODUCT-PATH-REMAP).
@@ -1492,7 +1510,7 @@ const LD_RUSTFLAGS: &str = "-Crelocation-model=pie";
 /// note aside). The `fast` tool profile stays without DWARF.
 const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
 
-fn run_ld(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
+fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(), String> {
     use niji_ld::arch::Arch as _;
     let name = niji_ld::arch::Native::INTERP;
     let product = root.join("target/product");
@@ -1503,22 +1521,124 @@ fn run_ld(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
     let map = product.join("ld.map");
     fs::write(&map, ld_version_script(root, name)?).map_err(|e| e.to_string())?;
+    let link = |entry: &Path, archive: &Path, out: &Path| {
+        run(Command::new(cc)
+            .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ld_entry", "-Wl,-Bsymbolic"])
+            .arg(format!("-Wl,--version-script={}", map.display()))
+            .arg(format!("-Wl,-soname,{name}"))
+            .arg(entry)
+            .arg(archive)
+            .arg("-lgcc")
+            .arg("-o")
+            .arg(out))
+    };
     let out = release.join(name);
     let staged = tmp_name(&out);
-    run(Command::new(cc)
-        .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ld_entry", "-Wl,-Bsymbolic"])
-        .arg(format!("-Wl,--version-script={}", map.display()))
-        .arg(format!("-Wl,-soname,{name}"))
-        .arg(&entry)
-        .arg(&archive)
-        .arg("-lgcc")
-        .arg("-o")
-        .arg(&staged))?;
+    // LAYOUT-LDSO-ORDER: the lists of an earlier build never survive into this one.
+    let lists = trace_lists_dir(&product, profile);
+    for f in [crate::hottext::LDSO_LIST, crate::hottext::LDSO_SIGNATURES] {
+        let _ = fs::remove_file(lists.join(f));
+    }
+    if layout == Layout::Traced {
+        let (grouped_entry, grouped) = ldso_layout(root, cc, profile, &release, &entry, &archive, &link)?;
+        link(&grouped_entry, &grouped, &staged)?;
+    } else {
+        link(&entry, &archive, &staged)?;
+    }
     check_interp(&staged)?;
     check_interp_prerelocation(&staged)?;
     publish(&staged, &out)?;
     println!("so: target/niji/{name} (the interpreter; L14-1 link check and pre-relocation check passed)");
     Ok(())
+}
+
+/// LAYOUT-LDSO-ORDER: the interpreter's start-up layout, from a trace of this build, as libc's
+/// ([`trace_layout`]). The interpreter linked ungrouped (`link`) runs two dynamic programs of this build
+/// (`libc.so.6` and `niji-crt1.o` of `release`) under `tools/hottext/ldso_trace.sh`; their traces make
+/// `ldso-text.list` and `ldso-text.signatures` ([`crate::hottext::ldso_lists`]) next to libc's lists, and
+/// [`crate::hottext::group_ldso`] renames the listed functions of a copy of `archive`, with the entry object
+/// `entry` as one of its members (the entry is the first function the trace runs), so the link puts them
+/// first in `.text`, from the entry, in trace order, and everything else (`#[cold]` functions included)
+/// after them. Returns the grouped entry object and archive to link.
+fn ldso_layout(
+    root: &Path,
+    cc: &str,
+    profile: Profile,
+    release: &Path,
+    entry: &Path,
+    archive: &Path,
+    link: &dyn Fn(&Path, &Path, &Path) -> Result<(), String>,
+) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
+    use niji_ld::arch::Arch as _;
+    let product = root.join("target/product");
+    let lists = trace_lists_dir(&product, profile);
+    let tdir = lists.join("ldso-trace");
+    let _ = fs::remove_dir_all(&tdir);
+    fs::create_dir_all(&tdir).map_err(|e| format!("{}: {e}", tdir.display()))?;
+    link(entry, archive, &tdir.join(niji_ld::arch::Native::INTERP))?;
+    fs::copy(release.join("niji-crt1.o"), tdir.join("niji-crt1.o")).map_err(|e| format!("copy niji-crt1.o: {e}"))?;
+    // The programs name libc.so.6 by path (the interpreter takes no libc.so.6 from a run path, #4537).
+    let by_path = tdir.join("by-path");
+    fs::create_dir_all(&by_path).map_err(|e| format!("{}: {e}", by_path.display()))?;
+    let libc = crate::native_examples::libc_by_path(&release.join("libc.so.6"), &by_path)?;
+    fs::copy(&libc, tdir.join("libc.so.6")).map_err(|e| format!("copy {}: {e}", libc.display()))?;
+    let log = lists.join("ldso-trace.log");
+    let logf = fs::File::create(&log).map_err(|e| format!("{}: {e}", log.display()))?;
+    let errf = logf.try_clone().map_err(|e| e.to_string())?;
+    println!("so: trace-at-build: tracing the interpreter (log {})", log.display());
+    let before = tracked_files(root)?;
+    let st = Command::new("bash")
+        .arg(root.join("tools/hottext/ldso_trace.sh"))
+        .arg(root)
+        .arg("--products")
+        .arg(&tdir)
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .env("CC", cc)
+        .env(crate::hotlists::ENV, &lists)
+        .current_dir(root)
+        .stdout(logf)
+        .stderr(errf)
+        .status()
+        .map_err(|e| format!("tools/hottext/ldso_trace.sh: {e}"))?;
+    let changed = restore_tracked(root, &before)?;
+    if !changed.is_empty() {
+        return Err(format!("so: trace-at-build: tools/hottext/ldso_trace.sh changed {} in {} (restored)", changed.join(", "), crate::hotlists::TRACKED));
+    }
+    let text = fs::read_to_string(&log).unwrap_or_default();
+    if !st.success() {
+        let tail: Vec<&str> = text.lines().rev().take(8).collect::<Vec<_>>().into_iter().rev().collect();
+        return Err(format!("so: trace-at-build: tracing the interpreter failed ({st}); last lines of {}:\n{}", log.display(), tail.join("\n")));
+    }
+    for l in text.lines().filter(|l| l.starts_with("ldso-text:")) {
+        println!("so: trace-at-build: {l}");
+    }
+    let mut runs = Vec::new();
+    for m in crate::hottext::LDSO_MODES {
+        let p = lists.join(format!("ldso.{m}.names"));
+        runs.push((m, fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()))?));
+    }
+    let runs: Vec<(&str, &str)> = runs.iter().map(|(m, t)| (*m, t.as_str())).collect();
+    let (list, sigs) = crate::hottext::ldso_lists(&runs, profile.name());
+    let list_path = lists.join(crate::hottext::LDSO_LIST);
+    fs::write(&list_path, list).map_err(|e| format!("{}: {e}", list_path.display()))?;
+    fs::write(lists.join(crate::hottext::LDSO_SIGNATURES), sigs).map_err(|e| e.to_string())?;
+    // The entry object joins a copy of the archive as a member, so the one grouping pass renames its
+    // sections too; then it comes out again, linked first as before.
+    let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
+    let work = product.join("ldso-group-work");
+    let _ = fs::remove_dir_all(&work);
+    fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
+    const MEMBER: &str = "niji-ld-entry.o";
+    fs::copy(entry, work.join(MEMBER)).map_err(|e| format!("copy {}: {e}", entry.display()))?;
+    let grouped = lists.join("ld-grouped.a");
+    fs::copy(archive, &grouped).map_err(|e| format!("copy {}: {e}", archive.display()))?;
+    run(Command::new(&ar).current_dir(&work).arg("r").arg(&grouped).arg(MEMBER))?;
+    let (hot, keys) = crate::hottext::group_ldso(&ar, &grouped, &list_path, &product.join("ldso-hot-work"))?;
+    fs::remove_file(work.join(MEMBER)).map_err(|e| e.to_string())?;
+    run(Command::new(&ar).current_dir(&work).arg("x").arg(&grouped).arg(MEMBER))?;
+    run(Command::new(&ar).arg("d").arg(&grouped).arg(MEMBER))?;
+    println!("so: {}: {hot} function sections grouped as start-up text ({keys} traced keys, {})", niji_ld::arch::Native::INTERP, list_path.display());
+    Ok((work.join(MEMBER), grouped))
 }
 
 /// getconf's name table (UTIL-5) as C: each name of `spec/abi/getconf.tsv` with the kind and number of its constant
@@ -1628,14 +1748,30 @@ fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
 ///   transcripts (`cargo xtask transcript`) run it on libniji's library on a host whose system C library is
 ///   another one. Kept out of `target/niji`: it names build paths.
 pub(crate) const GETENT_TEST: &str = "target/niji-test/getent";
+/// iconv (UTIL-7, spec §31.6): `csys/util/iconv.c`, a thin front end over `iconv(3)`, built as getent is.
+pub(crate) const ICONV_TEST: &str = "target/niji-test/iconv";
+
+/// locale (UTIL-8, spec §31.7): `csys/util/locale.c`, a front end over `setlocale` and `nl_langinfo`, linked as
+/// getent is: `target/niji/locale` (libc-bin's `/usr/bin/locale`) and the test link `target/niji-test/locale`.
+pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
 
 fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
+    run_dynamic_util(root, cc, "getent", GETENT_TEST)?;
+    run_dynamic_util(root, cc, "locale", LOCALE_TEST)
+}
+
+fn run_iconv(root: &Path, cc: &str) -> Result<(), String> {
+    run_dynamic_util(root, cc, "iconv", ICONV_TEST)
+}
+
+/// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
+fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    let obj = product.join("getent.o");
+    let obj = product.join(format!("{name}.o"));
     run(Command::new(cc)
         .args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-asynchronous-unwind-tables", "-c"])
-        .arg(root.join("csys/util/getent.c"))
+        .arg(root.join(format!("csys/util/{name}.c")))
         .arg("-o")
         .arg(&obj))?;
     let link = |out: &Path, interp: &Path, libc: &Path| -> Result<(), String> {
@@ -1653,13 +1789,13 @@ fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
         run(c.arg("-o").arg(&staged))?;
         publish(&staged, out)
     };
-    link(&release.join("getent"), Path::new("/lib64/ld-linux-x86-64.so.2"), &release.join("libc.so.6"))?;
-    let test = root.join(GETENT_TEST);
-    let dir = test.parent().unwrap_or(root);
+    link(&release.join(name), Path::new("/lib64/ld-linux-x86-64.so.2"), &release.join("libc.so.6"))?;
+    let test_path = root.join(test);
+    let dir = test_path.parent().unwrap_or(root);
     fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let by_path = crate::native_examples::libc_by_path(&release.join("libc.so.6"), dir)?;
-    link(&test, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
-    println!("so: target/niji/getent (dynamic, libc.so.6), {GETENT_TEST} (this tree's loader and library)");
+    link(&test_path, &release.join("ld-linux-x86-64.so.2"), &by_path)?;
+    println!("so: target/niji/{name} (dynamic, libc.so.6), {test} (this tree's loader and library)");
     Ok(())
 }
 
@@ -1727,6 +1863,13 @@ fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
     }
     if out.is_empty() {
         out.push_str("{\n  local: *;\n};\n");
+    }
+    // The reference's nodes no symbol carries (crate::empty_versions): no symbol, the reference's
+    // parent, and `local: *` so that ld does not flag the definition WEAK.
+    for (ver, parent) in crate::empty_versions::nodes(root, soname)? {
+        if !nodes.contains_key(&ver) {
+            out.push_str(&format!("{ver} {{\n  local: *;\n}} {parent};\n"));
+        }
     }
     Ok(out)
 }

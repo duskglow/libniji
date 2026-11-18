@@ -1,0 +1,9 @@
+# Plants of slice 14 (cargo xtask plants; docs/plants.md). The templates, the generator and spec/abi rows are checked by
+# `headers-gen --check` (the committed libc-include/ must equal the regenerated output).
+s14-log-upto | headers/syslog.h.in | lit:# define LOG_UPTO(pri) ((1 << ((pri) + 1)) - 1) ==> # define LOG_UPTO(pri) ((1 << (pri)) - 1) | cargo xtask headers-gen --check | msg:headers-gen
+s14-shmlba-symbol | headers/sys/shm.h.in | lit:__asm__ ("getpagesize") ==> __asm__ ("getpagesize_x") | cargo xtask headers-gen --check | msg:headers-gen
+s14-kernel-ioctls | headers/pty.h.in | lit:#include <asm/ioctls.h> ==> #include <asm/ioctl.h> | cargo xtask headers-gen --check | msg:headers-gen
+s14-fdset-block | headers/utmp.h.in | lit:@@owns FD_CLR FD_ISSET FD_ZERO ==> @@owns FD_CLR FD_ISSET | cargo xtask headers-gen --check | msg:headers-gen
+s14-ttydef-row | spec/abi/macros.tsv | perl:s/(TTYDEF_SPEED\tpty\.h\tint\t)13/${1}14/ | cargo xtask headers-gen --check | msg:headers-gen
+s14-agg-key | xtask/src/headers.rs | lit:key.starts_with("struct ") && !r["member"].contains('.') ==> !r["member"].contains('.') | cargo xtask headers-gen --check | msg:headers-gen
+s14-cover-mask | xtask/src/headers.rs | lit:own & !**m & !t.lv.reject == 0 ==> true | cargo xtask headers-gen --check | msg:headers-gen

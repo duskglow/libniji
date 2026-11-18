@@ -1,0 +1,12 @@
+id = "D-6.16"
+section = "s06"
+spec = "§6.4"
+ann = "ARB"
+status = "active"
+amends = ["D-6.8"]
+story = "SYS-ICONV-COVERAGE"
+date = "2026-11-17"
+tests = ["crates/core/tests/iconv_charmaps_products.rs"]
+body = '''
+**Charmaps generated from public mapping tables, shipped in libc6** (issue #6). With only libniji's packages, 1122 of the reference's 1180 `iconv -l` names failed `iconv_open`: no libniji package shipped `/usr/share/i18n/charmaps` (D-6.8 reads converters from there), and a process loaded at most 32 charmaps. `cargo xtask so` now writes one POSIX charmap per row of `spec/encoding/charmaps.tsv` from a Unicode Consortium mapping table vendored unchanged in `spec/encoding/unicode/` (Unicode terms of use), never from C-library data; the system `libc6` installs them in `/usr/share/i18n/charmaps`, as the reference's converters are in its base package. A row is added only when the table's decoding of every byte equals the reference converter (black-box probe); its `% alias` lines are the other `iconv -l` names that probe groups with it. First set: 43 single-byte charsets (ISO-8859-2..16, CP125x, IBM PC and EBCDIC pages, KOI8-R/U, RK1048, MAC-CENTRALEUROPE), 281 names. **No fixed number of charmaps per process** (SYS-ICONV-COVERAGE-2; owner principle: resource bounds are the process's own limits): the loaded charmaps are a table that doubles by fallible allocation, under the locale lock; when memory for a charmap (the file's mapping, its parse, a larger table, the descriptor) cannot be had, `iconv_open` fails with `ENOMEM` (POSIX lists it) and every charmap already loaded stays usable; a later call retries. Before, the 33rd (then 257th) distinct charset failed `EINVAL`. `iconv_charmaps_products.rs` loads 300 charmaps in one process, then exhausts `RLIMIT_AS`. **Tag characters**: a charmap converter writes U+E0000..U+E007F as nothing, as EUC-JP does (D-6.15); the reference's encoders do so for every generated charset (whole code-space probe). Published mapping files that end with a DOS end-of-file byte (0x1A) are read up to it.
+'''

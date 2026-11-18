@@ -1,5 +1,6 @@
 # The feature levels features.h computes in each configuration of spec/abi/ftm-configs.tsv (same ids and order),
 # from feature_test_macros(7), POSIX XSH 2.2.1 and the C/C++ standard versions (plan/headers.md 2.3).
+# cxx: 0 C, 1 C++98/03, 2 C++11, 3 C++14 or later.
 # isoc: year of the C standard whose names are visible; xsi: 400 XPG4, 450 X/Open extended, 500/600/700 SUSv2-4.
 # reject 1: features.h refuses the configuration (_TIME_BITS=64 without _FILE_OFFSET_BITS=64).
 id	isoc	posix	xsi	misc	gnu	lfs64	fob64	time64	dynstack	fortify	cxx	reject
@@ -38,8 +39,8 @@ fortify1	2017	200809	0	1	0	0	0	0	0	1	0	0
 fortify2	2017	200809	0	1	0	0	0	0	0	2	0	0
 fortify3	2017	200809	0	1	0	0	0	0	0	3	0	0
 cxx98	2023	200809	700	1	1	1	0	0	1	0	1	0
-cxx11	2023	200809	700	1	1	1	0	0	1	0	1	0
-cxx14	2023	200809	700	1	1	1	0	0	1	0	1	0
-cxx17	2023	200809	700	1	1	1	0	0	1	0	1	0
-cxx20	2023	200809	700	1	1	1	0	0	1	0	1	0
-cxx23	2023	200809	700	1	1	1	0	0	1	0	1	0
+cxx11	2023	200809	700	1	1	1	0	0	1	0	2	0
+cxx14	2023	200809	700	1	1	1	0	0	1	0	3	0
+cxx17	2023	200809	700	1	1	1	0	0	1	0	3	0
+cxx20	2023	200809	700	1	1	1	0	0	1	0	3	0
+cxx23	2023	200809	700	1	1	1	0	0	1	0	3	0

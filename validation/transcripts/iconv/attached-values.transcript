@@ -1,0 +1,12 @@
+name: -fNAME -tNAME, UTF-16 writes a BOM
+clause: s31_6_i_1
+command: iconv
+arg: -fUTF-8
+arg: -tUTF-16
+stdin:
+|~ x\n
+status: exit 0
+stdout:
+| \xff\xfex\x00
+|~ \x00
+stderr:

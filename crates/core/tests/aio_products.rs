@@ -45,10 +45,10 @@ fn build(out: &Path, niji: bool) -> bool {
     oracle::build_quiet(cmd, out)
 }
 
-const LONG: &str = "D-11.8: a list is read entry by entry, so any length works (AIO_LISTIO_MAX has no fixed value: sysconf -1, as the reference's); the reference crashes (SIGSEGV) on a list of 1048576 entries";
-const NEG: &str = "D-11.8: a negative nent is an empty list, as the reference treats -1; the reference crashes (SIGSEGV) for INT_MIN";
-const EINTR: &str = "D-11.8: LIO_WAIT ended by a handler returns EINTR and keeps nothing of the call, so the remaining entry completes normally; in the reference that completion kills the process (SIGSEGV)";
-const NULLFN: &str = "D-11.8: SIGEV_THREAD without a function is EINVAL at submission (as timer_create and mq_notify, D-23.3, D-25.5); the reference accepts it and crashes (SIGSEGV) when the request completes";
+const LONG: &str = "D-11.8: a list is read entry by entry, so any length works (AIO_LISTIO_MAX has no fixed value: sysconf -1, as the reference's)";
+const NEG: &str = "D-11.8: a negative nent is an empty list, as the reference treats -1 (every negative value, INT_MIN included)";
+const EINTR: &str = "D-11.8: LIO_WAIT ended by a handler returns EINTR and keeps nothing of the call, so the remaining entry completes normally";
+const NULLFN: &str = "D-11.8: SIGEV_THREAD without a function is EINVAL at submission (as timer_create and mq_notify, D-23.3, D-25.5): nothing could be notified at the completion";
 const FORK: &str = "D-11.8 (POSIX fork: no asynchronous operation is inherited): a fork child's own requests run, and its aio_cancel knows only its own requests; the reference's child cannot run a new request when forked during or shortly after one, and reports the parent's request as its own";
 const CLOSE: &str = "D-11.8 (POSIX close: a request may be cancelled; one not cancelled completes as if the descriptor were open): close cancels the requests on the descriptor that have not started (ECANCELED); the reference runs the queued request after the close, on the closed descriptor (EBADF)";
 

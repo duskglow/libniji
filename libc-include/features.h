@@ -18,11 +18,15 @@
 #define __GLIBC_MINOR__ 39
 #define __GLIBC_PREREQ(maj, min) ((__GLIBC__ << 16) + __GLIBC_MINOR__ >= ((maj) << 16) + (min))
 
-/* C++ or C. */
-#ifdef __cplusplus
-# define __NIJI_CXX 1
-#else
+/* C++ or C: 0 in C, 1 in C++98 and C++03, 2 in C++11, 3 in C++14 and later. */
+#ifndef __cplusplus
 # define __NIJI_CXX 0
+#elif __cplusplus >= 201402L
+# define __NIJI_CXX 3
+#elif __cplusplus >= 201103L
+# define __NIJI_CXX 2
+#else
+# define __NIJI_CXX 1
 #endif
 
 /* GNU: everything (feature_test_macros(7), _GNU_SOURCE). g++ predefines _GNU_SOURCE. */

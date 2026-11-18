@@ -1,0 +1,7 @@
+# SYS-ABI-DT-RELR plants: cargo xtask plants handoff/SYS-ABI-DT-RELR-plants.txt (docs/plants.md).
+# The product's version scripts define the reference's symbol-less nodes (spec/abi/empty-versions.tsv); the
+# product build's export check (cargo xtask so) and the module's unit tests must catch each removal.
+drop-libc-node | xtask/src/so.rs | lit:        nodes.entry(ver).or_default(); ==> let _ = ver; | cargo xtask so | msg:libc\.so\.6 does not define the version node GLIBC_ABI_DT_RELR|libm\.so\.6 does not define the version node GLIBC_2\.4
+drop-ld-node | xtask/src/so.rs | lit:            out.push_str(&format!("{ver} {{\n}};\n")); ==> let _ = &ver; | cargo xtask so | msg:ld-linux-x86-64\.so\.2 does not define the version node GLIBC_2\.4
+check-accepts-needed | xtask/src/empty_versions.rs | lit:!defined.iter().any(|(n, base)| !base && n == v) ==> !readelf_v.contains(v.as_str()) | cargo test -p xtask --bin xtask empty_versions | msg:a_defined_node_passes_and_a_missing_one_is_named.*(FAILED|panicked)|panicked.*empty_versions
+honour-any-node | xtask/src/empty_versions.rs | lit:        if !HONOURED.iter().any(|(l, v, _)| l == lib && v == ver) { ==>         if false { | cargo test -p xtask --bin xtask empty_versions | msg:a_node_not_honoured_is_refused.*(FAILED|panicked)|panicked.*empty_versions

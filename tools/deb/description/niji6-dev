@@ -1,0 +1,6 @@
+libniji C library (development files and compiler wrapper)
+ libniji is an implementation of the GNU C Library's ABI (glibc $abi, x86-64).
+ This package installs the start files, linker scripts and static archives in
+ the sysroot /usr/lib/niji, and niji-gcc and niji-g++, which build
+ programs that run on libniji's loader. Programs compile with the system's C
+ headers (from libc6-dev).

@@ -134,6 +134,10 @@ impl Pages for KernelPages {
     fn exclude_from_dumps(&self, addr: usize, len: usize) {
         let _ = raw::madvise_dontdump(addr, len);
     }
+    // TRACE-NUMA-PIN: out of line, the one entry every node read of the heap passes (`OwnPages`
+    // calls it too); the hot-text tracer answers it from its virtual topology
+    // (tools/hottext/trace_gdb.py), since the rseq area's `node_id` has no entry of its own.
+    #[inline(never)]
     fn shard(&self) -> usize {
         node_hint()
     }

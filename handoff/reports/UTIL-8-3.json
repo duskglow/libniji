@@ -1,0 +1,55 @@
+{
+ "task": "UTIL-8-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "locale plants file fixed (5 refused multi-line lit patterns rewritten); two surviving plants led to a grouping fix (CHAR_MAX printed as -1, was 127) and a back-referenced gzip charmap case; 15/15 plants caught, 49/49 transcripts equal to the reference",
+ "branch": "task/util-8-3",
+ "head": null,
+ "gate": {
+  "affected": "util-8-3-gate3: 32 suites ok, 12073 passed / 0 failed, conformance 137/0; transcripts util-8-3-rec2: 49 ok / 0 mismatched",
+  "peak": "14G (page cache included) oom_kill=0"
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "util-8-2-plants was refused because lit: patterns cannot span lines or use escapes; the tool's refusal message could name the plant and say why (one-line lit)",
+  "kill-label ended the gate's wrapper but its test processes kept running in the role (sync BUSY until kill-mine)",
+  "kill-mine <role> also ends a plants job whose xtask runs from the role (util-8-3-plants2 rc 143); use --except <label>",
+  "Open items from UTIL-8-2 unchanged: C/C.UTF-8 LC_CTYPE class/map/width items (a section 7 story), .bz2 charmaps by name only"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "locale -k grouping/mon_grouping of a locale whose grouping ends in -1 (no further grouping): prints -1, was 127",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "locale transcripts recorded from the reference, all equal",
+   "before": 48,
+   "after": 49,
+   "unit": "transcripts",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on csys/util/locale.c run through cargo xtask plants (util-8-3-plants3: 15 CAUGHT)",
+   "before": 0,
+   "after": 15,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "plants files: a local site-count check before the job (lit one-line, perl /g exactly once) would have saved the refused run; xtask plants could offer --check",
+ "next_step": "land; then the section 7 story for the C/C.UTF-8 LC_CTYPE class/map/width items; archive cases need the UTIL-12 writer",
+ "report_file": "handoff/UTIL-8.md",
+ "jobs": [
+  "util-8-3-lint3",
+  "util-8-3-gate3",
+  "util-8-3-plants3"
+ ]
+}

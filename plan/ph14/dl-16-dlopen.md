@@ -241,8 +241,8 @@ P-13 `dlopen` of the program by path, of `ld.so`, of `libc.so.6` by name (same h
 
 **DL-16P `DL-DLOPEN-PROBES`.** Settle probes P-1 to P-13 of `plan/ph14/dl-16-dlopen.md` §6 against the reference, black
 box only, as programs under `tools/probe/dl/<topic>/` with a `run.sh SCRATCH`, and record each answer as a row of
-`spec/behaviour/dynlink.md` (+ the raw lines in `dynlink.glibc.txt`). No product code. Where an answer is undefined or
-unsafe in the reference (a crash, a deadlock), record it as such: DL-16 specifies it (#2607 principle).
+`spec/behaviour/dynlink.md` (+ the raw lines in `dynlink.glibc.txt`). No product code. Where an answer is undefined, record
+only that, never the reference's failure (SECURITY-PRIVATE rule): DL-16 specifies libniji's defined result (#2607 principle).
 
 **DL-16H `CONF-DYN-HELPERS`.** Give the conformance harness a dynamic mode: a directive in a `conformance/c` program
 names helper sources that are built as shared objects, and the program is linked dynamically and run under libniji's

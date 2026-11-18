@@ -1,0 +1,15 @@
+@@generated
+/* lastlog.h: last login records (lastlog(5)): the record layout is <utmp.h>'s. */
+#ifndef __NIJI_H_lastlog_h
+#define __NIJI_H_lastlog_h 1
+
+#include <features.h>
+#include <utmp.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

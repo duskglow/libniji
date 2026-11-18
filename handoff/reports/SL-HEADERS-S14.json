@@ -1,0 +1,14 @@
+{"task": "SL-HEADERS-S14", "model": "sonnet", "tokens": null,
+ "result": "22 of 24 slice 14 headers generated (aio.h, mqueue.h open); P5 and P1 green (0 of 3101 failed); P2, P3, P6, P7 not run",
+ "branch": "task/sl-headers-s14", "head": "e0242de84",
+ "gate": {"affected": "see jobs", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": [
+  {"item": "termios.h then the kernel's asm/ioctls.h gives a TIOCSER_TEMT redefinition warning (1 vs 0x01)", "recommendation": "emit the kernel's spelling or let slice 7 own the ioctl constants"},
+  {"item": "python in-place edits were used on xtask/src/headers.rs twice before the rule was re-read", "recommendation": "none"}],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "slice 14 headers generated and checked by P5 and P1", "before": 0, "after": 22, "unit": "headers", "measured": true},
+           {"kind": "coverage", "what": "plants added", "before": 0, "after": 7, "unit": "plants", "measured": true}],
+ "improvement": "header_check could stage the kernel UAPI links itself for every slice; type_probe picks the alphabetically first header for a macro, which hides values (--retry-missing)",
+ "next_step": "generate sigevent, aiocb64, f_owner_ex; then aio.h and mqueue.h; then P2, P3, P6, P7",
+ "report_file": "handoff/SL-HEADERS-S14.md",
+ "jobs": ["keke:sl-headers-s14-lint2", "keke:sl-headers-s14-plants", "keke:sl-headers-s14-gate"]}

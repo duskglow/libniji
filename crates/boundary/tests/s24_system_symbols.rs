@@ -441,7 +441,7 @@ fn sym_gethostname() {
     let len = uts_len(&uts().nodename);
     name_sizes("gethostname", "gethostname", len, |b| s::gethostname(b.as_mut_ptr().cast(), b.len()));
     errno::set_raw(0);
-    assert!(fails(s::gethostname(null_mut(), 10) as isize, EFAULT), "NULL with a size (glibc crashes)");
+    assert!(fails(s::gethostname(null_mut(), 10) as isize, EFAULT), "NULL with a size is EFAULT (S6)");
 }
 #[test]
 fn sym___gethostname_chk() {
