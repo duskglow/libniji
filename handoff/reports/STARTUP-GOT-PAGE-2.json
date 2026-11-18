@@ -1,0 +1,20 @@
+{"task": "STARTUP-GOT-PAGE-2", "model": "opus", "tokens": null,
+ "result": "PENDING JOBS: start-up reads no .got and reads RELRO's first 64 KiB window once at a fixed point (ruling #6541 option B); FLOAT_BOUND 3, STARTUP-DATA-WINDOWS 7, tool 43 = base, relayed true 11 = base; lint2 green, FULL gate3 and plants3 still running at hand-back",
+ "branch": "task/startup-got-page-2", "head": null,
+ "gate": {"affected": "startup-got-page-2-gate3 (static rc 0; FULL affected + release so + hot_text_products) running at hand-back; lint2 (clippy all-targets + static) rc 0", "peak": null},
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": ["ruling note 'true 81 or better': with option B the true probe is at base level (relayed 11 = 11, perf stat mean 81/81/82 within the probe's 100-105 minflt spread); run 1's 82 -> 81 came from start-up reading no relro at all, which B restores by design",
+                   "option C (page-aligned .got) was not built: B measured at base level and its instructions:u delta (true +22, tool +20 on next; -16 / -9 on LSG-5 merged) is inside the build-to-build spread"],
+ "refused": [],
+ "impact": [
+  {"kind": "faults", "what": "first %.2f call-only faults with start-up reading no .got (origin/next and LSG-5 merged)", "before": 4, "after": 3, "unit": "faults", "measured": true},
+  {"kind": "faults", "what": "STARTUP-DATA-WINDOWS on the LOCALE-SLOTS-GROWTH-5 merged head", "before": 8, "after": 7, "unit": "pages", "measured": true},
+  {"kind": "size", "what": "runtime::start text (layout-bins, bin 0)", "before": 5902, "after": 5926, "unit": "bytes", "measured": true},
+  {"kind": "correctness", "what": "start-up data classifier no longer counts a cmp/test immediate as a start-up data touch (data1 cluster test was red with the relaxation)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "plants for D-X.122 (relaxation, cmp drop, step-1 redirect, relro read, cmp immediate)", "before": 0, "after": 6, "unit": "plants", "measured": false}
+ ],
+ "improvement": "a killed gate left traced-build children (regen.sh, gdb) running with a cwd outside the role, invisible to kill-mine; kill-label/kill-mine should kill by the job's cgroup scope, not by cwd",
+ "next_step": "collect keke:startup-got-page-2-gate3 and keke:startup-got-page-2-plants3 (~/bin/jobwait startup-got-page-2-gate3 startup-got-page-2-plants3); green = land; red = fix and rerun the failing suite only",
+ "report_file": "handoff/STARTUP-GOT-PAGE.md",
+ "jobs": ["keke:startup-got-page-2-lint2", "keke:startup-got-page-2-gate3", "keke:startup-got-page-2-plants3"]}

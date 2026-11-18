@@ -40,8 +40,13 @@ the `$` immediates of `cmp`/`test` are skipped (memory operands still count). Pl
 gated (see next step). Run 1's handoff did not list this failure.
 
 ## Jobs
-* Final-head code: b91d73666. `startup-got-page-2-lint1` (clippy all-targets + static, rc 0) was on cb4eeb062:
-  rerun clippy + static on the final head.
+* Final-head code: b91d73666 (later commits are handoff/report only). Leg 2 synced the role (rc 0; no orphaned trace
+  processes were left by then) and ran on keke:~/w/n1: `startup-got-page-2-lint2` (clippy --workspace --all-targets
+  --all-features -D warnings + `cargo xtask static`) rc 0; `startup-got-page-2-gate3` (`gate3.sh`: static rc 0, then
+  FULL affected, then NIJI_FULL_PROFILE so + hot_text_products) and `startup-got-page-2-plants3` (6 plants, dir
+  /dev/shm/claude/startup-got-page-2/plants-3; baselines 1-3 ok, so and so-traced ok) were STILL RUNNING at the
+  wall-time deadline. Gate logs: ~/logs/startup-got-page-2-g3-{static,affected,xtest,rel}.out.
+* `startup-got-page-2-lint1` (rc 0) was on cb4eeb062, superseded by lint2.
 * SUPERSEDED: `startup-got-page-2-gate` (killed: pre-fix tree; its affected step FAILED on the data1 test above),
   `startup-got-page-2-plants` (rc 2: my `--timeout 600` timed out the traced baseline; a traced so takes ~1100 s),
   `startup-got-page-2-plants2` (killed: pre-fix tree), `-lint0` (inherited head, rc 0), proofs/relay (evidence,
@@ -53,17 +58,10 @@ gated (see next step). Run 1's handoff did not list this failure.
 * Do not re-measure options A or C. Do not move the read into a `#[cold]` function: it runs on every static start,
   so a cold call would cost a text fault.
 
-## Exact next step (leg 2)
-1. The role keke:~/w/n1 was BUSY at the end of leg 1: orphaned `tools/hottext/regen.sh` / `gdb ... trace_gdb.py`
-   processes from the killed gate (cwd outside the role, so `kill-mine` misses them). List them with the sync's
-   BUSY output (it prints PIDs), end them by PID in a separate ssh call, then sync (`sync_role.sh ... keke n1`, rc 0).
-2. Start detached on keke: `startup-got-page-2-lint2` (clippy --workspace --all-targets --all-features -D warnings +
-   `cargo xtask static`); then `startup-got-page-2-gate3` = `~/bin/gate 16G sh ~/work/startup-got-page-2/gate3.sh`
-   (static, affected --base origin/next which escalates to FULL and runs `cargo xtask test`, then
-   NIJI_FULL_PROFILE so + hot_text_products); and `startup-got-page-2-plants3` = `cargo xtask plants
-   handoff/STARTUP-GOT-PAGE-2-plants.txt --dir /dev/shm/claude/startup-got-page-2/plants-3 --timeout 3600`
-   (6 plants). Wait for them (gate ~2 h: FULL affected took 63 min).
-3. Write handoff/reports/STARTUP-GOT-PAGE-2.json (impact: correctness (FLOAT_BOUND 4 -> 3 restored on the branch),
-   faults (STARTUP-DATA-WINDOWS 8 -> 7 on LSG-5 merged), size (+24 B runtime::start), coverage (6 plants)), push,
-   `ops handback-check`, hand back with JOBS lint2, gate3, plants3.
+## Exact next step
+Leg 2 did steps 1-3 of the old list (sync, lint2, gate3 + plants3 started, report json written). Remaining:
+collect `~/bin/jobwait startup-got-page-2-gate3 startup-got-page-2-plants3` on keke. Green = land (the report json
+then needs only `head` and the gate line). Red = find the cause, fix, rerun only the failing suite or plant, hand back.
+Do not re-sync keke:~/w/n1 while gate3 runs (the handoff/report commits after db97397a7 are not on the role and do
+not need to be: no code changed).
 Plan rows: D-X.101, D-X.15, D-X.122.
