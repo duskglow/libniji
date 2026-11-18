@@ -92,8 +92,8 @@
 //!    (`LAYOUT_TESTS`). Their programs link statically against `libc.a`, so growth anywhere in it can move start-up
 //!    pages. Not selected for `ld.so`-only code (boundary's `ld` feature), other crates, tests and docs.
 //! 10. HEADERS-ABI-REGEN, in addition and in every tier: a table that feeds more than one generator (`GEN_PRECHECKS`:
-//!    `spec/abi/layouts.tsv` -> `abi-gen --check`, `headers-gen --check`, `stubs`) runs those checks first, in process;
-//!    a red one ends the run in seconds, before an escalated FULL run starts.
+//!     `spec/abi/layouts.tsv` -> `abi-gen --check`, `headers-gen --check`, `stubs`) runs those checks first, in
+//!     process; a red one ends the run in seconds, before an escalated FULL run starts.
 //!
 //! TIERS (GATE-TIER, coordinator ruling 10-11): `--tier direct` (the DEFAULT, per-fix gates) applies rule 4 to EVERY
 //! crate's non-root module through `Selection::narrow_direct`: the changed module, its one-hop users, the targets
