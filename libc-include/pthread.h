@@ -93,11 +93,15 @@ typedef union {
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
+typedef union {
+  unsigned long long __value64;
+} __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
+typedef union {
+  unsigned long long __value64;
+} __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D_struct___pthread_cond_s
 #  define __NIJI_D_struct___pthread_cond_s 1
@@ -919,12 +923,12 @@ enum { PTHREAD_SCOPE_SYSTEM = 0 };
 
 /* Static initializers: the bytes of initializers.tsv, as the members of the object they initialise. */
 #if 1
-# define PTHREAD_MUTEX_INITIALIZER { { 0, 0, 0, 0, 0, 0, 0, 0 } }
+# define PTHREAD_MUTEX_INITIALIZER { { 0, 0, 0, 0, 0, 0, 0, { 0, 0 } } }
 #endif
 #if __NIJI_GNU
-# define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 1, 0, 0, 0 } }
-# define PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 2, 0, 0, 0 } }
-# define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 3, 0, 0, 0 } }
+# define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 1, 0, 0, { 0, 0 } } }
+# define PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 2, 0, 0, { 0, 0 } } }
+# define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP { { 0, 0, 0, 0, 3, 0, 0, { 0, 0 } } }
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
 # define PTHREAD_RWLOCK_INITIALIZER { { 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0 }, 0, 0 } }
@@ -933,7 +937,7 @@ enum { PTHREAD_SCOPE_SYSTEM = 0 };
 # define PTHREAD_RWLOCK_WRITER_NONRECURSIVE_INITIALIZER_NP { { 0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0 }, 0, 2 } }
 #endif
 #if 1
-# define PTHREAD_COND_INITIALIZER { { 0, 0, { 0, 0 }, { 0, 0 }, 0, 0, { 0, 0 } } }
+# define PTHREAD_COND_INITIALIZER { { { 0 }, { 0 }, { 0, 0 }, { 0, 0 }, 0, 0, { 0, 0 } } }
 #endif
 
 /* The handler chain of the pre-unwinding interface: the buffer is the caller's, linked through __prev. */

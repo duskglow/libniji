@@ -12,11 +12,6 @@
 //!
 //! Opaque members (inner layout not checked; declared from their table extent):
 //! * `siginfo_t__sifields__sigfault._bounds (union <anon>)`
-//! * `ucontext_t__fpregs_mem._st (struct _libc_fpxreg[8])`
-//! * `ucontext_t__fpregs_mem._xmm (struct _libc_xmmreg[16])`
-//! * `pthread_cond_t__data__wseq.__value32 (struct <anon>)`
-//! * `pthread_cond_t__data__g1_start.__value32 (struct <anon>)`
-//! * `__pthread_unwind_buf_t.__cancel_jmp_buf (struct __cancel_jmp_buf_tag[1])`
 //! * `struct___res_state.sort_list (struct <anon>[10])`
 //! * `Dl_serinfo__anon_16.dls_serpath (Dl_serpath[0])`
 //! * `Dl_serinfo__anon_16.__dls_serpath_pad (Dl_serpath[1])`
@@ -287,24 +282,12 @@ pub struct struct_lconv {
     pub int_n_sign_posn: i8,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct jmp_buf__saved_mask {
-    pub __val: [u64; 16],
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct jmp_buf {
     pub __jmpbuf: [i64; 8],
     pub __mask_was_saved: i32,
-    pub __saved_mask: jmp_buf__saved_mask,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct sigjmp_buf__saved_mask {
-    pub __val: [u64; 16],
+    pub __saved_mask: __sigset_t,
 }
 
 #[repr(C, align(8))]
@@ -312,13 +295,7 @@ pub struct sigjmp_buf__saved_mask {
 pub struct sigjmp_buf {
     pub __jmpbuf: [i64; 8],
     pub __mask_was_saved: i32,
-    pub __saved_mask: sigjmp_buf__saved_mask,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct___jmp_buf_tag__saved_mask {
-    pub __val: [u64; 16],
+    pub __saved_mask: __sigset_t,
 }
 
 #[repr(C, align(8))]
@@ -326,7 +303,7 @@ pub struct struct___jmp_buf_tag__saved_mask {
 pub struct struct___jmp_buf_tag {
     pub __jmpbuf: [i64; 8],
     pub __mask_was_saved: i32,
-    pub __saved_mask: struct___jmp_buf_tag__saved_mask,
+    pub __saved_mask: __sigset_t,
 }
 
 #[repr(C, align(8))]
@@ -421,17 +398,11 @@ pub union struct_sigaction__sigaction_handler {
     pub sa_sigaction: usize,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct struct_sigaction__sa_mask {
-    pub __val: [u64; 16],
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct struct_sigaction {
     pub __sigaction_handler: struct_sigaction__sigaction_handler,
-    pub sa_mask: struct_sigaction__sa_mask,
+    pub sa_mask: __sigset_t,
     pub sa_flags: i32,
     pub sa_restorer: usize,
 }
@@ -451,22 +422,6 @@ pub struct struct_sigstack {
     pub ss_onstack: i32,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct ucontext_t__fpregs_mem {
-    pub cwd: u16,
-    pub swd: u16,
-    pub ftw: u16,
-    pub fop: u16,
-    pub rip: u64,
-    pub rdp: u64,
-    pub mxcsr: u32,
-    pub mxcr_mask: u32,
-    pub _st: [u64; 16],
-    pub _xmm: [u64; 32],
-    pub __glibc_reserved1: [u32; 24],
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct ucontext_t {
@@ -475,7 +430,7 @@ pub struct ucontext_t {
     pub uc_stack: stack_t,
     pub uc_mcontext: mcontext_t,
     pub uc_sigmask: sigset_t,
-    pub __fpregs_mem: ucontext_t__fpregs_mem,
+    pub __fpregs_mem: struct__libc_fpstate,
     pub __ssp: [u64; 4],
 }
 
@@ -536,30 +491,10 @@ pub union pthread_attr_t {
     pub __align: i64,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct pthread_mutex_t__data__list {
-    pub __prev: usize,
-    pub __next: usize,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct pthread_mutex_t__data {
-    pub __lock: i32,
-    pub __count: u32,
-    pub __owner: i32,
-    pub __nusers: u32,
-    pub __kind: i32,
-    pub __spins: i16,
-    pub __elision: i16,
-    pub __list: pthread_mutex_t__data__list,
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub union pthread_mutex_t {
-    pub __data: pthread_mutex_t__data,
+    pub __data: struct___pthread_mutex_s,
     pub __size: [i8; 40],
     pub __align: i64,
 }
@@ -571,36 +506,10 @@ pub union pthread_mutexattr_t {
     pub __align: i32,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub union pthread_cond_t__data__wseq {
-    pub __value64: u64,
-    pub __value32: [u64; 1],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub union pthread_cond_t__data__g1_start {
-    pub __value64: u64,
-    pub __value32: [u64; 1],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct pthread_cond_t__data {
-    pub __wseq: pthread_cond_t__data__wseq,
-    pub __g1_start: pthread_cond_t__data__g1_start,
-    pub __g_refs: [u32; 2],
-    pub __g_size: [u32; 2],
-    pub __g1_orig_size: u32,
-    pub __wrefs: u32,
-    pub __g_signals: [u32; 2],
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub union pthread_cond_t {
-    pub __data: pthread_cond_t__data,
+    pub __data: struct___pthread_cond_s,
     pub __size: [i8; 48],
     pub __align: i64,
 }
@@ -612,27 +521,10 @@ pub union pthread_condattr_t {
     pub __align: i32,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct pthread_rwlock_t__data {
-    pub __readers: u32,
-    pub __writers: u32,
-    pub __wrphase_futex: u32,
-    pub __writers_futex: u32,
-    pub __pad3: u32,
-    pub __pad4: u32,
-    pub __cur_writer: i32,
-    pub __shared: i32,
-    pub __rwelision: i8,
-    pub __pad1: [u8; 7],
-    pub __pad2: u64,
-    pub __flags: u32,
-}
-
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub union pthread_rwlock_t {
-    pub __data: pthread_rwlock_t__data,
+    pub __data: struct___pthread_rwlock_arch_t,
     pub __size: [i8; 56],
     pub __align: i64,
 }
@@ -682,8 +574,206 @@ pub struct struct__pthread_cleanup_buffer {
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
 pub struct __pthread_unwind_buf_t {
-    pub __cancel_jmp_buf: [u64; 9],
+    pub __cancel_jmp_buf: [struct___cancel_jmp_buf_tag; 1],
     pub __pad: [usize; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___cancel_jmp_buf_tag {
+    pub __cancel_jmp_buf: [i64; 8],
+    pub __mask_was_saved: i32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union sigevent_t__sigev_value {
+    pub sival_int: i32,
+    pub sival_ptr: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct sigevent_t__sigev_un__sigev_thread {
+    pub _function: usize,
+    pub _attribute: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union sigevent_t__sigev_un {
+    pub _pad: [i32; 12],
+    pub _tid: i32,
+    pub _sigev_thread: sigevent_t__sigev_un__sigev_thread,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct sigevent_t {
+    pub sigev_value: sigevent_t__sigev_value,
+    pub sigev_signo: i32,
+    pub sigev_notify: i32,
+    pub _sigev_un: sigevent_t__sigev_un,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct_sigcontext__anon_184 {
+    pub fpstate: usize,
+    pub __fpstate_word: u64,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct_sigcontext {
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
+    pub rdi: u64,
+    pub rsi: u64,
+    pub rbp: u64,
+    pub rbx: u64,
+    pub rdx: u64,
+    pub rax: u64,
+    pub rcx: u64,
+    pub rsp: u64,
+    pub rip: u64,
+    pub eflags: u64,
+    pub cs: u16,
+    pub gs: u16,
+    pub fs: u16,
+    pub __pad0: u16,
+    pub err: u64,
+    pub trapno: u64,
+    pub oldmask: u64,
+    pub cr2: u64,
+    pub __anon_184: struct_sigcontext__anon_184,
+    pub __reserved1: [u64; 8],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct__libc_fpstate {
+    pub cwd: u16,
+    pub swd: u16,
+    pub ftw: u16,
+    pub fop: u16,
+    pub rip: u64,
+    pub rdp: u64,
+    pub mxcsr: u32,
+    pub mxcr_mask: u32,
+    pub _st: [struct__libc_fpxreg; 8],
+    pub _xmm: [struct__libc_xmmreg; 16],
+    pub __glibc_reserved1: [u32; 24],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct__libc_fpxreg {
+    pub significand: [u16; 4],
+    pub exponent: u16,
+    pub __glibc_reserved1: [u16; 3],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct__libc_xmmreg {
+    pub element: [u32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_mutex_s__list {
+    pub __prev: usize,
+    pub __next: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_mutex_s {
+    pub __lock: i32,
+    pub __count: u32,
+    pub __owner: i32,
+    pub __nusers: u32,
+    pub __kind: i32,
+    pub __spins: i16,
+    pub __elision: i16,
+    pub __list: struct___pthread_mutex_s__list,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_rwlock_arch_t {
+    pub __readers: u32,
+    pub __writers: u32,
+    pub __wrphase_futex: u32,
+    pub __writers_futex: u32,
+    pub __pad3: u32,
+    pub __pad4: u32,
+    pub __cur_writer: i32,
+    pub __shared: i32,
+    pub __rwelision: i8,
+    pub __pad1: [u8; 7],
+    pub __pad2: u64,
+    pub __flags: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_cond_s__wseq__value32 {
+    pub __low: u32,
+    pub __high: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct___pthread_cond_s__wseq {
+    pub __value64: u64,
+    pub __value32: struct___pthread_cond_s__wseq__value32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_cond_s__g1_start__value32 {
+    pub __low: u32,
+    pub __high: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union struct___pthread_cond_s__g1_start {
+    pub __value64: u64,
+    pub __value32: struct___pthread_cond_s__g1_start__value32,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_cond_s {
+    pub __wseq: struct___pthread_cond_s__wseq,
+    pub __g1_start: struct___pthread_cond_s__g1_start,
+    pub __g_refs: [u32; 2],
+    pub __g_size: [u32; 2],
+    pub __g1_orig_size: u32,
+    pub __wrefs: u32,
+    pub __g_signals: [u32; 2],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct___pthread_internal_list {
+    pub __prev: usize,
+    pub __next: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct __sigset_t {
+    pub __val: [u64; 16],
 }
 
 #[repr(C, align(8))]

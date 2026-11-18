@@ -269,12 +269,69 @@ def probe_cxx(header, kinds, names_undef, work):
     return out
 
 
+RETRY_HEADERS = 8
+
+
+def retry_missing(args):
+    """Second chance for the macros of the headers in `--headers` that have no row in macros.tsv: the first
+    header (in sorted order) that shows a name may not compile a constant that needs another header's names
+    (`TTYDEF_CFLAG` needs the termios flags), so the name is probed again in the other headers that show it in
+    `gnu`, those of `--headers` first, at most RETRY_HEADERS of them, until it has a value. Existing rows are
+    kept; the new rows are merged into macros.tsv (sorted by name). Names with no value after that (function-like
+    macros, run-time values) stay without a row: a header template owns them."""
+    ids = [c[0] for c in hp.CONFIGS]
+    mine = set(args.headers.split(","))
+    have = {r["name"] for r in hp.tsv("macros.tsv")}
+    shown = {}
+    for r in hp.tsv("visibility.tsv"):
+        if r["kind"] in ("macro", "enumerator") and r["header"] != "-" and in_config(r["configs"], C_CFG[0], ids):
+            shown.setdefault(r["name"], set()).add(r["header"])
+    pending = {n: sorted(hs, key=lambda h: (h not in mine, h)) for n, hs in shown.items()
+               if n not in have and hhs_hit(hs, mine) and not n.startswith("__") and n not in POSITIONAL}
+    found = {}
+    for attempt in range(RETRY_HEADERS):
+        plan = {}
+        for n, hs in pending.items():
+            if n not in found and attempt < len(hs):
+                plan.setdefault(hs[attempt], []).append(n)
+        if not plan:
+            break
+        work = tempfile.mkdtemp(prefix="type_probe.")
+        try:
+            os.makedirs(os.path.join(work, "c"))
+            with ThreadPoolExecutor(max_workers=args.jobs) as ex:
+                res = list(ex.map(lambda h: probe_c(h, {"macro": plan[h]}, set(), os.path.join(work, "c")),
+                                  sorted(plan)))
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+        for h, (_, macros) in zip(sorted(plan), res):
+            for n, tv in macros.items():
+                found[n] = (h, tv[0], tv[1])
+    # The existing lines are kept byte for byte (string values are stored quoted).
+    with open(os.path.join(ABI, "macros.tsv"), newline="") as f:
+        head, *old = f.read().splitlines()
+    rows = old + ["\t".join((n, h, t, v)) for n, (h, t, v) in found.items()]
+    rows.sort(key=lambda r: r.split("\t")[0])
+    with open(os.path.join(args.out, "macros.tsv"), "w", newline="\n") as f:
+        f.write(head + "\n" + "".join(r + "\n" for r in rows))
+    print(f"retry-missing: {len(pending)} names asked, {len(found)} valued, macros.tsv rows {len(rows)}")
+    print("without a value: " + " ".join(sorted(set(pending) - set(found))))
+
+
+def hhs_hit(hs, mine):
+    return bool(hs & mine)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--headers", default="")
     ap.add_argument("--out", default=ABI)
+    ap.add_argument("--retry-missing", action="store_true",
+                    help="probe the macros of --headers that have no macros.tsv row in their other headers")
     args = ap.parse_args()
+    if args.retry_missing:
+        return retry_missing(args)
     ids = [c[0] for c in hp.CONFIGS]
     plan = assignments(ids)
     only = set(args.headers.split(",")) if args.headers else None

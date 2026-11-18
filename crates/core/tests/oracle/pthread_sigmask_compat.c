@@ -9,8 +9,10 @@
  * set, and the resulting one read, by the raw rt_sigprocmask system call, so the C library under
  * test never filters what is observed. Per call it prints the return value, errno (preset to 999),
  * the first 8 bytes of the old set (preset to 0xa5 bytes), how many of the other 120 bytes changed,
- * and the kernel mask afterwards; then whether all of it equals the default version's.
- * The reference and libniji must print the same text (crates/core/tests/crt_products.rs).
+ * and the kernel mask afterwards; then whether all of it equals the default version's. The same
+ * cases go first through sigprocmask, which shares the mask code.
+ * crates/core/tests/crt_products.rs compares libniji's text with the reference's case by case:
+ * equal but for decision D-20.1 (libniji's one reserved signal), which it asserts.
  *
  * Build: cc -O1 pthread_sigmask_compat.c */
 #define _GNU_SOURCE
@@ -86,6 +88,21 @@ int main(void)
         memset(&sets[k], 0, sizeof sets[k]);
         memcpy(&sets[k], &masks[k], sizeof masks[k]);
     }
+    /* sigprocmask (the same mask code in both libraries' terms: return -1 and errno) on the same
+     * cases, printed alone: the test compares these lines with the reference's. */
+    for (int s = 0; s < 2; s++)
+        for (int h = 0; h < 5; h++)
+            for (int k = -1; k < 6; k++)
+                for (int w = 0; w < 2; w++) {
+                    struct obs a;
+                    call(sigprocmask, start[s], hows[h], k < 0 ? NULL : &sets[k], w, &a);
+                    cases++;
+                    printf("sigprocmask(start %016llx, how %d, set %016llx%s, %s) = %d errno %d old %016llx +%d after %016llx\n",
+                           (unsigned long long)start[s], hows[h], (unsigned long long)(k < 0 ? 0 : masks[k]), k < 0 ? " (null)" : "",
+                           w ? "old" : "null", a.ret, a.err, (unsigned long long)a.head, a.tail, (unsigned long long)a.after);
+                }
+    printf("sigprocmask: %d cases\n", cases);
+    cases = 0;
     for (int s = 0; s < 2; s++)
         for (int h = 0; h < 5; h++)
             for (int k = -1; k < 6; k++)

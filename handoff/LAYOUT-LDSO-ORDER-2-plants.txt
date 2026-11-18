@@ -1,0 +1,5 @@
+# LAYOUT-LDSO-ORDER-2 plants: ld.so's start-up text grouped from a trace of its own build.
+# The interpreter linked ungrouped although the build traced it: the dynamic probe reads the ungrouped count.
+llo-link-ungrouped | xtask/src/so.rs | lit:link(&grouped_entry, &grouped, &staged)?; ==> link(&entry, &archive, &staged)?; | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:dynamic startup-only program \(whole process, fast products\): [0-9]+ page faults > [0-9]+
+# The list puts each new key first instead of after the earlier ones: start-up order lost.
+llo-list-order | xtask/src/hottext.rs | lit:order.push(k); ==> order.insert(0, k); | cargo test -p xtask --bin xtask ldso_list_is_the_first_mode_then_what_later_modes_add | msg:ldso_list_is_the_first_mode_then_what_later_modes_add.*(FAILED|panicked)|panicked.*ldso_list
