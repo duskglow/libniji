@@ -364,10 +364,11 @@ fn list5(v: &[String]) -> String {
 
 // --- stubs: what it may rewrite ------------------------------------------------------------------------------------
 
-/// Content hashes of the files `cargo xtask stubs` writes: `spec/clauses.tsv` and the test files of every crate.
+/// Content hashes of the files `cargo xtask stubs` writes: `spec/{clauses,symbols,primitives}.tsv` and the test files
+/// of every crate.
 fn stubs_snapshot(root: &Path) -> BTreeMap<PathBuf, (u64, u64)> {
     let mut out = BTreeMap::new();
-    let mut files = vec![root.join("spec/clauses.tsv")];
+    let mut files: Vec<PathBuf> = ["clauses", "symbols", "primitives"].iter().map(|f| root.join(format!("spec/{f}.tsv"))).collect();
     if let Ok(rd) = fs::read_dir(root.join("crates")) {
         for e in rd.flatten() {
             walk_files(&e.path().join("tests"), &mut files);
