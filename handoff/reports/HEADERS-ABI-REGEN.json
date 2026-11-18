@@ -1,7 +1,7 @@
 {"task": "HEADERS-ABI-REGEN", "model": "opus", "tokens": null,
  "result": "headers-gen also runs abi-gen (layouts.tsv feeds both); affected runs abi-gen/headers-gen checks and stubs first, failing in seconds, when layouts.tsv changes",
  "branch": "task/headers-abi-regen", "head": "see hand-back (code head 4d55b1c13; handoff-only commit on top)",
- "gate": {"affected": "FULL tier (xtask generator change escalates): see hand-back for the verdict of headers-abi-regen-gate", "peak": null},
+ "gate": {"affected": "FULL tier (escalated): 12125 passed / 0 failed (32 suites), conformance 139 passed / 0 failed, rc 0, 2903 s", "peak": "16G (page cache included), oom_kill=0"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [

@@ -42,7 +42,8 @@ All on mei, code head 4d55b1c13:
   `stubs` rc 0, `abi-gen --check` rc 0; (B) stale tree: `affected --run --files spec/abi/layouts.tsv` printed
   `FAIL precheck abi-gen-check`, `FAIL precheck stubs` (`abi_struct_niji_regen_probe` has neither a stub nor a
   test) and stopped, 46 s with the xtask build; (C) coupling removed: `headers-gen` then `stubs` rc 1. rc 0.
-- `headers-abi-regen-gate`: the direct tier escalates to FULL (xtask generator sources); verdict in the hand-back.
+- `headers-abi-regen-gate`: the direct tier escalates to FULL (xtask generator sources): `affected: ok`, 32 suites,
+  12125 passed / 0 failed, conformance 139 / 0, 2903 s, peak 16G (page cache), oom_kill=0, rc 0.
 - Superseded: `headers-abi-regen-lint` (clippy doc_lazy_continuation on the rule 10 doc item, fixed),
   `headers-abi-regen-unit` (older head).
 
