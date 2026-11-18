@@ -46,3 +46,5 @@ file's earlier text: the pseudo-denormal is non-canonical in spec s10.2, the pro
 **Next step.** Item 1 when the other slices' headers land; otherwise the slice is complete.
 
 **Run 4 (close-out).** math.h.in `@@owns-macro` no longer lists isnan/isinf (the `@@if-macro` lines own them; the s11-ifmacro-owner plant now fails). Three float plants take msg `headers-gen: stale under|panicked at`. Plants job mei:sl-headers-s11-4-plants 23 CAUGHT/0 WARN; gate mei:sl-headers-s11-4-gate rc 0. Next: item 1 above.
+
+**Run 5 (merge-only).** Merged origin/next (HANDBACK-INLOOP-CHECKS-2 landed). Conflicts: header_check.py kept both (HEADERS = ... + SLICE9 + slice-11 list; P1 kinds include union with SLICE6+SLICE9+SLICE14), headers.rs kept both cxx_mask and is_covered. headers-gen, clippy, static green on the merge; gate mei:sl-headers-s11-5-gate rc 0; plants mei:sl-headers-s11-5-plants 23 CAUGHT / 0 WARN. Next: item 1 above when other slices land.
