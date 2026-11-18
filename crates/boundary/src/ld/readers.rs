@@ -215,7 +215,8 @@ fn headers(phdr: usize, phnum: usize) -> impl Iterator<Item = (u64, u64, u64, u6
 }
 
 /// The `DT_SONAME` of the object (`bias`, program headers at `phdr`) as a run-time address, from its
-/// dynamic section in memory (link-time values, as `super::dlopen::adopt_start` reads it); 0: none.
+/// dynamic section in memory (its `DT_STRTAB` a run-time address when the array is published,
+/// [`niji_ld::elf::dynamic_published`], a link-time one otherwise); 0: none.
 fn soname_at(bias: usize, phdr: usize, phnum: usize) -> usize {
     let Some((_, vaddr, memsz, _)) = headers(phdr, phnum).find(|h| h.0 == PT_DYNAMIC) else { return 0 };
     // A published array (DL-DYNAMIC-RELOC: every start-time object's once `link` ended) holds

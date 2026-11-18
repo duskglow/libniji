@@ -495,4 +495,26 @@ mod tests {
         assert!(!position_independent(&e), "only ET_DYN is position-independent (ET_REL is not)");
         assert!(!position_independent(&e[..17]), "a short header is not position-independent");
     }
+
+    /// DL-DYNAMIC-RELOC (no spec clause: `ld.so`'s own dynamic array, probe `tools/probe/dl/dynreloc`):
+    /// the address tags get the bias, every other entry and everything after `DT_NULL` is left alone;
+    /// an array outside every writable segment is not written.
+    #[test]
+    fn publish_dynamic_adds_bias_to_address_tags() {
+        let hs: alloc::vec::Vec<u64> = [ph(0, 1, 5, 0, 0x800), ph(0, 2, 6, 0x1000, 0x60), ph(0, 1, 6, 0x1000, 0x100)].concat();
+        let img = image(&hs, 3).unwrap();
+        let mut mem = alloc::vec![0u8; 0x2000];
+        // STRTAB, INIT (kept), GNU_HASH, STRSZ (kept), NULL, then a STRTAB past the end (kept).
+        let d = words(&[dt::STRTAB, 0x300, dt::INIT, 0x400, dt::GNU_HASH, 0x200, 10, 0x50, dt::NULL, 0, dt::STRTAB, 0x7]);
+        mem[0x1000..0x1000 + d.len()].copy_from_slice(&d);
+        publish_dynamic(img, Flat(&mut mem), 0x7000_0000).unwrap();
+        let got: alloc::vec::Vec<u64> = (0..12).map(|i| at(&mem, 0x1000 + 8 * i)).collect();
+        assert_eq!(got, [dt::STRTAB, 0x7000_0300, dt::INIT, 0x400, dt::GNU_HASH, 0x7000_0200, 10, 0x50, dt::NULL, 0, dt::STRTAB, 0x7]);
+        // The same array in the read-only segment: nothing written.
+        let ro: alloc::vec::Vec<u64> = [ph(0, 1, 5, 0, 0x800), ph(0, 2, 6, 0x40, 0x60), ph(0, 1, 6, 0x1000, 0x100)].concat();
+        let mut mem2 = alloc::vec![0u8; 0x2000];
+        mem2[0x40..0x40 + d.len()].copy_from_slice(&d);
+        publish_dynamic(image(&ro, 3).unwrap(), Flat(&mut mem2), 0x7000_0000).unwrap();
+        assert_eq!(&mem2[0x40..0x40 + d.len()], &d[..]);
+    }
 }

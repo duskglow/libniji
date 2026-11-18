@@ -330,3 +330,24 @@ libniji (D-27.16 as amended by D-27.56): the same rule, with libniji's own libra
 (`search::PINNED`) naming the interpreter after their own `DT_NEEDED` entries, so lists of libc-linked programs
 keep the line consumers such as initramfs-tools' `copy_exec` read. Test: `list_interpreter_line_matches_reference`
 (crates/ld/tests/search_cache.rs).
+
+## The loaded dynamic array (DL-DYNAMIC-RELOC probe, x86-64, glibc 2.39)
+
+Probe: `tools/probe/dl/dynreloc/run.sh` (Zen 1 build host). For each object `dl_iterate_phdr` lists (from the
+program's constructor, from `main`, after a `dlopen`), each entry of its dynamic array in memory is compared with the
+same entry of its file: **A** = differs by exactly the load base, **=** = unchanged.
+
+| Entries | Program (PIE), start-time library, libc, `ld.so`, `dlopen`ed library |
+| --- | --- |
+| `DT_PLTGOT`, `DT_HASH`, `DT_STRTAB`, `DT_SYMTAB`, `DT_RELA`, `DT_JMPREL`, `DT_RELR`, `DT_GNU_HASH`, `DT_VERSYM` | A |
+| `DT_INIT`, `DT_FINI`, `DT_PREINIT_ARRAY`, `DT_INIT_ARRAY`, `DT_FINI_ARRAY`, `DT_VERDEF`, `DT_VERNEED`, `DT_TLSDESC_PLT`, `DT_TLSDESC_GOT`, sizes, flags, `DT_NEEDED` / `DT_SONAME` / `DT_RUNPATH` offsets | = |
+
+Already A in the program's first constructor; `_DYNAMIC` and `l_ld` are the same array, so
+`DT_STRTAB` + the `DT_RUNPATH` value is the run-path string. The vDSO's array is the kernel's, never written.
+`DT_REL` is not observable on x86-64 (GNU ld emits RELA only). A static-pie program's own array is A as well (not
+yet in libniji: its self-relocation leaves it link-time), and the program's `DT_DEBUG` is set by the loader (not in
+libniji).
+
+libniji (D-27.60): the same entries become run-time addresses for every object whose `PT_DYNAMIC` lies wholly inside
+one writable `PT_LOAD` (an array elsewhere is never written), before any constructor; the loader's own readers keep
+reading link-time values. Test: `s27_1_c_8` (`conformance/c/s27_dynamic_address_entries.c`).

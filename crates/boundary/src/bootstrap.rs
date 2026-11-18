@@ -111,7 +111,8 @@ pub(crate) fn relocate_image(ehdr: usize) -> Result<Relocated, BootError> {
     relocate_self(ehdr.wrapping_add(usize::try_from(phoff).unwrap_or(0)), phnum, ehdr)
 }
 
-/// After pass 1 of `ld.so`'s own image: its dynamic array's address entries as run-time addresses
+/// After pass 1 of an image `ld.so` relocated with this relocator (its own; a program without
+/// objects): the image's dynamic array's address entries as run-time addresses
 /// (`niji_ld::boot::publish_dynamic`, DL-DYNAMIC-RELOC), before anything reads them.
 #[cfg(feature = "ld")]
 pub(crate) fn publish_dynamic(r: &Relocated) -> Result<(), BootError> {

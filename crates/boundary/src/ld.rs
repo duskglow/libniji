@@ -434,8 +434,11 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
             crate::arch::enter(sp, prog.entry, fini)
         }
         let ehdr = bias.wrapping_add(usize::try_from(img.header).unwrap_or(0));
-        if crate::bootstrap::relocate_self(prog.phdr, prog.phnum, ehdr).is_err() {
-            refuse(b"ld.so: cannot relocate the program (only RELATIVE relocations in this build)\n");
+        // Its dynamic array as run-time addresses once relocated (DL-DYNAMIC-RELOC), as `link`
+        // does for a program with objects.
+        match crate::bootstrap::relocate_self(prog.phdr, prog.phnum, ehdr) {
+            Ok(r) if crate::bootstrap::publish_dynamic(&r).is_ok() => {}
+            _ => refuse(b"ld.so: cannot relocate the program (only RELATIVE relocations in this build)\n"),
         }
     }
     let page = usize::try_from(page).unwrap_or(usize::MAX);

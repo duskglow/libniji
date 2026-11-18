@@ -1,0 +1,8 @@
+# DL-DYNAMIC-RELOC plants: each writer of the loaded dynamic array skipped alone (dlopen, link, ld.so's own), the
+# readers' undo skipped (image_view, soname_at), and the address-tag set short of DT_STRTAB.
+dlopen-skip | crates/boundary/src/ld/dlopen.rs | lit:    for o in &objs[base..k] { ==>     for o in objs[base..k].iter().take(0) { | cargo test -p niji --test s27_dynlink_clauses s27_1_c_8 | msg:dyr_open: line
+link-skip | crates/boundary/src/ld.rs | lit:filter(|&(k, _)| Some(k) != interp) { ==> filter(|&(k, _)| Some(k) != interp && k > usize::MAX - 1) { | cargo test -p niji --test s27_dynlink_clauses s27_1_c_8 | msg:(program|dyr_start): line
+ldso-skip | crates/boundary/src/ld.rs | lit:Ok(r) if crate::bootstrap::publish_dynamic(&r).is_ok() => {} ==> Ok(_) => {} | cargo test -p niji --test s27_dynlink_clauses s27_1_c_8 | msg:listed object .*line
+unpublish-skip | crates/boundary/src/ld.rs | lit:let unpublish = published && probe.published_dynamic().is_some(); ==> let unpublish = false && published && probe.published_dynamic().is_some(); | cargo test -p niji --test s27_dynlink_clauses s27_1_c_8 | msg:s27_dynamic_address_entries
+soname-bias | crates/boundary/src/ld/readers.rs | lit:let strtab_bias = if niji_ld::elf::dynamic_published(vaddr, memsz, writable) { 0 } else { bias }; ==> let strtab_bias = if niji_ld::elf::dynamic_published(vaddr, memsz, writable) { bias } else { bias }; | cargo test -p niji --test s27_dynlink_clauses s27_1_c_8 | msg:s27_dynamic_address_entries
+tags-no-strtab | crates/ld/src/elf.rs | lit:[dt::PLTGOT, dt::HASH, dt::STRTAB, dt::SYMTAB, ==> [dt::PLTGOT, dt::HASH, dt::SYMTAB, dt::SYMTAB, | cargo test -p niji --test s27_dynlink_clauses s27_1_c_8 | msg:line [0-9]+: in_image\(o, v\)
