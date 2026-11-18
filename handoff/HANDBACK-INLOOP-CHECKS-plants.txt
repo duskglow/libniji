@@ -32,3 +32,26 @@ code-gen-stub-pattern | xtask/src/affected.rs | lit:t.ends_with("_clauses.rs") |
 code-full-all-cheap | xtask/src/affected.rs | lit:!sel.full.is_empty() || sel.gen_prechecks.contains(*c) ==> sel.gen_prechecks.contains(*c) | cargo test -p xtask escalated_selection_runs_every_cheap_step_first | msg:escalated_selection_runs_every_cheap_step_first.*FAILED|panicked
 code-gen-red-named | xtask/src/affected.rs | lit:red.push(c); ==> | cargo test -p xtask generator_prechecks_run_the_checks | msg:generator_prechecks_run_the_checks.*FAILED|panicked
 code-gen-red-stops | xtask/src/affected.rs | lit:if red.is_empty() { ==> if true { | cargo test -p xtask generator_prechecks_run_the_checks | msg:red stops the run
+# cargo xtask plants results (22 plants: 22 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# red-queued: CAUGHT, caught by xtask precheck::tests::precheck_fixture_hand_back_is_green
+# red-failed-job: CAUGHT, caught by xtask precheck::tests::precheck_fixture_hand_back_is_green
+# red-stale-job: CAUGHT, caught by xtask precheck::tests::precheck_fixture_hand_back_is_green
+# red-stubs: CAUGHT, caught by no test the log names
+# red-undiagnosed-gate: CAUGHT, caught by xtask precheck::tests::precheck_fixture_hand_back_is_green
+# red-placeholder: CAUGHT, caught by xtask precheck::tests::precheck_fixture_hand_back_is_green
+# red-plants-outside-tool: CAUGHT, caught by xtask precheck::tests::precheck_fixture_hand_back_is_green
+# code-placeholder-word-end: CAUGHT, caught by xtask precheck::tests::placeholder_pattern_is_cis
+# code-baseline-pre: CAUGHT, caught by xtask precheck::tests::baseline_labels_are_the_dispatchers
+# code-stale-dir-rule: CAUGHT, caught by xtask precheck::tests::stale_files_sees_code_and_removed_entries_not_prose
+# code-role-base-lines: CAUGHT, caught by xtask precheck::tests::role_changes_count_lines_the_base_lacks
+# code-job-rc: CAUGHT, caught by xtask precheck::tests::precheck_fixture_names_each_red_class
+# code-gate-verdict: CAUGHT, caught by xtask precheck::tests::precheck_fixture_names_each_red_class
+# code-plants-copy: CAUGHT, caught by xtask precheck::tests::precheck_fixture_names_each_red_class
+# code-queued-wait: CAUGHT, caught by xtask precheck::tests::precheck_fixture_names_each_red_class
+# code-stubs-rewrite: CAUGHT, caught by xtask precheck::tests::stubs_rewrite_is_red_even_when_stubs_passes
+# code-stubs-snapshot: CAUGHT, caught by xtask precheck::tests::stubs_rewrite_is_red_even_when_stubs_passes
+# code-gen-prefix: CAUGHT, caught by xtask affected::tests::generator_inputs_and_outputs_select_their_checks
+# code-gen-stub-pattern: CAUGHT, caught by xtask affected::tests::generator_inputs_and_outputs_select_their_checks
+# code-full-all-cheap: CAUGHT, caught by xtask affected::tests::escalated_selection_runs_every_cheap_step_first
+# code-gen-red-named: CAUGHT, caught by xtask affected::tests::generator_prechecks_run_the_checks
+# code-gen-red-stops: CAUGHT, caught by xtask affected::tests::generator_prechecks_run_the_checks
