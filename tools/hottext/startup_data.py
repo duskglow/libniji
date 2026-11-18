@@ -16,7 +16,8 @@ already the union of the CPU classes, LT-4). The declared set is the data object
   1. the operands of the start-up functions (the keys of <startup-text.keys> for <profile>): the RIP-relative
      ones (`objdump -d` prints the target as `# <addr> <sym>`) and the absolute ones (`$0x<addr>` or a bare
      `0x<addr>` displacement: the linker relaxes a GOT load of a static non-PIE link to `mov $<addr>, %reg`,
-     so `environ`, `process::ARGC` and the CPU-classed words of csys/src/machine are reached that way);
+     so `environ`, `process::ARGC` and the CPU-classed words of csys/src/machine are reached that way; the
+     immediate of a `cmp` or `test` is not one: it compares an address and touches nothing, D-X.122);
      every CPU class's path is in the text keys, so its data is declared on every host;
   2. the same operands of the probe program's own functions (the text symbols of <probe object>: `main`
      prints on `stderr`), the probe's own statics left out;
@@ -140,7 +141,13 @@ def operand_targets(exe, ranges):
             # `   4ebcc3:\tmov    $0x866db0,%rax`: the instruction follows the address's tab.
             parts = insn.split("\t")
             if len(parts) >= 2:
-                out.extend(int(t, 16) for t in ABSOLUTE.findall(parts[-1]))
+                ops = parts[-1]
+                # A `cmp` or `test` with an immediate address only compares the address (D-X.122: the
+                # linker relaxes `cmp`/`test` of a GOT entry to `cmp $<addr>, %reg`) and reads nothing
+                # there; its memory operands still count.
+                if ops.split(None, 1)[:1] and ops.split(None, 1)[0].startswith(("cmp", "test")):
+                    ops = re.sub(r"\$0x[0-9a-f]+", "", ops)
+                out.extend(int(t, 16) for t in ABSOLUTE.findall(ops))
     return out
 
 
