@@ -141,6 +141,14 @@ niji_machine_ldconfig_entry:
 	 * coreutils-shaped probe each took one more fault. */
 	.section .data.rel.ro.local,"aw",@progbits
 	.balign NIJI_RELRO_ALIGN
+	/* STARTUP-GOT-PAGE (D-X.122): `.got` starts on a page. Start-up reads some of its entries
+	 * (`add`/`cmp` operands the linker keeps), so its page is among the written start-up pages; at
+	 * a page start its few hundred bytes never span two pages, whatever length of relro comes
+	 * ahead of it (relro 400 bytes shorter once put the six start-up entries over two pages).
+	 * This start file is the first input, so its empty `.got` sets the output section's alignment.
+	 * Costs at most 4 KiB of relro padding. */
+	.section .got,"aw",@progbits
+	.balign 4096
 	/* LAYOUT-WINDOW-BINS-5: the end of the hot text group's window bins (xtask/src/bins.rs GROUP_END,
 	 * whose name this must match; `cargo xtask so` checks it). The name sorts after every bin in GNU
 	 * ld's SORT(.text.sorted.*), so the program's own `.text` after the group starts on a 64 KiB

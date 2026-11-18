@@ -178,19 +178,9 @@ fn initial_thread<const PIE: bool>(aux: &Auxv<'_>) -> (start::Program, Option<bo
 /// does `relro_by_segment` walk the headers again, so the usual start carries nothing more
 /// than the test of the call's result (the fallback takes no argument: nothing is kept live
 /// across the call for it).
-///
-/// Before that, one deliberate read of RELRO's first byte (STARTUP-GOT-PAGE-2, D-X.122): its
-/// read fault maps the 64 KiB fault-around window RELRO starts in, at a fixed point of the
-/// start-up path, so the program's first read of RELRO data (a vtable, a relocated pointer) does
-/// not pay that fault in its first call, whatever start-up happens or not to read there.
 #[inline(always)]
 fn protect_relro(range: Option<(usize, usize)>) {
     if let Some((addr, len)) = range {
-        // UNSAFE(slice): one byte of the executable's RELRO range, mapped and readable.
-        #[allow(unsafe_code)]
-        // SAFETY: `addr` starts the page-rounded, non-empty `PT_GNU_RELRO` range of a loaded
-        // segment (`start::program`): the kernel mapped it readable, and nothing unmaps it.
-        let _ = unsafe { core::ptr::with_exposed_provenance::<u8>(addr).read_volatile() };
         if raw::mprotect(addr, len, i32::try_from(PROT_READ).unwrap_or(1)).is_err() {
             relro_by_segment();
         }

@@ -1311,9 +1311,9 @@ fn output_fill(map: &str, name: &str) -> u64 {
 /// and `heap::RESERVE_MEM` and `global_locale::SLOTS` start on a page boundary (their heads are the start-up part).
 /// STARTUP-GOT-PAGE (amends the record above): padded by 0x10-0x1000 bytes of `.data.rel.ro` behind the cluster
 /// (`relro-tail`), which moves `.got` against the page grid (LOCALE-SLOTS-GROWTH-5: relro 400 bytes shorter, the
-/// six start-up GOT entries over two pages), the hot text reads no `.got` entry at any pad (D-X.15 step 3 makes
-/// its `add`/`cmp` GOT operands relaxable and the static link turns them into immediates), so the written relro
-/// pages, cluster and `.got` reads together, are the same in number at every pad.
+/// six start-up GOT entries over two pages), `.got` starts on a page boundary (D-X.122: the start file aligns it) and
+/// the `.got` entries the hot text reads lie in its first page, so the written relro pages, cluster and `.got` reads
+/// together, are the same in number at every pad.
 /// No spec clause (layout of the products).
 #[test]
 fn init_startup_data_pages_hold_at_every_data_phase() {
@@ -1342,8 +1342,13 @@ fn init_startup_data_pages_hold_at_every_data_phase() {
         let mut written: std::collections::BTreeSet<u64> = ((lo >> 12)..=(hi.saturating_sub(1) >> 12)).collect();
         written.extend(got.iter().map(|(a, _)| a >> 12));
         eprintln!("startup pages {region} {pad:#x}: {} .got reads in the hot text, {} written relro pages", got.len(), written.len());
-        if !got.is_empty() {
-            bad.push(format!("{region} {pad:#x}: the hot text reads {} .got entries (D-X.15 step 3 relaxes test/binop GOT operands): {:?}", got.len(), &got[..got.len().min(8)]));
+        let got_start = got_start(&map);
+        if got_start.is_some_and(|g| g & 0xfff != 0) {
+            bad.push(format!("{region} {pad:#x}: .got starts at {:#x}, not on a page boundary (D-X.122)", got_start.unwrap_or(0)));
+        }
+        let got_pages: std::collections::BTreeSet<u64> = got.iter().map(|(a, _)| a >> 12).collect();
+        if got_pages.len() > 1 {
+            bad.push(format!("{region} {pad:#x}: the hot text's .got reads span {} pages: {:?}", got_pages.len(), &got[..got.len().min(8)]));
         }
         spans.push((format!("{region} {pad:#x}"), written.len()));
         // STARTUP-DATA-PAGE-ALIGN-2: the start file's 64 KiB relro alignment comes ahead of the cluster, so relro
@@ -1375,15 +1380,24 @@ fn init_startup_data_pages_hold_at_every_data_phase() {
     assert!(bad.is_empty(), "startup data pages: {bad:#?}");
 }
 
+/// The output `.got` of a link map: (address, size), `None` when the link has no `.got` line.
+fn got_section(map: &str) -> Option<(u64, u64)> {
+    let hex = |s: &str| s.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok());
+    map.lines().find_map(|l| {
+        let f: Vec<&str> = l.split_whitespace().collect();
+        (l.starts_with(".got ") && f.len() >= 3).then(|| (hex(f[1]), hex(f[2]))).and_then(|(a, s)| Some((a?, s?)))
+    })
+}
+
+/// The start of a non-empty output `.got` in a link map.
+fn got_start(map: &str) -> Option<u64> {
+    got_section(map).filter(|g| g.1 > 0).map(|g| g.0)
+}
+
 /// The `.got` entries the start-up and hot text (`hot_text_range`) of the linked program `exe` read: `(entry
 /// address, instruction)` for every RIP-relative operand (`# <addr>` in `objdump -d`) inside `.got` (from the map).
 fn got_reads(exe: &Path, map: &str) -> Vec<(u64, String)> {
-    let hex = |s: &str| s.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok());
-    let got = map.lines().find_map(|l| {
-        let f: Vec<&str> = l.split_whitespace().collect();
-        (l.starts_with(".got ") && f.len() >= 3).then(|| (hex(f[1]), hex(f[2]))).and_then(|(a, s)| Some((a?, s?)))
-    });
-    let Some((glo, gsize)) = got.filter(|g| g.1 > 0) else { return Vec::new() };
+    let Some((glo, gsize)) = got_section(map).filter(|g| g.1 > 0) else { return Vec::new() };
     let (lo, hi) = hot_text_range(map);
     assert!(lo < hi, "no start-up or hot text in the link map");
     let d = Command::new("objdump").args(["-d", "--no-show-raw-insn"]).arg(exe).output().expect("objdump");

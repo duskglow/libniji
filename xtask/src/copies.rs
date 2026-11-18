@@ -24,11 +24,7 @@
 //!    local, such as the csys helpers `niji_machine_tp` and `niji_sys_*`, PJ-19). This is the
 //!    relocation C compilers emit for these instructions: the type only says which instruction
 //!    holds it, and the linker keeps the GOT for a symbol a program may interpose (an exported
-//!    name of `libc.so.6`), so binding is unchanged. The 64-bit `test` and binary operations
-//!    (`add`, `or`, `adc`, `sbb`, `and`, `sub`, `xor`, `cmp`) with the GOT entry as their source
-//!    operand become `R_X86_64_REX_GOTPCRELX` too (STARTUP-GOT-PAGE): a static non-PIE link turns
-//!    them into the same operation on an immediate, so no GOT entry is read; elsewhere (PIE,
-//!    `libc.so.6`) the linker keeps the GOT read. Any other use of a GOT entry (an opcode not
+//!    name of `libc.so.6`), so binding is unchanged. Any other use of a GOT entry (an opcode not
 //!    recognised) is left as it is and counted.
 //!
 //! The pass checks that no internal entry calls an internal entry or a name it replaces (a
@@ -142,25 +138,6 @@ fn on_branch(code: &[u8], at: usize, ty: u32) -> bool {
     branch_kind(code, at, ty).is_some()
 }
 
-/// The relaxable type for a GOT relocation of `ty` at `at` in `code` on a 64-bit test or binary
-/// operation with the GOT entry as its source operand (`REX.W`, then `test` `85`, or `add` `03`,
-/// `or` `0b`, `adc` `13`, `sbb` `1b`, `and` `23`, `sub` `2b`, `xor` `33`, `cmp` `3b`, with a
-/// RIP-relative operand): `R_X86_64_REX_GOTPCRELX`, the type the psABI gives these forms, which a
-/// static non-PIE link may rewrite into the same operation on an immediate (D-X.15 step 3,
-/// STARTUP-GOT-PAGE). `None` for any other use, the 32-bit forms included. Only step 3 uses it:
-/// step 1 redirects calls and call-target loads, never an address operand of arithmetic or a
-/// comparison (`fp == memcpy` must still see the exported entry).
-fn operand_kind(code: &[u8], at: usize, ty: u32) -> Option<u32> {
-    let at1 = |k: usize| at.checked_sub(k).and_then(|i| code.get(i)).copied();
-    if !matches!(ty, R_GOTPCREL | R_GOTPCRELX | R_REX_GOTPCRELX) {
-        return None;
-    }
-    match (at1(3), at1(2), at1(1)) {
-        (Some(0x48..=0x4f), Some(0x85 | 0x03 | 0x0b | 0x13 | 0x1b | 0x23 | 0x2b | 0x33 | 0x3b), Some(m)) if m & 0xc7 == 0x05 => Some(R_REX_GOTPCRELX),
-        _ => None,
-    }
-}
-
 /// Every relocation of `o` in an executable section: (file offset of the entry, symbol index,
 /// type, offset in the section, the patched section's index).
 fn relocs(b: &[u8], o: &Obj) -> Vec<(usize, usize, u32, usize, usize)> {
@@ -262,8 +239,7 @@ fn edit(b: &mut [u8], member: &str, stats: &mut Stats, rename: &mut Vec<(&'stati
     Ok(!changes.is_empty())
 }
 
-/// Step 3 on one member: GOT calls, jumps, loads and 64-bit test/binop operands become relaxable,
-/// whatever symbol they name.
+/// Step 3 on one member: GOT calls, jumps and loads become relaxable, whatever symbol they name.
 fn mark_relaxable(b: &mut [u8], stats: &mut Stats) -> bool {
     let Some(o) = parse(b) else { return false };
     let mut marks = Vec::new();
@@ -274,7 +250,7 @@ fn mark_relaxable(b: &mut [u8], stats: &mut Stats) -> bool {
             continue;
         }
         let code = o.secs.get(sec).and_then(|s| b.get(s.off..s.off + s.size)).unwrap_or_default();
-        match branch_kind(code, off, ty).or_else(|| operand_kind(code, off, ty)) {
+        match branch_kind(code, off, ty) {
             Some(new) => {
                 marks.push((e, sym, new));
                 stats.relaxable_internal += usize::from(internal);
@@ -447,47 +423,6 @@ mod tests {
         // without a relocation, and the real members reach it through one.
         let (r, _) = edit_asm(".text\n.globl niji_internal_memmove\nniji_internal_memmove: jmp memmove\n.size niji_internal_memmove, .-niji_internal_memmove\n");
         assert!(r.is_err_and(|e| e.contains("would recurse")));
-    }
-
-    /// STARTUP-GOT-PAGE (D-X.15 step 3): the 64-bit `test` and binary operations reading a GOT
-    /// entry become `R_X86_64_REX_GOTPCRELX`, so a static link reads no GOT entry for them (the
-    /// start-up `add`/`cmp` reads of `refresh_words` and `parts_first_use` put the `.got` page among
-    /// the written start-up pages, wherever relro's length left it). The 32-bit forms and a GOT
-    /// entry as the destination stay as they are, and step 1 never redirects such an operand.
-    /// No spec clause (build of the products; psABI x86-64, relaxable GOTPCRELX forms).
-    #[test]
-    fn test_and_binop_got_operands_become_relaxable_and_nothing_else() {
-        let ops = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"];
-        let mut src = String::from(".text\n.globl f\nf:\n");
-        for (k, op) in ops.iter().enumerate() {
-            src.push_str(&format!("{op} x{k}@GOTPCREL(%rip), %r{}\n", ["ax", "dx", "8", "12"][k % 4]));
-        }
-        src.push_str("test %rsi, t@GOTPCREL(%rip)\n");
-        // Not made relaxable: a 32-bit read of the entry, the entry as a destination.
-        src.push_str("add w@GOTPCREL(%rip), %eax\ncmp %rax, d@GOTPCREL(%rip)\n");
-        let dir = std::env::temp_dir().join(format!("xtask-copies-binop-{}", std::process::id()));
-        fs::create_dir_all(&dir).expect("scratch dir");
-        let (s, o) = (dir.join("t.s"), dir.join("t.o"));
-        fs::write(&s, &src).expect("write t.s");
-        // Plain R_X86_64_GOTPCREL, as stable rustc emits.
-        run(Command::new("as").arg("-mrelax-relocations=no").arg("-o").arg(&o).arg(&s)).expect("the assembler runs");
-        let mut b = fs::read(&o).expect("read t.o");
-        let _ = fs::remove_dir_all(&dir);
-        let obj = parse(&b).expect("as produced an object parse() reads");
-        assert!(relocs(&b, &obj).iter().all(|r| r.2 == R_GOTPCREL), "the assembler emitted relaxable types already");
-        let mut st = Stats::default();
-        assert!(mark_relaxable(&mut b, &mut st));
-        assert_eq!((st.relaxable, st.unrecognised), (ops.len() + 1, 2));
-        let obj = parse(&b).expect("parse after the pass");
-        for r in relocs(&b, &obj) {
-            let name = obj.syms.get(r.1).map_or("", |s| s.name.as_str());
-            let want = if name == "w" || name == "d" { R_GOTPCREL } else { R_REX_GOTPCRELX };
-            assert_eq!(r.2, want, "{name}");
-        }
-        // Step 1 leaves a comparison with memcpy's address alone (counted as kept).
-        let (r, st) = edit_asm(".text\n.globl memcpy\nmemcpy: ret\n.globl niji_internal_memcpy\nniji_internal_memcpy: ret\n.globl f\nf: cmp memcpy@GOTPCREL(%rip), %rax\n");
-        assert_eq!(r, Ok(false));
-        assert_eq!(st.kept.get("memcpy"), Some(&1));
     }
 
     #[test]
