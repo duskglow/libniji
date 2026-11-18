@@ -11,3 +11,12 @@ s19-alloc-size | spec/abi/diagattrs.tsv | perl:s/^(reallocarray\t\t1\t\t\t\t)2,3
 s19-deprecated | spec/abi/diagattrs.tsv | perl:s/^(getwd\t1\t1\t\t\t\t\t)1/$1/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ getwd r
 s19-noreturn | spec/abi/diagattrs.tsv | perl:s/^(quick_exit\t\t\t)1/$1/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ quick_exit nr
 s19-pure | spec/abi/diagattrs.tsv | perl:s/^(strverscmp\t[^\n]*\t)1$/$1/m | cargo test -p xtask --bin xtask diagnostic_attributes_match_the_reference | msg:line [0-9]+ strverscmp r
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# s19-nonnull: CAUGHT, caught by xtask headers::tests::diagnostic_attributes_match_the_reference
+# s19-wur: CAUGHT, caught by xtask headers::tests::diagnostic_attributes_match_the_reference
+# s19-format: CAUGHT, caught by xtask headers::tests::diagnostic_attributes_match_the_reference
+# s19-malloc: CAUGHT, caught by xtask headers::tests::diagnostic_attributes_match_the_reference
+# s19-alloc-size: CAUGHT, caught by xtask headers::tests::diagnostic_attributes_match_the_reference
+# s19-deprecated: CAUGHT, caught by xtask headers::tests::diagnostic_attributes_match_the_reference
+# s19-noreturn: CAUGHT, caught by xtask headers::tests::diagnostic_attributes_match_the_reference
+# s19-pure: CAUGHT, caught by xtask headers::tests::diagnostic_attributes_match_the_reference
