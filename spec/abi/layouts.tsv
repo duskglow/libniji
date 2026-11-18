@@ -344,6 +344,24 @@ struct sigcontext	<anon>	184		union <anon>	size 8 rows 2
 struct sigcontext	fpstate	184		struct _fpstate *	
 struct sigcontext	__fpstate_word	184		__uint64_t	
 struct sigcontext	__reserved1	192		__uint64_t[8]	
+struct _fpstate		512	8		
+struct _fpstate	cwd	0		__uint16_t	
+struct _fpstate	swd	2		__uint16_t	
+struct _fpstate	ftw	4		__uint16_t	
+struct _fpstate	fop	6		__uint16_t	
+struct _fpstate	rip	8		__uint64_t	
+struct _fpstate	rdp	16		__uint64_t	
+struct _fpstate	mxcsr	24		__uint32_t	
+struct _fpstate	mxcr_mask	28		__uint32_t	
+struct _fpstate	_st	32		struct _fpxreg[8]	
+struct _fpstate	_xmm	160		struct _xmmreg[16]	
+struct _fpstate	__glibc_reserved1	416		__uint32_t[24]	
+struct _fpxreg		16	2		
+struct _fpxreg	significand	0		short unsigned int[4]	
+struct _fpxreg	exponent	8		short unsigned int	
+struct _fpxreg	__glibc_reserved1	10		short unsigned int[3]	
+struct _xmmreg		16	4		
+struct _xmmreg	element	0		__uint32_t[4]	
 struct _libc_fpstate		512	8		
 struct _libc_fpstate	cwd	0		__uint16_t	
 struct _libc_fpstate	swd	2		__uint16_t	

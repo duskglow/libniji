@@ -10,6 +10,50 @@
 __NIJI_BEGIN_C
 
 #if __NIJI_MISC
+# ifndef __NIJI_D_struct__fpxreg
+#  define __NIJI_D_struct__fpxreg 1
+struct _fpxreg {
+  unsigned short significand[4];
+  unsigned short exponent;
+  unsigned short __glibc_reserved1[3];
+};
+# endif
+# ifndef __NIJI_D_struct__xmmreg
+#  define __NIJI_D_struct__xmmreg 1
+struct _xmmreg {
+  unsigned int element[4];
+};
+# endif
+# ifndef __NIJI_D_struct__fpstate
+#  define __NIJI_D_struct__fpstate 1
+struct _fpstate {
+  unsigned short cwd;
+  unsigned short swd;
+  unsigned short ftw;
+  unsigned short fop;
+  unsigned long rip;
+  unsigned long rdp;
+  unsigned int mxcsr;
+  unsigned int mxcr_mask;
+  struct _fpxreg _st[8];
+  struct _xmmreg _xmm[16];
+  unsigned int __glibc_reserved1[24];
+};
+# endif
+# ifndef __NIJI_D_struct__fpxreg
+#  define __NIJI_D_struct__fpxreg 1
+struct _fpxreg {
+  unsigned short significand[4];
+  unsigned short exponent;
+  unsigned short __glibc_reserved1[3];
+};
+# endif
+# ifndef __NIJI_D_struct__xmmreg
+#  define __NIJI_D_struct__xmmreg 1
+struct _xmmreg {
+  unsigned int element[4];
+};
+# endif
 # ifndef __NIJI_D_struct_sigcontext
 #  define __NIJI_D_struct_sigcontext 1
 struct sigcontext {
@@ -436,6 +480,10 @@ typedef int __pid_t;
 #  define __NIJI_D___sighandler_t 1
 typedef void (*__sighandler_t)(int);
 # endif
+# ifndef __NIJI_D_sig_atomic_t
+#  define __NIJI_D_sig_atomic_t 1
+typedef int sig_atomic_t;
+# endif
 #endif
 #if __NIJI_DYNSTACK
 # ifndef __NIJI_D_gid_t
@@ -491,6 +539,58 @@ typedef union {
   long __align;
 } pthread_attr_t;
 #  endif
+# endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# ifndef __NIJI_D___sigval_t
+#  define __NIJI_D___sigval_t 1
+typedef union sigval __sigval_t;
+# endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+#  ifdef __cplusplus
+union pthread_attr_t {
+  char __size[56];
+  long __align;
+};
+#  else
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
+#  endif
+# endif
+# ifndef __NIJI_D_struct_sigevent
+#  define __NIJI_D_struct_sigevent 1
+struct sigevent {
+  __sigval_t sigev_value;
+  int sigev_signo;
+  int sigev_notify;
+  union {
+    int _pad[12];
+    int _tid;
+    struct {
+      void (*_function)(union sigval);
+      pthread_attr_t * _attribute;
+    } _sigev_thread;
+  } _sigev_un;
+};
+# endif
+# ifndef __NIJI_D_sigevent_t
+#  define __NIJI_D_sigevent_t 1
+typedef struct sigevent sigevent_t;
 # endif
 # ifndef __NIJI_D_time_t
 #  define __NIJI_D_time_t 1

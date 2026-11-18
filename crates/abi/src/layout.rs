@@ -682,6 +682,36 @@ pub struct struct_sigcontext {
 
 #[repr(C, align(8))]
 #[derive(Clone, Copy)]
+pub struct struct__fpstate {
+    pub cwd: u16,
+    pub swd: u16,
+    pub ftw: u16,
+    pub fop: u16,
+    pub rip: u64,
+    pub rdp: u64,
+    pub mxcsr: u32,
+    pub mxcr_mask: u32,
+    pub _st: [struct__fpxreg; 8],
+    pub _xmm: [struct__xmmreg; 16],
+    pub __glibc_reserved1: [u32; 24],
+}
+
+#[repr(C, align(2))]
+#[derive(Clone, Copy)]
+pub struct struct__fpxreg {
+    pub significand: [u16; 4],
+    pub exponent: u16,
+    pub __glibc_reserved1: [u16; 3],
+}
+
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+pub struct struct__xmmreg {
+    pub element: [u32; 4],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
 pub struct struct__libc_fpstate {
     pub cwd: u16,
     pub swd: u16,

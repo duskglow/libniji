@@ -974,6 +974,7 @@ function	_dl_mcount_wrapper_check	dlfcn.h			void (void*)
 function	_exit	arpa/nameser.h			void (int)
 function	_flushlbf	stdio_ext.h			void ()
 struct	_fpstate	arpa/nameser.h	512	8	_fpstate
+struct	_fpxreg	arpa/nameser.h	16	2	_fpxreg
 struct	_ftsent	fts.h	120	8	_ftsent
 struct	_libc_fpstate	arpa/nameser.h	512	8	_libc_fpstate
 struct	_libc_fpxreg	arpa/nameser.h	16	2	_libc_fpxreg
@@ -992,6 +993,7 @@ object	_r_debug	link.h	40	8	r_debug
 function	_setjmp	setjmp.h			int (__jmp_buf_tag*)
 function	_tolower	argp.h			int (int)
 function	_toupper	argp.h			int (int)
+struct	_xmmreg	arpa/nameser.h	16	4	_xmmreg
 function	a64l	complex.h			long (char const*)
 function	abort	complex.h			void ()
 function	abs	complex.h			int (int)

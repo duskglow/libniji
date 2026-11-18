@@ -845,6 +845,10 @@ enum { PTHREAD_INHERIT_SCHED = 0 };
 #  define __NIJI_D_enum_PTHREAD_MUTEX_ADAPTIVE_NP 1
 enum { PTHREAD_MUTEX_ADAPTIVE_NP = 3 };
 # endif
+# ifndef __NIJI_D_enum_PTHREAD_MUTEX_TIMED_NP
+#  define __NIJI_D_enum_PTHREAD_MUTEX_TIMED_NP 1
+enum { PTHREAD_MUTEX_TIMED_NP = 0 };
+# endif
 # ifndef __NIJI_D_enum_PTHREAD_PROCESS_PRIVATE
 #  define __NIJI_D_enum_PTHREAD_PROCESS_PRIVATE 1
 enum { PTHREAD_PROCESS_PRIVATE = 0 };
@@ -861,6 +865,26 @@ enum { PTHREAD_SCOPE_PROCESS = 1 };
 #  define __NIJI_D_enum_PTHREAD_SCOPE_SYSTEM 1
 enum { PTHREAD_SCOPE_SYSTEM = 0 };
 # endif
+#endif
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 500
+# ifndef __NIJI_D_enum_PTHREAD_MUTEX_DEFAULT
+#  define __NIJI_D_enum_PTHREAD_MUTEX_DEFAULT 1
+enum { PTHREAD_MUTEX_DEFAULT = 0 };
+# endif
+# ifndef __NIJI_D_enum_PTHREAD_MUTEX_ERRORCHECK
+#  define __NIJI_D_enum_PTHREAD_MUTEX_ERRORCHECK 1
+enum { PTHREAD_MUTEX_ERRORCHECK = 2 };
+# endif
+# ifndef __NIJI_D_enum_PTHREAD_MUTEX_NORMAL
+#  define __NIJI_D_enum_PTHREAD_MUTEX_NORMAL 1
+enum { PTHREAD_MUTEX_NORMAL = 0 };
+# endif
+# ifndef __NIJI_D_enum_PTHREAD_MUTEX_RECURSIVE
+#  define __NIJI_D_enum_PTHREAD_MUTEX_RECURSIVE 1
+enum { PTHREAD_MUTEX_RECURSIVE = 1 };
+# endif
+#endif
+#if 1
 # ifndef PTHREAD_CANCEL_ASYNCHRONOUS
 #  define PTHREAD_CANCEL_ASYNCHRONOUS 1
 # endif

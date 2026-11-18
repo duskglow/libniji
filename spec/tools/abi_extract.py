@@ -59,6 +59,7 @@ TYPES = [
  ("__pthread_unwind_buf_t", "__pthread_unwind_buf_t"), ("struct __cancel_jmp_buf_tag", "struct __cancel_jmp_buf_tag"),
  ("sigevent_t", "sigevent_t"),
  ("struct sigcontext", "struct sigcontext"),
+ ("struct _fpstate", "struct _fpstate"), ("struct _fpxreg", "struct _fpxreg"), ("struct _xmmreg", "struct _xmmreg"),
  ("struct _libc_fpstate", "struct _libc_fpstate"),
  ("struct _libc_fpxreg", "struct _libc_fpxreg"),
  ("struct _libc_xmmreg", "struct _libc_xmmreg"),

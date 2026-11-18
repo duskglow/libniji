@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (231 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (234 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -535,6 +535,36 @@ fn abi_struct_sigcontext() {
     expect_member("struct sigcontext", "fpstate", offset_of!(struct_sigcontext, __anon_184.fpstate));
     expect_member("struct sigcontext", "__fpstate_word", offset_of!(struct_sigcontext, __anon_184.__fpstate_word));
     expect_member("struct sigcontext", "__reserved1", offset_of!(struct_sigcontext, __reserved1));
+}
+
+#[test]
+fn abi_struct_fpstate() {
+    expect_type("struct _fpstate", size_of::<struct__fpstate>(), align_of::<struct__fpstate>());
+    expect_member("struct _fpstate", "cwd", offset_of!(struct__fpstate, cwd));
+    expect_member("struct _fpstate", "swd", offset_of!(struct__fpstate, swd));
+    expect_member("struct _fpstate", "ftw", offset_of!(struct__fpstate, ftw));
+    expect_member("struct _fpstate", "fop", offset_of!(struct__fpstate, fop));
+    expect_member("struct _fpstate", "rip", offset_of!(struct__fpstate, rip));
+    expect_member("struct _fpstate", "rdp", offset_of!(struct__fpstate, rdp));
+    expect_member("struct _fpstate", "mxcsr", offset_of!(struct__fpstate, mxcsr));
+    expect_member("struct _fpstate", "mxcr_mask", offset_of!(struct__fpstate, mxcr_mask));
+    expect_member("struct _fpstate", "_st", offset_of!(struct__fpstate, _st));
+    expect_member("struct _fpstate", "_xmm", offset_of!(struct__fpstate, _xmm));
+    expect_member("struct _fpstate", "__glibc_reserved1", offset_of!(struct__fpstate, __glibc_reserved1));
+}
+
+#[test]
+fn abi_struct_fpxreg() {
+    expect_type("struct _fpxreg", size_of::<struct__fpxreg>(), align_of::<struct__fpxreg>());
+    expect_member("struct _fpxreg", "significand", offset_of!(struct__fpxreg, significand));
+    expect_member("struct _fpxreg", "exponent", offset_of!(struct__fpxreg, exponent));
+    expect_member("struct _fpxreg", "__glibc_reserved1", offset_of!(struct__fpxreg, __glibc_reserved1));
+}
+
+#[test]
+fn abi_struct_xmmreg() {
+    expect_type("struct _xmmreg", size_of::<struct__xmmreg>(), align_of::<struct__xmmreg>());
+    expect_member("struct _xmmreg", "element", offset_of!(struct__xmmreg, element));
 }
 
 #[test]
