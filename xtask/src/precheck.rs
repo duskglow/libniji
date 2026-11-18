@@ -104,19 +104,19 @@ pub(crate) fn cheap_step(root: &Path, name: &str) -> Result<(), String> {
 
 /// The fix a red step names.
 pub(crate) fn fix(name: &str) -> String {
-    let gen = |g: &str| format!("run `cargo xtask {g}` and commit what it writes");
+    let regen = |g: &str| format!("run `cargo xtask {g}` and commit what it writes");
     match name {
         "stubs" => "run `cargo xtask stubs` and commit what it writes; a new test names its clause id or `no spec clause`".into(),
         "headers-gen-check" | "abi-gen-check" => "run `cargo xtask headers-gen` (it also runs abi-gen), then `cargo xtask stubs`, and commit".into(),
-        "csys-gen-check" => gen("csys-gen"),
-        "unicode-gen-check" => gen("unicode-gen"),
-        "encodings-gen-check" => gen("encodings-gen"),
-        "locale-gen-check" => gen("locale-gen"),
-        "native-gen-check" => gen("native-gen"),
-        "compat-gen-check" => gen("compat-gen"),
-        "math-gen-check" => gen("math-gen"),
+        "csys-gen-check" => regen("csys-gen"),
+        "unicode-gen-check" => regen("unicode-gen"),
+        "encodings-gen-check" => regen("encodings-gen"),
+        "locale-gen-check" => regen("locale-gen"),
+        "native-gen-check" => regen("native-gen"),
+        "compat-gen-check" => regen("compat-gen"),
+        "math-gen-check" => regen("math-gen"),
         "remez-check" => "run `cargo xtask remez <fit>` for the fit named above and commit the coefficients".into(),
-        "tables-check" => gen("tables"),
+        "tables-check" => regen("tables"),
         "trace" => "name the spec clause each new test covers (or `no spec clause`)".into(),
         "fuzz-check" => "make the fuzz harnesses build again (fuzz/)".into(),
         "clippy" => "fix the lints (`cargo xtask clippy`; full output in target/precheck-clippy.log)".into(),
