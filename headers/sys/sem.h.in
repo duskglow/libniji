@@ -1,0 +1,16 @@
+@@generated
+/* sys/sem.h: System V semaphores (XSH <sys/sem.h>). */
+#ifndef __NIJI_H_sys_sem_h
+#define __NIJI_H_sys_sem_h 1
+
+#include <features.h>
+#include <sys/ipc.h>
+#include <sys/types.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

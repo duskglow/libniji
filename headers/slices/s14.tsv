@@ -1,0 +1,25 @@
+# One row per header this slice ships (plan/headers.md section 4, "Adding a slice"). p1: 1 = the table P1 units of
+# spec/tools/header_check.py cover it; uapi: the kernel UAPI headers P8 pairs it with (comma-separated), - for none.
+header	p1	uapi
+pwd.h	1	-
+grp.h	1	-
+shadow.h	1	-
+gshadow.h	1	-
+utmp.h	1	-
+utmpx.h	1	-
+lastlog.h	1	-
+sys/fsuid.h	1	-
+termios.h	1	-
+sys/termios.h	1	-
+termio.h	1	-
+sgtty.h	1	-
+pty.h	1	-
+ttyent.h	1	-
+sys/ttychars.h	1	-
+sys/ttydefaults.h	1	-
+syslog.h	1	-
+sys/syslog.h	1	-
+sys/ipc.h	1	-
+sys/msg.h	1	-
+sys/sem.h	1	-
+sys/shm.h	1	-

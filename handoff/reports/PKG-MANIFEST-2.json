@@ -1,0 +1,11 @@
+{"task": "PKG-MANIFEST-2", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: build.sh/system.sh/check-system.sh/check.sh/root-system.sh now read tools/deb/manifest.tsv and control.tsv; byte-identity proof and gate running, plants drafted not run (context checkpoint)",
+ "branch": "task/pkg-manifest-2", "head": "see git log (handoff commit on 5bb3eb4bb)",
+ "gate": {"affected": "running (pkg-manifest-2-gate)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [], "informational": ["root-system.sh's purge line keeps a fixed package order (dpkg removal order is code, not data)"], "refused": [],
+ "impact": [{"kind": "tooling", "what": "two stories adding different library rows merge cleanly (git merge-tree); the same additions to the old system.sh loop conflict", "before": 1, "after": 0, "unit": "merge conflicts in the demo", "measured": true},
+            {"kind": "coverage", "what": "crates/core/tests/deb_manifest.rs tests added", "before": 0, "after": 2, "unit": "tests", "measured": true}],
+ "jobs": ["pkg-manifest-2-gate", "pkg-manifest-2-proof"],
+ "improvement": "the packaging proof needs two cold release builds; a primed release-products cache per base revision and prefix would make byte-identity proofs of packaging changes minutes instead of a long job",
+ "next_step": "read the proof and gate logs, fix any DIFFERENT .deb, run handoff/PKG-MANIFEST-plants.txt through cargo xtask plants, final clippy+static, hand back",
+ "report_file": "handoff/PKG-MANIFEST.md"}
