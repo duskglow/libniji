@@ -74,6 +74,7 @@ fn tables_are_sorted_well_formed_and_name_built_products() {
     assert!(out.starts_with("manifest: OK"), "manifest lint printed: {out}");
 }
 
+// FS-ORDER: each listed entry is linked into the fixture once; the order of the links is never observed.
 #[test]
 fn an_unshipped_file_in_a_shipped_product_directory_fails_lint() {
     // no spec clause (packaging; PKG-MANIFEST-4): lint --products also looks inside each product
