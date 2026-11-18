@@ -138,20 +138,23 @@ fn several_nodes_read_the_node_from_rseq() {
 /// KiB: `tests/oracle/heap_address_space.c` (one `malloc(16)`; 200000 blocks of 96..159 bytes;
 /// every other one freed and refilled with `malloc(120)`; all freed; a pointer array grown to
 /// 200000 by doubling `realloc`). Per step: the reference's growth (glibc 2.39, measured on the
-/// Zen 1 build host, identical over 5 runs) and libniji's bound, its measured growth (identical
-/// over 5 runs) plus 256 KiB (one slab of a segment's growth). Before HEAP-ADDRESS-SPACE libniji
-/// grew by 16448, 32836, 49220 and 67652 KiB (whole 16 MiB segment windows, a 16 MiB large-block
-/// table): every step but the first fails. malloc1: a new segment's first 16 slabs (4 MiB of
-/// address space, HEAP-ADDRESS-SPACE-5). refill, realloc and [`AS_HEADROOM`] were measured with
-/// the reuse of a nearby class's freed blocks (the spill, HEAP-SPILL-COLD); without it this
-/// branch measures +39236, +41288 and a need of 42000 KiB (RULING NEEDED, HEAP-ADDRESS-SPACE-5).
-const AS_STEPS: [(&str, u64, u64); 4] =
-    [("malloc1", 132, 4420 + 256), ("alloc", 27984, 28996 + 256), ("refill", 29568, 32836 + 256), ("realloc", 28052, 34888 + 256)];
+/// Zen 1 build host, identical over 5 runs) and libniji's bound. malloc1 and alloc: libniji's
+/// measured growth (identical over 5 runs) plus 256 KiB (one slab of a segment's growth). Before
+/// HEAP-ADDRESS-SPACE libniji grew by 16448, 32836, 49220 and 67652 KiB (whole 16 MiB segment
+/// windows, a 16 MiB large-block table): every step but the first fails. malloc1: a new
+/// segment's first 16 slabs (4 MiB of address space, HEAP-ADDRESS-SPACE-5).
+/// refill and realloc: the measured level without the reuse of a nearby class's freed blocks
+/// (ruling #6513, HEAP-ADDRESS-SPACE-6). They do not yet meet their targets, 33092 (refill) and
+/// 35144 KiB (realloc), measured with that reuse; HEAP-SPILL-COLD closes the gap and tightens
+/// these bounds to the targets.
+const AS_STEPS: [(&str, u64, u64); 4] = [("malloc1", 132, 4420 + 256), ("alloc", 27984, 28996 + 256), ("refill", 29568, 39236), ("realloc", 28052, 41288)];
 /// RLIMIT_AS over the VmSize at start under which the whole program must still succeed: the
-/// least the reference needs is 29568 KiB, libniji 34896 KiB (bisected to 16 KiB); this is
-/// libniji's need plus 256 KiB, inside the issue's 35000 KiB headroom (findutils'
-/// many-dir-entries-vs-OOM test). Before HEAP-ADDRESS-SPACE libniji needed 67652 KiB.
-const AS_HEADROOM: u64 = 34896 + 256;
+/// least the reference needs is 29568 KiB; this is libniji's measured need without the reuse of
+/// a nearby class's freed blocks (bisected to 16 KiB; ruling #6513, HEAP-ADDRESS-SPACE-6). It
+/// does not yet meet its target, 35152 KiB (the need with that reuse plus 256 KiB, inside the
+/// issue's 35000 KiB headroom for findutils' many-dir-entries-vs-OOM test); HEAP-SPILL-COLD
+/// closes the gap. Before HEAP-ADDRESS-SPACE libniji needed 67652 KiB.
+const AS_HEADROOM: u64 = 42000;
 
 #[test]
 fn the_heap_keeps_address_space_near_its_use() {

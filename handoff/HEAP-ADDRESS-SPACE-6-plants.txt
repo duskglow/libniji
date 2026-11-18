@@ -1,0 +1,5 @@
+# HEAP-ADDRESS-SPACE-6 plants (cargo xtask plants; docs/plants.md): the head-bin rule for phase-only groups
+# (xtask/src/bins.rs) and the issue #21 test with its bounds at the measured levels (ruling #6513).
+head-takes-phase | xtask/src/bins.rs | lit:(head || *n > 0) && fits ==> (head || *n < usize::MAX) && fits | cargo test -p xtask a_measured_phase | msg:a_measured_phase_shares_its_warm_up_windows.*FAILED|panicked
+head-refuses-mixed | xtask/src/bins.rs | lit:sig.is_empty() || !sig.is_subset(phases) ==> sig.is_empty() || sig.is_disjoint(phases) | cargo test -p xtask a_measured_phase | msg:a_measured_phase_shares_its_warm_up_windows.*FAILED|panicked
+first-large-max | crates/rt/src/heap.rs | lit:large.min(FIRST_LARGE) ==> large | cargo test -p niji --test heap_meta_products | msg:the_heap_keeps_address_space_near_its_use.*FAILED|the heap added
