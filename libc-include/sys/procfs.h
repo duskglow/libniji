@@ -192,7 +192,7 @@ extern int getitimer (int, struct itimerval *) __NIJI_NOTHROW;
 struct timeval;
 # ifndef __NIJI_D_gettimeofday
 #  define __NIJI_D_gettimeofday 1
-extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW;
+extern int gettimeofday (struct timeval *, void *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timeval;
 # ifndef __NIJI_D_select
@@ -208,7 +208,7 @@ extern int setitimer (int, const struct itimerval *, struct itimerval *) __NIJI_
 struct timeval;
 # ifndef __NIJI_D_utimes
 #  define __NIJI_D_utimes 1
-extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW;
+extern int utimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 #endif
 #if __NIJI_GNU
@@ -233,7 +233,7 @@ extern int futimes (int, const struct timeval *) __NIJI_NOTHROW;
 struct timeval;
 # ifndef __NIJI_D_lutimes
 #  define __NIJI_D_lutimes 1
-extern int lutimes (const char *, const struct timeval *) __NIJI_NOTHROW;
+extern int lutimes (const char *, const struct timeval *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1)));
 # endif
 struct timeval;
 struct timezone;

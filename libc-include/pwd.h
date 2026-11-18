@@ -91,7 +91,7 @@ typedef unsigned int uid_t;
 struct passwd;
 # ifndef __NIJI_D_getpwnam
 #  define __NIJI_D_getpwnam 1
-extern struct passwd *getpwnam (const char *);
+extern struct passwd *getpwnam (const char *) __attribute__ ((__nonnull__ (1)));
 # endif
 struct passwd;
 # ifndef __NIJI_D_getpwuid
@@ -109,19 +109,19 @@ extern int getpw (unsigned int, char *);
 struct passwd;
 # ifndef __NIJI_D_fgetpwent
 #  define __NIJI_D_fgetpwent 1
-extern struct passwd *fgetpwent (FILE *);
+extern struct passwd *fgetpwent (FILE *) __attribute__ ((__nonnull__ (1)));
 # endif
 struct passwd;
 struct passwd;
 # ifndef __NIJI_D_fgetpwent_r
 #  define __NIJI_D_fgetpwent_r 1
-extern int fgetpwent_r (FILE *, struct passwd *, char *, unsigned long, struct passwd **);
+extern int fgetpwent_r (FILE *, struct passwd *, char *, unsigned long, struct passwd **) __attribute__ ((__nonnull__ (1, 2, 3, 5)));
 # endif
 struct passwd;
 struct passwd;
 # ifndef __NIJI_D_getpwent_r
 #  define __NIJI_D_getpwent_r 1
-extern int getpwent_r (struct passwd *, char *, unsigned long, struct passwd **);
+extern int getpwent_r (struct passwd *, char *, unsigned long, struct passwd **) __attribute__ ((__nonnull__ (1, 2, 4)));
 # endif
 struct passwd;
 # ifndef __NIJI_D_putpwent
@@ -149,13 +149,13 @@ struct passwd;
 struct passwd;
 # ifndef __NIJI_D_getpwnam_r
 #  define __NIJI_D_getpwnam_r 1
-extern int getpwnam_r (const char *, struct passwd *, char *, unsigned long, struct passwd **);
+extern int getpwnam_r (const char *, struct passwd *, char *, unsigned long, struct passwd **) __attribute__ ((__nonnull__ (1, 2, 3, 5)));
 # endif
 struct passwd;
 struct passwd;
 # ifndef __NIJI_D_getpwuid_r
 #  define __NIJI_D_getpwuid_r 1
-extern int getpwuid_r (unsigned int, struct passwd *, char *, unsigned long, struct passwd **);
+extern int getpwuid_r (unsigned int, struct passwd *, char *, unsigned long, struct passwd **) __attribute__ ((__nonnull__ (2, 3, 5)));
 # endif
 #endif
 #if __NIJI_MISC

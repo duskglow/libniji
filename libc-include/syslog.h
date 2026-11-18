@@ -22,13 +22,13 @@ extern int setlogmask (int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_syslog
 #  define __NIJI_D_syslog 1
-extern void syslog (int, const char *, ...);
+extern void syslog (int, const char *, ...) __attribute__ ((__format__ (__printf__, 2, 3)));
 # endif
 #endif
 #if __NIJI_MISC
 # ifndef __NIJI_D_vsyslog
 #  define __NIJI_D_vsyslog 1
-extern void vsyslog (int, const char *, __builtin_va_list);
+extern void vsyslog (int, const char *, __builtin_va_list) __attribute__ ((__format__ (__printf__, 2, 0)));
 # endif
 #endif
 #if 1

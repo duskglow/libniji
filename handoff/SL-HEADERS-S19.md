@@ -15,7 +15,7 @@ one per attribute kind).
 * `headers-gen` reads the table (`attrs`, `attr_text`), puts `__attribute__ ((...))` after the assembler label of each
   generated declaration, and substitutes `@@attrs(NAME)` in templates (`headers/string.h.in`: the strchr family, C and C++).
   `libc-include/` regenerated (7 headers changed).
-* Result: 519 functions, 2232 tests, 0 differences in the compared options (-Wnonnull, -Wunused-result,
+* Result: 628 functions, 2688 tests (after merging next; was 519 and 2232), 0 differences in the compared options (-Wnonnull, -Wunused-result,
   -Wdeprecated-declarations, -Wformat*, -Wunused-value, and the noreturn/malloc/alloc_size markers).
 * Pending decision record `records/pending/SL-HEADERS-S19-1.toml` (D-NEW, series D-X).
 
@@ -39,3 +39,10 @@ a `-std=gnu99` configuration. C++ is not part of the corpus (the C++ overloads c
 adds headers reruns `attr_probe.py table` (it probes every function the headers declare) and `check`.
 
 **Source compatibility.** No package corpus was built here (P7 is slice 20): no Aqours source patch is known to be needed.
+
+**Continuation SL-HEADERS-S19-2.** The CI red (corpus "does not build", lines []) had two causes, both in the probe: (1) slices that
+landed on next include kernel UAPI headers (pty.h: asm/ioctls.h) and the probe's `-nostdinc` hid them; the probe now adds a
+directory of links to only asm/, asm-generic/ and linux/ of the system; (2) errors inside an included header were dropped, so the
+list was empty; the probe now quotes up to five compiler errors from libniji's own headers (the reference side is never quoted).
+The table was rerun for the functions of the newly landed headers (pwd, grp, shadow, syslog, sys/time, utime...) and headers-gen
+regenerated `libc-include/`: 628 functions, 0 differences.

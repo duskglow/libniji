@@ -301,7 +301,7 @@ extern int fcntl64 (int, int, ...);
 # endif
 # ifndef __NIJI_D_lockf64
 #  define __NIJI_D_lockf64 1
-extern int lockf64 (int, int, long);
+extern int lockf64 (int, int, long) __attribute__ ((__warn_unused_result__));
 # endif
 # ifndef __NIJI_D_open64
 #  define __NIJI_D_open64 1
@@ -324,9 +324,9 @@ extern int posix_fallocate64 (int, long, long);
 # ifndef __NIJI_D_lockf
 #  define __NIJI_D_lockf 1
 #  if (__NIJI_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
-extern int lockf (int, int, long);
+extern int lockf (int, int, long) __attribute__ ((__warn_unused_result__));
 #  elif __NIJI_FOB64
-extern int lockf (int, int, long) __asm__ ("lockf64");
+extern int lockf (int, int, long) __asm__ ("lockf64") __attribute__ ((__warn_unused_result__));
 #  endif
 # endif
 #endif

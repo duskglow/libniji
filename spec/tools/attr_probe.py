@@ -191,7 +191,17 @@ def compile_side(text, inc, keep, tag):
     cmd = ["gcc"] + OPT + ["-fdiagnostics-format=json", "-c", src, "-o", obj]
     if inc:
         gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
-        cmd[1:1] = ["-nostdinc", "-isystem", os.path.abspath(inc), "-isystem", gccinc]
+        # The kernel UAPI headers (asm/, asm-generic/, linux/) are not part of the C library: libniji's headers include
+        # them (pty.h: asm/ioctls.h). Only those three directories are made visible, through a directory of symbolic
+        # links, so that no header of the reference's C library can stand in for one libniji lacks.
+        uapi = os.path.join(d, "uapi")
+        os.makedirs(uapi, exist_ok=True)
+        for name, src_dir in (("asm", "/usr/include/x86_64-linux-gnu/asm"), ("asm-generic", "/usr/include/asm-generic"),
+                              ("linux", "/usr/include/linux")):
+            link = os.path.join(uapi, name)
+            if not os.path.lexists(link) and os.path.isdir(src_dir):
+                os.symlink(src_dir, link)
+        cmd[1:1] = ["-nostdinc", "-isystem", os.path.abspath(inc), "-isystem", gccinc, "-isystem", uapi]
     p = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True)
     diags = {}
     errs = set()
@@ -207,7 +217,7 @@ def compile_side(text, inc, keep, tag):
         if os.path.basename(c.get("file", "")) != tag + ".c":
             # An error inside an included header fails the whole corpus. Only libniji's own headers (inc given) are
             # quoted: the reference side keeps nothing but lines and option names (plan/headers.md section 2.2).
-            if inc and dg.get("kind") == "error" and len(HEADER_ERRORS) < 5:
+            if inc and dg.get("kind") in ("error", "fatal error") and len(HEADER_ERRORS) < 5:
                 HEADER_ERRORS.append("%s:%s: %s" % (os.path.relpath(c.get("file", "?"), os.path.abspath(inc)), c.get("line"), dg.get("message", "")))
             continue
         opt = dg.get("option") or ""

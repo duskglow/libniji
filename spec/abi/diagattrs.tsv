@@ -80,10 +80,15 @@ ffsl									1
 ffsll									1
 fgetc	1								
 fgetc_unlocked	1								
+fgetgrent_r	3								
 fgetpos	1								
 fgetpos64	1								
+fgetpwent	1								
+fgetpwent_r	1,2,3,5								
 fgets	3	1							
 fgets_unlocked	3	1							
+fgetsgent_r	3								
+fgetspent_r	3								
 fileno	1	1							
 fileno_unlocked	1	1							
 flockfile	1								
@@ -121,6 +126,9 @@ getdelim	4	1
 getdomainname	1	1							
 getentropy	1	1							
 getenv	1	1							
+getgrent_r	2								
+getgrgid_r	3								
+getgrnam_r	3								
 getgroups		1							
 gethostname	1								
 getline	3	1							
@@ -131,7 +139,16 @@ getopt_long	2,3
 getopt_long_only	2,3								
 getpagesize									1
 getpass	1								
+getpwent_r	1,2,4								
+getpwnam	1								
+getpwnam_r	1,2,3,5								
+getpwuid_r	2,3,5								
+getsgent_r	2								
+getsgnam_r	3								
+getspent_r	2								
+getspnam_r	3								
 getsubopt	1,2,3	1							
+gettimeofday	1								
 getw	1								
 getwd	1	1					1		
 imaxabs									1
@@ -154,6 +171,7 @@ lldiv		1							1
 lockf		1							
 lockf64		1							
 lrand48_r	1,2								
+lutimes	1								
 malloc		1			1	1			
 memccpy	1,2								
 memchr	1								1
@@ -247,6 +265,8 @@ setstate	1
 setstate_r	1,2								
 setuid		1							
 setvbuf	1								
+sgetsgent_r	3								
+sgetspent_r	3								
 snprintf	3			printf:3:4					
 sprintf	1,2			printf:2:3					
 srand48_r	2								
@@ -326,6 +346,7 @@ strxfrm_l	1,2
 swab	1,2								
 symlink	1,2	1							
 symlinkat	1,3	1							
+syslog				printf:2:3					
 system		1							
 tempnam		1			1				
 timespec_get	1								
@@ -340,6 +361,7 @@ ungetc	2
 unlink	1								
 unlinkat	2								
 unsetenv	1								
+utimes	1								
 valloc		1			1	1			
 vasprintf		1		printf:2:0					
 vdprintf				printf:2:0					
@@ -350,5 +372,6 @@ vscanf	1	1		scanf:1:0
 vsnprintf	3			printf:3:0					
 vsprintf	1,2			printf:2:0					
 vsscanf	2			scanf:2:0					
+vsyslog				printf:2:0					
 wctomb		1							
 write	2	1							
