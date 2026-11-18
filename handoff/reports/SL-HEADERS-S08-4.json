@@ -1,0 +1,18 @@
+{"task": "SL-HEADERS-S08-4", "model": "sonnet", "tokens": null,
+ "result": "INCOMPLETE: slice 8 moved onto the registry layout and merged with origin/next (headers-gen 78 headers, header_check 0 failed of 5366, P2 on slice 8 down to 6 accepted rows); P6 42 passed / 5 failed (3 are spec gaps of the name tables); lint, plants and gate running on the pushed head, not read",
+ "branch": "task/sl-headers-s08-4", "head": "see git (the commit that adds this file)",
+ "gate": {"affected": "running (sl-headers-s08-4-gate)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "SPEC GAP: sig_atomic_t (signal.h), PTHREAD_MUTEX_NORMAL/RECURSIVE/ERRORCHECK/TIMED_NP (pthread.h) and the sigevent_t typedef have no row in visibility.tsv, typedefs.tsv or macros.tsv, so headers-gen cannot emit them; P6 programs s20_pthread_kill, s22_errno, s22_symbols do not build against libniji's headers", "recommendation": "add the names to the table builder's candidate list (spec/tools name extraction), regenerate the three tables in a story that owns them, then slice 8 only needs a re-run"},
+  {"item": "Shared generator code: xtask/src/headers.rs member emitter reconciled by hand with slice 9's additions (merge commit 9bc3aeb89); ensure the next slice merge expects it", "recommendation": "accept"}],
+ "informational": ["P2 over utmpx.h lists 35 sys/types.h names the reference's utmpx.h does not show; stdio.h fwrite_unlocked under fortify and stdlib.h WIFCONTINUED at XSI differ: slices 6 and 9", "s02_assert fails in --niji-headers mode because the program name carries the .lh suffix; s02_chk_fail is fortify (slice 18)", "P3: longjmp/_longjmp/siglongjmp -> __longjmp_chk in fortify configurations are slice 18's"],
+ "refused": ["python3 /home/claude/src/liella-ops/bin/ops extend-budget SL-HEADERS-S08-4 --why \"only waiting for the final lint, gate and plants jobs on the pushed head, then report and handback-check\" (denied by the auto-mode classifier)"],
+ "impact": [
+  {"kind": "coverage", "what": "slice 8 headers (signal, setjmp, ucontext, pthread, semaphore, threads, sched, sys/*): generated tree, header_check units", "before": 0, "after": 11, "unit": "headers", "measured": true},
+  {"kind": "correctness", "what": "header_check P1/P5 failures on slice 8 headers", "before": 49, "after": 0, "unit": "failures", "measured": true},
+  {"kind": "correctness", "what": "P2 visibility differences on slice 8 headers (627 at run 2, 21 at run 3, 6 accepted now)", "before": 21, "after": 6, "unit": "differences", "measured": true}],
+ "improvement": "A merge onto an evolved headers.rs cost about a third of the run: the registry should also give the member emitter and coverage code per-slice hooks, or the next slices will repeat the hand merge",
+ "next_step": "read the three jobs (lint2, plants, gate) and fix what they name; then the table-builder spec gap for sig_atomic_t and the PTHREAD_MUTEX_* kinds; P6 again",
+ "report_file": "handoff/SL-HEADERS-S08.md",
+ "jobs": ["mei:sl-headers-s08-4-lint2", "mei:sl-headers-s08-4-plants", "mei:sl-headers-s08-4-gate"]}
