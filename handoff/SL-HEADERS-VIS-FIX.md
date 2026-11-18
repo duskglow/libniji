@@ -44,6 +44,15 @@ judges `xtask/tests/<name>.rs` by the same text rule (`affected::names_products`
 **Plants** `handoff/SL-HEADERS-VIS-FIX/plants.txt` (6): WIFCONTINUED row, gnu/stubs.h including features.h, the single
 struct stat (P2 plant the brief asks for), the xtask rule (two), headers-gen --out. Results in the report json.
 
-**Exact next step** (if this leg did not finish): see the report json `next_step`.
+**Results (mei s3).** Final tested head e5b548342 (only this note and the report json after it).
+`sl-headers-vis-fix-plants4` (8193fe14d code): 6 CAUGHT of 6, each on the baseline build; results
+`handoff/SL-HEADERS-VIS-FIX-plants.txt`. `sl-headers-vis-fix-gate2` (FULL, escalated: xtask changed): 32 suites,
+12171 passed, 0 failed; conformance 140/0. `sl-headers-vis-fix-precheck` (--head e5b548342): GREEN, 31 checks.
+Superseded: plants2 (killed: rebuilt products, before the tool fix), plants3 (headers-gen-out SURVIVED: P2 fell back to
+the system headers; the test now requires each probed header), lint2 (did not compile: `gen` reserved), lint3, lint4
+(older heads; clippy and static green there and again in precheck), run 1's gate (stopped) and plants (0 judged).
+
+**Exact next step.** Land. A later `sys/stat.h` or `fcntl.h` template that gives `struct stat` copies the
+`@@hidden-member` lines and the `st_atime` block from `sys/pidfd.h.in`.
 **Not to redo.** The reference stat probe; the P2 baseline counts above; the sweep.
 **Not this story.** The "missing" class above belongs to the ctype/alloca/limits/fortify owners.
