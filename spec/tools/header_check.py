@@ -20,7 +20,9 @@ edits no list or function here. For each configuration of spec/abi/ftm-configs.t
 * P5      each header of the slice tables compiles alone and included twice, `-Wall -Wextra -Wsystem-headers -Werror`;
 * P1      per (header, configuration), for the rows with `p1` 1: every macros.tsv integer value, typedefs.tsv size and
           alignment and layouts.tsv structure size and alignment of what visibility.tsv makes visible there;
-* slice   the units of each `header_checks/<slice>.py` (`units(ctx)`, and FAIL lines from `problems(ctx)`);
+* slice   the units of each `header_checks/<slice>.py` (`units(ctx)`, and FAIL lines from `problems(ctx)`); a module
+          may also name `p1_skip` ((header, name) rows P1 leaves out) and `must_fail` (headers shipped to fail: no P5
+          unit, and a unit titled "... must fail" passes only when it fails with libniji's "is not provided" #error);
 * P8      each header with the kernel UAPI headers of its `uapi` cell, both include orders (see `p8`).
 
 Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed.
@@ -120,6 +122,8 @@ def p1_units(ctx):
         n = r["name"]
         if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
+        if (h, n) in ctx.p1_skip:
+            continue  # a slice check module's `p1_skip` names it, with the reason
         tests = []
         if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
             m = macros[n]
@@ -242,8 +246,13 @@ def main():
         vis=rows("spec/abi/visibility.tsv"), macros={r["name"]: r for r in rows("spec/abi/macros.tsv")},
         typedefs={r["name"]: r for r in rows("spec/abi/typedefs.tsv") if r["kind"] == "typedef"}, layouts=layouts)
     gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+    mods = slice_checks()
+    # A slice check module may name `p1_skip` ((header, name) rows its P1 units leave out) and `must_fail` (headers
+    # shipped to fail in every configuration: no P5 TU, and the module's own unit asserts the failure).
+    ctx.p1_skip = {x for _, mod in mods for x in getattr(mod, "p1_skip", ())}
+    must_fail = {x for _, mod in mods for x in getattr(mod, "must_fail", ())}
     p1s = p1_units(ctx)
-    for name, mod in slice_checks():
+    for name, mod in mods:
         problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
         for cid, what, body in mod.units(ctx):
             p1s.setdefault(cid, []).append((what, body))
@@ -270,7 +279,7 @@ def main():
         units = [("levels", "#include <features.h>\n" + "".join(
             f"#if __NIJI_{mac} != {lv[col]}\n#error \"__NIJI_{mac} is not {lv[col]}\"\n#endif\n" for col, mac in COLS))]
         if not rejected:
-            units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows]
+            units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows if r["header"] not in must_fail]
             units += p1s.get(c["id"], [])
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
@@ -278,7 +287,11 @@ def main():
                 f.write(text)
             r = subprocess.run(base + [src], capture_output=True, text=True)
             total += 1
-            ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
+            if what.endswith(" must fail"):
+                # libniji's own header: the failure must be its #error, not a missing file or a syntax slip.
+                ok = r.returncode != 0 and "is not provided" in r.stderr
+            else:
+                ok = (r.returncode != 0) if (rejected and what == "levels") else (r.returncode == 0)
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
