@@ -298,9 +298,11 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// more. The interpreter and libc.so.6 are staged in a fixed-length directory that the program's PT_INTERP
 /// names and LD_LIBRARY_PATH (ruling #5909) points to, so the count does not depend on the checkout's path.
 /// Measured (LAYOUT-LDSO-ORDER-2, next 627ef49ca plus the grouping, Zen 1 host, warm-up + 5 runs, every run
-/// identical), fast / release: 89 / 85. The bound sits at that level, no margin (D-X.103's rule for these
-/// counts). No spec clause (layout of the products).
-const DYN_TRUE_BOUND: [u64; 2] = [89, 85];
+/// identical), fast / release: 89 / 85. LAYOUT-LDSO-ORDER-3, the same head on the Skylake-SP host (two NUMA
+/// nodes, warm-up + 5 runs, every run identical): release 86; fast at most 89 (the plants' baseline; ungrouped
+/// it reads 90). The bound is the highest level of the two host classes per profile, no margin (D-X.103's rule
+/// for these counts; as for TRUE_BOUND). No spec clause (layout of the products).
+const DYN_TRUE_BOUND: [u64; 2] = [89, 86];
 
 #[test]
 fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
