@@ -45,3 +45,5 @@ started)), commit the plants results file as `handoff/SL-HEADERS-S08-4-plants.tx
 role, then `ops handback-check`. The full `cargo xtask test` was not run on the final head (see above).
 
 **Jobs of the final head** are in the report json. Plants file: `handoff/SL-HEADERS-S08/plants.txt`. `headers-gen` on the build host takes about 3-4 minutes.
+
+**Leg 3 end.** plants2: 9 of 9 CAUGHT, 0 survived (handoff/SL-HEADERS-S08-4-plants.txt). gate2 escalated to FULL (cargo xtask test) and was still running at hand-back with no failure in its log: collect it with jobwait on the build host. lint3 and p6b green. Next: read gate2; union_tag unit test; slice 18 fortify rows.
