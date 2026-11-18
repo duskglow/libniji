@@ -544,6 +544,14 @@ pub fn lookup(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, uniqu
     if scope.entries {
         return lookup_entries(objects, scope, req, unique);
     }
+    lookup_plain(objects, scope, req, unique)
+}
+
+/// [`lookup`] in a scope without canonical PLT entries: the walk on its own, so the test in
+/// [`lookup`] does not change how the walk's loop is compiled (inlined there it cost every object
+/// visited a few instructions more).
+#[inline(never)]
+fn lookup_plain(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
     search::<false>(objects, scope, req, unique)
 }
 
