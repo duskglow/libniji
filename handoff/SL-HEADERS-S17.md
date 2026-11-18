@@ -20,6 +20,9 @@ and compile alone: `header_check.py` 0 failed of 2555 units (P5 and P1, 40 confi
 * tar.h: the table has an include-error row in the time64-only configuration, so tar.h keeps features.h (cpio.h, sysexits.h, sys/queue.h do not).
 * `extra struct _IO_FILE` in printf.h: libniji defines the whole FILE structure where the table shows only the typedef. Harmless, to settle.
 
+**Plants (`validation/headers_s17.plants`, 8).** 1 CAUGHT by its message (header_check.py), 7 WARN-NO-MSG: a mutant of a template or of the generator fails the headers-gen staleness check of
+`cargo xtask so` first (`stale under libc-include/`), so the plant's own command (header_check.py, P10) never runs on it. The msg regexes name what that command prints on a regenerated tree.
+
 **Decisions in force.** Pending record `records/pending/SL-HEADERS-S17-2-1.toml` (D-X, generator additions).
 **Not to redo.** probe rerun for slice 17 candidates (visibility.tsv/macros.tsv rows already in the tables); header-alone compile fixes; P10.
 **Next step.** (1) `_obstack_chunk` layout rows; (2) ruling on the argp/argz inline forms, then accept file for `probe_compare.py --accept` or implement; (3) look at the slice 6

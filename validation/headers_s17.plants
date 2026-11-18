@@ -1,10 +1,6 @@
 # Plants for slice 17 (SL-HEADERS-S17): the generator and the templates. Header-alone and value checks are
 # spec/tools/header_check.py (P5, P1); the macro behaviour is validation/headers_p10_s17.sh (P10).
 # No spec clause: header generation (plan/headers.md section 3).
-# Run 2 (SL-HEADERS-S17-2): a mutant of a template or of the generator makes `cargo xtask so` fail first, in its headers-gen check
-# (`headers-gen: stale under libc-include/`), so the first seven plants are caught by that check (WARN-NO-MSG against the msg named
-# here, which is what the command would print on a regenerated tree); only the last plant (a file the check does not read) is
-# caught by header_check.py itself.
 s17-queue-tailq-remove | headers/sys/queue.h.in | lit:*(elm)->field.tqe_prev = (elm)->field.tqe_next; } while (0) ==> *(elm)->field.tqe_prev = (elm)->field.tqe_prev; } while (0) | cargo xtask headers-gen && sh validation/headers_p10_s17.sh | msg:P10 .* DIFFERENT
 s17-obstack-finish-align | headers/obstack.h.in | lit:& ~ (__PTRDIFF_TYPE__) __o->alignment_mask) ==> & ~ (__PTRDIFF_TYPE__) 0) | cargo xtask headers-gen && sh validation/headers_p10_s17.sh | msg:P10 .* DIFFERENT
 s17-covered-all-configs | xtask/src/headers.rs | lit:cover.get(&key).filter(|c| own & care & !**c == 0).map(|_| key) ==> cover.get(&key).filter(|_c| true).map(|_| key) | cargo xtask headers-gen && python3 spec/tools/header_check.py | msg:FAIL P1 argz.h .*error_t
