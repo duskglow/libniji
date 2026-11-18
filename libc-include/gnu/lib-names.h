@@ -3,8 +3,7 @@
 #ifndef __NIJI_H_gnu_lib_names_h
 #define __NIJI_H_gnu_lib_names_h 1
 
-#include <features.h>
-
+/* No feature-test macros are made visible: the header declares only the soname macros. */
 #define LD_LINUX_X86_64_SO "ld-linux-x86-64.so.2"
 #define LIBBROKENLOCALE_SO "libBrokenLocale.so.1"
 #define LIBANL_SO "libanl.so.1"
