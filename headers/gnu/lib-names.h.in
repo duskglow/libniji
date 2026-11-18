@@ -3,8 +3,7 @@
 #ifndef __NIJI_H_gnu_lib_names_h
 #define __NIJI_H_gnu_lib_names_h 1
 
-#include <features.h>
-
+/* No feature-test macros are made visible: the header declares only the soname macros. */
 @@sonames
 
 #endif
