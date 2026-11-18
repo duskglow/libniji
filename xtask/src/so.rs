@@ -1570,9 +1570,12 @@ fn ldso_layout(
     let _ = fs::remove_dir_all(&tdir);
     fs::create_dir_all(&tdir).map_err(|e| format!("{}: {e}", tdir.display()))?;
     link(entry, archive, &tdir.join(niji_ld::arch::Native::INTERP))?;
-    for f in ["libc.so.6", "niji-crt1.o"] {
-        fs::copy(release.join(f), tdir.join(f)).map_err(|e| format!("copy {f}: {e}"))?;
-    }
+    fs::copy(release.join("niji-crt1.o"), tdir.join("niji-crt1.o")).map_err(|e| format!("copy niji-crt1.o: {e}"))?;
+    // The programs name libc.so.6 by path (the interpreter takes no libc.so.6 from a run path, #4537).
+    let by_path = tdir.join("by-path");
+    fs::create_dir_all(&by_path).map_err(|e| format!("{}: {e}", by_path.display()))?;
+    let libc = crate::native_examples::libc_by_path(&release.join("libc.so.6"), &by_path)?;
+    fs::copy(&libc, tdir.join("libc.so.6")).map_err(|e| format!("copy {}: {e}", libc.display()))?;
     let log = lists.join("ldso-trace.log");
     let logf = fs::File::create(&log).map_err(|e| format!("{}: {e}", log.display()))?;
     let errf = logf.try_clone().map_err(|e| e.to_string())?;

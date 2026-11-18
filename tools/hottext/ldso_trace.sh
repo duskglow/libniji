@@ -38,6 +38,10 @@ cd "$work"
 # shellcheck source=tools/hottext/runner.sh
 . "$here/runner.sh"
 canon_prepare
+# The interpreter reads /etc/ld.so.preload when it exists: every trace sees none (a file of the emptied
+# run directory, never created), whatever the host has.
+hot_redirect="${hot_redirect:+$hot_redirect:}/etc/ld.so.preload=@run/ld.so.preload"
+# libc.so.6 of <dir> names itself by path (no DT_SONAME): the programs need it at $work/libc.so.6.
 cp "$P/ld-linux-x86-64.so.2" "$work/ld.so"
 cp "$P/libc.so.6" "$work/libc.so.6"
 probe() { # <name> <libraries>: a program of this build calling one function in each library
