@@ -1,0 +1,19 @@
+{"task": "STARTUP-GOT-PAGE-4", "model": "opus", "tokens": null,
+ "result": "Option C applied (ruling #6606): .got page-aligned in entry.S; B's start-up read, the GOT test/binop relaxation and the cmp-immediate tool rule removed; D-X.122 reworked",
+ "branch": "task/startup-got-page-4", "head": "1e555af95",
+ "gate": {"affected": "FULL (escalated: entry.S defines _start; workspace clippy + cargo xtask test) rc 0; hot_text_products release 26 passed, fast 26 passed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "HEAP-ADDRESS-SPACE-8 adds its own 256-aligned .got in entry.S; on merge keep this one 4096 alignment",
+   "xtask plants' .S rule assumes every site is in a function: the .got directive plant anchors on the preceding niji_machine_ld_enter: label",
+   "Option D (relaxation plus a fast first %.2f that reads no RELRO) not measured; would save one written start-up page; possible follow-up"],
+ "refused": [],
+ "impact": [
+   {"kind": "faults", "what": "written start-up .got page no longer moves with relro length (LOCALE-SLOTS-GROWTH-5's STARTUP-DATA-WINDOWS 8 > 7 case); fast whole-process counts at bound: true 11, setlocale+printf 43, coreutils-shaped 44, localtime 36, STARTUP-DATA-WINDOWS rw 7", "before": null, "after": 7, "unit": "written start-up pages (fast)", "measured": true},
+   {"kind": "size", "what": "RELRO padding of a static program (static probe)", "before": 28672, "after": 32768, "unit": "bytes (release; fast 0xc000 -> 0xd000)", "measured": true},
+   {"kind": "coverage", "what": "init_startup_data_pages_hold_at_every_data_phase: 7 relro-tail pads, .got page-start and one-page checks; 1 plant CAUGHT", "before": null, "after": 1, "unit": "plants", "measured": true}],
+ "improvement": "the gate escalates any entry.S change to FULL (2 h here); a section-directive-only edit of the start file could use the direct tier plus hot_text_products",
+ "next_step": "land",
+ "report_file": "handoff/STARTUP-GOT-PAGE.md",
+ "jobs": ["startup-got-page-4-lint", "startup-got-page-4-gate", "startup-got-page-4-plants", "startup-got-page-4-htp-release", "startup-got-page-4-htp-fast"]}
