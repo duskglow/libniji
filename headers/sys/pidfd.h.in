@@ -8,7 +8,20 @@
 __NIJI_BEGIN_C
 
 @@owns-macro si_status si_value
+@@hidden-member st_atim st_atime __st_atimensec
+@@hidden-member st_mtim st_mtime __st_mtimensec
+@@hidden-member st_ctim st_ctime __st_ctimensec
 @@emit
+
+/* struct stat's times (POSIX XSH <sys/stat.h>): where struct timespec is visible they are its st_atim, st_mtim and
+   st_ctim, and st_atime names the seconds; elsewhere st_atime is the time_t member itself (same offsets). */
+@@when timespec
+# ifndef st_atime
+#  define st_atime st_atim.tv_sec
+#  define st_mtime st_mtim.tv_sec
+#  define st_ctime st_ctim.tv_sec
+# endif
+#endif
 
 /* siginfo_t's member shorthands (POSIX XSH <signal.h>): the member of the union that carries the value. */
 @@when si_status
