@@ -34,4 +34,14 @@
 * Workflow note: the table regeneration costs about 8 minutes per header_probe + type_probe run (`--jobs 12`); a new candidate name that is a struct member
   type makes its tag a candidate on the next run (the `_fpstate` -> `_fpxreg` cascade took two rounds).
 
+**Jobs running at the end of leg 2 (on head 46c2ee883, role synced to it, nothing edited since): next step for leg 3.**
+`sl-headers-s08-4-gate2` (affected --run --base origin/next; the change reaches crates/abi, so it is long; no failure seen in its log so far) and
+`sl-headers-s08-4-plants2` (plants file below; every s8 plant so far is CAUGHT because the mutant's product build runs `headers-gen --check` and fails: the
+second line "caught by no test the log names" is informational, not a WARN; read the end of the log for WARN/SURVIVED and results.txt in the plants dir).
+Finished green on this head: `sl-headers-s08-4-lint3` (clippy, static, stubs, records check), `sl-headers-s08-4-p6b` (so, P6 45 of 47, P2/P3 proof run).
+Leg 3: `~/bin/jobwait sl-headers-s08-4-gate2 sl-headers-s08-4-plants2` on the build host (the tree is mei:~/w/s4), fix what they name; then fill gate/jobs/result in
+`handoff/reports/SL-HEADERS-S08-4.json` (jobs: gate2, plants2, lint3, p6b; SUPERSEDED: lint2 (cancelled for the table work), plants and gate of leg 1 (never
+started)), commit the plants results file as `handoff/SL-HEADERS-S08-4-plants.txt` if plants are clean, push, `cargo xtask precheck --jobs <labels> --head <sha>` on the
+role, then `ops handback-check`. The full `cargo xtask test` was not run on the final head (see above).
+
 **Jobs of the final head** are in the report json. Plants file: `handoff/SL-HEADERS-S08/plants.txt`. `headers-gen` on the build host takes about 3-4 minutes.
