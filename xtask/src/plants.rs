@@ -133,7 +133,25 @@ pub struct Config {
 /// `cargo xtask affected` uses to build the products (`Repo::test_uses_products`).
 pub fn plants_use_products(copy: &Path, plants: &[Plant]) -> Vec<bool> {
     let repo = crate::affected::Repo::load(copy);
-    plants.iter().map(|p| cmd_uses_products(&p.cmd, |krate, name| repo.test_uses_products(krate, name))).collect()
+    plants.iter().map(|p| cmd_uses_products(&p.cmd, |krate, name| repo.test_uses_products(krate, name).or_else(|| xtask_test_uses_products(copy, krate, name)))).collect()
+}
+
+/// `Repo` leaves xtask's own crate out (it is the tool, not a product crate), so an xtask test target is judged here
+/// by the same text rule ([`crate::affected::names_products`]). A plant on a header template or a generator then reuses
+/// the baseline build for a test that runs the generator itself, instead of a product build that refuses the mutant's
+/// stale `libc-include/` before the test runs (SL-HEADERS-VIS-FIX). Unsure (no package named, no such file, or the
+/// file names a directory of `xtask/tests/`, which may be support code) is `None`: rebuild.
+fn xtask_test_uses_products(copy: &Path, krate: Option<&str>, name: &str) -> Option<bool> {
+    if krate != Some("xtask") || name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        return None;
+    }
+    let tests = copy.join("xtask/tests");
+    let text = fs::read_to_string(tests.join(format!("{name}.rs"))).ok()?;
+    let names_a_dir = fs::read_dir(&tests).ok()?.flatten().any(|e| e.path().is_dir() && text.contains(e.file_name().to_string_lossy().as_ref()));
+    if names_a_dir {
+        return None;
+    }
+    Some(crate::affected::names_products(&text))
 }
 
 /// Whether `cmd` may use the products. It is known not to only when it is one plain `cargo test`
@@ -1021,6 +1039,28 @@ mod tests {
         ] {
             assert_eq!(cmd_uses_products(cmd, lookup), want, "{cmd}");
         }
+    }
+
+    // no spec clause: an xtask test target is judged by the products text rule (Repo leaves xtask out); one naming
+    // the products, a support directory, another package or no file at all stays unsure (rebuild)
+    #[test]
+    fn xtask_test_targets_are_judged_by_their_text() {
+        let copy = std::env::temp_dir().join(format!("plants-xtask-tests.{}", std::process::id()));
+        let _ = fs::remove_dir_all(&copy);
+        let tests = copy.join("xtask/tests");
+        fs::create_dir_all(tests.join("helpers")).unwrap();
+        fs::write(tests.join("plain.rs"), "fn main() { run(env!(\"CARGO_BIN_EXE_xtask\")); }\n").unwrap();
+        fs::write(tests.join("linked.rs"), "let a = root.join(\"target/niji/lib\");\n").unwrap();
+        fs::write(tests.join("helped.rs"), "mod helpers;\n").unwrap();
+        let got = |k: Option<&str>, n: &str| xtask_test_uses_products(&copy, k, n);
+        assert_eq!(got(Some("xtask"), "plain"), Some(false));
+        assert_eq!(got(Some("xtask"), "linked"), Some(true));
+        assert_eq!(got(Some("xtask"), "helped"), None);
+        assert_eq!(got(Some("xtask"), "absent"), None);
+        assert_eq!(got(Some("xtask"), "../plain"), None);
+        assert_eq!(got(None, "plain"), None);
+        assert_eq!(got(Some("niji"), "plain"), None);
+        let _ = fs::remove_dir_all(&copy);
     }
 
     // no spec clause: a plant its command catches is CAUGHT, a declared one with no msg is WARN-RC-ONLY, the copy has no target/
