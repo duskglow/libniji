@@ -44,3 +44,5 @@ Run 3 began with clippy + static green on the inherited head (job `sl-headers-s1
 file's earlier text: the pseudo-denormal is non-canonical in spec s10.2, the probe and `__iscanonicall`). D-NEW rows in `records/pending/`.
 
 **Next step.** Item 1 when the other slices' headers land; otherwise the slice is complete.
+
+**Run 4 (close-out).** math.h.in `@@owns-macro` no longer lists isnan/isinf (the `@@if-macro` lines own them; the s11-ifmacro-owner plant now fails). Three float plants take msg `headers-gen: stale under|panicked at`. Plants job mei:sl-headers-s11-4-plants 23 CAUGHT/0 WARN; gate mei:sl-headers-s11-4-gate rc 0. Next: item 1 above.
