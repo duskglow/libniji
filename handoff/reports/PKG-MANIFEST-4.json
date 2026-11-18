@@ -1,0 +1,18 @@
+{"task": "PKG-MANIFEST-4", "model": "opus", "tokens": null,
+ "result": "Merged origin/next; next's system.sh/check-system.sh changes moved into manifest rows and manifest-driven checks; 9 of 9 .debs byte-identical to next's scripts",
+ "branch": "task/pkg-manifest-4", "head": "d15162aff",
+ "gate": {"affected": "pending: pkg-manifest-4-gate (escalated to FULL by its own rule: */libc-so.ld) running at hand-back", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "libc-bin's description keeps next's text (no locale; says locale is not part of this build yet) for byte identity, while libc-bin ships /usr/bin/locale", "recommendation": "follow-up data-only change: $programs back in tools/deb/description/libc-bin and drop locale from the 'other programs' sentence"}],
+ "informational": ["Moved from next into the data: usr/bin/locale row; 43 charmap rows (source charmaps/<name>); charmap rows == spec/encoding/charmaps.tsv (manifest.py lint); every shipped charmap names itself in <code_set_name> (manifest.py check, replaces the ISO-8859-15 grep); check-system.sh allow-list lines covered by manifest.py check. build.sh libdir and root-system.sh merged unchanged (not package contents)."],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "packages built from the manifest at the new base: .debs byte-identical to next's scripts", "before": null, "after": 9, "unit": "of 9 .debs identical", "measured": true},
+   {"kind": "coverage", "what": "plants on the moved checks (all CAUGHT)", "before": null, "after": 5, "unit": "plants", "measured": true},
+   {"kind": "coverage", "what": "deb_manifest test: unshipped file in a product directory", "before": null, "after": 1, "unit": "tests", "measured": true},
+   {"kind": "coverage", "what": "charmaps checked for their <code_set_name> header in the packages (was ISO-8859-15 only)", "before": 1, "after": 43, "unit": "charmaps", "measured": true}
+ ],
+ "improvement": "the cold product build for the proof took 43 min while the gate rebuilt the same tree in the role: a primed, read-only product cache per base revision for both flavours would make proofs like this ~3 min",
+ "next_step": "land once pkg-manifest-4-gate is green (red: rerun only the failing suite); then the libc-bin description follow-up",
+ "report_file": "handoff/PKG-MANIFEST.md",
+ "jobs": ["keke:pkg-manifest-4-lint2", "keke:pkg-manifest-4-products", "keke:pkg-manifest-4-proof", "keke:pkg-manifest-4-plants", "keke:pkg-manifest-4-gate"]}

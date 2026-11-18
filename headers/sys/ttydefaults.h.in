@@ -1,0 +1,14 @@
+@@generated
+/* sys/ttydefaults.h: the default terminal control characters and modes (tty(4)). */
+#ifndef __NIJI_H_sys_ttydefaults_h
+#define __NIJI_H_sys_ttydefaults_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

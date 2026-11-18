@@ -23,14 +23,14 @@ use crate::run;
 /// sections are the small state words themselves).
 pub const MIN: u64 = 1024;
 
-/// The `.bss.*` sections of at least [`MIN`] bytes per archive member, from the members' own
+/// The `.bss.*` sections of at least `min` bytes ([`MIN`] for libc) per archive member, from the members' own
 /// section headers ([`crate::hottext::archive_headers`]: whole names; `readelf -SW` cuts them
 /// at 256 bytes, and a cut name renames nothing).
-fn cold_sections(members: &[(String, Vec<Shdr>)]) -> BTreeMap<String, Vec<String>> {
+fn cold_sections(members: &[(String, Vec<Shdr>)], min: u64) -> BTreeMap<String, Vec<String>> {
     let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (m, headers) in members {
         for s in headers {
-            if s.kind == SHT_NOBITS && s.name.starts_with(".bss.") && s.size >= MIN {
+            if s.kind == SHT_NOBITS && s.name.starts_with(".bss.") && s.size >= min {
                 out.entry(m.clone()).or_default().push(s.name.clone());
             }
         }
@@ -77,10 +77,10 @@ fn rename(ar: &str, archive: &Path, work: &Path, what: &str, renames: &BTreeMap<
     crate::hottext::check_renames(&archive_headers(archive)?, renames).map_err(|e| format!("{}: {what}: {e}", archive.display()))
 }
 
-/// Rename the cold `.bss.*` sections of `archive` to `.lbss.*` in place; `work` is scratch.
+/// Rename the cold `.bss.*` sections (at least `min` bytes) of `archive` to `.lbss.*` in place; `work` is scratch.
 /// Returns the number of sections renamed (each checked in the archive afterwards).
-pub fn move_cold_bss(ar: &str, archive: &Path, work: &Path) -> Result<usize, String> {
-    let cold = cold_sections(&archive_headers(archive)?);
+pub fn move_cold_bss(ar: &str, archive: &Path, work: &Path, min: u64) -> Result<usize, String> {
+    let cold = cold_sections(&archive_headers(archive)?, min);
     let renames = cold.into_iter().map(|(m, list)| (m, list.into_iter().map(|s| (s.clone(), format!(".lbss{}", &s[".bss".len()..]))).collect())).collect();
     rename(ar, archive, work, "coldbss", &renames, None)
 }
@@ -474,7 +474,7 @@ fn state_plan(members: &[(String, Vec<Shdr>)], list: &[(Declared, String, bool, 
         }
     }
     let lead = zero.iter().max_by_key(|(m, (_, b))| (*b, std::cmp::Reverse((*m).clone()))).map(|(m, _)| m.clone());
-    let cold = cold_sections(members);
+    let cold = cold_sections(members, MIN);
     let mut plan = StatePlan::default();
     for (m, secs) in order {
         let cluster: &[String] = match (&lead, zero.get(&m)) {
@@ -619,7 +619,7 @@ mod tests {
             ("a.o".to_string(), vec![sec(".text.f", 1, 0x400), sec(".bss.big", SHT_NOBITS, 0x400), sec(".bss.small", SHT_NOBITS, 0x3ff), sec(".tbss.t", SHT_NOBITS, 0x1000), sec(".data.d", 1, 0x2000)]),
             ("b.o".to_string(), vec![sec(".bss.huge", SHT_NOBITS, 0x10000), sec(&long, SHT_NOBITS, 0x800), sec(".bss.notnobits", 1, 0x800)]),
         ];
-        let got = cold_sections(&members);
+        let got = cold_sections(&members, MIN);
         assert_eq!(got.len(), 2);
         assert_eq!(got["a.o"], vec![".bss.big".to_string()]);
         assert_eq!(got["b.o"], vec![".bss.huge".to_string(), long]);

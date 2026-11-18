@@ -1,0 +1,14 @@
+@@generated
+/* shadow.h: shadow password database (shadow(5), getspnam(3)). */
+#ifndef __NIJI_H_shadow_h
+#define __NIJI_H_shadow_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

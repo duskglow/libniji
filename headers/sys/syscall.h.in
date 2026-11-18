@@ -1,0 +1,10 @@
+@@generated
+/* sys/syscall.h: the system call numbers as SYS_<name>, each the kernel's __NR_<name>. */
+#ifndef __NIJI_H_sys_syscall_h
+#define __NIJI_H_sys_syscall_h 1
+
+#include <asm/unistd.h>
+
+@@syscalls
+
+#endif
