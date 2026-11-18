@@ -33,9 +33,10 @@ Probe: a 46 KiB cold function added to ld.so (pad.patch, never committed).
   changed, so it ran the workspace clippy and `cargo xtask test`): rc 0, 32 suites ok, 12161 passed, 0 failed,
   1397 ignored; conformance 139 passed; 1 SKIPPED line; peak 11G. Head 4aaed116f.
 * `layout-ldso-window-2-plants2`: 7 plants (handoff/LAYOUT-LDSO-WINDOW-2-plants.txt): 7 CAUGHT, 0 WARN. Head 4aaed116f.
-* `layout-ldso-window-2-fullprof2`: `NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products` (27 passed) +
-  `cold_bss_products` (2 passed), rc 0, in a RAM copy of head 4aaed116f's tree (the role was busy with gate2;
-  `cargo xtask test` ran inside gate2). Mapped span 0x80000.
+* `layout-ldso-window-2-fullprof3`: `NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products` +
+  `cold_bss_products` in the role (`cargo xtask test` ran inside gate2): rc 0, 27 + 2 passed, mapped span 0x80000.
+* SUPERSEDED `layout-ldso-window-2-fullprof2`: the same commands, rc 0 (27 + 2 passed, mapped span 0x80000), but
+  in a RAM copy of 4aaed116f's tree under jobrun kind `gate` (precheck wants an `affected` verdict from that kind).
 * Clippy (`cargo xtask clippy`) and `cargo xtask static` clean on the role at 4aaed116f.
 * fast/release DYN_TRUE_BOUND not tightened: its rule takes the highest of the Zen 1 and Skylake-SP host classes,
   and only the Skylake-SP class was measured here.
