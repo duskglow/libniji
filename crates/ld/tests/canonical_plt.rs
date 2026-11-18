@@ -14,7 +14,8 @@
 //! of the first check that failed. The reference gives the same answers (probe-settled; the dynlink
 //! notes). Needs `cargo xtask so` and a C compiler (else SKIP).
 //!
-//! Trace: s27_1_g_0 (symbol resolution follows ELF rules), s27_1_c_3 (`dlsym(RTLD_DEFAULT)`).
+//! Trace: s27_1_g_0 (symbol resolution follows ELF rules), s27_1_c_3 (`dlsym(RTLD_DEFAULT)`,
+//! `RTLD_NEXT`, handles), s27_1_c_6 (`dladdr`).
 // ARCH(x86_64): the corpus is built with the host compiler for x86_64 and run under the x86_64 loader.
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::expect_used, clippy::panic)]
@@ -326,6 +327,162 @@ int main(void) {
     );
     for (how, o) in run_both(&k, &p, &[], &[]) {
         assert_ok(how, "IFUNC canonical PLT", &o);
+    }
+    std::fs::remove_dir_all(&k.d).ok();
+}
+
+/// The corpus of [`s27_1_g_0_canonical_plt_entry_in_scoped_lookups_dladdr_versions_and_copy`]: a non-PIE
+/// program with canonical PLT entries for `f` (libf.so) and `v` (libv.so's default `v@@V1`) and a COPY
+/// of libf.so's `data_x`; one observation per line. `canon` is the program's entry, `real` libf.so's own
+/// address of `f`.
+const SCOPED_PROG: &str = r#"#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <stdio.h>
+#include <string.h>
+extern void f(void);
+extern void *f_p(void);
+extern void *f_real(void);
+extern int f_calls;
+extern int data_x;
+extern int *x_p(void);
+extern void v(void);
+extern void *use_v(void);
+extern void *v1_real(void);
+extern void *v0_real(void);
+extern int v_calls;
+static void *canon, *real;
+static const char *cls(void *p) { return !p ? "null" : p == canon ? "canon" : p == real ? "real" : "other"; }
+static const char *base(const char *s) {
+    if (!s) return "(null)";
+    const char *b = strrchr(s, '/');
+    b = b ? b + 1 : s;
+    return *b ? b : "(empty)";
+}
+static void info(const char *what, void *at) {
+    Dl_info di;
+    memset(&di, 0, sizeof di);
+    int ok = dladdr(at, &di);
+    printf("%s %d %s %s %s\n", what, ok != 0, base(di.dli_fname), di.dli_sname ? di.dli_sname : "(null)", cls(di.dli_saddr));
+}
+static void *open_in(const char *dir, const char *name, int mode) {
+    char path[4096];
+    snprintf(path, sizeof path, "%s/%s", dir, name);
+    return dlopen(path, mode);
+}
+int main(int argc, char **argv) {
+    const char *dir = argc > 1 ? argv[1] : ".";
+    canon = (void *)&f;
+    real = f_real();
+    printf("canon_is_real %d\n", canon == real);
+    printf("lib_ref %s\n", cls(f_p()));
+    f();
+    ((void (*)(void))canon)();
+    printf("calls %d\n", f_calls);
+    printf("default %s\n", cls(dlsym(RTLD_DEFAULT, "f")));
+    printf("next %s\n", cls(dlsym(RTLD_NEXT, "f")));
+    void *hf = open_in(dir, "libf.so", RTLD_NOW | RTLD_NOLOAD);
+    printf("handle_libf %s\n", hf ? cls(dlsym(hf, "f")) : "noload-failed");
+    void *hd = open_in(dir, "libdeep.so", RTLD_NOW | RTLD_DEEPBIND);
+    void *(*deep_f)(void) = hd ? (void *(*)(void))dlsym(hd, "deep_f") : 0;
+    printf("deepbind_ref %s\n", deep_f ? cls(deep_f()) : "open-failed");
+    printf("deepbind_handle %s\n", hd ? cls(dlsym(hd, "f")) : "open-failed");
+    void *hl = open_in(dir, "libloc.so", RTLD_NOW | RTLD_LOCAL);
+    void *(*loc_f)(void) = hl ? (void *(*)(void))dlsym(hl, "loc_f") : 0;
+    printf("local_ref %s\n", loc_f ? cls(loc_f()) : "open-failed");
+    printf("local_handle %s\n", hl ? cls(dlsym(hl, "f")) : "open-failed");
+    info("dladdr_canon", canon);
+    info("dladdr_canon_plus1", (char *)canon + 1);
+    info("dladdr_real", real);
+    void *cv = (void *)&v;
+    printf("v_canon_is_v1 %d\n", cv == v1_real());
+    printf("v_lib_ref %s\n", use_v() == cv ? "canon" : use_v() == v1_real() ? "v1" : "other");
+    void *d1 = dlvsym(RTLD_DEFAULT, "v", "V1");
+    void *d0 = dlvsym(RTLD_DEFAULT, "v", "V0");
+    printf("dlvsym_V1 %s\n", d1 == cv ? "canon" : d1 == v1_real() ? "v1" : d1 ? "other" : "null");
+    printf("dlvsym_V0 %s\n", d0 == cv ? "canon" : d0 == v0_real() ? "v0" : d0 ? "other" : "null");
+    v();
+    ((void (*)(void))cv)();
+    printf("v_calls %d\n", v_calls);
+    printf("copy %d %d\n", x_p() == &data_x, data_x);
+    return 0;
+}
+"#;
+
+/// What the reference prints for [`SCOPED_PROG`] (probe-settled, lazily and with `LD_BIND_NOW`).
+const SCOPED_EXPECTED: &str = "canon_is_real 0
+lib_ref canon
+calls 2
+default canon
+next real
+handle_libf real
+deepbind_ref real
+deepbind_handle real
+local_ref canon
+local_handle null
+dladdr_canon 1 prog f canon
+dladdr_canon_plus1 1 prog (null) null
+dladdr_real 1 libf.so f real
+v_canon_is_v1 0
+v_lib_ref canon
+dlvsym_V1 canon
+dlvsym_V0 v0
+v_calls 2
+copy 1 42
+";
+
+/// s27_1_g_0, s27_1_c_3, s27_1_c_6: the canonical PLT entry in the lookups that do not start at the
+/// program, and next to versions and a COPY. The entry is the address for the global scope only:
+/// `dlsym(RTLD_NEXT)` from the program, `dlsym` on the defining library's handle, and a library opened
+/// `RTLD_DEEPBIND` (its own scope first: its reference and its handle) give libf.so's own `f`; a library
+/// opened `RTLD_LOCAL` still binds the entry, and its handle (no definition of `f`) gives NULL.
+/// `dladdr` names `f` at the entry's own address only (the symbol's size is 0); a versioned entry
+/// (`v@V1`) is found by `dlvsym(.., "V1")` and by a library's `v@V1` reference while `V0` gives libv.so's
+/// old definition; a COPY of the defining library's data is unaffected. Probe-settled: the reference
+/// prints [`SCOPED_EXPECTED`].
+#[test]
+fn s27_1_g_0_canonical_plt_entry_in_scoped_lookups_dladdr_versions_and_copy() {
+    let Some(k) = setup("scoped") else { return };
+    let libf = cc(
+        &k.d,
+        "libf.so",
+        "int f_calls;\nint data_x = 42;\nvoid f(void) { f_calls++; }\nextern void f_own(void) __attribute__((alias(\"f\"), visibility(\"hidden\")));\nvoid *f_p(void) { return (void *)f; }\nvoid *f_real(void) { return (void *)f_own; }\nint *x_p(void) { return &data_x; }\n",
+        LIB_FLAGS,
+    );
+    let map = k.d.join("libv.map");
+    std::fs::write(&map, "V0 { };\nV1 { } V0;\n").unwrap();
+    let script = format!("-Wl,--version-script={}", map.display());
+    let libv = cc(
+        &k.d,
+        "libv.so",
+        "int v_calls;\nvoid v0_impl(void) { v_calls += 100; }\nvoid v1_impl(void) { v_calls++; }\n__asm__(\".symver v0_impl,v@V0\");\n__asm__(\".symver v1_impl,v@@V1\");\nextern void v0_own(void) __attribute__((alias(\"v0_impl\"), visibility(\"hidden\")));\nextern void v1_own(void) __attribute__((alias(\"v1_impl\"), visibility(\"hidden\")));\nvoid *v0_real(void) { return (void *)v0_own; }\nvoid *v1_real(void) { return (void *)v1_own; }\n",
+        &[LIB_FLAGS, &[script.as_str()]].concat(),
+    );
+    let libuse = cc(&k.d, "libuse.so", "extern void v(void);\nvoid *use_v(void) { return (void *)v; }\n", &[LIB_FLAGS, &[libv.to_str().unwrap()]].concat());
+    cc(&k.d, "libdeep.so", "extern void f(void);\nvoid *deep_f(void) { return (void *)f; }\n", &[LIB_FLAGS, &[libf.to_str().unwrap()]].concat());
+    cc(&k.d, "libloc.so", "extern void f(void);\nvoid *loc_f(void) { return (void *)f; }\n", LIB_FLAGS);
+    let interp = format!("-Wl,--dynamic-linker={}", k.ld.display());
+    let p = cc(
+        &k.d,
+        "prog",
+        SCOPED_PROG,
+        &[
+            "-nostdlib",
+            "-fno-pic",
+            "-no-pie",
+            "-Wl,--no-as-needed",
+            &interp,
+            k.crt1.to_str().unwrap(),
+            libf.to_str().unwrap(),
+            libv.to_str().unwrap(),
+            libuse.to_str().unwrap(),
+            k.libc.to_str().unwrap(),
+            k.ld.to_str().unwrap(),
+            "-lgcc",
+        ],
+    );
+    for (how, o) in run_both(&k, &p, &[k.d.to_str().unwrap()], &[]) {
+        assert_ok(how, "scoped canonical PLT", &o);
+        assert_eq!(String::from_utf8_lossy(&o.stdout), SCOPED_EXPECTED, "scoped canonical PLT ({how}): observations differ from the reference's");
     }
     std::fs::remove_dir_all(&k.d).ok();
 }
