@@ -19,3 +19,6 @@ s11-p1-emit-c-filter | spec/tools/header_check.py | lit:if h in emit_c and (h, n
 s11-p5-fenv-pragma | libc-include/fenv.h | lit:# pragma GCC diagnostic ignored "-Wbuiltin-declaration-mismatch" ==> # pragma GCC diagnostic ignored "-Wunused-macros" | python3 spec/tools/header_check.py | msg:FAIL P5 fenv.h cxx
 s11-p6-tgmath-order | libc-include/tgmath.h | lit:__builtin_tgmath (fmaf, fma, fmal, fmaf32, ==> __builtin_tgmath (fmaf, fmal, fma, fmaf32, | python3 spec/tools/header_check.py | msg:FAIL P6 tgmath
 s11-p6-tgmath-single | libc-include/tgmath.h | lit:# define dadd(x, y) daddl (x, y) ==> # define dadd(x, y) faddl (x, y) | python3 spec/tools/header_check.py | msg:FAIL P6 tgmath
+s11-ifmacro-template | headers/math.h.in | lit:@@if-macro isinf ==> @@if isinf | cargo xtask headers-gen --check | msg:headers-gen: stale under
+s11-ifmacro-owner | xtask/src/headers.rs | lit:if let Some(rest) = l.strip_prefix("@@if-macro ") { ==> if let Some(rest) = l.strip_prefix("@@if-macroX ") { | cargo xtask headers-gen --check | msg:headers-gen
+s11-ifmacro-cond | xtask/src/headers.rs | lit:then_some("macro")); ==> then_some("function")); | cargo xtask headers-gen --check | msg:headers-gen: stale under

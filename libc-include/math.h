@@ -3159,6 +3159,10 @@ extern int finitef (float) __NIJI_NOTHROW;
 #  define __NIJI_D_finitel 1
 extern int finitel (long double) __NIJI_NOTHROW;
 # endif
+# ifndef __NIJI_D_isinf
+#  define __NIJI_D_isinf 1
+extern int isinf (double);
+# endif
 # ifndef __NIJI_D_isinff
 #  define __NIJI_D_isinff 1
 extern int isinff (float) __NIJI_NOTHROW;
@@ -3260,6 +3264,10 @@ extern float gammaf (float) __NIJI_NOTHROW;
 # ifndef __NIJI_D_gammal
 #  define __NIJI_D_gammal 1
 extern long double gammal (long double) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_isnan
+#  define __NIJI_D_isnan 1
+extern int isnan (double);
 # endif
 # ifndef __NIJI_D_isnanf
 #  define __NIJI_D_isnanf 1
