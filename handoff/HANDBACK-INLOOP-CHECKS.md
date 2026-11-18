@@ -48,9 +48,14 @@ session died on a login expiry while gate2 and plants2 ran; the second session f
   `~/wl/src/<merge base>`; strict without the copy) and 4f3530282 (`write_if_changed` for all stubs tables; the stubs
   snapshot covers them). `-pc3` (after e1ebc67) named only the real change plus the two tables, which 4f35302 fixed.
   Full xtask tests 488 passed, clippy, static green (`-lint6`). Superseded: `-lint5`, `-pc2`, `-pc3`, `-gate3`, `-plants3`.
-- Plants (26: 7 red classes on the fixture or the real tree, 19 code plants) on 4f3530282 (`-plants4`): PLANTS_RESULT
-- Gate on 4f3530282 (`-gate4`, escalated to FULL: xtask changed): GATE_RESULT
-- Final `cargo xtask precheck --jobs <gate4,plants4> --head <sha>` (`-pc4`): FINAL_PRECHECK
+- Gate on 4f3530282 (`-gate4`, escalated to FULL: xtask changed): GREEN, 32 suites, 12151 passed, 0 failed,
+  conformance 139/0, `affected: ok`, peak 11G, oom_kill=0, 35.5 min.
+- Plants (26: 7 red classes on the fixture or the real tree, 19 code plants) on 4f3530282: `-plants4` ended rc 3 at
+  once (`REFUSED: line 26: bad plant id`: my 5b59921 edit lost the space before a `|`), fixed in 49272ae; `-plants5`
+  then REFUSED `code-stale-dir-rule` (pattern matched no site since e1ebc67 put that push in a `None =>` arm), fixed in
+  513d2eb (every lit: plant checked to match one site). `-plants6` (head 513d2eb, code = 4f3530282): 26/26 CAUGHT,
+  0 WARN, 70 min. Results: handoff/HANDBACK-INLOOP-CHECKS-plants.txt. Superseded: `-plants4`, `-plants5`.
+- Final `cargo xtask precheck --jobs gate4,plants6 --head <sha>` (`-pc4`): see the report json / hand-back.
 
 ## Post-hand-back checks and where they are now
 
@@ -91,19 +96,12 @@ fix what it names. Exit 3 (WAIT) = a named job has not ended: jobwait it, or han
 
 ## Not to redo / next step
 
-EXACT NEXT STEP (refresh leg; code is done, head 4f3530282, synced to mei:~/w/s1 as of 5b59921ad):
-1. On mei: `~/bin/jobwait handback-inloop-checks-2-gate4 handback-inloop-checks-2-plants4` (both started 05:53Z;
-   ONE jobwait per call, it returns within ~9.5 min). A red: fix the cause, rerun only that suite.
-2. Green: copy `/mnt/zram/claude/HANDBACK-INLOOP-CHECKS-2/plants-4/results.txt` over
-   handoff/HANDBACK-INLOOP-CHECKS-plants.txt; fill PLANTS_RESULT and GATE_RESULT above; commit, push, sync.
-3. Start `handback-inloop-checks-2-pc4` (jobrun, kind lint): `cargo xtask precheck --jobs
-   handback-inloop-checks-2-gate4,handback-inloop-checks-2-plants4 --head <synced sha> --story HANDBACK-INLOOP-CHECKS-2`;
-   jobwait it; fill FINAL_PRECHECK; set head and gate in handoff/reports/HANDBACK-INLOOP-CHECKS-2.json; commit, push.
-4. `ops handback-check HANDBACK-INLOOP-CHECKS-2 --head <sha> --jobs "mei:handback-inloop-checks-2-gate4,
-   mei:handback-inloop-checks-2-plants4, mei:handback-inloop-checks-2-lint6, mei:handback-inloop-checks-2-pc4"`.
-   REFUSED in leg 2 (report it): `python3 /home/claude/src/liella-ops/bin/ops extend-budget HANDBACK-INLOOP-CHECKS-2
-   --why "..."` (auto-mode classifier).
+State (leg 3): code done at 4f3530282; gate4 and plants6 green; the final precheck `-pc4` and
+`ops handback-check` ran on the last head (results in the hand-back and the report json). Nothing left to do.
+REFUSED in leg 2 (reported): `python3 /home/claude/src/liella-ops/bin/ops extend-budget HANDBACK-INLOOP-CHECKS-2
+--why "..."` (auto-mode classifier).
 
-Then the story is done. Possible follow-ups: (1) wire `ops handback-check` to run precheck on the role;
+The story is done. A plants-file check (parse every line, each pattern matches one site) belongs in precheck: two
+plants runs here died at once on file errors that a 1 s check finds. Possible follow-ups: (1) wire `ops handback-check` to run precheck on the role;
 (2) when the FULL escalation comes from xtask/src only, run the xtask unit tests (~3 min warm) among the prechecks,
 before the products: gate2's red (two xtask unit tests) took 44 min to show and would have shown in about 3.
