@@ -69,7 +69,8 @@
  "report_file": "handoff/DL-CANONICAL-PLT-6-report.md",
  "jobs": [
   "keke:dl-canonical-plt-6-step3",
-  "keke:dl-canonical-plt-6-sstep1"
+  "keke:dl-canonical-plt-6-sstep1",
+  "keke:dl-canonical-plt-6-static"
  ],
  "superseded": [
   "keke:dl-canonical-plt-6-plants2 (stopped after plant 1 of 7: dladdr-any-undefined CAUGHT)",

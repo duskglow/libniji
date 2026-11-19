@@ -31,7 +31,10 @@ Canonical programs: +2 faults (cold canonical pass text), as in run 5. ld.so +13
 Exact split (ptrace single-step tracer, job dl-canonical-plt-6-sstep1; total equals perf stat's +5137): plain N=0
 has 578 symbol lookups: `resolve` +1734 (the inlined `scope.entries` test), `lookup_plain` +2673 compared with base's
 `lookup`, `target` +578 (sets the Scope byte), `relocate_self` +90, `canonical_entries` +39. The per-candidate
-closure (`find::<false>`) runs exactly as many instructions as base's.
+closure (`find::<false>`) runs exactly as many instructions as base's. Plain N=12 (+26796 total): `lookup_plain` +23985
+compared with base's `lookup` (about 2 more per object visited: the walk over the 7-word `Scope` compiles worse out
+of line), `resolve` +1806, `target` +602, `canonical_entries` +183. Whatever carries the flag must leave `Scope`
+and the walk exactly as base has them.
 
 ## Plants (job dl-canonical-plt-6-plants2 on b6a56d27b, stopped after plant 1 of 7)
 dladdr-any-undefined: CAUGHT (`observations differ from the reference`): the plant run 5 left alive is
