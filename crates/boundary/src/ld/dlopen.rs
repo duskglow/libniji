@@ -360,11 +360,10 @@ impl core::ops::Deref for Nodes {
     fn deref(&self) -> &[Node; CAP] {
         // UNSAFE(slice): the link-map nodes in `ld.so`'s data.
         #[allow(unsafe_code)]
-        // SAFETY: NODES is a static of CAP * size_of::<Node>() bytes, 64-byte aligned (enough for
-        // Node), zero-filled at load, and all-zero is a valid Node; its words are atomics, so their
-        // bytes may be written through a pointer derived from a shared reference. The only `Nodes`
-        // is the `Loader`'s, borrowed through the one live `&Loader`/`&mut Loader` (`loader()`), and
-        // `start_node` writes before any `Loader` exists; readers read published fields by address.
+        // SAFETY: NODES is a zero-filled, 64-byte aligned static of CAP Nodes (all-zero is a valid
+        // Node; its words are atomics, writable through a shared reference). The only `Nodes` is the
+        // `Loader`'s, borrowed through the one live `&Loader`/`&mut Loader`; `start_node` writes
+        // before any `Loader` exists; readers read published fields by address.
         unsafe { &*core::ptr::with_exposed_provenance::<[Node; CAP]>(nodes_base()) }
     }
 }
