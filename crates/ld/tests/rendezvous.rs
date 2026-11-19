@@ -7,7 +7,7 @@
 //! Needs `cargo xtask so` and a C compiler (else SKIP).
 // ARCH(x86_64): the corpus is built with the host compiler for x86_64 and run under the x86_64 loader.
 #![cfg(target_arch = "x86_64")]
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -111,15 +111,25 @@ fn setup(tag: &str, pie: bool) -> Option<(PathBuf, PathBuf, PathBuf)> {
         let r = Command::new("cc").args(["-O1", "-g", "-fno-stack-protector", "-fcf-protection=none"]).arg(&c).args(flags).arg("-o").arg(out).output().unwrap();
         assert!(r.status.success(), "{}: {}", out.display(), String::from_utf8_lossy(&r.stderr));
     };
+    // libc.so.6 without DT_SONAME, linked by its path (as crates/ld/tests/dlclose.rs does): the
+    // program names it by path, the start opens it by that path.
+    let mut bytes = std::fs::read(lib.join("libc.so.6")).unwrap();
+    let elf = niji_ld::elf::Elf::parse::<Native>(&bytes).unwrap();
+    let dynph = elf.find(niji_ld::elf::pt::DYNAMIC).unwrap();
+    let (off, len) = (usize::try_from(dynph.offset).unwrap(), usize::try_from(dynph.filesz).unwrap());
+    let at = (off..off + len).step_by(16).find(|&o| bytes[o..o + 8] == 14u64.to_le_bytes()).expect("libc.so.6 has a DT_SONAME");
+    bytes[at..at + 8].copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
+    let libc = d.join("libc-rdv.so");
+    std::fs::write(&libc, &bytes).unwrap();
     let so = d.join("librdv.so");
     cc(&so, LIB, &["-nostdlib", "-fPIC", "-shared"]);
     let prog = d.join("prog");
-    let (interp, rpath) = (format!("-Wl,--dynamic-linker={}", ld.display()), format!("-Wl,-rpath,{}", lib.display()));
+    let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let crt1 = lib.join("niji-crt1.o");
     let mode: &[&str] = if pie { &["-fPIE", "-pie"] } else { &["-fno-pic", "-no-pie"] };
     let mut flags = vec!["-nostdlib"];
     flags.extend_from_slice(mode);
-    flags.extend_from_slice(&[&interp, &rpath, crt1.to_str().unwrap(), "-L", lib.to_str().unwrap(), "-l:libc.so.6", "-l:ld-linux-x86-64.so.2", "-lgcc"]);
+    flags.extend_from_slice(&[&interp, crt1.to_str().unwrap(), libc.to_str().unwrap(), ld.to_str().unwrap(), "-lgcc"]);
     cc(&prog, PROG, &flags);
     Some((d, so, prog))
 }
@@ -181,9 +191,7 @@ fn rendezvous_gdb_breaks_in_a_dlopened_library() {
         return;
     }
     assert!(out.contains("Breakpoint 1, ") && out.contains("rdv_target"), "gdb did not stop in the dlopened library:\n{out}");
-    let libc = target().join("niji").join("libc.so.6");
-    let libc = std::fs::canonicalize(&libc).unwrap_or(libc);
     let listed = |p: &Path| out.lines().any(|l| l.contains(p.to_str().unwrap_or("-")));
-    assert!(listed(&so) && (listed(&libc) || out.contains("/libc.so.6")), "info sharedlibrary misses an object:\n{out}");
+    assert!(listed(&so) && listed(&d.join("libc-rdv.so")) && listed(&ld), "info sharedlibrary misses an object:\n{out}");
     let _ = std::fs::remove_dir_all(d);
 }
