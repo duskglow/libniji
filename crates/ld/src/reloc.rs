@@ -599,6 +599,17 @@ pub fn publish_dynamic<I: Image>(o: &Obj<'_>, img: &mut I) {
     }
 }
 
+/// The run-time address of the value word of `o`'s first dynamic entry tagged `tag` (`DT_DEBUG`
+/// of the program, DL-23), when its loaded dynamic array is in a writable segment
+/// ([`Elf::published_dynamic`], as [`publish_dynamic`] writes it); `None` otherwise.
+#[must_use]
+pub fn dynamic_word(o: &Obj<'_>, tag: u64) -> Option<u64> {
+    let d = o.elf.published_dynamic()?;
+    let k = o.dynm.entries().position(|e| e.tag == tag)?;
+    let off = u64::try_from(k).ok()?.checked_mul(16)?.checked_add(8)?;
+    Some(o.bias.wrapping_add(d.vaddr).wrapping_add(off))
+}
+
 /// Make every object's RELRO pages read-only (after [`relocate_all`]; L14-8).
 ///
 /// # Errors
