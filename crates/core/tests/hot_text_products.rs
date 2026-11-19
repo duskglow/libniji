@@ -303,8 +303,9 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// it reads 90). The bound is the highest level of the two host classes per profile, no margin (D-X.103's rule
 /// for these counts; as for TRUE_BOUND). No spec clause (layout of the products).
 /// DYN-START-PARITY (the start's tables hold 16 entries inline, not 64: a smaller stack frame), Skylake-SP
-/// host, in this test: fast 77, release 73 (before: 89 / 86 on that host). Tightened to those levels.
-const DYN_TRUE_BOUND: [u64; 2] = [77, 73];
+/// host, in this test: fast 77, release 73 (before: 89 / 86 on that host); with DL-23-2's vDSO header page
+/// (+1 for a start that makes no vDSO call, as this program): fast 78, release 74. Tightened to those levels.
+const DYN_TRUE_BOUND: [u64; 2] = [78, 74];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.
