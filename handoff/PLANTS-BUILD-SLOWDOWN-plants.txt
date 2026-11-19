@@ -1,0 +1,6 @@
+# PLANTS-BUILD-SLOWDOWN: the visibility.tsv index of headers-gen (xtask/src/headers.rs VisIndex) must give the
+# answers the row scan gave; `headers-gen --check` compares every generated header with the committed libc-include/.
+pbs-include-error-dropped | xtask/src/headers.rs | perl:s/if kind == "include-error" \{/if kind == "include-errors" {/ | cargo xtask headers-gen --check | msg:headers-gen: stale under|headers-gen: [0-9]+ problems
+pbs-bare-rows-dropped | xtask/src/headers.rs | perl:s/            if header == "-" \{/            if header == "--" {/ | cargo xtask headers-gen --check | msg:headers-gen: stale under|headers-gen: [0-9]+ problems
+pbs-row-kind-ignored | xtask/src/headers.rs | perl:s/self.vis_rows\(header, name\).find\(\|r\| r\["kind"\] == kind\)/self.vis_rows(header, name).find(|r| !r["kind"].is_empty())/ | cargo xtask headers-gen --check | msg:headers-gen: stale under|headers-gen: [0-9]+ problems
+pbs-header-rows-last-only | xtask/src/headers.rs | perl:s/self.vis_index.by_header.get\(header\).into_iter\(\).flatten\(\)/self.vis_index.by_header.get(header).into_iter().flat_map(|v| v.last())/ | cargo xtask headers-gen --check | msg:headers-gen: stale under|headers-gen: [0-9]+ problems
