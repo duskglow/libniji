@@ -24,3 +24,5 @@ __ctype_tolower_loc	emit	C.9: tolower indexes (*__ctype_tolower_loc ())[c]
 __ctype_toupper_loc	emit	C.9: toupper indexes (*__ctype_toupper_loc ())[c]
 __ctype_get_mb_cur_max	emit	C.9: MB_CUR_MAX is __ctype_get_mb_cur_max ()
 getumask	omit	declared by the reference but defined by no library version; libniji declares only what it exports (slice 7)
+_argp_input	omit	inline helper of argp.h in the reference, not an exported symbol
+_option_is_short	omit	inline helper of argp.h in the reference, not an exported symbol

@@ -1,0 +1,67 @@
+{
+ "task": "HEADERS-TABLES-COMPLETE",
+ "model": "opus",
+ "tokens": null,
+ "result": "Rows-test exceptions 99 -> 3 (va_list C++ permanent; NULL and TD_SIGNO_MASK need a ruling): enumerators, providers (incl. generic type-generic forms), depth, transparent unions, pointer macros, missing prototypes, bit positions are table data",
+ "branch": "task/headers-tables-complete",
+ "head": "68ec5bdce",
+ "gate": {
+  "affected": "l4test3 green: clippy -D warnings, cargo xtask static, cargo test -p xtask -p niji-abi (741 passed); l4plants3 20 caught, 1 equivalent",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "NULL and TD_SIGNO_MASK: a null pointer constant is void * in C and long (__null) in C++; macros.tsv has one type column",
+   "recommendation": "a macros.tsv type `null` (value 0) emitted per language (C ((void *) 0), C++ __null) and checked in both; it fixes NULL's C++ spelling in public headers"
+  }
+ ],
+ "informational": [
+  "Provider data is headers/providers.tsv, not a prototypes.tsv column; the type-generic C++ function forms use its provider `generic` (ruling #6720's visibility-kind alternative without reclassifying every C++ overload set)",
+  "gets/bsd_signal callsites.tsv and noexcept.tsv rows come from a --names run of callsite_probe.py merged in, not a full run",
+  "A transparent-union member tag outside the probe's candidate list would be missed",
+  "Process slips over the run: one sed -i and two empty heredocs (leg 1), two heredocs (leg 2), one no-op sed -i (leg 3)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "rows-test exception rows removed (each now emitted and checked in C and C++)",
+   "before": 99,
+   "after": 3,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants for the story's code (20 caught, 1 declared equivalent)",
+   "before": 0,
+   "after": 21,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "generated headers: __atomic_wide_counter is its real union (stdlib.h, sys/types.h), enum mcheck_status/__ptrace_request/__pid_type from enumerators.tsv, MM_NULL* casts typed",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "math.h generation (generic providers), the `null` macros.tsv type ruling",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
+ "improvement": "A plant caught a test that named a value absent from the tables (M_PI): provider/visibility tests should pick their sample names by grepping the table first",
+ "next_step": "Land through the train; after the NULL ruling, add the `null` macros.tsv type to remove the last two non-permanent exceptions",
+ "report_file": "handoff/HEADERS-TABLES-COMPLETE.md",
+ "jobs": [
+  "mei:headers-tables-complete-l4test3",
+  "mei:headers-tables-complete-l4plants3"
+ ]
+}

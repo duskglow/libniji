@@ -1,9 +1,11 @@
 @@generated
-/* features-time64.h: the _TIME_BITS level is computed by features.h (__NIJI_TIME64). */
+/* features-time64.h: the _TIME_BITS check on its own. It does not include <features.h>: included alone it shows
+   none of the feature-test macros (the levels and __NIJI_TIME64 stay features.h's). */
 #ifndef __NIJI_H_features_time64_h
 #define __NIJI_H_features_time64_h 1
 
-#include <features.h>
-
+#if defined _TIME_BITS && _TIME_BITS - 0 == 64 && !(defined _FILE_OFFSET_BITS && _FILE_OFFSET_BITS - 0 == 64)
+# error "_TIME_BITS=64 is allowed only with _FILE_OFFSET_BITS=64"
+#endif
 
 #endif

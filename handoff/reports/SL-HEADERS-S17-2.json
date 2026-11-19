@@ -1,0 +1,13 @@
+{"task": "SL-HEADERS-S17-2", "model": "sonnet", "tokens": null,
+ "result": "slice 17 headers generated; 8 header-alone failures fixed at their cause; header_check 0 of 2555 failed; P10 identical; P2 (65 rows) and P3 (12 rows) differences remain, listed in the handoff",
+ "branch": "task/sl-headers-s17-2", "head": "590cbe032",
+ "gate": {"affected": "pending: sl-headers-s17-2-gate still running at hand-back", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "argp.h internal inline helpers (_argp_input, _option_is_short, _option_is_end) and inline forms of argp_usage and argz_next: P2 and P3 list them", "recommendation": "do not add the internal helper names (source compatibility is best effort); implement the argp_usage and argz_next inline forms only if a package needs them; accept the rest with differences rows"}],
+ "informational": ["plants: 7 of 8 are WARN-NO-MSG: a mutant of a template or the generator fails the headers-gen staleness check of cargo xtask so before the plant's own command runs, so P5/P10 are not exercised by those plants (the eighth, on header_check.py, is CAUGHT by its message)", "P2 residue inherited from slice 6: ctype _l/_tolower/isascii macro configurations and fwrite_unlocked macro in fortify configurations, seen through argp.h, malloc.h, stdio_ext.h", "struct _obstack_chunk has no layouts.tsv rows (abi_extract.py list): the tag is not defined", "sys/types.h now also emits __ino64_t, __off_t, __pid_t (covered-name fix); guarded, header_check clean", "printf.h defines the whole FILE structure where the table shows only the typedef (one extra P2 row)"],
+ "refused": [],
+ "impact": [{"kind": "coverage", "what": "slice 17 headers (16) generated and header-alone clean in 40 configurations; header_check units", "before": 1502, "after": 2555, "unit": "units", "measured": true}, {"kind": "coverage", "what": "plants added (validation/headers_s17.plants)", "before": 0, "after": 8, "unit": "plants", "measured": true}, {"kind": "unblock", "what": "slice 17 landing; P2/P3 residue is the next story", "before": null, "after": null, "unit": "", "measured": false}],
+ "improvement": "plants cannot exercise checks that need regenerated output: a prepare step per plant (run the generator) would let header_check and P10 catch generator and template mutants",
+ "next_step": "settle the P2/P3 rows (obstack_chunk layout rows, argp/argz inline forms ruling, slice 6 ctype residue), then P6",
+ "report_file": "handoff/SL-HEADERS-S17.md",
+ "jobs": ["keke:sl-headers-s17-2-gate", "keke:sl-headers-s17-2-plants"]}

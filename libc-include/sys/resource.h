@@ -34,20 +34,62 @@ struct timeval {
 struct rusage {
   struct timeval ru_utime;
   struct timeval ru_stime;
+  union {
   long ru_maxrss;
+  long __ru_maxrss_word;
+  };
+  union {
   long ru_ixrss;
+  long __ru_ixrss_word;
+  };
+  union {
   long ru_idrss;
+  long __ru_idrss_word;
+  };
+  union {
   long ru_isrss;
+  long __ru_isrss_word;
+  };
+  union {
   long ru_minflt;
+  long __ru_minflt_word;
+  };
+  union {
   long ru_majflt;
+  long __ru_majflt_word;
+  };
+  union {
   long ru_nswap;
+  long __ru_nswap_word;
+  };
+  union {
   long ru_inblock;
+  long __ru_inblock_word;
+  };
+  union {
   long ru_oublock;
+  long __ru_oublock_word;
+  };
+  union {
   long ru_msgsnd;
+  long __ru_msgsnd_word;
+  };
+  union {
   long ru_msgrcv;
+  long __ru_msgrcv_word;
+  };
+  union {
   long ru_nsignals;
+  long __ru_nsignals_word;
+  };
+  union {
   long ru_nvcsw;
+  long __ru_nvcsw_word;
+  };
+  union {
   long ru_nivcsw;
+  long __ru_nivcsw_word;
+  };
 };
 # endif
 # ifndef __NIJI_D_struct_timeval
@@ -170,34 +212,6 @@ enum { PRIO_PROCESS = 0 };
 # ifndef __NIJI_D_enum_PRIO_USER
 #  define __NIJI_D_enum_PRIO_USER 1
 enum { PRIO_USER = 2 };
-# endif
-# ifndef __NIJI_D_enum_RLIMIT_AS
-#  define __NIJI_D_enum_RLIMIT_AS 1
-enum { RLIMIT_AS = 9 };
-# endif
-# ifndef __NIJI_D_enum_RLIMIT_CORE
-#  define __NIJI_D_enum_RLIMIT_CORE 1
-enum { RLIMIT_CORE = 4 };
-# endif
-# ifndef __NIJI_D_enum_RLIMIT_CPU
-#  define __NIJI_D_enum_RLIMIT_CPU 1
-enum { RLIMIT_CPU = 0 };
-# endif
-# ifndef __NIJI_D_enum_RLIMIT_DATA
-#  define __NIJI_D_enum_RLIMIT_DATA 1
-enum { RLIMIT_DATA = 2 };
-# endif
-# ifndef __NIJI_D_enum_RLIMIT_FSIZE
-#  define __NIJI_D_enum_RLIMIT_FSIZE 1
-enum { RLIMIT_FSIZE = 1 };
-# endif
-# ifndef __NIJI_D_enum_RLIMIT_NOFILE
-#  define __NIJI_D_enum_RLIMIT_NOFILE 1
-enum { RLIMIT_NOFILE = 7 };
-# endif
-# ifndef __NIJI_D_enum_RLIMIT_STACK
-#  define __NIJI_D_enum_RLIMIT_STACK 1
-enum { RLIMIT_STACK = 3 };
 # endif
 # ifndef __NIJI_D_enum_RUSAGE_CHILDREN
 #  define __NIJI_D_enum_RUSAGE_CHILDREN 1

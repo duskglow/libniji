@@ -11,11 +11,8 @@
 //! offset, so bitfield offsets are not tested; the members after them are).
 //!
 //! Opaque members (inner layout not checked; declared from their table extent):
-//! * `siginfo_t__sifields__sigfault._bounds (union <anon>)`
 //! * `ucontext_t__fpregs_mem._st (struct _libc_fpxreg[8])`
 //! * `ucontext_t__fpregs_mem._xmm (struct _libc_xmmreg[16])`
-//! * `pthread_cond_t__data__wseq.__value32 (struct <anon>)`
-//! * `pthread_cond_t__data__g1_start.__value32 (struct <anon>)`
 //! * `__pthread_unwind_buf_t.__cancel_jmp_buf (struct __cancel_jmp_buf_tag[1])`
 //! * `struct___res_state.sort_list (struct <anon>[10])`
 //! * `Dl_serinfo__anon_16.dls_serpath (Dl_serpath[0])`
@@ -344,10 +341,24 @@ pub struct siginfo_t__sifields__kill {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub union siginfo_t__sifields__timer__si_sigval {
+    pub sival_int: i32,
+    pub sival_ptr: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct siginfo_t__sifields__timer {
     pub si_tid: i32,
     pub si_overrun: i32,
-    pub si_sigval: union_sigval,
+    pub si_sigval: siginfo_t__sifields__timer__si_sigval,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union siginfo_t__sifields__rt__si_sigval {
+    pub sival_int: i32,
+    pub sival_ptr: usize,
 }
 
 #[repr(C)]
@@ -355,7 +366,7 @@ pub struct siginfo_t__sifields__timer {
 pub struct siginfo_t__sifields__rt {
     pub si_pid: i32,
     pub si_uid: u32,
-    pub si_sigval: union_sigval,
+    pub si_sigval: siginfo_t__sifields__rt__si_sigval,
 }
 
 #[repr(C)]
@@ -370,10 +381,24 @@ pub struct siginfo_t__sifields__sigchld {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct siginfo_t__sifields__sigfault__bounds__addr_bnd {
+    pub _lower: usize,
+    pub _upper: usize,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union siginfo_t__sifields__sigfault__bounds {
+    pub _addr_bnd: siginfo_t__sifields__sigfault__bounds__addr_bnd,
+    pub _pkey: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct siginfo_t__sifields__sigfault {
     pub si_addr: usize,
     pub si_addr_lsb: i16,
-    pub _bounds: [u64; 12],
+    pub _bounds: siginfo_t__sifields__sigfault__bounds,
 }
 
 #[repr(C)]
@@ -573,16 +598,30 @@ pub union pthread_mutexattr_t {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct pthread_cond_t__data__wseq__value32 {
+    pub __low: u32,
+    pub __high: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub union pthread_cond_t__data__wseq {
     pub __value64: u64,
-    pub __value32: [u64; 1],
+    pub __value32: pthread_cond_t__data__wseq__value32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct pthread_cond_t__data__g1_start__value32 {
+    pub __low: u32,
+    pub __high: u32,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union pthread_cond_t__data__g1_start {
     pub __value64: u64,
-    pub __value32: [u64; 1],
+    pub __value32: pthread_cond_t__data__g1_start__value32,
 }
 
 #[repr(C)]
@@ -1548,6 +1587,26 @@ pub struct struct_sockaddr_storage {
     pub __ss_align: u64,
 }
 
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub union __SOCKADDR_ARG {
+    pub __tu_sockaddr: usize,
+    pub __tu_sockaddr_in: usize,
+    pub __tu_sockaddr_in6: usize,
+    pub __tu_sockaddr_un: usize,
+    pub __tu_sockaddr_x25: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub union __CONST_SOCKADDR_ARG {
+    pub __tu_sockaddr: usize,
+    pub __tu_sockaddr_in: usize,
+    pub __tu_sockaddr_in6: usize,
+    pub __tu_sockaddr_un: usize,
+    pub __tu_sockaddr_x25: usize,
+}
+
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct struct_sockaddr_in {
@@ -2063,6 +2122,14 @@ pub struct struct_obstack {
     pub freefun: usize,
     pub extra_arg: usize,
     pub use_extra_arg: [u8; 1],
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct__obstack_chunk {
+    pub limit: usize,
+    pub prev: usize,
+    pub contents: [i8; 4],
 }
 
 #[repr(C, align(4))]

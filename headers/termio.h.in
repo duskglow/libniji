@@ -1,0 +1,17 @@
+@@generated
+/* termio.h: the System V terminal interface (termio(7); R-H7: shipped, -dev packages include it). */
+#ifndef __NIJI_H_termio_h
+#define __NIJI_H_termio_h 1
+
+#include <features.h>
+#include <asm/ioctls.h>
+#include <termios.h>
+
+__NIJI_BEGIN_C
+
+@@owns TCSETS2
+@@emit
+
+__NIJI_END_C
+
+#endif

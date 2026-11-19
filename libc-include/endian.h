@@ -34,7 +34,7 @@ typedef int __pid_t;
 # endif
 #endif
 
-/* endian(3): host to and from big- and little-endian order, visible where the BSD/GNU set is (not in strict modes). */
+/* endian(3): host to and from big- and little-endian order. */
 #if __NIJI_MISC
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 # define htobe16(x) __builtin_bswap16 (x)

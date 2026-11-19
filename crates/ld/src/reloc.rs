@@ -18,7 +18,7 @@
 //! deferred store into such a segment is refused. Relocation code matches on [`RelocKind`] only.
 
 use crate::arch::{ApplyError, Arch, Operands, RelocKind, TlsOperands, ELFDATA2LSB};
-use crate::elf::{dt, pt, Dynamic, Elf, ElfError, ProgramHeader, Rela, STB_LOCAL, STB_WEAK, STT_GNU_IFUNC, STT_TLS, STV_DEFAULT, SHN_UNDEF};
+use crate::elf::{dt, pt, Dynamic, Elf, ElfError, ProgramHeader, Rela, STB_LOCAL, STB_WEAK, STT_GNU_IFUNC, STT_TLS, STV_DEFAULT, STV_PROTECTED, SHN_UNDEF};
 use crate::map::{PROT_EXEC, PROT_READ, PROT_WRITE};
 use crate::symbols::{self, Binding, Found, LookupError, Object, Request, Scope, UniqueRegistry};
 
@@ -79,6 +79,8 @@ pub trait Image {
     fn tlsdesc_static(&mut self) -> Option<u64> {
         None
     }
+    /// Report a warning that does not stop the load: `parts` make one line. Nothing by default.
+    fn warn(&mut self, _parts: &[&[u8]]) {}
 }
 
 /// Why an object could not be relocated.
@@ -95,6 +97,10 @@ pub enum RelocError<'a> {
     TextRel(u32),
     /// A strong reference without a definition (the symbol's name).
     Undefined(&'a [u8]),
+    /// The program's canonical PLT entry for a function (the symbol's name) whose definition is
+    /// protected in an object marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`: that object takes
+    /// its own address as the function's, so the two addresses would differ.
+    IndirectExternAccess(&'a [u8]),
     /// A field outside the object's writable segments, or a copy source outside its provider.
     Outside(u64),
     /// The value does not fit the field.
@@ -120,7 +126,8 @@ pub struct Failure<'a> {
 
 impl<'a> RelocError<'a> {
     /// The diagnostic text (after `ld.so: <object>: `), without the symbol name of
-    /// [`RelocError::Undefined`] (the caller prints it after this text).
+    /// [`RelocError::Undefined`] and [`RelocError::IndirectExternAccess`] (the caller prints it after
+    /// this text).
     pub fn message(self) -> &'static [u8] {
         match self {
             RelocError::Unsupported(_) => b"unsupported relocation type\n",
@@ -128,6 +135,7 @@ impl<'a> RelocError<'a> {
             RelocError::TlsModule(_) => b"a thread-local storage relocation refers to an object without a TLS segment\n",
             RelocError::TextRel(_) => b"relocation of a text field in an object not marked DT_TEXTREL\n",
             RelocError::Undefined(_) => b"undefined symbol: ",
+            RelocError::IndirectExternAccess(_) => b"the program's PLT address of a protected function of an object that needs indirect extern access: ",
             RelocError::Outside(_) => b"relocation outside the object's writable segments\n",
             RelocError::Overflow(_) => b"relocated value does not fit its field\n",
             RelocError::Copy(_) => b"COPY relocation outside the program or without a provider\n",
@@ -185,6 +193,157 @@ fn value_of(set: &Objects<'_, '_>, o: usize, st: &crate::elf::Sym) -> u64 {
     // A TLS symbol's value is an offset in its module's block: the load bias does not move it.
     let bias = if st.shndx == SHN_ABS || st.kind() == STT_TLS { 0 } else { set.objs.get(o).map_or(0, |x| x.bias) };
     bias.wrapping_add(st.value)
+}
+
+/// `GNU_PROPERTY_1_NEEDED` (Linux extensions to the gABI, "Program Properties": a 32-bit property
+/// whose bits are OR-ed across inputs) and its bit `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`: the
+/// object reaches external symbols only indirectly, so its protected functions' addresses are its own.
+const GNU_PROPERTY_1_NEEDED: u32 = 0xb000_8000;
+const NEEDED_INDIRECT_EXTERN_ACCESS: u32 = 1;
+
+/// Whether `elf` is marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` (no or malformed notes:
+/// not marked).
+pub fn needs_indirect_extern_access<A: Arch>(elf: &Elf<'_>) -> bool {
+    let Some(ph) = elf.find(pt::GNU_PROPERTY) else { return false };
+    let Ok(notes) = elf.notes(&ph) else { return false };
+    let word = |d: &[u8]| {
+        let b: [u8; 4] = d.get(..4)?.try_into().ok()?;
+        Some(if A::EI_DATA == ELFDATA2LSB { u32::from_le_bytes(b) } else { u32::from_be_bytes(b) })
+    };
+    notes
+        .map_while(Result::ok)
+        .flat_map(|n| n.properties().map_while(Result::ok))
+        .any(|p| p.pr_type == GNU_PROPERTY_1_NEEDED && word(p.data).is_some_and(|w| w & NEEDED_INDIRECT_EXTERN_ACCESS != 0))
+}
+
+/// The program's `JUMP_SLOT` `sym` of a canonical PLT entry bound to `t`, a protected definition in
+/// another object: that object's own references to the function bind its own address, not the
+/// entry. Refused when the object is marked as needing indirect extern access (it was built on the
+/// promise that no program takes the function's address directly); otherwise a warning, and the
+/// load goes on.
+#[cold]
+#[inline(never)]
+fn protected_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, sym: u32, t: Target, img: &mut I) -> Result<(), RelocError<'a>> {
+    let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
+    let st = me.symtab().get(sym).map_err(RelocError::Elf)?;
+    let name = me.dynamic().string(u64::from(st.name)).map_err(RelocError::Elf)?;
+    let Some(def) = t.obj.and_then(|d| set.objs.get(d)) else { return Ok(()) };
+    if needs_indirect_extern_access::<A>(&def.elf) {
+        return Err(RelocError::IndirectExternAccess(name));
+    }
+    let prog = set.objs.get(i).map_or(&b""[..], |o| o.name);
+    img.warn(&[prog, b": warning: the program's address of protected function `", name, b"' differs from its address in ", def.name, b"\n"]);
+    Ok(())
+}
+
+/// The `JUMP_SLOT`s of object `i` after its plain pass `before` ([`pass1`], or the deferred loop
+/// of [`relocate_deferred`] when `deferred`), when the program has canonical PLT entries
+/// ([`Object::has_canonical_plt`]): the plain lookup binds a slot of such a function to the
+/// program's entry, which is itself the slot's caller (gABI "Symbol Values"), so [`slot`] binds it
+/// again. Only this one test is added to the plain path; the rest stays out of it. Whether any
+/// entry was deferred.
+#[cold]
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+fn canonical_slots<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, before: Result<bool, RelocError<'a>>, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+    let mut any = before?;
+    let o = set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
+    // Where a field can point after the plain pass to hold a canonical entry: the program's span
+    // (lowest to highest `PT_LOAD` address, run time), read once here, not once per slot.
+    let prog = set.objs.first().ok_or(RelocError::Lookup(LookupError::NoObject(0)))?;
+    let loads = || prog.elf.program_headers().filter(|p| p.p_type == pt::LOAD);
+    let lo = loads().map(|p| p.vaddr).min().unwrap_or(0);
+    let hi = loads().filter_map(|p| p.vaddr.checked_add(p.memsz)).max().unwrap_or(0);
+    let span = (prog.bias.wrapping_add(lo), hi.saturating_sub(lo));
+    // The RELA table's `DT_RELACOUNT` prefix holds only `RELATIVE` entries: no `JUMP_SLOT` there.
+    let prefix = usize::try_from(o.dynm.get(dt::RELACOUNT).unwrap_or(0)).unwrap_or(usize::MAX);
+    for (table, skip) in [(o.dynm.rela::<A>(), prefix), (o.dynm.jmprel::<A>(), 0)] {
+        // `Skip` reaches `Relas::nth`, which jumps over the prefix (a `flatten` would decode it).
+        let Some(table) = table.map_err(RelocError::Elf)? else { continue };
+        for r in table.skip(skip) {
+            if r.kind == RelocKind::JumpSlot {
+                any |= slot::<A, I>(set, i, o, &r, span, deferred, text, img, unique)?;
+            }
+        }
+    }
+    Ok(any)
+}
+
+/// The definition `JUMP_SLOT` symbol `sym` of object `i` binds when the plain lookup answered with
+/// the program's canonical PLT entry (the only undefined symbol a lookup returns): the lookup again
+/// without the program. `None` when the plain answer stands. With the target, whether it is the
+/// protected definition, in another object, of the program's own canonical entry
+/// ([`protected_canonical`]).
+fn slot_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn UniqueRegistry) -> Result<Option<(Target, bool)>, RelocError<'a>> {
+    let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
+    let st = me.symtab().get(sym).map_err(RelocError::Elf)?;
+    if sym == 0 || (st.shndx != SHN_UNDEF && (st.bind() == STB_LOCAL || st.visibility() != STV_DEFAULT)) {
+        return Ok(None);
+    }
+    let name = me.dynamic().string(u64::from(st.name)).map_err(RelocError::Elf)?;
+    let req = Request::new(name, me.reference_want(sym).map_err(RelocError::Lookup)?);
+    let mut scope = Scope::global(set.global);
+    let mut again = false;
+    loop {
+        match symbols::resolve(set.syms, scope, &req, st.bind() == STB_WEAK, unique) {
+            Ok(Binding::Defined(Found { obj, def })) if !again && def.st.shndx == SHN_UNDEF => {
+                scope = scope.excluding(obj);
+                again = true;
+            }
+            _ if !again => return Ok(None),
+            Ok(Binding::Defined(f @ Found { obj, def })) => {
+                unique.bound(i, &f);
+                let protected = obj != i && def.st.visibility() == STV_PROTECTED && me.has_canonical_plt() && symbols::canonical_plt(&st);
+                return Ok(Some((Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size }, protected)));
+            }
+            Ok(Binding::WeakUndefined) => return Ok(Some((Target { s: 0, ifunc: false, obj: None, size: 0 }, false))),
+            Err(LookupError::Undefined) => return Err(RelocError::Undefined(name)),
+            Err(e) => return Err(RelocError::Lookup(e)),
+        }
+    }
+}
+
+/// `JUMP_SLOT` `r` of object `i` in pass `deferred` after the plain pass: only a field that points
+/// into the program can hold a canonical entry, so any other is left as written; else bound by
+/// [`slot_target`] and written (or the IFUNC entry deferred) as [`one`] does for its symbol entries.
+#[allow(clippy::too_many_arguments)]
+fn slot<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, r: &Rela, span: (u64, u64), deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+    let p = o.bias.wrapping_add(r.offset);
+    let mut w = [0u8; 8];
+    img.load(p, &mut w);
+    let v = if A::EI_DATA == ELFDATA2LSB { u64::from_le_bytes(w) } else { u64::from_be_bytes(w) };
+    if v.wrapping_sub(span.0) >= span.1 {
+        return Ok(false);
+    }
+    let Some((t, protected)) = slot_target(set, i, r.sym, unique)? else { return Ok(false) };
+    if protected && !deferred {
+        protected_canonical::<A, I>(set, i, r.sym, t, img)?;
+    }
+    let put = |img: &mut I, s: u64, any: bool| -> Result<(), RelocError<'a>> {
+        let f = match A::apply(r.kind, Operands { s, a: r.addend, b: o.bias, p }) {
+            Ok(f) => f,
+            Err(ApplyError::Overflow) => return Err(RelocError::Overflow(r.offset)),
+            Err(ApplyError::NoArithmetic) => return Err(RelocError::Unsupported(r.r_type)),
+        };
+        let Some(f) = f else { return Ok(()) };
+        let w = usize::from(f.width);
+        if !inside(&o.elf, r.offset, u64::from(f.width), any) {
+            return Err(RelocError::Outside(r.offset));
+        }
+        let (le, be) = (f.value.to_le_bytes(), f.value.to_be_bytes());
+        let bytes = if A::EI_DATA == ELFDATA2LSB { le.get(..w) } else { be.get(8usize.saturating_sub(w)..) };
+        img.store(p, bytes.ok_or(RelocError::Overflow(r.offset))?);
+        Ok(())
+    };
+    match (t.ifunc, deferred) {
+        (false, false) => put(img, t.s, text).map(|()| false),
+        (false, true) => Ok(false),
+        (true, false) => inside(&o.elf, r.offset, 8, false).then_some(true).ok_or(RelocError::Outside(r.offset)),
+        (true, true) => {
+            let s = img.call(t.s);
+            put(img, s, false).map(|()| true)
+        }
+    }
 }
 
 /// Resolve symbol `sym` of object `i`. A defined local, or a defined symbol whose visibility is not
@@ -350,6 +509,7 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
         text_segments(&o, img, page, true).map_err(|()| RelocError::Protect)?;
     }
     let first = pass1::<A, I>(set, i, &o, text, img, unique);
+    let first = if set.syms.first().is_some_and(Object::has_canonical_plt) { canonical_slots::<A, I>(set, i, first, false, text, img, unique) } else { first };
     if text {
         // Restored before any resolver can run, also on failure.
         text_segments(&o, img, page, false).map_err(|()| RelocError::Protect)?;
@@ -372,10 +532,15 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
             one::<A, I>(set, i, &r, true, text, img, unique)?;
         }
     }
+    if set.syms.first().is_some_and(Object::has_canonical_plt) {
+        canonical_slots::<A, I>(set, i, Ok(false), true, text, img, unique)?;
+    }
     Ok(())
 }
 
-/// Pass 1 of object `o` (index `i`): RELR, RELA, `JMPREL`. Whether any entry was deferred.
+/// Pass 1 of object `o` (index `i`): RELR, RELA, `JMPREL`. Whether any entry was deferred. Kept
+/// out of [`relocate_first`], which then stays small.
+#[inline(never)]
 fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
     for at in o.dynm.relr().map_err(RelocError::Elf)?.into_iter().flatten() {
         let at = at.map_err(RelocError::Elf)?;
@@ -416,6 +581,22 @@ pub fn relro_range(o: &Obj<'_>, page: u64) -> Option<(u64, u64)> {
     let start = o.bias.wrapping_add(r.vaddr) & mask;
     let end = o.bias.wrapping_add(r.vaddr).wrapping_add(r.memsz) & mask;
     (end > start).then(|| (start, end.wrapping_sub(start)))
+}
+
+/// Write `o`'s loaded dynamic array's [`crate::elf::RUNTIME_ADDRESS_TAGS`] entries as run-time
+/// addresses: each such entry of the reader's view `o.dynm` (link-time values, read from the file or
+/// from a copy taken before this) plus the load bias, so a second call stores the same words. Nothing
+/// when the array is not in a writable segment ([`Elf::published_dynamic`]). After the object is
+/// relocated, before its RELRO pages are protected (DL-DYNAMIC-RELOC).
+pub fn publish_dynamic<I: Image>(o: &Obj<'_>, img: &mut I) {
+    let Some(d) = o.elf.published_dynamic() else { return };
+    let mut at = o.bias.wrapping_add(d.vaddr).wrapping_add(8);
+    for e in o.dynm.entries() {
+        if crate::elf::RUNTIME_ADDRESS_TAGS.contains(&e.tag) {
+            img.store(at, &e.val.wrapping_add(o.bias).to_ne_bytes());
+        }
+        at = at.wrapping_add(16);
+    }
 }
 
 /// Make every object's RELRO pages read-only (after [`relocate_all`]; L14-8).

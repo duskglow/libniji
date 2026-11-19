@@ -42,6 +42,8 @@ impl Drop for Wrapper {
 pub(crate) fn check(test: &str) {
     // From crates/boundary or crates/core alike.
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("../core/tests/oracle/sync_trap.c");
+    let base = Path::new(env!("CARGO_TARGET_TMPDIR"));
+    assert!(std::fs::create_dir_all(base).is_ok(), "scratch base {} cannot be made", base.display());
     let bin = Wrapper(PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("niji-sync-trap-{test}-{}", std::process::id())));
     match Command::new("cc").args(["-O1", "-o"]).arg(&bin.0).arg(&src).output() {
         Ok(o) => assert!(o.status.success(), "sync_trap.c does not build: {}", String::from_utf8_lossy(&o.stderr)),

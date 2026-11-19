@@ -830,12 +830,62 @@ pub fn sem_getvalue(s: KResult<&[AtomicU32]>) -> KResult<c_int> {
 }
 
 // Named semaphores (§22.7): `/dev/shm/sem.<name>`, mapped shared; one mapping per name in the
-// process (opening it twice gives the same address), counted.
+// process (opening it twice gives the same address), counted. The table of open names has no
+// limit of its own (HL-7): only memory running out stops it growing (`ENOMEM`).
 const SEM_SIZE: usize = 32;
-const NAMED_MAX: usize = 256;
+/// Words per open name: (device, inode) as one key, the address, the open count (0: a free entry).
+const ENTRY: usize = 3;
+/// The open names the static area holds: the common case (a program opens a few). More spill
+/// into chunks.
+const NAMED_FIRST: usize = 16;
+/// Header words of a chunk: the next (older) chunk's address (0: none), its entry count.
+const CHUNK_HEAD: usize = 2;
+/// Serialises every use of the table (lookups included: nothing reads it without the lock).
 static NAMED_LOCK: niji_rt::sync::RawMutex = niji_rt::sync::RawMutex::new();
-/// Per open name: (device, inode) as one key, the address, the open count.
-static NAMED: [[AtomicUsize; 4]; NAMED_MAX] = [const { [const { AtomicUsize::new(0) }; 4] }; NAMED_MAX];
+static NAMED: [AtomicUsize; ENTRY * NAMED_FIRST] = [const { AtomicUsize::new(0) }; ENTRY * NAMED_FIRST];
+/// The newest chunk (0: none yet). A chunk is made only when every entry is in use, with twice the
+/// entries of the one before it (the static area counts as the first), from fallible allocation;
+/// it is never moved or freed, so the table stays at the most names ever open at once (24 bytes
+/// each) and later opens reuse its free entries.
+static NAMED_MORE: AtomicUsize = AtomicUsize::new(0);
+
+/// A chunk's words: the header, then its entries. `at` is a chunk address [`named_grow`] listed.
+fn named_chunk(at: usize) -> &'static [AtomicUsize] {
+    let n = tb::words64(at, CHUNK_HEAD).get(1).map_or(0, |w| w.load(Relaxed));
+    tb::words64(at, n.saturating_mul(ENTRY).saturating_add(CHUNK_HEAD))
+}
+
+/// Under [`NAMED_LOCK`]: every entry, the static area's first, then the chunks', newest first.
+fn named_entries() -> impl Iterator<Item = &'static [AtomicUsize]> {
+    let mut at = NAMED_MORE.load(Relaxed);
+    let chunks = core::iter::from_fn(move || {
+        if at == 0 {
+            return None;
+        }
+        let c = named_chunk(at);
+        at = c.first().map_or(0, |w| w.load(Relaxed));
+        Some(c.get(CHUNK_HEAD..).unwrap_or(&[]))
+    });
+    NAMED.chunks_exact(ENTRY).chain(chunks.flat_map(|c| c.chunks_exact(ENTRY)))
+}
+
+/// Under [`NAMED_LOCK`], every entry in use: a new chunk, listed; its first entry. `ENOMEM` when
+/// it cannot be allocated (or its size computed).
+fn named_grow() -> KResult<&'static [AtomicUsize]> {
+    let newest = NAMED_MORE.load(Relaxed);
+    let last = if newest == 0 { NAMED_FIRST } else { named_chunk(newest).get(1).map_or(0, |w| w.load(Relaxed)) };
+    let n = last.checked_mul(2).ok_or(Errno::ENOMEM)?;
+    let words = n.checked_mul(ENTRY).and_then(|w| w.checked_add(CHUNK_HEAD)).ok_or(Errno::ENOMEM)?;
+    let mut v = niji::mem::TryVec::new();
+    v.resize(words, 0usize).map_err(|_| Errno::ENOMEM)?;
+    if let [next, count, ..] = v.as_mut_slice() {
+        *next = newest;
+        *count = n;
+    }
+    let at = v.leak().as_mut_ptr().expose_provenance();
+    NAMED_MORE.store(at, Relaxed);
+    named_chunk(at).get(CHUNK_HEAD..CHUNK_HEAD.saturating_add(ENTRY)).ok_or(Errno::ENOMEM)
+}
 
 /// `/dev/shm/sem.<name>` for `name` (one leading slash dropped): `EINVAL` for an empty name or
 /// one with another slash, `ENAMETOOLONG` beyond `NAME_MAX`.
@@ -923,28 +973,48 @@ fn sem_map(fd: Fd) -> KResult<usize> {
     let st = CSys.fstat(fd)?;
     let key = usize::try_from(st.dev).unwrap_or(0).rotate_left(32) ^ usize::try_from(st.ino).unwrap_or(0);
     let _g = NAMED_LOCK.lock(&CSys);
-    if let Some(e) = NAMED.iter().find(|e| e[3].load(Relaxed) != 0 && e[0].load(Relaxed) == key) {
-        e[3].fetch_add(1, Relaxed);
-        return Ok(e[1].load(Relaxed));
+    let mut free = None;
+    for e in named_entries() {
+        if word(e, 2) == 0 {
+            free = free.or(Some(e));
+        } else if word(e, 0) == key {
+            if let Some(n) = e.get(2) {
+                n.fetch_add(1, Relaxed);
+            }
+            return Ok(word(e, 1));
+        }
     }
-    let slot = NAMED.iter().find(|e| e[3].load(Relaxed) == 0).ok_or(Errno::EMFILE)?;
+    let slot = match free {
+        Some(e) => e,
+        None => named_grow()?,
+    };
     let prot = i32::try_from(PROT_READ | PROT_WRITE).unwrap_or(3);
     let flags = i32::try_from(MAP_SHARED).unwrap_or(1);
     let addr = raw::mmap(0, SEM_SIZE, prot, flags, fd.raw(), 0)?;
-    slot[0].store(key, Relaxed);
-    slot[1].store(addr, Relaxed);
-    slot[3].store(1, Relaxed);
+    set_word(slot, 0, key);
+    set_word(slot, 1, addr);
+    set_word(slot, 2, 1);
     Ok(addr)
+}
+
+fn word(e: &[AtomicUsize], i: usize) -> usize {
+    e.get(i).map_or(0, |w| w.load(Relaxed))
+}
+
+fn set_word(e: &[AtomicUsize], i: usize, v: usize) {
+    if let Some(w) = e.get(i) {
+        w.store(v, Relaxed);
+    }
 }
 
 /// `sem_close`: the mapping goes when the last open of the name in this process closes.
 pub fn sem_close(addr: usize) -> KResult<()> {
     let _g = NAMED_LOCK.lock(&CSys);
-    let e = NAMED.iter().find(|e| e[3].load(Relaxed) != 0 && e[1].load(Relaxed) == addr).ok_or(Errno::EINVAL)?;
-    if e[3].fetch_sub(1, Relaxed) == 1 {
+    let e = named_entries().find(|e| word(e, 2) != 0 && word(e, 1) == addr).ok_or(Errno::EINVAL)?;
+    if e.get(2).map_or(0, |n| n.fetch_sub(1, Relaxed)) == 1 {
         let _ = raw::munmap(addr, SEM_SIZE);
-        e[0].store(0, Relaxed);
-        e[1].store(0, Relaxed);
+        set_word(e, 0, 0);
+        set_word(e, 1, 0);
     }
     Ok(())
 }

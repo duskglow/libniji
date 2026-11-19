@@ -1,0 +1,14 @@
+@@generated
+/* sys/prctl.h: prctl(2): operations on a process or thread. */
+#ifndef __NIJI_H_sys_prctl_h
+#define __NIJI_H_sys_prctl_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

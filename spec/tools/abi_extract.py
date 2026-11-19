@@ -11,7 +11,7 @@ Sources, per the owner's decision on OD-1 (interface declarations, not implement
 Run on the reference system (Ubuntu 24.04, glibc 2.39):  python3 spec/tools/abi_extract.py
 Outputs go to spec/abi/. Nothing here reads glibc source code.
 """
-import os, re, subprocess, sys, tempfile, collections
+import csv, os, re, subprocess, sys, tempfile, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "abi")
@@ -81,6 +81,7 @@ TYPES = [
  ("struct __res_state", "struct __res_state"), ("ns_msg", "ns_msg"), ("ns_rr", "ns_rr"),
  ("struct in_addr", "struct in_addr"), ("struct in6_addr", "struct in6_addr"),
  ("struct sockaddr", "struct sockaddr"), ("struct sockaddr_storage", "struct sockaddr_storage"),
+ ("__SOCKADDR_ARG", "__SOCKADDR_ARG"), ("__CONST_SOCKADDR_ARG", "__CONST_SOCKADDR_ARG"),
  ("struct sockaddr_in", "struct sockaddr_in"), ("struct sockaddr_in6", "struct sockaddr_in6"),
  ("struct sockaddr_un", "struct sockaddr_un"), ("struct ether_addr", "struct ether_addr"),
  ("struct ifaddrs", "struct ifaddrs"), ("struct if_nameindex", "struct if_nameindex"),
@@ -100,7 +101,7 @@ TYPES = [
  ("struct mntent", "struct mntent"), ("struct fstab", "struct fstab"), ("struct ttyent", "struct ttyent"),
  ("struct option", "struct option"), ("struct argp", "struct argp"), ("struct argp_option", "struct argp_option"),
  ("struct argp_state", "struct argp_state"), ("struct argp_child", "struct argp_child"),
- ("struct obstack", "struct obstack"), ("struct printf_info", "struct printf_info"),
+ ("struct obstack", "struct obstack"), ("struct _obstack_chunk", "struct _obstack_chunk"), ("struct printf_info", "struct printf_info"),
  ("struct mallinfo", "struct mallinfo"), ("struct mallinfo2", "struct mallinfo2"),
  ("fenv_t", "fenv_t"), ("femode_t", "femode_t"), ("fexcept_t", "fexcept_t"),
  ("struct inotify_event", "struct inotify_event"), ("struct signalfd_siginfo", "struct signalfd_siginfo"),
@@ -333,6 +334,28 @@ def resolve(dies, off, depth=0):
         return None
     return None
 
+def resolve_base(dies, off, depth=0):
+    """Follow typedef/cv chains to the underlying base or enumeration type DIE (a bit-field's storage unit type)."""
+    while off is not None and depth < 20 and dies[off]["tag"] in ("DW_TAG_typedef", "DW_TAG_const_type", "DW_TAG_volatile_type"):
+        off = ref(dies[off]["attrs"].get("DW_AT_type")); depth += 1
+    return off
+
+def enumerators(dies):
+    """(tag, enumerator, value) of every named enumeration the headers define, enumerators in declaration order."""
+    rows, seen = [], set()
+    for d in dies.values():
+        nm = d["attrs"].get("DW_AT_name")
+        if d["tag"] != "DW_TAG_enumeration_type" or not nm or "DW_AT_declaration" in d["attrs"]:
+            continue
+        if nm in seen:
+            raise SystemExit(f"enumerators: enum {nm} is defined twice")
+        seen.add(nm)
+        for c in d["children"]:
+            e = dies[c]
+            if e["tag"] == "DW_TAG_enumerator":
+                rows.append((f"enum {nm}", e["attrs"]["DW_AT_name"], num(e["attrs"].get("DW_AT_const_value"))))
+    return sorted(rows, key=lambda r: r[0])
+
 def members(dies, off, prefix="", base=0, out=None, depth=0):
     out = [] if out is None else out
     d = dies[off]
@@ -347,13 +370,25 @@ def members(dies, off, prefix="", base=0, out=None, depth=0):
         full = f"{prefix}{name}" if name else prefix.rstrip(".") or "<anon>"
         bits = ""
         if "DW_AT_bit_size" in at:
-            bits = f"bits {num(at['DW_AT_bit_size'])}@{num(at.get('DW_AT_data_bit_offset', '0'))}"
+            # `bits W@P`: width W, first bit P counted from the low bit of the storage unit at the row's byte offset
+            # (psABI little-endian). DWARF 4 gives the unit (data_member_location, byte_size) and the bit_offset of
+            # the field's high bit from the unit's high bit; DWARF 5 gives data_bit_offset from the aggregate start.
+            w = num(at["DW_AT_bit_size"])
+            if "DW_AT_data_bit_offset" in at:
+                dbo = num(at["DW_AT_data_bit_offset"])
+                unit = num(at.get("DW_AT_byte_size")) or num(dies[resolve_base(dies, t)]["attrs"].get("DW_AT_byte_size"))
+                o = dbo // (8 * unit) * unit
+                pos = dbo - 8 * o
+            else:
+                pos = 8 * num(at.get("DW_AT_byte_size")) - num(at.get("DW_AT_bit_offset")) - w
+            bits = f"bits {w}@{pos}"
         inner = resolve(dies, t)
         out.append((base + o, full, tname(dies, t), bits))
         at_row = len(out) - 1
         tag = dies[t]["tag"] if t in dies else ""
-        # Descend into anonymous members, and one level into named struct members.
-        if inner is not None and depth < 2 and tag != "DW_TAG_pointer_type" and not tname(dies, t).endswith("]"):
+        # Descend into every aggregate member at every depth (anonymous, named, and the first element of an array of
+        # aggregates: `sort_list.addr` is the member of `sort_list[0]`); never through a pointer.
+        if inner is not None and tag != "DW_TAG_pointer_type" and depth < 16:
             members(dies, inner, f"{full}." if name else prefix, base + o, out, depth + 1)
         if not name and inner is not None:
             # An anonymous member's own members follow it at this level (flattened, as C names them):
@@ -364,6 +399,50 @@ def members(dies, off, prefix="", base=0, out=None, depth=0):
             out[at_row] = out[at_row][:3] + (f"size {num(dies[inner]['attrs'].get('DW_AT_byte_size'))} rows {n}",)
     return out
 
+def accepts(tmp, expr, arg, decl="", std="gnu17", pre=None):
+    """Whether a call passes an argument of type `arg` to a parameter of type `expr` (return code only)."""
+    src = (prelude() if pre is None else pre) + decl + f"void probe_tu ({expr});\nvoid probe_tu_call ({arg} p) {{ probe_tu (p); }}\n"
+    p = os.path.join(tmp, "tu.c")
+    open(p, "w").write(src)
+    return subprocess.run(CC + [f"-std={std}", "-Werror", "-fsyntax-only", p], capture_output=True, text=True).returncode == 0
+
+def transparent(tmp, expr):
+    """Whether the union type `expr` is a transparent union. DWARF does not record the attribute; the GCC manual
+    (Common Type Attributes, transparent_union) does: a parameter of such a union with a pointer member accepts a
+    `void *` argument, which no ordinary union parameter accepts. The head row's last column then says
+    `transparent_union` (abi-gen reads no head-row column past the alignment)."""
+    return accepts(tmp, expr, "void *")
+
+# The address structures a transparent union parameter may take: the tags the tables record (typedefs.tsv) and
+# the ones the Linux man pages document (ddp(7) sockaddr_atalk, netlink(7) sockaddr_nl, packet(7) sockaddr_pkt,
+# vsock(7) sockaddr_vm, x25(7) sockaddr_x25). The generic `struct sockaddr` (POSIX <sys/socket.h>) comes first:
+# the first member is the one a transparent union argument is passed as (GCC manual, transparent_union).
+TU_CANDIDATES = ["sockaddr", "sockaddr_atalk", "sockaddr_in", "sockaddr_in6", "sockaddr_ll", "sockaddr_nl",
+                 "sockaddr_pkt", "sockaddr_storage", "sockaddr_un", "sockaddr_vm", "sockaddr_x25"]
+
+def tu_members(tmp, expr):
+    """The members of the transparent union `expr`. GCC's DWARF gives the union no member DIEs; the GCC manual
+    says such a parameter accepts an argument of any member's type, so each candidate pointer that a call passes
+    under -Werror is a member (`const struct T *` where a pointer to const is accepted). The members' names are
+    the implementation's own (reserved, never observable): the rows name each `__tu_<tag>`. With the head row
+    mark: ` restrict` when the name, where it is a macro (strict C), is a restrict pointer to the first
+    member's type (`_Generic` on a pointer to an object of it)."""
+    rows = []
+    for t in TU_CANDIDATES:
+        decl = f"struct {t};\n"
+        ty = next((q + f"struct {t} *" for q in ("const ", "") if accepts(tmp, expr, f"{q}struct {t} *", decl)), None)
+        if ty is not None:
+            rows.append((f"__tu_{t}", ty))
+    restrict = ""
+    if rows:
+        strict = "".join(l + "\n" for l in prelude().splitlines() if not l.startswith("#define"))
+        src = strict + f"{expr} probe_x;\nint probe_y = _Generic (&probe_x, {rows[0][1]}restrict *: 1);\n"
+        p = os.path.join(tmp, "tr.c")
+        open(p, "w").write(src)
+        if subprocess.run(CC + ["-std=c17", "-fsyntax-only", p], capture_output=True, text=True).returncode == 0:
+            restrict = " restrict"
+    return rows, restrict
+
 def layouts(tmp, types, szmap):
     dies = dwarf(tmp, types)
     varmap = {}
@@ -373,13 +452,18 @@ def layouts(tmp, types, szmap):
     rows = []
     for i, (label, expr) in enumerate(types):
         size, align = szmap[label]
-        rows.append((label, "", size, align, "", ""))
         s = resolve(dies, varmap.get(i))
+        if s is not None and dies[s]["tag"] == "DW_TAG_union_type" and transparent(tmp, expr):
+            tu, restrict = tu_members(tmp, expr)
+            rows.append((label, "", size, align, "", "transparent_union" + restrict))
+            rows.extend((label, n, 0, "", ty, "") for n, ty in tu)
+            continue
+        rows.append((label, "", size, align, "", ""))
         if s is None:
             continue
         for o, name, ty, bits in members(dies, s):
             rows.append((label, name, o, "", ty, bits))
-    return rows
+    return rows, enumerators(dies)
 
 def initializers(tmp):
     if cross():
@@ -408,10 +492,10 @@ def initializers(tmp):
     sh(["gcc", "-std=gnu17", p, "-o", os.path.join(tmp, "init")])
     return [l.split("\t") for l in sh([os.path.join(tmp, "init")]).splitlines()]
 
-def prototypes(tmp):
-    p = os.path.join(tmp, "proto.c"); open(p, "w").write(prelude())
+def prototypes(tmp, src=None, flags=("-std=gnu17",)):
+    p = os.path.join(tmp, "proto.c"); open(p, "w").write(prelude() if src is None else src)
     aux = os.path.join(tmp, "aux.txt")
-    subprocess.run(["gcc", "-std=gnu17", "-c", p, "-o", os.path.join(tmp, "proto.o"), "-aux-info", aux], check=True)
+    subprocess.run(["gcc", *flags, "-c", p, "-o", os.path.join(tmp, "proto.o"), "-aux-info", aux], check=True)
     rows = {}
     for line in open(aux, errors="replace"):
         m = re.match(r"/\* (\S+):(\d+):\S+ \*/ (.*);$", line.strip())
@@ -424,6 +508,46 @@ def prototypes(tmp):
         name = n.group(1)
         hdr = m.group(1).replace("/usr/include/x86_64-linux-gnu/", "").replace("/usr/include/", "")
         rows.setdefault(name, (hdr, re.sub(r"\s+", " ", decl)))
+    return rows
+
+def tsv_rows(name):
+    with open(os.path.join(OUT, name), newline="") as f:
+        return list(csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_NONE))
+
+def prototypes_missing(tmp):
+    """Rows for the functions visibility.tsv declares in some C configuration that the `_GNU_SOURCE` pass of
+    prototypes() does not see (`gets`: C89/C99 only; `bsd_signal`: X/Open 500/600 only). Each such name is
+    compiled in the first C configuration of ftm-configs.tsv that declares it, with that configuration's flags and
+    the headers that show it there, and its `-aux-info` line is taken. Names declared in no C configuration (the
+    C++ function forms of the type-generic macros) or only under _FORTIFY_SOURCE get no row here."""
+    have = {r["name"] for r in tsv_rows("prototypes.tsv")}
+    have |= {r["name"] for r in tsv_rows("typedefs.tsv") if r["kind"] == "function"}
+    # Not the fortify configurations: their `__*_chk` functions are the fortify layer's, not ordinary prototypes.
+    cfgs = [r for r in tsv_rows("ftm-configs.tsv") if r["language"] == "c" and "_FORTIFY_SOURCE" not in r["flags"]]
+    ids = [r["id"] for r in tsv_rows("ftm-configs.tsv")]
+    def shown(configs, cid):
+        if configs == "*":
+            return True
+        if configs.startswith("!"):
+            return cid not in configs[1:].split(",") and cid in ids
+        return cid in configs.split(",")
+    vis = [r for r in tsv_rows("visibility.tsv") if r["kind"] == "function" and r["header"] != "-" and r["name"] not in have]
+    plan = {}
+    for n in sorted({r["name"] for r in vis}):
+        for c in cfgs:
+            hs = sorted(r["header"] for r in vis if r["name"] == n and shown(r["configs"], c["id"]))
+            if hs:
+                plan.setdefault(c["id"], (c["flags"].split(), []))[1].append((n, hs[0]))
+                break
+    rows = {}
+    for cid, (flags, names) in sorted(plan.items()):
+        src = "".join(f"#include <{h}>\n" for h in sorted({h for _, h in names}))
+        got = prototypes(tmp, src, flags)
+        for n, _ in names:
+            if n in got:
+                rows[n] = got[n]
+            else:
+                print(f"prototypes-missing: {n}: no declaration in configuration {cid}", file=sys.stderr)
     return rows
 
 def symbols():
@@ -562,7 +686,7 @@ def main_cross():
         else:
             types = available_types(tmp)
             szmap = sizes(tmp, types)
-            lay = layouts(tmp, types, szmap)
+            lay, _ = layouts(tmp, types, szmap)
             write(f"layouts{SUFFIX}.tsv", ["type", "member", "offset_or_size", "align", "member_type", "bitfield"], lay)
             ini = initializers(tmp)
             write(f"initializers{SUFFIX}.tsv", ["type", "initializer", "size", "zero", "bytes_hex"], ini)
@@ -610,6 +734,18 @@ def main():
                     f"definitions no exported symbol carries.\n")
         print(f"{ver}\nempty versions: {len(emp)}")
         return
+    if "--prototypes-missing" in sys.argv:
+        # Add the prototypes of the functions only other configurations declare (HEADERS-TABLES-COMPLETE): the
+        # existing rows are kept where they are, each new one goes before the first row whose name sorts after it.
+        with tempfile.TemporaryDirectory() as tmp:
+            new = prototypes_missing(tmp)
+        rows = [(r["name"], r["header"], r["declaration"]) for r in tsv_rows("prototypes.tsv")]
+        for k, v in sorted(new.items()):
+            at = next((i for i, r in enumerate(rows) if r[0] > k), len(rows))
+            rows.insert(at, (k, *v))
+        write("prototypes.tsv", ["name", "header", "declaration"], rows)
+        print(f"{ver}\nprototypes added: {len(new)} ({', '.join(sorted(new))})")
+        return
     if "--versions-only" in sys.argv:
         # Regenerate versions.tsv alone (SYS-LIBMVEC added libmvec.so.1 to LIBS; the other tables
         # do not depend on the library list).
@@ -620,11 +756,13 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         types = available_types(tmp)
         szmap = sizes(tmp, types)
-        lay = layouts(tmp, types, szmap)
+        lay, enums = layouts(tmp, types, szmap)
         write("layouts.tsv", ["type", "member", "offset_or_size", "align", "member_type", "bitfield"], lay)
+        write("enumerators.tsv", ["tag", "name", "value"], enums)
         if "--layouts-only" in sys.argv:
-            # Regenerate layouts.tsv alone (slice 3 added types; the other tables are unchanged by that).
-            print(f"{ver}\nTypes: {len(types)}  layout rows: {len(lay)}")
+            # Regenerate layouts.tsv and enumerators.tsv alone (both from the one DWARF probe; slice 3 added types,
+            # HEADERS-TABLES-COMPLETE every depth, bit positions and the enumerators; the other tables are unchanged).
+            print(f"{ver}\nTypes: {len(types)}  layout rows: {len(lay)}  enumerators: {len(enums)}")
             return
         ini = initializers(tmp)
         write("initializers.tsv", ["type", "initializer", "size", "zero", "bytes_hex"], ini)

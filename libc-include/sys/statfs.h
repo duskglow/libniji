@@ -8,6 +8,12 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D___fsid_t
+#  define __NIJI_D___fsid_t 1
+typedef struct {
+  int __val[2];
+} __fsid_t;
+# endif
 # ifndef __NIJI_D_struct_statfs
 #  define __NIJI_D_struct_statfs 1
 struct statfs {
@@ -18,7 +24,7 @@ struct statfs {
   unsigned long f_bavail;
   unsigned long f_files;
   unsigned long f_ffree;
-  struct { int __val[2]; } f_fsid;
+  __fsid_t f_fsid;
   long f_namelen;
   long f_frsize;
   long f_flags;
@@ -27,6 +33,12 @@ struct statfs {
 # endif
 #endif
 #if __NIJI_LFS64
+# ifndef __NIJI_D___fsid_t
+#  define __NIJI_D___fsid_t 1
+typedef struct {
+  int __val[2];
+} __fsid_t;
+# endif
 # ifndef __NIJI_D_struct_statfs64
 #  define __NIJI_D_struct_statfs64 1
 struct statfs64 {
@@ -37,7 +49,7 @@ struct statfs64 {
   unsigned long f_bavail;
   unsigned long f_files;
   unsigned long f_ffree;
-  struct { int __val[2]; } f_fsid;
+  __fsid_t f_fsid;
   long f_namelen;
   long f_frsize;
   long f_flags;

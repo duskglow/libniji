@@ -60,7 +60,9 @@ extern int poll (struct pollfd *, unsigned long, int);
 #if __NIJI_GNU
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 struct pollfd;
 struct timespec;

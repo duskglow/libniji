@@ -97,9 +97,19 @@ typedef long __off_t;
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
 # endif
+# ifndef __NIJI_D___mbstate_t
+#  define __NIJI_D___mbstate_t 1
+typedef struct {
+  int __count;
+  union { unsigned int __wch; char __wchb[4]; } __value;
+} __mbstate_t;
+# endif
 # ifndef __NIJI_D_struct__G_fpos_t
 #  define __NIJI_D_struct__G_fpos_t 1
-struct _G_fpos_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+struct _G_fpos_t {
+  long __pos;
+  __mbstate_t __state;
+};
 # endif
 # ifndef __NIJI_D_fpos_t
 #  define __NIJI_D_fpos_t 1

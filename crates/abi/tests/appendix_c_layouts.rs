@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (222 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (225 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -231,10 +231,14 @@ fn abi_siginfo_t() {
     expect_member("siginfo_t", "_sifields._timer.si_tid", offset_of!(siginfo_t, _sifields._timer.si_tid));
     expect_member("siginfo_t", "_sifields._timer.si_overrun", offset_of!(siginfo_t, _sifields._timer.si_overrun));
     expect_member("siginfo_t", "_sifields._timer.si_sigval", offset_of!(siginfo_t, _sifields._timer.si_sigval));
+    expect_member("siginfo_t", "_sifields._timer.si_sigval.sival_int", offset_of!(siginfo_t, _sifields._timer.si_sigval.sival_int));
+    expect_member("siginfo_t", "_sifields._timer.si_sigval.sival_ptr", offset_of!(siginfo_t, _sifields._timer.si_sigval.sival_ptr));
     expect_member("siginfo_t", "_sifields._rt", offset_of!(siginfo_t, _sifields._rt));
     expect_member("siginfo_t", "_sifields._rt.si_pid", offset_of!(siginfo_t, _sifields._rt.si_pid));
     expect_member("siginfo_t", "_sifields._rt.si_uid", offset_of!(siginfo_t, _sifields._rt.si_uid));
     expect_member("siginfo_t", "_sifields._rt.si_sigval", offset_of!(siginfo_t, _sifields._rt.si_sigval));
+    expect_member("siginfo_t", "_sifields._rt.si_sigval.sival_int", offset_of!(siginfo_t, _sifields._rt.si_sigval.sival_int));
+    expect_member("siginfo_t", "_sifields._rt.si_sigval.sival_ptr", offset_of!(siginfo_t, _sifields._rt.si_sigval.sival_ptr));
     expect_member("siginfo_t", "_sifields._sigchld", offset_of!(siginfo_t, _sifields._sigchld));
     expect_member("siginfo_t", "_sifields._sigchld.si_pid", offset_of!(siginfo_t, _sifields._sigchld.si_pid));
     expect_member("siginfo_t", "_sifields._sigchld.si_uid", offset_of!(siginfo_t, _sifields._sigchld.si_uid));
@@ -245,6 +249,10 @@ fn abi_siginfo_t() {
     expect_member("siginfo_t", "_sifields._sigfault.si_addr", offset_of!(siginfo_t, _sifields._sigfault.si_addr));
     expect_member("siginfo_t", "_sifields._sigfault.si_addr_lsb", offset_of!(siginfo_t, _sifields._sigfault.si_addr_lsb));
     expect_member("siginfo_t", "_sifields._sigfault._bounds", offset_of!(siginfo_t, _sifields._sigfault._bounds));
+    expect_member("siginfo_t", "_sifields._sigfault._bounds._addr_bnd", offset_of!(siginfo_t, _sifields._sigfault._bounds._addr_bnd));
+    expect_member("siginfo_t", "_sifields._sigfault._bounds._addr_bnd._lower", offset_of!(siginfo_t, _sifields._sigfault._bounds._addr_bnd._lower));
+    expect_member("siginfo_t", "_sifields._sigfault._bounds._addr_bnd._upper", offset_of!(siginfo_t, _sifields._sigfault._bounds._addr_bnd._upper));
+    expect_member("siginfo_t", "_sifields._sigfault._bounds._pkey", offset_of!(siginfo_t, _sifields._sigfault._bounds._pkey));
     expect_member("siginfo_t", "_sifields._sigpoll", offset_of!(siginfo_t, _sifields._sigpoll));
     expect_member("siginfo_t", "_sifields._sigpoll.si_band", offset_of!(siginfo_t, _sifields._sigpoll.si_band));
     expect_member("siginfo_t", "_sifields._sigpoll.si_fd", offset_of!(siginfo_t, _sifields._sigpoll.si_fd));
@@ -386,9 +394,13 @@ fn abi_pthread_cond_t() {
     expect_member("pthread_cond_t", "__data.__wseq", offset_of!(pthread_cond_t, __data.__wseq));
     expect_member("pthread_cond_t", "__data.__wseq.__value64", offset_of!(pthread_cond_t, __data.__wseq.__value64));
     expect_member("pthread_cond_t", "__data.__wseq.__value32", offset_of!(pthread_cond_t, __data.__wseq.__value32));
+    expect_member("pthread_cond_t", "__data.__wseq.__value32.__low", offset_of!(pthread_cond_t, __data.__wseq.__value32.__low));
+    expect_member("pthread_cond_t", "__data.__wseq.__value32.__high", offset_of!(pthread_cond_t, __data.__wseq.__value32.__high));
     expect_member("pthread_cond_t", "__data.__g1_start", offset_of!(pthread_cond_t, __data.__g1_start));
     expect_member("pthread_cond_t", "__data.__g1_start.__value64", offset_of!(pthread_cond_t, __data.__g1_start.__value64));
     expect_member("pthread_cond_t", "__data.__g1_start.__value32", offset_of!(pthread_cond_t, __data.__g1_start.__value32));
+    expect_member("pthread_cond_t", "__data.__g1_start.__value32.__low", offset_of!(pthread_cond_t, __data.__g1_start.__value32.__low));
+    expect_member("pthread_cond_t", "__data.__g1_start.__value32.__high", offset_of!(pthread_cond_t, __data.__g1_start.__value32.__high));
     expect_member("pthread_cond_t", "__data.__g_refs", offset_of!(pthread_cond_t, __data.__g_refs));
     expect_member("pthread_cond_t", "__data.__g_size", offset_of!(pthread_cond_t, __data.__g_size));
     expect_member("pthread_cond_t", "__data.__g1_orig_size", offset_of!(pthread_cond_t, __data.__g1_orig_size));
@@ -1258,6 +1270,26 @@ fn abi_struct_sockaddr_storage() {
 }
 
 #[test]
+fn abi_sockaddr_arg() {
+    expect_type("__SOCKADDR_ARG", size_of::<__SOCKADDR_ARG>(), align_of::<__SOCKADDR_ARG>());
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr", offset_of!(__SOCKADDR_ARG, __tu_sockaddr));
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_in", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_in));
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_in6", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_in6));
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_un", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_un));
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_x25", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_x25));
+}
+
+#[test]
+fn abi_const_sockaddr_arg() {
+    expect_type("__CONST_SOCKADDR_ARG", size_of::<__CONST_SOCKADDR_ARG>(), align_of::<__CONST_SOCKADDR_ARG>());
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr));
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_in", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_in));
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_in6", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_in6));
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_un", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_un));
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_x25", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_x25));
+}
+
+#[test]
 fn abi_struct_sockaddr_in() {
     expect_type("struct sockaddr_in", size_of::<struct_sockaddr_in>(), align_of::<struct_sockaddr_in>());
     expect_member("struct sockaddr_in", "sin_family", offset_of!(struct_sockaddr_in, sin_family));
@@ -1383,6 +1415,9 @@ fn abi_struct_ip6_mtuinfo() {
     expect_member("struct ip6_mtuinfo", "ip6m_addr.sin6_flowinfo", offset_of!(struct_ip6_mtuinfo, ip6m_addr.sin6_flowinfo));
     expect_member("struct ip6_mtuinfo", "ip6m_addr.sin6_addr", offset_of!(struct_ip6_mtuinfo, ip6m_addr.sin6_addr));
     expect_member("struct ip6_mtuinfo", "ip6m_addr.sin6_addr.__in6_u", offset_of!(struct_ip6_mtuinfo, ip6m_addr.sin6_addr.__in6_u));
+    expect_member("struct ip6_mtuinfo", "ip6m_addr.sin6_addr.__in6_u.__u6_addr8", offset_of!(struct_ip6_mtuinfo, ip6m_addr.sin6_addr.__in6_u.__u6_addr8));
+    expect_member("struct ip6_mtuinfo", "ip6m_addr.sin6_addr.__in6_u.__u6_addr16", offset_of!(struct_ip6_mtuinfo, ip6m_addr.sin6_addr.__in6_u.__u6_addr16));
+    expect_member("struct ip6_mtuinfo", "ip6m_addr.sin6_addr.__in6_u.__u6_addr32", offset_of!(struct_ip6_mtuinfo, ip6m_addr.sin6_addr.__in6_u.__u6_addr32));
     expect_member("struct ip6_mtuinfo", "ip6m_addr.sin6_scope_id", offset_of!(struct_ip6_mtuinfo, ip6m_addr.sin6_scope_id));
     expect_member("struct ip6_mtuinfo", "ip6m_mtu", offset_of!(struct_ip6_mtuinfo, ip6m_mtu));
 }
@@ -1487,6 +1522,8 @@ fn abi_struct_aiocb() {
     expect_member("struct aiocb", "aio_sigevent._sigev_un._pad", offset_of!(struct_aiocb, aio_sigevent._sigev_un._pad));
     expect_member("struct aiocb", "aio_sigevent._sigev_un._tid", offset_of!(struct_aiocb, aio_sigevent._sigev_un._tid));
     expect_member("struct aiocb", "aio_sigevent._sigev_un._sigev_thread", offset_of!(struct_aiocb, aio_sigevent._sigev_un._sigev_thread));
+    expect_member("struct aiocb", "aio_sigevent._sigev_un._sigev_thread._function", offset_of!(struct_aiocb, aio_sigevent._sigev_un._sigev_thread._function));
+    expect_member("struct aiocb", "aio_sigevent._sigev_un._sigev_thread._attribute", offset_of!(struct_aiocb, aio_sigevent._sigev_un._sigev_thread._attribute));
     expect_member("struct aiocb", "__next_prio", offset_of!(struct_aiocb, __next_prio));
     expect_member("struct aiocb", "__abs_prio", offset_of!(struct_aiocb, __abs_prio));
     expect_member("struct aiocb", "__policy", offset_of!(struct_aiocb, __policy));
@@ -1813,6 +1850,14 @@ fn abi_struct_obstack() {
     expect_member("struct obstack", "chunkfun", offset_of!(struct_obstack, chunkfun));
     expect_member("struct obstack", "freefun", offset_of!(struct_obstack, freefun));
     expect_member("struct obstack", "extra_arg", offset_of!(struct_obstack, extra_arg));
+}
+
+#[test]
+fn abi_struct_obstack_chunk() {
+    expect_type("struct _obstack_chunk", size_of::<struct__obstack_chunk>(), align_of::<struct__obstack_chunk>());
+    expect_member("struct _obstack_chunk", "limit", offset_of!(struct__obstack_chunk, limit));
+    expect_member("struct _obstack_chunk", "prev", offset_of!(struct__obstack_chunk, prev));
+    expect_member("struct _obstack_chunk", "contents", offset_of!(struct__obstack_chunk, contents));
 }
 
 #[test]
@@ -2264,6 +2309,17 @@ fn abi_struct_icmp() {
     expect_member("struct icmp", "icmp_dun.id_ts.its_ttime", offset_of!(struct_icmp, icmp_dun.id_ts.its_ttime));
     expect_member("struct icmp", "icmp_dun.id_ip", offset_of!(struct_icmp, icmp_dun.id_ip));
     expect_member("struct icmp", "icmp_dun.id_ip.idi_ip", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_tos", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_tos));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_len", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_len));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_id", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_id));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_off", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_off));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_ttl", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_ttl));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_p", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_p));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_sum", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_sum));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_src", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_src));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_src.s_addr", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_src.s_addr));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_dst", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_dst));
+    expect_member("struct icmp", "icmp_dun.id_ip.idi_ip.ip_dst.s_addr", offset_of!(struct_icmp, icmp_dun.id_ip.idi_ip.ip_dst.s_addr));
     expect_member("struct icmp", "icmp_dun.id_radv", offset_of!(struct_icmp, icmp_dun.id_radv));
     expect_member("struct icmp", "icmp_dun.id_radv.ira_addr", offset_of!(struct_icmp, icmp_dun.id_radv.ira_addr));
     expect_member("struct icmp", "icmp_dun.id_radv.ira_preference", offset_of!(struct_icmp, icmp_dun.id_radv.ira_preference));

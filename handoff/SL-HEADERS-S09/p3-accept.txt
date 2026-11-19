@@ -1,0 +1,9 @@
+# probe_compare callsites --accept: the differences row 'pidfd_* and thread_db.h functions: C linkage in C++' of docs/differences-from-glibc.md
+missing sys/pidfd.h pidfd_getfd addr _Z11pidfd_getfdiij [cxx98,cxx11,cxx14,cxx17,cxx20,cxx23]
+differs sys/pidfd.h pidfd_getfd addr pidfd_getfd table [!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23] libniji [!time64only]
+missing sys/pidfd.h pidfd_getpid addr _Z12pidfd_getpidi [cxx98,cxx11,cxx14,cxx17,cxx20,cxx23]
+differs sys/pidfd.h pidfd_getpid addr pidfd_getpid table [!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23] libniji [!time64only]
+missing sys/pidfd.h pidfd_open addr _Z10pidfd_openij [cxx98,cxx11,cxx14,cxx17,cxx20,cxx23]
+differs sys/pidfd.h pidfd_open addr pidfd_open table [!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23] libniji [!time64only]
+missing sys/pidfd.h pidfd_send_signal addr _Z17pidfd_send_signaliiP9siginfo_tj [cxx98,cxx11,cxx14,cxx17,cxx20,cxx23]
+differs sys/pidfd.h pidfd_send_signal addr pidfd_send_signal table [!time64only,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23] libniji [!time64only]

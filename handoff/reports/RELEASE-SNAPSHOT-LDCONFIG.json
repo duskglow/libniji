@@ -1,0 +1,13 @@
+{"task": "RELEASE-SNAPSHOT-LDCONFIG", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE: checkpoint at ~150k context; 20dbed16c builds, package checks, gate and both smoke rounds green; roots/lint running; #16 root 16 PASS / 2 FAIL (full compile in the swapped root); libc6-dbg lacks iconv's debug file; nothing staged",
+ "branch": "task/release-snapshot-ldconfig", "head": null,
+ "gate": {"affected": "0 passed / 0 failed (no diff from origin/next); clippy, static, records check rc 0", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "tag 20dbed16c although libc6-dbg has no debug file for /usr/bin/iconv (tools/deb/system.sh:134 omits it)", "recommendation": "tag with the gap noted unless a re-cut is planned anyway; fix forward with a one-line packaging change"}],
+ "informational": ["docs/install-packages.md:123 libc-bin row does not list /usr/bin/iconv", "docs/RELEASE-NOTES.md has no section after 2026-11-16; :110 still says ldd is next, then iconv", "doccheck: 21 problems, identical to snapshot-20261117.2"],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "release validation in progress; no product change", "before": null, "after": null, "unit": null, "measured": true}],
+ "improvement": "a release-validation story with ~15 job scripts to adapt reaches the 150k context checkpoint before the results are in; give it the RETHINK-style token checkpoint (the brief's 240k) or split build and validation into two stories",
+ "next_step": "read roots-1/lint-1/pkgdiff-1/yohane-1, run plants, stage serial 3 on keke, install check, report (handoff/RELEASE-SNAPSHOT-LDCONFIG.md 'Exact next step')",
+ "report_file": "handoff/RELEASE-SNAPSHOT-LDCONFIG.md",
+ "jobs": ["mei:release-snapshot-ldconfig-gate-1", "mei:release-snapshot-ldconfig-smoke-mei-1", "keke:release-snapshot-ldconfig-smoke-keke-1", "keke:release-snapshot-ldconfig-pkgdiff-1"]}

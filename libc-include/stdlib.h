@@ -113,7 +113,9 @@ typedef struct {
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 # ifndef __NIJI_D_sigset_t
 #  define __NIJI_D_sigset_t 1
@@ -215,9 +217,39 @@ typedef unsigned int uid_t;
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 500
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D_struct___pthread_cond_s
+#  define __NIJI_D_struct___pthread_cond_s 1
+struct __pthread_cond_s {
+  __atomic_wide_counter __wseq;
+  __atomic_wide_counter __g1_start;
+  unsigned int __g_refs[2];
+  unsigned int __g_size[2];
+  unsigned int __g1_orig_size;
+  unsigned int __wrefs;
+  unsigned int __g_signals[2];
+};
+# endif
 # ifndef __NIJI_D_pthread_cond_t
 #  define __NIJI_D_pthread_cond_t 1
-typedef struct { char __niji_opaque[48] __attribute__ ((__aligned__ (8))); } pthread_cond_t;
+typedef union {
+  struct __pthread_cond_s __data;
+  char __size[48];
+  long long __align;
+} pthread_cond_t;
 # endif
 # ifndef __NIJI_D_pthread_condattr_t
 #  define __NIJI_D_pthread_condattr_t 1
@@ -230,9 +262,37 @@ typedef union {
 #  define __NIJI_D_pthread_key_t 1
 typedef unsigned int pthread_key_t;
 # endif
+# ifndef __NIJI_D_struct___pthread_internal_list
+#  define __NIJI_D_struct___pthread_internal_list 1
+struct __pthread_internal_list {
+  struct __pthread_internal_list * __prev;
+  struct __pthread_internal_list * __next;
+};
+# endif
+# ifndef __NIJI_D___pthread_list_t
+#  define __NIJI_D___pthread_list_t 1
+typedef struct __pthread_internal_list __pthread_list_t;
+# endif
+# ifndef __NIJI_D_struct___pthread_mutex_s
+#  define __NIJI_D_struct___pthread_mutex_s 1
+struct __pthread_mutex_s {
+  int __lock;
+  unsigned int __count;
+  int __owner;
+  unsigned int __nusers;
+  int __kind;
+  short __spins;
+  short __elision;
+  __pthread_list_t __list;
+};
+# endif
 # ifndef __NIJI_D_pthread_mutex_t
 #  define __NIJI_D_pthread_mutex_t 1
-typedef struct { char __niji_opaque[40] __attribute__ ((__aligned__ (8))); } pthread_mutex_t;
+typedef union {
+  struct __pthread_mutex_s __data;
+  char __size[40];
+  long __align;
+} pthread_mutex_t;
 # endif
 # ifndef __NIJI_D_pthread_mutexattr_t
 #  define __NIJI_D_pthread_mutexattr_t 1
@@ -245,9 +305,31 @@ typedef union {
 #  define __NIJI_D_pthread_once_t 1
 typedef int pthread_once_t;
 # endif
+# ifndef __NIJI_D_struct___pthread_rwlock_arch_t
+#  define __NIJI_D_struct___pthread_rwlock_arch_t 1
+struct __pthread_rwlock_arch_t {
+  unsigned int __readers;
+  unsigned int __writers;
+  unsigned int __wrphase_futex;
+  unsigned int __writers_futex;
+  unsigned int __pad3;
+  unsigned int __pad4;
+  int __cur_writer;
+  int __shared;
+  signed char __rwelision;
+  unsigned char __pad1[7];
+  unsigned long __pad2;
+  unsigned int __flags;
+  int : 32;
+};
+# endif
 # ifndef __NIJI_D_pthread_rwlock_t
 #  define __NIJI_D_pthread_rwlock_t 1
-typedef struct { char __niji_opaque[56] __attribute__ ((__aligned__ (8))); } pthread_rwlock_t;
+typedef union {
+  struct __pthread_rwlock_arch_t __data;
+  char __size[56];
+  long __align;
+} pthread_rwlock_t;
 # endif
 # ifndef __NIJI_D_pthread_rwlockattr_t
 #  define __NIJI_D_pthread_rwlockattr_t 1
@@ -722,7 +804,9 @@ extern int on_exit (void (*) (int, void *), void *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 struct timespec;
 # ifndef __NIJI_D_pselect
@@ -1051,6 +1135,10 @@ extern int posix_openpt (int);
 # define WTERMSIG(status) ((status) & 0x7f)
 # define WSTOPSIG(status) WEXITSTATUS (status)
 # define WIFEXITED(status) (WTERMSIG (status) == 0)
+#endif
+
+/* WIFCONTINUED has its own condition: _XOPEN_SOURCE defined empty shows the four above but not it. */
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # define WIFCONTINUED(status) ((status) == 0xffff)
 #endif
 

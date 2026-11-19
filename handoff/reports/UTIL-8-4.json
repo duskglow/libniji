@@ -1,0 +1,42 @@
+{
+ "task": "UTIL-8-4",
+ "model": "opus",
+ "tokens": null,
+ "result": "merged origin/next into the locale command branch keeping both sides (iconv and locale in libc-bin, so.rs, transcript runner, ldd -v and locale differences rows); gate and 15/15 plants green on the merged head",
+ "branch": "task/util-8-4",
+ "head": null,
+ "gate": {
+  "affected": "util-8-4-gate: 32 suites ok, 12098 passed / 0 failed, conformance 138/0; plants baseline: locale transcripts all equal",
+  "peak": "16G (page cache included; reclaimed under the limit) oom_kill=0"
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "the inherited head was lint-clean (util-8-4-lint0, clippy + static, rc 0) before the merge",
+  "the merge changed neither csys/util/locale.c nor validation/transcripts/locale; it touched only packaging, so.rs, the transcript runner and the differences table",
+  "Open items from UTIL-8-2 unchanged: C/C.UTF-8 LC_CTYPE class/map/width items (a section 7 story), .bz2 charmaps by name only"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "UTIL-8 (locale command, issue #14) can land on current next: the CI conflict on system.sh, check-system.sh, so.rs, transcript/mod.rs is resolved",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on csys/util/locale.c re-run on the merged head through cargo xtask plants (util-8-4-plants: 15 CAUGHT)",
+   "before": null,
+   "after": 15,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "a CI conflict that is only two stories each adding one name to a list could be merged by the tool (union of both names) instead of cutting a continuation",
+ "next_step": "land; then the section 7 story for Open 1 (C/C.UTF-8 LC_CTYPE items) and archive cases once UTIL-12 writes a locale-archive",
+ "report_file": "handoff/UTIL-8.md",
+ "jobs": ["util-8-4-lint1", "util-8-4-gate", "util-8-4-plants"]
+}

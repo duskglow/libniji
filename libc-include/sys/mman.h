@@ -383,10 +383,6 @@ extern int posix_madvise (void *, unsigned long, int) __NIJI_NOTHROW;
 # endif
 #endif
 
-#if 1
-# define MAP_FAILED ((void *) -1)
-#endif
-
 __NIJI_END_C
 
 #endif

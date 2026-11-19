@@ -22,9 +22,11 @@ def reserved_omitted():
     """Names the generator leaves out by policy (C 7.1.3; owner rulings R-H2, R-H3): `__x` names and include guards,
     except those headers/reserved.tsv emits. They are not part of the comparison."""
     with open(os.path.join(ROOT, "headers", "reserved.tsv"), newline="") as f:
-        emit = {r["name"] for r in csv.DictReader((l for l in f if not l.startswith("#")), delimiter="\t") if r["policy"] == "emit"}
+        rows = list(csv.DictReader((l for l in f if not l.startswith("#")), delimiter="\t"))
+    emit = {r["name"] for r in rows if r["policy"] == "emit"}
+    omit = {r["name"] for r in rows if r["policy"] == "omit"}
     def omitted(n):
-        return n not in emit and (n.startswith("__") or (n.startswith("_") and n.endswith("_H")))
+        return n in omit or (n not in emit and (n.startswith("__") or (n.startswith("_") and n.rstrip("_").endswith("_H"))))
     return omitted
 
 

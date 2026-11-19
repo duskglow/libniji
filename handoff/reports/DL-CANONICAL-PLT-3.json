@@ -1,0 +1,17 @@
+{"task": "DL-CANONICAL-PLT-3", "model": "opus", "tokens": null,
+ "result": "INCOMPLETE (checkpoint): start-up instructions now below base (hot target/one/pass1 restored, canonical PLT path cold); N=0 still +1 page fault; plants and gate not run",
+ "branch": "task/dl-canonical-plt-3", "head": "1cfd6cd07",
+ "gate": {"affected": "not run (canonical_plt tests 4 passed in dl-canonical-plt-3-step3)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["equal-length-path measurement confirmed the run-2 delta was real (+5458..+5910 instr); lossless Intel PT placed it all in reloc::target register spills"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "dynamic start-up N=0 instructions:u, run-2 head -> now (base next 9028049)", "before": 9033508, "after": 9027904, "unit": "instr", "measured": true},
+  {"kind": "perf", "what": "dynamic start-up N=12 instructions:u, run-2 head -> now (base next 10109444)", "before": 10115355, "after": 10108761, "unit": "instr", "measured": true},
+  {"kind": "cost", "what": "dynamic start-up N=0 page faults (base 82)", "before": 83, "after": 83, "unit": "faults", "measured": true}
+ ],
+ "improvement": "a lossless Intel PT per-function diff (perf record -m 16,32768 -e intel_pt//u, report --itrace=i1i) finds a start-up delta exactly in one run; sampled profiles misled the last run",
+ "next_step": "remove the N=0 +1 fault (init_order/pass1 inlining), update the pending record, plants, gate",
+ "report_file": "handoff/DL-CANONICAL-PLT.md",
+ "jobs": ["dl-canonical-plt-3-step3"]}
