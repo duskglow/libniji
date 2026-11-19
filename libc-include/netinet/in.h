@@ -823,9 +823,6 @@ enum { IPPROTO_UDPLITE = 136 };
 # ifndef IPV6_RECVHOPOPTS
 #  define IPV6_RECVHOPOPTS 53
 # endif
-# ifndef IPV6_RECVORIGDSTADDR
-#  define IPV6_RECVORIGDSTADDR 74
-# endif
 # ifndef IPV6_RECVPATHMTU
 #  define IPV6_RECVPATHMTU 60
 # endif
@@ -1003,12 +1000,6 @@ enum { IPPROTO_UDPLITE = 136 };
 # ifndef IP_RECVOPTS
 #  define IP_RECVOPTS 6
 # endif
-# ifndef IP_RECVORIGDSTADDR
-#  define IP_RECVORIGDSTADDR 20
-# endif
-# ifndef IP_RECVRETOPTS
-#  define IP_RECVRETOPTS 7
-# endif
 # ifndef IP_RECVTOS
 #  define IP_RECVTOS 13
 # endif
@@ -1080,6 +1071,18 @@ enum { IPPROTO_UDPLITE = 136 };
 # ifndef MCAST_UNBLOCK_SOURCE
 #  define MCAST_UNBLOCK_SOURCE 44
 # endif
+#endif
+
+/* Spelled as the macro they equal, as linux/in.h spells them: its definition after this one repeats the replacement list
+   token for token, so C 6.10.3p2 allows the redefinition in either include order. */
+#ifndef IP_RECVRETOPTS
+# define IP_RECVRETOPTS IP_RETOPTS
+#endif
+#ifndef IP_RECVORIGDSTADDR
+# define IP_RECVORIGDSTADDR IP_ORIGDSTADDR
+#endif
+#ifndef IPV6_RECVORIGDSTADDR
+# define IPV6_RECVORIGDSTADDR IPV6_ORIGDSTADDR
 #endif
 
 /* RFC 3493: the members of an IPv6 address by their names; the table names the union members (layouts.tsv). */
