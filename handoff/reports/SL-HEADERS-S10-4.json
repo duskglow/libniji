@@ -4,13 +4,18 @@
  "tokens": null,
  "result": "COMPLETE: origin/next merged into slice 10; header_check 0 failed of 7101, headers-gen --check clean, clippy/static clean, 15 plants caught, gate green",
  "branch": "task/sl-headers-s10-4",
- "head": "ec04ac0d6",
+ "head": "6567298e4",
  "gate": {
   "affected": "32 suites ok, 12188 passed / 0 failed (conformance 140 passed / 0 failed)",
   "peak": "13G"
  },
  "accepted_first_attempt": null,
- "rulings": [],
+ "rulings": [
+  {
+   "item": "slice-contract precheck red: this slice keeps two shared generator edits (spec/tools/header_check.py: slice modules may name p1_skip/must_fail, must-fail runner rule, FILE-incomplete P1 skip; xtask/src/headers/typedefs.rs: FILE tag-only rule). The first lives in its own run-3 commit; the typedefs.rs port is in the merge commit.",
+   "recommendation": "land them as the shared generator change (data-driven, no per-header code); or a generator story takes them and S10 rebases on it"
+  }
+ ],
  "informational": [
   "Merge: xtask/src/headers.rs conflicted because next split the generator into headers/*.rs and already emits bit-field members itself; run 3's bit-field edit was dropped, its FILE tag-only rule carried into headers/typedefs.rs (data driven, shared, own commit-in-merge); header_check.py merged cleanly (p1_skip/must_fail kept). The bit-field plant was removed from handoff/SL-HEADERS-S10/plants.txt (code is next's now); the FILE plant now targets typedefs.rs.",
   "Regenerated fts.h ftw.h glob.h printf.h uchar.h wchar.h: next's generator now emits member lists there (no hand edits).",
