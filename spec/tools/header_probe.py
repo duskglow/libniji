@@ -140,6 +140,7 @@ def standard_names():
                                      "int_grow", "finish", "object_size", "room", "make_room", "blank_fast", "1grow_fast",
                                      "ptr_grow_fast", "int_grow_fast", "base", "next_free", "chunk_size",
                                      "alignment_mask", "chunk_alloc", "chunk_free")]
+    return out
 
 
 def math_names():

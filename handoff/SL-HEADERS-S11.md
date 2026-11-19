@@ -49,4 +49,17 @@ file's earlier text: the pseudo-denormal is non-canonical in spec s10.2, the pro
 
 **Run 5 (merge-only).** Merged origin/next (HANDBACK-INLOOP-CHECKS-2 landed). Conflicts: header_check.py kept both (HEADERS = ... + SLICE9 + slice-11 list; P1 kinds include union with SLICE6+SLICE9+SLICE14), headers.rs kept both cxx_mask and is_covered. headers-gen, clippy, static green on the merge; gate mei:sl-headers-s11-5-gate rc 0; plants mei:sl-headers-s11-5-plants 23 CAUGHT / 0 WARN. Next: item 1 above when other slices land.
 
-**Run 5 end state.** Green against the origin/next of 11-18 morning, but next moved again (f9aa8e368 "slice tables and slice modules") and conflicts in header_check.py and headers.rs again. A plain merge no longer works: slice 11 must be re-ported into headers/slices/s11.tsv, spec/tools/header_checks/s11.py and xtask/src/headers/slices/s11.rs (its HEADERS entries, P1 union kind, ieee754 field proof, @@emit-c/@@if-macro/@@owns-macro markers, cxx_mask). Next step: that re-port as its own story, then rerun gate and plants.
+**Run 6 (re-port, ruling #6597).** Merged origin/next (slice tables and slice modules) and re-ported slice 11 into the registry layout:
+* `headers/slices/s11.tsv`: the 7 headers plus `finclude/x86_64-linux-gnu/math-vector-fortran.h`, all `p1` 0.
+* `spec/tools/header_checks/s11.py`: slice 11's P1 (integer and floating macros, typedefs, struct and union sizes, the `@@emit-c` C-only name
+  filter) and the P6 units (tgmath_types.c, ieee754_fields.c). header_check.py, header_probe.py and headers.rs lost slice 11's lists.
+* No `xtask/src/headers/slices/s11.rs`: slice 11 defines no marker of its own (`@@emit-c`, `@@if-macro`, `@@generated-fortran` need `Gen`
+  state or the `owned` set, so they stay in the core, as a separate commit).
+* **Shared-part changes (the only ones that can conflict):** headers.rs: floating literals (`hex_float_to_decimal`), `bitfield_aggregate`,
+  `@@emit-c`/`c_only`/`cxx_mask`, `@@if-macro`, `@@generated-fortran`, `complex` -> `_Complex` in prototypes, and an index
+  (`include_errors`, `headerless`) for `dont_care`: it scanned all 72702 visibility rows per emitted name and headers-gen with the math headers
+  did not finish in 10 minutes; it now takes about a minute. header_check.py: P5 skips `finclude/`, a unit whose text says `niji: codegen` is compiled `-O1 -S`.
+  header_probe.py: `math_names()`. layouts.tsv: obstack bit-field rows take the new `bits W@K` form.
+* Plants: `handoff/SL-HEADERS-S11-6/plants.txt`.
+
+**Next step.** Item 1 above when the other slices' headers land; otherwise the slice is complete.
