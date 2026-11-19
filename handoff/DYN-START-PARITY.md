@@ -1,5 +1,24 @@
 # DYN-START-PARITY (handoff after leg 2)
 
+## LEG 3: do exactly this (code is done; only the final checks remain)
+Head 8a2301180 synced to mei `~/w/s1` (tree 935eaef5...). At 18:10Z leg 2 started `~/work/DYN-START-PARITY/final.sh`
+(detached), which runs, in order, the jobs `dyn-start-parity-lint3` (cargo xtask clippy + static), then
+`dyn-start-parity-gate` (direct tier, `affected --base origin/next --run`, fast products), then
+`dyn-start-parity-startup` (cargo xtask test; NIJI_FULL_PROFILE=1 so + hot_text_products, release).
+Plants are done and green: `dyn-start-parity-plants` 9 CAUGHT, 0 SURVIVED, 0 WARN (run on 77fb93789; the ld code
+is identical at the final head, later commits only touch tests' doc lines, records, handoff).
+1. `~/bin/jobwait dyn-start-parity-lint3 dyn-start-parity-gate dyn-start-parity-startup` (10-min calls).
+   lint3 red: fix, commit, push, sync (check rc; 4 = BUSY), rerun final.sh. Gate red: only failures in the direct
+   tests of this change are ours (`reloc_ldso_kernel_started_without_proc` ETXTBSY is a known pre-existing race:
+   INFORMATIONAL). hot_text_products bounds: DYN_TRUE_BOUND [77, 73], DYN_START_INSTR (Skylake-SP fast 1,752,700 /
+   release 1,630,700; Zen 1 release 1,630,600): a Zen 1 gate can read the fault bound differently; report it.
+2. `cargo xtask precheck --jobs dyn-start-parity-plants,dyn-start-parity-lint3,dyn-start-parity-gate,dyn-start-parity-startup --head <sha>` on the role.
+3. Fill `gate.affected` in handoff/reports/DYN-START-PARITY.json, push, `ops handback-check`, hand back with
+   JOBS: mei:dyn-start-parity-plants, mei:dyn-start-parity-lint3, mei:dyn-start-parity-gate, mei:dyn-start-parity-startup
+   SUPERSEDED: ldtest1 (test bug, fixed), ldtest2 (ETXTBSY race), lint/lint2 (clippy casts; lint2 ran on an unsynced
+   tree: sync BUSY), lint3's first run at 18:10 (trace markers), dyntests/dyntests2 (measurement runs), so2/so3 (builds).
+   RULING NEEDED: RELR for libc.so.6 (see report). Verdict: COMPLETE with "target (parity) not reached".
+
 State: branch `task/dyn-start-parity` on origin/next 255a6901d. Role: mei `~/w/s1` (Skylake-SP). Host scratch
 `/mnt/zram/claude/DYN-START-PARITY/` (rel2, rel3 = release products of this branch; prog-* = test programs),
 scripts `~/work/DYN-START-PARITY/parity.sh` (execcount, `GLIBC=1` adds the reference) and `prof.sh` (perf on the
