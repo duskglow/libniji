@@ -2029,7 +2029,8 @@ fn check_no_interp(path: &Path) -> Result<(), String> {
 }
 
 /// The symbols the interpreter exports (DL-12, D-27.20), each at the version `spec/abi/versions.tsv`
-/// gives it for the interpreter's soname; every other symbol stays local.
+/// gives it for the interpreter's soname (a `GLIBC_PRIVATE` row at `NIJI_PRIVATE`, R14-12); every
+/// other symbol stays local.
 /// `__libc_stack_end` and the rseq objects live here, not in `libc.so.6` (R14-12, D-27.26).
 /// `_r_debug` and `_dl_debug_state`: the debugger rendezvous (DL-23).
 const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags", "_r_debug", "_dl_debug_state"];
@@ -2041,6 +2042,9 @@ fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
     for sym in LD_EXPORTS {
         let version = table.lines().map(|l| l.split('\t').collect::<Vec<_>>()).find(|f| f.first() == Some(&soname) && f.get(1) == Some(sym)).and_then(|f| f.get(2).map(|v| (*v).to_string()));
         let version = version.ok_or_else(|| format!("versions.tsv: no row for {soname} {sym}"))?;
+        // No GLIBC_PRIVATE node (R14-12): a private name is libniji's own interface, NIJI_PRIVATE
+        // (`_dl_debug_state`, found by name by a debugger, DL-23 / D-27.62).
+        let version = if version == "GLIBC_PRIVATE" { "NIJI_PRIVATE".to_string() } else { version };
         nodes.entry(version).or_default().push(sym);
     }
     let mut out = String::new();
