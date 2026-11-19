@@ -28,11 +28,18 @@ const PROG: &str = r#"
 #include <string.h>
 extern ElfW(Dyn) _DYNAMIC[];
 /* NOLD: the program does not name ld.so (no link-time reference to `_r_debug`): the start adds
-   ld.so's link map last, its l_ld from ld.so's own headers. */
+   ld.so's link map last, its l_ld from ld.so's own headers. Nothing on the link line names ld.so
+   (libniji's libc.so.6 has no DT_NEEDED on it), so ld.so's symbols are looked up in its handle. */
 #ifdef NOLD
-#define RDBG (*(struct r_debug *)dlsym(RTLD_DEFAULT, "_r_debug"))
+static void *ldsym(const char *s) {
+    void *ld = dlopen("ld-linux-x86-64.so.2", RTLD_NOW | RTLD_NOLOAD);
+    return ld ? dlsym(ld, s) : 0;
+}
+#define RDBG (*(struct r_debug *)ldsym("_r_debug"))
+#define GLOBAL(s) ldsym(s)
 #else
 #define RDBG _r_debug
+#define GLOBAL(s) dlsym(RTLD_DEFAULT, s)
 #endif
 /* In a library the program names by path, which names its own dependency by path. */
 extern int rdv_mid(void);
@@ -57,8 +64,11 @@ static int check(const char *when, int base, int want, const char *last, const c
     /* ld.so's own definition (the program's copy, when it has one, comes first in the global scope). */
     void *ld = dlopen("ld-linux-x86-64.so.2", RTLD_NOW | RTLD_NOLOAD);
     struct r_debug *own = ld ? dlsym(ld, "_r_debug") : 0;
-    void *brk = dlsym(RTLD_DEFAULT, "_dl_debug_state");
-    if (!own || !brk || !dlsym(RTLD_DEFAULT, "_r_debug") || dlsym(RTLD_DEFAULT, "_r_debug") != (void *)&RDBG) return base + 1;
+    void *brk = GLOBAL("_dl_debug_state");
+    if (!own || !brk || !GLOBAL("_r_debug") || GLOBAL("_r_debug") != (void *)&RDBG) {
+        fprintf(stderr, "%s: ld.so handle %p, own %p, brk %p, _r_debug %p\n", when, ld, (void *)own, brk, GLOBAL("_r_debug"));
+        return base + 1;
+    }
     if (dt() != own) return base + 2;
     if (own->r_version != 1 || RDBG.r_version != 1) return base + 3;
     if (own->r_state != RT_CONSISTENT || RDBG.r_state != RT_CONSISTENT) return base + 4;

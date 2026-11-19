@@ -9,3 +9,4 @@ no-brk-call | crates/boundary/src/ld/debug.rs | perl:s/\n    _dl_debug_state\(\)
 dlopen-not-consistent | crates/boundary/src/ld/dlopen.rs | perl:s/(super::readers::publish\(base, k\);\n\s*)super::debug::change\(niji_ld::debug::State::Consistent\);/$1/ | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 24
 needed-path-not-kept | crates/boundary/src/ld.rs | lit:paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name)); ==> paths[n] = name; | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:rendezvous_pie_matches_dl_iterate_phdr.*FAILED|failed check
 own-dynamic-base | crates/boundary/src/ld.rs | lit:return base.wrapping_add(usize::try_from(word(16)).unwrap_or(0)); ==> return base; | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 8
+first-not-first | xtask/src/coldbss.rs | lit:list.extend(rest); ==> list.splice(0..0, rest); | cargo test -p xtask coldbss | msg:first_tables_lead
