@@ -573,8 +573,11 @@ impl Gen<'_> {
                 for q in rows.iter().filter(|q| q["member"].strip_prefix(prefix.as_str()).is_some_and(|m| !m.contains('.'))) {
                     let mt = &q["member_type"];
                     let (base, arr) = mt.find('[').map_or((mt.as_str(), ""), |i| (&mt[..i], &mt[i..]));
-                    let b = dwarf_scalar(base).or_else(|| Some(self.resolve(base)).filter(|r| scalar(r)))?;
-                    inner.push(format!("{b} {}{arr};", &q["member"][prefix.len()..]));
+                    // A pointer member (`void *tempptr`) is declared with its pointee spelled as a scalar or `void`.
+                    let core = base.trim_end_matches(['*', ' ']);
+                    let stars = if base.len() > core.len() { " *" } else { "" };
+                    let b = if core == "void" && !stars.is_empty() { "void".to_string() } else { dwarf_scalar(core).or_else(|| Some(self.resolve(core)).filter(|r| scalar(r)))? };
+                    inner.push(format!("{b}{stars} {}{arr};", &q["member"][prefix.len()..]));
                 }
                 let off: u64 = r["offset_or_size"].parse().ok()?;
                 offs.insert(r["offset_or_size"].clone());
@@ -597,10 +600,31 @@ impl Gen<'_> {
                 open_anon = Some(r["offset_or_size"].clone());
                 continue;
             }
-            if r["member"].contains('.') || !r["bitfield"].is_empty() {
+            if r["member"].contains('.') {
                 return None;
             }
             let mt = &r["member_type"];
+            let off0: u64 = r["offset_or_size"].parse().ok()?;
+            // A pointer to a function whose parameters the table does not record (`fn(...) *`): the program never
+            // calls it through the structure, so it is declared as a pointer to `void (void)`; size and offset are
+            // those of any object pointer.
+            if mt.starts_with("fn(") && mt.trim_end().ends_with('*') {
+                end = end.map(|e| e.max(off0 + 8));
+                offs.insert(r["offset_or_size"].clone());
+                out.push(format!("  void (*{}) (void);", r["member"]));
+                continue;
+            }
+            // A bit-field (`bits W@B`): declared in table order with its width; its position follows from the order.
+            if let Some(w) = r["bitfield"].strip_prefix("bits ").and_then(|b| b.split('@').next()).filter(|w| w.parse::<u32>().is_ok()) {
+                let ty = dwarf_scalar(mt).filter(|_| !mt.contains('*'))?;
+                offs.insert(r["offset_or_size"].clone());
+                end = end.zip(self.type_size(mt, "", "")).map(|(e, n)| e.max(off0 + n));
+                out.push(format!("  {ty} {} : {w};", r["member"]));
+                continue;
+            }
+            if !r["bitfield"].is_empty() {
+                return None;
+            }
             let (base, arr) = match mt.find('[') {
                 Some(i) => (&mt[..i], &mt[i..]),
                 None => (mt.as_str(), ""),
@@ -635,13 +659,18 @@ impl Gen<'_> {
             } else if stars.is_empty() && core.starts_with("enum ") && self.t.typedefs.contains_key(&("enum".to_string(), core["enum ".len()..].to_string())) {
                 // An enumeration (four bytes, no negative enumerator): its underlying type.
                 "unsigned int".to_string()
-            } else if core.starts_with("struct ") && !stars.is_empty() {
+            } else if core.trim_start_matches("const ").starts_with("struct ") && !stars.is_empty() {
                 // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
                 format!("{core} {}", stars.trim())
-            } else if !stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(')) {
+            } else if self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(') && (!stars.is_empty() || t["cxx"].contains("(*"))) {
                 // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
                 nested.push(format!("typedef {core}"));
                 format!("{core} {}", stars.trim())
+            } else if dwarf_scalar(core).is_none() && self.t.typedefs.contains_key(&("typedef".to_string(), core.to_string())) && !(scalar(&self.resolve(core)) || self.resolve(core) == "void") {
+                // A member of a typedef name that does not resolve to a scalar here (`FILE *`, `wchar_t`): the typedef
+                // is emitted first and the member uses its name.
+                nested.push(format!("typedef {core}"));
+                format!("{core}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
             } else {
                 let b = dwarf_scalar(core).or_else(|| {
                     let r = self.resolve(core);
@@ -799,7 +828,9 @@ impl Gen<'_> {
                 let typedef_known = self.t.typedefs.contains_key(&("typedef".to_string(), w.clone()));
                 if matches!(w.as_str(), "const" | "volatile" | "void" | "int" | "long" | "short" | "char" | "unsigned" | "signed") {
                     out.push_str(&w);
-                } else if !typedef_known && self.t.layouts.contains_key(&tag) {
+                } else if !typedef_known && (self.t.layouts.contains_key(&tag) || self.tag_of_typedef(&w)) {
+                    // The tag is declared first: a tag first named in a parameter list is a different, unreachable type.
+                    self.out.push(format!("{tag};"));
                     out.push_str(&tag);
                 } else if typedef_known && !scalar(&self.resolve(&w)) && w != "__va_list_tag" {
                     self.typedef(&w);
@@ -810,7 +841,12 @@ impl Gen<'_> {
             }
             out.push(c);
         }
-        out.trim_end().replace('*', " *").replace("  *", " *").replace("__va_list_tag (*) [1]", "__builtin_va_list").replace("( *)", "(*)")
+        out.trim_end().replace('*', " *").replace("  *", " *").replace("( *)", "(*)").replace("__va_list_tag (*) [1]", "__builtin_va_list")
+    }
+
+    /// Whether `name` is the structure tag a typedef with layouts.tsv rows is spelled through (`_IO_FILE` for `FILE`).
+    fn tag_of_typedef(&self, name: &str) -> bool {
+        self.t.typedefs.iter().any(|((k, n), r)| k == "typedef" && r["cxx"] == name && self.t.layouts.contains_key(n.as_str()))
     }
 
     fn tag(&mut self, name: &str, kind: &str) {
@@ -931,9 +967,18 @@ impl Gen<'_> {
             return;
         };
         let ty = r["cxx"].clone();
-        let line = match ty.find('[') {
-            Some(i) => format!("extern {} {name}{};", ty[..i].replace('*', " *"), &ty[i..]),
-            None => format!("extern {} {name};", ty.replace('*', " *")),
+        let line = if let Some(open) = ty.find("(*)") {
+            // A pointer to a function (`void (*)()`): the name goes inside the parentheses. An empty list is `(void)` in C.
+            let (ret, rest) = ty.split_at(open);
+            let args = self.type_words(&rest[3..]);
+            let args = if args == "()" { "(void)".to_string() } else { args };
+            let ret = self.type_words(ret);
+            format!("extern {} (*{name}){args};", ret.trim_end())
+        } else {
+            match ty.find('[') {
+                Some(i) => format!("extern {} {name}{};", ty[..i].replace('*', " *"), &ty[i..]),
+                None => format!("extern {} {name};", ty.replace('*', " *")),
+            }
         };
         self.guard(name, vec![line]);
     }

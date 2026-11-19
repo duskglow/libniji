@@ -100,7 +100,7 @@ TYPES = [
  ("struct mntent", "struct mntent"), ("struct fstab", "struct fstab"), ("struct ttyent", "struct ttyent"),
  ("struct option", "struct option"), ("struct argp", "struct argp"), ("struct argp_option", "struct argp_option"),
  ("struct argp_state", "struct argp_state"), ("struct argp_child", "struct argp_child"),
- ("struct obstack", "struct obstack"), ("struct printf_info", "struct printf_info"),
+ ("struct obstack", "struct obstack"), ("struct _obstack_chunk", "struct _obstack_chunk"), ("struct printf_info", "struct printf_info"),
  ("struct mallinfo", "struct mallinfo"), ("struct mallinfo2", "struct mallinfo2"),
  ("fenv_t", "fenv_t"), ("femode_t", "femode_t"), ("fexcept_t", "fexcept_t"),
  ("struct inotify_event", "struct inotify_event"), ("struct signalfd_siginfo", "struct signalfd_siginfo"),

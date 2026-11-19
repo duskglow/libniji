@@ -1,0 +1,24 @@
+@@generated
+/* printf.h: printf extension interface (GNU C Library manual, Customizing Printf; printf.h(3head)). */
+#ifndef __NIJI_H_printf_h
+#define __NIJI_H_printf_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+/* The reference makes va_list visible through printf.h in every configuration (stdio.h only in some). */
+@@owns va_list
+# ifndef __NIJI_D_va_list
+#  define __NIJI_D_va_list 1
+#  ifndef _VA_LIST_DEFINED
+#   define _VA_LIST_DEFINED
+typedef __builtin_va_list va_list;
+#  endif
+# endif
+
+@@emit
+
+__NIJI_END_C
+
+#endif
