@@ -1,65 +1,63 @@
-# HEADERS-TABLES-COMPLETE: handoff (leg 1, 2026-11-19)
+# HEADERS-TABLES-COMPLETE: handoff (leg 2, 2026-11-19)
 
-State: branch `task/headers-tables-complete` from origin/next 2b5604f9c. Role mei:~/w/s2. Commits: 570b86928
-(groups 1, 3, 6 and 7), 67c69b1a0 (plants file `handoff/HEADERS-TABLES-COMPLETE-plants.txt`). The rows test
-exceptions went from 99 to 74 (`headers/rows-exceptions.tsv`).
+State: branch `task/headers-tables-complete` from origin/next 2b5604f9c. Role mei:~/w/s2. Code commits: 570b86928
+(leg 1: groups 1, 3, 6, 7), 67c69b1a0 (plants file), 2ca7392b5 (leg-1 findings fixed), 7f0a5c5ea (group 2). Plants
+file `handoff/HEADERS-TABLES-COMPLETE-plants.txt` (10 plants). Exceptions in `headers/rows-exceptions.tsv`:
+99 -> 74 (leg 1) -> 42 (leg 2).
 
-## Done (leg 1)
+## Done
 
-* Extraction (`spec/tools/abi_extract.py --layouts-only`, run on mei, the reference system; the unchanged script
-  reproduced the committed layouts.tsv byte for byte first): `spec/abi/enumerators.tsv` (tag, name, value; 310 rows
-  of the named enumerations), layouts.tsv members at every depth and through the first element of arrays of
-  aggregates (+48 rows), bit-field positions `bits W@P` (P from the low bit of the unit at the row's byte; 38 rows
-  changed). PROVENANCE line added. One extraction run, so groups 1, 3, 6 are one commit (the brief asked one per
-  group; splitting the shared regeneration was not worth three regenerations).
-* Generator: `enums.rs` (`declared_enum`, `enum_body`; `@@enum TAG` takes no prefixes now), `Gen::tag` for `enum`,
-  `Gen::item("enumerator")` and `emit()` route an enumerator of a typedefs.tsv-declared enumeration to the whole
-  enumeration; `derive_layouts` derives an array element's layout; `level()` reads `<anon>` `rows K` as K rows at its
-  level (abi-gen's reading; deeper rows follow). mcheck.h.in lost its hand-written enum (data now).
-* Rows test: bit-field run-time checks use the recorded positions (the psABI derivation and its helpers removed);
-  each declared enumeration's enumerators are checked for value and (C++) `decltype` = the enumeration.
-* Group 7: the va_list C++ row is marked `PERMANENT (ruling #6721)`; the list header states the ratchet.
-* libc-include changes (every one from the new rows): mcheck.h (enum mcheck_status from enumerators.tsv),
-  sys/ptrace.h (enum __ptrace_request now holds only its own 43 enumerators; the PTRACE_O_/PTRACE_EVENT_ names
-  that the prefix rule put in it stay anonymous enumerators), stdlib.h and sys/types.h (`__atomic_wide_counter`
-  complete: the `__value32` rows), sys/pidfd.h (siginfo_t complete: `_bounds` rows; it now needs `union sigval`).
-  abi-gen output (crates/abi/src/layout.rs, tests/appendix_c_layouts.rs) regenerated for the new rows.
+* Leg 1 (see 570b86928's message): enumerators.tsv + `@@enum` as data, layouts at every depth, bit positions
+  `bits W@P` recorded and checked, va_list C++ row PERMANENT (#6721).
+* 2ca7392b5: leg 1's test job found `header_p2_fixed_rows` red (union sigval defined in strict sys/pidfd.h, a
+  regression from the complete siginfo_t). Fix: `typedef()`'s last branch spells a typedef named for linkage
+  through a tag the header shows in fewer configurations through an untagged aggregate outside the tag's
+  condition (`narrower_tag` now takes both kinds). Plants survivors fixed: htc-anon-level now runs the new unit test
+  `an_anonymous_member_counts_only_its_own_level` (the tables' only `<anon>` with deeper rows is Dl_serinfo's last
+  member, so the rows test cannot see a miscount); the per-enumerator guards in `enum_body` were dead (an enumerator
+  of a declared enumeration is always routed to the whole enumeration) and are removed (mcheck.h, sys/ptrace.h
+  lose those lines); plant htc-enum-route replaces htc-enum-guard. New plant htc-typedef-narrow-tag.
+* 7f0a5c5ea, group 2: `headers/providers.tsv` (name, provider, source): la_* `program` (rtld-audit(7)), ps_*
+  `debugger` (proc_service), bindresvport6 and getumask `none` (ruling #6715: declared, a use fails to link as on
+  the reference). The export check in functions.rs skips these names; `load_providers` refuses an unknown
+  provider, an undeclared name or a default-version export (unit test
+  `a_provider_row_is_refused_unless_it_is_needed`). 32 exception rows removed. DEVIATION from the brief's wording
+  (INFORMATIONAL for the hand-back): a reviewed generator input instead of a prototypes.tsv column, because
+  abi_extract.py rewrites prototypes.tsv with three columns and the ps_* functions have no prototypes.tsv row.
+  S16 has not landed (no headers/slices/s16*), so nothing of #6725 applies.
+* Proof on 2ca7392b5/7f0a5c5ea (job headers-tables-complete-l2gen3, mei): headers-gen, `headers-gen --rows`
+  ok (prototypes 0 excepted, typedefs 8 excepted, all 0 failed), both unit tests, header_p2_fixed_rows ok.
+  libc-include changes this leg: mcheck.h, sys/ptrace.h (dead guard lines removed), sys/pidfd.h (union sigval
+  under `__NIJI_POSIX >= 199309`, untagged `__sigval_t` union otherwise).
 
-## Remaining (next leg): groups 2, 4, 5 of the brief, in this order
+## Jobs running at the refresh (head 7f0a5c5ea): collect FIRST
 
-2. Provider column in prototypes.tsv (`libc` default, `program` for la_* (12 + 12 function types), `debugger` for
-   ps_* (4 function types), `none` for bindresvport6 and getumask: ruling #6715 says declare them). Read
-   `xtask/src/headers/functions.rs` (the "no default-version export" refusal) and `Tables.linked_elsewhere` in
-   headers.rs (S16's slice field; drop it for the column if S16 has not landed, check `git log origin/next` is not
-   allowed: check `headers/slices/s16*` on the branch). 32 exception rows.
-4. `__SOCKADDR_ARG` / `__CONST_SOCKADDR_ARG`: layouts rows for the transparent union and a macro row for the C++
-   pointer form; 8 C++ exception rows (accept, accept4, getpeername, getsockname, recvfrom, bind, connect, sendto).
-5. macros.tsv pointer type (18 constants rows: NULL, SIG_*, MAP_FAILED, ...), rows for FNM_NOSYS,
-   DLFO_EH_SEGMENT_TYPE, TD_SIGNO_MASK (probe whether TD_SIGNO_MASK is function-like), function rows for the 10
-   type-generic macros, prototypes rows for gets and bsd_signal (by type_probe.py / header probes on mei).
+`~/bin/jobwait headers-tables-complete-l2test1 headers-tables-complete-l2plants1` on mei.
+* l2test1: clippy -D warnings, `cargo xtask static`, `cargo test -p xtask -p niji-abi`.
+* l2plants1: the 10 plants, `--dir /mnt/zram/claude/headers-tables-complete/plants-2`; grep CAUGHT/SURVIVED/WARN.
+Leg 1's jobs headers-tables-complete-test1 and -plants1 are SUPERSEDED (test1 red on p2, fixed in 2ca7392b5;
+plants1 had 2 survivors, fixed). Job labels used so far: -gen2 (leg 1), -l2gen1..3, -l2unit1, -l2extract1: pick
+new labels (jobrun silently refuses a used one).
 
-Each group: extraction or table rows on mei, generator change, drop its exception rows, `cargo xtask headers-gen`
-then `cargo xtask headers-gen --rows /dev/shm/claude/<dir>` (jobrun kind test), copy libc-include and crates/abi
-back with `rsync -rc`, commit, add plants to the plants file.
+## Next: group 4 (8 C++ exceptions), then group 5
 
-## Proof so far (head 67c69b1a0)
-
-* `cargo xtask headers-gen --rows`: ok, 0 failed (callsites 2780, constants 6891 (21 exc.), initializers 10,
-  layouts 235 (1), macros 7189, prototypes 2782 (14), typedefs 3068 (26), versions 99, visibility 829 (12)).
-* clippy -D warnings and `cargo xtask static` clean (job headers-tables-complete-lint1).
-* `cargo xtask affected` escalates to FULL (xtask, spec/abi): the train's. Crate tests: job
-  headers-tables-complete-test1 (`cargo test -p xtask -p niji-abi`; at the refresh every finished suite was ok,
-  xtask 497 passed incl. the rows unit test); plants: headers-tables-complete-plants1 (6 plants, still running at
-  the refresh). FIRST STEP of the next leg: `~/bin/jobwait headers-tables-complete-test1
-  headers-tables-complete-plants1` on mei, read `~/logs/<label>.log` (grep CAUGHT/SURVIVED/WARN), fix a survivor.
-  Both jobs prove 67c69b1a0's code; later code commits need a new test and plants run (append plants for the new
-  groups to the same file).
+Group 4 finding (leg 2, probe on mei): GCC's DWARF gives the `__SOCKADDR_ARG` / `__CONST_SOCKADDR_ARG`
+transparent union NO member DIEs (the union DIE has no children), so `abi_extract.py --layouts-only` yields only
+the head rows. The transparency itself is probe-able (GCC manual, transparent_union: a `void *` argument is
+accepted only by a transparent union parameter); patch with `transparent()` and the two TYPES entries saved at
+`~/w/.scratch/HEADERS-TABLES-COMPLETE/group4-extract.patch` (not committed; head rows only, members missing).
+Next step: a member probe: for each `struct sockaddr*` tag visible under `_GNU_SOURCE` (typedefs.tsv/visibility),
+compile `void f (__SOCKADDR_ARG); void g (struct sockaddr_X *p) { f (p); }` with `-Werror` (and `const` for the
+CONST form); the accepted pointer types are the members (names are the implementation's: reserved). Record them
+as layouts rows (head row last column `transparent_union`). Generator: in C a `typedef union {..} NAME
+__attribute__ ((__transparent_union__))`; in C++ and where visibility.tsv has the name as a `macro` (`!gnu`), the
+pointer form `struct sockaddr *__restrict` / `const struct sockaddr *` (POSIX accept/bind prototypes; the C++
+form is checked against typedefs.tsv `function accept` = `int (int, sockaddr*, unsigned int*)`). tname spells a
+restrict pointer `restrict struct sockaddr *`: the generator must place the qualifier after the `*`.
+Group 5 as in the brief (18 pointer constants, FNM_NOSYS, DLFO_EH_SEGMENT_TYPE, TD_SIGNO_MASK, 10 type-generic
+macros, gets and bsd_signal). type_probe.py's clean-room rule: never read `-E`/`-dM` output.
 
 ## Open / informational
 
-* sys/pidfd.h now defines `union sigval` under siginfo_t's condition (`!time64only`), while visibility.tsv gives
-  the tag in fewer configurations (not c89..c2x, posix1/2, xopen, isoc*). The nested emitter's narrower-tag
-  handling (`@@hidden-member`, `narrower_tag`) covers structures only. Recommend: extend it to unions (a member
-  of a union type whose tag is narrower is spelled through an anonymous union there).
-* Process slip in leg 1: one `sed -i` on headers/sys/ptrace.h.in (a one-line marker change) and two empty
-  heredocs; not refused, reported here.
+* Duplicate guarded `union sigval` blocks in sys/pidfd.h: the nested-definition duplicate (#6723, its own story).
+* Process slips: leg 1 one `sed -i` and two empty heredocs; leg 2 two heredocs (a scratch script, a no-op).
