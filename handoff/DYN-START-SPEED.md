@@ -4,10 +4,16 @@
 Branch `task/dyn-start-speed` (stacked on DYN-START-PARITY / -2, not yet in next; no merge done). Code commits:
 8ab452436 (step 2, RELACOUNT prefix loop), 4cb8daf5b (step 1a, verdef record scan), 348a4f666 (step 1b, per-pass
 version-name memo), fa6338555 (bounds + tests + plants). Final head = the commit carrying this note.
-Jobs on mei role `~/w/s1` (Skylake-SP): lint1 (clippy -D warnings, xtask static, niji-ld symbols+reloc tests: rc 0),
-gate1 (direct tier), plants1 (`handoff/DYN-START-SPEED-plants.txt`, 4 plants), xtest1 (`cargo xtask test`),
-release1 (`NIJI_FULL_PROFILE=1 cargo xtask so` + hot_text_products). Results: see the hand-back / report json.
-Measurement runs (not proofs): base0/cnt0/prof0, s2, s1, prof1, s1b, fast1.
+Code/test head 3be912577; final jobs on mei role `~/w/s1` (Skylake-SP), all rc 0 on it:
+xtest1 (clippy -D warnings + xtask static + `cargo xtask test`: 6858 + 5333 passed), gate2 (direct tier
+`affected --base origin/next --run`, not escalated), plants2 (`handoff/DYN-START-SPEED-plants.txt`: 4/4 CAUGHT),
+release1 (`NIJI_FULL_PROFILE=1 cargo xtask so` + hot_text_products: 29 passed; release empty main 807,500
+instructions vs bound 812,400, startup-only faults 74 vs bound 76), precheck1.
+Superseded: lint1, gate1 (head fa6338555, green), plants1 (2 survivors: the verdef plant was self-correcting and the
+memo-key plant needed slot collisions the corpus could not make; fixed in 3be912577). Measurement runs (not proofs):
+base0/cnt0/prof0, s2, s1, prof1, s1b, fast1.
+Note: the release bound 812,400 sits 0.6% above the measured 807,500 (set from execcount before the in-test value
+existed); instruction counts are deterministic for given products, so it was left rather than rerun every job.
 
 ## Measurements (execcount, ASLR off, median of 101, release products, Skylake-SP, load avg 3-7 of 112 threads)
 Counter: `~/work/DYN-START-SPEED/execcount.c` = the repo's oracle/exec_instr.c plus a software page-fault counter
