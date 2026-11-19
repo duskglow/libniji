@@ -1557,7 +1557,7 @@ impl LdLink {
         // LAYOUT-LDSO-WINDOW: the large zero-filled tables after the small state words (a copy: cargo owns `raw`).
         let archive = dir.join("ld-coldbss.a");
         fs::copy(raw, &archive).map_err(|e| format!("copy {}: {e}", raw.display()))?;
-        crate::coldbss::move_cold_bss(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &dir.join("ld-coldbss-work"), LDSO_COLD_BSS)?;
+        crate::coldbss::move_cold_bss_first(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &dir.join("ld-coldbss-work"), LDSO_COLD_BSS, LDSO_LBSS_FIRST)?;
         let entry = dir.join("ld-entry.o");
         run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
         let map = dir.join("ld.map");
@@ -1605,6 +1605,15 @@ pub(crate) const LDSO_SPAN_BUCKET: u64 = 0x8_0000;
 /// [`crate::coldbss::MIN`]: below it are the start-up object list (2.5 KiB) and the fini hooks
 /// (1.5 KiB), which lie on the pages start-up writes (libc's threshold was not measured here).
 const LDSO_COLD_BSS: u64 = 4096;
+
+/// DL-23-2: the interpreter's cold tables placed first in `.lbss`, on the page `.bss`'s last words
+/// share, which every start writes: the link-map nodes (`ld::dlopen::NODES`, 176 bytes each), whose
+/// first entries the start fills for the debugger rendezvous (program, each start-time object,
+/// `ld.so`). After them, at their own pages: `ld::THREAD_MODS` (written at the start only for
+/// objects with a `PT_TLS` segment; the C library has none) and `ld::readers::TABLE`. Measured on
+/// the Skylake-SP host (fast profile, ASLR off, present pages at `main`): with `THREAD_MODS` first,
+/// the nodes took a page of their own (+1 fault per dynamic start); with the nodes first, none.
+const LDSO_LBSS_FIRST: &[&str] = &["2ld6dlopen5NODES"];
 
 /// The linker script fragment that rounds the interpreter's span ([`LDSO_SPAN_BUCKET`]): an empty
 /// `NOLOAD` section after `.lbss` (the last zero-filled section, [`LDSO_COLD_BSS`]), the default
