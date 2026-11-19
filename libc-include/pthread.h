@@ -77,6 +77,13 @@ typedef struct {
   void * __pad[4];
 } __pthread_unwind_buf_t __attribute__ ((__aligned__ (16)));
 # endif
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
+# endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
 typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
@@ -162,15 +169,6 @@ typedef int pthread_once_t;
 # ifndef __NIJI_D_pthread_t
 #  define __NIJI_D_pthread_t 1
 typedef unsigned long pthread_t;
-# endif
-#endif
-#if __NIJI_CXX < 1
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112

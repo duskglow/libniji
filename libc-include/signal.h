@@ -438,6 +438,13 @@ typedef __sigset_t sigset_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199309
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
+# endif
 # ifndef __NIJI_D_union_sigval
 #  define __NIJI_D_union_sigval 1
 union sigval {
@@ -476,15 +483,6 @@ typedef struct sigevent sigevent_t;
 # ifndef __NIJI_D_time_t
 #  define __NIJI_D_time_t 1
 typedef long time_t;
-# endif
-#endif
-#if __NIJI_POSIX >= 199309 && __NIJI_CXX < 1
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 199309 || __NIJI_XSI >= 450
