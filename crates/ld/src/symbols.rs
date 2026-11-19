@@ -254,6 +254,16 @@ impl<'a> Object<'a> {
         }
     }
 
+    /// Whether `st`, a hash candidate that is not an exported definition, is one of the program's
+    /// canonical PLT entries ([`Object::program`]). Cold and out of line: a lookup reaches it only
+    /// for such a candidate, and the flag's read (a match on the hash table) cannot be hoisted
+    /// into every lookup, where it cost each object visited about six instructions.
+    #[cold]
+    #[inline(never)]
+    fn canonical_entry(&self, st: &Sym) -> bool {
+        canonical_plt(st) && self.has_canonical_plt()
+    }
+
     /// The dynamic section the view reads.
     #[must_use]
     pub fn dynamic(&self) -> Dynamic<'a> {
@@ -374,7 +384,7 @@ impl<'a> Object<'a> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !(exported(&st) || (self.has_canonical_plt() && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || self.canonical_entry(&st)) || self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
