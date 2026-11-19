@@ -1,96 +1,88 @@
-BLOCKING: not snapshot-ready at 852c1b495: the coexist flavour (niji6, niji6-dev) does not build (`cargo xtask so` with prefix /usr/lib/niji stops in the interpreter trace); everything else matches snapshot-2026-11-18.1 and #22 is fixed end to end
+COMPLETE: snapshot-ready at 557dfdaa6 (snapshot-2026-11-18.2 staged; coexist builds again; #22 fixed end to end; every other check matches snapshot-2026-11-18.1)
 
-# RELEASE-SNAPSHOT-1118B: snapshot validation of 852c1b495 (GitHub #22, dynamic-section addresses)
+# RELEASE-SNAPSHOT-1118B (run 2, RELEASE-SNAPSHOT-1118B-2): snapshot validation of 557dfdaa6
 
-**State.** Validated head `852c1b49581c8a1c046416d222a6fa0fa9edb58c` "Regenerate train-owned views" (origin/next at the
-start, 2026-11-18 16:50 UTC, unchanged at 17:50; epoch 1795017415). Branch `task/release-snapshot-1118b` = that head +
-handoff/ only (no product or packaging code changed). Role mei `~/w/s2` (Skylake-SP); keke = Zen 1. Job scripts: mei
-and keke `~/work/RELEASE-SNAPSHOT-1118B/` (RELEASE-SNAPSHOT-1118's with head, epoch, serial 2, role s2 and labels
-changed; new: dyn.sh + d/ for #22, chain-keke.sh). Nothing staged: `~/release-staging/snapshot-20261118.2/` does not
-exist (serial 2 unused). Two legs (refresh 1 of 3).
+**State.** Validated head `557dfdaa6b33cdfc650866e9ce3fa7505453fe4c` "Merge task/ldso-trace-prefix into next" (origin/next at
+the start, 2026-11-18 23:29 UTC; commit time 22:03:40 UTC, epoch 1795039420). Branch `task/release-snapshot-1118b-2` =
+run 1's handoff commits + a merge of that head + handoff/ only (no product or packaging code changed). Role mei `~/w/s2`
+(Skylake-SP); keke = Zen 1. Job scripts: mei and keke `~/work/RELEASE-SNAPSHOT-1118B-2/` (run 1's, head, epoch, work dir
+and labels changed; tree/ = local `git archive` of 557dfdaa6 copied with rsync). Run 1 (852c1b495) results are superseded.
 
-**Landed since snapshot-2026-11-18.1** (`git log --oneline 923df67e..852c1b49`: 105 lines, 11 merges): dl-dynamic-reloc
-(#22; tip ebe6baa20 is an ancestor of 852c1b495, not of 923df67e), layout-ldso-window-2, sl-headers-registry,
-sl-headers-s09-4, handback-inloop-checks-2, release-snapshot-1118 (handoff), layout-ldso-order-3, pkg-manifest-4, train
-view regenerations.
+**Landed since snapshot-2026-11-18.1** (`git log --oneline 923df67e..557dfdaa6`: 123 lines, 13 merges): dl-dynamic-reloc
+(#22), layout-ldso-window-2, sl-headers-registry, sl-headers-s09-4, handback-inloop-checks-2, release-snapshot-1118
+(handoff), layout-ldso-order-3, pkg-manifest-4, **sl-headers-vis-fix** (struct timespec where struct stat is visible,
+WIFCONTINUED, features-time64.h / gnu/stubs.h names), **ldso-trace-prefix** (the build-time interpreter trace runs a
+prefixed loader with its own `<prefix>/etc` files absent: run 1's block), train view regenerations.
 
-## Blocking finding (RULING NEEDED)
-
-Coexist build, job release-snapshot-1118b-debs-1 (mei): `tools/deb/build.sh` (coexist) rc 1 at
-`so: trace-at-build: tracing the interpreter failed (exit status: 1)` with
-`trace_gdb: the program read host files the tree does not supply (canon_host.sh): /usr/lib/niji/etc/ld.so.preload`;
-`check.sh` rc 2 (no niji6 / niji6-dev .debs). The interpreter trace (tools/hottext/ldso_trace.sh, from LAYOUT-LDSO-ORDER-3,
-f79f1e35f, not in 923df67e) rejects the prefixed loader's read of `<prefix>/etc/ld.so.preload`, a path that exists on
-neither host: deterministic, not host state. The system flavour (prefix /) builds. Recommend: a fix story on
-LAYOUT-LDSO-ORDER-3's trace (the `<prefix>/etc/` reads of a prefixed build are product paths, not host inputs), then
-rerun this snapshot on the fixed head (reuse serial 2). Do not tag 852c1b495.
-
-## Results against snapshot-2026-11-18.1 (all on 852c1b495's products; mei unless noted)
+## Results against snapshot-2026-11-18.1 (all on 557dfdaa6's products; mei unless noted)
 
 | check | job | result | vs 18.1 |
 |---|---|---|---|
-| gate | release-snapshot-1118b-gate-1 rc 0 | clippy (both), static, records check, affected (0 suites: branch = next + handoff) all RC 0 | same |
-| system debs, check-system, check-symbols | debs-1 (system steps rc 0) | `check: PASS (7 packages, version 2.39+niji20261118.2-1)`; `check-symbols: PASS (4438 symbol lines, 13 libraries)` | same |
-| **coexist debs + check** | debs-1 rc 1 | build fails (above); check rc 2 | **NEW, BLOCKING** |
-| package comparison | keke release-snapshot-1118b-pkgdiff-1 rc 0 | 7 system packages: file counts unchanged (libc6 75, libc-bin 22, libc6-dev 38, libc6-dbg 44, 7 each for the placeholders); libc6-dbg 5 build-ids replaced; sizes within 8 KB; control fields only the version. `MISSING niji6`, `MISSING niji6-dev` | coexist missing (the block) |
-| empty root | release-snapshot-1118b-roots-1 rc 0 | `root: RESULT pass=19 fail=0` | same |
-| swapped trixie root | roots-1 | `verdict: commands=65 same=63 known=2 bad=0`; ldd-6/-7 known (version-needs blocks, D-31.15) | same |
-| libc6-dbg + gdb | roots-1 | `dbg: RESULT pass=5 fail=0 pending=2` (trixie, excalibur) | same |
-| fresh install, `ldconfig -p` | roots-1 | `fresh: RESULT fail=0` | same |
-| lintian trixie / excalibur | release-snapshot-1118b-lint-1 rc 1 | 10 E / 60 W each, tag set identical to 18.1's (build-ids and versions normalised); the two coexist proof steps rc 2 (no coexist .debs) | E/W same; proofs not run (the block) |
-| lua_reload, cxx_dlclose | release-snapshot-1118b-smoke-mei-1, keke -smoke-keke-1 rc 0 | `SMOKE: RESULT bad=0` both hosts | same |
-| #9 many objects | release-snapshot-1118b-many-1 rc 0 | `YOHANE-MANY-OBJECTS pass=9 fail=0` | same |
-| #16 rerun | release-snapshot-1118b-yohane-1 rc 1 | 16 PASS / 2 FAIL (the header gap, `include_next <stdint.h>`) | same |
-| plants (handoff/RELEASE-SNAPSHOT-1118B-plants.txt) | release-snapshot-1118b-plants-1 rc 0 | `6 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 1 WARN-NO-MSG`; 3 baselines ok | +1 WARN (below) |
-| docs | local doccheck.py | 23 problems, the same 23 as 18.1 | same |
-
-**WARN-NO-MSG, rs18b-postrm-not-packaged:** re-aimed after PKG-MANIFEST-4 (it skips the DEBIAN/postrm manifest row). The
-mutant fails `build.sh` itself (`chmod: cannot access 'target/rpw/stage/libc-bin/DEBIAN/postrm'`) before
-`check-system.sh` runs, so the defect is caught, one step earlier than the plant's `msg:` names. Next snapshot: set its
-`msg:` to that chmod line or plant past the chmod.
+| step 0 (inherited head) | release-snapshot-1118b-2-lint0-1 rc 0 | clippy --all-features -D warnings, static | - |
+| gate | release-snapshot-1118b-2-gate-1 rc 0 | clippy (both), static, records check, affected (branch = next + handoff) all RC 0 | same |
+| system debs, check-system, check-symbols | release-snapshot-1118b-2-debs-1 | `check: PASS (7 packages, version 2.39+niji20261118.2-1)`; `check-symbols: PASS (4438 symbol lines, 13 libraries)` | same |
+| coexist debs + check | debs-1 | builds (`tracing the interpreter (prefix /usr/lib/niji)` passes); `check: PASS (2 packages)` | same (run 1's block gone) |
+| debs-1 rc 1 | debs-1 | DBG only: 17 of 19 ELF objects, no libc6-dbg file for `/usr/bin/iconv`, `/usr/bin/locale` (ruling #6321); same build-ids as run 1 | same (18.1: rc 1 for this, kept out of JOBS) |
+| smoke lua_reload, cxx_dlclose | -smoke-mei-1 (builds products), keke -smoke-keke-1 (mei's products) | `SMOKE: RESULT bad=0` both hosts; libc.so.6 sha256 ad0d7ef4..., ld.so 16f3ed79... | same |
+| package comparison | keke -pkgdiff-1 rc 0 | 9 packages, file counts unchanged (libc6 75, libc-bin 22, libc6-dev 38, libc6-dbg 44, niji6 29, niji6-dev 48, placeholders 7); libc6-dbg 5 build-ids replaced (getconf, ld.so, ldconfig, ldd, libc.so.6); sizes within 8 KB; control fields only versions; none missing | same |
+| empty root | -roots-1 rc 0 | `root: RESULT pass=19 fail=0` | same |
+| swapped trixie root | roots-1 | `verdict: commands=65 same=63 known=2 bad=0` (ldd-6/-7 loader trace output, D-31.15) | same |
+| libc6-dbg + gdb | roots-1 | `dbg: RESULT pass=5 fail=0 pending=2` trixie and excalibur | same |
+| fresh install, `ldconfig -p` | roots-1 | `fresh: RESULT fail=0` (17 installed objects with their .debug) | same |
+| lintian trixie / excalibur | -lint-1 rc 0 | 10 E / 60 W each; normalised tag lists (build-ids, versions) identical to 18.1's, 70 lines each | same |
+| coexist proofs | lint-1 | `proof: RESULT suite=trixie pass=21 fail=0`, excalibur `pass=21 fail=0` | same |
+| #9 many objects | -many-1 rc 0 | `YOHANE-MANY-OBJECTS pass=9 fail=0` | same |
+| #16 rerun | -yohane-1 rc 1 | 16 PASS / 2 FAIL (header gap `include_next <stdint.h>`, then cm-full rc 127); PASS/FAIL lines identical to run 1 | same |
+| #22 | -dyn22-1 rc 1 | below; rc 1 = the 9 probe-side FAILs of run 1 | fixed (18.1 crashed) |
+| stage | keke -stage-1 rc 0 | 9 assets + SHA256SUMS + MANIFEST; `sha256sum -c` 9 OK | - |
+| install instructions | keke -install-1 rc 0 | `inst: RESULT fails=0` (24 ok); system debs identical to debs-1's (7 of 7) | same |
+| plants (handoff/RELEASE-SNAPSHOT-1118B-2-plants.txt) | -plants-1 rc 0 | `6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG`; 3 baselines ok | run 1's WARN-NO-MSG gone (postrm msg re-aimed) |
+| docs | local doccheck.py on the tree | 23 problems, the same 23 as 18.1 and run 1 (two differences-from-glibc.md line numbers shift) | same |
 
 ## #22 end to end (swapped trixie root, distribution gcc, `-pie -fPIE`, `-Wl,-rpath,'$ORIGIN/' --enable-new-dtags`)
 
-release-snapshot-1118b-dyn22-2 on 852c1b495; release-snapshot-1118b-dyn22-ref181-1 = the same probe on
-snapshot-20261118.1's .debs (reference). Values as absolute and as offset from `dlpi_addr`:
+job release-snapshot-1118b-2-dyn22-1; values as offset from `dlpi_addr` (absolute value - dlpi_addr):
 
-| object | 852c1b495 STRTAB / SYMTAB / GNU_HASH offset | link-time value (file) | 18.1 debs |
+| object | STRTAB / SYMTAB / GNU_HASH offset | link-time value | verdict |
 |---|---|---|---|
-| main (PIE) | 0x678 / 0x3d8 / 0x3b0 | same: absolute PASS | link-time values (FAIL) |
-| libc.so.6 | 0x16510 / 0x5788 / 0x298 | same: PASS | FAIL |
-| ld.so | 0x398 / 0x2a8 / 0x260 | same: PASS | FAIL |
-| start-time lib (`$ORIGIN/`) | 0x318 / 0x288 / 0x260 | 0x318 / 0x288 / 0x260 (stock run, same file): absolute | not checkable (see below) |
-| dlopened lib | 0x318 / 0x288 / 0x260 | 0x318 / 0x288 / 0x260 (stock run, same file): absolute | not checkable |
-| vDSO | values 0x300 / 0x1c8 / 0x168 (link-time, as expected) | | same |
-| `_DYNAMIC` | = main's, absolute PASS | | FAIL |
+| main (PIE) | 0x678 / 0x3d8 / 0x3b0 | same (file) | absolute |
+| libc.so.6 | 0x16510 / 0x5788 / 0x298 | same (file) | absolute |
+| ld.so | 0x398 / 0x2a8 / 0x260 | same (file) | absolute |
+| start-time lib (`$ORIGIN/`, dlpi_name '') | 0x318 / 0x288 / 0x260 | 0x318 / 0x288 / 0x260 (stock run, same file) | absolute |
+| dlopened lib | 0x318 / 0x288 / 0x260 | 0x318 / 0x288 / 0x260 (stock run, same file) | absolute |
+| vDSO | values 0x300 / 0x1c8 / 0x168 | link-time, as expected | - |
+| `_DYNAMIC` | = main's | | absolute |
 
-systemd pattern: `DT_RUNPATH d_val=0x148, DT_STRTAB + d_val -> "$ORIGIN/"` PASS (on 18.1's .debs the program
-crashes, rc 139: the #22 report reproduced). Every object except the vDSO holds absolute addresses: **#22 fixed**.
-The job's summary is `YOHANE-DYNAMIC pass=1 fail=2` because of 9 probe FAILs, all in ref181 too: 8 `nofile` (the probe
-finds an object's file through the /proc/self/maps line covering `dlpi_addr`; for the start-time and dlopened libraries
-loaded by libniji that line names no file, so it compared against the stock run's values above by hand) and 1
-`reports start not at all` (that library's `dlpi_name` is `''`, so the probe classed it "other"; it is reported once).
+systemd pattern: `DT_RUNPATH d_val=0x148, DT_STRTAB + d_val -> "$ORIGIN/"`, `dyn: PASS DT_RUNPATH via DT_STRTAB is $ORIGIN/`.
+Stock run: `dyn: RESULT stock fail=0`. libniji: `dyn: RESULT niji fail=9`, the same 9 as run 1 and as 18.1's reference
+run: 8 `nofile` (the probe finds an object's file through the /proc/self/maps line covering `dlpi_addr`; for the two
+libraries libniji maps that line names no file, so their values were compared with the stock run's by hand above) and
+`reports start not at all` (dlpi_name `''`, classed "other"). The 18.1 reference run (run 1's dyn22-ref181-1) was not
+repeated: it measures 18.1's .debs, not this head.
+
+## #6 / #21 (`git merge-base --is-ancestor`)
+
+No fix landed since 923df67e: no origin/task/heap-address-space{,-2..-7} or iconv-name-match{,-2,-3} tip is an ancestor
+of 557dfdaa6 (nor of 923df67e); the two merges since run 1 are ldso-trace-prefix and sl-headers-vis-fix.
 
 ## INFORMATIONAL
 
-* `dl_iterate_phdr` names under libniji: `libc.so.6` and `ld-linux-x86-64.so.2` (bare DT_NEEDED names) and `''` for a
-  library found through `$ORIGIN/`; the stock root reports absolute paths; spec/behaviour/dynlink.md R-3 says libc and
-  ld.so by absolute path. Identical on 18.1's .debs (name lines diffed): not new. Route to a loader story.
-* For a library mapped by libniji, the /proc/self/maps line covering `dlpi_addr` names no file (both heads).
-* docs: docs/RELEASE-NOTES.md has no section after 2026-11-17 (nothing on 18.1's changes or #22); differences-from-glibc.md
-  gained 2 slice-9 header rows (SL-HEADERS-S09-4). User-visible changes since 18.1: #22 (d_ptr entries hold run-time
-  addresses), headers slice 9 (coexist niji6-dev). install-packages.md install/verify not run: nothing staged.
-* **#6 / #21** (`git merge-base --is-ancestor`): no fix landed since 923df67e. No origin/task/heap-address-space{,-2..-7}
-  or iconv-name-match{,-2,-3} tip is an ancestor of 852c1b495; sys-iconv-charmaps, -coverage, -coverage-2 were already
-  in 923df67e.
+* Run 1's inside.sh had the coexist version typed wrong (`+852c1b495810` for `+852c1b49581c`); never run (nothing was
+  staged). This run's copy uses `+557dfdaa6b33`, which build.sh produced. Next snapshot: derive it from the staged names.
+* `dl_iterate_phdr` names (bare DT_NEEDED names, `''` for a `$ORIGIN/` library) and the nameless /proc/self/maps line of a
+  libniji-mapped library: unchanged from run 1 (route to a loader story).
+* docs: docs/RELEASE-NOTES.md still ends at 2026-11-17 (nothing on 18.1, 18.2, #22). User-visible since 18.1: #22 (d_ptr
+  entries hold run-time addresses); headers slice 9 and the visibility fixes (niji6-dev: struct timespec where struct stat
+  is visible, WIFCONTINUED, features-time64.h / gnu/stubs.h names); differences-from-glibc.md one line shorter than at
+  852c1b495. install-packages.md install and verify: pass against the staged assets. Route to a docs story.
 
-## Staged assets
+## Staged assets (keke `~/release-staging/snapshot-20261118.2/`, private)
 
-None (blocked). The validated system .debs are on mei `~/work/RELEASE-SNAPSHOT-1118B/debs/system/` and keke (same path,
-sha256 checked, 7 of 7).
+libc6, libc6-dbg, libc6-dev, libc-bin, libc-dev-bin (`_2.39+niji20261118.2-1_amd64.deb`), libc-l10n, locales
+(`_2.39+niji20261118.2-1_all.deb`), niji6, niji6-dev (`_0.0.snapshot20261118+557dfdaa6b33_amd64.deb`), SHA256SUMS,
+MANIFEST. Nothing to GitHub, no tag.
 
 ## Exact next step
 
-Coordinator: open the fix story for the prefixed interpreter trace; after it lands, rerun this snapshot from
-`~/work/RELEASE-SNAPSHOT-1118B/` on the new head (change head/epoch only; serial 2 still unused), then stage with
-chain-keke.sh. Not to redo: #6/#21 answers, the doc check (unless docs change).
+Coordinator: tag/publish snapshot-2026-11-18.2 from the staged directory at 557dfdaa6 when the owner says so. Not to
+redo: anything above. Plants file: handoff/RELEASE-SNAPSHOT-1118B-2-plants.txt.
