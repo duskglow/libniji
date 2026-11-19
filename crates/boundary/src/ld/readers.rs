@@ -29,7 +29,7 @@
 //!   the thread block's `dl_reading` counts) or holds the writer lock (ruling #5651).
 
 use super::dlopen::{node_address, CAP};
-use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS, THREAD_MODS_LEN};
+use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS_LEN};
 use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
 use crate::{conv, tb};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
@@ -267,7 +267,9 @@ fn fill_start() -> usize {
             let w = super::start_obj(k).map(|x| usize::try_from(x).unwrap_or(0));
             (w[0], w[1], w[2])
         };
-        let name = if k == 0 { c"".as_ptr().expose_provenance() } else { soname_at(bias, phdr, phnum) };
+        // The link map's name (DL-23: the rendezvous and this walk agree); `DT_SONAME` if none.
+        let linked = super::dlopen::start_name(k);
+        let name = if k == 0 { c"".as_ptr().expose_provenance() } else if linked != 0 { linked } else { soname_at(bias, phdr, phnum) };
         let name = if name == 0 { c"".as_ptr().expose_provenance() } else { name };
         stage(k, bias, name, phdr, phnum);
         if let Some(live) = TABLE.get(k).and_then(|e| e.get(4)) {
@@ -324,7 +326,7 @@ fn tls_of(e: &Entry) -> (u64, usize) {
     let Some((_, vaddr, _, _)) = headers(e.phdr, e.phnum).find(|h| h.0 == PT_TLS) else { return (0, 0) };
     let image = u64::try_from(e.bias).unwrap_or(0).wrapping_add(vaddr);
     let n = THREAD_MODS_LEN.load(Acquire);
-    for m in THREAD_MODS.iter().take(n) {
+    for m in (0..n).filter_map(super::thread_mod) {
         let [src, _, _, module, off]: [u64; 5] = core::array::from_fn(|i| m.get(i).map_or(0, |w| w.load(Relaxed)));
         if src == image {
             let tp = u64::try_from(tb::tp()).unwrap_or(0);

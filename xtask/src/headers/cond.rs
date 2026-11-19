@@ -147,17 +147,13 @@ impl Gen<'_> {
     }
 
     pub(super) fn rows(&self, name: &str) -> Vec<&BTreeMap<String, String>> {
-        self.t.vis_idx(&self.header, name).iter().map(|&i| &self.t.vis[i]).collect()
+        self.t.vis_rows(&self.header, name).collect()
     }
 
     /// The configurations that do not decide a condition: rejected ones, those where the header
     /// itself does not compile, and those where (name, kind) is visible without any header.
     pub(super) fn dont_care(&self, name: &str, kind: &str) -> u64 {
-        let mut d = self.t.lv.reject | self.t.include_error.get(&self.header).copied().unwrap_or(0);
-        for r in self.t.vis_idx("-", name).iter().map(|&i| &self.t.vis[i]).filter(|r| r["kind"] == kind) {
-            d |= mask_of(&self.t.lv, &r["configs"]).unwrap_or(0);
-        }
-        d
+        self.t.lv.reject | self.t.vis_dont_care(&self.header, name, kind)
     }
 
     pub(super) fn cond(&mut self, name: &str, kind: Option<&str>) -> String {

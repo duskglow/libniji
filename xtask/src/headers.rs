@@ -183,22 +183,83 @@ struct Tables {
     enums: BTreeMap<String, Vec<(String, String)>>,
     /// enumerators.tsv: an enumerator -> the tag of its enumeration.
     enum_of: BTreeMap<String, String>,
-    /// visibility.tsv: (header, name) -> the indices in `vis` of its rows, in table order (GATE-TEST-TIME: the
-    /// generator looked rows up by scanning all of `vis` for every name of every header, ~110 s of the CI gate).
-    vis_at: BTreeMap<(String, String), Vec<usize>>,
-    /// visibility.tsv: header -> the union of the configurations of its `include-error` rows.
+    /// `vis` by header and name.
+    vis_index: VisIndex,
+}
+
+/// visibility.tsv by header and name (PLANTS-BUILD-SLOWDOWN). The generator asks for one header's rows of one name
+/// once per name it emits; a scan of every row per question (72 278 rows, 83 headers) took about 150 s of each
+/// `cargo xtask so`, every plants mutant included. Row indices keep table order, so every answer is the scan's.
+#[derive(Default)]
+struct VisIndex {
+    /// header -> name -> its rows' indices in `vis`, in table order.
+    by_name: BTreeMap<String, BTreeMap<String, Vec<usize>>>,
+    /// header -> its rows' indices in `vis`, in table order.
+    by_header: BTreeMap<String, Vec<usize>>,
+    /// header -> the configurations of its `include-error` rows, joined.
     include_error: BTreeMap<String, u64>,
+    /// name -> kind -> the configurations of its rows under header `-` (visible without any header), joined.
+    bare: BTreeMap<String, BTreeMap<String, u64>>,
+}
+
+impl VisIndex {
+    fn new(lv: &Levels, vis: &Rows) -> VisIndex {
+        let mut ix = VisIndex::default();
+        for (i, r) in vis.iter().enumerate() {
+            let (header, name, kind) = (&r["header"], &r["name"], &r["kind"]);
+            ix.by_name.entry(header.clone()).or_default().entry(name.clone()).or_default().push(i);
+            ix.by_header.entry(header.clone()).or_default().push(i);
+            let mask = || cond::mask_of(lv, &r["configs"]).unwrap_or(0);
+            if kind == "include-error" {
+                *ix.include_error.entry(header.clone()).or_insert(0) |= mask();
+            }
+            if header == "-" {
+                *ix.bare.entry(name.clone()).or_default().entry(kind.clone()).or_insert(0) |= mask();
+            }
+        }
+        ix
+    }
+
+    /// The rows (of `vis`, the table this index was built from) of `name` in `header`, in table order.
+    fn rows<'a>(&'a self, vis: &'a Rows, header: &str, name: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.by_name.get(header).and_then(|m| m.get(name)).into_iter().flatten().map(|&i| &vis[i])
+    }
+
+    /// The first row of (`name`, `kind`) in `header`.
+    fn row<'a>(&'a self, vis: &'a Rows, header: &str, name: &str, kind: &str) -> Option<&'a BTreeMap<String, String>> {
+        self.rows(vis, header, name).find(|r| r["kind"] == kind)
+    }
+
+    /// The rows of `header`, in table order.
+    fn header_rows<'a>(&'a self, vis: &'a Rows, header: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.by_header.get(header).into_iter().flatten().map(|&i| &vis[i])
+    }
+
+    /// The configurations of `header`'s `include-error` rows and of (`name`, `kind`)'s rows under header `-`, joined.
+    fn dont_care(&self, header: &str, name: &str, kind: &str) -> u64 {
+        self.include_error.get(header).copied().unwrap_or(0) | self.bare.get(name).and_then(|m| m.get(kind)).copied().unwrap_or(0)
+    }
 }
 
 impl Tables {
-    /// The indices in `vis` of the rows of `name` in `header`, in table order.
-    fn vis_idx(&self, header: &str, name: &str) -> &[usize] {
-        self.vis_at.get(&(header.to_string(), name.to_string())).map_or(&[], Vec::as_slice)
+    /// The visibility.tsv rows of `name` in `header`, in table order.
+    fn vis_rows<'a>(&'a self, header: &str, name: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.vis_index.rows(&self.vis, header, name)
     }
 
-    /// The first visibility row of `name` as a `kind` in `header`.
+    /// The first visibility.tsv row of (`name`, `kind`) in `header`.
     fn vis_row(&self, header: &str, name: &str, kind: &str) -> Option<&BTreeMap<String, String>> {
-        self.vis_idx(header, name).iter().map(|&i| &self.vis[i]).find(|r| r["kind"] == kind)
+        self.vis_index.row(&self.vis, header, name, kind)
+    }
+
+    /// The visibility.tsv rows of `header`, in table order.
+    fn header_rows<'a>(&'a self, header: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.vis_index.header_rows(&self.vis, header)
+    }
+
+    /// The configurations of `header`'s `include-error` rows and of (`name`, `kind`)'s rows under header `-`, joined.
+    fn vis_dont_care(&self, header: &str, name: &str, kind: &str) -> u64 {
+        self.vis_index.dont_care(header, name, kind)
     }
 }
 
@@ -275,22 +336,8 @@ fn load(root: &Path) -> Result<Tables, String> {
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
-    let (vis_at, include_error) = index_vis(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of, vis_at, include_error })
-}
-
-/// `Tables::vis_at` and `Tables::include_error` of the visibility rows `vis`.
-#[allow(clippy::type_complexity)]
-fn index_vis(lv: &Levels, vis: &Rows) -> (BTreeMap<(String, String), Vec<usize>>, BTreeMap<String, u64>) {
-    let mut vis_at: BTreeMap<(String, String), Vec<usize>> = BTreeMap::new();
-    let mut include_error: BTreeMap<String, u64> = BTreeMap::new();
-    for (i, r) in vis.iter().enumerate() {
-        vis_at.entry((r["header"].clone(), r["name"].clone())).or_default().push(i);
-        if r["kind"] == "include-error" {
-            *include_error.entry(r["header"].clone()).or_default() |= mask_of(lv, &r["configs"]).unwrap_or(0);
-        }
-    }
-    (vis_at, include_error)
+    let vis_index = VisIndex::new(&lv, &vis);
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of, vis_index })
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
@@ -367,7 +414,7 @@ impl Gen<'_> {
 
     fn emit(&mut self, owned: &BTreeSet<String>) {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
-        let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        let rows: Vec<(String, String)> = self.t.header_rows(&self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
             // A type-generic macro's function form (provider `generic`) has no prototype to declare: the C++
             // library or the header's template defines its overloads.
@@ -575,7 +622,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         // more (utmp.h has `fd_set` in strict ISO modes, <sys/types.h> only in the BSD set), the header declares
         // it itself.
         let mut covered: BTreeMap<(String, String), u64> = BTreeMap::new();
-        for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
+        for r in seen.iter().flat_map(|x| t.header_rows(x)) {
             *covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(u64::MAX);
         }
         let mut owned = BTreeSet::new();
@@ -721,6 +768,27 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
 mod tests {
     use super::values::literal;
     use super::*;
+
+    // no spec clause (PLANTS-BUILD-SLOWDOWN): the visibility.tsv index answers as the row scan did: the row of the
+    // kind asked for (not the name's first row), a header's rows in table order, and the configurations that do not
+    // decide a name joined from the header's include-error rows and the name's header-less rows of that kind only
+    // (GATE-TEST-TIME: the first of two rows of one kind, and the union of a header's two include-error rows)
+    #[test]
+    fn vis_index_answers_as_the_row_scan() {
+        let lv = cond::levels(&Path::new(env!("CARGO_MANIFEST_DIR")).join("..")).unwrap();
+        let (a, b, c, d) = (lv.ids[0].as_str(), lv.ids[1].as_str(), lv.ids[2].as_str(), lv.ids[3].as_str());
+        let row = |h: &str, n: &str, k: &str, cf: &str| [("header", h), ("name", n), ("kind", k), ("configs", cf)].iter().map(|(x, y)| (x.to_string(), y.to_string())).collect::<BTreeMap<_, _>>();
+        let vis: Rows = vec![row("h.h", "n", "macro", a), row("h.h", "n", "function", b), row("h.h", "h.h", "include-error", c), row("-", "n", "function", a), row("-", "n", "macro", b), row("g.h", "x", "include-error", b), row("h.h", "m", "macro", "*"), row("h.h", "n", "function", d), row("h.h", "h.h", "include-error", d)];
+        let ix = VisIndex::new(&lv, &vis);
+        assert_eq!(ix.row(&vis, "h.h", "n", "function").map(|r| r["configs"].as_str()), Some(b), "the first function row");
+        assert_eq!(ix.row(&vis, "h.h", "n", "enum"), None);
+        let order: Vec<(&str, &str)> = ix.header_rows(&vis, "h.h").map(|r| (r["name"].as_str(), r["kind"].as_str())).collect();
+        assert_eq!(order, [("n", "macro"), ("n", "function"), ("h.h", "include-error"), ("m", "macro"), ("n", "function"), ("h.h", "include-error")]);
+        let m = |cf: &str| cond::mask_of(&lv, cf).unwrap();
+        assert_eq!(ix.dont_care("h.h", "n", "function"), m(c) | m(d) | m(a), "both of h.h's include-error rows");
+        assert_eq!(ix.dont_care("h.h", "m", "macro"), m(c) | m(d));
+        assert_eq!(ix.dont_care("k.h", "n", "macro"), m(b));
+    }
 
     fn lv() -> Levels {
         // c89, gnu17, posix200809, gnu, cxx17, time64only (rejected)
@@ -928,29 +996,6 @@ mod tests {
     // no spec clause: rulings #6714, #6715 (HEADERS-TABLES-COMPLETE). headers/providers.tsv exempts a function from the
     // export check, so a row that names an unknown provider, no declared function, or a function libc exports at a
     // default version (a stale row that would hide a missing export) is refused.
-    // no spec clause: GATE-TEST-TIME. The visibility index answers like a scan of the rows: the first row of the
-    // asked kind (not merely of the name), and per header the union of its own include-error rows only.
-    #[test]
-    fn the_visibility_index_answers_like_a_scan() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-        let mut t = load(&root).unwrap();
-        let mut configs: Vec<(String, u64)> = t.vis.iter().filter_map(|r| Some((r["configs"].clone(), mask_of(&t.lv, &r["configs"]).ok()?))).filter(|(_, m)| *m != 0).collect();
-        configs.sort_by_key(|(_, m)| *m);
-        configs.dedup_by_key(|(_, m)| *m);
-        let pick = |want: &dyn Fn(u64) -> bool| configs.iter().find(|(_, m)| want(*m)).cloned().expect("configs");
-        let (c1, m1) = pick(&|_| true);
-        let (c2, m2) = pick(&|m| m & !m1 != 0);
-        let row = |h: &str, n: &str, k: &str, c: &str| BTreeMap::from([("header", h), ("name", n), ("kind", k), ("configs", c)].map(|(a, b)| (a.to_string(), b.to_string())));
-        t.vis = vec![row("h.h", "x", "macro", &c1), row("h.h", "x", "function", &c2), row("h.h", "e", "include-error", &c1), row("g.h", "e", "include-error", &c2), row("h.h", "f", "include-error", &c2), row("h.h", "x", "function", &c1)];
-        (t.vis_at, t.include_error) = index_vis(&t.lv, &t.vis);
-        assert_eq!(t.vis_row("h.h", "x", "function").map(|r| r["configs"].clone()), Some(c2.clone()), "the first function row, not the macro row");
-        assert_eq!(t.vis_row("h.h", "x", "macro").map(|r| r["configs"].clone()), Some(c1.clone()));
-        assert!(t.vis_row("h.h", "x", "type").is_none() && t.vis_row("g.h", "x", "function").is_none());
-        assert_eq!(t.vis_idx("h.h", "x"), [0, 1, 5], "every row of the name, in table order");
-        assert_eq!(t.include_error.get("h.h").copied(), Some(m1 | m2), "both of h.h's include-error rows");
-        assert_eq!(t.include_error.get("g.h").copied(), Some(m2), "g.h's own row only");
-    }
-
     #[test]
     fn a_provider_row_is_refused_unless_it_is_needed() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
