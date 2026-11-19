@@ -425,7 +425,7 @@ fn reloc_version_check_and_refusals_in_the_model() {
     std::fs::remove_dir_all(&d).ok();
 }
 
-/// No spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
 /// inside a writable `PT_LOAD`'s memory (`p_memsz`, so the bss end counts). One `RELATIVE` entry of a
 /// built object, moved: into the read-only text, past every segment, across the end of the writable
 /// segment (refused), and onto its last word (applied).

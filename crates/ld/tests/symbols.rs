@@ -235,7 +235,7 @@ fn versions_bind_like_the_reference() {
     assert_eq!(found(&stub, "f", Want::Version(b"VER_1")), "-");
 }
 
-/// No spec clause (GNU symbol-versioning document; design §5): the lookup view's version names by
+/// Covers no spec clause (GNU symbol-versioning document; design §5): the lookup view's version names by
 /// index (kept tables, DYN-START-PARITY) are the ones a walk of `DT_VERDEF` and `DT_VERNEED` finds,
 /// for every index up to past the highest, in every corpus object with version tables.
 #[test]
