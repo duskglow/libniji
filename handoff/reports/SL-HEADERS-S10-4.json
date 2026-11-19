@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "COMPLETE: origin/next merged into slice 10; header_check 0 failed of 7101, headers-gen --check clean, clippy/static clean, 15 plants caught, gate green",
  "branch": "task/sl-headers-s10-4",
- "head": "HEAD",
+ "head": "ec04ac0d6",
  "gate": {
   "affected": "32 suites ok, 12188 passed / 0 failed (conformance 140 passed / 0 failed)",
   "peak": "13G"
