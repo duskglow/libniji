@@ -7,7 +7,6 @@
 
 __NIJI_BEGIN_C
 
-@@owns MAP_FAILED
 @@emit
 
 __NIJI_END_C

@@ -165,6 +165,9 @@ extern int posix_madvise (void *, unsigned long, int) __NIJI_NOTHROW;
 # ifndef MAP_EXECUTABLE
 #  define MAP_EXECUTABLE 4096
 # endif
+# ifndef MAP_FAILED
+#  define MAP_FAILED ((void *) (-1L))
+# endif
 # ifndef MAP_FILE
 #  define MAP_FILE 0
 # endif
