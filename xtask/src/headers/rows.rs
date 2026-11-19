@@ -547,6 +547,12 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
             "struct" | "union" | "enum" => has(kind) || t.layouts.contains_key(&format!("{kind} {n}")),
             "typedef" => has("typedef") || t.layouts.contains_key(n),
             "object" => has("object"),
+            // A type-generic macro's function form (providers.tsv `generic`): its overloads are the C++ library's
+            // or a template's, as the macro is.
+            "function" if t.providers.get(n).is_some_and(|p| p == "generic") => {
+                c.template_owned += 1;
+                true
+            }
             "function" => t.protos.contains_key(n) || has("function"),
             "enumerator" => true,
             "macro" | "include-error" => {

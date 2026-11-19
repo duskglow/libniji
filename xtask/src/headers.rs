@@ -257,20 +257,32 @@ fn load(root: &Path) -> Result<Tables, String> {
         enum_of.insert(r["name"].clone(), r["tag"].clone());
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
-    let providers = load_providers(root, &protos, &typedefs, &exported)?;
+    let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of })
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
 /// (a row for a function libc now provides is stale: the export check would no longer see that function).
-fn load_providers(root: &Path, protos: &BTreeMap<String, String>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>, exported: &BTreeSet<String>) -> Result<BTreeMap<String, String>, String> {
+/// `generic` (a type-generic macro's function form: an overload set with no single prototype) instead needs a header
+/// that shows the name as a function in some configurations and as a macro in others, and no prototype row.
+fn load_providers(root: &Path, vis: &Rows, protos: &BTreeMap<String, String>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>, exported: &BTreeSet<String>) -> Result<BTreeMap<String, String>, String> {
     let mut out = BTreeMap::new();
     let mut bad = Vec::new();
     for r in tsv(root, PROVIDERS)? {
         let (n, p) = (r["name"].clone(), r["provider"].clone());
-        if !matches!(p.as_str(), "program" | "debugger" | "none") {
-            bad.push(format!("{n}: provider `{p}` is not program, debugger or none"));
-        } else if !protos.contains_key(&n) && !typedefs.contains_key(&("function".to_string(), n.clone())) {
+        let declared = protos.contains_key(&n) || typedefs.contains_key(&("function".to_string(), n.clone()));
+        let shown = |h: &str, k: &str| vis.iter().any(|v| v["header"] == h && v["name"] == n && v["kind"] == k);
+        if !matches!(p.as_str(), "program" | "debugger" | "none" | "generic") {
+            bad.push(format!("{n}: provider `{p}` is not program, debugger, none or generic"));
+        } else if p == "generic" {
+            if declared {
+                bad.push(format!("{n}: generic, but a prototypes.tsv or typedefs.tsv function row declares it"));
+            } else if !vis.iter().any(|v| v["name"] == n && v["kind"] == "function" && shown(&v["header"], "macro")) {
+                bad.push(format!("{n}: generic, but no header shows it as both a function and a macro"));
+            } else if out.insert(n.clone(), p).is_some() {
+                bad.push(format!("{n}: two rows"));
+            }
+        } else if !declared {
             bad.push(format!("{n}: no prototypes.tsv or typedefs.tsv function row"));
         } else if exported.contains(&n) {
             bad.push(format!("{n}: exported at a default version (versions.tsv), so libc provides it"));
@@ -325,7 +337,10 @@ impl Gen<'_> {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
         let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
-            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
+            // A type-generic macro's function form (provider `generic`) has no prototype to declare: the C++
+            // library or the header's template defines its overloads.
+            let generic = kind == "function" && self.t.providers.get(&name).is_some_and(|p| p == "generic");
+            if kind == "include-error" || generic || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
                 continue;
             }
             // An enumerator of a declared enumeration: that enumeration, once (its tag row, when this header has one).
@@ -888,15 +903,19 @@ mod tests {
         assert_eq!(t.providers.get("la_version").map(String::as_str), Some("program"));
         let dir = std::env::temp_dir().join(format!("niji-providers-{}", std::process::id()));
         fs::create_dir_all(dir.join("headers")).unwrap();
-        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\n";
+        assert_eq!(t.providers.get("iszero").map(String::as_str), Some("generic"));
+        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\nsin\tgeneric\tx\nM_PI\tgeneric\tx\nfpclassify\tgeneric\tx\n";
         fs::write(dir.join(PROVIDERS), rows).unwrap();
-        let r = load_providers(&dir, &t.protos, &t.typedefs, &t.exported);
+        let r = load_providers(&dir, &t.vis, &t.protos, &t.typedefs, &t.exported);
         let _ = fs::remove_dir_all(&dir);
-        let e = r.expect_err("three bad rows");
+        let e = r.expect_err("five bad rows");
         assert!(e.contains("la_version: provider `linker`"), "{e}");
         assert!(e.contains("niji_no_such_function: no prototypes.tsv"), "{e}");
         assert!(e.contains("malloc: exported at a default version"), "{e}");
-        assert!(!e.contains("getumask"), "{e}");
+        // `generic`: a declared function (sin) or a name no header shows as both a function and a macro (M_PI).
+        assert!(e.contains("sin: generic, but a prototypes.tsv"), "{e}");
+        assert!(e.contains("M_PI: generic, but no header"), "{e}");
+        assert!(!e.contains("getumask") && !e.contains("fpclassify"), "{e}");
     }
 
     // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-TABLES-COMPLETE). An `<anon>` row's `rows K`

@@ -11,7 +11,7 @@ Sources, per the owner's decision on OD-1 (interface declarations, not implement
 Run on the reference system (Ubuntu 24.04, glibc 2.39):  python3 spec/tools/abi_extract.py
 Outputs go to spec/abi/. Nothing here reads glibc source code.
 """
-import os, re, subprocess, sys, tempfile, collections
+import csv, os, re, subprocess, sys, tempfile, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "abi")
@@ -492,10 +492,10 @@ def initializers(tmp):
     sh(["gcc", "-std=gnu17", p, "-o", os.path.join(tmp, "init")])
     return [l.split("\t") for l in sh([os.path.join(tmp, "init")]).splitlines()]
 
-def prototypes(tmp):
-    p = os.path.join(tmp, "proto.c"); open(p, "w").write(prelude())
+def prototypes(tmp, src=None, flags=("-std=gnu17",)):
+    p = os.path.join(tmp, "proto.c"); open(p, "w").write(prelude() if src is None else src)
     aux = os.path.join(tmp, "aux.txt")
-    subprocess.run(["gcc", "-std=gnu17", "-c", p, "-o", os.path.join(tmp, "proto.o"), "-aux-info", aux], check=True)
+    subprocess.run(["gcc", *flags, "-c", p, "-o", os.path.join(tmp, "proto.o"), "-aux-info", aux], check=True)
     rows = {}
     for line in open(aux, errors="replace"):
         m = re.match(r"/\* (\S+):(\d+):\S+ \*/ (.*);$", line.strip())
@@ -508,6 +508,46 @@ def prototypes(tmp):
         name = n.group(1)
         hdr = m.group(1).replace("/usr/include/x86_64-linux-gnu/", "").replace("/usr/include/", "")
         rows.setdefault(name, (hdr, re.sub(r"\s+", " ", decl)))
+    return rows
+
+def tsv_rows(name):
+    with open(os.path.join(OUT, name), newline="") as f:
+        return list(csv.DictReader(f, delimiter="\t", quoting=csv.QUOTE_NONE))
+
+def prototypes_missing(tmp):
+    """Rows for the functions visibility.tsv declares in some C configuration that the `_GNU_SOURCE` pass of
+    prototypes() does not see (`gets`: C89/C99 only; `bsd_signal`: X/Open 500/600 only). Each such name is
+    compiled in the first C configuration of ftm-configs.tsv that declares it, with that configuration's flags and
+    the headers that show it there, and its `-aux-info` line is taken. Names declared in no C configuration (the
+    C++ function forms of the type-generic macros) or only under _FORTIFY_SOURCE get no row here."""
+    have = {r["name"] for r in tsv_rows("prototypes.tsv")}
+    have |= {r["name"] for r in tsv_rows("typedefs.tsv") if r["kind"] == "function"}
+    # Not the fortify configurations: their `__*_chk` functions are the fortify layer's, not ordinary prototypes.
+    cfgs = [r for r in tsv_rows("ftm-configs.tsv") if r["language"] == "c" and "_FORTIFY_SOURCE" not in r["flags"]]
+    ids = [r["id"] for r in tsv_rows("ftm-configs.tsv")]
+    def shown(configs, cid):
+        if configs == "*":
+            return True
+        if configs.startswith("!"):
+            return cid not in configs[1:].split(",") and cid in ids
+        return cid in configs.split(",")
+    vis = [r for r in tsv_rows("visibility.tsv") if r["kind"] == "function" and r["header"] != "-" and r["name"] not in have]
+    plan = {}
+    for n in sorted({r["name"] for r in vis}):
+        for c in cfgs:
+            hs = sorted(r["header"] for r in vis if r["name"] == n and shown(r["configs"], c["id"]))
+            if hs:
+                plan.setdefault(c["id"], (c["flags"].split(), []))[1].append((n, hs[0]))
+                break
+    rows = {}
+    for cid, (flags, names) in sorted(plan.items()):
+        src = "".join(f"#include <{h}>\n" for h in sorted({h for _, h in names}))
+        got = prototypes(tmp, src, flags)
+        for n, _ in names:
+            if n in got:
+                rows[n] = got[n]
+            else:
+                print(f"prototypes-missing: {n}: no declaration in configuration {cid}", file=sys.stderr)
     return rows
 
 def symbols():
@@ -686,6 +726,18 @@ def main():
             f.write(f"empty-versions.tsv: abi_extract.py --empty-versions-only ({ver}): {len(emp)} version "
                     f"definitions no exported symbol carries.\n")
         print(f"{ver}\nempty versions: {len(emp)}")
+        return
+    if "--prototypes-missing" in sys.argv:
+        # Add the prototypes of the functions only other configurations declare (HEADERS-TABLES-COMPLETE): the
+        # existing rows are kept where they are, each new one goes before the first row whose name sorts after it.
+        with tempfile.TemporaryDirectory() as tmp:
+            new = prototypes_missing(tmp)
+        rows = [(r["name"], r["header"], r["declaration"]) for r in tsv_rows("prototypes.tsv")]
+        for k, v in sorted(new.items()):
+            at = next((i for i, r in enumerate(rows) if r[0] > k), len(rows))
+            rows.insert(at, (k, *v))
+        write("prototypes.tsv", ["name", "header", "declaration"], rows)
+        print(f"{ver}\nprototypes added: {len(new)} ({', '.join(sorted(new))})")
         return
     if "--versions-only" in sys.argv:
         # Regenerate versions.tsv alone (SYS-LIBMVEC added libmvec.so.1 to LIBS; the other tables
