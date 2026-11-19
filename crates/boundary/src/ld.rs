@@ -1313,7 +1313,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             }
             let Some((fd, at, file, id)) = found else { continue };
             if !bare && pre.is_none() {
-                paths[n] = name;
+                // Kept (NUL-terminated) as its link map's name: the DT_NEEDED string is in a mapping
+                // released below.
+                paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name));
             }
             let loaded = map::load::<Native, _>(&mut SysMapper { fd }, file, page);
             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
@@ -1364,6 +1366,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     let area_base = map_area(&area);
     __libc_stack_end.store(sp, Release);
     let rseq_size = register_rseq(area_base.wrapping_add(usize::try_from(area.tp).unwrap_or(0)));
+    rendezvous_start(&objs[..n], &paths[..n], interp, own_views);
     for (o, p) in objs[..n].iter_mut().zip(&placed[..n]) {
         o.tls = *p;
     }
@@ -1433,13 +1436,13 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             *h = init::hooks(&o.dynm, o.bias, i == 0);
         }
     }
-    // The cache, when a search read it, and the path store: no longer needed.
+    // The cache, when a search read it, is no longer needed; the path store is kept: its paths are the
+    // start-time link maps' names (DL-23).
     let cache_map = cache.get().and_then(Option::as_ref).map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
     let preload_map = (preloads.file.as_ptr().expose_provenance(), preloads.file.len());
     for &(at, len) in maps[1..n].iter().chain(&views).chain([&cache_map, &preload_map]).filter(|m| m.1 != 0) {
         let _ = raw::munmap(at, len);
     }
-    store.release();
     let words = |k: usize, o: &Obj<'_>| {
         let (phdr, phnum) = phdrs[k];
         [u64::try_from(phdr).unwrap_or(0), u64::try_from(phnum).unwrap_or(0), o.bias, ids[k].0, ids[k].1]
@@ -1460,7 +1463,68 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     START_INTERP.store(interp.unwrap_or(usize::MAX), Relaxed);
     START_PAGE.store(page, Relaxed);
     START_N.store(n, Release);
+    let relro = reloc::relro_range(&objs[0], page).map_or((0, 0), |(at, len)| (usize::try_from(at).unwrap_or(0), usize::try_from(at.saturating_add(len)).unwrap_or(usize::MAX)));
+    debug::consistent(relro);
     run_init(&hooks[..n], &edges[..ne], sp, early.map(|f| f.early_init), rseq_size)
+}
+
+/// `DT_DEBUG`: the dynamic entry the loader points at the debugger rendezvous.
+const DT_DEBUG: u64 = 21;
+
+/// The debugger rendezvous at the start (DL-23, [`debug`]): link the start-time objects' link maps
+/// in load order (the program `""`, each other object by the path the start opened it by, `ld.so`
+/// at its place, or last when no object named it, by the program's `PT_INTERP`), then fill
+/// `_r_debug`, `DT_DEBUG` and call `r_brk` with `RT_ADD`. Before relocation: a program's `COPY` of
+/// `_r_debug` then reads the filled structure. Pointer writes only: no allocation, no file read.
+// Indices stay below `objs.len()` (== paths.len()).
+#[allow(clippy::indexing_slicing)]
+fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8]], interp: Option<usize>, own_views: &mut [(usize, usize)]) {
+    let n = objs.len();
+    let own_base = OWN_BASE.load(Relaxed);
+    let empty = c"".as_ptr().expose_provenance();
+    let ld_of = |o: &niji_ld::reloc::Obj<'_>| usize::try_from(o.bias.wrapping_add(o.elf.find(elf::pt::DYNAMIC).map_or(0, |p| p.vaddr))).unwrap_or(0);
+    let mut head = 0;
+    for (k, o) in objs.iter().enumerate() {
+        let name = if Some(k) == interp {
+            interp_name(&objs[0])
+        } else if k == 0 || paths[k].is_empty() {
+            empty
+        } else {
+            paths[k].as_ptr().expose_provenance()
+        };
+        let at = dlopen::start_node(k, usize::try_from(o.bias).unwrap_or(0), name, ld_of(o));
+        if k == 0 {
+            head = at;
+        }
+    }
+    if interp.is_none() {
+        let own = own_object(Native::INTERP.as_bytes(), own_views);
+        dlopen::start_node(n, own_base, interp_name(&objs[0]), ld_of(&own));
+    }
+    let dt_debug = niji_ld::reloc::dynamic_word(&objs[0], DT_DEBUG).map_or(0, |w| usize::try_from(w).unwrap_or(0));
+    debug::start(head, own_base, dt_debug);
+}
+
+/// `ld.so`'s link map name: the program's `PT_INTERP` string in its memory image when a loaded
+/// segment holds it, NUL-terminated; else `""`.
+fn interp_name(prog: &niji_ld::reloc::Obj<'_>) -> usize {
+    let empty = c"".as_ptr().expose_provenance();
+    let Some(ph) = prog.elf.find(elf::pt::INTERP).filter(|ph| ph.filesz > 0) else { return empty };
+    let end = ph.vaddr.saturating_add(ph.filesz);
+    if !prog.elf.program_headers().any(|s| s.p_type == elf::pt::LOAD && s.vaddr <= ph.vaddr && end <= s.vaddr.saturating_add(s.filesz)) {
+        return empty;
+    }
+    let Ok(at) = usize::try_from(prog.bias.wrapping_add(ph.vaddr)) else { return empty };
+    let Ok(len) = usize::try_from(ph.filesz) else { return empty };
+    let mut last = [0u8; 1];
+    read_image(at.wrapping_add(len).wrapping_sub(1), &mut last);
+    if last[0] == 0 { at } else { empty }
+}
+
+/// The address of an `extern "C" fn()` (`_dl_debug_state`).
+#[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+fn fn_addr0(f: extern "C" fn()) -> usize {
+    (f as *const ()).expose_provenance()
 }
 
 /// The address of one of the loader's `extern "C" fn(usize) -> usize` hooks.
@@ -1680,6 +1744,7 @@ impl niji_ld::reloc::Image for ProcImage {
         // SAFETY: the relocator checked [to, to + len) lies in a writable segment of the program, a
         // different object from the provider (so the ranges do not overlap).
         unsafe { conv::bytes_at_mut(to, len) }.copy_from_slice(src);
+        debug::note_copy(to, from, len);
     }
 
     fn call(&mut self, resolver: u64) -> u64 {
@@ -2170,6 +2235,7 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
 /// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).
 const AUXV_WORDS_MAX: usize = 256;
 
+mod debug;
 mod dlopen;
 mod readers;
 mod table;

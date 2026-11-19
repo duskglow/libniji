@@ -230,14 +230,15 @@ impl PathStore {
     /// hundred ordinary ones; a longer path gets a chunk of its own size.
     const CHUNK: usize = 4 * PATH_MAX;
 
-    /// A copy of `p` in the store.
+    /// A copy of `p` in the store, a NUL after it (DL-23: a kept path is also a link map's name).
     ///
     /// # Errors
     ///
     /// [`NoMemory`] when a new chunk is needed and cannot be mapped.
     pub(super) fn keep(&mut self, p: &[u8]) -> Result<&'static [u8], NoMemory> {
-        if p.len() > self.free.len() {
-            let len = Self::CHUNK.max(p.len());
+        let with_nul = p.len().saturating_add(1);
+        if with_nul > self.free.len() {
+            let len = Self::CHUNK.max(with_nul);
             self.chunks.reserve(self.n.saturating_add(1))?;
             let at = raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0).map_err(|_| NoMemory)?;
             if let Some(c) = self.chunks.get_mut(self.n) {
@@ -251,8 +252,10 @@ impl PathStore {
             let fresh = unsafe { conv::bytes_at_mut(at, len) };
             self.free = fresh;
         }
-        let (kept, rest) = core::mem::take(&mut self.free).split_at_mut(p.len());
+        let (kept, rest) = core::mem::take(&mut self.free).split_at_mut(with_nul);
+        let (kept, nul) = kept.split_at_mut(p.len());
         kept.copy_from_slice(p);
+        nul.fill(0);
         self.free = rest;
         Ok(kept)
     }

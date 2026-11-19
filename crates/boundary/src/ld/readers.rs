@@ -267,7 +267,9 @@ fn fill_start() -> usize {
             let w = super::start_obj(k).map(|x| usize::try_from(x).unwrap_or(0));
             (w[0], w[1], w[2])
         };
-        let name = if k == 0 { c"".as_ptr().expose_provenance() } else { soname_at(bias, phdr, phnum) };
+        // The link map's name (DL-23: the rendezvous and this walk agree); `DT_SONAME` if none.
+        let linked = super::dlopen::start_name(k);
+        let name = if k == 0 { c"".as_ptr().expose_provenance() } else if linked != 0 { linked } else { soname_at(bias, phdr, phnum) };
         let name = if name == 0 { c"".as_ptr().expose_provenance() } else { name };
         stage(k, bias, name, phdr, phnum);
         if let Some(live) = TABLE.get(k).and_then(|e| e.get(4)) {
