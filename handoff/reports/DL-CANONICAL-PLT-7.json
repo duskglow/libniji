@@ -1,6 +1,6 @@
 {"task": "DL-CANONICAL-PLT-7", "model": "opus", "tokens": null,
  "result": "COMPLETE: canonical PLT flag rides in the program view's hash table (u8 mark in tail padding, ruling #6659); plain PIE -635/-489/+1 instructions at N=0/3/12, faults equal base",
- "branch": "task/dl-canonical-plt-7", "head": null,
+ "branch": "task/dl-canonical-plt-7", "head": "395bf8782",
  "gate": {"affected": "6828 passed / 0 failed (direct tier); cargo xtask test 5319 passed / 0 failed", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
