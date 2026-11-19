@@ -49,16 +49,19 @@ with `KernelPages` directly (skips `Debug::alloc`), kept in the cold functions.
 
 ## Jobs (keke)
 Final head 6bd094edf: `heap-foreign-tb-speed-gate5` (affected --run, then `cargo xtask test`, NIJI_FULL_PROFILE so,
-hot_text_products), `heap-foreign-tb-speed-plants5` (4 plants), started 20:21Z. Foreground on 6bd094edf: workspace
+hot_text_products), `heap-foreign-tb-speed-plants5` (4 plants), started 20:21Z. plants5 rc 0: 4 of 4 CAUGHT, no WARN
+(results in handoff/HEAP-FOREIGN-TB-SPEED-plants.txt). gate5's affected part: 13 suites ok, 10586 passed, 0 failed,
+conformance 41 passed, both passes; the start-up checks after it (`cargo xtask test`, 6855 tests) were still running
+at the leg-2 hand-back if not stated otherwise below. Foreground on 6bd094edf: workspace
 clippy rc 0 (on 5b780f40c, same code), `cargo xtask static` rc 0. Counts: `-ab3-a`..`-ab3-d`, `-rcount`,
 `-rcount2` (rc 0). Plants on 6dfaca990 (`-plants`, 3 of 3 CAUGHT, no WARN; superseded). SUPERSEDED: `-gate`, `-gate2`,
 `-gate3`, `-gate4`, `-plants2..4` (stopped: a later commit, or started on a stale sync), `-percall` (stopped: it held
 the role), `-ab`, `-ab2-*` (wrong crate names / stopped for time).
 
 ## Next step
-`~/bin/jobwait heap-foreign-tb-speed-gate5 heap-foreign-tb-speed-plants5`; fix any red; copy plants5's results.txt
-into handoff/HEAP-FOREIGN-TB-SPEED-plants.txt; `cargo xtask precheck --jobs <labels> --head <sha>` on n3;
-`ops handback-check`; hand back.
+Leg 2 handed back PENDING JOBS (wall-time deadline): gate5's start-up part was at test 1925 of 6855 at 22:08Z,
+0 failures so far. The dispatcher verifies `heap-foreign-tb-speed-gate5`; if it is red, fix the named test, rerun only
+that suite. precheck was not run on n3 (gate5 holds the role; it would WAIT on gate5).
 
 ## Not to redo
 The A/B and the release counts above; the profile. Scratch trees /dev/shm/claude/HEAP-FOREIGN-TB-SPEED/{a,b,c,d,e}.

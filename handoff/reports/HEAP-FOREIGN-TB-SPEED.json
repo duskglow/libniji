@@ -1,17 +1,79 @@
-{"task": "HEAP-FOREIGN-TB-SPEED", "model": "opus", "tokens": null,
+{
+ "task": "HEAP-FOREIGN-TB-SPEED",
+ "model": "opus",
+ "tokens": null,
  "result": "foreign threads' heap cost proven (a gettid per heap call since 18835920) and fixed forward: no system call on the cache word, caller text only while tracing; 10% bound not reached",
- "branch": "task/heap-foreign-tb-speed", "head": "6bd094edf",
- "gate": {"affected": "pending (heap-foreign-tb-speed-gate5)", "peak": null}, "accepted_first_attempt": null,
- "rulings": [{"item": "per-thread storage for foreign threads (D-X.58 option 4, ELF TLS, ruling #4212) to bring a foreign malloc/free pair (396 instr) near a runtime-made thread's (about 122)", "recommendation": "decide it now with these numbers; meanwhile route FOREIGN-only calls to the heap fast paths inside the cold debug functions"}],
- "informational": ["#6772's per-test data was not available to the run: wcsstr_find, scanner_races and regex_dfa were chosen as the extra tests; wcsstr_find shows the same effect (kernel 0.40G -> 37.2G -> 0.40G)", "errno and locale words of foreign threads still go through foreign_words() (a gettid per call); not measured here"],
+ "branch": "task/heap-foreign-tb-speed",
+ "head": "6bd094edf",
+ "gate": {
+  "affected": "13 suites ok, 10586 passed / 0 failed, conformance 41/0 (gate5); start-up checks (cargo xtask test, full-profile so, hot_text_products) pending at hand-back",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "per-thread storage for foreign threads (D-X.58 option 4, ELF TLS, ruling #4212) to bring a foreign malloc/free pair (396 instr) near a runtime-made thread's (about 122)",
+   "recommendation": "decide it now with these numbers; meanwhile route FOREIGN-only calls to the heap fast paths inside the cold debug functions"
+  }
+ ],
+ "informational": [
+  "#6772's per-test data was not available to the run: wcsstr_find, scanner_races and regex_dfa were chosen as the extra tests; wcsstr_find shows the same effect (kernel 0.40G -> 37.2G -> 0.40G)",
+  "errno and locale words of foreign threads still go through foreign_words() (a gettid per call); not measured here"
+ ],
  "refused": [],
  "impact": [
-  {"kind": "perf", "what": "foreign-thread malloc/free pair, release build, user instructions", "before": 773, "after": 396, "unit": "instr/pair", "measured": true},
-  {"kind": "perf", "what": "foreign-thread malloc/free pair, kernel instructions (gettid gone)", "before": 754, "after": 0.6, "unit": "instr/pair", "measured": true},
-  {"kind": "tooling", "what": "pass-2 strstr_find wall (debug test build, thread.rs fix only)", "before": 553, "after": 395, "unit": "s", "measured": true},
-  {"kind": "tooling", "what": "pass-2 wcsstr_find wall", "before": 74, "after": 50, "unit": "s", "measured": true},
-  {"kind": "coverage", "what": "heap_foreign_nosys test + 4 plants", "before": 0, "after": 5, "unit": "count", "measured": true}],
+  {
+   "kind": "perf",
+   "what": "foreign-thread malloc/free pair, release build, user instructions",
+   "before": 773,
+   "after": 396,
+   "unit": "instr/pair",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "foreign-thread malloc/free pair, kernel instructions (gettid gone)",
+   "before": 754,
+   "after": 0.6,
+   "unit": "instr/pair",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "pass-2 strstr_find wall (debug test build, thread.rs fix only)",
+   "before": 553,
+   "after": 395,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "pass-2 wcsstr_find wall",
+   "before": 74,
+   "after": 50,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "heap_foreign_nosys test + 4 plants (4 of 4 CAUGHT, plants5)",
+   "before": 0,
+   "after": 5,
+   "unit": "count",
+   "measured": true
+  }
+ ],
  "improvement": "a role-directory sync refused as BUSY should stop the caller from starting jobs on the stale tree; I chained sync and job start without checking rc once and had to stop two jobs",
- "next_step": "wait for gate5 and plants5, precheck, handback-check, hand back",
+ "next_step": "dispatcher verifies keke:heap-foreign-tb-speed-gate5 (start-up checks pending); plants5 4/4 CAUGHT",
  "report_file": "handoff/HEAP-FOREIGN-TB-SPEED.md",
- "jobs": ["keke:heap-foreign-tb-speed-gate5", "keke:heap-foreign-tb-speed-plants5", "keke:heap-foreign-tb-speed-ab3-a", "keke:heap-foreign-tb-speed-ab3-b", "keke:heap-foreign-tb-speed-ab3-c", "keke:heap-foreign-tb-speed-ab3-d", "keke:heap-foreign-tb-speed-rcount", "keke:heap-foreign-tb-speed-rcount2"]}
+ "jobs": [
+  "keke:heap-foreign-tb-speed-gate5",
+  "keke:heap-foreign-tb-speed-plants5",
+  "keke:heap-foreign-tb-speed-ab3-a",
+  "keke:heap-foreign-tb-speed-ab3-b",
+  "keke:heap-foreign-tb-speed-ab3-c",
+  "keke:heap-foreign-tb-speed-ab3-d",
+  "keke:heap-foreign-tb-speed-rcount",
+  "keke:heap-foreign-tb-speed-rcount2"
+ ]
+}
