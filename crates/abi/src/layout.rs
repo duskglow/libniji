@@ -1611,6 +1611,26 @@ pub struct struct_sockaddr_storage {
     pub __ss_align: u64,
 }
 
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub union __SOCKADDR_ARG {
+    pub __tu_sockaddr: usize,
+    pub __tu_sockaddr_in: usize,
+    pub __tu_sockaddr_in6: usize,
+    pub __tu_sockaddr_un: usize,
+    pub __tu_sockaddr_x25: usize,
+}
+
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub union __CONST_SOCKADDR_ARG {
+    pub __tu_sockaddr: usize,
+    pub __tu_sockaddr_in: usize,
+    pub __tu_sockaddr_in6: usize,
+    pub __tu_sockaddr_un: usize,
+    pub __tu_sockaddr_x25: usize,
+}
+
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct struct_sockaddr_in {

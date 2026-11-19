@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (222 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (224 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -1259,6 +1259,26 @@ fn abi_struct_sockaddr_storage() {
     expect_member("struct sockaddr_storage", "ss_family", offset_of!(struct_sockaddr_storage, ss_family));
     expect_member("struct sockaddr_storage", "__ss_padding", offset_of!(struct_sockaddr_storage, __ss_padding));
     expect_member("struct sockaddr_storage", "__ss_align", offset_of!(struct_sockaddr_storage, __ss_align));
+}
+
+#[test]
+fn abi_sockaddr_arg() {
+    expect_type("__SOCKADDR_ARG", size_of::<__SOCKADDR_ARG>(), align_of::<__SOCKADDR_ARG>());
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr", offset_of!(__SOCKADDR_ARG, __tu_sockaddr));
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_in", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_in));
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_in6", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_in6));
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_un", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_un));
+    expect_member("__SOCKADDR_ARG", "__tu_sockaddr_x25", offset_of!(__SOCKADDR_ARG, __tu_sockaddr_x25));
+}
+
+#[test]
+fn abi_const_sockaddr_arg() {
+    expect_type("__CONST_SOCKADDR_ARG", size_of::<__CONST_SOCKADDR_ARG>(), align_of::<__CONST_SOCKADDR_ARG>());
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr));
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_in", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_in));
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_in6", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_in6));
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_un", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_un));
+    expect_member("__CONST_SOCKADDR_ARG", "__tu_sockaddr_x25", offset_of!(__CONST_SOCKADDR_ARG, __tu_sockaddr_x25));
 }
 
 #[test]

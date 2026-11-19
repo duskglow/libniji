@@ -332,12 +332,30 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         }
         // The rows of an array typedef (`jmp_buf`, one `struct __jmp_buf_tag`) describe its element.
         let subj = if t.typedefs.get(&("typedef".to_string(), key.clone())).is_some_and(|r| r["cxx"].ends_with(']')) { format!("__typeof__ ((({key} *) 0)[0][0])") } else { key.clone() };
+        // A transparent union is a GNU C type: in C++ the name is its first member's pointer type (Gen::pointer_form;
+        // the function types that take it check that form), so its members are checked in C.
+        let tu = super::aggregates::transparent_union(rows.iter().find(|r| r["member"].is_empty()));
+        if tu {
+            // Transparent: a parameter of it takes a `void *` argument, which no ordinary union parameter does.
+            lines.push("#ifndef __cplusplus".into());
+            lines.push(format!("void niji_tu_{i} ({key}); __attribute__ ((__unused__)) static void niji_tu_call_{i} (void *p) {{ niji_tu_{i} (p); }}"));
+        }
         for r in rows.iter().filter(|r| !r["member"].is_empty() && r["bitfield"].is_empty()) {
             let Some(d) = designator(rows, &r["member"]) else { continue };
             lines.push(format!("NIJI_A (__builtin_offsetof ({subj}, {d}) == {}, \"layouts {key} {d}\");", r["offset_or_size"]));
             if let Some(ty) = c_type(t, &r["member_type"]) {
                 lines.push(format!("NIJI_C (__builtin_types_compatible_p (__typeof__ ((({subj} *) 0)->{d}), {ty}), \"layouts {key} {d} type\");"));
             }
+        }
+        if tu {
+            // C++: the first member's pointer type, `__restrict` where the head row says `restrict` (a top-level
+            // qualifier is no part of a function type, so only an object of it shows it).
+            let head = rows.iter().find(|r| r["member"].is_empty()).map_or("", |r| r["bitfield"].as_str());
+            let first = rows.iter().find(|r| !r["member"].is_empty()).map_or("", |r| r["member_type"].trim_end());
+            let ty = if head.split_whitespace().any(|w| w == "restrict") { format!("{first}__restrict") } else { first.to_string() };
+            lines.push("#else".into());
+            lines.push(format!("extern {key} niji_tux_{i}; NIJI_A (__is_same (decltype (&niji_tux_{i}), {ty} *), \"layouts {key} pointer form\");"));
+            lines.push("#endif".into());
         }
         c.put(&mut a, i, lines);
     }

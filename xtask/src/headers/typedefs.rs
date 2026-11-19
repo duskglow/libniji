@@ -111,7 +111,32 @@ impl Gen<'_> {
                 }
             }
         };
+        let body = match self.pointer_form(name) {
+            Some((c, m)) => [vec![format!("#  if {c}")], body, vec!["#  else".into(), format!("#   define {name} {m}"), "#  endif".into()]].concat(),
+            None => body,
+        };
         self.guard(name, body);
+    }
+
+    /// A transparent union (layouts.tsv) that this header shows as a macro in other configurations (visibility.tsv:
+    /// `__SOCKADDR_ARG` is the union in C with `_GNU_SOURCE`, a macro otherwise and in C++): the typedef's condition and the macro's
+    /// expansion, a pointer of the union's first member type (a `__restrict` one where the head row says
+    /// `restrict`), the type a transparent union argument is passed as (GCC manual, transparent_union).
+    fn pointer_form(&mut self, name: &str) -> Option<(String, String)> {
+        let rows = self.t.layouts.get(name)?;
+        let head = rows.iter().find(|r| r["member"].is_empty());
+        if !aggregates::transparent_union(head) {
+            return None;
+        }
+        let first = rows.iter().find(|r| !r["member"].is_empty())?["member_type"].trim_end().to_string();
+        let restrict = head.is_some_and(|r| r["bitfield"].split_whitespace().any(|w| w == "restrict"));
+        let m = if restrict { format!("{first}__restrict") } else { first };
+        if self.rows(name).iter().any(|r| r["kind"] == "macro") {
+            return Some((self.cond(name, Some("typedef")), m));
+        }
+        // No row of this header (the rows test's placement-independent unit): each form in the one language that
+        // has it, the union in (GNU) C, the pointer in C++.
+        Some(("!defined __cplusplus".into(), m))
     }
 
     /// The C++ form of a `typedefs.tsv` typedef, or an error.

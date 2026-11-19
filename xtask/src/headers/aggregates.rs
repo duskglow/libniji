@@ -67,6 +67,12 @@ fn quals(core: &str) -> (String, &str) {
     (q, rest)
 }
 
+/// Whether a layouts.tsv head row marks a transparent union (`transparent_union`, then ` restrict` when the name's
+/// macro form is a restrict pointer: spec/tools/abi_extract.py `tu_members`).
+pub(super) fn transparent_union(head: Option<&BTreeMap<String, String>>) -> bool {
+    head.is_some_and(|r| r["bitfield"].split_whitespace().next() == Some("transparent_union"))
+}
+
 /// The number after `word` in an `<anon>` row's `size N rows K`.
 fn anon_number(spec: &str, word: &str) -> Option<u64> {
     let w: Vec<&str> = spec.split_whitespace().collect();
@@ -92,7 +98,10 @@ impl Gen<'_> {
         }
         let kw = if lv.count > 1 && lv.offs.len() == 1 && !lv.bits { "union" } else { "struct" };
         let (mut attrs, mut td_attrs) = (String::new(), String::new());
-        if lv.wide && align == Some(1) {
+        if transparent_union(head) {
+            // A union a parameter takes as any of its members (GCC manual, transparent_union): layouts.tsv's mark.
+            attrs = " __attribute__ ((__transparent_union__))".into();
+        } else if lv.wide && align == Some(1) {
             attrs = " __attribute__ ((__packed__))".into();
         } else if let (Some(a), Some(natural)) = (align, lv.align) {
             // Declared stricter than its members (`struct rseq`, 32): the type carries it, or (a size that is not a

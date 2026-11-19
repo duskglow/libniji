@@ -862,6 +862,18 @@ struct sockaddr_storage		128	8
 struct sockaddr_storage	ss_family	0		sa_family_t	
 struct sockaddr_storage	__ss_padding	2		char[118]	
 struct sockaddr_storage	__ss_align	120		long unsigned int	
+__SOCKADDR_ARG		8	8		transparent_union restrict
+__SOCKADDR_ARG	__tu_sockaddr	0		struct sockaddr *	
+__SOCKADDR_ARG	__tu_sockaddr_in	0		struct sockaddr_in *	
+__SOCKADDR_ARG	__tu_sockaddr_in6	0		struct sockaddr_in6 *	
+__SOCKADDR_ARG	__tu_sockaddr_un	0		struct sockaddr_un *	
+__SOCKADDR_ARG	__tu_sockaddr_x25	0		struct sockaddr_x25 *	
+__CONST_SOCKADDR_ARG		8	8		transparent_union
+__CONST_SOCKADDR_ARG	__tu_sockaddr	0		const struct sockaddr *	
+__CONST_SOCKADDR_ARG	__tu_sockaddr_in	0		const struct sockaddr_in *	
+__CONST_SOCKADDR_ARG	__tu_sockaddr_in6	0		const struct sockaddr_in6 *	
+__CONST_SOCKADDR_ARG	__tu_sockaddr_un	0		const struct sockaddr_un *	
+__CONST_SOCKADDR_ARG	__tu_sockaddr_x25	0		const struct sockaddr_x25 *	
 struct sockaddr_in		16	4		
 struct sockaddr_in	sin_family	0		sa_family_t	
 struct sockaddr_in	sin_port	2		in_port_t	

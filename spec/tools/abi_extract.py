@@ -81,6 +81,7 @@ TYPES = [
  ("struct __res_state", "struct __res_state"), ("ns_msg", "ns_msg"), ("ns_rr", "ns_rr"),
  ("struct in_addr", "struct in_addr"), ("struct in6_addr", "struct in6_addr"),
  ("struct sockaddr", "struct sockaddr"), ("struct sockaddr_storage", "struct sockaddr_storage"),
+ ("__SOCKADDR_ARG", "__SOCKADDR_ARG"), ("__CONST_SOCKADDR_ARG", "__CONST_SOCKADDR_ARG"),
  ("struct sockaddr_in", "struct sockaddr_in"), ("struct sockaddr_in6", "struct sockaddr_in6"),
  ("struct sockaddr_un", "struct sockaddr_un"), ("struct ether_addr", "struct ether_addr"),
  ("struct ifaddrs", "struct ifaddrs"), ("struct if_nameindex", "struct if_nameindex"),
@@ -398,6 +399,50 @@ def members(dies, off, prefix="", base=0, out=None, depth=0):
             out[at_row] = out[at_row][:3] + (f"size {num(dies[inner]['attrs'].get('DW_AT_byte_size'))} rows {n}",)
     return out
 
+def accepts(tmp, expr, arg, decl="", std="gnu17", pre=None):
+    """Whether a call passes an argument of type `arg` to a parameter of type `expr` (return code only)."""
+    src = (prelude() if pre is None else pre) + decl + f"void probe_tu ({expr});\nvoid probe_tu_call ({arg} p) {{ probe_tu (p); }}\n"
+    p = os.path.join(tmp, "tu.c")
+    open(p, "w").write(src)
+    return subprocess.run(CC + [f"-std={std}", "-Werror", "-fsyntax-only", p], capture_output=True, text=True).returncode == 0
+
+def transparent(tmp, expr):
+    """Whether the union type `expr` is a transparent union. DWARF does not record the attribute; the GCC manual
+    (Common Type Attributes, transparent_union) does: a parameter of such a union with a pointer member accepts a
+    `void *` argument, which no ordinary union parameter accepts. The head row's last column then says
+    `transparent_union` (abi-gen reads no head-row column past the alignment)."""
+    return accepts(tmp, expr, "void *")
+
+# The address structures a transparent union parameter may take: the tags the tables record (typedefs.tsv) and
+# the ones the Linux man pages document (ddp(7) sockaddr_atalk, netlink(7) sockaddr_nl, packet(7) sockaddr_pkt,
+# vsock(7) sockaddr_vm, x25(7) sockaddr_x25). The generic `struct sockaddr` (POSIX <sys/socket.h>) comes first:
+# the first member is the one a transparent union argument is passed as (GCC manual, transparent_union).
+TU_CANDIDATES = ["sockaddr", "sockaddr_atalk", "sockaddr_in", "sockaddr_in6", "sockaddr_ll", "sockaddr_nl",
+                 "sockaddr_pkt", "sockaddr_storage", "sockaddr_un", "sockaddr_vm", "sockaddr_x25"]
+
+def tu_members(tmp, expr):
+    """The members of the transparent union `expr`. GCC's DWARF gives the union no member DIEs; the GCC manual
+    says such a parameter accepts an argument of any member's type, so each candidate pointer that a call passes
+    under -Werror is a member (`const struct T *` where a pointer to const is accepted). The members' names are
+    the implementation's own (reserved, never observable): the rows name each `__tu_<tag>`. With the head row
+    mark: ` restrict` when the name, where it is a macro (strict C), is a restrict pointer to the first
+    member's type (`_Generic` on a pointer to an object of it)."""
+    rows = []
+    for t in TU_CANDIDATES:
+        decl = f"struct {t};\n"
+        ty = next((q + f"struct {t} *" for q in ("const ", "") if accepts(tmp, expr, f"{q}struct {t} *", decl)), None)
+        if ty is not None:
+            rows.append((f"__tu_{t}", ty))
+    restrict = ""
+    if rows:
+        strict = "".join(l + "\n" for l in prelude().splitlines() if not l.startswith("#define"))
+        src = strict + f"{expr} probe_x;\nint probe_y = _Generic (&probe_x, {rows[0][1]}restrict *: 1);\n"
+        p = os.path.join(tmp, "tr.c")
+        open(p, "w").write(src)
+        if subprocess.run(CC + ["-std=c17", "-fsyntax-only", p], capture_output=True, text=True).returncode == 0:
+            restrict = " restrict"
+    return rows, restrict
+
 def layouts(tmp, types, szmap):
     dies = dwarf(tmp, types)
     varmap = {}
@@ -407,8 +452,13 @@ def layouts(tmp, types, szmap):
     rows = []
     for i, (label, expr) in enumerate(types):
         size, align = szmap[label]
-        rows.append((label, "", size, align, "", ""))
         s = resolve(dies, varmap.get(i))
+        if s is not None and dies[s]["tag"] == "DW_TAG_union_type" and transparent(tmp, expr):
+            tu, restrict = tu_members(tmp, expr)
+            rows.append((label, "", size, align, "", "transparent_union" + restrict))
+            rows.extend((label, n, 0, "", ty, "") for n, ty in tu)
+            continue
+        rows.append((label, "", size, align, "", ""))
         if s is None:
             continue
         for o, name, ty, bits in members(dies, s):
