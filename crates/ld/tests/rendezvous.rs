@@ -61,7 +61,7 @@ static int check(const char *when, int base, int want, const char *last, const c
             return base + 7;
         }
         if (m->l_prev != prev || !m->l_ld) return base + 8;
-        if (k > 0 && m->l_name[0] != '/') { fprintf(stderr, "%s: '%s' is not a path\n", when, m->l_name); return base + 9; }
+        if (k > 0 && m->l_name[0] != '/' && strcmp(m->l_name, "linux-vdso.so.1")) { fprintf(stderr, "%s: '%s' is not a path\n", when, m->l_name); return base + 9; }
         ldso += m->l_addr == own->r_ldbase && !strcmp(m->l_name, interp);
     }
     if (k != nph || (want >= 0 && k != want)) { fprintf(stderr, "%s: %d maps, %d phdr, want %d\n", when, k, nph, want); return base + 10; }

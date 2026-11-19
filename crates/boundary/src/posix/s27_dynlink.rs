@@ -36,6 +36,7 @@ type Callback = Option<extern "C" fn(&struct_dl_phdr_info, usize, *mut c_void) -
 
 const PT_LOAD: u32 = 1;
 const PT_TLS: u32 = 7;
+#[cfg(feature = "ld")]
 const PT_DYNAMIC: u32 = 2;
 const PT_GNU_EH_FRAME: u32 = 0x6474_e550;
 
@@ -74,6 +75,7 @@ pub(crate) fn vdso_headers(vdso: usize) -> (usize, usize, usize) {
 
 /// The run-time address of the vDSO's dynamic array (its link map's `l_ld`), from the headers
 /// [`vdso_headers`] gave: `bias` plus `PT_DYNAMIC`'s address; 0 without one.
+#[cfg(feature = "ld")]
 pub(crate) fn vdso_dynamic(phdr: usize, phnum: usize, bias: usize) -> usize {
     // UNSAFE(slice): the vDSO's program headers, mapped by the kernel.
     #[allow(unsafe_code)]
