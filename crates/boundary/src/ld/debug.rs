@@ -58,6 +58,45 @@ pub extern "C" fn _dl_debug_state() {
     compiler_fence(SeqCst);
 }
 
+/// `<link.h>`'s public `struct link_map` prefix, for the one link map that is not an object the
+/// loader maps: the vDSO's.
+#[repr(C)]
+struct LinkMap {
+    l_addr: AtomicUsize,
+    l_name: AtomicUsize,
+    l_ld: AtomicUsize,
+    l_next: AtomicUsize,
+    l_prev: AtomicUsize,
+}
+
+/// The vDSO's link map (probe: the reference lists it second, as `linux-vdso.so.1`, as
+/// `dl_iterate_phdr` does, P-12). It stays in the list for the process's lifetime.
+static VDSO_MAP: LinkMap = LinkMap {
+    l_addr: AtomicUsize::new(0),
+    l_name: AtomicUsize::new(0),
+    l_ld: AtomicUsize::new(0),
+    l_next: AtomicUsize::new(0),
+    l_prev: AtomicUsize::new(0),
+};
+
+/// Fill the vDSO's link map (the image at `vdso`, `AT_SYSINFO_EHDR`) after `prev`, the program's
+/// link map; its `l_next` is set by [`vdso_next`]. Its address.
+pub(super) fn vdso_node(vdso: usize, prev: usize) -> usize {
+    use crate::posix::s27_dynlink::{vdso_dynamic, vdso_headers};
+    let (phdr, phnum, bias) = vdso_headers(vdso);
+    let m = &VDSO_MAP;
+    m.l_addr.store(bias, Relaxed);
+    m.l_name.store(c"linux-vdso.so.1".as_ptr().expose_provenance(), Relaxed);
+    m.l_ld.store(vdso_dynamic(phdr, phnum, bias), Relaxed);
+    m.l_prev.store(prev, Relaxed);
+    core::ptr::from_ref(m).expose_provenance()
+}
+
+/// Link `next` after the vDSO's link map.
+pub(super) fn vdso_next(next: usize) {
+    VDSO_MAP.l_next.store(next, Release);
+}
+
 /// The program's copy of `_r_debug` (0: none), from its `COPY` relocation.
 static COPY: AtomicUsize = AtomicUsize::new(0);
 

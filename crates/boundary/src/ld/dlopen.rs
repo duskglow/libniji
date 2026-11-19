@@ -398,19 +398,22 @@ pub(super) fn start_name(k: usize) -> usize {
 }
 
 /// The start's link map of start-time object `k` (DL-23; [`super::link`], before any `dlopen`, one
-/// thread): its public prefix, linked after node `k - 1`. `name` is a NUL-terminated string kept for
-/// the process's lifetime. The node's address, or 0 when `k` is past the nodes ([`CAP`]).
-pub(super) fn start_node(k: usize, l_addr: usize, name: usize, l_ld: usize) -> usize {
+/// thread): its public prefix, with `l_prev` = `prev` (the previous link map's address, 0 for the
+/// program's) and no `l_next` yet ([`link_next`]). `name` is a NUL-terminated string kept for the
+/// process's lifetime. The node's address, or 0 when `k` is past the nodes ([`CAP`]).
+pub(super) fn start_node(k: usize, l_addr: usize, name: usize, l_ld: usize, prev: usize) -> usize {
     let mut nodes = Nodes;
-    let prev = k.checked_sub(1).and_then(|p| nodes.get(p)).map_or(0, |p| core::ptr::from_ref(p).expose_provenance());
     let Some(node) = nodes.get_mut(k) else { return 0 };
     (node.l_addr, node.l_name, node.l_ld, node.l_prev) = (l_addr, name, l_ld, prev);
     node.l_next.store(0, Relaxed);
-    let me = core::ptr::from_ref(&*node).expose_provenance();
-    if let Some(p) = k.checked_sub(1).and_then(|p| nodes.get(p)) {
-        p.l_next.store(me, Release);
+    core::ptr::from_ref(&*node).expose_provenance()
+}
+
+/// Link `next` after start-time node `k` (DL-23, [`super::link`], one thread).
+pub(super) fn link_next(k: usize, next: usize) {
+    if let Some(p) = Nodes.get(k) {
+        p.l_next.store(next, Release);
     }
-    me
 }
 
 /// A futex mutex re-entrant for its owner: `word` 0 free, 1 held, 2 held with waiters; the

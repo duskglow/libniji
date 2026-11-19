@@ -1366,7 +1366,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     let area_base = map_area(&area);
     __libc_stack_end.store(sp, Release);
     let rseq_size = register_rseq(area_base.wrapping_add(usize::try_from(area.tp).unwrap_or(0)));
-    rendezvous_start(&objs[..n], &paths[..n], interp, own_views);
+    rendezvous_start(&objs[..n], &paths[..n], interp, own_views, env.vdso.and_then(|v| usize::try_from(v).ok()).unwrap_or(0));
     for (o, p) in objs[..n].iter_mut().zip(&placed[..n]) {
         o.tls = *p;
     }
@@ -1475,17 +1475,38 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
 const DT_DEBUG: u64 = 21;
 
 /// The debugger rendezvous at the start (DL-23, [`debug`]): link the start-time objects' link maps
-/// in load order (the program `""`, each other object by the path the start opened it by, `ld.so`
-/// at its place, or last when no object named it, by the program's `PT_INTERP`), then fill
-/// `_r_debug`, `DT_DEBUG` and call `r_brk` with `RT_ADD`. Before relocation: a program's `COPY` of
-/// `_r_debug` then reads the filled structure. Pointer writes only: no allocation, no file read.
+/// in load order (the program `""`, the vDSO `linux-vdso.so.1` when `vdso` (`AT_SYSINFO_EHDR`) is
+/// not 0, each other object by the path the start opened it by, `ld.so` at its place, or last when
+/// no object named it, by the program's `PT_INTERP`): the order `dl_iterate_phdr` reports. Then
+/// fill `_r_debug`, `DT_DEBUG` and call `r_brk` with `RT_ADD`. Before relocation: a program's `COPY`
+/// of `_r_debug` then reads the filled structure. Pointer writes only: no allocation, no file read.
 // Indices stay below `objs.len()` (== paths.len()).
 #[allow(clippy::indexing_slicing)]
-fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8]], interp: Option<usize>, own_views: &mut [(usize, usize)]) {
+fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8]], interp: Option<usize>, own_views: &mut [(usize, usize)], vdso: usize) {
     let n = objs.len();
     let own_base = OWN_BASE.load(Relaxed);
     let empty = c"".as_ptr().expose_provenance();
     let ld_of = |o: &niji_ld::reloc::Obj<'_>| usize::try_from(o.bias.wrapping_add(o.elf.find(elf::pt::DYNAMIC).map_or(0, |p| p.vaddr))).unwrap_or(0);
+    // The previous link map: its address (0: none yet) and its start-time index (None: the vDSO's).
+    let mut prev: (usize, Option<usize>) = (0, None);
+    let mut put = |k: usize, l_addr: usize, name: usize, l_ld: usize| {
+        let at = dlopen::start_node(k, l_addr, name, l_ld, prev.0);
+        if at == 0 {
+            return 0;
+        }
+        match prev {
+            (0, _) => {}
+            (_, Some(p)) => dlopen::link_next(p, at),
+            (_, None) => debug::vdso_next(at),
+        }
+        prev = (at, Some(k));
+        if k == 0 && vdso != 0 {
+            let v = debug::vdso_node(vdso, at);
+            dlopen::link_next(0, v);
+            prev = (v, None);
+        }
+        at
+    };
     let mut head = 0;
     for (k, o) in objs.iter().enumerate() {
         let name = if Some(k) == interp {
@@ -1495,14 +1516,14 @@ fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8
         } else {
             paths[k].as_ptr().expose_provenance()
         };
-        let at = dlopen::start_node(k, usize::try_from(o.bias).unwrap_or(0), name, ld_of(o));
+        let at = put(k, usize::try_from(o.bias).unwrap_or(0), name, ld_of(o));
         if k == 0 {
             head = at;
         }
     }
     if interp.is_none() {
         let own = own_object(Native::INTERP.as_bytes(), own_views);
-        dlopen::start_node(n, own_base, interp_name(&objs[0]), ld_of(&own));
+        put(n, own_base, interp_name(&objs[0]), ld_of(&own));
     }
     let dt_debug = niji_ld::reloc::dynamic_word(&objs[0], DT_DEBUG).map_or(0, |w| usize::try_from(w).unwrap_or(0));
     debug::start(head, own_base, dt_debug);
