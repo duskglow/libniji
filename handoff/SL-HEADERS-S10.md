@@ -1,7 +1,9 @@
-# SL-HEADERS-S10: slice 10, locale, text, matching (handoff after run 3)
+# SL-HEADERS-S10: slice 10, locale, text, matching (handoff after run 4)
 
-**State.** Branch `task/sl-headers-s10-3` (continues `task/sl-headers-s10-2`); head in `handoff/reports/SL-HEADERS-S10-3.json`. Say
+**State.** Branch `task/sl-headers-s10-4` (continues `task/sl-headers-s10-2`); head in `handoff/reports/SL-HEADERS-S10-3.json`. Say
 "slice 10" in commits. 20 headers generated and committed; `header_check.py` 0 failed of 6048; clippy and static clean.
+
+**Run 4.** Merged origin/next (generator split into headers/*.rs): FILE tag-only rule ported to headers/typedefs.rs, bit-field edit dropped (next has it), six headers regenerated, plants updated; header_check 0 failed of 7101.
 
 **Done in run 3.**
 * Moved the branch onto the header registry (`handoff/SL-HEADERS-REGISTRY.md` steps 1-4): took next's `header_check.py` and `headers.rs`,

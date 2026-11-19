@@ -1,0 +1,37 @@
+{
+ "task": "SL-HEADERS-S10-4",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "COMPLETE: origin/next merged into slice 10; header_check 0 failed of 7101, headers-gen --check clean, clippy/static clean, 15 plants caught, gate green",
+ "branch": "task/sl-headers-s10-4",
+ "head": "HEAD",
+ "gate": {
+  "affected": "32 suites ok, 12188 passed / 0 failed (conformance 140 passed / 0 failed)",
+  "peak": "13G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Merge: xtask/src/headers.rs conflicted because next split the generator into headers/*.rs and already emits bit-field members itself; run 3's bit-field edit was dropped, its FILE tag-only rule carried into headers/typedefs.rs (data driven, shared, own commit-in-merge); header_check.py merged cleanly (p1_skip/must_fail kept). The bit-field plant was removed from handoff/SL-HEADERS-S10/plants.txt (code is next's now); the FILE plant now targets typedefs.rs.",
+  "Regenerated fts.h ftw.h glob.h printf.h uchar.h wchar.h: next's generator now emits member lists there (no hand edits).",
+  "Earlier ad-hoc ssh run of headers-gen --check/header_check under no jobrun (timed out at 120s, repeated as jobs sl-headers-s10-4-hdr, -regen)."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "unblock",
+   "what": "slice 10 merges with next (conflict in headers.rs resolved)",
+   "before": null,
+   "after": null,
+   "unit": "",
+   "measured": false
+  }
+ ],
+ "improvement": "the plants tool runs the full product build per header plant before the headers-gen check; a header-only plants mode that runs just headers-gen --check and header_check.py would cut a 2.3 h run to minutes",
+ "next_step": "After slice 7 lands: sys/stat.h include in ftw.h/fts.h, empty p1_skip, P2 and P7 (see handoff/SL-HEADERS-S10.md)",
+ "report_file": "handoff/SL-HEADERS-S10.md",
+ "jobs": [
+  "keke:sl-headers-s10-4-gate",
+  "keke:sl-headers-s10-4-plants"
+ ]
+}
