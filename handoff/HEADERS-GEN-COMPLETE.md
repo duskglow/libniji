@@ -1,71 +1,69 @@
-# HEADERS-GEN-COMPLETE: handoff (after leg 3 of run 1, 2026-11-19)
+# HEADERS-GEN-COMPLETE: handoff (run 1 done, leg 4, 2026-11-19)
 
-State: branch `task/headers-gen-complete`, cut from origin/next fb63eeec8 (next had not moved at leg 3's start; check
-`git fetch` + merge if it has). Code head: the WIP commit "Make the header emitter recursive ..." (leg 3), this note on
-it. Role mei:~/w/s2 (cargo only there). Brief `~/state/briefs/HEADERS-GEN-COMPLETE.md`. Scratch
-`~/w/.scratch/HEADERS-GEN-COMPLETE/` (`diffs/<branch>.diff` prior art; `rows6-failures.txt`, `rows8-summary.txt`).
-Leg 1 (c52cc8ac8): one module per construct family. Leg 2 (451288a8b): rows test `xtask/src/headers/rows.rs`.
+State: branch `task/headers-gen-complete` from origin/next fb63eeec8 (next had not moved). Code head 52fef312c;
+this note and `handoff/reports/HEADERS-GEN-COMPLETE.json` on top. Role mei:~/w/s2. Plants file
+`handoff/HEADERS-GEN-COMPLETE-plants.txt`. Commits: c52cc8ac8 (one module per construct family, pure move),
+451288a8b (rows test), 59b48cd50 (recursive emitter, `slice-contract` precheck check), d96149c6a (rows test over
+every row, vector typedefs, exceptions), 1cd1a84e7 (libc-include regenerated), 52fef312c (plan/headers.md, plants).
 
-## Done in leg 3 (WIP commit; libc-include NOT yet regenerated in the worktree)
+## Proof
 
-* aggregates.rs: ONE recursive member emitter (`aggregate` -> `Agg {kw, attrs, td_attrs, lines, nested}`, `level`,
-  `member`): `<anon>` rows (`size N rows K`) at any depth, named `struct|union <anon>` (one line when plain),
-  `struct <anon>[N]`, typedef-keyed aggregates, tag members (defined first at file scope), `const`/`volatile`
-  pointees kept, `enum <anon>`/`enum X` -> unsigned int, bit-fields of scalar typedefs, over-alignment (`attrs` on the
-  type, or `td_attrs` on the typedef when size % align != 0: `__pthread_unwind_buf_t`), packed, padding; tag()
-  falls back to an opaque definition from the typedefs.tsv row when no rows describe the tag anywhere.
-* headers.rs derive_layouts: also struct/union tags (typedefs.tsv size), all descendants rebased.
-* typedefs.rs: char16_t/char32_t (`__CHAR16_TYPE__`, `#if !defined __cplusplus || __cplusplus < 201103L`), char8_t
-  (C23 unsigned char unless `__cpp_char8_t`), `__gwchar_t` -> `__NIJI_WCHAR`, arrays of a tag (`jmp_buf`), va_list ->
-  `__builtin_va_list`, typedef sharing its tag's name (`ucontext_t`), incomplete typedefs (empty size: `DIR`),
-  linkage-named union/struct with the `{kind}_{cxx}` guard (`union sigval` once).
-* types.rs: type_align, scalar_size_align, c_plain, c_words; type_words: typedefs.tsv tag rows, unknown names ->
-  `struct w` declared first, `va_list *` -> `__builtin_va_list *` (was `__builtin_va_list`: printf.h fix).
-* functions.rs from_type via c_words (was: every pointer a `struct T *`); `_Bool` -> `#ifdef __cplusplus bool`.
-  objects.rs via type_words (`struct in6_addr const`, `struct _IO_FILE *`).
-* rows.rs: cxx_type (elaborate a class only when hidden by a function/object or undeclared), va_list spellings,
-  layouts of array typedefs use the element (`__typeof__ (((jmp_buf *) 0)[0][0])`).
-* precheck.rs: check `slice-contract` + unit test `slice_contract_names_a_slice_change_to_the_shared_generator`.
-* Dev jobs (kind build, superseded, not proof): headers-gen-complete-rows5..rows8 on mei.
+* Rows test (`cargo xtask headers-gen --rows DIR`; unit test `every_table_row_is_emitted_and_matches_the_tables`):
+  23879 rows, C gnu17 and C++ gnu++17 and 26 call-site families: 0 failed, 99 excepted (`headers/rows-exceptions.tsv`).
+  callsites 2780, constants 6891 (21 exc.), initializers 10, layouts 231 (6), macros 7189, prototypes 2782 (21),
+  typedefs 3068 (39), versions 99, visibility 829 (12).
+* Vector typedefs (plant s16c-vector-newtype's construct): unit test `a_vector_typedef_is_emitted_as_a_vector`.
+* `headers-gen --check` (in static) green with the regenerated headers; jobs: see the report json.
 
-## Rows test: 92 of 23879 rows fail (rows8), every one diagnosed
+## Construct inventory (next's tables; module)
 
-* Exceptions to write in `headers/rows-exceptions.tsv` (table, name, lang, reason; each a RULING NEEDED):
-  enum tags without enumerators (typedefs enum __pid_type, __ptrace_request, __rlimit_resource, __vlimit_resource,
-  mcheck_status; C++/C users: prototypes+typedefs function mcheck, mcheck_pedantic, mprobe, prlimit, prlimit64,
-  ptrace, vlimit; recommend: a table of each enumeration's enumerators so `@@enum` is data); la_* (12 prototypes)
-  and ps_* (4 typedefs function): provided by the program (rtld-audit(7), proc_service), S16's `linked_elsewhere`;
-  bindresvport6, getumask: no default-version export (RULING: should libniji declare them); table depth gap:
-  named `<anon>` with no rows below (siginfo_t `_sifields._sigfault._bounds`, `__atomic_wide_counter.__value32`
-  -> layouts siginfo_t, __atomic_wide_counter, pthread_cond_t, struct __pthread_cond_s; check struct __res_state's
-  cause the same way, it has `_u._ext` rows); layouts va_list lang c++ (G++'s `__va_list_tag` is no class);
-  21 constants with no macros.tsv row and 12 visibility functions (signbit, fpclassify, isgreater... = macros;
-  gets, bsd_signal) with no prototype row: check each, exception with reason.
-* Still to fix in code: sockaddr functions (accept, accept4, bind, connect, getpeername, getsockname, recvfrom,
-  sendto): the emitter declares `__SOCKADDR_ARG`, C++ wants `struct sockaddr *` (see how rows.c defines
-  `__SOCKADDR_ARG`; per-language spelling, or exception); initializers PTHREAD_ONCE_INIT (scalar typedef) and `{0}`
-  (mbstate_t -> follow the typedef to `__mbstate_t`) in values.rs `init_of`.
+| construct | rows | module |
+|---|---|---|
+| aggregate layouts (struct, union, typedef-keyed) | 1913 rows, 231 aggregates | aggregates.rs |
+| nested members `a.b` (complete, typedef'd, named `struct/union <anon>`, `struct <anon>[N]`) | 383 | aggregates.rs |
+| C11 anonymous members (`<anon>`, `size N rows K`) | 23 | aggregates.rs |
+| bit-fields (`bits W@0`) | 47 | aggregates.rs |
+| function-pointer members (`fn(...) *`), enum-typed members, packed, over-aligned, padding | in layouts | aggregates.rs, types.rs |
+| typedefs: scalar 142, memberless 67, linkage-named 30, fn pointer 14, empty cxx 11, pointer 9, fn type 8, array 6, qualified 1 | 288 | typedefs.rs |
+| vector typedefs (`T __vector(N)`) | 0 (synthetic test) | typedefs.rs |
+| tags: struct 160, union 1, enum 5 | 166 | aggregates.rs `tag` |
+| functions: prototypes / typedefs function | 3781 / 3397 | functions.rs |
+| noexcept | 3781 | functions.rs |
+| call sites: addr 3996, call 3890, macro 3 (redirections per configuration) | 7890 | functions.rs, cond.rs |
+| objects (+ versions.tsv data objects 99) | 37 | objects.rs |
+| macro values: integer 7224, char[N] 159, float 2, double 1 | 7387 | values.rs |
+| constants | 7084 | values.rs (through macros.tsv) |
+| initializers (`@@init`) | 10 | values.rs |
+| enumerators | 5162 | headers.rs `Gen::item` |
+| `@@enum` (enumerators by a template's prefixes) | template | enums.rs |
+| feature conditions (ftm-configs 40, visibility 72278) | | cond.rs |
 
-## Next steps (in order)
+## Exceptions (99, each RULING NEEDED in the hand-back)
 
-1. Fix sockaddr + init_of; write the exceptions; rerun: `ssh mei: setsid nohup ~/bin/jobrun headers-gen-complete-rowsN
-   build -- sh ~/work/headers-gen-complete/rows.sh rowsN` (regenerates libc-include in the role, writes
-   `/mnt/zram/claude/headers-gen-complete/rowsN/{include.diff,rows/failures.txt}`); green = 0 failed.
-2. Review include.diff (rows8: 221 lines in 10 files: pthread_mutex/cond/rwlock_t opaque -> table layouts in
-   stdlib.h and sys/types.h, `union epoll_data` guard, const members in argp.h/getopt.h, printf.h `va_list *`, ...);
-   each change needs a reason in the hand-back (brief step 2). Copy the regenerated headers into the worktree (tar
-   from the role) and commit them; `headers-gen --check` must pass.
-3. Synthetic-row unit test for the vector construct (plant s16c-vector-newtype): a layouts-only typedef (size 16,
-   align 16, member rows) injected into `Tables`, `rows::check(root, &t, dir, Some(&only))`.
-4. Plants file `handoff/HEADERS-GEN-COMPLETE-plants.txt`: one per module (aggregates, typedefs, functions, objects,
-   values, enums/item, types, cond), the vector one, the contract check; cmd `cargo test -p xtask --bin xtask
-   headers::tests::every_table_row` / the precheck unit test; run `cargo xtask plants`.
-5. plan/headers.md 2.4 "Generated tests" + 4.1 slice contract; D-row via `ops reserve` if needed.
-6. Gate (`cargo xtask affected --run`), plants, clippy + static, precheck --jobs, report json, handback-check.
+Enumerations without enumerators 19 (5 tags, 7 prototypes, 7 function types); functions a program provides 28
+(la_* 12+12, ps_* 4); no default-version export 4 (bindresvport6, getumask); table depth gap 6 (siginfo_t
+`_bounds`, `__atomic_wide_counter.__value32` and its users, struct __res_state `sort_list`); va_list in C++ 1;
+`__SOCKADDR_ARG` in C++ 8; pointer-valued macros 18; untyped integer macros 3; type-generic macros 10; gets,
+bsd_signal 2.
+
+## libc-include changes (221 lines, 10 headers; sizes and alignments unchanged; every one from the tables)
+
+const pointees kept (argp.h, getopt.h, `tm_zone`); `printf_va_arg_function` takes `va_list *`; named members of
+anonymous union type instead of opaque objects (`__mbstate_t`, `Elf32_Dyn`, `Elf64_Dyn`, `Elf64_auxv_t`); pthread
+mutex/cond/rwlock unions with their `__data` structures (stdlib.h, sys/types.h; `__atomic_wide_counter` stays
+opaque: depth gap); `union epoll_data` guard names its kind; `struct __exit_status` at file scope (nested in
+`struct utmpx` it is a nested class in C++).
 
 ## Not to redo / notes
 
-Inventory (leg 1) of next's tables: layouts 1913, typedefs 3889, macros 7387, constants 7084, prototypes 3781,
-callsites 7890, visibility 72278, initializers 10, noexcept 3781, ftm-configs 40 (constructs per table in
-`git show 5ad788f0d:handoff/HEADERS-GEN-COMPLETE.md`, with the branch prior art). INFORMATIONAL, self-reported (leg 2):
-`git show origin/task/sl-headers-s16-3:spec/abi/typedefs.tsv | grep xmm` read a file the brief does not name.
+* A dedup of `emit_nested` was tried and reverted: it removes 124 repeated guarded lines from next's headers
+  (pidfd.h, procfs.h, utmp.h, argp.h): a cleanup story of its own.
+* Bit-field rows all say `@0` (abi_extract.py reads only DW_AT_data_bit_offset); the rows test derives positions by
+  psABI sequential allocation.
+* When S16 lands `la_*` as data, drop their exception rows (an exception for an emittable row hides it).
+* s16c-vector-newtype was on S16-3's xtask/src/abi.rs (abi-gen); the header side is covered here, abi-gen's not.
+
+## Next step
+
+Land (FULL gate is the train's: xtask changed). Then slices add data only (plan/headers.md 4.1); the RULING NEEDED
+rows above each become a table story.

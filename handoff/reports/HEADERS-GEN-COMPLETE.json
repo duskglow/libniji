@@ -1,0 +1,34 @@
+{"task": "HEADERS-GEN-COMPLETE", "model": "opus", "tokens": null,
+ "result": "Header generator complete for the tables: one module per construct family, one recursive aggregate emitter, placement-independent rows test green over 23879 rows in C and C++ (99 reviewed exceptions), vector typedefs, slice-contract precheck check; libc-include regenerated (221 lines, 10 headers, each from the tables)",
+ "branch": "task/headers-gen-complete", "head": "52fef312c",
+ "gate": {"affected": "FULL escalated (xtask changed): cargo test -p xtask 509 passed / 0 failed; clippy and static ok", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "5 enumerations without enumerators (enum __pid_type, __ptrace_request, __rlimit_resource, __vlimit_resource, mcheck_status) and their 14 users (mcheck, mcheck_pedantic, mprobe, prlimit, prlimit64, ptrace, vlimit) excepted", "recommendation": "an enumerators table (tag, name, value) so @@enum is data"},
+  {"item": "la_* (12) and ps_* (4) functions a program or debugger provides excepted: the function emitter declares only default-version exports", "recommendation": "a prototypes.tsv provider column (S16's linked_elsewhere as table data)"},
+  {"item": "bindresvport6 and getumask: declared by the reference, no default-version export", "recommendation": "leave them out (a compile error at use instead of a link error)"},
+  {"item": "table depth gap: siginfo_t _sifields._sigfault._bounds, __atomic_wide_counter.__value32 (pthread_cond_t, struct __pthread_cond_s), struct __res_state sort_list have no rows below them", "recommendation": "extend the layouts extraction to every depth"},
+  {"item": "__SOCKADDR_ARG / __CONST_SOCKADDR_ARG: no table gives the transparent union's members or the macro form; the generator emits an opaque 8-byte typedef (8 functions excepted in C++)", "recommendation": "layouts rows for the union and a macro row for the pointer form, before sys/socket.h is generated"},
+  {"item": "18 pointer-valued macros (NULL, SIG_*, MAP_FAILED, RTLD_*, FE_*_ENV, MM_NULL*, ...) have constants.tsv values but no macros.tsv type", "recommendation": "a macros.tsv pointer type so the value emitter spells the cast"},
+  {"item": "FNM_NOSYS, DLFO_EH_SEGMENT_TYPE, TD_SIGNO_MASK: constants.tsv value, no macros.tsv row", "recommendation": "add their macros.tsv rows (check whether TD_SIGNO_MASK is function-like)"},
+  {"item": "10 type-generic macros with a visibility kind function, and gets, bsd_signal without a prototypes.tsv row", "recommendation": "function rows for their function forms (or a visibility kind for type-generic forms), prototypes rows for gets and bsd_signal"},
+  {"item": "va_list member offsets in C++ (__va_list_tag is no class there)", "recommendation": "keep as a permanent exception; the C unit checks them"}
+ ],
+ "informational": [
+  "All 47 bit-field rows say @0: spec/tools/abi_extract.py reads only DW_AT_data_bit_offset; the rows test now derives positions by psABI sequential allocation (fenv_t __opcode follows __cs_selector in its unit); recommend the extractor record the bit",
+  "emit_nested repeats a guarded nested definition once per member using it; a dedup was tried and reverted (it removes 124 redundant lines from next's headers): a cleanup story of its own",
+  "Plant s16c-vector-newtype was on S16-3's xtask/src/abi.rs (abi-gen); the header side of the vector construct is covered here, abi-gen's vector needs a test on S16-3",
+  "When S16 lands la_* as linked_elsewhere data, drop their exception rows",
+  "Leg 2 self-reported: read origin/task/sl-headers-s16-3:spec/abi/typedefs.tsv, a file the brief does not name"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "placement-independent rows test: table rows emitted and checked in C and C++ (99 reviewed exceptions)", "before": 0, "after": 23879, "unit": "rows", "measured": true},
+  {"kind": "coverage", "what": "plants on the generator's construct families and the slice-contract check, all caught", "before": 0, "after": 11, "unit": "plants", "measured": true},
+  {"kind": "correctness", "what": "libc-include: const pointees (argp.h, getopt.h, tm_zone), printf_va_arg_function va_list *, struct __exit_status a nested class in C++, opaque stand-ins replaced by table layouts (mbstate, Elf*_Dyn, auxv, pthread unions)", "before": null, "after": 10, "unit": "headers", "measured": true},
+  {"kind": "unblock", "what": "held header slices (S07-5, S08-5, S10-4, S11-6, S17-3, S12-4, S19-3) add data only; precheck slice-contract names a slice change to the shared generator", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "Prior-art diffs of seven slice branches were re-derived by hand; a generator story should start from a per-construct inventory the tool prints (headers-gen --rows lists rows per table) rather than branch diffs",
+ "next_step": "Land on the train (FULL gate); then turn each RULING NEEDED exception group into a table story",
+ "report_file": "handoff/HEADERS-GEN-COMPLETE.md",
+ "jobs": ["mei:headers-gen-complete-gate", "mei:headers-gen-complete-plants", "mei:headers-gen-complete-lint", "mei:headers-gen-complete-precheck"]}
