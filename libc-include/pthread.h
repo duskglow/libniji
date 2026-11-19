@@ -52,7 +52,7 @@ struct __jmp_buf_tag {
 # ifndef __NIJI_D_struct__pthread_cleanup_buffer
 #  define __NIJI_D_struct__pthread_cleanup_buffer 1
 struct _pthread_cleanup_buffer {
-  void (*__routine) (void);
+  void (*__routine)(void *);
   void * __arg;
   int __canceltype;
   struct _pthread_cleanup_buffer * __prev;

@@ -106,6 +106,10 @@ struct sigstack {
 #  define __NIJI_D___sighandler_t 1
 typedef void (*__sighandler_t)(int);
 # endif
+# ifndef __NIJI_D_siginfo_t
+#  define __NIJI_D_siginfo_t 1
+typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } siginfo_t;
+# endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
 typedef struct {
@@ -115,10 +119,10 @@ typedef struct {
 # ifndef __NIJI_D_struct_sigaction
 #  define __NIJI_D_struct_sigaction 1
 struct sigaction {
-  union { __sighandler_t sa_handler; void (*sa_sigaction) (void); } __sigaction_handler;
+  union { __sighandler_t sa_handler; void (*sa_sigaction)(int, siginfo_t *, void *); } __sigaction_handler;
   __sigset_t sa_mask;
   int sa_flags;
-  void (*sa_restorer) (void);
+  void (*sa_restorer)(void);
 };
 # endif
 #endif
@@ -133,6 +137,13 @@ union sigval {
 # ifndef __NIJI_D___sigval_t
 #  define __NIJI_D___sigval_t 1
 typedef union sigval __sigval_t;
+# endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
 # endif
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
@@ -150,7 +161,7 @@ struct sigevent {
   union {
   int _pad[12];
   int _tid;
-  struct { void (*_function) (void); pthread_attr_t * _attribute; } _sigev_thread;
+  struct { void (*_function)(union sigval); pthread_attr_t * _attribute; } _sigev_thread;
   } _sigev_un;
 };
 # endif
@@ -456,6 +467,13 @@ union sigval {
 #  define __NIJI_D___sigval_t 1
 typedef union sigval __sigval_t;
 # endif
+# ifndef __NIJI_D_union_sigval
+#  define __NIJI_D_union_sigval 1
+union sigval {
+  int sival_int;
+  void * sival_ptr;
+};
+# endif
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
 typedef union {
@@ -472,7 +490,7 @@ struct sigevent {
   union {
   int _pad[12];
   int _tid;
-  struct { void (*_function) (void); pthread_attr_t * _attribute; } _sigev_thread;
+  struct { void (*_function)(union sigval); pthread_attr_t * _attribute; } _sigev_thread;
   } _sigev_un;
 };
 # endif
