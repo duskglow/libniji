@@ -19,7 +19,10 @@ use super::{MAP_ANONYMOUS_I32, MAP_PRIVATE_I32};
 use crate::{conv, raw};
 
 /// Entries a start-time table holds inline: the object count up to which a start maps no table.
-pub(super) const INLINE: usize = 64;
+/// DYN-START-PARITY: 16, not 64. The start's tables live in one stack frame, and every page of that
+/// frame is touched when it is set up, so 64 entries per table (the lookup views alone are 296 bytes
+/// each) cost a dynamic start about a dozen page faults it did not need.
+pub(super) const INLINE: usize = 16;
 
 /// A table could not grow: no address space (or a size that does not fit a word).
 #[derive(Clone, Copy, Debug)]

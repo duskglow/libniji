@@ -302,6 +302,17 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// nodes, warm-up + 5 runs, every run identical): release 86; fast at most 89 (the plants' baseline; ungrouped
 /// it reads 90). The bound is the highest level of the two host classes per profile, no margin (D-X.103's rule
 /// for these counts; as for TRUE_BOUND). No spec clause (layout of the products).
+/// DYN-START-PARITY (the start's tables hold 16 entries inline, not 64: a smaller stack frame), Skylake-SP
+/// host, in this test: fast 77, release 73 (before: 89 / 86 on that host); with DL-23-2's vDSO header page
+/// (+1 for a start that makes no vDSO call, as this program): fast 78, release 74. Tightened to those levels.
+/// DYN-START-PARITY-2: the count depends on the file system under /tmp, where the objects are staged. The
+/// interpreter's first whole-file mapping of libc.so.6 is placed by the kernel, which aligns it to 2 MiB on a
+/// file system with large folios (ext4) and not on tmpfs. The object's segments follow it, so their virtual
+/// placement, and with it the fault-around windows, differs. One A/B on the Skylake-SP host (same products, same
+/// head, only /tmp's file system changed, warm-up + 5 runs, every run identical): fast 79 on ext4 / 78 on tmpfs,
+/// release 74 on ext4 / 76 on tmpfs. `cargo xtask test` run outside the gate wrapper sees the host's /tmp (ext4).
+/// The gate wrapper gives a private tmpfs /tmp. The test-process environment (NIJI_TEST_MALLOC_PERTURB) changes
+/// nothing: the program runs with a cleared environment. The bound is the higher level of the two file systems.
 /// LAYOUT-DYN-PHASE (D-X.133): the count no longer moves with the size of libc.so.6 or ld.so (the loader maps
 /// the last page of a segment without zero fill from the file; libc's start-up read-only group is anchored and
 /// holds the build tag; ld.so's read-only data starts at its text's 64 KiB phase). Skylake-SP host, next
@@ -314,7 +325,11 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// identical): fast 82, release 77 at every k, the Skylake-SP level above plus that page. The bound is the
 /// higher of the two host classes per profile, no margin; the Skylake-SP host was not re-measured with
 /// DL-23-2 (expected 82 / 77; the train's gate runs there).
-const DYN_TRUE_BOUND: [u64; 2] = [82, 77];
+/// DYN-START-PARITY-3, the two stories merged (next 65d9d2cfd plus DYN-START-PARITY's smaller start frame):
+/// fast 73, release 67, warm-up + 5 runs, every run identical, on the Skylake-SP and the Zen 1 host, each with
+/// /tmp on ext4 and on tmpfs (the gate wrapper's): on the merged head the file system no longer changes the
+/// count (the cause was not isolated). Tightened to that level.
+const DYN_TRUE_BOUND: [u64; 2] = [73, 67];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.
@@ -382,6 +397,120 @@ fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
     let t = faults_env(&exe, "true", &[("LD_LIBRARY_PATH", path.as_str())]);
     let _ = std::fs::remove_dir_all(&lib);
     check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
+}
+
+/// DYN-START-PARITY; no spec clause (cost of the products). Upper bounds, per CPU model (`model name`
+/// of /proc/cpuinfo) and product profile (fast, release), on the user-mode instructions from exec to
+/// exit of a position-independent program whose `main` returns 0, linked dynamically against the
+/// products: the interpreter's whole start-up (its own relocation, mapping libc.so.6, relocating it,
+/// symbol and version lookups, initialisation) and libc.so.6's. Counted by `oracle/exec_instr.c`
+/// (median of [`DYN_INSTR_RUNS`], no randomisation). The test also counts the same program built by the
+/// host's compiler and C library and prints both, so the gap to the reference stays in view.
+/// Release, DYN-START-PARITY on next 255a6901d: 8,151,153 before (Skylake-SP host). Each level is the
+/// median measured on the branch's head plus 2%; `0` = not measured for that profile (unchecked).
+/// Measured (empty main, median of 21): Skylake-SP host fast 1,718,270, release 1,598,681, the host C
+/// library 101,863; Zen 1 host release 1,598,530, the host C library 96,002 (fast not measured).
+const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [1_752_700, 1_630_700]),
+    ("AMD EPYC 7551 32-Core Processor", [0, 1_630_600]),
+];
+
+/// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
+const DYN_INSTR_RUNS: &str = "21";
+
+/// The products' staging directory for a dynamic program: the interpreter and libc.so.6 copied to a
+/// fixed-length private path, which the program's `PT_INTERP` names and `LD_LIBRARY_PATH` points to.
+fn dyn_stage(tag: &str) -> PathBuf {
+    let p = root().join("target/niji");
+    assert!(p.join("ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
+    let lib = PathBuf::from(format!("/tmp/niji-{tag}-{:010}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&lib);
+    std::fs::create_dir_all(&lib).unwrap();
+    for f in ["ld-linux-x86-64.so.2", "libc.so.6"] {
+        stage(&p.join(f), &lib.join(f));
+    }
+    lib
+}
+
+/// Links `src` as a position-independent program of the products staged in `lib` ([`dyn_stage`]).
+fn dyn_link(lib: &Path, src: &Path, exe: &Path) {
+    let p = root().join("target/niji");
+    // The compiler's own start and end files of a position-independent program (`__dso_handle`, which
+    // `atexit` in libc_nonshared.a names).
+    let gcc_file = |f: &str| {
+        let o = Command::new("cc").arg(format!("-print-file-name={f}")).output().expect("cc -print-file-name");
+        PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())
+    };
+    let st = Command::new("cc")
+        .args(["-std=gnu17", "-O1", "-nostdlib", "-fno-builtin", "-fPIE", "-pie"])
+        .arg(format!("-Wl,--dynamic-linker={}", lib.join("ld-linux-x86-64.so.2").display()))
+        .arg(p.join("niji-crt1.o"))
+        .arg(gcc_file("crtbeginS.o"))
+        .arg(src)
+        .arg(p.join("libc_nonshared.a"))
+        .arg(lib.join("libc.so.6"))
+        .arg(lib.join("ld-linux-x86-64.so.2"))
+        .arg("-lgcc")
+        .arg(gcc_file("crtendS.o"))
+        .arg("-o")
+        .arg(exe)
+        .status()
+        .expect("cc");
+    assert!(st.success(), "{} does not link as a dynamic program of the products", src.display());
+}
+
+/// The median user-mode instructions of `exe` from exec to exit (`oracle/exec_instr.c`, built with the
+/// host's compiler), run with only `env`; `None` when this host gives no instruction counter (the
+/// harness's message is printed).
+fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
+    let counter = lib.join("exec_instr");
+    if !counter.exists() {
+        let st = Command::new("cc").args(["-O1", "-o"]).arg(&counter).arg(root().join("crates/core/tests/oracle/exec_instr.c")).status().expect("cc");
+        assert!(st.success(), "oracle/exec_instr.c does not build");
+    }
+    no_randomisation();
+    let mut cmd = Command::new(&counter);
+    cmd.arg(DYN_INSTR_RUNS);
+    for (k, v) in env {
+        cmd.arg("-e").arg(format!("{k}={v}"));
+    }
+    let o = cmd.arg(exe).current_dir("/").env_clear().stdin(Stdio::null()).output().unwrap();
+    let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    if o.status.code() == Some(2) {
+        eprintln!("SKIP: {}", err.trim());
+        return None;
+    }
+    assert!(o.status.success(), "exec_instr {} failed ({}): {err}", exe.display(), o.status);
+    let median = out.split_whitespace().nth(2).and_then(|v| v.parse().ok());
+    Some(median.unwrap_or_else(|| panic!("unexpected output {out:?}")))
+}
+
+#[test]
+fn init_dynamic_empty_main_stays_within_its_instruction_bound() {
+    let lib = dyn_stage("dyn-instr");
+    let src = lib.join("empty.c");
+    std::fs::write(&src, "int main(void) { return 0; }\n").unwrap();
+    let (exe, reference) = (lib.join("empty_dyn"), lib.join("empty_ref"));
+    dyn_link(&lib, &src, &exe);
+    let st = Command::new("cc").args(["-O1", "-fPIE", "-pie", "-o"]).arg(&reference).arg(&src).status().expect("cc");
+    assert!(st.success(), "the reference program does not build");
+    let path = lib.display().to_string();
+    let niji = exec_instr(&lib, &exe, &[("LD_LIBRARY_PATH", path.as_str())]);
+    let host = exec_instr(&lib, &reference, &[]);
+    let _ = std::fs::remove_dir_all(&lib);
+    let (Some(niji), Some(host)) = (niji, host) else { return };
+    let cpu = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    let model = cpu.lines().find_map(|l| l.strip_prefix("model name").and_then(|v| v.split_once(':')).map(|(_, m)| m.trim().to_owned())).unwrap_or_default();
+    let p = profile_index();
+    let profile = ["fast", "release"][p];
+    let tenths = niji.saturating_mul(10) / host.max(1);
+    eprintln!("dynamic empty main ({profile}, {model}): {niji} instructions; the host's C library {host} ({}.{}x)", tenths / 10, tenths % 10);
+    let Some(bound) = DYN_START_INSTR.iter().find(|(m, _)| *m == model).map(|(_, b)| b[p]).filter(|&b| b != 0) else {
+        eprintln!("SKIP: no {profile} bound for this CPU model ({model:?}) in DYN_START_INSTR");
+        return;
+    };
+    assert!(niji <= bound, "dynamic empty main ({profile}): {niji} instructions > {bound}: the interpreter's or libc.so.6's start-up grew");
+    assert!(niji >= bound - bound / 10, "dynamic empty main ({profile}): {niji} instructions, more than 10% under {bound}: tighten DYN_START_INSTR");
 }
 
 #[test]

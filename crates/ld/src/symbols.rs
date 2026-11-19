@@ -14,7 +14,7 @@
 use core::cell::OnceCell;
 
 use crate::elf::{
-    Dynamic, ElfError, GnuHash, Sym, Symtab, SysvHash, Versym, SHN_UNDEF, STB_GLOBAL, STB_GNU_UNIQUE, STB_WEAK,
+    Dynamic, ElfError, GnuHash, Sym, Symtab, SysvHash, Versions, Versym, SHN_UNDEF, STB_GLOBAL, STB_GNU_UNIQUE, STB_WEAK,
     STT_COMMON, STT_FUNC, STT_GNU_IFUNC, STT_NOTYPE, STT_OBJECT, STT_TLS, STV_HIDDEN, STV_INTERNAL, VERSYM_HIDDEN,
 };
 
@@ -168,6 +168,8 @@ pub struct Object<'a> {
     symtab: Symtab<'a>,
     hash: Hash<'a>,
     versym: Option<Versym<'a>>,
+    /// The version tables when `versym` is present ([`Dynamic::versions`]).
+    vers: Option<Versions<'a>>,
 }
 
 // The loader keeps its views in an inline table on the start-up stack and passes `Scope` by value
@@ -211,12 +213,18 @@ impl<'a> Object<'a> {
     ///
     /// As [`Object::new`]; [`LookupError::NoHashTable`] when the object has no table of that style.
     pub fn with_style(dynm: Dynamic<'a>, style: HashStyle) -> Result<Self, LookupError> {
-        let symtab = dynm.symtab()?.ok_or(LookupError::NoSymtab)?;
+        // Counted once for both tables (the count walks every hash bucket; DYN-START-PARITY).
+        let count = dynm.symbol_count();
+        let symtab = dynm.symtab_with(count)?.ok_or(LookupError::NoSymtab)?;
         let hash = match style {
             HashStyle::Gnu => Hash::Gnu(dynm.gnu_hash()?.ok_or(LookupError::NoHashTable)?),
             HashStyle::Sysv => Hash::Sysv(dynm.sysv_hash()?.ok_or(LookupError::NoHashTable)?),
         };
-        Ok(Object { dynm, symtab, hash, versym: dynm.versym()? })
+        let versym = dynm.versym_with(count)?;
+        // The version tables, walked whole by `versym`, kept so a lookup by index does not find
+        // them again (DYN-START-PARITY); without `DT_VERSYM` the walks below find them each time.
+        let vers = if versym.is_some() { dynm.versions()? } else { None };
+        Ok(Object { dynm, symtab, hash, versym, vers })
     }
 
     /// Makes this view the program's: its canonical PLT entries ([`canonical_plt`]) define their
@@ -286,6 +294,9 @@ impl<'a> Object<'a> {
         if index <= VER_NDX_GLOBAL {
             return Ok(None);
         }
+        if let Some(v) = self.vers {
+            return Ok(v.def_name(&self.dynm, index)?);
+        }
         let Some(defs) = self.dynm.verdef()? else { return Ok(None) };
         for d in defs {
             let d = d?;
@@ -318,6 +329,9 @@ impl<'a> Object<'a> {
     /// The name of version index `index` among this object's requirements (the `vna_other` of a
     /// `DT_VERNEED` entry), `None` when no requirement has it.
     fn needed_version_name(&self, index: u16) -> Result<Option<&'a [u8]>, LookupError> {
+        if let Some(v) = self.vers {
+            return Ok(v.need_name(&self.dynm, index)?);
+        }
         if let Some(needs) = self.dynm.verneed()? {
             for n in needs {
                 for a in n?.auxes() {

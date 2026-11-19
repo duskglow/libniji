@@ -1602,8 +1602,8 @@ fn fn_addr(f: extern "C" fn(usize) -> usize) -> usize {
     (f as *const ()).expose_provenance()
 }
 
-/// `DT_NEEDED` links one start holds without a mapping (more grow the table).
-const EDGES_INLINE: usize = 128;
+/// `DT_NEEDED` links one start holds without a mapping (more grow the table): twice [`INLINE`].
+const EDGES_INLINE: usize = 2 * INLINE;
 
 /// What `dlopen` needs to see the start-time objects again (DL-16a, D-27.34; nothing is allocated at
 /// start for up to [`INLINE`] objects): per object, in load order, its run-time program header table
