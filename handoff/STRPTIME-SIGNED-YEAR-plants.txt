@@ -2,3 +2,6 @@
 # Run: cargo xtask plants handoff/STRPTIME-SIGNED-YEAR-plants.txt --dir <new RAM dir>
 sign-in-number | crates/core/src/time/parse.rs | perl:s/(fn number\(.*?)let p = skip_space\(self.input, pos\);/$1let p = skip_space(self.input, pos) + usize::from(matches!(self.input.get(skip_space(self.input, pos)), Some(b'-' \| b'+')));/s | cargo test -p niji --test s23_strptime_engine | msg:cases differ|FAILED
 sign-in-seconds | crates/core/src/time/parse.rs | perl:s/(fn seconds\(.*?let mut p = skip_space\(self.input, pos\);)/$1 p += usize::from(matches!(self.input.get(p), Some(b'-' \| b'+')));/s | cargo test -p niji --test s23_strptime_engine | msg:cases differ|FAILED
+# cargo xtask plants results (2 plants: 2 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# sign-in-number: CAUGHT, caught by s23_strptime_engine s23_7_c_2_edges
+# sign-in-seconds: CAUGHT, caught by s23_strptime_engine s23_7_c_2_edges
