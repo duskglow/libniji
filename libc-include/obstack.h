@@ -11,6 +11,15 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_struct__obstack_chunk
+#  define __NIJI_D_struct__obstack_chunk 1
+struct _obstack_chunk {
+  char * limit;
+  struct _obstack_chunk * prev;
+  char contents[4];
+  int : 32;
+};
+# endif
 # ifndef __NIJI_D_struct_obstack
 #  define __NIJI_D_struct_obstack 1
 struct obstack {

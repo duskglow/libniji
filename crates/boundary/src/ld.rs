@@ -258,8 +258,11 @@ fn env_entries(envp: usize) -> impl Iterator<Item = &'static [u8]> {
 #[allow(unsafe_code)]
 pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
     // 1. The interpreter's own relocations; nothing before this reads a stored address.
-    if crate::bootstrap::relocate_image(ehdr).is_err() {
-        refuse(b"ld.so: cannot relocate the interpreter\n");
+    match crate::bootstrap::relocate_image(ehdr) {
+        // Its dynamic array as run-time addresses (DL-DYNAMIC-RELOC); its copies are read back
+        // through `image_view`, which undoes this.
+        Ok(r) if crate::bootstrap::publish_dynamic(&r).is_ok() => {}
+        _ => refuse(b"ld.so: cannot relocate the interpreter\n"),
     }
     // 2. The provisional thread block (L14-2).
     let tb = core::ptr::from_ref(&PROVISIONAL).expose_provenance();
@@ -415,7 +418,7 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
         let dyn_words = unsafe { conv::words_at(dynamic, usize::try_from(img.dynamic.1).unwrap_or(0) / 8) };
         // The preload file: one open per start when it is absent (the reference's one `access`).
         let mut file_path = PathBuf::default();
-        let file = if search::prefixed(b"etc/ld.so.preload", &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
+        let file = if search::prefixed(search::PRELOAD_FILE, &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
         let file = file.map_or(&[][..], |(f, fd)| {
             let _ = crate::ffi_sys::niji_sys_close(fd);
             f
@@ -431,8 +434,11 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
             crate::arch::enter(sp, prog.entry, fini)
         }
         let ehdr = bias.wrapping_add(usize::try_from(img.header).unwrap_or(0));
-        if crate::bootstrap::relocate_self(prog.phdr, prog.phnum, ehdr).is_err() {
-            refuse(b"ld.so: cannot relocate the program (only RELATIVE relocations in this build)\n");
+        // Its dynamic array as run-time addresses once relocated (DL-DYNAMIC-RELOC), as `link`
+        // does for a program with objects.
+        match crate::bootstrap::relocate_self(prog.phdr, prog.phnum, ehdr) {
+            Ok(r) if crate::bootstrap::publish_dynamic(&r).is_ok() => {}
+            _ => refuse(b"ld.so: cannot relocate the program (only RELATIVE relocations in this build)\n"),
         }
     }
     let page = usize::try_from(page).unwrap_or(usize::MAX);
@@ -646,15 +652,19 @@ fn fill_static(tp: usize, dtv_at: usize, zero: bool) -> Option<()> {
 /// offset]`, the IDs following [`THREAD_MODS`]'s, and the generation they make. Handed to the C
 /// library's thread walk as [`tls_visit`]'s context.
 pub(super) struct NewTls {
-    pub(super) mods: [[u64; 5]; dlopen::NEW_MAX],
-    pub(super) len: usize,
+    /// One entry per module, any number (DL-DLOPEN-NEW-OBJECTS).
+    mods: Table<[u64; 5], INLINE>,
     generation: u64,
     /// The modules are unloaded ([`release_tls`], DL-17), not added.
     release: bool,
 }
 
 impl NewTls {
-    pub(super) const NONE: NewTls = NewTls { mods: [[0; 5]; dlopen::NEW_MAX], len: 0, generation: 0, release: false };
+    /// No modules (nothing written, nothing mapped).
+    #[inline(always)]
+    pub(super) fn none() -> NewTls {
+        NewTls { mods: Table::new([0; 5]), generation: 0, release: false }
+    }
 }
 
 /// The static surplus `[lo, hi)` below every thread pointer and the thread pointer's alignment
@@ -721,7 +731,7 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
     // SAFETY: [`publish_tls`] passes the address of a live `NewTls` on its stack and the walk calls
     // back before `publish_tls` returns.
     let Some(new) = (unsafe { core::ptr::with_exposed_provenance::<NewTls>(ctx).as_ref() }) else { return 0 };
-    let mods = new.mods.get(..new.len).unwrap_or(&[]);
+    let mods: &[[u64; 5]] = &new.mods;
     if tp == 0 {
         // Entry `id - 1` holds module `id` (DL-17: a released ID's entry is all zero until reused).
         let mut n = THREAD_MODS_LEN.load(Relaxed);
@@ -995,7 +1005,10 @@ fn span_slots(bytes: &'static mut [u8], n: usize, name: &[u8]) -> &'static mut [
 /// header table and `PT_DYNAMIC` copied into one anonymous mapping, each `PT_LOAD` whose bytes cannot
 /// change during loading sliced in place, and each that can change and holds a table copied into a
 /// second one, all before the first relocation store. The span list lives in the first mapping, after
-/// the table. Returns the table and the spans; each mapping made is stored in `maps`.
+/// the table. Returns the table and the spans; each mapping made is stored in `maps`. `published`:
+/// the object's dynamic array may already hold run-time addresses (DL-DYNAMIC-RELOC: `ld.so`'s own
+/// from its start, every start-time object's once `link` ended); the copies are turned back into
+/// link-time values, so the reader sees what the file holds.
 // The span index stays below `spans.len()` (checked before each store).
 #[allow(clippy::indexing_slicing)]
 fn image_view(
@@ -1003,6 +1016,7 @@ fn image_view(
     bias: usize,
     name: &[u8],
     maps: &mut [(usize, usize)],
+    published: bool,
 ) -> (&'static [u8], &'static [niji_ld::elf::Span<'static>]) {
     use niji_ld::elf::{pt, Elf, Span, SpanKind, PHDR_SIZE};
     let bad = |what: &[u8]| -> ! { fail_with(&[name, what], program::FAILURE) };
@@ -1032,6 +1046,12 @@ fn image_view(
     maps[0] = (at, whole);
     let (at, buf) = scratch(dlen, name);
     read_image(run_at(dynph.vaddr), buf);
+    // A published array (DL-DYNAMIC-RELOC) back to link-time values: the reader's one view.
+    let unpublish = published && probe.published_dynamic().is_some();
+    let link_time = u64::try_from(bias).unwrap_or(0).wrapping_neg();
+    if unpublish {
+        niji_ld::elf::shift_address_entries(buf, link_time);
+    }
     maps[1] = (at, dlen);
     let dynamic: &'static [u8] = buf;
     // Pass 2: the PT_LOADs that change and hold a table, copied into one mapping.
@@ -1052,6 +1072,11 @@ fn image_view(
             let bytes: &'static [u8] = if kind == SpanKind::Copy {
                 let (now, rest) = core::mem::take(&mut copies).split_at_mut(len);
                 read_image(run_at(p.vaddr), now);
+                // The array's bytes in a whole-segment copy (searched before PT_DYNAMIC's own) too.
+                let inner = dynph.vaddr.checked_sub(p.vaddr).and_then(|o| usize::try_from(o).ok());
+                if let Some(d) = inner.and_then(|o| now.get_mut(o..o.saturating_add(dlen))).filter(|_| unpublish) {
+                    niji_ld::elf::shift_address_entries(d, link_time);
+                }
                 copies = rest;
                 now
             } else {
@@ -1092,7 +1117,7 @@ fn own_object(name: &'static [u8], maps: &mut [(usize, usize)]) -> niji_ld::relo
     read_image(base, &mut header);
     let Some((phoff, phnum)) = boot::own_headers(&header) else { fail_with(&[name, b": malformed program headers\n"], program::FAILURE) };
     let me = start::Program { phdr: base.wrapping_add(usize::try_from(phoff).unwrap_or(usize::MAX)), phnum, entry: 0 };
-    let (head, view) = image_view(&me, base, name, maps);
+    let (head, view) = image_view(&me, base, name, maps, true);
     let elf = niji_ld::elf::Elf::from_image::<Native>(head, view).unwrap_or_else(|_| fail_with(&[name, b": malformed program headers\n"], program::FAILURE));
     let dynm = elf.dynamic().ok().flatten().unwrap_or_else(|| fail_with(&[name, b": no valid dynamic section\n"], program::FAILURE));
     niji_ld::reloc::Obj { elf, dynm, bias: u64::try_from(base).unwrap_or(0), name, tls: None }
@@ -1123,7 +1148,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     // The scratch mappings of the two image views: the program's, then the interpreter's own.
     let mut views = [(0usize, 0usize); 6];
     let (prog_views, own_views) = views.split_at_mut(3);
-    let (head, view) = image_view(prog, bias, name, prog_views);
+    let (head, view) = image_view(prog, bias, name, prog_views, false);
     // The program's own file is not known (no file is read): (dev, ino) that no file has.
     let mut ids: Table<FileId, INLINE> = Table::new((u64::MAX, u64::MAX));
     // Each object's run-time program header table (address, count), for `dlopen` (DL-16a).
@@ -1381,6 +1406,11 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             reloc::RelocError::Undefined(sym) => fail_with(&[name, b": ", f.error.message(), sym, b"\n"], program::FAILURE),
             e => fail_with(&[name, b": ", e.message()], program::FAILURE),
         }
+    }
+    // Each dynamic array's address entries as run-time addresses, before any user code (DL-DYNAMIC-RELOC);
+    // the interpreter published its own at its start.
+    for (_, o) in objs.iter().enumerate().filter(|&(k, _)| Some(k) != interp) {
+        reloc::publish_dynamic(o, &mut ProcImage);
     }
     if let Err(i) = reloc::protect_relro(objs, &mut ProcImage, page) {
         fail_with(&[objs.get(i).map_or(&b"?"[..], |o| o.name), b": cannot protect the RELRO segment\n"], program::FAILURE);
@@ -1862,7 +1892,7 @@ fn open_whole(path: &[u8]) -> Option<(&'static [u8], i64)> {
 /// rule 5; an inconsistent file is unmapped). One reader for program start, `--list` and `dlopen`.
 fn read_cache() -> Option<(&'static [u8], Cache<'static>)> {
     let mut path = PathBuf::default();
-    let (f, fd) = if search::prefixed(b"etc/ld.so.cache", &mut path) { path.c_str().and_then(open_whole) } else { None }?;
+    let (f, fd) = if search::prefixed(search::CACHE_FILE, &mut path) { path.c_str().and_then(open_whole) } else { None }?;
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let parsed = Cache::parse(f);
     if parsed.is_none() {
