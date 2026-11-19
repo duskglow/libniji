@@ -3,6 +3,11 @@
 //! shows it (visibility.tsv), ignoring the configurations that do not decide it.
 use super::*;
 
+/// Names whose visibility follows the compiler's language version, which the feature levels do not model: the
+/// condition over the compiler's own language macros (`max_align_t` is the compiler's from C11 and C++11 on).
+/// The generated configurations' probe (P2) is the check of each.
+const LANGUAGE_MODE: &[(&str, &str)] = &[("max_align_t", "(defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L) || (defined __cplusplus && __cplusplus >= 201103L)")];
+
 /// The level columns of `headers/levels.tsv`, their C names in `features.h` and the thresholds the
 /// condition search may test (an empty list: a 0/1 flag).
 pub(crate) const LEVEL_COLS: &[(&str, &str, &[i64])] = &[
@@ -183,10 +188,13 @@ impl Gen<'_> {
         let fortify = self.fortify_mask();
         match condition(&self.t.lv, target, care).or_else(|| condition(&self.t.lv, target & !fortify, care & !fortify)) {
             Some(c) => c,
-            None => {
-                self.errors.push(format!("{}: {name}: no condition over the levels selects {configs}", self.header));
-                "0".into()
-            }
+            None => match LANGUAGE_MODE.iter().find(|(n, _)| *n == name) {
+                Some((_, c)) => (*c).to_string(),
+                None => {
+                    self.errors.push(format!("{}: {name}: no condition over the levels selects {configs}", self.header));
+                    "0".into()
+                }
+            },
         }
     }
 
