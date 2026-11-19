@@ -302,7 +302,19 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// nodes, warm-up + 5 runs, every run identical): release 86; fast at most 89 (the plants' baseline; ungrouped
 /// it reads 90). The bound is the highest level of the two host classes per profile, no margin (D-X.103's rule
 /// for these counts; as for TRUE_BOUND). No spec clause (layout of the products).
-const DYN_TRUE_BOUND: [u64; 2] = [89, 86];
+/// LAYOUT-DYN-PHASE (D-X.133): the count no longer moves with the size of libc.so.6 or ld.so (the loader maps
+/// the last page of a segment without zero fill from the file; libc's start-up read-only group is anchored and
+/// holds the build tag; ld.so's read-only data starts at its text's 64 KiB phase). Skylake-SP host, next
+/// 36df714e7 plus this change, each library padded by k = 0..16 pages of cold text, every run identical: fast
+/// 80, release 76 at every k (before: 85..87 and 83..85 by k). Merged with next fb63eeec8 (same host and
+/// method, k = 0, 8, 16): fast 81, release 76 at every k; the +1 is one more ld.so text window, the traced
+/// start-up group (`ldso-text.list`) grown past its second 64 KiB window by next's loader code.
+/// LAYOUT-DYN-PHASE-4, merged with next 05636bf0b (DL-23-2's vDSO header page, ruling #6756: one more fault per
+/// dynamic start without a vDSO call), Zen 1 host (same method, k = 0, 8, 16, both libraries padded, every run
+/// identical): fast 82, release 77 at every k, the Skylake-SP level above plus that page. The bound is the
+/// higher of the two host classes per profile, no margin; the Skylake-SP host was not re-measured with
+/// DL-23-2 (expected 82 / 77; the train's gate runs there).
+const DYN_TRUE_BOUND: [u64; 2] = [82, 77];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.

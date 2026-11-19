@@ -95,8 +95,11 @@ pub struct Segment {
     pub offset: u64,
     /// Bytes from `start` that come from the file (0 when the segment has no file bytes).
     pub file_len: u64,
-    /// End of the file bytes (`p_vaddr + p_filesz`); from here to `zero_end` is zero.
+    /// End of the file bytes (`p_vaddr + p_filesz`); from here to `mem_end` is zero.
     pub file_end: u64,
+    /// End of the segment's bytes (`p_vaddr + p_memsz`, not rounded). Past it, in the page holding it,
+    /// nothing is defined (gABI): with no zero fill (`mem_end == file_end`) that page stays the file's.
+    pub mem_end: u64,
     /// End of the whole segment, rounded up to the page.
     pub zero_end: u64,
     /// `PROT_*` bits, exactly as `p_flags` asks.
@@ -215,7 +218,8 @@ pub fn segment(ph: &ProgramHeader, page: u64) -> Result<Segment, MapError> {
     let start = page_down(ph.vaddr, page);
     let lead = ph.vaddr.wrapping_sub(start);
     let file_end = ph.vaddr.checked_add(ph.filesz).ok_or(MapError::BadSegments)?;
-    let end = ph.vaddr.checked_add(ph.memsz).and_then(|e| page_up(e, page)).ok_or(MapError::BadSegments)?;
+    let mem_end = ph.vaddr.checked_add(ph.memsz).ok_or(MapError::BadSegments)?;
+    let end = page_up(mem_end, page).ok_or(MapError::BadSegments)?;
     let file_len = if ph.filesz == 0 { 0 } else { lead.checked_add(ph.filesz).ok_or(MapError::BadSegments)? };
     let mut prot = 0;
     for (f, p) in [(PF_R, PROT_READ), (PF_W, PROT_WRITE), (PF_X, PROT_EXEC)] {
@@ -223,7 +227,7 @@ pub fn segment(ph: &ProgramHeader, page: u64) -> Result<Segment, MapError> {
             prot |= p;
         }
     }
-    Ok(Segment { start, offset: ph.offset & !mask, file_len, file_end, zero_end: end, prot })
+    Ok(Segment { start, offset: ph.offset & !mask, file_len, file_end, mem_end, zero_end: end, prot })
 }
 
 /// The plan for the object in `elf` (the whole file), with pages of `page` bytes (a power of two;
@@ -365,7 +369,11 @@ fn map_segment<M: Mapper>(m: &mut M, file: &[u8], s: &Segment, bias: u64, page: 
     let sys = |()| MapError::System;
     let file_end = at(s.file_end);
     let tail_page = page_down(file_end, page);
-    let partial = s.file_len != 0 && tail_page != file_end && s.zero_end > s.file_end;
+    // LAYOUT-DYN-PHASE (D-X.133): partial only with real zero fill (`p_memsz > p_filesz`). A segment
+    // whose file bytes end inside a page but that has no `.bss` (every read-only segment of a linked
+    // library) maps that page from the file like the others: no copy read through the caller's view of
+    // the file (a page fault there whose 64 KiB window moved with the library's size) and no private page.
+    let partial = s.file_len != 0 && tail_page != file_end && s.mem_end > s.file_end;
     let mut anon_from = at(s.start);
     if s.file_len != 0 {
         let whole = page_up(s.file_len, page).ok_or(MapError::BadSegments)?;
