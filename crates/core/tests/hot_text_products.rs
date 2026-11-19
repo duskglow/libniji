@@ -325,7 +325,11 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// identical): fast 82, release 77 at every k, the Skylake-SP level above plus that page. The bound is the
 /// higher of the two host classes per profile, no margin; the Skylake-SP host was not re-measured with
 /// DL-23-2 (expected 82 / 77; the train's gate runs there).
-const DYN_TRUE_BOUND: [u64; 2] = [82, 77];
+/// DYN-START-PARITY-3, the two stories merged (next 65d9d2cfd plus DYN-START-PARITY's smaller start frame):
+/// fast 73, release 67, warm-up + 5 runs, every run identical, on the Skylake-SP and the Zen 1 host, each with
+/// /tmp on ext4 and on tmpfs (the gate wrapper's): on the merged head the file system no longer changes the
+/// count (the cause was not isolated). Tightened to that level.
+const DYN_TRUE_BOUND: [u64; 2] = [73, 67];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.
