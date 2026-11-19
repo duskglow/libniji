@@ -124,14 +124,19 @@ pub(super) fn start(map: usize, ldbase: usize, dt_debug: usize) {
     change(State::Add);
 }
 
-/// The start-time list is complete and relocated (after RELRO, before any constructor): keep the
-/// program's copy when it can be written for the process's lifetime (`relro`: the program's RELRO
-/// range, `[lo, hi)`), bring it up to date, and call `r_brk` with `RT_CONSISTENT`.
-pub(super) fn consistent(relro: (usize, usize)) {
+/// After relocation and RELRO, while the program's headers are still readable: keep the program's
+/// copy when it can be written for the process's lifetime (`relro` gives the program's RELRO range,
+/// `[lo, hi)`; asked only when there is a copy) and bring it up to date.
+pub(super) fn keep_copy(relro: impl FnOnce() -> (usize, usize)) {
     let at = COPY.load(Relaxed);
     if at != 0 {
-        check_copy(at, relro);
+        check_copy(at, relro());
     }
+}
+
+/// The start-time list is complete and relocated (before any constructor): call `r_brk` with
+/// `RT_CONSISTENT`.
+pub(super) fn consistent() {
     change(State::Consistent);
 }
 

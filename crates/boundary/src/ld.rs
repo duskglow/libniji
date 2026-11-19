@@ -1420,6 +1420,10 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     if let Err(i) = reloc::protect_relro(objs, &mut ProcImage, page) {
         fail_with(&[objs.get(i).map_or(&b"?"[..], |o| o.name), b": cannot protect the RELRO segment\n"], program::FAILURE);
     }
+    // The program's headers are read here, before their views are unmapped below.
+    debug::keep_copy(|| {
+        reloc::relro_range(&objs[0], page).map_or((0, 0), |(at, len)| (usize::try_from(at).unwrap_or(0), usize::try_from(at.saturating_add(len)).unwrap_or(usize::MAX)))
+    });
     // The images are copied after relocation: a `.tdata` word may hold a relocated address.
     let mut biases: Table<u64, INLINE> = Table::new(0);
     let mut hooks: Table<init::Hooks, INLINE> = Table::new(init::Hooks::default());
@@ -1463,8 +1467,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     START_INTERP.store(interp.unwrap_or(usize::MAX), Relaxed);
     START_PAGE.store(page, Relaxed);
     START_N.store(n, Release);
-    let relro = reloc::relro_range(&objs[0], page).map_or((0, 0), |(at, len)| (usize::try_from(at).unwrap_or(0), usize::try_from(at.saturating_add(len)).unwrap_or(usize::MAX)));
-    debug::consistent(relro);
+    debug::consistent();
     run_init(&hooks[..n], &edges[..ne], sp, early.map(|f| f.early_init), rseq_size)
 }
 
