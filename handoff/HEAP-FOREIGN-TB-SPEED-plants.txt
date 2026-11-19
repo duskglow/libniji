@@ -1,0 +1,8 @@
+# HEAP-FOREIGN-TB-SPEED plants: a foreign thread's heap cache word, found in the registry by thread pointer alone
+# (thread::foreign_heap_cache_slot). This test process is started by another C library, so its blocks are foreign.
+# The TID test back on the cache word's path (a gettid per heap operation): strict seccomp mode kills the child.
+tid-test-restored | crates/boundary/src/thread.rs | lit:    let s = shadow_entry(tb::tp())?; ==>     let _ = foreign_words(); let s = shadow_entry(tb::tp())?; | cargo test -p niji-boundary --test heap_foreign_nosys | msg:Signaled\(9\)|foreign_thread_warm_malloc_free_make_no_system_call.*FAILED
+# The own test inverted: a foreign thread would take 0x90 of the other library's block as its cache word.
+own-test-inverted | crates/boundary/src/thread.rs | lit:Some(if s.own.load(Acquire) { ==> Some(if !s.own.load(Acquire) { | cargo test -p niji-boundary --test tb_foreign_low_words | msg:read the cache word at 0x90 of the other library's block|was written|SIGSEGV: invalid memory reference|foreign_block_low_words.*FAILED
+# No registry room: the thread must get no cache (never the shared spare words' cache word).
+no-room-spare-cache | crates/boundary/src/thread.rs | lit:    let s = shadow_entry(tb::tp())?; ==>     let Some(s) = shadow_entry(tb::tp()) else { return Some(&tb::spare_at(addr_of(&SPARE)).heap_cache) }; | cargo test -p niji-boundary --test tb_foreign_low_words spare_words_hold_no_heap_cache | msg:spare words: 1 = a heap cache slot
