@@ -28,7 +28,8 @@
   {"kind": "correctness", "what": "libc-include: const pointees (argp.h, getopt.h, tm_zone), printf_va_arg_function va_list *, struct __exit_status a nested class in C++, opaque stand-ins replaced by table layouts (mbstate, Elf*_Dyn, auxv, pthread unions)", "before": null, "after": 10, "unit": "headers", "measured": true},
   {"kind": "unblock", "what": "held header slices (S07-5, S08-5, S10-4, S11-6, S17-3, S12-4, S19-3) add data only; precheck slice-contract names a slice change to the shared generator", "before": null, "after": null, "unit": null, "measured": false}
  ],
- "improvement": "Prior-art diffs of seven slice branches were re-derived by hand; a generator story should start from a per-construct inventory the tool prints (headers-gen --rows lists rows per table) rather than branch diffs",
+ "improvement": "precheck's jobs check reads every job of kind gate as an affected run, while the FULL-escalation rule (run the changed crates' tests instead) names no kind: name the kind (test) in developer-flow step 4, or let precheck accept a FULL-escalated story's crate tests",
  "next_step": "Land on the train (FULL gate); then turn each RULING NEEDED exception group into a table story",
  "report_file": "handoff/HEADERS-GEN-COMPLETE.md",
- "jobs": ["mei:headers-gen-complete-gate", "mei:headers-gen-complete-plants", "mei:headers-gen-complete-lint", "mei:headers-gen-complete-precheck"]}
+ "superseded": ["mei:headers-gen-complete-gate (the same cargo test -p xtask, 509 passed, started with kind gate: precheck reads a gate job as an affected run; rerun as kind test)", "mei:headers-gen-complete-precheck (red only for that kind)", "mei:headers-gen-complete-rows5..rows12 (development runs of the rows test)"],
+ "jobs": ["mei:headers-gen-complete-tests", "mei:headers-gen-complete-plants", "mei:headers-gen-complete-lint", "mei:headers-gen-complete-precheck2"]}
