@@ -1,63 +1,58 @@
 # LAYOUT-DYN-PHASE: the dynamic start-up fault count must not depend on unrelated image sizes
 
-State: branch `task/layout-dyn-phase` (cut from origin/next 36df714e7, no code commits yet), role mei:~/w/s1
-(Skylake-SP, Linux 6.8). Brief: ~/state/briefs/LAYOUT-DYN-PHASE.md. Records to read: D-X.123, D-X.125
-(`records/decisions/D-X/`). Leg 1 (this note) measured and found the causes; leg 2 implements.
+State: branch `task/layout-dyn-phase` (cut from origin/next 36df714e7), HEAD c43644b03 (code 6034b2ea9 + bound,
+record, plants), pushed. Role mei:~/w/s1 (Skylake-SP, Linux 6.8). Record: **D-X.133** (reserved, written:
+`records/decisions/D-X/D-X.133.toml`). Read also D-X.123, D-X.125. Leg 1 measured/found causes, leg 2 implemented
+and measured flat; leg 3 = finish (verify jobs, lint, precheck, report, hand back).
 
-## Method (cheap, validated)
-`cargo xtask so` run once per profile with `CC=~/work/LAYOUT-DYN-PHASE/cc-log.sh` (logs every `-shared` link);
-`padprobe.py relink` reruns the last libc.so.6 / ld.so link with a retained `.text.niji_zz_pad` section of k pages
-(int3, after every input, so after the hot group) and `padprobe.py probe` reproduces hot_text_products' dynamic
-probe (same staging lengths, argv[0], env, cwd, ADDR_NO_RANDOMIZE, warm-up + 5, min). A relink with k = 0 gives
-byte-identical libc.so.6 and ld.so (checked with cmp). `attr.py` splits one run's faults by mapping with
-`perf record -e page-faults -d` (perf totals run ~6 over minflt, the deltas are what matter). Scripts: mei
-~/work/LAYOUT-DYN-PHASE/{cc-log.sh,padprobe.py,series.sh,attr.py,attr-series.sh}; saved products and padded
-libraries in prod-<profile>/, splits in attr-<profile>/ (`<lib>-<k>.faults`, `.maps`).
+## What changed (leg 2)
+1. `crates/ld/src/map.rs`: `Segment.mem_end` (exact p_vaddr + p_memsz); `partial` only when mem_end > file_end. A
+   segment without zero fill maps its last page from the file (no view read, no anonymous copy, no store).
+   `crates/ld/tests/map.rs` `check_model`: such a segment's pages are all `Backing::File` with nothing stored.
+2. libc.so.6: `csys/src/machine/entry.S` `-DNIJI_LIBC_SO` branch = only `.rodata1` "aR" (SHF_GNU_RETAIN: without
+   it `--gc-sections` dropped the empty anchor; my check caught that on the first build) `.balign NIJI_RODATA1_ALIGN`;
+   `xtask/src/so.rs` assembles it (`target/product/libc-so-anchor.o`) and passes it first in `link_libc`;
+   `check_rodata1_anchor` / `rodata1_anchor_errors` (+ unit test `libc_so_rodata1_group_is_anchored_and_holds_the_build_tag`).
+   `xtask/src/startup_ro.rs` `LOADER_READ = ["__niji_build_tag"]` joins `ro_keys`.
+3. ld.so: `ld-phase.ld` INSERT BEFORE .rodata (`ldso_phase_script`, `LDSO_RO_PHASE` 0x10000): `.rodata` starts at
+   ADDR(.text)'s 64 KiB phase; `check_interp_ro_phase` / `interp_ro_phase_errors` after the span check.
+4. `crates/core/tests/hot_text_products.rs` DYN_TRUE_BOUND [89, 86] -> [80, 76].
 
-## Sensitivity on origin/next 36df714e7 (fast, Skylake-SP; job layout-dyn-phase-sens-fast3, every run equal)
-| k (pages of cold text) | 0 | 1-5 | 6-9 | 10 | 11-16 |
-|---|---|---|---|---|---|
-| libc.so.6 padded | 86 | 87 | 86 | 85 | 86 |
+## Sensitivity tables (Skylake-SP; method in D-X.133; leg-1 scripts mei ~/work/LAYOUT-DYN-PHASE/)
+| | k = 0..16 libc padded | ld.so padded |
+|---|---|---|
+| fast, next 36df714e7 | 86, 87 (1-5), 86 (6-9), 85 (10), 86 (11-16) | 86, 87 at k = 6, 7 |
+| release, next | 85, 84 (1-7), 83 (8-10), 84 (11), 85 (12-16) | 85 all |
+| fast, this branch (job layout-dyn-phase-l2b) | 80 all | 80 all |
+| release, this branch (l2b) | 76 all | 76 all |
+Every run identical (warm-up + 5). l2b also: clippy ok (on 6034b2ea9), xtask unit test ok, `niji-ld --test map` ok
+both profiles, hot_text_products both profiles: only the dynamic test failed, on the slack (80 < 89-4, 76 < 86-4),
+which the new bound fixes. Zen 1 host class NOT measured (no role there): RULING NEEDED / coordinator to run
+hot_text_products on a Zen 1 role before landing (bound = Skylake-SP level, no margin).
+SUPERSEDED: layout-dyn-phase-l2 (build refused by the new anchor check: gc dropped the anchor; fixed with "aR").
 
-ld.so padded: 86 for every k except 87 at k = 6, 7. (DYN_TRUE_BOUND fast is 89; CI saw 91 on other bases.)
-Release: job layout-dyn-phase-sens-rel (started at the end of leg 1: release build + same series + splits; read
-`grep -E "^release" ~/logs/layout-dyn-phase-sens-rel.log`). Zen 1 host class: not measured yet.
+## Running (started at the end of leg 2 on c43644b03)
+* `layout-dyn-phase-gate` (mei; `~/work/LAYOUT-DYN-PHASE/l2gate.sh` under `~/bin/gate 16G`): records check,
+  `cargo test -p niji-ld`, `-p xtask`, fast `cargo xtask so` + hot_text_products, `cargo xtask test`, release so +
+  hot_text_products; prints `== step` / `FAILED: step` / `gate rc=N`. (`cargo xtask affected` would escalate to
+  FULL: xtask/ and csys/ changed, so no affected run; hand-back says `FULL: the train's (affected escalated: xtask/,
+  csys/)`.)
+* `layout-dyn-phase-plants` (mei, `cargo xtask plants handoff/LAYOUT-DYN-PHASE-plants.txt --dir
+  /mnt/zram/claude/LAYOUT-DYN-PHASE/plants-1`): 4 plants (tail page, anchor, tag, ld phase). List any WARN lines.
 
-## Where the moving faults are (attr-fast, per-mapping split)
-Only `libc.so.6 r--p` moves (9 / 8 / 7 / 8 / 9 over k); libc text 7, libc rw 19, anon 23, stack 18, ld.so 2+3+4 flat.
-1. **The loader's whole-file view of libc** (ld maps the whole file read-only to parse it; 2 MiB aligned, so its
-   window phase follows file offsets): reads at offset 0 (Elf::parse), 0x1d000 and 0x20000 (versions), `.dynamic`
-   (Elf::dynamic, 0x435000 + k) and **the last page of each read-only PT_LOAD** (niji_machine_move_sse2: 0x30000,
-   0x343000 + k, 0x42a000 + k). Cause of the last three: `crates/ld/src/map.rs` `map_segment` treats a segment as
-   `partial` whenever its file end is not page-aligned (`zero_end` is page-rounded), even with p_memsz == p_filesz,
-   and for a read-only segment replaces the last page by an anonymous copy (read from the view). Whether the
-   `.dynamic` read and the RO-end read share a 64 KiB window depends on k.
-2. **libc's start-up read-only data**: ld (`niji_boundary::ld::link`) reads `__niji_build_tag` (`.rodata`
-   0x3d60b8, outside the start-up cluster) and libc's start-up code reads `.rodata1` (0x3d7c00-0x3e1120, 37 KiB,
-   NOT aligned in libc.so.6: the cluster anchors are only in crt1 / entry.S, which the shared link does not have).
-   Both move with text growth; they take 1 or 2 windows by phase.
-3. **ld.so pad k = 6, 7**: ld.so's read-only segment (0x49000.., 30 KiB) crosses one more window (ld.so's base
-   is fixed by D-X.125's 512 KiB span, its RO segment moves with its text). Base phase with ASLR off is 0xf000.
-libc's text is flat: its text segment is 64 KiB aligned (p_align 0x10000) and the loader honours p_align, so
-libc's base is 64 KiB aligned. The hole above libc (reservation trimmed) moves with span but no class moved.
-
-## Decisions in force / plan (leg 2)
-* (C) loader: a segment is partial only when p_memsz > p_filesz (real zero fill); a read-only segment without
-  zero fill maps its last page from the file (no view read, no anonymous copy: saves up to 3 faults and 3 pages
-  per library). Writable segments: no zeroing store without zero fill. Needs Segment to carry the exact memsz end
-  (check `grep -rn "Segment {" crates/`); gABI: only bytes past p_filesz up to p_memsz are defined zero.
-* (A) libc.so.6: an anchor object first in the shared link (entry.S variant or a small .S) aligning `.rodata1` to
-  NIJI_RODATA1_ALIGN (pow2 >= cluster, <= 64 KiB, from startup_ro::cluster_aligns_of), and `__niji_build_tag`
-  placed in the cluster (startup_ro::place or the tag's section name; avoid `#[link_section]` in Rust).
-* (B) ld.so: its read-only data segment starts 64 KiB aligned relative to its base (entry.S under NIJI_LD is
-  first in the ld.so link, or an INSERT fragment beside ld-span.ld); check what ld.so's start-up reads there.
-* Then: series flat for k = 0..16 both libraries, both profiles; Zen 1 host class (find a way: ops / coordinator);
-  new DYN_TRUE_BOUND at the measured level (lower ok; higher = RULING NEEDED); decision record via
-  `python3 ~/src/liella-ops/bin/ops reserve --story LAYOUT-DYN-PHASE D-X`; plant(s) in docs/plants.md
-  (drop the alignment / restore the old `partial` test) caught by a k-pad product test if cheap.
+## Exact next steps (leg 3)
+1. On mei: `~/bin/jobwait layout-dyn-phase-gate layout-dyn-phase-plants` (grep `FAILED|gate rc` and the plants
+   summary/verdicts, not the whole log). Fix anything red, rerun only that.
+2. After the gate (same role, no build beside it): foreground `cargo clippy --workspace --all-targets
+   --all-features -- -D warnings` and `cargo xtask static` on ~/w/s1 (static has NOT been run yet).
+3. `cargo xtask precheck --jobs layout-dyn-phase-gate,layout-dyn-phase-plants --head <sha>` on the synced head.
+4. Report: handoff/reports/LAYOUT-DYN-PHASE.json (impact: faults fast 86->80 / release 85->76 at k=0, flat over
+   k, measured; cost: <= 60 KiB zero file bytes + address space per library); rewrite this note as the report;
+   `ops handback-check LAYOUT-DYN-PHASE --head <sha> --jobs "<JOBS>"`; hand back (JOBS: gate, plants; l2b as
+   evidence of the series).
 
 ## Do not redo
-Fast sensitivity series and its splits (above). k = 0 relink identity. The release job if it finished green.
-
-## Exact next step
-`~/bin/jobwait layout-dyn-phase-sens-rel` on mei, read the release table, then implement (C), (A), (B).
+Both series (before/after), the record, the bound, the plants file. Not chosen (in D-X.133): a k-pad gate test
+(34 relinks + probes per profile) — the three `cargo xtask so` checks catch each lever's removal at no test time.
+IMPROVEMENT (for the report): the loader reads each library's headers through a whole-file view and again through
+the mapped image (about 4 faults per library that could be shared): a follow-up story.
