@@ -305,7 +305,15 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// DYN-START-PARITY (the start's tables hold 16 entries inline, not 64: a smaller stack frame), Skylake-SP
 /// host, in this test: fast 77, release 73 (before: 89 / 86 on that host); with DL-23-2's vDSO header page
 /// (+1 for a start that makes no vDSO call, as this program): fast 78, release 74. Tightened to those levels.
-const DYN_TRUE_BOUND: [u64; 2] = [78, 74];
+/// DYN-START-PARITY-2: the count depends on the file system under /tmp, where the objects are staged. The
+/// interpreter's first whole-file mapping of libc.so.6 is placed by the kernel, which aligns it to 2 MiB on a
+/// file system with large folios (ext4) and not on tmpfs. The object's segments follow it, so their virtual
+/// placement, and with it the fault-around windows, differs. One A/B on the Skylake-SP host (same products, same
+/// head, only /tmp's file system changed, warm-up + 5 runs, every run identical): fast 79 on ext4 / 78 on tmpfs,
+/// release 74 on ext4 / 76 on tmpfs. `cargo xtask test` run outside the gate wrapper sees the host's /tmp (ext4).
+/// The gate wrapper gives a private tmpfs /tmp. The test-process environment (NIJI_TEST_MALLOC_PERTURB) changes
+/// nothing: the program runs with a cleared environment. The bound is the higher level of the two file systems.
+const DYN_TRUE_BOUND: [u64; 2] = [79, 76];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.
