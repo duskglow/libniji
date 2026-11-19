@@ -27,6 +27,12 @@ struct sockaddr_in {
   unsigned char sin_zero[8];
 };
 # endif
+# ifndef __NIJI_D_struct_in_addr
+#  define __NIJI_D_struct_in_addr 1
+struct in_addr {
+  unsigned int s_addr;
+};
+# endif
 # ifndef __NIJI_D_struct___res_state
 #  define __NIJI_D_struct___res_state 1
 struct __res_state {
@@ -43,24 +49,15 @@ struct __res_state {
   unsigned int nsort : 4;
   unsigned int ipv6_unavail : 1;
   unsigned int unused : 23;
-  struct {
-  } sort_list[10];
+  struct { struct in_addr addr; unsigned int mask; } sort_list[10];
   void * __glibc_unused_qhook;
   void * __glibc_unused_rhook;
   int res_h_errno;
   int _vcsock;
   unsigned int _flags;
   union {
-    char pad[52];
-    struct {
-      unsigned short nscount;
-      unsigned short nsmap[3];
-      int nssocks[3];
-      unsigned short nscount6;
-      unsigned short nsinit;
-      struct sockaddr_in6 * nsaddrs[3];
-      unsigned int __glibc_reserved[2];
-    } _ext;
+  char pad[52];
+  struct { unsigned short nscount; unsigned short nsmap[3]; int nssocks[3]; unsigned short nscount6; unsigned short nsinit; struct sockaddr_in6 * nsaddrs[3]; unsigned int __glibc_reserved[2]; } _ext;
   } _u;
 };
 # endif

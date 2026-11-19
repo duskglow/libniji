@@ -111,7 +111,17 @@ extern struct cmsghdr *__cmsg_nxthdr (struct msghdr *, struct cmsghdr *) __NIJI_
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __SOCKADDR_ARG;
+#  if __NIJI_GNU && __NIJI_CXX < 1
+typedef union __attribute__ ((__transparent_union__)) {
+  struct sockaddr * __tu_sockaddr;
+  struct sockaddr_in * __tu_sockaddr_in;
+  struct sockaddr_in6 * __tu_sockaddr_in6;
+  struct sockaddr_un * __tu_sockaddr_un;
+  struct sockaddr_x25 * __tu_sockaddr_x25;
+} __SOCKADDR_ARG;
+#  else
+#   define __SOCKADDR_ARG struct sockaddr *__restrict
+#  endif
 # endif
 # ifndef __NIJI_D_accept
 #  define __NIJI_D_accept 1
@@ -119,7 +129,17 @@ extern int accept (int, __SOCKADDR_ARG, unsigned int *);
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __CONST_SOCKADDR_ARG;
+#  if __NIJI_GNU && __NIJI_CXX < 1
+typedef union __attribute__ ((__transparent_union__)) {
+  const struct sockaddr * __tu_sockaddr;
+  const struct sockaddr_in * __tu_sockaddr_in;
+  const struct sockaddr_in6 * __tu_sockaddr_in6;
+  const struct sockaddr_un * __tu_sockaddr_un;
+  const struct sockaddr_x25 * __tu_sockaddr_x25;
+} __CONST_SOCKADDR_ARG;
+#  else
+#   define __CONST_SOCKADDR_ARG const struct sockaddr *
+#  endif
 # endif
 # ifndef __NIJI_D_bind
 #  define __NIJI_D_bind 1
@@ -127,7 +147,17 @@ extern int bind (int, __CONST_SOCKADDR_ARG, unsigned int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __CONST_SOCKADDR_ARG;
+#  if __NIJI_GNU && __NIJI_CXX < 1
+typedef union __attribute__ ((__transparent_union__)) {
+  const struct sockaddr * __tu_sockaddr;
+  const struct sockaddr_in * __tu_sockaddr_in;
+  const struct sockaddr_in6 * __tu_sockaddr_in6;
+  const struct sockaddr_un * __tu_sockaddr_un;
+  const struct sockaddr_x25 * __tu_sockaddr_x25;
+} __CONST_SOCKADDR_ARG;
+#  else
+#   define __CONST_SOCKADDR_ARG const struct sockaddr *
+#  endif
 # endif
 # ifndef __NIJI_D_connect
 #  define __NIJI_D_connect 1
@@ -135,7 +165,17 @@ extern int connect (int, __CONST_SOCKADDR_ARG, unsigned int);
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __SOCKADDR_ARG;
+#  if __NIJI_GNU && __NIJI_CXX < 1
+typedef union __attribute__ ((__transparent_union__)) {
+  struct sockaddr * __tu_sockaddr;
+  struct sockaddr_in * __tu_sockaddr_in;
+  struct sockaddr_in6 * __tu_sockaddr_in6;
+  struct sockaddr_un * __tu_sockaddr_un;
+  struct sockaddr_x25 * __tu_sockaddr_x25;
+} __SOCKADDR_ARG;
+#  else
+#   define __SOCKADDR_ARG struct sockaddr *__restrict
+#  endif
 # endif
 # ifndef __NIJI_D_getpeername
 #  define __NIJI_D_getpeername 1
@@ -143,7 +183,17 @@ extern int getpeername (int, __SOCKADDR_ARG, unsigned int *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __SOCKADDR_ARG;
+#  if __NIJI_GNU && __NIJI_CXX < 1
+typedef union __attribute__ ((__transparent_union__)) {
+  struct sockaddr * __tu_sockaddr;
+  struct sockaddr_in * __tu_sockaddr_in;
+  struct sockaddr_in6 * __tu_sockaddr_in6;
+  struct sockaddr_un * __tu_sockaddr_un;
+  struct sockaddr_x25 * __tu_sockaddr_x25;
+} __SOCKADDR_ARG;
+#  else
+#   define __SOCKADDR_ARG struct sockaddr *__restrict
+#  endif
 # endif
 # ifndef __NIJI_D_getsockname
 #  define __NIJI_D_getsockname 1
@@ -163,7 +213,17 @@ extern long recv (int, void *, unsigned long, int);
 # endif
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __SOCKADDR_ARG;
+#  if __NIJI_GNU && __NIJI_CXX < 1
+typedef union __attribute__ ((__transparent_union__)) {
+  struct sockaddr * __tu_sockaddr;
+  struct sockaddr_in * __tu_sockaddr_in;
+  struct sockaddr_in6 * __tu_sockaddr_in6;
+  struct sockaddr_un * __tu_sockaddr_un;
+  struct sockaddr_x25 * __tu_sockaddr_x25;
+} __SOCKADDR_ARG;
+#  else
+#   define __SOCKADDR_ARG struct sockaddr *__restrict
+#  endif
 # endif
 # ifndef __NIJI_D_recvfrom
 #  define __NIJI_D_recvfrom 1
@@ -185,7 +245,17 @@ extern long sendmsg (int, const struct msghdr *, int);
 # endif
 # ifndef __NIJI_D___CONST_SOCKADDR_ARG
 #  define __NIJI_D___CONST_SOCKADDR_ARG 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __CONST_SOCKADDR_ARG;
+#  if __NIJI_GNU && __NIJI_CXX < 1
+typedef union __attribute__ ((__transparent_union__)) {
+  const struct sockaddr * __tu_sockaddr;
+  const struct sockaddr_in * __tu_sockaddr_in;
+  const struct sockaddr_in6 * __tu_sockaddr_in6;
+  const struct sockaddr_un * __tu_sockaddr_un;
+  const struct sockaddr_x25 * __tu_sockaddr_x25;
+} __CONST_SOCKADDR_ARG;
+#  else
+#   define __CONST_SOCKADDR_ARG const struct sockaddr *
+#  endif
 # endif
 # ifndef __NIJI_D_sendto
 #  define __NIJI_D_sendto 1
@@ -211,7 +281,17 @@ extern int socketpair (int, int, int, int *) __NIJI_NOTHROW;
 #if __NIJI_GNU
 # ifndef __NIJI_D___SOCKADDR_ARG
 #  define __NIJI_D___SOCKADDR_ARG 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __SOCKADDR_ARG;
+#  if __NIJI_GNU && __NIJI_CXX < 1
+typedef union __attribute__ ((__transparent_union__)) {
+  struct sockaddr * __tu_sockaddr;
+  struct sockaddr_in * __tu_sockaddr_in;
+  struct sockaddr_in6 * __tu_sockaddr_in6;
+  struct sockaddr_un * __tu_sockaddr_un;
+  struct sockaddr_x25 * __tu_sockaddr_x25;
+} __SOCKADDR_ARG;
+#  else
+#   define __SOCKADDR_ARG struct sockaddr *__restrict
+#  endif
 # endif
 # ifndef __NIJI_D_accept4
 #  define __NIJI_D_accept4 1

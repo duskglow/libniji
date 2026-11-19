@@ -15,18 +15,18 @@ __NIJI_BEGIN_C
 #  define __NIJI_D_struct_udphdr 1
 struct udphdr {
   union {
-    struct {
-      unsigned short uh_sport;
-      unsigned short uh_dport;
-      unsigned short uh_ulen;
-      unsigned short uh_sum;
-    };
-    struct {
-      unsigned short source;
-      unsigned short dest;
-      unsigned short len;
-      unsigned short check;
-    };
+  struct {
+  unsigned short uh_sport;
+  unsigned short uh_dport;
+  unsigned short uh_ulen;
+  unsigned short uh_sum;
+  };
+  struct {
+  unsigned short source;
+  unsigned short dest;
+  unsigned short len;
+  unsigned short check;
+  };
   };
 };
 # endif

@@ -22,9 +22,27 @@ struct __ns_class { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); };
 #  define __NIJI_D_ns_class 1
 typedef struct __ns_class ns_class;
 # endif
+# ifndef __NIJI_D_struct___ns_sect
+#  define __NIJI_D_struct___ns_sect 1
+struct __ns_sect { char __niji_opaque[4] __attribute__ ((__aligned__ (4))); };
+# endif
+# ifndef __NIJI_D_ns_sect
+#  define __NIJI_D_ns_sect 1
+typedef struct __ns_sect ns_sect;
+# endif
 # ifndef __NIJI_D_struct___ns_msg
 #  define __NIJI_D_struct___ns_msg 1
-struct __ns_msg { char __niji_opaque[80] __attribute__ ((__aligned__ (8))); };
+struct __ns_msg {
+  const unsigned char * _msg;
+  const unsigned char * _eom;
+  unsigned short _id;
+  unsigned short _flags;
+  unsigned short _counts[4];
+  const unsigned char * _sections[4];
+  ns_sect _sect;
+  int _rrnum;
+  const unsigned char * _msg_ptr;
+};
 # endif
 # ifndef __NIJI_D_ns_msg
 #  define __NIJI_D_ns_msg 1
@@ -38,7 +56,7 @@ struct __ns_rr {
   unsigned short rr_class;
   unsigned int ttl;
   unsigned short rdlength;
-  unsigned char * rdata;
+  const unsigned char * rdata;
 };
 # endif
 # ifndef __NIJI_D_ns_rr

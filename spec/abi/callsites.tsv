@@ -2330,6 +2330,7 @@ bindtextdomain	libintl.h	addr	!time64only	bindtextdomain
 bindtextdomain	libintl.h	call	*	bindtextdomain
 brk	unistd.h	addr	gnu17,gnu2x,xopen500,xopenext,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23	brk
 brk	unistd.h	call	*	brk
+bsd_signal	signal.h	addr	xopen500,xopen600,xopenext	bsd_signal
 bsearch	stdlib.h	addr	!time64only	bsearch
 bsearch	stdlib.h	call	*	-
 btowc	wchar.h	addr	!time64only	btowc
@@ -4278,6 +4279,7 @@ getrpcent_r	rpc/netdb.h	addr	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64
 getrpcent_r	rpc/netdb.h	call	*	getrpcent_r
 getrusage	sys/resource.h	addr	!time64only	getrusage
 getrusage	sys/resource.h	call	*	getrusage
+gets	stdio.h	addr	c89,c99,isoc99,cxx98,cxx11	gets
 getservbyname	netdb.h	addr	!time64only	getservbyname
 getservbyname	netdb.h	call	*	getservbyname
 getservbyname_r	netdb.h	addr	gnu17,gnu2x,default,bsd,svid,gnu,lfs64,fob64,time64,dynstack,reentrant,cxx98,cxx11,cxx14,cxx17,cxx20,cxx23	getservbyname_r

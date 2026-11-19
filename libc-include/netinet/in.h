@@ -13,11 +13,7 @@ __NIJI_BEGIN_C
 # ifndef __NIJI_D_struct_in6_addr
 #  define __NIJI_D_struct_in6_addr 1
 struct in6_addr {
-  union {
-    unsigned char __u6_addr8[16];
-    unsigned short __u6_addr16[8];
-    unsigned int __u6_addr32[4];
-  } __in6_u;
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_in_addr
@@ -29,11 +25,7 @@ struct in_addr {
 # ifndef __NIJI_D_struct_in6_addr
 #  define __NIJI_D_struct_in6_addr 1
 struct in6_addr {
-  union {
-    unsigned char __u6_addr8[16];
-    unsigned short __u6_addr16[8];
-    unsigned int __u6_addr32[4];
-  } __in6_u;
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_ipv6_mreq
@@ -61,11 +53,7 @@ struct sockaddr_in {
 # ifndef __NIJI_D_struct_in6_addr
 #  define __NIJI_D_struct_in6_addr 1
 struct in6_addr {
-  union {
-    unsigned char __u6_addr8[16];
-    unsigned short __u6_addr16[8];
-    unsigned int __u6_addr32[4];
-  } __in6_u;
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_sockaddr_in6
@@ -83,11 +71,7 @@ struct sockaddr_in6 {
 # ifndef __NIJI_D_struct_in6_addr
 #  define __NIJI_D_struct_in6_addr 1
 struct in6_addr {
-  union {
-    unsigned char __u6_addr8[16];
-    unsigned short __u6_addr16[8];
-    unsigned int __u6_addr32[4];
-  } __in6_u;
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_in6_pktinfo
@@ -100,11 +84,7 @@ struct in6_pktinfo {
 # ifndef __NIJI_D_struct_in6_addr
 #  define __NIJI_D_struct_in6_addr 1
 struct in6_addr {
-  union {
-    unsigned char __u6_addr8[16];
-    unsigned short __u6_addr16[8];
-    unsigned int __u6_addr32[4];
-  } __in6_u;
+  union { unsigned char __u6_addr8[16]; unsigned short __u6_addr16[8]; unsigned int __u6_addr32[4]; } __in6_u;
 };
 # endif
 # ifndef __NIJI_D_struct_sockaddr_in6
@@ -235,10 +215,12 @@ typedef unsigned long uint64_t;
 #  define __NIJI_D_uint8_t 1
 typedef unsigned char uint8_t;
 # endif
+struct in6_addr;
 # ifndef __NIJI_D_in6addr_any
 #  define __NIJI_D_in6addr_any 1
 extern struct in6_addr const in6addr_any;
 # endif
+struct in6_addr;
 # ifndef __NIJI_D_in6addr_loopback
 #  define __NIJI_D_in6addr_loopback 1
 extern struct in6_addr const in6addr_loopback;
@@ -842,7 +824,7 @@ enum { IPPROTO_UDPLITE = 136 };
 #  define IPV6_RECVHOPOPTS 53
 # endif
 # ifndef IPV6_RECVORIGDSTADDR
-#  define IPV6_RECVORIGDSTADDR IPV6_ORIGDSTADDR
+#  define IPV6_RECVORIGDSTADDR 74
 # endif
 # ifndef IPV6_RECVPATHMTU
 #  define IPV6_RECVPATHMTU 60
@@ -1022,10 +1004,10 @@ enum { IPPROTO_UDPLITE = 136 };
 #  define IP_RECVOPTS 6
 # endif
 # ifndef IP_RECVORIGDSTADDR
-#  define IP_RECVORIGDSTADDR IP_ORIGDSTADDR
+#  define IP_RECVORIGDSTADDR 20
 # endif
 # ifndef IP_RECVRETOPTS
-#  define IP_RECVRETOPTS IP_RETOPTS
+#  define IP_RECVRETOPTS 7
 # endif
 # ifndef IP_RECVTOS
 #  define IP_RECVTOS 13

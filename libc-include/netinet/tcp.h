@@ -56,36 +56,36 @@ struct tcp_info {
 #  define __NIJI_D_struct_tcphdr 1
 struct tcphdr {
   union {
-    struct {
-      unsigned short th_sport;
-      unsigned short th_dport;
-      unsigned int th_seq;
-      unsigned int th_ack;
-      unsigned char th_x2 : 4;
-      unsigned char th_off : 4;
-      unsigned char th_flags;
-      unsigned short th_win;
-      unsigned short th_sum;
-      unsigned short th_urp;
-    };
-    struct {
-      unsigned short source;
-      unsigned short dest;
-      unsigned int seq;
-      unsigned int ack_seq;
-      unsigned short res1 : 4;
-      unsigned short doff : 4;
-      unsigned short fin : 1;
-      unsigned short syn : 1;
-      unsigned short rst : 1;
-      unsigned short psh : 1;
-      unsigned short ack : 1;
-      unsigned short urg : 1;
-      unsigned short res2 : 2;
-      unsigned short window;
-      unsigned short check;
-      unsigned short urg_ptr;
-    };
+  struct {
+  unsigned short th_sport;
+  unsigned short th_dport;
+  unsigned int th_seq;
+  unsigned int th_ack;
+  unsigned char th_x2 : 4;
+  unsigned char th_off : 4;
+  unsigned char th_flags;
+  unsigned short th_win;
+  unsigned short th_sum;
+  unsigned short th_urp;
+  };
+  struct {
+  unsigned short source;
+  unsigned short dest;
+  unsigned int seq;
+  unsigned int ack_seq;
+  unsigned short res1 : 4;
+  unsigned short doff : 4;
+  unsigned short fin : 1;
+  unsigned short syn : 1;
+  unsigned short rst : 1;
+  unsigned short psh : 1;
+  unsigned short ack : 1;
+  unsigned short urg : 1;
+  unsigned short res2 : 2;
+  unsigned short window;
+  unsigned short check;
+  unsigned short urg_ptr;
+  };
   };
 };
 # endif

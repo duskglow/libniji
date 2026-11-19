@@ -17,7 +17,7 @@
 //! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
 //! * `@@when NAME`: `#if` with the condition of NAME, which the template does not own.
-//! * `@@enum TAG PREFIX...`: `enum TAG` of this header's enumerators with those prefixes (a prototype takes the enumeration).
+//! * `@@enum TAG`: `enum TAG` from enumerators.tsv, its enumerators this header lists also self-naming macros.
 //! * `@@hidden-member MEMBER NAME...`: where an aggregate's member MEMBER is a structure whose tag this header shows
 //!   in fewer configurations than the aggregate, the member is spelled, outside the tag's condition, as the scalar
 //!   members of that structure named NAME... in order (same offsets and sizes): `struct stat`'s `st_atim` is
@@ -35,11 +35,24 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 
+mod aggregates;
+mod cond;
+mod enums;
+mod functions;
+mod objects;
+mod rows;
+mod typedefs;
+mod types;
+mod values;
+pub(crate) use cond::*;
+use types::*;
+
 const TEMPLATES: &str = "headers";
 const OUT: &str = "libc-include";
 const LEVELS: &str = "headers/levels.tsv";
 const RESERVED: &str = "headers/reserved.tsv";
-const ALIASES: &str = "headers/aliases.tsv";
+/// Who provides a declared function libc does not export (rulings #6714, #6715).
+const PROVIDERS: &str = "headers/providers.tsv";
 /// One table per slice, `<slice>.tsv`: the headers the slice ships, one row each (columns `header`, `p1`, `uapi`;
 /// spec/tools/header_check.py reads the other columns).
 const SLICE_TABLES: &str = "headers/slices";
@@ -52,165 +65,6 @@ fn tsv(root: &Path, rel: &str) -> Result<Rows, String> {
     let mut lines = text.lines().filter(|l| !l.starts_with('#') && !l.is_empty());
     let head: Vec<&str> = lines.next().ok_or(format!("{rel}: empty"))?.split('\t').collect();
     Ok(lines.map(|l| head.iter().zip(l.split('\t')).map(|(h, v)| (h.to_string(), v.to_string())).collect()).collect())
-}
-
-/// The level columns of `headers/levels.tsv`, their C names in `features.h` and the thresholds the
-/// condition search may test (an empty list: a 0/1 flag).
-pub(crate) const LEVEL_COLS: &[(&str, &str, &[i64])] = &[
-    ("isoc", "__NIJI_ISOC", &[1999, 2011, 2023]),
-    ("posix", "__NIJI_POSIX", &[1, 2, 199309, 199506, 200112, 200809]),
-    ("xsi", "__NIJI_XSI", &[400, 450, 500, 600, 700]),
-    ("misc", "__NIJI_MISC", &[]),
-    ("gnu", "__NIJI_GNU", &[]),
-    ("lfs64", "__NIJI_LFS64", &[]),
-    ("fob64", "__NIJI_FOB64", &[]),
-    ("time64", "__NIJI_TIME64", &[]),
-    ("dynstack", "__NIJI_DYNSTACK", &[]),
-    ("fortify", "__NIJI_FORTIFY", &[1, 2, 3]),
-    ("cxx", "__NIJI_CXX", &[1, 2, 3]),
-];
-
-pub(crate) struct Levels {
-    pub ids: Vec<String>,
-    pub values: Vec<Vec<i64>>,
-    pub reject: u64,
-}
-
-pub(crate) fn levels(root: &Path) -> Result<Levels, String> {
-    let configs = tsv(root, "spec/abi/ftm-configs.tsv")?;
-    let rows = tsv(root, LEVELS)?;
-    let ids: Vec<String> = configs.iter().map(|r| r["id"].clone()).collect();
-    if ids.len() > 64 {
-        return Err("more than 64 configurations".into());
-    }
-    let got: Vec<&String> = rows.iter().map(|r| &r["id"]).collect();
-    if got != ids.iter().collect::<Vec<_>>() {
-        return Err(format!("{LEVELS}: ids differ from spec/abi/ftm-configs.tsv (same ids, same order)"));
-    }
-    let mut values = Vec::new();
-    let mut reject = 0u64;
-    for (i, r) in rows.iter().enumerate() {
-        let mut v = Vec::new();
-        for (col, _, _) in LEVEL_COLS {
-            let s = r.get(*col).ok_or(format!("{LEVELS}: no column {col}"))?;
-            v.push(s.parse::<i64>().map_err(|_| format!("{LEVELS}: {} {col} = {s:?}", r["id"]))?);
-        }
-        if r.get("reject").map(|s| s == "1").unwrap_or(false) {
-            reject |= 1 << i;
-        }
-        values.push(v);
-    }
-    Ok(Levels { ids, values, reject })
-}
-
-/// A literal: level column `col` compared with `thr` (flags: `thr` 0 means "is set"), maybe negated.
-#[derive(Clone, Copy, PartialEq, Debug)]
-struct Lit {
-    col: usize,
-    thr: i64,
-    neg: bool,
-}
-
-impl Lit {
-    fn mask(&self, lv: &Levels) -> u64 {
-        let all = (1u64 << lv.ids.len()) - 1;
-        let m = lv.values.iter().enumerate().filter(|(_, v)| if self.thr == 0 { v[self.col] != 0 } else { v[self.col] >= self.thr }).fold(0u64, |m, (i, _)| m | 1 << i);
-        if self.neg { !m & all } else { m }
-    }
-    fn render(&self) -> String {
-        let name = LEVEL_COLS[self.col].1;
-        match (self.thr, self.neg) {
-            (0, false) => name.to_string(),
-            (0, true) => format!("!{name}"),
-            (t, false) => format!("{name} >= {t}"),
-            (t, true) => format!("{name} < {t}"),
-        }
-    }
-}
-
-/// The C condition true in exactly the configurations of `target` among `care` (see the module text).
-pub(crate) fn condition(lv: &Levels, target: u64, care: u64) -> Option<String> {
-    let t = target & care;
-    if t == care {
-        return Some("1".into());
-    }
-    if t == 0 {
-        return Some("0".into());
-    }
-    let mut lits = Vec::new();
-    for (c, (_, _, thr)) in LEVEL_COLS.iter().enumerate() {
-        let ts: Vec<i64> = if thr.is_empty() { vec![0] } else { thr.to_vec() };
-        for th in ts {
-            lits.push(Lit { col: c, thr: th, neg: false });
-            lits.push(Lit { col: c, thr: th, neg: true });
-        }
-    }
-    let mut terms: Vec<(Vec<Lit>, u64)> = lits.iter().map(|l| (vec![*l], l.mask(lv))).collect();
-    for (i, a) in lits.iter().enumerate() {
-        for b in &lits[i + 1..] {
-            // Two columns, or a range of one column (`>= lo && < hi`, e.g. POSIX 1 up to 199506).
-            if a.col != b.col || (a.thr < b.thr && !a.neg && b.neg) {
-                terms.push((vec![*a, *b], a.mask(lv) & b.mask(lv)));
-            }
-        }
-    }
-    terms.retain(|(_, m)| m & t != 0 && m & care & !t == 0);
-    let mut left = t;
-    let mut chosen: Vec<&Vec<Lit>> = Vec::new();
-    while left != 0 {
-        // Ties go to the first term (level columns in table order, single literals first): stable output.
-        let best = terms.iter().rev().max_by(|a, b| (a.1 & left).count_ones().cmp(&(b.1 & left).count_ones()).then(b.0.len().cmp(&a.0.len())))?;
-        if best.1 & left == 0 {
-            return None;
-        }
-        left &= !best.1;
-        chosen.push(&best.0);
-    }
-    let parts: Vec<String> = chosen.iter().map(|ls| ls.iter().map(|l| l.render()).collect::<Vec<_>>().join(" && ")).collect();
-    Some(if parts.len() == 1 { parts[0].clone() } else { parts.iter().map(|p| if p.contains("&&") { format!("({p})") } else { p.clone() }).collect::<Vec<_>>().join(" || ") })
-}
-
-/// `configs` of visibility.tsv (`*`, ids, or `!` and the ids it is not visible in) as a mask.
-pub(crate) fn mask_of(lv: &Levels, configs: &str) -> Result<u64, String> {
-    let all = (1u64 << lv.ids.len()) - 1;
-    let (neg, list) = match configs.strip_prefix('!') {
-        Some(rest) => (true, rest),
-        None if configs == "*" => return Ok(all),
-        None => (false, configs),
-    };
-    let mut m = 0u64;
-    for id in list.split(',') {
-        let i = lv.ids.iter().position(|x| x == id).ok_or(format!("unknown configuration {id:?}"))?;
-        m |= 1 << i;
-    }
-    Ok(if neg { !m & all } else { m })
-}
-
-/// The C literal of a `macros.tsv` value of the given type.
-pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
-    if ty.starts_with("char[") {
-        return Ok(value.to_string());
-    }
-    let suffix = match ty {
-        "int" => "",
-        "long" => "L",
-        "long long" => "LL",
-        "unsigned int" => "U",
-        "unsigned long" => "UL",
-        "unsigned long long" => "ULL",
-        _ => return Err(format!("no literal form for type {ty:?}")),
-    };
-    if let Some(mag) = value.strip_prefix('-') {
-        let mag: u128 = mag.parse().map_err(|_| format!("bad value {value:?}"))?;
-        let min = match ty {
-            "int" => 1u128 << 31,
-            _ => 1u128 << 63,
-        };
-        // The most negative value has no literal: write it as (-(max) - 1).
-        return Ok(if mag == min { format!("(-{}{suffix}-1)", mag - 1) } else { format!("(-{mag}{suffix})") });
-    }
-    value.parse::<u128>().map_err(|_| format!("bad value {value:?}"))?;
-    Ok(format!("{value}{suffix}"))
 }
 
 /// What one header slice adds to the generator: `headers/slices/<slice>.rs` defines `pub(super) const SLICE: Slice`,
@@ -307,36 +161,6 @@ fn slice_table_problems(root: &Path, templates: &[String]) -> Result<Vec<String>
     Ok(out)
 }
 
-const SCALARS: &[&str] = &[
-    "char", "signed char", "unsigned char", "short", "unsigned short", "int", "unsigned int", "long", "unsigned long", "long long",
-    "unsigned long long", "__int128", "unsigned __int128", "float", "double", "long double", "bool", "_Bool", "void",
-];
-
-fn scalar(c: &str) -> bool {
-    let base = c.trim_end_matches('*').trim().trim_start_matches("const ").trim();
-    SCALARS.contains(&base)
-}
-
-/// The DWARF spelling of layouts.tsv (`long unsigned int`) in the C++ form of typedefs.tsv (`unsigned long`).
-fn dwarf_scalar(t: &str) -> Option<String> {
-    let words: BTreeSet<&str> = t.split_whitespace().collect();
-    let uns = words.contains("unsigned");
-    let s = if words.contains("char") {
-        if uns { "unsigned char" } else if words.contains("signed") { "signed char" } else { "char" }
-    } else if words.contains("short") {
-        if uns { "unsigned short" } else { "short" }
-    } else if t.matches("long").count() == 2 {
-        if uns { "unsigned long long" } else { "long long" }
-    } else if words.contains("long") && !words.contains("double") {
-        if uns { "unsigned long" } else { "long" }
-    } else if words.contains("int") || words == BTreeSet::from(["unsigned"]) {
-        if uns { "unsigned int" } else { "int" }
-    } else {
-        return SCALARS.contains(&t).then(|| t.to_string());
-    };
-    Some(s.to_string())
-}
-
 struct Tables {
     lv: Levels,
     vis: Rows,
@@ -349,27 +173,42 @@ struct Tables {
     nothrow: BTreeSet<String>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
-    /// Macros spelled as another macro (`headers/aliases.tsv`): name -> the macro it names.
-    aliases: BTreeMap<String, String>,
     /// The `linked_elsewhere` names of every slice.
     linked_elsewhere: BTreeSet<&'static str>,
+    /// `headers/providers.tsv`: a declared function libc does not provide -> who does (`program`, `debugger`, `none`).
+    providers: BTreeMap<String, String>,
+    /// initializers.tsv: initializer -> (type, bytes in hexadecimal).
+    inits: BTreeMap<String, (String, String)>,
+    /// enumerators.tsv: an enumeration tag (`enum __pid_type`) -> its enumerators and values, in declaration order.
+    enums: BTreeMap<String, Vec<(String, String)>>,
+    /// enumerators.tsv: an enumerator -> the tag of its enumeration.
+    enum_of: BTreeMap<String, String>,
 }
 
-/// A typedef used as a member type that has no layout rows of its own but whose members the rows of the
-/// containing structure list (`data.ptr`, `data.fd` under a member `data` of type `epoll_data_t`): those rows,
-/// rebased to the member's offset, are the typedef's layout (SL-HEADERS-S09).
+/// A typedef or a structure or union tag used as a member type that has no layout rows of its own but whose members
+/// the rows of the containing aggregate list (`data.ptr`, `data.fd` under a member `data` of type `epoll_data_t`;
+/// `__data.__lock` under `__data` of type `struct __pthread_mutex_s`): those rows, at any depth, rebased to the
+/// member's offset, are its layout (SL-HEADERS-S09; tags: HEADERS-GEN-COMPLETE; an array's element type from the rows of
+/// its first element: HEADERS-TABLES-COMPLETE). Its size and alignment are its
+/// typedefs.tsv row's; one without a size is not derived.
 fn derive_layouts(layouts: &mut BTreeMap<String, Rows>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>) {
     let mut found: Vec<(String, Rows)> = Vec::new();
     for rows in layouts.values() {
-        for r in rows.iter().filter(|r| !r["member"].is_empty() && !r["member"].contains('.')) {
-            let ty = &r["member_type"];
-            let Some(td) = typedefs.get(&("typedef".to_string(), ty.clone())) else { continue };
+        for (i, r) in rows.iter().enumerate().filter(|(_, r)| !r["member"].is_empty() && r["member"] != "<anon>") {
+            // An array member's rows describe its first element (`sort_list.addr` of `sort_list[0]`).
+            let ty = &r["member_type"].split('[').next().unwrap_or_default().trim_end().to_string();
+            let tkey = match ty.split_once(' ') {
+                Some((k, t)) if matches!(k, "struct" | "union") && t != "<anon>" => (k.to_string(), t.to_string()),
+                Some(_) => continue,
+                None => ("typedef".to_string(), ty.clone()),
+            };
+            let Some(td) = typedefs.get(&tkey).filter(|td| !td["size"].is_empty()) else { continue };
             if layouts.contains_key(ty) || found.iter().any(|(k, _)| k == ty) {
                 continue;
             }
             let (Ok(base), prefix) = (r["offset_or_size"].parse::<u64>(), format!("{}.", r["member"])) else { continue };
             let mut sub: Rows = vec![[("type", ty.as_str()), ("member", ""), ("offset_or_size", td["size"].as_str()), ("align", td["align"].as_str()), ("member_type", ""), ("bitfield", "")].iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()];
-            for d in rows.iter().filter(|d| d["member"].starts_with(&prefix) && !d["member"][prefix.len()..].contains('.')) {
+            for d in rows[i + 1..].iter().take_while(|d| d["member"].starts_with(&prefix)) {
                 let Ok(off) = d["offset_or_size"].parse::<u64>() else { continue };
                 let mut n = d.clone();
                 n.insert("type".into(), ty.clone());
@@ -396,30 +235,6 @@ fn load(root: &Path) -> Result<Tables, String> {
         layouts.entry(r["type"].clone()).or_default().push(r);
     }
     derive_layouts(&mut layouts, &typedefs);
-    // A structure the tables only describe as a member of another (`struct ifmap` inside `struct ifreq`): its own
-    // rows are the member's sub-rows, offsets relative to the member. No size row: the members decide it.
-    let mut synth: Vec<(String, Rows)> = Vec::new();
-    for rows in layouts.values() {
-        for (i, r) in rows.iter().enumerate() {
-            let t = &r["member_type"];
-            if t.starts_with("struct ") && !t.starts_with("struct __pthread_") && !t.ends_with("<anon>") && !t.contains(['*', '[']) && !layouts.contains_key(t) && !synth.iter().any(|(k, _)| k == t) {
-                let sub = format!("{}.", r["member"]);
-                let base: u64 = r["offset_or_size"].parse().unwrap_or(0);
-                let mut mine = Rows::new();
-                for s in rows[i + 1..].iter().take_while(|s| s["member"].starts_with(&sub)) {
-                    let mut s = s.clone();
-                    s.insert("type".into(), t.clone());
-                    s.insert("member".into(), s["member"][sub.len()..].to_string());
-                    s.insert("offset_or_size".into(), (s["offset_or_size"].parse::<u64>().unwrap_or(0) - base).to_string());
-                    mine.push(s);
-                }
-                if !mine.is_empty() {
-                    synth.push((t.clone(), mine));
-                }
-            }
-        }
-    }
-    layouts.extend(synth);
     let mut addr: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     let mut calls = BTreeMap::new();
     for r in tsv(root, "spec/abi/callsites.tsv")? {
@@ -435,8 +250,51 @@ fn load(root: &Path) -> Result<Tables, String> {
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
-    let aliases = tsv(root, ALIASES)?.into_iter().map(|r| (r["name"].clone(), r["of"].clone())).collect();
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, aliases, linked_elsewhere })
+    let inits = tsv(root, "spec/abi/initializers.tsv")?.into_iter().map(|r| (r["initializer"].clone(), (r["type"].clone(), r["bytes_hex"].clone()))).collect();
+    let mut enums: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    let mut enum_of = BTreeMap::new();
+    for r in tsv(root, "spec/abi/enumerators.tsv")? {
+        enum_of.insert(r["name"].clone(), r["tag"].clone());
+        enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
+    }
+    let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of })
+}
+
+/// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
+/// (a row for a function libc now provides is stale: the export check would no longer see that function).
+/// `generic` (a type-generic macro's function form: an overload set with no single prototype) instead needs a header
+/// that shows the name as a function in some configurations and as a macro in others, and no prototype row.
+fn load_providers(root: &Path, vis: &Rows, protos: &BTreeMap<String, String>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>, exported: &BTreeSet<String>) -> Result<BTreeMap<String, String>, String> {
+    let mut out = BTreeMap::new();
+    let mut bad = Vec::new();
+    for r in tsv(root, PROVIDERS)? {
+        let (n, p) = (r["name"].clone(), r["provider"].clone());
+        let declared = protos.contains_key(&n) || typedefs.contains_key(&("function".to_string(), n.clone()));
+        let shown = |h: &str, k: &str| vis.iter().any(|v| v["header"] == h && v["name"] == n && v["kind"] == k);
+        if !matches!(p.as_str(), "program" | "debugger" | "none" | "generic") {
+            bad.push(format!("{n}: provider `{p}` is not program, debugger, none or generic"));
+        } else if p == "generic" {
+            if declared {
+                bad.push(format!("{n}: generic, but a prototypes.tsv or typedefs.tsv function row declares it"));
+            } else if !vis.iter().any(|v| v["name"] == n && v["kind"] == "function" && shown(&v["header"], "macro")) {
+                bad.push(format!("{n}: generic, but no header shows it as both a function and a macro"));
+            } else if out.insert(n.clone(), p).is_some() {
+                bad.push(format!("{n}: two rows"));
+            }
+        } else if !declared {
+            bad.push(format!("{n}: no prototypes.tsv or typedefs.tsv function row"));
+        } else if exported.contains(&n) {
+            bad.push(format!("{n}: exported at a default version (versions.tsv), so libc provides it"));
+        } else if out.insert(n.clone(), p).is_some() {
+            bad.push(format!("{n}: two rows"));
+        }
+    }
+    if bad.is_empty() {
+        Ok(out)
+    } else {
+        Err(format!("{PROVIDERS}: {}", bad.join("; ")))
+    }
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -468,360 +326,6 @@ struct Gen<'a> {
 }
 
 impl Gen<'_> {
-    /// Whether the included headers supply (name, kind) in every configuration this header's row asks for and
-    /// that matters (the ones `dont_care` leaves): otherwise this header emits it too, under its own condition.
-    fn is_covered(&self, name: &str, kind: &str) -> bool {
-        let Some(&have) = self.covered.get(&(name.to_string(), kind.to_string())) else { return false };
-        let Some(r) = self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == name && r["kind"] == kind) else { return true };
-        let all = (1u64 << self.t.lv.ids.len()) - 1;
-        let want = mask_of(&self.t.lv, &r["configs"]).unwrap_or(0) & all & !self.dont_care(name, kind);
-        want & !have == 0
-    }
-
-    fn rows(&self, name: &str) -> Vec<&BTreeMap<String, String>> {
-        self.t.vis.iter().filter(|r| r["header"] == self.header && r["name"] == name).collect()
-    }
-
-    /// The configurations that do not decide a condition: rejected ones, those where the header
-    /// itself does not compile, and those where (name, kind) is visible without any header.
-    fn dont_care(&self, name: &str, kind: &str) -> u64 {
-        let mut d = self.t.lv.reject;
-        for r in &self.t.vis {
-            if (r["header"] == self.header && r["kind"] == "include-error") || (r["header"] == "-" && r["name"] == name && r["kind"] == kind) {
-                d |= mask_of(&self.t.lv, &r["configs"]).unwrap_or(0);
-            }
-        }
-        d
-    }
-
-    fn cond(&mut self, name: &str, kind: Option<&str>) -> String {
-        let rows = self.rows(name);
-        let Some(r) = rows.iter().find(|r| kind.map(|k| r["kind"] == k).unwrap_or(true)) else {
-            self.errors.push(format!("{}: {name} has no visibility.tsv row", self.header));
-            return "0".into();
-        };
-        let all = (1u64 << self.t.lv.ids.len()) - 1;
-        let care = all & !self.dont_care(name, &r["kind"]);
-        let target = match mask_of(&self.t.lv, &r["configs"]) {
-            Ok(m) => m,
-            Err(e) => {
-                self.errors.push(format!("{}: {name}: {e}", self.header));
-                return "0".into();
-            }
-        };
-        let configs = r["configs"].clone();
-        // The _FORTIFY_SOURCE configurations (-O2 probes) belong to slice 18 (fortify): when no condition over the
-        // levels separates a name there, they stop deciding it, and the generated tests keep the C probe's other rows.
-        let fortify = self.fortify_mask();
-        match condition(&self.t.lv, target, care).or_else(|| condition(&self.t.lv, target & !fortify, care & !fortify)) {
-            Some(c) => c,
-            None => {
-                self.errors.push(format!("{}: {name}: no condition over the levels selects {configs}", self.header));
-                "0".into()
-            }
-        }
-    }
-
-    /// The condition of the structure tag `inner` in this header when the header shows it in fewer of the
-    /// configurations that matter than the aggregate `outer` that has a member of that type, else None.
-    fn narrower_tag(&self, outer: &str, inner: &str) -> Option<String> {
-        let row = |n: &str| self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == n && r["kind"] == "struct");
-        let (o, i) = (row(outer)?, row(inner)?);
-        let all = (1u64 << self.t.lv.ids.len()) - 1;
-        let care = all & !self.dont_care(inner, "struct");
-        let (om, im) = (mask_of(&self.t.lv, &o["configs"]).ok()?, mask_of(&self.t.lv, &i["configs"]).ok()?);
-        if om & care & !im == 0 {
-            return None;
-        }
-        let fortify = self.fortify_mask();
-        condition(&self.t.lv, im, care).or_else(|| condition(&self.t.lv, im & !fortify, care & !fortify))
-    }
-
-    fn fortify_mask(&self) -> u64 {
-        let col = LEVEL_COLS.iter().position(|c| c.0 == "fortify").unwrap_or(0);
-        self.t.lv.values.iter().enumerate().filter(|(_, v)| v[col] > 0).fold(0u64, |m, (i, _)| m | 1 << i)
-    }
-
-    /// The text a `#define` of `name` carries: the macro it is an alias of (`headers/aliases.tsv`, which must
-    /// have the same table value), else the literal.
-    fn macro_value(&mut self, name: &str) -> String {
-        let Some(of) = self.t.aliases.get(name).cloned() else { return self.value(name) };
-        if !self.t.macros.contains_key(name) || self.t.macros.get(name) != self.t.macros.get(&of) {
-            self.errors.push(format!("{}: {name} is an alias of {of} in {ALIASES}, but macros.tsv gives them different values", self.header));
-        }
-        of
-    }
-
-    fn value(&mut self, name: &str) -> String {
-        match self.t.macros.get(name).map(|(ty, v)| literal(ty, v)) {
-            Some(Ok(s)) => s,
-            Some(Err(e)) => {
-                self.errors.push(format!("{}: {name}: {e}", self.header));
-                String::new()
-            }
-            None => {
-                self.errors.push(format!("{}: {name} has no macros.tsv value", self.header));
-                String::new()
-            }
-        }
-    }
-
-    /// The C spelling of a typedef-resolvable type token; aggregates named for linkage keep their name.
-    fn resolve(&self, ty: &str) -> String {
-        // C 7.8.2.3: wcstoimax takes wchar_t, which <inttypes.h> must not define in C: features.h's
-        // __NIJI_WCHAR is the compiler's wchar_t type in C and wchar_t itself in C++.
-        if ty == "__gwchar_t" {
-            return "__NIJI_WCHAR".into();
-        }
-        match self.t.typedefs.get(&("typedef".to_string(), ty.to_string())) {
-            Some(r) if scalar(&r["cxx"]) => r["cxx"].replace('*', " *"),
-            _ => ty.to_string(),
-        }
-    }
-
-    /// The members of an aggregate from layouts.tsv (None when it must be opaque: bit-field or unresolved member
-    /// types) and the structure tags and function typedefs its members need first.
-    fn members_nested(&self, key: &str) -> Option<(String, Vec<String>, Vec<String>)> {
-        let mut nested: Vec<String> = Vec::new();
-        let rows = self.t.layouts.get(key)?;
-        if rows.iter().any(|r| r["member"] == "<anon>" || !r["bitfield"].is_empty() || r["member_type"].contains("<anon>") || r["member_type"].starts_with("const struct")) {
-            let members: Vec<&BTreeMap<String, String>> = rows.iter().filter(|r| !r["member"].is_empty()).collect();
-            if let Some(out) = self.tree(&members, "", &mut nested, 1) {
-                let direct: Vec<_> = members.iter().filter(|r| !r["member"].contains('.')).collect();
-                let kw = if !key.starts_with("struct ") && direct.len() > 1 && direct.iter().all(|r| r["offset_or_size"] == "0") { "union" } else { "struct" };
-                return Some((kw.to_string(), out, nested));
-            }
-            nested.clear();
-        }
-        let mut out = Vec::new();
-        let mut offs = BTreeSet::new();
-        // Members that are complete structures: the rows `member.sub` below them describe that structure again.
-        let whole: BTreeSet<&str> = rows
-            .iter()
-            .filter(|r| self.t.layouts.contains_key(&r["member_type"]))
-            .map(|r| r["member"].as_str())
-            .collect();
-        // Members that are unnamed structures or unions (`ut_tv`): their members are the rows `member.sub` below.
-        // A structure tag with no rows of its own (utmpx's `struct __exit_status`) is described the same way, keeping its tag.
-        let is_agg = |r: &BTreeMap<String, String>| {
-            let mt = r["member_type"].as_str();
-            key.starts_with("struct ") && !r["member"].contains('.') && r["member"] != "<anon>" && (mt.ends_with(" <anon>") || (mt.starts_with("struct ") && !self.t.layouts.contains_key(mt) && rows.iter().any(|q| q["member"].starts_with(&format!("{}.", r["member"])))))
-        };
-        let anon: BTreeSet<&str> = rows.iter().filter(|r| is_agg(r)).map(|r| r["member"].as_str()).collect();
-        let mut end = Some(0u64);
-        let mut wide = false;
-        // An anonymous union (`<anon>`, SL-HEADERS-S09): the rows after it at its offset are its members.
-        let mut open_anon: Option<String> = None;
-        for r in rows.iter().filter(|r| !r["member"].is_empty()) {
-            if let Some(kw) = is_agg(r).then_some(r["member_type"].strip_suffix(" <anon>").unwrap_or(&r["member_type"])) {
-                // One level of an unnamed aggregate whose members are scalars or arrays of them.
-                let prefix = format!("{}.", r["member"]);
-                let mut inner = Vec::new();
-                for q in rows.iter().filter(|q| q["member"].strip_prefix(prefix.as_str()).is_some_and(|m| !m.contains('.'))) {
-                    let mt = &q["member_type"];
-                    let (base, arr) = mt.find('[').map_or((mt.as_str(), ""), |i| (&mt[..i], &mt[i..]));
-                    let b = dwarf_scalar(base).or_else(|| Some(self.resolve(base)).filter(|r| scalar(r)))?;
-                    inner.push(format!("{b} {}{arr};", &q["member"][prefix.len()..]));
-                }
-                let off: u64 = r["offset_or_size"].parse().ok()?;
-                offs.insert(r["offset_or_size"].clone());
-                end = end.zip(rows.iter().filter(|q| q["member"].starts_with(prefix.as_str())).filter_map(|q| Some(q["offset_or_size"].parse::<u64>().ok()? + self.type_size(q["member_type"].split('[').next()?, "", q["member_type"].find('[').map_or("", |i| &q["member_type"][i..]))?)).max()).map(|(e, n)| e.max(n)).or(Some(off));
-                out.push(format!("  {kw} {{ {} }} {};", inner.join(" "), r["member"]));
-                continue;
-            }
-            if r["member"].split_once('.').is_some_and(|(parent, _)| anon.contains(parent)) {
-                continue;
-            }
-            if r["member"].split_once('.').is_some_and(|(parent, _)| whole.contains(parent)) {
-                continue;
-            }
-            if open_anon.as_ref().is_some_and(|o| *o != r["offset_or_size"] || r["member"] == "<anon>") {
-                out.push("  };".into());
-                open_anon = None;
-            }
-            if r["member"] == "<anon>" && r["member_type"] == "union <anon>" {
-                out.push("  union {".into());
-                open_anon = Some(r["offset_or_size"].clone());
-                continue;
-            }
-            if r["member"].contains('.') || !r["bitfield"].is_empty() {
-                return None;
-            }
-            let mt = &r["member_type"];
-            let (base, arr) = match mt.find('[') {
-                Some(i) => (&mt[..i], &mt[i..]),
-                None => (mt.as_str(), ""),
-            };
-            let core = base.trim_end_matches(['*', ' ']);
-            let stars = &base[core.len()..];
-            // `@@hidden-member`: outside the condition of the member's structure tag, its scalar members by the given names.
-            let mut hidden: Option<(String, Vec<String>)> = None;
-            let base = if let Some(tag) = core.strip_prefix("struct ").filter(|_| stars.is_empty() && self.t.layouts.contains_key(core)) {
-                if let (Some(names), Some(c)) = (self.hidden_members.get(r["member"].as_str()).filter(|_| arr.is_empty()), key.strip_prefix("struct ").and_then(|o| self.narrower_tag(o, tag))) {
-                    let prefix = format!("{}.", r["member"]);
-                    let subs: Vec<_> = rows.iter().filter(|q| q["member"].strip_prefix(prefix.as_str()).is_some_and(|m| !m.contains('.'))).collect();
-                    if subs.len() != names.len() {
-                        return None;
-                    }
-                    let mut alt = Vec::new();
-                    for (q, n) in subs.iter().zip(names) {
-                        let b = dwarf_scalar(&q["member_type"]).or_else(|| Some(self.resolve(&q["member_type"])).filter(|r| scalar(r)))?;
-                        alt.push(format!("  {b} {n};"));
-                    }
-                    nested.push(format!("#if {c}\t{core}"));
-                    hidden = Some((c, alt));
-                } else {
-                    // A complete structure member (itimerspec holds two timespecs): its definition comes first.
-                    nested.push(core.to_string());
-                }
-                format!("struct {tag}")
-            } else if stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].ends_with(']') || self.t.layouts.contains_key(core)) {
-                // A typedef that is an array type, or an aggregate with a layout of its own: it comes first.
-                nested.push(format!("typedef {core}"));
-                core.to_string()
-            } else if stars.is_empty() && core.starts_with("enum ") && self.t.typedefs.contains_key(&("enum".to_string(), core["enum ".len()..].to_string())) {
-                // An enumeration (four bytes, no negative enumerator): its underlying type.
-                "unsigned int".to_string()
-            } else if core.starts_with("struct ") && !stars.is_empty() {
-                // A pointer to a structure: the tag may stay incomplete (`struct _IO_marker *`).
-                format!("{core} {}", stars.trim())
-            } else if !stars.is_empty() && self.t.typedefs.get(&("typedef".to_string(), core.to_string())).is_some_and(|t| t["cxx"].contains('(')) {
-                // A pointer to a function type named by a typedef (`cookie_read_function_t *`): it comes first.
-                nested.push(format!("typedef {core}"));
-                format!("{core} {}", stars.trim())
-            } else {
-                let b = dwarf_scalar(core).or_else(|| {
-                    let r = self.resolve(core);
-                    (scalar(&r) || r == "void").then_some(r)
-                })?;
-                format!("{b}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
-            };
-            let off: u64 = r["offset_or_size"].parse().ok()?;
-            let size = self.type_size(core, stars, arr);
-            wide |= size.is_some_and(|n| n > 1);
-            end = size.zip(end).map(|(n, e)| e.max(off + n));
-            offs.insert(r["offset_or_size"].clone());
-            match hidden {
-                Some((c, alt)) => {
-                    out.extend([format!("#if {c}"), format!("  {base} {}{arr};", r["member"]), "#else".into()]);
-                    out.extend(alt);
-                    out.push("#endif".into());
-                }
-                None => out.push(format!("  {base} {}{arr};", r["member"])),
-            }
-        }
-        // Unnamed padding the layout rows do not list (`struct timex` ends in 44 bytes of it).
-        if let (Some(end), Some(total)) = (end, rows.iter().find(|r| r["member"].is_empty()).and_then(|r| r["offset_or_size"].parse::<u64>().ok())) {
-            if total > end && (total - end) % 4 == 0 {
-                out.extend((0..(total - end) / 4).map(|_| "  int : 32;".to_string()));
-            }
-        }
-        if open_anon.is_some() {
-            out.push("  };".into());
-        }
-        let packed = wide && rows.iter().find(|r| r["member"].is_empty()).is_some_and(|r| r["align"] == "1");
-        let kw = if out.len() > 1 && offs.len() == 1 {
-            "union"
-        } else if packed {
-            "struct __attribute__ ((__packed__))"
-        } else {
-            "struct"
-        };
-        (!out.is_empty()).then(|| (kw.to_string(), out, nested))
-    }
-
-    /// The members of an aggregate that has anonymous or named nested unions and structures and bit-fields
-    /// (layouts.tsv: a nested member is a row of type `union <anon>`/`struct <anon>` followed by its rows
-    /// `member.sub`; an unnamed one is a row `<anon>` whose `size N rows M` says how many rows follow; a bit-field
-    /// carries `bits W@O`). Declaration order is the row order. None when a member type does not resolve.
-    fn tree(&self, rows: &[&BTreeMap<String, String>], prefix: &str, nested: &mut Vec<String>, depth: usize) -> Option<Vec<String>> {
-        let pad = "  ".repeat(depth);
-        let mut out = Vec::new();
-        let mut i = 0;
-        while i < rows.len() {
-            let r = rows[i];
-            let m = r["member"].as_str();
-            let kw_of = |t: &str| if t.starts_with("union") { "union" } else { "struct" };
-            if m == "<anon>" {
-                let n: usize = r["bitfield"].split_whitespace().nth(3)?.parse().ok()?;
-                if n == 0 {
-                    return None; // no member rows to spell: the aggregate stays opaque
-                }
-                let inner = self.tree(rows.get(i + 1..i + 1 + n)?, prefix, nested, depth + 1)?;
-                out.push(format!("{pad}{} {{", kw_of(&r["member_type"])));
-                out.extend(inner);
-                out.push(format!("{pad}}};"));
-                i += 1 + n;
-                continue;
-            }
-            let rel = m.strip_prefix(prefix).unwrap_or(m);
-            if rel.contains('.') {
-                i += 1;
-                continue;
-            }
-            let aarr = r["member_type"].find('[').map_or("", |k| &r["member_type"][k..]);
-            if r["member_type"][..r["member_type"].len() - aarr.len()].ends_with("<anon>") {
-                let sub = format!("{m}.");
-                let n = rows[i + 1..].iter().take_while(|x| x["member"].starts_with(&sub)).count();
-                if n == 0 && aarr.is_empty() {
-                    return None; // a nested aggregate the tables give no rows for: the whole stays opaque
-                }
-                let inner = self.tree(&rows[i + 1..i + 1 + n], &sub, nested, depth + 1)?;
-                out.push(format!("{pad}{} {{", kw_of(&r["member_type"])));
-                out.extend(inner);
-                out.push(format!("{pad}}} {rel}{aarr};"));
-                i += 1 + n;
-                continue;
-            }
-            let mt = r["member_type"].strip_prefix("const ").unwrap_or(&r["member_type"]);
-            let konst = if mt.len() < r["member_type"].len() { "const " } else { "" };
-            let (base, arr) = match mt.find('[') {
-                Some(k) => (&mt[..k], &mt[k..]),
-                None => (mt, ""),
-            };
-            let core = base.trim_end_matches(['*', ' ']);
-            let stars = &base[core.len()..];
-            let ty = if core.starts_with("struct ") && self.t.layouts.contains_key(core) && stars.is_empty() {
-                nested.push(core.to_string());
-                core.to_string()
-            } else if core.starts_with("struct ") && stars.is_empty() {
-                return None; // a complete structure the tables do not describe: the aggregate stays opaque
-            } else if core.starts_with("struct ") {
-                format!("{core}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
-            } else {
-                let b = dwarf_scalar(core).or_else(|| {
-                    let x = self.resolve(core);
-                    (scalar(&x) || x == "void").then_some(x)
-                })?;
-                format!("{b}{}", if stars.is_empty() { String::new() } else { format!(" {}", stars.trim()) })
-            };
-            let width = r["bitfield"].strip_prefix("bits ").and_then(|b| b.split('@').next()).map(|w| format!(" : {w}")).unwrap_or_default();
-            out.push(format!("{pad}{konst}{ty} {rel}{arr}{width};"));
-            i += 1;
-        }
-        Some(out)
-    }
-
-    /// The size in bytes of a member type of layouts.tsv (`core`, its `stars` and `[n]` suffix), when known.
-    fn type_size(&self, core: &str, stars: &str, arr: &str) -> Option<u64> {
-        let one = if !stars.is_empty() {
-            8
-        } else if let Some(r) = self.t.layouts.get(core).and_then(|r| r.iter().find(|r| r["member"].is_empty())) {
-            r["offset_or_size"].parse().ok()?
-        } else {
-            let t = dwarf_scalar(core).unwrap_or_else(|| self.resolve(core));
-            match t.as_str() {
-                "char" | "signed char" | "unsigned char" => 1,
-                "short" | "unsigned short" => 2,
-                "int" | "unsigned int" | "float" => 4,
-                "long" | "unsigned long" | "long long" | "unsigned long long" | "double" => 8,
-                _ => self.t.typedefs.get(&("typedef".to_string(), core.to_string()))?["size"].parse().ok()?,
-            }
-        };
-        let n: u64 = if arr.is_empty() { 1 } else { arr.trim_matches(['[', ']']).parse().ok()? };
-        Some(one * n)
-    }
-
     fn guard(&mut self, key: &str, body: Vec<String>) {
         self.out.push(format!("# ifndef __NIJI_D_{key}"));
         self.out.push(format!("#  define __NIJI_D_{key} 1"));
@@ -829,270 +333,23 @@ impl Gen<'_> {
         self.out.push("# endif".into());
     }
 
-    fn typedef(&mut self, name: &str) {
-        let Some(r) = self.t.typedefs.get(&("typedef".to_string(), name.to_string())).cloned() else {
-            self.errors.push(format!("{}: typedef {name} not in typedefs.tsv", self.header));
-            return;
-        };
-        let cxx = r["cxx"].clone();
-        // A qualified scalar (pthread_spinlock_t is `int volatile`) is still a scalar typedef.
-        let body = if cxx.is_empty() && name == "wchar_t" {
-            // A keyword in C++ (typedefs.tsv leaves its spelling empty); in C the compiler's type.
-            vec!["#  ifndef __cplusplus".into(), format!("typedef __WCHAR_TYPE__ {name};"), "#  endif".into()]
-        } else if scalar(&cxx) || scalar(cxx.replace("volatile", "").replace("const", "").trim()) {
-            vec![format!("typedef {} {name};", cxx.replace('*', " *"))]
-        } else if cxx.ends_with(']') && !cxx.contains('(') {
-            // An array type (`elf_gregset_t` is `unsigned long long [27]`).
-            let i = cxx.find('[').unwrap_or(0);
-            vec![format!("typedef {} {name}{};", cxx[..i].trim(), &cxx[i..])]
-        } else if let Some(open) = cxx.find('(') {
-            // A function or function-pointer type (`int (*)(void const*, void const*)` or `int (void*)`).
-            let (ret, rest) = cxx.split_at(open);
-            let args = self.type_words(rest);
-            let ret = self.type_words(ret);
-            match args.strip_prefix("(*)") {
-                Some(a) => vec![format!("typedef {} (*{name}){a};", ret.trim_end())],
-                None => vec![format!("typedef {} {name}{args};", ret.trim_end())],
-            }
-        } else if cxx == name || cxx.is_empty() {
-            match self.members_nested(name) {
-                Some((kw, m, nested)) => {
-                    self.emit_nested(nested);
-                    [vec![format!("typedef {kw} {{")], m, vec![format!("}} {name};")]].concat()
-                }
-                None => vec![format!("typedef struct {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }} {name};", r["size"], r["align"])],
-            }
-        } else if self.t.typedefs.contains_key(&("typedef".to_string(), cxx.clone())) {
-            // Named for linkage by another typedef (C++ mangles through it): that one comes first.
-            self.typedef(&cxx);
-            vec![format!("typedef {cxx} {name};")]
-        } else if !cxx.chars().all(|c| c.is_alphanumeric() || c == '_') {
-            // A pointer to a structure (`locale_t` is `struct __locale_struct *`): the tag stays incomplete.
-            vec![format!("typedef struct {} {name};", cxx.replace('*', " *"))]
-        } else {
-            // The structure is named for linkage by `cxx` (`fpos_t` is `struct _G_fpos_t`): define it here.
-            let def = match self.members_nested(name) {
-                Some((kw, m, nested)) => {
-                    self.emit_nested(nested);
-                    [vec![format!("{kw} {cxx} {{")], m, vec!["};".into()]].concat()
-                }
-                None => vec![format!("struct {cxx} {{ char __niji_opaque[{}] __attribute__ ((__aligned__ ({}))); }};", r["size"], r["align"])],
-            };
-            let kw = if def[0].starts_with("union") { "union" } else { "struct" };
-            // The same guard as a `struct` row of visibility.tsv for this tag (tag()), so it is defined once.
-            self.guard(&format!("struct_{cxx}"), def);
-            vec![format!("typedef {kw} {cxx} {name};")]
-        };
-        self.guard(name, body);
-    }
-
-    /// Emit what a structure's members need first: the structures and function typedefs they name.
-    fn emit_nested(&mut self, nested: Vec<String>) {
-        for n in nested {
-            // `#if <condition>\tstruct TAG` (`@@hidden-member`): the tag is defined only under its own condition.
-            if let Some((c, tag)) = n.strip_prefix("#if ").and_then(|r| r.split_once('\t')).and_then(|(c, t)| Some((c.to_string(), t.strip_prefix("struct ")?.to_string()))) {
-                self.out.push(format!("# if {c}"));
-                self.tag(&tag, "struct");
-                self.out.push("# endif".into());
-            } else if let Some(tag) = n.strip_prefix("struct ") {
-                self.tag(tag, "struct");
-            } else if let Some(t) = n.strip_prefix("typedef ") {
-                self.typedef(t);
-            }
-        }
-    }
-
-    /// The words of a `typedefs.tsv` function type spelled for C: a structure tag gets its keyword and a typedef
-    /// that is not a scalar is emitted first (`stat const*` is `struct stat const *`).
-    fn type_words(&mut self, text: &str) -> String {
-        let mut out = String::new();
-        let mut word = String::new();
-        for c in text.chars().chain(std::iter::once(' ')) {
-            if c.is_alphanumeric() || c == '_' {
-                word.push(c);
-                continue;
-            }
-            if !word.is_empty() {
-                let w = std::mem::take(&mut word);
-                let tag = format!("struct {w}");
-                let typedef_known = self.t.typedefs.contains_key(&("typedef".to_string(), w.clone()));
-                if matches!(w.as_str(), "const" | "volatile" | "void" | "int" | "long" | "short" | "char" | "unsigned" | "signed") {
-                    out.push_str(&w);
-                } else if !typedef_known && self.t.layouts.contains_key(&tag) {
-                    out.push_str(&tag);
-                } else if typedef_known && !scalar(&self.resolve(&w)) && w != "__va_list_tag" {
-                    self.typedef(&w);
-                    out.push_str(&w);
-                } else {
-                    out.push_str(&self.resolve(&w));
-                }
-            }
-            out.push(c);
-        }
-        out.trim_end().replace('*', " *").replace("  *", " *").replace("__va_list_tag (*) [1]", "__builtin_va_list").replace("( *)", "(*)")
-    }
-
-    fn tag(&mut self, name: &str, kind: &str) {
-        let key = format!("{kind} {name}");
-        // `struct _IO_FILE` is described under its typedef name, FILE (layouts.tsv keys a tag by the name the program uses).
-        let lkey = if self.t.layouts.contains_key(&key) {
-            key.clone()
-        } else {
-            self.t.typedefs.iter().find(|((k, n), r)| k == "typedef" && r["cxx"] == name && self.t.layouts.contains_key(n.as_str())).map_or(key.clone(), |((_, n), _)| n.clone())
-        };
-        let body = match self.members_nested(&lkey) {
-            Some((kw, m, nested)) => {
-                self.emit_nested(nested);
-                let head = if kw.contains("packed") { format!("{kind} __attribute__ ((__packed__)) {name} {{") } else { format!("{key} {{") };
-                [vec![head], m, vec!["};".into()]].concat()
-            }
-            None => {
-                self.errors.push(format!("{}: {key} has no usable layouts.tsv rows", self.header));
-                return;
-            }
-        };
-        self.guard(&format!("{kind}_{name}"), body);
-    }
-
-    fn declaration(&mut self, name: &str) -> Option<String> {
-        // A function whose prototype the reference's own header leaves unrecorded (its parameter is a tag only
-        // the header names) has its resolved type in typedefs.tsv (`int (int, sgttyb*)`): spelled as a prototype.
-        let from_type = self.t.typedefs.get(&("function".to_string(), name.to_string())).filter(|_| !self.t.protos.contains_key(name)).and_then(|r| {
-            let (ret, args) = r["cxx"].split_once(" (")?;
-            let args = args.strip_suffix(')')?;
-            // The one such function family (gtty, stty) takes a pointer to a tag, `T*` or `T const*`.
-            let args: Vec<String> = args
-                .split(", ")
-                .map(|a| match (a.strip_suffix(" const*"), a.strip_suffix('*')) {
-                    (Some(t), _) => format!("const struct {t} *"),
-                    (_, Some(t)) => format!("struct {t} *"),
-                    _ => a.to_string(),
-                })
-                .collect();
-            Some(format!("{ret} {name} ({})", args.join(", ")))
-        });
-        let Some(d) = from_type.as_ref().or_else(|| self.t.protos.get(name)) else {
-            self.errors.push(format!("{}: function {name} not in prototypes.tsv", self.header));
-            return None;
-        };
-        let d = d.strip_prefix("extern ").unwrap_or(d);
-        let mut out = String::new();
-        let mut word = String::new();
-        let mut tags = Vec::new();
-        let mut prev = String::new();
-        for c in d.chars().chain(std::iter::once(' ')) {
-            if c.is_alphanumeric() || c == '_' {
-                word.push(c);
-                continue;
-            }
-            if !word.is_empty() {
-                if prev == "struct" || prev == "union" {
-                    tags.push(format!("{prev} {word};"));
-                }
-                let w = if word == name { word.clone() } else { self.resolve(&word) };
-                if !scalar(&w) && w == word && omitted(&self.t.reserved, &w) && self.t.typedefs.contains_key(&("typedef".to_string(), w.clone())) {
-                    self.typedef(&w);
-                }
-                out.push_str(&w);
-                prev = std::mem::take(&mut word);
-            }
-            out.push(c);
-        }
-        for t in tags {
-            self.out.push(t);
-        }
-        // The decayed form of the compiler's `va_list` (an array of one `__va_list_tag`).
-        Some(out.trim_end().replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list"))
-    }
-
-    fn function(&mut self, name: &str) {
-        let Some(decl) = self.declaration(name) else { return };
-        let nt = if self.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
-        // A configuration in which the probe's own `&f` did not compile (`!error`) says nothing about the symbol, and a
-        // C++-mangled name that no library exports is a declaration without C linkage: libniji declares every function
-        // `extern "C"`, so the plain name is the symbol (docs/differences-from-glibc.md).
-        let syms: Vec<(String, String)> = self.t.addr.get(name).cloned().unwrap_or_default().into_iter().filter(|(_, s)| s != "!error" && !(s.starts_with("_Z") && !self.t.exported.contains(s))).collect();
-        let builtin = self.t.calls.get(name).map(|s| s == "-").unwrap_or(false);
-        let distinct: BTreeSet<&String> = syms.iter().map(|(_, s)| s).collect();
-        let mut body = Vec::new();
-        if distinct.len() <= 1 {
-            let sym = distinct.into_iter().next().cloned().unwrap_or_else(|| name.to_string());
-            if !builtin && !self.t.exported.contains(&sym) && !self.t.linked_elsewhere.contains(sym.as_str()) {
-                self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
-            }
-            let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
-            body.push(format!("extern {decl}{nt}{asm};"));
-        } else {
-            let all = (1u64 << self.t.lv.ids.len()) - 1;
-            // `addr` probes run in no fortify configuration (callsites.tsv): those do not decide the symbol.
-            let care = all & !self.t.lv.reject & !self.fortify_mask();
-            for (i, (configs, sym)) in syms.iter().enumerate() {
-                if !self.t.exported.contains(sym) {
-                    self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
-                }
-                let m = mask_of(&self.t.lv, configs).unwrap_or(0);
-                let c = condition(&self.t.lv, m, care).unwrap_or_else(|| {
-                    self.errors.push(format!("{}: {name}: no condition selects {configs}", self.header));
-                    "0".into()
-                });
-                body.push(format!("#  {} {c}", if i == 0 { "if" } else { "elif" }));
-                let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
-                body.push(format!("extern {decl}{nt}{asm};"));
-            }
-            body.push("#  endif".into());
-        }
-        self.guard(name, body);
-    }
-
-    fn object(&mut self, name: &str) {
-        let Some(r) = self.t.typedefs.get(&("object".to_string(), name.to_string())) else {
-            self.errors.push(format!("{}: object {name} not in typedefs.tsv", self.header));
-            return;
-        };
-        let ty = r["cxx"].clone();
-        // A structure tag gets its keyword (`in6_addr const` is `struct in6_addr const` in C).
-        let line = match ty.find('[') {
-            Some(i) => format!("extern {} {name}{};", self.type_words(&ty[..i]), &ty[i..]),
-            None => format!("extern {} {name};", self.type_words(&ty)),
-        };
-        self.guard(name, vec![line]);
-    }
-
-    /// The C++ form of a `typedefs.tsv` typedef, or an error.
-    fn cxx(&self, name: &str) -> Option<String> {
-        self.t.typedefs.get(&("typedef".to_string(), name.to_string())).map(|r| r["cxx"].clone())
-    }
-
-    /// `@@enum TAG PREFIX...`: `enum TAG { ... }` of the enumerators of this header named with one of the prefixes
-    /// (values from macros.tsv), each also a self-naming macro so `#ifdef NAME` holds. The enumerators are then not
-    /// emitted again: a prototype takes the enumeration (`ptrace (enum __ptrace_request, ...)`).
-    fn enumeration(&mut self, args: &[&str]) {
-        let Some((tag, prefixes)) = args.split_first() else { return };
-        let mut names: Vec<String> = self.t.vis.iter().filter(|r| r["header"] == self.header && r["kind"] == "enumerator" && prefixes.iter().any(|p| r["name"].starts_with(p))).map(|r| r["name"].clone()).collect();
-        names.sort();
-        names.dedup();
-        if names.is_empty() {
-            self.errors.push(format!("{}: @@enum {tag}: no enumerator has the prefixes", self.header));
-            return;
-        }
-        let mut body = vec![format!("enum {tag} {{")];
-        for n in &names {
-            let v = self.value(n);
-            body.push(format!("  {n} = {v},"));
-            self.emitted.insert(format!("enumerator {n}"));
-        }
-        body.push("};".into());
-        for n in &names {
-            body.extend([format!("# ifndef {n}"), format!("#  define {n} {n}"), "# endif".into()]);
-        }
-        self.guard(&format!("enum_{tag}"), body);
-    }
-
     fn emit(&mut self, owned: &BTreeSet<String>) {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
         let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
-            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
+            // A type-generic macro's function form (provider `generic`) has no prototype to declare: the C++
+            // library or the header's template defines its overloads.
+            let generic = kind == "function" && self.t.providers.get(&name).is_some_and(|p| p == "generic");
+            if kind == "include-error" || generic || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
+                continue;
+            }
+            // An enumerator of a declared enumeration: that enumeration, once (its tag row, when this header has one).
+            if let Some(tag) = (kind == "enumerator").then(|| self.declared_enum(&name)).flatten() {
+                let tag_row = self.t.vis.iter().any(|r| r["header"] == self.header && r["kind"] == "enum" && r["name"] == tag);
+                if !tag_row && self.emitted.insert(format!("enum {tag}")) {
+                    let c = self.cond(&name, Some(&kind));
+                    items.push((2, c, tag, "enum".into()));
+                }
                 continue;
             }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
@@ -1117,25 +374,37 @@ impl Gen<'_> {
                 self.out.push(format!("#if {c}"));
                 open = Some(c);
             }
-            match kind.as_str() {
-                "macro" => {
-                    let v = self.macro_value(&name);
-                    self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
-                }
-                "enumerator" => {
-                    // The name is an enumerator and (its macro row) a macro of the same value, as the reference's
-                    // enumerations with a `#define` each: an anonymous enum constant, declared once per translation unit.
-                    let v = self.value(&name);
-                    self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
-                }
-                "typedef" => self.typedef(&name),
-                "struct" | "union" | "enum" => self.tag(&name, &kind),
-                "function" => self.function(&name),
-                _ => self.object(&name),
-            }
+            self.item(&name, &kind);
         }
         if open.is_some() {
             self.out.push("#endif".into());
+        }
+    }
+
+    /// The declaration of one table name of a visibility.tsv kind: every placement (`@@emit`, the rows test of
+    /// [`rows`]) goes through here to the emitter of its construct.
+    fn item(&mut self, name: &str, kind: &str) {
+        match kind {
+            "macro" => {
+                let v = self.value(name);
+                self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+            }
+            "enumerator" => {
+                // The name is an enumerator and (its macro row) a macro of the same value, as the reference's
+                // enumerations with a `#define` each: an anonymous enum constant, declared once per translation unit.
+                // An enumerator of an enumeration the tables declare as a tag (typedefs.tsv `enum`; its members are
+                // enumerators.tsv rows) is that enumeration's: the whole definition, once per translation unit.
+                if let Some(tag) = self.declared_enum(name) {
+                    self.tag(&tag, "enum");
+                    return;
+                }
+                let v = self.value(name);
+                self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
+            }
+            "typedef" => self.typedef(name),
+            "struct" | "union" | "enum" => self.tag(name, kind),
+            "function" => self.function(name),
+            _ => self.object(name),
         }
     }
 }
@@ -1321,6 +590,13 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                         let v = g.value(&n);
                         line.replace_range(i..=end.min(line.len() - 1), &v);
                     }
+                    // `@@init(NAME)`: the brace initializer of the initializers.tsv row NAME.
+                    while let Some(i) = line.find("@@init(") {
+                        let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
+                        let n = line[i + 7..end].to_string();
+                        let v = g.init(&n);
+                        line.replace_range(i..=end.min(line.len() - 1), &v);
+                    }
                     g.out.push(line);
                 }
             }
@@ -1338,6 +614,10 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
 /// abi-gen): a test or a P2 run can probe the headers the templates make now without touching the tree.
 pub fn run_args(root: &Path, args: &[String]) -> Result<(), String> {
     let check = args.iter().any(|a| a == "--check");
+    if let Some(i) = args.iter().position(|a| a == "--rows") {
+        let dir = args.get(i + 1).ok_or("headers-gen: --rows needs a directory")?;
+        return rows::run(root, Path::new(dir));
+    }
     match args.iter().position(|a| a == "--out") {
         None => run(root, check),
         Some(_) if check => Err("headers-gen: --out and --check do not go together".into()),
@@ -1407,6 +687,7 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use super::values::literal;
     use super::*;
 
     fn lv() -> Levels {
@@ -1507,24 +788,6 @@ mod tests {
         fs::remove_dir_all(&shadow).unwrap();
     }
 
-    // no spec clause: plan/headers.md 2.4 (kernel coexistence; D-X.124). An alias row is emitted as the
-    // other macro's name, and a row whose two values differ is refused by the generator.
-    #[test]
-    fn alias_macros_are_emitted_by_name_and_must_agree() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-        let t = load(&root).unwrap();
-        assert!(t.aliases.contains_key("IP_RECVRETOPTS"), "headers/aliases.tsv lost IP_RECVRETOPTS");
-        let text = fs::read_to_string(root.join("libc-include/netinet/in.h")).unwrap();
-        for (name, of) in &t.aliases {
-            assert_eq!(t.macros.get(name), t.macros.get(of), "{name} and {of} differ in macros.tsv");
-            assert!(text.contains(&format!("#  define {name} {of}\n")), "netinet/in.h does not spell {name} as {of}");
-        }
-        let mut g = Gen { root: &root, t: &t, header: "x.h".into(), out: vec![], errors: vec![], emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
-        assert_eq!(g.macro_value("IP_RECVRETOPTS"), "IP_RETOPTS");
-        assert_eq!(g.macro_value("IP_MULTICAST_TTL"), "33");
-        assert!(g.errors.is_empty(), "{:?}", g.errors);
-    }
-
     #[test]
     fn reserved_policy() {
         let r: BTreeMap<String, String> = [("__pid_t".to_string(), "emit".to_string()), ("_SIGSET_NWORDS".to_string(), "omit".to_string())].into();
@@ -1610,5 +873,105 @@ mod tests {
                 "headers/c.h.in: c.h is in no headers/slices/*.tsv row",
             ]
         );
+    }
+
+    // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-GEN-COMPLETE). Every table row, emitted in no
+    // header placement, matches the tables in C and C++ (rows.rs: sizes, offsets, types, values, bit-fields,
+    // initializers, call-site symbols). Needs gcc, g++ and nm.
+    #[test]
+    fn every_table_row_is_emitted_and_matches_the_tables() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        if std::process::Command::new("g++").arg("--version").output().is_err() {
+            eprintln!("skip: no g++ on this host, the rows test compiles C and C++");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("niji-rows-{}", std::process::id()));
+        let r = rows::run(&root, &dir);
+        let _ = fs::remove_dir_all(&dir);
+        if let Err(e) = r {
+            panic!("{e}");
+        }
+    }
+
+    // no spec clause: rulings #6714, #6715 (HEADERS-TABLES-COMPLETE). headers/providers.tsv exempts a function from the
+    // export check, so a row that names an unknown provider, no declared function, or a function libc exports at a
+    // default version (a stale row that would hide a missing export) is refused.
+    #[test]
+    fn a_provider_row_is_refused_unless_it_is_needed() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let t = load(&root).unwrap();
+        assert_eq!(t.providers.get("la_version").map(String::as_str), Some("program"));
+        let dir = std::env::temp_dir().join(format!("niji-providers-{}", std::process::id()));
+        fs::create_dir_all(dir.join("headers")).unwrap();
+        assert_eq!(t.providers.get("iszero").map(String::as_str), Some("generic"));
+        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\nsin\tgeneric\tx\nEOF\tgeneric\tx\nfpclassify\tgeneric\tx\n";
+        fs::write(dir.join(PROVIDERS), rows).unwrap();
+        let r = load_providers(&dir, &t.vis, &t.protos, &t.typedefs, &t.exported);
+        let _ = fs::remove_dir_all(&dir);
+        let e = r.expect_err("five bad rows");
+        assert!(e.contains("la_version: provider `linker`"), "{e}");
+        assert!(e.contains("niji_no_such_function: no prototypes.tsv"), "{e}");
+        assert!(e.contains("malloc: exported at a default version"), "{e}");
+        // `generic`: a declared function (sin) or a name no header shows as both a function and a macro (EOF: a
+        // macro in many headers, a function in none).
+        assert!(e.contains("sin: generic, but a prototypes.tsv"), "{e}");
+        assert!(e.contains("EOF: generic, but no header"), "{e}");
+        assert!(!e.contains("getumask") && !e.contains("fpclassify"), "{e}");
+    }
+
+    // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-TABLES-COMPLETE). An `<anon>` row's `rows K`
+    // counts its member rows at its own level only: a member with rows below it (an array of structures) does not use
+    // up K, and the aggregate's next member stays outside the anonymous union. The tables' one such `<anon>`
+    // (Dl_serinfo's) is the aggregate's last member, where a miscount changes nothing: synthetic rows.
+    #[test]
+    fn an_anonymous_member_counts_only_its_own_level() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let mut t = load(&root).unwrap();
+        let rows = [
+            ("", "32", "8", "", ""),
+            ("a", "0", "", "int", ""),
+            ("<anon>", "8", "", "union <anon>", "size 16 rows 2"),
+            ("p", "8", "", "Dl_serpath[1]", ""),
+            ("p.dls_name", "8", "", "char *", ""),
+            ("p.dls_flags", "16", "", "unsigned int", ""),
+            ("q", "8", "", "long int", ""),
+            ("z", "24", "", "long int", ""),
+        ];
+        let key = "struct niji_test_anon";
+        let cols = ["member", "offset_or_size", "align", "member_type", "bitfield"];
+        let made: Rows = rows.iter().map(|r| cols.iter().zip([r.0, r.1, r.2, r.3, r.4]).map(|(k, v)| (k.to_string(), v.to_string())).chain([("type".to_string(), key.to_string())]).collect()).collect();
+        t.layouts.insert(key.into(), made);
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let a = g.aggregate(key).expect("the synthetic rows make an aggregate");
+        let lines: Vec<&str> = a.lines.iter().map(|l| l.trim()).collect();
+        assert_eq!(lines.last(), Some(&"long z;"), "{lines:#?}");
+        assert_eq!(lines.iter().filter(|l| **l == "long z;").count(), 1, "{lines:#?}");
+        assert_eq!(lines[lines.len() - 2], "};", "z follows the anonymous union: {lines:#?}");
+    }
+
+    // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-GEN-COMPLETE). A vector typedef (typedefs.tsv
+    // spells it as the demangler does, `float __vector(4)`) is emitted as GCC's vector type, not as a structure of
+    // its size and alignment, which a size check cannot tell apart and the psABI passes in other registers (the
+    // construct of plant s16c-vector-newtype). next's tables have no vector type yet: synthetic rows through the
+    // rows test. Needs gcc and g++.
+    #[test]
+    fn a_vector_typedef_is_emitted_as_a_vector() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        if std::process::Command::new("g++").arg("--version").output().is_err() {
+            eprintln!("skip: no g++ on this host, the rows test compiles C and C++");
+            return;
+        }
+        let mut t = load(&root).unwrap();
+        let mut only = BTreeSet::new();
+        for (name, cxx) in [("niji_test_v4sf", "float __vector(4)"), ("niji_test_v2di", "long long __vector(2)")] {
+            let row = [("kind", "typedef"), ("name", name), ("header", "link.h"), ("size", "16"), ("align", "16"), ("cxx", cxx)];
+            t.typedefs.insert(("typedef".into(), name.into()), row.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect());
+            only.insert(name.to_string());
+        }
+        let dir = std::env::temp_dir().join(format!("niji-rows-vector-{}", std::process::id()));
+        let r = rows::check(&root, &t, &dir, Some(&only));
+        let _ = fs::remove_dir_all(&dir);
+        let summary = r.unwrap_or_else(|e| panic!("{e}"));
+        assert!(summary.contains("typedefs 2 rows, 0 failed"), "{summary}");
     }
 }

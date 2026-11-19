@@ -739,7 +739,11 @@ fn adopt_start(l: &mut Loader) -> bool {
             o.name = if k == 0 { b"" } else { soname(&o).unwrap_or(b"") };
             o
         };
-        let Ok(s) = Object::new(o.dynm) else { return false };
+        let Ok(mut s) = Object::new(o.dynm) else { return false };
+        // The program's canonical PLT entries define their functions for later objects too.
+        if k == 0 {
+            s.mark_program();
+        }
         l.objs[k] = MaybeUninit::new(o);
         l.syms[k] = MaybeUninit::new(s);
         // `l_name`: the program's is "", another object's its DT_SONAME (NUL-terminated in the
@@ -2128,6 +2132,10 @@ fn reloc_text(l: &Loader, i: usize, e: RelocError<'_>) -> Fail {
     let who = l_path_static(l, i);
     match e {
         RelocError::Undefined(sym) => fail_parts(&[who, b": undefined symbol: ", sym]),
+        RelocError::IndirectExternAccess(sym) => {
+            let msg = e.message();
+            fail_parts(&[who, b": ", msg, sym])
+        }
         e => {
             let msg = e.message();
             fail_parts(&[who, b": ", msg.strip_suffix(b"\n").unwrap_or(msg)])

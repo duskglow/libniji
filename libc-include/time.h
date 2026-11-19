@@ -21,7 +21,7 @@ struct tm {
   int tm_yday;
   int tm_isdst;
   long tm_gmtoff;
-  char * tm_zone;
+  const char * tm_zone;
 };
 # endif
 #endif

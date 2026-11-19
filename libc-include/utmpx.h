@@ -55,10 +55,7 @@ struct utmpx {
   char ut_host[256];
   struct __exit_status ut_exit;
   int ut_session;
-  struct {
-    int tv_sec;
-    int tv_usec;
-  } ut_tv;
+  struct { int tv_sec; int tv_usec; } ut_tv;
   int ut_addr_v6[4];
   char __glibc_reserved[20];
 };

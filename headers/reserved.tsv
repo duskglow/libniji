@@ -27,3 +27,5 @@ __cmsg_nxthdr	emit	C.9: CMSG_NXTHDR is __cmsg_nxthdr (mhdr, cmsg)
 __h_errno_location	emit	the thread-local h_errno is (*__h_errno_location ())
 __res_state	emit	the thread-local _res is (*__res_state ())
 bindresvport6	omit	not exported at a default version: no program can link it
+_argp_input	omit	inline helper of argp.h in the reference, not an exported symbol
+_option_is_short	omit	inline helper of argp.h in the reference, not an exported symbol

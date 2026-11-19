@@ -80,23 +80,8 @@ struct ifmap {
 # ifndef __NIJI_D_struct_ifreq
 #  define __NIJI_D_struct_ifreq 1
 struct ifreq {
-  union {
-    char ifrn_name[16];
-  } ifr_ifrn;
-  union {
-    struct sockaddr ifru_addr;
-    struct sockaddr ifru_dstaddr;
-    struct sockaddr ifru_broadaddr;
-    struct sockaddr ifru_netmask;
-    struct sockaddr ifru_hwaddr;
-    short ifru_flags;
-    int ifru_ivalue;
-    int ifru_mtu;
-    struct ifmap ifru_map;
-    char ifru_slave[16];
-    char ifru_newname[16];
-    char * ifru_data;
-  } ifr_ifru;
+  union { char ifrn_name[16]; } ifr_ifrn;
+  union { struct sockaddr ifru_addr; struct sockaddr ifru_dstaddr; struct sockaddr ifru_broadaddr; struct sockaddr ifru_netmask; struct sockaddr ifru_hwaddr; short ifru_flags; int ifru_ivalue; int ifru_mtu; struct ifmap ifru_map; char ifru_slave[16]; char ifru_newname[16]; char * ifru_data; } ifr_ifru;
 };
 # endif
 #endif
