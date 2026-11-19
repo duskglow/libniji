@@ -38,7 +38,14 @@ impl Gen<'_> {
                 if prev == "struct" || prev == "union" {
                     tags.push(format!("{prev} {word};"));
                 }
-                let w = if word == name { word.clone() } else { self.resolve(&word) };
+                // `complex` is <complex.h>'s macro for the keyword (C 7.3.1): a declaration spells the keyword.
+                let w = if word == name {
+                    word.clone()
+                } else if word == "complex" {
+                    "_Complex".to_string()
+                } else {
+                    self.resolve(&word)
+                };
                 if !scalar(&w) && w == word && omitted(&self.t.reserved, &w) && self.t.typedefs.contains_key(&("typedef".to_string(), w.clone())) {
                     self.typedef(&w);
                 }

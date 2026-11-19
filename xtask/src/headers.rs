@@ -40,6 +40,7 @@ mod cond;
 mod enums;
 mod functions;
 mod objects;
+mod rows;
 mod typedefs;
 mod types;
 mod values;
@@ -172,6 +173,8 @@ struct Tables {
     reserved: BTreeMap<String, String>,
     /// The `linked_elsewhere` names of every slice.
     linked_elsewhere: BTreeSet<&'static str>,
+    /// initializers.tsv: initializer -> (type, bytes in hexadecimal).
+    inits: BTreeMap<String, (String, String)>,
 }
 
 /// A typedef used as a member type that has no layout rows of its own but whose members the rows of the
@@ -230,7 +233,8 @@ fn load(root: &Path) -> Result<Tables, String> {
     let exported = tsv(root, "spec/abi/versions.tsv")?.into_iter().filter(|r| r["binding"] == "default").map(|r| r["symbol"].clone()).collect();
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere })
+    let inits = tsv(root, "spec/abi/initializers.tsv")?.into_iter().map(|r| (r["initializer"].clone(), (r["type"].clone(), r["bytes_hex"].clone()))).collect();
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, inits })
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -298,25 +302,31 @@ impl Gen<'_> {
                 self.out.push(format!("#if {c}"));
                 open = Some(c);
             }
-            match kind.as_str() {
-                "macro" => {
-                    let v = self.value(&name);
-                    self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
-                }
-                "enumerator" => {
-                    // The name is an enumerator and (its macro row) a macro of the same value, as the reference's
-                    // enumerations with a `#define` each: an anonymous enum constant, declared once per translation unit.
-                    let v = self.value(&name);
-                    self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
-                }
-                "typedef" => self.typedef(&name),
-                "struct" | "union" | "enum" => self.tag(&name, &kind),
-                "function" => self.function(&name),
-                _ => self.object(&name),
-            }
+            self.item(&name, &kind);
         }
         if open.is_some() {
             self.out.push("#endif".into());
+        }
+    }
+
+    /// The declaration of one table name of a visibility.tsv kind: every placement (`@@emit`, the rows test of
+    /// [`rows`]) goes through here to the emitter of its construct.
+    fn item(&mut self, name: &str, kind: &str) {
+        match kind {
+            "macro" => {
+                let v = self.value(name);
+                self.out.extend([format!("# ifndef {name}"), format!("#  define {name} {v}"), "# endif".into()]);
+            }
+            "enumerator" => {
+                // The name is an enumerator and (its macro row) a macro of the same value, as the reference's
+                // enumerations with a `#define` each: an anonymous enum constant, declared once per translation unit.
+                let v = self.value(name);
+                self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
+            }
+            "typedef" => self.typedef(name),
+            "struct" | "union" | "enum" => self.tag(name, kind),
+            "function" => self.function(name),
+            _ => self.object(name),
         }
     }
 }
@@ -502,6 +512,13 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
                         let v = g.value(&n);
                         line.replace_range(i..=end.min(line.len() - 1), &v);
                     }
+                    // `@@init(NAME)`: the brace initializer of the initializers.tsv row NAME.
+                    while let Some(i) = line.find("@@init(") {
+                        let end = line[i..].find(')').map(|e| i + e).unwrap_or(line.len());
+                        let n = line[i + 7..end].to_string();
+                        let v = g.init(&n);
+                        line.replace_range(i..=end.min(line.len() - 1), &v);
+                    }
                     g.out.push(line);
                 }
             }
@@ -519,6 +536,10 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
 /// abi-gen): a test or a P2 run can probe the headers the templates make now without touching the tree.
 pub fn run_args(root: &Path, args: &[String]) -> Result<(), String> {
     let check = args.iter().any(|a| a == "--check");
+    if let Some(i) = args.iter().position(|a| a == "--rows") {
+        let dir = args.get(i + 1).ok_or("headers-gen: --rows needs a directory")?;
+        return rows::run(root, Path::new(dir));
+    }
     match args.iter().position(|a| a == "--out") {
         None => run(root, check),
         Some(_) if check => Err("headers-gen: --out and --check do not go together".into()),
@@ -774,5 +795,23 @@ mod tests {
                 "headers/c.h.in: c.h is in no headers/slices/*.tsv row",
             ]
         );
+    }
+
+    // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-GEN-COMPLETE). Every table row, emitted in no
+    // header placement, matches the tables in C and C++ (rows.rs: sizes, offsets, types, values, bit-fields,
+    // initializers, call-site symbols). Needs gcc, g++ and nm.
+    #[test]
+    fn every_table_row_is_emitted_and_matches_the_tables() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        if std::process::Command::new("g++").arg("--version").output().is_err() {
+            eprintln!("skip: no g++ on this host, the rows test compiles C and C++");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("niji-rows-{}", std::process::id()));
+        let r = rows::run(&root, &dir);
+        let _ = fs::remove_dir_all(&dir);
+        if let Err(e) = r {
+            panic!("{e}");
+        }
     }
 }

@@ -1,0 +1,6 @@
+# The reviewed exceptions of the rows test (`cargo xtask headers-gen --rows DIR`, xtask/src/headers/rows.rs;
+# plan/headers.md 2.4): a table row the generator cannot emit, or that one language cannot have. `table` and `name`
+# are as the test prints them (`typedefs typedef char16_t`: table typedefs, name `typedef char16_t`); `lang` is the
+# language the row is left out of (`c`, `c++` or `*` for every unit). Each row is a RULING NEEDED in the hand-back
+# of the change that adds it, with the fix it recommends.
+table	name	lang	reason
