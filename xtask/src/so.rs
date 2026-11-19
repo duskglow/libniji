@@ -1607,12 +1607,14 @@ pub(crate) const LDSO_SPAN_BUCKET: u64 = 0x8_0000;
 const LDSO_COLD_BSS: u64 = 4096;
 
 /// DL-23-2: the interpreter's cold tables placed first in `.lbss`, on the page `.bss`'s last words
-/// share, which every start writes: the link-map nodes (`ld::dlopen::NODES`, 176 bytes each), whose
-/// first entries the start fills for the debugger rendezvous (program, each start-time object,
-/// `ld.so`). After them, at their own pages: `ld::THREAD_MODS` (written at the start only for
-/// objects with a `PT_TLS` segment; the C library has none) and `ld::readers::TABLE`. Measured on
-/// the Skylake-SP host (fast profile, ASLR off, present pages at `main`): with `THREAD_MODS` first,
-/// the nodes took a page of their own (+1 fault per dynamic start); with the nodes first, none.
+/// share, which every start writes: `ld::dlopen::NODES`, the first 16 entries of the thread-local
+/// module table (written at the start for each object with a `PT_TLS` segment; the C library has
+/// none) and then the link-map nodes (176 bytes each), whose first entries the start fills for the
+/// debugger rendezvous (program, each start-time object, `ld.so`). After them, at their own pages:
+/// the rest of the module table (`ld::THREAD_MODS`) and `ld::readers::TABLE`. Measured on the
+/// Skylake-SP host (fast profile, ASLR off, exact fault counts): with `THREAD_MODS` first, the nodes
+/// took a page of their own (+1 fault per dynamic start); with the whole of `THREAD_MODS` after the
+/// nodes, a start with a `PT_TLS` object took one (+1); with the head inside `NODES`, neither.
 const LDSO_LBSS_FIRST: &[&str] = &["2ld6dlopen5NODES"];
 
 /// The linker script fragment that rounds the interpreter's span ([`LDSO_SPAN_BUCKET`]): an empty
