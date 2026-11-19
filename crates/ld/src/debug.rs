@@ -39,7 +39,11 @@ impl State {
     /// The `r_state` word.
     #[must_use]
     pub const fn word(self) -> i32 {
-        self as i32
+        match self {
+            Self::Consistent => 0,
+            Self::Add => 1,
+            Self::Delete => 2,
+        }
     }
 }
 
