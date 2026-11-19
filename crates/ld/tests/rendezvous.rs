@@ -27,11 +27,15 @@ const PROG: &str = r#"
 #include <stdio.h>
 #include <string.h>
 extern ElfW(Dyn) _DYNAMIC[];
-static struct { unsigned long addr; const char *name; } ph[64];
+static struct { unsigned long addr; const char *name; unsigned long dyn; } ph[64];
 static int nph;
 static int cb(struct dl_phdr_info *i, size_t s, void *d) {
     (void)s; (void)d;
-    if (nph < 64) { ph[nph].addr = i->dlpi_addr; ph[nph].name = i->dlpi_name; nph++; }
+    if (nph >= 64) return 0;
+    ph[nph].addr = i->dlpi_addr; ph[nph].name = i->dlpi_name; ph[nph].dyn = 0;
+    for (int j = 0; j < i->dlpi_phnum; j++)
+        if (i->dlpi_phdr[j].p_type == PT_DYNAMIC) ph[nph].dyn = i->dlpi_addr + i->dlpi_phdr[j].p_vaddr;
+    nph++;
     return 0;
 }
 static struct r_debug *dt(void) {
@@ -60,7 +64,11 @@ static int check(const char *when, int base, int want, const char *last, const c
             fprintf(stderr, "%s: entry %d '%s' vs '%s'\n", when, k, m->l_name, k < nph ? ph[k].name : "-");
             return base + 7;
         }
-        if (m->l_prev != prev || !m->l_ld) return base + 8;
+        /* l_ld: the object's dynamic array, where its PT_DYNAMIC puts it (ld.so's included). */
+        if (m->l_prev != prev || !m->l_ld || (unsigned long)m->l_ld != ph[k].dyn) {
+            fprintf(stderr, "%s: entry %d '%s' l_ld %p vs PT_DYNAMIC %#lx\n", when, k, m->l_name, (void *)m->l_ld, ph[k].dyn);
+            return base + 8;
+        }
         if (k > 0 && m->l_name[0] != '/' && strcmp(m->l_name, "linux-vdso.so.1")) { fprintf(stderr, "%s: '%s' is not a path\n", when, m->l_name); return base + 9; }
         ldso += m->l_addr == own->r_ldbase && !strcmp(m->l_name, interp);
     }

@@ -1,0 +1,3 @@
+# DL-23 plants, second file: ld.so's own `l_ld` read from its header table (own_dynamic, crates/ld/tests/rendezvous.rs).
+# cargo xtask plants handoff/DL-23-plants-2.txt --dir <RAM dir> --timeout 600
+own-dynamic-base | crates/boundary/src/ld.rs | lit:return base.wrapping_add(usize::try_from(word(16)).unwrap_or(0)); ==> return base; | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 8

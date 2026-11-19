@@ -1366,7 +1366,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     let area_base = map_area(&area);
     __libc_stack_end.store(sp, Release);
     let rseq_size = register_rseq(area_base.wrapping_add(usize::try_from(area.tp).unwrap_or(0)));
-    rendezvous_start(&objs[..n], &paths[..n], interp, own_views, env.vdso.and_then(|v| usize::try_from(v).ok()).unwrap_or(0));
+    rendezvous_start(&objs[..n], &paths[..n], interp, env.vdso.and_then(|v| usize::try_from(v).ok()).unwrap_or(0));
     for (o, p) in objs[..n].iter_mut().zip(&placed[..n]) {
         o.tls = *p;
     }
@@ -1485,7 +1485,7 @@ const DT_DEBUG: u64 = 21;
 #[allow(clippy::indexing_slicing)]
 #[cold]
 #[inline(never)]
-fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8]], interp: Option<usize>, own_views: &mut [(usize, usize)], vdso: usize) {
+fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8]], interp: Option<usize>, vdso: usize) {
     let n = objs.len();
     let own_base = OWN_BASE.load(Relaxed);
     let empty = c"".as_ptr().expose_provenance();
@@ -1525,11 +1525,30 @@ fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8
         }
     }
     if interp.is_none() {
-        let own = own_object(Native::INTERP.as_bytes(), own_views);
-        put(n, own_base, interp_name(&objs[0]), ld_of(&own));
+        put(n, own_base, interp_name(&objs[0]), own_dynamic(own_base));
     }
     let dt_debug = niji_ld::reloc::dynamic_word(&objs[0], DT_DEBUG).map_or(0, |w| usize::try_from(w).unwrap_or(0));
     debug::start(head, own_base, dt_debug);
+}
+
+/// `ld.so`'s `l_ld`: `base` plus its `PT_DYNAMIC`'s `p_vaddr`, read from its own mapped header table
+/// as the `dl_iterate_phdr` walk reads it (no view, no parse: a few words per start); 0 when the
+/// headers are malformed or name no `PT_DYNAMIC`.
+fn own_dynamic(base: usize) -> usize {
+    use niji_ld::elf::{EHDR_SIZE, PHDR_SIZE};
+    let mut header = [0u8; EHDR_SIZE];
+    read_image(base, &mut header);
+    let Some((phoff, phnum)) = boot::own_headers(&header) else { return 0 };
+    let table = base.wrapping_add(usize::try_from(phoff).unwrap_or(0));
+    let mut ph = [0u8; PHDR_SIZE];
+    for i in 0..phnum {
+        read_image(table.wrapping_add(i.wrapping_mul(PHDR_SIZE)), &mut ph);
+        let word = |o: usize| ph.get(o..o.saturating_add(8)).and_then(|b| <[u8; 8]>::try_from(b).ok()).map_or(0, u64::from_ne_bytes);
+        if word(0) & 0xffff_ffff == u64::from(elf::pt::DYNAMIC) {
+            return base.wrapping_add(usize::try_from(word(16)).unwrap_or(0));
+        }
+    }
+    0
 }
 
 /// `ld.so`'s link map name: the program's `PT_INTERP` string in its memory image when a loaded
