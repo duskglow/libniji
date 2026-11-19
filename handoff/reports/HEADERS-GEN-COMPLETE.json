@@ -31,5 +31,5 @@
  "improvement": "precheck's jobs check reads every job of kind gate as an affected run, while the FULL-escalation rule (run the changed crates' tests instead) names no kind: name the kind (test) in developer-flow step 4, or let precheck accept a FULL-escalated story's crate tests",
  "next_step": "Land on the train (FULL gate); then turn each RULING NEEDED exception group into a table story",
  "report_file": "handoff/HEADERS-GEN-COMPLETE.md",
- "superseded": ["mei:headers-gen-complete-gate (the same cargo test -p xtask, 509 passed, started with kind gate: precheck reads a gate job as an affected run; rerun as kind test)", "mei:headers-gen-complete-precheck (red only for that kind)", "mei:headers-gen-complete-rows5..rows12 (development runs of the rows test)"],
- "jobs": ["mei:headers-gen-complete-tests", "mei:headers-gen-complete-plants", "mei:headers-gen-complete-lint", "mei:headers-gen-complete-precheck2"]}
+ "superseded": ["mei:headers-gen-complete-gate (the same cargo test -p xtask, 509 passed, started with kind gate: precheck reads a gate job as an affected run; rerun as kind test)", "mei:headers-gen-complete-precheck (red only for that kind)", "mei:headers-gen-complete-precheck2 (WAIT: the test job had not ended)", "mei:headers-gen-complete-precheck3 (GREEN on 562dccde1, before this report named its successor)","mei:headers-gen-complete-rows5..rows12 (development runs of the rows test)"],
+ "jobs": ["mei:headers-gen-complete-tests", "mei:headers-gen-complete-plants", "mei:headers-gen-complete-lint", "mei:headers-gen-complete-precheck4"]}
