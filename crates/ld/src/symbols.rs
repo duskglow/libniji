@@ -256,8 +256,7 @@ impl<'a> Object<'a> {
 
     /// Whether `st`, a hash candidate that is not an exported definition, is one of the program's
     /// canonical PLT entries ([`Object::program`]). Cold and out of line: a lookup reaches it only
-    /// for such a candidate, and the flag's read (a match on the hash table) cannot be hoisted
-    /// into every lookup, where it cost each object visited about six instructions.
+    /// for such a candidate, so the flag's read (a match on the hash table) stays off the walk.
     #[cold]
     #[inline(never)]
     fn canonical_entry(&self, st: &Sym) -> bool {

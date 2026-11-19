@@ -1296,21 +1296,21 @@ pub struct SysvHash<'a> {
     rd: Rd<'a>,
     nbucket: u32,
     nchain: u32,
-    /// [`GnuHash`]'s `mark`, for a SysV table.
-    mark: bool,
+    /// [`GnuHash`]'s `mark`, for a SysV table (a `u8` for the same reason).
+    mark: u8,
 }
 
 impl<'a> SysvHash<'a> {
     /// This table with its mark set to `on` ([`GnuHash::marked`]).
     #[must_use]
     pub(crate) fn marked(self, on: bool) -> Self {
-        SysvHash { mark: on, ..self }
+        SysvHash { mark: u8::from(on), ..self }
     }
 
     /// The mark ([`GnuHash::mark`]).
     #[must_use]
     pub(crate) fn mark(&self) -> bool {
-        self.mark
+        self.mark != 0
     }
 
     /// The number of buckets.
@@ -1391,8 +1391,11 @@ pub struct GnuHash<'a> {
     bloom_shift: u32,
     /// One bit the user of the table keeps with it (the lookup view's "the program has canonical
     /// PLT entries", `symbols::Object::program`); false as read. It sits in the struct's tail
-    /// padding, so the table and every view that holds one keep their size.
-    mark: bool,
+    /// padding, so the table and every view that holds one keep their size. A `u8` (0 or 1), not a
+    /// `bool`: a `bool` has invalid values the compiler would take for the discriminant of an enum
+    /// holding the table (`symbols::Hash`), moving it off the byte it uses without the mark and
+    /// changing the symbol walk's code.
+    mark: u8,
 }
 
 /// One entry of a GNU hash chain.
@@ -1408,13 +1411,13 @@ impl<'a> GnuHash<'a> {
     /// This table with its mark set to `on`.
     #[must_use]
     pub(crate) fn marked(self, on: bool) -> Self {
-        GnuHash { mark: on, ..self }
+        GnuHash { mark: u8::from(on), ..self }
     }
 
     /// The mark: false as read, else what [`GnuHash::marked`] set.
     #[must_use]
     pub(crate) fn mark(&self) -> bool {
-        self.mark
+        self.mark != 0
     }
 
     /// The number of buckets.
