@@ -989,6 +989,34 @@ pub fn built_profile(root: &Path) -> Option<Profile> {
     }
 }
 
+/// The interpreter's and `ldconfig`'s cargo builds, started beside the libc build (PLANTS-BUILD-SLOWDOWN). Their
+/// crates build as one codegen unit each ([`LD_RUSTFLAGS`]), so mostly on one thread: after a change to the library
+/// crates each took about 50 s on the Skylake-SP build host, after the libc and libm builds and one after the other.
+/// Their output is dropped: [`run_ld`] and [`run_ldconfig`] run the same commands again, which cargo answers from
+/// these builds (replaying their warnings) or redoes, and they report any failure. Dropping this waits for the
+/// builds, so none outlives `run_so_as`, on an error path too.
+struct EarlyBuilds(Option<std::thread::JoinHandle<()>>);
+
+impl EarlyBuilds {
+    fn start(root: &Path, product: &Path, profile: Profile) -> EarlyBuilds {
+        let tag = build_tag(root);
+        let cmds: Vec<Command> = [&LD_BUILD, &LDCONFIG_BUILD].iter().map(|b| b.command(root, product, profile, None, &tag)).collect();
+        EarlyBuilds(Some(std::thread::spawn(move || {
+            for mut c in cmds {
+                let _ = c.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status();
+            }
+        })))
+    }
+}
+
+impl Drop for EarlyBuilds {
+    fn drop(&mut self) {
+        if let Some(h) = self.0.take() {
+            let _ = h.join();
+        }
+    }
+}
+
 /// `cargo xtask so`: the products with the test profile (see `Profile::for_tests`).
 pub fn run_so(root: &Path) -> Result<(), String> {
     run_so_as(root, Profile::for_tests())
@@ -1297,6 +1325,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let release = root.join("target/niji");
     // One product build per tree at a time; the lock is held to the end of this function.
     let _lock = lock_product_dir(&product)?;
+    let early = EarlyBuilds::start(root, &product, profile);
     fs::create_dir_all(&release).map_err(|e| e.to_string())?;
     let _ = fs::remove_file(release.join(".profile"));
     // LAYOUT-TRACE-AT-BUILD: a set built now names its lists only if this run traced (or skipped) the layout.
@@ -1445,6 +1474,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
     // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
     println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
+    drop(early);
     run_ld(root, &cc, profile, layout)?;
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
@@ -1557,7 +1587,7 @@ impl LdLink {
         // LAYOUT-LDSO-WINDOW: the large zero-filled tables after the small state words (a copy: cargo owns `raw`).
         let archive = dir.join("ld-coldbss.a");
         fs::copy(raw, &archive).map_err(|e| format!("copy {}: {e}", raw.display()))?;
-        crate::coldbss::move_cold_bss(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &dir.join("ld-coldbss-work"), LDSO_COLD_BSS)?;
+        crate::coldbss::move_cold_bss_first(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &dir.join("ld-coldbss-work"), LDSO_COLD_BSS, LDSO_LBSS_FIRST)?;
         let entry = dir.join("ld-entry.o");
         run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
         let map = dir.join("ld.map");
@@ -1605,6 +1635,17 @@ pub(crate) const LDSO_SPAN_BUCKET: u64 = 0x8_0000;
 /// [`crate::coldbss::MIN`]: below it are the start-up object list (2.5 KiB) and the fini hooks
 /// (1.5 KiB), which lie on the pages start-up writes (libc's threshold was not measured here).
 const LDSO_COLD_BSS: u64 = 4096;
+
+/// DL-23-2: the interpreter's cold tables placed first in `.lbss`, on the page `.bss`'s last words
+/// share, which every start writes: `ld::dlopen::NODES`, the first 16 entries of the thread-local
+/// module table (written at the start for each object with a `PT_TLS` segment; the C library has
+/// none) and then the link-map nodes (176 bytes each), whose first entries the start fills for the
+/// debugger rendezvous (program, each start-time object, `ld.so`). After them, at their own pages:
+/// the rest of the module table (`ld::THREAD_MODS`) and `ld::readers::TABLE`. Measured on the
+/// Skylake-SP host (fast profile, ASLR off, exact fault counts): with `THREAD_MODS` first, the nodes
+/// took a page of their own (+1 fault per dynamic start); with the whole of `THREAD_MODS` after the
+/// nodes, a start with a `PT_TLS` object took one (+1); with the head inside `NODES`, neither.
+const LDSO_LBSS_FIRST: &[&str] = &["2ld6dlopen5NODES"];
 
 /// The linker script fragment that rounds the interpreter's span ([`LDSO_SPAN_BUCKET`]): an empty
 /// `NOLOAD` section after `.lbss` (the last zero-filled section, [`LDSO_COLD_BSS`]), the default
@@ -2029,9 +2070,11 @@ fn check_no_interp(path: &Path) -> Result<(), String> {
 }
 
 /// The symbols the interpreter exports (DL-12, D-27.20), each at the version `spec/abi/versions.tsv`
-/// gives it for the interpreter's soname; every other symbol stays local.
+/// gives it for the interpreter's soname (a `GLIBC_PRIVATE` row at `NIJI_PRIVATE`, R14-12); every
+/// other symbol stays local.
 /// `__libc_stack_end` and the rseq objects live here, not in `libc.so.6` (R14-12, D-27.26).
-const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags"];
+/// `_r_debug` and `_dl_debug_state`: the debugger rendezvous (DL-23).
+const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags", "_r_debug", "_dl_debug_state"];
 
 /// The interpreter's version script: one node per version of [`LD_EXPORTS`], everything else local.
 fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
@@ -2040,6 +2083,9 @@ fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
     for sym in LD_EXPORTS {
         let version = table.lines().map(|l| l.split('\t').collect::<Vec<_>>()).find(|f| f.first() == Some(&soname) && f.get(1) == Some(sym)).and_then(|f| f.get(2).map(|v| (*v).to_string()));
         let version = version.ok_or_else(|| format!("versions.tsv: no row for {soname} {sym}"))?;
+        // No GLIBC_PRIVATE node (R14-12): a private name is libniji's own interface, NIJI_PRIVATE
+        // (`_dl_debug_state`, found by name by a debugger, DL-23 / D-27.62).
+        let version = if version == "GLIBC_PRIVATE" { "NIJI_PRIVATE".to_string() } else { version };
         nodes.entry(version).or_default().push(sym);
     }
     let mut out = String::new();
