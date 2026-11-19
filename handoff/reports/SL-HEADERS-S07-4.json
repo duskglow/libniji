@@ -1,6 +1,6 @@
 {"task": "SL-HEADERS-S07-4", "model": "sonnet", "tokens": null,
  "result": "READY: reserved ids D-X.117, D-X.118, COMPAT-32, COMPAT-33 placed in the records (moved out of records/pending) and the three differences rows; static clean, gate green",
- "branch": "task/sl-headers-s07-4", "head": "HEADSHA",
+ "branch": "task/sl-headers-s07-4", "head": "b960b21d1",
  "gate": {"affected": "ok", "peak": null}, "accepted_first_attempt": null,
  "jobs": ["keke:sl-headers-s07-4-gate2", "keke:sl-headers-s07-4-plants"],
  "rulings": [], "informational": ["pending records may not carry real ids (records check): reserved ids go in records/decisions and records/compat"], "refused": [],
