@@ -1,0 +1,16 @@
+# LAYOUT-LDSO-WINDOW(-2) plants (xtask/src/so.rs): ld.so's mapped span rounded to LDSO_SPAN_BUCKET, its crates
+# built as one codegen unit each, its large zero-filled objects moved to .lbss.
+# The interpreter linked without the span script: the build's span check refuses it.
+lsw-no-script | xtask/src/so.rs | lit:.arg(format!("-Wl,-T,{}", span_script.display())) ==> .arg("-Wl,-z,now") | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:mapped span 0x[0-9a-f]+ is not a whole number of 0x80000-byte buckets
+# The script rounds to one page instead of the bucket: the span check refuses it.
+lsw-page-align | xtask/src/so.rs | lit:{{ . = ALIGN({LDSO_SPAN_BUCKET:#x}); }} ==> {{ . = ALIGN(0x1000); }} | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:mapped span 0x[0-9a-f]+ is not a whole number of 0x80000-byte buckets
+# The span measured from the file end instead of the memory end (.bss left out): the check refuses the rounded image.
+lsw-span-filesz | xtask/src/so.rs | lit:p.vaddr.saturating_add(p.memsz).next_multiple_of(0x1000) ==> p.vaddr.saturating_add(p.filesz).next_multiple_of(0x1000) | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:mapped span 0x[0-9a-f]+ is not a whole number of 0x80000-byte buckets
+# The interpreter's crates built in the profile's units (16 in fast): the build's unit check refuses the archive.
+lsw-units-flag | xtask/src/so.rs | lit:"-Crelocation-model=pie\x1f-Ccodegen-units=1" ==> "-Crelocation-model=pie" | cargo test -p niji --test cold_bss_products abi_ldso_cold_bss_objects_are_lbss | msg:members come from crates split into more than one codegen unit
+# The unit check skips unit 1: its unit test names a unit-1 member.
+lsw-units-one | xtask/src/so.rs | lit:n > 0)).collect() ==> n > 1)).collect() | cargo test -p xtask --bin xtask interpreter_archive_units | msg:interpreter_archive_units_beyond_the_first_are_reported.*FAILED|panicked
+# No ld.so object reaches the cold threshold: the 20 KiB tables stay in .bss among the start-up words.
+lsw-cold-bss | xtask/src/so.rs | lit:const LDSO_COLD_BSS: u64 = 4096; ==> const LDSO_COLD_BSS: u64 = 1 << 30; | cargo test -p niji --test cold_bss_products abi_ldso_cold_bss_objects_are_lbss | msg:ld.so objects of 4 KiB or more left in .bss
+# The span section placed after .bss instead of .lbss: the tables land after it, the span is no longer rounded.
+lsw-span-after-bss | xtask/src/so.rs | lit:INSERT AFTER .lbss;\n ==> INSERT AFTER .bss;\n | cargo test -p niji --test hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound | msg:mapped span 0x[0-9a-f]+ is not a whole number of 0x80000-byte buckets

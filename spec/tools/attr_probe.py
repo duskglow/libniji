@@ -38,7 +38,7 @@ a `va_list` is an extern object; a function with a by-value aggregate parameter 
 
 diagattrs.tsv (`name nonnull wur noreturn format malloc alloc_size deprecated sentinel pure`): nonnull is the comma list of
 1-based parameters, format is `printf:IDX:FIRST` (kind from the function's name: scanf, strftime, strfmon or
-printf), alloc_size the comma list of parameters, the others `1` or empty.
+printf), alloc_size the comma list of parameters, the others `1` or empty; pure is `1`, or `const` for a function the reference declares with attribute const.
 """
 import argparse, csv, json, os, re, subprocess, sys, tempfile
 
@@ -299,7 +299,24 @@ def fmt_kind(n):
 BUILTIN_SIZE = {"strndup", "strdup"}
 
 
-def derive(res, pr, names):
+def const_names(heads, names):
+    """The functions among `names` the reference's own headers declare with attribute const (the unused-value
+    warning is the same for pure and const, so the compiler's warnings cannot tell them apart; the preprocessed
+    text of the reference's headers can). A const function that is also a compiler builtin must be declared
+    const: the compiler refuses a pure declaration of it."""
+    src = "".join("#include <%s>\n" % h for h in heads if os.path.exists("/usr/include/" + h))
+    out = subprocess.run(["gcc", "-E", "-P", "-x", "c", "-D_GNU_SOURCE", "-"], input=src, capture_output=True, text=True).stdout
+    decls = re.findall(r"extern[^;{}]*;", out)
+    found = set()
+    for n in names:
+        for d in decls:
+            if re.search(r"[ *]%s \(" % re.escape(n), d) and re.search(r"__const__|__attribute_const__", d):
+                found.add(n)
+                break
+    return found
+
+
+def derive(res, pr, names, consts=frozenset()):
     rows = {n: {"nonnull": [], "wur": "", "noreturn": "", "format": "", "malloc": "", "alloc_size": "", "deprecated": "", "sentinel": "", "pure": ""} for n in names}
     fmt = {}
     for ln, (key, flags, err) in sorted(res.items()):
@@ -313,7 +330,7 @@ def derive(res, pr, names):
             if "-Wdeprecated-declarations" in flags:
                 r["deprecated"] = "1"
             if "-Wunused-value" in flags:
-                r["pure"] = "1"
+                r["pure"] = "const" if n in consts else "1"
             if "-Wformat=" in flags and pr[n].rstrip().endswith("...)"):
                 r["sentinel"] = "?"
         elif kind == "n" and "-Wnonnull" in flags:
@@ -359,7 +376,7 @@ def main():
         bad = sorted({ref[ln][0][0] for ln in ref if ref[ln][2]})
         if bad:
             print("attr_probe: %d functions have a test that did not compile on the reference side: %s" % (len(bad), " ".join(bad[:40])), file=sys.stderr)
-        rows = derive(ref, pr, names)
+        rows = derive(ref, pr, names, const_names(heads, names))
         with open(args.out, "w") as f:
             f.write("name\tnonnull\twur\tnoreturn\tformat\tmalloc\talloc_size\tdeprecated\tsentinel\tpure\n")
             for n in names:

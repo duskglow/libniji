@@ -1,0 +1,22 @@
+{"task": "SL-HEADERS-REGISTRY", "model": "opus", "tokens": null,
+ "result": "Header slices now add files only: headers/slices/<slice>.tsv rows, spec/tools/header_checks/<slice>.py and xtask/src/headers/slices/<slice>.rs (listed by xtask/build.rs); slices 5, 6, 9, 14 moved with identical verdicts and an identical libc-include tree",
+ "branch": "task/sl-headers-registry", "head": "233a0a14c (precheck GREEN; this report's own commit follows it)",
+ "gate": {"affected": "FULL tier (escalated by the affected tool): 32 suites, 12162 passed / 0 failed, 1397 ignored; conformance 139 passed / 0 failed", "peak": "16G (page cache included), oom_kill=0"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Before/after on origin/next (mei): headers-gen ok, 67 headers; libc-include tree sha256 9479844757908e57 both; header_check 0 failed of 4563 both; 52 NOTE lines sorted-identical; the 4563 units as (configuration, text) identical",
+   "Merge demonstration: two scratch slices from the head merged with each other and onto the head, 0 conflicts (scratch branches deleted)",
+   "Plant reg-missing-row-check is WARN-NO-MSG: the plants tool's products build runs headers-gen first, which refuses the same row, so header_check.py's copy of the row check is not plant-proven",
+   "Every slice change escalates the gate to FULL (affected maps headers/ tables and xtask files to FULL); the new slice paths could get a direct tier"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "unblock", "what": "open slice stories S07, S08, S10-S13, S15-S20, VIS-FIX stop conflicting with each other in header_check.py and headers.rs after one migration merge each", "before": null, "after": null, "unit": null, "measured": false},
+   {"kind": "coverage", "what": "plants added (10 CAUGHT, 1 WARN-NO-MSG) and xtask unit tests added", "before": 0, "after": 13, "unit": "plants+tests", "measured": true},
+   {"kind": "correctness", "what": "headers-gen and header_check refuse a slice row without a template, a header in two rows and a template in no row (previously a template missing from HEADERS silently skipped P5)", "before": null, "after": null, "unit": null, "measured": true}
+ ],
+ "jobs": ["mei:sl-headers-registry-gate", "mei:sl-headers-registry-plants", "mei:sl-headers-registry-lint"],
+ "improvement": "affected could give headers/slices/, spec/tools/header_checks/ and xtask/src/headers/slices/ a direct tier (headers-gen --check, header_check.py, xtask headers tests) instead of FULL, saving each slice a whole-gate run",
+ "next_step": "Land; each open slice branch merges next once and moves its additions with the steps in handoff/SL-HEADERS-REGISTRY.md",
+ "report_file": "handoff/SL-HEADERS-REGISTRY.md"}
