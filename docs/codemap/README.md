@@ -50,7 +50,7 @@ Other crates: abi, boundary, core, kernel, ld, ld-so, ldconfig-bin, legacy, libc
 | `/dev/` | crates/legacy/src/accounting.rs:470 |
 | `/dev/console` | crates/boundary/src/fmtmsg.rs:268, crates/core/src/log.rs:65, crates/core/src/term.rs:506 |
 | `/dev/log` | crates/core/src/log.rs:63 |
-| `/dev/null` | crates/boundary/src/selftest.rs:470, crates/boundary/src/spawn.rs:778, crates/boundary/src/spawn.rs:851, crates/rt/src/start.rs:245 |
+| `/dev/null` | crates/boundary/src/selftest.rs:491, crates/boundary/src/spawn.rs:778, crates/boundary/src/spawn.rs:851, crates/rt/src/start.rs:245 |
 | `/dev/ptmx` | crates/core/src/term.rs:335, crates/core/src/term.rs:507 |
 | `/dev/pts/` | crates/core/src/term.rs:391, crates/core/src/term.rs:502 |
 | `/dev/shm/` | crates/boundary/src/mqueue.rs:370, crates/boundary/src/nscache.rs:54 |
