@@ -183,6 +183,23 @@ struct Tables {
     enums: BTreeMap<String, Vec<(String, String)>>,
     /// enumerators.tsv: an enumerator -> the tag of its enumeration.
     enum_of: BTreeMap<String, String>,
+    /// visibility.tsv: (header, name) -> the indices in `vis` of its rows, in table order (GATE-TEST-TIME: the
+    /// generator looked rows up by scanning all of `vis` for every name of every header, ~110 s of the CI gate).
+    vis_at: BTreeMap<(String, String), Vec<usize>>,
+    /// visibility.tsv: header -> the union of the configurations of its `include-error` rows.
+    include_error: BTreeMap<String, u64>,
+}
+
+impl Tables {
+    /// The indices in `vis` of the rows of `name` in `header`, in table order.
+    fn vis_idx(&self, header: &str, name: &str) -> &[usize] {
+        self.vis_at.get(&(header.to_string(), name.to_string())).map_or(&[], Vec::as_slice)
+    }
+
+    /// The first visibility row of `name` as a `kind` in `header`.
+    fn vis_row(&self, header: &str, name: &str, kind: &str) -> Option<&BTreeMap<String, String>> {
+        self.vis_idx(header, name).iter().map(|&i| &self.vis[i]).find(|r| r["kind"] == kind)
+    }
 }
 
 /// A typedef or a structure or union tag used as a member type that has no layout rows of its own but whose members
@@ -258,7 +275,15 @@ fn load(root: &Path) -> Result<Tables, String> {
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of })
+    let mut vis_at: BTreeMap<(String, String), Vec<usize>> = BTreeMap::new();
+    let mut include_error: BTreeMap<String, u64> = BTreeMap::new();
+    for (i, r) in vis.iter().enumerate() {
+        vis_at.entry((r["header"].clone(), r["name"].clone())).or_default().push(i);
+        if r["kind"] == "include-error" {
+            *include_error.entry(r["header"].clone()).or_default() |= mask_of(&lv, &r["configs"]).unwrap_or(0);
+        }
+    }
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of, vis_at, include_error })
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
@@ -345,7 +370,7 @@ impl Gen<'_> {
             }
             // An enumerator of a declared enumeration: that enumeration, once (its tag row, when this header has one).
             if let Some(tag) = (kind == "enumerator").then(|| self.declared_enum(&name)).flatten() {
-                let tag_row = self.t.vis.iter().any(|r| r["header"] == self.header && r["kind"] == "enum" && r["name"] == tag);
+                let tag_row = self.t.vis_row(&self.header, &tag, "enum").is_some();
                 if !tag_row && self.emitted.insert(format!("enum {tag}")) {
                     let c = self.cond(&name, Some(&kind));
                     items.push((2, c, tag, "enum".into()));
