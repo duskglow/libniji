@@ -1,6 +1,6 @@
 {"task": "RELEASE-SNAPSHOT-1118B-2", "model": "opus", "tokens": null,
  "result": "COMPLETE: snapshot-ready at 557dfdaa6; snapshot-2026-11-18.2 staged on keke; coexist builds again (LDSO-TRACE-PREFIX); #22 fixed end to end; every other check matches snapshot-2026-11-18.1",
- "branch": "task/release-snapshot-1118b-2", "head": "HEAD-SHA",
+ "branch": "task/release-snapshot-1118b-2", "head": "557dfdaa6b33cdfc650866e9ce3fa7505453fe4c (validated head; branch = it + handoff/ only)",
  "gate": {"affected": "gate-1 RC 0 (clippy, xtask clippy, static, records check, affected: branch = next + handoff)", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
