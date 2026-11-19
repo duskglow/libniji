@@ -1,84 +1,74 @@
-# HEADERS-GEN-COMPLETE: handoff (leg 1 of the run, 2026-11-19)
+# HEADERS-GEN-COMPLETE: handoff (after leg 2 of run 1, 2026-11-19)
 
-State: branch `task/headers-gen-complete`, cut from origin/next fb63eeec8; role mei:~/w/s2 (`cargo` runs only
-there). Brief: `~/state/briefs/HEADERS-GEN-COMPLETE.md`. Scratch: `~/w/.scratch/HEADERS-GEN-COMPLETE/`
-(`diffs/<branch>.diff` = `git diff <merge-base> origin/task/sl-headers-<branch> -- xtask/src/headers.rs`, saved
-for s07-4 s08-4 s10-3 s11-5 s12-3 s15-2 s16-2 s16-3 s19-2; read those files, do not re-run the diffs).
+State: branch `task/headers-gen-complete`, cut from origin/next fb63eeec8 (next has not moved since); code head
+451288a8b (WIP), this note on top. Role mei:~/w/s2 (`cargo` runs only there; no local cargo or gcc). Brief:
+`~/state/briefs/HEADERS-GEN-COMPLETE.md`. Scratch `~/w/.scratch/HEADERS-GEN-COMPLETE/`: `diffs/<branch>.diff` (slice
+emitter prior art, read those, do not re-run), `rows4-failures.txt` (the full failure list of the last run).
 
 ## Done
 
-* c52cc8ac8 `Split the header generator into one module per construct family`: pure move. `xtask/src/headers/`
-  `cond.rs` (levels, condition, mask_of; Gen is_covered/rows/dont_care/cond/narrower_tag/fortify_mask),
-  `values.rs` (literal, Gen::value), `types.rs` (SCALARS, scalar, dwarf_scalar; resolve, type_size, type_words),
-  `aggregates.rs` (members_nested, emit_nested, tag_of_typedef, tag), `typedefs.rs` (typedef, cxx),
-  `functions.rs` (declaration, function), `objects.rs`, `enums.rs` (`@@enum`). headers.rs keeps tables/load,
-  registry, Gen struct, guard, emit (placement), generate/run/stage, tests. Proof: `headers-gen --check` ok (83
-  headers, byte-identical), `cargo test -p xtask --bin xtask headers::` 8/8, clippy -p xtask clean.
+* Leg 1, c52cc8ac8: generator split into one module per construct family under `xtask/src/headers/` (cond, values,
+  types, aggregates, typedefs, functions, objects, enums); pure move, 83 headers byte-identical.
+* Leg 2, 451288a8b: `xtask/src/headers/rows.rs`, the placement-independent rows test (module doc lists every check):
+  `cargo xtask headers-gen --rows DIR` and the test `headers::tests::every_table_row_is_emitted_and_matches_the_tables`.
+  Units: `rows.c` (C gnu17 and C++ gnu++17 static asserts), `rows-run.c` (bit-fields, initializers), one call-site
+  unit per family of configurations with equal feature levels (26 families; `nm -u` vs callsites.tsv addr rows).
+  Reserved names the policy omits (`omitted`, R-H2/R-H3) are skipped for functions, objects, macros, enumerators.
+  Exceptions: `headers/rows-exceptions.tsv` (table, name, lang c|c++|*, reason), empty. `DIR/failures.txt` lists all.
+  Emitter additions: `Gen::item` (shared by `@@emit` and rows), float literals inf/nan/hex + `pointer` (values.rs),
+  `@@init(NAME)` + `Gen::init`/`init_of` (port of S08-4's, signed values, no `<anon>`/bit-fields), `complex` ->
+  `_Complex` in declarations (S11-5's construct). `headers-gen --check` ok (83 headers unchanged); xtask clippy clean.
+* Dev jobs on mei (kind build, superseded, not proof): headers-gen-complete-rows1..rows4.
 
-## Inventory of next's tables (rows; construct; module)
+## Rows test now: 270 of 23865 rows fail (macros 0; run rows4)
 
-layouts 1913: aggregates keyed `struct X`, `union X` or a typedef name; members scalar/pointer/array; 383 nested
-`a.b` rows (complete struct members, typedef'd aggregates, named members of `struct|union <anon>` type incl.
-arrays `struct <anon>[10]`); 23 unnamed `<anon>` rows `size N rows K` (K = ALL descendant rows that follow, in table
-order: tcphdr union rows 28 = struct 10 + struct 16 + 2); 47 bit-fields `bits W@0` (position always 0: extractor
-gap, spec/tools/abi_extract.py:350 defaults DW_AT_data_bit_offset to 0: RULING/INFORMATIONAL); 13 `fn(...) *`;
-`enum <anon>` members; packed (align 1), over-aligned, trailing padding -> aggregates.rs.
-typedefs 3889: function 3397 (resolved prototypes -> functions.rs), typedef 288 (scalar 142, self/memberless 67,
-named for linkage 30, fn pointer 14, empty cxx 11, pointer 9, fn type 8, array 6, qualified 1 -> typedefs.rs),
-struct 160 (tag + C++ linkage name), object 37 (-> objects.rs), enum 5, union 1. macros 7387: int 6916, char[N] 159,
-unsigned int 144, unsigned long 90, long 67, long long 4, unsigned long long 3, float 2, double 1 (-> values.rs;
-next has no floating literal). constants 7084. prototypes 3781. callsites 7890 (addr 3996, call 3890, macro 3).
-visibility 72278 (macro 42572, function 12959, typedef 9977, enumerator 5162, struct 1156, include-error 216,
-object 214, union 11, enum 10). initializers 10 (no emitter on next). noexcept 3781. ftm-configs 40.
+36 typedefs `struct X has no usable layouts.tsv rows` (sigaction, sigevent, tcphdr, tcp_info, udphdr, __res_state,
+__pthread_mutex_s, __cancel_jmp_buf_tag, ...): members_nested gives up on nested/anon/bit-field rows -> write the ONE
+recursive member emitter in aggregates.rs (design below). 42 layouts (18 static asserts, 13 incomplete type, 10 no
+member): same cause mostly. 29+3 C++ `Q was not declared` and 24 `expression list ... functional cast`, 10 `template
+argument invalid`: C++ identity asserts whose cxx text names a tag/typedef C++ cannot see -> inspect, fix the emitter
+or the test's spelling. 8 `unknown type name` (`__jmp_buf_tag`, `_IO_FILE`: array/linkage typedefs need `struct`;
+S08-4's jmp_buf construct), 4 `expected before`, 2 `two or more data types`, 3 `flexible array member`, 2
+`redefinition`. 21 constants with no macros.tsv row (table gap: exception or recommend a macros row). 12 visibility
+function names with no prototype/function row (exception each). prototypes 29 (4+4 conflicting types = emitter vs
+table, inspect; 2 `la_symbind*` = audit hooks, S16-3 prior art: libniji exports none -> exception or linked_elsewhere
+data). initializers 9 (init_of on union typedefs). callsites 7 (C++ families: undeclared in C++). versions 3 (object
+size asserts).
 
-## Branch prior art to absorb (one implementation each; keep next's 83 headers byte-identical)
+## Next steps (in order)
 
-* S07-4: enum parameters -> `unsigned int` (enum_params); kernel `__u8..__s64` member types (kernel_int); FOB64
-  redirect from `call` rows whose configs all end `+gnu64` (Tables.lfs, extern_lines `#if __NIJI_FOB64`); `<anon>`
-  union of a name and its `__` alias (keep the first); member of a typedef of an anonymous struct (`__fsid_t`;
-  next's derive_layouts may cover it); typedef with empty size (`DIR`) -> incomplete `struct __dirstream;`; its
-  stat/stat64 hard-code is superseded by next's `@@hidden-member` (do not take).
-* S08-4: LANGUAGE_MODE (max_align_t: `__STDC_VERSION__ >= 201112L || __cplusplus >= 201103L`); headers/fnmembers.tsv
-  (type, member, declarator with `@`) for `fn(...) *`; literal("pointer"); `@@init(NAME)` from initializers.tsv via
-  init_of (layout + bytes, union by first member); union_tag (union typedef with empty cxx: C++ `union N {..}`, C
-  `typedef union {..} N;`, condition | cxx_mask); recursive members (members_why/member_lines/member_decl with
-  Track{end,offs,count,align}; `<anon>` `rows K`; declared align > natural -> `__aligned__` on first member; packed
-  if declared 1 < natural); typedef of array of struct (`jmp_buf`); `typedef struct ucontext_t {..} ucontext_t`;
-  linkage-named rows under `union|struct {cxx}`; emit_nested `union TAG`; `#include` after `#if` is conditional.
-* S10-3: `FILE` where the header does not show `struct _IO_FILE` -> incomplete tag (generalise, no name test).
-* S11-5: `@@generated-fortran`, `@@emit-c` (c_only), `@@if-macro`; hex float -> correctly rounded decimal (9/17/21/36
-  digits, `_Float32.._Float64x` suffixes) with tests; bitfield_aggregate (struct <anon> of unsigned bit-fields);
-  `complex` -> `_Complex`.
-* S12-3: `@@needs`, `@@needs-if`; headers/aliases.tsv; struct-tag layouts synthesized from member sub-rows; `tree()`
-  recursive members (`<anon>` rows K, `<anon>[N]`, `const`, bit-fields); objects via type_words.
-* S15-2: float `inf`/`nan` -> `__builtin_inf*`/`__builtin_nan*`; enum without rows -> one placeholder enumerator;
-  enumerator inside `#ifndef NAME`.
-* S16-3: `enum <anon>` -> unsigned int; anonymous members for any typedef-keyed aggregate (it tests `Elf`/`Dl_`
-  prefixes: generalise); layout-only member types -> layout_typedef; pointer to a covered typedef; `la_*` audit hooks
-  (belongs in s16's `linked_elsewhere`); struct objects (`_r_debug`). Surviving plant `s16c-vector-newtype` is on
-  xtask/src/abi.rs `[u8; {s}]` (S16-3 only) with cmd `headers-gen --check`, which never runs abi-gen: the rows test
-  must cover vector typedefs (S16-3 tables `La_x86_64_xmm`..; none on next: use a synthetic-row unit test).
-* S19-2: spec/abi/diagattrs.tsv -> ` __attribute__ ((...))` on extern declarations, `@@attrs(NAME)`.
+1. Recursive member emitter in aggregates.rs replacing members_nested's one-level code: walk rows in table order;
+   `<anon>` row = C11 anonymous member of its `rows K` following rows (members at the SAME indent as `union {`, as
+   sys/user.h on next); named member of type `struct|union <anon>` (or a tag with no own rows, `struct __exit_status`)
+   = nested aggregate from its `m.` rows, ONE-LINE `  struct { a; b; } m;` when all inner members are plain (keeps
+   utmp.h/utmpx.h/obstack.h byte-identical), multi-line otherwise; bit-fields via dwarf_scalar or a scalar typedef
+   (tcphdr's `uint8_t`); `enum <anon>` -> unsigned int; kernel `__u8..__s64` (S07-4); union iff >1 member and all at
+   one offset (count members, not lines); keep next's packed rule (`wide`); add S08-4's over-aligned first member;
+   typedef-keyed aggregates allowed (S16 generalisation); `fn(...) *` keeps `void (*m) (void)` unless an optional
+   `headers/fnmembers.tsv` row (S08-4) gives the declarator. Rerun; `headers-gen --check` must stay ok (diff any change).
+2. typedefs.rs: array of struct (`struct __jmp_buf_tag jmp_buf[1]`), empty size -> incomplete `struct X;` (S07-4 DIR),
+   layout-only typedef (S16-3 layout_typedef) incl. vector types; then the C++ identity failures.
+3. Exceptions for true table gaps (each RULING NEEDED in the hand-back with a recommendation); test green.
+4. Synthetic-row unit test for the vector construct of plant s16c-vector-newtype: `rows::check(root, &t, dir,
+   Some(&only))` with a layouts-only typedef (size 16, align 16) injected into `Tables`; plant drops `__aligned__`.
+5. Contract check in precheck.rs (new check `slice-contract`, list at line ~255, run like `train-owned`): story id
+   (opts.story or `.synced` story, lower-case) starting `sl-headers-` and changed files (`Changes.files`, minus
+   `same_as_base`) under xtask/src/headers.rs, xtask/src/headers/*.rs except slices/, or spec/tools/header_check.py
+   -> Red, line `RULING NEEDED: ...` naming the files (plan/headers.md 4.1). Unit test with a fake Changes.
+6. Plants in a new `handoff/HEADERS-GEN-COMPLETE-plants.txt` (one per module: aggregates, typedefs, functions,
+   objects, values, enums/item, types, cond; the vector one; the contract check), cmd
+   `cargo test -p xtask --bin xtask headers::tests::every_table_row` (+ the contract unit test); `cargo xtask plants`.
+7. plan/headers.md 2.4 "Generated tests" and 4.1 (slice contract), D-row if needed (reserve via `ops reserve`).
+8. Gate (`cargo xtask affected --run`), plants, clippy+static, precheck --jobs, report json, handback-check.
 
-## Design in force (steps 3-4)
+## Not to redo / notes
 
-* `headers/rows.rs`: a Gen with no placement emits every row into one TU: `#include <features.h>` (levels,
-  `__NIJI_NOTHROW`, `__NIJI_WCHAR`, `__NIJI_BEGIN_C`), tags, typedefs, objects, functions (+ a `used` static holding
-  `&f` per addr row), enumerators, then each macro `#define` + its asserts + `#undef`. Asserts: layouts (sizeof,
-  _Alignof, offsetof per non-bit-field path, scalar member types), typedefs (size, align; C++ `niji_same<T, cxx>` with
-  the table's raw C++ text), prototypes (C++17 `decltype(f)` vs cxx + noexcept.tsv), objects, macro values and C
-  types (`_Generic`), strings/floats in C++ constexpr, constants.tsv, enumerators. One runtime C program: bit-fields
-  (all-ones probe; expected bits from psABI allocation order) and initializers (memcmp bytes_hex). Call sites:
-  configurations grouped into families by identical addr expectations; one compile per family with its ftm-configs
-  flags; `nm -u` must equal the expected set. Exceptions: `headers/rows-exceptions.tsv` (table, name or class,
-  reason), each RULING NEEDED. Entry: `headers-gen --rows DIR`, `--inventory`; a `#[test]`; a cheap static step.
-* Contract check: cheap static step (main.rs `cheap_step`) or precheck: a `task/sl-headers-*` branch whose diff
-  against origin/next touches xtask/src/headers.rs, xtask/src/headers/*.rs outside slices/, or header_check.py's
-  shared parts -> `RULING NEEDED` naming the files.
-
-## Next step
-
-Build rows.rs (TU + compile test + inventory) on next's tables; then unify aggregates.rs members (one recursive
-emitter covering tcphdr, rusage, siginfo_t, `sort_list`, `enum <anon>`, `fn(...) *`) driven by its failures; then
-values (floating, pointer, initializers), contract check, exceptions, plants (one per module + contract), plan/headers.md
-2.4/4.1, gate, precheck. Nothing pending on the host; no jobs started.
+Inventory of next's tables (leg 1): layouts 1913 (383 nested `a.b`, 23 `<anon>` `size N rows K` with K = all
+descendant rows, 47 bit-fields `bits W@0` whose position is always 0: extractor gap, INFORMATIONAL; 13 `fn(...) *`),
+typedefs 3889 (function 3397, typedef 288, struct 160, object 37, enum 5, union 1), macros 7387 (int 6916, char[N]
+159, unsigned 144, unsigned long 90, long 67, float 2, double 1, ...), constants 7084, prototypes 3781, callsites 7890
+(addr 3996, call 3890, macro 3), visibility 72278, initializers 10, noexcept 3781, ftm-configs 40. Prior art per
+branch (S07-4 .. S19-2, what to absorb): leg 1's note, `git show 5ad788f0d:handoff/HEADERS-GEN-COMPLETE.md` (this
+story's own commit), section "Branch prior art". For the report: INFORMATIONAL,
+self-reported: leg 2 ran `git show origin/task/sl-headers-s16-3:spec/abi/typedefs.tsv | grep xmm` (one row seen,
+`struct _libc_xmmreg`), a file the brief does not name; not repeated.
