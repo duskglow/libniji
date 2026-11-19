@@ -1,7 +1,6 @@
 # Plants of slice 7 (cargo xtask plants; docs/plants.md). The generator, its templates and the committed libc-include/
 # output are checked by `headers-gen --check`: the committed output must equal the regenerated one, so a mutated
 # generator or template makes the committed header stale. spec/tools/header_check.py checks the values and sizes.
-s7-enum-param | xtask/src/headers/functions.rs | lit:out.push_str("unsigned int"); ==> out.push_str("int"); | cargo xtask headers-gen --check | msg:headers-gen
 s7-map-failed | libc-include/sys/mman.h | lit:#  define MAP_FAILED ((void *) (-1L)) ==> #  define MAP_FAILED ((void *) (0L)) | cargo xtask headers-gen --check | msg:headers-gen
 s7-minor | headers/sys/sysmacros.h.in | lit:# define minor(dev) gnu_dev_minor (dev) ==> # define minor(dev) gnu_dev_major (dev) | cargo xtask headers-gen --check | msg:headers-gen
 s7-s-isdir | headers/sys/stat.h.in | lit:# define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR) ==> # define S_ISDIR(m) (((m) & S_IFMT) == S_IFREG) | cargo xtask headers-gen --check | msg:headers-gen
@@ -19,5 +18,5 @@ s7-ctype-tmpl | headers/ctype.h.in | lit:enum { _ISalpha = 1024 }; ==> enum { _I
 # Run 5 (merge with the template registry and the new aggregate emitter).
 s7-stat-old-hidden | headers/sys/stat.h.in | lit:@@hidden-member st_atim st_atime st_atimensec ==> @@hidden-member st_atimx st_atime st_atimensec | cargo xtask headers-gen --check | msg:headers-gen
 s7-no-packed-chars | xtask/src/headers/aggregates.rs | lit:lv.wide && lv.align != Some(1) && align == Some(1) ==> lv.wide && align == Some(1) | cargo xtask headers-gen --check | msg:headers-gen
-s7-enum-defined | xtask/src/headers/functions.rs | lit:if defined(&rest[..n]) { ==> if !defined(&rest[..n]) { | cargo xtask headers-gen --check | msg:headers-gen
 s7-slice-row | headers/slices/s07.tsv | lit:sys/xattr.h ==> sys/xattrx.h | python3 spec/tools/header_check.py | msg:FAIL
+s7-enum-tag | headers/sys/resource.h.in | lit:@@enum __rlimit_resource ==> @@enum __rlimit_resourcx | cargo xtask headers-gen --check | msg:headers-gen

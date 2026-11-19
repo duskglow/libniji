@@ -18,9 +18,6 @@ impl Gen<'_> {
             return None;
         };
         let d = d.strip_prefix("extern ").unwrap_or(d);
-        // A parameter of an enumeration type (`enum __rlimit_resource`) is the enumeration's underlying type, `unsigned int` for
-        // one without negative values: the header declares no reserved enumeration tag, and the call passes the same value.
-        let d = &enum_params(d, |tag| self.out.iter().any(|l| l.starts_with(&format!("enum {tag} {{"))));
         let mut out = String::new();
         let mut word = String::new();
         let mut tags = Vec::new();
@@ -113,28 +110,4 @@ impl Gen<'_> {
         let body = body.into_iter().flat_map(|l| if l.starts_with("extern ") && l.contains("_Bool") { vec!["#  ifdef __cplusplus".into(), l.replace("_Bool", "bool"), "#  else".into(), l, "#  endif".into()] } else { vec![l] }).collect();
         self.guard(name, body);
     }
-}
-
-/// `d` with each `enum TAG` replaced by `unsigned int`, except the tags `defined` says the header defines.
-fn enum_params(d: &str, defined: impl Fn(&str) -> bool) -> String {
-    let mut out = String::new();
-    let mut rest = d;
-    while let Some(i) = rest.find("enum ") {
-        let at_word_start = i == 0 || !rest[..i].ends_with(|c: char| c.is_alphanumeric() || c == '_');
-        out.push_str(&rest[..i]);
-        rest = &rest[i + 5..];
-        if at_word_start {
-            let n = rest.find(|c: char| !(c.is_alphanumeric() || c == '_')).unwrap_or(rest.len());
-            if defined(&rest[..n]) {
-                out.push_str("enum ");
-                continue;
-            }
-            rest = &rest[n..];
-            out.push_str("unsigned int");
-        } else {
-            out.push_str("enum ");
-        }
-    }
-    out.push_str(rest);
-    out
 }

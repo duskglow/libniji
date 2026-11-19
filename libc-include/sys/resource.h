@@ -7,6 +7,51 @@
 
 __NIJI_BEGIN_C
 
+# ifndef __NIJI_D_enum___rlimit_resource
+#  define __NIJI_D_enum___rlimit_resource 1
+enum __rlimit_resource {
+  RLIMIT_CPU = 0,
+  RLIMIT_FSIZE = 1,
+  RLIMIT_DATA = 2,
+  RLIMIT_STACK = 3,
+  RLIMIT_CORE = 4,
+  __RLIMIT_RSS = 5,
+  RLIMIT_NOFILE = 7,
+  __RLIMIT_OFILE = 7,
+  RLIMIT_AS = 9,
+  __RLIMIT_NPROC = 6,
+  __RLIMIT_MEMLOCK = 8,
+  __RLIMIT_LOCKS = 10,
+  __RLIMIT_SIGPENDING = 11,
+  __RLIMIT_MSGQUEUE = 12,
+  __RLIMIT_NICE = 13,
+  __RLIMIT_RTPRIO = 14,
+  __RLIMIT_RTTIME = 15,
+  __RLIMIT_NLIMITS = 16,
+  __RLIM_NLIMITS = 16,
+};
+# endif
+# ifndef RLIMIT_AS
+#  define RLIMIT_AS RLIMIT_AS
+# endif
+# ifndef RLIMIT_CORE
+#  define RLIMIT_CORE RLIMIT_CORE
+# endif
+# ifndef RLIMIT_CPU
+#  define RLIMIT_CPU RLIMIT_CPU
+# endif
+# ifndef RLIMIT_DATA
+#  define RLIMIT_DATA RLIMIT_DATA
+# endif
+# ifndef RLIMIT_FSIZE
+#  define RLIMIT_FSIZE RLIMIT_FSIZE
+# endif
+# ifndef RLIMIT_NOFILE
+#  define RLIMIT_NOFILE RLIMIT_NOFILE
+# endif
+# ifndef RLIMIT_STACK
+#  define RLIMIT_STACK RLIMIT_STACK
+# endif
 #if 1
 # ifndef __NIJI_D_struct_rlimit
 #  define __NIJI_D_struct_rlimit 1
@@ -176,16 +221,16 @@ struct rlimit;
 # ifndef __NIJI_D_prlimit
 #  define __NIJI_D_prlimit 1
 #  if __NIJI_FOB64
-extern int prlimit (int, unsigned int, const struct rlimit *, struct rlimit *) __NIJI_NOTHROW __asm__ ("prlimit64");
+extern int prlimit (int, enum __rlimit_resource, const struct rlimit *, struct rlimit *) __NIJI_NOTHROW __asm__ ("prlimit64");
 #  else
-extern int prlimit (int, unsigned int, const struct rlimit *, struct rlimit *) __NIJI_NOTHROW;
+extern int prlimit (int, enum __rlimit_resource, const struct rlimit *, struct rlimit *) __NIJI_NOTHROW;
 #  endif
 # endif
 struct rlimit64;
 struct rlimit64;
 # ifndef __NIJI_D_prlimit64
 #  define __NIJI_D_prlimit64 1
-extern int prlimit64 (int, unsigned int, const struct rlimit64 *, struct rlimit64 *) __NIJI_NOTHROW;
+extern int prlimit64 (int, enum __rlimit_resource, const struct rlimit64 *, struct rlimit64 *) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_LFS64

@@ -7,6 +7,7 @@
 
 __NIJI_BEGIN_C
 
+@@enum __rlimit_resource
 @@emit
 
 
