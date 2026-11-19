@@ -21,7 +21,7 @@ use std::sync::OnceLock;
 use niji_ld::arch::X86_64;
 use niji_ld::elf::{dt, pt, Dynamic, Elf, ElfError, Table, STB_GNU_UNIQUE, STB_WEAK};
 use niji_ld::symbols::{
-    gnu_hash, lookup, resolve, sysv_hash, Binding, Found, HashStyle, LookupError, Object, Request, Scope, UniqueRegistry, Want,
+    gnu_hash, lookup, resolve, sysv_hash, Binding, Found, HashStyle, LookupError, Object, Request, Scope, UniqueRegistry, VersionMemo, Want,
 };
 
 const LIB_C: &str = r#"
@@ -496,4 +496,38 @@ fn any_byte_changed_never_panics() {
             }
         }
     }
+}
+
+/// Covers no spec clause (GNU symbol-versioning document; design §5): a relocation pass's version-name
+/// memo (`VersionMemo`, DYN-START-SPEED) answers as the walks do. One memo is shared by every corpus
+/// object (string tables as keys, slots that collide, an index walked as a reference and as a
+/// definition), each symbol asked twice (a miss, then a hit): every reference's version, and the lookup
+/// of every versioned definition by its own version (the definition side of the memo).
+#[test]
+fn version_memo_answers_as_the_walks() {
+    let Some(c) = corpus() else { return };
+    let memo = VersionMemo::default();
+    let mut seen = (0usize, 0usize);
+    for (file, bytes) in c.iter() {
+        let Ok(o) = Object::new(dynm(bytes).unwrap()) else { continue };
+        let (d, Some(n)) = (o.dynamic(), o.symtab().count()) else { continue };
+        let Some(vs) = d.versym().unwrap() else { continue };
+        for round in 0..2 {
+            for sym in 0..n {
+                let want = o.reference_want(sym);
+                assert_eq!(o.reference_want_with(sym, Some(&memo)), want, "{file}: symbol {sym}, round {round}");
+                seen.0 += usize::from(matches!(want, Ok(Want::Reference(_))));
+                let st = o.symtab().get(sym).unwrap();
+                let v = vs.get(sym).unwrap().index;
+                let (Ok(name), Ok(Some(version))) = (d.string(u64::from(st.name)), o.version_name(v)) else { continue };
+                if st.shndx == 0 {
+                    continue;
+                }
+                let plain = o.lookup(&Request::new(name, Want::Reference(version)));
+                assert_eq!(o.lookup(&Request::new(name, Want::Reference(version)).with_memo(&memo)), plain, "{file}: definition {sym}, round {round}");
+                seen.1 += usize::from(matches!(plain, Ok(Some(_))));
+            }
+        }
+    }
+    eprintln!("version memo: {} versioned references, {} versioned definitions found", seen.0, seen.1);
 }

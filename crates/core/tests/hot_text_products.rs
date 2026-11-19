@@ -394,9 +394,13 @@ fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
 /// median measured on the branch's head plus 2%; `0` = not measured for that profile (unchecked).
 /// Measured (empty main, median of 21): Skylake-SP host fast 1,718,270, release 1,598,681, the host C
 /// library 101,863; Zen 1 host release 1,598,530, the host C library 96,002 (fast not measured).
+/// DYN-START-SPEED (the RELACOUNT prefix loop, the verdef record scan, the per-pass version-name memo):
+/// Skylake-SP host fast 854,405 in this test; release 785,631 by execcount (1,579,278 before), which read
+/// 1.4% under this test before, so the release level is 785,631 + 1.4% + 2%. Zen 1 host: not re-measured;
+/// its release level was within 0.01% of the Skylake-SP host's, so it takes the same bound.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [1_752_700, 1_630_700]),
-    ("AMD EPYC 7551 32-Core Processor", [0, 1_630_600]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 812_400]),
+    ("AMD EPYC 7551 32-Core Processor", [0, 812_400]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
