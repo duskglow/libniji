@@ -445,13 +445,13 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         texts.insert(h.clone(), fs::read_to_string(root.join(TEMPLATES).join(format!("{h}.in"))).map_err(|e| e.to_string())?);
     }
     // `#include <x>` of another template, at any depth: x's names are not emitted again.
-    // An include right after `@@when` is conditional (its names stay emitted here, under this header's own conditions).
+    // An include right after `@@when` or an `#if` line is conditional (its names stay emitted here, under this header's own conditions).
     let includes = |text: &str| -> Vec<String> {
         let mut prev = "";
         let mut out = Vec::new();
         for l in text.lines() {
             let inc = l.trim_start().strip_prefix('#').map(str::trim_start).and_then(|l| l.strip_prefix("include")).and_then(|l| l.trim().strip_prefix('<')).and_then(|l| l.strip_suffix('>'));
-            if let Some(x) = inc.filter(|x| texts.contains_key(*x) && !prev.starts_with("@@when")) {
+            if let Some(x) = inc.filter(|x| texts.contains_key(*x) && !prev.starts_with("@@when") && !prev.trim_start().starts_with("#if")) {
                 out.push(x.to_string());
             }
             prev = l;

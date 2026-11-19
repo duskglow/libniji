@@ -145,10 +145,27 @@ impl Gen<'_> {
     /// that matters (the ones `dont_care` leaves): otherwise this header emits it too, under its own condition.
     pub(super) fn is_covered(&self, name: &str, kind: &str) -> bool {
         let Some(&have) = self.covered.get(&(name.to_string(), kind.to_string())) else { return false };
+        // The union tag of C++ has no row of its own in any header: always declared here, behind the shared guard.
+        if kind == "typedef" && self.union_tag(name) {
+            return false;
+        }
         let Some(r) = self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == name && r["kind"] == kind) else { return true };
         let all = (1u64 << self.t.lv.ids.len()) - 1;
         let want = mask_of(&self.t.lv, &r["configs"]).unwrap_or(0) & all & !self.dont_care(name, kind);
         want & !have == 0
+    }
+
+    /// The configurations of the C++ language (every level column `cxx` above 0, none rejected).
+    fn cxx_mask(&self) -> u64 {
+        let col = LEVEL_COLS.iter().position(|c| c.0 == "cxx").unwrap_or(0);
+        self.t.lv.values.iter().enumerate().filter(|(i, v)| v[col] > 0 && self.t.lv.reject >> i & 1 == 0).fold(0u64, |m, (i, _)| m | 1 << i)
+    }
+
+    /// A typedef of a union that typedefs.tsv gives no C++ spelling (`pthread_attr_t`): C++ declares the tag itself.
+    fn union_tag(&self, name: &str) -> bool {
+        self.t.typedefs.get(&("typedef".to_string(), name.to_string())).is_some_and(|r| r["cxx"].is_empty())
+            && !self.t.typedefs.contains_key(&("struct".to_string(), name.to_string()))
+            && self.aggregate(name).is_some_and(|a| a.kw == "union")
     }
 
     pub(super) fn rows(&self, name: &str) -> Vec<&BTreeMap<String, String>> {
@@ -182,6 +199,9 @@ impl Gen<'_> {
                 return "0".into();
             }
         };
+        // A union typedef without a C++ spelling is a union tag in C++, which the visibility probe does not classify as
+        // a typedef: it is declared in every C++ configuration where the C typedef is.
+        let target = if r["kind"] == "typedef" && self.union_tag(name) { target | self.cxx_mask() } else { target };
         let configs = r["configs"].clone();
         // The _FORTIFY_SOURCE configurations (-O2 probes) belong to slice 18 (fortify): when no condition over the
         // levels separates a name there, they stop deciding it, and the generated tests keep the C probe's other rows.
