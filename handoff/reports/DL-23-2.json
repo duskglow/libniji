@@ -1,24 +1,93 @@
-{"task": "DL-23-2", "model": "opus", "tokens": null,
+{
+ "task": "DL-23-2",
+ "model": "opus",
+ "tokens": null,
  "result": "Rendezvous from start: nodes and the first 16 TLS module entries on the page the start already writes (TLS rows +2 -> +1 fault); remaining +1 is the vDSO header page (0 for a program that calls clock_gettime); NOLD and path-dependency checks added; COMPAT-35 registered",
- "branch": "task/dl-23-2", "head": null,
- "gate": {"affected": "FULL is the train's (xtask changed); crate tests dl-23-2-test2: 719 passed / 0 failed", "peak": null},
+ "branch": "task/dl-23-2",
+ "head": "d38498d03",
+ "gate": {
+  "affected": "FULL is the train's (xtask changed); crate tests dl-23-2-test2 719 passed / 0 failed; hot_text_products full profile 28 passed; plants3 and startup1 pending",
+  "peak": null
+ },
  "accepted_first_attempt": null,
  "rulings": [
-  {"item": "+1 page fault per dynamic start (vDSO header page, read for the vDSO link map's l_addr/l_ld) in programs that make no vDSO call: pie0 79->80, pie3 95->96, TLS rows 79->80 and 85->86; a program with one clock_gettime call 83->83", "recommendation": "accept: eager and correct for debuggers and in-process walkers; libc reads the same page on its first vDSO call"},
-  {"item": "r_version 1 (probe) vs spec clause s27_4_c_0 ('2 since 2.35'); man-pages silent, glibc manual not installed", "recommendation": "keep 1 and correct the clause"},
-  {"item": "ld.so is outside the global scope of a program that does not name it (libniji's libc.so.6 has no DT_NEEDED on ld.so): dlsym(RTLD_DEFAULT, \"_r_debug\") is NULL there", "recommendation": "a loader story with #6739/#6740 (ld.so in the global scope)"}
+  {
+   "item": "+1 page fault per dynamic start (vDSO header page, read for the vDSO link map's l_addr/l_ld) in programs that make no vDSO call: pie0 79->80, pie3 95->96, TLS rows 79->80 and 85->86; a program with one clock_gettime call 83->83",
+   "recommendation": "accept: eager and correct for debuggers and in-process walkers; libc reads the same page on its first vDSO call"
+  },
+  {
+   "item": "r_version 1 (probe) vs spec clause s27_4_c_0 ('2 since 2.35'); man-pages silent, glibc manual not installed",
+   "recommendation": "keep 1 and correct the clause"
+  },
+  {
+   "item": "ld.so is outside the global scope of a program that does not name it (libniji's libc.so.6 has no DT_NEEDED on ld.so): dlsym(RTLD_DEFAULT, \"_r_debug\") is NULL there",
+   "recommendation": "a loader story with #6739/#6740 (ld.so in the global scope)"
+  }
  ],
- "informational": ["/mnt/zram/claude/dl-23 (base products, counter) was removed around 14:15 by someone else during dl-23-2-pm3; base rebuilt from ~/wl/src/fb63eeec8", "sync_role is BUSY while a plants job runs from the role, so plants and syncs cannot overlap", "process slips: one empty no-op heredoc, one sed -i on a scratch script copy, e0271d963's body misattributes the first_order plant"],
+ "informational": [
+  "/mnt/zram/claude/dl-23 (base products, counter) was removed around 14:15 by someone else during dl-23-2-pm3; base rebuilt from ~/wl/src/fb63eeec8",
+  "sync_role is BUSY while a plants job runs from the role, so plants and syncs cannot overlap",
+  "process slips: one empty no-op heredoc, one sed -i on a scratch script copy, e0271d963's body misattributes the first_order plant"
+ ],
  "refused": [],
  "impact": [
-  {"kind": "correctness", "what": "_r_debug/DT_DEBUG list the start-time objects from program start (DL-23), incl. a program that does not name ld.so and a dependency named by path", "before": null, "after": null, "unit": null, "measured": true},
-  {"kind": "faults", "what": "dynamic start page faults, tlsp row (program PT_TLS), base vs branch", "before": 79, "after": 80, "unit": "faults/start", "measured": true},
-  {"kind": "faults", "what": "dynamic start page faults, pie0 row", "before": 79, "after": 80, "unit": "faults/start", "measured": true},
-  {"kind": "faults", "what": "dynamic start page faults, clk row (one clock_gettime call)", "before": 83, "after": 83, "unit": "faults/start", "measured": true},
-  {"kind": "cost", "what": "dynamic start instructions, pie0 row (fix-forward: none planned; +0.056%)", "before": 8959154, "after": 8964161, "unit": "instr/start", "measured": true},
-  {"kind": "coverage", "what": "rendezvous tests (4) and plants in handoff/DL-23-plants.txt", "before": 9, "after": 12, "unit": "plants", "measured": true}
+  {
+   "kind": "correctness",
+   "what": "_r_debug/DT_DEBUG list the start-time objects from program start (DL-23), incl. a program that does not name ld.so and a dependency named by path",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic start page faults, tlsp row (program PT_TLS), base vs branch",
+   "before": 79,
+   "after": 80,
+   "unit": "faults/start",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic start page faults, pie0 row",
+   "before": 79,
+   "after": 80,
+   "unit": "faults/start",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic start page faults, clk row (one clock_gettime call)",
+   "before": 83,
+   "after": 83,
+   "unit": "faults/start",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "dynamic start instructions, pie0 row (fix-forward: none planned; +0.056%)",
+   "before": 8959154,
+   "after": 8964161,
+   "unit": "instr/start",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "rendezvous tests (4) and plants in handoff/DL-23-plants.txt",
+   "before": 9,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  }
  ],
  "improvement": "Keep shared base products and counters for a measurement under the story's own RAM directory: a removed shared directory cost a count rerun and a base rebuild",
  "next_step": "coordinator rulings on the vDSO fault, r_version and ld.so's global scope",
  "report_file": "handoff/DL-23-report.md",
- "jobs": ["mei:dl-23-2-test2", "mei:dl-23-2-count5", "mei:dl-23-2-hot1", "mei:dl-23-2-startup1", "mei:dl-23-2-plants3"]}
+ "jobs": [
+  "mei:dl-23-2-test2",
+  "mei:dl-23-2-count5",
+  "mei:dl-23-2-hot1",
+  "mei:dl-23-2-startup1",
+  "mei:dl-23-2-plants3"
+ ]
+}

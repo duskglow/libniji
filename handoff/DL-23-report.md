@@ -37,7 +37,8 @@ not landed, DYN_TRUE_BOUND unchanged at 89/86). Role mei:~/w/s1 (Skylake-SP host
    (`sys.rs` `resolve_vdso`), so a program that calls clock_gettime/time/gettimeofday/getcpu pays it
    anyway: clk row 83/83. Rejected: a lazy fill (l_ld 0 for walkers and debuggers until filled), a syscall
    read (hides the fault from the counter, costs more). -> RULING NEEDED.
-   hot_text_products (NIJI_FULL_PROFILE) result: see the hand-back (job dl-23-2-startup1).
+   hot_text_products (NIJI_FULL_PROFILE, job dl-23-2-hot1, a RAM copy of the synced d38498d03 tree): 28
+   passed, 0 failed (DYN_TRUE_BOUND untouched).
 3. #6737 r_version: man-pages (both hosts) do not document r_debug/r_version; the glibc manual is not
    installed on the hosts; documentation silent -> kept 1 (probe), RULING NEEDED (clause s27_4_c_0 says 2).
 4. RUNPATH, dlopen(ld.so path, RTLD_NOLOAD): out of scope, untouched.
@@ -55,7 +56,11 @@ scope, by libc's DT_NEEDED or by the start), not this branch.
 - dl-23-2-test2: clippy --all-features -D warnings, cargo xtask static, xtask so, cargo test -p niji-ld,
   -p niji-boundary --test dl_tls_threads, -p xtask: 35 suites, 719 passed, 0 failed.
 - dl-23-2-count5: the table above. dl-23-2-startup1: cargo xtask test + full-profile hot_text_products.
-- dl-23-2-plants3: handoff/DL-23-plants.txt, 12 plants.
+- dl-23-2-plants3: handoff/DL-23-plants.txt, 12 plants; 5 CAUGHT, none survived when the leg ended
+  (still running). dl-23-2-startup1 (`cargo xtask test`, 6842 tests, then the full-profile check
+  again) still running. Both run from the role, so the role cannot be synced to the handoff-only head
+  until they end: then sync and rerun precheck (its only red was the head, d38498d03 vs the final head).
+- dl-23-2-precheck1 (head 41f1f854b): every check ok except head (role at d38498d03) and the WAITs.
 - Superseded: dl-23-2-rdv1 (NOLD test red, fixed in 01d982707), rdv2/rdv3/rdv4 (diagnosis, older head),
   lint1 (records red, fixed), static2, lint2, pm2/tls1/tls2 (older heads), test1 (dlclose check 26 red,
   fixed in d38498d03), plants1/plants2 (stopped: older heads), pm3 (empty log: the base directory was
