@@ -7,17 +7,22 @@
 
 __NIJI_BEGIN_C
 
-/* The results of mprobe (mcheck(3)). */
-enum mcheck_status
-{
-  MCHECK_DISABLED = (-1),
+#if 1
+# ifndef __NIJI_D_enum_mcheck_status
+#  define __NIJI_D_enum_mcheck_status 1
+enum mcheck_status {
+  MCHECK_DISABLED = -1,
   MCHECK_OK = 0,
   MCHECK_FREE = 1,
   MCHECK_HEAD = 2,
-  MCHECK_TAIL = 3
+  MCHECK_TAIL = 3,
 };
-
-#if 1
+#  define __NIJI_D_enum_MCHECK_DISABLED 1
+#  define __NIJI_D_enum_MCHECK_OK 1
+#  define __NIJI_D_enum_MCHECK_FREE 1
+#  define __NIJI_D_enum_MCHECK_HEAD 1
+#  define __NIJI_D_enum_MCHECK_TAIL 1
+# endif
 # ifndef __NIJI_D_mcheck
 #  define __NIJI_D_mcheck 1
 extern int mcheck (void (*) (enum mcheck_status)) __NIJI_NOTHROW;

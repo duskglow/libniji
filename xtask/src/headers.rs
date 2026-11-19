@@ -17,7 +17,7 @@
 //! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
 //! * `@@when NAME`: `#if` with the condition of NAME, which the template does not own.
-//! * `@@enum TAG PREFIX...`: `enum TAG` of this header's enumerators with those prefixes (a prototype takes the enumeration).
+//! * `@@enum TAG`: `enum TAG` from enumerators.tsv, its enumerators this header lists also self-naming macros.
 //! * `@@hidden-member MEMBER NAME...`: where an aggregate's member MEMBER is a structure whose tag this header shows
 //!   in fewer configurations than the aggregate, the member is spelled, outside the tag's condition, as the scalar
 //!   members of that structure named NAME... in order (same offsets and sizes): `struct stat`'s `st_atim` is
@@ -175,18 +175,24 @@ struct Tables {
     linked_elsewhere: BTreeSet<&'static str>,
     /// initializers.tsv: initializer -> (type, bytes in hexadecimal).
     inits: BTreeMap<String, (String, String)>,
+    /// enumerators.tsv: an enumeration tag (`enum __pid_type`) -> its enumerators and values, in declaration order.
+    enums: BTreeMap<String, Vec<(String, String)>>,
+    /// enumerators.tsv: an enumerator -> the tag of its enumeration.
+    enum_of: BTreeMap<String, String>,
 }
 
 /// A typedef or a structure or union tag used as a member type that has no layout rows of its own but whose members
 /// the rows of the containing aggregate list (`data.ptr`, `data.fd` under a member `data` of type `epoll_data_t`;
 /// `__data.__lock` under `__data` of type `struct __pthread_mutex_s`): those rows, at any depth, rebased to the
-/// member's offset, are its layout (SL-HEADERS-S09; tags: HEADERS-GEN-COMPLETE). Its size and alignment are its
+/// member's offset, are its layout (SL-HEADERS-S09; tags: HEADERS-GEN-COMPLETE; an array's element type from the rows of
+/// its first element: HEADERS-TABLES-COMPLETE). Its size and alignment are its
 /// typedefs.tsv row's; one without a size is not derived.
 fn derive_layouts(layouts: &mut BTreeMap<String, Rows>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>) {
     let mut found: Vec<(String, Rows)> = Vec::new();
     for rows in layouts.values() {
         for (i, r) in rows.iter().enumerate().filter(|(_, r)| !r["member"].is_empty() && r["member"] != "<anon>") {
-            let ty = &r["member_type"];
+            // An array member's rows describe its first element (`sort_list.addr` of `sort_list[0]`).
+            let ty = &r["member_type"].split('[').next().unwrap_or_default().trim_end().to_string();
             let tkey = match ty.split_once(' ') {
                 Some((k, t)) if matches!(k, "struct" | "union") && t != "<anon>" => (k.to_string(), t.to_string()),
                 Some(_) => continue,
@@ -241,7 +247,13 @@ fn load(root: &Path) -> Result<Tables, String> {
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
     let inits = tsv(root, "spec/abi/initializers.tsv")?.into_iter().map(|r| (r["initializer"].clone(), (r["type"].clone(), r["bytes_hex"].clone()))).collect();
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, inits })
+    let mut enums: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    let mut enum_of = BTreeMap::new();
+    for r in tsv(root, "spec/abi/enumerators.tsv")? {
+        enum_of.insert(r["name"].clone(), r["tag"].clone());
+        enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
+    }
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, inits, enums, enum_of })
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -287,6 +299,15 @@ impl Gen<'_> {
             if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
                 continue;
             }
+            // An enumerator of a declared enumeration: that enumeration, once (its tag row, when this header has one).
+            if let Some(tag) = (kind == "enumerator").then(|| self.declared_enum(&name)).flatten() {
+                let tag_row = self.t.vis.iter().any(|r| r["header"] == self.header && r["kind"] == "enum" && r["name"] == tag);
+                if !tag_row && self.emitted.insert(format!("enum {tag}")) {
+                    let c = self.cond(&name, Some(&kind));
+                    items.push((2, c, tag, "enum".into()));
+                }
+                continue;
+            }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
             if rank == 9 {
                 self.errors.push(format!("{}: {name}: kind {kind} is not generated yet", self.header));
@@ -327,6 +348,12 @@ impl Gen<'_> {
             "enumerator" => {
                 // The name is an enumerator and (its macro row) a macro of the same value, as the reference's
                 // enumerations with a `#define` each: an anonymous enum constant, declared once per translation unit.
+                // An enumerator of an enumeration the tables declare as a tag (typedefs.tsv `enum`; its members are
+                // enumerators.tsv rows) is that enumeration's: the whole definition, once per translation unit.
+                if let Some(tag) = self.declared_enum(name) {
+                    self.tag(&tag, "enum");
+                    return;
+                }
                 let v = self.value(name);
                 self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
             }

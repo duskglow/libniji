@@ -25,3 +25,8 @@ are the `#define`s of the UAPI header asm/debugreg.h (linux-libc-dev 6.8). Each 
 the reference (exit status only: the macro exists, with this value and type); six kernel names the reference does not give
 (DR6_RESERVED DR_BUS_LOCK DR_CONTROL_RESERVED DR_GLOBAL_ENABLE DR_LOCAL_ENABLE DR_TRAP_BITS) are not rows. visibility.tsv
 rows of the two headers by header_probe.py --headers sys/reg.h,sys/debugreg.h (27 and 26 macros, every configuration).
+enumerators.tsv, layouts.tsv (HEADERS-TABLES-COMPLETE): abi_extract.py --layouts-only on the reference system (ldd (Ubuntu
+GLIBC 2.39-0ubuntu8.9) 2.39, GCC 13.3), one DWARF probe: members at every depth and the first element of arrays of
+aggregates (48 rows added), bit-field positions `bits W@P` from DW_AT_bit_offset/byte_size (38 rows changed, the
+other 1874 rows unchanged), 310 enumerators of the named enumerations. The script before the change reproduced the
+committed layouts.tsv byte for byte on the same system.

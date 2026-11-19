@@ -333,6 +333,28 @@ def resolve(dies, off, depth=0):
         return None
     return None
 
+def resolve_base(dies, off, depth=0):
+    """Follow typedef/cv chains to the underlying base or enumeration type DIE (a bit-field's storage unit type)."""
+    while off is not None and depth < 20 and dies[off]["tag"] in ("DW_TAG_typedef", "DW_TAG_const_type", "DW_TAG_volatile_type"):
+        off = ref(dies[off]["attrs"].get("DW_AT_type")); depth += 1
+    return off
+
+def enumerators(dies):
+    """(tag, enumerator, value) of every named enumeration the headers define, enumerators in declaration order."""
+    rows, seen = [], set()
+    for d in dies.values():
+        nm = d["attrs"].get("DW_AT_name")
+        if d["tag"] != "DW_TAG_enumeration_type" or not nm or "DW_AT_declaration" in d["attrs"]:
+            continue
+        if nm in seen:
+            raise SystemExit(f"enumerators: enum {nm} is defined twice")
+        seen.add(nm)
+        for c in d["children"]:
+            e = dies[c]
+            if e["tag"] == "DW_TAG_enumerator":
+                rows.append((f"enum {nm}", e["attrs"]["DW_AT_name"], num(e["attrs"].get("DW_AT_const_value"))))
+    return sorted(rows, key=lambda r: r[0])
+
 def members(dies, off, prefix="", base=0, out=None, depth=0):
     out = [] if out is None else out
     d = dies[off]
@@ -347,13 +369,25 @@ def members(dies, off, prefix="", base=0, out=None, depth=0):
         full = f"{prefix}{name}" if name else prefix.rstrip(".") or "<anon>"
         bits = ""
         if "DW_AT_bit_size" in at:
-            bits = f"bits {num(at['DW_AT_bit_size'])}@{num(at.get('DW_AT_data_bit_offset', '0'))}"
+            # `bits W@P`: width W, first bit P counted from the low bit of the storage unit at the row's byte offset
+            # (psABI little-endian). DWARF 4 gives the unit (data_member_location, byte_size) and the bit_offset of
+            # the field's high bit from the unit's high bit; DWARF 5 gives data_bit_offset from the aggregate start.
+            w = num(at["DW_AT_bit_size"])
+            if "DW_AT_data_bit_offset" in at:
+                dbo = num(at["DW_AT_data_bit_offset"])
+                unit = num(at.get("DW_AT_byte_size")) or num(dies[resolve_base(dies, t)]["attrs"].get("DW_AT_byte_size"))
+                o = dbo // (8 * unit) * unit
+                pos = dbo - 8 * o
+            else:
+                pos = 8 * num(at.get("DW_AT_byte_size")) - num(at.get("DW_AT_bit_offset")) - w
+            bits = f"bits {w}@{pos}"
         inner = resolve(dies, t)
         out.append((base + o, full, tname(dies, t), bits))
         at_row = len(out) - 1
         tag = dies[t]["tag"] if t in dies else ""
-        # Descend into anonymous members, and one level into named struct members.
-        if inner is not None and depth < 2 and tag != "DW_TAG_pointer_type" and not tname(dies, t).endswith("]"):
+        # Descend into every aggregate member at every depth (anonymous, named, and the first element of an array of
+        # aggregates: `sort_list.addr` is the member of `sort_list[0]`); never through a pointer.
+        if inner is not None and tag != "DW_TAG_pointer_type" and depth < 16:
             members(dies, inner, f"{full}." if name else prefix, base + o, out, depth + 1)
         if not name and inner is not None:
             # An anonymous member's own members follow it at this level (flattened, as C names them):
@@ -379,7 +413,7 @@ def layouts(tmp, types, szmap):
             continue
         for o, name, ty, bits in members(dies, s):
             rows.append((label, name, o, "", ty, bits))
-    return rows
+    return rows, enumerators(dies)
 
 def initializers(tmp):
     if cross():
@@ -562,7 +596,7 @@ def main_cross():
         else:
             types = available_types(tmp)
             szmap = sizes(tmp, types)
-            lay = layouts(tmp, types, szmap)
+            lay, _ = layouts(tmp, types, szmap)
             write(f"layouts{SUFFIX}.tsv", ["type", "member", "offset_or_size", "align", "member_type", "bitfield"], lay)
             ini = initializers(tmp)
             write(f"initializers{SUFFIX}.tsv", ["type", "initializer", "size", "zero", "bytes_hex"], ini)
@@ -613,11 +647,13 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         types = available_types(tmp)
         szmap = sizes(tmp, types)
-        lay = layouts(tmp, types, szmap)
+        lay, enums = layouts(tmp, types, szmap)
         write("layouts.tsv", ["type", "member", "offset_or_size", "align", "member_type", "bitfield"], lay)
+        write("enumerators.tsv", ["tag", "name", "value"], enums)
         if "--layouts-only" in sys.argv:
-            # Regenerate layouts.tsv alone (slice 3 added types; the other tables are unchanged by that).
-            print(f"{ver}\nTypes: {len(types)}  layout rows: {len(lay)}")
+            # Regenerate layouts.tsv and enumerators.tsv alone (both from the one DWARF probe; slice 3 added types,
+            # HEADERS-TABLES-COMPLETE every depth, bit positions and the enumerators; the other tables are unchanged).
+            print(f"{ver}\nTypes: {len(types)}  layout rows: {len(lay)}  enumerators: {len(enums)}")
             return
         ini = initializers(tmp)
         write("initializers.tsv", ["type", "initializer", "size", "zero", "bytes_hex"], ini)
