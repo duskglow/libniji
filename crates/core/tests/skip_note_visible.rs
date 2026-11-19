@@ -26,6 +26,7 @@ fn child_probe() {
 
 /// Run the child with `envs`; (its stdout, its stderr, the skip log's text).
 fn run_child(tag: &str, envs: &[(&str, &str)]) -> (String, String, String) {
+    std::fs::create_dir_all(env!("CARGO_TARGET_TMPDIR")).unwrap();
     let log = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("skip-note-{tag}-{}.log", std::process::id()));
     let _ = std::fs::remove_file(&log);
     let mut cmd = Command::new(std::env::current_exe().unwrap());
