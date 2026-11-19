@@ -9,16 +9,9 @@ impl Gen<'_> {
         let from_type = self.t.typedefs.get(&("function".to_string(), name.to_string())).filter(|_| !self.t.protos.contains_key(name)).and_then(|r| {
             let (ret, args) = r["cxx"].split_once(" (")?;
             let args = args.strip_suffix(')')?;
-            // The one such function family (gtty, stty) takes a pointer to a tag, `T*` or `T const*`.
-            let args: Vec<String> = args
-                .split(", ")
-                .map(|a| match (a.strip_suffix(" const*"), a.strip_suffix('*')) {
-                    (Some(t), _) => format!("const struct {t} *"),
-                    (_, Some(t)) => format!("struct {t} *"),
-                    _ => a.to_string(),
-                })
-                .collect();
-            Some(format!("{ret} {name} ({})", args.join(", ")))
+            // A pointer to a constant is spelled `const T *`.
+            let args: Vec<String> = self.c_words(args).split(", ").map(|a| a.strip_suffix(" const *").map_or(a.to_string(), |t| format!("const {t} *"))).collect();
+            Some(format!("{} {name} ({})", self.c_words(ret), args.join(", ")))
         });
         let Some(d) = from_type.as_ref().or_else(|| self.t.protos.get(name)) else {
             self.errors.push(format!("{}: function {name} not in prototypes.tsv", self.header));
@@ -97,6 +90,8 @@ impl Gen<'_> {
             }
             body.push("#  endif".into());
         }
+        // `_Bool` (C 6.2.5; stdbit.h's stdc_has_single_bit_*) is no C++ keyword: there the same type is `bool`.
+        let body = body.into_iter().flat_map(|l| if l.starts_with("extern ") && l.contains("_Bool") { vec!["#  ifdef __cplusplus".into(), l.replace("_Bool", "bool"), "#  else".into(), l, "#  endif".into()] } else { vec![l] }).collect();
         self.guard(name, body);
     }
 }

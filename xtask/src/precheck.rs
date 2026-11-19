@@ -28,6 +28,9 @@
 //! 4. `train-owned`: CI's train-owned rule (`ci.train_owned_changes`, also hand-back step b): a changed generated view
 //!    (`path = "..."` in `records/views.toml`, `crates/math/KERNELS.md`, `docs/codemap/symbols.tsv`) that differs from
 //!    the merge base is red.
+//!    `slice-contract` (plan/headers.md 4.1): a header slice story (`SL-HEADERS-*`, `--story` or the role's `.synced`)
+//!    whose branch changes the shared header generator (`xtask/src/headers.rs`, `xtask/src/headers/*.rs` outside
+//!    `slices/`, `spec/tools/header_check.py`) is red, with a `RULING NEEDED:` line naming the files.
 //! 5. `jobs` (`--jobs`, the labels you will name in `JOBS:`; labels of another host are left to `ops handback-check`):
 //!    hand-back step a (`jobs_problems`): no job at all, or an ended job with rc != 0, is red (with the first failure
 //!    lines of its log); a plants job must have run through `cargo xtask plants` (a `plants: copy` line); a job with a
@@ -252,7 +255,7 @@ fn own_host() -> String {
 
 fn check_names() -> BTreeSet<&'static str> {
     let mut s: BTreeSet<&'static str> = CHEAP_STEPS.iter().copied().collect();
-    s.extend(["validation", "static", "placeholders", "train-owned", "jobs", "head", "clippy"]);
+    s.extend(["validation", "static", "placeholders", "train-owned", "slice-contract", "jobs", "head", "clippy"]);
     s
 }
 
@@ -312,7 +315,7 @@ pub(crate) fn run_checks(root: &Path, opts: &Opts) -> Vec<(String, f64, Verdict)
             Verdict::from_problems(red, vec![], vec![], format!("{ran} checks (the rest ran above)"))
         });
     }
-    let needs_changes = ["placeholders", "train-owned"].iter().any(|c| wanted(opts, c));
+    let needs_changes = ["placeholders", "train-owned", "slice-contract"].iter().any(|c| wanted(opts, c));
     let changes = if needs_changes { Some(Changes::find(root, opts)) } else { None };
     if wanted(opts, "placeholders") {
         timed("placeholders", &mut || match &changes {
@@ -324,6 +327,17 @@ pub(crate) fn run_checks(root: &Path, opts: &Opts) -> Vec<(String, f64, Verdict)
     if wanted(opts, "train-owned") {
         timed("train-owned", &mut || match &changes {
             Some(Ok(c)) => train_owned_verdict(root, c),
+            Some(Err(e)) => Verdict { level: Level::Red, lines: vec![format!("cannot tell the branch's changes: {e}")] },
+            None => Verdict::ok(""),
+        });
+    }
+    if wanted(opts, "slice-contract") {
+        timed("slice-contract", &mut || match &changes {
+            Some(Ok(c)) => {
+                let synced = read_kv(&root.join(".synced"));
+                let story = opts.story.clone().or_else(|| synced.get("story").cloned()).unwrap_or_default();
+                Verdict::from_problems(slice_contract_problems(&story, c), vec![], vec![], "no header slice change to the shared generator")
+            }
             Some(Err(e)) => Verdict { level: Level::Red, lines: vec![format!("cannot tell the branch's changes: {e}")] },
             None => Verdict::ok(""),
         });
@@ -560,6 +574,29 @@ pub(crate) fn train_owned_files(root: &Path) -> Vec<String> {
     }
     out.dedup();
     out
+}
+
+/// The shared header generator (plan/headers.md 4.1): the emitter modules and the shared check driver. A header slice
+/// adds data only: templates, its rows under `headers/slices/`, its checks under `spec/tools/header_checks/`, its
+/// marker registrations in `xtask/src/headers/slices/<s>.rs`.
+pub(crate) fn shared_header_generator(f: &str) -> bool {
+    f == "xtask/src/headers.rs" || f == "spec/tools/header_check.py" || (f.starts_with("xtask/src/headers/") && f.ends_with(".rs") && !f.starts_with("xtask/src/headers/slices/"))
+}
+
+/// `slice-contract`: a header slice story (`SL-HEADERS-*`) whose branch changes the shared generator is red, with a
+/// `RULING NEEDED` line naming the files, so the change is ruled on instead of meeting another slice's in a merge.
+pub(crate) fn slice_contract_problems(story: &str, c: &Changes) -> Vec<String> {
+    if !story.to_ascii_lowercase().starts_with("sl-headers-") {
+        return Vec::new();
+    }
+    let files: Vec<&str> = c.files.iter().filter(|f| shared_header_generator(f) && !c.same_as_base.contains(*f)).map(String::as_str).collect();
+    if files.is_empty() {
+        return Vec::new();
+    }
+    vec![
+        format!("RULING NEEDED: header slice {story} changes the shared header generator: {}", files.join(", ")),
+        "fix: a slice adds data only (templates, headers/slices/, spec/tools/header_checks/, xtask/src/headers/slices/<s>.rs; plan/headers.md 4.1): move the change to a generator story, or hand back with it as RULING NEEDED and your recommendation".into(),
+    ]
 }
 
 fn train_owned_verdict(root: &Path, c: &Changes) -> Verdict {
@@ -867,6 +904,19 @@ fn clippy_verdict(root: &Path) -> Verdict {
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    #[test]
+    fn slice_contract_names_a_slice_change_to_the_shared_generator() {
+        // no spec clause: the header slice contract (plan/headers.md 4.1).
+        let files = ["xtask/src/headers/aggregates.rs", "xtask/src/headers/slices/s09.rs", "headers/stdio.h.in", "spec/tools/header_check.py", "xtask/src/headers.rs", "spec/tools/header_checks/s09.py"];
+        let c = Changes { files: files.iter().map(|f| f.to_string()).collect(), same_as_base: ["xtask/src/headers.rs".to_string()].into(), ..Changes::default() };
+        let p = slice_contract_problems("SL-HEADERS-S08-5", &c);
+        assert_eq!(p.len(), 2, "{p:?}");
+        assert_eq!(p[0], "RULING NEEDED: header slice SL-HEADERS-S08-5 changes the shared header generator: xtask/src/headers/aggregates.rs, spec/tools/header_check.py");
+        assert!(slice_contract_problems("HEADERS-GEN-COMPLETE", &c).is_empty(), "a generator story may change it");
+        let data = Changes { files: vec!["xtask/src/headers/slices/s09.rs".into(), "headers/slices/s09.tsv".into(), "spec/tools/header_checks/s09.py".into()], ..Changes::default() };
+        assert!(slice_contract_problems("sl-headers-s09-4", &data).is_empty(), "a slice's data is its own");
+    }
 
     #[test]
     fn placeholder_pattern_is_cis() {

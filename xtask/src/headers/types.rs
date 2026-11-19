@@ -53,17 +53,72 @@ impl Gen<'_> {
         } else if let Some(r) = self.t.layouts.get(core).and_then(|r| r.iter().find(|r| r["member"].is_empty())) {
             r["offset_or_size"].parse().ok()?
         } else {
-            let t = dwarf_scalar(core).unwrap_or_else(|| self.resolve(core));
-            match t.as_str() {
-                "char" | "signed char" | "unsigned char" => 1,
-                "short" | "unsigned short" => 2,
-                "int" | "unsigned int" | "float" => 4,
-                "long" | "unsigned long" | "long long" | "unsigned long long" | "double" => 8,
-                _ => self.t.typedefs.get(&("typedef".to_string(), core.to_string()))?["size"].parse().ok()?,
-            }
+            self.scalar_size_align(core)?.0
         };
         let n: u64 = if arr.is_empty() { 1 } else { arr.trim_matches(['[', ']']).parse().ok()? };
         Some(one * n)
+    }
+
+    /// The alignment in bytes of a member type of layouts.tsv (`core` and its `stars`; an array's is its element's).
+    pub(super) fn type_align(&self, core: &str, stars: &str) -> Option<u64> {
+        if !stars.is_empty() {
+            return Some(8);
+        }
+        match self.t.layouts.get(core).and_then(|r| r.iter().find(|r| r["member"].is_empty())) {
+            Some(r) => r["align"].parse().ok(),
+            None => Some(self.scalar_size_align(core)?.1),
+        }
+    }
+
+    /// Size and alignment (psABI) of a scalar, an enumeration, or a typedef or tag with a typedefs.tsv row.
+    fn scalar_size_align(&self, core: &str) -> Option<(u64, u64)> {
+        let t = dwarf_scalar(core).unwrap_or_else(|| self.resolve(core));
+        let n = match t.as_str() {
+            "char" | "signed char" | "unsigned char" | "bool" | "_Bool" => 1,
+            "short" | "unsigned short" => 2,
+            "int" | "unsigned int" | "float" => 4,
+            "long" | "unsigned long" | "long long" | "unsigned long long" | "double" => 8,
+            "long double" | "__int128" | "unsigned __int128" => 16,
+            _ if core.starts_with("enum ") => 4,
+            _ => {
+                let key = core.split_once(' ').filter(|(k, _)| matches!(*k, "struct" | "union")).map_or(("typedef".to_string(), core.to_string()), |(k, n)| (k.to_string(), n.to_string()));
+                let r = self.t.typedefs.get(&key)?;
+                return Some((r["size"].parse().ok()?, r["align"].parse().ok()?));
+            }
+        };
+        Some((n, n))
+    }
+
+    /// Whether a word of a typedefs.tsv type text is spelled as it is in C: a keyword, a number, a typedef name.
+    pub(super) fn c_plain(&self, w: &str) -> bool {
+        w.starts_with(|d: char| d.is_ascii_digit())
+            || SCALARS.iter().any(|s| s.split(' ').any(|x| x == w))
+            || matches!(w, "const" | "volatile" | "signed" | "_Complex" | "restrict" | "__restrict" | "__va_list_tag")
+            || w.starts_with("_Float")
+            || self.t.typedefs.contains_key(&("typedef".to_string(), w.to_string()))
+    }
+
+    /// A `typedefs.tsv` C++ type text spelled for C, declaring nothing: a name that is neither a keyword nor a
+    /// typedef is a tag in the C++ spelling (`sgttyb*`, `utimbuf const*`), of its typedefs.tsv kind, else a structure.
+    pub(super) fn c_words(&self, text: &str) -> String {
+        let mut out = String::new();
+        let mut word = String::new();
+        for c in text.chars().chain(std::iter::once(' ')) {
+            if c.is_alphanumeric() || c == '_' {
+                word.push(c);
+                continue;
+            }
+            if !word.is_empty() {
+                let w = std::mem::take(&mut word);
+                if !self.c_plain(&w) {
+                    out.push_str(["union", "enum"].into_iter().find(|k| self.t.typedefs.contains_key(&(k.to_string(), w.clone()))).unwrap_or("struct"));
+                    out.push(' ');
+                }
+                out.push_str(&w);
+            }
+            out.push(c);
+        }
+        out.trim_end().replace('*', " *").replace("  *", " *")
     }
 
     /// The words of a `typedefs.tsv` function type spelled for C: a structure tag gets its keyword and a typedef
@@ -78,23 +133,30 @@ impl Gen<'_> {
             }
             if !word.is_empty() {
                 let w = std::mem::take(&mut word);
-                let tag = format!("struct {w}");
                 let typedef_known = self.t.typedefs.contains_key(&("typedef".to_string(), w.clone()));
+                // A tag: a structure of layouts.tsv, the tag a typedef is spelled through, or a typedefs.tsv tag row.
+                let kind = ["struct", "union"].into_iter().find(|k| self.t.typedefs.contains_key(&(k.to_string(), w.clone()))).unwrap_or("struct");
+                let tag = format!("{kind} {w}");
                 if matches!(w.as_str(), "const" | "volatile" | "void" | "int" | "long" | "short" | "char" | "unsigned" | "signed") {
                     out.push_str(&w);
-                } else if !typedef_known && (self.t.layouts.contains_key(&tag) || self.tag_of_typedef(&w)) {
+                } else if !typedef_known && (self.t.layouts.contains_key(&tag) || self.tag_of_typedef(&w) || self.t.typedefs.contains_key(&(kind.to_string(), w.clone()))) {
                     // The tag is declared first: a tag first named in a parameter list is a different, unreachable type.
                     self.out.push(format!("{tag};"));
                     out.push_str(&tag);
                 } else if typedef_known && !scalar(&self.resolve(&w)) && w != "__va_list_tag" {
                     self.typedef(&w);
                     out.push_str(&w);
+                } else if !typedef_known && !self.c_plain(&w) && self.resolve(&w) == w {
+                    // A name no table describes is a class in the C++ spelling (`td_thrhandle const*`): an
+                    // incomplete structure, declared first.
+                    self.out.push(format!("struct {w};"));
+                    out.push_str(&format!("struct {w}"));
                 } else {
                     out.push_str(&self.resolve(&w));
                 }
             }
             out.push(c);
         }
-        out.trim_end().replace('*', " *").replace("  *", " *").replace("( *)", "(*)").replace("__va_list_tag (*) [1]", "__builtin_va_list")
+        out.trim_end().replace('*', " *").replace("  *", " *").replace("( *)", "(*)").replace("__va_list_tag (*) [1]", "__builtin_va_list *")
     }
 }

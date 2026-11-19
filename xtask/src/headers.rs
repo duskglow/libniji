@@ -177,21 +177,28 @@ struct Tables {
     inits: BTreeMap<String, (String, String)>,
 }
 
-/// A typedef used as a member type that has no layout rows of its own but whose members the rows of the
-/// containing structure list (`data.ptr`, `data.fd` under a member `data` of type `epoll_data_t`): those rows,
-/// rebased to the member's offset, are the typedef's layout (SL-HEADERS-S09).
+/// A typedef or a structure or union tag used as a member type that has no layout rows of its own but whose members
+/// the rows of the containing aggregate list (`data.ptr`, `data.fd` under a member `data` of type `epoll_data_t`;
+/// `__data.__lock` under `__data` of type `struct __pthread_mutex_s`): those rows, at any depth, rebased to the
+/// member's offset, are its layout (SL-HEADERS-S09; tags: HEADERS-GEN-COMPLETE). Its size and alignment are its
+/// typedefs.tsv row's; one without a size is not derived.
 fn derive_layouts(layouts: &mut BTreeMap<String, Rows>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>) {
     let mut found: Vec<(String, Rows)> = Vec::new();
     for rows in layouts.values() {
-        for r in rows.iter().filter(|r| !r["member"].is_empty() && !r["member"].contains('.')) {
+        for (i, r) in rows.iter().enumerate().filter(|(_, r)| !r["member"].is_empty() && r["member"] != "<anon>") {
             let ty = &r["member_type"];
-            let Some(td) = typedefs.get(&("typedef".to_string(), ty.clone())) else { continue };
+            let tkey = match ty.split_once(' ') {
+                Some((k, t)) if matches!(k, "struct" | "union") && t != "<anon>" => (k.to_string(), t.to_string()),
+                Some(_) => continue,
+                None => ("typedef".to_string(), ty.clone()),
+            };
+            let Some(td) = typedefs.get(&tkey).filter(|td| !td["size"].is_empty()) else { continue };
             if layouts.contains_key(ty) || found.iter().any(|(k, _)| k == ty) {
                 continue;
             }
             let (Ok(base), prefix) = (r["offset_or_size"].parse::<u64>(), format!("{}.", r["member"])) else { continue };
             let mut sub: Rows = vec![[("type", ty.as_str()), ("member", ""), ("offset_or_size", td["size"].as_str()), ("align", td["align"].as_str()), ("member_type", ""), ("bitfield", "")].iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()];
-            for d in rows.iter().filter(|d| d["member"].starts_with(&prefix) && !d["member"][prefix.len()..].contains('.')) {
+            for d in rows[i + 1..].iter().take_while(|d| d["member"].starts_with(&prefix)) {
                 let Ok(off) = d["offset_or_size"].parse::<u64>() else { continue };
                 let mut n = d.clone();
                 n.insert("type".into(), ty.clone());

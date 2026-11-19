@@ -16,10 +16,9 @@ impl Gen<'_> {
             let ret = self.type_words(ret);
             format!("extern {} (*{name}){args};", ret.trim_end())
         } else {
-            match ty.find('[') {
-                Some(i) => format!("extern {} {name}{};", ty[..i].replace('*', " *"), &ty[i..]),
-                None => format!("extern {} {name};", ty.replace('*', " *")),
-            }
+            // The type spelled for C: a tag gets its keyword (`in6_addr const`, `_IO_FILE*`), a typedef comes first.
+            let i = ty.find('[').unwrap_or(ty.len());
+            format!("extern {} {name}{};", self.type_words(&ty[..i]), &ty[i..])
         };
         self.guard(name, vec![line]);
     }

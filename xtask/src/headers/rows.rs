@@ -159,6 +159,43 @@ fn with_noexcept(cxx: &str) -> String {
     format!("{cxx} noexcept")
 }
 
+/// A typedefs.tsv C++ type text as C++ source (spelling only): a name that is neither a keyword nor a typedef is a
+/// class in that text and is written elaborated, with its typedefs.tsv kind (C++ finds a plain `stat` as the
+/// function, `struct stat` as the class); the compiler's `va_list` (`__va_list_tag [1]`, decayed `__va_list_tag*`)
+/// by its builtin name.
+fn cxx_type(t: &Tables, text: &str) -> String {
+    let text = text.replace("__va_list_tag (*) [1]", "__builtin_va_list*").replace("__va_list_tag [1]", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list");
+    let (mut out, mut word, mut prev) = (String::new(), String::new(), String::new());
+    for c in text.chars().chain(std::iter::once(' ')) {
+        if c.is_alphanumeric() || c == '_' {
+            word.push(c);
+            continue;
+        }
+        if !word.is_empty() {
+            let w = std::mem::take(&mut word);
+            let plain = w.starts_with(|d: char| d.is_ascii_digit())
+                || SCALARS.iter().any(|s| s.split(' ').any(|x| x == w))
+                || matches!(w.as_str(), "const" | "volatile" | "signed" | "noexcept" | "struct" | "union" | "enum" | "_Complex" | "__builtin_va_list" | "wchar_t" | "char8_t" | "char16_t" | "char32_t")
+                || w.starts_with("_Float")
+                || matches!(prev.as_str(), "struct" | "union" | "enum")
+                || t.typedefs.contains_key(&("typedef".to_string(), w.clone()));
+            // Elaborated only where a plain name does not find the class: a function or object of the same name hides
+            // it (`stat`), or no table declares it (`td_thrhandle`; the elaborated name declares it).
+            let tag_row = ["struct", "union", "enum"].into_iter().any(|k| t.typedefs.contains_key(&(k.to_string(), w.clone())));
+            let hidden = t.protos.contains_key(&w) || ["function", "object"].into_iter().any(|k| t.typedefs.contains_key(&(k.to_string(), w.clone())));
+            let known = tag_row || t.layouts.contains_key(&format!("struct {w}")) || t.typedefs.values().any(|r| r["cxx"] == w);
+            if !plain && (hidden || !known) {
+                out.push_str(["union", "enum"].into_iter().find(|k| t.typedefs.contains_key(&(k.to_string(), w.clone()))).unwrap_or("struct"));
+                out.push(' ');
+            }
+            out.push_str(&w);
+            prev = w;
+        }
+        out.push(c);
+    }
+    out.trim_end().to_string()
+}
+
 /// The `__builtin_offsetof` designator of a layouts.tsv member path: `a.b`, with `[0]` after an array of aggregates.
 fn designator(rows: &Rows, path: &str) -> Option<String> {
     if path.contains("<anon>") {
@@ -292,11 +329,13 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         if let Some(s) = rows.iter().find(|r| r["member"].is_empty()) {
             lines.push(format!("NIJI_A (sizeof ({key}) == {} && __alignof__ ({key}) == {}, \"layouts {key}\");", s["offset_or_size"], s["align"]));
         }
+        // The rows of an array typedef (`jmp_buf`, one `struct __jmp_buf_tag`) describe its element.
+        let subj = if t.typedefs.get(&("typedef".to_string(), key.clone())).is_some_and(|r| r["cxx"].ends_with(']')) { format!("__typeof__ ((({key} *) 0)[0][0])") } else { key.clone() };
         for r in rows.iter().filter(|r| !r["member"].is_empty() && r["bitfield"].is_empty()) {
             let Some(d) = designator(rows, &r["member"]) else { continue };
-            lines.push(format!("NIJI_A (__builtin_offsetof ({key}, {d}) == {}, \"layouts {key} {d}\");", r["offset_or_size"]));
+            lines.push(format!("NIJI_A (__builtin_offsetof ({subj}, {d}) == {}, \"layouts {key} {d}\");", r["offset_or_size"]));
             if let Some(ty) = c_type(t, &r["member_type"]) {
-                lines.push(format!("NIJI_C (__builtin_types_compatible_p (__typeof__ ((({key} *) 0)->{d}), {ty}), \"layouts {key} {d} type\");"));
+                lines.push(format!("NIJI_C (__builtin_types_compatible_p (__typeof__ ((({subj} *) 0)->{d}), {ty}), \"layouts {key} {d} type\");"));
             }
         }
         c.put(&mut a, i, lines);
@@ -312,7 +351,7 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         if !r["size"].is_empty() && kind != "function" {
             lines.push(format!("NIJI_A (sizeof ({spelled}) == {} && __alignof__ ({spelled}) == {}, \"typedefs {kind} {n}\");", r["size"], r["align"]));
         }
-        let cxx = &r["cxx"];
+        let cxx = &cxx_type(t, &r["cxx"]);
         match kind.as_str() {
             "typedef" if !cxx.is_empty() && cxx != n => lines.push(format!("NIJI_X (niji_same<{n}, {cxx} >::v, \"typedefs typedef {n} is {cxx}\");")),
             "object" if !cxx.is_empty() => lines.push(format!("NIJI_X (niji_same<__typeof__ ({n}), {cxx} >::v, \"typedefs object {n} is {cxx}\");")),
