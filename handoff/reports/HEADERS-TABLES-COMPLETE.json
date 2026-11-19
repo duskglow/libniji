@@ -62,7 +62,6 @@
  "report_file": "handoff/HEADERS-TABLES-COMPLETE.md",
  "jobs": [
   "mei:headers-tables-complete-l4test3",
-  "mei:headers-tables-complete-l4plants3",
-  "mei:headers-tables-complete-l4gen2"
+  "mei:headers-tables-complete-l4plants3"
  ]
 }

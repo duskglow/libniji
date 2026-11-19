@@ -42,8 +42,8 @@ layouts, bit positions, transparent unions).
 
 ## Jobs on the final code head 68ec5bdce (mei)
 
-l4test3 (clippy -D warnings, `cargo xtask static`, `cargo test -p xtask -p niji-abi`), l4plants3 (21 plants, dir
-plants-7), l4gen2 (rows ok: 0 failed, 3 excepted; tables unchanged since). SUPERSEDED: l3test2 (red: abi-types,
+l4test3 (clippy -D warnings, `cargo xtask static`, `cargo test -p xtask -p niji-abi`, the rows test included),
+l4plants3 (21 plants, dir plants-7). SUPERSEDED: l4gen2 (rows ok, 0 failed, 3 excepted; head 0825a267f), l3test2 (red: abi-types,
 fixed in 182656969), l3plants2 (15/15 caught, older head), l4test1 (red: noexcept rows, fixed in 0825a267f),
 l4plants1 (stopped, older head), l4test2 (green, 741 passed, head 0825a267f), l4plants2 (19 caught, htc-generic-shown
 survived: the test named M_PI, which has no visibility row; fixed in 68ec5bdce). Results: l4test3 green (741
