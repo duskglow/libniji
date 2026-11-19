@@ -989,6 +989,34 @@ pub fn built_profile(root: &Path) -> Option<Profile> {
     }
 }
 
+/// The interpreter's and `ldconfig`'s cargo builds, started beside the libc build (PLANTS-BUILD-SLOWDOWN). Their
+/// crates build as one codegen unit each ([`LD_RUSTFLAGS`]), so mostly on one thread: after a change to the library
+/// crates each took about 50 s on the Skylake-SP build host, after the libc and libm builds and one after the other.
+/// Their output is dropped: [`run_ld`] and [`run_ldconfig`] run the same commands again, which cargo answers from
+/// these builds (replaying their warnings) or redoes, and they report any failure. Dropping this waits for the
+/// builds, so none outlives `run_so_as`, on an error path too.
+struct EarlyBuilds(Option<std::thread::JoinHandle<()>>);
+
+impl EarlyBuilds {
+    fn start(root: &Path, product: &Path, profile: Profile) -> EarlyBuilds {
+        let tag = build_tag(root);
+        let cmds: Vec<Command> = [&LD_BUILD, &LDCONFIG_BUILD].iter().map(|b| b.command(root, product, profile, None, &tag)).collect();
+        EarlyBuilds(Some(std::thread::spawn(move || {
+            for mut c in cmds {
+                let _ = c.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status();
+            }
+        })))
+    }
+}
+
+impl Drop for EarlyBuilds {
+    fn drop(&mut self) {
+        if let Some(h) = self.0.take() {
+            let _ = h.join();
+        }
+    }
+}
+
 /// `cargo xtask so`: the products with the test profile (see `Profile::for_tests`).
 pub fn run_so(root: &Path) -> Result<(), String> {
     run_so_as(root, Profile::for_tests())
@@ -1297,6 +1325,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let release = root.join("target/niji");
     // One product build per tree at a time; the lock is held to the end of this function.
     let _lock = lock_product_dir(&product)?;
+    let early = EarlyBuilds::start(root, &product, profile);
     fs::create_dir_all(&release).map_err(|e| e.to_string())?;
     let _ = fs::remove_file(release.join(".profile"));
     // LAYOUT-TRACE-AT-BUILD: a set built now names its lists only if this run traced (or skipped) the layout.
@@ -1445,6 +1474,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
     // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
     println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
+    drop(early);
     run_ld(root, &cc, profile, layout)?;
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
