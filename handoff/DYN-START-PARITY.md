@@ -1,6 +1,33 @@
-# DYN-START-PARITY (handoff after leg 3: final)
+# DYN-START-PARITY (handoff after DYN-START-PARITY-2: final)
 
-## State
+## DYN-START-PARITY-2 (the fault bound only)
+Branch `task/dyn-start-parity-2` (stacked on `task/dyn-start-parity`), code head 7e5e8a609. The last run's xtest4 read
+fast 79 > 78. The cause is the file system under /tmp, where the test stages ld.so and libc.so.6. It is NOT
+NIJI_TEST_MALLOC_PERTURB: the program runs with a cleared environment, and 79 holds with and without it.
+Controlled A/B on mei (Skylake-SP), same products (sha256 dafed4aa.. fast, 9349097d.. release), same head. Only /tmp
+changed: the host's ext4 vs a private tmpfs (`unshare -r -m`, no cgroup). Warm-up + 5 runs each, every run identical:
+
+| profile | ext4 /tmp (`cargo xtask test` under plain jobrun) | tmpfs /tmp (`~/bin/gate`: gate, CI) |
+|---|---|---|
+| fast | 79 | 78 |
+| release | 74 | 76 |
+
+Mechanism (perf mmap events): the interpreter's first whole-file read-only mapping of libc.so.6 (0x5c1000 bytes, offset
+0) is placed by the kernel (6.8). On ext4 (large folios) it is 2 MiB-aligned (0x7ffff7800000); on tmpfs it is not
+(0x7ffff79b6000). The segments follow it (libc base 0x7ffff72e0000 vs 0x7ffff7490000), so the virtual placement and
+the fault-around windows differ. It is not extra work. DYN_TRUE_BOUND = [79, 76], the higher level of the two file
+systems, still below next's [89, 86]. The release bound rises from 74 to 76 against the inherited bound: 74 held only
+on ext4, so the gate (tmpfs) would fail release.
+Plant `handoff/DYN-START-PARITY-2-plants.txt` (start tables back to 64 inline entries): CAUGHT at 88 > 79.
+Jobs (mei, role s1): lint1, gate1 (direct tier, 817 passed), plants1 (1 CAUGHT), release1, xtest1, precheck.
+Superseded/diagnostic: lint0 (inherited head), ab1/ab2/ab3/fs1/fsrel/so1/which1-3 (A/B and probe runs).
+Finding for DYN-START-SPEED: the loader leaves the placement of an object to the kernel's choice for a whole-file
+mapping, so start-up faults depend on the file system holding the library. The loader could reserve the object's
+span itself at a fixed alignment, or map only the headers first. Either makes the count independent of the file
+system (and may save the faults that the misaligned windows cost).
+Not measured: the Zen 1 host (keke) levels of this bound.
+
+## State (leg 3)
 Branch `task/dyn-start-parity`, final head = the commit that carries this note (code head 503c206e0). Leg 3 found
 that DL-23-2 had landed in next (17:20Z, next d496d4c25), which the brief says to merge first: merged origin/next
 (7763acb6b, clean; reloc.rs, boundary ld.rs and ld/table.rs touched on both sides, no conflict). The merge brought
