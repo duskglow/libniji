@@ -41,9 +41,11 @@ static struct r_debug *dt(void) {
 }
 /* 0, or the first failed check (base + k). */
 static int check(const char *when, int base, int want, const char *last, const char *interp) {
-    struct r_debug *own = dlsym(RTLD_DEFAULT, "_r_debug");
+    /* ld.so's own definition (the program's copy, when it has one, comes first in the global scope). */
+    void *ld = dlopen(interp, RTLD_NOW | RTLD_NOLOAD);
+    struct r_debug *own = ld ? dlsym(ld, "_r_debug") : 0;
     void *brk = dlsym(RTLD_DEFAULT, "_dl_debug_state");
-    if (!own || !brk) return base + 1;
+    if (!own || !brk || dlsym(RTLD_DEFAULT, "_r_debug") != (void *)&_r_debug) return base + 1;
     if (dt() != own) return base + 2;
     if (own->r_version != 1 || _r_debug.r_version != 1) return base + 3;
     if (own->r_state != RT_CONSISTENT || _r_debug.r_state != RT_CONSISTENT) return base + 4;
@@ -126,7 +128,8 @@ fn setup(tag: &str, pie: bool) -> Option<(PathBuf, PathBuf, PathBuf)> {
     let prog = d.join("prog");
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let crt1 = lib.join("niji-crt1.o");
-    let mode: &[&str] = if pie { &["-fPIE", "-pie"] } else { &["-fno-pic", "-no-pie"] };
+    // PIE built with -fPIC reaches `_r_debug` through the GOT (no copy); -no-pie gets a COPY.
+    let mode: &[&str] = if pie { &["-fPIC", "-pie"] } else { &["-fno-pic", "-no-pie"] };
     let mut flags = vec!["-nostdlib"];
     flags.extend_from_slice(mode);
     flags.extend_from_slice(&[&interp, crt1.to_str().unwrap(), libc.to_str().unwrap(), ld.to_str().unwrap(), "-lgcc"]);
@@ -140,11 +143,23 @@ fn run(prog: &Path, so: &Path) -> (i32, String) {
     (o.status.code().unwrap_or(-1), format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)))
 }
 
+/// Whether `prog` has an `R_X86_64_COPY` of `_r_debug` (`readelf -r`); `None` without readelf.
+fn copied(prog: &Path) -> Option<bool> {
+    match Command::new("readelf").args(["-rW"]).arg(prog).output() {
+        Ok(r) if r.status.success() => Some(String::from_utf8_lossy(&r.stdout).lines().any(|l| l.contains("R_X86_64_COPY") && l.contains("_r_debug"))),
+        _ => {
+            eprintln!("note: no readelf, the COPY relocation is not checked by name");
+            None
+        }
+    }
+}
+
 // Spec s27_4_c_0: `_r_debug` (via DT_DEBUG and the symbol) lists the objects dl_iterate_phdr lists,
 // in its order, at start, after dlopen and after dlclose; r_state RT_CONSISTENT; r_brk _dl_debug_state.
 #[test]
 fn rendezvous_pie_matches_dl_iterate_phdr() {
     let Some((d, so, prog)) = setup("pie", true) else { return };
+    assert_ne!(copied(&prog), Some(true), "the PIE program has a COPY of _r_debug: it no longer tests ld.so's own alone");
     let (code, out) = run(&prog, &so);
     assert_eq!(code, 0, "failed check {code}: {out}");
     let _ = std::fs::remove_dir_all(d);
@@ -155,14 +170,7 @@ fn rendezvous_pie_matches_dl_iterate_phdr() {
 #[test]
 fn rendezvous_copy_relocation_is_kept_current() {
     let Some((d, so, prog)) = setup("copy", false) else { return };
-    let r = Command::new("readelf").args(["-rW"]).arg(&prog).output();
-    match r {
-        Ok(r) if r.status.success() => {
-            let text = String::from_utf8_lossy(&r.stdout);
-            assert!(text.lines().any(|l| l.contains("R_X86_64_COPY") && l.contains("_r_debug")), "no COPY relocation of _r_debug:\n{text}");
-        }
-        _ => eprintln!("note: no readelf, the COPY relocation is not checked by name"),
-    }
+    assert_ne!(copied(&prog), Some(false), "the -no-pie program has no COPY relocation of _r_debug");
     let (code, out) = run(&prog, &so);
     assert_eq!(code, 0, "failed check {code}: {out}");
     let _ = std::fs::remove_dir_all(d);
