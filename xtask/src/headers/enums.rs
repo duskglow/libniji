@@ -37,7 +37,7 @@ impl Gen<'_> {
             self.errors.push(format!("{}: @@enum {tag}: no enumerators.tsv rows", self.header));
             return;
         };
-        let mut names: Vec<String> = members.iter().map(|(n, _)| n.clone()).filter(|n| self.t.vis.iter().any(|r| r["header"] == self.header && r["kind"] == "enumerator" && r["name"] == *n)).collect();
+        let mut names: Vec<String> = members.iter().map(|(n, _)| n.clone()).filter(|n| self.t.vis_row(&self.header, n, "enumerator").is_some()).collect();
         names.sort();
         self.tag(tag, "enum");
         let body: Vec<String> = names.iter().flat_map(|n| [format!("# ifndef {n}"), format!("#  define {n} {n}"), "# endif".into()]).collect();
