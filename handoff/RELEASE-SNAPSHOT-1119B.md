@@ -45,6 +45,13 @@ iconv-name-match* tip is an ancestor (no fix landed).
 | docs | local doccheck.py on the tree | 23 problems, the same 23 as 19.1 (differences-from-glibc.md line numbers shift) | same |
 | dbg 1.1 probe | -dbg11-1 rc 0 | below (FINDING 1) | - |
 
+Hand-back JOBS (rc 0, final head): final-1 (documented-form gate on the final head: direct tier selects 0 tests,
+handoff-only change), gate-1, smoke-mei-1, keke smoke-keke-1, lint-1, many-1, y19-1, dbg11-1, plants-1, keke
+pkgdiff-1 / stage-1 / install-1. Evidence jobs whose rc 1 is the known result above (not named, §8): debs-1,
+roots-1, yohane-1, dyn22-1, y10-1, y19-ref191-3. `cargo xtask precheck` on mei s2 at the report head: GREEN
+(jobs final-1, smoke-mei-1, plants-1; the ~/work script jobs carry no tested-content record, so precheck cannot
+judge them; `ops handback-check` resolves all named labels).
+
 Superseded: -y19-ref191-1 / -2 (probe script fixes: gnat1 prints nothing for `--version`; `info sharedlibrary`
 before the dlopen; gnatmake log prefix; -2 stopped). -y19-ref191-3 is the valid 19.1 reference.
 
