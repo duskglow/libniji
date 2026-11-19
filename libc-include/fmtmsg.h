@@ -157,7 +157,7 @@ enum { MM_WARNING = 3 };
 
 /* The "no value" arguments of fmtmsg (XSH fmtmsg). */
 #ifndef MM_NULLLBL
-# define MM_NULLLBL ((char *) 0)
+# define MM_NULLLBL ((char *) 0L)
 #endif
 #ifndef MM_NULLSEV
 # define MM_NULLSEV 0
@@ -166,13 +166,13 @@ enum { MM_WARNING = 3 };
 # define MM_NULLMC 0L
 #endif
 #ifndef MM_NULLTXT
-# define MM_NULLTXT ((char *) 0)
+# define MM_NULLTXT ((char *) 0L)
 #endif
 #ifndef MM_NULLACT
-# define MM_NULLACT ((char *) 0)
+# define MM_NULLACT ((char *) 0L)
 #endif
 #ifndef MM_NULLTAG
-# define MM_NULLTAG ((char *) 0)
+# define MM_NULLTAG ((char *) 0L)
 #endif
 
 __NIJI_END_C

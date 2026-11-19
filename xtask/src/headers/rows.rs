@@ -426,6 +426,7 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
     }
     // Macros, each defined, checked and undefined in turn, after every declaration.
     let constants: BTreeMap<String, String> = tsv(root, "spec/abi/constants.tsv")?.into_iter().filter(|r| named(&r["macro"])).map(|r| (r["macro"].clone(), r["value"].clone())).collect();
+    let mut ptr_runs: Vec<(usize, Vec<String>)> = Vec::new();
     for (n, (ty, v)) in t.macros.iter().filter(|(n, _)| named(n)) {
         let i = c.row("macros", n);
         if c.lang(i) == Some("*") {
@@ -461,6 +462,19 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
                 x => format!("({n}) == {x}{sfx}"),
             };
             lines.push(format!("NIJI_X ({test}, \"macros {n} = {v}\");"));
+        } else if super::values::pointer_type(ty) {
+            // A pointer constant: its type in both languages; its address (a pointer converted to an integer is no
+            // constant expression) at run time, against macros.tsv and constants.tsv.
+            let cty = g.c_words(ty);
+            lines.push(format!("NIJI_C (__builtin_types_compatible_p (__typeof__ ({n}), {cty}), \"macros {n} is {ty}\");"));
+            lines.push(format!("NIJI_X (niji_same<decltype ({n}), {cty}>::v, \"macros {n} is {ty}\");"));
+            for (row, val) in [(i, Some(v)), (c.row("constants", n), constants.get(n))] {
+                match val.map(|x| super::values::literal("pointer", x)) {
+                    Some(Ok(e)) => ptr_runs.push((row, vec![format!("#define {n} {lit}"), format!("  if ((long) ({n}) != {e}) niji_bad ({row});"), format!("#undef {n}")])),
+                    Some(Err(e)) => c.fail(row, e),
+                    None => {}
+                }
+            }
         } else {
             c.fail(i, format!("macros.tsv type {ty:?}: the rows test has no check for it"));
         }
@@ -483,6 +497,9 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
 
     // The run-time program: bit-fields and initializers.
     let mut run = Tu::default();
+    for (i, l) in ptr_runs {
+        c.put(&mut run, i, l);
+    }
     for (key, rows) in t.layouts.iter().filter(|(k, _)| wanted(k.split_once(' ').map_or(k.as_str(), |(_, n)| n))) {
         let i = c.row("layouts", key);
         let mut lines = Vec::new();
