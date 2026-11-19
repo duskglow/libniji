@@ -9,8 +9,14 @@
 
 __NIJI_BEGIN_C
 
-@@owns-macro htonl htons ntohl ntohs
+@@owns-macro htonl htons ntohl ntohs IP_RECVRETOPTS IP_RECVORIGDSTADDR IPV6_RECVORIGDSTADDR
 @@emit
+
+/* Spelled as the macro they equal, as linux/in.h spells them: its definition after this one repeats the replacement list
+   token for token, so C 6.10.3p2 allows the redefinition in either include order. */
+@@alias IP_RECVRETOPTS IP_RETOPTS
+@@alias IP_RECVORIGDSTADDR IP_ORIGDSTADDR
+@@alias IPV6_RECVORIGDSTADDR IPV6_ORIGDSTADDR
 
 /* RFC 3493: the members of an IPv6 address by their names; the table names the union members (layouts.tsv). */
 # define s6_addr __in6_u.__u6_addr8

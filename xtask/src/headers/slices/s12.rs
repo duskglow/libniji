@@ -3,11 +3,14 @@
 //!
 //! * `@@needs H ...`: the headers H (slices not yet generated) supply the names `visibility.tsv` lists for them; the
 //!   include is `__has_include`-guarded while H has no template.
+//! * `@@alias NAME OF`: `#define NAME OF`, spelled as the macro it equals (linux/in.h spells `IP_RECVRETOPTS` as `IP_RETOPTS`,
+//!   so a later kernel definition repeats the replacement list token for token, C 6.10.3p2); refused when `macros.tsv`
+//!   gives the two different types or values. The template also names NAME in `@@owns-macro`.
 //! * `@@needs-if NAME H`: `#include <H>` where NAME is visible; H supplies the names `visibility.tsv` lists for it.
 use super::super::{mask_of, Gen, Marker, Slice};
 
 pub(super) const SLICE: Slice = Slice {
-    markers: &[Marker { name: "@@needs", run: needs }, Marker { name: "@@needs-if", run: needs_if }],
+    markers: &[Marker { name: "@@needs", run: needs }, Marker { name: "@@needs-if", run: needs_if }, Marker { name: "@@alias", run: alias }],
     inline: &[],
     linked_elsewhere: &[],
 };
@@ -35,6 +38,14 @@ fn needs_if(g: &mut Gen<'_>, args: &[&str]) {
     supply(g, h);
     let c = g.cond(n, None);
     g.out.extend([format!("#if {c}"), format!("# include <{h}>"), "#endif".into()]);
+}
+
+fn alias(g: &mut Gen<'_>, args: &[&str]) {
+    let (n, of) = (args.first().copied().unwrap_or(""), args.get(1).copied().unwrap_or(""));
+    if g.t.macros.get(n).is_none() || g.t.macros.get(n) != g.t.macros.get(of) {
+        g.errors.push(format!("headers/{}.in: @@alias {n} {of}: macros.tsv gives the two different types or values", g.header));
+    }
+    g.out.extend([format!("#ifndef {n}"), format!("# define {n} {of}"), "#endif".into()]);
 }
 
 #[cfg(test)]
