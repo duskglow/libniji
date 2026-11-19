@@ -126,6 +126,7 @@ extern int fstat (int, struct stat *) __NIJI_NOTHROW;
 extern int fstat (int, struct stat *) __NIJI_NOTHROW __asm__ ("fstat64");
 #  endif
 # endif
+struct stat;
 # ifndef __NIJI_D___ftw_func_t
 #  define __NIJI_D___ftw_func_t 1
 typedef int (*__ftw_func_t)(char const *, struct stat const *, int);
@@ -161,6 +162,8 @@ extern unsigned int umask (unsigned int) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_GNU
+struct stat64;
+struct FTW;
 # ifndef __NIJI_D___nftw64_func_t
 #  define __NIJI_D___nftw64_func_t 1
 typedef int (*__nftw64_func_t)(char const *, struct stat64 const *, int, struct FTW *);
@@ -181,6 +184,7 @@ struct stat64;
 #  define __NIJI_D_fstatat64 1
 extern int fstatat64 (int, const char *, struct stat64 *, int) __NIJI_NOTHROW;
 # endif
+struct stat64;
 # ifndef __NIJI_D___ftw64_func_t
 #  define __NIJI_D___ftw64_func_t 1
 typedef int (*__ftw64_func_t)(char const *, struct stat64 const *, int);

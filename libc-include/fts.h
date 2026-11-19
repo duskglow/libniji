@@ -36,7 +36,19 @@ struct _ftsent {
 # endif
 # ifndef __NIJI_D_FTS
 #  define __NIJI_D_FTS 1
-typedef struct { char __niji_opaque[72] __attribute__ ((__aligned__ (8))); } FTS;
+typedef struct {
+  struct _ftsent * fts_cur;
+  struct _ftsent * fts_child;
+  struct _ftsent * * fts_array;
+  unsigned long fts_dev;
+  char * fts_path;
+  int fts_rfd;
+  int fts_pathlen;
+  int fts_nitems;
+  void (*fts_compar) (void);
+  int fts_options;
+  int : 32;
+} FTS;
 # endif
 # ifndef __NIJI_D_struct__ftsent
 #  define __NIJI_D_struct__ftsent 1

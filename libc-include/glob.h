@@ -10,7 +10,17 @@ __NIJI_BEGIN_C
 #if 1
 # ifndef __NIJI_D_glob_t
 #  define __NIJI_D_glob_t 1
-typedef struct { char __niji_opaque[72] __attribute__ ((__aligned__ (8))); } glob_t;
+typedef struct {
+  unsigned long gl_pathc;
+  char * * gl_pathv;
+  unsigned long gl_offs;
+  int gl_flags;
+  void (*gl_closedir) (void);
+  void (*gl_readdir) (void);
+  void (*gl_opendir) (void);
+  void (*gl_lstat) (void);
+  void (*gl_stat) (void);
+} glob_t;
 # endif
 #endif
 #if __NIJI_LFS64 || __NIJI_FOB64

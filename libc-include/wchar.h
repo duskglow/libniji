@@ -11,7 +11,10 @@ __NIJI_BEGIN_C
 #if 1
 # ifndef __NIJI_D___mbstate_t
 #  define __NIJI_D___mbstate_t 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (4))); } __mbstate_t;
+typedef struct {
+  int __count;
+  union { unsigned int __wch; char __wchb[4]; } __value;
+} __mbstate_t;
 # endif
 # ifndef __NIJI_D_mbstate_t
 #  define __NIJI_D_mbstate_t 1
