@@ -1083,7 +1083,7 @@ impl<'a> Dynamic<'a> {
             .and_then(|n| n.checked_add(8))
             .ok_or(ElfError::AddressNotMapped(addr))?;
         let all = self.elf.bytes_at(addr, len)?;
-        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain, mark: false }))
+        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain, mark: 0 }))
     }
 
     /// The GNU hash table (`DT_GNU_HASH`): `nbuckets`, `symoffset`, `bloom_size`, `bloom_shift`, the
@@ -1110,7 +1110,7 @@ impl<'a> Dynamic<'a> {
         let bloom = sub(all, 16, bloom_len).ok_or(unmapped)?;
         let buckets = sub(all, bloom_len.checked_add(16).ok_or(unmapped)?, bucket_len).ok_or(unmapped)?;
         let chain = self.elf.bytes_from(addr.checked_add(fixed).ok_or(unmapped)?)?;
-        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift, mark: false }))
+        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift, mark: 0 }))
     }
 
     /// The number of dynamic symbols: the SysV table's `nchain` when there is one (exact), else the
