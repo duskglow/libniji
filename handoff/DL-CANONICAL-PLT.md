@@ -1,55 +1,38 @@
 # DL-CANONICAL-PLT: the loader honours canonical PLT addresses (GitHub issue #10)
 
-**State (run 6, leg 1 ended by REFRESH).** Branch `task/dl-canonical-plt-6` = run 5's branch + one WIP code commit
-1c396a7ba (pushed, NOT yet built or tested). Role keke:~/w/n2 (Zen 1 host, 60 vCPU). Run-5 history, numbers and
-the plants record: handoff/DL-CANONICAL-PLT-5-report.md (read only if needed). Record:
-`records/pending/DL-CANONICAL-PLT-2-1.toml` (design text updated in 1c396a7ba; its **Cost** sentence still has
-run-5 numbers and must be replaced with run-6 numbers).
+**State (run 6 ended INCOMPLETE, needs a ruling).** Branch `task/dl-canonical-plt-6`, code head b6a56d27b
+(then record/handoff commits). Role keke:~/w/n2 (Zen 1 host, 60 vCPU). Full run-6 report:
+handoff/DL-CANONICAL-PLT-6-report.md. Run-5 history: handoff/DL-CANONICAL-PLT-5-report.md. Record:
+`records/pending/DL-CANONICAL-PLT-2-1.toml` (design text = flag beside the table; Cost sentence = run-6 numbers,
+marked NOT FINAL).
 
-**Ruling #6618 (in force):** the +1 ASLR-on start-up fault median for programs WITHOUT canonical entries was not
-accepted. Run 6 must (a) move the flag out of `Object` (done in 1c396a7ba), (b) remeasure the ASLR-on distribution,
-(c) add the dladdr-at-load-base test for the surviving plant `dladdr-any-undefined` (done in 1c396a7ba).
+**Ruling #6618 (in force):** +1 ASLR-on fault median not accepted; move the flag out of `Object`, remeasure, add
+the dladdr-at-load-base test. Run 6 did all three: faults now equal base (ASLR off: same pages; ASLR on median
+78/94/130 = base), and the dladdr test catches plant `dladdr-any-undefined` (plants2: CAUGHT). BUT the flag beside
+the table costs the plain path instructions: PIE without canonical entries +5137/+10471/+26796 at N=0/3/12
+(run 5's flag-in-Object design: -82/+5/+288 on the same host). Exact single-step trace (N=0): ~9 instructions
+more per symbol lookup (578 lookups): `resolve` +1734 (inlined `scope.entries` test), plain walk +2673,
+`target` +578; the per-candidate closure is identical to base. Two tweaks (const generic `find`/`search`,
+out-of-line `lookup_plain`) cut N=12 from +49.7k to +26.8k but cannot reach zero while the flag travels per lookup.
 
-**Design now (1c396a7ba).** `Object` has no `canonical` field again (layout as on origin/next).
-`Object::canonical_entries()` (the old `program()` scan, `#[inline(never)]`) is asked once per load: in `link`
-(crates/boundary/src/ld.rs, `let canonical = syms[0].canonical_entries();` just before `Objects {..}`) and in
-dlopen's `adopt_start` (`l.canonical`, new `Loader` field after `n_start_global`). `reloc::Objects` has `pub
-canonical: bool`; `symbols::Scope` has a private `entries` bool set by `Scope::program_entries(on)`;
-`symbols::lookup` goes to `#[cold] lookup_entries` only when it is set, which searches object 0 with `#[cold]
-Object::lookup_program` (`find(req, true)`); plain `Object::lookup` = `find(req, false)` (inline(always) body).
-reloc `one()` and `slot_target` pass `set.canonical`; dlsym and `Uniq::find` pass `l.canonical` (Uniq has a
-`canonical` field). Protected check: `i == 0 && set.canonical`. dladdr: `containing(syms, program = i == 0, ..)`.
-Test: the scoped test prints `dladdr_prog_base` and `dladdr_libdeep_base` (reference: `1 prog (null) null`,
-`1 libdeep.so (null) null`; probe job keke:dl-canonical-plt-6-probe-ref3 — note `(void *)use_v` is itself a
-canonical entry of the program, so libdeep.so (imports `f`) is the library used).
+**RULING NEEDED (RUT RULE: two fixes of one kind):** how to carry the flag with no per-lookup cost. Options:
+(b) keep it inside `Object` without growing it: encode "program with entries" in the `Hash` enum's spare
+discriminant (`Object` stays 0x128 bytes, so no stack page; the test is again only on the rare non-exported
+candidate path, run-5 instruction numbers); (c) monomorphise the relocation path on a const bool from
+`relocate` down (plain copy byte-identical to base, about +12 KB cold ld.so text). Recommendation: (b).
 
-**Done in leg 1.** lint0 (inherited head: clippy + static green). Reference probe ref3 (above). Scripts on keke
-~/work/DL-CANONICAL-PLT-6/: `lint.sh`, `prebuild6.sh <tag> <tree>` (cargo xtask so, products to
-/dev/shm/claude/DL-CANONICAL-PLT-6/prod-<tag> + `.bins`, probe vs `probe/ref.expected` = reference output),
-`step6.sh <tag>` (lint + prebuild6 on ~/w/n2 + tests canonical_plt/reloc/symbols), `count6.sh <tag> <A> <B> [runs=41]`
-(run 5's count script without Intel PT: plain PIE and non-PIE canonical programs, N=0/3/12, instructions and faults,
-ASLR off/on with the full fault distribution, N=0 fault-page diff), `probe/`, `base-next/` (origin/next merge base
-1b7335a10 source copy). Jobs started at the end of leg 1 (were still in `cargo xtask so` trace-at-build, host load ~15):
-`dl-canonical-plt-6-pb-base` (base products -> prod-base) and `dl-canonical-plt-6-pb-run5` (inherited run-5 head
-53566166d, built IN THE ROLE ~/w/n2 -> prod-run5).
+**Things not to redo.** Reference probe (keke job dl-canonical-plt-6-probe-ref3; `probe/ref.expected`), the
+dladdr load-base test (passes, catches the plant), base/run5/new3 product sets on keke
+/dev/shm/claude/DL-CANONICAL-PLT-6/prod-{base,run5,new,new2,new3}.
 
-**Next steps (in order).**
-1. `~/bin/jobwait dl-canonical-plt-6-pb-base dl-canonical-plt-6-pb-run5`; both must end PREBUILD-OK and print
-   "probe base: DIFFERS" for base (no canonical support) and "probe run5: DIFFERS" only on the two new
-   `_base` lines if any (run 5 had no dladdr bug at bases with the flag gate; expect match).
-2. Only after pb-run5 ended: sync (`bash ~/src/liella-ops/tools/sync_role.sh --story DL-CANONICAL-PLT-6 --base
-   origin/next <worktree> keke n2`, check rc; 4 = BUSY), then job `dl-canonical-plt-6-step1` running
-   `sh ~/work/DL-CANONICAL-PLT-6/step6.sh new`. Fix compile/clippy/test failures (1c396a7ba was never compiled).
-3. Counts: `bash ~/work/DL-CANONICAL-PLT-6/count6.sh m6 base run5` and `count6.sh m6b base new` (jobrun, kind
-   count). The ruling's question: plain PIE ASLR-on fault median base vs new must be equal (run 5 on Skylake-SP:
-   base 78, run-5 head 79). Put the distributions in the record's Cost sentence and the report.
-4. Gate (direct tier, `--base origin/next`), plants: `cargo xtask plants handoff/DL-CANONICAL-PLT-6-plants.txt
-   --dir /dev/shm/claude/dl-canonical-plt-6/plants-1 --timeout 900` (7 plants incl. dladdr-any-undefined).
-5. Start-up checks (brief): `cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo
-   test -p niji --test hot_text_products`; diff layout-bins (prod-base.bins vs prod-new.bins).
-6. precheck on the final head, handoff/DL-CANONICAL-PLT-6-report.md, handoff/reports/DL-CANONICAL-PLT-6.json,
-   handback-check.
+**Tools on keke ~/work/DL-CANONICAL-PLT-6/** (scratch, not the tree): `step6.sh <tag>` (lint + products +
+probe + loader tests), `count6.sh <tag> <A> <B> [runs]` (instructions/faults, ASLR off/on distributions),
+`sstep.c` + `sstep_run.sh <count tag> <kind> <n>...` + `sstep_sum.py` (exact per-function user-instruction steps
+by ptrace single-step: deterministic, matches perf stat to the instruction; use it, perf sampling is throttled),
+`disdiff.sh <A> <B> <regex>...` (normalised disassembly diff).
 
-**Process notes (leg 1, for the report):** one empty heredoc slipped in (a no-op `python3 - <<'X'`, nothing ran);
-one probe job (`probe-ref2`) never started because the jobrun was chained after `tar` in one ssh command, and its
-jobwait had to be killed by PID (own process). Nothing refused.
+**Exact next step.** Get the ruling; implement the chosen option; `step6.sh` + `count6.sh <t> base <new> 101` +
+`sstep_run.sh <t> plain 0 12` must show plain within run-5 levels and faults equal base; then gate (direct,
+`--base origin/next`), plants (`handoff/DL-CANONICAL-PLT-6-plants.txt`, update patterns), start-up checks
+(`cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji --test
+hot_text_products`), precheck, report.

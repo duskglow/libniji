@@ -1,0 +1,79 @@
+{
+ "task": "DL-CANONICAL-PLT-6",
+ "model": "opus",
+ "tokens": null,
+ "result": "INCOMPLETE: flag out of Object (faults equal base), dladdr load-base test catches the run-5 survivor; plain PIE still +5.1k/+10.5k/+26.8k instructions at N=0/3/12, ruling needed on how to carry the flag",
+ "branch": "task/dl-canonical-plt-6",
+ "head": null,
+ "gate": {
+  "affected": "not run on the final head (gate1 on 1c396a7ba stopped as superseded)",
+  "peak": null
+ },
+ "accepted_first_attempt": false,
+ "rulings": [
+  {
+   "item": "carry the program-has-canonical-entries flag with no per-lookup cost (two same-kind tweaks did not reach zero)",
+   "recommendation": "encode it in Object's Hash enum spare discriminant: Object keeps its size (no stack page), the test is again only on the rare non-exported path (run-5 cost -82/+5/+288); alternative: const-bool monomorphisation of the relocation path (+~12 KB cold ld.so text)"
+  }
+ ],
+ "informational": [
+  "perf record throttles on the Zen 1 host (~160 samples per start-up); the ptrace single-step tracer (scratch on keke) gives exact per-function counts",
+  "process slips: one empty no-op heredoc and one sed -i on a scratch script (not the tree)",
+  "kill-label left the gate job's cargo xtask children; kill-mine ended them"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "faults",
+   "what": "PIE without canonical entries, start-up page faults vs next (ASLR off N=0/3/12; ASLR-on median)",
+   "before": 76,
+   "after": 76,
+   "unit": "faults",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "PIE without canonical entries, start-up instructions:u at N=0 (fix-forward: ruling on carrying the flag)",
+   "before": 8993723,
+   "after": 8998860,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "PIE without canonical entries, start-up instructions:u at N=12",
+   "before": 10073582,
+   "after": 10100378,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "programs with canonical PLT entries (non-PIE taking &f of a library function): f's address agrees across objects, matching the reference probe",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "dladdr at an object load base test (plant dladdr-any-undefined CAUGHT; other plants not run)",
+   "before": 0,
+   "after": 1,
+   "unit": "tests",
+   "measured": true
+  }
+ ],
+ "improvement": "an exact ptrace single-step per-function instruction counter (seconds per start-up) belongs in validation/: it located a 0.06% start-up regression that throttled perf sampling could not",
+ "next_step": "get the ruling; implement it; count6 + sstep must show plain within run-5 levels and faults equal base; then gate, plants, start-up checks, precheck",
+ "report_file": "handoff/DL-CANONICAL-PLT-6-report.md",
+ "jobs": [
+  "keke:dl-canonical-plt-6-step3",
+  "keke:dl-canonical-plt-6-sstep1"
+ ],
+ "superseded": [
+  "keke:dl-canonical-plt-6-plants2 (stopped after plant 1 of 7: dladdr-any-undefined CAUGHT)",
+  "keke:dl-canonical-plt-6-gate1, plants1 (head 1c396a7ba, stopped)",
+  "keke:dl-canonical-plt-6-step1, step2, count1 (earlier heads)"
+ ]
+}
