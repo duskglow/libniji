@@ -1260,6 +1260,45 @@ fn check_no_link_edge(so: &Path) -> Result<(), String> {
     }
 }
 
+/// LAYOUT-DYN-PHASE (D-X.133): libc.so.6's start-up read-only group starts on its alignment `align` (the
+/// anchor came first in the link) and holds every object the interpreter reads
+/// ([`crate::startup_ro::LOADER_READ`]).
+fn check_rodata1_anchor(so: &Path, align: u64) -> Result<(), String> {
+    let secs = Command::new("readelf").arg("-SW").arg(so).output().map_err(|e| format!("readelf: {e}"))?;
+    let syms = Command::new("nm").args(["-D", "-S", "--defined-only"]).arg(so).output().map_err(|e| format!("nm: {e}"))?;
+    rodata1_anchor_errors(&String::from_utf8_lossy(&secs.stdout), &String::from_utf8_lossy(&syms.stdout), align).map_err(|e| format!("{}: {e} (csys/src/machine/entry.S NIJI_LIBC_SO, xtask/src/startup_ro.rs)", so.display()))
+}
+
+/// The check of [`check_rodata1_anchor`] on `readelf -SW` and `nm -D -S --defined-only` text.
+pub fn rodata1_anchor_errors(readelf: &str, nm: &str, align: u64) -> Result<(), String> {
+    let sec = crate::startup_ro::SECTION;
+    let (at, size) = readelf
+        .lines()
+        .find_map(|l| {
+            let g: Vec<&str> = l.trim_start().strip_prefix('[')?.split_once(']')?.1.split_whitespace().collect();
+            (g.first() == Some(&sec)).then_some(())?;
+            Some((u64::from_str_radix(g.get(2)?, 16).ok()?, u64::from_str_radix(g.get(4)?, 16).ok()?))
+        })
+        .ok_or_else(|| format!("no {sec} section"))?;
+    if align == 0 || at % align != 0 {
+        return Err(format!("{sec} starts at {at:#x}, not on its {align:#x} alignment: the anchor is not the link's first input"));
+    }
+    for want in crate::startup_ro::LOADER_READ {
+        let (addr, len) = nm
+            .lines()
+            .find_map(|l| {
+                let g: Vec<&str> = l.split_whitespace().collect();
+                (g.len() == 4 && g[3].split('@').next() == Some(want)).then_some(())?;
+                Some((u64::from_str_radix(g[0], 16).ok()?, u64::from_str_radix(g[1], 16).ok()?))
+            })
+            .ok_or_else(|| format!("{want} is not defined"))?;
+        if addr < at || addr + len > at + size {
+            return Err(format!("{want} at {addr:#x} (+{len:#x}) lies outside {sec} [{at:#x}, {:#x}): the interpreter's read takes a window of its own", at + size));
+        }
+    }
+    Ok(())
+}
+
 /// `niji-crt1.o` in `dir`, assembled for the `libc.a` there; returns its `-D` cluster alignments.
 fn build_crt1(root: &Path, cc: &str, dir: &Path) -> Result<Vec<String>, String> {
     // Each start-up data cluster's start alignment, from its size over the whole archive (D-X.64).
@@ -1348,6 +1387,11 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // Both links of the library (libc.so.6 and the opt-in's libc-owner.so) define the forwarding
     // aliases (SL-SONAMES) the version script names.
     let defsyms = forward_defsyms(root, &have)?;
+    // LAYOUT-DYN-PHASE (D-X.133): the start-up read-only group's anchor (entry.S with -DNIJI_LIBC_SO), the
+    // first input of both links, so the group starts on its alignment (as the start object does in a program).
+    let rodata1_align = crate::startup_ro::cluster_aligns(&archive)?.into_iter().find(|(d, _)| *d == "NIJI_RODATA1_ALIGN").map_or(crate::startup_ro::ALIGN, |(_, a)| a);
+    let anchor = product.join("libc-so-anchor.o");
+    run(Command::new(&cc).arg("-c").arg("-DNIJI_LIBC_SO").arg(format!("-DNIJI_RODATA1_ALIGN={rodata1_align}")).arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&anchor))?;
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
         run(Command::new(&cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
@@ -1355,6 +1399,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
             .arg(format!("-Wl,--version-script={}", map.display()))
             .arg("-Wl,-soname,libc.so.6")
             .args(&defsyms)
+            .arg(&anchor)
             .arg("-Wl,--whole-archive")
             .arg(&so_input)
             .arg("-Wl,--no-whole-archive")
@@ -1365,6 +1410,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
             .arg(out))
     };
     link_libc(&owner_obj, &so, &[])?;
+    check_rodata1_anchor(&so, rodata1_align)?;
     check_no_link_edge(&so)?;
     let native = check_native_exports(root, &so)?;
     let compat_count = check_compat_exports(root, &so, "libc.so.6", &compat)?;
@@ -1536,6 +1582,7 @@ fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(),
     check_interp(&staged)?;
     check_interp_prerelocation(&staged)?;
     let span = check_interp_span(&staged)?;
+    check_interp_ro_phase(&staged)?;
     publish(&staged, &out)?;
     println!("so: target/niji/{name} (the interpreter; L14-1 link check and pre-relocation check passed; mapped span {span:#x}, {LDSO_SPAN_BUCKET:#x} per bucket)");
     Ok(())
@@ -1548,6 +1595,7 @@ struct LdLink {
     archive: std::path::PathBuf,
     map: std::path::PathBuf,
     span: std::path::PathBuf,
+    phase: std::path::PathBuf,
 }
 
 impl LdLink {
@@ -1564,7 +1612,9 @@ impl LdLink {
         fs::write(&map, ld_version_script(root, niji_ld::arch::Native::INTERP)?).map_err(|e| e.to_string())?;
         let span = dir.join("ld-span.ld");
         fs::write(&span, ldso_span_script()).map_err(|e| e.to_string())?;
-        Ok(LdLink { entry, archive, map, span })
+        let phase = dir.join("ld-phase.ld");
+        fs::write(&phase, ldso_phase_script()).map_err(|e| e.to_string())?;
+        Ok(LdLink { entry, archive, map, span, phase })
     }
 
     /// Link the interpreter `out` from `entry` (first) and `archive`.
@@ -1573,6 +1623,7 @@ impl LdLink {
         run(Command::new(cc)
             .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ld_entry", "-Wl,-Bsymbolic"])
             .arg(format!("-Wl,-T,{}", self.span.display()))
+            .arg(format!("-Wl,-T,{}", self.phase.display()))
             .arg(format!("-Wl,--version-script={}", self.map.display()))
             .arg(format!("-Wl,-soname,{}", niji_ld::arch::Native::INTERP))
             .arg(entry)
@@ -1635,6 +1686,42 @@ fn check_interp_span(path: &Path) -> Result<u64, String> {
         ));
     }
     Ok(span)
+}
+
+/// LAYOUT-DYN-PHASE (D-X.133): the interpreter's read-only data (its first section, `.rodata`, and with it
+/// every segment after the text) starts at the same phase modulo this window size as its `.text`. The
+/// kernel places the interpreter's base (its end at the mmap base, [`LDSO_SPAN_BUCKET`]) at a fixed phase,
+/// one page below a 64 KiB boundary with ASLR off, so the text (image offset 0x1000) starts a fault-around
+/// window; the read-only data followed the text's end, and the start-up reads in its first 12 KiB
+/// straddled a window boundary for 2 of 16 text sizes (+1 fault, Skylake-SP host, fast profile). Cost:
+/// up to 60 KiB of address space and file bytes between text and read-only data, never touched.
+pub(crate) const LDSO_RO_PHASE: u64 = 0x1_0000;
+
+/// The linker script fragment of [`LDSO_RO_PHASE`]: the location counter moved forward to the text's
+/// phase before `.rodata`, the default script otherwise unchanged (`INSERT`).
+pub(crate) fn ldso_phase_script() -> String {
+    let m = LDSO_RO_PHASE - 1;
+    format!("/* @generated by `cargo xtask so` (LAYOUT-DYN-PHASE): the interpreter's read-only data at its text's {LDSO_RO_PHASE:#x}-byte phase. */\nSECTIONS\n{{\n  . = ALIGN(. - (ADDR(.text) & {m:#x}), {LDSO_RO_PHASE:#x}) + (ADDR(.text) & {m:#x});\n}}\nINSERT BEFORE .rodata;\n")
+}
+
+/// The check of [`LDSO_RO_PHASE`] on the interpreter's bytes: the first read-only `PT_LOAD` after the
+/// executable one starts at the executable one's phase.
+pub(crate) fn interp_ro_phase_errors(bytes: &[u8]) -> Result<(), String> {
+    const PF_X: u32 = 1;
+    const PF_W: u32 = 2;
+    let elf = niji_ld::elf::Elf::parse::<niji_ld::arch::Native>(bytes).map_err(|e| format!("{e:?}"))?;
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == niji_ld::elf::pt::LOAD).collect();
+    let rx = loads.iter().find(|p| p.flags & PF_X != 0).ok_or("no executable PT_LOAD")?;
+    let ro = loads.iter().find(|p| p.vaddr > rx.vaddr && p.flags & (PF_X | PF_W) == 0).ok_or("no read-only PT_LOAD after the text")?;
+    if (ro.vaddr ^ rx.vaddr) & (LDSO_RO_PHASE - 1) != 0 {
+        return Err(format!("read-only data at {:#x}, text at {:#x}: not the same {LDSO_RO_PHASE:#x}-byte phase (ld-phase.ld not applied?)", ro.vaddr, rx.vaddr));
+    }
+    Ok(())
+}
+
+fn check_interp_ro_phase(path: &Path) -> Result<(), String> {
+    let bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    interp_ro_phase_errors(&bytes).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// The members of the interpreter's archive (`ar t` output) that rustc wrote for a codegen unit other
@@ -2687,6 +2774,24 @@ mod tests {
         assert!(boot_anchor_errors(other).is_err_and(|e| e.contains("no member defines")));
         let undefined_only = member("R_X86_64_PC32").replace("FUNC    GLOBAL DEFAULT    4", "NOTYPE  GLOBAL DEFAULT  UND");
         assert!(boot_anchor_errors(&undefined_only).is_err(), "a reference to the anchor is not its definition");
+    }
+
+    /// LAYOUT-DYN-PHASE (no spec clause: layout of the products): libc.so.6's start-up read-only group
+    /// passes when it starts on its alignment and holds the build tag, and fails when it starts off it
+    /// (the anchor not first), holds no tag, or is missing.
+    #[test]
+    fn libc_so_rodata1_group_is_anchored_and_holds_the_build_tag() {
+        let sec = |at: &str| format!("  [16] .rodata1          PROGBITS        {at} 3e0000 009520 00   A  0   0 65536\n");
+        let tag = |at: &str| format!("{at} 0000000000000040 R __niji_build_tag@@NIJI_PRIVATE\n0000000000000000 A NIJI_PRIVATE\n");
+        assert_eq!(rodata1_anchor_errors(&sec("00000000003e0000"), &tag("00000000003e0040"), 65536), Ok(()));
+        let off = rodata1_anchor_errors(&sec("00000000003d7c00"), &tag("00000000003d7c40"), 65536);
+        assert!(off.is_err_and(|e| e.contains("not on its")), "a group off its alignment");
+        let outside = rodata1_anchor_errors(&sec("00000000003e0000"), &tag("00000000003d60b8"), 65536);
+        assert!(outside.is_err_and(|e| e.contains("outside")), "the tag outside the group");
+        let past_end = rodata1_anchor_errors(&sec("00000000003e0000"), &tag("00000000003e9500"), 65536);
+        assert!(past_end.is_err_and(|e| e.contains("outside")), "the tag past the group's end");
+        assert!(rodata1_anchor_errors("", &tag("00000000003e0040"), 65536).is_err_and(|e| e.contains("no .rodata1")));
+        assert!(rodata1_anchor_errors(&sec("00000000003e0000"), "", 65536).is_err_and(|e| e.contains("not defined")));
     }
 
     /// D-27.10 (no spec clause: start-up internals): the static-PIE start object passes with
