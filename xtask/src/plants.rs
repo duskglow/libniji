@@ -1005,7 +1005,10 @@ mod tests {
         let tags: std::collections::BTreeSet<&str> = builds.lines().collect();
         assert!(builds.lines().count() >= 3, "the baseline and each mutant built: {builds:?}");
         assert_eq!(tags.len(), 1, "one tag for every build of the run: {builds:?}");
-        assert!(tags.iter().all(|t| t.starts_with("plants-") && t.len() > "plants-".len()), "{tags:?}");
+        // This process's tag, not whatever the environment brought: when this test itself runs under a plants run, a
+        // child inherits that run's tag, which would hide a `run_logged` that sets none.
+        assert_eq!(tags, std::collections::BTreeSet::from([run_build_tag().as_str()]), "{builds:?}");
+        assert!(run_build_tag().starts_with("plants-") && run_build_tag().len() > "plants-".len());
         let cmds = fs::read_to_string(dir.join("src/cmds.txt")).unwrap();
         assert!(cmds.lines().all(|l| l == format!("cmd={}", tags.iter().next().unwrap())), "{cmds:?}");
         let _ = fs::remove_dir_all(src.parent().unwrap());
