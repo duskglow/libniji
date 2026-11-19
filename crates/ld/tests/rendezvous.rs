@@ -42,7 +42,7 @@ static struct r_debug *dt(void) {
 /* 0, or the first failed check (base + k). */
 static int check(const char *when, int base, int want, const char *last, const char *interp) {
     /* ld.so's own definition (the program's copy, when it has one, comes first in the global scope). */
-    void *ld = dlopen(interp, RTLD_NOW | RTLD_NOLOAD);
+    void *ld = dlopen("ld-linux-x86-64.so.2", RTLD_NOW | RTLD_NOLOAD);
     struct r_debug *own = ld ? dlsym(ld, "_r_debug") : 0;
     void *brk = dlsym(RTLD_DEFAULT, "_dl_debug_state");
     if (!own || !brk || dlsym(RTLD_DEFAULT, "_r_debug") != (void *)&_r_debug) return base + 1;
