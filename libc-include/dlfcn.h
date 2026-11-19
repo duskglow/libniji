@@ -30,9 +30,9 @@ typedef unsigned long size_t;
 # ifndef __NIJI_D_Dl_info
 #  define __NIJI_D_Dl_info 1
 typedef struct {
-  char * dli_fname;
+  const char * dli_fname;
   void * dli_fbase;
-  char * dli_sname;
+  const char * dli_sname;
   void * dli_saddr;
 } Dl_info;
 # endif

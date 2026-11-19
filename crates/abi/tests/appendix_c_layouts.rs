@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (222 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (231 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -1697,6 +1697,89 @@ fn abi_dl_serinfo() {
 }
 
 #[test]
+fn abi_dl_serpath() {
+    expect_type("Dl_serpath", size_of::<Dl_serpath>(), align_of::<Dl_serpath>());
+    expect_member("Dl_serpath", "dls_name", offset_of!(Dl_serpath, dls_name));
+    expect_member("Dl_serpath", "dls_flags", offset_of!(Dl_serpath, dls_flags));
+}
+
+#[test]
+fn abi_struct_cpuid_feature() {
+    expect_type("struct cpuid_feature", size_of::<struct_cpuid_feature>(), align_of::<struct_cpuid_feature>());
+    expect_member("struct cpuid_feature", "cpuid_array", offset_of!(struct_cpuid_feature, cpuid_array));
+    expect_member("struct cpuid_feature", "active_array", offset_of!(struct_cpuid_feature, active_array));
+}
+
+#[test]
+fn abi_struct_prof() {
+    expect_type("struct prof", size_of::<struct_prof>(), align_of::<struct_prof>());
+    expect_member("struct prof", "pr_base", offset_of!(struct_prof, pr_base));
+    expect_member("struct prof", "pr_size", offset_of!(struct_prof, pr_size));
+    expect_member("struct prof", "pr_off", offset_of!(struct_prof, pr_off));
+    expect_member("struct prof", "pr_scale", offset_of!(struct_prof, pr_scale));
+}
+
+#[test]
+fn abi_la_x86_64_regs() {
+    expect_type("La_x86_64_regs", size_of::<La_x86_64_regs>(), align_of::<La_x86_64_regs>());
+    expect_member("La_x86_64_regs", "lr_rdx", offset_of!(La_x86_64_regs, lr_rdx));
+    expect_member("La_x86_64_regs", "lr_r8", offset_of!(La_x86_64_regs, lr_r8));
+    expect_member("La_x86_64_regs", "lr_r9", offset_of!(La_x86_64_regs, lr_r9));
+    expect_member("La_x86_64_regs", "lr_rcx", offset_of!(La_x86_64_regs, lr_rcx));
+    expect_member("La_x86_64_regs", "lr_rsi", offset_of!(La_x86_64_regs, lr_rsi));
+    expect_member("La_x86_64_regs", "lr_rdi", offset_of!(La_x86_64_regs, lr_rdi));
+    expect_member("La_x86_64_regs", "lr_rbp", offset_of!(La_x86_64_regs, lr_rbp));
+    expect_member("La_x86_64_regs", "lr_rsp", offset_of!(La_x86_64_regs, lr_rsp));
+    expect_member("La_x86_64_regs", "lr_xmm", offset_of!(La_x86_64_regs, lr_xmm));
+    expect_member("La_x86_64_regs", "lr_vector", offset_of!(La_x86_64_regs, lr_vector));
+    expect_member("La_x86_64_regs", "__glibc_unused1", offset_of!(La_x86_64_regs, __glibc_unused1));
+}
+
+#[test]
+fn abi_la_x86_64_retval() {
+    expect_type("La_x86_64_retval", size_of::<La_x86_64_retval>(), align_of::<La_x86_64_retval>());
+    expect_member("La_x86_64_retval", "lrv_rax", offset_of!(La_x86_64_retval, lrv_rax));
+    expect_member("La_x86_64_retval", "lrv_rdx", offset_of!(La_x86_64_retval, lrv_rdx));
+    expect_member("La_x86_64_retval", "lrv_xmm0", offset_of!(La_x86_64_retval, lrv_xmm0));
+    expect_member("La_x86_64_retval", "lrv_xmm1", offset_of!(La_x86_64_retval, lrv_xmm1));
+    expect_member("La_x86_64_retval", "lrv_st0", offset_of!(La_x86_64_retval, lrv_st0));
+    expect_member("La_x86_64_retval", "lrv_st1", offset_of!(La_x86_64_retval, lrv_st1));
+    expect_member("La_x86_64_retval", "lrv_vector0", offset_of!(La_x86_64_retval, lrv_vector0));
+    expect_member("La_x86_64_retval", "lrv_vector0.ymm", offset_of!(La_x86_64_retval, lrv_vector0.ymm));
+    expect_member("La_x86_64_retval", "lrv_vector0.zmm", offset_of!(La_x86_64_retval, lrv_vector0.zmm));
+    expect_member("La_x86_64_retval", "lrv_vector0.xmm", offset_of!(La_x86_64_retval, lrv_vector0.xmm));
+    expect_member("La_x86_64_retval", "lrv_vector1", offset_of!(La_x86_64_retval, lrv_vector1));
+    expect_member("La_x86_64_retval", "lrv_vector1.ymm", offset_of!(La_x86_64_retval, lrv_vector1.ymm));
+    expect_member("La_x86_64_retval", "lrv_vector1.zmm", offset_of!(La_x86_64_retval, lrv_vector1.zmm));
+    expect_member("La_x86_64_retval", "lrv_vector1.xmm", offset_of!(La_x86_64_retval, lrv_vector1.xmm));
+    expect_member("La_x86_64_retval", "__glibc_unused1", offset_of!(La_x86_64_retval, __glibc_unused1));
+    expect_member("La_x86_64_retval", "__glibc_unused2", offset_of!(La_x86_64_retval, __glibc_unused2));
+}
+
+#[test]
+fn abi_la_x86_64_xmm() {
+    expect_type("La_x86_64_xmm", size_of::<La_x86_64_xmm>(), align_of::<La_x86_64_xmm>());
+}
+
+#[test]
+fn abi_la_x86_64_ymm() {
+    expect_type("La_x86_64_ymm", size_of::<La_x86_64_ymm>(), align_of::<La_x86_64_ymm>());
+}
+
+#[test]
+fn abi_la_x86_64_zmm() {
+    expect_type("La_x86_64_zmm", size_of::<La_x86_64_zmm>(), align_of::<La_x86_64_zmm>());
+}
+
+#[test]
+fn abi_la_x86_64_vector() {
+    expect_type("La_x86_64_vector", size_of::<La_x86_64_vector>(), align_of::<La_x86_64_vector>());
+    expect_member("La_x86_64_vector", "ymm", offset_of!(La_x86_64_vector, ymm));
+    expect_member("La_x86_64_vector", "zmm", offset_of!(La_x86_64_vector, zmm));
+    expect_member("La_x86_64_vector", "xmm", offset_of!(La_x86_64_vector, xmm));
+}
+
+#[test]
 fn abi_struct_mntent() {
     expect_type("struct mntent", size_of::<struct_mntent>(), align_of::<struct_mntent>());
     expect_member("struct mntent", "mnt_fsname", offset_of!(struct_mntent, mnt_fsname));
@@ -2396,7 +2479,7 @@ fn abi_elf64_ehdr() {
 #[test]
 fn abi_elf32_phdr() {
     expect_type("Elf32_Phdr", size_of::<Elf32_Phdr>(), align_of::<Elf32_Phdr>());
-    expect_member("Elf32_Phdr", "__p_type", offset_of!(Elf32_Phdr, __p_type));
+    expect_member("Elf32_Phdr", "p_type", offset_of!(Elf32_Phdr, p_type));
     expect_member("Elf32_Phdr", "p_offset", offset_of!(Elf32_Phdr, p_offset));
     expect_member("Elf32_Phdr", "p_vaddr", offset_of!(Elf32_Phdr, p_vaddr));
     expect_member("Elf32_Phdr", "p_paddr", offset_of!(Elf32_Phdr, p_paddr));
@@ -2409,7 +2492,7 @@ fn abi_elf32_phdr() {
 #[test]
 fn abi_elf64_phdr() {
     expect_type("Elf64_Phdr", size_of::<Elf64_Phdr>(), align_of::<Elf64_Phdr>());
-    expect_member("Elf64_Phdr", "__p_type", offset_of!(Elf64_Phdr, __p_type));
+    expect_member("Elf64_Phdr", "p_type", offset_of!(Elf64_Phdr, p_type));
     expect_member("Elf64_Phdr", "p_flags", offset_of!(Elf64_Phdr, p_flags));
     expect_member("Elf64_Phdr", "p_offset", offset_of!(Elf64_Phdr, p_offset));
     expect_member("Elf64_Phdr", "p_vaddr", offset_of!(Elf64_Phdr, p_vaddr));

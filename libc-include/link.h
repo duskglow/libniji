@@ -11,6 +11,13 @@
 __NIJI_BEGIN_C
 
 #if 1
+# ifndef __NIJI_D_Elf64_Dyn
+#  define __NIJI_D_Elf64_Dyn 1
+typedef struct {
+  long d_tag;
+  union { unsigned long d_val; unsigned long d_ptr; } d_un;
+} Elf64_Dyn;
+# endif
 # ifndef __NIJI_D_struct_link_map
 #  define __NIJI_D_struct_link_map 1
 struct link_map {
@@ -33,11 +40,24 @@ struct r_debug {
 # endif
 #endif
 #if __NIJI_GNU
+# ifndef __NIJI_D_Elf64_Phdr
+#  define __NIJI_D_Elf64_Phdr 1
+typedef struct {
+  unsigned int p_type;
+  unsigned int p_flags;
+  unsigned long p_offset;
+  unsigned long p_vaddr;
+  unsigned long p_paddr;
+  unsigned long p_filesz;
+  unsigned long p_memsz;
+  unsigned long p_align;
+} Elf64_Phdr;
+# endif
 # ifndef __NIJI_D_struct_dl_phdr_info
 #  define __NIJI_D_struct_dl_phdr_info 1
 struct dl_phdr_info {
   unsigned long dlpi_addr;
-  char * dlpi_name;
+  const char * dlpi_name;
   const Elf64_Phdr * dlpi_phdr;
   unsigned short dlpi_phnum;
   unsigned long long dlpi_adds;
@@ -50,55 +70,19 @@ struct dl_phdr_info {
 #if 1
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_xmm;
+typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_ymm;
+typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
 # endif
 # ifndef __NIJI_D_La_x86_64_zmm
 #  define __NIJI_D_La_x86_64_zmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_zmm;
+typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_xmm;
+typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_vector
 #  define __NIJI_D_La_x86_64_vector 1
@@ -126,64 +110,23 @@ typedef struct {
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_xmm;
+typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_xmm;
+typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_ymm;
+typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
 # endif
 # ifndef __NIJI_D_La_x86_64_zmm
 #  define __NIJI_D_La_x86_64_zmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_zmm;
+typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_xmm;
+typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_vector
 #  define __NIJI_D_La_x86_64_vector 1
@@ -195,46 +138,15 @@ typedef union {
 # endif
 # ifndef __NIJI_D_La_x86_64_ymm
 #  define __NIJI_D_La_x86_64_ymm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_ymm;
+typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
 # endif
 # ifndef __NIJI_D_La_x86_64_zmm
 #  define __NIJI_D_La_x86_64_zmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_zmm;
+typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
 # endif
 # ifndef __NIJI_D_La_x86_64_xmm
 #  define __NIJI_D_La_x86_64_xmm 1
-typedef struct {
-  int : 32;
-  int : 32;
-  int : 32;
-  int : 32;
-} La_x86_64_xmm;
+typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
 # endif
 # ifndef __NIJI_D_La_x86_64_vector
 #  define __NIJI_D_La_x86_64_vector 1
@@ -259,6 +171,39 @@ typedef struct {
   __int128 __glibc_unused2;
 } La_x86_64_retval;
 # endif
+# ifndef __NIJI_D_La_x86_64_ymm
+#  define __NIJI_D_La_x86_64_ymm 1
+typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
+# endif
+# ifndef __NIJI_D_La_x86_64_zmm
+#  define __NIJI_D_La_x86_64_zmm 1
+typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
+# endif
+# ifndef __NIJI_D_La_x86_64_xmm
+#  define __NIJI_D_La_x86_64_xmm 1
+typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
+# endif
+# ifndef __NIJI_D_La_x86_64_vector
+#  define __NIJI_D_La_x86_64_vector 1
+typedef union {
+  La_x86_64_ymm ymm[2];
+  La_x86_64_zmm zmm[1];
+  La_x86_64_xmm xmm[4];
+} La_x86_64_vector;
+# endif
+# ifndef __NIJI_D_La_x86_64_xmm
+#  define __NIJI_D_La_x86_64_xmm 1
+typedef float La_x86_64_xmm __attribute__ ((__vector_size__ (16)));
+# endif
+# ifndef __NIJI_D_La_x86_64_ymm
+#  define __NIJI_D_La_x86_64_ymm 1
+typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (16))); } La_x86_64_ymm;
+# endif
+# ifndef __NIJI_D_La_x86_64_zmm
+#  define __NIJI_D_La_x86_64_zmm 1
+typedef struct { char __niji_opaque[64] __attribute__ ((__aligned__ (16))); } La_x86_64_zmm;
+# endif
+struct r_debug;
 # ifndef __NIJI_D__r_debug
 #  define __NIJI_D__r_debug 1
 extern struct r_debug _r_debug;
