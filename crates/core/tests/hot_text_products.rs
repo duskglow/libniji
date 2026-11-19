@@ -478,7 +478,8 @@ fn init_dynamic_empty_main_stays_within_its_instruction_bound() {
     let model = cpu.lines().find_map(|l| l.strip_prefix("model name").and_then(|v| v.split_once(':')).map(|(_, m)| m.trim().to_owned())).unwrap_or_default();
     let p = profile_index();
     let profile = ["fast", "release"][p];
-    eprintln!("dynamic empty main ({profile}, {model}): {niji} instructions; the host's C library {host} ({:.1}x)", niji as f64 / host.max(1) as f64);
+    let tenths = niji.saturating_mul(10) / host.max(1);
+    eprintln!("dynamic empty main ({profile}, {model}): {niji} instructions; the host's C library {host} ({}.{}x)", tenths / 10, tenths % 10);
     let Some(bound) = DYN_START_INSTR.iter().find(|(m, _)| *m == model).map(|(_, b)| b[p]).filter(|&b| b != 0) else {
         eprintln!("SKIP: no {profile} bound for this CPU model ({model:?}) in DYN_START_INSTR");
         return;

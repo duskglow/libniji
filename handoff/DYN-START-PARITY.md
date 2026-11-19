@@ -1,61 +1,46 @@
-# DYN-START-PARITY (handoff, leg 1 -> leg 2)
+# DYN-START-PARITY (handoff after leg 2)
 
-State: branch `task/dyn-start-parity`, HEAD = the commit "Cut the loader's per-relocation table walks"
-(525af12ad) on origin/next 255a6901d. Role: mei `~/w/s1` (Skylake-SP). Scratch on the host:
-`/mnt/zram/claude/DYN-START-PARITY/` (base-rel = origin/next release products; prog-* = test programs),
-scripts in `~/work/DYN-START-PARITY/` (parity.sh, prof.sh).
+State: branch `task/dyn-start-parity` on origin/next 255a6901d. Role: mei `~/w/s1` (Skylake-SP). Host scratch
+`/mnt/zram/claude/DYN-START-PARITY/` (rel2, rel3 = release products of this branch; prog-* = test programs),
+scripts `~/work/DYN-START-PARITY/parity.sh` (execcount, `GLIBC=1` adds the reference) and `prof.sh` (perf on the
+exec'd program only). Decisions: D-27.63 (lookup view / relocation pass read each table once), D-27.64 (16-entry
+inline start tables). Plants: `handoff/DYN-START-PARITY-plants.txt`. Report: `handoff/reports/DYN-START-PARITY.json`.
 
-## Measurements (execcount, ASLR off, median of 101, release products `NIJI_FULL_PROFILE=1 cargo xtask so`, Skylake-SP)
+## Measurements (execcount, ASLR off, median of 101, release products, Skylake-SP)
 
 | build | empty main instr | 3 libs instr | clock_gettime instr | faults (pie0/pie3/time) |
 |---|---|---|---|---|
-| glibc 2.39 (host) | 106,501 | 132,267 | 108,600 | 49 / 62 / 50 |
+| glibc 2.39 (host) | 106,501 | 132,275 | 108,608 | 49 / 62 / 50 |
 | origin/next 255a6901d | 8,151,153 | 8,374,348 | 8,194,191 | 75 / 91 / 80 |
-| 525af12ad (A+B) | 2,049,314 | 2,271,815 | 2,083,381 | 75 / 91 / 80 |
+| leg 1 (525af12ad) | 2,049,314 | 2,271,815 | 2,083,381 | 75 / 91 / 80 |
+| leg 2 RELATIVE path + count once (rel2) | 1,605,172 | 1,827,135 | 1,638,997 | 75 / 91 / 80 |
+| leg 2 + loop + INLINE 16 (rel3, ee554f0c2) | 1,576,900 | 1,798,519 | 1,610,698 | 65 / 81 / 70 |
 
-Measure: `sh ~/work/DYN-START-PARITY/parity.sh <products dir> <tag> 101` (add `GLIBC=1` for the reference
-rows). Profile: perf record on the exec'd program only, e.g. the loop in prof.sh with `--comm pie0`.
+In-test (hot_text_products, empty main, median of 21): Skylake-SP fast 1,718,270 / release 1,598,681 (host libc
+101,863); Zen 1 release 1,598,530 (host libc 96,002; keke, release binaries copied from mei, run in /tmp).
 
-## Profile before (origin/next, release, by symbol)
-read_phdr 31% (26% from the per-relocation range check `reloc::inside`), Verdefs::next 18-20% + memmove
-13-21% (version_name walks copying a reader view per entry), Dynamic::once 7.6% (finding DT_VERDEF/VERNEED
-per lookup), GnuHash::symbol_count 3.5%, reloc::one/pass1 ~9%, image_span_kind 2.8%.
-Phases: nearly all is relocation of libc.so.6 (1777 RELATIVE, 285 GLOB_DAT/JUMP_SLOT, BIND_NOW) and the
-symbol/version lookups it does; mapping, search and init are each under 3%.
+## Profile now (rel2, release, by symbol; perf on the exec'd program only)
+pass1 41% (the RELATIVE loop: still about 150+ instructions per entry: Rela decode with run-time byte order,
+Loads check, store), version_name 11% (two linear verdef walks per symbolic lookup: requester's reference_want
+and definer's def_version_name; libc has ~40 verdefs), read_phdr 8%, Object::new 6%, memmove 5%, lookup 4-6%,
+target 3%, Dynamic::once 3%, ld_env 3% (environment scan), fill_sse2 3%, dlopen::check 2%.
 
-## Done (commit 1)
-A. `reloc::Loads`: PT_LOAD ranges read once per pass; `one` takes `&Loads`.
-B. `Object.vers: Option<Versions>` (elf.rs `Dynamic::versions`, `Versions::def_name/need_name`), only when
-   DT_VERSYM is present (versym's walk validated every entry). GnuHash now one slice `tab` + `be` +
-   `bloom_size`/`chain_at` (keeps `Object` at 0x128: assert in symbols.rs).
-Tests added: `reloc_field_must_lie_in_a_writable_segment` (crates/ld/tests/reloc.rs; no test covered
-`Outside` before), `version_names_by_index_match_the_table_walk` (crates/ld/tests/symbols.rs).
-NOT YET RUN: job `dyn-start-parity-ldtest1` (mei; clippy -p niji-ld --all-targets + cargo test -p niji-ld) was
-started at hand-over: read `~/logs/dyn-start-parity-ldtest1.log` first.
-
-## Profile after A+B (2.05M)
-pass1 17% (RELATIVE loop), one 12.8%, GnuHash::symbol_count 11.5% (called by symtab_count, versym,
-link.rs per object: compute once), Loads::inside 11%, read_phdr 9% (image_span_kind, check_table,
-Elf::dynamic), version_name 8.7%, Verdefs::next 2.8%, Object::new 2.7%, fill_sse2 2.7%.
+## Faults (rel2 -> rel3)
+By page (perf page-faults -d on pie0, rel2): 18 consecutive stack pages (the start's tables: fixed by D-27.64,
+-10), two runs of ~10 pages in one mapping (libc.so.6's relocated data and GOT: COW writes of 1777 RELATIVE + 285
+symbolic entries), the rest text/rodata of ld.so and libc.so.6. Remaining gap 65 vs 49: the relocated data pages
+(layout work: fewer relocated words, or RELR-packed data grouped into fewer pages) and the stack frame still left.
 
 ## Next steps (in order)
-1. Read the ldtest1 log; fix anything red.
-2. Cheap cuts: symbol_count once per object (symtab_count + versym + link.rs all call it); a RELATIVE
-   fast path in pass1 (skip `one`'s generic match; check range with a cached last-hit segment); the
-   deferred pass re-resolves every symbolic entry (target() before the `deferred` test) - record which
-   entries pass 1 deferred, or stop after the last deferred one.
-3. Version index O(1) if still hot (Object has no room left; see the size assert).
-4. Faults (75 vs 49) not looked at yet: by page and cause.
-5. Ratchet row: empty-main PIE release instr on keke (Zen 1) and mei, glibc counts beside it
-   (bench/instr_limits.tsv is static-only: needs a new bound file or column; check DYN_TRUE_BOUND).
-6. Plants (docs/plants.md format; `cargo xtask plants`): Loads::inside (ignore W flag; `<` for `<=` on
-   the end), Versions::def_name (skip the first match / return the next entry), need_name, GnuHash
-   bucket offset; spill path of Loads (>8 PT_LOADs) has no test: add one or mark the plant equivalent
-   with a reason.
-7. Start-up checks before hand-back: `cargo xtask test` and `NIJI_FULL_PROFILE=1 cargo xtask so &&
-   NIJI_FULL_PROFILE=1 cargo test -p niji --test hot_text_products`; affected gate; precheck; D-row
-   (reserve with `ops reserve --story DYN-START-PARITY D-27`) for the GnuHash contiguity refusal.
+1. Version name by index O(1): a per-object offset table outside `Object` (no room: size assert 0x128), e.g. in
+   the loader's start arena, or a per-pass memo of (object, index) -> name passed to `target`.
+2. pass1 RELATIVE loop: specialise for little-endian (no per-entry byte-order select), use DT_RELACOUNT for a
+   prefix loop that skips classify, and check the range against one cached segment only.
+3. libc.so.6 linked with packed relative relocations (RELR; pass1 already handles DT_RELR): fewer bytes, faster
+   loop; a product/layout decision (RULING NEEDED in the report).
+4. Fault gap 65 vs 49: relocated data pages of libc.so.6 (layout work), remaining stack frame size.
+5. keke fast-profile instruction bound not measured (DYN_START_INSTR row has 0 = unchecked).
 
 ## Process notes
-- Leg 1 used one heredoc (a python edit script) by mistake: report it.
-- A release `cargo xtask so` takes ~14 min on mei; batch changes per build.
+- Leg 1 used one heredoc (a python edit script); leg 2 ran one empty no-op heredoc by mistake. Both reported.
+- sync_role.sh returns rc 4 (BUSY) while a plants job runs on the role: check rc before starting the next job.
