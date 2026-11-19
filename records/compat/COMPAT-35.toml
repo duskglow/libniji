@@ -7,5 +7,6 @@ cost = "none expected: the flag would be read once, where the start keeps or dro
 status = "registered"
 decisions = ["D-27.62"]
 story = "DL-23-2"
+date = "2026-11-19"
 body = '''
 '''
