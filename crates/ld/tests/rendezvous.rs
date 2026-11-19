@@ -100,6 +100,8 @@ fn setup(tag: &str, pie: bool) -> Option<(PathBuf, PathBuf, PathBuf)> {
         eprintln!("SKIP: ld.so, libc.so.6 or niji-crt1.o not built (run cargo xtask so)");
         return None;
     }
+    let lib = std::fs::canonicalize(lib).unwrap();
+    let ld = lib.join(Native::INTERP);
     let d = target().join(format!("ld-rendezvous-{tag}-{}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
     let d = std::fs::canonicalize(d).unwrap();
@@ -123,7 +125,7 @@ fn setup(tag: &str, pie: bool) -> Option<(PathBuf, PathBuf, PathBuf)> {
 }
 
 fn run(prog: &Path, so: &Path) -> (i32, String) {
-    let ld = target().join("niji").join(Native::INTERP);
+    let ld = std::fs::canonicalize(target().join("niji")).unwrap().join(Native::INTERP);
     let o = Command::new(prog).arg(so).arg(&ld).output().unwrap();
     (o.status.code().unwrap_or(-1), format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)))
 }
@@ -165,7 +167,7 @@ fn rendezvous_gdb_breaks_in_a_dlopened_library() {
         return;
     }
     let Some((d, so, prog)) = setup("gdb", true) else { return };
-    let ld = target().join("niji").join(Native::INTERP);
+    let ld = std::fs::canonicalize(target().join("niji")).unwrap().join(Native::INTERP);
     let o = Command::new("gdb")
         .args(["-nx", "-batch", "-ex", "set breakpoint pending on", "-ex", "set debuginfod enabled off", "-ex", "break rdv_target", "-ex", "run", "-ex", "info sharedlibrary", "-ex", "kill", "--args"])
         .arg(&prog)
