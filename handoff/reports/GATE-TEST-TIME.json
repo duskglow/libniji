@@ -1,0 +1,24 @@
+{"task": "GATE-TEST-TIME", "model": "opus", "tokens": null,
+ "result": "CI test-step slowdown explained (math verdict-cache misses in pass 1, a ~2x pass-2 slowdown from the foreign-thread heap path, quadratic headers-gen, xtask unit tests run twice); the last two fixed",
+ "branch": "task/gate-test-time", "head": "a29b017e4",
+ "gate": {"affected": "direct tier (xtask bounded set) on keke n3: see gate-test-time-gate-3", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Pass 2 (exports interposed) ~2x slower since train 37a467944 (11-14 23:45): test-seconds ~4800 -> ~9700, wall ~285 -> ~525 s on the CI host; coincides with TB-FOREIGN-WORDS-LOW (a thread block libniji did not make keeps no heap cache). strstr_find pass2/pass1 in one gate 3.5x -> 7.4x, heap_threads 4x. Inferred from 160 CI gates, not A/B verified; belongs to the heap/TB stories.",
+   "Pass 1 math accuracy sweeps (complex_ld_cr, complex_f128, special_ld, special_f128: ~7300 test-s) run whenever any libniji byte changes (verdict cache D-10.57 by design); the 11-12 baseline was a cache hit. Since 11-13 nearly every train misses; pass 1 is ~300-390 s cached vs ~630-1480 s missed. Cheaper sweeps would be a math story.",
+   "Brief step 1 (re-run both suites at b31418181 and head on a quiet role) replaced by per-test timings from 160 CI gate logs on the CI host: the re-run is two FULL runs (forbidden) and one pair cannot separate cache hits from regressions.",
+   "Run deviation: two Bash heredocs were used for local scratch scripting (an empty one, then a python edit script) before switching to written files; no repository effect."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "cargo xtask headers-gen --check (CI step test/headers-gen-check), Zen 1 build host, one CPU", "before": 340.9, "after": 4.26, "unit": "s", "measured": true},
+   {"kind": "tooling", "what": "xtask unit test headers_gen_regenerates_the_abi_layouts", "before": 150.6, "after": 3.6, "unit": "s (before: CI host log; after: Zen 1 build host)", "measured": true},
+   {"kind": "tooling", "what": "CI pass-2 test-seconds of bin/xtask (run once now)", "before": 1846, "after": 0, "unit": "test-s per CI gate", "measured": false},
+   {"kind": "tooling", "what": "CI step test/headers-gen-check", "before": 114, "after": 2, "unit": "s", "measured": false},
+   {"kind": "coverage", "what": "unit tests added (dev-dependency graph rule, visibility index)", "before": 0, "after": 2, "unit": "tests", "measured": true}
+ ],
+ "improvement": "Gate logs give per-test seconds but not whether a sweep was a verdict-cache hit (the 'verdict cached' line goes to captured stderr); printing a per-pass count of cached shards in the affected log would make gate-time comparisons honest at a glance.",
+ "next_step": "After landing, compare the next CI gates' headers-gen-check step, the 'once: xtask::bin/xtask' line and the pass-2 Summary with 255a6901d; open stories for the foreign-thread heap path cost and cheaper math sweeps.",
+ "report_file": "handoff/GATE-TEST-TIME.md",
+ "jobs": ["keke:gate-test-time-gate-3", "keke:gate-test-time-plants-3"]}
