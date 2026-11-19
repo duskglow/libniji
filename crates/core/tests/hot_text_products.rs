@@ -304,6 +304,34 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// for these counts; as for TRUE_BOUND). No spec clause (layout of the products).
 const DYN_TRUE_BOUND: [u64; 2] = [89, 86];
 
+/// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
+/// configuration files below it, not below `/`.
+const COEXIST_PREFIX: &str = "/usr/lib/niji";
+
+/// LDSO-TRACE-PREFIX; no spec clause (the product build's interpreter trace). A product build traces its
+/// interpreter with the build's installation prefix: `cargo xtask ldso-trace` compiles the interpreter again
+/// with the coexist prefix and runs `tools/hottext/ldso_trace.sh` on it. The trace must read no host file
+/// (trace_gdb.py fails it on a configuration file below the prefix that the trace does not redirect) and must
+/// give the same names as the products' own trace (the hot list is the same function of the tree in both
+/// flavours).
+#[test]
+fn init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_trace() {
+    let r = root();
+    assert!(r.join("target/niji/ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
+    assert!(r.join("tools/hottext/ldso_trace.sh").exists());
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let o = Command::new(cargo)
+        .current_dir(&r)
+        .args(["xtask", "ldso-trace", "--prefix", COEXIST_PREFIX])
+        .stdin(Stdio::null())
+        .output()
+        .expect("cargo xtask ldso-trace");
+    let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    let tail: Vec<&str> = err.lines().rev().take(12).collect::<Vec<_>>().into_iter().rev().collect();
+    assert!(o.status.success(), "prefixed interpreter trace failed ({}):\n{out}\n{}", o.status, tail.join("\n"));
+    assert_eq!(out.matches("the same as the products' own trace").count(), 2, "{out}");
+}
+
 #[test]
 fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
     let r = root();

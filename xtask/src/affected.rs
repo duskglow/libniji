@@ -979,6 +979,17 @@ fn build_closures(root: &Path, crates: &[Crate], nodes: &[Node]) -> BTreeMap<Str
     out
 }
 
+/// Whether a test target's text (its source and the support files it names) uses the products, so they are built
+/// before it runs. `join("niji")`: the products directory under the target dir, as the ld tests that run the built
+/// `ld.so` name it (`target().join("niji").join(Native::INTERP)`).
+pub fn names_products(text: &str) -> bool {
+    text.contains("target/niji")
+        || text.contains("join(\"niji\")")
+        || text.contains("libc.a")
+        || text.contains("niji-crt1")
+        || text.contains("conformance")
+}
+
 impl Repo {
     /// XTASK-AFFECTED-LAYOUT: can a change to `f` change what a static program links from `libc.a`? A source,
     /// data file or build script of a crate the libc product links (not a module compiled only for tests or only
@@ -1101,13 +1112,7 @@ impl Repo {
                         }
                     }
                 }
-                // `join("niji")`: the products directory under the target dir, as the ld tests that
-                // run the built `ld.so` name it (`target().join("niji").join(Native::INTERP)`).
-                let products = text.contains("target/niji")
-                    || text.contains("join(\"niji\")")
-                    || text.contains("libc.a")
-                    || text.contains("niji-crt1")
-                    || text.contains("conformance");
+                let products = names_products(&text);
                 targets.push(Target { krate: c.name.clone(), sections: sections_of(&name, &text), refs: refs_of(&text, &aliases), name, support, products, text, own });
             }
         }
@@ -5032,13 +5037,15 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
     }
 
     // XTASK-AFFECTED-TOOL-TESTS; no spec clause. TOOL_REACH row 1: the tools/hottext scripts no code names (a test lists
-    // the directory and reads each script; runner.sh's test runs canon_host.sh) select the xtask tests; only `.sh`
-    // files directly in the directory.
+    // the directory and reads each script; runner.sh's test runs canon_host.sh) select the xtask tests, and the
+    // products test that runs tools/hottext/ldso_trace.sh (which sources runner.sh and runs canon_host.sh) on a
+    // prefixed interpreter (LDSO-TRACE-PREFIX); only `.sh` files directly in the directory.
     #[test]
     fn direct_tier_hottext_scripts_reached_by_listing_select_the_xtask_tests() {
-        for f in ["tools/hottext/canon_host.sh", "tools/hottext/probe_text.sh", "tools/hottext/startup_data.sh"] {
+        let products = ("niji".to_string(), "hot_text_products".to_string());
+        for f in ["tools/hottext/canon_host.sh", "tools/hottext/probe_text.sh", "tools/hottext/startup_data.sh", "tools/hottext/ldso_trace.sh"] {
             let s = tier(&[f], Tier::Direct);
-            assert!(s.full.is_empty() && s.xtask_tests && s.tests.is_empty(), "{f}: {s:?}");
+            assert!(s.full.is_empty() && s.xtask_tests && s.tests.keys().eq([&products]), "{f}: {s:?}");
             assert!(!s.notes.iter().any(|n| n.contains("xtask (xtask/src/affected.rs)")), "this module's table is no reader: {:?}", s.notes);
         }
         for f in ["tools/hottext/faultmap.py", "tools/hottext/probes/made-up.sh"] {

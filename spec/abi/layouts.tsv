@@ -1222,6 +1222,10 @@ struct obstack	extra_arg	72		void *
 struct obstack	use_extra_arg	80		unsigned int	bits 1@0
 struct obstack	maybe_empty_object	80		unsigned int	bits 1@0
 struct obstack	alloc_failed	80		unsigned int	bits 1@0
+struct _obstack_chunk		24	8		
+struct _obstack_chunk	limit	0		char *	
+struct _obstack_chunk	prev	8		struct _obstack_chunk *	
+struct _obstack_chunk	contents	16		char[4]	
 struct printf_info		20	4		
 struct printf_info	prec	0		int	
 struct printf_info	width	4		int	

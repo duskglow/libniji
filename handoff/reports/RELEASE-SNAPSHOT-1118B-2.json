@@ -1,0 +1,21 @@
+{"task": "RELEASE-SNAPSHOT-1118B-2", "model": "opus", "tokens": null,
+ "result": "COMPLETE: snapshot-ready at 557dfdaa6; snapshot-2026-11-18.2 staged on keke; coexist builds again (LDSO-TRACE-PREFIX); #22 fixed end to end; every other check matches snapshot-2026-11-18.1",
+ "branch": "task/release-snapshot-1118b-2", "head": "557dfdaa6b33cdfc650866e9ce3fa7505453fe4c (validated head; branch = it + handoff/ only)",
+ "gate": {"affected": "gate-1 RC 0 (clippy, xtask clippy, static, records check, affected: branch = next + handoff)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "debs-1 rc 1 = DBG only: no libc6-dbg file for /usr/bin/iconv and /usr/bin/locale (ruling #6321), same build-ids as run 1 and as in 18.1",
+   "run 1's inside.sh had the coexist version mistyped (+852c1b495810); never run; fixed in this run's copy (+557dfdaa6b33)",
+   "dl_iterate_phdr names (bare DT_NEEDED names, '' for a $ORIGIN/ library) and nameless /proc/self/maps lines for libniji-mapped libraries: unchanged, route to a loader story",
+   "docs/RELEASE-NOTES.md ends at 2026-11-17 (nothing on 18.1, 18.2, #22, header slice 9 and visibility fixes): route to a docs story"
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "unblock", "what": "snapshot-2026-11-18.2 staged (9 .debs, SHA256SUMS, MANIFEST) for Yohane Linux (#22)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "coverage", "what": "release-check plants rerun on 557dfdaa6 (6 CAUGHT); postrm plant msg re-aimed, run 1's WARN-NO-MSG gone", "before": null, "after": 6, "unit": "plants", "measured": true}
+ ],
+ "improvement": "snapshot job scripts should derive the coexist version from build.sh's output, not a hand-typed string (run 1's copy was wrong)",
+ "next_step": "coordinator: tag/publish snapshot-2026-11-18.2 from keke ~/release-staging/snapshot-20261118.2/ at 557dfdaa6 when the owner says so",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1118B.md",
+ "jobs": ["mei:release-snapshot-1118b-2-gate-1", "mei:release-snapshot-1118b-2-plants-1", "mei:release-snapshot-1118b-2-smoke-mei-1", "keke:release-snapshot-1118b-2-smoke-keke-1", "mei:release-snapshot-1118b-2-roots-1", "mei:release-snapshot-1118b-2-lint-1", "mei:release-snapshot-1118b-2-many-1", "keke:release-snapshot-1118b-2-pkgdiff-1", "keke:release-snapshot-1118b-2-stage-1", "keke:release-snapshot-1118b-2-install-1"]}

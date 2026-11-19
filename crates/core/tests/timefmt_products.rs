@@ -59,8 +59,6 @@ const KNOWN: &[(&[&str], &str, &str)] = &[
         "strptime *",
         "tm_wday and tm_yday are computed only from fields the input gave (glibc also reads the caller's untouched fields)",
     ),
-    (&["strptime(\"-5\", \"%Y\") -> NULL", "strptime(\"+2024\", \"%Y\") -> NULL"], "strptime *", "POSIX: %Y accepts a leading + or -"),
-    (&["strptime(\"-1\", \"%s\") -> NULL"], "strptime *", "%s reads the negative values strftime's %s prints"),
     (&["strptime(\"*\", \"%r\") -> NULL"], "strptime * (localized)", "without T_FMT_AMPM, %r is %I:%M:%S %p for strptime as for strftime, so its output reads back"),
     (
         &["strptime(\"10:11:12\", \"%X\") -> +8 *"],

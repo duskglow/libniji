@@ -151,7 +151,10 @@ pub struct Def {
     pub hidden: bool,
 }
 
-/// The hash table an [`Object`] walks.
+/// The hash table an [`Object`] walks. The table's mark (`GnuHash::mark`, `SysvHash::mark`) says
+/// this is the program's view and the program has canonical PLT entries ([`Object::mark_program`]): it
+/// sits in the table's tail padding, so neither this enum nor [`Object`] grows (a fourth variant
+/// carrying a GNU table would: the enum's spare discriminant values only fit a SysV-sized payload).
 #[derive(Clone, Copy, Debug)]
 enum Hash<'a> {
     Gnu(GnuHash<'a>),
@@ -167,6 +170,11 @@ pub struct Object<'a> {
     versym: Option<Versym<'a>>,
 }
 
+// The loader keeps its views in an inline table on the start-up stack and passes `Scope` by value
+// on every lookup: neither may grow (DL-CANONICAL-PLT: a field here cost a stack page).
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<Object<'static>>() == 0x128 && core::mem::size_of::<Scope<'static>>() == 0x30);
+
 /// Whether `s` is a definition another object may bind: defined, a global, weak or unique binding, a
 /// data, code, TLS or IFUNC type, and not hidden or internal.
 fn exported(s: &Sym) -> bool {
@@ -174,6 +182,15 @@ fn exported(s: &Sym) -> bool {
         && matches!(s.bind(), STB_GLOBAL | STB_WEAK | STB_GNU_UNIQUE)
         && matches!(s.kind(), STT_NOTYPE | STT_OBJECT | STT_FUNC | STT_COMMON | STT_TLS | STT_GNU_IFUNC)
         && !matches!(s.visibility(), STV_HIDDEN | STV_INTERNAL)
+}
+
+/// Whether the program's symbol `s` is a canonical PLT entry: an undefined global or weak function
+/// with a non-zero value, which is the address of the program's PLT entry for it. The gABI ("Symbol
+/// Values") makes that entry the function's address for every reference to the address in the
+/// process; only the calls through the entry's own slot (`JUMP_SLOT`) go to the definition.
+#[must_use]
+pub fn canonical_plt(s: &Sym) -> bool {
+    s.shndx == SHN_UNDEF && s.value != 0 && s.kind() == STT_FUNC && matches!(s.bind(), STB_GLOBAL | STB_WEAK)
 }
 
 impl<'a> Object<'a> {
@@ -200,6 +217,51 @@ impl<'a> Object<'a> {
             HashStyle::Sysv => Hash::Sysv(dynm.sysv_hash()?.ok_or(LookupError::NoHashTable)?),
         };
         Ok(Object { dynm, symtab, hash, versym: dynm.versym()? })
+    }
+
+    /// Makes this view the program's: its canonical PLT entries ([`canonical_plt`]) define their
+    /// functions for every lookup. Only the program has them (gABI "Symbol Values": the executable
+    /// file's PLT); a shared object's undefined symbols stay references whatever their value. A
+    /// `JUMP_SLOT` must not bind such an entry (the entry is itself the slot's caller): the relocator
+    /// takes those through its own path when [`Object::has_canonical_plt`] says there are entries.
+    ///
+    /// The entries are found once here, among the symbols the hash table covers (a GNU table leaves
+    /// out the symbols below `symoffset`, which a linker gives only to plain references); a program
+    /// without one keeps the plain view. In place: only the table's mark byte is written (taking and
+    /// returning the view by value copied all of it).
+    #[inline(never)]
+    pub fn mark_program(&mut self) {
+        let first = match &self.hash {
+            Hash::Gnu(g) => g.symoffset(),
+            Hash::Sysv(_) => 1,
+        };
+        let count = self.symtab.count().unwrap_or(0);
+        let canonical = (first..count).any(|i| self.symtab.get(i).is_ok_and(|s| canonical_plt(&s)));
+        match &mut self.hash {
+            Hash::Gnu(g) => g.set_mark(canonical),
+            Hash::Sysv(s) => s.set_mark(canonical),
+        }
+    }
+
+    /// Whether this is the program's view and the program has canonical PLT entries
+    /// ([`Object::mark_program`]).
+    #[must_use]
+    pub fn has_canonical_plt(&self) -> bool {
+        match self.hash {
+            Hash::Gnu(g) => g.mark(),
+            Hash::Sysv(s) => s.mark(),
+        }
+    }
+
+    /// Whether symbol `i`, a hash candidate that is not an exported definition, is one of the
+    /// program's canonical PLT entries ([`Object::mark_program`]). Cold and out of line: a lookup reaches
+    /// it only for such a candidate, so the flag's read (a match on the hash table) stays off the
+    /// walk. It takes the index and reads the symbol again, so the caller need not keep the symbol
+    /// in memory to pass it by reference on every candidate.
+    #[cold]
+    #[inline(never)]
+    fn canonical_entry(&self, i: u32) -> bool {
+        self.has_canonical_plt() && self.symtab.get(i).is_ok_and(|s| canonical_plt(&s))
     }
 
     /// The dynamic section the view reads.
@@ -322,7 +384,7 @@ impl<'a> Object<'a> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !exported(&st) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || self.canonical_entry(i)) || self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
