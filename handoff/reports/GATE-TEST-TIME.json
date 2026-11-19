@@ -1,7 +1,7 @@
 {"task": "GATE-TEST-TIME", "model": "opus", "tokens": null,
  "result": "CI test-step slowdown explained (math verdict-cache misses in pass 1, a ~2x pass-2 slowdown from the foreign-thread heap path, quadratic headers-gen, xtask unit tests run twice); the last two fixed",
- "branch": "task/gate-test-time", "head": "a29b017e4",
- "gate": {"affected": "direct tier (xtask bounded set) on keke n3: see gate-test-time-gate-3", "peak": null},
+ "branch": "task/gate-test-time", "head": "c085514d0",
+ "gate": {"affected": "direct tier (xtask bounded set) on keke n3: gate-test-time-gate-4", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
@@ -21,4 +21,4 @@
  "improvement": "Gate logs give per-test seconds but not whether a sweep was a verdict-cache hit (the 'verdict cached' line goes to captured stderr); printing a per-pass count of cached shards in the affected log would make gate-time comparisons honest at a glance.",
  "next_step": "After landing, compare the next CI gates' headers-gen-check step, the 'once: xtask::bin/xtask' line and the pass-2 Summary with 255a6901d; open stories for the foreign-thread heap path cost and cheaper math sweeps.",
  "report_file": "handoff/GATE-TEST-TIME.md",
- "jobs": ["keke:gate-test-time-gate-3", "keke:gate-test-time-plants-3"]}
+ "jobs": ["keke:gate-test-time-gate-4", "keke:gate-test-time-plants-4"]}

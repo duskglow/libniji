@@ -56,12 +56,15 @@ New tests: pass 1 +391 tests = 1374 s; the rest (+8350 s) is tests that already 
    cause (the slowed tests start no process; spawn-heavy tests are not among the top movers); repeated builds
    inside tests (none found among the top 30).
 
-## Verified (Zen 1 build host, role n3, code head a29b017e4)
-- Gate `gate-test-time-gate-3` (direct tier = xtask bounded set: xtask unit tests, clippy, static, cheap steps;
-  FULL is the train's): 516 passed, 0 failed, rc 0. Earlier `gate-test-time-gate` (53918b5f3) green, superseded.
-- Plants `gate-test-time-plants-3` (handoff/GATE-TEST-TIME-plants.txt, 8 plants). `gate-test-time-plants`
-  (first run) had 2 SURVIVED (include-error union, kind filter: the committed tables never exercise them),
-  hence a29b017e4's synthetic-row test; that run and two jobs started on a stale tree (sync BUSY) were stopped.
+## Verified (Zen 1 build host, role n3, code head c085514d0)
+- Gate `gate-test-time-gate-4` (direct tier = xtask bounded set: xtask unit tests, clippy, static, cheap steps;
+  FULL is the train's). Superseded, all green on older heads: `gate-test-time-gate` (53918b5f3, 515 passed),
+  `gate-test-time-gate-3` (a29b017e4, 516 passed).
+- Plants `gate-test-time-plants-4` (handoff/GATE-TEST-TIME-plants.txt, 8 plants). Superseded:
+  `gate-test-time-plants` (2 SURVIVED: include-error union and kind filter, which the committed tables never
+  exercise; hence a29b017e4's synthetic-row test; stopped after 5 plants) and `gate-test-time-plants-3` (7 CAUGHT,
+  1 SURVIVED: the build clause, which the fixture never decided; hence c085514d0). Two jobs started on a stale
+  tree after a BUSY sync (`-gate-2`, `-plants-2`) were stopped before they proved anything.
 - `headers-gen --check` equals the committed headers after the change (the strongest check of identical output).
 
 ## Expected effect once landed (estimates from the CI logs, measured: false)
