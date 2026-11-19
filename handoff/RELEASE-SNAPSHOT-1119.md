@@ -37,7 +37,7 @@ release-snapshot-1118b-2 (handoff only), **sl-headers-s17-3** (headers slice 17,
 | #10 + #18 | -y10-2 rc 1 | below: 19 PASS, 1 FAIL (bare-name dlopen, pre-existing) | fixed (18.2 fails, -y10-ref182-1) |
 | stage | keke -stage-1 rc 0 | 9 assets + SHA256SUMS + MANIFEST; `sha256sum -c` 9 OK | - |
 | install instructions | keke -install-1 rc 0 | `inst: RESULT fails=0`; staged system debs identical to debs-1's (7 of 7) | same |
-| plants | -plants-1 | handoff/RELEASE-SNAPSHOT-1119-plants.txt (18B-2's six, paths/ids/version changed); result in the report json | - |
+| plants | -plants-1 rc 0 | handoff/RELEASE-SNAPSHOT-1119-plants.txt (18B-2's six, paths/ids/version changed): `6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG`; 3 baselines ok | same |
 | docs | local doccheck.py on the tree | 23 problems, the same 23 as 18.2 (two differences-from-glibc.md line numbers shift by one) | same |
 
 Superseded: -y10-1 (first probe version: post-swap rebuild needs C headers the system flavour does not ship, a
