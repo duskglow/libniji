@@ -12,3 +12,16 @@ gdnf-no-one-hop | xtask/src/affected.rs | lit:                        add(&mut s
 gdnf-train-line-wording | xtask/src/affected.rs | lit:format!("FULL: the train's ({r})") ==> format!("FULL (escalated) ({r})") | cargo test -p xtask --bin xtask per_fix_tiers_leave_full | msg:per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class \.\.\. FAILED
 gdnf-reverse-trains | xtask/src/affected.rs | lit:let select_tier = |repo: &Repo, files: &[String], tier: Tier| select_with(repo, files, false, tier, false); ==> let select_tier = |repo: &Repo, files: &[String], tier: Tier| select_with(repo, files, false, tier, true); | cargo test -p xtask --bin xtask reverse_flags_full | msg:reverse_flags_full_escalation_as_low_confidence \.\.\. FAILED
 gdnf-precheck-asks-full | xtask/src/precheck.rs | lit:if kind == "gate" && !log.lines().any(|l| l.starts_with("affected: ok")) { ==> if kind == "gate" && (!log.lines().any(|l| l.starts_with("affected: ok")) || log.contains("FULL: the train's")) { | cargo test -p xtask --bin xtask a_gate_that_left_full | msg:a_gate_that_left_full_to_the_train_is_green \.\.\. FAILED
+# cargo xtask plants results (12 plants: 12 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# gdnf-xtask-re-escalates: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-image-re-escalates: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-generated-re-escalates: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-config-re-escalates: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-unknown-re-escalates: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-full-tier-trains: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-benchrows-trains: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-no-cheap-steps: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-no-one-hop: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-train-line-wording: CAUGHT, caught by xtask affected::tests::per_fix_tiers_leave_full_to_the_train_with_a_bounded_set_per_class
+# gdnf-reverse-trains: CAUGHT, caught by xtask affected::tests::reverse_flags_full_escalation_as_low_confidence
+# gdnf-precheck-asks-full: CAUGHT, caught by xtask precheck::tests::a_gate_that_left_full_to_the_train_is_green
