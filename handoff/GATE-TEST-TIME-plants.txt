@@ -1,0 +1,11 @@
+# GATE-TEST-TIME plants: the visibility-row index of the header generator (each mutant must make headers-gen's
+# output differ from the committed headers, which generator_prechecks_run_the_checks and the rows test check) and the
+# dev-dependency rule of the exports-interposed pass's run-once graph.
+gtt-include-error-mask | xtask/src/headers.rs | lit:if r["kind"] == "include-error" { ==> if r["kind"] == "include-error-planted" { | cargo test -p xtask --bin xtask -- headers:: affected::tests::generator_prechecks_run_the_checks | msg:test result: FAILED|panicked
+gtt-row-kind | xtask/src/headers.rs | lit:.find(|r| r["kind"] == kind) ==> .find(|_| true) | cargo test -p xtask --bin xtask -- headers:: affected::tests::generator_prechecks_run_the_checks | msg:test result: FAILED|panicked
+gtt-no-header-rows | xtask/src/headers/cond.rs | lit:self.t.vis_idx("-", name) ==> self.t.vis_idx("+", name) | cargo test -p xtask --bin xtask -- headers:: affected::tests::generator_prechecks_run_the_checks | msg:test result: FAILED|panicked
+gtt-enumerator-kind | xtask/src/headers/enums.rs | lit:self.t.vis_row(&self.header, n, "enumerator") ==> self.t.vis_row(&self.header, n, "enum") | cargo test -p xtask --bin xtask -- headers:: affected::tests::generator_prechecks_run_the_checks | msg:test result: FAILED|panicked
+gtt-dev-followed-deep | xtask/src/nextest.rs | lit:filter(|(_, dev_only)| top || !dev_only) ==> filter(|(_, dev_only)| top || !dev_only || !top) | cargo test -p xtask --bin xtask -- nextest::tests:: | msg:a_dev_dependency_further_down_is_not_linked.*FAILED|panicked
+gtt-root-dev-dropped | xtask/src/nextest.rs | lit:filter(|(_, dev_only)| top || !dev_only) ==> filter(|(_, dev_only)| !dev_only && (top || !top)) | cargo test -p xtask --bin xtask -- nextest::tests:: | msg:(a_dev_dependency_further_down_is_not_linked|a_package_reaching_boundary_through_another_is_not_independent).*FAILED|panicked
+gtt-normal-kind-ignored | xtask/src/nextest.rs | lit: && !kinds.contains("\"kind\":null") ==> | cargo test -p xtask --bin xtask -- nextest::tests:: | msg:a_dev_dependency_further_down_is_not_linked.*FAILED|panicked
+gtt-build-kind-ignored | xtask/src/nextest.rs | lit: && !kinds.contains("\"kind\":\"build\"") ==> | cargo test -p xtask --bin xtask -- nextest::tests:: | msg:a_dev_dependency_further_down_is_not_linked.*FAILED|panicked
