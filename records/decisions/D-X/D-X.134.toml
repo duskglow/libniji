@@ -1,6 +1,5 @@
 id = "D-X.134"
 section = "x"
-ann = "PERF"
 status = "active"
 amends = ["D-X.60"]
 story = "HEAP-FOREIGN-TB-SPEED"
