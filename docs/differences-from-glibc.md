@@ -109,7 +109,6 @@ Delivered blocks, not here.
 | `strptime` `%E`/`%O` in a locale without the alternative | The unmodified conversion, as POSIX says. | Fails. | D-23.7 | `s23_7_c_2`, `s23_7_c_1_3` |
 | `strptime` `tm_wday`/`tm_yday` | Computed only from fields the input gave. | Also from the caller's untouched fields. | D-23.7 | `s23_7_c_2` |
 | `strptime` `%G`/`%V` | With a weekday (`%u`/`%w`/`%a`), compute the ISO week date's `tm_mon`/`tm_mday`/`tm_yday` (and `tm_year` without `%Y`), as for `%U`/`%W`. | Parsed and range-checked, no field set. | D-23.7 | `s23_7_c_2` |
-| `strptime` `%Y`, `%C`, `%y`, `%s` with a sign | Accepted (POSIX). Gain: correctness (POSIX signs for these numbers), so signed years and epoch seconds read back. | Rejected. | D-23.7 | `s23_7_c_2` |
 | `strptime` `%r` with an empty `T_FMT_AMPM` | `%I:%M:%S %p`, so `strftime`'s output reads back. | Fails. | D-23.7 | `s23_7_c_2`, `s23_7_c_1_2` |
 | `strptime` `%c %x %X %r` that do not match the locale's format | Fail. | Retry the C locale's format. | D-23.7 | `s23_7_c_2` |
 | `getdate` with a `DATEMSK` file that cannot be opened | `getdate_err` 2 (POSIX). | 3. | D-23.7 | `s23_7_c_3` |
