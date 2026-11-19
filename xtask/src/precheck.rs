@@ -1054,6 +1054,17 @@ mod tests {
     }
 
     #[test]
+    fn a_gate_that_left_full_to_the_train_is_green() {
+        // no spec clause: GATE-DEV-NO-FULL. A per-fix gate never runs FULL; its log carries the train's line (where
+        // the FULL line was) before its verdict, and the hand-back checks take it as an ordinary gate.
+        let fx = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/precheck");
+        let train = "FULL: the train's (xtask/src/main.rs: xtask (its commands are part of the gate))\naffected: ok";
+        let r = fixture_run_with(&fx, &|root| edit_once(root, "logs/fixture-story-gate.log", "affected: ok", train), &[]);
+        let (_, _, v) = r.iter().find(|(n, _, _)| n == "jobs").expect("a jobs verdict");
+        assert_eq!(v.level, Level::Ok, "{:?}", v.lines);
+    }
+
+    #[test]
     fn stale_files_sees_code_and_removed_entries_not_prose() {
         // no spec clause: the role-side form of dispatcher.tested_diff
         let tmp = std::env::temp_dir().join(format!("xtask-precheck-stale-{}", std::process::id()));

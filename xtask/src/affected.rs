@@ -4194,7 +4194,8 @@ pub fn replay(repo: &Repo, records: &str, tier: Tier) -> (String, usize) {
                 continue;
             }
             gates += 1;
-            let sel = select_tier(repo, &files, tier);
+            // GATE-DEV-NO-FULL: an escalation still covers everything here (the train's FULL gate runs it).
+            let sel = select_with(repo, &files, false, tier, false);
             let wide = select_tier(repo, &files, Tier::Wide);
             if sel.full.is_empty() {
                 tests_tier += sel.tests.len();
@@ -5554,7 +5555,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         // Any other non-Rust file naming the symbol is still an unknown consumer: FULL.
         fx.csys_refs.entry(s).or_default().push(SymRef { file: "tools/unknown.txt".into(), decl: false });
         let u = select_tier(&fx, &["csys/src/machine/scan.S".to_string()], Tier::Direct);
-        assert!(u.full.iter().any(|w| w.contains("tools/unknown.txt")), "{:?}", u.full);
+        assert!(u.train.iter().any(|w| w.contains("tools/unknown.txt")), "{:?}", u.train);
     }
 
     /// CSYS-MAP-2 fixture: the exported (non-`niji_`) symbols of the listed machine files, fixed; scan.S gets `extra` too.
@@ -6097,7 +6098,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
             assert!(s.no_escalation() && s.clippy.contains_key("niji-boundary") && !s.example_steps && !needs_products(repo(), &s), "{f}: {s:?}");
         }
         let s = tier(&["crates/native/examples/no_such_module/x.rs"], Tier::Direct);
-        assert!(s.full.iter().any(|w| w.contains("cannot place")), "{:?}", s.full);
+        assert!(s.train.iter().any(|w| w.contains("cannot place")), "{:?}", s.train);
     }
 
     // XTASK-AFFECTED-EXAMPLES (no spec clause): the steps come from the xtask sources: a module naming the example by
@@ -6371,7 +6372,8 @@ fn plain() {}", &aliases);
             vec!["docs/x.md"],
             vec!["Cargo.toml"],
         ];
-        let forward: Vec<Selection> = sets.iter().map(|s| tier(s, Tier::Direct)).collect();
+        // GATE-DEV-NO-FULL: attribution keeps an escalation FULL, so the oracle reads the selection before the train.
+        let forward: Vec<Selection> = sets.iter().map(|s| select_with(r, &s.iter().map(|f| f.to_string()).collect::<Vec<_>>(), false, Tier::Direct, false)).collect();
         let mut cands: BTreeSet<String> = BTreeSet::from(["xtask::bin/xtask t".to_string(), "niji-boundary::s18_processes_symbols x".to_string()]);
         for sel in &forward {
             cands.extend(sel.tests.keys().map(|(c, t)| format!("{c}::{t} x")));
