@@ -1,5 +1,5 @@
-{"task": "TEST-SCRATCH-BASE", "model": "sonnet", "tokens": null, "result": "Scratch::path_in creates its base; CI role prep removes target/tmp (ci.py rm -rf, sync_role.sh) and nothing recreated it", "branch": "task/test-scratch-base", "head": "HEADSHA", "jobs": ["test-scratch-base-gate", "test-scratch-base-plants"],
- "gate": {"affected": "see gate log", "peak": null}, "accepted_first_attempt": null,
+{"task": "TEST-SCRATCH-BASE", "model": "sonnet", "tokens": null, "result": "Scratch::path_in creates its base; CI role prep removes target/tmp (ci.py rm -rf, sync_role.sh) and nothing recreated it", "branch": "task/test-scratch-base", "head": "b06b320c5", "jobs": ["test-scratch-base-gate", "test-scratch-base-plants"],
+ "gate": {"affected": "3328 passed / 0 failed", "peak": null}, "accepted_first_attempt": null,
  "rulings": [], "informational": [{"item": "ops/ci.py (~l.1882) and tools/sync_role.sh (~l.111) rm -rf target/tmp; ~40 inline CARGO_TARGET_TMPDIR sites in tests still assume the base", "recommendation": "follow-up: move them to Scratch, or mkdir -p target/tmp after the rm"}],
  "refused": [],
  "impact": [{"kind": "correctness", "what": "tests writing a Scratch::path file no longer fail NotFound when target/tmp is absent", "before": null, "after": null, "unit": "", "measured": true}, {"kind": "coverage", "what": "tests/plants added", "before": 0, "after": 1, "unit": "test+plant", "measured": true}],
