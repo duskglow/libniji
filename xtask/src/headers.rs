@@ -275,15 +275,22 @@ fn load(root: &Path) -> Result<Tables, String> {
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
+    let (vis_at, include_error) = index_vis(&lv, &vis);
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of, vis_at, include_error })
+}
+
+/// `Tables::vis_at` and `Tables::include_error` of the visibility rows `vis`.
+#[allow(clippy::type_complexity)]
+fn index_vis(lv: &Levels, vis: &Rows) -> (BTreeMap<(String, String), Vec<usize>>, BTreeMap<String, u64>) {
     let mut vis_at: BTreeMap<(String, String), Vec<usize>> = BTreeMap::new();
     let mut include_error: BTreeMap<String, u64> = BTreeMap::new();
     for (i, r) in vis.iter().enumerate() {
         vis_at.entry((r["header"].clone(), r["name"].clone())).or_default().push(i);
         if r["kind"] == "include-error" {
-            *include_error.entry(r["header"].clone()).or_default() |= mask_of(&lv, &r["configs"]).unwrap_or(0);
+            *include_error.entry(r["header"].clone()).or_default() |= mask_of(lv, &r["configs"]).unwrap_or(0);
         }
     }
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of, vis_at, include_error })
+    (vis_at, include_error)
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
@@ -921,6 +928,29 @@ mod tests {
     // no spec clause: rulings #6714, #6715 (HEADERS-TABLES-COMPLETE). headers/providers.tsv exempts a function from the
     // export check, so a row that names an unknown provider, no declared function, or a function libc exports at a
     // default version (a stale row that would hide a missing export) is refused.
+    // no spec clause: GATE-TEST-TIME. The visibility index answers like a scan of the rows: the first row of the
+    // asked kind (not merely of the name), and per header the union of its own include-error rows only.
+    #[test]
+    fn the_visibility_index_answers_like_a_scan() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let mut t = load(&root).unwrap();
+        let mut configs: Vec<(String, u64)> = t.vis.iter().filter_map(|r| Some((r["configs"].clone(), mask_of(&t.lv, &r["configs"]).ok()?))).filter(|(_, m)| *m != 0).collect();
+        configs.sort_by_key(|(_, m)| *m);
+        configs.dedup_by_key(|(_, m)| *m);
+        let pick = |want: &dyn Fn(u64) -> bool| configs.iter().find(|(_, m)| want(*m)).cloned().expect("configs");
+        let (c1, m1) = pick(&|_| true);
+        let (c2, m2) = pick(&|m| m & !m1 != 0);
+        let row = |h: &str, n: &str, k: &str, c: &str| BTreeMap::from([("header", h), ("name", n), ("kind", k), ("configs", c)].map(|(a, b)| (a.to_string(), b.to_string())));
+        t.vis = vec![row("h.h", "x", "macro", &c1), row("h.h", "x", "function", &c2), row("h.h", "e", "include-error", &c1), row("g.h", "e", "include-error", &c2), row("h.h", "f", "include-error", &c2), row("h.h", "x", "function", &c1)];
+        (t.vis_at, t.include_error) = index_vis(&t.lv, &t.vis);
+        assert_eq!(t.vis_row("h.h", "x", "function").map(|r| r["configs"].clone()), Some(c2.clone()), "the first function row, not the macro row");
+        assert_eq!(t.vis_row("h.h", "x", "macro").map(|r| r["configs"].clone()), Some(c1.clone()));
+        assert!(t.vis_row("h.h", "x", "type").is_none() && t.vis_row("g.h", "x", "function").is_none());
+        assert_eq!(t.vis_idx("h.h", "x"), [0, 1, 5], "every row of the name, in table order");
+        assert_eq!(t.include_error.get("h.h").copied(), Some(m1 | m2), "both of h.h's include-error rows");
+        assert_eq!(t.include_error.get("g.h").copied(), Some(m2), "g.h's own row only");
+    }
+
     #[test]
     fn a_provider_row_is_refused_unless_it_is_needed() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
