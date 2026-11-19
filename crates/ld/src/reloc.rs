@@ -57,9 +57,6 @@ pub struct Objects<'s, 'a> {
     pub syms: &'s [Object<'a>],
     /// The global scope.
     pub global: &'s [usize],
-    /// Object 0, the program, has canonical PLT entries ([`Object::canonical_entries`]): lookups
-    /// find them as definitions, and the `JUMP_SLOT`s take their own path ([`canonical_slots`]).
-    pub canonical: bool,
 }
 
 /// The process memory the relocator writes. Addresses are run-time addresses; the relocator has
@@ -241,7 +238,7 @@ fn protected_canonical<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, s
 
 /// The `JUMP_SLOT`s of object `i` after its plain pass `before` ([`pass1`], or the deferred loop
 /// of [`relocate_deferred`] when `deferred`), when the program has canonical PLT entries
-/// ([`Objects::canonical`]): the plain lookup binds a slot of such a function to the
+/// ([`Object::has_canonical_plt`]): the plain lookup binds a slot of such a function to the
 /// program's entry, which is itself the slot's caller (gABI "Symbol Values"), so [`slot`] binds it
 /// again. Only this one test is added to the plain path; the rest stays out of it. Whether any
 /// entry was deferred.
@@ -285,7 +282,7 @@ fn slot_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn U
     }
     let name = me.dynamic().string(u64::from(st.name)).map_err(RelocError::Elf)?;
     let req = Request::new(name, me.reference_want(sym).map_err(RelocError::Lookup)?);
-    let mut scope = Scope::global(set.global).program_entries(set.canonical);
+    let mut scope = Scope::global(set.global);
     let mut again = false;
     loop {
         match symbols::resolve(set.syms, scope, &req, st.bind() == STB_WEAK, unique) {
@@ -296,7 +293,7 @@ fn slot_target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, unique: &mut dyn U
             _ if !again => return Ok(None),
             Ok(Binding::Defined(f @ Found { obj, def })) => {
                 unique.bound(i, &f);
-                let protected = obj != i && def.st.visibility() == STV_PROTECTED && i == 0 && set.canonical && symbols::canonical_plt(&st);
+                let protected = obj != i && def.st.visibility() == STV_PROTECTED && me.has_canonical_plt() && symbols::canonical_plt(&st);
                 return Ok(Some((Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size }, protected)));
             }
             Ok(Binding::WeakUndefined) => return Ok(Some((Target { s: 0, ifunc: false, obj: None, size: 0 }, false))),
@@ -364,7 +361,7 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mu
     let dynm = set.objs.get(i).map(|o| o.dynm).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let name = dynm.string(u64::from(st.name)).map_err(RelocError::Elf)?;
     let want = me.reference_want(sym).map_err(RelocError::Lookup)?;
-    let mut scope = Scope::global(set.global).program_entries(set.canonical);
+    let mut scope = Scope::global(set.global);
     if copy {
         scope = scope.excluding(0);
     }
@@ -512,7 +509,7 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
         text_segments(&o, img, page, true).map_err(|()| RelocError::Protect)?;
     }
     let first = pass1::<A, I>(set, i, &o, text, img, unique);
-    let first = if set.canonical { canonical_slots::<A, I>(set, i, first, false, text, img, unique) } else { first };
+    let first = if set.syms.first().is_some_and(Object::has_canonical_plt) { canonical_slots::<A, I>(set, i, first, false, text, img, unique) } else { first };
     if text {
         // Restored before any resolver can run, also on failure.
         text_segments(&o, img, page, false).map_err(|()| RelocError::Protect)?;
@@ -535,7 +532,7 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
             one::<A, I>(set, i, &r, true, text, img, unique)?;
         }
     }
-    if set.canonical {
+    if set.syms.first().is_some_and(Object::has_canonical_plt) {
         canonical_slots::<A, I>(set, i, Ok(false), true, text, img, unique)?;
     }
     Ok(())

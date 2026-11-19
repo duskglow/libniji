@@ -182,8 +182,6 @@ struct Uniq<'a> {
     table: &'a mut Unique,
     syms: &'a [Object<'static>],
     start: &'a [usize],
-    /// [`Loader::canonical`].
-    canonical: bool,
     /// A `dlopen`'s record of its relocations' bindings (DL-17); `None` for a lookup (`dlsym`).
     binds: Option<&'a mut Binds>,
 }
@@ -206,7 +204,7 @@ impl UniqueRegistry for Uniq<'_> {
     fn find(&self, name: &[u8], version: &[u8]) -> Option<SymFound> {
         self.table.find(name, version).or_else(|| {
             let want = if version.is_empty() { Want::Default } else { Want::Version(version) };
-            let f = symbols::lookup(self.syms, symbols::Scope::global(self.start).program_entries(self.canonical), &Request::new(name, want), &mut symbols::ScopeOrder).ok()??;
+            let f = symbols::lookup(self.syms, symbols::Scope::global(self.start), &Request::new(name, want), &mut symbols::ScopeOrder).ok()??;
             (f.def.st.bind() == STB_GNU_UNIQUE).then_some(f)
         })
     }
@@ -298,9 +296,6 @@ struct Loader {
     /// are global: the start's own global scope, `global[..n_start_global]`.
     n_start: usize,
     n_start_global: usize,
-    /// The program (object 0) has canonical PLT entries, which define their functions for every
-    /// lookup that reaches it (DL-CANONICAL-PLT; set at adoption).
-    canonical: bool,
     /// The namespace's `STB_GNU_UNIQUE` table (plan §2): the first definition bound for a (name,
     /// version) is every later binding's; `unique_mark` is its length when a `dlopen` began.
     unique: Unique,
@@ -746,9 +741,7 @@ fn adopt_start(l: &mut Loader) -> bool {
         };
         let Ok(s) = Object::new(o.dynm) else { return false };
         // The program's canonical PLT entries define their functions for later objects too.
-        if k == 0 {
-            l.canonical = s.canonical_entries();
-        }
+        let s = if k == 0 { s.program() } else { s };
         l.objs[k] = MaybeUninit::new(o);
         l.syms[k] = MaybeUninit::new(s);
         // `l_name`: the program's is "", another object's its DT_SONAME (NUL-terminated in the
@@ -1994,9 +1987,9 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
     }
     let start = &l.global[..l.n_start_global];
     let (objs, syms) = (objs_of(&l.objs, k), syms_of(&l.syms, k));
-    let set = Objects { objs, syms, global: &scope[..sn], canonical: l.canonical };
+    let set = Objects { objs, syms, global: &scope[..sn] };
     let SetTables { binds, deferred, order, work, ctors } = &mut set_tables;
-    let mut unique = Uniq { table: &mut l.unique, syms, start, canonical: l.canonical, binds: Some(binds) };
+    let mut unique = Uniq { table: &mut l.unique, syms, start, binds: Some(binds) };
     for i in (base..k).rev() {
         match reloc::relocate_first::<Native, _>(&set, i, &mut ProcImage, page, &mut unique) {
             Ok(d) => deferred[i - base] = d,

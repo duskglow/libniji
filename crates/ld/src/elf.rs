@@ -1083,7 +1083,7 @@ impl<'a> Dynamic<'a> {
             .and_then(|n| n.checked_add(8))
             .ok_or(ElfError::AddressNotMapped(addr))?;
         let all = self.elf.bytes_at(addr, len)?;
-        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain }))
+        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain, mark: false }))
     }
 
     /// The GNU hash table (`DT_GNU_HASH`): `nbuckets`, `symoffset`, `bloom_size`, `bloom_shift`, the
@@ -1110,7 +1110,7 @@ impl<'a> Dynamic<'a> {
         let bloom = sub(all, 16, bloom_len).ok_or(unmapped)?;
         let buckets = sub(all, bloom_len.checked_add(16).ok_or(unmapped)?, bucket_len).ok_or(unmapped)?;
         let chain = self.elf.bytes_from(addr.checked_add(fixed).ok_or(unmapped)?)?;
-        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift }))
+        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift, mark: false }))
     }
 
     /// The number of dynamic symbols: the SysV table's `nchain` when there is one (exact), else the
@@ -1296,9 +1296,23 @@ pub struct SysvHash<'a> {
     rd: Rd<'a>,
     nbucket: u32,
     nchain: u32,
+    /// [`GnuHash`]'s `mark`, for a SysV table.
+    mark: bool,
 }
 
 impl<'a> SysvHash<'a> {
+    /// This table with its mark set to `on` ([`GnuHash::marked`]).
+    #[must_use]
+    pub(crate) fn marked(self, on: bool) -> Self {
+        SysvHash { mark: on, ..self }
+    }
+
+    /// The mark ([`GnuHash::mark`]).
+    #[must_use]
+    pub(crate) fn mark(&self) -> bool {
+        self.mark
+    }
+
     /// The number of buckets.
     #[must_use]
     pub fn nbucket(&self) -> u32 {
@@ -1375,6 +1389,10 @@ pub struct GnuHash<'a> {
     nbuckets: u32,
     symoffset: u32,
     bloom_shift: u32,
+    /// One bit the user of the table keeps with it (the lookup view's "the program has canonical
+    /// PLT entries", `symbols::Object::program`); false as read. It sits in the struct's tail
+    /// padding, so the table and every view that holds one keep their size.
+    mark: bool,
 }
 
 /// One entry of a GNU hash chain.
@@ -1387,6 +1405,18 @@ pub struct GnuEntry {
 }
 
 impl<'a> GnuHash<'a> {
+    /// This table with its mark set to `on`.
+    #[must_use]
+    pub(crate) fn marked(self, on: bool) -> Self {
+        GnuHash { mark: on, ..self }
+    }
+
+    /// The mark: false as read, else what [`GnuHash::marked`] set.
+    #[must_use]
+    pub(crate) fn mark(&self) -> bool {
+        self.mark
+    }
+
     /// The number of buckets.
     #[must_use]
     pub fn nbuckets(&self) -> u32 {

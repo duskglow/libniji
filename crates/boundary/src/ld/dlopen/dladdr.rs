@@ -87,9 +87,8 @@ fn put_str(at: usize, s: &[u8]) {
     }
 }
 
-/// The symbol of `syms` (load bias `bias`; the program's when `program`) that holds `addr`, with
-/// its index (module documentation).
-fn containing(syms: &Object<'_>, program: bool, bias: u64, addr: u64) -> Option<(u32, Sym)> {
+/// The symbol of `syms` (load bias `bias`) that holds `addr`, with its index (module documentation).
+fn containing(syms: &Object<'_>, bias: u64, addr: u64) -> Option<(u32, Sym)> {
     let tab = syms.symtab();
     let mut best: Option<(u32, Sym)> = None;
     for k in 0..tab.count()? {
@@ -97,7 +96,7 @@ fn containing(syms: &Object<'_>, program: bool, bias: u64, addr: u64) -> Option<
         // The program's canonical PLT entry is its function's address in the process, so it
         // holds that address like a definition (probe-settled: only the entry's own address, its
         // size being 0).
-        let canonical = s.shndx == SHN_UNDEF && program && canonical_plt(&s);
+        let canonical = s.shndx == SHN_UNDEF && syms.has_canonical_plt() && canonical_plt(&s);
         if (s.shndx == SHN_UNDEF && !canonical) || s.shndx == SHN_ABS || s.kind() == STT_TLS {
             continue;
         }
@@ -145,7 +144,7 @@ extern "C" fn dladdr_entry(addr: usize, info: usize, extra: usize, flags: i32) -
         let at = |x: u64| usize::try_from(x).unwrap_or(0);
         let page = usize::try_from(START_PAGE.load(Relaxed)).unwrap_or(4096).max(1);
         let base = v.range(i).0 & !page.wrapping_sub(1);
-        let sym = containing(v.syms(i), i == 0, o.bias, u64::try_from(addr).unwrap_or(0));
+        let sym = containing(v.syms(i), o.bias, u64::try_from(addr).unwrap_or(0));
         let (sname, saddr, entry) = match (sym, o.dynm.get(dt::STRTAB), o.dynm.get(dt::SYMTAB)) {
             (Some((k, s)), Some(strtab), Some(symtab)) => {
                 let table = at(o.bias.wrapping_add(symtab));

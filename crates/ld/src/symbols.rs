@@ -151,7 +151,10 @@ pub struct Def {
     pub hidden: bool,
 }
 
-/// The hash table an [`Object`] walks.
+/// The hash table an [`Object`] walks. The table's mark (`GnuHash::mark`, `SysvHash::mark`) says
+/// this is the program's view and the program has canonical PLT entries ([`Object::program`]): it
+/// sits in the table's tail padding, so neither this enum nor [`Object`] grows (a fourth variant
+/// carrying a GNU table would: the enum's spare discriminant values only fit a SysV-sized payload).
 #[derive(Clone, Copy, Debug)]
 enum Hash<'a> {
     Gnu(GnuHash<'a>),
@@ -166,6 +169,11 @@ pub struct Object<'a> {
     hash: Hash<'a>,
     versym: Option<Versym<'a>>,
 }
+
+// The loader keeps its views in an inline table on the start-up stack and passes `Scope` by value
+// on every lookup: neither may grow (DL-CANONICAL-PLT: a field here cost a stack page).
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<Object<'static>>() == 0x128 && core::mem::size_of::<Scope<'static>>() == 0x30);
 
 /// Whether `s` is a definition another object may bind: defined, a global, weak or unique binding, a
 /// data, code, TLS or IFUNC type, and not hidden or internal.
@@ -211,26 +219,39 @@ impl<'a> Object<'a> {
         Ok(Object { dynm, symtab, hash, versym: dynm.versym()? })
     }
 
-    /// Whether this object, taken as the program, has canonical PLT entries ([`canonical_plt`]),
-    /// which then define their functions for every lookup that reaches the program
-    /// ([`Scope::program_entries`]). Only the program has them (gABI "Symbol Values": the
-    /// executable file's PLT); a shared object's undefined symbols stay references whatever their
-    /// value. A `JUMP_SLOT` must not bind such an entry (the entry is itself the slot's caller):
-    /// the relocator takes those through its own path when the set says there are entries.
+    /// This view as the program's: its canonical PLT entries ([`canonical_plt`]) define their
+    /// functions for every lookup. Only the program has them (gABI "Symbol Values": the executable
+    /// file's PLT); a shared object's undefined symbols stay references whatever their value. A
+    /// `JUMP_SLOT` must not bind such an entry (the entry is itself the slot's caller): the relocator
+    /// takes those through its own path when [`Object::has_canonical_plt`] says there are entries.
     ///
-    /// A scan of the symbols the hash table covers (a GNU table leaves out the symbols below
-    /// `symoffset`, which a linker gives only to plain references): the loader asks once per load
-    /// and keeps the answer beside its object list, not in the view (the views are kept in an
-    /// inline table on the start-up stack, so a field here costs every program stack).
+    /// The entries are found once here, among the symbols the hash table covers (a GNU table leaves
+    /// out the symbols below `symoffset`, which a linker gives only to plain references); a program
+    /// without one keeps the plain view.
     #[must_use]
     #[inline(never)]
-    pub fn canonical_entries(&self) -> bool {
+    pub fn program(self) -> Self {
         let first = match self.hash {
             Hash::Gnu(g) => g.symoffset(),
             Hash::Sysv(_) => 1,
         };
         let count = self.symtab.count().unwrap_or(0);
-        (first..count).any(|i| self.symtab.get(i).is_ok_and(|s| canonical_plt(&s)))
+        let canonical = (first..count).any(|i| self.symtab.get(i).is_ok_and(|s| canonical_plt(&s)));
+        let hash = match self.hash {
+            Hash::Gnu(g) => Hash::Gnu(g.marked(canonical)),
+            Hash::Sysv(s) => Hash::Sysv(s.marked(canonical)),
+        };
+        Object { hash, ..self }
+    }
+
+    /// Whether this is the program's view and the program has canonical PLT entries
+    /// ([`Object::program`]).
+    #[must_use]
+    pub fn has_canonical_plt(&self) -> bool {
+        match self.hash {
+            Hash::Gnu(g) => g.mark(),
+            Hash::Sysv(s) => s.mark(),
+        }
     }
 
     /// The dynamic section the view reads.
@@ -350,31 +371,10 @@ impl<'a> Object<'a> {
     /// The reader's errors for the hash chain, symbol, string and version tables, and
     /// [`LookupError::UnknownVersion`] for a definition whose version index no definition gives.
     pub fn lookup(&self, req: &Request<'_>) -> Result<Option<Def>, LookupError> {
-        self.find::<false>(req)
-    }
-
-    /// [`Object::lookup`] in the program when it has canonical PLT entries
-    /// ([`Object::canonical_entries`]): those entries define their functions too.
-    ///
-    /// # Errors
-    ///
-    /// As [`Object::lookup`].
-    #[cold]
-    #[inline(never)]
-    pub fn lookup_program(&self, req: &Request<'_>) -> Result<Option<Def>, LookupError> {
-        self.find::<true>(req)
-    }
-
-    /// [`Object::lookup`]; with `ENTRIES`, a canonical PLT entry counts as a definition. A constant,
-    /// so each of the two gets its own copy of the candidate walk and the plain one tests nothing
-    /// more.
-    #[allow(clippy::inline_always)]
-    #[inline(always)]
-    fn find<const ENTRIES: bool>(&self, req: &Request<'_>) -> Result<Option<Def>, LookupError> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !(exported(&st) || (ENTRIES && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || (self.has_canonical_plt() && canonical_plt(&st))) ||self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
@@ -440,31 +440,21 @@ pub struct Scope<'s> {
     first: &'s [usize],
     second: &'s [usize],
     exclude: Option<usize>,
-    /// Object 0 is the program and has canonical PLT entries ([`Scope::program_entries`]).
-    entries: bool,
 }
 
 impl<'s> Scope<'s> {
-    /// This scope where object 0, the program, has canonical PLT entries (`on`, the loader's answer
-    /// from [`Object::canonical_entries`]): a lookup that reaches the program finds them as
-    /// definitions ([`Object::lookup_program`]).
-    #[must_use]
-    pub fn program_entries(self, on: bool) -> Self {
-        Scope { entries: on, ..self }
-    }
-
     /// The global scope alone: the main program, its dependencies in load order and the `RTLD_GLOBAL`
     /// objects in order (`RTLD_DEFAULT`, and the relocations of objects in the global scope).
     #[must_use]
     pub fn global(global: &'s [usize]) -> Self {
-        Scope { first: global, second: &[], exclude: None, entries: false }
+        Scope { first: global, second: &[], exclude: None }
     }
 
     /// The scope of an object loaded by `dlopen`: the global scope, then its local scope (the object's
     /// dependency tree, `local`); with `RTLD_DEEPBIND` the local scope comes first.
     #[must_use]
     pub fn group(global: &'s [usize], local: &'s [usize], deepbind: bool) -> Self {
-        if deepbind { Scope { first: local, second: global, exclude: None, entries: false } } else { Scope { first: global, second: local, exclude: None, entries: false } }
+        if deepbind { Scope { first: local, second: global, exclude: None } } else { Scope { first: global, second: local, exclude: None } }
     }
 
     /// `RTLD_NEXT` from `caller`: the objects after it in the global scope, or, for an object only in a
@@ -472,7 +462,7 @@ impl<'s> Scope<'s> {
     #[must_use]
     pub fn next(global: &'s [usize], local: &'s [usize], caller: usize) -> Option<Self> {
         let after = |l: &'s [usize]| l.iter().position(|&o| o == caller).and_then(|p| l.get(p.checked_add(1)?..));
-        after(global).or_else(|| after(local)).map(|first| Scope { first, second: &[], exclude: None, entries: false })
+        after(global).or_else(|| after(local)).map(|first| Scope { first, second: &[], exclude: None })
     }
 
     /// This scope without object `obj` (a COPY relocation's lookup leaves out the program itself).
@@ -541,35 +531,9 @@ impl UniqueRegistry for ScopeOrder {
 /// [`LookupError::NoObject`] for a scope index past `objects`, each object's [`Object::lookup`] errors,
 /// and [`LookupError::NoMemory`] from the registry.
 pub fn lookup(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
-    if scope.entries {
-        return lookup_entries(objects, scope, req, unique);
-    }
-    lookup_plain(objects, scope, req, unique)
-}
-
-/// [`lookup`] in a scope without canonical PLT entries: the walk on its own, so the test in
-/// [`lookup`] does not change how the walk's loop is compiled (inlined there it cost every object
-/// visited a few instructions more).
-#[inline(never)]
-fn lookup_plain(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
-    search::<false>(objects, scope, req, unique)
-}
-
-/// [`lookup`] in a scope whose program has canonical PLT entries ([`Scope::program_entries`]).
-#[cold]
-#[inline(never)]
-fn lookup_entries(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
-    search::<true>(objects, scope, req, unique)
-}
-
-/// The walk of [`lookup`]; with `ENTRIES`, object 0 is searched by [`Object::lookup_program`].
-#[allow(clippy::inline_always)]
-#[inline(always)]
-fn search<const ENTRIES: bool>(objects: &[Object<'_>], scope: Scope<'_>, req: &Request<'_>, unique: &mut dyn UniqueRegistry) -> Result<Option<Found>, LookupError> {
     for o in scope.iter() {
         let obj = objects.get(o).ok_or(LookupError::NoObject(o))?;
-        let found = if ENTRIES && o == 0 { obj.lookup_program(req)? } else { obj.lookup(req)? };
-        let Some(def) = found else { continue };
+        let Some(def) = obj.lookup(req)? else { continue };
         let found = Found { obj: o, def };
         if def.st.bind() == STB_GNU_UNIQUE {
             let version = obj.def_version_name(def.version)?.unwrap_or(&[]);

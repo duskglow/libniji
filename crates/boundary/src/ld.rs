@@ -1355,7 +1355,8 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             reloc::VersionError::Elf(b, _) => fail_with(&[by(b), b": malformed version tables\n"], program::FAILURE),
         }
     }
-    let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
+    // The program's view: its canonical PLT entries define their functions (DL-CANONICAL-PLT).
+    let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).map(niji_ld::symbols::Object::program).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
     let mut syms: Table<niji_ld::symbols::Object<'static>, INLINE> = Table::new(first_sym);
     let mut global: Table<usize, INLINE> = Table::new(0);
     if syms.reserve(n).is_err() || global.reserve(n).is_err() {
@@ -1373,10 +1374,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     for (k, g) in global.iter_mut().enumerate() {
         *g = k;
     }
-    // The program's canonical PLT entries define their functions (DL-CANONICAL-PLT): one answer
-    // for the load, kept beside the table (a field in each view would grow the table).
-    let canonical = syms[0].canonical_entries();
-    let set = Objects { objs, syms: &syms[..n], global: &global[..n], canonical };
+    let set = Objects { objs, syms: &syms[..n], global: &global[..n] };
     // The start's lookups all search the global scope, whose order decides each unique name
     // (`ScopeOrder`): no table to fill, so no count of unique names can make the start fail.
     let mut unique = niji_ld::symbols::ScopeOrder;
