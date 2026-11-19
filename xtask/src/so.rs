@@ -1051,7 +1051,7 @@ fn build_archive_locked(root: &Path, product: &Path, out: &Path, rustflags: Opti
     // library's members merges every `.data1` input in member order, which would undo the declared order
     // (ruling #4923); the declared statics' own sections survive the join.
     crate::coldbss::move_startup_state(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, root, &product.join("state-work"))?;
-    crate::coldbss::move_cold_bss(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &product.join("coldbss-work"))?;
+    crate::coldbss::move_cold_bss(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &product.join("coldbss-work"), crate::coldbss::MIN)?;
     // LAYOUT-TRACE-AT-BUILD (LT-1), LAYOUT-TRACE-DEFAULT, LAYOUT-DELETE-LISTS (LT-5): `layout` is the trace of
     // this build (the default of every build, measurement builds included) or the explicit `ungrouped`. A
     // trace-at-build run links its probes against a product finished, ungrouped, from the archive saved here.
@@ -1445,7 +1445,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
     // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
     println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
-    run_ld(root, &cc, profile)?;
+    run_ld(root, &cc, profile, layout)?;
     run_ldconfig(root, &cc, profile)?;
     run_getconf(root, &cc, &release)?;
     run_getent(root, &cc)?;
@@ -1493,7 +1493,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
 /// never through a GOT slot that still holds a link-time address (rustc's default no-PLT calls
 /// load the callee from the GOT; the first, `niji_link_image_header`, crashed ld.so). Every
 /// symbol is local in the linked object (version script), so the model's assumption holds.
-const LD_RUSTFLAGS: &str = "-Crelocation-model=pie";
+///
+/// LAYOUT-LDSO-WINDOW: one codegen unit per crate in every profile, as `release` already has. With the
+/// `fast` profile's 16, a change anywhere in the interpreter's crates re-partitioned them: each unit
+/// keeps private copies of the constants it uses (`anon.*`, in `.data.rel.ro` when they hold
+/// pointers) and the static data comes out in unit order, so a 46 KiB cold function moved unrelated
+/// `.bss` arrays (20 KiB each) between the start-up statics and grew RELRO across a page: +3 start-up
+/// faults that came from the partition, not from the change (Skylake-SP host, Linux 6.8).
+const LD_RUSTFLAGS: &str = "-Crelocation-model=pie\x1f-Ccodegen-units=1";
 
 /// SYS-DBG-PACKAGE-2: line tables for libniji's own crates in the shipped (`release`) products, which
 /// libc6-dbg carries and a debugger reads. The product workspace (crates/Cargo.toml) has its own
@@ -1504,32 +1511,319 @@ const LD_RUSTFLAGS: &str = "-Crelocation-model=pie";
 /// note aside). The `fast` tool profile stays without DWARF.
 const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
 
-fn run_ld(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
+fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(), String> {
     use niji_ld::arch::Arch as _;
     let name = niji_ld::arch::Native::INTERP;
     let product = root.join("target/product");
     let release = root.join("target/niji");
     run(&mut LD_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
-    let archive = LD_BUILD.raw_archive(&product, profile);
-    let entry = product.join("ld-entry.o");
-    run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
-    let map = product.join("ld.map");
-    fs::write(&map, ld_version_script(root, name)?).map_err(|e| e.to_string())?;
+    let ld = LdLink::prepare(root, cc, &product, &LD_BUILD.raw_archive(&product, profile))?;
+    let (entry, archive) = (ld.entry.clone(), ld.archive.clone());
+    let link = |entry: &Path, archive: &Path, out: &Path| ld.link(cc, entry, archive, out);
     let out = release.join(name);
     let staged = tmp_name(&out);
-    run(Command::new(cc)
-        .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ld_entry", "-Wl,-Bsymbolic"])
-        .arg(format!("-Wl,--version-script={}", map.display()))
-        .arg(format!("-Wl,-soname,{name}"))
-        .arg(&entry)
-        .arg(&archive)
-        .arg("-lgcc")
-        .arg("-o")
-        .arg(&staged))?;
+    // LAYOUT-LDSO-ORDER: the lists of an earlier build never survive into this one.
+    let lists = trace_lists_dir(&product, profile);
+    for f in [crate::hottext::LDSO_LIST, crate::hottext::LDSO_SIGNATURES] {
+        let _ = fs::remove_file(lists.join(f));
+    }
+    if layout == Layout::Traced {
+        let (grouped_entry, grouped) = ldso_layout(root, cc, profile, &release, &entry, &archive, &link)?;
+        link(&grouped_entry, &grouped, &staged)?;
+    } else {
+        link(&entry, &archive, &staged)?;
+    }
     check_interp(&staged)?;
     check_interp_prerelocation(&staged)?;
+    let span = check_interp_span(&staged)?;
     publish(&staged, &out)?;
-    println!("so: target/niji/{name} (the interpreter; L14-1 link check and pre-relocation check passed)");
+    println!("so: target/niji/{name} (the interpreter; L14-1 link check and pre-relocation check passed; mapped span {span:#x}, {LDSO_SPAN_BUCKET:#x} per bucket)");
+    Ok(())
+}
+
+/// The interpreter's link inputs, made in `dir` from the archive cargo built (`raw`): the archive with its large
+/// zero-filled tables moved after the small state words, the entry object, the version script and the span script.
+struct LdLink {
+    entry: std::path::PathBuf,
+    archive: std::path::PathBuf,
+    map: std::path::PathBuf,
+    span: std::path::PathBuf,
+}
+
+impl LdLink {
+    fn prepare(root: &Path, cc: &str, dir: &Path, raw: &Path) -> Result<LdLink, String> {
+        use niji_ld::arch::Arch as _;
+        check_ld_units(raw)?;
+        // LAYOUT-LDSO-WINDOW: the large zero-filled tables after the small state words (a copy: cargo owns `raw`).
+        let archive = dir.join("ld-coldbss.a");
+        fs::copy(raw, &archive).map_err(|e| format!("copy {}: {e}", raw.display()))?;
+        crate::coldbss::move_cold_bss(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &archive, &dir.join("ld-coldbss-work"), LDSO_COLD_BSS)?;
+        let entry = dir.join("ld-entry.o");
+        run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
+        let map = dir.join("ld.map");
+        fs::write(&map, ld_version_script(root, niji_ld::arch::Native::INTERP)?).map_err(|e| e.to_string())?;
+        let span = dir.join("ld-span.ld");
+        fs::write(&span, ldso_span_script()).map_err(|e| e.to_string())?;
+        Ok(LdLink { entry, archive, map, span })
+    }
+
+    /// Link the interpreter `out` from `entry` (first) and `archive`.
+    fn link(&self, cc: &str, entry: &Path, archive: &Path, out: &Path) -> Result<(), String> {
+        use niji_ld::arch::Arch as _;
+        run(Command::new(cc)
+            .args(["-shared", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu", "-Wl,-z,pack-relative-relocs", "-Wl,-e,niji_machine_ld_entry", "-Wl,-Bsymbolic"])
+            .arg(format!("-Wl,-T,{}", self.span.display()))
+            .arg(format!("-Wl,--version-script={}", self.map.display()))
+            .arg(format!("-Wl,-soname,{}", niji_ld::arch::Native::INTERP))
+            .arg(entry)
+            .arg(archive)
+            .arg("-lgcc")
+            .arg("-o")
+            .arg(out))
+    }
+}
+
+/// LAYOUT-LDSO-WINDOW: the interpreter's mapped span (from its first `PT_LOAD` page to the end of its
+/// last, `.bss` included) is rounded up to a whole number of these bytes. The kernel maps the
+/// interpreter top-down, so the image's end, not its start, lands at a fixed place: without the
+/// rounding, every change in the image's size moved its start (and with it the 64 KiB fault-around
+/// window phase of the start-up text group, which starts the text) and every mapping placed below it
+/// (vDSO, libc.so.6, the thread block: libc's thread registry hashes the thread pointer's address).
+/// With it, growth inside one bucket moves none of them. Measured (Skylake-SP host, Linux 6.8): a
+/// 46 KiB cold pad in ld.so changed the N=0 count by +2 unrounded, by +1 with a 64 KiB rounding (a
+/// registry slot across a page boundary at the moved thread pointer) and by 0 with this bucket. The
+/// rounding is `.bss` only: untouched, no file bytes, no page faults; it costs address space and,
+/// as writable private memory, commit charge (under 512 KiB). Kept under 2 MiB so the tail never
+/// spans an aligned huge page.
+pub(crate) const LDSO_SPAN_BUCKET: u64 = 0x8_0000;
+
+/// LAYOUT-LDSO-WINDOW: the interpreter's `.bss.*` sections from this size on go to `.lbss`, after
+/// the small state words ([`crate::coldbss::move_cold_bss`]). With one codegen unit the order of
+/// `.bss` is stable but split the words start-up writes into three groups around two 20 KiB tables
+/// (`ld::THREAD_MODS`, `ld::readers::TABLE`): three zero-fill faults where two groups' worth of
+/// words fit on two pages (Skylake-SP host, fast profile, N=0). 4 KiB, not libc's
+/// [`crate::coldbss::MIN`]: below it are the start-up object list (2.5 KiB) and the fini hooks
+/// (1.5 KiB), which lie on the pages start-up writes (libc's threshold was not measured here).
+const LDSO_COLD_BSS: u64 = 4096;
+
+/// The linker script fragment that rounds the interpreter's span ([`LDSO_SPAN_BUCKET`]): an empty
+/// `NOLOAD` section after `.lbss` (the last zero-filled section, [`LDSO_COLD_BSS`]), the default
+/// script otherwise unchanged (`INSERT`). The image is linked at 0, so aligning the absolute end
+/// aligns the span.
+pub(crate) fn ldso_span_script() -> String {
+    format!("/* @generated by `cargo xtask so` (LAYOUT-LDSO-WINDOW): the interpreter's mapped span rounded to {LDSO_SPAN_BUCKET:#x} bytes. */\nSECTIONS\n{{\n  .niji_ldso_span (NOLOAD) : {{ . = ALIGN({LDSO_SPAN_BUCKET:#x}); }}\n}}\nINSERT AFTER .lbss;\n")
+}
+
+/// The interpreter's mapped span: from its lowest `PT_LOAD` page to the page end of its highest,
+/// which is what the kernel reserves for it.
+pub(crate) fn interp_span(bytes: &[u8]) -> Result<u64, String> {
+    let elf = niji_ld::elf::Elf::parse::<niji_ld::arch::Native>(bytes).map_err(|e| format!("{e:?}"))?;
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == niji_ld::elf::pt::LOAD).collect();
+    let lo = loads.iter().map(|p| p.vaddr & !0xfff).min().ok_or("no PT_LOAD")?;
+    let hi = loads.iter().map(|p| p.vaddr.saturating_add(p.memsz).next_multiple_of(0x1000)).max().ok_or("no PT_LOAD")?;
+    Ok(hi.saturating_sub(lo))
+}
+
+/// LAYOUT-LDSO-WINDOW: the linked interpreter's span is a whole number of [`LDSO_SPAN_BUCKET`]s.
+fn check_interp_span(path: &Path) -> Result<u64, String> {
+    let bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let span = interp_span(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+    if span == 0 || span % LDSO_SPAN_BUCKET != 0 {
+        return Err(format!(
+            "{}: the interpreter's mapped span {span:#x} is not a whole number of {LDSO_SPAN_BUCKET:#x}-byte buckets (ld-span.ld not applied?): ld.so growth would move its start-up pages",
+            path.display()
+        ));
+    }
+    Ok(span)
+}
+
+/// The members of the interpreter's archive (`ar t` output) that rustc wrote for a codegen unit other
+/// than the first of its crate: `ld_so-<hash>.<crate>.<hash>-cgu.<n>.rcgu.o` with `n` > 0. Only the
+/// members rustc wrote for this build (the `ld_so-` prefix) count: the C objects and the prebuilt
+/// `compiler_builtins` objects are not partitioned by it.
+pub(crate) fn split_unit_members(members: &str) -> Vec<&str> {
+    let unit = |m: &str| -> Option<u32> { m.rsplit_once("-cgu.")?.1.split('.').next()?.parse().ok() };
+    members.lines().filter(|m| m.starts_with("ld_so-") && unit(m).is_some_and(|n| n > 0)).collect()
+}
+
+/// LAYOUT-LDSO-WINDOW: the interpreter's crates were built as one codegen unit each ([`LD_RUSTFLAGS`]).
+fn check_ld_units(archive: &Path) -> Result<(), String> {
+    let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
+    let out = Command::new(&ar).arg("t").arg(archive).output().map_err(|e| format!("{ar} t {}: {e}", archive.display()))?;
+    if !out.status.success() {
+        return Err(format!("{ar} t {}: {}", archive.display(), out.status));
+    }
+    let names = String::from_utf8_lossy(&out.stdout);
+    let split = split_unit_members(&names);
+    if let Some(first) = split.first() {
+        return Err(format!(
+            "{}: {} members come from crates split into more than one codegen unit (first {first}): the interpreter's crates build as one unit each (LD_RUSTFLAGS), or a change anywhere in them re-partitions them and moves ld.so's start-up data pages",
+            archive.display(),
+            split.len()
+        ));
+    }
+    Ok(())
+}
+
+/// LAYOUT-LDSO-ORDER: the interpreter's start-up layout, from a trace of this build, as libc's
+/// ([`trace_layout`]). The interpreter linked ungrouped (`link`) runs two dynamic programs of this build
+/// (`libc.so.6` and `niji-crt1.o` of `release`) under `tools/hottext/ldso_trace.sh`; their traces make
+/// `ldso-text.list` and `ldso-text.signatures` ([`crate::hottext::ldso_lists`]) next to libc's lists, and
+/// [`crate::hottext::group_ldso`] renames the listed functions of a copy of `archive`, with the entry object
+/// `entry` as one of its members (the entry is the first function the trace runs), so the link puts them
+/// first in `.text`, from the entry, in trace order, and everything else (`#[cold]` functions included)
+/// after them. Returns the grouped entry object and archive to link.
+fn ldso_layout(
+    root: &Path,
+    cc: &str,
+    profile: Profile,
+    release: &Path,
+    entry: &Path,
+    archive: &Path,
+    link: &dyn Fn(&Path, &Path, &Path) -> Result<(), String>,
+) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
+    use niji_ld::arch::Arch as _;
+    let product = root.join("target/product");
+    let lists = trace_lists_dir(&product, profile);
+    let tdir = lists.join("ldso-trace");
+    let _ = fs::remove_dir_all(&tdir);
+    fs::create_dir_all(&tdir).map_err(|e| format!("{}: {e}", tdir.display()))?;
+    link(entry, archive, &tdir.join(niji_ld::arch::Native::INTERP))?;
+    ldso_trace(root, cc, release, &tdir, &lists, &ldso_prefix())?;
+    let mut runs = Vec::new();
+    for m in crate::hottext::LDSO_MODES {
+        let p = lists.join(format!("ldso.{m}.names"));
+        runs.push((m, fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()))?));
+    }
+    let runs: Vec<(&str, &str)> = runs.iter().map(|(m, t)| (*m, t.as_str())).collect();
+    let (list, sigs) = crate::hottext::ldso_lists(&runs, profile.name());
+    let list_path = lists.join(crate::hottext::LDSO_LIST);
+    fs::write(&list_path, list).map_err(|e| format!("{}: {e}", list_path.display()))?;
+    fs::write(lists.join(crate::hottext::LDSO_SIGNATURES), sigs).map_err(|e| e.to_string())?;
+    // The entry object joins a copy of the archive as a member, so the one grouping pass renames its
+    // sections too; then it comes out again, linked first as before.
+    let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
+    let work = product.join("ldso-group-work");
+    let _ = fs::remove_dir_all(&work);
+    fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
+    const MEMBER: &str = "niji-ld-entry.o";
+    fs::copy(entry, work.join(MEMBER)).map_err(|e| format!("copy {}: {e}", entry.display()))?;
+    let grouped = lists.join("ld-grouped.a");
+    fs::copy(archive, &grouped).map_err(|e| format!("copy {}: {e}", archive.display()))?;
+    run(Command::new(&ar).current_dir(&work).arg("r").arg(&grouped).arg(MEMBER))?;
+    let (hot, keys) = crate::hottext::group_ldso(&ar, &grouped, &list_path, &product.join("ldso-hot-work"))?;
+    fs::remove_file(work.join(MEMBER)).map_err(|e| e.to_string())?;
+    run(Command::new(&ar).current_dir(&work).arg("x").arg(&grouped).arg(MEMBER))?;
+    run(Command::new(&ar).arg("d").arg(&grouped).arg(MEMBER))?;
+    println!("so: {}: {hot} function sections grouped as start-up text ({keys} traced keys, {})", niji_ld::arch::Native::INTERP, list_path.display());
+    Ok((work.join(MEMBER), grouped))
+}
+
+/// LDSO-TRACE-PREFIX: `cargo xtask ldso-trace --prefix <dir>`: the interpreter of the built products' profile,
+/// compiled again with the installation prefix `<dir>` (the coexist package flavour's build, tools/deb/build.sh)
+/// in a cargo target directory of its own (`target/product/ld-prefix`), linked ungrouped and traced as
+/// `cargo xtask so` traces its own ([`ldso_trace`]). The trace must read no host file (a configuration file
+/// below `<dir>` that the trace does not redirect fails it) and must run the same functions in the same order
+/// as the products' own trace: the hot list is the same function of the tree in both flavours.
+pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
+    use niji_ld::arch::Arch as _;
+    let prefix = match args {
+        [f, p] if f == "--prefix" && p.starts_with('/') => p.as_str(),
+        _ => return Err("usage: cargo xtask ldso-trace --prefix <absolute dir>".into()),
+    };
+    let profile = built_profile(root).ok_or("the products are missing or half-built: run `cargo xtask so` first")?;
+    let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+    let product = root.join("target/product");
+    let build = ProductBuild { subdir: "ld-prefix", ..LD_BUILD };
+    run(build.command(root, &product, profile, None, &build_tag(root)).env("NIJI_PREFIX", prefix))?;
+    let work = build.target_dir(&product).join("work");
+    let _ = fs::remove_dir_all(&work);
+    let (tdir, lists) = (work.join("trace"), work.join("lists"));
+    for d in [&tdir, &lists] {
+        fs::create_dir_all(d).map_err(|e| format!("{}: {e}", d.display()))?;
+    }
+    let ld = LdLink::prepare(root, &cc, &work, &build.raw_archive(&product, profile))?;
+    ld.link(&cc, &ld.entry, &ld.archive, &tdir.join(niji_ld::arch::Native::INTERP))?;
+    ldso_trace(root, &cc, &root.join("target/niji"), &tdir, &lists, prefix)?;
+    let own = trace_lists_dir(&product, profile);
+    for m in crate::hottext::LDSO_MODES {
+        let f = format!("ldso.{m}.names");
+        let want = fs::read_to_string(own.join(&f)).map_err(|e| format!("{}: {e} (products built without their trace? run `cargo xtask so`)", own.join(&f).display()))?;
+        let got = fs::read_to_string(lists.join(&f)).map_err(|e| format!("{}: {e}", lists.join(&f).display()))?;
+        if got != want {
+            let (w, g): (Vec<&str>, Vec<&str>) = (want.lines().collect(), got.lines().collect());
+            let at = w.iter().zip(&g).position(|(a, b)| a != b).unwrap_or(w.len().min(g.len()));
+            return Err(format!(
+                "the {m} trace of the interpreter with prefix {prefix} differs from the products' own ({} vs {} names; first difference at line {}: {:?} vs {:?})",
+                g.len(),
+                w.len(),
+                at + 1,
+                g.get(at),
+                w.get(at)
+            ));
+        }
+        println!("ldso-trace: prefix {prefix}: {m}: {} names, the same as the products' own trace", got.lines().count());
+    }
+    Ok(())
+}
+
+/// LDSO-TRACE-PREFIX: the installation prefix the interpreter of this build is compiled with: `NIJI_PREFIX` of
+/// the environment the product build hands to cargo (`crates/ld/src/search.rs` reads it with `option_env!`), or
+/// the loader's own default when it is unset.
+fn ldso_prefix() -> String {
+    std::env::var_os("NIJI_PREFIX").map_or_else(|| niji_ld::search::DEFAULT_PREFIX.to_string(), |p| p.to_string_lossy().into_owned())
+}
+
+/// LDSO-TRACE-PREFIX: the configuration files an interpreter compiled with `prefix` opens, as `prefixed` in
+/// `crates/ld/src/search.rs` builds them (`<prefix>/<file>`, no doubled `/`), one per
+/// [`niji_ld::search::CONFIG_FILES`].
+pub(crate) fn ldso_config_paths(prefix: &str) -> Vec<String> {
+    niji_ld::search::CONFIG_FILES.iter().map(|f| format!("{}/{}", prefix.trim_end_matches('/'), String::from_utf8_lossy(f))).collect()
+}
+
+/// LAYOUT-LDSO-ORDER: trace the interpreter in `tdir` (`ld-linux-x86-64.so.2`, linked ungrouped), compiled with
+/// the installation prefix `prefix`, with `libc.so.6` and `niji-crt1.o` of `release`, under
+/// `tools/hottext/ldso_trace.sh`; it writes `ldso.<mode>.names` ([`crate::hottext::LDSO_MODES`]) into `lists`.
+/// Each of the interpreter's configuration files below `prefix` ([`ldso_config_paths`]) reads as absent
+/// (LDSO-TRACE-PREFIX): the trace reads no host file in either package flavour.
+fn ldso_trace(root: &Path, cc: &str, release: &Path, tdir: &Path, lists: &Path, prefix: &str) -> Result<(), String> {
+    fs::copy(release.join("niji-crt1.o"), tdir.join("niji-crt1.o")).map_err(|e| format!("copy niji-crt1.o: {e}"))?;
+    // The programs name libc.so.6 by path (the interpreter takes no libc.so.6 from a run path, #4537).
+    let by_path = tdir.join("by-path");
+    fs::create_dir_all(&by_path).map_err(|e| format!("{}: {e}", by_path.display()))?;
+    let libc = crate::native_examples::libc_by_path(&release.join("libc.so.6"), &by_path)?;
+    fs::copy(&libc, tdir.join("libc.so.6")).map_err(|e| format!("copy {}: {e}", libc.display()))?;
+    let log = lists.join("ldso-trace.log");
+    let logf = fs::File::create(&log).map_err(|e| format!("{}: {e}", log.display()))?;
+    let errf = logf.try_clone().map_err(|e| e.to_string())?;
+    println!("so: trace-at-build: tracing the interpreter (prefix {prefix}; log {})", log.display());
+    let before = tracked_files(root)?;
+    let st = Command::new("bash")
+        .arg(root.join("tools/hottext/ldso_trace.sh"))
+        .arg(root)
+        .arg("--products")
+        .arg(tdir)
+        .args(ldso_config_paths(prefix).iter().flat_map(|c| ["--config", c.as_str()]))
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .env("CC", cc)
+        .env(crate::hotlists::ENV, lists)
+        .current_dir(root)
+        .stdout(logf)
+        .stderr(errf)
+        .status()
+        .map_err(|e| format!("tools/hottext/ldso_trace.sh: {e}"))?;
+    let changed = restore_tracked(root, &before)?;
+    if !changed.is_empty() {
+        return Err(format!("so: trace-at-build: tools/hottext/ldso_trace.sh changed {} in {} (restored)", changed.join(", "), crate::hotlists::TRACKED));
+    }
+    let text = fs::read_to_string(&log).unwrap_or_default();
+    if !st.success() {
+        let tail: Vec<&str> = text.lines().rev().take(8).collect::<Vec<_>>().into_iter().rev().collect();
+        return Err(format!("so: trace-at-build: tracing the interpreter failed ({st}); last lines of {}:\n{}", log.display(), tail.join("\n")));
+    }
+    for l in text.lines().filter(|l| l.starts_with("ldso-text:")) {
+        println!("so: trace-at-build: {l}");
+    }
     Ok(())
 }
 
@@ -2267,6 +2561,30 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
 mod tests {
     use super::*;
 
+    /// LAYOUT-LDSO-WINDOW (no spec clause: the build of the interpreter): member names as rustc writes them
+    /// (a fast-profile interpreter archive, 16 units). A crate in units 1.. is reported, two-digit unit
+    /// numbers included; unit 0 of every crate, the allocator shim, the C objects and the prebuilt
+    /// `compiler_builtins` object are not, nor (a constructed name, for the prefix rule) a unit object
+    /// some other build wrote.
+    #[test]
+    fn interpreter_archive_units_beyond_the_first_are_reported() {
+        let one = "csys_0.o\n45c91108d938afe8-ucmpti2.o\n\
+            ld_so-a1b2c3d4e5f60718.c26v8dzsdn4j9tn3iv73ubmlb.rcgu.o\n\
+            ld_so-a1b2c3d4e5f60718.core-1d288395a3394ed3.core.efd5e57aef94d71e-cgu.0.rcgu.o.rcgu.o\n\
+            ld_so-a1b2c3d4e5f60718.ld_so.703c93925344c515-cgu.0.rcgu.o\n\
+            ld_so-a1b2c3d4e5f60718.niji-435adf0fa956650f.niji.bc4ae866f3bb43a4-cgu.00.rcgu.o.rcgu.o\n\
+            compiler_builtins-0a1b2c3d4e5f6071.compiler_builtins.9f8e7d6c5b4a3921-cgu.117.rcgu.o\n";
+        assert!(split_unit_members(one).is_empty(), "{:?}", split_unit_members(one));
+        let split = format!(
+            "{one}ld_so-a1b2c3d4e5f60718.ld_so.703c93925344c515-cgu.1.rcgu.o\n\
+             ld_so-a1b2c3d4e5f60718.niji-435adf0fa956650f.niji.bc4ae866f3bb43a4-cgu.15.rcgu.o.rcgu.o\n"
+        );
+        assert_eq!(
+            split_unit_members(&split),
+            ["ld_so-a1b2c3d4e5f60718.ld_so.703c93925344c515-cgu.1.rcgu.o", "ld_so-a1b2c3d4e5f60718.niji-435adf0fa956650f.niji.bc4ae866f3bb43a4-cgu.15.rcgu.o.rcgu.o"]
+        );
+    }
+
     /// UTIL-5 (no spec clause: the build of getconf's name table): each name takes the kind and number of its
     /// constant, in file order; a constant the library does not answer for, a repeated name or a bad `listed` cell
     /// stops the build.
@@ -2298,6 +2616,22 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+
+    /// No spec clause (product build tooling, LDSO-TRACE-PREFIX): the configuration paths the interpreter trace
+    /// redirects are the paths the loader opens: for the prefix this crate was compiled with, each equals what
+    /// `niji_ld::search::prefixed` builds; the system and coexist prefixes give `/etc/...` and `<prefix>/etc/...`.
+    #[test]
+    fn ldso_trace_redirects_the_paths_the_loader_opens() {
+        let paths = ldso_config_paths(niji_ld::search::PREFIX);
+        assert_eq!(paths.len(), niji_ld::search::CONFIG_FILES.len());
+        for (p, f) in paths.iter().zip(niji_ld::search::CONFIG_FILES) {
+            let mut b = niji_ld::search::PathBuf::default();
+            assert!(niji_ld::search::prefixed(f, &mut b));
+            assert_eq!(p.as_bytes(), b.as_bytes(), "the trace redirects another path than the loader opens");
+        }
+        assert_eq!(ldso_config_paths("/"), ["/etc/ld.so.preload", "/etc/ld.so.cache"]);
+        assert_eq!(ldso_config_paths("/usr/lib/niji/"), ["/usr/lib/niji/etc/ld.so.preload", "/usr/lib/niji/etc/ld.so.cache"]);
     }
 
     /// No spec clause (product build tooling, XTASK-SO-NOCHANGE-PROFILE): the product builds that share a cargo target

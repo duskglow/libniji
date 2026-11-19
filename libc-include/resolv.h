@@ -76,6 +76,22 @@ struct res_sym {
 #  define __NIJI_D_res_state 1
 typedef struct __res_state * res_state;
 # endif
+#endif
+#if __NIJI_LFS64 || __NIJI_FOB64
+# ifndef __NIJI_D_struct__G_fpos64_t
+#  define __NIJI_D_struct__G_fpos64_t 1
+struct _G_fpos64_t { char __niji_opaque[16] __attribute__ ((__aligned__ (8))); };
+# endif
+# ifndef __NIJI_D_fpos64_t
+#  define __NIJI_D_fpos64_t 1
+typedef struct _G_fpos64_t fpos64_t;
+# endif
+# ifndef __NIJI_D_off64_t
+#  define __NIJI_D_off64_t 1
+typedef long off64_t;
+# endif
+#endif
+#if 1
 struct __res_state;
 # ifndef __NIJI_D___res_state
 #  define __NIJI_D___res_state 1
@@ -149,6 +165,38 @@ extern int res_search (const char *, int, int, unsigned char *, int) __NIJI_NOTH
 #  define __NIJI_D_res_send 1
 extern int res_send (const unsigned char *, int, unsigned char *, int) __NIJI_NOTHROW;
 # endif
+#endif
+#if __NIJI_LFS64 || __NIJI_FOB64
+# ifndef __NIJI_D_fgetpos64
+#  define __NIJI_D_fgetpos64 1
+extern int fgetpos64 (FILE *, fpos64_t *);
+# endif
+# ifndef __NIJI_D_fopen64
+#  define __NIJI_D_fopen64 1
+extern FILE *fopen64 (const char *, const char *);
+# endif
+# ifndef __NIJI_D_freopen64
+#  define __NIJI_D_freopen64 1
+extern FILE *freopen64 (const char *, const char *, FILE *);
+# endif
+# ifndef __NIJI_D_fseeko64
+#  define __NIJI_D_fseeko64 1
+extern int fseeko64 (FILE *, long, int);
+# endif
+# ifndef __NIJI_D_fsetpos64
+#  define __NIJI_D_fsetpos64 1
+extern int fsetpos64 (FILE *, const fpos64_t *);
+# endif
+# ifndef __NIJI_D_ftello64
+#  define __NIJI_D_ftello64 1
+extern long ftello64 (FILE *);
+# endif
+# ifndef __NIJI_D_tmpfile64
+#  define __NIJI_D_tmpfile64 1
+extern FILE *tmpfile64 (void);
+# endif
+#endif
+#if 1
 # ifndef LOCALDOMAINPARTS
 #  define LOCALDOMAINPARTS 2
 # endif

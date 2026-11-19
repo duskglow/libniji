@@ -6,7 +6,7 @@
 #
 # The root starts as the merged-/usr skeleton base-files lays down (bin, lib, lib64, sbin links into
 # /usr) and an empty dpkg database, nothing else: no shell, no libraries. dpkg --root installs all
-# seven packages, and empty stand-ins for linux-libc-dev, libcrypt-dev and rpcsvc-proto (libc6-dev's
+# the packages (seven; tools/deb/manifest.py packages system), and empty stand-ins for linux-libc-dev, libcrypt-dev and rpcsvc-proto (libc6-dev's
 # dependencies from other sources), with --force-script-chrootless (libc-bin's postinst honours DPKG_ROOT, since the root
 # has no shell to run it). Then, in the root (chroot inside the namespace):
 #   - every package is "install ok installed" (the ldconfig trigger was processed), the conffiles
@@ -70,22 +70,26 @@ for s in $standins; do
 done
 
 dpkg_r() { ns dpkg --root="$r" --force-script-chrootless --log=/dev/null "$@"; }
+# The packages and their conffiles: tools/deb/manifest.tsv (PKG-MANIFEST).
+pkgs=$(python3 "$here/manifest.py" packages system)
+npkgs=$(echo "$pkgs" | wc -w)
+want_cf=$(for p in $pkgs; do python3 "$here/manifest.py" member system "$p" conffiles; done | sort | tr '\n' ' ')
 if dpkg_r -i "$@" > "$tmp/install.log" 2>&1; then
-    pass "dpkg --root installs the seven packages into the empty root"
+    pass "dpkg --root installs the $npkgs packages into the empty root"
 else
     fail "dpkg --root -i: $(tail -5 "$tmp/install.log" | tr '\n' ' ')"
 fi
 q() { dpkg-query --admindir="$r/var/lib/dpkg" "$@"; }
 bad=$(q -W -f '${Package} ${Status}\n' | grep -v ' install ok installed$' || true)
 n=$(q -W -f '${Package} ${Status}\n' | grep -c ' install ok installed$' || true)
-if [ -z "$bad" ] && [ "$n" -eq 10 ]; then
-    pass "all seven packages (and the three stand-ins) are installed, no trigger pending"
+if [ -z "$bad" ] && [ "$n" -eq $((npkgs + 3)) ]; then
+    pass "all $npkgs packages (and the three stand-ins) are installed, no trigger pending"
 else
     fail "package states: $(q -W -f '${Package}=${Status}; ' 2>&1)"
 fi
-cf=$(q -W -f '${Conffiles}\n' libc6 libc-bin | awk 'NF { print $1 }' | sort | tr '\n' ' ')
-[ "$cf" = "/etc/gai.conf /etc/ld.so.conf /etc/ld.so.conf.d/libc.conf /etc/ld.so.conf.d/$ma.conf " ] &&
-    pass "conffiles registered: $cf" || fail "conffiles registered: '$cf'"
+cf=$(q -W -f '${Conffiles}\n' $pkgs | awk 'NF { print $1 }' | sort | tr '\n' ' ')
+[ -n "$want_cf" ] && [ "$cf" = "$want_cf" ] &&
+    pass "conffiles registered: $cf" || fail "conffiles registered: '$cf', not the manifest's '$want_cf'"
 cmp -s "$r/etc/nsswitch.conf" "$r/usr/share/libc-bin/nsswitch.conf" &&
     pass "libc-bin's postinst installed /etc/nsswitch.conf from its template" || fail "no /etc/nsswitch.conf from the template"
 v=$(ns dpkg --root="$r" --verify 2>&1 || true)

@@ -1,0 +1,62 @@
+{
+ "task": "PKG-MANIFEST-3",
+ "model": "opus",
+ "tokens": null,
+ "result": "Packages built from tools/deb/manifest.tsv are byte-identical to the old scripts' (9 of 9 .debs); the red proof was its own byte-grep check; the comparison found and fixed a missing rcrt1.o row; lint now refuses unshipped products",
+ "branch": "task/pkg-manifest-3",
+ "head": "32700c07a",
+ "gate": {
+  "affected": "pkg-manifest-3-gate2 running (escalated to FULL by its *.ld rule; inherited FULL gate 12079 passed / 0 failed)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "pkg-manifest-2-proof's red came from its own sanity check: grep -a /usr/lib/niji on the coexist loader. The prefix constant is emitted as immediate stores, so it is not a contiguous string. strace shows the loader opening /usr/lib/niji/usr/lib/x86_64-linux-gnu/libc.so.6; no product regression (the branch changes no product source)",
+  "The proof reuses PKG-MANIFEST-2's products (built from the 5bb3eb4bb tree); no product source changed since",
+  "plants4: 8 of 8 CAUGHT, 0 WARN"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "libc6-dev and niji6-dev ship rcrt1.o again (the manifest-driven build had dropped it)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "manifest lint check: products no file row ships (deb_manifest test)",
+   "before": 0,
+   "after": 1,
+   "unit": "checks",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants on the manifest, build.sh and system.sh",
+   "before": 0,
+   "after": 8,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "a new package file is one manifest row (merges clean) instead of a shell line in build.sh/system.sh (conflicts)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "Product checks in proofs must be behavioural (strace of the paths opened), not byte greps: the compiler emits short constants as immediates",
+ "next_step": "Land; optional: run the base-vs-head .deb byte comparison in CI for tools/deb changes",
+ "report_file": "handoff/PKG-MANIFEST.md",
+ "jobs": [
+  "pkg-manifest-3-gate2",
+  "pkg-manifest-3-plants4",
+  "pkg-manifest-3-proof3"
+ ]
+}
