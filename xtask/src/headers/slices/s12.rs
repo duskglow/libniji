@@ -42,7 +42,7 @@ fn needs_if(g: &mut Gen<'_>, args: &[&str]) {
 
 fn alias(g: &mut Gen<'_>, args: &[&str]) {
     let (n, of) = (args.first().copied().unwrap_or(""), args.get(1).copied().unwrap_or(""));
-    if g.t.macros.get(n).is_none() || g.t.macros.get(n) != g.t.macros.get(of) {
+    if !g.t.macros.contains_key(n) || g.t.macros.get(n) != g.t.macros.get(of) {
         g.errors.push(format!("headers/{}.in: @@alias {n} {of}: macros.tsv gives the two different types or values", g.header));
     }
     g.out.extend([format!("#ifndef {n}"), format!("# define {n} {of}"), "#endif".into()]);
