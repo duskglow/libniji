@@ -508,7 +508,13 @@ fn version_memo_answers_as_the_walks() {
     let Some(c) = corpus() else { return };
     let memo = VersionMemo::default();
     let mut seen = (0usize, 0usize);
-    for (file, bytes) in c.iter() {
+    // The corpus objects have a few versions each, too few for two keys of one object to share a slot; the
+    // installed C library (read as input data, when present) has dozens.
+    let host = std::fs::read("/lib/x86_64-linux-gnu/libc.so.6").ok();
+    if host.is_none() {
+        println!("SKIP: no /lib/x86_64-linux-gnu/libc.so.6: only the corpus objects are checked");
+    }
+    for (file, bytes) in c.iter().map(|(f, b)| (*f, b.as_slice())).chain(host.as_deref().map(|b| ("host libc.so.6", b))) {
         let Ok(o) = Object::new(dynm(bytes).unwrap()) else { continue };
         let (d, Some(n)) = (o.dynamic(), o.symtab().count()) else { continue };
         let Some(vs) = d.versym().unwrap() else { continue };

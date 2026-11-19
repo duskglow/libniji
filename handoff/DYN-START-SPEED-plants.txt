@@ -2,5 +2,5 @@
 # scan's answer, and the version-name memo's key.
 relacount-bias | crates/ld/src/reloc.rs | lit:let v = o.bias.wrapping_add(u64::from_ne_bytes(addend.to_ne_bytes())); ==> let v = u64::from_ne_bytes(addend.to_ne_bytes()); | cargo test -p niji-ld --test reloc reloc_field_must_lie_in_a_writable_segment | msg:reloc_field_must_lie_in_a_writable_segment.*FAILED|panicked
 hitword-any | crates/ld/src/reloc.rs | lit:(any || w) && lo <= at && hi.checked_sub(8) ==> (any || w || !w) && lo <= at && hi.checked_sub(8) | cargo test -p niji-ld --test reloc reloc_field_must_lie_in_a_writable_segment | msg:reloc_field_must_lie_in_a_writable_segment.*FAILED|panicked
-verdef-scan-found | crates/ld/src/elf.rs | lit:return Some(Some(at)); ==> return Some(Some(0)); | cargo test -p niji-ld --test symbols version_names_by_index_match_the_table_walk | msg:version_names_by_index_match_the_table_walk.*FAILED|panicked
+verdef-scan-short | crates/ld/src/elf.rs | lit:while left != 0 { ==> while left > 1 { | cargo test -p niji-ld --test symbols version_names_by_index_match_the_table_walk | msg:version_names_by_index_match_the_table_walk.*FAILED|panicked
 memo-key | crates/ld/src/symbols.rs | lit:if s.key == key && s.strtab == base { ==> if s.strtab == base { | cargo test -p niji-ld --test symbols version_memo_answers_as_the_walks | msg:version_memo_answers_as_the_walks.*FAILED|panicked
