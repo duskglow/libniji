@@ -335,19 +335,34 @@ static LOADER: AtomicUsize = AtomicUsize::new(0);
 const NODE_WORDS: usize = CAP * size_of::<Node>() / 8;
 const _: () = assert!(size_of::<Node>() % 8 == 0 && core::mem::align_of::<Node>() <= 64);
 
+/// Entries of `ld.so`'s table of thread-local modules ([`thread_mods_head`]) held before the nodes.
+pub(super) const MODS_HEAD: usize = 16;
+const _: () = assert!(MODS_HEAD * 5 * 8 % 64 == 0);
+
 /// The storage of every link-map node (DL-23): in `ld.so`'s own zero-filled data rather than in the
 /// loader's mapping, so the start fills the start-time objects' public `struct link_map` prefix
 /// ([`start_node`]) for the debugger rendezvous before any `dlopen`, and a node's address (an
 /// object's handle and link map) is the same from the start to the exit. Only the pages the start
-/// writes are touched (a node is under 200 bytes).
+/// writes are touched (a node is under 200 bytes). The first [`MODS_HEAD`] entries of the
+/// thread-local module table come first: the build places this table first in `ld.so`'s `.lbss`,
+/// on the page the end of `.bss` already shares, so a start writes its first nodes and its first
+/// thread-local modules there, not on new pages.
 #[repr(C, align(64))]
-struct NodeSpace([AtomicU64; NODE_WORDS]);
+struct NodeSpace {
+    mods: [[AtomicU64; 5]; MODS_HEAD],
+    nodes: [AtomicU64; NODE_WORDS],
+}
 
-static NODES: NodeSpace = NodeSpace([const { AtomicU64::new(0) }; NODE_WORDS]);
+static NODES: NodeSpace = NodeSpace { mods: [const { [const { AtomicU64::new(0) }; 5] }; MODS_HEAD], nodes: [const { AtomicU64::new(0) }; NODE_WORDS] };
 
-/// Node 0's address; node `i` is `size_of::<Node>()` bytes further per index.
+/// Node 0's address (64-byte aligned); node `i` is `size_of::<Node>()` bytes further per index.
 fn nodes_base() -> usize {
-    core::ptr::from_ref(&NODES).expose_provenance()
+    core::ptr::from_ref(&NODES.nodes).expose_provenance()
+}
+
+/// The first [`MODS_HEAD`] entries of `ld.so`'s table of thread-local modules (`super::thread_mod`).
+pub(super) fn thread_mods_head() -> &'static [[AtomicU64; 5]; MODS_HEAD] {
+    &NODES.mods
 }
 
 /// The loader's view of [`NODES`]: a zero-sized field of [`Loader`] that dereferences to the nodes,
@@ -360,7 +375,7 @@ impl core::ops::Deref for Nodes {
     fn deref(&self) -> &[Node; CAP] {
         // UNSAFE(slice): the link-map nodes in `ld.so`'s data.
         #[allow(unsafe_code)]
-        // SAFETY: NODES is a zero-filled, 64-byte aligned static of CAP Nodes (all-zero is a valid
+        // SAFETY: NODES.nodes is a zero-filled, 64-byte aligned array of CAP Nodes (all-zero is a valid
         // Node; its words are atomics, writable through a shared reference). The only `Nodes` is the
         // `Loader`'s, borrowed through the one live `&Loader`/`&mut Loader`; `start_node` writes
         // before any `Loader` exists; readers read published fields by address.
@@ -388,7 +403,7 @@ pub(super) fn start_name(k: usize) -> usize {
     let at = nodes_base().wrapping_add(k.wrapping_mul(size_of::<Node>())).wrapping_add(core::mem::offset_of!(Node, l_name));
     // UNSAFE(slice): one word of a start-time node in `ld.so`'s data.
     #[allow(unsafe_code)]
-    // SAFETY: `k < CAP`: the word is inside NODES (aligned: a usize field of a Node). The start wrote
+    // SAFETY: `k < CAP`: the word is inside NODES.nodes (aligned: a usize field of a Node). The start wrote
     // it before any reader or `dlopen` ran, and nothing writes it again (`adopt_start` keeps a
     // linked node's prefix; slots are reused only past the start-time objects).
     unsafe { core::ptr::with_exposed_provenance::<usize>(at).read() }

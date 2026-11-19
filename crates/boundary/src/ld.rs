@@ -532,7 +532,13 @@ fn install_tls(mods: &[Option<Module>], biases: &[u64], placed: &[Option<Placed>
 /// thread walk, under its thread-list lock, which a thread's creation also holds while its
 /// `tls_init` reads this table: the creation either reads the table before the walk (and the walk,
 /// which then lists it, fills the new block) or after it (and fills the block itself).
-static THREAD_MODS: [[AtomicU64; 5]; ltls::MODULES_MAX] = [const { [const { AtomicU64::new(0) }; 5] }; ltls::MODULES_MAX];
+/// The first `dlopen::MODS_HEAD` entries live with the link-map nodes (`dlopen::thread_mods_head`, on
+/// the page a start already writes); this holds the rest. [`thread_mod`] reaches entry `i`.
+static THREAD_MODS: [[AtomicU64; 5]; ltls::MODULES_MAX - dlopen::MODS_HEAD] = [const { [const { AtomicU64::new(0) }; 5] }; ltls::MODULES_MAX - dlopen::MODS_HEAD];
+/// Entry `i` of the thread-local module table ([`THREAD_MODS`]), `None` past `MODULES_MAX`.
+fn thread_mod(i: usize) -> Option<&'static [AtomicU64; 5]> {
+    dlopen::thread_mods_head().get(i).or_else(|| THREAD_MODS.get(i.wrapping_sub(dlopen::MODS_HEAD)))
+}
 /// Entries of [`THREAD_MODS`] in use (stored last, Release).
 static THREAD_MODS_LEN: AtomicUsize = AtomicUsize::new(0);
 /// Words of every thread's dtv: `DTV_HEADER` + the module slots it has room for.
@@ -551,7 +557,7 @@ static SURPLUS_HI: AtomicU64 = AtomicU64::new(0);
 fn record_thread_tls(mods: &[Option<Module>], biases: &[u64], placed: &[Option<Placed>], area: &Area) {
     let mut n = 0usize;
     for ((m, p), b) in mods.iter().zip(placed).zip(biases) {
-        let (Some(m), Some(p), Some(slot)) = (m, p, THREAD_MODS.get(n)) else { continue };
+        let (Some(m), Some(p), Some(slot)) = (m, p, thread_mod(n)) else { continue };
         for (w, v) in slot.iter().zip([b.wrapping_add(m.vaddr), m.filesz, m.memsz, p.module, u64::from_ne_bytes(p.tp_offset.to_ne_bytes())]) {
             w.store(v, Relaxed);
         }
@@ -570,7 +576,7 @@ fn record_thread_tls(mods: &[Option<Module>], biases: &[u64], placed: &[Option<P
 
 /// Entry `i` of [`THREAD_MODS`]: `[image address, p_filesz, p_memsz, module ID, offset]`.
 fn module_words(i: usize) -> Option<[u64; 5]> {
-    let slot = THREAD_MODS.get(i)?;
+    let slot = thread_mod(i)?;
     Some(core::array::from_fn(|j| slot.get(j).map_or(0, |w| w.load(Relaxed))))
 }
 
@@ -736,7 +742,7 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
         // Entry `id - 1` holds module `id` (DL-17: a released ID's entry is all zero until reused).
         let mut n = THREAD_MODS_LEN.load(Relaxed);
         for m in mods {
-            let Some(slot) = usize::try_from(m[3]).ok().and_then(|id| id.checked_sub(1)).and_then(|i| THREAD_MODS.get(i)) else { continue };
+            let Some(slot) = usize::try_from(m[3]).ok().and_then(|id| id.checked_sub(1)).and_then(thread_mod) else { continue };
             let words = if new.release { [0; 5] } else { *m };
             slot.iter().zip(words).for_each(|(w, v)| w.store(v, Relaxed));
             if !new.release {
