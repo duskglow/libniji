@@ -302,7 +302,12 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// nodes, warm-up + 5 runs, every run identical): release 86; fast at most 89 (the plants' baseline; ungrouped
 /// it reads 90). The bound is the highest level of the two host classes per profile, no margin (D-X.103's rule
 /// for these counts; as for TRUE_BOUND). No spec clause (layout of the products).
-const DYN_TRUE_BOUND: [u64; 2] = [89, 86];
+/// LAYOUT-DYN-PHASE (D-X.133): the count no longer moves with the size of libc.so.6 or ld.so (the loader maps
+/// the last page of a segment without zero fill from the file; libc's start-up read-only group is anchored and
+/// holds the build tag; ld.so's read-only data starts at its text's 64 KiB phase). Skylake-SP host, next
+/// 36df714e7 plus this change, each library padded by k = 0..16 pages of cold text, every run identical: fast
+/// 80, release 76 at every k (before: 85..87 and 83..85 by k). The Zen 1 host class was not measured.
+const DYN_TRUE_BOUND: [u64; 2] = [80, 76];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.

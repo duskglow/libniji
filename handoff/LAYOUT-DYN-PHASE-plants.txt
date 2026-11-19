@@ -4,6 +4,6 @@ dyn-phase-tail | crates/ld/src/map.rs | lit:s.mem_end > s.file_end; ==> s.zero_e
 # libc.so.6's start-up read-only group anchor dropped from the link: `cargo xtask so` refuses the library.
 dyn-phase-anchor | xtask/src/so.rs | perl:s/\.args\(&defsyms\)\s*\.arg\(&anchor\)/.args(&defsyms)/ | cargo test -p xtask libc_so_rodata1 | msg:not on its .*alignment
 # The build tag left out of the group: `cargo xtask so` refuses the library.
-dyn-phase-tag | xtask/src/startup_ro.rs | perl:s/ro_keys\.extend\(LOADER_READ[^;]*;// | cargo test -p xtask libc_so_rodata1 | msg:lies outside|no \.rodata1
-# The interpreter's read-only phase fragment dropped from its link: `cargo xtask so` refuses the interpreter.
-dyn-phase-ldro | xtask/src/so.rs | perl:s/\s*\.arg\(format!\("-Wl,-T,\{\}", self\.phase\.display\(\)\)\)// | cargo test -p xtask libc_so_rodata1 | msg:not the same 0x10000-byte phase
+dyn-phase-tag | xtask/src/startup_ro.rs | lit:ro_keys.extend(LOADER_READ.iter() ==> ro_keys.extend(LOADER_READ[..0].iter() | cargo test -p xtask libc_so_rodata1 | msg:lies outside|no \.rodata1
+# The interpreter's read-only data no longer moved to its text's phase: `cargo xtask so` refuses the interpreter.
+dyn-phase-ldro | xtask/src/so.rs | lit:INSERT BEFORE .rodata; ==> INSERT AFTER .rodata; | cargo test -p xtask libc_so_rodata1 | msg:not the same 0x10000-byte phase
