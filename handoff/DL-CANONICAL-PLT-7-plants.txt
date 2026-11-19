@@ -1,0 +1,20 @@
+# DL-CANONICAL-PLT-7 plants (ruling #6659: the flag rides in the program view's hash table; run 6's seven plants
+# re-aimed at this shape, plus the SysV mark path):
+# cargo xtask plants handoff/DL-CANONICAL-PLT-7-plants.txt --dir <RAM dir> --timeout 900
+dladdr-any-undefined | crates/boundary/src/ld/dlopen/dladdr.rs | lit:let canonical = s.shndx == SHN_UNDEF && syms.has_canonical_plt() && canonical_plt(&s); ==> let canonical = s.shndx == SHN_UNDEF; | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_canonical_plt_entry_for_scoped | msg:observations differ from the reference
+start-not-program | crates/boundary/src/ld.rs | lit:first_sym.mark_program(); ==> let _ = &mut first_sym; | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_nonpie | msg:canonical PLT.*check (Some\([0-9]+\)|None) failed
+dlopen-not-program | crates/boundary/src/ld/dlopen.rs | lit:s.mark_program(); ==> let _ = &mut s; | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_nonpie | msg:check Some\(6\) failed
+gnu-mark-lost | crates/ld/src/symbols.rs | lit:Hash::Gnu(g) => g.set_mark(canonical), ==> Hash::Gnu(g) => g.set_mark(false), | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:canonical PLT.*check (Some\([0-9]+\)|None) failed
+sysv-mark-lost | crates/ld/src/symbols.rs | lit:Hash::Sysv(s) => s.set_mark(canonical), ==> Hash::Sysv(s) => s.set_mark(false), | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_nonpie | msg:sysv hash.*check (Some\([0-9]+\)|None) failed
+no-canonical | crates/ld/src/symbols.rs | lit:(exported(&st) || self.canonical_entry(i)) ==> (exported(&st) || (false && self.canonical_entry(i))) | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:canonical PLT.*check (Some\([0-9]+\)|None) failed
+no-protected-check | crates/ld/src/reloc.rs | lit:let protected = obj != i && ==> let protected = false && obj != i && | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_canonical_plt_entry_for_protected | msg:no warning naming f|marked library.*the start goes on
+first-pass-plain | crates/ld/src/reloc.rs | lit:let first = if set.syms.first().is_some_and(Object::has_canonical_plt) { canonical_slots ==> let first = if false { canonical_slots | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:canonical PLT.*check (Some\([0-9]+\)|None) failed
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# dladdr-any-undefined: CAUGHT, caught by canonical_plt s27_1_g_0_canonical_plt_entry_for_scoped_lookups_dladdr_versions_and_copy
+# start-not-program: CAUGHT, caught by canonical_plt s27_1_g_0_nonpie_program_canonical_plt_entry_binds_every_address_reference
+# dlopen-not-program: CAUGHT, caught by canonical_plt s27_1_g_0_nonpie_program_canonical_plt_entry_binds_every_address_reference
+# gnu-mark-lost: CAUGHT, caught by canonical_plt s27_1_g_0_pie_canonical_plt_entry_binds_library_reference
+# sysv-mark-lost: CAUGHT, caught by canonical_plt s27_1_g_0_nonpie_program_canonical_plt_entry_binds_every_address_reference
+# no-canonical: CAUGHT, caught by canonical_plt s27_1_g_0_canonical_plt_entry_for_ifunc_definition
+# no-protected-check: CAUGHT, caught by canonical_plt s27_1_g_0_canonical_plt_entry_for_protected_definition
+# first-pass-plain: CAUGHT, caught by canonical_plt s27_1_g_0_pie_canonical_plt_entry_binds_library_reference
