@@ -2235,7 +2235,7 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
 /// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).
 const AUXV_WORDS_MAX: usize = 256;
 
-mod debug;
+pub mod debug;
 mod dlopen;
 mod readers;
 mod table;

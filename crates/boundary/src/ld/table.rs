@@ -211,8 +211,8 @@ impl<T: Copy> Kept<T> {
 }
 
 /// The paths objects were found by, kept for their `$ORIGIN`: chunks of address space mapped as
-/// the paths arrive (none for a start that searches nothing), never moved, so a kept path stays
-/// valid until [`PathStore::release`].
+/// the paths arrive (none for a start that searches nothing), never moved or released: a kept path
+/// stays valid for the process (the start-time link maps' names, DL-23).
 pub(super) struct PathStore {
     free: &'static mut [u8],
     chunks: Table<(usize, usize), 4>,
@@ -248,7 +248,7 @@ impl PathStore {
             // UNSAFE(slice): a fresh anonymous mapping, owned by the store.
             #[allow(unsafe_code)]
             // SAFETY: `len` bytes from `at` were just mapped private, readable and writable; nothing else refers
-            // to them, and the store unmaps them only in `release`, after the caller's last use of a kept path.
+            // to them, and the store never unmaps them (a kept path lives as long as the process).
             let fresh = unsafe { conv::bytes_at_mut(at, len) };
             self.free = fresh;
         }
@@ -258,13 +258,5 @@ impl PathStore {
         nul.fill(0);
         self.free = rest;
         Ok(kept)
-    }
-
-    /// Unmap every chunk: no kept path is used after this.
-    pub(super) fn release(&mut self) {
-        for &(at, len) in self.chunks.get(..self.n).unwrap_or(&[]) {
-            let _ = raw::munmap(at, len);
-        }
-        (self.free, self.n) = (&mut [], 0);
     }
 }
