@@ -22,12 +22,12 @@ typedef int (*argp_parser_t)(int, char *, struct argp_state *);
 #  define __NIJI_D_struct_argp 1
 struct argp {
   const struct argp_option * options;
-  argp_parser_t  parser;
-  char * args_doc;
-  char * doc;
+  argp_parser_t parser;
+  const char * args_doc;
+  const char * doc;
   const struct argp_child * children;
   void (*help_filter) (void);
-  char * argp_domain;
+  const char * argp_domain;
 };
 # endif
 # ifndef __NIJI_D_struct_argp_child
@@ -35,7 +35,7 @@ struct argp {
 struct argp_child {
   const struct argp * argp;
   int flags;
-  char * header;
+  const char * header;
   int group;
   int : 32;
 };
@@ -43,11 +43,11 @@ struct argp_child {
 # ifndef __NIJI_D_struct_argp_option
 #  define __NIJI_D_struct_argp_option 1
 struct argp_option {
-  char * name;
+  const char * name;
   int key;
-  char * arg;
+  const char * arg;
   int flags;
-  char * doc;
+  const char * doc;
   int group;
   int : 32;
 };

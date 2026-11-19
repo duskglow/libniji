@@ -225,9 +225,24 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
     declared;
   * a table name assigned to a header is missing or emitted twice;
   * a template defines a name that a table owns.
+* **Emitters (HEADERS-GEN-COMPLETE).** One module per construct family under `xtask/src/headers/`:
+  `aggregates.rs` (one recursive member emitter: anonymous and named nested aggregates at any depth,
+  bit-fields, packed and over-aligned layouts, tag members), `typedefs.rs` (scalar, qualified, vector,
+  array, function and incomplete types, C++ keyword character types), `functions.rs`, `objects.rs`,
+  `values.rs` (macro values, `@@init` initializers), `enums.rs` (`@@enum`), `types.rs` (type spelling)
+  and `cond.rs` (feature conditions); `headers.rs` keeps the tables, the dispatcher `Gen::item` and the
+  markers. The generator is complete for the tables: a construct a new row needs is added here, once.
 * **Generated tests.** For each header, a C TU and a C++ TU of `_Static_assert`s cover sizes,
   alignments, offsets, constant values and types, and prototype identity
   (`__builtin_types_compatible_p` against the typedef-resolved form). The gate compiles them.
+  The placement-independent rows test (`cargo xtask headers-gen --rows DIR`, `xtask/src/headers/rows.rs`,
+  unit test `every_table_row_is_emitted_and_matches_the_tables`) emits every table row through the
+  emitters in no header placement and checks it in C (gnu17) and C++ (gnu++17): sizes, alignments,
+  offsets and member types, bit-fields and initializers at run time (psABI sequential allocation),
+  macro and constant values and types, typedef identity (vector typedefs in both languages), prototype
+  identity with `noexcept`, and per configuration family the symbols call sites reference. A row the
+  generator cannot emit fails unless `headers/rows-exceptions.tsv` lists it with a reason; each new
+  exception is a RULING NEEDED of the change that adds it.
 * **Staging.** `cargo xtask so` stages `target/niji/include`. Tests compile with `-nostdinc`,
   `-isystem` on libniji's headers, the compiler's include directory, and a staging of the build
   host's `linux-libc-dev` directories (`linux`, `asm`, `asm-generic`, ...).
@@ -314,8 +329,13 @@ Slice `N` (two digits, `s07`) adds:
   `xtask/build.rs` lists the directory, so there is no `mod` line to add; a marker defined twice is a
   `headers-gen` error.
 
-A slice that still needs a change to the shared generator or checker (a new kind of table row, a fix in
-`Gen`) makes it a separate commit and names it in its hand-back: only that commit can conflict.
+**The slice contract (owner, 11-19; HEADERS-GEN-COMPLETE).** A slice adds data only: the four kinds of
+file above. It never changes the emitter modules (`xtask/src/headers.rs`, `xtask/src/headers/*.rs`
+outside `slices/`) or `spec/tools/header_check.py`. `cargo xtask precheck` enforces it: its check
+`slice-contract` is red for an `SL-HEADERS-*` story whose branch changes any of them and prints a
+`RULING NEEDED` line naming the files, so the change is ruled on (and made once, in the generator, by a
+story of its own) instead of merged as a conflict. A construct the generator lacks is a generator story;
+a row it cannot emit yet is a `headers/rows-exceptions.tsv` row with a reason.
 
 `plan/system-libc.md` §6 item 7 becomes these slices. Its item 11 (SL-BOOTSTRAP-ESSENTIAL) needs
 slice 20 and, under R-H6, slice 18.
