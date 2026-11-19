@@ -235,6 +235,44 @@ fn versions_bind_like_the_reference() {
     assert_eq!(found(&stub, "f", Want::Version(b"VER_1")), "-");
 }
 
+/// No spec clause (GNU symbol-versioning document; design §5): the lookup view's version names by
+/// index (kept tables, DYN-START-PARITY) are the ones a walk of `DT_VERDEF` and `DT_VERNEED` finds,
+/// for every index up to past the highest, in every corpus object with version tables.
+#[test]
+fn version_names_by_index_match_the_table_walk() {
+    let Some(c) = corpus() else { return };
+    let mut seen = (0, 0);
+    for (file, bytes) in c.iter() {
+        let Ok(o) = Object::new(dynm(bytes).unwrap()) else { continue };
+        let d = o.dynamic();
+        let defs: Vec<(u16, Option<Vec<u8>>)> = d.verdef().unwrap().into_iter().flatten().map(|v| {
+            let v = v.unwrap();
+            (v.ndx & 0x7fff, v.names().next().map(|a| a.unwrap().name.to_vec()))
+        }).collect();
+        let needs: Vec<(u16, Vec<u8>)> = d.verneed().unwrap().into_iter().flatten().flat_map(|n| n.unwrap().auxes().map(|a| a.unwrap()).map(|a| (a.other & 0x7fff, a.name.to_vec())).collect::<Vec<_>>()).collect();
+        let top = defs.iter().map(|x| x.0).chain(needs.iter().map(|x| x.0)).max().unwrap_or(0);
+        for i in 0..=top.saturating_add(2) {
+            let walk = if i <= 1 { None } else { defs.iter().find(|x| x.0 == i).and_then(|x| x.1.clone()) };
+            assert_eq!(o.version_name(i).unwrap().map(<[u8]>::to_vec), walk, "{file}: definition index {i}");
+            seen.0 += usize::from(walk.is_some());
+        }
+        // A reference's version: a requirement's name first, else a definition's.
+        let Some(vs) = d.versym().unwrap() else { continue };
+        for sym in 0..o.symtab().count().unwrap() {
+            let i = vs.get(sym).unwrap().index;
+            let walk = needs.iter().find(|x| x.0 == i).map(|x| x.1.clone()).or_else(|| defs.iter().find(|x| x.0 == i).and_then(|x| x.1.clone()));
+            let got = match o.reference_want(sym) {
+                Ok(Want::Reference(n)) => Some(n.to_vec()),
+                Ok(_) => None,
+                Err(e) => panic!("{file}: symbol {sym}: {e:?}"),
+            };
+            assert_eq!(got, if i <= 1 { None } else { walk }, "{file}: reference through symbol {sym} (index {i})");
+            seen.1 += usize::from(i > 1 && needs.iter().any(|x| x.0 == i));
+        }
+    }
+    assert!(seen.0 > 0 && seen.1 > 0, "the corpus has named definitions and requirements: {seen:?}");
+}
+
 #[test]
 fn gnu_and_sysv_give_the_same_answers() {
     // no spec clause: design §5, the two hash tables of one object give the same definitions.

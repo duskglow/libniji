@@ -170,6 +170,45 @@ fn inside(elf: &Elf<'_>, at: u64, len: u64, any: bool) -> bool {
     })
 }
 
+/// The most `PT_LOAD` ranges [`Loads`] holds; an object with more checks ranges through the table.
+const LOADS_MAX: usize = 8;
+
+/// The `PT_LOAD` ranges of one object (link-time start, end, writable), read once per relocation
+/// pass so that the check every entry makes ([`Loads::inside`]) does not decode the program
+/// header table again (DYN-START-PARITY: that walk was a quarter of a start's instructions). A
+/// segment whose end overflows is left out: [`inside`] never accepts a range in one.
+#[derive(Clone, Copy)]
+struct Loads {
+    seg: [(u64, u64, bool); LOADS_MAX],
+    n: usize,
+    /// More `PT_LOAD`s than fit: [`Loads::inside`] walks the table as [`inside`] does.
+    spill: bool,
+}
+
+impl Loads {
+    fn of(elf: &Elf<'_>) -> Self {
+        let mut l = Loads { seg: [(0, 0, false); LOADS_MAX], n: 0, spill: false };
+        for p in elf.program_headers().filter(|p| p.p_type == pt::LOAD) {
+            let Some(end) = p.vaddr.checked_add(p.memsz) else { continue };
+            match l.seg.get_mut(l.n) {
+                Some(s) => *s = (p.vaddr, end, p.flags & PF_W != 0),
+                None => l.spill = true,
+            }
+            l.n = l.n.saturating_add(1);
+        }
+        l
+    }
+
+    /// [`inside`] for the object these ranges were read from.
+    fn inside(&self, elf: &Elf<'_>, at: u64, len: u64, any: bool) -> bool {
+        if self.spill {
+            return inside(elf, at, len, any);
+        }
+        let Some(end) = at.checked_add(len) else { return false };
+        self.seg.iter().take(self.n).any(|&(lo, hi, w)| (any || w) && lo <= at && end <= hi)
+    }
+}
+
 /// Whether the object asks for text relocations.
 fn textrel(d: &Dynamic<'_>) -> bool {
     d.get(dt::TEXTREL).is_some() || d.get(dt::FLAGS).is_some_and(|f| f & dt::DF_TEXTREL != 0)
@@ -378,7 +417,8 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mu
 
 /// One relocation of object `i` in pass `deferred` (false: everything but the deferred entries;
 /// true: only them). Returns whether the entry is deferred (pass 1) or was applied (pass 2).
-fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+#[allow(clippy::too_many_arguments)]
+fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
     let o = set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let p = o.bias.wrapping_add(r.offset);
     let ops = |s: u64| Operands { s, a: r.addend, b: o.bias, p };
@@ -391,7 +431,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
     let put = |img: &mut I, f: Option<crate::arch::Field>, any: bool| -> Result<(), RelocError<'a>> {
         let Some(f) = f else { return Ok(()) };
         let w = usize::from(f.width);
-        if !inside(&o.elf, r.offset, u64::from(f.width), any) {
+        if !loads.inside(&o.elf, r.offset, u64::from(f.width), any) {
             return Err(RelocError::Outside(r.offset));
         }
         let (le, be) = (f.value.to_le_bytes(), f.value.to_be_bytes());
@@ -404,7 +444,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
         RelocKind::Relative if !deferred => put(img, field(r.kind, 0)?, text).map(|()| false),
         RelocKind::Relative => Ok(false),
         // Pass 1 checks the field a deferred entry will write, so pass 2 meets no new error.
-        RelocKind::Irelative if !deferred => inside(&o.elf, r.offset, 8, false).then_some(true).ok_or(RelocError::Outside(r.offset)),
+        RelocKind::Irelative if !deferred => loads.inside(&o.elf, r.offset, 8, false).then_some(true).ok_or(RelocError::Outside(r.offset)),
         RelocKind::Irelative => {
             let resolver = field(r.kind, 0)?.map_or(0, |f| f.value);
             let v = img.call(resolver);
@@ -418,7 +458,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
             match (t.ifunc, deferred) {
                 (false, false) => put(img, field(r.kind, t.s)?, text).map(|()| false),
                 (false, true) => Ok(false),
-                (true, false) => inside(&o.elf, r.offset, 8, false).then_some(true).ok_or(RelocError::Outside(r.offset)),
+                (true, false) => loads.inside(&o.elf, r.offset, 8, false).then_some(true).ok_or(RelocError::Outside(r.offset)),
                 (true, true) => {
                     let s = img.call(t.s);
                     put(img, field(r.kind, s)?, false).map(|()| true)
@@ -433,7 +473,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
             let src = t.obj.filter(|&d| i == 0 && d != 0).and_then(|d| set.objs.get(d)).ok_or(RelocError::Copy(r.offset))?;
             // The program's size; a smaller definition copies only what it has.
             let len = size.min(t.size);
-            if !inside(&src.elf, t.s.wrapping_sub(src.bias), len, true) || !inside(&o.elf, r.offset, size, false) {
+            if !inside(&src.elf, t.s.wrapping_sub(src.bias), len, true) || !loads.inside(&o.elf, r.offset, size, false) {
                 return Err(RelocError::Outside(r.offset));
             }
             img.copy(p, t.s, len);
@@ -458,7 +498,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, r: &Rela, deferre
             // its function is the image's static one and its argument the TP offset.
             let resolver = img.tlsdesc_static().ok_or(RelocError::Tls(r.r_type))?;
             let words = A::tls_descriptor(resolver, ops).map_err(|_| RelocError::Unsupported(r.r_type))?;
-            if !inside(&o.elf, r.offset, 16, text) {
+            if !loads.inside(&o.elf, r.offset, 16, text) {
                 return Err(RelocError::Outside(r.offset));
             }
             let mut bytes = [0u8; 16];
@@ -527,9 +567,10 @@ pub fn relocate_first<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, im
 pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<(), RelocError<'a>> {
     let o = *set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let text = textrel(&o.dynm);
+    let loads = Loads::of(&o.elf);
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
-            one::<A, I>(set, i, &r, true, text, img, unique)?;
+            one::<A, I>(set, i, &loads, &r, true, text, img, unique)?;
         }
     }
     if set.syms.first().is_some_and(Object::has_canonical_plt) {
@@ -542,9 +583,10 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
 /// out of [`relocate_first`], which then stays small.
 #[inline(never)]
 fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+    let loads = Loads::of(&o.elf);
     for at in o.dynm.relr().map_err(RelocError::Elf)?.into_iter().flatten() {
         let at = at.map_err(RelocError::Elf)?;
-        if !inside(&o.elf, at, 8, text) {
+        if !loads.inside(&o.elf, at, 8, text) {
             return Err(RelocError::Outside(at));
         }
         let p = o.bias.wrapping_add(at);
@@ -556,7 +598,7 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
     let mut deferred = false;
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
-            deferred |= one::<A, I>(set, i, &r, false, text, img, unique)?;
+            deferred |= one::<A, I>(set, i, &loads, &r, false, text, img, unique)?;
         }
     }
     Ok(deferred)
