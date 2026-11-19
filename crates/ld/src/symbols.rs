@@ -152,7 +152,7 @@ pub struct Def {
 }
 
 /// The hash table an [`Object`] walks. The table's mark (`GnuHash::mark`, `SysvHash::mark`) says
-/// this is the program's view and the program has canonical PLT entries ([`Object::program`]): it
+/// this is the program's view and the program has canonical PLT entries ([`Object::mark_program`]): it
 /// sits in the table's tail padding, so neither this enum nor [`Object`] grows (a fourth variant
 /// carrying a GNU table would: the enum's spare discriminant values only fit a SysV-sized payload).
 #[derive(Clone, Copy, Debug)]
@@ -219,7 +219,7 @@ impl<'a> Object<'a> {
         Ok(Object { dynm, symtab, hash, versym: dynm.versym()? })
     }
 
-    /// This view as the program's: its canonical PLT entries ([`canonical_plt`]) define their
+    /// Makes this view the program's: its canonical PLT entries ([`canonical_plt`]) define their
     /// functions for every lookup. Only the program has them (gABI "Symbol Values": the executable
     /// file's PLT); a shared object's undefined symbols stay references whatever their value. A
     /// `JUMP_SLOT` must not bind such an entry (the entry is itself the slot's caller): the relocator
@@ -227,25 +227,24 @@ impl<'a> Object<'a> {
     ///
     /// The entries are found once here, among the symbols the hash table covers (a GNU table leaves
     /// out the symbols below `symoffset`, which a linker gives only to plain references); a program
-    /// without one keeps the plain view.
-    #[must_use]
+    /// without one keeps the plain view. In place: only the table's mark byte is written (taking and
+    /// returning the view by value copied all of it).
     #[inline(never)]
-    pub fn program(self) -> Self {
-        let first = match self.hash {
+    pub fn mark_program(&mut self) {
+        let first = match &self.hash {
             Hash::Gnu(g) => g.symoffset(),
             Hash::Sysv(_) => 1,
         };
         let count = self.symtab.count().unwrap_or(0);
         let canonical = (first..count).any(|i| self.symtab.get(i).is_ok_and(|s| canonical_plt(&s)));
-        let hash = match self.hash {
-            Hash::Gnu(g) => Hash::Gnu(g.marked(canonical)),
-            Hash::Sysv(s) => Hash::Sysv(s.marked(canonical)),
-        };
-        Object { hash, ..self }
+        match &mut self.hash {
+            Hash::Gnu(g) => g.set_mark(canonical),
+            Hash::Sysv(s) => s.set_mark(canonical),
+        }
     }
 
     /// Whether this is the program's view and the program has canonical PLT entries
-    /// ([`Object::program`]).
+    /// ([`Object::mark_program`]).
     #[must_use]
     pub fn has_canonical_plt(&self) -> bool {
         match self.hash {
@@ -254,13 +253,15 @@ impl<'a> Object<'a> {
         }
     }
 
-    /// Whether `st`, a hash candidate that is not an exported definition, is one of the program's
-    /// canonical PLT entries ([`Object::program`]). Cold and out of line: a lookup reaches it only
-    /// for such a candidate, so the flag's read (a match on the hash table) stays off the walk.
+    /// Whether symbol `i`, a hash candidate that is not an exported definition, is one of the
+    /// program's canonical PLT entries ([`Object::mark_program`]). Cold and out of line: a lookup reaches
+    /// it only for such a candidate, so the flag's read (a match on the hash table) stays off the
+    /// walk. It takes the index and reads the symbol again, so the caller need not keep the symbol
+    /// in memory to pass it by reference on every candidate.
     #[cold]
     #[inline(never)]
-    fn canonical_entry(&self, st: &Sym) -> bool {
-        canonical_plt(st) && self.has_canonical_plt()
+    fn canonical_entry(&self, i: u32) -> bool {
+        self.has_canonical_plt() && self.symtab.get(i).is_ok_and(|s| canonical_plt(&s))
     }
 
     /// The dynamic section the view reads.
@@ -383,7 +384,7 @@ impl<'a> Object<'a> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !(exported(&st) || self.canonical_entry(&st)) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || self.canonical_entry(i)) || self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {

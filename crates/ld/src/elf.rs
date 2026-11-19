@@ -1301,10 +1301,9 @@ pub struct SysvHash<'a> {
 }
 
 impl<'a> SysvHash<'a> {
-    /// This table with its mark set to `on` ([`GnuHash::marked`]).
-    #[must_use]
-    pub(crate) fn marked(self, on: bool) -> Self {
-        SysvHash { mark: u8::from(on), ..self }
+    /// Sets the mark to `on` ([`GnuHash::set_mark`]).
+    pub(crate) fn set_mark(&mut self, on: bool) {
+        self.mark = u8::from(on);
     }
 
     /// The mark ([`GnuHash::mark`]).
@@ -1390,7 +1389,7 @@ pub struct GnuHash<'a> {
     symoffset: u32,
     bloom_shift: u32,
     /// One bit the user of the table keeps with it (the lookup view's "the program has canonical
-    /// PLT entries", `symbols::Object::program`); false as read. It sits in the struct's tail
+    /// PLT entries", `symbols::Object::mark_program`); false as read. It sits in the struct's tail
     /// padding, so the table and every view that holds one keep their size. A `u8` (0 or 1), not a
     /// `bool`: a `bool` has invalid values the compiler would take for the discriminant of an enum
     /// holding the table (`symbols::Hash`), moving it off the byte it uses without the mark and
@@ -1408,13 +1407,12 @@ pub struct GnuEntry {
 }
 
 impl<'a> GnuHash<'a> {
-    /// This table with its mark set to `on`.
-    #[must_use]
-    pub(crate) fn marked(self, on: bool) -> Self {
-        GnuHash { mark: u8::from(on), ..self }
+    /// Sets the mark to `on`.
+    pub(crate) fn set_mark(&mut self, on: bool) {
+        self.mark = u8::from(on);
     }
 
-    /// The mark: false as read, else what [`GnuHash::marked`] set.
+    /// The mark: false as read, else what [`GnuHash::set_mark`] set.
     #[must_use]
     pub(crate) fn mark(&self) -> bool {
         self.mark != 0
