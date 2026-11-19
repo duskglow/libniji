@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (224 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (225 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -1829,6 +1829,14 @@ fn abi_struct_obstack() {
     expect_member("struct obstack", "chunkfun", offset_of!(struct_obstack, chunkfun));
     expect_member("struct obstack", "freefun", offset_of!(struct_obstack, freefun));
     expect_member("struct obstack", "extra_arg", offset_of!(struct_obstack, extra_arg));
+}
+
+#[test]
+fn abi_struct_obstack_chunk() {
+    expect_type("struct _obstack_chunk", size_of::<struct__obstack_chunk>(), align_of::<struct__obstack_chunk>());
+    expect_member("struct _obstack_chunk", "limit", offset_of!(struct__obstack_chunk, limit));
+    expect_member("struct _obstack_chunk", "prev", offset_of!(struct__obstack_chunk, prev));
+    expect_member("struct _obstack_chunk", "contents", offset_of!(struct__obstack_chunk, contents));
 }
 
 #[test]

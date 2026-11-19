@@ -1,0 +1,9 @@
+# DL-CANONICAL-PLT-6 plants (the canonical flag moved out of `Object`; dladdr at the load base):
+# cargo xtask plants handoff/DL-CANONICAL-PLT-6-plants.txt --dir <RAM dir> --timeout 900
+dladdr-any-undefined | crates/boundary/src/ld/dlopen/dladdr.rs | lit:let canonical = s.shndx == SHN_UNDEF && program && canonical_plt(&s); ==> let canonical = s.shndx == SHN_UNDEF; | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_canonical_plt_entry_for_scoped | msg:observations differ from the reference
+start-flag-off | crates/boundary/src/ld.rs | lit:let canonical = syms[0].canonical_entries(); ==> let canonical = false && syms[0].canonical_entries(); | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_nonpie | msg:test result: FAILED|panicked
+adopt-flag-off | crates/boundary/src/ld/dlopen.rs | lit:l.canonical = s.canonical_entries(); ==> l.canonical = false && s.canonical_entries(); | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_canonical_plt_entry_for_scoped | msg:observations differ from the reference
+scope-entries-off | crates/ld/src/symbols.rs | lit:Scope { entries: on, ..self } ==> Scope { entries: false && on, ..self } | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:test result: FAILED|panicked
+search-wrong-object | crates/ld/src/symbols.rs | lit:if ENTRIES && o == 0 { ==> if ENTRIES && o == 1 { | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:test result: FAILED|panicked
+protected-wrong-object | crates/ld/src/reloc.rs | lit:STV_PROTECTED && i == 0 && set.canonical ==> STV_PROTECTED && i == 1 && set.canonical | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:test result: FAILED|panicked
+slots-off | crates/ld/src/reloc.rs | lit:let first = if set.canonical { ==> let first = if false && set.canonical { | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:test result: FAILED|panicked

@@ -1,59 +1,102 @@
 #!/usr/bin/env python3
 """Check libniji's generated headers (plan/headers.md section 3; SL-HEADERS-S05): P5 hygiene, the level model,
-and P1 identity of the C 7.20 integer types.
+P1 identity with the tables and P8 kernel UAPI coexistence.
 
     python3 spec/tools/header_check.py [--work DIR] [--include DIR]
 
 Needs gcc and g++ only (any host; no reference headers are read: every unit is compiled with `-nostdinc
 -isystem <DIR> -isystem <the compiler's own include>`, DIR = libc-include/ by default, or the tree `cargo xtask
-so` staged, target/niji/include). For each configuration of spec/abi/ftm-configs.tsv:
+so` staged, target/niji/include).
 
+Which headers are checked is data: one file per header slice, `headers/slices/<slice>.tsv`, one row per header
+(columns `header`, `p1`, `uapi`; plan/headers.md section 4, "Adding a slice"). Checks of one slice only live in
+`spec/tools/header_checks/<slice>.py`, found by listing that directory (SL-HEADERS-REGISTRY): a slice adds files and
+edits no list or function here. For each configuration of spec/abi/ftm-configs.tsv:
+
+* slices  every row names a header with a template `headers/<header>.in`, no header is in two rows, and every
+          template is in a row (each problem one FAIL naming the row);
 * levels  a unit that includes features.h and `#error`s unless each `__NIJI_<level>` equals its
           headers/levels.tsv cell; it must compile, or fail for a configuration levels.tsv rejects;
-* P5      each header of HEADERS compiles alone and included twice, `-Wall -Wextra -Wsystem-headers -Werror`;
-* P1      (ruling #6047) every C 7.20.1 type spelled by header_probe.c_integer_names(): C asserts its size and
-          alignment, C++ asserts `__is_same` with the typedefs.tsv `cxx` spelling (the spelling enters C++
-          linkage names, so `long` against `long long` is ABI).
+* P5      each header of the slice tables compiles alone and included twice, `-Wall -Wextra -Wsystem-headers -Werror`;
+* P1      per (header, configuration), for the rows with `p1` 1: every macros.tsv integer value, typedefs.tsv size and
+          alignment and layouts.tsv structure size and alignment of what visibility.tsv makes visible there;
+* slice   the units of each `header_checks/<slice>.py` (`units(ctx)`, and FAIL lines from `problems(ctx)`);
+* P8      each header with the kernel UAPI headers of its `uapi` cell, both include orders (see `p8`).
 
 Prints one FAIL line per failing unit and `header_check: N failed of M`; exit 1 when any failed.
 """
 import argparse
 import glob
+import importlib.util
 import os
-import re
 import subprocess
 import sys
 import tempfile
+import types
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import header_probe as hp  # noqa: E402  (ROOT, c_integer_names)
 
 ROOT = hp.ROOT
-SLICE9 = ["sys/signalfd.h", "sys/timerfd.h", "sys/eventfd.h", "sys/epoll.h", "sys/inotify.h", "sys/fanotify.h", "sys/prctl.h",
-          "sys/personality.h", "sys/pidfd.h", "sys/auxv.h", "sys/random.h", "sys/syscall.h", "syscall.h", "sys/ptrace.h",
-          "sys/user.h", "sys/reg.h", "sys/procfs.h", "sys/debugreg.h"]
-HEADERS = ["features.h", "features-time64.h", "stdc-predef.h", "sys/cdefs.h", "sys/types.h", "sys/bitypes.h",
-           "stdint.h", "inttypes.h", "limits.h", "endian.h", "byteswap.h", "errno.h", "sys/errno.h", "alloca.h",
-           "gnu-versions.h", "gnu/stubs.h",
-           # slice 6
-           "stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-           "getopt.h", "time.h"] + SLICE9 + [
-           # slice 11
-           "math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
+SLICES = "headers/slices"
+CHECKS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "header_checks")
 COLS = [("isoc", "ISOC"), ("posix", "POSIX"), ("xsi", "XSI"), ("misc", "MISC"), ("gnu", "GNU"), ("lfs64", "LFS64"),
         ("fob64", "FOB64"), ("time64", "TIME64"), ("dynstack", "DYNSTACK"), ("fortify", "FORTIFY"), ("cxx", "CXX")]
-
-
-# Slice 14 (aio.h and mqueue.h wait for the generation of struct sigevent and struct f_owner_ex).
-SLICE14 = ["pwd.h", "grp.h", "shadow.h", "gshadow.h", "utmp.h", "utmpx.h", "lastlog.h", "sys/fsuid.h", "termios.h",
-           "sys/termios.h", "termio.h", "sgtty.h", "pty.h", "ttyent.h", "sys/ttychars.h", "sys/ttydefaults.h", "syslog.h",
-           "sys/syslog.h", "sys/ipc.h", "sys/msg.h", "sys/sem.h", "sys/shm.h"]
-HEADERS += SLICE14
-SLICE6 = ["stdio.h", "stdlib.h", "string.h", "strings.h", "memory.h", "unistd.h", "sys/unistd.h", "assert.h", "ctype.h",
-          "getopt.h", "time.h", "math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
-FLOAT_SUFFIX = {"float": ("f", 4), "double": ("", 8), "long double": ("L", 16), "_Float32": ("f32", 4), "_Float64": ("f64", 8),
-                "_Float128": ("f128", 16), "_Float32x": ("f32x", 8), "_Float64x": ("f64x", 16)}
+# Macros whose definition is not a constant expression in some configurations (limits.h.in: a sysconf call where the
+# minimum thread stack size is dynamic), so a static assertion on the value cannot be written for them.
+NOT_CONSTANT = {"PTHREAD_STACK_MIN"}
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
+
+
+def slice_rows():
+    """(rows, problems): the rows of every headers/slices/*.tsv in file-name order, each a dict with its `where`
+    (`headers/slices/s09.tsv:7`), and one message per row or template that breaks the rules of the module docstring."""
+    out, problems, seen = [], [], {}
+    for path in sorted(glob.glob(os.path.join(ROOT, SLICES, "*.tsv"))):
+        rel = os.path.relpath(path, ROOT)
+        head = None
+        with open(path) as f:
+            for n, line in enumerate(f, 1):
+                if line.startswith("#") or not line.strip():
+                    continue
+                cells = line.rstrip("\n").split("\t")
+                if head is None:
+                    head = cells
+                    if head[:3] != ["header", "p1", "uapi"]:
+                        problems.append(f"{rel}:{n}: columns are {head}, not header, p1, uapi")
+                        break
+                    continue
+                r = dict(zip(head, cells))
+                r["where"] = f"{rel}:{n}"
+                h = r.get("header", "")
+                if not os.path.isfile(os.path.join(ROOT, "headers", h + ".in")):
+                    problems.append(f"{r['where']}: {h}: no template headers/{h}.in")
+                if h in seen:
+                    problems.append(f"{r['where']}: {h} is also in {seen[h]}")
+                    continue
+                if r.get("p1") not in ("0", "1"):
+                    problems.append(f"{r['where']}: {h}: p1 is {r.get('p1')!r}, not 0 or 1")
+                seen[h] = r["where"]
+                out.append(r)
+    for t in sorted(glob.glob(os.path.join(ROOT, "headers", "**", "*.h.in"), recursive=True)):
+        h = os.path.relpath(t, os.path.join(ROOT, "headers"))[:-3]
+        if h not in seen:
+            problems.append(f"headers/{h}.in: {h} is in no {SLICES}/*.tsv row")
+    return out, problems
+
+
+def slice_checks():
+    """The per-slice check modules spec/tools/header_checks/*.py, in file-name order."""
+    mods = []
+    for path in sorted(glob.glob(os.path.join(CHECKS, "*.py"))):
+        name = os.path.basename(path)[:-3]
+        if name.startswith("_"):
+            continue
+        spec = importlib.util.spec_from_file_location(f"header_checks_{name}", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mods.append((name, mod))
+    return mods
 
 
 def expand(configs, ids):
@@ -65,92 +108,51 @@ def expand(configs, ids):
     return set(configs.split(","))
 
 
-def decimal_literal(hexconst):
-    """The exact value of a probed hexadecimal floating constant as a decimal literal (60 digits: well above the 36 a
-    binary128 value needs, so the compiler reads it back as the same value). Hexadecimal floating constants are not
-    tokens in C89 and C++98 to C++14, and the unit is compiled in every mode."""
-    import decimal
-    neg = hexconst.startswith("-")
-    h = hexconst.lstrip("-")
-    mant, exp = h[2:].split("p")
-    ip, _, fp = mant.partition(".")
-    m = int((ip + fp) or "0", 16)
-    e = int(exp) - 4 * len(fp)
-    with decimal.localcontext() as ctx:
-        ctx.prec = 60
-        v = decimal.Decimal(m) * (decimal.Decimal(2) ** e)
-    return ("-" if neg else "") + format(v, "e")
-
-
-def p1_units(ids, vis, macros, typedefs, layouts):
-    """P1 of slice 6 (plan/headers.md section 3): per (header, configuration) one unit that includes the header and
-    asserts, for what the header makes visible there, every macros.tsv integer value, every typedef size and
-    alignment of typedefs.tsv and every structure size and alignment of layouts.tsv. A false condition is a
-    negative array size, which every language mode rejects (C89 and C++98 have no static assertion)."""
+def p1_units(ctx):
+    """P1 (plan/headers.md section 3) of the headers whose slice row has `p1` 1: per (header, configuration) one unit
+    that includes the header and asserts, for what the header makes visible there, every macros.tsv integer value,
+    every typedef size and alignment of typedefs.tsv and every structure size and alignment of layouts.tsv. A false
+    condition is a negative array size, which every language mode rejects (C89 and C++98 have no static assertion)."""
+    p1 = {r["header"] for r in ctx.slice_rows if r["p1"] == "1"}
+    macros, typedefs, layouts = ctx.macros, ctx.typedefs, ctx.layouts
     out = {}
-    # A template with `@@emit-c` (slice 11) decides a name by its C configurations only: the C++ names of such a header
-    # come from the C++ standard library's wrappers, so a name with no C row is not the header's (same filter as headers-gen).
-    emit_c = set()
-    for t in glob.glob(os.path.join(ROOT, "headers", "**", "*.h.in"), recursive=True):
-        with open(t) as f:
-            if any(l.startswith("@@emit-c") for l in f):
-                emit_c.add(os.path.relpath(t, os.path.join(ROOT, "headers"))[:-3])
-    c_names = {(r["header"], r["name"]) for r in vis if any(not c.startswith("cxx") for c in re.split(r"[,!]", r["configs"]) if c)}
-    for r in vis:
+    for r in ctx.vis:
         h = r["header"]
-        if h not in SLICE6 + SLICE9 + SLICE14 or r["kind"] not in ("macro", "typedef", "struct", "union"):
+        if h not in p1 or r["kind"] not in ("macro", "typedef", "struct"):
             continue
         n = r["name"]
-        if h in emit_c and (h, n) not in c_names:
+        if n in NOT_CONSTANT:
             continue
-        if n.startswith("__") or (n.startswith("_") and n.endswith("_H")):
+        if n.startswith("__") or (n.startswith("_") and n.rstrip("_").endswith("_H")):
             continue  # reserved names are emitted only where headers/reserved.tsv says so (owner rulings R-H2, R-H3)
         tests = []
         if r["kind"] == "macro" and n in macros and macros[n]["type"] in INT_SUFFIX and macros[n]["header"] == h:
             m = macros[n]
             v = int(m["value"])
             sfx = INT_SUFFIX[m["type"]]
-            # The most negative value has no literal (its magnitude is unsigned): (-max - 1).
-            lit = "(%d%s)" % (v, sfx) if v > -(1 << 31) or (v != -(1 << 31) and v != -(1 << 63)) else "(%d%s-1)" % (v + 1, sfx)
+            # The most negative 64-bit value has no literal: its magnitude does not fit the type (C 6.4.4.1).
+            lit = ("(%d%s - 1)" % (v + 1, sfx)) if v in (-2**63, -2**31) and sfx in ("L", "LL", "") else "(%d%s)" % (v, sfx)
             tests.append(f"(({n}) == {lit})")
-        elif r["kind"] == "macro" and n in macros and macros[n]["type"] in FLOAT_SUFFIX and macros[n]["header"] == h and macros[n]["value"].startswith("0x"):
-            # A floating macro (C 7.12, TS 18661): its size is its type's and its value the exact probed constant.
-            m = macros[n]
-            suffix, size = FLOAT_SUFFIX[m["type"]]
-            tests.append(f"sizeof({n}) == {size}")
-            tests.append(f"F:(({n}) == {decimal_literal(m['value'])}{suffix})")
         elif r["kind"] == "typedef" and n in typedefs and typedefs[n]["size"]:
             t = typedefs[n]
             tests.append(f"sizeof({n}) == {t['size']}")
             tests.append(f"__alignof__({n}) == {t['align']}")
-        elif r["kind"] in ("struct", "union") and (r["kind"] + " " + n) in layouts:
-            t = layouts[r["kind"] + " " + n]
-            tests.append(f"sizeof({r['kind']} {n}) == {t['offset_or_size']}")
-            tests.append(f"__alignof__({r['kind']} {n}) == {t['align']}")
-        for cid in expand(r["configs"], ids):
+        elif r["kind"] == "struct" and ("struct " + n) in layouts:
+            t = layouts["struct " + n]
+            tests.append(f"sizeof(struct {n}) == {t['offset_or_size']}")
+            tests.append(f"__alignof__(struct {n}) == {t['align']}")
+        for cid in expand(r["configs"], ctx.ids):
             out.setdefault((h, cid), []).extend(tests)
     units = {}
     for (h, cid), tests in out.items():
         if tests:
-            # A floating comparison is not an integer constant expression: those use _Static_assert (C11, C++11).
-            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests) if not t.startswith("F:"))
-            ft = [t[2:] for t in tests if t.startswith("F:")]
-            if ft:
-                body += "#if defined __cplusplus && __cplusplus >= 201103L\n"
-                body += "".join(f"static_assert({t}, \"niji_p1_float\");\n" for t in ft)
-                body += "#elif !defined __cplusplus && defined __STDC_VERSION__ && __STDC_VERSION__ >= 201112L\n"
-                body += "".join(f"_Static_assert({t}, \"niji_p1_float\");\n" for t in ft) + "#endif\n"
+            body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             units.setdefault(cid, []).append((f"P1 {h}", body))
-    # sys/syscall.h (SL-HEADERS-S09): SYS_<name> is the number of spec/abi/syscalls.tsv, which is the kernel's __NR_<name>.
-    sysrows = rows("spec/abi/syscalls.tsv")
-    body = "#include <sys/syscall.h>\n" + "".join(f"typedef char niji_p1_sys_{r['name']}[(SYS_{r['name']} == {r['number']}) ? 1 : -1];\n" for r in sysrows)
-    for cid in ids:
-        units.setdefault(cid, []).append(("P1 sys/syscall.h", body))
     return units
 
 
 def uapi_flags():
-    """`-isystem` for the kernel UAPI directories (linux-libc-dev) the headers of slice 9 include: $NIJI_UAPI (the tree
+    """`-isystem` for the kernel UAPI directories (linux-libc-dev) some headers include: $NIJI_UAPI (the tree
     `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include
     directories (their glibc headers stay out of reach: the units use -nostdinc and the libniji tree comes first)."""
     d = os.environ.get("NIJI_UAPI")
@@ -159,16 +161,15 @@ def uapi_flags():
     return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
 
 
-# P8 (plan/headers.md section 3, slice 9): a libniji header and the kernel UAPI header that defines the same names. Both
-# include orders must compile, as C and as C++, with and without _GNU_SOURCE; a pair whose kernel header is not installed
-# is skipped.
-P8_PAIRS = [("sys/ptrace.h", "linux/ptrace.h"), ("sys/ptrace.h", "asm/ptrace.h"), ("sys/prctl.h", "linux/prctl.h"),
-            ("sys/inotify.h", "linux/inotify.h"), ("sys/fanotify.h", "linux/fanotify.h"), ("sys/epoll.h", "linux/eventpoll.h"),
-            ("sys/random.h", "linux/random.h"), ("sys/pidfd.h", "linux/pidfd.h"), ("sys/auxv.h", "linux/auxvec.h"),
-            ("sys/auxv.h", "asm/auxvec.h"), ("sys/personality.h", "linux/personality.h"), ("sys/eventfd.h", "linux/eventfd.h"),
-            ("sys/timerfd.h", "linux/timerfd.h"), ("sys/signalfd.h", "linux/signalfd.h"), ("sys/syscall.h", "asm/unistd.h"),
-            ("syscall.h", "asm/unistd.h"), ("sys/debugreg.h", "asm/debugreg.h"), ("sys/user.h", "asm/user.h")]
+# P8 (plan/headers.md section 3): a libniji header and a kernel UAPI header that defines the same names (the `uapi` cell
+# of its slice row). Both include orders must compile, as C and as C++, with and without _GNU_SOURCE; a pair whose
+# kernel header is not installed is skipped.
 P8_MODES = [("c", "-std=c17"), ("c", "-std=c17 -D_GNU_SOURCE"), ("c", "-std=gnu17"), ("c++", "-std=c++17 -D_GNU_SOURCE")]
+
+
+def p8_pairs(slice_rows):
+    """(libniji header, kernel header) for every `uapi` cell of the slice tables, in table order."""
+    return [(r["header"], k) for r in slice_rows if r["uapi"] not in ("", "-") for k in r["uapi"].split(",")]
 
 
 def reference_works(work):
@@ -179,7 +180,7 @@ def reference_works(work):
     return subprocess.run(["gcc", "-fsyntax-only", src], capture_output=True).returncode == 0
 
 
-def p8(inc, gccinc, work):
+def p8(inc, gccinc, work, pairs):
     """(failures, units) of the P8 include-order units. The kernel's own headers conflict with a libc's for most
     of these pairs (only `linux/libc-compat.h`'s set has a protocol); a unit that does not compile with the reference
     system's headers either is printed as a NOTE and is not a failure (black-box parity, plan/headers.md 2.2)."""
@@ -187,7 +188,7 @@ def p8(inc, gccinc, work):
     uapi = uapi_flags()
     dirs = [uapi[i + 1] for i in range(0, len(uapi), 2)]
     fails = total = 0
-    for a, b in P8_PAIRS:
+    for a, b in pairs:
         if not any(os.path.isfile(os.path.join(d, b)) for d in dirs):
             continue
         for lang, flags in P8_MODES:
@@ -225,17 +226,6 @@ def rows(rel):
     return out
 
 
-def identity_unit(cxx, types):
-    """P1 lines for the C 7.20.1 types (typedefs.tsv rows), C or C++."""
-    lines = ["#include <stdint.h>"]
-    for name, r in types:
-        if cxx:
-            lines.append(f"static_assert(__is_same({name}, {r['cxx']}), \"{name} is {r['cxx']}\");")
-        else:
-            lines.append(f"_Static_assert(sizeof({name}) == {r['size']} && _Alignof({name}) == {r['align']}, \"{name}\");")
-    return "\n".join(lines) + "\n"
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--work", default="")
@@ -248,21 +238,25 @@ def main():
     os.makedirs(work, exist_ok=True)
     cfgs = rows("spec/abi/ftm-configs.tsv")
     levels = {r["id"]: r for r in rows("headers/levels.tsv")}
-    typedefs = {r["name"]: r for r in rows("spec/abi/typedefs.tsv") if r["kind"] == "typedef"}
-    wanted = [n for n in hp.c_integer_names() if n.islower()] + ["intmax_t", "uintmax_t", "intptr_t", "uintptr_t"]
-    missing = [n for n in wanted if n not in typedefs]
-    types = [(n, typedefs[n]) for n in wanted if n in typedefs]
-    gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
-    vis = rows("spec/abi/visibility.tsv")
-    macros = {r["name"]: r for r in rows("spec/abi/macros.tsv")}
+    srows, problems = slice_rows()
     layouts = {}
     for r in rows("spec/abi/layouts.tsv"):
         if not r["member"]:
             layouts[r["type"]] = r
-    p1s = p1_units([c["id"] for c in cfgs], vis, macros, typedefs, layouts)
-    fails, total = len(missing), len(missing)
-    for n in missing:
-        print(f"FAIL P1 {n}: no typedefs.tsv row")
+    # What a slice's own checks (header_checks/<slice>.py) read: the tables, loaded once.
+    ctx = types.SimpleNamespace(
+        root=ROOT, hp=hp, rows=rows, cfgs=cfgs, ids=[c["id"] for c in cfgs], slice_rows=srows,
+        vis=rows("spec/abi/visibility.tsv"), macros={r["name"]: r for r in rows("spec/abi/macros.tsv")},
+        typedefs={r["name"]: r for r in rows("spec/abi/typedefs.tsv") if r["kind"] == "typedef"}, layouts=layouts)
+    gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+    p1s = p1_units(ctx)
+    for name, mod in slice_checks():
+        problems += getattr(mod, "problems", lambda _ctx: [])(ctx)
+        for cid, what, body in mod.units(ctx):
+            p1s.setdefault(cid, []).append((what, body))
+    fails, total = len(problems), len(problems)
+    for p in problems:
+        print(f"FAIL {p}")
     # The kernel's UAPI headers (linux-libc-dev; libniji ships none): a directory of links to the build host's
     # `linux`, `asm-generic` and `asm`, so the C library's own headers of the host stay out of the units.
     kern = os.path.join(work, "kernel-uapi")
@@ -283,22 +277,14 @@ def main():
         units = [("levels", "#include <features.h>\n" + "".join(
             f"#if __NIJI_{mac} != {lv[col]}\n#error \"__NIJI_{mac} is not {lv[col]}\"\n#endif\n" for col, mac in COLS))]
         if not rejected:
-            units += [(f"P5 {h}", f"#include <{h}>\n#include <{h}>\nint niji_check_tu;\n") for h in HEADERS]
-            # static_assert is C++11 and _Static_assert C11 (C89 mode has neither as a keyword).
-            if c["id"] not in ("cxx98", "c89", "isoc99"):
-                units.append(("P1 stdint", identity_unit(cxx, types)))
-        if not rejected:
+            units += [(f"P5 {r['header']}", f"#include <{r['header']}>\n#include <{r['header']}>\nint niji_check_tu;\n") for r in srows
+                      if not r["header"].startswith("finclude/")]  # a Fortran include file (slice 11), not C
             units += p1s.get(c["id"], [])
-        if c["id"] == "gnu":
-            with open(os.path.join(ROOT, "spec", "tools", "tgmath_types.c")) as f:
-                units.append(("P6 tgmath", f.read()))
-            with open(os.path.join(ROOT, "spec", "tools", "ieee754_fields.c")) as f:
-                units.append(("P6 ieee754 fields", f.read()))
         for i, (what, text) in enumerate(units):
             src = os.path.join(work, f"{c['id']}-{i}.{ext}")
             with open(src, "w") as f:
                 f.write(text)
-            # A unit whose first lines say `niji: codegen` needs the optimiser (its checks are folded, not evaluated by the parser).
+            # A unit with `niji: codegen` in its text needs the optimiser (its checks are folded, not evaluated by the parser).
             cmd = [("-O1" if a == "-fsyntax-only" else a) for a in base] + ["-S", "-o", os.devnull] if "niji: codegen" in text else base
             r = subprocess.run(cmd + [src], capture_output=True, text=True)
             total += 1
@@ -306,7 +292,7 @@ def main():
             if not ok:
                 fails += 1
                 print(f"FAIL {what} {c['id']}: rc {r.returncode}: {' | '.join(r.stderr.strip().splitlines()[:3])[:400]}")
-    f8, t8 = p8(inc, gccinc, work)
+    f8, t8 = p8(inc, gccinc, work, p8_pairs(srows))
     fails, total = fails + f8, total + t8
     print(f"header_check: {fails} failed of {total}")
     return 1 if fails else 0

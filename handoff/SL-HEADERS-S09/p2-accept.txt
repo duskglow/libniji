@@ -1,2 +1,0 @@
-# probe_compare visibility --accept: the differences row 'struct timespec in <sys/pidfd.h> under _XOPEN_SOURCE 400 to 700 without POSIX 2008' of docs/differences-from-glibc.md
-differs sys/pidfd.h timespec struct table [!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,xopen,xopen500,xopen600,xopenext,isoc99,isoc11,isoc2x,time64only] libniji [!c89,c99,c11,c17,c2x,posix1,posix2,posix199309,posix199506,posix200112,isoc99,isoc11,isoc2x,time64only]

@@ -17,7 +17,22 @@ __NIJI_BEGIN_C
 #if 1
 # ifndef __NIJI_D_fenv_t
 #  define __NIJI_D_fenv_t 1
-typedef struct { char __niji_opaque[32] __attribute__ ((__aligned__ (4))); } fenv_t;
+typedef struct {
+  unsigned short __control_word;
+  unsigned short __glibc_reserved1;
+  unsigned short __status_word;
+  unsigned short __glibc_reserved2;
+  unsigned short __tags;
+  unsigned short __glibc_reserved3;
+  unsigned int __eip;
+  unsigned short __cs_selector;
+  unsigned int __opcode : 11;
+  unsigned int __glibc_reserved4 : 5;
+  unsigned int __data_offset;
+  unsigned short __data_selector;
+  unsigned short __glibc_reserved5;
+  unsigned int __mxcsr;
+} fenv_t;
 # endif
 # ifndef __NIJI_D_fexcept_t
 #  define __NIJI_D_fexcept_t 1

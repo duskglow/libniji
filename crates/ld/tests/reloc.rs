@@ -327,6 +327,64 @@ fn reloc_model_corpus_one_object_per_type() {
     std::fs::remove_dir_all(&d).ok();
 }
 
+/// `no spec clause` (DL-DYNAMIC-RELOC, probe `tools/probe/dl/dynreloc`): each loaded object's dynamic
+/// array holds the address tags as run-time addresses after `publish_dynamic`, every other entry
+/// as the file has it; a second call stores the same words (it reads the link-time view); a copy of
+/// the published array shifted back by the bias is the file's array again.
+#[test]
+fn reloc_publish_dynamic_in_the_model() {
+    use niji_ld::elf::{dynamic_published, shift_address_entries, RUNTIME_ADDRESS_TAGS};
+    // The one rule: wholly inside one writable segment.
+    assert!(dynamic_published(0x1100, 0x40, [(0x1000, 0x200)]));
+    assert!(dynamic_published(0x1000, 0x200, [(0x500, 0x10), (0x1000, 0x200)]), "exactly the segment, the second one");
+    assert!(!dynamic_published(0x1100, 0x40, [(0x1000, 0x120)]), "runs past the segment's end");
+    assert!(!dynamic_published(0xff0, 0x40, [(0x1000, 0x200)]), "starts before it");
+    assert!(!dynamic_published(0x1100, 0x40, []), "no writable segment");
+    assert!(!dynamic_published(u64::MAX - 8, 0x40, [(0, u64::MAX)]), "an end past the address space");
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("publish");
+    let paths = corpus(&d, &[]);
+    let files: Vec<Vec<u8>> = [&paths[3], &paths[1]].iter().map(|p| std::fs::read(p).unwrap()).collect();
+    let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+    let mut objs = vec![];
+    for (i, f) in files.iter().enumerate() {
+        let elf = Elf::parse::<Native>(f).unwrap();
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            m.mem.insert(bias(i) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(i) + ph.vaddr), hi.max(bias(i) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        objs.push(Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(i), name: b"o", tls: None });
+    }
+    for o in &objs {
+        let dynph = o.elf.published_dynamic().expect("the system linker puts the dynamic array in a writable segment");
+        let file = o.elf.segment_bytes(&dynph).unwrap().to_vec();
+        reloc::publish_dynamic(o, &mut m);
+        let once = m.bytes(o.bias + dynph.vaddr, file.len()).to_vec();
+        reloc::publish_dynamic(o, &mut m);
+        assert_eq!(m.bytes(o.bias + dynph.vaddr, file.len()), &once[..], "a second call stores the same words");
+        let (mut shifted, mut ended) = (0, false);
+        for (f, r) in file.chunks_exact(16).zip(once.chunks_exact(16)) {
+            let (tag, fv, rv) = (u64::from_le_bytes(f[..8].try_into().unwrap()), u64::from_le_bytes(f[8..].try_into().unwrap()), u64::from_le_bytes(r[8..].try_into().unwrap()));
+            assert_eq!(&f[..8], &r[..8], "tags unchanged");
+            let address = !ended && RUNTIME_ADDRESS_TAGS.contains(&tag);
+            assert_eq!(rv, if address { fv + o.bias } else { fv }, "tag {tag:#x}");
+            shifted += usize::from(address);
+            ended |= tag == 0;
+        }
+        assert!(shifted >= 3, "STRTAB, SYMTAB and a hash table at least: {shifted}");
+        let mut back = once.clone();
+        shift_address_entries(&mut back, o.bias.wrapping_neg());
+        assert_eq!(back, file, "the copy shifted back is the file's array");
+    }
+    std::fs::remove_dir_all(&d).ok();
+}
+
 /// s27_1_f_0: a versioned reference to an object without version tables stops the load (D-27.11,
 /// ruling #3655); a missing version of a versioned object too; a TLS relocation is refused.
 #[test]

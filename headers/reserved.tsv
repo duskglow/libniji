@@ -24,3 +24,5 @@ __ctype_tolower_loc	emit	C.9: tolower indexes (*__ctype_tolower_loc ())[c]
 __ctype_toupper_loc	emit	C.9: toupper indexes (*__ctype_toupper_loc ())[c]
 __ctype_get_mb_cur_max	emit	C.9: MB_CUR_MAX is __ctype_get_mb_cur_max ()
 __fpu_control	emit	§10.6, D-10.5: programs read or define __fpu_control (the x87 control word the start-up code loads); visibility.tsv lists it for fpu_control.h
+_argp_input	omit	inline helper of argp.h in the reference, not an exported symbol
+_option_is_short	omit	inline helper of argp.h in the reference, not an exported symbol

@@ -90,6 +90,8 @@ pub mod dt {
     pub const NEEDED: u64 = 1;
     /// Size in bytes of the PLT relocations (`DT_JMPREL`).
     pub const PLTRELSZ: u64 = 2;
+    /// Address of the PLT/GOT (processor-specific use; x86-64: `.got.plt`).
+    pub const PLTGOT: u64 = 3;
     /// Address of the SysV hash table.
     pub const HASH: u64 = 4;
     /// Address of the dynamic string table.
@@ -104,6 +106,9 @@ pub mod dt {
     pub const RELASZ: u64 = 8;
     /// Size of one RELA entry.
     pub const RELAENT: u64 = 9;
+    /// The number of `R_*_RELATIVE` entries the RELA table starts with (GNU extension of the gABI's
+    /// OS-specific tag range).
+    pub const RELACOUNT: u64 = 0x6fff_fff9;
     /// Size of the dynamic string table in bytes.
     pub const STRSZ: u64 = 10;
     /// The object's soname (string table offset).
@@ -414,6 +419,41 @@ const PF_R: u32 = 4;
 /// The dynamic tags whose value is the link-time address of a table the reader reads.
 const IMAGE_TABLES: [u64; 10] = [dt::STRTAB, dt::SYMTAB, dt::HASH, dt::GNU_HASH, dt::VERSYM, dt::VERDEF, dt::VERNEED, dt::RELA, dt::JMPREL, dt::RELR];
 
+/// The dynamic tags whose entries a loaded object's dynamic array holds as run-time addresses
+/// (load bias added) once the loader has relocated it (DL-DYNAMIC-RELOC, probe
+/// `tools/probe/dl/dynreloc`): programs read these through `_DYNAMIC`, `dl_iterate_phdr` and `l_ld`
+/// and use them as pointers. Every other entry (`DT_INIT`, the `*_ARRAY` tables, `DT_VERDEF`,
+/// `DT_VERNEED`, `DT_TLSDESC_*`, the sizes and flags) keeps its link-time value.
+pub const RUNTIME_ADDRESS_TAGS: [u64; 9] = [dt::PLTGOT, dt::HASH, dt::STRTAB, dt::SYMTAB, dt::RELA, dt::JMPREL, dt::RELR, dt::GNU_HASH, dt::VERSYM];
+
+/// Whether a loaded object's dynamic array (link-time address `vaddr`, `size` bytes) holds the
+/// [`RUNTIME_ADDRESS_TAGS`] entries as run-time addresses: when it lies wholly inside one of
+/// `writable` (each writable `PT_LOAD` as link-time address and size in memory). The loader writes
+/// nothing outside a writable segment, so an array anywhere else keeps its link-time values. The one
+/// rule for the loader that writes the array and for every reader of the loaded array.
+pub fn dynamic_published(vaddr: u64, size: u64, writable: impl IntoIterator<Item = (u64, u64)>) -> bool {
+    let Some(end) = vaddr.checked_add(size) else { return false };
+    writable.into_iter().any(|(v, m)| v <= vaddr && v.checked_add(m).is_some_and(|e| end <= e))
+}
+
+/// Add `delta` (wrapping) to the value of each [`RUNTIME_ADDRESS_TAGS`] entry of `bytes`, dynamic
+/// entries in native byte order up to the first `DT_NULL` (a trailing partial entry is left alone).
+/// With the load bias negated, this turns a copy of a published array back into link-time values.
+pub fn shift_address_entries(bytes: &mut [u8], delta: u64) {
+    for e in bytes.chunks_exact_mut(DYN_SIZE) {
+        let (tag, val) = e.split_at_mut(8);
+        let word = |b: &[u8]| <[u8; 8]>::try_from(b).map_or(0, u64::from_ne_bytes);
+        let tag = word(tag);
+        if tag == dt::NULL {
+            break;
+        }
+        if RUNTIME_ADDRESS_TAGS.contains(&tag) {
+            let v = word(val).wrapping_add(delta);
+            val.copy_from_slice(&v.to_ne_bytes());
+        }
+    }
+}
+
 /// Image mode: `bytes` are the contents of link-time addresses `vaddr .. vaddr + bytes.len()` of a
 /// mapped object (a slice of its memory, or a copy taken before relocation; D-27.18).
 #[derive(Clone, Copy, Debug)]
@@ -676,6 +716,15 @@ impl<'a> Elf<'a> {
     #[must_use]
     pub fn find(&self, p_type: u32) -> Option<ProgramHeader> {
         self.program_headers().find(|p| p.p_type == p_type)
+    }
+
+    /// `PT_DYNAMIC` when, loaded, the object's dynamic array holds run-time addresses
+    /// ([`dynamic_published`]); `None` without `PT_DYNAMIC` or when it keeps link-time values.
+    #[must_use]
+    pub fn published_dynamic(&self) -> Option<ProgramHeader> {
+        let d = self.find(pt::DYNAMIC)?;
+        let writable = self.program_headers().filter(|p| p.p_type == pt::LOAD && p.flags & PF_W != 0).map(|p| (p.vaddr, p.memsz));
+        dynamic_published(d.vaddr, d.memsz, writable).then_some(d)
     }
 
     /// The file bytes of a segment (`p_offset .. p_offset + p_filesz`).
@@ -1080,7 +1129,7 @@ impl<'a> Dynamic<'a> {
             .and_then(|n| n.checked_add(8))
             .ok_or(ElfError::AddressNotMapped(addr))?;
         let all = self.elf.bytes_at(addr, len)?;
-        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain }))
+        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain, mark: 0 }))
     }
 
     /// The GNU hash table (`DT_GNU_HASH`): `nbuckets`, `symoffset`, `bloom_size`, `bloom_shift`, the
@@ -1107,7 +1156,7 @@ impl<'a> Dynamic<'a> {
         let bloom = sub(all, 16, bloom_len).ok_or(unmapped)?;
         let buckets = sub(all, bloom_len.checked_add(16).ok_or(unmapped)?, bucket_len).ok_or(unmapped)?;
         let chain = self.elf.bytes_from(addr.checked_add(fixed).ok_or(unmapped)?)?;
-        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift }))
+        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift, mark: 0 }))
     }
 
     /// The number of dynamic symbols: the SysV table's `nchain` when there is one (exact), else the
@@ -1293,9 +1342,22 @@ pub struct SysvHash<'a> {
     rd: Rd<'a>,
     nbucket: u32,
     nchain: u32,
+    /// [`GnuHash`]'s `mark`, for a SysV table (a `u8` for the same reason).
+    mark: u8,
 }
 
 impl<'a> SysvHash<'a> {
+    /// Sets the mark to `on` ([`GnuHash::set_mark`]).
+    pub(crate) fn set_mark(&mut self, on: bool) {
+        self.mark = u8::from(on);
+    }
+
+    /// The mark ([`GnuHash::mark`]).
+    #[must_use]
+    pub(crate) fn mark(&self) -> bool {
+        self.mark != 0
+    }
+
     /// The number of buckets.
     #[must_use]
     pub fn nbucket(&self) -> u32 {
@@ -1372,6 +1434,13 @@ pub struct GnuHash<'a> {
     nbuckets: u32,
     symoffset: u32,
     bloom_shift: u32,
+    /// One bit the user of the table keeps with it (the lookup view's "the program has canonical
+    /// PLT entries", `symbols::Object::mark_program`); false as read. It sits in the struct's tail
+    /// padding, so the table and every view that holds one keep their size. A `u8` (0 or 1), not a
+    /// `bool`: a `bool` has invalid values the compiler would take for the discriminant of an enum
+    /// holding the table (`symbols::Hash`), moving it off the byte it uses without the mark and
+    /// changing the symbol walk's code.
+    mark: u8,
 }
 
 /// One entry of a GNU hash chain.
@@ -1384,6 +1453,17 @@ pub struct GnuEntry {
 }
 
 impl<'a> GnuHash<'a> {
+    /// Sets the mark to `on`.
+    pub(crate) fn set_mark(&mut self, on: bool) {
+        self.mark = u8::from(on);
+    }
+
+    /// The mark: false as read, else what [`GnuHash::set_mark`] set.
+    #[must_use]
+    pub(crate) fn mark(&self) -> bool {
+        self.mark != 0
+    }
+
     /// The number of buckets.
     #[must_use]
     pub fn nbuckets(&self) -> u32 {
@@ -1919,6 +1999,9 @@ impl<'a, A: Arch> Relas<'a, A> {
 
 impl<A: Arch> Iterator for Relas<'_, A> {
     type Item = Rela;
+    // Inlined into each pass (one call per relocation otherwise; the start-up pass is the hot one).
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     fn next(&mut self) -> Option<Rela> {
         let at = self.off;
         let offset = self.rd.u64(at)?;
@@ -1928,6 +2011,13 @@ impl<A: Arch> Iterator for Relas<'_, A> {
         let r_type = u32::try_from(info & 0xffff_ffff).ok()?;
         let sym = u32::try_from(info.checked_shr(32)?).ok()?;
         Some(Rela { offset, sym, r_type, kind: A::classify(r_type), addend })
+    }
+
+    /// The entry `n` places on, without decoding the ones before it (a pass that wants only a
+    /// table's tail, after its `DT_RELACOUNT` prefix, starts there).
+    fn nth(&mut self, n: usize) -> Option<Rela> {
+        self.off = n.checked_mul(RELA_SIZE).and_then(|b| self.off.checked_add(b)).unwrap_or(usize::MAX);
+        self.next()
     }
 }
 
