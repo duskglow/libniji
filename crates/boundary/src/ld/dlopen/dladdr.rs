@@ -16,7 +16,9 @@
 //! * **The symbol** (probe-settled): the defined dynamic symbol, not `STT_TLS` nor `SHN_ABS`, that
 //!   holds the address (`st_value <= addr < st_value + st_size`, or `addr == st_value` for size 0)
 //!   with the highest start; at equal starts the lowest symbol index. An IFUNC is reported by its
-//!   resolver's address (its `st_value`). None holds it: `dli_sname` and `dli_saddr` NULL.
+//!   resolver's address (its `st_value`). The program's canonical PLT entries (an undefined function
+//!   with a non-zero value, DL-CANONICAL-PLT) count as defined there: each holds only its own
+//!   address (size 0). None holds it: `dli_sname` and `dli_saddr` NULL.
 //! * **`dlinfo`** answers `RTLD_DI_LMID`, `LINKMAP`, `ORIGIN`, `SERINFO`, `SERINFOSIZE`,
 //!   `TLS_MODID`, `TLS_DATA` and `PHDR`; any other request is refused with the reference's text.
 //!   A handle must be a published link map (one comparison per object, never dereferenced).
@@ -27,7 +29,7 @@ use core::sync::atomic::Ordering::Relaxed;
 use niji_ld::arch::Native;
 use niji_ld::elf::{dt, pt, Sym, SHN_UNDEF, STT_TLS};
 use niji_ld::search::{self, PathBuf, Scope};
-use niji_ld::symbols::Object;
+use niji_ld::symbols::{canonical_plt, Object};
 use niji_ld::tls::Placed;
 
 /// `dladdr1` flags (`<dlfcn.h>`).
@@ -91,7 +93,11 @@ fn containing(syms: &Object<'_>, bias: u64, addr: u64) -> Option<(u32, Sym)> {
     let mut best: Option<(u32, Sym)> = None;
     for k in 0..tab.count()? {
         let Ok(s) = tab.get(k) else { break };
-        if s.shndx == SHN_UNDEF || s.shndx == SHN_ABS || s.kind() == STT_TLS {
+        // The program's canonical PLT entry is its function's address in the process, so it
+        // holds that address like a definition (probe-settled: only the entry's own address, its
+        // size being 0).
+        let canonical = s.shndx == SHN_UNDEF && syms.has_canonical_plt() && canonical_plt(&s);
+        if (s.shndx == SHN_UNDEF && !canonical) || s.shndx == SHN_ABS || s.kind() == STT_TLS {
             continue;
         }
         let start = bias.wrapping_add(s.value);

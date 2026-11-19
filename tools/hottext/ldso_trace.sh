@@ -1,8 +1,10 @@
 #!/bin/bash
 # The interpreter's trace of a trace-at-build `cargo xtask so` (LAYOUT-LDSO-ORDER):
-# usage: NIJI_HOT_LISTS=<lists dir> tools/hottext/ldso_trace.sh <tree> --products <dir>
+# usage: NIJI_HOT_LISTS=<lists dir> tools/hottext/ldso_trace.sh <tree> --products <dir> --config <path>...
 #   <dir> holds this build's interpreter linked ungrouped (ld-linux-x86-64.so.2), its libc.so.6 and
-#   niji-crt1.o. Two dynamic programs of this build, run by that interpreter, are traced with trace_gdb.py
+#   niji-crt1.o. Each --config names a configuration file this interpreter opens (its build prefix joined
+#   with each of niji_ld::search::CONFIG_FILES, as `cargo xtask so` passes them): every trace sees none.
+#   Two dynamic programs of this build, run by that interpreter, are traced with trace_gdb.py
 #   (HOT_TEXT_LDSO: the interpreter's functions, first-touch order, every CPU class merged):
 #     true   main returns at once: libc.so.6 alone (every dynamic program's start-up);
 #     libs3  main calls one function in each of three trivial libraries (the per-object paths).
@@ -21,11 +23,14 @@ if [ -z "$L" ] || [ ! -d "$L" ]; then
     exit 1
 fi
 P=
+configs=()
 while [ $# -gt 0 ]; do
     case $1 in --products) P=$(cd "$2" && pwd); shift 2;;
-        *) echo "ldso_trace: unknown argument $1 (usage: NIJI_HOT_LISTS=<dir> ldso_trace.sh <tree> --products <dir>)" >&2; exit 1;; esac
+        --config) case $2 in /*) configs+=("$2");; *) echo "ldso_trace: --config $2: not an absolute path" >&2; exit 1;; esac; shift 2;;
+        *) echo "ldso_trace: unknown argument $1 (usage: NIJI_HOT_LISTS=<dir> ldso_trace.sh <tree> --products <dir> --config <path>...)" >&2; exit 1;; esac
 done
 [ -n "$P" ] || { echo "ldso_trace: --products <dir> is required" >&2; exit 1; }
+[ ${#configs[@]} -gt 0 ] || { echo "ldso_trace: --config <path> is required (the configuration files of the interpreter; cargo xtask so passes them)" >&2; exit 1; }
 for f in ld-linux-x86-64.so.2 libc.so.6 niji-crt1.o; do
     [ -f "$P/$f" ] || { echo "ldso_trace: $P/$f missing" >&2; exit 1; }
 done
@@ -38,9 +43,13 @@ cd "$work"
 # shellcheck source=tools/hottext/runner.sh
 . "$here/runner.sh"
 canon_prepare
-# The interpreter reads /etc/ld.so.preload when it exists: every trace sees none (a file of the emptied
-# run directory, never created), whatever the host has.
-hot_redirect="${hot_redirect:+$hot_redirect:}/etc/ld.so.preload=@run/ld.so.preload"
+# The interpreter reads its configuration files (preload list, cache) below its build prefix when they
+# exist: every trace sees none (a file of the emptied run directory, never created), whatever the host has.
+k=0
+for c in "${configs[@]}"; do
+    k=$((k + 1))
+    hot_redirect="${hot_redirect:+$hot_redirect:}$c=@run/loader-config.$k"
+done
 # libc.so.6 of <dir> names itself by path (no DT_SONAME): the programs need it at $work/libc.so.6.
 cp "$P/ld-linux-x86-64.so.2" "$work/ld.so"
 cp "$P/libc.so.6" "$work/libc.so.6"

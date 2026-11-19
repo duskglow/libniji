@@ -106,6 +106,9 @@ pub mod dt {
     pub const RELASZ: u64 = 8;
     /// Size of one RELA entry.
     pub const RELAENT: u64 = 9;
+    /// The number of `R_*_RELATIVE` entries the RELA table starts with (GNU extension of the gABI's
+    /// OS-specific tag range).
+    pub const RELACOUNT: u64 = 0x6fff_fff9;
     /// Size of the dynamic string table in bytes.
     pub const STRSZ: u64 = 10;
     /// The object's soname (string table offset).
@@ -1126,7 +1129,7 @@ impl<'a> Dynamic<'a> {
             .and_then(|n| n.checked_add(8))
             .ok_or(ElfError::AddressNotMapped(addr))?;
         let all = self.elf.bytes_at(addr, len)?;
-        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain }))
+        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain, mark: 0 }))
     }
 
     /// The GNU hash table (`DT_GNU_HASH`): `nbuckets`, `symoffset`, `bloom_size`, `bloom_shift`, the
@@ -1153,7 +1156,7 @@ impl<'a> Dynamic<'a> {
         let bloom = sub(all, 16, bloom_len).ok_or(unmapped)?;
         let buckets = sub(all, bloom_len.checked_add(16).ok_or(unmapped)?, bucket_len).ok_or(unmapped)?;
         let chain = self.elf.bytes_from(addr.checked_add(fixed).ok_or(unmapped)?)?;
-        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift }))
+        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift, mark: 0 }))
     }
 
     /// The number of dynamic symbols: the SysV table's `nchain` when there is one (exact), else the
@@ -1339,9 +1342,22 @@ pub struct SysvHash<'a> {
     rd: Rd<'a>,
     nbucket: u32,
     nchain: u32,
+    /// [`GnuHash`]'s `mark`, for a SysV table (a `u8` for the same reason).
+    mark: u8,
 }
 
 impl<'a> SysvHash<'a> {
+    /// Sets the mark to `on` ([`GnuHash::set_mark`]).
+    pub(crate) fn set_mark(&mut self, on: bool) {
+        self.mark = u8::from(on);
+    }
+
+    /// The mark ([`GnuHash::mark`]).
+    #[must_use]
+    pub(crate) fn mark(&self) -> bool {
+        self.mark != 0
+    }
+
     /// The number of buckets.
     #[must_use]
     pub fn nbucket(&self) -> u32 {
@@ -1418,6 +1434,13 @@ pub struct GnuHash<'a> {
     nbuckets: u32,
     symoffset: u32,
     bloom_shift: u32,
+    /// One bit the user of the table keeps with it (the lookup view's "the program has canonical
+    /// PLT entries", `symbols::Object::mark_program`); false as read. It sits in the struct's tail
+    /// padding, so the table and every view that holds one keep their size. A `u8` (0 or 1), not a
+    /// `bool`: a `bool` has invalid values the compiler would take for the discriminant of an enum
+    /// holding the table (`symbols::Hash`), moving it off the byte it uses without the mark and
+    /// changing the symbol walk's code.
+    mark: u8,
 }
 
 /// One entry of a GNU hash chain.
@@ -1430,6 +1453,17 @@ pub struct GnuEntry {
 }
 
 impl<'a> GnuHash<'a> {
+    /// Sets the mark to `on`.
+    pub(crate) fn set_mark(&mut self, on: bool) {
+        self.mark = u8::from(on);
+    }
+
+    /// The mark: false as read, else what [`GnuHash::set_mark`] set.
+    #[must_use]
+    pub(crate) fn mark(&self) -> bool {
+        self.mark != 0
+    }
+
     /// The number of buckets.
     #[must_use]
     pub fn nbuckets(&self) -> u32 {
@@ -1965,6 +1999,9 @@ impl<'a, A: Arch> Relas<'a, A> {
 
 impl<A: Arch> Iterator for Relas<'_, A> {
     type Item = Rela;
+    // Inlined into each pass (one call per relocation otherwise; the start-up pass is the hot one).
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     fn next(&mut self) -> Option<Rela> {
         let at = self.off;
         let offset = self.rd.u64(at)?;
@@ -1974,6 +2011,13 @@ impl<A: Arch> Iterator for Relas<'_, A> {
         let r_type = u32::try_from(info & 0xffff_ffff).ok()?;
         let sym = u32::try_from(info.checked_shr(32)?).ok()?;
         Some(Rela { offset, sym, r_type, kind: A::classify(r_type), addend })
+    }
+
+    /// The entry `n` places on, without decoding the ones before it (a pass that wants only a
+    /// table's tail, after its `DT_RELACOUNT` prefix, starts there).
+    fn nth(&mut self, n: usize) -> Option<Rela> {
+        self.off = n.checked_mul(RELA_SIZE).and_then(|b| self.off.checked_add(b)).unwrap_or(usize::MAX);
+        self.next()
     }
 }
 

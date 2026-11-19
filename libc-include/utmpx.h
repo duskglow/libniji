@@ -37,6 +37,13 @@ struct timeval {
   long tv_usec;
 };
 # endif
+# ifndef __NIJI_D_struct___exit_status
+#  define __NIJI_D_struct___exit_status 1
+struct __exit_status {
+  short e_termination;
+  short e_exit;
+};
+# endif
 # ifndef __NIJI_D_struct_utmpx
 #  define __NIJI_D_struct_utmpx 1
 struct utmpx {
@@ -46,15 +53,9 @@ struct utmpx {
   char ut_id[4];
   char ut_user[32];
   char ut_host[256];
-  struct __exit_status {
-    short e_termination;
-    short e_exit;
-  } ut_exit;
+  struct __exit_status ut_exit;
   int ut_session;
-  struct {
-    int tv_sec;
-    int tv_usec;
-  } ut_tv;
+  struct { int tv_sec; int tv_usec; } ut_tv;
   int ut_addr_v6[4];
   char __glibc_reserved[20];
 };

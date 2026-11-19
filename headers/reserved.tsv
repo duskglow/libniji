@@ -41,3 +41,5 @@ __sched_cpucount	emit	CPU_SET(3): CPU_COUNT_S expands to this call
 __sched_cpualloc	emit	CPU_SET(3): CPU_ALLOC expands to this call
 __sched_cpufree	emit	CPU_SET(3): CPU_FREE expands to this call
 bsd_signal	omit	C 7.1.3 (ruling #6468): the symbol stays exported and no header declares it
+_argp_input	omit	inline helper of argp.h in the reference, not an exported symbol
+_option_is_short	omit	inline helper of argp.h in the reference, not an exported symbol

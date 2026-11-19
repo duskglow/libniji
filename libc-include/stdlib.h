@@ -46,6 +46,15 @@ struct timeval {
 };
 # endif
 #endif
+#if (__NIJI_MISC && __NIJI_CXX < 1) || (__NIJI_ISOC < 2023 && __NIJI_XSI >= 500)
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D_div_t
 #  define __NIJI_D_div_t 1
@@ -208,31 +217,13 @@ typedef unsigned int uid_t;
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 500
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-#  ifdef __cplusplus
-union pthread_attr_t {
-  char __size[56];
-  long __align;
-};
-#  else
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
-#  endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef union {
-  unsigned long long __value64;
-} __atomic_wide_counter;
-# endif
-# ifndef __NIJI_D___atomic_wide_counter
-#  define __NIJI_D___atomic_wide_counter 1
-typedef union {
-  unsigned long long __value64;
-} __atomic_wide_counter;
+typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D_struct___pthread_cond_s
 #  define __NIJI_D_struct___pthread_cond_s 1
@@ -1126,6 +1117,10 @@ extern int posix_openpt (int);
 # define WTERMSIG(status) ((status) & 0x7f)
 # define WSTOPSIG(status) WEXITSTATUS (status)
 # define WIFEXITED(status) (WTERMSIG (status) == 0)
+#endif
+
+/* WIFCONTINUED has its own condition: _XOPEN_SOURCE defined empty shows the four above but not it. */
+#if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 450
 # define WIFCONTINUED(status) ((status) == 0xffff)
 #endif
 

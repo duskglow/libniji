@@ -2227,6 +2227,14 @@ pub struct struct_obstack {
     pub use_extra_arg: [u8; 1],
 }
 
+#[repr(C, align(8))]
+#[derive(Clone, Copy)]
+pub struct struct__obstack_chunk {
+    pub limit: usize,
+    pub prev: usize,
+    pub contents: [i8; 4],
+}
+
 #[repr(C, align(4))]
 #[derive(Clone, Copy)]
 pub struct struct_printf_info {

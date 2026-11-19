@@ -108,6 +108,7 @@ struct timespec {
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 400
+# if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -115,6 +116,8 @@ struct timespec {
   long tv_nsec;
 };
 # endif
+# endif
+# if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -122,12 +125,15 @@ struct timespec {
   long tv_nsec;
 };
 # endif
+# endif
+# if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
   long tv_sec;
   long tv_nsec;
 };
+# endif
 # endif
 # ifndef __NIJI_D_struct_stat
 #  define __NIJI_D_struct_stat 1
@@ -143,9 +149,24 @@ struct stat {
   long st_size;
   long st_blksize;
   long st_blocks;
+#if __NIJI_POSIX >= 200809
   struct timespec st_atim;
+#else
+  long st_atime;
+  long __st_atimensec;
+#endif
+#if __NIJI_POSIX >= 200809
   struct timespec st_mtim;
+#else
+  long st_mtime;
+  long __st_mtimensec;
+#endif
+#if __NIJI_POSIX >= 200809
   struct timespec st_ctim;
+#else
+  long st_ctime;
+  long __st_ctimensec;
+#endif
   long __glibc_reserved[3];
 };
 # endif
@@ -944,6 +965,16 @@ extern int openat (int, const char *, int, ...) __asm__ ("openat64");
 # endif
 # ifndef S_IFSOCK
 #  define S_IFSOCK 49152
+# endif
+#endif
+
+/* struct stat's times (POSIX XSH <sys/stat.h>): where struct timespec is visible they are its st_atim, st_mtim and
+   st_ctim, and st_atime names the seconds; elsewhere st_atime is the time_t member itself (same offsets). */
+#if __NIJI_POSIX >= 200809
+# ifndef st_atime
+#  define st_atime st_atim.tv_sec
+#  define st_mtime st_mtim.tv_sec
+#  define st_ctime st_ctim.tv_sec
 # endif
 #endif
 

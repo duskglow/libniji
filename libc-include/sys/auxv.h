@@ -17,10 +17,7 @@ typedef unsigned int Elf32_Addr;
 #  define __NIJI_D_Elf32_Dyn 1
 typedef struct {
   int d_tag;
-  union {
-    unsigned int d_val;
-    unsigned int d_ptr;
-  } d_un;
+  union { unsigned int d_val; unsigned int d_ptr; } d_un;
 } Elf32_Dyn;
 # endif
 # ifndef __NIJI_D_Elf32_Ehdr
@@ -141,10 +138,7 @@ typedef struct {
 #  define __NIJI_D_Elf64_Dyn 1
 typedef struct {
   long d_tag;
-  union {
-    unsigned long d_val;
-    unsigned long d_ptr;
-  } d_un;
+  union { unsigned long d_val; unsigned long d_ptr; } d_un;
 } Elf64_Dyn;
 # endif
 # ifndef __NIJI_D_Elf64_Ehdr
@@ -295,9 +289,7 @@ typedef unsigned long Elf64_Xword;
 #  define __NIJI_D_Elf64_auxv_t 1
 typedef struct {
   unsigned long a_type;
-  union {
-    unsigned long a_val;
-  } a_un;
+  union { unsigned long a_val; } a_un;
 } Elf64_auxv_t;
 # endif
 # ifndef __NIJI_D_getauxval
