@@ -297,11 +297,11 @@ extern const char *strrchr (const char *, int) __NIJI_NOTHROW __asm__ ("strrchr"
 extern const char *strpbrk (const char *, const char *) __NIJI_NOTHROW __asm__ ("strpbrk") __attribute__ ((__nonnull__ (1, 2), __pure__));
 extern const char *strstr (const char *, const char *) __NIJI_NOTHROW __asm__ ("strstr") __attribute__ ((__nonnull__ (1, 2), __pure__));
 extern const void *memchr (const void *, int, size_t) __NIJI_NOTHROW __asm__ ("memchr") __attribute__ ((__nonnull__ (1), __pure__));
-inline char *strchr (char *__s, int __c) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__)) { return const_cast<char *> (strchr (static_cast<const char *> (__s), __c)); }
-inline char *strrchr (char *__s, int __c) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__)) { return const_cast<char *> (strrchr (static_cast<const char *> (__s), __c)); }
-inline char *strpbrk (char *__s, const char *__a) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__)) { return const_cast<char *> (strpbrk (static_cast<const char *> (__s), __a)); }
-inline char *strstr (char *__s, const char *__a) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1, 2), __pure__)) { return const_cast<char *> (strstr (static_cast<const char *> (__s), __a)); }
-inline void *memchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__)) { return const_cast<void *> (memchr (static_cast<const void *> (__s), __c, __n)); }
+inline __attribute__ ((__nonnull__ (1), __pure__)) char *strchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strchr (static_cast<const char *> (__s), __c)); }
+inline __attribute__ ((__nonnull__ (1), __pure__)) char *strrchr (char *__s, int __c) __NIJI_NOTHROW { return const_cast<char *> (strrchr (static_cast<const char *> (__s), __c)); }
+inline __attribute__ ((__nonnull__ (1, 2), __pure__)) char *strpbrk (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strpbrk (static_cast<const char *> (__s), __a)); }
+inline __attribute__ ((__nonnull__ (1, 2), __pure__)) char *strstr (char *__s, const char *__a) __NIJI_NOTHROW { return const_cast<char *> (strstr (static_cast<const char *> (__s), __a)); }
+inline __attribute__ ((__nonnull__ (1), __pure__)) void *memchr (void *__s, int __c, size_t __n) __NIJI_NOTHROW { return const_cast<void *> (memchr (static_cast<const void *> (__s), __c, __n)); }
 }
 # else
 extern char *strchr (const char *, int) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1), __pure__));
