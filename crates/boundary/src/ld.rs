@@ -1480,8 +1480,11 @@ const DT_DEBUG: u64 = 21;
 /// no object named it, by the program's `PT_INTERP`): the order `dl_iterate_phdr` reports. Then
 /// fill `_r_debug`, `DT_DEBUG` and call `r_brk` with `RT_ADD`. Before relocation: a program's `COPY`
 /// of `_r_debug` then reads the filled structure. Pointer writes only: no allocation, no file read.
-// Indices stay below `objs.len()` (== paths.len()).
+// Indices stay below `objs.len()` (== paths.len()). Run once, out of `link`'s line: `link`'s code
+// stays as it was apart from the call.
 #[allow(clippy::indexing_slicing)]
+#[cold]
+#[inline(never)]
 fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8]], interp: Option<usize>, own_views: &mut [(usize, usize)], vdso: usize) {
     let n = objs.len();
     let own_base = OWN_BASE.load(Relaxed);

@@ -100,7 +100,10 @@ fn own() -> usize {
 }
 
 /// A `COPY` relocation wrote `len` bytes from `from` to `to`: when it copied `_r_debug`, `to` is
-/// the program's copy, written from now on as well (once [`consistent`] checked it).
+/// the program's copy, written from now on as well (once [`consistent`] checked it). Out of the
+/// relocator's line: a `COPY` relocation is rare.
+#[cold]
+#[inline(never)]
 pub(super) fn note_copy(to: usize, from: usize, len: usize) {
     if from == own() && len == SIZE {
         COPY.store(to, Relaxed);
@@ -140,7 +143,9 @@ pub(super) fn change(state: State) {
 /// The start, once the start-time list is linked from `map` (node 0, the program) and before any
 /// object is relocated: fill the rendezvous, point the program's `DT_DEBUG` entry at it (`dt_debug`:
 /// the entry's value word, 0 when the program has none or its dynamic array is not writable) and
-/// call `r_brk` with `RT_ADD`.
+/// call `r_brk` with `RT_ADD`. Run once.
+#[cold]
+#[inline(never)]
 pub(super) fn start(map: usize, ldbase: usize, dt_debug: usize) {
     let r = &_r_debug;
     r.r_version.store(VERSION, Relaxed);
