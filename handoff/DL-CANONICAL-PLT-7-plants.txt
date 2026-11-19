@@ -9,3 +9,12 @@ sysv-mark-lost | crates/ld/src/symbols.rs | lit:Hash::Sysv(s) => s.set_mark(cano
 no-canonical | crates/ld/src/symbols.rs | lit:(exported(&st) || self.canonical_entry(i)) ==> (exported(&st) || (false && self.canonical_entry(i))) | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:canonical PLT.*check (Some\([0-9]+\)|None) failed
 no-protected-check | crates/ld/src/reloc.rs | lit:let protected = obj != i && ==> let protected = false && obj != i && | cargo xtask so && cargo test -p niji-ld --test canonical_plt s27_1_g_0_canonical_plt_entry_for_protected | msg:no warning naming f|marked library.*the start goes on
 first-pass-plain | crates/ld/src/reloc.rs | lit:let first = if set.syms.first().is_some_and(Object::has_canonical_plt) { canonical_slots ==> let first = if false { canonical_slots | cargo xtask so && cargo test -p niji-ld --test canonical_plt | msg:canonical PLT.*check (Some\([0-9]+\)|None) failed
+# cargo xtask plants results (8 plants: 8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# dladdr-any-undefined: CAUGHT, caught by canonical_plt s27_1_g_0_canonical_plt_entry_for_scoped_lookups_dladdr_versions_and_copy
+# start-not-program: CAUGHT, caught by canonical_plt s27_1_g_0_nonpie_program_canonical_plt_entry_binds_every_address_reference
+# dlopen-not-program: CAUGHT, caught by canonical_plt s27_1_g_0_nonpie_program_canonical_plt_entry_binds_every_address_reference
+# gnu-mark-lost: CAUGHT, caught by canonical_plt s27_1_g_0_pie_canonical_plt_entry_binds_library_reference
+# sysv-mark-lost: CAUGHT, caught by canonical_plt s27_1_g_0_nonpie_program_canonical_plt_entry_binds_every_address_reference
+# no-canonical: CAUGHT, caught by canonical_plt s27_1_g_0_canonical_plt_entry_for_ifunc_definition
+# no-protected-check: CAUGHT, caught by canonical_plt s27_1_g_0_canonical_plt_entry_for_protected_definition
+# first-pass-plain: CAUGHT, caught by canonical_plt s27_1_g_0_pie_canonical_plt_entry_binds_library_reference

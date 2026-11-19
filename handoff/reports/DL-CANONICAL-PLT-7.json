@@ -1,0 +1,25 @@
+{"task": "DL-CANONICAL-PLT-7", "model": "opus", "tokens": null,
+ "result": "COMPLETE: canonical PLT flag rides in the program view's hash table (u8 mark in tail padding, ruling #6659); plain PIE -635/-489/+1 instructions at N=0/3/12, faults equal base",
+ "branch": "task/dl-canonical-plt-7", "head": null,
+ "gate": {"affected": "6828 passed / 0 failed (direct tier); cargo xtask test 5319 passed / 0 failed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   {"item": "Hash has no spare discriminant for a GNU-carrying variant (4 variants: 96 bytes against 88); the mark sits in GnuHash/SysvHash tail padding instead, meeting ruling #6659's aim", "recommendation": "accept the padding byte as the ruling's shape"},
+   {"item": "a bool field in a struct an enum holds can move the enum's niche discriminant and change every match on it (+25k instructions at N=12 here); a u8 avoids it", "recommendation": "note it in the codemap or style notes"}
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "canonical PLT entries of the program bind every address reference and dlsym(RTLD_DEFAULT) (GitHub issue #10)", "before": null, "after": null, "unit": null, "measured": true},
+   {"kind": "perf", "what": "plain PIE start, N=0 libraries, instructions:u median", "before": 8993697, "after": 8993062, "unit": "instr", "measured": true},
+   {"kind": "perf", "what": "plain PIE start, N=3 libraries, instructions:u median", "before": 9273411, "after": 9272922, "unit": "instr", "measured": true},
+   {"kind": "perf", "what": "plain PIE start, N=12 libraries, instructions:u median", "before": 10075638, "after": 10075639, "unit": "instr", "measured": true},
+   {"kind": "cost", "what": "non-PIE program with one canonical entry, N=0/3/12, instructions:u (cold canonical pass)", "before": 9093616, "after": 9136733, "unit": "instr (N=0; N=3 +56553, N=12 +96853)", "measured": true},
+   {"kind": "faults", "what": "canonical program start faults (cold pass text); plain programs equal base ASLR off and on", "before": 86, "after": 88, "unit": "faults (N=0)", "measured": true},
+   {"kind": "size", "what": "ld-linux-x86-64.so.2", "before": 420224, "after": 433384, "unit": "bytes", "measured": true},
+   {"kind": "coverage", "what": "canonical_plt tests (6, incl. SysV-hash program and dladdr load base) and 8 plants", "before": null, "after": 8, "unit": "plants", "measured": true}
+ ],
+ "improvement": "a disassembly diff of the hot function after a layout change finds niche/spill effects in one step; the cold-move attempt (a939e0bba) could have been skipped had the sstep's unchanged per-function delta been diffed first",
+ "next_step": "coordinator: CI and landing",
+ "report_file": "handoff/DL-CANONICAL-PLT-7-report.md",
+ "jobs": ["mei:dl-canonical-plt-7-step5", "mei:dl-canonical-plt-7-gate1", "mei:dl-canonical-plt-7-plants1", "mei:dl-canonical-plt-7-precheck1"]}
