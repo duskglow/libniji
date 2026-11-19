@@ -183,6 +183,84 @@ struct Tables {
     enums: BTreeMap<String, Vec<(String, String)>>,
     /// enumerators.tsv: an enumerator -> the tag of its enumeration.
     enum_of: BTreeMap<String, String>,
+    /// `vis` by header and name.
+    vis_index: VisIndex,
+}
+
+/// visibility.tsv by header and name (PLANTS-BUILD-SLOWDOWN). The generator asks for one header's rows of one name
+/// once per name it emits; a scan of every row per question (72 278 rows, 83 headers) took about 150 s of each
+/// `cargo xtask so`, every plants mutant included. Row indices keep table order, so every answer is the scan's.
+#[derive(Default)]
+struct VisIndex {
+    /// header -> name -> its rows' indices in `vis`, in table order.
+    by_name: BTreeMap<String, BTreeMap<String, Vec<usize>>>,
+    /// header -> its rows' indices in `vis`, in table order.
+    by_header: BTreeMap<String, Vec<usize>>,
+    /// header -> the configurations of its `include-error` rows, joined.
+    include_error: BTreeMap<String, u64>,
+    /// name -> kind -> the configurations of its rows under header `-` (visible without any header), joined.
+    bare: BTreeMap<String, BTreeMap<String, u64>>,
+}
+
+impl VisIndex {
+    fn new(lv: &Levels, vis: &Rows) -> VisIndex {
+        let mut ix = VisIndex::default();
+        for (i, r) in vis.iter().enumerate() {
+            let (header, name, kind) = (&r["header"], &r["name"], &r["kind"]);
+            ix.by_name.entry(header.clone()).or_default().entry(name.clone()).or_default().push(i);
+            ix.by_header.entry(header.clone()).or_default().push(i);
+            let mask = || cond::mask_of(lv, &r["configs"]).unwrap_or(0);
+            if kind == "include-error" {
+                *ix.include_error.entry(header.clone()).or_insert(0) |= mask();
+            }
+            if header == "-" {
+                *ix.bare.entry(name.clone()).or_default().entry(kind.clone()).or_insert(0) |= mask();
+            }
+        }
+        ix
+    }
+
+    /// The rows (of `vis`, the table this index was built from) of `name` in `header`, in table order.
+    fn rows<'a>(&'a self, vis: &'a Rows, header: &str, name: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.by_name.get(header).and_then(|m| m.get(name)).into_iter().flatten().map(|&i| &vis[i])
+    }
+
+    /// The first row of (`name`, `kind`) in `header`.
+    fn row<'a>(&'a self, vis: &'a Rows, header: &str, name: &str, kind: &str) -> Option<&'a BTreeMap<String, String>> {
+        self.rows(vis, header, name).find(|r| r["kind"] == kind)
+    }
+
+    /// The rows of `header`, in table order.
+    fn header_rows<'a>(&'a self, vis: &'a Rows, header: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.by_header.get(header).into_iter().flatten().map(|&i| &vis[i])
+    }
+
+    /// The configurations of `header`'s `include-error` rows and of (`name`, `kind`)'s rows under header `-`, joined.
+    fn dont_care(&self, header: &str, name: &str, kind: &str) -> u64 {
+        self.include_error.get(header).copied().unwrap_or(0) | self.bare.get(name).and_then(|m| m.get(kind)).copied().unwrap_or(0)
+    }
+}
+
+impl Tables {
+    /// The visibility.tsv rows of `name` in `header`, in table order.
+    fn vis_rows<'a>(&'a self, header: &str, name: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.vis_index.rows(&self.vis, header, name)
+    }
+
+    /// The first visibility.tsv row of (`name`, `kind`) in `header`.
+    fn vis_row(&self, header: &str, name: &str, kind: &str) -> Option<&BTreeMap<String, String>> {
+        self.vis_index.row(&self.vis, header, name, kind)
+    }
+
+    /// The visibility.tsv rows of `header`, in table order.
+    fn header_rows<'a>(&'a self, header: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.vis_index.header_rows(&self.vis, header)
+    }
+
+    /// The configurations of `header`'s `include-error` rows and of (`name`, `kind`)'s rows under header `-`, joined.
+    fn vis_dont_care(&self, header: &str, name: &str, kind: &str) -> u64 {
+        self.vis_index.dont_care(header, name, kind)
+    }
 }
 
 /// A typedef or a structure or union tag used as a member type that has no layout rows of its own but whose members
@@ -258,7 +336,8 @@ fn load(root: &Path) -> Result<Tables, String> {
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of })
+    let vis_index = VisIndex::new(&lv, &vis);
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of, vis_index })
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
@@ -335,7 +414,7 @@ impl Gen<'_> {
 
     fn emit(&mut self, owned: &BTreeSet<String>) {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
-        let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
+        let rows: Vec<(String, String)> = self.t.header_rows(&self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
             // A type-generic macro's function form (provider `generic`) has no prototype to declare: the C++
             // library or the header's template defines its overloads.
@@ -345,7 +424,7 @@ impl Gen<'_> {
             }
             // An enumerator of a declared enumeration: that enumeration, once (its tag row, when this header has one).
             if let Some(tag) = (kind == "enumerator").then(|| self.declared_enum(&name)).flatten() {
-                let tag_row = self.t.vis.iter().any(|r| r["header"] == self.header && r["kind"] == "enum" && r["name"] == tag);
+                let tag_row = self.t.vis_row(&self.header, &tag, "enum").is_some();
                 if !tag_row && self.emitted.insert(format!("enum {tag}")) {
                     let c = self.cond(&name, Some(&kind));
                     items.push((2, c, tag, "enum".into()));
@@ -543,7 +622,7 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         // more (utmp.h has `fd_set` in strict ISO modes, <sys/types.h> only in the BSD set), the header declares
         // it itself.
         let mut covered: BTreeMap<(String, String), u64> = BTreeMap::new();
-        for r in t.vis.iter().filter(|r| seen.contains(&r["header"])) {
+        for r in seen.iter().flat_map(|x| t.header_rows(x)) {
             *covered.entry((r["name"].clone(), r["kind"].clone())).or_insert(0) |= mask_of(&t.lv, &r["configs"]).unwrap_or(u64::MAX);
         }
         let mut owned = BTreeSet::new();
@@ -689,6 +768,26 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
 mod tests {
     use super::values::literal;
     use super::*;
+
+    // no spec clause (PLANTS-BUILD-SLOWDOWN): the visibility.tsv index answers as the row scan did: the row of the
+    // kind asked for (not the name's first row), a header's rows in table order, and the configurations that do not
+    // decide a name joined from the header's include-error rows and the name's header-less rows of that kind only
+    #[test]
+    fn vis_index_answers_as_the_row_scan() {
+        let lv = cond::levels(&Path::new(env!("CARGO_MANIFEST_DIR")).join("..")).unwrap();
+        let (a, b, c) = (lv.ids[0].as_str(), lv.ids[1].as_str(), lv.ids[2].as_str());
+        let row = |h: &str, n: &str, k: &str, cf: &str| [("header", h), ("name", n), ("kind", k), ("configs", cf)].iter().map(|(x, y)| (x.to_string(), y.to_string())).collect::<BTreeMap<_, _>>();
+        let vis: Rows = vec![row("h.h", "n", "macro", a), row("h.h", "n", "function", b), row("h.h", "h.h", "include-error", c), row("-", "n", "function", a), row("-", "n", "macro", b), row("g.h", "x", "include-error", b), row("h.h", "m", "macro", "*")];
+        let ix = VisIndex::new(&lv, &vis);
+        assert_eq!(ix.row(&vis, "h.h", "n", "function").map(|r| r["configs"].as_str()), Some(b));
+        assert_eq!(ix.row(&vis, "h.h", "n", "enum"), None);
+        let order: Vec<(&str, &str)> = ix.header_rows(&vis, "h.h").map(|r| (r["name"].as_str(), r["kind"].as_str())).collect();
+        assert_eq!(order, [("n", "macro"), ("n", "function"), ("h.h", "include-error"), ("m", "macro")]);
+        let m = |cf: &str| cond::mask_of(&lv, cf).unwrap();
+        assert_eq!(ix.dont_care("h.h", "n", "function"), m(c) | m(a));
+        assert_eq!(ix.dont_care("h.h", "m", "macro"), m(c));
+        assert_eq!(ix.dont_care("k.h", "n", "macro"), m(b));
+    }
 
     fn lv() -> Levels {
         // c89, gnu17, posix200809, gnu, cxx17, time64only (rejected)
