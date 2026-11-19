@@ -306,8 +306,11 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// the last page of a segment without zero fill from the file; libc's start-up read-only group is anchored and
 /// holds the build tag; ld.so's read-only data starts at its text's 64 KiB phase). Skylake-SP host, next
 /// 36df714e7 plus this change, each library padded by k = 0..16 pages of cold text, every run identical: fast
-/// 80, release 76 at every k (before: 85..87 and 83..85 by k). The Zen 1 host class was not measured.
-const DYN_TRUE_BOUND: [u64; 2] = [80, 76];
+/// 80, release 76 at every k (before: 85..87 and 83..85 by k). Merged with next fb63eeec8 (same host and
+/// method, k = 0, 8, 16): fast 81, release 76 at every k; the +1 is one more ld.so text window, the traced
+/// start-up group (`ldso-text.list`) grown past its second 64 KiB window by next's loader code. The Zen 1
+/// host class was not measured.
+const DYN_TRUE_BOUND: [u64; 2] = [81, 76];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.
