@@ -52,6 +52,31 @@ pub(crate) fn run(cmd: &mut Command) -> Result<(), String> {
     if status.success() { Ok(()) } else { Err(format!("{cmd:?} failed: {status}")) }
 }
 
+/// [`run`], then its `step: so/<phase> <seconds>s` line (also when it failed): the cargo builds of `cargo xtask so`.
+pub(crate) fn run_timed(phase: &str, cmd: &mut Command) -> Result<(), String> {
+    let started = std::time::Instant::now();
+    let r = run(cmd);
+    println!("{}", phase_line(phase, started.elapsed()));
+    r
+}
+
+/// The line one phase of `cargo xtask so` prints (PLANTS-BUILD-2): the gate's `step:` format ([`crate::steptime`]) with
+/// the name `so/<phase>`, so a log reader that greps `step:` finds it and the gate's own summary, which leaves out
+/// names with a `/` (they are parts of a step), does not count it twice.
+fn phase_line(phase: &str, d: std::time::Duration) -> String {
+    crate::steptime::line(&format!("so/{phase}"), d)
+}
+
+/// The phases of one `run_so_as`: each [`Phases::mark`] prints the time since the previous mark (or the start).
+struct Phases(std::time::Instant);
+
+impl Phases {
+    fn mark(&mut self, phase: &str) {
+        println!("{}", phase_line(phase, self.0.elapsed()));
+        self.0 = std::time::Instant::now();
+    }
+}
+
 /// The exclusive lock of one product directory (`<product>/.lock`), held until dropped. Two
 /// product builds in one tree used to post-process the same archive at once and left `libc.a`
 /// with zeroed members (XTASK-SO-ATOMIC); the second now waits for the first.
@@ -427,7 +452,29 @@ const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "_
 /// FNV-1a 64 over the product sources (`crates/`, `csys/`, `include/`, `Cargo.lock`; paths sorted,
 /// each path then its bytes), so products built from different sources refuse each other, in a git
 /// checkout or a synced copy alike. About 13 MB read per run.
+///
+/// PLANTS-BUILD-2: a `cargo xtask plants` run sets [`PLANTS_TAG_ENV`] for every command it runs in its copy, so the
+/// baseline and every mutant of one run build with that one constant tag. The tag is an input of the two crates that
+/// carry it (`niji-boundary`, `niji-ld`), so a changing hash rebuilt boundary (135k lines) in every product target
+/// directory for a mutant that did not touch it. Products outside a plants copy never see the variable: they keep the
+/// hash. The ld.so start-up check (D-27.22) is unchanged: both products of one plants build carry the same tag.
 fn build_tag(root: &Path) -> String {
+    tag_or_hash(root, std::env::var(PLANTS_TAG_ENV).ok().as_deref())
+}
+
+/// The environment variable a plants run sets to give its copy's builds one constant tag ([`build_tag`]).
+pub(crate) const PLANTS_TAG_ENV: &str = "NIJI_PLANTS_BUILD_TAG";
+
+/// `fixed` (non-empty) as the tag, else [`source_hash_tag`] of `root`.
+fn tag_or_hash(root: &Path, fixed: Option<&str>) -> String {
+    match fixed {
+        Some(t) if !t.is_empty() => t.to_string(),
+        _ => source_hash_tag(root),
+    }
+}
+
+/// The hash tag of the product sources under `root`.
+fn source_hash_tag(root: &Path) -> String {
     fn walk(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
         let Ok(rd) = fs::read_dir(dir) else { return };
         for e in rd.flatten() {
@@ -1000,10 +1047,13 @@ struct EarlyBuilds(Option<std::thread::JoinHandle<()>>);
 impl EarlyBuilds {
     fn start(root: &Path, product: &Path, profile: Profile) -> EarlyBuilds {
         let tag = build_tag(root);
-        let cmds: Vec<Command> = [&LD_BUILD, &LDCONFIG_BUILD].iter().map(|b| b.command(root, product, profile, None, &tag)).collect();
+        let cmds: Vec<(&str, Command)> = [("early-cargo-ld", &LD_BUILD), ("early-cargo-ldconfig", &LDCONFIG_BUILD)].into_iter().map(|(n, b)| (n, b.command(root, product, profile, None, &tag))).collect();
         EarlyBuilds(Some(std::thread::spawn(move || {
-            for mut c in cmds {
+            for (phase, mut c) in cmds {
+                let started = std::time::Instant::now();
                 let _ = c.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status();
+                // Beside the libc build, so these seconds overlap the other phases' (named `early-` for that).
+                println!("{}", phase_line(phase, started.elapsed()));
             }
         })))
     }
@@ -1042,7 +1092,7 @@ pub fn build_archive(root: &Path, product: &Path, out: &Path, rustflags: Option<
 /// [`build_archive`] with the caller holding the lock of `product` (`run_so_as` holds it for the whole run).
 fn build_archive_locked(root: &Path, product: &Path, out: &Path, rustflags: Option<&str>, profile: Profile, layout: Layout) -> Result<(std::path::PathBuf, (usize, usize), crate::copies::Stats), String> {
     // Every product crate gets the 64-byte function alignment (D-4.33), then the caller's flags.
-    run(&mut LIBC_BUILD.command(root, product, profile, rustflags, &build_tag(root)))?;
+    run_timed("cargo-libc", &mut LIBC_BUILD.command(root, product, profile, rustflags, &build_tag(root)))?;
     // Cargo's archive stays as cargo built it; the steps below work on a fresh copy, so every run
     // post-processes the same input once (a killed run cannot leave a half-edited archive behind).
     let raw = LIBC_BUILD.raw_archive(product, profile);
@@ -1325,6 +1375,9 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let release = root.join("target/niji");
     // One product build per tree at a time; the lock is held to the end of this function.
     let _lock = lock_product_dir(&product)?;
+    // PLANTS-BUILD-2: a `step: so/<phase> <seconds>s` line per phase (the `so/cargo-*` and `so/early-cargo-*` lines are
+    // parts of the phases that hold them, or beside them), so a phase that grows shows in every plants and gate log.
+    let (mut phases, run_started) = (Phases(std::time::Instant::now()), std::time::Instant::now());
     let early = EarlyBuilds::start(root, &product, profile);
     fs::create_dir_all(&release).map_err(|e| e.to_string())?;
     let _ = fs::remove_file(release.join(".profile"));
@@ -1335,12 +1388,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     println!("so: profile {}", profile.name());
     // The headers programs compile against (plan/headers.md 2.4, staging): no build input, so first.
     crate::headers::stage(root, &release)?;
+    phases.mark("headers-gen");
     if layout == Layout::Traced {
         println!("so: trace-at-build (the default; {}=ungrouped opts out): the start-up layout comes from a trace of this build", crate::hotlists::TRACE_ENV);
     }
 
     // 1. The archive, with its definitions made overridable (D-X.14).
     let (archive, weak, copies) = build_archive_locked(root, &product, &release.join("libc.a"), None, profile, layout)?;
+    phases.mark("libc-archive");
 
     // 2. The compat versions (LG-1, `compat.rs`): their stubs are assembled here and linked into
     //    libc.so.6 only, never archived (R15-2); every stub's target must be defined by libc.a.
@@ -1425,6 +1480,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let staged = tmp_name(&stub);
     link_libc(&owner_link_obj, &staged, &["-Wl,--strip-all"])?;
     publish(&staged, &stub)?;
+    phases.mark("libc-link");
 
     // 4. The start object.
     let defines = build_crt1(root, &cc, &release)?;
@@ -1452,6 +1508,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     }
     // The link-time archive and the installed `libc.so` script (D-27.28).
     build_nonshared(root, &cc, &release)?;
+    phases.mark("crt");
 
     // 5. The placeholder libraries (D-27.9, design plan/ph14/design.md §16; spec §22 notes: since
     //    2.34 libpthread is in libc.so.6): libpthread.so.0, libdl.so.2, librt.so.1, libutil.so.1,
@@ -1470,22 +1527,30 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     println!("so: internal copies (D-X.15): {} references to the internal entries (redirected now: {}; made relaxable: {}), {kept} other uses of memcpy/memmove/memset kept", copies.internal, redirected.join(", "), copies.relaxable_internal);
     println!("so: GOT calls, jumps and loads made relaxable (D-X.15, PJ-19): {}, {} other GOT uses left as they are", copies.relaxable, copies.unrecognised);
     println!("so: target/niji/libc.a ({} functions overridable with internal calls bound to the library, {} names weak in place), libc.so.6 ({count} versioned symbols, {native} of them native), niji-crt1.o, niji-rcrt1.o, niji-gcrt1.o, niji-grcrt1.o, niji-crti.o, niji-crtn.o, niji-Mcrt1.o, libresolv placeholder", weak.0, weak.1);
+    phases.mark("placeholders");
     run_libm(root, &cc, &ar, profile)?;
+    phases.mark("libm");
     // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
     // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
     println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
+    phases.mark("libmvec");
     drop(early);
+    phases.mark("early-builds-wait");
     run_ld(root, &cc, profile, layout)?;
+    phases.mark("ld");
     run_ldconfig(root, &cc, profile)?;
+    phases.mark("ldconfig");
     run_getconf(root, &cc, &release)?;
     run_getent(root, &cc)?;
     run_iconv(root, &cc)?;
     run_ldd(root, &cc, &release)?;
+    phases.mark("utilities");
     // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
     // packages install for iconv_open (D-6.8's directory).
     let n = crate::charmaps::write(root, &release.join("charmaps"))?;
     println!("so: target/niji/charmaps ({n} charmaps from spec/encoding/charmaps.tsv)");
     check_placement(root, &release)?;
+    phases.mark("charmaps-placement");
     // R14-12: no shared product defines or exports a GLIBC_PRIVATE version.
     crate::placeholders::check_no_private(&release)?;
     // SYS-ABI-DT-RELR: every symbol-less node of the reference that libniji honours is defined.
@@ -1507,11 +1572,14 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
 {e}", crate::hotlists::TRACE_ENV),
         r => r?,
     }
+    phases.mark("layout");
     // The marker last, so a set that was not finished has none.
     let marker = tmp_name(&release.join(".profile"));
     fs::write(&marker, format!("{}
 ", profile.name())).map_err(|e| e.to_string())?;
-    publish(&marker, &release.join(".profile"))
+    publish(&marker, &release.join(".profile"))?;
+    println!("{}", phase_line("total", run_started.elapsed()));
+    Ok(())
 }
 
 /// The interpreter product (phase 14 DL-5, R14-2, D-27.13): `crates/ld-so` as a static archive,
@@ -1546,8 +1614,8 @@ fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(),
     let name = niji_ld::arch::Native::INTERP;
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    run(&mut LD_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
-    let ld = LdLink::prepare(root, cc, &product, &LD_BUILD.raw_archive(&product, profile))?;
+    run_timed("cargo-ld", &mut LD_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    let ld =LdLink::prepare(root, cc, &product, &LD_BUILD.raw_archive(&product, profile))?;
     let (entry, archive) = (ld.entry.clone(), ld.archive.clone());
     let link = |entry: &Path, archive: &Path, out: &Path| ld.link(cc, entry, archive, out);
     let out = release.join(name);
@@ -1946,7 +2014,7 @@ pub(crate) const LDCONFIG_BUILD: ProductBuild = ProductBuild { manifest: "crates
 fn run_ldconfig(root: &Path, cc: &str, profile: Profile) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    run(&mut LDCONFIG_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    run_timed("cargo-ldconfig", &mut LDCONFIG_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
     let archive = LDCONFIG_BUILD.raw_archive(&product, profile);
     let entry = product.join("ldconfig-entry.o");
     run(Command::new(cc).arg("-c").arg("-DNIJI_LD").arg("-DNIJI_LDCONFIG").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&entry))?;
@@ -2460,8 +2528,8 @@ const LIBM_DATA: [&str; 2] = ["signgam", "__signgam"];
 fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
-    run(&mut LIBM_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
-    let raw = LIBM_BUILD.raw_archive(&product, profile);
+    run_timed("cargo-libm", &mut LIBM_BUILD.command(root, &product, profile, None, &build_tag(root)))?;
+    let raw =LIBM_BUILD.raw_archive(&product, profile);
     let (_, both, libm_only) = crate::math::owners(root)?;
     // The data objects of libm.so.6 (`signgam`, D-10.4) are not generated functions.
     let mut exports: BTreeSet<String> = libm_only.union(&both).filter(|s| !s.starts_with("niji_")).cloned().collect();
@@ -2684,6 +2752,33 @@ mod tests {
     /// directory build with the same flags and the same environment, so that none rebuilds another's dependencies
     /// when nothing changed; the interpreter's own flags give it a directory of its own; every build sets the tag;
     /// and each build's archive is read from its own directory.
+    #[test]
+    fn a_fixed_tag_replaces_the_source_hash_and_only_a_fixed_one() {
+        // no spec clause (PLANTS-BUILD-2): a plants run's constant tag is the tag, whatever the sources; without one (or an
+        // empty one) the tag is the hash of the sources, which changes with a source byte
+        let root = std::env::temp_dir().join(format!("xtask-so-tag-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("crates")).unwrap();
+        fs::write(root.join("Cargo.lock"), "lock").unwrap();
+        fs::write(root.join("crates/a.rs"), "one").unwrap();
+        let hash = tag_or_hash(&root, None);
+        assert!(hash.starts_with("src-") && hash.len() == "src-".len() + 16, "{hash}");
+        assert_eq!(tag_or_hash(&root, Some("")), hash, "an empty variable is no tag");
+        assert_eq!(tag_or_hash(&root, Some("plants-7")), "plants-7");
+        fs::write(root.join("crates/a.rs"), "two").unwrap();
+        assert_ne!(tag_or_hash(&root, None), hash, "the hash follows the sources");
+        assert_eq!(tag_or_hash(&root, Some("plants-7")), "plants-7", "the fixed tag does not");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_phase_prints_one_gate_step_line() {
+        // no spec clause (PLANTS-BUILD-2): `so/<phase>` in the gate's `step:` format, which a log reader parses
+        let line = phase_line("headers-gen", std::time::Duration::from_millis(1500));
+        assert_eq!(line, "step: so/headers-gen 1.5s");
+        assert_eq!(crate::steptime::parse(&line), Some(("so/headers-gen", 1.5)));
+    }
+
     #[test]
     fn product_builds_sharing_a_target_directory_build_alike() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
