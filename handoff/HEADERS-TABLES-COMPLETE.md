@@ -1,63 +1,51 @@
-# HEADERS-TABLES-COMPLETE: handoff (leg 2, 2026-11-19)
+# HEADERS-TABLES-COMPLETE: handoff (leg 3, 2026-11-19)
 
 State: branch `task/headers-tables-complete` from origin/next 2b5604f9c. Role mei:~/w/s2. Code commits: 570b86928
-(leg 1: groups 1, 3, 6, 7), 67c69b1a0 (plants file), 2ca7392b5 (leg-1 findings fixed), 7f0a5c5ea (group 2). Plants
-file `handoff/HEADERS-TABLES-COMPLETE-plants.txt` (10 plants). Exceptions in `headers/rows-exceptions.tsv`:
-99 -> 74 (leg 1) -> 42 (leg 2).
+(leg 1: groups 1, 3, 6, 7), 67c69b1a0 (plants file), 2ca7392b5 (leg-1 findings), 7f0a5c5ea (group 2), 2894a9fb4
+(group 4), 955a77192 (group 5: pointer and X/Open macros). Plants file `handoff/HEADERS-TABLES-COMPLETE-plants.txt`
+(15 plants). Exceptions in `headers/rows-exceptions.tsv`: 99 -> 74 (leg 1) -> 42 (leg 2) -> 15 (leg 3).
 
-## Done
+## Done (do not redo)
 
-* Leg 1 (see 570b86928's message): enumerators.tsv + `@@enum` as data, layouts at every depth, bit positions
-  `bits W@P` recorded and checked, va_list C++ row PERMANENT (#6721).
-* 2ca7392b5: leg 1's test job found `header_p2_fixed_rows` red (union sigval defined in strict sys/pidfd.h, a
-  regression from the complete siginfo_t). Fix: `typedef()`'s last branch spells a typedef named for linkage
-  through a tag the header shows in fewer configurations through an untagged aggregate outside the tag's
-  condition (`narrower_tag` now takes both kinds). Plants survivors fixed: htc-anon-level now runs the new unit test
-  `an_anonymous_member_counts_only_its_own_level` (the tables' only `<anon>` with deeper rows is Dl_serinfo's last
-  member, so the rows test cannot see a miscount); the per-enumerator guards in `enum_body` were dead (an enumerator
-  of a declared enumeration is always routed to the whole enumeration) and are removed (mcheck.h, sys/ptrace.h
-  lose those lines); plant htc-enum-route replaces htc-enum-guard. New plant htc-typedef-narrow-tag.
-* 7f0a5c5ea, group 2: `headers/providers.tsv` (name, provider, source): la_* `program` (rtld-audit(7)), ps_*
-  `debugger` (proc_service), bindresvport6 and getumask `none` (ruling #6715: declared, a use fails to link as on
-  the reference). The export check in functions.rs skips these names; `load_providers` refuses an unknown
-  provider, an undeclared name or a default-version export (unit test
-  `a_provider_row_is_refused_unless_it_is_needed`). 32 exception rows removed. DEVIATION from the brief's wording
-  (INFORMATIONAL for the hand-back): a reviewed generator input instead of a prototypes.tsv column, because
-  abi_extract.py rewrites prototypes.tsv with three columns and the ps_* functions have no prototypes.tsv row.
-  S16 has not landed (no headers/slices/s16*), so nothing of #6725 applies.
-* Proof on 2ca7392b5/7f0a5c5ea (job headers-tables-complete-l2gen3, mei): headers-gen, `headers-gen --rows`
-  ok (prototypes 0 excepted, typedefs 8 excepted, all 0 failed), both unit tests, header_p2_fixed_rows ok.
-  libc-include changes this leg: mcheck.h, sys/ptrace.h (dead guard lines removed), sys/pidfd.h (union sigval
-  under `__NIJI_POSIX >= 199309`, untagged `__sigval_t` union otherwise).
+* Legs 1-2: see commit messages 570b86928, 2ca7392b5, 7f0a5c5ea (enumerators, depth, bit positions, va_list
+  PERMANENT #6721, providers.tsv with ruling #6715; DEVIATION: providers.tsv instead of a prototypes.tsv column,
+  INFORMATIONAL for the hand-back).
+* Leg 2's jobs collected: l2test1 green (738 passed), l2plants1 10/10 CAUGHT.
+* 2894a9fb4, group 4: abi_extract.py probes transparent unions (void * accepted), their members over candidate
+  sockaddr tags (tables + man pages ddp(7), netlink(7), packet(7), vsock(7), x25(7)), names `__tu_<tag>`
+  (unobservable: INFORMATIONAL), restrict of the strict-C macro form by `_Generic`. Members found: sockaddr, _in,
+  _in6, _un, _x25 (a member tag outside the candidates would be missed: INFORMATIONAL). Generator: union with
+  `__transparent_union__`; where visibility has the name as a macro, `#else #define NAME <first member ptr>
+  [__restrict]`; rows unit (no header rows) uses the union in C, pointer in C++. Rows test: members + void* call
+  (C), exact pointer type with `__is_same` (C++). abi-gen regenerated crates/abi (layout.rs, appendix_c_layouts.rs).
+  No libc-include change (sys/socket.h is not generated yet). Proof on 2894a9fb4: l3test1 green (clippy, static,
+  740 tests), l3plants1 13/13 CAUGHT.
+* 955a77192, group 5 part: type_probe.py `--retry-missing --names`, config fallback (first C config showing a
+  name), pointer pass (C++ decltype spelling + constants.tsv value). 19 macros.tsv rows; value emitter casts
+  pointer rows (`c_words`); fmtmsg.h.in uses @@value for MM_NULL{LBL,TXT,ACT,TAG} (libc-include/fmtmsg.h: `0` ->
+  `0L` in four casts); rows test checks pointer type C/C++ and address at run time. l3gen6: rows ok.
+  Probe: TD_SIGNO_MASK is object-like, `void *` in C, value 0 (not function-like).
 
-## Jobs running at the refresh (head 7f0a5c5ea): collect FIRST
+## Jobs running at the refresh (head 955a77192): collect FIRST
 
-`~/bin/jobwait headers-tables-complete-l2test1 headers-tables-complete-l2plants1` on mei.
-* l2test1: clippy -D warnings, `cargo xtask static`, `cargo test -p xtask -p niji-abi`.
-* l2plants1: the 10 plants, `--dir /mnt/zram/claude/headers-tables-complete/plants-2`; grep CAUGHT/SURVIVED/WARN.
-Leg 1's jobs headers-tables-complete-test1 and -plants1 are SUPERSEDED (test1 red on p2, fixed in 2ca7392b5;
-plants1 had 2 survivors, fixed). Job labels used so far: -gen2 (leg 1), -l2gen1..3, -l2unit1, -l2extract1: pick
-new labels (jobrun silently refuses a used one).
+`~/bin/jobwait headers-tables-complete-l3test2 headers-tables-complete-l3plants2` on mei (clippy -D warnings,
+static, `cargo test -p xtask -p niji-abi`; 15 plants, dir plants-4). SUPERSEDED: l3test1/l3plants1 (green, older
+head 2894a9fb4). Labels used: -l3extract1, -l3gen1..6, -l3tp1, -l3test1/2, -l3plants1/2: pick new ones.
 
-## Next: group 4 (8 C++ exceptions), then group 5
+## Next (15 exception rows left)
 
-Group 4 finding (leg 2, probe on mei): GCC's DWARF gives the `__SOCKADDR_ARG` / `__CONST_SOCKADDR_ARG`
-transparent union NO member DIEs (the union DIE has no children), so `abi_extract.py --layouts-only` yields only
-the head rows. The transparency itself is probe-able (GCC manual, transparent_union: a `void *` argument is
-accepted only by a transparent union parameter); patch with `transparent()` and the two TYPES entries saved at
-`~/w/.scratch/HEADERS-TABLES-COMPLETE/group4-extract.patch` (not committed; head rows only, members missing).
-Next step: a member probe: for each `struct sockaddr*` tag visible under `_GNU_SOURCE` (typedefs.tsv/visibility),
-compile `void f (__SOCKADDR_ARG); void g (struct sockaddr_X *p) { f (p); }` with `-Werror` (and `const` for the
-CONST form); the accepted pointer types are the members (names are the implementation's: reserved). Record them
-as layouts rows (head row last column `transparent_union`). Generator: in C a `typedef union {..} NAME
-__attribute__ ((__transparent_union__))`; in C++ and where visibility.tsv has the name as a `macro` (`!gnu`), the
-pointer form `struct sockaddr *__restrict` / `const struct sockaddr *` (POSIX accept/bind prototypes; the C++
-form is checked against typedefs.tsv `function accept` = `int (int, sockaddr*, unsigned int*)`). tname spells a
-restrict pointer `restrict struct sockaddr *`: the generator must place the qualifier after the `*`.
-Group 5 as in the brief (18 pointer constants, FNM_NOSYS, DLFO_EH_SEGMENT_TYPE, TD_SIGNO_MASK, 10 type-generic
-macros, gets and bsd_signal). type_probe.py's clean-room rule: never read `-E`/`-dM` output.
+1. Type-generic macros (10: iscanonical iseqsig issignaling iszero fpclassify isfinite isgreater isnormal
+   isunordered signbit): function rows (or a visibility kind) for their function forms (ruling #6720).
+2. gets (c89/c99/isoc99/cxx98/cxx11) and bsd_signal (xopen500/600/ext): prototypes rows from a configuration that
+   declares them (abi_extract.py prototypes() only probes its own configuration).
+3. NULL (C++ type is not a pointer; macros.tsv has one C type column) and TD_SIGNO_MASK (C++ decltype line dropped
+   in type_probe's C++ unit; find why): reasons updated in the exceptions file; RULING NEEDED candidate for NULL
+   (recommend: keep NULL the templates', mark PERMANENT).
+4. Then final: sync, clippy foreground, static, test + plants jobs, precheck, report JSON, handback-check.
+   gen script: `~/work/headers-tables-complete/gen.sh <n>` (abi-gen, headers-gen, --rows; tars outputs).
 
 ## Open / informational
 
-* Duplicate guarded `union sigval` blocks in sys/pidfd.h: the nested-definition duplicate (#6723, its own story).
-* Process slips: leg 1 one `sed -i` and two empty heredocs; leg 2 two heredocs (a scratch script, a no-op).
+* Duplicate guarded `union sigval` blocks in sys/pidfd.h: #6723, its own story.
+* Process slips: leg 1 one `sed -i`, two empty heredocs; leg 2 two heredocs; leg 3 one no-op `sed -i` (a
+  substitution of a match by itself on typedefs.rs; file unchanged), reported.
