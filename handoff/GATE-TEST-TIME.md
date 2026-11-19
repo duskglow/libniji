@@ -1,8 +1,9 @@
 # GATE-TEST-TIME: why the CI gate's test steps got 2.3-3.7x slower (11-12 -> 11-19), and two fixes
 
-State: branch `task/gate-test-time` from origin/next 255a6901d; HEAD: see handoff/reports/GATE-TEST-TIME.json.
-Code commits: 170d1e7d5 (headers-gen row index), 53918b5f3 (run-once graph: dev-dependencies). Decisions: none
-new (local tooling details; no D-row). Plants: handoff/GATE-TEST-TIME-plants.txt.
+State: branch `task/gate-test-time-2` (continues `task/gate-test-time`, from origin/next 255a6901d, merged with
+origin/next d496d4c25 in 0420dd0e3); HEAD: see handoff/reports/GATE-TEST-TIME-2.json.
+Code commits: 170d1e7d5 (headers-gen row index; replaced in the merge, item 3), 53918b5f3 (run-once graph:
+dev-dependencies). Decisions: none new (local tooling details; no D-row). Plants: handoff/GATE-TEST-TIME-plants.txt.
 
 ## Method (deviation from the brief, step 1)
 The brief asked for both nextest suites re-run at b31418181 and at next's head on a quiet role. I did not: that is
@@ -48,6 +49,10 @@ New tests: pass 1 +391 tests = 1374 s; the rest (+8350 s) is tests that already 
    (`cond.rs` rows / dont_care / is_covered, `enums.rs`, one site in headers.rs). Now a (header, name) index and a
    per-header include-error mask built once; the output is byte-identical (--check passes against the committed
    headers).
+   **Merge (GATE-TEST-TIME-2):** PLANTS-BUILD-SLOWDOWN landed the same fix on next (`VisIndex` in headers.rs).
+   The merge keeps `VisIndex` (it also indexes rows per header and the header-less rows); this branch adds only
+   two cases to its test `vis_index_answers_as_the_row_scan` (two rows of one kind: the first answers; two
+   include-error rows in one header: joined), which next's test did not decide. The speedup is next's, not this branch's.
 4. **xtask's unit tests ran twice (fixed, 53918b5f3).** bin/xtask (502 tests, 1846 test-s in pass 2 on 11-19)
    is not run-once: the package-graph walk followed niji-rt's dev-dependency on niji-boundary (xtask -> niji-ld ->
    niji-rt), which cargo never links into xtask; the byte rule cannot help (xtask names the marker in literals).
@@ -56,7 +61,12 @@ New tests: pass 1 +391 tests = 1374 s; the rest (+8350 s) is tests that already 
    cause (the slowed tests start no process; spawn-heavy tests are not among the top movers); repeated builds
    inside tests (none found among the top 30).
 
-## Verified (Zen 1 build host, role n3, code head c085514d0)
+## Verified after the merge (GATE-TEST-TIME-2: mei role s4, merged head 0420dd0e3)
+- clippy and `cargo xtask static` green; gate `gate-test-time-2-gate` (direct tier, xtask bounded set): 5 suites,
+  517 passed, 0 failed. Plants `gate-test-time-2-plants`: 7 CAUGHT, 0 SURVIVED, no WARN (the 4 old header plants
+  aimed at the replaced index; now 2 on VisIndex for the added test cases, plus the enums.rs and run-once plants).
+
+## Verified before the merge (Zen 1 build host, role n3, code head c085514d0)
 - Gate `gate-test-time-gate-4` (direct tier = xtask bounded set: xtask unit tests, clippy, static, cheap steps;
   FULL is the train's). Superseded, all green on older heads: `gate-test-time-gate` (53918b5f3, 515 passed),
   `gate-test-time-gate-3` (a29b017e4, 516 passed).
@@ -72,7 +82,8 @@ New tests: pass 1 +391 tests = 1374 s; the rest (+8350 s) is tests that already 
   (bin/xtask once) = ~-130 s pass-2 wall at ~14 in flight.
 
 ## Open / next step
-- Measure on the train: compare the next CI gates' `step: test/headers-gen-check` line and the pass-2
-  `once: xtask::bin/xtask` line plus Summary against 255a6901d.
-- Math sweeps (item 1) and the foreign-thread heap path (item 2): stories of their own (numbers above).
+- Land through the train (the merge conflict is resolved). Then compare the next CI gates' pass-2
+  `once: xtask::bin/xtask` line and Summary against 255a6901d (headers-gen-check's drop is PLANTS-BUILD-SLOWDOWN's).
+- Math sweeps (item 1, #6773) and the foreign-thread heap path (item 2, #6772): routed to their own stories by the
+  coordinator; not done here.
 - The `products` step stays with PLANTS-BUILD-SLOWDOWN.
