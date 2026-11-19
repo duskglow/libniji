@@ -904,7 +904,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("niji-providers-{}", std::process::id()));
         fs::create_dir_all(dir.join("headers")).unwrap();
         assert_eq!(t.providers.get("iszero").map(String::as_str), Some("generic"));
-        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\nsin\tgeneric\tx\nM_PI\tgeneric\tx\nfpclassify\tgeneric\tx\n";
+        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\nsin\tgeneric\tx\nEOF\tgeneric\tx\nfpclassify\tgeneric\tx\n";
         fs::write(dir.join(PROVIDERS), rows).unwrap();
         let r = load_providers(&dir, &t.vis, &t.protos, &t.typedefs, &t.exported);
         let _ = fs::remove_dir_all(&dir);
@@ -912,9 +912,10 @@ mod tests {
         assert!(e.contains("la_version: provider `linker`"), "{e}");
         assert!(e.contains("niji_no_such_function: no prototypes.tsv"), "{e}");
         assert!(e.contains("malloc: exported at a default version"), "{e}");
-        // `generic`: a declared function (sin) or a name no header shows as both a function and a macro (M_PI).
+        // `generic`: a declared function (sin) or a name no header shows as both a function and a macro (EOF: a
+        // macro in many headers, a function in none).
         assert!(e.contains("sin: generic, but a prototypes.tsv"), "{e}");
-        assert!(e.contains("M_PI: generic, but no header"), "{e}");
+        assert!(e.contains("EOF: generic, but no header"), "{e}");
         assert!(!e.contains("getumask") && !e.contains("fpclassify"), "{e}");
     }
 
