@@ -26,11 +26,11 @@ sys/sendfile.h`. Say "slice 7" in commits. `sys/wait.h wait.h sys/param.h spawn.
 * P7 (new `smoke.sh --niji-headers`, `niji-cc` with `NIJI_SMOKE_HEADERS`, `undef-compare.sh`): zlib builds and passes its test against libniji's headers
   alone (1 of 1, same as the reference build). xz-utils does not build: it includes `<pthread.h>` (slice 8). sqlite3 first failed on `isalpha()`: only `_ISalnum` and `_ISupper` were declared (the visibility probes see macros, not enumerators): FIXED (ten enumerators in `headers/ctype.h.in`, checked by `header_s07.py`), but sqlite3 was NOT rebuilt after the fix (context budget): rerun `smoke.sh --niji-headers sqlite3` (needs `NIJI_FULL_PROFILE=1 cargo xtask so`). `undef-compare.sh` on the first run: every object that differs differs only by `_chk` symbols the reference build calls (`__fprintf_chk`, `__memcpy_chk`, ...: the distribution compiler's default fortify, slice 18); 21 objects identical.
 Other enumerators the visibility probes cannot see may be missing in other headers: audit (INFORMATIONAL).
-* Decision (pending, `records/pending/SL-HEADERS-S07-3-1.toml`, D-NEW series D-X), differences row after `bsd_signal` for the reserved names.
+* Decision D-X.118 (`records/decisions/D-X/D-X.118.toml`), differences row after `bsd_signal` for the reserved names.
 * Plants: `handoff/SL-HEADERS-S07/plants.txt` (18; 7 new for this run's generator rules and `header_s07.py`).
 
 **Open.** P7 for xz-utils and sqlite3 waits for slice 8 (`pthread.h`, `signal.h`); P2/P3 rows of the five SL-HEADERS-S07-TAIL headers go with them.
-Pending ids: the two `COMPAT-NEW` rows of S07-2 and this run's `D-NEW` get ids from CI; the differences rows say "pending".
+Ids (run 4, reserved by the coordinator): D-X.117 (S07-2 decision), D-X.118 (S07-3 decision), COMPAT-32 (getumask, #6377), COMPAT-33 (bsd_signal, #6378); the four records moved from records/pending to records/decisions/D-X and records/compat, the differences rows name them. Static clean, gate green (12099 passed, 0 failed).
 
 **Things not to redo.** abi-gen, the table reruns, the earlier generator additions. Never run `abi_extract.py` without flags (drops two `sched_*attr` rows).
 
