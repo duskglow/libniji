@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (222 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (235 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -478,6 +478,182 @@ fn abi_pthread_unwind_buf_t() {
     table::expect_underaligned("__pthread_unwind_buf_t", size_of::<__pthread_unwind_buf_t>(), align_of::<__pthread_unwind_buf_t>());
     expect_member("__pthread_unwind_buf_t", "__cancel_jmp_buf", offset_of!(__pthread_unwind_buf_t, __cancel_jmp_buf));
     expect_member("__pthread_unwind_buf_t", "__pad", offset_of!(__pthread_unwind_buf_t, __pad));
+}
+
+#[test]
+fn abi_struct_cancel_jmp_buf_tag() {
+    expect_type("struct __cancel_jmp_buf_tag", size_of::<struct___cancel_jmp_buf_tag>(), align_of::<struct___cancel_jmp_buf_tag>());
+    expect_member("struct __cancel_jmp_buf_tag", "__cancel_jmp_buf", offset_of!(struct___cancel_jmp_buf_tag, __cancel_jmp_buf));
+    expect_member("struct __cancel_jmp_buf_tag", "__mask_was_saved", offset_of!(struct___cancel_jmp_buf_tag, __mask_was_saved));
+}
+
+#[test]
+fn abi_sigevent_t() {
+    expect_type("sigevent_t", size_of::<sigevent_t>(), align_of::<sigevent_t>());
+    expect_member("sigevent_t", "sigev_value", offset_of!(sigevent_t, sigev_value));
+    expect_member("sigevent_t", "sigev_value.sival_int", offset_of!(sigevent_t, sigev_value.sival_int));
+    expect_member("sigevent_t", "sigev_value.sival_ptr", offset_of!(sigevent_t, sigev_value.sival_ptr));
+    expect_member("sigevent_t", "sigev_signo", offset_of!(sigevent_t, sigev_signo));
+    expect_member("sigevent_t", "sigev_notify", offset_of!(sigevent_t, sigev_notify));
+    expect_member("sigevent_t", "_sigev_un", offset_of!(sigevent_t, _sigev_un));
+    expect_member("sigevent_t", "_sigev_un._pad", offset_of!(sigevent_t, _sigev_un._pad));
+    expect_member("sigevent_t", "_sigev_un._tid", offset_of!(sigevent_t, _sigev_un._tid));
+    expect_member("sigevent_t", "_sigev_un._sigev_thread", offset_of!(sigevent_t, _sigev_un._sigev_thread));
+    expect_member("sigevent_t", "_sigev_un._sigev_thread._function", offset_of!(sigevent_t, _sigev_un._sigev_thread._function));
+    expect_member("sigevent_t", "_sigev_un._sigev_thread._attribute", offset_of!(sigevent_t, _sigev_un._sigev_thread._attribute));
+}
+
+#[test]
+fn abi_struct_sigcontext() {
+    expect_type("struct sigcontext", size_of::<struct_sigcontext>(), align_of::<struct_sigcontext>());
+    expect_member("struct sigcontext", "r8", offset_of!(struct_sigcontext, r8));
+    expect_member("struct sigcontext", "r9", offset_of!(struct_sigcontext, r9));
+    expect_member("struct sigcontext", "r10", offset_of!(struct_sigcontext, r10));
+    expect_member("struct sigcontext", "r11", offset_of!(struct_sigcontext, r11));
+    expect_member("struct sigcontext", "r12", offset_of!(struct_sigcontext, r12));
+    expect_member("struct sigcontext", "r13", offset_of!(struct_sigcontext, r13));
+    expect_member("struct sigcontext", "r14", offset_of!(struct_sigcontext, r14));
+    expect_member("struct sigcontext", "r15", offset_of!(struct_sigcontext, r15));
+    expect_member("struct sigcontext", "rdi", offset_of!(struct_sigcontext, rdi));
+    expect_member("struct sigcontext", "rsi", offset_of!(struct_sigcontext, rsi));
+    expect_member("struct sigcontext", "rbp", offset_of!(struct_sigcontext, rbp));
+    expect_member("struct sigcontext", "rbx", offset_of!(struct_sigcontext, rbx));
+    expect_member("struct sigcontext", "rdx", offset_of!(struct_sigcontext, rdx));
+    expect_member("struct sigcontext", "rax", offset_of!(struct_sigcontext, rax));
+    expect_member("struct sigcontext", "rcx", offset_of!(struct_sigcontext, rcx));
+    expect_member("struct sigcontext", "rsp", offset_of!(struct_sigcontext, rsp));
+    expect_member("struct sigcontext", "rip", offset_of!(struct_sigcontext, rip));
+    expect_member("struct sigcontext", "eflags", offset_of!(struct_sigcontext, eflags));
+    expect_member("struct sigcontext", "cs", offset_of!(struct_sigcontext, cs));
+    expect_member("struct sigcontext", "gs", offset_of!(struct_sigcontext, gs));
+    expect_member("struct sigcontext", "fs", offset_of!(struct_sigcontext, fs));
+    expect_member("struct sigcontext", "__pad0", offset_of!(struct_sigcontext, __pad0));
+    expect_member("struct sigcontext", "err", offset_of!(struct_sigcontext, err));
+    expect_member("struct sigcontext", "trapno", offset_of!(struct_sigcontext, trapno));
+    expect_member("struct sigcontext", "oldmask", offset_of!(struct_sigcontext, oldmask));
+    expect_member("struct sigcontext", "cr2", offset_of!(struct_sigcontext, cr2));
+    expect_member("struct sigcontext", "fpstate", offset_of!(struct_sigcontext, __anon_184.fpstate));
+    expect_member("struct sigcontext", "__fpstate_word", offset_of!(struct_sigcontext, __anon_184.__fpstate_word));
+    expect_member("struct sigcontext", "__reserved1", offset_of!(struct_sigcontext, __reserved1));
+}
+
+#[test]
+fn abi_struct_fpstate() {
+    expect_type("struct _fpstate", size_of::<struct__fpstate>(), align_of::<struct__fpstate>());
+    expect_member("struct _fpstate", "cwd", offset_of!(struct__fpstate, cwd));
+    expect_member("struct _fpstate", "swd", offset_of!(struct__fpstate, swd));
+    expect_member("struct _fpstate", "ftw", offset_of!(struct__fpstate, ftw));
+    expect_member("struct _fpstate", "fop", offset_of!(struct__fpstate, fop));
+    expect_member("struct _fpstate", "rip", offset_of!(struct__fpstate, rip));
+    expect_member("struct _fpstate", "rdp", offset_of!(struct__fpstate, rdp));
+    expect_member("struct _fpstate", "mxcsr", offset_of!(struct__fpstate, mxcsr));
+    expect_member("struct _fpstate", "mxcr_mask", offset_of!(struct__fpstate, mxcr_mask));
+    expect_member("struct _fpstate", "_st", offset_of!(struct__fpstate, _st));
+    expect_member("struct _fpstate", "_xmm", offset_of!(struct__fpstate, _xmm));
+    expect_member("struct _fpstate", "__glibc_reserved1", offset_of!(struct__fpstate, __glibc_reserved1));
+}
+
+#[test]
+fn abi_struct_fpxreg() {
+    expect_type("struct _fpxreg", size_of::<struct__fpxreg>(), align_of::<struct__fpxreg>());
+    expect_member("struct _fpxreg", "significand", offset_of!(struct__fpxreg, significand));
+    expect_member("struct _fpxreg", "exponent", offset_of!(struct__fpxreg, exponent));
+    expect_member("struct _fpxreg", "__glibc_reserved1", offset_of!(struct__fpxreg, __glibc_reserved1));
+}
+
+#[test]
+fn abi_struct_xmmreg() {
+    expect_type("struct _xmmreg", size_of::<struct__xmmreg>(), align_of::<struct__xmmreg>());
+    expect_member("struct _xmmreg", "element", offset_of!(struct__xmmreg, element));
+}
+
+#[test]
+fn abi_struct_libc_fpstate() {
+    expect_type("struct _libc_fpstate", size_of::<struct__libc_fpstate>(), align_of::<struct__libc_fpstate>());
+    expect_member("struct _libc_fpstate", "cwd", offset_of!(struct__libc_fpstate, cwd));
+    expect_member("struct _libc_fpstate", "swd", offset_of!(struct__libc_fpstate, swd));
+    expect_member("struct _libc_fpstate", "ftw", offset_of!(struct__libc_fpstate, ftw));
+    expect_member("struct _libc_fpstate", "fop", offset_of!(struct__libc_fpstate, fop));
+    expect_member("struct _libc_fpstate", "rip", offset_of!(struct__libc_fpstate, rip));
+    expect_member("struct _libc_fpstate", "rdp", offset_of!(struct__libc_fpstate, rdp));
+    expect_member("struct _libc_fpstate", "mxcsr", offset_of!(struct__libc_fpstate, mxcsr));
+    expect_member("struct _libc_fpstate", "mxcr_mask", offset_of!(struct__libc_fpstate, mxcr_mask));
+    expect_member("struct _libc_fpstate", "_st", offset_of!(struct__libc_fpstate, _st));
+    expect_member("struct _libc_fpstate", "_xmm", offset_of!(struct__libc_fpstate, _xmm));
+    expect_member("struct _libc_fpstate", "__glibc_reserved1", offset_of!(struct__libc_fpstate, __glibc_reserved1));
+}
+
+#[test]
+fn abi_struct_libc_fpxreg() {
+    expect_type("struct _libc_fpxreg", size_of::<struct__libc_fpxreg>(), align_of::<struct__libc_fpxreg>());
+    expect_member("struct _libc_fpxreg", "significand", offset_of!(struct__libc_fpxreg, significand));
+    expect_member("struct _libc_fpxreg", "exponent", offset_of!(struct__libc_fpxreg, exponent));
+    expect_member("struct _libc_fpxreg", "__glibc_reserved1", offset_of!(struct__libc_fpxreg, __glibc_reserved1));
+}
+
+#[test]
+fn abi_struct_libc_xmmreg() {
+    expect_type("struct _libc_xmmreg", size_of::<struct__libc_xmmreg>(), align_of::<struct__libc_xmmreg>());
+    expect_member("struct _libc_xmmreg", "element", offset_of!(struct__libc_xmmreg, element));
+}
+
+#[test]
+fn abi_struct_pthread_mutex_s() {
+    expect_type("struct __pthread_mutex_s", size_of::<struct___pthread_mutex_s>(), align_of::<struct___pthread_mutex_s>());
+    expect_member("struct __pthread_mutex_s", "__lock", offset_of!(struct___pthread_mutex_s, __lock));
+    expect_member("struct __pthread_mutex_s", "__count", offset_of!(struct___pthread_mutex_s, __count));
+    expect_member("struct __pthread_mutex_s", "__owner", offset_of!(struct___pthread_mutex_s, __owner));
+    expect_member("struct __pthread_mutex_s", "__nusers", offset_of!(struct___pthread_mutex_s, __nusers));
+    expect_member("struct __pthread_mutex_s", "__kind", offset_of!(struct___pthread_mutex_s, __kind));
+    expect_member("struct __pthread_mutex_s", "__spins", offset_of!(struct___pthread_mutex_s, __spins));
+    expect_member("struct __pthread_mutex_s", "__elision", offset_of!(struct___pthread_mutex_s, __elision));
+    expect_member("struct __pthread_mutex_s", "__list", offset_of!(struct___pthread_mutex_s, __list));
+    expect_member("struct __pthread_mutex_s", "__list.__prev", offset_of!(struct___pthread_mutex_s, __list.__prev));
+    expect_member("struct __pthread_mutex_s", "__list.__next", offset_of!(struct___pthread_mutex_s, __list.__next));
+}
+
+#[test]
+fn abi_struct_pthread_rwlock_arch_t() {
+    expect_type("struct __pthread_rwlock_arch_t", size_of::<struct___pthread_rwlock_arch_t>(), align_of::<struct___pthread_rwlock_arch_t>());
+    expect_member("struct __pthread_rwlock_arch_t", "__readers", offset_of!(struct___pthread_rwlock_arch_t, __readers));
+    expect_member("struct __pthread_rwlock_arch_t", "__writers", offset_of!(struct___pthread_rwlock_arch_t, __writers));
+    expect_member("struct __pthread_rwlock_arch_t", "__wrphase_futex", offset_of!(struct___pthread_rwlock_arch_t, __wrphase_futex));
+    expect_member("struct __pthread_rwlock_arch_t", "__writers_futex", offset_of!(struct___pthread_rwlock_arch_t, __writers_futex));
+    expect_member("struct __pthread_rwlock_arch_t", "__pad3", offset_of!(struct___pthread_rwlock_arch_t, __pad3));
+    expect_member("struct __pthread_rwlock_arch_t", "__pad4", offset_of!(struct___pthread_rwlock_arch_t, __pad4));
+    expect_member("struct __pthread_rwlock_arch_t", "__cur_writer", offset_of!(struct___pthread_rwlock_arch_t, __cur_writer));
+    expect_member("struct __pthread_rwlock_arch_t", "__shared", offset_of!(struct___pthread_rwlock_arch_t, __shared));
+    expect_member("struct __pthread_rwlock_arch_t", "__rwelision", offset_of!(struct___pthread_rwlock_arch_t, __rwelision));
+    expect_member("struct __pthread_rwlock_arch_t", "__pad1", offset_of!(struct___pthread_rwlock_arch_t, __pad1));
+    expect_member("struct __pthread_rwlock_arch_t", "__pad2", offset_of!(struct___pthread_rwlock_arch_t, __pad2));
+    expect_member("struct __pthread_rwlock_arch_t", "__flags", offset_of!(struct___pthread_rwlock_arch_t, __flags));
+}
+
+#[test]
+fn abi_struct_pthread_cond_s() {
+    expect_type("struct __pthread_cond_s", size_of::<struct___pthread_cond_s>(), align_of::<struct___pthread_cond_s>());
+    expect_member("struct __pthread_cond_s", "__wseq", offset_of!(struct___pthread_cond_s, __wseq));
+    expect_member("struct __pthread_cond_s", "__wseq.__value64", offset_of!(struct___pthread_cond_s, __wseq.__value64));
+    expect_member("struct __pthread_cond_s", "__wseq.__value32", offset_of!(struct___pthread_cond_s, __wseq.__value32));
+    expect_member("struct __pthread_cond_s", "__wseq.__value32.__low", offset_of!(struct___pthread_cond_s, __wseq.__value32.__low));
+    expect_member("struct __pthread_cond_s", "__wseq.__value32.__high", offset_of!(struct___pthread_cond_s, __wseq.__value32.__high));
+    expect_member("struct __pthread_cond_s", "__g1_start", offset_of!(struct___pthread_cond_s, __g1_start));
+    expect_member("struct __pthread_cond_s", "__g1_start.__value64", offset_of!(struct___pthread_cond_s, __g1_start.__value64));
+    expect_member("struct __pthread_cond_s", "__g1_start.__value32", offset_of!(struct___pthread_cond_s, __g1_start.__value32));
+    expect_member("struct __pthread_cond_s", "__g1_start.__value32.__low", offset_of!(struct___pthread_cond_s, __g1_start.__value32.__low));
+    expect_member("struct __pthread_cond_s", "__g1_start.__value32.__high", offset_of!(struct___pthread_cond_s, __g1_start.__value32.__high));
+    expect_member("struct __pthread_cond_s", "__g_refs", offset_of!(struct___pthread_cond_s, __g_refs));
+    expect_member("struct __pthread_cond_s", "__g_size", offset_of!(struct___pthread_cond_s, __g_size));
+    expect_member("struct __pthread_cond_s", "__g1_orig_size", offset_of!(struct___pthread_cond_s, __g1_orig_size));
+    expect_member("struct __pthread_cond_s", "__wrefs", offset_of!(struct___pthread_cond_s, __wrefs));
+    expect_member("struct __pthread_cond_s", "__g_signals", offset_of!(struct___pthread_cond_s, __g_signals));
+}
+
+#[test]
+fn abi_struct_pthread_internal_list() {
+    expect_type("struct __pthread_internal_list", size_of::<struct___pthread_internal_list>(), align_of::<struct___pthread_internal_list>());
+    expect_member("struct __pthread_internal_list", "__prev", offset_of!(struct___pthread_internal_list, __prev));
+    expect_member("struct __pthread_internal_list", "__next", offset_of!(struct___pthread_internal_list, __next));
 }
 
 #[test]

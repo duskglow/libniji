@@ -66,12 +66,12 @@ struct user {
   long long signal;
   int reserved;
   union {
-    struct user_regs_struct * u_ar0;
-    unsigned long long __u_ar0_word;
+  struct user_regs_struct * u_ar0;
+  unsigned long long __u_ar0_word;
   };
   union {
-    struct user_fpregs_struct * u_fpstate;
-    unsigned long long __u_fpstate_word;
+  struct user_fpregs_struct * u_fpstate;
+  unsigned long long __u_fpstate_word;
   };
   unsigned long long magic;
   char u_comm[32];

@@ -60,24 +60,6 @@ typedef struct {
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
 # endif
-#endif
-#if __NIJI_POSIX >= 199506
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-#  ifdef __cplusplus
-union pthread_attr_t {
-  char __size[56];
-  long __align;
-};
-#  else
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
-#  endif
-# endif
-#endif
-#if 1
 # ifndef __NIJI_D_epoll_create
 #  define __NIJI_D_epoll_create 1
 extern int epoll_create (int) __NIJI_NOTHROW;

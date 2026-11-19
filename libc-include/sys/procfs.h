@@ -164,19 +164,7 @@ typedef int lwpid_t;
 # endif
 # ifndef __NIJI_D_struct_user_fpregs_struct
 #  define __NIJI_D_struct_user_fpregs_struct 1
-struct user_fpregs_struct {
-  unsigned short cwd;
-  unsigned short swd;
-  unsigned short ftw;
-  unsigned short fop;
-  unsigned long long rip;
-  unsigned long long rdp;
-  unsigned int mxcsr;
-  unsigned int mxcr_mask;
-  unsigned int st_space[32];
-  unsigned int xmm_space[64];
-  unsigned int padding[24];
-};
+struct user_fpregs_struct { char __niji_opaque[512] __attribute__ ((__aligned__ (8))); };
 # endif
 # ifndef __NIJI_D_prfpregset_t
 #  define __NIJI_D_prfpregset_t 1
@@ -196,24 +184,6 @@ typedef struct {
 #  define __NIJI_D_sigset_t 1
 typedef __sigset_t sigset_t;
 # endif
-#endif
-#if __NIJI_POSIX >= 199506
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-#  ifdef __cplusplus
-union pthread_attr_t {
-  char __size[56];
-  long __align;
-};
-#  else
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
-#  endif
-# endif
-#endif
-#if 1
 struct itimerval;
 # ifndef __NIJI_D_getitimer
 #  define __NIJI_D_getitimer 1

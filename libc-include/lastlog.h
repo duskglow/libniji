@@ -8,22 +8,6 @@
 
 __NIJI_BEGIN_C
 
-#if __NIJI_POSIX >= 199506
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-#  ifdef __cplusplus
-union pthread_attr_t {
-  char __size[56];
-  long __align;
-};
-#  else
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
-#  endif
-# endif
-#endif
 
 __NIJI_END_C
 

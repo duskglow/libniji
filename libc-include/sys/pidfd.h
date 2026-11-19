@@ -205,73 +205,9 @@ typedef long off_t;
 #  define __NIJI_D_pid_t 1
 typedef int pid_t;
 # endif
-# ifndef __NIJI_D_union_sigval
-#  define __NIJI_D_union_sigval 1
-union sigval {
-  int sival_int;
-  void * sival_ptr;
-};
-# endif
-# ifndef __NIJI_D___sigval_t
-#  define __NIJI_D___sigval_t 1
-typedef union sigval __sigval_t;
-# endif
-# ifndef __NIJI_D_union_sigval
-#  define __NIJI_D_union_sigval 1
-union sigval {
-  int sival_int;
-  void * sival_ptr;
-};
-# endif
-# ifndef __NIJI_D___sigval_t
-#  define __NIJI_D___sigval_t 1
-typedef union sigval __sigval_t;
-# endif
 # ifndef __NIJI_D_siginfo_t
 #  define __NIJI_D_siginfo_t 1
-typedef struct {
-  int si_signo;
-  int si_errno;
-  int si_code;
-  int __pad0;
-  union {
-    int _pad[28];
-    struct {
-      int si_pid;
-      unsigned int si_uid;
-    } _kill;
-    struct {
-      int si_tid;
-      int si_overrun;
-      __sigval_t si_sigval;
-    } _timer;
-    struct {
-      int si_pid;
-      unsigned int si_uid;
-      __sigval_t si_sigval;
-    } _rt;
-    struct {
-      int si_pid;
-      unsigned int si_uid;
-      int si_status;
-      long si_utime;
-      long si_stime;
-    } _sigchld;
-    struct {
-      void * si_addr;
-      short si_addr_lsb;
-    } _sigfault;
-    struct {
-      long si_band;
-      int si_fd;
-    } _sigpoll;
-    struct {
-      void * _call_addr;
-      int _syscall;
-      unsigned int _arch;
-    } _sigsys;
-  } _sifields;
-} siginfo_t;
+typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } siginfo_t;
 # endif
 #endif
 #if __NIJI_GNU

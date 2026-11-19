@@ -52,7 +52,7 @@ struct __jmp_buf_tag {
 # ifndef __NIJI_D_struct__pthread_cleanup_buffer
 #  define __NIJI_D_struct__pthread_cleanup_buffer 1
 struct _pthread_cleanup_buffer {
-  void (*__routine)(void *);
+  void (*__routine) (void);
   void * __arg;
   int __canceltype;
   struct _pthread_cleanup_buffer * __prev;
@@ -73,35 +73,17 @@ struct __cancel_jmp_buf_tag {
 # ifndef __NIJI_D___pthread_unwind_buf_t
 #  define __NIJI_D___pthread_unwind_buf_t 1
 typedef struct {
-  struct __cancel_jmp_buf_tag __cancel_jmp_buf[1] __attribute__ ((__aligned__ (16)));
+  struct __cancel_jmp_buf_tag __cancel_jmp_buf[1];
   void * __pad[4];
-} __pthread_unwind_buf_t;
-# endif
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-#  ifdef __cplusplus
-union pthread_attr_t {
-  char __size[56];
-  long __align;
-};
-#  else
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
-#  endif
+} __pthread_unwind_buf_t __attribute__ ((__aligned__ (16)));
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef union {
-  unsigned long long __value64;
-} __atomic_wide_counter;
+typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef union {
-  unsigned long long __value64;
-} __atomic_wide_counter;
+typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D_struct___pthread_cond_s
 #  define __NIJI_D_struct___pthread_cond_s 1
@@ -180,6 +162,15 @@ typedef int pthread_once_t;
 # ifndef __NIJI_D_pthread_t
 #  define __NIJI_D_pthread_t 1
 typedef unsigned long pthread_t;
+# endif
+#endif
+#if __NIJI_CXX < 1
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
 # endif
 #endif
 #if __NIJI_POSIX >= 200112

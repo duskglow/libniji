@@ -11,8 +11,8 @@ __NIJI_BEGIN_C
 #if 1
 # ifndef __NIJI_D_struct_rseq
 #  define __NIJI_D_struct_rseq 1
-struct rseq {
-  unsigned int cpu_id_start __attribute__ ((__aligned__ (32)));
+struct __attribute__ ((__aligned__ (32))) rseq {
+  unsigned int cpu_id_start;
   unsigned int cpu_id;
   unsigned long long rseq_cs;
   unsigned int flags;
