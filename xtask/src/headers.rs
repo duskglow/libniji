@@ -219,28 +219,47 @@ impl VisIndex {
         }
         ix
     }
+
+    /// The rows (of `vis`, the table this index was built from) of `name` in `header`, in table order.
+    fn rows<'a>(&'a self, vis: &'a Rows, header: &str, name: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.by_name.get(header).and_then(|m| m.get(name)).into_iter().flatten().map(|&i| &vis[i])
+    }
+
+    /// The first row of (`name`, `kind`) in `header`.
+    fn row<'a>(&'a self, vis: &'a Rows, header: &str, name: &str, kind: &str) -> Option<&'a BTreeMap<String, String>> {
+        self.rows(vis, header, name).find(|r| r["kind"] == kind)
+    }
+
+    /// The rows of `header`, in table order.
+    fn header_rows<'a>(&'a self, vis: &'a Rows, header: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
+        self.by_header.get(header).into_iter().flatten().map(|&i| &vis[i])
+    }
+
+    /// The configurations of `header`'s `include-error` rows and of (`name`, `kind`)'s rows under header `-`, joined.
+    fn dont_care(&self, header: &str, name: &str, kind: &str) -> u64 {
+        self.include_error.get(header).copied().unwrap_or(0) | self.bare.get(name).and_then(|m| m.get(kind)).copied().unwrap_or(0)
+    }
 }
 
 impl Tables {
     /// The visibility.tsv rows of `name` in `header`, in table order.
     fn vis_rows<'a>(&'a self, header: &str, name: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
-        self.vis_index.by_name.get(header).and_then(|m| m.get(name)).into_iter().flatten().map(|&i| &self.vis[i])
+        self.vis_index.rows(&self.vis, header, name)
     }
 
     /// The first visibility.tsv row of (`name`, `kind`) in `header`.
     fn vis_row(&self, header: &str, name: &str, kind: &str) -> Option<&BTreeMap<String, String>> {
-        self.vis_rows(header, name).find(|r| r["kind"] == kind)
+        self.vis_index.row(&self.vis, header, name, kind)
     }
 
     /// The visibility.tsv rows of `header`, in table order.
     fn header_rows<'a>(&'a self, header: &str) -> impl Iterator<Item = &'a BTreeMap<String, String>> + 'a {
-        self.vis_index.by_header.get(header).into_iter().flatten().map(|&i| &self.vis[i])
+        self.vis_index.header_rows(&self.vis, header)
     }
 
     /// The configurations of `header`'s `include-error` rows and of (`name`, `kind`)'s rows under header `-`, joined.
     fn vis_dont_care(&self, header: &str, name: &str, kind: &str) -> u64 {
-        let ix = &self.vis_index;
-        ix.include_error.get(header).copied().unwrap_or(0) | ix.bare.get(name).and_then(|m| m.get(kind)).copied().unwrap_or(0)
+        self.vis_index.dont_care(header, name, kind)
     }
 }
 
@@ -749,6 +768,26 @@ pub fn run(root: &Path, check: bool) -> Result<(), String> {
 mod tests {
     use super::values::literal;
     use super::*;
+
+    // no spec clause (PLANTS-BUILD-SLOWDOWN): the visibility.tsv index answers as the row scan did: the row of the
+    // kind asked for (not the name's first row), a header's rows in table order, and the configurations that do not
+    // decide a name joined from the header's include-error rows and the name's header-less rows of that kind only
+    #[test]
+    fn vis_index_answers_as_the_row_scan() {
+        let lv = cond::levels(&Path::new(env!("CARGO_MANIFEST_DIR")).join("..")).unwrap();
+        let (a, b, c) = (lv.ids[0].as_str(), lv.ids[1].as_str(), lv.ids[2].as_str());
+        let row = |h: &str, n: &str, k: &str, cf: &str| [("header", h), ("name", n), ("kind", k), ("configs", cf)].iter().map(|(x, y)| (x.to_string(), y.to_string())).collect::<BTreeMap<_, _>>();
+        let vis: Rows = vec![row("h.h", "n", "macro", a), row("h.h", "n", "function", b), row("h.h", "h.h", "include-error", c), row("-", "n", "function", a), row("-", "n", "macro", b), row("g.h", "x", "include-error", b), row("h.h", "m", "macro", "*")];
+        let ix = VisIndex::new(&lv, &vis);
+        assert_eq!(ix.row(&vis, "h.h", "n", "function").map(|r| r["configs"].as_str()), Some(b));
+        assert_eq!(ix.row(&vis, "h.h", "n", "enum"), None);
+        let order: Vec<(&str, &str)> = ix.header_rows(&vis, "h.h").map(|r| (r["name"].as_str(), r["kind"].as_str())).collect();
+        assert_eq!(order, [("n", "macro"), ("n", "function"), ("h.h", "include-error"), ("m", "macro")]);
+        let m = |cf: &str| cond::mask_of(&lv, cf).unwrap();
+        assert_eq!(ix.dont_care("h.h", "n", "function"), m(c) | m(a));
+        assert_eq!(ix.dont_care("h.h", "m", "macro"), m(c));
+        assert_eq!(ix.dont_care("k.h", "n", "macro"), m(b));
+    }
 
     fn lv() -> Levels {
         // c89, gnu17, posix200809, gnu, cxx17, time64only (rejected)
