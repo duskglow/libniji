@@ -109,7 +109,7 @@ typedef int printf_function(struct _IO_FILE *, struct printf_info const *, void 
 # endif
 # ifndef __NIJI_D_printf_va_arg_function
 #  define __NIJI_D_printf_va_arg_function 1
-typedef void printf_va_arg_function(void *, __builtin_va_list);
+typedef void printf_va_arg_function(void *, __builtin_va_list *);
 # endif
 # ifndef __NIJI_D_size_t
 #  define __NIJI_D_size_t 1
