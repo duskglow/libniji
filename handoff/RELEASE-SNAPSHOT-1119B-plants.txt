@@ -10,3 +10,10 @@ rs1119b-postrm-purge-cache | tools/deb/system/libc-bin.postrm | lit:rm -f "$DPKG
 rs1119b-postrm-not-packaged | tools/deb/build.sh | lit:text) put "$mode" "$here/$src" "$dest" ;; ==> text) case $path in DEBIAN/postrm) ;; *) put "$mode" "$here/$src" "$dest" ;; esac ;; | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1119B/debs/system-work/src/target/niji --version 2.39+niji20261119.2-1 --out target/rp --work target/rpw && sh tools/deb/check-system.sh target/rp | msg:chmod: cannot access .*DEBIAN/postrm
 rs1119b-cxx-needs-libstdcxx | tools/deb/root-system.sh | lit:-Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm ==> -lstdc++ -lm | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1119B/debs/system-work/src/target/niji --version 2.39+niji20261119.2-1 --out target/rp --work target/rpw && sh tools/deb/root-system.sh target/rp | msg:root: FAIL dynamic except
 rs1119b-swap-not-done | tools/deb/swap-system.sh | lit:dpkg -i --force-downgrade --force-depends /tmp/swap/debs/*.deb ==> dpkg --version | sh tools/deb/build.sh --flavour system --products ~/work/RELEASE-SNAPSHOT-1119B/debs/system-work/src/target/niji --version 2.39+niji20261119.2-1 --out target/rp --work target/rpw && sh ~/work/RELEASE-SNAPSHOT-1119B/swapverdict.sh tools/deb/swap-system.sh target/rp target/rpl | msg:swap: FAIL the swapped root does not run the package's libc\.so\.6
+# cargo xtask plants results (6 plants: 6 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# rs1119b-debug-rows-unstripped: CAUGHT, caught by no test the log names
+# rs1119b-postinst-configure-ldconfig: CAUGHT, caught by no test the log names
+# rs1119b-postrm-purge-cache: CAUGHT, caught by no test the log names
+# rs1119b-postrm-not-packaged: CAUGHT, caught by no test the log names
+# rs1119b-cxx-needs-libstdcxx: CAUGHT, caught by no test the log names
+# rs1119b-swap-not-done: CAUGHT, caught by no test the log names
