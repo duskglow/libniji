@@ -213,12 +213,14 @@ impl<'a> Object<'a> {
     ///
     /// As [`Object::new`]; [`LookupError::NoHashTable`] when the object has no table of that style.
     pub fn with_style(dynm: Dynamic<'a>, style: HashStyle) -> Result<Self, LookupError> {
-        let symtab = dynm.symtab()?.ok_or(LookupError::NoSymtab)?;
+        // Counted once for both tables (the count walks every hash bucket; DYN-START-PARITY).
+        let count = dynm.symbol_count();
+        let symtab = dynm.symtab_with(count)?.ok_or(LookupError::NoSymtab)?;
         let hash = match style {
             HashStyle::Gnu => Hash::Gnu(dynm.gnu_hash()?.ok_or(LookupError::NoHashTable)?),
             HashStyle::Sysv => Hash::Sysv(dynm.sysv_hash()?.ok_or(LookupError::NoHashTable)?),
         };
-        let versym = dynm.versym()?;
+        let versym = dynm.versym_with(count)?;
         // The version tables, walked whole by `versym`, kept so a lookup by index does not find
         // them again (DYN-START-PARITY); without `DT_VERSYM` the walks below find them each time.
         let vers = if versym.is_some() { dynm.versions()? } else { None };

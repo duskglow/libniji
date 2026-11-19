@@ -1191,13 +1191,20 @@ impl<'a> Dynamic<'a> {
     /// [`ElfError::DuplicateDynamic`], [`ElfError::BadDynamicValue`]`(DT_SYMENT)`, the [`Elf::bytes_from`]
     /// errors for the address and the [`Dynamic::symbol_count`] errors.
     pub fn symtab(&self) -> Result<Option<Symtab<'a>>, ElfError> {
+        self.symtab_with(self.symbol_count())
+    }
+
+    /// [`Dynamic::symtab`] given the [`Dynamic::symbol_count`] result its caller already has (a
+    /// lookup view reads the symbol and version tables together and counts once: the count walks
+    /// every bucket). The count's error is met where [`Dynamic::symtab`] meets it, after the tags.
+    pub(crate) fn symtab_with(&self, count: Result<Option<u32>, ElfError>) -> Result<Option<Symtab<'a>>, ElfError> {
         let Some(addr) = self.once(dt::SYMTAB)? else { return Ok(None) };
         if let Some(e) = self.once(dt::SYMENT)? {
             if usize::try_from(e).ok() != Some(SYM_SIZE) {
                 return Err(ElfError::BadDynamicValue(dt::SYMENT));
             }
         }
-        let count = self.symtab_count()?;
+        let count = self.symtab_count(count?)?;
         let b = self.elf.bytes_from(addr)?;
         Ok(Some(Symtab { rd: Rd { b, be: self.rd.be }, count }))
     }
@@ -1207,8 +1214,7 @@ impl<'a> Dynamic<'a> {
     /// hashes no symbol, and its unhashed symbols need not end at `symoffset`, as linkers emit for a
     /// program that exports nothing). Then it is raised to cover every symbol a RELA or `JMPREL` entry
     /// names, the only indices read past the hashed ones. Objects that hash a symbol pay nothing.
-    fn symtab_count(&self) -> Result<Option<u32>, ElfError> {
-        let count = self.symbol_count()?;
+    fn symtab_count(&self, count: Option<u32>) -> Result<Option<u32>, ElfError> {
         let lower_bound = self.sysv_hash()?.is_none() && self.gnu_hash()?.is_some_and(|g| (0..g.nbuckets()).all(|i| g.bucket(i) == Some(0)));
         let Some(mut count) = count.filter(|_| lower_bound) else { return Ok(count) };
         for (addr, size) in [(dt::RELA, dt::RELASZ), (dt::JMPREL, dt::PLTRELSZ)] {
@@ -1234,8 +1240,13 @@ impl<'a> Dynamic<'a> {
     /// The [`Elf::bytes_from`] errors for the address, the [`Dynamic::symbol_count`] errors, and the
     /// errors of the version walks.
     pub fn versym(&self) -> Result<Option<Versym<'a>>, ElfError> {
+        self.versym_with(self.symbol_count())
+    }
+
+    /// [`Dynamic::versym`] given the [`Dynamic::symbol_count`] result (see [`Dynamic::symtab_with`]).
+    pub(crate) fn versym_with(&self, count: Result<Option<u32>, ElfError>) -> Result<Option<Versym<'a>>, ElfError> {
         let Some(addr) = self.once(dt::VERSYM)? else { return Ok(None) };
-        let count = self.symbol_count()?;
+        let count = count?;
         let tab = self.elf.bytes_from(addr)?;
         let mut max = 1u16;
         if let Some(defs) = self.verdef()? {

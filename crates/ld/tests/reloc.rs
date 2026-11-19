@@ -435,7 +435,7 @@ fn reloc_field_must_lie_in_a_writable_segment() {
         return;
     }
     let d = dir("outside");
-    let lib = std::fs::read(build(&d, "libo.so", "int x[512]; int *p = &x[1];\n", &["-fPIC", "-shared"])).unwrap();
+    let lib = std::fs::read(build(&d, "libo.so", "static int x[512]; int *p = &x[1];\n", &["-fPIC", "-shared"])).unwrap();
     let elf = Elf::parse::<Native>(&lib).unwrap();
     let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1).collect();
     let rw = *loads.iter().find(|p| p.flags & 2 != 0).expect("a writable PT_LOAD");

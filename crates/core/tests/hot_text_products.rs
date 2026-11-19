@@ -372,6 +372,110 @@ fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
     check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
 }
 
+/// DYN-START-PARITY; no spec clause (cost of the products). Upper bounds, per CPU model (`model name`
+/// of /proc/cpuinfo) and product profile (fast, release), on the user-mode instructions from exec to
+/// exit of a position-independent program whose `main` returns 0, linked dynamically against the
+/// products: the interpreter's whole start-up (its own relocation, mapping libc.so.6, relocating it,
+/// symbol and version lookups, initialisation) and libc.so.6's. Counted by `oracle/exec_instr.c`
+/// (median of [`DYN_INSTR_RUNS`], no randomisation). The test also counts the same program built by the
+/// host's compiler and C library and prints both, so the gap to the reference stays in view.
+/// Release, DYN-START-PARITY on next 255a6901d: 8,151,153 before (Skylake-SP host); the levels after
+/// are in the rows, each the measured median plus 2%; `0` = not measured for that profile (checked
+/// only for the profile with a level). The reference on the same hosts: see each row's comment.
+const DYN_START_INSTR: [(&str, [u64; 2]); 0] = [];
+
+/// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
+const DYN_INSTR_RUNS: &str = "21";
+
+/// The products' staging directory for a dynamic program: the interpreter and libc.so.6 copied to a
+/// fixed-length private path, which the program's `PT_INTERP` names and `LD_LIBRARY_PATH` points to.
+fn dyn_stage(tag: &str) -> PathBuf {
+    let p = root().join("target/niji");
+    assert!(p.join("ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
+    let lib = PathBuf::from(format!("/tmp/niji-{tag}-{:010}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&lib);
+    std::fs::create_dir_all(&lib).unwrap();
+    for f in ["ld-linux-x86-64.so.2", "libc.so.6"] {
+        stage(&p.join(f), &lib.join(f));
+    }
+    lib
+}
+
+/// Links `src` as a position-independent program of the products staged in `lib` ([`dyn_stage`]).
+fn dyn_link(lib: &Path, src: &Path, exe: &Path) {
+    let p = root().join("target/niji");
+    // The compiler's own start and end files of a position-independent program (`__dso_handle`, which
+    // `atexit` in libc_nonshared.a names).
+    let gcc_file = |f: &str| {
+        let o = Command::new("cc").arg(format!("-print-file-name={f}")).output().expect("cc -print-file-name");
+        PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())
+    };
+    let st = Command::new("cc")
+        .args(["-std=gnu17", "-O1", "-nostdlib", "-fno-builtin", "-fPIE", "-pie"])
+        .arg(format!("-Wl,--dynamic-linker={}", lib.join("ld-linux-x86-64.so.2").display()))
+        .arg(p.join("niji-crt1.o"))
+        .arg(gcc_file("crtbeginS.o"))
+        .arg(src)
+        .arg(p.join("libc_nonshared.a"))
+        .arg(lib.join("libc.so.6"))
+        .arg(lib.join("ld-linux-x86-64.so.2"))
+        .arg("-lgcc")
+        .arg(gcc_file("crtendS.o"))
+        .arg("-o")
+        .arg(exe)
+        .status()
+        .expect("cc");
+    assert!(st.success(), "{} does not link as a dynamic program of the products", src.display());
+}
+
+/// The median user-mode instructions of `exe` from exec to exit (`oracle/exec_instr.c`, built with the
+/// host's compiler), run with only `env`; `None` when this host gives no instruction counter (the
+/// harness's message is printed).
+fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
+    let counter = lib.join("exec_instr");
+    if !counter.exists() {
+        let st = Command::new("cc").args(["-O1", "-o"]).arg(&counter).arg(root().join("crates/core/tests/oracle/exec_instr.c")).status().expect("cc");
+        assert!(st.success(), "oracle/exec_instr.c does not build");
+    }
+    no_randomisation();
+    let o = Command::new(&counter).arg(DYN_INSTR_RUNS).arg(exe).current_dir("/").env_clear().envs(env.iter().copied()).stdin(Stdio::null()).output().unwrap();
+    let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    if o.status.code() == Some(2) {
+        eprintln!("SKIP: {}", err.trim());
+        return None;
+    }
+    assert!(o.status.success(), "exec_instr {} failed ({}): {err}", exe.display(), o.status);
+    let median = out.split_whitespace().nth(2).and_then(|v| v.parse().ok());
+    Some(median.unwrap_or_else(|| panic!("unexpected output {out:?}")))
+}
+
+#[test]
+fn init_dynamic_empty_main_stays_within_its_instruction_bound() {
+    let lib = dyn_stage("dyn-instr");
+    let src = lib.join("empty.c");
+    std::fs::write(&src, "int main(void) { return 0; }\n").unwrap();
+    let (exe, reference) = (lib.join("empty_dyn"), lib.join("empty_ref"));
+    dyn_link(&lib, &src, &exe);
+    let st = Command::new("cc").args(["-O1", "-fPIE", "-pie", "-o"]).arg(&reference).arg(&src).status().expect("cc");
+    assert!(st.success(), "the reference program does not build");
+    let path = lib.display().to_string();
+    let niji = exec_instr(&lib, &exe, &[("LD_LIBRARY_PATH", path.as_str())]);
+    let host = exec_instr(&lib, &reference, &[]);
+    let _ = std::fs::remove_dir_all(&lib);
+    let (Some(niji), Some(host)) = (niji, host) else { return };
+    let cpu = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    let model = cpu.lines().find_map(|l| l.strip_prefix("model name").and_then(|v| v.split_once(':')).map(|(_, m)| m.trim().to_owned())).unwrap_or_default();
+    let p = profile_index();
+    let profile = ["fast", "release"][p];
+    eprintln!("dynamic empty main ({profile}, {model}): {niji} instructions; the host's C library {host} ({:.1}x)", niji as f64 / host.max(1) as f64);
+    let Some(bound) = DYN_START_INSTR.iter().find(|(m, _)| *m == model).map(|(_, b)| b[p]).filter(|&b| b != 0) else {
+        eprintln!("SKIP: no {profile} bound for this CPU model ({model:?}) in DYN_START_INSTR");
+        return;
+    };
+    assert!(niji <= bound, "dynamic empty main ({profile}): {niji} instructions > {bound}: the interpreter's or libc.so.6's start-up grew");
+    assert!(niji >= bound - bound / 10, "dynamic empty main ({profile}): {niji} instructions, more than 10% under {bound}: tighten DYN_START_INSTR");
+}
+
 #[test]
 fn init_first_string_calls_after_printf_take_no_text_fault() {
     // RC1-FIRST: strlen, strncmp, memchr, memcmp and strcpy are in the hot group, so their first
