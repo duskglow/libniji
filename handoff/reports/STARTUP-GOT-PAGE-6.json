@@ -1,0 +1,68 @@
+{
+ "task": "STARTUP-GOT-PAGE-6",
+ "model": "opus",
+ "tokens": null,
+ "result": "hand-back only: plants CAUGHT 1/1 on keke, htp-fast and htp-release green on merged head 4a551a2d9 code (no code change)",
+ "branch": "task/startup-got-page-6",
+ "head": null,
+ "gate": {
+  "affected": "not run (ruling #6636: CI train FULL gate is the landing gate)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "run 5 htp-fast (mei) started after all; kill-label refused, keke rerun replaces it",
+  "traced plant baseline build took 1862 s on keke at load ~15; --timeout 1800 per command was enough (each command ~24-29 min)"
+ ],
+ "refused": [
+  "ssh mei: ~/bin/kill-label startup-got-page-5-htp-fast (dry run; auto-mode classifier)"
+ ],
+ "impact": [
+  {
+   "kind": "faults",
+   "what": "written start-up .got page no longer moves with relro length (LOCALE-SLOTS-GROWTH-5's STARTUP-DATA-WINDOWS 8 > 7 case); fast whole-process counts at bound: true 11, setlocale+printf 43, coreutils-shaped 44, localtime 36, STARTUP-DATA-WINDOWS rw 7",
+   "before": null,
+   "after": 7,
+   "unit": "written start-up pages (fast)",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "RELRO padding of a static program (static probe)",
+   "before": 28672,
+   "after": 32768,
+   "unit": "bytes (release; fast 0xc000 -> 0xd000)",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "fast layout-bins.tsv rows that differ from the merge base 3743713c (start-up bins did not grow)",
+   "before": 0,
+   "after": 0,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "init_startup_data_pages_hold_at_every_data_phase: 7 relro-tail pads, .got page-start and one-page checks; 1 plant CAUGHT",
+   "before": null,
+   "after": 1,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "plants on a traced layout build cost ~1.8 h for one plant; a cached traced baseline shared with the role build would halve it",
+ "next_step": "coordinator: ops finish to queue for the CI train FULL gate (ruling #6636)",
+ "report_file": "handoff/STARTUP-GOT-PAGE.md",
+ "jobs": [
+  "keke:startup-got-page-6-lint",
+  "keke:startup-got-page-6-plants",
+  "keke:startup-got-page-6-htp-fast",
+  "mei:startup-got-page-5-htp-release"
+ ],
+ "superseded": [
+  "mei:startup-got-page-5-plants (rc 2, baseline timeout on loaded host)",
+  "mei:startup-got-page-5-htp-fast (not collected; replaced by keke rerun)"
+ ]
+}

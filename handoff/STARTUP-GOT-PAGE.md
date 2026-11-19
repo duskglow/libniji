@@ -1,6 +1,6 @@
 # STARTUP-GOT-PAGE: `.got` starts on a page (D-X.122, ruling #6606 option C)
 
-State: branch `task/startup-got-page-5` (run 5, hand-back only; continues `task/startup-got-page-4`, `task/startup-got-page-3`, `-2`, `task/startup-got-page`), cut
+State: branch `task/startup-got-page-6` (run 6, hand-back only; continues `task/startup-got-page-5`, continues `task/startup-got-page-4`, `task/startup-got-page-3`, `-2`, `task/startup-got-page`), cut
 from origin/next 923df67e9. Role keke:~/w/n1 (Zen 1 host). Decision `records/decisions/D-X/D-X.122.toml` (amends
 D-X.101). Plants: `handoff/STARTUP-GOT-PAGE-4-plants.txt`.
 
@@ -48,6 +48,21 @@ plants-1), `startup-got-page-5-htp-release` then `startup-got-page-5-htp-fast` (
 ~/work/startup-got-page-5/htp.sh). Not started: the gate. It escalates to FULL (entry.S), and the coordinator said
 not to start a FULL gate by hand (RULING NEEDED).
 
+## Run 6 (hand-back only, branch `task/startup-got-page-6`, role keke:~/w/n1, Zen 1 host)
+Same code head as run 5 (4a551a2d9; origin/next 3743713c already merged, next had not moved). Run 5's mei plants
+went rc 2 for infrastructure (baseline build ran into the 600 s timeout on a loaded host), not code.
+`startup-got-page-6-lint` (clippy workspace all-targets all-features -D warnings, then static): rc 0.
+`mei:startup-got-page-5-htp-release` (run 5, merged head, NIJI_FULL_PROFILE=1 so + hot_text_products): rc 0, 27 passed.
+`startup-got-page-6-htp-fast` (so + hot_text_products, fast): rc 0, 27 passed.
+`startup-got-page-6-plants` (`cargo xtask plants handoff/STARTUP-GOT-PAGE-4-plants.txt --timeout 1800`, dir
+/dev/shm/claude/startup-got-page-6/plants-1): rc 0, 1 plant CAUGHT (sgp4-got-unaligned, by
+`init_startup_data_pages_hold_at_every_data_phase`), no WARN lines; results in
+`handoff/STARTUP-GOT-PAGE-6-plants.txt`. The traced baseline build alone took 1862 s on keke at load ~15; each
+command (planted so, then so + test) stayed under 1800 s. Run 6 used one empty heredoc in a scratch command (no
+effect), against the no-heredoc rule.
+Run 5's `startup-got-page-5-htp-fast` started on mei at 23:16Z after all; stopping it with `kill-label` was refused
+in run 6, so it may have run to its end there (not named; the keke run replaces it).
+
 ## Open / informational
 * HEAP-ADDRESS-SPACE-8 adds its own 256-aligned `.got` in `entry.S`; when it merges, keep one alignment (this one,
   4096) per the coordinator's note.
@@ -60,5 +75,5 @@ not to start a FULL gate by hand (RULING NEEDED).
 A/B/C/D measurements (run 3). Do not move a read into a `#[cold]` function (run 2).
 
 ## Exact next step
-Collect mei startup-got-page-5-plants, -htp-release, -htp-fast (`~/bin/jobwait <label>`). Then the gate on the
-merged head (FULL by escalation, `cargo xtask test`) per the coordinator's ruling; then land. Plan rows: D-X.101, D-X.122.
+None on the developer side: per ruling #6636 the CI train's FULL gate is the landing gate on the merged content;
+the coordinator runs `ops finish` to queue it. Plan rows: D-X.101, D-X.122.
