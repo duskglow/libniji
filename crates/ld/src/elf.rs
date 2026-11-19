@@ -2124,6 +2124,41 @@ impl<'a, A: Arch> Relas<'a, A> {
     pub fn entry_count(&self) -> usize {
         self.rd.b.len().checked_div(RELA_SIZE).unwrap_or(0)
     }
+
+    /// Calls `f(r_offset, r_addend)` for the leading run of `RELATIVE` entries (as `A` classifies
+    /// them), at most `n` of them (a table's `DT_RELACOUNT` prefix), and leaves the iterator after
+    /// the run: an entry of another type ends it there, and the iterator then yields that entry as
+    /// usual, so a wrong count changes no result. The byte order is chosen once for the run, not per
+    /// field (DYN-START-SPEED: the per-entry decode was most of a start's relocation pass).
+    ///
+    /// # Errors
+    ///
+    /// The first error of `f`; the iterator then stands on the entry `f` failed for.
+    // Inlined into the pass that owns `f`: one call per table.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    pub fn relative_prefix<E>(&mut self, n: usize, f: impl FnMut(u64, i64) -> Result<(), E>) -> Result<(), E> {
+        if self.rd.be { self.relative_run::<true, E>(n, f) } else { self.relative_run::<false, E>(n, f) }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn relative_run<const BE: bool, E>(&mut self, n: usize, mut f: impl FnMut(u64, i64) -> Result<(), E>) -> Result<(), E> {
+        let word = |b: &[u8; 8]| if BE { u64::from_be_bytes(*b) } else { u64::from_le_bytes(*b) };
+        let rest = self.rd.b.get(self.off..).unwrap_or(&[]);
+        for e in rest.chunks_exact(RELA_SIZE).take(n) {
+            let Some((offset, e)) = e.split_first_chunk::<8>() else { break };
+            let Some((info, e)) = e.split_first_chunk::<8>() else { break };
+            let Some((addend, _)) = e.split_first_chunk::<8>() else { break };
+            let r_type = u32::try_from(word(info) & 0xffff_ffff).unwrap_or(u32::MAX);
+            if A::classify(r_type) != RelocKind::Relative {
+                break;
+            }
+            f(word(offset), i64::from_ne_bytes(word(addend).to_ne_bytes()))?;
+            self.off = self.off.saturating_add(RELA_SIZE);
+        }
+        Ok(())
+    }
 }
 
 impl<A: Arch> Iterator for Relas<'_, A> {

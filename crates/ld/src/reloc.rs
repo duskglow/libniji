@@ -201,6 +201,15 @@ impl Loads {
         l
     }
 
+    /// Whether the word at `at` lies in the segment the last accepted range lay in (writable, or any
+    /// when `any`). `false` says only "not there": [`Loads::inside`] then decides. Any `PT_LOAD` the
+    /// object has is a segment [`inside`] accepts, so a hit answers as it would.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn hit_word(&self, at: u64, any: bool) -> bool {
+        self.seg.get(..self.n).and_then(|s| s.get(self.hit.get())).is_some_and(|&(lo, hi, w)| (any || w) && lo <= at && hi.checked_sub(8).is_some_and(|last| at <= last))
+    }
+
     /// [`inside`] for the object these ranges were read from.
     fn inside(&self, elf: &Elf<'_>, at: u64, len: u64, any: bool) -> bool {
         if self.spill {
@@ -611,6 +620,21 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
     Ok(())
 }
 
+/// One `RELATIVE` entry of the RELA table's `DT_RELACOUNT` prefix ([`Relas::relative_prefix`]):
+/// B + A (the psABI's calculation, as the RELR words above), stored at `at` in object `o`, which must
+/// lie in a writable segment (any segment when `any`). The segment the last entry lay in is tried
+/// first ([`Loads::hit_word`]); the general check only on a miss.
+#[allow(clippy::inline_always)]
+#[inline(always)]
+fn relative<'a, A: Arch, I: Image>(img: &mut I, loads: &Loads, o: &Obj<'a>, at: u64, addend: i64, any: bool) -> Result<(), RelocError<'a>> {
+    if !loads.hit_word(at, any) && !loads.inside(&o.elf, at, 8, any) {
+        return Err(RelocError::Outside(at));
+    }
+    let v = o.bias.wrapping_add(u64::from_ne_bytes(addend.to_ne_bytes()));
+    img.store(o.bias.wrapping_add(at), &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
+    Ok(())
+}
+
 /// Pass 1 of object `o` (index `i`): RELR, RELA, `JMPREL`. Whether any entry was deferred. Kept
 /// out of [`relocate_first`], which then stays small.
 #[inline(never)]
@@ -628,9 +652,14 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
         img.store(p, &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
     }
     let mut deferred = false;
-    for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
+    // The RELA table's `DT_RELACOUNT` prefix: `RELATIVE` entries, most of a shared object's.
+    let prefix = usize::try_from(o.dynm.get(dt::RELACOUNT).unwrap_or(0)).unwrap_or(usize::MAX);
+    for (k, table) in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()].into_iter().enumerate() {
         // A plain loop over the entries: flattening the `Option` called out of line per entry.
-        let Some(rs) = table.map_err(RelocError::Elf)? else { continue };
+        let Some(mut rs) = table.map_err(RelocError::Elf)? else { continue };
+        if k == 0 && prefix != 0 {
+            rs.relative_prefix(prefix, |at, a| relative::<A, I>(img, &loads, o, at, a, text))?;
+        }
         for r in rs {
             // B + A, most of a shared object's entries: written here as `one` would, without its
             // object lookup and dispatch.
