@@ -7,6 +7,9 @@
 
 __NIJI_BEGIN_C
 
+@@hidden-member st_atim st_atime st_atimensec
+@@hidden-member st_mtim st_mtime st_mtimensec
+@@hidden-member st_ctim st_ctime st_ctimensec
 @@emit
 
 /* XSH <sys/stat.h>: the file type tests, with the S_IFMT bits of st_mode. */

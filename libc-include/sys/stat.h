@@ -8,6 +8,7 @@
 __NIJI_BEGIN_C
 
 #if 1
+# if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -15,6 +16,8 @@ struct timespec {
   long tv_nsec;
 };
 # endif
+# endif
+# if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
@@ -22,12 +25,15 @@ struct timespec {
   long tv_nsec;
 };
 # endif
+# endif
+# if __NIJI_POSIX >= 200809
 # ifndef __NIJI_D_struct_timespec
 #  define __NIJI_D_struct_timespec 1
 struct timespec {
   long tv_sec;
   long tv_nsec;
 };
+# endif
 # endif
 # ifndef __NIJI_D_struct_stat
 #  define __NIJI_D_struct_stat 1
@@ -43,9 +49,24 @@ struct stat {
   long st_size;
   long st_blksize;
   long st_blocks;
+#if __NIJI_POSIX >= 200809
   struct timespec st_atim;
+#else
+  long st_atime;
+  long st_atimensec;
+#endif
+#if __NIJI_POSIX >= 200809
   struct timespec st_mtim;
+#else
+  long st_mtime;
+  long st_mtimensec;
+#endif
+#if __NIJI_POSIX >= 200809
   struct timespec st_ctim;
+#else
+  long st_ctime;
+  long st_ctimensec;
+#endif
   long __glibc_reserved[3];
 };
 # endif
