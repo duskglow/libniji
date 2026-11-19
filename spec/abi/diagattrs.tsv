@@ -1,14 +1,14 @@
 name	nonnull	wur	noreturn	format	malloc	alloc_size	deprecated	sentinel	pure
 _Exit			1						
-__ctype_b_loc									1
+__ctype_b_loc									const
 __ctype_get_mb_cur_max		1							
-__ctype_tolower_loc									1
-__ctype_toupper_loc									1
-__errno_location									1
+__ctype_tolower_loc									const
+__ctype_toupper_loc									const
+__errno_location									const
 _exit			1						
 a64l	1	1							1
 abort			1						
-abs									1
+abs									const
 access	1								
 aligned_alloc		1			1	2			
 alloca					1	1			
@@ -40,12 +40,12 @@ clock_gettime	2
 clock_settime	2								
 crypt	1,2								
 daemon		1							
-difftime									1
-div		1							1
+difftime									const
+div		1							const
 dprintf				printf:2:3					
 drand48_r	1,2								
 dup		1							
-dysize									1
+dysize									const
 eaccess	1								
 ecvt	3,4	1							
 ecvt_r	3,4,5								
@@ -75,9 +75,9 @@ feof_unlocked	1	1
 ferror	1	1							
 ferror_unlocked	1	1							
 fexecve	2								
-ffs									1
-ffsl									1
-ffsll									1
+ffs									const
+ffsl									const
+ffsll									const
 fgetc	1								
 fgetc_unlocked	1								
 fgetgrent_r	3								
@@ -137,7 +137,7 @@ getlogin_r	1
 getopt	2,3								
 getopt_long	2,3								
 getopt_long_only	2,3								
-getpagesize									1
+getpagesize									const
 getpass	1								
 getpwent_r	1,2,4								
 getpwnam	1								
@@ -151,23 +151,23 @@ getsubopt	1,2,3	1
 gettimeofday	1								
 getw	1								
 getwd	1	1					1		
-imaxabs									1
-imaxdiv									1
+imaxabs									const
+imaxdiv									const
 index	1								1
 initstate	2								
 initstate_r	2,4								
 jrand48	1								
 jrand48_r	1,2								
 l64a		1							
-labs									1
+labs									const
 lchown	1	1							
 lcong48	1								
 lcong48_r	1,2								
-ldiv		1							1
+ldiv		1							const
 link	1,2	1							
 linkat	2,4	1							
-llabs									1
-lldiv		1							1
+llabs									const
+lldiv		1							const
 lockf		1							
 lockf64		1							
 lrand48_r	1,2								

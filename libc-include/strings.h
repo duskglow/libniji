@@ -32,11 +32,11 @@ extern int strncasecmp (const char *, const char *, unsigned long) __NIJI_NOTHRO
 #if __NIJI_MISC
 # ifndef __NIJI_D_ffsl
 #  define __NIJI_D_ffsl 1
-extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_ffsll
 #  define __NIJI_D_ffsll 1
-extern int ffsll (long long int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int ffsll (long long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_POSIX < 200809
@@ -64,7 +64,7 @@ extern char *rindex (const char *, int) __attribute__ ((__nonnull__ (1), __pure_
 #if __NIJI_MISC || __NIJI_POSIX < 200809 || __NIJI_XSI >= 400
 # ifndef __NIJI_D_ffs
 #  define __NIJI_D_ffs 1
-extern int ffs (int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int ffs (int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 #endif
 #if __NIJI_POSIX >= 200809

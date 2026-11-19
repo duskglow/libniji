@@ -18,11 +18,11 @@ typedef struct {
 # endif
 # ifndef __NIJI_D_imaxabs
 #  define __NIJI_D_imaxabs 1
-extern long imaxabs (long) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern long imaxabs (long) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_imaxdiv
 #  define __NIJI_D_imaxdiv 1
-extern imaxdiv_t imaxdiv (long, long) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern imaxdiv_t imaxdiv (long, long) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_strtoimax
 #  define __NIJI_D_strtoimax 1

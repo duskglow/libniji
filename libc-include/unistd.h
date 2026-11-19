@@ -474,7 +474,7 @@ extern int getdtablesize (void) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_getpagesize
 #  define __NIJI_D_getpagesize 1
-extern int getpagesize (void) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int getpagesize (void) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_sbrk
 #  define __NIJI_D_sbrk 1

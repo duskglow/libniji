@@ -195,7 +195,7 @@ extern char *ctime (const long *) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_difftime
 #  define __NIJI_D_difftime 1
-extern double difftime (long, long) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern double difftime (long, long) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 struct tm;
 # ifndef __NIJI_D_gmtime
@@ -256,7 +256,7 @@ extern int timespec_getres (struct timespec *, int) __NIJI_NOTHROW;
 #if __NIJI_MISC
 # ifndef __NIJI_D_dysize
 #  define __NIJI_D_dysize 1
-extern int dysize (int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int dysize (int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 struct tm;
 # ifndef __NIJI_D_timelocal

@@ -151,15 +151,15 @@ extern void explicit_bzero (void *, unsigned long) __NIJI_NOTHROW __attribute__ 
 # endif
 # ifndef __NIJI_D_ffs
 #  define __NIJI_D_ffs 1
-extern int ffs (int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int ffs (int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_ffsl
 #  define __NIJI_D_ffsl 1
-extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int ffsl (long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_ffsll
 #  define __NIJI_D_ffsll 1
-extern int ffsll (long long int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int ffsll (long long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_index
 #  define __NIJI_D_index 1

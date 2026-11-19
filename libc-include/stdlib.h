@@ -294,7 +294,7 @@ extern void abort (void) __NIJI_NOTHROW __attribute__ ((__noreturn__));
 # endif
 # ifndef __NIJI_D_abs
 #  define __NIJI_D_abs 1
-extern int abs (int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern int abs (int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_atexit
 #  define __NIJI_D_atexit 1
@@ -326,7 +326,7 @@ extern void *calloc (unsigned long, unsigned long) __NIJI_NOTHROW __attribute__ 
 # endif
 # ifndef __NIJI_D_div
 #  define __NIJI_D_div 1
-extern div_t div (int, int) __attribute__ ((__pure__, __warn_unused_result__));
+extern div_t div (int, int) __attribute__ ((__const__, __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_exit
 #  define __NIJI_D_exit 1
@@ -342,11 +342,11 @@ extern char *getenv (const char *) __NIJI_NOTHROW __attribute__ ((__nonnull__ (1
 # endif
 # ifndef __NIJI_D_labs
 #  define __NIJI_D_labs 1
-extern long int labs (long int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern long int labs (long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_ldiv
 #  define __NIJI_D_ldiv 1
-extern ldiv_t ldiv (long int, long int) __NIJI_NOTHROW __attribute__ ((__pure__, __warn_unused_result__));
+extern ldiv_t ldiv (long int, long int) __NIJI_NOTHROW __attribute__ ((__const__, __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_malloc
 #  define __NIJI_D_malloc 1
@@ -560,11 +560,11 @@ extern long long int atoll (const char *) __NIJI_NOTHROW __attribute__ ((__nonnu
 # endif
 # ifndef __NIJI_D_llabs
 #  define __NIJI_D_llabs 1
-extern long long int llabs (long long int) __NIJI_NOTHROW __attribute__ ((__pure__));
+extern long long int llabs (long long int) __NIJI_NOTHROW __attribute__ ((__const__));
 # endif
 # ifndef __NIJI_D_lldiv
 #  define __NIJI_D_lldiv 1
-extern lldiv_t lldiv (long long int, long long int) __NIJI_NOTHROW __attribute__ ((__pure__, __warn_unused_result__));
+extern lldiv_t lldiv (long long int, long long int) __NIJI_NOTHROW __attribute__ ((__const__, __warn_unused_result__));
 # endif
 # ifndef __NIJI_D_strtof
 #  define __NIJI_D_strtof 1
