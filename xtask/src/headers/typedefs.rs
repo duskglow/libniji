@@ -1,4 +1,4 @@
-//! Typedefs from typedefs.tsv: scalar, qualified, array, function and function-pointer types, aggregates with or
+//! Typedefs from typedefs.tsv: scalar, qualified, vector, array, function and function-pointer types, aggregates with or
 //! without a layout, incomplete types (no size), the character types C++ has as keywords, and typedefs named for
 //! linkage through a structure or union tag.
 use super::*;
@@ -21,6 +21,10 @@ impl Gen<'_> {
         } else if cxx.is_empty() && name == "char8_t" {
             // C23 7.30: `unsigned char`; a keyword in C++ where the compiler says so (`__cpp_char8_t`, C++20).
             vec!["#  if !defined __cplusplus || !defined __cpp_char8_t".into(), format!("typedef unsigned char {name};"), "#  endif".into()]
+        } else if let Some((elem, _)) = vector_type(&cxx) {
+            // A vector type (`La_x86_64_xmm` is `float __vector(4)`): GCC's `vector_size`, the row's size. A
+            // structure of that size and alignment is another type, passed in other registers (psABI 3.2.3).
+            vec![format!("typedef {elem} {name} __attribute__ ((__vector_size__ ({})));", r["size"])]
         } else if scalar(&cxx) || scalar(cxx.replace("volatile", "").replace("const", "").trim()) {
             vec![format!("typedef {} {name};", cxx.replace('*', " *"))]
         } else if cxx.ends_with(']') && !cxx.contains('(') {

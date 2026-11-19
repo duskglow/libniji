@@ -12,6 +12,13 @@ pub(super) fn scalar(c: &str) -> bool {
     SCALARS.contains(&base)
 }
 
+/// A vector type (GCC `vector_size`) in typedefs.tsv's demangled spelling (`float __vector(4)`, Itanium `Dv4_f`):
+/// its scalar element and its element count.
+pub(super) fn vector_type(c: &str) -> Option<(&str, u64)> {
+    let (elem, n) = c.strip_suffix(')')?.split_once(" __vector(")?;
+    Some((elem, n.parse().ok()?)).filter(|(e, _)| scalar(e))
+}
+
 /// The DWARF spelling of layouts.tsv (`long unsigned int`) in the C++ form of typedefs.tsv (`unsigned long`).
 pub(super) fn dwarf_scalar(t: &str) -> Option<String> {
     let words: BTreeSet<&str> = t.split_whitespace().collect();

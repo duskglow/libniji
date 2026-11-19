@@ -821,4 +821,30 @@ mod tests {
             panic!("{e}");
         }
     }
+
+    // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-GEN-COMPLETE). A vector typedef (typedefs.tsv
+    // spells it as the demangler does, `float __vector(4)`) is emitted as GCC's vector type, not as a structure of
+    // its size and alignment, which a size check cannot tell apart and the psABI passes in other registers (the
+    // construct of plant s16c-vector-newtype). next's tables have no vector type yet: synthetic rows through the
+    // rows test. Needs gcc and g++.
+    #[test]
+    fn a_vector_typedef_is_emitted_as_a_vector() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        if std::process::Command::new("g++").arg("--version").output().is_err() {
+            eprintln!("skip: no g++ on this host, the rows test compiles C and C++");
+            return;
+        }
+        let mut t = load(&root).unwrap();
+        let mut only = BTreeSet::new();
+        for (name, cxx) in [("niji_test_v4sf", "float __vector(4)"), ("niji_test_v2di", "long long __vector(2)")] {
+            let row = [("kind", "typedef"), ("name", name), ("header", "link.h"), ("size", "16"), ("align", "16"), ("cxx", cxx)];
+            t.typedefs.insert(("typedef".into(), name.into()), row.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect());
+            only.insert(name.to_string());
+        }
+        let dir = std::env::temp_dir().join(format!("niji-rows-vector-{}", std::process::id()));
+        let r = rows::check(&root, &t, &dir, Some(&only));
+        let _ = fs::remove_dir_all(&dir);
+        let summary = r.unwrap_or_else(|e| panic!("{e}"));
+        assert!(summary.contains("typedefs 2 rows, 0 failed"), "{summary}");
+    }
 }

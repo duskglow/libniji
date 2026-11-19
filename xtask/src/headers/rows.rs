@@ -7,7 +7,7 @@
 //!   the dispatcher `@@emit` uses; a generator error is a failure of that row;
 //! * static assertions, compiled as C (gnu17) and as C++ (gnu++17): sizes, alignments and member offsets of
 //!   `layouts.tsv` and (C) the types of its scalar, typedef and structure members; typedef sizes and alignments and
-//!   (C++) typedef identity with the `cxx` spelling; object sizes and (C++) types, and the sizes of `versions.tsv`
+//!   (C++) typedef identity with the `cxx` spelling (vector typedefs in C and C++); object sizes and (C++) types, and the sizes of `versions.tsv`
 //!   data objects; function types (C and C++: the `prototypes.tsv` declaration redeclared, with `noexcept.tsv` in
 //!   C++; C++: `decltype` against the `typedefs.tsv` function type); every `macros.tsv` value and type (`_Generic` in
 //!   C, `decltype` in C++; strings and floating values in C++ constant expressions); every `constants.tsv` value;
@@ -239,6 +239,34 @@ fn c_type(t: &Tables, mt: &str) -> Option<String> {
     Some(format!("{konst}{ty}{}{arr}", " *".repeat(stars)))
 }
 
+/// The sizes of the DWARF base types of layouts.tsv (x86-64 psABI 3.1.2, figure 3.1).
+const DWARF_SIZE: &[(&str, u64)] = &[
+    ("char", 1), ("signed char", 1), ("unsigned char", 1), ("_Bool", 1), ("short int", 2), ("short unsigned int", 2),
+    ("int", 4), ("unsigned int", 4), ("long int", 8), ("long unsigned int", 8), ("long long int", 8),
+    ("long long unsigned int", 8), ("float", 4), ("double", 8), ("long double", 16), ("__int128", 16), ("__int128 unsigned", 16),
+];
+
+/// The size in bytes of a layouts.tsv member type, from the tables: a DWARF base type, a pointer, an array, a
+/// typedef or tag of typedefs.tsv, or a described aggregate. None when they do not give it.
+fn byte_size(t: &Tables, ty: &str) -> Option<u64> {
+    if let Some(i) = ty.find('[') {
+        let dims: Option<Vec<u64>> = ty[i..].split(['[', ']']).filter(|s| !s.is_empty()).map(|s| s.parse().ok()).collect();
+        return Some(dims?.iter().product::<u64>() * byte_size(t, ty[..i].trim_end())?);
+    }
+    if ty.ends_with('*') {
+        return Some(8);
+    }
+    let core = ty.trim_start_matches("const ").trim_start_matches("volatile ");
+    if let Some((_, s)) = DWARF_SIZE.iter().find(|(d, _)| *d == core) {
+        return Some(*s);
+    }
+    let (kind, name) = core.split_once(' ').filter(|(k, _)| matches!(*k, "struct" | "union" | "enum")).unwrap_or(("typedef", core));
+    if let Some(s) = t.typedefs.get(&(kind.to_string(), name.to_string())).and_then(|r| r["size"].parse().ok()) {
+        return Some(s);
+    }
+    t.layouts.get(core)?.iter().find(|r| r["member"].is_empty())?["offset_or_size"].parse().ok()
+}
+
 /// What the rows test builds before compiling: the units and the rows.
 struct Built {
     check: Check,
@@ -316,8 +344,9 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
     for (n, d) in t.protos.iter().filter(|(n, _)| named(n)) {
         let i = c.row("prototypes", n);
         let nx = if t.nothrow.contains(n) { " NIJI_NX" } else { "" };
-        // Spelling equivalences only: the decayed `va_list` and `complex`, the macro of <complex.h> for `_Complex`.
-        let d = d.replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list").replace("complex ", "_Complex ");
+        // Spelling equivalences only: the decayed `va_list` and `complex`, the macro of <complex.h> for `_Complex`,
+        // C's `_Bool` (C++ `bool`, through NIJI_BOOL on these lines only: an emitter `_Bool` in C++ still fails).
+        let d = d.replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list").replace("complex ", "_Complex ").replace("_Bool ", "NIJI_BOOL ");
         c.put(&mut redecl, i, vec![format!("{d}{nx};")]);
     }
 
@@ -351,9 +380,18 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
         if !r["size"].is_empty() && kind != "function" {
             lines.push(format!("NIJI_A (sizeof ({spelled}) == {} && __alignof__ ({spelled}) == {}, \"typedefs {kind} {n}\");", r["size"], r["align"]));
         }
+        // A vector typedef (the demangled `float __vector(4)`): the same type, in C and C++, as a vector of that
+        // element and count spelled here (a structure of its size and alignment is not).
+        let vector = r["cxx"].strip_suffix(')').and_then(|c| c.split_once(" __vector(")).filter(|_| kind == "typedef");
+        if let Some((elem, k)) = vector {
+            let v = format!("niji_vector_{n}");
+            lines.push(format!("typedef {elem} {v} __attribute__ ((__vector_size__ ({k} * sizeof ({elem}))));"));
+            lines.push(format!("NIJI_C (__builtin_types_compatible_p ({n}, {v}), \"typedefs typedef {n} is {elem} __vector({k})\");"));
+            lines.push(format!("NIJI_X (niji_same<{n}, {v} >::v, \"typedefs typedef {n} is {elem} __vector({k})\");"));
+        }
         let cxx = &cxx_type(t, &r["cxx"]);
         match kind.as_str() {
-            "typedef" if !cxx.is_empty() && cxx != n => lines.push(format!("NIJI_X (niji_same<{n}, {cxx} >::v, \"typedefs typedef {n} is {cxx}\");")),
+            "typedef" if !cxx.is_empty() && cxx != n && vector.is_none() => lines.push(format!("NIJI_X (niji_same<{n}, {cxx} >::v, \"typedefs typedef {n} is {cxx}\");")),
             "object" if !cxx.is_empty() => lines.push(format!("NIJI_X (niji_same<__typeof__ ({n}), {cxx} >::v, \"typedefs object {n} is {cxx}\");")),
             "function" if !cxx.is_empty() && functions.contains(n) => {
                 let ty = if t.nothrow.contains(n) { with_noexcept(cxx) } else { cxx.clone() };
@@ -446,19 +484,33 @@ fn build(root: &Path, t: &Tables, except: BTreeMap<(String, String), String>, on
     for (key, rows) in t.layouts.iter().filter(|(k, _)| wanted(k.split_once(' ').map_or(k.as_str(), |(_, n)| n))) {
         let i = c.row("layouts", key);
         let mut lines = Vec::new();
-        // psABI: bit-fields are allocated from the low bit of their storage unit, in declaration order.
-        let (mut at, mut used) = (None::<String>, 0u64);
+        // psABI 3.1.2: bit-fields are allocated in declaration order from the first free bit of their storage unit.
+        // The table's offset of a bit-field is its unit's byte (DWARF 4 data_member_location; the bit in it is not
+        // recorded): a bit-field starts after the earlier bit-fields of its unit, and the first one after a sibling
+        // member that lies in the unit (fenv_t: `__opcode` follows `__cs_selector` in the unit at byte 16).
+        let (mut at, mut used) = (None::<String>, Some(0u64));
+        // The previous member that is no bit-field: (path, offset, size in bytes when the tables give it).
+        let mut prev: Option<(&str, u64, Option<u64>)> = None;
         for r in rows.iter().filter(|r| !r["member"].is_empty()) {
+            let off: u64 = r["offset_or_size"].parse().map_err(|_| format!("layouts.tsv {key} {}: bad offset", r["member"]))?;
             let Some(w) = r["bitfield"].strip_prefix("bits ").and_then(|b| b.split('@').next()).and_then(|w| w.parse::<u64>().ok()) else {
                 at = None;
+                prev = Some((&r["member"], off, byte_size(t, &r["member_type"])));
                 continue;
             };
-            let off: u64 = r["offset_or_size"].parse().map_err(|_| format!("layouts.tsv {key} {}: bad offset", r["member"]))?;
             if at.as_ref() != Some(&r["offset_or_size"]) {
-                (at, used) = (Some(r["offset_or_size"].clone()), 0);
+                // An enclosing member (`s` of `s.bf`) is no earlier sibling.
+                let sibling = prev.filter(|(p, o, _)| *o >= off && !r["member"].starts_with(&format!("{p}.")));
+                used = match sibling {
+                    Some((_, o, size)) => size.map(|s| (o + s - off) * 8),
+                    None => Some(0),
+                };
+                at = Some(r["offset_or_size"].clone());
             }
-            let pos = off * 8 + used;
-            used += w;
+            // The size of the member before it is not in the tables: its bit is not known here.
+            let Some(u) = used else { continue };
+            let pos = off * 8 + u;
+            used = Some(u + w);
             let Some(d) = designator(rows, &r["member"]) else { continue };
             lines.push(format!("  {{ {key} x; __builtin_memset (&x, 0, sizeof x); x.{d} = -1; if (niji_bits (&x, sizeof x, {pos}, {w})) niji_bad ({i}); }}"));
         }
@@ -587,8 +639,10 @@ const PRELUDE: &str = "/* The rows test of `cargo xtask headers-gen` (xtask/src/
 #include <features.h>
 #ifdef __cplusplus
 # define NIJI_NX noexcept (true)
+# define NIJI_BOOL bool
 #else
 # define NIJI_NX
+# define NIJI_BOOL _Bool
 #endif
 __NIJI_BEGIN_C";
 

@@ -76,8 +76,9 @@ impl Gen<'_> {
     }
 
     /// The brace initializer that gives an object of layouts.tsv type `ty` the bytes `b` (little-endian): a union by
-    /// its first member, a structure by its members in table order, an array by its elements, a scalar by its value
-    /// (negative when its type is signed and the top bit is set). None when the rows do not cover the type.
+    /// its first member, a structure by its members in table order, an array by its elements, a scalar (also a
+    /// scalar typedef, whose layout is a size row only: `pthread_once_t`) by its value (negative when its type is
+    /// signed and the top bit is set). None when the rows do not cover the type.
     fn init_of(&self, ty: &str, b: &[u8]) -> Option<String> {
         if let Some(i) = ty.find('[') {
             let esz = self.size_of(&ty[..i])?;
@@ -86,18 +87,12 @@ impl Gen<'_> {
             return Some(format!("{{ {} }}", parts?.join(", ")));
         }
         if let Some(rows) = self.t.layouts.get(ty).or_else(|| self.cxx(ty).and_then(|c| self.t.layouts.get(&format!("struct {c}")))) {
-            let members: Vec<&BTreeMap<String, String>> = rows.iter().filter(|r| !r["member"].is_empty() && !r["member"].contains('.')).collect();
-            if members.is_empty() || members.iter().any(|r| r["member"] == "<anon>" || !r["bitfield"].is_empty()) {
+            if rows.iter().any(|r| !r["member"].is_empty()) {
+                return self.init_rows(rows, "", b);
+            }
+            if !scalar(&self.resolve(ty)) {
                 return None;
             }
-            let union = members.len() > 1 && members.iter().all(|r| r["offset_or_size"] == "0");
-            let mut parts = Vec::new();
-            for m in members.iter().take(if union { 1 } else { members.len() }) {
-                let off: usize = m["offset_or_size"].parse().ok()?;
-                let sz = self.size_of(&m["member_type"])?;
-                parts.push(self.init_of(&m["member_type"], b.get(off..off + sz)?)?);
-            }
-            return Some(format!("{{ {} }}", parts.join(", ")));
         }
         let sz = self.size_of(ty).filter(|n| (1..=8).contains(n))?;
         let v = b.get(..sz)?.iter().rev().fold(0u128, |a, x| a << 8 | u128::from(*x));
@@ -108,6 +103,29 @@ impl Gen<'_> {
         let signed = scalar(&c) && !c.contains("unsigned") && c != "bool" && c != "_Bool";
         let top = 1u128 << (sz * 8 - 1);
         Some(if signed && v & top != 0 { format!("(-{} - 1)", (top << 1) - 1 - v) } else { v.to_string() })
+    }
+
+    /// The initializer of the members of a layout's `rows` directly below `prefix` (`""`, or `a.` for the members
+    /// of member `a`); `b` is the whole object, the rows' offsets count from its start. A union (members at one
+    /// offset) by its first member; a member of anonymous aggregate type (`__value` of `mbstate_t`) by its own rows.
+    fn init_rows(&self, rows: &Rows, prefix: &str, b: &[u8]) -> Option<String> {
+        let members: Vec<&BTreeMap<String, String>> = rows.iter().filter(|r| r["member"].strip_prefix(prefix).is_some_and(|m| !m.is_empty() && !m.contains('.'))).collect();
+        if members.is_empty() || members.iter().any(|r| r["member"].ends_with("<anon>") || !r["bitfield"].is_empty()) {
+            return None;
+        }
+        let union = members.len() > 1 && members.iter().all(|r| r["offset_or_size"] == members[0]["offset_or_size"]);
+        let mut parts = Vec::new();
+        for m in members.iter().take(if union { 1 } else { members.len() }) {
+            let off: usize = m["offset_or_size"].parse().ok()?;
+            let mt = &m["member_type"];
+            if matches!(mt.as_str(), "struct <anon>" | "union <anon>") {
+                parts.push(self.init_rows(rows, &format!("{}.", m["member"]), b)?);
+                continue;
+            }
+            let sz = self.size_of(mt)?;
+            parts.push(self.init_of(mt, b.get(off..off + sz)?)?);
+        }
+        Some(format!("{{ {} }}", parts.join(", ")))
     }
 
     /// `@@init(NAME)`: the brace initializer of the `initializers.tsv` row NAME, from the layout of its type.
