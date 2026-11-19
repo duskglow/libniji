@@ -23,7 +23,11 @@ named the wrong command. The plant now runs `cargo xtask abi-gen --check` (msg `
   vector-align-row, elf-phdr-row, audit-hook on `s16.rs`).
 
 **Proof.** `headers-gen` + `--check`, `header_check.py` (rc 0), `x86_header_check.py`, `cargo xtask stubs`: job sl-headers-s16-4-hg3 rc 0.
-Lint (clippy, `xtask clippy`, `static`): sl-headers-s16-4-lint rc 0. Gate, plants: see the report json (`jobs`).
+Lint (clippy, `xtask clippy`, `static`): sl-headers-s16-4-lint rc 0. Gate (`cargo xtask affected --run --base origin/next`, direct tier): sl-headers-s16-4-gate rc 0, 15 suites ok, 11268 tests passed,
+0 failed, conformance 91 passed, peak 16G. Plants: sl-headers-s16-4-plants2 on the final plants file: 16 CAUGHT, 0 SURVIVED, 0 WARN
+(first run sl-headers-s16-4-plants: 14 CAUGHT, 1 SURVIVED (an Elf64_Phdr offset row: headers-gen --check reads no offsets), 1 WARN-NO-MSG;
+both fixed in the file). Results with the catchers: `handoff/SL-HEADERS-S16-4-plants.txt`. Time: the plants run took 1 h 54 min
+alone on the host (a products build per plant), the gate 77 min.
 
 **Open.**
 1. RULING NEEDED (HEADERS-TABLES-COMPLETE): `La_x86_64_ymm` (32 bytes) and `_zmm` (64) are vectors aligned to 16 in the reference; a

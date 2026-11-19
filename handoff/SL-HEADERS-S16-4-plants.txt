@@ -19,3 +19,20 @@ s16c-reject-row | spec/tools/header_check.py | lit:what.startswith("P5 reject ")
 s16c-member-offset | spec/tools/header_checks/s16.py | lit:== {o}" for m, o in mem[key]] ==> == {o} + 1" for m, o in mem[key]] | python3 spec/tools/header_check.py | msg:FAIL S16 offsets|header_check: [1-9]
 s16c-audit-hook | xtask/src/headers/slices/s16.rs | lit:"la_version", ==> "lb_version", | cargo xtask headers-gen --check | msg:not exported
 s16c-prof-size | spec/abi/layouts.tsv | perl:s/(struct prof\t\t)32/${1}40/ | cargo xtask headers-gen --check | msg:headers-gen
+# cargo xtask plants results (16 plants: 16 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# s16c-x86-bitshift: CAUGHT, caught by no test the log names
+# s16c-x86-array: CAUGHT, caught by no test the log names
+# s16c-x86-index: CAUGHT, caught by no test the log names
+# s16c-x86-register: CAUGHT, caught by no test the log names
+# s16c-x86-never: CAUGHT, caught by no test the log names
+# s16c-x86-layout: CAUGHT, caught by no test the log names
+# s16c-soname-stem: CAUGHT, caught by no test the log names
+# s16c-vector-newtype: CAUGHT, caught by no test the log names
+# s16c-vector-typedef-row: CAUGHT, caught by no test the log names
+# s16c-vector-align-row: CAUGHT, caught by no test the log names
+# s16c-regs-offset-row: CAUGHT, caught by no test the log names
+# s16c-cxx-typedef: CAUGHT, caught by no test the log names
+# s16c-reject-row: CAUGHT, caught by no test the log names
+# s16c-member-offset: CAUGHT, caught by no test the log names
+# s16c-audit-hook: CAUGHT, caught by no test the log names
+# s16c-prof-size: CAUGHT, caught by no test the log names
