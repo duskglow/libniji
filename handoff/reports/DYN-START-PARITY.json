@@ -87,7 +87,7 @@
  "jobs": [
   "mei:dyn-start-parity-release3",
   "mei:dyn-start-parity-gate3",
-  "mei:dyn-start-parity-xtest3",
-  "mei:dyn-start-parity-plants3"
+  "mei:dyn-start-parity-plants3",
+  "mei:dyn-start-parity-xtest4"
  ]
 }

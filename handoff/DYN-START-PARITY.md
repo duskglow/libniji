@@ -8,7 +8,7 @@ DL-23-2's +1 start fault (vDSO header page, recorded in its report) to the start
 > 77. Bound set to the merged levels [78, 74] (503c206e0), still under next's [89, 86].
 Final jobs on mei (role `~/w/s1`, Skylake-SP), head 503c206e0: `dyn-start-parity-release3` (clippy + static +
 NIJI_FULL_PROFILE=1 so + hot_text_products, release), `dyn-start-parity-gate3` (direct tier, `affected --base
-origin/next --run`), `dyn-start-parity-xtest3` (cargo xtask test), `dyn-start-parity-plants3` (9 plants).
+origin/next --run`), `dyn-start-parity-xtest4` (cargo xtask test; PENDING at hand-back: xtest3 was stopped so the role could take the final head), `dyn-start-parity-plants3` (9 plants).
 Superseded: lint3 (trace markers, fixed in 8a2301180; final.sh then stopped), lint4/gate2/plants2 (merged head
 7763acb6b; gate2 red on the fault bound, fixed), startup2 (stopped: its head was replaced), ldtest1 (test bug,
 fixed), ldtest2 (ETXTBSY race), lint/lint2 (clippy casts; lint2 ran on an unsynced tree), dyntests/dyntests2
