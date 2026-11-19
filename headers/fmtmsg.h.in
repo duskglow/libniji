@@ -12,7 +12,7 @@ __NIJI_BEGIN_C
 
 /* The "no value" arguments of fmtmsg (XSH fmtmsg). */
 #ifndef MM_NULLLBL
-# define MM_NULLLBL ((char *) 0)
+# define MM_NULLLBL @@value(MM_NULLLBL)
 #endif
 #ifndef MM_NULLSEV
 # define MM_NULLSEV @@value(MM_NULLSEV)
@@ -21,13 +21,13 @@ __NIJI_BEGIN_C
 # define MM_NULLMC @@value(MM_NULLMC)
 #endif
 #ifndef MM_NULLTXT
-# define MM_NULLTXT ((char *) 0)
+# define MM_NULLTXT @@value(MM_NULLTXT)
 #endif
 #ifndef MM_NULLACT
-# define MM_NULLACT ((char *) 0)
+# define MM_NULLACT @@value(MM_NULLACT)
 #endif
 #ifndef MM_NULLTAG
-# define MM_NULLTAG ((char *) 0)
+# define MM_NULLTAG @@value(MM_NULLTAG)
 #endif
 
 __NIJI_END_C

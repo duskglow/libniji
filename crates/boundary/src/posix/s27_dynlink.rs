@@ -36,6 +36,8 @@ type Callback = Option<extern "C" fn(&struct_dl_phdr_info, usize, *mut c_void) -
 
 const PT_LOAD: u32 = 1;
 const PT_TLS: u32 = 7;
+#[cfg(feature = "ld")]
+const PT_DYNAMIC: u32 = 2;
 const PT_GNU_EH_FRAME: u32 = 0x6474_e550;
 
 fn word(w: &[u64], i: usize) -> usize {
@@ -69,6 +71,17 @@ pub(crate) fn vdso_headers(vdso: usize) -> (usize, usize, usize) {
     let vphdr = vdso.wrapping_add(word(h, 4));
     let vphnum = usize::try_from(h.get(7).copied().unwrap_or(0) & 0xffff).unwrap_or(0);
     (vphdr, vphnum, scan(vphdr, vphnum, Some(vdso)).0)
+}
+
+/// The run-time address of the vDSO's dynamic array (its link map's `l_ld`), from the headers
+/// [`vdso_headers`] gave: `bias` plus `PT_DYNAMIC`'s address; 0 without one.
+#[cfg(feature = "ld")]
+pub(crate) fn vdso_dynamic(phdr: usize, phnum: usize, bias: usize) -> usize {
+    // UNSAFE(slice): the vDSO's program headers, mapped by the kernel.
+    #[allow(unsafe_code)]
+    // SAFETY: `phdr`/`phnum` are the vDSO image's e_phoff/e_phnum (`vdso_headers`): mapped headers.
+    let w = unsafe { conv::words_at(phdr, phnum.saturating_mul(7)) };
+    w.chunks_exact(7).take(phnum).find(|h| h.first().copied().unwrap_or(0) & 0xffff_ffff == u64::from(PT_DYNAMIC)).map_or(0, |h| bias.wrapping_add(word(h, 2)))
 }
 
 /// The low 32 bits of a call's `rax` as the `int` a C function returned there.

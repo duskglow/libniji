@@ -11,8 +11,12 @@
 #   - dpkg -i libc6-dbg succeeds (its Depends: libc6 (= version) is met by the swapped libc6);
 #   - after: `info line DBG_FUNC` names a source file and line (gdb found the debug file by build-id
 #     under /usr/lib/debug/.build-id), and gdb stopped at DBG_FUNC in a running /usr/bin/true --version shows
-#     the frame's file:line.
-# The root's libc.so.6 and loader must be the package's (SHA-256). Prints "dbg: PASS|FAIL|PENDING|INFO ..."
+#     the frame's file:line, and `info sharedlibrary` there lists the loader and libc.so.6;
+#   - a pending breakpoint in a library the program dlopens (perl -MPOSIX: boot_POSIX) stops there
+#     (both through the loader's debugger rendezvous, DL-23);
+#   - DBG_GNAT=1 (gnat-14 added to the root): Debian's gnat1, which has a COPY relocation of _r_debug,
+#     runs, and gcc-14 compiles a one-line Ada unit (GitHub issue #19).
+# The root's libc.so.6 and loader must be the package's (SHA-256). Prints "dbg: PASS|FAIL|INFO ..."
 # lines and "dbg: RESULT ..."; exit 1 when any is FAIL. The outputs are under LOGDIR/dbg-<suite>/.
 set -eu
 export LC_ALL=C
@@ -52,7 +56,9 @@ res=$logdir/dbg-$suite
 rm -rf "$res"
 mkdir -p "$res/tmp"
 
-"$mm" --mode=unshare --variant=apt --keyring="$stage/keyring.gpg" --components=main --include=gdb \
+include=gdb
+[ -z "${DBG_GNAT:-}" ] || include=gdb,gnat-14
+"$mm" --mode=unshare --variant=apt --keyring="$stage/keyring.gpg" --components=main --include="$include" \
     --customize-hook="copy-in $stage/dbg /tmp" \
     --customize-hook="chroot \"\$1\" sh -c 'mkdir -p /tmp/dbg/out; dpkg -i --force-downgrade --force-depends /tmp/dbg/debs/libc6_*.deb /tmp/dbg/debs/libc-bin_*.deb > /tmp/dbg/out/swap.log 2>&1; echo \$? > /tmp/dbg/out/swap.rc'" \
     --customize-hook="chroot \"\$1\" sh /tmp/dbg/cmds.sh /tmp/dbg/out $func" \
@@ -75,19 +81,12 @@ grep -q -E '^Line [0-9]+ of "[^"]+"' "$o/after.out" 2>/dev/null &&
     pass "with libc6-dbg gdb shows the source line of $func: $(grep -m1 -E '^Line [0-9]+ of' "$o/after.out")" ||
     fail "with libc6-dbg: $(head -3 "$o/after.out" 2>/dev/null | tr '\n' ' ')"
 # The stop at the breakpoint, then the innermost frame gdb prints for `frame` and `bt`: "#0  NAME (...) at
-# FILE:LINE" (NAME may be the libniji function inlined at FUNC's entry, whose line it is).
-#
-# Both need the loader's debugger rendezvous (spec section 27.4: _r_debug and its breakpoint function,
-# crates/ld/src/debug.rs), through which gdb learns that libc.so.6 was loaded. Until the loader has it,
-# gdb warns "Unable to find dynamic linker breakpoint function" and stops at the PLT stub only: with
-# that warning (and no stop in libc.so.6) the two checks print PENDING instead of PASS or FAIL. Any
-# other outcome is judged as above.
-npend=0
-if grep -q 'Unable to find dynamic linker breakpoint function' "$o/run.out" 2>/dev/null &&
-    ! grep -q -E '^#0 +.* at [^ ]+:[0-9]+$' "$o/run.out" 2>/dev/null; then
-    echo "dbg: PENDING gdb in a running /usr/bin/true and list at the stop: the loader has no debugger rendezvous yet (gdb: $(grep -m1 'Unable to find dynamic linker breakpoint function' "$o/run.out"))"
-    npend=2
-else
+# FILE:LINE" (NAME may be the libniji function inlined at FUNC's entry, whose line it is). Both need the
+# loader's debugger rendezvous (spec section 27.4, DL-23: _r_debug and _dl_debug_state), through which
+# gdb learns that libc.so.6 was loaded.
+if grep -q 'Unable to find dynamic linker breakpoint function' "$o/run.out" "$o/dlopen.out" 2>/dev/null; then
+    fail "gdb finds no debugger rendezvous: $(grep -h -m1 'Unable to find dynamic linker breakpoint function' "$o/run.out" "$o/dlopen.out" | head -1)"
+fi
 grep -q -E "^Breakpoint 1, " "$o/run.out" 2>/dev/null && grep -q -E '^#0 +.* at [^ ]+:[0-9]+$' "$o/run.out" 2>/dev/null &&
     pass "gdb stopped at $func in /usr/bin/true: $(grep -m1 -E '^#0 ' "$o/run.out")" ||
     fail "gdb in a running /usr/bin/true: $(tail -4 "$o/run.out" 2>/dev/null | tr '\n' ' ')"
@@ -96,7 +95,22 @@ grep -q -E "^Breakpoint 1, " "$o/run.out" 2>/dev/null && grep -q -E '^#0 +.* at 
 grep -q -E '^(warning: )?[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out" 2>/dev/null &&
     pass "list at the stop names the source: $(grep -m1 -E '^(warning: )?[0-9]+[[:space:]]+(in )?[^ ]+\.rs' "$o/run.out")" ||
     fail "list at the stop: $(grep -v '^#' "$o/run.out" 2>/dev/null | tail -3 | tr '\n' ' ')"
+# `info sharedlibrary` at the stop lists the loader and libc.so.6 (read from the rendezvous's r_map).
+grep -q -E 'ld-linux-x86-64\.so\.2$' "$o/run.out" 2>/dev/null && grep -q -E '/libc\.so\.6$' "$o/run.out" 2>/dev/null &&
+    pass "info sharedlibrary lists ld.so and libc.so.6: $(grep -c -E '^0x[0-9a-f]+ +0x[0-9a-f]+ ' "$o/run.out") objects" ||
+    fail "info sharedlibrary: $(grep -A4 '^From' "$o/run.out" 2>/dev/null | tr '\n' ' ')"
+# A pending breakpoint in a library the program loads with dlopen resolves at the load (r_brk with
+# RT_CONSISTENT after the dlopen) and stops there; the library is then in `info sharedlibrary`.
+grep -q -E '^Breakpoint 1, .*boot_POSIX' "$o/dlopen.out" 2>/dev/null && grep -q -E '/POSIX\.so$' "$o/dlopen.out" 2>/dev/null &&
+    pass "gdb stopped at boot_POSIX in perl's dlopened POSIX.so: $(grep -m1 -E '^Breakpoint 1, ' "$o/dlopen.out")" ||
+    fail "the breakpoint in a dlopened library: $(tail -4 "$o/dlopen.out" 2>/dev/null | tr '\n' ' ')"
+# DBG_GNAT=1: Debian's gnat1 binds _r_debug@GLIBC_2.2.5 by a COPY relocation (GitHub issue #19).
+if [ -n "${DBG_GNAT:-}" ]; then
+    grep -q 'R_X86_64_COPY.*_r_debug' "$o/gnat.out" 2>/dev/null && grep -q '^gnat1 rc=0$' "$o/gnat.out" 2>/dev/null &&
+        [ "$(cat "$o/gnat.rc" 2>/dev/null)" = 0 ] &&
+        pass "gnat1 (COPY of _r_debug) runs; gcc-14 -c of an Ada unit: $(grep -m1 -i 'GNU Ada' "$o/gnat.out")" ||
+        fail "gnat1: $(tail -4 "$o/gnat.out" 2>/dev/null | tr '\n' ' ')"
 fi
 mv "$o"/* "$res/" && rm -rf "$res/tmp"
-echo "dbg: RESULT pass=$npass fail=$nfail pending=$npend"
+echo "dbg: RESULT pass=$npass fail=$nfail"
 [ "$nfail" -eq 0 ]

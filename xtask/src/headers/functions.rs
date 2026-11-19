@@ -66,7 +66,8 @@ impl Gen<'_> {
         let mut body = Vec::new();
         if distinct.len() <= 1 {
             let sym = distinct.into_iter().next().cloned().unwrap_or_else(|| name.to_string());
-            if !builtin && !self.t.exported.contains(&sym) && !self.t.linked_elsewhere.contains(sym.as_str()) {
+            // A function headers/providers.tsv gives to the program, the debugger or no library is declared all the same.
+            if !builtin && !self.t.exported.contains(&sym) && !self.t.linked_elsewhere.contains(sym.as_str()) && !(sym == name && self.t.providers.contains_key(name)) {
                 self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
             }
             let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };

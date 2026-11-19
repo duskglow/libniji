@@ -1,0 +1,14 @@
+# DL-23 plants: the debugger rendezvous (crates/ld/tests/rendezvous.rs).
+# cargo xtask plants handoff/DL-23-plants.txt --dir <RAM dir> --timeout 600
+no-vdso-map | crates/boundary/src/ld.rs | lit:if k == 0 && vdso != 0 { ==> if k == 0 && vdso == 1 { | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 7
+walk-into-vdso | crates/boundary/src/ld/debug.rs | lit:return VDSO_MAP.l_next.load(Acquire); ==> return at; | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 51
+no-dt-debug | crates/boundary/src/ld/debug.rs | lit:.store(own(), Relaxed); ==> .store(0, Relaxed); | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 2
+copy-not-noted | crates/boundary/src/ld/debug.rs | lit:COPY.store(to, Relaxed); ==> let _ = to; | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 4
+copy-always-dropped | crates/boundary/src/ld/debug.rs | lit:if at % 8 != 0 || (at < hi && lo < end) { ==> if at != 0 { | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 4
+no-brk-call | crates/boundary/src/ld/debug.rs | perl:s/\n    _dl_debug_state\(\);\n/\n/ | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:gdb did not stop
+dlopen-not-consistent | crates/boundary/src/ld/dlopen.rs | perl:s/(super::readers::publish\(base, k\);\n\s*)super::debug::change\(niji_ld::debug::State::Consistent\);/$1/ | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 24
+needed-path-not-kept | crates/boundary/src/ld.rs | lit:paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name)); ==> paths[n] = name; | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:rendezvous_pie_matches_dl_iterate_phdr.*FAILED|failed check
+own-dynamic-base | crates/boundary/src/ld.rs | lit:return base.wrapping_add(usize::try_from(word(16)).unwrap_or(0)); ==> return base; | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 8
+first-not-first | xtask/src/coldbss.rs | lit:list.extend(rest); ==> list.splice(0..0, rest); | cargo test -p xtask coldbss | msg:first_tables_lead
+head-entries-collide | crates/boundary/src/ld.rs | lit:dlopen::thread_mods_head().get(i).or_else ==> dlopen::thread_mods_head().get(i / 2).or_else | cargo xtask so && cargo test -p niji-boundary --test dl_tls_threads | msg:threads_get_static_tls_of_every_initial_module.*FAILED|panicked
+tls-of-skips-head | crates/boundary/src/ld/readers.rs | lit:for m in (0..n).filter_map(super::thread_mod) { ==> for m in (16..n).filter_map(super::thread_mod) { | cargo xtask so && cargo test -p niji-ld --test dlclose | msg:check 26|s27_1_c_4_dlclose_unloads_finalises_and_reclaims.*FAILED
