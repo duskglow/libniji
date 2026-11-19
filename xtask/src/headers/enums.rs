@@ -10,15 +10,15 @@ impl Gen<'_> {
         self.t.typedefs.contains_key(&("enum".to_string(), tag.to_string())).then(|| tag.to_string())
     }
 
-    /// `enum TAG { ... };` from enumerators.tsv (values as the reference's DWARF gives them), with each enumerator's
-    /// own guard defined, so an enumerator emitted alone elsewhere in the unit is not declared twice.
+    /// `enum TAG { ... };` from enumerators.tsv (values as the reference's DWARF gives them). Its enumerators are
+    /// marked emitted in this header; elsewhere an enumerator of it is never declared alone ([`Self::declared_enum`]
+    /// routes it to this definition, under the tag's guard).
     pub(super) fn enum_body(&mut self, tag: &str) -> Option<Vec<String>> {
         let members = self.t.enums.get(&format!("enum {tag}"))?;
         let mut body = vec![format!("enum {tag} {{")];
         body.extend(members.iter().map(|(n, v)| format!("  {n} = {v},")));
         body.push("};".into());
         for (n, _) in members {
-            body.push(format!("#  define __NIJI_D_enum_{n} 1"));
             self.emitted.insert(format!("enumerator {n}"));
         }
         Some(body)

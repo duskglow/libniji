@@ -17,11 +17,6 @@ enum mcheck_status {
   MCHECK_HEAD = 2,
   MCHECK_TAIL = 3,
 };
-#  define __NIJI_D_enum_MCHECK_DISABLED 1
-#  define __NIJI_D_enum_MCHECK_OK 1
-#  define __NIJI_D_enum_MCHECK_FREE 1
-#  define __NIJI_D_enum_MCHECK_HEAD 1
-#  define __NIJI_D_enum_MCHECK_TAIL 1
 # endif
 # ifndef __NIJI_D_mcheck
 #  define __NIJI_D_mcheck 1

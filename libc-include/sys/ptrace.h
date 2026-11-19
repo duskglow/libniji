@@ -54,49 +54,6 @@ enum __ptrace_request {
   PTRACE_SET_SYSCALL_USER_DISPATCH_CONFIG = 16912,
   PTRACE_GET_SYSCALL_USER_DISPATCH_CONFIG = 16913,
 };
-#  define __NIJI_D_enum_PTRACE_TRACEME 1
-#  define __NIJI_D_enum_PTRACE_PEEKTEXT 1
-#  define __NIJI_D_enum_PTRACE_PEEKDATA 1
-#  define __NIJI_D_enum_PTRACE_PEEKUSER 1
-#  define __NIJI_D_enum_PTRACE_POKETEXT 1
-#  define __NIJI_D_enum_PTRACE_POKEDATA 1
-#  define __NIJI_D_enum_PTRACE_POKEUSER 1
-#  define __NIJI_D_enum_PTRACE_CONT 1
-#  define __NIJI_D_enum_PTRACE_KILL 1
-#  define __NIJI_D_enum_PTRACE_SINGLESTEP 1
-#  define __NIJI_D_enum_PTRACE_GETREGS 1
-#  define __NIJI_D_enum_PTRACE_SETREGS 1
-#  define __NIJI_D_enum_PTRACE_GETFPREGS 1
-#  define __NIJI_D_enum_PTRACE_SETFPREGS 1
-#  define __NIJI_D_enum_PTRACE_ATTACH 1
-#  define __NIJI_D_enum_PTRACE_DETACH 1
-#  define __NIJI_D_enum_PTRACE_GETFPXREGS 1
-#  define __NIJI_D_enum_PTRACE_SETFPXREGS 1
-#  define __NIJI_D_enum_PTRACE_SYSCALL 1
-#  define __NIJI_D_enum_PTRACE_GET_THREAD_AREA 1
-#  define __NIJI_D_enum_PTRACE_SET_THREAD_AREA 1
-#  define __NIJI_D_enum_PTRACE_ARCH_PRCTL 1
-#  define __NIJI_D_enum_PTRACE_SYSEMU 1
-#  define __NIJI_D_enum_PTRACE_SYSEMU_SINGLESTEP 1
-#  define __NIJI_D_enum_PTRACE_SINGLEBLOCK 1
-#  define __NIJI_D_enum_PTRACE_SETOPTIONS 1
-#  define __NIJI_D_enum_PTRACE_GETEVENTMSG 1
-#  define __NIJI_D_enum_PTRACE_GETSIGINFO 1
-#  define __NIJI_D_enum_PTRACE_SETSIGINFO 1
-#  define __NIJI_D_enum_PTRACE_GETREGSET 1
-#  define __NIJI_D_enum_PTRACE_SETREGSET 1
-#  define __NIJI_D_enum_PTRACE_SEIZE 1
-#  define __NIJI_D_enum_PTRACE_INTERRUPT 1
-#  define __NIJI_D_enum_PTRACE_LISTEN 1
-#  define __NIJI_D_enum_PTRACE_PEEKSIGINFO 1
-#  define __NIJI_D_enum_PTRACE_GETSIGMASK 1
-#  define __NIJI_D_enum_PTRACE_SETSIGMASK 1
-#  define __NIJI_D_enum_PTRACE_SECCOMP_GET_FILTER 1
-#  define __NIJI_D_enum_PTRACE_SECCOMP_GET_METADATA 1
-#  define __NIJI_D_enum_PTRACE_GET_SYSCALL_INFO 1
-#  define __NIJI_D_enum_PTRACE_GET_RSEQ_CONFIGURATION 1
-#  define __NIJI_D_enum_PTRACE_SET_SYSCALL_USER_DISPATCH_CONFIG 1
-#  define __NIJI_D_enum_PTRACE_GET_SYSCALL_USER_DISPATCH_CONFIG 1
 # endif
 # ifndef PTRACE_GETREGSET
 #  define PTRACE_GETREGSET PTRACE_GETREGSET

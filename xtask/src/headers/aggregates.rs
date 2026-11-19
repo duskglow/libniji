@@ -204,7 +204,7 @@ impl Gen<'_> {
         // `@@hidden-member`: outside the condition of the member's structure tag, its scalar members by the given names.
         let mut hidden: Option<(String, Vec<String>)> = None;
         let ty = if let Some((kind, tag)) = bare.split_once(' ').filter(|(k, t)| stars.is_empty() && matches!(*k, "struct" | "union") && self.tag_known(k, t)) {
-            if let (Some(names), Some(c)) = (self.hidden_members.get(name).filter(|_| arr.is_empty() && kind == "struct"), key.strip_prefix("struct ").and_then(|o| self.narrower_tag(o, tag))) {
+            if let (Some(names), Some(c)) = (self.hidden_members.get(name).filter(|_| arr.is_empty() && kind == "struct"), key.strip_prefix("struct ").and_then(|o| self.narrower_tag(("struct", o), ("struct", tag)))) {
                 let direct: Vec<_> = kids.iter().filter(|q| !q["member"][r["member"].len() + 1..].contains('.')).collect();
                 if direct.len() != names.len() {
                     return None;

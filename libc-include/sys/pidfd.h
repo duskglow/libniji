@@ -205,6 +205,7 @@ typedef long off_t;
 #  define __NIJI_D_pid_t 1
 typedef int pid_t;
 # endif
+# if __NIJI_POSIX >= 199309
 # ifndef __NIJI_D_union_sigval
 #  define __NIJI_D_union_sigval 1
 union sigval {
@@ -212,10 +213,19 @@ union sigval {
   void * sival_ptr;
 };
 # endif
+# endif
 # ifndef __NIJI_D___sigval_t
 #  define __NIJI_D___sigval_t 1
+#  if __NIJI_POSIX >= 199309
 typedef union sigval __sigval_t;
+#  else
+typedef union {
+  int sival_int;
+  void * sival_ptr;
+} __sigval_t;
+#  endif
 # endif
+# if __NIJI_POSIX >= 199309
 # ifndef __NIJI_D_union_sigval
 #  define __NIJI_D_union_sigval 1
 union sigval {
@@ -223,9 +233,17 @@ union sigval {
   void * sival_ptr;
 };
 # endif
+# endif
 # ifndef __NIJI_D___sigval_t
 #  define __NIJI_D___sigval_t 1
+#  if __NIJI_POSIX >= 199309
 typedef union sigval __sigval_t;
+#  else
+typedef union {
+  int sival_int;
+  void * sival_ptr;
+} __sigval_t;
+#  endif
 # endif
 # ifndef __NIJI_D_siginfo_t
 #  define __NIJI_D_siginfo_t 1

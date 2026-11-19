@@ -849,6 +849,36 @@ mod tests {
         }
     }
 
+    // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-TABLES-COMPLETE). An `<anon>` row's `rows K`
+    // counts its member rows at its own level only: a member with rows below it (an array of structures) does not use
+    // up K, and the aggregate's next member stays outside the anonymous union. The tables' one such `<anon>`
+    // (Dl_serinfo's) is the aggregate's last member, where a miscount changes nothing: synthetic rows.
+    #[test]
+    fn an_anonymous_member_counts_only_its_own_level() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let mut t = load(&root).unwrap();
+        let rows = [
+            ("", "32", "8", "", ""),
+            ("a", "0", "", "int", ""),
+            ("<anon>", "8", "", "union <anon>", "size 16 rows 2"),
+            ("p", "8", "", "Dl_serpath[1]", ""),
+            ("p.dls_name", "8", "", "char *", ""),
+            ("p.dls_flags", "16", "", "unsigned int", ""),
+            ("q", "8", "", "long int", ""),
+            ("z", "24", "", "long int", ""),
+        ];
+        let key = "struct niji_test_anon";
+        let cols = ["member", "offset_or_size", "align", "member_type", "bitfield"];
+        let made: Rows = rows.iter().map(|r| cols.iter().zip([r.0, r.1, r.2, r.3, r.4]).map(|(k, v)| (k.to_string(), v.to_string())).chain([("type".to_string(), key.to_string())]).collect()).collect();
+        t.layouts.insert(key.into(), made);
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let a = g.aggregate(key).expect("the synthetic rows make an aggregate");
+        let lines: Vec<&str> = a.lines.iter().map(|l| l.trim()).collect();
+        assert_eq!(lines.last(), Some(&"long z;"), "{lines:#?}");
+        assert_eq!(lines.iter().filter(|l| **l == "long z;").count(), 1, "{lines:#?}");
+        assert_eq!(lines[lines.len() - 2], "};", "z follows the anonymous union: {lines:#?}");
+    }
+
     // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-GEN-COMPLETE). A vector typedef (typedefs.tsv
     // spells it as the demangler does, `float __vector(4)`) is emitted as GCC's vector type, not as a structure of
     // its size and alignment, which a size check cannot tell apart and the psABI passes in other registers (the
