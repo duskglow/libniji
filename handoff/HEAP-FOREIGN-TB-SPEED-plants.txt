@@ -8,3 +8,8 @@ own-test-inverted | crates/boundary/src/thread.rs | lit:Some(if s.own.load(Acqui
 no-room-spare-cache | crates/boundary/src/thread.rs | lit:    let s = shadow_entry(tb::tp())?; ==>     let Some(s) = shadow_entry(tb::tp()) else { return Some(&tb::spare_at(addr_of(&SPARE)).heap_cache) }; | cargo test -p niji-boundary --test tb_foreign_low_words spare_words_hold_no_heap_cache | msg:spare words: 1 = a heap cache slot
 # Caller text only while tracing: the test inverted, a traced line loses its caller (mtrace log lines "@ prog:[addr]").
 caller-trace-inverted | crates/boundary/src/heap.rs | lit:if f & malloc_debug::TRACE == 0 { ==> if f & malloc_debug::TRACE != 0 { | cargo xtask so && cargo test -p niji --test mallocdbg_products | msg:mallocdbg.*(FAILED|panicked)|log: \[@
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# tid-test-restored: CAUGHT, caught by heap_foreign_nosys foreign_thread_warm_malloc_free_make_no_system_call
+# own-test-inverted: CAUGHT, caught by tb_foreign_low_words (the log names no failing test)
+# no-room-spare-cache: CAUGHT, caught by tb_foreign_low_words spare_words_hold_no_heap_cache
+# caller-trace-inverted: CAUGHT, caught by mallocdbg_products mallocdbg_equals_the_reference
