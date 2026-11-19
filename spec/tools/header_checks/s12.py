@@ -16,6 +16,7 @@ import sys
 import tempfile
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+P8_CONFIGS = ("gnu17", "default", "gnu", "c11", "cxx17")
 INT_SUFFIX = {"int": "", "long": "L", "long long": "LL", "unsigned int": "U", "unsigned long": "UL", "unsigned long long": "ULL"}
 
 
@@ -66,6 +67,13 @@ def units(ctx):
         if tests:
             body = f"#include <{h}>\n" + "".join(f"typedef char niji_p1_{i}[({t}) ? 1 : -1];\n" for i, t in enumerate(tests))
             res.append((cid, f"P1 {h}", body))
+    # P8, libc-first only (ruling #6458: the kernel header first is not supported; slice 13 measures it): <netinet/in.h>
+    # with linux/in6.h, once, with the shared tags used so a missing or doubled definition fails to compile. The other
+    # kernel pairs are the `uapi` cells of headers/slices/s12.tsv, both orders.
+    for cid in P8_CONFIGS:
+        if cid in ctx.ids:
+            res.append((cid, "P8 netinet/in.h then linux/in6.h", "#include <netinet/in.h>\n#include <linux/in6.h>\n"
+                        "struct in_addr a; struct in6_addr b; struct sockaddr_in c; struct sockaddr_in6 d;\nint niji_p8_tu;\n"))
     return res
 
 
