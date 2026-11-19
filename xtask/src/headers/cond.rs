@@ -190,13 +190,14 @@ impl Gen<'_> {
         }
     }
 
-    /// The condition of the structure tag `inner` in this header when the header shows it in fewer of the
-    /// configurations that matter than the aggregate `outer` that has a member of that type, else None.
-    pub(super) fn narrower_tag(&self, outer: &str, inner: &str) -> Option<String> {
-        let row = |n: &str| self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == n && r["kind"] == "struct");
-        let (o, i) = (row(outer)?, row(inner)?);
+    /// The condition of the tag `inner_kind inner` (a structure or union) in this header when the header shows it in
+    /// fewer of the configurations that matter than `outer_kind outer` (an aggregate with a member of that type, or a
+    /// typedef named for linkage through the tag), else None.
+    pub(super) fn narrower_tag(&self, (outer_kind, outer): (&str, &str), (inner_kind, inner): (&str, &str)) -> Option<String> {
+        let row = |k: &str, n: &str| self.t.vis.iter().find(|r| r["header"] == self.header && r["name"] == n && r["kind"] == k);
+        let (o, i) = (row(outer_kind, outer)?, row(inner_kind, inner)?);
         let all = (1u64 << self.t.lv.ids.len()) - 1;
-        let care = all & !self.dont_care(inner, "struct");
+        let care = all & !self.dont_care(inner, inner_kind);
         let (om, im) = (mask_of(&self.t.lv, &o["configs"]).ok()?, mask_of(&self.t.lv, &i["configs"]).ok()?);
         if om & care & !im == 0 {
             return None;

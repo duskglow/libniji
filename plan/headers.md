@@ -229,7 +229,8 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
   `aggregates.rs` (one recursive member emitter: anonymous and named nested aggregates at any depth,
   bit-fields, packed and over-aligned layouts, tag members), `typedefs.rs` (scalar, qualified, vector,
   array, function and incomplete types, C++ keyword character types), `functions.rs`, `objects.rs`,
-  `values.rs` (macro values, `@@init` initializers), `enums.rs` (`@@enum`), `types.rs` (type spelling)
+  `values.rs` (macro values, `@@init` initializers), `enums.rs` (enumerations from `enumerators.tsv`,
+  `@@enum TAG`), `types.rs` (type spelling)
   and `cond.rs` (feature conditions); `headers.rs` keeps the tables, the dispatcher `Gen::item` and the
   markers. The generator is complete for the tables: a construct a new row needs is added here, once.
 * **Generated tests.** For each header, a C TU and a C++ TU of `_Static_assert`s cover sizes,
@@ -238,11 +239,19 @@ No one reads `-E` or `-dM` output or disassembly of the reference headers.
   The placement-independent rows test (`cargo xtask headers-gen --rows DIR`, `xtask/src/headers/rows.rs`,
   unit test `every_table_row_is_emitted_and_matches_the_tables`) emits every table row through the
   emitters in no header placement and checks it in C (gnu17) and C++ (gnu++17): sizes, alignments,
-  offsets and member types, bit-fields and initializers at run time (psABI sequential allocation),
+  offsets and member types, bit-fields (their recorded `bits W@P` positions) and initializers at run time,
+  the enumerators and C++ enumerator types of each declared enumeration,
   macro and constant values and types, typedef identity (vector typedefs in both languages), prototype
   identity with `noexcept`, and per configuration family the symbols call sites reference. A row the
   generator cannot emit fails unless `headers/rows-exceptions.tsv` lists it with a reason; each new
-  exception is a RULING NEEDED of the change that adds it.
+  exception is a RULING NEEDED of the change that adds it. Ratchet (HEADERS-TABLES-COMPLETE): the
+  exception list only shrinks; a missing table datum is added to the table, not excepted.
+* **Table formats the generator reads (HEADERS-TABLES-COMPLETE).** `enumerators.tsv` (`tag`, `name`,
+  `value`): every named enumeration of the extraction's DWARF probe, enumerators in declaration order.
+  `layouts.tsv` lists members at every depth, an array of aggregates by its first element
+  (`sort_list.addr`); an `<anon>` row's `size N rows K` counts its K member rows at its own level (the
+  rows below each follow it); a bit-field's `bits W@P` is its width and its first bit counted from the low
+  bit of the storage unit at the row's byte offset (psABI little-endian).
 * **Staging.** `cargo xtask so` stages `target/niji/include`. Tests compile with `-nostdinc`,
   `-isystem` on libniji's headers, the compiler's include directory, and a staging of the build
   host's `linux-libc-dev` directories (`linux`, `asm`, `asm-generic`, ...).

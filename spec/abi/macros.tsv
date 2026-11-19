@@ -541,6 +541,7 @@ DF_STATIC_TLS	elf.h	int	16
 DF_SYMBOLIC	elf.h	int	2
 DF_TEXTREL	elf.h	int	4
 DIRTYPE	tar.h	int	53
+DLFO_EH_SEGMENT_TYPE	link.h	int	1685382480
 DLFO_STRUCT_HAS_EH_COUNT	dlfcn.h	int	0
 DLFO_STRUCT_HAS_EH_DBASE	dlfcn.h	int	0
 DN_ACCESS	fcntl.h	int	1
@@ -1596,10 +1597,13 @@ FASYNC	fcntl.h	int	8192
 FD_CLOEXEC	fcntl.h	int	1
 FD_SETSIZE	aio.h	int	1024
 FE_ALL_EXCEPT	fenv.h	int	61
+FE_DFL_ENV	fenv.h	fenv_t const*	-1
+FE_DFL_MODE	fenv.h	femode_t const*	-1
 FE_DIVBYZERO	fenv.h	int	4
 FE_DOWNWARD	fenv.h	int	1024
 FE_INEXACT	fenv.h	int	32
 FE_INVALID	fenv.h	int	1
+FE_NOMASK_ENV	fenv.h	fenv_t const*	-2
 FE_OVERFLOW	fenv.h	int	8
 FE_TONEAREST	fenv.h	int	0
 FE_TOWARDZERO	fenv.h	int	3072
@@ -1627,6 +1631,7 @@ FNM_FILE_NAME	fnmatch.h	int	1
 FNM_LEADING_DIR	fnmatch.h	int	8
 FNM_NOESCAPE	fnmatch.h	int	2
 FNM_NOMATCH	fnmatch.h	int	1
+FNM_NOSYS	fnmatch.h	int	-1
 FNM_PATHNAME	fnmatch.h	int	1
 FNM_PERIOD	fnmatch.h	int	4
 FNONBLOCK	fcntl.h	int	2048
@@ -2186,6 +2191,7 @@ LC_COLLATE	locale.h	int	3
 LC_COLLATE_MASK	locale.h	int	8
 LC_CTYPE	locale.h	int	0
 LC_CTYPE_MASK	locale.h	int	1
+LC_GLOBAL_LOCALE	locale.h	__locale_struct*	-1
 LC_IDENTIFICATION	locale.h	int	12
 LC_IDENTIFICATION_MASK	locale.h	int	4096
 LC_MEASUREMENT	locale.h	int	11
@@ -2322,6 +2328,7 @@ MAP_ANON	sys/mman.h	int	32
 MAP_ANONYMOUS	sys/mman.h	int	32
 MAP_DENYWRITE	sys/mman.h	int	2048
 MAP_EXECUTABLE	sys/mman.h	int	4096
+MAP_FAILED	sys/mman.h	void*	-1
 MAP_FILE	sys/mman.h	int	0
 MAP_FIXED	sys/mman.h	int	16
 MAP_FIXED_NOREPLACE	sys/mman.h	int	1048576
@@ -2436,8 +2443,12 @@ MM_NOMSG	fmtmsg.h	int	1
 MM_NOSEV	fmtmsg.h	int	0
 MM_NOTOK	fmtmsg.h	int	-1
 MM_NRECOV	fmtmsg.h	int	128
+MM_NULLACT	fmtmsg.h	char*	0
+MM_NULLLBL	fmtmsg.h	char*	0
 MM_NULLMC	fmtmsg.h	long	0
 MM_NULLSEV	fmtmsg.h	int	0
+MM_NULLTAG	fmtmsg.h	char*	0
+MM_NULLTXT	fmtmsg.h	char*	0
 MM_OK	fmtmsg.h	int	0
 MM_OPSYS	fmtmsg.h	int	32
 MM_PRINT	fmtmsg.h	int	256
@@ -3240,6 +3251,7 @@ PR_UNALIGN_NOPRINT	sys/prctl.h	int	1
 PR_UNALIGN_SIGBUS	sys/prctl.h	int	2
 PTHREAD_ATTR_NO_SIGMASK_NP	pthread.h	int	-1
 PTHREAD_BARRIER_SERIAL_THREAD	pthread.h	int	-1
+PTHREAD_CANCELED	pthread.h	void*	-1
 PTHREAD_CANCEL_ASYNCHRONOUS	pthread.h	int	1
 PTHREAD_CANCEL_DEFERRED	pthread.h	int	0
 PTHREAD_CANCEL_DISABLE	pthread.h	int	1
@@ -3614,9 +3626,11 @@ RSI	sys/reg.h	int	13
 RSP	sys/reg.h	int	19
 RTLD_BINDING_MASK	dlfcn.h	int	3
 RTLD_DEEPBIND	dlfcn.h	int	8
+RTLD_DEFAULT	dlfcn.h	void*	0
 RTLD_GLOBAL	dlfcn.h	int	256
 RTLD_LAZY	dlfcn.h	int	1
 RTLD_LOCAL	dlfcn.h	int	0
+RTLD_NEXT	dlfcn.h	void*	-1
 RTLD_NODELETE	dlfcn.h	int	4096
 RTLD_NOLOAD	dlfcn.h	int	4
 RTLD_NOW	dlfcn.h	int	2
@@ -5661,6 +5675,7 @@ SEGV_MTEAERR	arpa/nameser.h	int	8
 SEGV_MTESERR	arpa/nameser.h	int	9
 SEGV_PKUERR	arpa/nameser.h	int	4
 SELFMAG	elf.h	int	4
+SEM_FAILED	semaphore.h	sem_t*	0
 SEM_INFO	sys/sem.h	int	19
 SEM_STAT	sys/sem.h	int	18
 SEM_STAT_ANY	sys/sem.h	int	20
@@ -5879,6 +5894,10 @@ SIG_ATOMIC_MAX	arpa/nameser.h	int	2147483647
 SIG_ATOMIC_MIN	arpa/nameser.h	int	-2147483648
 SIG_ATOMIC_WIDTH	arpa/nameser.h	int	32
 SIG_BLOCK	arpa/nameser.h	int	0
+SIG_DFL	signal.h	void (*)(int)	0
+SIG_ERR	signal.h	void (*)(int)	-1
+SIG_HOLD	signal.h	void (*)(int)	2
+SIG_IGN	signal.h	void (*)(int)	1
 SIG_SETMASK	arpa/nameser.h	int	2
 SIG_UNBLOCK	arpa/nameser.h	int	1
 SIOCADDDLCI	net/if_ppp.h	int	35200

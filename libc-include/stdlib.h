@@ -219,11 +219,17 @@ typedef unsigned int uid_t;
 #if __NIJI_MISC || __NIJI_XSI >= 500
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D_struct___pthread_cond_s
 #  define __NIJI_D_struct___pthread_cond_s 1

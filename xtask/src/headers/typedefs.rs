@@ -79,21 +79,64 @@ impl Gen<'_> {
             // `union sigval`): defined here, under the guard its tag row (tag()) uses, so it is defined once.
             let a = self.aggregate(name);
             let kind = ["union", "struct"].into_iter().find(|k| self.t.typedefs.contains_key(&(k.to_string(), cxx.clone()))).or(a.as_ref().map(|a| a.kw)).unwrap_or("struct");
+            // Where this header shows the tag in fewer configurations than the typedef (`union sigval` beside
+            // `__sigval_t` in sys/pidfd.h), the tag belongs to the program outside its condition (C 7.1.3): there the
+            // typedef names an untagged aggregate of the same members.
+            let narrow = self.narrower_tag(("typedef", name), (kind, &cxx));
             let mut td = String::new();
+            let mut untagged = Vec::new();
             let def = match a {
                 Some(a) => {
                     self.emit_nested(a.nested);
                     td = a.td_attrs;
+                    if narrow.is_some() {
+                        untagged = [vec![format!("typedef {kind}{} {{", a.attrs)], a.lines.clone(), vec![format!("}} {name}{td};")]].concat();
+                    }
                     [vec![format!("{kind}{} {cxx} {{", a.attrs)], a.lines, vec!["};".into()]].concat()
                 }
                 // No size: an incomplete type the program only points to (`DIR` is `struct __dirstream`).
                 None if r["size"].is_empty() => vec![format!("{kind} {cxx};")],
                 None => vec![format!("{};", opaque(&format!("{kind} {cxx}")))],
             };
-            self.guard(&format!("{kind}_{cxx}"), def);
-            vec![format!("typedef {kind} {cxx} {name}{td};")]
+            match narrow.filter(|_| !untagged.is_empty()) {
+                Some(c) => {
+                    self.out.push(format!("# if {c}"));
+                    self.guard(&format!("{kind}_{cxx}"), def);
+                    self.out.push("# endif".into());
+                    [vec![format!("#  if {c}"), format!("typedef {kind} {cxx} {name}{td};"), "#  else".into()], untagged, vec!["#  endif".into()]].concat()
+                }
+                None => {
+                    self.guard(&format!("{kind}_{cxx}"), def);
+                    vec![format!("typedef {kind} {cxx} {name}{td};")]
+                }
+            }
+        };
+        let body = match self.pointer_form(name) {
+            Some((c, m)) => [vec![format!("#  if {c}")], body, vec!["#  else".into(), format!("#   define {name} {m}"), "#  endif".into()]].concat(),
+            None => body,
         };
         self.guard(name, body);
+    }
+
+    /// A transparent union (layouts.tsv) that this header shows as a macro in other configurations (visibility.tsv:
+    /// `__SOCKADDR_ARG` is the union in C with `_GNU_SOURCE`, a macro otherwise and in C++): the typedef's condition and the macro's
+    /// expansion, a pointer of the union's first member type (a `__restrict` one where the head row says
+    /// `restrict`), the type a transparent union argument is passed as (GCC manual, transparent_union).
+    fn pointer_form(&mut self, name: &str) -> Option<(String, String)> {
+        let rows = self.t.layouts.get(name)?;
+        let head = rows.iter().find(|r| r["member"].is_empty());
+        if !aggregates::transparent_union(head) {
+            return None;
+        }
+        let first = rows.iter().find(|r| !r["member"].is_empty())?["member_type"].trim_end().to_string();
+        let restrict = head.is_some_and(|r| r["bitfield"].split_whitespace().any(|w| w == "restrict"));
+        let m = if restrict { format!("{first}__restrict") } else { first };
+        if self.rows(name).iter().any(|r| r["kind"] == "macro") {
+            return Some((self.cond(name, Some("typedef")), m));
+        }
+        // No row of this header (the rows test's placement-independent unit): each form in the one language that
+        // has it, the union in (GNU) C, the pointer in C++.
+        Some(("!defined __cplusplus".into(), m))
     }
 
     /// The C++ form of a `typedefs.tsv` typedef, or an error.

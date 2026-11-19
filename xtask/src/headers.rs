@@ -17,7 +17,7 @@
 //! * `@@owns-macro A B ...`: the template defines these macros itself; their function rows are still emitted.
 //! * `@@value(NAME)` (inline): the C literal of NAME from `macros.tsv`.
 //! * `@@when NAME`: `#if` with the condition of NAME, which the template does not own.
-//! * `@@enum TAG PREFIX...`: `enum TAG` of this header's enumerators with those prefixes (a prototype takes the enumeration).
+//! * `@@enum TAG`: `enum TAG` from enumerators.tsv, its enumerators this header lists also self-naming macros.
 //! * `@@hidden-member MEMBER NAME...`: where an aggregate's member MEMBER is a structure whose tag this header shows
 //!   in fewer configurations than the aggregate, the member is spelled, outside the tag's condition, as the scalar
 //!   members of that structure named NAME... in order (same offsets and sizes): `struct stat`'s `st_atim` is
@@ -51,6 +51,8 @@ const TEMPLATES: &str = "headers";
 const OUT: &str = "libc-include";
 const LEVELS: &str = "headers/levels.tsv";
 const RESERVED: &str = "headers/reserved.tsv";
+/// Who provides a declared function libc does not export (rulings #6714, #6715).
+const PROVIDERS: &str = "headers/providers.tsv";
 /// One table per slice, `<slice>.tsv`: the headers the slice ships, one row each (columns `header`, `p1`, `uapi`;
 /// spec/tools/header_check.py reads the other columns).
 const SLICE_TABLES: &str = "headers/slices";
@@ -173,20 +175,28 @@ struct Tables {
     reserved: BTreeMap<String, String>,
     /// The `linked_elsewhere` names of every slice.
     linked_elsewhere: BTreeSet<&'static str>,
+    /// `headers/providers.tsv`: a declared function libc does not provide -> who does (`program`, `debugger`, `none`).
+    providers: BTreeMap<String, String>,
     /// initializers.tsv: initializer -> (type, bytes in hexadecimal).
     inits: BTreeMap<String, (String, String)>,
+    /// enumerators.tsv: an enumeration tag (`enum __pid_type`) -> its enumerators and values, in declaration order.
+    enums: BTreeMap<String, Vec<(String, String)>>,
+    /// enumerators.tsv: an enumerator -> the tag of its enumeration.
+    enum_of: BTreeMap<String, String>,
 }
 
 /// A typedef or a structure or union tag used as a member type that has no layout rows of its own but whose members
 /// the rows of the containing aggregate list (`data.ptr`, `data.fd` under a member `data` of type `epoll_data_t`;
 /// `__data.__lock` under `__data` of type `struct __pthread_mutex_s`): those rows, at any depth, rebased to the
-/// member's offset, are its layout (SL-HEADERS-S09; tags: HEADERS-GEN-COMPLETE). Its size and alignment are its
+/// member's offset, are its layout (SL-HEADERS-S09; tags: HEADERS-GEN-COMPLETE; an array's element type from the rows of
+/// its first element: HEADERS-TABLES-COMPLETE). Its size and alignment are its
 /// typedefs.tsv row's; one without a size is not derived.
 fn derive_layouts(layouts: &mut BTreeMap<String, Rows>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>) {
     let mut found: Vec<(String, Rows)> = Vec::new();
     for rows in layouts.values() {
         for (i, r) in rows.iter().enumerate().filter(|(_, r)| !r["member"].is_empty() && r["member"] != "<anon>") {
-            let ty = &r["member_type"];
+            // An array member's rows describe its first element (`sort_list.addr` of `sort_list[0]`).
+            let ty = &r["member_type"].split('[').next().unwrap_or_default().trim_end().to_string();
             let tkey = match ty.split_once(' ') {
                 Some((k, t)) if matches!(k, "struct" | "union") && t != "<anon>" => (k.to_string(), t.to_string()),
                 Some(_) => continue,
@@ -241,7 +251,50 @@ fn load(root: &Path) -> Result<Tables, String> {
     let reserved = tsv(root, RESERVED)?.into_iter().map(|r| (r["name"].clone(), r["policy"].clone())).collect();
     let linked_elsewhere = slices::ALL.iter().flat_map(|(_, s)| s.linked_elsewhere.iter().copied()).collect();
     let inits = tsv(root, "spec/abi/initializers.tsv")?.into_iter().map(|r| (r["initializer"].clone(), (r["type"].clone(), r["bytes_hex"].clone()))).collect();
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, inits })
+    let mut enums: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+    let mut enum_of = BTreeMap::new();
+    for r in tsv(root, "spec/abi/enumerators.tsv")? {
+        enum_of.insert(r["name"].clone(), r["tag"].clone());
+        enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
+    }
+    let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of })
+}
+
+/// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
+/// (a row for a function libc now provides is stale: the export check would no longer see that function).
+/// `generic` (a type-generic macro's function form: an overload set with no single prototype) instead needs a header
+/// that shows the name as a function in some configurations and as a macro in others, and no prototype row.
+fn load_providers(root: &Path, vis: &Rows, protos: &BTreeMap<String, String>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>, exported: &BTreeSet<String>) -> Result<BTreeMap<String, String>, String> {
+    let mut out = BTreeMap::new();
+    let mut bad = Vec::new();
+    for r in tsv(root, PROVIDERS)? {
+        let (n, p) = (r["name"].clone(), r["provider"].clone());
+        let declared = protos.contains_key(&n) || typedefs.contains_key(&("function".to_string(), n.clone()));
+        let shown = |h: &str, k: &str| vis.iter().any(|v| v["header"] == h && v["name"] == n && v["kind"] == k);
+        if !matches!(p.as_str(), "program" | "debugger" | "none" | "generic") {
+            bad.push(format!("{n}: provider `{p}` is not program, debugger, none or generic"));
+        } else if p == "generic" {
+            if declared {
+                bad.push(format!("{n}: generic, but a prototypes.tsv or typedefs.tsv function row declares it"));
+            } else if !vis.iter().any(|v| v["name"] == n && v["kind"] == "function" && shown(&v["header"], "macro")) {
+                bad.push(format!("{n}: generic, but no header shows it as both a function and a macro"));
+            } else if out.insert(n.clone(), p).is_some() {
+                bad.push(format!("{n}: two rows"));
+            }
+        } else if !declared {
+            bad.push(format!("{n}: no prototypes.tsv or typedefs.tsv function row"));
+        } else if exported.contains(&n) {
+            bad.push(format!("{n}: exported at a default version (versions.tsv), so libc provides it"));
+        } else if out.insert(n.clone(), p).is_some() {
+            bad.push(format!("{n}: two rows"));
+        }
+    }
+    if bad.is_empty() {
+        Ok(out)
+    } else {
+        Err(format!("{PROVIDERS}: {}", bad.join("; ")))
+    }
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -284,7 +337,19 @@ impl Gen<'_> {
         let mut items: Vec<(usize, String, String, String)> = Vec::new();
         let rows: Vec<(String, String)> = self.t.vis.iter().filter(|r| r["header"] == self.header).map(|r| (r["name"].clone(), r["kind"].clone())).collect();
         for (name, kind) in rows {
-            if kind == "include-error" || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
+            // A type-generic macro's function form (provider `generic`) has no prototype to declare: the C++
+            // library or the header's template defines its overloads.
+            let generic = kind == "function" && self.t.providers.get(&name).is_some_and(|p| p == "generic");
+            if kind == "include-error" || generic || owned.contains(&name) || (kind == "macro" && self.owned_macros.contains(&name)) || omitted(&self.t.reserved, &name) || self.is_covered(&name, &kind) || (kind == "enumerator" && self.emitted.contains(&format!("enumerator {name}"))) {
+                continue;
+            }
+            // An enumerator of a declared enumeration: that enumeration, once (its tag row, when this header has one).
+            if let Some(tag) = (kind == "enumerator").then(|| self.declared_enum(&name)).flatten() {
+                let tag_row = self.t.vis.iter().any(|r| r["header"] == self.header && r["kind"] == "enum" && r["name"] == tag);
+                if !tag_row && self.emitted.insert(format!("enum {tag}")) {
+                    let c = self.cond(&name, Some(&kind));
+                    items.push((2, c, tag, "enum".into()));
+                }
                 continue;
             }
             let rank = ["struct", "union", "enum", "typedef", "object", "function", "enumerator", "macro"].iter().position(|k| *k == kind).unwrap_or(9);
@@ -327,6 +392,12 @@ impl Gen<'_> {
             "enumerator" => {
                 // The name is an enumerator and (its macro row) a macro of the same value, as the reference's
                 // enumerations with a `#define` each: an anonymous enum constant, declared once per translation unit.
+                // An enumerator of an enumeration the tables declare as a tag (typedefs.tsv `enum`; its members are
+                // enumerators.tsv rows) is that enumeration's: the whole definition, once per translation unit.
+                if let Some(tag) = self.declared_enum(name) {
+                    self.tag(&tag, "enum");
+                    return;
+                }
                 let v = self.value(name);
                 self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
             }
@@ -820,6 +891,62 @@ mod tests {
         if let Err(e) = r {
             panic!("{e}");
         }
+    }
+
+    // no spec clause: rulings #6714, #6715 (HEADERS-TABLES-COMPLETE). headers/providers.tsv exempts a function from the
+    // export check, so a row that names an unknown provider, no declared function, or a function libc exports at a
+    // default version (a stale row that would hide a missing export) is refused.
+    #[test]
+    fn a_provider_row_is_refused_unless_it_is_needed() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let t = load(&root).unwrap();
+        assert_eq!(t.providers.get("la_version").map(String::as_str), Some("program"));
+        let dir = std::env::temp_dir().join(format!("niji-providers-{}", std::process::id()));
+        fs::create_dir_all(dir.join("headers")).unwrap();
+        assert_eq!(t.providers.get("iszero").map(String::as_str), Some("generic"));
+        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\nsin\tgeneric\tx\nEOF\tgeneric\tx\nfpclassify\tgeneric\tx\n";
+        fs::write(dir.join(PROVIDERS), rows).unwrap();
+        let r = load_providers(&dir, &t.vis, &t.protos, &t.typedefs, &t.exported);
+        let _ = fs::remove_dir_all(&dir);
+        let e = r.expect_err("five bad rows");
+        assert!(e.contains("la_version: provider `linker`"), "{e}");
+        assert!(e.contains("niji_no_such_function: no prototypes.tsv"), "{e}");
+        assert!(e.contains("malloc: exported at a default version"), "{e}");
+        // `generic`: a declared function (sin) or a name no header shows as both a function and a macro (EOF: a
+        // macro in many headers, a function in none).
+        assert!(e.contains("sin: generic, but a prototypes.tsv"), "{e}");
+        assert!(e.contains("EOF: generic, but no header"), "{e}");
+        assert!(!e.contains("getumask") && !e.contains("fpclassify"), "{e}");
+    }
+
+    // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-TABLES-COMPLETE). An `<anon>` row's `rows K`
+    // counts its member rows at its own level only: a member with rows below it (an array of structures) does not use
+    // up K, and the aggregate's next member stays outside the anonymous union. The tables' one such `<anon>`
+    // (Dl_serinfo's) is the aggregate's last member, where a miscount changes nothing: synthetic rows.
+    #[test]
+    fn an_anonymous_member_counts_only_its_own_level() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let mut t = load(&root).unwrap();
+        let rows = [
+            ("", "32", "8", "", ""),
+            ("a", "0", "", "int", ""),
+            ("<anon>", "8", "", "union <anon>", "size 16 rows 2"),
+            ("p", "8", "", "Dl_serpath[1]", ""),
+            ("p.dls_name", "8", "", "char *", ""),
+            ("p.dls_flags", "16", "", "unsigned int", ""),
+            ("q", "8", "", "long int", ""),
+            ("z", "24", "", "long int", ""),
+        ];
+        let key = "struct niji_test_anon";
+        let cols = ["member", "offset_or_size", "align", "member_type", "bitfield"];
+        let made: Rows = rows.iter().map(|r| cols.iter().zip([r.0, r.1, r.2, r.3, r.4]).map(|(k, v)| (k.to_string(), v.to_string())).chain([("type".to_string(), key.to_string())]).collect()).collect();
+        t.layouts.insert(key.into(), made);
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let a = g.aggregate(key).expect("the synthetic rows make an aggregate");
+        let lines: Vec<&str> = a.lines.iter().map(|l| l.trim()).collect();
+        assert_eq!(lines.last(), Some(&"long z;"), "{lines:#?}");
+        assert_eq!(lines.iter().filter(|l| **l == "long z;").count(), 1, "{lines:#?}");
+        assert_eq!(lines[lines.len() - 2], "};", "z follows the anonymous union: {lines:#?}");
     }
 
     // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-GEN-COMPLETE). A vector typedef (typedefs.tsv

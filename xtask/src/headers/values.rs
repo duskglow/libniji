@@ -2,6 +2,11 @@
 //! constant its type through the builtin or suffix), and the brace initializer of each `initializers.tsv` row.
 use super::*;
 
+/// Whether a `macros.tsv` type is a pointer type (a pointer constant's row).
+pub(crate) fn pointer_type(ty: &str) -> bool {
+    ty.ends_with('*') || ty.contains("(*)")
+}
+
 /// The C literal of a `macros.tsv` value of the given type.
 pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
     if ty.starts_with("char[") {
@@ -52,6 +57,17 @@ pub(crate) fn literal(ty: &str, value: &str) -> Result<String, String> {
 
 impl Gen<'_> {
     pub(super) fn value(&mut self, name: &str) -> String {
+        // A pointer constant (macros.tsv type `void (*)(int)`, `fenv_t const*`: type_probe's C++ spelling): its address
+        // cast to the type, spelled for C (`__locale_struct*` is `struct __locale_struct *`).
+        if let Some((ty, v)) = self.t.macros.get(name).filter(|(ty, _)| pointer_type(ty)) {
+            return match literal("pointer", v) {
+                Ok(l) => format!("(({}) {l})", self.c_words(ty)),
+                Err(e) => {
+                    self.errors.push(format!("{}: {name}: {e}", self.header));
+                    String::new()
+                }
+            };
+        }
         match self.t.macros.get(name).map(|(ty, v)| literal(ty, v)) {
             Some(Ok(s)) => s,
             Some(Err(e)) => {
