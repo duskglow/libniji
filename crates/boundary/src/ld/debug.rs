@@ -12,10 +12,12 @@
 //!   `COPY` relocation ([`note_copy`] sees it). Every later write goes to `ld.so`'s own structure
 //!   (where `DT_DEBUG` points) and to that copy, so both read the same at every `r_brk` call.
 
-use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
-use core::sync::atomic::{compiler_fence, AtomicI32, AtomicUsize};
+use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use core::sync::atomic::{AtomicI32, AtomicUsize};
 
 use niji_ld::debug::{State, BRK, LDBASE, MAP, SIZE, STATE, VERSION};
+
+use super::{_dl_debug_state, _r_debug};
 
 /// `<link.h>`'s `struct r_debug` (version 1), every field an atomic: a program reads it while
 /// another thread's `dlopen` writes it.
@@ -35,27 +37,11 @@ const _: () = {
     assert!(offset_of!(RDebug, r_state) == STATE && offset_of!(RDebug, r_ldbase) == LDBASE);
 };
 
-/// `_r_debug` (spec s27_4_c_0): the rendezvous `DT_DEBUG` points at.
-// UNSAFE(export): an exported data object of the ld.so product.
-#[unsafe(no_mangle)]
-#[allow(unsafe_code)]
-#[allow(non_upper_case_globals)]
-pub static _r_debug: RDebug = RDebug {
-    r_version: AtomicI32::new(0),
-    r_map: AtomicUsize::new(0),
-    r_brk: AtomicUsize::new(0),
-    r_state: AtomicI32::new(0),
-    r_ldbase: AtomicUsize::new(0),
-};
-
-/// `_dl_debug_state` (spec s27_4_c_0): `r_brk`, called after each `r_state` change; it does nothing,
-/// and is never inlined, so a debugger's breakpoint on it stops at every change.
-// UNSAFE(export): an exported function of the ld.so product.
-#[unsafe(no_mangle)]
-#[allow(unsafe_code)]
-#[inline(never)]
-pub extern "C" fn _dl_debug_state() {
-    compiler_fence(SeqCst);
+impl RDebug {
+    /// The zero structure `ld.so`'s `_r_debug` starts as ([`super::_r_debug`]).
+    pub(super) const fn new() -> Self {
+        Self { r_version: AtomicI32::new(0), r_map: AtomicUsize::new(0), r_brk: AtomicUsize::new(0), r_state: AtomicI32::new(0), r_ldbase: AtomicUsize::new(0) }
+    }
 }
 
 /// `<link.h>`'s public `struct link_map` prefix, for the one link map that is not an object the

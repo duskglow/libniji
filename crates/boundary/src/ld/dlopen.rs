@@ -365,9 +365,7 @@ impl core::ops::Deref for Nodes {
         // bytes may be written through a pointer derived from a shared reference. The only `Nodes`
         // is the `Loader`'s, borrowed through the one live `&Loader`/`&mut Loader` (`loader()`), and
         // `start_node` writes before any `Loader` exists; readers read published fields by address.
-        unsafe {
-            &*core::ptr::with_exposed_provenance::<[Node; CAP]>(nodes_base())
-        }
+        unsafe { &*core::ptr::with_exposed_provenance::<[Node; CAP]>(nodes_base()) }
     }
 }
 

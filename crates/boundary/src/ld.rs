@@ -1545,6 +1545,23 @@ fn interp_name(prog: &niji_ld::reloc::Obj<'_>) -> usize {
     if last[0] == 0 { at } else { empty }
 }
 
+/// `_r_debug` (spec s27_4_c_0): the debugger rendezvous `DT_DEBUG` points at ([`debug`]).
+// UNSAFE(export): an exported data object of the ld.so product.
+#[unsafe(no_mangle)]
+#[allow(unsafe_code)]
+#[allow(non_upper_case_globals)]
+pub static _r_debug: debug::RDebug = debug::RDebug::new();
+
+/// `_dl_debug_state` (spec s27_4_c_0): `r_brk`, called after each `r_state` change ([`debug`]); it
+/// does nothing, and is never inlined, so a debugger's breakpoint on it stops at every change.
+// UNSAFE(export): an exported function of the ld.so product.
+#[unsafe(no_mangle)]
+#[allow(unsafe_code)]
+#[inline(never)]
+pub extern "C" fn _dl_debug_state() {
+    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+}
+
 /// The address of an `extern "C" fn()` (`_dl_debug_state`).
 #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
 fn fn_addr0(f: extern "C" fn()) -> usize {
