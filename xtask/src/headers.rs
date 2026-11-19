@@ -51,6 +51,8 @@ const TEMPLATES: &str = "headers";
 const OUT: &str = "libc-include";
 const LEVELS: &str = "headers/levels.tsv";
 const RESERVED: &str = "headers/reserved.tsv";
+/// Who provides a declared function libc does not export (rulings #6714, #6715).
+const PROVIDERS: &str = "headers/providers.tsv";
 /// One table per slice, `<slice>.tsv`: the headers the slice ships, one row each (columns `header`, `p1`, `uapi`;
 /// spec/tools/header_check.py reads the other columns).
 const SLICE_TABLES: &str = "headers/slices";
@@ -173,6 +175,8 @@ struct Tables {
     reserved: BTreeMap<String, String>,
     /// The `linked_elsewhere` names of every slice.
     linked_elsewhere: BTreeSet<&'static str>,
+    /// `headers/providers.tsv`: a declared function libc does not provide -> who does (`program`, `debugger`, `none`).
+    providers: BTreeMap<String, String>,
     /// initializers.tsv: initializer -> (type, bytes in hexadecimal).
     inits: BTreeMap<String, (String, String)>,
     /// enumerators.tsv: an enumeration tag (`enum __pid_type`) -> its enumerators and values, in declaration order.
@@ -253,7 +257,32 @@ fn load(root: &Path) -> Result<Tables, String> {
         enum_of.insert(r["name"].clone(), r["tag"].clone());
         enums.entry(r["tag"].clone()).or_default().push((r["name"].clone(), r["value"].clone()));
     }
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, inits, enums, enum_of })
+    let providers = load_providers(root, &protos, &typedefs, &exported)?;
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of })
+}
+
+/// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
+/// (a row for a function libc now provides is stale: the export check would no longer see that function).
+fn load_providers(root: &Path, protos: &BTreeMap<String, String>, typedefs: &BTreeMap<(String, String), BTreeMap<String, String>>, exported: &BTreeSet<String>) -> Result<BTreeMap<String, String>, String> {
+    let mut out = BTreeMap::new();
+    let mut bad = Vec::new();
+    for r in tsv(root, PROVIDERS)? {
+        let (n, p) = (r["name"].clone(), r["provider"].clone());
+        if !matches!(p.as_str(), "program" | "debugger" | "none") {
+            bad.push(format!("{n}: provider `{p}` is not program, debugger or none"));
+        } else if !protos.contains_key(&n) && !typedefs.contains_key(&("function".to_string(), n.clone())) {
+            bad.push(format!("{n}: no prototypes.tsv or typedefs.tsv function row"));
+        } else if exported.contains(&n) {
+            bad.push(format!("{n}: exported at a default version (versions.tsv), so libc provides it"));
+        } else if out.insert(n.clone(), p).is_some() {
+            bad.push(format!("{n}: two rows"));
+        }
+    }
+    if bad.is_empty() {
+        Ok(out)
+    } else {
+        Err(format!("{PROVIDERS}: {}", bad.join("; ")))
+    }
 }
 
 /// Whether headers-gen leaves `name` out (C 7.1.3 reserved identifiers; owner rulings R-H2, R-H3):
@@ -847,6 +876,27 @@ mod tests {
         if let Err(e) = r {
             panic!("{e}");
         }
+    }
+
+    // no spec clause: rulings #6714, #6715 (HEADERS-TABLES-COMPLETE). headers/providers.tsv exempts a function from the
+    // export check, so a row that names an unknown provider, no declared function, or a function libc exports at a
+    // default version (a stale row that would hide a missing export) is refused.
+    #[test]
+    fn a_provider_row_is_refused_unless_it_is_needed() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let t = load(&root).unwrap();
+        assert_eq!(t.providers.get("la_version").map(String::as_str), Some("program"));
+        let dir = std::env::temp_dir().join(format!("niji-providers-{}", std::process::id()));
+        fs::create_dir_all(dir.join("headers")).unwrap();
+        let rows = "name\tprovider\tsource\nla_version\tlinker\tx\nniji_no_such_function\tnone\tx\nmalloc\tnone\tx\ngetumask\tnone\tx\n";
+        fs::write(dir.join(PROVIDERS), rows).unwrap();
+        let r = load_providers(&dir, &t.protos, &t.typedefs, &t.exported);
+        let _ = fs::remove_dir_all(&dir);
+        let e = r.expect_err("three bad rows");
+        assert!(e.contains("la_version: provider `linker`"), "{e}");
+        assert!(e.contains("niji_no_such_function: no prototypes.tsv"), "{e}");
+        assert!(e.contains("malloc: exported at a default version"), "{e}");
+        assert!(!e.contains("getumask"), "{e}");
     }
 
     // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-TABLES-COMPLETE). An `<anon>` row's `rows K`
