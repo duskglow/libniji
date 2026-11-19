@@ -2175,7 +2175,7 @@ pub fn select_tier(repo: &Repo, files: &[String], tier: Tier) -> Selection {
 fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier, train: bool) -> Selection {
     let mut sel = select_files(repo, files, products, tier);
     if train && !sel.full.is_empty() {
-        sel.to_train(repo, files);
+        sel.hand_to_train(repo, files);
     }
     sel
 }
@@ -2324,7 +2324,7 @@ fn ordinary_mapping(repo: &Repo, f: &str, sel: &mut Selection) {
 
 /// GATE-DEV-NO-FULL (owner, 11-19: developers gate what their change affects, the CI train runs the FULL gate on the
 /// merged tree): the class of a changed file whose rule escalated, which picks the bounded set a per-fix tier runs in
-/// FULL's place ([`Selection::to_train`]). Every class also gets `cargo xtask static` and every cheap FULL step
+/// FULL's place ([`Selection::hand_to_train`]). Every class also gets `cargo xtask static` and every cheap FULL step
 /// ([`prechecks`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrainClass {
@@ -2396,7 +2396,7 @@ impl Selection {
     /// GATE-DEV-NO-FULL: move every escalation to [`Selection::train`] and select, per changed file it names, the
     /// bounded set of the file's [`TrainClass`]. A bounded mapping that escalates again (the own mapping of a generated
     /// source) adds a train line, never FULL.
-    fn to_train(&mut self, repo: &Repo, files: &[String]) {
+    fn hand_to_train(&mut self, repo: &Repo, files: &[String]) {
         let reasons = std::mem::take(&mut self.full);
         let mut done = BTreeSet::new();
         for r in &reasons {
