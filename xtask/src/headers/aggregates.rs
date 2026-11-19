@@ -147,7 +147,9 @@ impl Gen<'_> {
         // through the structure, so it is declared as a pointer to `void (void)`; size and offset are those of any
         // object pointer.
         if mt.starts_with("fn(") && mt.trim_end().ends_with('*') {
-            lv.lines.push(format!("  void (*{name}) (void);"));
+            // headers/fnmembers.tsv spells the type of the members whose signature a standard or man page gives.
+            let decl = self.t.fnmembers.get(&(key.to_string(), r["member"].clone())).map_or(format!("void (*{name}) (void)"), |d| d.replace('@', name));
+            lv.lines.push(format!("  {decl};"));
             lv.add(off, Some(8), Some(8));
             return Some(());
         }
