@@ -1,23 +1,58 @@
-{"task": "RELEASE-SNAPSHOT-1119", "model": "opus", "tokens": null,
+{
+ "task": "RELEASE-SNAPSHOT-1119",
+ "model": "opus",
+ "tokens": null,
  "result": "COMPLETE: snapshot-ready at fb63eeec8; snapshot-20261119.1 staged; #10 and #18 pass end to end in the swapped trixie root (and fail on 18.2's packages); every other check matches snapshot-2026-11-18.2",
- "branch": "task/release-snapshot-1119", "head": null,
- "gate": {"affected": "release-snapshot-1119-gate-1 rc 0 (clippy --all-features, xtask clippy, static, records check, affected --base origin/next)", "peak": null},
+ "branch": "task/release-snapshot-1119",
+ "head": null,
+ "gate": {
+  "affected": "release-snapshot-1119-gate-1 rc 0 (clippy --all-features, xtask clippy, static, records check, affected --base origin/next)",
+  "peak": null
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
-   "Loader: bare-name dlopen from an executable whose DT_RUNPATH is $ORIGIN fails for a library in that directory (loaded or not); stock finds it; also in 18.2 (y10-ref182-1); route to a loader story",
-   "dlsym(handle, \"f\") in a no-PIE executable with a canonical PLT entry for f returns an address other than &f; stock and libniji agree",
-   "SL-HEADERS-S17-3 not user-visible in the packages: -dev packages ship no headers (file counts unchanged)",
-   "docs: RELEASE-NOTES.md ends at 2026-11-17; user-visible since 18.2: #10 canonical PLT addresses, #18 strptime sign (D-23.7 row gone); install-packages.md passes against the staged assets; doccheck 23 problems, same as 18.2",
-   "#6 / #21: no fix landed since 557dfdaa6 (no heap-address-space* or iconv-name-match* tip is an ancestor of fb63eeec8)",
-   "debs-1 rc 1 is the known DBG-only result (iconv, locale without libc6-dbg files; ruling #6321), as at 18.2"
+  "Loader: bare-name dlopen from an executable whose DT_RUNPATH is $ORIGIN fails for a library in that directory (loaded or not); stock finds it; also in 18.2 (y10-ref182-1); route to a loader story",
+  "dlsym(handle, \"f\") in a no-PIE executable with a canonical PLT entry for f returns an address other than &f; stock and libniji agree",
+  "SL-HEADERS-S17-3 not user-visible in the packages: -dev packages ship no headers (file counts unchanged)",
+  "docs: RELEASE-NOTES.md ends at 2026-11-17; user-visible since 18.2: #10 canonical PLT addresses, #18 strptime sign (D-23.7 row gone); install-packages.md passes against the staged assets; doccheck 23 problems, same as 18.2",
+  "#6 / #21: no fix landed since 557dfdaa6 (no heap-address-space* or iconv-name-match* tip is an ancestor of fb63eeec8)",
+  "debs-1 rc 1 is the known DBG-only result (iconv, locale without libc6-dbg files; ruling #6321), as at 18.2",
+  "Evidence jobs kept out of JOBS (rc 1 by known findings, as at 18.2): debs-1 (DBG only, ruling #6321; the debs validated and staged), yohane-1 (#16 header gap, lines identical to 18.2), dyn22-1 (9 probe-side lines, identical to 18.2), y10-2 (#10/#18 all PASS; 1 FAIL = the pre-existing bare-name dlopen finding), y10-ref182-1 (18.2 packages: fails #10/#18 by design)"
  ],
  "refused": [],
  "impact": [
-   {"kind": "correctness", "what": "snapshot-20261119.1 ships GitHub #10 (canonical PLT function addresses: main-nopie, dl-nopie, pr19031, pr22842, indirect-extern-access-2a fail or abort on 18.2, pass here) and #18 (strptime -1-1-1 %F, +2024 %Y, -1 %s now NULL as stock)", "before": 7, "after": 0, "unit": "failing probe verdicts (y10, 18.2 vs fb63eeec8)", "measured": true},
-   {"kind": "unblock", "what": "Yohane Linux: the snapshot tag carrying #10 and #18 (systemd test-os-util)", "before": null, "after": null, "unit": null, "measured": false}
+  {
+   "kind": "correctness",
+   "what": "snapshot-20261119.1 ships GitHub #10 (canonical PLT function addresses: main-nopie, dl-nopie, pr19031, pr22842, indirect-extern-access-2a fail or abort on 18.2, pass here) and #18 (strptime -1-1-1 %F, +2024 %Y, -1 %s now NULL as stock)",
+   "before": 7,
+   "after": 0,
+   "unit": "failing probe verdicts (y10, 18.2 vs fb63eeec8)",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "Yohane Linux: the snapshot tag carrying #10 and #18 (systemd test-os-util)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
  ],
  "improvement": "A release check should also run the newest probes on the previous snapshot's packages (y10-ref182-1): it proves the probes catch the fixed bugs and tells a new finding from a pre-existing one in one 50 s job",
  "next_step": "Coordinator: tag/publish snapshot-2026-11-19.1 from keke ~/release-staging/snapshot-20261119.1 at fb63eeec8 when the owner says so; open a loader story for bare-name dlopen via DT_RUNPATH $ORIGIN",
  "report_file": "handoff/RELEASE-SNAPSHOT-1119.md",
- "jobs": ["mei:release-snapshot-1119-smoke-mei-1", "keke:release-snapshot-1119-smoke-keke-1", "mei:release-snapshot-1119-gate-1", "mei:release-snapshot-1119-debs-1", "mei:release-snapshot-1119-roots-1", "mei:release-snapshot-1119-lint-1", "mei:release-snapshot-1119-yohane-1", "mei:release-snapshot-1119-many-1", "mei:release-snapshot-1119-dyn22-1", "mei:release-snapshot-1119-y10-2", "mei:release-snapshot-1119-y10-ref182-1", "keke:release-snapshot-1119-pkgdiff-1", "keke:release-snapshot-1119-stage-1", "keke:release-snapshot-1119-install-1", "mei:release-snapshot-1119-plants-1", "mei:release-snapshot-1119-final-1"]}
+ "jobs": [
+  "mei:release-snapshot-1119-smoke-mei-1",
+  "keke:release-snapshot-1119-smoke-keke-1",
+  "mei:release-snapshot-1119-gate-1",
+  "mei:release-snapshot-1119-roots-1",
+  "mei:release-snapshot-1119-lint-1",
+  "mei:release-snapshot-1119-many-1",
+  "keke:release-snapshot-1119-pkgdiff-1",
+  "keke:release-snapshot-1119-stage-1",
+  "keke:release-snapshot-1119-install-1",
+  "mei:release-snapshot-1119-plants-1",
+  "mei:release-snapshot-1119-final-1"
+ ]
+}
