@@ -145,8 +145,9 @@ fn listed_binaries(json: &str) -> Vec<(String, String, String)> {
 /// of dependency (normal, build and dev: a test binary links its package's dev-dependencies).
 #[derive(Debug, Default)]
 struct PackageGraph {
-    /// package id -> the ids of the packages it depends on.
-    deps: std::collections::BTreeMap<String, Vec<String>>,
+    /// package id -> `(id, dev_only)` of each package it depends on; `dev_only` when every kind of
+    /// that dependency is `dev` (linked only into the package's own tests, examples and benches).
+    deps: std::collections::BTreeMap<String, Vec<(String, bool)>>,
     /// niji-boundary's package id.
     boundary: String,
 }
@@ -167,27 +168,49 @@ impl PackageGraph {
         for node in resolve.split("{\"id\":\"").skip(1) {
             let (id, rest) = node.split_once('"')?;
             let list = rest.split_once("\"dependencies\":[")?.1.split_once(']')?.0;
-            deps.insert(id.to_string(), list.split(',').map(|d| d.trim().trim_matches('"').to_string()).filter(|d| !d.is_empty()).collect());
+            let dev = dev_only_deps(rest);
+            deps.insert(id.to_string(), list.split(',').map(|d| d.trim().trim_matches('"').to_string()).filter(|d| !d.is_empty()).map(|d| { let only = dev.contains(&d); (d, only) }).collect());
         }
         (deps.contains_key(&boundary)).then_some(PackageGraph { deps, boundary })
     }
 
-    /// Whether `pkg` is niji-boundary or depends on it, directly or through other packages.
-    /// A package the graph does not hold may depend on it.
+    /// Whether a test binary of `pkg` can link niji-boundary: `pkg` is niji-boundary or depends on
+    /// it, directly or through other packages. Every dependency of `pkg` itself counts (its test
+    /// binaries link its dev-dependencies); further down, a dev-only dependency does not, since
+    /// cargo links a package's dev-dependencies only into that package's own tests, examples and
+    /// benches (GATE-TEST-TIME: niji-rt's dev-dependency on niji-boundary made xtask, which uses
+    /// niji-rt through niji-ld, run its 500 unit tests in both passes). A package the graph does
+    /// not hold may depend on it.
     fn reaches_boundary(&self, pkg: &str) -> bool {
         let mut seen = std::collections::BTreeSet::new();
-        let mut todo = vec![pkg.to_string()];
-        while let Some(p) = todo.pop() {
+        let mut todo = vec![(pkg.to_string(), true)];
+        while let Some((p, top)) = todo.pop() {
             if p == self.boundary {
                 return true;
             }
             let Some(ds) = self.deps.get(&p) else { return true };
-            if seen.insert(p) {
-                todo.extend(ds.iter().cloned());
+            if seen.insert((p, top)) {
+                todo.extend(ds.iter().filter(|(_, dev_only)| top || !dev_only).map(|(d, _)| (d.clone(), false)));
             }
         }
         false
     }
+}
+
+/// The ids of a resolve node's dependencies whose every kind is `dev`, from the node's text after
+/// its id (its `deps` entries in cargo's layout: `{"name":..,"pkg":"<id>","dep_kinds":[{"kind":
+/// "dev"|"build"|null,..},..]}`). A node without `deps`, or an entry that names any other kind or
+/// no kind, gives nothing: such a dependency counts as linked.
+fn dev_only_deps(node: &str) -> std::collections::BTreeSet<String> {
+    let Some((_, deps)) = node.split_once("\"deps\":[") else { return Default::default() };
+    deps.split("\"pkg\":\"")
+        .skip(1)
+        .filter_map(|entry| {
+            let (id, kinds) = entry.split_once('"')?;
+            let dev_only = kinds.contains("\"kind\":\"dev\"") && !kinds.contains("\"kind\":null") && !kinds.contains("\"kind\":\"build\"");
+            dev_only.then(|| id.to_string())
+        })
+        .collect()
 }
 
 /// Why a test binary runs in the first pass only, or `None` when it runs in both. A binary whose
@@ -539,6 +562,26 @@ mod tests {
         assert_eq!(run_once_reason("", Some(&g), marked), None, "a binary without a package id is not proven independent");
         assert!(PackageGraph::parse("not json").is_none());
         assert!(PackageGraph::parse(&METADATA.replace("\"name\":\"niji-boundary\",", "\"name\":\"other\",")).is_none(), "no niji-boundary package = no graph");
+    }
+
+    /// `x` (a tool, like xtask) depends on `r`, which has niji-boundary as a dev-dependency only (like
+    /// niji-rt); `m` has it as a dev and a normal dependency, `s` as a build-dependency, `u` names
+    /// it in `dependencies` without a `deps` entry; `xm`, `xs`, `xu` depend normally on `m`, `s`, `u`.
+    const METADATA_DEV: &str = r#"{"packages":[{"name":"niji-boundary","version":"0.0.0","id":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dependencies":[]}],"workspace_members":[],"resolve":{"nodes":[{"id":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dependencies":[],"deps":[],"features":[]},{"id":"path+file:///w/x#0.0.0","dependencies":["path+file:///w/r#0.0.0"],"deps":[{"name":"r","pkg":"path+file:///w/r#0.0.0","dep_kinds":[{"kind":null,"target":null}]}],"features":[]},{"id":"path+file:///w/r#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"deps":[{"name":"niji_boundary","pkg":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dep_kinds":[{"kind":"dev","target":null}]}],"features":[]},{"id":"path+file:///w/m#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"deps":[{"name":"niji_boundary","pkg":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dep_kinds":[{"kind":"dev","target":null},{"kind":null,"target":null}]}],"features":[]},{"id":"path+file:///w/s#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"deps":[{"name":"niji_boundary","pkg":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dep_kinds":[{"kind":"build","target":null}]}],"features":[]},{"id":"path+file:///w/u#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"features":[]},{"id":"path+file:///w/xm#0.0.0","dependencies":["path+file:///w/m#0.0.0"],"deps":[{"name":"m","pkg":"path+file:///w/m#0.0.0","dep_kinds":[{"kind":null,"target":null}]}],"features":[]},{"id":"path+file:///w/xs#0.0.0","dependencies":["path+file:///w/s#0.0.0"],"deps":[{"name":"s","pkg":"path+file:///w/s#0.0.0","dep_kinds":[{"kind":null,"target":null}]}],"features":[]},{"id":"path+file:///w/xu#0.0.0","dependencies":["path+file:///w/u#0.0.0"],"deps":[{"name":"u","pkg":"path+file:///w/u#0.0.0","dep_kinds":[{"kind":null,"target":null}]}],"features":[]}],"root":null},"target_directory":"/w/target","version":1}"#;
+
+    #[test]
+    fn a_dev_dependency_further_down_is_not_linked() {
+        // no spec clause: gate tooling (GATE-TEST-TIME), not libc behaviour. Cargo links a package's
+        // dev-dependencies only into that package's own test targets.
+        let g = PackageGraph::parse(METADATA_DEV).expect("graph");
+        assert!(g.reaches_boundary("path+file:///w/r#0.0.0"), "r's own tests link its dev-dependency");
+        assert!(!g.reaches_boundary("path+file:///w/x#0.0.0"), "x links r, never r's dev-dependencies");
+        assert!(g.reaches_boundary("path+file:///w/xm#0.0.0"), "m depends on it normally as well");
+        assert!(g.reaches_boundary("path+file:///w/xs#0.0.0"), "a build-dependency is not a dev one");
+        assert!(g.reaches_boundary("path+file:///w/xu#0.0.0"), "no deps entry: the dependency counts as linked");
+        let marked = || Some(b"_ZN13niji_boundary3foo".to_vec());
+        assert_eq!(run_once_reason("path+file:///w/x#0.0.0", Some(&g), marked), Some("no dependency on niji-boundary"));
+        assert_eq!(run_once_reason("path+file:///w/r#0.0.0", Some(&g), marked), None);
     }
 
     #[test]
