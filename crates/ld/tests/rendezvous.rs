@@ -27,6 +27,15 @@ const PROG: &str = r#"
 #include <stdio.h>
 #include <string.h>
 extern ElfW(Dyn) _DYNAMIC[];
+/* NOLD: the program does not name ld.so (no link-time reference to `_r_debug`): the start adds
+   ld.so's link map last, its l_ld from ld.so's own headers. */
+#ifdef NOLD
+#define RDBG (*(struct r_debug *)dlsym(RTLD_DEFAULT, "_r_debug"))
+#else
+#define RDBG _r_debug
+#endif
+/* In a library the program names by path, which names its own dependency by path. */
+extern int rdv_mid(void);
 static struct { unsigned long addr; const char *name; unsigned long dyn; } ph[64];
 static int nph;
 static int cb(struct dl_phdr_info *i, size_t s, void *d) {
@@ -44,20 +53,20 @@ static struct r_debug *dt(void) {
     return 0;
 }
 /* 0, or the first failed check (base + k). */
-static int check(const char *when, int base, int want, const char *last, const char *interp) {
+static int check(const char *when, int base, int want, const char *last, const char *interp, const char *need) {
     /* ld.so's own definition (the program's copy, when it has one, comes first in the global scope). */
     void *ld = dlopen("ld-linux-x86-64.so.2", RTLD_NOW | RTLD_NOLOAD);
     struct r_debug *own = ld ? dlsym(ld, "_r_debug") : 0;
     void *brk = dlsym(RTLD_DEFAULT, "_dl_debug_state");
-    if (!own || !brk || dlsym(RTLD_DEFAULT, "_r_debug") != (void *)&_r_debug) return base + 1;
+    if (!own || !brk || !dlsym(RTLD_DEFAULT, "_r_debug") || dlsym(RTLD_DEFAULT, "_r_debug") != (void *)&RDBG) return base + 1;
     if (dt() != own) return base + 2;
-    if (own->r_version != 1 || _r_debug.r_version != 1) return base + 3;
-    if (own->r_state != RT_CONSISTENT || _r_debug.r_state != RT_CONSISTENT) return base + 4;
-    if ((void *)own->r_brk != brk || _r_debug.r_brk != own->r_brk) return base + 5;
-    if (own->r_map != _r_debug.r_map || own->r_ldbase != _r_debug.r_ldbase || !own->r_ldbase) return base + 6;
+    if (own->r_version != 1 || RDBG.r_version != 1) return base + 3;
+    if (own->r_state != RT_CONSISTENT || RDBG.r_state != RT_CONSISTENT) return base + 4;
+    if ((void *)own->r_brk != brk || RDBG.r_brk != own->r_brk) return base + 5;
+    if (own->r_map != RDBG.r_map || own->r_ldbase != RDBG.r_ldbase || !own->r_ldbase) return base + 6;
     nph = 0;
     dl_iterate_phdr(cb, 0);
-    int k = 0, ldso = 0;
+    int k = 0, ldso = 0, needed = 0;
     struct link_map *prev = 0;
     for (struct link_map *m = own->r_map; m; prev = m, m = m->l_next, k++) {
         if (k >= nph || m->l_addr != ph[k].addr || strcmp(m->l_name, ph[k].name)) {
@@ -71,35 +80,52 @@ static int check(const char *when, int base, int want, const char *last, const c
         }
         if (k > 0 && m->l_name[0] != '/' && strcmp(m->l_name, "linux-vdso.so.1")) { fprintf(stderr, "%s: '%s' is not a path\n", when, m->l_name); return base + 9; }
         ldso += m->l_addr == own->r_ldbase && !strcmp(m->l_name, interp);
+        /* A dependency named by path in a library's DT_NEEDED: l_name is that path (its string
+           outlives the library's file view). */
+        needed += !strcmp(m->l_name, need);
     }
+    if (needed != 1) { fprintf(stderr, "%s: %d link maps named %s\n", when, needed, need); return base + 13; }
     if (k != nph || (want >= 0 && k != want)) { fprintf(stderr, "%s: %d maps, %d phdr, want %d\n", when, k, nph, want); return base + 10; }
     if (strcmp(own->r_map->l_name, "") || ldso != 1) return base + 11;
     if (last && strcmp(prev->l_name, last)) return base + 12;
     return 0;
 }
 int main(int argc, char **argv) {
-    if (argc < 3) return 99;
-    int r = check("start", 0, -1, 0, argv[2]);
+    if (argc < 4) return 99;
+    if (rdv_mid() != 1) return 98;
+    int r = check("start", 0, -1, 0, argv[2], argv[3]);
     int n0 = nph;
     if (r) return r;
     void *h = dlopen(argv[1], RTLD_NOW);
     if (!h) return 50;
     struct link_map *lm = 0;
     if (dlinfo(h, RTLD_DI_LINKMAP, &lm) || (void *)lm != h) return 51;
-    if ((r = check("dlopen", 20, n0 + 1, argv[1], argv[2]))) return r;
-    if (dlopen(0, RTLD_NOW) != (void *)_r_debug.r_map) return 52;
+    if ((r = check("dlopen", 20, n0 + 1, argv[1], argv[2], argv[3]))) return r;
+    if (dlopen(0, RTLD_NOW) != (void *)RDBG.r_map) return 52;
     ((void (*)(void))dlsym(h, "rdv_target"))();
     dlclose(h);
-    if ((r = check("dlclose", 40, n0, 0, argv[2]))) return r;
+    if ((r = check("dlclose", 40, n0, 0, argv[2], argv[3]))) return r;
     puts("rendezvous ok");
     return 0;
 }
 "#;
 
 const LIB: &str = "volatile int rdv_hits;\nvoid rdv_target(void) { rdv_hits++; }\n";
+const LEAF: &str = "int rdv_leaf(void) { return 1; }\n";
+const MID: &str = "extern int rdv_leaf(void);\nint rdv_mid(void) { return rdv_leaf(); }\n";
 
-/// Build the library and the program (`pie`: PIE, else `-no-pie`) in a fresh directory: (dir, lib, prog).
-fn setup(tag: &str, pie: bool) -> Option<(PathBuf, PathBuf, PathBuf)> {
+/// What [`setup`] built in its fresh directory: the `dlopen`ed library, the program, and the
+/// start-time library a library names by path (`libmid.so` names `librdv-leaf.so` by its path).
+struct Built {
+    dir: PathBuf,
+    so: PathBuf,
+    prog: PathBuf,
+    leaf: PathBuf,
+}
+
+/// Build the libraries and the program (`pie`: PIE, else `-no-pie`; `name_ld`: `ld.so` on its link
+/// line, so it refers to `_r_debug` by name, else built with `NOLD`) in a fresh directory.
+fn setup(tag: &str, pie: bool, name_ld: bool) -> Option<Built> {
     if !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         eprintln!("SKIP: no system C compiler to build the corpus");
         return None;
@@ -133,6 +159,12 @@ fn setup(tag: &str, pie: bool) -> Option<(PathBuf, PathBuf, PathBuf)> {
     std::fs::write(&libc, &bytes).unwrap();
     let so = d.join("librdv.so");
     cc(&so, LIB, &["-nostdlib", "-fPIC", "-shared"]);
+    // No DT_SONAME: each is named by the path it was linked by. The leaf's DT_NEEDED string is in
+    // libmid's file, which the start reads through a view it releases.
+    let leaf = d.join("librdv-leaf.so");
+    cc(&leaf, LEAF, &["-nostdlib", "-fPIC", "-shared"]);
+    let mid = d.join("librdv-mid.so");
+    cc(&mid, MID, &["-nostdlib", "-fPIC", "-shared", leaf.to_str().unwrap()]);
     let prog = d.join("prog");
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let crt1 = lib.join("niji-crt1.o");
@@ -140,14 +172,20 @@ fn setup(tag: &str, pie: bool) -> Option<(PathBuf, PathBuf, PathBuf)> {
     let mode: &[&str] = if pie { &["-fPIC", "-pie"] } else { &["-fno-pic", "-no-pie"] };
     let mut flags = vec!["-nostdlib"];
     flags.extend_from_slice(mode);
-    flags.extend_from_slice(&[&interp, crt1.to_str().unwrap(), libc.to_str().unwrap(), ld.to_str().unwrap(), "-lgcc"]);
+    flags.extend_from_slice(&[&interp, crt1.to_str().unwrap(), mid.to_str().unwrap(), libc.to_str().unwrap()]);
+    if name_ld {
+        flags.push(ld.to_str().unwrap());
+    } else {
+        flags.push("-DNOLD");
+    }
+    flags.push("-lgcc");
     cc(&prog, PROG, &flags);
-    Some((d, so, prog))
+    Some(Built { dir: d, so, prog, leaf })
 }
 
-fn run(prog: &Path, so: &Path) -> (i32, String) {
+fn run(b: &Built) -> (i32, String) {
     let ld = std::fs::canonicalize(target().join("niji")).unwrap().join(Native::INTERP);
-    let o = Command::new(prog).arg(so).arg(&ld).output().unwrap();
+    let o = Command::new(&b.prog).arg(&b.so).arg(&ld).arg(&b.leaf).output().unwrap();
     (o.status.code().unwrap_or(-1), format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)))
 }
 
@@ -166,22 +204,32 @@ fn copied(prog: &Path) -> Option<bool> {
 // in its order, at start, after dlopen and after dlclose; r_state RT_CONSISTENT; r_brk _dl_debug_state.
 #[test]
 fn rendezvous_pie_matches_dl_iterate_phdr() {
-    let Some((d, so, prog)) = setup("pie", true) else { return };
-    assert_ne!(copied(&prog), Some(true), "the PIE program has a COPY of _r_debug: it no longer tests ld.so's own alone");
-    let (code, out) = run(&prog, &so);
+    let Some(b) = setup("pie", true, true) else { return };
+    assert_ne!(copied(&b.prog), Some(true), "the PIE program has a COPY of _r_debug: it no longer tests ld.so's own alone");
+    let (code, out) = run(&b);
     assert_eq!(code, 0, "failed check {code}: {out}");
-    let _ = std::fs::remove_dir_all(d);
+    let _ = std::fs::remove_dir_all(&b.dir);
+}
+
+// Spec s27_4_c_0: a program that does not name ld.so still lists it (last, by PT_INTERP), with its
+// l_addr and l_ld where its headers put them, as dl_iterate_phdr reports it.
+#[test]
+fn rendezvous_lists_ld_so_the_program_does_not_name() {
+    let Some(b) = setup("nold", true, false) else { return };
+    let (code, out) = run(&b);
+    assert_eq!(code, 0, "failed check {code}: {out}");
+    let _ = std::fs::remove_dir_all(&b.dir);
 }
 
 // Spec s27_4_c_0: a -no-pie program's COPY of `_r_debug` reads what ld.so's own does (r_state
 // included) at every point, and DT_DEBUG names ld.so's own.
 #[test]
 fn rendezvous_copy_relocation_is_kept_current() {
-    let Some((d, so, prog)) = setup("copy", false) else { return };
-    assert_ne!(copied(&prog), Some(false), "the -no-pie program has no COPY relocation of _r_debug");
-    let (code, out) = run(&prog, &so);
+    let Some(b) = setup("copy", false, true) else { return };
+    assert_ne!(copied(&b.prog), Some(false), "the -no-pie program has no COPY relocation of _r_debug");
+    let (code, out) = run(&b);
     assert_eq!(code, 0, "failed check {code}: {out}");
-    let _ = std::fs::remove_dir_all(d);
+    let _ = std::fs::remove_dir_all(&b.dir);
 }
 
 // Spec s27_4_c_0: a debugger that breaks on r_brk sees every object: gdb lists libc by path and stops
@@ -192,13 +240,15 @@ fn rendezvous_gdb_breaks_in_a_dlopened_library() {
         eprintln!("SKIP: no gdb");
         return;
     }
-    let Some((d, so, prog)) = setup("gdb", true) else { return };
+    let Some(b) = setup("gdb", true, true) else { return };
+    let (d, so) = (&b.dir, &b.so);
     let ld = std::fs::canonicalize(target().join("niji")).unwrap().join(Native::INTERP);
     let o = Command::new("gdb")
         .args(["-nx", "-batch", "-ex", "set breakpoint pending on", "-ex", "set debuginfod enabled off", "-ex", "break rdv_target", "-ex", "run", "-ex", "info sharedlibrary", "-ex", "kill", "--args"])
-        .arg(&prog)
-        .arg(&so)
+        .arg(&b.prog)
+        .arg(so)
         .arg(&ld)
+        .arg(&b.leaf)
         .output()
         .unwrap();
     let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
@@ -208,6 +258,6 @@ fn rendezvous_gdb_breaks_in_a_dlopened_library() {
     }
     assert!(out.contains("Breakpoint 1, ") && out.contains("rdv_target"), "gdb did not stop in the dlopened library:\n{out}");
     let listed = |p: &Path| out.lines().any(|l| l.contains(p.to_str().unwrap_or("-")));
-    assert!(listed(&so) && listed(&d.join("libc-rdv.so")) && listed(&ld), "info sharedlibrary misses an object:\n{out}");
+    assert!(listed(so) && listed(&d.join("libc-rdv.so")) && listed(&ld), "info sharedlibrary misses an object:\n{out}");
     let _ = std::fs::remove_dir_all(d);
 }
