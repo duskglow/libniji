@@ -103,6 +103,11 @@
 //! whose bodies name one of them (the products tests reach code only through C entries); no reverse
 //! closure, no section 0, no "carries no section". Rules 1-3 and 5-7 (and every escalation to FULL) are unchanged.
 //! `--tier wide` is the rule 4 above; `--tier full` runs everything, as the landing gate (`cargo xtask test`) does.
+//! GATE-DEV-NO-FULL (owner, 11-19): in `direct` and `wide` no escalation runs FULL; the CI train runs the FULL gate on
+//! the merged tree. Each escalated file selects a bounded set by its class (`TrainClass`: xtask code, the image's
+//! bottom layers, generated tables and inputs, build configuration, unknown paths) plus `cargo xtask static` and every
+//! cheap FULL step, and the plan prints `FULL: the train's (<file>: <reason>)` where the FULL line was. `bench-rows`
+//! (`select_opts`) and `--reverse` attribution still see the escalations as FULL.
 //! `--replay <records>` checks that the failures of past gates fall inside a tier (`replay`).
 //!
 //! `--reverse` (XTASK-AFFECTED-REVERSE, attribution for a train gate): given the failed tests (`--failed <id>...` as
@@ -1242,6 +1247,9 @@ impl Repo {
 #[derive(Default, Debug)]
 pub struct Selection {
     pub full: Vec<String>,
+    /// GATE-DEV-NO-FULL: the escalations a per-fix tier (`direct`, `wide`) leaves to the CI train's FULL gate, each
+    /// `<file>: <reason>`; the file's bounded set ([`TrainClass`]) is selected in their place. `full` stays empty.
+    pub train: Vec<String>,
     pub clippy: BTreeMap<String, String>,
     pub libs: BTreeMap<String, String>,
     /// (crate, target) -> reason
@@ -1354,7 +1362,8 @@ pub fn prechecks(sel: &Selection) -> Vec<&'static str> {
     if sel.only {
         return Vec::new();
     }
-    crate::precheck::CHEAP_STEPS.iter().copied().filter(|c| !sel.full.is_empty() || sel.gen_prechecks.contains(*c)).collect()
+    let every = !sel.full.is_empty() || !sel.train.is_empty();
+    crate::precheck::CHEAP_STEPS.iter().copied().filter(|c| every || sel.gen_prechecks.contains(*c)).collect()
 }
 
 /// The first step of a run: `sel`'s prechecks; any red one ends the run (`Err`) before anything else starts, with the
@@ -2151,16 +2160,27 @@ pub fn select(repo: &Repo, files: &[String]) -> Selection {
 }
 
 /// `products`: follow no edge through a module compiled only under a test cfg (what a product can change).
+/// The escalations stay FULL here (`bench-rows` reads them as "cannot narrow to rows"); only [`select_tier`] hands them
+/// to the train.
 pub fn select_opts(repo: &Repo, files: &[String], products: bool) -> Selection {
-    select_with(repo, files, products, Tier::Wide)
+    select_with(repo, files, products, Tier::Wide, false)
 }
 
 /// The selection of a tier (GATE-TIER): `Direct` for per-fix gates, `Wide` the earlier rules, `Full` everything.
+/// GATE-DEV-NO-FULL: in `Direct` and `Wide` an escalation is the train's ([`Selection::train`]), never FULL.
 pub fn select_tier(repo: &Repo, files: &[String], tier: Tier) -> Selection {
-    select_with(repo, files, false, tier)
+    select_with(repo, files, false, tier, tier != Tier::Full)
 }
 
-fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Selection {
+fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier, train: bool) -> Selection {
+    let mut sel = select_files(repo, files, products, tier);
+    if train && !sel.full.is_empty() {
+        sel.to_train(repo, files);
+    }
+    sel
+}
+
+fn select_files(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Selection {
     let mut sel = Selection { products, direct: tier == Tier::Direct, ..Selection::default() };
     if tier == Tier::Full {
         sel.full.push("--tier full: the landing gate's selection (everything)".to_string());
@@ -2300,6 +2320,170 @@ fn select_with(repo: &Repo, files: &[String], products: bool, tier: Tier) -> Sel
 fn ordinary_mapping(repo: &Repo, f: &str, sel: &mut Selection) {
     classify_path(repo, f, sel);
     sel.own_suite(repo, f);
+}
+
+/// GATE-DEV-NO-FULL (owner, 11-19: developers gate what their change affects, the CI train runs the FULL gate on the
+/// merged tree): the class of a changed file whose rule escalated, which picks the bounded set a per-fix tier runs in
+/// FULL's place ([`Selection::to_train`]). Every class also gets `cargo xtask static` and every cheap FULL step
+/// ([`prechecks`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrainClass {
+    /// xtask code: the xtask unit tests, the xtask clippy and the command(s) the module implements ([`XTASK_TRAIN`]).
+    Xtask,
+    /// What the products link at the bottom (csys, `crates/abi`, the product crates, linker inputs, `scripts/`): the
+    /// products build with the start-up layout tests on it, `k5`, the owning crate's own mapping and unit tests and the
+    /// unit tests of the crates that depend on it directly (one hop).
+    Image,
+    /// A generated table, generated source or generator input: the generator checks (cheap steps) and the code that
+    /// reads the file (`readers_of`), plus the owning crate's mapping for a Rust source.
+    Generated,
+    /// Build configuration: clippy, and the changed crate's unit and test targets.
+    Config,
+    /// A path no rule knows: as build configuration.
+    Unknown,
+}
+
+impl TrainClass {
+    fn of(f: &str) -> TrainClass {
+        let file = f.rsplit('/').next().unwrap_or(f);
+        if f.starts_with("xtask/") {
+            TrainClass::Xtask
+        } else if f.starts_with("csys/") || f.starts_with("crates/abi/") || f.starts_with("crates/libc-so/") || f.starts_with("crates/libm-so/") || f.starts_with("crates/native/link/") || [".map", ".ld", ".lds", ".version"].iter().any(|e| f.ends_with(e)) || f.starts_with("scripts/") {
+            TrainClass::Image
+        } else if matches!(f, "spec/clauses.tsv" | "spec/symbols.tsv" | "spec/primitives.tsv") || ["spec/abi/", "spec/unicode/", "include/", "libc-include/", "headers/", "crates/math/fits/", "crates/math/src/coeffs/"].iter().any(|p| f.starts_with(p)) || file.ends_with("_gen.rs") || file == "tables.rs" || file == "builtin_items.rs" || (f.starts_with("crates/") && f.contains("/src/") && !f.ends_with(".rs")) {
+            TrainClass::Generated
+        } else if file == "build.rs" || file == "Cargo.toml" || file == "Cargo.lock" || file.starts_with("rust-toolchain") || file == "clippy.toml" || f.starts_with(".cargo/") {
+            TrainClass::Config
+        } else {
+            TrainClass::Unknown
+        }
+    }
+}
+
+/// GATE-DEV-NO-FULL: an xtask module's own command(s) (`cargo xtask <c>`), its generator checks (precheck names, run
+/// first) and whether it shapes the start-up image (the start-up layout tests on fresh products). A module not listed
+/// gets the xtask unit tests, clippy and `cargo xtask static` (which runs every source check) only.
+const XTASK_TRAIN: &[(&str, &[&str], &[&str], bool)] = &[
+    ("so", &[LAYOUT_CHECK], &[], true),
+    ("hottext", &[LAYOUT_CHECK], &[], true),
+    ("coldbss", &[LAYOUT_CHECK], &[], true),
+    ("layout", &[LAYOUT_CHECK], &[], true),
+    ("layout_verdict", &[LAYOUT_CHECK], &[], true),
+    ("startup_ro", &[LAYOUT_CHECK], &[], true),
+    ("native_examples", &["native"], &[], false),
+    ("rust_dylib", &["rust-dylib"], &[], false),
+    ("spec", &[], &["stubs", "trace"], false),
+    ("csys", &[], &["csys-gen-check"], false),
+    ("abi", &[], &["abi-gen-check", "headers-gen-check"], false),
+    ("headers", &[], &["headers-gen-check"], false),
+    ("unicode", &[], &["unicode-gen-check"], false),
+    ("encodings", &[], &["encodings-gen-check"], false),
+    ("charmaps", &[], &["encodings-gen-check", "locale-gen-check"], false),
+    ("langinfo", &[], &["locale-gen-check"], false),
+    ("native", &[], &["native-gen-check"], false),
+    ("compat", &[], &["compat-gen-check"], false),
+    ("math", &[], &["math-gen-check", "remez-check", "tables-check"], false),
+    ("fuzz", &[], &["fuzz-check"], false),
+];
+
+/// The crate that compiles `csys/` (its build script) and so owns its changes.
+const CSYS_CRATE: &str = "niji-boundary";
+
+impl Selection {
+    /// GATE-DEV-NO-FULL: move every escalation to [`Selection::train`] and select, per changed file it names, the
+    /// bounded set of the file's [`TrainClass`]. A bounded mapping that escalates again (the own mapping of a generated
+    /// source) adds a train line, never FULL.
+    fn to_train(&mut self, repo: &Repo, files: &[String]) {
+        let reasons = std::mem::take(&mut self.full);
+        let mut done = BTreeSet::new();
+        for r in &reasons {
+            // The changed file a reason names: the longest changed path it starts with (`<file>: <why>`).
+            let f = files.iter().filter(|f| r.starts_with(&format!("{f}: "))).max_by_key(|f| f.len()).map_or("", String::as_str);
+            if done.insert(f.to_string()) {
+                self.bounded(repo, f);
+            }
+        }
+        self.train = reasons;
+        self.train.append(&mut self.full);
+        self.train.dedup();
+    }
+
+    /// The bounded set of changed file `f` (`""`: a reason that names no changed file, as an unknown path).
+    fn bounded(&mut self, repo: &Repo, f: &str) {
+        let class = if f.is_empty() { TrainClass::Unknown } else { TrainClass::of(f) };
+        let why = format!("{f}: bounded set ({class:?}); FULL is the train's");
+        self.xtask_cmds.insert("static".to_string());
+        let mut what: Vec<String> = Vec::new();
+        match class {
+            TrainClass::Xtask => {
+                self.xtask_tests = true;
+                add(&mut self.clippy, "xtask".to_string(), &why);
+                what.push("the xtask unit tests, clippy".into());
+                if let Some((_, cmds, checks, startup)) = xtask_module(f).and_then(|m| XTASK_TRAIN.iter().find(|(t, ..)| *t == m)) {
+                    for c in *cmds {
+                        self.xtask_cmds.insert(c.to_string());
+                        self.example_steps |= matches!(*c, "native" | "rust-dylib");
+                        what.push(format!("`cargo xtask {c}`"));
+                    }
+                    for c in *checks {
+                        self.gen_prechecks.insert(c.to_string());
+                    }
+                    if *startup {
+                        self.layout_tests(repo, f);
+                        what.push("the start-up layout tests".into());
+                    }
+                }
+            }
+            TrainClass::Image => {
+                self.k5 = true;
+                self.layout_tests(repo, f);
+                what.push("the products build with the start-up layout tests, k5".into());
+                if f.ends_with(".rs") && repo.crate_of(f).is_some() {
+                    ordinary_mapping(repo, f, self);
+                }
+                let owner = if f.starts_with("csys/") { Some(CSYS_CRATE.to_string()) } else { repo.crate_of(f).map(|c| c.name.clone()) };
+                if let Some(o) = owner {
+                    add(&mut self.clippy, o.clone(), &why);
+                    add(&mut self.libs, o.clone(), &why);
+                    let hop: Vec<String> = repo.crates.iter().filter(|c| c.deps.contains(&o)).map(|c| c.name.clone()).collect();
+                    for d in &hop {
+                        add(&mut self.libs, d.clone(), &format!("{why} (depends on `{o}`)"));
+                    }
+                    what.push(format!("the unit tests of `{o}` and its one-hop dependents ({})", if hop.is_empty() { "none".to_string() } else { hop.join(", ") }));
+                }
+            }
+            TrainClass::Generated => {
+                what.push("the generator checks".into());
+                if f.ends_with(".rs") && repo.crate_of(f).is_some() {
+                    ordinary_mapping(repo, f, self);
+                    what.push("the file's own mapping".into());
+                } else if let Some(c) = repo.crate_of(f) {
+                    add(&mut self.clippy, c.name.clone(), &why);
+                    add(&mut self.libs, c.name.clone(), &why);
+                    what.push(format!("the unit tests of `{}`", c.name));
+                }
+            }
+            TrainClass::Config | TrainClass::Unknown => {
+                let c = repo.crate_of(f).map(|c| c.name.clone());
+                add(&mut self.clippy, c.clone().unwrap_or_else(|| "workspace".to_string()), &why);
+                what.push("clippy".into());
+                if let Some(c) = c {
+                    add(&mut self.libs, c.clone(), &why);
+                    for t in repo.targets.iter().filter(|t| t.krate == c) {
+                        add(&mut self.tests, (t.krate.clone(), t.name.clone()), &why);
+                    }
+                    what.push(format!("the tests of `{c}`"));
+                }
+            }
+        }
+        if !f.is_empty() {
+            let readers = readers_of(repo, f, &format!("{f}: the code names the file"), self);
+            if !readers.is_empty() {
+                what.push(format!("its readers ({})", readers.join(", ")));
+            }
+        }
+        self.notes.push(format!("{}: {class:?} bounded set: {}, `cargo xtask static`, every cheap FULL step (FULL: the train's)", if f.is_empty() { "(no changed file)" } else { f }, what.join(", ")));
+    }
 }
 
 /// XTASK-AFFECTED-DOCS-PATHS (D-X.35): a documentation file (rule 2) selects no tests by itself, only the always-run
@@ -3118,6 +3302,10 @@ fn print_selection(repo: &Repo, files: &[String], sel: &Selection) {
         }
         return;
     }
+    // GATE-DEV-NO-FULL: where the FULL line was; the hand-back quotes it.
+    for r in &sel.train {
+        println!("FULL: the train's ({r})");
+    }
     for n in &sel.notes {
         println!("note: {n}");
     }
@@ -3854,6 +4042,9 @@ struct Attribution {
 /// file (each file's own selection; the rules are per file, so the union is the branch's selection); should no single
 /// file select it, the reason is the branch's combined selection, under the file name `(the branch's files together)`.
 fn reverse(repo: &Repo, failed: &[String], branches: &[(String, Vec<String>)], tier: Tier) -> (Vec<Attribution>, Vec<bool>) {
+    // GATE-DEV-NO-FULL: attribution keeps the escalations FULL (a branch the train's FULL gate covers may break any
+    // test), whatever a per-fix gate of the tier ran.
+    let select_tier = |repo: &Repo, files: &[String], tier: Tier| select_with(repo, files, false, tier, false);
     let combined: Vec<Selection> = branches.iter().map(|(_, files)| select_tier(repo, files, tier)).collect();
     // Per-file selections, computed only for a branch that selects some failed test.
     let mut per_file: Vec<Option<Vec<Selection>>> = branches.iter().map(|_| None).collect();
