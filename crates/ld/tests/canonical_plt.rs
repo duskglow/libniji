@@ -112,7 +112,9 @@ fn assert_ok(how: &str, what: &str, o: &Output) {
 /// s27_1_g_0, s27_1_c_3: the issue's program and `pr19031`, a non-PIE program built without PIC: its
 /// `&f`, its `.long f - .`, its own `f@GOTPCREL`, the library's `return f;`, a library opened later and
 /// `dlsym(RTLD_DEFAULT)` give one address, the program's PLT entry, and a call through that entry
-/// reaches the library's `f`.
+/// reaches the library's `f`. The program is linked once with a GNU and once with a SysV hash table
+/// only: the loader keeps "the program has canonical entries" with the table it walks, one path per
+/// style.
 #[test]
 fn s27_1_g_0_nonpie_program_canonical_plt_entry_binds_every_address_reference() {
     let Some(k) = setup("nonpie") else { return };
@@ -146,14 +148,17 @@ int main(int argc, char **argv) {
 }
 "#;
     let interp = format!("-Wl,--dynamic-linker={}", k.ld.display());
-    let p = cc(
-        &k.d,
-        "prog",
-        prog,
-        &["-nostdlib", "-fno-pic", "-no-pie", "-Wl,--no-as-needed", &interp, k.crt1.to_str().unwrap(), libf.to_str().unwrap(), k.libc.to_str().unwrap(), k.ld.to_str().unwrap(), "-lgcc"],
-    );
-    for (how, o) in run_both(&k, &p, &[k.d.to_str().unwrap()], &[]) {
-        assert_ok(how, "non-PIE canonical PLT", &o);
+    for style in ["gnu", "sysv"] {
+        let hash = format!("-Wl,--hash-style={style}");
+        let p = cc(
+            &k.d,
+            &format!("prog-{style}"),
+            prog,
+            &["-nostdlib", "-fno-pic", "-no-pie", &hash, "-Wl,--no-as-needed", &interp, k.crt1.to_str().unwrap(), libf.to_str().unwrap(), k.libc.to_str().unwrap(), k.ld.to_str().unwrap(), "-lgcc"],
+        );
+        for (how, o) in run_both(&k, &p, &[k.d.to_str().unwrap()], &[]) {
+            assert_ok(how, &format!("non-PIE canonical PLT, {style} hash"), &o);
+        }
     }
     std::fs::remove_dir_all(&k.d).ok();
 }

@@ -374,7 +374,7 @@ impl<'a> Object<'a> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !(exported(&st) || (self.has_canonical_plt() && canonical_plt(&st))) ||self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || (self.has_canonical_plt() && canonical_plt(&st))) || self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
