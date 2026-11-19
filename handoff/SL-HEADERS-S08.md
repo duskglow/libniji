@@ -10,6 +10,8 @@
 * Four small generic generator edits slice 8 still needs, now on next's modules: `LANGUAGE_MODE` (`max_align_t`) and `union_tag`/`cxx_mask`
   (a union typedef without a C++ spelling is declared in C++, `pthread_attr_t`) in `headers/cond.rs`; an include right after an `#if` line is
   conditional (`headers.rs`, `sched.h` declares `size_t`). `fmtmsg.h.in` takes the `MM_NULL*` pointer values from the table with `@@value`.
+* Function-pointer members: next's emitter declared them `void (*m) (void)`; `aggregates.rs` now reads `headers/fnmembers.tsv` again and
+  declares the tags and typedefs the declarator names first (`siginfo_t`, `union sigval`). Plant `s8-fnmember-declarator` caught the loss.
 * Differences doc: every row of both sides kept (next had no rows where run 4's three sit). `headers/reserved.tsv`: both lists. `header_probe.py`:
   `standard_names()` holds both lists (slice 17's and slice 8's). Generated headers and `appendix_c_layouts.rs` regenerated, not hand-merged.
 * Plants file `handoff/SL-HEADERS-S08-4-plants.txt`: paths of three plants follow the split (cond.rs, values.rs).
