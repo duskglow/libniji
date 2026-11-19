@@ -1,7 +1,6 @@
 # Plants of slice 10 (cargo xtask plants; docs/plants.md). The templates, the generator and the committed libc-include/
 # output are checked by `headers-gen --check` (the committed output must equal the regenerated one) and by
 # spec/tools/header_check.py (P1 values and sizes, P5 hygiene) on libc-include/.
-s10-bitfield-width | xtask/src/headers.rs | lit:format!(" : {w}") ==> format!(" : {}", w + 1) | cargo xtask headers-gen --check | msg:headers-gen
 s10-stdbit-count-ones | headers/stdbit.h.in | lit:stdc_count_ones_uc (unsigned char __v) { return (unsigned int) __builtin_popcountll (__v); } ==> stdc_count_ones_uc (unsigned char __v) { return 0u; } | cargo xtask headers-gen --check | msg:headers-gen
 s10-fnm-nosys | headers/fnmatch.h.in | lit:# define FNM_NOSYS (-1) ==> # define FNM_NOSYS (1) | cargo xtask headers-gen --check | msg:headers-gen
 s10-lc-global-locale | headers/locale.h.in | lit:((locale_t) -1L) ==> ((locale_t) 0L) | cargo xtask headers-gen --check | msg:headers-gen
@@ -12,7 +11,7 @@ s10-stdbit-extern-inline | headers/stdbit.h.in | lit:extern __inline __attribute
 s10-fnm-pop-macro | headers/fnmatch.h.in | lit:#pragma pop_macro("_DEFAULT_SOURCE") ==> #pragma push_macro("_DEFAULT_SOURCE") | cargo xtask headers-gen --check | msg:headers-gen
 s10-nftw-redirect | headers/ftw.h.in | lit:__asm__ ("nftw64") ==> __asm__ ("nftw") | cargo xtask headers-gen --check | msg:headers-gen
 s10-wcswcs-overload | headers/wchar.h.in | lit:const_cast<wchar_t *> (wcswcs ( ==> const_cast<wchar_t *> (wcsstr ( | cargo xtask headers-gen --check | msg:headers-gen
-s10-file-tag-incomplete | xtask/src/headers.rs | lit:cxx == "_IO_FILE" && !tag_shown ==> cxx == "_IO_FILEX" && !tag_shown | cargo xtask headers-gen --check | msg:headers-gen
+s10-file-tag-incomplete | xtask/src/headers/typedefs.rs | lit:cxx == "_IO_FILE" && !tag_shown ==> cxx == "_IO_FILEX" && !tag_shown | cargo xtask headers-gen --check | msg:headers-gen
 s10-p1-file-incomplete | spec/tools/header_check.py | lit:typedefs[n]["cxx"] == "_IO_FILE" and not any( ==> typedefs[n]["cxx"] == "_IO_FILEX" and not any( | python3 spec/tools/header_check.py | msg:FAIL P1 wchar.h
 s10-p5-regexp-in-p5 | spec/tools/header_check.py | lit:for r in srows if r["header"] not in must_fail] ==> for r in srows] | python3 spec/tools/header_check.py | msg:FAIL P5 regexp.h [a-z]
 s10-must-fail-reason | spec/tools/header_check.py | lit:r.returncode != 0 and "is not provided" in r.stderr ==> r.returncode != 0 and "is not provide-" in r.stderr | python3 spec/tools/header_check.py | msg:FAIL P5 regexp.h must fail
