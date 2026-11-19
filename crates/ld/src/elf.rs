@@ -1330,8 +1330,43 @@ impl<'a> Versions<'a> {
     ///
     /// The string table's errors, or [`ElfError::VersionTruncated`] for an entry past the bytes.
     pub fn def_name(&self, dynm: &Dynamic<'a>, index: u16) -> Result<Option<&'a [u8]>, ElfError> {
-        let rd = Rd { b: self.def, be: dynm.rd.be };
+        let at = if dynm.rd.be { self.def_entry::<true>(index) } else { self.def_entry::<false>(index) };
+        match at {
+            Some(Some(at)) => self.def_name_from(dynm, index, at),
+            Some(None) => Ok(None),
+            None => self.def_name_from(dynm, index, 0),
+        }
+    }
+
+    /// Where the first definition with index `index` starts in the definitions' bytes
+    /// (`Some(None)`: no definition has it), each entry read as one 20-byte record in the byte
+    /// order `BE` (DYN-START-SPEED: the field-by-field walk, with its byte-order select and range
+    /// check per field, was a sixth of a start). `None` when an entry is not whole or a link
+    /// leaves the bytes: [`Versions::def_name_from`] then walks from the start and gives the same
+    /// answer, errors included.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn def_entry<const BE: bool>(&self, index: u16) -> Option<Option<usize>> {
         let mut at = 0usize;
+        let mut left = self.ndef;
+        while left != 0 {
+            let e = self.def.get(at..)?.first_chunk::<VERDEF_SIZE>()?;
+            let ndx = if BE { u16::from_be_bytes([e[4], e[5]]) } else { u16::from_le_bytes([e[4], e[5]]) };
+            if ndx & !VERSYM_HIDDEN == index {
+                return Some(Some(at));
+            }
+            left = left.saturating_sub(1);
+            let next = if BE { u32::from_be_bytes([e[16], e[17], e[18], e[19]]) } else { u32::from_le_bytes([e[16], e[17], e[18], e[19]]) };
+            at = advance(at, next)?;
+        }
+        Some(None)
+    }
+
+    /// [`Versions::def_name`] walking the definitions from the one at `at`, field by field.
+    fn def_name_from(&self, dynm: &Dynamic<'a>, index: u16, start: usize) -> Result<Option<&'a [u8]>, ElfError> {
+        let rd = Rd { b: self.def, be: dynm.rd.be };
+        // From an entry the scan found: its index matches, so the first round answers.
+        let mut at = start;
         for k in 0..self.ndef {
             let bad = ElfError::VersionTruncated(Table::Verdef, at);
             let f16 = |o: usize| at.checked_add(o).and_then(|x| rd.u16(x)).ok_or(bad);
