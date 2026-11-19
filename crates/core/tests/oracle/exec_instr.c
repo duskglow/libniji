@@ -1,11 +1,12 @@
 /* User-mode instructions of a program from exec to exit (DYN-START-PARITY), built with the host's C
  * compiler and library: it is the measuring harness, never the measured program.
  *
- *   exec_instr RUNS PROGRAM [ARGS...]
+ *   exec_instr RUNS [-e NAME=VALUE]... PROGRAM [ARGS...]
  *
  * Runs PROGRAM RUNS times, each in a forked child that waits on a pipe until a counter is open on it
  * (perf_event_open(2): hardware instructions, exclude_kernel, exclude_hv, enable_on_exec), so the
- * count starts at the exec and nothing of this harness is in it. The environment is passed through.
+ * count starts at the exec and nothing of this harness is in it. The program's environment is the
+ * `-e` options only.
  * Prints `instr MIN MEDIAN` on stdout. Exit 0; 2 when no counter can be opened here (the message
  * names why); 3 when a run fails (the program exits other than 0 or the counter cannot be read). */
 #define _GNU_SOURCE
@@ -21,8 +22,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-extern char **environ;
-
 static int cmp(const void *a, const void *b) {
     uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
     return x < y ? -1 : x > y;
@@ -33,6 +32,17 @@ int main(int argc, char **argv) {
         return 64;
     long runs = strtol(argv[1], NULL, 10);
     if (runs < 1 || runs > 10000)
+        return 64;
+    /* `-e NAME=VALUE` options: the program's whole environment (this harness runs with its own, which
+     * may not suit it: a library path for the measured program's library is not this harness's). */
+    char *env[64];
+    int nenv = 0, first = 2;
+    while (first + 1 < argc && strcmp(argv[first], "-e") == 0 && nenv < 63) {
+        env[nenv++] = argv[first + 1];
+        first += 2;
+    }
+    env[nenv] = NULL;
+    if (first >= argc)
         return 64;
     uint64_t *seen = calloc((size_t)runs, sizeof *seen);
     if (seen == NULL)
@@ -49,7 +59,7 @@ int main(int argc, char **argv) {
             close(go[1]);
             if (read(go[0], &c, 1) != 1)
                 _exit(126);
-            execve(argv[2], argv + 2, environ);
+            execve(argv[first], argv + first, env);
             _exit(127);
         }
         close(go[0]);
@@ -75,7 +85,7 @@ int main(int argc, char **argv) {
             return 2;
         }
         if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-            fprintf(stderr, "%s: run %ld ended with status %#x\n", argv[2], i, st);
+            fprintf(stderr, "%s: run %ld ended with status %#x\n", argv[first], i, st);
             return 3;
         }
         if (read(fd, &seen[i], sizeof seen[i]) != (ssize_t)sizeof seen[i])

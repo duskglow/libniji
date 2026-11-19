@@ -302,7 +302,9 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// nodes, warm-up + 5 runs, every run identical): release 86; fast at most 89 (the plants' baseline; ungrouped
 /// it reads 90). The bound is the highest level of the two host classes per profile, no margin (D-X.103's rule
 /// for these counts; as for TRUE_BOUND). No spec clause (layout of the products).
-const DYN_TRUE_BOUND: [u64; 2] = [89, 86];
+/// DYN-START-PARITY (the start's tables hold 16 entries inline, not 64: a smaller stack frame), Skylake-SP
+/// host, in this test: fast 77, release 73 (before: 89 / 86 on that host). Tightened to those levels.
+const DYN_TRUE_BOUND: [u64; 2] = [77, 73];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
 /// configuration files below it, not below `/`.
@@ -379,10 +381,14 @@ fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
 /// symbol and version lookups, initialisation) and libc.so.6's. Counted by `oracle/exec_instr.c`
 /// (median of [`DYN_INSTR_RUNS`], no randomisation). The test also counts the same program built by the
 /// host's compiler and C library and prints both, so the gap to the reference stays in view.
-/// Release, DYN-START-PARITY on next 255a6901d: 8,151,153 before (Skylake-SP host); the levels after
-/// are in the rows, each the measured median plus 2%; `0` = not measured for that profile (checked
-/// only for the profile with a level). The reference on the same hosts: see each row's comment.
-const DYN_START_INSTR: [(&str, [u64; 2]); 0] = [];
+/// Release, DYN-START-PARITY on next 255a6901d: 8,151,153 before (Skylake-SP host). Each level is the
+/// median measured on the branch's head plus 2%; `0` = not measured for that profile (unchecked).
+/// Measured (empty main, median of 21): Skylake-SP host fast 1,718,270, release 1,598,681, the host C
+/// library 101,863; Zen 1 host release 1,598,530, the host C library 96,002 (fast not measured).
+const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [1_752_700, 1_630_700]),
+    ("AMD EPYC 7551 32-Core Processor", [0, 1_630_600]),
+];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
 const DYN_INSTR_RUNS: &str = "21";
@@ -438,7 +444,12 @@ fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
         assert!(st.success(), "oracle/exec_instr.c does not build");
     }
     no_randomisation();
-    let o = Command::new(&counter).arg(DYN_INSTR_RUNS).arg(exe).current_dir("/").env_clear().envs(env.iter().copied()).stdin(Stdio::null()).output().unwrap();
+    let mut cmd = Command::new(&counter);
+    cmd.arg(DYN_INSTR_RUNS);
+    for (k, v) in env {
+        cmd.arg("-e").arg(format!("{k}={v}"));
+    }
+    let o = cmd.arg(exe).current_dir("/").env_clear().stdin(Stdio::null()).output().unwrap();
     let (out, err) = (String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     if o.status.code() == Some(2) {
         eprintln!("SKIP: {}", err.trim());
