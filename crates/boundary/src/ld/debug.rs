@@ -12,7 +12,7 @@
 //!   `COPY` relocation ([`note_copy`] sees it). Every later write goes to `ld.so`'s own structure
 //!   (where `DT_DEBUG` points) and to that copy, so both read the same at every `r_brk` call.
 
-use core::sync::atomic::Ordering::{Relaxed, Release, SeqCst};
+use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
 use core::sync::atomic::{compiler_fence, AtomicI32, AtomicUsize};
 
 use niji_ld::debug::{State, BRK, LDBASE, MAP, SIZE, STATE, VERSION};
@@ -95,6 +95,15 @@ pub(super) fn vdso_node(vdso: usize, prev: usize) -> usize {
 /// Link `next` after the vDSO's link map.
 pub(super) fn vdso_next(next: usize) {
     VDSO_MAP.l_next.store(next, Release);
+}
+
+/// `at`, a link map's `l_next`, or when `at` is the vDSO's link map, the one after it: the
+/// loader's walks visit its own nodes only.
+pub(super) fn past_vdso(at: usize) -> usize {
+    if at == core::ptr::from_ref(&VDSO_MAP).expose_provenance() {
+        return VDSO_MAP.l_next.load(Acquire);
+    }
+    at
 }
 
 /// The program's copy of `_r_debug` (0: none), from its `COPY` relocation.

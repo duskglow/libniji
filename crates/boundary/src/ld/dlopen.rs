@@ -557,14 +557,15 @@ impl View {
         unsafe { core::ptr::with_exposed_provenance::<T>(at).read() }
     }
 
-    /// The next published node after `i` (0: none).
+    /// The next published node after `i` (0: none); the vDSO's link map, which is no node, is
+    /// stepped over.
     fn next(&self, i: usize) -> usize {
         let at = self.node_addr(i).wrapping_add(core::mem::offset_of!(Node, l_next));
         // UNSAFE(slice): the atomic `l_next` word of a published node.
         #[allow(unsafe_code)]
         // SAFETY: as in `field`; an atomic may be read while the writer stores it.
         let next = unsafe { &*core::ptr::with_exposed_provenance::<AtomicUsize>(at) };
-        next.load(Acquire)
+        super::debug::past_vdso(next.load(Acquire))
     }
 
     /// The first published object, in chain order, for which `pred` holds.
