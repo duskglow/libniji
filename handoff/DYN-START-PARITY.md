@@ -1,29 +1,28 @@
-# DYN-START-PARITY (handoff after leg 2)
+# DYN-START-PARITY (handoff after leg 3: final)
 
-## LEG 3: do exactly this (code is done; only the final checks remain)
-Head 8a2301180 synced to mei `~/w/s1` (tree 935eaef5...). At 18:10Z leg 2 started `~/work/DYN-START-PARITY/final.sh`
-(detached), which runs, in order, the jobs `dyn-start-parity-lint3` (cargo xtask clippy + static), then
-`dyn-start-parity-gate` (direct tier, `affected --base origin/next --run`, fast products), then
-`dyn-start-parity-startup` (cargo xtask test; NIJI_FULL_PROFILE=1 so + hot_text_products, release).
-Plants are done and green: `dyn-start-parity-plants` 9 CAUGHT, 0 SURVIVED, 0 WARN (run on 77fb93789; the ld code
-is identical at the final head, later commits only touch tests' doc lines, records, handoff).
-1. `~/bin/jobwait dyn-start-parity-lint3 dyn-start-parity-gate dyn-start-parity-startup` (10-min calls).
-   lint3 red: fix, commit, push, sync (check rc; 4 = BUSY), rerun final.sh. Gate red: only failures in the direct
-   tests of this change are ours (`reloc_ldso_kernel_started_without_proc` ETXTBSY is a known pre-existing race:
-   INFORMATIONAL). hot_text_products bounds: DYN_TRUE_BOUND [77, 73], DYN_START_INSTR (Skylake-SP fast 1,752,700 /
-   release 1,630,700; Zen 1 release 1,630,600): a Zen 1 gate can read the fault bound differently; report it.
-2. `cargo xtask precheck --jobs dyn-start-parity-plants,dyn-start-parity-lint3,dyn-start-parity-gate,dyn-start-parity-startup --head <sha>` on the role.
-3. Fill `gate.affected` in handoff/reports/DYN-START-PARITY.json, push, `ops handback-check`, hand back with
-   JOBS: mei:dyn-start-parity-plants, mei:dyn-start-parity-lint3, mei:dyn-start-parity-gate, mei:dyn-start-parity-startup
-   SUPERSEDED: ldtest1 (test bug, fixed), ldtest2 (ETXTBSY race), lint/lint2 (clippy casts; lint2 ran on an unsynced
-   tree: sync BUSY), lint3's first run at 18:10 (trace markers), dyntests/dyntests2 (measurement runs), so2/so3 (builds).
-   RULING NEEDED: RELR for libc.so.6 (see report). Verdict: COMPLETE with "target (parity) not reached".
+## State
+Branch `task/dyn-start-parity`, final head = the commit that carries this note (code head 503c206e0). Leg 3 found
+that DL-23-2 had landed in next (17:20Z, next d496d4c25), which the brief says to merge first: merged origin/next
+(7763acb6b, clean; reloc.rs, boundary ld.rs and ld/table.rs touched on both sides, no conflict). The merge brought
+DL-23-2's +1 start fault (vDSO header page, recorded in its report) to the startup-only program: gate2 read fast 78
+> 77. Bound set to the merged levels [78, 74] (503c206e0), still under next's [89, 86].
+Final jobs on mei (role `~/w/s1`, Skylake-SP), head 503c206e0: `dyn-start-parity-release3` (clippy + static +
+NIJI_FULL_PROFILE=1 so + hot_text_products, release), `dyn-start-parity-gate3` (direct tier, `affected --base
+origin/next --run`), `dyn-start-parity-xtest3` (cargo xtask test), `dyn-start-parity-plants3` (9 plants).
+Superseded: lint3 (trace markers, fixed in 8a2301180; final.sh then stopped), lint4/gate2/plants2 (merged head
+7763acb6b; gate2 red on the fault bound, fixed), startup2 (stopped: its head was replaced), ldtest1 (test bug,
+fixed), ldtest2 (ETXTBSY race), lint/lint2 (clippy casts; lint2 ran on an unsynced tree), dyntests/dyntests2
+(measurement runs), so0-so3 (builds), chk1/chk2.
 
-State: branch `task/dyn-start-parity` on origin/next 255a6901d. Role: mei `~/w/s1` (Skylake-SP). Host scratch
-`/mnt/zram/claude/DYN-START-PARITY/` (rel2, rel3 = release products of this branch; prog-* = test programs),
-scripts `~/work/DYN-START-PARITY/parity.sh` (execcount, `GLIBC=1` adds the reference) and `prof.sh` (perf on the
-exec'd program only). Decisions: D-27.63 (lookup view / relocation pass read each table once), D-27.64 (16-entry
-inline start tables). Plants: `handoff/DYN-START-PARITY-plants.txt`. Report: `handoff/reports/DYN-START-PARITY.json`.
+Decisions: D-27.63 (lookup view / relocation pass read each table once), D-27.64 (16-entry inline start tables).
+Plants: `handoff/DYN-START-PARITY-plants.txt`. Report: `handoff/reports/DYN-START-PARITY.json`.
+Host scratch `/mnt/zram/claude/DYN-START-PARITY/` (rel2, rel3 = release products of this branch; prog-* = test
+programs), scripts `~/work/DYN-START-PARITY/parity.sh` (execcount, `GLIBC=1` adds the reference) and `prof.sh`
+(perf on the exec'd program only).
+RULING NEEDED: link libc.so.6 with packed relative relocations (RELR); see the report. Verdict: COMPLETE, target
+(parity) not reached; the next steps below are the follow-up story.
+Not re-measured after the merge: the execcount table below (pre-merge); DL-23-2 adds its own +1 fault to the
+no-vDSO rows.
 
 ## Measurements (execcount, ASLR off, median of 101, release products, Skylake-SP)
 
@@ -61,5 +60,9 @@ symbolic entries), the rest text/rodata of ld.so and libc.so.6. Remaining gap 65
 5. keke fast-profile instruction bound not measured (DYN_START_INSTR row has 0 = unchecked).
 
 ## Process notes
-- Leg 1 used one heredoc (a python edit script); leg 2 ran one empty no-op heredoc by mistake. Both reported.
+- Leg 1 used one heredoc (a python edit script); legs 2 and 3 each ran one empty no-op heredoc by
+  mistake. All reported.
+- Leg 2 left the brief's "merge next first" undone (DL-23-2 had landed); leg 3 merged. The merge commit has git's
+  default message (no trailer); it was pushed before that was noticed and is not rewritten (no force-push).
+- jobrun labels: a label that already ran cannot prove a new head; give every rerun a new label.
 - sync_role.sh returns rc 4 (BUSY) while a plants job runs on the role: check rc before starting the next job.
