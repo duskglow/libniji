@@ -1,0 +1,63 @@
+{
+ "task": "GATE-DEV-NO-FULL",
+ "model": "opus",
+ "tokens": null,
+ "result": "affected direct/wide never escalate to FULL: each Full-class file selects a bounded set per class and prints `FULL: the train's (<file>: <reason>)`; --tier full, bench-rows, --reverse and --replay unchanged",
+ "branch": "task/gate-dev-no-full",
+ "head": "6b6944ecd (the report json commit sits on top)",
+ "gate": {
+  "affected": "508 passed / 0 failed (5 suites, gate-dev-no-full-gate2 on 1dd50e5d9; later commits prose only)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "a decision record for the train classes (Xtask, Image, Generated, Config, Unknown) and their bounded sets",
+   "recommendation": "reserve a D-X id and record the class table as written in the affected.rs module doc"
+  },
+  {
+   "item": "the xtask unit tests (~1,100 s on keke under load) and the products build (~1,600 s cold) run one after the other in a bounded run and dominate it",
+   "recommendation": "a follow-up story: run them side by side, and profile the xtask unit tests"
+  }
+ ],
+ "informational": [
+  "item 3: liella-ops ops/handback.py has no rule expecting a FULL run; ops/db.py:327 is the train's own --tier full --run (unchanged); nothing to change",
+  "two of the 12 replayed branches still select 200+ targets, from their own Rust changes under the ordinary Direct rules (crates/abi one-hop dependents; crates/boundary/src/data.rs), not from the train route",
+  "killing a running `cargo xtask so` left its trace-at-build children (tools/hottext/regen.sh, gdb on libniji's own probes) reparented to init; kill-mine did not list them (cwd outside the role), sync_role did; killed by PID",
+  "clippy --workspace --all-targets --all-features -D warnings and cargo xtask static ran green on the final code (job gate-dev-no-full-lint3, rc 0); not named in jobs since it carries no affected verdict"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "tooling",
+   "what": "developer gate host time of an escalated change, Xtask class (layout-ldso-order-3's files, keke)",
+   "before": 3367,
+   "after": 3333,
+   "unit": "s (before: FULL on mei, rc 1; after: bounded on keke)",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "12 escalated developer gates of 11-16..11-19, FULL as run vs bounded selection",
+   "before": 54955,
+   "after": 34000,
+   "unit": "s host time (after: estimate from one measured and one partial run)",
+   "measured": false
+  },
+  {
+   "kind": "coverage",
+   "what": "new selection test over 5 classes x 2 tiers, precheck train-line test, 12 plants all CAUGHT",
+   "before": 0,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "a bounded Xtask/Image gate is still ~3,300 s because the products build and the xtask unit tests run serially; running them in parallel would cut about a third",
+ "next_step": "coordinator lands it; reserve a D-X id for the train classes",
+ "report_file": "handoff/GATE-DEV-NO-FULL-report.md",
+ "jobs": [
+  "keke:gate-dev-no-full-gate2",
+  "keke:gate-dev-no-full-plants2"
+ ]
+}

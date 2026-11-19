@@ -418,7 +418,7 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
         let dyn_words = unsafe { conv::words_at(dynamic, usize::try_from(img.dynamic.1).unwrap_or(0) / 8) };
         // The preload file: one open per start when it is absent (the reference's one `access`).
         let mut file_path = PathBuf::default();
-        let file = if search::prefixed(b"etc/ld.so.preload", &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
+        let file = if search::prefixed(search::PRELOAD_FILE, &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
         let file = file.map_or(&[][..], |(f, fd)| {
             let _ = crate::ffi_sys::niji_sys_close(fd);
             f
@@ -1376,7 +1376,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             reloc::VersionError::Elf(b, _) => fail_with(&[by(b), b": malformed version tables\n"], program::FAILURE),
         }
     }
-    let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
+    // The program's view: its canonical PLT entries define their functions (DL-CANONICAL-PLT).
+    let mut first_sym = niji_ld::symbols::Object::new(objs[0].dynm).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
+    first_sym.mark_program();
     let mut syms: Table<niji_ld::symbols::Object<'static>, INLINE> = Table::new(first_sym);
     let mut global: Table<usize, INLINE> = Table::new(0);
     if syms.reserve(n).is_err() || global.reserve(n).is_err() {
@@ -1403,7 +1405,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     if let Err(f) = relocated {
         let name = objs.get(f.obj).map_or(&b"?"[..], |o| o.name);
         match f.error {
-            reloc::RelocError::Undefined(sym) => fail_with(&[name, b": ", f.error.message(), sym, b"\n"], program::FAILURE),
+            reloc::RelocError::Undefined(sym) | reloc::RelocError::IndirectExternAccess(sym) => fail_with(&[name, b": ", f.error.message(), sym, b"\n"], program::FAILURE),
             e => fail_with(&[name, b": ", e.message()], program::FAILURE),
         }
     }
@@ -1692,6 +1694,11 @@ impl niji_ld::reloc::Image for ProcImage {
     fn tlsdesc_static(&mut self) -> Option<u64> {
         Some(crate::arch::tlsdesc_static())
     }
+
+    fn warn(&mut self, parts: &[&[u8]]) {
+        write_all(2, b"ld.so: ");
+        parts.iter().for_each(|p| write_all(2, p));
+    }
 }
 
 /// `AT_FDCWD` (kernel UAPI `linux/fcntl.h`): a relative path is taken from the current directory.
@@ -1892,7 +1899,7 @@ fn open_whole(path: &[u8]) -> Option<(&'static [u8], i64)> {
 /// rule 5; an inconsistent file is unmapped). One reader for program start, `--list` and `dlopen`.
 fn read_cache() -> Option<(&'static [u8], Cache<'static>)> {
     let mut path = PathBuf::default();
-    let (f, fd) = if search::prefixed(b"etc/ld.so.cache", &mut path) { path.c_str().and_then(open_whole) } else { None }?;
+    let (f, fd) = if search::prefixed(search::CACHE_FILE, &mut path) { path.c_str().and_then(open_whole) } else { None }?;
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let parsed = Cache::parse(f);
     if parsed.is_none() {
