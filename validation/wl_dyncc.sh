@@ -40,5 +40,7 @@ while [ $i -lt $n ]; do
 done
 [ -n "$out" ] || { echo "wl_dyncc: no -o in the link" >&2; exit 1; }
 # shellcheck disable=SC2086
-"$cc" -B"$d/lib/" -L"$d/lib" "-Wl,--dynamic-linker=$d/ld-linux-x86-64.so.2" "$@" ${NIJI_CC_EXTRA:-}
+# -rpath-link: the link resolves libm.so.6's own DT_NEEDED libc.so.6 to libniji's (the products directory), never
+# the host's; it records nothing in the program.
+"$cc" -B"$d/lib/" -L"$d/lib" "-Wl,--dynamic-linker=$d/ld-linux-x86-64.so.2" "-Wl,-rpath-link,$d" "$@" ${NIJI_CC_EXTRA:-}
 python3 "$here/wl_dynlink.py" retarget "$out" "$d" > /dev/null
