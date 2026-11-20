@@ -17,8 +17,9 @@ static const char line[] = "a\xfc" "cd\nxy\n";
 
 static FILE *open_line(void)
 {
+    /* Written through the descriptor: a byte operation on the stream would orient it. */
     FILE *f = tmpfile();
-    if (!f || fwrite(line, 1, sizeof line - 1, f) != sizeof line - 1 || fseek(f, 0, SEEK_SET) != 0)
+    if (!f || write(fileno(f), line, sizeof line - 1) != (ssize_t)(sizeof line - 1) || lseek(fileno(f), 0, SEEK_SET) != 0)
         return NULL;
     return f;
 }
