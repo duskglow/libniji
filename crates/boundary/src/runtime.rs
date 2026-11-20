@@ -14,7 +14,6 @@ use niji::config::Tunables;
 use niji_kernel::auxv::Auxv;
 use niji_kernel::machine::Machine;
 // ARCH(x86_64): static-or-dynamic test through ARCH_GET_FS; aarch64 reads TPIDR_EL0 (A-4)
-use niji_kernel::ops::ArchGet;
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{AT_NULL, AT_PHDR, AT_PHNUM, AT_RANDOM, AT_SECURE, AT_SYSINFO_EHDR, MAP_ANONYMOUS, MAP_PRIVATE, PROT_READ, PROT_WRITE};
 use niji_legacy::exit_handlers::ATEXIT;
@@ -476,8 +475,10 @@ pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c
         start_under_niji_ld(main, argc, argv.expose_provenance(), init, rtld_fini)
     }
     // 1. The initial thread: a static program has no thread pointer yet.
-    // ARCH(x86_64): static-or-dynamic test through ARCH_GET_FS; aarch64 reads TPIDR_EL0 (A-4)
-    let static_program = CSys.arch_prctl_get(ArchGet::Fs).map_or(true, |fs| fs == 0);
+    // ARCH(x86_64): static-or-dynamic test through ARCH_GET_FS; aarch64 reads TPIDR_EL0 (A-4).
+    // A failed query reads as 0 (static), as before; the one-word test keeps the static start's
+    // cost where it was before the `rtld_fini` test above (DYN-START-QUICK-2).
+    let static_program = crate::sys::thread_pointer_or_zero() == 0;
     // The same test for a start whose `rtld_fini` is NULL; a static program never tests the flag.
     if !static_program && EARLY_DONE.load(Acquire) {
         start_under_niji_ld(main, argc, argv.expose_provenance(), init, rtld_fini)
