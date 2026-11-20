@@ -197,7 +197,7 @@ fn relative_search_and_dlopen_names_are_kept_as_given() {
     c.expect_ok(&[], &["./bin/runpath", &want, &abs, &abs]);
 }
 
-// Threat model rule 2 (spec/security/threat-model.md; probed): when the file the kernel ran cannot
+// Spec s27_1_c_8 and threat model rule 2 (spec/security/threat-model.md; probed): when the file the kernel ran cannot
 // be read (`/proc` hidden), the program's `$ORIGIN` is unknown: `LD_ORIGIN_PATH` stands in, as
 // given, and without it the `$ORIGIN` element is skipped.
 #[test]

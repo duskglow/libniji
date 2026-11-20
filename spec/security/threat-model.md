@@ -181,8 +181,12 @@ text. Facts about the reference come from black-box probes: `spec/behaviour/dynl
    containing a token is refused (probe: `dlopen("$ORIGIN/lib/x.so")` fails with `cannot open
    shared object file`, no expansion); any element that is relative after expansion, or empty, is
    skipped. Outside secure mode `$ORIGIN` is the directory of the requesting object's resolved
-   path (for the program the kernel's `AT_EXECFN`, not `/proc/self/exe`), or `LD_ORIGIN_PATH`
-   when that cannot be determined.
+   path, or `LD_ORIGIN_PATH` when that cannot be determined. For a kernel-started program it is
+   the directory of the file the kernel ran, read from `/proc/self/exe` only when a search expands
+   the token (probe, DL-NAME-PATH-2: absolute with links resolved, a link to the program's file
+   included; with `/proc` hidden the origin is unknown and `LD_ORIGIN_PATH` is used as given);
+   for `ld.so PROGRAM` it is the directory of the path as given, after the working directory
+   when relative.
 3. **No search path may silently mean the current directory in a secure process.** An empty
    element and a relative element of any search list are skipped. Outside secure mode they mean
    the current directory, as documented. A `dlopen` name with a `/` that does not start with `/`
@@ -259,7 +263,7 @@ the executed file). Every rule needs its test before DL-29 closes:
 | Rule | Test it needs |
 |---|---|
 | 1 | Set-group-ID program with `LD_LIBRARY_PATH` (absolute, empty and relative elements), `LD_PRELOAD` and `LD_AUDIT` (absolute path, untrusted and trusted directory; bare name without a set-ID bit) and `GLIBC_TUNABLES`: no listed object is loaded, the `LD_PRELOAD` bare-name message is printed and the program runs; a private `/etc/ld.so.preload` (user and mount namespace) is honoured. The set-ID-bit case stays untested until the root probe is ruled |
-| 2 | `DT_RUNPATH` and `DT_RPATH` with `$ORIGIN/lib` from an untrusted directory: not used in secure mode, used in plain mode; `dlopen` of a `$ORIGIN` name refused in secure mode; `$LIB`/`$PLATFORM` give the same expansion with any environment; plain-mode `$ORIGIN` follows `AT_EXECFN` |
+| 2 | `DT_RUNPATH` and `DT_RPATH` with `$ORIGIN/lib` from an untrusted directory: not used in secure mode, used in plain mode; `dlopen` of a `$ORIGIN` name refused in secure mode; `$LIB`/`$PLATFORM` give the same expansion with any environment; plain-mode `$ORIGIN` is the directory of `/proc/self/exe` (links resolved), `LD_ORIGIN_PATH` when `/proc` is hidden |
 | 3 | Empty and relative `DT_RUNPATH`/`LD_LIBRARY_PATH` elements with the library in the current directory: skipped in secure mode, found in plain mode; `dlopen("lib/x.so")` loads from the current directory in both modes |
 | 4 | Malformed ELF corpus (truncated headers, out-of-range offsets and counts, overlapping segments, a writable and executable `PT_LOAD`): refused with a diagnostic, no crash; fuzz target `elf` in the security pass; mapped permissions read back from `/proc/self/maps`, `PT_GNU_RELRO` read-only after relocation |
 | 5 | Cache corpus (missing, empty, garbage, cut to 16 bytes, cut to half, out-of-range string offsets): the program starts and falls back to the default directories; fuzz target `cache`; an `ld.so.conf` directory does not count as trusted for rules 1 and 2 |
