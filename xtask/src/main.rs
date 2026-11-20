@@ -407,6 +407,8 @@ fn workspace_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime:
 /// `<name>-copies`, then `<name>-nextest` (`<name>-cargo-test` without nextest). Doctests do not
 /// go through a runner; the first pass ran them.
 fn native_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
+    // Held to the end of this pass (`pass2::lock`): another native pass in this tree waits.
+    let _held = pass2::lock(root)?;
     let runner = t.time(&format!("{name}-setup"), || pass2::prepare(root))?;
     t.time(&format!("{name}-copies"), || pass2::patch_listed(cargo, root, &["--workspace".to_string()]).map(|_| ()))?;
     let env = [(pass2::RUNNER_VAR, runner.as_str()), pass2::PASS_VAR];

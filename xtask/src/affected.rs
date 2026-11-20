@@ -3878,6 +3878,8 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         let nextest = crate::nextest::available(&cargo);
         // The native pass's runner, made once on first use (`pass2::prepare`); `Err` once it failed.
         let mut runner: Option<Result<String, ()>> = None;
+        // The native pass's lock of this tree (`pass2::lock`), taken with the runner and held to the end of the run.
+        let mut _native_lock = None;
         for (c, ts) in &per {
             for pass in 0..3 {
                 if pass > 0 && !second(c, ts) {
@@ -3910,7 +3912,10 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                 cmd.args(&selection);
                 if pass == 1 {
                     let r = runner.get_or_insert_with(|| {
-                        let made = crate::pass2::prepare(root);
+                        let made = crate::pass2::lock(root).and_then(|held| {
+                            _native_lock = Some(held);
+                            crate::pass2::prepare(root)
+                        });
                         let value = made.as_ref().ok().cloned();
                         check_logged(&log, "native pass set-up (prefixed loader, lib/, runner)", made.map(|_| ())).ok().and(value).ok_or(())
                     });

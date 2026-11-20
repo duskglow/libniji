@@ -50,8 +50,19 @@ const STAMP_SUFFIX: &str = ".niji-src";
 /// ELF program header type of the interpreter path.
 const PT_INTERP: u32 = 3;
 
+/// The native pass's lock of one tree (`target/.niji2.lock`): [`prepare`] remakes the per-tree root and
+/// [`patch_listed`] rewrites the copies, so a second native pass in the same tree (another gate, a
+/// `test-pass2` beside an `affected` run) waits for the first to end instead of removing the loader
+/// and copies under its running tests (finding #6821). Held from before [`prepare`] to the end of the
+/// pass's test run.
+pub fn lock(tree: &Path) -> Result<crate::so::ProductLock, String> {
+    let target = tree.join("target");
+    std::fs::create_dir_all(&target).map_err(|e| format!("{}: {e}", target.display()))?;
+    crate::so::lock_exclusive(&target.join(".niji2.lock"), "pass2: another native pass in this tree")
+}
+
 /// The per-tree root of the native pass: `/tmp/niji2-<the first 8 hex digits of the SHA-256 of the
-/// tree's path>`. Two trees never share it; two passes in one tree run one after the other.
+/// tree's path>`. Two trees never share it; two passes in one tree run one after the other ([`lock`]).
 pub fn root_dir(tree: &Path) -> Result<String, String> {
     let h = crate::sha256::sha256_text(&tree.display().to_string())?;
     Ok(format!("/tmp/niji2-{}", h.get(..8).ok_or("short digest")?))
@@ -375,5 +386,20 @@ mod tests {
             "{\"reason\":\"build-finished\",\"success\":true}\n"
         );
         assert_eq!(test_executables(json), vec!["/t/debug/deps/a-1".to_string()]);
+    }
+
+    #[test]
+    #[allow(clippy::incompatible_msrv)]
+    fn a_second_native_pass_in_one_tree_waits_for_the_first() {
+        // Trace: no spec clause (PASS2-NATIVE-RUNNER tooling: two native passes never share the root, finding #6821).
+        let tree = std::env::temp_dir().join(format!("pass2-lock-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tree);
+        let held = lock(&tree).unwrap();
+        // flock is per open file: a second open of the same lock file (another pass) cannot take it now.
+        let other = std::fs::File::options().write(true).open(tree.join("target/.niji2.lock")).unwrap();
+        assert!(matches!(other.try_lock(), Err(std::fs::TryLockError::WouldBlock)), "a second native pass took the tree's lock while the first held it");
+        drop(held);
+        other.try_lock().unwrap();
+        let _ = std::fs::remove_dir_all(&tree);
     }
 }

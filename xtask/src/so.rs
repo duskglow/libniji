@@ -88,12 +88,18 @@ pub(crate) struct ProductLock(#[allow(dead_code)] fs::File); // held for its lif
 #[allow(clippy::incompatible_msrv)]
 pub(crate) fn lock_product_dir(product: &Path) -> Result<ProductLock, String> {
     fs::create_dir_all(product).map_err(|e| format!("{}: {e}", product.display()))?;
-    let path = product.join(".lock");
-    let file = fs::OpenOptions::new().create(true).truncate(false).write(true).open(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    lock_exclusive(&product.join(".lock"), "so: another product build")
+}
+
+/// Take the exclusive `flock` of the file `path` (made if absent), held until the returned lock is
+/// dropped; when another holder has it, print `<who> holds <path>; waiting for it to finish` and wait.
+#[allow(clippy::incompatible_msrv)]
+pub(crate) fn lock_exclusive(path: &Path, who: &str) -> Result<ProductLock, String> {
+    let file = fs::OpenOptions::new().create(true).truncate(false).write(true).open(path).map_err(|e| format!("{}: {e}", path.display()))?;
     match file.try_lock() {
         Ok(()) => {}
         Err(fs::TryLockError::WouldBlock) => {
-            eprintln!("so: another product build holds {}; waiting for it to finish", path.display());
+            eprintln!("{who} holds {}; waiting for it to finish", path.display());
             file.lock().map_err(|e| format!("{}: {e}", path.display()))?;
         }
         Err(fs::TryLockError::Error(e)) => return Err(format!("{}: {e}", path.display())),
