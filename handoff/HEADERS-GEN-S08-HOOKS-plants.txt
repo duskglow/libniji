@@ -1,0 +1,11 @@
+# Plants of HEADERS-GEN-S08-HOOKS (cargo xtask plants; docs/plants.md): slice 8's generic generator edits.
+s8-fnmember-declarator | headers/fnmembers.tsv | lit:char *(*@)(int, const char *, void *) ==> char *(*@)(int, const char *, int *) | cargo xtask headers-gen --check | msg:headers-gen
+s8-fnmember-lookup | xtask/src/headers/aggregates.rs | lit:d.replace('@', name) ==> d.replace('@', "x") | cargo xtask headers-gen --check | msg:headers-gen
+s8-union-tag-cxx | xtask/src/headers/cond.rs | lit:{ target | self.cxx_mask() } else { target } ==> { target } else { target } | cargo xtask headers-gen --check | msg:headers-gen
+s8-union-tag-not-covered | xtask/src/headers/cond.rs | lit:if kind == "typedef" && self.union_tag(name) { ==> if kind == "typedef" && self.union_tag(name) && false { | cargo xtask headers-gen --check | msg:headers-gen
+s8-cxx-mask | xtask/src/headers/cond.rs | lit:v[col] > 0 && ==> v[col] > 1 && | cargo xtask headers-gen --check | msg:headers-gen
+s8-partial-cover | xtask/src/headers/cond.rs | lit:want & !have == 0 ==> want == 0 | cargo xtask headers-gen --check | msg:headers-gen
+s8-conditional-include | xtask/src/headers.rs | lit:!prev.trim_start().starts_with("#if")) ==> !prev.trim_start().starts_with("#ifx")) | cargo test -p xtask --bin xtask an_include_after_a_condition | msg:an_include_after_a_condition_is_conditional.*FAILED
+s8-pointer-constant-checked | xtask/src/abi_types.rs | lit:} else if ty == "pointer" { ==> } else if ty == "pointerx" { | cargo test -p xtask --bin xtask abi_types:: | msg:macros_shape.*FAILED
+s8-fnmember-dependency | xtask/src/headers/aggregates.rs | lit:if let Some(d) = dep.filter(|d| !nested.contains(d)) { ==> if let Some(d) = dep.filter(|d| !nested.contains(d) && false) { | cargo xtask headers-gen --check | equivalent:no fnmembers.tsv row on this tree names a tag or typedef (struct argp's help_filter uses builtin types only); the rows of siginfo_t and union sigval that slice 8 brings are caught by it
+s8-language-mode | xtask/src/headers/cond.rs | lit:Some((_, c)) => (*c).to_string(), ==> Some((_, _)) => "0".to_string(), | cargo xtask headers-gen --check | equivalent:the condition search finds a condition for every name on this tree, so LANGUAGE_MODE is not reached until slice 8's max_align_t rows arrive
