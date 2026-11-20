@@ -1357,8 +1357,9 @@ fn check_rodata1_anchor(so: &Path, align: u64) -> Result<(), String> {
 /// group ([`crate::startup_ro::SECTION`], aligned to its window) before `.rodata`, the default script otherwise
 /// unchanged (`INSERT`). After `.rodata` (the default script's order), the group's alignment left a gap of 0 to
 /// 64 KiB that moved with the text size; once the gap spanned a page, GNU ld began a new read-only `PT_LOAD`
-/// at the group, and every dynamic start mapped and checked one more segment (+3,485 user instructions per
-/// start on the Zen 1 and Skylake-SP hosts, 20.1 -> 20.2). First, the alignment falls between the text's
+/// at the group, and every dynamic start mapped and checked one more segment (snapshot 20.2; on the Zen 1
+/// host, one segment again measured -1,254 / -1,190 user instructions on an empty main / clock_gettime and
+/// +2,638 with three libraries, unexplained: DYN-START-BISECT-1120 handoff). First, the alignment falls between the text's
 /// segment and the read-only one, which start on a page of their own anyway, and `.rodata` follows the group
 /// with no gap.
 pub(crate) fn libc_rodata1_first_script() -> String {
