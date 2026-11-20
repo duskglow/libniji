@@ -1,0 +1,74 @@
+{
+ "task": "DYN-START-SPEED-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "CI red fixed at its cause: loader places whole-file views 64 KiB-aligned, so dynamic start-up faults no longer depend on the file system (release 67 on ext4 and tmpfs, bound 67 holds); Zen 1 bounds measured; RELR not reached",
+ "branch": "task/dyn-start-speed-2",
+ "head": "054bf52fd (code and test head; the final head adds only this report)",
+ "gate": {
+  "affected": "304 passed / 0 failed (direct tier, gate1)",
+  "peak": "1.9G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "~/wl/bin/wl_prep.sh on mei is an old copy (fast profile, target/liella paths); validation/wl_prep.sh's seq kit link failed for 90f71362a (products fine)",
+  "ldso-text.list is traced at every build, so it was not the cause of the red"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "release dynamic startup-only faults under the gate wrapper (tmpfs /tmp), merged head",
+   "before": 68,
+   "after": 67,
+   "unit": "page faults",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic startup-only faults, ext4 vs tmpfs difference (release, Skylake-SP)",
+   "before": 1,
+   "after": 0,
+   "unit": "page faults",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic empty main, release, Skylake-SP (test counter, median of 21)",
+   "before": 1598681,
+   "after": 803431,
+   "unit": "instr/process",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "Zen 1 fast dynamic instruction bound (was unchecked)",
+   "before": 0,
+   "after": 872600,
+   "unit": "instr bound",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests and plants added (file-system independence test; 1 plant CAUGHT)",
+   "before": 0,
+   "after": 2,
+   "unit": "count",
+   "measured": true
+  }
+ ],
+ "improvement": "Keep a probe that reproduces a product test's exact staging outside cargo (dynprobe.sh) next to perf fault attribution: it settled a 1-fault red in four runs",
+ "next_step": "Step 3 RELR measurement for libc.so.6, then remove the whole-file view's own faults by reading through mapped segments",
+ "report_file": "handoff/DYN-START-SPEED-2-report.md",
+ "jobs": [
+  "dyn-start-speed-2-gate1",
+  "dyn-start-speed-2-plants2",
+  "dyn-start-speed-2-rel3",
+  "dyn-start-speed-2-meas1",
+  "dyn-start-speed-2-xtest1",
+  "dyn-start-speed-2-sky1",
+  "keke:dyn-start-speed-2-zen1",
+  "dyn-start-speed-2-fin1"
+ ]
+}
