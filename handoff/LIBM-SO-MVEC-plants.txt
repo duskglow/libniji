@@ -3,3 +3,8 @@ coexist-no-as-needed | tools/deb/coexist/libm-so.ld | lit:AS_NEEDED ( /lib/x86_6
 coexist-no-libmvec | tools/deb/coexist/libm-so.ld | lit:  AS_NEEDED ( /lib/x86_64-linux-gnu/libmvec.so.1 ) ) ==>  ) | cargo test -p niji --test deb_manifest libm | msg:coexist_lm_brings_in_libmvec_only_for_a_vector_call.*FAILED|panicked
 system-no-as-needed | tools/deb/system/libm-so.ld | lit:AS_NEEDED ( /lib/x86_64-linux-gnu/libmvec.so.1 ) ==> /lib/x86_64-linux-gnu/libmvec.so.1 | cargo test -p niji --test deb_manifest libm | msg:libm_so_is_a_script_adding_libmvec_as_needed_in_both_flavours.*FAILED|panicked
 system-link-back | tools/deb/manifest.tsv | perl:s/(libc6-dev\tusr\/lib\/x86_64-linux-gnu\/libm\.so\t)text\tsystem\/libm-so\.ld\t0644/$1link\tlibm.so.6\t-/ | cargo test -p niji --test deb_manifest libm | msg:libm_so_is_a_script_adding_libmvec_as_needed_in_both_flavours.*FAILED|panicked
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# coexist-no-as-needed: CAUGHT, caught by deb_manifest libm_so_is_a_script_adding_libmvec_as_needed_in_both_flavours
+# coexist-no-libmvec: CAUGHT, caught by deb_manifest libm_so_is_a_script_adding_libmvec_as_needed_in_both_flavours
+# system-no-as-needed: CAUGHT, caught by deb_manifest libm_so_is_a_script_adding_libmvec_as_needed_in_both_flavours
+# system-link-back: CAUGHT, caught by deb_manifest libm_so_is_a_script_adding_libmvec_as_needed_in_both_flavours

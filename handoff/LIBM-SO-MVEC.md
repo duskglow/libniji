@@ -1,7 +1,7 @@
 # LIBM-SO-MVEC: -lm brings in libmvec.so.1 as needed (GitHub #28)
 
-State: branch task/libm-so-mvec (from origin/next 0e5a87e92); role keke:~/w/n3. Head: see `git log -1` (the fix
-commit "Run the packaged loader under env inside the watchdog").
+State: branch task/libm-so-mvec (from origin/next 0e5a87e92); role keke:~/w/n3. Code head 5509fbd30 ("Run the
+packaged loader under env inside the watchdog"); later commits are handoff/report only. Status: COMPLETE.
 
 ## Done
 * `libm.so` in both flavours is a GNU ld script (GNU ld manual, file commands GROUP/AS_NEEDED; our own text):
@@ -17,32 +17,29 @@ commit "Run the packaged loader under env inside the watchdog").
 * Pending decision `records/pending/LIBM-SO-MVEC-1.toml` (D-NEW, series D-10, amends D-10.124 and D-27.51).
 * Docs: docs/install-packages.md, plan/system-libc.md row, tools/deb/system.sh comment.
 
-## Results so far (keke)
-* libm-so-mvec-pkg (pkgproof: ~/work/libm-so-mvec/pkgproof.sh, RAM copy of the FIRST commit): system flavour
-  built with prefix /: check-system.sh PASS (7 packages); root-system.sh RESULT pass=21 fail=0 incl. "dynamic mvec
-  (-lm) runs in the root: 0.8415 (needs libmvec.so.1 libc.so.6)" and "nomvec ... (needs libm.so.6 libc.so.6)";
-  check-symbols.sh PASS (4440 symbol lines, 13 libraries). lint.sh and the coexist check.sh were still running.
-  The coexist check.sh in that run has the env bug below (expected FAIL on the mvec run line only).
-* SUPERSEDED: libm-so-mvec-gate (static red: record key order, fixed), libm-so-mvec-gate2 (killed: started on a
-  tree the BUSY sync had not updated), libm-so-mvec-plants (baseline failed: the test set LD_LIBRARY_PATH on
-  `timeout`, so the host's loader loaded libniji's libc.so.6; fixed by `timeout ... env LD_LIBRARY_PATH=...`).
+## Results (keke, final code head 5509fbd30, role tree d78df90e)
+* libm-so-mvec-gate3 (clippy, static, affected --base origin/next --run, direct tier): 6 suites ok, 596 passed,
+  0 failed, 0 SKIPPED lines; peak 2.2G, rc 0.
+* libm-so-mvec-plants2 (handoff/LIBM-SO-MVEC-plants.txt): 4 plants, 4 CAUGHT, 0 WARN.
+* libm-so-mvec-pkg2: the fixed coexist `tools/deb/check.sh` on the coexist debs built by libm-so-mvec-pkg
+  (products identical: only check.sh and the test changed after that build): `check: PASS (2 packages)`.
+* libm-so-mvec-pkg (first commit 87d6ac65b, RAM copy; SUPERSEDED for the coexist half, rc 1 from the env bug fixed
+  in 5509fbd30): system flavour, prefix /: check-system.sh PASS (7 packages); root-system.sh pass=21 fail=0 incl.
+  "dynamic mvec (-lm) runs in the root: 0.8415 (needs libmvec.so.1 libc.so.6)" and "nomvec (needs libm.so.6
+  libc.so.6)"; check-symbols.sh PASS; lint.sh RESULT errors=203 warnings=54 (no snapshot baseline at hand; the
+  only libm.so line is `lacks-unversioned-link-to-shared-library example: .../libm.so`, printed for every library
+  in libc6, the libc.so script included).
+* SUPERSEDED earlier: libm-so-mvec-gate (static red: record key order, fixed), libm-so-mvec-gate2 (killed: tree
+  not updated by a BUSY sync), libm-so-mvec-plants (baseline failed: env bug).
 
-## Exact next step
-1. `~/bin/jobwait libm-so-mvec-pkg` (read its lint.sh lines: lintian counts vs the last snapshot; my change only
-   turns one libc6-dev symlink into a text file).
-2. ALREADY STARTED on head 5509fbd30 (synced, tree d78df90e): gate `libm-so-mvec-gate3` (clippy, static, affected
-   --base origin/next --run: 5 targets, direct tier) and plants `libm-so-mvec-plants2`
-   (handoff/LIBM-SO-MVEC-plants.txt, --dir /dev/shm/claude/libm-so-mvec/plants-2): `~/bin/jobwait` them; fix what
-   they find. After libm-so-mvec-pkg ends, rerun the coexist check.sh on the fixed tree (`libm-so-mvec-pkg2`: a copy
-   of pkgproof.sh with d=.../pkg-2; the coexist half is enough) and name it in JOBS.
-   This handoff commit (handoff only) is the final head unless a fix is needed; precheck names that head.
-3. precheck --jobs, report json, handback-check.
-
-## Informational for the hand-back
+## Informational
 * `-static -O3 -ffast-math ... -lm` still cannot resolve `_ZGV*` from libniji's libm.a (libmvec.a is separate);
-  a black-box probe shows the reference links it statically. Follow-up story, not this one (brief: nothing else
-  changes).
-* Clean-room slip to report: a probe command also printed the first lines of the build host's distribution
-  `/usr/lib/x86_64-linux-gnu/libm.a` (a reference packaging file). Nothing was taken from it; the scripts follow
-  the GNU ld manual and our libc.so script.
+  a black-box probe shows the reference links it statically. Follow-up story (brief: nothing else changes).
+* `cargo xtask affected` classes the two `tools/deb/*/libm-so.ld` files as linker input of libc.a ("Image bounded
+  set"), which pulls in the start-up layout product tests; a packaging script is not linked into libc.a.
+* Clean-room slip (previous leg): a probe command also printed the first lines of the build host's distribution
+  `/usr/lib/x86_64-linux-gnu/libm.a`. Nothing was taken from it.
 * gfortran is not on keke and the root has no compiler: no gfortran case run.
+
+## Next step
+None for this story: the coordinator lands it. Follow-up candidate: static `-lm` with vector calls (libm.a).
