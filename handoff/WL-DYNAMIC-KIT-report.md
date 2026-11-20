@@ -10,6 +10,9 @@ DYN-START-SPEED-2 moved dynamic start-up, but nothing switched the kit, so the p
   per-call and count plumbing, the count-row cache directory fix, self-test sections 6-7, affected.rs rows).
 - 513040f09 Link the workload kits from the pre-rename validation trees (ltree fallback, the measured tree's own driver).
 - a5898fd57 Resolve libm.so.6's libc.so.6 to libniji's in the dynamic link (`-rpath-link`).
+- db49df193 Find pre-rename validation trees by suffix, not by the former name (`xtask static` old-name check failed
+  on 513040f09's fallback; the new one resolves to the same trees on the Skylake-SP build host, checked for `-m` and
+  `-noload`).
 
 ## How the dynamic kit is linked, and why so
 
@@ -165,6 +168,10 @@ run. Without phase 2's carve-out, every gate would go red on start-up that DYN-S
 ## Jobs
 
 `wl-dynamic-kit-kits3` (the table), `wl-dynamic-kit-percall` (per-call static and dynamic), `wl-dynamic-kit-locktest`
-(self-test), `wl-dynamic-kit-gate` (direct tier). Superseded: `wl-dynamic-kit-static-count` (failed at the sort
-link, fixed in 513040f09), `wl-dynamic-kit-kits` (same failure), `wl-dynamic-kit-kits2` (gawk dynamic link, fixed in
-a5898fd57).
+(self-test), `wl-dynamic-kit-gate2` (direct tier on db49df193: 5 suites, 548 passed, 0 failed, including both
+selected validation self-tests; peak 1.4G), `wl-dynamic-kit-lint2` (clippy + static on db49df193, clean). The
+measurement jobs ran with the a5898fd57 tools; db49df193 changes only how the validation tree is found and resolves to
+the same trees on that host. Superseded: `wl-dynamic-kit-static-count` (failed at the sort link, fixed in 513040f09),
+`wl-dynamic-kit-kits` (same failure), `wl-dynamic-kit-kits2` (gawk dynamic link, fixed in a5898fd57),
+`wl-dynamic-kit-gate` (green, but on a5898fd57), `wl-dynamic-kit-lint` (static old-name red on a5898fd57, fixed in
+db49df193).

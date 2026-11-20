@@ -1,7 +1,7 @@
 {"task": "WL-DYNAMIC-KIT", "model": "opus", "tokens": null,
  "result": "libniji-dynamic workload kit and per-call counts added beside the static ones (measurement only); geomean instr/glibc static 0.818, dynamic 0.902; dynamic > 1.10: printf-loop only (start-up), faults > 1.10 in 22/30",
- "branch": "task/wl-dynamic-kit", "head": null,
- "gate": {"affected": null, "peak": null}, "accepted_first_attempt": null,
+ "branch": "task/wl-dynamic-kit", "head": "db49df193",
+ "gate": {"affected": "548 passed / 0 failed (direct tier, 5 suites, on db49df193)", "peak": "1.4G"},"accepted_first_attempt": null,
  "rulings": [{"item": "which kit the INVIOLABLE workload rule binds", "recommendation": "replace the per-gate static measurement with the dynamic one (WL_LINK default dynamic, one product build), start-up-dominated rows (printf-loop, page faults) held at their recorded dynamic level until DYN-START-SPEED reaches glibc start-up, static moves to a nightly/per-RC wl_kits.sh sweep"}],
  "informational": ["workload kits did not link on the Zen 1 / Skylake-SP build hosts before 513040f09 (object trees under pre-rename names, recipes calling the pre-rename driver)", "release count rows were never cached (wl_count_run.sh mkdir of the wrong directory); fixed", "dynamic start-up per program 1.04-2.00M instructions (--version path) vs glibc 0.27-0.87M"],
  "refused": [],
@@ -17,4 +17,4 @@
  "improvement": "wl_build_products reruns cargo xtask so (171.8 s warm) for a second product set from the same build; one build should copy both sets",
  "next_step": "owner ruling on the switch plan; then one story flips WL_LINK default and re-records levels; nightly wl_kits.sh",
  "report_file": "handoff/WL-DYNAMIC-KIT-report.md",
- "jobs": ["mei:wl-dynamic-kit-gate", "mei:wl-dynamic-kit-kits3", "mei:wl-dynamic-kit-percall", "mei:wl-dynamic-kit-locktest"]}
+ "jobs": ["mei:wl-dynamic-kit-gate2", "mei:wl-dynamic-kit-lint2", "mei:wl-dynamic-kit-kits3", "mei:wl-dynamic-kit-percall", "mei:wl-dynamic-kit-locktest", "mei:wl-dynamic-kit-precheck"]}
