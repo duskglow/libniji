@@ -44,11 +44,11 @@ wide stream reaches the engine as before.
 ## Jobs (keke)
 
 Final head (code 18bbf0107): -check4 green (records check, clippy, static, the new conformance program on both
-libraries); -plants 5/5 CAUGHT (same code); -gate2 (direct tier), -counts (getc/putc bench rows), -hottext2
-(NIJI_FULL_PROFILE hot_text_products) run in sequence from 10:06Z: PENDING at hand-back.
+libraries); -plants 5/5 CAUGHT (same code); -gate3 (direct tier), -counts3 (getc/putc bench rows), -hottext3
+(NIJI_FULL_PROFILE hot_text_products) run in sequence from 10:07Z: PENDING at hand-back.
 Superseded: -check/-check2 (test bug: fwrite oriented the tmpfile to bytes), -check3 (record key order), -gate (red:
 three niji-boundary assertions of the old rule, fixed in 18bbf0107; stopped), -hottext (ran beside the gate's product
-build in the same role, start-up bounds red: not a valid measurement; rerun as -hottext2).
+build in the same role, start-up bounds red: not a valid measurement; rerun as -hottext3), -gate2/-counts (a chain started on a role the sync had not updated; stopped).
 
 ## Open / next
 
