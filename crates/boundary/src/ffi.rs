@@ -67,6 +67,10 @@ unsafe extern "C" {
     /// that disabled the counter with `prctl(PR_SET_TSC)` (a debugger or replay tool; the kernel default allows it).
     #[cfg(target_arch = "x86_64")]
     pub(crate) safe fn niji_machine_rdtsc() -> u64;
+    /// The addresses of `_Unwind_ForcedUnwind` and `_Unwind_GetCFA` a static program links
+    /// (machine/unwinder.S, D-22.21), or 0 (always 0 outside libc.a). No arguments, no memory access.
+    pub(crate) safe fn niji_machine_unwind_force() -> usize;
+    pub(crate) safe fn niji_machine_unwind_get_cfa() -> usize;
     /// `cpuid`; writes exactly the four words of `out`.
     pub(crate) safe fn niji_machine_cpuid(leaf: u32, subleaf: u32, out: &mut [u32; 4]);
     /// `xgetbv(0)`. Faults (`#UD`) unless CPUID.1:ECX.OSXSAVE: callers check first.

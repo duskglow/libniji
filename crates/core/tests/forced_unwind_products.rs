@@ -6,7 +6,9 @@
 //! the system compilers, as programs built for the host C library, and run twice: on the host C
 //! library (the reference, glibc 2.39 on the test machines) and on libniji's products (libniji's
 //! `ld.so` as the interpreter, `LD_LIBRARY_PATH` at `target/niji`, ruling #5909). Both runs must
-//! print the same text, which is also fixed here.
+//! print the same text, which is also fixed here. The same programs are also linked statically
+//! (against the host C library, and against libniji's `libc.a`, D-22.21) and with
+//! `-static-libgcc`.
 //!
 //! Needs the products (`cargo xtask so`), `g++` and `gcc`; without a compiler the test says so and
 //! passes.
@@ -51,6 +53,42 @@ fn build(dir: &Path, name: &str, compiler: &str, src: &str, flags: &[&str]) -> (
     }
     let niji = out.pop().unwrap();
     (out.pop().unwrap(), niji)
+}
+
+/// Links `src` statically twice in `dir`: `<name>.ref` against the host C library (`-static`) and
+/// `<name>.niji` against libniji's `libc.a` and start object, with the compiler's unwinder library
+/// (`libgcc_eh`, linked only if the program needs it) and, for C++, its standard library.
+fn build_static(dir: &Path, name: &str, compiler: &str, src: &str, flags: &[&str]) -> (PathBuf, PathBuf) {
+    let source = root().join("crates/core/tests/oracle").join(src);
+    let lib = products();
+    assert!(lib.join("libc.a").exists(), "libc.a is missing: run `cargo xtask so`");
+    let reference = dir.join(format!("{name}.ref"));
+    let built = Command::new(compiler).args(["-O1", "-pthread", "-static"]).args(flags).arg(&source).arg("-o").arg(&reference).output().unwrap();
+    assert!(built.status.success(), "{src} {flags:?} -static (host C library): {}", String::from_utf8_lossy(&built.stderr));
+    let niji = dir.join(format!("{name}.niji"));
+    // The compiler's own start and end files of a static program (`__dso_handle`, which the C++
+    // library's `__cxa_atexit` calls name).
+    let gcc_file = |f: &str| {
+        let o = Command::new(compiler).arg(format!("-print-file-name={f}")).output().unwrap();
+        PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())
+    };
+    let mut c = Command::new(compiler);
+    c.args(["-O1", "-pthread", "-static", "-nostdlib"]).args(flags).arg("-o").arg(&niji).arg(lib.join("niji-crt1.o")).arg(gcc_file("crtbeginT.o")).arg(&source);
+    // D-27.5: a static program's call-frame information is found through its PT_GNU_EH_FRAME.
+    c.arg("-Wl,--eh-frame-hdr");
+    if compiler == "g++" {
+        c.arg("-lstdc++");
+    }
+    let built = c.arg("-lgcc_eh").arg(lib.join("libc.a")).arg("-lgcc").arg(gcc_file("crtend.o")).output().unwrap();
+    assert!(built.status.success(), "{src} {flags:?} does not link against libc.a: {}", String::from_utf8_lossy(&built.stderr));
+    (reference, niji)
+}
+
+/// Whether `exe` defines `sym` (in its symbol table, any visibility).
+fn defines(exe: &Path, sym: &str) -> bool {
+    let out = Command::new("nm").arg("--defined-only").arg(exe).output().unwrap();
+    assert!(out.status.success(), "nm {}", exe.display());
+    String::from_utf8_lossy(&out.stdout).lines().any(|l| l.split_whitespace().last() == Some(sym))
 }
 
 /// Runs `exe` (on libniji's products when `niji`) and returns its standard output, after checking
@@ -168,6 +206,76 @@ fn c_cleanups_run_in_frame_order_when_a_thread_exits_or_is_cancelled() {
         assert_eq!(imports(&niji, "__pthread_register_cancel"), name != "fexceptions", "{name}: cleanup handler form");
         assert_eq!(run(&reference, false, &[]), expected, "{name}: the reference differs from the expected text");
         assert_eq!(run(&niji, true, &[]), expected, "{name}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// s22_1_c_2, s22_3_c_4 (D-22.21): a statically linked program unwinds with the unwinder it links
+/// (`libc.a` refers to it weakly). In C++, the same cases as the dynamic program, with the same
+/// text; in C, the three builds of `forced_unwind.c`, where the plain one, which needs no unwinder,
+/// must link none and exit through its handlers alone.
+#[test]
+fn static_programs_unwind_with_the_unwinder_they_link() {
+    if !have("g++") || !have("gcc") {
+        return;
+    }
+    let dir = scratch("static");
+    let (reference, niji) = build_static(&dir, "cxx", "g++", "forced_unwind.cc", &["-std=c++17"]);
+    assert!(defines(&niji, "_Unwind_ForcedUnwind"), "the static C++ program links no unwinder");
+    let main_exit = "main-exit: dtor ran\n";
+    assert_eq!(run(&reference, false, &[]), format!("{CXX_EXPECTED}{main_exit}"), "static: the reference differs from the expected text");
+    assert_eq!(run(&niji, true, &[]), format!("{CXX_EXPECTED}{main_exit}"), "static C++");
+    for (name, flags, expected) in [
+        ("plain", &[][..], "exit: order=31K result=9\ncancel: order=31K result=-1\n"),
+        ("fexceptions", &["-fexceptions"][..], "exit: order=3a1K result=9\ncancel: order=3a1K result=-1\n"),
+        ("buffers", &["-fexceptions", "-U__EXCEPTIONS", "-fno-inline"][..], "exit: order=3a1K result=9\ncancel: order=3a1K result=-1\n"),
+    ] {
+        let (reference, niji) = build_static(&dir, name, "gcc", "forced_unwind.c", flags);
+        // The weak references pull no unwinder into a program that needs none.
+        assert_eq!(defines(&niji, "_Unwind_ForcedUnwind"), name != "plain", "{name}: static unwinder");
+        assert_eq!(run(&reference, false, &[]), expected, "static {name}: the reference differs from the expected text");
+        assert_eq!(run(&niji, true, &[]), expected, "static {name}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// s22_1_c_2, s22_3_c_4 (D-22.19, D-22.21): a dynamic C++ program linked with `-static-libgcc`
+/// carries its own copy of the unwinder (hidden, so no lookup can see it) and still loads
+/// `libgcc_s.so.1` through the C++ library; the exit unwinds with that one, and the program's
+/// landing pads go on with their own copy. Same cases and text as the default link.
+#[test]
+fn static_libgcc_cxx_programs_unwind() {
+    if !have("g++") {
+        return;
+    }
+    let dir = scratch("slg");
+    let (reference, niji) = build(&dir, "cxx", "g++", "forced_unwind.cc", &["-std=c++17", "-static-libgcc"]);
+    assert!(defines(&niji, "_Unwind_Resume") && !needed(&niji).iter().any(|n| n.starts_with("libgcc_s")), "-static-libgcc: DT_NEEDED {:?}", needed(&niji));
+    let main_exit = "main-exit: dtor ran\n";
+    assert_eq!(run(&reference, false, &[]), format!("{CXX_EXPECTED}{main_exit}"), "-static-libgcc: the reference differs from the expected text");
+    assert_eq!(run(&niji, true, &[]), format!("{CXX_EXPECTED}{main_exit}"), "-static-libgcc C++");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// s22_1_c_2, s22_3_c_4 (D-22.19, ruling #7081): a C program linked with `-static-libgcc` loads no
+/// `libgcc_s.so.1`, and its own unwinder is hidden, so libniji finds none: the exiting or
+/// cancelled thread takes the exit without an unwinder and the process goes on. The cleanup
+/// buffers still run (the buffers build: `3`, `1`, then the key destructor `K`); the handlers of
+/// the `-fexceptions` build are unwind cleanups and do not run (the accepted gap of ruling #7081:
+/// only the key destructor). libniji's run only; the expected text is libniji's.
+#[test]
+fn static_libgcc_c_programs_without_a_shared_unwinder_exit_through_their_buffers() {
+    if !have("gcc") {
+        return;
+    }
+    let dir = scratch("slg-c");
+    for (name, flags, expected) in [
+        ("fexceptions", &["-fexceptions", "-static-libgcc"][..], "exit: order=K result=9\ncancel: order=K result=-1\n"),
+        ("buffers", &["-fexceptions", "-U__EXCEPTIONS", "-fno-inline", "-static-libgcc"][..], "exit: order=31K result=9\ncancel: order=31K result=-1\n"),
+    ] {
+        let (_, niji) = build(&dir, name, "gcc", "forced_unwind.c", flags);
+        assert!(!needed(&niji).iter().any(|n| n.starts_with("libgcc_s")), "{name}: DT_NEEDED {:?}", needed(&niji));
+        assert_eq!(run(&niji, true, &[]), expected, "-static-libgcc {name}");
     }
     std::fs::remove_dir_all(&dir).unwrap();
 }
