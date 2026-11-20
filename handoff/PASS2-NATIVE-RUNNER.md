@@ -179,15 +179,16 @@ value is not in any log (nextest keeps a passing test's output; not read).
 | Run | Wall (steps) | Test-seconds | Tests / binaries | Build |
 |---|---|---|---|---|
 | Before: interposed pass (TEST-PASS2-NATIVE) | 1448 s | 5015 | 193 binaries | 337 s whole-workspace `export` build |
-| After: native pass (`measure4`) | 796 s nextest + 4 s set-up, copies, scan | 2630 | 4829 / 193 | none (loader incremental: 0.5 s) |
-| After: interposed suite (`measure4`) | 457.5 s niji-boundary + 66.2 s niji + 2.1 s doc | 1913 | 4437 (+doc) | two packages with `export`: not measured (cached) |
-| After: total (`cargo xtask test-pass2`) | 1326 s (-8%) | 4542 (-9%) | | the 337 s workspace build is gone; the suite's own build is unmeasured |
+| After: native pass (`measure5`; `measure4`) | 657.6 s; 796.1 s nextest + 4.6 s set-up, copies, scan | 2155; 2630 | 4829 / 193, all passed | none (loader incremental: 0.5 s) |
+| After: interposed suite (`measure5`; `measure4`) | 462.1 + 76.3 + 2.0 s; 457.5 + 66.2 + 2.1 s (niji-boundary, niji, doc) | 1971; 1913 | 4437 (+doc) | two packages with `export`: not measured (cached) |
+| After: total (`cargo xtask test-pass2`, `measure5`; `measure4`) | 1203 s (-17%); 1326 s (-8%) | 4126 (-18%); 4542 (-9%) | | the 337 s workspace build is gone; the suite's own build is unmeasured |
 
-Test-seconds = the sum of nextest's per-test `[ x.xxxs]` of each run. `measure4` ran beside `plants4` on the same
-host (the before run's load is not recorded), so the wall difference is indicative only; the test-seconds are the
-firmer number. Most of the interposed suite stays because its binaries link the `niji_caller_*` forwarders; the
+Test-seconds = the sum of nextest's per-test `[ x.xxxs]` of each run. Both samples ran on the same host and slot
+size beside a plants run of this story (`plants4`, `plants6`); the before run's load is not recorded, and the two
+samples differ by about 10%, so the saving is 8 to 17% of wall and 9 to 18% of test-seconds, plus the workspace
+`export` build. Most of the interposed suite stays because its binaries link the `niji_caller_*` forwarders; the
 follow-up above (poisoning C-family blocks natively) would move most of it to the native pass.
-`measure4` itself exited 1: one test failed in the interposed suite, see INFORMATIONAL.
+`measure4` exited 1 (one interposed-suite test, see INFORMATIONAL); `measure5` exited 0, every test passed.
 
 ## INFORMATIONAL
 
@@ -202,14 +203,15 @@ follow-up above (poisoning C-family blocks natively) would move most of it to th
 
 * HEAD = the pushed head of `task/pass2-native-runner`; role keke:~/w/n1 synced to it.
 * Proving jobs (keke): `pass2-native-runner-gate4` (direct tier, `affected: ok`, rc 0; `FULL: the train's` for the
-  xtask files, the bounded set ran), `pass2-native-runner-check4` (clippy all targets/features, static, xtask
-  `pass2::`/`nextest::` tests: ok), `pass2-native-runner-measure4` (the numbers above; rc 1: the INFORMATIONAL
-  failure), `pass2-native-runner-plants6` (13 plants, after the plant fix; plants4 had 12 CAUGHT, 1 SURVIVED;
+  xtask files, the bounded set ran), `pass2-native-runner-measure5` (`cargo xtask test-pass2`, rc 0: the numbers
+  above), `pass2-native-runner-plants6` (13 plants, after the plant fix; plants4 had 12 CAUGHT, 1 SURVIVED;
   plants5 applied none: the fixed line had lost a field separator, baseline rc 127).
 * SUPERSEDED: leg 1's `-gate`, `-plants`, `-gate2`, `-plants2`, `-measure` (leg 1: runner via `cargo xtask nextest`,
   unsynced tree), `-check1` (static red, fixed); `-gate3` (green, head before the lock); `-plants3` (killed for the lock change, 8 CAUGHT);
   `-measure3` (its `jobwait` returned 3 after ~10 min and it ran beside gate3: products half-built, the native
-  set-up failed and removed the gate's root; this is what the lock now prevents); `-plants4` (1 SURVIVED); `-plants5` (no plant applied: a malformed plants line).
+  set-up failed and removed the gate's root; this is what the lock now prevents); `-plants4` (1 SURVIVED); `-plants5` (no plant applied: a malformed plants line);
+  `-measure4` (rc 1: the INFORMATIONAL `sym_mallinfo` race; its numbers are the second sample above);
+  `-check4` (clippy, static, xtask `pass2::`/`nextest::` tests all ok, but no tested-content record for precheck).
 
 ## Exact next step
 
