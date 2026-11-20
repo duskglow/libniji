@@ -13,6 +13,8 @@ use niji_ld::search::{self, PathBuf};
 use niji_ld::{boot, elf, map, start};
 use crate::{conv, raw};
 use super::debug;
+use super::entry::List;
+use super::exec_stack::{exec_stack_accepted, exec_stack_candidate, refuse_exec_stack_program};
 use super::io::{c_string, fail_with, refuse, write_all};
 use super::state::OWN_BASE;
 
@@ -299,7 +301,7 @@ pub(super) const AT_FDCWD: i64 = -100;
 /// Open, read and map the program file named by the NUL-terminated path at `path` (`ld.so PROGRAM`)
 /// with pages of `page` bytes: [`map::load`] (one reservation, each `PT_LOAD` inside it, nothing left
 /// mapped on failure). The program and its load bias.
-pub(super) fn load(path: usize, page: u64) -> (start::Program, usize) {
+pub(super) fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) -> (start::Program, usize) {
     let fail = |msg: &[u8]| -> ! {
         write_all(2, b"ld.so: ");
         write_all(2, c_string(path));
@@ -319,7 +321,12 @@ pub(super) fn load(path: usize, page: u64) -> (start::Program, usize) {
     // SAFETY: `len` bytes from `file_at` are a private read-only mapping of the file, unmapped only
     // after the last use of this slice below.
     let file = unsafe { conv::bytes_at(file_at, len) };
-    let loaded = map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page);
+    let loaded = match map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page) {
+        // COMPAT-19: `run` checks the program's request again and refuses it there when not accepted.
+        Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd: fd32 }, file, page),
+        Err(map::MapError::ExecutableStack) => refuse_exec_stack_program(0, path),
+        other => other,
+    };
     let _ = raw::munmap(file_at, len);
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let loaded = loaded.unwrap_or_else(|e| fail(e.message()));
@@ -463,8 +470,9 @@ pub(super) enum Unusable {
 
 /// Open, map read-only and check the NUL-terminated candidate `path` a program-start search (or the
 /// dependency list) found: (descriptor, mapping, bytes, identity), or why it is not used, by the
-/// probed rule [`Refusal::skipped_at_start`]. Pages of `page` bytes.
-pub(super) fn open_candidate(path: &[u8], page: u64) -> Result<(i32, usize, &'static [u8], FileId), Unusable> {
+/// probed rule [`Refusal::skipped_at_start`]. Pages of `page` bytes. An object asking for an
+/// executable stack passes only when `env`'s tunable accepts it (COMPAT-19).
+pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<(i32, usize, &'static [u8], FileId), Unusable> {
     let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, path.as_ptr().cast(), i64::from(O_RDONLY | O_CLOEXEC), 0);
     let fd32 = i32::try_from(fd).ok().filter(|&f| f >= 0).ok_or(Unusable::Skip)?;
     let refuse = |r: Refusal| {
@@ -488,7 +496,11 @@ pub(super) fn open_candidate(path: &[u8], page: u64) -> Result<(i32, usize, &'st
     // file is not used, else only after the caller's last use of the slice (the end of `link`; the
     // list mode keeps it until the process exits).
     let file = unsafe { conv::bytes_at(at, len) };
-    if let Err(r) = niji_ld::dlopen::check::<Native>(file, page) {
+    let checked = match niji_ld::dlopen::check::<Native>(file, page) {
+        Err(Refusal::ExecutableStack) => exec_stack_candidate(file, page, env),
+        c => c.map(|_| ()),
+    };
+    if let Err(r) = checked {
         let _ = raw::munmap(at, len);
         return Err(refuse(r));
     }

@@ -14,6 +14,7 @@ use niji_ld::{boot, map, start};
 use niji_ld::tls as ltls;
 use niji_legacy::search_c::CWords;
 use crate::conv;
+use super::exec_stack::{exec_stack_accepted, refuse_exec_stack_program};
 use super::image::{load, open_whole, read_image};
 use super::io::{c_string, exit, lo32, refuse, stack_word, write_all};
 use super::link::{Origin, Preloads, link};
@@ -251,7 +252,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
                 list(&list_env, name, false, invoked)
             }
             // argv[1] names the program; it becomes argv[0] and the stack starts one word later.
-            let (prog, bias) = load(arg(1), page);
+            let (prog, bias) = load(arg(1), page, &ld, secure);
             let mut copy = copy;
             start::rewrite(copy.get_mut(..words).unwrap_or(&mut []), &prog, ehdr);
             store_words(auxv, copy.get(..words.wrapping_add(2)).unwrap_or(&[]));
@@ -286,8 +287,8 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
     // R14-13: a program whose PT_GNU_STACK asks for an executable stack is refused (word 0 of a header
     // holds p_type in its low and p_flags in its high half).
     let types = headers.chunks_exact(PHDR_WORDS).take(prog.phnum).filter_map(|h| h.first()).map(|&w| (lo32(w), lo32(w >> 32)));
-    if map::executable_stack(types) {
-        refuse(b"ld.so: the program asks for an executable stack (PT_GNU_STACK with PF_X); refused\n");
+    if map::executable_stack(types) && !exec_stack_accepted(env.ld, env.secure) {
+        refuse_exec_stack_program(sp, path);
     }
     let has_dynamic = headers.chunks_exact(PHDR_WORDS).take(prog.phnum).any(|h| h.first().is_some_and(|w| w & 0xffff_ffff == u64::from(niji_ld::elf::pt::DYNAMIC)));
     if has_dynamic {

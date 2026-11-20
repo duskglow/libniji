@@ -16,6 +16,7 @@ use crate::raw;
 use super::table::{PathStore, Table, INLINE};
 use super::{debug, dlopen};
 use super::entry::{List, __libc_stack_end, register_rseq, report_nonshared};
+use super::exec_stack::exec_stack_dependency;
 use super::image::{FileId, ProcImage, SysMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image};
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, no_memory, write_all};
@@ -132,7 +133,7 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 let set_uid_only = rule == Some(start::PreloadRule::TrustedSetUid);
                 let mut try_open = |p: &mut PathBuf| {
                     let Some(c) = p.c_str() else { return false };
-                    match open_candidate(c, page) {
+                    match open_candidate(c, page, env) {
                         Err(Unusable::Skip) => return false,
                         Err(Unusable::Refused(r)) => refused = Some(r),
                         Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
@@ -216,7 +217,10 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 // released below.
                 paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name));
             }
-            let loaded = map::load::<Native, _>(&mut SysMapper { fd }, file, page);
+            let loaded = match map::load::<Native, _>(&mut SysMapper { fd }, file, page) {
+                Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
+                other => other,
+            };
             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
             let loaded = loaded.unwrap_or_else(|e| fail_with(&[name, b": ", e.message()], program::FAILURE));
             maps[n] = (at, file.len());

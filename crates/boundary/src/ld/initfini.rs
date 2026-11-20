@@ -8,6 +8,7 @@ use niji_ld::{init, start};
 use crate::conv;
 use super::table::{Kept, Table, INLINE};
 use super::{dlopen, readers};
+use super::exec_stack::{EXEC_STACK, exec_stacks_at_start};
 use super::io::{no_memory, refuse, stack_word};
 use super::state::START_ARGS;
 use super::tls::{THREAD_TLS_ALIGN, THREAD_TLS_SIZE, thread_tls_init, thread_tls_release};
@@ -117,6 +118,10 @@ pub(super) fn run_init(hooks: &[init::Hooks], edges: &[(usize, usize)], sp: usiz
         };
         let at = core::ptr::from_ref(&info).expose_provenance();
         let _ = crate::ffi::niji_machine_call3(usize::try_from(f).unwrap_or(0), args(at), 0, 0);
+    }
+    // COMPAT-19: an accepted object asked for an executable stack (set only on that branch).
+    if EXEC_STACK.load(Relaxed) {
+        exec_stacks_at_start(envp);
     }
     // Only the program's preinit array is non-empty (`init::hooks` drops a shared object's).
     for h in hooks {

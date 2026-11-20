@@ -1,0 +1,23 @@
+{"task": "REVIEW-LOCALE-SLOTS-GROWTH", "model": "opus", "tokens": null,
+ "result": "COMPLETE: review written; LOCALE-SLOTS-GROWTH is not a content rabbit hole (product done in runs 1-2, 2.1 agent-h; 2.9 agent-h and a 50 h hold went on zero-margin start-up layout counts); continue with one named change",
+ "branch": "task/review-locale-slots-growth", "head": null,
+ "gate": {"affected": "none (planning story)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "A residual STARTUP-DATA-WINDOWS 8 > 7 from the .got straddle (position = .data.rel.ro size mod 4096) is treated differently: THREAD-FORCED-UNWIND-3 is held on LAYOUT-GOT-ORDER (#6925), while LOCALE-SLOTS-GROWTH-6 was unheld at 07:16Z before that diagnosis and runs now", "recommendation": "one rule for both: a verified head whose only residue is the straddle is finished, and CI holds its landing (not a new run) until LAYOUT-GOT-ORDER lands; if that story closes, treat it as #4347 jitter and land with the RC's NIJI_FAULT_BOUNDS=enforce as the backstop; tell run 6 through its inbox before it hands back"},
+  {"item": "Run 6's brief has two notes that disagree: 11-18 'STARTUP-DATA-WINDOWS must pass' and 11-20 'R2 byte budgets are the per-story gate'; on next the page count blocks only under NIJI_FAULT_BOUNDS=enforce", "recommendation": "replace the 11-18 note through run 6's inbox with the rule above, so it does not hand back INCOMPLETE on a report-only count"}
+ ],
+ "informational": [
+  "Tripwire premise: of 4 counted reds, 1 is the 11-18 login-expiry run the coordinator requeued as 'not on the story'; run 4's counts only because its INCOMPLETE named a failed job; 2 are work failures, each fixed in the next run",
+  "Tripwire window: 0 reds and 0 continuations in the last 24 h; it fired at 09:59Z, 1 min after run 6 was admitted following a 50 h coordinator hold; lifetime counts make any held chain trip on readmission (fix: count since the last unhold or review, or require a red or continuation in the window)",
+  "Tripwire gains: is_gain counts any measured before != after; 2 of the chain's 10 'gains' are cost entries (0 -> 1 text fault, 7 -> 8 pages), and the brief printed one as the largest gain; 4 perf entries are measured against run 1's own linear scans, not next; correctness entries with before null (1100 locales, ENOMEM) are not counted (adds to owed #32)",
+  "Tripwire reds: exclude reds the coordinator requeued as infrastructure",
+  "Run 6's 'Why it keeps going red' says none is its own product cost; run 2 (coreutils 45 > 44 from 3.7 KB of locale text in hot bin 2) and run 3 (plant gaps) were its own and were fixed",
+  "Common case on the branch: setlocale(LC_ALL) loaded +56 instr (103637 -> 103693); run 6 should confirm it is within bench/instr_limits.tsv on its final head against next",
+  "Hold on an experimental fix: run 6 waited 50 h on STARTUP-GOT-PAGE, which closed without landing; holds could unhold automatically when the awaited chain closes"
+ ],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "independent review: no behaviour change", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "the tripwire should count cost from the last unhold or review and score impact by direction; this review was triggered by lifetime counts on a chain that had been held, not spinning",
+ "next_step": "the coordinator answers LOCALE-SLOTS-GROWTH-6 (inbox) with one .got-straddle rule shared with THREAD-FORCED-UNWIND-3 before it hands back; tripwire items go with owed #32",
+ "report_file": "plan/reviews/REVIEW-LOCALE-SLOTS-GROWTH.md",
+ "jobs": []}

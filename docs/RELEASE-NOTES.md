@@ -2,6 +2,14 @@
 
 libniji was called Liella until November 2026.
 
+## Unreleased (on `next`, for the next snapshot)
+
+- **Executable stacks, opt-in (COMPAT-19):** programs, start-up dependencies and `dlopen`ed libraries whose
+  `PT_GNU_STACK` asks for an executable stack (`-z execstack`, or a GCC nested function taken by address) are still
+  refused by default, now with a message naming the object, the program or the `dlopen` caller, and the ways in.
+  `GLIBC_TUNABLES=niji.compat.execstack=1` accepts them and makes the main stack and the thread stacks executable, as
+  glibc does; a set-user-ID or set-group-ID program ignores it. A root-owned per-object allowlist is planned.
+
 ## libniji: fifth pre-release, 2026-11-17 (`snapshot-2026-11-17`)
 
 This is the fifth public pre-release, and the first under the project's new name, **libniji**. `main` is promoted to

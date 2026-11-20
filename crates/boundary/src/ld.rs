@@ -26,6 +26,8 @@
 //!   the TLS layout, the rendezvous's start-time link maps.
 //! * `trace`: the dependency list (`--list`, `ldd`, `LD_TRACE_LOADED_OBJECTS`).
 //! * `entry`: `niji_ld_start` and `run`: auxv and environment, secure mode, rseq, the start sequence.
+//! * `exec_stack`: COMPAT-19 executable stacks: accepting or refusing objects that ask for one at
+//!   start, and making the main and thread stacks executable before any constructor.
 //! * `debug`: the debugger rendezvous (`r_debug`, `r_brk` calls).
 //! * `dlopen` (with `dlopen/dladdr`, `dlopen/dlsym`): `dlopen`, `dlsym`, `dlerror`, `dlclose`,
 //!   `dladdr`, `dlinfo`, exit-set finalisers.
@@ -45,6 +47,7 @@ use self::entry::{env_entries, read_auxv, report_nonshared};
 pub(crate) use self::io::{c_string, exit, stack_word, write_all};
 pub use self::tls::{__tls_get_addr, _dl_get_tls_static_info};
 pub use self::entry::{__libc_stack_end, __rseq_flags, __rseq_offset, __rseq_size, niji_ld_start};
+pub(crate) use self::exec_stack::exec_main_stack;
 
 /// `_r_debug` (spec s27_4_c_0): the debugger rendezvous `DT_DEBUG` points at ([`debug`]).
 // UNSAFE(export): an exported data object of the ld.so product.
@@ -71,6 +74,7 @@ mod initfini;
 mod link;
 mod trace;
 mod entry;
+mod exec_stack;
 pub mod debug;
 mod dlopen;
 mod readers;

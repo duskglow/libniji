@@ -105,8 +105,13 @@ MODS = {
               ['__rseq_offset', '__rseq_size', '__rseq_flags', 'RSEQ_WANTED', 'REPORT_NONSHARED',
                'report_nonshared', 'register_rseq', 'read_auxv', 'store_words', 'clear_unsecure', 'env_entries',
                'niji_ld_start', 'program_headers', 'run', '__libc_stack_end', 'List', 'impl List']),
+    'exec_stack': ("COMPAT-19, executable stacks (opt-in tunable `niji.compat.execstack`): whether the start\n"
+                   "//! accepts an object that asks for one, the refusals, and making the main and thread\n"
+                   "//! stacks executable before any constructor runs.",
+                   ['EXEC_STACK', 'PROT_GROWSDOWN', 'exec_stack_accepted', 'refuse_exec_stack_program',
+                    'exec_stack_dependency', 'exec_main_stack', 'exec_stacks_at_start', 'exec_stack_candidate']),
 }
-ORDER = ['io', 'state', 'tls', 'image', 'initfini', 'link', 'trace', 'entry']
+ORDER = ['io', 'state', 'tls', 'image', 'initfini', 'link', 'trace', 'entry', 'exec_stack']
 
 
 # External `use` groups of the original file: (attr line or None, path prefix, [(name, ident)]).
