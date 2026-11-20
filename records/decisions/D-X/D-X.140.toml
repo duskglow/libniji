@@ -1,0 +1,14 @@
+id = "D-X.140"
+section = "x"
+status = "active"
+amends = ["D-X.138"]
+story = "LAYOUT-GOT-ORDER"
+date = "2026-11-20"
+tests = ["xtask/src/gotrelax.rs::binop_operand_is_the_psabi_form_only", "xtask/src/gotrelax.rs::mark_archive_rewrites_only_binop_gotpcrel", "xtask/src/gotrelax.rs::mark_object_rejects_headers_outside_the_object", "crates/core/tests/hot_text_products.rs::init_static_probe_has_no_got_at_any_relro_size"]
+body = '''
+**A static program linked against `libc.a` has no `.got`: `cargo xtask so` marks the library's GOT-indirect arithmetic and compare operands relaxable** (LAYOUT-GOT-ORDER; amends D-X.138's data bins). The compiler (LLVM 23, rustc 1.99.1) reaches another crate's static through the GOT and, when it folds that address into `add`/`cmp`/... (`add foo@GOTPCREL(%rip), %rdx`), emits a plain `R_X86_64_GOTPCREL`, even with `-x86-relax-relocations`; GNU ld relaxes only the `*GOTPCRELX` forms. Those 160 sites (25 slots, 200 bytes) kept a `.got` in every static program, which GNU ld's default script places right behind `.data.rel.ro`, so its page moved with `.data.rel.ro`'s size mod 4096 and start-up read it on a written page of its own (LAYOUT-BYTE-BUDGETS-3 step 3: THREAD-FORCED-UNWIND-2's 0x148-byte change pushed it across a page). Ordering `.got` ahead of `.data.rel.ro` is not available to the library: a user's `cc -static` uses the default script, and padding was ruled out (STARTUP-GOT-PAGE).
+
+The rule: after the weakening pass, `xtask/src/gotrelax.rs` rewrites to `R_X86_64_REX_GOTPCRELX` each plain `R_X86_64_GOTPCREL` whose instruction bytes are the x86-64 psABI's relaxable form (REX.W prefix, `adc add and cmp or sbb sub xor` `r64, r/m64` or `test`, ModRM mod 00 r/m 101: RIP-relative, the displacement the instruction's last four bytes, addend -4); anything else is left and counted. Only the published `libc.a` is patched, in place (relocation-type bytes only). A non-PIE static link turns each into `<op> $foo, %reg` (same length, one memory read fewer). `libc.so.6` is linked before the pass, and a position-independent link (a static PIE) keeps the slot, so both are unchanged. A target beyond the signed 32-bit range in a non-PIE link makes GNU ld refuse the link ("relink with --no-relax"), never miscompile; the library's small-code-model `R_X86_64_PC32` references already need its data within that range. A build that finds nothing to mark fails, so a compiler that starts emitting the relaxable form itself is noticed (then this pass retires).
+
+Consequences: the `.got` data bin is gone (`data-bins-<profile>`), and the written start-up budget falls by that page (`rw-budget-fast` 7 -> 6, `rw-budget-release` 8 -> 7). The declared start-up set (`tools/hottext/startup_data.py`, ruling R3) no longer counts a `cmp`'s absolute operand: the relaxed `fp == stdin` compare reads nothing at `stdin`. Measurements are in `handoff/LAYOUT-GOT-ORDER.md`.
+'''
