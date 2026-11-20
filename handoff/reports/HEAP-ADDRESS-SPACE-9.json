@@ -60,11 +60,14 @@
  "next_step": "ruling on the cbench_startup jitter; then HEAP-SPILL-COLD",
  "report_file": "handoff/HEAP-ADDRESS-SPACE-9-report.md",
  "jobs": [
-  "keke:heap-address-space-9-s0",
-  "keke:heap-address-space-9-relso",
   "keke:heap-address-space-9-t2",
   "keke:heap-address-space-9-plants",
   "keke:heap-address-space-9-fullhot",
   "keke:heap-address-space-9-xtest"
+ ],
+ "superseded": [
+  "keke:heap-address-space-9-s0 (step 0 on the inherited head)",
+  "keke:heap-address-space-9-relso (release build for the probes, before the test commit)",
+  "keke:heap-address-space-9-t1 (clippy: panic/expect in the new test)"
  ]
 }
