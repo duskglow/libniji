@@ -890,6 +890,56 @@ fn kernel_pages_align_and_prefer_a_node() {
     pages.unmap(b, 3 * PAGE);
 }
 
+/// This process's address-space size (`/proc/self/statm` field 1, in pages), in bytes.
+fn vm_size() -> u64 {
+    let statm = std::fs::read_to_string("/proc/self/statm").unwrap();
+    statm.split_whitespace().next().unwrap().parse::<u64>().unwrap() * PAGE as u64
+}
+
+#[test]
+fn kernel_pages_map_aligned_under_an_address_space_limit() {
+    // Trace: no spec clause (the heap's kernel page source under RLIMIT_AS, T14; issue #21,
+    // HEAP-ADDRESS-SPACE). Under a limit that leaves room for a segment but not for the
+    // alignment slack, `map` and `map_room` still return aligned, zero-filled, writable memory
+    // (the exact placement path), and `grow` extends the `map_room` mapping in place. In a
+    // re-executed copy: the limit is process-wide.
+    isolated("kernel_pages_map_aligned_under_an_address_space_limit", || {
+        use niji_boundary::heap::KernelPages;
+        use niji_kernel::uapi::{Rlimit, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_READ, PROT_WRITE, RLIMIT_AS, RLIM_INFINITY};
+        use niji_rt::heap::{Pages, SEG};
+        let pages = KernelPages;
+        let (head, len) = (2 * PAGE, SEG / 4);
+        // Room for one SEG mapping and a quarter more, never for SEG plus its alignment.
+        let limit = vm_size() + (SEG + SEG / 4) as u64;
+        CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+        if let Ok(r) = CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0) {
+            pages.unmap(r.addr(), 2 * SEG);
+            panic!("precondition: the limit refuses the over-mapping, so the exact path is taken");
+        }
+        let a = pages.map(SEG, SEG, None).expect("map: SEG bytes at a SEG boundary fit under the limit");
+        assert_eq!(a % SEG, 0, "map: aligned as asked");
+        fill(a as *mut c_void, 7, PAGE);
+        fill((a + SEG - PAGE) as *mut c_void, 7, PAGE);
+        assert_eq!(bytes((a + PAGE) as *const c_void, PAGE), vec![0; PAGE], "map: zero-filled");
+        pages.unmap(a, SEG);
+        let b = pages.map_room(head, len, SEG, SEG, None).expect("map_room: head + len bytes fit under the limit");
+        assert_eq!(b % SEG, 0, "map_room: the address after the head is aligned");
+        assert_eq!(bytes((b + len - PAGE) as *const c_void, PAGE), vec![0; PAGE], "map_room: zero-filled to its end");
+        fill((b - head) as *mut c_void, 7, head + len);
+        pages.unmap(b - head, head + len);
+        // Under the limit the exact path promises no room above, so `grow` gets a known hole: the
+        // upper half of a mapping of its own, given back.
+        let c = pages.map(2 * len, PAGE, None).expect("2 * len bytes fit under the limit");
+        pages.unmap(c + len, len);
+        assert!(!pages.grow(c, len, None), "grow: a taken range is never replaced");
+        assert!(pages.grow(c + len, len, None), "grow: a free range that fits the limit is mapped");
+        assert_eq!(bytes((c + 2 * len - PAGE) as *const c_void, PAGE), vec![0; PAGE], "grow: zero-filled");
+        fill((c + len) as *mut c_void, 7, len);
+        pages.unmap(c, 2 * len);
+    });
+}
+
 /// no spec clause (libniji's in-place rule, REALLOC-FUSE): `realloc` returns the same pointer
 /// while the request fits the block's class and is more than half the class below it, and moves
 /// the block otherwise. The export tests this before its general path (PERF-REALLOC-USABLE-2).
