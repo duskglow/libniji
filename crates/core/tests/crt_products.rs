@@ -272,7 +272,7 @@ fn segments(exe: &Path) -> Vec<(String, String, u64)> {
 
 #[test]
 fn programs_get_one_executable_mapping_and_keep_their_properties() {
-    // No spec clause (x86-64 psABI program properties, LSB ABI note tag; CRT-START-FILES, GitHub #27): no
+    // no spec clause (x86-64 psABI program properties, LSB ABI note tag; CRT-START-FILES, GitHub #27): no
     // start file is reported as lacking IBT or SHSTK in any link (PIE, -no-pie, -static, -static-pie; the
     // program built with -fcf-protection); a dynamic program has one executable LOAD, no LOAD aligned above
     // a page, IBT and SHSTK kept (every input marked), and one r-xp mapping of its own file at run time
