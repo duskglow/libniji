@@ -15,7 +15,7 @@ Plants: handoff/CRT-START-FILES-plants.txt. Role keke:~/w/n2 (Zen 1 host).
   both get them). A static link takes the first index entry defining a still-undefined symbol; the start object
   leaves only `__libc_start_main` (crt1/gcrt1) or `niji_start_main_static_pie` (rcrt1/grcrt1), which each anchor
   defines weakly as `jmp __niji_libc_<name>`. Map of a static link: the anchor is libc.a's first input; static-PIE
-  links take only the PIE anchor. Cost: one jmp per static start, beside `_start` in the same window.
+  links take only the PIE anchor. Cost: one jmp per static start, at the group end (the program-text window).
 - `cargo xtask so` checks each start object (`check_start_file`: no section aligned above 64, both notes, endbr64 at
   `_start`, the three symbols, no other exported definition) and the anchors' place. STARTUP-TEXT-WINDOWS exempts the
   anchor members like crt1's `_start` (`so::static_anchor_member`).
@@ -36,43 +36,42 @@ section alignment 65536 -> 64. Empty main through the driver: PIE 142,680 -> 15,
 | 3 libraries | 1,095,776 -> 1,087,780 (136,032) | 1,343,422 -> 1,323,381 (997,048) | 78 -> 76 (64) | 88 -> 88 |
 | clock_gettime | 867,398 -> 859,779 (103,018) | 935,379 -> 926,115 (708,173) | 67 -> 65 (50) | 43 -> 43 |
 
-Empty main, user instructions +4,932: new crt1 with both notes stripped 832,369; property note alone stripped
-832,370; ABI tag alone stripped 837,273. So a program's PT_GNU_PROPERTY costs about 4,850 user instructions in
-libniji's start (loader or libc). The cause was not found: the only runtime reader in crates/ld is
-`needs_indirect_extern_access` (canonical PLT to a protected definition). The empty-main row is the one row worse;
-every program with text after the old group end (the 3-library and clock_gettime rows, any real program) gains.
-NOT MEASURED: the Skylake-SP class; static programs' start-up (their layout is unchanged apart from the jmp).
+
+Empty main, user instructions +4,932: the cost is per program header, not the property. Probe (keke,
+~/work/crt-start-files/m0probe3.sh, medians of 101 runs, same libc.so.6/ld.so): crt1 without the property note
+832,383 (13 program headers); the same plus a dummy 48-byte note of another type (one more PT_NOTE) 834,805 (14);
+the new crt1 (PT_NOTE + PT_GNU_PROPERTY) 837,253 (15). So libniji's start (loader or libc) spends about 2.4k user
+instructions per program header of the program; the property note adds two. The only runtime property reader in
+crates/ld (`needs_indirect_extern_access`) reads the defining library's notes, not the program's.
+NOT MEASURED: the Skylake-SP class; static programs' start-up.
 Static programs still have two `R E` LOADs, before and after: `.init` (crti) and then libc.a's hot text group at a
 64 KiB boundary, more than a page away. That is libc.a's layout, which this story leaves as it is.
 
-## Jobs (keke)
-crt-start-files-crt (crt_products, 7/7 ok), crt-start-files-static (static clean; affected list),
-crt-start-files-lint (clippy clean; its static failed on the trace marker, fixed in e292a64b6),
-crt-start-files-gate, crt-start-files-plants2, crt-start-files-xtest, crt-start-files-fullprof (see the hand-back).
-Superseded: crt-start-files-so1 (layout contract red, fixed by the anchor exemption), crt-start-files-plants (the tool
-refused the .S plants: `_start`, the anchor stub and crti.S have no `niji_machine_<fn>:` label).
+## Leg 2 (fixes of the leg-1 gate's two hot_text_products reds; commit c9d0df2f5)
+1. TEXT-PREFIX (`init_no_library_text_precedes_the_hot_group`): the anchor's `jmp` stub was the libc.a input
+   `.text.startup.niji_static_anchor`, ahead of the hot group. It now sits inside `.text.sorted.h9z.niji_group_end`
+   after its `.balign 65536`, at the start of the program-text window; `layout.rs startup_text` skips the anchor
+   members' functions (no window, not ungrouped); fixture: the jump in a window of its own adds none.
+2. `init_startup_data_pages_hold_at_every_data_phase`: with the program's relro padded 0x4d0/0x800/0xc18 bytes the
+   libc.a relro anchor (`.data.rel.ro.local`, 64 KiB) came after the pad: 0xeb38-0xfb38 bytes of fill in relro.
+   A real regression for any static program with its own relro (a -fPIE object's pointer tables). The relro
+   anchor is now an empty `.preinit_array` (the default script puts it ahead of `.init_array` and `.data.rel.ro`,
+   in relro). Probe (keke, ~/work/crt-start-files/relro_exp.sh, the page_faults probe padded as the test pads it,
+   static and static-PIE): fill 0x3f0-0xb38 (< a page), cluster page-aligned, static PIE one RW LOAD, runs (rc 0).
+   Padded non-PIE static had 2 RW LOADs with the experiment's anchor (the `.data1` 16 KiB alignment after a
+   shifted `.data`); not compared with the pre-story crt1 (the same section order); no test bounds it.
+D-X.144 records both.
 
-## STATE AT REFRESH (leg 1 ended 20:03Z; HEAD = the commit adding this section)
-Gate crt-start-files-gate (head e292a64b6) RED in `niji::hot_text_products`, two tests:
-1. `init_no_library_text_precedes_the_hot_group` (TEXT-PREFIX, hot_text_products.rs:1311): the anchor's stub section
-   `.text.startup.niji_static_anchor` is a libc.a input ahead of the hot group (the group start did not move:
-   _start 0x26 bytes + the 16-byte stub still end below the 64-byte-aligned group start 0x40, but the rule is
-   "no libc.a input ahead"). Fix candidates: (a) put the stub after `.balign 65536` INSIDE the group-end section
-   `.text.sorted.h9z.niji_group_end` (behind the group, in the window of the program's own text, which every
-   program runs), then exempt the anchor members from STARTUP-TEXT-WINDOWS' window count as well as from its
-   ungrouped list (layout.rs `startup_text`); (b) a `.text.sorted.h0...` section at the group head, but that shifts
-   the bins by 16 bytes (bins.rs HEAD_ROOM / window-bin-bytes contract). Prefer (a).
-2. `init_startup_data_pages_hold_at_every_data_phase` (hot_text_products.rs:1666, "startup data pages: ..."): message
-   not read yet: `grep -n "startup data pages" -A14 ~/logs/crt-start-files-gate.log` on keke. Suspect: the probe's
-   data-phase pad object puts its own `.data.rel.ro.local`/`.data1` ahead of the libc.a anchor (before, crt1's
-   anchor came before the pad), so a pad shifts where the anchor's alignment applies. Read the message first.
-Then: rebuild (`cargo xtask so`, ~20 min), rerun `cargo test -p niji --test hot_text_products` and crt_products, the
-gate, then `cargo xtask test` and the NIJI_FULL_PROFILE pair (§9), precheck, handback-check. Plants:
-crt-start-files-plants2 (started on e292a64b6) may still be running; rerun plants if so.rs/entry.S change.
-Stopped at refresh: crt-start-files-xtest and crt-start-files-fullprof (stale head).
+## Jobs (keke)
+Final head: see the hand-back. Leg 2: crt-start-files-lint3 (clippy + static, green), crt-start-files-plants3,
+crt-start-files-gate3, then crt-start-files-xtest3 and crt-start-files-fullprof3.
+Superseded: leg 1's crt-start-files-gate (red: the two tests above), crt-start-files-plants2 (6/6 caught, before the
+layout.rs and entry.S change), crt-start-files-so1, crt-start-files-plants, crt-start-files-xtest,
+crt-start-files-fullprof (stale head).
 
 ## Open
 - RULING NEEDED: accept +4,932 user instructions (+0.6%) for empty main (kernel -3.5k, faults -1) as the cost of the
-  property note the brief requires, with a follow-up to find what libniji's start does with PT_GNU_PROPERTY.
-- Next step: that follow-up (trace ld.so on the empty-main pair `new-m0`/`nonote-m0`, scripts in
-  ~/work/crt-start-files/ on keke: startcount.sh, m0probe.sh, m0probe2.sh).
+  property note the brief requires (two program headers at about 2.4k each in libniji's start), with a follow-up
+  story to make libniji's start cost independent of the program's header count.
+- Next step: that follow-up (trace which start-up code walks the program headers per header: dummy-note pair
+  `noprop-m0x`/`dummy-m0x` in /dev/shm/claude/crt-start-files/sc on keke).
