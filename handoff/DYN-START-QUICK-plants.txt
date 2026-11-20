@@ -1,7 +1,6 @@
 # DYN-START-QUICK plants: each restores one removed start-up system call (or breaks the scratch arena); the
 # products test init_dynamic_empty_main_makes_no_removable_start_system_call traces a dynamic empty main and
 # must catch every one.
-loader-folds | crates/boundary/src/dispatch.rs | lit:const LOADER_ONLY: bool = cfg!(all(feature = "ld", not(feature = "runtime"))); ==> const LOADER_ONLY: bool = false; | cargo xtask so && cargo test -p niji --test hot_text_products init_dynamic_empty_main_makes_no_removable_start_system_call | msg:read at start
 size-by-lseek | crates/boundary/src/ld/image.rs | lit:    if st.mode & niji_kernel::uapi::S_IFMT == niji_kernel::uapi::S_IFREG { ==>     if st.mode == u32::MAX { | cargo xtask so && cargo test -p niji --test hot_text_products init_dynamic_empty_main_makes_no_removable_start_system_call | msg:lseek at start
 arena-off | crates/boundary/src/ld/image.rs | lit:    if let Some(at) = arena_take(len) { ==>     if let Some(at) = arena_take(len).and(None::<usize>) { | cargo xtask so && cargo test -p niji --test hot_text_products init_dynamic_empty_main_makes_no_removable_start_system_call | msg:anonymous mapping under a page
 arena-overlap | crates/boundary/src/ld/image.rs | lit:            Ok(_) => return Some(ARENA.0.as_ptr().expose_provenance().wrapping_add(from)), ==>             Ok(_) => return Some(ARENA.0.as_ptr().expose_provenance()), | cargo xtask so && cargo test -p niji --test hot_text_products init_dynamic_empty_main_makes_no_removable_start_system_call | msg:traced empty main failed

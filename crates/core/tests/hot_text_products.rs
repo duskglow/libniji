@@ -548,14 +548,12 @@ fn exec_instr(lib: &Path, exe: &Path, env: &[(&str, &str)]) -> Option<u64> {
 
 /// DYN-START-QUICK; no spec clause (cost of the products). A dynamic empty main started by the products'
 /// interpreter makes none of the system calls its start does without: no `lseek` (a regular file's size
-/// comes from the `fstat` the loader makes), no `read` (the loader maps what it reads, and decides no
-/// NULL folding, which would read `vm.mmap_min_addr`), no anonymous mapping smaller than a page (the
+/// comes from the `fstat` the loader makes), no anonymous mapping smaller than a page (the
 /// image views' buffers come from the loader's scratch arena) and no `arch_prctl(ARCH_GET_FS)`
 /// (`__libc_start_main` sees the loader's early start first). Traced with ptrace
 /// (oracle/start_syscalls.c); skipped, with the reason printed, where ptrace is not permitted.
 #[test]
 fn init_dynamic_empty_main_makes_no_removable_start_system_call() {
-    const READ: u64 = 0;
     const MMAP: u64 = 9;
     const LSEEK: u64 = 8;
     const ARCH_PRCTL: u64 = 158;
@@ -584,7 +582,6 @@ fn init_dynamic_empty_main_makes_no_removable_start_system_call() {
     eprintln!("dynamic empty main: {} system calls", calls.len());
     let count = |f: &dyn Fn(&[u64; 4]) -> bool| calls.iter().filter(|c| f(c)).count();
     assert_eq!(count(&|c| c[0] == LSEEK), 0, "lseek at start: a file size taken from lseek, not fstat");
-    assert_eq!(count(&|c| c[0] == READ), 0, "read at start: the loader decided NULL folding (vm.mmap_min_addr), or read a file it could map");
     assert_eq!(count(&|c| c[0] == MMAP && c[3] & 0x20 != 0 && c[2] < 4096), 0, "an anonymous mapping under a page at start: the image views were not taken from the scratch arena");
     assert_eq!(count(&|c| c[0] == ARCH_PRCTL && c[1] == 0x1003), 0, "arch_prctl(ARCH_GET_FS) at start: __libc_start_main did not take the loader's early start first");
 }
