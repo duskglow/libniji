@@ -25,31 +25,37 @@ Branch `task/pass2-native-poison` (stacked on `task/pass2-native-runner`, whose 
 
 * `pass2-native-poison-check3`: `cargo xtask static` ok, xtask `pass2::`/`nextest::`/`longsweeps::` 29 passed.
   (`check2`: clippy ok, static red on long-sweeps, fixed; `check1`: clippy red on `panic!`, fixed.)
-* Running when this leg ended (started ~04:50 UTC by `~/work/pass2-native-poison/seq.sh`, one after another):
-  `pass2-native-poison-measure1` (`cargo xtask so && cargo xtask test-pass2`), then `-gate1`
-  (`cargo xtask affected --base origin/next --run` under `~/bin/gate 16G`), then `-measure2` (same as measure1).
-  Beside them: `pass2-native-poison-plants1` (5 plants, `--timeout 900`, dir /dev/shm/claude/pass2-native-poison/plants-1;
-  WARN-DEV-SHM printed, harmless here).
+* `pass2-native-poison-measure1` (`cargo xtask so && cargo xtask test-pass2`): rc 0; native 4831 passed, interposed
+  suite 126 + 46 passed (+ doc). Ran beside `plants1`.
+* `pass2-native-poison-plants1` (5 plants, `--timeout 900`, /dev/shm/claude/pass2-native-poison/plants-1): rc 0,
+  5 CAUGHT, 0 SURVIVED, 0 WARN-RC-ONLY, 0 WARN-NO-MSG (WARN-DEV-SHM printed: no plant here uses posixipc_products).
+  `native-runner-no-perturb` and `strdup-no-terminator` caught as `FAIL  test -p niji-boundary (native)`.
+* `pass2-native-poison-gate1` (`cargo xtask affected --base origin/next --run`, `~/bin/gate 16G`): rc 0, tier direct,
+  `FULL: the train's` (xtask files), so the bounded set ran: 15 suites ok, 7375 passed, 0 failed; peak 11G, oom_kill 0.
+* `pass2-native-poison-measure2` (same as measure1, nothing of this story beside it): rc 0, all passed.
 
 ## Exact next step
 
-1. `~/bin/jobwait pass2-native-poison-measure1 pass2-native-poison-plants1` (loop while rc 3). measure1 failing =
-   a moved target fails natively with poisoning: read the failing test, fix the cause (do not move it back without
-   a reason in this note). Plants: every plant CAUGHT (`strdup-no-terminator` and `native-runner-no-perturb` must
-   show `FAIL  test -p niji-boundary (native)`); a SURVIVED: fix and rerun as plants2 in a NEW dir.
-2. Numbers (step 4): from each measure log, the step times (`tests-native-*`, `tests-interposed-*`) and
-   test-seconds (sum of nextest's `[ x.xxxs]`; `~/bin/test-summary <log>` may help). Before = PASS2-NATIVE-RUNNER's
-   `measure4`/`measure5` (same host, slot size and role; their table is in handoff/PASS2-NATIVE-RUNNER.md: total
-   1326 s / 1203 s wall, 4542 / 4126 test-seconds; interposed suite 525.8 / 540.4 s). Fill the Numbers section here.
-3. jobwait `-gate1`, `-measure2`. If the gate says `FULL (escalated` it ran the bounded set: write
-   `FULL: the train's (xtask files)` in the hand-back.
-4. Commit this note + `handoff/reports/PASS2-NATIVE-POISON.json`, push, sync, `cargo clippy --workspace --all-targets
-   --all-features -- -D warnings` and `cargo xtask static` on the role (foreground), then `cargo xtask precheck --jobs
-   <labels> --head <sha>`, then `ops handback-check`. JOBS: check3, measure1, gate1, measure2, plants1.
+Done when the hand-back verifies. A follow-up could look at the 10 targets still interposed (the table below):
+the foreign-thread ones stay interposed (brief step 2), and so do the ones that check `feature = "export"`, call
+`reallocarray` by symbol, or need the `VIRGIN` bit.
 
-## Numbers (step 4)
+## Numbers (step 4): the second pass, before and after (keke, 4-CPU slot, role n1, test profile)
 
-(to fill from measure1/measure2)
+| Run | Native pass (wall) | Interposed suite (wall: niji-boundary + niji + doc) | Total wall (tests-* steps) | Test-seconds (native + suite) |
+|---|---|---|---|---|
+| Before `measure5` (PASS2-NATIVE-RUNNER) | 657.6 + 4.6 s | 462.1 + 76.3 + 2.0 s | 1203 s | 4126 (2155 + 1971) |
+| Before `measure4` (PASS2-NATIVE-RUNNER) | 796.1 + 4.6 s | 457.5 + 66.2 + 2.1 s | 1326 s | 4542 (2630 + 1913) |
+| After `measure2` | 681.1 + 4.4 s | 117.5 + 0.8 + 2.2 s | 806 s (-33% / -39%) | 2471 (2315 + 156) (-40% / -46%) |
+| After `measure1` | 857.4 + 416.8 s (includes the test-binary build) | 206.3 + 3.1 + 1.9 s (includes the suite's `export` build) | 1486 s; 983 s without the two builds | 3010 (2849 + 161) |
+
+Test-seconds = the sum of nextest's per-test `[ x.xxxs]` in each pass. The interposed suite drops from 525-540 s to
+121 s of wall and from ~1900-2000 to ~160 test-seconds; the native pass now runs 4831 tests (was 4829), poisoned.
+`measure1`'s set-up/copies steps (95.0 + 320.4 s) and part of its suite step built test binaries changed by this
+branch (the base's samples had them cached), and it ran beside `plants1`, as the base's two samples ran beside
+their plants; `measure2` ran with no other job of this story. Compared like for like (builds excluded): 983 s and
+806 s against 1203 s and 1326 s, so the saving is 18 to 39% of wall and 27 to 46% of test-seconds. Most of the
+native-pass difference between the samples is load (the same 4831 tests, 2849 against 2315 test-seconds).
 
 ## RULING NEEDED
 
@@ -60,7 +66,7 @@ Branch `task/pass2-native-poison` (stacked on `task/pass2-native-runner`, whose 
 ## INFORMATIONAL
 
 * `MALLOC_PERTURB_` reaches the native test's children too (C programs the tests run, under libniji or the host
-  library): fills of fresh/freed blocks there as well; no test is known to depend on its absence (measure1 decides).
+  library): fills of fresh/freed blocks there as well; no test depends on its absence (measure1, measure2 and gate1 pass with it).
 
 ## Not to redo
 
