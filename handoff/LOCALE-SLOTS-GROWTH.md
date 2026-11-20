@@ -40,6 +40,10 @@ Run 7 (ruling #6981): the lock-free setlocale answers make no returning call int
   `setlocale_en_us_repeat` 135, for the Zen 1 host and Skylake-SP, at next's level. The bench counts
   (`-bench-zen`, mei `-bench-sk`) are 117.1, 69.0-69.1 and 133.1-133.2 instructions per call.
 
+- PENDING at hand-back, on head `104008b2f` (the instr_limits rows count as tested content): keke
+  `locale-slots-growth-7-gate2`, `-plants2`, `-startup2` (it starts after gate2 ends) and `-percall4`. The start-up
+  run on the code head (`-startup`) was stopped half way to free the role. It had no failures up to then.
+
 ## Open
 - (c) Archive-form locales share one file entry: from reading the code, not measured.
 

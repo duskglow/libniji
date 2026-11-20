@@ -18,4 +18,5 @@
  "improvement": "wl_percall needs a role or git tree, so counting on a second CPU class needs a hand-made .synced marker; a --tree/--rev option for a plain copied tree would make cross-CPU counts a supported path",
  "next_step": "CI train; then the layout story STARTUP-GOT-PAGE as already queued",
  "report_file": "handoff/LOCALE-SLOTS-GROWTH-report.md",
- "jobs": ["locale-slots-growth-7-gate", "locale-slots-growth-7-plants", "locale-slots-growth-7-percall3", "locale-slots-growth-7-startup", "locale-slots-growth-7-bench-zen", "mei:locale-slots-growth-7-percall-sk3", "mei:locale-slots-growth-7-bench-sk"]}
+ "pending_jobs_note": "gate2, plants2, startup2 and percall4 rerun the checks on 104008b2f (the instr_limits rows are tested content); gate, plants and percall3 passed on code head 34cc0ded1 with the same code",
+ "jobs": ["locale-slots-growth-7-gate2", "locale-slots-growth-7-plants2", "locale-slots-growth-7-startup2", "locale-slots-growth-7-percall4", "locale-slots-growth-7-bench-zen", "mei:locale-slots-growth-7-percall-sk3", "mei:locale-slots-growth-7-bench-sk"]}
