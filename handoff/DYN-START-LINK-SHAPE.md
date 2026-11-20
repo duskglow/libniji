@@ -83,7 +83,9 @@ holds no `reloc::pass1` (nm), so static start-up runs none of the changed code. 
 On the final code head adc1365ce (later commits: this note and the report only): gate2 (direct tier) 806 passed /
 0 failed, peak 1.7G; plants2 6 plants: 5 CAUGHT, 1 EQUIVALENT (window-not-followed: performance only), 0 WARN;
 lint2: records check, `cargo xtask static`, workspace clippy -D warnings clean; startup2 (`cargo xtask test`, then
-release so + hot_text_products with the tightened release bound) was still running at hand-back (PENDING). Counts:
+release so + hot_text_products with the tightened release bound) green: 6,922 + 4,838 + 126 + 46 passed, 0 failed;
+hot_text_products 31 passed, its dynamic empty main 771,361 against the new release bound 774,400 (Skylake-SP; the
+head read about 809k against 812,400, so the margin is the same); libc.so.6 holds no reloc::pass1. Counts:
 jobs dyn-start-link-shape-fix1 (Skylake-SP), keke dyn-start-link-shape-zen1 (Zen 1, same binaries), run1, pt2, relr;
 the products came from f19f46e5e, whose product sources equal the final head's. Superseded: gate1 (253 / 0) and
 plants1 (3 CAUGHT, 1 EQUIVALENT, 2 WARN-NO-MSG: real catches by the test model, messages widened since) on the code
