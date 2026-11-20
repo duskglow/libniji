@@ -1,0 +1,9 @@
+# HEAP-ADDRESS-SPACE-9 plants (cargo xtask plants; docs/plants.md): the new test
+# kernel_pages_map_aligned_under_an_address_space_limit (ruling #7001) against the page source's limit paths.
+# map-exact-none: map's exact-placement fallback (taken when the over-mapping does not fit the limit) gives up.
+# room-head-unmapped: map_room's exact path maps from the aligned address instead of `head` bytes before it, so the
+# head the heap writes its tables to is not mapped (the child faults on the fill).
+# grow-replaces: grow replaces whatever is mapped at the address (MAP_FIXED, 0x100000 >> 16 = 0x10) instead of refusing.
+map-exact-none | crates/boundary/src/heap.rs | lit:return if slack > 0 { map_aligned_exactly(0, len, align, node) } else { None }; ==> return None; | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:kernel_pages_map_aligned_under_an_address_space_limit.*FAILED|in isolation
+room-head-unmapped | crates/boundary/src/heap.rs | lit:let start = a.checked_sub(head)?; ==> let start = a; | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:kernel_pages_map_aligned_under_an_address_space_limit.*FAILED|in isolation
+grow-replaces | crates/boundary/src/heap.rs | perl:s/MAP_NORESERVE \| MAP_FIXED_NOREPLACE;/MAP_NORESERVE|(MAP_FIXED_NOREPLACE>>16);/ | cargo test -p niji-boundary --test s03_memory_symbols kernel_pages_map_aligned | msg:a taken range is never replaced
