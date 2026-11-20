@@ -57,7 +57,7 @@ runtime::start +44 bytes. Never measured worse is not a claim this branch can ma
 - `heap-address-space-8-s0` (step 0, inherited head): rc 0. `-mhead`, `-mbase`, `-mnogot`: the fault measurements.
 - Head `afeb37b5e` (superseded by the drop): `-lint` rc 0, `-tests` rc 0, `-plants` 13/13 CAUGHT; `-xtest` and
   `-fullhot` stopped (superseded).
-- Final code head `10e62ddd2`: `-lint2` rc 0; `-fullhot2` rc 0; `-plants2` (12 plants); `-xtest3`;
+- Final code head `10e62ddd2`: `-lint2` rc 0; `-fullhot2` rc 0; `-plants2` 12/12 CAUGHT (0 WARN); `-xtest3` rc 0 (peak 12G);
   `-cbench-before`/`-after`, `-cbench2-before`/`-after`.
 - SUPERSEDED on `10e62ddd2`: `-tests2` and `-xtest2` (rc 101 / 1): every failure is hot_text_products
   "target/niji/.hot-lists: No such file or directory": a `cargo xtask so` of mine (`-tests3`, started too early by a

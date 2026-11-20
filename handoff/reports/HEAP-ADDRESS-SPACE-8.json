@@ -1,20 +1,81 @@
-{"task": "HEAP-ADDRESS-SPACE-8", "model": "opus", "tokens": null,
+{
+ "task": "HEAP-ADDRESS-SPACE-8",
+ "model": "opus",
+ "tokens": null,
  "result": "INCOMPLETE: run 7's +1 dynamic fault gone after merging next (head 70, next 71); 256-aligned .got dropped (not needed: 7 written pages, same faults); cbench_malloc no row slower; cbench_startup slower (startup_kinstr_c +5.5% kernel instr, user +6..+28), cause not found",
- "branch": "task/heap-address-space-8", "head": null,
- "gate": {"affected": "FULL: the train's (entry.S _start, xtask); lint2 rc 0, fullhot2 rc 0, tests (pre-drop head) rc 0; plants2 and xtest3 named in jobs", "peak": "13G (xtest2)"},
+ "branch": "task/heap-address-space-8",
+ "head": null,
+ "gate": {
+  "affected": "FULL: the train's (entry.S _start, xtask); on 10e62ddd2: lint2 rc 0, xtest3 (cargo xtask test) rc 0, fullhot2 rc 0, plants2 12/12 CAUGHT",
+  "peak": "12G (xtest3)"
+ },
  "accepted_first_attempt": null,
- "rulings": [{"item": "cbench_startup slower after: startup_kinstr_c +7.0k..7.9k kernel instructions (+5.5%), user rows +6..+28", "recommendation": "do not land until the cause is found and fixed (next run: strace/minflt of the bench's C start-up child, before vs after); if it is the inherent cost of mapping segments by use, a ruling with the numbers"}],
- "informational": ["DYN_TRUE_BOUND [73, 67]: head 70 fast on Skylake-SP (next 71); a Zen 1 count would show if the fast bound can tighten",
-                   "kill-label on a gated cargo xtask test left xtask test and nextest running (systemd scope); kill-mine ended them",
-                   "jobwait on a label with no jobs.tsv row returns 4 at once (a wait-then-start driver started its job early)",
-                   "no test runs Pages::map to success under an address-space limit (next's code; from run 7)"],
+ "rulings": [
+  {
+   "item": "cbench_startup slower after: startup_kinstr_c +7.0k..7.9k kernel instructions (+5.5%), user rows +6..+28",
+   "recommendation": "do not land until the cause is found and fixed (next run: strace/minflt of the bench's C start-up child, before vs after); if it is the inherent cost of mapping segments by use, a ruling with the numbers"
+  }
+ ],
+ "informational": [
+  "DYN_TRUE_BOUND [73, 67]: head 70 fast on Skylake-SP (next 71); a Zen 1 count would show if the fast bound can tighten",
+  "kill-label on a gated cargo xtask test left xtask test and nextest running (systemd scope); kill-mine ended them",
+  "jobwait on a label with no jobs.tsv row returns 4 at once (a wait-then-start driver started its job early)",
+  "no test runs Pages::map to success under an address-space limit (next's code; from run 7)"
+ ],
  "refused": [],
- "impact": [{"kind": "faults", "what": "dynamic start-up program (page_faults true), fast, Skylake-SP", "before": 71, "after": 70, "unit": "minor faults", "measured": true},
-            {"kind": "perf", "what": "cbench_malloc malloc_free_16..1024 libniji instr/call", "before": 122.2, "after": 122.1, "unit": "instr/call", "measured": true},
-            {"kind": "cost", "what": "cbench_startup startup_kinstr_c kernel-mode instructions (3 runs: +7614, +7937, +7004); fix-forward: next run finds the cause", "before": 135501, "after": 143438, "unit": "instructions", "measured": true},
-            {"kind": "cost", "what": "cbench_startup startup_instr_printf user-mode instructions", "before": 65227, "after": 65247, "unit": "instructions", "measured": true},
-            {"kind": "size", "what": "start-up layout bin 0 (fast) vs next", "before": 60694, "after": 60732, "unit": "bytes", "measured": true}],
+ "impact": [
+  {
+   "kind": "faults",
+   "what": "dynamic start-up program (page_faults true), fast, Skylake-SP",
+   "before": 71,
+   "after": 70,
+   "unit": "minor faults",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "cbench_malloc malloc_free_16..1024 libniji instr/call",
+   "before": 122.2,
+   "after": 122.1,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_startup startup_kinstr_c kernel-mode instructions (3 runs: +7614, +7937, +7004); fix-forward: next run finds the cause",
+   "before": 135501,
+   "after": 143438,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_startup startup_instr_printf user-mode instructions",
+   "before": 65227,
+   "after": 65247,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "size",
+   "what": "start-up layout bin 0 (fast) vs next",
+   "before": 60694,
+   "after": 60732,
+   "unit": "bytes",
+   "measured": true
+  }
+ ],
  "improvement": "a wait-then-start job driver needs a wait that blocks on a label not yet in jobs.tsv (jobwait returns 4); and kill-label should end a gated job's whole systemd scope",
  "next_step": "find the cbench_startup kernel +5.5% (strace -f and minflt of the C start-up child, base vs headb on mei), fix it cold, recount before/after, rerun lint/xtask test/fullhot/plants/precheck",
  "report_file": "handoff/HEAP-ADDRESS-SPACE-8-report.md",
- "jobs": ["mei:heap-address-space-8-lint2", "mei:heap-address-space-8-fullhot2", "mei:heap-address-space-8-plants2", "mei:heap-address-space-8-xtest3", "mei:heap-address-space-8-cbench-before", "mei:heap-address-space-8-cbench-after", "mei:heap-address-space-8-cbench2-before", "mei:heap-address-space-8-cbench2-after"]}
+ "jobs": [
+  "mei:heap-address-space-8-lint2",
+  "mei:heap-address-space-8-fullhot2",
+  "mei:heap-address-space-8-plants2",
+  "mei:heap-address-space-8-xtest3",
+  "mei:heap-address-space-8-cbench-before",
+  "mei:heap-address-space-8-cbench-after",
+  "mei:heap-address-space-8-cbench2-before",
+  "mei:heap-address-space-8-cbench2-after"
+ ]
+}
