@@ -84,6 +84,8 @@ int main(int argc, char **argv) {
 "#;
 
 /// `n` pairs of libniji's `malloc(64)` and `free`, through the Rust entries (the foreign path).
+// opaque-ok: the bound counts the entries themselves, without a wrapper's frame; every pointer escapes
+// through `sink` and the size through `black_box`, and the count (about 1,900 per pair) shows no pair elided.
 fn pairs(n: u64) {
     let mut sink = 0usize;
     for _ in 0..n {
