@@ -1,6 +1,10 @@
 # HEADERS-GEN-S08-HOOKS: slice 8's generic generator edits, landed on their own
 
 **State.** Branch `task/headers-gen-s08-hooks`, cut from origin/next (5fa9f9366). Head: see `handoff/reports/HEADERS-GEN-S08-HOOKS.json`.
+Continued as HEADERS-GEN-S08-HOOKS-2 on `task/headers-gen-s08-hooks-2` (report `handoff/reports/HEADERS-GEN-S08-HOOKS-2.json`): CI went red only on
+`headers-gen-check` after SL-HEADERS-S15-3 landed visibility rows. Merged origin/next (d4cbe1667) and regenerated: the only diff is the
+`pthread_attr_t` block (same union typedef and `__NIJI_D_pthread_attr_t` guard) in `sys/acct.h`, `sys/mtio.h`, `sys/quota.h`, i.e. the merge of both changes.
+Ruling #7070 (obstack `chunkfun`/`freefun` spelling) is owed to its own story, not done here.
 Premise (brief stated none): header slices are data-only (owner 11-19), so the generic edits of `task/sl-headers-s08-5` land first and
 SL-HEADERS-S08 rebases on them as data-only. HEADERS-GEN-S10-HOOKS had not landed on this base (no s10 hook in `xtask/src/headers*`).
 
