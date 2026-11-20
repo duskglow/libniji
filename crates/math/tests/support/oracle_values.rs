@@ -476,6 +476,7 @@ impl<F: Fn(&Query) -> Option<String>> Values<F> {
             let _ = std::fs::remove_file(&tmp);
             return;
         }
+        // FS-ORDER: each file of another key is removed on its own; the order does not matter.
         if let Ok(rd) = std::fs::read_dir(dir) {
             for e in rd.flatten() {
                 let n = e.file_name();
