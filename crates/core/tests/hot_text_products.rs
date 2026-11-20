@@ -329,6 +329,12 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// fast 73, release 67, warm-up + 5 runs, every run identical, on the Skylake-SP and the Zen 1 host, each with
 /// /tmp on ext4 and on tmpfs (the gate wrapper's): on the merged head the file system no longer changes the
 /// count (the cause was not isolated). Tightened to that level.
+/// DYN-START-SPEED-2: the dependence came back with DYN-START-SPEED's loader changes merged (Skylake-SP host,
+/// release: 67 with /tmp on ext4, 68 on tmpfs; perf fault addresses: only libc.so.6's whole-file view differs,
+/// 4 faults per process on ext4, 5 on tmpfs). The cause is the view's placement: the kernel puts it 2 MiB-aligned
+/// on ext4 and page-aligned on tmpfs, so the same file pages fall in different 64 KiB fault-around windows. The
+/// loader now places every view 64 KiB-aligned itself (`map_view`); the test below checks the two file systems
+/// read the same count.
 const DYN_TRUE_BOUND: [u64; 2] = [73, 67];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
@@ -361,10 +367,57 @@ fn init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_t
 
 #[test]
 fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
+    let lib = PathBuf::from(format!("/tmp/niji-hot-ldso-{:010}", std::process::id()));
+    let t = dyn_startup_faults(&lib);
+    check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
+}
+
+/// DYN-START-SPEED-2; no spec clause (cost of the products). The start-up count of the program above does
+/// not depend on the file system that holds ld.so and libc.so.6: the same products staged on the RAM file
+/// system (/dev/shm, tmpfs) and under the build tree (another file system on the build hosts) read the same
+/// count. The loader places each whole-file view it reads an object through at a 64 KiB-aligned address
+/// (`map_view`), so the view's fault-around windows follow the file offsets; a view left where the kernel
+/// puts a file mapping (2 MiB-aligned on a file system with large folios, page-aligned on tmpfs) read one
+/// more fault on tmpfs than on ext4 (Skylake-SP host, release: 68 / 67). Both directory names have the same
+/// length, so the strings on the program's stack and in the loader's tables are the same size. Skipped, with
+/// the reason printed, when the two directories are on the same kind of file system.
+#[test]
+fn init_dynamic_startup_fault_count_does_not_depend_on_the_file_system() {
+    let r = root();
+    let pid = std::process::id();
+    let a = r.join(format!("target/niji-fs-{pid:010}"));
+    let pad = a.as_os_str().len().saturating_sub(format!("/dev/shm/niji-fs-{pid:010}").len());
+    let b = PathBuf::from(format!("/dev/shm/niji-fs-{}{pid:010}", "x".repeat(pad)));
+    if !Path::new("/dev/shm").is_dir() {
+        eprintln!("SKIP: no /dev/shm on this host, no second file system to compare with");
+        return;
+    }
+    let kind = |d: &Path| {
+        std::fs::create_dir_all(d).unwrap();
+        let o = Command::new("stat").args(["-f", "-c", "%T"]).arg(d).output().expect("stat -f");
+        String::from_utf8_lossy(&o.stdout).trim().to_string()
+    };
+    let (ka, kb) = (kind(&a), kind(&b));
+    if ka == kb {
+        let _ = std::fs::remove_dir_all(&a);
+        let _ = std::fs::remove_dir_all(&b);
+        eprintln!("SKIP: the build tree and /dev/shm are both on {ka}: no second file system to compare with");
+        return;
+    }
+    assert_eq!(a.as_os_str().len(), b.as_os_str().len(), "{} and {} differ in length", a.display(), b.display());
+    let (ta, tb) = (dyn_startup_faults(&a), dyn_startup_faults(&b));
+    eprintln!("dynamic startup-only program: {ta} page faults with the objects on {ka}, {tb} on {kb}");
+    assert_eq!(ta, tb, "the start-up fault count depends on the file system holding ld.so and libc.so.6 ({ka}: {ta}, {kb}: {tb}): a whole-file view left where the kernel places it?");
+}
+
+/// Stage ld.so and libc.so.6 of the products in the new directory `lib` (removed afterwards), link
+/// `oracle/page_faults.c` as a position-independent program whose interpreter and LD_LIBRARY_PATH are
+/// that directory, and return its whole-process minor faults in mode `true` ([`faults_env`]).
+fn dyn_startup_faults(lib: &Path) -> u64 {
     let r = root();
     let p = r.join("target/niji");
     assert!(p.join("ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
-    let lib = PathBuf::from(format!("/tmp/niji-hot-ldso-{:010}", std::process::id()));
+    let lib = lib.to_path_buf();
     let _ = std::fs::remove_dir_all(&lib);
     std::fs::create_dir_all(&lib).unwrap();
     for f in ["ld-linux-x86-64.so.2", "libc.so.6"] {
@@ -396,7 +449,7 @@ fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
     let path = lib.display().to_string();
     let t = faults_env(&exe, "true", &[("LD_LIBRARY_PATH", path.as_str())]);
     let _ = std::fs::remove_dir_all(&lib);
-    check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
+    t
 }
 
 /// DYN-START-PARITY; no spec clause (cost of the products). Upper bounds, per CPU model (`model name`

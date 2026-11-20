@@ -1669,7 +1669,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         close();
         return refused(l, Refusal::TooShort);
     };
-    let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else {
+    let Ok(at) = super::map_view(fd32, len) else {
         close();
         return Some(Found::Full(b"cannot read file data"));
     };
