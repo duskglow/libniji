@@ -1,63 +1,51 @@
 # LOCALE-SLOTS-GROWTH (audit HL-10): handoff
 
-**State:** branch `task/locale-slots-growth-5` (run 5; stacks on `-4`, `-3`, `-2`, `-1`). Merged origin/next
-`923df67e9` (`9cfdcb888`, with TRACE-TIME-PIN), then `63f550a8b` (charmap lookup through a per-call `Files`, plus the
-run-5 plants file), then this note. INCOMPLETE: the product build (`cargo xtask so`) fails one layout contract,
-STARTUP-DATA-WINDOWS: 8 written start-up pages, budget 7 (base: 7). Every trace criterion from the step-back holds
-(below). RULING NEEDED: whether to fix the cause in layout first (recommended) or count it against this story.
-Report: `handoff/LOCALE-SLOTS-GROWTH-report.md`, `handoff/reports/LOCALE-SLOTS-GROWTH-5.json`.
+**State:** branch `task/locale-slots-growth-6` (run 6; stacks on `-5` .. `-1`). HEAD: see the last commit; code head
+`23993a813` = the merge of origin/next `b2485a7f1` into run 5's `1ed232a5a`. The merge is clean, and the run made no
+product change after it (as the 11-18 and 11-20 coordinator notes ask). Report: `handoff/LOCALE-SLOTS-GROWTH-report.md`
+(run 6 section first), `handoff/reports/LOCALE-SLOTS-GROWTH-6.json`. Plants: `handoff/LOCALE-SLOTS-GROWTH-6-plants.txt`.
 
 ## Decisions in force
 `records/pending/LOCALE-SLOTS-GROWTH-1.toml` (D-NEW, series D-7; amends D-7.7, D-7.19, D-X.13): no cap on locales,
 names or files. There is a static table (1024 entries) plus spill chunks of `64 << k` that never move. Past 64
 entries, lookups use chunked hash indexes that are never rehashed. ENOMEM is reported from `newlocale` and
-`setlocale`. Paths that start-up never runs are cold and out of line. D-X.101 (start-up data pages) and D-X.103
-(window bins) are not touched.
+`setlocale`. Paths that start-up never runs are cold and out of line. D-X.101 and D-X.103 are not touched.
 
-## Run 5: measured on keke n1 (Zen 1, fast products), branch `63f550a8b` vs base `923df67e9` (saved in `~/work/LOCALE-SLOTS-GROWTH-5/{base,br}/`)
-- clippy (`--workspace --all-targets --all-features -D warnings`) and `cargo xtask static`: green
-  (`locale-slots-growth-5-lint`). The same job's `cargo xtask so` is rc 1, only on STARTUP-DATA-WINDOWS.
-- The step-back criteria, read from the products that the failed `so` had already written
-  (`check.sh`, output `out/check.txt`):
-  - `hot-text.signatures` differs from the base only in locale-tier rows: `Files::file_or_error` became
-    `Source::file`, `intern_locked` closure renamed, `by_handle` and `query_cached` with `-`. One exception: a new
-    row `TryBox<time_compat::Entry>::new` (mktime modes). It is a newly outlined function, not a changed signature.
-  - The strings group (strlen, strncmp, niji_machine_strncmp, niji_machine_compare) is in bin 2, as in the base.
-    Locale-tier growth in bin 2: intern_name_locked +293, intern_locked +139, each_block(publish_global) +133,
-    setlocale_locked +81, setlocale_env +58, replace +42, refresh_words (bin 0) +22. Bin 2's total is 63,061 B,
-    against 63,098 B in the base.
-  - pf.py (run 4's copy): tool mode 44 faults on both branch and base (bound 44); strings mode 0 on both.
-- **Cause of the red** (`rwpages.sh`, `relro.py`, `got.py`, `locs.py`, `fnptrs.py` in the work dir):
-  - In the page_faults probe link, `.data.rel.ro` is 45,328 B in the base and 44,928 B on the branch (-400).
-    `.got` (25 -> 26 slots; this story's `INDEX` adds one) follows it, so it starts at 0x86b110 in the base
-    (one page) but at 0x86af80 on the branch, and straddles 0x86b000.
-  - Start-up reads six `.got` slots: `locale::refresh_words` (C_CLASS, C_TOUPPER, global_locale::SLOTS) and
-    `stdio::parts_first_use` (the three std streams). They are `add`/`cmp` instructions with a GOT memory operand,
-    which carry plain R_X86_64_GOTPCREL (libc.a holds 160), and ld cannot relax that.
-  - So the slots now sit on two pages, 0x86a000 and 0x86b000. In the base they sit on one.
-  - The -400 B comes from LTO reshuffling anonymous relro in libc's single codegen unit. It is not one object.
-    Panic locations account for -96 B (all in net_compat.rs, which this story does not touch); code pointers in
-    relro for -40 B. The remaining -264 B is unattributed anonymous data.
-  - D-X.101 pins the start-up relro cluster, `.data1`, RESERVE_MEM and SLOTS to fixed pages, but not `.got`.
-    STARTUP-DATA-PAGE-ALIGN's handoff already names "place .got beside the start-up relro cluster" as the open
-    step, and TB-FOREIGN-WORDS-LOW-11 reported the same `.got` page in next.
-  - The measured tool fault count does not move (44 = 44); file-backed fault-around probably maps both pages at
-    once (not verified). The contract's static page count is the only thing that fails.
+## Run 6 results (mei s3, Skylake-SP; head `23993a813`)
+- The inherited head `1ed232a5a`: clippy and static green (`locale-slots-growth-6-lint0`).
+- Merged head: clippy, static and `cargo xtask so` green (`locale-slots-growth-6-lint`). All 13 layout contracts
+  hold. STARTUP-DATA-WINDOWS: 7 of 7 written pages. The six start-up `.got` objects (0x86b018-0x86b0a1) are on one
+  page. Run 5's straddle does not occur on this merge.
+- Direct gate `locale-slots-growth-6-gate`: 14 suites ok, 10572 passed, 0 failed; conformance 36/36; peak 14G.
+- Plants `locale-slots-growth-6-plants`: 21 of 21 CAUGHT, no WARN lines.
+- Start-up checks: `locale-slots-growth-6-xtest` (`cargo xtask test`) and `locale-slots-growth-6-hottext`
+  (`NIJI_FULL_PROFILE=1` so + `hot_text_products`) both rc 0: conformance 140/140; hot_text_products 30 passed; the
+  13 contracts also hold on the full profile.
+- Trace: the strings group (strlen, strncmp, niji_machine_strncmp, niji_machine_compare) is in bin 2. Bin 2 is
+  63,056 B (run 5: 63,061). The signature diff and fault counts against the new base were not rerun: that needs a
+  base fast build. Per the 11-20 note, the R2 byte budgets in `so` are the per-story gate, and they pass.
+- Per-call counts against next (`locale-slots-growth-6-percall`, release profile; columns glibc / next / branch):
+  - `warm_setlocale_enUS` (setlocale(LC_ALL) of the loaded locale): 156 / 137 / 157 (+20).
+  - `setlocale_all_c`: +20. `setlocale_ctype_c`: +20. `setlocale_*_posix`: +22.
+  - `setlocale_query` (setlocale(LC_ALL, NULL)): 44 / 71 / 92 (+21).
+  - The `_empty` rows: +2 to +4.
+  - Cold first calls: unchanged at the tool's 200-instruction resolution.
+  - `bench/instr_limits.tsv` has no row for these calls. Its setlocale row (`cbench_startup/startup_instr_setloc`)
+    is for the Zen 1 CPU class only, so it cannot be checked on this host.
 
 ## Open
-- RULING NEEDED: the `.got` page split. Recommendation: a layout story that makes the start-up `.got` reads take a
-  fixed page whatever precedes them (the D-X.101 follow-up, or start-up code without GOT-operand forms); then rerun
-  this story's gate, start-up checks and plants with no product change. Padding relro or moving sections to dodge
-  the boundary is not a fix; I did not do it.
+- RULING NEEDED: setlocale is +20 instructions per call on its repeat and query paths, against next. Likely cause,
+  from reading the code (not checked by disassembly): `query_cached` resolves the slot twice through `slot()`, and
+  each call inlines the spill fallback (`spilled`: `spill_place`, the `SPILL_AT` load, `slots_at`). Recommendation: a
+  follow-up story (or a run of this one, if allowed) that reads both name fields through one lookup (`name_bytes`
+  already does this) and moves `spilled` out of line as `#[cold]`. Then count again; the target is next's 71 and 137.
 - (c) Archive-form locales share one file entry: from reading the code, not measured.
 
 ## Next step (exact)
-After the ruling or the layout fix: sync, run `cargo xtask so` (it must pass STARTUP-DATA-WINDOWS), then the direct
-gate, the start-up checks (`cargo xtask test`; `NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products`) and the
-plants (`handoff/LOCALE-SLOTS-GROWTH-5-plants.txt`, 21 plants) on the head, all under jobrun. Then rerun `check.sh`
-against the new merge base.
+Coordinator: decide the setlocale per-call ruling above. If a fix is allowed, change only `query_cached` and
+`spilled` in `crates/legacy/src/global_locale.rs`, then rerun the plants file, the direct gate, the start-up checks
+and `wl_percall.sh --spec validation/percall/setlocale.c` (and `cold.c --cases warm_setlocale_enUS`).
 
 ## Do not redo
-- Do not shrink locale code further (step-back decision); the trace criteria hold.
-- No fixed larger cap, no preallocation, no rehashing index; the static table stays.
-- Runs 1-4 jobs are superseded. The run-2 counts stay valid unless lookup code changes.
+- Do not shrink locale code further (step-back decision). No fixed larger cap, no preallocation, no rehashing index.
+- Runs 1-5 jobs are superseded by run 6's.

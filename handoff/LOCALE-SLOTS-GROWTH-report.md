@@ -1,4 +1,44 @@
-# LOCALE-SLOTS-GROWTH (audit HL-10): full report, runs 1-5
+# LOCALE-SLOTS-GROWTH (audit HL-10): full report, runs 1-6
+
+## Run 6 (merge of next; no product change)
+- Commits: `23993a813`, a clean merge of origin/next `b2485a7f1` into `1ed232a5a`. Then the handoff, plants file and
+  report. The 11-18 and 11-20 coordinator notes ask for no product change, and none was made.
+- Jobs, all on mei s3 (Skylake-SP), all rc 0:
+  - `locale-slots-growth-6-lint0`: clippy and static on the inherited head (brief step 0).
+  - `locale-slots-growth-6-lint`: clippy, static and `cargo xtask so` on the merged head.
+  - `locale-slots-growth-6-gate`: direct tier, 14 suites, 10572 passed, 0 failed, conformance 36/36, peak 14G.
+  - `locale-slots-growth-6-plants`: 21 of 21 CAUGHT, 0 WARN.
+  - `locale-slots-growth-6-xtest`: `cargo xtask test`, conformance 140/140.
+  - `locale-slots-growth-6-hottext`: `NIJI_FULL_PROFILE=1` so + `hot_text_products`.
+  - `locale-slots-growth-6-percall`: per-call counts against next.
+- Layout: all 13 contracts hold. STARTUP-DATA-WINDOWS is 7 of 7 written pages. The `.got` bin has 6 start-up objects
+  on one page (0x86b018-0x86b0a1; `.got` 0x86afe0-0x86b0b0). Run 5's straddle does not occur on this merge.
+- Trace: the strings group is in bin 2. Bin 2 is 63,056 B (run 5: 63,061). Not rerun: the signature diff and the
+  tool/strings fault counts against the new base. They need a base fast build on Zen 1, and the 11-20 note makes the
+  R2 byte budgets (passing in `so`) the per-story gate.
+- Per-call instructions (`wl_percall.sh`, release profile; glibc / next `b2485a7f1` / branch; sd 0):
+
+  | case | glibc | next | branch | delta |
+  |---|---|---|---|---|
+  | warm_setlocale_enUS (LC_ALL, loaded locale) | 156.0 | 137.0 | 157.0 | +20 |
+  | setlocale_query (LC_ALL, NULL) | 44.0 | 71.0 | 92.0 | +21 |
+  | setlocale_all_c | 156.2 | 121.6 | 141.6 | +20 |
+  | setlocale_ctype_c | 156.1 | 126.3 | 146.3 | +20 |
+  | setlocale_all_posix | 2649.1 | 134.7 | 156.7 | +22 |
+  | setlocale_ctype_posix | 2126.0 | 139.3 | 161.4 | +22 |
+  | setlocale_ctype_empty | 2590.0 | 568.1 | 572.1 | +4 |
+  | setlocale_all_empty | 11803.0 | 1083.0 | 1085.0 | +2 |
+  | setlocale_ctype_empty_lang | 6217.0 | 888.0 | 892.0 | +4 |
+  | setlocale_all_empty_lang | 21121.6 | 3849.0 | 3851.0 | +2 |
+  | setlocale_all_empty_lcall_empty | 21519.8 | 4403.0 | 4405.0 | +2 |
+  | cold_setlocale_enUS / _env (x20000) | - | 2.9 / 2.9 | 2.9 / 3.0 | 0 / +2000 (resolution 200 per unit 0.01) |
+
+  `bench/instr_limits.tsv` has no row for these calls. Its one setlocale row (`cbench_startup/startup_instr_setloc`,
+  limit 69800) is for the Zen 1 CPU class only, so this host cannot check it.
+- RULING NEEDED: the +20 on the repeat and query paths. Likely cause, from reading the code (not checked by
+  disassembly): `query_cached` makes two `field()` calls, each a `slot()` lookup with the spill fallback
+  (`spilled`) inline. Recommended fix: read both name fields through one lookup (as `name_bytes` does) and make
+  `spilled` `#[cold] #[inline(never)]`. Not done here: the brief allows no product change in this run.
 
 Briefs (spec): `~/state/briefs/LOCALE-SLOTS-GROWTH.md`, `-2`, `-3`, `-4`, `-5`. Decision: `records/pending/LOCALE-SLOTS-GROWTH-1.toml`.
 Plants: `handoff/LOCALE-SLOTS-GROWTH-5-plants.txt` (21; earlier files `-plants.txt`, `-2-plants.txt`, `-3-plants.txt`, `-4-plants.txt`).
