@@ -35,11 +35,11 @@
   },
   {
    "kind": "perf",
-   "what": "dynamic empty main, release, Skylake-SP (test counter, median of 21)",
+   "what": "dynamic empty main, release, Skylake-SP (test counter, median of 21); before = the bound comment level inherited from DYN-START-PARITY, after = this run",
    "before": 1598681,
    "after": 803431,
    "unit": "instr/process",
-   "measured": true
+   "measured": false
   },
   {
    "kind": "coverage",
