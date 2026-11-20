@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "Slice 7 rebased as data-only on origin/next (shared generator edits dropped for next's); libc-include unchanged from run 5; P10 now checks each FD_* macro; gate green, plants 17 of 17 caught",
  "branch": "task/sl-headers-s07-6",
- "head": "HEAD_PLACEHOLDER",
+ "head": "4caed6b7b",
  "gate": {
   "affected": "direct tier green (gate2); first gate on the merge head: 11456 passed / 0 failed, conformance 91 passed",
   "peak": "14G (first gate)"
