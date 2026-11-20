@@ -1,8 +1,10 @@
 /* pthread_cleanup_push handlers and __attribute__((cleanup)) when a thread calls pthread_exit or
  * acts on cancellation (spec §22.1 s22_1_c_2, §22.3 s22_3_c_4; D-22.19): built dynamically by
- * forced_unwind_products.rs twice, plainly (no unwinder in the process: only the cleanup buffers
- * run) and with -fexceptions (the handlers are cleanups of the unwind, and run in turn with the
- * cleanup attribute's). Each line gives the order the cleanups ran in ('3', 'a', '1' from the
+ * forced_unwind_products.rs three times: plainly (no unwinder in the process: only the cleanup
+ * buffers run), with -fexceptions (the handlers are cleanups of the unwind, and run in turn with
+ * the cleanup attribute's), and with -fexceptions but __EXCEPTIONS undefined and no inlining (the
+ * handlers keep their jump buffers, f2's cleanup attribute is an unwind cleanup between them, each
+ * function in its own frame). Each line gives the order the cleanups ran in ('3', 'a', '1' from the
  * innermost frame out; 'K' the key destructor, after them) and the thread's result. */
 #include <pthread.h>
 #include <stdio.h>

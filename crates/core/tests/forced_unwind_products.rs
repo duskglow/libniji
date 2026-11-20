@@ -75,6 +75,13 @@ fn needed(exe: &Path) -> Vec<String> {
     String::from_utf8_lossy(&out.stdout).lines().filter(|l| l.contains("(NEEDED)")).filter_map(|l| l.split('[').nth(1)).map(|s| s.trim_end_matches(']').to_string()).collect()
 }
 
+/// Whether `exe` takes the function `sym` from a shared library.
+fn imports(exe: &Path, sym: &str) -> bool {
+    let out = Command::new("nm").args(["-D", "--undefined-only"]).arg(exe).output().unwrap();
+    assert!(out.status.success(), "nm {}", exe.display());
+    String::from_utf8_lossy(&out.stdout).lines().filter_map(|l| l.split_whitespace().last()).any(|s| s.split('@').next() == Some(sym))
+}
+
 fn scratch(tag: &str) -> PathBuf {
     let dir = root().join(format!("target/forced_unwind-{tag}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -135,8 +142,11 @@ fn cxx_frames_unwind_when_a_thread_exits_or_is_cancelled() {
 
 /// s22_1_c_2, s22_3_c_4: C cleanup handlers (`pthread_cleanup_push`) run innermost first before
 /// the key destructor, in a program without an unwinder (built plainly: only the handlers run, the
-/// cleanup attribute is not an unwind cleanup) and in one built with `-fexceptions` (the handlers
-/// and the cleanup attribute's function run in their frames' order).
+/// cleanup attribute is not an unwind cleanup), in one built with `-fexceptions` (the handlers
+/// and the cleanup attribute's function run in their frames' order), and in one whose handlers
+/// use the jump-buffer form (`__EXCEPTIONS` undefined) while the cleanup attribute is an unwind
+/// cleanup (the unwind must reach each buffer in its own frame's turn, not jump to it from a
+/// frame nearer the exit; each function keeps its own frame).
 #[test]
 fn c_cleanups_run_in_frame_order_when_a_thread_exits_or_is_cancelled() {
     if !have("gcc") {
@@ -146,12 +156,16 @@ fn c_cleanups_run_in_frame_order_when_a_thread_exits_or_is_cancelled() {
     for (name, flags, expected) in [
         ("plain", &[][..], "exit: order=31K result=9\ncancel: order=31K result=-1\n"),
         ("fexceptions", &["-fexceptions"][..], "exit: order=3a1K result=9\ncancel: order=3a1K result=-1\n"),
+        ("buffers", &["-fexceptions", "-U__EXCEPTIONS", "-fno-inline"][..], "exit: order=3a1K result=9\ncancel: order=3a1K result=-1\n"),
     ] {
         let (reference, niji) = build(&dir, name, "gcc", "forced_unwind.c", flags);
         // The plain program loads no unwinder (libniji's exit without one is what it tests); the
-        // -fexceptions one needs the compiler's.
+        // other two need the compiler's.
         let unwinder = needed(&niji).iter().any(|n| n.starts_with("libgcc_s"));
-        assert_eq!(unwinder, name == "fexceptions", "{name}: DT_NEEDED {:?}", needed(&niji));
+        assert_eq!(unwinder, name != "plain", "{name}: DT_NEEDED {:?}", needed(&niji));
+        // The buffers build registers jump buffers (the case under test), the -fexceptions one
+        // does not.
+        assert_eq!(imports(&niji, "__pthread_register_cancel"), name != "fexceptions", "{name}: cleanup handler form");
         assert_eq!(run(&reference, false, &[]), expected, "{name}: the reference differs from the expected text");
         assert_eq!(run(&niji, true, &[]), expected, "{name}");
     }
