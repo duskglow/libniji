@@ -657,7 +657,11 @@ extern FILE *popen (const char *, const char *);
 # ifndef __NIJI_D_fseeko
 #  define __NIJI_D_fseeko 1
 #  if (__NIJI_POSIX >= 200112 && !__NIJI_FOB64) || __NIJI_XSI >= 500
+#   if __NIJI_FOB64
+extern int fseeko (FILE *, long, int) __asm__ ("fseeko64");
+#   else
 extern int fseeko (FILE *, long, int);
+#   endif
 #  elif __NIJI_FOB64
 extern int fseeko (FILE *, long, int) __asm__ ("fseeko64");
 #  endif
@@ -665,7 +669,11 @@ extern int fseeko (FILE *, long, int) __asm__ ("fseeko64");
 # ifndef __NIJI_D_ftello
 #  define __NIJI_D_ftello 1
 #  if (__NIJI_POSIX >= 200112 && !__NIJI_FOB64) || __NIJI_XSI >= 500
+#   if __NIJI_FOB64
+extern long ftello (FILE *) __asm__ ("ftello64");
+#   else
 extern long ftello (FILE *);
+#   endif
 #  elif __NIJI_FOB64
 extern long ftello (FILE *) __asm__ ("ftello64");
 #  endif

@@ -335,7 +335,11 @@ extern int pidfd_send_signal (int, int, siginfo_t *, unsigned int) __NIJI_NOTHRO
 #if __NIJI_GNU
 # ifndef __NIJI_D_fallocate
 #  define __NIJI_D_fallocate 1
+#  if __NIJI_FOB64
+extern int fallocate (int, int, long, long) __asm__ ("fallocate64");
+#  else
 extern int fallocate (int, int, long, long);
+#  endif
 # endif
 # ifndef __NIJI_D_fallocate64
 #  define __NIJI_D_fallocate64 1
@@ -407,7 +411,11 @@ extern int posix_fallocate64 (int, long, long);
 # ifndef __NIJI_D_lockf
 #  define __NIJI_D_lockf 1
 #  if (__NIJI_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int lockf (int, int, long) __asm__ ("lockf64");
+#   else
 extern int lockf (int, int, long);
+#   endif
 #  elif __NIJI_FOB64
 extern int lockf (int, int, long) __asm__ ("lockf64");
 #  endif
