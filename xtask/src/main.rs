@@ -124,6 +124,7 @@ mod records;
 mod locks;
 mod partial_write;
 mod transcript;
+mod pass2;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -146,6 +147,12 @@ fn main() -> ExitCode {
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cmd = args.first().map(String::as_str).unwrap_or("help");
+    // The native pass's test runner (PASS2-NATIVE-RUNNER): a copy of this binary outside any tree,
+    // run in each test's directory; it needs no tree.
+    if cmd == pass2::EXEC_CMD {
+        eprintln!("{}", pass2::exec(&args[1..]));
+        return ExitCode::from(2);
+    }
     let root = match root() {
         Ok(r) => r,
         Err(e) => {
@@ -343,11 +350,15 @@ fn test_steps(root: &Path, extra: &[String], t: &mut steptime::Steps) -> Result<
     // The products first: tests of what only a process libniji started can show run C
     // conformance programs against them.
     t.time("products", || so::run_so(root))?;
-    workspace_tests(root, &cargo, None, extra, t, "tests")?;
-    // Again with the exports interposed on the test processes (D-4.13): the harness then runs
-    // on libniji's own `malloc` and `memcpy`, so a recursion in their paths crashes the run. Not
+    workspace_tests(root, &cargo, extra, t, "tests")?;
+    // Again as libniji processes (PASS2-NATIVE-RUNNER, `pass2.rs`): the same binaries started by
+    // libniji's loader on libniji's `libc.so.6`, so the harness runs on libniji's start-up, heap,
+    // string functions and threads, and a recursion in their paths crashes the run. No second build.
+    native_tests(root, &cargo, extra, t, "tests-native")?;
+    // The interposed suite (D-4.13, ruling #6820): the targets that reach code `export` compiles
+    // differently, with libniji's exports in the host-started test process (the foreign path). Not
     // with `runtime`: a test process must keep the host C library's start and exit.
-    workspace_tests(root, &cargo, Some("niji-boundary/export,niji-boundary/selftest"), extra, t, "tests-interposed")?;
+    interposed_suite(root, &cargo, extra, t, "tests-interposed")?;
     // The nightly and release runs (`NIJI_NO_VERDICT_CACHE=1`, every accuracy shard) also run the ignored long
     // sweeps in release (`longsweeps.rs`, TEST-LONG-SWEEPS-RUN); the ordinary gate leaves them out.
     if std::env::var("NIJI_NO_VERDICT_CACHE").as_deref() == Ok("1") {
@@ -368,25 +379,58 @@ fn test_steps(root: &Path, extra: &[String], t: &mut steptime::Steps) -> Result<
 /// with `cargo test --doc`, which nextest does not run), else one `cargo test --workspace`.
 /// `extra` goes to whichever runs the tests.
 /// `name` is the steps' name: `<name>-nextest` and `<name>-doc` (`<name>-cargo-test` without nextest).
-fn workspace_tests(root: &Path, cargo: &str, features: Option<&str>, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
-    let feat: Vec<String> = features.map(|f| vec!["--features".to_string(), f.to_string()]).unwrap_or_default();
+fn workspace_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
     if !nextest::available(cargo) {
-        return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(&feat).args(extra)));
+        return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(extra)));
     }
     let mut args = vec!["--workspace".to_string()];
-    args.extend(feat.iter().cloned());
-    // The exports-interposed pass leaves out the pure-Rust sweeps (`nextest::PASS0_ONLY`, #889)
-    // and runs shard 0 only of the heavy math products sweeps (`nextest::PASS1_SHARD0`, D-X.36).
-    // Binaries without niji-boundary code are the same in both passes and run once (CI-GATE-DIET).
-    if features.is_some() {
-        let once = if nextest::pass1_filter(extra, &[]).is_some() { t.time(&format!("{name}-unchanged-scan"), || nextest::unchanged_binaries(cargo, root, &feat)) } else { Vec::new() };
-        args.extend(nextest::pass1_filter(extra, &once).unwrap_or_default());
-    }
     args.extend(extra.iter().cloned());
     // Every failure of both steps is reported before the gate stops.
     let tests = t.time(&format!("{name}-nextest"), || nextest::run(cargo, root, &args));
-    let docs = t.time(&format!("{name}-doc"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace", "--doc"]).args(&feat)));
+    let docs = t.time(&format!("{name}-doc"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace", "--doc"])));
     tests.and(docs)
+}
+
+/// The second pass (PASS2-NATIVE-RUNNER): the first pass's test binaries as libniji processes
+/// (`pass2.rs`: the prefixed loader, the patched copies, the runner). Steps `<name>-setup`,
+/// `<name>-copies`, then `<name>-nextest` (`<name>-cargo-test` without nextest). Doctests do not
+/// go through a runner; the first pass ran them.
+fn native_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
+    let runner = t.time(&format!("{name}-setup"), || pass2::prepare(root))?;
+    t.time(&format!("{name}-copies"), || pass2::patch_listed(cargo, root, &["--workspace".to_string()]).map(|_| ()))?;
+    let env = [(pass2::RUNNER_VAR, runner.as_str())];
+    if !nextest::available(cargo) {
+        return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(extra).envs(env)));
+    }
+    let mut args = vec!["--workspace".to_string()];
+    // As the interposed pass did: the pure-Rust sweeps run in the first pass only
+    // (`nextest::PASS0_ONLY`, #889), the heavy math products sweeps shard 0 only
+    // (`nextest::PASS1_SHARD0`, D-X.36), and binaries without niji-boundary code once (CI-GATE-DIET).
+    let once = if nextest::pass1_filter(extra, &[]).is_some() { t.time(&format!("{name}-unchanged-scan"), || nextest::unchanged_binaries(cargo, root, &[])) } else { Vec::new() };
+    args.extend(nextest::pass1_filter(extra, &once).unwrap_or_default());
+    args.extend(extra.iter().cloned());
+    t.time(&format!("{name}-nextest"), || nextest::run_with(cargo, root, &args, &env))
+}
+
+/// The interposed suite (ruling #6820, `nextest::interposed`): its targets built with
+/// `nextest::INTERPOSED_FEATURES`, one run per package, then niji-boundary's doctests so built.
+/// Every failure is reported before the gate stops.
+fn interposed_suite(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
+    let feat = ["--features".to_string(), nextest::INTERPOSED_FEATURES.to_string()];
+    let use_nextest = nextest::available(cargo);
+    let mut result = Ok(());
+    for sel in nextest::interposed_runs(root)? {
+        let step = format!("{name}-{}", sel.get(1).map_or("", String::as_str));
+        let r = if use_nextest {
+            let args: Vec<String> = sel.iter().chain(&feat).chain(extra).cloned().collect();
+            t.time(&step, || nextest::run(cargo, root, &args))
+        } else {
+            t.time(&step, || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).arg("test").args(&sel).args(&feat).args(extra)))
+        };
+        result = result.and(r);
+    }
+    let docs = t.time(&format!("{name}-doc"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "-p", "niji-boundary", "--doc"]).args(&feat)));
+    result.and(docs)
 }
 
 fn ctest(root: &Path) -> Result<(), String> {

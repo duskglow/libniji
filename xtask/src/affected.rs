@@ -3848,13 +3848,10 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         if sel.xtask_tests {
             ok &= step_out(root, &log, "xtask unit tests", Command::new(&cargo).args(["test", "-p", "xtask"]), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
         }
-        if needs_products(repo, sel) {
-            let mut cmd = Command::new(&cargo);
-            cmd.args(["xtask", "so"]);
-            ok &= step(root, &log, "products (cargo xtask so)", &mut cmd);
-        }
-        // Per crate: its unit tests and its selected targets, then again with the exports
-        // interposed (as the gate does) for the crates that can link the boundary.
+        // Per crate: its unit tests and its selected targets, then (as the gate does, for the crates
+        // that can link the boundary) again as libniji processes (PASS2-NATIVE-RUNNER) and, for the
+        // targets of the interposed suite among them (`nextest::interposed`, ruling #6820), with
+        // the exports interposed.
         let mut per: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
         for (c, t) in sel.tests.keys() {
             per.entry(c).or_default().push(t);
@@ -3865,49 +3862,81 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         let selftest = ["niji", "niji-boundary", "niji-rt", "niji-math"];
         let interpose = with_exports || (!sel.only && sel.clippy.keys().any(|c| matches!(c.as_str(), "niji-mem" | "niji-rt" | "niji-kernel" | "niji-abi" | "niji-boundary")));
         if !interpose {
-            println!("note: the exports-interposed pass is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
+            println!("note: the second pass (native and exports-interposed) is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
+        }
+        // `niji`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...) from the C
+        // family, which is libniji's poisoned test heap only with the exports interposed: there its
+        // poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always get the
+        // second pass.
+        let second = |c: &str, ts: &[&str]| (interpose || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c);
+        // The native pass runs on the products.
+        if needs_products(repo, sel) || per.iter().any(|(c, ts)| second(c, ts)) {
+            let mut cmd = Command::new(&cargo);
+            cmd.args(["xtask", "so"]);
+            ok &= step(root, &log, "products (cargo xtask so)", &mut cmd);
         }
         let nextest = crate::nextest::available(&cargo);
+        // The native pass's runner, made once on first use (`pass2::prepare`); `Err` once it failed.
+        let mut runner: Option<Result<String, ()>> = None;
         for (c, ts) in &per {
-            for pass in 0..2 {
-                // `niji`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...)
-                // from the C family, which is libniji's heap only with the exports interposed: there
-                // its poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always
-                // get the second pass.
-                let c_family = *c == "niji" && ts.iter().any(|t| t.ends_with("_clauses"));
-                if pass == 1 && !((interpose || c_family) && selftest.contains(c)) {
+            for pass in 0..3 {
+                if pass > 0 && !second(c, ts) {
                     continue;
                 }
-                // The pure-Rust sweeps run in the first pass only (`nextest::PASS0_ONLY`, #889);
-                // a pass left with no target and no unit tests is not run (no `--test` would run all).
-                let ts: Vec<&str> = ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::pass0_only(c, t)).collect();
-                if pass == 1 && ts.is_empty() && !sel.libs.contains_key(*c) {
+                // The pure-Rust sweeps run in the first pass only (`nextest::PASS0_ONLY`, #889); the
+                // interposed pass runs the suite's targets only. A pass left with no target and no
+                // unit tests is not run (no `--test` would run all).
+                let ts: Vec<&str> = ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::pass0_only(c, t)).filter(|t| pass < 2 || crate::nextest::interposed(c, t)).collect();
+                let lib = sel.libs.contains_key(*c) && (pass < 2 || crate::nextest::interposed(c, ""));
+                if pass > 0 && ts.is_empty() && !lib {
                     continue;
+                }
+                let mut selection = vec!["-p".to_string(), c.to_string()];
+                if lib {
+                    selection.push(unit_tests_flag(repo, c).to_string());
+                }
+                for t in &ts {
+                    selection.extend(["--test".to_string(), t.to_string()]);
                 }
                 // Through nextest when the gate's `xtask test` uses it (`nextest.rs`): the same
                 // runner and serial groups, and the summary lines of a `cargo test` log.
                 let mut cmd = Command::new(&cargo);
                 crate::nextest::poison(&mut cmd);
                 if nextest {
-                    cmd.args(["xtask", "nextest", "-p", c]);
+                    cmd.args(["xtask", "nextest"]);
                 } else {
-                    cmd.args(["test", "-p", c]);
+                    cmd.arg("test");
                 }
+                cmd.args(&selection);
                 if pass == 1 {
-                    cmd.args(["--features", &RUN_FEATURES.iter().flat_map(|(c, fs)| fs.iter().map(move |f| format!("{c}/{f}"))).collect::<Vec<_>>().join(",")]);
+                    let r = runner.get_or_insert_with(|| {
+                        let made = crate::pass2::prepare(root);
+                        let value = made.as_ref().ok().cloned();
+                        check_logged(&log, "native pass set-up (prefixed loader, lib/, runner)", made.map(|_| ())).ok().and(value).ok_or(())
+                    });
+                    let Ok(r) = r.clone() else {
+                        ok = false;
+                        continue;
+                    };
+                    if check_logged(&log, &format!("native copies of -p {c}"), crate::pass2::patch_listed(&cargo, root, &selection).map(|_| ())).is_err() {
+                        ok = false;
+                        continue;
+                    }
+                    cmd.env(crate::pass2::RUNNER_VAR, r);
                 }
-                if sel.libs.contains_key(*c) {
-                    cmd.arg(unit_tests_flag(repo, c));
+                if pass == 2 {
+                    cmd.args(["--features", crate::nextest::INTERPOSED_FEATURES]);
                 }
-                for t in &ts {
-                    cmd.args(["--test", t]);
-                }
-                // The heavy products sweeps run shard 0 only with the exports interposed
+                // The heavy products sweeps run shard 0 only in the second pass
                 // (`nextest::PASS1_SHARD0`, D-X.36); `cargo test` has no filter for it and runs all.
-                if pass == 1 && nextest {
+                if pass > 0 && nextest {
                     cmd.args(crate::nextest::pass1_shard_filter(c, &ts).unwrap_or_default());
                 }
-                let label = format!("test -p {c}{}", if pass == 1 { " (exports interposed)" } else { "" });
+                let label = format!("test -p {c}{}", match pass {
+                    0 => "",
+                    1 => " (native)",
+                    _ => " (exports interposed)",
+                });
                 match step_out(root, &log, &label, &mut cmd, Some(c), &mut std::io::stdout()) {
                     Outcome::Ok => {}
                     Outcome::Skipped => skipped.push(label),

@@ -1963,6 +1963,23 @@ pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// PASS2-NATIVE-RUNNER: the interpreter of the built products' profile compiled with the installation prefix
+/// `prefix` (so it pins libraries to `<prefix>/lib` and searches nowhere else), linked ungrouped to `out`. Its
+/// cargo target directory (`target/product/ld-native`) and work directory are its own: no other step or test
+/// builds there (`run_ldso_trace` and the tests that call it use `ld-prefix`, finding #6821).
+pub fn build_native_ld(root: &Path, prefix: &str, out: &Path) -> Result<(), String> {
+    let profile = built_profile(root).ok_or("the products are missing or half-built: run `cargo xtask so` first")?;
+    let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+    let product = root.join("target/product");
+    let build = ProductBuild { subdir: "ld-native", ..LD_BUILD };
+    run(build.command(root, &product, profile, None, &build_tag(root)).env("NIJI_PREFIX", prefix))?;
+    let work = build.target_dir(&product).join("work");
+    let _ = fs::remove_dir_all(&work);
+    fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
+    let ld = LdLink::prepare(root, &cc, &work, &build.raw_archive(&product, profile))?;
+    ld.link(&cc, &ld.entry, &ld.archive, out)
+}
+
 /// LDSO-TRACE-PREFIX: the installation prefix the interpreter of this build is compiled with: `NIJI_PREFIX` of
 /// the environment the product build hands to cargo (`crates/ld/src/search.rs` reads it with `option_env!`), or
 /// the loader's own default when it is unset.
