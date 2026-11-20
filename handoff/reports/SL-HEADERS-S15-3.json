@@ -4,7 +4,7 @@
  "tokens": null,
  "result": "INCOMPLETE: select.h and fcntl.h includes are plain (timex.h, mount.h); the unexplained timespec difference was fcntl.h's; 18 P2 differences wait for sys/ioctl.h, which has no template on next",
  "branch": "task/sl-headers-s15-3",
- "head": "HEAD",
+ "head": "08e9c2254",
  "jobs": ["sl-headers-s15-3-plants2", "sl-headers-s15-3-gate"],
  "gate": {"affected": "passed (direct tier, exit 0)", "peak": "16G"},
  "accepted_first_attempt": null,
