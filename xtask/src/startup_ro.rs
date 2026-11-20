@@ -346,7 +346,8 @@ fn cluster_aligns_of(listing: &str) -> Vec<(&'static str, u64)> {
             SECTION => 0,
             crate::coldbss::STATE_SECTION => 1,
             // LAYOUT-DATA-CLUSTERS-3 (D-X.67): the whole relro output section (`.data.rel.ro.local*`
-            // and `.data.rel.ro*` inputs, GNU ld's default script), aligned by entry.S's `.data.rel.ro`.
+            // and `.data.rel.ro*` inputs, GNU ld's default script), aligned by the static anchor's empty
+            // `.preinit_array` ahead of it (entry.S, D-X.144).
             n if n.starts_with(".data.rel.ro") => 2,
             _ => continue,
         };

@@ -137,8 +137,8 @@ niji_machine_ldconfig_entry:
 	 * (rcrt1.o, grcrt1.o), so this member defines it, weak like the library's own definition, as a
 	 * jump to the library's entry (`__niji_libc_<name>`, the name the weakening pass binds the
 	 * library's own calls to). It comes first among libc.a's inputs, after the program's own objects
-	 * (which rarely hold `.rodata1` or `.data1`; a `.data.rel.ro.local` of theirs now precedes the
-	 * relro anchor, as the anchor preceded it before). The two anchors are separate members: neither
+	 * (which rarely hold `.rodata1` or `.data1`, but often `.data.rel.ro.local`: hence the relro
+	 * anchor's own output section, below). The two anchors are separate members: neither
 	 * names the other's symbol, so a link never takes the other one later, in the middle of a
 	 * section. */
 #ifndef NIJI_START_TARGET
@@ -167,8 +167,14 @@ niji_machine_ldconfig_entry:
 	 * of the library's start-up relro cluster (`.data.rel.ro.local.niji_startup*`). In
 	 * `*(.data.rel.ro ...)`, behind the cluster, it padded the rest of relro to the next 64 KiB
 	 * boundary (56 KiB of fill): relro spanned two windows and the first `%.2f` and the
-	 * coreutils-shaped probe each took one more fault. */
-	.section .data.rel.ro.local,"aw",@progbits
+	 * coreutils-shaped probe each took one more fault.
+	 * CRT-START-FILES (D-X.144): in libc.a a `.data.rel.ro.local` anchor comes after the program's own
+	 * `.data.rel.ro.local*` inputs (a -fPIE object's pointer tables), and padded them to the boundary
+	 * (up to 60 KiB of fill inside relro). An empty `.preinit_array` (the linker's script places that
+	 * output section ahead of `.init_array` and `.data.rel.ro`, in relro, and programs rarely fill it)
+	 * carries the alignment instead: relro starts on the boundary, and the program's relro inputs
+	 * precede the cluster with less than a page of fill, as with the anchor first in the link. */
+	.section .preinit_array,"aw",@preinit_array
 	.balign NIJI_RELRO_ALIGN
 	/* LAYOUT-WINDOW-BINS-5: the end of the hot text group's window bins (xtask/src/bins.rs GROUP_END,
 	 * whose name this must match; `cargo xtask so` checks it). The name sorts after every bin in GNU
@@ -177,9 +183,9 @@ niji_machine_ldconfig_entry:
 	 * fault-around windows depending on where the last bin ends. */
 	.section .text.sorted.h9z.niji_group_end,"ax",@progbits
 	.balign 65536
-	/* The start symbol the start object calls (see above): run once per process, from beside
-	 * `_start` (`.text.startup`, before the hot text group). */
-	.section .text.startup.niji_static_anchor,"ax",@progbits
+	/* The start symbol the start object calls (see above): run once per process, from the group
+	 * end's boundary, the window of the program's own text that follows (every program runs it).
+	 * Not ahead of the group: no libc.a input precedes the hot text group (TEXT-PREFIX, D-X.63). */
 #ifdef NIJI_STATIC_PIE
 #define NIJI_ANCHOR_START niji_start_main_static_pie
 #else

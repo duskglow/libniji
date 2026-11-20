@@ -603,6 +603,12 @@ fn startup_text(keys: &[String], fns: &BTreeMap<String, Vec<Func>>, sections: &[
             if !seen.insert((f.start, f.name.clone())) {
                 continue;
             }
+            // CRT-START-FILES (D-X.144): a static anchor's start symbol, a jump run once from the group end's
+            // boundary (the window of the program's own text, which every program runs), is start code like the
+            // start object's, not a library function the trace groups: it adds no start-up window of libc's.
+            if sections.iter().any(|s| (s.start..s.end).contains(&f.start) && crate::so::static_anchor_member(&s.file)) {
+                continue;
+            }
             for w in window_of(f.start, window)..=window_of(f.end - 1, window) {
                 t.windows.entry(w).or_default().push(f.clone());
             }
@@ -612,9 +618,7 @@ fn startup_text(keys: &[String], fns: &BTreeMap<String, Vec<Func>>, sections: &[
             if window_of(f.start, window) != window_of(f.end - 1, window) {
                 t.straddling.push(f.clone());
             }
-            // CRT-START-FILES (D-X.144): a static anchor's start symbol, run once beside `_start`, is start code
-            // like the start object's, not a library function the trace groups.
-            if sections.iter().any(|s| (s.start..s.end).contains(&f.start) && s.file.contains("libc.a(") && !crate::so::static_anchor_member(&s.file)) {
+            if sections.iter().any(|s| (s.start..s.end).contains(&f.start) && s.file.contains("libc.a(")) {
                 t.ungrouped.push(f.clone());
             }
         }
@@ -1470,11 +1474,13 @@ mod tests {
         assert!(t.straddling.is_empty());
         let names: Vec<&str> = t.ungrouped.iter().map(|f| f.name.as_str()).collect();
         assert_eq!(names, ["cold_b"], "crt1's _start is not a libc.a function");
-        // CRT-START-FILES (D-X.144): the static anchor's `__libc_start_main` jump, beside `_start`, is not either.
-        let anchored = map.replace(" .text.cold_b", " .text.startup.niji_static_anchor 0x0000000000400180 0x10 /x/libc.a(niji_static_anchor.o)\n .text.cold_b");
-        let anchored_nm = nm.replace("0000000000401000 0000000000000200 T __libc_start_main", "0000000000400180 0000000000000005 W __libc_start_main");
+        // CRT-START-FILES (D-X.144): the static anchor's `__libc_start_main` jump, at the group end's boundary in a
+        // window of its own here, is not either, and adds no window.
+        let anchored = map.replace(" .text.cold_b", " .text.sorted.h9z.niji_group_end 0x00000000006e0000 0x10 /x/libc.a(niji_static_anchor.o)\n .text.cold_b");
+        let anchored_nm = nm.replace("0000000000401000 0000000000000200 T __libc_start_main", "00000000006e0000 0000000000000005 W __libc_start_main");
         let a = startup_text(&keys(), &parse_nm(&anchored_nm), &parse_map(&anchored), STARTUP_WINDOW).unwrap();
         assert_eq!(a.ungrouped.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["cold_b"], "the static anchor's start symbol");
+        assert_eq!(a.windows.keys().copied().collect::<Vec<_>>(), [0x40, 0x41, 0x6f], "the static anchor's start symbol takes no window");
         let c = startup_row("window=65536; budget-fast=3; grouped=warn; keys=k");
         let ok = startup_verdict(&c, &t, STARTUP_WINDOW, 3, false, "fast").unwrap();
         assert!(ok.contains("3 start-up text windows") && ok.contains("outside it: 0x6f0000"), "{ok}");
