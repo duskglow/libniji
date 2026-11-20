@@ -1,0 +1,7 @@
+# LD-SPLIT-2 plants: earlier loader stories' plants, re-pointed at the module each moved item now lives in
+# (the split is moves only, so each must still be caught by the same test with the same message).
+no-vdso-map | crates/boundary/src/ld/link.rs | lit:if k == 0 && vdso != 0 { ==> if k == 0 && vdso == 1 { | cargo xtask so && cargo test -p niji-ld --test rendezvous | msg:failed check 7
+report-missing-at-start | crates/boundary/src/ld/link.rs | lit:report_nonshared(&o.elf, o.name); ==> let _ = o; | cargo xtask so && cargo test -p niji-boundary --test s01_startup_symbols s1_2_c_5_nonshared_notice | msg:start: the report must name the program once
+head-entries-collide | crates/boundary/src/ld/tls.rs | lit:dlopen::thread_mods_head().get(i).or_else ==> dlopen::thread_mods_head().get(i / 2).or_else | cargo xtask so && cargo test -p niji-boundary --test dl_tls_threads | msg:threads_get_static_tls_of_every_initial_module.*FAILED|panicked
+no-surplus-in-size | crates/boundary/src/ld/tls.rs | lit:let total = if below == 0 { 0 } else { below.saturating_add(INITIAL_TAIL) }; ==> let total = if below == 0 { 0 } else { INITIAL_TAIL }; | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:a static block lies outside
+trace-arrow-spelling | crates/boundary/src/ld/trace.rs | lit:if interp_name != interp_path { ==> if false && interp_name != interp_path { | cargo xtask so && cargo test -p niji-ld --test search_cache list_interpreter_line | msg:list_interpreter_line_matches_reference: lists differ
