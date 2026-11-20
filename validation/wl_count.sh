@@ -125,7 +125,7 @@ prep() {
     wl_install_local || return 1   # B = ~/wl/bin/v-<hash>, never overwritten
     for s in $new $base; do
         if [ "$s" = "$new" ]; then k=$srckey; else k=$s; fi
-        [ -f ~/wl/products/$(wl_key "$k")/libc.a ] || [ -f ~/wl/src/$k/Cargo.toml ] && continue
+        [ -f ~/wl/products/$(wl_key "$k")/$(wl_prodfile) ] || [ -f ~/wl/src/$k/Cargo.toml ] && continue
         [ -d ~/wl/src/$k ] && rm -rf ~/wl/src/$k   # empty or partial tree from an earlier failed unpack: unpack again
         if [ $gitmode = 1 ]; then
             t=~/wl/src/.$k.$$; rm -rf "$t"; mkdir -p "$t" || return 1

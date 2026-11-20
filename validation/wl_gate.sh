@@ -36,6 +36,10 @@ ns=${new:0:9}
 bs=${base:0:9}
 . "$here/lab_host.sh"
 . "$here/wl_lock.sh"   # wl_key: kits and products are keyed by sha and products profile (release, what ships; WL-PREP-RELEASE-PROFILE)
+# The timing run copies kits to the timing hosts; a dynamic kit names its products by absolute path on the build host,
+# which the copy does not carry. So this timing gate stays on the static kit (WL_LINK=static) while the deterministic
+# per-gate counts (wl_count.sh) bind the dynamic one (WL-DYNAMIC-GATE, owner ruling #6965, D-X.141).
+export WL_LINK=static
 nk=$(wl_key "$new") && bk=$(wl_key "$base") || exit 2
 keke="ssh -o BatchMode=yes claude@$(lab_addr keke)"
 hip() { # host -> address (validation/lab_host.sh; addresses live on the operator's machine, never in the repo)
@@ -100,7 +104,7 @@ case " $steps " in *" --prep "*)
         $keke "test -f ~/wl/products/$(wl_key "$s")/libc.a || test -d ~/wl/src/$s" || \
             { git archive --format=tar "$s" | $keke "t=~/wl/src/.$s.\$\$; rm -rf \$t; mkdir -p \$t && tar -x -C \$t && { mv -T \$t ~/wl/src/$s 2>/dev/null || rm -rf \$t; }"; }
     done
-    long keke "wl-prep-$ns" 0 "bash $B/wl_prep.sh $new $base"
+    long keke "wl-prep-$ns" 0 "WL_LINK=static bash $B/wl_prep.sh $new $base"
     await keke "wl-prep-$ns"
     $keke "test \"\$(cat ~/logs/wl-prep-$ns.done)\" = 0" || { echo "wl_gate: prep failed (keke:~/logs/wl-prep-$ns.log)"; exit 1; } ;;
 esac
@@ -109,7 +113,7 @@ case " $steps " in *" --time "*)
     for h in $hosts; do
         copy "$h" || exit 1
         [ "${WL_COPY_ONLY:-0}" = 1 ] && continue
-        long "$h" "wl-$ns" 1 "bash $B/wl_run.sh ~/wl/out/$ns-$h.tsv glibc $base $new"
+        long "$h" "wl-$ns" 1 "WL_LINK=static bash $B/wl_run.sh ~/wl/out/$ns-$h.tsv glibc $base $new"
     done
     [ "${WL_COPY_ONLY:-0}" = 1 ] && exit 0
     for h in $hosts; do await "$h" "wl-$ns"; done ;;
@@ -126,7 +130,7 @@ case " $steps " in *" --report "*)
         if [ "${RETRY:-1}" = 1 ] && echo "$out" | grep -q '^WL-GATE FAIL'; then
             names=$(echo "$out" | sed -n 's/^WL-GATE FAIL: //p' | tr ',' '\n' | sed 's/ //g; s/(.*//' | paste -sd'|')
             echo "re-measuring: $names"
-            long "$h" "wl-$ns-retry" 1 "ONLY='^($names)\$' bash $B/wl_run.sh ~/wl/out/$ns-$h-retry.tsv glibc $base $new"
+            long "$h" "wl-$ns-retry" 1 "ONLY='^($names)\$' WL_LINK=static bash $B/wl_run.sh ~/wl/out/$ns-$h-retry.tsv glibc $base $new"
             await "$h" "wl-$ns-retry"
             out=$($(hssh "$h") "python3 $B/wl_report.py $new $base ~/wl/out/$ns-$h.tsv ~/wl/out/$ns-$h-retry.tsv --host $h")
         fi
@@ -135,7 +139,7 @@ case " $steps " in *" --report "*)
         # Attribution: top libniji symbols (instructions) for the workloads that failed a counter.
         names=$(echo "$out" | sed -n 's/^WL-GATE FAIL: //p' | grep -oE '[a-zA-Z0-9-]+\((instr|pf|sys_[a-z]+)\)' | sed 's/(.*//' | sort -u | paste -sd' ')
         if [ -n "$names" ]; then
-            long "$h" "wl-$ns-attr" 1 "bash $B/wl_attr.sh $base $new $names > ~/wl/out/$ns-$h-attr.txt 2>&1"
+            long "$h" "wl-$ns-attr" 1 "WL_LINK=static bash $B/wl_attr.sh $base $new $names > ~/wl/out/$ns-$h-attr.txt 2>&1"
             await "$h" "wl-$ns-attr"
             $(hssh "$h") "cat ~/wl/out/$ns-$h-attr.txt"
         fi

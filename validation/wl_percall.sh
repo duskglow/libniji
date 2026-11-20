@@ -124,7 +124,7 @@ prep() {
     wl_install_local || return 1   # B = ~/wl/bin/v-<hash>, never overwritten
     for s in $shas; do
         if [ "$s" = "$new" ]; then k=$srckey; else k=$s; fi
-        [ -f ~/wl/products/$(wl_key "$k")/libc.a ] || [ -d ~/wl/src/$k ] && continue
+        [ -f ~/wl/products/$(wl_key "$k")/$(wl_prodfile) ] || [ -d ~/wl/src/$k ] && continue
         if [ $gitmode = 1 ]; then
             t=~/wl/src/.$k.$$; rm -rf "$t"; mkdir -p "$t" && git -C "$repo" archive --format=tar "$s" | tar -x -C "$t" && { mv -T "$t" ~/wl/src/$k 2>/dev/null || rm -rf "$t"; } || return 1
         else
