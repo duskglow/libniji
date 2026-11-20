@@ -104,7 +104,7 @@ fn own_image() -> Option<&'static (usize, String)> {
 
 /// Writes `line` straight to the process's stderr: libtest captures `eprintln!` of a passing test
 /// and hides it, so the log would not say that a cached shard did not run (as `skip_note`).
-fn say(line: &str) {
+pub(crate) fn say(line: &str) {
     use std::io::Write as _;
     let _ = std::io::stderr().write_all(line.as_bytes());
 }

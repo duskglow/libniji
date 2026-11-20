@@ -817,22 +817,26 @@ pub(crate) fn c_usable_size(p: usize) -> Result<usize, Misuse> {
     malloc_compat::usable_size(&CTX, p)
 }
 
-/// The text naming the caller in a trace line (`MALLOC_TRACE`), when tracing.
+/// The text naming the caller in a trace line (`MALLOC_TRACE`), when tracing. The buffer exists
+/// only then (HEAP-FOREIGN-TB-SPEED): zeroing and moving 256 bytes on every call through the
+/// debugging paths was about 45% of a foreign thread's `malloc`/`free` pair (every operation of
+/// a process the runtime did not start comes here, `FOREIGN`).
 struct Caller {
-    buf: [u8; 256],
+    buf: Option<[u8; 256]>,
     len: usize,
 }
 
 impl Caller {
     fn new(f: u32) -> Caller {
-        let mut c = Caller { buf: [0; 256], len: 0 };
-        if f & malloc_debug::TRACE != 0 {
-            c.len = crate::backtrace::caller_text(&entry_points(), &mut c.buf);
+        if f & malloc_debug::TRACE == 0 {
+            return Caller { buf: None, len: 0 };
         }
-        c
+        let mut buf = [0; 256];
+        let len = crate::backtrace::caller_text(&entry_points(), &mut buf);
+        Caller { buf: Some(buf), len }
     }
     fn text(&self) -> &[u8] {
-        self.buf.get(..self.len).unwrap_or(&[])
+        self.buf.as_ref().and_then(|b| b.get(..self.len)).unwrap_or(&[])
     }
 }
 

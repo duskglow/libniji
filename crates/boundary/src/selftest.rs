@@ -35,6 +35,26 @@ pub fn caller_blocks() -> i64 {
     CALLER_BLOCKS.with(core::cell::Cell::get)
 }
 
+/// The byte every one of the `n` bytes of a fresh block of the C `malloc` family holds
+/// (`caller_alloc::malloc`: whichever allocator serves the C symbols), `None` when they differ, `n`
+/// is 0 or the allocation fails. A perturbing heap (`M_PERTURB`, §3.2) fills a new block with the
+/// complement of its byte: the gate's native pass checks with it that its C family is poisoned as
+/// the interposed suite's is (PASS2-NATIVE-POISON, D-X.137).
+pub fn c_family_fresh_fill(n: usize) -> Option<u8> {
+    let p = crate::caller_alloc::malloc(n);
+    if p.is_null() || n == 0 {
+        crate::caller_alloc::release(p.expose_provenance());
+        return None;
+    }
+    let addr = p.expose_provenance();
+    let bytes = crate::conv::out_bytes(addr, n);
+    let first = bytes.first().copied();
+    let same = bytes.iter().all(|&b| Some(b) == first);
+    // The block goes back; `bytes` is not used again.
+    crate::caller_alloc::release(addr);
+    first.filter(|_| same)
+}
+
 /// [`caller_blocks`] moves by `d` (the `caller_alloc` wrappers).
 pub(crate) fn count_caller(d: i64) {
     // Not during the thread's teardown (a `free` from a destructor): nothing reads it then.
@@ -372,6 +392,27 @@ pub fn in_child_thread_exit(code: i32) -> KResult<ChildEnd> {
     let pid = child_fork()?;
     if pid == 0 {
         raw::exit_thread(code);
+    }
+    let (_, status) = CSys.wait4(pid, 0, None)?;
+    Ok(decode_status(status))
+}
+
+/// The child's end code from [`in_child_no_syscalls`] when the kernel refused strict mode.
+pub const NO_STRICT_MODE: i32 = 98;
+
+/// A child that runs `body` under strict secure computing mode (`prctl(PR_SET_SECCOMP,
+/// SECCOMP_MODE_STRICT)`): any system call but `read`, `write`, `exit` and `sigreturn` kills it
+/// with `SIGKILL`, so `Exited(code)` proves `body` made none. It ends with the raw thread `exit`
+/// (the child has one thread; `exit_group` is not allowed there). [`NO_STRICT_MODE`] when the
+/// kernel has no strict mode. `body` must not panic (unwinding makes system calls).
+pub fn in_child_no_syscalls(body: fn() -> i32) -> KResult<ChildEnd> {
+    // PR_SET_SECCOMP (22), SECCOMP_MODE_STRICT (1).
+    let pid = child_fork()?;
+    if pid == 0 {
+        if raw::prctl(22, [1, 0, 0, 0]).is_err() {
+            raw::exit_thread(NO_STRICT_MODE);
+        }
+        raw::exit_thread(body());
     }
     let (_, status) = CSys.wait4(pid, 0, None)?;
     Ok(decode_status(status))

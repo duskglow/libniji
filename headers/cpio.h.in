@@ -1,0 +1,8 @@
+@@generated
+/* cpio.h: cpio archive constants (POSIX XBD <cpio.h>). */
+#ifndef __NIJI_H_cpio_h
+#define __NIJI_H_cpio_h 1
+
+@@emit
+
+#endif

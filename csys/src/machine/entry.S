@@ -115,6 +115,18 @@ niji_machine_ldconfig_entry:
 #ifndef NIJI_RELRO_ALIGN
 #define NIJI_RELRO_ALIGN 65536
 #endif
+#ifdef NIJI_LIBC_SO
+	/* LAYOUT-DYN-PHASE (D-X.133): assembled with -DNIJI_LIBC_SO it is the cluster anchor of libc.so.6,
+	 * first in that link, which has no start object: without it the library's `.rodata1` (the start-up
+	 * read-only data, and the build tag the interpreter reads) started wherever `.rodata` ended and took
+	 * one or two fault-around windows depending on the text's size. With the library's base aligned to
+	 * 64 KiB (its `p_align`, which the loader honours) the cluster now sits in one window. Only this
+	 * cluster: no entry, no `.eh_frame` label, no text-group end; `cargo xtask so` checks the result.
+	 * `R` (SHF_GNU_RETAIN): the library's link collects unused sections (--gc-sections), which dropped
+	 * this empty, unreferenced section and its alignment with it. */
+	.section .rodata1,"aR",@progbits
+	.balign NIJI_RODATA1_ALIGN
+#else
 #ifdef NIJI_STATIC_PIE
 	/* LAYOUT-DATA-CLUSTERS-4 (D-X.68): a static PIE relocates itself with exactly one writable
 	 * PT_LOAD (crates/ld/src/boot.rs `image`). The linker starts a new segment where the gap before
@@ -189,5 +201,6 @@ _start:
 	hlt
 	.cfi_endproc
 	.size _start, .-_start
+#endif /* NIJI_LIBC_SO */
 #endif
 	.section .note.GNU-stack,"",@progbits

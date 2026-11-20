@@ -1,0 +1,14 @@
+@@generated
+/* mcheck.h: heap consistency checking (mcheck(3)). */
+#ifndef __NIJI_H_mcheck_h
+#define __NIJI_H_mcheck_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

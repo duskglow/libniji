@@ -23,14 +23,14 @@ use crate::run;
 /// sections are the small state words themselves).
 pub const MIN: u64 = 1024;
 
-/// The `.bss.*` sections of at least [`MIN`] bytes per archive member, from the members' own
+/// The `.bss.*` sections of at least `min` bytes ([`MIN`] for libc) per archive member, from the members' own
 /// section headers ([`crate::hottext::archive_headers`]: whole names; `readelf -SW` cuts them
 /// at 256 bytes, and a cut name renames nothing).
-fn cold_sections(members: &[(String, Vec<Shdr>)]) -> BTreeMap<String, Vec<String>> {
+fn cold_sections(members: &[(String, Vec<Shdr>)], min: u64) -> BTreeMap<String, Vec<String>> {
     let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (m, headers) in members {
         for s in headers {
-            if s.kind == SHT_NOBITS && s.name.starts_with(".bss.") && s.size >= MIN {
+            if s.kind == SHT_NOBITS && s.name.starts_with(".bss.") && s.size >= min {
                 out.entry(m.clone()).or_default().push(s.name.clone());
             }
         }
@@ -77,12 +77,40 @@ fn rename(ar: &str, archive: &Path, work: &Path, what: &str, renames: &BTreeMap<
     crate::hottext::check_renames(&archive_headers(archive)?, renames).map_err(|e| format!("{}: {what}: {e}", archive.display()))
 }
 
-/// Rename the cold `.bss.*` sections of `archive` to `.lbss.*` in place; `work` is scratch.
+/// Rename the cold `.bss.*` sections (at least `min` bytes) of `archive` to `.lbss.*` in place; `work` is scratch.
 /// Returns the number of sections renamed (each checked in the archive afterwards).
-pub fn move_cold_bss(ar: &str, archive: &Path, work: &Path) -> Result<usize, String> {
-    let cold = cold_sections(&archive_headers(archive)?);
+pub fn move_cold_bss(ar: &str, archive: &Path, work: &Path, min: u64) -> Result<usize, String> {
+    move_cold_bss_first(ar, archive, work, min, &[])
+}
+
+/// [`move_cold_bss`], with the cold sections whose symbol (split number and ThinLTO suffix
+/// dropped) ends with an entry of `first` placed first in their member's `.lbss`, in `first`'s
+/// order, the others after them in their own order: the head of a table the start writes then
+/// lies on the page `.bss`'s last words already share. Each entry must name exactly one cold
+/// section of the archive: a renamed or removed table is an error, not a silent new page.
+pub fn move_cold_bss_first(ar: &str, archive: &Path, work: &Path, min: u64, first: &[&str]) -> Result<usize, String> {
+    let cold = cold_sections(&archive_headers(archive)?, min);
+    let order = first_order(&cold, first)?;
     let renames = cold.into_iter().map(|(m, list)| (m, list.into_iter().map(|s| (s.clone(), format!(".lbss{}", &s[".bss".len()..]))).collect())).collect();
-    rename(ar, archive, work, "coldbss", &renames, None)
+    rename(ar, archive, work, "coldbss", &renames, (!order.is_empty()).then_some(&order))
+}
+
+/// The section order [`move_cold_bss_first`] gives each member holding an entry of `first`.
+fn first_order(cold: &BTreeMap<String, Vec<String>>, first: &[&str]) -> Result<BTreeMap<String, Vec<String>>, String> {
+    let mut order = BTreeMap::new();
+    for want in first {
+        let hits: Vec<(&String, &String)> = cold.iter().flat_map(|(m, list)| list.iter().map(move |s| (m, s))).filter(|(_, s)| split_stem(&s[".bss.".len()..]).ends_with(want)).collect();
+        let [(m, s)] = hits[..] else {
+            return Err(format!("coldbss: {} cold sections end with {want} (one expected)", hits.len()));
+        };
+        let list: &mut Vec<String> = order.entry(m.clone()).or_insert_with(Vec::new);
+        list.push(s.clone());
+    }
+    for (m, list) in &mut order {
+        let rest: Vec<String> = cold.get(m).into_iter().flatten().filter(|s| !list.contains(s)).cloned().collect();
+        list.extend(rest);
+    }
+    Ok(order)
 }
 
 const SHT_SYMTAB: u32 = 2;
@@ -474,7 +502,7 @@ fn state_plan(members: &[(String, Vec<Shdr>)], list: &[(Declared, String, bool, 
         }
     }
     let lead = zero.iter().max_by_key(|(m, (_, b))| (*b, std::cmp::Reverse((*m).clone()))).map(|(m, _)| m.clone());
-    let cold = cold_sections(members);
+    let cold = cold_sections(members, MIN);
     let mut plan = StatePlan::default();
     for (m, secs) in order {
         let cluster: &[String] = match (&lead, zero.get(&m)) {
@@ -619,9 +647,27 @@ mod tests {
             ("a.o".to_string(), vec![sec(".text.f", 1, 0x400), sec(".bss.big", SHT_NOBITS, 0x400), sec(".bss.small", SHT_NOBITS, 0x3ff), sec(".tbss.t", SHT_NOBITS, 0x1000), sec(".data.d", 1, 0x2000)]),
             ("b.o".to_string(), vec![sec(".bss.huge", SHT_NOBITS, 0x10000), sec(&long, SHT_NOBITS, 0x800), sec(".bss.notnobits", 1, 0x800)]),
         ];
-        let got = cold_sections(&members);
+        let got = cold_sections(&members, MIN);
         assert_eq!(got.len(), 2);
         assert_eq!(got["a.o"], vec![".bss.big".to_string()]);
         assert_eq!(got["b.o"], vec![".bss.huge".to_string(), long]);
+    }
+
+    #[test]
+    fn first_tables_lead_their_member_and_must_exist_once() {
+        // DL-23-2 (no spec clause; layout of the products): a named cold table goes first in its
+        // member, whatever its split number or ThinLTO suffix; the rest keep their order; a member
+        // without one is not reordered; a missing or ambiguous name is an error.
+        let s = |v: &[&str]| v.iter().map(|x| (*x).to_string()).collect::<Vec<String>>();
+        let mut cold = BTreeMap::new();
+        cold.insert("ld.o".to_string(), s(&[".bss.2ld11THREAD_MODS", ".bss.2ld6dlopen5NODES.0", ".bss.2ld7readers5TABLE.llvm.123"]));
+        cold.insert("other.o".to_string(), s(&[".bss.big"]));
+        let got = first_order(&cold, &["2ld6dlopen5NODES"]).unwrap();
+        assert_eq!(got.len(), 1, "only the member holding the table is reordered");
+        assert_eq!(got["ld.o"], s(&[".bss.2ld6dlopen5NODES.0", ".bss.2ld11THREAD_MODS", ".bss.2ld7readers5TABLE.llvm.123"]));
+        assert!(first_order(&cold, &[]).unwrap().is_empty());
+        assert!(first_order(&cold, &["5NOPE"]).unwrap_err().contains("0 cold sections"));
+        cold.insert("dup.o".to_string(), s(&[".bss.x2ld6dlopen5NODES"]));
+        assert!(first_order(&cold, &["2ld6dlopen5NODES"]).unwrap_err().contains("2 cold sections"));
     }
 }

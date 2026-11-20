@@ -289,6 +289,36 @@ pub fn relocate<A: Arch, M: Memory>(rela: &[u8], jmprel: &[u8], relr_table: &[u8
     relr(relr_table, seg, bias)
 }
 
+/// The image's own dynamic array as run-time addresses (DL-DYNAMIC-RELOC): `bias` added in place to
+/// each [`crate::elf::RUNTIME_ADDRESS_TAGS`] entry up to `DT_NULL`, through `mem`, when the array lies
+/// in a writable segment ([`crate::elf::dynamic_published`]); nothing otherwise. Once, after pass 1
+/// and before the RELRO pages are protected.
+///
+/// # Errors
+///
+/// [`BootError::Outside`] for an entry outside the writable segment (not reached once the check
+/// above holds).
+pub fn publish_dynamic<M: Memory>(img: Image<'_>, mem: M, bias: u64) -> Result<(), BootError> {
+    let (vaddr, size) = img.dynamic;
+    if !crate::elf::dynamic_published(vaddr, size, img.writable()) {
+        return Ok(());
+    }
+    let end = vaddr.saturating_add(size);
+    let mut seg = Writer::new(img, mem);
+    let mut at = vaddr;
+    while at.saturating_add(16) <= end {
+        let tag = u64::from_ne_bytes(*seg.word(at)?);
+        if tag == dt::NULL {
+            break;
+        }
+        if crate::elf::RUNTIME_ADDRESS_TAGS.contains(&tag) {
+            seg.add(at.wrapping_add(8), bias)?;
+        }
+        at = at.wrapping_add(16);
+    }
+    Ok(())
+}
+
 /// Pass 2's work list: the (`r_offset`, `r_addend`) of each `Irelative` entry of `table`, in order.
 pub fn irelative<A: Arch>(table: &[u8]) -> impl Iterator<Item = (u64, u64)> + '_ {
     table.chunks_exact(RELA_SIZE).map(rela_entry).filter(|&(_, t, _)| A::classify(t) == RelocKind::Irelative).map(|(o, _, a)| (o, a))
@@ -464,5 +494,27 @@ mod tests {
         e[16..18].copy_from_slice(&1u16.to_ne_bytes());
         assert!(!position_independent(&e), "only ET_DYN is position-independent (ET_REL is not)");
         assert!(!position_independent(&e[..17]), "a short header is not position-independent");
+    }
+
+    /// DL-DYNAMIC-RELOC (no spec clause: `ld.so`'s own dynamic array, probe `tools/probe/dl/dynreloc`):
+    /// the address tags get the bias, every other entry and everything after `DT_NULL` is left alone;
+    /// an array outside every writable segment is not written.
+    #[test]
+    fn publish_dynamic_adds_bias_to_address_tags() {
+        let hs: alloc::vec::Vec<u64> = [ph(0, 1, 5, 0, 0x800), ph(0, 2, 6, 0x1000, 0x60), ph(0, 1, 6, 0x1000, 0x100)].concat();
+        let img = image(&hs, 3).unwrap();
+        let mut mem = alloc::vec![0u8; 0x2000];
+        // STRTAB, INIT (kept), GNU_HASH, STRSZ (kept), NULL, then a STRTAB past the end (kept).
+        let d = words(&[dt::STRTAB, 0x300, dt::INIT, 0x400, dt::GNU_HASH, 0x200, 10, 0x50, dt::NULL, 0, dt::STRTAB, 0x7]);
+        mem[0x1000..0x1000 + d.len()].copy_from_slice(&d);
+        publish_dynamic(img, Flat(&mut mem), 0x7000_0000).unwrap();
+        let got: alloc::vec::Vec<u64> = (0..12).map(|i| at(&mem, 0x1000 + 8 * i)).collect();
+        assert_eq!(got, [dt::STRTAB, 0x7000_0300, dt::INIT, 0x400, dt::GNU_HASH, 0x7000_0200, 10, 0x50, dt::NULL, 0, dt::STRTAB, 0x7]);
+        // The same array in the read-only segment: nothing written.
+        let ro: alloc::vec::Vec<u64> = [ph(0, 1, 5, 0, 0x800), ph(0, 2, 6, 0x40, 0x60), ph(0, 1, 6, 0x1000, 0x100)].concat();
+        let mut mem2 = alloc::vec![0u8; 0x2000];
+        mem2[0x40..0x40 + d.len()].copy_from_slice(&d);
+        publish_dynamic(image(&ro, 3).unwrap(), Flat(&mut mem2), 0x7000_0000).unwrap();
+        assert_eq!(&mem2[0x40..0x40 + d.len()], &d[..]);
     }
 }
