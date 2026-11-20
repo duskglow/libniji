@@ -59,8 +59,15 @@ tests (an xtask change) overlaps that compile too: not measured. `startup-got-pa
 
 ## Results
 
-- Unit tests (new 3): green (`gate-bounded-parallel-unit2`). Plants: `gate-bounded-parallel-plants`. Direct gate:
-  `gate-bounded-parallel-gate` (xtask unit tests + static; no products selected). See the hand-back for results.
+- Unit tests (new 3): green (`gate-bounded-parallel-unit2`, with `cargo xtask clippy`).
+- Plants `gate-bounded-parallel-plants`: 8 CAUGHT, 0 SURVIVED, no WARN lines (results in the plants file).
+- Direct gate `gate-bounded-parallel-gate` (xtask unit tests 200.1 s + `cargo xtask static` 61.1 s; no products
+  selected): 5 suites ok, 551 passed, 0 failed; peak 1.2G. Workspace clippy (`--all-targets --all-features -D
+  warnings`) clean in the foreground on the role.
+- The after row (`gate-bounded-parallel-after`) exercised the side-by-side path end to end: all 6 suites ok (587
+  tests); its only red was `cargo xtask static` rejecting the record body's newlines, fixed in 51d0c1b22 (the gate
+  above runs static green on it).
+- SUPERSEDED: `gate-bounded-parallel-unit` (the split test failed: the leg-1 split found no xtask targets; fixed).
 
 ## For the coordinator
 
