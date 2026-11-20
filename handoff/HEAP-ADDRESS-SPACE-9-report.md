@@ -57,5 +57,13 @@ mapped, grow replacing a mapping.
 - `heap-address-space-9-s0` (step 0, inherited head): rc 0. `-relso` (release products of the head): rc 0.
 - Probes: `-pbase`, `-phead`, `-pad` (superseded: the pad object lacked .note.GNU-stack), `-pad2`, `-modes`.
 - `-t1`: rc 1 (clippy: panic!/expect in the new test), fixed in `60ec2a659`. Final head: `-t2` rc 0 (xtask clippy,
-  cargo clippy --workspace --all-targets --all-features -D warnings, static, the test); `-plants`, `-fullhot`,
-  `-xtest`, `-dyncount`: see the hand-back.
+  cargo clippy --workspace --all-targets --all-features -D warnings, static, the test); `-plants` rc 0: 2 CAUGHT,
+  1 WARN-NO-MSG (grow-replaces: caught by the new test, but at its next assertion, "grow: a free range that fits the
+  limit is mapped", not "a taken range is never replaced"; why the replacing flags made both grows fail under the
+  limit was not investigated); `-fullhot` rc 0 (30 passed; release counts: dynamic start-up 64 (bound 67),
+  startup-only 10, coreutils-shaped 45, setlocale + printf 43, all at or under their bounds).
+- Still running at hand-back (queue waits of 10-20 min per job on the build host): `-xtest` (`cargo xtask test`,
+  products built, 153 of 6910 tests passed at 16:17Z), then `-dyncount` (fast-profile dynamic start-up faults on
+  Zen 1, 6 runs, for DYN_TRUE_BOUND [73, 67], #6998), both started by keke `~/work/HEAP-ADDRESS-SPACE-9/chain.sh`.
+- Not run: precheck (the role stays busy with the chain; the hand-back is INCOMPLETE pending the ruling).
+  `cargo xtask affected` escalated to FULL on run -8 (entry.S, xtask): FULL: the train's.

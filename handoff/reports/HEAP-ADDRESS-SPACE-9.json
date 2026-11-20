@@ -1,10 +1,10 @@
 {"task": "HEAP-ADDRESS-SPACE-9", "model": "opus", "tokens": null,
- "result": "cbench_startup cause found: the static link's read-only PT_LOAD splits at .rodata1's 64 KiB boundary (text +1216 B crosses a page); next + 4 KiB pad reproduces it, head + pad removes it; heap's own start-up cost +4..+6 user instr; RLIMIT_AS Pages test added",
- "branch": "task/heap-address-space-9", "head": null,
- "gate": {"affected": "FULL: the train's (entry/xtask on branch); t2 clippy+static+test rc 0, fullhot/xtest/plants: see jobs", "peak": null},
+ "result": "INCOMPLETE: LAYOUT-JITTER: cbench_startup delta is an extra read-only PT_LOAD (text +1216 B crosses a page, .rodata passes .rodata1's 64 KiB boundary); next + 4 KiB pad reproduces it, head + pad removes it; heap's own start-up cost +4..+6 user instr; RLIMIT_AS Pages test added",
+ "branch": "task/heap-address-space-9", "head": "60ec2a659 (last code/test commit; handoff commits on top)",
+ "gate": {"affected": "FULL: the train's; t2 (clippy -D warnings, static, new test) rc 0; fullhot 30 passed; plants 2 CAUGHT + 1 WARN-NO-MSG; xtest and dyncount still running at hand-back", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [{"item": "cbench_startup +7.5k kernel / +8 user instr is layout jitter (extra read-only PT_LOAD), not the heap mapping", "recommendation": "land as partial fix for #21, record the row as layout jitter, cut a layout story removing the .rodata/.rodata1 LOAD split for all static programs; do not trim heap text to dodge one binary's boundary"}],
- "informational": ["next's cbench_startup link sits 0xd24 bytes below the split: any change adding >= 985 B of text to it shows +7.5k kernel instructions", "keke slot queue: 1-second probes waited 10-20 min behind gates"],
+ "informational": ["next's cbench_startup link sits 0xd24 bytes below the split: any change adding >= 985 B of text to it shows +7.5k kernel instructions", "keke slot queue: 1-second probes waited 10-20 min behind gates", "plants grow-replaces WARN-NO-MSG: caught by the new test at the free-range assertion, not the taken-range one"],
  "refused": [],
  "impact": [
   {"kind": "perf", "what": "cbench_startup true child, kernel instr (median, Zen 1), equal LOAD count (next vs head+pad)", "before": 165700, "after": 166700, "unit": "instr/process", "measured": true},
@@ -14,4 +14,4 @@
  "improvement": "a cheap static-link check (LOAD count and .rodata1 slack vs base) in cbench --compare would have named this in minutes instead of two runs",
  "next_step": "ruling on the cbench_startup jitter; then HEAP-SPILL-COLD",
  "report_file": "handoff/HEAP-ADDRESS-SPACE-9-report.md",
- "jobs": []}
+ "jobs": ["keke:heap-address-space-9-s0", "keke:heap-address-space-9-relso", "keke:heap-address-space-9-t2", "keke:heap-address-space-9-plants", "keke:heap-address-space-9-fullhot", "keke:heap-address-space-9-xtest", "keke:heap-address-space-9-dyncount"]}
