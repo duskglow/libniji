@@ -4,7 +4,8 @@
 # no spec clause: measurement tooling) and of the recorded holds (validation/wl_holds.tsv). Seconds, no build:
 #   1. a row is bound at 1.10x glibc (1.10 passes, above fails), in instructions:u and in page faults;
 #   2. a held row is bound at its recorded level: the level passes, one instruction more fails;
-#   3. a held row measuring at or below 1.10x drops its hold (HOLD-RELEASE; --update removes the row);
+#   3. a held row measuring at or below 1.10x drops its hold (HOLD-RELEASE; --update removes the row); a page-fault
+#      row only when its worst run is in bound too;
 #   4. the geomean of instructions:u binds at 1.00 on a run of every workload, advisory on a partial run;
 #   5. a row held only on another CPU class is reported, not failed;
 #   6. the holds ratchet: a level above the measurement it records, a raised level and a new row on a recorded CPU
@@ -19,12 +20,13 @@ pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL $1: expected [$2] got [$3]"; fi; }
 CPU="Test CPU 1"
 H="cpu	workload	metric	glibc	libniji	level	recorded	cause"
-row() { # name instr_new instr_glibc pf_new pf_glibc
+row() { # name instr_new instr_glibc pf_new pf_glibc [pf_new_min..max pf_glibc_min..max]
     printf '== %s   (new aaaaaaaaa, base bbbbbbbbb)\n' "$1"
     printf '%-18s %16s %16s %16s %9s %9s\n' counter new base glibc new/glibc new/base
     printf '%-18s %16s %16s %16s %9s %9s\n' instructions:u "$2" "$2" "$3" - -
     printf '%-18s %16s %16s %16s %9s %9s\n' instructions:k 1 1 1 - -
     printf '%-18s %16s %16s %16s %9s %9s\n' page-faults "$4" "$4" "$5" - -
+    [ $# -ge 7 ] && printf 'faults min..max    %16s %16s %16s   (table shows the median)\n' "$6" "$6" "$7"
     printf 'output             new vs glibc: SAME   new vs base: SAME\n'
 }
 verdict() { python3 "$V" check "$@" --cpu "$CPU" > "$tmp/out" 2>&1; echo $?; }
@@ -59,6 +61,16 @@ check "--update removed the hold" 0 "$(grep -c printf-loop "$tmp/holds2.tsv")"
 check "--update kept the header" 1 "$(grep -c '^cpu	workload' "$tmp/holds2.tsv")"
 row printf-loop 1101 1000 100 100 > "$tmp/g.log"
 check "after release the 1.10x bound binds" 1 "$(verdict "$tmp/g.log" --holds "$tmp/holds2.tsv")"
+# 3b. a held page-fault row drops its hold only when its worst run is in bound too (median alone would flake back)
+printf '%s\n%s\n' "$H" "$CPU	sed-s	pf	251	304	1.2112	fixture	dynamic start-up" > "$tmp/holds3.tsv"
+row sed-s 1000 1000 108 100 100..120 100..104 > "$tmp/f2.log"
+check "held pf row, median in bound, worst run over: passes" 0 "$(verdict "$tmp/f2.log" --holds "$tmp/holds3.tsv" --update)"
+check "held pf row with a worst run over keeps its hold" 1 "$(grep -c '^wl_verdict: HELD sed-s pf: median 1.0800 <= 1.10 but its worst run 1.2000 is over' "$tmp/out")"
+check "and --update leaves it in the file" 1 "$(grep -c sed-s "$tmp/holds3.tsv")"
+row sed-s 1000 1000 108 100 100..110 100..104 > "$tmp/f3.log"
+check "held pf row with every run in bound: released" 0 "$(verdict "$tmp/f3.log" --holds "$tmp/holds3.tsv" --update)"
+check "pf release reported" 1 "$(grep -c '^wl_verdict: HOLD-RELEASE sed-s pf' "$tmp/out")"
+check "and --update removed it" 0 "$(grep -c sed-s "$tmp/holds3.tsv")"
 
 # 4. geomean of instructions:u: binding on a run of every workload, advisory otherwise
 { row w1 1050 1000 100 100; row w2 1000 1000 100 100; } > "$tmp/h.log"

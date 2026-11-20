@@ -547,8 +547,8 @@ The per-gate workload measurement is `wl_count.sh` with libniji **linked dynamic
 `dynamic`, validation/wl_lock.sh), the way users run it. `validation/wl_verdict.py` judges the new column and its
 FAIL fails the count job: each workload at or below 1.10x glibc in instructions:u and in page faults, and the geomean
 of instructions:u at or below 1.00 when every workload ran. Rows over 1.10x for dynamic start-up when the rule moved
-are held at their recorded level in `validation/wl_holds.tsv` (per CPU class; a ratchet, never loosened; a held row at
-or below 1.10x drops its hold: HOLD-RELEASE). Self-test: `wl_verdict_test.sh`. One `cargo xtask so` per sha caches both
+are held at their recorded level in `validation/wl_holds.tsv` (per CPU class; the worst ratio observed on next, so a
+rerun of next stays within it; a ratchet, never loosened; a held row at or below 1.10x drops its hold: HOLD-RELEASE). Self-test: `wl_verdict_test.sh`. One `cargo xtask so` per sha caches both
 product sets. **Static stays measured**: `wl_kits.sh <sha>` (glibc, static, dynamic) is the nightly and release-candidate
 sweep and reports the same rule for both kits; a static regression there opens a story and does not block a gate.
 `wl_gate.sh` (timing hosts) stays on the static kit.

@@ -8,7 +8,9 @@
 #   * a HELD row (validation/wl_holds.tsv: a row over 1.10x for a named cause, today dynamic start-up) is bounded at
 #     its recorded level instead (a ratio to glibc; never loosened: the holds check below). A held row measuring at or
 #     below 1.10x drops its hold in that run: the 1.10x bound judges it and the run prints HOLD-RELEASE (`--update`
-#     removes the row from the file); a held row measuring below its level prints MAY-TIGHTEN.
+#     removes the row from the file); a held row measuring below its level prints MAY-TIGHTEN. Page faults vary by a
+#     few per run, so a held page-fault row drops its hold only when its WORST run is in bound too (the log's "faults
+#     min..max": the new column's highest run over glibc's lowest); a release on the median alone would flake back.
 # Levels are per CPU class (/proc/cpuinfo "model name"): instruction counts follow the IFUNC variant a CPU selects. A
 # held row with no level recorded for this CPU class is reported HELD-UNRECORDED and does not fail (record one).
 #
@@ -80,6 +82,12 @@ def parse_log(path):
                 out[cur] = {}
                 continue
             p = line.split()
+            if cur and len(p) >= 5 and p[0] == "faults" and p[1] == "min..max":
+                try:  # the new column's highest run and glibc's lowest: a hold drops only when its worst run is in bound
+                    out[cur]["pf-worst"] = (float(p[2].split("..")[1]), float(p[4].split("..")[0]))
+                except (ValueError, IndexError):
+                    pass
+                continue
             if cur and p and p[0] in METRICS and len(p) >= 4:
                 try:
                     out[cur][METRICS[p[0]]] = (float(p[1]), float(p[2]), float(p[3]))
@@ -139,6 +147,11 @@ def check(args):
             ratios[k].append(r)
             h = held.get((w, k))
             if r <= BOUND:
+                wr = m.get("pf-worst") if k == "pf" else None
+                if h and wr and wr[1] > 0 and wr[0] / wr[1] > BOUND:
+                    notes.append("HELD %s %s: median %.4f <= %.2f but its worst run %.4f is over: the hold stays (it drops"
+                                 " when every run is at or below %.2f)" % (w, k, r, BOUND, wr[0] / wr[1], BOUND))
+                    continue
                 if h:
                     release.append(h)
                     notes.append("HOLD-RELEASE %s %s: %.4f <= %.2f: the hold (level %s) is dropped; the %.2fx bound applies"
