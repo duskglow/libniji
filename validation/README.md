@@ -59,11 +59,12 @@ from the project's lab hosts; the host names in them label the machine that prod
   * `glibc`: the host compiler, dynamically linked (as the distribution builds).
   * `niji`: `CC=scripts/niji-cc`, as is.
   * `niji-w` (first runs): the same with the labelled workarounds below, so the suites can
-    run at all.
+    run at all. Retired (PHASE14-WORKAROUNDS): `suite.sh` no longer builds it.
   * `niji-t1` (second runs): only the workarounds the coordinator kept, T1's
-    `--allow-multiple-definition` and the libm stand-in (`modf`, T3).
+    `--allow-multiple-definition` and the libm stand-in (`modf`, T3). Retired with `niji-w`.
   * `niji-t1r` (second runs): `niji-t1` with gnulib's regex for coreutils and findutils, to
-    see their results past T5 (the regex fix is the optimization thread's).
+    see their results past T5 (the regex fix is the optimization thread's). Retired with
+    `niji-w`.
   * `niji-m` (fourth runs, the headline): as is; only findutils gets the `modf` stand-in
     (T3, provisional).
   * `niji-mr` (fourth runs, diagnosis only): `niji-m` with gnulib's regex for coreutils and
@@ -89,7 +90,9 @@ from the project's lab hosts; the host names in them label the machine that prod
   * `validation/shim/missing.c`, not part of libniji (T2, T3): in the first runs thin stand-ins
     for `uname`, `gethostname`, `getdomainname`, their `_chk` forms, `sysinfo`, `getloadavg`
     (over libniji's `syscall`) and `modf`, written from the man pages; since milestone 3 only
-    `modf` (libniji implements the rest, T2).
+    `modf` (libniji implements the rest, T2). Removed with `validation/shim/libm.c` and the
+    modes that linked them (PHASE14-WORKAROUNDS): libniji defines `modf`, and `libm.a` and
+    `libm.so.6` are products.
   * coreutils and findutils with `--with-included-regex` (gnulib's regex instead of libniji's,
     T5): libniji's regex breaks the coreutils test harness itself (`expr` computes test
     directory names), which hid every other result. sed keeps libniji's regex.
