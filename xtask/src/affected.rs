@@ -4954,7 +4954,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         // target that carries no section, the layout tests among them, for any boundary change.
         {
             let tier = Tier::Direct;
-            for f in ["crates/boundary/src/ld.rs", "crates/boundary/src/arch/mod.rs", "docs/benchmarks.md", "crates/math/tests/fast64.rs", "crates/native/src/aio.rs"] {
+            for f in ["crates/boundary/src/ld.rs", "crates/boundary/src/ld/link.rs", "crates/boundary/src/arch/mod.rs", "docs/benchmarks.md", "crates/math/tests/fast64.rs", "crates/native/src/aio.rs"] {
                 let s = select_tier(repo(), &[f.to_string()], tier);
                 assert!(state(&s).iter().all(|&b| !b), "{f} ({tier:?}) cannot reach libc.a: no start-up layout test: {:?}", state(&s));
             }

@@ -10,6 +10,27 @@
 //!
 //! Before step 1 returns nothing here may read a pointer stored in the image's data (design §1):
 //! every reference is PC-relative (the product's version script makes every symbol local).
+//!
+//! **Module map** (LD-SPLIT: one module per concern, so loader stories on different concerns edit
+//! different files; `tools/ld_split.py` made the split). This file keeps the product glue: the
+//! panic handler, `NoHeap`, the local memory symbols (`ld_mem!`), the debugger rendezvous's exports
+//! (`_r_debug`, `_dl_debug_state`) and the re-exports that keep every item at its old path.
+//!
+//! * `io`: writes, `exit_group`, initial-stack and C-string reads, the fatal start-up diagnostics.
+//! * `state`: the start-time state the parts share (own base, the start-time objects, bounds).
+//! * `tls`: the provisional thread block, static TLS and its surplus, the module table, the dtv,
+//!   `__tls_get_addr`, `_dl_get_tls_static_info`.
+//! * `image`: opening, identifying and mapping objects, image views, the cache file, candidates.
+//! * `initfini`: constructors after relocation and the exit finalisers of start-time objects.
+//! * `link`: program start's link: `DT_NEEDED` search, preloads, mapping, relocation and binding,
+//!   the TLS layout, the rendezvous's start-time link maps.
+//! * `trace`: the dependency list (`--list`, `ldd`, `LD_TRACE_LOADED_OBJECTS`).
+//! * `entry`: `niji_ld_start` and `run`: auxv and environment, secure mode, rseq, the start sequence.
+//! * `debug`: the debugger rendezvous (`r_debug`, `r_brk` calls).
+//! * `dlopen` (with `dlopen/dladdr`, `dlopen/dlsym`): `dlopen`, `dlsym`, `dlerror`, `dlclose`,
+//!   `dladdr`, `dlinfo`, exit-set finalisers.
+//! * `readers`: the lock-free readers (`dl_iterate_phdr`, `_dl_find_object`).
+//! * `table`: the tables that grow with the number of objects (inline, then a mapping).
 
 use core::alloc::{GlobalAlloc, Layout};
 #[cfg(not(feature = "export"))]
