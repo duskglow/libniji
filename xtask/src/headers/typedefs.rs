@@ -61,10 +61,11 @@ impl Gen<'_> {
             match self.aggregate(name) {
                 Some(a) => {
                     self.emit_nested(a.nested);
-                    if a.td_attrs.is_empty() && self.union_tag(name) {
+                    if a.td_attrs.is_empty() && a.attrs.is_empty() && self.union_tag(name) {
                         // A union the program may name as `union N` as well as `N` (C 6.7.2.3): the tag carries the
-                        // members, so C++ sees a union of that name, not an unnamed union named for linkage.
-                        [vec![format!("union {name}{} {{", a.attrs)], a.lines, vec!["};".into(), format!("typedef union {name} {name};")]].concat()
+                        // members, so C++ sees a union of that name, not an unnamed union named for linkage. A union
+                        // with attributes (the transparent unions of <sys/socket.h>) stays unnamed.
+                        [vec![format!("union {name} {{")], a.lines, vec!["};".into(), format!("typedef union {name} {name};")]].concat()
                     } else {
                         [vec![format!("typedef {}{} {{", a.kw, a.attrs)], a.lines, vec![format!("}} {name}{};", a.td_attrs)]].concat()
                     }
