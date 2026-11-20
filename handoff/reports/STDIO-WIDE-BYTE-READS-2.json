@@ -1,0 +1,81 @@
+{
+ "task": "STDIO-WIDE-BYTE-READS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "Counts re-measured correctly (base 50abc44ed vs head vs reference, instructions per call): no getc/putc-family row changes, so the D-12.27 byte operations on wide-oriented streams can land; code unchanged from 18bbf0107",
+ "branch": "task/stdio-wide-byte-reads-2",
+ "head": "18bbf0107",
+ "gate": {
+  "affected": "keke:stdio-wide-byte-reads-gate3 rc 0 (direct tier, code 18bbf0107; first run)",
+  "peak": null
+ },
+ "accepted_first_attempt": false,
+ "rulings": [],
+ "informational": [
+  "counts3 failed because it passed function names (fgetc, getc, ...) to bench --compare, which takes bench names; the rows are in cbench_hot (getc, getc_unlocked, putc_unlocked) and cbench_stdio (putc); fgetc, fputc, fputc_unlocked, putchar, putchar_unlocked have no bench row, so they were counted with wl_percall",
+  "bench --compare cannot compare base against head in a role directory (its --base stages a git worktree for timing); wl_percall --base gives base, head and reference in one deterministic table",
+  "cargo xtask test (start-up rule of 11-14) not run: it is the full two-pass suite, the train's per the owner's 11-19 rule; hot_text_products ran (hottext3)"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "getwchar EILSEQ then getchar on a wide stream: returned EOF with no indicator, then WEOF+EILSEQ forever; now the invalid byte, then wide reads go on (col/multibyte)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "fread/fgets/ungetc/fputc on a wide-oriented stream failed (EINVAL); now serve/write the stream's bytes in order",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "conformance program s12_wide_byte_reads (both libraries) and 5 plants, all caught",
+   "before": 0,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "getc / fgetc per call (wl_percall, base 50abc44ed vs head; reference 31.0)",
+   "before": 23.0,
+   "after": 23.0,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "putc / fputc / putchar per call (wl_percall, base vs head; reference 36.0)",
+   "before": 25.1,
+   "after": 25.1,
+   "unit": "instr/call",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "getc_unlocked 13.0, fputc_unlocked / putc_unlocked 13.1, putchar_unlocked 14.1 per call: base and head identical (reference 13.0 / 13.0 / 14.0)",
+   "before": 13.1,
+   "after": 13.1,
+   "unit": "instr/call",
+   "measured": true
+  }
+ ],
+ "improvement": "A count job should be tried once with its exact command before it is chained behind a gate (counts3 failed in 1 s after an 80-min wait); and a committed validation/percall/stdio_char.c spec would give the getc/putc family a reusable base-vs-head count (kept outside the tree here so the finished gate and plants stay valid)",
+ "next_step": "Land after the train; then the compat-flag registration owed for the differences row (#6945) and a comment on Yohane #23",
+ "report_file": "handoff/STDIO-WIDE-BYTE-READS.md",
+ "jobs": [
+  "keke:stdio-wide-byte-reads-gate3",
+  "keke:stdio-wide-byte-reads-plants2",
+  "keke:stdio-wide-byte-reads-hottext3",
+  "keke:stdio-wide-byte-reads-2-check0",
+  "keke:stdio-wide-byte-reads-2-percall",
+  "keke:stdio-wide-byte-reads-2-benchrows"
+ ]
+}

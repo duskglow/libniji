@@ -1,6 +1,8 @@
 # STDIO-WIDE-BYTE-READS (GitHub #23): byte operations on a wide-oriented stream
 
-State: branch `task/stdio-wide-byte-reads` (base origin/next 50abc44ed). Role keke:~/w/n3.
+State: branch `task/stdio-wide-byte-reads-2` (continues `task/stdio-wide-byte-reads`; base origin/next 50abc44ed; code
+head 18bbf0107, unchanged by the -2 run, which only re-measured the counts and updated this page and the report).
+Role keke:~/w/r1 (-2 run); keke:~/w/n3 (first run).
 Decision: D-12.27 (`records/decisions/D-12/D-12.27.toml`, amends D-12.14). Differences row
 "Byte operations on a wide-oriented stream" replaces the old `fputc` row (no compatibility option, reason in the row).
 
@@ -43,17 +45,39 @@ wide stream reaches the engine as before.
 
 ## Jobs (keke)
 
-Final head (code 18bbf0107): -check4 green (records check, clippy, static, the new conformance program on both
-libraries); -plants 5/5 CAUGHT (same code, before the last test edits; rerun as -plants2 on the final head); -gate3 (direct tier), -counts3 (getc/putc bench rows), -hottext3
-(NIJI_FULL_PROFILE hot_text_products) run in sequence from 10:07Z: PENDING at hand-back.
+Code 18bbf0107 (first run, all rc 0): -check4 (records check, clippy, static, the new conformance program on both
+libraries); -plants2 5/5 CAUGHT; -gate3 (direct tier); -hottext3 (NIJI_FULL_PROFILE hot_text_products).
+-2 run (same code): stdio-wide-byte-reads-2-check0 (clippy --all-features -D warnings, static: green),
+-2-percall (base vs head vs reference, below), -2-benchrows (`bench --compare --counters cbench_hot cbench_stdio
+--rows cbench_hot/getc,cbench_hot/getc_unlocked,cbench_hot/putc_unlocked,cbench_stdio/putc`).
 Superseded: -check/-check2 (test bug: fwrite oriented the tmpfile to bytes), -check3 (record key order), -gate (red:
 three niji-boundary assertions of the old rule, fixed in 18bbf0107; stopped), -hottext (ran beside the gate's product
-build in the same role, start-up bounds red: not a valid measurement; rerun as -hottext3), -gate2/-counts (a chain started on a role the sync had not updated; stopped).
+build in the same role, start-up bounds red: not a valid measurement; rerun as -hottext3), -gate2/-counts (a chain
+started on a role the sync had not updated; stopped), -counts3 (rc 1: it passed function names to `bench --compare`,
+which takes bench names, so nothing was measured; replaced by -2-percall and -2-benchrows).
+
+## Counts (instructions:u per call, deterministic; Zen 1 host)
+
+`validation/wl_percall.sh --base 50abc44ed --spec stdio_char.c` (spec outside the tree, keke
+~/work/STDIO-WIDE-BYTE-READS-2/stdio_char.c: reads from /dev/zero, writes to /dev/null, 8192-byte full buffers,
+putchar with stdout on /dev/null; every self-check `ok`):
+
+| row | reference | base 50abc44ed | head | head/reference |
+|---|---:|---:|---:|---:|
+| fgetc, getc | 31.0 | 23.0 | 23.0 | 0.74 |
+| getc_unlocked | 13.0 | 13.0 | 13.0 | 1.00 |
+| fputc, putc, putchar | 36.0 | 25.1 | 25.1 | 0.70 |
+| fputc_unlocked, putc_unlocked | 13.0 | 13.1 | 13.1 | 1.00 |
+| putchar_unlocked | 14.0 | 14.1 | 14.1 | 1.00 |
+
+No row changes between base and head (the byte-oriented front paths are untouched). Bench rows (head vs reference,
+instr/op): cbench_hot getc 21.4 vs 27.4, getc_unlocked 15.4 vs 15.4, putc_unlocked 17.2 vs 19.1; cbench_stdio putc
+23.2 vs 32.2.
 
 ## Open / next
 
-* Counts: base-vs-head bench needs a git checkout plus a base build; head counts only (see report). The front paths
-  are unchanged in source.
+* Not run: `cargo xtask test` (the full two-pass suite, i.e. FULL tier; the train's per the owner's 11-19 rule).
 * INFORMATIONAL: `tools/probe/probe` on keke (`~/bin/probe`) is older than the repo's (no `--niji`); run the repo copy
   `python3 ~/w/<role>/tools/probe/probe` or reinstall (`remote.sh --install`, a tool change).
-* Next step: if the gate or plants are red, fix and re-run only those; then `cargo xtask precheck`, report, handback-check.
+* Owed after landing (#6945): the compat-flag registration for the differences row.
+* Next step: none on this branch; land.
