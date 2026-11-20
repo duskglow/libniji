@@ -1,0 +1,8 @@
+# LIBRESOLV-OWN-CODE plants: libresolv.so.2's own code (cargo xtask plants; docs/plants.md).
+# The state check in `cargo xtask so` (xtask/src/so.rs libresolv_object) must refuse a libresolv object that keeps
+# libc's once/thread state or CPU-dispatch state; the seams must carry libresolv's output through the C library.
+link-edge-in-libresolv | crates/boundary/src/posix/s22_threads.rs | lit:#[cfg(any(feature = "runtime", not(feature = "libresolv")))] ==> #[cfg(all())] | cargo test -p niji --test sonames_products sonames_resolv | msg:holds writable data of its own
+strz-cpu-dispatch-in-libresolv | crates/boundary/src/strz.rs | perl:s/#\[cfg\(any\(feature = "runtime", not\(feature = "libresolv"\)\)\)\]\n    let n = \{/let n = {/ | cargo test -p niji --test sonames_products sonames_resolv | msg:holds writable data of its own
+res-close-not-forwarded | xtask/src/placeholders.rs | lit:"__fp_resstat", "__hostalias", "__res_close", ==> "__fp_resstat", "__hostalias", "__res_closx", | cargo test -p niji --test sonames_products sonames_resolv | msg:does not define __res_close
+fwrite-seam-drops-text | crates/boundary/src/caller_alloc.rs | lit:    if t.is_empty() { ==>     if !t.is_empty() { | cargo test -p niji --test sonames_products sonames_resolv | msg:sonames_resolv_dlopen_own_code.*FAILED|own code through dlopen
+block-seam-fails | crates/boundary/src/users.rs | lit:        a => Ok(a), ==>         _ => Err(Errno::ENOMEM), | cargo test -p niji --test sonames_products sonames_resolv | msg:sonames_resolv_dlopen_own_code.*FAILED|own code through dlopen

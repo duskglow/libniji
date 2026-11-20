@@ -2655,9 +2655,13 @@ pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so:
     let raw = LIBRESOLV_BUILD.raw_archive(&product, profile);
     let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
     let plan = crate::placeholders::plan(&table, "libresolv.so.2")?;
-    let names: BTreeSet<String> = plan.exports.iter().map(|e| e.name.clone()).filter(|n| !crate::placeholders::STILL_FORWARDED.contains(&n.as_str()) && !n.ends_with("_version_placeholder")).collect();
+    let names = crate::placeholders::own_wanted(&plan);
+    // A compat-only export is defined as `niji_own_<name>`, local to the library: the generated
+    // `niji_ph_<name>` exports it under `<name>@<version>` (`placeholders::c_source_own`).
+    let compat = crate::placeholders::own_compat(&plan, &names);
+    let own_name = |s: &str| if compat.contains(s) { format!("{}{s}", crate::placeholders::OWN_PREFIX) } else { s.to_string() };
     let keep = product.join("libresolv.keep");
-    fs::write(&keep, names.iter().map(|s| format!("{s}\n")).collect::<String>()).map_err(|e| e.to_string())?;
+    fs::write(&keep, names.iter().map(|s| format!("{}\n", own_name(s))).collect::<String>()).map_err(|e| e.to_string())?;
     let all = product.join("libresolv-all.o");
     let mut ld = Command::new("ld");
     ld.args(["-r", "--gc-sections"]);
@@ -2666,7 +2670,13 @@ pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so:
     }
     run(ld.arg("--whole-archive").arg(&raw).arg("--no-whole-archive").arg("-o").arg(&all))?;
     let obj = product.join("libresolv-own.o");
-    run(Command::new("objcopy").arg("--strip-unneeded").arg(format!("--keep-global-symbols={}", keep.display())).arg(&all).arg(&obj))?;
+    let renamed = product.join("libresolv-renamed.o");
+    let mut rename = Command::new("objcopy");
+    for s in &compat {
+        rename.arg(format!("--redefine-sym={s}={}", own_name(s)));
+    }
+    run(rename.arg(&all).arg(&renamed))?;
+    run(Command::new("objcopy").arg("--strip-unneeded").arg(format!("--keep-global-symbols={}", keep.display())).arg(&renamed).arg(&obj))?;
 
     let out = Command::new("nm").args(["-P"]).arg(&obj).output().map_err(|e| format!("nm: {e}"))?;
     let mut defined = BTreeSet::new();
@@ -2677,7 +2687,9 @@ pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so:
                 undefined.insert((*name).to_string());
             }
             [name, kind, ..] if kind.chars().all(|c| c.is_ascii_uppercase()) => {
-                defined.insert((*name).to_string());
+                // A compat-only export's definition counts under its export name.
+                let export = name.strip_prefix(crate::placeholders::OWN_PREFIX).filter(|n| compat.contains(*n)).unwrap_or(name);
+                defined.insert(export.to_string());
             }
             _ => {}
         }

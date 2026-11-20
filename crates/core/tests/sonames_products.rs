@@ -128,28 +128,35 @@ int main(void) {\n  void *h = dlopen(\"libresolv.so.2\", RTLD_NOW);\n  if (!h) {
   const char *(*p_type)(int) = (const char *(*)(int)) dlsym(h, \"__p_type\");\n\
   const char *(*p_time)(unsigned) = (const char *(*)(unsigned)) dlsym(h, \"__p_time\");\n\
   void (*p_query)(const unsigned char *) = (void (*)(const unsigned char *)) dlsym(h, \"__p_query\");\n\
+  void (*fp_nquery)(const unsigned char *, int, FILE *) = (void (*)(const unsigned char *, int, FILE *)) dlsym(h, \"__fp_nquery\");\n\
   int (*queriesmatch)(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *) =\n\
     (int (*)(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *)) dlsym(h, \"__res_queriesmatch\");\n\
   void (*res_close)(void) = (void (*)(void)) dlsym(h, \"__res_close\");\n\
-  if (!p_type || !p_time || !p_query || !queriesmatch || !res_close) { printf(\"dlsym\\n\"); return 2; }\n\
-  static const unsigned char q[] = {0x12,0x34,1,0,0,1,0,0,0,0,0,0,7,'e','x','a','m','p','l','e',3,'c','o','m',0,0,1,0,1};\n\
-  printf(\"%s %s %s %d\\n\", p_type(28), p_type(4242), p_time(3661), queriesmatch(q, q + sizeof q, q, q + sizeof q));\n\
-  fflush(stdout);\n  p_query(q);\n  fflush(stdout);\n  res_close();\n  return dlclose(h);\n}\n";
+  if (!p_type || !p_time || !p_query || !fp_nquery || !queriesmatch || !res_close) { printf(\"dlsym\\n\"); return 2; }\n\
+  static unsigned char q[512] = {0x12,0x34,1,0,0,1,0,0,0,0,0,0,7,'e','x','a','m','p','l','e',3,'c','o','m',0,0,1,0,1};\n\
+  printf(\"%s %s %s %d\\n\", p_type(28), p_type(4242), p_time(3661), queriesmatch(q, q + 29, q, q + 29));\n\
+  fflush(stdout);\n  p_query(q);\n  fp_nquery(q, 29, stdout);\n  fflush(stdout);\n  res_close();\n  return dlclose(h);\n}\n";
+
+/// What [`RESOLV_DLOPEN`] prints, settled by a probe of glibc 2.39 (2026-11-20): `p_query` parses
+/// a whole 512-byte message, so the zero bytes after the question are an over-long message;
+/// `fp_nquery` with the message's own length prints the header and the question.
+const RESOLV_DLOPEN_OUT: &str = "AAAA 4242 1h1m1s 1\n;; ns_initparse: Message too long\n\
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 4660\n\
+;; flags: rd; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 0\n\
+;;\texample.com, type = A, class = IN\n";
 
 /// D-16.6, LIBRESOLV-OWN-CODE (no spec clause): a program that never names libresolv.so.2 loads it
 /// with `dlopen` and calls its own code (a static name, a per-thread result buffer for an unknown
-/// type and for `p_time`, the message printer writing to `stdout` through the C library, a message
-/// comparison) and a name forwarded to `libc.so.6` (`__res_close`), as a statically linked
-/// `-lresolv` program prints the same.
+/// type and for `p_time`, the message printers writing to `stdout` through the C library, an
+/// error text, a message comparison) and a name forwarded to `libc.so.6` (`__res_close`), and
+/// prints what the same program prints on glibc 2.39 ([`RESOLV_DLOPEN_OUT`]).
 #[test]
 fn sonames_resolv_dlopen_own_code() {
     let dir = scratch("resolv-dlopen");
     let out = build_run(&dir, "dl", RESOLV_DLOPEN, &[], false);
     let needed = readelf(&["-d"], &dir.join("dl"));
     assert!(!needed.contains("[libresolv.so.2]"), "the program does not need libresolv.so.2 at start:\n{needed}");
-    let mut lines = out.lines();
-    assert_eq!(lines.next(), Some("AAAA 4242 1h1m1s 1"), "{out}");
-    assert!(out.contains("example.com"), "p_query printed the question through stdout:\n{out}");
+    assert_eq!(out, RESOLV_DLOPEN_OUT, "libresolv.so.2's own code through dlopen");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
