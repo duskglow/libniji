@@ -48,5 +48,19 @@ first release build went red on the budgets I had guessed from fast, naming `mod
   with `NIJI_FAULT_BOUNDS=enforce` only at release: tooling outside this repo.
 * The head bin's 84 bytes of headroom (fast) is the first edge growth will reach: a group that no longer fits moves
   and `true` or `locale` gains a window, which this gate now names.
-* Process slip: one edit in this run was made with a Python heredoc (the rules forbid heredocs); the content was
-  checked and committed normally.
+* Process slips (report in the hand-back): one edit was made with a Python heredoc and one doc-comment fix with
+  `sed -i` (both forbidden); the content was checked and committed normally.
+
+## Jobs and exact next step (leg 1 ended at head ed27735d7, synced to mei:~/w/s3)
+
+* Running on mei (started ~03:30Z): `~/work/LAYOUT-BYTE-BUDGETS-2/final.sh` runs in order
+  `layout-byte-budgets-2-lint2` (full clippy -D warnings + `cargo xtask static`), `-relhot2` (release so +
+  hot_text_products), `-fastso2` (fast so), `-gate2` (direct-tier `affected --run`), `-xtest2` (`cargo xtask test`);
+  it stops at the first of lint2/relhot2/fastso2 that fails. In parallel `layout-byte-budgets-2-plants2`
+  (`handoff/LAYOUT-BYTE-BUDGETS-2-plants.txt`, 7 plants, dir /mnt/zram/claude/layout-byte-budgets-2/plants-2).
+* SUPERSEDED: `-lint1` (unused import, fixed in ed27735d7), `-plants1` (killed: older head), `-measure1`, `-unit1`
+  (measurement and a fixture fix on older heads).
+* Next: `~/bin/jobwait` those labels; read `relhot2` for the release WINDOW-BIN-BYTES lines (fill the release head-bin
+  cell above) and that hot_text_products passes with `FAULT-COUNT REPORT` lines; fix any red; then
+  `cargo xtask precheck --jobs <labels> --head <sha>` on the role, write `handoff/reports/LAYOUT-BYTE-BUDGETS-2.json`,
+  push, `ops handback-check`, hand back. If `xtest2` is still running ~45 min before the 06:43Z deadline: PENDING JOBS.
