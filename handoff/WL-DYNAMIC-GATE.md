@@ -30,7 +30,7 @@ Plants file: `handoff/WL-DYNAMIC-GATE-plants.txt`.
   This run predates the verdict commit, so it prints no verdict: run `python3 validation/wl_verdict.py check <that
   log> --holds validation/wl_holds.tsv --all-count 30` by hand after filling the holds.
 - `wl-dynamic-gate-lint1` (test): `~/work/wl-dynamic-gate/lint.sh` (both self-tests, clippy, xtask static) on
-  head 86b… (the verdict commit). It sat QUEUED for a slot from 13:37Z (keke saturated). Superseded by the final lint.
+  head 4a2b2f3d9 (the verdict commit). It sat QUEUED for a slot from 13:37Z (keke saturated). Superseded by the final lint.
 
 ## Next step (leg 2)
 
