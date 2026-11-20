@@ -3906,6 +3906,12 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             match side_by_side_room(memory_room()) {
                 Ok(why) => {
                     println!("note: the xtask tests that run no products go beside the products build ({why})");
+                    // `cargo xtask so` is `cargo run -p xtask -- so`: it would wait for the `target/debug` build lock
+                    // that `cargo test -p xtask` holds while it compiles the tests. This process is that fresh xtask
+                    // binary, so the products build runs it directly (`/proc/self/exe`: the image this process runs,
+                    // even while cargo replaces `target/debug/xtask`).
+                    let mut products_cmd = Command::new("/proc/self/exe");
+                    products_cmd.arg("so");
                     ok &= products_beside_xtask_tests(root, &log, &mut products_cmd, &mut beside_cmd);
                 }
                 Err(why) => {
