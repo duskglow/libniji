@@ -24,6 +24,17 @@ struct dqblk {
   int : 32;
 };
 # endif
+#endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
+# endif
+#endif
+#if 1
 # ifndef __NIJI_D_quotactl
 #  define __NIJI_D_quotactl 1
 extern int quotactl (int, const char *, int, char *) __NIJI_NOTHROW;
