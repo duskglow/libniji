@@ -152,7 +152,8 @@ fn tls_static_info_sanitizer_runtimes_start() {
     let Some((lib, d)) = setup("san") else { return };
     let mut ran = 0;
     // ASan: one byte past an 8-byte block. LSan: the only pointer to a block, in a global, cleared.
-    let overflow = "#include <stdlib.h>\nint main(void) { char *p = malloc(8); p[8] = 1; free(p); return 0; }\n";
+    // Volatile: at -O1 the store before `free` is otherwise removed as dead.
+    let overflow = "#include <stdlib.h>\nint main(void) { volatile char *p = malloc(8); p[8] = 1; free((void *)p); return 0; }\n";
     let leak = "#include <stdlib.h>\nvoid *volatile g;\nint main(void) { g = malloc(64); g = 0; return 0; }\n";
     for (flag, rt, src, want) in [("-fsanitize=address", "libasan.so", overflow, "ERROR: AddressSanitizer: heap-buffer-overflow"), ("-fsanitize=leak", "liblsan.so", leak, "ERROR: LeakSanitizer: detected memory leaks")] {
         let prog = d.join(&flag[12..]);
