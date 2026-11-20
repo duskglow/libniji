@@ -1,0 +1,23 @@
+{"task": "ORACLE-VALUE-CACHE", "model": "opus", "tokens": null,
+ "result": "The C-oracle sweeps keep the oracle's decided values across libniji changes (D-10.131): five sweeps 9586 -> 199 pass-1 test-s warm on the same host (-97.9 %), 198 after a libniji math change",
+ "branch": "task/oracle-value-cache", "head": "47d1fdea5",
+ "gate": {"affected": "6 suites ok, 736 passed / 0 failed (head 27a586f0e); oracle-value-cache-gate-2 on the final head", "peak": "1.7G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "The gain needs CI to keep target/ between trains on a role (the cache lives in target/test-oracles/values), as for the verdict cache (D-10.57).",
+   "The accuracy tally's reference value is now the true value rounded to nearest at prec + 40 bits, decided by Ziv (was a 2 prec + 40 approximation whose last bits depended on call history, #6890); error < 2^-40 ulp, cold run not slower (9586 vs 9549 test-s in MP-ISQRT-FAST).",
+   "Whether Ziv resolves before its cap can depend on call history (#6890): a warm run can serve a value decided earlier where a fresh process could report undecided; no such line in today's sweeps."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "pass-1 test-seconds of the five C-oracle sweeps, warm cache, keke n4", "before": 9586.1, "after": 198.7, "unit": "test-s", "measured": true},
+   {"kind": "tooling", "what": "same, warm cache after a libniji math change (csqrtl results changed; 1870 values recomputed)", "before": 9586.1, "after": 197.9, "unit": "test-s", "measured": true},
+   {"kind": "tooling", "what": "nextest wall of the five sweeps, 24 threads, cold vs warm", "before": 852.0, "after": 14.4, "unit": "s", "measured": true},
+   {"kind": "size", "what": "value cache on disk, all five sweeps (690304 values)", "before": 0, "after": 56664064, "unit": "bytes", "measured": true},
+   {"kind": "coverage", "what": "unit tests for the value cache (verdict_cache.rs) and plants", "before": 0, "after": 6, "unit": "tests (12 plants)", "measured": true}
+ ],
+ "improvement": "A detached remote start must be its own ssh call with nothing chained before setsid (a `test -s && setsid ... &` held one ssh for 10 minutes); and two jobwaits in one call exceed the 600 s tool limit.",
+ "next_step": "Coordinator lands it; confirm CI keeps target/ between trains so the cache pays.",
+ "report_file": "handoff/ORACLE-VALUE-CACHE.md",
+ "jobs": ["keke:oracle-value-cache-lint-6", "keke:oracle-value-cache-gate-2", "keke:oracle-value-cache-plants-2", "keke:oracle-value-cache-measure"]}
