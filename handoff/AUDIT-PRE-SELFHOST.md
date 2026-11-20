@@ -38,6 +38,11 @@ single tests (171-237 s each), so they also set pass 1's tail.
 | 9 | Escalated FULL gate runs the cheap steps twice | `affected` escalation prechecks then `test_steps` (`main.rs` 339) | each entry point runs `CHEAP_STEPS` itself | n/a | ~8 s per FULL gate | low | S |
 | 10 | xtask unit tests: `affected::tests` 25-90 s each | `xtask/src/affected.rs` tests (`csys_falls_back_to_full_when_unsure` 90 s, ...) | each test recomputes selections over the live tree | n/a (test-only path) | up to ~1000 of 1397 test-s if the tree index is built once per process: NOT VERIFIED (not profiled) | low | M |
 
+Goals served (liella-ops GOALS.md, coordinator note 11-20): 1 E1, E3 (gate wall and test-s); 1b E1; 1c E3, E1 (a
+cold product build per plants run; distinct from the queued PLANTS-COPIES, which is about two concurrent copies, but
+the same code: merge if the coordinator prefers); 2, 3, 4 E2 (phase-14 workarounds, tests not run the way users run);
+5, 6 E2 (measurement of the path users run), 6 also E1 (what the INVIOLABLE gate trusts); 7 E1; 8 E2; 9 E1; 10 E1, E3.
+
 Not listed: pass 2 (`tests-interposed-*`, its unchanged-scan and doc run, `main.rs` 347-350, D-4.13), owned by
 PASS2-NATIVE-RUNNER. Designed host-libc use that stays: the reference side of every oracle and bench (glibc is the
 comparison), `wl_entries`/`wl_shapes` LD_PRELOAD observers (they profile the workloads on the glibc kit), conformance's
