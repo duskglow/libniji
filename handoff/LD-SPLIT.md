@@ -11,9 +11,11 @@ instead: every item of next's ld.rs appears exactly once in the split, byte-iden
 
 **Proved on a9371bfd5 (keke):** step0 clippy+static; every move commit compiles; moved-only diffs per commit;
 unsafe audit markers equal before and after; merge-tree demo clean; direct-tier gate `ld-split-2-gate` (9 suites,
-630 passed); plants `ld-split-2-plants` (5/5 CAUGHT); `ld-split-2-hottext` (30 passed); `ld-split-2-compare-4`
-(17/17 shared products have identical exported symbols; dynamic start-up instructions identical on 3 probes);
-swap root `ld-split-2-swap-2` (see report).
+630 passed); plants `ld-split-2-plants` (5/5 CAUGHT); `ld-split-2-hottext` (30 passed); `ld-split-2-compare-5`
+(17/17 shared products have identical exported symbols; dynamic start-up instructions equal on 3 probes, within
+run-to-run variation); `ld-split-2-lint` (clippy -D warnings + static). Swap root: head and base both
+same=63 differ=2 in the same two ldd cases (`ld-split-2-swap-2`, `-swap-base`; both rc 1 by design, so not in
+JOBS).
 
 **Not run:** FULL `cargo xtask test` (owner 11-19: the CI train is the FULL gate).
 
