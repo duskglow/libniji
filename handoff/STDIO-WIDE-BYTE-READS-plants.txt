@@ -4,3 +4,9 @@ fread-einval | crates/legacy/src/stdio_compat.rs | perl:s/(pub fn read<E: Env>.*
 fgets-none | crates/legacy/src/stdio_compat.rs | lit:    if room > 0 { ==>     if room > 0 && get(file, word::MODE) & 0x8000_0000 != 0 { | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
 ungetc-einval | crates/legacy/src/stdio_compat.rs | perl:s/(pub fn ungetc<E: Env>.*?)byte_access\(file\);/$1if !byte_oriented(file) { return Err(Errno::EINVAL); }/s | cargo xtask affected --only conformance:s12_wide_byte_reads --with-exports --run | msg:s12_wide_byte_reads
 putc-einval | crates/legacy/src/stdio_compat.rs | perl:s/(pub fn putc<E: Env>.*?)byte_access\(file\);/$1if !byte_oriented(file) { return Err(Errno::EINVAL); }/s | cargo test -p niji --test s12_stdio_clauses s12_8_c_6 | msg:s12_8_c_6.*(FAILED|panicked)|byte write on a wide stream
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# getc-eof: CAUGHT, caught by no test the log names
+# fread-einval: CAUGHT, caught by no test the log names
+# fgets-none: CAUGHT, caught by no test the log names
+# ungetc-einval: CAUGHT, caught by no test the log names
+# putc-einval: CAUGHT, caught by s12_stdio_clauses s12_8_c_6
