@@ -86,6 +86,77 @@ pub const PASS1_SHARD0: &[(&str, &str)] = &[
     ("niji-math", "complex_products"),
 ];
 
+/// The features of the exports-interposed suite (D-4.13): libniji's C symbols defined in the test
+/// binary itself, so a process the host started runs libniji's heap and string functions on the
+/// foreign path, and the test builds' `#[cfg(feature = "export")]` code is compiled in.
+pub const INTERPOSED_FEATURES: &str = "niji-boundary/export,niji-boundary/selftest";
+
+/// PASS2-NATIVE-RUNNER (ruling #6820): the targets of the interposed suite's packages that reach no
+/// code `export` compiles differently, so they run natively only (the second pass, `pass2.rs`). A
+/// target reaches such code when its source checks `feature = "export"`, or its binary links the
+/// C-family forwarders (`niji_caller_malloc`/`calloc`/`realloc`/`free`, `caller_alloc.rs`: with
+/// `export` its `reallocarray` goes by symbol and its blocks come from the poisoned test heap in the
+/// binary; natively they come from the products' heap). Measured on the `export` build of both
+/// packages (handoff/PASS2-NATIVE-RUNNER.md lists every target). `s27_dynlink_*` reach `ld.rs`,
+/// whose `export` difference is only which definition of the memory symbols links (libniji's either way).
+pub const NATIVE_ONLY: &[(&str, &str)] = &[
+    ("niji-boundary", "csys_veneer_abi"),
+    ("niji-boundary", "dl_tls_threads"),
+    ("niji-boundary", "failinject_products"),
+    ("niji-boundary", "libm_fma_select"),
+    ("niji-boundary", "niji_cc_lm"),
+    ("niji-boundary", "placement_sweep"),
+    ("niji-boundary", "s21_contexts_symbols"),
+    ("niji-boundary", "s27_dynlink_symbols"),
+    ("niji-boundary", "setlocale_env_repeat"),
+    ("niji-boundary", "setlocale_posix_repeat"),
+    ("niji-boundary", "uapi_vs_abi"),
+    ("niji", "s21_contexts_clauses"),
+    ("niji", "s27_dynlink_clauses"),
+    ("niji", "s31_utilities_clauses"),
+];
+
+/// Whether test target `target` of `krate` (`""`: the unit tests) runs again with the exports
+/// interposed (ruling #6820): niji-boundary's unit tests and test targets and niji's `_clauses`
+/// targets, but those in [`NATIVE_ONLY`]. A new target of niji-boundary joins the suite until it is
+/// shown to reach no `export` code.
+pub fn interposed(krate: &str, target: &str) -> bool {
+    !NATIVE_ONLY.contains(&(krate, target))
+        && match krate {
+            "niji-boundary" => true,
+            "niji" => target.ends_with("_clauses"),
+            _ => false,
+        }
+}
+
+/// The package directories of the interposed suite's packages.
+const SUITE_DIRS: &[(&str, &str)] = &[("niji-boundary", "crates/boundary"), ("niji", "crates/core")];
+
+/// The cargo selections of the interposed suite, one per package: `-p <package>`, `--lib` when its
+/// unit tests belong to it, then `--test <t>` for each of its test targets (`tests/*.rs`) that does.
+pub fn interposed_runs(root: &std::path::Path) -> Result<Vec<Vec<String>>, String> {
+    let mut runs = Vec::new();
+    for (krate, dir) in SUITE_DIRS {
+        let tests = root.join(dir).join("tests");
+        let mut ts: Vec<String> = std::fs::read_dir(&tests)
+            .map_err(|e| format!("{}: {e}", tests.display()))?
+            .flatten()
+            .filter_map(|e| e.file_name().to_str().and_then(|n| n.strip_suffix(".rs")).map(str::to_string))
+            .filter(|t| interposed(krate, t))
+            .collect();
+        ts.sort();
+        let mut args = vec!["-p".to_string(), krate.to_string()];
+        if interposed(krate, "") {
+            args.push("--lib".into());
+        }
+        for t in ts {
+            args.extend(["--test".to_string(), t]);
+        }
+        runs.push(args);
+    }
+    Ok(runs)
+}
+
 /// The shard tests other than shard 0 (`<name>_s<k>`, `k >= 1`, the `shards!` macro's names in
 /// `crates/math/tests/support/shard.rs` users); a target's unsharded tests keep running.
 const LATER_SHARDS: &str = "test(/_s[1-9][0-9]*$/)";
@@ -235,7 +306,7 @@ fn package_graph(cargo: &str, root: &std::path::Path, features: &[String]) -> Op
     let out = poison(&mut Command::new(cargo)).current_dir(root).args(["metadata", "--format-version", "1", "--offline"]).args(features).stderr(Stdio::inherit()).output();
     let graph = out.ok().filter(|o| o.status.success()).and_then(|o| PackageGraph::parse(&String::from_utf8_lossy(&o.stdout)));
     if graph.is_none() {
-        eprintln!("export pass: no package graph from `cargo metadata`; only the binaries' bytes decide");
+        eprintln!("second pass:no package graph from `cargo metadata`; only the binaries' bytes decide");
     }
     graph
 }
@@ -244,15 +315,15 @@ fn package_graph(cargo: &str, root: &std::path::Path, features: &[String]) -> Op
 /// code, printed with the reason. Any failure to list = none (every binary runs in both passes).
 pub fn unchanged_binaries(cargo: &str, root: &std::path::Path, features: &[String]) -> Vec<String> {
     let out = poison(&mut Command::new(cargo)).current_dir(root).args(["nextest", "list", "--workspace"]).args(features).args(["--list-type", "binaries-only", "--message-format", "json"]).stderr(Stdio::inherit()).output();
-    let Ok(out) = out.map_err(|e| eprintln!("export pass: cannot list the binaries ({e}); all run")) else { return Vec::new() };
+    let Ok(out) = out.map_err(|e| eprintln!("second pass:cannot list the binaries ({e}); all run")) else { return Vec::new() };
     if !out.status.success() {
-        eprintln!("export pass: listing the binaries failed ({}); all run", out.status);
+        eprintln!("second pass:listing the binaries failed ({}); all run", out.status);
         return Vec::new();
     }
     let graph = package_graph(cargo, root, features);
     let mut once: Vec<(String, &str)> = listed_binaries(&String::from_utf8_lossy(&out.stdout)).into_iter().filter_map(|(id, path, pkg)| Some((id, run_once_reason(&pkg, graph.as_ref(), || std::fs::read(&path).ok())?))).collect();
     once.sort();
-    eprintln!("export pass: {} test binaries hold no niji-boundary code, so the export features cannot change them; they ran in the first pass and do not run again:", once.len());
+    eprintln!("second pass: {} test binaries hold no niji-boundary code; they ran in the first pass and do not run again:", once.len());
     for (b, why) in &once {
         eprintln!("  once: {b} ({why})");
     }
@@ -401,8 +472,20 @@ fn pick_test_threads(env_set: bool, args: &[String], cpus: Option<usize>) -> Opt
 }
 
 /// `cargo nextest run <args>`: nextest's report passed through, then the summary lines.
+/// The native pass's runner arrives as `pass2::RUNNER_VIA` (`affected`'s `cargo xtask nextest`: cargo runs
+/// xtask itself through the target runner, so the runner variable cannot be set on that command) and goes to
+/// nextest as the runner variable.
 pub fn run(cargo: &str, root: &std::path::Path, args: &[String]) -> Result<(), String> {
+    match std::env::var(crate::pass2::RUNNER_VIA) {
+        Ok(r) => run_with(cargo, root, args, &[(crate::pass2::RUNNER_VAR, &r)]),
+        Err(_) => run_with(cargo, root, args, &[]),
+    }
+}
+
+/// [`run`] with `env` added to nextest's environment (the native pass's runner).
+pub fn run_with(cargo: &str, root: &std::path::Path, args: &[String], env: &[(&str, &str)]) -> Result<(), String> {
     let mut cmd = Command::new(cargo);
+    cmd.envs(env.iter().copied());
     let skip_log = root.join("target/niji-skips.log");
     let _ = std::fs::remove_file(&skip_log);
     poison(&mut cmd).current_dir(root).args(["nextest", "run"]).args(args).env("NIJI_SKIP_LOG", &skip_log).stderr(Stdio::piped());
@@ -456,6 +539,29 @@ mod tests {
             assert_eq!(pick_test_threads(false, &[String::from("--no-fail-fast"), String::from(a)], Some(12)), None, "{a}");
         }
         assert_eq!(pick_test_threads(false, &[String::from("--no-fail-fast")], Some(7)), Some(test_threads(7)));
+    }
+
+    #[test]
+    fn the_interposed_suite_keeps_every_target_that_checks_the_export_feature() {
+        // Trace: no spec clause (PASS2-NATIVE-RUNNER, ruling #6820: the suite's membership).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
+        for (c, t) in NATIVE_ONLY {
+            let dir = SUITE_DIRS.iter().find(|(k, _)| k == c).map(|(_, d)| *d).unwrap_or_else(|| panic!("{c} is not a suite package"));
+            let src = std::fs::read_to_string(root.join(dir).join(format!("tests/{t}.rs"))).unwrap_or_else(|e| panic!("{c}::{t}: {e}"));
+            assert!(!src.contains("feature = \"export\""), "{c}::{t} checks the export feature: it belongs to the interposed suite");
+            assert!(!interposed(c, t));
+        }
+        for t in ["heap_threads", "s29_rpc_clnt_svc_stubs", "tb_foreign_words", "tb_foreign_low_words", "heap_foreign_pair_cost"] {
+            assert!(interposed("niji-boundary", t), "{t}");
+        }
+        assert!(interposed("niji-boundary", "") && !interposed("niji", "") && interposed("niji", "s03_memory_clauses"));
+        assert!(!interposed("niji", "hot_text_products") && !interposed("niji-math", "special_cr"));
+        let runs = interposed_runs(&root).unwrap();
+        assert_eq!(runs[0][..3], ["-p", "niji-boundary", "--lib"]);
+        assert_eq!(runs[1][..2], ["-p", "niji"]);
+        assert!(runs[1].iter().skip(2).step_by(2).all(|a| a == "--test"), "niji's unit tests run natively only");
+        assert!(runs[1].iter().any(|a| a == "s03_memory_clauses") && !runs[1].iter().any(|a| a == "s27_dynlink_clauses"));
+        assert!(runs[0].iter().any(|a| a == "tb_foreign_words") && !runs[0].iter().any(|a| a == "uapi_vs_abi"));
     }
 
     #[test]
