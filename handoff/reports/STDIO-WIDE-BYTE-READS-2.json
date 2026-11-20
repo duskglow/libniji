@@ -6,17 +6,18 @@
  "branch": "task/stdio-wide-byte-reads-2",
  "head": "18bbf0107",
  "gate": {
-  "affected": "keke:stdio-wide-byte-reads-gate3 rc 0 (direct tier, code 18bbf0107; first run)",
-  "peak": null
+  "affected": "keke:stdio-wide-byte-reads-2-gate rc 0, affected: ok, 0 SKIPPED (direct tier, role r1, this code); the first run's gate3 (same code, role n3) was rc 0 too",
+  "peak": "gate: peak memory 12G (page cache included; reclaimed under the limit) oom_kill=0 rc=0"
  },
  "accepted_first_attempt": false,
  "rulings": [],
  "informational": [
   "counts3 failed because it passed function names (fgetc, getc, ...) to bench --compare, which takes bench names; the rows are in cbench_hot (getc, getc_unlocked, putc_unlocked) and cbench_stdio (putc); fgetc, fputc, fputc_unlocked, putchar, putchar_unlocked have no bench row, so they were counted with wl_percall",
   "bench --compare cannot compare base against head in a role directory (its --base stages a git worktree for timing); wl_percall --base gives base, head and reference in one deterministic table",
+  "precheck on a new role marks the earlier run's gate/plants/hottext (same code, another role) as testing other content (the new role's files are newer than those jobs), so a continuation on a new role reruns them; keeping a continuation on its predecessor's role, or matching by content tree, would save about 2 h of host time",
   "cargo xtask test (start-up rule of 11-14) not run: it is the full two-pass suite, the train's per the owner's 11-19 rule; hot_text_products ran (hottext3)"
  ],
- "refused": [],
+ "refused": ["Bash: python3 -I - handoff/reports/STDIO-WIDE-BYTE-READS-2.json with an empty heredoc (a stray no-op; refused by the no-heredoc hook; not retried, the edit was made with the Edit tool)"],
  "impact": [
   {
    "kind": "correctness",
@@ -71,9 +72,9 @@
  "next_step": "Land after the train; then the compat-flag registration owed for the differences row (#6945) and a comment on Yohane #23",
  "report_file": "handoff/STDIO-WIDE-BYTE-READS.md",
  "jobs": [
-  "keke:stdio-wide-byte-reads-gate3",
-  "keke:stdio-wide-byte-reads-plants2",
-  "keke:stdio-wide-byte-reads-hottext3",
+  "keke:stdio-wide-byte-reads-2-gate",
+  "keke:stdio-wide-byte-reads-2-plants",
+  "keke:stdio-wide-byte-reads-2-hottext",
   "keke:stdio-wide-byte-reads-2-check0",
   "keke:stdio-wide-byte-reads-2-percall",
   "keke:stdio-wide-byte-reads-2-benchrows"

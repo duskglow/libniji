@@ -47,9 +47,11 @@ wide stream reaches the engine as before.
 
 Code 18bbf0107 (first run, all rc 0): -check4 (records check, clippy, static, the new conformance program on both
 libraries); -plants2 5/5 CAUGHT; -gate3 (direct tier); -hottext3 (NIJI_FULL_PROFILE hot_text_products).
--2 run (same code): stdio-wide-byte-reads-2-check0 (clippy --all-features -D warnings, static: green),
+-2 run (same code, role r1): stdio-wide-byte-reads-2-check0 (clippy --all-features -D warnings, static: green),
 -2-percall (base vs head vs reference, below), -2-benchrows (`bench --compare --counters cbench_hot cbench_stdio
---rows cbench_hot/getc,cbench_hot/getc_unlocked,cbench_hot/putc_unlocked,cbench_stdio/putc`).
+--rows cbench_hot/getc,cbench_hot/getc_unlocked,cbench_hot/putc_unlocked,cbench_stdio/putc`), and on r1 again
+because precheck cannot match jobs from another role to this one's files: -2-plants (5/5 CAUGHT, no WARN),
+-2-gate (direct tier), -2-hottext (NIJI_FULL_PROFILE hot_text_products), -2-precheck2.
 Superseded: -check/-check2 (test bug: fwrite oriented the tmpfile to bytes), -check3 (record key order), -gate (red:
 three niji-boundary assertions of the old rule, fixed in 18bbf0107; stopped), -hottext (ran beside the gate's product
 build in the same role, start-up bounds red: not a valid measurement; rerun as -hottext3), -gate2/-counts (a chain
