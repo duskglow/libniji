@@ -4,20 +4,19 @@
 //! debugger rendezvous's start-time link maps (DL-23; [`super::debug`] fills the structure).
 
 use core::sync::atomic::Ordering::{Relaxed, Release};
-use niji_kernel::auxv::Auxv;
-use niji_kernel::uapi::AT_EXECFN;
 use niji_ld::arch::{Arch, Native};
 use niji_ld::program;
 use niji_ld::dlopen::Refusal;
 use niji_ld::search::{self, CacheRef, PathBuf, Scope};
 use niji_ld::{boot, elf, init, map, start};
 use niji_ld::tls::{self as ltls, Module, Placed};
+use crate::ffi_sys::{niji_sys_getcwd, niji_sys_readlinkat};
 use crate::raw;
 use super::table::{PathStore, Table, INLINE};
 use super::{debug, dlopen};
 use super::entry::{List, __libc_stack_end, register_rseq, report_nonshared};
 use super::exec_stack::exec_stack_dependency;
-use super::image::{FileId, ProcImage, SysMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image};
+use super::image::{AT_FDCWD, FileId, ProcImage, SysMapper, Unusable, dir_of, dyn_string, dynamic_of, file_mode, image_view, open_candidate, open_file, own_object, parse, read_cache, read_image};
 use super::initfini::run_init;
 use super::io::{c_string, fail_loading, fail_with, no_memory, write_all};
 use super::state::{OWN_BASE, START_INTERP, START_N, START_OBJS, START_PAGE, START_SPILL};
@@ -33,10 +32,12 @@ use super::tls::{INITIAL_TAIL, install_tls, map_area};
 /// path for `ld.so PROGRAM`, else `argv[0]`).
 // Indices stay below `n`; every per-object table is reserved to `n + 1` entries before each store.
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_arguments, clippy::too_many_lines)]
-pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin<'_>, preloads: &Preloads<'_>) -> usize {
+pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: usize, env: &List<'_>, origin: Origin, preloads: &Preloads<'_>) -> usize {
     use niji_ld::reloc::{self, Obj, Objects};
     let prog_name = name;
-    let mut origin_at: Option<usize> = None;
+    // The program's `$ORIGIN`, once looked up ([`Origin::dir`]); LD_LIBRARY_PATH as the search reads it.
+    let mut prog_origin: Option<Option<&'static [u8]>> = None;
+    let lib_path = if env.secure { None } else { env.ld.library_path };
     // The search state, used only for a name without `/`: each object's first requester and the
     // path it was opened by (empty: unknown, or the program's, from `origin`); the store for the
     // paths found (address space mapped at the first search hit, so it never runs out); the cache.
@@ -112,14 +113,21 @@ pub(super) fn link(prog: &start::Program, bias: usize, page: u64, name: &'static
                 let (mut depth, mut k) = (0usize, q);
                 loop {
                     chain.reserve(depth + 1).unwrap_or_else(|_| no_memory(name));
-                    let at = if k == 0 {
-                        let o = *origin_at.get_or_insert_with(|| origin.at());
-                        if o == 0 { &[][..] } else { c_string(o) }
-                    } else {
-                        paths[k]
-                    };
                     let d = &objs[k].dynm;
-                    chain[depth] = Scope { rpath: dyn_string(d, elf::dt::RPATH), runpath: dyn_string(d, elf::dt::RUNPATH), origin: (!at.is_empty()).then(|| dir_of(at)) };
+                    let (rpath, runpath) = (dyn_string(d, elf::dt::RPATH), dyn_string(d, elf::dt::RUNPATH));
+                    let dir = if k == 0 {
+                        // The program's is read only for a search that can expand it: a token in its
+                        // own lists, in LD_LIBRARY_PATH (expanded with the program's) or in the name.
+                        let token = |s: Option<&[u8]>| s.is_some_and(|s| s.contains(&b'$'));
+                        if token(rpath) || token(runpath) || token(lib_path) || name.contains(&b'$') {
+                            *prog_origin.get_or_insert_with(|| origin.dir(&mut store))
+                        } else {
+                            None
+                        }
+                    } else {
+                        Some(paths[k]).filter(|p| !p.is_empty()).map(dir_of)
+                    };
+                    chain[depth] = Scope { rpath, runpath, origin: dir };
                     depth += 1;
                     // Each first requester was loaded before its object: the chain ends at the program.
                     if k == 0 || depth > n {
@@ -473,19 +481,46 @@ fn interp_name(prog: &niji_ld::reloc::Obj<'_>) -> usize {
 /// `DT_NEEDED` links one start holds without a mapping (more grow the table): twice [`INLINE`].
 const EDGES_INLINE: usize = 2 * INLINE;
 
-/// Where a kernel-started program's `$ORIGIN` comes from: the path it was run by (`ld.so PROGRAM`,
-/// nonzero), else `AT_EXECFN` of `aux`, read only when a search needs it (a program whose
-/// dependencies are all named by path never looks it up).
+/// Where the program's `$ORIGIN` comes from ([`Origin::dir`]): the path it was run by (`ld.so
+/// PROGRAM`, nonzero), else the file the kernel ran, read only when a search expands the token (a
+/// program whose lists name no token never looks it up).
 #[derive(Clone, Copy)]
-pub(super) struct Origin<'a> {
+pub(super) struct Origin {
     pub(super) path: usize,
-    pub(super) aux: Auxv<'a>,
 }
 
-impl Origin<'_> {
-    /// The NUL-terminated path, or 0 when unknown.
-    fn at(self) -> usize {
-        if self.path != 0 { self.path } else { self.aux.get(AT_EXECFN).and_then(|a| usize::try_from(a).ok()).unwrap_or(0) }
+impl Origin {
+    /// The program's `$ORIGIN` (DL-NAME-PATH-2, probed): kernel-started, the directory of the file
+    /// the kernel ran (`/proc/self/exe`: absolute, symbolic links resolved), unknown when that cannot
+    /// be read (then `LD_ORIGIN_PATH` stands in, as for any unknown origin); run by `ld.so PROGRAM`,
+    /// the directory of the path as given, after the working directory when relative (as given when
+    /// that cannot be read). Kept in `store`, so the paths found under it, which name their link maps,
+    /// are absolute as the program's directory is. Cold: one system call, only for a search that
+    /// expands a token.
+    #[cold]
+    #[inline(never)]
+    fn dir(self, store: &mut PathStore) -> Option<&'static [u8]> {
+        let mut buf = [0u8; search::PATH_MAX];
+        let cap = i64::try_from(buf.len()).unwrap_or(0);
+        if self.path == 0 {
+            let n = niji_sys_readlinkat(AT_FDCWD, c"/proc/self/exe".as_ptr().cast(), buf.as_mut_ptr().cast(), cap);
+            // A full buffer may be a cut path; a relative one is not the kernel's.
+            let exe = usize::try_from(n).ok().filter(|&n| n < buf.len()).and_then(|n| buf.get(..n)).filter(|p| p.first() == Some(&b'/'))?;
+            return store.keep(dir_of(exe)).ok();
+        }
+        let given = c_string(self.path);
+        let mut joined = PathBuf::default();
+        if given.first() != Some(&b'/') {
+            // The getcwd system call's length counts the NUL; a directory it cannot reach is not absolute.
+            let n = niji_sys_getcwd(buf.as_mut_ptr().cast(), cap);
+            if let Some(cwd) = usize::try_from(n).ok().and_then(|n| buf.get(..n.checked_sub(1)?)).filter(|c| c.first() == Some(&b'/')) {
+                let cwd = if cwd == b"/" { &[][..] } else { cwd };
+                if joined.push(cwd) && joined.push(b"/") && joined.push(dir_of(given)) {
+                    return store.keep(joined.as_bytes()).ok();
+                }
+            }
+        }
+        Some(dir_of(given))
     }
 }
 

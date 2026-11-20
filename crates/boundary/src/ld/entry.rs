@@ -229,7 +229,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
         };
         let bias = start::bias(program_headers(&prog), prog.phnum, prog.phdr, page_bytes, header)
             .unwrap_or_else(|| refuse(b"ld.so: cannot find the program's load bias (no PT_PHDR, and no ELF header before its program headers)\n"));
-        run(sp, &prog, bias, page, 0, &list_env, aux)
+        run(sp, &prog, bias, page, 0, &list_env)
     }
     let arg = |i: usize| usize::try_from(stack_word(argv.wrapping_add(i.wrapping_mul(8)))).unwrap_or(0);
     // Run as a program: the path it was run by names the interpreter in a list.
@@ -257,7 +257,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
             start::rewrite(copy.get_mut(..words).unwrap_or(&mut []), &prog, ehdr);
             store_words(auxv, copy.get(..words.wrapping_add(2)).unwrap_or(&[]));
             store_words(argv, &[u64::try_from(argc.wrapping_sub(1)).unwrap_or(0)]);
-            run(argv, &prog, bias, page, arg(1), &list_env, Auxv::from_words(&[]))
+            run(argv, &prog, bias, page, arg(1), &list_env)
         }
         Action::List(name) => list(&list_env, name, true, invoked),
         other => {
@@ -282,7 +282,7 @@ fn program_headers(prog: &start::Program) -> &'static [u64] {
 /// bytes) and enter it with the initial stack at `sp`. A program with dependencies or with
 /// relocations other than RELATIVE/RELR is refused (DL-8 and DL-10 add them); a program without a
 /// dynamic section has neither, so nothing is relocated.
-fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, env: &List<'_>, aux: Auxv<'_>) -> ! {
+fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, env: &List<'_>) -> ! {
     let headers = program_headers(prog);
     // R14-13: a program whose PT_GNU_STACK asks for an executable stack is refused (word 0 of a header
     // holds p_type in its low and p_flags in its high half).
@@ -310,9 +310,9 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
         if start::needs_objects(dyn_words) || preloads.names().next().is_some() {
             // The program's name in messages: its path (`ld.so PROGRAM`), else argv[0].
             let at = if path != 0 { path } else { usize::try_from(stack_word(sp.wrapping_add(8))).unwrap_or(0) };
-            // Its `$ORIGIN`: the path it was run by (`ld.so PROGRAM`), else `AT_EXECFN` (threat model
-            // rule 2), looked up only when a search needs it.
-            let origin = Origin { path, aux };
+            // Its `$ORIGIN`: from the path it was run by (`ld.so PROGRAM`), else from the file the
+            // kernel ran (threat model rule 2), looked up only when a search expands it.
+            let origin = Origin { path };
             let fini = link(prog, bias, page, if at != 0 { c_string(at) } else { b"the program" }, sp, env, origin, &preloads);
             crate::arch::enter(sp, prog.entry, fini)
         }
