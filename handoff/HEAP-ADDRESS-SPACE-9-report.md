@@ -63,7 +63,8 @@ mapped, grow replacing a mapping.
   limit was not investigated); `-fullhot` rc 0 (30 passed; release counts: dynamic start-up 64 (bound 67),
   startup-only 10, coreutils-shaped 45, setlocale + printf 43, all at or under their bounds).
 - Still running at hand-back (queue waits of 10-20 min per job on the build host): `-xtest` (`cargo xtask test`,
-  products built, 153 of 6910 tests passed at 16:17Z), then `-dyncount` (fast-profile dynamic start-up faults on
-  Zen 1, 6 runs, for DYN_TRUE_BOUND [73, 67], #6998), both started by keke `~/work/HEAP-ADDRESS-SPACE-9/chain.sh`.
+  products built, 155 of 6910 tests passed at 16:20Z). Not run: the Zen 1 fast-profile dynamic start-up count for
+  DYN_TRUE_BOUND [73, 67] (#6998, "if cheap": it was queued behind `-xtest` and stopped at hand-back; the release
+  count on Zen 1 is 64, bound 67, in `-fullhot`).
 - Not run: precheck (the role stays busy with the chain; the hand-back is INCOMPLETE pending the ruling).
   `cargo xtask affected` escalated to FULL on run -8 (entry.S, xtask): FULL: the train's.

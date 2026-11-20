@@ -1,17 +1,70 @@
-{"task": "HEAP-ADDRESS-SPACE-9", "model": "opus", "tokens": null,
+{
+ "task": "HEAP-ADDRESS-SPACE-9",
+ "model": "opus",
+ "tokens": null,
  "result": "INCOMPLETE: LAYOUT-JITTER: cbench_startup delta is an extra read-only PT_LOAD (text +1216 B crosses a page, .rodata passes .rodata1's 64 KiB boundary); next + 4 KiB pad reproduces it, head + pad removes it; heap's own start-up cost +4..+6 user instr; RLIMIT_AS Pages test added",
- "branch": "task/heap-address-space-9", "head": "60ec2a659 (last code/test commit; handoff commits on top)",
- "gate": {"affected": "FULL: the train's; t2 (clippy -D warnings, static, new test) rc 0; fullhot 30 passed; plants 2 CAUGHT + 1 WARN-NO-MSG; xtest and dyncount still running at hand-back", "peak": null},
+ "branch": "task/heap-address-space-9",
+ "head": "60ec2a659 (last code/test commit; handoff commits on top)",
+ "gate": {
+  "affected": "FULL: the train's; t2 (clippy -D warnings, static, new test) rc 0; fullhot 30 passed; plants 2 CAUGHT + 1 WARN-NO-MSG; xtest still running; Zen 1 dyn count not run at hand-back",
+  "peak": null
+ },
  "accepted_first_attempt": null,
- "rulings": [{"item": "cbench_startup +7.5k kernel / +8 user instr is layout jitter (extra read-only PT_LOAD), not the heap mapping", "recommendation": "land as partial fix for #21, record the row as layout jitter, cut a layout story removing the .rodata/.rodata1 LOAD split for all static programs; do not trim heap text to dodge one binary's boundary"}],
- "informational": ["next's cbench_startup link sits 0xd24 bytes below the split: any change adding >= 985 B of text to it shows +7.5k kernel instructions", "keke slot queue: 1-second probes waited 10-20 min behind gates", "plants grow-replaces WARN-NO-MSG: caught by the new test at the free-range assertion, not the taken-range one"],
+ "rulings": [
+  {
+   "item": "cbench_startup +7.5k kernel / +8 user instr is layout jitter (extra read-only PT_LOAD), not the heap mapping",
+   "recommendation": "land as partial fix for #21, record the row as layout jitter, cut a layout story removing the .rodata/.rodata1 LOAD split for all static programs; do not trim heap text to dodge one binary's boundary"
+  }
+ ],
+ "informational": [
+  "next's cbench_startup link sits 0xd24 bytes below the split: any change adding >= 985 B of text to it shows +7.5k kernel instructions",
+  "keke slot queue: 1-second probes waited 10-20 min behind gates",
+  "plants grow-replaces WARN-NO-MSG: caught by the new test at the free-range assertion, not the taken-range one"
+ ],
  "refused": [],
  "impact": [
-  {"kind": "perf", "what": "cbench_startup true child, kernel instr (median, Zen 1), equal LOAD count (next vs head+pad)", "before": 165700, "after": 166700, "unit": "instr/process", "measured": true},
-  {"kind": "cost", "what": "malloc-using start-up children (setlocale/printf/wctype) user instr, first reservation", "before": 61840, "after": 61846, "unit": "instr/process", "measured": true},
-  {"kind": "cost", "what": "cbench_startup true child as linked (extra PT_LOAD, layout jitter; fix-forward: layout story)", "before": 165700, "after": 172300, "unit": "kernel instr/process", "measured": true},
-  {"kind": "coverage", "what": "test kernel_pages_map_aligned_under_an_address_space_limit + 3 plants", "before": 0, "after": 1, "unit": "tests", "measured": true}],
+  {
+   "kind": "perf",
+   "what": "cbench_startup true child, kernel instr (median, Zen 1), equal LOAD count (next vs head+pad)",
+   "before": 165700,
+   "after": 166700,
+   "unit": "instr/process",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "malloc-using start-up children (setlocale/printf/wctype) user instr, first reservation",
+   "before": 61840,
+   "after": 61846,
+   "unit": "instr/process",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "cbench_startup true child as linked (extra PT_LOAD, layout jitter; fix-forward: layout story)",
+   "before": 165700,
+   "after": 172300,
+   "unit": "kernel instr/process",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "test kernel_pages_map_aligned_under_an_address_space_limit + 3 plants",
+   "before": 0,
+   "after": 1,
+   "unit": "tests",
+   "measured": true
+  }
+ ],
  "improvement": "a cheap static-link check (LOAD count and .rodata1 slack vs base) in cbench --compare would have named this in minutes instead of two runs",
  "next_step": "ruling on the cbench_startup jitter; then HEAP-SPILL-COLD",
  "report_file": "handoff/HEAP-ADDRESS-SPACE-9-report.md",
- "jobs": ["keke:heap-address-space-9-s0", "keke:heap-address-space-9-relso", "keke:heap-address-space-9-t2", "keke:heap-address-space-9-plants", "keke:heap-address-space-9-fullhot", "keke:heap-address-space-9-xtest", "keke:heap-address-space-9-dyncount"]}
+ "jobs": [
+  "keke:heap-address-space-9-s0",
+  "keke:heap-address-space-9-relso",
+  "keke:heap-address-space-9-t2",
+  "keke:heap-address-space-9-plants",
+  "keke:heap-address-space-9-fullhot",
+  "keke:heap-address-space-9-xtest"
+ ]
+}
