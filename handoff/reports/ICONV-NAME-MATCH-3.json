@@ -1,0 +1,21 @@
+{"task": "ICONV-NAME-MATCH-3", "model": "opus", "tokens": null,
+ "result": "COMPLETE: iconv_open name rule now costs less than base in every measured case (UTF-8 -9.7%, CP1252 -8.7%, ISO-8859-15 -5.2%, KOI8R -20.7%, latin1 -26.1%, EUC-JP -8.6% instructions per open+close, same host); 4-word in-place Name and one 256-byte fold table; gate, start-up checks and 20 plants green",
+ "branch": "task/iconv-name-match-3", "head": "876a0e018",
+ "gate": {"affected": "32 suites: 12104 passed / 0 failed; conformance 138/0; xtask test 6784+5296 passed; hot_text_products (full profile) 26 passed", "peak": "16G"}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["ISO88591 row (788,151 base vs 1,906,670 head) is not a regression: base fails both opens with EINVAL (issue #6); head opens it as Latin-1, same fingerprint as latin1", "12 of the 106 aliases convert differently from the reference with the distro charmaps, as their charmap names already do in libniji (run 2, unchanged)", "493 names the reference lists have no letters-and-digits partner among libniji's names (BIG-FIVE, CP1140, 8859_2, ...): a follow-up could map them by fingerprint", "iconv -l lists built-ins and charmap stems, not aliases (D-31.16)"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, UTF-8 (same host, base 06c0b561e)", "before": 1697672, "after": 1533671, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, CP1252, generated charmaps", "before": 3208966, "after": 2931122, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, ISO-8859-15", "before": 3013762, "after": 2855829, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, KOI8R", "before": 4051088, "after": 3211339, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, latin1", "before": 2378672, "after": 1756671, "unit": "instructions", "measured": true},
+  {"kind": "perf", "what": "iconv_open+close x1000 both ways, EUC-JP", "before": 1656673, "after": 1514671, "unit": "instructions", "measured": true},
+  {"kind": "correctness", "what": "iconv_open opens iso88591 (issue #6) and run 2's 106 listed alias names; base: EINVAL", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "plants for the name rule and aliases", "before": 14, "after": 20, "unit": "plants", "measured": true}
+ ],
+ "improvement": "the same-host base build kept in RAM (prof.sh) made each re-measure a 6-minute job; per-symbol perf profiles against it pointed at the exact costs (row compare, Spec moves), so two code iterations were enough",
+ "next_step": "land; later a follow-up story for the 493 listed names without a partner (fingerprint mapping) and alias listing in iconv -l",
+ "report_file": "handoff/ICONV-NAME-MATCH.md",
+ "jobs": ["iconv-name-match-3-gate", "iconv-name-match-3-plants", "iconv-name-match-3-counts", "iconv-name-match-3-startup"]}

@@ -171,3 +171,96 @@ fn charmaps_load_past_any_fixed_count_and_fail_cleanly_without_memory() {
     eprintln!("{}", out.trim());
     assert!(out.starts_with(&format!("ok first={MANY_FIRST} ")), "iconv_many_charmaps: {out}");
 }
+
+/// Spellings `iconv_open` takes (spec/encoding/iconv-names.md; issue #6), one or more per class
+/// of the probe table: each spelling and the listed name it must denote (`Some("")`: the
+/// locale's codeset), or `None` when it names nothing. A `\xNN` is that byte.
+const SPELLINGS: &[(&str, Option<&str>)] = &[
+    // Listed spellings, in any case (`ISO88591` is a listed name of ISO-8859-1).
+    ("iso88591", Some("ISO-8859-1")),
+    ("ISO_8859-15", Some("ISO-8859-15")),
+    ("utf8", Some("UTF-8")),
+    ("cp1252", Some("CP1252")),
+    ("Cp1252", Some("CP1252")),
+    ("koi8r", Some("KOI8-R")),
+    // Listed names that differ only in punctuation denote one conversion.
+    ("KOI8R", Some("KOI8-R")),
+    ("ISO8859-1", Some("ISO_8859-1")),
+    // Bytes that do not count are dropped: space, tab, other punctuation, bytes above 0x7F.
+    (" utf-8 ", Some("UTF-8")),
+    ("iso 8859 1", Some("ISO-8859-1")),
+    ("UT(F-)8", Some("UTF-8")),
+    ("cp\\xe91252", Some("CP1252")),
+    ("c\\x09p1252+", Some("CP1252")),
+    (" ", Some("")),
+    // `, - . / : _` count: added, removed or changed, the name is another (here none).
+    ("cp-1252", None),
+    ("c.p.1252", None),
+    ("u-t-f-8", None),
+    ("iso_8859_1", None),
+    ("-utf8", None),
+    ("utf8-", None),
+    ("utf8.", None),
+    ("cp:1252", None),
+    ("koi_8_r", None),
+    ("UTF-8,x", None),
+    // One `/` joins two parts; an empty second part and trailing commas drop.
+    ("UTF-8/", Some("UTF-8")),
+    ("UTF-8,", Some("UTF-8")),
+    ("cp1252,,/", Some("CP1252")),
+    ("cp1252/,", Some("CP1252")),
+    ("UTF-8/x", None),
+    ("ISO-10646/UTF8,", Some("UTF-8")),
+    ("iso-10646/ utf8", Some("UTF-8")),
+    ("ISO-10646,/UTF8", None),
+    ("ISO-10646//UTF8", Some("ISO-10646")),
+    // Suffixes after the second `/`, on respelled names.
+    ("iso 8859 1//TRANSLIT", Some("ISO-8859-1//TRANSLIT")),
+    ("cp1252/ /IGNORE", Some("CP1252//IGNORE")),
+    ("ISO88591/,/translit", Some("ISO-8859-1//TRANSLIT")),
+    ("cp-1252//TRANSLIT", None),
+];
+
+#[test]
+fn iconv_open_matches_name_spellings_like_the_reference() {
+    // Clauses: s6_4_c_1.
+    let r = root();
+    assert!(r.join("target/niji/libc.a").exists(), "the products are missing: run `cargo xtask so`");
+    if skip_note::missing("cc") {
+        skip_note::skipped("skipped: no C compiler");
+        return;
+    }
+    if !Path::new(DIR).is_dir() || !Command::new("unshare").args(["-r", "-m", "true"]).status().is_ok_and(|s| s.success()) {
+        skip_note::skipped(&format!("skipped: needs `unshare -r -m` and a {DIR} directory to mount the generated charmaps over"));
+        return;
+    }
+    let dir = r.join("target/test-oracles");
+    std::fs::create_dir_all(&dir).unwrap();
+    let (host, niji) = (dir.join("iconv_name_spellings_host"), dir.join("iconv_name_spellings_niji"));
+    assert!(build("iconv_name_spellings.c", &host, false), "iconv_name_spellings.c does not build against the host C library");
+    assert!(build("iconv_name_spellings.c", &niji, true), "iconv_name_spellings.c does not link against the products");
+    let mut args: Vec<String> = Vec::new();
+    for (spelling, listed) in SPELLINGS {
+        args.push((*spelling).to_owned());
+        args.push(listed.unwrap_or("").to_owned());
+    }
+    let generated = r.join("target/niji/charmaps");
+    let mut wrong = Vec::new();
+    for (who, out) in [("reference", run(&host, &args, None)), ("libniji", run(&niji, &args, Some(&generated)))] {
+        let lines: Vec<&str> = out.lines().collect();
+        assert_eq!(lines.len(), args.len(), "{who}: {out}");
+        for ((spelling, listed), pair) in SPELLINGS.iter().zip(lines.chunks(2)) {
+            let field = |l: &str, i: usize| l.split('\t').nth(i).unwrap_or("").to_owned();
+            let (got, base) = (pair.first().copied().unwrap_or(""), pair.get(1).copied().unwrap_or(""));
+            let ok = match listed {
+                // Opens both ways, as the listed name's conversion (fingerprint).
+                Some(_) => field(got, 1) == "1" && field(got, 2) == "1" && field(got, 5) == field(base, 5),
+                None => field(got, 3) == "22" && field(got, 4) == "22",
+            };
+            if !ok {
+                wrong.push(format!("{who}: {spelling:?} (want {listed:?}): {got} | listed: {base}"));
+            }
+        }
+    }
+    assert!(wrong.is_empty(), "spellings not matched by the name rule:\n{}", wrong.join("\n"));
+}
