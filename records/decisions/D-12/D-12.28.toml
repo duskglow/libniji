@@ -1,0 +1,12 @@
+id = "D-12.28"
+section = "s12"
+spec = "§12.5, §12.10"
+ann = "ARB"
+status = "active"
+amends = ["D-12.27"]
+story = "STDIO-WIDE-BYTE-READS-3"
+date = "2026-11-20"
+tests = ["conformance/c/s12_wide_byte_reads.c"]
+body = '''
+**A character cut short keeps its bytes for byte reads** (amends D-12.27's incomplete character at end of input; STDIO-WIDE-BYTE-READS-3, Yohane #23). When a wide read stops at a sequence that does not decode, every byte of it read so far goes back to the stream: after `WEOF` with `EILSEQ` (a lone continuation byte, an overlong form, a byte that is never valid, a sequence cut short by a byte that cannot continue it) a byte read returns the sequence's first byte and then the bytes after it in order, and a wide read meets the sequence again; after `WEOF` at end of input inside a character, a byte read returns that character's bytes and then `EOF`, the end-of-file indicator stays set, and a wide read after more input arrives decodes them again. The position (`ftell`) is before the bytes given back. The same holds for the locale's encoding and a `ccs=` charset. Black-box probes (C.UTF-8 and `ccs=UTF-8`, the six invalid lines of util-linux `col`'s case): the reference library returns the same bytes and positions in these cases.
+'''
