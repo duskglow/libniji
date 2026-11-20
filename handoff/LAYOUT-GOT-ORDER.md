@@ -59,8 +59,10 @@ a second base variable: about 120 lines plus an ops change. Recommended as its o
 layout gate went red first, `data bin .got (written) ... no budget` and 7 > rw-budget-fast 6), `-plants3` (that plant
 again with `msg:` naming the gate), `-startup1` (release so + release hot_text_products + `cargo xtask test`: green),
 `-tfu2` (step 5: scratch merge of this branch + next 3f2a84520 + origin/task/thread-forced-unwind-2 260e4d491, not
-pushed: `cargo xtask so`). Superseded: `-so1`/`-so2`/`-so3` (earlier heads), `-plants1` (plants file refused at
-parse: ` | ` inside a `lit:` pattern).
+pushed: `cargo xtask so`), `-lint3` (clippy -D warnings, `cargo xtask static`, `records check` on d2b4a1f59: green).
+Superseded: `-so1`/`-so2`/`-so3` (earlier heads), `-plants1` (plants file refused at parse: ` | ` inside a `lit:`
+pattern), `-lint1` (unused `mut` in a gotrelax test helper), `-lint2` (D-X.140 body had paragraph breaks). The
+counts, plants and startup jobs ran on code that differs from the final head only by that test-helper `mut`.
 
 ## Exact next step
 

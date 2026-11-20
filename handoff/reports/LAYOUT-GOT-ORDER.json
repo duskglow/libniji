@@ -1,6 +1,6 @@
 {"task": "LAYOUT-GOT-ORDER", "model": "opus", "tokens": null,
  "result": "Static programs linked against libc.a have no .got (160 binop GOTPCREL marked REX_GOTPCRELX), so no .data.rel.ro size can move a .got page; written start-up pages fast 7 -> 6, release 8 -> 7",
- "branch": "task/layout-got-order", "head": "cafbf45cc",
+ "branch": "task/layout-got-order", "head": "d2b4a1f59",
  "gate": {"affected": "cargo xtask test: 6908 + 4837 + 126 + 46 passed, 0 failed; release hot_text_products green", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [],
@@ -23,4 +23,4 @@
  "improvement": "cargo xtask plants could reject a lit: pattern holding ' | ' with a hint to use perl: (it refused the whole file at parse, costing a queued run); and a one-plant rerun needs a hand-made file: an --only <id> option would save that",
  "next_step": "Land; follow-up story for data-bin new/grown objects against next (brief step 4)",
  "report_file": "handoff/LAYOUT-GOT-ORDER.md",
- "jobs": ["mei:layout-got-order-counts1", "mei:layout-got-order-plants2", "mei:layout-got-order-plants3", "mei:layout-got-order-startup1", "mei:layout-got-order-lint1", "mei:layout-got-order-tfu2"]}
+ "jobs": ["mei:layout-got-order-counts1", "mei:layout-got-order-plants2", "mei:layout-got-order-plants3", "mei:layout-got-order-startup1", "mei:layout-got-order-lint3", "mei:layout-got-order-tfu2"]}
