@@ -17,6 +17,10 @@
 //!   and against a base plan (`NIJI_LAYOUT_BASE_BINS`: next's `layout-bins.tsv`) the members new or grown, in bytes.
 //! * **Data bins.** The start-up read-only cluster (`.rodata1`) within `rodata1-windows` windows from its window's
 //!   start; the written start-up cluster (`.data1`) within `data1-pages-<profile>` pages from its page's start.
+//!   And every output section holding start-up data (D-X.138: the objects STARTUP-DATA-WINDOWS counts, `.got`,
+//!   RELRO, `.data`, `.bss` and the rest) is a bin of its own: from the page (written) or window (read-only)
+//!   boundary below its first start-up object to the end of its last, within `data-bins-<profile>` units. A section
+//!   pushed across a boundary by what is linked ahead of it is red here in bytes, as it costs a page there.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -286,6 +290,133 @@ pub fn verdict(a: &Analysis, b: &Budgets, base: Option<&BTreeMap<String, u64>>) 
     (report, broken)
 }
 
+/// A start-up data object of the probe's link (D-X.138): `[start, end)`, its name, the output section it lies in, and
+/// whether that section is written (counted in pages) or read-only (counted in windows).
+#[derive(Clone, Debug, PartialEq)]
+pub struct DataObject {
+    pub obj: Linked,
+    pub section: Linked,
+    pub rw: bool,
+}
+
+/// A data bin: the start-up objects of one output section, or of adjacent sections that share a unit joined with `+`
+/// in the budget (`.data1+.bss`), each cut to its first unit (start-up touches the head of a large buffer, as
+/// STARTUP-DATA-WINDOWS counts it). Its bytes run from the unit boundary below its first object to the end of its
+/// last, so a section that straddles a boundary, or is pushed onto a unit of its own by the section ahead of it in
+/// the same bin, costs bytes here as it costs a page or window there.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DataBin {
+    /// Its sections, in link order.
+    pub sections: Vec<Linked>,
+    pub rw: bool,
+    pub unit: u64,
+    pub objs: Vec<Linked>,
+    /// Written and read-only sections in one bin (a budget error).
+    pub mixed: bool,
+}
+
+impl DataBin {
+    fn start(&self) -> u64 {
+        self.objs.iter().map(|o| o.start).min().unwrap_or(0)
+    }
+
+    fn end(&self) -> u64 {
+        self.objs.iter().map(|o| o.end).max().unwrap_or(0)
+    }
+
+    /// Bytes from the unit boundary below the first object to the end of the last.
+    pub fn bytes(&self) -> u64 {
+        self.end() - self.start() / self.unit * self.unit
+    }
+
+    /// The units (page or window numbers) the objects touch.
+    pub fn touched(&self) -> BTreeSet<u64> {
+        self.objs.iter().flat_map(|o| o.start / self.unit..=(o.end - 1) / self.unit).collect()
+    }
+}
+
+/// The start-up data objects grouped into bins: the budget naming the object's section (alone or `+`-joined), else a
+/// bin of the section's own name (which has no budget).
+pub fn data_bins(objs: &[DataObject], window: u64, page: u64, budgets: &BTreeMap<String, u64>) -> BTreeMap<String, DataBin> {
+    let mut out: BTreeMap<String, DataBin> = BTreeMap::new();
+    for o in objs {
+        let unit = if o.rw { page } else { window };
+        let end = o.obj.end.min(o.obj.start + unit).max(o.obj.start + 1);
+        let key = budgets.keys().find(|k| k.split('+').any(|s| s == o.section.name)).cloned().unwrap_or_else(|| o.section.name.clone());
+        let bin = out.entry(key).or_insert_with(|| DataBin { sections: Vec::new(), rw: o.rw, unit, objs: Vec::new(), mixed: false });
+        bin.mixed |= bin.rw != o.rw;
+        if !bin.sections.contains(&o.section) {
+            bin.sections.push(o.section.clone());
+            bin.sections.sort_by_key(|s| s.start);
+        }
+        bin.objs.push(Linked { start: o.obj.start, end, name: o.obj.name.clone() });
+    }
+    out
+}
+
+/// The data-bin gate (D-X.138): `(report, broken)`. Every output section holding start-up data needs a budget in
+/// `data-bins-<profile>` (`<section>[+<section>...]:<units>`, pages for written sections, windows for read-only ones)
+/// and its bin's bytes must fit `units x unit`; a budget no start-up data lies in is red too (the data moved). The
+/// count STARTUP-DATA-WINDOWS reports is at most the bins' units added up, so with sections that share a unit joined in
+/// one bin, a green byte gate keeps the count within the sum.
+pub fn data_verdict(bins: &BTreeMap<String, DataBin>, budgets: &BTreeMap<String, u64>, profile: &str) -> (Vec<String>, Vec<String>) {
+    let mut report = Vec::new();
+    let mut broken = Vec::new();
+    let mut sums = [(0u64, 0u64); 2];
+    for (name, b) in bins {
+        let (class, what) = if b.rw { ("written", "pages") } else { ("read-only", "windows") };
+        let (first, last) = (b.start(), b.end());
+        let touched = b.touched();
+        let Some(&units) = budgets.get(name) else {
+            broken.push(format!(
+                "data bin {name} ({class}): {} start-up objects at 0x{first:x}-0x{last:x} ({} {what}) and no budget in data-bins-{profile}: start-up data newly lies in this section",
+                b.objs.len(),
+                touched.len()
+            ));
+            continue;
+        };
+        if b.mixed {
+            broken.push(format!("data bin {name}: joins written and read-only sections (a bin counts pages or windows, not both)"));
+            continue;
+        }
+        let (bytes, budget) = (b.bytes(), units * b.unit);
+        let secs: Vec<String> = b.sections.iter().map(|s| format!("{} 0x{:x}-0x{:x} ({} bytes into its unit)", s.name, s.start, s.end, s.start % b.unit)).collect();
+        sums[b.rw as usize].0 += touched.len() as u64;
+        sums[b.rw as usize].1 += units;
+        report.push(format!(
+            "data bin {name} ({class}): {bytes} bytes from its {}-byte boundary of {budget} ({units} {what}; headroom {}), {} start-up objects 0x{first:x}-0x{last:x}, {} {what} touched; {}",
+            b.unit,
+            budget as i64 - bytes as i64,
+            b.objs.len(),
+            touched.len(),
+            secs.join(", ")
+        ));
+        if bytes > budget {
+            let mut objs: Vec<&Linked> = b.objs.iter().collect();
+            objs.sort_by(|x, y| (y.end - y.start).cmp(&(x.end - x.start)).then_with(|| x.name.cmp(&y.name)));
+            let largest: Vec<String> = objs.iter().take(LARGEST).map(|o| format!("{} {} at 0x{:x}", o.name, o.end - o.start, o.start)).collect();
+            let at: Vec<String> = touched.iter().map(|u| format!("0x{:x}", u * b.unit)).collect();
+            broken.push(format!(
+                "data bin {name} ({class}): {bytes} bytes from its {}-byte boundary > {budget} ({units} {what}; headroom {}): its start-up objects touch {} {what} ({}); sections {} (what is linked ahead of a section places it); largest objects: {}",
+                b.unit,
+                budget as i64 - bytes as i64,
+                touched.len(),
+                at.join(" "),
+                secs.join(", "),
+                largest.join(", ")
+            ));
+        }
+    }
+    for name in budgets.keys().filter(|n| !bins.contains_key(*n)) {
+        broken.push(format!("data bin {name}: budgeted in data-bins-{profile} but no start-up object lies there (section renamed, or its start-up data moved?)"));
+    }
+    report.push(format!(
+        "data bins ({profile}): written {} pages touched of {} budgeted, read-only {} windows touched of {} budgeted",
+        sums[1].0, sums[1].1, sums[0].0, sums[0].1
+    ));
+    (report, broken)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -418,5 +549,85 @@ mod tests {
         assert_eq!(m[".text.sorted.h00001.f"], 100);
         assert!(parse_base("0\tx\n", str::to_string).is_err());
         assert!(parse_budgets("a:1,a:2").is_err() && parse_budgets("a").is_err());
+    }
+
+    fn dobj(start: u64, len: u64, name: &str, section: &Linked, rw: bool) -> DataObject {
+        DataObject { obj: sec(start, len, name), section: section.clone(), rw }
+    }
+
+    /// next's start-up data on the Skylake-SP host (fast): RELRO head, `.got` 272 bytes into its page, the heap
+    /// reserve's head in `.lbss`, one read-only object in `.rodata1`; `got` places `.got` and its two start-up slots.
+    fn data_link(got: Linked, slots: [u64; 2]) -> Vec<DataObject> {
+        let relro = sec(0x86_0000, 0xb110, ".data.rel.ro");
+        let lbss = sec(0x88_c000, 0xc_4418, ".lbss");
+        let ro = sec(0x80_0000, 0x9400, ".rodata1");
+        vec![
+            dobj(0x86_0200, 0x120, "C_SET", &relro, true),
+            dobj(0x86_10b8, 0x390, "text_only", &relro, true),
+            dobj(slots[0], 1, "<unnamed .got byte>", &got, true),
+            dobj(slots[1], 1, "<unnamed .got byte>", &got, true),
+            dobj(0x92_0000, 0x1_0000, "RESERVE_MEM", &lbss, true),
+            dobj(0x80_0100, 0x40, "NAMES", &ro, false),
+        ]
+    }
+
+    #[test]
+    fn a_written_section_straddling_a_page_is_red_in_bytes() {
+        // no spec clause: tooling (D-X.138); THREAD-FORCED-UNWIND-2: the section ahead of .got shrank by 0x148 bytes and
+        // .got crossed a page boundary (8 written pages counted while every byte bin passed).
+        let budgets = parse_budgets(".data.rel.ro:2,.got:1,.lbss:1,.rodata1:1").unwrap();
+        let next = data_link(sec(0x86_b110, 0xc8, ".got"), [0x86_b128, 0x86_b1d0]);
+        let (report, broken) = data_verdict(&data_bins(&next, BIN, 4096, &budgets), &budgets, "fast");
+        assert!(broken.is_empty(), "{broken:?}");
+        assert!(report.iter().any(|l| l.starts_with("data bin .got (written): 465 bytes from its 4096-byte boundary of 4096 (1 pages; headroom 3631), 2 start-up objects")), "{report:?}");
+        assert!(report.iter().any(|l| l.starts_with("data bin .lbss (written): 4096 bytes")), "a large object counts its first page: {report:?}");
+        assert!(report.iter().any(|l| l.starts_with("data bin .rodata1 (read-only): 320 bytes from its 65536-byte boundary")), "{report:?}");
+        assert!(report.iter().any(|l| l == "data bins (fast): written 4 pages touched of 4 budgeted, read-only 1 windows touched of 1 budgeted"), "{report:?}");
+        let moved = data_link(sec(0x86_afc8, 0xc8, ".got"), [0x86_afe0, 0x86_b088]);
+        let (_, broken) = data_verdict(&data_bins(&moved, BIN, 4096, &budgets), &budgets, "fast");
+        assert_eq!(broken.len(), 1, "{broken:?}");
+        assert!(
+            broken[0].starts_with("data bin .got (written): 4233 bytes from its 4096-byte boundary > 4096 (1 pages; headroom -137): its start-up objects touch 2 pages (0x86a000 0x86b000); sections .got 0x86afc8-0x86b090 (4040 bytes into its unit)"),
+            "{broken:?}"
+        );
+        let mut ro = next.clone();
+        ro.push(dobj(0x81_0000, 8, "FAR", &sec(0x80_0000, 0x1_0010, ".rodata1"), false));
+        let (_, broken) = data_verdict(&data_bins(&ro, BIN, 4096, &budgets), &budgets, "fast");
+        assert!(broken.iter().any(|l| l.starts_with("data bin .rodata1 (read-only): 65544 bytes from its 65536-byte boundary > 65536 (1 windows")), "{broken:?}");
+    }
+
+    #[test]
+    fn sections_sharing_a_page_are_one_bin_so_a_pushed_section_is_red() {
+        // no spec clause: tooling (D-X.138); next: .bss's start-up words share .data1's last page. As two bins (3 + 1
+        // pages) .data1 could grow within its own bytes, push them onto a page of their own and stay green.
+        let (data1, bss) = (sec(0x88_8000, 0x2df0, ".data1"), sec(0x88_ae00, 0xf60, ".bss"));
+        let link = |at: u64| vec![dobj(0x88_8000, 0x40, "DETECTIONS", &data1, true), dobj(0x88_adc8, 8, "__environ", &data1, true), dobj(at, 8, "WORD", &bss, true)];
+        let budgets = parse_budgets(".data1+.bss:3").unwrap();
+        let (report, broken) = data_verdict(&data_bins(&link(0x88_ae00), BIN, 4096, &budgets), &budgets, "fast");
+        assert!(broken.is_empty(), "{broken:?}");
+        assert!(report.iter().any(|l| l.starts_with("data bin .data1+.bss (written): 11784 bytes from its 4096-byte boundary of 12288 (3 pages; headroom 504), 3 start-up objects 0x888000-0x88ae08, 2 pages touched; .data1 0x888000")), "{report:?}");
+        let (_, broken) = data_verdict(&data_bins(&link(0x88_b000), BIN, 4096, &budgets), &budgets, "fast");
+        assert!(broken.iter().any(|l| l.starts_with("data bin .data1+.bss (written): 12296 bytes from its 4096-byte boundary > 12288 (3 pages; headroom -8): its start-up objects touch 3 pages")), "{broken:?}");
+        let mixed = parse_budgets(".data1+.rodata1:3").unwrap();
+        let mut objs = link(0x88_ae00);
+        objs.push(dobj(0x80_0100, 8, "NAMES", &sec(0x80_0000, 0x9400, ".rodata1"), false));
+        let (_, broken) = data_verdict(&data_bins(&objs, BIN, 4096, &mixed), &mixed, "fast");
+        assert!(broken.iter().any(|l| l.starts_with("data bin .data1+.rodata1: joins written and read-only sections")), "{broken:?}");
+    }
+
+    #[test]
+    fn every_section_holding_start_up_data_needs_a_budget_and_every_budget_its_data() {
+        // no spec clause: tooling (D-X.138); a section left out of the budgets would let its pages go uncounted.
+        let next = data_link(sec(0x86_b110, 0xc8, ".got"), [0x86_b128, 0x86_b1d0]);
+        let check = |b: &str| {
+            let b = parse_budgets(b).unwrap();
+            data_verdict(&data_bins(&next, BIN, 4096, &b), &b, "fast").1
+        };
+        let broken = check(".data.rel.ro:2,.lbss:1,.rodata1:1");
+        assert!(broken.iter().any(|l| l.starts_with("data bin .got (written): 2 start-up objects at 0x86b128-0x86b1d1 (1 pages) and no budget in data-bins-fast")), "{broken:?}");
+        let broken = check(".data.rel.ro:2,.got:1,.lbss:1,.rodata1:1,.bss:1");
+        assert_eq!(broken, ["data bin .bss: budgeted in data-bins-fast but no start-up object lies there (section renamed, or its start-up data moved?)"]);
+        let broken = check(".data.rel.ro:1,.got:1,.lbss:1,.rodata1:1");
+        assert!(broken.iter().any(|l| l.starts_with("data bin .data.rel.ro (written): 5192 bytes from its 4096-byte boundary > 4096 (1 pages; headroom -1096)")), "{broken:?}");
     }
 }

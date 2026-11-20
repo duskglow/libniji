@@ -1,0 +1,5 @@
+# LAYOUT-BYTE-BUDGETS-3 plants (D-X.138): the start-up data bins of xtask/src/binbudget.rs and the non-blocking STARTUP-DATA-WINDOWS count
+data-bin-check-inverted | xtask/src/binbudget.rs | lit:let (bytes, budget) = (b.bytes(), units * b.unit); ==> let (budget, bytes) = (b.bytes(), units * b.unit); | cargo test -p xtask binbudget | msg:a_written_section_straddling_a_page_is_red_in_bytes
+written-section-left-out | xtask/src/binbudget.rs | lit:let unit = if o.rw { page } else { window }; ==> if o.rw && o.section.start % page != 0 { continue; } let unit = if o.rw { page } else { window }; | cargo test -p xtask binbudget | msg:a_written_section_straddling_a_page_is_red_in_bytes
+joined-section-left-out | xtask/src/binbudget.rs | lit:k.split('+').any( ==> k.split('+').take(1).any( | cargo test -p xtask binbudget | msg:sections_sharing_a_page_are_one_bin_so_a_pushed_section_is_red
+count-blocks-per-story | xtask/src/layout.rs | lit:if !enforce { ==> if enforce { | cargo test -p xtask layout:: | msg:startup_data_holds_within_the_budget_and_names_the_lone_object_one_below
