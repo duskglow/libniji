@@ -5,7 +5,7 @@
 //!
 //! * **Bins.** Every window bin (`.text.sorted.h9<bin>...`, [`crate::bins::section`]) is measured from its first
 //!   member's start to its last member's end. A bin after the head bin must start on a window boundary (else the plan
-//!   was not applied), the head bin no more than `head-room` bytes into its window. Budget: the window ([`BIN`]; the
+//!   was not applied), the head bin no more than `head-room` bytes into its window. Budget: the window (64 KiB; the
 //!   head bin less its room), or as many windows as its members' bytes need. The planner re-plans every build and
 //!   fills a bin only to its capacity, so a bin over budget means the link disagrees with the plan; the per-bin
 //!   lines are the headroom report.
@@ -20,7 +20,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::bins::{BIN, WARM_UP};
+use crate::bins::WARM_UP;
 
 /// The environment variable naming a base plan (another revision's `layout-bins.tsv`) for the member diff.
 pub const BASE_ENV: &str = "NIJI_LAYOUT_BASE_BINS";
@@ -289,6 +289,7 @@ pub fn verdict(a: &Analysis, b: &Budgets, base: Option<&BTreeMap<String, u64>>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bins::BIN;
 
     fn sec(start: u64, len: u64, name: &str) -> Linked {
         Linked { start, end: start + len, name: name.into() }
