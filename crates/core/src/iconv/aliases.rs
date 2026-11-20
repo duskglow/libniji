@@ -15,8 +15,17 @@
 //! Sorted by name for a binary search; the core test `s6_4_c_1_charmap_aliases` checks the
 //! order, that no row is a built-in name, and that the generated charmaps
 //! (`spec/encoding/charmaps.tsv`) never give a row's name to another charmap.
+//!
+//! The library holds the table without pointers ([`TEXT`] and [`ROWS`], built from
+//! [`CHARMAP_ALIASES`] at compile time): a table of slices in a shared library is 32 bytes of
+//! relocated data per row, which the loader writes at every process start whether or not the
+//! process ever calls `iconv_open`. The 106 rows as slices were 3,392 bytes of `.data.rel.ro`, one
+//! more page of libc.so.6 written (and one more page fault) at every start of a dynamic program
+//! (Skylake-SP host, fast products: 72 faults, 71 without the table). Bytes and offsets need no
+//! relocation and stay in read-only data that start-up never reads.
 
-/// (name in matching form, charmap file name in matching form), sorted by name.
+/// (name in matching form, charmap file name in matching form), sorted by name. Read only at
+/// compile time, to build [`TEXT`] and [`ROWS`].
 const CHARMAP_ALIASES: &[(&[u8], &[u8])] = &[
     (b"ARMSCII8", b"ARMSCII-8"),
     (b"BIG-5", b"BIG5"),
@@ -126,14 +135,87 @@ const CHARMAP_ALIASES: &[(&[u8], &[u8])] = &[
     (b"WINSAMI2", b"SAMI-WS2"),
 ];
 
+/// The number of rows.
+const ROW_COUNT: usize = CHARMAP_ALIASES.len();
+
+/// The bytes of every row's name and charmap together.
+const TEXT_LEN: usize = text_len();
+
+/// Every row's name, then its charmap, back to back in row order (no separators: [`ROWS`] holds
+/// the bounds).
+static TEXT: [u8; TEXT_LEN] = text();
+
+/// Per row, offsets in [`TEXT`]: where its name starts, where its charmap starts (the name's
+/// end) and where the charmap ends.
+static ROWS: [[u16; 3]; ROW_COUNT] = rows();
+
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+const fn text_len() -> usize {
+    let mut n = 0;
+    let mut i = 0;
+    while i < ROW_COUNT {
+        n += CHARMAP_ALIASES[i].0.len() + CHARMAP_ALIASES[i].1.len();
+        i += 1;
+    }
+    n
+}
+
+// A const fn (no `get_mut`): a byte past the end fails the build.
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects)]
+const fn text() -> [u8; TEXT_LEN] {
+    let mut t = [0u8; TEXT_LEN];
+    let mut at = 0;
+    let mut i = 0;
+    while i < ROW_COUNT {
+        let (name, charmap) = CHARMAP_ALIASES[i];
+        let mut k = 0;
+        while k < name.len() {
+            t[at] = name[k];
+            at += 1;
+            k += 1;
+        }
+        k = 0;
+        while k < charmap.len() {
+            t[at] = charmap[k];
+            at += 1;
+            k += 1;
+        }
+        i += 1;
+    }
+    t
+}
+
+// A const fn: text past `u16::MAX` bytes fails the build.
+#[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions)]
+const fn rows() -> [[u16; 3]; ROW_COUNT] {
+    assert!(TEXT_LEN <= u16::MAX as usize, "the alias text outgrew u16 offsets");
+    let mut r = [[0u16; 3]; ROW_COUNT];
+    let mut at = 0;
+    let mut i = 0;
+    while i < ROW_COUNT {
+        let (name, charmap) = CHARMAP_ALIASES[i];
+        let mid = at + name.len();
+        let end = mid + charmap.len();
+        r[i] = [at as u16, mid as u16, end as u16];
+        at = end;
+        i += 1;
+    }
+    r
+}
+
+/// The bytes of [`TEXT`] from `from` to `to`.
+fn span(from: u16, to: u16) -> &'static [u8] {
+    TEXT.get(usize::from(from)..usize::from(to)).unwrap_or(&[])
+}
+
 /// The charmap `name` (matching form, [`super::Name::form`]) stands for when it is not a name of
 /// that charmap itself, if any.
 pub fn charmap_alias(name: &[u8]) -> Option<&'static [u8]> {
-    let i = CHARMAP_ALIASES.binary_search_by(|(a, _)| (*a).cmp(name)).ok()?;
-    CHARMAP_ALIASES.get(i).map(|(_, target)| *target)
+    let i = ROWS.binary_search_by(|&[n, c, _]| span(n, c).cmp(name)).ok()?;
+    ROWS.get(i).map(|&[_, c, e]| span(c, e))
 }
 
 /// Every row, in order: (name, charmap).
 pub fn charmap_aliases() -> impl Iterator<Item = (&'static [u8], &'static [u8])> {
-    CHARMAP_ALIASES.iter().copied()
+    ROWS.iter().map(|&[n, c, e]| (span(n, c), span(c, e)))
 }
