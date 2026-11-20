@@ -1,0 +1,8 @@
+# LAYOUT-BYTE-BUDGETS-2 plants (D-X.136): the WINDOW-BIN-BYTES checks of xtask/src/binbudget.rs
+mode-budget-weakened | xtask/src/binbudget.rs | lit:if n > budget { ==> if n > budget + 1 { | cargo test -p xtask binbudget | msg:a_mode_over_budget_names_its_bins_members_and_growth
+bin-bytes-inverted | xtask/src/binbudget.rs | lit:if lb.bytes() > budget { ==> if lb.bytes() < budget { | cargo test -p xtask binbudget | msg:a_green_link_reports_every_bin_and_its_headroom
+section-left-out | xtask/src/binbudget.rs | lit:b.end = b.end.max(s.end); ==> b.end = b.end.max(s.start); | cargo test -p xtask binbudget | msg:a_green_link_reports_every_bin_and_its_headroom
+member-diff-dropped | xtask/src/binbudget.rs | lit:fmt_grown(lb, Some(m), base) ==> String::from("no diff") | cargo test -p xtask binbudget | msg:a_mode_over_budget_names_its_bins_members_and_growth
+warm-up-kept | xtask/src/binbudget.rs | lit:.filter(|x| !pre.is_some_and(|p| p.contains(x))) ==> .filter(|x| pre.is_none_or(|p| p.len() < 1_000_000 || p.contains(x))) | cargo test -p xtask binbudget | msg:modes_count_their_windows_less_their_warm_up
+data-budget-weakened | xtask/src/binbudget.rs | lit:if bytes > budget { ==> if bytes > budget + 1 { | cargo test -p xtask binbudget | msg:bytes_over_a_bin_or_data_budget_are_red
+under-level-ignored | xtask/src/binbudget.rs | lit:} else if n < budget { ==> } else if n + 1 < budget { | cargo test -p xtask binbudget | msg:a_level_under_budget_an_unbudgeted_mode_and_a_misplaced_bin_are_red

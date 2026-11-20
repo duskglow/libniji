@@ -323,7 +323,7 @@ mod tests {
     }
 
     fn sig_rows() -> BTreeMap<String, BTreeSet<String>> {
-        sigs(&[("start", "true,locale,strings.pre"), ("setlocale", "locale"), ("newlocale", "locale"), ("strlen", "strings,strings.pre")])
+        sigs(&[("start", "true,locale,strings.pre"), ("setlocale", "locale"), ("newlocale", "locale"), ("strlen", "strings")])
     }
 
     #[test]
