@@ -42,11 +42,15 @@ if [ -n "${WL_PROGS:-}" ]; then
     PROGS=("${keep[@]}")
 fi
 ltree() { # name tree -> the niji validation tree
-    local b=$V/build/niji-m
-    [ "$1" = make ] && b=$V/build/niji-noload
-    # Hosts whose validation builds predate the project's rename keep them as liella-m / liella-noload: the same
-    # objects (system headers, independent of the libniji commit). Without this no kit linked on such a host.
-    [ -d "$b" ] || [ ! -d "${b/niji-/liella-}" ] || b=${b/niji-/liella-}
+    local s=m b c
+    [ "$1" = make ] && s=noload
+    b=$V/build/niji-$s
+    # Hosts whose validation builds predate the project's rename keep the same objects (system headers, independent
+    # of the libniji commit) under the former name: take the non-glibc tree with the same suffix. Without this no kit
+    # linked on such a host.
+    if [ ! -d "$b" ]; then
+        for c in "$V"/build/*-"$s"; do case ${c##*/} in glibc-*) ;; *) [ -d "$c" ] && b=$c ;; esac; done
+    fi
     echo "$b/$2"
 }
 gtree() { case $1 in make) echo "$V/build/glibc-noload/$2" ;; *) echo "$V/build/glibc/$2" ;; esac; }
