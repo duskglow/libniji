@@ -82,9 +82,8 @@
  "jobs": [
   "keke:mp-isqrt-fast-lint-2",
   "keke:mp-isqrt-fast-plants",
-  "keke:mp-isqrt-fast-before",
-  "keke:mp-isqrt-fast-after",
-  "keke:mp-isqrt-fast-gate"
+  "keke:mp-isqrt-fast-gate",
+  "keke:mp-isqrt-fast-after"
  ],
  "improvement": "A replay harness (saved sweep program outputs through the oracle, result digest plus perf stat) proved equivalence and measured each step in about a minute, instead of 45-minute sweep runs; worth a cargo xtask subcommand for oracle work",
  "next_step": "func::mulw under cplx::tanh_parts (56% inclusive after) forms exact products of long operands before rounding: a truncated product with a bounded error; then a 128/64 division for __udivti3 (12%)",
