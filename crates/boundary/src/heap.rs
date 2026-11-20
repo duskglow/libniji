@@ -1216,6 +1216,12 @@ mod foreign {
         fn remap(&self, addr: usize, old_len: usize, new_len: usize) -> Option<usize> {
             KernelPages.remap(addr, old_len, new_len)
         }
+        fn map_room(&self, head: usize, len: usize, room: usize, align: usize, node: Option<u32>) -> Option<usize> {
+            KernelPages.map_room(head, len, room, align, node)
+        }
+        fn grow(&self, addr: usize, len: usize, node: Option<u32>) -> bool {
+            KernelPages.grow(addr, len, node)
+        }
         #[inline(always)]
         fn wipe(&self, addr: usize, len: usize) {
             KernelPages.wipe(addr, len);
