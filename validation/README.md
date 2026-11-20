@@ -541,6 +541,18 @@ measured and printed in the advisory `time` column and is never a verdict.
   on the BASE and NEW kits only (never glibc), top-5 growing and top-5 largest symbols.
 * `results/*.replace` are regenerated from the live kit builds' `config.log` (Zen 1 `~/validation/build`).
 
+### The INVIOLABLE rule binds the dynamic kit (WL-DYNAMIC-GATE, owner ruling #6965, 2026-11-20, D-X.141)
+
+The per-gate workload measurement is `wl_count.sh` with libniji **linked dynamically** (`WL_LINK` defaults to
+`dynamic`, validation/wl_lock.sh), the way users run it. `validation/wl_verdict.py` judges the new column and its
+FAIL fails the count job: each workload at or below 1.10x glibc in instructions:u and in page faults, and the geomean
+of instructions:u at or below 1.00 when every workload ran. Rows over 1.10x for dynamic start-up when the rule moved
+are held at their recorded level in `validation/wl_holds.tsv` (per CPU class; a ratchet, never loosened; a held row at
+or below 1.10x drops its hold: HOLD-RELEASE). Self-test: `wl_verdict_test.sh`. One `cargo xtask so` per sha caches both
+product sets. **Static stays measured**: `wl_kits.sh <sha>` (glibc, static, dynamic) is the nightly and release-candidate
+sweep and reports the same rule for both kits; a static regression there opens a story and does not block a gate.
+`wl_gate.sh` (timing hosts) stays on the static kit.
+
 ### wl_count.sh: counters of a branch in one call (WL-COUNT, 2026-10-10)
 
 `validation/wl_count.sh [--base REV] [--rev REV] <dir|rev> <workload>...` (see "Running the wl_ tools through jobrun" below) prints, per workload, instructions:u, instructions:k, page faults and syscalls (the gating number excludes futex and, for a workload that creates threads, its mmap/munmap/brk/mprotect/madvise calls, and for a workload that creates another process, such as a pipeline, its read/write calls on pipes: each on its own advisory row, WLCOUNT-FUTEX, WLCOUNT-MTMEM-2, D-X.46; wl_run.sh uses the same classifier, validation/wl_syscls.sh) for NEW,

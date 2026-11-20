@@ -8,7 +8,9 @@
 #   4. a cached set of the other profile under a key is refused, never reused, rebuilt over or deleted;
 #   5. WL_PROFILE=fast reads the old fast cache without building;
 #   6. WL_LINK=dynamic (WL-DYNAMIC-KIT) keys apart (<sha>-release-dyn) and never takes a static set;
-#   7. wl_dynlink.py: a SONAME-less copy, and a program's by-path DT_NEEDED retargeted in place (cc and readelf).
+#   7. wl_dynlink.py: a SONAME-less copy, and a program's by-path DT_NEEDED retargeted in place (cc and readelf);
+#   8. WL-DYNAMIC-GATE: with no WL_LINK the link is dynamic (the per-gate kit), the timing gate pins static, and one
+#      build caches both links' sets (8b, with cc).
 # Runs the real wl_lock.sh functions in a scratch HOME with a stand-in `cargo` that writes products and xtask's
 # target/niji/.profile marker the way `cargo xtask so` does (fast unless NIJI_FULL_PROFILE is set and not 0).
 # Seconds; no libniji build. `affected` runs it when wl_lock.sh or this file changes (VALIDATION_COVERED).
@@ -17,7 +19,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 export HOME=$tmp/home
-unset NIJI_FULL_PROFILE WL_PROFILE
+unset NIJI_FULL_PROFILE WL_PROFILE WL_LINK
 stub=$tmp/stub
 mkdir -p "$HOME/wl/src" "$HOME/wl/products" "$stub"
 # bash -l (wl_build_products) may reset PATH from /etc/profile; the scratch HOME's .profile puts the stand-in first again.
@@ -28,6 +30,7 @@ printf '%s\n' '#!/bin/sh' \
     'echo build >> "$HOME/builds"' \
     'p=fast; case ${NIJI_FULL_PROFILE:-} in ""|0) ;; *) p=release ;; esac; [ -n "${STUB_PROFILE:-}" ] && p=$STUB_PROFILE' \
     'mkdir -p target/niji && for f in libc.a libm.a niji-crt1.o; do echo "$p" > target/niji/$f; done' \
+    '[ -n "${STUB_SO:-}" ] && cp "$STUB_SO"/* target/niji/' \
     'echo "$p" > target/niji/.profile' > "$stub/cargo"
 chmod +x "$stub/cargo"
 . "$here/wl_lock.sh"
@@ -39,6 +42,15 @@ T=89abcdef0123456789abcdef0123456789abcdef
 U=fedcba9876543210fedcba9876543210fedcba98
 for s in $S $T $U; do mkdir -p "$HOME/wl/src/$s"; done
 
+# 8 (first, before any WL_LINK is set). THE GATE BINDS THE DYNAMIC KIT (WL-DYNAMIC-GATE, owner ruling #6965, D-X.141):
+# with no WL_LINK the link is dynamic and every key is the dynamic one; the timing gate pins static itself.
+check "default link is dynamic (the per-gate kit)" dynamic "$(wl_link)"
+check "default key is the dynamic one" "$S-release-dyn" "$(wl_key $S)"
+check "default product file is the shared libc" libc.so.6 "$(wl_prodfile)"
+check "timing gate pins the static kit" 1 "$(grep -c '^export WL_LINK=static$' "$here/wl_gate.sh")"
+
+# Sections 1-5: the profile rules on the static set.
+export WL_LINK=static
 # 1. keys
 check "default key" "$S-release" "$(wl_key $S)"
 check "fast key" "$S" "$(WL_PROFILE=fast wl_key $S)"
@@ -108,6 +120,21 @@ if command -v cc > /dev/null && command -v readelf > /dev/null && command -v pyt
     check "file size unchanged" "$(wc -c < "$tmp/prog2")" "$(wc -c < "$tmp/prog")"
     python3 "$here/wl_dynlink.py" retarget "$tmp/prog" "$D" > /dev/null 2>&1; check "nothing left to retarget refused (rc)" 1 "$?"
     python3 "$here/wl_dynlink.py" retarget "$tmp/prog2" "$tmp/elsewhere" > /dev/null 2>&1; check "other products directory refused (rc)" 1 "$?"
+    # 8b. ONE BUILD PER SHA (WL-DYNAMIC-GATE): a dynamic build (the default link) also caches the static set, so the
+    # static sweep of that sha runs no second `cargo xtask so`.
+    SO=$tmp/stubso
+    mkdir -p "$SO"
+    cc -shared -fPIC -Wl,-soname,libc.so.6 -o "$SO/libc.so.6" "$tmp/lib.c"
+    cc -shared -fPIC -Wl,-soname,libm.so.6 -o "$SO/libm.so.6" "$tmp/lib.c"
+    for f in ld-linux-x86-64.so.2 libc_nonshared.a niji-crti.o niji-crtn.o; do echo stub > "$SO/$f"; done
+    W=4455667788990011223344556677889900112233
+    mkdir -p "$HOME/wl/src/$W"
+    n=$(builds)
+    (unset WL_LINK; STUB_SO=$SO wl_build_products $W > "$tmp/b8.log" 2>&1); check "dynamic build (default link) (rc)" 0 "$?"
+    (unset WL_LINK; wl_products_ok "$HOME/wl/products/$W-release-dyn"); check "dynamic set cached" 0 "$?"
+    WL_LINK=static wl_products_ok "$HOME/wl/products/$W-release"; check "the same build cached the static set" 0 "$?"
+    WL_LINK=static wl_build_products $W > /dev/null 2>&1; check "static set of that sha (rc)" 0 "$?"
+    check "one cargo build served both links" $((n + 1)) "$(builds)"
 else
     echo "wl_lock_test: section 7 skipped: no cc, readelf or python3"
 fi

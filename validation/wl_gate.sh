@@ -3,7 +3,8 @@
 # THE WORKLOAD GATE: real programs (coreutils, sed, bash, grep, gawk, diffutils, tar, gzip,
 # make, built statically against libniji) timed against the same programs on glibc, for a
 # libniji commit and a baseline commit (INVIOLABLE rule of the owner, 2026-10-09: no real
-# workload may get slower overall).
+# workload may get slower overall). Since owner ruling #6965 (2026-11-20, D-X.141) the INVIOLABLE rule binds the
+# DYNAMIC kit through the deterministic counts (wl_count.sh + wl_verdict.py); this timing gate stays static.
 #
 #   validation/wl_gate.sh [--prep] [--time] [--report] NEW_SHA [BASE_SHA]
 #

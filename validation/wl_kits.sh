@@ -1,13 +1,16 @@
 #!/bin/bash
 # LAB-ONLY: this script drives the project's own test hosts and is not needed to build or test libniji.
 # Static vs dynamic libniji vs glibc on the workloads (WL-DYNAMIC-KIT): one table, one head, one host.
+# THE STATIC SWEEP (WL-DYNAMIC-GATE, owner ruling #6965, D-X.141): since the per-gate counts bind the dynamic kit, this
+# runs nightly on a build host and in every release candidate's checklist, and prints the INVIOLABLE rule's verdict for
+# both kits (a static FAIL opens a story; it does not block a gate).
 #
 #   validation/wl_kits.sh SHA [WORKLOAD...]        (default: every workload of wl_workloads.sh)
 #
 # RUNS ON THE HOST WHERE IT IS STARTED, under jobrun:
 #   ~/bin/jobrun <label> count -- sh -c 'cd ~/w/<role> && bash validation/wl_kits.sh <full sha>'
 # SHA's source must be in ~/wl/src/SHA (wl_count.sh or wl_prime_base.sh put it there). Steps, each timed:
-#   1. wl_prep.sh twice: the static kit (~/wl/kit/SHA-release, libc.a; what the gate measures) and the dynamic kit
+#   1. wl_prep.sh twice: the static kit (~/wl/kit/SHA-release, libc.a; the nightly sweep's) and the dynamic kit
 #      (WL_LINK=dynamic, ~/wl/kit/SHA-release-dyn: libniji's libc.so.6 and ld.so, wl_dyncc.sh), only the programs
 #      the workloads use; the glibc kit is the host build, dynamic.
 #   2. per workload, WLK_RUNS (default 5) rounds, glibc / static / dynamic interleaved in each round: perf stat

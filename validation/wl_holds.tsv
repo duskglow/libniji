@@ -1,0 +1,10 @@
+# LAB-ONLY. HELD ROWS of the INVIOLABLE workload rule (validation/wl_verdict.py; WL-DYNAMIC-GATE, owner ruling #6965,
+# 2026-11-20; D-X.141). The rule binds the dynamic kit: each workload at or below 1.10x glibc in instructions:u and in
+# page faults, geomean of instructions:u at or below 1.00. A row here was over 1.10x when the rule moved to the
+# dynamic kit, for the cause it names; it is bounded at `level` (libniji / glibc, the ratio recorded on next, rounded
+# up to 4 decimals) instead of 1.10. A RATCHET: a level is never raised and a row is never added for a CPU class
+# already recorded (wl_verdict.py holds, run by validation/wl_verdict_test.sh against the merge base). A row that
+# measures at or below 1.10x drops its hold in that run (HOLD-RELEASE): remove it (wl_verdict.py check --update).
+# cpu = /proc/cpuinfo "model name" of the count host (instructions follow the IFUNC variant a CPU selects); glibc and
+# libniji = the recorded medians (instructions:u, or page faults); recorded = the measured head and date.
+cpu	workload	metric	glibc	libniji	level	recorded	cause
