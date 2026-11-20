@@ -1,2 +1,9 @@
-static-form-returns-zero | csys/src/machine/unwinder.S | perl:s/(niji_machine_unwind_force:\n#ifdef NIJI_STATIC_ARCHIVE\n)\tmovq _Unwind_ForcedUnwind\x40GOTPCREL\(%rip\), %rax/$1\txorl %eax, %eax/s | cargo test -p niji --test forced_unwind_products | msg:static_programs_unwind_with_the_unwinder_they_link.*(FAILED|panicked)
-linked-not-asked | crates/boundary/src/cancel.rs | lit:let force = ffi::niji_machine_unwind_force(); ==> let force = 0usize; | cargo test -p niji --test forced_unwind_products | msg:static_programs_unwind_with_the_unwinder_they_link.*(FAILED|panicked)
+static-form-returns-zero | csys/src/machine/unwinder.S | perl:s/(niji_machine_unwind_force:\n#ifdef NIJI_STATIC_ARCHIVE\n)\tmovq _Unwind_ForcedUnwind\x40GOTPCREL\(%rip\), %rax/$1\txorl %eax, %eax/s | cargo test -p niji --test forced_unwind_products | msg:references to the unwinder are .*expected only
+linked-not-asked | crates/boundary/src/cancel.rs | lit:let force = ffi::niji_machine_unwind_force(); ==> let force = 0usize; | cargo test -p niji --test forced_unwind_products | msg:no member refers to niji_machine_unwind_force
+static-entry-zeroed | csys/src/machine/unwinder.S | perl:s/(niji_machine_unwind_force:\n#ifdef NIJI_STATIC_ARCHIVE\n\tmovq _Unwind_ForcedUnwind\x40GOTPCREL\(%rip\), %rax\n)/$1\txorl %eax, %eax\n/s | cargo test -p niji --test forced_unwind_products | msg:static_programs_unwind_with_the_unwinder_they_link.*(FAILED|panicked)
+linked-skipped | crates/boundary/src/cancel.rs | lit:if force != 0 { ==> if force == 0 { | cargo test -p niji --test forced_unwind_products | msg:static_programs_unwind_with_the_unwinder_they_link.*(FAILED|panicked)
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# static-form-returns-zero: CAUGHT, caught by no test the log names
+# linked-not-asked: CAUGHT, caught by no test the log names
+# static-entry-zeroed: CAUGHT, caught by forced_unwind_products static_programs_unwind_with_the_unwinder_they_link
+# linked-skipped: CAUGHT, caught by forced_unwind_products c_cleanups_run_in_frame_order_when_a_thread_exits_or_is_cancelled

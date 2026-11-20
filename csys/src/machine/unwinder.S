@@ -10,8 +10,9 @@
  * then weak, so a static link that takes the unwinder anyway (libgcc_eh's, pulled
  * by a C++ runtime or by `-fexceptions` cleanups) resolves them, and one that does not (a C
  * program without unwind cleanups) gets 0 and links no unwinder because of them.
- * Called only by the exit of a thread (`crate::cancel`), never at start-up: cold text. */
-	.section .text.unlikely.niji_machine_unwind_force,"ax",@progbits
+ * Called only by the exit of a thread (`crate::cancel`), never at start-up. Plain `.text.<name>`
+ * sections: the link editor places `.text.unlikely.*` ahead of the hot group (TEXT-PREFIX). */
+	.section .text.niji_machine_unwind_force,"ax",@progbits
 	.globl niji_machine_unwind_force
 	.hidden niji_machine_unwind_force
 	.type niji_machine_unwind_force, @function
@@ -25,7 +26,7 @@ niji_machine_unwind_force:
 	ret
 	.size niji_machine_unwind_force, .-niji_machine_unwind_force
 
-	.section .text.unlikely.niji_machine_unwind_get_cfa,"ax",@progbits
+	.section .text.niji_machine_unwind_get_cfa,"ax",@progbits
 	.globl niji_machine_unwind_get_cfa
 	.hidden niji_machine_unwind_get_cfa
 	.type niji_machine_unwind_get_cfa, @function
