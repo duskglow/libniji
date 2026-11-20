@@ -666,8 +666,9 @@ fn read_front(f: GetC, locked: bool) {
     assert_eq!(x::fgetwc(fp), wi('a'));
     let (rp, re) = (field(fp, core::mem::offset_of!(FILE, _IO_read_ptr)), field(fp, core::mem::offset_of!(FILE, _IO_read_end)));
     assert!(rp >= re, "a wide stream keeps its byte read window closed (GETC-PUTC-FASTPATH, D-12.19)");
-    assert_eq!(f(fp), EOF, "byte input on a wide stream (D-12.14)");
-    assert_eq!(x::fgetwc(fp), wi('b'), "nothing consumed");
+    assert_eq!(f(fp), ch(b'b'), "byte input on a wide stream reads its next byte (D-12.27)");
+    assert!(x::fwide(fp, 0) > 0, "the stream stays wide-oriented");
+    assert_eq!(x::fgetwc(fp), wint_t::MAX, "the byte was consumed: WEOF at end of input");
     assert_eq!(x::fclose(fp), 0);
     // An unbuffered stream reads one byte per refill: its window never holds a byte ahead
     // (GETC-PUTC-FASTPATH; spec §12.5 setvbuf `_IONBF`).
