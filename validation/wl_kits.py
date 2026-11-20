@@ -109,6 +109,13 @@ def main(path):
             for lim in ("1.10", "1.00"):
                 lst = over[(col, k)][lim]
                 print("%-7s %-22s > %s: %2d  %s" % (col, names[k], lim, len(lst), ", ".join(lst)))
+    # The nightly / release-candidate sweep (WL-DYNAMIC-GATE, D-X.141): the INVIOLABLE rule reported for both kits, the
+    # held rows of validation/wl_holds.tsv not applied (the dynamic column's binding verdict is wl_count's).
+    for col, key in (("static", "s"), ("dynamic", "d")):
+        bad = len(over[(col, "iu")]["1.10"]) + len(over[(col, "pf")]["1.10"])
+        g = geo(ratios[key + "iu"])
+        print("%-7s INVIOLABLE rule (rows <= 1.10x glibc in instructions:u and page faults, geomean instructions:u <= 1.00,"
+              " no holds): %s (%d rows over 1.10, geomean %.4f)" % (col, "PASS" if bad == 0 and g <= 1.00 else "FAIL", bad, g))
 
 
 if __name__ == "__main__":
