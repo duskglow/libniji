@@ -2252,7 +2252,9 @@ fn check_no_interp(path: &Path) -> Result<(), String> {
 /// other symbol stays local.
 /// `__libc_stack_end` and the rseq objects live here, not in `libc.so.6` (R14-12, D-27.26).
 /// `_r_debug` and `_dl_debug_state`: the debugger rendezvous (DL-23).
-const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags", "_r_debug", "_dl_debug_state"];
+/// `_dl_get_tls_static_info`: the static TLS size and alignment, which sanitizer runtimes look up by
+/// name (LDSO-TLS-STATIC-INFO).
+const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags", "_r_debug", "_dl_debug_state", "_dl_get_tls_static_info"];
 
 /// The interpreter's version script: one node per version of [`LD_EXPORTS`], everything else local.
 fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {
