@@ -3,3 +3,7 @@
 alias-name-bound-short | crates/core/src/iconv/aliases.rs | lit:let mid = at + name.len(); ==> let mid = at + name.len() - 1; | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases | msg:s6_4_c_1_charmap_aliases.*(FAILED|panicked)
 alias-searched-by-charmap | crates/core/src/iconv/aliases.rs | lit:|&[n, c, _]| span(n, c).cmp(name) ==> |&[_, c, e]| span(c, e).cmp(name) | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases | msg:s6_4_c_1_charmap_aliases.*(FAILED|panicked)
 alias-charmap-bytes-wrong | crates/core/src/iconv/aliases.rs | lit:t[at] = charmap[k]; ==> t[at] = charmap[0]; | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases | msg:s6_4_c_1_charmap_aliases.*(FAILED|panicked)
+# cargo xtask plants results (3 plants: 3 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# alias-name-bound-short: CAUGHT, caught by s06_multibyte_clauses s6_4_c_1_charmap_aliases
+# alias-searched-by-charmap: CAUGHT, caught by s06_multibyte_clauses s6_4_c_1_charmap_aliases
+# alias-charmap-bytes-wrong: CAUGHT, caught by s06_multibyte_clauses s6_4_c_1_charmap_aliases
