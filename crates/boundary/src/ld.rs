@@ -32,6 +32,7 @@ use niji_rt::tls::{ThreadBlock, FLAG_OWN};
 use crate::{conv, raw};
 use table::{Kept, PathStore, Table, INLINE};
 use self::io::{fail_loading, fail_with, lo32, no_memory, refuse};
+use self::state::{AUXV_WORDS_MAX, OWN_BASE, PHDR_WORDS, START_ARGS, START_INTERP, START_N, START_OBJS, START_PAGE, START_SPILL, start_obj};
 
 pub(crate) use self::io::{c_string, exit, stack_word, write_all};
 
@@ -45,10 +46,6 @@ const TB_WORDS: usize = core::mem::size_of::<ThreadBlock>().div_ceil(8);
 struct Provisional([AtomicUsize; TB_WORDS]);
 
 static PROVISIONAL: Provisional = Provisional([const { AtomicUsize::new(0) }; TB_WORDS]);
-
-/// The run-time address of the interpreter's own ELF header (its load bias: `ld.so` is linked at 0),
-/// stored once its image is relocated.
-static OWN_BASE: AtomicUsize = AtomicUsize::new(0);
 
 /// The TLS generation (design §7): the dtv of every thread was built for it; loading or unloading a
 /// module with TLS after start (DL-15/DL-16) moves it on. 0 for the initially loaded objects.
@@ -1552,34 +1549,6 @@ fn fn_addr(f: extern "C" fn(usize) -> usize) -> usize {
 /// `DT_NEEDED` links one start holds without a mapping (more grow the table): twice [`INLINE`].
 const EDGES_INLINE: usize = 2 * INLINE;
 
-/// What `dlopen` needs to see the start-time objects again (DL-16a, D-27.34; nothing is allocated at
-/// start for up to [`INLINE`] objects): per object, in load order, its run-time program header table
-/// address and count, its bias and its file's (`st_dev`, `st_ino`) (the program's: none, `u64::MAX`).
-/// Read through [`start_obj`].
-static START_OBJS: [[AtomicU64; 5]; INLINE] = [const { [const { AtomicU64::new(0) }; 5] }; INLINE];
-/// The same records for a start of more than [`INLINE`] objects (DL-STARTUP-OBJECTS), all of them.
-static START_SPILL: Kept<[u64; 5]> = Kept::new();
-
-/// Start-time object `k`'s record ([`START_OBJS`]); zeros past the last.
-fn start_obj(k: usize) -> [u64; 5] {
-    let spill = START_SPILL.get();
-    if spill.is_empty() {
-        START_OBJS.get(k).map_or([0; 5], |s| [0, 1, 2, 3, 4].map(|j| s.get(j).map_or(0, |w| w.load(Relaxed))))
-    } else {
-        spill.get(k).copied().unwrap_or([0; 5])
-    }
-}
-/// Start-time objects recorded in [`START_OBJS`] (0: `link` did not run).
-static START_N: AtomicUsize = AtomicUsize::new(0);
-/// Index of `ld.so` itself among them (`usize::MAX`: not among them).
-static START_INTERP: AtomicUsize = AtomicUsize::new(usize::MAX);
-/// The page size.
-static START_PAGE: AtomicU64 = AtomicU64::new(0);
-/// The program's `argc`, `argv`, `envp` and auxiliary vector as `run_init` found them on the initial
-/// stack, for `dlopen` (its constructors' arguments, its search's environment). Recorded, never
-/// re-read from the stack: after `ld.so PROGRAM` the start's words are rearranged (argv[0] dropped).
-static START_ARGS: [AtomicUsize; 4] = [const { AtomicUsize::new(0) }; 4];
-
 /// The words of a function array in a mapped, relocated object.
 fn array_words(a: init::Array) -> &'static [u64] {
     let (Ok(addr), Ok(len)) = (usize::try_from(a.addr), usize::try_from(a.len)) else { return &[] };
@@ -2270,16 +2239,12 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
     exit(0)
 }
 
-/// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).
-const AUXV_WORDS_MAX: usize = 256;
-
 mod io;
+mod state;
 pub mod debug;
 mod dlopen;
 mod readers;
 mod table;
-/// Words per program header.
-const PHDR_WORDS: usize = niji_rt::start::PHDR_WORDS;
 
 /// The panic handler of `ld.so` (a panic is a loader bug): a fixed message, status 127. It formats
 /// nothing, so it works whatever state the image is in.
