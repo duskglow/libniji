@@ -30,7 +30,16 @@ mei:~/w/s2. Code head: see the report JSON (`handoff/reports/THREAD-FORCED-UNWIN
 ## Evidence (mei)
 * `thread-forced-unwind-static-so2`: `cargo xtask so` passed with the new checks; `-fu3`: forced_unwind_products 4/4.
 * `-lint1`: workspace clippy (all features), `cargo xtask clippy`, `cargo xtask static`: rc 0.
-* Gate, plants, start-up checks, precheck: see the report JSON and the hand-back.
+* `-gate` (direct tier, f248de28a; `affected` named unwinder.S FULL, "the train's", and ran its bounded set):
+  12385 passed, 1 test red: hot_text_products `init_no_library_text_precedes_the_hot_group` (TEXT-PREFIX: the
+  entries' `.text.unlikely.*` sections lay ahead of the hot group). 711cc86eb uses `.text.<name>`.
+* `-recheck` (code head 711cc86eb): `cargo xtask so`, hot_text_products 31/31 and forced_unwind_products 4/4, then
+  `cargo xtask test`, then `NIJI_FULL_PROFILE=1` so + hot_text_products.
+* `-plants3` (711cc86eb): 4 CAUGHT, 0 SURVIVED, 0 WARN (`handoff/THREAD-FORCED-UNWIND-STATIC-plants.txt`). Two are
+  caught by the build checks in so.rs (msg names their error), two by the static test (`linked-skipped` also fails the
+  dynamic tests, which the tool names first). Superseded: `-plants` (msg named the test, both stopped at the build
+  check: WARN-NO-MSG), `-plants2` (same 4 plants, previous head: 4 CAUGHT).
+* Then `-precheck` on the final head (see the hand-back).
 
 ## Open questions
 * RULING NEEDED: a `-static-libgcc` program that loads no libgcc_s.so.1 (C with `-fexceptions`; C++ with
