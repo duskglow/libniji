@@ -1975,6 +1975,8 @@ const VALIDATION_COVERED: &[(&str, &[&str])] = &[
     (VALIDATION_MTMEM_TEST, &[VALIDATION_MTMEM_TEST]),
     // The products profile and the cache key every lab script reads the products and kits by.
     ("validation/wl_lock.sh", &[VALIDATION_LOCK_TEST]),
+    // The dynamic kit's ELF helper (WL-DYNAMIC-KIT): wl_lock_test.sh section 7 links a program and retargets it.
+    ("validation/wl_dynlink.py", &[VALIDATION_LOCK_TEST]),
     (VALIDATION_LOCK_TEST, &[VALIDATION_LOCK_TEST]),
 ];
 
@@ -1987,11 +1989,13 @@ const VALIDATION_UNCOVERED: &[(&str, &str)] = &[
     ("validation/wl_attr.sh", "workload gate attribution step on a timing host; no self-test"),
     ("validation/wl_base.sh", "BASE checkout helper of the lab tools; no self-test"),
     ("validation/wl_count.sh", "lab driver of wl_count_run.sh (ssh, queueing); no self-test"),
+    ("validation/wl_dyncc.sh", "link driver of the libniji-dynamic kit (needs built shared products); no self-test"),
     ("validation/wl_entries.sh", "lab driver of wl_entries_run.sh; no self-test"),
     ("validation/wl_entries_run.sh", "host side of the entry-point counts (needs the built kits); no self-test"),
     ("validation/wl_fallback.sh", "lab queueing fallback; no self-test"),
     ("validation/wl_gate.sh", "the workload gate driver (lab hosts); no self-test"),
     ("validation/wl_install.sh", "installs the lab tools on a host; no self-test"),
+    ("validation/wl_kits.sh", "static vs dynamic vs glibc kit comparison on a lab host (built kits, perf); no self-test"),
     ("validation/wl_launch.sh", "detached lab launcher; no self-test"),
     ("validation/wl_local.sh", "role-directory variant of the lab drivers; no self-test"),
     ("validation/wl_percall.sh", "its check wl_percall_tunables_test.sh is a lab count job (built products, minutes), not a gate step"),
