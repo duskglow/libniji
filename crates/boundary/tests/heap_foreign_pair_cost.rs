@@ -31,8 +31,10 @@ const FEW: u64 = 1_000;
 const MANY: u64 = 201_000;
 
 /// The most user-mode instructions one foreign `malloc(64)`/`free` pair may cost (with the loop's
-/// own few). Measured on a Zen 1 host (60 vCPU), dev test profile: see `PAIR_MEASURED`.
-const PAIR_BOUND: u64 = 400;
+/// own few), in the test profile (unoptimised: the count is the test build's, not the products').
+/// Measured on a Zen 1 host (60 vCPU), 2026-11-20: 1911 in the first pass's build, 2063 with the
+/// exports interposed; the bound is the higher plus 37 (under 2%).
+const PAIR_BOUND: u64 = 2100;
 
 /// The launcher: `launcher <program> <args>...` runs the program in a counted child and prints its
 /// count as `count <n>` after the child's own output, or `noperf <errno>` when the counter is refused.

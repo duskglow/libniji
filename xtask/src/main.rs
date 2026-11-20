@@ -409,7 +409,7 @@ fn workspace_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime:
 fn native_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
     let runner = t.time(&format!("{name}-setup"), || pass2::prepare(root))?;
     t.time(&format!("{name}-copies"), || pass2::patch_listed(cargo, root, &["--workspace".to_string()]).map(|_| ()))?;
-    let env = [(pass2::RUNNER_VAR, runner.as_str())];
+    let env = [(pass2::RUNNER_VAR, runner.as_str()), pass2::PASS_VAR];
     if !nextest::available(cargo) {
         return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(extra).envs(env)));
     }

@@ -30,6 +30,10 @@ use std::process::Command;
 /// The runner variable cargo and nextest read for the host target.
 pub const RUNNER_VAR: &str = "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER";
 
+/// Set to `native` on the native pass's test commands: `pass2_native_process.rs` then requires its
+/// process to be a libniji process, so a pass that lost its runner fails instead of passing on the host.
+pub const PASS_VAR: (&str, &str) = ("NIJI_TEST_PASS", "native");
+
 /// The runner's subcommand (`main.rs` dispatches it before looking for a tree).
 pub const EXEC_CMD: &str = "pass2-exec";
 
