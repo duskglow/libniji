@@ -20,7 +20,7 @@
 //! one the case says so and passes). Where io_uring is not available at all, the cases that
 //! need it say so.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
-#[path = "support/exec_stage.rs"]
+#[path = "helpers/exec_stage.rs"]
 mod exec_stage;
 #[path = "support/skip_note.rs"]
 mod skip_note;

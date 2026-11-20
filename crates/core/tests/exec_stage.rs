@@ -1,9 +1,9 @@
-//! The helpers that write a file a test then execs (`support/exec_stage.rs`) never leave it busy.
+//! The helpers that write a file a test then execs (`helpers/exec_stage.rs`) never leave it busy.
 //! No spec clause (test-harness behaviour; finding #6787): sibling threads fork in a loop while this
 //! thread writes a program and execs it at once; a descriptor open for writing in this process
 //! would be inherited by a sibling's child and the exec would fail with ETXTBSY.
 
-#[path = "support/exec_stage.rs"]
+#[path = "helpers/exec_stage.rs"]
 mod exec_stage;
 
 use std::path::PathBuf;

@@ -4,7 +4,7 @@
 //! The checks run a child copy of this test binary with its own PATH.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs, dead_code)]
 
-#[path = "support/exec_stage.rs"]
+#[path = "helpers/exec_stage.rs"]
 mod exec_stage;
 #[path = "support/oracle.rs"]
 mod oracle;

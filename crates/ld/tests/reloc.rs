@@ -16,7 +16,7 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
-#[path = "../../core/tests/support/exec_stage.rs"]
+#[path = "../../core/tests/helpers/exec_stage.rs"]
 mod exec_stage;
 
 use std::collections::BTreeMap;
@@ -796,7 +796,7 @@ fn reloc_ldso_kernel_started_without_proc() {
     let inside = |p: &Path| root.join(p.strip_prefix("/").unwrap());
     for f in files.iter().chain([&ld]) {
         std::fs::create_dir_all(inside(f).parent().unwrap()).unwrap();
-        // Copied by cp(1) (support/exec_stage.rs): the loader and the program are exec'd below, and a
+        // Copied by cp(1) (helpers/exec_stage.rs): the loader and the program are exec'd below, and a
         // copy written in this process can still be open for writing in a sibling test's forked child
         // (ETXTBSY, finding #6787).
         exec_stage::copy_for_exec(f, &inside(f));

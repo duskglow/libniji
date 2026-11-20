@@ -14,7 +14,7 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
-#[path = "../../core/tests/support/exec_stage.rs"]
+#[path = "../../core/tests/helpers/exec_stage.rs"]
 mod exec_stage;
 
 use std::path::{Path, PathBuf};
