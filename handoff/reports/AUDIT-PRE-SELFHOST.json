@@ -1,0 +1,25 @@
+{"task": "AUDIT-PRE-SELFHOST", "model": "opus", "tokens": null,
+ "result": "Ranked list of 12 gate/tooling items that repeat work or still work around phase-14 gaps; the largest is the math oracle sweeps (6930 of 12366 pass-1 test-s), and a probe shows >97 % of it is in-process checking, not the repeated program runs",
+ "branch": "task/audit-pre-selfhost", "head": null,
+ "gate": {"affected": "n/a (audit, no code change; precheck on the final head)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "ORACLE-VALUE-CACHE: cache correctly rounded oracle values across product changes", "recommendation": "yes, keyed by niji-mathtools bytes and the exact input, after a profile confirms the oracle dominates"},
+  {"item": "Workload gate and percall measure libniji static against glibc dynamic", "recommendation": "add a libniji-dynamic kit beside the static one, record one train's levels, then decide which the INVIOLABLE rule binds"}
+ ],
+ "informational": [
+  "Phase-14 workarounds remain in conformance/run.sh (by-path copy, host libc_nonshared.a), native_examples (by-path copy, nounwind.o, no std example), rust_dylib (program never run), bench --compare (no libc.so.6 column), scripts/niji-cc (static only)",
+  "Escalated FULL gate runs the cheap steps twice (~8 s)",
+  "~/bin/jobwait --help waits like a label instead of printing usage"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "audit only: ranked list with measured step costs (CI FULL gate 90f71362a) and one probe (keke)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "tooling", "what": "upper bound of ORACLE-VALUE-CACHE saving (pass-1 test-s of the five oracle sweeps)", "before": 6930, "after": null, "unit": "test-s", "measured": false},
+  {"kind": "tooling", "what": "ORACLE-SWEEP-RUN-ONCE saving, complex_ld_cr (4.5 s program work x 19 redundant shards)", "before": 90, "after": 5, "unit": "test-s", "measured": false},
+  {"kind": "tooling", "what": "cold cargo xtask so paid by every plants run (Zen 1 host)", "before": 1364, "after": null, "unit": "s wall", "measured": true}
+ ],
+ "improvement": "Measure before ranking: the obvious duplicate (20 shards each running the full oracle programs) is only ~2 % of those tests; the real cost was the oracle checking, found by a 1-job probe",
+ "next_step": "Profile one complex_ld_cr shard to confirm the oracle share, then ORACLE-VALUE-CACHE (M) and one S story dropping the phase-14 workarounds (items 2-4)",
+ "report_file": "handoff/AUDIT-PRE-SELFHOST.md",
+ "jobs": ["keke:audit-pre-selfhost-probe", "keke:audit-pre-selfhost-precheck"]}
