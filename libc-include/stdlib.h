@@ -46,15 +46,6 @@ struct timeval {
 };
 # endif
 #endif
-#if (__NIJI_MISC && __NIJI_CXX < 1) || (__NIJI_ISOC < 2023 && __NIJI_XSI >= 500)
-# ifndef __NIJI_D_pthread_attr_t
-#  define __NIJI_D_pthread_attr_t 1
-typedef union {
-  char __size[56];
-  long __align;
-} pthread_attr_t;
-# endif
-#endif
 #if 1
 # ifndef __NIJI_D_div_t
 #  define __NIJI_D_div_t 1
@@ -217,6 +208,13 @@ typedef unsigned int uid_t;
 # endif
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 500
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
+# endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
 typedef union {

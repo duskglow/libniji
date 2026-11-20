@@ -16,6 +16,17 @@ struct iovec {
   unsigned long iov_len;
 };
 # endif
+#endif
+#if __NIJI_POSIX >= 199506
+# ifndef __NIJI_D_pthread_attr_t
+#  define __NIJI_D_pthread_attr_t 1
+typedef union {
+  char __size[56];
+  long __align;
+} pthread_attr_t;
+# endif
+#endif
+#if 1
 struct iovec;
 # ifndef __NIJI_D_readv
 #  define __NIJI_D_readv 1
