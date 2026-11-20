@@ -1,0 +1,17 @@
+{"task": "HEAP-ADDRESS-SPACE-9", "model": "opus", "tokens": null,
+ "result": "cbench_startup cause found: the static link's read-only PT_LOAD splits at .rodata1's 64 KiB boundary (text +1216 B crosses a page); next + 4 KiB pad reproduces it, head + pad removes it; heap's own start-up cost +4..+6 user instr; RLIMIT_AS Pages test added",
+ "branch": "task/heap-address-space-9", "head": null,
+ "gate": {"affected": "FULL: the train's (entry/xtask on branch); t2 clippy+static+test rc 0, fullhot/xtest/plants: see jobs", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "cbench_startup +7.5k kernel / +8 user instr is layout jitter (extra read-only PT_LOAD), not the heap mapping", "recommendation": "land as partial fix for #21, record the row as layout jitter, cut a layout story removing the .rodata/.rodata1 LOAD split for all static programs; do not trim heap text to dodge one binary's boundary"}],
+ "informational": ["next's cbench_startup link sits 0xd24 bytes below the split: any change adding >= 985 B of text to it shows +7.5k kernel instructions", "keke slot queue: 1-second probes waited 10-20 min behind gates"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "cbench_startup true child, kernel instr (median, Zen 1), equal LOAD count (next vs head+pad)", "before": 165700, "after": 166700, "unit": "instr/process", "measured": true},
+  {"kind": "cost", "what": "malloc-using start-up children (setlocale/printf/wctype) user instr, first reservation", "before": 61840, "after": 61846, "unit": "instr/process", "measured": true},
+  {"kind": "cost", "what": "cbench_startup true child as linked (extra PT_LOAD, layout jitter; fix-forward: layout story)", "before": 165700, "after": 172300, "unit": "kernel instr/process", "measured": true},
+  {"kind": "coverage", "what": "test kernel_pages_map_aligned_under_an_address_space_limit + 3 plants", "before": 0, "after": 1, "unit": "tests", "measured": true}],
+ "improvement": "a cheap static-link check (LOAD count and .rodata1 slack vs base) in cbench --compare would have named this in minutes instead of two runs",
+ "next_step": "ruling on the cbench_startup jitter; then HEAP-SPILL-COLD",
+ "report_file": "handoff/HEAP-ADDRESS-SPACE-9-report.md",
+ "jobs": []}
