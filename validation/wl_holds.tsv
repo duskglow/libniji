@@ -6,5 +6,18 @@
 # already recorded (wl_verdict.py holds, run by validation/wl_verdict_test.sh against the merge base). A row that
 # measures at or below 1.10x drops its hold in that run (HOLD-RELEASE): remove it (wl_verdict.py check --update).
 # cpu = /proc/cpuinfo "model name" of the count host (instructions follow the IFUNC variant a CPU selects); glibc and
-# libniji = the recorded medians (instructions:u, or page faults); recorded = the measured head and date.
+# libniji = the recorded counts, the WORST observed so a rerun of next does not exceed the level (a level a rerun can
+# exceed is a flake), from a wl_count run whose BASE column is next: instructions:u the base column's mean and glibc's
+# mean; page faults the highest single base run and the lowest glibc run (the log's "faults min..max" line); recorded =
+# the measured next head and date.
 cpu	workload	metric	glibc	libniji	level	recorded	cause
+AMD EPYC 7551 32-Core Processor	ls-l-enUS	pf	3129	4089	1.3069	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	md5sum	pf	147	183	1.2449	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	cut-tr-uniq	pf	483	609	1.2609	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	seq	pf	136	168	1.2353	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	printf-loop	instr	5680323909	20624302882	3.6309	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	printf-loop	pf	1482360	2035438	1.3732	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	ls-lR	pf	3148	3857	1.2253	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	du	pf	3360	4017	1.1956	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	sed-s	pf	251	304	1.2112	189ab9cbc 2026-11-20	dynamic start-up
+AMD EPYC 7551 32-Core Processor	sed-utf8	pf	228	284	1.2457	189ab9cbc 2026-11-20	dynamic start-up
