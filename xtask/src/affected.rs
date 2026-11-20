@@ -4040,8 +4040,10 @@ const XTASK_BESIDE_LABEL: &str = "xtask tests that run no products";
 const XTASK_BESIDE_LOG: &str = "affected-xtask.log";
 
 /// GATE-BOUNDED-PARALLEL: the memory the products build and the xtask tests take side by side, with headroom. Measured
-/// on a Zen 1 host, 60 vCPU, from cold products (`anon` of the gate's cgroup, page cache left out): see the record.
-const SIDE_BY_SIDE_BYTES: u64 = 12 << 30;
+/// on a Zen 1 host, 60 vCPU, from cold products (`anon` of the gate's cgroup, page cache left out): the xtask tests
+/// 0.47 GiB and the products build 1.85 GiB one after the other, 2.32 GiB together; 6 GiB leaves 2.5x headroom and
+/// fits the gate's 16 GiB limit. The side-by-side peak is in the record.
+const SIDE_BY_SIDE_BYTES: u64 = 6 << 30;
 
 /// The two `cargo test -p xtask` commands of a run that builds the products (GATE-BOUNDED-PARALLEL): the unit tests
 /// (`--bins`) with every integration target that runs no products, and the integration targets that do
