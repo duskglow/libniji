@@ -108,8 +108,8 @@
 //! bottom layers, generated tables and inputs, build configuration, unknown paths) plus `cargo xtask static` and every
 //! cheap FULL step, and the plan prints `FULL: the train's (<file>: <reason>)` where the FULL line was. `bench-rows`
 //! (`select_opts`) and `--reverse` attribution still see the escalations as FULL. The classes and why each bounded set
-//! catches what a change of its class most likely breaks are the decision record `records/pending/GATE-BOUNDED-PARALLEL-1.toml`
-//! (D-NEW until CI assigns its D-X id); this doc holds the rules: `TrainClass::of` classifies (xtask code; csys,
+//! catches what a change of its class most likely breaks are the decision record D-X.142
+//! (`records/decisions/D-X/D-X.142.toml`); this doc holds the rules: `TrainClass::of` classifies (xtask code; csys,
 //! `crates/abi`, the product crates, `crates/native/link`, linker and version lists, `scripts/`; generated tables and
 //! inputs; build scripts, manifests, the toolchain and cargo configuration; anything else), `Selection::bounded`
 //! selects (`XTASK_TRAIN` per xtask module).
@@ -3898,7 +3898,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         let mut products_cmd = Command::new(&cargo);
         products_cmd.args(["xtask", "so"]);
         if sel.xtask_tests && products {
-            // GATE-BOUNDED-PARALLEL (D-NEW, records/pending/GATE-BOUNDED-PARALLEL-1.toml): the xtask tests that run no
+            // GATE-BOUNDED-PARALLEL (D-X.142, records/decisions/D-X/D-X.142.toml): the xtask tests that run no
             // products go beside the products build when the memory allows; the targets that run products go after it.
             let (beside, after) = xtask_test_split(root);
             let mut beside_cmd = Command::new(&cargo);

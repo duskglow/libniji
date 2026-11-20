@@ -14,4 +14,5 @@
  "improvement": "keke's 4-core slots cap in-run parallelism: a gate-time story should measure inside the slot it will run in before estimating a parallel gain",
  "next_step": "Coordinator: land; more rows only if wanted (meas.sh after startup-got-page-4-gate)",
  "report_file": "handoff/GATE-BOUNDED-PARALLEL-report.md",
- "jobs": ["keke:gate-bounded-parallel-gate", "keke:gate-bounded-parallel-plants", "keke:gate-bounded-parallel-after", "keke:gate-bounded-parallel-unit2"]}
+ "superseded": ["keke:gate-bounded-parallel-gate and keke:gate-bounded-parallel-plants (green on 51d0c1b22: 551 passed; 8 CAUGHT; superseded only by the D-X.142 id in two comments)", "keke:gate-bounded-parallel-unit (split test red, fixed)"],
+ "jobs": ["keke:gate-bounded-parallel-gate2", "keke:gate-bounded-parallel-plants2", "keke:gate-bounded-parallel-after", "keke:gate-bounded-parallel-unit2"]}

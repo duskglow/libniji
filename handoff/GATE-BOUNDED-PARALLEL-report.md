@@ -19,7 +19,7 @@ Branch `task/gate-bounded-parallel`, base origin/next 189ab9cbc. Premise: GATE-D
     xtask integration targets; the new unit test caught it before any gate ran it.
   - Output stays per step: the tests write `target/affected-xtask.log`, printed and appended to `target/affected.log`
     when both end; verdict = both green (as before).
-- Decision record `records/pending/GATE-BOUNDED-PARALLEL-1.toml` (D-NEW, series D-X; CI assigns the id): the five
+- Decision record D-X.142 (reserved with `ops reserve`; `records/decisions/D-X/D-X.142.toml`): the five
   train classes, what each selects and why, the train's FULL gate covering the rest, and the side-by-side rule with
   its measurements. The module doc links it and holds the rules.
 - 3 unit tests (rendezvous: both steps really overlap, verdict table, logs in one piece; the split on a fixture tree

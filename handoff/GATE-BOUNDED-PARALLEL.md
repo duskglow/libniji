@@ -3,8 +3,7 @@
 State: branch `task/gate-bounded-parallel`, code head 51d0c1b22 (later commits: handoff/ only), base origin/next
 189ab9cbc. Role keke:~/w/r3, synced to the code head.
 
-Decisions in force: pending record `records/pending/GATE-BOUNDED-PARALLEL-1.toml` (D-NEW, series D-X; CI assigns the
-id): the five train classes of GATE-DEV-NO-FULL and the side-by-side rule, with the measurements.
+Decisions in force: D-X.142 (reserved; `records/decisions/D-X/D-X.142.toml`): the five train classes of GATE-DEV-NO-FULL and the side-by-side rule, with the measurements.
 
 Done:
 - `xtask/src/affected.rs`: side-by-side products build + xtask tests in a non-FULL run that selects both (memory
