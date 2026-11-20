@@ -1,6 +1,6 @@
 {"task": "PASS2-NATIVE-POISON", "model": "opus", "tokens": null,
  "result": "The native pass poisons C-family blocks (runner sets MALLOC_PERTURB_ from NIJI_TEST_MALLOC_PERTURB); 92 targets move from the interposed suite to native only (10 stay, with reasons); sym_mallinfo compares inside a quiescent window; pass 2 on keke: 806 s / 2471 test-seconds (second sample 1486 s with builds, 983 s without / 3010) vs 1203-1326 s / 4126-4542",
- "branch": "task/pass2-native-poison", "head": null,
+ "branch": "task/pass2-native-poison", "head": "70c4a3092",
  "gate": {"affected": "direct tier ok, gate1 rc 0 (FULL: the train's, xtask files; bounded set 15 suites, 7375 passed, 0 failed)", "peak": "11G"},
  "accepted_first_attempt": null,
  "rulings": [
@@ -19,7 +19,7 @@
   {"kind": "coverage", "what": "plants added (PASS2-NATIVE-POISON-plants.txt), all CAUGHT; 2 tests added (poison proof test, runner unit test)", "before": 0, "after": 5, "unit": "plants", "measured": true},
   {"kind": "cost", "what": "92 targets no longer run in the export build (in-binary test heap); see the ruling", "before": null, "after": null, "unit": null, "measured": false}
  ],
- "jobs": ["keke:pass2-native-poison-gate1", "keke:pass2-native-poison-plants1", "keke:pass2-native-poison-measure1", "keke:pass2-native-poison-measure2", "keke:pass2-native-poison-check3"],
+ "jobs": ["keke:pass2-native-poison-gate1", "keke:pass2-native-poison-plants1", "keke:pass2-native-poison-measure1", "keke:pass2-native-poison-measure2", "keke:pass2-native-poison-check4"],
  "improvement": "the gate and each measure rebuilt the products from scratch (so 890-1125 s each) on one role: a measure that follows a gate on the same head could reuse the gate's products build",
  "next_step": "land after PASS2-NATIVE-RUNNER; a follow-up can look at the 10 targets still interposed",
  "report_file": "handoff/PASS2-NATIVE-POISON.md"}
