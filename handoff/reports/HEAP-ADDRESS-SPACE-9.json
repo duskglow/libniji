@@ -19,7 +19,8 @@
  "informational": [
   "next's cbench_startup link sits 0xd24 bytes below the split: any change adding >= 985 B of text to it shows +7.5k kernel instructions",
   "keke slot queue: 1-second probes waited 10-20 min behind gates",
-  "plants grow-replaces WARN-NO-MSG: caught by the new test at the free-range assertion, not the taken-range one"
+  "plants grow-replaces WARN-NO-MSG: caught by the new test at the free-range assertion, not the taken-range one",
+  "handback-check red (lint: fuzz-check): head merged with next 189ab9cb fails to compile, ForeignPages lacks map_room/grow"
  ],
  "refused": [],
  "impact": [
@@ -57,7 +58,7 @@
   }
  ],
  "improvement": "a cheap static-link check (LOAD count and .rodata1 slack vs base) in cbench --compare would have named this in minutes instead of two runs",
- "next_step": "ruling on the cbench_startup jitter; then HEAP-SPILL-COLD",
+ "next_step": "merge origin/next and add map_room/grow to next's new ForeignPages (merged tree does not compile); then the cbench_startup ruling; then HEAP-SPILL-COLD",
  "report_file": "handoff/HEAP-ADDRESS-SPACE-9-report.md",
  "jobs": [
   "keke:heap-address-space-9-t2",

@@ -37,7 +37,11 @@ Full report: handoff/HEAP-ADDRESS-SPACE-9-report.md.
 
 ## Exact next step
 
-RULING NEEDED (in the hand-back): land with the cbench_startup row recorded as layout jitter and a layout story to
+FIRST: merge origin/next (`189ab9cb` or later; this run's brief allowed no merge). Next's new `ForeignPages`
+(boundary heap.rs, `impl Pages for ForeignPages`) lacks this branch's `map_room` and `grow`, so the merged tree does
+not compile (handback-check's fuzz-check, run -9). Add both as delegations to `KernelPages` (as `OwnPages` does),
+then lint, the affected tests, plants (HEAP-ADDRESS-SPACE-8 and -9 files), fullhot, `cargo xtask test`, precheck.
+Then the RULING NEEDED (in the hand-back): land with the cbench_startup row recorded as layout jitter and a layout story to
 remove the read-only LOAD split for every static program (recommended), or trim >= 232 bytes of heap text so this
 one link stays below the boundary. Then the open follow-ups, each its own story: HEAP-SPILL-COLD (the spill as a cold
 extension of grow_segment; refill/realloc/AS_HEADROOM to 33092 / 35144 / 35152; findutils `find` under the issue's
