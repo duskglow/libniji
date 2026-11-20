@@ -1,0 +1,12 @@
+{"task": "DEB-COEXIST-SERIAL", "model": "sonnet", "tokens": null,
+ "result": "coexist version is 0.0~snapshot<date>.<n>+<commit>; same-day snapshots sort by serial and above every published version",
+ "branch": "task/deb-coexist-serial", "head": "HEADSHA",
+ "gate": {"affected": "562 passed / 0 failed", "peak": "1.9G"}, "accepted_first_attempt": null,
+ "rulings": [], "informational": [{"item": "snapshot release tooling must pass NIJI_DEB_SERIAL to the coexist build; default is 1", "recommendation": "set it from the snapshot tag's serial"}],
+ "refused": [],
+ "impact": [{"kind": "correctness", "what": "second snapshot of a day sorts above the first so apt upgrades to it", "before": null, "after": null, "unit": "", "measured": true},
+            {"kind": "coverage", "what": "tests and plants added", "before": 0, "after": 7, "unit": "3 tests + 4 plants", "measured": true}],
+ "improvement": "none",
+ "next_step": "release tooling passes NIJI_DEB_SERIAL for coexist builds",
+ "report_file": "handoff/DEB-COEXIST-SERIAL.md",
+ "jobs": ["keke:deb-coexist-serial-gate", "keke:deb-coexist-serial-plants"]}
