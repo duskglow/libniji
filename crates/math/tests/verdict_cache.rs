@@ -193,7 +193,7 @@ fn the_shards_of_one_run_share_the_programs_outputs() {
     // A changed program (a plant, a rebuild) changes the key: it runs, and its new output is read.
     std::fs::write(&ours, std::fs::read_to_string(&ours).unwrap().replace("ours line two", "ours line 2")).unwrap();
     let changed = verdict_programs::shared_outputs_in("sweep", &key(), &[&host, &ours], &out, "run-2");
-    assert_eq!(changed[1], "ours line one\nours line 2\n", "a shard read the output of the program before it changed");
+    assert_eq!(changed.get(1).map(String::as_str), Some("ours line one\nours line 2\n"),"a shard read the output of the program before it changed");
     assert_eq!(runs(&b.dir, "ours"), 3);
 }
 
@@ -206,7 +206,7 @@ fn an_output_of_a_failed_program_or_an_incomplete_key_is_not_shared() {
     let key = Key::with_sources("sweep.outputs", &b.src, &b.dir.join("records")).file(&bad).file(&good);
     for n in 1..=2 {
         let o = verdict_programs::shared_outputs_in("sweep", &key, &[&bad, &good], &out, "run-1");
-        assert_eq!(o[0], "bad line one\nbad line two\n", "the failed program's output is still the shard's to check");
+        assert_eq!(o.first().map(String::as_str), Some("bad line one\nbad line two\n"),"the failed program's output is still the shard's to check");
         assert_eq!(runs(&b.dir, "bad"), n, "the output of a program that failed was shared");
     }
     // An input that cannot be read: every call runs the programs and stores nothing.
