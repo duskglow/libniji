@@ -17,6 +17,7 @@
 //! | `niji.cpu.rep_stosb_threshold` | `glibc.cpu.x86_rep_stosb_threshold` | bytes, 1 or more |
 //! | `niji.pthread.rseq` | `glibc.pthread.rseq` | 0 or 1; `0` disables the rseq registration (D-22.7, §22.9) |
 //! | `niji.compat.no_classed_swap` | (none) | 0 or 1; `1` (and unset, the default since ruling #3434) keeps the file's SSE2 page at the classed entries: no page swap at start-up; `0` turns the AVX2-class swap on (COMPAT-20, D-4.53) |
+//! | `niji.compat.execstack` | (none) | 0 or 1; `1` lets the dynamic loader accept an object whose `PT_GNU_STACK` asks for an executable stack and make the stacks executable (COMPAT-19); unset or `0`: refused |
 //! | `niji.malloc.perturb` | `glibc.malloc.perturb` | 0 to 255: `M_PERTURB` for the C `malloc` family (§3.2); overrides `MALLOC_PERTURB_` ([`Tunables::malloc_perturb`]) |
 //!
 //! **Syntax** (black-box probes of glibc 2.39, LEGACY-TUNABLES-POLICY, 2026-10-23):
@@ -58,6 +59,11 @@ pub struct Tunables {
     /// start-up page swap), so the code that runs is the code in the file, as debuggers,
     /// profilers and core files read it.
     pub no_classed_swap: Option<bool>,
+    /// COMPAT-19: `Some(true)` lets the dynamic loader accept an object whose `PT_GNU_STACK` asks
+    /// for an executable stack (the program, a start-up dependency or a `dlopen`ed object) and
+    /// then make the main stack and the C library's thread stacks executable. Read by the loader
+    /// only on its refusal branch for such an object; never honoured in secure mode.
+    pub exec_stack: Option<bool>,
 }
 
 /// Which tunable a name denotes (its `niji.*` name or the `glibc.*` alias).
@@ -69,6 +75,7 @@ enum Key {
     Rseq,
     Perturb,
     NoClassedSwap,
+    ExecStack,
 }
 
 /// The tunable `name` stands for, or `None` for names that mean nothing in this design.
@@ -80,6 +87,7 @@ fn key_of(name: &[u8]) -> Option<Key> {
         b"niji.pthread.rseq" | b"glibc.pthread.rseq" => Key::Rseq,
         b"niji.malloc.perturb" | b"glibc.malloc.perturb" => Key::Perturb,
         b"niji.compat.no_classed_swap" => Key::NoClassedSwap,
+        b"niji.compat.execstack" => Key::ExecStack,
         _ => return None,
     })
 }
@@ -283,6 +291,7 @@ impl Tunables {
                 Key::Rseq => t.rseq = ranged(value, 0, 1).map(|n| n != 0).or(t.rseq),
                 Key::Perturb => {} // read on its own by `malloc_perturb`
                 Key::NoClassedSwap => t.no_classed_swap = ranged(value, 0, 1).map(|n| n != 0).or(t.no_classed_swap),
+                Key::ExecStack => t.exec_stack = ranged(value, 0, 1).map(|n| n != 0).or(t.exec_stack),
             }
         }
         t
@@ -338,6 +347,18 @@ mod tests {
         assert_eq!(Tunables::parse(b"niji.compat.no_classed_swap=0", false).no_classed_swap, Some(false));
         assert_eq!(Tunables::parse(b"niji.compat.no_classed_swap=2", false).no_classed_swap, None);
         assert_eq!(Tunables::parse(b"", false).no_classed_swap, None);
+    }
+
+    #[test]
+    fn exec_stack() {
+        // COMPAT-19: no spec clause (a libniji tunable). 0 or 1, other values ignored, a later
+        // valid setting wins; never honoured in secure mode.
+        assert_eq!(Tunables::parse(b"niji.compat.execstack=1", false).exec_stack, Some(true));
+        assert_eq!(Tunables::parse(b"niji.compat.execstack=0", false).exec_stack, Some(false));
+        assert_eq!(Tunables::parse(b"niji.compat.execstack=2", false).exec_stack, None);
+        assert_eq!(Tunables::parse(b"niji.compat.execstack=1:niji.compat.execstack=0", false).exec_stack, Some(false));
+        assert_eq!(Tunables::parse(b"niji.compat.execstack=1", true).exec_stack, None);
+        assert_eq!(Tunables::parse(b"glibc.rtld.execstack=1", false).exec_stack, None);
     }
 
     #[test]
