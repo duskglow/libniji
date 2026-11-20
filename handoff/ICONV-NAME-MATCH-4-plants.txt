@@ -1,5 +1,5 @@
 # Plants for ICONV-NAME-MATCH-4 (the alias table without pointers, crates/core/src/iconv/aliases.rs). Run:
 # cargo xtask plants handoff/ICONV-NAME-MATCH-4-plants.txt --dir <new RAM dir> --timeout 600
 alias-name-bound-short | crates/core/src/iconv/aliases.rs | lit:let mid = at + name.len(); ==> let mid = at + name.len() - 1; | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases | msg:s6_4_c_1_charmap_aliases.*(FAILED|panicked)
-alias-searched-by-charmap | crates/core/src/iconv/aliases.rs | lit:span(n, c).cmp(name) ==> span(c, e).cmp(name) | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases | msg:s6_4_c_1_charmap_aliases.*(FAILED|panicked)
+alias-searched-by-charmap | crates/core/src/iconv/aliases.rs | lit:|&[n, c, _]| span(n, c).cmp(name) ==> |&[_, c, e]| span(c, e).cmp(name) | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases | msg:s6_4_c_1_charmap_aliases.*(FAILED|panicked)
 alias-charmap-bytes-wrong | crates/core/src/iconv/aliases.rs | lit:t[at] = charmap[k]; ==> t[at] = charmap[0]; | cargo test -p niji --test s06_multibyte_clauses s6_4_c_1_charmap_aliases | msg:s6_4_c_1_charmap_aliases.*(FAILED|panicked)

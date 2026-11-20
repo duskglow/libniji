@@ -1,8 +1,9 @@
 # ICONV-NAME-MATCH (issue #6: `iso88591`): iconv_open name rule — run 3 (ICONV-NAME-MATCH-3)
 
-**State (run 3, leg 2, finished).** Branch `task/iconv-name-match-3`, code head `876a0e018`; role mei:~/w/s3.
-Every measured `iconv_open` case is now below base (table in "Run 3" below); gate, start-up checks and 20 plants
-green. Run 2: branch `task/iconv-name-match-2`, head `b79bfe76a`. Decision: `records/pending/ICONV-NAME-MATCH-1.toml`
+**State (run 4, ICONV-NAME-MATCH-4).** Branch `task/iconv-name-match-4` (origin/next `0e5a87e92` merged in,
+merge `adcc606db`), code head `18b371663`; role mei:~/w/s4. Run 4 found and removed the cause of run 3's CI red
+(a start-up page fault): see "Run 4" below. Run 3: branch `task/iconv-name-match-3`, code head `876a0e018`.
+Run 2: branch `task/iconv-name-match-2`, head `b79bfe76a`. Decision: `records/pending/ICONV-NAME-MATCH-1.toml`
 (D-NEW, series D-6, amends D-6.8; CI assigns the id). Rule, probe table and alias provenance:
 `spec/encoding/iconv-names.md`. Plants: `handoff/ICONV-NAME-MATCH-plants.txt` (20).
 
@@ -96,9 +97,43 @@ Ruling #6385: no landing at +28..69%; remove the 128-byte copy and reach base fo
   ignored; conformance 138/0; peak 16G. Plants `iconv-name-match-3-plants`: 20 CAUGHT, 0 SURVIVED, 0 WARN.
   Start-up checks `iconv-name-match-3-startup`: rc 0: `cargo xtask test` 6,784 + 5,296 passed; `NIJI_FULL_PROFILE=1` `xtask so` and `hot_text_products` 26 passed; peak 11G.
 
+## Run 4 (ICONV-NAME-MATCH-4, role mei:~/w/s4): the CI start-up fault red, cause and fix
+
+* CI red on b3b8df5c0: `hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound`,
+  91 > 89. Step 0 (clippy, static on b3b8df5c0): green. Merged origin/next `0e5a87e92` (one conflict,
+  `global_locale.rs`: next's `Files::new` + `recorded` kept, this branch's matcher arguments kept).
+* Measured (mei, Skylake-SP, fast products, job `iconv-name-match-4-pfsplit`): bound now 73; next 71, merged head 72.
+  Per-page split (`~/work/ICONV-NAME-MATCH-4/pf.sh`, perf page-faults of the counted relay child, ASLR off,
+  `iconv-name-match-4-pfsplit3`): the one extra page is libc.so.6 rw-p written by ld.so's relocation pass: 14
+  contiguous relro pages against 13. Not placement: `.data.rel.ro` 0xaba8 -> 0xba28 (+3,712 B), GNU_RELRO 12 -> 13
+  pages. 3,392 B of it was `CHARMAP_ALIASES` (106 rows x 2 slices, each pointer a start-up relocation).
+* Fix `18b371663`: the alias rows compile (const fns, same source table) into one `[u8]` text and `[[u16; 3]]`
+  offsets: no pointers, so `.rodata`. Job `iconv-name-match-4-check`: fixed head 71 faults = next, per-file split
+  identical; `.data.rel.ro` 0xace8 (+320 B vs next, relro 12 pages = next); s6_4_c_1 6 passed.
+* Counts `iconv-name-match-4-counts` (static spell.c x1000, next vs fixed head, instructions:u): UTF-8 1,697,672 ->
+  1,533,675; CP1252 3,211,062 -> 2,933,274; ISO-8859-15 3,015,867 -> 2,857,967; KOI8R 4,053,262 -> 3,213,508;
+  latin1 2,378,672 -> 1,756,676; EUC-JP 1,656,672 -> 1,514,674; ISO88591 EINVAL on next, opens as Latin-1;
+  start-up only 3,191 both; KOI8R fingerprint identical.
+* layout-bins (fast) next vs fixed head: bin 0 60,721 -> 60,741 B; start-up mode lists (true, fork, strings) the same;
+  the other differences are in code this branch does not touch (regex, collate, time: niji crate codegen-unit
+  repartition) and one tracer-signature change (`finish_grow` niji_legacy left the localtime/mktime modes).
+* Plants `iconv-name-match-4-plants2` (file handoff/ICONV-NAME-MATCH-4-plants.txt): 3 CAUGHT, 0 WARN.
+  SUPERSEDED `iconv-name-match-4-plants` (one malformed plant: mutant did not compile; fixed).
+* Gate `iconv-name-match-4-gate` rc 1, NOT a code failure: 12 suites ok, 4,500 passed, conformance 6/0; only
+  "native pass set-up: products missing or half-built" (no `target/niji/.profile`). Cause: my start-up job
+  (`iconv-name-match-4-startup`) began with `~/bin/jobwait iconv-name-match-4-gate;` launched in the same second as
+  the gate; jobwait answers rc 4 at once for a label not yet queued (checked), so `cargo xtask test` rebuilt products
+  in the role during the gate. Rerun the gate alone. `cargo xtask affected` says FULL is the train's
+  (`csys/util/iconv-names.h`); the direct tier is the gate.
+
 ## Exact next step
 
-None for this story: it is ready to land. Follow-ups are under "Open items".
+1. `~/bin/jobwait iconv-name-match-4-startup` (running on mei: `cargo xtask test`, then `NIJI_FULL_PROFILE=1 cargo
+   xtask so` + `hot_text_products`); green = start-up checks done.
+2. Then, alone in the role: gate `iconv-name-match-4-gate2` (`cargo xtask affected --run`, kind gate), wait.
+3. Foreground clippy (`cargo clippy --workspace --all-targets --all-features -- -D warnings`) and `cargo xtask
+   static`; `cargo xtask precheck --jobs <labels> --head <sha>`; report json; handback-check.
+   JOBS: gate2, plants2, startup, counts (pfsplit3, check for the diagnosis).
 
 ## Open items
 
