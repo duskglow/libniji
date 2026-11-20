@@ -30,10 +30,12 @@ commit "Run the packaged loader under env inside the watchdog").
 ## Exact next step
 1. `~/bin/jobwait libm-so-mvec-pkg` (read its lint.sh lines: lintian counts vs the last snapshot; my change only
    turns one libc6-dev symlink into a text file).
-2. Sync (check rc, 4 = BUSY), then start detached: gate `libm-so-mvec-gate3` (clippy, static, affected --base
-   origin/next --run: 5 targets, direct tier), plants `libm-so-mvec-plants2` (handoff/LIBM-SO-MVEC-plants.txt,
-   --dir /dev/shm/claude/libm-so-mvec/plants-2), and the coexist check.sh rerun on the fixed tree
-   (`libm-so-mvec-pkg2`: copy pkgproof.sh with d=.../pkg-2, coexist half only is enough).
+2. ALREADY STARTED on head 5509fbd30 (synced, tree d78df90e): gate `libm-so-mvec-gate3` (clippy, static, affected
+   --base origin/next --run: 5 targets, direct tier) and plants `libm-so-mvec-plants2`
+   (handoff/LIBM-SO-MVEC-plants.txt, --dir /dev/shm/claude/libm-so-mvec/plants-2): `~/bin/jobwait` them; fix what
+   they find. After libm-so-mvec-pkg ends, rerun the coexist check.sh on the fixed tree (`libm-so-mvec-pkg2`: a copy
+   of pkgproof.sh with d=.../pkg-2; the coexist half is enough) and name it in JOBS.
+   This handoff commit (handoff only) is the final head unless a fix is needed; precheck names that head.
 3. precheck --jobs, report json, handback-check.
 
 ## Informational for the hand-back
