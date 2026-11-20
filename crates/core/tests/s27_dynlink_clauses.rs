@@ -51,7 +51,20 @@ fn s27_1_c_3() {
     assert_not_pending(&out, "s27_dlsym_handles");
 }
 clause!(s27_1_c_4, "27.1", "Contract", r##"**`dlclose`** decrements the reference count. At zero, it runs destructors and unmaps the object, unless the object is `NODELETE` or has unique symbols or TLS in use."##);
-clause!(s27_1_c_5, "27.1", "Contract", r##"**`dlerror()`** returns a Text describing the last failure on this thread, and clears it. It returns `NULL` if there was no error. ⚑ HIST: this is yet another error channel. `dlsym` returning `NULL` is ambiguous for symbols whose value is 0, so callers must check `dlerror`."##);
+/// §27.1 Contract: **`dlerror()`** returns a Text describing the last failure on this thread, and clears it. It returns `NULL` if there was no error. ⚑ HIST: this is yet another error channel. `dlsym` returning `NULL` is ambiguous for symbols whose value is 0, so callers must check `dlerror`.
+///
+/// `s27_dlerror_threads` (spec/behaviour/dynlink.md probe P-6): the text once, then NULL; a
+/// successful `dlsym` clears it; 1000 lock-step rounds of two threads, each reading only its own
+/// failure (never the other's), a thread created while another's text is pending reading NULL, the
+/// main thread's text kept across both; and 2000 threads that fail and exit adding less than
+/// 2 MiB to the address space (a thread's text goes with it). Checked on the reference and on
+/// libniji's loader.
+#[test]
+fn s27_1_c_5() {
+    let out = conformance(&["s27_dlerror_threads"]);
+    assert_not_pending(&out, "s27_dlerror_threads");
+    assert!(out.lines().any(|l| l == "conformance: 1 passed, 0 failed"), "s27_dlerror_threads did not pass on both:\n{out}");
+}
 /// §27.1 Contract: **`dladdr(addr, &info)`** / **`dladdr1`** map an address to its object and nearest symbol.
 ///
 /// `s27_dladdr`: a helper with a fixed symbol layout (gaps, a size-0 symbol, equal starts,
