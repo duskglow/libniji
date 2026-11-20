@@ -1,0 +1,11 @@
+id = "D-27.68"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "DYN-START-LINK-SHAPE"
+date = "2026-11-20"
+tests = ["crates/ld/tests/reloc.rs::reloc_relative_run_checks_each_entry_after_the_first", "crates/ld/tests/reloc.rs::reloc_relative_prefix_leaves_the_table_after_its_run", "crates/ld/tests/reloc.rs::reloc_field_must_lie_in_a_writable_segment", "crates/core/tests/hot_text_products.rs::init_dynamic_empty_main_stays_within_its_instruction_bound"]
+body = '''
+**The loader's `RELATIVE` prefix loop keeps the current segment's window in registers (DYN-START-LINK-SHAPE).** An Intel PT trace of one dynamic start-up (every user instruction decoded, so per-function counts are exact; Skylake-SP) put the 13,321 instructions between the shipped `libc.so.6` and a relink without the `NIJI_PRIVATE` forwarding aliases wholly in `reloc::pass1`: the aliases keep libresolv's code (which `libresolv.so.2` forwards to, so it stays), its data adds 318 `RELATIVE` entries, and the `DT_RELACOUNT` loop spent exactly 42 instructions on each, most of them re-reading the segment window through the `Loads` table (its `Cell` cannot stay in a register across the stores) and a saturating position update. **Rule:** the pass copies the window of the segment the last entry lay in (`Loads::window`, by value) into locals and refreshes it only after a miss, which `Loads::inside` decides as before; `Relas::relative_prefix` advances its position once per run, or to the entry its callback failed for. The loop is 20 instructions per entry; a dynamic empty main, three libraries and clock_gettime each start 38,170-38,180 instructions faster on Skylake-SP and Zen 1 (release, execcount median of 101), faults unchanged. Packed relative relocations (`-z pack-relative-relocs`, 1,777 entries to 75 words) cost +113,355 with today's RELR loop (a `Loads::inside` call and an out-of-line `Relrs::next` per address) and stay a next step for after that loop gets the same treatment.
+'''
