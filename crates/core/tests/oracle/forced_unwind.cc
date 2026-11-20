@@ -3,8 +3,8 @@
 // products and on the host C library (the reference) by forced_unwind_products.rs. Each line names
 // a case and what C++ frames saw: destructors run, `catch (abi::__forced_unwind &)` and
 // `catch (...)` handlers entered (they rethrow), and the thread's result as `pthread_join` gives it
-// (-1 for PTHREAD_CANCELED). With the argument `swallow` it also runs a handler that does not
-// rethrow (libniji's behaviour, D-22.19; not run on the reference).
+// (-1 for PTHREAD_CANCELED). With the argument `swallow` it then runs a handler that ends without
+// rethrowing, which ends the process (D-22.19; run on libniji only).
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
@@ -14,7 +14,7 @@
 #include <cstring>
 #include <future>
 
-static int dtors, caught_fu, caught_all, after_catch;
+static int dtors, caught_fu, caught_all;
 static pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
 struct Guard { ~Guard() { dtors++; } };
 struct Unlock { ~Unlock() { pthread_mutex_unlock(&m); } };
@@ -91,13 +91,13 @@ static void *t_once(void *) { pthread_once(&once, once_init); return nullptr; }
 static void *t_swallow(void *) {
     Guard outer;
     try { Guard g; pthread_exit((void *)5); }
-    catch (...) { caught_all++; }
-    after_catch++;
+    catch (...) { std::printf("swallow: handler entered, dtors=%d\n", dtors); }
+    std::printf("swallow: code after the handler ran\n");
     return (void *)99;
 }
 
 static void run(const char *name, void *(*f)(void *), void *arg, bool cancel) {
-    dtors = caught_fu = caught_all = after_catch = 0;
+    dtors = caught_fu = caught_all = 0;
     pthread_t t;
     pthread_create(&t, nullptr, f, arg);
     if (cancel) {
@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
     }
     if (argc > 1 && std::strcmp(argv[1], "swallow") == 0) {
         run("swallow", t_swallow, nullptr, false);
-        std::printf("swallow: code after the handler ran=%d\n", after_catch);
+        std::printf("swallow: the process went on\n");
     }
     struct MainGuard { ~MainGuard() { (void)!write(1, "main-exit: dtor ran\n", 20); } } mg;
     pthread_cancel(blocker);

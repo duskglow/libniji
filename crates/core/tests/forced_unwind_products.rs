@@ -121,10 +121,15 @@ fn cxx_frames_unwind_when_a_thread_exits_or_is_cancelled() {
     let main_exit = "main-exit: dtor ran\n";
     assert_eq!(run(&reference, false, &[]), format!("{CXX_EXPECTED}{main_exit}"), "the reference differs from the expected text");
     assert_eq!(run(&niji, true, &[]), format!("{CXX_EXPECTED}{main_exit}"));
-    // D-22.19: a handler that does not rethrow does not stop the exit; the frames outside it still
-    // unwind (libniji only: the reference is not run on this case).
-    let swallow = "swallow: dtors=2 caught_fu=0 caught_all=1 result=5\nswallow: code after the handler ran=0\n";
-    assert_eq!(run(&niji, true, &["swallow"]), format!("{CXX_EXPECTED}{swallow}{main_exit}"));
+    // D-22.19 (ruling #6884): a handler that ends without rethrowing the exit ends the process with
+    // a fatal diagnostic and SIGABRT; the frames inside the handler's try block were unwound, no
+    // code after the handler runs (libniji only).
+    let c = format!("ulimit -c 0; exec timeout {} env LD_LIBRARY_PATH={} {} swallow", timeout::secs(60), products().display(), niji.display());
+    let out = Command::new("sh").args(["-c", &c]).output().unwrap();
+    let (stdout, stderr) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert_eq!(stdout, format!("{CXX_EXPECTED}swallow: handler entered, dtors=1\n"), "swallow: stderr:\n{stderr}");
+    assert!(stderr.contains("FATAL: exception not rethrown\n"), "swallow: stderr:\n{stderr}");
+    assert!(out.status.code() == Some(134) || std::os::unix::process::ExitStatusExt::signal(&out.status) == Some(6), "swallow: status {:?}", out.status);
     std::fs::remove_dir_all(&dir).unwrap();
 }
 

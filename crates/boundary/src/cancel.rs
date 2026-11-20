@@ -224,12 +224,13 @@ extern "C" fn stop(_version: c_int, actions: c_int, _class: u64, _exc: usize, ct
     0
 }
 
-/// The exception's cleanup function: a handler caught the thread's exit and did not rethrow it
-/// (C++ requires the rethrow). The exit is not abandoned: it starts again from that handler's
-/// end, so the frames outside it unwind too (D-22.19).
+/// The exception's cleanup function: a handler caught the thread's exit and ended without
+/// rethrowing it (C++ requires the rethrow), or the exception was deleted. The thread can neither
+/// go on (it was told to exit) nor exit from here (the frames outside the handler would not
+/// unwind), so the process ends: a fatal diagnostic, then `abort` (D-22.19, ruling #6884).
+#[cold]
 extern "C" fn swallowed(_reason: c_int, _exc: usize) {
-    let (head, result) = thread::desc().map_or((0, 0), |d| (d.cleanup_jmp.load(Acquire), d.result.load(Acquire)));
-    continue_unwind(head, result)
+    niji_rt::fatal::fatal(&CSys, &[b"FATAL: exception not rethrown\n"], crate::ret::trap)
 }
 
 #[allow(clippy::as_conversions)] // a function pointer's address: the only spelling Rust has
