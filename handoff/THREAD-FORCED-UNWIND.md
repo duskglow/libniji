@@ -33,8 +33,9 @@ blocked, found one plant that survived, closed the test gap and reran everything
 * Final head (see the report JSON for the head and the job list): `thread-forced-unwind-3-fu2`
   (forced_unwind_products 2/2), `thread-forced-unwind-3-plants2` (3 CAUGHT, 0 SURVIVED, 0 WARN; results in
   `handoff/THREAD-FORCED-UNWIND-plants.txt`), `-gate2` (direct tier), `-xtest` (`cargo xtask test`),
-  `-hottext` (NIJI_FULL_PROFILE so + hot_text_products), `-basebins` (layout bins of the merge base, for the
-  diff below), precheck.
+  `-hottext` (NIJI_FULL_PROFILE so + hot_text_products), `-lint2`, `-precheck` (rc 0). Diagnostic: `-basebins`
+  built the merge base 07e98c389 in RAM; its `layout-bins.tsv` equals this head's in every bin (bins 0-8, bytes
+  and sections, `.llvm.<n>` suffixes stripped): the start-up bins did not grow.
 * Probes (leg 3, `forced_unwind.c` with `-fexceptions -U__EXCEPTIONS`): separate frames (`-fno-inline`, `-O0`):
   reference and libniji both `3a1K` for exit and cancel. At `-O1`, gcc inlines f2 into `thread`, so one frame
   holds f2's unwind cleanup inside the scope of the jump-buffer handler '1': libniji runs the cleanup, then the

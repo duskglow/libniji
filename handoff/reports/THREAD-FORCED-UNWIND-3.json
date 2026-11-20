@@ -6,7 +6,7 @@
  "rulings": [{"item": "a frame holding both an unwind cleanup and an older jump-buffer cleanup handler (gcc -O1 inlining, -fexceptions with __EXCEPTIONS undefined): libniji runs the cleanup, then the handler (3a1K); the reference run printed the handler only (31K)", "recommendation": "keep libniji's scope order; a differences row with no compat option (an option that skips a declared cleanup has no use); needs a reserved id"}],
  "informational": ["thread create+return+join: libniji 40,424 vs reference 2,493 user instructions (leg 2, mei); a perf story outside this one",
                    "kill-label on a gate job ended the jobrun wrapper but left the inner `cargo xtask affected` tree running; sync_role then said BUSY until kill-mine ended it"],
- "refused": [],
+ "refused": ["a Bash call with a heredoc (`python3 -I - <file> <<'X'`), refused by the no-heredoc hook: my error, redone with the Edit tool"],
  "impact": [{"kind": "correctness", "what": "a C++ local's destructor and catch (abi::__forced_unwind &) run when a thread calls pthread_exit or acts on cancellation (Yohane #25), dynamic programs", "before": null, "after": null, "unit": null, "measured": true},
             {"kind": "coverage", "what": "C build with jump-buffer handlers and an unwind cleanup between them in forced_unwind_products; plants caught 2 -> 3 of 3", "before": 2, "after": 3, "unit": "plants caught", "measured": true},
             {"kind": "size", "what": "start-up layout bins 0-8 bytes vs merge base 07e98c389 (names normalised)", "before": 0, "after": 0, "unit": "bytes changed", "measured": true},
@@ -14,4 +14,4 @@
  "improvement": "plants written in leg 1 first ran in leg 3 (held by the layout red); running the plants tool's mutant tests against the last green products, even when the product build is red on a contract, would have found the test gap two legs earlier",
  "next_step": "land; follow-ups: static and -static-libgcc programs (#6885) and the inlined-frame ruling",
  "report_file": "handoff/THREAD-FORCED-UNWIND.md",
- "jobs": ["mei:thread-forced-unwind-3-gate2", "mei:thread-forced-unwind-3-plants2", "mei:thread-forced-unwind-3-fu2", "mei:thread-forced-unwind-3-xtest", "mei:thread-forced-unwind-3-hottext", "mei:thread-forced-unwind-3-basebins", "mei:thread-forced-unwind-3-lint2"]}
+ "jobs": ["mei:thread-forced-unwind-3-gate2", "mei:thread-forced-unwind-3-plants2", "mei:thread-forced-unwind-3-fu2", "mei:thread-forced-unwind-3-xtest", "mei:thread-forced-unwind-3-hottext", "mei:thread-forced-unwind-3-lint2", "mei:thread-forced-unwind-3-precheck"]}
