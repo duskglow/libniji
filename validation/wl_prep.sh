@@ -13,11 +13,15 @@
 # they do not depend on the libniji commit; only the final link does. The link commands are
 # taken once from `make -n` (nothing is built in the validation trees). The glibc kit
 # ~/wl/kit/glibc/bin holds the dynamically linked host builds. Inputs: ~/wl/work.
+# WL_LINK=dynamic (WL-DYNAMIC-KIT): the libniji-dynamic kit, the same objects linked against libniji's libc.so.6 and
+# started by its ld.so (wl_dyncc.sh), keyed $(wl_key SHA) = SHA-release-dyn (products and kit); default static.
 set -eu
 V=$HOME/validation
 W=$HOME/wl
 mkdir -p "$W/products" "$W/kit" "$W/recipes" "$W/work" "$W/src"
-. "$(dirname "$0")/wl_lock.sh"
+here=$(cd "$(dirname "$0")" && pwd)
+. "$here/wl_lock.sh"
+wl_link > /dev/null || exit 2   # WL_LINK=dynamic: the libniji-dynamic kit (wl_lock.sh LINK, wl_dyncc.sh)
 
 # name|path in the tree|main object|tree under build/<variant>/
 PROGS=(
@@ -84,7 +88,17 @@ for sha in "$@"; do
         # gawk's niji-m objects were configured without -lm (no libm.a then); its maths
         # functions come from libniji's libm.a, where -lm would put it (no stand-in since GAWK-LM-CHECK-2).
         [ "$name" = gawk ] && extra=$prod/libm.a
-        (cd "$(ltree "$name" "$tree")/$sub" && NIJI_PRODUCTS=$prod NIJI_CC_EXTRA=$extra bash -c "${cmd/ -o $p / -o $kit/$name.tmp }") > "$W/kit/$key/link-$name.log" 2>&1 || { echo "wl_prep: link of $name failed (see $W/kit/$key/link-$name.log)" >&2; exit 1; }
+        if [ "$(wl_link)" = dynamic ]; then
+            # WL-DYNAMIC-KIT: the same objects and recipe, linked by wl_dyncc.sh (libniji's libc.so.6 and ld.so) in
+            # place of the recipe's static driver (scripts/niji-cc or its older name); gawk takes libm.so.6 by -lm, as
+            # the glibc kit's gawk has libm.so.6.
+            [ "$name" = gawk ] && extra=-lm
+            drv= re='([^ ;]*/scripts/[a-z]+-cc)( |$)'
+            [[ $cmd =~ $re ]] && drv=${BASH_REMATCH[1]}
+            [ -n "$drv" ] || { echo "wl_prep: no niji-cc driver in the link recipe of $name" >&2; exit 1; }
+            cmd=${cmd//"$drv "/"sh $here/wl_dyncc.sh "}
+        fi
+        (cd "$(ltree "$name" "$tree")/$sub" && NIJI_PRODUCTS=$prod WL_DYN_PRODUCTS=$prod NIJI_CC_EXTRA=$extra bash -c "${cmd/ -o $p / -o $kit/$name.tmp }") > "$W/kit/$key/link-$name.log" 2>&1 || { echo "wl_prep: link of $name failed (see $W/kit/$key/link-$name.log)" >&2; exit 1; }
         mv -f "$kit/$name.tmp" "$kit/$name"
     done
     wl_unlock
