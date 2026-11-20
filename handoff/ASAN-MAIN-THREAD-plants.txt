@@ -4,3 +4,5 @@ descriptor-not-carried | crates/boundary/src/thread.rs | lit:[&b.tls_dtors, &b.h
 errno-not-carried | crates/boundary/src/thread.rs | lit:[(&from.errno, &to.errno), (&from.h_errno, &to.h_errno)] ==> [(&from.h_errno, &to.h_errno)] | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:errno 77 lib 77 key 0x1234
 dtors-not-carried | crates/boundary/src/thread.rs | lit:[&b.tls_dtors, &b.heap_cache, ==> [&b.heap_cache, | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:thread_local destructor ran
 locale-not-carried | crates/boundary/src/thread.rs | lit:&b.heap_cache, &b.thread, &b.locale, &b.ctype_b, ==> &b.heap_cache, &b.thread, &b.ctype_b, | cargo xtask so && cargo test -p niji-ld --test tls_static_info | msg:key 0x1234 locale 1
+# cargo xtask plants results (asan-main-thread-plants-2: 5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# no-carry, descriptor-not-carried, errno-not-carried, dtors-not-carried, locale-not-carried: CAUGHT by tls_static_info initial_thread_keeps_words_set_before_main
