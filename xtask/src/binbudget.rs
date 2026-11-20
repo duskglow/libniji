@@ -344,6 +344,10 @@ mod tests {
         assert_eq!(n, BTreeMap::from([("locale", 2), ("strings", 1), ("true", 1)]), "strings' bin 1 window only: its warm-up faulted bin 0");
         assert_eq!(a.bins[&0].bytes(), 0xf000, "fillers are not counted");
         assert_eq!(a.bins[&1].members.len(), 2);
+        // The phase also runs `start` (bin 0), which its warm-up already faulted: that window is not counted again.
+        let shared = sigs(&[("start", "true,strings,strings.pre"), ("setlocale", "locale"), ("newlocale", "locale"), ("strlen", "strings")]);
+        let b = analyse(&link(), &shared, str::to_string, BIN).unwrap();
+        assert_eq!(b.windows["strings"].len(), 1, "a window its warm-up faulted counts once, in the warm-up: {:?}", b.windows);
         assert!(analyse(&link(), &sigs(&[("start", "true")]), str::to_string, BIN).unwrap_err().contains("no signature"));
     }
 
