@@ -1125,8 +1125,10 @@ fn query_index(cat: Option<Cat>) -> usize {
     cat.map_or(12, Cat::index)
 }
 
-/// The cached answer to `setlocale(cat, NULL)` for the current global locale, without the lock.
-fn query_cached(objs: &impl Objects, cat: Option<Cat>) -> Option<&'static [u8]> {
+/// The name slot of the cached answer to `setlocale(cat, NULL)` for the current global locale,
+/// without the lock.
+#[inline(always)]
+fn query_slot(cat: Option<Cat>) -> Option<usize> {
     let seq = QUERY_SEQ.load(Acquire);
     if seq & 1 != 0 {
         return None;
@@ -1137,7 +1139,12 @@ fn query_cached(objs: &impl Objects, cat: Option<Cat>) -> Option<&'static [u8]> 
     if QUERY_SEQ.load(Relaxed) != seq || handle != GLOBAL.load(Acquire) {
         return None;
     }
-    cached_name(objs, slot)
+    Some(slot)
+}
+
+/// The cached answer to `setlocale(cat, NULL)` for the current global locale, without the lock.
+fn query_cached(objs: &impl Objects, cat: Option<Cat>) -> Option<&'static [u8]> {
+    cached_name(objs, query_slot(cat)?)
 }
 
 /// [`query_cached`] for the global locale `handle` only: `None` once the global locale is another.
@@ -1226,27 +1233,50 @@ fn same_name(a: &[u8], b: &[u8]) -> bool {
 /// Only the lock-free answers are here; the rest is [`setlocale_locked`], kept out of line so
 /// that a call answered here does not set up that function's frame (several kilobytes of stack
 /// buffers, six saved registers): SETLOCALE-C-ROWS.
+///
+/// The answer's name is read here only from the static table. A name in a spill chunk goes to
+/// [`setlocale_spilled`] by a tail call: a call here that returned would make every call set up
+/// a frame and save registers (+8 to +9 instructions per call; ruling #6981).
 pub fn setlocale<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req: Request<'_>) -> Option<&'static [u8]> {
-    match req {
+    if !matches!(req, Request::Environment(_))
+        && let Some(i) = query_slot(cat)
+    {
+        let Some(s) = SLOTS.0.get(i) else { return setlocale_spilled(sys, m, cat, &req) };
+        let name = m.bytes_at(s.name_addr.load(Acquire), s.name_len.load(Acquire));
+        match req {
+            Request::Query => return Some(name),
+            // The name the query would answer (for `LC_ALL`: the single or composite name) names
+            // every category asked as it is: nothing to look up (s7_2_c_4), no lock. `"POSIX"` is
+            // compared as the `"C"` it reports: otherwise every repeated setlocale(cat, "POSIX")
+            // missed here and rebuilt, compared and copied whole locales under the lock (~2,300
+            // instructions, partly memmove whose count follows stack alignment). The name as
+            // given first: "C" and every file name match there at no extra cost.
+            Request::Name(n) if same_name(name, n) || same_name(name, locale::reported(n)) => return Some(name),
+            _ => {}
+        }
+    }
+    setlocale_locked(sys, m, cat, &req)
+}
+
+/// [`setlocale`] when the query cache's answer is a name past the static table.
+#[cold]
+#[inline(never)]
+fn setlocale_spilled<S: Sys, M: Mapper>(sys: &S, m: &M, cat: Option<Cat>, req: &Request<'_>) -> Option<&'static [u8]> {
+    match *req {
         Request::Query => {
             if let Some(s) = query_cached(m, cat) {
                 return Some(s);
             }
         }
-        // The name the query would answer (for `LC_ALL`: the single or composite name) names
-        // every category asked as it is: nothing to look up (s7_2_c_4), no lock. `"POSIX"` is
-        // compared as the `"C"` it reports: otherwise every repeated setlocale(cat, "POSIX")
-        // missed here and rebuilt, compared and copied whole locales under the lock (~2,300
-        // instructions, partly memmove whose count follows stack alignment).
+        // As in [`setlocale`].
         Request::Name(n) => {
-            // The name as given first: "C" and every file name match there at no extra cost.
             if let Some(s) = query_cached(m, cat).filter(|&s| same_name(s, n) || same_name(s, locale::reported(n))) {
                 return Some(s);
             }
         }
         Request::Environment(_) => {}
     }
-    setlocale_locked(sys, m, cat, &req)
+    setlocale_locked(sys, m, cat, req)
 }
 
 /// [`setlocale`] when the query cache did not answer, under [`LOCK`]; also called directly for a
