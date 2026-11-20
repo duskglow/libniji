@@ -1,7 +1,7 @@
 {"task": "ORACLE-VALUE-CACHE", "model": "opus", "tokens": null,
  "result": "The C-oracle sweeps keep the oracle's decided values across libniji changes (D-10.131): five sweeps 9586 -> 199 pass-1 test-s warm on the same host (-97.9 %), 198 after a libniji math change",
- "branch": "task/oracle-value-cache", "head": "47d1fdea5",
- "gate": {"affected": "6 suites ok, 736 passed / 0 failed (head 27a586f0e); oracle-value-cache-gate-2 on the final head", "peak": "1.7G"},
+ "branch": "task/oracle-value-cache", "head": "15abf9e26",
+ "gate": {"affected": "6 suites ok, 736 passed / 0 failed (head 27a586f0e); gate-2 on 47d1fdea5 the same; final head 15abf9e26: oracle-value-cache-gate-3 pending", "peak": "1.7G"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
@@ -20,4 +20,4 @@
  "improvement": "A detached remote start must be its own ssh call with nothing chained before setsid (a `test -s && setsid ... &` held one ssh for 10 minutes); and two jobwaits in one call exceed the 600 s tool limit.",
  "next_step": "Coordinator lands it; confirm CI keeps target/ between trains so the cache pays.",
  "report_file": "handoff/ORACLE-VALUE-CACHE.md",
- "jobs": ["keke:oracle-value-cache-lint-6", "keke:oracle-value-cache-gate-2", "keke:oracle-value-cache-plants-2", "keke:oracle-value-cache-measure"]}
+ "jobs": ["keke:oracle-value-cache-lint-7", "keke:oracle-value-cache-gate-3", "keke:oracle-value-cache-plants-3", "keke:oracle-value-cache-measure"]}

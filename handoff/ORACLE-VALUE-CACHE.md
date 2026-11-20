@@ -63,10 +63,12 @@ make a cold run slower. What remains warm is parsing, the programs' shared outpu
 Commits: c5dcc2480 (the cache, wiring, tests, D-10.131, CONTRIBUTING), 27a586f0e (FS-ORDER note for static),
 47d1fdea5 (test: a file under another key's name is not read), then this handoff.
 
-- Final head (47d1fdea5 code): `oracle-value-cache-lint-6` (clippy workspace all targets all features -D warnings,
+- Final head 15abf9e26 (47d1fdea5 plus the module doc naming D-10.131, which precheck's placeholders check asked for):
+  `oracle-value-cache-lint-7`, `-gate-3`, `-plants-3` started 11:47Z, pending at hand-back.
+- 47d1fdea5: `oracle-value-cache-lint-6` (clippy workspace all targets all features -D warnings,
   `cargo xtask static`, `records check`): rc 0. `oracle-value-cache-gate-2` (direct tier) and
-  `oracle-value-cache-plants-2` (`cargo xtask plants handoff/ORACLE-VALUE-CACHE-plants.txt`, 12 plants) are the
-  final-head jobs; see the hand-back for their state.
+  `oracle-value-cache-plants-2` (12 plants): gate rc 0, 6 suites ok, 736 passed, 0 failed, peak 1.7G; plants
+  12 CAUGHT, 0 SURVIVED, 0 WARN. precheck on d479b1555: RED only on placeholders (fixed in 15abf9e26).
 - `oracle-value-cache-gate` (head 27a586f0e, which differs from the final head only in verdict_cache.rs): rc 0,
   6 suites ok, 736 passed, 0 failed, 0 SKIPPED lines, peak 1.7G; test -p niji-math 1312 s (cold values: the key
   had changed since the measurement).
