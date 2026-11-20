@@ -886,8 +886,11 @@ fn debug_free(p: usize) -> Result<(), Misuse> {
 /// heap's allocation (zeroed for `calloc`), with the calling thread's cache word found once
 /// ([`foreign::ForeignPages`]) instead of at each read the heap makes (each a registry probe
 /// through [`KernelPages`]), and without the steps of the debugging that is off
-/// (HEAP-FOREIGN-PAIR). In the cold function, so the plain paths gain nothing.
-#[inline(always)]
+/// (HEAP-FOREIGN-PAIR). Out of line and cold: `debug_alloc` runs at start-up (the first
+/// allocation clears `VIRGIN`), and inlined there the route grew it past its start-up layout
+/// window (WINDOW-BIN-BYTES); `debug_alloc` gains only the test and the call.
+#[cold]
+#[inline(never)]
 fn foreign_alloc(n: usize, align: usize, zero: bool) -> KResult<usize> {
     let b = match crate::thread::heap_cache_slot() {
         Some(s) => HEAP.alloc(&CSys, &foreign::ForeignPages(s), n, align),
@@ -902,8 +905,9 @@ fn foreign_alloc(n: usize, align: usize, zero: bool) -> KResult<usize> {
 }
 
 /// [`debug_free`] of `p` (not NULL) with the flags [`foreign_alloc`] serves: the heap's release,
-/// with the cache word found once.
-#[inline(always)]
+/// with the cache word found once. Out of line and cold, as [`foreign_alloc`].
+#[cold]
+#[inline(never)]
 fn foreign_free(p: usize) -> Result<(), Misuse> {
     match crate::thread::heap_cache_slot() {
         Some(s) => HEAP.free(&CSys, &foreign::ForeignPages(s), p),
