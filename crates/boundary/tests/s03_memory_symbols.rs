@@ -944,8 +944,8 @@ fn kernel_pages_map_aligned_under_an_address_space_limit() {
 #[test]
 fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
     // Trace: no spec clause (the heap's kernel page source under RLIMIT_AS, T14; issue #21,
-    // HEAP-ADDRESS-SPACE-10). The kernel's first choice for SEG bytes is made a gap of exactly
-    // SEG bytes that is not SEG-aligned (pinned by a page at each end), as a gap just above a
+    // HEAP-ADDRESS-SPACE-10). The kernel's first choice for SEG bytes is made a gap that holds
+    // SEG bytes but no SEG-aligned range (pinned by a page at each end), as a gap just above a
     // segment is in a process whose heap is libniji's. Under a limit that refuses the
     // over-mapping, `map` still returns an aligned range (from another gap) and leaves nothing
     // of its own in the pinned gap. Nothing allocates between the layout and the check: the
@@ -960,7 +960,7 @@ fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
             let got = CSys.mmap(at, PAGE, PROT_NONE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
             (got == at).then_some(got)
         };
-        let mut pins = [0usize; 32];
+        let mut pins = [0usize; 16];
         let mut held = 0;
         let mut keep = |p: Option<usize>| {
             if let (Some(p), Some(slot)) = (p, pins.get_mut(held)) {
@@ -969,34 +969,44 @@ fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
             }
         };
         let limit = vm_size() + (SEG + SEG / 4) as u64;
-        // The kernel's first gap for SEG bytes, shrunk to exactly SEG bytes; an aligned one is
-        // closed by a page inside it and the next is taken.
-        let mut gap = 0;
+        let probe = |len: usize| -> usize {
+            let p = CSys.mmap(0, len, PROT_READ | PROT_WRITE, flags, None, 0).map(|r| r.addr()).unwrap_or(0);
+            assert_ne!(p, 0, "a mapping before any limit");
+            KernelPages.unmap(p, len);
+            p
+        };
+        // The gap: SEG + PAD bytes (PAD: the huge-page alignment a kernel may give anonymous
+        // mappings, which then only uses a gap of len + PAD), pinned by a page at each end, at
+        // `gap` with no multiple of SEG in [gap, gap + PAD]: room for SEG bytes, none aligned.
+        // Carved from the kernel's first choice for SEG + 3 * PAD bytes.
+        const PAD: usize = 2 << 20;
+        let r = probe(SEG + 3 * PAD);
+        let gap = if r % SEG != 0 && r % SEG < SEG - PAD { r } else { r + PAD + PAGE };
+        keep(pin(gap - PAGE));
+        keep(pin(gap + SEG + PAD));
+        // Higher gaps that fit SEG bytes but not SEG + 3 * PAD are split by a page in their
+        // middle until the kernel's first choice for SEG bytes is the gap.
+        let mut first = false;
         for _ in 0..8 {
-            let p = CSys.mmap(0, SEG, PROT_READ | PROT_WRITE, flags, None, 0).map(|r| r.addr()).unwrap_or(0);
-            assert_ne!(p, 0, "a SEG mapping before any limit");
-            pages.unmap(p, SEG);
-            if p % SEG == 0 {
-                keep(pin(p));
-                continue;
+            let q = probe(SEG);
+            if q >= gap && q < gap + SEG + PAD {
+                first = true;
+                break;
             }
-            keep(pin(p - PAGE));
-            keep(pin(p + SEG));
-            gap = p;
-            break;
+            keep(pin(q + SEG / 2));
         }
-        assert_ne!(gap, 0, "precondition: an unaligned first gap within 8 tries");
+        assert!(first, "precondition: the gap is the kernel's first choice for SEG bytes within 8 splits");
         CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
         assert!(CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0).is_err(), "precondition: the limit refuses the over-mapping");
         let a = pages.map(SEG, SEG, None).unwrap_or(0);
         assert_ne!(a, 0, "map: an aligned SEG range from another gap fits under the limit");
         assert_eq!(a % SEG, 0, "map: aligned as asked");
-        assert!(a + SEG <= gap || a >= gap + SEG, "map: never inside the pinned gap");
+        assert!(a + SEG <= gap || a >= gap + SEG + PAD, "map: never inside the pinned gap");
         fill(a as *mut c_void, 7, PAGE);
         pages.unmap(a, SEG);
-        let back = CSys.mmap(gap, SEG, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr()).unwrap_or(0);
+        let back = CSys.mmap(gap, SEG + PAD, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr()).unwrap_or(0);
         assert_eq!(back, gap, "map: the pinned gap is whole again (no page of the call's left in it)");
-        pages.unmap(gap, SEG);
+        pages.unmap(gap, SEG + PAD);
         for &p in pins.get(..held).unwrap_or(&[]) {
             pages.unmap(p, PAGE);
         }
