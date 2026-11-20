@@ -220,8 +220,9 @@ mod tests {
         for code in [[0x48, 0x03, 0x15, 0, 0, 0, 0], [0x4c, 0x3b, 0x25, 0, 0, 0, 0], [0x48, 0x85, 0x05, 0, 0, 0, 0], [0x49, 0x2b, 0x0d, 0, 0, 0, 0]] {
             assert!(binop_operand(&code, 3, -4), "{code:x?}");
         }
-        // call *0(%rip) (ff 15), add without REX.W (40 03 15), add 0(%rax) (modrm 00), a short section, addend -8.
-        for (code, off, add) in [(&[0x41u8, 0xff, 0x15, 0, 0, 0, 0][..], 3, -4), (&[0x40, 0x03, 0x15, 0, 0, 0, 0], 3, -4), (&[0x48, 0x03, 0x10, 0, 0, 0, 0], 3, -4), (&[0x48, 0x03, 0x15, 0, 0, 0], 3, -4), (&[0x48, 0x03, 0x15, 0, 0, 0, 0], 3, -8), (&[0x03, 0x15, 0, 0, 0, 0], 2, -4)] {
+        // call *0(%rip) with and without REX.W (ff 15), lea 0(%rip),%rax (48 8d 05), add without REX.W (40 03 15),
+        // add 0(%rax) (modrm 00), a short section, addend -8, no room for a prefix.
+        for (code, off, add) in [(&[0x41u8, 0xff, 0x15, 0, 0, 0, 0][..], 3, -4), (&[0x48, 0xff, 0x15, 0, 0, 0, 0], 3, -4), (&[0x48, 0x8d, 0x05, 0, 0, 0, 0], 3, -4),(&[0x40, 0x03, 0x15, 0, 0, 0, 0], 3, -4), (&[0x48, 0x03, 0x10, 0, 0, 0, 0], 3, -4), (&[0x48, 0x03, 0x15, 0, 0, 0], 3, -4), (&[0x48, 0x03, 0x15, 0, 0, 0, 0], 3, -8), (&[0x03, 0x15, 0, 0, 0, 0], 2, -4)] {
             assert!(!binop_operand(code, off, add), "{code:x?} at {off}");
         }
     }
@@ -249,7 +250,8 @@ mod tests {
     #[test]
     fn mark_object_rejects_headers_outside_the_object() {
         let mut o = object(&[0x48, 0x03, 0x05, 0, 0, 0, 0], &[(3, GOTPCREL, -4)]);
-        let cut = o.len() - 10;
+        // The last section header loses its offset and size fields.
+        let cut = o.len() - 40;
         assert!(mark_object(&mut o[..cut]).is_err());
     }
 }
