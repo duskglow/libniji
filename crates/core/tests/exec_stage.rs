@@ -30,10 +30,17 @@ fn under_forks(body: impl Fn(usize) + Sync) {
                 }
             });
         }
+        // A failing round panics: the forkers must still be told to stop, or the scope never ends.
+        struct Stop<'a>(&'a AtomicBool);
+        impl Drop for Stop<'_> {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::Relaxed);
+            }
+        }
+        let _stop = Stop(&stop);
         for i in 0..ROUNDS {
             body(i);
         }
-        stop.store(true, Ordering::Relaxed);
     });
 }
 
