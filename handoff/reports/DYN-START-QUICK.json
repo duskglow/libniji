@@ -23,7 +23,7 @@
   "the probe's user count grows with the library and program path lengths; base00 was measured with the same path length as after2/after3"
  ],
  "refused": [
-  "Bash: `cd /home/claude/w/DYN-START-QUICK && python3 - <<'X' ... X` (an empty heredoc no-op, refused by the no-heredoc hook; nothing ran, not retried)"
+  "Bash: `cd ~/w/DYN-START-QUICK &&python3 - <<'X' ... X` (an empty heredoc no-op, refused by the no-heredoc hook; nothing ran, not retried)"
  ],
  "impact": [
   {
