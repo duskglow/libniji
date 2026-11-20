@@ -251,6 +251,25 @@ fn name_bytes(objs: &impl Objects, i: usize) -> &'static [u8] {
     objs.bytes_at(addr, len)
 }
 
+/// [`name_bytes`] for the query cache's lock-free answers: one lookup reads both name fields, and
+/// a name past the static table is read by a tail call to a cold function, so the answer from the
+/// static table sets up no frame and runs no spill code (ruling #6981: two [`field`] lookups,
+/// each with its spill fallback, cost ~20 instructions per `setlocale` call).
+#[inline(always)]
+fn cached_name(objs: &impl Objects, i: usize) -> Option<&'static [u8]> {
+    match SLOTS.0.get(i) {
+        Some(s) => Some(objs.bytes_at(s.name_addr.load(Acquire), s.name_len.load(Acquire))),
+        None => spilled_name(objs, i),
+    }
+}
+
+/// [`cached_name`] past the static table.
+#[cold]
+#[inline(never)]
+fn spilled_name(objs: &impl Objects, i: usize) -> Option<&'static [u8]> {
+    Some(name_bytes(objs, i))
+}
+
 /// The interned locale of entry `i`.
 fn interned(objs: &impl Objects, i: usize) -> &'static Locale {
     objs.view_at(field(objs, |s| &s.interned, i)).locale()
@@ -1118,7 +1137,7 @@ fn query_cached(objs: &impl Objects, cat: Option<Cat>) -> Option<&'static [u8]> 
     if QUERY_SEQ.load(Relaxed) != seq || handle != GLOBAL.load(Acquire) {
         return None;
     }
-    Some(objs.bytes_at(field(objs, |s| &s.name_addr, slot), field(objs, |s| &s.name_len, slot)))
+    cached_name(objs, slot)
 }
 
 /// [`query_cached`] for the global locale `handle` only: `None` once the global locale is another.
@@ -1132,7 +1151,7 @@ fn query_cached_for(objs: &impl Objects, cat: Option<Cat>, handle: usize) -> Opt
     if QUERY_SEQ.load(Relaxed) != seq || handle != GLOBAL.load(Acquire) {
         return None;
     }
-    Some(objs.bytes_at(field(objs, |s| &s.name_addr, slot), field(objs, |s| &s.name_len, slot)))
+    cached_name(objs, slot)
 }
 
 /// `setlocale(cat, "")` when every category asked already has the name the environment selects
