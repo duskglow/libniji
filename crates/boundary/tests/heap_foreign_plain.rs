@@ -3,7 +3,8 @@
 //! debugging is on the debugging paths call the heap directly with the thread's cache word found
 //! once. That route must still zero `calloc`'s block, and must not be taken once debugging is on
 //! (`M_PERTURB` fills a new block with the complement of its byte).
-//! One test, in order: `mallopt` changes the process's heap state for every later call. The
+//! One test, in order: `mallopt` changes the process's heap state for every later call (the
+//! test turns off the runner's `M_PERTURB` first, so the route can be taken at all). The
 //! blocks are written and read through the opaque wrappers, so the compiler cannot assume what
 //! `calloc` returns.
 #![allow(clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing)]
@@ -25,6 +26,11 @@ fn bytes(p: *mut core::ffi::c_void, n: usize) -> Vec<u8> {
 #[test]
 fn foreign_plain_route_zeroes_calloc_and_yields_to_perturb() {
     // Trace: s3_1_c_2 (calloc zero-fills), s3_2_c_1 (mallopt M_PERTURB), on the foreign plain route (D-X.139).
+    // The route is taken only with no debugging on, and the test runner turns `M_PERTURB` on
+    // in every test process (`NIJI_TEST_MALLOC_PERTURB`, `heap::TEST_PERTURB`; perturbation also
+    // holds freed blocks back). An explicit `mallopt` wins over that setting, so turn it off
+    // first: without this the checks below run on the debugging path, not on the route.
+    assert_eq!(m::mallopt(M_PERTURB, 0), 1, "mallopt(M_PERTURB, 0) refused");
     // `calloc` on a block the thread's cache just took back dirty: zeroed (the same size class,
     // so the cache hands the freed block out again).
     for n in [24usize, 64, 200] {
