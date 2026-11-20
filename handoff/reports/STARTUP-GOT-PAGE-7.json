@@ -1,0 +1,32 @@
+{
+ "task": "STARTUP-GOT-PAGE-7",
+ "model": "opus",
+ "tokens": null,
+ "result": "DO NOT LAND: paired Skylake-SP count shows the page-aligned .got costs dynamic programs +1/+2/+2 faults (pie0 62->63, pie3 78->80, clock_gettime 66->68) and no static gain; chain closes per the 06:17Z decision",
+ "branch": "task/startup-got-page-7",
+ "head": null,
+ "gate": {
+  "affected": "not run (stopped at the coordinator's step 1: no dynamic gain); release hot_text_products 30 passed on the merged head",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "close the STARTUP-GOT-PAGE chain (flag #6916)", "recommendation": "close without landing: the change measured worse on every dynamic probe and equal on static faults"}
+ ],
+ "informational": [
+  "CI red 'release start-up 87 > 86' does not reproduce on next 50abc44ed: the dynamic bound is now [73, 67] (DYN-START-SPEED) and release hot_text_products passes (30 passed) on the merged head",
+  "in a PIE linked through niji-crt1.o the 4096-aligned empty .got input makes the output .got 0x1008 bytes at a page start, so it spans two pages and RELRO memsz grows 0x170 -> 0x2150",
+  "the build prints two cluster-alignment lines (trace build, then final build); only the second matches the shipped niji-crt1.o"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "measurement only; the branch must not land", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "faults", "what": "PIE 3 libs (empty main through niji-crt1.o), whole process, release, Skylake-SP, if the branch landed", "before": 78, "after": 80, "unit": "page faults", "measured": true},
+  {"kind": "faults", "what": "PIE empty main, whole process, release, Skylake-SP, if the branch landed", "before": 62, "after": 63, "unit": "page faults", "measured": true},
+  {"kind": "faults", "what": "static empty main, whole process, release, Skylake-SP, if the branch landed", "before": 8, "after": 8, "unit": "page faults", "measured": true}
+ ],
+ "improvement": "the coordinator's 'paired count before code' step settled a 7-run chain in about 30 minutes; a story that pads a section should start with a paired PIE and static count from the start",
+ "next_step": "none: chain closes; HEAP-ADDRESS-SPACE-8 / LOCALE-SLOTS-GROWTH-6 measure on next as it is",
+ "report_file": "handoff/STARTUP-GOT-PAGE.md",
+ "jobs": ["keke:startup-got-page-7-lint", "keke:startup-got-page-7-htp-release", "mei:startup-got-page-7-pair-sky"]
+}

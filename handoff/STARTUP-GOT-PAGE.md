@@ -1,79 +1,42 @@
-# STARTUP-GOT-PAGE: `.got` starts on a page (D-X.122, ruling #6606 option C)
+# STARTUP-GOT-PAGE: `.got` starts on a page (D-X.122, ruling #6606 option C): CLOSED BY MEASUREMENT (run 7)
 
-State: branch `task/startup-got-page-6` (run 6, hand-back only; continues `task/startup-got-page-5`, continues `task/startup-got-page-4`, `task/startup-got-page-3`, `-2`, `task/startup-got-page`), cut
-from origin/next 923df67e9. Role keke:~/w/n1 (Zen 1 host). Decision `records/decisions/D-X/D-X.122.toml` (amends
-D-X.101). Plants: `handoff/STARTUP-GOT-PAGE-4-plants.txt`.
+State: branch `task/startup-got-page-7` (continues `task/startup-got-page-6` ... `task/startup-got-page`), origin/next
+50abc44ed merged (merge 1e4c20c98). Role keke:~/w/n1 (Zen 1 host). Decision `records/decisions/D-X/D-X.122.toml`
+(amends D-X.101). Verdict run 7: DO NOT LAND. The change costs dynamic programs page faults; nothing in it is a gain.
 
-## What the branch does (run 4, option C applied)
-* `csys/src/machine/entry.S`: an empty `.got` input section `.balign 4096` after the start file's
-  `.data.rel.ro.local`, so GNU ld starts the output `.got` on a page; its 0xc8 bytes (static probe) never span two
-  pages whatever length of relro precedes them. Cost: up to 4 KiB of RELRO (0x7000 -> 0x8000 release, 0xc000 ->
-  0xd000 fast).
-* `crates/core/tests/hot_text_products.rs` `init_startup_data_pages_hold_at_every_data_phase`: relro pads of
-  0x10-0x1000 bytes behind the cluster (`relro-tail`) move `.got`; the test checks `.got` starts on a page, the hot
-  text's `.got` reads lie in one page and the written relro pages (cluster plus `.got` reads) hold in number.
-* Removed (runs 1-2): B's start-up RELRO read (`runtime.rs`), the test/binop GOT relaxation (`copies.rs` step 3, its
-  unit test, `so.rs` message), the cmp/test-immediate rule in `tools/hottext/startup_data.py` (only the relaxation
-  produced such immediates). The old plants files went with them.
+## What the branch does (option C, unchanged since run 4)
+`csys/src/machine/entry.S` (program start files only: `niji-crt1.o`, `niji-rcrt1.o`; not libc.so.6, ld.so or libc.a):
+an empty `.got` input section `.balign 4096` after the start file's `.data.rel.ro.local`, so GNU ld starts the output
+`.got` on a page. `crates/core/tests/hot_text_products.rs` `init_startup_data_pages_hold_at_every_data_phase` checks
+it at relro pads 0x10-0x1000.
 
-## Measurements (run 3, not redone; static probe, Zen 1 host, base 923df67e9)
-| state | true | locale | tool | fork | first %.2f | DATA-WINDOWS |
+## Run 7: paired count (coordinator decision 11-20 06:17Z, step 1 before any code)
+Method: release products (`NIJI_FULL_PROFILE=1 cargo xtask so`) of the merged head built once on keke; two start files
+assembled with the build's final cluster defines (`NIJI_RODATA1_ALIGN=65536 NIJI_DATA1_ALIGN=16384
+NIJI_RELRO_ALIGN=65536`): head `entry.S` (reproduces the product `niji-crt1.o` byte for byte) and origin/next's `entry.S`
+(the head minus this branch's 8 lines). So the two builds of each program differ only in the start file. Measured on
+the Skylake-SP host: execcount (user instructions, page faults, exec to exit), ASLR off, median of 101, order next,
+head, head, next (all four runs of each pair identical; min = median). Programs from DYN-START-SPEED's probe kit
+(empty main, main calling 3 shared libraries, clock_gettime; PIE, linked through `niji-crt1.o`) plus a static empty main.
+
+| program | faults next | faults head | instr next | instr head | file bytes next / head | RELRO memsz next / head |
 |---|---|---|---|---|---|---|
-| release base / C | 10 / 10 | 42 / 42 | 44 / 44 | 5 / 5 | 3 / 3 | 8 / 8 |
-| fast base / C | 11 / 11 | 42 / 42 | 43 / 43 | 5 / 5 | 3 / 3 | 7 / 7 |
-A (relaxation) cost fast first `%.2f` 3 -> 4; B (relaxation + start-up read) cost release `true` 10 -> 11.
+| static empty main | 8 | 8 | 2,098 | 2,106 | 16,353,856 / 16,370,240 | 0x7000 / 0x8000 |
+| PIE empty main | 62 | 63 | 782,040 | 782,041 | 141,336 / 145,440 | 0x170 / 0x2150 |
+| PIE 3 libs | 78 | 80 | 1,033,526 | 1,033,528 | 141,560 / 145,664 | 0x1f8 / 0x21c0 |
+| PIE clock_gettime | 66 | 68 | 815,980 | 815,982 | 141,528 / 145,632 | 0x1b8 / 0x2190 |
 
-## Run 4 jobs and results
-All on code head 1e555af95, keke: `startup-got-page-4-lint` (clippy all-targets + static, rc 0);
-`startup-got-page-4-gate` (escalated to FULL by itself: entry.S defines `_start`; workspace clippy and
-`cargo xtask test`, rc 0); `startup-got-page-4-plants` (1 plant, CAUGHT by
-`init_startup_data_pages_hold_at_every_data_phase`); `startup-got-page-4-htp-release` (NIJI_FULL_PROFILE=1 so +
-hot_text_products, 26 passed); `startup-got-page-4-htp-fast` (26 passed; every whole-process count at its bound:
-`true` 11, setlocale+printf 43, coreutils-shaped 44, localtime 36 / 36; STARTUP-DATA-WINDOWS 1 ro window, 7 rw
-pages; at every relro pad the cluster is 2 pages and written relro pages 3). Not done: a `layout-bins.tsv` diff
-against the merge base (no text changed: runtime.rs is back to base byte for byte). Note: run 4's edit script used
-a heredoc once (scratch only), against the no-heredoc rule.
-
-## Run 5 (hand-back only, branch `task/startup-got-page-5`, role mei:~/w/s3, Zen 1 host)
-Merged head dd57bcca4 (run 4's merge of origin/next 3743713c; next had not moved since). `cargo xtask precheck
---jobs <run 4's labels> --head dd57bcca4`: GREEN (31 checks; the keke jobs left to handback-check).
-`startup-got-page-5-lint` (clippy workspace all-targets all-features -D warnings, then static): rc 0.
-`startup-got-page-5-layout` (`cargo xtask so`, fast, on the merged head and on a copy of 3743713c): rc 0; all 12
-layout contracts hold on both (STARTUP-DATA-WINDOWS 1 ro window, 7 rw pages on the head); the fast
-`layout-bins.tsv` is identical (543 rows, empty diff), so no start-up bin grew. Nothing redone from run 4.
-`ops handback-check` is red: run 4's keke jobs tested pre-merge content (the merge of next changed crates/boundary
-ld.rs, bootstrap.rs, conformance dyr_* among others), so they do not prove the merged head. Started on mei on the
-merged head and still running at hand-back: `startup-got-page-5-plants` (dir /mnt/zram/claude/startup-got-page-5/
-plants-1), `startup-got-page-5-htp-release` then `startup-got-page-5-htp-fast` (sequenced by
-~/work/startup-got-page-5/htp.sh). Not started: the gate. It escalates to FULL (entry.S), and the coordinator said
-not to start a FULL gate by hand (RULING NEEDED).
-
-## Run 6 (hand-back only, branch `task/startup-got-page-6`, role keke:~/w/n1, Zen 1 host)
-Same code head as run 5 (4a551a2d9; origin/next 3743713c already merged, next had not moved). Run 5's mei plants
-went rc 2 for infrastructure (baseline build ran into the 600 s timeout on a loaded host), not code.
-`startup-got-page-6-lint` (clippy workspace all-targets all-features -D warnings, then static): rc 0.
-`mei:startup-got-page-5-htp-release` (run 5, merged head, NIJI_FULL_PROFILE=1 so + hot_text_products): rc 0, 27 passed.
-`startup-got-page-6-htp-fast` (so + hot_text_products, fast): rc 0, 27 passed.
-`startup-got-page-6-plants` (`cargo xtask plants handoff/STARTUP-GOT-PAGE-4-plants.txt --timeout 1800`, dir
-/dev/shm/claude/startup-got-page-6/plants-1): rc 0, 1 plant CAUGHT (sgp4-got-unaligned, by
-`init_startup_data_pages_hold_at_every_data_phase`), no WARN lines; results in
-`handoff/STARTUP-GOT-PAGE-6-plants.txt`. The traced baseline build alone took 1862 s on keke at load ~15; each
-command (planted so, then so + test) stayed under 1800 s. Run 6 used one empty heredoc in a scratch command (no
-effect), against the no-heredoc rule.
-Run 5's `startup-got-page-5-htp-fast` started on mei at 23:16Z after all; stopping it with `kill-label` was refused
-in run 6, so it may have run to its end there (not named; the keke run replaces it).
-
-## Open / informational
-* HEAP-ADDRESS-SPACE-8 adds its own 256-aligned `.got` in `entry.S`; when it merges, keep one alignment (this one,
-  4096) per the coordinator's note.
-* Option D (relaxation plus making the fast first `%.2f` read no RELRO) was not measured; it would save one written
-  start-up page. A possible follow-up story, not needed for this one.
-* The `xtask plants` `.S` rule assumes every site is in a function: this plant anchors on the preceding
-  `niji_machine_ld_enter:` label (the `.got` text is unique in the file).
-
-## Not to redo
-A/B/C/D measurements (run 3). Do not move a read into a `#[cold]` function (run 2).
+Why dynamic loses: in a PIE the output `.got` grows from 0x20-0x38 bytes to 0x1008 at 0x23000, so it spans two pages
+and the RELRO segment takes one or two more written pages. The static program takes no fewer faults either (its
+`.got` already sat in one page on next). Release hot_text_products on the merged head: 30 passed (dynamic bound is
+now [73, 67] after DYN-START-SPEED; CI's "87 > 86" red was against the older bound and does not reproduce).
 
 ## Exact next step
-None on the developer side: per ruling #6636 the CI train's FULL gate is the landing gate on the merged content;
-the coordinator runs `ops finish` to queue it. Plan rows: D-X.101, D-X.122.
+None: per the coordinator's 06:17Z decision the chain closes; HEAP-ADDRESS-SPACE-8 and LOCALE-SLOTS-GROWTH-6
+measure on next as it is. If `.got` placement is ever revisited, measure PIEs first: a page-aligned `.got` input
+in the start file splits a PIE's small `.got` across two pages. Option D (run 3 idea) was never measured.
+
+## Not to redo
+A/B/C/D measurements (run 3); the paired count above. Do not move a read into a `#[cold]` function (run 2).
+Scripts: Skylake-SP host `~/work/startup-got-page-7/pair.sh DIR [RUNS]` (needs DIR/rel products and DIR/crt1-{next,head}.o).
+Plan rows: D-X.101, D-X.122.
