@@ -244,19 +244,19 @@ pub extern "C" fn inet_netof(a: u32) -> u32 {
     netaddr::netof(a)
 }}
 
-export! { "GLIBC_2.2.5";
+export! { libc_libresolv "GLIBC_2.2.5";
 pub extern "C" fn inet_net_pton(af: c_int, cp: *const c_char, buf: *mut c_void, len: size_t) -> c_int {
     // UNSAFE(slice) SAFETY: cp is a string; buf holds len bytes (§15.3).
     ret::int(netaddr::net_pton(af, unsafe { strz::strz(cp) }, unsafe { conv::buf_mut(buf, len) }))
 }}
 
-export! { "GLIBC_2.2.5";
+export! { libc_libresolv "GLIBC_2.2.5";
 pub extern "C" fn inet_net_ntop(af: c_int, cp: *const c_void, bits: c_int, buf: *mut c_char, len: size_t) -> *mut c_char {
     // UNSAFE(slice) SAFETY: cp holds the bytes the prefix covers; buf holds len bytes (§15.3).
     ret::null(netaddr::net_ntop(af, |n| unsafe { conv::buf(cp, n) }, bits, unsafe { conv::buf_mut(buf.cast(), len) }))
 }}
 
-export! { "GLIBC_2.2.5";
+export! { libc_libresolv "GLIBC_2.2.5";
 pub extern "C" fn inet_neta(net: u32, buf: *mut c_char, len: size_t) -> *mut c_char {
     // UNSAFE(slice) SAFETY: buf holds len bytes (§15.3).
     ret::null(netaddr::neta(net, unsafe { conv::buf_mut(buf.cast(), len) }))
