@@ -1,58 +1,48 @@
-# THREAD-FORCED-UNWIND (handoff, also the full report)
+# THREAD-FORCED-UNWIND (handoff, also the full report; legs 1 and 2)
 
-State: branch `task/thread-forced-unwind` (from origin/next 5f3572005), code commit 70ddb590c, role mei:~/w/s4.
-Result: **the fix works** (every probe case matches glibc 2.39) but `cargo xtask so` is red on one layout contract
-(STARTUP-DATA-WINDOWS, 8 written start-up pages > budget 7), so the story is held: `INCOMPLETE: LAYOUT-JITTER`.
+State: branch `task/thread-forced-unwind-2` (leg 1's `task/thread-forced-unwind` merged with origin/next 50abc44ed),
+role mei:~/w/s1. **Held** (coordinator, #6903): `cargo xtask so` is red only on STARTUP-DATA-WINDOWS (8 written
+start-up pages > rw-budget-fast 7); LAYOUT-BYTE-BUDGETS-2 did not retire that contract. The story reruns after
+LAYOUT-BYTE-BUDGETS-3 lands.
 
 ## Decisions in force
-* D-22.19 (records/decisions/D-22/D-22.19.toml, reserved id): forced unwind through the program's unwinder, found
-  at exit time with the loader's `dlsym` entry (RTLD_DEFAULT); nothing at start-up or thread creation; no unwinder
-  loaded by libniji; processes without one keep the buffers-only exit (D-22.11); a swallowed exit restarts the unwind.
-* D-22.11's "interim until phase 14" note is now superseded by D-22.19 for dynamic programs (the record of D-22.11
-  was not edited; the train may want a pointer).
+* D-22.19 (records/decisions/D-22/D-22.19.toml): forced unwind through the program's unwinder, found at exit time
+  with the loader's `dlsym` entry (RTLD_DEFAULT); nothing at start-up or thread creation; no unwinder loaded by
+  libniji; processes without one keep the buffers-only exit (D-22.11). Leg 2: a C++ handler that ends without
+  rethrowing the exit ends the process (`FATAL: exception not rethrown`, then `abort`), ruling #6884.
+* Ruling #6885: static and `-static-libgcc` programs still skip destructors; a follow-up story is owed.
 
 ## What was done
-* `crates/boundary/src/cancel.rs`: `continue_unwind` tries `forced_unwind()` (cold) first, then `fallback` (the old
-  path). `stop` (the `_Unwind_Stop_Fn`) runs old-style records of frames already left (below the last CFA), jumps to
-  the newest `__pthread_register_cancel` buffer when it lies below the current frame's CFA, and at
-  `_UA_END_OF_STACK` calls `fallback` (remaining buffers, records, `thread::finish`). `swallowed` (the exception's
-  cleanup) restarts the unwind. Class `NIJIEXIT`.
-* `crates/rt/src/thread.rs`: `Thread::unwind: UnwindArea` (48 bytes, 16-aligned) holds the exception object (it
-  must outlive the stack the landing pads reuse).
-* Tests: `crates/core/tests/forced_unwind_products.rs` with `oracle/forced_unwind.cc` and `oracle/forced_unwind.c`,
-  built dynamically with the host compilers and run on glibc (reference) and on the products; the expected text is
-  fixed in the test. Plants: `handoff/THREAD-FORCED-UNWIND-plants.txt` (3; NOT RUN: the plants tool's product build
-  fails on the same contract).
+* Leg 1 (70ddb590c): `crates/boundary/src/cancel.rs` (`forced_unwind`, `stop`, `swallowed`, `fallback`),
+  `crates/rt/src/thread.rs` (`UnwindArea`, 48 B), tests `crates/core/tests/forced_unwind_products.rs` with
+  `oracle/forced_unwind.cc` and `oracle/forced_unwind.c` (reference and products, fixed expected text).
+* Leg 2: merged origin/next (3bad4a0d6); `swallowed` now ends the process (17558dda6); the oracle's `swallow`
+  case prints from the handler and the test checks stdout, the diagnostic and SIGABRT (libniji only); plants file
+  updated (`swallow-no-abort` replaces `swallow-no-reunwind`).
 
 ## Evidence (mei, Skylake-SP)
-* Probe (black box), glibc 2.39 vs origin/next: no destructor, no handler, mutex left locked (`trylock`=16), C with
-  `-fexceptions` ran no `pthread_cleanup_push` handler (`order=K` vs `3a1K`). After the change: identical output to
-  glibc on all 20 C++ lines (pthread_exit, catch forced/all, lock release, cancel at pause, read, nanosleep,
-  cond_wait, sem_wait, testcancel, join, async-type; thread_local/key order; C++ cleanup_push; pthread_once reset;
-  std::async broken_promise; main-thread exit) and on the C plain/-fexceptions orders.
-* `thread-forced-unwind-so3` (code 70ddb590c): `cargo test -p niji --test forced_unwind_products` 2 passed (the reference
-  runs pass too). `cargo xtask so` in the same job: STARTUP-DATA-WINDOWS broken (below).
-* `thread-forced-unwind-lint`: workspace clippy (all targets, all features, -D warnings) and `cargo xtask static` rc 0.
-* Layout: `thread-forced-unwind-baseso` rebuilt origin/next's two product files in the role: all 12 contracts hold.
-  With the change: `.got` bytes addressed by `locale::refresh_words` straddle 0x86a000/0x86b000 in the traced static
-  program, 8 written pages > rw-budget-fast 7. `libc.a`'s `.data.rel*` sections total 45552 B on base and 45224 B
-  with the change (-328 B): read-only relocated data before the GOT shrank, i.e. code partitioning moved, not a
-  start-up path (the new code is `#[cold]` or reached only by address; no start-up code changed). Not chased (owner
-  ruling #4347: no section moving, no bound change).
+* `thread-forced-unwind-2-lint0` (inherited head 8231794ab): workspace clippy + `cargo xtask static` rc 0.
+* `thread-forced-unwind-2-so1` (merged head 3bad4a0d6, before the swallow change): `cargo xtask so` 1 of 13
+  contracts broken, STARTUP-DATA-WINDOWS (the `.got` byte addressed by `locale::refresh_words` alone on its page,
+  8 > 7); WINDOW-BIN-BYTES ok (R2's contract). The forced_unwind test did not run (chained after `so`).
+* `thread-forced-unwind-2-lint1` (head after the swallow change): see the report JSON.
+* Cost (probe built against the so1 products, user-mode instructions via perf_event_open, threads included):
+  dlsym pair 3,656 per exit (reference 1,969); create + `pthread_exit` from a C++ frame + join 68,518
+  (reference 13,863); create + return + join 40,424 (reference 2,493). The lookup runs on every exit, not once
+  per process; it is ~5% of an exiting thread's cost.
 
-## Open questions / rulings
-* RULING NEEDED: STARTUP-DATA-WINDOWS red from -328 B of `.data.rel*` (layout jitter). Recommend holding until the
-  GOT/data-window placement is fixed upstream, or a coordinator call to land with the red accepted for Yohane #25.
-* RULING NEEDED: a C++ handler that swallows the exit (no rethrow): libniji restarts the unwind from the handler's
-  end (thread still exits, outer destructors run). The reference was not probed on this (crash rule). Recommend keep.
-* RULING NEEDED: static programs (libc.a + libgcc_eh) and `-static-libgcc` programs still skip C++ destructors.
-  A libc.a-only weak reference to `_Unwind_ForcedUnwind` would cover static programs (a build change: an archive-only
-  object, kept out of libc.so.6 so no start-up lookup). Recommend a follow-up story.
-* NOT MEASURED: the per-exit cost of the two `dlsym` lookups (and, in a C program with no unwinder, the dlerror
-  record the miss creates once per thread).
+## Open questions
+* RULING NEEDED: caching the unwinder lookup (brief: cache it if not once per process). Not done: a safe cache
+  needs a shared slot behind a seqlock keyed on the loader's add/remove counters (new statics on a story held on
+  start-up data layout) for ~3.3k of 68.5k instructions on a cold path. Recommend: leave uncached.
+* INFORMATIONAL: thread create + join costs 40,424 user instructions on libniji vs 2,493 on the reference (outside
+  this story), and the unwind itself costs more than the reference's beyond the lookup; worth a perf story.
+
+## Not to redo
+The 20-line C++ and C probe tables (leg 1) and the swallow probe (leg 2): settled.
 
 ## Next step
-After the layout ruling: rerun `cargo xtask so`, then the plants (`cargo xtask plants
-handoff/THREAD-FORCED-UNWIND-plants.txt --dir /mnt/zram/claude/thread-forced-unwind/plants-1`), the direct gate
-(`cargo xtask affected --run --base origin/next`), `cargo xtask test` and the hot_text_products start-up check, then
-precheck. Do not redo the probes.
+After LAYOUT-BYTE-BUDGETS-3 lands: merge origin/next, `cargo xtask so` (must be green), then
+`cargo test -p niji --test forced_unwind_products` (the swallow assertion has not run yet), plants
+(`cargo xtask plants handoff/THREAD-FORCED-UNWIND-plants.txt --dir /mnt/zram/claude/thread-forced-unwind-2/plants-1`),
+the direct gate, `cargo xtask test`, the hot_text_products start-up check, precheck. Read D-22.19 and D-22.11.
