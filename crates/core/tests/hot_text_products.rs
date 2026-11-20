@@ -638,11 +638,27 @@ fn check_whole_count(what: &str, s: u64, bounds: [u64; 2], hint: &str) {
     let bound = bounds[p];
     let profile = ["fast", "release"][p];
     eprintln!("{what} (whole process, {profile}): {s} page faults (bound {bound})");
-    assert!(s <= bound, "{what} (whole process, {profile} products): {s} page faults > {bound} ({hint})");
-    assert!(
+    fault_bound(s <= bound, &format!("{what} (whole process, {profile} products): {s} page faults > {bound} ({hint})"));
+    fault_bound(
         s >= bound.saturating_sub(WHOLE_COUNT_SLACK),
-        "{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"
+        &format!("{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"),
     );
+}
+
+/// The switch that makes the runtime fault bounds blocking: `NIJI_FAULT_BOUNDS=enforce` (the release ratchet).
+const FAULT_BOUNDS_ENV: &str = "NIJI_FAULT_BOUNDS";
+
+/// LAYOUT-BYTE-BUDGETS-2 (D-X.136, owner ruling R2): a runtime fault bound is a release metric, not the per-story
+/// gate (that is the link map's WINDOW-BIN-BYTES contract, checked by every `cargo xtask so`). A bound that does not
+/// hold prints a `FAULT-COUNT REPORT` line and the test goes on; with [`FAULT_BOUNDS_ENV`]`=enforce` it fails.
+fn fault_bound(holds: bool, msg: &str) {
+    if holds {
+        return;
+    }
+    if std::env::var(FAULT_BOUNDS_ENV).is_ok_and(|v| v == "enforce") {
+        panic!("{msg}");
+    }
+    eprintln!("FAULT-COUNT REPORT (non-blocking, D-X.136; {FAULT_BOUNDS_ENV}=enforce makes it fail): {msg}");
 }
 
 #[test]
@@ -698,7 +714,8 @@ fn init_first_float_conversion_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_niji_float");
     build(&exe);
     let s = faults(&exe, "float");
-    assert!(s <= FLOAT_BOUND, "first %.2f: {s} page faults > {FLOAT_BOUND} (a large stack frame back on the float path?)");
+    eprintln!("first %.2f: {s} page faults (bound {FLOAT_BOUND})");
+    fault_bound(s <= FLOAT_BOUND, &format!("first %.2f: {s} page faults > {FLOAT_BOUND} (a large stack frame back on the float path?)"));
 }
 
 #[test]
@@ -750,7 +767,7 @@ fn init_fork_child_stays_within_its_page_fault_bound() {
     build(&exe);
     let f = faults(&exe, "fork");
     eprintln!("minor faults: fork child {f} (bound {FORK_BOUND})");
-    assert!(f <= FORK_BOUND, "fork child: {f} page faults > {FORK_BOUND} (fork path left the traced hot group? see target/product/<profile>/trace.log)");
+    fault_bound(f <= FORK_BOUND, &format!("fork child: {f} page faults > {FORK_BOUND} (fork path left the traced hot group? see target/product/<profile>/trace.log)"));
 }
 
 /// HOTTEXT-COLD-STARTUP: start-up's machine entry points (each in its own `.text.<f>` section of
