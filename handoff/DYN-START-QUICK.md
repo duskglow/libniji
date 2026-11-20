@@ -30,9 +30,20 @@ The probe's user count grows with the LD_LIBRARY_PATH and program path lengths (
 | n3 | 1,095,724 / 1,311,659 / 78 / 89 | 1,095,663 / 1,272,044 / 78 / 80 | 1,095,564 / 1,364,295 / 78 / 88 | 1,095,503 / 1,319,463 / 78 / 79 | 89 | 135,574 / 1,000,741 / 68 |
 | nt | 867,445 / 908,226 / 66 / 44 | 867,390 / 877,467 / 66 / 38 | 867,314 / 951,497 / 67 / 43 | 867,259 / 912,815 / 67 / 37 | 44 | 102,576 / 707,843 / 42 |
 
-after2 = head ba1fe1d5e (arena on every path); after3 (head 421f140be, arena only at start) must give the same start
-numbers (the start path is the same; adopt runs only at a first dl* call). Kernel faults 3 on every libniji row.
-Ratchet on after2: every counter equal or lower on every row, both CPU classes.
+after2 = head ba1fe1d5e (arena on every path). **after3 = final code head 421f140be** (arena only for link's view),
+measured in the same job as its base00 (Zen 1) or the same day (Skylake-SP):
+
+| row | Skylake-SP after3 user / kernel / faults / syscalls | Zen 1 base00 (same job) | Zen 1 after3 |
+|---|---|---|---|
+| n0 | 832,331 / 843,633 / 62 / 38 | 832,205 / 904,564 / 62 / 43 | 832,171 / 864,538 / 62 / 37 |
+| n3 | 1,095,687 / 1,272,802 / 78 / 80 | 1,095,564 / 1,351,181 / 78 / 88 | 1,095,527 / 1,307,511 / 78 / 79 |
+| nt | 867,414 / 880,967 / 66 / 38 | 867,313 / 944,379 / 67 / 43 | 867,283 / 905,058 / 67 / 37 |
+
+Ratchet against base00 (origin/next, same path length): every counter equal or lower on every row on both CPU
+classes. User -31..-37 instructions; kernel -31k..-44k (median of 101); faults equal; syscalls -6 (n0, nt), -9 (n3).
+after3's user count is +21..+24 over after2 (the published-view test in `image_view`), still below base00. Kernel
+faults 3 on every libniji row. The mei rows have one more openat than keke's on every variant (host environment).
+Saving per item (syscalls per start): item 2: 1 per loaded object (1 on n0/nt, 4 on n3); item 3: 4; item 5a: 1.
 
 ## Tests and plants
 
@@ -40,29 +51,24 @@ Ratchet on after2: every counter equal or lower on every row, both CPU classes.
 ptrace; the environment goes to the traced program only, as arguments). Plants: handoff/DYN-START-QUICK-plants.txt
 (5: size-by-lseek, arena-off, arena-overlap, arena-after-start (must fail s27_dladdr), get-fs-first).
 
-## Jobs on mei:~/w/s1 (chain ~/work/dyn-start-quick/chain3.sh, started 18:39Z on head 421f140be)
+## Jobs on head 421f140be (mei:~/w/s1 chain ~/work/dyn-start-quick/chain3.sh; keke for Zen 1)
 
-In order: dyn-start-quick-lint3 (cargo clippy --all-features -D warnings + xtask clippy + static),
-dyn-start-quick-after3 (so + probe into /dev/shm/claude-dsq/after3 + dlmap3 diagnostic: after3 must say `fname
-.../libdla_syms.so`), then dyn-start-quick-plants3 (detached, /mnt/zram/claude/dyn-start-quick/plants-3),
-dyn-start-quick-gate3, dyn-start-quick-xtest3, dyn-start-quick-fullprof3.
+dyn-start-quick-lint3 rc 0; dyn-start-quick-after3 rc 0 (13 layout contracts hold; Skylake-SP rows above);
+dyn-start-quick-gate3 rc 0 (7 suites ok, 1400 passed, 0 failed, 80 ignored; conformance 22 passed; peak 1.5G);
+keke:dyn-start-quick-zen3 rc 0 (Zen 1 rows above); dyn-start-quick-dlmap3b (diagnostic) after3 `dladdr` names
+`libdla_syms.so` like base00 (dlmap3 inside after3 and dyn-start-quick-dlmap3 found no conformance helper yet: rc 1
+for base00 too; rerun after the gate built it). plants3, xtest3, fullprof3: see the report.
 SUPERSEDED: dyn-start-quick-so/so2/so3/lint/base/plants/gate/xtest (older heads), -lint2/-after2/-gate2 (gate2 red:
 s27_1_c_6 + the tracer exit 127, both fixed in 421f140be), -xtest2 (same plus 2 dlclose tests, fixed by the arena
 scope), -plants2/-fullprof2 (killed, head ba1fe1d5e). Diagnostics (not proof): -ptdiag..5, -base00, -dlmap/2 (mei),
 keke: -zenbase, -zencmp.
 
-## Exact next step (next leg)
+## Next step
 
-1. `~/bin/jobwait dyn-start-quick-lint3 dyn-start-quick-after3` on mei; check after3 rows = after2 rows above
-   (user, faults, syscalls exact; kernel within noise) and the dlmap3 lines; Zen 1: copy after3's three files
-   (ld-linux-x86-64.so.2, libc.so.6, niji-crt1.o) to keke ~/work/dyn-start-quick/after3/niji and run dsq-probe
-   under jobrun (label dyn-start-quick-zen3).
-2. jobwait gate3, xtest3, fullprof3, plants3 (plants: about 30 min of `so` per copy under load); fix what they find.
-3. Write handoff/reports/DYN-START-QUICK.json (+ "jobs"), push, `cargo xtask precheck --jobs <labels> --head <sha>`
-   on the role, then `ops handback-check`.
-4. Hand-back: RULING NEEDED item 6 (recommend: keep eager until a ruling; the host C library installs no handler at
-   start, so lazy would save 1 call per start). INFORMATIONAL: the arena-after-start dladdr mechanism not traced.
-   Leftovers for DYN-START-RING: items 1 (fix-forward above), 4, 5b. Do not redo items 2, 3, 5a.
+Code done (items 2, 3, 5a; do not redo). Open: RULING NEEDED item 6 (recommend: keep the handler eager until a
+ruling; the host C library installs none at start, so lazy would save 1 call per start). INFORMATIONAL: the
+arena-after-start dladdr mechanism was not traced. Leftovers for DYN-START-RING: items 1 (fix-forward above), 4, 5b.
+Report: handoff/reports/DYN-START-QUICK.json.
 Process notes for the report: leg 1 used `sed -i` once on a scratch commit-message file and one `pgrep -f` (read-only);
 leg 2 used `sed -i` once on a scratch script on mei (~/work, not the tree), which also damaged that script's run line
 (caught, rerun as dlmap2). IMPROVEMENT candidate: the probe kit should pin its directory names' lengths (or use
