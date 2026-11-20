@@ -27,7 +27,13 @@ locale-key | crates/legacy/src/global_locale.rs | lit:index_find(objs, LOCALES, 
 tabs-key | crates/legacy/src/global_locale.rs | lit:index_find(objs, TABS, n, tab_hash(cat, addr_of(f.bytes())), tabulates) ==> index_find(objs, TABS, n, !tab_hash(cat, addr_of(f.bytes())), tabulates) | cargo test -p niji-boundary --test reload locales_past_the_scanned_entries_share_category_tables | msg:takes l0's table
 tabs-keys-missing | crates/legacy/src/global_locale.rs | lit:put(tab_hash(cat, addr_of(f.bytes()))); ==> let _ = f; | cargo test -p niji-boundary --test reload locales_past_the_scanned_entries_share_category_tables | msg:takes l0's table
 charmap-nomem-dropped | crates/legacy/src/global_locale.rs | lit:if found.is_none() && call.nomem.get() { Err(Errno::ENOMEM) } else { Ok(found) } ==> Ok(found) | cargo test -p niji --test iconv_charmaps_products charmaps_load_past_any_fixed_count_and_fail_cleanly_without_memory | msg:not ENOMEM|iconv_many_charmaps
-# cargo xtask plants results (21 plants: 21 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# Run 7 (ruling #6981, the per-call fix): the lock-free setlocale answers read the name through one static-table
+# lookup and reach a spilled entry only through setlocale_spilled; setlocale_env_kept reads the static table only.
+setlocale-spilled-dropped | crates/legacy/src/global_locale.rs | lit:else { return setlocale_spilled(sys, m, cat, &req) }; ==> else { return None }; | cargo test -p niji-boundary --test reload locales_and_files_past_the_static_table_load | msg:l1099 (selected again|queried): setlocale answers
+setlocale-cached-wrong-slot | crates/legacy/src/global_locale.rs | lit:let Some(s) = SLOTS.0.get(i) else ==> let Some(s) = SLOTS.0.get(i ^ 1) else | cargo test -p niji-boundary --test reload locales_and_files_past_the_static_table_load | msg:l0 (selected again|queried): the name
+env-kept-wrong-slot | crates/legacy/src/global_locale.rs | lit:let s = SLOTS.0.get(slot)?; ==> let s = SLOTS.0.get(slot ^ 1)?; | cargo xtask so && cargo test -p niji-boundary --test setlocale_env_repeat | msg:setlocale_env_is_read_on_every_call \.\.\. FAILED
+spilled-name-skipped | crates/legacy/src/global_locale.rs | lit:None => spilled_name(objs, i), ==> None => None, | cargo test -p niji-boundary --test reload locales_and_files_past_the_static_table_load | equivalent:a spilled name missing from the lock-free answer sends setlocale to setlocale_locked, which interns nothing new and returns the same name (only slower)
+# cargo xtask plants results (25 plants: 23 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 1 WARN-NO-MSG, 0 BUILD-TIMEOUT):
 # spill-write-reuses-static: CAUGHT, caught by reload locales_and_files_past_the_static_table_load
 # locales-index-not-grown: CAUGHT, caught by reload locales_and_files_past_the_static_table_load
 # tabs-dispatch-lost: CAUGHT, caught by reload locales_past_the_scanned_entries_share_category_tables
@@ -49,9 +55,7 @@ charmap-nomem-dropped | crates/legacy/src/global_locale.rs | lit:if found.is_non
 # tabs-key: CAUGHT, caught by reload locales_past_the_scanned_entries_share_category_tables
 # tabs-keys-missing: CAUGHT, caught by reload locales_past_the_scanned_entries_share_category_tables
 # charmap-nomem-dropped: CAUGHT, caught by iconv_charmaps_products charmaps_load_past_any_fixed_count_and_fail_cleanly_without_memory
-# Run 7 (ruling #6981, the per-call fix): the lock-free setlocale answers read the name through one static-table
-# lookup and reach a spilled entry only through setlocale_spilled; setlocale_env_kept reads the static table only.
-setlocale-spilled-dropped | crates/legacy/src/global_locale.rs | lit:else { return setlocale_spilled(sys, m, cat, &req) }; ==> else { return None }; | cargo test -p niji-boundary --test reload locales_and_files_past_the_static_table_load | msg:l1099 (selected again|queried): setlocale answers
-setlocale-cached-wrong-slot | crates/legacy/src/global_locale.rs | lit:let Some(s) = SLOTS.0.get(i) else ==> let Some(s) = SLOTS.0.get(i ^ 1) else | cargo test -p niji-boundary --test reload locales_and_files_past_the_static_table_load | msg:l0 (selected again|queried): the name
-env-kept-wrong-slot | crates/legacy/src/global_locale.rs | lit:let s = SLOTS.0.get(slot)?; ==> let s = SLOTS.0.get(slot ^ 1)?; | cargo xtask so && cargo test -p niji-boundary --test setlocale_env_repeat | msg:setlocale_env_repeat: check [0-9]+ failed
-spilled-name-skipped | crates/legacy/src/global_locale.rs | lit:None => spilled_name(objs, i), ==> None => None, | cargo test -p niji-boundary --test reload locales_and_files_past_the_static_table_load | equivalent:a spilled name missing from the lock-free answer sends setlocale to setlocale_locked, which interns nothing new and returns the same name (only slower)
+# setlocale-spilled-dropped: CAUGHT, caught by reload locales_and_files_past_the_static_table_load
+# setlocale-cached-wrong-slot: CAUGHT, caught by reload locales_and_files_past_the_static_table_load
+# env-kept-wrong-slot: WARN-NO-MSG, caught by setlocale_env_repeat setlocale_env_is_read_on_every_call
+# spilled-name-skipped: EQUIVALENT

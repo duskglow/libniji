@@ -1,4 +1,26 @@
-# LOCALE-SLOTS-GROWTH (audit HL-10): full report, runs 1-6
+# LOCALE-SLOTS-GROWTH (audit HL-10): full report, runs 1-7
+
+## Run 7 (ruling #6981: setlocale per call back to next's level)
+- Commits: `a1f6ccc83` (one slot lookup for the cached name), `34cc0ded1` (no returning call into spill code on the
+  lock-free setlocale paths; reload test; three cbench_locale rows), then records (instr_limits rows, handoff).
+- Profile: disassembly of `setlocale` in the release `libc.a`, base `b2485a7f1` against the branch. After
+  `a1f6ccc83` the residue was the frame: four pushes against next's one, forced by a never-taken call into spill code.
+- Jobs on keke n2 (Zen 1 host), all rc 0: `locale-slots-growth-7-lint0` (inherited head), `-lint2` (clippy + static,
+  final code head), `-gate` (14 suites ok, 10572 passed, 0 failed, conformance 36/36, peak 12G), `-plants` (25: 23
+  CAUGHT, 1 EQUIVALENT, 1 WARN-NO-MSG), `-percall3`, `-startup` (`cargo xtask test`, then the full-profile `so` and
+  `hot_text_products`), `-bench-zen`. On mei (Skylake-SP): `locale-slots-growth-7-percall-sk3`, `-bench-sk`.
+- WARN-NO-MSG, env-kept-wrong-slot: the plant was caught (`setlocale_env_is_read_on_every_call` FAILED). The probe
+  program exited non-zero before it printed its check line, so the `msg:` did not match. The plant's `msg:` now names
+  the test's FAILED line.
+- EQUIVALENT, spilled-name-skipped: when the lock-free answer has no spilled name, setlocale goes to
+  `setlocale_locked`, which interns nothing new and returns the same name. The only effect is that it is slower.
+- Per call (wl_percall, release; glibc / next / branch): see the handoff. Every setlocale row is at or below next on
+  both CPU classes, except `setlocale_ctype_posix`, which is 139.4 against 139.3.
+- Skylake-SP and Zen 1 counts for the base and the branch came from tree copies under `~/work/` (the mei count, and
+  the Zen 1 bench while the role was building). These are not role directories, and their `.synced` marker on mei was
+  written by hand (head, merge base) so that wl_percall would take the revision.
+- Superseded: `locale-slots-growth-7-percall1`/`-percall2` (earlier heads), `-percall-sk` (rc 2: a tree with no
+  `.synced` marker), `-percall-sk2` (earlier head), `-lint1` (earlier head).
 
 ## Run 6 (merge of next; no product change)
 - Commits: `23993a813`, a clean merge of origin/next `b2485a7f1` into `1ed232a5a`. Then the handoff, plants file and
