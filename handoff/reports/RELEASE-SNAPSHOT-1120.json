@@ -1,0 +1,21 @@
+{"task": "RELEASE-SNAPSHOT-1120", "model": "opus", "tokens": null,
+ "result": "snapshot-ready at 50abc44ed: snapshot-20261120.1 staged; #26 passes end to end (ASan, LSan, TSan start in the swapped trixie root; fail on 19.2's packages); all other checks match 19.2 or improved; ASan report cut short after its first lines (finding 1)",
+ "branch": "task/release-snapshot-1120", "head": null,
+ "gate": {"affected": "0 selected of 302 targets (handoff-only); gate-1 all RC 0", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [{"item": "Tag snapshot-2026-11-20.1 although ASan under libniji does not register the main thread (thread T-1) and stops on its internal CHECK before the allocation stack and SUMMARY", "recommendation": "tag now (ASan programs used to jump to 0; now they run and report) and open a loader/sanitizer story for the main thread's registration; tell Yohane the report is partial"}],
+ "informational": [
+  "ld.so exports _dl_get_tls_static_info@@NIJI_PRIVATE (brief expected GLIBC_PRIVATE; R14-12); check-symbols unchanged at 4440 lines, the symbols file equals 19.2's but the version",
+  "#22 dyn22 now passes (niji fail 8 -> 0): start and dlopen libraries' dynamic sections are readable",
+  "unchanged from 19.2: dbg Breakpoint 1.1; bare-name dlopen through $ORIGIN DT_RUNPATH; libc6-dev ships no C headers; DBG 17 of 19",
+  "docs: RELEASE-NOTES.md ends at 2026-11-17 and still lists no _r_debug; no user doc changed since 19.2; route to a docs story"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "gcc-14 -fsanitize=address/leak/thread programs start under the staged packages (19.2: DEADLYSIGNAL / SIGSEGV before main)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "empty-main start-up instructions, staged snapshot vs 19.2 (Skylake-SP, execcount)", "before": 8154234, "after": 782430, "unit": "instr", "measured": true},
+  {"kind": "faults", "what": "empty-main start-up page faults, staged snapshot vs 19.2 (Skylake-SP)", "before": 76, "after": 59, "unit": "faults", "measured": true},
+  {"kind": "unblock", "what": "GitHub #26 (Yohane gcc-14 ASan tests) can be verified on a tagged snapshot", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "copy.sh should copy every input directory of the previous run (binutils-src was missed, costing one y10 rerun); a standing startup.sh kit now exists in ~/work/RELEASE-SNAPSHOT-1120 for later snapshots",
+ "next_step": "Coordinator: rule on finding 1, then tag/publish snapshot-2026-11-20.1 from keke ~/release-staging/snapshot-20261120.1",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1120.md",
+ "jobs": ["mei:release-snapshot-1120-gate-1", "mei:release-snapshot-1120-smoke-mei-1", "keke:release-snapshot-1120-smoke-keke-1", "mei:release-snapshot-1120-lint-1", "mei:release-snapshot-1120-many-1", "mei:release-snapshot-1120-dyn22-1", "mei:release-snapshot-1120-y19-1", "mei:release-snapshot-1120-y26-1", "mei:release-snapshot-1120-plants-1", "mei:release-snapshot-1120-startup-mei-1", "keke:release-snapshot-1120-startup-keke-1", "keke:release-snapshot-1120-pkgdiff-1", "keke:release-snapshot-1120-stage-1", "keke:release-snapshot-1120-install-1"]}
