@@ -1,49 +1,60 @@
 # HEAP-ADDRESS-SPACE (GitHub issue #21): handoff
 
-State: branch `task/heap-address-space-9` (continues -8 .. -1; base origin/next `3f2a84520`, merged in run -8); head =
-this handoff's commit. Build role keke `~/w/r2` (Zen 1, 60 vCPU); scripts and binaries in keke
-`~/work/HEAP-ADDRESS-SPACE-9/` (`probe.sh`, `probe2.sh`/`probe3.sh` + `pad.S`, `probe4.sh`, `chain.sh`). Spec:
-`~/state/briefs/HEAP-ADDRESS-SPACE.md` "## The change"; rulings #6513, #6514, #6566, #6997, #7001. Decisions in force:
-D-3.19, D-3.14, D-X.103, ruling #6325; pending records `records/pending/HEAP-ADDRESS-SPACE-3-1.toml` (D-3: growth
-with use), `-6-1.toml` (D-X: amends D-X.103, head-bin rule). Code commits: -8 `10e62ddd2`; -7 `c7f02c3f6`,
-`6591abefd`; -6 `8afd17494`, `ce6328854`, `ad420da74`; -5 `7c6a4078b`. Run -9: test only (`d3edbb094`, `60ec2a659`).
-Full report: handoff/HEAP-ADDRESS-SPACE-9-report.md.
+State: branch `task/heap-address-space-10` (continues -9 .. -1); origin/next `d4cbe1667` merged (`3750e5800`, the
+brief's "rebase on LAYOUT-RO-STABLE" done as a merge: a rebase would need a force-push). Build role keke `~/w/r1`
+(Zen 1, 60 vCPU); scripts in keke `~/work/heap-address-space-10/` (`verify.sh`, `chain.sh`, `benchcopy.sh`,
+`soexport.sh`). Spec: `~/state/briefs/HEAP-ADDRESS-SPACE-9.md` "## The change" + `-10.md` (ruling #7028, #7061).
+Decisions in force: D-3.19, D-3.14, D-X.103, ruling #6325; pending records `records/pending/HEAP-ADDRESS-SPACE-3-1.toml`
+(D-3: growth with use; run -10 added the exact-placement rule), `-6-1.toml` (D-X, head-bin rule). Earlier runs'
+reports: handoff/HEAP-ADDRESS-SPACE-9-report.md, -8-report.md.
 
-## Run -9: the cbench_startup cause (ruling #6997) is the static link's layout, not the heap
+## Run -10 so far
 
-- The C start-up child (`cbench_startup true`, static) never calls malloc: strace base vs head identical (execve,
-  arch_prctl, the 67104-byte TLS mapping, set_tid_address, set_robust_list, rseq, rt_sigaction, mprotect, exit_group);
-  page faults identical (8-9).
-- The head's binary has 5 PT_LOADs, next's 4. `.rodata` is byte-identical (0x922dc); `.text` grew 0x4c0 (1216 B)
-  and crossed a page, so `.rodata` starts one page later and ends 0x2dc past 0x790000; the 64 KiB-aligned
-  `.rodata1` (start-up read-only window) moves to 0x7a0000 and ld starts a new read-only LOAD across the ~60 KiB gap.
-  On next `.rodata` ends 0xd24 below the boundary (one page of slack: no split). Any change that adds >= 985 bytes
-  of text to this link splits it.
-- Proof (Zen 1, 101 runs each, medians): base 4 LOADs kernel 165.7k / 164.3k, user 2190; base + 4 KiB of unrelated
-  text 5 LOADs 173.4k, user 2198; head 5 LOADs 172.3k / 173.5k, 2198; head + 60 KiB text pad 4 LOADs 166.7k, 2190.
-  The whole startup_kinstr_c (+7.5k) and startup_instr_c (+8) delta is the extra PT_LOAD.
-- The heap's own start-up cost, LOAD count held equal (base vs head + pad): setlocale / printf / wctype children user
-  +6 / +4 / +6 (min), kernel within run-to-run noise (min +0.6k / +1.7k / -2.0k, median +1.7k / -2.1k / -1.7k), faults
-  equal, same system calls (mmap, two munmap, mbind; mbind now covers 4.3 MiB, was 16 MiB).
-- Ruling #7001: test `kernel_pages_map_aligned_under_an_address_space_limit` (s03_memory_symbols): under an RLIMIT_AS
-  that refuses the over-mapping, `map` and `map_room` return aligned zero-filled memory, `grow` maps a free range and
-  refuses a taken one. Plants: handoff/HEAP-ADDRESS-SPACE-9-plants.txt.
+- Fuzz-check red: next's `ForeignPages` lacked `map_room`/`grow`: delegations added (`e76808c9a`).
+- xtest red of run -9 (`kernel_pages_map_aligned_under_an_address_space_limit`, interposed suite only, 16 of 20 runs
+  on keke): a LIBRARY defect, not the test. `map_aligned_exactly` (the exact path under RLIMIT_AS) tried only the
+  aligned address just above and below the kernel's choice; strace: the kernel's (2 MiB-aligned) choice was a gap above
+  the heap's own segment holding the bytes but no aligned range, both MAP_FIXED_NOREPLACE candidates EEXIST, map
+  failed with room under the limit (issue #21's malloc failing early under `ulimit -v`). Fix `39acf3bd3`: such a gap is
+  blocked with one-page PROT_NONE NOREPLACE mappings every `head + len` bytes inside (down - head, up + len) (first one
+  a step above `down - head`, which is never inside the gap), up to 8 rounds (EXACT_ROUNDS), at most 8 blockers a
+  round (EXACT_BLOCKERS), all removed before returning; the function is `#[cold] #[inline(never)]`.
+- New deterministic test `kernel_pages_map_aligned_past_a_gap_without_an_aligned_range` (`88506b099`): a SEG + 2 MiB
+  gap with no SEG multiple in its first 2 MiB, checked to be the kernel's first choice for SEG bytes. `verify.sh`
+  (job `heap-address-space-10-v2`, rc 0): xtask clippy, cargo clippy --all-features -D warnings, static clean; both
+  tests 20/20 native and 20/20 interposed. Plants (`heap-address-space-10-plants`, rc 0): 6 of 6 CAUGHT with their
+  messages (handoff/HEAP-ADDRESS-SPACE-10-plants.txt).
+- `cargo xtask affected --list --base origin/next`: FULL: the train's (xtask/src/bins.rs, run -6's change).
 
-## Do not redo
+## OPEN: xtest red at the products step (job `heap-address-space-10-xtest`, head `88506b099` tree)
 
-- The +1 dynamic fault hunt (run -8). The fixed-layout issue #21 check (#6566, run -7). The `.got` alignment (dropped
-  run -8). The cbench_startup cause (above): it is measured; reshaping heap code to dodge one binary's boundary would
-  be luck, not a fix.
+`layout: 1 of 13 contracts broken: WINDOW-BIN-BYTES`: fast profile "windows per mode ... tool 3/2" (the tool mode
+touches window bins 0, 1, 2; budget 2). Head fast bin 0: 63980 of 64512 bytes, 104 members; bin 1 58090; bin 2 60451
+(locale,strings,tool). Next's RELEASE build (bench) shows tool 3/3 (release budget), not comparable. Started to compare
+the same profile: `heap-address-space-10-sonext` (fast `cargo xtask so` of next in `~/work/heap-address-space-10/next`)
+then `-somerge` (merge commit `e76808c9a`, without the fix, in `.../merge`). Read their "windows per mode" and
+"window bin" lines and diff `target/product/fast/layout-bins.tsv` (tool-mode members, heap symbols such as
+map_room / map_aligned_exactly / map) between next, merge and r1 (head). If next or the merge alone has tool 3/2: not
+this fix (report with numbers; merge-only = interaction of -9's branch with next). If only the head: the fix's text
+moved a tool-mode function: find which (the tsv), keep hot functions byte-for-byte (§9), fix, re-run xtest.
+
+## Other jobs started (keke)
+
+- `heap-address-space-10-fullhot` (chain after xtest, on r1: NIJI_FULL_PROFILE so + hot_text_products).
+- `heap-address-space-10-cbnext` (rc 0): next release counts, libniji: startup_instr_c 2160, startup_kinstr_c 146779,
+  setloc 62087, printf 65722, wctype 62586; static cbench_startup 5 LOADs (two read-only: 0x701000 and 0x7a0000).
+- `heap-address-space-10-cbhead` (running): same for the head in `~/work/heap-address-space-10/head`; compare rows and
+  LOAD count; if the LOAD counts differ, the pad method of ruling #7061 (report unpadded pair too).
 
 ## Exact next step
 
-FIRST: merge origin/next (`189ab9cb` or later; this run's brief allowed no merge). Next's new `ForeignPages`
-(boundary heap.rs, `impl Pages for ForeignPages`) lacks this branch's `map_room` and `grow`, so the merged tree does
-not compile (handback-check's fuzz-check, run -9). Add both as delegations to `KernelPages` (as `OwnPages` does),
-then lint, the affected tests, plants (HEAP-ADDRESS-SPACE-8 and -9 files), fullhot, `cargo xtask test`, precheck.
-Then the RULING NEEDED (in the hand-back): land with the cbench_startup row recorded as layout jitter and a layout story to
-remove the read-only LOAD split for every static program (recommended), or trim >= 232 bytes of heap text so this
-one link stays below the boundary. Then the open follow-ups, each its own story: HEAP-SPILL-COLD (the spill as a cold
-extension of grow_segment; refill/realloc/AS_HEADROOM to 33092 / 35144 / 35152; findutils `find` under the issue's
-`ulimit -v`; randomised limited check, #6566); relro by-section comparison (#6325 step 1); returning empty segments'
-address space. DYN_TRUE_BOUND Zen 1 count: see the report.
+1. jobwait sonext, somerge, cbhead, fullhot; settle the WINDOW-BIN-BYTES red as above (no reruns to pass).
+2. After the last code change: verify.sh (lint + the two tests), xtest, fullhot again; cbench_startup head vs next,
+   no row worse; precheck `--jobs <labels> --head <sha>`; report json; handback-check.
+3. Hand back. Follow-ups (own stories): HEAP-SPILL-COLD; relro by-section comparison (#6325); returning empty
+   segments' address space.
+
+## Do not redo
+
+The +1 dynamic fault hunt (-8); the fixed-layout #21 check (#6566, -7); the `.got` alignment (dropped -8); the -9
+cbench_startup cause (an extra read-only PT_LOAD at a static link's boundary); the -10 xtest cause (above).
