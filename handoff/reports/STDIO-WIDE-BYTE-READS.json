@@ -56,8 +56,7 @@
  "report_file": "handoff/STDIO-WIDE-BYTE-READS.md",
  "jobs": [
   "keke:stdio-wide-byte-reads-gate3",
-  "keke:stdio-wide-byte-reads-plants",
-  "keke:stdio-wide-byte-reads-check4",
+  "keke:stdio-wide-byte-reads-plants2",
   "keke:stdio-wide-byte-reads-counts3",
   "keke:stdio-wide-byte-reads-hottext3"
  ]
