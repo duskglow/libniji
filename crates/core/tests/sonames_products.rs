@@ -101,20 +101,56 @@ fn sonames_resolv_dynamic_and_static() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// D-16.6 (no spec clause): `libresolv.so.2` defines its versions.tsv exports and nothing of
-/// `libc.so.6`'s; each forwarded function is a jump through `libc.so.6`'s `NIJI_PRIVATE` alias,
-/// which `libc.so.6` defines and nothing else names.
+/// D-16.6, LIBRESOLV-OWN-CODE (no spec clause): `libresolv.so.2` defines its versions.tsv exports
+/// and nothing of `libc.so.6`'s. Its own code (`ns_get16`, the printers, the tables) is defined in
+/// it, so `libc.so.6` carries no alias for it; each name that uses the C library's resolver state
+/// (`__res_close`, the hosts-file walkers) is a jump through `libc.so.6`'s `NIJI_PRIVATE` alias.
 #[test]
-fn sonames_resolv_forwards_through_private_aliases() {
+fn sonames_resolv_own_code_and_private_aliases() {
     let lib = products();
     let r = readelf(&["--dyn-syms", "-W"], &lib.join("libresolv.so.2"));
-    assert!(r.contains(" ns_get16@@GLIBC_2.9"), "ns_get16 export:\n{r}");
+    let defined = |name: &str| r.lines().any(|l| l.ends_with(&format!(" {name}")) && !l.contains(" UND "));
+    for s in ["ns_get16@@GLIBC_2.9", "__p_query@@GLIBC_2.2.5", "__p_class_syms@@GLIBC_2.2.5", "inet_net_pton@@GLIBC_2.2.5"] {
+        assert!(defined(s), "{s}: libresolv.so.2's own definition:\n{r}");
+    }
     assert!(r.contains(" res_gethostbyname@GLIBC_2.2.5"), "compat export (non-default):\n{r}");
-    assert!(r.contains("UND __niji_fwd_ns_get16@NIJI_PRIVATE"), "forwarded through the alias:\n{r}");
+    assert!(r.contains("UND __niji_fwd___res_close@NIJI_PRIVATE"), "forwarded through the alias:\n{r}");
+    assert!(!r.contains("__niji_fwd_ns_get16"), "own code is not forwarded:\n{r}");
     assert!(!r.contains("GLIBC_PRIVATE"), "no GLIBC_PRIVATE:\n{r}");
     let c = readelf(&["--dyn-syms", "-W"], &lib.join("libc.so.6"));
-    assert!(c.contains(" __niji_fwd_ns_get16@@NIJI_PRIVATE"), "libc.so.6 alias:\n");
+    assert!(c.contains(" __niji_fwd___res_close@@NIJI_PRIVATE"), "libc.so.6 alias:\n");
+    assert!(!c.contains("__niji_fwd_ns_get16") && !c.contains("__niji_fwd___p_type_syms"), "libc.so.6 carries no alias of libresolv.so.2's own code");
     assert!(!c.contains(" ns_get16@"), "libc.so.6 must not export ns_get16 under its own name");
+}
+
+const RESOLV_DLOPEN: &str = "#include <dlfcn.h>\n#include <stdio.h>\n#include <string.h>\n\
+int main(void) {\n  void *h = dlopen(\"libresolv.so.2\", RTLD_NOW);\n  if (!h) { printf(\"dlopen: %s\\n\", dlerror()); return 1; }\n\
+  const char *(*p_type)(int) = (const char *(*)(int)) dlsym(h, \"__p_type\");\n\
+  const char *(*p_time)(unsigned) = (const char *(*)(unsigned)) dlsym(h, \"__p_time\");\n\
+  void (*p_query)(const unsigned char *) = (void (*)(const unsigned char *)) dlsym(h, \"__p_query\");\n\
+  int (*queriesmatch)(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *) =\n\
+    (int (*)(const unsigned char *, const unsigned char *, const unsigned char *, const unsigned char *)) dlsym(h, \"__res_queriesmatch\");\n\
+  void (*res_close)(void) = (void (*)(void)) dlsym(h, \"__res_close\");\n\
+  if (!p_type || !p_time || !p_query || !queriesmatch || !res_close) { printf(\"dlsym\\n\"); return 2; }\n\
+  static const unsigned char q[] = {0x12,0x34,1,0,0,1,0,0,0,0,0,0,7,'e','x','a','m','p','l','e',3,'c','o','m',0,0,1,0,1};\n\
+  printf(\"%s %s %s %d\\n\", p_type(28), p_type(4242), p_time(3661), queriesmatch(q, q + sizeof q, q, q + sizeof q));\n\
+  fflush(stdout);\n  p_query(q);\n  fflush(stdout);\n  res_close();\n  return dlclose(h);\n}\n";
+
+/// D-16.6, LIBRESOLV-OWN-CODE (no spec clause): a program that never names libresolv.so.2 loads it
+/// with `dlopen` and calls its own code (a static name, a per-thread result buffer for an unknown
+/// type and for `p_time`, the message printer writing to `stdout` through the C library, a message
+/// comparison) and a name forwarded to `libc.so.6` (`__res_close`), as a statically linked
+/// `-lresolv` program prints the same.
+#[test]
+fn sonames_resolv_dlopen_own_code() {
+    let dir = scratch("resolv-dlopen");
+    let out = build_run(&dir, "dl", RESOLV_DLOPEN, &[], false);
+    let needed = readelf(&["-d"], &dir.join("dl"));
+    assert!(!needed.contains("[libresolv.so.2]"), "the program does not need libresolv.so.2 at start:\n{needed}");
+    let mut lines = out.lines();
+    assert_eq!(lines.next(), Some("AAAA 4242 1h1m1s 1"), "{out}");
+    assert!(out.contains("example.com"), "p_query printed the question through stdout:\n{out}");
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 const MBMAX: &str = "#include <locale.h>\n#include <stdio.h>\n#include <stdlib.h>\n\
