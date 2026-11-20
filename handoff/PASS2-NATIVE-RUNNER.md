@@ -12,7 +12,11 @@ Decision record D-X.135 (reserved). Plants: `handoff/PASS2-NATIVE-RUNNER-plants.
   `patch_listed` lists the test executables (`cargo test --no-run --message-format json`, test profile only) and
   writes each copy to `target/debug/niji-deps/<same name>` with `PT_INTERP` rewritten and a stamp (binary length +
   mtime ns); `pass2-exec` (the cargo runner) refuses a missing copy, one older than its binary, or one whose stamp
-  is not the binary's present one. Unit tests: 6 (`pass2::tests`).
+  is not the binary's present one. `pass2::lock`: an exclusive `flock` of `target/.niji2.lock`, taken before
+  `prepare` and held to the end of the native test run (both `test_steps` and `affected`), so a second native
+  pass in the same tree waits instead of removing the first one's root (leg 2: a `test-pass2` started beside a
+  gate did remove it; finding #6821). Unit tests: 7 (`pass2::tests`). Not tested: that `affected` holds the
+  lock to the end of its run (no plant on that line).
 * `main.rs`: `test_steps` = pass 1, then `native_tests` (steps `tests-native-setup`, `-copies`, `-unchanged-scan`,
   `-nextest`; same PASS0_ONLY / PASS1_SHARD0 / run-once filters as the old interposed pass), then
   `interposed_suite` (`-p niji-boundary --lib --test ...`, `-p niji --test <_clauses> ...`, then niji-boundary's
