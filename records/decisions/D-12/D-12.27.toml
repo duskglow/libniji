@@ -1,0 +1,12 @@
+id = "D-12.27"
+section = "s12"
+spec = "§12.1, §12.5, §12.10"
+ann = "ARB"
+status = "active"
+story = "STDIO-WIDE-BYTE-READS"
+date = "2026-11-20"
+amends = ["D-12.14"]
+tests = ["conformance/c/s12_wide_byte_reads.c", "crates/core/tests/s12_stdio_clauses.rs", "crates/boundary/tests/s12_stdio_symbols.rs", "crates/core/tests/wstream_products.rs"]
+body = '''
+**Byte operations on a wide-oriented stream** (amends D-12.14's mixed orientation for byte input, `ungetc` and `fputc`; STDIO-WIDE-BYTE-READS, Yohane #23: util-linux `col` reads with `getwchar` and passes a byte that does not decode through with `getchar`). `fgetc`/`getc`/`getchar` and their `_unlocked` forms, `fread`, `fgets`, `getdelim`/`getline`, `ungetc` and `fputc`/`putc`/`putchar` on a wide-oriented stream work on the stream's bytes, in order, with the indicators and results they have on a byte stream; the orientation stays wide. The wide layer decodes one character at a time from the same buffer, so the next byte is the one after the last character delivered: after an invalid sequence (`WEOF`, `EILSEQ`, the error indicator) its first byte, and wide reads go on after the bytes taken (black-box probes, C.UTF-8: the reference library returns the same bytes in these cases, with and without `clearerr`, for `getc`, `fread`, `fgets` and `ungetc`). Characters given back with `ungetwc` stay for the wide reads. A byte operation never returns `EOF` without an end-of-file or error indicator. `fputs`, `fwrite` and `fprintf` on a wide-oriented stream still fail (`EINVAL`, no indicator; the reference library fails them too). Reads past what the reference's wide layer has already converted, a byte written while wide output is buffered, and an incomplete character at end of input differ: `differences-from-glibc.md`.
+'''
