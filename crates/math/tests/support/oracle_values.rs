@@ -1,4 +1,4 @@
-//! Value cache of the math oracle (ORACLE-VALUE-CACHE, D-NEW-ORACLE-VALUES): the correctly rounded
+//! Value cache of the math oracle (ORACLE-VALUE-CACHE, D-10.131): the correctly rounded
 //! values the C-oracle sweeps ask `niji_mathtools` for, kept across runs whose libniji bytes
 //! differ. Only the oracle's side is cached; libniji's and the reference's results are read from
 //! the programs' outputs on every run and compared with the (cached or fresh) oracle value, so a
