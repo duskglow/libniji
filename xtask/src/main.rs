@@ -288,9 +288,16 @@ fn clippy_gate(root: &Path) -> Result<(), String> {
 
 /// `cargo xtask test`, the full gate. Every step prints `step: <name> <seconds>s` when it ends and the run ends with
 /// the summary, slowest first, also when a step failed (`steptime.rs`, XTASK-TEST-STEP-TIMES).
+///
+/// A first argument [`precheck::CHEAP_DONE`] (only the escalated `affected` run passes it, right after it ran every
+/// cheap step on this tree green) skips the cheap steps; every other argument goes to the workspace tests.
 fn test_all(root: &Path, extra: &[String]) -> Result<(), String> {
     let mut t = steptime::Steps::default();
-    let r = test_steps(root, extra, &mut t);
+    let (cheap, extra) = match extra.split_first() {
+        Some((first, rest)) if first == precheck::CHEAP_DONE => (false, rest),
+        _ => (true, extra),
+    };
+    let r = test_steps(root, cheap, extra, &mut t);
     t.print_summary();
     r
 }
@@ -331,13 +338,18 @@ pub(crate) fn cheap_step(root: &Path, name: &str) -> Result<(), String> {
     }
 }
 
-fn test_steps(root: &Path, extra: &[String], t: &mut steptime::Steps) -> Result<(), String> {
+fn test_steps(root: &Path, cheap: bool, extra: &[String], t: &mut steptime::Steps) -> Result<(), String> {
     // The steps that take seconds (precheck::CHEAP_STEPS, shared with `cargo xtask precheck` and the escalated
     // `affected` run, so the three cannot drift apart), without `stubs` (the gate runs it before `test`). The fuzz
     // harnesses still compile (HYGIENE-1); the generated coefficients still follow from their fit files (D-10.12;
     // the remez binary prints a `step: remez/<fit>` line per fit, run in parallel, so those times overlap).
-    for name in precheck::CHEAP_STEPS.iter().filter(|s| **s != "stubs") {
-        t.time(name, || cheap_step(root, name))?;
+    // Not when the escalated `affected` run has just run them all as its prechecks (TOOLING-PAPERCUTS, audit item 9).
+    if cheap {
+        for name in precheck::CHEAP_STEPS.iter().filter(|s| **s != "stubs") {
+            t.time(name, || cheap_step(root, name))?;
+        }
+    } else {
+        println!("cheap steps: not run again (the escalated `affected` run ran every one as a precheck, green)");
     }
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     // The products first: tests of what only a process libniji started can show run C
