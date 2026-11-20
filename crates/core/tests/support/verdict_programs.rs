@@ -71,6 +71,7 @@ pub(crate) fn shared_outputs_in(name: &str, key: &Key, progs: &[&Path], dir: &Pa
     }
     // Outputs of other keys or runs: a run in this tree needs only its own.
     let mine = format!("{stem}.");
+    // FS-ORDER: each entry is judged and removed on its own; the order changes nothing.
     for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
         let n = e.file_name().to_string_lossy().into_owned();
         if n.starts_with(&format!("{name}-")) && !n.starts_with(&mine) {
