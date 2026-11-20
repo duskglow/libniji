@@ -1,7 +1,8 @@
-/* start_syscalls PROG: run PROG (no arguments, the caller's environment) under ptrace and print one
- * line per system call it enters, "nr arg0 arg1 arg3" in decimal (x86-64 registers rax, rdi, rsi,
- * r10), from the exec to the exit. Exit status: PROG's, or 120-125 on a tracing failure.
- * DYN-START-QUICK: hot_text_products reads the list a dynamic start makes. */
+/* start_syscalls PROG [NAME=VALUE ...]: run PROG (no arguments; its environment exactly the
+ * NAME=VALUE words, so this program itself runs under the caller's own environment) under ptrace
+ * and print one line per system call it enters, "nr arg0 arg1 arg3" in decimal (x86-64 registers
+ * rax, rdi, rsi, r10), from the exec to the exit. Exit status: PROG's, or 120-125 on a tracing
+ * failure. DYN-START-QUICK: hot_text_products reads the list a dynamic start makes. */
 #define _GNU_SOURCE
 #include <signal.h>
 #include <stdio.h>
@@ -12,7 +13,7 @@
 
 int main(int argc, char **argv)
 {
-    if (argc != 2)
+    if (argc < 2)
         return 125;
     pid_t pid = fork();
     if (pid < 0)
@@ -21,7 +22,7 @@ int main(int argc, char **argv)
         if (ptrace(PTRACE_TRACEME, 0, 0, 0) != 0)
             _exit(123);
         char *args[] = { argv[1], NULL };
-        execv(argv[1], args);
+        execve(argv[1], args, argv + 2);
         _exit(122);
     }
     int st;

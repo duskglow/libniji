@@ -565,7 +565,8 @@ fn init_dynamic_empty_main_makes_no_removable_start_system_call() {
     let tracer = lib.join("start_syscalls");
     let st = Command::new("cc").args(["-O1", "-o"]).arg(&tracer).arg(root().join("crates/core/tests/oracle/start_syscalls.c")).status().expect("cc");
     assert!(st.success(), "oracle/start_syscalls.c does not build");
-    let o = Command::new(&tracer).arg(&exe).env_clear().env("LD_LIBRARY_PATH", &lib).output().expect("start_syscalls");
+    // The products' path reaches the traced program only: the tracer runs on the host C library.
+    let o = Command::new(&tracer).arg(&exe).arg(format!("LD_LIBRARY_PATH={}", lib.display())).current_dir("/").stdin(Stdio::null()).output().expect("start_syscalls");
     let _ = std::fs::remove_dir_all(&lib);
     if o.status.code() == Some(121) || o.status.code() == Some(123) {
         eprintln!("SKIP: ptrace is not permitted here ({})", o.status);

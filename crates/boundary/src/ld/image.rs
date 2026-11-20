@@ -96,11 +96,15 @@ fn arena_take(len: usize) -> Option<usize> {
 }
 
 /// `len` (> 0) zero-filled read-write bytes, never used before: (address, the length to unmap after
-/// the last use, bytes). From the loader's scratch arena while it has room (length 0: nothing to
-/// unmap; a start's views then cost no system call, DYN-START-QUICK), else a new private anonymous
-/// mapping.
-fn scratch(len: usize, name: &[u8]) -> (usize, usize, &'static mut [u8]) {
-    if let Some(at) = arena_take(len) {
+/// the last use, bytes). With `arena` (only `link`'s views of the program, which end with `link`),
+/// from the loader's scratch arena while it has room (length 0: nothing to unmap; the start's views
+/// then cost no system call, DYN-START-QUICK); otherwise, or when it is full, a new private
+/// anonymous mapping. The views read after the start (`adopt_start`, `own_object`) are always
+/// mapped: taken from the arena, they made `dladdr` report `ld.so` for a `dlopen`ed object's
+/// address and two `dlclose` tests fail, so the arena is kept to the one use that removes start-up
+/// system calls.
+fn scratch(len: usize, name: &[u8], arena: bool) -> (usize, usize, &'static mut [u8]) {
+    if let Some(at) = arena.then(|| arena_take(len)).flatten() {
         // UNSAFE(slice): a range of the scratch arena, handed out once.
         #[allow(unsafe_code)]
         // SAFETY: [at, at + len) lies inside `ARENA` (`arena_take` checked the end), a static of atomic
@@ -195,7 +199,8 @@ pub(super) fn image_view(
     // that is not a PT_LOAD), in the same mapping after the table (a multiple of 8 bytes from a page
     // boundary, so aligned for them). Any number of PT_LOADs (D-27.15).
     let whole = prog.phnum.saturating_mul(size_of::<Span<'static>>()).saturating_add(table);
-    let (at, unmap, buf) = scratch(whole, name);
+    // Only `link`'s view of the program (`published` false) takes the scratch arena ([`scratch`]).
+    let (at, unmap, buf) = scratch(whole, name, !published);
     let (buf, tail) = buf.split_at_mut(table);
     read_image(prog.phdr, buf);
     let head: &'static [u8] = buf;
@@ -213,7 +218,7 @@ pub(super) fn image_view(
         bad(b": no valid dynamic section\n");
     }
     maps[0] = (at, unmap);
-    let (at, unmap, buf) = scratch(dlen, name);
+    let (at, unmap, buf) = scratch(dlen, name, !published);
     read_image(run_at(dynph.vaddr), buf);
     // A published array (DL-DYNAMIC-RELOC) back to link-time values: the reader's one view.
     let unpublish = published && probe.published_dynamic().is_some();
@@ -227,7 +232,7 @@ pub(super) fn image_view(
     let copy_len = loads().filter(|p| probe.image_span_kind(p, dynamic) == SpanKind::Copy).fold(0usize, |a, p| a.saturating_add(usize::try_from(p.filesz).unwrap_or(usize::MAX)));
     let mut copies: &'static mut [u8] = &mut [];
     if copy_len != 0 {
-        let (at, unmap, buf) = scratch(copy_len, name);
+        let (at, unmap, buf) = scratch(copy_len, name, !published);
         maps[2] = (at, unmap);
         copies = buf;
     }
