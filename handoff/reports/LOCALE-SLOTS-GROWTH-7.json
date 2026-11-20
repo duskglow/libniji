@@ -1,0 +1,22 @@
+{"task": "LOCALE-SLOTS-GROWTH-7", "model": "opus", "tokens": null,
+ "result": "setlocale per call back at or below next on Zen 1 and Skylake-SP (query 71=71, all_c 119.7 vs 121.6, warm enUS 135 vs 137); spill code kept off the lock-free paths; three cbench_locale rows gated in instr_limits",
+ "branch": "task/locale-slots-growth-7", "head": null,
+ "gate": {"affected": "14 suites ok, 10572 passed / 0 failed; conformance 36/36", "peak": "12G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["plants: env-kept-wrong-slot WARN-NO-MSG (caught; the probe program exited before its check line; msg now names the test's FAILED line)",
+                   "setlocale_ctype_posix 139.4 vs next 139.3 (+0.1) on both CPU classes",
+                   "the Skylake-SP counts and the Zen 1 bench count ran in tree copies under ~/work (not role directories); the mei copy's .synced marker was written by hand"],
+ "refused": [],
+ "impact": [
+  {"kind": "perf", "what": "setlocale_query per call (Zen 1 host; Skylake-SP the same)", "before": 92, "after": 71, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "setlocale_all_c per call (Zen 1 host; next 121.6)", "before": 141.6, "after": 119.7, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "warm_setlocale_enUS per call (Zen 1 host; next 137)", "before": 157, "after": 135, "unit": "instr/call", "measured": true},
+  {"kind": "perf", "what": "setlocale_ctype_empty per call (Zen 1 host; next 568.1)", "before": 574.1, "after": 568.1, "unit": "instr/call", "measured": true},
+  {"kind": "coverage", "what": "instr_limits rows for 3 new cbench_locale setlocale rows on Skylake-SP and Zen 1; 4 plants; reload test exercises the spilled lock-free answer", "before": 0, "after": 6, "unit": "limit rows", "measured": true}
+ ],
+ "improvement": "wl_percall needs a role or git tree, so counting on a second CPU class needs a hand-made .synced marker; a --tree/--rev option for a plain copied tree would make cross-CPU counts a supported path",
+ "next_step": "CI train; then the layout story STARTUP-GOT-PAGE as already queued",
+ "report_file": "handoff/LOCALE-SLOTS-GROWTH-report.md",
+ "pending_jobs_note": "gate2, plants2, startup2 and percall4 rerun the checks on 104008b2f (the instr_limits rows are tested content); gate, plants and percall3 passed on code head 34cc0ded1 with the same code",
+ "jobs": ["locale-slots-growth-7-gate2", "locale-slots-growth-7-plants2", "locale-slots-growth-7-startup2", "locale-slots-growth-7-percall4", "locale-slots-growth-7-bench-zen", "mei:locale-slots-growth-7-percall-sk3", "mei:locale-slots-growth-7-bench-sk"]}
