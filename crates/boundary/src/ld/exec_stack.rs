@@ -6,7 +6,7 @@ use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 use niji::config::Tunables;
 use niji_kernel::uapi::AT_EXECFN;
-use niji_ld::arch::{Arch, Native};
+use niji_ld::arch::Native;
 use niji_ld::program;
 use niji_ld::dlopen::Refusal;
 use niji_ld::{map, start};

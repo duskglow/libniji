@@ -125,14 +125,14 @@ FIXUPS = [
     ('image', 'struct SysMapper {\n    fd: i32,', 'struct SysMapper {\n    pub(super) fd: i32,'),
     ('link', "    path: usize,\n    aux: Auxv<'a>,", "    pub(super) path: usize,\n    pub(super) aux: Auxv<'a>,"),
     ('link', "    env: &'static [u8],\n    file: &'static [u8],\n    file_path: &'a [u8],", "    pub(super) env: &'static [u8],\n    pub(super) file: &'static [u8],\n    pub(super) file_path: &'a [u8],"),
-    ('entry', "    ld: &'a start::LdEnv<'static>,\n    secure: bool,", "    ld: &'a start::LdEnv<'static>,\n    pub(super) secure: bool,"),
+    ('entry', "    ld: &'a start::LdEnv<'static>,\n    secure: bool,", "    pub(super) ld: &'a start::LdEnv<'static>,\n    pub(super) secure: bool,"),
     ('entry', '    page: u64,\n    vdso: Option<u64>,\n    base: usize,', '    pub(super) page: u64,\n    pub(super) vdso: Option<u64>,\n    pub(super) base: usize,'),
     ('entry', "    fn ctx<'c>(&'c self", "    pub(super) fn ctx<'c>(&'c self"),
     ('link', '    fn names(&self)', '    pub(super) fn names(&self)'),
 ]
 # Imports the ident scan finds but the module does not need (a field or local with an item's name).
 DROP = {'': ['word'], 'image': ['Arch', 'table'], 'entry': ['elf', 'word'], 'link': ['refuse', 'Obj', 'word', 'table'], 'trace': ['refuse', 'interp_name'],
-        'tls': ['word', 'init']}
+        'tls': ['word', 'init'], 'exec_stack': ['Arch']}
 # The same for the root at one stage (stage -> names): at stage 6 the root still holds `trace`'s items
 # (a local `interp_name`), at stage 7 `entry`'s (a parameter `elf`).
 DROP_ROOT_AT = {6: ['interp_name'], 7: ['elf']}

@@ -351,7 +351,7 @@ pub static __libc_stack_end: AtomicUsize = AtomicUsize::new(0);
 
 /// What the dependency list needs from the start (DL-8).
 pub(super) struct List<'a> {
-    ld: &'a start::LdEnv<'static>,
+    pub(super) ld: &'a start::LdEnv<'static>,
     pub(super) secure: bool,
     /// The `LD_PRELOAD` value program start uses (in secure mode the one read before the clear).
     preload: Option<&'static [u8]>,
