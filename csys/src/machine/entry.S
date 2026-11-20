@@ -99,9 +99,10 @@ niji_machine_ldconfig_entry:
 	.size niji_machine_ldconfig_entry, .-niji_machine_ldconfig_entry
 #endif
 #else
-	/* The start-up data clusters (D-X.62, D-X.64, xtask/src/startup_ro.rs): this object comes first in
-	 * a link, so its empty section comes first in each output section and gives the cluster its start
-	 * alignment (the start-up relro objects stay beside `.got`: a head cluster took a window of its own).
+	/* The start-up data clusters (D-X.62, D-X.64, xtask/src/startup_ro.rs): the anchor object (below,
+	 * -DNIJI_STATIC_ANCHOR) is the first of libc.a's members a static link takes, so its empty section
+	 * comes first in each output section libc.a fills and gives the cluster its start alignment (the
+	 * start-up relro objects stay beside `.got`: a head cluster took a window of its own).
 	 * `cargo xtask so` passes each alignment: the smallest power of two (at least 4 KiB, at most
 	 * 64 KiB) not below the cluster's size over the whole archive, so a cluster of at most 64 KiB
 	 * never straddles a 64 KiB fault-around window, and the written cluster takes the fewest pages.
@@ -126,7 +127,23 @@ niji_machine_ldconfig_entry:
 	 * this empty, unreferenced section and its alignment with it. */
 	.section .rodata1,"aR",@progbits
 	.balign NIJI_RODATA1_ALIGN
-#else
+#elif defined(NIJI_STATIC_ANCHOR)
+	/* CRT-START-FILES (GitHub #27): assembled with -DNIJI_STATIC_ANCHOR it is the static-link anchor,
+	 * libc.a's first member (`cargo xtask so` inserts it there and checks it): the layout anchors
+	 * below, which the start objects carried until then, so that a dynamic program (whose libc.a is
+	 * never read) gets none of them. A static link reads libc.a's index in member order and takes the
+	 * first member that defines a symbol still undefined; the start object leaves exactly one,
+	 * `__libc_start_main` (crt1.o, gcrt1.o) or, with -DNIJI_STATIC_PIE, `niji_start_main_static_pie`
+	 * (rcrt1.o, grcrt1.o), so this member defines it, weak like the library's own definition, as a
+	 * jump to the library's entry (`__niji_libc_<name>`, the name the weakening pass binds the
+	 * library's own calls to). It comes first among libc.a's inputs, after the program's own objects
+	 * (which rarely hold `.rodata1` or `.data1`; a `.data.rel.ro.local` of theirs now precedes the
+	 * relro anchor, as the anchor preceded it before). The two anchors are separate members: neither
+	 * names the other's symbol, so a link never takes the other one later, in the middle of a
+	 * section. */
+#ifndef NIJI_START_TARGET
+#error "NIJI_START_TARGET: the library entry the anchor's start symbol jumps to (cargo xtask so)"
+#endif
 #ifdef NIJI_STATIC_PIE
 	/* LAYOUT-DATA-CLUSTERS-4 (D-X.68): a static PIE relocates itself with exactly one writable
 	 * PT_LOAD (crates/ld/src/boot.rs `image`). The linker starts a new segment where the gap before
@@ -160,6 +177,46 @@ niji_machine_ldconfig_entry:
 	 * fault-around windows depending on where the last bin ends. */
 	.section .text.sorted.h9z.niji_group_end,"ax",@progbits
 	.balign 65536
+	/* The start symbol the start object calls (see above): run once per process, from beside
+	 * `_start` (`.text.startup`, before the hot text group). */
+	.section .text.startup.niji_static_anchor,"ax",@progbits
+#ifdef NIJI_STATIC_PIE
+#define NIJI_ANCHOR_START niji_start_main_static_pie
+#else
+#define NIJI_ANCHOR_START __libc_start_main
+#endif
+	.weak NIJI_ANCHOR_START
+	.type NIJI_ANCHOR_START, @function
+	.p2align 4
+NIJI_ANCHOR_START:
+	.cfi_startproc
+	jmp NIJI_START_TARGET
+	.cfi_endproc
+	.size NIJI_ANCHOR_START, .-NIJI_ANCHOR_START
+#else
+	/* The start object (crt1.o, Scrt1.o, rcrt1.o; gcrt1.S and grcrt1.o include this file): `_start`,
+	 * the notes and the data symbols programs expect of it, and no section aligned beyond its own
+	 * code's 64 bytes (CRT-START-FILES, GitHub #27: an alignment here pads every program linked
+	 * with it; libc's layout anchors are libc.a's first member, above). `cargo xtask so` checks it. */
+#include "../../start/notes.inc"
+	NIJI_NOTE_PROPERTY
+	NIJI_NOTE_ABI_TAG
+	/* `__data_start` and weak `data_start`: the start of the program's data (this object comes first
+	 * in a link, so its `.data` does); `_IO_stdin_used`: a 4-byte read-only word, 0x20001, global
+	 * (the value, size and binding a readelf/nm probe of the reference start files shows). */
+	.data
+	.globl __data_start
+	.weak data_start
+__data_start:
+data_start:
+	.long 0
+	.section .rodata.cst4,"aM",@progbits,4
+	.p2align 2
+	.globl _IO_stdin_used
+	.type _IO_stdin_used, @object
+	.size _IO_stdin_used, 4
+_IO_stdin_used:
+	.long 0x20001
 	.section .eh_frame,"a",@unwind
 	.globl niji_eh_frame_start
 	.hidden niji_eh_frame_start
@@ -171,6 +228,8 @@ niji_eh_frame_start:
 _start:
 	.cfi_startproc
 	.cfi_undefined %rip
+	/* IBT (notes.inc): the loader enters here by an indirect jump. */
+	endbr64
 	xorl %ebp, %ebp
 	movq %rdx, %r9
 	popq %rsi
@@ -190,6 +249,6 @@ _start:
 	hlt
 	.cfi_endproc
 	.size _start, .-_start
-#endif /* NIJI_LIBC_SO */
+#endif /* NIJI_LIBC_SO, NIJI_STATIC_ANCHOR */
 #endif
 	.section .note.GNU-stack,"",@progbits
