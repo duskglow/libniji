@@ -1,0 +1,2 @@
+static-form-returns-zero | csys/src/machine/unwinder.S | perl:s/(niji_machine_unwind_force:\n#ifdef NIJI_STATIC_ARCHIVE\n)\tmovq _Unwind_ForcedUnwind\x40GOTPCREL\(%rip\), %rax/$1\txorl %eax, %eax/s | cargo test -p niji --test forced_unwind_products | msg:static_programs_unwind_with_the_unwinder_they_link.*(FAILED|panicked)
+linked-not-asked | crates/boundary/src/cancel.rs | lit:let force = ffi::niji_machine_unwind_force(); ==> let force = 0usize; | cargo test -p niji --test forced_unwind_products | msg:static_programs_unwind_with_the_unwinder_they_link.*(FAILED|panicked)

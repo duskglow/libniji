@@ -64,14 +64,20 @@ fn build_static(dir: &Path, name: &str, compiler: &str, src: &str, flags: &[&str
     let built = Command::new(compiler).args(["-O1", "-pthread", "-static"]).args(flags).arg(&source).arg("-o").arg(&reference).output().unwrap();
     assert!(built.status.success(), "{src} {flags:?} -static (host C library): {}", String::from_utf8_lossy(&built.stderr));
     let niji = dir.join(format!("{name}.niji"));
+    // The compiler's own start and end files of a static program (`__dso_handle`, which the C++
+    // library's `__cxa_atexit` calls name).
+    let gcc_file = |f: &str| {
+        let o = Command::new(compiler).arg(format!("-print-file-name={f}")).output().unwrap();
+        PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())
+    };
     let mut c = Command::new(compiler);
-    c.args(["-O1", "-pthread", "-static", "-nostdlib"]).args(flags).arg("-o").arg(&niji).arg(lib.join("niji-crt1.o")).arg(&source);
+    c.args(["-O1", "-pthread", "-static", "-nostdlib"]).args(flags).arg("-o").arg(&niji).arg(lib.join("niji-crt1.o")).arg(gcc_file("crtbeginT.o")).arg(&source);
     // D-27.5: a static program's call-frame information is found through its PT_GNU_EH_FRAME.
     c.arg("-Wl,--eh-frame-hdr");
     if compiler == "g++" {
         c.arg("-lstdc++");
     }
-    let built = c.arg("-lgcc_eh").arg(lib.join("libc.a")).arg("-lgcc").output().unwrap();
+    let built = c.arg("-lgcc_eh").arg(lib.join("libc.a")).arg("-lgcc").arg(gcc_file("crtend.o")).output().unwrap();
     assert!(built.status.success(), "{src} {flags:?} does not link against libc.a: {}", String::from_utf8_lossy(&built.stderr));
     (reference, niji)
 }
