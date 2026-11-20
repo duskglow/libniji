@@ -1959,7 +1959,10 @@ const VALIDATION_STATS_TEST: &str = "validation/wl_stats_test.sh";
 const VALIDATION_MTMEM_TEST: &str = "validation/wl_mtmem_test.sh";
 /// WL-PREP-RELEASE-PROFILE: the products profile and cache key of `wl_lock.sh` (a stand-in `cargo`, no build; 0.1 s).
 const VALIDATION_LOCK_TEST: &str = "validation/wl_lock_test.sh";
-pub(crate) const VALIDATION_SELF_TESTS: &[&str] = &[VALIDATION_RUN_TEST, VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST, VALIDATION_LOCK_TEST];
+/// WL-DYNAMIC-GATE (D-X.141): the INVIOLABLE workload verdict, its held rows' ratchet and wl_count's call of it
+/// (fixture logs, no build; under a second).
+const VALIDATION_VERDICT_TEST: &str = "validation/wl_verdict_test.sh";
+pub(crate) const VALIDATION_SELF_TESTS: &[&str] = &[VALIDATION_RUN_TEST, VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST, VALIDATION_LOCK_TEST, VALIDATION_VERDICT_TEST];
 
 /// GATE-VALIDATION-SH-TESTS: a `validation/` script -> the self-tests that exercise it (each self-test also covers
 /// itself). A change to a script here selects those self-tests in every tier. `wl_run.sh` and `wl_count_run.sh` are
@@ -1975,7 +1978,14 @@ const VALIDATION_COVERED: &[(&str, &[&str])] = &[
     (VALIDATION_MTMEM_TEST, &[VALIDATION_MTMEM_TEST]),
     // The products profile and the cache key every lab script reads the products and kits by.
     ("validation/wl_lock.sh", &[VALIDATION_LOCK_TEST]),
+    // The dynamic kit's ELF helper (WL-DYNAMIC-KIT): wl_lock_test.sh section 7 links a program and retargets it.
+    ("validation/wl_dynlink.py", &[VALIDATION_LOCK_TEST]),
     (VALIDATION_LOCK_TEST, &[VALIDATION_LOCK_TEST]),
+    // The INVIOLABLE workload verdict (WL-DYNAMIC-GATE): the verdict, the held rows and wl_count's call of the verdict.
+    ("validation/wl_verdict.py", &[VALIDATION_VERDICT_TEST]),
+    ("validation/wl_holds.tsv", &[VALIDATION_VERDICT_TEST]),
+    ("validation/wl_count.sh", &[VALIDATION_VERDICT_TEST]),
+    (VALIDATION_VERDICT_TEST, &[VALIDATION_VERDICT_TEST]),
 ];
 
 /// GATE-VALIDATION-SH-TESTS: the `validation/wl_*.sh` scripts with no self-test the gate can run, each with why. The
@@ -1986,12 +1996,13 @@ const VALIDATION_UNCOVERED: &[(&str, &str)] = &[
     ("validation/wl_alloctrace_run.sh", "host side of wl_alloctrace.sh; no self-test"),
     ("validation/wl_attr.sh", "workload gate attribution step on a timing host; no self-test"),
     ("validation/wl_base.sh", "BASE checkout helper of the lab tools; no self-test"),
-    ("validation/wl_count.sh", "lab driver of wl_count_run.sh (ssh, queueing); no self-test"),
+    ("validation/wl_dyncc.sh", "link driver of the libniji-dynamic kit (needs built shared products); no self-test"),
     ("validation/wl_entries.sh", "lab driver of wl_entries_run.sh; no self-test"),
     ("validation/wl_entries_run.sh", "host side of the entry-point counts (needs the built kits); no self-test"),
     ("validation/wl_fallback.sh", "lab queueing fallback; no self-test"),
     ("validation/wl_gate.sh", "the workload gate driver (lab hosts); no self-test"),
     ("validation/wl_install.sh", "installs the lab tools on a host; no self-test"),
+    ("validation/wl_kits.sh", "static vs dynamic vs glibc kit comparison on a lab host (built kits, perf); no self-test"),
     ("validation/wl_launch.sh", "detached lab launcher; no self-test"),
     ("validation/wl_local.sh", "role-directory variant of the lab drivers; no self-test"),
     ("validation/wl_percall.sh", "its check wl_percall_tunables_test.sh is a lab count job (built products, minutes), not a gate step"),
@@ -4954,7 +4965,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         // target that carries no section, the layout tests among them, for any boundary change.
         {
             let tier = Tier::Direct;
-            for f in ["crates/boundary/src/ld.rs", "crates/boundary/src/arch/mod.rs", "docs/benchmarks.md", "crates/math/tests/fast64.rs", "crates/native/src/aio.rs"] {
+            for f in ["crates/boundary/src/ld.rs", "crates/boundary/src/ld/link.rs", "crates/boundary/src/arch/mod.rs", "docs/benchmarks.md", "crates/math/tests/fast64.rs", "crates/native/src/aio.rs"] {
                 let s = select_tier(repo(), &[f.to_string()], tier);
                 assert!(state(&s).iter().all(|&b| !b), "{f} ({tier:?}) cannot reach libc.a: no start-up layout test: {:?}", state(&s));
             }

@@ -4,7 +4,7 @@
 # See validation/smoke/README.md. Results: <work>/results.tsv and <work>/results/<program>.<side>.*.
 #
 #   validation/smoke/smoke.sh [--work DIR] [--products DIR] [--jobs N] [--timeout SECS]
-#                             [--mirror URL --keyring FILE] [PROGRAM...]
+#                             [--mirror URL --keyring FILE] [--niji-headers] [PROGRAM...]
 #   validation/smoke/smoke.sh --list
 #
 # Default PROGRAMs: all of programs.sh, in the order of SMOKE_PROGRAMS below. libniji's products are read from
@@ -34,6 +34,7 @@ SMOKE_PROGRAMS="zlib xz_utils sqlite3 grep sed diffutils findutils coreutils gaw
 . "$here/programs.sh"
 
 progs=""
+nhdr=""
 while [ $# -gt 0 ]; do
     case $1 in
         --work) work=$2; shift 2 ;;
@@ -43,6 +44,7 @@ while [ $# -gt 0 ]; do
         --mirror) mirror=${2%/}; shift 2 ;;
         --keyring) keyring=$(cd "$(dirname "$2")" 2>/dev/null && pwd)/${2##*/}; shift 2 ;;
         --list) echo "$SMOKE_PROGRAMS"; exit 0 ;;
+        --niji-headers) nhdr=1; shift ;;
         -h | --help) sed -n '2,20p' "$0"; exit 0 ;;
         -*) echo "smoke: unknown option $1" >&2; exit 2 ;;
         *) progs="$progs $(printf '%s' "$1" | tr '-' '_')"; shift ;;
@@ -56,6 +58,12 @@ ldso=$products/ld-linux-x86-64.so.2
 sys=$work/sysroot
 SMOKE_HERE=$here
 export J SMOKE_HERE
+# --niji-headers (plan/headers.md P7): the libniji side compiles C against libniji's staged headers alone (niji-cc).
+if [ -n "$nhdr" ]; then
+    [ -f "$products/include/features.h" ] && [ -d "$products/uapi" ] || { echo "smoke: --niji-headers needs $products/include and $products/uapi (cargo xtask so)" >&2; exit 2; }
+    NIJI_SMOKE_HEADERS=$products/include NIJI_SMOKE_UAPI=$products/uapi
+    export NIJI_SMOKE_HEADERS NIJI_SMOKE_UAPI
+fi
 
 # bypath IN OUT: a copy of the shared object IN whose DT_SONAME entry is retagged DT_CHECKSUM (loaders ignore
 # it), so an object linked against OUT names it by OUT's path (the method of conformance/run.sh).
@@ -84,6 +92,7 @@ setup() {
     case $nonshared in /*) ;; *) echo "smoke: the host has no libc_nonshared.a" >&2; return 1 ;; esac
     printf 'GROUP ( "%s" "%s" AS_NEEDED ( "%s" ) )\n' "$sys/libc-by-path.so" "$nonshared" "$ldso" > "$sys/libc.so"
     printf 'NIJI_SMOKE_SYSROOT=%s\nNIJI_SMOKE_LDSO=%s\n' "$sys" "$ldso" > "$work/bin/niji-cc.env" &&
+    { [ -z "$nhdr" ] || printf 'NIJI_SMOKE_HEADERS=%s\nNIJI_SMOKE_UAPI=%s\n' "$NIJI_SMOKE_HEADERS" "$NIJI_SMOKE_UAPI" >> "$work/bin/niji-cc.env"; } &&
     cp "$here/niji-cc" "$work/bin/niji-cc" && chmod +x "$work/bin/niji-cc" &&
         ln -sf niji-cc "$work/bin/niji-c++" || return 1
     if [ -d "$root/.git" ] && rev=$(git -C "$root" rev-parse --short=12 HEAD 2>/dev/null); then :; else rev=unknown; fi

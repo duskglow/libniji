@@ -93,18 +93,19 @@ static int buffering(void)
     return 0;
 }
 
-/* A wide stream, even with an open window, refuses byte output: nothing is stored. */
+/* A wide stream refuses fputs and fwrite (nothing stored); fputc writes the byte after the wide
+ * output (D-12.27). */
 static int wide(void)
 {
     FILE *f = tmpfile();
     CHECK(70, f != NULL && fwide(f, 1) > 0 && fputwc(L'w', f) == L'w');
     errno = 0;
-    CHECK(71, p_fputc('x', f) == EOF && errno == EINVAL);
+    CHECK(71, p_fputc('x', f) == 'x' && errno == 0 && fwide(f, 0) > 0);
     errno = 0;
     CHECK(72, p_fputs("x", f) == EOF && errno == EINVAL);
     errno = 0;
     CHECK(73, p_fwrite("x", 1, 1, f) == 0 && errno == EINVAL);
-    CHECK(74, fflush(f) == 0 && size_of(f) == 1);
+    CHECK(74, fflush(f) == 0 && size_of(f) == 2);
     fclose(f);
     FILE *r = fopen("/dev/null", "r");
     CHECK(75, r != NULL && p_putc('x', r) == EOF && ferror(r));    /* not open for writing */

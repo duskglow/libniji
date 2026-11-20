@@ -471,9 +471,13 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// staging and counter (median of 21) on the same products built on the Skylake-SP host: Skylake-SP host
 /// fast 855,582, release 803,431, the host C library 101,863; Zen 1 host fast 855,428, release 803,280, the
 /// host C library 96,002. The Zen 1 fast bound is that level plus 2%; the release bounds hold (1.1% over).
+/// DYN-START-LINK-SHAPE (D-27.68, the RELATIVE loop at 20 instructions per entry): release products,
+/// execcount median of 101, -38,180 / -38,167 / -38,182 on empty main / 3 libraries / clock_gettime on
+/// both hosts; the release bounds move down by 38,000 (the head passed at 812,400, so the margin stays).
+/// The fast bounds are not re-measured and stay.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 812_400]),
-    ("AMD EPYC 7551 32-Core Processor", [872_600, 812_400]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 774_400]),
+    ("AMD EPYC 7551 32-Core Processor", [872_600, 774_400]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
@@ -1349,6 +1353,9 @@ fn padded_start(dir: &Path, region: &str, pad: u64, start: &Path) -> PathBuf {
         "lbss" => format!(".section .lbss.niji_pad,\"aw\",@nobits\n.zero {pad}\n"),
         // A program's own relro inputs, which the linker takes ahead of the library's start-up relro cluster.
         "relro" => format!(".section .data.rel.ro.local.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
+        // Relro the linker takes behind the start-up cluster (the second `.data.rel.ro` pattern of the default
+        // script), as a story growing the library's other relro data would.
+        "relro-tail" => format!(".section .data.rel.ro.niji_pad,\"aw\",@progbits\n.fill {pad},1,0\n"),
         _ => format!(".text\n.fill {pad},1,0xcc\n"),
     };
     let (s, o, crt1) = (dir.join("pad.s"), dir.join("pad.o"), dir.join("crt1pad.o"));
@@ -1661,6 +1668,37 @@ fn init_startup_data_pages_hold_at_every_data_phase() {
         bad.push(format!("the start-up relro cluster's page count moves with the data phase: {spans:?}"));
     }
     assert!(bad.is_empty(), "startup data pages: {bad:#?}");
+}
+
+/// LAYOUT-GOT-ORDER (D-X.140): a static program linked against `libc.a` has no `.got`, whatever the size of
+/// `.data.rel.ro` (GNU ld's default script puts `.got` right behind it, so its page used to move with that size mod
+/// 4096: LAYOUT-BYTE-BUDGETS-3 step 3). `cargo xtask so` marks the library's GOT-indirect add/cmp operands
+/// relaxable, and the link turns them into immediates. The probe is linked unpadded and with 64, 512 and 4000 bytes
+/// of relro behind the start-up cluster (`relro-tail`); the cluster's page count does not move either.
+/// No spec clause (layout of the products).
+#[test]
+fn init_static_probe_has_no_got_at_any_relro_size() {
+    let base = std::env::temp_dir().join(format!("niji-no-got-{}", std::process::id()));
+    let (mut bad, mut spans) = (Vec::new(), Vec::new());
+    for pad in [0_u64, 64, 512, 4000] {
+        let dir = base.join(format!("relro-tail-{pad}"));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let crt1 = if pad == 0 { root().join("target/niji/niji-crt1.o") } else { padded_crt1(&dir, "relro-tail", pad) };
+        let map = link_map(&dir, &crt1);
+        let got: Vec<(String, u64, u64)> = map_inputs(&map, ".got").into_iter().filter(|g| g.0 == ".got" && g.2 > 0).collect();
+        eprintln!("relro-tail {pad}: .got inputs {got:x?}");
+        if !got.is_empty() {
+            bad.push(format!("relro-tail {pad}: the static probe has a .got ({got:x?}): a GOT-indirect operand of libc.a was not relaxed (D-X.140)"));
+        }
+        let cluster = map_inputs(&map, ".data.rel.ro.local.niji_startup");
+        let (lo, hi) = cluster.iter().filter(|c| c.2 > 0).fold((u64::MAX, 0), |(lo, hi), c| (lo.min(c.1), hi.max(c.1.saturating_add(c.2))));
+        spans.push((pad, (hi.saturating_sub(1) >> 12).saturating_sub(lo >> 12).saturating_add(1)));
+    }
+    let _ = std::fs::remove_dir_all(&base);
+    if spans.iter().any(|(_, n)| *n != spans[0].1) {
+        bad.push(format!("the start-up relro cluster's page count moves with the relro behind it: {spans:?}"));
+    }
+    assert!(bad.is_empty(), "static probe GOT: {bad:#?}");
 }
 
 /// The default linker script (`ld --verbose`) with every input section of `.data`, `.bss` and `.lbss` on

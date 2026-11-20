@@ -1,0 +1,7 @@
+# LOADER-FOLDED-VERIFY: plants on the per-thread dlerror record (s27_1_c_5, D-27.67).
+# The TLS half (TLS-GET-ADDR-LATE-MODULE) is guarded by s27_dlopen_tls_surplus and its plants in
+# handoff/DL-DLOPEN-TLS-SURPLUS-plants.txt (walk-skips-live-thread, walk-no-publish, ...): not repeated here.
+exit-no-release | crates/boundary/src/thread.rs | lit:crate::dlerr::thread_ending(); ==> | cargo xtask affected --only conformance:s27_dlerror_threads --with-exports --run | msg:VmSize [0-9]+ kB -> [0-9]+ kB over 2000 exited threads
+release-no-unmap | crates/boundary/src/dlerr.rs | lit:let _ = raw::munmap(r, RECORD); ==> let _ = r; | cargo xtask affected --only conformance:s27_dlerror_threads --with-exports --run | msg:VmSize [0-9]+ kB -> [0-9]+ kB over 2000 exited threads
+one-process-slot | crates/boundary/src/dlerr.rs | lit:let slot = &tb::current().dlerror; ==> static ONE: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0); let slot = &ONE; | cargo xtask affected --only conformance:s27_dlerror_threads --with-exports --run | msg:s27_dlerror_threads: (A|B|late|main): line [0-9]+
+no-clear-on-read | crates/boundary/src/dlerr.rs | lit:flag.fill(0); ==> | cargo xtask affected --only conformance:s27_dlerror_threads --with-exports --run | msg:s27_dlerror_threads: (A|B|late|main): line [0-9]+

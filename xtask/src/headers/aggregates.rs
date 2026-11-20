@@ -101,7 +101,7 @@ impl Gen<'_> {
         if transparent_union(head) {
             // A union a parameter takes as any of its members (GCC manual, transparent_union): layouts.tsv's mark.
             attrs = " __attribute__ ((__transparent_union__))".into();
-        } else if lv.wide && align == Some(1) {
+        } else if lv.wide && lv.align != Some(1) && align == Some(1) {
             attrs = " __attribute__ ((__packed__))".into();
         } else if let (Some(a), Some(natural)) = (align, lv.align) {
             // Declared stricter than its members (`struct rseq`, 32): the type carries it, or (a size that is not a

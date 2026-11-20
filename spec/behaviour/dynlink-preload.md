@@ -68,5 +68,5 @@ model's rule 1).
 ## libniji
 
 `crates/ld/src/start.rs` (`preload_names`, `preload_file_names`, `preload_rule`, `preload_mode_admits`,
-`preload_ignored`) and `crates/boundary/src/ld.rs` (`Preloads`, `link`); tests
+`preload_ignored`) and `crates/boundary/src/ld/link.rs` (`Preloads`, `link`); tests
 `crates/ld/tests/preload.rs` and `crates/ld/tests/ldso_run.rs`.

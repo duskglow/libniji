@@ -1,0 +1,70 @@
+{
+ "task": "PHASE14-WORKAROUNDS",
+ "model": "opus",
+ "tokens": null,
+ "result": "conformance dynamic mode links the products' libc.so and runs by soname on LD_LIBRARY_PATH; native examples link libgcc_eh; rust-dylib programs now run under libniji's ld.so; validation niji-w/t1 modes and shims removed",
+ "branch": "task/phase14-workarounds",
+ "head": "9c0bac1a3",
+ "gate": {
+  "affected": "10 suites ok, 675 passed / 0 failed; conformance 141 passed / 0 failed (direct tier)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "affected marks personality.c, native_examples.rs and rust_dylib.rs as FULL: the train's (gate ran direct tier as the brief says)",
+  "nounwind.c kept: Rust ABI lr1's hashed product.link_args name nounwind.o",
+  "libc_by_path kept: cargo xtask so still ships libc-by-path.so with it",
+  "STD-SMOKE not landed: no std example added"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "coverage",
+   "what": "conformance dynamic tests now link libniji's libc_nonshared.a and the products' libc.so script and exercise the loader's LD_LIBRARY_PATH search for libc.so.6 (7 programs)",
+   "before": 0,
+   "after": 7,
+   "unit": "programs",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "rust-dylib programs run under libniji's ld.so (lr1 and lr999-test), 14 checked steps each",
+   "before": 0,
+   "after": 2,
+   "unit": "programs run",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "native examples link libgcc_eh against libc.a and libc.so.6; _Unwind_Resume checked to be the unwinder's in both runs",
+   "before": 0,
+   "after": 2,
+   "unit": "checks",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants added",
+   "before": 0,
+   "after": 5,
+   "unit": "plants (5 CAUGHT)",
+   "measured": true
+  },
+  {
+   "kind": "none",
+   "what": "validation/shim/missing.c, libm.c and suite.sh modes niji-w/niji-t1/niji-t1r removed (dead)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  }
+ ],
+ "improvement": "affected escalates xtask command files to FULL even when the command (native, rust-dylib) is the only thing they reach; a per-command selection would let a direct gate run exactly cargo xtask native/rust-dylib",
+ "next_step": "none for this story; audit items 5 and 6 are separate stories",
+ "report_file": "handoff/PHASE14-WORKAROUNDS.md",
+ "jobs": [
+  "mei:phase14-workarounds-gate1",
+  "mei:phase14-workarounds-plants1"
+ ]
+}

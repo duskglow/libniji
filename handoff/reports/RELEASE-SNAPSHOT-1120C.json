@@ -1,0 +1,34 @@
+{
+ "task": "RELEASE-SNAPSHOT-1120C",
+ "model": "opus",
+ "tokens": null,
+ "result": "snapshot-ready at b732d9b46: snapshot-20261120.3 staged; #23 issue input through util-linux col cmp-identical to stock (20.2 cut the line); an invalid sequence cut short before an ASCII byte still loses bytes (finding 1); COMPAT19 tunable on/off behaves as documented; every other check matches 20.2",
+ "branch": "task/release-snapshot-1120c",
+ "head": null,
+ "gate": {
+  "affected": "gate-1 on b732d9b46 and gate-2 on the final head (handoff-only): clippy --all-features, xtask clippy, static, records check, affected --base origin/next all RC 0",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "#23 partial: after EILSEQ on a multibyte sequence cut short by an ASCII byte (\\xe2\\x82 t, \\xc3 '('), getchar returns the breaking byte and the sequence's bytes are lost (col output differs from stock; D-12.27 says the sequence's first byte)", "recommendation": "not blocking (no regression vs 20.2); tag 20.3, tell Yohane the reported case is fixed with this limitation, open STDIO-WIDE-BYTE-READS-3 with these two lines as a conformance case"}
+ ],
+ "informational": [
+  "start-up +2,532 instructions empty main, +6,423 with 3 libraries, +2,595 clock_gettime vs 20.2 (Skylake-SP; Zen 1 the same within 7), page faults unchanged; ~1.3k per loaded library, not traced (COMPAT19 open_candidate check or LD-SPLIT-3 are candidates)",
+  "docs: RELEASE-NOTES 'Unreleased' has COMPAT-19 but no entry for #23 and is not dated for this snapshot; doccheck the same 23 problems; route to a docs story",
+  "20.2's dlopen of a -z execstack library failed with 'ELF load command address/offset not page-aligned'; b732d9b46 gives the COMPAT-19 refusal message naming the object, the caller and the tunable",
+  "unchanged from 20.2: dbg Breakpoint 1.1; bare-name dlopen through $ORIGIN DT_RUNPATH; libc6-dev ships no C headers (yohane fail=2); DBG 17 of 19; same-day coexist version order (this pair sorts right)",
+  "evidence jobs not named in JOBS: debs-1, roots-1, yohane-1, y10-1 (rc 1, known unchanged failures), y23-1 (rc 1, finding 1), y23-ref202-1 and c19-ref202-1 (20.2's packages, rc 1 by design)"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "util-linux col on the #23 input under the snapshot's packages: output now cmp-identical to stock (20.2: line cut at the invalid byte)", "before": 2, "after": 8, "unit": "output bytes (stock 8)", "measured": true},
+  {"kind": "unblock", "what": "snapshot-2026-11-20.3 staged for Yohane Linux (#23 and COMPAT19-TUNABLE)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "cost", "what": "start-up empty main vs snapshot-2026-11-20.2 (Skylake-SP)", "before": 786103, "after": 788635, "unit": "instructions", "measured": true},
+  {"kind": "cost", "what": "start-up 3 libraries vs snapshot-2026-11-20.2 (Skylake-SP)", "before": 1037723, "after": 1044146, "unit": "instructions", "measured": true}
+ ],
+ "improvement": "snapshot checks for a fix should include the fix's neighbours (here cut-short multibyte sequences), which the story's own probe table did not cover; y23.sh found it in one root run",
+ "next_step": "coordinator: rule on finding 1 (recommend tag 20.3 + STDIO-WIDE-BYTE-READS-3), route docs finding to a docs story",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1120C.md",
+ "jobs": ["mei:release-snapshot-1120c-gate-2", "mei:release-snapshot-1120c-plants-1", "mei:release-snapshot-1120c-smoke-mei-1", "mei:release-snapshot-1120c-startup-mei-1", "mei:release-snapshot-1120c-lint-1", "mei:release-snapshot-1120c-many-1", "mei:release-snapshot-1120c-dyn22-1", "mei:release-snapshot-1120c-y19-1", "mei:release-snapshot-1120c-y26-1", "mei:release-snapshot-1120c-y26t-1", "mei:release-snapshot-1120c-c19-1", "keke:release-snapshot-1120c-smoke-keke-1", "keke:release-snapshot-1120c-startup-keke-1", "keke:release-snapshot-1120c-pkgdiff-1", "keke:release-snapshot-1120c-stage-1", "keke:release-snapshot-1120c-install-1"]
+}

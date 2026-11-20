@@ -20,7 +20,7 @@ use niji_kernel::errno::{Errno, KResult};
 use niji_kernel::sys::Sys;
 use niji_kernel::uapi::{
     SigSet, Timespec, CLONE_CHILD_CLEARTID, CLONE_FILES, CLONE_FS, CLONE_PARENT_SETTID, CLONE_SETTLS, CLONE_SIGHAND, CLONE_SYSVSEM, CLONE_THREAD,
-    CLONE_VM, MADV_NOHUGEPAGE, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_STACK, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_STACK, RSEQ_SIG, SIG_SETMASK,
+    CLONE_VM, MADV_NOHUGEPAGE, MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, MAP_STACK, PROT_EXEC, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_STACK, RSEQ_SIG, SIG_SETMASK,
 };
 use niji_rt::futex::{self, Clock, Scope};
 use niji_rt::sync::RawMutex;
@@ -828,6 +828,45 @@ pub(crate) extern "C" fn walk_threads(cb: usize, ctx: usize) -> usize {
     0
 }
 
+/// COMPAT-19: thread stacks the C library maps are executable (set once by [`stacks_executable`],
+/// under the thread-list lock; never cleared).
+static STACKS_EXEC: AtomicBool = AtomicBool::new(false);
+
+/// Make the memory of a thread mapped at `base` (`len` bytes, the lowest `guard` inaccessible)
+/// readable, writable and executable (COMPAT-19). Its stack and the areas above it are one
+/// mapping, so the whole usable part changes, as one protection call on one mapping. A failure
+/// leaves the stack as it was (not executable): the change cannot split the mapping, so only a
+/// kernel out of memory can refuse it.
+#[cold]
+#[inline(never)]
+fn exec_stack(base: usize, len: usize, guard: usize) {
+    if len > guard {
+        let _ = raw::mprotect(base + guard, len - guard, i32::try_from(PROT_READ | PROT_WRITE | PROT_EXEC).unwrap_or(7));
+    }
+}
+
+/// `__niji_stack_exec()` (`NIJI_PRIVATE`, COMPAT-19): libniji's `ld.so` accepted an object whose
+/// `PT_GNU_STACK` asks for an executable stack. Every listed thread whose stack the C library
+/// mapped gets an executable stack, and so does every thread made afterwards; a stack the caller
+/// supplied (`pthread_attr_setstack`) is left as it is, and the initial thread's stack is the
+/// loader's to change (black-box probe of the reference, `tools/probe/execstack/es2.c`).
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
+#[cold]
+#[inline(never)]
+pub(crate) fn stacks_executable() {
+    let _g = LIST.lock(&CSys);
+    STACKS_EXEC.store(true, Relaxed);
+    let mut a = HEAD.load(Acquire);
+    while a != 0 {
+        let d = tb::desc_at(a);
+        a = d.next.load(Relaxed);
+        let base = d.map_base.load(Relaxed);
+        if base != 0 && !d.has(DESC_USER_STACK) {
+            exec_stack(base, d.map_len.load(Relaxed), d.guard.load(Relaxed));
+        }
+    }
+}
+
 /// Visit every listed thread (the thread-list lock held): for the setxid broadcast, `fork`'s
 /// child and `pthread_getattr_np`.
 pub(crate) fn each(mut f: impl FnMut(&'static Thread)) {
@@ -1141,6 +1180,11 @@ fn create_inner(a: &Attr, start: usize, arg: usize, c11: bool, kept: bool) -> KR
         if init != 0 {
             let _ = ffi::niji_machine_call3(init, i64::from_ne_bytes(tp.to_ne_bytes()), 0, 0);
         }
+        // COMPAT-19: checked under the list lock that `stacks_executable` sets the flag under, so
+        // this thread is either listed for its walk or sees the flag (a reused mapping included).
+        if STACKS_EXEC.load(Relaxed) && a.stack.is_none() {
+            exec_stack(base, lay.len, lay.guard);
+        }
         link_locked(d);
     }
     LIVE.fetch_add(1, AcqRel);
@@ -1240,6 +1284,7 @@ pub(crate) fn finish(result: usize) -> ! {
     // result table or resolver state again, which only these release.
     crate::users::thread_ending();
     crate::resolv::thread_ending();
+    crate::dlerr::thread_ending();
     // The loader's last word on this thread (its static area goes with the mapping).
     let release = LOADER_RELEASE.load(Acquire);
     if release != 0 {

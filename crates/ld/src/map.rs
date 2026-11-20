@@ -237,6 +237,22 @@ pub fn segment(ph: &ProgramHeader, page: u64) -> Result<Segment, MapError> {
 ///
 /// [`MapError`] for anything but a well-formed loadable object.
 pub fn plan<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
+    plan_with::<A>(elf, page, false)
+}
+
+/// [`plan`] for an object whose executable-stack request the caller has accepted (COMPAT-19, the
+/// tunable `niji.compat.execstack`): `PT_GNU_STACK` with `PF_X` is not refused; every other check
+/// is [`plan`]'s. Only the refusal branch of a caller reaches it.
+///
+/// # Errors
+///
+/// As [`plan`], never [`MapError::ExecutableStack`].
+pub fn plan_accepting_exec_stack<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
+    plan_with::<A>(elf, page, true)
+}
+
+#[inline(always)]
+fn plan_with<A: Arch>(elf: &Elf<'_>, page: u64, exec_stack_accepted: bool) -> Result<Plan, MapError> {
     let h = elf.header();
     if h.e_type != ET_DYN && h.e_type != ET_EXEC {
         return Err(MapError::NotLoadable);
@@ -244,7 +260,7 @@ pub fn plan<A: Arch>(elf: &Elf<'_>, page: u64) -> Result<Plan, MapError> {
     if !page.is_power_of_two() {
         return Err(MapError::BadSegments);
     }
-    if executable_stack(elf.program_headers().map(|p| (p.p_type, p.flags))) {
+    if executable_stack(elf.program_headers().map(|p| (p.p_type, p.flags))) && !exec_stack_accepted {
         return Err(MapError::ExecutableStack);
     }
     let (mut first, mut last, mut align, mut count) = (0u64, 0u64, page, 0usize);
@@ -322,7 +338,23 @@ pub fn segments<'a, A: Arch>(file: &'a [u8], page: u64) -> impl Iterator<Item = 
 /// As [`plan_file`] (nothing mapped yet), [`MapError::Placement`] when a fixed-address program's
 /// range is taken, [`MapError::System`] when a mapping call fails.
 pub fn load<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64) -> Result<Loaded, MapError> {
-    let plan = plan_file::<A>(file, page)?;
+    load_with::<A, M>(m, file, page, false)
+}
+
+/// [`load`] for an object whose executable-stack request the caller has accepted (COMPAT-19; see
+/// [`plan_accepting_exec_stack`]). Making the stacks executable is the caller's.
+///
+/// # Errors
+///
+/// As [`load`], never [`MapError::ExecutableStack`].
+pub fn load_accepting_exec_stack<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64) -> Result<Loaded, MapError> {
+    load_with::<A, M>(m, file, page, true)
+}
+
+#[inline(always)]
+fn load_with<A: Arch, M: Mapper>(m: &mut M, file: &[u8], page: u64, exec_stack_accepted: bool) -> Result<Loaded, MapError> {
+    let elf = Elf::parse::<A>(file).map_err(MapError::Elf)?;
+    let plan = plan_with::<A>(&elf, page, exec_stack_accepted)?;
     let (base, bias) = reserve(m, &plan)?;
     let at = |v: u64| v.wrapping_add(bias);
     for seg in segments::<A>(file, page) {

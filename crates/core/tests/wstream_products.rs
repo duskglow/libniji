@@ -39,8 +39,8 @@ fn build(out: &Path, niji: bool) -> bool {
 
 /// Lines that differ from the reference by decision: text the line starts with, the locale it
 /// is under (`*` any), and why. A recorded line that no longer differs fails the test.
-const MIXED: &str = "D-12.14: every byte operation fails on a wide-oriented stream; glibc lets fputc through";
-const KNOWN: [(&str, &str, &str); 1] = [("fputc on wide: ", "*", MIXED)];
+const MIXED: &str = "D-12.27: a byte read on a wide-oriented stream reads its next byte, here end of input with the end-of-file indicator; glibc returns EOF and sets no indicator";
+const KNOWN: [(&str, &str, &str); 1] = [("fgetc on wide: ", "*", MIXED)];
 
 #[test]
 fn wide_stream_behaviour_equals_the_reference() {

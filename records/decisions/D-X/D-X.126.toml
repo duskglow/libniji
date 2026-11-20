@@ -1,0 +1,8 @@
+id = "D-X.126"
+section = "x"
+status = "active"
+story = "SL-HEADERS-S15-2"
+date = "2026-11-18"
+body = '''
+**Ruling #6435 (coordinator, 2026-11-17), recorded.** `<sys/mount.h>` includes the kernel's `<linux/mount.h>` first and defines the `MS_*` names as macros (the kernel header defines the same names as macros, so either include order compiles). The names are not also enumerators of an anonymous enumeration: an enumerator and a macro of one name cannot both come from two headers that a program includes in either order. Values and types are those of `spec/abi/macros.tsv`; `sizeof` and every constant expression are unchanged. A difference of kind only (macro and enumerator versus macro) for the 31 `MS_*` names; the generator declares an enumerator only where no macro of that name exists yet. Registered compatibility option COMPAT-34; differences row in `docs/differences-from-glibc.md`. Tests: header_check P5/P1 and P8 (both include orders of `sys/mount.h` with `linux/mount.h`, four language modes).
+'''

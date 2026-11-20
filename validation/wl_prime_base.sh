@@ -14,7 +14,7 @@ host=$1
 sha=$(git rev-parse --verify "$2^{commit}")
 . "${NIJI_OPS:-$HOME/src/liella-ops}/tools/vm_ssh.sh"; vm_ssh_cmd "$host"
 . "$(dirname "$0")/wl_lock.sh"   # wl_key: products are keyed by sha and products profile (WL-PREP-RELEASE-PROFILE)
-if "${VSSH[@]}" "[ -f ~/wl/src/$sha/Cargo.toml ] || [ -f ~/wl/products/$(wl_key "$sha")/libc.a ]"; then echo "present $host:~/wl/src/$sha"; exit 0; fi
+if "${VSSH[@]}" "[ -f ~/wl/src/$sha/Cargo.toml ] || [ -f ~/wl/products/$(wl_key "$sha")/$(wl_prodfile) ]"; then echo "present $host:~/wl/src/$sha"; exit 0; fi
 "${VSSH[@]}" "mkdir -p ~/wl/src && rm -rf ~/wl/src/$sha ~/wl/src/.$sha.p && mkdir ~/wl/src/.$sha.p"
 set -o pipefail   # a failed git archive must not move an empty tree into the cache
 git archive --format=tar "$sha" | "${VSSH[@]}" "tar -x -C ~/wl/src/.$sha.p && [ -f ~/wl/src/.$sha.p/Cargo.toml ] && mv -T ~/wl/src/.$sha.p ~/wl/src/$sha" || { "${VSSH[@]}" "rm -rf ~/wl/src/.$sha.p"; echo "wl_prime_base: could not unpack $sha" >&2; exit 1; }

@@ -1,0 +1,13 @@
+id = "COMPAT-34"
+behaviour = "The `MS_*` names of `<sys/mount.h>` as macros only, not also as enumerators (headers slice 15; D-X.126, ruling #6435)"
+glibc = "Each `MS_*` name is an enumerator of an anonymous enumeration and also a macro of the same name"
+liella = "Each `MS_*` name is a macro (the kernel's `<linux/mount.h>` is included first and defines the same names); no enumerator of that name is declared, so the header and the kernel header compile in either include order"
+restore = "A compile-time definition made before including `<sys/mount.h>` that also declares the `MS_*` enumerators (the header text is chosen at compile time; a run-time switch cannot change it); not implemented yet"
+cost = "none (the option does not exist; the header text is the same for every program)"
+status = "registered"
+decisions = ["D-X.126"]
+story = "SL-HEADERS-S15-2"
+date = "2026-11-18"
+body = '''
+Registered option for ruling #6435. A program that uses an `MS_*` name as an integer constant behaves the same either way; only code that needs the name to be an enumerator (for instance a `switch` over an enumeration type of those names, which none of the reference's own declarations provides) can observe the difference.
+'''

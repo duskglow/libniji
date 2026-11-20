@@ -105,34 +105,22 @@ angle_includes() (
     done
 )
 
-# Dynamic-link mode, libniji's side. libniji's ld.so does not search for libraries yet, so every
-# object libniji's build of a program needs is named by path: the program and its helpers link
-# against a copy of libniji's libc.so.6 without DT_SONAME (through a libc.so script, as an
-# installed C library is linked: the library, the host's link-time archive libc_nonshared.a, and
-# the loader as needed), and the helpers by path. No other C library is named, so the one that
-# runs is libniji's.
+# Dynamic-link mode, libniji's side, linked and run the way a program is linked and run against
+# libniji: the program and its helpers link against the products' own libc.so script
+# (target/niji/libc.so: libc.so.6, libniji's libc_nonshared.a and the loader as needed; "-L"
+# names target/niji, where the script's relative names resolve), so they need libc.so.6 by name
+# (DT_NEEDED), and libniji's ld.so finds it on LD_LIBRARY_PATH (the helpers' directory, then
+# target/niji). No other C library is named, so the one that runs is libniji's.
 ldso="$target/niji/ld-linux-x86-64.so.2"
 dynlibc=""
-# bypath IN OUT: a copy of the shared object IN whose DT_SONAME entry is retagged DT_CHECKSUM
-# (0x6ffffdf8, which loaders ignore), so an object linked against OUT names it by OUT's path.
-bypath() {
-    off=$(readelf -Wd "$1" | sed -n 's/^Dynamic section at offset \(0x[0-9a-f]*\) .*/\1/p')
-    idx=$(readelf -Wd "$1" | awk '$1 ~ /^0x/ { if ($2 == "(SONAME)") { print n + 0; exit } n++ }')
-    [ -n "$off" ] && [ -n "$idx" ] && cp "$1" "$2" &&
-        printf '\370\375\377\157\000\000\000\000' | dd of="$2" bs=1 seek=$((off + 16 * idx)) conv=notrunc 2>/dev/null &&
-        ! readelf -Wd "$2" | grep -qF '(SONAME)'
-}
-# The libc.so script of libniji's builds, made once per run of this script ("" when the products
-# or the host's libc_nonshared.a are missing).
+# dyn_setup: whether the products dynamic-link mode needs are there; sets dynlibc to the
+# products' libc.so script.
 dyn_setup() {
     [ -z "$dynlibc" ] || return 0
-    [ -f "$target/niji/libc.so.6" ] && [ -f "$ldso" ] || return 1
-    nonshared=$("$cc" -print-file-name=libc_nonshared.a)
-    case $nonshared in /*) ;; *) return 1 ;; esac
-    d="$here/build/dynlibc.$$"
-    mkdir -p "$d" && bypath "$target/niji/libc.so.6" "$d/libc-by-path.so" || return 1
-    printf 'GROUP ( "%s" "%s" AS_NEEDED ( "%s" ) )\n' "$d/libc-by-path.so" "$nonshared" "$ldso" > "$d/libc.so"
-    dynlibc="$d/libc.so"
+    for f in libc.so libc.so.6 libc_nonshared.a ld-linux-x86-64.so.2; do
+        [ -f "$target/niji/$f" ] || return 1
+    done
+    dynlibc="$target/niji/libc.so"
 }
 # build_helper NAME DIR [ARGS...]: conformance/c/helpers/NAME.c as DIR/libNAME.so, with the
 # program's HELPER-FLAGS for NAME, then ARGS (the C library of libniji's builds).
@@ -143,16 +131,18 @@ build_helper() {
     (cd "$here/c/helpers" && "$cc" -std=c17 -O1 -shared -fPIC "$bh.c" -L "$bd" $bflags "$@" -o "$bd/lib$bh.so.$$") >>"$log" 2>&1 &&
         mv -f "$bd/lib$bh.so.$$" "$bd/lib$bh.so" || { rm -f "$bd/lib$bh.so.$$"; return 1; }
 }
-# run_dyn EXE DIR SUFFIX: run a dynamic-link program with its helpers in DIR; its status in rc,
-# its output in $log.SUFFIX.stdout and .stderr.
+# run_dyn EXE DIR SUFFIX [LIBDIR]: run a dynamic-link program with its helpers in DIR (and the
+# C library in LIBDIR: libniji's run; the reference's finds the host's by its own rules); its
+# status in rc, its output in $log.SUFFIX.stdout and .stderr.
 run_dyn() {
     set +e
+    lpath="$2${4:+:$4}"
     if [ -n "$envs" ]; then
         # shellcheck disable=SC2086
-        "$execenv" $envs "LD_LIBRARY_PATH=$2" "CONF_HELPERS=$2" -- "$1" $args 2>"$log.$3.stderr" >"$log.$3.stdout" 9>&-
+        "$execenv" $envs "LD_LIBRARY_PATH=$lpath" "CONF_HELPERS=$2" -- "$1" $args 2>"$log.$3.stderr" >"$log.$3.stdout" 9>&-
     else
         # shellcheck disable=SC2086
-        env LD_LIBRARY_PATH="$2" CONF_HELPERS="$2" "$1" $args 2>"$log.$3.stderr" >"$log.$3.stdout" 9>&-
+        env LD_LIBRARY_PATH="$lpath" CONF_HELPERS="$2" "$1" $args 2>"$log.$3.stderr" >"$log.$3.stdout" 9>&-
     fi
     rc=$?
     set -e
@@ -200,9 +190,8 @@ else
 fi
 pass=0; fail=0; pending=0; uncovered=0
 named=$#
-# A set-group-ID copy (RUN-SECURE) and the libc.so script of dynamic-link mode are removed even
-# if the runner stops in the middle of a test.
-trap '[ -z "${secure:-}" ] || rm -f "$secure"; rm -rf "$here/build/dynlibc.$$"' EXIT
+# A set-group-ID copy (RUN-SECURE) is removed even if the runner stops in the middle of a test.
+trap '[ -z "${secure:-}" ] || rm -f "$secure"' EXIT
 # Test names (file names without .c) never contain blanks; the repository path may.
 if [ $# -eq 0 ]; then
     set -- $(cd "$here/c" && ls *.c | sed 's/\.c$//')
@@ -284,8 +273,8 @@ for name in "$@"; do
         cxxbegin=$("$comp" -print-file-name=crtbeginS.o); cxxend=$("$comp" -print-file-name=crtendS.o)
     fi
     # LINK-HELPERS / DLOPEN-HELPERS: dynamic-link mode. Two builds of the helpers and the program:
-    # the reference's (the host's C library and loader) and libniji's (libniji's libc.so.6 by path,
-    # libniji's ld.so as the program interpreter). Each helper is checked to exist after its build,
+    # the reference's (the host's C library and loader) and libniji's (the products' libc.so
+    # script, libniji's ld.so as the program interpreter). Each helper is checked to exist after its build,
     # in both sets: a helper left unbuilt fails the test, whichever run would have noticed.
     dyn=""; linked=$(directive LINK-HELPERS "$src"); opened=$(directive DLOPEN-HELPERS "$src")
     helpers="$linked $opened"
@@ -294,12 +283,12 @@ for name in "$@"; do
         hdir="$exe.helpers"; ldir="$exe.helpers-niji"; mkdir -p "$hdir" "$ldir"
         rm -f "$hdir"/*.so "$ldir"/*.so
         hbad=""
-        dyn_setup || hbad="no libc.so.6, ld.so or host libc_nonshared.a for libniji's build; run cargo xtask so"
+        dyn_setup || hbad="no libc.so, libc.so.6, libc_nonshared.a or ld.so in target/niji for libniji's build; run cargo xtask so"
         for h in $helpers; do
             [ -z "$hbad" ] || break
             if [ ! -f "$here/c/helpers/$h.c" ]; then hbad="missing helper source conformance/c/helpers/$h.c"; break; fi
             build_helper "$h" "$hdir" || { hbad="helper $h does not build"; break; }
-            build_helper "$h" "$ldir" -nodefaultlibs "$dynlibc" -lgcc || { hbad="helper $h does not build against libniji"; break; }
+            build_helper "$h" "$ldir" -nodefaultlibs "-L$target/niji" "$dynlibc" -lgcc || { hbad="helper $h does not build against libniji"; break; }
             [ -f "$hdir/lib$h.so" ] && [ -f "$ldir/lib$h.so" ] || { hbad="helper $h was not built"; break; }
         done
         rdyn=""; [ -z "$(directive LINK-EXPORT-DYNAMIC "$src")" ] || rdyn="-rdynamic"
@@ -323,7 +312,7 @@ $ldir/lib$h.so"
                 rm -f "$exe.$$"; hbad="does not build"
             # shellcheck disable=SC2086
             elif ! "$cc" -std=c17 -O1 $rdyn -nodefaultlibs "-Wl,--dynamic-linker=$ldso" $unres "$inc1" ${inc2:+"$inc2"} ${inc3:+"$inc3"} ${inc4:+"$inc4"} "$src" \
-                  -Wl,--no-as-needed $llibs "$dynlibc" -lgcc -o "$exe-niji.$$" >>"$log" 2>&1 \
+                  -Wl,--no-as-needed $llibs "-L$target/niji" "$dynlibc" -lgcc -o "$exe-niji.$$" >>"$log" 2>&1 \
                   || ! mv -f "$exe-niji.$$" "$exe-niji"; then
                 rm -f "$exe-niji.$$"; hbad="does not build against libniji"
             fi
@@ -367,7 +356,7 @@ $ldir/lib$h.so"
             fail=$((fail + 1))
             continue
         fi
-        run_dyn "$exe-niji" "$ldir" niji
+        run_dyn "$exe-niji" "$ldir" niji "$target/niji"
         verdict "$name (libniji)" "$log.niji.stderr"
         if [ -n "$pend" ] && [ "$ok" -eq 1 ]; then
             echo "conformance: FAIL $name (PENDING-NIJI: $pend, but libniji's run meets the expectations now: remove the directive and the pending mark of its clause test)"

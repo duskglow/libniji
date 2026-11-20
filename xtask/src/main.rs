@@ -79,6 +79,7 @@ mod compat_objects;
 mod copies;
 mod csys;
 mod fuzz;
+mod gotrelax;
 mod binbudget;
 mod bins;
 mod hottext;
