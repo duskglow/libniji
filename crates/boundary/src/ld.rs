@@ -1590,6 +1590,29 @@ pub extern "C" fn _dl_debug_state() {
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 }
 
+/// `_dl_get_tls_static_info(size_t *size, size_t *align)` (`GLIBC_PRIVATE` in versions.tsv, here
+/// `NIJI_PRIVATE`, R14-12): the static TLS every thread has, for a runtime that finds it by name
+/// (sanitizers' `dlsym`). `*size`: the bytes from the lowest static block (the surplus included,
+/// `SURPLUS_HI` below the thread pointer) to the end of the initial thread block above it
+/// ([`INITIAL_TAIL`]); `*align`: the thread pointer's alignment. A null or misaligned pointer is not
+/// written. Both 0 in a process this loader did not start (nothing laid out). Off the start path
+/// (D-27.65).
+// UNSAFE(export): an exported function of the ld.so product.
+#[unsafe(no_mangle)]
+#[allow(unsafe_code)]
+#[cold]
+#[inline(never)]
+pub extern "C" fn _dl_get_tls_static_info(size: usize, align: usize) {
+    let below = SURPLUS_HI.load(Relaxed);
+    let total = if below == 0 { 0 } else { below.saturating_add(INITIAL_TAIL) };
+    if let Some(w) = crate::tb::c_word(size) {
+        w.store(usize::try_from(total).unwrap_or(usize::MAX), Relaxed);
+    }
+    if let Some(w) = crate::tb::c_word(align) {
+        w.store(usize::try_from(THREAD_TLS_ALIGN.load(Relaxed)).unwrap_or(0), Relaxed);
+    }
+}
+
 /// The address of an `extern "C" fn()` (`_dl_debug_state`).
 #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
 fn fn_addr0(f: extern "C" fn()) -> usize {
