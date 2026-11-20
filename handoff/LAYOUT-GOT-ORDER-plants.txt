@@ -1,5 +1,5 @@
 # LAYOUT-GOT-ORDER plants (D-X.140): the REX_GOTPCRELX marking of libc.a's binop GOT operands (xtask/src/gotrelax.rs)
-call-marked | xtask/src/gotrelax.rs | lit:matches!(op, 0x03 | 0x0b ==> matches!(op, 0xff | 0x8d | 0x03 | 0x0b | cargo test -p xtask gotrelax | msg:binop_operand_is_the_psabi_form_only.*(FAILED|stdout)
+call-marked | xtask/src/gotrelax.rs | perl:s/matches!\(op, 0x03/matches!(op, 0xff|0x8d|0x03/ | cargo test -p xtask gotrelax | msg:binop_operand_is_the_psabi_form_only.*(FAILED|stdout)
 rex-w-unchecked | xtask/src/gotrelax.rs | lit:rex & 0xf8 == 0x48 ==> rex & 0xf0 == 0x40 | cargo test -p xtask gotrelax | msg:binop_operand_is_the_psabi_form_only.*(FAILED|stdout)
 modrm-unchecked | xtask/src/gotrelax.rs | lit:modrm & 0xc7 == 0x05 ==> modrm & 0xc0 == 0x00 | cargo test -p xtask gotrelax | msg:binop_operand_is_the_psabi_form_only.*(FAILED|stdout)
 edit-wrong-field | xtask/src/gotrelax.rs | lit:edits.push(off + k * 24 + 8); ==> edits.push(off + k * 24 + 12); | cargo test -p xtask gotrelax | msg:mark_archive_rewrites_only_binop_gotpcrel.*(FAILED|stdout)
