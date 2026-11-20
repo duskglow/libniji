@@ -41,6 +41,8 @@ a second guard).
 Run 1 (compat19-tunable-plants): 12 CAUGHT, 2 SURVIVED (ld-secure-honoured, dlopen-secure-honoured): both are a
 second guard (secure mode clears `GLIBC_TUNABLES` from the start environment before the loader and dlopen read it),
 marked `equivalent:` and run again (compat19-tunable-plants2, from ~/work/compat19-tunable/plants.txt, the same file).
+Run 2 (compat19-tunable-plants2, rc 0): `14 plants: 12 CAUGHT, 0 SURVIVED, 2 EQUIVALENT, 0 WARN-RC-ONLY,
+0 WARN-NO-MSG, 0 BUILD-TIMEOUT`.
 
 ## FULL
 `cargo xtask affected --list --base origin/next`: `FULL: the train's (xtask/src/so.rs: xtask (its commands are part
