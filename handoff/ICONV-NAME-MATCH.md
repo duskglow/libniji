@@ -2,9 +2,10 @@
 
 **State (run 4, ICONV-NAME-MATCH-4).** Branch `task/iconv-name-match-4` (origin/next `0e5a87e92` merged in,
 merge `adcc606db`), code head `18b371663`; role mei:~/w/s4. Run 4 found and removed the cause of run 3's CI red
-(a start-up page fault): see "Run 4" below. Run 3: branch `task/iconv-name-match-3`, code head `876a0e018`.
-Run 2: branch `task/iconv-name-match-2`, head `b79bfe76a`. Decision: `records/pending/ICONV-NAME-MATCH-1.toml`
-(D-NEW, series D-6, amends D-6.8; CI assigns the id). Rule, probe table and alias provenance:
+(a start-up page fault): see "Run 4" below. COMPLETE: gate2, start-up checks, plants and clippy/static green on the
+final head. Run 3: branch `task/iconv-name-match-3`, code head `876a0e018`.
+Run 2: branch `task/iconv-name-match-2`, head `b79bfe76a`. Decision: `records/decisions/D-6/D-6.17.toml`
+(amends D-6.8). Rule, probe table and alias provenance:
 `spec/encoding/iconv-names.md`. Plants: `handoff/ICONV-NAME-MATCH-plants.txt` (20).
 
 ## The rule (run 1, unchanged)
@@ -123,17 +124,18 @@ Ruling #6385: no landing at +28..69%; remove the 128-byte copy and reach base fo
   "native pass set-up: products missing or half-built" (no `target/niji/.profile`). Cause: my start-up job
   (`iconv-name-match-4-startup`) began with `~/bin/jobwait iconv-name-match-4-gate;` launched in the same second as
   the gate; jobwait answers rc 4 at once for a label not yet queued (checked), so `cargo xtask test` rebuilt products
-  in the role during the gate. Rerun the gate alone. `cargo xtask affected` says FULL is the train's
-  (`csys/util/iconv-names.h`); the direct tier is the gate.
+  in the role during the gate. `cargo xtask affected` says FULL is the train's (`csys/util/iconv-names.h`); the
+  direct tier is the gate.
+* Leg 2: start-up checks `iconv-name-match-4-startup` rc 0: `cargo xtask test` 6,929 + 4,844 passed (+126, +46);
+  `NIJI_FULL_PROFILE=1` `xtask so` + `hot_text_products` 31 passed. Gate `iconv-name-match-4-gate2` (alone in the
+  role, `--base origin/next`, head `e35332d80`, code unchanged since `18b371663`) rc 0: direct tier 16 suites, 8,242
+  passed, 0 failed, 554 ignored; conformance 6/0; peak 11G. Foreground clippy (`-D warnings`) and `cargo xtask
+  static` on the role: rc 0.
 
 ## Exact next step
 
-1. `~/bin/jobwait iconv-name-match-4-startup` (running on mei: `cargo xtask test`, then `NIJI_FULL_PROFILE=1 cargo
-   xtask so` + `hot_text_products`); green = start-up checks done.
-2. Then, alone in the role: gate `iconv-name-match-4-gate2` (`cargo xtask affected --run`, kind gate), wait.
-3. Foreground clippy (`cargo clippy --workspace --all-targets --all-features -- -D warnings`) and `cargo xtask
-   static`; `cargo xtask precheck --jobs <labels> --head <sha>`; report json; handback-check.
-   JOBS: gate2, plants2, startup, counts (pfsplit3, check for the diagnosis).
+None for this story: it is ready for the train. JOBS: iconv-name-match-4-gate2, -plants2, -startup, -counts
+(diagnosis: -pfsplit3, -check). SUPERSEDED: -gate (concurrent start-up build), -plants (malformed plant).
 
 ## Open items
 
