@@ -10,3 +10,14 @@ pc-logs-name | xtask/src/plants.rs | lit:format!("logs-{}", k + 1) ==> format!("
 pc-limit-largest | xtask/src/plants.rs | lit:env.into_iter().chain(cgroups).chain(available).min() ==> env.into_iter().chain(cgroups).chain(available).max() | cargo test -p xtask --bin xtask plants:: | msg:plants::tests::the_ram_limit_is_the_smallest_known \.\.\. FAILED
 tp-ended-timeout | xtask/src/plants.rs | lit:if rc == TIMED_OUT { format!("timed out after {limit} s ({flag} <secs>)") } ==> if rc == 0 { format!("timed out after {limit} s ({flag} <secs>)") } | cargo test -p xtask -- a_timeout_names_its_limit | msg:a_timeout_names_its_limit_and_the_baseline_names_its_plants.*(FAILED|panicked)
 tp-baseline-plants-build | xtask/src/plants.rs | lit:**l == layout && (build ==> **l == layout && (!build | cargo test -p xtask -- a_timeout_names_its_limit | msg:a_timeout_names_its_limit_and_the_baseline_names_its_plants.*(FAILED|panicked)
+# cargo xtask plants results (10 plants: 10 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# pc-deal-all-to-one: CAUGHT, caught by xtask plants::tests::plants_are_dealt_to_the_copies_in_turn
+# pc-merge-unsorted: CAUGHT, caught by xtask plants::tests::two_copies_report_as_a_serial_run
+# pc-auto-strict: CAUGHT, caught by xtask plants::tests::auto_copies_follows_the_ram_limit
+# pc-stop-baseline-lost: CAUGHT, caught by xtask plants::tests::a_baseline_failing_in_one_copy_fails_the_run
+# pc-second-copy-dropped: CAUGHT, caught by xtask plants::tests::two_copies_report_as_a_serial_run
+# pc-copies-zero: CAUGHT, caught by xtask plants::tests::copies_option_is_parsed_and_bounded
+# pc-logs-name: CAUGHT, caught by xtask plants::tests::two_copies_report_as_a_serial_run
+# pc-limit-largest: CAUGHT, caught by xtask plants::tests::the_ram_limit_is_the_smallest_known
+# tp-ended-timeout: CAUGHT, caught by xtask plants::tests::a_timeout_names_its_limit_and_the_baseline_names_its_plants
+# tp-baseline-plants-build: CAUGHT, caught by xtask plants::tests::a_timeout_names_its_limit_and_the_baseline_names_its_plants

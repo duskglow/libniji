@@ -1,8 +1,29 @@
 # PLANTS-COPIES: `cargo xtask plants --copies <n>|auto`
 
-State: branch `task/plants-copies` (base origin/next). Code commits 9544177aa (`--copies`, per-copy worker, merge),
-658963e7e (pure `smallest_limit` and its test, docs, plants file). Plants file `handoff/PLANTS-COPIES-plants.txt`
-(8 plants on the new code). Report record `handoff/reports/PLANTS-COPIES.json`.
+State: branch `task/plants-copies-2` (run 2, PLANTS-COPIES-2; continues `task/plants-copies`, base origin/next).
+Code commits 9544177aa (`--copies`, per-copy worker, merge), 658963e7e (pure `smallest_limit` and its test, docs,
+plants file), 1c37ce639 (merge of origin/next, run 2). Plants files `handoff/PLANTS-COPIES-plants.txt` (run 1, 8
+plants) and `handoff/PLANTS-COPIES-2-plants.txt` (run 2, 10 plants). Report records `handoff/reports/PLANTS-COPIES.json`
+and `handoff/reports/PLANTS-COPIES-2.json`. Rulings in force: #6824 (keke-only numbers; RAM limit order as below),
+#6862 (auto = 2 where RAM allows).
+
+## Run 2 (PLANTS-COPIES-2): merge of next
+
+The last run ended in a CI conflict: TOOLING-PAPERCUTS-2 had changed the serial plants loop's messages in
+`xtask/src/plants.rs`, and this branch had moved that loop into the per-copy worker `run_copy`. Merge 1c37ce639 keeps
+both. The worker keeps its copy prefix (`plants[copy k]:`), its `stop()` (sets the abort flag and the exit status)
+and its per-copy results. It now prints next's wording: a timed-out baseline or products rebuild names its limit and
+flag (`ended`), a failed baseline names the plants whose command it ran (`baseline_plants` over this copy's share
+only, so `owned` is built before the baselines), and a timeout catch names the command.
+
+Checks on mei:~/w/s2 (Skylake-SP), head 4398ba4d9 code-identical to the final head:
+- `plants-copies-2-unit`: `cargo test -p xtask plants::` 33 passed; clippy `-D warnings` and `cargo xtask static` clean.
+- `plants-copies-2-xtask`: `cargo test -p xtask` 517 + 12 passed, 0 failed (the gate is FULL-escalated by
+  xtask/src/main.rs, so it is the train's; this is the changed crate's tests).
+- `plants-copies-2-plants`: `--copies 2`, 10 plants (the 8 PLANTS-COPIES plants plus the 2 TOOLING-PAPERCUTS plants on
+  plants.rs), 10 CAUGHT, no WARN lines, 569 s, 5 plants per copy.
+- Not covered by a test: the wording printed by `run_copy` (stdout only). The parts that decide it (`ended`,
+  `baseline_plants`) are unit-tested and planted.
 
 ## What changed
 
@@ -48,4 +69,4 @@ Skylake-SP: not measured in this run (coordinator ruling #6824: no Skylake-SP ro
 
 ## Next step
 
-None needed to land. Optional: one Skylake-SP pair (`--copies 1` and `--copies 2`, same head) to replace the PLANTS-BUILD-2 figure.
+None needed to land (run 2 merged next; nothing else is open). Do not redo the merge or the Zen 1 measurement. Optional: one Skylake-SP pair (`--copies 1` and `--copies 2`, same head) to replace the PLANTS-BUILD-2 figure.
