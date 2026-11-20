@@ -1356,14 +1356,28 @@ pub fn gen_prechecks_for(f: &str) -> Vec<&'static str> {
 /// The prechecks `sel` runs first, in [`crate::precheck::CHEAP_STEPS`] order (`stubs` first): the ones its files
 /// selected, and EVERY cheap step when the selection escalated to FULL, whatever the reason (HANDBACK-INLOOP-CHECKS:
 /// a FULL-tier `stubs` red used to show after the whole suite, often after the hand-back; now it ends the run in
-/// seconds). The FULL run repeats them inside `cargo xtask test` (about 45 s, headers-gen the bulk), kept so that
-/// command stays complete on its own. `--only` runs no prechecks.
+/// seconds). The FULL run that follows does not repeat them ([`full_steps`]); `cargo xtask test` run on its own still
+/// runs them all. `--only` runs no prechecks.
 pub fn prechecks(sel: &Selection) -> Vec<&'static str> {
     if sel.only {
         return Vec::new();
     }
     let every = !sel.full.is_empty() || !sel.train.is_empty();
     crate::precheck::CHEAP_STEPS.iter().copied().filter(|c| every || sel.gen_prechecks.contains(*c)).collect()
+}
+
+/// The escalated FULL run's steps after the prechecks (TOOLING-PAPERCUTS, audit item 9: the cheap steps ran twice):
+/// whether `cargo xtask stubs` still runs (no: the `stubs` precheck is the same function), and `cargo xtask test`'s
+/// command, with [`crate::precheck::CHEAP_DONE`] when the prechecks were every cheap step. A precheck red ends the
+/// run before this (`run_prechecks_or_stop`), so reaching here means they were green.
+pub fn full_steps(sel: &Selection) -> (bool, Vec<&'static str>) {
+    let pre = prechecks(sel);
+    let all = pre == crate::precheck::CHEAP_STEPS;
+    let mut test = vec!["cargo", "xtask", "test"];
+    if all {
+        test.push(crate::precheck::CHEAP_DONE);
+    }
+    (!pre.contains(&"stubs"), test)
 }
 
 /// The first step of a run: `sel`'s prechecks; any red one ends the run (`Err`) before anything else starts, with the
@@ -3806,10 +3820,13 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         // Step times (XTASK-TEST-STEP-TIMES): a `step:` line per step on the console, those `cargo xtask test` wrote
         // to the log among them, and the summary of all of them, slowest first.
         let mut times = crate::steptime::Steps::default();
-        ok &= times.time("stubs", || step(root, &log, "stubs", Command::new(&cargo).args(["xtask", "stubs"])));
+        let (stubs_again, test_args) = full_steps(sel);
+        if stubs_again {
+            ok &= times.time("stubs", || step(root, &log, "stubs", Command::new(&cargo).args(["xtask", "stubs"])));
+        }
         ok &= times.time("clippy-workspace", || step_saving(root, &log, "clippy --workspace", Command::new(&cargo).args(["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]), "clippy.log"));
         let from = fs::metadata(&log).map_or(0, |m| m.len());
-        ok &= step(root, &log, "cargo xtask test", Command::new(&cargo).args(["xtask", "test"]));
+        ok &= step(root, &log, &test_args.join(" "), Command::new(&cargo).args(&test_args[1..]));
         // GATE-VALIDATION-SH-TESTS: everything includes the validation self-tests (`cargo xtask test` does not run them).
         for s in VALIDATION_SELF_TESTS {
             ok &= times.time(s, || step(root, &log, &format!("validation self-test {s}"), Command::new("bash").arg(s)));
@@ -4812,6 +4829,17 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         s.only = true;
         s.full.push("x".into());
         assert!(prechecks(&s).is_empty(), "--only runs no precheck");
+    }
+
+    // no spec clause (TOOLING-PAPERCUTS, audit item 9): an escalated FULL run runs each cheap step once, as a
+    // precheck: no second `stubs`, and `cargo xtask test` is told to skip them; a run without those prechecks
+    // (--only) keeps both, so nothing goes unchecked
+    #[test]
+    fn escalated_full_run_does_not_repeat_the_cheap_steps() {
+        let mut s = Selection { full: vec!["test".into()], ..Selection::default() };
+        assert_eq!(full_steps(&s), (false, vec!["cargo", "xtask", "test", crate::precheck::CHEAP_DONE]));
+        s.only = true;
+        assert_eq!(full_steps(&s), (true, vec!["cargo", "xtask", "test"]));
     }
 
     // no spec clause: HEADERS-ABI-REGEN. The prechecks really run the generators' checks: green on this (consistent)

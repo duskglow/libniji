@@ -60,6 +60,17 @@ const DEFAULT_PREPARE_TIMEOUT: u64 = 3600;
 /// The exit status of `timeout(1)` when it ended the command: a mutant that hangs is caught by the limit.
 const TIMED_OUT: i32 = 124;
 
+/// How a command ended, for a message: a timeout is named with its limit and the flag that sets it, never left as a
+/// bare `rc 124` (TOOLING-PAPERCUTS: a timed-out baseline printed only `rc 124`).
+fn ended(rc: i32, limit: u64, flag: &str) -> String {
+    if rc == TIMED_OUT { format!("timed out after {limit} s ({flag} <secs>)") } else { format!("rc {rc}") }
+}
+
+/// The plants a baseline step serves: every plant of the layout for a product build, else those whose command it is.
+fn baseline_plants<'a>(plants: &'a [Plant], layouts: &[crate::hotlists::Layout], layout: crate::hotlists::Layout, argv: &[String], build: bool) -> Vec<&'a str> {
+    plants.iter().zip(layouts).filter(|(p, l)| **l == layout && (build || sh(&p.cmd) == argv)).map(|(p, _)| p.id.as_str()).collect()
+}
+
 /// How a plant is expected to be judged.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expect {
@@ -887,6 +898,8 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], abort: &std::sync::atomic::
     // PLANTS-UNGROUPED-MUTANTS: a plant's products are built ungrouped (a compile only: a mutant's behaviour does not
     // depend on the start-up layout) unless the plant measures the layout ([`targets_layout`] or `layout:traced`).
     use crate::hotlists::Layout;
+    // This copy's plants, owned: the products check and a failed baseline's message take a slice of them.
+    let owned: Vec<Plant> = plants.iter().map(|p| (*p).clone()).collect();
     let layouts: Vec<Layout> = plants.iter().map(|p| if p.layout || targets_layout(&p.cmd) { Layout::Traced } else { Layout::Ungrouped }).collect();
     // The products, then each distinct command on the unmutated copy, once per layout the plants use (ungrouped
     // first): each command's baseline sees the products in the layout its plants are built with.
@@ -929,8 +942,11 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], abort: &std::sync::atomic::
                 return stop(out, EXIT_BASELINE);
             }
             Ok(rc) => {
-                let hint = if *layout == Layout::Ungrouped && !build { " (built ungrouped; a command that measures the start-up layout needs `layout:traced` on its plants, docs/plants.md)" } else { "" };
-                println!("{pre} BASELINE FAILED: {name} rc {rc} ({}; layout {}){hint}; no plant was applied. Last lines of {}:\n{}", argv.join(" "), layout_name(*layout), log.display(), tail(&log, 20));
+                let hint = if *layout == Layout::Ungrouped && !build && rc != TIMED_OUT { " (built ungrouped; a command that measures the start-up layout needs `layout:traced` on its plants, docs/plants.md)" } else { "" };
+                // The plants whose command this baseline is: a failed baseline names them, not only `baseline-N`.
+                let of = baseline_plants(&owned, &layouts, *layout, argv, build);
+                let how = ended(rc, limit, if build { "--prepare-timeout" } else { "--timeout" });
+                println!("{pre} BASELINE FAILED: {name} {how} ({}; layout {}; the command of plant(s) {}){hint}; no plant was applied. Last lines of {}:\n{}", argv.join(" "), layout_name(*layout), of.join(", "), log.display(), tail(&log, 20));
                 return stop(out, EXIT_BASELINE);
             }
             Err(e) => {
@@ -941,8 +957,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], abort: &std::sync::atomic::
     }
     // XTASK-PLANTS-PRODUCTS-REBUILD: a command that uses the products gets them rebuilt with the
     // mutant; the others reuse the baseline build, rebuilt unmutated first if a plant left a mutant in it.
-    let owned: Vec<Plant> = plants.iter().map(|p| (*p).clone()).collect();
-    let uses = (cfg.uses_products)(&copy, &owned);
+    let uses =(cfg.uses_products)(&copy, &owned);
     let mut products_hold_mutant = false;
     for (((&i, p), &uses_products), &layout) in share.iter().zip(&plants).zip(&uses).zip(&layouts) {
         if abort.load(Ordering::SeqCst) {
@@ -963,7 +978,8 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], abort: &std::sync::atomic::
                     build = format!("the products, rebuilt unmutated after the last plant, layout ungrouped, in {:.0}s (log {})", start.elapsed().as_secs_f64(), log.display());
                 }
                 rc => {
-                    println!("{pre} {}: ERROR: rebuilding the unmutated products: {rc:?}; stopping (log {})", p.id, log.display());
+                    let how = match rc { Ok(rc) => ended(rc, cfg.prepare_timeout, "--prepare-timeout"), Err(e) => e };
+                    println!("{pre} {}: ERROR: rebuilding the unmutated products ({}): {how}; stopping (log {})", p.id, cfg.prepare.join(" "), log.display());
                     return stop(out, EXIT_SURVIVED);
                 }
             }
@@ -1025,7 +1041,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], abort: &std::sync::atomic::
             _ if build_timed_out => (Verdict::BuildTimeout, format!("the products build timed out after {} s (prepare timeout); the mutant was not tested", cfg.prepare_timeout)),
             (Expect::Equivalent(why), 0) => (Verdict::Equivalent, why.clone()),
             (_, 0) => (Verdict::Survived, format!("`{}` passed on the mutant", p.cmd)),
-            (_, TIMED_OUT) => (Verdict::Caught, format!("caught by timeout ({}s)", cfg.timeout)),
+            (_, TIMED_OUT) => (Verdict::Caught, format!("caught by timeout: `{}` timed out after {} s (--timeout <secs>)", p.cmd, cfg.timeout)),
             (Expect::Msg(re), rc) if log_matches(&log, re) => (Verdict::Caught, format!("rc {rc}, /{re}/ in the log")),
             (Expect::Msg(re), rc) => (Verdict::WarnNoMsg, format!("rc {rc}, but /{re}/ is not in {}", log.display())),
             (Expect::Equivalent(_), rc) => (Verdict::Caught, format!("rc {rc} (declared equivalent, but caught)")),
@@ -1036,7 +1052,7 @@ fn run_copy(cfg: &Config, k: usize, share: &[usize], abort: &std::sync::atomic::
         let line = if rc == 0 || build_timed_out {
             format!("# {}: {}", p.id, verdict.label())
         } else {
-            let by = if rc == TIMED_OUT { format!("timeout ({}s)", cfg.timeout) } else { catcher(&String::from_utf8_lossy(&fs::read(&log).unwrap_or_default())) };
+            let by = if rc == TIMED_OUT { format!("timeout: `{}` timed out after {} s", p.cmd, cfg.timeout) } else { catcher(&String::from_utf8_lossy(&fs::read(&log).unwrap_or_default())) };
             println!("{pre} {}: caught by {by}", p.id);
             format!("# {}: {}, caught by {by}", p.id, verdict.label())
         };
@@ -1489,6 +1505,20 @@ mod tests {
         assert_eq!(out.verdicts, vec![("q1".to_string(), Verdict::Caught)]);
         assert_eq!(out.code, EXIT_OK);
         let _ = fs::remove_dir_all(src.parent().unwrap());
+    }
+
+    // no spec clause (TOOLING-PAPERCUTS): a timeout is reported as one with its limit and flag, never a bare rc 124,
+    // and a failed baseline names the plants whose command it ran (one command shared by two plants, another not)
+    #[test]
+    fn a_timeout_names_its_limit_and_the_baseline_names_its_plants() {
+        assert_eq!(ended(TIMED_OUT, 600, "--timeout"), "timed out after 600 s (--timeout <secs>)");
+        assert_eq!(ended(3, 600, "--timeout"), "rc 3");
+        let ps = parse_plants("a | f | lit:x ==> y | sleep 9 | msg:z\nb | f | lit:x ==> w | sleep 9 | msg:z\nc | f | lit:x ==> v | true | msg:z\n").unwrap();
+        use crate::hotlists::Layout::{Traced, Ungrouped};
+        let ls = [Ungrouped, Ungrouped, Ungrouped];
+        assert_eq!(baseline_plants(&ps, &ls, Ungrouped, &sh("sleep 9"), false), vec!["a", "b"]);
+        assert_eq!(baseline_plants(&ps, &ls, Ungrouped, &sh("cargo xtask so"), true), vec!["a", "b", "c"]);
+        assert!(baseline_plants(&ps, &ls, Traced, &sh("sleep 9"), false).is_empty());
     }
 
     // no spec clause: a baseline build that runs into the prepare timeout is named as such
