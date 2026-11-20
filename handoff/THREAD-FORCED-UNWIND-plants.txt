@@ -1,3 +1,3 @@
 skip-unwind | crates/boundary/src/cancel.rs | lit:forced_unwind(); ==> | cargo test -p niji --test forced_unwind_products | msg:(cxx_frames_unwind|c_cleanups_run).*(FAILED|panicked)
 buffer-wrong-frame | crates/boundary/src/cancel.rs | lit:head != 0 && head < cfa ==> head != 0 && head > cfa | cargo test -p niji --test forced_unwind_products | msg:c_cleanups_run_in_frame_order.*(FAILED|panicked)
-swallow-no-reunwind | crates/boundary/src/cancel.rs | perl:s/(fn swallowed.*?)continue_unwind\(head, result\)/$1fallback(head, result)/s | cargo test -p niji --test forced_unwind_products | msg:cxx_frames_unwind.*(FAILED|panicked)
+swallow-no-abort | crates/boundary/src/cancel.rs | lit:niji_rt::fatal::fatal(&CSys, &[b"FATAL: exception not rethrown\n"], crate::ret::trap) ==> niji_rt::fatal::message(&CSys, &[b"FATAL: exception not rethrown\n"]) | cargo test -p niji --test forced_unwind_products | msg:cxx_frames_unwind.*(FAILED|panicked)
