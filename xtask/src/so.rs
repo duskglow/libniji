@@ -2706,7 +2706,13 @@ pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so:
     for l in sections.lines().filter_map(|l| l.split_once(']').map(|(_, r)| r)) {
         let f: Vec<&str> = l.split_whitespace().collect();
         let (Some(name), Some(size), Some(flags)) = (f.first(), f.get(4), f.get(6)) else { continue };
-        let read_only_after_relocation = [".data.rel.ro", ".init_array", ".fini_array", ".got"].iter().any(|p| name.starts_with(p));
+        // No start-up or exit code of its own: a constructor would run the C library's start-up
+        // pieces a second time in a library loaded beside libc.so.6.
+        if [".init_array", ".fini_array", ".preinit_array", ".ctors", ".dtors", ".init", ".fini"].iter().any(|p| *name == *p || name.starts_with(&format!("{p}."))) {
+            errors.push(format!("libresolv.so.2's own code holds {name}: start-up and exit code belong to libc.so.6"));
+            continue;
+        }
+        let read_only_after_relocation = [".data.rel.ro", ".got"].iter().any(|p| name.starts_with(p));
         if !flags.contains('W') || !flags.contains('A') || read_only_after_relocation || u64::from_str_radix(size, 16).unwrap_or(1) == 0 {
             continue;
         }

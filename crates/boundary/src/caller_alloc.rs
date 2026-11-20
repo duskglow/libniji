@@ -175,6 +175,22 @@ unsafe extern "C" {
     safe fn __niji_resolv_pfcode() -> u64;
     fn fwrite(p: *const c_void, size: usize, n: usize, fp: *mut c_void) -> usize;
     static stdout: usize;
+    fn strlen(s: *const u8) -> usize;
+    fn strnlen(s: *const u8, max: usize) -> usize;
+}
+
+/// Bytes before the first NUL at `p`, at most `limit` (`usize::MAX`: unbounded), measured by the
+/// C library's `strlen`/`strnlen`.
+///
+/// # Safety
+/// `p` is non-NULL and points to readable bytes up to and including a NUL, or `limit` bytes.
+#[cfg(all(feature = "libresolv", not(feature = "runtime")))]
+// UNSAFE(extern): calling the C library's length scanners on a caller-vouched pointer.
+#[allow(unsafe_code)]
+pub(crate) unsafe fn libc_len(p: *const u8, limit: usize) -> usize {
+    // UNSAFE(extern): the C library's `strlen`/`strnlen`.
+    // SAFETY: the function's contract (readable up to a NUL or `limit` bytes) is theirs.
+    unsafe { if limit == usize::MAX { strlen(p) } else { strnlen(p, limit) } }
 }
 
 /// The calling thread's result block of `kind` (`need` bytes): its address, 0 without memory.
