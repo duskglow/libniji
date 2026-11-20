@@ -305,13 +305,20 @@ pub(crate) fn resolve_fold_any() {
 /// checks, which is always correct. Without it the nested call recursed until the stack overflowed.
 static FOLD_RESOLVING: AtomicBool = AtomicBool::new(false);
 
+/// The loader-only build (`ld.so`, `ldconfig`: the `ld` feature without `runtime`). Its copy, fill
+/// and compare entries serve the loader's own few start-up copies, never a program's (the program
+/// binds the C library's), so folding them saves nothing measurable, while the `vm.mmap_min_addr`
+/// read cost 3 system calls on every dynamic start (DYN-START-QUICK). There the decision is taken
+/// as "off" without the read: the explicit checks, always correct.
+const LOADER_ONLY: bool = cfg!(all(feature = "ld", not(feature = "runtime")));
+
 #[cold]
 #[inline(never)]
 fn resolve_fold_slow() {
     if FOLD_RESOLVING.swap(true, Relaxed) {
         return;
     }
-    select_null_fold(page_zero_unmappable(&crate::sys::CSys));
+    select_null_fold(!LOADER_ONLY && page_zero_unmappable(&crate::sys::CSys));
     FOLD_RESOLVING.store(false, Relaxed);
 }
 

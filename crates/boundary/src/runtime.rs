@@ -469,10 +469,16 @@ fn start_under_niji_ld(main: Option<Main>, argc: c_int, argv_addr: usize, init: 
 // LAYOUT-HOTKEY-INLINE-STABLE: a fixed boundary for its start-up/fork hot-text key (off the hot paths: the call is free).
 #[inline(never)]
 pub fn start<const PIE: bool>(main: Option<Main>, argc: c_int, argv: *mut *mut c_char, init: Option<Fn0>, fini: Option<Fn0>, rtld_fini: Option<Fn0>, stack_end: *mut c_void) -> ! {
+    // libniji's `ld.so` ran steps 1-4 already (D-27.24). It passes its termination function, so a
+    // set flag is taken without the thread-pointer query below (one system call per dynamic start,
+    // DYN-START-QUICK); a static program (the kernel's NULL `rtld_fini`) never tests the flag.
+    if rtld_fini.is_some() && EARLY_DONE.load(Acquire) {
+        start_under_niji_ld(main, argc, argv.expose_provenance(), init, rtld_fini)
+    }
     // 1. The initial thread: a static program has no thread pointer yet.
     // ARCH(x86_64): static-or-dynamic test through ARCH_GET_FS; aarch64 reads TPIDR_EL0 (A-4)
     let static_program = CSys.arch_prctl_get(ArchGet::Fs).map_or(true, |fs| fs == 0);
-    // libniji's `ld.so` ran steps 1-4 already (D-27.24); a static program never tests the flag.
+    // The same test for a start whose `rtld_fini` is NULL; a static program never tests the flag.
     if !static_program && EARLY_DONE.load(Acquire) {
         start_under_niji_ld(main, argc, argv.expose_provenance(), init, rtld_fini)
     }

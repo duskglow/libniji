@@ -31,6 +31,17 @@ pub(super) fn file_mode(fd: i32) -> u32 {
     st.mode
 }
 
+/// The size of the open file `fd`, whose `fstat` result is `st`: a regular file's `st_size` (no
+/// further system call; DYN-START-QUICK), any other kind's `lseek(fd, 0, SEEK_END)` (a block device
+/// reports its size only there). Negative when unknown.
+fn file_size(fd: i64, st: &niji_kernel::uapi::Stat) -> i64 {
+    if st.mode & niji_kernel::uapi::S_IFMT == niji_kernel::uapi::S_IFREG {
+        st.size
+    } else {
+        crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END))
+    }
+}
+
 /// Open and map read-only the file at the NUL-terminated path `path`: (descriptor, mapping, bytes,
 /// identity).
 pub(super) fn open_file(path: usize) -> Option<(i32, usize, &'static [u8], FileId)> {
@@ -41,7 +52,7 @@ pub(super) fn open_file(path: usize) -> Option<(i32, usize, &'static [u8], FileI
         let _ = crate::ffi_sys::niji_sys_close(fd);
         return None;
     }
-    let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
+    let size = file_size(fd, &st);
     let Some(len) = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE) else {
         let _ = crate::ffi_sys::niji_sys_close(fd);
         return None;
@@ -57,8 +68,47 @@ pub(super) fn open_file(path: usize) -> Option<(i32, usize, &'static [u8], FileI
     Some((fd32, at, unsafe { conv::bytes_at(at, len) }, (st.dev, st.ino)))
 }
 
-/// A new private anonymous read-write mapping of `len` (> 0) bytes: (address, bytes).
-fn scratch(len: usize, name: &[u8]) -> (usize, &'static mut [u8]) {
+/// Bytes of the scratch arena ([`scratch`]): one page, which holds a start's image views (the
+/// program's header table, span list and dynamic array: about 1.4 KiB for a typical program).
+const ARENA_LEN: usize = 4096;
+
+/// The scratch arena: zero-filled loader data, page-aligned so it costs at most one page. Atomic
+/// words, so the bytes may be written through the address ([`scratch`] hands each range out once).
+#[repr(C, align(4096))]
+struct Arena([core::sync::atomic::AtomicU64; ARENA_LEN / 8]);
+
+static ARENA: Arena = Arena([const { core::sync::atomic::AtomicU64::new(0) }; ARENA_LEN / 8]);
+
+/// Bytes of [`ARENA`] handed out: only grows, so no range is handed out twice.
+static ARENA_USED: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+/// `len` bytes of [`ARENA`] not handed out before (16-byte aligned), or `None` when they do not fit.
+fn arena_take(len: usize) -> Option<usize> {
+    let need = len.checked_next_multiple_of(16)?;
+    let mut from = ARENA_USED.load(Relaxed);
+    loop {
+        let end = from.checked_add(need).filter(|&end| end <= ARENA_LEN)?;
+        match ARENA_USED.compare_exchange_weak(from, end, Relaxed, Relaxed) {
+            Ok(_) => return Some(ARENA.0.as_ptr().expose_provenance().wrapping_add(from)),
+            Err(now) => from = now,
+        }
+    }
+}
+
+/// `len` (> 0) zero-filled read-write bytes, never used before: (address, the length to unmap after
+/// the last use, bytes). From the loader's scratch arena while it has room (length 0: nothing to
+/// unmap; a start's views then cost no system call, DYN-START-QUICK), else a new private anonymous
+/// mapping.
+fn scratch(len: usize, name: &[u8]) -> (usize, usize, &'static mut [u8]) {
+    if let Some(at) = arena_take(len) {
+        // UNSAFE(slice): a range of the scratch arena, handed out once.
+        #[allow(unsafe_code)]
+        // SAFETY: [at, at + len) lies inside `ARENA` (`arena_take` checked the end), a static of atomic
+        // words (interior mutability: writes through its address are allowed) that nothing reads or
+        // writes as words; `ARENA_USED` only grows, so no other slice covers these bytes; they are
+        // zero (never handed out before) and live for the process.
+        return (at, 0, unsafe { conv::bytes_at_mut(at, len) });
+    }
     let Ok(at) = raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0) else {
         fail_with(&[name, b": out of memory for the program's tables\n"], program::FAILURE)
     };
@@ -66,7 +116,7 @@ fn scratch(len: usize, name: &[u8]) -> (usize, &'static mut [u8]) {
     #[allow(unsafe_code)]
     // SAFETY: `len` bytes from `at` were just mapped private, readable and writable; nothing else
     // refers to them, and the caller unmaps them only after the last use of the slice.
-    (at, unsafe { conv::bytes_at_mut(at, len) })
+    (at, len, unsafe { conv::bytes_at_mut(at, len) })
 }
 
 /// Copy `out.len()` bytes of the mapped program at run-time address `at` into `out` (D-27.18).
@@ -123,7 +173,8 @@ fn span_slots(bytes: &'static mut [u8], n: usize, name: &[u8]) -> &'static mut [
 /// header table and `PT_DYNAMIC` copied into one anonymous mapping, each `PT_LOAD` whose bytes cannot
 /// change during loading sliced in place, and each that can change and holds a table copied into a
 /// second one, all before the first relocation store. The span list lives in the first mapping, after
-/// the table. Returns the table and the spans; each mapping made is stored in `maps`. `published`:
+/// the table. Returns the table and the spans; each buffer's (address, length to unmap: 0 when it
+/// is in the scratch arena, [`scratch`]) is stored in `maps`. `published`:
 /// the object's dynamic array may already hold run-time addresses (DL-DYNAMIC-RELOC: `ld.so`'s own
 /// from its start, every start-time object's once `link` ended); the copies are turned back into
 /// link-time values, so the reader sees what the file holds.
@@ -144,7 +195,7 @@ pub(super) fn image_view(
     // that is not a PT_LOAD), in the same mapping after the table (a multiple of 8 bytes from a page
     // boundary, so aligned for them). Any number of PT_LOADs (D-27.15).
     let whole = prog.phnum.saturating_mul(size_of::<Span<'static>>()).saturating_add(table);
-    let (at, buf) = scratch(whole, name);
+    let (at, unmap, buf) = scratch(whole, name);
     let (buf, tail) = buf.split_at_mut(table);
     read_image(prog.phdr, buf);
     let head: &'static [u8] = buf;
@@ -161,8 +212,8 @@ pub(super) fn image_view(
     if !mapped(dynph.vaddr, dynph.filesz) || dlen == 0 {
         bad(b": no valid dynamic section\n");
     }
-    maps[0] = (at, whole);
-    let (at, buf) = scratch(dlen, name);
+    maps[0] = (at, unmap);
+    let (at, unmap, buf) = scratch(dlen, name);
     read_image(run_at(dynph.vaddr), buf);
     // A published array (DL-DYNAMIC-RELOC) back to link-time values: the reader's one view.
     let unpublish = published && probe.published_dynamic().is_some();
@@ -170,14 +221,14 @@ pub(super) fn image_view(
     if unpublish {
         niji_ld::elf::shift_address_entries(buf, link_time);
     }
-    maps[1] = (at, dlen);
+    maps[1] = (at, unmap);
     let dynamic: &'static [u8] = buf;
     // Pass 2: the PT_LOADs that change and hold a table, copied into one mapping.
     let copy_len = loads().filter(|p| probe.image_span_kind(p, dynamic) == SpanKind::Copy).fold(0usize, |a, p| a.saturating_add(usize::try_from(p.filesz).unwrap_or(usize::MAX)));
     let mut copies: &'static mut [u8] = &mut [];
     if copy_len != 0 {
-        let (at, buf) = scratch(copy_len, name);
-        maps[2] = (at, copy_len);
+        let (at, unmap, buf) = scratch(copy_len, name);
+        maps[2] = (at, unmap);
         copies = buf;
     }
     let mut k = 0usize;
@@ -487,7 +538,7 @@ pub(super) fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<(
     if st.mode & niji_kernel::uapi::S_IFMT == niji_kernel::uapi::S_IFDIR {
         return Err(refuse(Refusal::Directory));
     }
-    let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
+    let size = file_size(fd, &st);
     let Some(len) = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE) else { return Err(refuse(Refusal::TooShort)) };
     let Ok(at) = map_view(fd32, len) else { return Err(refuse(Refusal::Truncated)) };
     // UNSAFE(slice): a candidate file, mapped read-only above.
