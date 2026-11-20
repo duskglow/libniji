@@ -20,6 +20,8 @@
 //! one the case says so and passes). Where io_uring is not available at all, the cases that
 //! need it say so.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::as_conversions, clippy::arithmetic_side_effects, missing_docs)]
+#[path = "support/exec_stage.rs"]
+mod exec_stage;
 #[path = "support/skip_note.rs"]
 mod skip_note;
 
@@ -352,7 +354,7 @@ fn secure_mode_selects_threads() {
     let dir = Scratch::dir("aio-engine-secure");
     std::fs::set_permissions(&*dir, std::fs::Permissions::from_mode(0o700)).unwrap();
     let copy = dir.join("secure-copy");
-    std::fs::copy(me(), &copy).unwrap();
+    exec_stage::copy_for_exec(&me(), &copy);
     assert!(Command::new("chgrp").arg(&group).arg(&copy).status().unwrap().success());
     std::fs::set_permissions(&copy, std::fs::Permissions::from_mode(0o2755)).unwrap();
     let file = data();

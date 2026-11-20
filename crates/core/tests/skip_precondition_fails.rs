@@ -4,6 +4,8 @@
 //! The checks run a child copy of this test binary with its own PATH.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs, dead_code)]
 
+#[path = "support/exec_stage.rs"]
+mod exec_stage;
 #[path = "support/oracle.rs"]
 mod oracle;
 
@@ -52,13 +54,11 @@ fn run_child(what: &str, path: &std::path::Path, dir: &std::path::Path) -> (bool
 #[test]
 fn a_failing_localedef_fails_and_an_absent_one_skips() {
     // Trace: no spec clause (test-harness behaviour; TEST-SILENT-SKIPS).
-    use std::os::unix::fs::PermissionsExt;
     let d = scratch("locale");
     let bin = d.join("bin");
     std::fs::create_dir_all(&bin).unwrap();
     let fake = bin.join("localedef");
-    std::fs::write(&fake, "#!/bin/sh\necho 'localedef: broken on purpose' >&2\nexit 3\n").unwrap();
-    std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+    exec_stage::write_for_exec(&fake, b"#!/bin/sh\necho 'localedef: broken on purpose' >&2\nexit 3\n", 0o755);
     let (ok, _out, err) = run_child("locale", &bin, &d);
     assert!(!ok, "a localedef that exits 3 must fail the test, not skip it");
     assert!(err.contains("localedef is present but failed"), "stderr: {err}");

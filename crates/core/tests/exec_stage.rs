@@ -1,0 +1,82 @@
+//! The helpers that write a file a test then execs (`support/exec_stage.rs`) never leave it busy.
+//! No spec clause (test-harness behaviour; finding #6787): sibling threads fork in a loop while this
+//! thread writes a program and execs it at once; a descriptor open for writing in this process
+//! would be inherited by a sibling's child and the exec would fail with ETXTBSY.
+
+#[path = "support/exec_stage.rs"]
+mod exec_stage;
+
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+const ROUNDS: usize = 200;
+const FORKERS: usize = 4;
+
+fn dir(tag: &str) -> PathBuf {
+    let d = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("exec-stage-{tag}-{}", std::process::id()));
+    std::fs::create_dir_all(&d).unwrap();
+    d
+}
+
+/// Run `body` for [`ROUNDS`] rounds while [`FORKERS`] threads spawn short children in a loop.
+fn under_forks(body: impl Fn(usize) + Sync) {
+    let stop = AtomicBool::new(false);
+    std::thread::scope(|s| {
+        for _ in 0..FORKERS {
+            s.spawn(|| {
+                while !stop.load(Ordering::Relaxed) {
+                    let _ = Command::new("true").stdin(Stdio::null()).status();
+                }
+            });
+        }
+        for i in 0..ROUNDS {
+            body(i);
+        }
+        stop.store(true, Ordering::Relaxed);
+    });
+}
+
+fn run(p: &std::path::Path) {
+    let st = Command::new(p).stdin(Stdio::null()).status();
+    assert!(st.as_ref().is_ok_and(|s| s.success()), "exec of {} failed: {st:?}", p.display());
+}
+
+#[test]
+fn copy_for_exec_never_leaves_the_program_busy() {
+    let d = dir("copy");
+    let src = d.join("src");
+    exec_stage::copy_for_exec(std::path::Path::new("/bin/true"), &src);
+    under_forks(|i| {
+        let q = d.join(format!("p{i}"));
+        exec_stage::copy_for_exec(&src, &q);
+        run(&q);
+    });
+    std::fs::remove_dir_all(&d).ok();
+}
+
+#[test]
+fn write_for_exec_never_leaves_the_script_busy() {
+    let d = dir("write");
+    under_forks(|i| {
+        let q = d.join(format!("s{i}"));
+        exec_stage::write_for_exec(&q, b"#!/bin/sh\nexit 0\n", 0o755);
+        run(&q);
+    });
+    std::fs::remove_dir_all(&d).ok();
+}
+
+/// The reproducer for the plant (`docs/plants.md`): the same rounds with `std::fs::copy`.
+#[test]
+#[ignore = "reproducer: fails with ETXTBSY when the copy is written in this process"]
+fn std_fs_copy_is_busy_under_forks() {
+    let d = dir("raw");
+    let src = d.join("src");
+    exec_stage::copy_for_exec(std::path::Path::new("/bin/true"), &src);
+    under_forks(|i| {
+        let q = d.join(format!("r{i}"));
+        std::fs::copy(&src, &q).unwrap();
+        run(&q);
+    });
+    std::fs::remove_dir_all(&d).ok();
+}
