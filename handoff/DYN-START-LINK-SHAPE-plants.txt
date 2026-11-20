@@ -1,8 +1,10 @@
 # DYN-START-LINK-SHAPE plants: ld.so's RELATIVE prefix loop keeps the last segment's word window in locals
 # (Loads::window) and Relas::relative_prefix advances its position once per run. Direct tests: crates/ld/tests/reloc.rs.
+# A mutant that stores past the writable segment is stopped by the test's model memory before the test's own
+# assertion runs (an address in no object, or a store past a segment's bytes): those messages name the catch too.
 window-any-segment | crates/ld/src/reloc.rs | lit:Some(&(lo, hi, w)) if any || w => ==> Some(&(lo, hi, _w)) if true => | cargo test -p niji-ld --test reloc reloc_ | msg:field at 0x[0-9a-f]+ refused
-window-straddles-end | crates/ld/src/reloc.rs | lit:hi.checked_sub(8).map_or((1, 0), |last| (lo, last)) ==> Some(hi).map_or((1, 0), |last| (lo, last)) | cargo test -p niji-ld --test reloc reloc_relative_run | msg:second field at .* refused
-window-no-upper-bound | crates/ld/src/reloc.rs | lit:if !(window.0 <= at && at <= window.1) { ==> if !(window.0 <= at) { | cargo test -p niji-ld --test reloc reloc_relative_run | msg:second field at .* refused
+window-straddles-end | crates/ld/src/reloc.rs | lit:hi.checked_sub(8).map_or((1, 0), |last| (lo, last)) ==> Some(hi).map_or((1, 0), |last| (lo, last)) | cargo test -p niji-ld --test reloc reloc_relative_run | msg:second field at .* refused|range end index [0-9]+ out of range for slice
+window-no-upper-bound | crates/ld/src/reloc.rs | lit:if !(window.0 <= at && at <= window.1) { ==> if !(window.0 <= at) { | cargo test -p niji-ld --test reloc reloc_relative_run | msg:second field at .* refused|address in an object
 window-not-followed | crates/ld/src/reloc.rs | lit:*window = loads.window(any); ==> let _ = loads.window(any); | cargo test -p niji-ld --test reloc reloc_ | equivalent:performance only; every miss falls back to Loads::inside, which alone decides as before the change, so no field is accepted or refused differently (the start-up count shows it: each entry then calls Loads::inside)
 prefix-position-not-advanced | crates/ld/src/elf.rs | lit:done = done.wrapping_add(1); ==> done = done.wrapping_add(0); | cargo test -p niji-ld --test reloc reloc_relative_prefix | msg:only the entry after the run follows
 prefix-position-past-failure | crates/ld/src/elf.rs | lit:out = Err(x); ==> out = Err(x); done = done.wrapping_add(1); | cargo test -p niji-ld --test reloc reloc_relative_prefix | msg:stands on the entry that failed
