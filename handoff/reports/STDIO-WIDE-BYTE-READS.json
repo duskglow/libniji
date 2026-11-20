@@ -1,0 +1,64 @@
+{
+ "task": "STDIO-WIDE-BYTE-READS",
+ "model": "opus",
+ "tokens": null,
+ "result": "Byte reads, ungetc and fputc on a wide-oriented stream work on its bytes in order (D-12.27): after EILSEQ getchar returns the invalid byte and wide reads go on (util-linux col, Yohane #23); no byte operation returns EOF without an indicator",
+ "branch": "task/stdio-wide-byte-reads",
+ "head": "18bbf0107",
+ "gate": {
+  "affected": "pending: keke:stdio-wide-byte-reads-gate2 (direct tier, started 10:06Z); the first gate (stale head) was red in 3 niji-boundary assertions of the old rule, fixed in 18bbf0107",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "The reference's byte reads on a wide stream return EOF with no indicator once its wide layer has converted ahead (e.g. getc after one getwc on a short file); libniji reads the next byte instead: differences row without a compat option (reason in the row). The premise 'the reference serves both from one buffer' holds only for bytes its wide layer has not converted yet (after EILSEQ, the col case)",
+  "fgetwc on a byte-oriented stream returns WEOF with no errno and no indicator in both libraries (matches; outside this story)",
+  "keke ~/bin/probe is older than tools/probe/probe (no --niji): run the repo copy or reinstall with remote.sh --install"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "getwchar EILSEQ then getchar on a wide stream: returned EOF with no indicator, then WEOF+EILSEQ forever; now the invalid byte, then wide reads go on (col/multibyte)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "correctness",
+   "what": "fread/fgets/ungetc/fputc on a wide-oriented stream failed (EINVAL); now serve/write the stream's bytes in order",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "conformance program s12_wide_byte_reads (both libraries) and 5 plants, all caught",
+   "before": 0,
+   "after": 5,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "getc/putc front paths (getc_c, read_front_ext, getc_lock_c, refill, put_front) unchanged in source; only the engine's cold orientation check changed; bench counts at head in the counts job, no base-vs-head run",
+   "before": null,
+   "after": null,
+   "unit": "instr/call",
+   "measured": false
+  }
+ ],
+ "improvement": "The flow reference should say in the brief template that plan/07-decisions is a generated view (I edited it first and had to move the row to records/); and the keke probe tool should be reinstalled so remote.sh --niji works",
+ "next_step": "Land after the train; comment on Yohane #23 that it is fixed",
+ "report_file": "handoff/STDIO-WIDE-BYTE-READS.md",
+ "jobs": [
+  "keke:stdio-wide-byte-reads-gate2",
+  "keke:stdio-wide-byte-reads-plants",
+  "keke:stdio-wide-byte-reads-check4",
+  "keke:stdio-wide-byte-reads-counts",
+  "keke:stdio-wide-byte-reads-hottext2"
+ ]
+}
