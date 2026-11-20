@@ -135,7 +135,14 @@ pub enum Refusal {
     /// A `PT_TLS` block that does not fit in the static surplus (plan §5; dynamic blocks are
     /// DL-19's), or one that cannot have a place there (its alignment, no module slot left).
     StaticTls,
+    /// `PT_GNU_STACK` asks for an executable stack (R14-13; accepted only under COMPAT-19).
+    ExecutableStack,
 }
+
+/// What follows an executable-stack refusal (COMPAT-19, ruling of 2026-11-20): the two ways to
+/// accept such an object.
+pub const EXEC_STACK_WAYS: &[u8] =
+    b"to accept it, start the process with GLIBC_TUNABLES=niji.compat.execstack=1 (COMPAT-19; not honoured in a secure process); a system allowlist (/etc/niji/execstack.d) is planned";
 
 impl Refusal {
     /// The text after `<name>: ` (spec/behaviour/dynlink.md, "dlerror texts").
@@ -161,6 +168,7 @@ impl Refusal {
             Refusal::Directory => b"cannot read file data: Is a directory",
             Refusal::NoDynamic => b"object file has no dynamic section",
             Refusal::StaticTls => b"cannot allocate memory in static TLS block",
+            Refusal::ExecutableStack => b"the object asks for an executable stack (PT_GNU_STACK with PF_X); refused",
         }
     }
 
@@ -229,6 +237,7 @@ pub fn of_map_error(e: MapError) -> Refusal {
         MapError::Elf(e) => of_elf_error(e),
         MapError::NotLoadable => Refusal::Type,
         MapError::NoSegments => Refusal::NoSegments,
+        MapError::ExecutableStack => Refusal::ExecutableStack,
         _ => Refusal::Segments,
     }
 }
@@ -245,6 +254,23 @@ pub fn check<A: Arch>(file: &[u8], page: u64) -> Result<Elf<'_>, Refusal> {
         return Err(Refusal::Executable);
     }
     map::plan::<A>(&elf, page).map_err(of_map_error)?;
+    loadable(&elf)?;
+    Ok(elf)
+}
+
+/// [`check`] for a candidate whose executable-stack request the caller has accepted (COMPAT-19):
+/// the same verdict in the same order, except that [`Refusal::ExecutableStack`] is never given.
+/// Only the caller's branch for that refusal reaches it.
+///
+/// # Errors
+///
+/// The [`Refusal`].
+pub fn check_accepting_exec_stack<A: Arch>(file: &[u8], page: u64) -> Result<Elf<'_>, Refusal> {
+    let elf = Elf::parse::<A>(file).map_err(of_elf_error)?;
+    if elf.header().e_type == et::EXEC {
+        return Err(Refusal::Executable);
+    }
+    map::plan_accepting_exec_stack::<A>(&elf, page).map_err(of_map_error)?;
     loadable(&elf)?;
     Ok(elf)
 }

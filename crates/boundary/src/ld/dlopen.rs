@@ -1683,8 +1683,20 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         let _ = raw::munmap(at, len);
         close();
     };
+    // COMPAT-19: an object asking for an executable stack, accepted under the start-time tunable.
+    let mut exec_stack = false;
     let elf = match dl::check::<Native>(file, page) {
         Ok(e) => e,
+        Err(Refusal::ExecutableStack) if exec_stack_accepted() => match dl::check_accepting_exec_stack::<Native>(file, page) {
+            Ok(e) => {
+                exec_stack = true;
+                e
+            }
+            Err(r) => {
+                drop_file();
+                return refused(l, r);
+            }
+        },
         Err(r) if r.skipped(searched) => {
             drop_file();
             return None;
@@ -1707,7 +1719,11 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         drop_file();
         return Some(Found::Full(b"cannot load more objects"));
     }
-    let loaded = map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page);
+    let loaded = if exec_stack {
+        map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd: fd32 }, file, page)
+    } else {
+        map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page)
+    };
     close();
     let loaded = match loaded {
         Ok(x) => x,
@@ -1716,6 +1732,12 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
             return refused(l, dl::of_map_error(e));
         }
     };
+    if exec_stack {
+        // Before the object's relocation and constructors, which may need the executable stack;
+        // kept if the set later fails (the reference's stacks stay executable too).
+        super::exec_main_stack(start_arg(3), START_PAGE.load(Relaxed));
+        call_stack_exec(l);
+    }
     let Ok(sym) = Object::new(dynm) else {
         loaded.unmap(&mut SysMapper { fd: -1 });
         let _ = raw::munmap(at, len);
@@ -1952,6 +1974,47 @@ fn thread_walk(l: &mut Loader) -> usize {
     l.thread_walk
 }
 
+/// COMPAT-19: whether the start-time `GLIBC_TUNABLES` (the environment and auxiliary vector the
+/// process started with, as the search reads them) set `niji.compat.execstack=1`; never in a
+/// secure process. Reached only for an object asking for an executable stack.
+#[cold]
+#[inline(never)]
+fn exec_stack_accepted() -> bool {
+    let (envp, auxv) = (start_arg(2), start_arg(3));
+    let mut copy = [0u64; AUXV_WORDS_MAX];
+    let words = if auxv == 0 { 0 } else { read_auxv(auxv, &mut copy).unwrap_or(0) };
+    let secure = start::secure(&Auxv::from_words(copy.get(..words).unwrap_or(&[])));
+    start::ld_env(env_entries(envp)).tunables.is_some_and(|t| niji::config::Tunables::parse(t, secure).exec_stack == Some(true))
+}
+
+/// COMPAT-19: call the C library's `__niji_stack_exec` (a start object's, at `NIJI_PRIVATE`) once
+/// an object asking for an executable stack is accepted; nothing when no start object has it.
+#[cold]
+#[inline(never)]
+fn call_stack_exec(l: &Loader) {
+    let req = Request::new(start::private::STACK_EXEC, Want::Version(start::private::NODE));
+    let n = START_N.load(Acquire).min(l.n);
+    let found = l.objs_upto(n).iter().zip(syms_of(&l.syms, n)).find_map(|(o, s)| s.lookup(&req).ok().flatten().map(|d| o.bias.wrapping_add(d.st.value)));
+    if let Some(f) = found.and_then(|a| usize::try_from(a).ok()) {
+        let _ = crate::ffi::niji_machine_call3(f, 0, 0, 0);
+    }
+}
+
+/// COMPAT-19 at start: the program or a start-up dependency asking for an executable stack was
+/// accepted; after the C library's early initialisation and before any constructor, its later
+/// thread stacks are made executable (the loader made the main stack executable).
+#[cold]
+#[inline(never)]
+pub(super) fn stacks_executable_at_start() {
+    CALL.lock();
+    STATE.lock();
+    if let Some(l) = loader() {
+        call_stack_exec(l);
+    }
+    STATE.unlock();
+    CALL.unlock();
+}
+
 /// The C library's `__niji_owner_unload` (a start object's, at `NIJI_PRIVATE`; D-27.29),
 /// looked up once by the first `dlclose` that unloads an object; 0 when no start object has it.
 fn owner_unload(l: &mut Loader) -> usize {
@@ -2002,7 +2065,7 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         Found::Missing if m.noload => return Ok((0, Ctors::none())),
         Found::New(_) => k += 1,
         f => {
-            let t = fail_text(l, given, f);
+            let t = fail_text(l, given, f, who);
             unwind(l, base, base, names_top, deps_top);
             return Err(t);
         }
@@ -2038,7 +2101,7 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
                     return Err(t);
                 }
                 f => {
-                    let t = fail_text(l, needed, f);
+                    let t = fail_text(l, needed, f, who);
                     unwind(l, base, k, names_top, deps_top);
                     return Err(t);
                 }
@@ -2224,7 +2287,13 @@ fn l_path_static(l: &Loader, i: usize) -> &'static [u8] {
     }
 }
 
-fn fail_text(l: &Loader, name: &[u8], f: Found) -> Fail {
+fn fail_text(l: &Loader, name: &[u8], f: Found, who: usize) -> Fail {
+    if let Found::Refused(Refusal::ExecutableStack, (a, b)) = f {
+        // COMPAT-19 (ruling of 2026-11-20): the object, the `dlopen` caller and the ways in.
+        let a = usize::try_from(a).unwrap_or(0);
+        let p = l.names.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(name);
+        return fail_parts(&[p, b": ", Refusal::ExecutableStack.text(), b" (dlopen called from ", l_path_static(l, who), b"); ", dl::EXEC_STACK_WAYS]);
+    }
     let mut out: [&[u8]; 3] = [b"", b"", b""];
     let parts = found_text(l, name, f, &mut out);
     fail_parts(parts)

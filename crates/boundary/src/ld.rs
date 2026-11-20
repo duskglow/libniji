@@ -369,7 +369,7 @@ pub extern "C" fn niji_ld_start(sp: usize, ehdr: usize) -> ! {
                 list(&list_env, name, false, invoked)
             }
             // argv[1] names the program; it becomes argv[0] and the stack starts one word later.
-            let (prog, bias) = load(arg(1), page);
+            let (prog, bias) = load(arg(1), page, &ld, secure);
             let mut copy = copy;
             start::rewrite(copy.get_mut(..words).unwrap_or(&mut []), &prog, ehdr);
             store_words(auxv, copy.get(..words.wrapping_add(2)).unwrap_or(&[]));
@@ -404,8 +404,8 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
     // R14-13: a program whose PT_GNU_STACK asks for an executable stack is refused (word 0 of a header
     // holds p_type in its low and p_flags in its high half).
     let types = headers.chunks_exact(PHDR_WORDS).take(prog.phnum).filter_map(|h| h.first()).map(|&w| (lo32(w), lo32(w >> 32)));
-    if map::executable_stack(types) {
-        refuse(b"ld.so: the program asks for an executable stack (PT_GNU_STACK with PF_X); refused\n");
+    if map::executable_stack(types) && !exec_stack_accepted(env.ld, env.secure) {
+        fail_with(&[c_string(path), b": the program asks for an executable stack (PT_GNU_STACK with PF_X); refused; ", niji_ld::dlopen::EXEC_STACK_WAYS, b"\n"], program::FAILURE);
     }
     let has_dynamic = headers.chunks_exact(PHDR_WORDS).take(prog.phnum).any(|h| h.first().is_some_and(|w| w & 0xffff_ffff == u64::from(niji_ld::elf::pt::DYNAMIC)));
     if has_dynamic {
@@ -900,6 +900,68 @@ fn no_memory(name: &[u8]) -> ! {
 }
 
 /// Print `parts` after `ld.so: ` on standard error and end with `status`.
+/// COMPAT-19: set once an object asking for an executable stack is accepted at start (the program
+/// or a start-up dependency); `run_init` then makes the stacks executable.
+static EXEC_STACK: AtomicBool = AtomicBool::new(false);
+
+/// `PROT_GROWSDOWN` (kernel UAPI `asm-generic/mman-common.h`): the change reaches down to the start
+/// of a mapping that grows down (mprotect(2)).
+const PROT_GROWSDOWN: i32 = 0x0100_0000;
+
+/// COMPAT-19: whether the start's `GLIBC_TUNABLES` set `niji.compat.execstack=1` (never in a secure
+/// process: `Tunables::parse` honours nothing there, as for COMPAT-12, ruling #2662). Reached only
+/// for an object asking for an executable stack; a yes is remembered for `run_init`.
+#[cold]
+#[inline(never)]
+fn exec_stack_accepted(ld: &start::LdEnv<'_>, secure: bool) -> bool {
+    let yes = ld.tunables.is_some_and(|t| Tunables::parse(t, secure).exec_stack == Some(true));
+    if yes {
+        EXEC_STACK.store(true, Relaxed);
+    }
+    yes
+}
+
+/// COMPAT-19: start-up dependency `name` (needed by `prog`, file `file` open as `fd`) asks for an
+/// executable stack: mapped when the tunable accepts it, else refused naming both and the ways in.
+#[cold]
+#[inline(never)]
+fn exec_stack_dependency(fd: i32, file: &[u8], page: u64, name: &[u8], prog: &[u8], env: &List<'_>) -> Result<map::Loaded, map::MapError> {
+    if !exec_stack_accepted(env.ld, env.secure) {
+        fail_with(&[name, b" (needed by ", prog, b"): the object asks for an executable stack (PT_GNU_STACK with PF_X); refused; ", niji_ld::dlopen::EXEC_STACK_WAYS, b"\n"], program::FAILURE);
+    }
+    map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd }, file, page)
+}
+
+/// COMPAT-19: make the main stack executable. The kernel puts the `AT_EXECFN` string at the top of
+/// the initial stack mapping, so its last byte's page is that mapping's last page; one protection
+/// change on that page with `PROT_GROWSDOWN` reaches the whole mapping, and the stack's later growth
+/// keeps it. Without `AT_EXECFN` the page of the auxiliary vector `auxv` is used (all below it).
+#[cold]
+#[inline(never)]
+pub(crate) fn exec_main_stack(auxv: usize, page: u64) {
+    let mut at = auxv;
+    let mut top = auxv;
+    while at != 0 {
+        let t = stack_word(at);
+        if t == 0 {
+            break;
+        }
+        if t == AT_EXECFN {
+            let s = usize::try_from(stack_word(at.wrapping_add(8))).unwrap_or(0);
+            if s != 0 {
+                top = s.wrapping_add(c_string(s).len());
+            }
+            break;
+        }
+        at = at.wrapping_add(16);
+    }
+    let page = usize::try_from(page).ok().filter(|p| p.is_power_of_two()).unwrap_or(4096);
+    if top != 0 {
+        let rwx = map::PROT_READ | map::PROT_WRITE | map::PROT_EXEC;
+        let _ = raw::mprotect(top & !page.wrapping_sub(1), page, rwx | PROT_GROWSDOWN);
+    }
+}
+
 fn fail_with(parts: &[&[u8]], status: i32) -> ! {
     write_all(2, b"ld.so: ");
     parts.iter().for_each(|p| write_all(2, p));
@@ -1323,7 +1385,10 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                 // released below.
                 paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name));
             }
-            let loaded = map::load::<Native, _>(&mut SysMapper { fd }, file, page);
+            let loaded = match map::load::<Native, _>(&mut SysMapper { fd }, file, page) {
+                Err(map::MapError::ExecutableStack) => exec_stack_dependency(fd, file, page, name, prog_name, env),
+                other => other,
+            };
             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
             let loaded = loaded.unwrap_or_else(|e| fail_with(&[name, b": ", e.message()], program::FAILURE));
             maps[n] = (at, file.len());
@@ -1689,6 +1754,19 @@ static FINI_DONE: AtomicBool = AtomicBool::new(false);
 /// termination function the program gets in `%rdx`. First of all, `early` (the C library's
 /// `__niji_libc_early_init`, design §14, D-27.22) gets the initial stack, so every constructor,
 /// `.preinit_array` included, sees an initialised C library.
+/// COMPAT-19 at start, before any constructor: the main stack (its auxiliary vector follows the
+/// environment `envp`) and the C library's thread stacks become executable.
+#[cold]
+#[inline(never)]
+fn exec_stacks_at_start(envp: usize) {
+    let mut auxv = envp;
+    while stack_word(auxv) != 0 {
+        auxv = auxv.wrapping_add(8);
+    }
+    exec_main_stack(auxv.wrapping_add(8), START_PAGE.load(Relaxed));
+    dlopen::stacks_executable_at_start();
+}
+
 fn run_init(hooks: &[init::Hooks], edges: &[(usize, usize)], sp: usize, early: Option<u64>, rseq_size: usize) -> usize {
     let n = hooks.len();
     let mut order: Table<usize, INLINE> = Table::new(0);
@@ -1749,6 +1827,10 @@ fn run_init(hooks: &[init::Hooks], edges: &[(usize, usize)], sp: usize, early: O
         };
         let at = core::ptr::from_ref(&info).expose_provenance();
         let _ = crate::ffi::niji_machine_call3(usize::try_from(f).unwrap_or(0), args(at), 0, 0);
+    }
+    // COMPAT-19: an accepted object asked for an executable stack (set only on that branch).
+    if EXEC_STACK.load(Relaxed) {
+        exec_stacks_at_start(envp);
     }
     // Only the program's preinit array is non-empty (`init::hooks` drops a shared object's).
     for h in hooks {
@@ -1864,7 +1946,7 @@ const AT_FDCWD: i64 = -100;
 /// Open, read and map the program file named by the NUL-terminated path at `path` (`ld.so PROGRAM`)
 /// with pages of `page` bytes: [`map::load`] (one reservation, each `PT_LOAD` inside it, nothing left
 /// mapped on failure). The program and its load bias.
-fn load(path: usize, page: u64) -> (start::Program, usize) {
+fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) -> (start::Program, usize) {
     let fail = |msg: &[u8]| -> ! {
         write_all(2, b"ld.so: ");
         write_all(2, c_string(path));
@@ -1884,7 +1966,11 @@ fn load(path: usize, page: u64) -> (start::Program, usize) {
     // SAFETY: `len` bytes from `file_at` are a private read-only mapping of the file, unmapped only
     // after the last use of this slice below.
     let file = unsafe { conv::bytes_at(file_at, len) };
-    let loaded = map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page);
+    let loaded = match map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page) {
+        // COMPAT-19: `run` checks the program's request again and refuses it there when not accepted.
+        Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd: fd32 }, file, page),
+        other => other,
+    };
     let _ = raw::munmap(file_at, len);
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let loaded = loaded.unwrap_or_else(|e| fail(e.message()));
