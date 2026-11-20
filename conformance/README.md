@@ -24,10 +24,11 @@ A test that needs shared objects (the §27 dlfcn tests) declares them:
   `EXPECT-STDERR`:
   * the reference: helpers and program built by the host compiler against the host C library;
   * libniji: the same sources against libniji's `libc.so.6` with libniji's `ld.so`
-    (`target/niji/ld-linux-x86-64.so.2`) as the program interpreter. libniji's loader does not
-    search for libraries yet, so the C library is named by path (a copy without `DT_SONAME`,
-    through a `libc.so` script with the host's `libc_nonshared.a`, as the start files are the
-    host's).
+    (`target/niji/ld-linux-x86-64.so.2`) as the program interpreter, linked as a program is linked
+    against libniji: through the products' own `libc.so` script (`target/niji/libc.so`: `libc.so.6`,
+    libniji's `libc_nonshared.a`, the loader as needed), so the program needs `libc.so.6` by name and
+    the loader finds it on `LD_LIBRARY_PATH` (`target/niji` after the helper directory). No file of
+    the host's C library is linked into libniji's build.
 * Each run has `CONF_HELPERS` (and `LD_LIBRARY_PATH`) set to its own helper directory: a program
   opens helpers as `$CONF_HELPERS/lib<name>.so` and builds the expected texts from that path.
 * `LINK-EXPORT-DYNAMIC: yes` links the program with `-rdynamic`.
