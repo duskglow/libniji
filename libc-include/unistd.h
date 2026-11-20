@@ -513,7 +513,11 @@ extern long int gethostid (void);
 # ifndef __NIJI_D_lockf
 #  define __NIJI_D_lockf 1
 #  if (__NIJI_MISC && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int lockf (int, int, long) __asm__ ("lockf64");
+#   else
 extern int lockf (int, int, long);
+#   endif
 #  elif __NIJI_FOB64
 extern int lockf (int, int, long) __asm__ ("lockf64");
 #  endif
@@ -561,7 +565,11 @@ extern int fdatasync (int);
 # ifndef __NIJI_D_ftruncate
 #  define __NIJI_D_ftruncate 1
 #  if (__NIJI_POSIX >= 199309 && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int ftruncate (int, long) __NIJI_NOTHROW __asm__ ("ftruncate64");
+#   else
 extern int ftruncate (int, long) __NIJI_NOTHROW;
+#   endif
 #  elif __NIJI_FOB64
 extern int ftruncate (int, long) __NIJI_NOTHROW __asm__ ("ftruncate64");
 #  endif
@@ -661,7 +669,11 @@ extern int lchown (const char *, unsigned int, unsigned int) __NIJI_NOTHROW;
 # ifndef __NIJI_D_truncate
 #  define __NIJI_D_truncate 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int truncate (const char *, long) __NIJI_NOTHROW __asm__ ("truncate64");
+#   else
 extern int truncate (const char *, long) __NIJI_NOTHROW;
+#   endif
 #  elif __NIJI_FOB64
 extern int truncate (const char *, long) __NIJI_NOTHROW __asm__ ("truncate64");
 #  endif
@@ -679,7 +691,11 @@ extern long pread (int, void *, unsigned long, long) __asm__ ("pread64");
 # ifndef __NIJI_D_pwrite
 #  define __NIJI_D_pwrite 1
 #  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 500
+#   if __NIJI_FOB64
+extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64");
+#   else
 extern long pwrite (int, const void *, unsigned long, long);
+#   endif
 #  elif __NIJI_FOB64
 extern long pwrite (int, const void *, unsigned long, long) __asm__ ("pwrite64");
 #  endif
