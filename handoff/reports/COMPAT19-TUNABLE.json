@@ -1,7 +1,7 @@
 {"task": "COMPAT19-TUNABLE", "model": "opus", "tokens": null,
  "result": "COMPAT-19 implemented: GLIBC_TUNABLES=niji.compat.execstack=1 accepts executable-stack programs, start-up dependencies and dlopen'd libraries and makes the main and library-made thread stacks executable; default refusal now names object, program or dlopen caller and the ways in; secure processes ignore it; allowlist amendment registered",
  "branch": "task/compat19-tunable", "head": null,
- "gate": {"affected": "FULL escalated (xtask/src/so.rs): no gate; changed crates' tests 4481 passed / 0 failed (136 suites); exec_stack 5/5", "peak": null},
+ "gate": {"affected": "FULL escalated (xtask/src/so.rs): no gate; changed crates' tests 4481 passed / 0 failed (136 suites); cargo xtask test 6900+4834+3235+1203 passed / 0 failed, conformance 140/0; exec_stack 5/5; plants 12 caught + 2 equivalent", "peak": null},
  "accepted_first_attempt": null,
  "rulings": [{"item": "Start-up cost of the accept flag: one relaxed load+branch in run_init per dynamic start, one relaxed load per pthread_create under the list lock; not counted with wl_percall", "recommendation": "accept (about 2 instructions per start); a zero-cost variant would pass the flag through the C library's early-init argument, a larger change"}],
  "informational": ["records/compat/COMPAT-20.toml still names liella.compat.no_classed_swap (the view renames it); COMPAT-19 follows the same convention", "docs/RELEASE-NOTES.md gained an 'Unreleased' section for the COMPAT-19 line (none existed)", "after an accepted executable-stack object, a later failure of the same dlopen set leaves the stacks executable, as the reference's"],

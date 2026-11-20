@@ -33,6 +33,9 @@ a second guard).
   -p niji-rt -p niji-boundary -p xtask`; `cargo test -p niji --lib`; `-p niji --test s01_startup_clauses`:
   136 suites ok, 4481 passed, 0 failed, 563 ignored.
 * `cargo xtask clippy` and `cargo xtask static` clean (job compat19-tunable-t3).
+* compat19-tunable-xtest (`cargo xtask test`, the start-up check): rc 0; nextest passes 6900/6900, 4834/4834,
+  3235/3235, 1203/1203 passed, 0 failed; conformance 140 passed, 0 failed.
+* compat19-tunable-hot (`NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products`): result in the hand-back.
 * Leg-2 fixes the new tests forced (each now a plant): dependency acceptance had to move into the start search's
   candidate check; program name empty when the kernel started the program; `ld.so PROGRAM` used the generic map text;
   dlopen caller empty for the main program.

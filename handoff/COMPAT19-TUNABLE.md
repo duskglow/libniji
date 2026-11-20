@@ -45,7 +45,12 @@ handoff/COMPAT19-TUNABLE-report.md; json: handoff/reports/COMPAT19-TUNABLE.json.
 * Report and json are written and pushed (handoff/COMPAT19-TUNABLE-report.md, handoff/reports/COMPAT19-TUNABLE.json);
   add the plants2/xtest/hot results to the report when they end.
 
-## Next step (leg 3)
+## Results (leg 3)
+* compat19-tunable-plants2: rc 0, 12 CAUGHT, 2 EQUIVALENT, 0 SURVIVED, 0 WARN.
+* compat19-tunable-xtest: rc 0 (08:04-09:45Z), all nextest passes green, conformance 140/0.
+* compat19-tunable-hot: started 09:46Z after xtest; if not ended at hand-back, named as PENDING.
+
+## Next step (leg 3, as planned in leg 2)
 1. On mei: `~/bin/jobwait compat19-tunable-xtest compat19-tunable-hot compat19-tunable-plants2` (rc 4 for hot only
    means it has not started yet: wait on xtest/plants2 first). Summaries: `~/bin/test-summary ~/logs/<label>.log`;
    plants: `grep -E ": (CAUGHT|SURVIV|EQUIV|WARN)" ~/logs/compat19-tunable-plants2.log` and its summary line.
