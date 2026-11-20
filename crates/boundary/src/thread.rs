@@ -208,7 +208,18 @@ pub(crate) fn init_initial(static_program: bool) {
         tb::current().thread.store(daddr, Release);
         d
     } else {
-        let Ok(d) = adopt() else { return };
+        // libniji's `ld.so` ran the program's `.preinit_array` and every shared object's
+        // initialisation before this, in a process not yet the runtime's: the words they gave
+        // this thread are in its registry entry. They move to its own block first (D-22.20).
+        carry_initial_words();
+        let b = tb::current();
+        let d = match b.thread.load(Acquire) {
+            0 => {
+                let Ok(d) = adopt_into(b) else { return };
+                d
+            }
+            a => tb::desc_at(a),
+        };
         d.flags.fetch_and(!DESC_ADOPTED, AcqRel);
         if LOADER_RSEQ.load(Acquire) {
             // libniji's loader registered this thread's area at tp + RSEQ_OFFSET (D-3.21).
@@ -535,6 +546,56 @@ fn shadow_entry(tp: usize) -> Option<&'static Shadow> {
     }
 }
 
+/// The initial thread's words, from its registry entry into its own block, before the runtime
+/// takes the process (`init_initial` under libniji's `ld.so`, D-22.20). A `.preinit_array`
+/// function or a shared object's initialisation ran before then and kept the thread's words in
+/// the registry (`errno`, the descriptor with its keys and values, the `uselocale` choice and its
+/// views, the C++ `thread_local` destructor list, the heap cache, ...): `main` and the thread's
+/// exit see them as they left them, and a sanitizer runtime finds the thread record it stored
+/// with `pthread_setspecific` from `.preinit_array`. Each non-zero word moves (the entry's copy
+/// becomes 0); a word the entry never set keeps the block's value (the loader's `flags`). Words
+/// the library keeps in the block in every process (`dlerror`) were never in the entry. Cold: no
+/// registry exists unless something used it before `main` (no chunk mapped: nothing to look up).
+#[cfg_attr(not(feature = "runtime"), allow(dead_code))]
+#[cold]
+#[inline(never)]
+fn carry_initial_words() {
+    let mut c = SHADOW_HEAD.load(Acquire);
+    let tp = tb::tp();
+    let s = loop {
+        if c == 0 {
+            return;
+        }
+        let chunk = tb::shadow_chunk_at(c);
+        if let Some(s) = chunk.slots.iter().find(|s| s.key.load(Acquire) == tp) {
+            break s;
+        }
+        c = chunk.next.load(Acquire);
+    };
+    let (from, to) = (&s.block, tb::current());
+    let move_word = |f: &AtomicUsize, t: &AtomicUsize| match f.swap(0, AcqRel) {
+        0 => {}
+        v => t.store(v, Release),
+    };
+    let words = |b: &'static niji_rt::tls::ThreadBlock| {
+        [&b.tls_dtors, &b.heap_cache, &b.thread, &b.locale, &b.ctype_b, &b.ctype_toupper, &b.ctype_tolower, &b.res, &b.view, &b.wclass]
+            .into_iter()
+            .chain(&b.lconv)
+            .chain(&b.cache)
+    };
+    words(from).zip(words(to)).for_each(|(f, t)| move_word(f, t));
+    for (f, t) in [(&from.errno, &to.errno), (&from.h_errno, &to.h_errno)] {
+        match f.swap(0, AcqRel) {
+            0 => {}
+            v => t.store(v, Release),
+        }
+    }
+    match from.node.swap(0, AcqRel) {
+        0 => {}
+        v => to.node.store(v, Release),
+    }
+}
+
 /// In a process the runtime did not start: the calling thread, which `create` made, keeps its
 /// words in its own block until [`release_own`] (the start of `entry`).
 fn claim_own() {
@@ -579,6 +640,11 @@ pub(crate) fn desc() -> KResult<&'static Thread> {
 }
 
 fn adopt() -> KResult<&'static Thread> {
+    adopt_into(words())
+}
+
+/// [`adopt`] with the words `b` as the thread's: a descriptor of its own, stored in `b`.
+fn adopt_into(b: &'static niji_rt::tls::ThreadBlock) -> KResult<&'static Thread> {
     let len = (rt::DESC_SIZE + KEY_AREA + SLOT_AREA).next_multiple_of(PAGE);
     let base = map_thread(len, 0)?;
     let d = tb::desc_at(base);
@@ -587,7 +653,7 @@ fn adopt() -> KResult<&'static Thread> {
     d.keys.store(base + rt::DESC_SIZE, Relaxed);
     d.slots.store(base + rt::DESC_SIZE + KEY_AREA, Relaxed);
     d.tp.store(tb::tp(), Relaxed);
-    words().thread.store(base, Release);
+    b.thread.store(base, Release);
     Ok(d)
 }
 
