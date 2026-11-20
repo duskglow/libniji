@@ -303,10 +303,6 @@ impl Gen<'_> {
             // An enumeration: its enumerators.tsv rows (none: it cannot be declared complete).
             match self.enum_body(name) {
                 Some(body) => self.guard(&format!("enum_{name}"), body),
-                // Recorded only by name and size: one placeholder enumerator makes the tag a complete type.
-                None if self.t.typedefs.contains_key(&("enum".to_string(), name.to_string())) => {
-                    self.guard(&format!("enum_{name}"), vec![format!("enum {name} {{ __NIJI_ENUM{name} = 0 }};")]);
-                }
                 None => self.errors.push(format!("{}: {key} has no enumerators.tsv rows", self.header)),
             }
             return;
