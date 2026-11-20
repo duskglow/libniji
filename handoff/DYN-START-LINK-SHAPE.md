@@ -80,8 +80,13 @@ holds no `reloc::pass1` (nm), so static start-up runs none of the changed code. 
   single item after pass1; a Loads-style cache of the decoded headers would remove most of it (INFORMATIONAL).
 
 ## Proof
-Gate (direct tier) dyn-start-link-shape-gate1 green; plants (handoff/DYN-START-LINK-SHAPE-plants.txt) 0 survived;
-start-up checks (`cargo xtask test`, release so + hot_text_products); counts above (jobs dyn-start-link-shape-fix1,
-keke dyn-start-link-shape-zen1, run1 / pt2 / relr). Final-head jobs: see the report json.
+On the final code head adc1365ce (later commits: this note and the report only): gate2 (direct tier) 806 passed /
+0 failed, peak 1.7G; plants2 6 plants: 5 CAUGHT, 1 EQUIVALENT (window-not-followed: performance only), 0 WARN;
+lint2: records check, `cargo xtask static`, workspace clippy -D warnings clean; startup2 (`cargo xtask test`, then
+release so + hot_text_products with the tightened release bound) was still running at hand-back (PENDING). Counts:
+jobs dyn-start-link-shape-fix1 (Skylake-SP), keke dyn-start-link-shape-zen1 (Zen 1, same binaries), run1, pt2, relr;
+the products came from f19f46e5e, whose product sources equal the final head's. Superseded: gate1 (253 / 0) and
+plants1 (3 CAUGHT, 1 EQUIVALENT, 2 WARN-NO-MSG: real catches by the test model, messages widened since) on the code
+commit; startup1 stopped (older head).
 
 **Next step:** land; then (c) and the RELR loop (a), and read_phdr (d), each measured with pt.sh.
