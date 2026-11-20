@@ -76,19 +76,3 @@ fn write_for_exec_never_leaves_the_script_busy() {
     });
     std::fs::remove_dir_all(&d).ok();
 }
-
-/// The reproducer for the plant (`docs/plants.md`): the same rounds with `std::fs::copy`.
-#[test]
-#[ignore = "reproducer: fails with ETXTBSY when the copy is written in this process"]
-fn std_fs_copy_is_busy_under_forks() {
-    // Trace: no spec clause (test-harness behaviour; finding #6787).
-    let d = dir("raw");
-    let src = d.join("src");
-    exec_stage::copy_for_exec(std::path::Path::new("/bin/true"), &src);
-    under_forks(|i| {
-        let q = d.join(format!("r{i}"));
-        std::fs::copy(&src, &q).unwrap();
-        run(&q);
-    });
-    std::fs::remove_dir_all(&d).ok();
-}
