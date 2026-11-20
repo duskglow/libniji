@@ -193,8 +193,24 @@ pub fn exec(args: &[String]) -> String {
     }
     // Not in the test's environment: a test that runs `cargo xtask` or `cargo test` itself would have its
     // programs run through this runner.
-    let e = Command::new(&copy).args(args.get(1..).unwrap_or_default()).env_remove(RUNNER_VAR).env_remove(RUNNER_VIA).exec();
+    let mut cmd = Command::new(&copy);
+    cmd.args(args.get(1..).unwrap_or_default()).env_remove(RUNNER_VAR).env_remove(RUNNER_VIA);
+    if let Some((k, v)) = products_perturb(std::env::var(crate::nextest::POISON.0).ok()) {
+        cmd.env(k, v);
+    }
+    let e = cmd.exec();
     format!("pass2-exec: cannot execute {}: {e}", copy.display())
+}
+
+/// The products' `M_PERTURB` variable for the test process, from the test commands' poison byte
+/// (`nextest::POISON`, `None` when it is not set): in a libniji process the C `malloc` family is the
+/// products' heap, which takes `M_PERTURB` from `MALLOC_PERTURB_` (§3.2), not from the test builds'
+/// `NIJI_TEST_MALLOC_PERTURB`; so a read of a fresh or freed C-family block sees the fill here as it
+/// does in the interposed suite, where the test binary's own heap serves the family (PASS2-NATIVE-POISON,
+/// D-X.137). Only the test process and what it starts get it: the runner is not in the build's path,
+/// so cargo and rustc never do.
+pub fn products_perturb(poison: Option<String>) -> Option<(&'static str, String)> {
+    poison.filter(|v| !v.is_empty()).map(|v| ("MALLOC_PERTURB_", v))
 }
 
 /// The test executables of a `cargo test --no-run --message-format json` output: the `executable`
@@ -386,6 +402,14 @@ mod tests {
             "{\"reason\":\"build-finished\",\"success\":true}\n"
         );
         assert_eq!(test_executables(json), vec!["/t/debug/deps/a-1".to_string()]);
+    }
+
+    #[test]
+    fn the_poison_byte_reaches_the_products_heap_as_malloc_perturb() {
+        // Trace: no spec clause (PASS2-NATIVE-POISON tooling, D-X.137: the native pass poisons C-family blocks).
+        assert_eq!(products_perturb(Some("165".into())), Some(("MALLOC_PERTURB_", "165".to_string())));
+        assert_eq!(products_perturb(None), None, "a run without the poison byte (a bench, a timing run) is not perturbed");
+        assert_eq!(products_perturb(Some(String::new())), None);
     }
 
     #[test]

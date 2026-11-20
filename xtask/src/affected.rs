@@ -3882,7 +3882,8 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             println!("note: the second pass (native and exports-interposed) is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
         }
         // `niji`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...) from the C
-        // family, which is libniji's poisoned test heap only with the exports interposed: there its
+        // family, which is a poisoning libniji heap only in the second pass (the products' heap
+        // natively, `pass2::products_perturb`; the test heap with the exports interposed): there its
         // poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always get the
         // second pass.
         let second = |c: &str, ts: &[&str]| (interpose || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c);

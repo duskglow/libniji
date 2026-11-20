@@ -35,6 +35,26 @@ pub fn caller_blocks() -> i64 {
     CALLER_BLOCKS.with(core::cell::Cell::get)
 }
 
+/// The byte every one of the `n` bytes of a fresh block of the C `malloc` family holds
+/// (`caller_alloc::malloc`: whichever allocator serves the C symbols), `None` when they differ, `n`
+/// is 0 or the allocation fails. A perturbing heap (`M_PERTURB`, §3.2) fills a new block with the
+/// complement of its byte: the gate's native pass checks with it that its C family is poisoned as
+/// the interposed suite's is (PASS2-NATIVE-POISON, D-X.137).
+pub fn c_family_fresh_fill(n: usize) -> Option<u8> {
+    let p = crate::caller_alloc::malloc(n);
+    if p.is_null() || n == 0 {
+        crate::caller_alloc::release(p.expose_provenance());
+        return None;
+    }
+    let addr = p.expose_provenance();
+    let bytes = crate::conv::out_bytes(addr, n);
+    let first = bytes.first().copied();
+    let same = bytes.iter().all(|&b| Some(b) == first);
+    // The block goes back; `bytes` is not used again.
+    crate::caller_alloc::release(addr);
+    first.filter(|_| same)
+}
+
 /// [`caller_blocks`] moves by `d` (the `caller_alloc` wrappers).
 pub(crate) fn count_caller(d: i64) {
     // Not during the thread's teardown (a `free` from a destructor): nothing reads it then.
