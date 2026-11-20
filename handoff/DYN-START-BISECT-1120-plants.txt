@@ -1,0 +1,6 @@
+# Plants for DYN-START-BISECT-1120 (D-X.142): cargo xtask plants handoff/DYN-START-BISECT-1120-plants.txt
+# no-fragment puts the fixed cost back on the start-up path (libc.so.6 linked with the default order: .rodata1 after
+# .rodata, a second read-only PT_LOAD whenever the alignment gap spans a page); cargo xtask so's check refuses that
+# product. check-ignores-start weakens the check so a read-only segment led by .rodata (20.1's order) passes.
+no-fragment | xtask/src/so.rs | lit:.arg(format!("-Wl,-T,{}", ro_first.display())) ==> .arg("-Wl,-z,relro") | cargo xtask so | msg:read-only PT_LOAD
+check-ignores-start | xtask/src/so.rs | lit:[at] if align != 0 && at % align == 0 => Ok(()), ==> [at] if align != 0 && at % align == at % align => Ok(()), | cargo test -p xtask --bin xtask libc_so_read_only_data | msg:libc_so_read_only_data_is_one_segment_led_by_the_startup_group.*(FAILED|panicked)|panicked

@@ -1353,7 +1353,7 @@ fn check_rodata1_anchor(so: &Path, align: u64) -> Result<(), String> {
     rodata1_anchor_errors(&String::from_utf8_lossy(&secs.stdout), &String::from_utf8_lossy(&syms.stdout), align).map_err(|e| format!("{}: {e} (csys/src/machine/entry.S NIJI_LIBC_SO, xtask/src/startup_ro.rs)", so.display()))
 }
 
-/// DYN-START-BISECT-1120 (D-NEW): the linker script fragment that places libc.so.6's start-up read-only
+/// DYN-START-BISECT-1120 (D-X.142): the linker script fragment that places libc.so.6's start-up read-only
 /// group ([`crate::startup_ro::SECTION`], aligned to its window) before `.rodata`, the default script otherwise
 /// unchanged (`INSERT`). After `.rodata` (the default script's order), the group's alignment left a gap of 0 to
 /// 64 KiB that moved with the text size; once the gap spanned a page, GNU ld began a new read-only `PT_LOAD`
@@ -1517,7 +1517,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let rodata1_align = crate::startup_ro::cluster_aligns(&archive)?.into_iter().find(|(d, _)| *d == "NIJI_RODATA1_ALIGN").map_or(crate::startup_ro::ALIGN, |(_, a)| a);
     let anchor = product.join("libc-so-anchor.o");
     run(Command::new(&cc).arg("-c").arg("-DNIJI_LIBC_SO").arg(format!("-DNIJI_RODATA1_ALIGN={rodata1_align}")).arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&anchor))?;
-    // DYN-START-BISECT-1120: the group first in the read-only data, so no alignment gap splits it (D-NEW).
+    // DYN-START-BISECT-1120: the group first in the read-only data, so no alignment gap splits it (D-X.142).
     let ro_first = product.join("libc-rodata1.ld");
     fs::write(&ro_first, libc_rodata1_first_script()).map_err(|e| e.to_string())?;
     let link_libc = |owner: &Path, out: &Path, extra: &[&str]| {
