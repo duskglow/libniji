@@ -1,0 +1,35 @@
+{
+ "task": "RELEASE-SNAPSHOT-1119B",
+ "model": "opus",
+ "tokens": null,
+ "result": "COMPLETE: snapshot-ready at d496d4c25; snapshot-20261119.2 staged; #19 passes end to end in the swapped trixie root (ld.so _r_debug@@GLIBC_2.2.5 OBJECT 40, gnat1 starts, minimal check prints r_version=1, gdb follows libraries, gnatmake builds Ada) and fails on 19.1's packages; every other check matches snapshot-2026-11-19.1 or improved, each difference explained",
+ "branch": "task/release-snapshot-1119b",
+ "head": null,
+ "gate": {
+  "affected": "release-snapshot-1119b-gate-1 rc 0 (clippy --all-features -D warnings, xtask clippy, static, records check, affected --base origin/next)",
+  "peak": null
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "dbg-system.sh 'gdb in a running /usr/bin/true' FAIL (trixie, excalibur): gdb stops correctly but prints 'Breakpoint 1.1,' because libniji's debug info gives setlocale two locations (entry at s07_locale.rs:18 and an inlined inner function named setlocale at locale.rs:792; probe dbg11-1; stock has one); route to a DL/debug-package story, recommend renaming the inner function",
+  "#22 dyn22: niji fail=8 (19.1: 9): dl_iterate_phdr now reports the start-time $ORIGIN library and full-path names for ld.so and libc; its start library's dlpi_name is still relative ('./libstart22.so' vs stock's full path); route to a loader story",
+  "check-symbols 4440 lines (19.1: 4438): _r_debug@GLIBC_2.2.5 and the NIJI_PRIVATE symver line for _dl_debug_state (D-27.62)",
+  "libc6-dbg file count 44 -> 42: same five .debug files (build-ids replaced), two fewer build-id directories",
+  "Loader: bare-name dlopen through the executable's DT_RUNPATH $ORIGIN still fails (y10, pre-existing since 18.2)",
+  "docs: RELEASE-NOTES.md ends at 2026-11-17 and its Known limitations still say no _r_debug; user-visible since 19.1: _r_debug exported and a program's COPY kept current (D-27.62, COMPAT-35); install-packages.md passes against the staged assets; doccheck 23 problems, same as 19.1; route to a docs story",
+  "Headers: 14 libc-include files differ from 19.1 (generated from the tables); packages ship no headers; swapped-root C/C++ builds 63 same, 2 known, 0 bad",
+  "#6 / #21: no fix landed (no heap-address-space* or iconv-name-match* tip is an ancestor of d496d4c25)",
+  "debs-1 rc 1 is the known DBG-only result (iconv, locale; ruling #6321); roots-1 rc 1 is only the dbg finding above; yohane-1, dyn22-1, y10-1 rc 1 match 19.1's known lines; y19-ref191-3 rc 1 is the 19.1 reference failing as expected"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "unblock", "what": "snapshot-2026-11-19.2 staged with #19 fixed (Debian gnat1 starts; gcc-14 with Ada buildable for Yohane Linux)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "release-check plants run on this head (6 CAUGHT)", "before": null, "after": 6, "unit": "plants", "measured": true}
+ ],
+ "improvement": "each snapshot copies ~20 job scripts and seds head/serial/role/labels into them; one parameterised snapshot driver (head, serial, previous snapshot as arguments) would remove the copy step and the stale-label risk",
+ "next_step": "coordinator: tag/publish snapshot-2026-11-19.2 from keke ~/release-staging/snapshot-20261119.2 at d496d4c25 when the owner says so",
+ "report_file": "handoff/RELEASE-SNAPSHOT-1119B.md",
+ "jobs": ["mei:release-snapshot-1119b-final-1", "mei:release-snapshot-1119b-gate-1", "mei:release-snapshot-1119b-smoke-mei-1", "keke:release-snapshot-1119b-smoke-keke-1", "mei:release-snapshot-1119b-lint-1", "mei:release-snapshot-1119b-many-1", "mei:release-snapshot-1119b-y19-1", "mei:release-snapshot-1119b-dbg11-1", "mei:release-snapshot-1119b-plants-1", "keke:release-snapshot-1119b-pkgdiff-1", "keke:release-snapshot-1119b-stage-1", "keke:release-snapshot-1119b-install-1"],
+ "evidence_jobs_rc1_known": ["mei:release-snapshot-1119b-debs-1", "mei:release-snapshot-1119b-roots-1", "mei:release-snapshot-1119b-yohane-1", "mei:release-snapshot-1119b-dyn22-1", "mei:release-snapshot-1119b-y10-1", "mei:release-snapshot-1119b-y19-ref191-3"]
+}

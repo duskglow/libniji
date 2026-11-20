@@ -1,0 +1,60 @@
+{
+ "task": "LDSO-TRACE-PREFIX",
+ "model": "opus",
+ "tokens": null,
+ "result": "The interpreter trace redirects every configuration file below the build's own prefix (one list in niji_ld::search::CONFIG_FILES); a products test traces a coexist-prefixed interpreter and requires the same names as the system trace",
+ "branch": "task/ldso-trace-prefix",
+ "head": "094cb703a (code 750abb9a6)",
+ "gate": {
+  "affected": "FULL 12172 passed / 0 failed (32 suites); release hot_text_products 28 passed",
+  "peak": "14G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "A change to any tools/hottext/*.sh now also selects hot_text_products (it runs ldso_trace.sh), so such a change builds the products in the direct tier.",
+  "Both package flavours built on 750abb9a6 (mei:ldso-trace-prefix-debs2): 7 system .debs, niji6 and niji6-dev; interpreter lists byte-identical between flavours."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "coexist (NIJI_PREFIX=/usr/lib/niji) product build no longer fails at the interpreter trace on <prefix>/etc/ld.so.preload; the debs of both flavours build",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests added: products test init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_trace, unit test ldso_trace_redirects_the_paths_the_loader_opens; plants added",
+   "before": 0,
+   "after": 3,
+   "unit": "plants",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "RELEASE snapshot 18.2 (coexist debs)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  },
+  {
+   "kind": "cost",
+   "what": "hot_text_products: one more test, 61 s warm on the Skylake-SP host (recompiles the interpreter crates with the coexist prefix in target/product/ld-prefix on first run)",
+   "before": 0,
+   "after": 61,
+   "unit": "s",
+   "measured": true
+  }
+ ],
+ "improvement": "The gate never built a prefixed flavour; any tool that bakes host paths into a build should take them from the build setting and have a check run in a second flavour.",
+ "next_step": "Land (train); then rerun the snapshot's coexist debs step.",
+ "report_file": "handoff/LDSO-TRACE-PREFIX.md",
+ "jobs": [
+  "mei:ldso-trace-prefix-gate2",
+  "mei:ldso-trace-prefix-plants2"
+ ]
+}

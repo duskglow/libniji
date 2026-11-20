@@ -106,6 +106,9 @@ pub mod dt {
     pub const RELASZ: u64 = 8;
     /// Size of one RELA entry.
     pub const RELAENT: u64 = 9;
+    /// The number of `R_*_RELATIVE` entries the RELA table starts with (GNU extension of the gABI's
+    /// OS-specific tag range).
+    pub const RELACOUNT: u64 = 0x6fff_fff9;
     /// Size of the dynamic string table in bytes.
     pub const STRSZ: u64 = 10;
     /// The object's soname (string table offset).
@@ -1126,7 +1129,7 @@ impl<'a> Dynamic<'a> {
             .and_then(|n| n.checked_add(8))
             .ok_or(ElfError::AddressNotMapped(addr))?;
         let all = self.elf.bytes_at(addr, len)?;
-        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain }))
+        Ok(Some(SysvHash { rd: Rd { b: all, be }, nbucket, nchain, mark: 0 }))
     }
 
     /// The GNU hash table (`DT_GNU_HASH`): `nbuckets`, `symoffset`, `bloom_size`, `bloom_shift`, the
@@ -1150,10 +1153,19 @@ impl<'a> Dynamic<'a> {
         let bucket_len = bytes_for(u64::from(nbuckets), 4).ok_or(unmapped)?;
         let fixed = bloom_len.checked_add(bucket_len).and_then(|n| n.checked_add(16)).ok_or(unmapped)?;
         let all = self.elf.bytes_at(addr, fixed)?;
-        let bloom = sub(all, 16, bloom_len).ok_or(unmapped)?;
-        let buckets = sub(all, bloom_len.checked_add(16).ok_or(unmapped)?, bucket_len).ok_or(unmapped)?;
         let chain = self.elf.bytes_from(addr.checked_add(fixed).ok_or(unmapped)?)?;
-        Ok(Some(GnuHash { bloom: Rd { b: bloom, be }, buckets: Rd { b: buckets, be }, chain: Rd { b: chain, be }, nbuckets, symoffset, bloom_shift }))
+        // One slice from the first Bloom word to the end of the chain's bytes, so the table (and
+        // every lookup view holding one) is a third of the size of three slices. The chain is the
+        // rest of the segment holding the buckets, so the three parts are contiguous; a table whose
+        // chain lies elsewhere (overlapping or unsorted `PT_LOAD`s) is refused.
+        let whole = self.elf.bytes_from(addr)?;
+        let rest = whole.get(usize::try_from(fixed).map_err(|_| unmapped)?..).ok_or(unmapped)?;
+        if rest.as_ptr() != chain.as_ptr() || rest.len() != chain.len() || whole.as_ptr() != all.as_ptr() {
+            return Err(ElfError::BadHashHeader(Table::GnuHash));
+        }
+        let tab = whole.get(16..).ok_or(unmapped)?;
+        let chain_at = u32::try_from(bloom_len.checked_add(bucket_len).ok_or(unmapped)?).map_err(|_| unmapped)?;
+        Ok(Some(GnuHash { tab, be, bloom_size, chain_at, nbuckets, symoffset, bloom_shift, mark: 0 }))
     }
 
     /// The number of dynamic symbols: the SysV table's `nchain` when there is one (exact), else the
@@ -1179,13 +1191,20 @@ impl<'a> Dynamic<'a> {
     /// [`ElfError::DuplicateDynamic`], [`ElfError::BadDynamicValue`]`(DT_SYMENT)`, the [`Elf::bytes_from`]
     /// errors for the address and the [`Dynamic::symbol_count`] errors.
     pub fn symtab(&self) -> Result<Option<Symtab<'a>>, ElfError> {
+        self.symtab_with(self.symbol_count())
+    }
+
+    /// [`Dynamic::symtab`] given the [`Dynamic::symbol_count`] result its caller already has (a
+    /// lookup view reads the symbol and version tables together and counts once: the count walks
+    /// every bucket). The count's error is met where [`Dynamic::symtab`] meets it, after the tags.
+    pub(crate) fn symtab_with(&self, count: Result<Option<u32>, ElfError>) -> Result<Option<Symtab<'a>>, ElfError> {
         let Some(addr) = self.once(dt::SYMTAB)? else { return Ok(None) };
         if let Some(e) = self.once(dt::SYMENT)? {
             if usize::try_from(e).ok() != Some(SYM_SIZE) {
                 return Err(ElfError::BadDynamicValue(dt::SYMENT));
             }
         }
-        let count = self.symtab_count()?;
+        let count = self.symtab_count(count?)?;
         let b = self.elf.bytes_from(addr)?;
         Ok(Some(Symtab { rd: Rd { b, be: self.rd.be }, count }))
     }
@@ -1195,8 +1214,7 @@ impl<'a> Dynamic<'a> {
     /// hashes no symbol, and its unhashed symbols need not end at `symoffset`, as linkers emit for a
     /// program that exports nothing). Then it is raised to cover every symbol a RELA or `JMPREL` entry
     /// names, the only indices read past the hashed ones. Objects that hash a symbol pay nothing.
-    fn symtab_count(&self) -> Result<Option<u32>, ElfError> {
-        let count = self.symbol_count()?;
+    fn symtab_count(&self, count: Option<u32>) -> Result<Option<u32>, ElfError> {
         let lower_bound = self.sysv_hash()?.is_none() && self.gnu_hash()?.is_some_and(|g| (0..g.nbuckets()).all(|i| g.bucket(i) == Some(0)));
         let Some(mut count) = count.filter(|_| lower_bound) else { return Ok(count) };
         for (addr, size) in [(dt::RELA, dt::RELASZ), (dt::JMPREL, dt::PLTRELSZ)] {
@@ -1222,8 +1240,13 @@ impl<'a> Dynamic<'a> {
     /// The [`Elf::bytes_from`] errors for the address, the [`Dynamic::symbol_count`] errors, and the
     /// errors of the version walks.
     pub fn versym(&self) -> Result<Option<Versym<'a>>, ElfError> {
+        self.versym_with(self.symbol_count())
+    }
+
+    /// [`Dynamic::versym`] given the [`Dynamic::symbol_count`] result (see [`Dynamic::symtab_with`]).
+    pub(crate) fn versym_with(&self, count: Result<Option<u32>, ElfError>) -> Result<Option<Versym<'a>>, ElfError> {
         let Some(addr) = self.once(dt::VERSYM)? else { return Ok(None) };
-        let count = self.symbol_count()?;
+        let count = count?;
         let tab = self.elf.bytes_from(addr)?;
         let mut max = 1u16;
         if let Some(defs) = self.verdef()? {
@@ -1267,6 +1290,132 @@ impl<'a> Dynamic<'a> {
         let b = self.elf.bytes_from(addr)?;
         Ok(Some(Verneeds { dynm: *self, rd: Rd { b, be: self.rd.be }, off: 0, left: num, done: false }))
     }
+
+    /// The version tables found once, for an object whose [`Dynamic::versym`] succeeded (that walk
+    /// read every definition, requirement and name), so a lookup by index needs neither the dynamic
+    /// entries nor the program headers again. `None` when a count does not fit 32 bits.
+    ///
+    /// # Errors
+    ///
+    /// As [`Dynamic::verdef`] and [`Dynamic::verneed`] (none after a successful `versym`).
+    pub fn versions(&self) -> Result<Option<Versions<'a>>, ElfError> {
+        let mut v = Versions { def: &[], need: &[], ndef: 0, nneed: 0 };
+        if let Some((addr, num)) = self.pair(dt::VERDEF, dt::VERDEFNUM)? {
+            let Ok(n) = u32::try_from(num) else { return Ok(None) };
+            (v.def, v.ndef) = (self.elf.bytes_from(addr)?, n);
+        }
+        if let Some((addr, num)) = self.pair(dt::VERNEED, dt::VERNEEDNUM)? {
+            let Ok(n) = u32::try_from(num) else { return Ok(None) };
+            (v.need, v.nneed) = (self.elf.bytes_from(addr)?, n);
+        }
+        Ok(Some(v))
+    }
+}
+
+/// An object's version definitions and requirements ([`Dynamic::versions`]), read by index with the
+/// same answers as walking [`Verdefs`] and [`Verneeds`]: the first entry with the index wins.
+#[derive(Clone, Copy, Debug)]
+pub struct Versions<'a> {
+    def: &'a [u8],
+    need: &'a [u8],
+    ndef: u32,
+    nneed: u32,
+}
+
+impl<'a> Versions<'a> {
+    /// The first name of the first definition whose `vd_ndx` (hidden bit cleared) is `index`
+    /// (`None` when none has it, or when it has no names), from `dynm`'s string table.
+    ///
+    /// # Errors
+    ///
+    /// The string table's errors, or [`ElfError::VersionTruncated`] for an entry past the bytes.
+    pub fn def_name(&self, dynm: &Dynamic<'a>, index: u16) -> Result<Option<&'a [u8]>, ElfError> {
+        let at = if dynm.rd.be { self.def_entry::<true>(index) } else { self.def_entry::<false>(index) };
+        match at {
+            Some(Some(at)) => self.def_name_from(dynm, index, at),
+            Some(None) => Ok(None),
+            None => self.def_name_from(dynm, index, 0),
+        }
+    }
+
+    /// Where the first definition with index `index` starts in the definitions' bytes
+    /// (`Some(None)`: no definition has it), each entry read as one 20-byte record in the byte
+    /// order `BE` (DYN-START-SPEED: the field-by-field walk, with its byte-order select and range
+    /// check per field, was a sixth of a start). `None` when an entry is not whole or a link
+    /// leaves the bytes: [`Versions::def_name_from`] then walks from the start and gives the same
+    /// answer, errors included.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn def_entry<const BE: bool>(&self, index: u16) -> Option<Option<usize>> {
+        let mut at = 0usize;
+        let mut left = self.ndef;
+        while left != 0 {
+            let e = self.def.get(at..)?.first_chunk::<VERDEF_SIZE>()?;
+            let ndx = if BE { u16::from_be_bytes([e[4], e[5]]) } else { u16::from_le_bytes([e[4], e[5]]) };
+            if ndx & !VERSYM_HIDDEN == index {
+                return Some(Some(at));
+            }
+            left = left.saturating_sub(1);
+            let next = if BE { u32::from_be_bytes([e[16], e[17], e[18], e[19]]) } else { u32::from_le_bytes([e[16], e[17], e[18], e[19]]) };
+            at = advance(at, next)?;
+        }
+        Some(None)
+    }
+
+    /// [`Versions::def_name`] walking the definitions from the one at `at`, field by field.
+    fn def_name_from(&self, dynm: &Dynamic<'a>, index: u16, start: usize) -> Result<Option<&'a [u8]>, ElfError> {
+        let rd = Rd { b: self.def, be: dynm.rd.be };
+        // From an entry the scan found: its index matches, so the first round answers.
+        let mut at = start;
+        for k in 0..self.ndef {
+            let bad = ElfError::VersionTruncated(Table::Verdef, at);
+            let f16 = |o: usize| at.checked_add(o).and_then(|x| rd.u16(x)).ok_or(bad);
+            if f16(4)? & !VERSYM_HIDDEN == index {
+                if f16(6)? == 0 {
+                    return Ok(None);
+                }
+                let aux = advance(at, rd.u32(at.checked_add(12).ok_or(bad)?).ok_or(bad)?).ok_or(bad)?;
+                let bad = ElfError::VersionTruncated(Table::Verdef, aux);
+                return dynm.string(u64::from(rd.u32(aux).ok_or(bad)?)).map(Some);
+            }
+            if k.saturating_add(1) < self.ndef {
+                at = advance(at, rd.u32(at.checked_add(16).ok_or(bad)?).ok_or(bad)?).ok_or(bad)?;
+            }
+        }
+        Ok(None)
+    }
+
+    /// The name of the first requirement whose `vna_other` (hidden bit cleared) is `index`
+    /// (`None` when none has it), from `dynm`'s string table.
+    ///
+    /// # Errors
+    ///
+    /// The string table's errors, or [`ElfError::VersionTruncated`] for an entry past the bytes.
+    pub fn need_name(&self, dynm: &Dynamic<'a>, index: u16) -> Result<Option<&'a [u8]>, ElfError> {
+        let rd = Rd { b: self.need, be: dynm.rd.be };
+        let mut at = 0usize;
+        for k in 0..self.nneed {
+            let bad = ElfError::VersionTruncated(Table::Verneed, at);
+            let cnt = rd.u16(at.checked_add(2).ok_or(bad)?).ok_or(bad)?;
+            let mut a = advance(at, rd.u32(at.checked_add(8).ok_or(bad)?).ok_or(bad)?).ok_or(bad)?;
+            for j in 0..cnt {
+                let bad = ElfError::VersionTruncated(Table::Verneed, a);
+                if rd.u16(a.checked_add(6).ok_or(bad)?).ok_or(bad)? & !VERSYM_HIDDEN == index {
+                    return dynm.string(u64::from(rd.u32(a.checked_add(8).ok_or(bad)?).ok_or(bad)?)).map(Some);
+                }
+                if j.saturating_add(1) < cnt {
+                    a = advance(a, rd.u32(a.checked_add(12).ok_or(bad)?).ok_or(bad)?).ok_or(bad)?;
+                }
+            }
+            if k.saturating_add(1) < self.nneed {
+                at = advance(at, rd.u32(at.checked_add(12).ok_or(bad)?).ok_or(bad)?).ok_or(bad)?;
+            }
+        }
+        Ok(None)
+    }
+}
+
+impl<'a> Dynamic<'a> {
 
     /// A RELA table at `addr` of `size` bytes (entry size already checked).
     fn rela_table<A: Arch>(&self, table: Table, addr: u64, size: u64) -> Result<Relas<'a, A>, ElfError> {
@@ -1339,9 +1488,22 @@ pub struct SysvHash<'a> {
     rd: Rd<'a>,
     nbucket: u32,
     nchain: u32,
+    /// [`GnuHash`]'s `mark`, for a SysV table (a `u8` for the same reason).
+    mark: u8,
 }
 
 impl<'a> SysvHash<'a> {
+    /// Sets the mark to `on` ([`GnuHash::set_mark`]).
+    pub(crate) fn set_mark(&mut self, on: bool) {
+        self.mark = u8::from(on);
+    }
+
+    /// The mark ([`GnuHash::mark`]).
+    #[must_use]
+    pub(crate) fn mark(&self) -> bool {
+        self.mark != 0
+    }
+
     /// The number of buckets.
     #[must_use]
     pub fn nbucket(&self) -> u32 {
@@ -1412,12 +1574,25 @@ impl Iterator for SysvChain<'_> {
 /// (`i >= symoffset`) is its hash with bit 0 replaced by "last in chain".
 #[derive(Clone, Copy, Debug)]
 pub struct GnuHash<'a> {
-    bloom: Rd<'a>,
-    buckets: Rd<'a>,
-    chain: Rd<'a>,
+    /// The Bloom words, the buckets, then the chain words to the end of the mapped bytes. The slice
+    /// and its byte order are kept apart (not an `Rd`), so they pack with the counts below and the
+    /// lookup view keeps its size with its version tables ([`Versions`]).
+    tab: &'a [u8],
+    be: bool,
+    /// The number of Bloom words (at least 1).
+    bloom_size: u32,
+    /// Byte offset of the chain in `tab` (past the Bloom words and the buckets).
+    chain_at: u32,
     nbuckets: u32,
     symoffset: u32,
     bloom_shift: u32,
+    /// One bit the user of the table keeps with it (the lookup view's "the program has canonical
+    /// PLT entries", `symbols::Object::mark_program`); false as read. It sits in the struct's tail
+    /// padding, so the table and every view that holds one keep their size. A `u8` (0 or 1), not a
+    /// `bool`: a `bool` has invalid values the compiler would take for the discriminant of an enum
+    /// holding the table (`symbols::Hash`), moving it off the byte it uses without the mark and
+    /// changing the symbol walk's code.
+    mark: u8,
 }
 
 /// One entry of a GNU hash chain.
@@ -1430,6 +1605,17 @@ pub struct GnuEntry {
 }
 
 impl<'a> GnuHash<'a> {
+    /// Sets the mark to `on`.
+    pub(crate) fn set_mark(&mut self, on: bool) {
+        self.mark = u8::from(on);
+    }
+
+    /// The mark: false as read, else what [`GnuHash::set_mark`] set.
+    #[must_use]
+    pub(crate) fn mark(&self) -> bool {
+        self.mark != 0
+    }
+
     /// The number of buckets.
     #[must_use]
     pub fn nbuckets(&self) -> u32 {
@@ -1445,7 +1631,7 @@ impl<'a> GnuHash<'a> {
     /// The number of 64-bit Bloom words (at least 1).
     #[must_use]
     pub fn bloom_size(&self) -> usize {
-        self.bloom.b.len().checked_div(8).unwrap_or(0)
+        usize::try_from(self.bloom_size).unwrap_or(0)
     }
 
     /// The second Bloom shift (below 64).
@@ -1457,20 +1643,32 @@ impl<'a> GnuHash<'a> {
     /// Bloom word `i` (`None` past the last).
     #[must_use]
     pub fn bloom_word(&self, i: usize) -> Option<u64> {
-        self.bloom.u64(i.checked_mul(8)?)
+        if i >= self.bloom_size() {
+            return None;
+        }
+        self.rd().u64(i.checked_mul(8)?)
+    }
+
+    fn rd(&self) -> Rd<'a> {
+        Rd { b: self.tab, be: self.be }
     }
 
     /// Bucket `i`: the first symbol of its chain, 0 for an empty bucket (`None` past `nbuckets`).
     #[must_use]
     pub fn bucket(&self, i: u32) -> Option<u32> {
-        self.buckets.u32(usize::try_from(i).ok()?.checked_mul(4)?)
+        if i >= self.nbuckets {
+            return None;
+        }
+        let at = usize::try_from(i).ok()?.checked_mul(4)?.checked_add(self.bloom_size().checked_mul(8)?)?;
+        self.rd().u32(at)
     }
 
     /// The chain word of symbol `sym`.
     fn chain_word(&self, sym: u32) -> Result<u32, ElfError> {
         let bad = ElfError::HashIndex(Table::GnuHash, sym);
         let rel = sym.checked_sub(self.symoffset).ok_or(bad)?;
-        self.chain.u32(usize::try_from(rel).map_err(|_| bad)?.checked_mul(4).ok_or(bad)?).ok_or(bad)
+        let at = usize::try_from(rel).map_err(|_| bad)?.checked_mul(4).and_then(|r| r.checked_add(usize::try_from(self.chain_at).ok()?)).ok_or(bad)?;
+        self.rd().u32(at).ok_or(bad)
     }
 
     /// The chain for hash value `hash` (bucket `hash % nbuckets`), in order. The iterator yields one
@@ -1961,10 +2159,48 @@ impl<'a, A: Arch> Relas<'a, A> {
     pub fn entry_count(&self) -> usize {
         self.rd.b.len().checked_div(RELA_SIZE).unwrap_or(0)
     }
+
+    /// Calls `f(r_offset, r_addend)` for the leading run of `RELATIVE` entries (as `A` classifies
+    /// them), at most `n` of them (a table's `DT_RELACOUNT` prefix), and leaves the iterator after
+    /// the run: an entry of another type ends it there, and the iterator then yields that entry as
+    /// usual, so a wrong count changes no result. The byte order is chosen once for the run, not per
+    /// field (DYN-START-SPEED: the per-entry decode was most of a start's relocation pass).
+    ///
+    /// # Errors
+    ///
+    /// The first error of `f`; the iterator then stands on the entry `f` failed for.
+    // Inlined into the pass that owns `f`: one call per table.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    pub fn relative_prefix<E>(&mut self, n: usize, f: impl FnMut(u64, i64) -> Result<(), E>) -> Result<(), E> {
+        if self.rd.be { self.relative_run::<true, E>(n, f) } else { self.relative_run::<false, E>(n, f) }
+    }
+
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn relative_run<const BE: bool, E>(&mut self, n: usize, mut f: impl FnMut(u64, i64) -> Result<(), E>) -> Result<(), E> {
+        let word = |b: &[u8; 8]| if BE { u64::from_be_bytes(*b) } else { u64::from_le_bytes(*b) };
+        let rest = self.rd.b.get(self.off..).unwrap_or(&[]);
+        for e in rest.chunks_exact(RELA_SIZE).take(n) {
+            let Some((offset, e)) = e.split_first_chunk::<8>() else { break };
+            let Some((info, e)) = e.split_first_chunk::<8>() else { break };
+            let Some((addend, _)) = e.split_first_chunk::<8>() else { break };
+            let r_type = u32::try_from(word(info) & 0xffff_ffff).unwrap_or(u32::MAX);
+            if A::classify(r_type) != RelocKind::Relative {
+                break;
+            }
+            f(word(offset), i64::from_ne_bytes(word(addend).to_ne_bytes()))?;
+            self.off = self.off.saturating_add(RELA_SIZE);
+        }
+        Ok(())
+    }
 }
 
 impl<A: Arch> Iterator for Relas<'_, A> {
     type Item = Rela;
+    // Inlined into each pass (one call per relocation otherwise; the start-up pass is the hot one).
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
     fn next(&mut self) -> Option<Rela> {
         let at = self.off;
         let offset = self.rd.u64(at)?;
@@ -1974,6 +2210,13 @@ impl<A: Arch> Iterator for Relas<'_, A> {
         let r_type = u32::try_from(info & 0xffff_ffff).ok()?;
         let sym = u32::try_from(info.checked_shr(32)?).ok()?;
         Some(Rela { offset, sym, r_type, kind: A::classify(r_type), addend })
+    }
+
+    /// The entry `n` places on, without decoding the ones before it (a pass that wants only a
+    /// table's tail, after its `DT_RELACOUNT` prefix, starts there).
+    fn nth(&mut self, n: usize) -> Option<Rela> {
+        self.off = n.checked_mul(RELA_SIZE).and_then(|b| self.off.checked_add(b)).unwrap_or(usize::MAX);
+        self.next()
     }
 }
 

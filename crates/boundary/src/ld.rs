@@ -418,7 +418,7 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
         let dyn_words = unsafe { conv::words_at(dynamic, usize::try_from(img.dynamic.1).unwrap_or(0) / 8) };
         // The preload file: one open per start when it is absent (the reference's one `access`).
         let mut file_path = PathBuf::default();
-        let file = if search::prefixed(b"etc/ld.so.preload", &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
+        let file = if search::prefixed(search::PRELOAD_FILE, &mut file_path) { file_path.c_str().and_then(open_whole) } else { None };
         let file = file.map_or(&[][..], |(f, fd)| {
             let _ = crate::ffi_sys::niji_sys_close(fd);
             f
@@ -532,7 +532,13 @@ fn install_tls(mods: &[Option<Module>], biases: &[u64], placed: &[Option<Placed>
 /// thread walk, under its thread-list lock, which a thread's creation also holds while its
 /// `tls_init` reads this table: the creation either reads the table before the walk (and the walk,
 /// which then lists it, fills the new block) or after it (and fills the block itself).
-static THREAD_MODS: [[AtomicU64; 5]; ltls::MODULES_MAX] = [const { [const { AtomicU64::new(0) }; 5] }; ltls::MODULES_MAX];
+/// The first `dlopen::MODS_HEAD` entries live with the link-map nodes (`dlopen::thread_mods_head`, on
+/// the page a start already writes); this holds the rest. [`thread_mod`] reaches entry `i`.
+static THREAD_MODS: [[AtomicU64; 5]; ltls::MODULES_MAX - dlopen::MODS_HEAD] = [const { [const { AtomicU64::new(0) }; 5] }; ltls::MODULES_MAX - dlopen::MODS_HEAD];
+/// Entry `i` of the thread-local module table ([`THREAD_MODS`]), `None` past `MODULES_MAX`.
+fn thread_mod(i: usize) -> Option<&'static [AtomicU64; 5]> {
+    dlopen::thread_mods_head().get(i).or_else(|| THREAD_MODS.get(i.wrapping_sub(dlopen::MODS_HEAD)))
+}
 /// Entries of [`THREAD_MODS`] in use (stored last, Release).
 static THREAD_MODS_LEN: AtomicUsize = AtomicUsize::new(0);
 /// Words of every thread's dtv: `DTV_HEADER` + the module slots it has room for.
@@ -551,7 +557,7 @@ static SURPLUS_HI: AtomicU64 = AtomicU64::new(0);
 fn record_thread_tls(mods: &[Option<Module>], biases: &[u64], placed: &[Option<Placed>], area: &Area) {
     let mut n = 0usize;
     for ((m, p), b) in mods.iter().zip(placed).zip(biases) {
-        let (Some(m), Some(p), Some(slot)) = (m, p, THREAD_MODS.get(n)) else { continue };
+        let (Some(m), Some(p), Some(slot)) = (m, p, thread_mod(n)) else { continue };
         for (w, v) in slot.iter().zip([b.wrapping_add(m.vaddr), m.filesz, m.memsz, p.module, u64::from_ne_bytes(p.tp_offset.to_ne_bytes())]) {
             w.store(v, Relaxed);
         }
@@ -570,7 +576,7 @@ fn record_thread_tls(mods: &[Option<Module>], biases: &[u64], placed: &[Option<P
 
 /// Entry `i` of [`THREAD_MODS`]: `[image address, p_filesz, p_memsz, module ID, offset]`.
 fn module_words(i: usize) -> Option<[u64; 5]> {
-    let slot = THREAD_MODS.get(i)?;
+    let slot = thread_mod(i)?;
     Some(core::array::from_fn(|j| slot.get(j).map_or(0, |w| w.load(Relaxed))))
 }
 
@@ -736,7 +742,7 @@ extern "C" fn tls_visit(ctx: usize, tp: usize) -> usize {
         // Entry `id - 1` holds module `id` (DL-17: a released ID's entry is all zero until reused).
         let mut n = THREAD_MODS_LEN.load(Relaxed);
         for m in mods {
-            let Some(slot) = usize::try_from(m[3]).ok().and_then(|id| id.checked_sub(1)).and_then(|i| THREAD_MODS.get(i)) else { continue };
+            let Some(slot) = usize::try_from(m[3]).ok().and_then(|id| id.checked_sub(1)).and_then(thread_mod) else { continue };
             let words = if new.release { [0; 5] } else { *m };
             slot.iter().zip(words).for_each(|(w, v)| w.store(v, Relaxed));
             if !new.release {
@@ -928,7 +934,7 @@ fn open_file(path: usize) -> Option<(i32, usize, &'static [u8], FileId)> {
         let _ = crate::ffi_sys::niji_sys_close(fd);
         return None;
     };
-    let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else {
+    let Ok(at) = map_view(fd32, len) else {
         let _ = crate::ffi_sys::niji_sys_close(fd);
         return None;
     };
@@ -1313,7 +1319,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             }
             let Some((fd, at, file, id)) = found else { continue };
             if !bare && pre.is_none() {
-                paths[n] = name;
+                // Kept (NUL-terminated) as its link map's name: the DT_NEEDED string is in a mapping
+                // released below.
+                paths[n] = store.keep(name).unwrap_or_else(|_| no_memory(name));
             }
             let loaded = map::load::<Native, _>(&mut SysMapper { fd }, file, page);
             let _ = crate::ffi_sys::niji_sys_close(i64::from(fd));
@@ -1364,6 +1372,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     let area_base = map_area(&area);
     __libc_stack_end.store(sp, Release);
     let rseq_size = register_rseq(area_base.wrapping_add(usize::try_from(area.tp).unwrap_or(0)));
+    rendezvous_start(&objs[..n], &paths[..n], interp, env.vdso.and_then(|v| usize::try_from(v).ok()).unwrap_or(0));
     for (o, p) in objs[..n].iter_mut().zip(&placed[..n]) {
         o.tls = *p;
     }
@@ -1376,7 +1385,9 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             reloc::VersionError::Elf(b, _) => fail_with(&[by(b), b": malformed version tables\n"], program::FAILURE),
         }
     }
-    let first_sym = niji_ld::symbols::Object::new(objs[0].dynm).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
+    // The program's view: its canonical PLT entries define their functions (DL-CANONICAL-PLT).
+    let mut first_sym = niji_ld::symbols::Object::new(objs[0].dynm).unwrap_or_else(|_| fail_with(&[objs[0].name, b": malformed symbol tables\n"], program::FAILURE));
+    first_sym.mark_program();
     let mut syms: Table<niji_ld::symbols::Object<'static>, INLINE> = Table::new(first_sym);
     let mut global: Table<usize, INLINE> = Table::new(0);
     if syms.reserve(n).is_err() || global.reserve(n).is_err() {
@@ -1403,7 +1414,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     if let Err(f) = relocated {
         let name = objs.get(f.obj).map_or(&b"?"[..], |o| o.name);
         match f.error {
-            reloc::RelocError::Undefined(sym) => fail_with(&[name, b": ", f.error.message(), sym, b"\n"], program::FAILURE),
+            reloc::RelocError::Undefined(sym) | reloc::RelocError::IndirectExternAccess(sym) => fail_with(&[name, b": ", f.error.message(), sym, b"\n"], program::FAILURE),
             e => fail_with(&[name, b": ", e.message()], program::FAILURE),
         }
     }
@@ -1415,6 +1426,10 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     if let Err(i) = reloc::protect_relro(objs, &mut ProcImage, page) {
         fail_with(&[objs.get(i).map_or(&b"?"[..], |o| o.name), b": cannot protect the RELRO segment\n"], program::FAILURE);
     }
+    // The program's headers are read here, before their views are unmapped below.
+    debug::keep_copy(|| {
+        reloc::relro_range(&objs[0], page).map_or((0, 0), |(at, len)| (usize::try_from(at).unwrap_or(0), usize::try_from(at.saturating_add(len)).unwrap_or(usize::MAX)))
+    });
     // The images are copied after relocation: a `.tdata` word may hold a relocated address.
     let mut biases: Table<u64, INLINE> = Table::new(0);
     let mut hooks: Table<init::Hooks, INLINE> = Table::new(init::Hooks::default());
@@ -1431,13 +1446,13 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
             *h = init::hooks(&o.dynm, o.bias, i == 0);
         }
     }
-    // The cache, when a search read it, and the path store: no longer needed.
+    // The cache, when a search read it, is no longer needed; the path store is kept: its paths are the
+    // start-time link maps' names (DL-23).
     let cache_map = cache.get().and_then(Option::as_ref).map_or((0, 0), |(f, _)| (f.as_ptr().expose_provenance(), f.len()));
     let preload_map = (preloads.file.as_ptr().expose_provenance(), preloads.file.len());
     for &(at, len) in maps[1..n].iter().chain(&views).chain([&cache_map, &preload_map]).filter(|m| m.1 != 0) {
         let _ = raw::munmap(at, len);
     }
-    store.release();
     let words = |k: usize, o: &Obj<'_>| {
         let (phdr, phnum) = phdrs[k];
         [u64::try_from(phdr).unwrap_or(0), u64::try_from(phnum).unwrap_or(0), o.bias, ids[k].0, ids[k].1]
@@ -1458,7 +1473,150 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
     START_INTERP.store(interp.unwrap_or(usize::MAX), Relaxed);
     START_PAGE.store(page, Relaxed);
     START_N.store(n, Release);
+    debug::consistent();
     run_init(&hooks[..n], &edges[..ne], sp, early.map(|f| f.early_init), rseq_size)
+}
+
+/// `DT_DEBUG`: the dynamic entry the loader points at the debugger rendezvous.
+const DT_DEBUG: u64 = 21;
+
+/// The debugger rendezvous at the start (DL-23, [`debug`]): link the start-time objects' link maps
+/// in load order (the program `""`, the vDSO `linux-vdso.so.1` when `vdso` (`AT_SYSINFO_EHDR`) is
+/// not 0, each other object by the path the start opened it by, `ld.so` at its place, or last when
+/// no object named it, by the program's `PT_INTERP`): the order `dl_iterate_phdr` reports. Then
+/// fill `_r_debug`, `DT_DEBUG` and call `r_brk` with `RT_ADD`. Before relocation: a program's `COPY`
+/// of `_r_debug` then reads the filled structure. Pointer writes only: no allocation, no file read.
+// Indices stay below `objs.len()` (== paths.len()). Run once, out of `link`'s line: `link`'s code
+// stays as it was apart from the call.
+#[allow(clippy::indexing_slicing)]
+#[cold]
+#[inline(never)]
+fn rendezvous_start(objs: &[niji_ld::reloc::Obj<'static>], paths: &[&'static [u8]], interp: Option<usize>, vdso: usize) {
+    let n = objs.len();
+    let own_base = OWN_BASE.load(Relaxed);
+    let empty = c"".as_ptr().expose_provenance();
+    let ld_of = |o: &niji_ld::reloc::Obj<'_>| usize::try_from(o.bias.wrapping_add(o.elf.find(elf::pt::DYNAMIC).map_or(0, |p| p.vaddr))).unwrap_or(0);
+    // The previous link map: its address (0: none yet) and its start-time index (None: the vDSO's).
+    let mut prev: (usize, Option<usize>) = (0, None);
+    let mut put = |k: usize, l_addr: usize, name: usize, l_ld: usize| {
+        let at = dlopen::start_node(k, l_addr, name, l_ld, prev.0);
+        if at == 0 {
+            return 0;
+        }
+        match prev {
+            (0, _) => {}
+            (_, Some(p)) => dlopen::link_next(p, at),
+            (_, None) => debug::vdso_next(at),
+        }
+        prev = (at, Some(k));
+        if k == 0 && vdso != 0 {
+            let v = debug::vdso_node(vdso, at);
+            dlopen::link_next(0, v);
+            prev = (v, None);
+        }
+        at
+    };
+    let mut head = 0;
+    for (k, o) in objs.iter().enumerate() {
+        let name = if Some(k) == interp {
+            interp_name(&objs[0])
+        } else if k == 0 || paths[k].is_empty() {
+            empty
+        } else {
+            paths[k].as_ptr().expose_provenance()
+        };
+        let at = put(k, usize::try_from(o.bias).unwrap_or(0), name, ld_of(o));
+        if k == 0 {
+            head = at;
+        }
+    }
+    if interp.is_none() {
+        put(n, own_base, interp_name(&objs[0]), own_dynamic(own_base));
+    }
+    let dt_debug = niji_ld::reloc::dynamic_word(&objs[0], DT_DEBUG).map_or(0, |w| usize::try_from(w).unwrap_or(0));
+    debug::start(head, own_base, dt_debug);
+}
+
+/// `ld.so`'s `l_ld`: `base` plus its `PT_DYNAMIC`'s `p_vaddr`, read from its own mapped header table
+/// as the `dl_iterate_phdr` walk reads it (no view, no parse: a few words per start); 0 when the
+/// headers are malformed or name no `PT_DYNAMIC`.
+fn own_dynamic(base: usize) -> usize {
+    use niji_ld::elf::{EHDR_SIZE, PHDR_SIZE};
+    let mut header = [0u8; EHDR_SIZE];
+    read_image(base, &mut header);
+    let Some((phoff, phnum)) = boot::own_headers(&header) else { return 0 };
+    let table = base.wrapping_add(usize::try_from(phoff).unwrap_or(0));
+    let mut ph = [0u8; PHDR_SIZE];
+    for i in 0..phnum {
+        read_image(table.wrapping_add(i.wrapping_mul(PHDR_SIZE)), &mut ph);
+        let word = |o: usize| ph.get(o..o.saturating_add(8)).and_then(|b| <[u8; 8]>::try_from(b).ok()).map_or(0, u64::from_ne_bytes);
+        if word(0) & 0xffff_ffff == u64::from(elf::pt::DYNAMIC) {
+            return base.wrapping_add(usize::try_from(word(16)).unwrap_or(0));
+        }
+    }
+    0
+}
+
+/// `ld.so`'s link map name: the program's `PT_INTERP` string in its memory image when a loaded
+/// segment holds it, NUL-terminated; else `""`.
+fn interp_name(prog: &niji_ld::reloc::Obj<'_>) -> usize {
+    let empty = c"".as_ptr().expose_provenance();
+    let Some(ph) = prog.elf.find(elf::pt::INTERP).filter(|ph| ph.filesz > 0) else { return empty };
+    let end = ph.vaddr.saturating_add(ph.filesz);
+    if !prog.elf.program_headers().any(|s| s.p_type == elf::pt::LOAD && s.vaddr <= ph.vaddr && end <= s.vaddr.saturating_add(s.filesz)) {
+        return empty;
+    }
+    let Ok(at) = usize::try_from(prog.bias.wrapping_add(ph.vaddr)) else { return empty };
+    let Ok(len) = usize::try_from(ph.filesz) else { return empty };
+    let mut last = [0u8; 1];
+    read_image(at.wrapping_add(len).wrapping_sub(1), &mut last);
+    if last[0] == 0 { at } else { empty }
+}
+
+/// `_r_debug` (spec s27_4_c_0): the debugger rendezvous `DT_DEBUG` points at ([`debug`]).
+// UNSAFE(export): an exported data object of the ld.so product.
+#[unsafe(no_mangle)]
+#[allow(unsafe_code)]
+#[allow(non_upper_case_globals)]
+pub static _r_debug: debug::RDebug = debug::RDebug::new();
+
+/// `_dl_debug_state` (spec s27_4_c_0): `r_brk`, called after each `r_state` change ([`debug`]); it
+/// does nothing, and is never inlined, so a debugger's breakpoint on it stops at every change.
+// UNSAFE(export): an exported function of the ld.so product.
+#[unsafe(no_mangle)]
+#[allow(unsafe_code)]
+#[inline(never)]
+pub extern "C" fn _dl_debug_state() {
+    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+}
+
+/// `_dl_get_tls_static_info(size_t *size, size_t *align)` (`GLIBC_PRIVATE` in versions.tsv, here
+/// `NIJI_PRIVATE`, R14-12): the static TLS every thread has, for a runtime that finds it by name
+/// (sanitizers' `dlsym`). `*size`: the bytes from the lowest static block (the surplus included,
+/// `SURPLUS_HI` below the thread pointer) to the end of the initial thread block above it
+/// ([`INITIAL_TAIL`]); `*align`: the thread pointer's alignment. A null or misaligned pointer is not
+/// written. Both 0 in a process this loader did not start (nothing laid out). Off the start path
+/// (D-27.65).
+// UNSAFE(export): an exported function of the ld.so product.
+#[unsafe(no_mangle)]
+#[allow(unsafe_code)]
+#[cold]
+#[inline(never)]
+pub extern "C" fn _dl_get_tls_static_info(size: usize, align: usize) {
+    let below = SURPLUS_HI.load(Relaxed);
+    let total = if below == 0 { 0 } else { below.saturating_add(INITIAL_TAIL) };
+    if let Some(w) = crate::tb::c_word(size) {
+        w.store(usize::try_from(total).unwrap_or(usize::MAX), Relaxed);
+    }
+    if let Some(w) = crate::tb::c_word(align) {
+        w.store(usize::try_from(THREAD_TLS_ALIGN.load(Relaxed)).unwrap_or(0), Relaxed);
+    }
+}
+
+/// The address of an `extern "C" fn()` (`_dl_debug_state`).
+#[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
+fn fn_addr0(f: extern "C" fn()) -> usize {
+    (f as *const ()).expose_provenance()
 }
 
 /// The address of one of the loader's `extern "C" fn(usize) -> usize` hooks.
@@ -1467,8 +1625,8 @@ fn fn_addr(f: extern "C" fn(usize) -> usize) -> usize {
     (f as *const ()).expose_provenance()
 }
 
-/// `DT_NEEDED` links one start holds without a mapping (more grow the table).
-const EDGES_INLINE: usize = 128;
+/// `DT_NEEDED` links one start holds without a mapping (more grow the table): twice [`INLINE`].
+const EDGES_INLINE: usize = 2 * INLINE;
 
 /// What `dlopen` needs to see the start-time objects again (DL-16a, D-27.34; nothing is allocated at
 /// start for up to [`INLINE`] objects): per object, in load order, its run-time program header table
@@ -1678,6 +1836,7 @@ impl niji_ld::reloc::Image for ProcImage {
         // SAFETY: the relocator checked [to, to + len) lies in a writable segment of the program, a
         // different object from the provider (so the ranges do not overlap).
         unsafe { conv::bytes_at_mut(to, len) }.copy_from_slice(src);
+        debug::note_copy(to, from, len);
     }
 
     fn call(&mut self, resolver: u64) -> u64 {
@@ -1691,6 +1850,11 @@ impl niji_ld::reloc::Image for ProcImage {
 
     fn tlsdesc_static(&mut self) -> Option<u64> {
         Some(crate::arch::tlsdesc_static())
+    }
+
+    fn warn(&mut self, parts: &[&[u8]]) {
+        write_all(2, b"ld.so: ");
+        parts.iter().for_each(|p| write_all(2, p));
     }
 }
 
@@ -1714,7 +1878,7 @@ fn load(path: usize, page: u64) -> (start::Program, usize) {
     let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
     let len = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE).unwrap_or_else(|| fail(b"cannot read the program\n"));
     let fd32 = i32::try_from(fd).unwrap_or(-1);
-    let file_at = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0).unwrap_or_else(|_| fail(b"cannot read the program\n"));
+    let file_at = map_view(fd32, len).unwrap_or_else(|_| fail(b"cannot read the program\n"));
     // UNSAFE(slice): the program file, mapped read-only above.
     #[allow(unsafe_code)]
     // SAFETY: `len` bytes from `file_at` are a private read-only mapping of the file, unmapped only
@@ -1786,6 +1950,37 @@ const MAP_PRIVATE_I32: i32 = 0x02;
 const MAP_FIXED_I32: i32 = 0x10;
 const MAP_ANONYMOUS_I32: i32 = 0x20;
 const MAP_FIXED_NOREPLACE_I32: i32 = 0x10_0000;
+
+/// The alignment of a whole-file view ([`map_view`]): the kernel's default fault-around window
+/// (`fault_around_bytes`, 64 KiB), the unit in which a read of a file-backed mapping maps pages in.
+const VIEW_ALIGN: usize = 0x1_0000;
+
+/// Map the first `len` bytes of the file `fd` private and read-only at an address the loader
+/// chooses, a multiple of [`VIEW_ALIGN`]: the view's pages then share fault-around windows exactly
+/// as their file offsets do, so the faults its reads cost do not depend on where the kernel would
+/// have put the mapping (which varies with the file system holding the file: DYN-START-SPEED-2).
+/// The address range is reserved oversized and inaccessible first, the file is mapped over its
+/// aligned part, and both ends are given back, so the result is one mapping of exactly `len`
+/// bytes (rounded to the page) that `munmap(at, len)` removes. Nothing stays mapped on failure.
+fn map_view(fd: i32, len: usize) -> Result<usize, ()> {
+    const PAGE: usize = 0x1000;
+    let mapped = len.checked_add(PAGE - 1).ok_or(())? & !(PAGE - 1);
+    let span = mapped.checked_add(VIEW_ALIGN).ok_or(())?;
+    let raw = raw::mmap(0, span, 0, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0).map_err(|_| ())?;
+    // `raw` is page-aligned, so `at` is within the first VIEW_ALIGN - PAGE bytes and the view fits.
+    let at = raw.wrapping_add(VIEW_ALIGN - 1) & !(VIEW_ALIGN - 1);
+    if raw::mmap(at, len, map::PROT_READ, MAP_PRIVATE_I32 | MAP_FIXED_I32, fd, 0).is_err() {
+        let _ = raw::munmap(raw, span);
+        return Err(());
+    }
+    // User addresses (below 2^47) plus lengths the kernel accepted: none of these wrap.
+    if at != raw {
+        let _ = raw::munmap(raw, at.wrapping_sub(raw));
+    }
+    let end = at.wrapping_add(mapped);
+    let _ = raw::munmap(end, raw.wrapping_add(span).wrapping_sub(end));
+    Ok(at)
+}
 
 /// Where a kernel-started program's `$ORIGIN` comes from: the path it was run by (`ld.so PROGRAM`,
 /// nonzero), else `AT_EXECFN` of `aux`, read only when a search needs it (a program whose
@@ -1873,7 +2068,7 @@ fn open_whole(path: &[u8]) -> Option<(&'static [u8], i64)> {
         return None;
     }
     let len = usize::try_from(crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END))).ok().filter(|&n| n > 0);
-    let at = len.and_then(|len| raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, i32::try_from(fd).unwrap_or(-1), 0).ok());
+    let at = len.and_then(|len| map_view(i32::try_from(fd).unwrap_or(-1), len).ok());
     let (Some(len), Some(at)) = (len, at) else {
         let _ = crate::ffi_sys::niji_sys_close(fd);
         return None;
@@ -1892,7 +2087,7 @@ fn open_whole(path: &[u8]) -> Option<(&'static [u8], i64)> {
 /// rule 5; an inconsistent file is unmapped). One reader for program start, `--list` and `dlopen`.
 fn read_cache() -> Option<(&'static [u8], Cache<'static>)> {
     let mut path = PathBuf::default();
-    let (f, fd) = if search::prefixed(b"etc/ld.so.cache", &mut path) { path.c_str().and_then(open_whole) } else { None }?;
+    let (f, fd) = if search::prefixed(search::CACHE_FILE, &mut path) { path.c_str().and_then(open_whole) } else { None }?;
     let _ = crate::ffi_sys::niji_sys_close(fd);
     let parsed = Cache::parse(f);
     if parsed.is_none() {
@@ -1929,7 +2124,7 @@ fn open_candidate(path: &[u8], page: u64) -> Result<(i32, usize, &'static [u8], 
     }
     let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
     let Some(len) = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE) else { return Err(refuse(Refusal::TooShort)) };
-    let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else { return Err(refuse(Refusal::Truncated)) };
+    let Ok(at) = map_view(fd32, len) else { return Err(refuse(Refusal::Truncated)) };
     // UNSAFE(slice): a candidate file, mapped read-only above.
     #[allow(unsafe_code)]
     // SAFETY: `len` bytes from `at` are a private read-only mapping of the file, unmapped here when the
@@ -2163,6 +2358,7 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
 /// Words the loader copies of the auxiliary vector (128 pairs, `AT_NULL` included).
 const AUXV_WORDS_MAX: usize = 256;
 
+pub mod debug;
 mod dlopen;
 mod readers;
 mod table;

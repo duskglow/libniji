@@ -41,6 +41,11 @@ const HOT_TIERS: [&str; 5] = ["startup", "stdio", "strings", "locale", "tool"];
 /// `tools/hottext/probe_text.sh` (LAYOUT-STARTUP-RODATA-4: leaving them out split the `TZ` and `TZDIR`
 /// name literals off the windows start-up had faulted in, first localtime_r 19 -> 21 faults).
 const PROBE_KEYS: &str = "probe-text.keys";
+/// LAYOUT-DYN-PHASE (D-X.133): the read-only objects of libc.so.6 the interpreter reads at every dynamic
+/// start (the build tag it compares with its own, L14-10). The traces behind the keys run static
+/// programs, which never make that read; outside the group the tag took a fault-around window of its own
+/// whose place moved with the library's size.
+pub const LOADER_READ: [&str; 1] = ["__niji_build_tag"];
 /// The prefix the weakening pass gives a library name (`weaken_archive`); start-up keys name the
 /// final archive's symbols, this pass runs before it.
 const LIB_PREFIX: &str = "__niji_libc_";
@@ -361,7 +366,8 @@ fn inputs(archive: &Path, root: &Path) -> Result<Inputs, String> {
     text_keys.extend(crate::hottext::parse_list(&read("hot-text.list")?)?.into_iter().filter(|e| HOT_TIERS.contains(&e.tier)).map(|e| e.key));
     // The fault-bounded probe modes no tier covers (the first localtime_r, + mktime): traced on their own.
     text_keys.extend(keys(&read(PROBE_KEYS)?, |_| true));
-    let ro_keys = keys(&read("startup-data.keys")?, |k| k == "ro");
+    let mut ro_keys = keys(&read("startup-data.keys")?, |k| k == "ro");
+    ro_keys.extend(LOADER_READ.iter().map(|n| crate::hottext::key(n)));
     let listing = Command::new("readelf").arg("-SrsW").arg(archive).output().map_err(|e| format!("readelf: {e}"))?;
     if !listing.status.success() {
         return Err(format!("readelf -SrsW {} failed", archive.display()));

@@ -86,6 +86,77 @@ pub const PASS1_SHARD0: &[(&str, &str)] = &[
     ("niji-math", "complex_products"),
 ];
 
+/// The features of the exports-interposed suite (D-4.13): libniji's C symbols defined in the test
+/// binary itself, so a process the host started runs libniji's heap and string functions on the
+/// foreign path, and the test builds' `#[cfg(feature = "export")]` code is compiled in.
+pub const INTERPOSED_FEATURES: &str = "niji-boundary/export,niji-boundary/selftest";
+
+/// PASS2-NATIVE-RUNNER (ruling #6820): the targets of the interposed suite's packages that reach no
+/// code `export` compiles differently, so they run natively only (the second pass, `pass2.rs`). A
+/// target reaches such code when its source checks `feature = "export"`, or its binary links the
+/// C-family forwarders (`niji_caller_malloc`/`calloc`/`realloc`/`free`, `caller_alloc.rs`: with
+/// `export` its `reallocarray` goes by symbol and its blocks come from the poisoned test heap in the
+/// binary; natively they come from the products' heap). Measured on the `export` build of both
+/// packages (handoff/PASS2-NATIVE-RUNNER.md lists every target). `s27_dynlink_*` reach `ld.rs`,
+/// whose `export` difference is only which definition of the memory symbols links (libniji's either way).
+pub const NATIVE_ONLY: &[(&str, &str)] = &[
+    ("niji-boundary", "csys_veneer_abi"),
+    ("niji-boundary", "dl_tls_threads"),
+    ("niji-boundary", "failinject_products"),
+    ("niji-boundary", "libm_fma_select"),
+    ("niji-boundary", "niji_cc_lm"),
+    ("niji-boundary", "placement_sweep"),
+    ("niji-boundary", "s21_contexts_symbols"),
+    ("niji-boundary", "s27_dynlink_symbols"),
+    ("niji-boundary", "setlocale_env_repeat"),
+    ("niji-boundary", "setlocale_posix_repeat"),
+    ("niji-boundary", "uapi_vs_abi"),
+    ("niji", "s21_contexts_clauses"),
+    ("niji", "s27_dynlink_clauses"),
+    ("niji", "s31_utilities_clauses"),
+];
+
+/// Whether test target `target` of `krate` (`""`: the unit tests) runs again with the exports
+/// interposed (ruling #6820): niji-boundary's unit tests and test targets and niji's `_clauses`
+/// targets, but those in [`NATIVE_ONLY`]. A new target of niji-boundary joins the suite until it is
+/// shown to reach no `export` code.
+pub fn interposed(krate: &str, target: &str) -> bool {
+    !NATIVE_ONLY.contains(&(krate, target))
+        && match krate {
+            "niji-boundary" => true,
+            "niji" => target.ends_with("_clauses"),
+            _ => false,
+        }
+}
+
+/// The package directories of the interposed suite's packages.
+const SUITE_DIRS: &[(&str, &str)] = &[("niji-boundary", "crates/boundary"), ("niji", "crates/core")];
+
+/// The cargo selections of the interposed suite, one per package: `-p <package>`, `--lib` when its
+/// unit tests belong to it, then `--test <t>` for each of its test targets (`tests/*.rs`) that does.
+pub fn interposed_runs(root: &std::path::Path) -> Result<Vec<Vec<String>>, String> {
+    let mut runs = Vec::new();
+    for (krate, dir) in SUITE_DIRS {
+        let tests = root.join(dir).join("tests");
+        let mut ts: Vec<String> = std::fs::read_dir(&tests)
+            .map_err(|e| format!("{}: {e}", tests.display()))?
+            .flatten()
+            .filter_map(|e| e.file_name().to_str().and_then(|n| n.strip_suffix(".rs")).map(str::to_string))
+            .filter(|t| interposed(krate, t))
+            .collect();
+        ts.sort();
+        let mut args = vec!["-p".to_string(), krate.to_string()];
+        if interposed(krate, "") {
+            args.push("--lib".into());
+        }
+        for t in ts {
+            args.extend(["--test".to_string(), t]);
+        }
+        runs.push(args);
+    }
+    Ok(runs)
+}
+
 /// The shard tests other than shard 0 (`<name>_s<k>`, `k >= 1`, the `shards!` macro's names in
 /// `crates/math/tests/support/shard.rs` users); a target's unsharded tests keep running.
 const LATER_SHARDS: &str = "test(/_s[1-9][0-9]*$/)";
@@ -145,8 +216,9 @@ fn listed_binaries(json: &str) -> Vec<(String, String, String)> {
 /// of dependency (normal, build and dev: a test binary links its package's dev-dependencies).
 #[derive(Debug, Default)]
 struct PackageGraph {
-    /// package id -> the ids of the packages it depends on.
-    deps: std::collections::BTreeMap<String, Vec<String>>,
+    /// package id -> `(id, dev_only)` of each package it depends on; `dev_only` when every kind of
+    /// that dependency is `dev` (linked only into the package's own tests, examples and benches).
+    deps: std::collections::BTreeMap<String, Vec<(String, bool)>>,
     /// niji-boundary's package id.
     boundary: String,
 }
@@ -167,27 +239,49 @@ impl PackageGraph {
         for node in resolve.split("{\"id\":\"").skip(1) {
             let (id, rest) = node.split_once('"')?;
             let list = rest.split_once("\"dependencies\":[")?.1.split_once(']')?.0;
-            deps.insert(id.to_string(), list.split(',').map(|d| d.trim().trim_matches('"').to_string()).filter(|d| !d.is_empty()).collect());
+            let dev = dev_only_deps(rest);
+            deps.insert(id.to_string(), list.split(',').map(|d| d.trim().trim_matches('"').to_string()).filter(|d| !d.is_empty()).map(|d| { let only = dev.contains(&d); (d, only) }).collect());
         }
         (deps.contains_key(&boundary)).then_some(PackageGraph { deps, boundary })
     }
 
-    /// Whether `pkg` is niji-boundary or depends on it, directly or through other packages.
-    /// A package the graph does not hold may depend on it.
+    /// Whether a test binary of `pkg` can link niji-boundary: `pkg` is niji-boundary or depends on
+    /// it, directly or through other packages. Every dependency of `pkg` itself counts (its test
+    /// binaries link its dev-dependencies); further down, a dev-only dependency does not, since
+    /// cargo links a package's dev-dependencies only into that package's own tests, examples and
+    /// benches (GATE-TEST-TIME: niji-rt's dev-dependency on niji-boundary made xtask, which uses
+    /// niji-rt through niji-ld, run its 500 unit tests in both passes). A package the graph does
+    /// not hold may depend on it.
     fn reaches_boundary(&self, pkg: &str) -> bool {
         let mut seen = std::collections::BTreeSet::new();
-        let mut todo = vec![pkg.to_string()];
-        while let Some(p) = todo.pop() {
+        let mut todo = vec![(pkg.to_string(), true)];
+        while let Some((p, top)) = todo.pop() {
             if p == self.boundary {
                 return true;
             }
             let Some(ds) = self.deps.get(&p) else { return true };
-            if seen.insert(p) {
-                todo.extend(ds.iter().cloned());
+            if seen.insert((p, top)) {
+                todo.extend(ds.iter().filter(|(_, dev_only)| top || !dev_only).map(|(d, _)| (d.clone(), false)));
             }
         }
         false
     }
+}
+
+/// The ids of a resolve node's dependencies whose every kind is `dev`, from the node's text after
+/// its id (its `deps` entries in cargo's layout: `{"name":..,"pkg":"<id>","dep_kinds":[{"kind":
+/// "dev"|"build"|null,..},..]}`). A node without `deps`, or an entry that names any other kind or
+/// no kind, gives nothing: such a dependency counts as linked.
+fn dev_only_deps(node: &str) -> std::collections::BTreeSet<String> {
+    let Some((_, deps)) = node.split_once("\"deps\":[") else { return Default::default() };
+    deps.split("\"pkg\":\"")
+        .skip(1)
+        .filter_map(|entry| {
+            let (id, kinds) = entry.split_once('"')?;
+            let dev_only = kinds.contains("\"kind\":\"dev\"") && !kinds.contains("\"kind\":null") && !kinds.contains("\"kind\":\"build\"");
+            dev_only.then(|| id.to_string())
+        })
+        .collect()
 }
 
 /// Why a test binary runs in the first pass only, or `None` when it runs in both. A binary whose
@@ -212,7 +306,7 @@ fn package_graph(cargo: &str, root: &std::path::Path, features: &[String]) -> Op
     let out = poison(&mut Command::new(cargo)).current_dir(root).args(["metadata", "--format-version", "1", "--offline"]).args(features).stderr(Stdio::inherit()).output();
     let graph = out.ok().filter(|o| o.status.success()).and_then(|o| PackageGraph::parse(&String::from_utf8_lossy(&o.stdout)));
     if graph.is_none() {
-        eprintln!("export pass: no package graph from `cargo metadata`; only the binaries' bytes decide");
+        eprintln!("second pass:no package graph from `cargo metadata`; only the binaries' bytes decide");
     }
     graph
 }
@@ -221,15 +315,15 @@ fn package_graph(cargo: &str, root: &std::path::Path, features: &[String]) -> Op
 /// code, printed with the reason. Any failure to list = none (every binary runs in both passes).
 pub fn unchanged_binaries(cargo: &str, root: &std::path::Path, features: &[String]) -> Vec<String> {
     let out = poison(&mut Command::new(cargo)).current_dir(root).args(["nextest", "list", "--workspace"]).args(features).args(["--list-type", "binaries-only", "--message-format", "json"]).stderr(Stdio::inherit()).output();
-    let Ok(out) = out.map_err(|e| eprintln!("export pass: cannot list the binaries ({e}); all run")) else { return Vec::new() };
+    let Ok(out) = out.map_err(|e| eprintln!("second pass:cannot list the binaries ({e}); all run")) else { return Vec::new() };
     if !out.status.success() {
-        eprintln!("export pass: listing the binaries failed ({}); all run", out.status);
+        eprintln!("second pass:listing the binaries failed ({}); all run", out.status);
         return Vec::new();
     }
     let graph = package_graph(cargo, root, features);
     let mut once: Vec<(String, &str)> = listed_binaries(&String::from_utf8_lossy(&out.stdout)).into_iter().filter_map(|(id, path, pkg)| Some((id, run_once_reason(&pkg, graph.as_ref(), || std::fs::read(&path).ok())?))).collect();
     once.sort();
-    eprintln!("export pass: {} test binaries hold no niji-boundary code, so the export features cannot change them; they ran in the first pass and do not run again:", once.len());
+    eprintln!("second pass: {} test binaries hold no niji-boundary code; they ran in the first pass and do not run again:", once.len());
     for (b, why) in &once {
         eprintln!("  once: {b} ({why})");
     }
@@ -378,8 +472,20 @@ fn pick_test_threads(env_set: bool, args: &[String], cpus: Option<usize>) -> Opt
 }
 
 /// `cargo nextest run <args>`: nextest's report passed through, then the summary lines.
+/// The native pass's runner arrives as `pass2::RUNNER_VIA` (`affected`'s `cargo xtask nextest`: cargo runs
+/// xtask itself through the target runner, so the runner variable cannot be set on that command) and goes to
+/// nextest as the runner variable.
 pub fn run(cargo: &str, root: &std::path::Path, args: &[String]) -> Result<(), String> {
+    match std::env::var(crate::pass2::RUNNER_VIA) {
+        Ok(r) => run_with(cargo, root, args, &[(crate::pass2::RUNNER_VAR, &r)]),
+        Err(_) => run_with(cargo, root, args, &[]),
+    }
+}
+
+/// [`run`] with `env` added to nextest's environment (the native pass's runner).
+pub fn run_with(cargo: &str, root: &std::path::Path, args: &[String], env: &[(&str, &str)]) -> Result<(), String> {
     let mut cmd = Command::new(cargo);
+    cmd.envs(env.iter().copied());
     let skip_log = root.join("target/niji-skips.log");
     let _ = std::fs::remove_file(&skip_log);
     poison(&mut cmd).current_dir(root).args(["nextest", "run"]).args(args).env("NIJI_SKIP_LOG", &skip_log).stderr(Stdio::piped());
@@ -433,6 +539,29 @@ mod tests {
             assert_eq!(pick_test_threads(false, &[String::from("--no-fail-fast"), String::from(a)], Some(12)), None, "{a}");
         }
         assert_eq!(pick_test_threads(false, &[String::from("--no-fail-fast")], Some(7)), Some(test_threads(7)));
+    }
+
+    #[test]
+    fn the_interposed_suite_keeps_every_target_that_checks_the_export_feature() {
+        // Trace: no spec clause (PASS2-NATIVE-RUNNER, ruling #6820: the suite's membership).
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
+        for (c, t) in NATIVE_ONLY {
+            let dir = SUITE_DIRS.iter().find(|(k, _)| k == c).map(|(_, d)| *d).unwrap_or_else(|| panic!("{c} is not a suite package"));
+            let src = std::fs::read_to_string(root.join(dir).join(format!("tests/{t}.rs"))).unwrap_or_else(|e| panic!("{c}::{t}: {e}"));
+            assert!(!src.contains("feature = \"export\""), "{c}::{t} checks the export feature: it belongs to the interposed suite");
+            assert!(!interposed(c, t));
+        }
+        for t in ["heap_threads", "s29_rpc_clnt_svc_stubs", "tb_foreign_words", "tb_foreign_low_words", "heap_foreign_pair_cost"] {
+            assert!(interposed("niji-boundary", t), "{t}");
+        }
+        assert!(interposed("niji-boundary", "") && !interposed("niji", "") && interposed("niji", "s03_memory_clauses"));
+        assert!(!interposed("niji", "hot_text_products") && !interposed("niji-math", "special_cr"));
+        let runs = interposed_runs(&root).unwrap();
+        assert_eq!(runs[0][..3], ["-p", "niji-boundary", "--lib"]);
+        assert_eq!(runs[1][..2], ["-p", "niji"]);
+        assert!(runs[1].iter().skip(2).step_by(2).all(|a| a == "--test"), "niji's unit tests run natively only");
+        assert!(runs[1].iter().any(|a| a == "s03_memory_clauses") && !runs[1].iter().any(|a| a == "s27_dynlink_clauses"));
+        assert!(runs[0].iter().any(|a| a == "tb_foreign_words") && !runs[0].iter().any(|a| a == "uapi_vs_abi"));
     }
 
     #[test]
@@ -539,6 +668,26 @@ mod tests {
         assert_eq!(run_once_reason("", Some(&g), marked), None, "a binary without a package id is not proven independent");
         assert!(PackageGraph::parse("not json").is_none());
         assert!(PackageGraph::parse(&METADATA.replace("\"name\":\"niji-boundary\",", "\"name\":\"other\",")).is_none(), "no niji-boundary package = no graph");
+    }
+
+    /// `x` (a tool, like xtask) depends on `r`, which has niji-boundary as a dev-dependency only (like
+    /// niji-rt); `m` has it as a dev and a normal dependency, `s` as a dev and a build-dependency, `u` names
+    /// it in `dependencies` without a `deps` entry; `xm`, `xs`, `xu` depend normally on `m`, `s`, `u`.
+    const METADATA_DEV: &str = r#"{"packages":[{"name":"niji-boundary","version":"0.0.0","id":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dependencies":[]}],"workspace_members":[],"resolve":{"nodes":[{"id":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dependencies":[],"deps":[],"features":[]},{"id":"path+file:///w/x#0.0.0","dependencies":["path+file:///w/r#0.0.0"],"deps":[{"name":"r","pkg":"path+file:///w/r#0.0.0","dep_kinds":[{"kind":null,"target":null}]}],"features":[]},{"id":"path+file:///w/r#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"deps":[{"name":"niji_boundary","pkg":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dep_kinds":[{"kind":"dev","target":null}]}],"features":[]},{"id":"path+file:///w/m#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"deps":[{"name":"niji_boundary","pkg":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dep_kinds":[{"kind":"dev","target":null},{"kind":null,"target":null}]}],"features":[]},{"id":"path+file:///w/s#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"deps":[{"name":"niji_boundary","pkg":"path+file:///w/crates/boundary#niji-boundary@0.0.0","dep_kinds":[{"kind":"dev","target":null},{"kind":"build","target":null}]}],"features":[]},{"id":"path+file:///w/u#0.0.0","dependencies":["path+file:///w/crates/boundary#niji-boundary@0.0.0"],"features":[]},{"id":"path+file:///w/xm#0.0.0","dependencies":["path+file:///w/m#0.0.0"],"deps":[{"name":"m","pkg":"path+file:///w/m#0.0.0","dep_kinds":[{"kind":null,"target":null}]}],"features":[]},{"id":"path+file:///w/xs#0.0.0","dependencies":["path+file:///w/s#0.0.0"],"deps":[{"name":"s","pkg":"path+file:///w/s#0.0.0","dep_kinds":[{"kind":null,"target":null}]}],"features":[]},{"id":"path+file:///w/xu#0.0.0","dependencies":["path+file:///w/u#0.0.0"],"deps":[{"name":"u","pkg":"path+file:///w/u#0.0.0","dep_kinds":[{"kind":null,"target":null}]}],"features":[]}],"root":null},"target_directory":"/w/target","version":1}"#;
+
+    #[test]
+    fn a_dev_dependency_further_down_is_not_linked() {
+        // no spec clause: gate tooling (GATE-TEST-TIME), not libc behaviour. Cargo links a package's
+        // dev-dependencies only into that package's own test targets.
+        let g = PackageGraph::parse(METADATA_DEV).expect("graph");
+        assert!(g.reaches_boundary("path+file:///w/r#0.0.0"), "r's own tests link its dev-dependency");
+        assert!(!g.reaches_boundary("path+file:///w/x#0.0.0"), "x links r, never r's dev-dependencies");
+        assert!(g.reaches_boundary("path+file:///w/xm#0.0.0"), "m depends on it normally as well");
+        assert!(g.reaches_boundary("path+file:///w/xs#0.0.0"), "dev and build: counts as linked (only an all-dev dependency is left out)");
+        assert!(g.reaches_boundary("path+file:///w/xu#0.0.0"), "no deps entry: the dependency counts as linked");
+        let marked = || Some(b"_ZN13niji_boundary3foo".to_vec());
+        assert_eq!(run_once_reason("path+file:///w/x#0.0.0", Some(&g), marked), Some("no dependency on niji-boundary"));
+        assert_eq!(run_once_reason("path+file:///w/r#0.0.0", Some(&g), marked), None);
     }
 
     #[test]

@@ -1,0 +1,15 @@
+# HEAP-FOREIGN-TB-SPEED plants: a foreign thread's heap cache word, found in the registry by thread pointer alone
+# (thread::foreign_heap_cache_slot). This test process is started by another C library, so its blocks are foreign.
+# The TID test back on the cache word's path (a gettid per heap operation): strict seccomp mode kills the child.
+tid-test-restored | crates/boundary/src/thread.rs | lit:    let s = shadow_entry(tb::tp())?; ==>     let _ = foreign_words(); let s = shadow_entry(tb::tp())?; | cargo test -p niji-boundary --test heap_foreign_nosys | msg:Signaled\(9\)|foreign_thread_warm_malloc_free_make_no_system_call.*FAILED
+# The own test inverted: a foreign thread would take 0x90 of the other library's block as its cache word.
+own-test-inverted | crates/boundary/src/thread.rs | lit:Some(if s.own.load(Acquire) { ==> Some(if !s.own.load(Acquire) { | cargo test -p niji-boundary --test tb_foreign_low_words | msg:read the cache word at 0x90 of the other library's block|was written|SIGSEGV: invalid memory reference|foreign_block_low_words.*FAILED
+# No registry room: the thread must get no cache (never the shared spare words' cache word).
+no-room-spare-cache | crates/boundary/src/thread.rs | lit:    let s = shadow_entry(tb::tp())?; ==>     let Some(s) = shadow_entry(tb::tp()) else { return Some(&tb::spare_at(addr_of(&SPARE)).heap_cache) }; | cargo test -p niji-boundary --test tb_foreign_low_words spare_words_hold_no_heap_cache | msg:spare words: 1 = a heap cache slot
+# Caller text only while tracing: the test inverted, a traced line loses its caller (mtrace log lines "@ prog:[addr]").
+caller-trace-inverted | crates/boundary/src/heap.rs | lit:if f & malloc_debug::TRACE == 0 { ==> if f & malloc_debug::TRACE != 0 { | cargo xtask so && cargo test -p niji --test mallocdbg_products | msg:mallocdbg.*(FAILED|panicked)|log: \[@
+# cargo xtask plants results (4 plants: 4 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# tid-test-restored: CAUGHT, caught by heap_foreign_nosys foreign_thread_warm_malloc_free_make_no_system_call
+# own-test-inverted: CAUGHT, caught by tb_foreign_low_words (the log names no failing test)
+# no-room-spare-cache: CAUGHT, caught by tb_foreign_low_words spare_words_hold_no_heap_cache
+# caller-trace-inverted: CAUGHT, caught by mallocdbg_products mallocdbg_equals_the_reference

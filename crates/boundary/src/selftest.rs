@@ -377,6 +377,27 @@ pub fn in_child_thread_exit(code: i32) -> KResult<ChildEnd> {
     Ok(decode_status(status))
 }
 
+/// The child's end code from [`in_child_no_syscalls`] when the kernel refused strict mode.
+pub const NO_STRICT_MODE: i32 = 98;
+
+/// A child that runs `body` under strict secure computing mode (`prctl(PR_SET_SECCOMP,
+/// SECCOMP_MODE_STRICT)`): any system call but `read`, `write`, `exit` and `sigreturn` kills it
+/// with `SIGKILL`, so `Exited(code)` proves `body` made none. It ends with the raw thread `exit`
+/// (the child has one thread; `exit_group` is not allowed there). [`NO_STRICT_MODE`] when the
+/// kernel has no strict mode. `body` must not panic (unwinding makes system calls).
+pub fn in_child_no_syscalls(body: fn() -> i32) -> KResult<ChildEnd> {
+    // PR_SET_SECCOMP (22), SECCOMP_MODE_STRICT (1).
+    let pid = child_fork()?;
+    if pid == 0 {
+        if raw::prctl(22, [1, 0, 0, 0]).is_err() {
+            raw::exit_thread(NO_STRICT_MODE);
+        }
+        raw::exit_thread(body());
+    }
+    let (_, status) = CSys.wait4(pid, 0, None)?;
+    Ok(decode_status(status))
+}
+
 /// Fork a child that exits with `code` at once, **without** waiting for it. Returns the PID,
 /// for tests of `wait4`, `waitid` and pidfds; the caller must reap it.
 pub fn spawn_exiting(code: i32) -> KResult<i32> {

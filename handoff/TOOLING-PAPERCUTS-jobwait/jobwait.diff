@@ -1,0 +1,101 @@
+--- liella-ops/vm/jobwait
++++ liella-ops/vm/jobwait
+@@ -2,29 +2,82 @@
+ # jobwait [--max S] <label> [<label> ...]   (JOBWAIT, 2026-11-05; install as ~/bin/jobwait on every VM)
+ # Blocks until every label has its row in ~/logs/jobs.tsv (jobrun writes it when the job ends), then prints the rows.
+ # One call replaces one until-loop per job. --max S (default 570, under the harness's 600 s Bash limit): stop waiting
+-# after S seconds and print "still running: <labels>". Exit: 0 all done rc 0 | 1 some job rc != 0 | 3 still running
+-# (call again: no state is lost) | 2 usage. For a job on another host: ssh <host> '~/bin/jobwait <label>'.
++# after S seconds and print "still running: <labels>". Options may come before or after the labels; -h/--help prints
++# this. A label may be written host:label when host is this host. Exit: 0 all done rc 0 | 1 some job rc != 0 | 3 still
++# running (call again: no state is lost) | 4 a label has no row and no live job (not queued, no jobrun holds its lock)
++# for JOBWAIT_GRACE s (default 30): it died without a row or never started; waiting cannot end it | 2 usage.
++# For a job on another host: ssh <host> '~/bin/jobwait <label>'.
++# 11-20 (TOOLING-PAPERCUTS, #6771, #6829): "--help" was taken for a label, an option after the labels was taken for a
++# label, and a dead or unknown label waited the whole --max as "still running".
+ set -u
+-max=570
+-case "${1:-}" in --max) max=${2:-}; shift 2 ;; esac
++usage() { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; }
++max=570; labels=()
++while [ $# -gt 0 ]; do
++  case "$1" in
++    -h|--help) usage; exit 0 ;;
++    --max) [ $# -ge 2 ] || { echo "jobwait: --max needs seconds" >&2; exit 2; }; max=$2; shift 2 ;;
++    --max=*) max=${1#--max=}; shift ;;
++    --) shift; labels+=("$@"); break ;;
++    -*) echo "jobwait: unknown option $1 (jobwait --help)" >&2; exit 2 ;;
++    *) labels+=("$1"); shift ;;
++  esac
++done
+ case "$max" in ""|*[!0-9]*) echo "jobwait: --max needs seconds" >&2; exit 2 ;; esac
+-[ $# -gt 0 ] || { sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+-for l in "$@"; do case "$l" in *[!A-Za-z0-9_.:-]*) echo "jobwait: bad label $l" >&2; exit 2 ;; esac; done
+-tsv=${JOBRUN_LOGS:-$HOME/logs}/jobs.tsv
+-end=$(( $(date +%s) + max ))
++[ ${#labels[@]} -gt 0 ] || { usage >&2; exit 2; }
++me=${JOBWAIT_HOST:-$(hostname -s)}
++for i in "${!labels[@]}"; do
++  l=${labels[$i]}
++  case "$l" in
++    *:*) h=${l%%:*}; l=${l#*:}
++         [ "$h" = "$me" ] || { echo "jobwait: $h:$l is a job on $h, not $me: ssh $h '~/bin/jobwait $l'" >&2; exit 2; } ;;
++  esac
++  # jobrun's own label rule
++  case "$l" in ""|-*|*[!A-Za-z0-9._-]*) echo "jobwait: bad label ${labels[$i]}" >&2; exit 2 ;; esac
++  labels[$i]=$l
++done
++LOGS=${JOBRUN_LOGS:-$HOME/logs}; tsv=$LOGS/jobs.tsv
++state=${JOBWAIT_SLOTS_STATE:-$HOME/slots/state}
++poll=${JOBWAIT_POLL:-15}; grace=${JOBWAIT_GRACE:-30}
++row() { grep -P "^\Q$1\E\t" "$tsv" 2>/dev/null | tail -n 1; }
++# Live = queued or running in the slots queue, or a jobrun --inner holds ~/logs/.locks/<label> (read from /proc/locks;
++# never by taking the lock, which would make a starting jobrun refuse its own job).
++alive() {
++  awk -v l="$1" '$4 ~ /^[WR]$/ && ($5 == "shared:" l || $5 == "timing:" l) { f = 1 } END { exit !f }' "$state" 2>/dev/null && return 0
++  local ino; ino=$(stat -c %i "$LOGS/.locks/$1" 2>/dev/null) || return 1
++  awk -v s=":$ino" '{ for (i = 1; i <= NF; i++) if ($i == "FLOCK") { d = $(i + 4); if (substr(d, length(d) - length(s) + 1) == s) f = 1 } } END { exit !f }' /proc/locks
++}
++start=$(date +%s); end=$(( start + max ))
++declare -A dead_since=()
+ while :; do
+-  left=""
+-  for l in "$@"; do grep -qP "^\Q$l\E\t" "$tsv" 2>/dev/null || left="$left $l"; done
++  left=""; dead=""; now=$(date +%s)
++  for l in "${labels[@]}"; do
++    [ -n "$(row "$l")" ] && continue
++    left="$left $l"
++    if alive "$l"; then unset "dead_since[$l]"
++    else
++      [ -n "${dead_since[$l]:-}" ] || dead_since[$l]=$now
++      t0=${dead_since[$l]}; [ $(( now - t0 )) -ge "$grace" ] && dead="$dead $l"
++    fi
++  done
+   [ -z "$left" ] && break
+-  if [ "$(date +%s)" -ge "$end" ]; then
+-    for l in "$@"; do grep -P "^\Q$l\E\t" "$tsv" 2>/dev/null | tail -n 1; done
++  if [ -n "$dead" ]; then
++    for l in "${labels[@]}"; do row "$l"; done
++    for l in $dead; do
++      if [ -e "$LOGS/$l.log" ]; then echo "not running: $l (no jobs.tsv row, not queued, no live jobrun: it ended without its row; see $LOGS/$l.log)"
++      else echo "not running: $l (no jobs.tsv row, no log, never queued: unknown label or never started)"; fi
++    done
++    exit 4
++  fi
++  if [ "$now" -ge "$end" ]; then
++    for l in "${labels[@]}"; do row "$l"; done
+     echo "still running:$left"; exit 3
+   fi
+-  sleep 15
++  s=$poll; [ $(( end - now )) -lt "$s" ] && s=$(( end - now )); [ "$s" -lt 1 ] && s=1
++  sleep "$s"
+ done
+ bad=0
+-for l in "$@"; do
+-  row=$(grep -P "^\Q$l\E\t" "$tsv" | tail -n 1); echo "$row"
+-  [ "$(printf '%s' "$row" | cut -f5)" = 0 ] || bad=1
++for l in "${labels[@]}"; do
++  r=$(row "$l"); echo "$r"
++  [ "$(printf '%s' "$r" | cut -f5)" = 0 ] || bad=1
+ done
+ exit $bad

@@ -1,0 +1,93 @@
+{
+ "task": "DYN-START-PARITY",
+ "model": "opus",
+ "tokens": null,
+ "result": "dynamic empty-main start-up 8.15M -> 1.58M user instructions (glibc 0.107M), faults 75 -> 65 (glibc 49), release, Skylake-SP; target (parity) not reached; bounded in hot_text_products",
+ "branch": "task/dyn-start-parity",
+ "head": "503c206e0",
+ "gate": {
+  "affected": "817 passed / 0 failed (10 suites, direct tier, dyn-start-parity-gate3)",
+  "peak": "1.9G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [
+  {
+   "item": "link libc.so.6 with packed relative relocations (DT_RELR; the loader already applies them): 1777 RELA RELATIVE entries become a few hundred bitmap words",
+   "recommendation": "measure in a follow-up story; it changes the product's relocation format, not program-visible behaviour"
+  }
+ ],
+ "informational": [
+  "crates/ld/tests/reloc.rs reloc_ldso_kernel_started_without_proc failed once with ETXTBSY (unshare exec of a file std::fs::copy just wrote while sibling tests fork); passes alone; the cp-based stage() of hot_text_products is the known fix",
+  "leg 1 used one heredoc (python edit script), legs 2 and 3 one empty no-op heredoc each, all by mistake",
+  "DL-23-2 had landed in next; leg 3 merged next (brief: merge first). Its +1 vDSO-page start fault moved the startup-only program to fast 78 / release <= 74 on the Skylake-SP host; DYN_TRUE_BOUND set to [78, 74] (next: [89, 86]). The pre-merge execcount table in the handoff was not re-measured after the merge",
+  "the merge commit 7763acb6b carries git default message (no Co-Authored-By trailer); pushed before noticed, not rewritten"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "dynamic empty-main PIE start-up, release, Skylake-SP (execcount median of 101)",
+   "before": 8151153,
+   "after": 1576900,
+   "unit": "instr/process",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic PIE with 3 DT_NEEDED libs start-up, release, Skylake-SP",
+   "before": 8374348,
+   "after": 1798519,
+   "unit": "instr/process",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic empty main, release, Zen 1 (in-test, median of 21)",
+   "before": null,
+   "after": 1598530,
+   "unit": "instr/process",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic empty-main PIE start-up, release, Skylake-SP",
+   "before": 75,
+   "after": 65,
+   "unit": "page faults",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic PIE with 3 libs, release, Skylake-SP",
+   "before": 91,
+   "after": 81,
+   "unit": "page faults",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "tests: writable-segment model test, version-name index test (leg 1), dynamic start-up instruction bound; 9 plants all caught",
+   "before": null,
+   "after": 3,
+   "unit": "tests",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "a start of 17 to 64 objects now maps its start tables (one mapping per table past 16 entries; D-27.64); not measured",
+   "before": null,
+   "after": null,
+   "unit": "mmaps",
+   "measured": false
+  }
+ ],
+ "improvement": "sync_role.sh returns BUSY while a plants job holds the role: a plants run should copy the tree and release the role at once, or sync should say which job holds it",
+ "next_step": "O(1) version name by index (side table outside Object), little-endian RELATIVE loop over the DT_RELACOUNT prefix, RELR for libc.so.6; then the relocated-data fault pages (layout work)",
+ "report_file": "handoff/DYN-START-PARITY.md",
+ "jobs": [
+  "mei:dyn-start-parity-release3",
+  "mei:dyn-start-parity-gate3",
+  "mei:dyn-start-parity-plants3",
+  "mei:dyn-start-parity-xtest4"
+ ]
+}

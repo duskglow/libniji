@@ -1,0 +1,2 @@
+# TEST-PASS2-NATIVE plants: tz_period_words_per_thread_and_fork now decides foreign-ness by selftest::runtime_started() (D-X.58).
+tz-period-ungated | crates/boundary/src/zone.rs | lit:let own = crate::thread::owned(); ==> let own = true; | cargo test -p niji-boundary --test s23_time_symbols tz_period_words_per_thread_and_fork | msg:cache words were written|failed in its child

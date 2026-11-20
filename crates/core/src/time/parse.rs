@@ -279,17 +279,12 @@ impl<E: Env> Scan<'_, E> {
     }
 
     /// A decimal number after optional white space: at most `digits` digits, stopping early once
-    /// another digit could only exceed `hi`, then within `lo..=hi` (`-hi..=hi` when `signed`).
-    fn number(&self, pos: usize, digits: usize, lo: i64, hi: i64, signed: bool) -> Option<(i64, usize)> {
-        let mut p = skip_space(self.input, pos);
-        let neg = match self.input.get(p) {
-            Some(&s @ (b'+' | b'-')) if signed => {
-                p += 1;
-                s == b'-'
-            }
-            _ => false,
-        };
+    /// another digit could only exceed `hi`, then within `lo..=hi`. No sign is taken: a leading
+    /// `+` or `-` ends the conversion with no match.
+    fn number(&self, pos: usize, digits: usize, lo: i64, hi: i64) -> Option<(i64, usize)> {
+        let p = skip_space(self.input, pos);
         let (start, mut v) = (p, 0i64);
+        let mut p = p;
         while let Some(d) = self.input.get(p).filter(|d| d.is_ascii_digit() && p - start < digits) {
             if p > start && v * 10 > hi {
                 break;
@@ -297,15 +292,13 @@ impl<E: Env> Scan<'_, E> {
             v = v * 10 + i64::from(d - b'0');
             p += 1;
         }
-        let v = if neg { -v } else { v };
-        let range = if signed { -hi..=hi } else { lo..=hi };
-        (p > start && range.contains(&v)).then_some((v, p))
+        (p > start && (lo..=hi).contains(&v)).then_some((v, p))
     }
 
     /// `%O`: the longest of the locale's alternative symbols in `lo..=hi`, else a plain number.
     fn alt_number(&self, pos: usize, digits: usize, lo: i64, hi: i64) -> Option<(i64, usize)> {
         let p = skip_space(self.input, pos);
-        self.longest(p, self.time.alt_digits().filter(|(n, _)| (lo..=hi).contains(n))).or_else(|| self.number(pos, digits, lo, hi, false))
+        self.longest(p, self.time.alt_digits().filter(|(n, _)| (lo..=hi).contains(n))).or_else(|| self.number(pos, digits, lo, hi))
     }
 
     /// The era with index `k`.
@@ -331,13 +324,13 @@ impl<E: Env> Scan<'_, E> {
             if alt {
                 self.alt_number(pos, digits, lo, hi)
             } else {
-                self.number(pos, digits, lo, hi, false)
+                self.number(pos, digits, lo, hi)
             }
         };
-        // A year-like field: signed (POSIX), as wide as its digits allow.
+        // A year-like field: unsigned, as wide as its digits allow.
         let year = |digits: usize| {
             let digits = width.unwrap_or(digits).min(9);
-            self.number(pos, digits, 0, 10i64.pow(u32::try_from(digits).unwrap_or(9)) - 1, true)
+            self.number(pos, digits, 0, 10i64.pow(u32::try_from(digits).unwrap_or(9)) - 1)
         };
         let set = |slot: &mut Option<i32>, (v, p): (i64, usize), base: i64| -> Option<usize> {
             *slot = Some(small(v - base)?);
@@ -389,17 +382,17 @@ impl<E: Env> Scan<'_, E> {
                 Some(p)
             }
             b'C' => {
-                let (v, p) = self.number(pos, width.unwrap_or(2), 0, 99, true)?;
+                let (v, p) = self.number(pos, width.unwrap_or(2), 0, 99)?;
                 acc.century = Some(v);
                 Some(p)
             }
             b'y' if e => {
-                let (v, p) = self.number(pos, width.unwrap_or(8), 0, 99_999_999, false)?;
+                let (v, p) = self.number(pos, width.unwrap_or(8), 0, 99_999_999)?;
                 acc.era_year = Some(v);
                 Some(p)
             }
             b'y' => {
-                let (v, p) = if alt { field(2, 0, 99)? } else { self.number(pos, width.unwrap_or(2), 0, 99, true).filter(|(v, _)| *v >= 0)? };
+                let (v, p) = if alt { field(2, 0, 99)? } else { self.number(pos, width.unwrap_or(2), 0, 99)? };
                 acc.yy = Some(v);
                 Some(p)
             }
@@ -431,7 +424,7 @@ impl<E: Env> Scan<'_, E> {
                 Some(p)
             }
             b'g' => {
-                let (v, p) = self.number(pos, width.unwrap_or(2), 0, 99, false)?;
+                let (v, p) = self.number(pos, width.unwrap_or(2), 0, 99)?;
                 acc.iso_year = Some(pivot(v));
                 Some(p)
             }
@@ -495,16 +488,14 @@ impl<E: Env> Scan<'_, E> {
         (mm < 60).then_some((sign * (hh * 3600 + mm * 60), end))
     }
 
-    /// `%s`: a signed count of seconds; every field from its local time.
+    /// `%s`: a count of seconds, digits only (no sign); every field from its local time.
     fn seconds(&self, acc: &mut Acc<E::Zone>, pos: usize) -> Option<usize> {
         let mut p = skip_space(self.input, pos);
-        let neg = matches!(self.input.get(p), Some(b'-'));
-        p += usize::from(matches!(self.input.get(p), Some(b'-' | b'+')));
         let start = p;
         let mut t = 0i64;
         while let Some(d) = self.input.get(p).filter(|d| d.is_ascii_digit()) {
             let d = i64::from(d - b'0');
-            t = t.checked_mul(10)?.checked_add(if neg { -d } else { d })?;
+            t = t.checked_mul(10)?.checked_add(d)?;
             p += 1;
         }
         if p == start {
@@ -682,14 +673,12 @@ mod tests {
         assert_eq!(f("%Y", " 2024").unwrap().1[5], 124, "after white space");
         assert_eq!(f("%4d", "0005").unwrap().1[3], 5, "a width is the most digits");
         assert_eq!(f("%2Y", "2024").unwrap(), (2, [-1, -1, -1, -1, -1, -1880, -1, -1]));
-        // Years: signs (POSIX), %C and %y in either order, %y alone 1969-2068.
-        assert_eq!(f("%Y", "-5").unwrap().1[5], -1905);
-        assert_eq!(f("%Y", "+2024").unwrap().1[5], 124);
+        // Years take no sign; %C and %y in either order, %y alone 1969-2068.
+        assert_eq!((f("%Y", "-5"), f("%Y", "+2024"), f("%F", "-1-1-1"), f("%G", "-1"), f("%C", "+1"), f("%y", "+5")), (None, None, None, None, None, None));
         assert_eq!((f("%y", "69").unwrap().1[5], f("%y", "68").unwrap().1[5]), (69, 168));
         assert_eq!(f("%C%y", "1969").unwrap().1[5], 69);
         assert_eq!(f("%y %C", "05 19").unwrap().1[5], 5);
         assert_eq!(f("%C", "20").unwrap().1[5], 100);
-        assert_eq!(f("%C %y", "-1 05").unwrap().1[5], -2005);
         assert_eq!(f("%Y %y", "1950 07").unwrap().1[5], 7);
     }
 
@@ -711,7 +700,7 @@ mod tests {
         assert_eq!(f("%Z", "").unwrap().0, 0);
         let (n, s) = p("%s", "86400").unwrap();
         assert_eq!((n, s.year, s.mday, s.wday, s.isdst, s.gmtoff, s.zone), (5, Some(70), Some(2), Some(5), Some(0), Some(0), Some(7)));
-        assert_eq!(p("%s", "-1").unwrap().1.year, Some(69));
+        assert!(p("%s", "-1").is_none() && p("%s", "+1").is_none());
         assert!(p("%s", "99999999999999999999").is_none());
         assert!(strptime(b"5", b"%s", &Locale::C, &NoZone, Options::default()).is_none());
     }

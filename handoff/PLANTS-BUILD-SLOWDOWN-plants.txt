@@ -1,0 +1,17 @@
+# PLANTS-BUILD-SLOWDOWN: the visibility.tsv index of headers-gen (xtask/src/headers.rs VisIndex) must give the
+# answers the row scan gave. `headers-gen --check` (every generated header against the committed libc-include/)
+# catches some of these, but today's tables give the same conditions without the include-error rows or with the
+# kind ignored (first run of this file: two SURVIVED), so the unit test pins every lookup on a small table.
+pbs-include-error-dropped | xtask/src/headers.rs | perl:s/if kind == "include-error" \{/if kind == "include-errors" {/ | cargo test -p xtask --bin xtask headers::tests::vis_index | msg:vis_index_answers_as_the_row_scan.*(FAILED|panicked)|panicked at xtask/src/headers.rs
+pbs-bare-rows-dropped | xtask/src/headers.rs | perl:s/            if header == "-" \{/            if header == "--" {/ | cargo test -p xtask --bin xtask headers::tests::vis_index | msg:vis_index_answers_as_the_row_scan.*(FAILED|panicked)|panicked at xtask/src/headers.rs
+pbs-row-kind-ignored | xtask/src/headers.rs | perl:s/self.rows\(vis, header, name\).find\(\|r\| r\["kind"\] == kind\)/self.rows(vis, header, name).find(|r| !r["kind"].is_empty())/ | cargo test -p xtask --bin xtask headers::tests::vis_index | msg:vis_index_answers_as_the_row_scan.*(FAILED|panicked)|panicked at xtask/src/headers.rs
+pbs-header-rows-last-only | xtask/src/headers.rs | perl:s/self.by_header.get\(header\).into_iter\(\).flatten\(\)/self.by_header.get(header).into_iter().flat_map(|v| v.last())/ | cargo test -p xtask --bin xtask headers::tests::vis_index | msg:vis_index_answers_as_the_row_scan.*(FAILED|panicked)|panicked at xtask/src/headers.rs
+pbs-header-rows-check | xtask/src/headers.rs | perl:s/self.by_header.get\(header\).into_iter\(\).flatten\(\)/self.by_header.get(header).into_iter().flat_map(|v| v.last())/ | cargo xtask headers-gen --check | msg:headers-gen: stale under|headers-gen: [0-9]+ problems
+pbs-early-builds-off | xtask/src/so.rs | perl:s/\[&LD_BUILD, &LDCONFIG_BUILD\]\.iter\(\)/[&LD_BUILD, &LDCONFIG_BUILD][..0].iter()/ | cargo test -p xtask --bin xtask so::tests | equivalent:EarlyBuilds only warms cargo for run_ld and run_ldconfig, which run the same commands and report failures, so without it the products and errors are the same and only the build time grows (measured in handoff/PLANTS-BUILD-SLOWDOWN.md)
+# cargo xtask plants results (6 plants: 5 CAUGHT, 0 SURVIVED, 1 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# pbs-include-error-dropped: CAUGHT, caught by xtask headers::tests::vis_index_answers_as_the_row_scan
+# pbs-bare-rows-dropped: CAUGHT, caught by xtask headers::tests::vis_index_answers_as_the_row_scan
+# pbs-row-kind-ignored: CAUGHT, caught by xtask headers::tests::vis_index_answers_as_the_row_scan
+# pbs-header-rows-last-only: CAUGHT, caught by xtask headers::tests::vis_index_answers_as_the_row_scan
+# pbs-header-rows-check: CAUGHT, caught by no test the log names
+# pbs-early-builds-off: EQUIVALENT
