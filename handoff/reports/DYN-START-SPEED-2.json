@@ -6,8 +6,8 @@
  "branch": "task/dyn-start-speed-2",
  "head": "054bf52fd (code and test head; the final head adds only this report)",
  "gate": {
-  "affected": "304 passed / 0 failed (direct tier, gate1)",
-  "peak": "1.9G"
+  "affected": "304 passed / 0 failed (direct tier, gate2, final head)",
+  "peak": "1.1G"
  },
  "accepted_first_attempt": null,
  "rulings": [],
@@ -62,13 +62,10 @@
  "next_step": "Step 3 RELR measurement for libc.so.6, then remove the whole-file view's own faults by reading through mapped segments",
  "report_file": "handoff/DYN-START-SPEED-2-report.md",
  "jobs": [
-  "dyn-start-speed-2-gate1",
-  "dyn-start-speed-2-plants2",
-  "dyn-start-speed-2-rel3",
-  "dyn-start-speed-2-meas1",
-  "dyn-start-speed-2-xtest1",
-  "dyn-start-speed-2-sky1",
-  "keke:dyn-start-speed-2-zen1",
+  "dyn-start-speed-2-gate2",
+  "dyn-start-speed-2-plants3",
+  "dyn-start-speed-2-rel4",
+  "dyn-start-speed-2-xtest2",
   "dyn-start-speed-2-fin2"
  ]
 }

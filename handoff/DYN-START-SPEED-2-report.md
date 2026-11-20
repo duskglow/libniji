@@ -37,15 +37,19 @@ when both are the same file system). Plant view-candidate-kernel (handoff/DYN-ST
 | Zen 1 | 855,428 | 803,280 | 96,002 | 73 / 73 | 67 / 67 |
 Release before DYN-START-SPEED: 1,579,278 (execcount). glibc faults 51 (execcount) on this program class.
 
-## Jobs (mei role ~/w/s1 unless noted)
-lint0 (inherited head, green), rel3 (clippy + static + release so + hot_text_products 30 passed, gate wrapper),
-meas1 (release probe ext4/tmpfs), gate1 (direct tier `affected --base origin/next --run`: 304 passed), plants2
-(1/1 CAUGHT), xtest1 (cargo xtask test), sky1 (instructions + faults), keke:dyn-start-speed-2-zen1 (Zen 1 probe),
-fin2 (cargo xtask so + hot_text_products, fast, 30 passed, final head), precheck.
-Superseded / diagnostic: rel1 (merged head, the 68 > 67 red reproduced), rel2 (clippy arithmetic red, fixed),
-prepnext (old ~/wl/bin/wl_prep.sh copy, fast build + failed copy; I removed the empty products dir it left),
+## Jobs (mei role ~/w/s1)
+Proofs on the final head: rel4 (clippy + static + release so + hot_text_products 30 passed, gate wrapper), gate2
+(direct tier `affected --base origin/next --run`: 304 passed), plants3 (handoff/DYN-START-SPEED-2-plants.txt),
+xtest2 (cargo xtask test), fin2 (cargo xtask so + hot_text_products fast, 30 passed; final head differs only in prose).
+Measurement runs (not proofs; same code, products of 1b976ec1e): meas1 (release probe ext4/tmpfs), sky1
+(Skylake-SP instructions + faults), keke:dyn-start-speed-2-zen1 (Zen 1).
+Superseded: lint0 (inherited head, green); rel1 (merged head, 68 > 67 reproduced); rel2 (clippy arithmetic red,
+fixed); rel3, gate1 (304 passed), plants2 (1/1 CAUGHT), xtest1 (green): all green on 1b976ec1e, before the Zen 1
+bound edit; fin1 (clippy + static passed; hot_text_products ran on products built from the previous tree, so the
+prefixed interpreter refused that libc.so.6 by its NIJI_PRIVATE build tag; fin2 rebuilt and passed); diag1 (that
+diagnosis); prepnext (old ~/wl/bin/wl_prep.sh, fast build, failed copy; I removed the empty products dir it left),
 nextrel (next's release products + probe), probe1 (probe script bug), probe2 (merged head ext4/tmpfs), plants1
-(plant file not yet synced), fin1 (clippy -D warnings + static passed; hot_text_products then ran against products built from the previous tree: the prefixed interpreter refused the older libc.so.6 by its NIJI_PRIVATE build tag; fin2 rebuilt and passed).
+(plant file not yet synced).
 
 ## INFORMATIONAL
 - ~/wl/bin/wl_prep.sh on mei is an old copy (target/liella paths, fast profile); validation/wl_prep.sh in the
