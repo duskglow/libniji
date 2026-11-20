@@ -1290,6 +1290,9 @@ fn finish_archive(root: &Path, archive: &Path, product: &Path, out: &Path, layou
     let weak = weaken_archive(archive, &product.join("weaken"), &staged)?;
     // After the weakening pass, which rebuilds the product crate's objects.
     shared_personality_ref(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &staged, &product.join("personality-work"))?;
+    // D-22.21: the published archive only (libc.so.6 keeps the form that returns 0).
+    static_unwinder_member(root, &staged, &product.join("unwinder-work"))?;
+    println!("so: libc.a refers weakly to the unwinder a static program links (D-22.21)");
     // LAYOUT-GOT-ORDER (D-X.140): the published archive only (libc.so.6 was linked from `archive`, and a
     // position-independent link keeps these GOT slots anyway), so a static program has no `.got`.
     let got = crate::gotrelax::mark_archive(&staged)?;
@@ -1350,6 +1353,65 @@ fn check_no_link_edge(so: &Path) -> Result<(), String> {
     let out = Command::new("nm").arg(so).output().map_err(|e| format!("nm: {e}"))?;
     match String::from_utf8_lossy(&out.stdout).lines().find(|l| l.contains(LINK_EDGE)) {
         Some(l) => Err(format!("{} carries a link-edge word: {l}", so.display())),
+        None => Ok(()),
+    }
+}
+
+/// The unwinder entries libc.a refers to weakly (machine/unwinder.S, D-22.21).
+const STATIC_UNWINDER: [&str; 2] = ["_Unwind_ForcedUnwind", "_Unwind_GetCFA"];
+
+/// D-22.21: replaces, in the published `archive`, the member that defines
+/// `niji_machine_unwind_force` (machine/unwinder.S as the C layer assembled it: it returns 0) with
+/// the same file assembled with -DNIJI_STATIC_ARCHIVE (weak references to [`STATIC_UNWINDER`]),
+/// under the same member name. Afterwards that member must be the archive's only reference to
+/// those names, and a weak one; anything else is an error.
+fn static_unwinder_member(root: &Path, archive: &Path, work: &Path) -> Result<(), String> {
+    let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
+    let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+    let _ = fs::remove_dir_all(work);
+    fs::create_dir_all(work).map_err(|e| format!("{}: {e}", work.display()))?;
+    let nm = |args: &[&str]| -> Result<String, String> {
+        let out = Command::new("nm").args(args).arg(archive).output().map_err(|e| format!("nm: {e}"))?;
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    };
+    let defining: Vec<String> = nm(&["-A", "--defined-only"])?
+        .lines()
+        .filter(|l| l.split_whitespace().last() == Some("niji_machine_unwind_force"))
+        .filter_map(|l| l.split(':').nth(1).map(str::to_string))
+        .collect();
+    let [member] = defining.as_slice() else {
+        return Err(format!("{}: {} members define niji_machine_unwind_force, expected 1 (csys/src/machine/unwinder.S)", archive.display(), defining.len()));
+    };
+    let listing = Command::new(&ar).arg("t").arg(archive).output().map_err(|e| format!("ar: {e}"))?;
+    let same = String::from_utf8_lossy(&listing.stdout).lines().filter(|m| m == member).count();
+    if same != 1 {
+        return Err(format!("{}: {same} members are named {member}; the replacement needs a unique name", archive.display()));
+    }
+    let obj = work.join(member);
+    run(Command::new(&cc).arg("-c").arg("-DNIJI_STATIC_ARCHIVE").arg(root.join("csys/src/machine/unwinder.S")).arg("-o").arg(&obj))?;
+    run(Command::new(&ar).current_dir(work).arg("r").arg(archive).arg(member))?;
+    run(Command::new(&ar).arg("s").arg(archive))?;
+    let refs: Vec<(String, String)> = nm(&["-A", "--undefined-only"])?
+        .lines()
+        .filter_map(|l| {
+            let mut w = l.split_whitespace().rev();
+            let (sym, kind) = (w.next()?, w.next()?);
+            STATIC_UNWINDER.contains(&sym).then(|| (l.split(':').nth(1).unwrap_or("").to_string(), format!("{kind} {sym}")))
+        })
+        .collect();
+    let want: Vec<(String, String)> = STATIC_UNWINDER.iter().map(|s| (member.clone(), format!("w {s}"))).collect();
+    if refs != want {
+        return Err(format!("{}: references to the unwinder are {refs:?}, expected only {want:?} (D-22.21)", archive.display()));
+    }
+    Ok(())
+}
+
+/// D-22.21: libc.so.6 neither imports nor refers to [`STATIC_UNWINDER`] (it finds the unwinder
+/// with `dlsym` at a thread's exit, D-22.19): no symbol and no start-up lookup.
+fn check_no_static_unwinder(so: &Path) -> Result<(), String> {
+    let out = Command::new("nm").arg("-D").arg(so).output().map_err(|e| format!("nm: {e}"))?;
+    match String::from_utf8_lossy(&out.stdout).lines().find(|l| l.split_whitespace().last().is_some_and(|s| STATIC_UNWINDER.contains(&s))) {
+        Some(l) => Err(format!("{} refers to the unwinder: {l} (D-22.21)", so.display())),
         None => Ok(()),
     }
 }
@@ -1512,7 +1574,8 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     link_libc(&owner_obj, &so, &[])?;
     check_rodata1_anchor(&so, rodata1_align)?;
     check_no_link_edge(&so)?;
-    let native = check_native_exports(root, &so)?;
+    check_no_static_unwinder(&so)?;
+    let native =check_native_exports(root, &so)?;
     let compat_count = check_compat_exports(root, &so, "libc.so.6", &compat)?;
     let objects = crate::compat_objects::check(root, &so)?;
     println!("so: {objects} data objects exported, each at its versions.tsv size (LG-6)");
