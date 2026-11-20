@@ -39,8 +39,9 @@ in the report, "Switch plan".
 
 Done. The refresh leg found `xtask static` red (old-name) on 513040f09's tree fallback and fixed it in db49df193 (code
 head; later commits are handoff/ only). On db49df193, Skylake-SP build host role s2: `wl-dynamic-kit-gate2` (direct
-tier, 548 passed / 0 failed) and `wl-dynamic-kit-lint2` (clippy + static clean) are green; `wl-dynamic-kit-precheck`
-runs on the final synced head. Nothing of this run is left running.
+tier, 548 passed / 0 failed), `wl-dynamic-kit-lint2` (clippy + static clean), `wl-dynamic-kit-percall2` and
+`wl-dynamic-kit-kits4` (reruns from the role, so the jobs check sees their tested content) and
+`wl-dynamic-kit-precheck2` on the final synced head. Nothing of this run is left running.
 
 ## Next step
 

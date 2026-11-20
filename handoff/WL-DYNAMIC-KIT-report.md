@@ -167,11 +167,16 @@ run. Without phase 2's carve-out, every gate would go red on start-up that DYN-S
 
 ## Jobs
 
-`wl-dynamic-kit-kits3` (the table), `wl-dynamic-kit-percall` (per-call static and dynamic), `wl-dynamic-kit-locktest`
-(self-test), `wl-dynamic-kit-gate2` (direct tier on db49df193: 5 suites, 548 passed, 0 failed, including both
-selected validation self-tests; peak 1.4G), `wl-dynamic-kit-lint2` (clippy + static on db49df193, clean). The
-measurement jobs ran with the a5898fd57 tools; db49df193 changes only how the validation tree is found and resolves to
-the same trees on that host. Superseded: `wl-dynamic-kit-static-count` (failed at the sort link, fixed in 513040f09),
+On the final code head db49df193 (role s2, Skylake-SP build host): `wl-dynamic-kit-gate2` (direct tier: 5 suites,
+548 passed, 0 failed, including the selected wl_lock_test.sh and wl_stats_test.sh; peak 1.4G), `wl-dynamic-kit-lint2`
+(clippy + static clean), `wl-dynamic-kit-percall2` (per-call static and dynamic; rows served from the row cache, keyed
+by the measured products b2485a7f1 and the environment, identical to `wl-dynamic-kit-percall`), `wl-dynamic-kit-kits4`
+(the table rerun from the role), `wl-dynamic-kit-precheck2`. The table above is from `wl-dynamic-kit-kits3`;
+kits4 agrees with it: instructions:u geomean static 0.8180 (kits3 0.8181), dynamic 0.9017 (0.9017), at glibc's
+per-start cost 0.8621 (0.8621); page faults static 0.9770 (0.9780), dynamic 1.1521 (1.1512). Superseded: `wl-dynamic-kit-kits3` (the table; ran from a copy of the
+scripts outside the role, so no tested-content record), `wl-dynamic-kit-percall` (ran before a5898fd57/db49df193
+changed wl_dyncc.sh and wl_prep.sh), `wl-dynamic-kit-locktest` (same copy; the self-test reran in gate2),
+`wl-dynamic-kit-precheck` (red only on those three), `wl-dynamic-kit-static-count` (failed at the sort link, fixed in 513040f09),
 `wl-dynamic-kit-kits` (same failure), `wl-dynamic-kit-kits2` (gawk dynamic link, fixed in a5898fd57),
 `wl-dynamic-kit-gate` (green, but on a5898fd57), `wl-dynamic-kit-lint` (static old-name red on a5898fd57, fixed in
 db49df193).

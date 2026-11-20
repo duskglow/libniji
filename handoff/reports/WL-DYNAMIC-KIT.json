@@ -17,4 +17,4 @@
  "improvement": "wl_build_products reruns cargo xtask so (171.8 s warm) for a second product set from the same build; one build should copy both sets",
  "next_step": "owner ruling on the switch plan; then one story flips WL_LINK default and re-records levels; nightly wl_kits.sh",
  "report_file": "handoff/WL-DYNAMIC-KIT-report.md",
- "jobs": ["mei:wl-dynamic-kit-gate2", "mei:wl-dynamic-kit-lint2", "mei:wl-dynamic-kit-kits3", "mei:wl-dynamic-kit-percall", "mei:wl-dynamic-kit-locktest", "mei:wl-dynamic-kit-precheck"]}
+ "jobs": ["mei:wl-dynamic-kit-gate2", "mei:wl-dynamic-kit-lint2", "mei:wl-dynamic-kit-kits4", "mei:wl-dynamic-kit-percall2", "mei:wl-dynamic-kit-precheck2"]}
