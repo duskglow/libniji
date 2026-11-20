@@ -1950,10 +1950,12 @@ fn map_view(fd: i32, len: usize) -> Result<usize, ()> {
         let _ = raw::munmap(raw, span);
         return Err(());
     }
+    // User addresses (below 2^47) plus lengths the kernel accepted: none of these wrap.
     if at != raw {
-        let _ = raw::munmap(raw, at - raw);
+        let _ = raw::munmap(raw, at.wrapping_sub(raw));
     }
-    let _ = raw::munmap(at + mapped, raw + span - (at + mapped));
+    let end = at.wrapping_add(mapped);
+    let _ = raw::munmap(end, raw.wrapping_add(span).wrapping_sub(end));
     Ok(at)
 }
 
