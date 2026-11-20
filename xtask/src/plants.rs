@@ -713,25 +713,26 @@ pub fn auto_copies(limit: Option<u64>) -> usize {
 /// starts the job), the `memory.max` of this process's cgroup and every cgroup above it, and `MemAvailable`. `None` when
 /// none of them is known.
 fn ram_limit() -> Option<u64> {
-    let mut limits = Vec::new();
-    if let Some(gb) = std::env::var("NIJI_PLANTS_RAM_GB").ok().and_then(|v| v.trim().parse::<f64>().ok()).filter(|g| *g >= 0.0) {
-        limits.push((gb * (1u64 << 30) as f64) as u64);
-    }
+    let mut maxes = Vec::new();
     if let Some(cg) = fs::read_to_string("/proc/self/cgroup").ok().and_then(|t| t.lines().find_map(|l| l.strip_prefix("0::").map(str::to_string))) {
         let mut dir = PathBuf::from(format!("/sys/fs/cgroup{}", cg.trim()));
         loop {
-            if let Some(v) = fs::read_to_string(dir.join("memory.max")).ok().and_then(|v| v.trim().parse::<u64>().ok()) {
-                limits.push(v);
-            }
+            maxes.extend(fs::read_to_string(dir.join("memory.max")));
             if dir == Path::new("/sys/fs/cgroup") || !dir.pop() {
                 break;
             }
         }
     }
-    if let Some(kb) = fs::read_to_string("/proc/meminfo").ok().and_then(|t| t.lines().find_map(|l| l.strip_prefix("MemAvailable:").and_then(|v| v.trim().trim_end_matches("kB").trim().parse::<u64>().ok()))) {
-        limits.push(kb * 1024);
-    }
-    limits.into_iter().min()
+    smallest_limit(std::env::var("NIJI_PLANTS_RAM_GB").ok().as_deref(), &maxes, &fs::read_to_string("/proc/meminfo").unwrap_or_default())
+}
+
+/// [`ram_limit`] from what it read: the `NIJI_PLANTS_RAM_GB` value (GiB), the cgroups' `memory.max` texts (`max` = no
+/// limit) and `/proc/meminfo`. The smallest limit given, in bytes; an unreadable value gives none.
+pub fn smallest_limit(env_gib: Option<&str>, memory_max: &[String], meminfo: &str) -> Option<u64> {
+    let env = env_gib.and_then(|v| v.trim().parse::<f64>().ok()).filter(|g| g.is_finite() && *g >= 0.0).map(|g| (g * (1u64 << 30) as f64) as u64);
+    let cgroups = memory_max.iter().filter_map(|v| v.trim().parse::<u64>().ok());
+    let available = meminfo.lines().find_map(|l| l.strip_prefix("MemAvailable:").and_then(|v| v.trim().trim_end_matches("kB").trim().parse::<u64>().ok())).map(|kb| kb * 1024);
+    env.into_iter().chain(cgroups).chain(available).min()
 }
 
 /// What one copy's worker ended with.
@@ -1569,6 +1570,20 @@ mod tests {
         assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES - 1)), 1);
         assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES)), 2);
         assert_eq!(auto_copies(Some(u64::MAX)), 2);
+    }
+
+    // no spec clause (PLANTS-COPIES): the RAM a job may use is the smallest of the role budget, every cgroup's
+    // memory.max (`max` is no limit) and MemAvailable
+    #[test]
+    fn the_ram_limit_is_the_smallest_known() {
+        const GIB: u64 = 1 << 30;
+        let meminfo = "MemTotal:       79691776 kB\nMemAvailable:   62914560 kB\n";
+        let maxes = |v: &[&str]| v.iter().map(|s| format!("{s}\n")).collect::<Vec<String>>();
+        assert_eq!(smallest_limit(None, &maxes(&["max", "max"]), meminfo), Some(60 * GIB));
+        assert_eq!(smallest_limit(None, &maxes(&["max", &(20 * GIB).to_string()]), meminfo), Some(20 * GIB));
+        assert_eq!(smallest_limit(Some("8"), &maxes(&[&(20 * GIB).to_string()]), meminfo), Some(8 * GIB));
+        assert_eq!(smallest_limit(Some("100"), &[], meminfo), Some(60 * GIB));
+        assert_eq!(smallest_limit(Some("lots"), &maxes(&["max"]), ""), None);
     }
 
     // no spec clause (PLANTS-COPIES): --copies takes a number from 1 to 8 or auto
