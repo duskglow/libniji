@@ -102,6 +102,20 @@ def main():
                 if "__fdelt_chk" not in und:
                     print(f"FAIL P10 libniji {opt}: does not bind to __fdelt_chk")
                     failed += 1
+        for macro in ("FD_SET (fd, &s)", "FD_CLR (fd, &s)", "(void) FD_ISSET (fd, &s)"):
+            # Each descriptor macro on its own: one that skips the range check still gives the same answers for every
+            # valid descriptor, so only its own undefined symbol shows it.
+            msrc = os.path.join(work, "p10-macro.c")
+            with open(msrc, "w") as f:
+                f.write("#include <sys/select.h>\nint main (int argc, char **argv) { fd_set s = {{0}}; int fd = argc; %s; return (int) (long) argv; }\n" % macro)
+            mexe = os.path.join(work, f"p10-macro{opt}")
+            r = subprocess.run(["gcc", opt, "-nostdinc", "-isystem", args.include, "-isystem", gccinc, msrc, "-o", mexe], capture_output=True, text=True)
+            if r.returncode:
+                print(f"FAIL P10 libniji {opt}: {macro} does not compile: {r.stderr.strip().splitlines()[:3]}")
+                failed += 1
+            elif "__fdelt_chk" not in subprocess.run(["nm", "-u", mexe], capture_output=True, text=True).stdout:
+                print(f"FAIL P10 libniji {opt}: {macro} does not bind to __fdelt_chk")
+                failed += 1
         if len(outs) == 2 and outs["system"] != outs["libniji"]:
             a, b = outs["system"].splitlines(), outs["libniji"].splitlines()
             diff = [(i, x, y) for i, (x, y) in enumerate(zip(a, b)) if x != y]
