@@ -1356,14 +1356,28 @@ pub fn gen_prechecks_for(f: &str) -> Vec<&'static str> {
 /// The prechecks `sel` runs first, in [`crate::precheck::CHEAP_STEPS`] order (`stubs` first): the ones its files
 /// selected, and EVERY cheap step when the selection escalated to FULL, whatever the reason (HANDBACK-INLOOP-CHECKS:
 /// a FULL-tier `stubs` red used to show after the whole suite, often after the hand-back; now it ends the run in
-/// seconds). The FULL run repeats them inside `cargo xtask test` (about 45 s, headers-gen the bulk), kept so that
-/// command stays complete on its own. `--only` runs no prechecks.
+/// seconds). The FULL run that follows does not repeat them ([`full_steps`]); `cargo xtask test` run on its own still
+/// runs them all. `--only` runs no prechecks.
 pub fn prechecks(sel: &Selection) -> Vec<&'static str> {
     if sel.only {
         return Vec::new();
     }
     let every = !sel.full.is_empty() || !sel.train.is_empty();
     crate::precheck::CHEAP_STEPS.iter().copied().filter(|c| every || sel.gen_prechecks.contains(*c)).collect()
+}
+
+/// The escalated FULL run's steps after the prechecks (TOOLING-PAPERCUTS, audit item 9: the cheap steps ran twice):
+/// whether `cargo xtask stubs` still runs (no: the `stubs` precheck is the same function), and `cargo xtask test`'s
+/// command, with [`crate::precheck::CHEAP_DONE`] when the prechecks were every cheap step. A precheck red ends the
+/// run before this (`run_prechecks_or_stop`), so reaching here means they were green.
+pub fn full_steps(sel: &Selection) -> (bool, Vec<&'static str>) {
+    let pre = prechecks(sel);
+    let all = pre == crate::precheck::CHEAP_STEPS;
+    let mut test = vec!["cargo", "xtask", "test"];
+    if all {
+        test.push(crate::precheck::CHEAP_DONE);
+    }
+    (!pre.contains(&"stubs"), test)
 }
 
 /// The first step of a run: `sel`'s prechecks; any red one ends the run (`Err`) before anything else starts, with the
@@ -1961,6 +1975,8 @@ const VALIDATION_COVERED: &[(&str, &[&str])] = &[
     (VALIDATION_MTMEM_TEST, &[VALIDATION_MTMEM_TEST]),
     // The products profile and the cache key every lab script reads the products and kits by.
     ("validation/wl_lock.sh", &[VALIDATION_LOCK_TEST]),
+    // The dynamic kit's ELF helper (WL-DYNAMIC-KIT): wl_lock_test.sh section 7 links a program and retargets it.
+    ("validation/wl_dynlink.py", &[VALIDATION_LOCK_TEST]),
     (VALIDATION_LOCK_TEST, &[VALIDATION_LOCK_TEST]),
 ];
 
@@ -1973,11 +1989,13 @@ const VALIDATION_UNCOVERED: &[(&str, &str)] = &[
     ("validation/wl_attr.sh", "workload gate attribution step on a timing host; no self-test"),
     ("validation/wl_base.sh", "BASE checkout helper of the lab tools; no self-test"),
     ("validation/wl_count.sh", "lab driver of wl_count_run.sh (ssh, queueing); no self-test"),
+    ("validation/wl_dyncc.sh", "link driver of the libniji-dynamic kit (needs built shared products); no self-test"),
     ("validation/wl_entries.sh", "lab driver of wl_entries_run.sh; no self-test"),
     ("validation/wl_entries_run.sh", "host side of the entry-point counts (needs the built kits); no self-test"),
     ("validation/wl_fallback.sh", "lab queueing fallback; no self-test"),
     ("validation/wl_gate.sh", "the workload gate driver (lab hosts); no self-test"),
     ("validation/wl_install.sh", "installs the lab tools on a host; no self-test"),
+    ("validation/wl_kits.sh", "static vs dynamic vs glibc kit comparison on a lab host (built kits, perf); no self-test"),
     ("validation/wl_launch.sh", "detached lab launcher; no self-test"),
     ("validation/wl_local.sh", "role-directory variant of the lab drivers; no self-test"),
     ("validation/wl_percall.sh", "its check wl_percall_tunables_test.sh is a lab count job (built products, minutes), not a gate step"),
@@ -3806,10 +3824,13 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         // Step times (XTASK-TEST-STEP-TIMES): a `step:` line per step on the console, those `cargo xtask test` wrote
         // to the log among them, and the summary of all of them, slowest first.
         let mut times = crate::steptime::Steps::default();
-        ok &= times.time("stubs", || step(root, &log, "stubs", Command::new(&cargo).args(["xtask", "stubs"])));
+        let (stubs_again, test_args) = full_steps(sel);
+        if stubs_again {
+            ok &= times.time("stubs", || step(root, &log, "stubs", Command::new(&cargo).args(["xtask", "stubs"])));
+        }
         ok &= times.time("clippy-workspace", || step_saving(root, &log, "clippy --workspace", Command::new(&cargo).args(["clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]), "clippy.log"));
         let from = fs::metadata(&log).map_or(0, |m| m.len());
-        ok &= step(root, &log, "cargo xtask test", Command::new(&cargo).args(["xtask", "test"]));
+        ok &= step(root, &log, &test_args.join(" "), Command::new(&cargo).args(&test_args[1..]));
         // GATE-VALIDATION-SH-TESTS: everything includes the validation self-tests (`cargo xtask test` does not run them).
         for s in VALIDATION_SELF_TESTS {
             ok &= times.time(s, || step(root, &log, &format!("validation self-test {s}"), Command::new("bash").arg(s)));
@@ -3848,13 +3869,10 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         if sel.xtask_tests {
             ok &= step_out(root, &log, "xtask unit tests", Command::new(&cargo).args(["test", "-p", "xtask"]), Some("xtask"), &mut std::io::stdout()) == Outcome::Ok;
         }
-        if needs_products(repo, sel) {
-            let mut cmd = Command::new(&cargo);
-            cmd.args(["xtask", "so"]);
-            ok &= step(root, &log, "products (cargo xtask so)", &mut cmd);
-        }
-        // Per crate: its unit tests and its selected targets, then again with the exports
-        // interposed (as the gate does) for the crates that can link the boundary.
+        // Per crate: its unit tests and its selected targets, then (as the gate does, for the crates
+        // that can link the boundary) again as libniji processes (PASS2-NATIVE-RUNNER) and, for the
+        // targets of the interposed suite among them (`nextest::interposed`, ruling #6820), with
+        // the exports interposed.
         let mut per: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
         for (c, t) in sel.tests.keys() {
             per.entry(c).or_default().push(t);
@@ -3865,49 +3883,87 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         let selftest = ["niji", "niji-boundary", "niji-rt", "niji-math"];
         let interpose = with_exports || (!sel.only && sel.clippy.keys().any(|c| matches!(c.as_str(), "niji-mem" | "niji-rt" | "niji-kernel" | "niji-abi" | "niji-boundary")));
         if !interpose {
-            println!("note: the exports-interposed pass is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
+            println!("note: the second pass (native and exports-interposed) is skipped (no change in mem, rt, kernel, abi or boundary); --with-exports runs it");
+        }
+        // `niji`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...) from the C
+        // family, which is a poisoning libniji heap only in the second pass (the products' heap
+        // natively, `pass2::products_perturb`; the test heap with the exports interposed): there its
+        // poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always get the
+        // second pass.
+        let second = |c: &str, ts: &[&str]| (interpose || (c == "niji" && ts.iter().any(|t| t.ends_with("_clauses")))) && selftest.contains(&c);
+        // The native pass runs on the products.
+        if needs_products(repo, sel) || per.iter().any(|(c, ts)| second(c, ts)) {
+            let mut cmd = Command::new(&cargo);
+            cmd.args(["xtask", "so"]);
+            ok &= step(root, &log, "products (cargo xtask so)", &mut cmd);
         }
         let nextest = crate::nextest::available(&cargo);
+        // The native pass's runner, made once on first use (`pass2::prepare`); `Err` once it failed.
+        let mut runner: Option<Result<String, ()>> = None;
+        // The native pass's lock of this tree (`pass2::lock`), taken with the runner and held to the end of the run.
+        let mut _native_lock = None;
         for (c, ts) in &per {
-            for pass in 0..2 {
-                // `niji`'s clause tests take caller-owned blocks (`getifaddrs`, `strdup`, ...)
-                // from the C family, which is libniji's heap only with the exports interposed: there
-                // its poisoned frees catch a read after `free` (FREE-POISON-TESTS-2), so they always
-                // get the second pass.
-                let c_family = *c == "niji" && ts.iter().any(|t| t.ends_with("_clauses"));
-                if pass == 1 && !((interpose || c_family) && selftest.contains(c)) {
+            for pass in 0..3 {
+                if pass > 0 && !second(c, ts) {
                     continue;
                 }
-                // The pure-Rust sweeps run in the first pass only (`nextest::PASS0_ONLY`, #889);
-                // a pass left with no target and no unit tests is not run (no `--test` would run all).
-                let ts: Vec<&str> = ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::pass0_only(c, t)).collect();
-                if pass == 1 && ts.is_empty() && !sel.libs.contains_key(*c) {
+                // The pure-Rust sweeps run in the first pass only (`nextest::PASS0_ONLY`, #889); the
+                // interposed pass runs the suite's targets only. A pass left with no target and no
+                // unit tests is not run (no `--test` would run all).
+                let ts: Vec<&str> = ts.iter().copied().filter(|t| pass == 0 || !crate::nextest::pass0_only(c, t)).filter(|t| pass < 2 || crate::nextest::interposed(c, t)).collect();
+                let lib = sel.libs.contains_key(*c) && (pass < 2 || crate::nextest::interposed(c, ""));
+                if pass > 0 && ts.is_empty() && !lib {
                     continue;
+                }
+                let mut selection = vec!["-p".to_string(), c.to_string()];
+                if lib {
+                    selection.push(unit_tests_flag(repo, c).to_string());
+                }
+                for t in &ts {
+                    selection.extend(["--test".to_string(), t.to_string()]);
                 }
                 // Through nextest when the gate's `xtask test` uses it (`nextest.rs`): the same
                 // runner and serial groups, and the summary lines of a `cargo test` log.
                 let mut cmd = Command::new(&cargo);
                 crate::nextest::poison(&mut cmd);
                 if nextest {
-                    cmd.args(["xtask", "nextest", "-p", c]);
+                    cmd.args(["xtask", "nextest"]);
                 } else {
-                    cmd.args(["test", "-p", c]);
+                    cmd.arg("test");
                 }
+                cmd.args(&selection);
                 if pass == 1 {
-                    cmd.args(["--features", &RUN_FEATURES.iter().flat_map(|(c, fs)| fs.iter().map(move |f| format!("{c}/{f}"))).collect::<Vec<_>>().join(",")]);
+                    let r = runner.get_or_insert_with(|| {
+                        let made = crate::pass2::lock(root).and_then(|held| {
+                            _native_lock = Some(held);
+                            crate::pass2::prepare(root)
+                        });
+                        let value = made.as_ref().ok().cloned();
+                        check_logged(&log, "native pass set-up (prefixed loader, lib/, runner)", made.map(|_| ())).ok().and(value).ok_or(())
+                    });
+                    let Ok(r) = r.clone() else {
+                        ok = false;
+                        continue;
+                    };
+                    if check_logged(&log, &format!("native copies of -p {c}"), crate::pass2::patch_listed(&cargo, root, &selection).map(|_| ())).is_err() {
+                        ok = false;
+                        continue;
+                    }
+                    cmd.env(if nextest { crate::pass2::RUNNER_VIA } else { crate::pass2::RUNNER_VAR }, r).env(crate::pass2::PASS_VAR.0, crate::pass2::PASS_VAR.1);
                 }
-                if sel.libs.contains_key(*c) {
-                    cmd.arg(unit_tests_flag(repo, c));
+                if pass == 2 {
+                    cmd.args(["--features", crate::nextest::INTERPOSED_FEATURES]);
                 }
-                for t in &ts {
-                    cmd.args(["--test", t]);
-                }
-                // The heavy products sweeps run shard 0 only with the exports interposed
+                // The heavy products sweeps run shard 0 only in the second pass
                 // (`nextest::PASS1_SHARD0`, D-X.36); `cargo test` has no filter for it and runs all.
-                if pass == 1 && nextest {
+                if pass > 0 && nextest {
                     cmd.args(crate::nextest::pass1_shard_filter(c, &ts).unwrap_or_default());
                 }
-                let label = format!("test -p {c}{}", if pass == 1 { " (exports interposed)" } else { "" });
+                let label = format!("test -p {c}{}", match pass {
+                    0 => "",
+                    1 => " (native)",
+                    _ => " (exports interposed)",
+                });
                 match step_out(root, &log, &label, &mut cmd, Some(c), &mut std::io::stdout()) {
                     Outcome::Ok => {}
                     Outcome::Skipped => skipped.push(label),
@@ -4814,6 +4870,17 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         assert!(prechecks(&s).is_empty(), "--only runs no precheck");
     }
 
+    // no spec clause (TOOLING-PAPERCUTS, audit item 9): an escalated FULL run runs each cheap step once, as a
+    // precheck: no second `stubs`, and `cargo xtask test` is told to skip them; a run without those prechecks
+    // (--only) keeps both, so nothing goes unchecked
+    #[test]
+    fn escalated_full_run_does_not_repeat_the_cheap_steps() {
+        let mut s = Selection { full: vec!["test".into()], ..Selection::default() };
+        assert_eq!(full_steps(&s), (false, vec!["cargo", "xtask", "test", crate::precheck::CHEAP_DONE]));
+        s.only = true;
+        assert_eq!(full_steps(&s), (true, vec!["cargo", "xtask", "test"]));
+    }
+
     // no spec clause: HEADERS-ABI-REGEN. The prechecks really run the generators' checks: green on this (consistent)
     // tree, red on a tree whose tables are missing; the red ones are named.
     #[test]
@@ -4891,7 +4958,7 @@ echo "conformance: $pass passed, $fail failed"; [ $fail -eq 0 ]
         // target that carries no section, the layout tests among them, for any boundary change.
         {
             let tier = Tier::Direct;
-            for f in ["crates/boundary/src/ld.rs", "crates/boundary/src/arch/mod.rs", "docs/benchmarks.md", "crates/math/tests/fast64.rs", "crates/native/src/aio.rs"] {
+            for f in ["crates/boundary/src/ld.rs", "crates/boundary/src/ld/link.rs", "crates/boundary/src/arch/mod.rs", "docs/benchmarks.md", "crates/math/tests/fast64.rs", "crates/native/src/aio.rs"] {
                 let s = select_tier(repo(), &[f.to_string()], tier);
                 assert!(state(&s).iter().all(|&b| !b), "{f} ({tier:?}) cannot reach libc.a: no start-up layout test: {:?}", state(&s));
             }

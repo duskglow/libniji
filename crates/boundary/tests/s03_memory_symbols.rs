@@ -388,9 +388,19 @@ fn sym_mallinfo2() {
 #[test]
 fn sym_mallinfo() {
     isolated("sym_mallinfo", || {
-        let m = s::mallinfo();
-        let m2 = s::mallinfo2();
-        assert_eq!(i64::from(m.uordblks), i64::try_from(m2.uordblks).unwrap().min(i64::from(i32::MAX)));
+        // The process is not quiescent (the harness thread and the interposed runtime may allocate a few
+        // bytes between two calls, finding #6881), so `mallinfo` is compared with `mallinfo2` within one
+        // window: two `mallinfo2` reads around it that agree. A budget of tries, no clock.
+        const TRIES: u32 = 1000;
+        let window = (0..TRIES).find_map(|_| {
+            let before = s::mallinfo2();
+            let m = s::mallinfo();
+            let after = s::mallinfo2();
+            (before.uordblks == after.uordblks).then_some((m, before))
+        });
+        assert!(window.is_some(), "mallinfo2's bytes in use changed around every one of {TRIES} mallinfo calls");
+        let (m, m2) = window.unwrap();
+        assert_eq!(i64::from(m.uordblks), i64::try_from(m2.uordblks).unwrap().min(i64::from(i32::MAX)), "mallinfo's bytes in use within a quiescent window");
         assert!(m.hblks >= 0 && m.arena >= 0, "saturated, never negative");
     });
 }

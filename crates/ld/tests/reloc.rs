@@ -16,6 +16,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/helpers/exec_stage.rs"]
+mod exec_stage;
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -425,6 +428,59 @@ fn reloc_version_check_and_refusals_in_the_model() {
     std::fs::remove_dir_all(&d).ok();
 }
 
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): a relocation writes only
+/// inside a writable `PT_LOAD`'s memory (`p_memsz`, so the bss end counts). One `RELATIVE` entry of a
+/// built object, moved: into the read-only text, past every segment, across the end of the writable
+/// segment (refused), and onto its last word (applied).
+#[test]
+fn reloc_field_must_lie_in_a_writable_segment() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("outside");
+    let lib = std::fs::read(build(&d, "libo.so", "static int x[512]; int *p = &x[1];\n", &["-fPIC", "-shared"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1).collect();
+    let rw = *loads.iter().find(|p| p.flags & 2 != 0).expect("a writable PT_LOAD");
+    let ro = *loads.iter().find(|p| p.flags & 2 == 0 && p.memsz >= 8).expect("a read-only PT_LOAD");
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let rela = dynm.get(niji_ld::elf::dt::RELA).expect("DT_RELA");
+    let relas: Vec<_> = dynm.rela::<Native>().unwrap().unwrap().collect();
+    assert_eq!((relas.len(), relas[0].kind), (1, RelocKind::Relative), "one RELATIVE entry");
+    // The entry is the table's `DT_RELACOUNT` prefix, so the pass's prefix loop (DYN-START-SPEED) applies it.
+    assert_eq!(dynm.get(niji_ld::elf::dt::RELACOUNT), Some(1), "the linker counts the RELATIVE prefix");
+    // The entry's file offset: the first PT_LOAD maps the file from offset 0 at address 0.
+    let at = usize::try_from(loads[0].offset + rela - loads[0].vaddr).unwrap();
+    let end = rw.vaddr + rw.memsz;
+    let cases = [(ro.vaddr, false), (end + 0x10_0000, false), (end - 4, false), (end - 8, true), (relas[0].offset, true)];
+    for (offset, ok) in cases {
+        let mut f = lib.clone();
+        f[at..at + 8].copy_from_slice(&offset.to_le_bytes());
+        let elf = Elf::parse::<Native>(&f).unwrap();
+        let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            m.mem.insert(bias(0) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(0) + ph.vaddr), hi.max(bias(0) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        let objs = [Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(0), name: b"libo.so", tls: None }];
+        let syms = [Object::new(objs[0].dynm).unwrap()];
+        let set = Objects { objs: &objs, syms: &syms, global: &[0] };
+        let mut unique = UniqueTable::<8, 256>::default();
+        let r = reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut unique);
+        if ok {
+            assert_eq!(r, Ok(()), "field at {offset:#x} is inside the writable segment");
+            assert_eq!(word(&mut m, bias(0) + offset), bias(0) + relas[0].addend as u64, "B + A stored at {offset:#x}");
+        } else {
+            assert_eq!(r.map_err(|e| e.error), Err(RelocError::Outside(offset)), "field at {offset:#x} refused");
+        }
+    }
+    std::fs::remove_dir_all(&d).ok();
+}
+
 // ------------------------------------------------------------------ (3) the built ld.so
 
 fn run(cmd: &mut Command) -> (Option<i32>, Option<i32>, String) {
@@ -571,10 +627,7 @@ int **r_first(void) { return (int **)&r_p[0]; } int **r_last(void) { return (int
     let (file, at) = split_relro_load(&std::fs::read(&r).unwrap());
     let p = sym_value(&file, b"r_p");
     assert!(p < at && p + 1099 * 8 >= at, "r_p[0] ({p:#x}) must lie in the first segment and r_p[1099] in the second (split at {at:#x})");
-    // Written under another name and copied over the linked object by cp(1) (no ETXTBSY window).
-    let tmp = d.join("libr.bytes");
-    std::fs::write(&tmp, &file).unwrap();
-    assert!(Command::new("cp").arg(&tmp).arg(&r).status().unwrap().success());
+    exec_stage::write_for_exec(&r, &file, 0o755);
     let prog = |name: &str, write: &str| {
         let s = format!(
             "extern int **r_first(void); extern int **r_last(void); extern int r_x;
@@ -743,7 +796,10 @@ fn reloc_ldso_kernel_started_without_proc() {
     let inside = |p: &Path| root.join(p.strip_prefix("/").unwrap());
     for f in files.iter().chain([&ld]) {
         std::fs::create_dir_all(inside(f).parent().unwrap()).unwrap();
-        std::fs::copy(f, inside(f)).unwrap();
+        // Copied by cp(1) (helpers/exec_stage.rs): the loader and the program are exec'd below, and a
+        // copy written in this process can still be open for writing in a sibling test's forked child
+        // (ETXTBSY, finding #6787).
+        exec_stage::copy_for_exec(f, &inside(f));
     }
     assert!(!root.join("proc").exists());
     // `unshare --root` changes the root itself: no chroot(8), which sits outside many PATHs.
@@ -783,12 +839,8 @@ fn without_pt_phdr(ld: &Path, d: &Path, p: &Path, name: &str) {
     let (phoff, phnum) = (elf.header().phoff as usize, usize::from(elf.header().phnum));
     let at = (0..phnum).map(|i| phoff + i * 56).find(|&o| file[o..o + 4] == 6u32.to_le_bytes()).expect("the linker gave the program a PT_PHDR");
     file[at..at + 4].copy_from_slice(&0u32.to_le_bytes()); // PT_PHDR -> PT_NULL
-    // Written under another name and copied by cp(1): the program run below is never open for
-    // writing in this process, so a fork by another test thread cannot make its exec fail (ETXTBSY).
-    let (tmp, q) = (d.join(format!("{name}.bytes")), d.join(name));
-    std::fs::write(&tmp, &file).unwrap();
-    std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-    assert!(Command::new("cp").arg(&tmp).arg(&q).status().unwrap().success());
+    let q = d.join(name);
+    exec_stage::write_for_exec(&q, &file, 0o755);
     assert!(Elf::parse::<Native>(&file).unwrap().find(niji_ld::elf::pt::PHDR).is_none());
     let (code, sig, err) = run(&mut Command::new(&q));
     assert_eq!((code, sig), (Some(0), None), "{name}: kernel-started program without PT_PHDR: check number {code:?} failed; stderr: {err}");
@@ -1134,11 +1186,8 @@ fn reloc_ldso_program_with_many_loads() {
     let interp = format!("-Wl,--dynamic-linker={}", ld.display());
     let [.., p] = corpus(&d, &[&interp]);
     let file = with_loads(&std::fs::read(&p).unwrap(), 300);
-    // Written under another name and copied by cp(1), as in `without_pt_phdr` (no ETXTBSY window).
-    let (tmp, q) = (d.join("many.bytes"), d.join("many"));
-    std::fs::write(&tmp, &file).unwrap();
-    std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-    assert!(Command::new("cp").arg(&tmp).arg(&q).status().unwrap().success());
+    let q = d.join("many");
+    exec_stage::write_for_exec(&q, &file, 0o755);
     // As `ld.so PROGRAM` only: the kernel refuses (ENOEXEC) a program header table larger than a page,
     // so a kernel-started program has at most 73 headers; `link` and the reader are the same code.
     let (code, sig, err) = run(Command::new(&ld).arg(&q));
@@ -1262,11 +1311,8 @@ fn reloc_ldso_program_target_outside_writable_refused() {
     let last = (0..phnum).filter(|&i| rd(&f, at(i)) == 1 && rd(&f, at(i) + 4) & 2 != 0).max_by_key(|&i| vaddr(&f, i)).unwrap();
     let flags = rd(&f, at(last) + 4) & !2;
     f[at(last) + 4..at(last) + 8].copy_from_slice(&flags.to_le_bytes());
-    // Written under another name and copied by cp(1), as in `without_pt_phdr` (no ETXTBSY window).
-    let (tmp, q) = (d.join("ro.bytes"), d.join("pro"));
-    std::fs::write(&tmp, &f).unwrap();
-    std::fs::set_permissions(&tmp, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-    assert!(Command::new("cp").arg(&tmp).arg(&q).status().unwrap().success());
+    let q = d.join("pro");
+    exec_stage::write_for_exec(&q, &f, 0o755);
     let (code, sig, err) = run(Command::new(&ld).arg(&q));
     assert_eq!((code, sig), (Some(127), None), "a RELATIVE target in a read-only segment must be refused; stderr: {err}");
     assert!(err.contains("cannot relocate the program"), "the refusal names the cause: {err}");

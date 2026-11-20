@@ -57,7 +57,7 @@ impl Gen<'_> {
     /// The declaration of `name` binding to `sym`. A function that binds to its own name is redirected to its 64-bit twin under
     /// `_FILE_OFFSET_BITS=64` where the call probes saw that (`lfs`); the addresses probed in no GNU configuration cannot show it.
     /// `excl`: the branch's own condition already excludes `_FILE_OFFSET_BITS=64` (a plain conjunction with `!__NIJI_FOB64`).
-    fn extern_lines(&self, name: &str, decl: &str, nt: &str, sym: &str, ind: &str, excl: bool) -> Vec<String> {
+    pub(super) fn extern_lines(&self, name: &str, decl: &str, nt: &str, sym: &str, ind: &str, excl: bool) -> Vec<String> {
         match self.t.lfs.get(name) {
             Some(y) if sym == name && !excl && self.t.exported.contains(y) => vec![
                 format!("{ind}if __NIJI_FOB64"),

@@ -1,0 +1,21 @@
+{"task": "GATE-TEST-TIME-2", "model": "opus", "tokens": null,
+ "result": "Merge conflict with origin/next resolved: next's VisIndex (PLANTS-BUILD-SLOWDOWN) kept, this branch's index test cases folded into its test; run-once dev-dependency fix unchanged",
+ "branch": "task/gate-test-time-2", "head": "0420dd0e3",
+ "gate": {"affected": "direct tier (xtask bounded set) on mei s4: gate-test-time-2-gate, 517 passed / 0 failed", "peak": "1.7G"},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "headers-gen's quadratic visibility scan was fixed twice (here and in PLANTS-BUILD-SLOWDOWN); the merge keeps next's VisIndex, so the headers-gen-check speedup is next's, not this branch's.",
+   "Findings #6772 (pass 2 heap path on foreign thread blocks) and #6773 (math sweeps on verdict-cache miss) are routed to their own stories by the coordinator; not done here.",
+   "Run deviation: one empty Bash heredoc (python3 - with no body) slipped into a local backup command; it ran nothing and has no repository effect."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "tooling", "what": "CI pass-2 test-seconds of bin/xtask (run once now, 53918b5f3)", "before": 1846, "after": 0, "unit": "test-s per CI gate", "measured": false},
+   {"kind": "coverage", "what": "cases added to vis_index_answers_as_the_row_scan (first of two rows of one kind; two include-error rows joined), proven by 2 plants", "before": 0, "after": 2, "unit": "test cases", "measured": true},
+   {"kind": "coverage", "what": "run-once dev-dependency graph unit test (from GATE-TEST-TIME)", "before": 0, "after": 1, "unit": "tests", "measured": true}
+ ],
+ "improvement": "Two stories (GATE-TEST-TIME, PLANTS-BUILD-SLOWDOWN) fixed the same headers-gen hot spot in parallel; when a slowdown story names a hot function, the dispatcher could flag other open branches that touch the same file before work starts.",
+ "next_step": "Land through the train; then compare the CI gates' pass-2 'once: xtask::bin/xtask' line and Summary against 255a6901d.",
+ "report_file": "handoff/GATE-TEST-TIME.md",
+ "jobs": ["mei:gate-test-time-2-gate", "mei:gate-test-time-2-plants"]}
