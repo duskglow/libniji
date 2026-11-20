@@ -42,8 +42,11 @@ at `/usr/lib/niji/lib64/ld-linux-x86-64.so.2`. The only files outside it are
 The packages have no maintainer scripts: installing them does not touch `/etc/ld.so.conf`, the
 system's loader cache or any other file.
 
-Versions of snapshots are `0.0~snapshotYYYYMMDD+<commit>` (the commit's date and its first 12 hex
-digits).
+Versions of snapshots are `0.0~snapshotYYYYMMDD.<n>+<commit>` (the commit's date, the serial `<n>` of
+the day's snapshot, and the commit's first 12 hex digits), for example
+`0.0~snapshot20261120.2+3f2a84520118`. `NIJI_DEB_SERIAL` sets `<n>` (default 1), as for the system
+packages below. Two snapshots of one day order by serial, whatever their commits. Earlier snapshots
+(`0.0~snapshotYYYYMMDD+<commit>`, no serial) sort below every serial version, so apt upgrades from them.
 
 ## Installing
 
