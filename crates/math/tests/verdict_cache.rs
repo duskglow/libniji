@@ -436,6 +436,15 @@ fn a_file_of_another_key_an_incomplete_file_and_unused_values_are_not_kept() {
     let v = Values::open_in(&dir.join("off"), None, oracle);
     v.save();
     assert!(!dir.join("off").exists(), "a cache without a key wrote a file");
+    // A file of another key under this key's name is not read either (its header names its key).
+    let mut v = Values::open_in(&dir, Some("key one"), oracle);
+    v.get(&query("a", 0));
+    v.save();
+    let [one_again] = <[String; 1]>::try_from(files(&dir)).unwrap();
+    std::fs::rename(dir.join(&one_again), dir.join(&two)).unwrap();
+    let mut v = Values::open_in(&dir, Some("key two"), oracle);
+    v.get(&query("a", 0));
+    assert_eq!(v.hits, 0, "a file holding another key's values was read");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
