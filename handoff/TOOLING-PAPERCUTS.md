@@ -1,5 +1,23 @@
 # TOOLING-PAPERCUTS: tooling defects (brief says six, lists five)
 
+## TOOLING-PAPERCUTS-2 (continuation; branch `task/tooling-papercuts-2`, on top of fdee5e371)
+* Step 0: clippy (`--workspace --all-targets --all-features -D warnings`) and `cargo xtask static` on the inherited
+  head: green (job `tooling-papercuts-2-lint0`, Skylake-SP build host mei). The last run's red was the refused
+  `touch` in liella-ops (the brief's fault, coordinator note 11-10); nothing in the tree was red.
+* jobwait (item 1): the fix as a patch against liella-ops at 8890695 (adds `vm/test_jobwait.sh`, changes
+  `vm/jobwait`; checked to apply with `patch -p1` and to reproduce the files below byte for byte):
+  `~/w/.scratch/TOOLING-PAPERCUTS-2/jobwait-liella-ops-8890695.patch`. The same files stay in
+  `handoff/TOOLING-PAPERCUTS-jobwait/`. Deploy step as in section 1 below.
+* Item 4 left-over: five of `validation/headers_s17.plants`'s plants no longer matched the tree (the generator moved
+  to `xtask/src/headers/{objects,types,enums,aggregates}.rs`; mcheck.h's enumeration now comes from enumerators.tsv).
+  Each now mutates the code that emits the same construct; `s17-mcheck-enum-value` became `s17-enum-value` (drops
+  every explicit enumerator value; caught by P1 on sys/ptrace.h, not mcheck.h: header_check reported no mcheck.h
+  failure for it). `s17-queue-tailq-remove`'s msg also accepts `incompatible-pointer-types` (the P10 program no
+  longer compiles on that mutant: a real catch). Result: see the report json (plants job `tooling-papercuts-2-plants2`).
+* Superseded: `tooling-papercuts-2-plants` (8 CAUGHT, 1 WARN-NO-MSG: the enum msg named mcheck.h), `-gate` (older head).
+
+## TOOLING-PAPERCUTS (first run)
+
 State: branch `task/tooling-papercuts` (from origin/next 90f71362a). Code commit 4db04d4ba; this note and the
 report record after it. Plants: `handoff/TOOLING-PAPERCUTS-plants.txt`. Report: `handoff/reports/TOOLING-PAPERCUTS.json`.
 The brief's title says six defects; its list has five (1-5). All five are handled below; there is no sixth to do.
@@ -51,7 +69,7 @@ Result (job `tooling-papercuts-plants`, 7 plants: 6 CAUGHT, 0 SURVIVED, 1 WARN-N
 reaches its own command, and `validation/headers_p10_s17.sh` fails it (rc 1) because the P10 program does not
 compile on the mutant `TAILQ_REMOVE` (`-Werror=incompatible-pointer-types`), not with the runtime "P10 ... DIFFERENT"
 the S17 regex expects. The right test catches it; that plant's msg in `validation/headers_s17.plants` should become
-`P10 .* DIFFERENT|incompatible-pointer-types` (not changed here; not re-run).
+`P10 .* DIFFERENT|incompatible-pointer-types` (done in TOOLING-PAPERCUTS-2, with the three stale plants, above).
 
 ## Jobs (Skylake-SP build host, final code head 4db04d4ba)
 `tooling-papercuts-lint` (clippy + static + affected --list, rc 0), `tooling-papercuts-gate` (affected --run, xtask
@@ -66,4 +84,5 @@ which skips the cheap steps. `cargo xtask test` alone still runs all of them. Te
 reaches `test_all`); it is a three-line match.
 
 ## Next step
-Coordinator: deploy jobwait (1) and probe (3); land the branch. Not to redo: the causes above.
+Coordinator: apply the jobwait patch (TOOLING-PAPERCUTS-2 section) to liella-ops and deploy it (1), redeploy probe
+(3); land `task/tooling-papercuts-2` (it contains `task/tooling-papercuts`). Not to redo: the causes above.
