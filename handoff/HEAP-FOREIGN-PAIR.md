@@ -52,7 +52,7 @@ New: crates/boundary/tests/heap_foreign_plain.rs. On the route it checks that ca
 that a free reaches the heap (the next same-size block is the freed one), and that with M_PERTURB set the route is not
 taken. Plants: handoff/HEAP-FOREIGN-PAIR-plants.txt (4). `-plants` (3f5eb3708): 3 CAUGHT, free-dropped SURVIVED (a leak
 does not move the cost bound), so I added the reuse assertion. `-plants2` (bf19d27a3, route inlined): 4 of 4 CAUGHT,
-no WARN. `-plants4` runs on the final head.
+no WARN. `-plants4` on the final head 69e15b572: 4 of 4 CAUGHT, no WARN.
 
 ## Jobs (keke)
 Final: `heap-foreign-pair-gate4` (affected --run --base origin/next, then `cargo xtask test`, NIJI_FULL_PROFILE so,

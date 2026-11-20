@@ -12,7 +12,7 @@
  "accepted_first_attempt": null,
  "rulings": [
   {
-   "item": "Step 2: per-thread storage for foreign threads (D-X.58 option 4, PT_TLS in libc.so.6) to bring the foreign pair from 325 toward 183 (1.5x of 122)",
+   "item": "Step 2: per-thread storage for foreign threads (D-X.58 option 4, PT_TLS in libc.so.6) to bring the foreign pair from 348 toward 183 (1.5x of 122)",
    "recommendation": "rule first whether a PT_TLS segment in libc.so.6 is acceptable: it adds one static TLS module to every libniji-started dynamic process; measure that start-up cost with DYN-START-PARITY's execcount scripts before building"
   }
  ],
