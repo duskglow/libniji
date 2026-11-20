@@ -1,73 +1,59 @@
 # HEAP-ADDRESS-SPACE (GitHub issue #21): handoff
 
-State: branch `task/heap-address-space-7` (continues -6 .. -1; origin/next `de4cdfc8d` merged), head = this
-handoff's commit. Status: see "Run -7 results". Code commits on -7: `c7f02c3f6` (drops -6's gap-top placement
-`a84abbe23`), `6591abefd` (issue #21 RLIMIT_AS check under a fixed layout at 41296 KiB, ruling #6566). Earlier runs:
--6 `8afd17494` (window-bin planner, phase-only groups out of the head bin), `ce6328854` (bounds at the measured
-levels, ruling #6513; SEG_FIRST 16, ruling #6514), `ad420da74` (stale mallocdbg difference dropped); -5 `7c6a4078b`.
-Build role keke `~/w/n3` (Zen 1); scripts in keke `~/work/HEAP-ADDRESS-SPACE-7/` (`m1.sh`: need bisections fixed
-and randomised, with and without the placement; `c1.sh`: gate, xtask test, fullhot; `base.sh`: merge-base products).
-Spec: `~/state/briefs/HEAP-ADDRESS-SPACE.md` "## The change"; rulings #6513, #6514, #6566.
-Decisions in force: D-3.19, D-3.14, D-X.103, ruling #6325; pending records `records/pending/HEAP-ADDRESS-SPACE-3-1.toml`
-(D-3: growth with use), `-3-2.toml` (D-X: GOT alignment), `-6-1.toml` (D-X: amends D-X.103, head-bin rule).
+State: branch `task/heap-address-space-8` (continues -7 .. -1), origin/next `3f2a84520` merged (clean, `d7667973f`);
+head = this handoff's commit. Build role mei `~/w/s4` (Skylake-SP); scripts in mei `~/work/HEAP-ADDRESS-SPACE-8/`
+(`m.sh <tree>`: fast products + start-up fault tests + readelf; `c1.sh`: the final-head chain; `base/` = next
+`3f2a84520` built, `nogot/` = the head without the 256-aligned `.got`). Spec: `~/state/briefs/HEAP-ADDRESS-SPACE.md`
+"## The change"; rulings #6513, #6514, #6566. Decisions in force: D-3.19, D-3.14, D-X.103, ruling #6325; pending
+records `records/pending/HEAP-ADDRESS-SPACE-3-1.toml` (D-3: growth with use), `-6-1.toml` (D-X: amends D-X.103,
+head-bin rule); `-3-2.toml` (GOT alignment) removed in run -8 with the alignment. Code commits: -8 `10e62ddd2`
+(drops the 256-aligned `.got` of entry.S and its so.rs check: entry.S and so.rs are as on the merge base); -7
+`c7f02c3f6` (drops -6's gap-top placement), `6591abefd` (issue #21 RLIMIT_AS check under a fixed layout at 41296 KiB);
+-6 `8afd17494`, `ce6328854`, `ad420da74`; -5 `7c6a4078b`.
 
-## Done in run -7 (do not redo)
+## Run -8: the +1 dynamic start-up fault (run -7's red) is gone after the merge
 
-- Step 0 on the inherited head: clippy and static clean (`heap-address-space-7-s0`).
-- Merged origin/next (clean); `cargo xtask precheck` now exists.
-- Issue #21 RLIMIT_AS need, 16 KiB bisections on the merged head (Zen 1 host, `heap-address-space-7-m1`):
-  fixed layout (`setarch -R`) 41296 in 10/10; randomised 41296 (8x), 41312..41616 (6x), 42032..43552 (6x) of 20.
-  With -6's placement disabled: fixed 41296 in 5/5; randomised 41296 (2x), 41376..42192 (8x) of 10.
-- Ruling #6566 applied: the limited run sets `ADDR_NO_RANDOMIZE` in the test thread's persona (restored after),
-  AS_HEADROOM 42000 -> 41296; the randomised spread is in the comment. Per-step bounds still run randomised.
-- `a84abbe23` dropped: under the fixed layout it changes nothing (same need, so no deterministic test can catch a
-  fault in it) and randomised it did not improve the worst case. HEAP-SPILL-COLD may bring placement back with
-  its randomised check (the numbers above are its baseline).
-- Plants (handoff/HEAP-ADDRESS-SPACE-7-plants.txt): run 1 `heap-address-space-7-plants` rc 1 (as-room-fallback
-  CAUGHT; as-plain-fallback SURVIVED on next's own `Pages::map` fallback, not reachable by the issue test, dropped
-  with the reason in the file; seg-first-17 WARN-NO-MSG: caught by a per-step bound, not "steps failed"). Run 2
-  `heap-address-space-7-plants2` (the committed file, from `~/work/HEAP-ADDRESS-SPACE-7/plants2.txt`) was running
-  at the refresh: expect seg-first-17 WARN-NO-MSG again (its msg could name `the heap added|steps failed`).
-- Layout bins vs the merge base (`bins.sh`; base products built in `~/work/HEAP-ADDRESS-SPACE-7/base`, origin/next
-  `de4cdfc8d`): bin 0 +24 bytes (refill +32, first_cache -50, take_held -5), bins 2/6 smaller, the rest equal.
+- Step 0 on the inherited head `90fa33d84`: clippy and static clean (`heap-address-space-8-s0`).
+- Merged origin/next `3f2a84520` (403 commits; DYN-START-SPEED-2 and others landed; `DYN_TRUE_BOUND` is now
+  [73, 67]). The STARTUP-GOT-PAGE chain closed without landing (#6916), so nothing GOT-related to stack on.
+- `init_dynamic_startup_only_program_stays_within_its_page_fault_bound`, fast profile, Skylake-SP, warm-up + 5
+  runs, every run identical (`m.sh`): head **70**, next `3f2a84520` **71**, head without the 256-aligned `.got`
+  (entry.S `.balign 8`, so.rs check at 8) **70**. Static probes equal in all three: true 11, locale 43.
+  So the merged head is 1 below next, and the `.got` alignment does not move the dynamic count (the run -7 lead
+  is ruled out). Run -7's 90 > 89 was against the old base `de4cdfc8d`; it does not reproduce on today's next.
+- Coordinator note 11:53Z (rulings #6972-#6977): record the dynamic fault as a cost, do not hunt (R2: that bound
+  and STARTUP-DATA-WINDOWS are report-only per story); drop the `.got` align-256 unless measured needed; cbench_malloc
+  and cbench_startup before/after are required; land as a partial fix for #21 (findutils case -> HEAP-SPILL-COLD).
+  The cost is -1 (70 vs 71), not +1. The variant without the alignment has STARTUP-DATA-WINDOWS 7 written pages
+  (rw-budget-fast 7, ok) and the same faults, so the alignment was dropped (`10e62ddd2`).
+- cbench before (next `3f2a84520`, `~/work/HEAP-ADDRESS-SPACE-8/base`) and after (the head, a copy `headb`):
+  `heap-address-space-8-cbench-before` / `-after`, `--compare --counters --runs 3`; numbers in the report.
+- Layout bins vs next (`target/product/fast/layout-bins.tsv`): bin 0 (start-up) 60694 -> 60732 bytes (+38),
+  105 -> 104 sections: refill +32, `runtime::start` +44, `stdio::parts_first_use` +45, `new_slot` +5,
+  first_cache -50, take_held -5, `KernelPages::map` (728) replaced by `map_room` (455). Other bins within +-48 B.
+  `hot-text.signatures`: only the `map` -> `map_room` rename. Growth stays cold (`grow_segment`).
+- `cargo xtask affected` escalates to FULL (entry.S `_start`; xtask). Gate = precheck + the changed crates'
+  tests (`heap-address-space-8-tests`), plus `cargo xtask test` (`-xtest`) and the full-profile hot_text_products
+  (`-fullhot`); FULL: the train's.
+- Plants: `handoff/HEAP-ADDRESS-SPACE-8-plants.txt`, every plant of runs 3-7 whose code is still on the branch
+  (13), on the final head (`heap-address-space-8-plants`). Results: see handoff/HEAP-ADDRESS-SPACE-8-report.md.
 
-## Run -7 results (head `6591abefd` + handoff commits)
+## Do not redo
 
-- `heap-address-space-7-gate1` (direct tier): 6819 passed, 1 failed, peak 12G:
-  `hot_text_products init_dynamic_startup_only_program_stays_within_its_page_fault_bound`: 90 page faults > 89.
-  Merge base (same test, base products, `heap-address-space-7-dynbase`): 89 in 3/3. HS-6's gate1 (pre-merge base,
-  `ce6328854`) passed this test. So the +1 comes from this story combined with the merged next: a start-up cost,
-  ALWAYS FORWARD applies (the heap is start-up code; not LAYOUT-JITTER).
-- `heap-address-space-7-xtest1` stopped while queued (superseded by the fix). `heap-address-space-7-fullhot1`
-  (full profile so + hot_text_products, started by `c1.sh` after the gate) was queued at the refresh: its dynamic
-  count in the full profile is a second data point.
-
-- Rule slips in run -7 leg 1 (no effect on results): the plants start had a `mkdir` chained before `setsid nohup`
-  (the ssh session stayed attached; the local ssh was ended by PID, the job ran on); one `sed -i` on this handoff
-  whose substitution replaced a line with itself (no change; Edit only from here on).
-
-## Run -7 leg 2 (wall-time checkpoint, 16:47Z of a 16:53Z deadline: no code change)
-
-- `heap-address-space-7-fullhot1` was ended (kill-label) before it finished building: it was on the superseded head
-  and held the role. `heap-address-space-7-plants2` was left running in its own copy (old head, superseded too once
-  the fault fix lands).
-- libc.so.6 head (`~/w/n3`, products 15:04) vs base: text +0x840 bytes moves .rodata and the RW segment up one page
-  (0x344000 -> 0x345000, 0x42b000 -> 0x42c000); .data.rel.ro 0xac50 -> 0xab38; .got (0x9b0 bytes, both cross one
-  page boundary) at page offset 0xdf0 (base) vs 0xcd8 (head); .bss 0xfb8 -> 0xfe0 (+40, heap state). RELRO 0xc000
-  in both. Not yet compared: the dynamic test program itself and the faulting pages (mincore / per-page fault list).
+- The +1 dynamic fault hunt (above). The fixed-layout issue #21 check (ruling #6566, run -7). Dropping the
+  gap-top placement (run -7). Need bisections (run -7: fixed 41296 10/10; randomised 41296..43552).
 
 ## Exact next step
 
-Find the dynamic start-up program's extra fault on the head vs the base (89, base products ready in
-`~/work/HEAP-ADDRESS-SPACE-7/base/target/niji`). Lead: this story's `csys/src/machine/entry.S` empty `.got` aligned
-to 256 (record `-3-2`, for static links) sits in every link's start object, also the dynamic program and maybe
-libc.so; next has had GOT-page work since (startup-got-page-3). Compare the two builds' dynamic `page_faults` program
-and libc.so (`readelf -lS`: .got/.got.plt/relro/.data placement, page crossings) and the faulting pages, then fix the
-cause (no bound change). Then: sync, clippy + static, gate, `cargo xtask test`, fullhot, plants (the committed file),
-`cargo xtask precheck --jobs ... --head <sha>`, report json, handback-check.
-
-## Next steps for the story, in order
-
+**cbench_startup is slower on the head (INVIOLABLE, blocks landing):** startup_kinstr_c +7.0k..7.9k kernel
+instructions (+5.5%, 3 of 3 runs), user-mode rows +6..+28 (report: handoff/HEAP-ADDRESS-SPACE-8-report.md). Next:
+1) find which child program the bench runs for startup_kinstr_c (`cargo xtask bench --help`, `bench/` sources) and
+whether it calls malloc; 2) run it from `~/work/HEAP-ADDRESS-SPACE-8/base` and `headb` (release bench products
+built there) under `strace -f` and a minflt count, before vs after: extra faults, or extra/larger mmap/munmap from
+map_room; 3) fix the cause (cold, no hot bytes), recount cbench_startup and cbench_malloc before/after (b.sh/b2.sh,
+cmp.sh in the same directory), then rerun lint, `cargo xtask test`, fullhot, plants (HEAP-ADDRESS-SPACE-8-plants.txt),
+precheck. Mei role jobs on `10e62ddd2` already green: lint2, fullhot2 (plants2, xtest3: see the report).
+Then the story's open follow-ups, in order (each a story of its own size, for the coordinator to cut):
 1. HEAP-SPILL-COLD: the spill as a cold extension of grow_segment; tighten refill/realloc/AS_HEADROOM to 33092 /
    35144 / 35152, recheck a smaller SEG_FIRST; a placement-independent need (keep the heap's other mappings out
    of a segment's growth window under a limit: a 67104-byte start-up mapping, not NORESERVE, sat inside a later
@@ -75,3 +61,5 @@ cause (no bound change). Then: sync, clippy + static, gate, `cargo xtask test`, 
    allocation once growth has failed near the limit), then the randomised limited check (ruling #6566).
 2. Still open: relro by-section comparison (ruling #6325 step 1); cbench_malloc / cbench_startup counters;
    returning empty segments' address space; findutils `find` under the issue's `ulimit -v` formula.
+3. The dynamic bound: head 70 on Skylake-SP (next 71); a Zen 1 measurement would show whether DYN_TRUE_BOUND
+   [73, 67] can tighten (the fast bound is the higher host class's level).
