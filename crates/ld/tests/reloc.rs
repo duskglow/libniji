@@ -481,6 +481,98 @@ fn reloc_field_must_lie_in_a_writable_segment() {
     std::fs::remove_dir_all(&d).ok();
 }
 
+/// Covers no spec clause (spec/security/threat-model.md loader rule 4, design §6): the `RELATIVE`
+/// prefix loop accepts a word at once when it lies in the writable segment the previous entry lay
+/// in (DYN-START-LINK-SHAPE), and that shortcut accepts nothing the general check refuses. Two
+/// entries: the first stays in the writable segment (so the second meets the shortcut), the second
+/// is moved into the read-only text, past every segment, across the end of the writable segment
+/// (refused), and onto its last word (applied, both words B + A).
+#[test]
+fn reloc_relative_run_checks_each_entry_after_the_first() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("outside2");
+    let lib = std::fs::read(build(&d, "libo2.so", "static int x[512]; int *p = &x[1]; int *q = &x[2];\n", &["-fPIC", "-shared"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let loads: Vec<_> = elf.program_headers().filter(|p| p.p_type == 1).collect();
+    let rw = *loads.iter().find(|p| p.flags & 2 != 0).expect("a writable PT_LOAD");
+    let ro = *loads.iter().find(|p| p.flags & 2 == 0 && p.memsz >= 8).expect("a read-only PT_LOAD");
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let rela = dynm.get(niji_ld::elf::dt::RELA).expect("DT_RELA");
+    let relas: Vec<_> = dynm.rela::<Native>().unwrap().unwrap().collect();
+    assert_eq!(relas.iter().map(|r| r.kind).collect::<Vec<_>>(), [RelocKind::Relative; 2], "two RELATIVE entries");
+    assert_eq!(dynm.get(niji_ld::elf::dt::RELACOUNT), Some(2), "the linker counts the RELATIVE prefix");
+    // The second entry's file offset (24-byte entries; the first PT_LOAD maps the file from 0 at 0).
+    let at = usize::try_from(loads[0].offset + rela - loads[0].vaddr).unwrap() + 24;
+    let end = rw.vaddr + rw.memsz;
+    let cases = [(ro.vaddr, false), (end + 0x10_0000, false), (end - 4, false), (end - 8, true), (relas[1].offset, true)];
+    for (offset, ok) in cases {
+        let mut f = lib.clone();
+        f[at..at + 8].copy_from_slice(&offset.to_le_bytes());
+        let elf = Elf::parse::<Native>(&f).unwrap();
+        let mut m = Model { mem: BTreeMap::new(), spans: vec![], log: vec![], prot: BTreeMap::new(), after_call: false };
+        let (mut lo, mut hi) = (u64::MAX, 0);
+        for ph in elf.program_headers().filter(|p| p.p_type == 1) {
+            let mut v = vec![0u8; ph.memsz as usize];
+            v[..ph.filesz as usize].copy_from_slice(elf.segment_bytes(&ph).unwrap());
+            m.mem.insert(bias(0) + ph.vaddr, v);
+            (lo, hi) = (lo.min(bias(0) + ph.vaddr), hi.max(bias(0) + ph.vaddr + ph.memsz));
+        }
+        m.spans.push((lo, hi));
+        let objs = [Obj { elf, dynm: elf.dynamic().unwrap().unwrap(), bias: bias(0), name: b"libo2.so", tls: None }];
+        let syms = [Object::new(objs[0].dynm).unwrap()];
+        let set = Objects { objs: &objs, syms: &syms, global: &[0] };
+        let mut unique = UniqueTable::<8, 256>::default();
+        let r = reloc::relocate_all::<Native, _>(&set, &mut m, 4096, &mut unique);
+        if ok {
+            assert_eq!(r, Ok(()), "second field at {offset:#x} is inside the writable segment");
+            assert_eq!(word(&mut m, bias(0) + relas[0].offset), bias(0) + relas[0].addend as u64, "B + A stored by the first entry");
+            assert_eq!(word(&mut m, bias(0) + offset), bias(0) + relas[1].addend as u64, "B + A stored at {offset:#x}");
+        } else {
+            assert_eq!(r.map_err(|e| e.error), Err(RelocError::Outside(offset)), "second field at {offset:#x} refused");
+        }
+    }
+    std::fs::remove_dir_all(&d).ok();
+}
+
+/// Covers no spec clause (design §6, `Relas::relative_prefix`'s contract): the prefix loop leaves
+/// the table iterator just after the run it applied, so the entries after it are yielded once,
+/// in order; a count past the run stops at the first other entry; when the callback fails, the
+/// iterator stands on the entry it failed for (DYN-START-LINK-SHAPE moved the position update out
+/// of the loop).
+#[test]
+fn reloc_relative_prefix_leaves_the_table_after_its_run() {
+    if !cc_ok() {
+        return;
+    }
+    let d = dir("prefixpos");
+    let src = "static int x[512]; int *p = &x[1]; int *q = &x[2]; extern int e; int *r = &e;\n";
+    let lib = std::fs::read(build(&d, "libpp.so", src, &["-fPIC", "-shared"])).unwrap();
+    let elf = Elf::parse::<Native>(&lib).unwrap();
+    let dynm = elf.dynamic().unwrap().unwrap();
+    let all: Vec<_> = dynm.rela::<Native>().unwrap().unwrap().collect();
+    assert_eq!(all.iter().map(|r| r.kind == RelocKind::Relative).collect::<Vec<_>>(), [true, true, false], "two RELATIVE entries, then the reference to e");
+    for n in [2, 3, usize::MAX] {
+        let mut rs = dynm.rela::<Native>().unwrap().unwrap();
+        let mut seen = vec![];
+        assert_eq!(rs.relative_prefix(n, |at, a| -> Result<(), ()> { seen.push((at, a)); Ok(()) }), Ok(()));
+        assert_eq!(seen, [(all[0].offset, all[0].addend), (all[1].offset, all[1].addend)], "count {n}: the run, in order");
+        let rest: Vec<_> = rs.map(|r| r.offset).collect();
+        assert_eq!(rest, [all[2].offset], "count {n}: only the entry after the run follows");
+    }
+    let mut rs = dynm.rela::<Native>().unwrap().unwrap();
+    let mut calls = 0;
+    let failed = rs.relative_prefix(2, |at, _| {
+        calls += 1;
+        if calls == 2 { Err(at) } else { Ok(()) }
+    });
+    assert_eq!(failed, Err(all[1].offset), "the second entry's error");
+    let rest: Vec<_> = rs.map(|r| r.offset).collect();
+    assert_eq!(rest, [all[1].offset, all[2].offset], "the iterator stands on the entry that failed");
+    std::fs::remove_dir_all(&d).ok();
+}
+
 // ------------------------------------------------------------------ (3) the built ld.so
 
 fn run(cmd: &mut Command) -> (Option<i32>, Option<i32>, String) {
