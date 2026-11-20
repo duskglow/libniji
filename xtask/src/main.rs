@@ -212,6 +212,7 @@ fn main() -> ExitCode {
         "fuzz-check" => fuzz::check(&root),
         "locks" => locks::run(&root, &args[1..]),
         "test" => test_all(&root, &args[1..]),
+        "test-pass2" => test_pass2(&root, &args[1..]),
         "ctest" => ctest(&root),
         "nextest" => nextest::run(&std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()), &root, &args[1..]),
         "affected" => return affected::main(&root, &args[1..]),
@@ -298,6 +299,16 @@ fn clippy_gate(root: &Path) -> Result<(), String> {
 fn test_all(root: &Path, extra: &[String]) -> Result<(), String> {
     let mut t = steptime::Steps::default();
     let r = test_steps(root, extra, &mut t);
+    t.print_summary();
+    r
+}
+
+/// `cargo xtask test-pass2 [extra]`: the second pass of `cargo xtask test` alone (the native pass and the
+/// interposed suite), on the built products and the first pass's build (built here if missing), with its step times.
+fn test_pass2(root: &Path, extra: &[String]) -> Result<(), String> {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let mut t = steptime::Steps::default();
+    let r = native_tests(root, &cargo, extra, &mut t, "tests-native").and(interposed_suite(root, &cargo, extra, &mut t, "tests-interposed"));
     t.print_summary();
     r
 }
