@@ -1,7 +1,7 @@
 {"task": "LAYOUT-BYTE-BUDGETS-2", "model": "opus", "tokens": null,
  "result": "WINDOW-BIN-BYTES contract: per-story start-up gate from the static probe's link map (bytes and headroom per window bin, windows per mode, .rodata1/.data1); hot_text_products whole-process fault bounds become non-blocking reports (NIJI_FAULT_BOUNDS=enforce for the release ratchet), owner ruling R2",
  "branch": "task/layout-byte-budgets-2", "head": "daf86cb07",
- "gate": {"affected": "563 passed / 0 failed (direct tier, 6 suites, mei gate3); xtest3 (cargo xtask test) see jobs", "peak": "1.5G"},
+ "gate": {"affected": "563 passed / 0 failed (direct tier, 6 suites, mei gate3); xtest3 (cargo xtask test): 6870 + 4830 passed, 0 failed; precheck GREEN on 90aa30b23", "peak": "1.5G"},
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [

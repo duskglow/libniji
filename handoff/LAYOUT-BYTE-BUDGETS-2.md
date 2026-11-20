@@ -60,8 +60,8 @@ first release build went red on the budgets I had guessed from fast, naming `mod
   warnings + `cargo xtask static`), `-relhot3` (release so, WINDOW-BIN-BYTES ok, hot_text_products 29 passed),
   `-fastso3` (fast so, WINDOW-BIN-BYTES ok, head bin 64,428 / headroom 84), `-plants3` (7 CAUGHT, 0 WARN),
   `-gate3` (direct tier, 6 suites, 563 passed, 0 failed; `affected` names xtask files as "FULL: the train's"),
-  `-xtest3` (`cargo xtask test`; see the report json for its state at hand-back).
+  `-xtest3` (`cargo xtask test`: 6,870 + 4,830 passed, 0 failed). `cargo xtask precheck` GREEN on 90aa30b23.
 * SUPERSEDED: `-lint1`, `-plants1`, `-measure1`, `-unit1` (leg 1, older heads); `-lint2`, `-relhot2`, `-fastso2`
   (green, head ed27735d7); `-plants2` (warm-up-kept survived; fixed in daf86cb07); `-gate2` (stopped by me: older head).
-* Next: if `xtest3` was still running at hand-back, `~/bin/jobwait layout-byte-budgets-2-xtest3` on mei; a red there
-  in a suite this branch touches (xtask, hot_text_products) is this story's; otherwise INFORMATIONAL.
+* Next: none for this story (handed back COMPLETE). Follow-ups outside it: the train exports `NIJI_LAYOUT_BASE_BINS`;
+  the 11-14 replays if still wanted (see "Not verified / open").
