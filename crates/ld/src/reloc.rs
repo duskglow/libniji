@@ -20,7 +20,7 @@
 use crate::arch::{ApplyError, Arch, Operands, RelocKind, TlsOperands, ELFDATA2LSB};
 use crate::elf::{dt, pt, Dynamic, Elf, ElfError, ProgramHeader, Rela, STB_LOCAL, STB_WEAK, STT_GNU_IFUNC, STT_TLS, STV_DEFAULT, STV_PROTECTED, SHN_UNDEF};
 use crate::map::{PROT_EXEC, PROT_READ, PROT_WRITE};
-use crate::symbols::{self, Binding, Found, LookupError, Object, Request, Scope, UniqueRegistry};
+use crate::symbols::{self, Binding, Found, LookupError, Object, Request, Scope, UniqueRegistry, VersionMemo};
 
 /// `SHN_ABS` (gABI): an absolute symbol, whose value the load bias does not move.
 const SHN_ABS: u16 = 0xfff1;
@@ -199,6 +199,15 @@ impl Loads {
             l.n = l.n.saturating_add(1);
         }
         l
+    }
+
+    /// Whether the word at `at` lies in the segment the last accepted range lay in (writable, or any
+    /// when `any`). `false` says only "not there": [`Loads::inside`] then decides. Any `PT_LOAD` the
+    /// object has is a segment [`inside`] accepts, so a hit answers as it would.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn hit_word(&self, at: u64, any: bool) -> bool {
+        self.seg.get(..self.n).and_then(|s| s.get(self.hit.get())).is_some_and(|&(lo, hi, w)| (any || w) && lo <= at && hi.checked_sub(8).is_some_and(|last| at <= last))
     }
 
     /// [`inside`] for the object these ranges were read from.
@@ -401,7 +410,7 @@ fn slot<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, r: 
 /// Resolve symbol `sym` of object `i`. A defined local, or a defined symbol whose visibility is not
 /// default, binds in its own object; every other reference is looked up in the global scope (without
 /// the program for a `COPY`).
-fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mut dyn UniqueRegistry) -> Result<Target, RelocError<'a>> {
+fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mut dyn UniqueRegistry, memo: &VersionMemo) -> Result<Target, RelocError<'a>> {
     if sym == 0 {
         return Ok(Target { s: 0, ifunc: false, obj: None, size: 0 });
     }
@@ -412,12 +421,12 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mu
     }
     let dynm = set.objs.get(i).map(|o| o.dynm).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let name = dynm.string(u64::from(st.name)).map_err(RelocError::Elf)?;
-    let want = me.reference_want(sym).map_err(RelocError::Lookup)?;
+    let want = me.reference_want_with(sym, Some(memo)).map_err(RelocError::Lookup)?;
     let mut scope = Scope::global(set.global);
     if copy {
         scope = scope.excluding(0);
     }
-    match symbols::resolve(set.syms, scope, &Request::new(name, want), st.bind() == STB_WEAK, unique) {
+    match symbols::resolve(set.syms, scope, &Request::new(name, want).with_memo(memo), st.bind() == STB_WEAK, unique) {
         Ok(Binding::Defined(f @ Found { obj, def })) => {
             unique.bound(i, &f);
             Ok(Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size })
@@ -465,7 +474,7 @@ fn put<'a, A: Arch, I: Image>(img: &mut I, loads: &Loads, o: &Obj<'a>, r: &Rela,
 /// One relocation of object `i` in pass `deferred` (false: everything but the deferred entries;
 /// true: only them). Returns whether the entry is deferred (pass 1) or was applied (pass 2).
 #[allow(clippy::too_many_arguments)]
-fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry) -> Result<bool, RelocError<'a>> {
+fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r: &Rela, deferred: bool, text: bool, img: &mut I, unique: &mut dyn UniqueRegistry, memo: &VersionMemo) -> Result<bool, RelocError<'a>> {
     let o = set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let p = o.bias.wrapping_add(r.offset);
     let field = |kind, s| field::<A>(kind, s, o.bias, r);
@@ -486,7 +495,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r:
             if matches!(r.kind, RelocKind::TextRel { .. }) && !text {
                 return Err(RelocError::TextRel(r.r_type));
             }
-            let t = target(set, i, r.sym, false, unique)?;
+            let t = target(set, i, r.sym, false, unique, memo)?;
             match (t.ifunc, deferred) {
                 (false, false) => put(img, field(r.kind, t.s)?, text).map(|()| false),
                 (false, true) => Ok(false),
@@ -501,7 +510,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r:
         RelocKind::Copy => {
             let me = set.syms.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
             let size = me.symtab().get(r.sym).map_err(RelocError::Elf)?.size;
-            let t = target(set, i, r.sym, true, unique)?;
+            let t = target(set, i, r.sym, true, unique, memo)?;
             let src = t.obj.filter(|&d| i == 0 && d != 0).and_then(|d| set.objs.get(d)).ok_or(RelocError::Copy(r.offset))?;
             // The program's size; a smaller definition copies only what it has.
             let len = size.min(t.size);
@@ -517,7 +526,7 @@ fn one<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, loads: &Loads, r:
             let (s, def) = if r.sym == 0 {
                 (0, Some(i))
             } else {
-                let t = target(set, i, r.sym, false, unique)?;
+                let t = target(set, i, r.sym, false, unique, memo)?;
                 (t.s, t.obj)
             };
             let placed = def.and_then(|d| set.objs.get(d)).and_then(|d| d.tls).ok_or(RelocError::TlsModule(r.offset))?;
@@ -600,14 +609,30 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
     let o = *set.objs.get(i).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
     let text = textrel(&o.dynm);
     let loads = Loads::of(&o.elf);
+    let memo = VersionMemo::default();
     for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
         for r in table.map_err(RelocError::Elf)?.into_iter().flatten() {
-            one::<A, I>(set, i, &loads, &r, true, text, img, unique)?;
+            one::<A, I>(set, i, &loads, &r, true, text, img, unique, &memo)?;
         }
     }
     if set.syms.first().is_some_and(Object::has_canonical_plt) {
         canonical_slots::<A, I>(set, i, Ok(false), true, text, img, unique)?;
     }
+    Ok(())
+}
+
+/// One `RELATIVE` entry of the RELA table's `DT_RELACOUNT` prefix ([`Relas::relative_prefix`]):
+/// B + A (the psABI's calculation, as the RELR words above), stored at `at` in object `o`, which must
+/// lie in a writable segment (any segment when `any`). The segment the last entry lay in is tried
+/// first ([`Loads::hit_word`]); the general check only on a miss.
+#[allow(clippy::inline_always)]
+#[inline(always)]
+fn relative<'a, A: Arch, I: Image>(img: &mut I, loads: &Loads, o: &Obj<'a>, at: u64, addend: i64, any: bool) -> Result<(), RelocError<'a>> {
+    if !loads.hit_word(at, any) && !loads.inside(&o.elf, at, 8, any) {
+        return Err(RelocError::Outside(at));
+    }
+    let v = o.bias.wrapping_add(u64::from_ne_bytes(addend.to_ne_bytes()));
+    img.store(o.bias.wrapping_add(at), &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
     Ok(())
 }
 
@@ -628,9 +653,15 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
         img.store(p, &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
     }
     let mut deferred = false;
-    for table in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()] {
+    let memo = VersionMemo::default();
+    // The RELA table's `DT_RELACOUNT` prefix: `RELATIVE` entries, most of a shared object's.
+    let prefix = usize::try_from(o.dynm.get(dt::RELACOUNT).unwrap_or(0)).unwrap_or(usize::MAX);
+    for (k, table) in [o.dynm.rela::<A>(), o.dynm.jmprel::<A>()].into_iter().enumerate() {
         // A plain loop over the entries: flattening the `Option` called out of line per entry.
-        let Some(rs) = table.map_err(RelocError::Elf)? else { continue };
+        let Some(mut rs) = table.map_err(RelocError::Elf)? else { continue };
+        if k == 0 && prefix != 0 {
+            rs.relative_prefix(prefix, |at, a| relative::<A, I>(img, &loads, o, at, a, text))?;
+        }
         for r in rs {
             // B + A, most of a shared object's entries: written here as `one` would, without its
             // object lookup and dispatch.
@@ -638,7 +669,7 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
                 put::<A, I>(img, &loads, o, &r, field::<A>(r.kind, 0, o.bias, &r)?, text)?;
                 continue;
             }
-            deferred |= one::<A, I>(set, i, &loads, &r, false, text, img, unique)?;
+            deferred |= one::<A, I>(set, i, &loads, &r, false, text, img, unique, &memo)?;
         }
     }
     Ok(deferred)

@@ -444,6 +444,8 @@ fn reloc_field_must_lie_in_a_writable_segment() {
     let rela = dynm.get(niji_ld::elf::dt::RELA).expect("DT_RELA");
     let relas: Vec<_> = dynm.rela::<Native>().unwrap().unwrap().collect();
     assert_eq!((relas.len(), relas[0].kind), (1, RelocKind::Relative), "one RELATIVE entry");
+    // The entry is the table's `DT_RELACOUNT` prefix, so the pass's prefix loop (DYN-START-SPEED) applies it.
+    assert_eq!(dynm.get(niji_ld::elf::dt::RELACOUNT), Some(1), "the linker counts the RELATIVE prefix");
     // The entry's file offset: the first PT_LOAD maps the file from offset 0 at address 0.
     let at = usize::try_from(loads[0].offset + rela - loads[0].vaddr).unwrap();
     let end = rw.vaddr + rw.memsz;

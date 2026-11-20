@@ -11,7 +11,7 @@
 //! Version names are compared as bytes; no version node is special (`NIJI_PRIVATE` and any
 //! other name are ordinary nodes, ruling R14-12).
 
-use core::cell::OnceCell;
+use core::cell::{Cell, OnceCell};
 
 use crate::elf::{
     Dynamic, ElfError, GnuHash, Sym, Symtab, SysvHash, Versions, Versym, SHN_UNDEF, STB_GLOBAL, STB_GNU_UNIQUE, STB_WEAK,
@@ -115,13 +115,22 @@ pub struct Request<'n> {
     want: Want<'n>,
     gnu: u32,
     sysv: OnceCell<u32>,
+    /// The version names found so far by the pass this request belongs to ([`VersionMemo`]).
+    memo: Option<&'n VersionMemo>,
 }
 
 impl<'n> Request<'n> {
     /// A request for `name` accepting `want`.
     #[must_use]
     pub fn new(name: &'n [u8], want: Want<'n>) -> Self {
-        Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new() }
+        Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new(), memo: None }
+    }
+
+    /// This request, finding its definitions' version names through `memo` ([`VersionMemo`]).
+    #[must_use]
+    pub fn with_memo(mut self, memo: &'n VersionMemo) -> Self {
+        self.memo = Some(memo);
+        self
     }
     /// The name.
     #[must_use]
@@ -136,6 +145,30 @@ impl<'n> Request<'n> {
     fn sysv(&self) -> u32 {
         *self.sysv.get_or_init(|| sysv_hash(self.name))
     }
+}
+
+/// Slots of a [`VersionMemo`] (a power of two).
+const MEMO_SLOTS: usize = 16;
+
+/// One remembered version name: the object's string table (its address: the object's identity
+/// for the pass), which walk found it (bit 16: a reference's, else a definition's; bit 31: in use)
+/// with the index, and where the name lies in that string table.
+#[derive(Clone, Copy, Debug, Default)]
+struct MemoSlot {
+    strtab: usize,
+    key: u32,
+    off: u32,
+    len: u32,
+}
+
+/// The version names one relocation pass has found, by object and version index, so the walks of
+/// the version tables run once per name and not once per symbolic relocation (DYN-START-SPEED:
+/// they were a sixth of a dynamic start). A small direct-mapped cache on the pass's stack: a slot
+/// holds an offset in the object's own string table, so it has no lifetime, and a miss walks the
+/// tables as before. Answers are the walks' answers; only found names are remembered.
+#[derive(Debug, Default)]
+pub struct VersionMemo {
+    slots: [Cell<MemoSlot>; MEMO_SLOTS],
 }
 
 /// A definition found in one object.
@@ -315,15 +348,58 @@ impl<'a> Object<'a> {
     ///
     /// The reader's errors, or [`LookupError::UnknownVersion`] for an index neither table gives.
     pub fn reference_want(&self, sym: u32) -> Result<Want<'a>, LookupError> {
+        self.reference_want_with(sym, None)
+    }
+
+    /// [`Object::reference_want`], finding the name through `memo` when there is one.
+    ///
+    /// # Errors
+    ///
+    /// As [`Object::reference_want`].
+    pub fn reference_want_with(&self, sym: u32, memo: Option<&VersionMemo>) -> Result<Want<'a>, LookupError> {
         let Some(vs) = self.versym else { return Ok(Want::Oldest) };
         let index = vs.get(sym)?.index;
         if index <= VER_NDX_GLOBAL {
             return Ok(Want::Oldest);
         }
+        self.memo_name(memo, index, true)?.map(Want::Reference).ok_or(LookupError::UnknownVersion { sym, index })
+    }
+
+    /// The version name a reference with index `index` names: a requirement's, else one of the
+    /// object's own definitions.
+    fn reference_name(&self, index: u16) -> Result<Option<&'a [u8]>, LookupError> {
         if let Some(name) = self.needed_version_name(index)? {
-            return Ok(Want::Reference(name));
+            return Ok(Some(name));
         }
-        self.version_name(index)?.map(Want::Reference).ok_or(LookupError::UnknownVersion { sym, index })
+        self.version_name(index)
+    }
+
+    /// [`Object::reference_name`] (`reference`) or [`Object::def_version_name`] of `index`, through
+    /// `memo` ([`VersionMemo`]) when there is one.
+    fn memo_name(&self, memo: Option<&VersionMemo>, index: u16, reference: bool) -> Result<Option<&'a [u8]>, LookupError> {
+        let walk = |o: &Self| if reference { o.reference_name(index) } else { o.def_version_name(index) };
+        let (Some(memo), Some(tab)) = (memo, self.dynm.strtab()) else { return walk(self) };
+        let base = tab.as_ptr().addr();
+        let key = u32::from(index) | if reference { 1 << 16 } else { 0 } | 1 << 31;
+        let at = (usize::from(index) ^ usize::from(reference).wrapping_mul(MEMO_SLOTS / 2) ^ (base >> 4)) & (MEMO_SLOTS - 1);
+        let Some(slot) = memo.slots.get(at) else { return walk(self) };
+        let s = slot.get();
+        if s.key == key && s.strtab == base {
+            let (off, len) = (usize::try_from(s.off).unwrap_or(usize::MAX), usize::try_from(s.len).unwrap_or(0));
+            if let Some(name) = off.checked_add(len).and_then(|end| tab.get(off..end)) {
+                return Ok(Some(name));
+            }
+        }
+        let name = walk(self)?;
+        if let Some(n) = name {
+            let off = n.as_ptr().addr().wrapping_sub(base);
+            if off.checked_add(n.len()).is_some_and(|end| end <= tab.len()) {
+                if let (Ok(off), Ok(len)) = (u32::try_from(off), u32::try_from(n.len())) {
+                    slot.set(MemoSlot { strtab: base, key, off, len });
+                }
+            }
+        }
+        Ok(name)
     }
 
     /// The name of version index `index` among this object's requirements (the `vna_other` of a
@@ -442,7 +518,7 @@ impl<'a> Object<'a> {
                 Want::Reference(name) => {
                     let exact = self.versym.is_none()
                         || (version > VER_NDX_GLOBAL
-                            && self.def_version_name(version)?.ok_or(LookupError::UnknownVersion { sym: i, index: version })? == name);
+                            && self.memo_name(req.memo, version, false)?.ok_or(LookupError::UnknownVersion { sym: i, index: version })? == name);
                     if exact {
                         best = Some(def);
                     } else if version == VER_NDX_GLOBAL && best.is_none() {
