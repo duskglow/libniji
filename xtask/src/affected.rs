@@ -3906,8 +3906,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
             match side_by_side_room(memory_room()) {
                 Ok(why) => {
                     println!("note: the xtask tests that run no products go beside the products build ({why})");
-                    let (built, tested) = products_beside_xtask_tests(root, &log, &mut products_cmd, &mut beside_cmd);
-                    ok &= built & tested;
+                    ok &= products_beside_xtask_tests(root, &log, &mut products_cmd, &mut beside_cmd);
                 }
                 Err(why) => {
                     println!("note: the products build and the xtask tests run one after the other ({why})");
@@ -4103,8 +4102,8 @@ fn side_by_side_room(room: Option<u64>) -> Result<String, String> {
 /// products (`tests`, into `target/affected-xtask.log`) side by side. They share no cargo build directory (the products
 /// build in `target/product`; the tests in `target/debug`, whose lock cargo takes while it builds). The tests' console
 /// lines are printed once both have ended and their log is then appended to the run's log, so each step's output stays
-/// in one piece. The outcomes are those of the two steps run one after the other: (products built, tests passed).
-fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, tests: &mut Command) -> (bool, bool) {
+/// in one piece. The verdict is that of the two steps run one after the other: true only when both are green.
+fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, tests: &mut Command) -> bool {
     let side = root.join("target").join(XTASK_BESIDE_LOG);
     let _ = fs::remove_file(&side);
     let mut console: Vec<u8> = Vec::new();
@@ -4121,9 +4120,9 @@ fn products_beside_xtask_tests(root: &Path, log: &Path, products: &mut Command, 
     if let Err(e) = appended {
         println!("        cannot append {} to {}: {e}", side.display(), log.display());
         log_step_failed(log, XTASK_BESIDE_LABEL, &format!("its log {} was not appended: {e}", side.display()));
-        return (built, false);
+        return false;
     }
-    (built, tested == Outcome::Ok)
+    built && tested == Outcome::Ok
 }
 
 /// Whether the selection runs on built products (`cargo xtask so` first): a conformance program, a products test, or
@@ -4712,7 +4711,7 @@ mod tests {
             fs::create_dir_all(root.join("target")).unwrap();
             let log = root.join("target").join("affected.log");
             let got = products_beside_xtask_tests(&root, &log, &mut rendezvous("p", "t", prc), &mut rendezvous("t", "p", trc));
-            assert_eq!(got, (prc == 0, trc == 0), "products rc {prc}, tests rc {trc}");
+            assert_eq!(got, prc == 0 && trc == 0, "products rc {prc}, tests rc {trc}");
             let text = fs::read_to_string(&log).unwrap();
             let side = fs::read_to_string(root.join("target").join(XTASK_BESIDE_LOG)).unwrap();
             assert!(side.starts_with(&format!("== {XTASK_BESIDE_LABEL}\nout-t\n")) && !side.contains("out-p"), "{side:?}");
@@ -4743,7 +4742,7 @@ mod tests {
     fn side_by_side_needs_the_measured_memory_under_the_smallest_cgroup_limit() {
         // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
         let fs_of = |m: &'static [(&'static str, &'static str)]| move |p: &str| m.iter().find(|(k, _)| *k == p).map(|(_, v)| (*v).to_string());
-        let nested = fs_of(&[("/sys/fs/cgroup/a/memory.max", "8589934592\n"), ("/sys/fs/cgroup/a/b/memory.max", "17179869184\n"), ("/sys/fs/cgroup/a/b/c/memory.max", "max\n")]);
+        let nested = fs_of(&[("/sys/fs/cgroup/a/memory.max", "17179869184\n"), ("/sys/fs/cgroup/a/b/memory.max", "8589934592\n"), ("/sys/fs/cgroup/a/b/c/memory.max", "max\n")]);
         assert_eq!(cgroup_limit("1:name=x:/q\n0::/a/b/c\n", &nested), Some(8 << 30));
         assert_eq!(cgroup_limit("0::/a/b/\n", &nested), Some(8 << 30));
         assert_eq!(cgroup_limit("0::/\n", &nested), None);
