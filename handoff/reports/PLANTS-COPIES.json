@@ -14,4 +14,5 @@
  "improvement": "sync_role BUSY while my own measurement jobs ran from the role: a measurement that reads the role tree only at start could copy it first and release the role",
  "next_step": "optional: one Skylake-SP serial vs --copies 2 pair on the current head to replace the inherited figure",
  "report_file": "handoff/PLANTS-COPIES.md",
- "jobs": ["plants-copies-k-c1", "plants-copies-k-c2", "plants-copies-unit3", "plants-copies-plants", "plants-copies-precheck"]}
+ "measurement_jobs_on_9544177aa": ["plants-copies-k-c1", "plants-copies-k-c2"],
+ "jobs": ["plants-copies-unit3", "plants-copies-plants", "plants-copies-precheck2"]}
