@@ -1,0 +1,23 @@
+{"task": "PLANTS-SEED", "model": "opus", "tokens": null,
+ "result": "No seed shipped: no third-party crates exist; a copy seeded with another copy's target/ re-ran 31/44 rustc calls (path-specific rustflags); measured and reported",
+ "branch": "task/plants-seed", "head": "4ce2bbddd",
+ "gate": {"affected": "not run (no code change)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "Close PLANTS-SEED without a seed", "recommendation": "do not build same-path copies (mount namespace) for at most ~7% wall / ~11% CPU on multi-copy runs and 0 on serial runs"},
+  {"item": "niji-boundary ld-pie build (codegen-units=1) is one 198 s rustc call, 55% of the cold xtask so wall", "recommendation": "a measurement story on what ld.so needs from niji-boundary at codegen-units=1 (LAYOUT-LDSO-WINDOW constraint)"}
+ ],
+ "informational": [
+  "Cold xtask so in a plants-style copy, Zen 1 host: 360 s wall, 911 CPU-s, 1.18 GB RSS; the audit's 1364 s / 4812 CPU-s was not reproduced",
+  "xtask/build.rs writes absolute #[path] modules into OUT_DIR: any cross-copy target/ reuse could compile another copy's sources",
+  "Coordinator merge request (origin/next + base) not done: this branch ships no code; the plants.rs conflict belongs to PLANTS-COPIES-2"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "none", "what": "measurement only: per-crate cold build split of a plants copy; seed rejected with numbers", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "perf", "what": "cold xtask so in a copy seeded with another copy's target/ (rejected approach)", "before": 911, "after": 884, "unit": "cpu-s", "measured": true}
+ ],
+ "improvement": "Check a brief's premise against the repo in one command before admission (here: Cargo.lock has no registry sources); CARGO_LOG does not reach the inner cargo of xtask so, so freshness cannot be diagnosed through it",
+ "next_step": "none for this story; if wanted, a measurement story on the 198 s niji-boundary ld-pie critical path",
+ "report_file": "handoff/PLANTS-SEED.md",
+ "jobs": ["keke:plants-seed-m1", "keke:plants-seed-why"]}
