@@ -811,7 +811,7 @@ fn describe(l: &mut Loader, i: usize, o: &Obj<'static>, name: usize, id: (u64, u
 }
 
 /// Read the start-time objects again from their memory images ([`image_view`], as `link` did) and
-/// make them the first nodes, all global, never unloaded. `ld.so` itself joins (not global) when
+/// make them the first nodes, all global, never unloaded. `ld.so` itself joins (global, last) when
 /// no object named it at start. False when `link` did not run (no records).
 // Indices stay below CAP (checked).
 #[allow(clippy::indexing_slicing)]
@@ -863,12 +863,12 @@ fn adopt_start(l: &mut Loader) -> bool {
         let id = if k == interp { (u64::MAX, u64::MAX) } else { (w[3], w[4]) };
         describe(l, k, &o, name, id, !linked);
         l.nodes[k].nodelete = true;
-        // At start every object was in the global scope; an `ld.so` that joins now is not.
-        if k < n {
-            l.nodes[k].global = true;
-            l.global[l.n_global] = k;
-            l.n_global = l.n_global.saturating_add(1);
-        }
+        // At start every object was in the global scope. An `ld.so` that joins now joins it last,
+        // where the C library naming it would put it (D-27.65), so `dlsym`'s
+        // `RTLD_DEFAULT`/`RTLD_NEXT` find its exports (`_dl_get_tls_static_info`, `__tls_get_addr`).
+        l.nodes[k].global = true;
+        l.global[l.n_global] = k;
+        l.n_global = l.n_global.saturating_add(1);
         if k > 0 && !linked {
             let me = l.node_addr(k);
             l.nodes[k.wrapping_sub(1)].l_next.store(me, Relaxed);
@@ -1669,7 +1669,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         close();
         return refused(l, Refusal::TooShort);
     };
-    let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else {
+    let Ok(at) = super::map_view(fd32, len) else {
         close();
         return Some(Found::Full(b"cannot read file data"));
     };

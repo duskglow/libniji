@@ -24,7 +24,7 @@ const HEADER: [&str; 6] = ["id", "kind", "subjects", "rule", "reason", "decision
 /// Kinds whose contract is held by a directive in the source (alignment attribute, `.p2align`, `.org`): a row of one
 /// of them needs a `LAYOUT(<ID>)` tag at that directive.
 const SITE_KINDS: &[&str] = &["classed-xref", "object-window", "object-align", "section-offset", "label-align"];
-const KINDS: &[&str] = &["fn-align", "classed-xref", "jcc", "section-rename", "object-window", "object-align", "section-offset", "label-align", "remap", "startup-text-windows", "startup-data-windows"];
+const KINDS: &[&str] = &["fn-align", "classed-xref", "jcc", "section-rename", "object-window", "object-align", "section-offset", "label-align", "remap", "startup-text-windows", "startup-data-windows", "window-bin-bytes"];
 const DIRECTIVES: &[&str] = &[".p2align", ".balign", ".align ", ".org ", "align("];
 
 #[derive(Clone, Debug, PartialEq)]
@@ -405,6 +405,7 @@ fn check_one(c: &Contract, pr: &mut Products) -> Result<String, Vec<String>> {
         }
         "startup-text-windows" => check_startup_windows(c, &p, pr),
         "startup-data-windows" => check_startup_data(c, &p, pr),
+        "window-bin-bytes" => check_window_bins(c, &p, pr),
         k => Err(one(format!("layout: {}: unknown kind `{k}` (known: {})", c.id, KINDS.join(", ")))),
     }
 }
@@ -954,6 +955,53 @@ fn check_startup_data(c: &Contract, p: &BTreeMap<String, String>, pr: &mut Produ
         return Err(one(c.broken("start-up objects", &format!("none of the {} keys of {path} names an object of the probe", keys.len()))));
     }
     startup_data_verdict(c, &d, (window, page), (ro_budget, rw_budget), &profile).map(|s| format!("{s}; {} of {} start-up objects found", keys.len() - d.missing.len(), keys.len()))
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// WINDOW-BIN-BYTES (D-X.136, owner ruling R2 of plan/layout-budget-rethink.md): the per-story start-up layout gate in
+// bytes and windows from the probe's link map (`crate::binbudget`).
+
+fn check_window_bins(c: &Contract, p: &BTreeMap<String, String>, pr: &mut Products) -> Result<String, Vec<String>> {
+    use crate::binbudget::{Budgets, Linked};
+    let one = |e: String| vec![e];
+    let window = param_num(p, c, "window").map_err(one)?;
+    same(c, "window", window, crate::bins::BIN).map_err(one)?;
+    let page = param_num(p, c, "page").map_err(one)?;
+    same(c, "page", page, STARTUP_PAGE).map_err(one)?;
+    let head_room = param_num(p, c, "head-room").map_err(one)?;
+    same(c, "head-room", head_room, crate::bins::HEAD_ROOM).map_err(one)?;
+    let profile = pr.profile.clone().ok_or_else(|| one(format!("layout: {}: the products' profile is unknown (no {}/.profile)", c.id, pr.dir.display())))?;
+    let modes = crate::binbudget::parse_budgets(param(p, c, &format!("windows-{profile}")).map_err(one)?).map_err(|e| one(format!("layout: {}: windows-{profile}: {e}", c.id)))?;
+    let rodata1 = param_num(p, c, "rodata1-windows").map_err(one)?;
+    let data1 = param_num(p, c, &format!("data1-pages-{profile}")).map_err(one)?;
+    let path = param(p, c, "signatures").map_err(one)?;
+    let text = std::fs::read_to_string(crate::hotlists::rel(pr.root, path).map_err(one)?).map_err(|e| one(format!("layout: {}: {path}: {e}", c.id)))?;
+    let sigs = crate::bins::parse_signatures(&text).map_err(|e| one(format!("layout: {}: {path}: {e}", c.id)))?;
+    for f in &c.subjects {
+        pr.file(f).map_err(|e| one(c.broken(f, &e)))?;
+    }
+    let base = match std::env::var_os(crate::binbudget::BASE_ENV) {
+        Some(b) if !b.is_empty() => {
+            let t = std::fs::read_to_string(&b).map_err(|e| one(format!("layout: {}: {}={}: {e}", c.id, crate::binbudget::BASE_ENV, b.to_string_lossy())))?;
+            let key = |s: &str| crate::hottext::key(crate::hottext::function_of(s).unwrap_or(s));
+            Some(crate::binbudget::parse_base(&t, key).map_err(|e| one(format!("layout: {}: {}: {e}", c.id, b.to_string_lossy())))?)
+        }
+        _ => None,
+    };
+    let probe = link_startup_probe(pr, false).map_err(|e| one(format!("layout: {}: {e}", c.id)))?;
+    let secs: Vec<Linked> = parse_map(&probe.map).into_iter().map(|s| Linked { start: s.start, end: s.end, name: s.name }).collect();
+    let a = crate::binbudget::analyse(&secs, &sigs, crate::hottext::key, window).map_err(|e| one(c.broken("window bins", &e)))?;
+    let out = parse_exe_sections(&probe.sections);
+    let find = |n: &str| out.iter().find(|s| s.name == n).map(|s| Linked { start: s.start, end: s.end, name: s.name.clone() });
+    let b = Budgets { window, page, head_room, profile, modes, rodata1: find(".rodata1").map(|s| (s, rodata1)), data1: find(".data1").map(|s| (s, data1)) };
+    let (report, broken) = crate::binbudget::verdict(&a, &b, base.as_ref());
+    let lines: Vec<String> = report.iter().map(|l| format!("layout: {}:   {l}", c.id)).collect();
+    if broken.is_empty() {
+        return Ok(format!("{} window bins and the start-up data clusters within their budgets\n{}", a.bins.len(), lines.join("\n")));
+    }
+    let mut out = lines;
+    out.extend(broken.iter().map(|l| if l.starts_with("  ") { format!("layout: {}: {l}", c.id) } else { c.broken("window bins", l) }));
+    Err(out)
 }
 
 /// The profile recorded in `<dir>/.profile` (written last by `cargo xtask so`).

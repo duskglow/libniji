@@ -934,7 +934,7 @@ fn open_file(path: usize) -> Option<(i32, usize, &'static [u8], FileId)> {
         let _ = crate::ffi_sys::niji_sys_close(fd);
         return None;
     };
-    let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else {
+    let Ok(at) = map_view(fd32, len) else {
         let _ = crate::ffi_sys::niji_sys_close(fd);
         return None;
     };
@@ -1590,6 +1590,29 @@ pub extern "C" fn _dl_debug_state() {
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 }
 
+/// `_dl_get_tls_static_info(size_t *size, size_t *align)` (`GLIBC_PRIVATE` in versions.tsv, here
+/// `NIJI_PRIVATE`, R14-12): the static TLS every thread has, for a runtime that finds it by name
+/// (sanitizers' `dlsym`). `*size`: the bytes from the lowest static block (the surplus included,
+/// `SURPLUS_HI` below the thread pointer) to the end of the initial thread block above it
+/// ([`INITIAL_TAIL`]); `*align`: the thread pointer's alignment. A null or misaligned pointer is not
+/// written. Both 0 in a process this loader did not start (nothing laid out). Off the start path
+/// (D-27.65).
+// UNSAFE(export): an exported function of the ld.so product.
+#[unsafe(no_mangle)]
+#[allow(unsafe_code)]
+#[cold]
+#[inline(never)]
+pub extern "C" fn _dl_get_tls_static_info(size: usize, align: usize) {
+    let below = SURPLUS_HI.load(Relaxed);
+    let total = if below == 0 { 0 } else { below.saturating_add(INITIAL_TAIL) };
+    if let Some(w) = crate::tb::c_word(size) {
+        w.store(usize::try_from(total).unwrap_or(usize::MAX), Relaxed);
+    }
+    if let Some(w) = crate::tb::c_word(align) {
+        w.store(usize::try_from(THREAD_TLS_ALIGN.load(Relaxed)).unwrap_or(0), Relaxed);
+    }
+}
+
 /// The address of an `extern "C" fn()` (`_dl_debug_state`).
 #[allow(clippy::as_conversions)] // a function's address has no conversion other than `as`
 fn fn_addr0(f: extern "C" fn()) -> usize {
@@ -1855,7 +1878,7 @@ fn load(path: usize, page: u64) -> (start::Program, usize) {
     let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
     let len = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE).unwrap_or_else(|| fail(b"cannot read the program\n"));
     let fd32 = i32::try_from(fd).unwrap_or(-1);
-    let file_at = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0).unwrap_or_else(|_| fail(b"cannot read the program\n"));
+    let file_at = map_view(fd32, len).unwrap_or_else(|_| fail(b"cannot read the program\n"));
     // UNSAFE(slice): the program file, mapped read-only above.
     #[allow(unsafe_code)]
     // SAFETY: `len` bytes from `file_at` are a private read-only mapping of the file, unmapped only
@@ -1927,6 +1950,37 @@ const MAP_PRIVATE_I32: i32 = 0x02;
 const MAP_FIXED_I32: i32 = 0x10;
 const MAP_ANONYMOUS_I32: i32 = 0x20;
 const MAP_FIXED_NOREPLACE_I32: i32 = 0x10_0000;
+
+/// The alignment of a whole-file view ([`map_view`]): the kernel's default fault-around window
+/// (`fault_around_bytes`, 64 KiB), the unit in which a read of a file-backed mapping maps pages in.
+const VIEW_ALIGN: usize = 0x1_0000;
+
+/// Map the first `len` bytes of the file `fd` private and read-only at an address the loader
+/// chooses, a multiple of [`VIEW_ALIGN`]: the view's pages then share fault-around windows exactly
+/// as their file offsets do, so the faults its reads cost do not depend on where the kernel would
+/// have put the mapping (which varies with the file system holding the file: DYN-START-SPEED-2).
+/// The address range is reserved oversized and inaccessible first, the file is mapped over its
+/// aligned part, and both ends are given back, so the result is one mapping of exactly `len`
+/// bytes (rounded to the page) that `munmap(at, len)` removes. Nothing stays mapped on failure.
+fn map_view(fd: i32, len: usize) -> Result<usize, ()> {
+    const PAGE: usize = 0x1000;
+    let mapped = len.checked_add(PAGE - 1).ok_or(())? & !(PAGE - 1);
+    let span = mapped.checked_add(VIEW_ALIGN).ok_or(())?;
+    let raw = raw::mmap(0, span, 0, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0).map_err(|_| ())?;
+    // `raw` is page-aligned, so `at` is within the first VIEW_ALIGN - PAGE bytes and the view fits.
+    let at = raw.wrapping_add(VIEW_ALIGN - 1) & !(VIEW_ALIGN - 1);
+    if raw::mmap(at, len, map::PROT_READ, MAP_PRIVATE_I32 | MAP_FIXED_I32, fd, 0).is_err() {
+        let _ = raw::munmap(raw, span);
+        return Err(());
+    }
+    // User addresses (below 2^47) plus lengths the kernel accepted: none of these wrap.
+    if at != raw {
+        let _ = raw::munmap(raw, at.wrapping_sub(raw));
+    }
+    let end = at.wrapping_add(mapped);
+    let _ = raw::munmap(end, raw.wrapping_add(span).wrapping_sub(end));
+    Ok(at)
+}
 
 /// Where a kernel-started program's `$ORIGIN` comes from: the path it was run by (`ld.so PROGRAM`,
 /// nonzero), else `AT_EXECFN` of `aux`, read only when a search needs it (a program whose
@@ -2014,7 +2068,7 @@ fn open_whole(path: &[u8]) -> Option<(&'static [u8], i64)> {
         return None;
     }
     let len = usize::try_from(crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END))).ok().filter(|&n| n > 0);
-    let at = len.and_then(|len| raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, i32::try_from(fd).unwrap_or(-1), 0).ok());
+    let at = len.and_then(|len| map_view(i32::try_from(fd).unwrap_or(-1), len).ok());
     let (Some(len), Some(at)) = (len, at) else {
         let _ = crate::ffi_sys::niji_sys_close(fd);
         return None;
@@ -2070,7 +2124,7 @@ fn open_candidate(path: &[u8], page: u64) -> Result<(i32, usize, &'static [u8], 
     }
     let size = crate::ffi_sys::niji_sys_lseek(fd, 0, i64::from(SEEK_END));
     let Some(len) = usize::try_from(size).ok().filter(|&n| n >= niji_ld::elf::EHDR_SIZE) else { return Err(refuse(Refusal::TooShort)) };
-    let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else { return Err(refuse(Refusal::Truncated)) };
+    let Ok(at) = map_view(fd32, len) else { return Err(refuse(Refusal::Truncated)) };
     // UNSAFE(slice): a candidate file, mapped read-only above.
     #[allow(unsafe_code)]
     // SAFETY: `len` bytes from `at` are a private read-only mapping of the file, unmapped here when the

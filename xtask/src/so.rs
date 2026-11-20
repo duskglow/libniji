@@ -88,12 +88,18 @@ pub(crate) struct ProductLock(#[allow(dead_code)] fs::File); // held for its lif
 #[allow(clippy::incompatible_msrv)]
 pub(crate) fn lock_product_dir(product: &Path) -> Result<ProductLock, String> {
     fs::create_dir_all(product).map_err(|e| format!("{}: {e}", product.display()))?;
-    let path = product.join(".lock");
-    let file = fs::OpenOptions::new().create(true).truncate(false).write(true).open(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    lock_exclusive(&product.join(".lock"), "so: another product build")
+}
+
+/// Take the exclusive `flock` of the file `path` (made if absent), held until the returned lock is
+/// dropped; when another holder has it, print `<who> holds <path>; waiting for it to finish` and wait.
+#[allow(clippy::incompatible_msrv)]
+pub(crate) fn lock_exclusive(path: &Path, who: &str) -> Result<ProductLock, String> {
+    let file = fs::OpenOptions::new().create(true).truncate(false).write(true).open(path).map_err(|e| format!("{}: {e}", path.display()))?;
     match file.try_lock() {
         Ok(()) => {}
         Err(fs::TryLockError::WouldBlock) => {
-            eprintln!("so: another product build holds {}; waiting for it to finish", path.display());
+            eprintln!("{who} holds {}; waiting for it to finish", path.display());
             file.lock().map_err(|e| format!("{}: {e}", path.display()))?;
         }
         Err(fs::TryLockError::Error(e)) => return Err(format!("{}: {e}", path.display())),
@@ -1963,6 +1969,23 @@ pub fn run_ldso_trace(root: &Path, args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// PASS2-NATIVE-RUNNER: the interpreter of the built products' profile compiled with the installation prefix
+/// `prefix` (so it pins libraries to `<prefix>/lib` and searches nowhere else), linked ungrouped to `out`. Its
+/// cargo target directory (`target/product/ld-native`) and work directory are its own: no other step or test
+/// builds there (`run_ldso_trace` and the tests that call it use `ld-prefix`, finding #6821).
+pub fn build_native_ld(root: &Path, prefix: &str, out: &Path) -> Result<(), String> {
+    let profile = built_profile(root).ok_or("the products are missing or half-built: run `cargo xtask so` first")?;
+    let cc = std::env::var("CC").unwrap_or_else(|_| "cc".into());
+    let product = root.join("target/product");
+    let build = ProductBuild { subdir: "ld-native", ..LD_BUILD };
+    run(build.command(root, &product, profile, None, &build_tag(root)).env("NIJI_PREFIX", prefix))?;
+    let work = build.target_dir(&product).join("work");
+    let _ = fs::remove_dir_all(&work);
+    fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
+    let ld = LdLink::prepare(root, &cc, &work, &build.raw_archive(&product, profile))?;
+    ld.link(&cc, &ld.entry, &ld.archive, out)
+}
+
 /// LDSO-TRACE-PREFIX: the installation prefix the interpreter of this build is compiled with: `NIJI_PREFIX` of
 /// the environment the product build hands to cargo (`crates/ld/src/search.rs` reads it with `option_env!`), or
 /// the loader's own default when it is unset.
@@ -2229,7 +2252,9 @@ fn check_no_interp(path: &Path) -> Result<(), String> {
 /// other symbol stays local.
 /// `__libc_stack_end` and the rseq objects live here, not in `libc.so.6` (R14-12, D-27.26).
 /// `_r_debug` and `_dl_debug_state`: the debugger rendezvous (DL-23).
-const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags", "_r_debug", "_dl_debug_state"];
+/// `_dl_get_tls_static_info`: the static TLS size and alignment, which sanitizer runtimes look up by
+/// name (LDSO-TLS-STATIC-INFO).
+const LD_EXPORTS: &[&str] = &["__tls_get_addr", "__libc_stack_end", "__rseq_offset", "__rseq_size", "__rseq_flags", "_r_debug", "_dl_debug_state", "_dl_get_tls_static_info"];
 
 /// The interpreter's version script: one node per version of [`LD_EXPORTS`], everything else local.
 fn ld_version_script(root: &Path, soname: &str) -> Result<String, String> {

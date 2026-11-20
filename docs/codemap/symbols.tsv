@@ -566,6 +566,7 @@ __xstat64	GLIBC_2.2.5	crates/boundary/src/posix/s13_filesystem.rs:272	ret::store
 _authenticate	GLIBC_2.2.5	crates/boundary/src/posix/s29_rpc_svc.rs:157	
 _dl_debug_state		crates/boundary/src/ld.rs:1589	core::sync::atomic::compiler_fence
 _dl_find_object	GLIBC_2.35	crates/boundary/src/posix/s27_dynlink.rs:179	i64::from_ne_bytes
+_dl_get_tls_static_info		crates/boundary/src/ld.rs:1605	crate::tb::c_word
 _exit	GLIBC_2.2.5	crates/boundary/src/posix/s01_startup.rs:81	process::exit_now
 _flushlbf	GLIBC_2.2.5	crates/boundary/src/posix/s12_stdio.rs:109	stdio::flushlbf
 _getlong	GLIBC_2.2.5	crates/boundary/src/posix/s16_nameservices.rs:865	resolv::get_be

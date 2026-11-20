@@ -329,6 +329,12 @@ fn init_short_programs_stay_within_their_page_fault_bounds() {
 /// fast 73, release 67, warm-up + 5 runs, every run identical, on the Skylake-SP and the Zen 1 host, each with
 /// /tmp on ext4 and on tmpfs (the gate wrapper's): on the merged head the file system no longer changes the
 /// count (the cause was not isolated). Tightened to that level.
+/// DYN-START-SPEED-2: the dependence came back with DYN-START-SPEED's loader changes merged (Skylake-SP host,
+/// release: 67 with /tmp on ext4, 68 on tmpfs; perf fault addresses: only libc.so.6's whole-file view differs,
+/// 4 faults per process on ext4, 5 on tmpfs). The cause is the view's placement: the kernel puts it 2 MiB-aligned
+/// on ext4 and page-aligned on tmpfs, so the same file pages fall in different 64 KiB fault-around windows. The
+/// loader now places every view 64 KiB-aligned itself (`map_view`); the test below checks the two file systems
+/// read the same count.
 const DYN_TRUE_BOUND: [u64; 2] = [73, 67];
 
 /// The installation prefix of the coexist package flavour (tools/deb/build.sh): its interpreter opens its
@@ -361,10 +367,57 @@ fn init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_t
 
 #[test]
 fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
+    let lib = PathBuf::from(format!("/tmp/niji-hot-ldso-{:010}", std::process::id()));
+    let t = dyn_startup_faults(&lib);
+    check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
+}
+
+/// DYN-START-SPEED-2; no spec clause (cost of the products). The start-up count of the program above does
+/// not depend on the file system that holds ld.so and libc.so.6: the same products staged on the RAM file
+/// system (/dev/shm, tmpfs) and under the build tree (another file system on the build hosts) read the same
+/// count. The loader places each whole-file view it reads an object through at a 64 KiB-aligned address
+/// (`map_view`), so the view's fault-around windows follow the file offsets; a view left where the kernel
+/// puts a file mapping (2 MiB-aligned on a file system with large folios, page-aligned on tmpfs) read one
+/// more fault on tmpfs than on ext4 (Skylake-SP host, release: 68 / 67). Both directory names have the same
+/// length, so the strings on the program's stack and in the loader's tables are the same size. Skipped, with
+/// the reason printed, when the two directories are on the same kind of file system.
+#[test]
+fn init_dynamic_startup_fault_count_does_not_depend_on_the_file_system() {
+    let r = root();
+    let pid = std::process::id();
+    let a = r.join(format!("target/niji-fs-{pid:010}"));
+    let pad = a.as_os_str().len().saturating_sub(format!("/dev/shm/niji-fs-{pid:010}").len());
+    let b = PathBuf::from(format!("/dev/shm/niji-fs-{}{pid:010}", "x".repeat(pad)));
+    if !Path::new("/dev/shm").is_dir() {
+        eprintln!("SKIP: no /dev/shm on this host, no second file system to compare with");
+        return;
+    }
+    let kind = |d: &Path| {
+        std::fs::create_dir_all(d).unwrap();
+        let o = Command::new("stat").args(["-f", "-c", "%T"]).arg(d).output().expect("stat -f");
+        String::from_utf8_lossy(&o.stdout).trim().to_string()
+    };
+    let (ka, kb) = (kind(&a), kind(&b));
+    if ka == kb {
+        let _ = std::fs::remove_dir_all(&a);
+        let _ = std::fs::remove_dir_all(&b);
+        eprintln!("SKIP: the build tree and /dev/shm are both on {ka}: no second file system to compare with");
+        return;
+    }
+    assert_eq!(a.as_os_str().len(), b.as_os_str().len(), "{} and {} differ in length", a.display(), b.display());
+    let (ta, tb) = (dyn_startup_faults(&a), dyn_startup_faults(&b));
+    eprintln!("dynamic startup-only program: {ta} page faults with the objects on {ka}, {tb} on {kb}");
+    assert_eq!(ta, tb, "the start-up fault count depends on the file system holding ld.so and libc.so.6 ({ka}: {ta}, {kb}: {tb}): a whole-file view left where the kernel places it?");
+}
+
+/// Stage ld.so and libc.so.6 of the products in the new directory `lib` (removed afterwards), link
+/// `oracle/page_faults.c` as a position-independent program whose interpreter and LD_LIBRARY_PATH are
+/// that directory, and return its whole-process minor faults in mode `true` ([`faults_env`]).
+fn dyn_startup_faults(lib: &Path) -> u64 {
     let r = root();
     let p = r.join("target/niji");
     assert!(p.join("ld-linux-x86-64.so.2").exists(), "the products are missing: run `cargo xtask so`");
-    let lib = PathBuf::from(format!("/tmp/niji-hot-ldso-{:010}", std::process::id()));
+    let lib = lib.to_path_buf();
     let _ = std::fs::remove_dir_all(&lib);
     std::fs::create_dir_all(&lib).unwrap();
     for f in ["ld-linux-x86-64.so.2", "libc.so.6"] {
@@ -396,7 +449,7 @@ fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
     let path = lib.display().to_string();
     let t = faults_env(&exe, "true", &[("LD_LIBRARY_PATH", path.as_str())]);
     let _ = std::fs::remove_dir_all(&lib);
-    check_whole_count("dynamic startup-only program", t, DYN_TRUE_BOUND, "the interpreter's start-up text left its group (ldso-text.list), or start-up grew?");
+    t
 }
 
 /// DYN-START-PARITY; no spec clause (cost of the products). Upper bounds, per CPU model (`model name`
@@ -410,9 +463,17 @@ fn init_dynamic_startup_only_program_stays_within_its_page_fault_bound() {
 /// median measured on the branch's head plus 2%; `0` = not measured for that profile (unchecked).
 /// Measured (empty main, median of 21): Skylake-SP host fast 1,718,270, release 1,598,681, the host C
 /// library 101,863; Zen 1 host release 1,598,530, the host C library 96,002 (fast not measured).
+/// DYN-START-SPEED (the RELACOUNT prefix loop, the verdef record scan, the per-pass version-name memo):
+/// Skylake-SP host fast 854,405 in this test; release 785,631 by execcount (1,579,278 before), which read
+/// 1.4% under this test before, so the release level is 785,631 + 1.4% + 2%. Zen 1 host: not re-measured;
+/// its release level was within 0.01% of the Skylake-SP host's, so it takes the same bound.
+/// DYN-START-SPEED-2 (merged with next 90f71362a, whole-file views placed by the loader), the test's own
+/// staging and counter (median of 21) on the same products built on the Skylake-SP host: Skylake-SP host
+/// fast 855,582, release 803,431, the host C library 101,863; Zen 1 host fast 855,428, release 803,280, the
+/// host C library 96,002. The Zen 1 fast bound is that level plus 2%; the release bounds hold (1.1% over).
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [1_752_700, 1_630_700]),
-    ("AMD EPYC 7551 32-Core Processor", [0, 1_630_600]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 812_400]),
+    ("AMD EPYC 7551 32-Core Processor", [872_600, 812_400]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.
@@ -638,11 +699,27 @@ fn check_whole_count(what: &str, s: u64, bounds: [u64; 2], hint: &str) {
     let bound = bounds[p];
     let profile = ["fast", "release"][p];
     eprintln!("{what} (whole process, {profile}): {s} page faults (bound {bound})");
-    assert!(s <= bound, "{what} (whole process, {profile} products): {s} page faults > {bound} ({hint})");
-    assert!(
+    fault_bound(s <= bound, &format!("{what} (whole process, {profile} products): {s} page faults > {bound} ({hint})"));
+    fault_bound(
         s >= bound.saturating_sub(WHOLE_COUNT_SLACK),
-        "{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"
+        &format!("{what} (whole process, {profile} products): {s} page faults, more than {WHOLE_COUNT_SLACK} under the bound {bound}: the probe no longer counts start-up, or the level improved and the bound must be tightened"),
     );
+}
+
+/// The switch that makes the runtime fault bounds blocking: `NIJI_FAULT_BOUNDS=enforce` (the release ratchet).
+const FAULT_BOUNDS_ENV: &str = "NIJI_FAULT_BOUNDS";
+
+/// LAYOUT-BYTE-BUDGETS-2 (D-X.136, owner ruling R2): a runtime fault bound is a release metric, not the per-story
+/// gate (that is the link map's WINDOW-BIN-BYTES contract, checked by every `cargo xtask so`). A bound that does not
+/// hold prints a `FAULT-COUNT REPORT` line and the test goes on; with [`FAULT_BOUNDS_ENV`]`=enforce` it fails.
+fn fault_bound(holds: bool, msg: &str) {
+    if holds {
+        return;
+    }
+    if std::env::var(FAULT_BOUNDS_ENV).is_ok_and(|v| v == "enforce") {
+        panic!("{msg}");
+    }
+    eprintln!("FAULT-COUNT REPORT (non-blocking, D-X.136; {FAULT_BOUNDS_ENV}=enforce makes it fail): {msg}");
 }
 
 #[test]
@@ -698,7 +775,8 @@ fn init_first_float_conversion_stays_within_its_page_fault_bound() {
     let exe = dir.join("page_faults_niji_float");
     build(&exe);
     let s = faults(&exe, "float");
-    assert!(s <= FLOAT_BOUND, "first %.2f: {s} page faults > {FLOAT_BOUND} (a large stack frame back on the float path?)");
+    eprintln!("first %.2f: {s} page faults (bound {FLOAT_BOUND})");
+    fault_bound(s <= FLOAT_BOUND, &format!("first %.2f: {s} page faults > {FLOAT_BOUND} (a large stack frame back on the float path?)"));
 }
 
 #[test]
@@ -750,7 +828,7 @@ fn init_fork_child_stays_within_its_page_fault_bound() {
     build(&exe);
     let f = faults(&exe, "fork");
     eprintln!("minor faults: fork child {f} (bound {FORK_BOUND})");
-    assert!(f <= FORK_BOUND, "fork child: {f} page faults > {FORK_BOUND} (fork path left the traced hot group? see target/product/<profile>/trace.log)");
+    fault_bound(f <= FORK_BOUND, &format!("fork child: {f} page faults > {FORK_BOUND} (fork path left the traced hot group? see target/product/<profile>/trace.log)"));
 }
 
 /// HOTTEXT-COLD-STARTUP: start-up's machine entry points (each in its own `.text.<f>` section of

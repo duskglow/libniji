@@ -12,8 +12,20 @@ build that runs into it ends `BASELINE FAILED: so timed out after N s (prepare t
 is reported `BUILD-TIMEOUT` (not CAUGHT: the mutant was not tested) and fails the run.
 
 ```
-cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>]   # test limit 600 (project rule); build limit 3600
+cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto]   # test limit 600 (project rule); build limit 3600
 ```
+
+**Copies (PLANTS-COPIES).** `--copies <n>` (1 to 8) runs the plants in `n` copies of the tree at the same time: plant
+`i` of the file goes to copy `i % n`. Each copy does steps 2 to 4 below for its own plants (its own `cargo xtask so`
+and the baselines of its own plants' commands), in `<dir>/src` and `<dir>/logs` (the first copy, the same paths as a
+serial run) or `<dir>/src-<k>` and `<dir>/logs-<k>`. Lines from a copy after the first start `plants[copy <k>]:`. The
+verdicts, the summary and `results.txt` come out in the plants file's order and read as a serial run's, each plant
+judged as a serial run judges it; a copy that stops (refused, baseline failed) stops the run with the exit status a
+serial run gives. The default, `auto`, prints its choice: two copies when the RAM this job may use holds two copies
+at the measured per-copy peak (`COPY_PEAK_BYTES` in `plants.rs`, 14 GiB), else one. "The RAM this job may use" is
+the smallest of `NIJI_PLANTS_RAM_GB` (GiB: a role's RAM budget, set by whoever starts the job), the `memory.max` of
+the job's cgroup and every cgroup above it, and `MemAvailable`; none known means one copy. Measured wall time and peak
+RAM, serial against two copies: `handoff/PLANTS-COPIES.md`.
 
 Run it from the role tree on the build host, under plain `jobrun` (not `~/bin/gate`, which gives the job a private
 `/dev/shm`). Use a directory that is NEW for every run and that is in RAM: `/dev/shm/claude/<story>/plants-<n>` on Zen 1 host,
@@ -35,6 +47,7 @@ Run it from the role tree on the build host, under plain `jobrun` (not `~/bin/ga
    rebuild them in every product target directory (the hash changes with every mutant). Products built outside a
    plants run keep the hash tag. `cargo xtask so` also prints a `step: so/<phase> <seconds>s` line per phase.
 5. It prints one verdict per plant and a summary line. It exits 1 if any plant SURVIVED (or a step failed), else 0.
+   With more than one copy it prints the verdicts again in the file's order before the summary (the copies' lines interleave).
 
 **Which commands rebuild the products** (XTASK-PLANTS-PRODUCTS-REBUILD). A test that links `libc.a` or
 `niji-crt1.o` (a `*_products` test, a conformance program) sees a plant only if the products are rebuilt with
