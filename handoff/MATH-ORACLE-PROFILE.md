@@ -43,14 +43,18 @@ Pass-1 test-seconds of the five sweeps on keke (n2, `cargo nextest run ... --tes
 
 | binary | before | after |
 |---|---|---|
-| complex_ld_cr_products (21) | 12965.7 | AFTER_LD |
-| complex_f128_products (8) | 4598.7 | AFTER_F128 |
-| special_ld_products (9) | 2459.9 | AFTER_SLD |
-| special_f128_products (8) | 2327.6 | AFTER_SF128 |
-| complex_products (8) | 479.3 | AFTER_C |
-| total | 22831.2 | AFTER_TOTAL |
+| complex_ld_cr_products (21) | 12965.7 | 11700.2 |
+| complex_f128_products (8) | 4598.7 | 4945.6 |
+| special_ld_products (9) | 2459.9 | (5 of 9 done at hand-back: 1339.5) |
+| special_f128_products (8) | 2327.6 | 2284.2 |
+| complex_products (8) | 479.3 | 216.6 |
+| total | 22831.2 | pending (20486.1 with special_ld partial) |
 
-(keke's numbers are ~3.3x CI's 6930 test-s: 24 threads on a smaller slot; compare before with after only.)
+The after column was read at 05:04 while `math-oracle-profile-after-3` still ran; the final figure is
+`~/work/math-oracle-profile/ts.sh ~/work/math-oracle-profile/after/nextest.txt` on keke. Wall-clock test-seconds on
+an oversubscribed slot are noisy (complex_f128 went UP 7 %, complex_ld_cr down 10 %); the deterministic saving is
+the program runs: 52 pairs per gate run -> 5, 4.6 s (complex_ld_cr) / 3.0 s (complex_f128) per shard that no longer
+runs them. (keke's numbers are ~3.3x CI's 6930 test-s: 24 threads on a smaller slot; compare before with after only.)
 
 ## 3. For ORACLE-VALUE-CACHE (owner ruling 11-20: approved, its own story stacked on this one)
 
