@@ -472,8 +472,14 @@ fn pick_test_threads(env_set: bool, args: &[String], cpus: Option<usize>) -> Opt
 }
 
 /// `cargo nextest run <args>`: nextest's report passed through, then the summary lines.
+/// The native pass's runner arrives as `pass2::RUNNER_VIA` (`affected`'s `cargo xtask nextest`: cargo runs
+/// xtask itself through the target runner, so the runner variable cannot be set on that command) and goes to
+/// nextest as the runner variable.
 pub fn run(cargo: &str, root: &std::path::Path, args: &[String]) -> Result<(), String> {
-    run_with(cargo, root, args, &[])
+    match std::env::var(crate::pass2::RUNNER_VIA) {
+        Ok(r) => run_with(cargo, root, args, &[(crate::pass2::RUNNER_VAR, &r)]),
+        Err(_) => run_with(cargo, root, args, &[]),
+    }
 }
 
 /// [`run`] with `env` added to nextest's environment (the native pass's runner).

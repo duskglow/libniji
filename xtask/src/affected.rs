@@ -3922,7 +3922,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
                         ok = false;
                         continue;
                     }
-                    cmd.env(crate::pass2::RUNNER_VAR, r).env(crate::pass2::PASS_VAR.0, crate::pass2::PASS_VAR.1);
+                    cmd.env(if nextest { crate::pass2::RUNNER_VIA } else { crate::pass2::RUNNER_VAR }, r).env(crate::pass2::PASS_VAR.0, crate::pass2::PASS_VAR.1);
                 }
                 if pass == 2 {
                     cmd.args(["--features", crate::nextest::INTERPOSED_FEATURES]);

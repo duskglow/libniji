@@ -30,6 +30,10 @@ use std::process::Command;
 /// The runner variable cargo and nextest read for the host target.
 pub const RUNNER_VAR: &str = "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER";
 
+/// The runner for `cargo xtask nextest` (`nextest::run` hands it to nextest as [`RUNNER_VAR`]): cargo
+/// runs xtask itself through the target runner, so [`RUNNER_VAR`] on that command would run xtask so.
+pub const RUNNER_VIA: &str = "NIJI_PASS2_RUNNER";
+
 /// Set to `native` on the native pass's test commands: `pass2_native_process.rs` then requires its
 /// process to be a libniji process, so a pass that lost its runner fails instead of passing on the host.
 pub const PASS_VAR: (&str, &str) = ("NIJI_TEST_PASS", "native");
@@ -176,7 +180,9 @@ pub fn exec(args: &[String]) -> String {
     if let Err(e) = check_copy(bin, &copy) {
         return e;
     }
-    let e = Command::new(&copy).args(args.get(1..).unwrap_or_default()).exec();
+    // Not in the test's environment: a test that runs `cargo xtask` or `cargo test` itself would have its
+    // programs run through this runner.
+    let e = Command::new(&copy).args(args.get(1..).unwrap_or_default()).env_remove(RUNNER_VAR).env_remove(RUNNER_VIA).exec();
     format!("pass2-exec: cannot execute {}: {e}", copy.display())
 }
 
