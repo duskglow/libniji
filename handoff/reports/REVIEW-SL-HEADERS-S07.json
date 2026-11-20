@@ -11,7 +11,7 @@
   "False premise: ops/reviewer.py hard-codes 'no measured gain' and 'none' in review briefs; tripwire.chains() counts 5 measured gains for S07 and 35 across the 7 chains (none delivered: nothing landed)",
   "tripwire_reds counts INCOMPLETE-by-design reds (14 of 52 series reds); counting them as failures overstates rabbit holes",
   "69% of S07's 9.9 agent-h came after its content was complete (S07-3): S07-4 placed ids, S07-5 merged next; both ended in CI conflicts",
-  "S07-3's red on a COMPAT-NEW placeholder in docs/ was avoidable: agents may run ops reserve --story themselves"
+  "S07-3's red on an unreserved compat-id placeholder in docs/ was avoidable: agents may run ops reserve --story themselves"
  ],
  "refused": [],
  "impact": [{"kind": "none", "what": "review document only; no behaviour change", "before": null, "after": null, "unit": null, "measured": false}],
