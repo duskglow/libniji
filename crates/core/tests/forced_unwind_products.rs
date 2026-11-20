@@ -6,7 +6,9 @@
 //! the system compilers, as programs built for the host C library, and run twice: on the host C
 //! library (the reference, glibc 2.39 on the test machines) and on libniji's products (libniji's
 //! `ld.so` as the interpreter, `LD_LIBRARY_PATH` at `target/niji`, ruling #5909). Both runs must
-//! print the same text, which is also fixed here.
+//! print the same text, which is also fixed here. The same programs are also linked statically
+//! (against the host C library, and against libniji's `libc.a`, D-22.21) and with
+//! `-static-libgcc`.
 //!
 //! Needs the products (`cargo xtask so`), `g++` and `gcc`; without a compiler the test says so and
 //! passes.
