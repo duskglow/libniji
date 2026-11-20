@@ -177,7 +177,7 @@ mod tests {
             o.extend_from_slice(&add.to_le_bytes());
         }
         let shoff = o.len();
-        let mut sh = |ty: u32, off: usize, size: usize, info: u32| {
+        let sh = |ty: u32, off: usize, size: usize, info: u32| {
             let mut s = vec![0u8; 64];
             s[4..8].copy_from_slice(&ty.to_le_bytes());
             s[24..32].copy_from_slice(&(off as u64).to_le_bytes());
