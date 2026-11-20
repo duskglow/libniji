@@ -1,0 +1,21 @@
+{"task": "REVIEW-STARTUP-GOT-PAGE", "model": "opus", "tokens": null,
+ "result": "Review: STARTUP-GOT-PAGE is landing friction under the zero-margin start-up fault gate (owner ruling R2 / D-X.103, its story LAYOUT-BYTE-BUDGETS-2 held 5 days at priority 40), not a design rabbit hole; user-visible gain 0 faults; recommend stop as briefed, fix R2 first, then close or one paired static+dynamic count",
+ "branch": "task/review-startup-got-page", "head": "0b15cf8ed",
+ "gate": {"affected": "none (planning story)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "LAYOUT-BYTE-BUDGETS-2 (owner ruling R2) on a manual hold since 11-14 that looks overdue (window-bin slices -2, -6, -7 landed by 11-16), priority cut 96 -> 40; the zero-margin per-story fault gate it replaces is the SYSTEMIC red in 4 stories (CI reds 87 > 86 and 68 > 67, both bound + 1)", "recommendation": "unhold it and raise it to at least 93 under the feature pause"},
+  {"item": "STARTUP-GOT-PAGE: 0 measured fault gain, +4 KiB RELRO per program, dynamic effect never paired; -7 brief stale (bound now [73, 67], not 86)", "recommendation": "do not run -7 as written; after R2 close the chain, or land only after one paired static + dynamic count on the Skylake-SP class"}
+ ],
+ "informational": [
+  "tripwire overcounts: run 3 incomplete-by-design counted red; red reasons sum to 7 for '6 reds'; runs 5-6 carry run 4's impact entries forward; a regression (first %.2f 3 -> 4) and a size cost counted as gains; it fired on a chain idle 25 h that the feature pause will not admit",
+  "run 6's red was a refused read-only dry-run kill-label",
+  "passing hot_text_products start-up tests print their count only to captured stderr, so a green developer run cannot be compared with a red CI count",
+  "the chain's handoff calls the run-5 build host Zen 1; it is the Skylake-SP class, the same class as the CI gate",
+  "continuation briefs carry bound numbers forward without re-reading them on current next"
+ ],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "review only: no behaviour change; 2 owner rulings and 5 process findings", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "tripwire: dedupe carried-forward impacts, count only improving entries, need recent cost; continuation briefs re-read named test bounds on next",
+ "next_step": "owner rules on LAYOUT-BYTE-BUDGETS-2 priority/hold and the chain's close-or-pair decision",
+ "report_file": "plan/reviews/REVIEW-STARTUP-GOT-PAGE.md",
+ "jobs": []}
