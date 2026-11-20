@@ -23,3 +23,21 @@ fn the_native_pass_runs_libniji_processes() {
         assert!(loader.is_none(), "a process outside the native pass maps the prefixed loader {loader:?}");
     }
 }
+
+#[test]
+fn every_pass_libniji_serves_the_c_family_in_poisons_its_fresh_blocks() {
+    // Trace: no spec clause (PASS2-NATIVE-POISON, D-X.137: the test processes poison C-family blocks
+    // wherever libniji's heap serves them, so a read of a fresh or freed block fails in both passes).
+    // Natively the products' heap serves the C family (`MALLOC_PERTURB_` from the runner); with the
+    // exports interposed, the test binary's own heap (`NIJI_TEST_MALLOC_PERTURB`). In the first pass
+    // the host's heap serves it: nothing of libniji's to check.
+    let native = std::env::var("NIJI_TEST_PASS").as_deref() == Ok("native");
+    if !native && !cfg!(feature = "export") {
+        return;
+    }
+    let byte = std::env::var("NIJI_TEST_MALLOC_PERTURB").ok().and_then(|v| v.parse::<u32>().ok()).map(|v| v.to_le_bytes()[0]);
+    let byte = byte.unwrap_or_else(|| panic!("the second pass runs without NIJI_TEST_MALLOC_PERTURB: its C-family blocks are not poisoned"));
+    for n in [1, 24, 200, 5000] {
+        assert_eq!(niji_boundary::selftest::c_family_fresh_fill(n), Some(!byte), "a fresh {n}-byte C-family block does not hold the complement of the poison byte {byte}");
+    }
+}

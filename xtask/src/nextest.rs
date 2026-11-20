@@ -91,42 +91,33 @@ pub const PASS1_SHARD0: &[(&str, &str)] = &[
 /// foreign path, and the test builds' `#[cfg(feature = "export")]` code is compiled in.
 pub const INTERPOSED_FEATURES: &str = "niji-boundary/export,niji-boundary/selftest";
 
-/// PASS2-NATIVE-RUNNER (ruling #6820): the targets of the interposed suite's packages that reach no
-/// code `export` compiles differently, so they run natively only (the second pass, `pass2.rs`). A
-/// target reaches such code when its source checks `feature = "export"`, or its binary links the
-/// C-family forwarders (`niji_caller_malloc`/`calloc`/`realloc`/`free`, `caller_alloc.rs`: with
-/// `export` its `reallocarray` goes by symbol and its blocks come from the poisoned test heap in the
-/// binary; natively they come from the products' heap). Measured on the `export` build of both
-/// packages (handoff/PASS2-NATIVE-RUNNER.md lists every target). `s27_dynlink_*` reach `ld.rs`,
-/// whose `export` difference is only which definition of the memory symbols links (libniji's either way).
-pub const NATIVE_ONLY: &[(&str, &str)] = &[
-    ("niji-boundary", "csys_veneer_abi"),
-    ("niji-boundary", "dl_tls_threads"),
-    ("niji-boundary", "failinject_products"),
-    ("niji-boundary", "libm_fma_select"),
-    ("niji-boundary", "niji_cc_lm"),
-    ("niji-boundary", "placement_sweep"),
-    ("niji-boundary", "s21_contexts_symbols"),
-    ("niji-boundary", "s27_dynlink_symbols"),
-    ("niji-boundary", "setlocale_env_repeat"),
-    ("niji-boundary", "setlocale_posix_repeat"),
-    ("niji-boundary", "uapi_vs_abi"),
-    ("niji", "s21_contexts_clauses"),
-    ("niji", "s27_dynlink_clauses"),
-    ("niji", "s31_utilities_clauses"),
+/// The test targets of the interposed suite (ruling #6820; PASS2-NATIVE-POISON, D-X.137): those that
+/// reach code the `export` feature compiles differently, or whose subject is the foreign path. Every
+/// other target runs natively only (the second pass, `pass2.rs`), where its C-family blocks come from
+/// the products' heap, poisoned as the test binary's own heap is here (`pass2::products_perturb`).
+/// Kept: the source checks `feature = "export"` (`heap_threads`, `s29_rpc_clnt_svc_stubs`; a unit
+/// test of this file holds every such target here); it calls `reallocarray`, which goes by symbol
+/// only with `export` (`caller_alloc::reallocarray`), or `mcheck`, which meets the heap's `VIRGIN`
+/// bit only there (`s03_memory_symbols`, `s03_memory_clauses`, `native_v1`); the foreign path itself
+/// (`heap_threads`, `tb_foreign_*`, `heap_foreign_pair_cost`); and `pass2_native_process`, which
+/// checks each pass's own process. handoff/PASS2-NATIVE-POISON.md has the table of every target.
+pub const INTERPOSED: &[(&str, &str)] = &[
+    ("niji-boundary", "heap_foreign_pair_cost"),
+    ("niji-boundary", "heap_threads"),
+    ("niji-boundary", "native_v1"),
+    ("niji-boundary", "pass2_native_process"),
+    ("niji-boundary", "s03_memory_symbols"),
+    ("niji-boundary", "s29_rpc_clnt_svc_stubs"),
+    ("niji-boundary", "tb_foreign_low_words"),
+    ("niji-boundary", "tb_foreign_words"),
+    ("niji", "s03_memory_clauses"),
 ];
 
 /// Whether test target `target` of `krate` (`""`: the unit tests) runs again with the exports
-/// interposed (ruling #6820): niji-boundary's unit tests and test targets and niji's `_clauses`
-/// targets, but those in [`NATIVE_ONLY`]. A new target of niji-boundary joins the suite until it is
-/// shown to reach no `export` code.
+/// interposed (ruling #6820): niji-boundary's unit tests (the library's own `cfg(feature = "export")`
+/// code) and the targets in [`INTERPOSED`]. A new target runs natively only unless it is listed there.
 pub fn interposed(krate: &str, target: &str) -> bool {
-    !NATIVE_ONLY.contains(&(krate, target))
-        && match krate {
-            "niji-boundary" => true,
-            "niji" => target.ends_with("_clauses"),
-            _ => false,
-        }
+    (krate == "niji-boundary" && target.is_empty()) || INTERPOSED.contains(&(krate, target))
 }
 
 /// The package directories of the interposed suite's packages.
@@ -412,7 +403,8 @@ impl Tally {
 /// The test processes poison the blocks they free (FREE-POISON-TESTS): the test builds of
 /// `niji-boundary` take this variable as `M_PERTURB` (`heap::TEST_PERTURB`), so a read after
 /// `free` sees 0xa5 bytes on every host, every run (a block of the C family: in the exports-interposed
-/// pass, where libniji's heap serves it; perturbation also holds such blocks back a while). Set on test commands only, never on benches
+/// pass, where libniji's heap serves it, and in the native pass, whose runner hands the byte to the
+/// products' heap as `MALLOC_PERTURB_`, `pass2::products_perturb`; perturbation also holds such blocks back a while). Set on test commands only, never on benches
 /// or timing runs; its own name, so the host's `malloc` (cargo, rustc) is not perturbed.
 pub const POISON: (&str, &str) = ("NIJI_TEST_MALLOC_PERTURB", "165");
 
@@ -543,19 +535,33 @@ mod tests {
 
     #[test]
     fn the_interposed_suite_keeps_every_target_that_checks_the_export_feature() {
-        // Trace: no spec clause (PASS2-NATIVE-RUNNER, ruling #6820: the suite's membership).
+        // Trace: no spec clause (PASS2-NATIVE-RUNNER, ruling #6820; PASS2-NATIVE-POISON, D-X.137: the suite's membership).
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
-        for (c, t) in NATIVE_ONLY {
-            let dir = SUITE_DIRS.iter().find(|(k, _)| k == c).map(|(_, d)| *d).unwrap_or_else(|| panic!("{c} is not a suite package"));
-            let src = std::fs::read_to_string(root.join(dir).join(format!("tests/{t}.rs"))).unwrap_or_else(|e| panic!("{c}::{t}: {e}"));
-            assert!(!src.contains("feature = \"export\""), "{c}::{t} checks the export feature: it belongs to the interposed suite");
-            assert!(!interposed(c, t));
+        // Every target of the suite's packages that checks the export feature, or calls `reallocarray`
+        // (by symbol only with `export`) or `mcheck` (the `VIRGIN` bit), is in the suite.
+        let mut kept = 0;
+        for (c, dir) in SUITE_DIRS {
+            for e in std::fs::read_dir(root.join(dir).join("tests")).unwrap().flatten() {
+                let name = e.file_name().to_string_lossy().into_owned();
+                let Some(t) = name.strip_suffix(".rs") else { continue };
+                let src = std::fs::read_to_string(e.path()).unwrap();
+                if ["feature = \"export\"", "::reallocarray(", "::mcheck("].iter().any(|p| src.contains(p)) {
+                    assert!(interposed(c, t), "{c}::{t} reaches code `export` compiles differently: it belongs to the interposed suite");
+                    kept += 1;
+                }
+            }
         }
-        for t in ["heap_threads", "s29_rpc_clnt_svc_stubs", "tb_foreign_words", "tb_foreign_low_words", "heap_foreign_pair_cost"] {
+        assert!(kept >= 5, "the scan found {kept} targets: the suite's sources moved?");
+        for (c, t) in INTERPOSED {
+            let dir = SUITE_DIRS.iter().find(|(k, _)| k == c).map(|(_, d)| *d).unwrap_or_else(|| panic!("{c} is not a suite package"));
+            assert!(root.join(dir).join(format!("tests/{t}.rs")).exists(), "{c}::{t}: no such target");
+        }
+        for t in ["heap_threads", "s29_rpc_clnt_svc_stubs", "tb_foreign_words", "tb_foreign_low_words", "heap_foreign_pair_cost", "pass2_native_process"] {
             assert!(interposed("niji-boundary", t), "{t}");
         }
         assert!(interposed("niji-boundary", "") && !interposed("niji", "") && interposed("niji", "s03_memory_clauses"));
         assert!(!interposed("niji", "hot_text_products") && !interposed("niji-math", "special_cr"));
+        assert!(!interposed("niji-boundary", "s04_strings_symbols") && !interposed("niji", "s04_strings_clauses"), "a target that needs only poisoned C-family blocks runs natively only");
         let runs = interposed_runs(&root).unwrap();
         assert_eq!(runs[0][..3], ["-p", "niji-boundary", "--lib"]);
         assert_eq!(runs[1][..2], ["-p", "niji"]);
