@@ -324,9 +324,22 @@ impl DataBin {
         self.objs.iter().map(|o| o.end).max().unwrap_or(0)
     }
 
-    /// Bytes from the unit boundary below the first object to the end of the last.
+    /// Bytes from the unit boundary below the first object to the end of the last. Objects an untouched unit apart (two
+    /// large buffers far apart in `.lbss`) are separate runs: each run but the last is charged its whole units, so the
+    /// bytes fit `n` units exactly when the runs touch at most `n`.
     pub fn bytes(&self) -> u64 {
-        self.end() - self.start() / self.unit * self.unit
+        let u = self.unit;
+        let mut objs: Vec<&Linked> = self.objs.iter().collect();
+        objs.sort_by_key(|o| o.start);
+        let mut runs: Vec<(u64, u64)> = Vec::new();
+        for o in objs {
+            match runs.last_mut() {
+                Some(r) if o.start / u <= (r.1 - 1) / u + 1 => r.1 = r.1.max(o.end),
+                _ => runs.push((o.start / u * u, o.end)),
+            }
+        }
+        let n = runs.len();
+        runs.iter().enumerate().map(|(i, r)| if i + 1 < n { (r.1 - r.0).div_ceil(u) * u } else { r.1 - r.0 }).sum()
     }
 
     /// The units (page or window numbers) the objects touch.
@@ -594,6 +607,15 @@ mod tests {
         ro.push(dobj(0x81_0000, 8, "FAR", &sec(0x80_0000, 0x1_0010, ".rodata1"), false));
         let (_, broken) = data_verdict(&data_bins(&ro, BIN, 4096, &budgets), &budgets, "fast");
         assert!(broken.iter().any(|l| l.starts_with("data bin .rodata1 (read-only): 65544 bytes from its 65536-byte boundary > 65536 (1 windows")), "{broken:?}");
+        // The release link: a second large buffer 0x4f000 bytes further into .lbss costs one page, not the span.
+        let mut far = next.clone();
+        far.push(dobj(0x96_f000, 0x1_0000, "OTHER", &sec(0x88_c000, 0xc_4418, ".lbss"), true));
+        let two = parse_budgets(".data.rel.ro:2,.got:1,.lbss:2,.rodata1:1").unwrap();
+        let (report, broken) = data_verdict(&data_bins(&far, BIN, 4096, &two), &two, "release");
+        assert!(broken.is_empty(), "{broken:?}");
+        assert!(report.iter().any(|l| l.starts_with("data bin .lbss (written): 8192 bytes from its 4096-byte boundary of 8192 (2 pages; headroom 0), 2 start-up objects")), "{report:?}");
+        let (_, broken) = data_verdict(&data_bins(&far, BIN, 4096, &budgets), &budgets, "release");
+        assert!(broken.iter().any(|l| l.starts_with("data bin .lbss (written): 8192 bytes from its 4096-byte boundary > 4096 (1 pages")), "{broken:?}");
     }
 
     #[test]
