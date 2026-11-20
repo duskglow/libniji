@@ -558,9 +558,12 @@ fn tz_period_words_per_thread_and_fork() {
             (o.tm_hour, o.tm_isdst)
         }
         set_tz("EST5EDT,M3.2.0,M11.1.0");
-        if tb::current().flags.load(Relaxed) & niji_rt::tls::FLAG_OWN == 0 {
+        if !niji_boundary::selftest::runtime_started() {
             // D-5.11: a process the runtime did not start (this test process, its blocks made
-            // by the system's `ld.so`) keeps its cache words untouched; the answers stay right.
+            // by the system's `ld.so`, or by libniji's own `libc.so.6` when libniji's loader
+            // started it: this binary's copy of the code still did not start it) keeps its cache
+            // words untouched; the answers stay right. D-X.58: the process-level fact decides,
+            // never the block's own flags word, which the other runtime's start-up may have set.
             let before = words();
             assert_eq!(kind_at(SUMMER), (5, 1));
             assert_eq!(kind_at(WINTER), (17, 0));

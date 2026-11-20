@@ -17,7 +17,7 @@
 //! | `abi-gen`      | Generate `niji_abi::layout` and the Appendix C layout tests from `spec/abi/layouts.tsv`; `--check` fails if stale. |
 //! | `unicode-gen`  | Generate the Unicode tables (`crates/core/src/unicode/tables.rs`) from `spec/unicode/15.1.0` (IP-19, D-5.4); `--check` fails if stale. |
 //! | `encodings-gen` | Generate the built-in multi-byte `iconv` codecs' tables (`crates/core/src/iconv/jis_tables.rs`) from the WHATWG Encoding Standard indexes in `spec/encoding/whatwg`; `--check` fails if stale. |
-//! | `headers-gen`  | Generate libniji's C headers (`libc-include/`) from the templates `headers/*.h.in` and the `spec/abi` tables (plan/headers.md 2.4, SL-HEADERS-S05; `--check` runs in `static`); `--check` fails if stale or a table fact does not fit.
+//! | `headers-gen`  | Generate libniji's C headers (`libc-include/`) from the templates `headers/*.h.in` and the `spec/abi` tables (plan/headers.md 2.4, SL-HEADERS-S05; `--check` runs in `static`); `--check` fails if stale or a table fact does not fit. `--out DIR` writes the headers below DIR only (no `libc-include/`, no abi-gen), for probing the templates as they are.
 //! | `native-gen`   | Generate the native C ABI's header (`include/niji/native.h`) from `spec/abi/native.tsv` (D-X.10); `--check` fails if stale or if the exports differ from the table. |
 //! | `compat-gen`   | Generate `csys/src/machine/compat_aliases.S` and `crates/libm-so/compat_aliases.S`, the `.symver` stubs of libc.so.6's and libm.so.6's compat versions, from `spec/abi/versions.tsv` and `spec/abi/compat-plan.tsv` (LG-1, LG-4, R15-1); `--check` fails if stale. |
 //! | `locale-gen`   | Generate the built-in locales' `nl_langinfo` items (`crates/core/src/locale/builtin_items.rs`) from `spec/abi/langinfo.tsv` (D-7.10); `--check` fails if stale. |
@@ -49,7 +49,7 @@
 //! | `classed-xref` | The classed pages' XREF bias rule (D-4.53, D-X.34): every out-of-page reference of page 1 addresses page 0's target + 4096, paired in order (an unpaired reference is an error). No file: assemble `csys/src/machine/fold.S` (also a `static` check); `<file>...`: check those archives, objects or linked objects (`so` checks `libc.a` and `libc.so.6`). |
 //! | `jcc-check` | The hot machine assembly keeps every jump off 32-byte boundaries (D-4.67, JCC erratum): no jump or fused compare-and-jump crosses or ends on one, and each section holding one is 32-byte aligned. No file: assemble the files of `crates/boundary/jcc_pad.rs` with its flags (also a `static` check); `<file>...`: check those archives or objects (`so` checks `libc.a`). |
 //! | `partial-write` | No libm export's hot path (entry to the first call or return, both builds' branches) merges into an `xmm` register it has not written (D-10.68): `cvtss2sd`, `sqrtsd`, `cvtsi2sd`, register `movss`, ... into an unowned destination chains back-to-back calls. No file: `target/niji/libm.so.6` (also a `static` check when it is built; `so` checks the `libm.so.6` it builds); `<file>...`: those `libm.so.6` files. Prints `function+offset: instruction (why)`. |
-//! | `plants`       | Run a story's plants from a plants file (`plants.rs`, `docs/plants.md`): `<file> --dir <new RAM dir>` copies the tree there without `target/` (an existing `--dir` is refused), runs `cargo xtask so` and the baseline (failed: exit 2), applies each plant (exactly one site; `.S` plants name their `niji_machine_<fn>:` label), runs its command, restores by writing, and prints CAUGHT / SURVIVED / EQUIVALENT / WARN-RC-ONLY / WARN-NO-MSG; any SURVIVED exits 1. |
+//! | `plants`       | Run a story's plants from a plants file (`plants.rs`, `docs/plants.md`): `<file> --dir <new RAM dir>` copies the tree there without `target/` (an existing `--dir` is refused), runs `cargo xtask so` and the baseline (failed: exit 2), applies each plant (exactly one site; `.S` plants name their `niji_machine_<fn>:` label), runs its command, restores by writing, and prints CAUGHT / SURVIVED / EQUIVALENT / WARN-RC-ONLY / WARN-NO-MSG; any SURVIVED exits 1. `--copies <n>|auto` runs the plants in n tree copies at once (auto: two when the job's RAM holds two), results in the file's order. |
 #![allow(clippy::disallowed_methods)] // a host tool: S8 governs the library crates only
 
 #![forbid(unsafe_code)]
@@ -79,6 +79,7 @@ mod compat_objects;
 mod copies;
 mod csys;
 mod fuzz;
+mod binbudget;
 mod bins;
 mod hottext;
 mod hotlists;
@@ -112,6 +113,7 @@ mod compat_plan;
 mod register;
 mod arch;
 mod plants;
+mod precheck;
 mod placeholders;
 mod empty_versions;
 mod libmvec;
@@ -123,6 +125,7 @@ mod records;
 mod locks;
 mod partial_write;
 mod transcript;
+mod pass2;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -145,6 +148,12 @@ fn main() -> ExitCode {
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cmd = args.first().map(String::as_str).unwrap_or("help");
+    // The native pass's test runner (PASS2-NATIVE-RUNNER): a copy of this binary outside any tree,
+    // run in each test's directory; it needs no tree.
+    if cmd == pass2::EXEC_CMD {
+        eprintln!("{}", pass2::exec(&args[1..]));
+        return ExitCode::from(2);
+    }
     let root = match root() {
         Ok(r) => r,
         Err(e) => {
@@ -191,7 +200,7 @@ fn main() -> ExitCode {
         "encodings-gen" => encodings::run(&root, args.iter().any(|a| a == "--check")),
         "locale-gen" => langinfo::run(&root, args.iter().any(|a| a == "--check")),
         "native-gen" => native::run(&root, args.iter().any(|a| a == "--check")),
-        "headers-gen" => headers::run(&root, args.iter().any(|a| a == "--check")),
+        "headers-gen" => headers::run_args(&root, &args[1..]),
         "compat-gen" => compat::run(&root, args.iter().any(|a| a == "--check")),
         "math-gen" => math::run(&root, args.iter().any(|a| a == "--check")),
         "mathcmp" => math::run_mathcmp(&root, &args[1..]),
@@ -204,6 +213,7 @@ fn main() -> ExitCode {
         "fuzz-check" => fuzz::check(&root),
         "locks" => locks::run(&root, &args[1..]),
         "test" => test_all(&root, &args[1..]),
+        "test-pass2" => test_pass2(&root, &args[1..]),
         "ctest" => ctest(&root),
         "nextest" => nextest::run(&std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()), &root, &args[1..]),
         "affected" => return affected::main(&root, &args[1..]),
@@ -214,10 +224,12 @@ fn main() -> ExitCode {
             None => so::run_so(&root),
             Some(a) => Err(format!("so: unexpected argument {a} (usage: cargo xtask so; NIJI_FULL_PROFILE=1 for the release profile, NIJI_LAYOUT_TRACE=ungrouped without a tracer)")),
         },
+        "ldso-trace" => so::run_ldso_trace(&root, &args[1..]),
         "repro" => repro::run(&root, &args[1..]),
         "native" => native_examples::run_native(&root),
         "rust-dylib" => rust_dylib::run_rust_dylib(&root, args.get(1).map(String::as_str)),
         "plants" => return plants::main(&root, &args[1..]),
+        "precheck" => return precheck::main(&root, &args[1..]),
         "transcript" => return transcript::main(&root, &args[1..]),
         "classed-xref" => classed::run(&root, &args[1..]),
         "codemap" | "codemap-asm" => codemap::run(&root, args.iter().any(|a| a == "--check"), records::in_place_env(&args[1..])),
@@ -226,7 +238,7 @@ fn main() -> ExitCode {
         "layout-check" => layout::run(&root, &args[1..]),
         "startup-ro-plan" => startup_ro::dump(&root, &args[1..]),
         _ => {
-            println!("usage: cargo xtask <stubs [--force] | trace [--untested [--out F]] | static | clippy | status [--schedule] | symgap | symcov [--tsv <file | compat-plan | register [--check]>] | arch-audit [--list] | arch-check | purity | unsafe-audit | csys-audit | env-audit | opaque-audit | crash-audit | csys-gen [--check] | abi-gen [--check] | unicode-gen [--check] | encodings-gen [--check] | locale-gen [--check] | native-gen [--check] | compat-gen [--check] | math-gen [--check] | mathcmp FUNC FMT [opts] (FMT: f32|float|f, f64|double|d, f80|ld|long-double|l, f128|_Float128|q; whole names only) | remez [--check] FIT... | tables [--check] [--in-place] | kernel-index [--check] [--in-place] | codemap [--check] [--in-place] | records-gen [--check] [--in-place] | records (check | fmt [--check] | new <decision|compat|saturation> <id> [--section S] [--series S] [--story S]) | bench [--runs N] [--only <bench>,...] [--rows <bench>/<row>,... | --rows-file F | --affected <base>] [--build-only | --no-build] | bench-rows [--base <ref> | --range <a>..<b> | --files <p>,...] [--out F] | sweep (run --out <dir> [--only a,b] | compare --new <class>=<tsv>... (--old <class>=<tsv>... | --old-table <md>) [--label L]) [--compare [--runs N] [--v3] [--sorted] [--counters] [--tunables V] [--only a,b | <cbench>...]] (flags may stand anywhere after bench; an unknown --flag is an error; --tunables V, or else a non-empty GLIBC_TUNABLES in the caller's environment, sets it for both sides; the two differing is an error) | fuzz <target> --time <minutes> | fuzz-check | so | test | ctest | nextest <args> | affected (--list | --run) [--base <ref>] [--files <path>...] [--only <names>] [--tier direct|wide|full] [--with-exports] | native | rust-dylib [<abi>] | repro [--release] [--dir <base>] | transcript (check | record) <file | dir>... [--reference C=PATH] [--niji C=PATH]>");
+            println!("usage: cargo xtask <stubs [--force] | precheck [--jobs <label>,...] [--head <sha>] [--only <check>,...] | trace [--untested [--out F]] | static | clippy | status [--schedule] | symgap | symcov [--tsv <file | compat-plan | register [--check]>] | arch-audit [--list] | arch-check | purity | unsafe-audit | csys-audit | env-audit | opaque-audit | crash-audit | csys-gen [--check] | abi-gen [--check] | unicode-gen [--check] | encodings-gen [--check] | locale-gen [--check] | native-gen [--check] | compat-gen [--check] | math-gen [--check] | mathcmp FUNC FMT [opts] (FMT: f32|float|f, f64|double|d, f80|ld|long-double|l, f128|_Float128|q; whole names only) | remez [--check] FIT... | tables [--check] [--in-place] | kernel-index [--check] [--in-place] | codemap [--check] [--in-place] | records-gen [--check] [--in-place] | records (check | fmt [--check] | new <decision|compat|saturation> <id> [--section S] [--series S] [--story S]) | bench [--runs N] [--only <bench>,...] [--rows <bench>/<row>,... | --rows-file F | --affected <base>] [--build-only | --no-build] | bench-rows [--base <ref> | --range <a>..<b> | --files <p>,...] [--out F] | sweep (run --out <dir> [--only a,b] | compare --new <class>=<tsv>... (--old <class>=<tsv>... | --old-table <md>) [--label L]) [--compare [--runs N] [--v3] [--sorted] [--counters] [--tunables V] [--only a,b | <cbench>...]] (flags may stand anywhere after bench; an unknown --flag is an error; --tunables V, or else a non-empty GLIBC_TUNABLES in the caller's environment, sets it for both sides; the two differing is an error) | fuzz <target> --time <minutes> | fuzz-check | so | ldso-trace --prefix <dir> | test | ctest | nextest <args> | affected (--list | --run) [--base <ref>] [--files <path>...] [--only <names>] [--tier direct|wide|full] [--with-exports] | native | rust-dylib [<abi>] | repro [--release] [--dir <base>] | transcript (check | record) <file | dir>... [--reference C=PATH] [--niji C=PATH]>");
             Ok(())
         }
     };
@@ -263,11 +275,16 @@ fn arch_tools() -> arch::Tools {
 /// env-audit, opaque-audit, crash-audit, k5 (ffi.rs against niji_csys.h), align, trace, lock-fresh, fuzz-check, compat-probes) in one command, all of them run (a failure does not hide the next), so they can be run
 /// on Zen 1 host before a long gate. `~/bin/static-checks` on the VMs is the same list.
 fn static_checks(root: &Path) -> Result<(), String> {
-    type Check = fn(&Path) -> Result<(), String>;
-    let checks: [(&str, Check); 39] =
-        [("align", align::static_check), ("arch-audit", |r| arch::audit(r, false, &arch_tools())), ("remap", remap::static_check), ("classed-xref", classed::static_check), ("jcc-check", jcc::static_check), ("layout", layout::static_check), ("k5", csys::machine_decls_match), ("purity", policy::purity), ("unsafe-audit", policy::unsafe_audit), ("csys-audit", policy::csys_audit), ("env-audit", policy::env_audit), ("opaque-audit", policy::opaque_audit), ("crash-audit", policy::crash_audit), ("fork-child-alloc", forkalloc::fork_child_alloc), ("fs-order", fs_order::fs_order), ("trace", trace::run), ("fuzz-check", fuzz::check), ("machine-exports", affected::machine_exports_check), ("compat-gen", |r| compat::run(r, true)), ("compat-plan", compat_plan::check), ("compat-probes", compatprobe::check), ("records", records::check), ("records-gen", records::fresh_check), ("register", register::check), ("compat-ids", compat_ids::check), ("visibility", visibility::check), ("abi-types", abi_types::check), ("callsites", callsites::check),("lab-names", labnames::check), ("private-paths", privpaths::check), ("old-name", oldname::check), ("reexec-audit", policy::reexec_audit), ("tables-fresh", |r| math::run_tables(r, &["--check".to_string()])), ("lock-fresh", locks::static_check), ("hottext", hottext::static_check), ("codemap", |r| codemap::run(r, true, false)), ("partial-write", partial_write::static_check), ("float-casts", float_casts::static_check), ("long-sweeps", longsweeps::static_check)];
+    let checks = static_list();
     let failed: Vec<&str> = checks.iter().filter(|(name, f)| f(root).map_err(|e| eprintln!("static: {name} FAILED: {e}")).is_err()).map(|(name, _)| *name).collect();
     if failed.is_empty() { Ok(()) } else { Err(format!("failed: {}", failed.join(", "))) }
+}
+
+/// The checks of `cargo xtask static`, in order (`precheck` runs them by name too).
+pub(crate) type StaticCheck = fn(&Path) -> Result<(), String>;
+
+pub(crate) fn static_list() -> [(&'static str, StaticCheck); 39] {
+    [("align", align::static_check), ("arch-audit", |r| arch::audit(r, false, &arch_tools())), ("remap", remap::static_check), ("classed-xref", classed::static_check), ("jcc-check", jcc::static_check), ("layout", layout::static_check), ("k5", csys::machine_decls_match), ("purity", policy::purity), ("unsafe-audit", policy::unsafe_audit), ("csys-audit", policy::csys_audit), ("env-audit", policy::env_audit), ("opaque-audit", policy::opaque_audit), ("crash-audit", policy::crash_audit), ("fork-child-alloc", forkalloc::fork_child_alloc), ("fs-order", fs_order::fs_order), ("trace", trace::run), ("fuzz-check", fuzz::check), ("machine-exports", affected::machine_exports_check), ("compat-gen", |r| compat::run(r, true)), ("compat-plan", compat_plan::check), ("compat-probes", compatprobe::check), ("records", records::check), ("records-gen", records::fresh_check), ("register", register::check), ("compat-ids", compat_ids::check), ("visibility", visibility::check), ("abi-types", abi_types::check), ("callsites", callsites::check),("lab-names", labnames::check), ("private-paths", privpaths::check), ("old-name", oldname::check), ("reexec-audit", policy::reexec_audit), ("tables-fresh", |r| math::run_tables(r, &["--check".to_string()])), ("lock-fresh", locks::static_check), ("hottext", hottext::static_check), ("codemap", |r| codemap::run(r, true, false)), ("partial-write", partial_write::static_check), ("float-casts", float_casts::static_check), ("long-sweeps", longsweeps::static_check)]
 }
 
 /// `cargo xtask clippy`: clippy with exactly the flags the gate and `affected` use (the whole workspace, all targets,
@@ -280,50 +297,92 @@ fn clippy_gate(root: &Path) -> Result<(), String> {
 
 /// `cargo xtask test`, the full gate. Every step prints `step: <name> <seconds>s` when it ends and the run ends with
 /// the summary, slowest first, also when a step failed (`steptime.rs`, XTASK-TEST-STEP-TIMES).
+///
+/// A first argument [`precheck::CHEAP_DONE`] (only the escalated `affected` run passes it, right after it ran every
+/// cheap step on this tree green) skips the cheap steps; every other argument goes to the workspace tests.
 fn test_all(root: &Path, extra: &[String]) -> Result<(), String> {
     let mut t = steptime::Steps::default();
-    let r = test_steps(root, extra, &mut t);
+    let (cheap, extra) = match extra.split_first() {
+        Some((first, rest)) if first == precheck::CHEAP_DONE => (false, rest),
+        _ => (true, extra),
+    };
+    let r = test_steps(root, cheap, extra, &mut t);
     t.print_summary();
     r
 }
 
-fn test_steps(root: &Path, extra: &[String], t: &mut steptime::Steps) -> Result<(), String> {
-    t.time("purity", || policy::purity(root))?;
-    t.time("unsafe-audit", || policy::unsafe_audit(root))?;
-    t.time("csys-audit", || policy::csys_audit(root))?;
-    t.time("env-audit", || policy::env_audit(root))?;
-    t.time("opaque-audit", || policy::opaque_audit(root))?;
-    t.time("crash-audit", || policy::crash_audit(root))?;
-    t.time("reexec-audit", || policy::reexec_audit(root))?;
-    t.time("trace", || trace::run(root))?;
-    // The fuzz harnesses still compile against the libraries (HYGIENE-1).
-    t.time("fuzz-check", || fuzz::check(root))?;
-    t.time("csys-gen-check", || csys::run(root, true))?;
-    t.time("abi-gen-check", || abi::run(root, true))?;
-    t.time("unicode-gen-check", || unicode::run(root, true))?;
-    t.time("encodings-gen-check", || encodings::run(root, true))?;
-    t.time("locale-gen-check", || langinfo::run(root, true))?;
-    t.time("native-gen-check", || native::run(root, true))?;
-    t.time("headers-gen-check", || headers::run(root, true))?;
-    t.time("compat-gen-check", || compat::run(root, true))?;
-    t.time("math-gen-check", || math::run(root, true))?;
-    // The generated coefficients still follow from their fit files (D-10.12). The remez binary prints a
-    // `step: remez/<fit>` line per fit. The fits run in parallel and replay unchanged verdicts (D-10.58), so their
-    // times overlap: they name the slow fit, they do not add up to this step's time.
-    let mut fits: Vec<String> = std::fs::read_dir(root.join("crates/math/fits")).map_err(|e| e.to_string())?.flatten().map(|e| e.path().display().to_string()).filter(|p| p.ends_with(".fit")).collect();
-    fits.sort();
-    fits.insert(0, "--check".into());
-    t.time("remez-check", || math::run_remez(root, &fits))?;
-    t.time("tables-check", || math::run_tables(root, &["--check".to_string()]))?;
+/// `cargo xtask test-pass2 [extra]`: the second pass of `cargo xtask test` alone (the native pass and the
+/// interposed suite), on the built products and the first pass's build (built here if missing), with its step times.
+fn test_pass2(root: &Path, extra: &[String]) -> Result<(), String> {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let mut t = steptime::Steps::default();
+    let r = native_tests(root, &cargo, extra, &mut t, "tests-native").and(interposed_suite(root, &cargo, extra, &mut t, "tests-interposed"));
+    t.print_summary();
+    r
+}
+
+/// One [`precheck::CHEAP_STEPS`] step, in process (`test_steps`, `cargo xtask precheck` and the escalated `affected`
+/// run call it). It lives here, not in precheck.rs: main.rs is the one module that may name the audit and tool
+/// modules for a gate step (`affected`'s `audit_modules_are_leaves`, `tool_modules_stay_off_the_product_path`).
+pub(crate) fn cheap_step(root: &Path, name: &str) -> Result<(), String> {
+    match name {
+        "stubs" => spec::stubs(root, false),
+        "purity" => policy::purity(root),
+        "unsafe-audit" => policy::unsafe_audit(root),
+        "csys-audit" => policy::csys_audit(root),
+        "env-audit" => policy::env_audit(root),
+        "opaque-audit" => policy::opaque_audit(root),
+        "crash-audit" => policy::crash_audit(root),
+        "reexec-audit" => policy::reexec_audit(root),
+        "trace" => trace::run(root),
+        "fuzz-check" => fuzz::check(root),
+        "csys-gen-check" => csys::run(root, true),
+        "abi-gen-check" => abi::run(root, true),
+        "unicode-gen-check" => unicode::run(root, true),
+        "encodings-gen-check" => encodings::run(root, true),
+        "locale-gen-check" => langinfo::run(root, true),
+        "native-gen-check" => native::run(root, true),
+        "headers-gen-check" => headers::run(root, true),
+        "compat-gen-check" => compat::run(root, true),
+        "math-gen-check" => math::run(root, true),
+        "remez-check" => {
+            // The generated coefficients still follow from their fit files (D-10.12), every fit.
+            let mut fits: Vec<String> = std::fs::read_dir(root.join("crates/math/fits")).map_err(|e| e.to_string())?.flatten().map(|e| e.path().display().to_string()).filter(|p| p.ends_with(".fit")).collect();
+            fits.sort();
+            fits.insert(0, "--check".into());
+            math::run_remez(root, &fits)
+        }
+        "tables-check" => math::run_tables(root, &["--check".to_string()]),
+        _ => Err(format!("unknown cheap step `{name}`")),
+    }
+}
+
+fn test_steps(root: &Path, cheap: bool, extra: &[String], t: &mut steptime::Steps) -> Result<(), String> {
+    // The steps that take seconds (precheck::CHEAP_STEPS, shared with `cargo xtask precheck` and the escalated
+    // `affected` run, so the three cannot drift apart), without `stubs` (the gate runs it before `test`). The fuzz
+    // harnesses still compile (HYGIENE-1); the generated coefficients still follow from their fit files (D-10.12;
+    // the remez binary prints a `step: remez/<fit>` line per fit, run in parallel, so those times overlap).
+    // Not when the escalated `affected` run has just run them all as its prechecks (TOOLING-PAPERCUTS, audit item 9).
+    if cheap {
+        for name in precheck::CHEAP_STEPS.iter().filter(|s| **s != "stubs") {
+            t.time(name, || cheap_step(root, name))?;
+        }
+    } else {
+        println!("cheap steps: not run again (the escalated `affected` run ran every one as a precheck, green)");
+    }
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     // The products first: tests of what only a process libniji started can show run C
     // conformance programs against them.
     t.time("products", || so::run_so(root))?;
-    workspace_tests(root, &cargo, None, extra, t, "tests")?;
-    // Again with the exports interposed on the test processes (D-4.13): the harness then runs
-    // on libniji's own `malloc` and `memcpy`, so a recursion in their paths crashes the run. Not
+    workspace_tests(root, &cargo, extra, t, "tests")?;
+    // Again as libniji processes (PASS2-NATIVE-RUNNER, `pass2.rs`): the same binaries started by
+    // libniji's loader on libniji's `libc.so.6`, so the harness runs on libniji's start-up, heap,
+    // string functions and threads, and a recursion in their paths crashes the run. No second build.
+    native_tests(root, &cargo, extra, t, "tests-native")?;
+    // The interposed suite (D-4.13, ruling #6820): the targets that reach code `export` compiles
+    // differently, with libniji's exports in the host-started test process (the foreign path). Not
     // with `runtime`: a test process must keep the host C library's start and exit.
-    workspace_tests(root, &cargo, Some("niji-boundary/export,niji-boundary/selftest"), extra, t, "tests-interposed")?;
+    interposed_suite(root, &cargo, extra, t, "tests-interposed")?;
     // The nightly and release runs (`NIJI_NO_VERDICT_CACHE=1`, every accuracy shard) also run the ignored long
     // sweeps in release (`longsweeps.rs`, TEST-LONG-SWEEPS-RUN); the ordinary gate leaves them out.
     if std::env::var("NIJI_NO_VERDICT_CACHE").as_deref() == Ok("1") {
@@ -344,25 +403,60 @@ fn test_steps(root: &Path, extra: &[String], t: &mut steptime::Steps) -> Result<
 /// with `cargo test --doc`, which nextest does not run), else one `cargo test --workspace`.
 /// `extra` goes to whichever runs the tests.
 /// `name` is the steps' name: `<name>-nextest` and `<name>-doc` (`<name>-cargo-test` without nextest).
-fn workspace_tests(root: &Path, cargo: &str, features: Option<&str>, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
-    let feat: Vec<String> = features.map(|f| vec!["--features".to_string(), f.to_string()]).unwrap_or_default();
+fn workspace_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
     if !nextest::available(cargo) {
-        return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(&feat).args(extra)));
+        return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(extra)));
     }
     let mut args = vec!["--workspace".to_string()];
-    args.extend(feat.iter().cloned());
-    // The exports-interposed pass leaves out the pure-Rust sweeps (`nextest::PASS0_ONLY`, #889)
-    // and runs shard 0 only of the heavy math products sweeps (`nextest::PASS1_SHARD0`, D-X.36).
-    // Binaries without niji-boundary code are the same in both passes and run once (CI-GATE-DIET).
-    if features.is_some() {
-        let once = if nextest::pass1_filter(extra, &[]).is_some() { t.time(&format!("{name}-unchanged-scan"), || nextest::unchanged_binaries(cargo, root, &feat)) } else { Vec::new() };
-        args.extend(nextest::pass1_filter(extra, &once).unwrap_or_default());
-    }
     args.extend(extra.iter().cloned());
     // Every failure of both steps is reported before the gate stops.
     let tests = t.time(&format!("{name}-nextest"), || nextest::run(cargo, root, &args));
-    let docs = t.time(&format!("{name}-doc"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace", "--doc"]).args(&feat)));
+    let docs = t.time(&format!("{name}-doc"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace", "--doc"])));
     tests.and(docs)
+}
+
+/// The second pass (PASS2-NATIVE-RUNNER): the first pass's test binaries as libniji processes
+/// (`pass2.rs`: the prefixed loader, the patched copies, the runner). Steps `<name>-setup`,
+/// `<name>-copies`, then `<name>-nextest` (`<name>-cargo-test` without nextest). Doctests do not
+/// go through a runner; the first pass ran them.
+fn native_tests(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
+    // Held to the end of this pass (`pass2::lock`): another native pass in this tree waits.
+    let _held = pass2::lock(root)?;
+    let runner = t.time(&format!("{name}-setup"), || pass2::prepare(root))?;
+    t.time(&format!("{name}-copies"), || pass2::patch_listed(cargo, root, &["--workspace".to_string()]).map(|_| ()))?;
+    let env = [(pass2::RUNNER_VAR, runner.as_str()), pass2::PASS_VAR];
+    if !nextest::available(cargo) {
+        return t.time(&format!("{name}-cargo-test"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "--workspace"]).args(extra).envs(env)));
+    }
+    let mut args = vec!["--workspace".to_string()];
+    // As the interposed pass did: the pure-Rust sweeps run in the first pass only
+    // (`nextest::PASS0_ONLY`, #889), the heavy math products sweeps shard 0 only
+    // (`nextest::PASS1_SHARD0`, D-X.36), and binaries without niji-boundary code once (CI-GATE-DIET).
+    let once = if nextest::pass1_filter(extra, &[]).is_some() { t.time(&format!("{name}-unchanged-scan"), || nextest::unchanged_binaries(cargo, root, &[])) } else { Vec::new() };
+    args.extend(nextest::pass1_filter(extra, &once).unwrap_or_default());
+    args.extend(extra.iter().cloned());
+    t.time(&format!("{name}-nextest"), || nextest::run_with(cargo, root, &args, &env))
+}
+
+/// The interposed suite (ruling #6820, `nextest::interposed`): its targets built with
+/// `nextest::INTERPOSED_FEATURES`, one run per package, then niji-boundary's doctests so built.
+/// Every failure is reported before the gate stops.
+fn interposed_suite(root: &Path, cargo: &str, extra: &[String], t: &mut steptime::Steps, name: &str) -> Result<(), String> {
+    let feat = ["--features".to_string(), nextest::INTERPOSED_FEATURES.to_string()];
+    let use_nextest = nextest::available(cargo);
+    let mut result = Ok(());
+    for sel in nextest::interposed_runs(root)? {
+        let step = format!("{name}-{}", sel.get(1).map_or("", String::as_str));
+        let r = if use_nextest {
+            let args: Vec<String> = sel.iter().chain(&feat).chain(extra).cloned().collect();
+            t.time(&step, || nextest::run(cargo, root, &args))
+        } else {
+            t.time(&step, || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).arg("test").args(&sel).args(&feat).args(extra)))
+        };
+        result = result.and(r);
+    }
+    let docs = t.time(&format!("{name}-doc"), || run(nextest::poison(&mut Command::new(cargo)).current_dir(root).args(["test", "-p", "niji-boundary", "--doc"]).args(&feat)));
+    result.and(docs)
 }
 
 fn ctest(root: &Path) -> Result<(), String> {

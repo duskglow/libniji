@@ -1,0 +1,12 @@
+{"task": "STRPTIME-SIGNED-YEAR", "model": "sonnet", "tokens": null,
+ "result": "strptime's %Y %F %G %C %y %s (and %Ey %EY %Oy) take no sign, as the reference; %z keeps its sign",
+ "branch": "task/strptime-signed-year", "head": "85e902e51",
+ "gate": {"affected": "3265 passed / 0 failed", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["This ends the D-23.7 kept difference (signed %Y/%C/%y/%s accepted as POSIX allows): its differences row and the KNOWN entries in time_gaps_probe and timefmt_products are removed, no compat flag offered.", "Outside the brief: %Ey on 2024-13-01 / 2024-02-30 is NULL in the reference and consumes 2 digits in libniji.", "The installed probe tool looks in target/liella (products now in target/niji), so I compiled and linked the probe by hand with the conformance link line.", "My own pkill of cargo processes was refused by the permission layer (pattern kill); I did not retry it."],
+ "refused": ["pkill -u claude -x cargo"],
+ "impact": [{"kind": "accuracy", "what": "strptime sign rows differing from the reference (of 899 probed)", "before": 168, "after": 2, "unit": "rows", "measured": true}],
+ "improvement": "The probe service should look in target/niji, not target/liella.",
+ "next_step": "none", "report_file": "handoff/STRPTIME-SIGNED-YEAR.md",
+ "jobs": ["keke:strptime-signed-year-gate3", "keke:strptime-signed-year-plants"]}

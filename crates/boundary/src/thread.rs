@@ -442,11 +442,20 @@ pub(crate) fn heap_cache_word() -> usize {
 /// path addresses [`SPARE`]: inlined into the heap's start-up allocation, the test put SPARE's page
 /// among the written start-up pages (STARTUP-DATA-WINDOWS, D-X.62) although only a foreign thread
 /// can be given it.
+///
+/// The same word [`foreign_words`] gives, found by thread pointer alone, with no system call
+/// (HEAP-FOREIGN-TB-SPEED): the heap reads it on every operation of a foreign thread, and the
+/// kernel TID test of [`foreign_words`] (a `gettid` per call) roughly doubled their time. The
+/// test is not needed for this word: what a new TID at the pointer changes ([`clear_words`], the
+/// `own` reset) never touches the cache word, which passes to the block's next thread (one owner
+/// at a time), and `own` is set only between [`claim_own`] and [`release_own`] of a thread
+/// `create` made, which run on that thread at that pointer, so it is clear for any other thread
+/// there. No chunk mappable: `None` (no cache), as [`SPARE`] answers.
 #[cold]
 #[inline(never)]
 fn foreign_heap_cache_slot() -> Option<&'static AtomicUsize> {
-    let w = foreign_words();
-    (!is_spare(w)).then_some(&w.heap_cache)
+    let s = shadow_entry(tb::tp())?;
+    Some(if s.own.load(Acquire) { &tb::current().heap_cache } else { &s.block.heap_cache })
 }
 
 /// [`heap_cache_slot`]'s value (0: none) in a process the runtime did not start: the heap's

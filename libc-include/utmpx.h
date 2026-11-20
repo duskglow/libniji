@@ -37,6 +37,13 @@ struct timeval {
   long tv_usec;
 };
 # endif
+# ifndef __NIJI_D_struct___exit_status
+#  define __NIJI_D_struct___exit_status 1
+struct __exit_status {
+  short e_termination;
+  short e_exit;
+};
+# endif
 # ifndef __NIJI_D_struct_utmpx
 #  define __NIJI_D_struct_utmpx 1
 struct utmpx {
@@ -46,7 +53,7 @@ struct utmpx {
   char ut_id[4];
   char ut_user[32];
   char ut_host[256];
-  struct __exit_status { short e_termination; short e_exit; } ut_exit;
+  struct __exit_status ut_exit;
   int ut_session;
   struct { int tv_sec; int tv_usec; } ut_tv;
   int ut_addr_v6[4];
@@ -81,7 +88,9 @@ typedef struct {
 # endif
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 # ifndef __NIJI_D_sigset_t
 #  define __NIJI_D_sigset_t 1
@@ -200,7 +209,9 @@ extern int settimeofday (const struct timeval *, const struct timezone *) __NIJI
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D___sigset_t
 #  define __NIJI_D___sigset_t 1
-typedef struct { char __niji_opaque[128] __attribute__ ((__aligned__ (8))); } __sigset_t;
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
 # endif
 struct timespec;
 # ifndef __NIJI_D_pselect

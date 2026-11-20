@@ -1,0 +1,15 @@
+@@generated
+/* sys/ptrace.h: ptrace(2): process trace. */
+#ifndef __NIJI_H_sys_ptrace_h
+#define __NIJI_H_sys_ptrace_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@enum __ptrace_request
+@@emit
+
+__NIJI_END_C
+
+#endif

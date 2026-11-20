@@ -21,6 +21,9 @@ impl Scratch {
 
     /// The same under `base` (for example `/tmp` for a Unix socket, whose path must be short).
     pub(crate) fn path_in(base: &Path, tag: &str) -> Scratch {
+        // The base may not exist (a CI role removes `target/tmp` before the run): make it, as `dir` does.
+        let made = std::fs::create_dir_all(base);
+        assert!(made.is_ok(), "scratch base {}: {made:?}", base.display());
         let n = SEQ.fetch_add(1, Ordering::Relaxed);
         let p = base.join(format!("niji-{tag}-{}-{n}", std::process::id()));
         remove(&p);

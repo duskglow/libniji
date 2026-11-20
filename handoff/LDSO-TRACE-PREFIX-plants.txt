@@ -1,0 +1,7 @@
+# LDSO-TRACE-PREFIX plants: the interpreter trace redirects the configuration files below the build's prefix.
+# The script redirects the /etc paths only (the behaviour before this story): the coexist interpreter reads a host file.
+ltp-script-etc-only | tools/hottext/ldso_trace.sh | lit:}$c=@run/loader-config.$k" ==> }/etc/${c##*/etc/}=@run/loader-config.$k" | cargo test -p niji --test hot_text_products init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_trace | msg:host files the tree does not supply|prefixed interpreter trace failed
+# The build passes the default prefix's paths instead of the traced interpreter's prefix.
+ltp-xtask-default-prefix | xtask/src/so.rs | lit:.args(ldso_config_paths(prefix).iter() ==> .args(ldso_config_paths("/").iter() | cargo test -p niji --test hot_text_products init_prefixed_interpreter_trace_reads_no_host_file_and_matches_the_products_trace | msg:host files the tree does not supply|prefixed interpreter trace failed
+# The join doubles the `/` of the system prefix: the redirected path is not the one the loader opens.
+ltp-join-double-slash | xtask/src/so.rs | lit:format!("{}/{}", prefix.trim_end_matches('/'), String::from_utf8_lossy(f)) ==> format!("{}/{}", prefix, String::from_utf8_lossy(f)) | cargo test -p xtask --bin xtask ldso_trace_redirects_the_paths_the_loader_opens | msg:ldso_trace_redirects_the_paths_the_loader_opens.*(FAILED|panicked)|panicked

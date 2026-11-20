@@ -420,7 +420,7 @@ fn positions(entries: &[Entry]) -> BTreeMap<String, usize> {
 /// A function section's name without any hot prefix: `.text.sorted.h<n>.<f>`, the older
 /// `.text.hot.<f>`, rustc's `.text.unlikely.<f>` (a `#[cold]` function) and plain `.text.<f>` all
 /// give `<f>`. `None` for other sections.
-fn function_of(section: &str) -> Option<&str> {
+pub(crate) fn function_of(section: &str) -> Option<&str> {
     let f = section.strip_prefix(".text.")?;
     // LAYOUT-TEXT-PIN: `.text.startup.<f>` / `.text.exit.<f>` (GCC) and this tool's own
     // [`COLD_PREFIX`] carry the function name the same way.
@@ -660,6 +660,29 @@ fn is_startup_names(section: &str) -> bool {
 /// (LAYOUT-WINDOW-BINS, D-X.103: [`plan_bins`]); [`Layout::Ungrouped`]: `list` is not read and nothing is
 /// grouped (the start-up names section is still placed).
 pub fn group(ar: &str, archive: &Path, list: &Path, work: &Path, layout: Layout) -> Result<(usize, usize), String> {
+    group_as(ar, archive, list, work, layout, Image::Libc)
+}
+
+/// The image [`group_as`] lays out: libc (its list, window bins and start-up names section) or the
+/// interpreter (LAYOUT-LDSO-ORDER: its list only).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Image {
+    Libc,
+    Ldso,
+}
+
+/// LAYOUT-LDSO-ORDER: the interpreter's start-up layout, by the same renames as libc's ([`group`]): every
+/// function of `list` (`ldso-text.list`, a trace of this build's interpreter) becomes
+/// `.text.sorted.h<position>.<f>`, which GNU ld's default script places ahead of the rest of `.text` in
+/// list order, and every other function keeps a name placed after that group (a `#[cold]` function's
+/// `.text.unlikely.<f>` included, [`rename_for`]). No window bins: the kernel maps the interpreter at a
+/// page-aligned base, not a window-aligned one, so a 64 KiB bin start inside its image is not a window start.
+/// Returns (grouped sections, keys in the list).
+pub fn group_ldso(ar: &str, archive: &Path, list: &Path, work: &Path) -> Result<(usize, usize), String> {
+    group_as(ar, archive, list, work, Layout::Traced, Image::Ldso)
+}
+
+fn group_as(ar: &str, archive: &Path, list: &Path, work: &Path, layout: Layout, image: Image) -> Result<(usize, usize), String> {
     let text = match layout {
         Layout::Ungrouped => String::new(),
         _ => fs::read_to_string(list).map_err(|e| format!("{}: {e}", list.display()))?,
@@ -698,7 +721,7 @@ pub fn group(ar: &str, archive: &Path, list: &Path, work: &Path, layout: Layout)
     // LAYOUT-WINDOW-BINS slice 2 (D-X.103): the window-bin plan, applied. It replaces the 0-fault
     // clusters' power-of-two heads (D-X.63) and the first-window keys: every bin after a gap starts on
     // a 64 KiB boundary, so a mode's text windows are those of the bins it touches.
-    if layout == Layout::Traced {
+    if layout == Layout::Traced && image == Image::Libc {
         for (i, name, align) in plan_bins(list, &secs)? {
             secs[i].want = name;
             secs[i].set_align = align;
@@ -744,7 +767,7 @@ pub fn group(ar: &str, archive: &Path, list: &Path, work: &Path, layout: Layout)
     let checked = check_renames(&archive_headers(&archive)?, &renames).map_err(|e| format!("{}: hot-text grouping: {e}", archive.display()))?;
     println!("so: hot-text grouping: {checked} section renames, all in effect");
     let _ = fs::remove_dir_all(work);
-    if startup != 1 {
+    if image == Image::Libc && startup != 1 {
         return Err(format!("{}: {startup} start-up names sections (STARTUP_NAMES), want 1", archive.display()));
     }
     Ok((hot, keys.len()))
@@ -815,6 +838,39 @@ fn plan_bins(list: &Path, secs: &[Sec]) -> Result<Vec<(usize, String, u64)>, Str
     Ok(placed)
 }
 
+/// LAYOUT-LDSO-ORDER: the interpreter's lists, written next to libc's by `cargo xtask so` (never committed).
+pub const LDSO_LIST: &str = "ldso-text.list";
+pub const LDSO_SIGNATURES: &str = "ldso-text.signatures";
+/// The modes `tools/hottext/ldso_trace.sh` traces, in list order (`ldso.<mode>.names` in the lists directory).
+pub const LDSO_MODES: [&str; 2] = ["true", "libs3"];
+
+/// LAYOUT-LDSO-ORDER: `ldso-text.list` and `ldso-text.signatures` from the interpreter's traces `runs`
+/// ((mode, names in first-touch order), [`LDSO_MODES`] order). The list is the first mode's keys in its
+/// order, then each later mode's new keys in that mode's order: every program's start-up path first, from
+/// the entry, then what programs with libraries add. A key's signature is the modes that ran it. Keys as
+/// [`key`] makes them (the names [`group_ldso`] matches); a key listed twice keeps its first place.
+pub fn ldso_lists(runs: &[(&str, &str)], profile: &str) -> (String, String) {
+    let mut order: Vec<String> = Vec::new();
+    let mut sigs: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+    for (mode, names) in runs {
+        for n in names.lines().map(str::trim).filter(|l| !l.is_empty()) {
+            let k = key(n);
+            let s = sigs.entry(k.clone()).or_default();
+            if s.is_empty() {
+                order.push(k);
+            }
+            s.insert(mode);
+        }
+    }
+    let mut list = String::from("# LAYOUT-LDSO-ORDER: the interpreter's start-up functions, first-touch order (cargo xtask so)\n");
+    let mut sig = String::from("# LAYOUT-LDSO-ORDER: <key>\\t<modes of tools/hottext/ldso_trace.sh that ran it>\n");
+    for k in &order {
+        list.push_str(&format!("{k}\tstartup\t{profile}\n"));
+        sig.push_str(&format!("{k}\t{}\n", sigs[k].iter().copied().collect::<Vec<_>>().join(",")));
+    }
+    (list, sig)
+}
+
 /// LAYOUT-DELETE-LISTS (LT-5): the files no tree may track again. The four lists are written by every
 /// product build from a trace of that build ([`crate::hotlists::GENERATED`], under `target/product/<profile>`);
 /// the other two were hand-kept companions of the committed list (its allow-list of absent keys and its
@@ -842,8 +898,29 @@ pub fn static_check(root: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ar_members, before_group, check_renames, elf_sections, function_of, Shdr, position_of, is_startup_names, key, parse_list, positions, rename_for, retired_lists, section_for, RETIRED};
+    use super::{ar_members, before_group, check_renames, elf_sections, function_of, Shdr, position_of, is_startup_names, key, ldso_lists, parse_list, positions, rename_for, retired_lists, section_for, RETIRED};
     use std::collections::{BTreeMap, BTreeSet};
+
+    #[test]
+    fn ldso_list_is_the_first_mode_then_what_later_modes_add() {
+        // LAYOUT-LDSO-ORDER (no spec clause: build tooling): every program's start-up path (mode `true`)
+        // from the entry first, in its order; a later mode's new keys after it, in that mode's order; a
+        // key either ran carries both modes; aliases and repeats keep the first place.
+        let t = "niji_machine_ld_entry\nniji_ld_start\nalias_a\nalias_b\nniji_ld_start\n";
+        let l = "niji_machine_ld_entry\nmap_object\nniji_ld_start\nrelocate_object\n";
+        let (list, sig) = ldso_lists(&[("true", t), ("libs3", l)], "fast");
+        let entries = parse_list(&list).unwrap();
+        let keys: Vec<&str> = entries.iter().map(|e| e.key.as_str()).collect();
+        assert_eq!(keys, ["niji_machine_ld_entry", "niji_ld_start", "alias_a", "alias_b", "map_object", "relocate_object"]);
+        assert!(entries.iter().all(|e| e.tier == "startup"));
+        let sigs = crate::bins::parse_signatures(&sig).unwrap();
+        assert_eq!(sigs["niji_ld_start"], BTreeSet::from(["true".to_string(), "libs3".to_string()]));
+        assert_eq!(sigs["map_object"], BTreeSet::from(["libs3".to_string()]));
+        assert_eq!(sigs["alias_b"], BTreeSet::from(["true".to_string()]));
+        // The keys are the grouping's keys: a mangled name loses its build hash.
+        let (h, _) = ldso_lists(&[("true", "_ZN4core3fmt5write17h0123456789abcdefE\n")], "release");
+        assert_eq!(parse_list(&h).unwrap()[0].key, key("_ZN4core3fmt5write17h0123456789abcdefE"));
+    }
 
     #[test]
     fn keys_drop_build_hashes() {
@@ -1052,12 +1129,16 @@ mod tests {
         // The tracer must run nm in the C locale and sort each address's names itself.
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let py = std::fs::read_to_string(root.join("tools/hottext/trace_gdb.py")).unwrap();
-        let nm = py.find("subprocess.run([\"nm\", \"--defined-only\", binp]").expect("trace_gdb.py: no nm call");
+        let nm = py.find("subprocess.run([\"nm\", \"--defined-only\", syms_of]").expect("trace_gdb.py: no nm call");
         let nm_line = py[nm..].lines().next().unwrap();
         assert!(nm_line.contains("env=nm_env") && py.contains("nm_env = dict(os.environ, LC_ALL=\"C\")"), "trace_gdb.py runs nm in the caller's locale");
         let sorted = py.find("names = {a: sorted(ns) for a, ns in names.items()}").expect("trace_gdb.py does not sort the names at one address");
-        let written = py.find("for n in names.get(addr, []):").expect("trace_gdb.py: no names output");
-        assert!(nm < sorted && sorted < written, "trace_gdb.py sorts the names after it writes them");
+        // The interpreter's mode writes a rebased copy of the names (LAYOUT-LDSO-ORDER): the copy is
+        // taken after the sort, so both modes write the sorted lists.
+        let copied = py.find("OFFSETS = [(d, dict(d)) for d in (names, ").expect("trace_gdb.py: no rebased copy of the names");
+        let chosen = py.find("out_names = OFFSETS[0][1] if ldso else names").expect("trace_gdb.py: no choice of the names written");
+        let written = py.find("for n in out_names.get(addr, []):").expect("trace_gdb.py: no names output");
+        assert!(nm < sorted && sorted < copied && copied < chosen && chosen < written, "trace_gdb.py sorts the names after it copies or writes them");
     }
 
     #[test]
