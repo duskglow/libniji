@@ -195,32 +195,85 @@ pub struct OwnPages;
 /// below are tried with `MAP_FIXED_NOREPLACE` (never replacing a mapping).
 /// With `head`: `head + len` bytes whose address plus `head` is the multiple (the address
 /// returned), as [`Pages::map_room`] places them.
+/// The gap the kernel picks may hold `head + len` bytes but no aligned range (a gap just above
+/// another segment, issue #21 under `ulimit -v`): both candidates are then taken. That gap is
+/// blocked with one-page `PROT_NONE` mappings (never replacing one) so that no free piece of
+/// it fits, and the kernel is asked again, at most [`EXACT_ROUNDS`] times; the blockers are
+/// removed before returning. Off every hot path: reached only when the over-mapping is refused.
+#[cold]
+#[inline(never)]
 fn map_aligned_exactly(head: usize, len: usize, align: usize, node: Option<u32>) -> Option<usize> {
-    use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
+    use niji_kernel::uapi::PROT_NONE;
     let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
     let total = head.checked_add(len)?;
-    let probe = CSys.mmap(0, total, PROT_READ | PROT_WRITE, flags, None, 0).ok()?.addr();
-    let addr = if probe.checked_add(head)?.checked_rem(align) == Some(0) {
-        probe.saturating_add(head)
-    } else {
+    // Blockers a page apart by at most `total` leave every free piece of the gap below `total`.
+    let step = (total & !(PAGE - 1)).max(PAGE);
+    let mut blockers = [0usize; EXACT_ROUNDS * EXACT_BLOCKERS];
+    let mut held = 0usize;
+    let mut found = None;
+    for _ in 0..EXACT_ROUNDS {
+        let Ok(region) = CSys.mmap(0, total, PROT_READ | PROT_WRITE, flags, None, 0) else { break };
+        let probe = region.addr();
+        let Some(after_head) = probe.checked_add(head) else { break };
+        if after_head.checked_rem(align) == Some(0) {
+            found = Some(after_head);
+            break;
+        }
         let _ = raw::munmap(probe, total);
-        let up = probe.checked_add(head)?.checked_next_multiple_of(align)?;
-        let down = up.checked_sub(align)?;
-        [up, down].into_iter().find_map(|a| {
-            let start = a.checked_sub(head)?;
-            let got = CSys.mmap(start, total, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
-            if got == start {
-                Some(a)
-            } else {
-                let _ = raw::munmap(got, total);
-                None
+        let Some(up) = after_head.checked_next_multiple_of(align) else { break };
+        let Some(down) = up.checked_sub(align) else { break };
+        found = [up, down].into_iter().find_map(|a| map_fixed_noreplace(a.checked_sub(head)?, total, PROT_READ | PROT_WRITE).map(|_| a));
+        if found.is_some() {
+            break;
+        }
+        // Something is mapped in [down - head, probe) and in [probe + total, up + len) (the
+        // probe's own range was free), so the probe's gap lies inside (down - head, up + len).
+        let (Some(from), Some(to)) = (down.checked_sub(head), up.checked_add(len)) else { break };
+        let from = from & !(PAGE - 1);
+        if to.saturating_sub(from).div_ceil(step) > EXACT_BLOCKERS {
+            break;
+        }
+        // `from` itself is at or below that lower mapped page, outside the gap: start a step up.
+        let mut at = from.saturating_add(step);
+        while at < to {
+            if let Some(b) = map_fixed_noreplace(at, PAGE, PROT_NONE) {
+                if let Some(slot) = blockers.get_mut(held) {
+                    *slot = b;
+                    held = held.saturating_add(1);
+                }
             }
-        })?
-    };
+            at = at.saturating_add(step);
+        }
+    }
+    for &b in blockers.get(..held).unwrap_or(&[]) {
+        let _ = raw::munmap(b, PAGE);
+    }
+    let addr = found?;
     if let Some(n) = node {
         let _ = raw::mbind_preferred(addr.saturating_sub(head), total, n);
     }
     Some(addr)
+}
+
+/// Gaps [`map_aligned_exactly`] asks the kernel for before it gives up.
+const EXACT_ROUNDS: usize = 8;
+/// Bound on a round's blockers: `(align + head + len) / (head + len)` rounded up (one more than
+/// it places): 2 for a whole segment, 5 for a first segment's [`Pages::map_room`]; a gap needing
+/// more is not blocked.
+const EXACT_BLOCKERS: usize = 8;
+
+/// `len` bytes mapped with `prot` at exactly `start`, never replacing a mapping.
+fn map_fixed_noreplace(start: usize, len: usize, prot: u32) -> Option<usize> {
+    use niji_kernel::uapi::MAP_FIXED_NOREPLACE;
+    let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE;
+    let got = CSys.mmap(start, len, prot, flags, None, 0).ok()?.addr();
+    if got == start {
+        Some(got)
+    } else {
+        // A kernel without MAP_FIXED_NOREPLACE (before 4.17) takes the address as a hint.
+        let _ = raw::munmap(got, len);
+        None
+    }
 }
 
 /// Whether the kernel fills the rseq area's `node_id` (D-3.21): asked of the auxiliary vector

@@ -941,6 +941,68 @@ fn kernel_pages_map_aligned_under_an_address_space_limit() {
     });
 }
 
+#[test]
+fn kernel_pages_map_aligned_past_a_gap_without_an_aligned_range() {
+    // Trace: no spec clause (the heap's kernel page source under RLIMIT_AS, T14; issue #21,
+    // HEAP-ADDRESS-SPACE-10). The kernel's first choice for SEG bytes is made a gap of exactly
+    // SEG bytes that is not SEG-aligned (pinned by a page at each end), as a gap just above a
+    // segment is in a process whose heap is libniji's. Under a limit that refuses the
+    // over-mapping, `map` still returns an aligned range (from another gap) and leaves nothing
+    // of its own in the pinned gap. Nothing allocates between the layout and the check: the
+    // heap could otherwise place its own mapping in the gap.
+    isolated("kernel_pages_map_aligned_past_a_gap_without_an_aligned_range", || {
+        use niji_boundary::heap::KernelPages;
+        use niji_kernel::uapi::{Rlimit, MAP_ANONYMOUS, MAP_FIXED_NOREPLACE, MAP_NORESERVE, MAP_PRIVATE, PROT_NONE, PROT_READ, PROT_WRITE, RLIMIT_AS, RLIM_INFINITY};
+        use niji_rt::heap::{Pages, SEG};
+        let pages = KernelPages;
+        let flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+        let pin = |at: usize| -> Option<usize> {
+            let got = CSys.mmap(at, PAGE, PROT_NONE, flags | MAP_FIXED_NOREPLACE, None, 0).ok()?.addr();
+            (got == at).then_some(got)
+        };
+        let mut pins = [0usize; 32];
+        let mut held = 0;
+        let mut keep = |p: Option<usize>| {
+            if let (Some(p), Some(slot)) = (p, pins.get_mut(held)) {
+                *slot = p;
+                held += 1;
+            }
+        };
+        let limit = vm_size() + (SEG + SEG / 4) as u64;
+        // The kernel's first gap for SEG bytes, shrunk to exactly SEG bytes; an aligned one is
+        // closed by a page inside it and the next is taken.
+        let mut gap = 0;
+        for _ in 0..8 {
+            let p = CSys.mmap(0, SEG, PROT_READ | PROT_WRITE, flags, None, 0).map(|r| r.addr()).unwrap_or(0);
+            assert_ne!(p, 0, "a SEG mapping before any limit");
+            pages.unmap(p, SEG);
+            if p % SEG == 0 {
+                keep(pin(p));
+                continue;
+            }
+            keep(pin(p - PAGE));
+            keep(pin(p + SEG));
+            gap = p;
+            break;
+        }
+        assert_ne!(gap, 0, "precondition: an unaligned first gap within 8 tries");
+        CSys.prlimit(0, RLIMIT_AS, Some(&Rlimit { cur: limit, max: RLIM_INFINITY })).unwrap();
+        assert!(CSys.mmap(0, 2 * SEG, PROT_READ | PROT_WRITE, flags, None, 0).is_err(), "precondition: the limit refuses the over-mapping");
+        let a = pages.map(SEG, SEG, None).unwrap_or(0);
+        assert_ne!(a, 0, "map: an aligned SEG range from another gap fits under the limit");
+        assert_eq!(a % SEG, 0, "map: aligned as asked");
+        assert!(a + SEG <= gap || a >= gap + SEG, "map: never inside the pinned gap");
+        fill(a as *mut c_void, 7, PAGE);
+        pages.unmap(a, SEG);
+        let back = CSys.mmap(gap, SEG, PROT_READ | PROT_WRITE, flags | MAP_FIXED_NOREPLACE, None, 0).map(|r| r.addr()).unwrap_or(0);
+        assert_eq!(back, gap, "map: the pinned gap is whole again (no page of the call's left in it)");
+        pages.unmap(gap, SEG);
+        for &p in pins.get(..held).unwrap_or(&[]) {
+            pages.unmap(p, PAGE);
+        }
+    });
+}
+
 /// no spec clause (libniji's in-place rule, REALLOC-FUSE): `realloc` returns the same pointer
 /// while the request fits the block's class and is more than half the class below it, and moves
 /// the block otherwise. The export tests this before its general path (PERF-REALLOC-USABLE-2).
