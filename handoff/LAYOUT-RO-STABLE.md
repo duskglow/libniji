@@ -80,8 +80,12 @@ gate keeps treating a static split as known jitter (#4347). (b) trades the segme
 
 ## Jobs
 
-Final head (keke): layout-ro-stable-lint, -gate, -xtest, -fullhot, -plants (see the report for results). Counts
-(products of 7691b4d99, the same link code; the final release build's libc.so.6 hash is compared in the report):
+Final head (keke, tree b99775ef7; later commits are this note and the report): layout-ro-stable-lint (records check,
+clippy, static, the 3 so.rs unit tests: ok), -gate (direct tier, 6 suites, 592 passed, 0 failed, peak 1.8G), -xtest
+(`cargo xtask test`: 6922 passed, 0 failed, peak 12G), -fullhot (release `cargo xtask so` + hot_text_products: 31
+passed), -plants (4 CAUGHT, 0 SURVIVED; one WARN-DEV-SHM notice: the RAM dir is under /dev/shm as the brief asks).
+Counts ran on products of 7691b4d99 (same link code); the final head's release libc.so.6 has the same sha256
+(fe8d7622ed0f5a67...), and ld.so, libc.a and niji-crt1.o equal the base's, so the counts are the final head's:
 keke layout-ro-stable-count2, layout-ro-stable-kcount-k; mei layout-ro-stable-pt2, layout-ro-stable-kcount-m.
 Evidence only: pt1 (bisect sets), exp1-exp4, base-build, lb-build; count1 failed on a path (`~` after `TAG:`).
 
