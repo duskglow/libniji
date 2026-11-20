@@ -53,6 +53,7 @@ fn run(p: &std::path::Path) {
 
 #[test]
 fn copy_for_exec_never_leaves_the_program_busy() {
+    // Trace: no spec clause (test-harness behaviour; finding #6787).
     let d = dir("copy");
     let src = d.join("src");
     exec_stage::copy_for_exec(std::path::Path::new("/bin/true"), &src);
@@ -66,6 +67,7 @@ fn copy_for_exec_never_leaves_the_program_busy() {
 
 #[test]
 fn write_for_exec_never_leaves_the_script_busy() {
+    // Trace: no spec clause (test-harness behaviour; finding #6787).
     let d = dir("write");
     under_forks(|i| {
         let q = d.join(format!("s{i}"));
@@ -79,6 +81,7 @@ fn write_for_exec_never_leaves_the_script_busy() {
 #[test]
 #[ignore = "reproducer: fails with ETXTBSY when the copy is written in this process"]
 fn std_fs_copy_is_busy_under_forks() {
+    // Trace: no spec clause (test-harness behaviour; finding #6787).
     let d = dir("raw");
     let src = d.join("src");
     exec_stage::copy_for_exec(std::path::Path::new("/bin/true"), &src);
