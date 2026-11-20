@@ -35,6 +35,17 @@ Branch `task/wl-dynamic-kit`, cut from origin/next b2485a7f1. Measurement only: 
 Recommend switching the per-gate measurement to dynamic (replace, not add), in three phases. Details and costs are
 in the report, "Switch plan".
 
+## Remaining in this run (refresh leg, 2026-11-20 ~10:45Z)
+
+All code and the measurement are done and pushed (code head a5898fd57; acc2ab964 and later commits are handoff/ only).
+Left: (1) `~/bin/jobwait wl-dynamic-kit-gate wl-dynamic-kit-lint` on the Skylake-SP build host (role s2; the gate is the
+direct tier and exits 7 if `affected --list` says FULL: then write `FULL: the train's` and use precheck + lint); both
+run on the synced a5898fd57. (2) Sync the role to the final head (sync_role --story WL-DYNAMIC-KIT --base origin/next).
+(3) On the role: `cargo xtask precheck --jobs wl-dynamic-kit-gate,wl-dynamic-kit-lint,wl-dynamic-kit-kits3,wl-dynamic-kit-percall
+--head <final sha>` (a jobrun job). (4) Set `head` and `gate.affected` in handoff/reports/WL-DYNAMIC-KIT.json, push,
+then `ops handback-check WL-DYNAMIC-KIT --head <sha> --jobs "<JOBS>"` and hand back COMPLETE with the RULING NEEDED line
+from the report. Nothing else of this run is running on the host besides those two jobs.
+
 ## Next step
 
 The coordinator takes the ruling. If yes: one story flips the defaults (`WL_LINK` default dynamic in wl_lock.sh, the
