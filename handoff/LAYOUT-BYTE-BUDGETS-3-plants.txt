@@ -4,3 +4,9 @@ written-section-left-out | xtask/src/binbudget.rs | lit:let unit = if o.rw { pag
 joined-section-left-out | xtask/src/binbudget.rs | lit:k.split('+').any( ==> k.split('+').take(1).any( | cargo test -p xtask binbudget | msg:sections_sharing_a_page_are_one_bin_so_a_pushed_section_is_red
 gap-charged-as-one-span | xtask/src/binbudget.rs | lit:Some(r) if o.start / u <= (r.1 - 1) / u + 1 => ==> Some(r) => | cargo test -p xtask binbudget | msg:a_written_section_straddling_a_page_is_red_in_bytes
 count-blocks-per-story | xtask/src/layout.rs | lit:if !enforce { ==> if enforce { | cargo test -p xtask layout:: | msg:startup_data_holds_within_the_budget_and_names_the_lone_object_one_below
+# cargo xtask plants results (5 plants: 5 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# data-bin-check-inverted: CAUGHT, caught by xtask binbudget::tests::a_written_section_straddling_a_page_is_red_in_bytes
+# written-section-left-out: CAUGHT, caught by xtask binbudget::tests::a_written_section_straddling_a_page_is_red_in_bytes
+# joined-section-left-out: CAUGHT, caught by xtask binbudget::tests::sections_sharing_a_page_are_one_bin_so_a_pushed_section_is_red
+# gap-charged-as-one-span: CAUGHT, caught by xtask binbudget::tests::a_written_section_straddling_a_page_is_red_in_bytes
+# count-blocks-per-story: CAUGHT, caught by xtask layout::tests::startup_data_holds_within_the_budget_and_names_the_lone_object_one_below

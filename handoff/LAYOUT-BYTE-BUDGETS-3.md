@@ -54,8 +54,18 @@ this red (release has 383 bytes of headroom).
 * The train must set `NIJI_FAULT_BOUNDS=enforce` at release to keep the counts ratcheted (tooling outside the repo, as
   for -2).
 
-## Jobs
+## Jobs (code head e7807fc33, mei; later commits are handoff only)
 
-See the report JSON. Superseded: `-unit1/-unit2` (before the record existed / earlier code), `-plants1` (head
-a956dd655, 4 of 4 CAUGHT before the run-split change), `-relhot1` (release red on `.lbss` span: fixed in 1f8e05c7b),
-`-lint2`, `-xtask2` (started on a stale role tree after a BUSY sync; stopped by me).
+`layout-byte-budgets-3-xtask4` (`cargo test -p xtask`: 535 + 6 passed; xtask files escalate `affected` to FULL, so
+this is the changed crate's gate: "FULL: the train's"), `-lint4` (clippy -D warnings + `cargo xtask static`), `-plants4`
+(5 CAUGHT, 0 WARN), `-relhot4` (release so: WINDOW-BIN-BYTES ok, 8 of 8 pages; hot_text_products 30 passed),
+`-xtest4` (fast so + `cargo xtask test`). Base measurement: `-nextso` (fast so on 50abc44ed).
+Superseded: `-unit1/-unit2/-unit3` (earlier code), `-plants1` (head a956dd655, killed when the code changed),
+`-relhot1` (release red on the `.lbss` span: fixed in 1f8e05c7b), `-lint2`, `-xtask2` (started on a stale role tree
+after a BUSY sync; stopped), `-lint3` (green, 1f8e05c7b), `-xtask3` (the joined-bin fixture failed after the run
+split: fixed in e7807fc33), `-plants3` (stopped: that head's baseline failed).
+
+## Exact next step
+
+None for this story. Follow-ups: a layout story to pin `.got` (see step 3); the train sets `NIJI_FAULT_BOUNDS=enforce`
+at release.
