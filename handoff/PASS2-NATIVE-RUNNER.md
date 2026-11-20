@@ -169,41 +169,57 @@ the runner so C-family blocks are poisoned natively too (needs one native run to
 ## Foreign malloc/free bound
 
 `heap_foreign_pair_cost`: 1911 instructions per pair (pass-1 build), 2063 (export build), Zen 1, test profile
-(unoptimised), job `pass2-native-runner-check1`; bound 2100. Native-pass value: from gate3 (read its log).
+(unoptimised), job `pass2-native-runner-check1`; bound 2100. In a foreign process `heap::DEBUG` is active, so every
+`malloc` goes `malloc_general` -> `debug_alloc` (the fast paths are never reached): the plant `foreign-pair-slower`
+slows `malloc_general` (plants4 slowed `KernelPages::cache_slot`, off that path, and SURVIVED). The native pass's
+value is not in any log (nextest keeps a passing test's output; not read).
 
-## State (leg 1 ended 02:01 UTC, REFRESH)
+## Numbers (step 3): the second pass, before and after (keke, 4-CPU slot, test profile)
 
-* HEAD = the pushed head of `task/pass2-native-runner`; role keke:~/w/n1 synced to it (tree 38eda943...).
-* Running on keke (started 02:01): `pass2-native-runner-gate3` (gate: `cargo xtask affected --run`, direct tier;
-  `affected --list` says `FULL: the train's` for the xtask files, bounded set runs), `pass2-native-runner-plants3`
-  (`--dir /dev/shm/claude/pass2-native-runner/plants-3`, 12 plants), `pass2-native-runner-measure3` (waits for gate3,
-  then `cargo test --workspace --no-run` timed apart, then `cargo xtask test-pass2`: the after numbers).
-* SUPERSEDED: `pass2-native-runner-gate`, `-plants` (the native step ran `cargo xtask nextest` through the runner:
-  cargo runs xtask itself via the target runner; fixed by `pass2::RUNNER_VIA`, and the runner now strips both
-  variables from the test's environment), `-gate2`, `-plants2`, `-measure` (started on an unsynced tree, killed).
-  `pass2-native-runner-check1`: clippy ok, xtask unit tests ok, bound measured (failed at the provisional 400),
-  static red on opaque-audit (fixed: `// opaque-ok`).
+| Run | Wall (steps) | Test-seconds | Tests / binaries | Build |
+|---|---|---|---|---|
+| Before: interposed pass (TEST-PASS2-NATIVE) | 1448 s | 5015 | 193 binaries | 337 s whole-workspace `export` build |
+| After: native pass (`measure4`) | 796 s nextest + 4 s set-up, copies, scan | 2630 | 4829 / 193 | none (loader incremental: 0.5 s) |
+| After: interposed suite (`measure4`) | 457.5 s niji-boundary + 66.2 s niji + 2.1 s doc | 1913 | 4437 (+doc) | two packages with `export`: not measured (cached) |
+| After: total (`cargo xtask test-pass2`) | 1326 s (-8%) | 4542 (-9%) | | the 337 s workspace build is gone; the suite's own build is unmeasured |
+
+Test-seconds = the sum of nextest's per-test `[ x.xxxs]` of each run. `measure4` ran beside `plants4` on the same
+host (the before run's load is not recorded), so the wall difference is indicative only; the test-seconds are the
+firmer number. Most of the interposed suite stays because its binaries link the `niji_caller_*` forwarders; the
+follow-up above (poisoning C-family blocks natively) would move most of it to the native pass.
+`measure4` itself exited 1: one test failed in the interposed suite, see INFORMATIONAL.
+
+## INFORMATIONAL
+
+* `niji-boundary::s03_memory_symbols sym_mallinfo` failed once in the interposed suite (`measure4`):
+  `mallinfo().uordblks` 4496 vs `mallinfo2().uordblks` 4528, two calls apart. The test compares two reads in a
+  process that is not quiescent (32 bytes were allocated between them); `sym_mallinfo2` in the same file already
+  allows for that noise. The target and features are the same as in the old interposed pass; this change does not
+  touch it. Recommend: compare within one quiescent window (retry until two `mallinfo` reads around the
+  `mallinfo2` read agree) in a separate story.
+
+## State (leg 2, 03:45 UTC)
+
+* HEAD = the pushed head of `task/pass2-native-runner`; role keke:~/w/n1 synced to it.
+* Proving jobs (keke): `pass2-native-runner-gate4` (direct tier, `affected: ok`, rc 0; `FULL: the train's` for the
+  xtask files, the bounded set ran), `pass2-native-runner-check4` (clippy all targets/features, static, xtask
+  `pass2::`/`nextest::` tests: ok), `pass2-native-runner-measure4` (the numbers above; rc 1: the INFORMATIONAL
+  failure), `pass2-native-runner-plants5` (13 plants, after the plant fix; plants4 had 12 CAUGHT, 1 SURVIVED).
+* SUPERSEDED: leg 1's `-gate`, `-plants`, `-gate2`, `-plants2`, `-measure` (leg 1: runner via `cargo xtask nextest`,
+  unsynced tree), `-check1` (static red, fixed); `-gate3` (green, head before the lock); `-plants3` (killed for the lock change, 8 CAUGHT);
+  `-measure3` (its `jobwait` returned 3 after ~10 min and it ran beside gate3: products half-built, the native
+  set-up failed and removed the gate's root; this is what the lock now prevents); `-plants4` (1 SURVIVED).
 
 ## Exact next step
 
-1. `~/bin/jobwait pass2-native-runner-gate3 pass2-native-runner-plants3 pass2-native-runner-measure3`; read
-   `~/logs/<label>.log` (grep `affected:`, `FAILED`, `foreign malloc`, plant verdicts, `step:` lines, `test-pass2:`).
-2. Fix what is red (only this change's tests). Check the native pass's `pass2_native_process` and the bound passed.
-3. Numbers for step 3: test-seconds = sum of nextest `[ x.xxxs]` of the native and interposed runs; wall from the
-   `step:` lines. Before (TEST-PASS2-NATIVE, keke 4-core slot): interposed pass 1448 s nextest + 337 s export build,
-   5015 test-seconds, 193 binaries. Fill the table below, write handoff/reports/PASS2-NATIVE-RUNNER.json.
-4. `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo xtask static` in the role,
-   then `cargo xtask precheck --jobs <labels> --head <sha>`, push, `ops handback-check`.
-
-## Numbers (step 3): to fill
-
-| Run | Wall | Test-seconds | Build |
-|---|---|---|---|
-| Before: interposed pass (TEST-PASS2-NATIVE) | 1448 s | 5015 | 337 s export build |
-| After: native pass + interposed suite (`test-pass2`) | ? | ? | prefixed loader + copies (in the wall) |
+1. If plants5 is not green: read its SURVIVED line, fix, rerun plants.
+2. `cargo xtask precheck --jobs <labels> --head <sha>` on the role, then `ops handback-check`.
 
 ## RULING NEEDED
 
+* Switching the gate's pass 2 to this (`test_steps` and `affected` do it in-tree; any liella-ops gate or CI
+  configuration change is the coordinator's): numbers above. Recommend: land; then the train's FULL gate is the
+  first full native pass under CI.
 * The CI host (mei) story gate the brief asks for: needs a role on mei, which this run does not have (CI roles are
   off-limits). Recommend: the dispatcher's CI run of this branch is that gate.
 * Coordinator note 01:44 (one prefixed loader build for hot_text_products and the runner): not possible as is: the
@@ -215,4 +231,5 @@ the runner so C-family blocks are poisoned natively too (needs one native run to
 ## Not to redo
 
 * `cargo xtask nextest` with `CARGO_TARGET_..._RUNNER` set (cargo runs xtask through it). Starting jobs right after
-  a sync without checking rc (rc 4 = nothing synced).
+  a sync without checking rc (rc 4 = nothing synced). A job script that calls `~/bin/jobwait` once: it returns 3
+  after about 10 minutes while the job runs; loop until it is not 3.
