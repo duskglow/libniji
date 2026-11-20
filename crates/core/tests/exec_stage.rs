@@ -3,6 +3,8 @@
 //! thread writes a program and execs it at once; a descriptor open for writing in this process
 //! would be inherited by a sibling's child and the exec would fail with ETXTBSY.
 
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 #[path = "helpers/exec_stage.rs"]
 mod exec_stage;
 

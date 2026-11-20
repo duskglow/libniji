@@ -9,7 +9,7 @@
 //! `reloc_ldso_kernel_started_without_proc`, finding #6787, and in STATIC-RELRO, #742).
 //! The files here are written by a `cp` process that has exited before the function returns, so
 //! no process of the test holds the file open for writing.
-#![allow(dead_code)]
+#![allow(dead_code, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use std::path::Path;
 use std::process::{Command, Stdio};
