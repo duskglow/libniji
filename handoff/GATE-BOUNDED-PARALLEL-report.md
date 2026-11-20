@@ -74,3 +74,50 @@ tests (an xtask change) overlaps that compile too: not measured. `startup-got-pa
 - INFORMATIONAL: with 4-core slots, running two CPU-heavy steps side by side gains little; the larger lever for a
   bounded run is the products build itself (1,275-1,577 s cold) and the ~20 s direct-tier selection in the affected
   unit tests (105 s critical-path test).
+
+## Leg 3 (GATE-BOUNDED-PARALLEL-2, branch `task/gate-bounded-parallel-2`, code head 1f7e3c438)
+
+Why red: leg 2's gate and plants ran on 51d0c1b22, before the D-X.142 id commit (two comments in
+`xtask/src/affected.rs`). No code changed in leg 3.
+
+- Step 0 on the inherited head (keke role n4, foreground): `cargo clippy --workspace --all-targets --all-features
+  -- -D warnings` rc 0; `cargo xtask static` rc 0. `cargo xtask affected --list --base origin/next`: not FULL
+  (xtask unit tests + static; 0 of 304 targets).
+- `gate-bounded-parallel-2-gate3` (`cargo xtask affected --run --base origin/next` under `~/bin/gate 16G`): 5 suites
+  ok, 551 passed, 0 failed; peak 1.5G, oom_kill 0, rc 0.
+- `gate-bounded-parallel-2-unit3` (`cargo xtask clippy && cargo test -p xtask --bin xtask affected::tests`): 101
+  passed, 0 failed, rc 0.
+- `gate-bounded-parallel-2-plants3` (`cargo xtask plants handoff/GATE-BOUNDED-PARALLEL-plants.txt`): 8 plants,
+  8 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT.
+- SUPERSEDED: `gate-bounded-parallel-gate2`, `gate-bounded-parallel-plants2`, `gate-bounded-parallel-unit2`,
+  `gate-bounded-parallel-after` (ran on 51d0c1b22, before the D-X.142 id commit).
+
+### Row 2: `startup-got-page-4-gate` (job `gate-bounded-parallel-2-meas-sgp4`)
+
+Same method as row 1 (meas.sh, `cargo xtask affected --run --tier direct --files <list>`, cold products, warm xtask
+test build, 4-core slot on the Zen 1 host, load average ~20 of 60 threads), both runs on code head 1f7e3c438: the
+serial run under `~/bin/gate 5G`, where the memory guard takes the one-after-the-other path (its log says so), the
+side-by-side run under `~/bin/gate 16G`. The serial path differs from origin/next only in running `transcripts`
+after the products (1.4 s).
+
+| step | serial (5G) | side by side (16G) |
+|---|---|---|
+| xtask tests that run no products | 190.1 s | 283.7 s, inside the products build |
+| products (`so`) | 1,125.9 s | 1,324.1 s |
+| two steps together | **1,316.0 s** | **1,324.1 s**: **+8 s, +0.6%** |
+| xtask tests on the fresh products | 1.4 s | 1.6 s |
+| anon peak (gate cgroup) | 1.67 GiB | 2.10 GiB |
+| run total | 2,184 s (rc 0, 14 suites, 1,729 passed) | 2,047 s (rc 0, 14 suites, 1,729 passed) |
+
+The run totals differ by 137 s outside the changed steps (`test -p niji` 252 -> 176 s, `test -p niji-boundary
+(exports interposed)` 85 -> 0.3 s): not claimed.
+
+Both rows: -60 s (-4.1%) and +8 s (+0.6%); together 2,781.4 s -> 2,730.2 s (-51 s, -1.8%). The serial products
+build alone spread 1,126-1,275 s between the two rows, more than either difference: in a 4-core slot the side-by-side
+path is within run-to-run noise. Target ("a third") not reached.
+
+RULING NEEDED: keep the side-by-side path (memory guard, `/proc/self/exe so`, the rendezvous) for a gain within
+noise, or land only the `transcripts`-after-the-fresh-products ordering and the class record. Recommendation: drop
+the concurrency (less tooling to keep reliable for no measured gain); keep the ordering fix and D-X.142's class
+table. If the path stays, add row 2 to D-X.142 (it holds row 1 only; not edited in leg 3 so that the proving jobs
+stay on the final content).
