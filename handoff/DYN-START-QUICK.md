@@ -57,7 +57,11 @@ dyn-start-quick-lint3 rc 0; dyn-start-quick-after3 rc 0 (13 layout contracts hol
 dyn-start-quick-gate3 rc 0 (7 suites ok, 1400 passed, 0 failed, 80 ignored; conformance 22 passed; peak 1.5G);
 keke:dyn-start-quick-zen3 rc 0 (Zen 1 rows above); dyn-start-quick-dlmap3b (diagnostic) after3 `dladdr` names
 `libdla_syms.so` like base00 (dlmap3 inside after3 and dyn-start-quick-dlmap3 found no conformance helper yet: rc 1
-for base00 too; rerun after the gate built it). plants3, xtest3, fullprof3: see the report.
+for base00 too; rerun after the gate built it). dyn-start-quick-xtest3 rc 0 (2505 s); dyn-start-quick-fullprof3
+rc 0 (hot_text_products 32 passed). dyn-start-quick-plants3 SUPERSEDED (copy 1's baseline timed out at 900 s: its
+traced `cargo xtask so` took 900-1386 s beside xtest3; killed). dyn-start-quick-plants4 (same file, --timeout 2400,
+/mnt/zram/claude/dyn-start-quick/plants-4) PENDING at hand-back: both baselines ok at 20:31Z, plants running; the
+role could not be synced to the handoff-only commits while it ran (sync BUSY), so precheck was not run.
 SUPERSEDED: dyn-start-quick-so/so2/so3/lint/base/plants/gate/xtest (older heads), -lint2/-after2/-gate2 (gate2 red:
 s27_1_c_6 + the tracer exit 127, both fixed in 421f140be), -xtest2 (same plus 2 dlclose tests, fixed by the arena
 scope), -plants2/-fullprof2 (killed, head ba1fe1d5e). Diagnostics (not proof): -ptdiag..5, -base00, -dlmap/2 (mei),

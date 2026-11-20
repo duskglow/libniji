@@ -6,7 +6,7 @@
  "branch": "task/dyn-start-quick",
  "head": "421f140be (code and test head; later commits add only handoff/report)",
  "gate": {
-  "affected": "1400 passed / 0 failed (direct tier, 7 suites, conformance 22 passed; gate3 on 421f140be)",
+  "affected": "1400 passed / 0 failed (direct tier, 7 suites, conformance 22 passed; gate3 on 421f140be); xtest3 rc 0; fullprof3 rc 0 (32 passed)",
   "peak": "1.5G"
  },
  "accepted_first_attempt": null,
@@ -19,7 +19,7 @@
  "informational": [
   "giving the scratch arena to every image view (head ba1fe1d5e) made dladdr of a dlopened object's address answer ld.so and broke two dlclose tests; the final head keeps the arena to link's view of the program only (dlmap3b: dladdr names the object again); the exact mechanism in the adopt path was not traced",
   "item 1 (mmap_min_addr read, 3 calls) was removed and reverted: taking the NULL-folding decision as off in the loader-only build cost about +33k user instructions per start; fix-forward for DYN-START-RING: make the loader's own small copies not use the exported entries, then the read can go",
-  "plants3 baseline timed out at 900 s (cargo xtask so 900-1386 s on a loaded host beside xtest3); rerun as plants4 with --timeout 2400",
+  "plants3 baseline timed out at 900 s (cargo xtask so 900-1386 s on a loaded host beside xtest3); rerun as plants4 with --timeout 2400, PENDING at hand-back (both baselines ok); precheck not run: the role was busy with plants4 and could not be synced",
   "the probe's user count grows with the library and program path lengths; base00 was measured with the same path length as after2/after3"
  ],
  "refused": [
