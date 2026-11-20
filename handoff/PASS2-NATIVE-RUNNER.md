@@ -204,15 +204,16 @@ follow-up above (poisoning C-family blocks natively) would move most of it to th
 * Proving jobs (keke): `pass2-native-runner-gate4` (direct tier, `affected: ok`, rc 0; `FULL: the train's` for the
   xtask files, the bounded set ran), `pass2-native-runner-check4` (clippy all targets/features, static, xtask
   `pass2::`/`nextest::` tests: ok), `pass2-native-runner-measure4` (the numbers above; rc 1: the INFORMATIONAL
-  failure), `pass2-native-runner-plants5` (13 plants, after the plant fix; plants4 had 12 CAUGHT, 1 SURVIVED).
+  failure), `pass2-native-runner-plants6` (13 plants, after the plant fix; plants4 had 12 CAUGHT, 1 SURVIVED;
+  plants5 applied none: the fixed line had lost a field separator, baseline rc 127).
 * SUPERSEDED: leg 1's `-gate`, `-plants`, `-gate2`, `-plants2`, `-measure` (leg 1: runner via `cargo xtask nextest`,
   unsynced tree), `-check1` (static red, fixed); `-gate3` (green, head before the lock); `-plants3` (killed for the lock change, 8 CAUGHT);
   `-measure3` (its `jobwait` returned 3 after ~10 min and it ran beside gate3: products half-built, the native
-  set-up failed and removed the gate's root; this is what the lock now prevents); `-plants4` (1 SURVIVED).
+  set-up failed and removed the gate's root; this is what the lock now prevents); `-plants4` (1 SURVIVED); `-plants5` (no plant applied: a malformed plants line).
 
 ## Exact next step
 
-1. If plants5 is not green: read its SURVIVED line, fix, rerun plants.
+1. `~/bin/jobwait pass2-native-runner-plants6` (started 03:43). If not green: read its SURVIVED line, fix, rerun.
 2. `cargo xtask precheck --jobs <labels> --head <sha>` on the role, then `ops handback-check`.
 
 ## RULING NEEDED

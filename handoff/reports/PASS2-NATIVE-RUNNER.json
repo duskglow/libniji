@@ -22,4 +22,4 @@
  "improvement": "jobwait returns 3 after ~10 min: a chained job script must loop on it; a per-tree lock in the tool now makes the collision it caused impossible",
  "next_step": "coordinator: ruling on switching the gate's pass 2; follow-up: poison C-family blocks natively (MALLOC_PERTURB_) to move most of the interposed suite to the native pass",
  "report_file": "handoff/PASS2-NATIVE-RUNNER.md",
- "jobs": ["pass2-native-runner-gate4", "pass2-native-runner-check4", "pass2-native-runner-measure4", "pass2-native-runner-plants5"]}
+ "jobs": ["pass2-native-runner-gate4", "pass2-native-runner-check4", "pass2-native-runner-measure4", "pass2-native-runner-plants6"]}
