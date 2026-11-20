@@ -75,6 +75,20 @@ Pass-1 test-seconds of the five sweeps on keke (n2, `cargo nextest run ... --tes
   (Newton on the reciprocal square root, multiplications only; or Zimmermann, "Karatsuba Square Root", INRIA RR-3805,
   1999) and a fixed-precision ln 10 would cut the oracle itself. Recommended before or beside the value cache.
 
+## Results (head f4d276159, keke n2)
+
+- `math-oracle-profile-lint-3`: clippy (workspace, all targets, all features, -D warnings) and `cargo xtask static`: rc 0.
+- `math-oracle-profile-gate-3` (`cargo xtask affected --run`, direct tier): rc 0, peak 2.9G; products 1193 s, test -p
+  niji 488 s, niji interposed 449 s, test -p niji-math 1578 s. After it, `target/test-oracles/outputs/` held exactly one
+  output pair per sweep, named with the nextest run id: one run of each program per gate run.
+- `math-oracle-profile-plants-3`: 7 plants, 6 CAUGHT, 1 WARN-NO-MSG, 0 SURVIVED. `share-no-run-id` failed the right
+  test (`the_shards_of_one_run_share_the_programs_outputs`) at its stored-names assertion (line 189), one line before
+  the message it names. `sweep-every-shard` (libniji's `csqrtl` returning `cexpl`): `1 passed; 20 failed`, every
+  complex_ld_cr shard catches a changed line of the shared output.
+- Earlier labels `-lint`, `-lint-2` (clippy indexing, fs-order: fixed), `-before` (the profile and the before numbers,
+  on the base tree).
+- Mistake of this run: one empty `<<` heredoc in a read-only command (no effect); noted for the record.
+
 ## Open / next
 
 - RULING NEEDED: order of ORACLE-VALUE-CACHE vs a faster `Nat::isqrt` (recommend the isqrt rewrite first: no stale risk,
