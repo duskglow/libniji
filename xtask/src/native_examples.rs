@@ -187,6 +187,8 @@ pub(crate) fn run_example(root: &Path, name: &str, exe: &Path, dir: &Path, expec
     if let Some(path) = launch.library_path {
         cmd.env("LD_LIBRARY_PATH", path);
     }
+    // The `env` step counts the environment's entries: `LD_LIBRARY_PATH` is one more.
+    let expected = if launch.library_path.is_some() { expected.replace("; set, overwrite, unset; 2 entries\n", "; set, overwrite, unset; 3 entries\n") } else { expected.to_string() };
     let out = cmd.output().map_err(|e| format!("cannot run {}: {e}", exe.display()))?;
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
