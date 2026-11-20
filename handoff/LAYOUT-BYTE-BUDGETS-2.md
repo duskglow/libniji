@@ -31,8 +31,8 @@
 |---|---|---|
 | windows: true / locale / tool / fork / localtime / localtime_mktime / float | 1/2/2/2/2/2/1 | 1/2/3/2/2/2/2 |
 | phase modes mktime, rebind, strings | 0 | 0 |
-| head bin | 64,428 of 64,512 (headroom **84**) | see the relhot1 log |
-| tightest other bins (fast) | bin 7: 17 bytes, bin 5: 423, bin 2: 639 | |
+| head bin | 64,428 of 64,512 (headroom **84**) | 63,240 of 64,512 (headroom 1,272) |
+| tightest other bins | bin 7: 17 bytes, bin 5: 423, bin 2: 639 | bin 7: 142, bin 8: 813, bin 3: 869 |
 | `.rodata1` / `.data1` | 37,888 of 65,536 / 11,760 of 12,288 | 34,750 / 11,760 |
 
 Hand check (fast): bin 0 linked 0x410040-0x41fbec = 64,428 bytes, the plan's own summary for bin 0 (64,428). The
@@ -51,16 +51,17 @@ first release build went red on the budgets I had guessed from fast, naming `mod
 * Process slips (report in the hand-back): one edit was made with a Python heredoc and one doc-comment fix with
   `sed -i` (both forbidden); the content was checked and committed normally.
 
-## Jobs and exact next step (leg 1 ended at head ed27735d7, synced to mei:~/w/s3)
 
-* Running on mei (started ~03:30Z): `~/work/LAYOUT-BYTE-BUDGETS-2/final.sh` runs in order
-  `layout-byte-budgets-2-lint2` (full clippy -D warnings + `cargo xtask static`), `-relhot2` (release so +
-  hot_text_products), `-fastso2` (fast so), `-gate2` (direct-tier `affected --run`), `-xtest2` (`cargo xtask test`);
-  it stops at the first of lint2/relhot2/fastso2 that fails. In parallel `layout-byte-budgets-2-plants2`
-  (`handoff/LAYOUT-BYTE-BUDGETS-2-plants.txt`, 7 plants, dir /mnt/zram/claude/layout-byte-budgets-2/plants-2).
-* SUPERSEDED: `-lint1` (unused import, fixed in ed27735d7), `-plants1` (killed: older head), `-measure1`, `-unit1`
-  (measurement and a fixture fix on older heads).
-* Next: `~/bin/jobwait` those labels; read `relhot2` for the release WINDOW-BIN-BYTES lines (fill the release head-bin
-  cell above) and that hot_text_products passes with `FAULT-COUNT REPORT` lines; fix any red; then
-  `cargo xtask precheck --jobs <labels> --head <sha>` on the role, write `handoff/reports/LAYOUT-BYTE-BUDGETS-2.json`,
-  push, `ops handback-check`, hand back. If `xtest2` is still running ~45 min before the 06:43Z deadline: PENDING JOBS.
+## Jobs and exact next step (leg 2: head daf86cb07 code, synced to mei:~/w/s3)
+
+* Leg 2 found plant `warm-up-kept` SURVIVED (plants2): the fixture's phase and its warm-up touched disjoint windows.
+  daf86cb07 adds a case where the phase also runs a member its warm-up faulted (it must count 1 window, not 2).
+* On daf86cb07 (mei): `layout-byte-budgets-2-unit3` (binbudget unit tests, 7 passed), `-lint3` (full clippy -D
+  warnings + `cargo xtask static`), `-relhot3` (release so, WINDOW-BIN-BYTES ok, hot_text_products 29 passed),
+  `-fastso3` (fast so, WINDOW-BIN-BYTES ok, head bin 64,428 / headroom 84), `-plants3` (7 CAUGHT, 0 WARN),
+  `-gate3` (direct tier, 6 suites, 563 passed, 0 failed; `affected` names xtask files as "FULL: the train's"),
+  `-xtest3` (`cargo xtask test`; see the report json for its state at hand-back).
+* SUPERSEDED: `-lint1`, `-plants1`, `-measure1`, `-unit1` (leg 1, older heads); `-lint2`, `-relhot2`, `-fastso2`
+  (green, head ed27735d7); `-plants2` (warm-up-kept survived; fixed in daf86cb07); `-gate2` (stopped by me: older head).
+* Next: if `xtest3` was still running at hand-back, `~/bin/jobwait layout-byte-budgets-2-xtest3` on mei; a red there
+  in a suite this branch touches (xtask, hot_text_products) is this story's; otherwise INFORMATIONAL.

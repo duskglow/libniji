@@ -6,3 +6,11 @@ member-diff-dropped | xtask/src/binbudget.rs | lit:fmt_grown(lb, Some(m), base) 
 warm-up-kept | xtask/src/binbudget.rs | lit:.filter(|x| !pre.is_some_and(|p| p.contains(x))) ==> .filter(|x| pre.is_none_or(|p| p.len() < 1_000_000 || p.contains(x))) | cargo test -p xtask binbudget | msg:modes_count_their_windows_less_their_warm_up
 data-budget-weakened | xtask/src/binbudget.rs | lit:if bytes > budget { ==> if bytes > budget + 1 { | cargo test -p xtask binbudget | msg:bytes_over_a_bin_or_data_budget_are_red
 under-level-ignored | xtask/src/binbudget.rs | lit:} else if n < budget { ==> } else if n + 1 < budget { | cargo test -p xtask binbudget | msg:a_level_under_budget_an_unbudgeted_mode_and_a_misplaced_bin_are_red
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# mode-budget-weakened: CAUGHT, caught by xtask binbudget::tests::a_mode_over_budget_names_its_bins_members_and_growth
+# bin-bytes-inverted: CAUGHT, caught by xtask binbudget::tests::a_green_link_reports_every_bin_and_its_headroom
+# section-left-out: CAUGHT, caught by xtask binbudget::tests::a_green_link_reports_every_bin_and_its_headroom
+# member-diff-dropped: CAUGHT, caught by xtask binbudget::tests::a_mode_over_budget_names_its_bins_members_and_growth
+# warm-up-kept: CAUGHT, caught by xtask binbudget::tests::modes_count_their_windows_less_their_warm_up
+# data-budget-weakened: CAUGHT, caught by xtask binbudget::tests::bytes_over_a_bin_or_data_budget_are_red
+# under-level-ignored: CAUGHT, caught by xtask binbudget::tests::a_level_under_budget_an_unbudgeted_mode_and_a_misplaced_bin_are_red
