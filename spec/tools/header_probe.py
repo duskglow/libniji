@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Probe which names each public header makes visible under each feature-test configuration.
 
-    python3 spec/tools/header_probe.py [--jobs N] [--headers a.h,b.h] [--out DIR]
+    python3 spec/tools/header_probe.py [--jobs N] [--headers a.h,b.h] [--out DIR] [--include DIR]
+
+`--include DIR` probes libniji's headers (P2 of plan/headers.md section 3): every compile gets `-nostdinc -isystem DIR`.
 
 Run on the reference system (Appendix C.0), like abi_extract.py. Writes `ftm-configs.tsv` (the
 configurations of plan/headers.md section 2.3) and `visibility.tsv` (Appendix C.12) into spec/abi/
@@ -113,6 +115,34 @@ def c_integer_names():
     return out
 
 
+def standard_names():
+    """Names that standards and man pages give headers whose names no other table holds (slice 17): the POSIX
+    <tar.h> and <cpio.h> constants (XBD 13), the exit codes of sysexits(3), the queue macros of list(3), slist(3),
+    stailq(3), tailq(3) and circleq(3), and the obstack macros of the GNU C Library manual (Obstacks)."""
+    out = ["TMAGIC", "TMAGLEN", "TVERSION", "TVERSLEN", "REGTYPE", "AREGTYPE", "LNKTYPE", "SYMTYPE", "CHRTYPE",
+           "BLKTYPE", "DIRTYPE", "FIFOTYPE", "CONTTYPE", "TSUID", "TSGID", "TSVTX", "TUREAD", "TUWRITE", "TUEXEC",
+           "TGREAD", "TGWRITE", "TGEXEC", "TOREAD", "TOWRITE", "TOEXEC", "MAGIC"]
+    out += [f"C_I{c}" for c in ("RUSR", "WUSR", "XUSR", "RGRP", "WGRP", "XGRP", "ROTH", "WOTH", "XOTH", "SUID", "SGID",
+                                "SVTX", "SDIR", "SFIFO", "SREG", "SBLK", "SCHR", "SCTG", "SLNK", "SSOCK")]
+    out += [f"EX_{c}" for c in ("OK", "_BASE", "USAGE", "DATAERR", "NOINPUT", "NOUSER", "NOHOST", "UNAVAILABLE", "SOFTWARE",
+                                "OSERR", "OSFILE", "CANTCREAT", "IOERR", "TEMPFAIL", "PROTOCOL", "NOPERM", "CONFIG", "_MAX")]
+    common = ["ENTRY", "EMPTY", "FIRST", "NEXT", "HEAD", "HEAD_INITIALIZER", "INIT", "FOREACH", "REMOVE"]
+    more = {"LIST": ["INSERT_AFTER", "INSERT_BEFORE", "INSERT_HEAD"],
+            "SLIST": ["INSERT_AFTER", "INSERT_HEAD", "REMOVE_AFTER", "REMOVE_HEAD"],
+            "STAILQ": ["CONCAT", "INSERT_AFTER", "INSERT_HEAD", "INSERT_TAIL", "LAST", "REMOVE_AFTER", "REMOVE_HEAD"],
+            "TAILQ": ["CONCAT", "FOREACH_REVERSE", "INSERT_AFTER", "INSERT_BEFORE", "INSERT_HEAD", "INSERT_TAIL", "LAST", "PREV"],
+            "CIRCLEQ": ["FOREACH_REVERSE", "INSERT_AFTER", "INSERT_BEFORE", "INSERT_HEAD", "INSERT_TAIL", "LAST",
+                        "LOOP_NEXT", "LOOP_PREV", "PREV"]}
+    for q, ms in more.items():
+        out += [f"{q}_{m}" for m in common + ms]
+    out += ["SLIST_FOREACH_SAFE", "LIST_FOREACH_SAFE", "STAILQ_FOREACH_SAFE", "TAILQ_FOREACH_SAFE", "CIRCLEQ_FOREACH_SAFE"]
+    out += [f"obstack_{m}" for m in ("init", "alloc", "copy", "copy0", "free", "blank", "grow", "grow0", "1grow", "ptr_grow",
+                                     "int_grow", "finish", "object_size", "room", "make_room", "blank_fast", "1grow_fast",
+                                     "ptr_grow_fast", "int_grow_fast", "base", "next_free", "chunk_size",
+                                     "alignment_mask", "chunk_alloc", "chunk_free")]
+    return out
+
+
 def candidates():
     """(ordinary names, tag names) from the existing spec/abi tables."""
     names, tags = set(), set()
@@ -139,6 +169,7 @@ def candidates():
     with open(os.path.join(ROOT, "glibc-functional-spec.md"), encoding="utf-8") as f:
         names.update(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)(?:\(\))?`", f.read()))
     names.update(c_integer_names())
+    names.update(standard_names())
     names = {n for n in names if IDENT.match(n) and not n.startswith("__builtin")}
     tags = {n for n in tags if IDENT.match(n)}
     return sorted(names), sorted(tags)
@@ -285,12 +316,25 @@ def public_headers():
     return sorted(r["header"] for r in rows if r["kind"] == "public" and r["header"].endswith(".h"))
 
 
+def uapi_flags():
+    """`-isystem` for the kernel UAPI directories (linux-libc-dev) that slice 9 headers include: $NIJI_UAPI (the tree
+    `cargo xtask so` stages at target/niji/uapi) or, when unset, the build host's multiarch and plain include directories,
+    placed after libniji's tree so the host's libc headers stay out of reach."""
+    d = os.environ.get("NIJI_UAPI")
+    if d:
+        return ["-isystem", d]
+    return ["-isystem", "/usr/include/x86_64-linux-gnu", "-isystem", "/usr/include"] if os.path.isdir("/usr/include/linux") else []
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--headers", default="")
     ap.add_argument("--out", default=ABI)
+    ap.add_argument("--include", default="", help="probe the headers under DIR (libniji's libc-include/) instead of the system's")
     args = ap.parse_args()
+    if args.include:
+        gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+        BASE.extend(["-nostdinc", "-isystem", os.path.abspath(args.include), "-isystem", gccinc, *uapi_flags()])
     headers = args.headers.split(",") if args.headers else public_headers()
     names, tags = candidates()
     work = tempfile.mkdtemp(prefix="header_probe.")

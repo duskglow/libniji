@@ -17,6 +17,9 @@
 #![cfg(target_arch = "x86_64")]
 #![allow(clippy::unwrap_used, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, clippy::expect_used, clippy::panic)]
 
+#[path = "../../core/tests/helpers/exec_stage.rs"]
+mod exec_stage;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -302,7 +305,7 @@ fn tls_interpreter_scope_entry_without_reading_its_file() {
     let d = target().join(format!("ld-tls-noread-{}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
     let own = d.join(Native::INTERP);
-    std::fs::copy(&ld, &own).unwrap();
+    exec_stage::copy_for_exec(&ld, &own);
     std::fs::set_permissions(&own, std::fs::Permissions::from_mode(0o111)).unwrap();
     if std::fs::File::open(&own).is_ok() {
         eprintln!("SKIP: an execute-only file is still readable here (the tests run with file-permission override)");

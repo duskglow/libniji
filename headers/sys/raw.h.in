@@ -1,0 +1,24 @@
+@@generated
+/* sys/raw.h: raw(8) block device binding */
+#ifndef __NIJI_H_sys_raw_h
+#define __NIJI_H_sys_raw_h 1
+
+#include <features.h>
+#include <stdint.h>
+
+/* The terminal ioctl names and the descriptor-control structure come with <sys/ioctl.h> (slice 7); until that header is
+   generated the names are owned here and the include is optional. */
+#if defined __has_include
+# if __has_include(<sys/ioctl.h>)
+#  include <sys/ioctl.h>
+# endif
+#endif
+
+__NIJI_BEGIN_C
+
+@@owns TCSETS2 TTYDEF_CFLAG TTYDEF_IFLAG TTYDEF_LFLAG TTYDEF_OFLAG TTYDEF_SPEED
+@@emit
+
+__NIJI_END_C
+
+#endif

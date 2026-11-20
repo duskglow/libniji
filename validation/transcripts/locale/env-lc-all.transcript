@@ -1,0 +1,29 @@
+name: locale with LC_ALL over LANG and a category
+clause: s31_7_i_2
+command: locale
+namespace: user
+# The installed C.utf8 (part of the C library package on every system; the reference has no built-in C.UTF-8).
+dir: i18n
+dir: i18n/charmaps
+bind: i18n /usr/share/i18n
+env: LC_ALL=C.UTF-8
+env: LANG=C
+env: LC_PAPER=POSIX
+status: exit 0
+stdout:
+| LANG=C
+| LANGUAGE=
+| LC_CTYPE="C.UTF-8"
+| LC_NUMERIC="C.UTF-8"
+| LC_TIME="C.UTF-8"
+| LC_COLLATE="C.UTF-8"
+| LC_MONETARY="C.UTF-8"
+| LC_MESSAGES="C.UTF-8"
+| LC_PAPER="C.UTF-8"
+| LC_NAME="C.UTF-8"
+| LC_ADDRESS="C.UTF-8"
+| LC_TELEPHONE="C.UTF-8"
+| LC_MEASUREMENT="C.UTF-8"
+| LC_IDENTIFICATION="C.UTF-8"
+| LC_ALL=C.UTF-8
+stderr:

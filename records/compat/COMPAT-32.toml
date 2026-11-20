@@ -1,0 +1,15 @@
+id = "COMPAT-32"
+behaviour = "`getumask` in `<sys/stat.h>` (slice 7, `_GNU_SOURCE`; ruling #6377)"
+glibc = "`<sys/stat.h>` declares `extern __mode_t getumask (void)` under `_GNU_SOURCE`; no library version defines it, so a program that calls it fails at link time"
+liella = "`<sys/stat.h>` does not declare it: libniji declares only what it exports, so a call fails at compile time (`headers/reserved.tsv`, policy `omit`)"
+restore = "A header option (a feature macro read by `<sys/stat.h>`) that declares `getumask` under `_GNU_SOURCE` as the reference's header does; not implemented, registered for a user who needs the declaration to compile code that only mentions it behind a run-time check"
+cost = "none (the flag does not exist; the declaration is a header line, no library code)"
+status = "registered"
+decisions = ["D-X.113", "D-X.117"]
+story = "SL-HEADERS-S07-2"
+date = "2026-11-17"
+body = '''
+Registered option for ruling #6377 (getumask stays omitted; the reference's declaration is a future option). The slice 7
+decision record (D-X.117, extending D-X.113) holds the reasoning; it is named in `decisions`
+The differences row is in `docs/differences-from-glibc.md` ("`getumask` declaration").
+'''

@@ -198,6 +198,8 @@ int main(void)
     MEASURE("strcasecmp_c_256_pageend", 1000000L, strcasecmp_fn(case_e, case_b));
     MEASURE("strncasecmp_c_64", 10000000L, strncasecmp_fn(case_a, case_b, 64));
     MEASURE("strtod_c", 1000000L, strtod_fn("3.14159", NULL) > 3.0);
+    /* LOCALE-SLOTS-GROWTH-7: a repeated setlocale that changes nothing (answered without the lock). */
+    MEASURE("setlocale_all_c", 1000000L, setlocale(LC_ALL, "C") != NULL);
 
     setlocale(LC_ALL, "C.UTF-8");
     MEASURE("towupper_utf8", 10000000L, towupper_fn((wint_t)(0xE0 + (i & 31))));
@@ -223,6 +225,10 @@ int main(void)
 
     /* A compiled locale (its tables come from a file); skipped where it is not installed. */
     if (setlocale(LC_ALL, "en_US.UTF-8") != NULL) {
+        /* LOCALE-SLOTS-GROWTH-7: the query and the repeated selection of the locale in force, both
+         * answered from the query cache without the lock (ruling #6981 gates them per call). */
+        MEASURE("setlocale_query_en_us", 1000000L, setlocale(LC_ALL, NULL) != NULL);
+        MEASURE("setlocale_en_us_repeat", 1000000L, setlocale(LC_ALL, "en_US.UTF-8") != NULL);
         MEASURE("strcasecmp_en_256", 1000000L, strcasecmp_fn(case_a, case_b));
         MEASURE("fnmatch_casefold_en_32", 1000000L, fnmatch_fn("*hello*WORLD*[a-z]?.TXT", "My Hello big world file x1.txt", FNM_CASEFOLD));
         /* LV-0: the same calls as their C / C.UTF-8 twins, but in a compiled locale, where each call
@@ -249,7 +255,7 @@ int main(void)
         }
         MEASURE("iswctype_en_us", 10000000L, iswctype_fn((wint_t)(0x4E00 + (i & 255)), alpha));
     } else {
-        static const char skip[] = "cbench_locale: SKIPPED the en_US.UTF-8 rows (mbrtowc_en_us_3 iswalpha_en_us strtod_en_us snprintf_f_en_us fnmatch_en_us nl_langinfo_en_us localeconv_en_us strftime_names_en_us): "
+        static const char skip[] = "cbench_locale: SKIPPED the en_US.UTF-8 rows (setlocale_query_en_us setlocale_en_us_repeat mbrtowc_en_us_3iswalpha_en_us strtod_en_us snprintf_f_en_us fnmatch_en_us nl_langinfo_en_us localeconv_en_us strftime_names_en_us): "
                                    "locale not installed on this host\n";
         (void)!write(2, skip, sizeof skip - 1);
     }

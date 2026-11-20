@@ -1,0 +1,8 @@
+@@generated
+/* paths.h: default pathnames, from the BSD <paths.h> set. Macros only: the header includes nothing, so it adds no names. */
+#ifndef __NIJI_H_paths_h
+#define __NIJI_H_paths_h 1
+
+@@emit
+
+#endif

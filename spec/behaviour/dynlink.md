@@ -184,6 +184,8 @@ with gcc 13.3 / binutils, black box: only the values the bound functions return 
 | weak `w` in `libw1.so`, strong `w` in `libw2.so` | link order w1,w2 → the weak one; w2,w1 → the strong one; `LD_DYNAMIC_WEAK=1` → unchanged |
 | undefined weak data and function references | both 0 |
 | `STB_GNU_UNIQUE` `u_obj` in two objects, each `dlopen`ed `RTLD_LOCAL` | one object for both (the first's); a plain global `u_obj` in a third object stays its own |
+| program with a canonical PLT entry for `f` (undefined `STT_FUNC`, non-zero value: non-PIE `&f`, or `.long f - .` in a PIE's data) defined in `libf.so` (DL-CANONICAL-PLT probe, Zen 1 host, glibc 2.39, gcc 13.3 / binutils 2.42; GitHub issue #10) | the program's address of `f`, the library's `GLOB_DAT` (`return f;`), the program's own `f@GOTPCREL` (`GLOB_DAT`), a library `dlopen`ed later (`GLOB_DAT`) and `dlsym(RTLD_DEFAULT, "f")` all give the entry's address; calls through the program's PLT reach `libf.so`'s `f`. The same with `libf.so` marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS` (`-mno-direct-extern-access`). A program built with `-mno-direct-extern-access` has no entry (`f` undefined, value 0): every reference binds `libf.so`'s `f` |
+| the same program run against a `libf.so` whose `f` is protected (swapped in after linking; binutils 2.42 refuses that link) | a warning on standard error that pointer equality may break, then the run goes on: the library's own references give its own address, the program's the entry's; with that library also marked `GNU_PROPERTY_1_NEEDED_INDIRECT_EXTERN_ACCESS`: the start is refused, a message naming `f`, the library and the property, exit 127 |
 
 libniji's lookup (D-27.11) follows every row; `crates/ld/tests/symbols.rs` checks the same corpus. The stub row is the
 loader's version check, not the lookup: libniji's lookup matches any definition of an object without `versym`, and the
@@ -330,3 +332,24 @@ libniji (D-27.16 as amended by D-27.56): the same rule, with libniji's own libra
 (`search::PINNED`) naming the interpreter after their own `DT_NEEDED` entries, so lists of libc-linked programs
 keep the line consumers such as initramfs-tools' `copy_exec` read. Test: `list_interpreter_line_matches_reference`
 (crates/ld/tests/search_cache.rs).
+
+## The loaded dynamic array (DL-DYNAMIC-RELOC probe, x86-64, glibc 2.39)
+
+Probe: `tools/probe/dl/dynreloc/run.sh` (Zen 1 build host). For each object `dl_iterate_phdr` lists (from the
+program's constructor, from `main`, after a `dlopen`), each entry of its dynamic array in memory is compared with the
+same entry of its file: **A** = differs by exactly the load base, **=** = unchanged.
+
+| Entries | Program (PIE), start-time library, libc, `ld.so`, `dlopen`ed library |
+| --- | --- |
+| `DT_PLTGOT`, `DT_HASH`, `DT_STRTAB`, `DT_SYMTAB`, `DT_RELA`, `DT_JMPREL`, `DT_RELR`, `DT_GNU_HASH`, `DT_VERSYM` | A |
+| `DT_INIT`, `DT_FINI`, `DT_PREINIT_ARRAY`, `DT_INIT_ARRAY`, `DT_FINI_ARRAY`, `DT_VERDEF`, `DT_VERNEED`, `DT_TLSDESC_PLT`, `DT_TLSDESC_GOT`, sizes, flags, `DT_NEEDED` / `DT_SONAME` / `DT_RUNPATH` offsets | = |
+
+Already A in the program's first constructor; `_DYNAMIC` and `l_ld` are the same array, so
+`DT_STRTAB` + the `DT_RUNPATH` value is the run-path string. The vDSO's array is the kernel's, never written.
+`DT_REL` is not observable on x86-64 (GNU ld emits RELA only). A static-pie program's own array is A as well (not
+yet in libniji: its self-relocation leaves it link-time), and the program's `DT_DEBUG` is set by the loader (not in
+libniji).
+
+libniji (D-27.60): the same entries become run-time addresses for every object whose `PT_DYNAMIC` lies wholly inside
+one writable `PT_LOAD` (an array elsewhere is never written), before any constructor; the loader's own readers keep
+reading link-time values. Test: `s27_1_c_8` (`conformance/c/s27_dynamic_address_entries.c`).

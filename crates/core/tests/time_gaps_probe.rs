@@ -360,19 +360,6 @@ const KNOWN: &[(&[&str], &[&str], bool, &str)] = &[
         "D-23.7 (s23_7_c_3): POSIX getdate assumes the first of the month when no day is given; glibc picks another day",
     ),
     (
-        &[
-            "strptime(\"+5\", \"%y\") -> NULL",
-            "strptime(\"+05\", \"%y\") -> NULL",
-            "strptime(\"-0\", \"%y\") -> NULL",
-            "strptime(\"+99\", \"%y\") -> NULL",
-            "strptime(\"20+5\", \"%C%y\") -> NULL",
-            "strptime(\"+5+3\", \"%C%y\") -> NULL",
-        ],
-        &["* -> +*"],
-        true,
-        "D-23.7 (s23_7_c_2): POSIX lets %y (and %C) take a leading + or -; glibc rejects any sign",
-    ),
-    (
         &["mktime 2024-11-03 01:30 isdst=-1 -> * isdst=0 *"],
         &["* isdst=1 off=-14400 zone=EDT"],
         true,

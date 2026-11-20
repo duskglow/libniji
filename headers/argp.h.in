@@ -1,0 +1,19 @@
+@@generated
+/* argp.h: hierarchical argument parsing (GNU C Library manual, Argp). */
+#ifndef __NIJI_H_argp_h
+#define __NIJI_H_argp_h 1
+
+#include <features.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <getopt.h>
+#include <limits.h>
+#include <errno.h>
+
+__NIJI_BEGIN_C
+
+@@emit
+
+__NIJI_END_C
+
+#endif

@@ -31,12 +31,13 @@
 //! Not here yet (plan §6): lazy binding (DL-20).
 
 use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
-use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_OBJS, START_ARGS, START_PAGE};
+use super::table::{Table, INLINE};
+use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_PAGE};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
-use core::sync::atomic::{AtomicU32, AtomicUsize};
+use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize};
 use niji_kernel::auxv::Auxv;
 use niji_kernel::uapi::{O_CLOEXEC, O_RDONLY, SEEK_END};
 use niji_ld::arch::{Arch, Native};
@@ -51,8 +52,15 @@ use niji_ld::{init, map, start};
 
 /// Objects the process can hold, the start-time ones included; one more is refused with a text.
 pub(super) const CAP: usize = 512;
-/// Objects one `dlopen` can add (the bound of `init::init_order`).
-const NEW_MAX: usize = init::OBJECTS_MAX;
+/// One `dlopen` adds any number of new objects (DL-DLOPEN-NEW-OBJECTS): its per-object tables
+/// ([`Binds`], [`Ctors`], the pass-2 marks, the dependency edges and the init walk, the new TLS
+/// modules) hold their first [`INLINE`] entries in place and spill to a mapping beyond that,
+/// reserved before anything is published; the only failure left is that mapping's,
+/// `<file>: cannot allocate memory`.
+const NO_MEMORY: &[u8] = b": cannot allocate memory";
+/// Dependency edges between one call's new objects held in place (a set of a few dozen objects
+/// has a few hundred).
+const EDGES_INLINE: usize = 256;
 /// Bytes of the path arena.
 const NAMES: usize = 128 * 1024;
 /// Entries of the dependency-list arena.
@@ -182,7 +190,7 @@ struct Uniq<'a> {
 /// per object it bound to.
 struct Binds {
     base: usize,
-    bits: [[u64; CAP / 64]; NEW_MAX],
+    bits: Table<[u64; CAP / 64], INLINE>,
 }
 
 impl Binds {
@@ -298,7 +306,8 @@ struct Loader {
     n_log: AtomicUsize,
     log: [u16; CAP],
     global: [usize; CAP],
-    nodes: [Node; CAP],
+    /// The link-map nodes, in [`NODES`] (DL-23): no bytes here.
+    nodes: Nodes,
     objs: [MaybeUninit<Obj<'static>>; CAP],
     syms: [MaybeUninit<Object<'static>>; CAP],
     deps: [u16; DEPS],
@@ -321,6 +330,103 @@ struct Loader {
 
 /// The loader's address (0: not made yet).
 static LOADER: AtomicUsize = AtomicUsize::new(0);
+
+/// Words of [`NODES`].
+const NODE_WORDS: usize = CAP * size_of::<Node>() / 8;
+const _: () = assert!(size_of::<Node>() % 8 == 0 && core::mem::align_of::<Node>() <= 64);
+
+/// Entries of `ld.so`'s table of thread-local modules ([`thread_mods_head`]) held before the nodes.
+pub(super) const MODS_HEAD: usize = 16;
+const _: () = assert!(MODS_HEAD * 5 * 8 % 64 == 0);
+
+/// The storage of every link-map node (DL-23): in `ld.so`'s own zero-filled data rather than in the
+/// loader's mapping, so the start fills the start-time objects' public `struct link_map` prefix
+/// ([`start_node`]) for the debugger rendezvous before any `dlopen`, and a node's address (an
+/// object's handle and link map) is the same from the start to the exit. Only the pages the start
+/// writes are touched (a node is under 200 bytes). The first [`MODS_HEAD`] entries of the
+/// thread-local module table come first: the build places this table first in `ld.so`'s `.lbss`,
+/// on the page the end of `.bss` already shares, so a start writes its first nodes and its first
+/// thread-local modules there, not on new pages.
+#[repr(C, align(64))]
+struct NodeSpace {
+    mods: [[AtomicU64; 5]; MODS_HEAD],
+    nodes: [AtomicU64; NODE_WORDS],
+}
+
+static NODES: NodeSpace = NodeSpace { mods: [const { [const { AtomicU64::new(0) }; 5] }; MODS_HEAD], nodes: [const { AtomicU64::new(0) }; NODE_WORDS] };
+
+/// Node 0's address (64-byte aligned); node `i` is `size_of::<Node>()` bytes further per index.
+fn nodes_base() -> usize {
+    core::ptr::from_ref(&NODES.nodes).expose_provenance()
+}
+
+/// The first [`MODS_HEAD`] entries of `ld.so`'s table of thread-local modules (`super::thread_mod`).
+pub(super) fn thread_mods_head() -> &'static [[AtomicU64; 5]; MODS_HEAD] {
+    &NODES.mods
+}
+
+/// The loader's view of [`NODES`]: a zero-sized field of [`Loader`] that dereferences to the nodes,
+/// so the `&mut Loader` holder (one at a time, under the lock) is their one writer, as when they
+/// were the loader's own bytes.
+struct Nodes;
+
+impl core::ops::Deref for Nodes {
+    type Target = [Node; CAP];
+    fn deref(&self) -> &[Node; CAP] {
+        // UNSAFE(slice): the link-map nodes in `ld.so`'s data.
+        #[allow(unsafe_code)]
+        // SAFETY: NODES.nodes is a zero-filled, 64-byte aligned array of CAP Nodes (all-zero is a valid
+        // Node; its words are atomics, writable through a shared reference). The only `Nodes` is the
+        // `Loader`'s, borrowed through the one live `&Loader`/`&mut Loader`; `start_node` writes
+        // before any `Loader` exists; readers read published fields by address.
+        unsafe { &*core::ptr::with_exposed_provenance::<[Node; CAP]>(nodes_base()) }
+    }
+}
+
+impl core::ops::DerefMut for Nodes {
+    fn deref_mut(&mut self) -> &mut [Node; CAP] {
+        // UNSAFE(slice): the link-map nodes in `ld.so`'s data, for their one writer.
+        #[allow(unsafe_code)]
+        // SAFETY: as in `deref`; `&mut self` is reached only through the one `&mut Loader`, so no
+        // other reference to the nodes is live (readers hold none: they read by address).
+        unsafe {
+            &mut *core::ptr::with_exposed_provenance_mut::<[Node; CAP]>(nodes_base())
+        }
+    }
+}
+
+/// The name the start gave start-time object `k`'s link map ([`start_node`]), 0 when it linked none.
+pub(super) fn start_name(k: usize) -> usize {
+    if k >= CAP {
+        return 0;
+    }
+    let at = nodes_base().wrapping_add(k.wrapping_mul(size_of::<Node>())).wrapping_add(core::mem::offset_of!(Node, l_name));
+    // UNSAFE(slice): one word of a start-time node in `ld.so`'s data.
+    #[allow(unsafe_code)]
+    // SAFETY: `k < CAP`: the word is inside NODES.nodes (aligned: a usize field of a Node). The start wrote
+    // it before any reader or `dlopen` ran, and nothing writes it again (`adopt_start` keeps a
+    // linked node's prefix; slots are reused only past the start-time objects).
+    unsafe { core::ptr::with_exposed_provenance::<usize>(at).read() }
+}
+
+/// The start's link map of start-time object `k` (DL-23; [`super::link`], before any `dlopen`, one
+/// thread): its public prefix, with `l_prev` = `prev` (the previous link map's address, 0 for the
+/// program's) and no `l_next` yet ([`link_next`]). `name` is a NUL-terminated string kept for the
+/// process's lifetime. The node's address, or 0 when `k` is past the nodes ([`CAP`]).
+pub(super) fn start_node(k: usize, l_addr: usize, name: usize, l_ld: usize, prev: usize) -> usize {
+    let mut nodes = Nodes;
+    let Some(node) = nodes.get_mut(k) else { return 0 };
+    (node.l_addr, node.l_name, node.l_ld, node.l_prev) = (l_addr, name, l_ld, prev);
+    node.l_next.store(0, Relaxed);
+    core::ptr::from_ref(&*node).expose_provenance()
+}
+
+/// Link `next` after start-time node `k` (DL-23, [`super::link`], one thread).
+pub(super) fn link_next(k: usize, next: usize) {
+    if let Some(p) = Nodes.get(k) {
+        p.l_next.store(next, Release);
+    }
+}
 
 /// A futex mutex re-entrant for its owner: `word` 0 free, 1 held, 2 held with waiters; the
 /// holder's thread pointer and depth are written by the holder only.
@@ -448,7 +554,7 @@ pub(super) fn read_section<R>(f: impl FnOnce(&View) -> R) -> Option<R> {
 impl View {
     /// Node `i`'s address (the handle and link map of object `i`).
     pub(super) fn node_addr(&self, i: usize) -> usize {
-        self.at.wrapping_add(core::mem::offset_of!(Loader, nodes)).wrapping_add(i.wrapping_mul(size_of::<Node>()))
+        nodes_base().wrapping_add(i.wrapping_mul(size_of::<Node>()))
     }
 
     /// A published, final field of node `i` (`off` from [`core::mem::offset_of`]).
@@ -463,14 +569,15 @@ impl View {
         unsafe { core::ptr::with_exposed_provenance::<T>(at).read() }
     }
 
-    /// The next published node after `i` (0: none).
+    /// The next published node after `i` (0: none); the vDSO's link map, which is no node, is
+    /// stepped over.
     fn next(&self, i: usize) -> usize {
         let at = self.node_addr(i).wrapping_add(core::mem::offset_of!(Node, l_next));
         // UNSAFE(slice): the atomic `l_next` word of a published node.
         #[allow(unsafe_code)]
         // SAFETY: as in `field`; an atomic may be read while the writer stores it.
         let next = unsafe { &*core::ptr::with_exposed_provenance::<AtomicUsize>(at) };
-        next.load(Acquire)
+        super::debug::past_vdso(next.load(Acquire))
     }
 
     /// The first published object, in chain order, for which `pred` holds.
@@ -583,7 +690,7 @@ pub(super) fn node_address(i: usize) -> usize {
     if at == 0 || i >= CAP {
         return 0;
     }
-    at.wrapping_add(core::mem::offset_of!(Loader, nodes)).wrapping_add(i.wrapping_mul(size_of::<Node>()))
+    nodes_base().wrapping_add(i.wrapping_mul(size_of::<Node>()))
 }
 
 /// The loader, made (with the start-time objects) at the first call. The caller holds the lock
@@ -684,25 +791,29 @@ fn range(o: &Obj<'_>) -> (usize, usize) {
 }
 
 /// Fill node `i` of `o`, not yet linked.
-fn describe(l: &mut Loader, i: usize, o: &Obj<'static>, name: usize, id: (u64, u64)) {
+fn describe(l: &mut Loader, i: usize, o: &Obj<'static>, name: usize, id: (u64, u64), prefix: bool) {
     let (lo, hi) = range(o);
     let dynv = o.elf.find(pt::DYNAMIC).map_or(0, |p| p.vaddr);
     let prev = if i == 0 { 0 } else { l.node_addr(i.wrapping_sub(1)) };
     if let Some(node) = l.nodes.get_mut(i) {
-        node.l_addr = usize::try_from(o.bias).unwrap_or(0);
-        node.l_name = name;
-        node.l_ld = usize::try_from(o.bias.wrapping_add(dynv)).unwrap_or(0);
-        node.l_next.store(0, Relaxed);
-        node.l_prev = prev;
+        // A start-time node the start linked (DL-23) keeps its public prefix: the chain a debugger
+        // or a program may be walking is never cut.
+        if prefix {
+            node.l_addr = usize::try_from(o.bias).unwrap_or(0);
+            node.l_name = name;
+            node.l_ld = usize::try_from(o.bias.wrapping_add(dynv)).unwrap_or(0);
+            node.l_next.store(0, Relaxed);
+            node.l_prev = prev;
+        }
         (node.dev, node.ino) = id;
         (node.lo, node.hi) = (lo, hi);
     }
 }
 
 /// Read the start-time objects again from their memory images ([`image_view`], as `link` did) and
-/// make them the first nodes, all global, never unloaded. `ld.so` itself joins (not global) when
+/// make them the first nodes, all global, never unloaded. `ld.so` itself joins (global, last) when
 /// no object named it at start. False when `link` did not run (no records).
-// Indices stay below CAP (checked) and OBJECTS_MAX (START_N's bound).
+// Indices stay below CAP (checked).
 #[allow(clippy::indexing_slicing)]
 fn adopt_start(l: &mut Loader) -> bool {
     let n = START_N.load(Acquire);
@@ -714,14 +825,14 @@ fn adopt_start(l: &mut Loader) -> bool {
     for k in 0..total {
         // The views are kept for the process's lifetime: they are the loader's copies.
         let mut views = [(0usize, 0usize); 3];
-        let w = START_OBJS.get(k).map_or([0; 5], |s| [0, 1, 2, 3, 4].map(|j| s[j].load(Relaxed)));
+        let w = super::start_obj(k);
         let o = if k == interp || k == n {
             interp = k;
             own_object(Native::INTERP.as_bytes(), &mut views)
         } else {
             let at = |v: u64| usize::try_from(v).unwrap_or(0);
             let prog = start::Program { phdr: at(w[0]), phnum: at(w[1]), entry: 0 };
-            let (head, view) = image_view(&prog, at(w[2]), b"", &mut views);
+            let (head, view) = image_view(&prog, at(w[2]), b"", &mut views, true);
             let Ok(elf) = Elf::from_image::<Native>(head, view) else { return false };
             let Ok(Some(dynm)) = elf.dynamic() else { return false };
             // Its static block, so a `dlopen`ed object's TLS relocation against one of its
@@ -731,22 +842,34 @@ fn adopt_start(l: &mut Loader) -> bool {
             o.name = if k == 0 { b"" } else { soname(&o).unwrap_or(b"") };
             o
         };
-        let Ok(s) = Object::new(o.dynm) else { return false };
+        let Ok(mut s) = Object::new(o.dynm) else { return false };
+        // The program's canonical PLT entries define their functions for later objects too.
+        if k == 0 {
+            s.mark_program();
+        }
         l.objs[k] = MaybeUninit::new(o);
         l.syms[k] = MaybeUninit::new(s);
-        // `l_name`: the program's is "", another object's its DT_SONAME (NUL-terminated in the
+        // `l_name` when the start linked none: the program's is "", another object's its DT_SONAME (NUL-terminated in the
         // string table the view holds).
-        let name = if k == 0 { c"".as_ptr().expose_provenance() } else { o.name.as_ptr().expose_provenance() };
+        // A node the start linked keeps its name (the path the start found the object by).
+        let linked = l.nodes[k].l_ld != 0;
+        let name = if linked {
+            l.nodes[k].l_name
+        } else if k == 0 {
+            c"".as_ptr().expose_provenance()
+        } else {
+            o.name.as_ptr().expose_provenance()
+        };
         let id = if k == interp { (u64::MAX, u64::MAX) } else { (w[3], w[4]) };
-        describe(l, k, &o, name, id);
+        describe(l, k, &o, name, id, !linked);
         l.nodes[k].nodelete = true;
-        // At start every object was in the global scope; an `ld.so` that joins now is not.
-        if k < n {
-            l.nodes[k].global = true;
-            l.global[l.n_global] = k;
-            l.n_global = l.n_global.saturating_add(1);
-        }
-        if k > 0 {
+        // At start every object was in the global scope. An `ld.so` that joins now joins it last,
+        // where the C library naming it would put it (D-27.65), so `dlsym`'s
+        // `RTLD_DEFAULT`/`RTLD_NEXT` find its exports (`_dl_get_tls_static_info`, `__tls_get_addr`).
+        l.nodes[k].global = true;
+        l.global[l.n_global] = k;
+        l.n_global = l.n_global.saturating_add(1);
+        if k > 0 && !linked {
             let me = l.node_addr(k);
             l.nodes[k.wrapping_sub(1)].l_next.store(me, Relaxed);
         }
@@ -760,12 +883,12 @@ fn adopt_start(l: &mut Loader) -> bool {
 /// The start's static TLS placement of each start-time object, computed again from the same
 /// segments in the same order as `link` placed them (`ltls::layout` is deterministic), so `dlsym` of
 /// an `STT_TLS` symbol finds the calling thread's block (plan §2).
-#[allow(clippy::indexing_slicing)] // n < CAP <= OBJECTS_MAX bounds (START_N's bound)
+#[allow(clippy::indexing_slicing)] // both tables hold n entries (reserved)
 fn adopt_tls(l: &mut Loader, n: usize, interp: usize) -> bool {
-    let mut mods: [Option<Module>; init::OBJECTS_MAX] = [None; init::OBJECTS_MAX];
-    let mut placed: [Option<Placed>; init::OBJECTS_MAX] = [None; init::OBJECTS_MAX];
+    let mut mods: Table<Option<Module>, INLINE> = Table::new(None);
+    let mut placed: Table<Option<Placed>, INLINE> = Table::new(None);
     let Some(objs) = l.objs_upto(n).get(..n) else { return false };
-    if n > mods.len() {
+    if mods.reserve(n).is_err() || placed.reserve(n).is_err() {
         return false;
     }
     for (k, o) in objs.iter().enumerate() {
@@ -834,17 +957,20 @@ fn start_arg(i: usize) -> usize {
 
 /// The constructors of one call's new set, in order, run after the loader borrow ends.
 struct Ctors {
-    calls: [(u64, u64, u64); NEW_MAX],
-    len: usize,
+    calls: Table<(u64, u64, u64), INLINE>,
 }
 
 impl Ctors {
-    const NONE: Ctors = Ctors { calls: [(0, 0, 0); NEW_MAX], len: 0 };
+    /// No constructors (nothing written, nothing mapped).
+    #[inline(always)]
+    fn none() -> Ctors {
+        Ctors { calls: Table::new((0, 0, 0)) }
+    }
 
     /// Run each object's `DT_INIT` then `DT_INIT_ARRAY` with the initial `(argc, argv, envp)`.
     fn run(&self) {
         let [a, b, c] = [0, 1, 2].map(|i| i64::from_ne_bytes(u64::try_from(start_arg(i)).unwrap_or(0).to_ne_bytes()));
-        for &(f, addr, len) in self.calls.get(..self.len).unwrap_or(&[]) {
+        for &(f, addr, len) in self.calls.iter() {
             for f in init::init_calls(f, array_words(init::Array { addr, len })) {
                 let _ = crate::ffi::niji_machine_call3(usize::try_from(f).unwrap_or(0), a, b, c);
             }
@@ -1190,7 +1316,7 @@ fn close_end(f: &Finis) {
         }
     }
     let keep = live_set(l, &set);
-    let mut tls = super::NewTls::NONE;
+    let mut tls = super::NewTls::none();
     let mut generation = super::tls_generation();
     let mut out = [0u16; CAP];
     let mut n_out = 0usize;
@@ -1202,12 +1328,20 @@ fn close_end(f: &Finis) {
         if keep.get(j).copied().unwrap_or(true) {
             continue;
         }
+        if n_out == 0 {
+            super::debug::change(niji_ld::debug::State::Delete);
+        }
         if let Some(id) = unload(l, j) {
-            generation = l.ids.release(id, generation);
-            if let Some(m) = tls.mods.get_mut(tls.len) {
-                m[3] = id;
-                tls.len = tls.len.saturating_add(1);
+            // Words other than the ID are not read for a release. A batch the table cannot grow
+            // for is released at once, as a `dlclose` of its own would (the storage it filled is
+            // kept, so the next push has room): any number of modules goes, with no memory.
+            let m = [0, 0, 0, id, 0];
+            if tls.mods.push(m).is_err() {
+                super::release_tls(thread_walk(l), &mut tls, generation);
+                tls.mods.clear();
+                let _ = tls.mods.push(m);
             }
+            generation = l.ids.release(id, generation);
         }
         if let Some(o) = out.get_mut(n_out) {
             *o = u16::try_from(j).unwrap_or(0);
@@ -1217,6 +1351,7 @@ fn close_end(f: &Finis) {
     if n_out == 0 {
         return;
     }
+    super::debug::change(niji_ld::debug::State::Consistent);
     // A survivor relocated with an unloaded root's scope now searches its own (`dlsym`'s
     // `RTLD_DEFAULT`/`RTLD_NEXT`).
     for i in l.n_start..l.n {
@@ -1227,7 +1362,7 @@ fn close_end(f: &Finis) {
             }
         }
     }
-    if tls.len > 0 {
+    if !tls.mods.is_empty() {
         super::release_tls(thread_walk(l), &mut tls, generation);
     }
     for &j in out.get(..n_out).unwrap_or(&[]) {
@@ -1534,7 +1669,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         close();
         return refused(l, Refusal::TooShort);
     };
-    let Ok(at) = raw::mmap(0, len, map::PROT_READ, MAP_PRIVATE_I32, fd32, 0) else {
+    let Ok(at) = super::map_view(fd32, len) else {
         close();
         return Some(Found::Full(b"cannot read file data"));
     };
@@ -1548,8 +1683,20 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         let _ = raw::munmap(at, len);
         close();
     };
+    // COMPAT-19: an object asking for an executable stack, accepted under the start-time tunable.
+    let mut exec_stack = false;
     let elf = match dl::check::<Native>(file, page) {
         Ok(e) => e,
+        Err(Refusal::ExecutableStack) if exec_stack_accepted() => match dl::check_accepting_exec_stack::<Native>(file, page) {
+            Ok(e) => {
+                exec_stack = true;
+                e
+            }
+            Err(r) => {
+                drop_file();
+                return refused(l, r);
+            }
+        },
         Err(r) if r.skipped(searched) => {
             drop_file();
             return None;
@@ -1572,7 +1719,11 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
         drop_file();
         return Some(Found::Full(b"cannot load more objects"));
     }
-    let loaded = map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page);
+    let loaded = if exec_stack {
+        map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd: fd32 }, file, page)
+    } else {
+        map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page)
+    };
     close();
     let loaded = match loaded {
         Ok(x) => x,
@@ -1581,6 +1732,12 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
             return refused(l, dl::of_map_error(e));
         }
     };
+    if exec_stack {
+        // Before the object's relocation and constructors, which may need the executable stack;
+        // kept if the set later fails (the reference's stacks stay executable too).
+        super::exec_main_stack(start_arg(3), START_PAGE.load(Relaxed));
+        call_stack_exec(l);
+    }
     let Ok(sym) = Object::new(dynm) else {
         loaded.unmap(&mut SysMapper { fd: -1 });
         let _ = raw::munmap(at, len);
@@ -1598,7 +1755,7 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
     l.objs[k] = MaybeUninit::new(o);
     l.syms[k] = MaybeUninit::new(sym);
     let name = l.names.as_ptr().expose_provenance().wrapping_add(usize::try_from(span.0).unwrap_or(0));
-    describe(l, k, &o, name, (st.dev, st.ino));
+    describe(l, k, &o, name, (st.dev, st.ino), true);
     let node = &mut l.nodes[k];
     node.path = span;
     node.deps = (0, 0);
@@ -1652,18 +1809,18 @@ fn open_locked(file: usize, mode: i32, caller: usize) -> (usize, Ctors) {
             } else {
                 dlerr::set(&[e.text()]);
             }
-            return (0, Ctors::NONE);
+            return (0, Ctors::none());
         }
     };
     let Some(l) = loader() else {
         dlerr::set(&[given, b": cannot set up the dynamic loader's state"]);
-        return (0, Ctors::NONE);
+        return (0, Ctors::none());
     };
     reclaim(l);
     if given.is_empty() {
         reopen(l, 0, m);
         dlerr::clear();
-        return (l.node_addr(0), Ctors::NONE);
+        return (l.node_addr(0), Ctors::none());
     }
     match load_set(l, given, m, caller) {
         // Also an `RTLD_NOLOAD` miss (handle 0): it clears the pending text (tools/probe/dl/gaps).
@@ -1671,7 +1828,7 @@ fn open_locked(file: usize, mode: i32, caller: usize) -> (usize, Ctors) {
             dlerr::clear();
             (h, ctors)
         }
-        Err(Fail) => (0, Ctors::NONE),
+        Err(Fail) => (0, Ctors::none()),
     }
 }
 
@@ -1770,7 +1927,7 @@ fn pin_unique(l: &mut Loader, from: usize) {
 
 /// Give each new object (`base..k`) with `PT_TLS` a module ID and a place in the static surplus
 /// (DL-16d, plan/ph14/dl-16-dlopen.md §5), recorded in its `Obj` for relocation and in `new` for
-/// [`super::publish_tls`]; `new.len` stays 0 for a set without TLS. Nothing is written to any
+/// [`super::publish_tls`]; `new.mods` stays empty for a set without TLS. Nothing is written to any
 /// thread yet. A block that has no place fails with `<path>: cannot allocate memory in static TLS
 /// block` (dynamic blocks are DL-19's), as does a C library without the thread walk.
 fn place_tls(l: &mut Loader, base: usize, k: usize, new: &mut super::NewTls) -> Result<(), Fail> {
@@ -1788,12 +1945,15 @@ fn place_tls(l: &mut Loader, base: usize, k: usize, new: &mut super::NewTls) -> 
         }
         let (floor, max) = super::module_room();
         let Some(off) = l.surplus.place::<Native>(lo, hi, tp_align, &m) else { return Err(refused(l)) };
-        let (Some(id), Some(slot)) = (l.ids.take(floor, max), new.mods.get_mut(new.len)) else {
+        let Some(id) = l.ids.take(floor, max) else {
             let _ = l.surplus.free(off);
             return Err(refused(l));
         };
-        *slot = [o.bias.wrapping_add(m.vaddr), m.filesz, m.memsz, id, u64::from_ne_bytes(off.to_ne_bytes())];
-        new.len = new.len.wrapping_add(1);
+        if new.mods.push([o.bias.wrapping_add(m.vaddr), m.filesz, m.memsz, id, u64::from_ne_bytes(off.to_ne_bytes())]).is_err() {
+            l.ids.put_back(id);
+            let _ = l.surplus.free(off);
+            return Err(fail_parts(&[l_path_static(l, i), NO_MEMORY]));
+        }
         o.tls = Some(Placed { module: id, tp_offset: off });
         if let Some(s) = l.objs.get_mut(i) {
             *s = MaybeUninit::new(o);
@@ -1812,6 +1972,47 @@ fn thread_walk(l: &mut Loader) -> usize {
         l.thread_walk = found.and_then(|a| usize::try_from(a).ok()).unwrap_or(0);
     }
     l.thread_walk
+}
+
+/// COMPAT-19: whether the start-time `GLIBC_TUNABLES` (the environment and auxiliary vector the
+/// process started with, as the search reads them) set `niji.compat.execstack=1`; never in a
+/// secure process. Reached only for an object asking for an executable stack.
+#[cold]
+#[inline(never)]
+fn exec_stack_accepted() -> bool {
+    let (envp, auxv) = (start_arg(2), start_arg(3));
+    let mut copy = [0u64; AUXV_WORDS_MAX];
+    let words = if auxv == 0 { 0 } else { read_auxv(auxv, &mut copy).unwrap_or(0) };
+    let secure = start::secure(&Auxv::from_words(copy.get(..words).unwrap_or(&[])));
+    start::ld_env(env_entries(envp)).tunables.is_some_and(|t| niji::config::Tunables::parse(t, secure).exec_stack == Some(true))
+}
+
+/// COMPAT-19: call the C library's `__niji_stack_exec` (a start object's, at `NIJI_PRIVATE`) once
+/// an object asking for an executable stack is accepted; nothing when no start object has it.
+#[cold]
+#[inline(never)]
+fn call_stack_exec(l: &Loader) {
+    let req = Request::new(start::private::STACK_EXEC, Want::Version(start::private::NODE));
+    let n = START_N.load(Acquire).min(l.n);
+    let found = l.objs_upto(n).iter().zip(syms_of(&l.syms, n)).find_map(|(o, s)| s.lookup(&req).ok().flatten().map(|d| o.bias.wrapping_add(d.st.value)));
+    if let Some(f) = found.and_then(|a| usize::try_from(a).ok()) {
+        let _ = crate::ffi::niji_machine_call3(f, 0, 0, 0);
+    }
+}
+
+/// COMPAT-19 at start: the program or a start-up dependency asking for an executable stack was
+/// accepted; after the C library's early initialisation and before any constructor, its later
+/// thread stacks are made executable (the loader made the main stack executable).
+#[cold]
+#[inline(never)]
+pub(super) fn stacks_executable_at_start() {
+    CALL.lock();
+    STATE.lock();
+    if let Some(l) = loader() {
+        call_stack_exec(l);
+    }
+    STATE.unlock();
+    CALL.unlock();
 }
 
 /// The C library's `__niji_owner_unload` (a start object's, at `NIJI_PRIVATE`; D-27.29),
@@ -1842,7 +2043,7 @@ fn found_text<'a>(l: &'a Loader, name: &'a [u8], f: Found, out: &'a mut [&'a [u8
 }
 
 /// Load `given` and the objects it needs as one new set, or re-open it (module documentation).
-// Indices below CAP and NEW_MAX are checked before each store.
+// Indices below CAP are checked before each store; the per-object tables hold `k - base` entries.
 #[allow(clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::too_many_lines)]
 fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Result<(usize, Ctors), Fail> {
     let page = START_PAGE.load(Relaxed);
@@ -1859,19 +2060,19 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
     match root {
         Found::Loaded(i) => {
             reopen(l, i, m);
-            return Ok((l.node_addr(i), Ctors::NONE));
+            return Ok((l.node_addr(i), Ctors::none()));
         }
-        Found::Missing if m.noload => return Ok((0, Ctors::NONE)),
+        Found::Missing if m.noload => return Ok((0, Ctors::none())),
         Found::New(_) => k += 1,
         f => {
-            let t = fail_text(l, given, f);
+            let t = fail_text(l, given, f, who);
             unwind(l, base, base, names_top, deps_top);
             return Err(t);
         }
     }
     // Breadth-first over the new objects' DT_NEEDED (each the requester of its own).
-    let mut edges = [(0u8, 0u8); 1024];
-    let mut ne = 0usize;
+    // Indices relative to `base`, below `CAP`.
+    let mut edges: Table<(u16, u16), EDGES_INLINE> = Table::new((0, 0));
     let mut q = base;
     while q < k {
         let o = l.objs_upto(k)[q];
@@ -1900,26 +2101,34 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
                     return Err(t);
                 }
                 f => {
-                    let t = fail_text(l, needed, f);
+                    let t = fail_text(l, needed, f, who);
                     unwind(l, base, k, names_top, deps_top);
                     return Err(t);
                 }
             };
-            if k - base > NEW_MAX || l.deps_top >= DEPS || ne == edges.len() {
+            if l.deps_top >= DEPS {
                 let t = fail_parts(&[given, b": cannot load more objects in one call"]);
+                unwind(l, base, k, names_top, deps_top);
+                return Err(t);
+            }
+            if j >= base && edges.push((u16::try_from(q - base).unwrap_or(0), u16::try_from(j - base).unwrap_or(0))).is_err() {
+                let t = fail_parts(&[given, NO_MEMORY]);
                 unwind(l, base, k, names_top, deps_top);
                 return Err(t);
             }
             l.deps[l.deps_top] = u16::try_from(j).unwrap_or(0);
             l.deps_top += 1;
-            if j >= base {
-                edges[ne] = (u8::try_from(q - base).unwrap_or(0), u8::try_from(j - base).unwrap_or(0));
-                ne += 1;
-            }
         }
         l.nodes[q].deps = (u32::try_from(dep_start).unwrap_or(0), u32::try_from(l.deps_top - dep_start).unwrap_or(0));
         q += 1;
     }
+    // The set's per-object tables, sized now, while the attempt can still be unwound: from here on
+    // only a relocation, version or TLS failure can stop it.
+    let Some(mut set_tables) = SetTables::new(base, k - base) else {
+        let t = fail_parts(&[given, NO_MEMORY]);
+        unwind(l, base, k, names_top, deps_top);
+        return Err(t);
+    };
     // Versions, then pass 1 over the whole set: no foreign code yet.
     if let Err(e) = reloc::check_versions_live(l.objs_upto(k), |j| !l.gone(j)) {
         let t = version_text(l, k, e);
@@ -1927,7 +2136,7 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         return Err(t);
     }
     // Static TLS places before relocation (its TPOFF / DTPMOD values need them, DL-16d).
-    let mut new_tls = super::NewTls::NONE;
+    let mut new_tls = super::NewTls::none();
     if let Err(t) = place_tls(l, base, k, &mut new_tls) {
         unwind(l, base, k, names_top, deps_top);
         return Err(t);
@@ -1959,9 +2168,8 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
     let start = &l.global[..l.n_start_global];
     let (objs, syms) = (objs_of(&l.objs, k), syms_of(&l.syms, k));
     let set = Objects { objs, syms, global: &scope[..sn] };
-    let mut binds = Binds { base, bits: [[0; CAP / 64]; NEW_MAX] };
-    let mut unique = Uniq { table: &mut l.unique, syms, start, binds: Some(&mut binds) };
-    let mut deferred = [false; NEW_MAX];
+    let SetTables { binds, deferred, order, work, ctors } = &mut set_tables;
+    let mut unique = Uniq { table: &mut l.unique, syms, start, binds: Some(binds) };
     for i in (base..k).rev() {
         match reloc::relocate_first::<Native, _>(&set, i, &mut ProcImage, page, &mut unique) {
             Ok(d) => deferred[i - base] = d,
@@ -1980,20 +2188,26 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
             return Err(t);
         }
     }
+    // Each new dynamic array's address entries as run-time addresses, before any reader or
+    // constructor sees the object (DL-DYNAMIC-RELOC).
+    for o in &objs[base..k] {
+        reloc::publish_dynamic(o, &mut ProcImage);
+    }
     if let Err(i) = reloc::protect_relro(&objs[base..k], &mut ProcImage, page) {
         let t = fail_parts(&[l_path_static(l, base + i), b": cannot apply additional memory protection after relocation"]);
         unwind(l, base, k, names_top, deps_top);
         return Err(t);
     }
-    record_binds(l, base, k, &binds);
+    record_binds(l, base, k, binds);
     // Every thread gets the new modules' blocks, and later threads the table, before any code
     // can reach them (DL-16d; nothing below fails).
-    if new_tls.len > 0 {
+    if !new_tls.mods.is_empty() {
         super::publish_tls(l.thread_walk, &mut new_tls);
     }
     // Publication, after pass 2 and before the constructors (plan §4): one Release store links the
     // whole new set into the chain, one makes it visible to the readers (`dl_iterate_phdr`,
-    // `_dl_find_object`) with `dlpi_adds`.
+    // `_dl_find_object`) with `dlpi_adds`. The debugger rendezvous announces it around the change.
+    super::debug::change(niji_ld::debug::State::Add);
     for i in base..k {
         let next = if i + 1 < k { l.node_addr(i + 1) } else { 0 };
         l.nodes[i].l_next.store(next, Relaxed);
@@ -2005,6 +2219,7 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
     l.nodes[base].l_prev = l.node_addr(tail);
     l.nodes[tail].l_next.store(first, Release);
     super::readers::publish(base, k);
+    super::debug::change(niji_ld::debug::State::Consistent);
     l.nodes[base].opens = 1;
     l.nodes[base].nodelete |= m.nodelete;
     pin_unique(l, l.unique_mark);
@@ -2012,23 +2227,46 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
         make_global(l, &local[..llen]);
     }
     // Constructors of the new set, dependencies first (D-27.19).
-    let mut order = [0u8; init::OBJECTS_MAX];
-    let len = init::init_order(k - base, &edges[..ne], &mut order).unwrap_or(0);
-    let mut ctors = Ctors::NONE;
+    let len = init::init_order(k - base, &edges, order, work).unwrap_or(0);
     for &j in &order[..len] {
-        let i = base + usize::from(j);
+        let i = base + j;
         let o = l.objs_upto(k)[i];
         let h = init::hooks(&o.dynm, o.bias, false);
         l.nodes[i].fini = [h.fini_array.addr, h.fini_array.len, h.fini];
-        ctors.calls[ctors.len] = (h.init, h.init_array.addr, h.init_array.len);
-        ctors.len += 1;
+        // Never fails: `SetTables::new` gave the table room for every new object.
+        let _ = ctors.calls.push((h.init, h.init_array.addr, h.init_array.len));
         let n = l.n_log.load(Relaxed);
         if n < CAP {
             l.log[n] = u16::try_from(i).unwrap_or(0);
             l.n_log.store(n + 1, Release);
         }
     }
-    Ok((l.node_addr(base), ctors))
+    Ok((l.node_addr(base), set_tables.ctors))
+}
+
+/// One `dlopen`'s tables with an entry per new object (index - `base`), all sized before the set
+/// is relocated: the bindings its relocations make, its pass-2 marks, its init walk and its
+/// constructors (filled in init order).
+struct SetTables {
+    binds: Binds,
+    deferred: Table<bool, INLINE>,
+    order: Table<usize, INLINE>,
+    work: Table<init::Walk, INLINE>,
+    ctors: Ctors,
+}
+
+impl SetTables {
+    /// The tables for `n` new objects from index `base`; `None` when one cannot grow to `n`.
+    fn new(base: usize, n: usize) -> Option<Self> {
+        let mut s = SetTables { binds: Binds { base, bits: Table::new([0; CAP / 64]) }, deferred: Table::new(false), order: Table::new(0), work: Table::new(init::Walk::default()), ctors: Ctors::none() };
+        s.binds.bits.reserve(n).ok()?;
+        s.deferred.reserve(n).ok()?;
+        s.order.reserve(n).ok()?;
+        s.work.reserve(n).ok()?;
+        s.ctors.calls.reserve(n).ok()?;
+        s.ctors.calls.clear();
+        Some(s)
+    }
 }
 
 /// Set the calling thread's dlerror text to `parts` (copied at once into its record).
@@ -2049,7 +2287,17 @@ fn l_path_static(l: &Loader, i: usize) -> &'static [u8] {
     }
 }
 
-fn fail_text(l: &Loader, name: &[u8], f: Found) -> Fail {
+fn fail_text(l: &Loader, name: &[u8], f: Found, who: usize) -> Fail {
+    if let Found::Refused(Refusal::ExecutableStack, (a, b)) = f {
+        // COMPAT-19 (ruling of 2026-11-20): the object, the `dlopen` caller and the ways in.
+        let a = usize::try_from(a).unwrap_or(0);
+        let p = l.names.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(name);
+        // The program's own entry has an empty path: name it by `argv[0]`.
+        let from = l_path_static(l, who);
+        let argv0 = || Some(start_arg(1)).filter(|&v| v != 0).and_then(|v| usize::try_from(super::stack_word(v)).ok()).filter(|&a| a != 0).map_or(&b"the program"[..], c_string);
+        let from = if from.is_empty() { argv0() } else { from };
+        return fail_parts(&[p, b": ", Refusal::ExecutableStack.text(), b" (dlopen called from ", from, b"); ", dl::EXEC_STACK_WAYS]);
+    }
     let mut out: [&[u8]; 3] = [b"", b"", b""];
     let parts = found_text(l, name, f, &mut out);
     fail_parts(parts)
@@ -2074,6 +2322,10 @@ fn reloc_text(l: &Loader, i: usize, e: RelocError<'_>) -> Fail {
     let who = l_path_static(l, i);
     match e {
         RelocError::Undefined(sym) => fail_parts(&[who, b": undefined symbol: ", sym]),
+        RelocError::IndirectExternAccess(sym) => {
+            let msg = e.message();
+            fail_parts(&[who, b": ", msg, sym])
+        }
         e => {
             let msg = e.message();
             fail_parts(&[who, b": ", msg.strip_suffix(b"\n").unwrap_or(msg)])

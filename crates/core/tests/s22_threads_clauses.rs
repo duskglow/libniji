@@ -207,7 +207,8 @@ fn s22_3_c_3() {
 /// §22.3 Contract: **Acting on cancellation** runs the cleanup handlers in LIFO order and TLS destructors. In C++, it unwinds the stack with a forced unwind (`abi::__forced_unwind`). The thread then exits with `PTHREAD_
 #[test]
 fn s22_3_c_4() {
-    // C cleanup handlers and TLS destructors; the C++ forced unwind (libgcc_s through dlopen) is interim until phase 14 (D-22.11).
+    // C cleanup handlers and TLS destructors in a static program; the C++ forced unwind of a
+    // dynamic program is tests/forced_unwind_products.rs (D-22.19).
     conformance(&["s22_cancel"]);
 }
 /// §22.3 Guarantees: If a cancellation point is cancelled *before* the underlying syscall had a side effect, the side effect did not happen. For `close`, the descriptor is still closed (⚑ KERN). For `read`/`write` cancell
@@ -367,7 +368,7 @@ fn s22_7_c_4() {
 /// §22.7 Contract: **Named semaphores** (`sem_open(name, O_CREAT|O_EXCL, mode, value)`) are files in `/dev/shm` named `sem.<name>`. Opening the same name twice in one process returns the same address.
 #[test]
 fn s22_7_c_5() {
-    conformance(&["s22_sync"]);
+    conformance(&["s22_sync", "s22_sem_named_many"]);
 }
 /// §22.7 Failure: Returns -1 with `errno`: `EAGAIN` (trywait), `ETIMEDOUT`, `EINTR`, `EINVAL`, `EOVERFLOW` (`SEM_VALUE_MAX` = `INT_MAX`), `ENOENT`, `EEXIST`, `EACCES`.
 #[test]

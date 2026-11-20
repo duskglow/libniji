@@ -134,14 +134,43 @@ stdin=/dev/null trace tool en_US.UTF-8 ./page_faults tool
 # these add only what no earlier probe ran (tier fork for the child, extra for the rest).
 stdin=/dev/null follow=child trace fork en_US.UTF-8 ./page_faults fork
 for m in strings float mktime rebind; do stdin=/dev/null trace extra en_US.UTF-8 ./page_faults "$m"; done
+# TRACE-TIME-PIN: the trace follows the virtual clock (trace_gdb.py), never how long the trace took. The
+# mktime mode again, its tracer sleeping 2 s at every time read (HOT_TEXT_SLOW), past the library's
+# one-second file-check interval: a time source the tracer does not answer then runs the zone file's
+# check in this trace only, and the two traces differ (checked after traces_done).
+run_traced "$work/slow.names" "$work/gdb.slow.log" HOT_TEXT_SLOW=2 LANG=en_US.UTF-8 HOT_TEXT_STDIN=/dev/null HOT_TEXT_FOLLOW_FORK= -- ./page_faults mktime
 # STARTUP-TEXT-WINDOWS (D-X.49): the functions `page_faults true` runs (the probe whose start-up faults
 # crates/core/tests/hot_text_products.rs bounds, linked as that test links it), first-touch order, into
 # $L/startup-text.keys; the layout check of layout/contracts.tsv counts their 64 KiB windows.
 run_traced "$work/startup.names" "$work/gdb.startup.log" LANG=C HOT_TEXT_STDIN="$work/in.txt" HOT_TEXT_FOLLOW_FORK= -- ./page_faults true
+# TRACE-NUMA-PIN: the trace follows the virtual NUMA topology (trace_gdb.py), never the build host's. The
+# start-up trace again (its first heap slow path asks the node count), the tracer simulating a host that
+# allows one node (HOT_TEXT_HOST_NODES): a node count the tracer does not answer then turns the heap's
+# node reads off in this trace only, and the two traces differ (checked after traces_done).
+run_traced "$work/numa1.names" "$work/gdb.numa1.log" HOT_TEXT_HOST_NODES=1 LANG=C HOT_TEXT_STDIN="$work/in.txt" HOT_TEXT_FOLLOW_FORK= -- ./page_faults true
 # D-X.62: the probe-text modes, traced with the others (probe_text.sh merges them below).
 probe_text_trace() { local rc=0; bash "$here/probe_text.sh" "$T" --products "$P" --trace-only "$work/probe" > "$work/probe.log" 2>&1 || rc=$?; echo $rc > "$work/probe.log.rc"; }
 probe_text_trace &
 traces_done
+mk=$(sed -n 's/^mktime=//p' "$work/modes")
+if ! cmp -s "$mk" "$work/slow.names"; then
+    echo "regen: page_faults mktime traced with 2 s between time reads differs from its trace (a time source trace_gdb.py's virtual clock does not answer):" \
+         "$(diff "$mk" "$work/slow.names" | grep '^[<>]' | tr '\n' ' ')" >&2
+    exit 1
+fi
+echo "regen: page_faults mktime traced with 2 s between time reads: the same trace"
+if ! cmp -s "$work/startup.names" "$work/numa1.names"; then
+    echo "regen: page_faults true traced on a simulated 1-node host differs from its trace (a NUMA topology trace_gdb.py's virtual topology does not answer):" \
+         "$(diff "$work/startup.names" "$work/numa1.names" | grep '^[<>]' | tr '\n' ' ')" >&2
+    exit 1
+fi
+echo "regen: page_faults true traced on a simulated 1-node host: the same trace"
+# The comparison above sees a host's node count only where it differs from the simulated one; this sees the
+# library asking the node count past the tracer's answer (another entry, another call) on any host.
+if ! grep -Eq '^trace_gdb: node count answered [1-9][0-9]* times, node read [1-9]' "$work/gdb.startup.log"; then
+    echo "regen: page_faults true asked no node count or node read trace_gdb.py's virtual topology answered (get_mempolicy at niji_sys_syscall, <KernelPages as Pages>::shard): $(grep -m1 '^trace_gdb: node count' "$work/gdb.startup.log")" >&2
+    exit 1
+fi
 # LAYOUT-TRACE-AT-BUILD-2: the trace set covers every mode hot_text_products.rs measures, which is every
 # mode of page_faults.c (its init_startup_data_accesses_are_in_the_data1_cluster checks that, parsing the
 # source the same way; `true` is the default mode, selected by no strcmp): a mode with no trace above

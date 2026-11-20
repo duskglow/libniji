@@ -1,0 +1,21 @@
+@@generated
+/* syslog.h: system logging (XSH <syslog.h>). */
+#ifndef __NIJI_H_syslog_h
+#define __NIJI_H_syslog_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@owns LOG_MASK LOG_UPTO
+@@emit
+
+/* syslog(3): the mask of one priority, and of all priorities up to one. */
+@@when LOG_MASK
+# define LOG_MASK(pri) (1 << (pri))
+# define LOG_UPTO(pri) ((1 << ((pri) + 1)) - 1)
+#endif
+
+__NIJI_END_C
+
+#endif

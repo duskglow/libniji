@@ -117,6 +117,7 @@ ALTMON_9	langinfo.h	int	131191
 ALT_DIGITS	langinfo.h	int	131119
 AM_STR	langinfo.h	int	131110
 ARCDENSITY	sys/gmon.h	int	3
+AREGTYPE	tar.h	int	0
 ARGP_ERR_UNKNOWN	argp.h	int	7
 ARGP_HELP_BUG_ADDR	argp.h	int	64
 ARGP_HELP_DOC	argp.h	int	48
@@ -343,6 +344,7 @@ BLKRRPART	sys/mount.h	unsigned int	4703
 BLKSECTGET	sys/mount.h	unsigned int	4711
 BLKSECTSET	sys/mount.h	unsigned int	4710
 BLKSSZGET	sys/mount.h	unsigned int	4712
+BLKTYPE	tar.h	int	52
 BLOCK_SIZE	sys/mount.h	int	1024
 BLOCK_SIZE_BITS	sys/mount.h	int	10
 BOOL_MAX	argp.h	int	1
@@ -378,6 +380,7 @@ CHAR_BIT	argp.h	int	8
 CHAR_MAX	argp.h	int	127
 CHAR_MIN	argp.h	int	-128
 CHAR_WIDTH	argp.h	int	8
+CHRTYPE	tar.h	int	51
 CIBAUD	pty.h	int	269418496
 CINTR	net/if_ppp.h	int	3
 CKILL	net/if_ppp.h	int	21
@@ -432,6 +435,7 @@ CMIN	net/if_ppp.h	int	1
 CMSPAR	pty.h	int	1073741824
 CODESET	langinfo.h	int	14
 COLL_WEIGHTS_MAX	argp.h	int	255
+CONTTYPE	tar.h	int	55
 CPU_SETSIZE	pthread.h	int	1024
 CQUIT	net/if_ppp.h	int	28
 CR0	pty.h	int	0
@@ -444,6 +448,7 @@ CREPRINT	net/if_ppp.h	int	18
 CRNCYSTR	langinfo.h	int	262159
 CRPRNT	net/if_ppp.h	int	18
 CRTSCTS	pty.h	unsigned int	2147483648
+CS	sys/reg.h	int	17
 CS5	pty.h	int	0
 CS6	pty.h	int	16
 CS7	pty.h	int	32
@@ -462,6 +467,26 @@ C_ANY	arpa/nameser.h	int	255
 C_CHAOS	arpa/nameser.h	int	3
 C_HS	arpa/nameser.h	int	4
 C_IN	arpa/nameser.h	int	1
+C_IRGRP	cpio.h	int	32
+C_IROTH	cpio.h	int	4
+C_IRUSR	cpio.h	int	256
+C_ISBLK	cpio.h	int	24576
+C_ISCHR	cpio.h	int	8192
+C_ISCTG	cpio.h	int	36864
+C_ISDIR	cpio.h	int	16384
+C_ISFIFO	cpio.h	int	4096
+C_ISGID	cpio.h	int	1024
+C_ISLNK	cpio.h	int	40960
+C_ISREG	cpio.h	int	32768
+C_ISSOCK	cpio.h	int	49152
+C_ISUID	cpio.h	int	2048
+C_ISVTX	cpio.h	int	512
+C_IWGRP	cpio.h	int	16
+C_IWOTH	cpio.h	int	2
+C_IWUSR	cpio.h	int	128
+C_IXGRP	cpio.h	int	8
+C_IXOTH	cpio.h	int	1
+C_IXUSR	cpio.h	int	64
 C_NONE	arpa/nameser.h	int	254
 DATA	arpa/tftp.h	int	3
 DAY_1	langinfo.h	int	131079
@@ -515,6 +540,8 @@ DF_P1_LAZYLOAD	elf.h	int	1
 DF_STATIC_TLS	elf.h	int	16
 DF_SYMBOLIC	elf.h	int	2
 DF_TEXTREL	elf.h	int	4
+DIRTYPE	tar.h	int	53
+DLFO_EH_SEGMENT_TYPE	link.h	int	1685382480
 DLFO_STRUCT_HAS_EH_COUNT	dlfcn.h	int	0
 DLFO_STRUCT_HAS_EH_DBASE	dlfcn.h	int	0
 DN_ACCESS	fcntl.h	int	1
@@ -526,6 +553,33 @@ DN_MULTISHOT	fcntl.h	unsigned int	2147483648
 DN_RENAME	fcntl.h	int	16
 DQF_ROOT_SQUASH	sys/quota.h	int	1
 DQF_SYS_FILE	sys/quota.h	int	65536
+DR_CONTROL	sys/debugreg.h	int	7
+DR_CONTROL_SHIFT	sys/debugreg.h	int	16
+DR_CONTROL_SIZE	sys/debugreg.h	int	4
+DR_ENABLE_SIZE	sys/debugreg.h	int	2
+DR_FIRSTADDR	sys/debugreg.h	int	0
+DR_GLOBAL_ENABLE_MASK	sys/debugreg.h	int	170
+DR_GLOBAL_ENABLE_SHIFT	sys/debugreg.h	int	1
+DR_GLOBAL_SLOWDOWN	sys/debugreg.h	int	512
+DR_LASTADDR	sys/debugreg.h	int	3
+DR_LEN_1	sys/debugreg.h	int	0
+DR_LEN_2	sys/debugreg.h	int	4
+DR_LEN_4	sys/debugreg.h	int	12
+DR_LEN_8	sys/debugreg.h	int	8
+DR_LOCAL_ENABLE_MASK	sys/debugreg.h	int	85
+DR_LOCAL_ENABLE_SHIFT	sys/debugreg.h	int	0
+DR_LOCAL_SLOWDOWN	sys/debugreg.h	int	256
+DR_RW_EXECUTE	sys/debugreg.h	int	0
+DR_RW_READ	sys/debugreg.h	int	3
+DR_RW_WRITE	sys/debugreg.h	int	1
+DR_STATUS	sys/debugreg.h	int	6
+DR_STEP	sys/debugreg.h	int	16384
+DR_SWITCH	sys/debugreg.h	int	32768
+DR_TRAP0	sys/debugreg.h	int	1
+DR_TRAP1	sys/debugreg.h	int	2
+DR_TRAP2	sys/debugreg.h	int	4
+DR_TRAP3	sys/debugreg.h	int	8
+DS	sys/reg.h	int	23
 DTF_1_CONFEXP	elf.h	int	2
 DTF_1_PARINIT	elf.h	int	1
 DT_AARCH64_BTI_PLT	elf.h	int	1879048193
@@ -759,6 +813,7 @@ EFBIG	argp.h	int	27
 EFD_CLOEXEC	sys/eventfd.h	int	524288
 EFD_NONBLOCK	sys/eventfd.h	int	2048
 EFD_SEMAPHORE	sys/eventfd.h	int	1
+EFLAGS	sys/reg.h	int	18
 EF_ALPHA_32BIT	elf.h	int	1
 EF_ALPHA_CANRELAX	elf.h	int	2
 EF_ARC_ALL_MSK	elf.h	int	4095
@@ -1258,6 +1313,7 @@ EREMOTEIO	argp.h	int	121
 ERESTART	argp.h	int	85
 ERFKILL	argp.h	int	132
 EROFS	argp.h	int	30
+ES	sys/reg.h	int	24
 ESHUTDOWN	argp.h	int	108
 ESOCKTNOSUPPORT	argp.h	int	94
 ESPIPE	argp.h	int	29
@@ -1426,7 +1482,24 @@ EXPR_NEST_MAX	argp.h	int	32
 EXTA	pty.h	int	14
 EXTB	pty.h	int	15
 EXTPROC	pty.h	int	65536
+EX_CANTCREAT	sysexits.h	int	73
+EX_CONFIG	sysexits.h	int	78
+EX_DATAERR	sysexits.h	int	65
+EX_IOERR	sysexits.h	int	74
+EX_NOHOST	sysexits.h	int	68
+EX_NOINPUT	sysexits.h	int	66
+EX_NOPERM	sysexits.h	int	77
+EX_NOUSER	sysexits.h	int	67
+EX_OK	sysexits.h	int	0
+EX_OSERR	sysexits.h	int	71
+EX_OSFILE	sysexits.h	int	72
+EX_PROTOCOL	sysexits.h	int	76
+EX_SOFTWARE	sysexits.h	int	70
+EX_TEMPFAIL	sysexits.h	int	75
+EX_UNAVAILABLE	sysexits.h	int	69
 EX_USAGE	sysexits.h	int	64
+EX__BASE	sysexits.h	int	64
+EX__MAX	sysexits.h	int	78
 E_MIPS_ARCH_1	elf.h	int	0
 E_MIPS_ARCH_2	elf.h	int	268435456
 E_MIPS_ARCH_3	elf.h	int	536870912
@@ -1524,10 +1597,13 @@ FASYNC	fcntl.h	int	8192
 FD_CLOEXEC	fcntl.h	int	1
 FD_SETSIZE	aio.h	int	1024
 FE_ALL_EXCEPT	fenv.h	int	61
+FE_DFL_ENV	fenv.h	fenv_t const*	-1
+FE_DFL_MODE	fenv.h	femode_t const*	-1
 FE_DIVBYZERO	fenv.h	int	4
 FE_DOWNWARD	fenv.h	int	1024
 FE_INEXACT	fenv.h	int	32
 FE_INVALID	fenv.h	int	1
+FE_NOMASK_ENV	fenv.h	fenv_t const*	-2
 FE_OVERFLOW	fenv.h	int	8
 FE_TONEAREST	fenv.h	int	0
 FE_TOWARDZERO	fenv.h	int	3072
@@ -1537,6 +1613,7 @@ FF0	pty.h	int	0
 FF1	pty.h	int	32768
 FFDLY	pty.h	int	32768
 FFSYNC	fcntl.h	int	1052672
+FIFOTYPE	tar.h	int	54
 FILENAME_MAX	argp.h	int	4096
 FIOASYNC	net/if_ppp.h	int	21586
 FIOCLEX	net/if_ppp.h	int	21585
@@ -1554,6 +1631,7 @@ FNM_FILE_NAME	fnmatch.h	int	1
 FNM_LEADING_DIR	fnmatch.h	int	8
 FNM_NOESCAPE	fnmatch.h	int	2
 FNM_NOMATCH	fnmatch.h	int	1
+FNM_NOSYS	fnmatch.h	int	-1
 FNM_PATHNAME	fnmatch.h	int	1
 FNM_PERIOD	fnmatch.h	int	4
 FNONBLOCK	fcntl.h	int	2048
@@ -1587,6 +1665,7 @@ FP_XSTATE_MAGIC2	arpa/nameser.h	unsigned int	1179670597
 FP_XSTATE_MAGIC2_SIZE	arpa/nameser.h	unsigned long	4
 FP_ZERO	math.h	int	2
 FRAC_DIGITS	langinfo.h	int	262152
+FS	sys/reg.h	int	25
 FSETLOCKING_BYCALLER	stdio_ext.h	int	2
 FSETLOCKING_INTERNAL	stdio_ext.h	int	1
 FSETLOCKING_QUERY	stdio_ext.h	int	0
@@ -1596,6 +1675,7 @@ FSPICK_CLOEXEC	sys/mount.h	int	1
 FSPICK_EMPTY_PATH	sys/mount.h	int	8
 FSPICK_NO_AUTOMOUNT	sys/mount.h	int	4
 FSPICK_SYMLINK_NOFOLLOW	sys/mount.h	int	2
+FS_BASE	sys/reg.h	int	21
 FTS_AGAIN	fts.h	int	1
 FTS_COMFOLLOW	fts.h	int	1
 FTS_D	fts.h	int	1
@@ -1759,6 +1839,8 @@ GRND_RANDOM	sys/random.h	int	2
 GROUPING	langinfo.h	int	65538
 GRPQUOTA	sys/quota.h	int	1
 GRP_COMDAT	elf.h	int	1
+GS	sys/reg.h	int	26
+GS_BASE	sys/reg.h	int	22
 HASHFRACTION	sys/gmon.h	int	2
 HFIXEDSZ	arpa/nameser.h	int	12
 HISTFRACTION	sys/gmon.h	int	2
@@ -2109,6 +2191,7 @@ LC_COLLATE	locale.h	int	3
 LC_COLLATE_MASK	locale.h	int	8
 LC_CTYPE	locale.h	int	0
 LC_CTYPE_MASK	locale.h	int	1
+LC_GLOBAL_LOCALE	locale.h	__locale_struct*	-1
 LC_IDENTIFICATION	locale.h	int	12
 LC_IDENTIFICATION_MASK	locale.h	int	4096
 LC_MEASUREMENT	locale.h	int	11
@@ -2152,6 +2235,7 @@ LL_NONE	elf.h	int	0
 LL_REQUIRE_MINOR	elf.h	int	4
 LM_ID_BASE	dlfcn.h	int	0
 LM_ID_NEWLM	dlfcn.h	int	-1
+LNKTYPE	tar.h	int	49
 LOCALDOMAINPARTS	resolv.h	int	2
 LOCK_EX	fcntl.h	int	2
 LOCK_MAND	fcntl.h	int	32
@@ -2237,12 +2321,14 @@ MADV_SEQUENTIAL	sys/mman.h	int	2
 MADV_UNMERGEABLE	sys/mman.h	int	13
 MADV_WILLNEED	sys/mman.h	int	3
 MADV_WIPEONFORK	sys/mman.h	int	18
+MAGIC	cpio.h	char[7]	"070707"
 MAP_32BIT	sys/mman.h	int	64
 MAP_ABOVE4G	sys/mman.h	int	128
 MAP_ANON	sys/mman.h	int	32
 MAP_ANONYMOUS	sys/mman.h	int	32
 MAP_DENYWRITE	sys/mman.h	int	2048
 MAP_EXECUTABLE	sys/mman.h	int	4096
+MAP_FAILED	sys/mman.h	void*	-1
 MAP_FILE	sys/mman.h	int	0
 MAP_FIXED	sys/mman.h	int	16
 MAP_FIXED_NOREPLACE	sys/mman.h	int	1048576
@@ -2357,8 +2443,12 @@ MM_NOMSG	fmtmsg.h	int	1
 MM_NOSEV	fmtmsg.h	int	0
 MM_NOTOK	fmtmsg.h	int	-1
 MM_NRECOV	fmtmsg.h	int	128
+MM_NULLACT	fmtmsg.h	char*	0
+MM_NULLLBL	fmtmsg.h	char*	0
 MM_NULLMC	fmtmsg.h	long	0
 MM_NULLSEV	fmtmsg.h	int	0
+MM_NULLTAG	fmtmsg.h	char*	0
+MM_NULLTXT	fmtmsg.h	char*	0
 MM_OK	fmtmsg.h	int	0
 MM_OPSYS	fmtmsg.h	int	32
 MM_PRINT	fmtmsg.h	int	256
@@ -2739,6 +2829,7 @@ OPTION_ARG_OPTIONAL	argp.h	int	1
 OPTION_DOC	argp.h	int	8
 OPTION_HIDDEN	argp.h	int	2
 OPTION_NO_USAGE	argp.h	int	16
+ORIG_RAX	sys/reg.h	int	15
 O_ACCMODE	fcntl.h	int	3
 O_APPEND	fcntl.h	int	1024
 O_ASYNC	fcntl.h	int	8192
@@ -3160,6 +3251,7 @@ PR_UNALIGN_NOPRINT	sys/prctl.h	int	1
 PR_UNALIGN_SIGBUS	sys/prctl.h	int	2
 PTHREAD_ATTR_NO_SIGMASK_NP	pthread.h	int	-1
 PTHREAD_BARRIER_SERIAL_THREAD	pthread.h	int	-1
+PTHREAD_CANCELED	pthread.h	void*	-1
 PTHREAD_CANCEL_ASYNCHRONOUS	pthread.h	int	1
 PTHREAD_CANCEL_DEFERRED	pthread.h	int	0
 PTHREAD_CANCEL_DISABLE	pthread.h	int	1
@@ -3323,8 +3415,19 @@ Q_QUOTAON	sys/quota.h	int	8388610
 Q_SETINFO	sys/quota.h	int	8388614
 Q_SETQUOTA	sys/quota.h	int	8388616
 Q_SYNC	sys/quota.h	int	8388609
+R10	sys/reg.h	int	7
+R11	sys/reg.h	int	6
+R12	sys/reg.h	int	3
+R13	sys/reg.h	int	2
+R14	sys/reg.h	int	1
+R15	sys/reg.h	int	0
+R8	sys/reg.h	int	9
+R9	sys/reg.h	int	8
 RADIXCHAR	langinfo.h	int	65536
 RAND_MAX	stdlib.h	int	2147483647
+RAX	sys/reg.h	int	10
+RBP	sys/reg.h	int	4
+RBX	sys/reg.h	int	5
 RB_AUTOBOOT	sys/reboot.h	int	19088743
 RB_DISABLE_CAD	sys/reboot.h	int	0
 RB_ENABLE_CAD	sys/reboot.h	unsigned int	2309737967
@@ -3332,10 +3435,14 @@ RB_HALT_SYSTEM	sys/reboot.h	unsigned int	3454992675
 RB_KEXEC	sys/reboot.h	int	1163412803
 RB_POWER_OFF	sys/reboot.h	int	1126301404
 RB_SW_SUSPEND	sys/reboot.h	unsigned int	3489725666
+RCX	sys/reg.h	int	11
+RDI	sys/reg.h	int	14
+RDX	sys/reg.h	int	12
 REFUSED	arpa/nameser.h	int	5
 REGS_FIXED	re_comp.h	int	2
 REGS_REALLOCATE	re_comp.h	int	1
 REGS_UNALLOCATED	re_comp.h	int	0
+REGTYPE	tar.h	int	48
 REG_BADBR	re_comp.h	int	10
 REG_BADPAT	re_comp.h	int	2
 REG_BADRPT	re_comp.h	int	13
@@ -3489,6 +3596,7 @@ RHF_REQUICKSTART	elf.h	int	1024
 RHF_REQUICKSTARTED	elf.h	int	2048
 RHF_RLD_ORDER_SAFE	elf.h	int	16384
 RHF_SGI_ONLY	elf.h	int	16
+RIP	sys/reg.h	int	16
 RLIM64_INFINITY	sys/resource.h	unsigned long long	18446744073709551615
 RLIMIT_AS	sys/resource.h	int	9
 RLIMIT_CORE	sys/resource.h	int	4
@@ -3514,11 +3622,15 @@ RLIM_SAVED_CUR	sys/resource.h	unsigned long	18446744073709551615
 RLIM_SAVED_MAX	sys/resource.h	unsigned long	18446744073709551615
 RRFIXEDSZ	arpa/nameser.h	int	10
 RSEQ_SIG	sys/rseq.h	int	1392848979
+RSI	sys/reg.h	int	13
+RSP	sys/reg.h	int	19
 RTLD_BINDING_MASK	dlfcn.h	int	3
 RTLD_DEEPBIND	dlfcn.h	int	8
+RTLD_DEFAULT	dlfcn.h	void*	0
 RTLD_GLOBAL	dlfcn.h	int	256
 RTLD_LAZY	dlfcn.h	int	1
 RTLD_LOCAL	dlfcn.h	int	0
+RTLD_NEXT	dlfcn.h	void*	-1
 RTLD_NODELETE	dlfcn.h	int	4096
 RTLD_NOLOAD	dlfcn.h	int	4
 RTLD_NOW	dlfcn.h	int	2
@@ -5563,6 +5675,7 @@ SEGV_MTEAERR	arpa/nameser.h	int	8
 SEGV_MTESERR	arpa/nameser.h	int	9
 SEGV_PKUERR	arpa/nameser.h	int	4
 SELFMAG	elf.h	int	4
+SEM_FAILED	semaphore.h	sem_t*	0
 SEM_INFO	sys/sem.h	int	19
 SEM_STAT	sys/sem.h	int	18
 SEM_STAT_ANY	sys/sem.h	int	20
@@ -5781,6 +5894,10 @@ SIG_ATOMIC_MAX	arpa/nameser.h	int	2147483647
 SIG_ATOMIC_MIN	arpa/nameser.h	int	-2147483648
 SIG_ATOMIC_WIDTH	arpa/nameser.h	int	32
 SIG_BLOCK	arpa/nameser.h	int	0
+SIG_DFL	signal.h	void (*)(int)	0
+SIG_ERR	signal.h	void (*)(int)	-1
+SIG_HOLD	signal.h	void (*)(int)	2
+SIG_IGN	signal.h	void (*)(int)	1
 SIG_SETMASK	arpa/nameser.h	int	2
 SIG_UNBLOCK	arpa/nameser.h	int	1
 SIOCADDDLCI	net/if_ppp.h	int	35200
@@ -6116,6 +6233,7 @@ SYMINFO_FLG_LAZYLOAD	elf.h	int	8
 SYMINFO_FLG_PASSTHRU	elf.h	int	2
 SYMINFO_NONE	elf.h	int	0
 SYMINFO_NUM	elf.h	int	2
+SYMTYPE	tar.h	int	50
 SYNC_FILE_RANGE_WAIT_AFTER	fcntl.h	int	4
 SYNC_FILE_RANGE_WAIT_BEFORE	fcntl.h	int	1
 SYNC_FILE_RANGE_WRITE	fcntl.h	int	2
@@ -6192,6 +6310,9 @@ TFD_CLOEXEC	sys/timerfd.h	int	524288
 TFD_NONBLOCK	sys/timerfd.h	int	2048
 TFD_TIMER_ABSTIME	sys/timerfd.h	int	1
 TFD_TIMER_CANCEL_ON_SET	sys/timerfd.h	int	2
+TGEXEC	tar.h	int	8
+TGREAD	tar.h	int	32
+TGWRITE	tar.h	int	16
 THOUSANDS_SEP	langinfo.h	int	65537
 THOUSEP	langinfo.h	int	65537
 TIMER_ABSTIME	pthread.h	int	1
@@ -6272,18 +6393,36 @@ TIOCSSOFTCAR	net/if_ppp.h	int	21530
 TIOCSTI	net/if_ppp.h	int	21522
 TIOCSWINSZ	net/if_ppp.h	int	21524
 TIOCVHANGUP	net/if_ppp.h	int	21559
+TMAGIC	tar.h	char[6]	"ustar"
+TMAGLEN	tar.h	int	6
 TMP_MAX	argp.h	int	238328
+TOEXEC	tar.h	int	1
+TOREAD	tar.h	int	4
 TOSTOP	pty.h	int	256
+TOWRITE	tar.h	int	2
 TRAP_BRANCH	arpa/nameser.h	int	3
 TRAP_BRKPT	arpa/nameser.h	int	1
 TRAP_HWBKPT	arpa/nameser.h	int	4
 TRAP_TRACE	arpa/nameser.h	int	2
 TRAP_UNK	arpa/nameser.h	int	5
 TRY_AGAIN	netdb.h	int	2
+TSGID	tar.h	int	1024
 TSS_DTOR_ITERATIONS	threads.h	int	4
+TSUID	tar.h	int	2048
+TSVTX	tar.h	int	512
+TTYDEF_CFLAG	pty.h	int	1440
+TTYDEF_IFLAG	pty.h	int	11554
+TTYDEF_LFLAG	pty.h	int	35355
+TTYDEF_OFLAG	pty.h	int	6149
+TTYDEF_SPEED	pty.h	int	13
 TTY_NAME_MAX	argp.h	int	32
 TTY_ON	ttyent.h	int	1
 TTY_SECURE	ttyent.h	int	2
+TUEXEC	tar.h	int	64
+TUREAD	tar.h	int	256
+TUWRITE	tar.h	int	128
+TVERSION	tar.h	char[3]	"00"
+TVERSLEN	tar.h	int	2
 T_A	arpa/nameser.h	int	1
 T_A6	arpa/nameser.h	int	38
 T_AAAA	arpa/nameser.h	int	28

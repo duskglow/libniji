@@ -2226,7 +2226,8 @@ fn s12_8_c_6() {
     let fp = x::tmpfile();
     assert!(x::fwide(fp, 5) > 0);
     assert!(x::fwide(fp, -1) > 0, "wide stays wide");
-    assert_eq!(x::fputc(c_int::from(b'b'), fp), EOF, "a byte operation on a wide stream fails (D-12.14)");
+    assert_eq!(x::fputc(c_int::from(b'b'), fp), c_int::from(b'b'), "a byte write on a wide stream writes the byte (D-12.27)");
+    assert!(x::fwide(fp, 0) > 0, "and the stream stays wide-oriented");
     x::fclose(fp);
 }
 
