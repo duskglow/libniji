@@ -401,6 +401,13 @@ fn locales_and_files_past_the_static_table_load() {
             assert!(!got.is_null(), "setlocale selects l{k}");
             assert_eq!(text(got.expose_provenance()), n.as_bytes());
             assert_eq!(niji_legacy::global_locale::mappings(), maps_before, "l{k}, already loaded, is selected without mapping");
+            // Selected again and queried: both answered without the lock from the query cache,
+            // whose name for the last locale is in a spill chunk (LOCALE-SLOTS-GROWTH-7).
+            for (what, arg) in [("selected again", n.as_ptr()), ("queried", core::ptr::null())] {
+                let got = loc::setlocale(LC_ALL, arg);
+                assert!(!got.is_null(), "l{k} {what}: setlocale answers");
+                assert_eq!(text(got.expose_provenance()), n.as_bytes(), "l{k} {what}: the name");
+            }
             let again = loc::newlocale(LC_ALL_MASK, n.as_ptr(), core::ptr::null_mut());
             assert!(!again.is_null(), "l{k} loads again");
             assert_eq!(niji_legacy::global_locale::mappings(), maps_before, "l{k} loaded again maps nothing");

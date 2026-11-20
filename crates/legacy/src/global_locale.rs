@@ -1158,7 +1158,9 @@ fn query_cached_for(objs: &impl Objects, cat: Option<Cat>, handle: usize) -> Opt
     if QUERY_SEQ.load(Relaxed) != seq || handle != GLOBAL.load(Acquire) {
         return None;
     }
-    cached_name(objs, slot)
+    // The static table only (see `setlocale_env_kept`).
+    let s = SLOTS.0.get(slot)?;
+    Some(objs.bytes_at(s.name_addr.load(Acquire), s.name_len.load(Acquire)))
 }
 
 /// `setlocale(cat, "")` when every category asked already has the name the environment selects
@@ -1167,10 +1169,21 @@ fn query_cached_for(objs: &impl Objects, cat: Option<Cat>, handle: usize) -> Opt
 /// environment is read on every call (`getenv`; it may have changed since the last one); only
 /// the selection is skipped. `None`: a name differs, or the cache has no answer for this global
 /// locale; [`setlocale_locked`] then decides (SETLOCALE-CTYPE-ENV).
+///
+/// Only entries of the static table are read here: a global locale or a name past it (a process
+/// with over a thousand locale entries) is also left to [`setlocale_locked`], which gives the same
+/// answer. A call into the spill code here, even never taken, cost every call 4 to 6
+/// instructions in register moves (ruling #6981).
 pub fn setlocale_env_kept(objs: &impl Objects, cat: Option<Cat>, getenv: &dyn Fn(usize) -> Option<&'static [u8]>) -> Option<&'static [u8]> {
     let handle = GLOBAL.load(Acquire);
     // Interned locales never change, so their names may be read without the lock.
-    let current = get(objs, handle);
+    let current = match handle.checked_sub(1) {
+        None => C.locale(),
+        Some(i) => match SLOTS.0.get(i)?.interned.load(Acquire) {
+            0 => C.locale(),
+            addr => objs.view_at(addr).locale(),
+        },
+    };
     let one = [cat.unwrap_or(Cat::Ctype)];
     let cats: &[Cat] = if cat.is_some() { &one } else { &Cat::ALL };
     // The selection of `setlocale_locked`: `LC_ALL`, then `LC_<cat>`, then `LANG`, else "C".
