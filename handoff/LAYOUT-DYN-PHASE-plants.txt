@@ -1,0 +1,11 @@
+# LAYOUT-DYN-PHASE (D-X.133) plants: run with `cargo xtask plants handoff/LAYOUT-DYN-PHASE-plants.txt --dir <new RAM dir>`.
+# The loader maps the last page of a segment without zero fill from the file (the old test made it a copy).
+dyn-phase-tail | crates/ld/src/map.rs | lit:s.mem_end > s.file_end; ==> s.zero_end > s.file_end; | cargo test -p niji-ld --test map map_model_objects_from_the_linker | msg:without zero fill
+# libc.so.6's start-up read-only group anchor dropped from the link: `cargo xtask so` refuses the library. Traced:
+# the group's alignment is its traced size's (65536 here); an ungrouped build's group holds only the build tag
+# (alignment 4096), which an unanchored group met in plants-1 (SURVIVED there).
+dyn-phase-anchor | xtask/src/so.rs | perl:s/\.args\(&defsyms\)\s*\.arg\(&anchor\)/.args(&defsyms)/ | cargo test -p xtask libc_so_rodata1 | msg:not on its .*alignment | layout:traced
+# The build tag left out of the group: `cargo xtask so` refuses the library.
+dyn-phase-tag | xtask/src/startup_ro.rs | lit:ro_keys.extend(LOADER_READ.iter() ==> ro_keys.extend(LOADER_READ[..0].iter() | cargo test -p xtask libc_so_rodata1 | msg:lies outside|no \.rodata1
+# The interpreter's read-only data no longer moved to its text's phase: `cargo xtask so` refuses the interpreter.
+dyn-phase-ldro | xtask/src/so.rs | lit:INSERT BEFORE .rodata; ==> INSERT AFTER .rodata; | cargo test -p xtask libc_so_rodata1 | msg:not the same 0x10000-byte phase

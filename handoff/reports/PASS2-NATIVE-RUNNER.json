@@ -1,0 +1,25 @@
+{"task": "PASS2-NATIVE-RUNNER", "model": "opus", "tokens": null,
+ "result": "The gate's second pass runs as libniji processes (prefixed loader, PT_INTERP-patched copies, runner, per-tree lock) plus an explicit interposed suite of the targets that reach export-only code; pass 2 on keke: 1203 s / 4126 test-seconds (second sample 1326 s / 4542) vs 1448 s / 5015, no workspace export build",
+ "branch": "task/pass2-native-runner", "head": "37a57267c",
+ "gate": {"affected": "direct tier ok (5 of 300 targets, xtask bounded set; FULL: the train's), gate4 rc 0", "peak": "1.2G"},
+ "accepted_first_attempt": null,
+ "rulings": [
+  {"item": "switch the gate's pass 2 (test_steps, affected) to native pass + interposed suite; any liella-ops gate/CI configuration change", "recommendation": "land; -9 to -18% test-seconds, -8 to -17% wall (two samples), no 337 s workspace export build"},
+  {"item": "story gate on the CI host (mei): no role there for this run", "recommendation": "the dispatcher's CI run of this branch is that gate"},
+  {"item": "one prefixed loader build shared by hot_text_products and the runner (coordinator note)", "recommendation": "keep two builds: the prefix is compiled in; sharing needs a run-time prefix (loader trust-boundary change)"}
+ ],
+ "informational": [
+  "niji-boundary::s03_memory_symbols sym_mallinfo failed once in the interposed suite (measure4): two reads (mallinfo, mallinfo2) in a non-quiescent process differ by 32 bytes; same target and features as the old interposed pass, untouched here; recommend a separate fix comparing within one quiescent window",
+  "a job script calling ~/bin/jobwait once proceeds after ~10 min (rc 3) while the job still runs: measure3 ran beside gate3 and removed its native root; the per-tree lock now makes a second native pass wait"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "tooling", "what": "second test pass wall (test-pass2 steps, keke 4-CPU slot)", "before": 1448, "after": 1203, "unit": "s (measure5; measure4: 1326)", "measured": true},
+  {"kind": "tooling", "what": "second test pass test-seconds (sum of nextest per-test times)", "before": 5015, "after": 4126, "unit": "s (measure5; measure4: 4542)", "measured": true},
+  {"kind": "tooling", "what": "whole-workspace export build for the second pass", "before": 337, "after": 0, "unit": "s", "measured": false},
+  {"kind": "coverage", "what": "193 test binaries run as libniji processes (4829 tests); 14 targets moved to native only; foreign malloc/free pair bound 2100 instr; unit tests 7 (pass2) + nextest suite tests; plants", "before": null, "after": 13, "unit": "plants", "measured": true}
+ ],
+ "improvement": "jobwait returns 3 after ~10 min: a chained job script must loop on it; a per-tree lock in the tool now makes the collision it caused impossible",
+ "next_step": "coordinator: ruling on switching the gate's pass 2; follow-up: poison C-family blocks natively (MALLOC_PERTURB_) to move most of the interposed suite to the native pass",
+ "report_file": "handoff/PASS2-NATIVE-RUNNER.md",
+ "jobs": ["pass2-native-runner-gate4", "pass2-native-runner-measure5", "pass2-native-runner-plants6"]}

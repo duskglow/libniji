@@ -11,10 +11,10 @@
 //! Version names are compared as bytes; no version node is special (`NIJI_PRIVATE` and any
 //! other name are ordinary nodes, ruling R14-12).
 
-use core::cell::OnceCell;
+use core::cell::{Cell, OnceCell};
 
 use crate::elf::{
-    Dynamic, ElfError, GnuHash, Sym, Symtab, SysvHash, Versym, SHN_UNDEF, STB_GLOBAL, STB_GNU_UNIQUE, STB_WEAK,
+    Dynamic, ElfError, GnuHash, Sym, Symtab, SysvHash, Versions, Versym, SHN_UNDEF, STB_GLOBAL, STB_GNU_UNIQUE, STB_WEAK,
     STT_COMMON, STT_FUNC, STT_GNU_IFUNC, STT_NOTYPE, STT_OBJECT, STT_TLS, STV_HIDDEN, STV_INTERNAL, VERSYM_HIDDEN,
 };
 
@@ -115,13 +115,22 @@ pub struct Request<'n> {
     want: Want<'n>,
     gnu: u32,
     sysv: OnceCell<u32>,
+    /// The version names found so far by the pass this request belongs to ([`VersionMemo`]).
+    memo: Option<&'n VersionMemo>,
 }
 
 impl<'n> Request<'n> {
     /// A request for `name` accepting `want`.
     #[must_use]
     pub fn new(name: &'n [u8], want: Want<'n>) -> Self {
-        Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new() }
+        Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new(), memo: None }
+    }
+
+    /// This request, finding its definitions' version names through `memo` ([`VersionMemo`]).
+    #[must_use]
+    pub fn with_memo(mut self, memo: &'n VersionMemo) -> Self {
+        self.memo = Some(memo);
+        self
     }
     /// The name.
     #[must_use]
@@ -138,6 +147,30 @@ impl<'n> Request<'n> {
     }
 }
 
+/// Slots of a [`VersionMemo`] (a power of two).
+const MEMO_SLOTS: usize = 16;
+
+/// One remembered version name: the object's string table (its address: the object's identity
+/// for the pass), which walk found it (bit 16: a reference's, else a definition's; bit 31: in use)
+/// with the index, and where the name lies in that string table.
+#[derive(Clone, Copy, Debug, Default)]
+struct MemoSlot {
+    strtab: usize,
+    key: u32,
+    off: u32,
+    len: u32,
+}
+
+/// The version names one relocation pass has found, by object and version index, so the walks of
+/// the version tables run once per name and not once per symbolic relocation (DYN-START-SPEED:
+/// they were a sixth of a dynamic start). A small direct-mapped cache on the pass's stack: a slot
+/// holds an offset in the object's own string table, so it has no lifetime, and a miss walks the
+/// tables as before. Answers are the walks' answers; only found names are remembered.
+#[derive(Debug, Default)]
+pub struct VersionMemo {
+    slots: [Cell<MemoSlot>; MEMO_SLOTS],
+}
+
 /// A definition found in one object.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Def {
@@ -151,7 +184,10 @@ pub struct Def {
     pub hidden: bool,
 }
 
-/// The hash table an [`Object`] walks.
+/// The hash table an [`Object`] walks. The table's mark (`GnuHash::mark`, `SysvHash::mark`) says
+/// this is the program's view and the program has canonical PLT entries ([`Object::mark_program`]): it
+/// sits in the table's tail padding, so neither this enum nor [`Object`] grows (a fourth variant
+/// carrying a GNU table would: the enum's spare discriminant values only fit a SysV-sized payload).
 #[derive(Clone, Copy, Debug)]
 enum Hash<'a> {
     Gnu(GnuHash<'a>),
@@ -165,7 +201,14 @@ pub struct Object<'a> {
     symtab: Symtab<'a>,
     hash: Hash<'a>,
     versym: Option<Versym<'a>>,
+    /// The version tables when `versym` is present ([`Dynamic::versions`]).
+    vers: Option<Versions<'a>>,
 }
+
+// The loader keeps its views in an inline table on the start-up stack and passes `Scope` by value
+// on every lookup: neither may grow (DL-CANONICAL-PLT: a field here cost a stack page).
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<Object<'static>>() == 0x128 && core::mem::size_of::<Scope<'static>>() == 0x30);
 
 /// Whether `s` is a definition another object may bind: defined, a global, weak or unique binding, a
 /// data, code, TLS or IFUNC type, and not hidden or internal.
@@ -174,6 +217,15 @@ fn exported(s: &Sym) -> bool {
         && matches!(s.bind(), STB_GLOBAL | STB_WEAK | STB_GNU_UNIQUE)
         && matches!(s.kind(), STT_NOTYPE | STT_OBJECT | STT_FUNC | STT_COMMON | STT_TLS | STT_GNU_IFUNC)
         && !matches!(s.visibility(), STV_HIDDEN | STV_INTERNAL)
+}
+
+/// Whether the program's symbol `s` is a canonical PLT entry: an undefined global or weak function
+/// with a non-zero value, which is the address of the program's PLT entry for it. The gABI ("Symbol
+/// Values") makes that entry the function's address for every reference to the address in the
+/// process; only the calls through the entry's own slot (`JUMP_SLOT`) go to the definition.
+#[must_use]
+pub fn canonical_plt(s: &Sym) -> bool {
+    s.shndx == SHN_UNDEF && s.value != 0 && s.kind() == STT_FUNC && matches!(s.bind(), STB_GLOBAL | STB_WEAK)
 }
 
 impl<'a> Object<'a> {
@@ -194,12 +246,63 @@ impl<'a> Object<'a> {
     ///
     /// As [`Object::new`]; [`LookupError::NoHashTable`] when the object has no table of that style.
     pub fn with_style(dynm: Dynamic<'a>, style: HashStyle) -> Result<Self, LookupError> {
-        let symtab = dynm.symtab()?.ok_or(LookupError::NoSymtab)?;
+        // Counted once for both tables (the count walks every hash bucket; DYN-START-PARITY).
+        let count = dynm.symbol_count();
+        let symtab = dynm.symtab_with(count)?.ok_or(LookupError::NoSymtab)?;
         let hash = match style {
             HashStyle::Gnu => Hash::Gnu(dynm.gnu_hash()?.ok_or(LookupError::NoHashTable)?),
             HashStyle::Sysv => Hash::Sysv(dynm.sysv_hash()?.ok_or(LookupError::NoHashTable)?),
         };
-        Ok(Object { dynm, symtab, hash, versym: dynm.versym()? })
+        let versym = dynm.versym_with(count)?;
+        // The version tables, walked whole by `versym`, kept so a lookup by index does not find
+        // them again (DYN-START-PARITY); without `DT_VERSYM` the walks below find them each time.
+        let vers = if versym.is_some() { dynm.versions()? } else { None };
+        Ok(Object { dynm, symtab, hash, versym, vers })
+    }
+
+    /// Makes this view the program's: its canonical PLT entries ([`canonical_plt`]) define their
+    /// functions for every lookup. Only the program has them (gABI "Symbol Values": the executable
+    /// file's PLT); a shared object's undefined symbols stay references whatever their value. A
+    /// `JUMP_SLOT` must not bind such an entry (the entry is itself the slot's caller): the relocator
+    /// takes those through its own path when [`Object::has_canonical_plt`] says there are entries.
+    ///
+    /// The entries are found once here, among the symbols the hash table covers (a GNU table leaves
+    /// out the symbols below `symoffset`, which a linker gives only to plain references); a program
+    /// without one keeps the plain view. In place: only the table's mark byte is written (taking and
+    /// returning the view by value copied all of it).
+    #[inline(never)]
+    pub fn mark_program(&mut self) {
+        let first = match &self.hash {
+            Hash::Gnu(g) => g.symoffset(),
+            Hash::Sysv(_) => 1,
+        };
+        let count = self.symtab.count().unwrap_or(0);
+        let canonical = (first..count).any(|i| self.symtab.get(i).is_ok_and(|s| canonical_plt(&s)));
+        match &mut self.hash {
+            Hash::Gnu(g) => g.set_mark(canonical),
+            Hash::Sysv(s) => s.set_mark(canonical),
+        }
+    }
+
+    /// Whether this is the program's view and the program has canonical PLT entries
+    /// ([`Object::mark_program`]).
+    #[must_use]
+    pub fn has_canonical_plt(&self) -> bool {
+        match self.hash {
+            Hash::Gnu(g) => g.mark(),
+            Hash::Sysv(s) => s.mark(),
+        }
+    }
+
+    /// Whether symbol `i`, a hash candidate that is not an exported definition, is one of the
+    /// program's canonical PLT entries ([`Object::mark_program`]). Cold and out of line: a lookup reaches
+    /// it only for such a candidate, so the flag's read (a match on the hash table) stays off the
+    /// walk. It takes the index and reads the symbol again, so the caller need not keep the symbol
+    /// in memory to pass it by reference on every candidate.
+    #[cold]
+    #[inline(never)]
+    fn canonical_entry(&self, i: u32) -> bool {
+        self.has_canonical_plt() && self.symtab.get(i).is_ok_and(|s| canonical_plt(&s))
     }
 
     /// The dynamic section the view reads.
@@ -224,6 +327,9 @@ impl<'a> Object<'a> {
         if index <= VER_NDX_GLOBAL {
             return Ok(None);
         }
+        if let Some(v) = self.vers {
+            return Ok(v.def_name(&self.dynm, index)?);
+        }
         let Some(defs) = self.dynm.verdef()? else { return Ok(None) };
         for d in defs {
             let d = d?;
@@ -242,20 +348,66 @@ impl<'a> Object<'a> {
     ///
     /// The reader's errors, or [`LookupError::UnknownVersion`] for an index neither table gives.
     pub fn reference_want(&self, sym: u32) -> Result<Want<'a>, LookupError> {
+        self.reference_want_with(sym, None)
+    }
+
+    /// [`Object::reference_want`], finding the name through `memo` when there is one.
+    ///
+    /// # Errors
+    ///
+    /// As [`Object::reference_want`].
+    pub fn reference_want_with(&self, sym: u32, memo: Option<&VersionMemo>) -> Result<Want<'a>, LookupError> {
         let Some(vs) = self.versym else { return Ok(Want::Oldest) };
         let index = vs.get(sym)?.index;
         if index <= VER_NDX_GLOBAL {
             return Ok(Want::Oldest);
         }
+        self.memo_name(memo, index, true)?.map(Want::Reference).ok_or(LookupError::UnknownVersion { sym, index })
+    }
+
+    /// The version name a reference with index `index` names: a requirement's, else one of the
+    /// object's own definitions.
+    fn reference_name(&self, index: u16) -> Result<Option<&'a [u8]>, LookupError> {
         if let Some(name) = self.needed_version_name(index)? {
-            return Ok(Want::Reference(name));
+            return Ok(Some(name));
         }
-        self.version_name(index)?.map(Want::Reference).ok_or(LookupError::UnknownVersion { sym, index })
+        self.version_name(index)
+    }
+
+    /// [`Object::reference_name`] (`reference`) or [`Object::def_version_name`] of `index`, through
+    /// `memo` ([`VersionMemo`]) when there is one.
+    fn memo_name(&self, memo: Option<&VersionMemo>, index: u16, reference: bool) -> Result<Option<&'a [u8]>, LookupError> {
+        let walk = |o: &Self| if reference { o.reference_name(index) } else { o.def_version_name(index) };
+        let (Some(memo), Some(tab)) = (memo, self.dynm.strtab()) else { return walk(self) };
+        let base = tab.as_ptr().addr();
+        let key = u32::from(index) | if reference { 1 << 16 } else { 0 } | 1 << 31;
+        let at = (usize::from(index) ^ usize::from(reference).wrapping_mul(MEMO_SLOTS / 2) ^ (base >> 4)) & (MEMO_SLOTS - 1);
+        let Some(slot) = memo.slots.get(at) else { return walk(self) };
+        let s = slot.get();
+        if s.key == key && s.strtab == base {
+            let (off, len) = (usize::try_from(s.off).unwrap_or(usize::MAX), usize::try_from(s.len).unwrap_or(0));
+            if let Some(name) = off.checked_add(len).and_then(|end| tab.get(off..end)) {
+                return Ok(Some(name));
+            }
+        }
+        let name = walk(self)?;
+        if let Some(n) = name {
+            let off = n.as_ptr().addr().wrapping_sub(base);
+            if off.checked_add(n.len()).is_some_and(|end| end <= tab.len()) {
+                if let (Ok(off), Ok(len)) = (u32::try_from(off), u32::try_from(n.len())) {
+                    slot.set(MemoSlot { strtab: base, key, off, len });
+                }
+            }
+        }
+        Ok(name)
     }
 
     /// The name of version index `index` among this object's requirements (the `vna_other` of a
     /// `DT_VERNEED` entry), `None` when no requirement has it.
     fn needed_version_name(&self, index: u16) -> Result<Option<&'a [u8]>, LookupError> {
+        if let Some(v) = self.vers {
+            return Ok(v.need_name(&self.dynm, index)?);
+        }
         if let Some(needs) = self.dynm.verneed()? {
             for n in needs {
                 for a in n?.auxes() {
@@ -322,7 +474,7 @@ impl<'a> Object<'a> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !exported(&st) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || self.canonical_entry(i)) || self.dynm.string(u64::from(st.name))? != req.name {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
@@ -366,7 +518,7 @@ impl<'a> Object<'a> {
                 Want::Reference(name) => {
                     let exact = self.versym.is_none()
                         || (version > VER_NDX_GLOBAL
-                            && self.def_version_name(version)?.ok_or(LookupError::UnknownVersion { sym: i, index: version })? == name);
+                            && self.memo_name(req.memo, version, false)?.ok_or(LookupError::UnknownVersion { sym: i, index: version })? == name);
                     if exact {
                         best = Some(def);
                     } else if version == VER_NDX_GLOBAL && best.is_none() {

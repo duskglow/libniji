@@ -1,0 +1,83 @@
+{
+ "task": "DYN-START-SPEED",
+ "model": "opus",
+ "tokens": null,
+ "result": "Dynamic empty main 1,579,278 -> 785,631 instructions (-50.3%, release, Skylake-SP); faults unchanged (69 vs glibc 51); steps 1-2 done, 3-5 not reached",
+ "branch": "task/dyn-start-speed",
+ "head": "3be912577",
+ "gate": {
+  "affected": "gate2: direct tier ok (rc 0); cargo xtask test 6858+5333 passed",
+  "peak": "1.4G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Step 1 is a cheaper verdef scan plus a pass-local version-name memo, not a per-object index table: Object is pinned at 0x128 bytes for the start's stack",
+  "The Zen 1 release instruction bound is set equal to the Skylake-SP one without a Zen 1 measurement (the two read within 0.01% before)",
+  "Steps 3 (RELR), 4 (faults) and 5 (Zen 1 fast bound) were not reached within the 150-call budget",
+  "The coordinator's parity programs (/mnt/zram/claude/coord-parity) and execcount (dl-23-2) were gone from mei; replaced under ~/work/DYN-START-SPEED",
+  "Release in-test count 807,500 against the bound 812,400 (0.6% headroom; deterministic count)",
+  "Process slips: one empty heredoc (python3 - <<X) and one sed -i on a host scratch script, both by mistake"
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "perf",
+   "what": "dynamic empty main, exec to exit, release, Skylake-SP (execcount median of 101)",
+   "before": 1579278,
+   "after": 785631,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic main with 3 libraries, release, Skylake-SP",
+   "before": 1834900,
+   "after": 1042024,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic clock_gettime main, release, Skylake-SP",
+   "before": 1613340,
+   "after": 819571,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "perf",
+   "what": "dynamic empty main, fast, hot_text_products, Skylake-SP",
+   "before": 1718270,
+   "after": 854405,
+   "unit": "instructions",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "dynamic empty main page faults (incl. kernel-mode)",
+   "before": 69,
+   "after": 69,
+   "unit": "faults",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "test version_memo_answers_as_the_walks, RELACOUNT assertion in the segment test, 4 plants",
+   "before": 0,
+   "after": 4,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "A shared, persistent start-up measurement kit (execcount with faults + the three programs) in the repo or ops tree would save each start-up story rebuilding it after RAM scratch is cleared",
+ "next_step": "Re-profile the final head; then the candidate-name compare without a NUL scan, Object::new's counts, program headers decoded once, then RELR/faults/Zen 1",
+ "report_file": "handoff/DYN-START-SPEED.md",
+ "jobs": [
+  "mei:dyn-start-speed-xtest1",
+  "mei:dyn-start-speed-gate2",
+  "mei:dyn-start-speed-plants2",
+  "mei:dyn-start-speed-release1",
+  "mei:dyn-start-speed-precheck1"
+ ]
+}

@@ -10,8 +10,8 @@
 __NIJI_BEGIN_C
 
 #if 1
-# ifndef __NIJI_D_struct_epoll_data
-#  define __NIJI_D_struct_epoll_data 1
+# ifndef __NIJI_D_union_epoll_data
+#  define __NIJI_D_union_epoll_data 1
 union epoll_data {
   void * ptr;
   int fd;
@@ -37,8 +37,8 @@ struct timespec {
   long tv_nsec;
 };
 # endif
-# ifndef __NIJI_D_struct_epoll_data
-#  define __NIJI_D_struct_epoll_data 1
+# ifndef __NIJI_D_union_epoll_data
+#  define __NIJI_D_union_epoll_data 1
 union epoll_data {
   void * ptr;
   int fd;

@@ -6,7 +6,9 @@
 #   2. wl_build_products builds with NIJI_FULL_PROFILE=1 and refuses a build that left fast products;
 #   3. a fast set cached under the old key <sha> (no .profile marker) is never taken for release, and is kept;
 #   4. a cached set of the other profile under a key is refused, never reused, rebuilt over or deleted;
-#   5. WL_PROFILE=fast reads the old fast cache without building.
+#   5. WL_PROFILE=fast reads the old fast cache without building;
+#   6. WL_LINK=dynamic (WL-DYNAMIC-KIT) keys apart (<sha>-release-dyn) and never takes a static set;
+#   7. wl_dynlink.py: a SONAME-less copy, and a program's by-path DT_NEEDED retargeted in place (cc and readelf).
 # Runs the real wl_lock.sh functions in a scratch HOME with a stand-in `cargo` that writes products and xtask's
 # target/niji/.profile marker the way `cargo xtask so` does (fast unless NIJI_FULL_PROFILE is set and not 0).
 # Seconds; no libniji build. `affected` runs it when wl_lock.sh or this file changes (VALIDATION_COVERED).
@@ -77,6 +79,38 @@ wl_build_products $T > "$tmp/b4.log" 2>&1; check "fast set under a release key r
 check "refused set kept" fast "$(cat "$HOME/wl/products/$T-release/libc.a" 2>/dev/null)"
 check "refused set not rebuilt" "$n" "$(builds)"
 check "refusal names the profiles" 1 "$(grep -c "holds products of profile 'fast', this run wants release" "$tmp/b4.log")"
+
+# 6. WL_LINK=dynamic (WL-DYNAMIC-KIT): its own key, never a static set taken for it, an unknown link refused
+check "dynamic key" "$S-release-dyn" "$(WL_LINK=dynamic wl_key $S)"
+check "dynamic fast key" "$S-dyn" "$(WL_LINK=dynamic WL_PROFILE=fast wl_key $S)"
+check "static key named" "$S-release" "$(WL_LINK=static wl_key $S)"
+check "glibc variant key under dynamic" glibc "$(WL_LINK=dynamic wl_vkey glibc)"
+WL_LINK=shared wl_key $S > /dev/null 2>&1; check "unknown link refused (rc)" 2 "$?"
+WL_LINK=dynamic wl_products_ok "$HOME/wl/products/$S-release" 2> /dev/null; check "static set is not a dynamic set (rc)" 1 "$?"
+
+# 7. wl_dynlink.py on a real link (cc, readelf): a SONAME-less copy, then the program's absolute DT_NEEDED of that
+# copy pointed at the runtime file, which keeps its SONAME; the interpreter checked.
+if command -v cc > /dev/null && command -v readelf > /dev/null && command -v python3 > /dev/null; then
+    D=$tmp/dyn
+    mkdir -p "$D/lib"
+    printf 'int wl_probe(void) { return 7; }\n' > "$tmp/lib.c"
+    printf 'int wl_probe(void);\nint main(void) { return wl_probe(); }\n' > "$tmp/main.c"
+    cc -shared -fPIC -Wl,-soname,libc.so.6 -o "$D/libc.so.6" "$tmp/lib.c"
+    python3 "$here/wl_dynlink.py" bypath "$D/libc.so.6" "$D/lib/libc-by-path.so"; check "bypath (rc)" 0 "$?"
+    check "bypath copy has no SONAME" 0 "$(readelf -d "$D/lib/libc-by-path.so" | grep -c SONAME)"
+    check "runtime file keeps its SONAME" 1 "$(readelf -d "$D/libc.so.6" | grep -c 'SONAME.*\[libc.so.6\]')"
+    cc -o "$tmp/prog" "$tmp/main.c" "$D/lib/libc-by-path.so" "-Wl,--dynamic-linker=$D/ld-linux-x86-64.so.2"
+    check "link records the by-path copy" 1 "$(readelf -d "$tmp/prog" | grep -c "NEEDED.*\[$D/lib/libc-by-path.so\]")"
+    cp "$tmp/prog" "$tmp/prog2"
+    python3 "$here/wl_dynlink.py" retarget "$tmp/prog" "$D" > /dev/null; check "retarget (rc)" 0 "$?"
+    check "retargeted DT_NEEDED is the runtime file" 1 "$(readelf -d "$tmp/prog" | grep -c "NEEDED.*\[$D/libc.so.6\]")"
+    check "no by-path DT_NEEDED left" 0 "$(readelf -d "$tmp/prog" | grep -c 'by-path')"
+    check "file size unchanged" "$(wc -c < "$tmp/prog2")" "$(wc -c < "$tmp/prog")"
+    python3 "$here/wl_dynlink.py" retarget "$tmp/prog" "$D" > /dev/null 2>&1; check "nothing left to retarget refused (rc)" 1 "$?"
+    python3 "$here/wl_dynlink.py" retarget "$tmp/prog2" "$tmp/elsewhere" > /dev/null 2>&1; check "other products directory refused (rc)" 1 "$?"
+else
+    echo "wl_lock_test: section 7 skipped: no cc, readelf or python3"
+fi
 
 echo "wl_lock_test: $pass passed, $fail failed"
 [ $fail = 0 ]

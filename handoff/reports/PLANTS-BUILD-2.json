@@ -1,0 +1,71 @@
+{
+ "task": "PLANTS-BUILD-2",
+ "model": "sonnet",
+ "tokens": null,
+ "result": "A plants run builds every mutant with one constant tag and cargo xtask so prints a step: so/<phase> line per phase; Skylake-SP and Zen 1 numbers and two-copy plants data recorded",
+ "branch": "task/plants-build-2",
+ "head": "06d5e7652",
+ "gate": {
+  "affected": "552 passed / 0 failed (6 suites)",
+  "peak": "1.9G"
+ },
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "Tag linked from an xtask-built object (other option): gain for ordinary dev/CI builds only on edits that change the hash outside boundary's and ld's dependency cone: root-crate mutant 111 -> 48 s (Skylake-SP), 236 -> 86 s (Zen 1 slot); an edit inside the cone gains nothing (boundary rebuilds, 111 / 230 s). Not large, so not a ruling; it would touch D-27.22 and the loader.",
+  "Concurrent plants copies win on both hosts: Skylake-SP 12 plants serial 1591 s vs two copies 860 s (copy peak RAM 13.6 and 9.2 GB, serial 19.8 GB); Zen 1 4-core slots, 4 plants serial 1405 s vs two copies 980 s wall (10.3 GB each). Default not changed (needs a --copies option in the tool); recommend default 2 as its own story.",
+  "First plants run: pb2-tag-env-not-set SURVIVED because a test run under a plants run inherits that run's tag; fixed by expecting the test process's own tag; final runs 12/12 CAUGHT.",
+  "Zen 1 numbers (4-core slot, other tenants load 8-36; before and after trees ran at the same time): cold 868 -> 352 s, no-op 418 -> 60 s, root mutant 704 -> 236 s (86 s with the constant tag), boundary mutant 717 -> 230 s."
+ ],
+ "refused": [],
+ "impact": [
+  {
+   "kind": "tooling",
+   "what": "plants mutant outside boundary (libc-so root crate) rebuild, Skylake-SP",
+   "before": 111,
+   "after": 48,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "plants mutant outside boundary rebuild, Zen 1 slot",
+   "before": 236,
+   "after": 86,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "no-op cargo xtask so, Zen 1 slot (with PLANTS-BUILD-SLOWDOWN)",
+   "before": 418,
+   "after": 60,
+   "unit": "s",
+   "measured": true
+  },
+  {
+   "kind": "tooling",
+   "what": "cargo xtask so phase lines (step: so/<phase>) in every plants and gate log",
+   "before": 0,
+   "after": 22,
+   "unit": "lines per build",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "plants added (xtask tag and phase lines)",
+   "before": 0,
+   "after": 12,
+   "unit": "plants",
+   "measured": true
+  }
+ ],
+ "improvement": "Two concurrent plants copies cut the wall by 30-46% on both hosts; a --copies option in cargo xtask plants (default 2) is the next win.",
+ "next_step": "Land; then a story for --copies 2 in cargo xtask plants.",
+ "report_file": "handoff/PLANTS-BUILD-2.md",
+ "jobs": [
+  "mei:plants-build-2-plants-a",
+  "mei:plants-build-2-plants-b",
+  "mei:plants-build-2-gate"
+ ]
+}

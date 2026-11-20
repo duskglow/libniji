@@ -29,7 +29,7 @@
 //!   the thread block's `dl_reading` counts) or holds the writer lock (ruling #5651).
 
 use super::dlopen::{node_address, CAP};
-use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS, THREAD_MODS_LEN};
+use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_INTERP, START_N, THREAD_MODS_LEN};
 use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
 use crate::{conv, tb};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
@@ -38,7 +38,9 @@ use niji_abi::layout::{struct_dl_find_object, struct_dl_phdr_info};
 use niji_kernel::auxv::Auxv;
 use niji_kernel::uapi::AT_SYSINFO_EHDR;
 
+const PT_LOAD: u64 = 1;
 const PT_DYNAMIC: u64 = 2;
+const PF_W: u64 = 2;
 const PT_TLS: u64 = 7;
 const DT_STRTAB: u64 = 5;
 const DT_SONAME: u64 = 14;
@@ -197,8 +199,8 @@ fn vdso() -> usize {
     v
 }
 
-/// The program headers of an object as `(p_type, p_vaddr, p_memsz)` triples.
-fn headers(phdr: usize, phnum: usize) -> impl Iterator<Item = (u64, u64, u64)> {
+/// The program headers of an object as `(p_type, p_vaddr, p_memsz, p_flags)`.
+fn headers(phdr: usize, phnum: usize) -> impl Iterator<Item = (u64, u64, u64, u64)> {
     // UNSAFE(slice): a loaded object's program header table (⚑ KERN for the program, `map::load`
     // or the start's loader for the others), mapped while a reader may see its entry (DL-17: unmapped
     // only after the readers that saw it left, `read_section`).
@@ -206,13 +208,21 @@ fn headers(phdr: usize, phnum: usize) -> impl Iterator<Item = (u64, u64, u64)> {
     // SAFETY: `phdr`/`phnum` come from a live entry read inside `read_section`: the object stays
     // mapped until this reader has left.
     let w = unsafe { conv::words_at(phdr, phnum.saturating_mul(7)) };
-    w.chunks_exact(7).map(|h| (h.first().copied().unwrap_or(0) & 0xffff_ffff, h.get(2).copied().unwrap_or(0), h.get(5).copied().unwrap_or(0)))
+    w.chunks_exact(7).map(|h| {
+        let w0 = h.first().copied().unwrap_or(0);
+        (w0 & 0xffff_ffff, h.get(2).copied().unwrap_or(0), h.get(5).copied().unwrap_or(0), w0 >> 32)
+    })
 }
 
 /// The `DT_SONAME` of the object (`bias`, program headers at `phdr`) as a run-time address, from its
-/// dynamic section in memory (link-time values, as `super::dlopen::adopt_start` reads it); 0: none.
+/// dynamic section in memory (its `DT_STRTAB` a run-time address when the array is published,
+/// [`niji_ld::elf::dynamic_published`], a link-time one otherwise); 0: none.
 fn soname_at(bias: usize, phdr: usize, phnum: usize) -> usize {
-    let Some((_, vaddr, memsz)) = headers(phdr, phnum).find(|h| h.0 == PT_DYNAMIC) else { return 0 };
+    let Some((_, vaddr, memsz, _)) = headers(phdr, phnum).find(|h| h.0 == PT_DYNAMIC) else { return 0 };
+    // A published array (DL-DYNAMIC-RELOC: every start-time object's once `link` ended) holds
+    // `DT_STRTAB` as a run-time address already.
+    let writable = headers(phdr, phnum).filter(|h| h.0 == PT_LOAD && h.3 & PF_W != 0).map(|h| (h.1, h.2));
+    let strtab_bias = if niji_ld::elf::dynamic_published(vaddr, memsz, writable) { 0 } else { bias };
     let at = bias.wrapping_add(usize::try_from(vaddr).unwrap_or(0));
     // UNSAFE(slice): the object's dynamic section, inside one of its mapped PT_LOADs.
     #[allow(unsafe_code)]
@@ -228,7 +238,7 @@ fn soname_at(bias: usize, phdr: usize, phnum: usize) -> usize {
         }
     }
     match (strtab, soname) {
-        (Some(s), Some(o)) => bias.wrapping_add(usize::try_from(s.wrapping_add(o)).unwrap_or(0)),
+        (Some(s), Some(o)) => strtab_bias.wrapping_add(usize::try_from(s.wrapping_add(o)).unwrap_or(0)),
         _ => 0,
     }
 }
@@ -257,7 +267,9 @@ fn fill_start() -> usize {
             let w = super::start_obj(k).map(|x| usize::try_from(x).unwrap_or(0));
             (w[0], w[1], w[2])
         };
-        let name = if k == 0 { c"".as_ptr().expose_provenance() } else { soname_at(bias, phdr, phnum) };
+        // The link map's name (DL-23: the rendezvous and this walk agree); `DT_SONAME` if none.
+        let linked = super::dlopen::start_name(k);
+        let name = if k == 0 { c"".as_ptr().expose_provenance() } else if linked != 0 { linked } else { soname_at(bias, phdr, phnum) };
         let name = if name == 0 { c"".as_ptr().expose_provenance() } else { name };
         stage(k, bias, name, phdr, phnum);
         if let Some(live) = TABLE.get(k).and_then(|e| e.get(4)) {
@@ -311,10 +323,10 @@ pub(super) fn count_unmapped(n: usize) {
 /// DL-15's records of the start-time modules, which DL-16d's `dlopen` extends with each new module
 /// before [`publish`] lists its object; `(0, 0)` otherwise.
 fn tls_of(e: &Entry) -> (u64, usize) {
-    let Some((_, vaddr, _)) = headers(e.phdr, e.phnum).find(|h| h.0 == PT_TLS) else { return (0, 0) };
+    let Some((_, vaddr, _, _)) = headers(e.phdr, e.phnum).find(|h| h.0 == PT_TLS) else { return (0, 0) };
     let image = u64::try_from(e.bias).unwrap_or(0).wrapping_add(vaddr);
     let n = THREAD_MODS_LEN.load(Acquire);
-    for m in THREAD_MODS.iter().take(n) {
+    for m in (0..n).filter_map(super::thread_mod) {
         let [src, _, _, module, off]: [u64; 5] = core::array::from_fn(|i| m.get(i).map_or(0, |w| w.load(Relaxed)));
         if src == image {
             let tp = u64::try_from(tb::tp()).unwrap_or(0);

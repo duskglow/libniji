@@ -340,6 +340,14 @@ fn check_model(name: &str, f: &[u8], page: u64) {
         for i in h.filesz..h.memsz.min(h.filesz + 3 * page) {
             assert_eq!(s.byte(h.vaddr + l.bias + i), 0, "{name}: .bss byte {i:#x} of the segment at {:#x} not zero", h.vaddr);
         }
+        // LAYOUT-DYN-PHASE: without zero fill every page, the one holding the last file byte included, is
+        // the file's: no anonymous copy (a read of the file outside the mapping) and no store (a private page).
+        if h.memsz == h.filesz {
+            for p in (from..to).step_by(page as usize) {
+                assert!(matches!(s.pages[&p].1, Backing::File(_)), "{name}: page {p:#x} of a segment without zero fill is {:?}, not the file's", s.pages[&p].1);
+                assert!(s.stored.range(p..p + page).next().is_none(), "{name}: bytes stored into page {p:#x} of a segment without zero fill");
+            }
+        }
     }
     // Everything else in the reservation is the inaccessible guard; nothing lies outside it.
     for (&p, &(prot, back)) in &s.pages {
@@ -373,7 +381,8 @@ fn check_model(name: &str, f: &[u8], page: u64) {
 }
 
 /// s27_1_c_1: each segment mapped as the object asks (protection, file bytes, zero `.bss`, `p_align`);
-/// nothing left mapped when a call fails (no spec clause: threat model loader rule 4).
+/// nothing left mapped when a call fails (no spec clause: threat model loader rule 4); a segment without
+/// zero fill mapped from the file to its last page (no spec clause: LAYOUT-DYN-PHASE, start-up faults).
 #[test]
 fn map_model_objects_from_the_linker() {
     if !cc_ok() {

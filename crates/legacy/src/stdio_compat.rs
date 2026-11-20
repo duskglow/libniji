@@ -1287,6 +1287,15 @@ fn byte_oriented(file: &[AtomicUsize]) -> bool {
     }
 }
 
+/// A byte read (`fgetc`, `fread`, `fgets`, `getdelim`), `ungetc` or `fputc` makes an undecided
+/// stream byte-oriented (§12.1); on a wide-oriented stream it works on the stream's bytes in
+/// order (D-12.27): the wide layer decodes one character at a time from the same buffer, so
+/// the next byte is the one after the last character delivered (after an invalid sequence,
+/// its first byte), with the indicators a byte operation sets. The orientation stays wide.
+fn byte_access(file: &[AtomicUsize]) {
+    byte_oriented(file);
+}
+
 /// A wide operation makes an undecided stream wide-oriented, converting with `enc` (the
 /// calling thread's locale encoding) from then on. On a byte-oriented stream it fails
 /// (D-12.14): `false`.
@@ -1323,14 +1332,12 @@ fn input_flushes(ext: &Ext) -> bool {
     ext.state.policy != Policy::Full && (ext.state.role != Role::Reading || ext.state.rpos >= ext.state.rend)
 }
 
-/// `fgetc` and `__uflow`: the next byte, `None` at end of input (and on a wide-oriented
-/// stream, D-12.14).
+/// `fgetc` and `__uflow`: the next byte, `None` at end of input (a wide-oriented stream's next
+/// byte too, D-12.27).
 /// STDIO-6: the engine only; the refill path ([`refill`]) is the caller's to try first, before
 /// its locking plumbing, so a first read (no buffer) pays nothing for it here.
 pub fn getc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Option<u8>> {
-    if !byte_oriented(file) {
-        return Ok(None);
-    }
+    byte_access(file);
     getc_raw(env, file, ext)
 }
 
@@ -1414,9 +1421,7 @@ fn getc_raw<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext) -> KResult<Opt
 
 /// `fread`: bytes into `out`.
 pub fn read<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, out: &mut [u8]) -> Transfer {
-    if !byte_oriented(file) {
-        return Transfer { done: 0, error: Some(Errno::EINVAL) };
-    }
+    byte_access(file);
     load(file, ext);
     let was_reading = ext.state.role == Role::Reading;
     match read_direct(env, ext, out) {
@@ -1925,9 +1930,7 @@ pub fn get_front<E: Env>(env: &E, file: &[AtomicUsize], ext: &Ext, p: usize) -> 
 
 /// `fputc` and `__overflow`.
 pub fn putc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KResult<()> {
-    if !byte_oriented(file) {
-        return Err(Errno::EINVAL);
-    }
+    byte_access(file);
     if window_put(env, file, ext, &[c]) {
         return Ok(());
     }
@@ -1936,9 +1939,7 @@ pub fn putc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KRes
 
 /// `ungetc`.
 pub fn ungetc<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, c: u8) -> KResult<()> {
-    if !byte_oriented(file) {
-        return Err(Errno::EINVAL);
-    }
+    byte_access(file);
     ungetc_raw(env, file, ext, c)
 }
 
@@ -1972,7 +1973,8 @@ pub fn gets_into<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, out: &mut
     // STDIO-FGETS: the line is scanned and copied from the window in pieces, one engine run per
     // piece, not per byte. A stream that is not fully buffered reads one window per run, so the
     // line-buffered streams are flushed before every read of the backing, as `getc` does.
-    if room > 0 && byte_oriented(file) {
+    byte_access(file);
+    if room > 0 {
         let once = ext.state.policy != Policy::Full;
         while n < room {
             load(file, ext);
@@ -2139,9 +2141,7 @@ pub fn getdelim<E: Env>(env: &E, file: &[AtomicUsize], ext: &mut Ext, lineptr: u
     let mut len = prefix;
     // Set when the growth of the caller's buffer failed: that error is the result, not a read error.
     let mut grow_failed = false;
-    if !byte_oriented(file) {
-        return Ok(None);
-    }
+    byte_access(file);
     // The error indicator stops a record read before it reads, and the result is -1 with
     // `errno` left as the caller had it: the indicator is the report, no error happens in this
     // call (the reference; STDIO-STICKY-ERROR-ERRNO, D-12.1). The bit is read from `_flags`,

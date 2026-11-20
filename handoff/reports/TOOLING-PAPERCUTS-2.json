@@ -1,0 +1,25 @@
+{
+ "task": "TOOLING-PAPERCUTS-2",
+ "model": "opus",
+ "tokens": null,
+ "result": "continuation: step 0 green; jobwait fix re-issued as a patch against liella-ops 8890695 in scratch; the five stale S17 plants retargeted at the split generator, all 9 S17 plants CAUGHT",
+ "branch": "task/tooling-papercuts-2",
+ "head": null,
+ "gate": {"affected": "tooling-papercuts-2-gate2 (see hand-back)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+  "jobwait patch: ~/w/.scratch/TOOLING-PAPERCUTS-2/jobwait-liella-ops-8890695.patch (vm/jobwait changed, vm/test_jobwait.sh added; applies with patch -p1 at liella-ops 8890695); coordinator applies and deploys",
+  "the enumerator-value mutant is caught by header_check P1 on sys/ptrace.h; header_check reported no mcheck.h P1 failure for it, so mcheck's enumerator values may not be value-checked (not investigated)",
+  "s17-member-bitfield-width and s17-member-scalar-pointer use broad msg regexes (obstack|printf_info, obstack|tempptr) inherited from S17; their logs show real P1 size failures",
+  "process slip: one python heredoc used for a file edit (validation/headers_s17.plants msg); the result was checked and committed"
+ ],
+ "refused": [],
+ "impact": [
+  {"kind": "coverage", "what": "S17 header plants that reach and are caught by their own check", "before": 3, "after": 9, "unit": "plants", "measured": true}
+ ],
+ "improvement": "plants on generated-code generators go stale silently when the code moves: cargo xtask static could flag a plants file whose lit: pattern matches no site",
+ "next_step": "coordinator: apply and deploy the jobwait patch, redeploy ~/bin/probe from tools/probe/probe, land task/tooling-papercuts-2",
+ "report_file": "handoff/TOOLING-PAPERCUTS.md",
+ "jobs": ["mei:tooling-papercuts-2-gate2", "mei:tooling-papercuts-2-plants2", "mei:tooling-papercuts-2-lint2"]
+}

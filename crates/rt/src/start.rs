@@ -278,6 +278,11 @@ pub mod private {
     /// registrations (`NIJI_OWNER_1`, D-27.29) it owns or whose handlers it holds. Looked up
     /// by the first `dlclose` that unloads an object.
     pub const OWNER_UNLOAD: &[u8] = b"__niji_owner_unload";
+    /// `void __niji_stack_exec(void)`: the loader accepted an object asking for an executable
+    /// stack (COMPAT-19): the C library makes the stacks of its listed threads executable and
+    /// maps every later thread stack executable (a caller-supplied stack is left as it is).
+    /// Looked up only on that branch, at start or by `dlopen`.
+    pub const STACK_EXEC: &[u8] = b"__niji_stack_exec";
     /// `__niji_build_tag`: [`TAG_LEN`] bytes, [`TAG_PREFIX`] then the build's identity.
     pub const BUILD_TAG: &[u8] = b"__niji_build_tag";
     /// The tag's first bytes (a test finds the tag in a file by them).

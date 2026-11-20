@@ -19,7 +19,10 @@ use super::{MAP_ANONYMOUS_I32, MAP_PRIVATE_I32};
 use crate::{conv, raw};
 
 /// Entries a start-time table holds inline: the object count up to which a start maps no table.
-pub(super) const INLINE: usize = 64;
+/// DYN-START-PARITY: 16, not 64. The start's tables live in one stack frame, and every page of that
+/// frame is touched when it is set up, so 64 entries per table (the lookup views alone are 296 bytes
+/// each) cost a dynamic start about a dozen page faults it did not need.
+pub(super) const INLINE: usize = 16;
 
 /// A table could not grow: no address space (or a size that does not fit a word).
 #[derive(Clone, Copy, Debug)]
@@ -211,8 +214,8 @@ impl<T: Copy> Kept<T> {
 }
 
 /// The paths objects were found by, kept for their `$ORIGIN`: chunks of address space mapped as
-/// the paths arrive (none for a start that searches nothing), never moved, so a kept path stays
-/// valid until [`PathStore::release`].
+/// the paths arrive (none for a start that searches nothing), never moved or released: a kept path
+/// stays valid for the process (the start-time link maps' names, DL-23).
 pub(super) struct PathStore {
     free: &'static mut [u8],
     chunks: Table<(usize, usize), 4>,
@@ -230,14 +233,15 @@ impl PathStore {
     /// hundred ordinary ones; a longer path gets a chunk of its own size.
     const CHUNK: usize = 4 * PATH_MAX;
 
-    /// A copy of `p` in the store.
+    /// A copy of `p` in the store, a NUL after it (DL-23: a kept path is also a link map's name).
     ///
     /// # Errors
     ///
     /// [`NoMemory`] when a new chunk is needed and cannot be mapped.
     pub(super) fn keep(&mut self, p: &[u8]) -> Result<&'static [u8], NoMemory> {
-        if p.len() > self.free.len() {
-            let len = Self::CHUNK.max(p.len());
+        let with_nul = p.len().saturating_add(1);
+        if with_nul > self.free.len() {
+            let len = Self::CHUNK.max(with_nul);
             self.chunks.reserve(self.n.saturating_add(1))?;
             let at = raw::mmap(0, len, map::PROT_READ | map::PROT_WRITE, MAP_PRIVATE_I32 | MAP_ANONYMOUS_I32, -1, 0).map_err(|_| NoMemory)?;
             if let Some(c) = self.chunks.get_mut(self.n) {
@@ -247,21 +251,15 @@ impl PathStore {
             // UNSAFE(slice): a fresh anonymous mapping, owned by the store.
             #[allow(unsafe_code)]
             // SAFETY: `len` bytes from `at` were just mapped private, readable and writable; nothing else refers
-            // to them, and the store unmaps them only in `release`, after the caller's last use of a kept path.
+            // to them, and the store never unmaps them (a kept path lives as long as the process).
             let fresh = unsafe { conv::bytes_at_mut(at, len) };
             self.free = fresh;
         }
-        let (kept, rest) = core::mem::take(&mut self.free).split_at_mut(p.len());
+        let (kept, rest) = core::mem::take(&mut self.free).split_at_mut(with_nul);
+        let (kept, nul) = kept.split_at_mut(p.len());
         kept.copy_from_slice(p);
+        nul.fill(0);
         self.free = rest;
         Ok(kept)
-    }
-
-    /// Unmap every chunk: no kept path is used after this.
-    pub(super) fn release(&mut self) {
-        for &(at, len) in self.chunks.get(..self.n).unwrap_or(&[]) {
-            let _ = raw::munmap(at, len);
-        }
-        (self.free, self.n) = (&mut [], 0);
     }
 }

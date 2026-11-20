@@ -162,8 +162,9 @@ fn float128_special_functions(k: usize) {
     let Some(verdict) = verdict::Key::new(&format!("{}.s{k}", env!("CARGO_CRATE_NAME"))).shard(k, shard::SHARDS).file(&host).file(&ours).loaded_by(&host).begin() else {
         return;
     };
-    let run = |exe: &Path| String::from_utf8(Command::new(exe).env_clear().output().unwrap().stdout).unwrap();
-    let (want, got) = (run(&host), run(&ours));
+    // Both programs run once per test run, every shard reads their outputs (MATH-ORACLE-PROFILE).
+    let outputs = verdict::Key::new(&format!("{}.outputs", env!("CARGO_CRATE_NAME"))).file(&host).file(&ours).loaded_by(&host);
+    let [want, got]: [String; 2] = verdict_programs::shared_outputs(env!("CARGO_CRATE_NAME"), &outputs, &[&host, &ours], &dir.join("outputs")).try_into().unwrap();
     let (want, got): (Vec<&str>, Vec<&str>) = (want.lines().collect(), got.lines().collect());
     assert_eq!(want.len(), got.len());
     assert!(want.len() > 8_000, "the reference printed only {} lines", want.len());

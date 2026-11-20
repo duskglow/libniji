@@ -7,7 +7,7 @@
 
 __NIJI_BEGIN_C
 
-@@enum __ptrace_request PTRACE_
+@@enum __ptrace_request
 @@emit
 
 __NIJI_END_C
