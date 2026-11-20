@@ -42,7 +42,12 @@ if [ -n "${WL_PROGS:-}" ]; then
     PROGS=("${keep[@]}")
 fi
 ltree() { # name tree -> the niji validation tree
-    case $1 in make) echo "$V/build/niji-noload/$2" ;; *) echo "$V/build/niji-m/$2" ;; esac
+    local b=$V/build/niji-m
+    [ "$1" = make ] && b=$V/build/niji-noload
+    # Hosts whose validation builds predate the project's rename keep them as liella-m / liella-noload: the same
+    # objects (system headers, independent of the libniji commit). Without this no kit linked on such a host.
+    [ -d "$b" ] || [ ! -d "${b/niji-/liella-}" ] || b=${b/niji-/liella-}
+    echo "$b/$2"
 }
 gtree() { case $1 in make) echo "$V/build/glibc-noload/$2" ;; *) echo "$V/build/glibc/$2" ;; esac; }
 
@@ -88,15 +93,18 @@ for sha in "$@"; do
         # gawk's niji-m objects were configured without -lm (no libm.a then); its maths
         # functions come from libniji's libm.a, where -lm would put it (no stand-in since GAWK-LM-CHECK-2).
         [ "$name" = gawk ] && extra=$prod/libm.a
+        # The recipe's driver is whichever scripts/niji-cc (or its pre-rename name, which reads another variable
+        # and products path) configured the validation tree. The link uses the measured tree's own driver instead:
+        # scripts/niji-cc of SHA (static), or wl_dyncc.sh (WL-DYNAMIC-KIT, WL_LINK=dynamic: libniji's libc.so.6
+        # and ld.so; gawk takes libm.so.6 by -lm, as the glibc kit's gawk has libm.so.6).
+        drv= re='([^ ;]*/scripts/[a-z]+-cc)( |$)'
+        [[ $cmd =~ $re ]] && drv=${BASH_REMATCH[1]}
+        [ -n "$drv" ] || { echo "wl_prep: no niji-cc driver in the link recipe of $name" >&2; exit 1; }
         if [ "$(wl_link)" = dynamic ]; then
-            # WL-DYNAMIC-KIT: the same objects and recipe, linked by wl_dyncc.sh (libniji's libc.so.6 and ld.so) in
-            # place of the recipe's static driver (scripts/niji-cc or its older name); gawk takes libm.so.6 by -lm, as
-            # the glibc kit's gawk has libm.so.6.
             [ "$name" = gawk ] && extra=-lm
-            drv= re='([^ ;]*/scripts/[a-z]+-cc)( |$)'
-            [[ $cmd =~ $re ]] && drv=${BASH_REMATCH[1]}
-            [ -n "$drv" ] || { echo "wl_prep: no niji-cc driver in the link recipe of $name" >&2; exit 1; }
             cmd=${cmd//"$drv "/"sh $here/wl_dyncc.sh "}
+        else
+            cmd=${cmd//"$drv "/"sh $W/src/$sha/scripts/niji-cc "}
         fi
         (cd "$(ltree "$name" "$tree")/$sub" && NIJI_PRODUCTS=$prod WL_DYN_PRODUCTS=$prod NIJI_CC_EXTRA=$extra bash -c "${cmd/ -o $p / -o $kit/$name.tmp }") > "$W/kit/$key/link-$name.log" 2>&1 || { echo "wl_prep: link of $name failed (see $W/kit/$key/link-$name.log)" >&2; exit 1; }
         mv -f "$kit/$name.tmp" "$kit/$name"
