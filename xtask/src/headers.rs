@@ -772,20 +772,21 @@ mod tests {
     // no spec clause (PLANTS-BUILD-SLOWDOWN): the visibility.tsv index answers as the row scan did: the row of the
     // kind asked for (not the name's first row), a header's rows in table order, and the configurations that do not
     // decide a name joined from the header's include-error rows and the name's header-less rows of that kind only
+    // (GATE-TEST-TIME: the first of two rows of one kind, and the union of a header's two include-error rows)
     #[test]
     fn vis_index_answers_as_the_row_scan() {
         let lv = cond::levels(&Path::new(env!("CARGO_MANIFEST_DIR")).join("..")).unwrap();
-        let (a, b, c) = (lv.ids[0].as_str(), lv.ids[1].as_str(), lv.ids[2].as_str());
+        let (a, b, c, d) = (lv.ids[0].as_str(), lv.ids[1].as_str(), lv.ids[2].as_str(), lv.ids[3].as_str());
         let row = |h: &str, n: &str, k: &str, cf: &str| [("header", h), ("name", n), ("kind", k), ("configs", cf)].iter().map(|(x, y)| (x.to_string(), y.to_string())).collect::<BTreeMap<_, _>>();
-        let vis: Rows = vec![row("h.h", "n", "macro", a), row("h.h", "n", "function", b), row("h.h", "h.h", "include-error", c), row("-", "n", "function", a), row("-", "n", "macro", b), row("g.h", "x", "include-error", b), row("h.h", "m", "macro", "*")];
+        let vis: Rows = vec![row("h.h", "n", "macro", a), row("h.h", "n", "function", b), row("h.h", "h.h", "include-error", c), row("-", "n", "function", a), row("-", "n", "macro", b), row("g.h", "x", "include-error", b), row("h.h", "m", "macro", "*"), row("h.h", "n", "function", d), row("h.h", "h.h", "include-error", d)];
         let ix = VisIndex::new(&lv, &vis);
-        assert_eq!(ix.row(&vis, "h.h", "n", "function").map(|r| r["configs"].as_str()), Some(b));
+        assert_eq!(ix.row(&vis, "h.h", "n", "function").map(|r| r["configs"].as_str()), Some(b), "the first function row");
         assert_eq!(ix.row(&vis, "h.h", "n", "enum"), None);
         let order: Vec<(&str, &str)> = ix.header_rows(&vis, "h.h").map(|r| (r["name"].as_str(), r["kind"].as_str())).collect();
-        assert_eq!(order, [("n", "macro"), ("n", "function"), ("h.h", "include-error"), ("m", "macro")]);
+        assert_eq!(order, [("n", "macro"), ("n", "function"), ("h.h", "include-error"), ("m", "macro"), ("n", "function"), ("h.h", "include-error")]);
         let m = |cf: &str| cond::mask_of(&lv, cf).unwrap();
-        assert_eq!(ix.dont_care("h.h", "n", "function"), m(c) | m(a));
-        assert_eq!(ix.dont_care("h.h", "m", "macro"), m(c));
+        assert_eq!(ix.dont_care("h.h", "n", "function"), m(c) | m(d) | m(a), "both of h.h's include-error rows");
+        assert_eq!(ix.dont_care("h.h", "m", "macro"), m(c) | m(d));
         assert_eq!(ix.dont_care("k.h", "n", "macro"), m(b));
     }
 

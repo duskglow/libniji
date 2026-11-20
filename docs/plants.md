@@ -29,6 +29,11 @@ Run it from the role tree on the build host, under plain `jobrun` (not `~/bin/ga
    If one of them fails, it prints the last lines of its log and exits 2 before any plant is applied.
 4. For each plant: it writes the mutated file (a fresh mtime, so cargo rebuilds), runs the command with `sh -c` in the
    copy (under `timeout`, default 600 s, the project's per-plant limit), then restores the file by writing it again (again a fresh mtime).
+   Every command it runs in the copy (the product build, the baseline commands, each plant's command) has
+   `NIJI_PLANTS_BUILD_TAG=plants-<pid>` in its environment, one value for the whole run. `cargo xtask so` uses it as the
+   products' build tag instead of the hash of the sources, so a mutant outside `niji-boundary` and `niji-ld` does not
+   rebuild them in every product target directory (the hash changes with every mutant). Products built outside a
+   plants run keep the hash tag. `cargo xtask so` also prints a `step: so/<phase> <seconds>s` line per phase.
 5. It prints one verdict per plant and a summary line. It exits 1 if any plant SURVIVED (or a step failed), else 0.
 
 **Which commands rebuild the products** (XTASK-PLANTS-PRODUCTS-REBUILD). A test that links `libc.a` or

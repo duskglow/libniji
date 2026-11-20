@@ -456,6 +456,15 @@ fn on_ram(dir: &Path) -> Option<bool> {
     Some(best.2 == "tmpfs" || best.2 == "ramfs" || best.0.starts_with("/dev/zram"))
 }
 
+/// The one build tag of this plants run (PLANTS-BUILD-2): the baseline and every mutant copy build their products with
+/// it (`so::build_tag`), so a mutant outside the crates that carry the tag does not rebuild them in every product
+/// target directory. Constant for the run, and another for each run (the process id; a run's copy and target
+/// directories are new). The products of a plants copy carry it instead of a hash of their sources: the ld.so
+/// start-up check compares the two products of one build, which carry the same one.
+fn run_build_tag() -> String {
+    format!("plants-{}", std::process::id())
+}
+
 /// Run `argv` (or `sh -c <cmd>`) in `cwd` under `timeout`, its output into `log`, with `NIJI_LAYOUT_TRACE` set
 /// for `layout` (a product build, and a command that builds the products itself, get the plant's layout); the exit code.
 fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: crate::hotlists::Layout) -> Result<i32, String> {
@@ -471,6 +480,7 @@ fn run_logged(cwd: &Path, argv: &[String], log: &Path, timeout: u64, layout: cra
         // A target directory from the environment would build (and test) outside the copy.
         .env_remove("CARGO_TARGET_DIR")
         .env(crate::hotlists::TRACE_ENV, layout_env(layout))
+        .env(crate::so::PLANTS_TAG_ENV, run_build_tag())
         .stdin(Stdio::null())
         .stdout(file)
         .stderr(err)
@@ -972,6 +982,35 @@ mod tests {
         assert_eq!(out.verdicts, vec![("pr".into(), Verdict::Caught)]);
         assert_eq!(fs::read_to_string(dir.join("src/builds.txt")).unwrap(), "layout=ungrouped\nlayout=ungrouped\n");
         assert!(!dir.join("logs/so-traced.log").exists());
+        let _ = fs::remove_dir_all(src.parent().unwrap());
+    }
+
+    // no spec clause (PLANTS-BUILD-2): the baseline build and every mutant's build of one run get ONE build tag (the
+    // variable `so::build_tag` reads), a plants-run tag and not an empty one, so a mutant outside the crates that
+    // carry the tag does not rebuild them; and the command that tests a mutant sees the same tag
+    #[test]
+    fn every_build_of_a_run_gets_one_build_tag() {
+        let (src, dir) = toy("tag");
+        let plants = format!(
+            "pr | src/value.txt | lit:answer=42 ==> answer=43 | echo cmd=${} >> cmds.txt; {PRODUCT_CHECK} | msg:WRONG-PRODUCT\n\
+             p2 | src/value.txt | lit:answer=42 ==> answer=44 | {PRODUCT_CHECK} | msg:WRONG-PRODUCT\n",
+            crate::so::PLANTS_TAG_ENV
+        );
+        let mut cfg = config(&src, &dir, &plants);
+        cfg.prepare = sh(&format!("cp src/value.txt product.txt && echo ${} >> builds.txt", crate::so::PLANTS_TAG_ENV));
+        cfg.uses_products = |_, ps| vec![true; ps.len()];
+        let out = run(&cfg);
+        assert_eq!(out.verdicts, vec![("pr".into(), Verdict::Caught), ("p2".into(), Verdict::Caught)]);
+        let builds = fs::read_to_string(dir.join("src/builds.txt")).unwrap();
+        let tags: std::collections::BTreeSet<&str> = builds.lines().collect();
+        assert!(builds.lines().count() >= 3, "the baseline and each mutant built: {builds:?}");
+        assert_eq!(tags.len(), 1, "one tag for every build of the run: {builds:?}");
+        // This process's tag, not whatever the environment brought: when this test itself runs under a plants run, a
+        // child inherits that run's tag, which would hide a `run_logged` that sets none.
+        assert_eq!(tags, std::collections::BTreeSet::from([run_build_tag().as_str()]), "{builds:?}");
+        assert!(run_build_tag().starts_with("plants-") && run_build_tag().len() > "plants-".len());
+        let cmds = fs::read_to_string(dir.join("src/cmds.txt")).unwrap();
+        assert!(cmds.lines().all(|l| l == format!("cmd={}", tags.iter().next().unwrap())), "{cmds:?}");
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
 

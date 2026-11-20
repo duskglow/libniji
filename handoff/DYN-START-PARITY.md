@@ -1,4 +1,26 @@
-# DYN-START-PARITY (handoff after DYN-START-PARITY-2: final)
+# DYN-START-PARITY (handoff after DYN-START-PARITY-3: final)
+
+## DYN-START-PARITY-3 (merge of next; the fault bound only)
+Branch `task/dyn-start-parity-3` (stacked on `task/dyn-start-parity-2`). Merged origin/next 65d9d2cfd (f9840707c):
+one conflict, `DYN_TRUE_BOUND` in crates/core/tests/hot_text_products.rs (LAYOUT-DYN-PHASE-4 had set [82, 77]).
+Both stories' comments are kept. Re-measured on the merged head (warm-up + 5 runs, every run identical):
+
+| dynamic startup-only program | Skylake-SP (mei) ext4 /tmp | Skylake-SP tmpfs (gate) | Zen 1 (keke) ext4 | Zen 1 tmpfs (gate) |
+|---|---|---|---|---|
+| fast | 73 | 73 | 73 | 73 |
+| release | 67 | 67 | 67 | 67 |
+
+The Zen 1 numbers come from the mei-built probe (page_faults.c linked as the test links it, staged at paths of the
+same length, run with `setarch -R` and a cleared environment); it reproduces the test's own 73 / 67 on mei.
+DYN_TRUE_BOUND = [73, 67] (bbf821cb6), below next's [82, 77]. The file-system dependence DYN-START-PARITY-2 found is
+no longer visible on the merged head (cause not isolated). No other bound changed: the dynamic instruction bound
+holds (Skylake-SP fast 1,724,535 <= 1,752,700, release 1,597,189 <= 1,630,700); the static startup-only (11 / 10)
+and setlocale + printf (43) counts match their bounds.
+For DYN-START-SPEED (stacked on this branch): only DYN_TRUE_BOUND changed, to [73, 67].
+Plant: `handoff/DYN-START-PARITY-3-plants.txt` (start tables back to 64 inline entries, expects `> 73`).
+Jobs (mei, role s2): lint1, gate1, xtest1, plants1, release1, precheck; measurements m1-m4 (mei), zen-rel and
+zen-both (keke, probe only, no build). Superseded: lint0 (inherited head c91e5e3bb, green).
+Next step: none for this story; the follow-up items below belong to DYN-START-SPEED.
 
 ## DYN-START-PARITY-2 (the fault bound only)
 Branch `task/dyn-start-parity-2` (stacked on `task/dyn-start-parity`), code head 7e5e8a609. The last run's xtest4 read
