@@ -12,9 +12,9 @@
 //! * the section of every read-only key of the build's traced `startup-data.keys` (objects the page-fault
 //!   trace saw read, such as the ctype tables).
 //!
-//! The start object (`csys/src/machine/entry.S`, first in every link) holds an empty `.rodata1`
+//! libc.a's static anchor (`csys/src/machine/entry.S`, the first of libc.a's inputs in a static link) holds an empty `.rodata1`
 //! aligned to [`ALIGN`]: the linker aligns an output section to the largest alignment of its input
-//! sections, and the start object's comes first, so the group starts on an [`ALIGN`] boundary. With
+//! sections, and the anchor's comes first, so the group starts on an [`ALIGN`] boundary. With
 //! the group no larger than [`ALIGN`] (checked here over the whole archive, an upper bound for any
 //! link) and [`ALIGN`] dividing 64 KiB, the group sits in exactly one window.
 

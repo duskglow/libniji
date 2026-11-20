@@ -1408,6 +1408,11 @@ fn build_crt1(root: &Path, cc: &str, dir: &Path) -> Result<(), String> {
 /// objects held before, so that only a static link (the one link that reads libc.a) gets them.
 const STATIC_ANCHORS: [(&str, &str, bool); 2] = [("niji_static_anchor.o", "__libc_start_main", false), ("niji_static_pie_anchor.o", STATIC_PIE_START, true)];
 
+/// Whether `file` (a link map's input, `.../libc.a(<member>)`) is one of the [`STATIC_ANCHORS`].
+pub fn static_anchor_member(file: &str) -> bool {
+    STATIC_ANCHORS.iter().any(|a| file.ends_with(&format!("libc.a({})", a.0)))
+}
+
 /// Assembles the [`STATIC_ANCHORS`] (each start-up data cluster's start alignment from its size over the
 /// whole archive, D-X.64) and inserts them ahead of every other member of `archive`, in that order: a
 /// static link takes the first member of the index that defines a symbol still undefined, and the start

@@ -17,7 +17,7 @@
 //! the residual fill. [`Plan::bound`] is a lower bound per mode (its bytes over [`BIN`], rounded up), so
 //! the plan's distance from optimal is printed, not assumed.
 //!
-//! LAYOUT-WINDOW-BINS-5: the last bin is filled to its boundary too, and the start file ends the group there
+//! LAYOUT-WINDOW-BINS-5: the last bin is filled to its boundary too, and libc.a's static anchor ends the group there
 //! ([`GROUP_END`]), so a program's own text after the group (the probe's `main`, compiled into `.text`)
 //! starts on a window boundary instead of wherever the last bin happens to end: a `main` across that
 //! boundary cost every mode a second fault for it (start-up 12 against 11, fast products).
@@ -148,7 +148,7 @@ pub fn section(bin: usize, filler: bool, place: usize, f: &str) -> String {
     format!(".text.sorted.h9{bin:02}{}{place:05}.{f}", u8::from(filler))
 }
 
-/// The empty, [`BIN`]-aligned section the start file (`csys/src/machine/entry.S`) carries to end the
+/// The empty, [`BIN`]-aligned section libc.a's static anchor (`csys/src/machine/entry.S`) carries to end the
 /// group (LAYOUT-WINDOW-BINS-5): its name sorts after every [`section`] name (`z` after any digit), so GNU
 /// ld places it after the last bin and starts the program's own `.text` on the next window boundary.
 pub const GROUP_END: &str = ".text.sorted.h9z.niji_group_end";
