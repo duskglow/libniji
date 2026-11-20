@@ -61,7 +61,13 @@ impl Gen<'_> {
             match self.aggregate(name) {
                 Some(a) => {
                     self.emit_nested(a.nested);
-                    [vec![format!("typedef {}{} {{", a.kw, a.attrs)], a.lines, vec![format!("}} {name}{};", a.td_attrs)]].concat()
+                    if a.td_attrs.is_empty() && self.union_tag(name) {
+                        // A union the program may name as `union N` as well as `N` (C 6.7.2.3): the tag carries the
+                        // members, so C++ sees a union of that name, not an unnamed union named for linkage.
+                        [vec![format!("union {name}{} {{", a.attrs)], a.lines, vec!["};".into(), format!("typedef union {name} {name};")]].concat()
+                    } else {
+                        [vec![format!("typedef {}{} {{", a.kw, a.attrs)], a.lines, vec![format!("}} {name}{};", a.td_attrs)]].concat()
+                    }
                 }
                 // No size: an incomplete type the program only points to.
                 None if r["size"].is_empty() => vec![format!("typedef struct {name} {name};")],

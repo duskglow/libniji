@@ -1,4 +1,5 @@
 # Plants of HEADERS-GEN-S08-HOOKS (cargo xtask plants; docs/plants.md): slice 8's generic generator edits.
+s8-union-tag-spelling | xtask/src/headers/typedefs.rs | lit:if a.td_attrs.is_empty() && self.union_tag(name) { ==> if a.td_attrs.is_empty() && self.union_tag(name) && false { | cargo test -p xtask --test header_p2_fixed_rows | msg:P2 differences
 s8-fnmember-declarator | headers/fnmembers.tsv | lit:char *(*@)(int, const char *, void *) ==> char *(*@)(int, const char *, int *) | cargo xtask headers-gen --check | msg:headers-gen
 s8-fnmember-lookup | xtask/src/headers/aggregates.rs | lit:d.replace('@', name) ==> d.replace('@', "x") | cargo xtask headers-gen --check | msg:headers-gen
 s8-union-tag-cxx | xtask/src/headers/cond.rs | lit:self.union_tag(name) { target ==> self.union_tag(name) && false { target | cargo xtask headers-gen --check | msg:headers-gen

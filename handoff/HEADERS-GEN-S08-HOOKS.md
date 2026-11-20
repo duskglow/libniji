@@ -4,6 +4,13 @@
 Continued as HEADERS-GEN-S08-HOOKS-2 on `task/headers-gen-s08-hooks-2` (report `handoff/reports/HEADERS-GEN-S08-HOOKS-2.json`): CI went red only on
 `headers-gen-check` after SL-HEADERS-S15-3 landed visibility rows. Merged origin/next (d4cbe1667) and regenerated: the only diff is the
 `pthread_attr_t` block (same union typedef and `__NIJI_D_pthread_attr_t` guard) in `sys/acct.h`, `sys/mtio.h`, `sys/quota.h`, i.e. the merge of both changes.
+Second finding of the -2 run: the direct gate (xtask tests, which the first run never ran) failed `header_p2_fixed_rows`: the union-tag
+rule declared `pthread_attr_t` as an unnamed `typedef union {..}` in C++, which the visibility probe classifies as a typedef where the
+reference table has none (the reference has a union tag of that name). Cause fixed in `typedefs.rs`: a union typedef with no C++
+spelling is now spelled `union pthread_attr_t {..}; typedef union pthread_attr_t pthread_attr_t;` (same layout; `union pthread_attr_t`
+now names the type in C and C++). All 15 headers carrying it regenerated (the 12 above plus acct.h, mtio.h, quota.h); plant
+`s8-union-tag-spelling` covers it. The statement above that the output "is what slice 8 already carried" is therefore superseded:
+SL-HEADERS-S08 should regenerate on top of this.
 Ruling #7070 (obstack `chunkfun`/`freefun` spelling) is owed to its own story, not done here.
 Premise (brief stated none): header slices are data-only (owner 11-19), so the generic edits of `task/sl-headers-s08-5` land first and
 SL-HEADERS-S08 rebases on them as data-only. HEADERS-GEN-S10-HOOKS had not landed on this base (no s10 hook in `xtask/src/headers*`).

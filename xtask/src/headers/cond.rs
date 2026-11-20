@@ -162,7 +162,7 @@ impl Gen<'_> {
     }
 
     /// A typedef of a union that typedefs.tsv gives no C++ spelling (`pthread_attr_t`): C++ declares the tag itself.
-    fn union_tag(&self, name: &str) -> bool {
+    pub(super) fn union_tag(&self, name: &str) -> bool {
         self.t.typedefs.get(&("typedef".to_string(), name.to_string())).is_some_and(|r| r["cxx"].is_empty())
             && !self.t.typedefs.contains_key(&("struct".to_string(), name.to_string()))
             && self.aggregate(name).is_some_and(|a| a.kw == "union")
