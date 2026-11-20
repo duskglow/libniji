@@ -1,0 +1,30 @@
+# One row per header this slice ships (plan/headers.md section 4, "Adding a slice"). p1: 1 = the table P1 units of
+# spec/tools/header_check.py cover it; uapi: the kernel UAPI headers P8 pairs it with (comma-separated), - for none.
+header	p1	uapi
+mntent.h	1	-
+fstab.h	1	-
+sys/mount.h	0	linux/mount.h
+sys/swap.h	1	-
+sys/reboot.h	1	-
+sys/klog.h	1	-
+sys/sysinfo.h	1	-
+sys/quota.h	1	-
+sys/acct.h	1	-
+sys/io.h	1	-
+sys/perm.h	1	-
+sys/vlimit.h	1	-
+ulimit.h	1	-
+gnu/libc-version.h	1	-
+sys/timeb.h	1	-
+sys/timex.h	0	-
+sys/kd.h	1	-
+sys/vt.h	1	-
+sys/soundcard.h	1	-
+sys/mtio.h	1	-
+sys/pci.h	1	-
+sys/raw.h	1	-
+scsi/scsi.h	1	-
+scsi/scsi_ioctl.h	1	-
+scsi/sg.h	1	-
+nfs/nfs.h	1	-
+sys/vm86.h	1	-

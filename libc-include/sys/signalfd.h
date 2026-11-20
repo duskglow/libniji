@@ -52,11 +52,15 @@ extern int signalfd (int, const sigset_t *, int) __NIJI_NOTHROW;
 # endif
 # ifndef __NIJI_D_enum_SFD_CLOEXEC
 #  define __NIJI_D_enum_SFD_CLOEXEC 1
+#  ifndef SFD_CLOEXEC
 enum { SFD_CLOEXEC = 524288 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_SFD_NONBLOCK
 #  define __NIJI_D_enum_SFD_NONBLOCK 1
+#  ifndef SFD_NONBLOCK
 enum { SFD_NONBLOCK = 2048 };
+#  endif
 # endif
 # ifndef SFD_CLOEXEC
 #  define SFD_CLOEXEC 524288

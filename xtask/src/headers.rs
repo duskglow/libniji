@@ -486,7 +486,8 @@ impl Gen<'_> {
                     return;
                 }
                 let v = self.value(name);
-                self.guard(&format!("enum_{name}"), vec![format!("enum {{ {name} = {v} }};")]);
+                // A macro of the same name (a kernel header that came first) already provides the value.
+                self.guard(&format!("enum_{name}"), vec![format!("#  ifndef {name}"), format!("enum {{ {name} = {v} }};"), "#  endif".into()]);
             }
             "typedef" => self.typedef(name),
             "struct" | "union" | "enum" => self.tag(name, kind),
