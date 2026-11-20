@@ -14,8 +14,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import header_check  # noqa: E402
 
-DEFERRED = {("sys/timex.h", "fd_set"), ("sys/timex.h", "sigset_t"), ("sys/mount.h", "f_owner_ex"),
-            ("sys/mount.h", "OPEN_TREE_CLOEXEC"), ("sys/mount.h", "MS_NOUSER")}
+DEFERRED = {("sys/mount.h", "f_owner_ex"), ("sys/mount.h", "OPEN_TREE_CLOEXEC"), ("sys/mount.h", "MS_NOUSER")}
 HEADERS = ("sys/mount.h", "sys/timex.h")
 
 

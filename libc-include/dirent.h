@@ -234,39 +234,57 @@ extern int scandir (const char *, struct dirent ***, int (*) (const struct diren
 #if __NIJI_MISC
 # ifndef __NIJI_D_enum_DT_BLK
 #  define __NIJI_D_enum_DT_BLK 1
+#  ifndef DT_BLK
 enum { DT_BLK = 6 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_DT_CHR
 #  define __NIJI_D_enum_DT_CHR 1
+#  ifndef DT_CHR
 enum { DT_CHR = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_DT_DIR
 #  define __NIJI_D_enum_DT_DIR 1
+#  ifndef DT_DIR
 enum { DT_DIR = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_DT_FIFO
 #  define __NIJI_D_enum_DT_FIFO 1
+#  ifndef DT_FIFO
 enum { DT_FIFO = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_DT_LNK
 #  define __NIJI_D_enum_DT_LNK 1
+#  ifndef DT_LNK
 enum { DT_LNK = 10 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_DT_REG
 #  define __NIJI_D_enum_DT_REG 1
+#  ifndef DT_REG
 enum { DT_REG = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_DT_SOCK
 #  define __NIJI_D_enum_DT_SOCK 1
+#  ifndef DT_SOCK
 enum { DT_SOCK = 12 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_DT_UNKNOWN
 #  define __NIJI_D_enum_DT_UNKNOWN 1
+#  ifndef DT_UNKNOWN
 enum { DT_UNKNOWN = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_DT_WHT
 #  define __NIJI_D_enum_DT_WHT 1
+#  ifndef DT_WHT
 enum { DT_WHT = 14 };
+#  endif
 # endif
 #endif
 #if 1

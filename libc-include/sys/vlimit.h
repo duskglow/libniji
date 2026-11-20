@@ -10,7 +10,15 @@ __NIJI_BEGIN_C
 #if 1
 # ifndef __NIJI_D_enum___vlimit_resource
 #  define __NIJI_D_enum___vlimit_resource 1
-enum __vlimit_resource { __NIJI_ENUM__vlimit_resource = 0 };
+enum __vlimit_resource {
+  LIM_NORAISE = 0,
+  LIM_CPU = 1,
+  LIM_FSIZE = 2,
+  LIM_DATA = 3,
+  LIM_STACK = 4,
+  LIM_CORE = 5,
+  LIM_MAXRSS = 6,
+};
 # endif
 # ifndef __NIJI_D_vlimit
 #  define __NIJI_D_vlimit 1

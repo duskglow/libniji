@@ -5,12 +5,7 @@
 
 #include <features.h>
 
-/* fd_set comes with <sys/select.h> (slice 7); until that header is generated the name is owned here. */
-#if defined __has_include
-# if __has_include(<sys/select.h>)
-#  include <sys/select.h>
-# endif
-#endif
+#include <sys/select.h>
 
 __NIJI_BEGIN_C
 
@@ -54,13 +49,6 @@ struct ntptimeval {
   long __glibc_reserved2;
   long __glibc_reserved3;
   long __glibc_reserved4;
-};
-# endif
-# ifndef __NIJI_D_struct_timeval
-#  define __NIJI_D_struct_timeval 1
-struct timeval {
-  long tv_sec;
-  long tv_usec;
 };
 # endif
 # ifndef __NIJI_D_struct_timeval
@@ -116,42 +104,7 @@ struct timezone {
 };
 # endif
 #endif
-#if __NIJI_POSIX >= 200112
-# ifndef __NIJI_D_struct_timespec
-#  define __NIJI_D_struct_timespec 1
-struct timespec {
-  long tv_sec;
-  long tv_nsec;
-};
-# endif
-#endif
 #if 1
-# ifndef __NIJI_D___ino64_t
-#  define __NIJI_D___ino64_t 1
-typedef unsigned long __ino64_t;
-# endif
-# ifndef __NIJI_D___off_t
-#  define __NIJI_D___off_t 1
-typedef long __off_t;
-# endif
-# ifndef __NIJI_D___pid_t
-#  define __NIJI_D___pid_t 1
-typedef int __pid_t;
-# endif
-# ifndef __NIJI_D___sigset_t
-#  define __NIJI_D___sigset_t 1
-typedef struct {
-  unsigned long __val[16];
-} __sigset_t;
-# endif
-# ifndef __NIJI_D_sigset_t
-#  define __NIJI_D_sigset_t 1
-typedef __sigset_t sigset_t;
-# endif
-# ifndef __NIJI_D_time_t
-#  define __NIJI_D_time_t 1
-typedef long time_t;
-# endif
 struct timex;
 # ifndef __NIJI_D_adjtimex
 #  define __NIJI_D_adjtimex 1
@@ -283,9 +236,6 @@ enum { ITIMER_VIRTUAL = 1 };
 # ifndef ADJ_TIMECONST
 #  define ADJ_TIMECONST 32
 # endif
-# ifndef FD_SETSIZE
-#  define FD_SETSIZE 1024
-# endif
 # ifndef ITIMER_PROF
 #  define ITIMER_PROF 2
 # endif
@@ -405,11 +355,6 @@ enum { ITIMER_VIRTUAL = 1 };
 # endif
 # ifndef TIME_WAIT
 #  define TIME_WAIT 4
-# endif
-#endif
-#if __NIJI_MISC
-# ifndef NFDBITS
-#  define NFDBITS 64
 # endif
 #endif
 

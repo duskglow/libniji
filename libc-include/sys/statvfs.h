@@ -94,57 +94,83 @@ extern int statvfs64 (const char *, struct statvfs64 *) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_enum_ST_NOSUID
 #  define __NIJI_D_enum_ST_NOSUID 1
+#  ifndef ST_NOSUID
 enum { ST_NOSUID = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_RDONLY
 #  define __NIJI_D_enum_ST_RDONLY 1
+#  ifndef ST_RDONLY
 enum { ST_RDONLY = 1 };
+#  endif
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef __NIJI_D_enum_ST_APPEND
 #  define __NIJI_D_enum_ST_APPEND 1
+#  ifndef ST_APPEND
 enum { ST_APPEND = 256 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_IMMUTABLE
 #  define __NIJI_D_enum_ST_IMMUTABLE 1
+#  ifndef ST_IMMUTABLE
 enum { ST_IMMUTABLE = 512 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_MANDLOCK
 #  define __NIJI_D_enum_ST_MANDLOCK 1
+#  ifndef ST_MANDLOCK
 enum { ST_MANDLOCK = 64 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_NOATIME
 #  define __NIJI_D_enum_ST_NOATIME 1
+#  ifndef ST_NOATIME
 enum { ST_NOATIME = 1024 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_NODEV
 #  define __NIJI_D_enum_ST_NODEV 1
+#  ifndef ST_NODEV
 enum { ST_NODEV = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_NODIRATIME
 #  define __NIJI_D_enum_ST_NODIRATIME 1
+#  ifndef ST_NODIRATIME
 enum { ST_NODIRATIME = 2048 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_NOEXEC
 #  define __NIJI_D_enum_ST_NOEXEC 1
+#  ifndef ST_NOEXEC
 enum { ST_NOEXEC = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_NOSYMFOLLOW
 #  define __NIJI_D_enum_ST_NOSYMFOLLOW 1
+#  ifndef ST_NOSYMFOLLOW
 enum { ST_NOSYMFOLLOW = 8192 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_RELATIME
 #  define __NIJI_D_enum_ST_RELATIME 1
+#  ifndef ST_RELATIME
 enum { ST_RELATIME = 4096 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_SYNCHRONOUS
 #  define __NIJI_D_enum_ST_SYNCHRONOUS 1
+#  ifndef ST_SYNCHRONOUS
 enum { ST_SYNCHRONOUS = 16 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ST_WRITE
 #  define __NIJI_D_enum_ST_WRITE 1
+#  ifndef ST_WRITE
 enum { ST_WRITE = 128 };
+#  endif
 # endif
 #endif
 #if 1

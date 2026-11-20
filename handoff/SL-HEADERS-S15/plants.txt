@@ -1,9 +1,9 @@
 # Plants of slice 15 (cargo xtask plants; docs/plants.md). The generator, the templates, headers/reserved.tsv and the committed
 # libc-include/ output are checked by `headers-gen --check` (the committed output must equal the regenerated one) and by
 # spec/tools/header_check.py (P1 values, sizes, alignments; P5 hygiene) on libc-include/.
-s15-float-inf | xtask/src/headers.rs | lit:"inf" => Ok(format!("(__builtin_inf{f} ())")) ==> "inf" => Ok(format!("(__builtin_nan{f} (\"\"))")) | cargo xtask headers-gen --check | msg:headers-gen
+s15-float-inf | xtask/src/headers/values.rs | lit:"inf" => Ok(format!("(__builtin_inf{f} ())")) ==> "inf" => Ok(format!("(__builtin_nan{f} (\"\"))")) | cargo xtask headers-gen --check | msg:headers-gen
 s15-enumerator-yields | xtask/src/headers.rs | lit:format!("#  ifndef {name}"), format!("enum { ==> format!("#  ifdef {name}"), format!("enum { | cargo xtask headers-gen --check | msg:headers-gen
-s15-enum-placeholder | xtask/src/headers.rs | lit:__NIJI_ENUM{name} = 0 ==> __NIJI_ENUM{name} = 1 | cargo xtask headers-gen --check | msg:headers-gen
+s15-enum-placeholder | xtask/src/headers/aggregates.rs | lit:__NIJI_ENUM{name} = 0 ==> __NIJI_ENUM{name} = 1 | cargo xtask headers-gen --check | msg:headers-gen
 s15-vlimit-reserved | headers/reserved.tsv | lit:__vlimit_resource ==> __vlimit_resourcX | cargo xtask headers-gen --check | msg:headers-gen
 s15-mount-kernel-include | headers/sys/mount.h.in | lit:#include <linux/mount.h> ==> | cargo xtask headers-gen --check | msg:headers-gen
 s15-p1-swap-value | libc-include/sys/swap.h | lit:#  define SWAP_FLAG_PREFER 32768 ==> #  define SWAP_FLAG_PREFER 32769 | cargo xtask so | msg:stale under libc-include/: sys/swap.h

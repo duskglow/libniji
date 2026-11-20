@@ -15,7 +15,7 @@ struct fstab {
   char * fs_file;
   char * fs_vfstype;
   char * fs_mntops;
-  char * fs_type;
+  const char * fs_type;
   int fs_freq;
   int fs_passno;
 };

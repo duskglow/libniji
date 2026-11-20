@@ -7,9 +7,10 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <linux/mount.h>
+#include <fcntl.h>
 
-/* The terminal ioctl names and the descriptor-control structure come with <sys/ioctl.h> (slice 7); until that header is
-   generated the names are owned here and the include is optional. */
+/* The terminal ioctl names come with <sys/ioctl.h> (slice 7's tail, blocked on this slice's neighbours); until that header
+   is generated the names are owned here and the include is optional. */
 #if defined __has_include
 # if __has_include(<sys/ioctl.h>)
 #  include <sys/ioctl.h>
