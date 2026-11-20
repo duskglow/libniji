@@ -41,11 +41,11 @@ Release before DYN-START-SPEED: 1,579,278 (execcount). glibc faults 51 (execcoun
 lint0 (inherited head, green), rel3 (clippy + static + release so + hot_text_products 30 passed, gate wrapper),
 meas1 (release probe ext4/tmpfs), gate1 (direct tier `affected --base origin/next --run`: 304 passed), plants2
 (1/1 CAUGHT), xtest1 (cargo xtask test), sky1 (instructions + faults), keke:dyn-start-speed-2-zen1 (Zen 1 probe),
-fin1 (clippy -D warnings + static on the final head), precheck.
+fin2 (cargo xtask so + hot_text_products, fast, 30 passed, final head), precheck.
 Superseded / diagnostic: rel1 (merged head, the 68 > 67 red reproduced), rel2 (clippy arithmetic red, fixed),
 prepnext (old ~/wl/bin/wl_prep.sh copy, fast build + failed copy; I removed the empty products dir it left),
 nextrel (next's release products + probe), probe1 (probe script bug), probe2 (merged head ext4/tmpfs), plants1
-(plant file not yet synced).
+(plant file not yet synced), fin1 (clippy -D warnings + static passed; hot_text_products then ran against products built from the previous tree: the prefixed interpreter refused the older libc.so.6 by its NIJI_PRIVATE build tag; fin2 rebuilt and passed).
 
 ## INFORMATIONAL
 - ~/wl/bin/wl_prep.sh on mei is an old copy (target/liella paths, fast profile); validation/wl_prep.sh in the
