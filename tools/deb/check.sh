@@ -104,7 +104,8 @@ if [ -x "$cc" ]; then
     elif "$cc" -O3 -ffast-math "$here/smoke/mvec.c" -lm -o "$tmp/mvec" > "$tmp/log" 2>&1; then
         needed=" $(readelf -dW "$tmp/mvec" | sed -n 's/.*(NEEDED).*\[\(.*\)\]$/\1/p' | tr '\n' ' ')"
         case $needed in *" libmvec.so.1 "*) ;; *) fail "wrapper: mvec (-lm) needs '$needed', without libmvec.so.1" ;; esac
-        out=$(LD_LIBRARY_PATH=$nlib timeout 60 "$nlib/ld-linux-x86-64.so.2" "$tmp/mvec" 2>&1) || fail "wrapper: mvec exits $?: $out"
+        # env inside the watchdog: the host's timeout must not load the packaged libraries.
+        out=$(timeout 60 env LD_LIBRARY_PATH="$nlib" "$nlib/ld-linux-x86-64.so.2" "$tmp/mvec" 2>&1) || fail "wrapper: mvec exits $?: $out"
         [ "$out" = 0.8415 ] || fail "wrapper: mvec printed '$out', not 0.8415"
     else
         fail "wrapper: mvec (-O3 -ffast-math -lm) does not link: $(tail -3 "$tmp/log" | tr '\n' ' ')"

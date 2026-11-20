@@ -236,8 +236,11 @@ fn coexist_lm_brings_in_libmvec_only_for_a_vector_call() {
         assert!(o.status.success(), "niji-gcc {} {link:?} does not link:\n{}", src.display(), String::from_utf8_lossy(&o.stderr));
     };
     // run(exe): its standard output, started by the packaged loader with the packaged libraries.
+    // `env` inside the watchdog sets LD_LIBRARY_PATH, so the host's `timeout` never loads them.
     let run = |exe: &std::path::Path| {
-        let o = Command::new("timeout").arg(timeout::secs(60)).arg(&loader).arg(exe).env("LD_LIBRARY_PATH", &lib).output().unwrap();
+        let mut path = std::ffi::OsString::from("LD_LIBRARY_PATH=");
+        path.push(&lib);
+        let o = Command::new("timeout").arg(timeout::secs(60)).arg("env").arg(path).arg(&loader).arg(exe).output().unwrap();
         assert!(o.status.success(), "{} exits {:?}: {}", exe.display(), o.status, String::from_utf8_lossy(&o.stderr));
         String::from_utf8_lossy(&o.stdout).into_owned()
     };
