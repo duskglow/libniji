@@ -35,7 +35,7 @@ sys/reboot.h ttyent.h aliases.h rpc/netdb.h ulimit.h sys/profil.h sys/gmon.h mch
 sys/platform/x86.h sys/fsuid.h sys/personality.h sys/io.h sys/file.h sys/sendfile.h
 sys/user.h sys/procfs.h sys/vlimit.h sys/vtimes.h sys/ustat.h
 elf.h netinet/ip.h netinet/ip6.h netinet/tcp.h netinet/udp.h netinet/ip_icmp.h netinet/icmp6.h
-net/ethernet.h net/if_arp.h netpacket/packet.h""".split()
+net/ethernet.h net/if_arp.h netpacket/packet.h utime.h""".split()
 
 # (label, C type expression). Labels are the names used in Appendix C.
 TYPES = [
@@ -64,7 +64,7 @@ TYPES = [
  ("struct timezone", "struct timezone"), ("struct timex", "struct timex"),
  ("struct ntptimeval", "struct ntptimeval"), ("struct tms", "struct tms"), ("struct timeb", "struct timeb"),
  ("struct rusage", "struct rusage"), ("struct rlimit", "struct rlimit"), ("struct utsname", "struct utsname"),
- ("struct sysinfo", "struct sysinfo"), ("struct stat", "struct stat"), ("struct statx", "struct statx"),
+ ("struct sysinfo", "struct sysinfo"), ("struct stat", "struct stat"), ("struct statx", "struct statx"), ("struct statx_timestamp", "struct statx_timestamp"),
  ("struct statfs", "struct statfs"), ("struct statvfs", "struct statvfs"),
  ("struct dirent", "struct dirent"), ("struct dirent64", "struct dirent64"),
  ("FTS", "FTS"), ("FTSENT", "FTSENT"), ("struct FTW", "struct FTW"), ("glob_t", "glob_t"),
@@ -717,6 +717,13 @@ def main():
             mac = macros(tmp)
         write("constants.tsv", ["macro", "value"], mac)
         print(f"{ver}\nconstants: {len(mac)}")
+        return
+    if "--prototypes-only" in sys.argv:
+        # Regenerate prototypes.tsv alone (slice 7 added utime.h to HEADERS; the other tables do not depend on it).
+        with tempfile.TemporaryDirectory() as tmp:
+            pro = prototypes(tmp)
+        write("prototypes.tsv", ["name", "header", "declaration"], [(k, *v) for k, v in sorted(pro.items())])
+        print(f"{ver}\nPrototypes: {len(pro)}")
         return
     if "--empty-versions-only" in sys.argv:
         # Write empty-versions.tsv alone and add its line to PROVENANCE (SYS-ABI-DT-RELR).
