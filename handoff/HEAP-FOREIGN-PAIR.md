@@ -48,7 +48,7 @@ Next: `strace -f -c -e trace=gettid` on pass-2 test binaries (strstr_find, regex
 New: crates/boundary/tests/heap_foreign_plain.rs (on the route: calloc zeroes a dirty reused block, a free reaches
 the heap, the next same-size block is the freed one; with M_PERTURB set the route is not taken). Plants:
 handoff/HEAP-FOREIGN-PAIR-plants.txt (4). First run (`-plants`, head 3f5eb3708): 3 CAUGHT, free-dropped SURVIVED
-(the cost bound does not see a leak); the reuse assertion was added for it; `-plants2` runs on bf19d27a3.
+(the cost bound does not see a leak); the reuse assertion was added for it. `-plants2` on bf19d27a3: 4 of 4 CAUGHT, no WARN.
 
 ## Jobs (keke)
 Final: `heap-foreign-pair-gate2` (affected --run --base origin/next, then `cargo xtask test`, NIJI_FULL_PROFILE so,
