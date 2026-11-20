@@ -593,6 +593,21 @@ pub fn stage(root: &Path, out: &Path) -> Result<(), String> {
 /// (path under `libc-include/`, text) per header, and the problems found.
 type Generated = (Vec<(String, String)>, Vec<String>);
 
+/// The `#include <x>` lines of a template whose `x` is `known` and that are not conditional: an include right after
+/// `@@when` or an `#if` line is conditional, so its names stay emitted in this header under this header's own conditions.
+fn unconditional_includes(text: &str, known: impl Fn(&str) -> bool) -> Vec<String> {
+    let mut prev = "";
+    let mut out = Vec::new();
+    for l in text.lines() {
+        let inc = l.trim_start().strip_prefix('#').map(str::trim_start).and_then(|l| l.strip_prefix("include")).and_then(|l| l.trim().strip_prefix('<')).and_then(|l| l.strip_suffix('>'));
+        if let Some(x) = inc.filter(|x| known(x) && !prev.starts_with("@@when") && !prev.trim_start().starts_with("#if")) {
+            out.push(x.to_string());
+        }
+        prev = l;
+    }
+    out
+}
+
 pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
     let t = load(root)?;
     let mut inline = Vec::new();
@@ -610,19 +625,8 @@ pub(crate) fn generate(root: &Path) -> Result<Generated, String> {
         texts.insert(h.clone(), fs::read_to_string(root.join(TEMPLATES).join(format!("{h}.in"))).map_err(|e| e.to_string())?);
     }
     // `#include <x>` of another template, at any depth: x's names are not emitted again.
-    // An include right after `@@when` is conditional (its names stay emitted here, under this header's own conditions).
-    let includes = |text: &str| -> Vec<String> {
-        let mut prev = "";
-        let mut out = Vec::new();
-        for l in text.lines() {
-            let inc = l.trim_start().strip_prefix('#').map(str::trim_start).and_then(|l| l.strip_prefix("include")).and_then(|l| l.trim().strip_prefix('<')).and_then(|l| l.strip_suffix('>'));
-            if let Some(x) = inc.filter(|x| texts.contains_key(*x) && !prev.starts_with("@@when")) {
-                out.push(x.to_string());
-            }
-            prev = l;
-        }
-        out
-    };
+    // An include right after `@@when` or an `#if` line is conditional (its names stay emitted here, under this header's own conditions).
+    let includes = |text: &str| unconditional_includes(text, |x| texts.contains_key(x));
     for h in names {
         let text = texts[&h].clone();
         let mut seen = BTreeSet::new();
@@ -788,6 +792,14 @@ mod tests {
     // kind asked for (not the name's first row), a header's rows in table order, and the configurations that do not
     // decide a name joined from the header's include-error rows and the name's header-less rows of that kind only
     // (GATE-TEST-TIME: the first of two rows of one kind, and the union of a header's two include-error rows)
+    /// No spec clause: the generator's own rule that an include after `@@when` or an `#if` line is conditional.
+    #[test]
+    fn an_include_after_a_condition_is_conditional() {
+        let text = "#include <a.h>\n@@when n\n#include <b.h>\n#if X\n# include <c.h>\n#endif\n  #if Y\n#include <d.h>\n#include <e.h>\n#include <unknown.h>\n";
+        let got = unconditional_includes(text, |x| x != "unknown.h");
+        assert_eq!(got, ["a.h", "e.h"], "b.h follows @@when, c.h and d.h follow an #if line");
+    }
+
     #[test]
     fn vis_index_answers_as_the_row_scan() {
         let lv = cond::levels(&Path::new(env!("CARGO_MANIFEST_DIR")).join("..")).unwrap();
