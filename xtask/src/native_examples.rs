@@ -380,6 +380,24 @@ fn check_secure_zero(root: &Path) -> Result<String, String> {
     }
 }
 
+/// A copy of `libc_so` in `dir` whose `DT_SONAME` tag is retagged `DT_CHECKSUM`, so a program
+/// linked against it names it by path (#4537). `cargo xtask so` ships one (`libc-by-path.so`);
+/// the examples here link `libc.so.6` by its soname.
+pub(crate) fn libc_by_path(libc_so: &Path, dir: &Path) -> Result<PathBuf, String> {
+    let mut so = fs::read(libc_so).map_err(|e| format!("{}: {e}", libc_so.display()))?;
+    let word = |so: &[u8], at: usize, n: usize| so.get(at..at.saturating_add(n)).map_or(0, |b| b.iter().rev().fold(0usize, |v, &x| v.wrapping_shl(8) | usize::from(x)));
+    let (phoff, phentsize, phnum) = (word(&so, 0x20, 8), word(&so, 0x36, 2), word(&so, 0x38, 2));
+    // PT_DYNAMIC (2): its file offset and size.
+    let ph = (0..phnum).map(|i| phoff.wrapping_add(i.wrapping_mul(phentsize))).find(|&p| word(&so, p, 4) == 2).ok_or("libc.so.6 has no PT_DYNAMIC")?;
+    let (off, len) = (word(&so, ph.wrapping_add(8), 8), word(&so, ph.wrapping_add(32), 8));
+    // DT_SONAME (14) becomes DT_CHECKSUM (0x6ffffdf8).
+    let at = (off..off.saturating_add(len)).step_by(16).find(|&o| word(&so, o, 8) == 14).ok_or("libc.so.6 has no DT_SONAME")?;
+    so.get_mut(at..at.saturating_add(8)).ok_or("DT_SONAME entry out of the file")?.copy_from_slice(&0x6fff_fdf8u64.to_le_bytes());
+    let out = dir.join("libc-by-path.so");
+    fs::write(&out, &so).map_err(|e| format!("{}: {e}", out.display()))?;
+    Ok(out)
+}
+
 /// Step 1: the products, built if `target/niji` lacks one. Their paths: `libc.a`,
 /// `libc.so.6`, `niji-crt1.o`.
 pub(crate) fn products(root: &Path) -> Result<(PathBuf, PathBuf, PathBuf), String> {
