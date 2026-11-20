@@ -201,13 +201,19 @@ impl Loads {
         l
     }
 
-    /// Whether the word at `at` lies in the segment the last accepted range lay in (writable, or any
-    /// when `any`). `false` says only "not there": [`Loads::inside`] then decides. Any `PT_LOAD` the
-    /// object has is a segment [`inside`] accepts, so a hit answers as it would.
+    /// The words of the segment the last accepted range lay in, `(first, last)` start addresses
+    /// (link-time), when that segment is writable (or any, when `any`); an empty window (`first >
+    /// last`) otherwise. A word at `at` with `first <= at <= last` lies in a `PT_LOAD` [`inside`]
+    /// accepts; any other answers only "not there", and [`Loads::inside`] then decides. Returned by
+    /// value, so a pass keeps it in registers across its stores (DYN-START-LINK-SHAPE: reading it
+    /// through the table on every entry was most of the `RELATIVE` loop).
     #[allow(clippy::inline_always)]
     #[inline(always)]
-    fn hit_word(&self, at: u64, any: bool) -> bool {
-        self.seg.get(..self.n).and_then(|s| s.get(self.hit.get())).is_some_and(|&(lo, hi, w)| (any || w) && lo <= at && hi.checked_sub(8).is_some_and(|last| at <= last))
+    fn window(&self, any: bool) -> (u64, u64) {
+        match self.seg.get(..self.n).and_then(|s| s.get(self.hit.get())) {
+            Some(&(lo, hi, w)) if any || w => hi.checked_sub(8).map_or((1, 0), |last| (lo, last)),
+            _ => (1, 0),
+        }
     }
 
     /// [`inside`] for the object these ranges were read from.
@@ -623,13 +629,17 @@ pub fn relocate_deferred<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize,
 
 /// One `RELATIVE` entry of the RELA table's `DT_RELACOUNT` prefix ([`Relas::relative_prefix`]):
 /// B + A (the psABI's calculation, as the RELR words above), stored at `at` in object `o`, which must
-/// lie in a writable segment (any segment when `any`). The segment the last entry lay in is tried
-/// first ([`Loads::hit_word`]); the general check only on a miss.
+/// lie in a writable segment (any segment when `any`). `window` is the caller's copy of
+/// [`Loads::window`]: a word inside it is accepted at once; on a miss the general check decides and
+/// `window` follows the segment it found.
 #[allow(clippy::inline_always)]
 #[inline(always)]
-fn relative<'a, A: Arch, I: Image>(img: &mut I, loads: &Loads, o: &Obj<'a>, at: u64, addend: i64, any: bool) -> Result<(), RelocError<'a>> {
-    if !loads.hit_word(at, any) && !loads.inside(&o.elf, at, 8, any) {
-        return Err(RelocError::Outside(at));
+fn relative<'a, A: Arch, I: Image>(img: &mut I, loads: &Loads, o: &Obj<'a>, window: &mut (u64, u64), at: u64, addend: i64, any: bool) -> Result<(), RelocError<'a>> {
+    if !(window.0 <= at && at <= window.1) {
+        if !loads.inside(&o.elf, at, 8, any) {
+            return Err(RelocError::Outside(at));
+        }
+        *window = loads.window(any);
     }
     let v = o.bias.wrapping_add(u64::from_ne_bytes(addend.to_ne_bytes()));
     img.store(o.bias.wrapping_add(at), &if A::EI_DATA == ELFDATA2LSB { v.to_le_bytes() } else { v.to_be_bytes() });
@@ -660,7 +670,8 @@ fn pass1<'a, A: Arch, I: Image>(set: &Objects<'_, 'a>, i: usize, o: &Obj<'a>, te
         // A plain loop over the entries: flattening the `Option` called out of line per entry.
         let Some(mut rs) = table.map_err(RelocError::Elf)? else { continue };
         if k == 0 && prefix != 0 {
-            rs.relative_prefix(prefix, |at, a| relative::<A, I>(img, &loads, o, at, a, text))?;
+            let mut window = loads.window(text);
+            rs.relative_prefix(prefix, |at, a| relative::<A, I>(img, &loads, o, &mut window, at, a, text))?;
         }
         for r in rs {
             // B + A, most of a shared object's entries: written here as `one` would, without its
