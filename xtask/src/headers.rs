@@ -553,9 +553,11 @@ fn stage_tree(dst: &Path, files: &[(std::path::PathBuf, String)]) -> Result<usiz
 /// `cargo xtask so`'s header step: `out/include` = libniji's libc headers (`libc-include/`) plus the native C
 /// ABI's (`include/`), and `out/uapi` = the build host's kernel UAPI headers (the `UAPI` list). A program built
 /// against libniji's headers uses `-nostdinc -isystem out/include -isystem <compiler include> -isystem out/uapi`.
-/// Refuses a stale `libc-include/` (the staged tree is what programs compile against).
+/// Stages the committed `libc-include/` as it is: whether it matches the templates and the generator is
+/// `headers-gen-check`'s question (CI and `cargo xtask precheck`), not every product build's (TOOLING-PAPERCUTS: the
+/// check cost each build the whole generator, and a plant on a template or the generator failed in it before the
+/// plant's own command ran).
 pub fn stage(root: &Path, out: &Path) -> Result<(), String> {
-    run(root, true)?;
     let mut files = Vec::new();
     for dir in [OUT, "include"] {
         let base = root.join(dir);
