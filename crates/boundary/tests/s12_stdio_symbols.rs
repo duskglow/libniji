@@ -887,7 +887,8 @@ fn fgets_pieces(f: Fgets) {
     assert_eq!(x::fclose(fp), 0);
     let fp = open(&t, "r");
     assert!(x::fwide(fp, 1) > 0);
-    assert!(f(p, 100, fp).is_null(), "a wide stream");
+    assert!(!f(p, 100, fp).is_null(), "a wide stream: its bytes (D-12.27)");
+    assert!(x::fwide(fp, 0) > 0, "still wide-oriented");
     assert_eq!(x::fclose(fp), 0);
 }
 
@@ -1387,10 +1388,12 @@ fn front_corners(put: impl Fn(*mut FILE, &[u8]) -> bool, trusted: bool) {
     assert_eq!(x::fputwc(wchar_t::from(b'a'), fp), u32::from(b'a'));
     assert!(window_full(fp), "a wide stream keeps its byte window closed (D-12.19)");
     errno::set_raw(0);
-    assert!(!put(fp, b"x"), "byte output on a wide stream");
-    assert_eq!(errno::get(), EINVAL);
+    // D-12.27: the fputc family writes the byte after the wide output; fputs and fwrite refuse
+    // (`EINVAL`, nothing stored). `put` is either, so each outcome is checked in full.
+    let wrote = put(fp, b"x");
+    assert_eq!(errno::get(), if wrote { 0 } else { EINVAL }, "byte output on a wide stream");
     assert_eq!(x::fclose(fp), 0);
-    assert_eq!(t.read(), b"a", "nothing stored");
+    assert_eq!(t.read(), if wrote { &b"ax"[..] } else { &b"a"[..] }, "stored in order, or nothing stored");
     let fp = open(&t, "w");
     assert_eq!(x::setvbuf(fp, null_mut(), IOLBF, 0), 0);
     assert!(put(fp, b"ab"));
