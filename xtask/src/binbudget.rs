@@ -623,13 +623,16 @@ mod tests {
         // no spec clause: tooling (D-X.138); next: .bss's start-up words share .data1's last page. As two bins (3 + 1
         // pages) .data1 could grow within its own bytes, push them onto a page of their own and stay green.
         let (data1, bss) = (sec(0x88_8000, 0x2df0, ".data1"), sec(0x88_ae00, 0xf60, ".bss"));
-        let link = |at: u64| vec![dobj(0x88_8000, 0x40, "DETECTIONS", &data1, true), dobj(0x88_adc8, 8, "__environ", &data1, true), dobj(at, 8, "WORD", &bss, true)];
+        let link = |at: u64| {
+            let d = |a: u64, n: u64, name: &str| dobj(a, n, name, &data1, true);
+            vec![d(0x88_8000, 0x40, "DETECTIONS"), d(0x88_9da8, 0xe0, "stderr"), d(0x88_adc8, 8, "__environ"), dobj(at, 8, "WORD", &bss, true)]
+        };
         let budgets = parse_budgets(".data1+.bss:3").unwrap();
         let (report, broken) = data_verdict(&data_bins(&link(0x88_ae00), BIN, 4096, &budgets), &budgets, "fast");
         assert!(broken.is_empty(), "{broken:?}");
-        assert!(report.iter().any(|l| l.starts_with("data bin .data1+.bss (written): 11784 bytes from its 4096-byte boundary of 12288 (3 pages; headroom 504), 3 start-up objects 0x888000-0x88ae08, 2 pages touched; .data1 0x888000")), "{report:?}");
+        assert!(report.iter().any(|l| l.starts_with("data bin .data1+.bss (written): 11784 bytes from its 4096-byte boundary of 12288 (3 pages; headroom 504), 4 start-up objects 0x888000-0x88ae08, 3 pages touched; .data1 0x888000")), "{report:?}");
         let (_, broken) = data_verdict(&data_bins(&link(0x88_b000), BIN, 4096, &budgets), &budgets, "fast");
-        assert!(broken.iter().any(|l| l.starts_with("data bin .data1+.bss (written): 12296 bytes from its 4096-byte boundary > 12288 (3 pages; headroom -8): its start-up objects touch 3 pages")), "{broken:?}");
+        assert!(broken.iter().any(|l| l.starts_with("data bin .data1+.bss (written): 12296 bytes from its 4096-byte boundary > 12288 (3 pages; headroom -8): its start-up objects touch 4 pages")), "{broken:?}");
         let mixed = parse_budgets(".data1+.rodata1:3").unwrap();
         let mut objs = link(0x88_ae00);
         objs.push(dobj(0x80_0100, 8, "NAMES", &sec(0x80_0000, 0x9400, ".rodata1"), false));
