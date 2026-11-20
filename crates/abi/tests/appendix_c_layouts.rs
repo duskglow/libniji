@@ -2,7 +2,7 @@
 // Each test checks one type: rustc's size, alignment and member offsets of the
 // `niji_abi::layout` definition against the spec table, read at test time.
 
-//! ABI data tests, one per type layout and static initializer of spec Appendix C (224 items, x86_64).
+//! ABI data tests, one per type layout and static initializer of spec Appendix C (225 items, x86_64).
 
 #![cfg(target_arch = "x86_64")]
 #![allow(non_snake_case, clippy::unwrap_used, clippy::panic, clippy::indexing_slicing)]
@@ -801,6 +801,14 @@ fn abi_struct_statx() {
     expect_member("struct statx", "stx_dio_mem_align", offset_of!(struct_statx, stx_dio_mem_align));
     expect_member("struct statx", "stx_dio_offset_align", offset_of!(struct_statx, stx_dio_offset_align));
     expect_member("struct statx", "__spare3", offset_of!(struct_statx, __spare3));
+}
+
+#[test]
+fn abi_struct_statx_timestamp() {
+    expect_type("struct statx_timestamp", size_of::<struct_statx_timestamp>(), align_of::<struct_statx_timestamp>());
+    expect_member("struct statx_timestamp", "tv_sec", offset_of!(struct_statx_timestamp, tv_sec));
+    expect_member("struct statx_timestamp", "tv_nsec", offset_of!(struct_statx_timestamp, tv_nsec));
+    expect_member("struct statx_timestamp", "__reserved", offset_of!(struct_statx_timestamp, __reserved));
 }
 
 #[test]

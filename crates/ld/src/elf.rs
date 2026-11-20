@@ -2181,6 +2181,10 @@ impl<'a, A: Arch> Relas<'a, A> {
     fn relative_run<const BE: bool, E>(&mut self, n: usize, mut f: impl FnMut(u64, i64) -> Result<(), E>) -> Result<(), E> {
         let word = |b: &[u8; 8]| if BE { u64::from_be_bytes(*b) } else { u64::from_le_bytes(*b) };
         let rest = self.rd.b.get(self.off..).unwrap_or(&[]);
+        // The entries the run accepted, added to the position once at the end (DYN-START-LINK-SHAPE:
+        // a saturating update per entry was a sixth of the loop).
+        let mut done = 0usize;
+        let mut out = Ok(());
         for e in rest.chunks_exact(RELA_SIZE).take(n) {
             let Some((offset, e)) = e.split_first_chunk::<8>() else { break };
             let Some((info, e)) = e.split_first_chunk::<8>() else { break };
@@ -2189,10 +2193,15 @@ impl<'a, A: Arch> Relas<'a, A> {
             if A::classify(r_type) != RelocKind::Relative {
                 break;
             }
-            f(word(offset), i64::from_ne_bytes(word(addend).to_ne_bytes()))?;
-            self.off = self.off.saturating_add(RELA_SIZE);
+            if let Err(x) = f(word(offset), i64::from_ne_bytes(word(addend).to_ne_bytes())) {
+                out = Err(x);
+                break;
+            }
+            done = done.wrapping_add(1);
         }
-        Ok(())
+        // `done` entries of `RELA_SIZE` bytes lie inside the table: no overflow.
+        self.off = self.off.saturating_add(done.saturating_mul(RELA_SIZE));
+        out
     }
 }
 

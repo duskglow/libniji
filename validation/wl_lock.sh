@@ -22,13 +22,15 @@ wl_profile() {   # the products profile of this run: release (default) or fast (
         *) echo "wl: WL_PROFILE=${WL_PROFILE}: want release or fast" >&2; return 2 ;;
     esac
 }
-# LINK (WL-DYNAMIC-KIT): WL_LINK=dynamic measures libniji as users run it, linked dynamically and started by libniji's
-# own ld.so (validation/wl_dyncc.sh links; PLT calls, IFUNC resolution, relocation, the loader's start-up). Default:
-# static (libc.a), what every gate and recorded level has measured so far. A dynamic run keys everything it makes
-# (products, kit, per-call binaries, count rows) as $(wl_key <sha>) = <sha>-release-dyn, never mixed with static ones.
-wl_link() {   # the link of this run: static (default) or dynamic (WL_LINK=dynamic)
-    case ${WL_LINK:-static} in
-        static|dynamic) echo "${WL_LINK:-static}" ;;
+# LINK (WL-DYNAMIC-KIT; default dynamic since WL-DYNAMIC-GATE, owner ruling #6965, 2026-11-20, D-X.141): the per-gate
+# workload measurement runs libniji as users run it, linked dynamically and started by libniji's own ld.so
+# (validation/wl_dyncc.sh links; PLT calls, IFUNC resolution, relocation, the loader's start-up). WL_LINK=static
+# measures libc.a: the nightly and release-candidate sweep (validation/wl_kits.sh) and comparisons. A dynamic run keys
+# everything it makes (products, kit, per-call binaries, count rows) as $(wl_key <sha>) = <sha>-release-dyn, never
+# mixed with static ones (<sha>-release).
+wl_link() {   # the link of this run: dynamic (default) or static (WL_LINK=static)
+    case ${WL_LINK:-dynamic} in
+        static|dynamic) echo "${WL_LINK:-dynamic}" ;;
         *) echo "wl: WL_LINK=${WL_LINK}: want static or dynamic" >&2; return 2 ;;
     esac
 }
@@ -67,13 +69,32 @@ wl_build_products() {   # wl_build_products <sha>: products of <sha> in ~/wl/pro
     (cd "$HOME/wl/src/$sha" && NIJI_FULL_PROFILE=$full bash -lc 'cargo xtask so' > "$HOME/wl/src/$key.build.log" 2>&1) || { tail -20 "$HOME/wl/src/$key.build.log"; return 1; }
     m=$(cat "$t/.profile" 2>/dev/null)
     [ "$m" = "$p" ] || { echo "wl: $sha: the build left products of profile '$m' in $t, this run wants $p" >&2; return 1; }
+    wl_link_set "$(wl_link)" "$t" "$prod" || return 1
+    # ONE BUILD PER SHA (WL-DYNAMIC-GATE): the same build's set of the other link too, when it is not cached, so a
+    # dynamic gate and the static sweep of one sha never run `cargo xtask so` twice (171.8 s warm, 14 min cold). Best
+    # effort: a failure here leaves that set absent (its own run builds it then) and never fails this run.
+    local other=static okr=0 odir
+    [ "$(wl_link)" = static ] && other=dynamic
+    odir=$HOME/wl/products/$(WL_LINK=$other wl_key "$sha")
+    WL_LINK=$other wl_products_ok "$odir" 2>/dev/null || okr=$?
+    if [ $okr = 1 ]; then
+        wl_link_set "$other" "$t" "$odir" || echo "wl: $sha: the $other set of this build was not cached (its own run builds it)" >&2
+    fi
+    return 0
+}
+# wl_link_set <link> <target/niji> <products dir>: the product set of <link> from one build, atomically (tmp + mv).
+wl_link_set() {
+    local l=$1 t=$2 prod=$3
     rm -rf "$prod.tmp" && mkdir -p "$prod.tmp" || return 1
-    if [ "$(wl_link)" = dynamic ]; then
-        wl_dyn_layout "$t" "$prod.tmp" "$prod" || return 1
+    if [ "$l" = dynamic ]; then
+        wl_dyn_layout "$t" "$prod.tmp" "$prod" || { rm -rf "$prod.tmp"; return 1; }
     else
-        cp "$t/libc.a" "$t/libm.a" "$t/niji-crt1.o" "$t/.profile" "$prod.tmp/" || return 1
+        cp "$t/libc.a" "$t/libm.a" "$t/niji-crt1.o" "$t/.profile" "$prod.tmp/" || { rm -rf "$prod.tmp"; return 1; }
     fi
     rm -rf "$prod" && mv -T "$prod.tmp" "$prod"
+}
+wl_prodfile() {   # the file whose presence marks a cached product set of this run's link: libc.so.6 or libc.a
+    if [ "$(wl_link)" = dynamic ]; then echo libc.so.6; else echo libc.a; fi
 }
 # wl_dyn_layout <target/niji> <dir> <final dir>: the dynamic product set in <dir>, as it will run from <final dir> (paths in
 # the link scripts are absolute). Runtime: libc.so.6, libm.so.6 and ld-linux-x86-64.so.2, the shipped files unchanged.

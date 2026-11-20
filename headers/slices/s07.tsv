@@ -1,0 +1,27 @@
+# One row per header this slice ships (plan/headers.md section 4, "Adding a slice"). p1: 1 = the table P1 units of
+# spec/tools/header_check.py cover it; uapi: the kernel UAPI headers P8 pairs it with (comma-separated), - for none.
+header	p1	uapi
+fcntl.h	1	-
+sys/fcntl.h	1	-
+sys/stat.h	1	-
+sys/statvfs.h	1	-
+sys/statfs.h	1	-
+sys/vfs.h	1	-
+dirent.h	1	-
+sys/dir.h	1	-
+sys/time.h	1	-
+sys/times.h	1	-
+utime.h	1	-
+sys/resource.h	1	-
+sys/utsname.h	1	-
+sys/select.h	1	-
+poll.h	1	-
+sys/poll.h	1	-
+sys/mman.h	1	-
+sys/uio.h	1	-
+sys/file.h	1	-
+sys/sysmacros.h	1	-
+paths.h	1	-
+libgen.h	1	-
+sys/xattr.h	1	-
+sys/sendfile.h	1	-

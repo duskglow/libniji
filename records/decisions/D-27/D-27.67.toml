@@ -1,0 +1,11 @@
+id = "D-27.67"
+section = "s26-29"
+spec = "§27.1"
+ann = "—"
+status = "active"
+story = "LOADER-FOLDED-VERIFY"
+date = "2026-11-20"
+tests = ["crates/core/tests/s27_dynlink_clauses.rs::s27_1_c_5"]
+body = '''
+**A thread's dlerror record is unmapped at its exit (story LOADER-FOLDED-VERIFY; completes D-27.2 and D-27.37 item 4, plan/ph14/dl-16-dlopen.md §4).** The record (`crate::dlerr`, one private 8 KiB mapping made at the thread's first `dl*` failure) was never released: every thread that failed a `dl*` call and exited left its mapping behind (measured: 2000 such threads, created and joined one at a time, added 16000 kB to VmSize; a reused thread mapping cleared the block's word, so no text ever reached another thread). `crate::thread::finish` now calls `dlerr::thread_ending` after every destructor (a destructor may still fail a `dl*` call) and before the loader's last word: one load when the thread never failed, else (cold) the word is cleared, then the record unmapped. Test: `conformance/c/s27_dlerror_threads.c` (`s27_1_c_5`, spec/behaviour/dynlink.md probe P-6): the text once, a successful `dlsym` clearing it, 1000 lock-step rounds of two threads each reading only its own failure, a thread created while another's text is pending reading NULL, and 2000 failing threads adding less than 2 MiB. Plants: handoff/LOADER-FOLDED-VERIFY-plants.txt.
+'''

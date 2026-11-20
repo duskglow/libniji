@@ -1,0 +1,16 @@
+@@generated
+/* sys/resource.h: definitions for resource operations (XSH <sys/resource.h>). */
+#ifndef __NIJI_H_sys_resource_h
+#define __NIJI_H_sys_resource_h 1
+
+#include <features.h>
+
+__NIJI_BEGIN_C
+
+@@enum __rlimit_resource
+@@emit
+
+
+__NIJI_END_C
+
+#endif

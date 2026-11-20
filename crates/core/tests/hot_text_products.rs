@@ -471,9 +471,13 @@ fn dyn_startup_faults(lib: &Path) -> u64 {
 /// staging and counter (median of 21) on the same products built on the Skylake-SP host: Skylake-SP host
 /// fast 855,582, release 803,431, the host C library 101,863; Zen 1 host fast 855,428, release 803,280, the
 /// host C library 96,002. The Zen 1 fast bound is that level plus 2%; the release bounds hold (1.1% over).
+/// DYN-START-LINK-SHAPE (D-27.68, the RELATIVE loop at 20 instructions per entry): release products,
+/// execcount median of 101, -38,180 / -38,167 / -38,182 on empty main / 3 libraries / clock_gettime on
+/// both hosts; the release bounds move down by 38,000 (the head passed at 812,400, so the margin stays).
+/// The fast bounds are not re-measured and stay.
 const DYN_START_INSTR: [(&str, [u64; 2]); 2] = [
-    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 812_400]),
-    ("AMD EPYC 7551 32-Core Processor", [872_600, 812_400]),
+    ("Intel(R) Xeon(R) Platinum 8151 CPU @ 3.40GHz", [871_500, 774_400]),
+    ("AMD EPYC 7551 32-Core Processor", [872_600, 774_400]),
 ];
 
 /// Runs of [`init_dynamic_empty_main_stays_within_its_instruction_bound`] per program.

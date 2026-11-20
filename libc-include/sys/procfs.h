@@ -258,15 +258,21 @@ extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, 
 #if 1
 # ifndef __NIJI_D_enum_ITIMER_PROF
 #  define __NIJI_D_enum_ITIMER_PROF 1
+#  ifndef ITIMER_PROF
 enum { ITIMER_PROF = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ITIMER_REAL
 #  define __NIJI_D_enum_ITIMER_REAL 1
+#  ifndef ITIMER_REAL
 enum { ITIMER_REAL = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_ITIMER_VIRTUAL
 #  define __NIJI_D_enum_ITIMER_VIRTUAL 1
+#  ifndef ITIMER_VIRTUAL
 enum { ITIMER_VIRTUAL = 1 };
+#  endif
 # endif
 # ifndef ELF_NGREG
 #  define ELF_NGREG 27UL
