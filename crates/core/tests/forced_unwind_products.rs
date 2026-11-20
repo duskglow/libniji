@@ -256,3 +256,26 @@ fn static_libgcc_cxx_programs_unwind() {
     assert_eq!(run(&niji, true, &[]), format!("{CXX_EXPECTED}{main_exit}"), "-static-libgcc C++");
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// s22_1_c_2, s22_3_c_4 (D-22.19, ruling #7081): a C program linked with `-static-libgcc` loads no
+/// `libgcc_s.so.1`, and its own unwinder is hidden, so libniji finds none: the exiting or
+/// cancelled thread takes the exit without an unwinder and the process goes on. The cleanup
+/// buffers still run (the buffers build: `3`, `1`, then the key destructor `K`); the handlers of
+/// the `-fexceptions` build are unwind cleanups and do not run (the accepted gap of ruling #7081:
+/// only the key destructor). libniji's run only; the expected text is libniji's.
+#[test]
+fn static_libgcc_c_programs_without_a_shared_unwinder_exit_through_their_buffers() {
+    if !have("gcc") {
+        return;
+    }
+    let dir = scratch("slg-c");
+    for (name, flags, expected) in [
+        ("fexceptions", &["-fexceptions", "-static-libgcc"][..], "exit: order=K result=9\ncancel: order=K result=-1\n"),
+        ("buffers", &["-fexceptions", "-U__EXCEPTIONS", "-fno-inline", "-static-libgcc"][..], "exit: order=31K result=9\ncancel: order=31K result=-1\n"),
+    ] {
+        let (_, niji) = build(&dir, name, "gcc", "forced_unwind.c", flags);
+        assert!(!needed(&niji).iter().any(|n| n.starts_with("libgcc_s")), "{name}: DT_NEEDED {:?}", needed(&niji));
+        assert_eq!(run(&niji, true, &[]), expected, "-static-libgcc {name}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
