@@ -1,0 +1,11 @@
+id = "D-10.130"
+section = "s10"
+spec = "§10.0"
+ann = "—"
+status = "active"
+story = "MP-ISQRT-FAST"
+date = "2026-11-20"
+body = '''
+**The math oracle's square root is Zimmermann's Karatsuba square root on the bits the rounding needs, and its products use Karatsuba's method** (MP-ISQRT-FAST; follows the profile of D-10.129). `niji_mathtools` integer square root was Newton's iteration on full-size Knuth division, 55-61 % of a complex_ld_cr / complex_f128 sweep shard. (1) `Nat::sqrtrem` (root and remainder) is the recursive method of P. Zimmermann, "Karatsuba Square Root", INRIA RR-3805 (1999), as Algorithm 1.12 SqrtRem of R. Brent and P. Zimmermann, *Modern Computer Arithmetic*, on bit fields (split k = floor((len+1)/4) so the top quarter is at least 2^(k-2)); one half-size division per level instead of a full-size one per Newton step; correction loops make the result exact whatever the error of the estimate, and a u128 base case corrects the double-precision root. The remainder replaces the squaring callers did to test exactness. (2) `Big::sqrt` (correctly rounded) takes its root from the operand's leading 2p+6 or 7 bits (an even right shift; the dropped bits only set the sticky bit): floor(sqrt(m + d/2^t)) = floor(sqrt(m)), so the rounded result is the same value; the exact sums and products the complex oracle builds made 95 % (binary128) / 90 % (x87) of the square-root work operand bits beyond those. `sqrt_exact` keeps the whole operand (its returned value is unchanged). (3) `Nat::mul` uses Karatsuba's method (Knuth, TAOCP vol. 2, 4.3.3) when both factors have 40 limbs or more, splitting an unbalanced product first; schoolbook below. Every value the oracle returns is unchanged: a replay of 1/50 of the complex_f128 and complex_ld_cr sweep lines through `cr` and `part` (2p+40) gives the same digest before and after, at 26.2 G instead of 73.2 G instructions (binary128) and 85.0 G instead of 207.9 G (x87). The ln 10 constant stays computed by `log_core` and cached geometrically: the precision a process needs is set by Ziv's loop per input, not known up front, the cache already bounds recomputation to twice the largest, and `log_core` is multiplication-bound, so (3) speeds it.
+'''
+tests = ["crates/mathtools/src/mp/nat.rs", "crates/mathtools/tests/arith.rs"]
