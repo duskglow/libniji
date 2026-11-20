@@ -141,8 +141,19 @@ pub enum Refusal {
 
 /// What follows an executable-stack refusal (COMPAT-19, ruling of 2026-11-20): the two ways to
 /// accept such an object.
-pub const EXEC_STACK_WAYS: &[u8] =
-    b"to accept it, start the process with GLIBC_TUNABLES=niji.compat.execstack=1 (COMPAT-19; not honoured in a secure process); a system allowlist (/etc/niji/execstack.d) is planned";
+macro_rules! exec_stack_ways {
+    () => {
+        "to accept it, start the process with GLIBC_TUNABLES=niji.compat.execstack=1 (COMPAT-19; not honoured in a secure process); a system allowlist (/etc/niji/execstack.d) is planned"
+    };
+}
+
+/// What follows an executable-stack refusal (COMPAT-19, ruling of 2026-11-20): the two ways to
+/// accept such an object.
+pub const EXEC_STACK_WAYS: &[u8] = exec_stack_ways!().as_bytes();
+
+/// A start-up dependency's executable-stack refusal, after the program and the object's path
+/// (`<prog>: error while loading shared libraries: <path>: `): the refusal and the ways in.
+const EXEC_STACK_AT_START: &[u8] = concat!("the object asks for an executable stack (PT_GNU_STACK with PF_X); refused; ", exec_stack_ways!()).as_bytes();
 
 impl Refusal {
     /// The text after `<name>: ` (spec/behaviour/dynlink.md, "dlerror texts").
@@ -207,6 +218,7 @@ impl Refusal {
         match self {
             Refusal::Directory => (b"cannot read file data: Error 21", true),
             Refusal::Executable | Refusal::PieExecutable => (self.text(), false),
+            Refusal::ExecutableStack => (EXEC_STACK_AT_START, true),
             _ => (self.text(), true),
         }
     }

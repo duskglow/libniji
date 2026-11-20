@@ -405,7 +405,7 @@ fn run(sp: usize, prog: &start::Program, bias: usize, page: u64, path: usize, en
     // holds p_type in its low and p_flags in its high half).
     let types = headers.chunks_exact(PHDR_WORDS).take(prog.phnum).filter_map(|h| h.first()).map(|&w| (lo32(w), lo32(w >> 32)));
     if map::executable_stack(types) && !exec_stack_accepted(env.ld, env.secure) {
-        fail_with(&[c_string(path), b": the program asks for an executable stack (PT_GNU_STACK with PF_X); refused; ", niji_ld::dlopen::EXEC_STACK_WAYS, b"\n"], program::FAILURE);
+        refuse_exec_stack_program(sp, path);
     }
     let has_dynamic = headers.chunks_exact(PHDR_WORDS).take(prog.phnum).any(|h| h.first().is_some_and(|w| w & 0xffff_ffff == u64::from(niji_ld::elf::pt::DYNAMIC)));
     if has_dynamic {
@@ -899,7 +899,6 @@ fn no_memory(name: &[u8]) -> ! {
     fail_with(&[name, b": cannot allocate memory\n"], program::FAILURE)
 }
 
-/// Print `parts` after `ld.so: ` on standard error and end with `status`.
 /// COMPAT-19: set once an object asking for an executable stack is accepted at start (the program
 /// or a start-up dependency); `run_init` then makes the stacks executable.
 static EXEC_STACK: AtomicBool = AtomicBool::new(false);
@@ -921,13 +920,24 @@ fn exec_stack_accepted(ld: &start::LdEnv<'_>, secure: bool) -> bool {
     yes
 }
 
-/// COMPAT-19: start-up dependency `name` (needed by `prog`, file `file` open as `fd`) asks for an
-/// executable stack: mapped when the tunable accepts it, else refused naming both and the ways in.
+/// COMPAT-19: the program asks for an executable stack and the tunable does not accept it: refused,
+/// naming the program (its path under `ld.so PROGRAM`, else `argv[0]` above `sp`) and the ways in.
+#[cold]
+#[inline(never)]
+fn refuse_exec_stack_program(sp: usize, path: usize) -> ! {
+    let at = if path != 0 { path } else { usize::try_from(stack_word(sp.wrapping_add(8))).unwrap_or(0) };
+    let name: &[u8] = if at != 0 { c_string(at) } else { b"the program" };
+    fail_with(&[name, b": the program asks for an executable stack (PT_GNU_STACK with PF_X); refused; ", niji_ld::dlopen::EXEC_STACK_WAYS, b"\n"], program::FAILURE)
+}
+
+/// COMPAT-19: start-up object `name` (needed by `prog`, file `file` open as `fd`) asks for an
+/// executable stack: mapped when the tunable accepts it (the search's candidate check let it
+/// through only then), else refused as that check refuses it, naming both and the ways in.
 #[cold]
 #[inline(never)]
 fn exec_stack_dependency(fd: i32, file: &[u8], page: u64, name: &[u8], prog: &[u8], env: &List<'_>) -> Result<map::Loaded, map::MapError> {
     if !exec_stack_accepted(env.ld, env.secure) {
-        fail_with(&[name, b" (needed by ", prog, b"): the object asks for an executable stack (PT_GNU_STACK with PF_X); refused; ", niji_ld::dlopen::EXEC_STACK_WAYS, b"\n"], program::FAILURE);
+        fail_loading(prog, name, Refusal::ExecutableStack.at_start().0);
     }
     map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd }, file, page)
 }
@@ -962,6 +972,7 @@ pub(crate) fn exec_main_stack(auxv: usize, page: u64) {
     }
 }
 
+/// Print `parts` after `ld.so: ` on standard error and end with `status`.
 fn fail_with(parts: &[&[u8]], status: i32) -> ! {
     write_all(2, b"ld.so: ");
     parts.iter().for_each(|p| write_all(2, p));
@@ -1301,7 +1312,7 @@ fn link(prog: &start::Program, bias: usize, page: u64, name: &'static [u8], sp: 
                 let set_uid_only = rule == Some(start::PreloadRule::TrustedSetUid);
                 let mut try_open = |p: &mut PathBuf| {
                     let Some(c) = p.c_str() else { return false };
-                    match open_candidate(c, page) {
+                    match open_candidate(c, page, env) {
                         Err(Unusable::Skip) => return false,
                         Err(Unusable::Refused(r)) => refused = Some(r),
                         Ok((fd, at, file, _)) if set_uid_only && !start::preload_mode_admits(file_mode(fd)) => {
@@ -1746,14 +1757,6 @@ static FINI_IDX: [AtomicU8; INLINE] = [const { AtomicU8::new(0) }; INLINE];
 static FINI_SPILL: Kept<(usize, [u64; 3])> = Kept::new();
 static FINI_DONE: AtomicBool = AtomicBool::new(false);
 
-/// Run the initialisation functions after relocation (design §9, D-27.19): the program's
-/// `DT_PREINIT_ARRAY`, then each other object's `DT_INIT` and `DT_INIT_ARRAY` in
-/// [`init::init_order`], each called with `(argc, argv, envp)` from the initial stack at `sp`. The
-/// program's own `DT_INIT`/`DT_INIT_ARRAY` are its C library's start (probe: the reference loader
-/// runs neither). Records the finalisation order for [`fini_all`] and returns its address, the
-/// termination function the program gets in `%rdx`. First of all, `early` (the C library's
-/// `__niji_libc_early_init`, design §14, D-27.22) gets the initial stack, so every constructor,
-/// `.preinit_array` included, sees an initialised C library.
 /// COMPAT-19 at start, before any constructor: the main stack (its auxiliary vector follows the
 /// environment `envp`) and the C library's thread stacks become executable.
 #[cold]
@@ -1767,6 +1770,15 @@ fn exec_stacks_at_start(envp: usize) {
     dlopen::stacks_executable_at_start();
 }
 
+
+/// Run the initialisation functions after relocation (design §9, D-27.19): the program's
+/// `DT_PREINIT_ARRAY`, then each other object's `DT_INIT` and `DT_INIT_ARRAY` in
+/// [`init::init_order`], each called with `(argc, argv, envp)` from the initial stack at `sp`. The
+/// program's own `DT_INIT`/`DT_INIT_ARRAY` are its C library's start (probe: the reference loader
+/// runs neither). Records the finalisation order for [`fini_all`] and returns its address, the
+/// termination function the program gets in `%rdx`. First of all, `early` (the C library's
+/// `__niji_libc_early_init`, design §14, D-27.22) gets the initial stack, so every constructor,
+/// `.preinit_array` included, sees an initialised C library.
 fn run_init(hooks: &[init::Hooks], edges: &[(usize, usize)], sp: usize, early: Option<u64>, rseq_size: usize) -> usize {
     let n = hooks.len();
     let mut order: Table<usize, INLINE> = Table::new(0);
@@ -1969,6 +1981,7 @@ fn load(path: usize, page: u64, ld: &start::LdEnv<'_>, secure: bool) -> (start::
     let loaded = match map::load::<Native, _>(&mut SysMapper { fd: fd32 }, file, page) {
         // COMPAT-19: `run` checks the program's request again and refuses it there when not accepted.
         Err(map::MapError::ExecutableStack) if exec_stack_accepted(ld, secure) => map::load_accepting_exec_stack::<Native, _>(&mut SysMapper { fd: fd32 }, file, page),
+        Err(map::MapError::ExecutableStack) => refuse_exec_stack_program(0, path),
         other => other,
     };
     let _ = raw::munmap(file_at, len);
@@ -2192,8 +2205,9 @@ enum Unusable {
 
 /// Open, map read-only and check the NUL-terminated candidate `path` a program-start search (or the
 /// dependency list) found: (descriptor, mapping, bytes, identity), or why it is not used, by the
-/// probed rule [`Refusal::skipped_at_start`]. Pages of `page` bytes.
-fn open_candidate(path: &[u8], page: u64) -> Result<(i32, usize, &'static [u8], FileId), Unusable> {
+/// probed rule [`Refusal::skipped_at_start`]. Pages of `page` bytes. An object asking for an
+/// executable stack passes only when `env`'s tunable accepts it (COMPAT-19).
+fn open_candidate(path: &[u8], page: u64, env: &List<'_>) -> Result<(i32, usize, &'static [u8], FileId), Unusable> {
     let fd = crate::ffi_sys::niji_sys_openat(AT_FDCWD, path.as_ptr().cast(), i64::from(O_RDONLY | O_CLOEXEC), 0);
     let fd32 = i32::try_from(fd).ok().filter(|&f| f >= 0).ok_or(Unusable::Skip)?;
     let refuse = |r: Refusal| {
@@ -2217,11 +2231,26 @@ fn open_candidate(path: &[u8], page: u64) -> Result<(i32, usize, &'static [u8], 
     // file is not used, else only after the caller's last use of the slice (the end of `link`; the
     // list mode keeps it until the process exits).
     let file = unsafe { conv::bytes_at(at, len) };
-    if let Err(r) = niji_ld::dlopen::check::<Native>(file, page) {
+    let checked = match niji_ld::dlopen::check::<Native>(file, page) {
+        Err(Refusal::ExecutableStack) => exec_stack_candidate(file, page, env),
+        c => c.map(|_| ()),
+    };
+    if let Err(r) = checked {
         let _ = raw::munmap(at, len);
         return Err(refuse(r));
     }
     Ok((fd32, at, file, (st.dev, st.ino)))
+}
+
+/// COMPAT-19: a start candidate (dependency or preload) asking for an executable stack passes the
+/// remaining checks when the tunable accepts it; refused otherwise.
+#[cold]
+#[inline(never)]
+fn exec_stack_candidate(file: &[u8], page: u64, env: &List<'_>) -> Result<(), Refusal> {
+    if !exec_stack_accepted(env.ld, env.secure) {
+        return Err(Refusal::ExecutableStack);
+    }
+    niji_ld::dlopen::check_accepting_exec_stack::<Native>(file, page).map(|_| ())
 }
 
 /// End the start for an object that cannot be loaded, as the reference does (DL-START-SEARCH
@@ -2360,7 +2389,7 @@ fn list(env: &List<'_>, prog: &'static [u8], strict: bool, invoked: Option<&'sta
                 // The program-start rule: another machine's object or class is skipped, the search
                 // goes on; any other unusable file ends the list as it ends a start.
                 let Some(c) = p.c_str() else { return false };
-                let found = match open_candidate(c, env.page) {
+                let found = match open_candidate(c, env.page, env) {
                     Err(Unusable::Skip) => return false,
                     Err(Unusable::Refused(r)) => {
                         refused = Some(r);

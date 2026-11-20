@@ -2292,7 +2292,11 @@ fn fail_text(l: &Loader, name: &[u8], f: Found, who: usize) -> Fail {
         // COMPAT-19 (ruling of 2026-11-20): the object, the `dlopen` caller and the ways in.
         let a = usize::try_from(a).unwrap_or(0);
         let p = l.names.get(a..a.saturating_add(usize::try_from(b).unwrap_or(0))).unwrap_or(name);
-        return fail_parts(&[p, b": ", Refusal::ExecutableStack.text(), b" (dlopen called from ", l_path_static(l, who), b"); ", dl::EXEC_STACK_WAYS]);
+        // The program's own entry has an empty path: name it by `argv[0]`.
+        let from = l_path_static(l, who);
+        let argv0 = || Some(start_arg(1)).filter(|&v| v != 0).and_then(|v| usize::try_from(super::stack_word(v)).ok()).filter(|&a| a != 0).map_or(&b"the program"[..], c_string);
+        let from = if from.is_empty() { argv0() } else { from };
+        return fail_parts(&[p, b": ", Refusal::ExecutableStack.text(), b" (dlopen called from ", from, b"); ", dl::EXEC_STACK_WAYS]);
     }
     let mut out: [&[u8]; 3] = [b"", b"", b""];
     let parts = found_text(l, name, f, &mut out);
