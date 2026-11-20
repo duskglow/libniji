@@ -2,11 +2,12 @@
  *
  * `niji_machine_unwind_force` and `niji_machine_unwind_get_cfa` return the addresses of
  * `_Unwind_ForcedUnwind` and `_Unwind_GetCFA` (Itanium C++ ABI §1.3) as the program links them,
- * or 0. Assembled plainly (every product the C layer goes into, libc.so.6 included) they return 0:
- * a dynamically linked process finds the unwinder with the loader's `dlsym` (D-22.19), and this
- * form leaves no symbol, relocation or start-up lookup behind. `cargo xtask so` assembles the
- * file again with -DNIJI_STATIC_ARCHIVE and puts that object in libc.a in place of this one: the
- * references are then weak, so a static link that takes the unwinder anyway (libgcc_eh's, pulled
+ * or 0. Assembled plainly they return 0: the C layer builds this form for everything but the C
+ * library product (ld.so, the test builds), and `cargo xtask so` links it into libc.so.6, where a
+ * dynamically linked process finds the unwinder with the loader's `dlsym` (D-22.19) and this form
+ * leaves no symbol, relocation or start-up lookup behind. For libc.a, `cargo xtask so` assembles
+ * the file with -DNIJI_STATIC_ARCHIVE and adds it as a member of its own: the references are
+ * then weak, so a static link that takes the unwinder anyway (libgcc_eh's, pulled
  * by a C++ runtime or by `-fexceptions` cleanups) resolves them, and one that does not (a C
  * program without unwind cleanups) gets 0 and links no unwinder because of them.
  * Called only by the exit of a thread (`crate::cancel`), never at start-up: cold text. */
