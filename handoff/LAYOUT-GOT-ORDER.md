@@ -64,6 +64,14 @@ Superseded: `-so1`/`-so2`/`-so3` (earlier heads), `-plants1` (plants file refuse
 pattern), `-lint1` (unused `mut` in a gotrelax test helper), `-lint2` (D-X.140 body had paragraph breaks). The
 counts, plants and startup jobs ran on code that differs from the final head only by that test-helper `mut`.
 
+Step 5 result (`-tfu2`, merged tree cebfb1a6 content, 12:45Z): `cargo xtask so` green; STARTUP-DATA-WINDOWS 6 of 6
+written pages; `.data.rel.ro` 0x860000-0x86b060 (0xb0 shorter than this branch), no `.got` bin.
+
+Precheck (`-precheck1`) was red on jobs: the plants ran before the test-helper `mut` fix, and `sh ~/work/...` jobs
+name no `w/s1`, so jobrun kept no tested-content record. Final-head reruns, started at hand-back (PENDING):
+`-plants4` (full plants file), `-startup2` (release so + hot_text_products + `cargo xtask test`), `-lint5`.
+
 ## Exact next step
 
-None for this story. Follow-up: the step-4 data-bin diff (above).
+Wait for `layout-got-order-plants4`, `-startup2` and `-lint5` (`~/bin/jobwait` on mei), then run `cargo xtask precheck
+--jobs <those> --head <head>` on s1. Follow-up story: the step-4 data-bin diff (above).
