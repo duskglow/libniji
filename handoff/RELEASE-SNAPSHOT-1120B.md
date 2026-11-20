@@ -25,7 +25,7 @@ test-reloc-etxtbsy, **asan-main-thread** (GitHub #26 second half, D-22.20), trai
 | check | job | result | vs 20.1 |
 |---|---|---|---|
 | smoke lua_reload, cxx_dlclose | keke -smoke-keke-1 (builds products in n1), mei -smoke-mei-1 | `SMOKE: RESULT bad=0` both | same |
-| gate | keke -gate-1 rc 0 | clippy --all-features, xtask clippy, static, records check, affected --base origin/next (0 of 303 targets): all RC 0 | same |
+| gate | keke -gate-1 rc 0 (on 3f2a84520), -gate-2 rc 0 (on the final head 1430173a8, the same gate.sh) | clippy --all-features, xtask clippy, static, records check, affected --base origin/next (0 of 303 targets): all RC 0 | same |
 | system debs, check-system | keke -debs-1 | `check: PASS (7 packages, version 2.39+niji20261120.2-1)` | same |
 | check-symbols | debs-1 | PASS, 4440 symbol lines, 13 libraries | same (4440) |
 | coexist debs + check | debs-1 | `check: PASS (2 packages)` | same |
@@ -48,6 +48,13 @@ test-reloc-etxtbsy, **asan-main-thread** (GitHub #26 second half, D-22.20), trai
 | stage | keke -stage-1 rc 0 | 9 assets + SHA256SUMS + MANIFEST; `sha256sum -c` all OK | - |
 | install instructions | keke -install-1 rc 0 | `inst: RESULT fails=0` | same |
 | docs | local doccheck on tree/ | 23 problems, the same 23 lines as 20.1 | same |
+
+**Jobs named vs evidence.** Hand-back JOBS: keke gate-2, plants-1, smoke-keke-1; mei smoke-mei-1, startup-mei-1,
+y26-ref201-1, y26t-ref201-1, lint-1, many-1, dyn22-1, y19-1, y26-1, y26t-1 (precheck on n1 exit 0 for the keke ones;
+`ops handback-check` ok). Evidence only, not named: debs-1, roots-1, yohane-1, y10-1 end rc 1 on their known,
+unchanged failures (rows above); pkgdiff-1, stage-1, install-1, startup-keke-1 ran scripts under `~/work/` against
+the staged assets, so jobrun kept no tested-content record for them (precheck: "not judged"), all rc 0. gate-1 is
+superseded by gate-2 for the same reason.
 
 Products: this run's products.tgz has 1205 entries vs 1233 for 20.1's: 20.1's held leftover test artefacts of its
 role (`target/niji/native/`, `target/niji/rust/`, `rust-test/`), not `xtask so` products. Not a finding.

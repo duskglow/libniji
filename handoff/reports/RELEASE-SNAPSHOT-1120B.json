@@ -1,7 +1,14 @@
-{"task": "RELEASE-SNAPSHOT-1120B", "model": "opus", "tokens": null,
+{
+ "task": "RELEASE-SNAPSHOT-1120B",
+ "model": "opus",
+ "tokens": null,
  "result": "snapshot-ready at 3f2a84520: snapshot-20261120.2 staged; #26 complete (ASan reports thread T0, allocation stack, SUMMARY, rc 1, same shape as stock; gcc-14 ASan sample 20/20 vs 14/20 on 20.1); every other check matches 20.1",
- "branch": "task/release-snapshot-1120b", "head": null,
- "gate": {"affected": "0 selected of 303 targets (handoff-only); gate-1 all RC 0", "peak": null},
+ "branch": "task/release-snapshot-1120b",
+ "head": null,
+ "gate": {
+  "affected": "0 selected of 303 targets (handoff-only); gate-2 on the final head all RC 0 (precheck exit 0)",
+  "peak": null
+ },
  "accepted_first_attempt": null,
  "rulings": [],
  "informational": [
@@ -9,15 +16,68 @@
   "start-up +3,485 instructions (+0.3-0.45%), -2 page faults vs 20.1 on every program, Skylake-SP and Zen 1; not traced to one story",
   "ASan stack under libniji has one extra libc frame between main and __libc_start_main; all lines gcc's tests match are as stock",
   "unchanged from 20.1: dbg Breakpoint 1.1; bare-name dlopen through $ORIGIN DT_RUNPATH; libc6-dev ships no C headers (yohane fail=2); DBG 17 of 19",
-  "docs: no user doc changed since 20.1; RELEASE-NOTES ends at 2026-11-17, Known limitations still list no _r_debug, nothing mentions sanitizers; route to a docs story"],
+  "docs: no user doc changed since 20.1; RELEASE-NOTES ends at 2026-11-17, Known limitations still list no _r_debug, nothing mentions sanitizers; route to a docs story",
+  "evidence jobs not named in JOBS: debs-1, roots-1, yohane-1, y10-1 (rc 1, known unchanged failures); pkgdiff-1, stage-1, install-1, startup-keke-1 (rc 0, no tested-content record: scripts under ~/work); gate-1 superseded by gate-2"
+ ],
  "refused": [],
  "impact": [
-  {"kind": "correctness", "what": "gcc-14 ASan reports under the staged packages name thread T0 and print the allocation stack and SUMMARY (20.1: thread T-1, report cut short)", "before": null, "after": null, "unit": null, "measured": true},
-  {"kind": "accuracy", "what": "gcc 14.2.0 ASan test sample (20 dg-do run C tests) passing on libniji-linked builds", "before": 14, "after": 20, "unit": "tests of 20", "measured": true},
-  {"kind": "cost", "what": "empty-main start-up instructions vs snapshot-2026-11-20.1 (Skylake-SP, execcount); fix-forward: trace in a start-up story", "before": 782439, "after": 785924, "unit": "instr", "measured": true},
-  {"kind": "faults", "what": "empty-main start-up page faults vs snapshot-2026-11-20.1 (Skylake-SP)", "before": 59, "after": 57, "unit": "faults", "measured": true},
-  {"kind": "unblock", "what": "GitHub #26 (Yohane gcc-14 ASan tests) can be closed on a tagged snapshot", "before": null, "after": null, "unit": null, "measured": false}],
+  {
+   "kind": "correctness",
+   "what": "gcc-14 ASan reports under the staged packages name thread T0 and print the allocation stack and SUMMARY (20.1: thread T-1, report cut short)",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": true
+  },
+  {
+   "kind": "accuracy",
+   "what": "gcc 14.2.0 ASan test sample (20 dg-do run C tests) passing on libniji-linked builds",
+   "before": 14,
+   "after": 20,
+   "unit": "tests of 20",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "empty-main start-up instructions vs snapshot-2026-11-20.1 (Skylake-SP, execcount); fix-forward: trace in a start-up story",
+   "before": 782439,
+   "after": 785924,
+   "unit": "instr",
+   "measured": true
+  },
+  {
+   "kind": "faults",
+   "what": "empty-main start-up page faults vs snapshot-2026-11-20.1 (Skylake-SP)",
+   "before": 59,
+   "after": 57,
+   "unit": "faults",
+   "measured": true
+  },
+  {
+   "kind": "unblock",
+   "what": "GitHub #26 (Yohane gcc-14 ASan tests) can be closed on a tagged snapshot",
+   "before": null,
+   "after": null,
+   "unit": null,
+   "measured": false
+  }
+ ],
  "improvement": "the snapshot copy kit (copy.sh + subst.sed + y26t judge) is reusable as is; a release check for coexist version order (dpkg --compare-versions against the previous snapshot) would have caught finding 1 automatically",
  "next_step": "Coordinator: tag/publish snapshot-2026-11-20.2 from keke ~/release-staging/snapshot-20261120.2 when the owner says so; route the niji6 version-order finding to packaging and the docs findings to a docs story",
  "report_file": "handoff/RELEASE-SNAPSHOT-1120B.md",
- "jobs": ["keke:release-snapshot-1120b-smoke-keke-1", "keke:release-snapshot-1120b-gate-1", "keke:release-snapshot-1120b-debs-1", "keke:release-snapshot-1120b-pkgdiff-1", "keke:release-snapshot-1120b-stage-1", "keke:release-snapshot-1120b-install-1", "keke:release-snapshot-1120b-startup-keke-1", "keke:release-snapshot-1120b-plants-1", "mei:release-snapshot-1120b-smoke-mei-1", "mei:release-snapshot-1120b-startup-mei-1", "mei:release-snapshot-1120b-y26-ref201-1", "mei:release-snapshot-1120b-y26t-ref201-1", "mei:release-snapshot-1120b-roots-1", "mei:release-snapshot-1120b-lint-1", "mei:release-snapshot-1120b-yohane-1", "mei:release-snapshot-1120b-many-1", "mei:release-snapshot-1120b-dyn22-1", "mei:release-snapshot-1120b-y10-1", "mei:release-snapshot-1120b-y19-1", "mei:release-snapshot-1120b-y26-1", "mei:release-snapshot-1120b-y26t-1"]}
+ "jobs": [
+  "keke:release-snapshot-1120b-gate-2",
+  "keke:release-snapshot-1120b-plants-1",
+  "keke:release-snapshot-1120b-smoke-keke-1",
+  "mei:release-snapshot-1120b-smoke-mei-1",
+  "mei:release-snapshot-1120b-startup-mei-1",
+  "mei:release-snapshot-1120b-y26-ref201-1",
+  "mei:release-snapshot-1120b-y26t-ref201-1",
+  "mei:release-snapshot-1120b-lint-1",
+  "mei:release-snapshot-1120b-many-1",
+  "mei:release-snapshot-1120b-dyn22-1",
+  "mei:release-snapshot-1120b-y19-1",
+  "mei:release-snapshot-1120b-y26-1",
+  "mei:release-snapshot-1120b-y26t-1"
+ ]
+}
