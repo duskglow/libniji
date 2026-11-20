@@ -1,0 +1,19 @@
+{"task": "ASAN-MAIN-THREAD", "model": "opus", "tokens": null,
+ "result": "ASan's report is complete under libniji (thread T0, allocation and free stacks, SUMMARY, rc 1): the initial thread's words set before main (preinit/library constructors) now move from the thread registry into its block (D-22.20); LSan, TSan, UBSan match the reference",
+ "branch": "task/asan-main-thread", "head": "c723d5d78",
+ "gate": {"affected": "direct tier: 197 test targets + 32 conformance programs, rc 0 (asan-main-thread-gate-1); start-up checks rc 0 (asan-main-thread-startup-1); plants 5/5 CAUGHT (asan-main-thread-plants-2)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": ["clear_words (the registry's reset for a new thread at a reused thread pointer) does not reset the wclass word; noticed, not changed", "sanitizer stacks under libniji name libniji's start frames (start_under_niji_ld, start, __libc_start_main) where the reference names its own two; programs run as `ld.so <prog>` symbolise against ld.so (/proc/self/exe), a run-mode effect", "a sed -i was used once on crates/boundary/src/thread.rs to replace a placeholder id (the rules ask for the Edit tool); the result was checked", "a base products build with CARGO_TARGET_DIR set still wrote target/product/fast into the primed base source tree on the build host"],
+ "refused": [],
+ "impact": [
+  {"kind": "correctness", "what": "ASan under libniji: thread T0, allocation/free stacks and SUMMARY instead of thread T-1 and an internal CHECK failure (GitHub #26)", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "correctness", "what": "errno, pthread key values, uselocale choice and C++ thread_local destructors set in .preinit_array or a library constructor survive into main/exit under libniji's ld.so", "before": null, "after": null, "unit": null, "measured": true},
+  {"kind": "coverage", "what": "tests: 1 new (initial_thread_keeps_words_set_before_main), 1 tightened (ASan T0/stacks/SUMMARY/rc + use-after-free case); plants: 5", "before": null, "after": 5, "unit": "plants", "measured": true},
+  {"kind": "size", "what": "runtime::start<false> (dynamic start, inlines init_initial) in start-up layout bin 0", "before": 5902, "after": 5822, "unit": "bytes", "measured": true},
+  {"kind": "unblock", "what": "Yohane #26 (gcc ASan test suite, ~750 failures)", "before": null, "after": null, "unit": null, "measured": false}
+ ],
+ "improvement": "sync_role BUSY during a long start-up check blocks a handoff-only resync for plants; letting plants take the plants file by path from the worktree (as done here) could be the documented way",
+ "next_step": "coordinator: tell Yohane #26 is complete (ASan full report); land with the train",
+ "report_file": "handoff/ASAN-MAIN-THREAD.md",
+ "jobs": ["mei:asan-main-thread-gate-1", "mei:asan-main-thread-startup-1", "mei:asan-main-thread-plants-2", "mei:asan-main-thread-base-layout-1"]}

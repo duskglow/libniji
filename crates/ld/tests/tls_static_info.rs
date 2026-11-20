@@ -143,20 +143,88 @@ fn tls_static_info_reports_every_threads_static_block() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+/// A library whose constructor sees the program's `.preinit_array` `errno` and gives the thread a C++
+/// `thread_local` destructor (as a C++ library's static initialisation does).
+const LIBW: &str = r#"
+#include <errno.h>
+#include <stdio.h>
+extern void *__dso_handle;
+extern int __cxa_thread_atexit_impl(void (*)(void *), void *, void *);
+static int seen;
+static void dtor(void *p) { printf("thread_local destructor %s\n", (const char *)p); fflush(stdout); }
+__attribute__((constructor)) static void ctor(void) { seen = errno; __cxa_thread_atexit_impl(dtor, "ran", &__dso_handle); }
+int lib_seen(void) { return seen; }
+"#;
+
+/// The program's `.preinit_array` function sets `errno`, a key's value and a `uselocale` choice; `main`
+/// prints what it sees, then the library's `thread_local` destructor runs at `exit`.
+const PREW: &str = r#"
+#define _GNU_SOURCE
+#include <errno.h>
+#include <locale.h>
+#include <pthread.h>
+#include <stdio.h>
+extern int lib_seen(void);
+static pthread_key_t key;
+static locale_t loc;
+static void pre(int argc, char **argv, char **envp) {
+    (void)argc, (void)argv, (void)envp;
+    if (pthread_key_create(&key, 0) || pthread_setspecific(key, (void *)0x1234)) return;
+    loc = newlocale(LC_ALL_MASK, "C", (locale_t)0);
+    if (loc) uselocale(loc);
+    errno = 77;
+}
+__attribute__((section(".preinit_array"), used)) static void (*pre_fn)(int, char **, char **) = pre;
+int main(void) {
+    int e = errno;
+    printf("errno %d lib %d key %p locale %d\n", e, lib_seen(), pthread_getspecific(key), loc && uselocale((locale_t)0) == loc);
+    return 0;
+}
+"#;
+
+/// The initial thread keeps what the program's `.preinit_array` and a library's constructor gave it,
+/// which libniji's `ld.so` runs before `__libc_start_main`: `errno` (the library's constructor and
+/// `main` see 77), a key's value (a sanitizer runtime's thread record, GitHub issue #26), the
+/// `uselocale` choice, and a `thread_local` destructor that runs at `exit` (probe-settled, the story's
+/// decision record D-22.20). (spec s1_1_c_5 constructors before `main`; s2_1_c_0 the thread's
+/// `errno`; s22_6_c_1 the thread's key values; s7_3_c_4 the thread's locale; s1_2_c_6 its
+/// `thread_local` destructors.)
+#[test]
+fn initial_thread_keeps_words_set_before_main() {
+    let Some((lib, d)) = setup("words") else { return };
+    let libw = d.join("libw.so");
+    cc(&libw, LIBW, &["-shared", "-fPIC"]).unwrap();
+    let prog = d.join("prew");
+    cc(&prog, PREW, &["-pthread", &format!("-Wl,-rpath,{}", d.display()), libw.to_str().unwrap()]).unwrap();
+    let o = run(&lib, lib.to_str().unwrap(), &prog);
+    let out = String::from_utf8_lossy(&o.stdout);
+    assert!(o.status.success(), "{o:?}");
+    assert_eq!(out, "errno 77 lib 77 key 0x1234 locale 1\nthread_local destructor ran\n", "{o:?}");
+    let _ = std::fs::remove_dir_all(&d);
+}
+
 /// The issue's reproducer: a program built with `-fsanitize=address` reports its heap overflow, and one
 /// built with `-fsanitize=leak` its leak, instead of the runtime calling a null lookup result before
-/// `main` (GitHub issue #26). (no spec clause: a `GLIBC_PRIVATE` interface of `ld.so`; the story's
-/// decision record.)
+/// `main` (GitHub issue #26). ASan's reports are whole: the runtime finds the main thread it recorded
+/// from `.preinit_array` (`thread T0`), prints the allocation stack (and the free stack for a use
+/// after free) and ends with `SUMMARY` and its exit code 1 (D-22.20). (no spec clause: a
+/// `GLIBC_PRIVATE` interface of `ld.so` and the initial thread's words, s22_6_c_1; the story's
+/// decision records.)
 #[test]
 fn tls_static_info_sanitizer_runtimes_start() {
     let Some((lib, d)) = setup("san") else { return };
     let mut ran = 0;
-    // ASan: one byte past an 8-byte block. LSan: the only pointer to a block, in a global, cleared.
-    // Volatile: at -O1 the store before `free` is otherwise removed as dead.
+    // ASan: one byte past an 8-byte block; a byte of a freed block. LSan: the only pointer to a
+    // block, in a global, cleared. Volatile: at -O1 the store before `free` is otherwise removed as
+    // dead.
     let overflow = "#include <stdlib.h>\nint main(void) { volatile char *p = malloc(8); p[8] = 1; free((void *)p); return 0; }\n";
+    let freed = "#include <stdlib.h>\nint main(void) { volatile char *p = malloc(8); free((void *)p); return p[1]; }\n";
     let leak = "#include <stdlib.h>\nvoid *volatile g;\nint main(void) { g = malloc(64); g = 0; return 0; }\n";
-    for (flag, rt, src, want) in [("-fsanitize=address", "libasan.so", overflow, "ERROR: AddressSanitizer: heap-buffer-overflow"), ("-fsanitize=leak", "liblsan.so", leak, "ERROR: LeakSanitizer: detected memory leaks")] {
-        let prog = d.join(&flag[12..]);
+    let asan_overflow = &["ERROR: AddressSanitizer: heap-buffer-overflow", "WRITE of size 1 at ", " thread T0\n", "allocated by thread T0 here:\n", "SUMMARY: AddressSanitizer: heap-buffer-overflow "][..];
+    let asan_freed = &["ERROR: AddressSanitizer: heap-use-after-free", "READ of size 1 at ", " thread T0\n", "freed by thread T0 here:\n", "previously allocated by thread T0 here:\n", "SUMMARY: AddressSanitizer: heap-use-after-free "][..];
+    let lsan = &["ERROR: LeakSanitizer: detected memory leaks"][..];
+    for (name, flag, rt, src, want) in [("address", "-fsanitize=address", "libasan.so", overflow, asan_overflow), ("freed", "-fsanitize=address", "libasan.so", freed, asan_freed), ("leak", "-fsanitize=leak", "liblsan.so", leak, lsan)] {
+        let prog = d.join(name);
         if let Err(e) = cc(&prog, src, &["-g", flag]) {
             eprintln!("SKIP {flag}: the compiler cannot build it: {}", e.lines().next().unwrap_or(""));
             continue;
@@ -170,7 +238,14 @@ fn tls_static_info_sanitizer_runtimes_start() {
         let path = format!("{}:{}:{}", lib.display(), dir_of(rt), dir_of("libgcc_s.so.1"));
         let o = run(&lib, &path, &prog);
         let err = String::from_utf8_lossy(&o.stderr);
-        assert!(!o.status.success() && err.contains(want), "{flag}: {o:?}");
+        assert!(want.iter().all(|w| err.contains(w)), "{name}: {o:?}");
+        assert!(!err.contains("CHECK failed"), "{name}: the runtime stopped on its own check: {o:?}");
+        if flag == "-fsanitize=address" {
+            // The report ends with its summary (no further error) and the runtime's exit code.
+            assert_eq!(o.status.code(), Some(1), "{name}: {o:?}");
+        } else {
+            assert!(!o.status.success(), "{name}: {o:?}");
+        }
         ran += 1;
     }
     if ran == 0 {
