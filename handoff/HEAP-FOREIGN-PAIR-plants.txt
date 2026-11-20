@@ -6,5 +6,5 @@ calloc-zero-dropped | crates/boundary/src/heap.rs | lit:        zero_fresh(b.add
 route-widened | crates/boundary/src/heap.rs | lit:        return foreign_alloc(n, align, zero); ==>         return foreign_alloc(n, align, zero); } if f & malloc_debug::FOREIGN != 0 { return foreign_alloc(n, align, zero); | cargo test -p niji-boundary --test heap_foreign_plain | msg:was not filled with 0xA5
 # The found cache word not used: every operation goes to the heap's slow paths.
 cache-word-unused | crates/boundary/src/heap.rs | lit:            self.0.load(Relaxed) ==>             0 | cargo test -p niji-boundary --test heap_foreign_pair_cost | msg:more than the bound
-# The route's free drops the block: nothing is reused, every malloc takes the slow path.
-free-dropped | crates/boundary/src/heap.rs | lit:        Some(s) => HEAP.free(&CSys, &foreign::ForeignPages(s), p), ==>         Some(_) => Ok(()), | cargo test -p niji-boundary --test heap_foreign_pair_cost | msg:more than the bound
+# The route's free drops the block (a leak): the freed block is not handed out again.
+free-dropped | crates/boundary/src/heap.rs | lit:        Some(s) => HEAP.free(&CSys, &foreign::ForeignPages(s), p), ==>         Some(_) => Ok(()), | cargo test -p niji-boundary --test heap_foreign_plain | msg:was not reused by the next calloc

@@ -34,6 +34,9 @@ fn foreign_plain_route_zeroes_calloc_and_yields_to_perturb() {
             opaque::memset(p, 0xAB, n);
             opaque::free(p);
             let q = opaque::calloc(1, n);
+            // The free reached the heap: this thread's next block of the class is the one freed
+            // (the lowest free block of the slab's hint word, which the free just cleared).
+            assert_eq!(q, p, "the block freed by free({n}-byte block) was not reused by the next calloc(1, {n})");
             assert!(bytes(q, n).iter().all(|&b| b == 0), "calloc(1, {n}) returned a block that is not zero");
             opaque::free(q);
         }
