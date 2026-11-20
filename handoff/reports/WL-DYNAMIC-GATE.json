@@ -1,16 +1,68 @@
-{"task": "WL-DYNAMIC-GATE", "model": "opus", "tokens": null,
+{
+ "task": "WL-DYNAMIC-GATE",
+ "model": "opus",
+ "tokens": null,
  "result": "The INVIOLABLE workload rule binds the dynamic kit: WL_LINK defaults to dynamic, wl_verdict.py gates wl_count, 24 start-up rows on the Zen 1 class held at next's worst observed level (ratchet, pf release only when every run is in bound), static kit in the nightly/RC wl_kits.sh sweep",
- "branch": "task/wl-dynamic-gate", "head": null,
- "gate": {"affected": "pending: wl-dynamic-gate-gate2 (see hand-back)", "peak": null},
+ "branch": "task/wl-dynamic-gate",
+ "head": "af879a4f2",
+ "gate": {
+  "affected": "548 passed / 0 failed (5 suites, direct tier, wl-dynamic-gate-gate2 on af879a4f2; clippy -D warnings clean)",
+  "peak": "1.5G"
+ },
  "accepted_first_attempt": null,
- "rulings": [{"item": "gzip-c page faults vary 306..566 (libniji) and 322..407 (glibc) in one count; its worst-observed hold level 1.7578 is a weak ratchet (sed-s, gawk-printf noisy too)", "recommendation": "a story to find the page-fault noise in these workloads, then tighten their levels (MAY-TIGHTEN)"}],
- "informational": ["Levels come from the count's BASE column (next 189ab9cbc); this branch's new column runs the older merge base's libc and fails 4 pf rows (printf-loop, cut-tr-uniq, du, gawk-sum) against next's levels; the train measures the merge with next", "the nightly wl_kits.sh schedule belongs to the coordinator (ops cron); thread_common.txt's INVIOLABLE line (ops repo) should name the dynamic kit and ruling #6965", "Skylake-SP class has no recorded levels yet: its held rows report HELD-UNRECORDED until its first count records them", "per-gate count cost: 8825 s wall, +4.6 GB under ~/wl on keke at load 18-30 (two fresh product builds, printf-loop dynamic strace about 45 min); before (WL-DYNAMIC-KIT, static) about 410 s per count on a quieter host: NOT VERIFIED like for like"],
+ "rulings": [
+  {
+   "item": "gzip-c page faults vary 306..566 (libniji) and 322..407 (glibc) in one count; its worst-observed hold level 1.7578 is a weak ratchet (sed-s, gawk-printf noisy too)",
+   "recommendation": "a story to find the page-fault noise in these workloads, then tighten their levels (MAY-TIGHTEN)"
+  }
+ ],
+ "informational": [
+  "Levels come from the count's BASE column (next 189ab9cbc); this branch's new column runs the older merge base's libc and fails 4 pf rows (printf-loop, cut-tr-uniq, du, gawk-sum) against next's levels; the train measures the merge with next",
+  "the nightly wl_kits.sh schedule belongs to the coordinator (ops cron); thread_common.txt's INVIOLABLE line (ops repo) should name the dynamic kit and ruling #6965",
+  "Skylake-SP class has no recorded levels yet: its held rows report HELD-UNRECORDED until its first count records them",
+  "per-gate count cost: 8825 s wall, +4.6 GB under ~/wl on keke at load 18-30 (two fresh product builds, printf-loop dynamic strace about 45 min); before (WL-DYNAMIC-KIT, static) about 410 s per count on a quieter host: NOT VERIFIED like for like",
+  "plants (wl-dynamic-gate-plants2): 5 plants: 5 CAUGHT, 0 SURVIVED, 0 WARN"
+ ],
  "refused": [],
- "impact": [{"kind": "correctness", "what": "workload gate judges libniji as users run it (dynamic kit) against the INVIOLABLE rule; next's column: PASS, geomean instructions:u", "before": 0.818, "after": 0.8958, "unit": "geomean instr/glibc (static kit before, dynamic after)", "measured": true},
-            {"kind": "coverage", "what": "held rows recorded (Zen 1 class): printf-loop instr 3.6309 and 23 page-fault rows", "before": 0, "after": 24, "unit": "rows", "measured": true},
-            {"kind": "coverage", "what": "wl_verdict_test.sh checks and plants", "before": 0, "after": 38, "unit": "checks (5 plants)", "measured": true},
-            {"kind": "cost", "what": "a dynamic count's wall time (printf-loop strace of 20000 dynamic starts); fix-forward: the start-up work", "before": null, "after": 8825, "unit": "s wall (loaded host)", "measured": true}],
+ "impact": [
+  {
+   "kind": "correctness",
+   "what": "workload gate judges libniji as users run it (dynamic kit) against the INVIOLABLE rule; next's column: PASS, geomean instructions:u",
+   "before": 0.818,
+   "after": 0.8958,
+   "unit": "geomean instr/glibc (static kit before, dynamic after)",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "held rows recorded (Zen 1 class): printf-loop instr 3.6309 and 23 page-fault rows",
+   "before": 0,
+   "after": 24,
+   "unit": "rows",
+   "measured": true
+  },
+  {
+   "kind": "coverage",
+   "what": "wl_verdict_test.sh checks and plants",
+   "before": 0,
+   "after": 38,
+   "unit": "checks (5 plants)",
+   "measured": true
+  },
+  {
+   "kind": "cost",
+   "what": "a dynamic count's wall time (printf-loop strace of 20000 dynamic starts); fix-forward: the start-up work",
+   "before": null,
+   "after": 8825,
+   "unit": "s wall (loaded host)",
+   "measured": true
+  }
+ ],
  "improvement": "sync_role BUSY on my own queued (not yet running) jobs cost a requeue: let sync proceed when the role's only processes are queued slot waiters that have not cd'd in, or have jobrun cd at start",
  "next_step": "coordinator: land after the train; tighten the noisy pf levels once their noise is understood",
  "report_file": "handoff/WL-DYNAMIC-GATE.md",
- "jobs": ["wl-dynamic-gate-gate2", "wl-dynamic-gate-plants2"]}
+ "jobs": [
+  "wl-dynamic-gate-gate2",
+  "wl-dynamic-gate-plants2"
+ ]
+}
