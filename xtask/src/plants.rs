@@ -1,4 +1,4 @@
-//! `cargo xtask plants <file> --dir <new-dir> [--timeout <secs>] [--prepare-timeout <secs>]`: run a story's plants (mutations
+//! `cargo xtask plants <file> --dir <new-dir> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto]`: run a story's plants (mutations
 //! that its tests must catch) the one way the rules ask for, instead of a hand-written script per
 //! story (XTASK-PLANTS; `docs/plants.md`).
 //!
@@ -26,6 +26,11 @@
 //! must match exactly once; no `g` or `r` flag). `cmd` runs with `sh -c` in the copy's root.
 //!
 //! Everything is written under `--dir`: the copy in `<dir>/src` and the logs in `<dir>/logs`.
+//!
+//! PLANTS-COPIES: `--copies <n>` runs the plants in `n` tree copies at the same time (`<dir>/src-2`, `<dir>/logs-2`, ...),
+//! plant `i` in copy `i % n` ([`distribute`]); each copy builds and runs the baselines of its own plants, and the verdicts
+//! and `results.txt` come out in the plants file's order, as a serial run's. The default, `auto`, is two copies when the
+//! RAM this job may use holds two ([`auto_copies`], [`ram_limit`]), else one.
 
 use std::fs;
 use std::io::Write as _;
@@ -126,6 +131,9 @@ pub struct Config {
     /// The limit for `prepare` (the product build), apart from `timeout`.
     pub prepare_timeout: u64,
     pub uses_products: fn(&Path, &[Plant]) -> Vec<bool>,
+    /// PLANTS-COPIES: how many tree copies run plants at the same time (1: serial); `--copies`, default
+    /// [`auto_copies`].
+    pub copies: usize,
 }
 
 /// XTASK-PLANTS-PRODUCTS-REBUILD: per plant, whether its command may use the products, so that
@@ -258,14 +266,22 @@ pub fn main(root: &Path, args: &[String]) -> ExitCode {
     }
 }
 
-const USAGE: &str = "usage: cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>]";
+const USAGE: &str = "usage: cargo xtask plants <plants-file> --dir <new-directory> [--timeout <secs>] [--prepare-timeout <secs>] [--copies <n>|auto]";
 
 fn parse_args(root: &Path, args: &[String]) -> Result<Config, String> {
     let (mut file, mut dir, mut timeout, mut prepare_timeout) = (None, None, DEFAULT_TIMEOUT, DEFAULT_PREPARE_TIMEOUT);
+    // `None`: auto.
+    let mut copies: Option<usize> = None;
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dir" => dir = Some(PathBuf::from(it.next().ok_or("--dir needs a directory")?)),
+            "--copies" => {
+                copies = match it.next().map(String::as_str) {
+                    Some("auto") => None,
+                    v => Some(v.and_then(|c| c.parse().ok()).filter(|c| (1..=8).contains(c)).ok_or("--copies needs a number from 1 to 8, or auto")?),
+                }
+            }
             "--timeout" => timeout = it.next().and_then(|t| t.parse().ok()).filter(|t| *t > 0).ok_or("--timeout needs a positive number of seconds")?,
             "--prepare-timeout" => prepare_timeout = it.next().and_then(|t| t.parse().ok()).filter(|t| *t > 0).ok_or("--prepare-timeout needs a positive number of seconds")?,
             s if s.starts_with('-') => return Err(format!("unknown option {s} ({USAGE})")),
@@ -278,7 +294,14 @@ fn parse_args(root: &Path, args: &[String]) -> Result<Config, String> {
     let text = fs::read_to_string(&file).map_err(|e| format!("cannot read {}: {e}", file.display()))?;
     let dir = if dir.is_absolute() { dir } else { std::env::current_dir().map_err(|e| e.to_string())?.join(dir) };
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    Ok(Config { src: root.to_path_buf(), plants: parse_plants(&text)?, text, dir, prepare: vec![cargo, "xtask".into(), "so".into()], timeout, prepare_timeout, uses_products: plants_use_products })
+    let copies = copies.unwrap_or_else(|| {
+        let limit = ram_limit();
+        let n = auto_copies(limit);
+        let gib = |b: u64| format!("{:.1} GiB", b as f64 / (1u64 << 30) as f64);
+        println!("plants: --copies auto: {n} (RAM this job may use: {}; one copy needs up to {}; --copies <n> overrides)", limit.map_or("unknown".into(), gib), gib(COPY_PEAK_BYTES));
+        n
+    });
+    Ok(Config { src: root.to_path_buf(), plants: parse_plants(&text)?, text, dir, prepare: vec![cargo, "xtask".into(), "so".into()], timeout, prepare_timeout, uses_products: plants_use_products, copies })
 }
 
 /// Parse a plants file (see the module comment). Every line is checked; the errors are joined.
@@ -660,7 +683,73 @@ fn missing_in(copy: &Path, paths: &[String]) -> Vec<String> {
     paths.iter().filter(|p| fs::symlink_metadata(copy.join(p)).is_err()).cloned().collect()
 }
 
-/// The whole run: refuse what cannot be trusted, copy, build, baseline, then each plant.
+/// PLANTS-COPIES: the plants each of `copies` tree copies runs, as indices into the plants file, dealt in turn (plant `i`
+/// to copy `i % copies`) so that each copy gets a share of every stretch of the file. At least one copy, and no copy
+/// without a plant.
+pub fn distribute(plants: usize, copies: usize) -> Vec<Vec<usize>> {
+    let copies = copies.clamp(1, plants.max(1));
+    let mut shares = vec![Vec::new(); copies];
+    for i in 0..plants {
+        shares[i % copies].push(i);
+    }
+    shares
+}
+
+/// PLANTS-COPIES: the peak RAM one plants copy needs, in bytes: its tree and target directories on the RAM file system plus
+/// the build and the tests. Measured per copy on the current head (docs/plants.md, "Copies"); the larger host's figure,
+/// rounded up.
+pub const COPY_PEAK_BYTES: u64 = 14 << 30;
+
+/// PLANTS-COPIES: how many copies `--copies auto` (the default) runs, given the RAM this job may use (`None`: unknown):
+/// two when that holds two copies at [`COPY_PEAK_BYTES`] each, else one (a serial run, the old behaviour).
+pub fn auto_copies(limit: Option<u64>) -> usize {
+    match limit {
+        Some(l) if l >= 2 * COPY_PEAK_BYTES => 2,
+        _ => 1,
+    }
+}
+
+/// The RAM this job may use, in bytes: the smallest of `NIJI_PLANTS_RAM_GB` (GiB; a role's RAM budget, given by whoever
+/// starts the job), the `memory.max` of this process's cgroup and every cgroup above it, and `MemAvailable`. `None` when
+/// none of them is known.
+fn ram_limit() -> Option<u64> {
+    let mut limits = Vec::new();
+    if let Some(gb) = std::env::var("NIJI_PLANTS_RAM_GB").ok().and_then(|v| v.trim().parse::<f64>().ok()).filter(|g| *g >= 0.0) {
+        limits.push((gb * (1u64 << 30) as f64) as u64);
+    }
+    if let Some(cg) = fs::read_to_string("/proc/self/cgroup").ok().and_then(|t| t.lines().find_map(|l| l.strip_prefix("0::").map(str::to_string))) {
+        let mut dir = PathBuf::from(format!("/sys/fs/cgroup{}", cg.trim()));
+        loop {
+            if let Some(v) = fs::read_to_string(dir.join("memory.max")).ok().and_then(|v| v.trim().parse::<u64>().ok()) {
+                limits.push(v);
+            }
+            if dir == Path::new("/sys/fs/cgroup") || !dir.pop() {
+                break;
+            }
+        }
+    }
+    if let Some(kb) = fs::read_to_string("/proc/meminfo").ok().and_then(|t| t.lines().find_map(|l| l.strip_prefix("MemAvailable:").and_then(|v| v.trim().trim_end_matches("kB").trim().parse::<u64>().ok()))) {
+        limits.push(kb * 1024);
+    }
+    limits.into_iter().min()
+}
+
+/// What one copy's worker ended with.
+struct CopyRun {
+    /// `Some(code)`: the copy stopped early (refused, baseline failed, or a step that leaves the copy unusable), with the
+    /// exit status a serial run would have stopped with.
+    stop: Option<u8>,
+    /// The copy stopped because another copy did (its own state says nothing).
+    aborted: bool,
+    /// Per plant judged (its index in the file): the verdict, if one was reached, and its line in `results.txt`.
+    plants: Vec<(usize, Option<Verdict>, String)>,
+    /// An error was recorded for a plant (the run goes on, but exits 1).
+    failed: bool,
+}
+
+/// The whole run: refuse what cannot be trusted, then one worker per copy (PLANTS-COPIES; one copy is the serial run),
+/// each copying the tree, building, running the baselines of its plants, then each of its plants; the verdicts merged in
+/// the plants file's order.
 pub fn run(cfg: &Config) -> Outcome {
     if cfg.dir.exists() {
         return refused(format!("{} exists: a plants run needs a NEW directory (no reuse, no delete)", cfg.dir.display()));
@@ -686,33 +775,118 @@ pub fn run(cfg: &Config) -> Outcome {
     if let Err(e) = fs::create_dir(&cfg.dir) {
         return refused(format!("cannot create {}: {e}", cfg.dir.display()));
     }
-    let (copy, logs) = (cfg.dir.join("src"), cfg.dir.join("logs"));
-    let step = |what: &str, r: Result<(), String>| r.map_err(|e| eprintln!("plants: {what} failed: {e}"));
+    let shares = distribute(cfg.plants.len(), cfg.copies);
+    let abort = std::sync::atomic::AtomicBool::new(false);
+    let runs: Vec<CopyRun> = if shares.len() == 1 {
+        vec![run_copy(cfg, 0, &shares[0], &abort)]
+    } else {
+        let sizes: Vec<String> = shares.iter().map(|s| s.len().to_string()).collect();
+        println!("plants: {} copies, running at the same time (plants each: {}; the plants file's order is kept in the results)", shares.len(), sizes.join(", "));
+        std::thread::scope(|s| {
+            let handles: Vec<_> = shares.iter().enumerate().map(|(k, share)| {
+                let abort = &abort;
+                s.spawn(move || run_copy(cfg, k, share, abort))
+            }).collect();
+            handles.into_iter().map(|h| h.join().unwrap_or(CopyRun { stop: Some(EXIT_SURVIVED), aborted: false, plants: Vec::new(), failed: true })).collect()
+        })
+    };
+    merge(cfg, shares.len(), runs)
+}
+
+/// The run's outcome from its copies' (PLANTS-COPIES): verdicts and result lines in the plants file's order. A copy that
+/// stopped decides the exit status as a serial run's stop would (refused 3, then baseline 2, then 1), and, as there, no
+/// summary or `results.txt` follows.
+fn merge(cfg: &Config, copies: usize, runs: Vec<CopyRun>) -> Outcome {
+    let mut judged: Vec<(usize, Option<Verdict>, String)> = runs.iter().flat_map(|r| r.plants.iter().cloned()).collect();
+    judged.sort_by_key(|(i, _, _)| *i);
+    let verdicts: Vec<(String, Verdict)> = judged.iter().filter_map(|(i, v, _)| v.map(|v| (cfg.plants[*i].id.clone(), v))).collect();
+    let stops: Vec<u8> = runs.iter().filter(|r| !r.aborted).filter_map(|r| r.stop).collect();
+    if !stops.is_empty() {
+        let code = [EXIT_REFUSED, EXIT_BASELINE].into_iter().find(|c| stops.contains(c)).unwrap_or(EXIT_SURVIVED);
+        if copies > 1 {
+            println!("plants: stopped (a copy stopped; see its lines above), exit {code}");
+        }
+        return Outcome { code, verdicts };
+    }
+    let failed = runs.iter().any(|r| r.failed || r.aborted);
+    if copies > 1 {
+        // The copies' lines interleave: the verdicts again, in the file's order.
+        for (i, v, _) in &judged {
+            println!("plants: {}: {}", cfg.plants[*i].id, v.map_or("ERROR", Verdict::label));
+        }
+    }
+    let results: Vec<String> = judged.into_iter().map(|(_, _, line)| line).collect();
+    let count = |v: Verdict| verdicts.iter().filter(|(_, x)| *x == v).count();
+    let survived = count(Verdict::Survived);
+    let summary = format!(
+        "{} plants: {} CAUGHT, {} SURVIVED, {} EQUIVALENT, {} WARN-RC-ONLY, {} WARN-NO-MSG, {} BUILD-TIMEOUT{}",
+        cfg.plants.len(),
+        count(Verdict::Caught),
+        survived,
+        count(Verdict::Equivalent),
+        count(Verdict::WarnRcOnly),
+        count(Verdict::WarnNoMsg),
+        count(Verdict::BuildTimeout),
+        if failed { ", and errors (see above)" } else { "" }
+    );
+    println!("plants: {summary}");
+    let record = cfg.dir.join("results.txt");
+    let mut failed = failed;
+    if let Err(e) = write_fresh(&record, &with_results(&cfg.text, &summary, &results)) {
+        println!("plants: ERROR: cannot write {}: {e}", record.display());
+        failed = true;
+    } else {
+        println!("plants: the plants file with these results: {} (commit it as handoff/<STORY>-plants.txt)", record.display());
+    }
+    let code = if survived > 0 || count(Verdict::BuildTimeout) > 0 || failed { EXIT_SURVIVED } else { EXIT_OK };
+    Outcome { code, verdicts }
+}
+
+/// One copy (`k` from 0): `<dir>/src` and `<dir>/logs` for the first, `<dir>/src-<k+1>` and `<dir>/logs-<k+1>` for the
+/// others; copy the tree, build, run the baseline of each distinct command of its plants, then each of its plants
+/// (`share`, indices into the plants file). It stops before its next step when `abort` is set (another copy stopped).
+fn run_copy(cfg: &Config, k: usize, share: &[usize], abort: &std::sync::atomic::AtomicBool) -> CopyRun {
+    use std::sync::atomic::Ordering;
+    let (copy, logs) = if k == 0 { (cfg.dir.join("src"), cfg.dir.join("logs")) } else { (cfg.dir.join(format!("src-{}", k + 1)), cfg.dir.join(format!("logs-{}", k + 1))) };
+    // The first copy's lines read as a serial run's; another copy's say which copy.
+    let pre = if k == 0 { "plants:".to_string() } else { format!("plants[copy {}]:", k + 1) };
+    let mut out = CopyRun { stop: None, aborted: false, plants: Vec::new(), failed: false };
+    let stop = |mut out: CopyRun, code: u8| {
+        abort.store(true, Ordering::SeqCst);
+        out.stop = Some(code);
+        out
+    };
+    let step = |what: &str, r: Result<(), String>| r.map_err(|e| eprintln!("{pre} {what} failed: {e}"));
     if step("mkdir", fs::create_dir(&logs).map_err(|e| e.to_string())).is_err() {
-        return Outcome { code: EXIT_SURVIVED, verdicts: Vec::new() };
+        return stop(out, EXIT_SURVIVED);
     }
     // The source only: `target/` holds deliberately unreadable test files and stale builds.
     let mut rsync = Command::new("rsync");
     rsync.args(["-a", "--exclude", "/target", "--exclude", "/fuzz/target"]).arg(format!("{}/", cfg.src.display())).arg(&copy);
     if step("copy", crate::run(&mut rsync)).is_err() {
-        return Outcome { code: EXIT_SURVIVED, verdicts: Vec::new() };
+        return stop(out, EXIT_SURVIVED);
     }
-    println!("plants: copy {} -> {}", cfg.src.display(), copy.display());
+    println!("{pre} copy {} -> {}", cfg.src.display(), copy.display());
     match source_paths(&cfg.src) {
         Ok((paths, how)) => {
             let missing = missing_in(&copy, &paths);
             if !missing.is_empty() {
                 let shown: Vec<&str> = missing.iter().take(20).map(String::as_str).collect();
-                return refused(format!("the copy lacks {} of {} source paths ({how}), so a test could miss a file it needs: {}{}", missing.len(), paths.len(), shown.join(", "), if missing.len() > 20 { ", ..." } else { "" }));
+                eprintln!("{pre} REFUSED: the copy lacks {} of {} source paths ({how}), so a test could miss a file it needs: {}{}", missing.len(), paths.len(), shown.join(", "), if missing.len() > 20 { ", ..." } else { "" });
+                return stop(out, EXIT_REFUSED);
             }
-            println!("plants: copy check: all {} source paths ({how}) are in the copy", paths.len());
+            println!("{pre} copy check: all {} source paths ({how}) are in the copy", paths.len());
         }
-        Err(e) => return refused(format!("cannot list the source paths of {}: {e}", cfg.src.display())),
+        Err(e) => {
+            eprintln!("{pre} REFUSED: cannot list the source paths of {}: {e}", cfg.src.display());
+            return stop(out, EXIT_REFUSED);
+        }
     }
+    let plants: Vec<&Plant> = share.iter().map(|&i| &cfg.plants[i]).collect();
     // PLANTS-UNGROUPED-MUTANTS: a plant's products are built ungrouped (a compile only: a mutant's behaviour does not
     // depend on the start-up layout) unless the plant measures the layout ([`targets_layout`] or `layout:traced`).
     use crate::hotlists::Layout;
-    let layouts: Vec<Layout> = cfg.plants.iter().map(|p| if p.layout || targets_layout(&p.cmd) { Layout::Traced } else { Layout::Ungrouped }).collect();
+    let layouts: Vec<Layout> = plants.iter().map(|p| if p.layout || targets_layout(&p.cmd) { Layout::Traced } else { Layout::Ungrouped }).collect();
     // The products, then each distinct command on the unmutated copy, once per layout the plants use (ungrouped
     // first): each command's baseline sees the products in the layout its plants are built with.
     let mut baseline: Vec<(String, Vec<String>, Layout)> = Vec::new();
@@ -724,7 +898,7 @@ pub fn run(cfg: &Config) -> Outcome {
         let so = if layout == Layout::Traced && layouts.contains(&Layout::Ungrouped) { "so-traced" } else { "so" };
         baseline.push((so.into(), cfg.prepare.clone(), layout));
         let start = baseline.len();
-        for (p, _) in cfg.plants.iter().zip(&layouts).filter(|(_, l)| **l == layout) {
+        for (p, _) in plants.iter().zip(&layouts).filter(|(_, l)| **l == layout) {
             if !baseline[start..].iter().any(|(_, argv, _)| argv[2] == p.cmd) {
                 n += 1;
                 baseline.push((format!("baseline-{n}"), sh(&p.cmd), layout));
@@ -734,6 +908,10 @@ pub fn run(cfg: &Config) -> Outcome {
     // The layout the products in the copy hold (the last build's).
     let mut held = Layout::Ungrouped;
     for (name, argv, layout) in &baseline {
+        if abort.load(Ordering::SeqCst) {
+            out.aborted = true;
+            return out;
+        }
         let log = logs.join(format!("{name}.log"));
         // A product build has its own limit.
         let build = name.starts_with("so");
@@ -742,32 +920,34 @@ pub fn run(cfg: &Config) -> Outcome {
         match run_logged(&copy, argv, &log, limit, *layout) {
             Ok(0) if build => {
                 held = *layout;
-                println!("plants: {name} ok ({}; layout {}, NIJI_LAYOUT_TRACE={}, in {:.0}s)", argv.join(" "), layout_name(*layout), layout_env(*layout), start.elapsed().as_secs_f64());
+                println!("{pre} {name} ok ({}; layout {}, NIJI_LAYOUT_TRACE={}, in {:.0}s)", argv.join(" "), layout_name(*layout), layout_env(*layout), start.elapsed().as_secs_f64());
             }
-            Ok(0) => println!("plants: {name} ok ({}; layout {})", argv.join(" "), layout_name(*layout)),
+            Ok(0) => println!("{pre} {name} ok ({}; layout {})", argv.join(" "), layout_name(*layout)),
             Ok(TIMED_OUT) if build => {
-                println!("plants: BASELINE FAILED: {name} timed out after {limit} s (prepare timeout; --prepare-timeout <secs>); no plant was applied. Last lines of {}:\n{}", log.display(), tail(&log, 20));
-                return Outcome { code: EXIT_BASELINE, verdicts: Vec::new() };
+                println!("{pre} BASELINE FAILED: {name} timed out after {limit} s (prepare timeout; --prepare-timeout <secs>); no plant was applied. Last lines of {}:\n{}", log.display(), tail(&log, 20));
+                return stop(out, EXIT_BASELINE);
             }
             Ok(rc) => {
                 let hint = if *layout == Layout::Ungrouped && !build { " (built ungrouped; a command that measures the start-up layout needs `layout:traced` on its plants, docs/plants.md)" } else { "" };
-                println!("plants: BASELINE FAILED: {name} rc {rc} ({}; layout {}){hint}; no plant was applied. Last lines of {}:\n{}", argv.join(" "), layout_name(*layout), log.display(), tail(&log, 20));
-                return Outcome { code: EXIT_BASELINE, verdicts: Vec::new() };
+                println!("{pre} BASELINE FAILED: {name} rc {rc} ({}; layout {}){hint}; no plant was applied. Last lines of {}:\n{}", argv.join(" "), layout_name(*layout), log.display(), tail(&log, 20));
+                return stop(out, EXIT_BASELINE);
             }
             Err(e) => {
-                println!("plants: BASELINE FAILED: {name}: {e}");
-                return Outcome { code: EXIT_BASELINE, verdicts: Vec::new() };
+                println!("{pre} BASELINE FAILED: {name}: {e}");
+                return stop(out, EXIT_BASELINE);
             }
         }
     }
     // XTASK-PLANTS-PRODUCTS-REBUILD: a command that uses the products gets them rebuilt with the
     // mutant; the others reuse the baseline build, rebuilt unmutated first if a plant left a mutant in it.
-    let uses = (cfg.uses_products)(&copy, &cfg.plants);
+    let owned: Vec<Plant> = plants.iter().map(|p| (*p).clone()).collect();
+    let uses = (cfg.uses_products)(&copy, &owned);
     let mut products_hold_mutant = false;
-    let mut verdicts = Vec::new();
-    let mut results: Vec<String> = Vec::new();
-    let mut failed = false;
-    for ((p, &uses_products), &layout) in cfg.plants.iter().zip(&uses).zip(&layouts) {
+    for (((&i, p), &uses_products), &layout) in share.iter().zip(&plants).zip(&uses).zip(&layouts) {
+        if abort.load(Ordering::SeqCst) {
+            out.aborted = true;
+            return out;
+        }
         // A plant that measures the layout reads the products by definition.
         let products = uses_products || layout == Layout::Traced;
         let mut build = format!("the baseline products (layout {}), not rebuilt", layout_name(held));
@@ -782,34 +962,33 @@ pub fn run(cfg: &Config) -> Outcome {
                     build = format!("the products, rebuilt unmutated after the last plant, layout ungrouped, in {:.0}s (log {})", start.elapsed().as_secs_f64(), log.display());
                 }
                 rc => {
-                    println!("plants: {}: ERROR: rebuilding the unmutated products: {rc:?}; stopping (log {})", p.id, log.display());
-                    return Outcome { code: EXIT_SURVIVED, verdicts };
+                    println!("{pre} {}: ERROR: rebuilding the unmutated products: {rc:?}; stopping (log {})", p.id, log.display());
+                    return stop(out, EXIT_SURVIVED);
                 }
             }
         }
+        let error = |out: &mut CopyRun, e: String| {
+            println!("{pre} {}: ERROR: {e}", p.id);
+            out.plants.push((i, None, format!("# {}: ERROR: {e}", p.id)));
+            out.failed = true;
+        };
         let file = copy.join(&p.path);
         let original = match fs::read_to_string(&file) {
             Ok(s) => s,
             Err(e) => {
-                println!("plants: {}: ERROR: cannot read {}: {e}", p.id, p.path);
-                results.push(format!("# {}: ERROR: cannot read {}: {e}", p.id, p.path));
-                failed = true;
+                error(&mut out, format!("cannot read {}: {e}", p.path));
                 continue;
             }
         };
         let mutant = match mutate(&original, &p.pattern) {
             Ok(m) => m,
             Err(e) => {
-                println!("plants: {}: ERROR: {e}", p.id);
-                results.push(format!("# {}: ERROR: {e}", p.id));
-                failed = true;
+                error(&mut out, e);
                 continue;
             }
         };
         if let Err(e) = write_fresh(&file, &mutant) {
-            println!("plants: {}: ERROR: {e}", p.id);
-            results.push(format!("# {}: ERROR: {e}", p.id));
-            failed = true;
+            error(&mut out, e);
             continue;
         }
         let mut log = logs.join(format!("{}.log", p.id));
@@ -831,15 +1010,13 @@ pub fn run(cfg: &Config) -> Outcome {
         let rc = if matches!(built, Ok(0)) { run_logged(&copy, &sh(&p.cmd), &log, cfg.timeout, layout) } else { built };
         // Restore by writing (a fresh mtime) before anything else can go wrong.
         if let Err(e) = write_fresh(&file, &original) {
-            println!("plants: {}: ERROR: restore: {e}; stopping (the copy holds the mutant)", p.id);
-            return Outcome { code: EXIT_SURVIVED, verdicts };
+            println!("{pre} {}: ERROR: restore: {e}; stopping (the copy holds the mutant)", p.id);
+            return stop(out, EXIT_SURVIVED);
         }
         let rc = match rc {
             Ok(rc) => rc,
             Err(e) => {
-                println!("plants: {}: ERROR: {e}", p.id);
-                results.push(format!("# {}: ERROR: {e}", p.id));
-                failed = true;
+                error(&mut out, e);
                 continue;
             }
         };
@@ -853,40 +1030,18 @@ pub fn run(cfg: &Config) -> Outcome {
             (Expect::Equivalent(_), rc) => (Verdict::Caught, format!("rc {rc} (declared equivalent, but caught)")),
             (Expect::RcOnly, rc) => (Verdict::WarnRcOnly, format!("rc {rc}, no msg: given")),
         };
-        println!("plants: {}: {} ({}; log {}; build: {build})", p.id, verdict.label(), detail, log.display());
+        println!("{pre} {}: {} ({}; log {}; build: {build})", p.id, verdict.label(), detail, log.display());
         // XTASK-PLANTS-CATCHER: a failed command names what failed, kept beside the plants in results.txt.
-        if rc == 0 || build_timed_out {
-            results.push(format!("# {}: {}", p.id, verdict.label()));
+        let line = if rc == 0 || build_timed_out {
+            format!("# {}: {}", p.id, verdict.label())
         } else {
             let by = if rc == TIMED_OUT { format!("timeout ({}s)", cfg.timeout) } else { catcher(&String::from_utf8_lossy(&fs::read(&log).unwrap_or_default())) };
-            println!("plants: {}: caught by {by}", p.id);
-            results.push(format!("# {}: {}, caught by {by}", p.id, verdict.label()));
-        }
-        verdicts.push((p.id.clone(), verdict));
+            println!("{pre} {}: caught by {by}", p.id);
+            format!("# {}: {}, caught by {by}", p.id, verdict.label())
+        };
+        out.plants.push((i, Some(verdict), line));
     }
-    let count = |v: Verdict| verdicts.iter().filter(|(_, x)| *x == v).count();
-    let survived = count(Verdict::Survived);
-    let summary = format!(
-        "{} plants: {} CAUGHT, {} SURVIVED, {} EQUIVALENT, {} WARN-RC-ONLY, {} WARN-NO-MSG, {} BUILD-TIMEOUT{}",
-        cfg.plants.len(),
-        count(Verdict::Caught),
-        survived,
-        count(Verdict::Equivalent),
-        count(Verdict::WarnRcOnly),
-        count(Verdict::WarnNoMsg),
-        count(Verdict::BuildTimeout),
-        if failed { ", and errors (see above)" } else { "" }
-    );
-    println!("plants: {summary}");
-    let record = cfg.dir.join("results.txt");
-    if let Err(e) = write_fresh(&record, &with_results(&cfg.text, &summary, &results)) {
-        println!("plants: ERROR: cannot write {}: {e}", record.display());
-        failed = true;
-    } else {
-        println!("plants: the plants file with these results: {} (commit it as handoff/<STORY>-plants.txt)", record.display());
-    }
-    let code = if survived > 0 || count(Verdict::BuildTimeout) > 0 || failed { EXIT_SURVIVED } else { EXIT_OK };
-    Outcome { code, verdicts }
+    out
 }
 
 #[cfg(test)]
@@ -909,7 +1064,7 @@ mod tests {
     const CHECK: &str = "grep -q answer=42 src/value.txt || { echo WRONG-ANSWER; exit 1; }";
 
     fn config(src: &Path, dir: &Path, plants: &str) -> Config {
-        Config { src: src.to_path_buf(), text: plants.to_string(), plants: parse_plants(plants).unwrap(), dir: dir.to_path_buf(), prepare: sh("true"), timeout: 60, prepare_timeout: 60, uses_products: |_, ps| vec![false; ps.len()] }
+        Config { src: src.to_path_buf(), text: plants.to_string(), plants: parse_plants(plants).unwrap(), dir: dir.to_path_buf(), prepare: sh("true"), timeout: 60, prepare_timeout: 60, uses_products: |_, ps| vec![false; ps.len()], copies: 1 }
     }
 
     /// The toy's products: `product.txt`, a copy of `src/value.txt`; every build appends a line to `builds.txt`.
@@ -1395,6 +1550,91 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         assert!(!alive(&pid), "grandchild {pid} survived the step's timeout");
+        let _ = fs::remove_dir_all(src.parent().unwrap());
+    }
+
+    // no spec clause (PLANTS-COPIES): plants are dealt to the copies in turn, every plant once, no copy without a plant
+    #[test]
+    fn plants_are_dealt_to_the_copies_in_turn() {
+        assert_eq!(distribute(5, 2), vec![vec![0, 2, 4], vec![1, 3]]);
+        assert_eq!(distribute(3, 1), vec![vec![0, 1, 2]]);
+        assert_eq!(distribute(2, 4), vec![vec![0], vec![1]]);
+        assert_eq!(distribute(0, 2), vec![Vec::<usize>::new()]);
+    }
+
+    // no spec clause (PLANTS-COPIES): auto runs two copies only when the job's RAM holds two at the measured peak
+    #[test]
+    fn auto_copies_follows_the_ram_limit() {
+        assert_eq!(auto_copies(None), 1);
+        assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES - 1)), 1);
+        assert_eq!(auto_copies(Some(2 * COPY_PEAK_BYTES)), 2);
+        assert_eq!(auto_copies(Some(u64::MAX)), 2);
+    }
+
+    // no spec clause (PLANTS-COPIES): --copies takes a number from 1 to 8 or auto
+    #[test]
+    fn copies_option_is_parsed_and_bounded() {
+        let (src, dir) = toy("copiesarg");
+        let file = src.join("plants.txt");
+        fs::write(&file, format!("d1 | src/value.txt | lit:answer=42 ==> answer=43 | {CHECK} | msg:WRONG-ANSWER\n")).unwrap();
+        let args = |c: &str| vec![file.display().to_string(), "--dir".into(), dir.display().to_string(), "--copies".into(), c.to_string()];
+        assert_eq!(parse_args(&src, &args("2")).unwrap().copies, 2);
+        assert!((1..=2).contains(&parse_args(&src, &args("auto")).unwrap().copies));
+        for bad in ["0", "9", "two"] {
+            assert!(parse_args(&src, &args(bad)).is_err(), "--copies {bad} accepted");
+        }
+        let _ = fs::remove_dir_all(src.parent().unwrap());
+    }
+
+    // no spec clause (PLANTS-COPIES): two copies give each plant the verdict, and results.txt the text, of a serial run;
+    // a plant that survives in the second copy is still SURVIVED and the run exits 1
+    #[test]
+    fn two_copies_report_as_a_serial_run() {
+        let plants = format!(
+            "c1 | src/value.txt | lit:answer=42 ==> answer=43 | {CHECK} | msg:WRONG-ANSWER\n\
+             s2 | src/value.txt | perl:s/(answer=42\\n)other=7/$1other=8/ | {CHECK} | msg:WRONG-ANSWER\n\
+             e3 | src/value.txt | perl:s/(answer=42\\n)other=7/$1other=9/ | {CHECK} | equivalent:other= is not read\n\
+             p4 | src/value.txt | perl:s/answer=42/answer=44/ | {PRODUCT_CHECK} | msg:WRONG-PRODUCT\n\
+             c5 | src/value.txt | lit:answer=42 ==> answer=45 | {CHECK} | msg:WRONG-ANSWER\n"
+        );
+        let mut outs = Vec::new();
+        for copies in [1, 2] {
+            let (src, dir) = toy(&format!("copies{copies}"));
+            let mut cfg = config(&src, &dir, &plants);
+            cfg.prepare = sh(BUILD);
+            cfg.uses_products = |_, ps| ps.iter().map(|p| p.cmd.contains("product.txt")).collect();
+            cfg.copies = copies;
+            let out = run(&cfg);
+            outs.push((out.code, out.verdicts, fs::read_to_string(dir.join("results.txt")).unwrap()));
+            if copies == 2 {
+                // s2 and p4 ran in the second copy, with its own tree, logs and products.
+                assert!(dir.join("logs-2/s2.log").is_file() && dir.join("logs-2/p4.so.log").is_file() && dir.join("logs/c1.log").is_file());
+                assert!(!dir.join("logs/s2.log").exists() && !dir.join("logs-2/c1.log").exists());
+                assert_eq!(fs::read_to_string(dir.join("src-2/src/value.txt")).unwrap(), "answer=42\nother=7\nother=7\n");
+            }
+            let _ = fs::remove_dir_all(src.parent().unwrap());
+        }
+        assert_eq!(outs[0], outs[1]);
+        let (code, verdicts, _) = &outs[1];
+        assert_eq!(*code, EXIT_SURVIVED);
+        let got: Vec<(&str, Verdict)> = verdicts.iter().map(|(id, v)| (id.as_str(), *v)).collect();
+        assert_eq!(got, vec![("c1", Verdict::Caught), ("s2", Verdict::Survived), ("e3", Verdict::Equivalent), ("p4", Verdict::Caught), ("c5", Verdict::Caught)]);
+    }
+
+    // no spec clause (PLANTS-COPIES): a baseline that fails in one copy fails the run (exit 2, no results.txt), as in a
+    // serial run
+    #[test]
+    fn a_baseline_failing_in_one_copy_fails_the_run() {
+        let (src, dir) = toy("copiesbaseline");
+        let plants = format!(
+            "c1 | src/value.txt | lit:answer=42 ==> answer=43 | {CHECK} | msg:WRONG-ANSWER\n\
+             b2 | src/value.txt | perl:s/answer=42/answer=44/ | false | msg:X\n"
+        );
+        let mut cfg = config(&src, &dir, &plants);
+        cfg.copies = 2;
+        let out = run(&cfg);
+        assert_eq!(out.code, EXIT_BASELINE);
+        assert!(!dir.join("results.txt").exists());
         let _ = fs::remove_dir_all(src.parent().unwrap());
     }
 }
