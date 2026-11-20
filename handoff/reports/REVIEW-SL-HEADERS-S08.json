@@ -1,0 +1,17 @@
+{"task": "REVIEW-SL-HEADERS-S08", "model": "opus", "tokens": null,
+ "result": "COMPLETE: chain S08 already covered by the series review (REVIEW-SL-HEADERS-S07, parked by #6838); pointer review with 3 S08-specific points",
+ "branch": "task/review-sl-headers-s08", "head": null,
+ "gate": {"affected": "not run (planning)", "peak": null}, "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "Brief premise stale: live tripwire.chains() gives 4 reds (not 5) and 9 measured gains (not none) for SL-HEADERS-S08",
+   "S08-4 content finished and verified 11-18 (4 jobs rc 0); S08-5 merge-only run = 4.0 of 9.6 agent-h, killed at wall time on a ~100 min plants job",
+   "Owed #29 should also ingest a killed run's pushed handoff/reports JSON (S08-5's runs row has impact NULL although its report is on the branch)",
+   "Reviewer slip: one command carried an empty heredoc by mistake (no effect; same class as owed #10)"
+ ],
+ "refused": [],
+ "impact": [{"kind": "none", "what": "review only; no behaviour change", "before": null, "after": null, "unit": null, "measured": false}],
+ "improvement": "the tripwire queued this review although the chain's series was already under review; suppress chain reviews while a series review of the same stem family is open",
+ "next_step": "coordinator: follow #6838 / owed #30; extend owed #29 to ingest killed runs' pushed reports",
+ "report_file": "plan/reviews/REVIEW-SL-HEADERS-S08.md",
+ "jobs": []}
