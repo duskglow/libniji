@@ -170,6 +170,8 @@ struct Tables {
     layouts: BTreeMap<String, Rows>,
     addr: BTreeMap<String, Vec<(String, String)>>,
     calls: BTreeMap<String, String>,
+    /// The symbol a call binds to under `_FILE_OFFSET_BITS=64` where the probes saw one only with `+gnu64` (a GNU-only function).
+    lfs: BTreeMap<String, String>,
     nothrow: BTreeSet<String>,
     exported: BTreeSet<String>,
     reserved: BTreeMap<String, String>,
@@ -315,7 +317,13 @@ fn load(root: &Path) -> Result<Tables, String> {
     derive_layouts(&mut layouts, &typedefs);
     let mut addr: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     let mut calls = BTreeMap::new();
+    let mut lfs = BTreeMap::new();
     for r in tsv(root, "spec/abi/callsites.tsv")? {
+        let sym = &r["symbol"];
+        let cfgs: Vec<&str> = r["configs"].split(',').collect();
+        if r["mode"] == "call" && !sym.starts_with("__") && *sym != r["name"] && cfgs.iter().all(|c| c.ends_with("+gnu64") && !c.starts_with('!')) {
+            lfs.insert(r["name"].clone(), sym.clone());
+        }
         match r["mode"].as_str() {
             "addr" => addr.entry(r["name"].clone()).or_default().push((r["configs"].clone(), r["symbol"].clone())),
             "call" if r["configs"] == "*" => {
@@ -337,7 +345,7 @@ fn load(root: &Path) -> Result<Tables, String> {
     }
     let providers = load_providers(root, &vis, &protos, &typedefs, &exported)?;
     let vis_index = VisIndex::new(&lv, &vis);
-    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of, vis_index })
+    Ok(Tables { lv, vis, macros, typedefs, protos, layouts, addr, calls, lfs, nothrow, exported, reserved, linked_elsewhere, providers, inits, enums, enum_of, vis_index })
 }
 
 /// `headers/providers.tsv`, checked: a known provider, a function some table declares, and no default-version export
@@ -1049,6 +1057,40 @@ mod tests {
         assert_eq!(lines.last(), Some(&"long z;"), "{lines:#?}");
         assert_eq!(lines.iter().filter(|l| **l == "long z;").count(), 1, "{lines:#?}");
         assert_eq!(lines[lines.len() - 2], "};", "z follows the anonymous union: {lines:#?}");
+    }
+
+    // no spec clause: plan/headers.md 2.4 (a GNU-only function the call probes saw bound to its 64-bit twin only under
+    // _FILE_OFFSET_BITS=64 is redirected there; one the branch already excludes from it, or one that binds elsewhere, is not).
+    // Synthetic names: the rule is data driven, no table row of next needs it.
+    #[test]
+    fn a_gnu_only_function_is_redirected_to_its_64_bit_twin() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let mut t = load(&root).unwrap();
+        t.lfs.insert("niji_test_f".into(), "niji_test_f64".into());
+        t.exported.insert("niji_test_f64".into());
+        t.lfs.insert("niji_test_g".into(), "niji_test_g64".into());
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        let d = "int niji_test_f (int)";
+        let l = g.extern_lines("niji_test_f", d, "", "niji_test_f", "#  ", false);
+        assert_eq!(l, ["#  if __NIJI_FOB64", "extern int niji_test_f (int) __asm__ (\"niji_test_f64\");", "#  else", "extern int niji_test_f (int);", "#  endif"]);
+        assert_eq!(g.extern_lines("niji_test_f", d, "", "niji_test_f", "#  ", true), ["extern int niji_test_f (int);"], "the branch excludes _FILE_OFFSET_BITS=64");
+        assert_eq!(g.extern_lines("niji_test_f", d, "", "niji_test_other", "#  ", false), ["extern int niji_test_f (int) __asm__ (\"niji_test_other\");"], "it binds elsewhere");
+        assert_eq!(g.extern_lines("niji_test_g", "int niji_test_g (int)", "", "niji_test_g", "#  ", false), ["extern int niji_test_g (int);"], "the twin is not exported");
+    }
+
+    // no spec clause: plan/headers.md 2.4 (a structure of bytes only, alignment 1 from its members, is not marked packed).
+    #[test]
+    fn a_structure_of_bytes_is_not_packed() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let mut t = load(&root).unwrap();
+        let cols = ["member", "offset_or_size", "align", "member_type", "bitfield"];
+        for (key, rows) in [("struct niji_test_bytes", vec![("", "16", "1", "", ""), ("a", "0", "", "char[16]", "")]), ("struct niji_test_pk", vec![("", "5", "1", "", ""), ("a", "0", "", "char", ""), ("b", "1", "", "int", "")])] {
+            let made: Rows = rows.iter().map(|r| cols.iter().zip([r.0, r.1, r.2, r.3, r.4]).map(|(k, v)| (k.to_string(), v.to_string())).chain([("type".to_string(), key.to_string())]).collect()).collect();
+            t.layouts.insert(key.into(), made);
+        }
+        let g = Gen { root: &root, t: &t, header: "rows".into(), out: Vec::new(), errors: Vec::new(), emitted: BTreeSet::new(), covered: BTreeMap::new(), owned_macros: BTreeSet::new(), hidden_members: BTreeMap::new() };
+        assert_eq!(g.aggregate("struct niji_test_bytes").expect("aggregate").attrs, "");
+        assert!(g.aggregate("struct niji_test_pk").expect("aggregate").attrs.contains("__packed__"), "a misaligned int member keeps the mark");
     }
 
     // no spec clause: plan/headers.md 2.4 "Generated tests" (HEADERS-GEN-COMPLETE). A vector typedef (typedefs.tsv

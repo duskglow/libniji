@@ -67,6 +67,7 @@ shift
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/wl_local.sh"
 profile=$(wl_profile) || exit 2   # the products profile (wl_lock.sh): release, what ships; WL_PROFILE=fast for a comparison
+link=$(wl_link) || exit 2   # WL_LINK=dynamic: the new and base columns run libniji dynamically (wl_lock.sh LINK, WL-DYNAMIC-KIT)
 root=; gitmode=0
 if [ -d "$target" ]; then
     if wl_is_git "$target"; then
@@ -137,7 +138,7 @@ prep() {
             wl_local_src "$root" "$k" || return 1
         fi
     done
-    cmd="${rec}export WL_PROFILE=$profile && WL_PROGS='$progs' bash $B/wl_prep.sh $srckey $base && WLC_ENV='$wenv' COUNT_FRESH=${COUNT_FRESH:-0} FAULT_PCT=${FAULT_PCT:-2} bash $B/wl_count_run.sh $list $base $srckey"
+    cmd="${rec}export WL_PROFILE=$profile WL_LINK=$link && WL_PROGS='$progs' bash $B/wl_prep.sh $srckey $base && WLC_ENV='$wenv' COUNT_FRESH=${COUNT_FRESH:-0} FAULT_PCT=${FAULT_PCT:-2} bash $B/wl_count_run.sh $list $base $srckey"
 }
 [ $nowait = 1 ] && echo "wl_count: --nowait ignored (this tool runs where it is started; jobrun detaches)" >&2
 prep || exit 1

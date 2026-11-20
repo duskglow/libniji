@@ -54,6 +54,23 @@ impl Gen<'_> {
         Some(out.trim_end().replace("__va_list_tag *", "__builtin_va_list").replace("__va_list_tag*", "__builtin_va_list"))
     }
 
+    /// The declaration of `name` binding to `sym`. A function that binds to its own name is redirected to its 64-bit twin under
+    /// `_FILE_OFFSET_BITS=64` where the call probes saw that (`lfs`); the addresses probed in no GNU configuration cannot show it.
+    /// `excl`: the branch's own condition already excludes `_FILE_OFFSET_BITS=64` (a plain conjunction with `!__NIJI_FOB64`).
+    pub(super) fn extern_lines(&self, name: &str, decl: &str, nt: &str, sym: &str, ind: &str, excl: bool) -> Vec<String> {
+        match self.t.lfs.get(name) {
+            Some(y) if sym == name && !excl && self.t.exported.contains(y) => vec![
+                format!("{ind}if __NIJI_FOB64"),
+                format!("extern {decl}{nt} __asm__ (\"{y}\");"),
+                format!("{ind}else"),
+                format!("extern {decl}{nt};"),
+                format!("{ind}endif"),
+            ],
+            _ if sym != name => vec![format!("extern {decl}{nt} __asm__ (\"{sym}\");")],
+            _ => vec![format!("extern {decl}{nt};")],
+        }
+    }
+
     pub(super) fn function(&mut self, name: &str) {
         let Some(decl) = self.declaration(name) else { return };
         let nt = if self.t.nothrow.contains(name) { " __NIJI_NOTHROW" } else { "" };
@@ -70,8 +87,7 @@ impl Gen<'_> {
             if !builtin && !self.t.exported.contains(&sym) && !self.t.linked_elsewhere.contains(sym.as_str()) && !(sym == name && self.t.providers.contains_key(name)) {
                 self.errors.push(format!("{}: {name} references {sym}, not exported at a default version", self.header));
             }
-            let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
-            body.push(format!("extern {decl}{nt}{asm};"));
+            body.extend(self.extern_lines(name, &decl, nt, &sym, "#  ", false));
         } else {
             let all = (1u64 << self.t.lv.ids.len()) - 1;
             // `addr` probes run in no fortify configuration (callsites.tsv): those do not decide the symbol.
@@ -86,8 +102,7 @@ impl Gen<'_> {
                     "0".into()
                 });
                 body.push(format!("#  {} {c}", if i == 0 { "if" } else { "elif" }));
-                let asm = if sym != name { format!(" __asm__ (\"{sym}\")") } else { String::new() };
-                body.push(format!("extern {decl}{nt}{asm};"));
+                body.extend(self.extern_lines(name, &decl, nt, sym, "#   ", c.contains("!__NIJI_FOB64") && !c.contains("||")));
             }
             body.push("#  endif".into());
         }

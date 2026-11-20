@@ -452,7 +452,7 @@ fn forward_defsyms(root: &Path, have: &BTreeSet<String>) -> Result<Vec<String>, 
 }
 
 /// `libc.so.6`'s exports at `NIJI_PRIVATE` (design §14, D-27.22): what libniji's `ld.so` calls or reads.
-const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_thread_walk"];
+const LIBC_PRIVATE: &[&str] = &["__niji_build_tag", "__niji_libc_early_init", "__niji_owner_unload", "__niji_stack_exec", "__niji_thread_walk"];
 
 /// The build tag `ld.so` and `libc.so.6` both carry (L14-10, D-27.22, `niji_ld::start::private::TAG`):
 /// FNV-1a 64 over the product sources (`crates/`, `csys/`, `include/`, `Cargo.lock`; paths sorted,
@@ -1290,6 +1290,16 @@ fn finish_archive(root: &Path, archive: &Path, product: &Path, out: &Path, layou
     let weak = weaken_archive(archive, &product.join("weaken"), &staged)?;
     // After the weakening pass, which rebuilds the product crate's objects.
     shared_personality_ref(&std::env::var("AR").unwrap_or_else(|_| "ar".into()), &staged, &product.join("personality-work"))?;
+    // LAYOUT-GOT-ORDER (D-X.140): the published archive only (libc.so.6 was linked from `archive`, and a
+    // position-independent link keeps these GOT slots anyway), so a static program has no `.got`.
+    let got = crate::gotrelax::mark_archive(&staged)?;
+    if got.marked == 0 {
+        return Err(format!(
+            "{}: no plain R_X86_64_GOTPCREL on an add/cmp/... operand to mark (D-X.140): the compiler now emits the relaxable form itself? Check that static programs have no .got, then retire xtask/src/gotrelax.rs",
+            staged.display()
+        ));
+    }
+    println!("so: {} GOT operands of add/cmp/... marked relaxable in {} members, {} plain GOTPCREL left (D-X.140)", got.marked, got.members, got.left);
     rust_symbols_stay_local(&staged)?;
     check_archive_elf(&staged)?;
     boot_anchor_pc_relative(&staged)?;

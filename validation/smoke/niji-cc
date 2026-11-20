@@ -2,8 +2,8 @@
 # validation/smoke/niji-cc (and niji-c++, a link to it): the compiler a smoke build uses as CC/CXX.
 # Made for validation/smoke/smoke.sh, which sets the environment below; see validation/smoke/README.md.
 #
-# Compiling is the system compiler with the system's headers, unchanged (libniji has no header set; it is
-# ABI-compatible with the glibc 2.39 headers). Linking follows the dynamic link line of conformance/run.sh:
+# Compiling is the system compiler with the system's headers, unchanged (or, with NIJI_SMOKE_HEADERS, with libniji's
+# staged headers alone; the system's headers otherwise: it is ABI-compatible with the glibc 2.39 headers). Linking follows the dynamic link line of conformance/run.sh:
 # the loader does not search for libraries by soname yet, so libniji's libc.so.6 is linked by path (a copy
 # without DT_SONAME in $NIJI_SMOKE_SYSROOT, which smoke.sh makes) and libm from libniji's libm.a (its
 # libm.so.6 names libc.so.6 by soname, which needs the search), the program interpreter is
@@ -31,6 +31,11 @@ case ${0##*/} in
 esac
 
 [ $# -eq 1 ] && [ "$1" = -v ] && exec "$cc" -v
+# NIJI_SMOKE_HEADERS (smoke.sh --niji-headers, plan/headers.md P7): C compiles against libniji's staged headers alone,
+# as conformance/run.sh --niji-headers does: the staged tree, the compiler's own include directory, the kernel UAPI.
+if [ -n "${NIJI_SMOKE_HEADERS:-}" ] && [ $cxx = no ]; then
+    set -- -nostdinc -isystem "$NIJI_SMOKE_HEADERS" -isystem "$("$cc" -print-file-name=include)" -isystem "${NIJI_SMOKE_UAPI:?niji-cc: NIJI_SMOKE_UAPI is not set}" "$@"
+fi
 mode=dynamic
 for a in "$@"; do
     case $a in

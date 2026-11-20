@@ -73,8 +73,14 @@ build() { # variant -> binary path on stdout (built under a temporary name, then
             # hosts) predates -lm handling and leaves math specs with undefined references.
             lcc=$W/src/$v/scripts/niji-cc
             [ -x "$lcc" ] || lcc=$HOME/niji-test/scripts/niji-cc
+            if [ "$(wl_link)" = dynamic ]; then
+                # WL-DYNAMIC-KIT: linked as the glibc binary is (-z now: every PLT slot bound at start-up, outside
+                # the per-call delta), against libniji's libc.so.6 / libm.so.6, started by its ld.so.
+                WL_DYN_PRODUCTS=$(pdir "$v") sh "$(dirname "$0")/wl_dyncc.sh" -O2 -Wl,-z,now -I"$src" -o "$out/pc.$$" "$src"/harness.c "$src"/spec.c -lm || exit 1
+            else
             # -lm as for glibc: niji-cc links libniji's libm.a (math specs) only when -lm is given.
             NIJI_PRODUCTS=$(pdir "$v") "$lcc" -O2 -I"$src" -o "$out/pc.$$" "$src"/harness.c "$src"/spec.c -lm || exit 1
+            fi
         fi
         mv -f "$out/pc.$$" "$out/pc"
     fi
