@@ -1,27 +1,35 @@
-# LD-SPLIT / LD-SPLIT-2: the loader's ld.rs split into modules by concern (run 2, leg 2: done)
+# LD-SPLIT / LD-SPLIT-2 / LD-SPLIT-3: the loader's ld.rs split into modules by concern (run 3: merged with next, done)
 
-**State.** Branch `task/ld-split-2`, cut from origin/next `c1413a3c4` (contains DL-TRACE-INTERP-2). Code head
-`a9371bfd5`; the commits after it touch handoff/ only. Role keke `~/w/n1`. Run 1's branch `task/ld-split` is
-superseded (nothing from it was merged). Full report: handoff/LD-SPLIT-2-report.md (module map, commits, every
-proof, the start.rs / so.rs proposal). JSON: handoff/reports/LD-SPLIT-2.json.
+**State.** Branch `task/ld-split-3` (LD-SPLIT-2's commits plus a merge of origin/next `d9c350f22`). Code head
+`240854e10`; later commits touch handoff/ only. Role keke `~/w/n3`. Report for this run:
+handoff/LD-SPLIT-3-report.md (JSON handoff/reports/LD-SPLIT-3.json). LD-SPLIT-2's report (module map, the split's
+own proofs, the start.rs / so.rs proposal): handoff/LD-SPLIT-2-report.md.
 
-**Decisions in force.** Ruling #6193: regenerate on a next that contains DL-TRACE-INTERP. Done. Its literal test
-("only DL-TRACE-INTERP's lines differ") cannot hold because four loader stories changed ld.rs. The proof used
-instead: every item of next's ld.rs appears exactly once in the split, byte-identical (127/127).
+**What run 3 did.** CI could not merge LD-SPLIT-2 because COMPAT19-TUNABLE had changed ld.rs on next. The merge
+conflict was resolved by rerunning `tools/ld_split.py` on next's ld.rs (ruling #6193), with no hand edits to the
+conflict. COMPAT-19's eight new items went to a new module, `ld/exec_stack.rs`. Next's edits to existing items
+moved with those items. The generator also got two fixes, List.ld made `pub(super)` and `Arch` dropped for
+exec_stack. ld.rs's module map lists the new module.
 
-**Proved on a9371bfd5 (keke):** step0 clippy+static; every move commit compiles; moved-only diffs per commit;
-unsafe audit markers equal before and after; merge-tree demo clean; direct-tier gate `ld-split-2-gate` (9 suites,
-630 passed); plants `ld-split-2-plants` (5/5 CAUGHT); `ld-split-2-hottext` (30 passed); `ld-split-2-compare-5`
-(17/17 shared products have identical exported symbols; dynamic start-up instructions equal on 3 probes, within
-run-to-run variation); `ld-split-2-lint` (clippy -D warnings + static). Swap root: head and base both
-same=63 differ=2 in the same two ldd cases (`ld-split-2-swap-2`, `-swap-base`; both rc 1 by design, so not in
-JOBS).
+**Decisions in force.** Ruling #6193 (regenerate on the next being merged). Proof: every item of next's ld.rs is in
+the split exactly once, byte-identical apart from `pub(super)` (135/135).
 
-**Not run:** FULL `cargo xtask test` (owner 11-19: the CI train is the FULL gate).
+**Proved on 240854e10 (keke):** `ld-split-3-step0` (inherited head: clippy+static rc 0); `ld-split-3-lint-2`
+(clippy -D warnings, static, affected list); `ld-split-3-gate` (9 suites, 633 passed); `ld-split-3-plants`
+(6/6 CAUGHT, COMPAT19-TUNABLE's ld.rs plants re-pointed at their new files); `ld-split-3-hottext` (30 passed);
+`ld-split-3-compare` (17/17 shared products export the same symbols as origin/next; start-up instructions equal:
+ret 1,069,447 vs 1,069,448 (mean of 10, within the run-to-run spread run 2 measured), printf and dlopen identical;
+release layout-bins.tsv identical to base).
 
-**Do not redo:** the split, the proofs above, the base products build (keke `~/work/ld-split-2/base`, release).
+**Not run:** FULL `cargo xtask test` (owner 11-19: the CI train is the FULL gate); swap root (the same check as
+run 2, and the merge only moves items).
 
-**Next step:** land it. A later story may split crates/rt/src/start.rs and xtask/src/so.rs as the report
-proposes, and may move `_r_debug`/`_dl_debug_state` into ld/debug.rs.
+**Do not redo:** the split, the merge resolution, the proofs above, the base build (keke `~/work/ld-split-3/base`).
 
-Scratch: `~/w/.scratch/LD-SPLIT-2/work/` (generator copies, moved_only.py, verify_moves.py, compare.sh, swap.sh).
+**Next step:** land it. The held loader stories (DL-NAME-PATH-2, DL-PROCESS-OBJECTS, DL-RUNPATH, DL-RDEBUG-VERSION,
+DL-OBJECT-PATHS) then rebase onto the modules. Any loader story that lands before this one: rerun
+`LD_ORIG=<next's ld.rs> python3 tools/ld_split.py . 9`, give new items a module in MODS, restore ld.rs's `//!`
+module map (the generator does not write it), then rerun the 135-item check (scratch `verify_moves.py`). Later:
+split crates/rt/src/start.rs and xtask/src/so.rs as LD-SPLIT-2's report proposes.
+
+Scratch: `~/w/.scratch/LD-SPLIT-3/work/` (ld.next2.rs, verify_moves.py, compare.sh, base_build.sh, logs).
