@@ -11,4 +11,5 @@
  "improvement": "a deterministic per-function start-up instruction attribution tool (intel_pt on the Skylake-SP host, or binary ablation like patchret.py) would replace biased perf sampling; queue waits took about 60 of the run's 120 minutes",
  "next_step": "attribute 20.1 vs 20.2 vs fix per function in ld.so deterministically, then choose between the .rodata1-first placement and a fix in ld.so's per-segment/per-address work",
  "report_file": "handoff/DYN-START-BISECT-1120.md",
- "jobs": ["keke:dyn-start-bisect-1120-build-1", "keke:dyn-start-bisect-1120-count-2", "keke:dyn-start-bisect-1120-abl-1", "keke:dyn-start-bisect-1120-relink-1", "keke:dyn-start-bisect-1120-startup-1", "keke:dyn-start-bisect-1120-count-3"]}
+ "jobs": ["keke:dyn-start-bisect-1120-build-1", "keke:dyn-start-bisect-1120-count-2", "keke:dyn-start-bisect-1120-abl-1", "keke:dyn-start-bisect-1120-relink-1", "keke:dyn-start-bisect-1120-count-3", "keke:dyn-start-bisect-1120-lint-1"],
+ "superseded": ["keke:dyn-start-bisect-1120-startup-1 (63e908556: so check passed, hot_text_products 30 passed, counts equal to count-3; so.rs comments changed after it)", "keke:dyn-start-bisect-1120-gate-1, keke:dyn-start-bisect-1120-plants-1 (stopped: DO NOT LAND)", "keke:dyn-start-bisect-1120-count-1 (repeated in count-2)", "keke:dyn-start-bisect-1120-prof-1, prof-3 (perf sampling throttled: biased)"]}
