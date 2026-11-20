@@ -3900,7 +3900,7 @@ fn run_selection(root: &Path, repo: &Repo, sel: &Selection, with_exports: bool) 
         if sel.xtask_tests && products {
             // GATE-BOUNDED-PARALLEL (D-NEW, records/pending/GATE-BOUNDED-PARALLEL-1.toml): the xtask tests that run no
             // products go beside the products build when the memory allows; the targets that run products go after it.
-            let (beside, after) = xtask_test_split(repo);
+            let (beside, after) = xtask_test_split(root);
             let mut beside_cmd = Command::new(&cargo);
             beside_cmd.args(&beside);
             match side_by_side_room(memory_room()) {
@@ -4048,13 +4048,28 @@ const SIDE_BY_SIDE_BYTES: u64 = 6 << 30;
 /// The two `cargo test -p xtask` commands of a run that builds the products (GATE-BOUNDED-PARALLEL): the unit tests
 /// (`--bins`) with every integration target that runs no products, and the integration targets that do
 /// ([`names_products`], the rule that decides whether a selection builds the products at all), which must see the
-/// fresh ones. The second is empty when no target runs products.
-fn xtask_test_split(repo: &Repo) -> (Vec<String>, Vec<String>) {
+/// fresh ones. The second is empty when no target runs products. `Repo::load` keeps no xtask targets (the xtask tests
+/// run whole), so the targets are listed here by cargo's own rule (`tests/*.rs`, `tests/*/main.rs`; xtask's manifest
+/// declares none): a target missed here would not run at all.
+fn xtask_test_split(root: &Path) -> (Vec<String>, Vec<String>) {
     let mut beside: Vec<String> = ["test", "-p", "xtask", "--bins"].map(String::from).to_vec();
     let mut after: Vec<String> = Vec::new();
-    for t in repo.targets.iter().filter(|t| t.krate == "xtask") {
-        let into = if t.products { &mut after } else { &mut beside };
-        into.extend(["--test".to_string(), t.name.clone()]);
+    for p in sorted_dir(&root.join("xtask").join("tests")) {
+        let (name, text) = if p.is_dir() {
+            if !p.join("main.rs").exists() {
+                continue;
+            }
+            let mut all = Vec::new();
+            files_under(&p, &["rs"], &mut all);
+            (p.file_name(), all.iter().map(|f| read(f)).collect::<Vec<_>>().join("\n"))
+        } else if p.extension().is_some_and(|e| e == "rs") {
+            (p.file_stem(), read(&p))
+        } else {
+            continue;
+        };
+        let runs_products = names_products(&text);
+        let into = if runs_products { &mut after } else { &mut beside };
+        into.extend(["--test".to_string(), name.and_then(|s| s.to_str()).unwrap_or_default().to_string()]);
     }
     if !after.is_empty() {
         after.splice(0..0, ["test", "-p", "xtask"].map(String::from));
@@ -4731,17 +4746,31 @@ mod tests {
     }
 
     // The xtask tests that run products (`transcripts` runs `target/niji/ldconfig`) come after the products build;
-    // the unit tests and every other xtask target go beside it; every target is in exactly one of the two commands.
+    // the unit tests and every other xtask target go beside it; every target is in exactly one of the two commands
+    // (cargo's rule: `tests/*.rs` and `tests/*/main.rs`, nothing else), so none is dropped.
     #[test]
     fn the_xtask_targets_that_run_products_wait_for_the_products() {
         // Trace: no spec clause (gate tooling; GATE-BOUNDED-PARALLEL).
-        let (beside, after) = xtask_test_split(repo());
+        let named = |v: &[String]| v.windows(2).filter(|w| w[0] == "--test").map(|w| w[1].clone()).collect::<Vec<_>>();
+        let fx = std::env::temp_dir().join(format!("xtask-split-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&fx);
+        let t = fx.join("xtask").join("tests");
+        for d in ["dir_plain", "dir_products", "fixtures/sub"] {
+            fs::create_dir_all(t.join(d)).unwrap();
+        }
+        for (f, text) in [("plain.rs", "fn main() {}"), ("runs.rs", "let p = root.join(\"target/niji/ldconfig\");"), ("notes.txt", "target/niji"), ("dir_plain/main.rs", "mod helper;"), ("dir_plain/helper.rs", ""), ("dir_products/main.rs", "mod helper;"), ("dir_products/helper.rs", "target/niji-test/iconv"), ("fixtures/sub/x.rs", "")] {
+            fs::write(t.join(f), text).unwrap();
+        }
+        let (beside, after) = xtask_test_split(&fx);
+        let _ = fs::remove_dir_all(&fx);
         assert_eq!(beside[..4], ["test", "-p", "xtask", "--bins"], "{beside:?}");
         assert_eq!(after[..3], ["test", "-p", "xtask"], "{after:?}");
-        let named = |v: &[String]| v.windows(2).filter(|w| w[0] == "--test").map(|w| w[1].clone()).collect::<BTreeSet<_>>();
-        assert!(named(&after).contains("transcripts") && !named(&beside).contains("transcripts"), "{beside:?} {after:?}");
-        let all: BTreeSet<String> = repo().targets.iter().filter(|t| t.krate == "xtask").map(|t| t.name.clone()).collect();
-        assert!(all.len() >= 4 && named(&beside).is_disjoint(&named(&after)) && named(&beside).union(&named(&after)).cloned().collect::<BTreeSet<_>>() == all, "{all:?}");
+        assert_eq!((named(&beside), named(&after)), (vec!["dir_plain".to_string(), "plain".into()], vec!["dir_products".to_string(), "runs".into()]));
+        // The live tree: `transcripts` (it runs `target/niji/ldconfig`) waits, the other targets go beside.
+        let (beside, after) = xtask_test_split(&root());
+        let (b, a) = (named(&beside), named(&after));
+        assert!(a.contains(&"transcripts".to_string()) && !b.contains(&"transcripts".to_string()), "{beside:?} {after:?}");
+        assert!(["affected_mode", "header_p2_fixed_rows", "probe_client"].iter().all(|n| b.contains(&n.to_string())), "{beside:?} {after:?}");
     }
 
     // The memory room is the smallest `memory.max` on the cgroup's path (`max` is no limit); side by side needs
