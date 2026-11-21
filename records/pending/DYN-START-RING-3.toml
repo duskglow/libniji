@@ -1,0 +1,12 @@
+id = "D-NEW"
+series = "D-27"
+section = "s26-29"
+spec = "§27"
+ann = "—"
+status = "active"
+story = "DYN-START-RING"
+date = "2026-11-21"
+tests = ["crates/core/tests/hot_text_products.rs::init_dynamic_start_system_calls_stay_within_their_bounds"]
+body = '''
+**The start's whole-file views come from one arena; the start's objects keep their reservation slack** (DYN-START-RING). `link` arms a view arena: the first view reserves 1 GiB of inaccessible address space (no memory committed; refused, e.g. under an address-space limit, every view is mapped on its own as before), each object's view is mapped over its next 64 KiB-aligned slot with one `mmap` (the alignment, so the fault-around windows, of a view mapped alone), and one `munmap` removes the arena with every view at the end of `link`. A view in the arena is never unmapped alone (a hole another mapping could take would then be removed with the arena). That is 4 system calls fewer per loaded object. The start's objects are never unmapped, so their mapper keeps an aligned reservation's slack (over-reserved for an alignment above the page: libc.so.6's 64 KiB) reserved and inaccessible rather than trimming it: 2 `munmap`s fewer per such object. `dlopen` and the list mode map as before.
+'''
