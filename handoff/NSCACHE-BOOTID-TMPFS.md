@@ -1,67 +1,68 @@
-# NSCACHE-BOOTID-TMPFS (handoff)
+# NSCACHE-BOOTID-TMPFS (handoff; run 2 = NSCACHE-BOOTID-TMPFS-2)
 
-**Status: INCOMPLETE.** The code, tests, D-16.10 amendment and plants file are pushed. Gate, plants and counts are
-QUEUED on keke (the host was full: 28/28 cores busy). None of them has run, so nothing here is verified on a build
-yet, not even compilation (this host has no cargo).
+**State.** Branch `task/nscache-bootid-tmpfs-2` (run 1's `task/nscache-bootid-tmpfs` merged with origin/next
+43058b7df). Role mei:~/w/s2. Owner ruling #3233 (skip the boot ID on tmpfs). Decision record **D-16.15** (amends
+D-16.10; id reserved for this story). The plan view is next's, unchanged: the train regenerates it from records/.
 
-**State.** Branch `task/nscache-bootid-tmpfs`, stacked on `task/nscache-second-lookup-2` (3ff284ae). Code commit
-7bd7966d; the handoff commit is on top. Role keke:~/w/n3, synced from 7bd7966d plus the plants file
-(`--base origin/task/nscache-second-lookup-2`, tree 7c632434...-8cf8acdd).
-
-## The change (owner ruling #3233)
-- `crates/legacy/src/nscache.rs` `map_region`: for an existing region (`!created`), `fstatfs(fd)`. On
+## The change
+- `crates/legacy/src/nscache.rs` `map_region`: `fstatfs(fd)` on every attach; for an existing region on
   `TMPFS_MAGIC` the stamp takes the header's boot words (`Table::boot()`), so `/proc/sys/kernel/random/boot_id` is
-  not opened or read and the boot comparison always passes. If the header is busy (`None`), it falls back to reading
-  `/proc`. When the region is created, or is reinitialised under the OFD lock (`!ok || !consistent`), the boot ID is
-  read from `/proc` and written, so the header always holds a real boot ID and a region on another file system is
-  still compared.
-- `crates/core/src/names/cache.rs`: `Table::boot()`. `crates/kernel/src/uapi.rs`: `TMPFS_MAGIC` (0x01021994, from
-  statfs(2)).
-- Cost per attach to an existing region: one `fstatfs` replaces openat, read and close of boot_id. A created
-  region does neither `fstatfs` nor the skip.
+  neither read nor compared. If the header is busy it falls back to `/proc`. A region created, or reinitialised
+  under the OFD lock, records the boot ID read from `/proc`, so a region on another file system is still compared.
+- `crates/core/src/names/cache.rs`: `Table::boot()` (`#[inline]`). `crates/kernel/src/uapi.rs`: `TMPFS_MAGIC`.
+- Every other attach check is unchanged (AT_SECURE, real vs effective IDs, overflow UID, initial user namespace,
+  O_NOFOLLOW/O_NONBLOCK/O_EXCL, descriptor above the standard ones, fstat regular/owner/0600, size and geometry,
+  header magic/layout/size/owner/account stamp, stamp files, seqlock and checksums): the diff touches only the
+  source of the boot words.
 
-**Checks that are unchanged** (none were edited; the diff only touches the boot-word source):
+## Run 2 (what changed and why)
+1. Merged origin/next (4914 commits; crate rename liella -> niji; plan/07-decisions is now a generated view). The
+   D-16.10 amendment run 1 wrote into the view became the record D-16.15 (`amends`, §10 of the developer-flow
+   reference; the original brief's "amend the row" predates records).
+2. Plants file: package `niji-boundary` (run 1's name made the first plants baseline fail: SUPERSEDED).
+3. **Layout fix found by the counts.** With run 1's code a process's first cached lookup (the attach) took
+   +2 faults and ~+12k kernel instr vs next, although a warm re-attach saved 13.4k. A fault map
+   (`tools/hottext/faultmap.py`) named the two faults: `niji_sys_fstatfs` and `Table::boot`, both outside the
+   hot group, because the build's layout trace always creates its region (ruling #5223) and so never ran the
+   attach-to-an-existing-region path. Fix: `fstatfs` also on creation (one syscall once per region) so the trace
+   runs and groups it; `Table::boot` `#[inline]`.
 
-| check | status |
-|---|---|
-| AT_SECURE | unchanged |
-| real vs effective UID/GID | unchanged |
-| overflow UID | unchanged |
-| initial user namespace | unchanged |
-| O_NOFOLLOW / O_NONBLOCK open and O_EXCL create | unchanged |
-| descriptor above the standard ones | unchanged |
-| fstat regular file, owner == euid, mode 0600 | unchanged |
-| size bounds and geometry | unchanged |
-| header magic, layout, size, owner and account stamp | unchanged |
-| stamp files | unchanged |
-| seqlock and checksums | unchanged |
+## Counts (mei, Skylake-SP; `validation/probes/nscache/measure.sh`, static percall, region on /dev/shm)
+Before = origin/next 43058b7df, after = final head; two interleaved rounds, 4 cached-attach samples each per round
+(8 per side), fast profile. Logs: `~/logs/nscache-bootid-tmpfs-2-counts2.log` (final), `-counts.log` (run 1 code).
+
+| row | before (next) | run-1 code (superseded) | after (final) |
+|---|---|---|---|
+| 1st cached lookup of a process (attach), kernel instr, median of 8 | 136.5k (135.0k-146.8k) | ~149k (148.1k-161.8k) | **126.3k** (123.8k-131.5k) |
+| same, page faults | 8 | 10 | **8** |
+| same, user instr | 18.54k | 17.61k | **17.61k** |
+| warm re-attach (setuid, call 3), kernel instr | 117.0k / 123.9k | 103.6k / 105.5k | **105.9k / 111.6k** |
+| hit, uncached calls | 4.0k / 19.1k | unchanged | unchanged |
+
+Attach saving: ~10k kernel instr (-7.5%) and ~0.9k user instr per process that attaches, no fault change. strace:
+`openat`/`read`/`close` of boot_id replaced by one `fstatfs`. Break-even (run -2 of NSCACHE-SECOND-LOOKUP, by time):
+8th lookup (Ivy Bridge) / 10th (N100); the saving is ~7% of the ~136k attach, so the break-even moves down by under
+one lookup. Not re-timed (needs a booked timing.sh run; instruction counts only).
 
 ## Tests (`crates/boundary/tests/nscache.rs`, clauses s17_3_c_1, s16_1_g_3)
-- `a_region_on_tmpfs_attaches_without_reading_the_boot_id`: region under /dev/shm (skipped with a printed reason if
-  it is not tmpfs). Read count from `/proc/thread-self/io` `syscr`, one pread per sample: a lookup right after an
-  attach makes the same number of reads as a lookup without one. A stale boot word (0x5a x16) is still answered and
-  is not rewritten. With the magic damaged, the region is reinitialised with the boot ID it was made with.
-- `a_region_on_another_file_system_compares_the_boot_id`: the first directory that is not tmpfs out of
-  CARGO_TARGET_TMPDIR, HOME and /var/tmp (skipped with a reason if none qualifies). An attach makes exactly one more
-  read. A stale boot word means no hit, and the header is rewritten with the real boot ID.
-- Assumption not yet checked: the warm reattach takes the cheap account path, so it reads no passwd. If the read
-  counts differ for another reason, the gate will show it.
+`a_region_on_tmpfs_attaches_without_reading_the_boot_id` (read count from `/proc/thread-self/io`; a stale boot
+word is still answered and not rewritten; a reinitialised region records this boot's ID) and
+`a_region_on_another_file_system_compares_the_boot_id` (one more read; a stale boot word starts afresh). Each
+skips with a printed reason when no suitable directory exists.
 
-## Plants (`handoff/NSCACHE-BOOTID-TMPFS-plants.txt`)
-1. `boot-skip-everywhere` (the required one): the skip also happens off tmpfs.
-2. `boot-never-skipped`
-3. `reinit-keeps-stale-boot`
+## Jobs (mei)
+- `nscache-bootid-tmpfs-2-gate2` rc 0: clippy -D warnings, static, then direct tier `affected --run --base
+  origin/next`: 17 suites ok, 11585 passed, 0 failed, 1383 ignored; conformance 56/56; peak 14G.
+- `nscache-bootid-tmpfs-2-plants2` rc 0: 3 plants, 3 CAUGHT (boot-skip-everywhere, boot-never-skipped,
+  reinit-keeps-stale-boot), 0 WARN.
+- `nscache-bootid-tmpfs-2-counts2`: the counts above, symbol placement, fault map (text faults 14 = next's), then the
+  release profile's `hot_text_products`.
+- SUPERSEDED: `-lint` (rc 1 only from a bare `affected` with no `--list`; clippy, records and static passed),
+  `-plants` (baseline: old package name), `-gate` (run-1 code; stopped while queued), `-counts` (run-1 code: found
+  the +2 faults).
+- Run 1's keke jobs (`nscache-bootid-tmpfs-*`) ran on the pre-merge tree: superseded.
 
-## Jobs (keke, queued at 00:16Z; collect with `~/bin/jobwait <label>`, logs in `~/logs/<label>.log`)
-- `nscache-bootid-tmpfs-gate`: clippy, static, then `gate 12G cargo xtask affected` (direct tier).
-- `nscache-bootid-tmpfs-plants`: `cargo xtask plants handoff/NSCACHE-BOOTID-TMPFS-plants.txt --dir /dev/shm/claude/NSCACHE-BOOTID-TMPFS/plants-1`.
-- `nscache-bootid-tmpfs-counts`: `cargo xtask so` (fast, then full profile), then
-  `validation/probes/nscache/measure.sh ~/w/n3 after ~/work/NSCACHE-BOOTID-TMPFS`. **Before** = NSCACHE-SECOND-LOOKUP-2's
-  release numbers: cached 2nd call 129.5k kernel instructions and 8 faults; boot_id step 13.4k. **After** is in the
-  counts log. Break-even before: 8th lookup on Ivy Bridge, 10th on N100. Re-timing needs a booked `timing.sh` run.
-- `nscache-bootid-tmpfs-check` (a duplicate of the gate) was cancelled while still queued.
-
-## Next step
-Collect the three jobs. If the gate is red, fix it and rerun only `-p liella-boundary --test nscache`. Plants must
-be all CAUGHT. Put the after counts and the new break-even next to the before numbers. Rows to read:
-`grep -rn "^| D-16.10 " plan/` ("Boot ID on tmpfs").
+## Open / next
+- Next: CI. Optionally a booked `validation/probes/nscache/timing.sh` run to restate the break-even by time.
+- Not done: making the layout trace attach to an existing region (it would need the tracer to report tmpfs for
+  the redirected region and p_nss to re-attach); the code-side fix above makes it unnecessary for this path.
