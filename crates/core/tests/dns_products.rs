@@ -15,7 +15,8 @@
 //! [`DROPPED`] (a line only the reference prints). A recorded difference that no longer shows
 //! fails the test. A disagreement is checked by running both probes again (up to [`ATTEMPTS`]
 //! runs): the outputs include server logs and timed waits that a loaded machine can stretch, so
-//! only a disagreement seen in every run fails. Needs the products (`cargo xtask so`), a C compiler and passwordless `sudo`;
+//! only a disagreement seen in every run fails. Each run is contained (`oracle/contain.sh`, its own
+//! PID namespace): when it ends, times out or the test dies, nothing it started remains. Needs the products (`cargo xtask so`), a C compiler and passwordless `sudo`;
 //! without the latter two the test says so and passes.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, missing_docs)]
 #[path = "support/skip_note.rs"]
@@ -26,8 +27,9 @@ mod timeout;
 #[path = "support/oracle.rs"]
 mod oracle;
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -159,6 +161,103 @@ fn check(want: &str, got: &str, known: &[Entry], added: &[Entry], dropped: &[Ent
     }
 }
 
+/// Runs `args` (a command and its arguments, with only `PATH` in its environment) through
+/// `oracle/contain.sh`: in its own PID namespace, so that when the command ends, times out or this
+/// test process dies, every process it started ends too, including the root ones under `sudo` that
+/// the user cannot signal (a hung or killed run used to leave them behind for days). Output goes
+/// to files and only the child is waited for: a process holding a pipe open cannot keep the test
+/// waiting. The namespace lives while `alive`, the write end of its standard input, is open; only
+/// this process holds it (close-on-exec), so its end, by exit or by kill, ends the namespace.
+fn contained(args: &[OsString], out: &Path, err: &Path) -> ExitStatus {
+    let mut child = Command::new("sh")
+        .arg(root().join("crates/core/tests/oracle/contain.sh"))
+        .args(args)
+        .env_clear()
+        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::fs::File::create(out).unwrap())
+        .stderr(std::fs::File::create(err).unwrap())
+        .spawn()
+        .unwrap();
+    // Taken, so that `wait` does not close it first.
+    let alive = child.stdin.take();
+    let status = child.wait().unwrap();
+    drop(alive);
+    status
+}
+
+/// The processes whose command line has `token` as an argument: (pid, uid, argv).
+fn carrying(token: &str) -> Vec<(u32, u32, Vec<String>)> {
+    let mut found = Vec::new();
+    for e in std::fs::read_dir("/proc").unwrap().flatten() {
+        let Some(pid) = e.file_name().to_str().and_then(|n| n.parse::<u32>().ok()) else { continue };
+        let Ok(raw) = std::fs::read(e.path().join("cmdline")) else { continue };
+        let argv: Vec<String> = raw.split(|&b| b == 0).filter(|a| !a.is_empty()).map(|a| String::from_utf8_lossy(a).into_owned()).collect();
+        if !argv.iter().any(|a| a == token) {
+            continue;
+        }
+        let status = std::fs::read_to_string(e.path().join("status")).unwrap_or_default();
+        let uid = status.lines().find_map(|l| l.strip_prefix("Uid:")).and_then(|v| v.split_whitespace().next()).and_then(|v| v.parse().ok()).unwrap_or(u32::MAX);
+        found.push((pid, uid, argv));
+    }
+    found
+}
+
+/// Waits (a hang guard scaled by the load, `support/timeout.rs`) until `done` holds; false if it never did.
+fn wait_until(mut done: impl FnMut() -> bool) -> bool {
+    let end = timeout::deadline(std::time::Duration::from_secs(10));
+    while !done() {
+        if std::time::Instant::now() > end {
+            return false;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    true
+}
+
+/// Set (to the token) in the child that `a_killed_run_leaves_no_process` runs and kills: there
+/// the test is the helper, an oracle-like run (a user process and a
+/// root one under `sudo -n unshare -m -n`, both carrying the token; each ends by itself after
+/// 300 s so that a run that does leave them behind cleans up after itself), waited for until this
+/// process is killed.
+const HELPER: &str = "NIJI_CONTAIN_HELPER";
+
+#[test]
+fn a_killed_run_leaves_no_process() {
+    // Trace: no spec clause (test harness: an oracle run whose test process is killed mid-run
+    // leaves no process behind, root ones included; GAI-MASS-LOSS).
+    let looped = "i=0; while [ $i -lt 300 ]; do sleep 1; i=$((i + 1)); done";
+    if let Ok(token) = std::env::var(HELPER) {
+        let dir = root().join("target/test-oracles");
+        std::fs::create_dir_all(&dir).unwrap();
+        let body = format!("sudo -n unshare -m -n sh -c ': root; {looped}' sh \"$1\" & {looped}");
+        let args: Vec<OsString> = ["sh", "-c", &body, "sh", &token].iter().map(OsString::from).collect();
+        contained(&args, &dir.join(format!("{token}.out")), &dir.join(format!("{token}.err")));
+        return;
+    }
+    if !Command::new("sudo").args(["-n", "true"]).status().is_ok_and(|s| s.success()) {
+        skip_note::skipped("skipped: no passwordless sudo (the oracle runs it contains need it)");
+        return;
+    }
+    let token = format!("niji-contain-{}", std::process::id());
+    let mut helper = Command::new(std::env::current_exe().unwrap())
+        .args(["a_killed_run_leaves_no_process", "--exact", "--test-threads=1"])
+        .env_clear()
+        .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
+        .env(HELPER, &token)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let root_loop = |p: &(u32, u32, Vec<String>)| p.1 == 0 && p.2.get(2).is_some_and(|a| a.starts_with(": root;"));
+    let started = wait_until(|| carrying(&token).iter().any(root_loop));
+    helper.kill().unwrap();
+    helper.wait().unwrap();
+    assert!(started, "the contained run never started its root process: {:?}", carrying(&token));
+    let gone = wait_until(|| carrying(&token).is_empty());
+    assert!(gone, "processes of a killed run remain (they end by themselves within 300 s): {:#?}", carrying(&token));
+}
+
 /// Runs of both probes when they disagree: the probes print what their own DNS servers logged
 /// and how long the timed waits took, which a loaded machine stretches (a server process not
 /// scheduled within the 1 s timeout makes the resolver ask again). A disagreement fails only if
@@ -185,27 +284,13 @@ fn compare(probe: &str, script: &str, known: &[Entry], added: &[Entry], dropped:
     let script = r.join("crates/core/tests/oracle").join(script);
     let wrap = root().join("crates/core/tests/oracle/nscache_mode.sh");
     let run = |exe: &Path, scratch: &str, mode: Option<&str>| -> String {
-        let mut cmd = Command::new("timeout");
-        cmd.arg(timeout::secs(900));
+        let mut args: Vec<OsString> = vec!["timeout".into(), timeout::secs(900).into()];
         if let Some(m) = mode {
-            cmd.arg("sh").arg(&wrap).arg(m);
+            args.extend(["sh".into(), wrap.clone().into(), m.into()]);
         }
-        // Output to files, and wait for the child only: a process left behind by a run that was
-        // ended (a probe's DNS server) holding a pipe open would otherwise keep the test waiting
-        // for the pipe's end after `timeout` has gone, with no failure ever reported.
+        args.extend(["sh".into(), script.clone().into(), exe.into(), dir.join(scratch).into()]);
         let (out, err) = (dir.join(format!("{scratch}.stdout")), dir.join(format!("{scratch}.stderr")));
-        let status = cmd
-            .arg("sh")
-            .arg(&script)
-            .arg(exe)
-            .arg(dir.join(scratch))
-            .env_clear()
-            .env("PATH", "/usr/sbin:/usr/bin:/sbin:/bin")
-            .stdin(std::process::Stdio::null())
-            .stdout(std::fs::File::create(&out).unwrap())
-            .stderr(std::fs::File::create(&err).unwrap())
-            .status()
-            .unwrap();
+        let status = contained(&args, &out, &err);
         let text = |p: &Path| String::from_utf8_lossy(&std::fs::read(p).unwrap_or_default()).into_owned();
         assert!(status.success(), "{} failed: {status:?} (124: still running after the time limit)\n{}", exe.display(), text(&err));
         text(&out)
