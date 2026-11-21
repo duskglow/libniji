@@ -88,13 +88,6 @@ impl Gen<'_> {
         } else {
             // The structure or union is named for linkage by `cxx` (`fpos_t` is `struct _G_fpos_t`, `__sigval_t`
             // `union sigval`): defined here, under the guard its tag row (tag()) uses, so it is defined once.
-            // `FILE` named by a header that does not show the tag (`wchar.h`; `stdio.h` defines `struct _IO_FILE`)
-            // only declares the tag: visibility.tsv has the structure incomplete there.
-            let tag_shown = self.t.vis.iter().any(|v| v["header"] == self.header && v["name"] == cxx && v["kind"] == "struct");
-            if cxx == "_IO_FILE" && !tag_shown {
-                self.guard(name, vec![format!("struct {cxx};"), format!("typedef struct {cxx} {name};")]);
-                return;
-            }
             let a = self.aggregate(name);
             let kind = ["union", "struct"].into_iter().find(|k| self.t.typedefs.contains_key(&(k.to_string(), cxx.clone()))).or(a.as_ref().map(|a| a.kw)).unwrap_or("struct");
             // Where this header shows the tag in fewer configurations than the typedef (`union sigval` beside
