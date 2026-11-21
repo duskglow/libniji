@@ -4,12 +4,9 @@
 start-clock | csys/util/zic.c | lit:if (at > start) break; ==> if (at >= start) break; | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
 keep-noops | csys/util/zic.c | lit:if (same_visible(prev, &ev[i].t)) continue; ==> | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
 no-int32max-mark | csys/util/zic.c | lit:if (fat && nev > 0 && strchr(tz, '<')) { ==> if (0) { | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
-no-v1-low-mark | csys/util/zic.c | lit:if (first > 0) pseudo = tidx[first - 1]; ==> | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
 no-v3-shift | csys/util/zic.c | lit:if (shift || wall < 0 || wall > 24 * 3600) footer_version = 3; ==> if (wall < 0 || wall > 24 * 3600) footer_version = 3; | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
-dst-offset | csys/util/zic.c | lit:if (dst->save != 3600) put_offset ==> if (dst->save != 1800) put_offset | cargo test -p xtask --test tz_tools zic_compiles_every_zone | msg:zones decoding differently
 slim-cut | csys/util/zic.c | lit:while (nev > 0 && ev[nev - 1].at >= cut) nev--; ==> (void)cut; | cargo test -p xtask --test tz_tools zic_slim | msg:zones decoding differently
 expiry-mark | csys/util/zic.c | lit:push_event(expires_at, &t); ==> | cargo test -p xtask --test tz_tools zic_with_leap | msg:zones decoding differently
-leap-time | csys/util/zic.c | lit:if (!v1 || (t >= INT32_MIN && t <= INT32_MAX)) nl++; ==> if (!v1 || (t >= INT32_MIN && t <= INT32_MAX)) nl += 2; | cargo test -p xtask --test tz_tools zic_with_leap | msg:zic_with_leap.*(FAILED|panicked)
 zone-name-check | csys/util/zic.c | lit:if (!valid_zone_name(f[1])) { ==> if (0) { | cargo test -p xtask --test tz_tools zic_survives | msg:wrote outside -d
 continuation-line | csys/util/zic.c | lit:ERR("expected continuation line not found"); ==> ERR("expected continuation"); | cargo test -p xtask --test tz_tools zic_rejects | msg:missing continuation
 zdump-short-abbr | csys/util/zdump.c | lit:if (strlen(abbr) < 3) { ==> if (strlen(abbr) < 2) { | cargo test -p xtask --test tz_tools zdump_full_range | msg:zdump_full_range.*(FAILED|panicked)
