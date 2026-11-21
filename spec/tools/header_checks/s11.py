@@ -11,6 +11,7 @@ Loaded by spec/tools/header_check.py, which lists this directory (plan/headers.m
 """
 import decimal
 import os
+import subprocess
 
 HEADERS = ["math.h", "complex.h", "tgmath.h", "fenv.h", "fpu_control.h", "ieee754.h", "values.h"]
 
@@ -109,9 +110,22 @@ def p1(ctx):
 
 def units(ctx):
     out = p1(ctx)
-    # P6: the generic macros of tgmath.h choose the function by argument type; ieee754.h's bit-fields are the formats'
-    # fields (the second unit needs the optimiser: its text says `niji: codegen`). Both read in the GNU configuration.
-    for label, name in (("P6 tgmath", "tgmath_types.c"), ("P6 ieee754 fields", "ieee754_fields.c")):
-        with open(os.path.join(ctx.root, "spec", "tools", name)) as f:
-            out.append(("gnu", label, f.read()))
+    # P6: the generic macros of tgmath.h choose the function by argument type (GNU configuration, parser only).
+    with open(os.path.join(ctx.root, "spec", "tools", "tgmath_types.c")) as f:
+        out.append(("gnu", "P6 tgmath", f.read()))
     return out
+
+
+def problems(ctx):
+    """P6 of ieee754.h: the bit-fields of the three unions are the formats' fields. A union read is not a constant
+    expression, so the unit (ieee754_fields.c) is compiled by the optimiser (-O1 -S) and calls an `error` function
+    that survives only where a comparison is not proved true; header_check's own units are parser-only and would
+    pass whatever the fields are, so the module runs this one itself, on the include tree header_check defaults to."""
+    inc = os.path.join(ctx.root, "libc-include")
+    gccinc = subprocess.run(["gcc", "-print-file-name=include"], capture_output=True, text=True, check=True).stdout.strip()
+    src = os.path.join(ctx.root, "spec", "tools", "ieee754_fields.c")
+    r = subprocess.run(["gcc", "-std=gnu17", "-O1", "-S", "-o", os.devnull, "-nostdinc", "-isystem", inc, "-isystem", gccinc,
+                        "-Wall", "-Wextra", "-Werror", src], capture_output=True, text=True)
+    if r.returncode == 0:
+        return []
+    return ["P6 ieee754 fields (header_checks/s11.py problems): rc %d: %s" % (r.returncode, " | ".join(r.stderr.split("\n")[:4])[:400])]

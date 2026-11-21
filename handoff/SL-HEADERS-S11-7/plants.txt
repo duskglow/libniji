@@ -1,0 +1,20 @@
+# Plants of slice 11, run 7 (data-only re-port on the generator): the header text and table rows, the slice's checks (header_checks/s11.py) and the P6 proof.
+s11-ieee-float-width | libc-include/ieee754.h | lit:    unsigned int mantissa : 23; ==>     unsigned int mantissa : 22; | cargo xtask headers-gen --check | msg:stale under
+s11-ieee-double-size | libc-include/ieee754.h | lit:    unsigned int mantissa0 : 20; ==>     unsigned int mantissa0 : 21; | cargo xtask headers-gen --check | msg:stale under
+s11-ieee-x87-one | libc-include/ieee754.h | lit:    unsigned int one : 1; ==>     unsigned int one : 2; | cargo xtask headers-gen --check | msg:stale under
+s11-ieee-table-position | spec/abi/layouts.tsv | perl:s/(union ieee754_float\tieee\.exponent\t0\t\tunsigned int\tbits 8)\x4023/${1}\x4024/ | cargo xtask headers-gen --check | msg:headers-gen
+s11-ieee-proof-float | spec/tools/ieee754_fields.c | lit:.f == 1.5f, ==> .f == 1.25f, | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp1 | msg:FAIL P6 ieee754 fields
+s11-ieee-proof-x87 | spec/tools/ieee754_fields.c | lit:.d == 0x1.0000000000000002p0L, ==> .d == 0x1.0000000000000004p0L, | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp2 | msg:FAIL P6 ieee754 fields
+s11-p6-optimiser | spec/tools/header_checks/s11.py | lit:"-O1", "-S", ==> "-O0", "-S", | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp3 | msg:FAIL P6 ieee754 fields
+s11-fenv-template | headers/fenv.h.in | lit:# define FE_NOMASK_ENV @@value(FE_NOMASK_ENV) ==> # define FE_NOMASK_ENV @@value(FE_DFL_ENV) | cargo xtask headers-gen --check | msg:stale under
+s11-fenv-value | spec/abi/macros.tsv | perl:s/^(FE_NOMASK_ENV\tfenv\.h\tfenv_t const\*\t)-2/${1}-3/m | cargo xtask headers-gen --check | msg:stale under
+s11-math-owns-floatn | headers/math.h.in | lit:@@owns-macro M_1_PIf128  ==> @@owns-macro  | cargo xtask headers-gen --check | msg:no literal form
+s11-exception-row | headers/rows-exceptions.tsv | perl:s/^macros\tM_Ef32\t[^\n]*\n//m | sh -c "mkdir -p /dev/shm/claude/sl-headers-s11-7/rowsp && cargo xtask headers-gen --rows /dev/shm/claude/sl-headers-s11-7/rowsp" | msg:FAIL macros M_Ef32
+s11-p1-excepted-skip | spec/tools/header_checks/s11.py | lit:        if n in excepted: ==>         if False: | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp4 | msg:FAIL P1 math\.h gnu
+s11-p1-hex-guard | spec/tools/header_checks/s11.py | lit:#if (defined __cplusplus && __cplusplus >= 201703L) || ==> #if (defined __cplusplus && __cplusplus >= 201103L) || | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp5 | msg:FAIL P1 values\.h cxx11
+s11-p1-decimal-prec | spec/tools/header_checks/s11.py | lit:ctx.prec = 60 ==> ctx.prec = 8 | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp6 | msg:FAIL P1 (math|values)\.h
+s11-p1-union-align | spec/tools/header_checks/s11.py | lit:tests.append(f"__alignof__({r['kind']} {n}) == {t['align']}") ==> tests.append(f"__alignof__({r['kind']} {n}) == {t['align']}0") | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp7 | msg:FAIL P1 (ieee754|math|complex)\.h
+s11-p1-int-value | spec/tools/header_checks/s11.py | lit:tests.append(f"(({n}) == {lit})") ==> tests.append(f"(({n}) == {lit}1)") | python3 spec/tools/header_check.py --work /dev/shm/claude/sl-headers-s11-7/hcp8 | msg:FAIL P1 (math|fenv|fpu_control|values)\.h
+s11-p6-tgmath-order | libc-include/tgmath.h | lit:__builtin_tgmath (fmaf, fma, fmal, fmaf32, ==> __builtin_tgmath (fmaf, fmal, fma, fmaf32, | cargo xtask headers-gen --check | msg:stale under
+s11-p6-tgmath-single | libc-include/tgmath.h | lit:# define dadd(x, y) daddl (x, y) ==> # define dadd(x, y) faddl (x, y) | cargo xtask headers-gen --check | msg:stale under
+s11-fpu-control-reserved | headers/reserved.tsv | perl:s/^(__fpu_control\t)emit/${1}omit/m | cargo xtask headers-gen --check | msg:headers-gen
