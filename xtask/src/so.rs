@@ -1702,7 +1702,8 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     let ar = std::env::var("AR").unwrap_or_else(|_| "ar".into());
     let resolv_own = libresolv_object(root, &ar, profile, &release.join("libc.so.6"))?;
     println!("so: libresolv.so.2's own code: {} names in {}", resolv_own.1.len(), resolv_own.0.display());
-    println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar, Some(&resolv_own))?);
+    let cdebug = release_debug_cflags(root, profile);
+    println!("so: {}", crate::placeholders::build(root, &release, &product.join("placeholders"), &cc, &ar, Some(&resolv_own), &cdebug)?);
 
     //    libresolv (D-16.6, SL-SONAMES): the symbols spec Appendix C places in `libresolv.so.2`
     //    (`inet_net_pton`, `res_*`, `ns_*`, ...) are in `libc.a` like every other symbol, so the
@@ -1721,7 +1722,7 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     phases.mark("libm");
     // libmvec.so.1 (SYS-LIBMVEC): the vector function ABI exports of versions.tsv, each lane libm's
     // scalar function, so it is linked after libm.so.6; libmvec.a and the libmvec.so link.
-    println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar)?);
+    println!("so: {}", crate::libmvec::build(root, &release, &product.join("libmvec"), &cc, &ar, &cdebug)?);
     phases.mark("libmvec");
     drop(early);
     phases.mark("early-builds-wait");
@@ -1729,10 +1730,10 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     phases.mark("ld");
     run_ldconfig(root, &cc, profile)?;
     phases.mark("ldconfig");
-    run_getconf(root, &cc, &release)?;
-    run_getent(root, &cc)?;
-    run_iconv(root, &cc)?;
-    run_ldd(root, &cc, &release)?;
+    run_getconf(root, &cc, &release, &cdebug)?;
+    run_getent(root, &cc, &cdebug)?;
+    run_iconv(root, &cc, &cdebug)?;
+    run_ldd(root, &cc, &release, &cdebug)?;
     phases.mark("utilities");
     // SYS-ICONV-COVERAGE: the charmaps generated from public mapping tables, which the system
     // packages install for iconv_open (D-6.8's directory).
@@ -1797,6 +1798,32 @@ const LD_RUSTFLAGS: &str = "-Crelocation-model=pie\x1f-Ccodegen-units=1";
 /// (measured: every allocated section of every product and archive member identical, the build-id
 /// note aside). The `fast` tool profile stays without DWARF.
 const RELEASE_DEBUG_RUSTFLAGS: &str = "-Cdebuginfo=line-tables-only";
+
+/// SYS-DBG-DWARF: the C counterpart of [`RELEASE_DEBUG_RUSTFLAGS`], for the C compiles of the shipped
+/// products (the placeholder libraries, libmvec.so.1, the utilities): line tables and function
+/// entries without variable locations (`-g1`, what `line-tables-only` gives the crates) in the
+/// `release` profile, nothing in `fast`. Debug information leaves the generated code as it is
+/// (measured per product: `.text` identical with and without it). `-fdebug-prefix-map` spells the
+/// workspace root `/niji` in the debug sections, as `--remap-path-prefix` does for the crates
+/// (PRODUCT-PATH-REMAP); `-ffile-prefix-map` is not used because it also rewrites `__FILE__`, a
+/// loaded string.
+pub(crate) fn release_debug_cflags(root: &Path, profile: Profile) -> Vec<String> {
+    if profile != Profile::Release {
+        return Vec::new();
+    }
+    let mut flags = vec!["-g1".to_string(), format!("-fdebug-prefix-map={}={}", root.display(), crate::align::REMAP_ROOT)];
+    if let Ok(real) = root.canonicalize() {
+        if real != root {
+            flags.push(format!("-fdebug-prefix-map={}={}", real.display(), crate::align::REMAP_ROOT));
+        }
+    }
+    flags
+}
+
+/// SYS-DBG-DWARF: `objcopy --strip-unneeded` also removes the debug sections; the one-object
+/// builds of libm.so.6 and libresolv.so.2's own code keep them (the crates' line tables, which
+/// libc6-dbg carries), while unneeded symbols are still removed.
+const KEEP_DEBUG_SECTIONS: &str = "--keep-section=.debug_*";
 
 fn run_ld(root: &Path, cc: &str, profile: Profile, layout: Layout) -> Result<(), String> {
     use niji_ld::arch::Arch as _;
@@ -2227,7 +2254,7 @@ pub(crate) fn getconf_names(sysconf_tsv: &str, getconf_tsv: &str) -> Result<Stri
 /// The shipped getconf (UTIL-5, D-31 pending record UTIL-GETCONF-1): `csys/util/getconf.c` over the generated name
 /// table, linked as a static PIE against this build's `libc.a` and `niji-rcrt1.o`, so its values are libniji's on
 /// any host and in any root, with no loader involved.
-fn run_getconf(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
+fn run_getconf(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Result<(), String> {
     let read = |p: &str| fs::read_to_string(root.join(p)).map_err(|e| format!("{p}: {e}"));
     let table = getconf_names(&read("spec/abi/sysconf.tsv")?, &read("spec/abi/getconf.tsv")?)?;
     let gen_dir = root.join("target/getconf-gen");
@@ -2237,6 +2264,7 @@ fn run_getconf(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
     let staged = tmp_name(&out);
     run(Command::new(cc)
         .args(["-std=c17", "-O2", "-fPIE", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"])
+        .args(cdebug)
         .arg("-I")
         .arg(&gen_dir)
         .arg(release.join("niji-rcrt1.o"))
@@ -2297,22 +2325,23 @@ pub(crate) const ICONV_TEST: &str = "target/niji-test/iconv";
 /// getent is: `target/niji/locale` (libc-bin's `/usr/bin/locale`) and the test link `target/niji-test/locale`.
 pub(crate) const LOCALE_TEST: &str = "target/niji-test/locale";
 
-fn run_getent(root: &Path, cc: &str) -> Result<(), String> {
-    run_dynamic_util(root, cc, "getent", GETENT_TEST)?;
-    run_dynamic_util(root, cc, "locale", LOCALE_TEST)
+fn run_getent(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
+    run_dynamic_util(root, cc, "getent", GETENT_TEST, cdebug)?;
+    run_dynamic_util(root, cc, "locale", LOCALE_TEST, cdebug)
 }
 
-fn run_iconv(root: &Path, cc: &str) -> Result<(), String> {
-    run_dynamic_util(root, cc, "iconv", ICONV_TEST)
+fn run_iconv(root: &Path, cc: &str, cdebug: &[String]) -> Result<(), String> {
+    run_dynamic_util(root, cc, "iconv", ICONV_TEST, cdebug)
 }
 
 /// A dynamic front end `csys/util/<name>.c`: `target/niji/<name>` (shipped) and `test` (this tree's loader).
-fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(), String> {
+fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str, cdebug: &[String]) -> Result<(), String> {
     let product = root.join("target/product");
     let release = root.join("target/niji");
     let obj = product.join(format!("{name}.o"));
     run(Command::new(cc)
         .args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-asynchronous-unwind-tables", "-c"])
+        .args(cdebug)
         .arg(root.join(format!("csys/util/{name}.c")))
         .arg("-o")
         .arg(&obj))?;
@@ -2348,10 +2377,11 @@ fn run_dynamic_util(root: &Path, cc: &str, name: &str, test: &str) -> Result<(),
 ///   transcripts on a host whose system loader is another one. Kept out of `target/niji`: it names a build path.
 pub(crate) const LDD_TEST: &str = "target/niji-test/ldd";
 
-fn run_ldd(root: &Path, cc: &str, release: &Path) -> Result<(), String> {
+fn run_ldd(root: &Path, cc: &str, release: &Path, cdebug: &[String]) -> Result<(), String> {
     let link = |out: &Path, rtld: Option<&Path>| -> Result<(), String> {
         let mut c = Command::new(cc);
         c.args(["-std=gnu17", "-O2", "-fPIE", "-Wall", "-Wextra", "-Werror", "-fno-builtin", "-static-pie", "-nostdlib", "-Wl,--gc-sections", "-Wl,-z,now", "-Wl,-z,relro"]);
+        c.args(cdebug);
         if let Some(r) = rtld {
             c.arg(format!("-DLDD_RTLD=\"{}\"", r.display()));
         }
@@ -2744,7 +2774,7 @@ pub(crate) fn libresolv_object(root: &Path, ar: &str, profile: Profile, libc_so:
         rename.arg(format!("--redefine-sym={s}={}", own_name(s)));
     }
     run(rename.arg(&all).arg(&renamed))?;
-    run(Command::new("objcopy").arg("--strip-unneeded").arg(format!("--keep-global-symbols={}", keep.display())).arg(&renamed).arg(&obj))?;
+    run(Command::new("objcopy").arg("--strip-unneeded").arg(KEEP_DEBUG_SECTIONS).arg(format!("--keep-global-symbols={}", keep.display())).arg(&renamed).arg(&obj))?;
 
     let out = Command::new("nm").args(["-P"]).arg(&obj).output().map_err(|e| format!("nm: {e}"))?;
     let mut defined = BTreeSet::new();
@@ -2904,7 +2934,7 @@ fn run_libm(root: &Path, cc: &str, ar: &str, profile: Profile) -> Result<(), Str
     run(ld.arg("--whole-archive").arg(&staged).arg("--no-whole-archive").arg("-o").arg(&all))?;
     fs::write(&weak, both.iter().filter(|s| !s.starts_with("niji_")).map(|s| format!("{s}\n")).collect::<String>()).map_err(|e| e.to_string())?;
     let obj = product.join("libm.o");
-    run(Command::new("objcopy").arg("--strip-unneeded").arg(format!("--keep-global-symbols={}", keep.display())).arg(format!("--weaken-symbols={}", weak.display())).arg(&all).arg(&obj))?;
+    run(Command::new("objcopy").arg("--strip-unneeded").arg(KEEP_DEBUG_SECTIONS).arg(format!("--keep-global-symbols={}", keep.display())).arg(format!("--weaken-symbols={}", weak.display())).arg(&all).arg(&obj))?;
     // The archive's copy: the names glibc exports from both libraries are libc.a's alone in a
     // static link (glibc's libm.a does not define them, LIBC-A-PLACEMENT), so they are local here.
     let obj_a = product.join("libm-archive.o");

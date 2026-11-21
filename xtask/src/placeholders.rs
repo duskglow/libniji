@@ -634,7 +634,8 @@ pub fn product_errors(table: &str, soname: &str, dynamic: &str, readelf_v: &str,
 
 /// Build every placeholder into `release` (linked against `release/libc.so.6`), check each, and
 /// write the empty archives. `work` holds the generated sources. One summary line.
-pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str, own_object: Option<&(std::path::PathBuf, BTreeSet<String>)>) -> Result<String, String> {
+/// `cdebug`: the release profile's debug flags (`so::release_debug_cflags`), on every compile here.
+pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str, own_object: Option<&(std::path::PathBuf, BTreeSet<String>)>, cdebug: &[String]) -> Result<String, String> {
     let table = fs::read_to_string(root.join("spec/abi/versions.tsv")).map_err(|e| format!("versions.tsv: {e}"))?;
     fs::create_dir_all(work).map_err(|e| e.to_string())?;
     let stale = remove_stale(release, &product_names())?;
@@ -688,6 +689,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str, own_o
         let tmp = crate::so::tmp_name(&dst);
         crate::so::run(Command::new(cc)
             .args(["-shared", "-nostdlib", "-fPIC", "-O2", "-Wl,-z,now", "-Wl,-z,relro", "-Wl,--hash-style=gnu"])
+            .args(cdebug)
             .arg(format!("-Wl,-soname,{soname}"))
             .arg(format!("-Wl,--version-script={}", map.display()))
             .arg(&c)
@@ -720,7 +722,7 @@ pub fn build(root: &Path, release: &Path, work: &Path, cc: &str, ar: &str, own_o
         let c = work.join(format!("{stem}.a.c"));
         let o = work.join(format!("{stem}.o"));
         fs::write(&c, src).map_err(|e| e.to_string())?;
-        crate::so::run(Command::new(cc).args(["-c", "-O2", "-fno-stack-protector"]).arg(&c).arg("-o").arg(&o))?;
+        crate::so::run(Command::new(cc).args(["-c", "-O2", "-fno-stack-protector"]).args(cdebug).arg(&c).arg("-o").arg(&o))?;
         let dst = release.join(format!("{stem}.a"));
         let tmp = crate::so::tmp_name(&dst);
         let _ = fs::remove_file(&tmp);

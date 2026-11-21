@@ -1,0 +1,24 @@
+{"task": "SYS-DBG-DWARF", "model": "opus", "tokens": null,
+ "result": "every libc6-dbg file (19, one per shipped ELF object) carries .debug_info and .debug_line; iconv and locale get debug files; check-system fails on a debug file without DWARF or a shipped ELF file without a debug file; release loaded sections unchanged",
+ "branch": "task/sys-dbg-dwarf", "head": null,
+ "gate": {"affected": "FULL: the train's (xtask changed); changed-crates tests 604 passed / 0 failed (10 suites)", "peak": null},
+ "accepted_first_attempt": null,
+ "rulings": [],
+ "informational": [
+   "The C layer compiled into libc.so.6 and libresolv.so.2 (csys, e.g. niji_sys_syscall) has no -g: gdb gives no line for those functions; the Rust functions of both objects have lines. Same as libc.so.6 before this story.",
+   "The coexist flavour is checked by the deb_manifest test (fast profile); the -g1 flags are release-only, so the system flavour (release) is the one with the new debug information."
+ ],
+ "refused": [],
+ "impact": [
+   {"kind": "correctness", "what": "libc6-dbg debug files with DWARF (.debug_info and .debug_line), of 19", "before": 5, "after": 19, "unit": "files", "measured": true},
+   {"kind": "correctness", "what": "lintian debug-file-with-no-debug-symbols (trixie, system flavour)", "before": 12, "after": 0, "unit": "tags", "measured": true},
+   {"kind": "correctness", "what": "lintian undeclared-elf-prerequisites + extended-description-line-too-long", "before": 3, "after": 0, "unit": "tags", "measured": true},
+   {"kind": "correctness", "what": "shipped ELF objects without a libc6-dbg file (iconv, locale)", "before": 2, "after": 0, "unit": "files", "measured": true},
+   {"kind": "size", "what": "libc6-dbg .deb", "before": 8.6, "after": 11.0, "unit": "MB", "measured": true},
+   {"kind": "none", "what": "SHF_ALLOC sections (but the build-id note) of all 19 release products, SHA-256", "before": null, "after": null, "unit": "identical", "measured": true},
+   {"kind": "coverage", "what": "check-system checks (DWARF per debug file, debug file per shipped ELF) and plants", "before": 0, "after": 5, "unit": "plants CAUGHT", "measured": true}
+ ],
+ "improvement": "A job script's package build in a role dir without git silently gets build.sh's fallback epoch 1 (196 lintian package-contains-ancient-file); build.sh could warn when it falls back.",
+ "next_step": "CI train (FULL: xtask changed)",
+ "report_file": "handoff/SYS-DBG-DWARF.md",
+ "jobs": ["mei:sys-dbg-dwarf-base", "mei:sys-dbg-dwarf-tests", "mei:sys-dbg-dwarf-plants-2", "mei:sys-dbg-dwarf-recheck-2", "mei:sys-dbg-dwarf-lint-2"]}
