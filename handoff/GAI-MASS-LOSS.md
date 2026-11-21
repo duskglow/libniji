@@ -50,7 +50,28 @@ signal calls), so the probe's fixed 60 s + 5 s wait ran out, it did not lose req
   reference 0.010 s (before 0.169 / 0.174); drain 3.7 s vs 3.6 s; CPU per request 77..78 us vs
   62 us (DNS path; informational).
 
-## Not done / next step
+## NEXT LEG (refresh 1, ~21:50Z): exact next steps
+1. Collect the final-head gate: `~/bin/jobwait gai-mass-loss-gate2` on keke (started 21:28Z on
+   67ec7b6f6, clippy + static + affected). Plants job `gai-mass-loss-plants` is done (3 CAUGHT).
+2. Coordinator note 21:37Z (in force): hung or killed dns_products runs leave ROOT-owned oracle
+   children (resolv_diff_host/_niji under `sudo -n unshare`) orphaned for days (46 on the
+   Skylake-SP host, 16 on the Zen 1 host). Make the harness unable to leave anything behind: run
+   the oracles in their own PID namespace whose init dies with the test (`unshare --pid --fork
+   --kill-child` or equivalent), on timeout end the whole namespace, then reap. Add a test that
+   kills the harness mid-run and checks no process of it remains. Do NOT kill the existing
+   orphans (root; the owner does). Files: `crates/core/tests/oracle/resolv_run.sh`,
+   `dns_run.sh` (same `sudo -n unshare -m -n` line), `crates/core/tests/dns_products.rs` (`run`).
+   Design point to settle: the chain is test -> timeout -> sh -> sudo -> unshare -> ns init; the
+   namespace must die when the TEST dies, not only on timeout (e.g. the PID namespace outermost,
+   created by the test's own command, with `--kill-child`, and the test's child given a parent-
+   death signal; `setpriv --pdeathsig KILL` exists in util-linux). Check `unshare --help` on both
+   hosts for `--kill-child`.
+3. Then clippy/static, a direct gate, plants for the harness change if testable, precheck
+   (`cargo xtask precheck --jobs <labels> --head <sha>`), handback-check, hand back. The hand-back
+   must carry a SECURITY-PRIVATE section: ask the previous leg's final message (the refresh
+   message) for its content; it is not written in the repo.
+
+## Not done / next step (leg 1)
 - Pinned (1 CPU) run of the harness for a contention measurement: started, sat 20 min queued for
   a slot, stopped to free the role for the gate (`gai-mass-loss-pin1`, superseded).
 - No pre-LIMITS-RUNTIME-SMALL comparison on gaimass: that build refuses the scenario (20000 in one
