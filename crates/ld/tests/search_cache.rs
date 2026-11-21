@@ -9,6 +9,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing, clippy::arithmetic_side_effects, clippy::as_conversions, missing_docs)]
 
 use std::path::{Path, PathBuf};
+#[path = "../../core/tests/support/scratch.rs"]
+mod scratch;
+use scratch::Scratch;
 use std::process::Command;
 
 use niji_ld::arch::{Arch, Native};
@@ -311,7 +314,7 @@ fn list_matches_reference() {
         return;
     }
     // Canonical, so the reference's kernel-started `$ORIGIN` and the given path agree.
-    let d = std::fs::canonicalize(target()).unwrap().join(format!("dl-search-{}", std::process::id()));
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "dl-search");
     std::fs::create_dir_all(d.join("sub")).unwrap();
     std::fs::write(d.join("x.c"), "int x(void){return 1;}\n").unwrap();
     std::fs::write(d.join("main.c"), "int x(void); int main(void){return x();}\n").unwrap();
@@ -356,9 +359,7 @@ fn list_interpreter_line_matches_reference() {
         return;
     }
     let libs = std::fs::canonicalize(target().join("niji")).unwrap();
-    let d = std::fs::canonicalize(target()).unwrap().join(format!("dl-trace-interp-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).unwrap();
+    let d = Scratch::dir_in(&std::fs::canonicalize(target()).unwrap(), "dl-trace-interp");
     let src = [
         ("foo.c", "int foo(void) { return 1; }\n"),
         ("start.c", "void _start(void) { for (;;) {} }\n"),
@@ -493,7 +494,7 @@ fn ldso_program_without_slash() {
     if !ld.exists() || !Command::new("cc").arg("--version").output().is_ok_and(|o| o.status.success()) {
         return eprintln!("SKIP: needs cc and {} (cargo xtask so)", ld.display());
     }
-    let d = target().join(format!("ldso-program-name-{}", std::process::id()));
+    let d = Scratch::dir_in(&target(), "ldso-program-name");
     for sub in ["lib", "bin", "cache"] {
         std::fs::create_dir_all(d.join(sub)).unwrap();
     }

@@ -1,6 +1,9 @@
 //! Scratch paths for the tests: under the target directory (`CARGO_TARGET_TMPDIR`) unless a test
-//! names another base, and removed with whatever they hold when dropped, so a test leaves nothing
-//! behind whether it passes or fails. Included with `#[path]` by the test files that need it.
+//! names another base. This is the one way a test makes a per-process file or directory: a
+//! passing test removes it with whatever it holds when it is dropped, so repeated runs do not
+//! grow `target/`; a failing test (the thread is unwinding from a panic) keeps it and prints its
+//! path on stderr, so the failure can be inspected. Included with `#[path]` by the test files
+//! that need it.
 #![allow(dead_code)]
 
 use std::ffi::CString;
@@ -47,7 +50,13 @@ impl Scratch {
 
     /// A fresh, empty directory under the target directory.
     pub(crate) fn dir(tag: &str) -> Scratch {
-        let s = Scratch::path(tag);
+        Scratch::dir_in(Path::new(env!("CARGO_TARGET_TMPDIR")), tag)
+    }
+
+    /// A fresh, empty directory under `base` (for example the target directory itself, when a
+    /// test needs its corpus outside `target/tmp`).
+    pub(crate) fn dir_in(base: &Path, tag: &str) -> Scratch {
+        let s = Scratch::path_in(base, tag);
         let made = std::fs::create_dir_all(&s.0);
         assert!(made.is_ok(), "scratch directory {}: {made:?}", s.0.display());
         s
@@ -79,6 +88,13 @@ impl AsRef<Path> for Scratch {
 
 impl Drop for Scratch {
     fn drop(&mut self) {
+        if std::thread::panicking() {
+            // A failing test: keep what it made for inspection, and say where it is.
+            if std::fs::symlink_metadata(&self.0).is_ok() {
+                eprintln!("scratch kept (the test failed): {}", self.0.display());
+            }
+            return;
+        }
         remove(&self.0);
     }
 }
