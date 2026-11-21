@@ -90,10 +90,13 @@ for dl in $(awk -F '\t' '$1 == "libc6-dev" && $3 == "link" { print $2 }' "$tmp/r
 done
 
 # 3. libc6-dbg (SYS-DBG-PACKAGE): every strip debug row of the manifest (libc6's shared objects,
-#     libc-bin's programs but iconv) is stripped (no symbol table) and keeps its GNU build-id
+#     libc-bin's programs) is stripped (no symbol table) and keeps its GNU build-id
 #     note; libc6-dbg holds exactly one
 #     file per object, .build-id/<first byte>/<rest>.debug, whose own build-id is the object's and
-#     which has the symbol table; libc.so.6's has line tables (.debug_line). gdb, given only the
+#     which has the symbol table and DWARF: .debug_info and line tables (.debug_line), every one of
+#     them (SYS-DBG-DWARF). Every ELF executable or shared object any of the packages ships (found by
+#     its ELF header, not by the manifest, so a new program without a strip debug row is caught) is
+#     one of those objects. gdb, given only the
 #     debug directory, prints the source line of DBG_FUNC's entry address (`info line *getenv` by
 #     default; the address form, because line tables carry no function entries to look a name up in).
 build_id() { readelf -nW "$1" 2>/dev/null | sed -n 's/.*Build ID: \([0-9a-f]*\)$/\1/p' | head -1; }
@@ -115,11 +118,24 @@ for f in $(awk -F '\t' -v r="$r" '$6 == "debug" { print r "/" $2 }' "$tmp/rows")
         continue
     fi
     [ "$(build_id "$dbgroot/$d")" = "$id" ] || fail "libc6-dbg's $d has the build-id '$(build_id "$dbgroot/$d")', not $name's $id"
-    readelf -SW "$dbgroot/$d" | grep -q ' \.symtab ' || fail "libc6-dbg's $d (for $name) has no symbol table"
-    case $name in
-        */libc.so.6) readelf -SW "$dbgroot/$d" | grep -q ' \.debug_line ' || fail "libc6-dbg's $d (for libc.so.6) has no line tables (.debug_line)" ;;
-    esac
+    readelf -SW "$dbgroot/$d" > "$tmp/dbgsecs"
+    grep -q ' \.symtab ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no symbol table"
+    grep -q ' \.debug_info ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no debug information (.debug_info)"
+    grep -q ' \.debug_line ' "$tmp/dbgsecs" || fail "libc6-dbg's $d (for $name) has no line tables (.debug_line)"
 done
+# Every shipped ELF executable or shared object (the debug files aside) is a strip debug row's.
+find "$r" -path "$dbgroot" -prune -o -type f -print | sort > "$tmp/shipped"
+while IFS= read -r f; do
+    case $(readelf -hW "$f" 2>/dev/null | sed -n 's/^ *Type: *\([A-Z]*\).*/\1/p') in
+        EXEC|DYN) ;;
+        *) continue ;;
+    esac
+    name=${f#"$r"}
+    id=$(build_id "$f")
+    if [ -z "$id" ] || ! grep -q -x ".build-id/$(printf '%.2s' "$id")/${id#??}.debug" "$tmp/ids"; then
+        fail "$name is an ELF executable or shared object with no libc6-dbg file (give its manifest row strip debug)"
+    fi
+done < "$tmp/shipped"
 if [ -d "$dbgroot" ]; then
     (cd "$dbgroot" && find . -type f | sed 's|^\./||' | sort) > "$tmp/dbgfiles"
     extra=$(sort "$tmp/ids" | comm -13 - "$tmp/dbgfiles" | tr '\n' ' ')
