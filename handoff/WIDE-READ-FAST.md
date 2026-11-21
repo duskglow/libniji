@@ -64,5 +64,6 @@ removed the last group and most of the second (traced 113 -> about 76 by the per
 * On the final code: check3 (clippy -D warnings all features, static, records, `so`, #23 probe identical: 39 + 23 +
   8 rows, empty diff against STDIO-WIDE-BYTE-READS-4's head), pc3 (table above); check3 and pc3 ran on c7b0887, whose code is faa4cd785's (that commit changed only the D-12.30 record).
 * gate2 (faa4cd785, direct tier): 16 suites ok, 9764 passed / 0 failed (1491 ignored), conformance 15 / 0, SKIPPED 0, peak 13G, oom_kill 0.
-* plants2 (faa4cd785): 3 plants, 3 CAUGHT, 0 SURVIVED, 0 WARN ().
-* hot1:  so +  (stdio is start-up code). Not run:  (FULL tier: the train's, owner 11-19).
+* plants2 (faa4cd785): 3 plants, 3 CAUGHT, 0 SURVIVED, 0 WARN (`handoff/WIDE-READ-FAST-plants.txt`).
+* hot1 (1203a2f45, code as faa4cd785): `NIJI_FULL_PROFILE=1 cargo xtask so` + `hot_text_products` (stdio is start-up
+  code). Not run: `cargo xtask test` (FULL tier: the train's, owner 11-19).
