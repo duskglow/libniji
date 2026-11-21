@@ -5,6 +5,16 @@ the loader/link files this touches); role keke:~/w/n1 (Zen 1); Skylake-SP rows o
 Leg 2 found and fixed the leg-1 regression; the final head's gate, plants and start-up checks were started (queued
 behind other jobs at hand-back time); see the report for their labels.
 
+Leg 3 (DYN-START-RING-2, branch `task/dyn-start-ring-2`, same code as 414a84a0d, no code changed): role mei:~/w/s4
+(Skylake-SP). Clippy (all targets, all features, -D warnings) and `cargo xtask static` clean on the inherited head.
+keke:dyn-start-ring-plants2 ended BASELINE FAILED: the traced product build took 2414 s / 2636 s (two copies on
+Zen 1) and baseline-2's own `cargo xtask so && cargo test ...` ran into `--timeout 2400`. Rerun as ordered:
+mei:dyn-start-ring-2-plants, `--timeout 6000 --prepare-timeout 6000`, copies auto (2), dir
+/mnt/zram/claude/dyn-start-ring-2/plants-1. Result: rc 0, 7 plants: 7 CAUGHT, 0 SURVIVED, 0 WARN, 0 BUILD-TIMEOUT
+(06:37Z-08:44Z; traced so 1087 s / 987 s on Skylake-SP; each catch is the named assertion, not a tracer failure);
+results in handoff/DYN-START-RING-plants.txt. keke:dyn-start-ring-gate2 rc 0 and keke:dyn-start-ring-startup1 rc 0
+(07:52Z), both on 414a84a0d (same code).
+
 ## Commits
 
 1. 771ed7154 lazy internal-signal handler (owner ruling #7075): cancel.rs `install` once per process, called from
@@ -53,9 +63,7 @@ rseq, mprotect x2, munmap (the arena), set_tid_address, uname, set_robust_list, 
 
 ## Next step
 
-1. Collect: `~/bin/jobwait dyn-start-ring-gate2 dyn-start-ring-startup1 dyn-start-ring-plants2 dyn-start-ring-abab1`
-   on keke (chain.sh runs gate2 then startup1 on the role). Fix a red, then precheck:
-   `cargo xtask precheck --jobs dyn-start-ring-gate2,dyn-start-ring-startup1,dyn-start-ring-plants2 --head <sha>`.
+1. Done in leg 3: gate2, startup1 and plants all rc 0; the branch is ready to land (coordinator).
 2. Zen 1 kernel ratchet: read abab1; if a Zen 1 kernel row is worse in the interleaved runs, profile it.
 3. Not done (brief items left): uname, the early ARCH_SET_FS pair, initial thread block/TLS merge, read_phdr per-header
    user cost, whole-file views replaced by header reads, the layout-bins.tsv diff against the base (no base copy).

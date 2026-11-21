@@ -8,3 +8,11 @@ arena-off | crates/boundary/src/ld/link.rs | lit:    views_arm(); ==>     let _ 
 slack-trimmed | crates/boundary/src/ld/image.rs | perl:s/(fn keeps_slack\(&self\) -> bool \{\s*)true/$1false/s | cargo xtask so && cargo test -p niji --test hot_text_products init_dynamic_start_system_calls_stay_within_their_bounds | msg:more system calls than its bound|tracing failed
 plt-before-text | xtask/src/so.rs | lit:INSERT AFTER .text; ==> INSERT BEFORE .text; | cargo test -p xtask plt_after_text_keeps_one_executable_segment | msg:plt_after_text_keeps_one_executable_segment_at_every_header_size.*FAILED|panicked
 exec-check-blind | xtask/src/so.rs | lit:        1 => Ok(()), ==>         _ => Ok(()), | cargo test -p xtask libc_so_text_is_one_executable_segment | msg:libc_so_text_is_one_executable_segment.*FAILED|panicked
+# cargo xtask plants results (7 plants: 7 CAUGHT, 0 SURVIVED, 0 EQUIVALENT, 0 WARN-RC-ONLY, 0 WARN-NO-MSG, 0 BUILD-TIMEOUT):
+# eager-signal: CAUGHT, caught by hot_text_products init_dynamic_empty_main_makes_no_removable_start_system_call
+# never-installed: CAUGHT, caught by s20_signals_clauses s20_1_c_2
+# fold-read: CAUGHT, caught by hot_text_products init_dynamic_start_system_calls_stay_within_their_bounds
+# arena-off: CAUGHT, caught by hot_text_products init_dynamic_start_system_calls_stay_within_their_bounds
+# slack-trimmed: CAUGHT, caught by hot_text_products init_dynamic_start_system_calls_stay_within_their_bounds
+# plt-before-text: CAUGHT, caught by xtask so::tests::plt_after_text_keeps_one_executable_segment_at_every_header_size
+# exec-check-blind: CAUGHT, caught by xtask so::tests::libc_so_text_is_one_executable_segment
