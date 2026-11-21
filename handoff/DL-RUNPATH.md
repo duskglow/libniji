@@ -147,7 +147,16 @@ Then, as root:
 - Results on 9d3b0f530: `dl-runpath-4-check2` (clippy -D warnings, static, so, runpath_search 5/5,
   dlopen_process_objects 3/3 incl. the 300-library corpus), `dl-runpath-4-gate` (direct tier: 10 suites, 665 passed,
   0 failed, peak 2.3G), `dl-runpath-4-plants` (12 CAUGHT, 1 EQUIVALENT, 0 WARN), `dl-runpath-4-y10` (#10/#18:
-  20 PASS / 0 FAIL), `dl-runpath-4-hottext`, `dl-runpath-4-startup`: see the hand-back and the report json.
+  20 PASS / 0 FAIL), `dl-runpath-4-hottext` (full profile so + hot_text_products 33/33).
+- `dl-runpath-4-startup` (`cargo xtask test`): first pass 7019 of 7020 passed; the one is
+  `niji::dns_products resolv_equals_the_reference`, TIMEOUT at nextest's 1800 s, so the native pass did not run.
+  Cause (outside this story): after a scenario's timeout the oracle's forked children (run under `sudo -n unshare`
+  by `resolv_run.sh`) are left orphaned and keep the test's stdout pipe open, so `Command::output()` never returns
+  and the test's own 900 s guard cannot end it. The stuck ones in this run were the host-linked oracle's (which never
+  load libniji's ld.so); the role still holds such orphans from runs 4 days ago (s3, libniji-linked) and the s4 role
+  from 11 days ago. They are root-owned: `kill <pid>` as claude gives EPERM (reported as refused, not retried).
+  DL-RUNPATH-2's rc-124 start-up job on this host stopped at the same test. Recommend: a harness story (kill the
+  scenario's process group inside the namespace, or read with a deadline), and a root clean-up of the orphans.
 
 ## Next step
 
