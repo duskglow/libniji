@@ -1,51 +1,65 @@
 # COMPAT19-STARTUP-ZERO handoff
 
-State: branch `task/compat19-startup-zero` (cut from origin/next df83365cd). Role mei:~/w/s4. Brief:
-~/state/briefs/COMPAT19-STARTUP-ZERO.md. Leg 1 ended in a refresh (calls budget); leg 2 continues here.
+State: branch `task/compat19-startup-zero` (cut from origin/next df83365cd), code head 1a51abd35 (later commits:
+handoff/plants only). Role mei:~/w/s4. Brief: ~/state/briefs/COMPAT19-STARTUP-ZERO.md. Decisions: D-27.66 (amended),
+COMPAT-19 record (`cost`, #6944 note: a failed `dlopen` set leaves stacks already made executable as they are).
 
-## Design (leg 1, code committed; D-27.66 amended, COMPAT-19 `cost` and #6944 note in the record)
+## Design (in force)
 * A normal start reads nothing for COMPAT-19. ld.so's `run_init` reads `EXEC_STACK` only in the `else` of
-  `if let Some(f) = early` (a start without libniji's C library, exotic). With libniji's libc, its
-  `early_init` (runtime.rs) checks `t.exec_stack == Some(true)` only inside the `GLIBC_TUNABLES`-is-set closure,
-  then (cold `exec_stacks_at_start`) walks the start objects with `dl_iterate_phdr` (`asks_exec_stack`, uses
-  `niji_ld::map::executable_stack`); when one asks (ld.so accepted it: it refuses otherwise, same `AT_SECURE`
-  rule both sides), makes the main stack executable (`thread::exec_main_stack(top, page)`, now shared by ld.so
-  and libc; PROT_GROWSDOWN moved to thread.rs) and calls `thread::stacks_executable()`.
-* Why not "do it in the loader's PT_GNU_STACK branch" as the brief proposed: at start the branch runs before
-  libc is mapped/relocated (program accepted first), so libc's thread flag cannot be set there; any deferred
-  action needs a check on the normal path. Also the auxv is not reachable from the start acceptance branch
-  without a new store. The tunables closure is the existing branch nearest to "only when opted in".
-* Residual cost: +2 instructions (field compare + branch) only in starts that set GLIBC_TUNABLES (any tunable).
-* dlopen path unchanged (ld.so's `call_stack_exec` + `exec_main_stack` via the shared helper).
+  `if let Some(f) = early` (a start without libniji's C library). With libniji's libc, `early_init` checks
+  `t.exec_stack == Some(true)` only inside the `GLIBC_TUNABLES`-is-set closure, then the cold, argument-less
+  `exec_stacks_at_start` walks the start objects through the loader's walk (`LOADER_ITERATE`, not the exported
+  `dl_iterate_phdr`) and, when one asks, makes the main stack executable (`thread::exec_main_stack`, shared with
+  ld.so) and calls `thread::stacks_executable()`. dlopen path unchanged.
+* Why not in the loader's PT_GNU_STACK branch (brief step 1): at start that branch runs before libc is mapped and
+  relocated, so libc's thread flag cannot be set there; any deferred action needs a check on the normal path. The
+  tunables closure is the existing branch nearest to "only when opted in".
+* Two traps found by the count (leg 2), both fixed: (1) calling the exported `dl_iterate_phdr` from libc adds a
+  GLOB_DAT relocation every dynamic start resolves (+1,409 instr empty main, +1,736 three libs); (2) passing the
+  borrowed `Auxv` into the cold function made early_init spill it on every start (+~4, cancelling ld.so's -4).
 
-## Bisect of the 1120C +2.5k/start finding (#7046): NOT DONE
-* Merges 3f2a84520..b732d9b46: efe95309f (COMPAT19-TUNABLE), 17eda37a8 (LD-SPLIT-3), c47f3d49c (LAYOUT-GOT-ORDER),
-  plus HEAP-FOREIGN-PAIR-2, WL-DYNAMIC-KIT, HEADERS-GEN-S07-HOOKS, STDIO-WIDE-BYTE-READS-2, reviews. Sources primed on
-  mei `~/wl/src/<sha>` (3f2a845, efe9530, 17eda37, c47f3d4, b732d9b, df83365). My first prep used wl_prep.sh, which
-  builds STATIC products only (no libc.so.6): killed, useless. To bisect: per sha `cd ~/wl/src/<sha> &&
-  NIJI_FULL_PROFILE=1 cargo xtask so`, copy target/niji to equal-length dirs, count as count.sh does.
-  LD-SPLIT-3's own report measured base = head (1 instr), so it is unlikely; LAYOUT-GOT-ORDER and COMPAT19-TUNABLE are
-  the candidates. If budget is short: report it as not attributed (INFORMATIONAL) with the plan above.
+## Results (mei, Skylake-SP, ASLR off, median of 101; base = origin/next df83365cd, both shipped profile)
+* count4 (head 1a51abd35): pie0 740,749 -> 740,745; pie3 996,291 -> 996,287; clock_gettime 774,759 -> 774,755;
+  static empty main 2,048 = 2,048; faults 52/67/56/7 unchanged. No row worse. Zen 1 class not counted (budget).
+* check4: clippy -D warnings, xtask static, shipped-profile so, `exec_stack` tests 5/5: green.
+* plants3 (`compat19-startup-zero-plants3`, head 0834d6584): 5 CAUGHT, 0 WARN; the count plant SURVIVED for a
+  tooling reason: in the plants copy the products are built layout ungrouped (empty main 736,960 instr, 59 faults),
+  so its fixed 740,745 threshold was meaningless. `~/work/compat19-startup-zero/plantcount.sh` is now
+  self-relative (counts the copy as given, then with the role's unplanted initfini.rs, fails when higher);
+  `~/work/compat19-startup-zero/count-plant.txt` holds that one plant line. NOT yet rerun.
+* Superseded jobs: compat19-startup-zero-prep/-check/-count1 (leg 1), -plants (file not synced, rc 3), -plants2
+  (killed: old head), -check2/-count2 (head bbc88c3c3: +1,409, the GLOB_DAT), -check3/-count3 (f63ad8738: = base,
+  the spill), -prof/-prof2 (perf throttled, no usable split).
+* `compat19-startup-zero-startup` (started 04:35Z on the role, ~/work/compat19-startup-zero/startup.sh):
+  affected --list said `tier: Direct`; then cargo xtask test, shipped so + hot_text_products, layout-bins diff vs
+  base df83365 (~/wl/src/df83.../target/product/fast/layout-bins.tsv). Still running at 05:05Z.
 
-## Jobs (mei)
-* SUPERSEDED: compat19-startup-zero-prep (static-only products, killed), compat19-startup-zero-check (killed when its
-  ssh was ended), compat19-startup-zero-count1 (waited on the old check log; killed).
-* compat19-startup-zero-check2 (started ~03:36Z): ~/work/compat19-startup-zero/check.sh = clippy -D warnings, xtask
-  static, NIJI_FULL_PROFILE=1 xtask so, copies target/niji to ~/work/compat19-startup-zero/head/niji, then
-  `cargo test -p niji-ld --test exec_stack`.
-* compat19-startup-zero-count2: ~/work/compat19-startup-zero/count.sh 2 101: builds base df83365 full profile in
-  ~/wl/src/df83..., waits for check2's tests to start, counts base vs head (pie0, pie3, time, static st0), lines
-  `COUNT base|head <prog> ...` in ~/logs/compat19-startup-zero-count2.log.
+## 1120C bisect (#7046): attributed to COMPAT19-TUNABLE (efe95309f), not removed here
+* bisect (same kit, 1120C start-up progs, median of 31): 3f2a84520 785,881 / 1,037,330 / 819,821; efe95309f
+  788,413 / 1,043,753 / 822,416 (+2,532 / +6,423 / +2,595, exactly the 1120C figures); 17eda37a8 (LD-SPLIT-3),
+  c47f3d49c (LAYOUT-GOT-ORDER) and b732d9b46 equal efe95309f. Relocations (2065) and faults unchanged: the cost is
+  in ld.so, about 1.3k per object searched plus about 1.2k fixed.
+* Not split per function: perf sampling at this rate is throttled (per-symbol diffs +-50 samples vs ~6,900
+  expected) and mei has no valgrind. Unknown whether origin/next still pays it.
+* Candidate (unverified): each start dependency is fully checked twice, `niji_ld::dlopen::check` in
+  `image::open_candidate` (the search) and `map::load`'s plan in `link.rs`.
 
-## Next step (leg 2)
-1. `~/bin/jobwait compat19-startup-zero-check2 compat19-startup-zero-count2`; `~/bin/test-summary ~/logs/...check2.log`.
-   Red: fix, commit, sync, rerun only that part. Count: dynamic pie0 should drop by ~2 (the flag), no row worse.
-2. Plants: handoff/COMPAT19-STARTUP-ZERO-plants.txt (5 plants) via `cargo xtask plants <file> --dir
-   /mnt/zram/claude/compat19-startup-zero/plants-1 --timeout 600` under jobrun (label compat19-startup-zero-plants).
-   The brief's count plant (flag read put back in run_init: `} else if EXEC_STACK.load(Relaxed) {` ->
-   `} if EXEC_STACK.load(Relaxed) {` in crates/boundary/src/ld/initfini.rs) is caught by the count, not a test: run
-   count.sh against a planted head build once, or report it with numbers.
-3. Start-up checks: `cargo xtask test`, `NIJI_FULL_PROFILE=1 cargo xtask so && NIJI_FULL_PROFILE=1 cargo test -p niji
-   --test hot_text_products`; diff target/product/fast/layout-bins.tsv vs base (§9).
-4. `cargo xtask affected --list` (crates/rt changed: may escalate to FULL -> gate on precheck + crate tests).
-5. Report json handoff/reports/COMPAT19-STARTUP-ZERO.json, precheck, handback-check, hand back.
+## Next step (leg 3, in order; deadline 07:18Z)
+1. `~/bin/jobwait compat19-startup-zero-startup`; check `grep -E "^== |layout-bins|startup: done|FAILED"` and
+   `~/bin/test-summary` of its log. Red: fix, rerun only that part.
+2. Then (role idle) the count plant: `setsid nohup ~/bin/jobrun compat19-startup-zero-plants4 plants -- sh -c ". ~/.cargo/env;
+   cd ~/w/s4 && cargo xtask plants ~/work/compat19-startup-zero/count-plant.txt --dir
+   /mnt/zram/claude/compat19-startup-zero/plants-4 --timeout 1800" >/dev/null 2>&1 </dev/null &` (two builds per
+   run). Expect CAUGHT with "grew by 3" or so (ld.so disassembly: movzbl/test/jne on the path).
+3. After plants4 has copied the role: the direct gate, `setsid nohup ~/bin/jobrun compat19-startup-zero-gate gate --
+   sh -c '. ~/.cargo/env; ~/bin/gate 16G sh -c "cd ~/w/s4 && cargo xtask affected --run --base origin/next"'
+   >/dev/null 2>&1 </dev/null &`.
+4. `cargo xtask precheck --jobs <labels> --head <sha>` on the role; report json handoff/reports/COMPAT19-STARTUP-ZERO.json;
+   `ops handback-check`; hand back. JOBS: check4, count4, plants3, plants4, startup, gate, bisect (all mei).
+   RULING/INFORMATIONAL to report: the bisect attribution below; Zen 1 class not counted.
+
+## Follow-up (not this story)
+* A follow-up story: per-function split of ld.so's start (gdb single-step trace of `pie3` from the efe95309f and
+  3f2a84520 products in mei `/mnt/zram/claude/compat19-startup-zero/bisect/`), then remove the per-object cost;
+  measure origin/next first by replacing the candidate check in a scratch copy.
+* Jobs and scripts: mei `~/work/compat19-startup-zero/` (check.sh, count3.sh, bisect.sh, plantcount.sh, startup.sh).
