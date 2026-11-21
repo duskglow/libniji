@@ -8,5 +8,5 @@ type-from-second-word | crates/rt/src/start.rs | lit:let [w, ..] = *h; ==> let [
 # Leg 4: the head bin refuses measured-phase-only sections (xtask/src/bins.rs `head_takes`, `put`, `plan`)
 head-takes-all | xtask/src/bins.rs | lit:sig.is_disjoint(phases) ==> { let _ = phases; true } | cargo test -p xtask bins:: | msg:a_measured_phase_only_section_never_ends_the_head_bin.*FAILED|a_measured_phase_shares_its_warm_up_windows.*FAILED
 head-filter-dropped | xtask/src/bins.rs | lit:.filter(|(n, b)| (head || *n > 0) && fits( ==> .filter(|(n, b)| fits( | cargo test -p xtask bins:: | msg:a_measured_phase_only_section_never_ends_the_head_bin.*FAILED
-no-phases-collected | xtask/src/bins.rs | lit:.filter_map(|m| m.strip_suffix(WARM_UP)) ==> .filter_map(|m| m.strip_suffix(".none")) | cargo test -p xtask bins:: | msg:a_measured_phase_only_section_never_ends_the_head_bin.*FAILED
+no-phases-collected | xtask/src/bins.rs | lit:.filter_map(|m| m.strip_suffix(WARM_UP)).map(str::to_string) ==> .filter_map(|m| m.strip_suffix(".none")).map(str::to_string) | cargo test -p xtask bins:: | msg:a_measured_phase_only_section_never_ends_the_head_bin.*FAILED
 empty-head-not-reserved | xtask/src/bins.rs | lit:if !head && bins.is_empty() { ==> if false { | cargo test -p xtask bins:: | msg:a_measured_phase_only_section_never_ends_the_head_bin.*FAILED|panicked
