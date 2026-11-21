@@ -84,6 +84,7 @@ static const struct {
     {"modify", "nameserver 127.0.0.1\noptions timeout:1 attempts:1\n", "hosts: dns\n", NULL},
     {"idn", "nameserver 127.0.0.1\noptions timeout:1 attempts:1\n", "hosts: dns\n", NULL},
     {"gaia", "nameserver 127.0.0.1\noptions timeout:3 attempts:1\n", "hosts: dns\n", NULL},
+    {"gaimass", "nameserver 127.0.0.1\noptions timeout:5 attempts:1\n", "hosts: dns\n", NULL},
 };
 static const int NSCEN = sizeof SCENARIOS / sizeof SCENARIOS[0];
 
@@ -926,6 +927,94 @@ static void gaia(void)
     show_gaicb("w", &w);
 }
 
+/* Many requests pending at once (getaddrinfo_a(3) sets no limit on them): the server holds slow.test
+ * for 1.5 s and answers one query at a time, so every request submitted in that window is still
+ * pending when the submission ends. One call of MASS_ONE requests, then MASS_GROUPS calls of one
+ * request each, every call notified by a queued real-time signal. */
+enum { MASS_ONE = 20000, MASS_GROUPS = 5000 };
+static volatile sig_atomic_t mass_signals;
+
+static void on_mass(int s, siginfo_t *si, void *u)
+{
+    (void)s, (void)si, (void)u;
+    mass_signals++;
+}
+
+static void gaimass(void)
+{
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    struct sigaction sa;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_sigaction = on_mass;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sigaction(SIGRTMIN, &sa, NULL);
+
+    struct gaicb slow = {"slow.test", NULL, &hints, NULL};
+    struct gaicb *sl[] = {&slow};
+    int r = getaddrinfo_a(GAI_NOWAIT, sl, 1, NULL);
+    printf("slow submitted: %d\n", r);
+    usleep(100000);
+
+    int n = MASS_ONE + MASS_GROUPS;
+    struct gaicb *g = calloc(n, sizeof *g);
+    struct gaicb **list = calloc(n, sizeof *list);
+    for (int i = 0; i < n; i++) {
+        g[i].ar_name = "a.test";
+        g[i].ar_request = &hints;
+        list[i] = &g[i];
+    }
+    r = getaddrinfo_a(GAI_NOWAIT, list, MASS_ONE, NULL);
+    printf("one call of %d requests: %d\n", MASS_ONE, r);
+    struct sigevent ev;
+    memset(&ev, 0, sizeof ev);
+    ev.sigev_notify = SIGEV_SIGNAL;
+    ev.sigev_signo = SIGRTMIN;
+    int calls_ok = 0;
+    for (int i = 0; i < MASS_GROUPS; i++) {
+        ev.sigev_value.sival_int = i;
+        if (getaddrinfo_a(GAI_NOWAIT, &list[MASS_ONE + i], 1, &ev) == 0)
+            calls_ok++;
+    }
+    printf("calls of one request with a signal: %d of %d returned 0\n", calls_ok, MASS_GROUPS);
+    int pending = 0;
+    for (int i = 0; i < n; i++)
+        if (gai_error(&g[i]) == EAI_INPROGRESS)
+            pending++;
+    printf("pending right after submission: %s\n", pending >= n - 1000 ? "nearly all" : "fewer");
+
+    for (int k = 0; k < 1200; k++) {
+        int left = gai_error(&slow) == EAI_INPROGRESS;
+        for (int i = 0; i < n && !left; i++)
+            left = gai_error(&g[i]) == EAI_INPROGRESS;
+        if (!left)
+            break;
+        usleep(50000);
+    }
+    for (int k = 0; k < 100 && mass_signals < MASS_GROUPS; k++)
+        usleep(50000);
+    int ok = 0, other = 0, same = 0;
+    for (int i = 0; i < n; i++) {
+        if (gai_error(&g[i]) != 0) {
+            other++;
+            continue;
+        }
+        ok++;
+        const struct addrinfo *a = g[i].ar_result;
+        if (a && a->ai_family == AF_INET && !a->ai_next &&
+            ((const struct sockaddr_in *)a->ai_addr)->sin_addr.s_addr == htonl(0xc000020a))
+            same++;
+        freeaddrinfo(g[i].ar_result);
+    }
+    printf("done: ok=%d other=%d answer 192.0.2.10 only=%d\n", ok, other, same);
+    printf("signals: %d\n", (int)mass_signals);
+    show_gaicb("slow", &slow);
+    free(list);
+    free(g);
+}
+
 /* ------------------------------------------------------------------ the scenarios' actions */
 
 /* The environment is set before the first resolver call of the process: the reference keeps
@@ -1305,6 +1394,8 @@ static void lookups(const char *scen)
     } else if (strcmp(scen, "gaia") == 0) {
         gaia();
         show_log(1);
+    } else if (strcmp(scen, "gaimass") == 0) {
+        gaimass();
     }
     fflush(stdout);
     for (int i = 0; i < nservers; i++)
