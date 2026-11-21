@@ -334,12 +334,14 @@ fn publish(argv_addr: usize, n_args: usize, envp: usize, stack_end: usize) {
 /// sets `niji.compat.execstack=1` in a process that is not secure: `ld.so` read the same string
 /// and accepted every start object asking for an executable stack (it refuses such an object
 /// otherwise, so an object asking is one accepted). When one asks, the initial thread's stack and
-/// every thread stack this library maps become executable, here, before any constructor; `auxv` is
-/// the auxiliary vector's address (the top page without `AT_EXECFN`). A normal start, without the
-/// tunable, reads nothing for COMPAT-19.
+/// every thread stack this library maps become executable, here, before any constructor. A normal
+/// start, without the tunable, reads nothing for COMPAT-19. It takes no arguments: the auxiliary
+/// vector comes from what [`early_init`] published (the top page without `AT_EXECFN` is the
+/// vector's own address), so the caller's closure borrows nothing and the normal path keeps the
+/// code it had (a borrowed `Auxv` there was spilled to the stack on every start).
 #[cold]
 #[inline(never)]
-fn exec_stacks_at_start(aux: &Auxv<'_>, auxv: usize) {
+fn exec_stacks_at_start() {
     // The loader's walk itself (stored above), not the exported, interposable `dl_iterate_phdr`:
     // a call to that export binds a GOT slot every dynamic start resolves (one more symbol lookup,
     // about 1,400 instructions per start on an empty main), the cost this function exists to avoid.
@@ -349,6 +351,8 @@ fn exec_stacks_at_start(aux: &Auxv<'_>, auxv: usize) {
     if walk == 0 || crate::posix::s27_dynlink::int_result(crate::ffi::niji_machine_call3(walk, cb, 0, 0)) == 0 {
         return;
     }
+    let auxv = process::AUXV_ADDR.load(Acquire);
+    let aux = Auxv::from_words(conv::startup_auxv(auxv, process::AUXV_WORDS.load(Acquire)));
     let get = |k| aux.get(k).and_then(|v| usize::try_from(v).ok()).unwrap_or(0);
     let execfn = get(AT_EXECFN);
     // UNSAFE(slice): the `AT_EXECFN` string on the initial stack.
@@ -434,7 +438,7 @@ pub fn early_init(info: usize) {
         let t = Tunables::parse(strz::env_value(v), secure);
         // COMPAT-19: only a start with this tunable can have accepted an executable-stack object.
         if t.exec_stack == Some(true) {
-            exec_stacks_at_start(&aux, info.auxv);
+            exec_stacks_at_start();
         }
         t
     });
