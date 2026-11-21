@@ -139,12 +139,13 @@ non-blocking for snapshots): INFORMATIONAL, routed to a start-up story; not chas
 
 ## Jobs
 
-JOBS (the final head 15a2d6482; this branch adds handoff/ only): mei smoke-mei-1, gate-1, startup-mei-1, kstart-mei-1,
-debs-2, plants-2, roots-3, lint-3, yohane-2, many-2, dyn22-2, y10-2, y19-2, y26-2, y26t-2, y23-2, c19-2, y25-2, y24-2,
-y28-1, y6-1, y25s-1; keke smoke-keke-1, startup-keke-1, kstart-keke-1, pkgdiff-1, stage-1, install-1 (all labels
-prefixed release-snapshot-1120f-). rc 1 on known lines only: roots-3 (dbg Breakpoint 1.1), yohane-2 (libc6-dev ships
-no C headers), y10-2 (DL-RUNPATH, not landed), y6-1 (WINDOWS-1252, windows-1251), debs-2 (DBG 17 of 19, ruling #6321).
-Evidence (20.5 side): y28-ref205-1, y6-ref205-2, y25s-ref205-1. SUPERSEDED: debs-1 (serial 6, ruling #7150), plants-1
+JOBS (the final head 15a2d6482; this branch adds handoff/ only; rc 0 each): mei smoke-mei-1, gate-1, startup-mei-1,
+kstart-mei-1, plants-2, lint-3, many-2, dyn22-2, y19-2, y26-2, y26t-2, y23-2, c19-2, y25-2, y24-2, y28-1, y25s-1,
+precheck-1 (GREEN, 33 checks, on 6a57821e8); keke smoke-keke-1, startup-keke-1, kstart-keke-1, pkgdiff-1, stage-1,
+install-1 (all labels prefixed release-snapshot-1120f-). Evidence, not named (rc 1 on known lines only, as 1120E):
+debs-2 (DBG 17 of 19, ruling #6321), roots-3 (dbg Breakpoint 1.1), yohane-2 (libc6-dev ships no C headers), y10-2
+(DL-RUNPATH, not landed), y6-1 (WINDOWS-1252, windows-1251); 20.5 side: y28-ref205-1, y6-ref205-2, y25s-ref205-1
+(rc 1: 20.5 fails the checks by design). SUPERSEDED: debs-1 (serial 6, ruling #7150), plants-1
 (1120E's plants file, its products absent here), roots-2 and lint-2 (no tree/ on the host), y6-ref205-1 (root without
 locales), every -1 deb check on mei (stopped or ran on the serial-6 packages: roots-1, lint-1, yohane-1, many-1,
 dyn22-1, y10-1, y19-1, y26-1, y26t-1, y23-1, c19-1, y25-1, y24-1).
