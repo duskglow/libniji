@@ -87,8 +87,18 @@ for w in "${want[@]}"; do
                 "$(( (b - a) / 1000 ))" >> "$raw.$$"
         done
     done
+    ref=
     for col in $cols; do
-        printf 'md5\t%s\t%s\t%s\n' "$w" "$col" "$(cd "$work" && sh -c "${cmd//@/${kit[$col]}}" 2>/dev/null | md5sum | cut -c1-12)" >> "$raw.$$"
+        sum=$(cd "$work" && sh -c "${cmd//@/${kit[$col]}}" 2>/dev/null | md5sum | cut -c1-12)
+        printf 'md5\t%s\t%s\t%s\n' "$w" "$col" "$sum" >> "$raw.$$"
+        [ "$col" = glibc ] && ref=$sum
+        # A differing output: wl_run.sh's fingerprint of the differing lines (count:sha1), which wl_kits.py checks
+        # against wl_known_diffs.tsv (the workload gate's list of accepted differences).
+        if [ "$col" != glibc ] && [ "$sum" != "$ref" ]; then
+            (cd "$work" && sh -c "${cmd//@/${kit[glibc]}}" > "$tmp/ref.out" 2>/dev/null; sh -c "${cmd//@/${kit[$col]}}" > "$tmp/new.out" 2>/dev/null)
+            printf 'dfp\t%s\t%s\t%s\n' "$w" "$col" "$(diff -a "$tmp/ref.out" "$tmp/new.out" | grep -a -c '^[<>]'):$(diff -a "$tmp/ref.out" "$tmp/new.out" | grep -a '^[<>]' | sha1sum | cut -c1-12)" >> "$raw.$$"
+            rm -f "$tmp/ref.out" "$tmp/new.out"
+        fi
     done
     (cd "$work" && strace -f -e trace=execve -o "$tmp/exec.txt" sh -c "${cmd//@/${kit[static]}}" 2>/dev/null | cat > /dev/null)
     for p in $progs; do

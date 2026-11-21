@@ -1972,7 +1972,10 @@ const VALIDATION_LOCK_TEST: &str = "validation/wl_lock_test.sh";
 /// WL-DYNAMIC-GATE (D-X.141): the INVIOLABLE workload verdict, its held rows' ratchet and wl_count's call of it
 /// (fixture logs, no build; under a second).
 const VALIDATION_VERDICT_TEST: &str = "validation/wl_verdict_test.sh";
-pub(crate) const VALIDATION_SELF_TESTS: &[&str] = &[VALIDATION_RUN_TEST, VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST, VALIDATION_LOCK_TEST, VALIDATION_VERDICT_TEST];
+/// WL-NIGHTLY-1121: the kit table's output column against wl_known_diffs.tsv (fixture rows, no build; under a second).
+const VALIDATION_KITS_TEST: &str = "validation/wl_kits_test.sh";
+pub(crate) const VALIDATION_SELF_TESTS: &[&str] =
+    &[VALIDATION_RUN_TEST, VALIDATION_STATS_TEST, VALIDATION_MTMEM_TEST, VALIDATION_LOCK_TEST, VALIDATION_VERDICT_TEST, VALIDATION_KITS_TEST];
 
 /// GATE-VALIDATION-SH-TESTS: a `validation/` script -> the self-tests that exercise it (each self-test also covers
 /// itself). A change to a script here selects those self-tests in every tier. `wl_run.sh` and `wl_count_run.sh` are
@@ -1996,6 +1999,10 @@ const VALIDATION_COVERED: &[(&str, &[&str])] = &[
     ("validation/wl_holds.tsv", &[VALIDATION_VERDICT_TEST]),
     ("validation/wl_count.sh", &[VALIDATION_VERDICT_TEST]),
     (VALIDATION_VERDICT_TEST, &[VALIDATION_VERDICT_TEST]),
+    // The kit table's output column (WL-NIGHTLY-1121): a differing output is checked against the accepted list.
+    ("validation/wl_kits.py", &[VALIDATION_KITS_TEST]),
+    ("validation/wl_known_diffs.tsv", &[VALIDATION_KITS_TEST]),
+    (VALIDATION_KITS_TEST, &[VALIDATION_KITS_TEST]),
 ];
 
 /// GATE-VALIDATION-SH-TESTS: the `validation/wl_*.sh` scripts with no self-test the gate can run, each with why. The
