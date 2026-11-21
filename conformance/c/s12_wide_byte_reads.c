@@ -1,5 +1,6 @@
-/* Spec §12.1, §12.5 and §12.10, D-12.27: byte operations on a wide-oriented stream work on the
- * stream's bytes in order. The wide layer stops before an invalid sequence (WEOF, EILSEQ, the error
+/* Spec §12.1, §12.5 and §12.10, D-12.27, D-12.28: byte operations on a wide-oriented stream work on
+ * the stream's bytes in order. The wide layer stops before an invalid sequence (WEOF, EILSEQ, the
+ * error indicator) and before a character cut short at end of file (WEOF, the end-of-file
  * indicator); a byte read then returns its first byte and wide reads go on after it, as a program
  * that passes undecodable bytes through does (getwchar, then getchar on EILSEQ). The stream stays
  * wide-oriented. The streams are left open: the program ends with _exit. */
@@ -7,6 +8,7 @@
 #include <errno.h>
 #include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <wchar.h>
@@ -22,6 +24,55 @@ static FILE *open_line(void)
     if (!f || write(fileno(f), line, sizeof line - 1) != (ssize_t)(sizeof line - 1) || lseek(fileno(f), 0, SEEK_SET) != 0)
         return NULL;
     return f;
+}
+
+/* One line per kind of invalid sequence (D-12.27, D-12.28): a lone continuation byte, an overlong
+ * form, 0xff, a 3-byte sequence cut short by an ASCII byte, a 2-byte lead byte followed by an ASCII
+ * byte, and a sequence cut short at end of file. */
+static const char invalid[] = "p\x80q\n\xc0\xafr\n\xffs\n\xe2\x82t\n\xc3(u\nend\xe2\x82";
+
+static FILE *open_mode(const char *s, size_t n, const char *mode)
+{
+    char path[] = "/tmp/s12wbrXXXXXX";
+    int fd = mkstemp(path);
+    if (fd < 0)
+        return NULL;
+    int ok = write(fd, s, n) == (ssize_t)n;
+    close(fd);
+    FILE *f = ok ? fopen(path, mode) : NULL;
+    unlink(path);
+    return f;
+}
+
+/* util-linux col's loop: wide reads, a byte read for each invalid sequence, then the bytes left at
+ * end of file. Every input byte comes back once, in order: 1 when the output equals the input. */
+static int pass_through(FILE *f, const char *s, size_t n)
+{
+    char out[64];
+    size_t k = 0;
+    mbstate_t st;
+    memset(&st, 0, sizeof st);
+    for (;;) {
+        errno = 0;
+        wint_t c = fgetwc(f);
+        if (c != WEOF) {
+            size_t m = wcrtomb(out + k, (wchar_t)c, &st);
+            if (m == (size_t)-1 || (k += m) > sizeof out - 8)
+                return 0;
+            continue;
+        }
+        if (errno != EILSEQ)
+            break;
+        int b = getc(f);
+        if (b == EOF || k >= sizeof out)
+            return 0;
+        out[k++] = (char)b;
+    }
+    if (!feof(f))
+        return 0;
+    for (int b; (b = getc(f)) != EOF && k < sizeof out;)
+        out[k++] = (char)b;
+    return k == n && memcmp(out, s, n) == 0 && fwide(f, 0) > 0;
 }
 
 /* Read 'a', then the invalid byte: WEOF with EILSEQ and the error indicator. */
@@ -81,6 +132,32 @@ static int run(void)
     int fd = fileno(f);
     char out[4] = {0};
     CHECK(25, pread(fd, out, sizeof out, 0) == 3 && memcmp(out, "wpx", 3) == 0);
+
+    /* Every kind of invalid sequence keeps its bytes for the byte reads, in the locale's encoding
+     * and in a ccs= one. */
+    CHECK(26, (f = open_mode(invalid, sizeof invalid - 1, "r")) != NULL && pass_through(f, invalid, sizeof invalid - 1));
+    CHECK(27, (f = open_mode(invalid, sizeof invalid - 1, "r,ccs=UTF-8")) != NULL && pass_through(f, invalid, sizeof invalid - 1));
+
+    /* Cut short by an ASCII byte: the sequence's first byte is next (the position before it); a
+     * wide read then meets the rest as invalid (the position before it), then a byte given back is
+     * read again, then the ASCII byte. */
+    static const char cut[] = "\xe2\x82t\n";
+    CHECK(28, (f = open_mode(cut, sizeof cut - 1, "r")) != NULL);
+    errno = 0;
+    CHECK(29, fgetwc(f) == WEOF && errno == EILSEQ && ferror(f) && ftell(f) == 0);
+    errno = 0;
+    CHECK(30, getc(f) == 0xe2 && fgetwc(f) == WEOF && errno == EILSEQ && ftell(f) == 1);
+    CHECK(31, getc(f) == 0x82 && ungetc(0x82, f) == 0x82 && getc(f) == 0x82 && fgetwc(f) == L't' && fgetwc(f) == L'\n');
+    static const char lead[] = "\xc3(u";
+    CHECK(33, (f = open_mode(lead, sizeof lead - 1, "r,ccs=UTF-8")) != NULL);
+    CHECK(34, fgetwc(f) == WEOF && getc(f) == 0xc3 && ungetc(0xc3, f) == 0xc3 && getc(f) == 0xc3 && fgetwc(f) == L'(');
+
+    /* Cut short at end of file: WEOF with the end-of-file indicator, the position before the
+     * sequence, then its bytes. */
+    static const char end[] = "e\xe2\x82";
+    CHECK(35, (f = open_mode(end, sizeof end - 1, "r")) != NULL && fgetwc(f) == L'e');
+    CHECK(36, fgetwc(f) == WEOF && feof(f) && !ferror(f) && ftell(f) == 1);
+    CHECK(37, getc(f) == 0xe2 && getc(f) == 0x82 && getc(f) == EOF && feof(f));
     return 0;
 }
 
