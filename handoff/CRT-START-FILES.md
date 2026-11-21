@@ -1,6 +1,6 @@
 # CRT-START-FILES (GitHub #27): start files hold only `_start`, the notes and the usual symbols
 
-Branch `task/crt-start-files-2` (continues `task/crt-start-files`, merge base origin/next ed38a2b3d). Decision:
+Branch `task/crt-start-files-3` (continues `task/crt-start-files-2` and `task/crt-start-files`; origin/next e4777a6ba merged in leg 5). Decision:
 D-X.144 (records/decisions/D-X/D-X.144.toml, this chain's own record, not landed). Plants: handoff/CRT-START-FILES-plants.txt
 (legs 1-2), handoff/CRT-START-FILES-2-plants.txt (legs 3-4). Role keke:~/w/n2 (Zen 1 host). Scratch on keke:
 ~/work/crt-start-files-2/ (ab.sh static A/B, pf.sh text-phase fault probe, tail.py head-bin tail classifier).
@@ -35,7 +35,18 @@ Residual (INFORMATIONAL, not fixed): the exact condition is "no phase-only secti
 of that phase after it"; tail.py shows the fast plan's two float-phase sections (printf Env::text, conv::printf_text)
 violate it, reachable only by a pre pad of most of a window and not covered by the text-phase test (float untested).
 
-## Results on the final head
+## Leg 5 (CRT-START-FILES-3, branch `task/crt-start-files-3`, role mei:~/w/s2): merge-only
+CI conflict in xtask/src/bins.rs with next's HEAP-ADDRESS-SPACE-6, which fixed the same rebind fault with a hard
+rule (`head_may_take`: a group only measured phases count never joins the head bin). Merged: next's structure
+(`phases()`, `put(.., head, ..)` filter) plus this chain's tie-break (`head_takes`, now `put(.., tie, ..)`), which
+still matters for groups a measured phase AND other modes count. The leg-4 test's phase-only case is now next's
+rule, so the test became `a_section_a_measured_phase_counts_prefers_a_later_bin_on_a_tie` (mixed group); plants
+lines 9-12 and D-X.144 follow. `affected` escalates to FULL (csys start sources): gated on precheck plus the
+changed crates' tests (test2), `cargo xtask test` (xtest2), full-profile hot_text_products (fullprof2); plants2.
+plants1 (merge commit 340b65681): 8/9 CAUGHT, tie-break-over-cost SURVIVED (next's rule took the phase-only case that
+caught it); fixed by section `q` in the test (5aba79593). test1/xtest1/fullprof1 stopped for the new head (superseded).
+
+## Results on the leg-4 head (904e4002e)
 Static `startup_instr_c` (ab.sh, release/full profile, min of 5 x3, all identical; job fullprof4): with notes 2108
 (CI red 2191, limit 2161), notes removed 2096; same 5 LOADs (no read-only PT_LOAD flip, ruling #7061 not involved).
 Full profile `hot_text_products` green, bin 0 62,984 B / 103 members (headroom 1,528), windows per mode all within
@@ -50,6 +61,6 @@ Superseded: fullprof1 (red, 7e6a6d3de), fullprof2/fullprof3 (rejected stricter r
 plants4 (killed, older rule), bins0, pf0, aff0/aff1 (probes).
 
 ## Exact next step
-None for the story once gate4/xtest4 are green: land. Follow-ups (not this story): the head-bin tail condition in
+None for the story once leg 5's jobs (mei crt-start-files-3-test2, -xtest2, -fullprof2, -plants2) are green: land. Follow-ups (not this story): the head-bin tail condition in
 general (Residual above; a planner that orders the head bin's phase-only sections ahead of a warm-up section, or a
 HEAD_ROOM covering the text-phase pads); the per-header dynamic start cost is DYN-START-RING's (#7062).
