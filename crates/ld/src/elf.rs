@@ -974,9 +974,22 @@ impl<'a> Dynamic<'a> {
         let tab = self.strtab.ok_or(ElfError::MissingStrtab)?;
         let rest = usize::try_from(off).ok().and_then(|o| tab.get(o..)).filter(|r| !r.is_empty()).ok_or(ElfError::StringOutOfRange(off))?;
         let mut h = 5381u32;
-        for (n, &c) in rest.iter().enumerate() {
+        // Eight bytes at a time while none of them is the NUL (a word holds a zero byte exactly when
+        // `(w - 0x0101..01) & !w & 0x8080..80` is not zero), then byte by byte.
+        let mut done = 0usize;
+        while let Some(w) = rest.get(done..).and_then(<[u8]>::first_chunk::<8>) {
+            let x = u64::from_le_bytes(*w);
+            if x.wrapping_sub(0x0101_0101_0101_0101) & !x & 0x8080_8080_8080_8080 != 0 {
+                break;
+            }
+            for &c in w {
+                h = h.wrapping_mul(33).wrapping_add(u32::from(c));
+            }
+            done = done.wrapping_add(8);
+        }
+        for (n, &c) in rest.get(done..).unwrap_or(&[]).iter().enumerate() {
             if c == 0 {
-                return rest.get(..n).map(|s| (s, h)).ok_or(ElfError::StringUnterminated(off));
+                return rest.get(..done.wrapping_add(n)).map(|s| (s, h)).ok_or(ElfError::StringUnterminated(off));
             }
             h = h.wrapping_mul(33).wrapping_add(u32::from(c));
         }

@@ -186,6 +186,15 @@ struct MemoSlot {
     off: u32,
 }
 
+/// A [`MemoSlot`]'s key bits a probe compares, and its slot, for `index` of the object whose string
+/// table is at `base`, as a reference's name or a definition's.
+#[inline]
+fn memo_key(index: u16, reference: bool, base: usize) -> (u32, usize) {
+    let key = u32::from(index) | if reference { MEMO_REF } else { 0 } | MEMO_USED;
+    let at = (usize::from(index) ^ usize::from(reference).wrapping_mul(MEMO_SLOTS / 2) ^ (base >> 4) ^ (base >> 10)) & (MEMO_SLOTS - 1);
+    (key, at)
+}
+
 /// The version names one relocation pass has found, by object and version index, so the walks of
 /// the version tables run once per name and not once per symbolic relocation (DYN-START-SPEED:
 /// they were a sixth of a dynamic start). A direct-mapped cache on the pass's stack: a slot holds an
@@ -436,28 +445,38 @@ impl<'a> Object<'a> {
 
     /// [`Object::memo_name`], and whether the name is one of this object's own definitions (else a
     /// requirement's).
+    #[inline]
     fn memo_name_from(&self, memo: Option<&VersionMemo>, index: u16, reference: bool) -> Result<Option<(&'a [u8], bool)>, LookupError> {
-        let walk = |o: &Self| if reference { o.reference_name(index) } else { o.def_version_name_from(index) };
-        let (Some(memo), Some(tab)) = (memo, self.dynm.strtab()) else { return walk(self) };
-        let base = tab.as_ptr().addr();
-        let key = u32::from(index) | if reference { MEMO_REF } else { 0 } | MEMO_USED;
-        let at = (usize::from(index) ^ usize::from(reference).wrapping_mul(MEMO_SLOTS / 2) ^ (base >> 4) ^ (base >> 10)) & (MEMO_SLOTS - 1);
-        let Some(slot) = memo.slots.get(at) else { return walk(self) };
-        let s = slot.get();
-        if s.key & MEMO_MATCH == key && s.strtab == base {
-            let off = usize::try_from(s.off).unwrap_or(usize::MAX);
-            let len = usize::try_from(s.key >> MEMO_LEN_SHIFT).unwrap_or(0) & 0x1fff;
-            if let Some(name) = off.checked_add(len).and_then(|end| tab.get(off..end)) {
-                return Ok(Some((name, s.key & MEMO_OWN != 0)));
+        // The hit, inline in each caller; a miss (once per name and pass) walks the tables in
+        // `memo_fill` (LD-LOOKUP-COST).
+        if let (Some(memo), Some(tab)) = (memo, self.dynm.strtab()) {
+            let base = tab.as_ptr().addr();
+            let (key, at) = memo_key(index, reference, base);
+            if let Some(s) = memo.slots.get(at).map(Cell::get) {
+                if s.key & MEMO_MATCH == key && s.strtab == base {
+                    let off = usize::try_from(s.off).unwrap_or(usize::MAX);
+                    let len = usize::try_from(s.key >> MEMO_LEN_SHIFT).unwrap_or(0) & 0x1fff;
+                    if let Some(name) = off.checked_add(len).and_then(|end| tab.get(off..end)) {
+                        return Ok(Some((name, s.key & MEMO_OWN != 0)));
+                    }
+                }
             }
         }
-        let found = walk(self)?;
-        if let Some((n, own)) = found {
-            let off = n.as_ptr().addr().wrapping_sub(base);
-            if off.checked_add(n.len()).is_some_and(|end| end <= tab.len()) {
-                if let (Ok(off), Ok(len @ 0..0x2000)) = (u32::try_from(off), u32::try_from(n.len())) {
-                    slot.set(MemoSlot { strtab: base, key: key | if own { MEMO_OWN } else { 0 } | len << MEMO_LEN_SHIFT, off });
-                }
+        self.memo_fill(memo, index, reference)
+    }
+
+    /// [`Object::memo_name_from`] by the walks, remembering a found name in `memo` when there is one.
+    #[cold]
+    #[inline(never)]
+    fn memo_fill(&self, memo: Option<&VersionMemo>, index: u16, reference: bool) -> Result<Option<(&'a [u8], bool)>, LookupError> {
+        let found = if reference { self.reference_name(index)? } else { self.def_version_name_from(index)? };
+        let (Some(memo), Some(tab), Some((n, own))) = (memo, self.dynm.strtab(), found) else { return Ok(found) };
+        let base = tab.as_ptr().addr();
+        let (key, at) = memo_key(index, reference, base);
+        let off = n.as_ptr().addr().wrapping_sub(base);
+        if let (Some(slot), true) = (memo.slots.get(at), off.checked_add(n.len()).is_some_and(|end| end <= tab.len())) {
+            if let (Ok(off), Ok(len @ 0..0x2000)) = (u32::try_from(off), u32::try_from(n.len())) {
+                slot.set(MemoSlot { strtab: base, key: key | if own { MEMO_OWN } else { 0 } | len << MEMO_LEN_SHIFT, off });
             }
         }
         Ok(found)
