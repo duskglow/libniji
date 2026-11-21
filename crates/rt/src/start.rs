@@ -26,6 +26,11 @@ const PT_TLS: u64 = 7;
 const PT_GNU_RELRO: u64 = 0x6474_e552;
 /// Words per `Elf64_Phdr` (56 bytes).
 pub const PHDR_WORDS: usize = 7;
+/// The header types [`program`] reads, one bit each at the type's low six bits (6, 7 and 18).
+/// `PT_LOAD`, `PT_DYNAMIC`, `PT_INTERP`, `PT_NOTE`, `PT_GNU_EH_FRAME`, `PT_GNU_STACK`,
+/// `PT_GNU_PROPERTY` and `PT_GNU_SFRAME` (1-4, 16, 17, 19, 20) land on clear bits, so they cost
+/// one test; a type that shares a set bit is then compared exactly.
+const READS: u64 = 1 << (PT_PHDR & 63) | 1 << (PT_TLS & 63) | 1 << (PT_GNU_RELRO & 63);
 
 /// What startup needs from the program headers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,24 +52,25 @@ pub const PAGE: usize = 4096;
 /// one the executable is taken as non-PIE. The first header of each type counts.
 ///
 /// Every start pays this loop once per header (LAYOUT-DATA-CLUSTERS-4C, D-X.64's aligned clusters
-/// add a `PT_LOAD`), so it keeps one bound and leaves a `PT_LOAD`, most of any program's headers,
-/// after one compare: the table is cut to `phnum` whole headers first (`chunks_exact` then has the
-/// only bound; `take` was a second counter per header).
+/// add a `PT_LOAD`; CRT-START-FILES's property note adds `PT_NOTE` and `PT_GNU_PROPERTY`), so a
+/// header of a type it does not read costs one bit test ([`READS`]): the table is cut to `phnum`
+/// whole headers first, so the walk has one bound (a pointer over whole headers), and only a
+/// header whose type passes the test is compared exactly. Inlined into each start, as it was
+/// before the test: called, it paid a frame and the call.
+#[inline(always)]
 pub fn program(words: &[u64], phnum: usize, phdr_addr: usize) -> Program {
-    let field = |h: &[u64], i: usize| h.get(i).copied().map_or(0, |v| usize::try_from(v).unwrap_or(usize::MAX));
+    let field = |h: &[u64; PHDR_WORDS], i: usize| h.get(i).copied().map_or(0, |v| usize::try_from(v).unwrap_or(usize::MAX));
     let (mut phdr, mut tls, mut relro) = (None, None, None);
-    // At most `words.len()`: the product cannot wrap.
-    let table = words.get(..phnum.min(words.len() / PHDR_WORDS).wrapping_mul(PHDR_WORDS)).unwrap_or_default();
-    for h in table.chunks_exact(PHDR_WORDS) {
-        let ty = h.first().map_or(0, |w| w & 0xffff_ffff);
-        if ty == PT_LOAD {
-            continue;
-        }
-        match ty {
-            PT_PHDR if phdr.is_none() => phdr = Some(h),
-            PT_TLS if tls.is_none() => tls = Some(h),
-            PT_GNU_RELRO if relro.is_none() => relro = Some(h),
-            _ => {}
+    let (heads, _) = words.as_chunks::<PHDR_WORDS>();
+    for h in heads.get(..phnum.min(heads.len())).unwrap_or_default() {
+        let [w, ..] = *h;
+        if READS >> (w & 63) & 1 != 0 {
+            match w & 0xffff_ffff {
+                PT_PHDR if phdr.is_none() => phdr = Some(h),
+                PT_TLS if tls.is_none() => tls = Some(h),
+                PT_GNU_RELRO if relro.is_none() => relro = Some(h),
+                _ => {}
+            }
         }
     }
     let bias = phdr.map_or(0, |h| phdr_addr.wrapping_sub(field(h, 2)));
@@ -110,7 +116,6 @@ pub fn relro_at(words: &[u64], phnum: usize, bias: usize, page: usize) -> Option
 /// The one implementation for `ld.so` (`niji_ld::start::bias`) and libc's own lookups of the
 /// executable (DL-LIBC-START-BIAS-3).
 pub fn bias(words: &[u64], phnum: usize, phdr: usize, page: usize, header: impl FnOnce(usize) -> [u8; 64]) -> Option<usize> {
-    const PT_LOAD: u64 = 1;
     const PHENT: u64 = 56;
     let heads = || words.chunks_exact(PHDR_WORDS).take(phnum);
     let ty = |h: &[u64]| h.first().map_or(0, |w| w & 0xffff_ffff);
@@ -435,6 +440,31 @@ mod tests {
         // `phnum` above the whole headers in the table: the cut keeps those (here the PT_PHDR
         // that gives the bias) rather than dropping the table.
         assert_eq!(program(&pie[..10], 2, 0x5555_0040), Program { tls: None, bias: 0x5555_0000, relro: None }, "the whole headers before a truncated one are read");
+    }
+
+    // Spec §1.1 (D-1.1): the start reads the first PT_PHDR, PT_TLS and PT_GNU_RELRO and nothing
+    // else, whatever comes between them: the one-bit filter ([`READS`]) lets through types that
+    // share those bits (here 0x46, 0x7000_0007, 0x6474_e512) only to the exact compare, which
+    // drops them, and skips the notes, the property, the stack and the loads.
+    #[test]
+    fn program_reads_only_its_three_types_among_any_others() {
+        let mut w = Vec::new();
+        for kind in [0x46, 0x7000_0007, 0x6474_e512, 1, 4, 0x6474_e553, 0x6474_e551, 0x6474_e550] {
+            w.extend(phdr(kind, 0x7000, 0x10, 0x10, 8));
+        }
+        w.extend(phdr(PT_PHDR, 0x40, 0x1c0, 0x1c0, 8));
+        w.extend(phdr(4, 0x9000, 0x20, 0x20, 8));
+        w.extend(phdr(PT_TLS, 0x2000, 8, 64, 16));
+        w.extend(phdr(PT_GNU_RELRO, 0x3000, 0x1000, 0x2000, 1));
+        w.extend(phdr(PT_PHDR, 0x80, 0x1c0, 0x1c0, 8));
+        w.extend(phdr(PT_TLS, 0x5000, 16, 32, 8));
+        w.extend(phdr(PT_GNU_RELRO, 0x6000, 0x1000, 0x1000, 1));
+        let n = w.len() / PHDR_WORDS;
+        let p = program(&w, n, 0x5555_0040);
+        let tls = Some(TlsImage { addr: 0x5555_2000, filesz: 8, memsz: 64, align: 16 });
+        assert_eq!(p, Program { tls, bias: 0x5555_0000, relro: Some((0x5555_3000, 0x2000)) }, "the first of each read type, no lookalike");
+        let none = program(&w[..8 * PHDR_WORDS], 8, 0x5555_0040);
+        assert_eq!(none, Program { tls: None, bias: 0, relro: None }, "types sharing a read type's bits are not read");
     }
 
     // Spec §12.6 (D-12.4, D-27.12): the `%n` check tests the segments where they were loaded,
