@@ -449,7 +449,9 @@ fn zic_never_writes_through_a_symbolic_link_below_the_output_directory() {
     // Trace: s31_9_c_1 (loaded data is untrusted: whatever links the source or the tree holds, every file zic
     // makes or removes lies under -d, and nothing outside it changes). libniji only: D-31.18.
     let Some(zic) = tools("zic", REF_ZIC) else { return };
-    let cases: &[(&str, &str, &[(&str, &str)])] = &[
+    // (what, source, symbolic links placed in -d before the run as (name, contents)).
+    type Case = (&'static str, &'static str, &'static [(&'static str, &'static str)]);
+    let cases: &[Case] = &[
         // Links in the source that would turn a name into a way out.
         ("link to a directory outside", "Zone A/B 1:00 - TST\nLink ../../victim X\nLink A/B X/y\n", &[]),
         ("link to a directory inside", "Zone S/z 1:00 - TST\nZone A/B 1:00 - TST\nLink S P/Q/R\nLink T P/Q/R/Z\nLink A/B P/Q/R/Z/W\n", &[]),
