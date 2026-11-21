@@ -33,7 +33,7 @@ use super::{read_auxv, read_image, AUXV_WORDS_MAX, OWN_BASE, START_ARGS, START_I
 use crate::posix::s27_dynlink::{find_in, int_result, vdso_headers};
 use crate::{conv, tb};
 use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
-use core::sync::atomic::{AtomicU64, AtomicUsize};
+use core::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
 use niji_abi::layout::{struct_dl_find_object, struct_dl_phdr_info};
 use niji_kernel::auxv::Auxv;
 use niji_kernel::uapi::AT_SYSINFO_EHDR;
@@ -331,6 +331,25 @@ pub(super) fn stage(k: usize, bias: usize, name: usize, phdr: usize, phnum: usiz
     }
 }
 
+/// Copy staged entry `from` to `to` (a set moved below the top before its publication,
+/// `super::dlopen::settle`): both invisible, `to` a slot freed after a grace period.
+pub(super) fn restage(from: usize, to: usize) {
+    if let (Some(a), Some(b)) = (slot(from), slot(to)) {
+        for (w, v) in b.iter().zip(a.iter()).take(4) {
+            w.store(v.load(Relaxed), Relaxed);
+        }
+    }
+}
+
+/// Index order is no longer load order (a set went below the top, `super::dlopen::settle`):
+/// [`iterate`] walks the chain from now on. Never cleared.
+static REORDERED: AtomicBool = AtomicBool::new(false);
+
+/// Mark [`REORDERED`] (before the set's publication).
+pub(super) fn reorder() {
+    REORDERED.store(true, Release);
+}
+
 /// The publication point of one `dlopen` (`super::dlopen::load_set`, after pass 2, before the
 /// constructors): the entries `base..len` (staged) become visible, `len` is the loader's count.
 pub(super) fn publish(base: usize, len: usize) {
@@ -400,6 +419,9 @@ fn call(cb: usize, info: &struct_dl_phdr_info, data: usize) -> i32 {
 /// order, the vDSO second (probe `== phdr`, P-12), until a callback returns non-zero (returned).
 extern "C" fn iterate(cb: usize, data: usize) -> i64 {
     read_section(|v| {
+        if REORDERED.load(Acquire) {
+            return iterate_chain(v, cb, data);
+        }
         let mut i = 0usize;
         while i < v.len0() {
             if let Some(e) = v.entry(i) {
@@ -430,6 +452,27 @@ fn iterate_past(v: &View, cb: usize, data: usize) -> i64 {
         i = i.wrapping_add(1);
     }
     0
+}
+
+/// [`iterate`] once index order is not load order ([`REORDERED`]): the objects in chain order
+/// (the walk `dladdr` makes, `super::dlopen::chain_find`), each reported when its entry is live.
+/// A node a `dlclose` unlinks keeps its `l_next` until its slot is reused after this reader has
+/// left, so the walk goes on to the live chain; an object a callback opens is linked at the end.
+#[cold]
+#[inline(never)]
+fn iterate_chain(v: &View, cb: usize, data: usize) -> i64 {
+    let mut out = 0i64;
+    let _ = super::dlopen::chain_find(|i| {
+        let e = if i < CAP { v.entry(i) } else { v.entry_past(i) };
+        match e.and_then(|e| report(v, i, &e, cb, data)) {
+            Some(r) => {
+                out = r;
+                true
+            }
+            None => false,
+        }
+    });
+    out
 }
 
 /// Call `cb` for live entry `i` (and the vDSO after entry 0): `Some` with the callback's nonzero
