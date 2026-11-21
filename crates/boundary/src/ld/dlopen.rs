@@ -1374,8 +1374,9 @@ pub(super) fn fini_exit(start: &[(usize, [u64; 3])]) -> bool {
 
 /// Fill `f` with the exit's sequence ([`fini_exit`]). Units: `0..m` the start-time objects in
 /// `start`'s order, chained (each before the next, so their own order holds); then the `dlopen`ed
-/// objects in the constructor log, not unloaded or finalising, by index (= load order: a slot is
-/// reused only from the top). A `dlopen`ed unit runs before each unit it needs or bound to.
+/// objects in the constructor log, not unloaded or finalising, in load order (by index until a set
+/// went below the top, then along the chain). A `dlopen`ed unit runs before each unit it needs or
+/// bound to.
 fn exit_set(l: &mut Loader, start: &[(usize, [u64; 3])], f: &mut Finis) {
     const NONE: u32 = u32::MAX;
     let as32 = ix32;
@@ -1409,7 +1410,11 @@ fn exit_set(l: &mut Loader, start: &[(usize, [u64; 3])], f: &mut Finis) {
         }
     }
     let mut n = m;
-    for i in l.n_start..l.n {
+    // Load order: by index, or along the chain once a set went below the top ([`settle`]).
+    let mut cur = if l.reordered { chain_next(l, 0) } else { Some(l.n_start).filter(|&i| i < l.n) };
+    for _ in 0..l.n {
+        let Some(i) = cur else { break };
+        cur = if l.reordered { chain_next(l, i) } else { Some(i.wrapping_add(1)).filter(|&j| j < l.n) };
         let k = logged.get(i).copied().unwrap_or(NONE);
         if k == NONE || l.nodes.get(i).is_none_or(|nd| nd.gone || nd.finalising) {
             continue;
@@ -2437,13 +2442,18 @@ fn settle(l: &mut Loader, t: usize, k: usize) -> Option<usize> {
 fn chain_tail(l: &Loader) -> usize {
     let mut i = 0usize;
     for _ in 0..l.n {
-        let next = l.nodes.get(i).map_or(0, |nd| super::debug::past_vdso(nd.l_next.load(Relaxed)));
-        match l.index_of(next) {
-            Some(j) if next != 0 => i = j,
-            _ => break,
+        match chain_next(l, i) {
+            Some(j) => i = j,
+            None => break,
         }
     }
     i
+}
+
+/// The node after node `i` in the chain (the vDSO's link map stepped over), under the lock.
+fn chain_next(l: &Loader, i: usize) -> Option<usize> {
+    let next = l.nodes.get(i).map_or(0, |nd| super::debug::past_vdso(nd.l_next.load(Relaxed)));
+    if next == 0 { None } else { l.index_of(next) }
 }
 
 /// Pin the definers of the unique-table entries recorded since mark `from`: an object whose

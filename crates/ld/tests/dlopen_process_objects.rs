@@ -572,6 +572,7 @@ static size_t dlen;
 static int K, N, M;
 static void *held[4096], *seen_h[8192];
 static int nseen, order[64], norder, wrong;
+static char bad[256];
 static volatile int stop;
 static int parse(const char *p, char *kind) {
     if (strncmp(p, dir, dlen) || p[dlen] != '/') return -2;
@@ -589,7 +590,8 @@ static int walk(struct dl_phdr_info *i, size_t size, void *data) {
     int v = i->dlpi_name[0] == '/' ? parse(i->dlpi_name, &kind) : -1;
     int loads = 0;
     for (int h = 0; h < i->dlpi_phnum && h < 64; h++) loads += i->dlpi_phdr[h].p_type == PT_LOAD;
-    if (v == -2 || i->dlpi_phnum == 0 || i->dlpi_phnum > 64 || !loads) __atomic_store_n(&wrong, 1, __ATOMIC_RELAXED);
+    if ((v == -2 || i->dlpi_phnum == 0 || i->dlpi_phnum > 64 || !loads) && !__atomic_exchange_n(&wrong, 1, __ATOMIC_RELAXED))
+        snprintf(bad, sizeof bad, "%.200s phnum %d loads %d", i->dlpi_name, (int)i->dlpi_phnum, loads);
     if (data && v >= 0 && norder < 64) order[norder++] = kind == 'q' ? v : -1 - v;
     return 0;
 }
@@ -633,11 +635,11 @@ int main(int argc, char **argv) {
             }
             if (norder != want) { printf("order count %d\n", i); return 1; }
         }
-        if (wrong) { printf("reader %d\n", wrong); return 1; }
+        if (wrong) { printf("reader %d: %s\n", wrong, bad); return 1; }
     }
     stop = 1;
     if (readers) pthread_join(t, 0);
-    if (wrong) { printf("reader %d\n", wrong); return 1; }
+    if (wrong) { printf("reader %d: %s\n", wrong, bad); return 1; }
     printf("distinct %d\nok\n", nseen);
     return 0;
 }
