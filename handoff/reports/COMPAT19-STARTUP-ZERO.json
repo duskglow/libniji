@@ -1,0 +1,31 @@
+{
+  "task": "COMPAT19-STARTUP-ZERO",
+  "model": "opus",
+  "tokens": null,
+  "result": "A normal dynamic start reads nothing for COMPAT-19: run_init's flag read moved into the C library's cold GLIBC_TUNABLES-only start path; empty main -4, 3 libs -4, clock_gettime -4 instructions, faults and static unchanged",
+  "branch": "task/compat19-startup-zero",
+  "head": "1a51abd35",
+  "gate": {"affected": "10721 passed / 0 failed (direct, 14 suites; conformance 32/32)", "peak": "13G"},
+  "accepted_first_attempt": null,
+  "rulings": [
+    {"item": "1120C start-up regression (#7046) bisected to COMPAT19-TUNABLE efe95309f (+2,532 empty main / +6,423 three libs / +2,595 clock_gettime; LD-SPLIT-3 and later merges add nothing); the cost is in ld.so (~1.3k per object searched + ~1.2k fixed), not the flag read this story removes, and is not removed here", "recommendation": "a follow-up story: per-function split of ld.so's start (gdb single-step of the bisect products), first test the candidate that each start dependency is fully checked twice (dlopen::check in image::open_candidate and map::load's plan), measuring origin/next first"},
+    {"item": "Brief step 1 (apply in the loader's PT_GNU_STACK branch) is impossible at start: that branch runs before libc is mapped and relocated, so libc's thread flag cannot be set there; the check sits inside the existing GLIBC_TUNABLES-is-set closure instead (no cost on a start without the tunable, count-verified)", "recommendation": "accept the tunables-closure placement (D-27.66 amended)"}
+  ],
+  "informational": [
+    "Zen 1 class not counted (budget); Skylake-SP paired count only",
+    "Two count traps found and fixed: calling the exported dl_iterate_phdr from libc adds a GLOB_DAT every start resolves (+1,409), and passing the borrowed Auxv to the cold function made early_init spill it (+~4)",
+    "plants3 ended rc 1 only because the count plant's fixed threshold did not fit the plants copy's ungrouped layout; plants4 reruns it self-relative: CAUGHT (grew by 4)"
+  ],
+  "refused": [],
+  "impact": [
+    {"kind": "perf", "what": "dynamic empty main (pie0) start, Skylake-SP, median of 101", "before": 740749, "after": 740745, "unit": "instr", "measured": true},
+    {"kind": "perf", "what": "dynamic 3 libraries (pie3) start, Skylake-SP", "before": 996291, "after": 996287, "unit": "instr", "measured": true},
+    {"kind": "perf", "what": "clock_gettime program start, Skylake-SP", "before": 774759, "after": 774755, "unit": "instr", "measured": true},
+    {"kind": "coverage", "what": "plants added (5 test plants + 1 self-relative count plant), all CAUGHT", "before": 0, "after": 6, "unit": "plants", "measured": true},
+    {"kind": "unblock", "what": "1120C start-up regression attributed to COMPAT19-TUNABLE's ld.so per-object cost, with a candidate for the follow-up", "before": null, "after": null, "unit": null, "measured": true}
+  ],
+  "improvement": "A count plant must compare against itself built the same way in the plants copy (the copy builds layout ungrouped, ~3.8k fewer instructions than the role); cargo xtask plants could offer a 'count relative to the unplanted copy' cmd form so no story hand-writes one",
+  "next_step": "land; open the ld.so per-object start-cost follow-up (bisect products on mei /mnt/zram/claude/compat19-startup-zero/bisect/)",
+  "report_file": "handoff/COMPAT19-STARTUP-ZERO.md",
+  "jobs": ["compat19-startup-zero-check4", "compat19-startup-zero-count4", "compat19-startup-zero-plants3", "compat19-startup-zero-plants4", "compat19-startup-zero-startup", "compat19-startup-zero-gate", "compat19-startup-zero-bisect"]
+}
