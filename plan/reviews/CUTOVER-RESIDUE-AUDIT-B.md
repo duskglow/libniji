@@ -6,7 +6,7 @@ already closed by the 11-20 red triage a few minutes after this brief was writte
 
 ## Method
 
-1. **The public root contains historic next in full.** The public root `7374bf3f2` ("Liella: public tree",
+1. **The public root contains historic next in full.** The public root commit `7374bf3f2` (the public tree,
    10-24 19:41) differs from `historic/next` `76041c218` (10-24 19:31) only by 784 deleted files, all under
    `handoff/` (471 of them `handoff/reports/`). `git diff --name-only historic/next 7374bf3f2 | grep -v ^handoff/`
    is empty. So a branch with 0 commits ahead of `historic/next` reached the public tree in full, apart from its
@@ -18,7 +18,7 @@ already closed by the 11-20 red triage a few minutes after this brief was writte
    `handoff/held-reds-triage/summary.md`).
 3. **Content against today's next.** Each branch's added lines outside `handoff/` (diff against its merge base with
    `historic/next`) were looked up in two places: the same file on origin/next, then anywhere in the origin/next
-   tree (file moves and splits). The `liella` -> `niji` rename was normalised first. Every remaining unmatched group
+   tree (file moves and splits). The project rename (former name -> `niji` in identifiers) was normalised first. Every remaining unmatched group
    was read by hand and its later form found on next (table below).
 4. **Symbols.** The compat names the LG stories targeted were checked in `spec/abi/compat-plan.tsv` (declared) and
    `spec/abi/compat-missing.tsv` (absent). Exports were checked with `readelf --dyn-syms` on a dynamic `libc.so.6`
@@ -32,7 +32,7 @@ outside handoff/ (normalised) and how many of them are on origin/next: same file
 | # | Story | Branch vs next | Still missing | Why it would matter | Size | Recommendation |
 |---|---|---|---|---|---|---|
 | 1 | MATH-M6-FPENV-HONOR-3 | 37 ahead; ancestor of -4 (CONTAINED 11-05); 160/255 lines | nothing. Unmatched: an older `s10_math_symbols.rs` test set, the MXCSR-read sqrt gate in `mathret.rs`/`fpu.rs`, one D-10.22 wording. Next runs `sqrtsd` on the caller's MXCSR without reading it (D-10.101). The libm-exact paragraph was folded into MATH-M6-F32-BENCH-2-R-2 (landed 11-05) | nothing | none | close (superseded by -4, then D-10.101) |
-| 2 | MATH-M6-SQRT-FTZ-5 | 18 ahead; ancestor of -6 and FPENV-HONOR-4; 243/302 | nothing. Unmatched: the `is_sqrt_in_place` gate, `liella_machine_sqrtss`, old tests. Superseded by D-10.22 (owner ruling 10-23), then D-10.101 (no MXCSR read) | nothing | none | close |
+| 2 | MATH-M6-SQRT-FTZ-5 | 18 ahead; ancestor of -6 and FPENV-HONOR-4; 243/302 | nothing. Unmatched: the `is_sqrt_in_place` gate, a separate `machine_sqrtss` entry, old tests. Superseded by D-10.22 (owner ruling 10-23), then D-10.101 (no MXCSR read) | nothing | none | close |
 | 3 | MATH-M6-F64-GAP-ROUND-TEST | 18 ahead; ancestor of -2 (CONTAINED); 623/726 | nothing. Unmatched: `elem_fast` wiring in `s10_math.tsv`/`_gen.rs` (replaced by the hot.rs dispatch), the register section's old numbering (now `docs/saturation/16-f64-exp-log-pow-gap-breakdown.md`), rewritten `fast64.rs` lines. `near`, `log_eps`, `exp_eps`, `reduce_exp`, `reduce_pow`, `logb_near` are all in fast64.rs | nothing | none | close |
 | 4 | MATH-M6-F64-GAP-EXP-REDUCE | 12 ahead; ancestor of -2 (CONTAINED); 466/546 | nothing. Same pattern as row 3 (Cody-Waite `reduce_exp` on next) | nothing | none | close |
 | 5 | MATH-M6-F32-BENCH | 15 ahead; ancestor of -2; 371/449 | nothing. Unmatched: older `fast32.rs` constants and cores. The cores are on next in `fast32/exp_log.rs` (`log1p_core`, `pow_core`); `TRIG_DELTA` etc. are in fast32.rs. `validation/percall/math_f32.c` landed through MATH-M6-F32-BENCH-2-R-2 (11-05) | nothing | none | close |
