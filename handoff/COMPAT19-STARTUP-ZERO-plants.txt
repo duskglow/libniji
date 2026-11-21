@@ -3,6 +3,7 @@
 # flag-read-back-in-run-init SURVIVED then (fixed count threshold, wrong for the copy's ungrouped layout).
 # Run 4 (self-relative count script, same code): flag-read-back-in-run-init CAUGHT, "count-plant: pie0 grew by 4"
 # (empty main 736,960 vs 736,956 unplanted; the baseline run counted 736,956 = 736,956), 0 WARN.
+# Run 5 (the five test plants again, on the final code, so that one rc 0 job holds them): 5 CAUGHT, 0 WARN.
 libc-start-no-thread-flag | crates/boundary/src/runtime.rs | lit:crate::thread::stacks_executable(); ==> (); | cargo test -p niji-ld --test exec_stack | msg:exec_stack_(program|dependency).*(FAILED|panicked)
 libc-start-no-main-stack | crates/boundary/src/runtime.rs | lit:crate::thread::exec_main_stack(top, get(AT_PAGESZ)); ==> let _ = (top, get(AT_PAGESZ)); | cargo test -p niji-ld --test exec_stack | msg:exec_stack_(program|dependency).*(FAILED|panicked)
 libc-start-never-asks | crates/boundary/src/runtime.rs | lit:c_int::from(niji_ld::map::executable_stack(heads)) ==> { let _ = heads; 0 } | cargo test -p niji-ld --test exec_stack | msg:exec_stack_(program|dependency).*(FAILED|panicked)

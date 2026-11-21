@@ -28,7 +28,8 @@ executable as they are).
   The shipped-profile `target/product/release/layout-bins.tsv` is identical to base df83365's.
 * plants3: 5 test plants CAUGHT, 0 WARN (job rc 1 only for the count plant, which survived because its fixed
   threshold did not fit the copy's ungrouped layout). plants4 (self-relative count script): CAUGHT, "pie0 grew by 4"
-  (736,960 vs 736,956; baseline equal). Results are in handoff/COMPAT19-STARTUP-ZERO-plants.txt.
+  (736,960 vs 736,956; baseline equal). plants5 (the five test plants on the final code): 5 CAUGHT, 0 WARN.
+  plants3 is SUPERSEDED by plants4 + plants5. Results are in handoff/COMPAT19-STARTUP-ZERO-plants.txt.
 * gate (direct, --base origin/next): 14 suites, 10,721 passed, 0 failed; conformance 32/32; static ok; peak 13G.
 * Superseded jobs: -prep/-check/-count1, -plants (rc 3), -plants2 (killed), -check2/-count2 (the GLOB_DAT),
   -check3/-count3 (the spill), -prof/-prof2 (perf throttled).

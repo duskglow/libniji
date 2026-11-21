@@ -14,7 +14,7 @@
   "informational": [
     "Zen 1 class not counted (budget); Skylake-SP paired count only",
     "Two count traps found and fixed: calling the exported dl_iterate_phdr from libc adds a GLOB_DAT every start resolves (+1,409), and passing the borrowed Auxv to the cold function made early_init spill it (+~4)",
-    "plants3 ended rc 1 only because the count plant's fixed threshold did not fit the plants copy's ungrouped layout; plants4 reruns it self-relative: CAUGHT (grew by 4)"
+    "SUPERSEDED: compat19-startup-zero-plants3 (rc 1: its count plant's fixed threshold did not fit the plants copy's ungrouped layout; plants4 reruns that plant self-relative: CAUGHT, grew by 4; plants5 reruns its five test plants: 5 CAUGHT)"
   ],
   "refused": [],
   "impact": [
@@ -27,5 +27,5 @@
   "improvement": "A count plant must compare against itself built the same way in the plants copy (the copy builds layout ungrouped, ~3.8k fewer instructions than the role); cargo xtask plants could offer a 'count relative to the unplanted copy' cmd form so no story hand-writes one",
   "next_step": "land; open the ld.so per-object start-cost follow-up (bisect products on mei /mnt/zram/claude/compat19-startup-zero/bisect/)",
   "report_file": "handoff/COMPAT19-STARTUP-ZERO.md",
-  "jobs": ["compat19-startup-zero-check4", "compat19-startup-zero-count4", "compat19-startup-zero-plants3", "compat19-startup-zero-plants4", "compat19-startup-zero-startup", "compat19-startup-zero-gate", "compat19-startup-zero-bisect"]
+  "jobs": ["compat19-startup-zero-check4", "compat19-startup-zero-count4", "compat19-startup-zero-plants4", "compat19-startup-zero-plants5", "compat19-startup-zero-startup", "compat19-startup-zero-gate", "compat19-startup-zero-bisect"]
 }
