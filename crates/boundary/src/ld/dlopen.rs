@@ -33,7 +33,7 @@
 
 use super::{array_words, c_string, dyn_string, env_entries, image_view, own_object, read_auxv, read_cache, report_nonshared, ProcImage, SysMapper};
 use super::table::{Arena, Gens, Grown, Records, Spill, Table, Wide, ZeroValid, INLINE};
-use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_PAGE};
+use super::{AT_FDCWD, AUXV_WORDS_MAX, INITIAL_TAIL, MAP_ANONYMOUS_I32, MAP_PRIVATE_I32, START_INTERP, START_N, START_ARGS, START_ORIGIN, START_PAGE, START_RUN_PATH};
 use crate::{conv, dlerr, raw, tb};
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
@@ -430,6 +430,11 @@ struct Loader {
     /// unpublished; [`reclaim`]).
     n_retired: usize,
     retired: Spill<(u32, bool), CAP>,
+    /// The program's `$ORIGIN` (DL-RUNPATH, [`program_origin`]): `origin[..origin_len]`, published
+    /// once (`origin_len` 0: not known); `origin_tried` once looked up.
+    origin_tried: bool,
+    origin_len: AtomicUsize,
+    origin: [u8; search::PATH_MAX],
 }
 
 /// One finaliser entry of a [`Finis`] past its [`CAP`] in place.
@@ -828,6 +833,24 @@ impl View {
         Gens::<CAP, OBJ_GENS>::index_in(self.node_dir(), nodes_base(), size_of::<Node>(), addr)
     }
 
+    /// The program's `$ORIGIN` once published ([`look_up_origin`]), else `None`.
+    pub(super) fn program_origin(&self) -> Option<&'static [u8]> {
+        let len_at = self.at.wrapping_add(core::mem::offset_of!(Loader, origin_len));
+        // UNSAFE(slice): the published origin length in the loader's own mapping.
+        #[allow(unsafe_code)]
+        // SAFETY: `self.at` is the loader's mapping, never unmapped; the field is an aligned AtomicUsize.
+        let len = unsafe { &*core::ptr::with_exposed_provenance::<AtomicUsize>(len_at) }.load(Acquire);
+        if len == 0 {
+            return None;
+        }
+        let at = self.at.wrapping_add(core::mem::offset_of!(Loader, origin));
+        // UNSAFE(slice): the published origin bytes in the loader's own mapping.
+        #[allow(unsafe_code)]
+        // SAFETY: the first `len` bytes were written before `origin_len` was stored (Release, read
+        // above with Acquire) and are never written again; the mapping is never unmapped.
+        Some(unsafe { conv::bytes_at(at, len) })
+    }
+
     /// A published, final field of node `i` (`off` from [`core::mem::offset_of`]).
     fn field<T: Copy + Default>(&self, i: usize, off: usize) -> T {
         let Some(node) = self.node_of(i) else { return T::default() };
@@ -1044,6 +1067,9 @@ fn loader() -> Option<&'static mut Loader> {
             let _ = raw::munmap(at, size_of::<Loader>());
             return None;
         }
+        if origin_listed(l) {
+            look_up_origin(l);
+        }
         dladdr::keep_start_paths(l);
         LOADER.store(at, Release);
     }
@@ -1120,6 +1146,13 @@ impl Loader {
     fn by_soname(&self, name: &[u8], k: usize) -> Option<usize> {
         let objs = self.objs_upto(k);
         objs.iter().enumerate().position(|(j, o)| self.nodes.get(j).is_some_and(|nd| !nd.gone) && soname(o) == Some(name))
+    }
+
+    /// An object without `DT_SONAME` loaded by the bare name `name` (a `DT_NEEDED` entry or a
+    /// `dlopen` name; probed: the reference matches that name too).
+    fn by_given(&self, name: &[u8], k: usize) -> Option<usize> {
+        let objs = self.objs_upto(k);
+        objs.iter().enumerate().position(|(j, o)| self.nodes.get(j).is_some_and(|nd| !nd.gone) && soname(o).is_none() && o.name == name)
     }
 
     /// `objs[..k]` (`k` may pass `n` by the objects of the attempt in progress).
@@ -2053,15 +2086,58 @@ impl Drop for Env {
 /// the path it was opened by; unknown for a start-time object without one).
 fn scope_of(l: &Loader, i: usize) -> Scope<'static> {
     let Some(o) = l.objs_upto(l.n.max(i.saturating_add(1))).get(i).copied() else { return Scope::default() };
-    let path = l.path(i);
-    let origin = path.iter().rposition(|&b| b == b'/').and_then(|p| path.get(..p.max(1)));
-    // UNSAFE(slice): a span of the loader's path arena, which rewinds only past freed objects.
+    let origin = if i == 0 {
+        // The program's has no path of its own ([`look_up_origin`]).
+        l.origin.get(..l.origin_len.load(Relaxed)).filter(|d| !d.is_empty())
+    } else {
+        let path = l.path(i);
+        path.iter().rposition(|&b| b == b'/').and_then(|p| path.get(..p.max(1)))
+    };
+    // UNSAFE(slice): a span of the loader's path arena, which rewinds only past freed objects, or
+    // the program's published origin.
     #[allow(unsafe_code)]
     // SAFETY: the bytes stay in the loader's mapping for the process's lifetime and a written span
     // is never rewritten while it is in use: a failed attempt rewinds only past its own spans, and
-    // `reclaim` only past the spans of objects already unmapped.
+    // `reclaim` only past the spans of objects already unmapped; the origin is written once.
     let origin: Option<&'static [u8]> = origin.map(|s| unsafe { conv::bytes_at(s.as_ptr().expose_provenance(), s.len()) });
     Scope { rpath: dyn_string(&o.dynm, DT_RPATH), runpath: dyn_string(&o.dynm, DT_RUNPATH), origin }
+}
+
+/// Whether a search can expand the program's `$ORIGIN`: a token in its `DT_RPATH` or `DT_RUNPATH`.
+fn origin_listed(l: &Loader) -> bool {
+    let Some(o) = l.objs_upto(l.n).first() else { return false };
+    [DT_RPATH, DT_RUNPATH].into_iter().any(|t| dyn_string(&o.dynm, t).is_some_and(|s| s.contains(&b'$')))
+}
+
+/// Look up the program's `$ORIGIN` once (DL-RUNPATH): the start's when it looked it up, else by
+/// the start's rule now ([`super::link::program_origin`]), so `dlopen`, `RTLD_DI_SERINFO` and
+/// `RTLD_DI_ORIGIN` expand it as the start did. Cold: only for a search that can expand it.
+#[cold]
+#[inline(never)]
+fn look_up_origin(l: &mut Loader) {
+    if l.origin_tried {
+        return;
+    }
+    l.origin_tried = true;
+    let mut out = PathBuf::default();
+    let len = START_ORIGIN[1].load(Acquire);
+    if len != 0 {
+        // UNSAFE(slice): the start's copy of the program's origin in its path store.
+        #[allow(unsafe_code)]
+        // SAFETY: the start kept the bytes in its path store, never released or rewritten, and
+        // published their length (Release) after writing them.
+        let kept = unsafe { conv::bytes_at(START_ORIGIN[0].load(Relaxed), len) };
+        if !out.push(kept) {
+            return;
+        }
+    } else if !super::link::program_origin(START_RUN_PATH.load(Relaxed), &mut out) {
+        return;
+    }
+    let dir = out.as_bytes();
+    if let Some(d) = l.origin.get_mut(..dir.len()) {
+        d.copy_from_slice(dir);
+        l.origin_len.store(dir.len(), Release);
+    }
 }
 
 /// Open the candidate `path` for the attempt whose next index is `k`; see [`Found`].
@@ -2209,9 +2285,13 @@ fn candidate(l: &mut Loader, path: &[u8], given: &'static [u8], k: usize, search
 fn find(l: &mut Loader, name: &'static [u8], chain: &[Scope<'_>], env: &Env, k: usize, noload: bool, page: u64) -> Found {
     let bare = dl::bare(name);
     if bare {
-        if let Some(j) = l.by_soname(name, k) {
+        if let Some(j) = l.by_soname(name, k).or_else(|| l.by_given(name, k)) {
             return Found::Loaded(j);
         }
+    } else if let Some(j) = l.by_soname(Native::INTERP.as_bytes(), k).filter(|&j| l.nodes.get(j).is_some_and(|nd| nd.l_name != 0 && c_string(nd.l_name) == name)) {
+        // `ld.so` by the path its link map is named by (its `PT_INTERP` path), RTLD_NOLOAD included
+        // (probed: another path to its file is not it).
+        return Found::Loaded(j);
     }
     let ctx = env.ctx();
     let mut out = Found::Missing;
@@ -2518,6 +2598,12 @@ fn load_set(l: &mut Loader, given: &'static [u8], m: Mode, caller: usize) -> Res
     l.tls_mark = l.surplus.len();
     let who = dlsym::caller_index(l, caller);
     let env = Env::read();
+    // The program's `$ORIGIN` for its own `$ORIGIN` name or an LD_LIBRARY_PATH token (its lists'
+    // tokens looked it up when the loader was made).
+    let token = |s: Option<&[u8]>| s.is_some_and(|s| s.contains(&b'$'));
+    if !l.origin_tried && ((who == 0 && token(Some(given))) || token(env.library_path)) {
+        look_up_origin(l);
+    }
     let chain = [scope_of(l, who), scope_of(l, 0)];
     let chain = if who == 0 { &chain[..1] } else { &chain[..] };
     let root = find(l, given, chain, &env, base, m.noload, page);
