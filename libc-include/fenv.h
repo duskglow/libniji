@@ -130,39 +130,57 @@ extern int fetestexceptflag (const unsigned short *, int) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_enum_FE_DIVBYZERO
 #  define __NIJI_D_enum_FE_DIVBYZERO 1
+#  ifndef FE_DIVBYZERO
 enum { FE_DIVBYZERO = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FE_DOWNWARD
 #  define __NIJI_D_enum_FE_DOWNWARD 1
+#  ifndef FE_DOWNWARD
 enum { FE_DOWNWARD = 1024 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FE_INEXACT
 #  define __NIJI_D_enum_FE_INEXACT 1
+#  ifndef FE_INEXACT
 enum { FE_INEXACT = 32 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FE_INVALID
 #  define __NIJI_D_enum_FE_INVALID 1
+#  ifndef FE_INVALID
 enum { FE_INVALID = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FE_OVERFLOW
 #  define __NIJI_D_enum_FE_OVERFLOW 1
+#  ifndef FE_OVERFLOW
 enum { FE_OVERFLOW = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FE_TONEAREST
 #  define __NIJI_D_enum_FE_TONEAREST 1
+#  ifndef FE_TONEAREST
 enum { FE_TONEAREST = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FE_TOWARDZERO
 #  define __NIJI_D_enum_FE_TOWARDZERO 1
+#  ifndef FE_TOWARDZERO
 enum { FE_TOWARDZERO = 3072 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FE_UNDERFLOW
 #  define __NIJI_D_enum_FE_UNDERFLOW 1
+#  ifndef FE_UNDERFLOW
 enum { FE_UNDERFLOW = 16 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FE_UPWARD
 #  define __NIJI_D_enum_FE_UPWARD 1
+#  ifndef FE_UPWARD
 enum { FE_UPWARD = 2048 };
+#  endif
 # endif
 # ifndef FE_ALL_EXCEPT
 #  define FE_ALL_EXCEPT 61
@@ -200,13 +218,13 @@ enum { FE_UPWARD = 2048 };
 #endif
 
 #if 1
-# define FE_DFL_ENV ((const fenv_t *) -1)
+# define FE_DFL_ENV ((fenv_t const *) (-1L))
 #endif
 #if __NIJI_GNU
-# define FE_NOMASK_ENV ((const fenv_t *) -2)
+# define FE_NOMASK_ENV ((fenv_t const *) (-2L))
 #endif
 #if __NIJI_ISOC >= 2023
-# define FE_DFL_MODE ((const femode_t *) -1)
+# define FE_DFL_MODE ((femode_t const *) (-1L))
 #endif
 
 __NIJI_END_C

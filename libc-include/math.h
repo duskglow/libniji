@@ -8,6 +8,44 @@
 
 __NIJI_BEGIN_C
 
+#if __NIJI_CXX >= 1
+# ifndef __NIJI_D_struct_drand48_data
+#  define __NIJI_D_struct_drand48_data 1
+struct drand48_data {
+  unsigned short __x[3];
+  unsigned short __old_x[3];
+  unsigned short __c;
+  unsigned short __init;
+  unsigned long long __a;
+};
+# endif
+# ifndef __NIJI_D_struct_random_data
+#  define __NIJI_D_struct_random_data 1
+struct random_data {
+  int * fptr;
+  int * rptr;
+  int * state;
+  int rand_type;
+  int rand_deg;
+  int rand_sep;
+  int * end_ptr;
+};
+# endif
+# ifndef __NIJI_D_struct_timespec
+#  define __NIJI_D_struct_timespec 1
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+# endif
+# ifndef __NIJI_D_struct_timeval
+#  define __NIJI_D_struct_timeval 1
+struct timeval {
+  long tv_sec;
+  long tv_usec;
+};
+# endif
+#endif
 #if 1
 # ifndef __NIJI_D___ino64_t
 #  define __NIJI_D___ino64_t 1
@@ -20,6 +58,280 @@ typedef long __off_t;
 # ifndef __NIJI_D___pid_t
 #  define __NIJI_D___pid_t 1
 typedef int __pid_t;
+# endif
+#endif
+#if __NIJI_CXX >= 1
+# ifndef __NIJI_D_blkcnt_t
+#  define __NIJI_D_blkcnt_t 1
+typedef long blkcnt_t;
+# endif
+# ifndef __NIJI_D_clock_t
+#  define __NIJI_D_clock_t 1
+typedef long clock_t;
+# endif
+# ifndef __NIJI_D_clockid_t
+#  define __NIJI_D_clockid_t 1
+typedef int clockid_t;
+# endif
+# ifndef __NIJI_D_dev_t
+#  define __NIJI_D_dev_t 1
+typedef unsigned long dev_t;
+# endif
+# ifndef __NIJI_D_div_t
+#  define __NIJI_D_div_t 1
+typedef struct {
+  int quot;
+  int rem;
+} div_t;
+# endif
+# ifndef __NIJI_D_fd_set
+#  define __NIJI_D_fd_set 1
+typedef struct {
+  long fds_bits[16];
+} fd_set;
+# endif
+# ifndef __NIJI_D_gid_t
+#  define __NIJI_D_gid_t 1
+typedef unsigned int gid_t;
+# endif
+# ifndef __NIJI_D_id_t
+#  define __NIJI_D_id_t 1
+typedef unsigned int id_t;
+# endif
+# ifndef __NIJI_D_ino_t
+#  define __NIJI_D_ino_t 1
+typedef unsigned long ino_t;
+# endif
+# ifndef __NIJI_D_int16_t
+#  define __NIJI_D_int16_t 1
+typedef short int16_t;
+# endif
+# ifndef __NIJI_D_int32_t
+#  define __NIJI_D_int32_t 1
+typedef int int32_t;
+# endif
+# ifndef __NIJI_D_int64_t
+#  define __NIJI_D_int64_t 1
+typedef long int64_t;
+# endif
+# ifndef __NIJI_D_int8_t
+#  define __NIJI_D_int8_t 1
+typedef signed char int8_t;
+# endif
+# ifndef __NIJI_D_key_t
+#  define __NIJI_D_key_t 1
+typedef int key_t;
+# endif
+# ifndef __NIJI_D_ldiv_t
+#  define __NIJI_D_ldiv_t 1
+typedef struct {
+  long quot;
+  long rem;
+} ldiv_t;
+# endif
+# ifndef __NIJI_D_lldiv_t
+#  define __NIJI_D_lldiv_t 1
+typedef struct {
+  long long quot;
+  long long rem;
+} lldiv_t;
+# endif
+# ifndef __NIJI_D_locale_t
+#  define __NIJI_D_locale_t 1
+typedef struct __locale_struct * locale_t;
+# endif
+# ifndef __NIJI_D_mode_t
+#  define __NIJI_D_mode_t 1
+typedef unsigned int mode_t;
+# endif
+# ifndef __NIJI_D_nlink_t
+#  define __NIJI_D_nlink_t 1
+typedef unsigned long nlink_t;
+# endif
+# ifndef __NIJI_D_off64_t
+#  define __NIJI_D_off64_t 1
+typedef long off64_t;
+# endif
+# ifndef __NIJI_D_off_t
+#  define __NIJI_D_off_t 1
+typedef long off_t;
+# endif
+# ifndef __NIJI_D_pid_t
+#  define __NIJI_D_pid_t 1
+typedef int pid_t;
+# endif
+# ifndef __NIJI_D_pthread_barrier_t
+#  define __NIJI_D_pthread_barrier_t 1
+typedef union {
+  char __size[32];
+  long __align;
+} pthread_barrier_t;
+# endif
+# ifndef __NIJI_D_pthread_barrierattr_t
+#  define __NIJI_D_pthread_barrierattr_t 1
+typedef union {
+  char __size[4];
+  int __align;
+} pthread_barrierattr_t;
+# endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D___atomic_wide_counter
+#  define __NIJI_D___atomic_wide_counter 1
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
+# endif
+# ifndef __NIJI_D_struct___pthread_cond_s
+#  define __NIJI_D_struct___pthread_cond_s 1
+struct __pthread_cond_s {
+  __atomic_wide_counter __wseq;
+  __atomic_wide_counter __g1_start;
+  unsigned int __g_refs[2];
+  unsigned int __g_size[2];
+  unsigned int __g1_orig_size;
+  unsigned int __wrefs;
+  unsigned int __g_signals[2];
+};
+# endif
+# ifndef __NIJI_D_pthread_cond_t
+#  define __NIJI_D_pthread_cond_t 1
+typedef union {
+  struct __pthread_cond_s __data;
+  char __size[48];
+  long long __align;
+} pthread_cond_t;
+# endif
+# ifndef __NIJI_D_pthread_condattr_t
+#  define __NIJI_D_pthread_condattr_t 1
+typedef union {
+  char __size[4];
+  int __align;
+} pthread_condattr_t;
+# endif
+# ifndef __NIJI_D_pthread_key_t
+#  define __NIJI_D_pthread_key_t 1
+typedef unsigned int pthread_key_t;
+# endif
+# ifndef __NIJI_D_struct___pthread_internal_list
+#  define __NIJI_D_struct___pthread_internal_list 1
+struct __pthread_internal_list {
+  struct __pthread_internal_list * __prev;
+  struct __pthread_internal_list * __next;
+};
+# endif
+# ifndef __NIJI_D___pthread_list_t
+#  define __NIJI_D___pthread_list_t 1
+typedef struct __pthread_internal_list __pthread_list_t;
+# endif
+# ifndef __NIJI_D_struct___pthread_mutex_s
+#  define __NIJI_D_struct___pthread_mutex_s 1
+struct __pthread_mutex_s {
+  int __lock;
+  unsigned int __count;
+  int __owner;
+  unsigned int __nusers;
+  int __kind;
+  short __spins;
+  short __elision;
+  __pthread_list_t __list;
+};
+# endif
+# ifndef __NIJI_D_pthread_mutex_t
+#  define __NIJI_D_pthread_mutex_t 1
+typedef union {
+  struct __pthread_mutex_s __data;
+  char __size[40];
+  long __align;
+} pthread_mutex_t;
+# endif
+# ifndef __NIJI_D_pthread_mutexattr_t
+#  define __NIJI_D_pthread_mutexattr_t 1
+typedef union {
+  char __size[4];
+  int __align;
+} pthread_mutexattr_t;
+# endif
+# ifndef __NIJI_D_pthread_once_t
+#  define __NIJI_D_pthread_once_t 1
+typedef int pthread_once_t;
+# endif
+# ifndef __NIJI_D_struct___pthread_rwlock_arch_t
+#  define __NIJI_D_struct___pthread_rwlock_arch_t 1
+struct __pthread_rwlock_arch_t {
+  unsigned int __readers;
+  unsigned int __writers;
+  unsigned int __wrphase_futex;
+  unsigned int __writers_futex;
+  unsigned int __pad3;
+  unsigned int __pad4;
+  int __cur_writer;
+  int __shared;
+  signed char __rwelision;
+  unsigned char __pad1[7];
+  unsigned long __pad2;
+  unsigned int __flags;
+  int : 32;
+};
+# endif
+# ifndef __NIJI_D_pthread_rwlock_t
+#  define __NIJI_D_pthread_rwlock_t 1
+typedef union {
+  struct __pthread_rwlock_arch_t __data;
+  char __size[56];
+  long __align;
+} pthread_rwlock_t;
+# endif
+# ifndef __NIJI_D_pthread_rwlockattr_t
+#  define __NIJI_D_pthread_rwlockattr_t 1
+typedef union {
+  char __size[8];
+  long __align;
+} pthread_rwlockattr_t;
+# endif
+# ifndef __NIJI_D_pthread_spinlock_t
+#  define __NIJI_D_pthread_spinlock_t 1
+typedef int volatile pthread_spinlock_t;
+# endif
+# ifndef __NIJI_D_pthread_t
+#  define __NIJI_D_pthread_t 1
+typedef unsigned long pthread_t;
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+# ifndef __NIJI_D_sigset_t
+#  define __NIJI_D_sigset_t 1
+typedef __sigset_t sigset_t;
+# endif
+# ifndef __NIJI_D_size_t
+#  define __NIJI_D_size_t 1
+typedef unsigned long size_t;
+# endif
+# ifndef __NIJI_D_ssize_t
+#  define __NIJI_D_ssize_t 1
+typedef long ssize_t;
+# endif
+# ifndef __NIJI_D_time_t
+#  define __NIJI_D_time_t 1
+typedef long time_t;
+# endif
+# ifndef __NIJI_D_timer_t
+#  define __NIJI_D_timer_t 1
+typedef void * timer_t;
+# endif
+# ifndef __NIJI_D_uid_t
+#  define __NIJI_D_uid_t 1
+typedef unsigned int uid_t;
 # endif
 #endif
 #if __NIJI_ISOC >= 1999
@@ -126,6 +438,653 @@ extern double tan (double);
 # ifndef __NIJI_D_tanh
 #  define __NIJI_D_tanh 1
 extern double tanh (double);
+# endif
+#endif
+#if __NIJI_CXX >= 1
+# ifndef __NIJI_D__Exit
+#  define __NIJI_D__Exit 1
+extern void _Exit (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___ctype_get_mb_cur_max
+#  define __NIJI_D___ctype_get_mb_cur_max 1
+extern unsigned long __ctype_get_mb_cur_max (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_a64l
+#  define __NIJI_D_a64l 1
+extern long int a64l (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_abort
+#  define __NIJI_D_abort 1
+extern void abort (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_abs
+#  define __NIJI_D_abs 1
+extern int abs (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_aligned_alloc
+#  define __NIJI_D_aligned_alloc 1
+extern void *aligned_alloc (unsigned long, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_arc4random
+#  define __NIJI_D_arc4random 1
+extern unsigned int arc4random (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_arc4random_buf
+#  define __NIJI_D_arc4random_buf 1
+extern void arc4random_buf (void *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_arc4random_uniform
+#  define __NIJI_D_arc4random_uniform 1
+extern unsigned int arc4random_uniform (unsigned int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_at_quick_exit
+#  define __NIJI_D_at_quick_exit 1
+extern int at_quick_exit (void (*) (void)) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_atexit
+#  define __NIJI_D_atexit 1
+extern int atexit (void (*) (void)) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_atof
+#  define __NIJI_D_atof 1
+extern double atof (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_atoi
+#  define __NIJI_D_atoi 1
+extern int atoi (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_atol
+#  define __NIJI_D_atol 1
+extern long int atol (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_atoll
+#  define __NIJI_D_atoll 1
+extern long long int atoll (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___compar_fn_t
+#  define __NIJI_D___compar_fn_t 1
+typedef int (*__compar_fn_t)(void const *, void const *);
+# endif
+# ifndef __NIJI_D_bsearch
+#  define __NIJI_D_bsearch 1
+extern void *bsearch (const void *, const void *, unsigned long, unsigned long, __compar_fn_t);
+# endif
+# ifndef __NIJI_D_calloc
+#  define __NIJI_D_calloc 1
+extern void *calloc (unsigned long, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_canonicalize_file_name
+#  define __NIJI_D_canonicalize_file_name 1
+extern char *canonicalize_file_name (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_clearenv
+#  define __NIJI_D_clearenv 1
+extern int clearenv (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_div
+#  define __NIJI_D_div 1
+extern div_t div (int, int);
+# endif
+# ifndef __NIJI_D_drand48
+#  define __NIJI_D_drand48 1
+extern double drand48 (void) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_drand48_r
+#  define __NIJI_D_drand48_r 1
+extern int drand48_r (struct drand48_data *, double *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_ecvt
+#  define __NIJI_D_ecvt 1
+extern char *ecvt (double, int, int *, int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_ecvt_r
+#  define __NIJI_D_ecvt_r 1
+extern int ecvt_r (double, int, int *, int *, char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_erand48
+#  define __NIJI_D_erand48 1
+extern double erand48 (short unsigned int *) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_erand48_r
+#  define __NIJI_D_erand48_r 1
+extern int erand48_r (short unsigned int *, struct drand48_data *, double *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_exit
+#  define __NIJI_D_exit 1
+extern void exit (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_fcvt
+#  define __NIJI_D_fcvt 1
+extern char *fcvt (double, int, int *, int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_fcvt_r
+#  define __NIJI_D_fcvt_r 1
+extern int fcvt_r (double, int, int *, int *, char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_free
+#  define __NIJI_D_free 1
+extern void free (void *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_gcvt
+#  define __NIJI_D_gcvt 1
+extern char *gcvt (double, int, char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_getenv
+#  define __NIJI_D_getenv 1
+extern char *getenv (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_getloadavg
+#  define __NIJI_D_getloadavg 1
+extern int getloadavg (double *, int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_getpt
+#  define __NIJI_D_getpt 1
+extern int getpt (void);
+# endif
+# ifndef __NIJI_D_getsubopt
+#  define __NIJI_D_getsubopt 1
+extern int getsubopt (char **, char *const *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_grantpt
+#  define __NIJI_D_grantpt 1
+extern int grantpt (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_initstate
+#  define __NIJI_D_initstate 1
+extern char *initstate (unsigned int, char *, unsigned long) __NIJI_NOTHROW;
+# endif
+struct random_data;
+# ifndef __NIJI_D_initstate_r
+#  define __NIJI_D_initstate_r 1
+extern int initstate_r (unsigned int, char *, unsigned long, struct random_data *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_jrand48
+#  define __NIJI_D_jrand48 1
+extern long int jrand48 (short unsigned int *) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_jrand48_r
+#  define __NIJI_D_jrand48_r 1
+extern int jrand48_r (short unsigned int *, struct drand48_data *, long int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_l64a
+#  define __NIJI_D_l64a 1
+extern char *l64a (long int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_labs
+#  define __NIJI_D_labs 1
+extern long int labs (long int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_lcong48
+#  define __NIJI_D_lcong48 1
+extern void lcong48 (short unsigned int *) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_lcong48_r
+#  define __NIJI_D_lcong48_r 1
+extern int lcong48_r (short unsigned int *, struct drand48_data *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_ldiv
+#  define __NIJI_D_ldiv 1
+extern ldiv_t ldiv (long int, long int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_llabs
+#  define __NIJI_D_llabs 1
+extern long long int llabs (long long int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_lldiv
+#  define __NIJI_D_lldiv 1
+extern lldiv_t lldiv (long long int, long long int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_lrand48
+#  define __NIJI_D_lrand48 1
+extern long int lrand48 (void) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_lrand48_r
+#  define __NIJI_D_lrand48_r 1
+extern int lrand48_r (struct drand48_data *, long int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_malloc
+#  define __NIJI_D_malloc 1
+extern void *malloc (unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_mblen
+#  define __NIJI_D_mblen 1
+extern int mblen (const char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_mbstowcs
+#  define __NIJI_D_mbstowcs 1
+extern unsigned long mbstowcs (wchar_t *, const char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_mbtowc
+#  define __NIJI_D_mbtowc 1
+extern int mbtowc (wchar_t *, const char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_mkdtemp
+#  define __NIJI_D_mkdtemp 1
+extern char *mkdtemp (char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_mkostemp
+#  define __NIJI_D_mkostemp 1
+#  if __NIJI_FOB64
+extern int mkostemp (char *, int) __asm__ ("mkostemp64");
+#  else
+extern int mkostemp (char *, int);
+#  endif
+# endif
+# ifndef __NIJI_D_mkostemp64
+#  define __NIJI_D_mkostemp64 1
+extern int mkostemp64 (char *, int);
+# endif
+# ifndef __NIJI_D_mkostemps
+#  define __NIJI_D_mkostemps 1
+#  if __NIJI_FOB64
+extern int mkostemps (char *, int, int) __asm__ ("mkostemps64");
+#  else
+extern int mkostemps (char *, int, int);
+#  endif
+# endif
+# ifndef __NIJI_D_mkostemps64
+#  define __NIJI_D_mkostemps64 1
+extern int mkostemps64 (char *, int, int);
+# endif
+# ifndef __NIJI_D_mkstemp
+#  define __NIJI_D_mkstemp 1
+#  if (__NIJI_POSIX >= 200809 && !__NIJI_FOB64) || __NIJI_XSI >= 450
+#   if __NIJI_FOB64
+extern int mkstemp (char *) __asm__ ("mkstemp64");
+#   else
+extern int mkstemp (char *);
+#   endif
+#  elif __NIJI_FOB64
+extern int mkstemp (char *) __asm__ ("mkstemp64");
+#  endif
+# endif
+# ifndef __NIJI_D_mkstemp64
+#  define __NIJI_D_mkstemp64 1
+extern int mkstemp64 (char *);
+# endif
+# ifndef __NIJI_D_mkstemps
+#  define __NIJI_D_mkstemps 1
+#  if __NIJI_MISC && !__NIJI_FOB64
+extern int mkstemps (char *, int);
+#  elif __NIJI_FOB64
+extern int mkstemps (char *, int) __asm__ ("mkstemps64");
+#  endif
+# endif
+# ifndef __NIJI_D_mkstemps64
+#  define __NIJI_D_mkstemps64 1
+extern int mkstemps64 (char *, int);
+# endif
+# ifndef __NIJI_D_mktemp
+#  define __NIJI_D_mktemp 1
+extern char *mktemp (char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_mrand48
+#  define __NIJI_D_mrand48 1
+extern long int mrand48 (void) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_mrand48_r
+#  define __NIJI_D_mrand48_r 1
+extern int mrand48_r (struct drand48_data *, long int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_nrand48
+#  define __NIJI_D_nrand48 1
+extern long int nrand48 (short unsigned int *) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_nrand48_r
+#  define __NIJI_D_nrand48_r 1
+extern int nrand48_r (short unsigned int *, struct drand48_data *, long int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_on_exit
+#  define __NIJI_D_on_exit 1
+extern int on_exit (void (*) (int, void *), void *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_posix_memalign
+#  define __NIJI_D_posix_memalign 1
+extern int posix_memalign (void **, unsigned long, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_posix_openpt
+#  define __NIJI_D_posix_openpt 1
+extern int posix_openpt (int);
+# endif
+# ifndef __NIJI_D___sigset_t
+#  define __NIJI_D___sigset_t 1
+typedef struct {
+  unsigned long __val[16];
+} __sigset_t;
+# endif
+struct timespec;
+# ifndef __NIJI_D_pselect
+#  define __NIJI_D_pselect 1
+extern int pselect (int, fd_set *, fd_set *, fd_set *, const struct timespec *, const __sigset_t *);
+# endif
+# ifndef __NIJI_D_ptsname
+#  define __NIJI_D_ptsname 1
+extern char *ptsname (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_ptsname_r
+#  define __NIJI_D_ptsname_r 1
+extern int ptsname_r (int, char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_putenv
+#  define __NIJI_D_putenv 1
+extern int putenv (char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_qecvt
+#  define __NIJI_D_qecvt 1
+extern char *qecvt (long double, int, int *, int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_qecvt_r
+#  define __NIJI_D_qecvt_r 1
+extern int qecvt_r (long double, int, int *, int *, char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_qfcvt
+#  define __NIJI_D_qfcvt 1
+extern char *qfcvt (long double, int, int *, int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_qfcvt_r
+#  define __NIJI_D_qfcvt_r 1
+extern int qfcvt_r (long double, int, int *, int *, char *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_qgcvt
+#  define __NIJI_D_qgcvt 1
+extern char *qgcvt (long double, int, char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D___compar_fn_t
+#  define __NIJI_D___compar_fn_t 1
+typedef int (*__compar_fn_t)(void const *, void const *);
+# endif
+# ifndef __NIJI_D_qsort
+#  define __NIJI_D_qsort 1
+extern void qsort (void *, unsigned long, unsigned long, __compar_fn_t);
+# endif
+# ifndef __NIJI_D___compar_d_fn_t
+#  define __NIJI_D___compar_d_fn_t 1
+typedef int (*__compar_d_fn_t)(void const *, void const *, void *);
+# endif
+# ifndef __NIJI_D_qsort_r
+#  define __NIJI_D_qsort_r 1
+extern void qsort_r (void *, unsigned long, unsigned long, __compar_d_fn_t, void *);
+# endif
+# ifndef __NIJI_D_quick_exit
+#  define __NIJI_D_quick_exit 1
+extern void quick_exit (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_rand
+#  define __NIJI_D_rand 1
+extern int rand (void) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_rand_r
+#  define __NIJI_D_rand_r 1
+extern int rand_r (unsigned int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_random
+#  define __NIJI_D_random 1
+extern long int random (void) __NIJI_NOTHROW;
+# endif
+struct random_data;
+# ifndef __NIJI_D_random_r
+#  define __NIJI_D_random_r 1
+extern int random_r (struct random_data *, int *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_realloc
+#  define __NIJI_D_realloc 1
+extern void *realloc (void *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_reallocarray
+#  define __NIJI_D_reallocarray 1
+extern void *reallocarray (void *, unsigned long, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_realpath
+#  define __NIJI_D_realpath 1
+extern char *realpath (const char *, char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_rpmatch
+#  define __NIJI_D_rpmatch 1
+extern int rpmatch (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_secure_getenv
+#  define __NIJI_D_secure_getenv 1
+extern char *secure_getenv (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_seed48
+#  define __NIJI_D_seed48 1
+extern short unsigned int *seed48 (short unsigned int *) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_seed48_r
+#  define __NIJI_D_seed48_r 1
+extern int seed48_r (short unsigned int *, struct drand48_data *) __NIJI_NOTHROW;
+# endif
+struct timeval;
+# ifndef __NIJI_D_select
+#  define __NIJI_D_select 1
+extern int select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
+# endif
+# ifndef __NIJI_D_setenv
+#  define __NIJI_D_setenv 1
+extern int setenv (const char *, const char *, int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_setstate
+#  define __NIJI_D_setstate 1
+extern char *setstate (char *) __NIJI_NOTHROW;
+# endif
+struct random_data;
+# ifndef __NIJI_D_setstate_r
+#  define __NIJI_D_setstate_r 1
+extern int setstate_r (char *, struct random_data *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_srand
+#  define __NIJI_D_srand 1
+extern void srand (unsigned int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_srand48
+#  define __NIJI_D_srand48 1
+extern void srand48 (long int) __NIJI_NOTHROW;
+# endif
+struct drand48_data;
+# ifndef __NIJI_D_srand48_r
+#  define __NIJI_D_srand48_r 1
+extern int srand48_r (long int, struct drand48_data *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_srandom
+#  define __NIJI_D_srandom 1
+extern void srandom (unsigned int) __NIJI_NOTHROW;
+# endif
+struct random_data;
+# ifndef __NIJI_D_srandom_r
+#  define __NIJI_D_srandom_r 1
+extern int srandom_r (unsigned int, struct random_data *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strfromd
+#  define __NIJI_D_strfromd 1
+extern int strfromd (char *, unsigned long, const char *, double) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strfromf
+#  define __NIJI_D_strfromf 1
+extern int strfromf (char *, unsigned long, const char *, float) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strfromf128
+#  define __NIJI_D_strfromf128 1
+extern int strfromf128 (char *, unsigned long, const char *, _Float128) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strfromf32
+#  define __NIJI_D_strfromf32 1
+extern int strfromf32 (char *, unsigned long, const char *, _Float32) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strfromf32x
+#  define __NIJI_D_strfromf32x 1
+extern int strfromf32x (char *, unsigned long, const char *, _Float32x) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strfromf64
+#  define __NIJI_D_strfromf64 1
+extern int strfromf64 (char *, unsigned long, const char *, _Float64) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strfromf64x
+#  define __NIJI_D_strfromf64x 1
+extern int strfromf64x (char *, unsigned long, const char *, _Float64x) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strfroml
+#  define __NIJI_D_strfroml 1
+extern int strfroml (char *, unsigned long, const char *, long double) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtod
+#  define __NIJI_D_strtod 1
+extern double strtod (const char *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtod_l
+#  define __NIJI_D_strtod_l 1
+extern double strtod_l (const char *, char **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof
+#  define __NIJI_D_strtof 1
+extern float strtof (const char *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof128
+#  define __NIJI_D_strtof128 1
+extern _Float128 strtof128 (const char *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof128_l
+#  define __NIJI_D_strtof128_l 1
+extern _Float128 strtof128_l (const char *, char **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof32
+#  define __NIJI_D_strtof32 1
+extern _Float32 strtof32 (const char *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof32_l
+#  define __NIJI_D_strtof32_l 1
+extern _Float32 strtof32_l (const char *, char **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof32x
+#  define __NIJI_D_strtof32x 1
+extern _Float32x strtof32x (const char *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof32x_l
+#  define __NIJI_D_strtof32x_l 1
+extern _Float32x strtof32x_l (const char *, char **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof64
+#  define __NIJI_D_strtof64 1
+extern _Float64 strtof64 (const char *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof64_l
+#  define __NIJI_D_strtof64_l 1
+extern _Float64 strtof64_l (const char *, char **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof64x
+#  define __NIJI_D_strtof64x 1
+extern _Float64x strtof64x (const char *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof64x_l
+#  define __NIJI_D_strtof64x_l 1
+extern _Float64x strtof64x_l (const char *, char **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtof_l
+#  define __NIJI_D_strtof_l 1
+extern float strtof_l (const char *, char **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtol
+#  define __NIJI_D_strtol 1
+#  if __NIJI_ISOC >= 2023
+extern long int strtol (const char *, char **, int) __NIJI_NOTHROW __asm__ ("__isoc23_strtol");
+#  elif __NIJI_ISOC < 2023
+extern long int strtol (const char *, char **, int) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_strtol_l
+#  define __NIJI_D_strtol_l 1
+extern long int strtol_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtol_l");
+# endif
+# ifndef __NIJI_D_strtold
+#  define __NIJI_D_strtold 1
+extern long double strtold (const char *, char **) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtold_l
+#  define __NIJI_D_strtold_l 1
+extern long double strtold_l (const char *, char **, locale_t) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_strtoll
+#  define __NIJI_D_strtoll 1
+#  if __NIJI_ISOC >= 2023
+extern long long int strtoll (const char *, char **, int) __NIJI_NOTHROW __asm__ ("__isoc23_strtoll");
+#  elif __NIJI_ISOC >= 1999 && __NIJI_ISOC < 2023
+extern long long int strtoll (const char *, char **, int) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_strtoll_l
+#  define __NIJI_D_strtoll_l 1
+extern long long int strtoll_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoll_l");
+# endif
+# ifndef __NIJI_D_strtoq
+#  define __NIJI_D_strtoq 1
+#  if __NIJI_ISOC >= 2023 && __NIJI_POSIX >= 1
+extern long long int strtoq (const char *, char **, int) __NIJI_NOTHROW __asm__ ("__isoc23_strtoll");
+#  elif __NIJI_ISOC < 2023 && __NIJI_MISC
+extern long long int strtoq (const char *, char **, int) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_strtoul
+#  define __NIJI_D_strtoul 1
+#  if __NIJI_ISOC >= 2023
+extern long unsigned int strtoul (const char *, char **, int) __NIJI_NOTHROW __asm__ ("__isoc23_strtoul");
+#  elif __NIJI_ISOC < 2023
+extern long unsigned int strtoul (const char *, char **, int) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_strtoul_l
+#  define __NIJI_D_strtoul_l 1
+extern long unsigned int strtoul_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoul_l");
+# endif
+# ifndef __NIJI_D_strtoull
+#  define __NIJI_D_strtoull 1
+#  if __NIJI_ISOC >= 2023
+extern long long unsigned int strtoull (const char *, char **, int) __NIJI_NOTHROW __asm__ ("__isoc23_strtoull");
+#  elif __NIJI_ISOC >= 1999 && __NIJI_ISOC < 2023
+extern long long unsigned int strtoull (const char *, char **, int) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_strtoull_l
+#  define __NIJI_D_strtoull_l 1
+extern long long unsigned int strtoull_l (const char *, char **, int, locale_t) __NIJI_NOTHROW __asm__ ("__isoc23_strtoull_l");
+# endif
+# ifndef __NIJI_D_strtouq
+#  define __NIJI_D_strtouq 1
+#  if __NIJI_ISOC >= 2023 && __NIJI_POSIX >= 1
+extern long long unsigned int strtouq (const char *, char **, int) __NIJI_NOTHROW __asm__ ("__isoc23_strtoull");
+#  elif __NIJI_ISOC < 2023 && __NIJI_MISC
+extern long long unsigned int strtouq (const char *, char **, int) __NIJI_NOTHROW;
+#  endif
+# endif
+# ifndef __NIJI_D_system
+#  define __NIJI_D_system 1
+extern int system (const char *);
+# endif
+# ifndef __NIJI_D_unlockpt
+#  define __NIJI_D_unlockpt 1
+extern int unlockpt (int) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_unsetenv
+#  define __NIJI_D_unsetenv 1
+extern int unsetenv (const char *) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_valloc
+#  define __NIJI_D_valloc 1
+extern void *valloc (unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_wcstombs
+#  define __NIJI_D_wcstombs 1
+extern unsigned long wcstombs (char *, const wchar_t *, unsigned long) __NIJI_NOTHROW;
+# endif
+# ifndef __NIJI_D_wctomb
+#  define __NIJI_D_wctomb 1
+extern int wctomb (char *, wchar_t) __NIJI_NOTHROW;
 # endif
 #endif
 #if __NIJI_GNU
@@ -3159,10 +4118,6 @@ extern int finitef (float) __NIJI_NOTHROW;
 #  define __NIJI_D_finitel 1
 extern int finitel (long double) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_isinf
-#  define __NIJI_D_isinf 1
-extern int isinf (double);
-# endif
 # ifndef __NIJI_D_isinff
 #  define __NIJI_D_isinff 1
 extern int isinff (float) __NIJI_NOTHROW;
@@ -3265,10 +4220,6 @@ extern float gammaf (float) __NIJI_NOTHROW;
 #  define __NIJI_D_gammal 1
 extern long double gammal (long double) __NIJI_NOTHROW;
 # endif
-# ifndef __NIJI_D_isnan
-#  define __NIJI_D_isnan 1
-extern int isnan (double);
-# endif
 # ifndef __NIJI_D_isnanf
 #  define __NIJI_D_isnanf 1
 extern int isnanf (float) __NIJI_NOTHROW;
@@ -3313,349 +4264,206 @@ extern double yn (int, double) __NIJI_NOTHROW;
 #if __NIJI_ISOC >= 1999
 # ifndef __NIJI_D_enum_FP_INFINITE
 #  define __NIJI_D_enum_FP_INFINITE 1
+#  ifndef FP_INFINITE
 enum { FP_INFINITE = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FP_NAN
 #  define __NIJI_D_enum_FP_NAN 1
+#  ifndef FP_NAN
 enum { FP_NAN = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FP_NORMAL
 #  define __NIJI_D_enum_FP_NORMAL 1
+#  ifndef FP_NORMAL
 enum { FP_NORMAL = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FP_SUBNORMAL
 #  define __NIJI_D_enum_FP_SUBNORMAL 1
+#  ifndef FP_SUBNORMAL
 enum { FP_SUBNORMAL = 3 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FP_ZERO
 #  define __NIJI_D_enum_FP_ZERO 1
+#  ifndef FP_ZERO
 enum { FP_ZERO = 2 };
+#  endif
 # endif
 #endif
 #if __NIJI_ISOC >= 2023
 # ifndef __NIJI_D_enum_FP_INT_DOWNWARD
 #  define __NIJI_D_enum_FP_INT_DOWNWARD 1
+#  ifndef FP_INT_DOWNWARD
 enum { FP_INT_DOWNWARD = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FP_INT_TONEAREST
 #  define __NIJI_D_enum_FP_INT_TONEAREST 1
+#  ifndef FP_INT_TONEAREST
 enum { FP_INT_TONEAREST = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FP_INT_TONEARESTFROMZERO
 #  define __NIJI_D_enum_FP_INT_TONEARESTFROMZERO 1
+#  ifndef FP_INT_TONEARESTFROMZERO
 enum { FP_INT_TONEARESTFROMZERO = 3 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FP_INT_TOWARDZERO
 #  define __NIJI_D_enum_FP_INT_TOWARDZERO 1
+#  ifndef FP_INT_TOWARDZERO
 enum { FP_INT_TOWARDZERO = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_FP_INT_UPWARD
 #  define __NIJI_D_enum_FP_INT_UPWARD 1
+#  ifndef FP_INT_UPWARD
 enum { FP_INT_UPWARD = 0 };
+#  endif
 # endif
 #endif
 #if 1
 # ifndef HUGE_VAL
-#  define HUGE_VAL __builtin_inf ()
+#  define HUGE_VAL (__builtin_inf ())
+# endif
+#endif
+#if __NIJI_CXX >= 1
+# ifndef BIG_ENDIAN
+#  define BIG_ENDIAN 4321
+# endif
+# ifndef BYTE_ORDER
+#  define BYTE_ORDER 1234
+# endif
+# ifndef EXIT_FAILURE
+#  define EXIT_FAILURE 1
+# endif
+# ifndef EXIT_SUCCESS
+#  define EXIT_SUCCESS 0
+# endif
+# ifndef FD_SETSIZE
+#  define FD_SETSIZE 1024
+# endif
+# ifndef LITTLE_ENDIAN
+#  define LITTLE_ENDIAN 1234
+# endif
+# ifndef NFDBITS
+#  define NFDBITS 64
+# endif
+# ifndef PDP_ENDIAN
+#  define PDP_ENDIAN 3412
+# endif
+# ifndef RAND_MAX
+#  define RAND_MAX 2147483647
+# endif
+# ifndef WCONTINUED
+#  define WCONTINUED 8
+# endif
+# ifndef WEXITED
+#  define WEXITED 4
+# endif
+# ifndef WNOHANG
+#  define WNOHANG 1
+# endif
+# ifndef WNOWAIT
+#  define WNOWAIT 16777216
+# endif
+# ifndef WSTOPPED
+#  define WSTOPPED 2
+# endif
+# ifndef WUNTRACED
+#  define WUNTRACED 2
 # endif
 #endif
 #if __NIJI_GNU
 # ifndef M_1_PIf
-#  define M_1_PIf 3.18309873e-1f
-# endif
-# ifndef M_1_PIf128
-#  define M_1_PIf128 3.18309886183790671537767526745028737e-1f128
-# endif
-# ifndef M_1_PIf32
-#  define M_1_PIf32 3.18309873e-1f32
-# endif
-# ifndef M_1_PIf32x
-#  define M_1_PIf32x 3.1830988618379069e-1f32x
-# endif
-# ifndef M_1_PIf64
-#  define M_1_PIf64 3.1830988618379069e-1f64
-# endif
-# ifndef M_1_PIf64x
-#  define M_1_PIf64x 3.18309886183790671538e-1f64x
+#  define M_1_PIf (0x1.45f306p-2f)
 # endif
 # ifndef M_1_PIl
-#  define M_1_PIl 3.18309886183790671538e-1L
+#  define M_1_PIl (0x1.45f306dc9c882a54p-2L)
 # endif
 # ifndef M_2_PIf
-#  define M_2_PIf 6.36619747e-1f
-# endif
-# ifndef M_2_PIf128
-#  define M_2_PIf128 6.36619772367581343075535053490057474e-1f128
-# endif
-# ifndef M_2_PIf32
-#  define M_2_PIf32 6.36619747e-1f32
-# endif
-# ifndef M_2_PIf32x
-#  define M_2_PIf32x 6.3661977236758138e-1f32x
-# endif
-# ifndef M_2_PIf64
-#  define M_2_PIf64 6.3661977236758138e-1f64
-# endif
-# ifndef M_2_PIf64x
-#  define M_2_PIf64x 6.36619772367581343076e-1f64x
+#  define M_2_PIf (0x1.45f306p-1f)
 # endif
 # ifndef M_2_PIl
-#  define M_2_PIl 6.36619772367581343076e-1L
+#  define M_2_PIl (0x1.45f306dc9c882a54p-1L)
 # endif
 # ifndef M_2_SQRTPIf
-#  define M_2_SQRTPIf 1.12837923e0f
-# endif
-# ifndef M_2_SQRTPIf128
-#  define M_2_SQRTPIf128 1.12837916709551257389615890312154526e0f128
-# endif
-# ifndef M_2_SQRTPIf32
-#  define M_2_SQRTPIf32 1.12837923e0f32
-# endif
-# ifndef M_2_SQRTPIf32x
-#  define M_2_SQRTPIf32x 1.1283791670955126e0f32x
-# endif
-# ifndef M_2_SQRTPIf64
-#  define M_2_SQRTPIf64 1.1283791670955126e0f64
-# endif
-# ifndef M_2_SQRTPIf64x
-#  define M_2_SQRTPIf64x 1.12837916709551257385e0f64x
+#  define M_2_SQRTPIf (0x1.20dd76p+0f)
 # endif
 # ifndef M_2_SQRTPIl
-#  define M_2_SQRTPIl 1.12837916709551257385e0L
+#  define M_2_SQRTPIl (0x1.20dd750429b6d11ap+0L)
 # endif
 # ifndef M_Ef
-#  define M_Ef 2.71828175e0f
-# endif
-# ifndef M_Ef128
-#  define M_Ef128 2.71828182845904523536028747135266231e0f128
-# endif
-# ifndef M_Ef32
-#  define M_Ef32 2.71828175e0f32
-# endif
-# ifndef M_Ef32x
-#  define M_Ef32x 2.7182818284590451e0f32x
-# endif
-# ifndef M_Ef64
-#  define M_Ef64 2.7182818284590451e0f64
-# endif
-# ifndef M_Ef64x
-#  define M_Ef64x 2.71828182845904523543e0f64x
+#  define M_Ef (0x1.5bf0a8p+1f)
 # endif
 # ifndef M_El
-#  define M_El 2.71828182845904523543e0L
+#  define M_El (0x1.5bf0a8b145769536p+1L)
 # endif
 # ifndef M_LN10f
-#  define M_LN10f 2.30258512e0f
-# endif
-# ifndef M_LN10f128
-#  define M_LN10f128 2.30258509299404568401799145468436418e0f128
-# endif
-# ifndef M_LN10f32
-#  define M_LN10f32 2.30258512e0f32
-# endif
-# ifndef M_LN10f32x
-#  define M_LN10f32x 2.3025850929940459e0f32x
-# endif
-# ifndef M_LN10f64
-#  define M_LN10f64 2.3025850929940459e0f64
-# endif
-# ifndef M_LN10f64x
-#  define M_LN10f64x 2.30258509299404568404e0f64x
+#  define M_LN10f (0x1.26bb1cp+1f)
 # endif
 # ifndef M_LN10l
-#  define M_LN10l 2.30258509299404568404e0L
+#  define M_LN10l (0x1.26bb1bbb5551582ep+1L)
 # endif
 # ifndef M_LN2f
-#  define M_LN2f 6.93147182e-1f
-# endif
-# ifndef M_LN2f128
-#  define M_LN2f128 6.93147180559945309417232121458176575e-1f128
-# endif
-# ifndef M_LN2f32
-#  define M_LN2f32 6.93147182e-1f32
-# endif
-# ifndef M_LN2f32x
-#  define M_LN2f32x 6.9314718055994529e-1f32x
-# endif
-# ifndef M_LN2f64
-#  define M_LN2f64 6.9314718055994529e-1f64
-# endif
-# ifndef M_LN2f64x
-#  define M_LN2f64x 6.93147180559945309429e-1f64x
+#  define M_LN2f (0x1.62e43p-1f)
 # endif
 # ifndef M_LN2l
-#  define M_LN2l 6.93147180559945309429e-1L
+#  define M_LN2l (0x1.62e42fefa39ef358p-1L)
 # endif
 # ifndef M_LOG10Ef
-#  define M_LOG10Ef 4.34294492e-1f
-# endif
-# ifndef M_LOG10Ef128
-#  define M_LOG10Ef128 4.34294481903251827651128918916605096e-1f128
-# endif
-# ifndef M_LOG10Ef32
-#  define M_LOG10Ef32 4.34294492e-1f32
-# endif
-# ifndef M_LOG10Ef32x
-#  define M_LOG10Ef32x 4.3429448190325182e-1f32x
-# endif
-# ifndef M_LOG10Ef64
-#  define M_LOG10Ef64 4.3429448190325182e-1f64
-# endif
-# ifndef M_LOG10Ef64x
-#  define M_LOG10Ef64x 4.34294481903251827645e-1f64x
+#  define M_LOG10Ef (0x1.bcb7b2p-2f)
 # endif
 # ifndef M_LOG10El
-#  define M_LOG10El 4.34294481903251827645e-1L
+#  define M_LOG10El (0x1.bcb7b1526e50e32ap-2L)
 # endif
 # ifndef M_LOG2Ef
-#  define M_LOG2Ef 1.44269502e0f
-# endif
-# ifndef M_LOG2Ef128
-#  define M_LOG2Ef128 1.44269504088896340735992468100189204e0f128
-# endif
-# ifndef M_LOG2Ef32
-#  define M_LOG2Ef32 1.44269502e0f32
-# endif
-# ifndef M_LOG2Ef32x
-#  define M_LOG2Ef32x 1.4426950408889634e0f32x
-# endif
-# ifndef M_LOG2Ef64
-#  define M_LOG2Ef64 1.4426950408889634e0f64
-# endif
-# ifndef M_LOG2Ef64x
-#  define M_LOG2Ef64x 1.44269504088896340739e0f64x
+#  define M_LOG2Ef (0x1.715476p+0f)
 # endif
 # ifndef M_LOG2El
-#  define M_LOG2El 1.44269504088896340739e0L
+#  define M_LOG2El (0x1.71547652b82fe178p+0L)
 # endif
 # ifndef M_PI_2f
-#  define M_PI_2f 1.57079637e0f
-# endif
-# ifndef M_PI_2f128
-#  define M_PI_2f128 1.5707963267948966192313216916397514e0f128
-# endif
-# ifndef M_PI_2f32
-#  define M_PI_2f32 1.57079637e0f32
-# endif
-# ifndef M_PI_2f32x
-#  define M_PI_2f32x 1.5707963267948966e0f32x
-# endif
-# ifndef M_PI_2f64
-#  define M_PI_2f64 1.5707963267948966e0f64
-# endif
-# ifndef M_PI_2f64x
-#  define M_PI_2f64x 1.57079632679489661926e0f64x
+#  define M_PI_2f (0x1.921fb6p+0f)
 # endif
 # ifndef M_PI_2l
-#  define M_PI_2l 1.57079632679489661926e0L
+#  define M_PI_2l (0x1.921fb54442d1846ap+0L)
 # endif
 # ifndef M_PI_4f
-#  define M_PI_4f 7.85398185e-1f
-# endif
-# ifndef M_PI_4f128
-#  define M_PI_4f128 7.85398163397448309615660845819875699e-1f128
-# endif
-# ifndef M_PI_4f32
-#  define M_PI_4f32 7.85398185e-1f32
-# endif
-# ifndef M_PI_4f32x
-#  define M_PI_4f32x 7.8539816339744828e-1f32x
-# endif
-# ifndef M_PI_4f64
-#  define M_PI_4f64 7.8539816339744828e-1f64
-# endif
-# ifndef M_PI_4f64x
-#  define M_PI_4f64x 7.85398163397448309628e-1f64x
+#  define M_PI_4f (0x1.921fb6p-1f)
 # endif
 # ifndef M_PI_4l
-#  define M_PI_4l 7.85398163397448309628e-1L
+#  define M_PI_4l (0x1.921fb54442d1846ap-1L)
 # endif
 # ifndef M_PIf
-#  define M_PIf 3.14159274e0f
-# endif
-# ifndef M_PIf128
-#  define M_PIf128 3.1415926535897932384626433832795028e0f128
-# endif
-# ifndef M_PIf32
-#  define M_PIf32 3.14159274e0f32
-# endif
-# ifndef M_PIf32x
-#  define M_PIf32x 3.1415926535897931e0f32x
-# endif
-# ifndef M_PIf64
-#  define M_PIf64 3.1415926535897931e0f64
-# endif
-# ifndef M_PIf64x
-#  define M_PIf64x 3.14159265358979323851e0f64x
+#  define M_PIf (0x1.921fb6p+1f)
 # endif
 # ifndef M_PIl
-#  define M_PIl 3.14159265358979323851e0L
+#  define M_PIl (0x1.921fb54442d1846ap+1L)
 # endif
 # ifndef M_SQRT1_2f
-#  define M_SQRT1_2f 7.07106769e-1f
-# endif
-# ifndef M_SQRT1_2f128
-#  define M_SQRT1_2f128 7.07106781186547524400844362104848992e-1f128
-# endif
-# ifndef M_SQRT1_2f32
-#  define M_SQRT1_2f32 7.07106769e-1f32
-# endif
-# ifndef M_SQRT1_2f32x
-#  define M_SQRT1_2f32x 7.0710678118654757e-1f32x
-# endif
-# ifndef M_SQRT1_2f64
-#  define M_SQRT1_2f64 7.0710678118654757e-1f64
-# endif
-# ifndef M_SQRT1_2f64x
-#  define M_SQRT1_2f64x 7.07106781186547524382e-1f64x
+#  define M_SQRT1_2f (0x1.6a09e6p-1f)
 # endif
 # ifndef M_SQRT1_2l
-#  define M_SQRT1_2l 7.07106781186547524382e-1L
+#  define M_SQRT1_2l (0x1.6a09e667f3bcc908p-1L)
 # endif
 # ifndef M_SQRT2f
-#  define M_SQRT2f 1.41421354e0f
-# endif
-# ifndef M_SQRT2f128
-#  define M_SQRT2f128 1.41421356237309504880168872420969798e0f128
-# endif
-# ifndef M_SQRT2f32
-#  define M_SQRT2f32 1.41421354e0f32
-# endif
-# ifndef M_SQRT2f32x
-#  define M_SQRT2f32x 1.4142135623730951e0f32x
-# endif
-# ifndef M_SQRT2f64
-#  define M_SQRT2f64 1.4142135623730951e0f64
-# endif
-# ifndef M_SQRT2f64x
-#  define M_SQRT2f64x 1.41421356237309504876e0f64x
+#  define M_SQRT2f (0x1.6a09e6p+0f)
 # endif
 # ifndef M_SQRT2l
-#  define M_SQRT2l 1.41421356237309504876e0L
+#  define M_SQRT2l (0x1.6a09e667f3bcc908p+0L)
 # endif
 # ifndef SNAN
-#  define SNAN __builtin_nan ("")
+#  define SNAN (__builtin_nan (""))
 # endif
 # ifndef SNANF
-#  define SNANF __builtin_nanf ("")
-# endif
-# ifndef SNANF128
-#  define SNANF128 __builtin_nanf128 ("")
-# endif
-# ifndef SNANF32
-#  define SNANF32 __builtin_nanf32 ("")
-# endif
-# ifndef SNANF32X
-#  define SNANF32X __builtin_nanf32x ("")
-# endif
-# ifndef SNANF64
-#  define SNANF64 __builtin_nanf64 ("")
-# endif
-# ifndef SNANF64X
-#  define SNANF64X __builtin_nanf64x ("")
+#  define SNANF (__builtin_nanf (""))
 # endif
 # ifndef SNANL
-#  define SNANL __builtin_nanl ("")
+#  define SNANL (__builtin_nanl (""))
 # endif
 #endif
 #if __NIJI_ISOC >= 1999
@@ -3681,13 +4489,13 @@ enum { FP_INT_UPWARD = 0 };
 #  define FP_ZERO 2
 # endif
 # ifndef HUGE_VALF
-#  define HUGE_VALF __builtin_inff ()
+#  define HUGE_VALF (__builtin_inff ())
 # endif
 # ifndef HUGE_VALL
-#  define HUGE_VALL __builtin_infl ()
+#  define HUGE_VALL (__builtin_infl ())
 # endif
 # ifndef INFINITY
-#  define INFINITY __builtin_inff ()
+#  define INFINITY (__builtin_inff ())
 # endif
 # ifndef MATH_ERREXCEPT
 #  define MATH_ERREXCEPT 2
@@ -3696,7 +4504,7 @@ enum { FP_INT_UPWARD = 0 };
 #  define MATH_ERRNO 1
 # endif
 # ifndef NAN
-#  define NAN __builtin_nanf ("")
+#  define NAN (__builtin_nanf (""))
 # endif
 # ifndef math_errhandling
 #  define math_errhandling 3
@@ -3727,48 +4535,48 @@ enum { FP_INT_UPWARD = 0 };
 #endif
 #if __NIJI_MISC || __NIJI_XSI >= 400
 # ifndef M_1_PI
-#  define M_1_PI 3.1830988618379069e-1
+#  define M_1_PI (0x1.45f306dc9c883p-2)
 # endif
 # ifndef M_2_PI
-#  define M_2_PI 6.3661977236758138e-1
+#  define M_2_PI (0x1.45f306dc9c883p-1)
 # endif
 # ifndef M_2_SQRTPI
-#  define M_2_SQRTPI 1.1283791670955126e0
+#  define M_2_SQRTPI (0x1.20dd750429b6dp+0)
 # endif
 # ifndef M_E
-#  define M_E 2.7182818284590451e0
+#  define M_E (0x1.5bf0a8b145769p+1)
 # endif
 # ifndef M_LN10
-#  define M_LN10 2.3025850929940459e0
+#  define M_LN10 (0x1.26bb1bbb55516p+1)
 # endif
 # ifndef M_LN2
-#  define M_LN2 6.9314718055994529e-1
+#  define M_LN2 (0x1.62e42fefa39efp-1)
 # endif
 # ifndef M_LOG10E
-#  define M_LOG10E 4.3429448190325182e-1
+#  define M_LOG10E (0x1.bcb7b1526e50ep-2)
 # endif
 # ifndef M_LOG2E
-#  define M_LOG2E 1.4426950408889634e0
+#  define M_LOG2E (0x1.71547652b82fep+0)
 # endif
 # ifndef M_PI
-#  define M_PI 3.1415926535897931e0
+#  define M_PI (0x1.921fb54442d18p+1)
 # endif
 # ifndef M_PI_2
-#  define M_PI_2 1.5707963267948966e0
+#  define M_PI_2 (0x1.921fb54442d18p+0)
 # endif
 # ifndef M_PI_4
-#  define M_PI_4 7.8539816339744828e-1
+#  define M_PI_4 (0x1.921fb54442d18p-1)
 # endif
 # ifndef M_SQRT1_2
-#  define M_SQRT1_2 7.0710678118654757e-1
+#  define M_SQRT1_2 (0x1.6a09e667f3bcdp-1)
 # endif
 # ifndef M_SQRT2
-#  define M_SQRT2 1.4142135623730951e0
+#  define M_SQRT2 (0x1.6a09e667f3bcdp+0)
 # endif
 #endif
 #if __NIJI_XSI >= 400
 # ifndef MAXFLOAT
-#  define MAXFLOAT 3.40282347e38f
+#  define MAXFLOAT (0x1.fffffep+127f)
 # endif
 #endif
 
