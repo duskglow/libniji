@@ -56,13 +56,21 @@ stock without it, and #23 is held open only for kind 1. The owed compat-flag reg
 * check1 (rc 2, SUPERSEDED for the probe part only): records check, clippy `--all-features -D warnings`, static and
   `cargo xtask so` passed; the job then stopped on my script's loader lookup (`ls` of a missing name under pipefail).
   The probe was run by hand afterwards (`probehead.sh`, results above); the conformance program runs in gate1.
-* plants1: `handoff/STDIO-WIDE-BYTE-READS-4-plants.txt` (5 plants) in `/dev/shm/claude/stdio-wide-byte-reads-4/plants-1`.
-* gate1: direct tier, `affected --run --base origin/next`.
+* plants1 (rc 0): `handoff/STDIO-WIDE-BYTE-READS-4-plants.txt`: 5 plants, 5 CAUGHT, 0 SURVIVED, 0 WARN-RC-ONLY,
+  0 WARN-NO-MSG (fresh-never, fresh-always, charset-fresh-never, drop-sets-eof, drop-no-error).
+* gate1 (rc 0): direct tier, `affected --run --base origin/next`: 12 suites ok, 6741 passed / 0 failed (550 ignored),
+  conformance 15 / 0, SKIPPED lines 0, peak 11G, oom_kill 0.
 * post1: waits for gate1, then `wl_percall.sh --spec ~/work/STDIO-WIDE-BYTE-READS-4/stdio_wide.c .` (byte reads
   fgetc/getc/getc_unlocked; wide reads fgetwc/getwc/fgetwc_unlocked on NULs and on U+00E9; base = synced merge
   base 7ac731794) and the hot text check (`NIJI_FULL_PROFILE=1` so + `hot_text_products`).
+  percall (instr/call, glibc / base / head): fgetwc_unlocked_2byte 58.2 / 636 / 639; getwc_2byte and fgetwc_2byte
+  90.2 / 646 / 649; fgetwc_unlocked_nul 35.6 / 356 / 356; getwc_nul, fgetwc_nul 67.7 / 366 / 366; getc_unlocked
+  13 / 13 / 13; getc, fgetc 31 / 24 / 24. COST: +3 on the 2-byte wide rows (the `fresh` note on a multibyte lead
+  byte), reported for a ruling (recommend accept; fix-forward: derive the flag in the cold `end_of_input` path from
+  the buffer position and pending length so the hot path is byte-for-byte the base). Not reverted: the fix is the
+  story's correctness change and the rework needs a new gate and plants cycle, which the run's deadline does not allow.
 
-## EXACT NEXT STEP (refresh leg)
+## EXACT NEXT STEP (done in refresh leg 2: jobs collected, report json written; below kept for the record)
 
 1. `~/bin/jobwait stdio-wide-byte-reads-4-plants1 stdio-wide-byte-reads-4-gate1 stdio-wide-byte-reads-4-post1` on keke
    (ssh via vm_ssh.sh). Plants: all CAUGHT (list any WARN). Gate: passed/failed counts + peak. post1: percall rows
@@ -78,5 +86,4 @@ stock without it, and #23 is held open only for kind 1. The owed compat-flag reg
 
 * Next step: land; Yohane's probe should then differ only in kind 2 (byte reads after a successful wide read)
   and kind 3 rows.
-* Not run: `cargo xtask test` (FULL tier, the train's per the owner's 11-19 rule); wl_percall for the wide read
-  functions (no spec for them in this run; the byte-function spec of STDIO-WIDE-BYTE-READS-2 only).
+* Not run: `cargo xtask test` (FULL tier, the train's per the owner's 11-19 rule).
