@@ -1,0 +1,7 @@
+# CRT-START-FILES-2 plants: the static start's one-bit header filter (crates/rt/src/start.rs `program`, `READS`)
+# cargo xtask plants handoff/CRT-START-FILES-2-plants.txt --dir <new dir>
+relro-bit-dropped | crates/rt/src/start.rs | perl:s/\| 1 << \(PT_GNU_RELRO & 63\);/;/ | cargo test -p niji-rt --lib start:: | msg:program_reads_only_its_three_types_among_any_others.*FAILED|panicked
+filter-only-no-exact-compare | crates/rt/src/start.rs | lit:PT_PHDR if phdr.is_none() => phdr = Some(h), ==> _ if w & 63 == PT_PHDR && phdr.is_none() => phdr = Some(h), | cargo test -p niji-rt --lib start:: | msg:program_reads_only_its_three_types_among_any_others.*FAILED|panicked
+last-tls-wins | crates/rt/src/start.rs | lit:PT_TLS if tls.is_none() => tls = Some(h), ==> PT_TLS => tls = Some(h), | cargo test -p niji-rt --lib start:: | msg:program_reads_only_its_three_types_among_any_others.*FAILED|panicked
+phnum-ignored | crates/rt/src/start.rs | lit:for h in heads.get(..phnum.min(heads.len())).unwrap_or_default() { ==> for h in heads { | cargo test -p niji-rt --lib start:: | msg:program_headers_give_the_tls_image_and_the_bias.*FAILED|panicked
+type-from-second-word | crates/rt/src/start.rs | lit:let [w, ..] = *h; ==> let [_, w, ..] = *h; | cargo test -p niji-rt --lib start:: | msg:program_headers_give_the_tls_image_and_the_bias.*FAILED|program_reads_only_its_three_types_among_any_others.*FAILED
