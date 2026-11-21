@@ -575,7 +575,7 @@ static int nseen, order[64], norder, wrong;
 static char bad[256];
 static volatile int stop;
 static int parse(const char *p, char *kind) {
-    if (strncmp(p, dir, dlen) || p[dlen] != '/') return -2;
+    if (strncmp(p, dir, dlen) || p[dlen] != '/') return -1;
     p += dlen + 1;
     if (!strcmp(p, "libc-dl.so")) return -1;
     if (strncmp(p, "lib", 3) || (p[3] != 'q' && p[3] != 'd')) return -2;
