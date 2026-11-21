@@ -940,6 +940,21 @@ static void on_mass(int s, siginfo_t *si, void *u)
     mass_signals++;
 }
 
+static double mono_s(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
+/* CPU time of the whole process (every thread). */
+static double cpu_s(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
 static void gaimass(void)
 {
     struct addrinfo hints;
@@ -959,6 +974,7 @@ static void gaimass(void)
     usleep(100000);
 
     int n = MASS_ONE + MASS_GROUPS;
+    double t_start = mono_s(), c_start = cpu_s();
     struct gaicb *g = calloc(n, sizeof *g);
     struct gaicb **list = calloc(n, sizeof *list);
     for (int i = 0; i < n; i++) {
@@ -985,16 +1001,51 @@ static void gaimass(void)
             pending++;
     printf("pending right after submission: %s\n", pending >= n - 1000 ? "nearly all" : "fewer");
 
-    for (int k = 0; k < 1200; k++) {
-        int left = gai_error(&slow) == EAI_INPROGRESS;
-        for (int i = 0; i < n && !left; i++)
-            left = gai_error(&g[i]) == EAI_INPROGRESS;
-        if (!left)
+    /* Every request completes and every signal comes, however long a loaded machine makes them
+     * take (one server answers 25000 queries one at a time): wait while they keep completing; 30 s
+     * in which none completes ends the wait (a lost request), then the same for the signals (10 s
+     * without one). The verdict is the results, not how long they took. */
+    double t_sub = mono_s(), c_sub = cpu_s();
+    for (int left = n + 2, idle = 0; idle < 600;) {
+        int now = gai_error(&slow) == EAI_INPROGRESS;
+        for (int i = 0; i < n; i++)
+            now += gai_error(&g[i]) == EAI_INPROGRESS;
+        if (now == 0)
             break;
+        idle = now < left ? 0 : idle + 1;
+        left = now;
         usleep(50000);
     }
-    for (int k = 0; k < 100 && mass_signals < MASS_GROUPS; k++)
+    double t_done = mono_s(), c_done = cpu_s();
+    for (int last = -1, idle = 0; mass_signals < MASS_GROUPS && idle < 200;) {
+        int s = mass_signals;
+        idle = s > last ? 0 : idle + 1;
+        last = s;
         usleep(50000);
+    }
+    /* How long it took, for the record (gaimass.timing in the scratch directory; not compared). */
+    int codes[8] = {0}, count[8] = {0}, kinds = 0;
+    for (int i = 0; i < n; i++) {
+        int e = gai_error(&g[i]), j = 0;
+        if (e == 0)
+            continue;
+        while (j < kinds && codes[j] != e)
+            j++;
+        if (j == kinds && kinds < 8)
+            codes[kinds++] = e;
+        if (j < 8)
+            count[j]++;
+    }
+    char tp[600];
+    snprintf(tp, sizeof tp, "%s/gaimass.timing", dir);
+    FILE *tf = fopen(tp, "w");
+    if (tf) {
+        fprintf(tf, "submit_s %.3f\ndrain_s %.3f\ncpu_submit_s %.3f\ncpu_drain_s %.3f\ncpu_per_request_us %.1f\nsignals %d\n", t_sub - t_start, t_done - t_sub,
+                c_sub - c_start, c_done - c_sub, (c_done - c_start) * 1e6 / n, (int)mass_signals);
+        for (int j = 0; j < kinds; j++)
+            fprintf(tf, "not_ok %d: %d\n", codes[j], count[j]);
+        fclose(tf);
+    }
     int ok = 0, other = 0, same = 0;
     for (int i = 0; i < n; i++) {
         if (gai_error(&g[i]) != 0) {
