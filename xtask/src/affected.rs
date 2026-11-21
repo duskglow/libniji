@@ -1956,6 +1956,7 @@ const XTASK_TOOL_USES: &[(&str, &str, &str)] = &[
     ("math", "kernel_index", "`math::run_tables` ends with the kernel index (KERNELS.md, a view), which static runs as tables-fresh"),
     ("math", "records", "the same call's `records::in_place_env` switch"),
     ("trace", "records", "`trace::run` reads the decision ids; static runs trace"),
+    ("coverage", "fuzz", "the fuzz library's test set runs on the fuzz workspace's pinned nightly (`fuzz::nightly_cargo`), as the gate's fuzz-check does"),
 ];
 
 /// The xtask module a source path belongs to: `xtask/src/<m>.rs` or `xtask/src/<m>/...` gives `<m>`.

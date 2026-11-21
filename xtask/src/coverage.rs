@@ -53,7 +53,7 @@ pub const RUNS: &[Run] = &[
         features: "ld",
         lib: true,
         tests: &[],
-        covers: &["crates/boundary/src/ld/", "crates/boundary/src/ld.rs", "crates/boundary/src/arch/", "crates/boundary/src/bootstrap.rs", "crates/boundary/src/lib.rs", "crates/boundary/src/posix/s27_dynlink.rs"],
+        covers: &["crates/boundary/src/ld/", "crates/boundary/src/ld.rs", "crates/boundary/src/arch/", "crates/boundary/src/bootstrap.rs", "crates/boundary/src/lib.rs", "crates/boundary/src/posix/s27_dynlink.rs", "crates/boundary/src/dispatch.rs"],
         cfgs: &[],
         why: "the loader's unit tests (modules `ld`, `arch`, `bootstrap`: compiled only with `ld`, which only the ld.so and ldconfig products enable)",
     },
@@ -78,6 +78,16 @@ pub const RUNS: &[Run] = &[
         why: "the fast-path counters (`stats::tests`, compiled only with `fastpath-stats`)",
     },
     Run {
+        dir: "",
+        krate: "niji-native",
+        features: "dylib",
+        lib: true,
+        tests: &[],
+        covers: &["crates/native/src/dylib.rs", "crates/native/src/lib.rs", "crates/native/src/ffi.rs"],
+        cfgs: &[],
+        why: "the Rust dylib's ABI note and symbol (`dylib::tests`, compiled only with `dylib`; the rust-dylib step builds the example, not the tests)",
+    },
+    Run {
         dir: "fuzz",
         krate: "niji-fuzz",
         features: "",
@@ -99,7 +109,6 @@ pub const RUN_BY: &[(&str, &str, &str, bool)] = &[
     ("niji-legacy", "selftest", "every `cargo test` (through niji-boundary's `selftest`)", true),
     ("niji-native", "static", "`cargo xtask test` step native-examples (the examples only)", false),
     ("niji-native", "dynamic", "`cargo xtask test` step native-examples (the examples only)", false),
-    ("niji-native", "dylib", "`cargo xtask test` step rust-dylib (the example only)", false),
 ];
 
 /// The features only a product enables, `(crate, feature, why)`: [`check`] proves no test code sits under them.
