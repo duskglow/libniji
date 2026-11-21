@@ -2975,8 +2975,8 @@ mod tests {
         assert!(tool_names_errors(&object).unwrap_err().contains("strcmp is OBJECT LOCAL"));
         let moved = good.replace("000000000004ff40   966 FUNC    LOCAL  DEFAULT    1 strlen", "000000000004ff50   966 FUNC    LOCAL  DEFAULT    1 strlen");
         assert!(tool_names_errors(&moved).unwrap_err().contains("strlen at 000000000004ff50, not at niji_machine_strlen's"));
-        let unsized = good.replace("966 FUNC    LOCAL  DEFAULT    1 strlen", "0 FUNC    LOCAL  DEFAULT    1 strlen");
-        assert!(tool_names_errors(&unsized).unwrap_err().contains("strlen has size 0"));
+        let zero_size = good.replace("966 FUNC    LOCAL  DEFAULT    1 strlen", "0 FUNC    LOCAL  DEFAULT    1 strlen");
+        assert!(tool_names_errors(&zero_size).unwrap_err().contains("strlen has size 0"));
     }
 
     /// LAYOUT-LDSO-WINDOW (no spec clause: the build of the interpreter): member names as rustc writes them
