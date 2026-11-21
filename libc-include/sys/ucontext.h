@@ -272,95 +272,141 @@ typedef struct ucontext_t ucontext_t;
 #if __NIJI_GNU
 # ifndef __NIJI_D_enum_REG_CR2
 #  define __NIJI_D_enum_REG_CR2 1
+#  ifndef REG_CR2
 enum { REG_CR2 = 22 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_CSGSFS
 #  define __NIJI_D_enum_REG_CSGSFS 1
+#  ifndef REG_CSGSFS
 enum { REG_CSGSFS = 18 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_EFL
 #  define __NIJI_D_enum_REG_EFL 1
+#  ifndef REG_EFL
 enum { REG_EFL = 17 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_ERR
 #  define __NIJI_D_enum_REG_ERR 1
+#  ifndef REG_ERR
 enum { REG_ERR = 19 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_OLDMASK
 #  define __NIJI_D_enum_REG_OLDMASK 1
+#  ifndef REG_OLDMASK
 enum { REG_OLDMASK = 21 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_R10
 #  define __NIJI_D_enum_REG_R10 1
+#  ifndef REG_R10
 enum { REG_R10 = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_R11
 #  define __NIJI_D_enum_REG_R11 1
+#  ifndef REG_R11
 enum { REG_R11 = 3 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_R12
 #  define __NIJI_D_enum_REG_R12 1
+#  ifndef REG_R12
 enum { REG_R12 = 4 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_R13
 #  define __NIJI_D_enum_REG_R13 1
+#  ifndef REG_R13
 enum { REG_R13 = 5 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_R14
 #  define __NIJI_D_enum_REG_R14 1
+#  ifndef REG_R14
 enum { REG_R14 = 6 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_R15
 #  define __NIJI_D_enum_REG_R15 1
+#  ifndef REG_R15
 enum { REG_R15 = 7 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_R8
 #  define __NIJI_D_enum_REG_R8 1
+#  ifndef REG_R8
 enum { REG_R8 = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_R9
 #  define __NIJI_D_enum_REG_R9 1
+#  ifndef REG_R9
 enum { REG_R9 = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RAX
 #  define __NIJI_D_enum_REG_RAX 1
+#  ifndef REG_RAX
 enum { REG_RAX = 13 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RBP
 #  define __NIJI_D_enum_REG_RBP 1
+#  ifndef REG_RBP
 enum { REG_RBP = 10 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RBX
 #  define __NIJI_D_enum_REG_RBX 1
+#  ifndef REG_RBX
 enum { REG_RBX = 11 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RCX
 #  define __NIJI_D_enum_REG_RCX 1
+#  ifndef REG_RCX
 enum { REG_RCX = 14 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RDI
 #  define __NIJI_D_enum_REG_RDI 1
+#  ifndef REG_RDI
 enum { REG_RDI = 8 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RDX
 #  define __NIJI_D_enum_REG_RDX 1
+#  ifndef REG_RDX
 enum { REG_RDX = 12 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RIP
 #  define __NIJI_D_enum_REG_RIP 1
+#  ifndef REG_RIP
 enum { REG_RIP = 16 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RSI
 #  define __NIJI_D_enum_REG_RSI 1
+#  ifndef REG_RSI
 enum { REG_RSI = 9 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_RSP
 #  define __NIJI_D_enum_REG_RSP 1
+#  ifndef REG_RSP
 enum { REG_RSP = 15 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_REG_TRAPNO
 #  define __NIJI_D_enum_REG_TRAPNO 1
+#  ifndef REG_TRAPNO
 enum { REG_TRAPNO = 20 };
+#  endif
 # endif
 # ifndef REG_CR2
 #  define REG_CR2 22

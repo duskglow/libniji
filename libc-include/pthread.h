@@ -79,18 +79,25 @@ typedef struct {
 # endif
 # ifndef __NIJI_D_pthread_attr_t
 #  define __NIJI_D_pthread_attr_t 1
-typedef union {
+union pthread_attr_t {
   char __size[56];
   long __align;
-} pthread_attr_t;
+};
+typedef union pthread_attr_t pthread_attr_t;
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D___atomic_wide_counter
 #  define __NIJI_D___atomic_wide_counter 1
-typedef struct { char __niji_opaque[8] __attribute__ ((__aligned__ (8))); } __atomic_wide_counter;
+typedef union {
+  unsigned long long __value64;
+  struct { unsigned int __low; unsigned int __high; } __value32;
+} __atomic_wide_counter;
 # endif
 # ifndef __NIJI_D_struct___pthread_cond_s
 #  define __NIJI_D_struct___pthread_cond_s 1
@@ -800,127 +807,185 @@ extern int pthread_setconcurrency (int) __NIJI_NOTHROW;
 #if 1
 # ifndef __NIJI_D_enum_PTHREAD_CANCEL_ASYNCHRONOUS
 #  define __NIJI_D_enum_PTHREAD_CANCEL_ASYNCHRONOUS 1
+#  ifndef PTHREAD_CANCEL_ASYNCHRONOUS
 enum { PTHREAD_CANCEL_ASYNCHRONOUS = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_CANCEL_DEFERRED
 #  define __NIJI_D_enum_PTHREAD_CANCEL_DEFERRED 1
+#  ifndef PTHREAD_CANCEL_DEFERRED
 enum { PTHREAD_CANCEL_DEFERRED = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_CANCEL_DISABLE
 #  define __NIJI_D_enum_PTHREAD_CANCEL_DISABLE 1
+#  ifndef PTHREAD_CANCEL_DISABLE
 enum { PTHREAD_CANCEL_DISABLE = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_CANCEL_ENABLE
 #  define __NIJI_D_enum_PTHREAD_CANCEL_ENABLE 1
+#  ifndef PTHREAD_CANCEL_ENABLE
 enum { PTHREAD_CANCEL_ENABLE = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_CREATE_DETACHED
 #  define __NIJI_D_enum_PTHREAD_CREATE_DETACHED 1
+#  ifndef PTHREAD_CREATE_DETACHED
 enum { PTHREAD_CREATE_DETACHED = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_CREATE_JOINABLE
 #  define __NIJI_D_enum_PTHREAD_CREATE_JOINABLE 1
+#  ifndef PTHREAD_CREATE_JOINABLE
 enum { PTHREAD_CREATE_JOINABLE = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_EXPLICIT_SCHED
 #  define __NIJI_D_enum_PTHREAD_EXPLICIT_SCHED 1
+#  ifndef PTHREAD_EXPLICIT_SCHED
 enum { PTHREAD_EXPLICIT_SCHED = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_INHERIT_SCHED
 #  define __NIJI_D_enum_PTHREAD_INHERIT_SCHED 1
+#  ifndef PTHREAD_INHERIT_SCHED
 enum { PTHREAD_INHERIT_SCHED = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_ADAPTIVE_NP
 #  define __NIJI_D_enum_PTHREAD_MUTEX_ADAPTIVE_NP 1
+#  ifndef PTHREAD_MUTEX_ADAPTIVE_NP
 enum { PTHREAD_MUTEX_ADAPTIVE_NP = 3 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_TIMED_NP
 #  define __NIJI_D_enum_PTHREAD_MUTEX_TIMED_NP 1
+#  ifndef PTHREAD_MUTEX_TIMED_NP
 enum { PTHREAD_MUTEX_TIMED_NP = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_PROCESS_PRIVATE
 #  define __NIJI_D_enum_PTHREAD_PROCESS_PRIVATE 1
+#  ifndef PTHREAD_PROCESS_PRIVATE
 enum { PTHREAD_PROCESS_PRIVATE = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_PROCESS_SHARED
 #  define __NIJI_D_enum_PTHREAD_PROCESS_SHARED 1
+#  ifndef PTHREAD_PROCESS_SHARED
 enum { PTHREAD_PROCESS_SHARED = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_SCOPE_PROCESS
 #  define __NIJI_D_enum_PTHREAD_SCOPE_PROCESS 1
+#  ifndef PTHREAD_SCOPE_PROCESS
 enum { PTHREAD_SCOPE_PROCESS = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_SCOPE_SYSTEM
 #  define __NIJI_D_enum_PTHREAD_SCOPE_SYSTEM 1
+#  ifndef PTHREAD_SCOPE_SYSTEM
 enum { PTHREAD_SCOPE_SYSTEM = 0 };
+#  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 199506
 # ifndef __NIJI_D_enum_PTHREAD_PRIO_INHERIT
 #  define __NIJI_D_enum_PTHREAD_PRIO_INHERIT 1
+#  ifndef PTHREAD_PRIO_INHERIT
 enum { PTHREAD_PRIO_INHERIT = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_PRIO_NONE
 #  define __NIJI_D_enum_PTHREAD_PRIO_NONE 1
+#  ifndef PTHREAD_PRIO_NONE
 enum { PTHREAD_PRIO_NONE = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_PRIO_PROTECT
 #  define __NIJI_D_enum_PTHREAD_PRIO_PROTECT 1
+#  ifndef PTHREAD_PRIO_PROTECT
 enum { PTHREAD_PRIO_PROTECT = 2 };
+#  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200112
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_ROBUST
 #  define __NIJI_D_enum_PTHREAD_MUTEX_ROBUST 1
+#  ifndef PTHREAD_MUTEX_ROBUST
 enum { PTHREAD_MUTEX_ROBUST = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_ROBUST_NP
 #  define __NIJI_D_enum_PTHREAD_MUTEX_ROBUST_NP 1
+#  ifndef PTHREAD_MUTEX_ROBUST_NP
 enum { PTHREAD_MUTEX_ROBUST_NP = 1 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_STALLED
 #  define __NIJI_D_enum_PTHREAD_MUTEX_STALLED 1
+#  ifndef PTHREAD_MUTEX_STALLED
 enum { PTHREAD_MUTEX_STALLED = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_STALLED_NP
 #  define __NIJI_D_enum_PTHREAD_MUTEX_STALLED_NP 1
+#  ifndef PTHREAD_MUTEX_STALLED_NP
 enum { PTHREAD_MUTEX_STALLED_NP = 0 };
+#  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200112 || __NIJI_XSI >= 500
 # ifndef __NIJI_D_enum_PTHREAD_RWLOCK_DEFAULT_NP
 #  define __NIJI_D_enum_PTHREAD_RWLOCK_DEFAULT_NP 1
+#  ifndef PTHREAD_RWLOCK_DEFAULT_NP
 enum { PTHREAD_RWLOCK_DEFAULT_NP = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_RWLOCK_PREFER_READER_NP
 #  define __NIJI_D_enum_PTHREAD_RWLOCK_PREFER_READER_NP 1
+#  ifndef PTHREAD_RWLOCK_PREFER_READER_NP
 enum { PTHREAD_RWLOCK_PREFER_READER_NP = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP
 #  define __NIJI_D_enum_PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP 1
+#  ifndef PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP
 enum { PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_RWLOCK_PREFER_WRITER_NP
 #  define __NIJI_D_enum_PTHREAD_RWLOCK_PREFER_WRITER_NP 1
+#  ifndef PTHREAD_RWLOCK_PREFER_WRITER_NP
 enum { PTHREAD_RWLOCK_PREFER_WRITER_NP = 1 };
+#  endif
 # endif
 #endif
 #if __NIJI_POSIX >= 200809 || __NIJI_XSI >= 500
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_DEFAULT
 #  define __NIJI_D_enum_PTHREAD_MUTEX_DEFAULT 1
+#  ifndef PTHREAD_MUTEX_DEFAULT
 enum { PTHREAD_MUTEX_DEFAULT = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_ERRORCHECK
 #  define __NIJI_D_enum_PTHREAD_MUTEX_ERRORCHECK 1
+#  ifndef PTHREAD_MUTEX_ERRORCHECK
 enum { PTHREAD_MUTEX_ERRORCHECK = 2 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_NORMAL
 #  define __NIJI_D_enum_PTHREAD_MUTEX_NORMAL 1
+#  ifndef PTHREAD_MUTEX_NORMAL
 enum { PTHREAD_MUTEX_NORMAL = 0 };
+#  endif
 # endif
 # ifndef __NIJI_D_enum_PTHREAD_MUTEX_RECURSIVE
 #  define __NIJI_D_enum_PTHREAD_MUTEX_RECURSIVE 1
+#  ifndef PTHREAD_MUTEX_RECURSIVE
 enum { PTHREAD_MUTEX_RECURSIVE = 1 };
+#  endif
 # endif
 #endif
 #if 1
@@ -981,7 +1046,7 @@ enum { PTHREAD_MUTEX_RECURSIVE = 1 };
 #endif
 
 #if 1
-# define PTHREAD_CANCELED ((void *) (-1L))
+# define PTHREAD_CANCELED ((void *) ((void *) (-1L)))
 #endif
 
 /* Static initializers: the bytes of initializers.tsv, as the members of the object they initialise. */
