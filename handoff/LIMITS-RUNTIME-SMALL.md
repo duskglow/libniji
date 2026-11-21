@@ -36,7 +36,12 @@ leg's sync, an earlier next; the three caps' code there is the same as at the ba
 - Plants `limits-runtime-small-plants`: 6 CAUGHT, 0 SURVIVED, 0 WARN. The gai plants fail on the
   gaimass lines (queue cap: the 20000 call `-10`, 0 answered; group cap: 256 of 5000 calls).
 - Start-up checks (`cargo xtask test`, counts `cbench_startup`, full-profile hot_text_products): jobs
-  limits-runtime-small-xtest2, -counts, -hottext (see the hand-back for their state).
+  limits-runtime-small-xtest2, -counts, -hottext, PENDING at hand-back (15:15Z: xtest2 queued for a
+  slot since 14:47Z). They run one after another on r1, started by `~/work/limits-runtime-small/
+  after_gate.sh` (a detached driver that only calls jobrun/jobwait; status in
+  `~/work/limits-runtime-small/after_gate.status`).
+- Precheck on r1 at e6598c674 (same code as the final head; the later commit only touches handoff/):
+  every check ok but `jobs` (the three pending jobs above).
 - Layout: against r1's previous products (an earlier next, so not a clean merge-base diff) the exit
   registry's `register` grew 311 -> 384 bytes and `run_all` 369 -> 438 (bin 0 +34 bytes over all); the
   other differences come from the older tree. Possible follow-up if a start-up row moves: put
@@ -53,4 +58,7 @@ leg's sync, an earlier next; the three caps' code there is the same as at the ba
   (it rebuilt the products, 20 minutes, then gave up). Probes in this story were run by hand instead.
 
 ## Next step
-None if the jobs named in the hand-back are green; otherwise fix what they name.
+None if the three pending jobs end green (counts: `cbench_startup` within `bench/instr_limits.tsv`).
+If a start-up row moved: make the exit registry's chunk path cold (one `#[cold] #[inline(never)]`
+function around `Chunks::reserve`/`get` in exit_handlers.rs), re-gate. Follow-up story: compact the
+getaddrinfo_a ring when a submission fails (report json, informational).
