@@ -117,13 +117,27 @@ pub struct Request<'n> {
     sysv: OnceCell<u32>,
     /// The version names found so far by the pass this request belongs to ([`VersionMemo`]).
     memo: Option<&'n VersionMemo>,
+    /// The name holds no NUL, so a candidate's name is compared in place ([`Dynamic::string_is`]).
+    plain: bool,
+    /// For a [`Want::Reference`] whose name is its own object's definition of a version index (no
+    /// requirement gives the index): that object's string table address and the index. A definition
+    /// in that same object with that index has exactly that version name, so it matches without
+    /// finding and comparing the name again (LD-LOOKUP-COST).
+    origin: Option<(usize, u16)>,
 }
 
 impl<'n> Request<'n> {
     /// A request for `name` accepting `want`.
     #[must_use]
     pub fn new(name: &'n [u8], want: Want<'n>) -> Self {
-        Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new(), memo: None }
+        Request { name, want, gnu: gnu_hash(name), sysv: OnceCell::new(), memo: None, plain: !name.contains(&0), origin: None }
+    }
+
+    /// A request for `name`, a string of an object's string table (so without a NUL), whose GNU hash
+    /// is `gnu` ([`Dynamic::hashed_string`]), accepting `want`, and the `origin` of its version name
+    /// ([`Object::reference_want_origin`]).
+    pub(crate) fn of_table(name: &'n [u8], gnu: u32, want: Want<'n>, origin: Option<(usize, u16)>) -> Self {
+        Request { name, want, gnu, sysv: OnceCell::new(), memo: None, plain: true, origin }
     }
 
     /// This request, finding its definitions' version names through `memo` ([`VersionMemo`]).
@@ -365,6 +379,22 @@ impl<'a> Object<'a> {
         self.memo_name(memo, index, true)?.map(Want::Reference).ok_or(LookupError::UnknownVersion { sym, index })
     }
 
+    /// [`Object::reference_want_with`], and the request's origin ([`Request::of_table`]): this
+    /// object's string table address and the version index, when the name is one of this object's
+    /// own definitions (no requirement gives the index), else `None`.
+    pub(crate) fn reference_want_origin(&self, sym: u32, memo: &VersionMemo) -> Result<(Want<'a>, Option<(usize, u16)>), LookupError> {
+        let want = self.reference_want_with(sym, Some(memo))?;
+        let Want::Reference(name) = want else { return Ok((want, None)) };
+        let (Some(vs), Some(tab)) = (self.versym, self.dynm.strtab()) else { return Ok((want, None)) };
+        let index = vs.get(sym)?.index;
+        // A definition of this object with this index matches exactly when its version name (the
+        // definition side's answer) is the very bytes the reference names. Asked through the memo; an
+        // error here only gives no origin, so a lookup that never reaches this object's definitions
+        // meets no error it did not meet before.
+        let own = matches!(self.memo_name(Some(memo), index, false), Ok(Some(d)) if core::ptr::eq(d, name));
+        Ok((want, own.then_some((tab.as_ptr().addr(), index))))
+    }
+
     /// The version name a reference with index `index` names: a requirement's, else one of the
     /// object's own definitions.
     fn reference_name(&self, index: u16) -> Result<Option<&'a [u8]>, LookupError> {
@@ -436,23 +466,7 @@ impl<'a> Object<'a> {
     /// The candidates for `req` in the hash chain, as symbol indices (one error ends the walk).
     fn for_each_candidate(&self, req: &Request<'_>, mut f: impl FnMut(u32) -> Result<bool, LookupError>) -> Result<(), LookupError> {
         match self.hash {
-            Hash::Gnu(g) => {
-                let h = req.gnu;
-                let words = g.bloom_size();
-                let wi = usize::try_from(h.wrapping_shr(6)).ok().and_then(|w| w.checked_rem(words)).unwrap_or(0);
-                let word = g.bloom_word(wi).ok_or(ElfError::BadHashHeader(crate::elf::Table::GnuHash))?;
-                let second = u64::from(h).checked_shr(g.bloom_shift()).unwrap_or(0) & 63;
-                let mask = 1u64.wrapping_shl(h & 63) | 1u64.wrapping_shl(u32::try_from(second).unwrap_or(0));
-                if word & mask != mask {
-                    return Ok(());
-                }
-                for e in g.chain(h) {
-                    let e = e?;
-                    if (e.hash | 1) == (h | 1) && f(e.sym)? {
-                        return Ok(());
-                    }
-                }
-            }
+            Hash::Gnu(g) => g.candidates(req.gnu, f)?,
             Hash::Sysv(s) => {
                 for i in s.chain(req.sysv()) {
                     if f(i?)? {
@@ -474,7 +488,11 @@ impl<'a> Object<'a> {
         let mut best: Option<Def> = None;
         self.for_each_candidate(req, |i| {
             let st = self.symtab.get(i)?;
-            if !(exported(&st) || self.canonical_entry(i)) || self.dynm.string(u64::from(st.name))? != req.name {
+            if !(exported(&st) || self.canonical_entry(i)) {
+                return Ok(false);
+            }
+            let same = if req.plain { self.dynm.string_is(st.name, req.name)? } else { self.dynm.string(u64::from(st.name))? == req.name };
+            if !same {
                 return Ok(false);
             }
             let (version, hidden) = match self.versym {
@@ -516,7 +534,9 @@ impl<'a> Object<'a> {
                     Ok(ok)
                 }
                 Want::Reference(name) => {
+                    let mine = |&(tab, index): &(usize, u16)| index == version && self.dynm.strtab().is_some_and(|t| t.as_ptr().addr() == tab);
                     let exact = self.versym.is_none()
+                        || (version > VER_NDX_GLOBAL && req.origin.as_ref().is_some_and(mine))
                         || (version > VER_NDX_GLOBAL
                             && self.memo_name(req.memo, version, false)?.ok_or(LookupError::UnknownVersion { sym: i, index: version })? == name);
                     if exact {

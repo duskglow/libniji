@@ -963,6 +963,44 @@ impl<'a> Dynamic<'a> {
         rest.get(..n).ok_or(ElfError::StringUnterminated(off))
     }
 
+    /// [`Dynamic::string`] at `off` and the GNU hash of it (`symbols::gnu_hash`), found in one pass
+    /// over its bytes (LD-LOOKUP-COST: a relocation's name was scanned for its end, then hashed).
+    ///
+    /// # Errors
+    ///
+    /// As [`Dynamic::string`].
+    pub(crate) fn hashed_string(&self, off: u32) -> Result<(&'a [u8], u32), ElfError> {
+        let off = u64::from(off);
+        let tab = self.strtab.ok_or(ElfError::MissingStrtab)?;
+        let rest = usize::try_from(off).ok().and_then(|o| tab.get(o..)).filter(|r| !r.is_empty()).ok_or(ElfError::StringOutOfRange(off))?;
+        let mut h = 5381u32;
+        for (n, &c) in rest.iter().enumerate() {
+            if c == 0 {
+                return rest.get(..n).map(|s| (s, h)).ok_or(ElfError::StringUnterminated(off));
+            }
+            h = h.wrapping_mul(33).wrapping_add(u32::from(c));
+        }
+        Err(ElfError::StringUnterminated(off))
+    }
+
+    /// Whether [`Dynamic::string`] at `off` is `name`, which holds no NUL (the caller's promise), with
+    /// the same errors. A string table that ends in a NUL (as every linker writes one) terminates every
+    /// string in range, so the bytes are compared in place, without a scan for the end first.
+    ///
+    /// # Errors
+    ///
+    /// As [`Dynamic::string`].
+    #[inline]
+    pub(crate) fn string_is(&self, off: u32, name: &[u8]) -> Result<bool, ElfError> {
+        let tab = self.strtab.ok_or(ElfError::MissingStrtab)?;
+        let start = usize::try_from(off).ok().filter(|&o| o < tab.len()).ok_or(ElfError::StringOutOfRange(u64::from(off)))?;
+        if tab.last() != Some(&0) {
+            return Ok(self.string(u64::from(off))? == name);
+        }
+        let n = name.len();
+        Ok(start.checked_add(n).and_then(|end| tab.get(start..=end)).is_some_and(|s| s.last() == Some(&0) && s.get(..n) == Some(name)))
+    }
+
     /// The `DT_NEEDED` names in order.
     pub fn needed(&self) -> impl Iterator<Item = Result<&'a [u8], ElfError>> + 'a {
         let d = *self;
@@ -1679,6 +1717,51 @@ impl<'a> GnuHash<'a> {
         GnuChain { h: *self, next: start, done: start == 0 }
     }
 
+    /// The symbols a lookup of the name hashing to `hash` must look at: nothing when the Bloom word
+    /// rejects the hash, else each entry of its chain whose hash matches (bit 0 aside), in order, given
+    /// to `f` until it answers true. The same entries and errors as testing the Bloom word, then
+    /// [`GnuHash::chain`] filtered by hash: a Bloom word past the table is
+    /// [`ElfError::BadHashHeader`], a chain word past the mapped bytes [`ElfError::HashIndex`]. One
+    /// loop over the chain's bytes, without the iterator's state (LD-LOOKUP-COST: every object ahead
+    /// of the definer in the scope pays this walk on every lookup).
+    ///
+    /// # Errors
+    ///
+    /// Those above, and the first error of `f`.
+    #[inline]
+    pub(crate) fn candidates<E: From<ElfError>>(&self, hash: u32, mut f: impl FnMut(u32) -> Result<bool, E>) -> Result<(), E> {
+        let wi = usize::try_from(hash.wrapping_shr(6)).ok().and_then(|w| w.checked_rem(self.bloom_size())).unwrap_or(0);
+        let word = self.bloom_word(wi).ok_or(ElfError::BadHashHeader(Table::GnuHash))?;
+        let second = u64::from(hash).checked_shr(self.bloom_shift).unwrap_or(0) & 63;
+        let mask = 1u64.wrapping_shl(hash & 63) | 1u64.wrapping_shl(u32::try_from(second).unwrap_or(0));
+        if word & mask != mask {
+            return Ok(());
+        }
+        let mut sym = hash.checked_rem(self.nbuckets).and_then(|b| self.bucket(b)).unwrap_or(0);
+        if sym == 0 {
+            return Ok(());
+        }
+        let chain = usize::try_from(self.chain_at).ok().and_then(|c| self.tab.get(c..)).unwrap_or(&[]);
+        let Some(rel) = sym.checked_sub(self.symoffset) else { return Err(ElfError::HashIndex(Table::GnuHash, sym).into()) };
+        let mut at = usize::try_from(rel).ok().and_then(|r| r.checked_mul(4)).ok_or(ElfError::HashIndex(Table::GnuHash, sym))?;
+        loop {
+            let Some(w) = chain.get(at..).and_then(<[u8]>::first_chunk::<4>) else { return Err(ElfError::HashIndex(Table::GnuHash, sym).into()) };
+            let word = if self.be { u32::from_be_bytes(*w) } else { u32::from_le_bytes(*w) };
+            let last = word & 1 == 1;
+            if !last && sym == u32::MAX {
+                return Err(ElfError::HashIndex(Table::GnuHash, sym).into());
+            }
+            if (word | 1) == (hash | 1) && f(sym)? {
+                return Ok(());
+            }
+            if last {
+                return Ok(());
+            }
+            sym = sym.wrapping_add(1);
+            at = at.checked_add(4).ok_or(ElfError::HashIndex(Table::GnuHash, sym))?;
+        }
+    }
+
     /// The number of dynamic symbols the table covers: one past the end of the chain that starts at
     /// the highest bucket, or `symoffset` when every bucket is empty.
     ///
@@ -1872,11 +1955,24 @@ impl Symtab<'_> {
         if self.count.is_some_and(|c| i >= c) {
             return Err(bad);
         }
+        // One bounds check for the whole entry, then fixed-offset fields (LD-LOOKUP-COST: a lookup
+        // reads a symbol per hash candidate and per relocation).
         let at = usize::try_from(i).ok().and_then(|n| n.checked_mul(SYM_SIZE)).ok_or(bad)?;
-        let e = Rd { b: sub(self.rd.b, u64::try_from(at).map_err(|_| bad)?, 24).ok_or(bad)?, be: self.rd.be };
-        let [info, other] = e.bytes::<2>(4).ok_or(bad)?;
-        let (name, shndx) = (e.u32(0).ok_or(bad)?, e.u16(6).ok_or(bad)?);
-        Ok(Sym { name, info, other, shndx, value: e.u64(8).ok_or(bad)?, size: e.u64(16).ok_or(bad)? })
+        let e = self.rd.b.get(at..).and_then(<[u8]>::first_chunk::<SYM_SIZE>).ok_or(bad)?;
+        Ok(Sym::decode(e, self.rd.be))
+    }
+}
+
+impl Sym {
+    /// The symbol in the 24 bytes of an `Elf64_Sym` in byte order `be`.
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    fn decode(e: &[u8; SYM_SIZE], be: bool) -> Sym {
+        let w4 = |a: [u8; 4]| if be { u32::from_be_bytes(a) } else { u32::from_le_bytes(a) };
+        let w8 = |a: [u8; 8]| if be { u64::from_be_bytes(a) } else { u64::from_le_bytes(a) };
+        let shndx = if be { u16::from_be_bytes([e[6], e[7]]) } else { u16::from_le_bytes([e[6], e[7]]) };
+        let (name, value, size) = (w4([e[0], e[1], e[2], e[3]]), w8([e[8], e[9], e[10], e[11], e[12], e[13], e[14], e[15]]), w8([e[16], e[17], e[18], e[19], e[20], e[21], e[22], e[23]]));
+        Sym { name, info: e[4], other: e[5], shndx, value, size }
     }
 }
 

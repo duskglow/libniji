@@ -426,13 +426,14 @@ fn target<'a>(set: &Objects<'_, 'a>, i: usize, sym: u32, copy: bool, unique: &mu
         return Ok(Target { s: value_of(set, i, &st), ifunc: st.kind() == STT_GNU_IFUNC, obj: Some(i), size: st.size });
     }
     let dynm = set.objs.get(i).map(|o| o.dynm).ok_or(RelocError::Lookup(LookupError::NoObject(i)))?;
-    let name = dynm.string(u64::from(st.name)).map_err(RelocError::Elf)?;
-    let want = me.reference_want_with(sym, Some(memo)).map_err(RelocError::Lookup)?;
+    // The name's end and its hash in one pass (LD-LOOKUP-COST).
+    let (name, gnu) = dynm.hashed_string(st.name).map_err(RelocError::Elf)?;
+    let (want, origin) = me.reference_want_origin(sym, memo).map_err(RelocError::Lookup)?;
     let mut scope = Scope::global(set.global);
     if copy {
         scope = scope.excluding(0);
     }
-    match symbols::resolve(set.syms, scope, &Request::new(name, want).with_memo(memo), st.bind() == STB_WEAK, unique) {
+    match symbols::resolve(set.syms, scope, &Request::of_table(name, gnu, want, origin).with_memo(memo), st.bind() == STB_WEAK, unique) {
         Ok(Binding::Defined(f @ Found { obj, def })) => {
             unique.bound(i, &f);
             Ok(Target { s: value_of(set, obj, &def.st), ifunc: def.st.kind() == STT_GNU_IFUNC, obj: Some(obj), size: def.st.size })
