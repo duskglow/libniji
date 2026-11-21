@@ -1305,6 +1305,7 @@ fn finish_archive(root: &Path, archive: &Path, product: &Path, out: &Path, layou
         ));
     }
     println!("so: {} GOT operands of add/cmp/... marked relaxable in {} members, {} plain GOTPCREL left (D-X.140)", got.marked, got.members, got.left);
+    insert_static_anchors(root, &staged, &product.join("anchor-work"))?;
     rust_symbols_stay_local(&staged)?;
     check_archive_elf(&staged)?;
     boot_anchor_pc_relative(&staged)?;
@@ -1507,19 +1508,142 @@ pub fn rodata1_anchor_errors(readelf: &str, nm: &str, align: u64) -> Result<(), 
 }
 
 /// `niji-crt1.o` in `dir`, assembled for the `libc.a` there; returns its `-D` cluster alignments.
-fn build_crt1(root: &Path, cc: &str, dir: &Path) -> Result<Vec<String>, String> {
-    // Each start-up data cluster's start alignment, from its size over the whole archive (D-X.64).
-    let aligns = crate::startup_ro::cluster_aligns(&dir.join("libc.a"))?;
-    println!("so: start-up data cluster alignments {}", aligns.iter().map(|(d, a)| format!("{d}={a}")).collect::<Vec<_>>().join(" "));
-    let defines: Vec<String> = aligns.iter().map(|(d, a)| format!("-D{d}={a}")).collect();
+fn build_crt1(root: &Path, cc: &str, dir: &Path) -> Result<(), String> {
     let crt1 = tmp_name(&dir.join("niji-crt1.o"));
-    run(Command::new(cc).arg("-c").args(&defines).arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&crt1))?;
-    check_group_end(&crt1)?;
-    publish(&crt1, &dir.join("niji-crt1.o"))?;
-    Ok(defines)
+    run(Command::new(cc).arg("-c").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&crt1))?;
+    check_start_file(&crt1)?;
+    publish(&crt1, &dir.join("niji-crt1.o"))
 }
 
-/// LAYOUT-WINDOW-BINS-5: the start object ends the window bins with an empty section named
+/// CRT-START-FILES (GitHub #27): the static-link anchors, libc.a's first two members (`entry.S`
+/// assembled with `-DNIJI_STATIC_ANCHOR`): (member name, the start symbol it defines, static PIE). Each
+/// holds the start-up data clusters' empty anchor sections and the text group's end, which the start
+/// objects held before, so that only a static link (the one link that reads libc.a) gets them.
+const STATIC_ANCHORS: [(&str, &str, bool); 2] = [("niji_static_anchor.o", "__libc_start_main", false), ("niji_static_pie_anchor.o", STATIC_PIE_START, true)];
+
+/// Whether `file` (a link map's input, `.../libc.a(<member>)`) is one of the [`STATIC_ANCHORS`].
+pub fn static_anchor_member(file: &str) -> bool {
+    STATIC_ANCHORS.iter().any(|a| file.ends_with(&format!("libc.a({})", a.0)))
+}
+
+/// Assembles the [`STATIC_ANCHORS`] (each start-up data cluster's start alignment from its size over the
+/// whole archive, D-X.64) and inserts them ahead of every other member of `archive`, in that order: a
+/// static link takes the first member of the index that defines a symbol still undefined, and the start
+/// object leaves exactly the anchor's start symbol undefined, so the anchor is libc.a's first input.
+fn insert_static_anchors(root: &Path, archive: &Path, work: &Path) -> Result<(), String> {
+    let aligns = crate::startup_ro::cluster_aligns(archive)?;
+    println!("so: start-up data cluster alignments {}", aligns.iter().map(|(d, a)| format!("{d}={a}")).collect::<Vec<_>>().join(" "));
+    let defines: Vec<String> = aligns.iter().map(|(d, a)| format!("-D{d}={a}")).collect();
+    let (cc, ar) = (std::env::var("CC").unwrap_or_else(|_| "cc".into()), std::env::var("AR").unwrap_or_else(|_| "ar".into()));
+    let _ = fs::remove_dir_all(work);
+    fs::create_dir_all(work).map_err(|e| format!("{}: {e}", work.display()))?;
+    let members = |a: &Path| -> Result<Vec<String>, String> {
+        let o = Command::new(&ar).arg("t").arg(a).output().map_err(|e| format!("{ar} t: {e}"))?;
+        Ok(String::from_utf8_lossy(&o.stdout).lines().map(str::to_string).collect())
+    };
+    let first = members(archive)?.into_iter().next().ok_or_else(|| format!("{}: an empty archive", archive.display()))?;
+    let mut objs = Vec::new();
+    for (name, sym, pie) in STATIC_ANCHORS {
+        let o = work.join(name);
+        let mut c = Command::new(&cc);
+        c.arg("-c").arg("-DNIJI_STATIC_ANCHOR").args(&defines).arg(format!("-DNIJI_START_TARGET={OWN_PREFIX}{sym}"));
+        if pie {
+            c.arg("-DNIJI_STATIC_PIE");
+        }
+        run(c.arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&o))?;
+        check_group_end(&o)?;
+        objs.push(o);
+    }
+    run(Command::new(&ar).arg("rb").arg(&first).arg(archive).args(&objs))?;
+    let now = members(archive)?;
+    let want: Vec<&str> = STATIC_ANCHORS.iter().map(|a| a.0).collect();
+    if now.iter().take(2).map(String::as_str).ne(want.iter().copied()) {
+        return Err(format!("{}: the static anchors {want:?} are not the first members ({:?})", archive.display(), now.iter().take(3).collect::<Vec<_>>()));
+    }
+    let _ = fs::remove_dir_all(work);
+    Ok(())
+}
+
+/// The largest section alignment a start object may have: its `_start`'s 64 bytes (CRT-START-FILES).
+const START_FILE_ALIGN: u64 = 64;
+/// The global definitions a start object may export (a hidden one, such as `niji_eh_frame_start`,
+/// exports nothing): `_start`, the data symbols, and gcrt1's `__gmon_start__`.
+const START_FILE_EXPORTS: [&str; 5] = ["_start", "__data_start", "data_start", "_IO_stdin_used", "__gmon_start__"];
+
+/// CRT-START-FILES (GitHub #27): a start object holds what a program needs of it and nothing that
+/// shapes the program beyond that (`readelf -SW -nW -sW` of `obj`, and `_start`'s first bytes).
+fn check_start_file(obj: &Path) -> Result<(), String> {
+    let text = |args: &[&str]| -> Result<String, String> {
+        let o = Command::new("readelf").args(args).arg(obj).output().map_err(|e| format!("readelf: {e}"))?;
+        Ok(String::from_utf8_lossy(&o.stdout).into_owned())
+    };
+    let errors = start_file_errors(&text(&["-SW"])?, &text(&["-nW"])?, &text(&["-sW"])?, &text(&["-x", ".text.startup._start"])?);
+    match errors.is_empty() {
+        true => Ok(()),
+        false => Err(format!("{}: {} (CRT-START-FILES, csys/src/machine/entry.S)", obj.display(), errors.join("; "))),
+    }
+}
+
+/// The check of [`check_start_file`] on readelf's text: every section aligned to at most
+/// [`START_FILE_ALIGN`]; the x86 feature (IBT, SHSTK) and ISA (baseline) properties (x86-64 psABI) and the
+/// ABI tag (LSB: Linux 3.2.0); `_start` beginning with `endbr64` (the IBT property's promise);
+/// `__data_start` global and `data_start` weak, both in `.data`; `_IO_stdin_used` a global 4-byte object;
+/// no other exported definition than [`START_FILE_EXPORTS`].
+pub fn start_file_errors(sections: &str, notes: &str, symbols: &str, start: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for l in sections.lines() {
+        let Some((_, rest)) = l.trim_start().strip_prefix('[').and_then(|r| r.split_once(']')) else { continue };
+        let f: Vec<&str> = rest.split_whitespace().collect();
+        let (Some(name), Some(align)) = (f.first(), f.last().and_then(|a| a.parse::<u64>().ok())) else { continue };
+        if f.len() >= 8 && align > START_FILE_ALIGN {
+            errors.push(format!("section {name} aligned to {align} (at most {START_FILE_ALIGN})"));
+        }
+    }
+    let note = |kind: &str, want: &str| notes.lines().any(|l| l.contains(kind) && l.contains(want));
+    if !note("NT_GNU_PROPERTY_TYPE_0", "x86 feature: IBT, SHSTK") || !notes.contains("x86 ISA needed: x86-64-baseline") {
+        errors.push("no .note.gnu.property with the IBT, SHSTK and x86-64-baseline properties".into());
+    }
+    if !note("NT_GNU_ABI_TAG", "OS: Linux, ABI: 3.2.0") {
+        errors.push("no .note.ABI-tag (Linux, 3.2.0)".into());
+    }
+    if !start.lines().any(|l| l.trim_start().starts_with("0x00000000 f30f1efa")) {
+        errors.push("_start does not begin with endbr64".into());
+    }
+    let mut data = None;
+    let mut have = BTreeSet::new();
+    for l in sections.lines() {
+        if let Some((ndx, rest)) = l.trim_start().strip_prefix('[').and_then(|r| r.split_once(']')) {
+            if rest.split_whitespace().next() == Some(".data") {
+                data = Some(ndx.trim().to_string());
+            }
+        }
+    }
+    for l in symbols.lines() {
+        // Num: Value Size Type Bind Vis Ndx Name
+        let f: Vec<&str> = l.split_whitespace().collect();
+        let [_, _, size, ty, bind, vis, ndx, name] = f[..] else { continue };
+        if ndx == "UND" || !matches!(bind, "GLOBAL" | "WEAK") {
+            continue;
+        }
+        have.insert((name, bind, ty, size, ndx == data.as_deref().unwrap_or("?")));
+        if vis == "DEFAULT" && !START_FILE_EXPORTS.contains(&name) {
+            errors.push(format!("exports {name}"));
+        }
+    }
+    let has = |name: &str, ok: &dyn Fn(&str, &str, &str, bool) -> bool| have.iter().any(|&(n, b, t, s, d)| n == name && ok(b, t, s, d));
+    if !has("__data_start", &|b, _, _, d| b == "GLOBAL" && d) {
+        errors.push("no global __data_start in .data".into());
+    }
+    if !has("data_start", &|b, _, _, d| b == "WEAK" && d) {
+        errors.push("no weak data_start in .data".into());
+    }
+    if !has("_IO_stdin_used", &|b, t, s, _| b == "GLOBAL" && t == "OBJECT" && s == "4") {
+        errors.push("no global 4-byte object _IO_stdin_used".into());
+    }
+    errors
+}
+
+/// LAYOUT-WINDOW-BINS-5: the static-link anchor ends the window bins with an empty section named
 /// [`crate::bins::GROUP_END`] aligned to [`crate::bins::BIN`] (`entry.S`), or the program's text after the
 /// group starts wherever the last bin ends.
 fn check_group_end(obj: &Path) -> Result<(), String> {
@@ -1668,23 +1792,26 @@ pub fn run_so_as(root: &Path, profile: Profile) -> Result<(), String> {
     phases.mark("libc-link");
 
     // 4. The start object.
-    let defines = build_crt1(root, &cc, &release)?;
+    build_crt1(root, &cc, &release)?;
     // The static-PIE start object (D-27.10): the same file, calling the relocating start.
     let rcrt1 = tmp_name(&release.join("niji-rcrt1.o"));
-    run(Command::new(&cc).arg("-c").arg("-DNIJI_STATIC_PIE").args(&defines).arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&rcrt1))?;
+    run(Command::new(&cc).arg("-c").arg("-DNIJI_STATIC_PIE").arg(root.join("csys/src/machine/entry.S")).arg("-o").arg(&rcrt1))?;
     start_object_pc_relative(&rcrt1)?;
+    check_start_file(&rcrt1)?;
     publish(&rcrt1, &release.join("niji-rcrt1.o"))?;
     // The profiling start object for `-pg` programs (GCRT1-START): the same `_start`, plus
     // `__gmon_start__` in `.preinit_array` (monstartup over the text, atexit(_mcleanup)).
     let gcrt1 = tmp_name(&release.join("niji-gcrt1.o"));
     run(Command::new(&cc).arg("-c").arg(root.join("csys/start/gcrt1.S")).arg("-o").arg(&gcrt1))?;
+    check_start_file(&gcrt1)?;
     publish(&gcrt1, &release.join("niji-gcrt1.o"))?;
     // SL-CRT: the `-pg -static-pie` start object, the same file over the static-PIE `_start`
     // (checked like `niji-rcrt1.o`), and the objects every driver link adds: crti.o and crtn.o
     // (the `.init`/`.fini` prologue and epilogue) and Mcrt1.o (no content: no driver names it).
     let grcrt1 = tmp_name(&release.join("niji-grcrt1.o"));
-    run(Command::new(&cc).arg("-c").arg("-DNIJI_STATIC_PIE").args(&defines).arg(root.join("csys/start/gcrt1.S")).arg("-o").arg(&grcrt1))?;
+    run(Command::new(&cc).arg("-c").arg("-DNIJI_STATIC_PIE").arg(root.join("csys/start/gcrt1.S")).arg("-o").arg(&grcrt1))?;
     start_object_pc_relative(&grcrt1)?;
+    check_start_file(&grcrt1)?;
     publish(&grcrt1, &release.join("niji-grcrt1.o"))?;
     for name in START_FILES {
         let out = tmp_name(&release.join(format!("niji-{name}.o")));
@@ -3099,6 +3226,76 @@ mod tests {
         let low = "  [ 8] .text.sorted.h9z.niji_group_end PROGBITS 0000000000000000 000040 000000 00  AX  0   0 1\n";
         assert_eq!(group_end_align(low), Some(1));
         assert_eq!(group_end_align("  [ 7] .data.rel.ro.local PROGBITS 0 40 0 00 WA 0 0 65536\n"), None);
+    }
+
+    /// readelf's text of a good start object (CRT-START-FILES): sections, notes, symbols, `_start`'s bytes.
+    const START_SECS: &str = "  [Nr] Name Type Address Off Size ES Flg Lk Inf Al\n  [ 1] .note.gnu.property NOTE 0000000000000000 000040 000030 00   A  0   0  8\n  [ 3] .data PROGBITS 0000000000000000 000080 000004 00  WA  0   0  1\n  [ 6] .text.startup._start PROGBITS 0000000000000000 0000c0 000026 00  AX  0   0 64\n";
+    const START_NOTES: &str = "  GNU                  0x00000020\tNT_GNU_PROPERTY_TYPE_0\t      Properties: x86 feature: IBT, SHSTK, x86 ISA needed: x86-64-baseline\n  GNU                  0x00000010\tNT_GNU_ABI_TAG (ABI version tag)\t    OS: Linux, ABI: 3.2.0\n";
+    const START_SYMS: &str = "     3: 0000000000000000    38 FUNC    GLOBAL DEFAULT    6 _start\n     4: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT    3 __data_start\n     5: 0000000000000000     0 NOTYPE  WEAK   DEFAULT    3 data_start\n     6: 0000000000000000     4 OBJECT  GLOBAL DEFAULT    4 _IO_stdin_used\n     7: 0000000000000000     0 NOTYPE  GLOBAL HIDDEN     5 niji_eh_frame_start\n     8: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND main\n";
+    const START_CODE: &str = "Hex dump of section '.text.startup._start':\n  0x00000000 f30f1efa 31ed4989 d15e4889 e24883e4 ....1.I..^H..H..\n";
+
+    #[test]
+    fn start_file_check_names_each_missing_or_extra_piece() {
+        // CRT-START-FILES (GitHub #27; x86-64 psABI program properties, LSB ABI note tag; no spec clause: product
+        // checks): the good object passes; each defect is named.
+        assert_eq!(start_file_errors(START_SECS, START_NOTES, START_SYMS, START_CODE), Vec::<String>::new());
+        let wide = format!("{START_SECS}  [ 7] .rodata1 PROGBITS 0000000000000000 010000 000000 00   A  0   0 65536\n");
+        assert_eq!(start_file_errors(&wide, START_NOTES, START_SYMS, START_CODE), ["section .rodata1 aligned to 65536 (at most 64)"]);
+        let no_prop = START_NOTES.replace("IBT, SHSTK, ", "");
+        assert!(start_file_errors(START_SECS, &no_prop, START_SYMS, START_CODE)[0].contains("no .note.gnu.property"));
+        let no_tag = START_NOTES.lines().next().unwrap();
+        assert_eq!(start_file_errors(START_SECS, no_tag, START_SYMS, START_CODE), ["no .note.ABI-tag (Linux, 3.2.0)"]);
+        assert_eq!(start_file_errors(START_SECS, START_NOTES, START_SYMS, &START_CODE.replace("f30f1efa ", "")), ["_start does not begin with endbr64"]);
+        let strong = START_SYMS.replace("WEAK   DEFAULT    3 data_start", "GLOBAL DEFAULT    3 data_start");
+        assert_eq!(start_file_errors(START_SECS, START_NOTES, &strong, START_CODE), ["no weak data_start in .data"]);
+        let elsewhere = START_SYMS.replace("DEFAULT    3 __data_start", "DEFAULT    4 __data_start");
+        assert_eq!(start_file_errors(START_SECS, START_NOTES, &elsewhere, START_CODE), ["no global __data_start in .data"]);
+        let wide_io = START_SYMS.replace("    4 OBJECT", "    8 OBJECT");
+        assert_eq!(start_file_errors(START_SECS, START_NOTES, &wide_io, START_CODE), ["no global 4-byte object _IO_stdin_used"]);
+        let extra = START_SYMS.replace("GLOBAL HIDDEN     5 niji_eh_frame_start", "GLOBAL DEFAULT    5 niji_eh_frame_start");
+        assert_eq!(start_file_errors(START_SECS, START_NOTES, &extra, START_CODE), ["exports niji_eh_frame_start"]);
+    }
+
+    #[test]
+    fn start_files_and_static_anchors_assemble_as_checked() {
+        // CRT-START-FILES (GitHub #27; no spec clause: product checks): the shipped sources, assembled as
+        // `cargo xtask so` assembles them, pass the start-file check (crt1/Scrt1, rcrt1, gcrt1, grcrt1, crti and
+        // crtn carry the property note), and each static anchor holds the group end and its start symbol, weak.
+        if ["cc", "readelf"].iter().any(|t| Command::new(t).arg("--version").output().is_err()) {
+            println!("skipped: no cc or readelf");
+            return;
+        }
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let dir = Dir(std::env::temp_dir().join(format!("niji-start-files-{}", std::process::id())));
+        fs::create_dir_all(&dir.0).unwrap();
+        let asm = |src: &str, defs: &[&str], out: &str| {
+            let o = dir.0.join(out);
+            let st = Command::new("cc").arg("-c").args(defs).arg(root.join(src)).arg("-o").arg(&o).status().unwrap();
+            assert!(st.success(), "cc -c {src} {defs:?}");
+            o
+        };
+        let entry = "csys/src/machine/entry.S";
+        for (src, defs, out) in [(entry, &[][..], "crt1.o"), (entry, &["-DNIJI_STATIC_PIE"][..], "rcrt1.o"), ("csys/start/gcrt1.S", &[][..], "gcrt1.o"), ("csys/start/gcrt1.S", &["-DNIJI_STATIC_PIE"][..], "grcrt1.o")] {
+            assert_eq!(check_start_file(&asm(src, defs, out)), Ok(()), "{out}");
+        }
+        for name in ["crti", "crtn"] {
+            let o = asm(&format!("csys/start/{name}.S"), &[], &format!("{name}.o"));
+            let notes = String::from_utf8_lossy(&Command::new("readelf").arg("-nW").arg(&o).output().unwrap().stdout).into_owned();
+            assert!(notes.contains("x86 feature: IBT, SHSTK") && notes.contains("x86-64-baseline"), "{name}.o: {notes}");
+        }
+        for (name, sym, pie) in STATIC_ANCHORS {
+            let target = format!("-DNIJI_START_TARGET={OWN_PREFIX}{sym}");
+            let defs: Vec<&str> = [Some("-DNIJI_STATIC_ANCHOR"), Some(target.as_str()), pie.then_some("-DNIJI_STATIC_PIE")].into_iter().flatten().collect();
+            let o = asm(entry, &defs, name);
+            assert_eq!(check_group_end(&o), Ok(()), "{name}");
+            let syms = String::from_utf8_lossy(&Command::new("readelf").arg("-sW").arg(&o).output().unwrap().stdout).into_owned();
+            let defined: Vec<(&str, &str)> = syms.lines().filter_map(|l| match l.split_whitespace().collect::<Vec<_>>()[..] {
+                [_, _, _, _, bind, _, ndx, n] if ndx != "UND" && matches!(bind, "GLOBAL" | "WEAK") => Some((n, bind)),
+                _ => None,
+            }).collect();
+            assert_eq!(defined, [(sym, "WEAK")], "{name}: defines its start symbol only, weak");
+            assert!(syms.contains(&format!("UND {OWN_PREFIX}{sym}")), "{name}: jumps to {OWN_PREFIX}{sym}");
+        }
     }
 
     struct Dir(std::path::PathBuf);

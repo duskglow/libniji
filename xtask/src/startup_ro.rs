@@ -12,9 +12,9 @@
 //! * the section of every read-only key of the build's traced `startup-data.keys` (objects the page-fault
 //!   trace saw read, such as the ctype tables).
 //!
-//! The start object (`csys/src/machine/entry.S`, first in every link) holds an empty `.rodata1`
+//! libc.a's static anchor (`csys/src/machine/entry.S`, the first of libc.a's inputs in a static link) holds an empty `.rodata1`
 //! aligned to [`ALIGN`]: the linker aligns an output section to the largest alignment of its input
-//! sections, and the start object's comes first, so the group starts on an [`ALIGN`] boundary. With
+//! sections, and the anchor's comes first, so the group starts on an [`ALIGN`] boundary. With
 //! the group no larger than [`ALIGN`] (checked here over the whole archive, an upper bound for any
 //! link) and [`ALIGN`] dividing 64 KiB, the group sits in exactly one window.
 
@@ -346,7 +346,8 @@ fn cluster_aligns_of(listing: &str) -> Vec<(&'static str, u64)> {
             SECTION => 0,
             crate::coldbss::STATE_SECTION => 1,
             // LAYOUT-DATA-CLUSTERS-3 (D-X.67): the whole relro output section (`.data.rel.ro.local*`
-            // and `.data.rel.ro*` inputs, GNU ld's default script), aligned by entry.S's `.data.rel.ro`.
+            // and `.data.rel.ro*` inputs, GNU ld's default script), aligned by the static anchor's empty
+            // `.preinit_array` ahead of it (entry.S, D-X.144).
             n if n.starts_with(".data.rel.ro") => 2,
             _ => continue,
         };

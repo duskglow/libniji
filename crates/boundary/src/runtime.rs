@@ -98,8 +98,8 @@ fn initial_thread<const PIE: bool>(aux: &Auxv<'_>) -> (start::Program, Option<bo
     // UNSAFE(slice): the program headers the kernel mapped with the executable.
     #[allow(unsafe_code)]
     // SAFETY: `AT_PHDR`/`AT_PHNUM` describe the loaded headers (⚑ KERN), which stay mapped.
-    let words = unsafe { conv::words_at(phdr, phnum.saturating_mul(start::PHDR_WORDS)) };
-    let mut prog = start::program(words, phnum, phdr);
+    let heads = unsafe { conv::headers_at(phdr, phnum) };
+    let mut prog = start::program(heads, phdr);
     let mut pie = None;
     if !PIE {
         if prog.bias != 0 {
