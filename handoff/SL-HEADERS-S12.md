@@ -1,24 +1,22 @@
-# SL-HEADERS-S12: slice 12, network core and name services (run 6)
+# SL-HEADERS-S12: slice 12, network core and name services (run 7)
 
-**State.** Branch `task/sl-headers-s12-6`. Say "slice 12" in commits and handoffs. Report: `handoff/reports/SL-HEADERS-S12-6.json`.
-Plants: `handoff/SL-HEADERS-S12-5-plants.txt` (4). Decision record: D-X.124.
+**State.** Branch `task/sl-headers-s12-7` (continues run 6). Say "slice 12" in commits and handoffs. Report:
+`handoff/reports/SL-HEADERS-S12-7.json`. Plants: `handoff/SL-HEADERS-S12-7-plants.txt` (results of the 4 plants of
+`handoff/SL-HEADERS-S12-5-plants.txt`). Decision record: D-X.124.
 
-**Done in run 6.** Merged origin/next (conflicts: `headers/reserved.tsv`, both sides kept; `crates/abi/tests/appendix_c_layouts.rs`
-regenerated with `cargo xtask abi-gen`). Regenerated `libc-include/` (`headers-gen`, 186 headers). Clippy (workspace, all
-targets) and `cargo xtask static` green on the merged head. `header_check.py`: 8 failed of 12831, all `sys/mount.h` P8.
+**Done in run 7.** HEADERS-WINSIZE-TWICE had landed on next, so the run-6 blocker is gone. Merged origin/next (no
+conflicts); `headers-gen` and `abi-gen` on the build host reproduce the committed `libc-include/` and
+`appendix_c_layouts*.rs` byte for byte (no regeneration diff). Clippy (workspace, all targets, all features) and
+`cargo xtask static` green. Direct-tier gate (`affected --base origin/next --run`): 18 suites ok, 11564 tests passed, 0
+failed, 93 conformance passed, including `network_headers_pass_header_check`. Plants: 3 CAUGHT, 0 SURVIVED, 1
+WARN-NO-MSG (`s12-needs-if-include`: caught by `network_headers_pass_header_check`, but the log does not contain the
+`msg:` text `stale under libc-include`; the msg regex wants fixing to the test name). P5 for the 16 slice 12 headers,
+each included twice, under `-std=c89|c99|c11|c17|c2x -pedantic-errors -Wall -Wextra -Werror`: all 80 compile clean
+(one-off script, not committed).
 
-**Blocker, not slice 12's.** The same 8 failures occur on origin/next itself (11659 checks, 8 failed, same lines). `sys/mount.h`
-(slice 15's row, `headers/slices/s15.tsv`) prints `struct winsize` when `__has_include(<sys/ioctl.h>)` is true on the build host:
-the host's own `sys/ioctl.h` is found and also defines it, so `struct winsize` is defined twice. Because of this
-(a) the direct gate fails only in `headers::slices::s12::tests::network_headers_pass_header_check` (it runs the whole-tree
-`header_check.py`); (b) `cargo xtask plants` aborts on its baselines (two of the four plant commands run the whole-tree
-check), so no plant has run on this head. Everything else in the gate was green. Fixing it belongs to the owner of sys/mount.h
-(a guard on the `winsize` emission or the slice-7 tail); that is outside slice 12 (RULING NEEDED).
+**Open.** The `__has_include` guards for `sys/param.h` and `signal.h` go away with SL-HEADERS-S07-TAIL (ruling #6406).
+Kernel-first order is not supported (ruling #6458). The strict-mode namespace check of P5 is not part of this slice.
 
-**Open.** P5 c89 / `-pedantic` for the slice's headers is not run. The `__has_include` guards for `sys/param.h` and `signal.h`
-go away with SL-HEADERS-S07-TAIL (ruling #6406). Kernel-first order is not supported (ruling #6458).
+**Things not to redo.** Probe classes in `handoff/SL-HEADERS-S12/accept.py`; merge resolution; regenerated headers; P5.
 
-**Things not to redo.** Probe classes accepted in `handoff/SL-HEADERS-S12/accept.py`; the merge resolution; the regenerated headers.
-
-**Next step.** When the sys/mount.h `winsize` double definition is fixed on next, merge next, rerun the direct gate and
-`cargo xtask plants handoff/SL-HEADERS-S12-5-plants.txt` (RAM dir new), then land; then slice 13.
+**Next step.** Land slice 12, then slice 13.
